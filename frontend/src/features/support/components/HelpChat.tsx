@@ -13,11 +13,14 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { BookOpen, Loader2, RotateCcw, Send } from "lucide-react";
 
 import { paths } from "@/config/paths";
 import { C } from "@/lib/design-tokens";
 import { createManualSearcher, type ManualArticle } from "@/lib/manual-index";
+import { getSafeMarkdownHref } from "@/lib/safe-markdown-href";
 
 import { useClearSupportChatHistory } from "../api/clear-support-chat-history";
 import { useGetSupportChatHistory } from "../api/get-support-chat-history";
@@ -36,6 +39,65 @@ const HISTORY_MAX_MESSAGES = 12;
 const SEND_ERROR_MESSAGE =
   "送信に失敗しました。時間をおいて再度お試しください。マニュアル検索で代わりに調べることもできます。";
 const RESET_ERROR_MESSAGE = "履歴の削除に失敗しました。時間をおいて再度お試しください。";
+
+// アシスタント回答はマークダウンで返るため react-markdown で描画する。
+// ManualContent とは別に、チャット吹き出しのサイズに合わせたコンパクトな
+// components 上書きを使う（モジュール定数: js-cache-function-results / rerender-memo 対策）。
+const CHAT_MARKDOWN_COMPONENTS: Parameters<typeof ReactMarkdown>[0]["components"] = {
+  h1: ({ children }) => <p className="font-semibold mt-2 mb-1">{children}</p>,
+  h2: ({ children }) => <p className="font-semibold mt-2 mb-1">{children}</p>,
+  h3: ({ children }) => <p className="font-semibold mt-2 mb-1">{children}</p>,
+  h4: ({ children }) => <p className="font-semibold mt-2 mb-1">{children}</p>,
+  h5: ({ children }) => <p className="font-semibold mt-2 mb-1">{children}</p>,
+  h6: ({ children }) => <p className="font-semibold mt-2 mb-1">{children}</p>,
+  p: ({ children }) => <p className="my-1.5 first:mt-0 last:mb-0">{children}</p>,
+  ul: ({ children }) => <ul className="list-disc pl-5 my-1.5 space-y-0.5">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal pl-5 my-1.5 space-y-0.5">{children}</ol>,
+  li: ({ children }) => <li>{children}</li>,
+  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+  a: ({ href, children }) => {
+    const safeHref = getSafeMarkdownHref(href);
+    if (!safeHref) {
+      return <span className="underline">{children}</span>;
+    }
+    return (
+      <a
+        href={safeHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`underline ${C.textActionPrimary} hover:opacity-70`}
+      >
+        {children}
+      </a>
+    );
+  },
+  code: ({ className, children }) =>
+    className ? (
+      <code className={`block ${className}`}>{children}</code>
+    ) : (
+      <code className={`px-1 py-0.5 rounded-xxs text-[0.875em] ${C.bgHoverMd}`}>{children}</code>
+    ),
+  pre: ({ children }) => (
+    <pre className={`my-1.5 p-2 rounded-xxs overflow-x-auto text-2xs ${C.bgHoverMd}`}>
+      {children}
+    </pre>
+  ),
+  blockquote: ({ children }) => (
+    <blockquote className={`my-1.5 pl-3 border-l-2 italic ${C.text65} ${C.borderDivider}`}>
+      {children}
+    </blockquote>
+  ),
+  hr: () => <hr className={`my-2 border-t ${C.borderDivider}`} />,
+  table: ({ children }) => (
+    <div className="my-1.5 overflow-x-auto">
+      <table className={`w-full text-2xs border ${C.borderDivider}`}>{children}</table>
+    </div>
+  ),
+  th: ({ children }) => (
+    <th className={`px-2 py-1 text-left font-semibold border ${C.borderDivider}`}>{children}</th>
+  ),
+  td: ({ children }) => <td className={`px-2 py-1 border ${C.borderDivider}`}>{children}</td>,
+};
 
 /** 保存済みメッセージを表示用ターンに変換する（エラー/再送情報は保存対象外） */
 function toHistoryTurn(record: SupportChatHistoryRecord): SupportChatTurn {
@@ -210,14 +272,20 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
                 className={
                   turn.role === "user"
                     ? `self-end max-w-[85%] rounded-lg rounded-br-xxs ${C.bgActionPrimary} ${C.textOnActionPrimary} px-3 py-2 text-sm whitespace-pre-wrap break-words`
-                    : `self-start max-w-[85%] rounded-lg rounded-bl-xxs px-3 py-2 text-sm whitespace-pre-wrap break-words ${
+                    : `self-start max-w-[85%] rounded-lg rounded-bl-xxs px-3 py-2 text-sm break-words ${
                         turn.isError === true
                           ? `border ${C.borderDanger} ${C.danger}`
                           : `${C.bgMuted} ${C.text}`
                       }`
                 }
               >
-                {turn.content}
+                {turn.role === "assistant" ? (
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={CHAT_MARKDOWN_COMPONENTS}>
+                    {turn.content}
+                  </ReactMarkdown>
+                ) : (
+                  turn.content
+                )}
                 {turn.isError === true && turn.retryMessage !== undefined ? (
                   <button
                     type="button"
@@ -294,10 +362,7 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
           <Send className="size-4" aria-hidden="true" />
         </button>
       </form>
-      <div className="flex items-end justify-between gap-2">
-        <p className={`text-2xs ${C.textMuted}`}>
-          患者・飼主の氏名など個人情報は入力しないでください(外部AIへ送信されます)。
-        </p>
+      <div className="flex items-end justify-end gap-2">
         {turns.length > 0 ? (
           <button
             type="button"

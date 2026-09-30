@@ -155,6 +155,28 @@ describe("HelpChat", () => {
     expect(link).toHaveAttribute("href", "/manual/screens/accounting");
   });
 
+  it("アシスタント回答のマークダウン記法はレンダリングされて表示される", async () => {
+    const user = userEvent.setup();
+    render(<HelpChat articles={articles} onClose={() => {}} />, { wrapper: createWrapper() });
+
+    await user.type(screen.getByLabelText("使い方を質問"), "予約の変更方法は？");
+    await user.click(screen.getByRole("button", { name: "送信" }));
+
+    await act(async () => {
+      callOptions().onSuccess?.({
+        reply: "**新規予約登録:**\n\n1. サイドバー「予約管理」をクリック\n2. 日時を選択",
+        sources: [],
+      });
+    });
+
+    // `**` は <strong> として描画され、生の記号文字は表示されない
+    expect(await screen.findByText("新規予約登録:")).toBeInTheDocument();
+    expect(screen.queryByText(/\*\*新規予約登録/)).not.toBeInTheDocument();
+    // 番号付きリストが <ol>/<li> 構造になる
+    expect(screen.getByRole("list")).toBeInTheDocument();
+    expect(screen.getByText("サイドバー「予約管理」をクリック").closest("li")).not.toBeNull();
+  });
+
   it("送信失敗時はインラインのエラーメッセージを表示する", async () => {
     const user = userEvent.setup();
     render(<HelpChat articles={articles} onClose={() => {}} />, { wrapper: createWrapper() });
