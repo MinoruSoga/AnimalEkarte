@@ -36,8 +36,6 @@ vi.mock("@/hooks/use-sortable-list", () => ({
 
 vi.mock("@/components/shared/DataTable/DataTable", () => ({
   DataTable: () => null,
-  DESIGN_TABLE_HEADER_ROW: "",
-  DESIGN_TABLE_HEADER_CELL: "",
 }));
 
 vi.mock("@/components/shared/PropertyFilter/PropertyFilter", () => ({

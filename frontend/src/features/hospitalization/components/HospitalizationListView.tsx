@@ -3,11 +3,7 @@ import { memo } from "react";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
-import {
-  DataTable,
-  DESIGN_TABLE_HEADER_ROW,
-  DESIGN_TABLE_HEADER_CELL,
-} from "@/components/shared/DataTable/DataTable";
+import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
@@ -51,8 +47,8 @@ export const HospitalizationListView = memo(function HospitalizationListView({
 }: HospitalizationListViewProps) {
   return (
     <DataTable
-      headerRowClassName={DESIGN_TABLE_HEADER_ROW}
-      headerCellClassName={DESIGN_TABLE_HEADER_CELL}
+      headerRowClassName={STYLE.tableHeaderRow}
+      headerCellClassName={STYLE.sectionLabel}
       columns={COLUMNS}
       data={hospitalizations}
       emptyMessage="入院データがありません"

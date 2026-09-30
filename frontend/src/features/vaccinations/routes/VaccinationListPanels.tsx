@@ -8,11 +8,7 @@ import type {
 import { TableCell } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
-import {
-  DataTable,
-  DESIGN_TABLE_HEADER_ROW,
-  DESIGN_TABLE_HEADER_CELL,
-} from "@/components/shared/DataTable/DataTable";
+import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown/RowActionDropdown";
@@ -21,7 +17,7 @@ import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { useGetPet } from "@/hooks/use-pet";
 import { isPastJSTDate } from "@/lib/jst-date";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { VaccinationRecord } from "@/types";
 import { VACCINATION_SORT_PROPERTIES, vaccinationListDetailHref } from "./vaccinations-list-model";
 
@@ -260,8 +256,8 @@ export function VaccinationListContent({
 
       <FilteringIndicator isFiltering={isFiltering}>
         <DataTable
-          headerRowClassName={DESIGN_TABLE_HEADER_ROW}
-          headerCellClassName={DESIGN_TABLE_HEADER_CELL}
+          headerRowClassName={STYLE.tableHeaderRow}
+          headerCellClassName={STYLE.sectionLabel}
           columns={columns}
           data={pagination.paginatedData}
           emptyMessage="データが見つかりません"

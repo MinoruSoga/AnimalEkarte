@@ -1,9 +1,5 @@
 import { useDeferredValue, useMemo, useState } from "react";
-import {
-  DataTable,
-  DESIGN_TABLE_HEADER_ROW,
-  DESIGN_TABLE_HEADER_CELL,
-} from "@/components/shared/DataTable/DataTable";
+import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
@@ -19,6 +15,7 @@ import {
   TRIMMING_OPTION_COLUMNS,
   filterTrimmingItems,
 } from "../lib/trimming-tabs-model";
+import { STYLE } from "@/lib/design-tokens";
 
 interface TrimmingCourseTabProps {
   onEditTargetChange: (value: TrimmingCourse | "new" | null) => void;
@@ -50,8 +47,8 @@ export function TrimmingCourseTab({ onEditTargetChange, canEdit }: TrimmingCours
       />
 
       <DataTable
-        headerRowClassName={DESIGN_TABLE_HEADER_ROW}
-        headerCellClassName={DESIGN_TABLE_HEADER_CELL}
+        headerRowClassName={STYLE.tableHeaderRow}
+        headerCellClassName={STYLE.sectionLabel}
         columns={TRIMMING_COURSE_COLUMNS}
         data={filteredItems}
         emptyMessage="トリミングコースが登録されていません"
@@ -98,8 +95,8 @@ export function TrimmingOptionTab({ onEditTargetChange, canEdit }: TrimmingOptio
       />
 
       <DataTable
-        headerRowClassName={DESIGN_TABLE_HEADER_ROW}
-        headerCellClassName={DESIGN_TABLE_HEADER_CELL}
+        headerRowClassName={STYLE.tableHeaderRow}
+        headerCellClassName={STYLE.sectionLabel}
         columns={TRIMMING_OPTION_COLUMNS}
         data={filteredItems}
         emptyMessage="トリミングオプションが登録されていません"

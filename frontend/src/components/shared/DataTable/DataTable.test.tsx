@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { C, STYLE } from "@/lib/design-tokens";
-import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "./DataTable";
+import { DataTable } from "./DataTable";
 import { LIST_TABLE_COL } from "./list-table-col";
 
 interface Row {
@@ -48,7 +48,7 @@ describe("DataTable", () => {
 
     const headerCell = screen.getByRole("columnheader", { name: "名前" });
     expect(headerCell.className).toContain("custom-cell-class");
-    // 置換（併記ではない）ことを保証: 既定の DESIGN_TABLE_HEADER_CELL（sectionLabel）由来の uppercase は残らない
+    // 置換（併記ではない）ことを保証: 既定の STYLE.sectionLabel（sectionLabel）由来の uppercase は残らない
     // （FE10: TableHead 基底が text-2xs を持つため、基底クラスでなくトークン固有クラスで判定する）
     expect(headerCell.className).not.toContain("uppercase");
 
@@ -75,13 +75,13 @@ describe("DataTable", () => {
     expect(table).toHaveClass("min-w-0");
   });
 
-  it("DESIGN_TABLE_HEADER_ROW/CELL は ex-data-table-cell（canvas-soft + sectionLabel）を構成する", () => {
-    expect(DESIGN_TABLE_HEADER_ROW).toContain(C.bgPage);
-    expect(DESIGN_TABLE_HEADER_ROW).toContain(C.borderLight);
-    expect(DESIGN_TABLE_HEADER_ROW).toContain("h-11");
-    expect(DESIGN_TABLE_HEADER_CELL).not.toContain("h-11");
+  it("STYLE.tableHeaderRow/CELL は ex-data-table-cell（canvas-soft + sectionLabel）を構成する", () => {
+    expect(STYLE.tableHeaderRow).toContain(C.bgPage);
+    expect(STYLE.tableHeaderRow).toContain(C.borderLight);
+    expect(STYLE.tableHeaderRow).toContain("h-11");
+    expect(STYLE.sectionLabel).not.toContain("h-11");
     for (const cls of STYLE.sectionLabel.split(" ")) {
-      expect(DESIGN_TABLE_HEADER_CELL).toContain(cls);
+      expect(STYLE.sectionLabel).toContain(cls);
     }
   });
 

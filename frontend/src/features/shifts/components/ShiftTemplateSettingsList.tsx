@@ -1,11 +1,7 @@
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
-import {
-  DataTable,
-  DESIGN_TABLE_HEADER_ROW,
-  DESIGN_TABLE_HEADER_CELL,
-} from "@/components/shared/DataTable/DataTable";
+import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { useSortableList } from "@/hooks/use-sortable-list";
@@ -13,6 +9,7 @@ import { useSortableList } from "@/hooks/use-sortable-list";
 import { ShiftTemplateRow } from "./ShiftTemplateSettingsParts";
 import { SHIFT_STATUS_FILTER, SHIFT_TEMPLATE_COLUMNS } from "../lib/shift-template-table-model";
 import type { ShiftTemplate } from "../types";
+import { STYLE } from "@/lib/design-tokens";
 
 type SortableSensors = ReturnType<typeof useSortableList<ShiftTemplate>>["sensors"];
 
@@ -56,8 +53,8 @@ export function ShiftTemplateSettingsList({
           strategy={verticalListSortingStrategy}
         >
           <DataTable
-            headerRowClassName={DESIGN_TABLE_HEADER_ROW}
-            headerCellClassName={DESIGN_TABLE_HEADER_CELL}
+            headerRowClassName={STYLE.tableHeaderRow}
+            headerCellClassName={STYLE.sectionLabel}
             columns={SHIFT_TEMPLATE_COLUMNS}
             data={filteredItems}
             emptyMessage="テンプレートがありません"

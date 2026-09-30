@@ -17,10 +17,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DESIGN_TABLE_HEADER_ROW,
-  DESIGN_TABLE_HEADER_CELL,
-} from "@/components/shared/DataTable/DataTable";
 import { BADGE, C, STYLE, ICON } from "@/lib/design-tokens";
 import { normalizedIncludes } from "@/lib/normalize-kana";
 import { isAutoManagedTag } from "@/constants/lstep-auto-tag-prefixes";
@@ -102,15 +98,13 @@ export function TagSummaryTable({ tags, isLoading, onViewOwners }: TagSummaryTab
       <div className={STYLE.tableContainer}>
         <Table>
           <TableHeader>
-            <TableRow className={DESIGN_TABLE_HEADER_ROW}>
-              <TableHead className={`${DESIGN_TABLE_HEADER_CELL} px-4`}>タグ名</TableHead>
-              <TableHead className={`${DESIGN_TABLE_HEADER_CELL} px-4 w-24 text-right`}>
+            <TableRow className={STYLE.tableHeaderRow}>
+              <TableHead className={`${STYLE.sectionLabel} px-4`}>タグ名</TableHead>
+              <TableHead className={`${STYLE.sectionLabel} px-4 w-24 text-right`}>
                 飼い主数
               </TableHead>
-              <TableHead className={`${DESIGN_TABLE_HEADER_CELL} px-4 w-28`}>種別</TableHead>
-              <TableHead className={`${DESIGN_TABLE_HEADER_CELL} px-4 w-40 text-right`}>
-                操作
-              </TableHead>
+              <TableHead className={`${STYLE.sectionLabel} px-4 w-28`}>種別</TableHead>
+              <TableHead className={`${STYLE.sectionLabel} px-4 w-40 text-right`}>操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

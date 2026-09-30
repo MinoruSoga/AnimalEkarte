@@ -9,6 +9,7 @@
 
 > **関連正本（FE-DS1・2026-09-30 追加）**: トークンの層構造・参照方向は [design-token-layers.md](design-token-layers.md)、インタラクション状態（hover/focus/disabled/loading/invalid）とコントラスト基準は [design-states.md](design-states.md) が正本。コンポーネント仕様書は [components/](components/) 配下。
 
+> **仕様書の対象範囲（FE-DS2・2026-09-30 決裁）**: md 仕様書は **`components/ui/` プリミティブ + 契約が自明でない共有部品**に限定する。`components/shared/` の仕様は **colocated `.stories.tsx` + autodocs を正本**とする（C21/C24 監査で全件カバーを機械保証済み・drift しない）。md を追加する基準は「stories を読んでも分からない振る舞い契約」がある場合のみ: ① 権限・臨床 sentinel などの fail-closed 仕様、② 複数状態遷移や外部依存（router/query/print）の非自明な組み合わせ、③ 利用側が守るべき契約（例: PrintPortal の active 属性責務）。見た目のバリエーション一覧は md ではなく Storybook を参照する。
 
 | 軸 | 正本 | 理由 |
 |---|---|---|
