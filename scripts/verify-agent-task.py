@@ -772,14 +772,18 @@ def plan(paths):
             })
         else:
             # Shared/cross-cutting FE: keep graph-local related (not full suite).
-            jobs.append({
-                'service': 'frontend',
-                'command': [
-                    'node', 'node_modules/vitest/vitest.mjs', 'related',
-                    '--run', '--configLoader', 'native', '--reporter=json', *frontend,
-                ],
-                'require_frontend_tests': True,
-            })
+            # *.stories.tsx have no related vitest files — they are covered by
+            # eslint/prettier, design-audit C21/C24, and the Storybook CI build.
+            testable = [p for p in frontend if not p.endswith('.stories.tsx')]
+            if testable:
+                jobs.append({
+                    'service': 'frontend',
+                    'command': [
+                        'node', 'node_modules/vitest/vitest.mjs', 'related',
+                        '--run', '--configLoader', 'native', '--reporter=json', *testable,
+                    ],
+                    'require_frontend_tests': True,
+                })
         existing = [path for path in frontend if (ROOT / 'frontend' / path).is_file() and '/types/generated/' not in '/' + path]
         if existing:
             jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/eslint/bin/eslint.js', '--max-warnings', '0', *existing]})
