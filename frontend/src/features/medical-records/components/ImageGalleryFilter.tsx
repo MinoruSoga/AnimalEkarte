@@ -19,13 +19,12 @@ import {
 } from "@/components/ui/select";
 import { C, ICON } from "@/lib/design-tokens";
 
-/** 1ファイルあたりの上限（MB） */
-const MAX_FILE_SIZE_MB = 10;
-export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-/** SEC-CS-F08: 1回の選択で受け付ける最大ファイル数 */
-export const MAX_UPLOAD_FILES = 10;
-/** SEC-CS-F08: 1回の選択で受け付ける合計バイト上限（50MiB） */
-export const MAX_UPLOAD_BATCH_BYTES = 50 * 1024 * 1024;
+// Relative
+import {
+  IMAGE_CAPTURE_ACCEPT,
+  IMAGE_UPLOAD_ACCEPT,
+  validateUploadFiles,
+} from "../lib/image-upload-files";
 
 // rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
 const SORT_ORDER_SELECT_ITEMS = (
@@ -85,24 +84,11 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const allFiles = Array.from(e.target.files ?? []);
-    // SEC-CS-F08: 件数・合計バイトを onFilesSelected 前に fail-closed で拒否
-    if (allFiles.length > MAX_UPLOAD_FILES) {
-      toast.error(`一度にアップロードできるファイルは${MAX_UPLOAD_FILES}件までです`);
-      e.target.value = "";
-      return;
-    }
-    const totalBytes = allFiles.reduce((sum, f) => sum + f.size, 0);
-    if (totalBytes > MAX_UPLOAD_BATCH_BYTES) {
-      toast.error("合計ファイルサイズが上限（50MB）を超えています");
-      e.target.value = "";
-      return;
-    }
-    // SEC-CS-F08-R1: any oversized file rejects the whole batch (no partial upload).
-    const oversized = allFiles.filter((f) => f.size > MAX_FILE_SIZE_BYTES);
-    if (oversized.length > 0) {
-      toast.error(
-        `ファイルサイズが上限（${MAX_FILE_SIZE_MB}MB）を超えています: ${oversized.map((f) => f.name).join(", ")}`,
-      );
+    // SEC-CS-F08/R1: 件数・合計バイト・単体サイズ・形式を onFilesSelected 前に
+    // whole-batch で fail-closed 拒否（D&D 経路と同一の validateUploadFiles）
+    const result = validateUploadFiles(allFiles);
+    if (!result.ok) {
+      toast.error(result.message);
       e.target.value = "";
       return;
     }
@@ -120,7 +106,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/gif,application/pdf"
+            accept={IMAGE_UPLOAD_ACCEPT}
             multiple
             className="hidden"
             onChange={handleFileChange}
@@ -128,7 +114,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
           <input
             ref={captureInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/gif"
+            accept={IMAGE_CAPTURE_ACCEPT}
             capture="environment"
             className="hidden"
             onChange={handleFileChange}
