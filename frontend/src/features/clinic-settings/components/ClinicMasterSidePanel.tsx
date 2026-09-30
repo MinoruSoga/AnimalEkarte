@@ -41,7 +41,10 @@ export function ClinicMasterSidePanel({
   onDeleteClick,
 }: ClinicMasterSidePanelProps) {
   return (
-    <div className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 flex flex-col`}>
+    <div
+      data-side-peek
+      className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 flex flex-col`}
+    >
       <div className={STYLE.sidePeekToolbar}>
         <span className={`text-xs ${C.text35} pl-1 select-none`}>
           {selectedItem ? "編集" : "新規作成"}

@@ -316,3 +316,19 @@ body {
 .animate-progress-indeterminate {
   animation: progress-indeterminate 1.5s infinite ease-in-out;
 }
+
+/**
+ * SidePeek パネル表示中はサポート起動ボタンをパネル幅ぶん左へ退避する。
+ * 旧来はパネルへ pb-20（SUPPORT_WIDGET_LAYOUT.scrollBottomClearance）を付けて
+ * ボタンとフッターの重なりを回避していたが、フッター下に恒常的な空白が生じていた。
+ * フッターをパネル下端に固定するため、ボタン側を退避させる方式に変更。
+ * 520px = LAYOUT.sidePeek.widthPx（frontend/src/lib/design-tokens.ts）
+ */
+body:has([data-side-peek]) [data-support-widget] {
+  right: calc(520px + 1rem);
+}
+
+/* パネルが2枚並ぶ場合（例: 予約区分のグループ＋区分パネル） */
+body:has([data-side-peek] ~ [data-side-peek]) [data-support-widget] {
+  right: calc(1040px + 1rem);
+}

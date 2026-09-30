@@ -1,6 +1,5 @@
 import { memo } from "react";
 import type { ReactNode } from "react";
-import { SUPPORT_WIDGET_LAYOUT } from "@/constants/support-widget-layout";
 import { STYLE, LAYOUT } from "@/lib/design-tokens";
 
 interface SidePeekPanelProps {
@@ -16,7 +15,8 @@ export const SidePeekPanel = memo(function SidePeekPanel({
 }: SidePeekPanelProps) {
   return (
     <div
-      className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 relative ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance} ${className ?? ""}`}
+      data-side-peek
+      className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 relative ${className ?? ""}`}
       onKeyDown={onKeyDown}
     >
       {children}

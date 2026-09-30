@@ -827,7 +827,7 @@ export const STYLE = {
 
   /* ── Side Peek ── */
   sidePeekPanel:
-    `flex flex-col h-full overflow-y-auto bg-white border-l ${C.borderLight} shadow-panel`,
+    `flex flex-col h-full overflow-y-clip bg-white border-l ${C.borderLight} shadow-panel`,
   sidePeekToolbar:
     "flex items-center justify-between h-[48px] px-3 shrink-0",
   sidePeekToolbarBtn:
