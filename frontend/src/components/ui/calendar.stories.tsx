@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import { Calendar } from "./calendar";
 
-/** react-day-picker ラッパ。予約・来院日選択に使う月カレンダー。 */
+/** react-day-picker ラッパー。予約・来院日選択に使う月カレンダー。 */
 const meta = {
   title: "UI/Calendar",
   component: Calendar,
