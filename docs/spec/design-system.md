@@ -3,7 +3,7 @@
 > **目的**: [DESIGN.md](../../DESIGN.md)（ルート — Notion Analysis / 意匠言語）を Animal Ekarte の実装に落とし込むための規約を定義する。
 > **読者**: フロントエンド実装者。
 > **タイミング**: UI 実装・レビュー時。
-> **最新更新**: 2026-09-06（現行 typography と C20 の静的クラス生成契約を同期。色の決定は維持）
+> **最新更新**: 2026-09-30（薄い surface hover の ink 維持原則・compact/dense 制御の typography・dense 行アクション高さを決裁。色の決定は維持）
 
 ### SSOT 優先順位 — **軸ごとに正本が異なる**（FE11 決裁・2026-07-21 曽我）
 
@@ -209,6 +209,7 @@ DESIGN.md `typography:` フロントマターに準拠。実装のフォント�
 - **`text-[Npx]` 等の font-size 任意値は禁止**（audit C11）。DESIGN.md にない `text-lg/2xl/3xl/4xl+` も禁止し、heading/title ロールへ写像する（audit C12）。
 - 黒アルファによる ink 段の迂回は禁止する（audit C13）。letter-spacing はロールに伴走するため、`tracking-wide` 等や任意値で上書きしない（audit C14）。
 - font-weight: 本文 400、強調・ボタン 500（`font-medium`）、title/eyebrow 600（`font-semibold`）、heading 700（`font-bold`）。**700 は heading 専用**で、本文・数値セルに使わない（§3.2 の 700 vs 400 コントラスト原則）。
+- compact/dense 制御（`h-9` 以下の行アクションボタン・トリガー等）は `{typography.button}`（16px）を適用せず、`{typography.body-sm}`（15px = `text-sm`）ラベルを使う（2026-09-30 決裁 — 標準 16px は dense 面で過大に見えるため）。
 
 ---
 
@@ -241,9 +242,9 @@ DESIGN.md `typography:` フロントマターに準拠。実装のフォント�
 | Tablet | 768–840px | 2-up 折りたたみ、ナビ condense |
 | Mobile | ≤600px | 単一カラム、ハンバーガー、full-width CTA |
 
-- **タッチターゲット**: 最小 44×44px（pill CTA / utility ボタンは vertical padding を維持）
+- **タッチターゲット**: 最小 44×44px（pill CTA / utility ボタンは vertical padding を維持）。DESIGN.md は *on mobile* のみの規定だが、AE はタブレットファーストのため **tablet 以下の全タッチ面に適用**する（2026-09-30 明文化）。dense 行アクションは §7.2 の例外を参照。
 - **折りたたみ**: タブレット以下でナビ condense、マルチカラム → スタック
-- AE は **タブレットファースト**（§7）— iPad 横画面を primary breakpoint として設計
+- AE は **タブレットファースト**（§8）— iPad 横画面を primary breakpoint として設計
 
 ---
 
@@ -297,7 +298,7 @@ DESIGN.md `rounded:` フロントマターに準拠。**コンポーネント種
 
 ## 7. Components / UI コンポーネント
 
-> **Hover 状態**: DESIGN.md と同様、Default / Active-Pressed のみ文書化。hover は実装詳細として各プリミティブに委譲。
+> **Hover 状態**: DESIGN.md と同様、Default / Active-Pressed のみ文書化。hover は実装詳細として各プリミティブに委譲。ただし薄い surface（`{colors.canvas}` / `{colors.surface}` / `{colors.canvas-soft}` 系）上の hover では文字色を `{colors.ink}` 系で維持し、primary variant 由来の `hover:text-white` を持ち込まない（薄背景 × 白文字で視認不能となる — 2026-09-30 患者選択ボタン障害を受け一般化）。
 
 ### 7.1 Navigation
 
@@ -315,6 +316,8 @@ DESIGN.md `rounded:` フロントマターに準拠。**コンポーネント種
 | `button-icon-circular` | `rgba(0,0,0,0.05)` fill、`{rounded.full}` | カルーセル / メディア制御 |
 
 > **FE10 字義化**: 旧「pill はマーケ専用」裁定（2026-07-21 旧版）は撤回。DESIGN.md 字義どおり **`button-primary` = pill**（実装は既に準拠）。フォーム入力への pill 適用は引き続き禁止（DESIGN.md Don't — 入力は `{rounded.xs}` 4px）。
+
+> **dense 行アクション（2026-09-30 決裁）**: テーブル行内のユーティリティボタン（行アクション）は §4.4 の 44×44px タッチターゲットを適用せず、`h-9`（36px）まで縮小可。最小幅 44px（`min-w-11`）は維持する。ラベルは `{typography.body-sm}`（§3.4 compact 制御規定）、hover は §7 冒頭の薄い surface 規定に従う。根拠: `/reservations` 患者選択ボタンのデザインフィードバック（余白過大）。実装: `frontend/src/components/shared/ReservationFormModal/PatientSelectionResults.tsx`。
 
 ### 7.3 Cards & Containers
 

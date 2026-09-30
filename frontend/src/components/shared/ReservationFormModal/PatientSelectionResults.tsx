@@ -99,18 +99,18 @@ function PatientSelectionRow({ pet, isBusy, isSelected, onSelect }: PatientSelec
                     ? `選択中: ${pet.name} (ID ${pet.id})`
                     : `選択: ${pet.name} (ID ${pet.id})`
           }
-          className={`h-11 min-w-11 gap-1 text-sm px-2 transition-colors ${
+          className={`h-9 min-h-9 min-w-11 gap-1 text-sm px-2 transition-colors ${
             !isSelectable
               ? `${C.bgPage} ${C.textStatusGray} border-transparent cursor-not-allowed`
               : isSelected
                 ? `${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand}`
-                : `bg-white border ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle}`
+                : `bg-white border ${C.borderMediumLight} ${C.text} ${C.hoverText} ${C.hoverBgSubtle}`
           }`}
           onClick={() => {
             if (isSelectable) onSelect(pet);
           }}
         >
-          <Check className={`${ICON.xs} ${isSelected ? "" : "opacity-0"}`} />
+          <Check className={`${ICON.sm} ${isSelected ? "" : "opacity-0"}`} />
           {isDeceased ? "死亡" : !isAlive ? "不明" : isSelected ? "選択中" : "選択"}
         </Button>
       </TableCell>
