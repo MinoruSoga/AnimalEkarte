@@ -36,9 +36,41 @@ export function SupportWidget() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, close]);
 
+  // モーダル Dialog を開いたままウィジェットを操作できるようにする。
+  // Radix は document で pointerdown（外側クリック判定）と focusin/focusout
+  // （FocusScope のフォーカス回収）を監視するため、ウィジェット内で発生した
+  // イベントが document に届かないよう documentElement のバブルで遮断する。
+  // focusout は target ではなく relatedTarget（フォーカスの移動先）が
+  // ウィジェット内の場合に止める必要がある（target はダイアログ内要素のため）。
+  // コンテナ自身で止めると #root の React 委譲リスナーに届かずウィジェット
+  // 自身の onClick 等が動かなくなるため、html 要素で止める（#root 内蔵の
+  // React リスナーはバブル順序上先に実行済み）。
+  useEffect(() => {
+    const SHIELDED_EVENTS = ["pointerdown", "focusin", "focusout"] as const;
+    const insideWidget = (node: unknown) =>
+      node instanceof Element && node.closest("[data-support-widget]") !== null;
+    const shield = (event: Event) => {
+      if (
+        insideWidget(event.target) ||
+        (event instanceof FocusEvent && insideWidget(event.relatedTarget))
+      ) {
+        event.stopPropagation();
+      }
+    };
+    for (const name of SHIELDED_EVENTS) {
+      document.documentElement.addEventListener(name, shield);
+    }
+    return () => {
+      for (const name of SHIELDED_EVENTS) {
+        document.documentElement.removeEventListener(name, shield);
+      }
+    };
+  }, []);
+
   return (
     <div
       data-html2canvas-ignore
+      data-support-widget
       // pointer-events-auto: モーダル Dialog は body を pointer-events:none にする。
       // ダイアログ外のウィジェットは見えているのにクリックが背面へ透過してしまうため、
       // portaled Popover/Select と同じく明示的にイベントを復帰させる。
