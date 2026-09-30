@@ -95,6 +95,8 @@ services:
       - ekarte-network
     ports:
       - "3003:3000"
+      # Storybook dev server (FE-DS1 コンポーネントカタログ)
+      - "6006:6006"
     environment:
       - TZ=Asia/Tokyo
       - VITE_API_URL=/api
