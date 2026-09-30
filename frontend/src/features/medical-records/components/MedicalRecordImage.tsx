@@ -1,5 +1,8 @@
 // React/Framework
-import { memo, useCallback, useDeferredValue, useMemo, useState } from "react";
+import { memo, useCallback, useDeferredValue, useMemo, useRef, useState } from "react";
+
+// External
+import { toast } from "sonner";
 
 // Internal
 import { normalizedIncludes } from "@/lib/normalize-kana";
@@ -7,6 +10,7 @@ import { normalizedIncludes } from "@/lib/normalize-kana";
 // Relative
 import { useGetMedicalRecordImages } from "../api/get-medical-record-images";
 import { useCreateMedicalRecordImages, useDeleteImage } from "../api/medical-record-images";
+import { validateUploadFiles } from "../lib/image-upload-files";
 import { ImageGalleryFilter } from "./ImageGalleryFilter";
 import { ImageGalleryGroup } from "./ImageGalleryGroup";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
@@ -106,61 +110,141 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
   }, [canDeleteImage, resolvedId, deleteTarget, deleteImageFn]);
   const handleDeleteCancel = useCallback(() => setDeleteTarget(null), []);
 
-  return (
-    <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto relative pb-20 pr-1">
-      {/* Search & Upload Header */}
-      <ImageGalleryFilter
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        dateStart={dateStart}
-        onDateStartChange={setDateStart}
-        dateEnd={dateEnd}
-        onDateEndChange={setDateEnd}
-        sortOrder={sortOrder}
-        onSortOrderChange={setSortOrder}
-        isUploading={uploadMutation.isPending}
-        onFilesSelected={handleFilesSelected}
-        canUpload={canUpload}
-      />
+  // 画像D&D取り込み: 画像タブ領域全体をドロップゾーンとし、dataTransfer.files を
+  // 既存のアップロード導線（handleFilesSelected → uploadImagesFn）へ渡す。
+  // アップロードボタンが出ない条件（権限なし・死亡ペット・保存前）や
+  // アップロード中（ボタン disabled相当）はドロップも受け付けない。
+  const [isFileDragOver, setIsFileDragOver] = useState(false);
+  const dragDepthRef = useRef(0);
+  const canAcceptFileDrop = canUpload && Boolean(resolvedId) && !uploadMutation.isPending;
 
-      {/* Results Title */}
-      <div>
-        <h2 className={`text-sm font-bold ${C.text} pl-1`}>画像</h2>
+  const handleDragEnter = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      if (!e.dataTransfer.types.includes("Files")) return;
+      e.preventDefault();
+      if (!canAcceptFileDrop) return;
+      // 子要素間をまたぐ移動でも enter/leave が発火するため depth で滞在を数える
+      dragDepthRef.current += 1;
+      setIsFileDragOver(true);
+    },
+    [canAcceptFileDrop],
+  );
+
+  const handleDragOver = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      if (!e.dataTransfer.types.includes("Files")) return;
+      e.preventDefault(); // drop イベントを発火させるために必須
+      e.dataTransfer.dropEffect = canAcceptFileDrop ? "copy" : "none";
+    },
+    [canAcceptFileDrop],
+  );
+
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    if (!e.dataTransfer.types.includes("Files")) return;
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) setIsFileDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      if (!e.dataTransfer.types.includes("Files")) return;
+      // ブラウザ既定動作（ファイルを開く遷移）を常に防ぐ
+      e.preventDefault();
+      dragDepthRef.current = 0;
+      setIsFileDragOver(false);
+      // FE12 二重防壁: UI 側で受付を閉じるのに加え、callback 側でも fail-closed に拒否する
+      if (!canUpload || !resolvedId) return;
+      if (uploadMutation.isPending) {
+        toast.info("アップロード中です。完了後にもう一度お試しください");
+        return;
+      }
+      const files = Array.from(e.dataTransfer.files);
+      const result = validateUploadFiles(files);
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      handleFilesSelected(files);
+    },
+    [canUpload, resolvedId, uploadMutation.isPending, handleFilesSelected],
+  );
+
+  return (
+    <div
+      className="relative flex flex-col flex-1 min-h-0"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto pb-20 pr-1">
+        {/* Search & Upload Header */}
+        <ImageGalleryFilter
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          dateStart={dateStart}
+          onDateStartChange={setDateStart}
+          dateEnd={dateEnd}
+          onDateEndChange={setDateEnd}
+          sortOrder={sortOrder}
+          onSortOrderChange={setSortOrder}
+          isUploading={uploadMutation.isPending}
+          onFilesSelected={handleFilesSelected}
+          canUpload={canUpload}
+        />
+
+        {/* Results Title */}
+        <div>
+          <h2 className={`text-sm font-bold ${C.text} pl-1`}>画像</h2>
+        </div>
+
+        {/* Image Groups */}
+        {isLoading ? (
+          <div className={`flex items-center justify-center h-24 text-sm ${C.text60} pl-1`}>
+            読み込み中...
+          </div>
+        ) : imageGroups.length === 0 ? (
+          <div className={`flex items-center justify-center h-24 text-sm ${C.text60} pl-1`}>
+            画像がありません
+          </div>
+        ) : null}
+        <div className="flex flex-col gap-6 pl-1">
+          {!isLoading
+            ? imageGroups.map((group) => (
+                <ImageGalleryGroup
+                  key={group.id}
+                  group={group}
+                  onDeleteImage={resolvedId && canDeleteImage ? handleDeleteRequest : undefined}
+                  isDeletingId={deletingId}
+                />
+              ))
+            : null}
+        </div>
+
+        {/* EMR-227: 画像削除は即時実行せず ConfirmDialog を挟む */}
+        <ConfirmDialog
+          open={deleteTarget !== null}
+          onClose={handleDeleteCancel}
+          onConfirm={handleDeleteConfirm}
+          title="画像を削除しますか？"
+          description={`「${deleteTarget?.name ?? ""}」を削除します。この操作は元に戻せません。`}
+          confirmLabel="削除"
+          variant="destructive"
+        />
       </div>
 
-      {/* Image Groups */}
-      {isLoading ? (
-        <div className={`flex items-center justify-center h-24 text-sm ${C.text60} pl-1`}>
-          読み込み中...
-        </div>
-      ) : imageGroups.length === 0 ? (
-        <div className={`flex items-center justify-center h-24 text-sm ${C.text60} pl-1`}>
-          画像がありません
+      {/* 画像D&D取り込み: ファイルドラッグ中のみ表示するドロップガイド。
+          pointer-events-none でドラッグ境界に干渉させない */}
+      {isFileDragOver ? (
+        <div
+          aria-hidden="true"
+          className={`pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-lg border-2 border-dashed ${C.borderActionPrimary} ${C.bgActionPrimaryLight}`}
+        >
+          <span className={`text-sm font-bold ${C.textActionPrimary}`}>
+            ここに画像ファイルをドロップしてアップロード
+          </span>
         </div>
       ) : null}
-      <div className="flex flex-col gap-6 pl-1">
-        {!isLoading
-          ? imageGroups.map((group) => (
-              <ImageGalleryGroup
-                key={group.id}
-                group={group}
-                onDeleteImage={resolvedId && canDeleteImage ? handleDeleteRequest : undefined}
-                isDeletingId={deletingId}
-              />
-            ))
-          : null}
-      </div>
-
-      {/* EMR-227: 画像削除は即時実行せず ConfirmDialog を挟む */}
-      <ConfirmDialog
-        open={deleteTarget !== null}
-        onClose={handleDeleteCancel}
-        onConfirm={handleDeleteConfirm}
-        title="画像を削除しますか？"
-        description={`「${deleteTarget?.name ?? ""}」を削除します。この操作は元に戻せません。`}
-        confirmLabel="削除"
-        variant="destructive"
-      />
     </div>
   );
 });
