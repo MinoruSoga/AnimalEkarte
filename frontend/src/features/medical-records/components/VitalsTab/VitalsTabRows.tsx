@@ -197,7 +197,6 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           <button
             type="button"
             onClick={handleWeightUnitToggle}
-            aria-label="体重単位の切り替え"
             className={`text-2xs px-1 h-9 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-11`}
           >
             {form.weight_unit}
@@ -323,7 +322,6 @@ export function VitalsAddRow({
         <button
           type="button"
           onClick={() => onChange(toggleWeightValueAndUnit(addForm.weight, addForm.weight_unit))}
-          aria-label="体重単位の切り替え"
           className={`text-2xs px-1 h-9 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-11`}
         >
           {addForm.weight_unit}

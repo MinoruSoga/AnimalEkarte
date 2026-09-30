@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { toast } from "sonner";
@@ -136,6 +136,8 @@ describe("MedicalRecordBillCheck FE-RC-005 billing-confirmation 二重トース�
     });
 
     await user.click(screen.getByRole("button", { name: /チェック完了/ }));
+    const confirmDialog = await screen.findByRole("alertdialog");
+    await user.click(within(confirmDialog).getByRole("button", { name: "チェック完了" }));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledTimes(1);
@@ -161,6 +163,8 @@ describe("MedicalRecordBillCheck FE-RC-005 billing-confirmation 二重トース�
       expect(screen.getByRole("button", { name: /確認を取り消す/ })).toBeInTheDocument();
     });
     await user.click(screen.getByRole("button", { name: /確認を取り消す/ }));
+    const returnDialog = await screen.findByRole("alertdialog");
+    await user.click(within(returnDialog).getByRole("button", { name: "差し戻す" }));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledTimes(1);

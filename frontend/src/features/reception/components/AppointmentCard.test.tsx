@@ -410,7 +410,7 @@ describe("AppointmentCard", () => {
 
     const trigger = screen.getByRole("button", { name: "ポチの注意理由を表示" });
     expect(trigger).toHaveTextContent("⚠ 注意");
-    expect(trigger).toHaveClass(C.bgNotice, C.textNotice, C.borderNotice);
+    expect(trigger).toHaveClass(C.bgNotice, C.textBadgeYellow, C.borderNotice);
     expect(screen.queryByText("⚠ 危険")).not.toBeInTheDocument();
 
     await user.click(trigger);
