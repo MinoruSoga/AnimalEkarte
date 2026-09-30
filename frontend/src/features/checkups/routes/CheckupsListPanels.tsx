@@ -3,18 +3,14 @@ import type { ActiveFilter, ActiveSort } from "@/components/shared/PropertyFilte
 import { TableCell } from "@/components/ui/table";
 import { CheckupAlertBadge } from "@/components/shared/CheckupAlertBadge/CheckupAlertBadge";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
-import {
-  DataTable,
-  DESIGN_TABLE_HEADER_ROW,
-  DESIGN_TABLE_HEADER_CELL,
-} from "@/components/shared/DataTable/DataTable";
+import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { C } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 import { formatDate } from "@/lib/format/date";
 import type { CheckupRecord } from "../api/transforms";
 import {
@@ -200,8 +196,8 @@ export function CheckupsListContent({
 
       <FilteringIndicator isFiltering={isFiltering}>
         <DataTable
-          headerRowClassName={DESIGN_TABLE_HEADER_ROW}
-          headerCellClassName={DESIGN_TABLE_HEADER_CELL}
+          headerRowClassName={STYLE.tableHeaderRow}
+          headerCellClassName={STYLE.sectionLabel}
           columns={columns}
           data={records}
           emptyMessage="定期健診の記録がありません"

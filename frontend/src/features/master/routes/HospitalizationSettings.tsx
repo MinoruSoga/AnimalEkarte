@@ -7,6 +7,7 @@ import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
+import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { C, ICON } from "@/lib/design-tokens";
 import { formatCurrencyOrDash } from "@/lib/format/number";
 import { MASTER_STATUS_FILTER, MASTER_TABLE_COL } from "../constants/styles";
@@ -45,7 +46,7 @@ const COLUMNS = [
 
 export function HospitalizationSettings() {
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterHospitalization);
-  const { data } = useGetAllHospitalizationPlans();
+  const { data, isPending, isError } = useGetAllHospitalizationPlans();
   const createMutation = useCreateHospitalizationPlan();
   const updateMutation = useUpdateHospitalizationPlan();
   const deleteMutation = useDeleteHospitalizationPlan();
@@ -131,7 +132,13 @@ export function HospitalizationSettings() {
             onDirtyChange={handleDirtyChange}
           />
         )}
-      />
+      >
+        {isError ? (
+          <ErrorFallback message="入院プランの取得に失敗しました" />
+        ) : isPending ? (
+          <LoadingFallback />
+        ) : null}
+      </MasterCRUDPage>
       {dirty.discardDialog}
     </>
   );

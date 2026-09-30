@@ -196,7 +196,7 @@ export function SinglePicker({
           <button
             type="button"
             onClick={handleToday}
-            className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded px-2 py-1 text-sm ${C.text60} ${C.hoverBgPage} ${C.hoverText} transition-colors`}
+            className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded px-2 py-1 text-sm ${C.text60} ${C.hoverBgPage} ${C.hoverText} focus-visible:ring-2 focus-visible:ring-offset-1 ${C.focusRingAccent40} transition-colors`}
           >
             Today
           </button>

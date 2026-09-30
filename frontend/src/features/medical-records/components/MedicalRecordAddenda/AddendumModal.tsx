@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -70,7 +71,7 @@ export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumM
           {state.error ? (
             <div
               role="alert"
-              className={`text-sm ${C.textNotionRed} ${C.bgDanger8} border ${C.borderDanger20} rounded-xs px-3 py-2`}
+              className={`text-sm ${C.danger} ${C.bgDanger8} border ${C.borderDanger20} rounded-xs px-3 py-2`}
             >
               {state.error}
             </div>
@@ -86,14 +87,14 @@ export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumM
                 *
               </span>
             </label>
-            <textarea
+            <Textarea
               id="addendum-after-text"
               name="after_text"
               aria-required="true"
               rows={5}
               value={afterText}
               onChange={(e) => setAfterText(e.target.value)}
-              className={`w-full border ${C.borderMedium} rounded-xs px-3 py-2 text-base ${C.text} resize-y focus:outline-none focus:ring-1 ${C.focusRingBrand}`}
+              className={`resize-y border ${C.borderMedium} text-base ${C.text}`}
             />
           </div>
 
@@ -104,17 +105,17 @@ export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumM
                 *
               </span>
             </label>
-            <textarea
+            <Textarea
               id="addendum-reason"
               name="reason"
               aria-required="true"
               rows={3}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className={`w-full border ${C.borderMedium} rounded-xs px-3 py-2 text-base ${C.text} resize-y focus:outline-none focus:ring-1 ${C.focusRingBrand}`}
+              className={`resize-y border ${C.borderMedium} text-base ${C.text}`}
             />
             <p
-              className={`text-sm mt-1 text-right ${reasonLength > MAX_REASON_LENGTH ? C.textNotionRed : C.text60}`}
+              className={`text-sm mt-1 text-right ${reasonLength > MAX_REASON_LENGTH ? C.danger : C.text60}`}
               aria-live="polite"
             >
               {reasonLength} / {MAX_REASON_LENGTH}

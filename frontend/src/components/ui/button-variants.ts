@@ -6,13 +6,13 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: `${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimary} ${C.activeTextOnActionPrimary} rounded-full`,
+        default: `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} rounded-full`,
         destructive: "bg-destructive text-white hover:bg-destructive/90",
         outline: "border border-input bg-transparent text-foreground hover:bg-accent/50",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: `${C.textActionPrimary} underline-offset-4 hover:underline`,
-        primary: `${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimary} ${C.activeTextOnActionPrimary} rounded-full`,
+        primary: `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} rounded-full`,
         "ghost-danger": STYLE.btnDangerGhost,
       },
       size: {

@@ -1,6 +1,6 @@
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { LabDeviceUnlinkedBanner } from "@/components/shared/LabDeviceUnlinkedBanner/LabDeviceUnlinkedBanner";
-import { C } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import type { Pet } from "@/types";
 import type { ExaminationPrintModel } from "../lib/examination-print-model";
@@ -93,7 +93,7 @@ export function ExaminationFormHeader({
           <button
             type="button"
             data-testid="examination-print-button"
-            className={`rounded-xs border px-3 py-1.5 text-sm ${C.borderLight} ${C.text60} ${C.hoverBgLight} disabled:opacity-50`}
+            className={`border ${STYLE.btnOutline} disabled:opacity-50`}
             disabled={!printModel}
             onClick={() => window.print()}
           >

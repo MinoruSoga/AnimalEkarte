@@ -39,6 +39,10 @@ import {
   checkC12,
   checkC13,
   checkC14,
+  checkC21,
+  checkC24,
+  checkC22,
+  checkC23,
   C8_ALLOWLIST,
   C8_PAGE_ALLOWLIST,
   C8_ROUTE_HELPER_ALLOWLIST,
@@ -1326,4 +1330,103 @@ test("collectViolations（FE8-5）: C8 allowlist と同名の別 feature route �
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("checkC21: ui/*.tsx に sibling stories が無ければ検出、あれば pass", () => {
+  const componentPath = path.join("src", "components", "ui", "new-widget.tsx");
+  const storiesPath = path.join("src", "components", "ui", "new-widget.stories.tsx");
+  assert.equal(checkC21(componentPath, new Set([componentPath])).length, 1);
+  assert.equal(checkC21(componentPath, new Set([componentPath, storiesPath])).length, 0);
+  // 非対象ファイル（test / routes 配下）は検出しない
+  assert.equal(
+    checkC21(path.join("src", "components", "ui", "button.test.tsx"), new Set()).length,
+    0,
+  );
+  assert.equal(
+    checkC21(path.join("src", "features", "x", "routes", "Y.tsx"), new Set()).length,
+    0,
+  );
+});
+
+test("checkC24: shared/ の stories 不在を dir 単位・トップレベル単位で検出する", () => {
+  const seen = new Set();
+  const dirFile = path.join("src", "components", "shared", "Widget", "Widget.tsx");
+  const dirStories = path.join("src", "components", "shared", "Widget", "Widget.stories.tsx");
+
+  // dir に stories が無ければ検出（同じ dir は一度だけ）
+  assert.equal(checkC24(dirFile, new Set([dirFile]), seen).length, 1);
+  assert.equal(
+    checkC24(path.join("src", "components", "shared", "Widget", "WidgetRow.tsx"), new Set([dirFile]), seen).length,
+    0,
+  );
+  // stories があれば pass
+  const seen2 = new Set();
+  assert.equal(checkC24(dirFile, new Set([dirFile, dirStories]), seen2).length, 0);
+
+  // トップレベル shared/<name>.tsx は sibling stories が必要
+  const topFile = path.join("src", "components", "shared", "TopWidget.tsx");
+  const topStories = path.join("src", "components", "shared", "TopWidget.stories.tsx");
+  assert.equal(checkC24(topFile, new Set([topFile]), new Set()).length, 1);
+  assert.equal(checkC24(topFile, new Set([topFile, topStories]), new Set()).length, 0);
+
+  // 非対象: test / stories / index / shared 以外
+  assert.equal(
+    checkC24(path.join("src", "components", "shared", "Widget", "Widget.test.tsx"), new Set(), new Set()).length,
+    0,
+  );
+  assert.equal(checkC24(dirStories, new Set(), new Set()).length, 0);
+  assert.equal(
+    checkC24(path.join("src", "components", "shared", "Widget", "index.tsx"), new Set(), new Set()).length,
+    0,
+  );
+  assert.equal(checkC24(path.join("src", "components", "ui", "button.tsx"), new Set(), new Set()).length, 0);
+});
+
+test("checkC22: PALETTE のクラス文字列メンバを検出し raw 値と allowlist は除外する", () => {
+  const text = [
+    "export const PALETTE = {",
+    '  brand: "#038B94",',
+    '  dragPreview: "0 10px 30px rgba(0,0,0,0.15)",',
+    '  tableRowHover: "hover:bg-gray-50",',
+    '  hoverBgCard: "hover:bg-[rgba(0,0,0,0.5)]",',
+    '  newShadow: "shadow-level2",',
+    "  pillShadow: PILL_SHADOW,",
+    "} as const;",
+  ].join("\n");
+  const violations = checkC22(text);
+  assert.equal(violations.length, 2);
+  assert.ok(violations[0].text.includes("hoverBgCard"));
+  assert.ok(violations[1].text.includes("newShadow"));
+});
+
+test("checkC22: PALETTE ブロックが無い・全て raw 値なら 0 件", () => {
+  assert.equal(checkC22("export const PALETTE = { brand: \"#038B94\" } as const;").length, 0);
+  assert.equal(checkC22("export const OTHER = {}").length, 0);
+});
+
+test("checkC23: BADGE コンボのコントラスト 4.5:1 未満を検出、適合と参照解決不能は除外", () => {
+  const text = [
+    "export const C = {",
+    '  bgGray: "bg-[#EBECED]",',
+    '  textGrayWeak: "text-[#9B9A97]",',
+    '  textGrayStrong: "text-[#615D59]",',
+    '  bgLight: "bg-[#DDEDEA]",',
+    '  textOk: "text-[#0C6E5F]",',
+    '  borderMuted: "border-[#E6E6E6]",',
+    '  runtimeVar: "bg-[var(--x)]",',
+    "} as const;",
+    "export const BADGE = {",
+    "  weak: `${C.bgGray} ${C.textGrayWeak} ${C.borderMuted}`,",
+    "  ok: `${C.bgLight} ${C.textOk} ${C.borderMuted}`,",
+    "  unresolvable: `${C.runtimeVar} ${C.textOk}`,",
+    "} as const;",
+  ].join("\n");
+  const violations = checkC23(text);
+  assert.equal(violations.length, 1);
+  assert.ok(violations[0].text.includes("BADGE.weak"));
+  assert.ok(violations[0].text.includes("4.5"));
+});
+
+test("checkC23: BADGE/C ブロックが無い場合は 0 件", () => {
+  assert.equal(checkC23("export const OTHER = {}").length, 0);
 });

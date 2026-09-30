@@ -87,7 +87,7 @@ export function LoginFormCredentialFields({
           <button
             type="button"
             onClick={onTogglePassword}
-            className={`absolute right-1 top-1/2 -translate-y-1/2 ${STYLE.iconBtn32} ${C.text35} ${C.hoverText}`}
+            className={`absolute right-1 top-1/2 -translate-y-1/2 ${STYLE.iconBtn32} ${C.text60} ${C.hoverText}`}
             aria-label={showPassword ? "パスワードを非表示" : "パスワードを表示"}
           >
             {showPassword ? <EyeOff className={ICON.action} /> : <Eye className={ICON.action} />}

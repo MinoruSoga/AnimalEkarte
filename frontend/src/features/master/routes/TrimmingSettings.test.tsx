@@ -101,6 +101,8 @@ function mutationStub(mutate: ReturnType<typeof vi.fn>) {
 }
 
 vi.mock("../api/trimming", () => ({
+  useGetTrimmingCourses: () => ({ data: [], isPending: false, isError: false }),
+  useGetTrimmingOptions: () => ({ data: [], isPending: false, isError: false }),
   useCreateTrimmingCourse: () => mutationStub(mocks.createCourse),
   useUpdateTrimmingCourse: () => mutationStub(mocks.updateCourse),
   useDeleteTrimmingCourse: () => mutationStub(mocks.deleteCourse),

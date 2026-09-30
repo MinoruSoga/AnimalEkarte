@@ -111,7 +111,10 @@ export function StaffBasicInfoSection({
     <>
       <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
 
-      <PropertyRow label="職種">
+      <PropertyRow
+        label="職種"
+        description="このスタッフの職種です。職種マスタで登録した選択肢から選びます。"
+      >
         {hasOccupationMaster ? (
           <Select value={formData.jobTitleId ?? undefined} onValueChange={handleOccupationChange}>
             <SelectTrigger className={STYLE.selectCompact}>
@@ -132,7 +135,10 @@ export function StaffBasicInfoSection({
         )}
       </PropertyRow>
 
-      <PropertyRow label="資格番号">
+      <PropertyRow
+        label="資格番号"
+        description="獣医師免許番号などの資格番号です。必要な場合に記録します（任意）。"
+      >
         <input
           type="text"
           aria-label="資格番号"
@@ -145,7 +151,10 @@ export function StaffBasicInfoSection({
 
       {isNew ? (
         <>
-          <PropertyRow label="メールアドレス">
+          <PropertyRow
+            label="メールアドレス"
+            description="このスタッフのログイン用メールアドレスです。アカウントのIDとして使われます。"
+          >
             <input
               type="email"
               aria-label="メールアドレス"
@@ -155,7 +164,10 @@ export function StaffBasicInfoSection({
               placeholder="例: staff@clinic.com"
             />
           </PropertyRow>
-          <PropertyRow label="パスワード">
+          <PropertyRow
+            label="パスワード"
+            description="ログイン用パスワードです。8文字以上で設定してください。"
+          >
             <input
               type="password"
               aria-label="パスワード"
@@ -168,12 +180,18 @@ export function StaffBasicInfoSection({
         </>
       ) : (
         <>
-          <PropertyRow label="メールアドレス">
+          <PropertyRow
+            label="メールアドレス"
+            description="登録されているログイン用メールアドレスです。"
+          >
             <span className={`text-sm ${C.text65}`}>{item?.email || "未設定"}</span>
           </PropertyRow>
           {canAttachAccount ? (
             <>
-              <PropertyRow label="ログインアカウント">
+              <PropertyRow
+                label="ログインアカウント"
+                description="ログインアカウントとして追加するメールアドレスです。システム管理者のみ設定できます。"
+              >
                 <input
                   type="email"
                   aria-label="追加するメールアドレス"
@@ -195,7 +213,10 @@ export function StaffBasicInfoSection({
               </Button>
             </>
           ) : item?.email ? (
-            <PropertyRow label="パスワード">
+            <PropertyRow
+              label="パスワード"
+              description="パスワードを変更する場合のみ新しいパスワードを入力します。空欄のままだと変更されません。"
+            >
               <input
                 type="password"
                 aria-label="パスワード"

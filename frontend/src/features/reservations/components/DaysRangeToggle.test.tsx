@@ -33,7 +33,7 @@ describe("DaysRangeToggle", () => {
   it("active ボタンは brand と同じ primary teal を使う", () => {
     render(<DaysRangeToggle days={5} onChange={vi.fn()} />);
     const active = screen.getByTestId("days-toggle-5");
-    expect(active.className).toContain(C.bgActionPrimary);
+    expect(active.className).toContain(C.bgActionPrimarySolid);
   });
 
   it("7日ボタンをクリックすると onChange(7) が呼ばれる", async () => {

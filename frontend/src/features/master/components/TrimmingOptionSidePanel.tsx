@@ -3,6 +3,7 @@ import { Scissors } from "lucide-react";
 
 import { MasterSidePanel, PropertyInput, PropertyRow } from "@/components/shared/SidePeek";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
+import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { C, LAYOUT } from "@/lib/design-tokens";
 
 import type { TrimmingOption } from "../api/trimming";
@@ -102,17 +103,20 @@ export const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
       titleMaxLength={100}
       readOnly={readOnly}
     >
-      <PropertyRow label="ステータス">
+      <PropertyRow label="ステータス" description={FIELD_DESCRIPTIONS.status}>
         <button
           type="button"
           onClick={handleToggleStatus}
-          className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+          className={`inline-flex min-h-11 items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
         >
           <StatusPill isActive={formData.isActive} />
         </button>
       </PropertyRow>
 
-      <PropertyRow label="所要時間(分)">
+      <PropertyRow
+        label="所要時間(分)"
+        description="このオプションを追加した場合にかかる目安時間（分）です。"
+      >
         <PropertyInput
           type="number"
           value={formData.duration}
@@ -121,17 +125,20 @@ export const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
         />
       </PropertyRow>
 
-      <PropertyRow label="組合せ可否">
+      <PropertyRow
+        label="組合せ可否"
+        description="このオプションを他のオプションと同時に選択できるかどうかです。不可にすると単独でのみ選択できます。"
+      >
         <button
           type="button"
           onClick={handleToggleCombinability}
-          className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+          className={`inline-flex min-h-11 items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
         >
           <CombinablePill combinable={formData.combinable} />
         </button>
       </PropertyRow>
 
-      <PropertyRow label="単価(税込)">
+      <PropertyRow label="単価(税込)" description={FIELD_DESCRIPTIONS.unitPrice}>
         <div className="flex items-center gap-1">
           <span className={`text-base ${C.text65} select-none`}>¥</span>
           <input
@@ -146,7 +153,7 @@ export const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
         </div>
       </PropertyRow>
 
-      <PropertyRow label="備考">
+      <PropertyRow label="備考" description={FIELD_DESCRIPTIONS.note}>
         <PropertyInput
           value={formData.description}
           onChange={handleDescriptionChange}

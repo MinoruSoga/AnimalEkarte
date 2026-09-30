@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TableCell, TableHead } from "@/components/ui/table";
-import { C, STYLE } from "@/lib/design-tokens";
+import { BADGE, C, STYLE } from "@/lib/design-tokens";
 import type { SortOrder } from "@/types";
 
 import { examinationItemsQueryOptions } from "../api/get-examination-items";
@@ -209,7 +209,7 @@ export function ExamPivotTable({ examinations, sortOrder }: ExamPivotTableProps)
   );
 
   if (recentExaminations.length === 0) {
-    return <p className={`py-6 text-center text-sm ${C.text45}`}>検査記録がありません</p>;
+    return <p className={`py-6 text-center text-sm ${C.text60}`}>検査記録がありません</p>;
   }
 
   if (itemQueries.some((query) => query.isError)) {
@@ -226,7 +226,7 @@ export function ExamPivotTable({ examinations, sortOrder }: ExamPivotTableProps)
 
   if (itemQueries.some((query) => query.isPending)) {
     return (
-      <p role="status" className={`py-6 text-center text-sm ${C.text45}`}>
+      <p role="status" className={`py-6 text-center text-sm ${C.text60}`}>
         読み込み中...
       </p>
     );
@@ -277,10 +277,7 @@ export function ExamPivotTable({ examinations, sortOrder }: ExamPivotTableProps)
                   <TableHead scope="row">
                     <span>{row.label}</span>
                     {row.isLegacy ? (
-                      <Badge
-                        variant="outline"
-                        className={`ml-2 ${C.textWarning} ${C.borderWarning20} ${C.bgWarning50}`}
-                      >
+                      <Badge variant="outline" className={`ml-2 ${BADGE.yellow}`}>
                         未マッピング
                       </Badge>
                     ) : null}
@@ -300,7 +297,7 @@ export function ExamPivotTable({ examinations, sortOrder }: ExamPivotTableProps)
           </table>
         </div>
       ) : (
-        <p className={`py-6 text-center text-sm ${C.text45}`}>
+        <p className={`py-6 text-center text-sm ${C.text60}`}>
           {normalizedFilter ? "該当する検査項目がありません" : "表示できる実施済み項目がありません"}
         </p>
       )}

@@ -1,3 +1,4 @@
+import { useId } from "react";
 import {
   Select,
   SelectContent,
@@ -5,7 +6,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { STYLE } from "@/lib/design-tokens";
+import { Label } from "@/components/ui/label";
+import { C, STYLE } from "@/lib/design-tokens";
 import {
   RECOMMENDATION_REASON_LABELS,
   RECOMMENDATION_REASON_VALUES,
@@ -45,17 +47,21 @@ export function RecommendationReasonSelect(props: Props) {
   };
 
   const { value, disabled = false } = props;
+  const triggerId = useId();
 
   return (
     <div className="flex flex-col gap-2">
-      <label className={STYLE.formLabel}>推奨理由</label>
+      <Label htmlFor={triggerId} className={STYLE.formLabel}>
+        推奨理由
+      </Label>
       <Select
         value={value ?? ""}
         onValueChange={handleValueChange}
         disabled={disabled || (props.mode === "edit" ? isPending : false)}
       >
         <SelectTrigger
-          className="w-[160px] h-9 text-sm"
+          id={triggerId}
+          className={`w-[160px] h-11 text-sm focus-visible:ring-2 ${C.focusVisibleRingActionPrimary} focus-visible:ring-offset-1`}
           aria-label="推奨理由を選択"
           data-testid="recommendation-reason-trigger"
         >

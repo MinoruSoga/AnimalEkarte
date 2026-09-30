@@ -1,0 +1,69 @@
+name: Chromatic (Visual Regression)
+
+on:
+  pull_request:
+    paths:
+      - "frontend/**"
+      - ".github/workflows/chromatic.yml"
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/chromatic.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: chromatic-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "24"
+
+jobs:
+  chromatic:
+    name: Publish Storybook and run visual tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+
+    steps:
+      - name: Skip notice when token is not configured
+        if: env.CHROMATIC_PROJECT_TOKEN == ''
+        run: |
+          echo "::notice::CHROMATIC_PROJECT_TOKEN is not set — skipping Chromatic. \
+          Create a project at chromatic.com and add the token as a repository secret."
+
+      - name: Checkout
+        if: env.CHROMATIC_PROJECT_TOKEN != ''
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0 # TurboSnap (onlyChanged) が変更検出に履歴を必要とする
+
+      - name: Setup pnpm
+        if: env.CHROMATIC_PROJECT_TOKEN != ''
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.15.0
+
+      - name: Setup Node.js
+        if: env.CHROMATIC_PROJECT_TOKEN != ''
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        if: env.CHROMATIC_PROJECT_TOKEN != ''
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Chromatic
+        if: env.CHROMATIC_PROJECT_TOKEN != ''
+        uses: chromaui/action@v18.9.5
+        with:
+          projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+          workingDir: frontend

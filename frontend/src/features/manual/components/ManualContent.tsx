@@ -17,37 +17,7 @@ import { SUPPORT_WIDGET_LAYOUT } from "@/constants/support-widget-layout";
 import { paths } from "@/config/paths";
 
 import { screenArticles, workflowArticles, type ManualArticle } from "@/lib/manual-index";
-
-export function getSafeMarkdownHref(href: unknown): string | undefined {
-  if (typeof href !== "string") return undefined;
-  const trimmed = href.trim();
-  if (trimmed === "") return undefined;
-
-  const decoded = (() => {
-    try {
-      return decodeURIComponent(trimmed);
-    } catch {
-      return trimmed;
-    }
-  })();
-
-  // 制御文字（NULLバイト等）でスキーム判定を回避する攻撃を防ぐため意図的に制御文字を除去する
-  // eslint-disable-next-line no-control-regex
-  const compact = decoded.replace(/[\u0000-\u001F\u007F\s]+/g, "");
-  const schemeMatch = /^([a-z][a-z0-9+.-]*):/i.exec(compact);
-  if (schemeMatch) {
-    const protocol = `${schemeMatch[1].toLowerCase()}:`;
-    return protocol === "http:" || protocol === "https:" || protocol === "mailto:"
-      ? trimmed
-      : undefined;
-  }
-
-  if (trimmed.startsWith("//")) {
-    return undefined;
-  }
-
-  return trimmed;
-}
+import { getSafeMarkdownHref } from "@/lib/safe-markdown-href";
 
 interface ManualContentProps {
   article: ManualArticle | undefined;
@@ -187,7 +157,7 @@ const ArticleAdjacentNav = memo(function ArticleAdjacentNav({
         >
           <ChevronLeft className={`size-5 shrink-0 ${C.text50}`} />
           <div className="min-w-0">
-            <div className={`text-2xs ${C.text40} uppercase`}>前の項目</div>
+            <div className={`text-2xs ${C.text60} uppercase`}>前の項目</div>
             <div className={`truncate ${C.text}`}>{prev.title}</div>
           </div>
         </Link>
@@ -200,7 +170,7 @@ const ArticleAdjacentNav = memo(function ArticleAdjacentNav({
           className={`flex items-center gap-2 p-3 rounded-xxs border ${C.borderDivider} ${C.hoverBgLight} transition-colors text-right md:justify-end`}
         >
           <div className="min-w-0 flex-1">
-            <div className={`text-2xs ${C.text40} uppercase`}>次の項目</div>
+            <div className={`text-2xs ${C.text60} uppercase`}>次の項目</div>
             <div className={`truncate ${C.text}`}>{next.title}</div>
           </div>
           <ChevronRight className={`size-5 shrink-0 ${C.text50}`} />

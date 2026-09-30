@@ -1,9 +1,10 @@
-import { useActionState, type ReactNode } from "react";
+import { useActionState, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { BADGE, C, STYLE } from "@/lib/design-tokens";
 import { getFormString } from "@/lib/form-data";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import {
   useGetAutoManagedPrefixes,
   useCreateAutoManagedPrefix,
@@ -115,6 +116,7 @@ interface TagPairSectionProps<TItem> {
   renderRow: (item: TItem) => ReactNode;
   onDelete: (item: TItem) => void;
   deleteDisabled?: boolean;
+  deleteConfirmTitle: string;
   fieldA: TagPairField;
   fieldB: TagPairField;
   requiredMessage: string;
@@ -131,12 +133,16 @@ function TagPairSection<TItem>({
   renderRow,
   onDelete,
   deleteDisabled,
+  deleteConfirmTitle,
   fieldA,
   fieldB,
   requiredMessage,
   addPending,
   onAdd,
 }: TagPairSectionProps<TItem>) {
+  // EMR-227: 削除は破壊操作のため ConfirmDialog で確認してから onDelete を呼ぶ。
+  const [pendingDeleteItem, setPendingDeleteItem] = useState<TItem | null>(null);
+
   const [state, formAction] = useActionState<TagPairFormState, FormData>(
     async (_prev, formData) => {
       const valueA = getFormString(formData, fieldA.name).trim();
@@ -168,8 +174,25 @@ function TagPairSection<TItem>({
         isLoading={isLoading}
         getId={getId}
         renderRow={renderRow}
-        onDelete={onDelete}
+        onDelete={setPendingDeleteItem}
         deleteDisabled={deleteDisabled}
+      />
+
+      <ConfirmDialog
+        open={pendingDeleteItem !== null}
+        onClose={() => setPendingDeleteItem(null)}
+        onConfirm={() => {
+          const item = pendingDeleteItem;
+          setPendingDeleteItem(null);
+          if (item !== null) {
+            onDelete(item);
+          }
+        }}
+        title={deleteConfirmTitle}
+        description="この操作は取り消せません。"
+        confirmLabel="削除する"
+        variant="destructive"
+        isPending={deleteDisabled}
       />
 
       <form action={formAction} className="flex gap-2 items-end" noValidate>
@@ -249,6 +272,7 @@ function AutoManagedPrefixesSection() {
       )}
       onDelete={handleDelete}
       deleteDisabled={deleteMutation.isPending}
+      deleteConfirmTitle="このプレフィックスを削除しますか？"
       fieldA={{
         name: "amp-prefix",
         label: "プレフィックス",
@@ -301,6 +325,7 @@ function ConditionTagMappingsSection() {
       )}
       onDelete={handleDelete}
       deleteDisabled={deleteMutation.isPending}
+      deleteConfirmTitle="このマッピングを削除しますか？"
       fieldA={{
         name: "ctm-condition-code",
         label: "疾患コード",
@@ -353,6 +378,7 @@ function SendPurposeTagPrefixesSection() {
       )}
       onDelete={handleDelete}
       deleteDisabled={deleteMutation.isPending}
+      deleteConfirmTitle="このプレフィックスを削除しますか？"
       fieldA={{
         name: "sp-purpose",
         label: "送信目的",

@@ -4,16 +4,21 @@ import Pill from "lucide-react/dist/esm/icons/pill";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { MedicineDeleteDialog } from "../components/MedicineDeleteDialog";
 import { MedicineSidePanel } from "../components/MedicineSidePanel";
 import { MedicineTableSection } from "../components/MedicineTableSection";
 import { ResourceMasterMedical } from "@/types/generated/models";
+import { useGetAllMedicines } from "../api/medicines";
 import { useMedicineSettings } from "../hooks/use-medicine-settings";
 
 export function MedicineSettings() {
   const navigate = useNavigate();
   const s = useMedicineSettings();
+  // 一覧クエリの状態を DataStates に接続する（useMedicineSettings 内と同一 queryKey で
+  // キャッシュ共有されるため追加 fetch は発生しない）。
+  const { isPending, isError } = useGetAllMedicines();
 
   return (
     <>
@@ -34,29 +39,35 @@ export function MedicineSettings() {
               ) : null
             }
           >
-            <MedicineTableSection
-              searchTerm={s.tableState.searchTerm}
-              onSearchChange={s.tableState.setSearchTerm}
-              activeFilters={s.tableState.activeFilters}
-              onFilterChange={s.tableState.setActiveFilters}
-              totalCount={s.tableState.totalCount}
-              tableProps={{
-                sensors: s.tableState.sensors,
-                activeId: s.tableState.activeId,
-                groupedMedicines: s.tableState.groupedMedicines,
-                ungroupedMedicines: s.tableState.ungroupedMedicines,
-                collapsedGroups: s.tableState.collapsedGroups,
-                orderedMedicinesById: s.tableState.orderedMedicinesById,
-                canCreate: s.canCreate,
-                canEdit: s.canEdit,
-                onDragStart: s.tableState.handleDragStart,
-                onDragEnd: s.tableState.handleDragEnd,
-                onDragCancel: s.tableState.handleDragCancel,
-                onToggleGroup: s.tableState.toggleGroup,
-                onEdit: s.handleEdit,
-                onCreate: s.handleCreate,
-              }}
-            />
+            {isError ? (
+              <ErrorFallback message="薬剤マスタの取得に失敗しました" />
+            ) : isPending ? (
+              <LoadingFallback />
+            ) : (
+              <MedicineTableSection
+                searchTerm={s.tableState.searchTerm}
+                onSearchChange={s.tableState.setSearchTerm}
+                activeFilters={s.tableState.activeFilters}
+                onFilterChange={s.tableState.setActiveFilters}
+                totalCount={s.tableState.totalCount}
+                tableProps={{
+                  sensors: s.tableState.sensors,
+                  activeId: s.tableState.activeId,
+                  groupedMedicines: s.tableState.groupedMedicines,
+                  ungroupedMedicines: s.tableState.ungroupedMedicines,
+                  collapsedGroups: s.tableState.collapsedGroups,
+                  orderedMedicinesById: s.tableState.orderedMedicinesById,
+                  canCreate: s.canCreate,
+                  canEdit: s.canEdit,
+                  onDragStart: s.tableState.handleDragStart,
+                  onDragEnd: s.tableState.handleDragEnd,
+                  onDragCancel: s.tableState.handleDragCancel,
+                  onToggleGroup: s.tableState.toggleGroup,
+                  onEdit: s.handleEdit,
+                  onCreate: s.handleCreate,
+                }}
+              />
+            )}
           </PageLayout>
         </div>
         <MedicineSidePanel

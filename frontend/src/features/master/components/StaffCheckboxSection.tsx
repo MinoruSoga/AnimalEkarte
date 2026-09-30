@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { Checkbox } from "@/components/ui/checkbox";
+import { FieldHelp } from "@/components/shared/FieldHelp";
 import { C, STYLE } from "@/lib/design-tokens";
 
 export interface StaffCheckboxItem {
@@ -18,6 +19,8 @@ interface StaffCheckboxSectionProps<T extends StaffCheckboxItem> {
   emptyMessage: string;
   onToggle: (id: string, checked: boolean) => void;
   renderLeading?: (item: T) => ReactNode;
+  /** セクションの説明文（ⓘツールチップ） */
+  description?: string;
 }
 
 export function StaffCheckboxSection<T extends StaffCheckboxItem>({
@@ -30,12 +33,14 @@ export function StaffCheckboxSection<T extends StaffCheckboxItem>({
   emptyMessage,
   onToggle,
   renderLeading,
+  description,
 }: StaffCheckboxSectionProps<T>) {
   return (
     <div className={`mt-4 pt-4 ${STYLE.sectionDivider}`}>
       <div className="flex items-center gap-1.5 mb-2">
         {icon}
         <p className={`text-xs font-medium ${C.text50}`}>{title}</p>
+        {description ? <FieldHelp label={title} content={description} /> : null}
       </div>
 
       {isDisabledUntilSaved ? (
@@ -47,7 +52,7 @@ export function StaffCheckboxSection<T extends StaffCheckboxItem>({
           {items.map((item) => (
             <label
               key={item.id}
-              className={`flex items-center gap-2.5 py-1.5 px-0.5 rounded cursor-pointer ${C.hoverBgLight} transition-colors`}
+              className={`flex items-center gap-2.5 py-1.5 px-0.5 rounded cursor-pointer min-h-11 ${C.hoverBgLight} transition-colors`}
             >
               <Checkbox
                 checked={checkedIdSet.has(item.id)}

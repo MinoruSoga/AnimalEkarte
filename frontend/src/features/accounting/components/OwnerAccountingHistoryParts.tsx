@@ -104,7 +104,7 @@ export function AccountingHistorySortControls({
       <Select value={sortField} onValueChange={onSortFieldChange}>
         <SelectTrigger
           id="accounting-history-sort-field"
-          className="h-8 w-[120px] text-xs"
+          className="w-[120px] text-xs"
           aria-label="ソート項目"
         >
           <SelectValue />
@@ -119,7 +119,7 @@ export function AccountingHistorySortControls({
         type="button"
         variant="outline"
         size="sm"
-        className="h-8 px-2"
+        className="px-2"
         onClick={onToggleSortOrder}
         aria-label={
           sortOrder === "asc" ? "昇順 — クリックで降順に切替" : "降順 — クリックで昇順に切替"

@@ -5,7 +5,9 @@ import { ja } from "date-fns/locale";
 import { Plus, Repeat, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { CalendarNavToolbar } from "@/components/shared/CalendarNavToolbar";
+import { FieldHelp } from "@/components/shared/FieldHelp";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { SUPPORT_WIDGET_LAYOUT } from "@/constants/support-widget-layout";
 import { toJSTWallDate } from "@/lib/jst-date";
@@ -28,7 +30,7 @@ const HEADER_ROW = (
       <div
         key={d}
         className={`py-3 text-sm font-bold text-center ${
-          i === 5 ? C.textBrand : i === 6 ? C.danger : C.text60
+          i === 5 ? C.textBrand : i === 6 ? C.textNotionRed : C.text60
         }`}
       >
         {d}
@@ -116,12 +118,22 @@ export function ReservationTypeAvailableSlotsCalendar({
     return null;
   }, null);
 
-  const handleDelete = useCallback(
-    (id: number) => {
-      mutate(id);
-    },
-    [mutate],
-  );
+  // 破壊的削除は ConfirmDialog 経由（直行削除禁止）
+  const [pendingDelete, setPendingDelete] = useState<ReservationTypeAvailableSlot | null>(null);
+
+  const handleDeleteRequest = useCallback((slot: ReservationTypeAvailableSlot) => {
+    setPendingDelete(slot);
+  }, []);
+
+  const handleDeleteCancel = useCallback(() => {
+    setPendingDelete(null);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(() => {
+    if (pendingDelete === null) return;
+    mutate(pendingDelete.id);
+    setPendingDelete(null);
+  }, [mutate, pendingDelete]);
 
   const weekDays = useMemo(() => {
     const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
@@ -199,6 +211,7 @@ export function ReservationTypeAvailableSlotsCalendar({
                   key={dateKey}
                   onClick={() => setSelectedDate(dateKey)}
                   aria-label={format(day, DISPLAY_DATE_FORMAT, { locale: ja })}
+                  aria-pressed={isSelected}
                   className={`h-full min-h-[420px] min-w-11 text-left border-b border-r ${C.borderLight} p-3 transition-colors cursor-pointer flex flex-col
                     ${isSelected ? C.bgBrand8 : `${C.bgWhite} ${C.hoverBgPage}`}
                   `}
@@ -207,7 +220,9 @@ export function ReservationTypeAvailableSlotsCalendar({
                     <div className="min-w-0">
                       <span
                         className={`text-base font-bold size-8 flex items-center justify-center rounded-full ${
-                          isSameDay(day, today) ? `${C.bgBrand} ${C.textOnBrand}` : C.text
+                          isSameDay(day, today)
+                            ? `${C.bgActionPrimarySolid} ${C.textOnActionPrimary}`
+                            : C.text
                         }`}
                       >
                         {format(day, "d")}
@@ -216,7 +231,7 @@ export function ReservationTypeAvailableSlotsCalendar({
                         {format(day, "M月", { locale: ja })}
                       </div>
                     </div>
-                    <span className={`text-xs ${C.text40}`}>{chips.length}件</span>
+                    <span className={`text-xs ${C.text60}`}>{chips.length}件</span>
                   </div>
                   <div className="space-y-1.5 flex-1 overflow-hidden">
                     {chips.map(({ slot, weekly }) => (
@@ -243,7 +258,7 @@ export function ReservationTypeAvailableSlotsCalendar({
       {/* 日別編集パネル */}
       <div className={`shrink-0 ${C.bgWhite} rounded-md border ${C.borderMedium} p-3`}>
         {selectedDate === null ? (
-          <p className={`text-sm ${C.text40}`}>日付をクリックすると、その日の枠を編集できます</p>
+          <p className={`text-sm ${C.text60}`}>日付をクリックすると、その日の枠を編集できます</p>
         ) : (
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <p className={`text-base font-bold ${C.text}`}>
@@ -269,7 +284,7 @@ export function ReservationTypeAvailableSlotsCalendar({
                       `${paths.settings.reservationType.getHref()}?typeId=${reservationTypeId}`,
                     )
                   }
-                  className={`text-xs ${C.text40} ${C.hoverTextBrand} transition-colors`}
+                  className={`inline-flex items-center min-h-11 text-xs ${C.text60} ${C.hoverTextBrand} transition-colors`}
                 >
                   毎週枠は予約区分マスタで編集 →
                 </button>
@@ -287,9 +302,9 @@ export function ReservationTypeAvailableSlotsCalendar({
                     {slot.startTime}
                     <button
                       type="button"
-                      onClick={() => handleDelete(slot.id)}
+                      onClick={() => handleDeleteRequest(slot)}
                       aria-label={`${slot.startTime}の枠を削除`}
-                      className={`${C.text40} ${C.hoverTextDanger} transition-colors`}
+                      className={`-m-3.5 flex min-h-11 min-w-11 items-center justify-center rounded-xxs outline-none ${C.text50} ${C.hoverTextDanger} focus-visible:ring-2 ${C.focusRingAccent40} transition-colors`}
                     >
                       <Trash2 className="size-3" />
                     </button>
@@ -297,18 +312,19 @@ export function ReservationTypeAvailableSlotsCalendar({
                 ))}
               </div>
             ) : (
-              <p className={`text-xs ${C.text40}`}>この日の特定日枠はありません</p>
+              <p className={`text-xs ${C.text60}`}>この日の特定日枠はありません</p>
             )}
 
             <form action={formAction} className="flex items-center gap-2 ml-auto flex-wrap">
+              <FieldHelp label="開始時刻" content="この日に追加する予約枠の開始時刻です。" />
               <Select value={startTime} onValueChange={setStartTime}>
-                <SelectTrigger className={STYLE.selectCompact}>
+                <SelectTrigger className={STYLE.selectCompact} aria-label="開始時刻">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>{TIME_SELECT_ITEMS}</SelectContent>
               </Select>
               {isDuplicate ? (
-                <p className={`text-xs ${C.text40}`}>この時刻は既に登録済みです</p>
+                <p className={`text-xs ${C.text60}`}>この時刻は既に登録済みです</p>
               ) : null}
               <SubmitButton
                 colorVariant="primary"
@@ -323,6 +339,21 @@ export function ReservationTypeAvailableSlotsCalendar({
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="予約可能枠を削除しますか？"
+        description={
+          pendingDelete === null
+            ? undefined
+            : `「${pendingDelete.specificDate?.slice(0, 10) ?? ""} ${pendingDelete.startTime}」の予約可能枠を削除します。この操作は取り消せません。`
+        }
+        confirmLabel="削除"
+        variant="destructive"
+        isPending={deleteMutation.isPending}
+      />
     </div>
   );
 }

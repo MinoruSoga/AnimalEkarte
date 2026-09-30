@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useState } from "react";
 import { FlaskConical } from "lucide-react";
 
+import { FieldHelp } from "@/components/shared/FieldHelp";
 import { MasterSidePanel, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { C, LAYOUT } from "@/lib/design-tokens";
@@ -152,13 +153,17 @@ export const LabDeviceItemMasterSidePanel = memo(function LabDeviceItemMasterSid
       isPending={isPending}
       titleError={nameError}
       titlePlaceholder="機器名"
+      titleDescription="この検査機器（分析装置）の表示名です。機器マスタ一覧や連携設定で使われます。"
       titleMaxLength={100}
       readOnly={readOnly}
       className="min-w-160"
     >
       <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
       {isNew ? (
-        <PropertyRow label="プロトコル">
+        <PropertyRow
+          label="プロトコル"
+          description="機器が検査結果を送信する際の通信プロトコル（フォーマット種別）です。登録後は変更できません。"
+        >
           <SearchableSelect
             value={formData.sourceType}
             onValueChange={handleSourceTypeChange}
@@ -175,13 +180,19 @@ export const LabDeviceItemMasterSidePanel = memo(function LabDeviceItemMasterSid
           />
         </PropertyRow>
       ) : (
-        <PropertyRow label="プロトコル">
+        <PropertyRow
+          label="プロトコル"
+          description="機器が検査結果を送信する際の通信プロトコル（フォーマット種別）です。登録時に確定します。"
+        >
           <span className={`text-sm whitespace-nowrap ${C.text}`}>
             {labDeviceSourceLabel(formData.sourceType)}
           </span>
         </PropertyRow>
       )}
-      <PropertyRow label="検査">
+      <PropertyRow
+        label="検査"
+        description="この機器の結果を取り込む検査マスタです。機器の各項目はここで選んだ検査の項目に対応づけます。"
+      >
         <SearchableSelect
           value={examTypeSelectValue(formData.examTypeId)}
           onValueChange={handleExamTypeChange}
@@ -227,6 +238,10 @@ export const LabDeviceItemMasterSidePanel = memo(function LabDeviceItemMasterSid
                     {labDeviceValueShapeLabel(item.valueShape)}
                     {item.unit ? ` · ${item.unit}` : ""}
                   </span>
+                  <FieldHelp
+                    label={`${item.deviceItemCode} の検査項目`}
+                    content="機器から送られる項目（電文コード）に対応する検査項目を選択します。結果取り込み時にこの対応関係で検査値が保存されます。"
+                  />
                 </div>
                 {unitMismatch ? (
                   <p className={`px-2 pt-1 text-sm ${C.textWarning}`}>

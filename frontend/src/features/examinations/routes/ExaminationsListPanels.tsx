@@ -7,11 +7,7 @@ import type {
 } from "@/components/shared/PropertyFilter/types";
 import { TableCell } from "@/components/ui/table";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
-import {
-  DataTable,
-  DESIGN_TABLE_HEADER_ROW,
-  DESIGN_TABLE_HEADER_CELL,
-} from "@/components/shared/DataTable/DataTable";
+import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { LIST_TABLE_COL } from "@/components/shared/DataTable/list-table-col";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
@@ -229,8 +225,8 @@ export function ExaminationsListContent({
 
       <FilteringIndicator isFiltering={isFiltering}>
         <DataTable
-          headerRowClassName={DESIGN_TABLE_HEADER_ROW}
-          headerCellClassName={DESIGN_TABLE_HEADER_CELL}
+          headerRowClassName={STYLE.tableHeaderRow}
+          headerCellClassName={STYLE.sectionLabel}
           columns={columns}
           data={pagination.paginatedData}
           emptyMessage="検査データが見つかりません"

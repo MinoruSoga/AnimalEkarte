@@ -154,7 +154,7 @@ export const VitalsGraph = memo(function VitalsGraph({ vitals }: VitalsGraphProp
   const hasRight = METRICS.some((m) => m.yAxisId === "right" && activeMetrics.has(m.key));
 
   return (
-    <div className={`border ${C.borderLight} rounded-xs ${C.bgWhite} p-4 flex flex-col gap-3`}>
+    <div className={`border ${C.borderLight} rounded-lg ${C.bgWhite} p-4 flex flex-col gap-3`}>
       {/* 指標切り替えボタン */}
       <div className="flex flex-wrap gap-2">
         {METRICS.map((m) => {
@@ -164,8 +164,9 @@ export const VitalsGraph = memo(function VitalsGraph({ vitals }: VitalsGraphProp
               key={m.key}
               type="button"
               onClick={() => toggleMetric(m.key)}
+              aria-pressed={active}
               className={[
-                "flex items-center gap-1.5 px-3 h-7 rounded-full text-xs font-medium border transition-colors",
+                "flex items-center gap-1.5 px-3 min-h-11 rounded-full text-xs font-medium border transition-colors",
                 active
                   ? `${C.textWhite} border-transparent`
                   : `${C.text60} ${C.borderLight} ${C.bgWhite} ${C.hoverBgLight}`,
@@ -185,7 +186,7 @@ export const VitalsGraph = memo(function VitalsGraph({ vitals }: VitalsGraphProp
 
       {/* グラフ本体 */}
       {chartData.length < 2 ? (
-        <div className={`flex items-center justify-center h-40 text-sm ${C.text40}`}>
+        <div className={`flex items-center justify-center h-40 text-sm ${C.text60}`}>
           グラフを表示するには2件以上のバイタル記録が必要です
         </div>
       ) : (

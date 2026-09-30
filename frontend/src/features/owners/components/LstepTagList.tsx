@@ -2,7 +2,8 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { C, ICON } from "@/lib/design-tokens";
+import { EmptyState } from "@/components/shared/DataStates";
+import { BADGE, C, ICON } from "@/lib/design-tokens";
 import { isAutoManagedTag } from "@/constants/lstep-auto-tag-prefixes";
 const COLLAPSE_THRESHOLD = 10;
 
@@ -26,7 +27,7 @@ export function LstepTagList({
   const hiddenCount = tags.length - COLLAPSE_THRESHOLD;
 
   if (tags.length === 0) {
-    return <p className={`text-sm ${C.text40} italic`}>タグはありません</p>;
+    return <EmptyState message="タグはありません" />;
   }
 
   return (
@@ -39,7 +40,7 @@ export function LstepTagList({
               {isAuto ? (
                 <Badge
                   variant="outline"
-                  className={`text-xs px-2 py-0.5 h-auto ${C.bgStatusGray} ${C.textStatusGray} border-0`}
+                  className={`text-xs px-2 py-0.5 h-auto ${BADGE.grayNoBorder} border-0`}
                 >
                   {tag}
                 </Badge>
@@ -54,7 +55,8 @@ export function LstepTagList({
                       type="button"
                       aria-label={`${tag}を削除`}
                       onClick={() => onRemove(tag)}
-                      className={`ml-0.5 rounded-full ${C.hoverBgMedium} transition-colors`}
+                      // 44px タッチターゲット: p-4 で hit area を確保しつつ、-m-* でバッジ行高を維持。
+                      className={`ml-0.5 -my-4 -mr-2.5 p-4 rounded-full ${C.hoverBgMedium} transition-colors`}
                     >
                       <X className={ICON.xxs} />
                     </button>

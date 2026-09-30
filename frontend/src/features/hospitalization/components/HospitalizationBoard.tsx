@@ -15,7 +15,7 @@ import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { Plus, GripVertical } from "lucide-react";
 
 // Internal
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, BADGE } from "@/lib/design-tokens";
 import { formatDate } from "@/lib/format/date";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,7 @@ import { getHospitalizationTypeColor } from "@/lib/status-helpers";
 
 // Relative
 import { cageKeyboardCoordinateGetter } from "../lib/cage-keyboard-coordinates";
+import { HOSPITALIZATION_STATUS } from "../constants";
 import { H_STYLES } from "../lib/styles";
 
 // Types
@@ -54,9 +55,11 @@ const CageCard = memo(function CageCard({
   canEdit,
 }: CageCardProps) {
   const isDeceased = occupant?.petIsDeceased ?? false;
+  // EMR-227: 退院済み入院はケージ移動（書込み）を render 側でも禁止する。
+  const isDischarged = occupant?.status === HOSPITALIZATION_STATUS.DISCHARGED;
   const cageContext = cage.category ? `${cage.category} ${cage.name}` : cage.name;
   const emptyCageActionLabel = `${cageContext}（ケージID: ${cage.id}）の空き枠に入院・ホテルを登録`;
-  const canDrag = Boolean(occupant) && !isDeceased && canEdit;
+  const canDrag = Boolean(occupant) && !isDeceased && !isDischarged && canEdit;
   // FE-RC-044: 詳細への遷移は :127-138 の `詳細` button（aria-label 付き）に一本化する。
   // Card 自体は非フォーカス可能・キーボード操作不可のため、同じ操作を onClick で重複させない。
   const canShowDetailButton = Boolean(occupant) && !isDeceased && canEdit;
@@ -88,7 +91,7 @@ const CageCard = memo(function CageCard({
                   ${
                     occupant
                       ? isDeceased
-                        ? `${C.bgPage} border-l-4 ${C.borderPrimary20} opacity-40`
+                        ? `${C.bgPage} border-l-4 ${C.borderPrimary20}`
                         : `${C.bgWhite} border-l-4 ${C.borderLMedicalBlue}`
                       : `${C.bgPage} border-dashed ${C.borderPrimary20}`
                   }
@@ -106,7 +109,7 @@ const CageCard = memo(function CageCard({
                 <GripVertical className={ICON.action} />
               </div>
             ) : null}
-            <span className={`${H_STYLES.text.sm} font-mono ${C.text60} font-bold`}>
+            <span className={`${H_STYLES.text.sm} font-mono ${C.text60} font-semibold`}>
               {cage.name}
             </span>
           </div>
@@ -138,7 +141,15 @@ const CageCard = memo(function CageCard({
               <div className={`${H_STYLES.text.sm} ${C.text} truncate w-full`}>
                 {[occupant.species, occupant.petName].filter(Boolean).join(" ")}
               </div>
-              {isDeceased ? <span className={`text-xs ${C.text40} font-medium`}>死亡</span> : null}
+              {isDeceased ? (
+                // EMR-227: 死亡センチネルは text40 の素テキストではなくバッジで明示する（カードの可読性維持）
+                <Badge
+                  variant="outline"
+                  className={`${BADGE.gray} ${H_STYLES.text.xs} px-1.5 py-0 h-5 font-medium`}
+                >
+                  死亡
+                </Badge>
+              ) : null}
               {canShowDetailButton ? (
                 <button
                   type="button"
@@ -162,7 +173,7 @@ const CageCard = memo(function CageCard({
                   size="icon"
                   aria-label={emptyCageActionLabel}
                   title={emptyCageActionLabel}
-                  className={`h-10 w-10 mt-1 rounded-full ${C.hoverBgPrimary10} ${C.hoverText60}`}
+                  className={`h-11 w-11 mt-1 rounded-full ${C.hoverBgPrimary10} ${C.hoverText60}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     onNavigateToForm();

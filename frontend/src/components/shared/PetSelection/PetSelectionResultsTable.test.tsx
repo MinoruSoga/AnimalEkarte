@@ -421,7 +421,7 @@ describe("PetSelectionResultsTable row actions", () => {
 
     const trigger = screen.getByRole("button", { name: "ポチの注意理由を表示" });
     expect(trigger.tagName).toBe("BUTTON");
-    expect(trigger).toHaveClass(C.bgNotice, C.textNotice, C.borderNotice);
+    expect(trigger).toHaveClass(C.bgNotice, C.textBadgeYellow, C.borderNotice);
     expect(trigger).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByText("⚠ 危険")).not.toBeInTheDocument();
 

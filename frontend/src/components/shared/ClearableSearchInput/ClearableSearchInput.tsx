@@ -39,7 +39,13 @@ export function ClearableSearchInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={cn("pl-9 h-11 text-sm bg-white", C.borderMedium, inputClassName)}
+        className={cn(
+          "pl-9 h-11 text-sm bg-white",
+          // 44px クリアボタン（right-1 + min-w-11）が重なる領域を確保
+          value ? "pr-12" : undefined,
+          C.borderMedium,
+          inputClassName,
+        )}
       />
       {value ? (
         <button
@@ -52,7 +58,13 @@ export function ClearableSearchInput({
             inputRef.current?.focus();
           }}
           aria-label={clearAriaLabel}
-          className={cn("absolute right-2.5 top-1/2 -translate-y-1/2", C.text40, C.hoverText)}
+          className={cn(
+            "absolute right-1 top-1/2 -translate-y-1/2 inline-flex min-h-11 min-w-11 items-center justify-center rounded-xxs",
+            C.text40,
+            C.hoverText,
+            "focus-visible:ring-2 focus-visible:ring-offset-1",
+            C.focusRingAccent40,
+          )}
         >
           <X aria-hidden="true" className={ICON.xs} />
         </button>

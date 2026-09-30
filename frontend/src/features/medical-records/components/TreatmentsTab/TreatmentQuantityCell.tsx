@@ -142,7 +142,7 @@ export function TreatmentQuantityCell({
           }}
           onBlur={commitQuantity}
           onKeyDown={handleQuantityKeyDown}
-          className={`h-8 text-sm text-right px-2 ${C.borderMedium}`}
+          className={`h-9 text-sm text-right px-2 ${C.borderMedium}`}
           aria-label="数量"
           aria-describedby={quantityDescriptionIds}
           aria-invalid={dose.doseBlockReason !== "" ? true : undefined}
@@ -151,7 +151,7 @@ export function TreatmentQuantityCell({
         <button
           ref={quantityButtonRef}
           type="button"
-          className={`w-full text-right text-sm ${C.hoverBgLight} px-1 py-0.5 rounded-xxs transition-colors ${quantityDisplayClassName(
+          className={`w-full h-9 min-w-11 flex items-center justify-end text-right text-sm ${C.hoverBgLight} px-1 rounded-xxs transition-colors ${quantityDisplayClassName(
             dose.currentGate.warning,
             dose.pendingGate.warning,
             dose.needsDeviationReasonUI,

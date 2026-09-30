@@ -1,11 +1,7 @@
 import { AlertTriangle, Edit, Trash2 } from "lucide-react";
 import { memo } from "react";
 import { TableCell } from "@/components/ui/table";
-import {
-  DataTable,
-  DESIGN_TABLE_HEADER_ROW,
-  DESIGN_TABLE_HEADER_CELL,
-} from "@/components/shared/DataTable/DataTable";
+import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
@@ -20,7 +16,7 @@ import { Pagination } from "@/components/shared/Pagination";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { TrimmingUI } from "@/types";
 import { getTrimmingStatusColor } from "@/lib/status-helpers";
 import { paths } from "@/config/paths";
@@ -168,8 +164,8 @@ export function TrimmingListTable({
 
       <FilteringIndicator isFiltering={isFiltering}>
         <DataTable
-          headerRowClassName={DESIGN_TABLE_HEADER_ROW}
-          headerCellClassName={DESIGN_TABLE_HEADER_CELL}
+          headerRowClassName={STYLE.tableHeaderRow}
+          headerCellClassName={STYLE.sectionLabel}
           columns={columns}
           data={records}
           renderRow={(record) => (

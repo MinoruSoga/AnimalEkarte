@@ -184,6 +184,11 @@ vi.mock("../api/get-medical-records", () => ({
   useGetPetMedicalHistory: () => ({ historyItems: [] }),
 }));
 
+// NO32: 統合タイムライン用の trimming query。QueryClientProvider 無しで描くため stub。
+vi.mock("../api/get-pet-trimmings", () => ({
+  useGetTrimmingsByPetId: () => ({ data: [] }),
+}));
+
 vi.mock("../api/clinical-plan", () => ({
   useGetClinicalPlan: () => ({ data: undefined }),
 }));

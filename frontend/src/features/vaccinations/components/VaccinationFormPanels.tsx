@@ -292,7 +292,7 @@ export function VaccinationHistoryPanel({
 
       <div className="flex flex-col gap-2 overflow-y-auto max-h-[600px]">
         {petHistory.length === 0 ? (
-          <p className={`text-sm ${C.text45} py-4 text-center`}>履歴がありません</p>
+          <p className={`text-sm ${C.text60} py-4 text-center`}>履歴がありません</p>
         ) : (
           petHistory.map((vaccination) => (
             <VaccinationCard key={vaccination.id} vaccination={vaccination} />

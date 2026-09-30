@@ -472,6 +472,25 @@ def plan(paths):
             })
         elif path in ('frontend/vite.config.ts', 'frontend/scripts/vite-native-config.test.mjs'):
             jobs.append({'service': 'frontend', 'command': ['node', '--test', 'scripts/vite-native-config.test.mjs']})
+        elif path in (
+            'frontend/scripts/design-system-audit.mjs',
+            'frontend/scripts/design-system-audit.test.mjs',
+        ):
+            # 監査スクリプトの scoped 契約: 単体テスト + 監査自体の実行（違反 0 が PASS 条件）。
+            jobs.append({'service': 'frontend', 'command': ['node', '--test', 'scripts/design-system-audit.test.mjs']})
+            jobs.append({'service': 'frontend', 'command': ['node', 'scripts/design-system-audit.mjs']})
+        elif path == 'frontend/index.html':
+            jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/prettier/bin/prettier.cjs', '--check', 'index.html']})
+        elif path == 'frontend/tsconfig.json':
+            # tsconfig 変更の契約は全量 typecheck。
+            jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/typescript/bin/tsc', '-p', 'tsconfig.json', '--noEmit', '--pretty', 'false']})
+        elif path.startswith('frontend/.storybook/') and path.endswith('.ts'):
+            if not (ROOT / path).is_file():
+                blocked.append(path)
+                continue
+            rel = path.removeprefix('frontend/')
+            jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/eslint/bin/eslint.js', '--max-warnings', '0', rel]})
+            jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/prettier/bin/prettier.cjs', '--check', rel]})
         elif path in ('frontend/package.json', 'frontend/pnpm-lock.yaml'):
             # Match GitHub Frontend Build audit gate (pnpm audit --audit-level moderate).
             job = {
@@ -558,7 +577,7 @@ def plan(paths):
                 job['service'] == 'host' and job['command'][-1].endswith('ci_scope_plan_test.py') for job in jobs
             ):
                 jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/ci_scope_plan_test.py']})
-        elif path in ('scripts/test_agent_scope_contracts.py', '.gitignore', '.mcp.json', '.claude/settings.json', '.claude/codex-agent-manifest.json', 'backend/wrangler.jsonc'):
+        elif path in ('scripts/test_agent_scope_contracts.py', '.gitignore', 'frontend/.gitignore', '.mcp.json', '.claude/settings.json', '.claude/codex-agent-manifest.json', 'backend/wrangler.jsonc', 'frontend/chromatic.config.json'):
             jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/test_agent_scope_contracts.py']})
         elif path == 'backend/Dockerfile.production':
             jobs.append({'service': 'host', 'command': ['docker', 'build', '--check', '-f', path, 'backend/']})
@@ -635,6 +654,8 @@ def plan(paths):
             '.github/workflows/ci.yml',
             '.github/workflows/e2e.yml',
             '.github/workflows/backend-deploy.yml',
+            '.github/workflows/storybook.yml',
+            '.github/workflows/chromatic.yml',
             'infra/scripts/cf-run-migrate.sh',
         ):
             jobs.append({'service': 'host', 'command': ['node', '--test', 'scripts/check-workflow-contracts.test.mjs']})
@@ -677,7 +698,7 @@ def plan(paths):
         elif path in ('backend/internal/auth/testdata/first_system_admin.sql', 'docs/ops/deploy/FIRST_SYSTEM_ADMIN.md'):
             jobs.append({'service': 'backend', 'command': ['go', 'test', '-json', '-p=2', '-count=1', '-short', './internal/auth', '-run=^TestFirstSystemAdminProcedureMatchesInitSchema$'], 'require_completed_test': True})
         elif path.endswith('.md') and (path.startswith(('docs/', '.claude/', '.codex/', '.agents/', 'frontend/src/features/manual/'))
-                                      or '/' not in path or pathlib.PurePosixPath(path).name in ('CLAUDE.md', 'AGENTS.md', 'README.md')):
+                                      or '/' not in path or pathlib.PurePosixPath(path).name in ('CLAUDE.md', 'AGENTS.md', 'README.md', 'PATTERNS.md')):
             continue
         elif path.startswith('frontend/src/features/manual/content/images/'):
             # Manual article screenshots; documentation-only SKIP like the .md files they illustrate.
@@ -752,14 +773,18 @@ def plan(paths):
             })
         else:
             # Shared/cross-cutting FE: keep graph-local related (not full suite).
-            jobs.append({
-                'service': 'frontend',
-                'command': [
-                    'node', 'node_modules/vitest/vitest.mjs', 'related',
-                    '--run', '--configLoader', 'native', '--reporter=json', *frontend,
-                ],
-                'require_frontend_tests': True,
-            })
+            # *.stories.tsx have no related vitest files — they are covered by
+            # eslint/prettier, design-audit C21/C24, and the Storybook CI build.
+            testable = [p for p in frontend if not p.endswith('.stories.tsx')]
+            if testable:
+                jobs.append({
+                    'service': 'frontend',
+                    'command': [
+                        'node', 'node_modules/vitest/vitest.mjs', 'related',
+                        '--run', '--configLoader', 'native', '--reporter=json', *testable,
+                    ],
+                    'require_frontend_tests': True,
+                })
         existing = [path for path in frontend if (ROOT / 'frontend' / path).is_file() and '/types/generated/' not in '/' + path]
         if existing:
             jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/eslint/bin/eslint.js', '--max-warnings', '0', *existing]})

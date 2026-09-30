@@ -93,7 +93,9 @@ export function AggregationOwnerTable({
             owners.map((owner) => (
               <TableRow
                 key={owner.owner_id}
-                className={`${STYLE.tableRow} ${selectedOwnerIds.has(owner.owner_id) ? C.bgBrand10 : ""}`}
+                // 行自体はクリック不可 (選択は行内 Checkbox のみ) のため STYLE.tableRow の
+                // cursor-pointer は付けず、それ以外の行スタイルを踏襲する。
+                className={`border-b ${C.borderLight} ${C.hoverBgPageHalf} transition-colors h-16 ${selectedOwnerIds.has(owner.owner_id) ? C.bgActionPrimary10 : ""}`}
               >
                 <TableCell className="px-4">
                   <Checkbox

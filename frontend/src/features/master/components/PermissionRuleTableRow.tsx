@@ -1,7 +1,7 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
-import { C } from "@/lib/design-tokens";
+import { STYLE } from "@/lib/design-tokens";
 
 import {
   PERMISSION_ACTION_COLUMNS,
@@ -25,7 +25,7 @@ export function PermissionRuleTableRow({
 }: PermissionRuleTableRowProps) {
   return (
     <DataTableRow>
-      <TableCell className={`text-sm ${C.text}`}>{RESOURCE_LABELS[resource] || resource}</TableCell>
+      <TableCell className={STYLE.tableCell}>{RESOURCE_LABELS[resource] || resource}</TableCell>
       {PERMISSION_ACTION_COLUMNS.map(({ field, label }) => (
         <PermissionCheckboxCell
           key={field}
@@ -59,6 +59,7 @@ function PermissionCheckboxCell({
         checked={checked}
         disabled={disabled}
         onCheckedChange={(value) => onChange(value === true)}
+        touchTarget
       />
     </TableCell>
   );

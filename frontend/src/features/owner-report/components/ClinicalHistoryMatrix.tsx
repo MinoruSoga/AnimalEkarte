@@ -19,11 +19,11 @@ type HistoryColumn = ClinicalHistoryMatrixModel["columns"][number];
 type HistoryEntry = HistoryColumn["entries"][number];
 
 const rowToneClasses: Record<ClinicalHistoryKind, { dot: string; heading: string }> = {
-  診療: { dot: C.bgBrandDot, heading: C.bgBrandLight50 },
+  診療: { dot: C.bgActionPrimary, heading: C.bgBrandLight50 },
   検査: { dot: C.bgStatusPurpleDot, heading: C.bgStatusPurple },
   "薬・処方": { dot: C.bgStatusAmberDot, heading: C.bgStatusAmber },
   予防接種: { dot: C.bgStatusEmeraldDot, heading: C.bgStatusEmerald },
-  処置: { dot: C.bgStatusRedDot, heading: C.bgRedLight },
+  処置: { dot: C.bgStatusSkyDot, heading: C.bgStatusSky },
   ケア: { dot: C.bgStatusBlueDot, heading: C.bgStatusBlueLight },
 };
 
@@ -40,10 +40,12 @@ function historyStateLabel(state: HistoryRowState): string {
 
 function EntryCard({ entry }: { entry: HistoryEntry }) {
   return (
-    <article className={`border-l-2 pl-1.5 ${entry.isAlert ? C.borderDanger : C.borderBrand}`}>
+    <article
+      className={`border-l-2 pl-1.5 ${entry.isAlert ? C.borderDanger : C.borderActionPrimary}`}
+    >
       <div className="flex min-w-0 items-center justify-between gap-1">
         <span
-          className={`truncate text-2xs font-semibold ${entry.isAlert ? C.danger : C.textBrand}`}
+          className={`truncate text-2xs font-semibold ${entry.isAlert ? C.danger : C.textActionPrimaryDark}`}
         >
           {entry.source}
         </span>
@@ -90,7 +92,7 @@ function HistoryCellContent({
   }
   const showsPermissionNotice = state === "partial-permission" && index === 0;
   if (entries.length === 0 && !showsPermissionNotice) {
-    return <span className={`block text-center text-xs ${C.text25}`}>—</span>;
+    return <span className={`block text-center text-xs ${C.text60}`}>—</span>;
   }
   return (
     <div className="flex flex-col gap-1.5">

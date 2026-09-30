@@ -3,11 +3,13 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/TestUtils";
 import { OwnerSearchModal } from "./OwnerSearchModal";
 
 function renderModal(overrides?: { onSelect?: (owner: unknown) => void }) {
   return render(
     <OwnerSearchModal open onOpenChange={() => {}} onSelect={overrides?.onSelect ?? (() => {})} />,
+    { wrapper: createTestWrapper() },
   );
 }
 

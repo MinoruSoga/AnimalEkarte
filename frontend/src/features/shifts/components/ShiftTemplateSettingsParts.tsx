@@ -6,11 +6,13 @@ import X from "lucide-react/dist/esm/icons/x";
 import { TableCell } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
+import { FieldHelp } from "@/components/shared/FieldHelp";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
-import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT, STYLE } from "@/lib/design-tokens";
 import { SHIFT_TYPE_LABELS, type ShiftTemplate } from "../types";
 import {
   DEFAULT_BREAK_START,
@@ -160,7 +162,7 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
   }, [formData, isTimeHidden, onSave, readOnly]);
 
   return (
-    <div className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0`}>
+    <div data-side-peek className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0`}>
       <div className={STYLE.sidePeekToolbar}>
         <span className={`text-xs ${C.text35} pl-1 select-none`}>
           {item !== null ? (readOnly ? "詳細" : "編集") : "新規作成"}
@@ -173,7 +175,7 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
               className={`${STYLE.sidePeekToolbarBtn} cursor-pointer ${STYLE.btnDangerGhost}`}
               aria-label={`削除: シフトテンプレート ${item.name} (ID ${item.id})`}
             >
-              <Trash2 className="size-4" aria-hidden="true" />
+              <Trash2 className={ICON.sm} aria-hidden="true" />
             </button>
           ) : null}
           <button
@@ -182,7 +184,7 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
             className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
             aria-label="閉じる"
           >
-            <X className="size-4" aria-hidden="true" />
+            <X className={ICON.sm} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -196,22 +198,28 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
           </div>
 
           <div className="pb-1 mb-4">
-            <input
-              type="text"
-              aria-label="テンプレート名"
-              className={`w-full bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0 focus-visible:ring-2 ${C.focusRingAccent40}`}
-              style={{
-                fontSize: LAYOUT.pageTitle.fontSize,
-                fontWeight: LAYOUT.pageTitle.fontWeight,
-                lineHeight: LAYOUT.pageTitle.lineHeight,
-                letterSpacing: LAYOUT.pageTitle.letterSpacing,
-              }}
-              value={formData.name}
-              onChange={(e) => handleField("name", e.target.value)}
-              placeholder="テンプレート名"
-              readOnly={readOnly}
-              autoFocus={!readOnly}
-            />
+            <div className="flex items-center gap-1">
+              <input
+                type="text"
+                aria-label="テンプレート名"
+                className={`flex-1 min-w-0 bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0 focus-visible:ring-2 ${C.focusRingAccent40}`}
+                style={{
+                  fontSize: LAYOUT.pageTitle.fontSize,
+                  fontWeight: LAYOUT.pageTitle.fontWeight,
+                  lineHeight: LAYOUT.pageTitle.lineHeight,
+                  letterSpacing: LAYOUT.pageTitle.letterSpacing,
+                }}
+                value={formData.name}
+                onChange={(e) => handleField("name", e.target.value)}
+                placeholder="テンプレート名"
+                readOnly={readOnly}
+                autoFocus={!readOnly}
+              />
+              <FieldHelp
+                label="テンプレート名"
+                content="シフトテンプレートの名前です。シフト割り当て時の選択肢に表示されます。"
+              />
+            </div>
           </div>
 
           <div className={`${STYLE.sectionDivider} mb-1`} />
@@ -234,14 +242,13 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
           {readOnly ? "閉じる" : "キャンセル"}
         </button>
         {!readOnly ? (
-          <button
+          <PrimaryButton
             type="button"
             onClick={handleAction}
             disabled={isSaving || !formData.name.trim()}
-            className={`px-4 py-[7px] text-base ${C.textOnBrand} ${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-full transition-colors cursor-pointer ${STYLE.pillShadow}`}
           >
             {isSaving ? "保存中..." : "保存"}
-          </button>
+          </PrimaryButton>
         ) : null}
       </div>
     </div>

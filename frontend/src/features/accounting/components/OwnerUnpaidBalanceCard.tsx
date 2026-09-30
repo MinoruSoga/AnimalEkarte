@@ -31,7 +31,7 @@ export const OwnerUnpaidBalanceCard = memo(function OwnerUnpaidBalanceCard({
       <CardContent className="p-4 flex items-center justify-between">
         <div className="flex flex-col gap-0.5">
           <span className={`text-sm font-medium ${C.text60}`}>未納残高</span>
-          <span className={`text-xs ${C.text40}`}>未入金 {data.unpaidCount} 件</span>
+          <span className={`text-xs ${C.text60}`}>未入金 {data.unpaidCount} 件</span>
         </div>
         <span className={`text-xl font-bold ${C.danger}`}>{formatCurrency(data.unpaidTotal)}</span>
       </CardContent>

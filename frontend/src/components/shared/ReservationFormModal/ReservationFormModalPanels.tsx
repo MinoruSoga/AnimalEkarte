@@ -10,7 +10,7 @@ import { ReservationRouteSelect } from "@/components/shared/ReservationRouteSele
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import type { NewOwnerFormData } from "@/types/reservation-form";
 import type { ReservationRoute } from "@/types/reservation-route";
-import { C, ICON, PALETTE } from "@/lib/design-tokens";
+import { BADGE, C, ICON, PALETTE } from "@/lib/design-tokens";
 import { cn } from "@/lib/utils";
 import type { Pet, Reservation } from "@/types";
 import { NewOwnerInlineForm } from "./NewOwnerInlineForm";
@@ -39,7 +39,7 @@ export function ReservationModalHeader({
           {isEditMode ? (
             <CalendarCheck className={`${ICON.page} ${C.textNotice}`} />
           ) : (
-            <Calendar className={`${ICON.page} ${C.textBrand}`} />
+            <Calendar className={`${ICON.page} ${C.textActionPrimary}`} />
           )}
           <DialogTitle className={`text-sm font-bold ${C.text}`}>
             {isEditMode ? "予約編集" : "新規予約作成"}
@@ -59,7 +59,7 @@ export function ReservationModalHeader({
           size="sm"
           variant={mobilePanel === "search" ? "default" : "outline"}
           onClick={() => onMobilePanelChange("search")}
-          className="flex-1 h-9 text-sm"
+          className="flex-1 h-11 text-sm"
         >
           患者選択
         </Button>
@@ -67,7 +67,7 @@ export function ReservationModalHeader({
           size="sm"
           variant={mobilePanel === "form" ? "default" : "outline"}
           onClick={() => onMobilePanelChange("form")}
-          className="flex-1 h-9 text-sm"
+          className="flex-1 h-11 text-sm"
         >
           予約情報
         </Button>
@@ -86,10 +86,12 @@ const StepIndicator = memo(function StepIndicator({
   active: boolean;
 }) {
   return (
-    <div className={`flex items-center gap-1.5 text-xs ${active ? C.textBrand : C.text30}`}>
+    <div className={`flex items-center gap-1.5 text-xs ${active ? C.textActionPrimary : C.text60}`}>
       <span
         className={`w-5 h-5 rounded-full flex items-center justify-center text-2xs font-bold transition-colors ${
-          active ? `${C.bgBrand} ${C.textOnBrand}` : `${C.bgPrimary10} ${C.text30}`
+          active
+            ? `${C.bgActionPrimarySolid} ${C.textOnActionPrimary}`
+            : `${C.bgPrimary10} ${C.text60}`
         }`}
       >
         {step}
@@ -125,7 +127,7 @@ export function ReservationPatientPanel({
   return (
     <div
       className={cn(
-        `w-full lg:w-7/12 border-b lg:border-b-0 lg:border-r ${C.bgSubtle} p-4 flex flex-col overflow-hidden min-h-[300px] lg:min-h-auto flex-1`,
+        `w-full lg:w-7/12 border-b lg:border-b-0 lg:border-r ${C.bgSubtle} p-4 flex flex-col overflow-hidden min-h-72 lg:min-h-auto flex-1`,
         mobilePanel !== "search" && "hidden lg:flex",
       )}
     >
@@ -135,7 +137,7 @@ export function ReservationPatientPanel({
             type="button"
             onClick={() => onOwnerModeChange("existing")}
             data-testid="mode-existing"
-            className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${ownerMode === "existing" ? `${C.bgBrand} ${C.textOnBrand}` : `bg-white ${C.text60}`}`}
+            className={`flex-1 min-h-11 px-3 py-1.5 text-xs font-medium transition-colors flex items-center justify-center ${ownerMode === "existing" ? `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary}` : `${C.bgWhite} ${C.text60}`}`}
           >
             <Users size={12} className="inline mr-1" />
             既存飼主
@@ -144,7 +146,7 @@ export function ReservationPatientPanel({
             type="button"
             onClick={() => onOwnerModeChange("new")}
             data-testid="mode-new"
-            className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${ownerMode === "new" ? `${C.bgBrand} ${C.textOnBrand}` : `bg-white ${C.text60}`}`}
+            className={`flex-1 min-h-11 px-3 py-1.5 text-xs font-medium transition-colors flex items-center justify-center ${ownerMode === "new" ? `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary}` : `${C.bgWhite} ${C.text60}`}`}
           >
             <UserPlus size={12} className="inline mr-1" />
             新規飼主
@@ -209,7 +211,7 @@ export function ReservationDetailsPanel({
   return (
     <div
       className={cn(
-        "w-full lg:w-5/12 bg-white flex flex-col overflow-hidden min-h-[300px] lg:min-h-auto flex-1",
+        `w-full lg:w-5/12 ${C.bgWhite} flex flex-col overflow-hidden min-h-72 lg:min-h-auto flex-1`,
         mobilePanel !== "form" && "hidden lg:flex",
       )}
     >
@@ -264,11 +266,11 @@ function SelectedPatientSummary({
 
   return (
     <div
-      className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? `${C.bgBrandLight50} ${C.borderBrandLight}` : `${C.bgPage} ${C.borderMediumLight}`}`}
+      className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? `${C.bgActionPrimaryLight}/50 ${C.borderActionPrimary}/30` : `${C.bgPage} ${C.borderMediumLight}`}`}
     >
-      <Label className={`text-2xs ${C.text40} font-semibold uppercase block mb-3`}>
+      <Label className={`text-2xs ${C.text60} font-semibold uppercase block mb-3`}>
         予約対象（選択中）
-        <span style={{ color: C.danger }} className="ml-1 normal-case" aria-hidden="true">
+        <span className={`ml-1 normal-case ${C.textRequired}`} aria-hidden="true">
           *
         </span>
       </Label>
@@ -282,7 +284,7 @@ function SelectedPatientSummary({
       ) : (
         <div className="flex flex-col items-center justify-center h-20 text-center">
           <PawPrint className={`${ICON.lg} ${C.text15} mb-2`} />
-          <div className={`text-xs ${C.text40}`}>左側から患者を選択してください</div>
+          <div className={`text-xs ${C.text60}`}>左側から患者を選択してください</div>
         </div>
       )}
       {selectedPets.length === 0 ? <FormFieldError message={validationError} /> : null}
@@ -299,7 +301,7 @@ const SelectedPetChip = memo(function SelectedPetChip({
 }) {
   return (
     <div
-      className={`flex items-center gap-2 bg-white p-2 rounded-lg border ${C.borderMediumLight}`}
+      className={`flex items-center gap-2 ${C.bgWhite} p-2 rounded-lg border ${C.borderMediumLight}`}
     >
       <PawPrint className={`${ICON.action} ${C.text60} flex-shrink-0`} />
       <span className={`text-sm font-bold ${C.text}`}>{pet.name}</span>
@@ -315,7 +317,8 @@ const SelectedPetChip = memo(function SelectedPetChip({
       <button
         type="button"
         onClick={() => onRemove(pet.id)}
-        className={`ml-1 p-1 ${C.hoverBgDanger5} rounded transition-colors`}
+        aria-label={`${pet.name}を選択から外す`}
+        className={`-m-3 p-3 ${C.hoverBgDanger5} rounded transition-colors`}
       >
         <X className={`${ICON.action} ${C.danger} ${C.hoverTextDanger}`} />
       </button>
@@ -326,9 +329,7 @@ const SelectedPetChip = memo(function SelectedPetChip({
 function LineStatusNotice({ status }: { status: LstepStatus }) {
   if (status === "not-linked") {
     return (
-      <div
-        className={`rounded-xs border ${C.borderNotice} ${C.bgNotice40} px-3 py-2 text-xs ${C.textNotice}`}
-      >
+      <div className={`rounded-xs border ${BADGE.yellow} px-3 py-2 text-xs`}>
         この飼い主はLINEアカウントが未連携のため、予約確定後のLINE自動通知は送信されません。
       </div>
     );
@@ -336,7 +337,7 @@ function LineStatusNotice({ status }: { status: LstepStatus }) {
   if (status === "opt-out") {
     return (
       <div
-        className={`rounded-xs border ${C.borderMediumLight} ${C.bgPage30} px-3 py-2 text-xs ${C.text40}`}
+        className={`rounded-xs border ${C.borderMediumLight} ${C.bgPage30} px-3 py-2 text-xs ${C.text60}`}
       >
         この飼い主はLINEメッセージの受信を拒否しています。予約確定後のLINE自動通知は送信されません。
       </div>
@@ -345,7 +346,7 @@ function LineStatusNotice({ status }: { status: LstepStatus }) {
   if (status === "synced") {
     return (
       <div
-        className="rounded-xs border px-3 py-2 text-xs text-white flex items-center gap-1.5"
+        className={`rounded-xs border px-3 py-2 text-xs ${C.textWhite} flex items-center gap-1.5`}
         style={{ backgroundColor: PALETTE.lineGreen, borderColor: PALETTE.lineGreen }}
       >
         LINE連携済み — 予約確定後に自動通知が送信されます。
@@ -373,7 +374,9 @@ export function ReservationModalFooter({
   onClose,
 }: ReservationModalFooterProps) {
   return (
-    <DialogFooter className="p-4 border-t bg-white shrink-0 h-14 flex items-center justify-between gap-2">
+    <DialogFooter
+      className={`p-4 border-t ${C.bgWhite} shrink-0 h-14 flex items-center justify-between gap-2`}
+    >
       <div className="flex items-center gap-1.5">
         {ownerMode === "new" ? (
           <>
@@ -391,7 +394,7 @@ export function ReservationModalFooter({
         <Button
           variant="outline"
           onClick={onClose}
-          className="h-10 text-sm"
+          className="h-11 text-sm"
           disabled={isSubmitting}
         >
           キャンセル

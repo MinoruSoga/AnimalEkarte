@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
+import { EmptyState } from "@/components/shared/DataStates";
 
 // Types
 import type { ApiStaffNote, CreateStaffNoteRequest } from "../../api/daily-records-types";
@@ -75,11 +76,11 @@ export const DailyStaffNotesSection = memo(function DailyStaffNotesSection({
     <div>
       <div className="flex items-center justify-between mb-2">
         <h4 className={`flex items-center gap-1.5 text-sm font-bold ${C.text}`}>
-          <MessageSquare className={`${ICON.action} ${C.textStatusGreen}`} />
+          <MessageSquare className={`${ICON.action} ${C.textAccentDark}`} />
           スタッフメモ
         </h4>
         {canCreate ? (
-          <Button variant="outline" size="sm" onClick={handleOpen} className="h-7 gap-1 text-xs">
+          <Button variant="outline" onClick={handleOpen} className="gap-1 text-xs">
             <Plus className={ICON.action} />
             追加
           </Button>
@@ -87,19 +88,15 @@ export const DailyStaffNotesSection = memo(function DailyStaffNotesSection({
       </div>
 
       {sorted.length === 0 ? (
-        <p
-          className={`text-xs ${C.text40} py-3 text-center ${C.bgPage} rounded border border-dashed ${C.borderMedium}`}
-        >
-          記録なし
-        </p>
+        <EmptyState message="記録なし" />
       ) : (
         <div className="space-y-1.5">
           {sorted.map((note) => (
             <div
               key={note.id}
-              className={`text-xs ${C.bgStatusGreen} rounded px-2.5 py-2 border ${C.borderStatusGreen}`}
+              className={`text-xs ${C.bgAccentLight} rounded px-2.5 py-2 border ${C.borderAccentBadge}`}
             >
-              <span className={`font-semibold ${C.textStatusGreen} mr-2`}>{note.time}</span>
+              <span className={`font-semibold ${C.textAccentDark} mr-2`}>{note.time}</span>
               <span className={`${C.text80}`}>{note.content}</span>
             </div>
           ))}

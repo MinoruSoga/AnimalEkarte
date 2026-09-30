@@ -2,21 +2,21 @@ import { Link, useNavigate } from "react-router";
 import { FlaskConical, Plus } from "lucide-react";
 import { toast } from "sonner";
 
-import {
-  DataTable,
-  DESIGN_TABLE_HEADER_CELL,
-  DESIGN_TABLE_HEADER_ROW,
-} from "@/components/shared/DataTable/DataTable";
+import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { TableCell } from "@/components/ui/table";
 import { paths } from "@/config/paths";
-import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT, STYLE } from "@/lib/design-tokens";
 import { ResourceLabImport } from "@/types/generated/models";
 
+import { useGetAllExaminationTypes } from "../api/exam-types-master";
+import { useGetLabDeviceItemMasters } from "../api/lab-device-item-masters";
+import { useGetLabDevices } from "../api/lab-devices";
 import { LabDeviceItemMasterSidePanel } from "../components/LabDeviceItemMasterSidePanel";
 import { MASTER_TABLE_COL } from "../constants/styles";
 import { labDeviceSourceLabel, type LabDeviceRow } from "./lab-device-item-master-settings-model";
@@ -33,6 +33,15 @@ const COLUMNS = [
 export function LabDeviceItemMasterSettings() {
   const navigate = useNavigate();
   const s = useLabDeviceItemMasterSettings();
+  // 一覧クエリの状態を DataStates に接続する（useLabDeviceItemMasterSettings 内と
+  // 同一 queryKey でキャッシュ共有されるため追加 fetch は発生しない）。
+  const listQueries = [
+    useGetLabDevices(),
+    useGetLabDeviceItemMasters(),
+    useGetAllExaminationTypes(),
+  ];
+  const isDataPending = listQueries.some((q) => q.isPending);
+  const isDataError = listQueries.some((q) => q.isError);
 
   return (
     <>
@@ -64,13 +73,19 @@ export function LabDeviceItemMasterSettings() {
               />
             }
           >
-            <LabDeviceItemMasterTable
-              fromBoard={s.fromBoard}
-              sourceFromQuery={s.sourceFromQuery}
-              devicesFetched={s.devicesFetched}
-              rows={s.rows}
-              onEdit={s.handleEdit}
-            />
+            {isDataError ? (
+              <ErrorFallback message="検査機器マスタの取得に失敗しました" />
+            ) : isDataPending ? (
+              <LoadingFallback />
+            ) : (
+              <LabDeviceItemMasterTable
+                fromBoard={s.fromBoard}
+                sourceFromQuery={s.sourceFromQuery}
+                devicesFetched={s.devicesFetched}
+                rows={s.rows}
+                onEdit={s.handleEdit}
+              />
+            )}
           </PageLayout>
         </div>
         {s.showPanel ? (
@@ -158,8 +173,8 @@ function LabDeviceItemMasterTable({
         </p>
       ) : null}
       <DataTable
-        headerRowClassName={DESIGN_TABLE_HEADER_ROW}
-        headerCellClassName={DESIGN_TABLE_HEADER_CELL}
+        headerRowClassName={STYLE.tableHeaderRow}
+        headerCellClassName={STYLE.sectionLabel}
         columns={COLUMNS}
         data={rows}
         emptyMessage="機器がありません。新規登録するか、既定項目を用意してください"

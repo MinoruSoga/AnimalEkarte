@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT, STYLE } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import { Send } from "lucide-react";
 import { toast } from "sonner";
@@ -119,7 +119,7 @@ export function CheckupSyncPage() {
                 {syncResult.failed_count > 0 ? (
                   <>
                     {"　"}失敗:{" "}
-                    <span className={`font-semibold ${C.textNotice}`}>
+                    <span className={`font-semibold ${C.textBadgeRed}`}>
                       {syncResult.failed_count}件
                     </span>
                   </>
@@ -147,7 +147,7 @@ export function CheckupSyncPage() {
                 disabled={
                   selectedOwnerIds.size === 0 || selectedOwnerIds.size > CHECKUP_SYNC_OWNER_LIMIT
                 }
-                className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} h-11 px-4 text-base rounded-full transition-colors shadow-none border-transparent`}
+                className={STYLE.confirmPrimary}
               >
                 <Send className={ICON.sm} />
                 タグを一括付与する

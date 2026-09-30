@@ -26,6 +26,8 @@ export interface MedicalRecordTabsAreaProps {
   lstepStatus: "synced" | "not-linked" | "opt-out" | undefined;
   recordStatus: string;
   diagnosis1NameIdError: string | undefined;
+  /** 確定済みまたは送信権限なしの編集ロック。読み取り専用パネルはロック境界の外に配置する。 */
+  isLocked: boolean;
   /** P2-15: 拠点横断で開いたカルテの子リソース操作用。レコード自身の clinicId */
   recordClinicId?: string;
   onChiefComplaintChange: (value: string) => void;

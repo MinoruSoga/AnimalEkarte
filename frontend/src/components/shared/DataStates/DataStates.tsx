@@ -9,7 +9,12 @@ import { C } from "@/lib/design-tokens";
 /** スピナーを表示するローディングフォールバック */
 export function LoadingFallback({ className }: { className?: string }) {
   return (
-    <div className={`flex justify-center items-center p-8 ${className ?? ""}`}>
+    <div
+      className={`flex justify-center items-center p-8 ${className ?? ""}`}
+      role="status"
+      aria-live="polite"
+      aria-label="読み込み中"
+    >
       <div
         className={`inline-block animate-spin rounded-full h-8 w-8 border-b-2 ${C.borderPrimary}`}
       />
@@ -25,7 +30,11 @@ export function ErrorFallback({
   message?: string;
   className?: string;
 }) {
-  return <div className={`p-4 ${C.danger} ${className ?? ""}`}>{message}</div>;
+  return (
+    <div className={`p-4 ${C.danger} ${className ?? ""}`} role="alert">
+      {message}
+    </div>
+  );
 }
 
 /**
@@ -56,8 +65,12 @@ export function EmptyState({
       className={`flex flex-col items-center justify-center gap-2 rounded-xl ${C.bgPage} py-8 px-8 text-center ${className ?? ""}`}
     >
       {icon ? <div className={C.text30}>{icon}</div> : null}
-      <p className={`text-base ${C.text60}`}>{message}</p>
-      {description ? <p className={`text-sm ${C.text40}`}>{description}</p> : null}
+      {/* 空状態の通知はメッセージ要素だけを live region にする。
+          children（アクションスロット）を含めると操作可能なボタン名まで読み上げられる。 */}
+      <p className={`text-base ${C.text60}`} aria-live="polite">
+        {message}
+      </p>
+      {description ? <p className={`text-sm ${C.text60}`}>{description}</p> : null}
       {children}
     </div>
   );

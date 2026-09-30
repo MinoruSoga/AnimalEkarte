@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getSafeMarkdownHref } from "./ManualContent";
+import { getSafeMarkdownHref } from "@/lib/safe-markdown-href";
 
 describe("getSafeMarkdownHref", () => {
   it("許可された外部リンクと相対リンクをそのまま返す", () => {

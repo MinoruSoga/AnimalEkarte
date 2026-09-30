@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 import type { TaxType } from "@/types/generated/models";
@@ -151,9 +152,17 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
         isActive={formData.isActive}
         onToggle={() => setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }))}
       />
-      <MoneyInput value={formData.price} onChange={handlePriceChange} error={priceError} />
+      <MoneyInput
+        value={formData.price}
+        onChange={handlePriceChange}
+        error={priceError}
+        description={FIELD_DESCRIPTIONS.unitPrice}
+      />
       {showAnesthesia ? (
-        <PropertyRow label="麻酔区分">
+        <PropertyRow
+          label="麻酔区分"
+          description="この処置に必要な麻酔の区分です。処置項目の登録に必須の情報です。"
+        >
           {readOnly ? (
             <span className={`text-base ${C.text}`}>
               {ANESTHESIA_OPTIONS.find((o) => o.value === formData.anesthesia)?.label ??
@@ -178,36 +187,45 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
           )}
         </PropertyRow>
       ) : null}
-      <PropertyRow label="課税区分">
+      <PropertyRow label="課税区分" description={FIELD_DESCRIPTIONS.taxCategory}>
         <TaxTypeSelector
           value={formData.taxType}
           onChange={(value) => setFormDataDirty((prev) => ({ ...prev, taxType: value }))}
         />
       </PropertyRow>
-      <PropertyRow label="税率">
+      <PropertyRow label="税率" description={FIELD_DESCRIPTIONS.taxRate}>
         <TaxRateSelector
           value={formData.taxRate}
           onChange={(value) => setFormDataDirty((prev) => ({ ...prev, taxRate: value }))}
         />
       </PropertyRow>
-      <PropertyRow label="保険対象外">
+      <PropertyRow
+        label="保険対象外"
+        description="この項目が保険適用の対象外かどうかです。対象外にすると保険計算から除外されます。"
+      >
         <button
           type="button"
           onClick={() =>
             setFormDataDirty((prev) => ({ ...prev, isNonInsurance: !prev.isNonInsurance }))
           }
           aria-label="保険対象外を切り替え"
-          className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-1.5 cursor-pointer text-sm ${formData.isNonInsurance ? C.textBrand : C.text50}`}
+          className={`inline-flex min-h-11 items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-1.5 cursor-pointer text-sm ${formData.isNonInsurance ? C.textBrand : C.text50}`}
         >
           {formData.isNonInsurance ? "対象外" : "対象"}
         </button>
       </PropertyRow>
       {hasChildren ? (
-        <PropertyRow label="親カテゴリ">
+        <PropertyRow
+          label="親カテゴリ"
+          description="この項目が属する親カテゴリです。子項目を持つため変更できません。"
+        >
           <span className={`text-base ${C.text50}`}>子項目があるため変更できません</span>
         </PropertyRow>
       ) : (
-        <PropertyRow label="親カテゴリ">
+        <PropertyRow
+          label="親カテゴリ"
+          description="この項目が属する親カテゴリです。項目を階層構造で整理するために使われます。"
+        >
           {readOnly ? (
             <span className={`text-base ${C.text}`}>
               {item?.parentId != null
@@ -240,7 +258,7 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
           )}
         </PropertyRow>
       )}
-      <PropertyRow label="備考">
+      <PropertyRow label="備考" description={FIELD_DESCRIPTIONS.note}>
         <PropertyInput
           value={formData.description}
           onChange={(value) => setFormDataDirty((prev) => ({ ...prev, description: value }))}

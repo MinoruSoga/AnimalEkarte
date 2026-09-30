@@ -120,4 +120,37 @@ describe("MedicineCategoryHeaderRow", () => {
     await user.click(editButton);
     expect(onEdit).toHaveBeenCalledWith(CATEGORY);
   });
+
+  it("hover時のみ表示の操作ボタンは keyboard focus で可視になる", () => {
+    render(
+      <table>
+        <tbody>
+          <MedicineCategoryHeaderRow
+            parentId={CATEGORY.id}
+            header={CATEGORY}
+            itemCount={27}
+            isCollapsed={false}
+            canCreate
+            canEdit
+            onToggleGroup={vi.fn()}
+            onEdit={vi.fn()}
+            onCreate={vi.fn()}
+          />
+        </tbody>
+      </table>,
+    );
+
+    for (const name of [
+      "追加: 薬剤カテゴリ 内用薬 (ID medicine-group-1)",
+      "詳細: 薬剤カテゴリ 内用薬 (ID medicine-group-1)",
+    ]) {
+      const button = screen.getByRole("button", { name });
+      expect(button).toHaveClass(
+        "opacity-0",
+        "group-hover/header:opacity-100",
+        "group-focus-within/header:opacity-100",
+        "focus-visible:opacity-100",
+      );
+    }
+  });
 });

@@ -17,37 +17,61 @@ export function MedicalRecordServiceTabs({
   lstepStatus,
   recordClinicId,
   isFinalized,
+  isLocked,
   onRegisterEstimateSave,
 }: MedicalRecordTabsAreaProps & { isFinalized: boolean }) {
   const saveRequired = isNewRecord || !recordId;
   return (
     <>
-      <MedicalRecordMountedTab tab="予防接種" activeTab={activeTab} mountedTabs={mountedTabs}>
+      <MedicalRecordMountedTab
+        tab="予防接種"
+        activeTab={activeTab}
+        mountedTabs={mountedTabs}
+        isLocked={isLocked}
+        internalLock
+      >
         <MedicalRecordSaveRequired show={saveRequired}>
           <MedicalRecordVaccination
             petId={selectedPet.id}
             medicalRecordId={recordId ?? ""}
             lstepStatus={lstepStatus}
+            isLocked={isLocked}
           />
         </MedicalRecordSaveRequired>
       </MedicalRecordMountedTab>
-      <MedicalRecordMountedTab tab="定期健診" activeTab={activeTab} mountedTabs={mountedTabs}>
+      <MedicalRecordMountedTab
+        tab="定期健診"
+        activeTab={activeTab}
+        mountedTabs={mountedTabs}
+        isLocked={isLocked}
+      >
         <MedicalRecordSaveRequired show={saveRequired}>
           <CheckupsTab
             medicalRecordId={recordId ?? ""}
             lstepStatus={lstepStatus}
             isFinalized={isFinalized}
+            isPetDeceased={selectedPet.status === "死亡"}
           />
         </MedicalRecordSaveRequired>
       </MedicalRecordMountedTab>
-      <MedicalRecordMountedTab tab="検査" activeTab={activeTab} mountedTabs={mountedTabs}>
+      <MedicalRecordMountedTab
+        tab="検査"
+        activeTab={activeTab}
+        mountedTabs={mountedTabs}
+        isLocked={isLocked}
+      >
         <MedicalRecordExamination
           isNewRecord={isNewRecord}
           petId={selectedPet.id}
           medicalRecordId={recordId}
         />
       </MedicalRecordMountedTab>
-      <MedicalRecordMountedTab tab="画像" activeTab={activeTab} mountedTabs={mountedTabs}>
+      <MedicalRecordMountedTab
+        tab="画像"
+        activeTab={activeTab}
+        mountedTabs={mountedTabs}
+        isLocked={isLocked}
+      >
         <MedicalRecordImage
           isNewRecord={isNewRecord}
           medicalRecordId={recordId}
@@ -55,7 +79,12 @@ export function MedicalRecordServiceTabs({
           isPetDeceased={selectedPet.status === "死亡"}
         />
       </MedicalRecordMountedTab>
-      <MedicalRecordMountedTab tab="見積書" activeTab={activeTab} mountedTabs={mountedTabs}>
+      <MedicalRecordMountedTab
+        tab="見積書"
+        activeTab={activeTab}
+        mountedTabs={mountedTabs}
+        isLocked={isLocked}
+      >
         <MedicalRecordEstimate
           isNewRecord={isNewRecord}
           ownerDiscountRate={ownerDiscountRate}
@@ -63,13 +92,19 @@ export function MedicalRecordServiceTabs({
           onRegisterSave={onRegisterEstimateSave}
         />
       </MedicalRecordMountedTab>
-      <MedicalRecordMountedTab tab="会計(医師確認)" activeTab={activeTab} mountedTabs={mountedTabs}>
+      <MedicalRecordMountedTab
+        tab="会計(医師確認)"
+        activeTab={activeTab}
+        mountedTabs={mountedTabs}
+        isLocked={isLocked}
+      >
         <MedicalRecordBillCheck
           isNewRecord={isNewRecord}
           medicalRecordId={recordId}
           petId={selectedPet.id}
           ownerDiscountRate={ownerDiscountRate}
           recordClinicId={recordClinicId}
+          isPetDeceased={selectedPet.status === "死亡"}
         />
       </MedicalRecordMountedTab>
     </>

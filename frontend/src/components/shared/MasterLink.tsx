@@ -60,7 +60,7 @@ export const MasterLink = memo(function MasterLink({
   return (
     <Link
       to={path}
-      className={`inline-flex min-h-11 min-w-11 items-center justify-center gap-1 text-xs ${C.text40} ${C.hoverText}/70 transition-colors ${className || ""}`}
+      className={`inline-flex min-h-11 min-w-11 items-center justify-center gap-1 text-xs ${C.text60} ${C.hoverText60} transition-colors ${className || ""}`}
     >
       <Settings className={ICON.xs} />
       <span>{label}</span>

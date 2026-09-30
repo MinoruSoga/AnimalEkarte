@@ -18,12 +18,12 @@ export function VisitConversionSection({ data, isLoading, isError }: VisitConver
         <h2 id="visit-conversion-heading" className={`text-base font-semibold ${C.text80}`}>
           配信後来院率
         </h2>
-        <p className={`text-xs ${C.text40}`}>配信日から30日以内の来院を集計</p>
+        <p className={`text-xs ${C.text60}`}>配信日から30日以内の来院を集計</p>
       </div>
 
       <div className={`border ${C.borderLight} rounded-xs ${C.bgWhite} p-4 space-y-6`}>
         {isLoading ? (
-          <p className={`text-sm ${C.text40} py-8 text-center`}>読み込み中...</p>
+          <p className={`text-sm ${C.text60} py-8 text-center`}>読み込み中...</p>
         ) : isError ? (
           <p className={`text-sm ${C.danger} py-8 text-center`}>来院率データの取得に失敗しました</p>
         ) : (
@@ -59,7 +59,7 @@ function MetricCard({ label, value }: { label: string; value: string }) {
 function VisitConversionTable({ data }: { data?: VisitConversionSummaryResponse }) {
   if (!data || data.rows.length === 0) {
     return (
-      <p className={`text-sm ${C.text40} py-6 text-center`}>この月の来院率データはありません</p>
+      <p className={`text-sm ${C.text60} py-6 text-center`}>この月の来院率データはありません</p>
     );
   }
 

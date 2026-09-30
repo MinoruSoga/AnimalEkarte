@@ -58,7 +58,7 @@ export const CategoryChipsFilter = memo(function CategoryChipsFilter({
             type="button"
             onClick={() => onSelectCategory(null)}
             className={cn(
-              "flex h-8 shrink-0 items-center gap-1 border border-transparent bg-transparent px-3 text-sm",
+              "flex h-11 shrink-0 items-center gap-1 border border-transparent bg-transparent px-3 text-sm",
               roundedClass,
               C.text60,
               C.hoverBgMedium,
@@ -77,16 +77,16 @@ export const CategoryChipsFilter = memo(function CategoryChipsFilter({
               onClick={() => onSelectCategory(isActive ? null : category)}
               aria-pressed={isActive}
               className={cn(
-                "h-8 shrink-0 border px-2.5 text-sm whitespace-nowrap",
+                "h-11 shrink-0 border px-2.5 text-sm whitespace-nowrap",
                 roundedClass,
                 hoverTransitionClass,
                 isActive
                   ? cn(
-                      C.bgBrand,
+                      C.bgActionPrimarySolid,
                       "border-transparent",
-                      C.textOnBrand,
-                      C.hoverBgBrand,
-                      C.hoverTextOnBrand,
+                      C.textOnActionPrimary,
+                      C.hoverBgActionPrimarySolid,
+                      C.hoverTextOnActionPrimary,
                     )
                   : cn("bg-white", C.text, C.borderMedium, C.hoverBgLight),
               )}

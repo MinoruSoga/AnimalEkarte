@@ -2,6 +2,7 @@ import { memo, useActionState, useCallback, useLayoutEffect, useRef, useState } 
 import { Calendar, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { EmptyState } from "@/components/shared/DataStates";
 import { MasterSidePanel, PropertyRow } from "@/components/shared/SidePeek";
 import { getFormString } from "@/lib/form-data";
@@ -42,6 +43,7 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
   // 送信は form action が FormData(DOM 値) から読むため、このプレビュー state とは独立。
   const [amPmBoundary, setAmPmBoundary] = useState("");
   const [pmEnd, setPmEnd] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<ClosingSpecialPeriod | null>(null);
   const createMutation = useCreateSpecialPeriod();
   const deleteMutation = useDeleteSpecialPeriod();
   const { mutateAsync } = deleteMutation;
@@ -98,6 +100,14 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
     [mutateAsync],
   );
 
+  const handleConfirmDelete = useCallback(() => {
+    if (deleteTarget != null) {
+      void handleDelete(deleteTarget.id);
+    }
+    setDeleteTarget(null);
+  }, [deleteTarget, handleDelete]);
+  const handleCloseDeleteDialog = useCallback(() => setDeleteTarget(null), []);
+
   // 派生値は描画時に計算する（useEffect で同期しない）。特別期間は標準設定の am_start を継承する。
   const previewRanges = computeClosingTimeRanges(amPmBoundary, pmEnd, amStart);
 
@@ -109,7 +119,7 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
           <button
             type="button"
             onClick={handleShowForm}
-            className={`flex min-h-11 min-w-11 items-center gap-1.5 text-base ${C.textBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-xs px-3 transition-colors`}
+            className={`flex min-h-11 min-w-11 items-center gap-1.5 text-base ${C.textActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} rounded-xs px-3 transition-colors`}
           >
             <Plus className="size-4" />
             新規登録
@@ -123,12 +133,13 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
           title={note}
           onTitleChange={setNote}
           titlePlaceholder="メモ（例: 年末年始）"
+          titleDescription="この特別期間のメモ・名称です。年末年始や夏季休診など、期間の識別に使われます。"
           onClose={handleHideForm}
           action={formAction}
           icon={<Calendar className={LAYOUT.pageIcon.innerIcon} />}
         >
           <input type="hidden" name="note" value={note} />
-          <PropertyRow label="開始日">
+          <PropertyRow label="開始日" description="特別期間が始まる日付です。">
             <input
               id="start_date"
               name="start_date"
@@ -138,7 +149,7 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
               required
             />
           </PropertyRow>
-          <PropertyRow label="終了日">
+          <PropertyRow label="終了日" description="特別期間が終わる日付です。">
             <input
               id="end_date"
               name="end_date"
@@ -148,7 +159,10 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
               required
             />
           </PropertyRow>
-          <PropertyRow label="午前・午後 区切り時間">
+          <PropertyRow
+            label="午前・午後 区切り時間"
+            description="午前（AM）と午後（PM）の区切りとなる時刻です。締め時間帯の計算に使われます。"
+          >
             <input
               id="am_pm_boundary"
               name="am_pm_boundary"
@@ -160,7 +174,10 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
               required
             />
           </PropertyRow>
-          <PropertyRow label="午後 終了時間">
+          <PropertyRow
+            label="午後 終了時間"
+            description="午後（PM）時間帯の終了時刻です。これ以降はEMG（時間外）として扱われます。"
+          >
             <input
               id="pm_end"
               name="pm_end"
@@ -172,7 +189,10 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
               required
             />
           </PropertyRow>
-          <PropertyRow label="時間帯プレビュー">
+          <PropertyRow
+            label="時間帯プレビュー"
+            description="入力した区切り・終了時刻から自動計算されるAM/PM/EMGの時間帯です。確認用の表示で直接は編集できません。"
+          >
             <div className="space-y-0.5">
               {TIME_RANGE_ROWS.map((row) => (
                 <p key={row.key} className={`text-sm tabular-nums ${C.text60}`}>
@@ -208,7 +228,7 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleDelete(period.id)}
+                  onClick={() => setDeleteTarget(period)}
                   aria-label={`${period.start_date}から${period.end_date}の特別期間を削除`}
                   className={`flex size-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xxs ${C.text50} ${C.hoverTextDanger} ${C.hoverBgDanger5} transition-colors`}
                 >
@@ -221,6 +241,20 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
       ) : (
         <EmptyState message="特別期間は登録されていません" />
       )}
+
+      <ConfirmDialog
+        open={deleteTarget != null}
+        onClose={handleCloseDeleteDialog}
+        onConfirm={handleConfirmDelete}
+        title="特別期間を削除しますか？"
+        description={
+          deleteTarget != null
+            ? `${deleteTarget.start_date} 〜 ${deleteTarget.end_date} の特別期間を削除します。この操作は取り消せません。`
+            : undefined
+        }
+        confirmLabel="削除"
+        variant="destructive"
+      />
     </section>
   );
 });

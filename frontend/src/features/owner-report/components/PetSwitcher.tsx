@@ -23,7 +23,7 @@ export function PetSwitcher({ pets, selectedPetId, onSelect }: PetSwitcherProps)
       <select
         id="owner-report-pet-switcher"
         name="petId"
-        className={`min-h-11 min-w-0 max-w-56 rounded-xxs border px-2 text-sm ${C.borderLight} ${C.bgWhite} ${C.text} focus-visible:outline-none focus-visible:ring-2 ${C.focusRingBrand}`}
+        className={`min-h-11 min-w-0 max-w-56 rounded-xxs border px-2 text-sm ${C.borderLight} ${C.bgWhite} ${C.text} focus-visible:outline-none focus-visible:ring-2 ${C.focusRingActionPrimary}`}
         value={value ?? ""}
         onChange={(event) => onSelect(event.target.value)}
       >
@@ -31,6 +31,7 @@ export function PetSwitcher({ pets, selectedPetId, onSelect }: PetSwitcherProps)
           <option key={pet.id} value={pet.id}>
             {pet.name || "-"}
             {pet.species ? `（${pet.species}）` : ""}
+            {pet.status === "死亡" ? "（死亡）" : ""}
           </option>
         ))}
       </select>

@@ -5,10 +5,17 @@ import { memo } from "react";
 import { Plus, FileText } from "lucide-react";
 
 // Internal
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { TableCell, TableHead } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { HospitalizationTreatmentPlan } from "@/types";
 
@@ -62,23 +69,23 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
         tabIndex={0}
         className={`border ${C.borderMedium} rounded-md overflow-hidden overflow-x-auto outline-none focus-visible:ring-2 focus-visible:ring-inset ${C.focusRingAccent40}`}
       >
-        <table className="w-full min-w-[800px]">
-          <thead className={`${C.bgPage} border-b ${C.borderMedium}`}>
-            <tr>
-              <TableHead className={C.text60}>治療内容</TableHead>
-              <TableHead className={C.text60}>メモ</TableHead>
-              <TableHead className={`text-center ${C.text60} w-16`}>保険</TableHead>
-              <TableHead className={`text-right ${C.text60} w-20`}>単価(￥)</TableHead>
-              <TableHead className={`text-right ${C.text60} w-16`}>数量</TableHead>
-              <TableHead className={`text-right ${C.text60} w-16`}>割引(%)</TableHead>
-              <TableHead className={`text-right ${C.text60} w-20`}>値引(￥)</TableHead>
-              <TableHead className={`text-right ${C.text60} w-20`}>小計(￥)</TableHead>
-              <TableHead className={`text-center ${C.text60} w-12`}>操作</TableHead>
-            </tr>
-          </thead>
-          <tbody className={`divide-y ${C.divideDivider}`}>
+        <Table className="min-w-[800px]">
+          <TableHeader>
+            <TableRow className={STYLE.tableHeaderRow}>
+              <TableHead className={STYLE.tableHeaderCell}>治療内容</TableHead>
+              <TableHead className={STYLE.tableHeaderCell}>メモ</TableHead>
+              <TableHead className={`${STYLE.tableHeaderCell} text-center w-16`}>保険</TableHead>
+              <TableHead className={`${STYLE.tableHeaderCell} text-right w-20`}>単価(￥)</TableHead>
+              <TableHead className={`${STYLE.tableHeaderCell} text-right w-16`}>数量</TableHead>
+              <TableHead className={`${STYLE.tableHeaderCell} text-right w-16`}>割引(%)</TableHead>
+              <TableHead className={`${STYLE.tableHeaderCell} text-right w-20`}>値引(￥)</TableHead>
+              <TableHead className={`${STYLE.tableHeaderCell} text-right w-20`}>小計(￥)</TableHead>
+              <TableHead className={`${STYLE.tableHeaderCell} text-center w-12`}>操作</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {treatmentPlans.map((plan, index) => (
-              <tr key={plan.id} className={`${C.hoverBgLight} transition-colors h-10`}>
+              <TableRow key={plan.id} className={`${C.hoverBgPageHalf} h-10`}>
                 <TableCell>
                   <Input
                     aria-label={`治療内容 ${index + 1}`}
@@ -122,10 +129,10 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
                     <DeleteIconButton onClick={() => onRemove(plan.id)} />
                   ) : null}
                 </TableCell>
-              </tr>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

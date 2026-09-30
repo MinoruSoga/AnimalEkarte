@@ -12,7 +12,7 @@ interface Props {
 function leafClassName(isSelected: boolean, isActive: boolean): string {
   const base = `w-full min-h-11 flex items-center gap-1.5 px-3 py-2 text-sm text-left transition-colors border-l-2 ${C.hoverBgLight}`;
   if (isSelected) return `${base} ${C.bgBrand8} ${C.textBrand} ${C.borderBrand}`;
-  return `${base} border-transparent ${isActive ? C.text : C.text40}`;
+  return `${base} border-transparent ${isActive ? C.text : C.text60}`;
 }
 
 export function ReservationTypeTree({ types, selectedId, onSelect }: Props) {
@@ -61,7 +61,7 @@ export function ReservationTypeTree({ types, selectedId, onSelect }: Props) {
               aria-expanded={isOpen}
               aria-label={parentAriaLabel}
               className={`w-full min-h-11 flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-left transition-colors ${C.bgPage} ${C.hoverBgLight} ${
-                parent.isActive ? C.text : C.text40
+                parent.isActive ? C.text : C.text60
               }`}
             >
               {isOpen ? (
@@ -71,10 +71,10 @@ export function ReservationTypeTree({ types, selectedId, onSelect }: Props) {
               )}
               <span className="truncate flex-1">{parent.name}</span>
               {!parent.isActive ? (
-                <span className={`shrink-0 text-2xs ${C.text40}`}>（無効）</span>
+                <span className={`shrink-0 text-2xs ${C.text60}`}>（無効）</span>
               ) : null}
               <span
-                className={`shrink-0 text-2xs ${C.bgLight} ${C.text40} rounded-sm px-1.5 py-0.5`}
+                className={`shrink-0 text-2xs ${C.bgLight} ${C.text60} rounded-sm px-1.5 py-0.5`}
               >
                 グループ
               </span>
@@ -103,7 +103,7 @@ export function ReservationTypeTree({ types, selectedId, onSelect }: Props) {
                       />
                       <span className="truncate flex-1">{leaf.name}</span>
                       {!leaf.isActive ? (
-                        <span className={`shrink-0 text-2xs ${C.text40}`}>（無効）</span>
+                        <span className={`shrink-0 text-2xs ${C.text60}`}>（無効）</span>
                       ) : null}
                     </button>
                   );
@@ -129,7 +129,7 @@ export function ReservationTypeTree({ types, selectedId, onSelect }: Props) {
             <Circle className={`${ICON.smXs} shrink-0 ${isSelected ? "fill-current" : ""}`} />
             <span className="truncate flex-1">{leaf.name}</span>
             {!leaf.isActive ? (
-              <span className={`shrink-0 text-2xs ${C.text40}`}>（無効）</span>
+              <span className={`shrink-0 text-2xs ${C.text60}`}>（無効）</span>
             ) : null}
           </button>
         );

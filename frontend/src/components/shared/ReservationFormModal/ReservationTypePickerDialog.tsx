@@ -123,7 +123,7 @@ export const ReservationTypePickerDialog = memo(function ReservationTypePickerDi
             filteredGroups.map((group) => (
               <Fragment key={group.label}>
                 {activeCategory === null ? (
-                  <div className={cn("px-2 py-1.5 text-2xs font-semibold uppercase", C.text40)}>
+                  <div className={cn("px-2 py-1.5 text-2xs font-semibold uppercase", C.text60)}>
                     {group.label}
                   </div>
                 ) : null}
@@ -139,7 +139,7 @@ export const ReservationTypePickerDialog = memo(function ReservationTypePickerDi
                         className={cn(
                           "group flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-all",
                           isSelected
-                            ? cn(C.borderBrand, C.bgBrand8)
+                            ? cn(C.borderActionPrimary, C.bgActionPrimary8)
                             : cn(
                                 "bg-white",
                                 C.borderMedium,
@@ -159,7 +159,7 @@ export const ReservationTypePickerDialog = memo(function ReservationTypePickerDi
                           </div>
                         </div>
                         {isSelected ? (
-                          <Check className={cn(ICON.action, C.textBrand)} />
+                          <Check className={cn(ICON.action, C.textActionPrimary)} />
                         ) : (
                           <div
                             className={cn(

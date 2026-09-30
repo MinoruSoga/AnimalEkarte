@@ -62,7 +62,7 @@ const CohabitingPetChips = memo(function CohabitingPetChips({ pets }: { pets: Pe
               key={pet.id}
               to={`${paths.medicalRecords.getHref()}?pet_id=${encodeURIComponent(pet.id)}`}
               className={cn(
-                "h-8 shrink-0 rounded-md border bg-white px-2.5 text-sm leading-8 whitespace-nowrap transition-colors",
+                "inline-flex min-h-11 shrink-0 items-center rounded-md border bg-white px-2.5 text-sm whitespace-nowrap transition-colors",
                 C.text,
                 C.borderMedium,
                 C.hoverBgLight,

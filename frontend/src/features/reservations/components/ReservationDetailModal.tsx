@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { ICON, C, STYLE } from "@/lib/design-tokens";
+import { BADGE, ICON, C, STYLE } from "@/lib/design-tokens";
 import type { ReactNode } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -17,6 +17,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useGetOwnerLineTags } from "@/hooks/use-owner-line-tags";
+import { useGetPet } from "@/hooks/use-pet";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -38,6 +39,7 @@ import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIco
 import type { Reservation, ReservationStatus } from "../types";
 import { RESERVATION_STATUS_VALUES } from "../types";
 import { getReservationTypeName, getReservationStatusLabel } from "@/lib/status-helpers";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { DISPLAY_TIME_FORMAT } from "@/lib/format/date";
 import { typedSetter } from "@/lib/type-utils";
 import { useReservationTypeColorMap } from "../hooks/use-reservation-type-color-map";
@@ -121,6 +123,11 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
 }: ReservationDetailModalProps) {
   const { getColor } = useReservationTypeColorMap();
   const { data: lineData } = useGetOwnerLineTags(reservation?.ownerId ?? "");
+  // EMR-227: Reservation 型は共有 transform (src/lib/transforms/reservation.ts) 由来で
+  // petStatus を持たないため、detail 表示層では petId から直接 pet を引いて死亡区分を復元する。
+  // positive-match: 取得完了かつ死亡判定のみゲート。未取得/エラー時は従来どおり操作可能。
+  const { data: detailPet } = useGetPet(reservation?.petId ?? "");
+  const isDeceasedPet = detailPet ? isPetDeceasedForClinicalWrite(detailPet) : false;
 
   if (!reservation) return null;
 
@@ -159,7 +166,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
             <div
               className={`flex items-start gap-2 p-3 rounded-md ${C.bgWarning50} border ${C.borderWarning20} text-sm ${C.textWarning}`}
             >
-              <AlertTriangle className="shrink-0 mt-0.5 w-4 h-4" />
+              <AlertTriangle className={`shrink-0 mt-0.5 ${ICON.sm}`} />
               <span>
                 {lineData.lstep_opt_out
                   ? "この飼い主はLINE配信停止中です。Lステップ同期対象外になります。"
@@ -186,7 +193,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
                 )}
               >
                 <SelectTrigger
-                  className={`h-7 w-auto gap-1 border-0 ${C.bgWhite60} ${C.hoverBgWhite80} text-sm px-2 shadow-none focus:ring-0`}
+                  className={`h-11 min-w-11 w-auto gap-1 border-0 ${C.bgWhite60} ${C.hoverBgWhite80} text-sm px-2 shadow-none`}
                 >
                   <SelectValue placeholder="変更" />
                 </SelectTrigger>
@@ -224,8 +231,15 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
             </div>
             <div className={`divide-y ${C.divideDividerFaint}`}>
               <InfoRow label="ペット名">
-                <span className="font-medium">
+                <span className="font-medium inline-flex items-center gap-1.5">
                   {reservation.petName}
+                  {isDeceasedPet ? (
+                    <span
+                      className={`text-2xs font-semibold px-1.5 py-0.5 rounded ${C.bgDanger} ${C.textWhite} uppercase`}
+                    >
+                      【死亡】
+                    </span>
+                  ) : null}
                   {reservation.petType ? (
                     <span className={`ml-1.5 text-xs ${C.text50}`}>({reservation.petType})</span>
                   ) : null}
@@ -251,10 +265,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
                 <div className="flex items-center gap-1.5">
                   {reservation.doctor}
                   {reservation.isDesignated ? (
-                    <Badge
-                      variant="outline"
-                      className={`text-2xs h-5 px-1.5 ${C.bgNotice} ${C.textNotice} ${C.borderNotice}`}
-                    >
+                    <Badge variant="outline" className={`text-2xs h-5 px-1.5 ${BADGE.yellow}`}>
                       指名
                     </Badge>
                   ) : null}
@@ -276,8 +287,8 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
 
           {/* Notes */}
           {reservation.notes ? (
-            <div className={`rounded-lg border ${C.borderNotice50} ${C.bgNotice40} p-3`}>
-              <div className={`flex items-center gap-1.5 text-sm ${C.textNotice} mb-1.5`}>
+            <div className={`rounded-lg border ${C.borderLight} ${C.bgPage} p-3`}>
+              <div className={`flex items-center gap-1.5 text-sm ${C.text60} mb-1.5`}>
                 <FileText className={`${ICON.xs}`} />
                 <span>メモ</span>
               </div>
@@ -306,10 +317,11 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
                 編集
               </Button>
             ) : null}
-            {onCreateRecord ? (
+            {/* 死亡ペットは新規カルテ作成不可 (EMR-177 positive-match ゲート) */}
+            {onCreateRecord && !isDeceasedPet ? (
               <Button
                 size="sm"
-                className={`${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} h-9 text-sm gap-1.5 rounded-full shadow-none`}
+                className={`${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} h-9 text-sm gap-1.5 rounded-full shadow-none`}
                 onClick={() => onCreateRecord(reservation)}
               >
                 <actionConfig.Icon className={ICON.action} />

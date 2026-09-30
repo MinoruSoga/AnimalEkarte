@@ -7,6 +7,7 @@ import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
+import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { C, ICON } from "@/lib/design-tokens";
 import { normalizeKana } from "@/lib/normalize-kana";
 import { MASTER_STATUS_FILTER, MASTER_TABLE_COL } from "../constants/styles";
@@ -49,7 +50,7 @@ const COLUMNS = [
 
 export function InterviewTemplateSettings() {
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterMedical);
-  const { data } = useGetInquiryTemplates();
+  const { data, isPending, isError } = useGetInquiryTemplates();
   const createMutation = useCreateInquiryTemplate();
   const updateMutation = useUpdateInquiryTemplate();
   const deleteMutation = useDeleteInquiryTemplate();
@@ -137,7 +138,13 @@ export function InterviewTemplateSettings() {
             onDirtyChange={handleDirtyChange}
           />
         )}
-      />
+      >
+        {isError ? (
+          <ErrorFallback message="問診テンプレートの取得に失敗しました" />
+        ) : isPending ? (
+          <LoadingFallback />
+        ) : null}
+      </MasterCRUDPage>
       {dirty.discardDialog}
     </>
   );

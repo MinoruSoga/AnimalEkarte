@@ -17,9 +17,18 @@
  *   C15 — 本体 routes/pages で named white/black color の直接指定禁止。
  *   C16 — DESIGN.md spacing scale に存在しない 20px utility（`*-5`）禁止。
  *   C17 — CSS の直接 `box-shadow` / `filter: drop-shadow(...)` 禁止。
+ *        値が `var(--*)` トークン参照のみの宣言（例: `box-shadow: var(--shadow-focus-primary);`）は
+ *        elevation token 経由として許可。`--*` custom property 定義は宣言ではないため対象外。
  *   C18 — Table primitive / raw th・td 呼び出し側で typography / padding / 背景を非仕様値へ上書きすることを禁止。
  *   C19 — table row（DataTableRow / SortableDataTableRow / TableRow / tr）の行全体クリックを禁止。
  *   C20 — Tailwind 実行時合成（`hover:${` / `focus:${` / `text-[${`）禁止。完成形静的トークンのみ（FE-RC-013 / FE-RC-106）。
+ *   C21 — `src/components/ui/*.tsx` に colocated `*.stories.tsx` を要求（design-token-layers.md §6）。
+ *        Storybook カタログ網羅の担保。allowlist は現在空 — 新規 primitive は stories 必須。
+ *   C24 — `src/components/shared/` 層にも stories を要求（ラチェット: 既存未カバー分は allowlist で棚卸し、削減方向のみ）。
+ *   C22 — `PALETTE`（L1 raw値バケット）に Tailwind クラス文字列メンバを追加することを禁止
+ *        （design-token-layers.md §3）。状態系は STATE、shadow 等は STYLE 側へ。
+ *   C23 — `BADGE.*` コンボの text/bg コントラストが WCAG 4.5:1 以上であること
+ *        （design-states.md §2.3）。`text-[#hex]`/`bg-[#hex]` 形式の C member を解決して計算。
  *
  * C2/C4（PageLayout 使用）は C8 で routes 配下を機械化。新規リーフを allowlist に載せる場合は
  * C8_ALLOWLIST と docs/spec/ui-design-compliance.md §2 を同一コミットで更新する。
@@ -66,7 +75,15 @@ const C13_RE = /text-\[#000000\]\/[0-9]+|placeholder:text-\[rgba\(0,0,0/;
 const C14_RE = /(?:^|[^-\w])(?:-?tracking-(?:tighter|tight|normal|wide|wider|widest)\b|-?tracking-\[[^\]]+\]|-?tracking-\([^)]+\))/;
 const C15_RE = /(?:^|[^-\w])(?:(?:[a-z-]+):)*(?:bg|text|border|ring|outline|fill|stroke|decoration|divide)-(?:white|black)(?:\/[0-9]+)?\b/;
 const C16_RE = /(?:^|[^-\w])-?(?:[mp][trblxy]?|gap|space-[xy])-(?:5\b|\[(?:20px|1\.25rem)\])/;
-const C17_RE = /\bbox-shadow\s*:|\bfilter\s*:[^;]*\bdrop-shadow\s*\(/;
+/** C17: `box-shadow:` 宣言とその値（`;` / `}` まで）を取り出す。`var(--*)` のみの値は許可。 */
+const C17_BOX_SHADOW_DECL_RE = /\bbox-shadow\s*:\s*([^;}]*)/g;
+/** C17: `filter:` 宣言とその値（`;` / `}` まで）を取り出し、値内の drop-shadow() を検査する。 */
+const C17_FILTER_DECL_RE = /\bfilter\s*:\s*([^;}]*)/g;
+const C17_DROP_SHADOW_CALL_RE = /\bdrop-shadow\s*\(/g;
+/** C17: トークン参照 `var(--ident)`（fallback は nested var / none / CSS-wide keyword のみ許容）。 */
+const C17_VAR_TOKEN_RE = /var\(\s*--[\w-]+(?:\s*,\s*(?:var\(\s*--[\w-]+\s*\)|none|initial|inherit|unset|revert(?:-layer)?))?\s*\)/g;
+/** C17: shadow 値を新設しない修飾子（inset / none / CSS-wide keyword / !important）。 */
+const C17_SHADOW_KEYWORD_RE = /\b(?:inset|none|initial|inherit|unset|revert|revert-layer)\b|!\s*important\b/g;
 const C18_TABLE_OPENING_TAG_START_RE = /<(?:Table(Cell|Head)|(td|th))\b/g;
 const C18_TABLE_CELL_RE = /\b(?:text-(?:base|xs|2xs)|p-0)\b/;
 const C18_TABLE_HEAD_RE = /\b(?:text-(?:sm|base|xs)|font-medium|p-0)\b/;
@@ -83,6 +100,47 @@ const C18_TABLE_RAW_CELL_BG_RE = /(?:^|[^-\w])bg-|(?:^|[^\w$])C\.bg[A-Z]/;
 const C19_TABLE_ROW_OPENING_TAG_START_RE = /<(?:DataTableRow|SortableDataTableRow|TableRow|tr)\b/g;
 /** C20: Tailwind v4 は静的走査のみ。`hover:${C.x}` 等の実行時合成は CSS に出ない（FE-RC-013 / FE-RC-106）。 */
 const C20_RUNTIME_SYNTHESIS_RE = /hover:\$\{|focus:\$\{|text-\[\$\{/;
+
+/**
+ * C21: `src/components/ui/*.tsx` に colocated `*.stories.tsx` を要求する。
+ * 2026-09-30 時点で全 ui primitive が stories を持つため許可リストは空。
+ * 新規 ui primitive を追加したら同時に stories も書くこと。正当例外のみ追記可。
+ */
+export const C21_STORIES_ALLOWLIST = new Set();
+const C21_UI_COMPONENT_RE = /^src[/\\]components[/\\]ui[/\\][a-z][a-z-]*\.tsx$/;
+
+/**
+ * C24: `src/components/shared/` 層の stories カバレッジ・ラチェット。
+ * - `<Dir>/` 直下に `*.stories.tsx` が1件もないディレクトリ、または
+ *   shared/ 直下のトップレベル `<name>.tsx` で sibling stories がないものを検出。
+ * - 既存未カバー分はベースライン allowlist で棚卸し済み — 新規 shared 部品は
+ *   stories 必須。allowlist は stories 追加時に該当エントリを削ること（増やさない）。
+ */
+export const C24_SHARED_STORIES_ALLOWLIST = new Set([
+]);
+
+/**
+ * C22: PALETTE に残る Tailwind クラス文字列メンバ（STATE/STYLE への移行対象）。
+ * L1 PALETTE は raw 値のみ許可 — 新規のクラス文字列メンバは hard fail。
+ */
+export const C22_PALETTE_CLASS_MEMBER_ALLOWLIST = new Set([
+  "dragOverlayShadow",
+  "brandGlow",
+  "primaryGlow",
+  "tableRowHover",
+]);
+const C22_PALETTE_BLOCK_RE = /export const PALETTE = \{([\s\S]*?)\} as const;/;
+const C22_MEMBER_RE = /^\s*(\w+)\s*:\s*"((?:[^"\\]|\\.)*)"/;
+const C22_VARIANT_PREFIX_RE = /^(?:hover|focus|focus-visible|focus-within|active|disabled|enabled|data-\[|aria-|group-|peer-|dark|sm|md|lg|xl|2xl|before|after|placeholder|selection|marker|file|backdrop|first|last|odd|even|visited|checked|empty):/;
+const C22_UTILITY_PREFIX_RE = /^[a-z][a-z]*-[a-z0-9]/;
+
+/** C23: BADGE コンボの WCAG コントラスト検査用パターン（design-tokens.ts 限定で呼ぶ）。 */
+const C23_C_BLOCK_RE = /export const C = \{([\s\S]*?)\} as const;/;
+const C23_BADGE_BLOCK_RE = /export const BADGE = \{([\s\S]*?)\} as const;/;
+const C23_MEMBER_RE = /^\s*(\w+)\s*:\s*("(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`)/;
+const C23_HEX_RE = /#([0-9A-Fa-f]{6})/;
+const C23_C_REF_RE = /\$\{C\.(\w+)\}/g;
+const C23_MIN_RATIO = 4.5;
 
 /** C8: 独自 shell を持つ正当な route page（相対パス完全一致）。 */
 export const C8_PAGE_ALLOWLIST = new Set([
@@ -435,14 +493,76 @@ export function checkC16(text, relPath = "") {
 }
 
 /**
+ * isC17CustomPropertyName は `box-shadow` / `filter` のマッチ位置が
+ * custom property 名（`--box-shadow:` / `--my-filter:` 等の `--*` 定義）の一部かを判定する。
+ * token 定義は宣言ではなく、値に生の shadow を保持するのが役目のため C17 の対象外。
+ * vendor prefix（`-webkit-box-shadow:` 等）は `--` 始まりでないため宣言として検査される。
+ */
+function isC17CustomPropertyName(line, matchIndex) {
+  let start = matchIndex;
+  while (start > 0 && /[-\w]/.test(line[start - 1])) start -= 1;
+  return line.startsWith("--", start);
+}
+
+/**
+ * isC17TokenOnlyShadowValue は shadow 値が `var(--*)` トークン参照（カンマ区切りの複数レイヤを含む）と
+ * `inset` / `none` / CSS-wide keyword / `!important` のみで構成されるかを判定する。
+ * 生の長さ・色値を含む場合は false（= C17 違反）。
+ */
+function isC17TokenOnlyShadowValue(value) {
+  const stripped = value
+    .replace(C17_VAR_TOKEN_RE, "")
+    .replace(C17_SHADOW_KEYWORD_RE, "");
+  return /^[\s,]*$/.test(stripped);
+}
+
+/**
+ * extractC17ParenArgs は openParenIndex の `(` から対応する `)` までの引数を切り出す。
+ * 括弧が不整合なら null を返す（呼び出し側は違反として扱う）。
+ */
+function extractC17ParenArgs(text, openParenIndex) {
+  let depth = 0;
+  for (let i = openParenIndex; i < text.length; i++) {
+    if (text[i] === "(") depth += 1;
+    else if (text[i] === ")") {
+      depth -= 1;
+      if (depth === 0) return text.slice(openParenIndex + 1, i);
+    }
+  }
+  return null;
+}
+
+/**
  * checkC17 は CSS から elevation token を迂回する直接 shadow 宣言を検出する。
- * `--shadow-*` custom property の定義は `box-shadow:` 宣言ではないため許可される。
+ * `--shadow-*` 等の custom property 定義は宣言ではないため許可される。
+ * `box-shadow` / `drop-shadow()` の値が `var(--*)` トークン参照のみで構成される宣言
+ * （例: `box-shadow: var(--shadow-focus-primary);`）は elevation token 経由として許可し、
+ * 生の長さ・色値を含む宣言のみを違反とする。
  */
 export function checkC17(text, relPath = "") {
   if (isFE11ExcludedPath(relPath)) return [];
   const violations = [];
   text.split("\n").forEach((line, i) => {
-    if (C17_RE.test(line)) {
+    let flagged = false;
+    const boxShadowRe = new RegExp(C17_BOX_SHADOW_DECL_RE.source, "g");
+    let match;
+    while (!flagged && (match = boxShadowRe.exec(line)) !== null) {
+      if (isC17CustomPropertyName(line, match.index)) continue;
+      if (!isC17TokenOnlyShadowValue(match[1])) flagged = true;
+    }
+    if (!flagged) {
+      const filterRe = new RegExp(C17_FILTER_DECL_RE.source, "g");
+      while (!flagged && (match = filterRe.exec(line)) !== null) {
+        if (isC17CustomPropertyName(line, match.index)) continue;
+        const dropShadowRe = new RegExp(C17_DROP_SHADOW_CALL_RE.source, "g");
+        let dropMatch;
+        while (!flagged && (dropMatch = dropShadowRe.exec(match[1])) !== null) {
+          const args = extractC17ParenArgs(match[1], dropShadowRe.lastIndex - 1);
+          if (args === null || !isC17TokenOnlyShadowValue(args)) flagged = true;
+        }
+      }
+    }
+    if (flagged) {
       violations.push({ lineNumber: i + 1, text: line.trim() });
     }
   });
@@ -857,6 +977,152 @@ export function checkC20(text) {
   return violations;
 }
 
+/**
+ * checkC21 は `src/components/ui/<name>.tsx` に sibling `<name>.stories.tsx` が
+ * 存在するか判定する（design-token-layers.md §6）。
+ */
+export function checkC21(relPath, allRelPaths) {
+  const violations = [];
+  const parts = relPath.split(path.sep);
+  if (
+    parts.length === 4 &&
+    parts[0] === "src" &&
+    parts[1] === "components" &&
+    parts[2] === "ui" &&
+    C21_UI_COMPONENT_RE.test(relPath) &&
+    !C21_STORIES_ALLOWLIST.has(relPath)
+  ) {
+    const storiesPath = path.join(
+      "src",
+      "components",
+      "ui",
+      parts[3].replace(/\.tsx$/, ".stories.tsx"),
+    );
+    if (!allRelPaths.has(storiesPath)) {
+      violations.push({ lineNumber: 1, text: "colocated *.stories.tsx なし（C21_STORIES_ALLOWLIST または stories 追加）" });
+    }
+  }
+  return violations;
+}
+
+/**
+ * checkC24 は `src/components/shared/` 配下のコンポーネントに stories があるか
+ * 判定する。ディレクトリ単位（Dir/ 直下に *.stories.tsx が1件以上）と
+ * shared/ 直下ファイル単位（sibling stories）の2形態を扱う。
+ * seenDirs は collectViolations 側で使い回し、ディレクトリの重複報告を防ぐ。
+ */
+export function checkC24(relPath, allRelPaths, seenDirs) {
+  const violations = [];
+  const parts = relPath.split(path.sep);
+  if (parts[0] !== "src" || parts[1] !== "components" || parts[2] !== "shared") return violations;
+  const file = parts.at(-1);
+  if (!file.endsWith(".tsx")) return violations;
+  if (file.endsWith(".test.tsx") || file.endsWith(".stories.tsx") || file === "index.tsx") return violations;
+
+  if (parts.length === 4) {
+    if (C24_SHARED_STORIES_ALLOWLIST.has(relPath)) return violations;
+    if (!allRelPaths.has(relPath.replace(/\.tsx$/, ".stories.tsx"))) {
+      violations.push({ lineNumber: 1, text: "sibling *.stories.tsx なし（C24 allowlist 削減または stories 追加）" });
+    }
+    return violations;
+  }
+
+  const dir = parts.slice(0, 4).join(path.sep);
+  if (seenDirs.has(dir) || C24_SHARED_STORIES_ALLOWLIST.has(dir)) return violations;
+  seenDirs.add(dir);
+  const prefix = dir + path.sep;
+  const hasStories = [...allRelPaths].some(
+    (p) => p.startsWith(prefix) && p.endsWith(".stories.tsx"),
+  );
+  if (!hasStories) {
+    violations.push({ lineNumber: 1, text: "dir 内に *.stories.tsx なし（C24 allowlist 削減または stories 追加）" });
+  }
+  return violations;
+}
+
+/**
+ * checkC22 は design-tokens.ts の PALETTE ブロック内で Tailwind クラス文字列を
+ * 値に持つ新規メンバを検出する（design-token-layers.md §3 L1 純粋性ガード）。
+ */
+export function checkC22(text) {
+  const violations = [];
+  const block = text.match(C22_PALETTE_BLOCK_RE);
+  if (!block) return violations;
+  const blockStartLine = text.slice(0, block.index).split("\n").length;
+  block[1].split("\n").forEach((line, i) => {
+    const m = line.match(C22_MEMBER_RE);
+    if (!m) return;
+    const [, name, value] = m;
+    const looksLikeClass =
+      C22_VARIANT_PREFIX_RE.test(value) ||
+      (C22_UTILITY_PREFIX_RE.test(value) && !value.includes("(") && !value.includes(" "));
+    if (looksLikeClass && !C22_PALETTE_CLASS_MEMBER_ALLOWLIST.has(name)) {
+      violations.push({
+        lineNumber: blockStartLine + i,
+        text: `${name}: "${value}" — PALETTE は raw 値のみ。クラス文字列は STATE / STYLE へ`,
+      });
+    }
+  });
+  return violations;
+}
+
+/** C23: sRGB hex → WCAG 相対輝度。 */
+function c23Luminance(hex) {
+  const n = parseInt(hex, 16);
+  const channel = (v) => {
+    const s = v / 255;
+    return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * channel((n >> 16) & 0xff) + 0.7152 * channel((n >> 8) & 0xff) + 0.0722 * channel(n & 0xff);
+}
+
+/**
+ * checkC23 は design-tokens.ts の `BADGE.*` 各メンバについて、テンプレート内の
+ * `${C.<name>}` 参照から最初の `bg-[#hex]` と `text-[#hex]` を解決し、
+ * WCAG 通常文字コントラスト 4.5:1 未満のコンボを検出する（design-states.md §2）。
+ * hex を持たない参照（rgba 等）はスキップ — 計算不能は違反にしない。
+ */
+export function checkC23(text) {
+  const violations = [];
+  const cBlock = text.match(C23_C_BLOCK_RE);
+  const badgeBlock = text.match(C23_BADGE_BLOCK_RE);
+  if (!cBlock || !badgeBlock) return violations;
+
+  const cHexByName = new Map();
+  cBlock[1].split("\n").forEach((line) => {
+    const m = line.match(C23_MEMBER_RE);
+    if (!m) return;
+    const hexMatch = m[2].match(C23_HEX_RE);
+    if (hexMatch) cHexByName.set(m[1], { hex: hexMatch[1], value: m[2] });
+  });
+
+  const badgeStartLine = text.slice(0, badgeBlock.index).split("\n").length;
+  badgeBlock[1].split("\n").forEach((line, i) => {
+    const m = line.match(C23_MEMBER_RE);
+    if (!m) return;
+    const [, name, rawValue] = m;
+    let bgHex = null;
+    let textHex = null;
+    for (const ref of rawValue.matchAll(C23_C_REF_RE)) {
+      const entry = cHexByName.get(ref[1]);
+      if (!entry) continue;
+      if (entry.value.includes('"bg-') && bgHex === null) bgHex = entry.hex;
+      if (entry.value.includes('"text-') && textHex === null) textHex = entry.hex;
+    }
+    if (bgHex === null || textHex === null) return;
+    const normalized =
+      (Math.max(c23Luminance(bgHex), c23Luminance(textHex)) + 0.05) /
+      (Math.min(c23Luminance(bgHex), c23Luminance(textHex)) + 0.05);
+    if (normalized < C23_MIN_RATIO) {
+      violations.push({
+        lineNumber: badgeStartLine + i,
+        text: `BADGE.${name} コントラスト ${normalized.toFixed(2)}:1 < ${C23_MIN_RATIO}:1（text #${textHex} / bg #${bgHex}）`,
+      });
+    }
+  });
+  return violations;
+}
+
 function isFE11ExcludedPath(relPath) {
   const segments = relPath.split(/[\\/]/);
   const normalizedPath = segments.join("/");
@@ -890,15 +1156,20 @@ async function walk(dir, exts, excludeNames) {
 
 /**
  * collectViolations は cwd 配下の SCAN_ROOTS（src・liff/src・line-reserve/src）を走査し、
- * C1〜C20 違反を集計する純粋寄りの関数。
- * ファイル I/O のみ副作用を持ち、判定ロジック自体は checkC1〜checkC20 に委譲する。
+ * C1〜C24 違反を集計する純粋寄りの関数。
+ * ファイル I/O のみ副作用を持ち、判定ロジック自体は checkC1〜checkC24 に委譲する。
  */
 export async function collectViolations(cwd) {
-  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [], c10: [], c11: [], c12: [], c13: [], c14: [], c15: [], c16: [], c17: [], c18: [], c19: [], c20: [] };
+  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [], c10: [], c11: [], c12: [], c13: [], c14: [], c15: [], c16: [], c17: [], c18: [], c19: [], c20: [], c21: [], c22: [], c23: [], c24: [] };
+  const allRelPaths = new Set();
+  const c24SeenDirs = new Set();
 
   for (const scanRoot of SCAN_ROOTS) {
     const root = path.join(cwd, scanRoot);
     const allFiles = await walk(root, SCAN_EXTENSIONS, EXCLUDE_DIR_NAMES);
+    for (const file of allFiles) {
+      allRelPaths.add(path.relative(cwd, file));
+    }
 
     for (const file of allFiles) {
       const relPath = path.relative(cwd, file);
@@ -960,6 +1231,20 @@ export async function collectViolations(cwd) {
         for (const v of checkC20(text)) {
           result.c20.push({ file: relPath, ...v });
         }
+      }
+      if (isDesignTokensFile(relPath)) {
+        for (const v of checkC22(text)) {
+          result.c22.push({ file: relPath, ...v });
+        }
+        for (const v of checkC23(text)) {
+          result.c23.push({ file: relPath, ...v });
+        }
+      }
+      for (const v of checkC21(relPath, allRelPaths)) {
+        result.c21.push({ file: relPath, ...v });
+      }
+      for (const v of checkC24(relPath, allRelPaths, c24SeenDirs)) {
+        result.c24.push({ file: relPath, ...v });
       }
 
       // C8: src/features/<feat>/routes/<file>.tsx のみ（ネスト無し・.test 除外）
@@ -1030,11 +1315,16 @@ async function main() {
   printGroup("C18 table cell override", result.c18);
   printGroup("C19 table row onClick", result.c19);
   printGroup("C20 runtime Tailwind synthesis", result.c20);
+  printGroup("C21 ui stories 不在", result.c21);
+  printGroup("C22 PALETTE クラス文字列", result.c22);
+  printGroup("C23 BADGE コントラスト", result.c23);
+  printGroup("C24 shared stories 不在", result.c24);
 
   const total = result.c1.length + result.c3.length + result.c5.length + result.c6.length
     + result.c7.length + result.c8.length + result.c9.length + result.c10.length + result.c11.length
     + result.c12.length + result.c13.length + result.c14.length + result.c15.length + result.c16.length
-    + result.c17.length + result.c18.length + result.c19.length + result.c20.length;
+    + result.c17.length + result.c18.length + result.c19.length + result.c20.length
+    + result.c21.length + result.c22.length + result.c23.length + result.c24.length;
   if (total > 0) {
     console.log(`design-system-audit: FAIL — ${total} 件の違反`);
     process.exit(1);

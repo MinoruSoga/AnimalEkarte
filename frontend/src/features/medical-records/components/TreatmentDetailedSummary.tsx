@@ -65,7 +65,7 @@ export const TreatmentDetailedSummary = memo(function TreatmentDetailedSummary({
               <>
                 <span className={`text-sm ${C.text60}`}>割引率</span>
                 <NumberInput
-                  className="w-16 h-10"
+                  className="w-16"
                   value={discountRate}
                   onChange={(v) => onUpdateDiscountRate?.(Number(v))}
                   suffix="%"
@@ -80,7 +80,7 @@ export const TreatmentDetailedSummary = memo(function TreatmentDetailedSummary({
           >
             <span className={`text-sm ${C.text60}`}>値引額</span>
             <NumberInput
-              className="w-20 h-10"
+              className="w-20"
               value={discountAmount}
               onChange={(v) => onUpdateDiscountAmount(Number(v))}
               suffix="円"
@@ -94,7 +94,7 @@ export const TreatmentDetailedSummary = memo(function TreatmentDetailedSummary({
             ￥{tax.toLocaleString()}
           </div>
           <div
-            className={`p-2 text-right ${C.text} h-full flex items-center justify-end font-mono font-bold text-xl`}
+            className={`p-2 text-right ${C.text} h-full flex items-center justify-end font-mono font-semibold text-xl`}
           >
             ￥{total.toLocaleString()}
           </div>
@@ -108,7 +108,7 @@ export const TreatmentDetailedSummary = memo(function TreatmentDetailedSummary({
           </div>
           <div className="p-2 flex justify-between items-center h-10">
             <span className={`font-normal ${C.text} text-sm`}>飼主請求額</span>
-            <span className={`font-bold ${C.text} font-mono text-base`}>
+            <span className={`font-semibold ${C.text} font-mono text-base`}>
               ￥{total.toLocaleString()}
             </span>
           </div>

@@ -39,12 +39,12 @@ function CardRow({ label, description, icon, count, onClick }: CardRowProps) {
       <span className={STYLE.settingsRowIcon}>{icon}</span>
       <div className="flex-1 min-w-0 text-left">
         <div className={`text-base font-medium ${C.text} leading-tight`}>{label}</div>
-        <div className={`text-base ${C.text45} mt-0.5 truncate`}>{description}</div>
+        <div className={`text-base ${C.text60} mt-0.5 truncate`}>{description}</div>
       </div>
       {count !== undefined ? (
-        <span className={`text-base ${C.text40} tabular-nums shrink-0`}>{count}件</span>
+        <span className={`text-base ${C.text60} tabular-nums shrink-0`}>{count}件</span>
       ) : null}
-      <ChevronRight className={`${ICON.action} ${C.text35} shrink-0`} />
+      <ChevronRight className={`${ICON.action} ${C.text35} shrink-0`} aria-hidden="true" />
     </button>
   );
 }

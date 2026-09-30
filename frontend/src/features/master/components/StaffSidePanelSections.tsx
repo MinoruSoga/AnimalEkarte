@@ -1,6 +1,7 @@
 import { Building2, CheckCircle2, Shield } from "lucide-react";
 
 import { Checkbox } from "@/components/ui/checkbox";
+import { FieldHelp } from "@/components/shared/FieldHelp";
 import { C, ICON, PALETTE, STYLE } from "@/lib/design-tokens";
 import type { ClinicSummary } from "../api/staffs";
 import type { PermissionGroup } from "../api/permission-groups";
@@ -52,6 +53,10 @@ export function StaffExcludedReservationTypesSection({
       <div className="flex items-center gap-1.5 mb-2">
         <CheckCircle2 className={`${ICON.xs} ${C.text50}`} />
         <p className={`text-xs font-medium ${C.text50}`}>対応可能コース</p>
+        <FieldHelp
+          label="対応可能コース"
+          content="このスタッフが担当できる予約区分です。チェックした区分の予約をこのスタッフに割り当てられます。"
+        />
       </div>
 
       {isNew ? (
@@ -66,7 +71,7 @@ export function StaffExcludedReservationTypesSection({
               {reservationTypes.map((reservationType) => (
                 <label
                   key={reservationType.id}
-                  className={`flex items-center gap-2.5 py-1.5 px-0.5 rounded cursor-pointer ${C.hoverBgLight} transition-colors`}
+                  className={`flex items-center gap-2.5 py-1.5 px-0.5 rounded cursor-pointer min-h-11 ${C.hoverBgLight} transition-colors`}
                 >
                   <Checkbox
                     checked={capableIdSet.has(reservationType.id)}
@@ -115,6 +120,7 @@ export function StaffClinicsSection({
       isDisabledUntilSaved={isNew}
       disabledMessage="スタッフ登録後に所属医院を設定できます"
       emptyMessage="医院が登録されていません"
+      description="このスタッフが所属する医院です。複数医院がある場合に所属先を選択します。"
       onToggle={onToggle}
     />
   );
@@ -142,6 +148,7 @@ export function StaffPermissionGroupsSection({
       isDisabledUntilSaved={isNew}
       disabledMessage="スタッフ登録後に権限グループを設定できます"
       emptyMessage="権限グループが登録されていません"
+      description="このスタッフに付与する権限グループです。グループに設定された権限がそのまま適用されます。"
       onToggle={onToggle}
       renderLeading={(group) => (
         <div

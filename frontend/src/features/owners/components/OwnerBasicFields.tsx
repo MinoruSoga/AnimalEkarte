@@ -48,7 +48,7 @@ export function OwnerBasicFields({
             className={`${STYLE.formInput} disabled:opacity-50`}
           />
         ) : (
-          <p className={`flex h-9 items-center px-3 text-sm ${C.text40} italic`}>
+          <p className={`flex h-9 items-center px-3 text-sm ${C.text60} italic`}>
             登録時に自動採番されます
           </p>
         )}

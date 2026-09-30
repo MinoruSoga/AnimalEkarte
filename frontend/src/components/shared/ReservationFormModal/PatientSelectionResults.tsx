@@ -31,14 +31,14 @@ function PatientSelectionTableBody({
     <Table>
       <TableHeader className={`${C.bgPage} sticky top-0 z-10`}>
         <TableRow className={`border-b ${C.borderMedium} h-9 ${C.hoverBgPage}`}>
-          <TableHead className={`min-w-[80px] ${C.text40} h-9`}>飼主No</TableHead>
-          <TableHead className={`min-w-[120px] ${C.text40} h-9`}>飼主名</TableHead>
-          <TableHead className={`min-w-[100px] ${C.text40} h-9`}>ペット名</TableHead>
-          <TableHead className={`min-w-[60px] ${C.text40} h-9`}>種別</TableHead>
-          <TableHead className={`min-w-[60px] ${C.text40} h-9`}>性別</TableHead>
-          <TableHead className={`min-w-[80px] ${C.text40} h-9`}>生年月日</TableHead>
-          <TableHead className={`min-w-[60px] ${C.text40} h-9`}>体重</TableHead>
-          <TableHead className={`min-w-[60px] ${C.text40} h-9`}>操作</TableHead>
+          <TableHead className={`min-w-[80px] ${C.text60} h-9`}>飼主No</TableHead>
+          <TableHead className={`min-w-[120px] ${C.text60} h-9`}>飼主名</TableHead>
+          <TableHead className={`min-w-[100px] ${C.text60} h-9`}>ペット名</TableHead>
+          <TableHead className={`min-w-[60px] ${C.text60} h-9`}>種別</TableHead>
+          <TableHead className={`min-w-[60px] ${C.text60} h-9`}>性別</TableHead>
+          <TableHead className={`min-w-[80px] ${C.text60} h-9`}>生年月日</TableHead>
+          <TableHead className={`min-w-[60px] ${C.text60} h-9`}>体重</TableHead>
+          <TableHead className={`min-w-[60px] ${C.text60} h-9`}>操作</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -99,18 +99,18 @@ function PatientSelectionRow({ pet, isBusy, isSelected, onSelect }: PatientSelec
                     ? `選択中: ${pet.name} (ID ${pet.id})`
                     : `選択: ${pet.name} (ID ${pet.id})`
           }
-          className={`h-11 min-w-11 gap-1 text-sm px-2 transition-colors ${
+          className={`h-9 min-h-9 min-w-11 gap-1 text-sm px-2 transition-colors ${
             !isSelectable
               ? `${C.bgPage} ${C.textStatusGray} border-transparent cursor-not-allowed`
               : isSelected
-                ? `${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand}`
-                : `bg-white border ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle}`
+                ? `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary}`
+                : `bg-white border ${C.borderMediumLight} ${C.text} ${C.hoverText} ${C.hoverBgSubtle}`
           }`}
           onClick={() => {
             if (isSelectable) onSelect(pet);
           }}
         >
-          <Check className={`${ICON.xs} ${isSelected ? "" : "opacity-0"}`} />
+          <Check className={`${ICON.sm} ${isSelected ? "" : "opacity-0"}`} />
           {isDeceased ? "死亡" : !isAlive ? "不明" : isSelected ? "選択中" : "選択"}
         </Button>
       </TableCell>
@@ -143,7 +143,7 @@ export function PatientSelectionResults({
         {!hasSearchConditions && !isSearchPending ? (
           <div className="flex flex-col items-center justify-center flex-1 text-center gap-3">
             <Search className={`${ICON.xl} ${C.text20}`} />
-            <div className={`text-sm ${C.text40}`}>検索条件を入力してください</div>
+            <div className={`text-sm ${C.text60}`}>検索条件を入力してください</div>
           </div>
         ) : error ? (
           <div className="flex-1 flex items-center justify-center">
@@ -154,7 +154,7 @@ export function PatientSelectionResults({
             <div className="animate-spin">
               <Search className={`${ICON.xl} ${C.text20}`} />
             </div>
-            <div className={`text-sm ${C.text40}`}>検索中...</div>
+            <div className={`text-sm ${C.text60}`}>検索中...</div>
           </div>
         ) : pets.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">

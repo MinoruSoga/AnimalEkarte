@@ -156,7 +156,6 @@ export function DailyAccountingTab({
               type="date"
               value={selectedDate}
               onChange={(e) => handleDateChange(e.target.value)}
-              className="h-9 text-sm"
             />
           </div>
 
@@ -318,7 +317,7 @@ export function DailyAccountingTab({
                   ))}
                 </TableBody>
                 <TableFooter>
-                  <TableRow className={`font-bold border-t-2 ${C.borderLight}`}>
+                  <TableRow className={`font-semibold border-t-2 ${C.borderLight}`}>
                     <TableCell colSpan={labelColSpan} className="text-sm">
                       合計（{rows.length}件）
                     </TableCell>
@@ -344,7 +343,7 @@ export function DailyAccountingTab({
                       {formatCurrencyIfNonzero(totals.goods)}
                     </TableCell>
                     <TableCell className="text-right text-sm font-mono">
-                      <span className="font-bold">{formatCurrency(totals.total)}</span>
+                      <span className="font-semibold">{formatCurrency(totals.total)}</span>
                     </TableCell>
                     <TableCell />
                     <TableCell />

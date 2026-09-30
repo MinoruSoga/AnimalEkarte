@@ -2,17 +2,13 @@ import { type ComponentProps } from "react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
-import {
-  DataTable,
-  DESIGN_TABLE_HEADER_ROW,
-  DESIGN_TABLE_HEADER_CELL,
-} from "@/components/shared/DataTable/DataTable";
+import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { TableCell } from "@/components/ui/table";
-import { C } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 
 import type { AnimalSpecies } from "../api/animal-species";
 
@@ -42,8 +38,8 @@ export function AnimalSpeciesSortableTable({
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
       <SortableContext items={items.map((item) => item.id)} strategy={verticalListSortingStrategy}>
         <DataTable
-          headerRowClassName={DESIGN_TABLE_HEADER_ROW}
-          headerCellClassName={DESIGN_TABLE_HEADER_CELL}
+          headerRowClassName={STYLE.tableHeaderRow}
+          headerCellClassName={STYLE.sectionLabel}
           columns={COLUMNS}
           data={items}
           emptyMessage="動物種類が登録されていません"
@@ -81,4 +77,5 @@ export function AnimalSpeciesSortableTable({
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- Settings ページが列定義を再利用する既存の共有 export（分離は別途検討）
 export { COLUMNS as ANIMAL_SPECIES_COLUMNS };

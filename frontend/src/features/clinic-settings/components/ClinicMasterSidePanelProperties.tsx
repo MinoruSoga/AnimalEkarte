@@ -1,21 +1,26 @@
 import { memo, useMemo, type ReactNode } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
+import { FieldHelp } from "@/components/shared/FieldHelp";
+
 import {
   DOCUMENT_SECTION_KEYS,
   DOCUMENT_SECTION_LABELS,
   type DocumentSectionKey,
 } from "@/config/accounting-document-sections";
 
-import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT, STYLE } from "@/lib/design-tokens";
 
-const PROP_INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-xxs ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder} focus-visible:ring-2 ${C.focusRingAccent40}`;
+const PROP_INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 min-h-11 rounded-xxs ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder} focus-visible:ring-2 ${C.focusRingAccent40}`;
 
 export const PropertyRow = memo(function PropertyRow({
   label,
+  description,
   children,
 }: {
   label: string;
+  /** 項目の説明文。指定すると行右端に ⓘ ツールチップを表示する */
+  description?: string;
   children: ReactNode;
 }) {
   return (
@@ -26,6 +31,7 @@ export const PropertyRow = memo(function PropertyRow({
         {label}
       </div>
       <div className="flex-1 flex items-center">{children}</div>
+      {description ? <FieldHelp label={label} content={description} /> : null}
     </div>
   );
 });
@@ -36,15 +42,17 @@ export function ClinicTextProperty({
   onChange,
   placeholder,
   type = "text",
+  description,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
   type?: string;
+  description?: string;
 }) {
   return (
-    <PropertyRow label={label}>
+    <PropertyRow label={label} description={description}>
       <input
         type={type}
         aria-label={label}
@@ -61,13 +69,15 @@ export function ClinicTaxRateProperty({
   label,
   value,
   onChange,
+  description,
 }: {
   label: string;
   value: number;
   onChange: (value: number) => void;
+  description?: string;
 }) {
   return (
-    <PropertyRow label={label}>
+    <PropertyRow label={label} description={description}>
       <div className="flex items-center gap-1.5">
         <input
           type="number"
@@ -89,17 +99,19 @@ export function ClinicBooleanProperty({
   label,
   value,
   onChange,
+  description,
 }: {
   label: string;
   value: boolean;
   onChange: (value: boolean) => void;
+  description?: string;
 }) {
   return (
-    <PropertyRow label={label}>
+    <PropertyRow label={label} description={description}>
       <button
         type="button"
         onClick={() => onChange(!value)}
-        className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+        className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 min-h-11 cursor-pointer`}
       >
         <StatusPill status={value ? "active" : "inactive"} />
       </button>
@@ -112,14 +124,16 @@ export function ClinicTextareaProperty({
   value,
   onChange,
   placeholder,
+  description,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
+  description?: string;
 }) {
   return (
-    <PropertyRow label={label}>
+    <PropertyRow label={label} description={description}>
       <textarea
         className={`${PROP_INPUT_CLASS} min-h-16 resize-y`}
         value={value}
@@ -159,7 +173,13 @@ export function SectionOrderProperty({
 
   return (
     <div className={`${STYLE.propertyRow} flex-col items-start gap-1`}>
-      <div className={`text-sm ${C.text65} select-none`}>セクション順</div>
+      <div className={`flex items-center gap-1 text-sm ${C.text65} select-none`}>
+        セクション順
+        <FieldHelp
+          label="セクション順"
+          content="明細兼領収書内の各セクションの表示順です。上下ボタンで入れ替えます。"
+        />
+      </div>
       <div className="w-full space-y-0.5 pl-1">
         {effectiveOrder.map((key, i) => (
           <div
@@ -172,19 +192,19 @@ export function SectionOrderProperty({
                 type="button"
                 onClick={() => move(i, -1)}
                 disabled={i === 0}
-                className={`p-0.5 rounded ${C.hoverBgLight} disabled:opacity-30 cursor-pointer disabled:cursor-default`}
+                className={`min-h-11 min-w-11 flex items-center justify-center rounded ${C.hoverBgLight} disabled:opacity-30 cursor-pointer disabled:cursor-default`}
                 aria-label="上に移動"
               >
-                <ChevronUp className="size-3" />
+                <ChevronUp className={ICON.smXs} aria-hidden="true" />
               </button>
               <button
                 type="button"
                 onClick={() => move(i, 1)}
                 disabled={i === effectiveOrder.length - 1}
-                className={`p-0.5 rounded ${C.hoverBgLight} disabled:opacity-30 cursor-pointer disabled:cursor-default`}
+                className={`min-h-11 min-w-11 flex items-center justify-center rounded ${C.hoverBgLight} disabled:opacity-30 cursor-pointer disabled:cursor-default`}
                 aria-label="下に移動"
               >
-                <ChevronDown className="size-3" />
+                <ChevronDown className={ICON.smXs} aria-hidden="true" />
               </button>
             </div>
           </div>

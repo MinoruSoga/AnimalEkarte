@@ -2,7 +2,7 @@
  * 予約ステータス・診察区分・ダッシュボードのカラー定数集約ファイル。
  * ReservationDetailModal / AppointmentCard / ReceptionDetailModal のインライン定義を統合。
  */
-import { C } from "@/lib/design-tokens";
+import { BADGE, C } from "@/lib/design-tokens";
 import { RESERVATION_STATUS_LABELS } from "@/types";
 import type { ReservationStatus } from "@/types";
 
@@ -45,19 +45,21 @@ export const RESERVATION_STATUS_COLORS = {
     label: RESERVATION_STATUS_LABELS.completed,
     dot: C.bgStatusGrayMedium,
     bg: C.bgStatusGray,
-    text: C.textStatusGray,
+    // 低コントラストの textStatusGray(#9B9A97) → BADGE 準拠テキスト色
+    text: C.textBadgeGray,
   },
   cancelled: {
     label: RESERVATION_STATUS_LABELS.cancelled,
     dot: C.bgStatusRedDot,
     bg: C.bgRedLight,
-    text: C.textNotionRed,
+    // 低コントラストの textNotionRed(#E03E3E) → BADGE 準拠テキスト色
+    text: C.textBadgeRed,
   },
   no_show: {
     label: RESERVATION_STATUS_LABELS.no_show,
     dot: C.bgStatusRedDot,
     bg: C.bgRedLight,
-    text: C.textNotionRed,
+    text: C.textBadgeRed,
   },
 } as const;
 
@@ -80,7 +82,8 @@ const VISIT_TYPE_COLORS = {
   初診: {
     border: C.borderRedBadge,
     bg: C.bgRedLight,
-    text: C.textNotionRed,
+    // 低コントラストの textNotionRed(#E03E3E) → BADGE 準拠テキスト色
+    text: C.textBadgeRed,
     dot: C.bgStatusRedDot,
     // AppointmentCard バッジ用カラー
     badgeBg: C.bgAccentLight60,
@@ -114,14 +117,14 @@ export function getVisitTypeColor(visitType: string) {
 // ダッシュボード表示用 日本語ステータスカラーマップ
 // ──────────────────────────────────────────────
 
-/** ReceptionDetailModal のステータスバッジカラー（日本語キー） */
+/** ReceptionDetailModal のステータスバッジカラー（日本語キー）。バッジは BADGE.* で統一。 */
 export const RECEPTION_STATUS_COLORS: Record<string, string> = {
-  受付予約: `${C.bgAccentLight} ${C.textAccentDark} ${C.borderAccentLight}`,
-  受付済: `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreen}`,
-  診療中: `${C.bgStatusPurple} ${C.textStatusPurple} ${C.borderStatusPurple}`,
-  会計待ち: `${C.bgWarning50} ${C.textWarningIcon} ${C.borderWarning20}`,
-  会計済: `${C.bgActive} ${C.text} ${C.borderLight}`,
+  受付予約: BADGE.blue,
+  受付済: BADGE.green,
+  診療中: BADGE.purple,
+  会計待ち: BADGE.yellow,
+  会計済: BADGE.green,
 };
 
 /** RECEPTION_STATUS_COLORS 未定義ステータスのフォールバッククラス */
-export const RECEPTION_STATUS_COLOR_FALLBACK = `${C.bgStatusGray} ${C.textStatusGray} ${C.borderStatusGray}`;
+export const RECEPTION_STATUS_COLOR_FALLBACK = BADGE.gray;

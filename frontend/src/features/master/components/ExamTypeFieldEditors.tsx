@@ -1,4 +1,5 @@
 import { C } from "@/lib/design-tokens";
+import { FieldHelp } from "@/components/shared/FieldHelp";
 
 import { QUALITATIVE_VALUES, type ReferenceRangeDraft } from "../lib/exam-type-fields-editor-model";
 
@@ -6,18 +7,24 @@ interface FieldInputProps {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  /** 項目の説明文。指定するとラベル横に ⓘ ツールチップを表示する */
+  description?: string;
 }
 
-export function FieldInput({ label, value, onChange }: FieldInputProps) {
+export function FieldInput({ label, value, onChange, description }: FieldInputProps) {
   return (
-    <label className={`block text-sm ${C.text65}`}>
-      {label}
+    <div className={`block text-sm ${C.text65}`}>
+      <div className="flex items-center gap-1">
+        <span>{label}</span>
+        {description ? <FieldHelp label={label} content={description} /> : null}
+      </div>
       <input
+        aria-label={label}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className={`mt-1 min-h-11 w-full rounded-xs border px-2 ${C.borderMedium} ${C.bgWhite} ${C.text}`}
       />
-    </label>
+    </div>
   );
 }
 
@@ -30,7 +37,7 @@ interface RangeBoundInputProps {
 
 function RangeBoundInput({ label, type, value, onChange }: RangeBoundInputProps) {
   return (
-    <label className={`text-xs ${C.text65}`}>
+    <div className={`text-xs ${C.text65}`}>
       {label.endsWith("下限") ? "下限" : "上限"}
       <input
         type={type}
@@ -41,7 +48,7 @@ function RangeBoundInput({ label, type, value, onChange }: RangeBoundInputProps)
         onChange={(event) => onChange(event.target.value)}
         className={`mt-1 min-h-11 w-full rounded-xs border px-2 ${C.borderMedium} ${C.bgWhite} ${C.text}`}
       />
-    </label>
+    </div>
   );
 }
 
@@ -56,8 +63,14 @@ export function ReferenceRangeInputs({ speciesName, draft, onChange }: Reference
   const rangeKind = draft.mode === "numeric" ? "数値" : "定性";
   return (
     <div className="grid grid-cols-[120px_1fr_1fr] gap-2">
-      <label className={`text-xs ${C.text65}`}>
-        種別
+      <div className={`text-xs ${C.text65}`}>
+        <span className="inline-flex items-center gap-1">
+          種別
+          <FieldHelp
+            label={`${speciesName}の基準範囲種別`}
+            content="基準範囲の入力形式です。「数値」は下限・上限を数値で、「定性」は区分値で指定します。"
+          />
+        </span>
         <select
           aria-label={`${speciesName}の基準範囲種別`}
           value={draft.mode}
@@ -76,7 +89,7 @@ export function ReferenceRangeInputs({ speciesName, draft, onChange }: Reference
           <option value="numeric">数値</option>
           <option value="qualitative">定性</option>
         </select>
-      </label>
+      </div>
       <RangeBoundInput
         label={`${speciesName}の${rangeKind}下限`}
         type={type}

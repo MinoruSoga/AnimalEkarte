@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -159,11 +159,16 @@ describe("ExamTypeFieldsEditor", () => {
         name: "編集: 検査項目 白血球 (ID 31)",
       }),
     ).toBeInTheDocument();
+    // 削除は ConfirmDialog で確認後にのみ実行される（直行削除なし）。
     await user.click(
       screen.getByRole("button", {
         name: "削除: 検査項目 白血球 (ID 31)",
       }),
     );
+    expect(mocks.remove).not.toHaveBeenCalled();
+    const dialog = screen.getByRole("alertdialog", { name: "検査項目を削除しますか？" });
+    expect(dialog).toHaveTextContent("「白血球」を削除します");
+    await user.click(within(dialog).getByRole("button", { name: "削除" }));
     expect(mocks.remove).toHaveBeenCalledWith({ examTypeId: "3", fieldId: "31" });
 
     mocks.reorderCallbacks.at(-1)?.(["31"]);
@@ -190,6 +195,24 @@ describe("ExamTypeFieldsEditor", () => {
     expect(screen.queryByRole("button", { name: /削除: 検査項目/ })).not.toBeInTheDocument();
     mocks.reorderCallbacks.at(-1)?.(["31"]);
     expect(mocks.reorder).not.toHaveBeenCalled();
+  });
+
+  it("does not delete a field when the confirm dialog is canceled", async () => {
+    const user = userEvent.setup();
+    render(<ExamTypeFieldsEditor examType={examType} canCreate canEdit canDelete />);
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "削除: 検査項目 白血球 (ID 31)",
+      }),
+    );
+    const dialog = screen.getByRole("alertdialog", { name: "検査項目を削除しますか？" });
+    await user.click(within(dialog).getByRole("button", { name: "キャンセル" }));
+
+    expect(mocks.remove).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    });
   });
 
   it("validates reversed numeric ranges before full replacement", async () => {

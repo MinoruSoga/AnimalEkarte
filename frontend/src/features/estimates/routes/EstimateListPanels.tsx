@@ -3,11 +3,7 @@ import { FileText, Trash2, ExternalLink } from "lucide-react";
 import type { ActiveFilter, ActiveSort } from "@/components/shared/PropertyFilter/types";
 import { TableCell } from "@/components/ui/table";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
-import {
-  DataTable,
-  DESIGN_TABLE_HEADER_ROW,
-  DESIGN_TABLE_HEADER_CELL,
-} from "@/components/shared/DataTable/DataTable";
+import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
@@ -16,7 +12,7 @@ import { EstimateStatusBadge } from "../components/EstimateStatusBadge/EstimateS
 import { paths } from "@/config/paths";
 import { formatCurrency } from "@/lib/format/number";
 import { formatDate } from "@/lib/format/date";
-import { C } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 import { isEstimateLockedStatus } from "../lib/is-estimate-locked-status";
 import type { Estimate } from "../types";
 import { COLUMNS, FILTER_PROPERTIES, SORT_PROPERTIES } from "./estimate-list-model";
@@ -176,8 +172,8 @@ export function EstimateListContent({
       />
 
       <DataTable
-        headerRowClassName={DESIGN_TABLE_HEADER_ROW}
-        headerCellClassName={DESIGN_TABLE_HEADER_CELL}
+        headerRowClassName={STYLE.tableHeaderRow}
+        headerCellClassName={STYLE.sectionLabel}
         columns={COLUMNS}
         data={pagination.paginatedData}
         emptyMessage="見積書が見つかりません"

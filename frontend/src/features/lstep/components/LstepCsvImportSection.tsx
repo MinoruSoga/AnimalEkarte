@@ -68,7 +68,7 @@ function CsvUploadSection() {
           <UploadCloud className={`${ICON.action} ${C.text40} shrink-0`} />
           <div className="min-w-0 flex-1">
             <p className={`text-sm font-medium ${C.text80}`}>友だち属性 CSV</p>
-            <p className={`text-xs ${C.text40}`}>
+            <p className={`text-xs ${C.text60}`}>
               Lステップ管理画面からエクスポートした CSV をアップロード
             </p>
           </div>
@@ -117,10 +117,10 @@ function CsvImportHistoryTable() {
   const { data, isLoading } = useGetLstepCsvImports(20);
 
   if (isLoading) {
-    return <p className={`text-sm ${C.text40} py-4`}>読み込み中...</p>;
+    return <p className={`text-sm ${C.text60} py-4`}>読み込み中...</p>;
   }
   if (!data || data.length === 0) {
-    return <p className={`text-sm ${C.text40} py-8 text-center`}>インポート履歴はありません</p>;
+    return <p className={`text-sm ${C.text60} py-8 text-center`}>インポート履歴はありません</p>;
   }
 
   return (

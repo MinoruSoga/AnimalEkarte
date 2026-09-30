@@ -1,4 +1,4 @@
-import { C } from "@/lib/design-tokens";
+import { BADGE, C } from "@/lib/design-tokens";
 import { formatJSTDate } from "@/lib/jst-date";
 import type { LstepSettingsResponse } from "../hooks/use-lstep-settings";
 
@@ -39,7 +39,7 @@ function StatusPill({ active, activeLabel, inactiveLabel }: StatusPillProps) {
   if (active) {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-full ${C.bgStatusGreen} ${C.textStatusGreen} border ${C.borderStatusGreen}`}
+        className={`inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-full border ${BADGE.green}`}
       >
         <span className={`inline-block w-1.5 h-1.5 rounded-full ${C.bgStatusGreenDot}`} />
         {activeLabel}
@@ -49,7 +49,7 @@ function StatusPill({ active, activeLabel, inactiveLabel }: StatusPillProps) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-full ${C.bgStatusGray} ${C.textStatusGray} border ${C.borderMuted}`}
+      className={`inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-full border ${BADGE.gray}`}
     >
       <span className={`inline-block w-1.5 h-1.5 rounded-full ${C.bgStatusGrayMedium}`} />
       {inactiveLabel}

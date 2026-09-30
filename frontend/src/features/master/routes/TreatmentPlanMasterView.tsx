@@ -1,4 +1,5 @@
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
+import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
 import { C, ICON } from "@/lib/design-tokens";
 import { MasterTabPage } from "../components/MasterTabPage";
@@ -24,6 +25,8 @@ interface TreatmentPlanMasterViewProps {
   editTarget: TreatmentItem | "new" | null;
   pendingDelete: TreatmentItem | null;
   resources: TreatmentPlanResources;
+  isDataPending: boolean;
+  isDataError: boolean;
   discardDialog: React.ReactNode;
   onNew: () => void;
   onClose: () => void;
@@ -47,6 +50,8 @@ export function TreatmentPlanMasterView({
   editTarget,
   pendingDelete,
   resources,
+  isDataPending,
+  isDataError,
   discardDialog,
   onNew,
   onClose,
@@ -91,25 +96,31 @@ export function TreatmentPlanMasterView({
           />
         }
       >
-        <UnifiedTabs
-          items={TREATMENT_PLAN_TABS}
-          value={activeTab}
-          onValueChange={onTabChange}
-          className="flex flex-col gap-4"
-        >
-          {TREATMENT_PLAN_TABS.map((tab) => {
-            const config = resources.tabConfigs[tab.value];
-            return (
-              <UnifiedTabsContent key={tab.value} value={tab.value} className="mt-4">
-                <TreatmentPlanTabContent
-                  {...config}
-                  onEditTargetChange={onEditTargetChange}
-                  canEdit={tab.value === "checkup" ? canEditCheckup : canEdit}
-                />
-              </UnifiedTabsContent>
-            );
-          })}
-        </UnifiedTabs>
+        {isDataError ? (
+          <ErrorFallback message="診療項目マスタの取得に失敗しました" />
+        ) : isDataPending ? (
+          <LoadingFallback />
+        ) : (
+          <UnifiedTabs
+            items={TREATMENT_PLAN_TABS}
+            value={activeTab}
+            onValueChange={onTabChange}
+            className="flex flex-col gap-4"
+          >
+            {TREATMENT_PLAN_TABS.map((tab) => {
+              const config = resources.tabConfigs[tab.value];
+              return (
+                <UnifiedTabsContent key={tab.value} value={tab.value} className="mt-4">
+                  <TreatmentPlanTabContent
+                    {...config}
+                    onEditTargetChange={onEditTargetChange}
+                    canEdit={tab.value === "checkup" ? canEditCheckup : canEdit}
+                  />
+                </UnifiedTabsContent>
+              );
+            })}
+          </UnifiedTabs>
+        )}
       </MasterTabPage>
       {discardDialog}
     </>

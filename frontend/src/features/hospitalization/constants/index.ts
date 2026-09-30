@@ -52,3 +52,12 @@ export const HOSPITALIZATION_DECEASED_BLOCK_MESSAGE = {
   DAILY_RECORD: "死亡したペットのため、デイリーカルテの記録・追加はできません",
   CHECK_IN: "死亡したペットのため、チェックインできません",
 } as const;
+
+/**
+ * 退院済み入院への書込みガード（死亡ペット防壁と同じ二重防壁パターン）。
+ * render 側で操作要素を出さず、callback 側でも拒否し、非表示理由をユーザーに提示する。
+ */
+export const HOSPITALIZATION_DISCHARGED_BLOCK_MESSAGE = {
+  CARE_PLAN: "退院済みの入院のため、ケアプランの追加・編集・削除はできません",
+  DAILY_RECORD: "退院済みの入院のため、デイリーカルテの記録・追加はできません",
+} as const;

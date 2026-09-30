@@ -24,19 +24,20 @@ const MembershipTypeButtons = memo(function MembershipTypeButtons({
   onChange,
 }: MembershipTypeButtonsProps) {
   return (
-    <div className="flex gap-1.5 flex-wrap">
+    <div className="flex gap-1.5 flex-wrap" role="group" aria-label="会員区分">
       {MEMBERSHIP_TYPE_VALUES.map((type) => (
         <Button
           key={type}
           type="button"
           variant={value === type ? "default" : "outline"}
           size="sm"
-          // docs/spec/design-system.md: 選択状態は brand と同じ primary teal
+          // design-tokens: 白文字の選択状態は AA 適合の Solid 系フルセット。
           className={
             value === type
-              ? `${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} h-11 text-sm px-3 rounded-full transition-colors shadow-none border-transparent`
+              ? `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} h-11 text-sm px-3 rounded-full transition-colors shadow-none border-transparent`
               : `h-11 text-sm ${C.text} ${C.hoverBgMedium} ${C.borderMedium} px-3`
           }
+          aria-pressed={value === type}
           onClick={() => onChange(type)}
         >
           {type}

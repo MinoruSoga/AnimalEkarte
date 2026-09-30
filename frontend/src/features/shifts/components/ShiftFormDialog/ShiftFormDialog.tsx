@@ -292,7 +292,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
                   テンプレートから入力
                 </Label>
                 <Select onValueChange={handleApplyTemplate}>
-                  <SelectTrigger id="shift-template" className="h-8 text-sm">
+                  <SelectTrigger id="shift-template">
                     <SelectValue placeholder="テンプレートを選択..." />
                   </SelectTrigger>
                   <SelectContent>{templateSelectItems}</SelectContent>

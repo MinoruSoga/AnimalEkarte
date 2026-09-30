@@ -20,19 +20,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { EmptyState } from "@/components/shared/DataStates";
 import { handleApiError } from "@/lib/handle-api-error";
-import { axios } from "@/lib/axios";
-
-// Types
-import { transformOwner, type OwnerApiResponse } from "@/lib/transforms/owner";
-
-interface OwnerSummary {
-  id: string;
-  name: string;
-  phone: string;
-  address: string;
-  discountRate: number;
-  membershipType: string;
-}
+import { useOwnerSearch, type OwnerSummary } from "@/hooks/use-owner-search";
 
 interface OwnerSearchModalProps {
   open: boolean;
@@ -44,25 +32,6 @@ interface OwnerSearchModalProps {
     membershipType: string;
   }) => void;
   currentOwnerName?: string;
-}
-
-interface OwnerSearchResponse {
-  data: OwnerApiResponse[];
-  total?: number;
-}
-
-const OWNER_SEARCH_LIMIT = 100;
-
-function toOwnerSummary(o: OwnerApiResponse): OwnerSummary {
-  const owner = transformOwner(o);
-  return {
-    id: owner.id,
-    name: owner.ownerName,
-    phone: owner.phone,
-    address: [owner.address1, owner.address2].filter(Boolean).join(" "),
-    discountRate: owner.discountRate,
-    membershipType: owner.membershipType,
-  };
 }
 
 export const OwnerSearchModal = memo(function OwnerSearchModal({
@@ -78,25 +47,23 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
   const [hasSearched, setHasSearched] = useState(false);
   const [isTruncated, setIsTruncated] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState<OwnerSummary | null>(null);
+  const { mutateAsync: searchOwners } = useOwnerSearch();
 
   const handleSearch = useCallback(() => {
     if (!searchTerm.trim()) return;
     setHasSearched(true);
     startSearchTransition(async () => {
       try {
-        const { data } = await axios.get<OwnerSearchResponse>("/v1/owners", {
-          params: { search: searchTerm.trim(), page: 1, limit: OWNER_SEARCH_LIMIT },
-        });
-        const nextOwners = (data.data ?? []).map(toOwnerSummary);
+        const { owners: nextOwners, isTruncated } = await searchOwners(searchTerm.trim());
         setOwners(nextOwners);
-        setIsTruncated(typeof data.total === "number" && data.total > nextOwners.length);
+        setIsTruncated(isTruncated);
       } catch (error) {
         handleApiError(error, "飼主検索");
         setOwners([]);
         setIsTruncated(false);
       }
     });
-  }, [searchTerm]);
+  }, [searchTerm, searchOwners]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -174,13 +141,13 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="飼主名 / 飼主No / 電話番号"
-                className={`pl-9 h-10 text-base ${C.bgPage} ${C.borderMedium} ${C.focusBorderAccent} rounded-xs`}
+                className={`pl-9 text-base ${C.bgPage} ${C.borderMedium} ${C.focusBorderAccent} rounded-xs`}
               />
             </div>
             <Button
               onClick={handleSearch}
               disabled={!searchTerm.trim() || isSearching}
-              className="h-10 px-4 text-base"
+              className="px-4 text-base"
             >
               検索
             </Button>

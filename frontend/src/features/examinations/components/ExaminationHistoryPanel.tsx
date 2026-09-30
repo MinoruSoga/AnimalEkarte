@@ -1,4 +1,5 @@
 import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
+import { EmptyState } from "@/components/shared/DataStates";
 import { Button } from "@/components/ui/button";
 import { C } from "@/lib/design-tokens";
 import type { SortOrder } from "@/types";
@@ -81,7 +82,7 @@ export function ExaminationHistoryPanel({
         currentPetId ? (
           <ExamPivotTable examinations={pivotHistory} sortOrder={historySortOrder} />
         ) : (
-          <p className={`py-6 text-center text-sm ${C.text45}`}>ペットを選択してください</p>
+          <EmptyState message="ペットを選択してください" />
         )
       ) : (
         <div className="space-y-2 max-h-[600px] overflow-y-auto">
@@ -90,9 +91,9 @@ export function ExaminationHistoryPanel({
               <ExaminationCard key={examination.id} examination={examination} />
             ))
           ) : (
-            <p className={`text-sm ${C.text45} text-center py-6`}>
-              {currentPetId ? "検査記録がありません" : "ペットを選択してください"}
-            </p>
+            <EmptyState
+              message={currentPetId ? "検査記録がありません" : "ペットを選択してください"}
+            />
           )}
         </div>
       )}

@@ -7,6 +7,7 @@ import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
+import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { C, ICON } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER, MASTER_TABLE_COL } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
@@ -38,7 +39,7 @@ const COLUMNS = [
 
 export function InsuranceSettings() {
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterInsurance);
-  const { data } = useGetAllInsurances();
+  const { data, isPending, isError } = useGetAllInsurances();
   const createMutation = useCreateInsurance();
   const updateMutation = useUpdateInsurance();
   const deleteMutation = useDeleteInsurance();
@@ -120,7 +121,13 @@ export function InsuranceSettings() {
             onDirtyChange={handleDirtyChange}
           />
         )}
-      />
+      >
+        {isError ? (
+          <ErrorFallback message="保険の取得に失敗しました" />
+        ) : isPending ? (
+          <LoadingFallback />
+        ) : null}
+      </MasterCRUDPage>
       {dirty.discardDialog}
     </>
   );

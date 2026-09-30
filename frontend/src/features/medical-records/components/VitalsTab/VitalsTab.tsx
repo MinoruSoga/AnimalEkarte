@@ -13,7 +13,7 @@ import { BarChart2, Table2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { ErrorFallback } from "@/components/shared/DataStates";
+import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { usePermission } from "@/hooks/use-permission";
 import { C, ICON } from "@/lib/design-tokens";
 import { jstDateTimeLocalToISOString } from "@/lib/jst-date";
@@ -243,11 +243,7 @@ export const VitalsTab = memo(function VitalsTab({
   }, [deletingId, deleteVital]);
 
   if (isLoading) {
-    return (
-      <div className={`flex items-center justify-center h-48 text-sm ${C.text40}`}>
-        読み込み中...
-      </div>
-    );
+    return <LoadingFallback />;
   }
 
   if (isError) return <ErrorFallback />;
@@ -288,7 +284,7 @@ export const VitalsTab = memo(function VitalsTab({
       />
 
       {sortedVitals.length > 0 ? (
-        <div className={`${C.bgWhite} border ${C.borderLight} rounded-xs px-4 py-3`}>
+        <div className={`${C.bgWhite} border ${C.borderLight} rounded-lg px-4 py-3`}>
           <span className={`text-sm ${C.text60}`}>バイタル記録 {sortedVitals.length} 件</span>
         </div>
       ) : null}
@@ -320,8 +316,9 @@ function VitalsViewToggle({ showGraph, onChange }: VitalsViewToggleProps) {
         <button
           type="button"
           onClick={() => onChange(false)}
+          aria-pressed={!showGraph}
           className={[
-            "flex items-center gap-1.5 px-3 h-8 text-xs font-medium transition-colors",
+            "flex items-center gap-1.5 px-3 min-h-11 text-xs font-medium transition-colors",
             !showGraph
               ? `${C.bgWhite} ${C.text} border-r ${C.borderLight}`
               : `${C.text60} ${C.hoverBgLight} border-r ${C.borderLight}`,
@@ -334,8 +331,9 @@ function VitalsViewToggle({ showGraph, onChange }: VitalsViewToggleProps) {
         <button
           type="button"
           onClick={() => onChange(true)}
+          aria-pressed={showGraph}
           className={[
-            "flex items-center gap-1.5 px-3 h-8 text-xs font-medium transition-colors",
+            "flex items-center gap-1.5 px-3 min-h-11 text-xs font-medium transition-colors",
             showGraph ? `${C.bgWhite} ${C.text}` : `${C.text60} ${C.hoverBgLight}`,
           ].join(" ")}
           title="グラフ表示"

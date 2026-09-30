@@ -67,7 +67,7 @@ export function HospitalizationFormStatusView({
       <div className="space-y-3">
         <ErrorFallback message="入院情報の取得に失敗しました" />
         {gate.retryRead ? (
-          <Button type="button" variant="outline" size="sm" onClick={gate.retryRead}>
+          <Button type="button" variant="outline" onClick={gate.retryRead}>
             再試行
           </Button>
         ) : null}

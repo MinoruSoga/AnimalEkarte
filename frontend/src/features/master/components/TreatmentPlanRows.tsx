@@ -85,7 +85,7 @@ function RootTreatmentRow({
             {item.name}
           </DataTableRowButton>
           {hasChildren ? (
-            <span className={`text-base ${C.text25} ml-0.5`}>{item.children.length}</span>
+            <span className={`text-base ${C.text60} ml-0.5`}>{item.children.length}</span>
           ) : null}
         </div>
       </TableCell>
@@ -130,7 +130,8 @@ function TreatmentExpandButton({
         onToggle();
       }}
       aria-label={ariaLabel}
-      className={`size-[22px] min-h-11 min-w-11 flex items-center justify-center rounded-xxs ${C.text40} ${C.hoverBgMedium} transition-colors shrink-0`}
+      aria-expanded={isExpanded}
+      className={`size-[22px] min-h-11 min-w-11 flex items-center justify-center rounded-xxs ${C.text60} ${C.hoverBgMedium} transition-colors shrink-0`}
     >
       {isExpanded ? <ChevronDown className={ICON.xs} /> : <ChevronRight className={ICON.xs} />}
     </button>

@@ -13,7 +13,7 @@ import { Pagination } from "@/components/shared/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { ClinicScopeFilter } from "@/components/shared/ClinicScopeFilter/ClinicScopeFilter";
 import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
-import { getMedicalRecordStatusColor } from "@/lib/status-helpers";
+import { getMedicalRecordStatusColor, getPetStatusColor } from "@/lib/status-helpers";
 import { paths } from "@/config/paths";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
@@ -95,17 +95,23 @@ function MedicalRecordsListRow({
       <TableCell className={STYLE.tableCellMono}>{record.date}</TableCell>
       <TableCell className={STYLE.tableCell}>{record.ownerName}</TableCell>
       <TableCell className={STYLE.tableCell}>
-        {isOtherClinic ? (
-          record.petName
-        ) : (
-          <DataTableRowLink
-            to={paths.medicalRecords.detail.getHref(record.id)}
-            state={{ from: paths.medicalRecords.getHref() }}
-            aria-label={`カルテ詳細: ${record.petName} ${record.date} ID ${record.id}`}
-          >
-            {record.petName}
-          </DataTableRowLink>
-        )}
+        <span className="flex items-center gap-1.5">
+          {isOtherClinic ? (
+            record.petName
+          ) : (
+            <DataTableRowLink
+              to={paths.medicalRecords.detail.getHref(record.id)}
+              state={{ from: paths.medicalRecords.getHref() }}
+              aria-label={`${record.petIsDeceased ? "死亡・" : ""}カルテ詳細: ${record.petName} ${record.date} ID ${record.id}`}
+            >
+              {record.petName}
+            </DataTableRowLink>
+          )}
+          {/* EMR-227: 死亡ペットの sentinel。OwnersListTable 同様 getPetStatusColor("死亡") バッジで識別 */}
+          {record.petIsDeceased ? (
+            <StatusBadge colorClass={getPetStatusColor("死亡")}>死亡</StatusBadge>
+          ) : null}
+        </span>
       </TableCell>
       <TableCell className={`${STYLE.tableCell} hidden lg:table-cell`}>{record.species}</TableCell>
       <TableCell
@@ -129,12 +135,12 @@ function MedicalRecordsListRow({
             会計
           </button>
         ) : (
-          <span className={`text-sm ${C.text40}`}>—</span>
+          <span className={`text-sm ${C.text60}`}>—</span>
         )}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} hidden md:table-cell`}>
         <div className="flex items-center gap-1">
-          <span className={!isValidStaff(record.doctor) ? `${C.danger} font-medium` : ""}>
+          <span className={!isValidStaff(record.doctor) ? `${C.textWarningIcon} font-medium` : ""}>
             {record.doctor}
           </span>
           {!isValidStaff(record.doctor) ? (
@@ -143,7 +149,7 @@ function MedicalRecordsListRow({
               aria-label={`無効な担当医: ${record.doctor}（退職等）`}
               title="担当医が無効（退職等）に設定されています"
             >
-              <AlertTriangle className={`${ICON.xs} ${C.danger}`} aria-hidden="true" />
+              <AlertTriangle className={`${ICON.xs} ${C.textWarningIcon}`} aria-hidden="true" />
             </span>
           ) : null}
         </div>
@@ -158,7 +164,7 @@ function MedicalRecordsListRow({
           className={`${STYLE.tableCell} hidden lg:table-cell`}
           data-testid="mr-row-clinic"
         >
-          <span className={isOtherClinic ? `text-xs ${C.text40}` : "text-xs"}>
+          <span className={isOtherClinic ? `text-xs ${C.text60}` : "text-xs"}>
             {record.clinicId ? (clinicNameById.get(record.clinicId) ?? record.clinicId) : "—"}
           </span>
         </TableCell>

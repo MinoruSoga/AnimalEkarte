@@ -2,6 +2,7 @@ import { useCallback, useRef, useLayoutEffect } from "react";
 import { UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
+import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { C, ICON } from "@/lib/design-tokens";
 import { MASTER_TABLE_COL } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
@@ -16,6 +17,7 @@ import {
   useCreateStaff,
   useUpdateStaff,
   useDeleteStaff,
+  useGetStaffs,
   useUpdateStaffClinics,
   useUpdateStaffCapableReservationTypes,
   useUpdateStaffPermissionGroups,
@@ -44,6 +46,9 @@ export function StaffSettings() {
   const { canEdit: canEditPermission } = usePermission(ResourceMasterPermission);
 
   const lookups = useStaffSettingsLookups();
+  // 一覧クエリの状態を DataStates に接続する（useGetStaffs は lookups 内と同一 queryKey で
+  // キャッシュ共有されるため追加 fetch は発生しない）。
+  const { isPending, isError } = useGetStaffs();
   const createMutation = useCreateStaff();
   const updateMutation = useUpdateStaff();
   const deleteMutation = useDeleteStaff();
@@ -165,7 +170,13 @@ export function StaffSettings() {
             onSaveCapableReservationTypes={handleSaveCapableReservationTypes}
           />
         )}
-      />
+      >
+        {isError ? (
+          <ErrorFallback message="スタッフの取得に失敗しました" />
+        ) : isPending ? (
+          <LoadingFallback />
+        ) : null}
+      </MasterCRUDPage>
       {dirty.discardDialog}
     </>
   );

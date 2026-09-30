@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 
 import { ExamItemsTable, type ExamItemRow } from "./ExamItemsTable";
-import { C } from "@/lib/design-tokens";
+import { BADGE, C } from "@/lib/design-tokens";
 
 // テスト用 ExamItemRow ファクトリ。デフォルトは status 未設定（保存前の新規行）。
 const makeItem = (overrides: Partial<ExamItemRow> = {}): ExamItemRow => ({
@@ -218,11 +218,8 @@ describe("ExamItemsTable", () => {
           onChangeInspectionValue={vi.fn()}
         />,
       );
-      expect(screen.getByText("LOW")).toHaveClass(
-        C.textStatusBlue,
-        C.borderBlue400,
-        C.bgStatusBlueLight,
-      );
+      // EMR-227: LOW バッジは BADGE.blue（bg+text+border の AA 準拠セット）
+      expect(screen.getByText("LOW")).toHaveClass(BADGE.blue);
       expect(screen.getByTestId("exam-item-row")).toHaveClass(C.bgStatusBlueLight);
       expect(screen.queryByText("HIGH")).not.toBeInTheDocument();
     });
@@ -286,7 +283,7 @@ describe("ExamItemsTable", () => {
           onChangeInspectionValue={vi.fn()}
         />,
       );
-      expect(screen.getByText("-")).toHaveClass(C.text45);
+      expect(screen.getByText("-")).toHaveClass(C.text60);
       expect(screen.queryByText("HIGH")).not.toBeInTheDocument();
       expect(screen.queryByText("LOW")).not.toBeInTheDocument();
     });

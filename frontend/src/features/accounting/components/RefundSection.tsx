@@ -22,9 +22,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TableCell, TableHead } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { EmptyState } from "@/components/shared/DataStates";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
-import { C, ICON } from "@/lib/design-tokens";
+import { BADGE, C, ICON } from "@/lib/design-tokens";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { formatJSTDate } from "@/lib/jst-date";
 import { formatCurrency } from "@/lib/format/number";
@@ -106,9 +114,7 @@ export const RefundSection = memo(function RefundSection({
                 : `残額 ${formatCurrency(refundableAmount)}`}
             </span>
             {totalRefunded > 0 ? (
-              <span
-                className={`text-xs font-normal ${C.textDiscount} ${C.bgDiscountLight} px-2 py-0.5 rounded`}
-              >
+              <span className={`text-xs font-normal ${BADGE.orange} px-2 py-0.5 rounded`}>
                 合計 {formatCurrency(totalRefunded)} 返金済
               </span>
             ) : null}
@@ -120,7 +126,7 @@ export const RefundSection = memo(function RefundSection({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-8 text-xs"
+                  className="text-xs"
                   disabled={recordedNegative || refundableAmount <= 0}
                   aria-describedby="refund-recorded-amount"
                 >
@@ -146,7 +152,6 @@ export const RefundSection = memo(function RefundSection({
                         value={refundAmount}
                         onChange={(e) => setRefundAmount(e.target.value)}
                         placeholder="0"
-                        className="h-10"
                       />
                     </div>
                     <div className="space-y-2">
@@ -156,7 +161,6 @@ export const RefundSection = memo(function RefundSection({
                         value={refundReason}
                         onChange={(e) => setRefundReason(e.target.value)}
                         placeholder="返金理由を入力..."
-                        className="h-10"
                       />
                     </div>
                     {usedPaymentMethods.length > 0 ? (
@@ -166,7 +170,6 @@ export const RefundSection = memo(function RefundSection({
                           <SelectTrigger
                             id="refund-payment-method-trigger"
                             data-testid="refund-payment-method-trigger"
-                            className="h-10"
                           >
                             <SelectValue />
                           </SelectTrigger>
@@ -204,19 +207,19 @@ export const RefundSection = memo(function RefundSection({
       </CardHeader>
       {refunds.length > 0 ? (
         <CardContent className="p-0">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className={`border-b ${C.bgPage30} text-xs`}>
+          <Table>
+            <TableHeader>
+              <TableRow className={`${C.bgPage30} text-xs`}>
                 <TableHead>日時</TableHead>
                 <TableHead>処理者</TableHead>
                 <TableHead className="text-right">金額</TableHead>
                 <TableHead>支払方法</TableHead>
                 <TableHead>理由</TableHead>
-              </tr>
-            </thead>
-            <tbody>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {refunds.map((r) => (
-                <tr key={r.id} className="border-b last:border-0">
+                <TableRow key={r.id}>
                   <TableCell className={`font-mono ${C.text50}`}>
                     {formatJSTDate(r.refundedAt)}
                   </TableCell>
@@ -232,14 +235,14 @@ export const RefundSection = memo(function RefundSection({
                   <TableCell className={`${C.text50} max-w-[120px] truncate`}>
                     {r.reason || "-"}
                   </TableCell>
-                </tr>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </CardContent>
       ) : (
-        <CardContent className={`p-4 text-center text-sm ${C.text50}`}>
-          返金記録はありません
+        <CardContent className="p-4">
+          <EmptyState message="返金記録はありません" />
         </CardContent>
       )}
     </Card>

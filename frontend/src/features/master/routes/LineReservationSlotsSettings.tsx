@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router";
 import { CalendarDays, Info } from "lucide-react";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
+import { EmptyState, ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { ResourceMasterReservationType } from "@/types/generated/models";
@@ -10,7 +11,7 @@ import { ReservationTypeAvailableSlotsCalendar } from "../components/Reservation
 import { ReservationTypeTree } from "../components/ReservationTypeTree";
 
 export function LineReservationSlotsSettings() {
-  const { data: types = [], isLoading } = useGetReservationTypes();
+  const { data: types = [], isPending, isError } = useGetReservationTypes();
 
   const allLeaves = useMemo(() => types.filter((t) => t.isLeaf), [types]);
   const activeLeaves = useMemo(() => allLeaves.filter((t) => t.isActive), [allLeaves]);
@@ -112,37 +113,45 @@ export function LineReservationSlotsSettings() {
       </div>
 
       <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-0 overflow-hidden mt-3">
-        {/* 左: ツリーパネル */}
-        <div
-          className={`${LAYOUT.treeNavPanel.responsiveWidth} shrink-0 max-h-64 md:max-h-none border-b md:border-b-0 md:border-r ${C.borderMedium} overflow-y-auto ${C.bgWhite}`}
-        >
-          {isLoading ? (
-            <p className={`text-sm ${C.text40} p-4`}>読み込み中...</p>
-          ) : (
-            <ReservationTypeTree
-              types={types}
-              selectedId={selectedType?.id ?? null}
-              onSelect={handleTypeChange}
-            />
-          )}
-        </div>
+        {isError ? (
+          <ErrorFallback className="flex-1" message="予約区分の取得に失敗しました" />
+        ) : (
+          <>
+            {/* 左: ツリーパネル */}
+            <div
+              className={`${LAYOUT.treeNavPanel.responsiveWidth} shrink-0 max-h-64 md:max-h-none border-b md:border-b-0 md:border-r ${C.borderMedium} overflow-y-auto ${C.bgWhite}`}
+            >
+              {isPending ? (
+                <LoadingFallback />
+              ) : (
+                <ReservationTypeTree
+                  types={types}
+                  selectedId={selectedType?.id ?? null}
+                  onSelect={handleTypeChange}
+                />
+              )}
+            </div>
 
-        {/* 右: カレンダーパネル */}
-        <div className="flex-1 min-h-0 flex flex-col p-4 gap-3 overflow-hidden">
-          {breadcrumb ? <p className={`text-sm font-medium ${C.text60}`}>{breadcrumb}</p> : null}
+            {/* 右: カレンダーパネル */}
+            <div className="flex-1 min-h-0 flex flex-col p-4 gap-3 overflow-hidden">
+              {breadcrumb ? (
+                <p className={`text-sm font-medium ${C.text60}`}>{breadcrumb}</p>
+              ) : null}
 
-          {isLoading ? (
-            <p className={`text-sm ${C.text40} py-4`}>読み込み中...</p>
-          ) : selectedType ? (
-            <ReservationTypeAvailableSlotsCalendar
-              key={selectedType.id}
-              clinicId={selectedType.clinicId}
-              reservationTypeId={selectedType.id}
-            />
-          ) : (
-            <p className={`text-sm ${C.text40} py-4`}>予約区分がありません</p>
-          )}
-        </div>
+              {isPending ? (
+                <LoadingFallback />
+              ) : selectedType ? (
+                <ReservationTypeAvailableSlotsCalendar
+                  key={selectedType.id}
+                  clinicId={selectedType.clinicId}
+                  reservationTypeId={selectedType.id}
+                />
+              ) : (
+                <EmptyState message="予約区分がありません" />
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

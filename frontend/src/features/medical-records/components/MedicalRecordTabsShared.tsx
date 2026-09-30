@@ -7,18 +7,35 @@ export function MedicalRecordMountedTab({
   activeTab,
   mountedTabs,
   contentClassName,
+  isLocked,
+  internalLock = false,
   children,
 }: {
   tab: string;
   activeTab: string;
   mountedTabs: Set<string>;
   contentClassName?: string;
+  /** 確定済み/送信権限なしのとき子コンテンツを disabled fieldset で包む。 */
+  isLocked: boolean;
+  /** true: ロック境界を子コンポーネント内で管理するタブ（読み取り専用パネルを fieldset 外に出す）。 */
+  internalLock?: boolean;
   children: ReactNode;
 }) {
   if (!mountedTabs.has(tab)) return null;
   return (
     <UnifiedTabsContent value={tab} className={contentClassName}>
-      <div className={`${LAYOUT.fullHeight} ${activeTab === tab ? "" : "hidden"}`}>{children}</div>
+      {internalLock ? (
+        <div className={`${LAYOUT.fullHeight} ${activeTab === tab ? "" : "hidden"}`}>
+          {children}
+        </div>
+      ) : (
+        <fieldset
+          disabled={isLocked}
+          className={`${LAYOUT.fullHeight} ${activeTab === tab ? "" : "hidden"} border-0 p-0 m-0 min-w-0`}
+        >
+          {children}
+        </fieldset>
+      )}
     </UnifiedTabsContent>
   );
 }

@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { CarePlanTab } from "./CarePlanTab/CarePlanTab";
 import { DailyRecordsTab } from "./DailyRecordsTab/DailyRecordsTab";
 import { HospitalizationPatientHeader } from "./HospitalizationPatientHeader";
+import { HOSPITALIZATION_STATUS } from "../constants";
 import { H_STYLES } from "../lib/styles";
 
 // Types
@@ -28,6 +29,7 @@ export const HospitalizationExpandedView = memo(function HospitalizationExpanded
 }: HospitalizationExpandedViewProps) {
   // Determine the effective discharge date
   const dischargeDate = hospitalization.endDate || todayJSTISO();
+  const isDischarged = hospitalization.status === HOSPITALIZATION_STATUS.DISCHARGED;
 
   return (
     <div className={`hidden lg:flex flex-col ${H_STYLES.gap.default} w-full h-full`}>
@@ -50,6 +52,7 @@ export const HospitalizationExpandedView = memo(function HospitalizationExpanded
           <CarePlanTab
             hospitalizationId={String(hospitalization.id)}
             petIsDeceased={hospitalization.petIsDeceased}
+            isDischarged={isDischarged}
           />
         </div>
 
@@ -71,6 +74,7 @@ export const HospitalizationExpandedView = memo(function HospitalizationExpanded
               admissionDate={hospitalization.startDate}
               dischargeDate={dischargeDate}
               petIsDeceased={hospitalization.petIsDeceased}
+              isDischarged={isDischarged}
             />
           </div>
         </div>

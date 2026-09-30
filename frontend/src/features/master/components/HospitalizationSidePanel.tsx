@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { LAYOUT, STYLE } from "@/lib/design-tokens";
 import type { BodySize, BillingUnit, TaxType } from "@/types/generated/models";
 
@@ -144,7 +145,10 @@ export const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
       readOnly={readOnly}
     >
       <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
-      <PropertyRow label="対象体格">
+      <PropertyRow
+        label="対象体格"
+        description="この入院プランの対象となる動物の体格です。プラン選択時の目安に使われます。"
+      >
         <Select value={formData.bodySize} onValueChange={handleBodySizeChange}>
           <SelectTrigger className={STYLE.selectCompact}>
             <SelectValue placeholder="選択" />
@@ -158,7 +162,10 @@ export const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
           </SelectContent>
         </Select>
       </PropertyRow>
-      <PropertyRow label="料金単位">
+      <PropertyRow
+        label="料金単位"
+        description="入院料金の計算単位（1日あたり・1泊あたり等）です。会計時の金額計算に使われます。"
+      >
         <Select value={formData.billingUnit} onValueChange={handleBillingUnitChange}>
           <SelectTrigger className={STYLE.selectCompact}>
             <SelectValue placeholder="選択" />
@@ -172,14 +179,18 @@ export const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
           </SelectContent>
         </Select>
       </PropertyRow>
-      <MoneyInput value={formData.price} onChange={handlePriceChange} />
-      <PropertyRow label="課税区分">
+      <MoneyInput
+        value={formData.price}
+        onChange={handlePriceChange}
+        description="この入院プランの料金（税込）です。料金単位と組み合わせて会計計算に使われます。"
+      />
+      <PropertyRow label="課税区分" description={FIELD_DESCRIPTIONS.taxCategory}>
         <TaxTypeSelector value={formData.taxType} onChange={handleTaxTypeChange} />
       </PropertyRow>
-      <PropertyRow label="税率">
+      <PropertyRow label="税率" description={FIELD_DESCRIPTIONS.taxRate}>
         <TaxRateSelector value={formData.taxRate} onChange={handleTaxRateChange} />
       </PropertyRow>
-      <PropertyRow label="備考">
+      <PropertyRow label="備考" description={FIELD_DESCRIPTIONS.note}>
         <PropertyInput
           value={formData.description}
           onChange={handleDescriptionChange}

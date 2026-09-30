@@ -50,6 +50,7 @@ function CheckupTypeFieldDraftForm({
         label="項目名"
         value={draft.name}
         onChange={(value) => onPatch({ name: value })}
+        description="健診項目の名前です。健診結果の入力画面に表示されます。"
       />
       <CheckupFieldTypeSelect
         value={draft.fieldType}
@@ -61,17 +62,20 @@ function CheckupTypeFieldDraftForm({
             label="単位"
             value={draft.unit}
             onChange={(value) => onPatch({ unit: value })}
+            description="この項目の単位です（例: kg、cm）。"
           />
           <div className="grid grid-cols-2 gap-2">
             <NumberBoundInput
               label="基準値下限"
               value={draft.minValue}
               onChange={(value) => onPatch({ minValue: value })}
+              description="正常とみなす範囲の下限値です。"
             />
             <NumberBoundInput
               label="基準値上限"
               value={draft.maxValue}
               onChange={(value) => onPatch({ maxValue: value })}
+              description="正常とみなす範囲の上限値です。"
             />
           </div>
         </>
@@ -100,7 +104,7 @@ function CheckupTypeFieldDraftForm({
         <button
           type="button"
           onClick={onSave}
-          className={`min-h-11 rounded-full px-4 text-sm ${C.bgBrand} ${C.textOnBrand}`}
+          className={`min-h-11 rounded-full px-4 text-sm ${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary}`}
         >
           項目を保存
         </button>

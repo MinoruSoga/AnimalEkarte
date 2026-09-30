@@ -45,7 +45,7 @@ export function VitalsDisplayRow({
       <TableCell className={`text-right ${C.text}`}>{displayNum(vital.respiration_rate)}</TableCell>
       <TableCell className={`text-right ${C.text}`}>
         {displayNum(vital.weight)}
-        <span className={`ml-0.5 text-2xs ${C.text40}`}>{vital.weight_unit}</span>
+        <span className={`ml-0.5 text-2xs ${C.text60}`}>{vital.weight_unit}</span>
       </TableCell>
       <TableCell className={C.text60}>{vital.notes ? vital.notes : "-"}</TableCell>
       <TableCell>
@@ -197,7 +197,7 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           <button
             type="button"
             onClick={handleWeightUnitToggle}
-            className={`text-2xs px-1 h-6 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-[24px]`}
+            className={`text-2xs px-1 h-9 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-11`}
           >
             {form.weight_unit}
           </button>
@@ -219,7 +219,7 @@ export const VitalsEditRow = memo(function VitalsEditRow({
             type="button"
             onClick={handleSave}
             disabled={isPending}
-            className={`${STYLE.iconBtn32} ${C.textStatusGreen} ${C.hoverBgStatusGreen}`}
+            className={`${STYLE.iconBtn32} ${C.textActionPrimary} ${C.hoverBgActionPrimary5}`}
             title="保存"
           >
             <Check className={ICON.xs} />
@@ -322,7 +322,7 @@ export function VitalsAddRow({
         <button
           type="button"
           onClick={() => onChange(toggleWeightValueAndUnit(addForm.weight, addForm.weight_unit))}
-          className={`text-2xs px-1 h-6 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-[24px]`}
+          className={`text-2xs px-1 h-9 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-11`}
         >
           {addForm.weight_unit}
         </button>
@@ -342,7 +342,7 @@ export function VitalsAddRow({
         size="sm"
         loadingText="追加中..."
         disabled={isPending || !addForm.recorded_at}
-        className="h-8 text-xs px-3"
+        className="h-9 text-xs px-3"
       >
         追加
       </SubmitButton>
@@ -350,7 +350,7 @@ export function VitalsAddRow({
         type="button"
         size="sm"
         variant="outline"
-        className={`h-8 text-xs px-3 ${C.borderMedium}`}
+        className={`h-9 text-xs px-3 ${C.borderMedium}`}
         onClick={onCancel}
       >
         キャンセル

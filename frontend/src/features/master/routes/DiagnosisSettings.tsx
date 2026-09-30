@@ -6,6 +6,7 @@ import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { C, ICON } from "@/lib/design-tokens";
 import { ResourceMasterMedical } from "@/types/generated/models";
 import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
+import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import type {
   DiagnosisNameFormData,
   DiagnosisTypeFormData,
@@ -42,8 +43,14 @@ export function DiagnosisSettings() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = toDiagnosisTabValue(searchParams.get("tab"));
 
-  const { data: rawCategories } = useGetDiagnosisTypes();
-  const { data: rawNames } = useGetDiagnosisNames();
+  const {
+    data: rawCategories,
+    isPending: typesPending,
+    isError: typesError,
+  } = useGetDiagnosisTypes();
+  const { data: rawNames, isPending: namesPending, isError: namesError } = useGetDiagnosisNames();
+  const isDataError = typesError || namesError;
+  const isDataPending = typesPending || namesPending;
   const createCategoryMutation = useCreateDiagnosisType();
   const updateCategoryMutation = useUpdateDiagnosisType();
   const deleteCategoryMutation = useDeleteDiagnosisType();
@@ -156,19 +163,25 @@ export function DiagnosisSettings() {
           />
         }
       >
-        <UnifiedTabs
-          items={DIAGNOSIS_TABS}
-          value={activeTab}
-          onValueChange={handleTabChange}
-          className="flex flex-col gap-4"
-        >
-          <UnifiedTabsContent value="diagnosis_type" className="mt-4">
-            <DiagnosisTypeTab onEditTargetChange={catCrud.setEditTarget} canEdit={canEdit} />
-          </UnifiedTabsContent>
-          <UnifiedTabsContent value="diagnosis_name" className="mt-4">
-            <DiagnosisNameTab onEditTargetChange={nameCrud.setEditTarget} canEdit={canEdit} />
-          </UnifiedTabsContent>
-        </UnifiedTabs>
+        {isDataError ? (
+          <ErrorFallback message="診断マスタの取得に失敗しました" />
+        ) : isDataPending ? (
+          <LoadingFallback />
+        ) : (
+          <UnifiedTabs
+            items={DIAGNOSIS_TABS}
+            value={activeTab}
+            onValueChange={handleTabChange}
+            className="flex flex-col gap-4"
+          >
+            <UnifiedTabsContent value="diagnosis_type" className="mt-4">
+              <DiagnosisTypeTab onEditTargetChange={catCrud.setEditTarget} canEdit={canEdit} />
+            </UnifiedTabsContent>
+            <UnifiedTabsContent value="diagnosis_name" className="mt-4">
+              <DiagnosisNameTab onEditTargetChange={nameCrud.setEditTarget} canEdit={canEdit} />
+            </UnifiedTabsContent>
+          </UnifiedTabs>
+        )}
       </MasterTabPage>
       {dirty.discardDialog}
     </>

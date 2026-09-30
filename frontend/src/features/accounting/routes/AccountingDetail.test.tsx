@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Routes, Route } from "react-router";
@@ -434,6 +434,12 @@ describe("AccountingDetail — C: 混在支払い UI / payment_splits", () => {
 
     const user = userEvent.setup();
     await user.click(screen.getByTitle("削除"));
+
+    // EMR-227: 明細削除は確認ダイアログで確定してから DELETE が送信される
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText("明細を削除しますか？")).toBeInTheDocument();
+    expect(deleteCalled).toBe(false);
+    await user.click(within(dialog).getByRole("button", { name: "削除" }));
 
     await waitFor(() => {
       expect(deleteCalled).toBe(true);

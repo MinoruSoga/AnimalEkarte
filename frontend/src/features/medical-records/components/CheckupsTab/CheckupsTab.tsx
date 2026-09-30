@@ -2,6 +2,8 @@ import { memo, useCallback, useState } from "react";
 import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { LoadingFallback } from "@/components/shared/DataStates";
 import { C } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 import { usePermission } from "@/hooks/use-permission";
@@ -27,16 +29,21 @@ import {
   type AddCheckupFormState,
 } from "../../lib/checkups-tab-table-model";
 
+const DECEASED_CHECKUPS_MESSAGE = "死亡したペットの健診記録は保存できません";
+
 interface CheckupsTabProps {
   medicalRecordId: string;
   lstepStatus?: LstepStatus;
   isFinalized?: boolean;
+  /** 死亡ペットのカルテは閲覧専用（VitalsTab と同じ二重ガード方針） */
+  isPetDeceased?: boolean;
 }
 
 export const CheckupsTab = memo(function CheckupsTab({
   medicalRecordId,
   lstepStatus,
   isFinalized = false,
+  isPetDeceased = false,
 }: CheckupsTabProps) {
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const { data: checkups, isLoading } = useGetCheckups(medicalRecordId);
@@ -51,6 +58,7 @@ export const CheckupsTab = memo(function CheckupsTab({
 
   const [searchParams] = useSearchParams();
   const [editingId, setEditingId] = useState<string | null>(() => searchParams.get("checkupId"));
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addForm, setAddForm] = useState<AddCheckupFormState>(() => makeDefaultCheckupAddForm());
   const [addFormErrors, setAddFormErrors] = useState<Record<string, string>>({});
@@ -69,6 +77,10 @@ export const CheckupsTab = memo(function CheckupsTab({
   }, []);
 
   const handleAddSubmit = useCallback(async () => {
+    if (isPetDeceased) {
+      toast.error(DECEASED_CHECKUPS_MESSAGE);
+      return;
+    }
     if (!canCreate) return;
     const errors: Record<string, string> = {};
     if (!addForm.date) errors.date = "日付は必須です";
@@ -108,7 +120,15 @@ export const CheckupsTab = memo(function CheckupsTab({
     setFieldValues({});
     setIsAdding(false);
     toast.success("健診記録を追加しました");
-  }, [addForm, canCreate, checkupFields, createCheckupAsync, fieldValues, medicalRecordId]);
+  }, [
+    addForm,
+    canCreate,
+    checkupFields,
+    createCheckupAsync,
+    fieldValues,
+    isPetDeceased,
+    medicalRecordId,
+  ]);
 
   const handleAddCancel = useCallback(() => {
     setAddForm(makeDefaultCheckupAddForm());
@@ -118,6 +138,10 @@ export const CheckupsTab = memo(function CheckupsTab({
 
   const handleEditSave = useCallback(
     (checkupId: string, input: UpdateCheckupInput) => {
+      if (isPetDeceased) {
+        toast.error(DECEASED_CHECKUPS_MESSAGE);
+        return;
+      }
       if (!canEdit) return;
       updateCheckup(
         { checkupId, input },
@@ -129,27 +153,25 @@ export const CheckupsTab = memo(function CheckupsTab({
         },
       );
     },
-    [canEdit, updateCheckup],
+    [canEdit, isPetDeceased, updateCheckup],
   );
 
-  const handleDelete = useCallback(
-    (checkupId: string) => {
-      if (!canDelete) return;
-      deleteCheckup(checkupId, {
-        onSuccess: () => {
-          toast.success("健診記録を削除しました");
-        },
-      });
-    },
-    [canDelete, deleteCheckup],
-  );
+  const handleDeleteConfirm = useCallback(() => {
+    if (isPetDeceased) {
+      toast.error(DECEASED_CHECKUPS_MESSAGE);
+      return;
+    }
+    if (!canDelete || !deletingId) return;
+    deleteCheckup(deletingId, {
+      onSuccess: () => {
+        setDeletingId(null);
+        toast.success("健診記録を削除しました");
+      },
+    });
+  }, [canDelete, deletingId, deleteCheckup, isPetDeceased]);
 
   if (isLoading) {
-    return (
-      <div className={`flex items-center justify-center h-48 text-sm ${C.text40}`}>
-        読み込み中...
-      </div>
-    );
+    return <LoadingFallback />;
   }
 
   const checkupList = checkups ?? [];
@@ -171,9 +193,9 @@ export const CheckupsTab = memo(function CheckupsTab({
         addFormErrors={addFormErrors}
         checkupTypes={checkupTypes}
         staffs={staffs}
-        canCreate={canCreate}
-        canEdit={canEdit}
-        canDelete={canDelete}
+        canCreate={Boolean(canCreate && !isPetDeceased)}
+        canEdit={Boolean(canEdit && !isPetDeceased)}
+        canDelete={Boolean(canDelete && !isPetDeceased)}
         createPending={createMutation.isPending}
         updatePending={updateMutation.isPending}
         deletePending={deleteMutation.isPending}
@@ -187,14 +209,26 @@ export const CheckupsTab = memo(function CheckupsTab({
         onStartEdit={setEditingId}
         onEditSave={handleEditSave}
         onEditCancel={() => setEditingId(null)}
-        onDelete={handleDelete}
+        onDelete={setDeletingId}
       />
 
       {checkupList.length > 0 ? (
-        <div className={`${C.bgWhite} border ${C.borderLight} rounded-xs px-4 py-3`}>
+        <div className={`${C.bgWhite} border ${C.borderLight} rounded-lg px-4 py-3`}>
           <span className={`text-sm ${C.text60}`}>健診記録 {checkupList.length} 件</span>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={deletingId !== null}
+        onClose={() => setDeletingId(null)}
+        onConfirm={handleDeleteConfirm}
+        title="健診記録を削除しますか？"
+        description="この健診記録を削除します。この操作は元に戻せません。"
+        confirmLabel={deleteMutation.isPending ? "削除中..." : "削除する"}
+        cancelLabel="キャンセル"
+        variant="destructive"
+        isPending={deleteMutation.isPending}
+      />
     </div>
   );
 });

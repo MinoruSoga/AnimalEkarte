@@ -17,6 +17,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
@@ -149,23 +156,25 @@ export function CreditCorrectionDialog({
           {correctable.length > 1 ? (
             <div className="space-y-1">
               <Label htmlFor="cc-method">支払い手段</Label>
-              <select
-                id="cc-method"
+              <Select
                 value={method}
-                onChange={(e) => {
-                  const v = e.target.value;
+                onValueChange={(v) => {
                   if (v === "credit_card" || v === "electronic_money") {
                     handleMethodChange(v);
                   }
                 }}
-                className="h-9 w-full rounded-md border px-3 text-sm"
               >
-                {correctable.map((c) => (
-                  <option key={c.method} value={c.method}>
-                    {PAYMENT_METHOD_LABELS[c.method]}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="cc-method" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {correctable.map((c) => (
+                    <SelectItem key={c.method} value={c.method}>
+                      {PAYMENT_METHOD_LABELS[c.method]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           ) : null}
           <div className="space-y-1">

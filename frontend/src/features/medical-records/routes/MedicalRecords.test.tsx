@@ -218,7 +218,7 @@ describe("MedicalRecords 一覧テーブル (DESIGN.md ex-data-table-cell)", () 
     renderPage();
     const button = screen.getByRole("button", { name: /新規カルテ登録/ });
     expect(button.className).toContain("rounded-full");
-    expect(button.className).toContain(C.bgActionPrimary);
+    expect(button.className).toContain(C.bgActionPrimarySolid);
   });
 });
 

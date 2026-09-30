@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
-import { C, STYLE } from "@/lib/design-tokens";
+import { BADGE, C, STYLE } from "@/lib/design-tokens";
 import { getFormString } from "@/lib/form-data";
 import { handleApiError } from "@/lib/handle-api-error";
 import { todayJSTISO } from "@/lib/jst-date";
@@ -163,9 +163,7 @@ export function PetDeceasedDialog({
           </div>
 
           {/* 警告文 */}
-          <div
-            className={`rounded-xs border ${C.borderNotice} ${C.bgNotice40} px-3 py-2 text-xs ${C.textNotice}`}
-          >
+          <div className={`rounded-xs border ${BADGE.yellow} px-3 py-2 text-xs`}>
             記録後、このペットへの自動LINE配信が停止されます。
           </div>
 

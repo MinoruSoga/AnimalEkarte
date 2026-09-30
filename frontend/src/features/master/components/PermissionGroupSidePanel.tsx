@@ -124,12 +124,16 @@ export const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
       isDirty={isDirty}
       titleError={nameError}
       titleMaxLength={100}
+      titleDescription="権限グループの名称です。スタッフへの権限割り当て時の選択肢に表示されます。"
       readOnly={readOnly}
     >
       <fieldset disabled={readOnly} className="contents">
         <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
 
-        <PropertyRow label="説明">
+        <PropertyRow
+          label="説明"
+          description="この権限グループの説明です。どの役割・職種向けの権限セットかを記録します。"
+        >
           <textarea
             className={`${MASTER_INPUT_CLASS} resize-none`}
             value={formData.description}
@@ -139,7 +143,10 @@ export const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
           />
         </PropertyRow>
 
-        <PropertyRow label="カラー">
+        <PropertyRow
+          label="カラー"
+          description="この権限グループの識別色です。一覧やバッジ表示に使われます。"
+        >
           <div className="flex items-center gap-3">
             <input
               type="color"

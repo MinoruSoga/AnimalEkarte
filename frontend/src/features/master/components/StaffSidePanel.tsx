@@ -151,6 +151,7 @@ export const StaffSidePanel = memo(function StaffSidePanel({
       isDirty={isDirty}
       titleError={nameError}
       titleMaxLength={100}
+      titleDescription="スタッフの氏名です。カルテ・予約・シフトなど各画面で担当者名として表示されます。"
       readOnly={readOnly}
     >
       <StaffBasicInfoSection

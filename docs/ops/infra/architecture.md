@@ -40,6 +40,17 @@ Hyperdrive は Containers から利用できず、credential を Terraform state
 
 “STG 稼働中”“PROD 未構築”、DB の存在や内容は runtime observation であり、repo config から断定しない。現行 migrate の seed bundle は全環境で `002_master` のみ。既存 STG データは別途確認する。
 
+## CLI ツール分担（2026-09-30）
+
+Cloudflare の新 CLI `cf`（v1.0.0-beta）を導入済み。分担は次のとおり。
+
+| 用途 | ツール |
+|---|---|
+| deploy / migrate / `secret bulk` | `wrangler`（正本。`package.json` の `cf:*` scripts と `backend-deploy.yml` が使用） |
+| Cloudflare リソースの調査・ops（3000+ API ops、JSON 出力、`cf cli search`） | `cf`（グローバルインストール・`cf auth login` で OAuth 済み） |
+
+`cf migrate --dry-run` の結果、この backend の **Containers と Durable Objects は cf beta 未対応**（containers は未移行・手動レビュー必須、DO migrations は `exports.durableObject()` への手書換えが必要）。deploy 経路を cf へ移すのは cf が containers/DO をサポートしてから再評価する。Wrangler は cf beta 終了後も18ヶ月保守される。
+
 ## Historical observations, not current guarantees
 
 2026-07 の certificate、connection-slot、schema-owner の記述は当時の observation だった。価格、certificate coverage、schema ownership、恒久解は現在の公式 provider documentation と runtime evidence を人が再確認するまで運用判断に使わない。

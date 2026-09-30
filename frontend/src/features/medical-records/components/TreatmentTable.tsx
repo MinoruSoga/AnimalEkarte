@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON, STYLE } from "@/lib/design-tokens";
-import React, { memo } from "react";
+import React, { memo, useState } from "react";
 
 // Shared
 import { calcLineItemAmount } from "@/lib/line-item-helpers";
@@ -10,6 +10,7 @@ import { Circle, X, PlusCircle } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -65,6 +66,15 @@ export const TreatmentTable = memo(function TreatmentTable({
   showStatus = false,
   disabled = false,
 }: TreatmentTableProps) {
+  // 破壊的操作は ConfirmDialog 必須（frontend CLAUDE.md）。MedicalRecordEstimate/
+  // DiagnosisPlan/BillCheck 全 consumer に統一的な確認ダイアログをここで提供する。
+  const [pendingRemoveId, setPendingRemoveId] = useState<number | null>(null);
+
+  const handleRemoveConfirm = () => {
+    if (pendingRemoveId !== null) onRemove(pendingRemoveId);
+    setPendingRemoveId(null);
+  };
+
   const gridColsClass = showStatus
     ? "grid-cols-[80px_3fr_2fr_0.8fr_1fr_0.8fr_1fr_1fr_1fr_0.8fr]"
     : "grid-cols-[3fr_2fr_0.8fr_1fr_0.8fr_1fr_1fr_1fr_0.8fr]";
@@ -111,7 +121,10 @@ export const TreatmentTable = memo(function TreatmentTable({
                     onValueChange={(val) => onUpdate(item.id, "status", val)}
                     disabled={disabled}
                   >
-                    <SelectTrigger className="h-full w-full border-none bg-transparent p-0 text-sm justify-center text-center font-medium focus:ring-0">
+                    <SelectTrigger
+                      aria-label={`治療ステータス (${item.content})`}
+                      className={`h-full w-full border-none bg-transparent p-0 text-sm justify-center text-center font-medium focus-visible:ring-2 focus-visible:ring-inset ${C.focusRingAccent40}`}
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>{TREATMENT_STATUS_ITEMS}</SelectContent>
@@ -147,9 +160,9 @@ export const TreatmentTable = memo(function TreatmentTable({
                   )}
                 >
                   {item.is_insurance ? (
-                    <Circle className={`${ICON.action} ${C.textRedIcon}`} />
+                    <Circle className={`${ICON.action} ${C.textStatusGreen}`} />
                   ) : (
-                    <X className={`${ICON.action} ${C.text25}`} />
+                    <X className={`${ICON.action} ${C.text60}`} />
                   )}
                 </button>
               </Cell>
@@ -214,9 +227,12 @@ export const TreatmentTable = memo(function TreatmentTable({
               </Cell>
               <Cell align="center" last>
                 {disabled ? null : (
+                  // EMR-227: opacity-0 前提なので focus-visible/group-focus-within で
+                  // キーボードフォーカス時にも可視化する。44px ターゲットは
+                  // DeleteIconButton 既定の size-11 min-h-11 min-w-11 で担保済み。
                   <DeleteIconButton
-                    onClick={() => onRemove(item.id)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => setPendingRemoveId(item.id)}
+                    className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 transition-opacity"
                   />
                 )}
               </Cell>
@@ -232,7 +248,7 @@ export const TreatmentTable = memo(function TreatmentTable({
             type="button"
             variant="ghost"
             size="sm"
-            className={`h-10 text-sm gap-2 ${C.text50} ${C.hoverTextBrand}`}
+            className={`h-10 text-sm gap-2 ${C.text60} ${C.hoverText}`}
             onClick={onOpenSearch || onAddRow}
           >
             <PlusCircle className={ICON.action} />
@@ -240,6 +256,17 @@ export const TreatmentTable = memo(function TreatmentTable({
           </Button>
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingRemoveId !== null}
+        onClose={() => setPendingRemoveId(null)}
+        onConfirm={handleRemoveConfirm}
+        title="この明細を削除しますか？"
+        description="この操作は元に戻せません。"
+        confirmLabel="削除する"
+        cancelLabel="キャンセル"
+        variant="destructive"
+      />
     </div>
   );
 });
@@ -331,7 +358,7 @@ function TableInput({
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
       className={cn(
-        "h-full w-full border-none bg-transparent rounded-none focus-visible:ring-0 px-3 text-sm shadow-none",
+        `h-full w-full border-none bg-transparent rounded-none px-3 text-sm shadow-none focus-visible:ring-2 focus-visible:ring-inset ${C.focusRingAccent40}`,
         align === "right" && "text-right",
         disabled && "opacity-60 cursor-not-allowed",
         className,

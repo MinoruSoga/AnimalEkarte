@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { ShoppingBag } from "lucide-react";
+import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { C, ICON } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
@@ -33,7 +34,7 @@ import { usePermission } from "@/hooks/use-permission";
 
 export function MerchandiseItemSettings() {
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterMerchandise);
-  const { data } = useGetAllMerchandiseItems();
+  const { data, isPending, isError } = useGetAllMerchandiseItems();
   const createMutation = useCreateMerchandiseItem();
   const updateMutation = useUpdateMerchandiseItem();
   const deleteMutation = useDeleteMerchandiseItem();
@@ -109,16 +110,22 @@ export function MerchandiseItemSettings() {
           />
         )}
       >
-        <MerchandiseSortableTable
-          items={sortedItems}
-          sensors={sensors}
-          activeId={activeId}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragCancel={handleDragCancel}
-          canEdit={canEdit}
-          onEdit={crud.handleEdit}
-        />
+        {isError ? (
+          <ErrorFallback message="品目の取得に失敗しました" />
+        ) : isPending ? (
+          <LoadingFallback />
+        ) : (
+          <MerchandiseSortableTable
+            items={sortedItems}
+            sensors={sensors}
+            activeId={activeId}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+            canEdit={canEdit}
+            onEdit={crud.handleEdit}
+          />
+        )}
       </MasterCRUDPage>
       {dirty.discardDialog}
     </>

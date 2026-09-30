@@ -1,11 +1,7 @@
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import {
-  DataTable,
-  DESIGN_TABLE_HEADER_ROW,
-  DESIGN_TABLE_HEADER_CELL,
-} from "@/components/shared/DataTable/DataTable";
+import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { useSortableList } from "@/hooks/use-sortable-list";
@@ -19,6 +15,7 @@ import {
   buildTreatmentTree,
   filterTreatmentRoots,
 } from "../lib/treatment-plan-tab-content-model";
+import { STYLE } from "@/lib/design-tokens";
 
 interface TreatmentPlanTabContentProps extends TreatmentTabConfig {
   onEditTargetChange: (value: TreatmentItem | "new" | null) => void;
@@ -103,8 +100,8 @@ export function TreatmentPlanTabContent({
           strategy={verticalListSortingStrategy}
         >
           <DataTable
-            headerRowClassName={DESIGN_TABLE_HEADER_ROW}
-            headerCellClassName={DESIGN_TABLE_HEADER_CELL}
+            headerRowClassName={STYLE.tableHeaderRow}
+            headerCellClassName={STYLE.sectionLabel}
             columns={TREATMENT_COLUMNS}
             data={flatRows}
             emptyMessage={emptyMessage}

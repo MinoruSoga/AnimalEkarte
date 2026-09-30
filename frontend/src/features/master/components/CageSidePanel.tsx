@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { LAYOUT, STYLE } from "@/lib/design-tokens";
 
 import type { Cage, CageSize, CageType } from "../api/cages";
@@ -125,7 +126,10 @@ export const CageSidePanel = memo(function CageSidePanel({
       readOnly={readOnly}
     >
       <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
-      <PropertyRow label="エリア">
+      <PropertyRow
+        label="エリア"
+        description="ケージが属するエリア種別（ICU・犬舎・猫舎・汎用）です。入院管理でケージを分類するために使われます。"
+      >
         <Select value={formData.cageType} onValueChange={handleCageTypeChange}>
           <SelectTrigger className={STYLE.selectCompact}>
             <SelectValue placeholder="選択" />
@@ -139,7 +143,10 @@ export const CageSidePanel = memo(function CageSidePanel({
           </SelectContent>
         </Select>
       </PropertyRow>
-      <PropertyRow label="サイズ">
+      <PropertyRow
+        label="サイズ"
+        description="ケージのサイズ区分です。入院する動物の体格に合ったケージを選ぶ目安になります。"
+      >
         <Select value={formData.cageSize} onValueChange={handleCageSizeChange}>
           <SelectTrigger className={STYLE.selectCompact}>
             <SelectValue placeholder="選択" />
@@ -153,8 +160,12 @@ export const CageSidePanel = memo(function CageSidePanel({
           </SelectContent>
         </Select>
       </PropertyRow>
-      <MoneyInput value={formData.price} onChange={handlePriceChange} />
-      <PropertyRow label="備考">
+      <MoneyInput
+        value={formData.price}
+        onChange={handlePriceChange}
+        description="このケージを利用した場合の料金（税込）です。入院料金の計算に使われます。"
+      />
+      <PropertyRow label="備考" description={FIELD_DESCRIPTIONS.note}>
         <PropertyInput
           value={formData.description}
           onChange={handleDescriptionChange}

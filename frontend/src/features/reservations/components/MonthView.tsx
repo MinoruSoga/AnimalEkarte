@@ -46,8 +46,8 @@ const HEADER_ROW = (
     {DAY_OF_WEEK_LABEL_LIST.map((d, i) => (
       <div
         key={d}
-        className={`py-3 text-sm font-bold text-center ${
-          i === 0 ? C.danger : i === 6 ? C.textBrand : C.text60
+        className={`py-3 text-sm font-semibold text-center ${
+          i === 0 ? C.textNotionRed : i === 6 ? C.textBrand : C.text60
         }`}
       >
         {d}
@@ -88,7 +88,7 @@ export const MonthView = memo(function MonthView({
         days.push(
           <div
             key={day.toString()}
-            className={`h-full min-h-[140px] ${C.bgWhite} border-b border-r ${C.borderLight} p-2 transition-colors ${C.hoverBgPage} cursor-pointer flex flex-col
+            className={`h-full min-h-[140px] ${C.bgWhite} border-b border-r ${C.borderLight} p-2 transition-colors ${C.hoverBgPage} flex flex-col
               ${!isSameMonth(day, monthStart) ? `${C.bgPage30} ${C.text30}` : C.text}
               ${isSameDay(day, today) ? C.bgBrand8 : ""}
               ${isHoliday ? `${C.bgPage} opacity-70` : ""}
@@ -98,7 +98,7 @@ export const MonthView = memo(function MonthView({
             <div className="flex justify-between items-start mb-2">
               <button
                 type="button"
-                className={`text-base font-bold size-7 flex items-center justify-center rounded-full transition-colors ${isSameDay(day, today) ? `${C.bgBrand} ${C.textOnBrand}` : `${C.hoverBgBrandLight} ${C.hoverTextBrand}`}`}
+                className={`text-base font-semibold min-h-11 min-w-11 flex items-center justify-center rounded-full transition-colors ${isSameDay(day, today) ? `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary}` : `${C.hoverBgBrandLight} ${C.hoverTextBrand}`}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onDateClick?.(cloneDay);
@@ -107,7 +107,9 @@ export const MonthView = memo(function MonthView({
               >
                 {formattedDate}
               </button>
-              {isHoliday ? <span className={`text-2xs font-medium ${C.danger}`}>休診</span> : null}
+              {isHoliday ? (
+                <span className={`text-2xs font-medium ${C.textNotionRed}`}>休診</span>
+              ) : null}
             </div>
             <div className="space-y-1.5 flex-1 overflow-hidden">
               {dayAppointments.slice(0, 4).map((app) => {
@@ -117,7 +119,7 @@ export const MonthView = memo(function MonthView({
                   <button
                     key={app.id}
                     type="button"
-                    className={`block w-full text-left text-sm px-2 py-1.5 rounded border cursor-pointer hover:opacity-80 leading-tight ${isClassNameColor ? colorStyle : ""}`}
+                    className={`block w-full min-h-11 text-left text-sm px-2 py-1.5 rounded border cursor-pointer hover:opacity-80 leading-tight ${isClassNameColor ? colorStyle : ""}`}
                     style={isClassNameColor ? undefined : (colorStyle as React.CSSProperties)}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -127,7 +129,7 @@ export const MonthView = memo(function MonthView({
                     <div className="flex items-center gap-1 min-w-0">
                       {app.visitType === "first" ? (
                         <span
-                          className={`${C.bgRedLight} ${C.danger} text-2xs px-1 rounded flex-shrink-0`}
+                          className={`${C.bgRedLight} ${C.textNotionRed} text-2xs px-1 rounded flex-shrink-0`}
                         >
                           初
                         </span>

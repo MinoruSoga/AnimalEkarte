@@ -1,3 +1,7 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C } from "@/lib/design-tokens";
 import type { PetSearchItem } from "@/types/generated/identitylink-responses";
 
@@ -34,6 +38,8 @@ export function PetLinkSection({
   onLoadHistory,
   resolvePetGroupId,
 }: PetLinkSectionProps) {
+  // 解除は不可逆性が高いため、確認ダイアログ経由でのみ onUnlinkPet を呼ぶ。
+  const [unlinkTarget, setUnlinkTarget] = useState<PetSearchItem | null>(null);
   return (
     <section
       className={`rounded border p-4 space-y-3 ${C.borderLight} ${C.bgWhite}`}
@@ -43,25 +49,34 @@ export function PetLinkSection({
       <p className={`text-xs ${C.textInkMuted}`}>親となる飼主の連携グループが必要です。</p>
       <label className="block text-sm">
         <span className={C.textInkMuted}>検索</span>
-        <input
-          className={`mt-1 w-full rounded border px-3 py-2 ${C.borderLight} ${C.bgWhite} ${C.textInk}`}
+        <Input
+          className="mt-1"
           value={petQuery}
           onChange={(e) => setPetQuery(e.target.value)}
           placeholder="ペット名・番号"
         />
       </label>
+      {petQuery.trim() !== "" && petHits.length === 0 ? (
+        <p className={`text-sm ${C.text60}`}>条件に一致するペットが見つかりません。</p>
+      ) : null}
       <ul className="space-y-1 max-h-40 overflow-auto text-sm">
-        {petHits.map((p) => (
-          <li key={`${p.clinic_id}-${p.pet_id}`}>
-            <button
-              type="button"
-              className={`w-full text-left px-2 py-1 rounded ${C.bgHover}`}
-              onClick={() => togglePet(p)}
-            >
-              [医院 {p.clinic_id}] {p.name}
-            </button>
-          </li>
-        ))}
+        {petHits.map((p) => {
+          const isSelected = selectedPets.some(
+            (s) => s.clinic_id === p.clinic_id && s.pet_id === p.pet_id,
+          );
+          return (
+            <li key={`${p.clinic_id}-${p.pet_id}`}>
+              <button
+                type="button"
+                className={`w-full text-left px-2 py-1 min-h-11 flex items-center rounded ${C.hoverBgLight}`}
+                aria-pressed={isSelected}
+                onClick={() => togglePet(p)}
+              >
+                [医院 {p.clinic_id}] {p.name}
+              </button>
+            </li>
+          );
+        })}
       </ul>
       <div className={`text-sm ${C.textInkSecondary}`}>
         選択: {selectedPets.map((p) => `${p.clinic_id}/${p.pet_id}`).join(", ") || "なし"}
@@ -69,38 +84,58 @@ export function PetLinkSection({
       </div>
       {canEdit ? (
         <div className="flex flex-wrap gap-2">
-          <button
+          <Button
             type="button"
-            className={`px-3 py-1.5 rounded text-sm ${C.bgBrand} ${C.textOnBrand}`}
             disabled={pending || !canLinkPets || selectedPets.length < 2}
             onClick={onLinkPets}
           >
             ペットをリンク
-          </button>
+          </Button>
           {selectedPets.map((p) => (
-            <button
+            <Button
               key={`unlink-p-${p.clinic_id}-${p.pet_id}`}
               type="button"
-              className={`px-3 py-1.5 rounded text-sm border ${C.borderLight}`}
+              variant="outline"
+              className="text-sm"
               disabled={pending || resolvePetGroupId(p) == null}
-              onClick={() => onUnlinkPet(p)}
+              onClick={() => setUnlinkTarget(p)}
             >
               連携解除 {p.clinic_id}/{p.pet_id}
-            </button>
+            </Button>
           ))}
         </div>
       ) : null}
+      <ConfirmDialog
+        open={unlinkTarget !== null}
+        onClose={() => setUnlinkTarget(null)}
+        onConfirm={() => {
+          if (!unlinkTarget) return;
+          onUnlinkPet(unlinkTarget);
+          setUnlinkTarget(null);
+        }}
+        title="ペットの連携を解除しますか？"
+        description={
+          unlinkTarget
+            ? `医院 ${unlinkTarget.clinic_id} のペット「${unlinkTarget.name}」を同一ペットグループから解除します。解除後、このペットはグループに紐づく連携診療履歴の対象外になります。`
+            : undefined
+        }
+        confirmLabel="解除する"
+        cancelLabel="キャンセル"
+        variant="destructive"
+        isPending={pending}
+      />
       <div className="flex flex-wrap gap-2">
         {selectedPets.map((p) => (
-          <button
+          <Button
             key={`hist-${p.clinic_id}-${p.pet_id}`}
             type="button"
-            className={`px-3 py-1.5 rounded text-sm border ${C.borderLight}`}
+            variant="outline"
+            className="text-sm"
             disabled={pending}
             onClick={() => onLoadHistory(p)}
           >
             連携履歴 {p.clinic_id}/{p.pet_id}
-          </button>
+          </Button>
         ))}
       </div>
       {historyText ? (

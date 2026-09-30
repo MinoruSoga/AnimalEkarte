@@ -16,7 +16,7 @@
 
 ```mermaid
 flowchart TB
-    Push["push / PR"] --> Remote["Remote CI"]
+    Push["PR"] --> Remote["Remote CI"]
     Remote --> Scope{"変更 path を domain / feature に分解"}
     Scope -->|"partial"| P["変更 domain / feature のみ build・test<br/>coverage ratchet は SKIP"]
     Scope -->|"full（shared / migration / workflow / 横断）"| F["backend・frontend の shard test<br/>coverage は merge 後に ratchet"]
@@ -50,6 +50,39 @@ flowchart TB
 | remote script/artifact | pipe-to-shell 禁止。version と SHA-256 を固定 |
 
 実際の action version は workflow の `uses:` が正本。`scripts/check-actions-version-drift.sh` が同一 action の混在を検出する。古い version inventory は保持しない。
+
+## ブランチ保護
+
+| ブランチ | 保護 | 意図 |
+|---|---|---|
+| `main` | なし | 直接 push OK・リモート CI は走らない。日々の作業ブランチ |
+| `staging` | PR 必須（承認数 0）+ required checks | 直接 push 拒否。main→staging release PR が唯一の CI 検証点・デプロイ入口 |
+| `production` | **未作成 — 作成時に staging と同一の保護を適用すること** | 直 push を許すと CI なしで本番デプロイが走る |
+
+staging の required checks: `Workflow Contracts` / `Gitleaks Secret Scan` / `Backend` / `Frontend` / `Worker Tests` / `Codegen Sync` / `AgentShield`（`enforce_admins` 有効・force push/削除禁止・strict=false）。`Migration Verify` は `base_ref == 'main'` 限定 job のため staging/production 側の required check には含めない。
+
+`production` 作成時の適用例:
+
+```bash
+gh api -X PUT repos/MinoruSoga/AnimalEkarte/branches/production/protection --input - <<'JSON'
+{
+  "required_status_checks": {
+    "strict": false,
+    "contexts": ["Workflow Contracts", "Gitleaks Secret Scan", "Backend", "Frontend", "Worker Tests", "Codegen Sync", "AgentShield"]
+  },
+  "enforce_admins": true,
+  "required_pull_request_reviews": { "required_approving_review_count": 0 },
+  "restrictions": null,
+  "required_linear_history": false,
+  "allow_force_pushes": false,
+  "allow_deletions": false,
+  "block_creations": false,
+  "required_conversation_resolution": false,
+  "lock_branch": false,
+  "allow_fork_syncing": false
+}
+JSON
+```
 
 ## 静的チェックの enforcement 状態
 

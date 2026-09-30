@@ -24,7 +24,7 @@ export const ReceptionTelemetryStrip = memo(function ReceptionTelemetryStrip({
     >
       <span>
         <span className={C.text60}>本日受付</span>{" "}
-        <span className={`font-bold tabular-nums ${C.text}`}>{totalCount}</span>
+        <span className={`font-semibold tabular-nums ${C.text}`}>{totalCount}</span>
         <span className={C.text60}>件</span>
       </span>
 
@@ -35,7 +35,7 @@ export const ReceptionTelemetryStrip = memo(function ReceptionTelemetryStrip({
           </span>
           <span>
             <span className={C.text60}>平均待ち</span>{" "}
-            <span className={`font-bold tabular-nums ${C.text}`}>
+            <span className={`font-semibold tabular-nums ${C.text}`}>
               {waitStats.averageMinutes === null ? "—" : `${waitStats.averageMinutes}分`}
             </span>
           </span>
@@ -46,9 +46,9 @@ export const ReceptionTelemetryStrip = memo(function ReceptionTelemetryStrip({
           <span>
             <span className={C.text60}>最長待ち</span>{" "}
             {waitStats.longest === null ? (
-              <span className={`font-bold tabular-nums ${C.text}`}>—</span>
+              <span className={`font-semibold tabular-nums ${C.text}`}>—</span>
             ) : (
-              <span className={`font-bold tabular-nums ${C.textDiscount}`}>
+              <span className={`font-semibold tabular-nums ${C.textDiscount}`}>
                 {waitStats.longest.minutes}分 — {waitStats.longest.petName}
               </span>
             )}

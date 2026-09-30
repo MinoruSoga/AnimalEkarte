@@ -1,7 +1,7 @@
 import { CheckCircle } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { C, ICON } from "@/lib/design-tokens";
+import { BADGE, C, ICON } from "@/lib/design-tokens";
 
 interface ExamStatusBadgeProps {
   status?: "normal" | "high" | "low";
@@ -31,10 +31,7 @@ export function ExamStatusBadge({ status, isAssessed, compact = false }: ExamSta
 
   if (status === "low") {
     return (
-      <Badge
-        variant="outline"
-        className={`h-8 ${horizontalPadding} text-xs ${C.textStatusBlue} ${C.borderBlue400} ${C.bgStatusBlueLight}`}
-      >
+      <Badge variant="outline" className={`h-8 ${horizontalPadding} text-xs ${BADGE.blue}`}>
         LOW
       </Badge>
     );
@@ -42,10 +39,7 @@ export function ExamStatusBadge({ status, isAssessed, compact = false }: ExamSta
 
   if (isAssessed === false) {
     return (
-      <Badge
-        variant="outline"
-        className={`h-8 ${horizontalPadding} text-xs ${C.textWarning} ${C.borderWarning20} ${C.bgWarning50}`}
-      >
+      <Badge variant="outline" className={`h-8 ${horizontalPadding} text-xs ${BADGE.yellow}`}>
         未判定
         <span className="sr-only">（基準値未設定のため判定していない）</span>
       </Badge>
@@ -59,11 +53,11 @@ export function ExamStatusBadge({ status, isAssessed, compact = false }: ExamSta
       <CheckCircle
         role="img"
         aria-label="基準値内"
-        className={`${ICON.action} ${C.textStatusGreen} opacity-50`}
+        className={`${ICON.action} ${C.textStatusGreen}`}
       />
     );
   }
 
   // 未判定（保存前）
-  return <span className={`text-xs ${C.text45}`}>-</span>;
+  return <span className={`text-xs ${C.text60}`}>-</span>;
 }

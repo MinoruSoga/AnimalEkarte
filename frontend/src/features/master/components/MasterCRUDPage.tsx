@@ -1,14 +1,11 @@
 import { memo, type ReactNode } from "react";
-import {
-  DataTable,
-  DESIGN_TABLE_HEADER_ROW,
-  DESIGN_TABLE_HEADER_CELL,
-} from "@/components/shared/DataTable/DataTable";
+import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { MasterListPage } from "../components/MasterListPage";
 import { usePermission } from "@/hooks/use-permission";
 import type { UseMasterCRUDReturn } from "../hooks/use-master-crud";
 import type { FilterProperty, SortProperty } from "@/components/shared/PropertyFilter/types";
 import type { Resource } from "@/types/generated/models";
+import { STYLE } from "@/lib/design-tokens";
 
 // ─────────────────────────────────────────────────
 // Types
@@ -146,8 +143,8 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<
     >
       {children ?? (
         <DataTable
-          headerRowClassName={DESIGN_TABLE_HEADER_ROW}
-          headerCellClassName={DESIGN_TABLE_HEADER_CELL}
+          headerRowClassName={STYLE.tableHeaderRow}
+          headerCellClassName={STYLE.sectionLabel}
           columns={columns}
           data={crud.filteredItems}
           emptyMessage={emptyMessage}

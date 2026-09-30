@@ -2,30 +2,14 @@ import { memo } from "react";
 import { Calendar, FlaskConical, User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { BADGE, C, ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
+import { getExaminationStatusColor } from "@/lib/status-helpers";
 import type { ExaminationRecord } from "../api/transforms";
 
 interface ExaminationCardProps {
   examination: ExaminationRecord;
   onClick?: () => void;
   className?: string;
-}
-
-function getStatusBadge(status: ExaminationRecord["status"]): string {
-  switch (status) {
-    case "確定":
-      return BADGE.green;
-    case "完了":
-      return BADGE.blue;
-    case "結果入力済み":
-      return BADGE.blue;
-    case "検査中":
-      return BADGE.yellow;
-    case "依頼中":
-      return BADGE.gray;
-    default:
-      return BADGE.gray;
-  }
 }
 
 export const ExaminationCard = memo(function ExaminationCard({
@@ -49,7 +33,7 @@ export const ExaminationCard = memo(function ExaminationCard({
           </div>
           <Badge
             variant="outline"
-            className={`text-xs px-1.5 h-5 font-normal border shrink-0 ${getStatusBadge(examination.status)}`}
+            className={`text-xs px-1.5 h-5 font-normal border shrink-0 ${getExaminationStatusColor(examination.status)}`}
           >
             {examination.status}
           </Badge>

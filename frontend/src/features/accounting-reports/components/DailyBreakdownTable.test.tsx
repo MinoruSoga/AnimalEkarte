@@ -38,13 +38,13 @@ describe("DailyBreakdownTable drill-down", () => {
     expect(screen.getByText("日次データがありません")).toBeInTheDocument();
   });
 
-  it("makes a closed-day row a button that drills down with its date when onDrillDown is provided", async () => {
+  it("renders a date-cell button on a closed day that drills down with its date", async () => {
     const user = userEvent.setup();
     const onDrillDown = vi.fn();
     render(<DailyBreakdownTable details={[closedDay]} onDrillDown={onDrillDown} />);
 
-    const row = screen.getByRole("button", { name: /2026-06-15.*締め/ });
-    await user.click(row);
+    const button = screen.getByRole("button", { name: /2026-06-15.*締め/ });
+    await user.click(button);
 
     expect(onDrillDown).toHaveBeenCalledTimes(1);
     expect(onDrillDown).toHaveBeenCalledWith("2026-06-15");
@@ -55,8 +55,8 @@ describe("DailyBreakdownTable drill-down", () => {
     const onDrillDown = vi.fn();
     render(<DailyBreakdownTable details={[closedDay]} onDrillDown={onDrillDown} />);
 
-    const row = screen.getByRole("button", { name: /2026-06-15.*締め/ });
-    row.focus();
+    const button = screen.getByRole("button", { name: /2026-06-15.*締め/ });
+    button.focus();
     await user.keyboard("{Enter}");
 
     expect(onDrillDown).toHaveBeenCalledWith("2026-06-15");

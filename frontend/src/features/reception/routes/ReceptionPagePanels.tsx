@@ -2,8 +2,9 @@ import { Suspense, type ComponentProps, type ReactNode } from "react";
 import { DndContext, type DragEndEvent } from "@dnd-kit/core";
 import type { CollisionDetection } from "@dnd-kit/core";
 import Filter from "lucide-react/dist/esm/icons/filter";
-import { C } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
 import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
 import { ResourceReception } from "@/types/generated/models";
@@ -107,16 +108,11 @@ export function ReceptionPageBody({
               className={`gap-2 ${C.bgWhite} h-11 text-base ${C.text} ${C.borderMedium}`}
               onClick={onToggleFilter}
             >
-              <Filter className="size-[17.5px]" />
+              <Filter className={ICON.sm} />
               フィルター
             </Button>
             {canCreateReservation === true ? (
-              <Button
-                className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full px-4 shadow-none border-transparent h-11 text-base`}
-                onClick={onNewReception}
-              >
-                新規予約登録
-              </Button>
+              <PrimaryButton onClick={onNewReception}>新規予約登録</PrimaryButton>
             ) : null}
           </div>
         }

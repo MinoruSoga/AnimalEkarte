@@ -68,7 +68,7 @@ export const CheckupEditRow = memo(function CheckupEditRow({
           value={form.date ?? ""}
           onChange={(value) => handleChange("date", value)}
           placeholder="日付"
-          className="h-8 w-full"
+          className="h-9 w-full"
         />
       </TableCell>
       <TableCell>
@@ -76,6 +76,8 @@ export const CheckupEditRow = memo(function CheckupEditRow({
           value={form.checkup_type_id ?? ""}
           checkupTypes={checkupTypes}
           onChange={(value) => handleChange("checkup_type_id", value ? Number(value) : null)}
+          ariaLabel={`健診種別 (${checkup.date})`}
+          className="h-9"
         />
       </TableCell>
       <TableCell>
@@ -83,7 +85,7 @@ export const CheckupEditRow = memo(function CheckupEditRow({
           value={form.next_date ?? ""}
           onChange={(value) => handleChange("next_date", value || null)}
           placeholder="次回日"
-          className="h-8 w-full"
+          className="h-9 w-full"
         />
       </TableCell>
       <TableCell>
@@ -92,6 +94,8 @@ export const CheckupEditRow = memo(function CheckupEditRow({
           staffs={staffs}
           emptyLabel="-"
           onChange={(value) => handleChange("doctor_id", value ? Number(value) : null)}
+          ariaLabel={`担当医 (${checkup.date})`}
+          className="h-9"
         />
       </TableCell>
       <TableCell>
@@ -101,7 +105,7 @@ export const CheckupEditRow = memo(function CheckupEditRow({
           onChange={(e) => handleChange("result", e.target.value)}
           placeholder="結果を入力..."
           aria-label={`結果 (${checkup.date})`}
-          className={`h-8 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-full`}
+          className={`h-9 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} focus-visible:ring-2 ${C.focusRingAccent40} w-full`}
         />
       </TableCell>
       <TableCell>
@@ -110,7 +114,7 @@ export const CheckupEditRow = memo(function CheckupEditRow({
             type="button"
             onClick={handleSave}
             disabled={isPending}
-            className={`${STYLE.iconBtn32} ${C.textStatusGreen} ${C.hoverBgStatusGreen}`}
+            className={`${STYLE.iconBtn32} ${C.textActionPrimary} ${C.hoverBgActionPrimary5}`}
             title="保存"
           >
             <Check className={ICON.xs} />
@@ -238,10 +242,12 @@ export function CheckupAddRow({
         <div className="space-y-2">
           <Label htmlFor="checkup-tab-type">健診種別</Label>
           <CheckupTypeSelect
+            id="checkup-tab-type"
             value={addForm.checkup_type_id}
             checkupTypes={checkupTypes}
             emptyLabel="選択"
             onChange={(value) => onChange("checkup_type_id", value)}
+            className="h-11"
           />
           <FormFieldError message={errors.checkup_type_id} />
         </div>
@@ -262,10 +268,12 @@ export function CheckupAddRow({
         <div className="space-y-2">
           <Label htmlFor="checkup-tab-doctor">担当医</Label>
           <StaffSelect
+            id="checkup-tab-doctor"
             value={addForm.doctor_id}
             staffs={staffs}
             emptyLabel="担当医"
             onChange={(value) => onChange("doctor_id", value)}
+            className="h-11"
           />
         </div>
       </div>
@@ -293,7 +301,7 @@ export function CheckupAddRow({
             if (e.key === "Escape") onCancel();
           }}
           aria-label="結果"
-          className={`h-10 w-full text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`}
+          className={`h-9 w-full text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} focus-visible:ring-2 ${C.focusRingAccent40}`}
         />
       </div>
       <div className="flex justify-end gap-2">
@@ -307,7 +315,7 @@ export function CheckupAddRow({
         </Button>
         <Button
           size="sm"
-          className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full border-transparent transition-colors h-10 text-sm px-4`}
+          className={`${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} rounded-full border-transparent transition-colors h-10 text-sm px-4`}
           onClick={onSubmit}
           disabled={isPending || !addForm.date || !addForm.checkup_type_id}
         >
@@ -323,17 +331,25 @@ function CheckupTypeSelect({
   checkupTypes,
   onChange,
   emptyLabel = "選択してください",
+  className,
+  id,
+  ariaLabel,
 }: {
   value: string | number;
   checkupTypes: CheckupTypeItem[];
   onChange: (value: string) => void;
   emptyLabel?: string;
+  className: string;
+  id?: string;
+  ariaLabel?: string;
 }) {
   return (
     <select
+      id={id}
       value={value}
       onChange={(e: ChangeEvent<HTMLSelectElement>) => onChange(e.target.value)}
-      className={`h-8 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-32`}
+      aria-label={ariaLabel}
+      className={`${className} text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} focus-visible:ring-2 ${C.focusRingAccent40} w-32`}
     >
       <option value="">{emptyLabel}</option>
       {checkupTypes.map((type) => (
@@ -350,17 +366,25 @@ function StaffSelect({
   staffs,
   onChange,
   emptyLabel,
+  className,
+  id,
+  ariaLabel,
 }: {
   value: string | number;
   staffs: StaffItem[];
   onChange: (value: string) => void;
   emptyLabel: string;
+  className: string;
+  id?: string;
+  ariaLabel?: string;
 }) {
   return (
     <select
+      id={id}
       value={value}
       onChange={(e: ChangeEvent<HTMLSelectElement>) => onChange(e.target.value)}
-      className={`h-8 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-32`}
+      aria-label={ariaLabel}
+      className={`${className} text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} focus-visible:ring-2 ${C.focusRingAccent40} w-32`}
     >
       <option value="">{emptyLabel}</option>
       {staffs.map((staff) => (

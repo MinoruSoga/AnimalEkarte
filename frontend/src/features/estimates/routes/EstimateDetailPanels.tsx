@@ -1,5 +1,14 @@
 import { AlertTriangle, Pencil, Trash2, ArrowLeft, FilePlus2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON } from "@/lib/design-tokens";
 import { formatDate } from "@/lib/format/date";
@@ -179,28 +188,19 @@ export function EstimateSuccessorDialog({
   formAction,
 }: EstimateSuccessorDialogProps) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="successor-dialog-title"
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next && !successorBusy) onClose();
+      }}
     >
-      <button
-        type="button"
-        className={`absolute inset-0 ${C.bgOverlay}`}
-        aria-label="閉じる"
-        onClick={onClose}
-        disabled={successorBusy}
-      />
-      <div
-        className={`relative w-full max-w-md rounded-md border ${C.borderLight} ${C.bgWhite} p-6 shadow-level2 space-y-4`}
-      >
-        <h2 id="successor-dialog-title" className={`text-base font-semibold ${C.text}`}>
-          後継ドラフトを作成
-        </h2>
-        <p className={`text-sm ${C.text70}`}>
-          確定済み見積は変更できません。訂正理由を入力して後継ドラフトを作成します。元の見積は変更されません。
-        </p>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>後継ドラフトを作成</DialogTitle>
+          <DialogDescription>
+            確定済み見積は変更できません。訂正理由を入力して後継ドラフトを作成します。元の見積は変更されません。
+          </DialogDescription>
+        </DialogHeader>
         <form action={formAction} noValidate>
           <div>
             <label
@@ -209,12 +209,11 @@ export function EstimateSuccessorDialog({
             >
               理由（必須）
             </label>
-            <textarea
+            <Textarea
               id="successor-reason"
               value={successorReason}
               onChange={(e) => onReasonChange(e.target.value)}
               rows={4}
-              className={`w-full rounded-md border ${C.borderLight} p-2 text-sm ${C.text}`}
               placeholder="訂正理由を入力"
               disabled={successorBusy}
             />
@@ -222,7 +221,7 @@ export function EstimateSuccessorDialog({
               <p className={`mt-1 text-sm ${C.danger}`}>{successorReasonError}</p>
             ) : null}
           </div>
-          <div className="flex justify-end gap-2 mt-4">
+          <DialogFooter className="mt-4">
             <Button
               type="button"
               variant="outline"
@@ -235,9 +234,9 @@ export function EstimateSuccessorDialog({
             <SubmitButton size="sm" disabled={successorBusy || !canSubmitSuccessor}>
               作成
             </SubmitButton>
-          </div>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

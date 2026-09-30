@@ -11,7 +11,7 @@ describe("SubmitButton", () => {
   it("既定（colorVariant 未指定）は brand と同じ primary teal + pill を使う", () => {
     renderInForm(<SubmitButton>保存</SubmitButton>);
     const button = screen.getByRole("button", { name: "保存" });
-    expect(button.className).toContain(C.bgActionPrimary);
+    expect(button.className).toContain(C.bgActionPrimarySolid);
     expect(button.className).toContain(C.textOnActionPrimary);
     expect(button.className).toContain(C.hoverTextOnActionPrimary);
     expect(button.className).toContain(C.activeTextOnActionPrimary);
@@ -33,6 +33,6 @@ describe("SubmitButton", () => {
   it('colorVariant="default" は semantic primary の互換 alias', () => {
     renderInForm(<SubmitButton colorVariant="default">保存</SubmitButton>);
     const button = screen.getByRole("button", { name: "保存" });
-    expect(button.className).toContain(C.bgActionPrimary);
+    expect(button.className).toContain(C.bgActionPrimarySolid);
   });
 });

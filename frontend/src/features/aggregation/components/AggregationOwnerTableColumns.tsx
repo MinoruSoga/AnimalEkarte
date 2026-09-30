@@ -35,7 +35,7 @@ const LAST_VISIT_BUCKET_CLASS: Record<LastVisitBucket, string> = {
 
 function renderLastVisitBucketBadge(bucket: LastVisitBucket | null) {
   if (bucket === null) {
-    return <span className={`text-sm ${C.text40}`}>—</span>;
+    return <span className={`text-sm ${C.text60}`}>—</span>;
   }
 
   return (
@@ -90,7 +90,7 @@ const CPM_STAGE_BADGE_CLASS: Record<AggregationCPMStage, string> = {
 
 function renderCPMStageBadge(stage: AggregationCPMStage | undefined) {
   if (!stage) {
-    return <span className={`text-sm ${C.text40}`}>—</span>;
+    return <span className={`text-sm ${C.text60}`}>—</span>;
   }
 
   return (

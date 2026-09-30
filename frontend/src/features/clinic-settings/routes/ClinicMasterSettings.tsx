@@ -1,4 +1,5 @@
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker/NavigationBlocker";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { paths } from "@/config/paths";
 import {
   ClinicDeleteDialog,
@@ -11,6 +12,10 @@ import { useClinicMasterSettings } from "../hooks/use-clinic-master-settings";
 export function ClinicMasterSettings() {
   const s = useClinicMasterSettings();
 
+  // EMR-227: 読み込み/エラーを空リストとして扱わず、専用フォールバックを表示する。
+  if (s.isPending) return <LoadingFallback />;
+  if (s.isError) return <ErrorFallback message="医院一覧の取得に失敗しました" />;
+
   return (
     <>
       <NavigationBlocker when={s.isEditing} />
@@ -20,7 +25,7 @@ export function ClinicMasterSettings() {
             canCreate={s.canCreate}
             canEdit={s.canEdit}
             topSection={<CompanyInvoiceSection canEdit={s.canEdit} />}
-            items={s.isPending || s.isError ? [] : s.filteredItems}
+            items={s.filteredItems}
             searchTerm={s.searchTerm}
             onSearchChange={s.setSearchTerm}
             activeFilters={s.activeFilters}

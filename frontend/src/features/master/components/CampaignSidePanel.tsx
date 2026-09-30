@@ -152,10 +152,14 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
       isDirty={isDirty}
       titleError={nameError}
       titleMaxLength={100}
+      titleDescription="キャンペーンの名称です。キャンペーン一覧や会計時の適用確認で使われます。"
       readOnly={readOnly}
     >
       <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
-      <PropertyRow label="開始日">
+      <PropertyRow
+        label="開始日"
+        description="キャンペーンの適用開始日です。この日以降の会計に割引が適用されます。"
+      >
         <Input
           type="date"
           aria-label="開始日"
@@ -164,7 +168,10 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
           onChange={(e) => setFormDataDirty((prev) => ({ ...prev, startDate: e.target.value }))}
         />
       </PropertyRow>
-      <PropertyRow label="終了日">
+      <PropertyRow
+        label="終了日"
+        description="キャンペーンの適用終了日です。この日を過ぎると割引は適用されません。"
+      >
         <Input
           type="date"
           aria-label="終了日"
@@ -174,7 +181,10 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
         />
       </PropertyRow>
       {periodError ? <p className={`text-xs ${C.danger}`}>{periodError}</p> : null}
-      <PropertyRow label="割引種別">
+      <PropertyRow
+        label="割引種別"
+        description="割引の指定方法です。「割引率(%)」は対象価格からの割合、「割引額(円)」は固定金額を割り引きます。"
+      >
         <Select
           value={formData.discountType}
           disabled={readOnly}
@@ -191,7 +201,14 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
           </SelectContent>
         </Select>
       </PropertyRow>
-      <PropertyRow label={formData.discountType === "rate" ? "割引率(%)" : "割引額(円)"}>
+      <PropertyRow
+        label={formData.discountType === "rate" ? "割引率(%)" : "割引額(円)"}
+        description={
+          formData.discountType === "rate"
+            ? "対象品目の価格から割り引く割合（%）です。"
+            : "対象品目の価格から割り引く金額（円）です。"
+        }
+      >
         <Input
           type="number"
           min={0}
@@ -207,21 +224,28 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
           }
         />
       </PropertyRow>
-      <PropertyRow label="対象カテゴリ">
+      <PropertyRow
+        label="対象カテゴリ"
+        description="割引を適用する項目カテゴリを選択します。選択したカテゴリの会計に割引が適用されます。"
+      >
         <div className="grid w-full grid-cols-1 gap-2">
           {CATEGORY_OPTIONS.map((o) => (
-            <label key={o.value} className="flex items-center gap-2 text-sm">
+            <label key={o.value} className="flex items-center gap-2 text-sm min-h-11">
               <Checkbox
                 checked={formData.targetCategories.includes(o.value)}
                 disabled={readOnly}
                 onCheckedChange={() => toggleCategory(o.value)}
+                touchTarget
               />
               {o.label}
             </label>
           ))}
         </div>
       </PropertyRow>
-      <PropertyRow label="対象商品">
+      <PropertyRow
+        label="対象商品"
+        description="割引を適用する個別の品目を選択します。カテゴリ指定に加えて個別指定できます。"
+      >
         <div className="w-full space-y-2">
           <Input
             placeholder="商品名で検索..."
@@ -234,11 +258,12 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
               <p className={`text-xs ${C.text50}`}>商品がありません</p>
             ) : (
               filteredMerchandise.map((mItem) => (
-                <label key={mItem.id} className="flex items-center gap-2 text-sm">
+                <label key={mItem.id} className="flex items-center gap-2 text-sm min-h-11">
                   <Checkbox
                     checked={formData.targetItemIds.includes(mItem.id)}
                     disabled={readOnly}
                     onCheckedChange={() => toggleItem(mItem.id)}
+                    touchTarget
                   />
                   {mItem.name}
                 </label>

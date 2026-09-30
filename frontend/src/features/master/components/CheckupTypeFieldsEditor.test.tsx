@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -126,7 +126,12 @@ describe("CheckupTypeFieldsEditor", () => {
     expect(screen.getByText("数値")).toBeInTheDocument();
     expect(screen.getByText("kg")).toBeInTheDocument();
 
+    // 削除は ConfirmDialog で確認後にのみ実行される（直行削除なし）。
     await user.click(screen.getByRole("button", { name: "削除: 健診項目 体重 (ID 31)" }));
+    expect(mocks.remove).not.toHaveBeenCalled();
+    const dialog = screen.getByRole("alertdialog", { name: "健診項目を削除しますか？" });
+    expect(dialog).toHaveTextContent("「体重」を削除します");
+    await user.click(within(dialog).getByRole("button", { name: "削除" }));
     expect(mocks.remove).toHaveBeenCalledWith({ checkupTypeId: "7", fieldId: "31" });
 
     mocks.reorderCallbacks.at(-1)?.(["32", "31"]);
@@ -153,6 +158,42 @@ describe("CheckupTypeFieldsEditor", () => {
     expect(screen.queryByRole("button", { name: /削除: 健診項目/ })).not.toBeInTheDocument();
     mocks.reorderCallbacks.at(-1)?.(["32", "31"]);
     expect(mocks.reorder).not.toHaveBeenCalled();
+  });
+
+  it("does not delete a field when the confirm dialog is canceled", async () => {
+    const user = userEvent.setup();
+    render(<CheckupTypeFieldsEditor checkupTypeId="7" canCreate canEdit canDelete />);
+
+    await user.click(screen.getByRole("button", { name: "削除: 健診項目 体重 (ID 31)" }));
+    const dialog = screen.getByRole("alertdialog", { name: "健診項目を削除しますか？" });
+    await user.click(within(dialog).getByRole("button", { name: "キャンセル" }));
+
+    expect(mocks.remove).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    });
+  });
+
+  it("confirms before removing a draft option row", async () => {
+    const user = userEvent.setup();
+    render(<CheckupTypeFieldsEditor checkupTypeId="7" canCreate canEdit canDelete />);
+
+    await user.click(screen.getByRole("button", { name: "健診項目を追加" }));
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "健診項目の種別" }),
+      "single_select",
+    );
+    await user.click(screen.getByRole("button", { name: "選択肢を追加" }));
+    expect(screen.getByRole("textbox", { name: "選択肢1の値" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "選択肢1を削除" }));
+    const dialog = screen.getByRole("alertdialog", { name: "選択肢を削除しますか？" });
+    await user.click(within(dialog).getByRole("button", { name: "削除" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    });
+    expect(screen.queryByRole("textbox", { name: "選択肢1の値" })).not.toBeInTheDocument();
   });
 
   it("creates a number field with unit and bounds", async () => {

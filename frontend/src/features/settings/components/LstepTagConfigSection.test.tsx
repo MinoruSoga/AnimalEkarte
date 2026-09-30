@@ -215,6 +215,9 @@ describe("LstepTagConfigSection — C: DELETE 削除", () => {
     expect(deleteButton).toHaveClass("min-h-11", "min-w-11");
     await user.click(deleteButton);
 
+    // EMR-227: 削除は確認ダイアログ経由
+    await user.click(await screen.findByRole("button", { name: "削除する" }));
+
     await waitFor(() => {
       expect(screen.queryByText("vaccine_")).not.toBeInTheDocument();
     });

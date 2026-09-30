@@ -25,6 +25,8 @@ import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import { calculateBillingTotals } from "@/lib/calculations";
 
+const DECEASED_TREATMENTS_MESSAGE = "死亡したペットの治療明細は変更できません";
+
 export interface DiagnosisPlanProps {
   isNewRecord?: boolean;
   chiefComplaint?: string;
@@ -48,6 +50,8 @@ export interface DiagnosisPlanProps {
   diagnosis1NameIdError?: string | null;
   /** P2-15: 拠点横断で開いたカルテの子リソース操作用。レコード自身の clinicId */
   recordClinicId?: string;
+  /** 死亡ペットのカルテは閲覧専用（VitalsTab と同じ二重ガード方針） */
+  isPetDeceased?: boolean;
 }
 
 export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPlan({
@@ -71,6 +75,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
   ownerDiscountRate = 0,
   diagnosis1NameIdError,
   recordClinicId,
+  isPetDeceased = false,
 }: DiagnosisPlanProps) {
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -108,14 +113,22 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
 
   const handleRemoveItem = useCallback(
     (id: number) => {
+      if (isPetDeceased) {
+        toast.error(DECEASED_TREATMENTS_MESSAGE);
+        return;
+      }
       if (!canDelete) return;
       deleteTreatmentFn(String(id));
     },
-    [canDelete, deleteTreatmentFn],
+    [canDelete, deleteTreatmentFn, isPetDeceased],
   );
 
   const handleUpdateItem = useCallback(
     (id: number, field: keyof TreatmentItem, value: string | number | boolean) => {
+      if (isPetDeceased) {
+        toast.error(DECEASED_TREATMENTS_MESSAGE);
+        return;
+      }
       if (!canEdit) return;
       const target = treatments.find((t) => Number(t.id) === id);
       // UAT-R2-EXCLUSIVE-LOCK: version 未確定のまま送ると BE は CAS 照合をスキップするため
@@ -137,10 +150,14 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
 
       updateTreatmentFn({ treatmentId: String(id), input });
     },
-    [canEdit, treatments, updateTreatmentFn],
+    [canEdit, isPetDeceased, treatments, updateTreatmentFn],
   );
 
   const handleAddRow = useCallback(() => {
+    if (isPetDeceased) {
+      toast.error(DECEASED_TREATMENTS_MESSAGE);
+      return;
+    }
     if (!canCreate) return;
     createTreatmentFn({
       item_type: "other",
@@ -152,10 +169,14 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
       discount_amount: 0,
       sort_order: nextOrder,
     });
-  }, [canCreate, nextOrder, createTreatmentFn]);
+  }, [canCreate, isPetDeceased, nextOrder, createTreatmentFn]);
 
   const handleSelectTreatment = useCallback(
     (item: TreatmentMasterItem) => {
+      if (isPetDeceased) {
+        toast.error(DECEASED_TREATMENTS_MESSAGE);
+        return;
+      }
       if (!canCreate) return;
       createTreatmentFn({
         item_type: resolveItemTypeFromCategory(item.category),
@@ -169,7 +190,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
         sort_order: nextOrder,
       });
     },
-    [canCreate, nextOrder, createTreatmentFn],
+    [canCreate, isPetDeceased, nextOrder, createTreatmentFn],
   );
 
   // FE-RC-048: 消費税率はハードコード既定 (0.1) 依存ではなく病院マスタ設定を正本にする。
@@ -217,7 +238,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
         <div className="shrink-0">
           <ClinicalPlanSection
             medicalRecordId={medicalRecordId}
-            canEdit={canEdit}
+            canEdit={Boolean(canEdit && !isPetDeceased)}
             recordClinicId={recordClinicId}
             physicalExam={physicalExam}
             onPhysicalExamChange={setPhysicalExam}
@@ -242,7 +263,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
         >
           {isNewRecord ? (
             <div
-              className={`flex-1 flex items-center justify-center border border-dashed rounded-lg text-sm ${C.text40}`}
+              className={`flex-1 flex items-center justify-center border border-dashed rounded-lg text-sm ${C.text60}`}
             >
               カルテを保存してから治療プランを作成できます
             </div>
@@ -252,10 +273,10 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
                 items={treatmentItems}
                 onUpdate={handleUpdateItem}
                 onRemove={handleRemoveItem}
-                onOpenSearch={canCreate ? () => setIsSearchOpen(true) : undefined}
-                onAddRow={canCreate ? handleAddRow : undefined}
+                onOpenSearch={canCreate && !isPetDeceased ? () => setIsSearchOpen(true) : undefined}
+                onAddRow={canCreate && !isPetDeceased ? handleAddRow : undefined}
                 showStatus={true}
-                disabled={!canEdit && !canCreate ? !canDelete : false}
+                disabled={isPetDeceased || (!canEdit && !canCreate ? !canDelete : false)}
               />
             </div>
           )}

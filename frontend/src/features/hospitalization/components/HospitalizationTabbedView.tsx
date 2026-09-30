@@ -15,6 +15,7 @@ import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs
 import { CarePlanTab } from "./CarePlanTab/CarePlanTab";
 import { DailyRecordsTab } from "./DailyRecordsTab/DailyRecordsTab";
 import { HospitalizationPatientHeader } from "./HospitalizationPatientHeader";
+import { HOSPITALIZATION_STATUS } from "../constants";
 import { H_STYLES } from "../lib/styles";
 
 // Types
@@ -31,6 +32,7 @@ export const HospitalizationTabbedView = memo(function HospitalizationTabbedView
 
   // Determine the effective discharge date
   const dischargeDate = hospitalization.endDate || todayJSTISO();
+  const isDischarged = hospitalization.status === HOSPITALIZATION_STATUS.DISCHARGED;
 
   const tabItems = [
     {
@@ -79,6 +81,7 @@ export const HospitalizationTabbedView = memo(function HospitalizationTabbedView
                 admissionDate={hospitalization.startDate}
                 dischargeDate={dischargeDate}
                 petIsDeceased={hospitalization.petIsDeceased}
+                isDischarged={isDischarged}
               />
             </div>
           </div>
@@ -98,6 +101,7 @@ export const HospitalizationTabbedView = memo(function HospitalizationTabbedView
             <CarePlanTab
               hospitalizationId={String(hospitalization.id)}
               petIsDeceased={hospitalization.petIsDeceased}
+              isDischarged={isDischarged}
             />
           </div>
         </UnifiedTabsContent>

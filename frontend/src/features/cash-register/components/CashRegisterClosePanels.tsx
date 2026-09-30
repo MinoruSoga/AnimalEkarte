@@ -49,9 +49,10 @@ export function CashRegisterCloseTargetSection({
                 key={p}
                 type="button"
                 onClick={() => onPeriodChange(p)}
+                aria-pressed={period === p}
                 className={`px-4 h-11 text-base rounded-xs border transition-colors ${
                   period === p
-                    ? `${C.bgBrand} ${C.textOnBrand} border-transparent`
+                    ? `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} border-transparent`
                     : `${C.bgWhite} ${C.borderMedium} ${C.text} ${C.hoverBgLight}`
                 }`}
               >
@@ -63,7 +64,7 @@ export function CashRegisterCloseTargetSection({
         <button
           type="button"
           onClick={onEnablePreview}
-          className={`h-11 px-4 text-base rounded-full ${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} transition-colors`}
+          className={`h-11 px-4 text-base rounded-full ${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} transition-colors`}
         >
           プレビュー
         </button>
@@ -82,7 +83,7 @@ function CashRegisterCloseTaxBreakdown({ taxBreakdown }: CashRegisterCloseTaxBre
       <h2 className={`text-base font-semibold ${C.text} mb-4`}>消費税内訳</h2>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 max-w-lg">
         <div>
-          <p className={`text-xs ${C.text40} mb-1`}>標準税率（10%）</p>
+          <p className={`text-xs ${C.text60} mb-1`}>標準税率（10%）</p>
           <div className="flex justify-between text-sm py-1">
             <span className={C.text60}>課税対象額</span>
             <span className={C.text}>{formatCurrency(taxBreakdown.standard.taxableAmount)}</span>
@@ -93,7 +94,7 @@ function CashRegisterCloseTaxBreakdown({ taxBreakdown }: CashRegisterCloseTaxBre
           </div>
         </div>
         <div>
-          <p className={`text-xs ${C.text40} mb-1`}>軽減税率（8%）</p>
+          <p className={`text-xs ${C.text60} mb-1`}>軽減税率（8%）</p>
           <div className="flex justify-between text-sm py-1">
             <span className={C.text60}>課税対象額</span>
             <span className={C.text}>{formatCurrency(taxBreakdown.reduced.taxableAmount)}</span>

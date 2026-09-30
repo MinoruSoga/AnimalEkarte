@@ -3,11 +3,7 @@ import { AlertTriangle, Info } from "lucide-react";
 import type { ActiveFilter, ActiveSort } from "@/components/shared/PropertyFilter/types";
 import { TableCell } from "@/components/ui/table";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
-import {
-  DataTable,
-  DESIGN_TABLE_HEADER_ROW,
-  DESIGN_TABLE_HEADER_CELL,
-} from "@/components/shared/DataTable/DataTable";
+import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { RowActionButton } from "@/components/shared/RowActionButton";
@@ -16,7 +12,7 @@ import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeade
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { getInventoryStatusColor, getInventoryStatusLabel } from "@/lib/status-helpers";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import type { InventoryItem } from "@/types";
 import {
@@ -233,8 +229,8 @@ export function InventoryListContent({
 
       <FilteringIndicator isFiltering={isFiltering}>
         <DataTable
-          headerRowClassName={DESIGN_TABLE_HEADER_ROW}
-          headerCellClassName={DESIGN_TABLE_HEADER_CELL}
+          headerRowClassName={STYLE.tableHeaderRow}
+          headerCellClassName={STYLE.sectionLabel}
           columns={columns}
           data={pagination.paginatedData}
           emptyMessage="在庫データが見つかりません"

@@ -7,15 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { C, STYLE } from "@/lib/design-tokens";
-
-/**
- * DESIGN.md `ex-data-table-cell` 準拠の header chrome（eyebrow/sectionLabel + canvas-soft）。
- * headerRowClassName / headerCellClassName への opt-in 用共有定数。
- * MedicalRecords.tsx / OwnersListTable.tsx のローカル定数と同一値（コミット済み e93b53a2 パターン）。
- */
-export const DESIGN_TABLE_HEADER_ROW = `border-b ${C.borderLight} ${C.bgPage} h-11`;
-export const DESIGN_TABLE_HEADER_CELL = STYLE.sectionLabel;
+import { STYLE } from "@/lib/design-tokens";
 
 interface DataTableProps<T> {
   columns: {

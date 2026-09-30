@@ -6,6 +6,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, STYLE } from "@/lib/design-tokens";
 import { getFormString } from "@/lib/form-data";
@@ -88,13 +89,14 @@ export function LstepTagAddDialog({ open, onOpenChange, ownerId }: LstepTagAddDi
           </div>
 
           <div className="flex justify-end gap-2">
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => onOpenChange(false)}
-              className={`px-4 py-2 text-sm rounded-md ${C.text60} ${C.hoverBgLight} transition-colors`}
+              className={`text-sm ${C.text60} ${C.hoverBgLight} ${C.hoverText}`}
             >
               キャンセル
-            </button>
+            </Button>
             <SubmitButton loadingText="付与中..." colorVariant="primary">
               付与する
             </SubmitButton>

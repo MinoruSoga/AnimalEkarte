@@ -70,7 +70,7 @@ export const DateValueEditor = memo(function DateValueEditor({
               handlePresetClick(from, to, preset.label);
             }}
             className={cn(
-              `w-full text-left px-3 py-1.5 text-sm ${C.bgMutedBadge} ${C.hoverBgMutedBadge} transition-colors`,
+              `w-full text-left px-3 min-h-11 text-sm ${C.bgMutedBadge} ${C.hoverBgMutedBadge} transition-colors`,
               C.text,
             )}
           >
@@ -112,10 +112,10 @@ export const DateValueEditor = memo(function DateValueEditor({
             month_caption: "flex justify-center items-center h-9 w-full",
             caption_label: "sr-only",
             nav: "absolute top-1 left-0 right-0 flex justify-between items-center px-1 pointer-events-none",
-            button_previous: `size-8 p-0 rounded-sm ${C.bgMutedBadge} opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto`,
-            button_next: `size-8 p-0 rounded-sm ${C.bgMutedBadge} opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto`,
+            button_previous: `size-8 min-h-11 min-w-11 p-0 rounded-sm ${C.bgMutedBadge} opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto`,
+            button_next: `size-8 min-h-11 min-w-11 p-0 rounded-sm ${C.bgMutedBadge} opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto`,
             dropdowns: "flex items-center gap-1",
-            dropdown: `text-sm font-medium bg-transparent border-none cursor-pointer focus:outline-none hover:opacity-70 py-0.5 px-1 rounded ${C.bgMutedBadge} focus-visible:ring-2 ${C.focusRingAccent40}`,
+            dropdown: `text-sm font-medium bg-transparent border-none cursor-pointer focus:outline-none hover:opacity-70 px-1 min-h-11 rounded ${C.bgMutedBadge} focus-visible:ring-2 ${C.focusRingAccent40}`,
           }}
           formatters={{
             formatMonthDropdown: (month) => {

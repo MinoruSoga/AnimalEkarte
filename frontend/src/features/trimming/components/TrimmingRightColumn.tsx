@@ -73,7 +73,7 @@ export const TrimmingRightColumn = memo(function TrimmingRightColumn({
         {isHistoryLoading ? (
           <LoadingFallback />
         ) : sortedHistory.length === 0 ? (
-          <div className={`text-center py-8 text-sm ${C.text40}`}>施術履歴がありません</div>
+          <div className={`text-center py-8 text-sm ${C.text60}`}>施術履歴がありません</div>
         ) : (
           historyCards
         )}

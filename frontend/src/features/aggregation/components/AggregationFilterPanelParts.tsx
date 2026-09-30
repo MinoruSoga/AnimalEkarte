@@ -354,7 +354,7 @@ export function SortControls({
           type="button"
           variant="outline"
           size="icon"
-          className={`h-9 w-9 shrink-0 ${C.borderMedium}`}
+          className={`h-11 w-11 shrink-0 ${C.borderMedium}`}
           onClick={() => onParamsChange({ order: orderValue === "asc" ? "desc" : "asc", page: 1 })}
           aria-label={orderValue === "asc" ? "昇順 (クリックで降順)" : "降順 (クリックで昇順)"}
           title={orderValue === "asc" ? "昇順" : "降順"}

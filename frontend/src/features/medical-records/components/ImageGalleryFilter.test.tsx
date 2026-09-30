@@ -3,12 +3,12 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 
+import { ImageGalleryFilter } from "./ImageGalleryFilter";
 import {
-  ImageGalleryFilter,
   MAX_FILE_SIZE_BYTES,
   MAX_UPLOAD_BATCH_BYTES,
   MAX_UPLOAD_FILES,
-} from "./ImageGalleryFilter";
+} from "../lib/image-upload-files";
 
 vi.mock("sonner", () => ({
   toast: { error: vi.fn(), success: vi.fn() },

@@ -183,8 +183,9 @@ function OwnersListRow({
   onDeleteRequest,
   onReport,
 }: OwnersListRowProps) {
+  const isDeceased = pet.status === "死亡";
   return (
-    <DataTableRow>
+    <DataTableRow className={isDeceased ? "opacity-60 grayscale-[0.5]" : undefined}>
       <TableCell className={`${STYLE.tableCell} whitespace-nowrap hidden lg:table-cell`}>
         {pet.ownerNumber ?? "-"}
       </TableCell>

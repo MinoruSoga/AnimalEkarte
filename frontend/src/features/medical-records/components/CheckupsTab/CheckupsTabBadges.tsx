@@ -1,32 +1,20 @@
-import { C, PALETTE } from "@/lib/design-tokens";
+import { BADGE } from "@/lib/design-tokens";
 
 export type LstepStatus = "synced" | "not-linked" | "opt-out";
 
+const LSTEP_STATUS_STYLES: Record<LstepStatus, { label: string; badgeClass: string }> = {
+  synced: { label: "LINE通知対象", badgeClass: BADGE.green },
+  "not-linked": { label: "LINE未連携", badgeClass: BADGE.yellow },
+  "opt-out": { label: "LINE受信拒否", badgeClass: BADGE.gray },
+};
+
 export function LstepStatusBadge({ status }: { status: LstepStatus }) {
-  if (status === "synced") {
-    return (
-      <span
-        className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full text-white"
-        style={{ backgroundColor: PALETTE.lineGreen }}
-      >
-        LINE通知対象
-      </span>
-    );
-  }
-  if (status === "not-linked") {
-    return (
-      <span
-        className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${C.textNotice} ${C.borderNotice} ${C.bgNotice40}`}
-      >
-        LINE未連携
-      </span>
-    );
-  }
+  const { label, badgeClass } = LSTEP_STATUS_STYLES[status];
   return (
     <span
-      className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${C.text40} ${C.borderMediumLight} ${C.bgPage30}`}
+      className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${badgeClass}`}
     >
-      LINE受信拒否
+      {label}
     </span>
   );
 }

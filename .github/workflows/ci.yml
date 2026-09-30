@@ -3,8 +3,6 @@ name: CI
 on:
   pull_request:
     branches: [main, staging, production]
-  push:
-    branches: [main]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -59,7 +57,6 @@ jobs:
       codegen: ${{ steps.filter.outputs.codegen }}
       migrations: ${{ steps.filter.outputs.migrations }}
       worker: ${{ steps.filter.outputs.worker }}
-      skip_push_heavy: ${{ steps.release_pr.outputs.skip_heavy }}
       mode: ${{ steps.scope.outputs.mode }}
       coverage_ratchet: ${{ steps.scope.outputs.coverage_ratchet }}
       run_backend_tests: ${{ steps.scope.outputs.run_backend_tests }}
@@ -116,17 +113,8 @@ jobs:
         shell: bash --noprofile --norc -euo pipefail {0}
         run: |
           set +e
-          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
-            base="${{ github.event.pull_request.base.sha }}"
-            git diff --name-only "${base}"...HEAD > /tmp/ci-changed-paths.txt
-          else
-            before="${{ github.event.before }}"
-            if [[ -z "${before}" || "${before}" =~ ^0+$ ]]; then
-              git diff --name-only HEAD~1 HEAD > /tmp/ci-changed-paths.txt
-            else
-              git diff --name-only "${before}"...HEAD > /tmp/ci-changed-paths.txt
-            fi
-          fi
+          base="${{ github.event.pull_request.base.sha }}"
+          git diff --name-only "${base}"...HEAD > /tmp/ci-changed-paths.txt
           set -e
           if [[ ! -s /tmp/ci-changed-paths.txt ]]; then
             if [[ "${{ steps.filter.outputs.backend }}" == "true" || "${{ steps.filter.outputs.frontend }}" == "true" ]]; then
@@ -141,32 +129,9 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # main→staging release PR は同じ SHA の PR workflow で累積差分を検証する。
-      # その場合だけ push 側の重い job を省き、API 障害時は fail-open で実行する。
-      - name: Detect matching release PR
-        id: release_pr
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash --noprofile --norc -euo pipefail {0}
-        run: |
-          echo "skip_heavy=false" >> "$GITHUB_OUTPUT"
-          if [[ "$GITHUB_EVENT_NAME" != "push" ]]; then
-            exit 0
-          fi
-          owner="${GITHUB_REPOSITORY%%/*}"
-          if ! pull_requests="$(gh api --method GET "repos/$GITHUB_REPOSITORY/pulls" \
-            -f state=open -f head="$owner:main" -f base=staging -f per_page=100)"; then
-            echo "::warning::Could not query the release PR; running push CI (fail-open)."
-            exit 0
-          fi
-          if jq -e --arg sha "$GITHUB_SHA" 'any(.[]; .head.sha == $sha)' <<< "$pull_requests" >/dev/null; then
-            echo "skip_heavy=true" >> "$GITHUB_OUTPUT"
-            echo "Matching main→staging PR will validate $GITHUB_SHA; skipping duplicate push jobs."
-          fi
-
   # ──────────────────────────────────────────────
   # C-1 再発防止: gitleaks によるシークレット漏洩スキャン。
-  # push/PR 全イベント無条件。ローカル再現は困難でリモート必須。
+  # PR 全イベント無条件。ローカル再現は困難でリモート必須。
   # （bug.md C-1: .env.staging への JWT_SECRET/DB_PASSWORD 平文混入の再発防止）。
   # ──────────────────────────────────────────────
   secret-scan:
@@ -194,7 +159,7 @@ jobs:
   backend_build:
     name: Backend Build
     needs: changes
-    if: needs.changes.outputs.backend == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -224,7 +189,7 @@ jobs:
   backend_test:
     name: Backend Test (${{ matrix.shard }})
     needs: changes
-    if: needs.changes.outputs.backend == 'true' && needs.changes.outputs.run_backend_tests == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
+    if: needs.changes.outputs.backend == 'true' && needs.changes.outputs.run_backend_tests == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -350,7 +315,7 @@ jobs:
   backend:
     name: Backend
     needs: [changes, backend_build, backend_test]
-    if: always() && needs.changes.outputs.backend == 'true' && needs.changes.outputs.run_backend_tests == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
+    if: always() && needs.changes.outputs.backend == 'true' && needs.changes.outputs.run_backend_tests == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -441,7 +406,7 @@ jobs:
   frontend_build:
     name: Frontend Build
     needs: changes
-    if: needs.changes.outputs.frontend == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -487,7 +452,7 @@ jobs:
   frontend_test:
     name: Frontend Test (${{ matrix.shard }})
     needs: changes
-    if: needs.changes.outputs.frontend == 'true' && needs.changes.outputs.run_frontend_tests == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
+    if: needs.changes.outputs.frontend == 'true' && needs.changes.outputs.run_frontend_tests == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -574,7 +539,7 @@ jobs:
   frontend:
     name: Frontend
     needs: [changes, frontend_build, frontend_test]
-    if: always() && needs.changes.outputs.frontend == 'true' && needs.changes.outputs.run_frontend_tests == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
+    if: always() && needs.changes.outputs.frontend == 'true' && needs.changes.outputs.run_frontend_tests == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -661,7 +626,7 @@ jobs:
   worker:
     name: Worker Tests
     needs: changes
-    if: needs.changes.outputs.worker == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
+    if: needs.changes.outputs.worker == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -696,7 +661,7 @@ jobs:
   codegen-check:
     name: Codegen Sync
     needs: changes
-    if: needs.changes.outputs.codegen == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
+    if: needs.changes.outputs.codegen == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 

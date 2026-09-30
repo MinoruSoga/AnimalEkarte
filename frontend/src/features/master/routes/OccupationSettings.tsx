@@ -7,6 +7,7 @@ import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
+import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { C, ICON } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER, MASTER_TABLE_COL } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
@@ -42,7 +43,7 @@ const COLUMNS = [
 // ─── Page ───
 export function OccupationSettings() {
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterStaff);
-  const { data } = useGetAllOccupations();
+  const { data, isPending, isError } = useGetAllOccupations();
   const createMutation = useCreateOccupation();
   const updateMutation = useUpdateOccupation();
   const deleteMutation = useDeleteOccupation();
@@ -122,7 +123,13 @@ export function OccupationSettings() {
             onDirtyChange={handleDirtyChange}
           />
         )}
-      />
+      >
+        {isError ? (
+          <ErrorFallback message="職種の取得に失敗しました" />
+        ) : isPending ? (
+          <LoadingFallback />
+        ) : null}
+      </MasterCRUDPage>
       {dirty.discardDialog}
     </>
   );

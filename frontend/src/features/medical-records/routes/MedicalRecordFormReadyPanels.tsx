@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, useTransition } from "react";
+import { useCallback, useMemo, useRef, useState, useTransition } from "react";
 
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PartnerRecordLink } from "@/components/shared/PartnerRecordLink/PartnerRecordLink";
@@ -6,9 +6,10 @@ import { C, LAYOUT } from "@/lib/design-tokens";
 import { UnifiedTabsRoot } from "@/components/shared/UnifiedTabs";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useAuth } from "@/hooks/use-auth";
+import { usePermission } from "@/hooks/use-permission";
 import { useGetOwnerLineTags } from "@/hooks/use-owner-line-tags";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
-import { ResourceMedicalRecords } from "@/types/generated/models";
+import { ResourceMedicalRecords, ResourceTrimming } from "@/types/generated/models";
 import type { Pet } from "@/types";
 import { MedicalRecordAddenda } from "../components/MedicalRecordAddenda/MedicalRecordAddenda";
 import { MedicalRecordAutoCreateFailure } from "../components/MedicalRecordAutoCreateFailure";
@@ -30,6 +31,8 @@ import { useMedicalRecordPostSave } from "../hooks/use-medical-record-post-save"
 import { useMedicalRecordForm } from "../hooks/use-medical-record-form";
 import { useGetMedicalRecord } from "../api/get-medical-record";
 import { useGetPetMedicalHistory } from "../api/get-medical-records";
+import { useGetTrimmingsByPetId } from "../api/get-pet-trimmings";
+import { mergePetTimelineItems } from "../lib/pet-timeline";
 import { useGetClinicalPlan } from "../api/clinical-plan";
 import { useGetTreatments } from "../api/treatments";
 import { useCopyTreatmentDetails } from "../hooks/use-copy-treatment-details";
@@ -43,7 +46,18 @@ function useMedicalRecordFormReadyState(input: {
   form: MedicalRecordFormModel;
 }) {
   const { recordId, selectedPet, form } = input;
-  const { historyItems } = useGetPetMedicalHistory(selectedPet.id, recordId);
+  const { historyItems: medicalHistoryItems } = useGetPetMedicalHistory(selectedPet.id, recordId);
+  // NO32（治療履歴1本化・案A）: 同一ペットのトリミング記録をカルテ履歴と同じ
+  // タイムラインに併記する。trimming view 権限が無い場合は fetch 自体を抑止する
+  // （BE も RequireSelectedClinicGrant("trimming","view") で fail-closed）。
+  const { canView: canViewTrimming } = usePermission(ResourceTrimming);
+  const { data: petTrimmings = [] } = useGetTrimmingsByPetId(selectedPet.id, {
+    enabled: canViewTrimming,
+  });
+  const historyItems = useMemo(
+    () => mergePetTimelineItems(medicalHistoryItems, petTrimmings),
+    [medicalHistoryItems, petTrimmings],
+  );
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
   const { data: ownerLineData } = useGetOwnerLineTags(selectedPet.ownerId ?? "");
   const hasLineIntegration = (ownerLineData?.is_linked && !ownerLineData?.lstep_opt_out) ?? false;
@@ -248,11 +262,7 @@ export function MedicalRecordFormReadyPanels({
             medicalRecordId={recordId}
             recordClinicId={ready.recordClinicId}
           />
-          <fieldset
-            disabled={ready.recordFinalized || !canSubmit}
-            className="border-0 p-0 m-0 min-w-0"
-            data-testid="medical-record-edit-lock"
-          >
+          <fieldset className="border-0 p-0 m-0 min-w-0" data-testid="medical-record-edit-lock">
             {ready.recordFinalized ? (
               <div
                 className={`mx-4 mt-3 rounded border ${C.borderMedium} ${C.bgPage} px-3 py-2 text-sm ${C.text60}`}
@@ -292,6 +302,7 @@ export function MedicalRecordFormReadyPanels({
               lstepStatus={ready.lstepStatus}
               recordStatus={ready.currentRecord?.status ?? ""}
               diagnosis1NameIdError={formState?.fieldErrors?.diagnosis1_name_id}
+              isLocked={ready.recordFinalized || !canSubmit}
               onChiefComplaintChange={ready.dirtyFields.handleSetChiefComplaint}
               onChiefComplaintTypeIdChange={ready.dirtyFields.handleSetChiefComplaintTypeId}
               onTreatmentPolicyChange={ready.dirtyFields.handleSetTreatmentPolicy}

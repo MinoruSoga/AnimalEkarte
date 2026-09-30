@@ -23,7 +23,7 @@ export function LineSendTypeSelector({
       {TYPE_OPTIONS.map((opt) => (
         <label
           key={opt.value}
-          className={`flex items-center gap-2 cursor-pointer text-sm ${C.text70} select-none`}
+          className={`flex items-center gap-2 min-h-11 cursor-pointer text-sm ${C.text70} select-none`}
         >
           <input
             type="radio"

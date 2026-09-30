@@ -103,7 +103,7 @@ export const GroupSidePanel = memo(function GroupSidePanel({
       readOnly={readOnly}
     >
       <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
-      <PropertyRow label="カラー">
+      <PropertyRow label="カラー" description="このグループの識別色です。">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-2">
             <input

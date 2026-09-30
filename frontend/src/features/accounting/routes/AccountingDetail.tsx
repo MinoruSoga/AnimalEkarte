@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
 import { useGetCashRegisterCloses } from "@/hooks/use-cash-register-closes";
 import { usePermission } from "@/hooks/use-permission";
@@ -103,6 +104,9 @@ export const AccountingDetail = memo(function AccountingDetail({
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [isCancelling, startCancelTransition] = useTransition();
 
+  // EMR-227: 明細削除は破壊的操作のため ConfirmDialog で確認してから実行する
+  const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
+
   // clinic 情報（AccountingDocument に props 注入）
   const { user } = useAuth();
   const { canEdit, canCreate, canDelete } = usePermission("accounting");
@@ -197,6 +201,17 @@ export const AccountingDetail = memo(function AccountingDetail({
   if (id && isLoading) return <LoadingFallback />;
   if (!accounting || !calculation) return <ErrorFallback message="データが見つかりません" />;
 
+  const deleteItemName = deleteItemId
+    ? displayItems.find((item) => item.id === deleteItemId)?.name
+    : undefined;
+
+  const handleConfirmDeleteItem = () => {
+    if (deleteItemId != null) {
+      handleDeleteItem(deleteItemId);
+    }
+    setDeleteItemId(null);
+  };
+
   const readOnlyMessage = deceasedPetBlockMessage
     ? deceasedPetBlockMessage
     : !hasAccountingMutationPermission
@@ -289,7 +304,7 @@ export const AccountingDetail = memo(function AccountingDetail({
               canDelete={Boolean(canDelete && canViewCashRegisterClose)}
               onNewItemOpenChange={setNewItemOpen}
               onAddItem={handleAddItem}
-              onDeleteItem={handleDeleteItem}
+              onDeleteItem={setDeleteItemId}
               onUpdateItemTax={handleUpdateItemTax}
               onUpdateItemDiscount={handleUpdateItemDiscount}
               onUseInsuranceChange={setHasInsurance}
@@ -314,7 +329,7 @@ export const AccountingDetail = memo(function AccountingDetail({
           ) : null}
 
           {isScheduledDateClosed && canSubmit && !canPostCloseEdit ? (
-            <div className={`px-4 pb-4 text-sm font-semibold ${C.danger}`} role="status">
+            <div className={`px-4 pb-4 text-sm font-semibold ${C.textWarning}`} role="status">
               レジ締め済み期間の会計確定には締め後編集権限（accounting-post-close-edit）が必要です。
             </div>
           ) : null}
@@ -325,17 +340,16 @@ export const AccountingDetail = memo(function AccountingDetail({
             <div className="px-4 pb-4">
               <label
                 htmlFor="postCloseReason"
-                className={`block text-sm font-semibold ${C.danger} mb-1`}
+                className={`block text-sm font-semibold ${C.textWarning} mb-1`}
               >
                 {isScheduledDateClosed
                   ? "⚠ レジ締め済み期間の編集 — 修正理由（必須）"
                   : "⚠ 確定済み会計の明細修正 — 修正理由（必須）"}
               </label>
-              <textarea
+              <Textarea
                 id="postCloseReason"
                 value={postCloseReason}
                 onChange={(e) => setPostCloseReason(e.target.value)}
-                className="w-full border rounded p-2 text-sm resize-none"
                 rows={2}
                 placeholder="例: 入力金額の誤りのため修正"
               />
@@ -343,7 +357,7 @@ export const AccountingDetail = memo(function AccountingDetail({
           ) : null}
           {/* 確定済みだが締め後編集権限が無い場合は拒否理由を明示（BUG-009） */}
           {accounting.status === "completed" && canSubmit && !canPostCloseEdit ? (
-            <div className={`px-4 pb-4 text-sm font-semibold ${C.danger}`} role="status">
+            <div className={`px-4 pb-4 text-sm font-semibold ${C.textWarning}`} role="status">
               確定済み会計の明細修正には締め後編集権限（accounting-post-close-edit）が必要です。カード金額の訂正以外はクレジット訂正導線または権限付与を確認してください。
             </div>
           ) : null}
@@ -363,6 +377,21 @@ export const AccountingDetail = memo(function AccountingDetail({
             confirmLabel="修正する"
             cancelLabel="キャンセル"
             onConfirm={confirmCompletedEdit}
+          />
+
+          <ConfirmDialog
+            open={deleteItemId != null}
+            onClose={() => setDeleteItemId(null)}
+            title="明細を削除しますか？"
+            description={
+              deleteItemName
+                ? `「${deleteItemName}」を会計明細から削除します。この操作は取り消せません。`
+                : "選択した明細項目を削除します。この操作は取り消せません。"
+            }
+            confirmLabel="削除"
+            cancelLabel="キャンセル"
+            variant="destructive"
+            onConfirm={handleConfirmDeleteItem}
           />
 
           <ConfirmDialog

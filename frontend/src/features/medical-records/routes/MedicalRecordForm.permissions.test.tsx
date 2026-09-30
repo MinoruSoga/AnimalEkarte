@@ -9,6 +9,7 @@ const mockBoundaryState = vi.hoisted(() => ({
   selectedPetStatus: "生存" as "生存" | "死亡",
   isFinalized: false,
   capturedDeleteConfirm: undefined as (() => void) | undefined,
+  capturedIsLocked: undefined as boolean | undefined,
   setPermissions: undefined as
     | ((permissions: { canEdit: boolean; canCreate: boolean; canDelete: boolean }) => void)
     | undefined,
@@ -106,6 +107,10 @@ vi.mock("../hooks/use-medical-record-form", () => ({
 vi.mock("../api/get-medical-records", () => ({
   useGetPetMedicalHistory: () => ({ historyItems: [] }),
 }));
+// NO32: 統合タイムライン用の trimming query。QueryClientProvider 無しで描くため stub。
+vi.mock("../api/get-pet-trimmings", () => ({
+  useGetTrimmingsByPetId: () => ({ data: [] }),
+}));
 vi.mock("../api/get-medical-record", () => ({
   useGetMedicalRecord: () => ({ data: { clinicId: "clinic-1" } }),
 }));
@@ -173,7 +178,10 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn() } }));
 
 vi.mock("../components/MedicalRecordFormPanels", () => ({
   MedicalRecordStickyHeader: () => null,
-  MedicalRecordTabsArea: () => <input aria-label="clinical field" />,
+  MedicalRecordTabsArea: (props: { isLocked?: boolean }) => {
+    mockBoundaryState.capturedIsLocked = props.isLocked;
+    return <input aria-label="clinical field" />;
+  },
 }));
 vi.mock("../components/MedicalRecordFormActions", () => ({
   MedicalRecordFloatingActions: ({
@@ -213,43 +221,52 @@ beforeEach(() => {
   mockBoundaryState.selectedPetStatus = "生存";
   mockBoundaryState.isFinalized = false;
   mockBoundaryState.capturedDeleteConfirm = undefined;
+  mockBoundaryState.capturedIsLocked = undefined;
   mockBoundaryState.setPermissions = undefined;
   mockUsePermission.mockReturnValue({ canEdit: false, canCreate: true, canDelete: false });
 });
 
 describe("MedicalRecordForm — mutation permission boundary", () => {
   function installStatefulPermissionMock() {
-    mockUsePermission.mockImplementation(() => {
+    mockUsePermission.mockImplementation((resource: string) => {
       const [permissions, setPermissions] = useState({
         canEdit: true,
         canCreate: true,
         canDelete: true,
       });
+      // NO32: ReadyPanels 側で trimming:view が別途呼ばれるようになった。
+      // ref guard（canDeleteRef / selectedPetStatusRef）の検証対象は親の
+      // medical-records 側なので、setter は medical-records 呼び出しだけに公開する。
+      // trimming 側は view=true で fetch を許可するが query 自体はモック済み。
+      if (resource !== "medical-records") {
+        return { canView: true, canEdit: false, canCreate: false, canDelete: false };
+      }
       mockBoundaryState.setPermissions = setPermissions;
       return permissions;
     });
   }
 
-  it("canDelete=falseではdelete mutationを発行せず、canEdit=falseではfieldsetを無効化する", () => {
+  it("canDelete=falseではdelete mutationを発行せず、canEdit=falseではタブ領域へisLockedを伝播する", () => {
     render(<MedicalRecordForm />);
 
-    expect(screen.getByRole("group")).toBeDisabled();
-    expect(screen.getByTestId("medical-record-edit-lock")).toBeDisabled();
-    expect(screen.getByRole("textbox", { name: "clinical field" })).toBeDisabled();
+    // BUG-035: ページ全体の fieldset 自身はロック境界ではなく、タブ内の編集領域にだけ disabled fieldset を張る。
+    // 読み取り専用 UI（履歴検索など）が fieldset[disabled] の子孫に取り込まれない構造を維持する。
+    expect(screen.getByTestId("medical-record-edit-lock")).not.toBeDisabled();
+    expect(mockBoundaryState.capturedIsLocked).toBe(true);
 
     fireEvent.click(screen.getByRole("button", { name: "confirm delete" }));
 
     expect(mockDeleteRecord).not.toHaveBeenCalled();
   });
 
-  it("isFinalized=true では clinical 入力を disabled にし保存ボタンを出さない", () => {
+  it("isFinalized=true ではタブ領域へisLockedを伝播し保存ボタンを出さない", () => {
     mockBoundaryState.isFinalized = true;
     mockUsePermission.mockReturnValue({ canEdit: true, canCreate: true, canDelete: true });
 
     render(<MedicalRecordForm />);
 
-    expect(screen.getByTestId("medical-record-edit-lock")).toBeDisabled();
-    expect(screen.getByRole("textbox", { name: "clinical field" })).toBeDisabled();
+    expect(screen.getByTestId("medical-record-edit-lock")).not.toBeDisabled();
+    expect(mockBoundaryState.capturedIsLocked).toBe(true);
     expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
     expect(screen.getByText(/このカルテは確定済みのため編集できません/)).toBeInTheDocument();
   });

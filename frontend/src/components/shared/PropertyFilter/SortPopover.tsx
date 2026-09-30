@@ -40,7 +40,7 @@ const SortRuleRow = memo(function SortRuleRow({
         <PopoverTrigger asChild>
           <button
             type="button"
-            className={`flex items-center gap-1 px-2 py-1 text-base ${C.text} ${C.bgMutedBadge} ${C.hoverBgMutedBadge} rounded-xxs transition-colors max-w-[160px] truncate`}
+            className={`flex items-center gap-1 px-2 min-h-11 text-base ${C.text} ${C.bgMutedBadge} ${C.hoverBgMutedBadge} rounded-xxs transition-colors max-w-[160px] truncate`}
           >
             {property?.icon ? (
               <property.icon className={`${ICON.action} shrink-0 opacity-50`} />
@@ -75,7 +75,13 @@ const SortRuleRow = memo(function SortRuleRow({
       <button
         type="button"
         onClick={() => onToggleDirection(sort.key)}
-        className={`flex items-center gap-1 px-2 py-1 text-base ${C.text} ${C.bgMutedBadge} ${C.hoverBgMutedBadge} rounded-xxs transition-colors whitespace-nowrap`}
+        // OwnerAccountingHistory と同じソート方向トグル契約: pressed = 昇順、
+        // aria-label は現在方向 + クリック時の切替先を伝える。
+        aria-pressed={sort.direction === "asc"}
+        aria-label={
+          sort.direction === "asc" ? "昇順 — クリックで降順に切替" : "降順 — クリックで昇順に切替"
+        }
+        className={`flex items-center gap-1 px-2 min-h-11 text-base ${C.text} ${C.bgMutedBadge} ${C.hoverBgMutedBadge} rounded-xxs transition-colors whitespace-nowrap`}
       >
         {sort.direction === "asc" ? (
           <ArrowUp className={`${ICON.page} shrink-0`} />
@@ -89,7 +95,7 @@ const SortRuleRow = memo(function SortRuleRow({
       <button
         type="button"
         onClick={() => onRemove(sort.key)}
-        className={`p-0.5 rounded-xxs ${C.text30} ${C.hoverText60} ${C.hoverBgLight} opacity-0 group-hover:opacity-100 transition-opacity ml-auto`}
+        className={`min-h-11 min-w-11 flex items-center justify-center rounded-xxs ${C.text30} ${C.hoverText60} ${C.hoverBgLight} opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 transition-opacity ml-auto`}
         aria-label={`${property?.label ?? sort.key} ソートを削除`}
       >
         <X className={ICON.page} />
@@ -160,7 +166,7 @@ export const SortPopover = memo(function SortPopover({
         <Button
           variant="ghost"
           size="sm"
-          className={`h-9 w-9 p-0 ${C.text50} ${C.hoverText80} ${C.hoverBgLight}`}
+          className={`h-11 w-11 p-0 ${C.text50} ${C.hoverText80} ${C.hoverBgLight}`}
           aria-label="並べ替え"
         >
           <ArrowUpDown className={ICON.lg} />
@@ -185,7 +191,9 @@ export const SortPopover = memo(function SortPopover({
               ))}
             </div>
           ) : (
-            <p className={`text-base ${C.text30} py-2`}>並べ替えが設定されていません</p>
+            <p className={`text-base ${C.text60} py-2`} role="status">
+              並べ替えが設定されていません
+            </p>
           )}
 
           {/* Add sort */}
@@ -213,7 +221,7 @@ export const SortPopover = memo(function SortPopover({
               <button
                 type="button"
                 onClick={() => setAddingSort(true)}
-                className={`flex items-center gap-1 mt-1 px-1 py-1 text-base ${C.text50} ${C.hoverText}/80 ${C.hoverBgLight} rounded-xxs transition-colors w-full`}
+                className={`flex items-center gap-1 mt-1 px-1 min-h-11 text-base ${C.text50} ${C.hoverText80} ${C.hoverBgLight} rounded-xxs transition-colors w-full`}
               >
                 <Plus className={ICON.page} />
                 並べ替えを追加

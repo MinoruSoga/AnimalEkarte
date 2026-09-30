@@ -108,7 +108,7 @@ describe("AddendumModal", () => {
   it("『追記を保存』は brand と同じ primary teal + pill を使う", () => {
     renderModal();
     const button = screen.getByRole("button", { name: "追記を保存" });
-    expect(button.className).toContain(C.bgActionPrimary);
+    expect(button.className).toContain(C.bgActionPrimarySolid);
     expect(button.className).toContain("rounded-full");
   });
 });

@@ -39,14 +39,14 @@ describe("DangerBadge variant=pet", () => {
     // 段階が文言で区別できること: 高の「危険理由」名前は付かず「注意理由」になる。
     const trigger = screen.getByRole("button", { name: "ミドルの注意理由を表示" });
     expect(trigger).toHaveTextContent("⚠ 注意");
-    expect(trigger).toHaveClass(C.bgNotice, C.textNotice, C.borderNotice);
+    expect(trigger).toHaveClass(C.bgNotice, C.textBadgeYellow, C.borderNotice);
     expect(
       screen.queryByRole("button", { name: "ミドルの危険理由を表示" }),
     ).not.toBeInTheDocument();
 
     await user.click(trigger);
     expect(await screen.findByText(REASON)).toBeInTheDocument();
-    expect(screen.getByText("注意理由")).toHaveClass(C.textNotice);
+    expect(screen.getByText("注意理由")).toHaveClass(C.textBadgeYellow);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
   });
 

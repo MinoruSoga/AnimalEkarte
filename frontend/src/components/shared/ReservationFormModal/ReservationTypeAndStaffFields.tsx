@@ -68,7 +68,7 @@ export function ReservationTypeAndStaffFields({
             onClick={() => setTypePickerOpen(true)}
             aria-invalid={Boolean(validationErrors?.type)}
             className={cn(
-              "flex h-9 w-full items-center justify-between gap-2 rounded-md border bg-white px-3 text-sm transition-colors",
+              "flex h-11 w-full items-center justify-between gap-2 rounded-xs border bg-white px-3 text-sm transition-colors",
               C.borderMediumLight,
               C.hoverBgSubtle,
               validationErrors?.type && C.borderDanger,
@@ -83,12 +83,12 @@ export function ReservationTypeAndStaffFields({
                 <span className={cn("line-clamp-1", C.text)}>
                   {selectedReservationType.name}
                   {!selectedReservationType.isActive ? (
-                    <span className={cn("ml-1 shrink-0 text-2xs", C.text40)}>（無効）</span>
+                    <span className={cn("ml-1 shrink-0 text-2xs", C.text60)}>（無効）</span>
                   ) : null}
                 </span>
               </span>
             ) : (
-              <span className={C.text40}>選択してください</span>
+              <span className={C.textMuted}>選択してください</span>
             )}
             <ChevronDown className={cn("size-4 shrink-0 opacity-50", C.text)} />
           </button>
@@ -115,13 +115,15 @@ export function ReservationTypeAndStaffFields({
             className="flex gap-2 pt-1"
           >
             <div className="flex-1">
-              <RadioGroupItem value="first" id="first" className="sr-only" />
+              {/* peer + peer-focus-visible: sr-only の Radix Item(button) にフォーカスが
+                  当たった際、装飾ラベルへフォーカスリングを転送する */}
+              <RadioGroupItem value="first" id="first" className="peer sr-only" />
               <Label
                 htmlFor="first"
                 className={cn(
-                  `block h-9 rounded-full border-2 px-3 py-1.5 text-center text-sm font-medium cursor-pointer transition-colors ${C.text}`,
+                  `flex h-11 items-center justify-center rounded-xs border-2 px-3 text-sm font-medium cursor-pointer transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-1 ${C.text}`,
                   formData.visitType === "first"
-                    ? `${C.borderBrand} ${C.bgBrand8}`
+                    ? `${C.borderActionPrimary} ${C.bgActionPrimary8}`
                     : `${C.borderMediumLight} bg-white ${C.hoverBgSubtle}`,
                 )}
               >
@@ -129,13 +131,13 @@ export function ReservationTypeAndStaffFields({
               </Label>
             </div>
             <div className="flex-1">
-              <RadioGroupItem value="revisit" id="revisit" className="sr-only" />
+              <RadioGroupItem value="revisit" id="revisit" className="peer sr-only" />
               <Label
                 htmlFor="revisit"
                 className={cn(
-                  `block h-9 rounded-full border-2 px-3 py-1.5 text-center text-sm font-medium cursor-pointer transition-colors ${C.text}`,
+                  `flex h-11 items-center justify-center rounded-xs border-2 px-3 text-sm font-medium cursor-pointer transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-1 ${C.text}`,
                   formData.visitType === "revisit"
-                    ? `${C.borderBrand} ${C.bgBrand8}`
+                    ? `${C.borderActionPrimary} ${C.bgActionPrimary8}`
                     : `${C.borderMediumLight} bg-white ${C.hoverBgSubtle}`,
                 )}
               >

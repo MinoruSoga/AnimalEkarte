@@ -176,6 +176,9 @@ describe("IdentityLinksPage BUG-013 unlink for existing groups", () => {
 
     await user.click(unlinkBtn);
 
+    // EMR-227: 解除は destructive ConfirmDialog 経由。確認ボタンで初めて DELETE を発行する。
+    await user.click(await screen.findByRole("button", { name: "解除する" }));
+
     await waitFor(() => {
       expect(unlinkOwnerIdentityMember).toHaveBeenCalledWith(42, {
         clinic_id: 1,
@@ -302,6 +305,9 @@ describe("IdentityLinksPage BUG-013 unlink for existing groups", () => {
     });
 
     await user.click(unlinkBtn);
+
+    // EMR-227: 解除は destructive ConfirmDialog 経由。確認ボタンで初めて DELETE を発行する。
+    await user.click(await screen.findByRole("button", { name: "解除する" }));
 
     await waitFor(() => {
       expect(unlinkPetIdentityMember).toHaveBeenCalledWith(77, {

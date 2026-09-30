@@ -42,7 +42,7 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
           value={value.ownerName}
           onChange={(e) => onChange({ ...value, ownerName: e.target.value })}
           placeholder="例: 山田 太郎"
-          className="h-9 text-sm"
+          className="text-sm"
         />
         <FormFieldError message={errors.ownerName} />
       </div>
@@ -60,7 +60,7 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
           value={value.phone}
           onChange={(e) => onChange({ ...value, phone: e.target.value })}
           placeholder="例: 090-1234-5678"
-          className="h-9 text-sm"
+          className="text-sm"
           type="tel"
           aria-invalid={errors.phone ? true : undefined}
           aria-describedby={errors.phone ? "new-owner-phone-error" : undefined}
@@ -81,7 +81,7 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
           value={value.petName}
           onChange={(e) => onChange({ ...value, petName: e.target.value })}
           placeholder="例: ポチ"
-          className="h-9 text-sm"
+          className="text-sm"
         />
         <FormFieldError message={errors.petName} />
       </div>

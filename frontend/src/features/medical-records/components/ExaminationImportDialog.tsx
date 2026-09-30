@@ -115,9 +115,9 @@ export const ExaminationImportDialog = memo(function ExaminationImportDialog({
         {/* Exam List */}
         <div className="flex-1 overflow-y-auto min-h-0 space-y-2 py-1">
           {isLoading ? (
-            <div className={`text-sm ${C.text40} text-center py-8`}>読み込み中...</div>
+            <div className={`text-sm ${C.text60} text-center py-8`}>読み込み中...</div>
           ) : availableExams.length === 0 ? (
-            <div className={`text-sm ${C.text40} text-center py-8`}>
+            <div className={`text-sm ${C.text60} text-center py-8`}>
               取り込める検査記録がありません
             </div>
           ) : (
@@ -127,10 +127,11 @@ export const ExaminationImportDialog = memo(function ExaminationImportDialog({
                 <button
                   key={exam.id}
                   type="button"
+                  aria-pressed={isSelected}
                   onClick={() => handleToggle(exam.id)}
                   className={`w-full text-left p-3 rounded-lg border transition-colors ${
                     isSelected
-                      ? `${C.borderBlue400} ${C.bgStatusBlueLight}`
+                      ? `${C.borderActionPrimary} ${C.bgActionPrimary5}`
                       : `${C.borderMedium} ${C.bgWhite} ${STYLE.tableRowHover}`
                   }`}
                 >
@@ -147,7 +148,7 @@ export const ExaminationImportDialog = memo(function ExaminationImportDialog({
                     <div
                       className={`w-4 h-4 rounded border-2 flex-shrink-0 ${
                         isSelected
-                          ? `${C.bgStatusBlueDot} ${C.borderBlue500}`
+                          ? `${C.bgActionPrimarySolid} ${C.borderActionPrimary}`
                           : `${C.borderGray300} ${C.bgWhite}`
                       }`}
                     />
@@ -167,7 +168,7 @@ export const ExaminationImportDialog = memo(function ExaminationImportDialog({
             type="button"
             onClick={handleImport}
             disabled={selectedIds.size === 0 || isLinking}
-            className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full border-transparent`}
+            className={`${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} rounded-full border-transparent`}
           >
             {isLinking ? "取り込み中..." : `${selectedIds.size}件取り込む`}
           </Button>
