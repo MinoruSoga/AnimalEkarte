@@ -69,6 +69,8 @@ Tailwind v4 は任意値クラス（`text-[#31302E]` 等）を**ソースを走�
 |---|---|---|
 | C21 | `src/components/ui/*.tsx` に colocated `*.stories.tsx` を要求（Storybook カタログの網羅担保） | ✅ 実装済み。全25 primitive が stories 保持、`C21_STORIES_ALLOWLIST` は空 |
 | C22 | `PALETTE` に Tailwind クラス文字列メンバを追加することを禁止（生値のみ許可） | ✅ 実装済み。既存4メンバ（`dragOverlayShadow` / `brandGlow` / `primaryGlow` / `tableRowHover`）は `C22_PALETTE_CLASS_MEMBER_ALLOWLIST` で移行猶予 |
+| C23 | `BADGE.*` コンボの text/bg を解決して WCAG コントラスト ≥4.5:1 を機械検証 | ✅ 実装済み（design-states.md §2 是正済み値で全パス） |
+| C24 | `src/components/shared/` 層にも stories を要求（dir 単位 / トップレベルは sibling） | ✅ 実装済み。既存未カバー49エントリは `C24_SHARED_STORIES_ALLOWLIST` で棚卸し — **stories 追加時にエントリを削るラチェット運用（増やさない）** |
 
 保留（未実装）:
 

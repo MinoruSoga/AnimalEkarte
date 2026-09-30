@@ -40,6 +40,7 @@ import {
   checkC13,
   checkC14,
   checkC21,
+  checkC24,
   checkC22,
   checkC23,
   C8_ALLOWLIST,
@@ -1345,6 +1346,40 @@ test("checkC21: ui/*.tsx に sibling stories が無ければ検出、あれば p
     checkC21(path.join("src", "features", "x", "routes", "Y.tsx"), new Set()).length,
     0,
   );
+});
+
+test("checkC24: shared/ の stories 不在を dir 単位・トップレベル単位で検出する", () => {
+  const seen = new Set();
+  const dirFile = path.join("src", "components", "shared", "Widget", "Widget.tsx");
+  const dirStories = path.join("src", "components", "shared", "Widget", "Widget.stories.tsx");
+
+  // dir に stories が無ければ検出（同じ dir は一度だけ）
+  assert.equal(checkC24(dirFile, new Set([dirFile]), seen).length, 1);
+  assert.equal(
+    checkC24(path.join("src", "components", "shared", "Widget", "WidgetRow.tsx"), new Set([dirFile]), seen).length,
+    0,
+  );
+  // stories があれば pass
+  const seen2 = new Set();
+  assert.equal(checkC24(dirFile, new Set([dirFile, dirStories]), seen2).length, 0);
+
+  // トップレベル shared/<name>.tsx は sibling stories が必要
+  const topFile = path.join("src", "components", "shared", "TopWidget.tsx");
+  const topStories = path.join("src", "components", "shared", "TopWidget.stories.tsx");
+  assert.equal(checkC24(topFile, new Set([topFile]), new Set()).length, 1);
+  assert.equal(checkC24(topFile, new Set([topFile, topStories]), new Set()).length, 0);
+
+  // 非対象: test / stories / index / shared 以外
+  assert.equal(
+    checkC24(path.join("src", "components", "shared", "Widget", "Widget.test.tsx"), new Set(), new Set()).length,
+    0,
+  );
+  assert.equal(checkC24(dirStories, new Set(), new Set()).length, 0);
+  assert.equal(
+    checkC24(path.join("src", "components", "shared", "Widget", "index.tsx"), new Set(), new Set()).length,
+    0,
+  );
+  assert.equal(checkC24(path.join("src", "components", "ui", "button.tsx"), new Set(), new Set()).length, 0);
 });
 
 test("checkC22: PALETTE のクラス文字列メンバを検出し raw 値と allowlist は除外する", () => {
