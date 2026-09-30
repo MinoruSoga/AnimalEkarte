@@ -111,6 +111,8 @@ export interface MedicalRecordInterviewHistoryItem {
   content: string;
   /** EMR-182: 1項目でも複写可能な値を持つ行にのみ設定される。 */
   copySource?: MedicalRecordInterviewHistoryCopySource;
+  /** NO32: 統合タイムラインの時系列ソート用 raw date（feature 側の同形フィールドと対応）。 */
+  sortDate?: string;
 }
 
 /**
@@ -146,6 +148,8 @@ export function transformToHistoryItem(
     title: chiefComplaint || record.record_no,
     content,
     copySource: toCopySource(record),
+    // NO32: 統合タイムラインのソートキー（表示用 date とは別に raw date を保持）。
+    sortDate: record.date,
   };
 }
 

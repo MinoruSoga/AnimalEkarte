@@ -57,7 +57,8 @@ export const InterviewHistory = memo(function InterviewHistory({
       >
         <div className="flex items-center gap-2 min-w-0">
           <History className={`${ICON.action} ${C.text}`} />
-          <h3 className={`text-sm font-bold ${C.text}`}>問診抜粋</h3>
+          {/* NO32: カルテ + トリミング記録の統合タイムライン */}
+          <h3 className={`text-sm font-bold ${C.text}`}>治療履歴</h3>
           <p className={`text-sm ${C.text60} truncate`}>全文は詳細で確認できます</p>
         </div>
         <div className="flex items-center gap-2">
@@ -66,7 +67,7 @@ export const InterviewHistory = memo(function InterviewHistory({
               className={`absolute left-2.5 top-1/2 -translate-y-1/2 ${ICON.action} ${C.text60}`}
             />
             <label htmlFor="medical-record-history-search" className="sr-only">
-              過去のカルテを検索
+              過去の履歴を検索
             </label>
             <Input
               id="medical-record-history-search"
@@ -88,7 +89,7 @@ export const InterviewHistory = memo(function InterviewHistory({
           {filteredItems.map((item) => (
             <div key={item.id} className="flex items-stretch">
               <Link
-                to={paths.medicalRecords.detail.getHref(item.id)}
+                to={item.href ?? paths.medicalRecords.detail.getHref(item.id)}
                 className={`block min-w-0 flex-1 p-3 transition-colors ${C.hoverBgPageHalf}`}
               >
                 <div className="flex items-start justify-between mb-1">
@@ -119,7 +120,7 @@ export const InterviewHistory = memo(function InterviewHistory({
               ) : null}
             </div>
           ))}
-          {filteredItems.length === 0 ? <EmptyState message="該当する抜粋はありません" /> : null}
+          {filteredItems.length === 0 ? <EmptyState message="該当する履歴はありません" /> : null}
         </div>
       </ScrollArea>
     </div>

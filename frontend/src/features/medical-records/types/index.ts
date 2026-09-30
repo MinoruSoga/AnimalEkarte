@@ -28,6 +28,16 @@ export interface InterviewHistoryItem {
   content: string;
   /** EMR-182: 1項目でも複写可能な値を持つ行にのみ設定される。 */
   copySource?: InterviewHistoryCopySource;
+  /**
+   * NO32: 行の遷移先 URL。未指定は /medical-records/:id。
+   * 統合タイムラインのトリミング行は /trimming/:id を設定する。
+   */
+  href?: string;
+  /**
+   * NO32: 統合タイムラインの時系列ソート用 raw date（YYYY-MM-DD / ISO datetime）。
+   * date は表示整形済み（yyyy/MM/dd）のためソートには使わない。
+   */
+  sortDate?: string;
 }
 
 // ── Treatment (治療明細) ──────────────────────────────────────────────
