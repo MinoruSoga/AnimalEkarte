@@ -558,6 +558,38 @@ func TestBillingItemService_UnbilledDetails_OwnerDiscountPrefill(t *testing.T) {
 	})
 }
 
+// EMR-246: 未請求候補の当日/過去区分表示用に、集約明細へ発生日を載せる。
+func TestBillingItemService_UnbilledDetails_ServiceDate(t *testing.T) {
+	t.Run("treatment 由来明細はカルテ日付を ServiceDate に載せる", func(t *testing.T) {
+		recordDate := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
+		repo := &matrixVaccinationRepo{mockBillingItemRepository: defaultMockBillingItemRepo()}
+		svc := newMatrixService(t, repo, &matrixTreatmentRepo{
+			items: []model.Treatment{{
+				ID: 11, Content: "処置A", UnitPrice: 1000, Quantity: 1,
+				MedicalRecord: &model.MedicalRecord{Date: recordDate},
+			}},
+		})
+
+		details, err := svc.GetUnbilledItemDetails(context.Background(), 1, 7)
+		require.NoError(t, err)
+		require.Len(t, details.Items, 1)
+		require.NotNil(t, details.Items[0].ServiceDate)
+		assert.True(t, details.Items[0].ServiceDate.Equal(recordDate))
+	})
+
+	t.Run("MedicalRecord が preload されていない場合は ServiceDate を付けない", func(t *testing.T) {
+		repo := &matrixVaccinationRepo{mockBillingItemRepository: defaultMockBillingItemRepo()}
+		svc := newMatrixService(t, repo, &matrixTreatmentRepo{
+			items: []model.Treatment{{ID: 11, Content: "処置A", UnitPrice: 1000, Quantity: 1}},
+		})
+
+		details, err := svc.GetUnbilledItemDetails(context.Background(), 1, 7)
+		require.NoError(t, err)
+		require.Len(t, details.Items, 1)
+		assert.Nil(t, details.Items[0].ServiceDate)
+	})
+}
+
 func sortedKeys(m map[string]any) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {

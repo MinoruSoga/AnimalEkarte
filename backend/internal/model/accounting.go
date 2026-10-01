@@ -136,7 +136,9 @@ type BillingItem struct {
 	MerchandiseItemID     *uint64      `                                                      json:"merchandise_item_id,omitempty"`
 	TreatmentID           *uint64      `                                                      json:"treatment_id,omitempty"`
 	// MedicalRecordID は DB 列ではない。未請求候補（treatment 由来）など API 応答用の仮想フィールド。
-	MedicalRecordID  *uint64        `gorm:"-"                                              json:"medical_record_id,omitempty"`
+	MedicalRecordID *uint64 `gorm:"-"                                              json:"medical_record_id,omitempty"`
+	// ServiceDate は DB 列ではない。未請求候補の発生日（会計画面の当日/過去区分用、EMR-246）。
+	ServiceDate      *time.Time     `gorm:"-"                                              json:"service_date,omitempty"`
 	VaccinationID    *uint64        `                                                      json:"vaccination_id,omitempty"`
 	ExamID           *uint64        `                                                      json:"exam_id,omitempty"`
 	AppointmentID    *uint64        `                                                      json:"appointment_id,omitempty"`

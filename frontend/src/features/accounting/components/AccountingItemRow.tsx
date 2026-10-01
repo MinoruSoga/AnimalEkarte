@@ -11,6 +11,7 @@ import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSele
 import { C } from "@/lib/design-tokens";
 import type { TaxType } from "@/types/generated/models";
 import { formatCurrency, formatCurrencyOrDash } from "@/lib/format/number";
+import { isPastJSTDate } from "@/lib/jst-date";
 
 import { useGetBillingItemDiscountSuggestions } from "../api/get-discount-suggestions";
 import type { AccountingItem, ItemCategory } from "../types";
@@ -173,6 +174,14 @@ export function AccountingItemRow({
         {item.source === "trimming" ? (
           <span className={`ml-2 text-2xs ${C.textBrand} ${C.bgBrand5} px-1.5 py-0.5 rounded`}>
             トリミング
+          </span>
+        ) : null}
+        {item.serviceDate != null && isPastJSTDate(item.serviceDate) ? (
+          <span
+            className={`ml-2 text-2xs ${C.text50} border ${C.borderLight} px-1.5 py-0.5 rounded whitespace-nowrap`}
+            aria-label={`発生日: ${item.serviceDate}`}
+          >
+            {item.serviceDate}
           </span>
         ) : null}
       </TableCell>

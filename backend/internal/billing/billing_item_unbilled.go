@@ -219,7 +219,7 @@ func treatmentToUnbilledBillingItem(t *model.Treatment) model.BillingItem {
 	treatmentID := t.ID
 	medicalRecordID := t.MedicalRecordID
 	taxType, taxRate := treatmentMasterTax(t)
-	return model.BillingItem{
+	item := model.BillingItem{
 		ID:        t.ID,
 		BillingID: 0,
 		Category:  treatmentTypeToItemCategory(t),
@@ -238,6 +238,11 @@ func treatmentToUnbilledBillingItem(t *model.Treatment) model.BillingItem {
 		MedicalRecordID: &medicalRecordID,
 		SortOrder:       t.SortOrder,
 	}
+	if t.MedicalRecord != nil {
+		// EMR-246: 会計画面の当日/過去区分表示用にカルテ日付を応答へ載せる。
+		item.ServiceDate = &t.MedicalRecord.Date
+	}
+	return item
 }
 
 // treatmentMasterTax はリンク済みマスタ（consultation / procedure / medicine）の

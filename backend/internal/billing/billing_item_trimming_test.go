@@ -177,6 +177,11 @@ func TestBillingItemRepository_FindUnbilledTrimmingItemsByPetID(t *testing.T) {
 		assert.Equal(t, int64(500), optionItem.UnitPrice)
 		assert.Equal(t, opt.ID, *optionItem.TrimmingOptionID)
 		assert.Nil(t, optionItem.TrimmingCourseID, "オプション行はtrimming_course_idを持たない")
+		// EMR-246: 当日/過去区分表示用に予約日時が応答へ載る。
+		require.NotNil(t, courseItem.ServiceDate)
+		assert.True(t, courseItem.ServiceDate.Equal(appt.StartTime))
+		require.NotNil(t, optionItem.ServiceDate)
+		assert.True(t, optionItem.ServiceDate.Equal(appt.StartTime))
 	})
 
 	t.Run("並び順はappointment_id→sort_order(コース0/オプション100+ato.sort_order)昇順", func(t *testing.T) {

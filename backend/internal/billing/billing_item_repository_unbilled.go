@@ -23,6 +23,7 @@ func (r *billingItemRepository) FindUnbilledVaccinationItemsByPetID(
 		VaccineID     *uint64
 		Name          *string
 		UnitPrice     *int64
+		ServiceDate   time.Time
 	}
 	rows := make([]vaccinationBillingRow, 0)
 	if err := r.db.WithContext(ctx).Raw(`
@@ -30,7 +31,8 @@ func (r *billingItemRepository) FindUnbilledVaccinationItemsByPetID(
 			vaccination.id AS vaccination_id,
 			vaccine.id AS vaccine_id,
 			vaccine.name AS name,
-			vaccine.price AS unit_price
+			vaccine.price AS unit_price,
+			vaccination.date AS service_date
 		FROM vaccinations AS vaccination
 		JOIN pets AS pet
 		  ON pet.id = vaccination.pet_id
@@ -98,6 +100,8 @@ func (r *billingItemRepository) FindUnbilledVaccinationItemsByPetID(
 			TaxRate:       sharedkernel.DefaultTaxRate,
 			Source:        model.ItemSourceMedicalRecord,
 			VaccinationID: &vaccinationID,
+			// EMR-246: 会計画面の当日/過去区分表示用にワクチン接種日を応答へ載せる。
+			ServiceDate: &row.ServiceDate,
 		})
 	}
 	return items, unbillableCount, nil
@@ -113,6 +117,7 @@ func (r *billingItemRepository) FindUnbilledExamItemsByPetID(
 		Name          *string
 		UnitPrice     *int64
 		MedicalRecord uint64
+		ServiceDate   time.Time
 	}
 	rows := make([]examBillingRow, 0)
 	if err := r.db.WithContext(ctx).Raw(`
@@ -121,7 +126,8 @@ func (r *billingItemRepository) FindUnbilledExamItemsByPetID(
 			exam_type.id AS exam_type_id,
 			exam_type.name AS name,
 			exam_type.price AS unit_price,
-			exam.medical_record_id AS medical_record
+			exam.medical_record_id AS medical_record,
+			exam.date AS service_date
 		FROM exams AS exam
 		JOIN pets AS pet
 		  ON pet.id = exam.pet_id
@@ -180,6 +186,8 @@ func (r *billingItemRepository) FindUnbilledExamItemsByPetID(
 			Source:          model.ItemSourceMedicalRecord,
 			ExamID:          &examID,
 			MedicalRecordID: &medicalRecordID,
+			// EMR-246: 会計画面の当日/過去区分表示用に検査日を応答へ載せる。
+			ServiceDate: &row.ServiceDate,
 		})
 	}
 	return items, unbillableCount, nil
@@ -194,6 +202,7 @@ func (r *billingItemRepository) FindUnbilledTrimmingItemsByPetID(ctx context.Con
 		SortOrder        int
 		TrimmingCourseID *uint64
 		TrimmingOptionID *uint64
+		ServiceDate      time.Time
 	}
 	var rows []row
 	err := r.db.WithContext(ctx).Raw(`
@@ -204,7 +213,8 @@ func (r *billingItemRepository) FindUnbilledTrimmingItemsByPetID(ctx context.Con
 			COALESCE(tc.price, 0)::bigint AS unit_price,
 			0 AS sort_order,
 			tc.id AS trimming_course_id,
-			NULL::bigint AS trimming_option_id
+			NULL::bigint AS trimming_option_id,
+			a.start_time AS service_date
 		FROM appointment_trimming_details atd
 		JOIN appointments a ON a.id = atd.appointment_id AND atd.clinic_id = a.clinic_id AND a.deleted_at IS NULL
 		JOIN reservation_types rt ON rt.id = a.reservation_type_id AND rt.clinic_id = a.clinic_id AND rt.deleted_at IS NULL
@@ -232,7 +242,8 @@ func (r *billingItemRepository) FindUnbilledTrimmingItemsByPetID(ctx context.Con
 			COALESCE(topt.price, 0)::bigint AS unit_price,
 			100 + COALESCE(ato.sort_order, 0) AS sort_order,
 			NULL::bigint AS trimming_course_id,
-			topt.id AS trimming_option_id
+			topt.id AS trimming_option_id,
+			a.start_time AS service_date
 		FROM appointment_trimming_details atd
 		JOIN appointments a ON a.id = atd.appointment_id AND atd.clinic_id = a.clinic_id AND a.deleted_at IS NULL
 		JOIN reservation_types rt ON rt.id = a.reservation_type_id AND rt.clinic_id = a.clinic_id AND rt.deleted_at IS NULL
@@ -265,6 +276,7 @@ func (r *billingItemRepository) FindUnbilledTrimmingItemsByPetID(ctx context.Con
 	items := make([]model.BillingItem, 0, len(rows))
 	for i, row := range rows {
 		appointmentID := row.AppointmentID
+		serviceDate := row.ServiceDate
 		items = append(items, model.BillingItem{
 			ID:        uint64(i + 1),
 			BillingID: 0,
@@ -282,6 +294,8 @@ func (r *billingItemRepository) FindUnbilledTrimmingItemsByPetID(ctx context.Con
 			TrimmingCourseID:      row.TrimmingCourseID,
 			TrimmingOptionID:      row.TrimmingOptionID,
 			SortOrder:             row.SortOrder,
+			// EMR-246: 会計画面の当日/過去区分表示用に予約日時を応答へ載せる。
+			ServiceDate: &serviceDate,
 		})
 	}
 	return items, nil

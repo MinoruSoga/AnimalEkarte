@@ -317,4 +317,17 @@ describe("transformToAccounting", () => {
     });
     expect(result.paymentSplits![0].paymentMethodId).toBe("42");
   });
+
+  it("EMR-246: service_date を JST の YYYY-MM-DD に変換して serviceDate にマップする", () => {
+    const result = transformToAccounting({
+      ...minimal,
+      items: [{ ...item, service_date: "2026-03-25T00:00:00Z" }],
+    });
+    expect(result.items[0].serviceDate).toBe("2026-03-25");
+  });
+
+  it("EMR-246: service_date が無い明細は serviceDate を持たない", () => {
+    const result = transformToAccounting({ ...minimal, items: [item] });
+    expect(result.items[0].serviceDate).toBeUndefined();
+  });
 });
