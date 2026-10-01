@@ -112,7 +112,7 @@ function PetHealthPageContent({
             />
           ) : null}
           <div>
-            <p className="text-xs text-white/70">飼い主</p>
+            <p className="text-xs text-white/70">飼主</p>
             <p className="text-base font-semibold text-white">{data.owner_name || displayName}</p>
           </div>
         </div>
