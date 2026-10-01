@@ -567,6 +567,14 @@ def plan(paths):
                 blocked.append(path)
                 continue
             jobs.append({'service': 'host', 'command': ['bash', path]})
+        elif path == 'scripts/check-docs-symbol-drift.sh':
+            # Read-only docs-drift gate; syntax check plus running it IS the
+            # scoped contract (nonzero exit fails closed on doc drift).
+            if not (ROOT / path).is_file():
+                blocked.append(path)
+                continue
+            jobs.append({'service': 'host', 'command': ['bash', '-n', path]})
+            jobs.append({'service': 'host', 'command': ['bash', path]})
         elif path == 'docs/ops/testing/scripts/run-uat-e2e.sh':
             # UAT E2E runner は .env.local + Playwright 実行環境前提のため pre-push
             # では実行不能。構文チェックが scoped 契約（実行は UAT レーンで手動）。
