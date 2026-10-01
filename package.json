@@ -1,7 +1,7 @@
 {
   "scripts": {
-    "deploy:frontend": "cd frontend && vercel deploy",
-    "deploy:frontend:prod": "cd frontend && vercel deploy --prod",
+    "deploy:frontend": "pnpm exec wrangler deploy -c frontend/wrangler.jsonc",
+    "deploy:frontend:prod": "pnpm exec wrangler deploy -c frontend/wrangler.production.jsonc",
     "codex-security:export": "bash scripts/export-codex-security-latest.sh",
     "cf:whoami": "wrangler whoami",
     "cf:deploy": "cd backend && wrangler deploy",

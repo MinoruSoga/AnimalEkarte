@@ -65,16 +65,16 @@ gh workflow run backend-deploy.yml --ref "$TARGET_REF"
 
 dispatch 後も run の `headSha == REVIEWED_SHA` を確認する。不一致、migration/health failure、target 不一致は停止条件。`-f target=production` なしの dispatch は STG を deploy する。production には `--ref production -f target=production` が必要。
 
-## 3. Frontend pipeline
+## 3. Frontend pipeline（EMR-255: Cloudflare Workers Static Assets へ移行）
 
 1. GitHub Environment `Preview` / `Production` を選び、production ref を検証。
-2. Vercel CLI `pull` で対象 environment の project 設定を取得。
-3. `VERCEL_ENV` / `VITE_VERCEL_ENV` を付けて `pnpm --dir frontend build`。
-4. `.vercel/output` を生成し `vercel deploy --prebuilt`。preview は STG domain へ alias。
+2. `APP_ENV=stg|production` を付けて `pnpm --dir frontend build`（Vite multi-page build → `dist/`）。
+3. `npx wrangler deploy -c frontend/wrangler{,.production}.jsonc` で frontend Worker + Static Assets を配信。
+4. smoke check で CSP ヘッダと `server: cloudflare`（Vercel 残留との誤検知防止）、SPA fallback、`/line-reserve/` を確認。
 
-`frontend/vite.config.ts` が `VERCEL_ENV=preview` なら STG API、`production` なら production API の絶対 URL をビルド時に固定する。`frontend/.env.production` の STG 値はこの経路では override される。prebuilt config に `/api` rewrite はないため、same-origin `/api` を使う別の build path では API JSON/status を別途検証する。
+`/api/*` は `frontend/worker/index.ts` が `API` service binding 経由で backend Worker へ同一オリジン中継する。`VITE_API_URL` の注入は廃止 — `src/lib/axios.ts` が `"/api"` fallback し、PROD ビルドが STG API を叩く事故を構造的に防ぐ。`APP_ENV=stg` は旧 `VERCEL_ENV=preview` 相当で demo ログイン表示の tree-shake 契約を維持する。
 
-実デプロイの SHA、API 接続先、cookie/CORS、assets の検証は [Vercel runbook](VERCEL-FRONTEND-STAGING-TEST.md)。設定を読んだだけで稼働済みにしない。
+`frontend/vercel.json` は移行期のロールバック経路として残置（rewrite/header 規則は `frontend/worker/index.ts` と `frontend/public/_headers` が引き継ぎ済み）。実デプロイの SHA、API 接続先、cookie/CORS、assets の検証は [Vercel 時代の runbook](VERCEL-FRONTEND-STAGING-TEST.md) を CF 経路へ読み替えて実施する。設定を読んだだけで稼働済みにしない。
 
 ## 4. Rollback / monitoring / backup
 
