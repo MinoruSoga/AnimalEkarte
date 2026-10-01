@@ -72,15 +72,28 @@ func BuildDiscountSuggestions(itemSubtotal int64, campaigns []*model.Campaign, o
 //   - キャンペーン amount: discountValue(固定額、明細単位)
 //   - 飼主割引: itemSubtotal × ownerDiscountRate / 100
 func CalculateItemCampaignDiscount(itemSubtotal int64, campaign *model.Campaign, ownerDiscountRate float64) int64 {
+	amount, _ := ResolveItemDiscount(itemSubtotal, campaign, ownerDiscountRate)
+	return amount
+}
+
+// ResolveItemDiscount は明細に適用する割引を（割引額[円], 適用割引率[%]）で返す。
+// appliedRate は割引の出所を表す: 飼主割引採用時は飼主率、率方式キャンペーン採用時は
+// キャンペーン率、額方式キャンペーン採用時・割引なし時は 0。
+//
+// EMR-229: 割引額だけでなく適用率を返し、billing_items.discount_rate に正しく記録できる
+// ようにする（従来は自動割引時に rate が 0 のまま保存され、画面に割引率が出なかった）。
+func ResolveItemDiscount(itemSubtotal int64, campaign *model.Campaign, ownerDiscountRate float64) (int64, float64) {
 	if itemSubtotal <= 0 {
-		return 0
+		return 0, 0
 	}
 
 	var campaignDiscount int64
+	var campaignRate float64
 	if campaign != nil {
 		switch campaign.DiscountType {
 		case model.CampaignDiscountTypeRate:
 			campaignDiscount = int64(math.Round(float64(itemSubtotal) * campaign.DiscountValue / 100))
+			campaignRate = campaign.DiscountValue
 		case model.CampaignDiscountTypeAmount:
 			campaignDiscount = int64(math.Round(campaign.DiscountValue))
 		}
@@ -89,5 +102,8 @@ func CalculateItemCampaignDiscount(itemSubtotal int64, campaign *model.Campaign,
 	ownerDiscount := int64(math.Round(float64(itemSubtotal) * ownerDiscountRate / 100))
 
 	// Q3=B: 高い方を採用。明細小計を超えないようクランプ。
-	return min(max(campaignDiscount, ownerDiscount), itemSubtotal)
+	if campaignDiscount > ownerDiscount {
+		return min(campaignDiscount, itemSubtotal), campaignRate
+	}
+	return min(ownerDiscount, itemSubtotal), ownerDiscountRate
 }

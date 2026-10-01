@@ -91,6 +91,12 @@ interface ItemListCardProps {
   accountingId?: string;
   onUpdateItemTax?: (itemId: string, taxType: TaxType, taxRate: number) => void;
   onUpdateItemDiscount?: (itemId: string, discountAmount: number) => void;
+  /** EMR-229: 項目名編集 */
+  onUpdateItemName?: (itemId: string, name: string) => void;
+  /** EMR-230: 数量編集（手入力/社販明細） */
+  onUpdateItemQuantity?: (itemId: string, quantity: number) => void;
+  /** EMR-230: 金額（税抜小計）直接編集（手入力/社販明細） */
+  onUpdateItemAmount?: (item: AccountingItem, amount: number) => void;
   canEdit: boolean;
   canDelete: boolean;
 }
@@ -107,6 +113,9 @@ export const ItemListCard = memo(function ItemListCard({
   accountingId,
   onUpdateItemTax,
   onUpdateItemDiscount,
+  onUpdateItemName,
+  onUpdateItemQuantity,
+  onUpdateItemAmount,
   canEdit,
   canDelete,
 }: ItemListCardProps) {
@@ -196,9 +205,23 @@ export const ItemListCard = memo(function ItemListCard({
           onDeleteItem={onDeleteItem}
           onUpdateItemTax={onUpdateItemTax}
           onUpdateItemDiscount={onUpdateItemDiscount}
+          onUpdateItemName={onUpdateItemName}
+          onUpdateItemQuantity={onUpdateItemQuantity}
+          onUpdateItemAmount={onUpdateItemAmount}
         />
       )),
-    [items, accountingId, onDeleteItem, onUpdateItemTax, onUpdateItemDiscount, canEdit, canDelete],
+    [
+      items,
+      accountingId,
+      onDeleteItem,
+      onUpdateItemTax,
+      onUpdateItemDiscount,
+      onUpdateItemName,
+      onUpdateItemQuantity,
+      onUpdateItemAmount,
+      canEdit,
+      canDelete,
+    ],
   );
 
   return (

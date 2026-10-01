@@ -430,7 +430,8 @@ describe("AccountingDetail — C: 混在支払い UI / payment_splits", () => {
       </AuthContext.Provider>,
     );
 
-    await screen.findByText("テスト商品");
+    // EMR-229: 項目名は編集可能 input の value でレンダリングされるため displayValue で検索する
+    await screen.findByDisplayValue("テスト商品");
 
     const user = userEvent.setup();
     await user.click(screen.getByTitle("削除"));
@@ -443,7 +444,7 @@ describe("AccountingDetail — C: 混在支払い UI / payment_splits", () => {
 
     await waitFor(() => {
       expect(deleteCalled).toBe(true);
-      expect(screen.queryByText("テスト商品")).not.toBeInTheDocument();
+      expect(screen.queryByDisplayValue("テスト商品")).not.toBeInTheDocument();
     });
   });
 
@@ -535,13 +536,14 @@ describe("AccountingDetail — C: 混在支払い UI / payment_splits", () => {
     await user.click(screen.getByRole("button", { name: "物販・その他追加" }));
     await user.click(await screen.findByRole("button", { name: "追加: 療法食 (ID 77)" }));
 
-    expect(await screen.findByText("療法食")).toBeInTheDocument();
+    // EMR-229: 楽観追加行も項目名 input（defaultValue=療法食）でレンダリングされる
+    expect(await screen.findByDisplayValue("療法食")).toBeInTheDocument();
     await waitFor(() => expect(rejectRequest).toBeDefined());
     rejectRequest?.();
 
     await waitFor(() => {
-      expect(screen.queryByText("療法食")).not.toBeInTheDocument();
-      expect(screen.getByText("テスト商品")).toBeInTheDocument();
+      expect(screen.queryByDisplayValue("療法食")).not.toBeInTheDocument();
+      expect(screen.getByDisplayValue("テスト商品")).toBeInTheDocument();
       expect(handleApiErrorMock).toHaveBeenCalledWith(expect.anything(), "明細の追加");
     });
   });

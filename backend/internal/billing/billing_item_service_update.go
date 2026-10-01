@@ -29,6 +29,10 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64
 	if input.Quantity != nil && *input.Quantity <= 0 {
 		return nil, apperrors.WrapInvalidInput("数量は正の値である必要があります")
 	}
+	// EMR-229: name 更新を許可するが空文字・空白のみは create と同じく拒否する
+	if input.Name != nil && strings.TrimSpace(*input.Name) == "" {
+		return nil, apperrors.WrapInvalidInput("商品名は必須です")
+	}
 
 	fields := buildBillingItemUpdate(input)
 	if len(fields) == 0 {

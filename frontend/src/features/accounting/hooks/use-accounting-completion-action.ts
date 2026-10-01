@@ -99,8 +99,12 @@ function toCompleteItems(items: ReadonlyArray<AccountingItem>): CompleteAccounti
     name: item.name,
     unit_price: item.unitPrice,
     quantity: item.quantity,
-    discount_rate: item.discountRate,
-    discount_amount: item.discountAmount,
+    // EMR-229: 手入力（社販）明細の割引は表示中の owner_rate 事前適用を echo せず、
+    // 0 を送って BE の自動割引解決（飼主率 vs キャンペーンの大きい方・確定時点の会計日）に委ねる。
+    // カルテ/トリミング由来など非 manual 行は表示中の値を echo し、カルテ上の明示割引額を保持する。
+    ...(item.source === "manual"
+      ? { discount_rate: 0, discount_amount: 0 }
+      : { discount_rate: item.discountRate, discount_amount: item.discountAmount }),
     tax_type: item.taxType,
     tax_rate: item.taxRate,
     is_insurance_applicable: item.isInsuranceApplicable,

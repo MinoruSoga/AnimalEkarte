@@ -136,12 +136,14 @@ func TestCreateBillingItemRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdateBillingItemRequest_ToServiceInput(t *testing.T) {
+	name := "社販 2024-05"
 	unitPrice := int64(0)
 	quantity := 0.0
 	taxType := string(model.TaxTypeExempt)
 	taxRate := 0.0
 	isInsuranceApplicable := false
 	req := updateBillingItemRequest{
+		Name:                  &name,
 		UnitPrice:             &unitPrice,
 		Quantity:              &quantity,
 		TaxType:               &taxType,
@@ -154,6 +156,9 @@ func TestUpdateBillingItemRequest_ToServiceInput(t *testing.T) {
 		t.Fatalf("toServiceInput returned error: %v", err)
 	}
 
+	if input.Name == nil || *input.Name != "社販 2024-05" {
+		t.Fatalf("Name = %v, want %q", input.Name, name)
+	}
 	if input.UnitPrice == nil || *input.UnitPrice != 0 {
 		t.Fatalf("UnitPrice = %v, want explicit zero", input.UnitPrice)
 	}

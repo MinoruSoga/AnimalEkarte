@@ -109,6 +109,8 @@ export function useAccountingDetailState({
   const unbilledItems = unbilledDetails?.items;
   // EMR-196②: complete の expected_unbilled_revision へ返送する集約版 token。
   const unbilledRevision = unbilledDetails?.revision;
+  // EMR-229: 飼主マスタ割引率(%)（手入力追加行の optimistic 初期表示用。新規会計時のみ取得）。
+  const ownerDiscountRate = unbilledDetails?.ownerDiscountRate ?? 0;
   const unbilledWarnings: UnbilledWarning[] = useMemo(
     () => unbilledDetails?.warnings ?? [],
     [unbilledDetails?.warnings],
@@ -212,6 +214,7 @@ export function useAccountingDetailState({
     ungroupedSummary,
     unbilledWarnings,
     unbilledRevision,
+    ownerDiscountRate,
     hasBlockingUnbilledWarning,
     unbilledDetailsReady,
     unbilledDetailsError,
