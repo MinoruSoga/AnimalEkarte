@@ -25,6 +25,15 @@ function loginRedirectPath(location: { search: string; state: unknown }): string
   return parseInternalPath(stateFrom) ?? parseInternalPath(queryFrom) ?? paths.home.getHref();
 }
 
+const LOGIN_RETRY_AFTER_DEFAULT_SECONDS = 5;
+const LOGIN_RETRY_AFTER_MAX_SECONDS = 30;
+
+function retryAfterSeconds(header: string | undefined): number {
+  const seconds = Number.parseInt(header ?? "", 10);
+  if (!Number.isFinite(seconds)) return LOGIN_RETRY_AFTER_DEFAULT_SECONDS;
+  return Math.min(Math.max(seconds, 1), LOGIN_RETRY_AFTER_MAX_SECONDS);
+}
+
 export const SHOW_DEMO =
   import.meta.env.DEV ||
   __VERCEL_ENV__ === "preview" ||
@@ -354,8 +363,10 @@ export const LoginForm = memo(function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [retryNotice, setRetryNotice] = useState<string | null>(null);
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: ActionState, formData: FormData): Promise<ActionState> => {
+      setRetryNotice(null);
       const emailValue = getFormString(formData, "login-email").trim();
       const passwordValue = getFormString(formData, "login-password");
 
@@ -373,14 +384,38 @@ export const LoginForm = memo(function LoginForm() {
         if (isCancel(err)) {
           return _prevState;
         }
+        let failure: unknown = err;
+        // 429 (login rate limit): wait for Retry-After and retry once so staff
+        // on a shared office IP are not forced to retry manually.
+        if (isAxiosError(failure) && failure.response?.status === 429) {
+          const seconds = retryAfterSeconds(failure.response.headers["retry-after"]);
+          setRetryNotice(`アクセスが集中しています。${seconds}秒後に自動で再試行します…`);
+          await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+          try {
+            await login(emailValue, passwordValue);
+            setRetryNotice(null);
+            navigate(loginRedirectPath(location), { replace: true });
+            return { success: true, error: null, timestamp: Date.now() };
+          } catch (retryError) {
+            if (isCancel(retryError)) {
+              return _prevState;
+            }
+            failure = retryError;
+          }
+        }
         let msg = "ログインに失敗しました。しばらくしてから再度お試しください";
-        if (isAxiosError(err)) {
-          if (!err.response) msg = "接続できません。ネットワークをご確認ください";
-          else if (err.response.status === 401) msg = "メールアドレスまたはパスワードが違います";
-          else if (err.response.status === 403) msg = "このアカウントはアクセスが制限されています";
-          else if (err.response.status >= 500)
+        if (isAxiosError(failure)) {
+          if (!failure.response) msg = "接続できません。ネットワークをご確認ください";
+          else if (failure.response.status === 401)
+            msg = "メールアドレスまたはパスワードが違います";
+          else if (failure.response.status === 403)
+            msg = "このアカウントはアクセスが制限されています";
+          else if (failure.response.status === 429)
+            msg = "アクセスが集中しています。しばらくしてから再度お試しください";
+          else if (failure.response.status >= 500)
             msg = "サーバーエラーが発生しました。しばらくしてからお試しください";
         }
+        setRetryNotice(null);
         return { success: false, error: msg, timestamp: Date.now() };
       }
     },
@@ -416,6 +451,7 @@ export const LoginForm = memo(function LoginForm() {
             showPassword={showPassword}
             isPending={isPending}
             error={formState.error ?? null}
+            retryNotice={retryNotice}
             onEmailChange={handleEmailChange}
             onPasswordChange={handlePasswordChange}
             onTogglePassword={() => setShowPassword((prev) => !prev)}

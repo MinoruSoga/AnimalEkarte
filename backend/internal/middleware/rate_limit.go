@@ -2,9 +2,10 @@ package middleware
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -98,6 +99,28 @@ func (s *RateLimitStore) getLimiter(bucketID uint64, ip string, rps rate.Limit, 
 	return newEntry.limiter
 }
 
+// retryAfterDelay はトークンを消費せずに、次の1トークンが回復するまでの
+// 待ち時間を返す。Reserve は将来の予約を登録するだけなので、Cancel で
+// 取り消せばバケット容量は変化しない。
+func retryAfterDelay(limiter *rate.Limiter) time.Duration {
+	reservation := limiter.Reserve()
+	if !reservation.OK() {
+		return time.Second
+	}
+	defer reservation.Cancel()
+	return reservation.Delay()
+}
+
+func retryAfterSeconds(limiter *rate.Limiter) int {
+	return max(1, int(math.Ceil(retryAfterDelay(limiter).Seconds())))
+}
+
+// rejectRateLimited は Retry-After 付きの 429 応答を返して request を中断する。
+func rejectRateLimited(c *gin.Context, limiter *rate.Limiter) {
+	c.Header("Retry-After", strconv.Itoa(retryAfterSeconds(limiter)))
+	respondError(c, http.StatusTooManyRequests, "rate limit exceeded")
+}
+
 // RateLimit は指定されたレートでIPアドレスごとにレート制限を行う
 // rps: requests per second, burst: バースト許容量
 // c.ClientIP() を使用することで TRUSTED_PROXY_CIDR 設定を尊重し、
@@ -109,12 +132,73 @@ func RateLimit(store *RateLimitStore, rps rate.Limit, burst int) gin.HandlerFunc
 		limiter := store.getLimiter(bucketID, ip, rps, burst)
 
 		if !limiter.Allow() {
-			respondError(c, http.StatusTooManyRequests, fmt.Sprintf("rate limit exceeded: %d requests per second max", int(rps)))
+			rejectRateLimited(c, limiter)
 			return
 		}
 
 		c.Next()
 	}
+}
+
+// FailureRateLimit は IP ごとのバケットで request をゲートするが、トークンを
+// 消費するのは handler が status >= 400 で応答した場合のみ。成功 request は
+// 予算を消費しないため、共有 NAT 配下の正当利用でバケットが枯渇しない。
+// ゲートは非消費の Tokens() チェックであり、空バケット時点で同時に到着した
+// request は最大バースト分だけ over-admit され得る。これは abuse 抑止として
+// 許容する（継続的な失敗は rps へ収束する）。
+func FailureRateLimit(store *RateLimitStore, rps rate.Limit, burst int) gin.HandlerFunc {
+	bucketID := store.nextBucketID.Add(1)
+	return func(c *gin.Context) {
+		limiter := store.getLimiter(bucketID, c.ClientIP(), rps, burst)
+
+		if limiter.Tokens() < 1 {
+			rejectRateLimited(c, limiter)
+			return
+		}
+
+		c.Next()
+
+		if c.Writer.Status() >= http.StatusBadRequest {
+			limiter.Allow()
+		}
+	}
+}
+
+// FailureLimiter は key 単位の失敗カウンター（例: アカウント email ごとの
+// ログイン失敗回数）。Admit が試行可否を判定し、失敗時だけ RecordFailure で
+// 予算を消費する。成功した試行はバケットを消費しない。
+type FailureLimiter struct {
+	store    *RateLimitStore
+	bucketID uint64
+	rps      rate.Limit
+	burst    int
+}
+
+// NewFailureLimiter は store 内に独立した key 空間を持つ FailureLimiter を返す。
+func (s *RateLimitStore) NewFailureLimiter(rps rate.Limit, burst int) *FailureLimiter {
+	return &FailureLimiter{
+		store:    s,
+		bucketID: s.nextBucketID.Add(1),
+		rps:      rps,
+		burst:    burst,
+	}
+}
+
+// Admit は key の失敗予算に空きがあるかを返す。枯渇時は ok=false と
+// 回復までの秒数を返す。ゲートは非消費チェックであり、Admit 自体は予算を
+// 消費しない（失敗時に RecordFailure を呼ぶ契約）。
+func (l *FailureLimiter) Admit(key string) (int, bool) {
+	limiter := l.store.getLimiter(l.bucketID, key, l.rps, l.burst)
+	if limiter.Tokens() >= 1 {
+		return 0, true
+	}
+	return retryAfterSeconds(limiter), false
+}
+
+// RecordFailure は key の予算を1トークン消費する。バケットが空なら no-op
+// （ゲートは Admit の責務）。
+func (l *FailureLimiter) RecordFailure(key string) {
+	l.store.getLimiter(l.bucketID, key, l.rps, l.burst).Allow()
 }
 
 // LiffRateLimit は LIFF エンドポイント向けのレートリミッター

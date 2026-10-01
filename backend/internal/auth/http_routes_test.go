@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -12,10 +13,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type noopLoginFailureLimiter struct{}
+
+func (noopLoginFailureLimiter) Admit(string) (int, bool) { return 0, true }
+func (noopLoginFailureLimiter) RecordFailure(string)     {}
+
+type denyingLoginFailureLimiter struct{ retryAfter int }
+
+func (l denyingLoginFailureLimiter) Admit(string) (int, bool) { return l.retryAfter, false }
+func (denyingLoginFailureLimiter) RecordFailure(string)       {}
+
 type recordingAuthRateLimitStore struct {
-	name     string
-	policies []RateLimitPolicy
-	calls    *[]string
+	name            string
+	policies        []RateLimitPolicy
+	failurePolicies []RateLimitPolicy
+	calls           *[]string
+	failureLimiter  LoginFailureLimiter
 }
 
 func (s *recordingAuthRateLimitStore) Middleware(
@@ -28,17 +41,29 @@ func (s *recordingAuthRateLimitStore) Middleware(
 	}
 }
 
+func (s *recordingAuthRateLimitStore) FailureLimiter(
+	policy RateLimitPolicy,
+) LoginFailureLimiter {
+	s.failurePolicies = append(s.failurePolicies, policy)
+	if s.failureLimiter != nil {
+		return s.failureLimiter
+	}
+	return noopLoginFailureLimiter{}
+}
+
 type recordingAuthRateLimitFactory struct {
-	stores []*recordingAuthRateLimitStore
-	calls  *[]string
+	stores         []*recordingAuthRateLimitStore
+	calls          *[]string
+	failureLimiter LoginFailureLimiter
 }
 
 func (f *recordingAuthRateLimitFactory) New(
 	_ context.Context,
 ) RateLimitStore {
 	store := &recordingAuthRateLimitStore{
-		name:  string(rune('1' + len(f.stores))),
-		calls: f.calls,
+		name:           string(rune('1' + len(f.stores))),
+		calls:          f.calls,
+		failureLimiter: f.failureLimiter,
 	}
 	f.stores = append(f.stores, store)
 	return store
@@ -76,6 +101,9 @@ func TestHTTPHandler_RegisterRoutes_HardenedSurface(t *testing.T) {
 	assert.Equal(t, []RateLimitPolicy{
 		DefaultAuthRateLimitConfig().Login,
 	}, rateLimitFactory.stores[0].policies)
+	assert.Equal(t, []RateLimitPolicy{
+		DefaultAuthRateLimitConfig().LoginPerAccount,
+	}, rateLimitFactory.stores[0].failurePolicies)
 	assert.Equal(t, []RateLimitPolicy{
 		DefaultAuthRateLimitConfig().PasswordReset,
 		DefaultAuthRateLimitConfig().PasswordReset,
@@ -181,6 +209,39 @@ func TestHTTPHandler_RegisterRoutes_RejectsInvalidRateLimitConfig(t *testing.T) 
 
 func TestRateLimitPolicy_RequestsPerSecond(t *testing.T) {
 	policy := DefaultAuthRateLimitConfig().Login
-	assert.InDelta(t, 5.0/60.0, policy.RequestsPerSecond(), 0.000001)
+	assert.InDelta(t, 30.0/60.0, policy.RequestsPerSecond(), 0.000001)
 	assert.Zero(t, (RateLimitPolicy{}).RequestsPerSecond())
+}
+
+func TestHTTPHandler_Login_PerAccountThrottleResponds429(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	var calls []string
+	factory := &recordingAuthRateLimitFactory{
+		calls:          &calls,
+		failureLimiter: denyingLoginFailureLimiter{retryAfter: 7},
+	}
+	handler := NewHTTPHandler(HTTPDependencies{}, CookieConfigForProduction(false))
+	router := gin.New()
+
+	_, err := handler.RegisterRoutes(
+		context.Background(),
+		router.Group("/api/v1"),
+		RouteMiddlewarePorts{
+			CSRF:             appendAuthMiddlewareCall(&calls, "csrf"),
+			Authenticate:     appendAuthMiddlewareCall(&calls, "authenticate"),
+			RateLimitFactory: factory,
+		},
+		DefaultAuthRateLimitConfig(),
+	)
+	require.NoError(t, err)
+
+	body := strings.NewReader(`{"email":"staff@example.com","password":"password123"}`)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/login", body)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	assert.Equal(t, http.StatusTooManyRequests, response.Code)
+	assert.Equal(t, "7", response.Header().Get("Retry-After"))
+	assert.Contains(t, response.Body.String(), "ログイン試行が集中しています")
 }

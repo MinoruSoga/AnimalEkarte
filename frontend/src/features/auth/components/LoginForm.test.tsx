@@ -93,6 +93,57 @@ describe("LoginForm touch targets", () => {
     );
   });
 
+  it("429 応答では Retry-After 待機後に1回だけ自動再試行する", async () => {
+    loginMock
+      .mockRejectedValueOnce({
+        isAxiosError: true,
+        response: { status: 429, headers: { "retry-after": "1" } },
+      })
+      .mockResolvedValueOnce(undefined);
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <LoginForm />
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByLabelText("メールアドレス"), "staff@example.com");
+    await user.type(screen.getByLabelText("パスワード"), "password123");
+    await user.click(screen.getByRole("button", { name: "ログイン" }));
+
+    expect(await screen.findByText(/自動で再試行します/)).toBeInTheDocument();
+    await waitFor(() => expect(loginMock).toHaveBeenCalledTimes(2), { timeout: 5000 });
+  });
+
+  it("自動再試行後も429ならアクセス集中のエラーメッセージを表示する", async () => {
+    loginMock.mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 429, headers: { "retry-after": "1" } },
+    });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <LoginForm />
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByLabelText("メールアドレス"), "staff@example.com");
+    await user.type(screen.getByLabelText("パスワード"), "password123");
+    await user.click(screen.getByRole("button", { name: "ログイン" }));
+
+    expect(
+      await screen.findByText(
+        "アクセスが集中しています。しばらくしてから再度お試しください",
+        undefined,
+        { timeout: 5000 },
+      ),
+    ).toBeInTheDocument();
+  });
+
+  // NOTE: このテストは login を永続 pending にするため useActionState の
+  // transition を完了させない。React の async action entanglement が後続
+  // フォーム送信の state commit を待たせ得るので、この describe 内で
+  // フォームを送信するテストはこのテストより前に置くこと。
   it("after login-switch intent, submit stays deduped via isPending", async () => {
     loginMock.mockImplementation(() => new Promise<void>(() => undefined));
     const user = userEvent.setup();

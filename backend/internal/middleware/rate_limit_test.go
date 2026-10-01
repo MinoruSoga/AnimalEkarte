@@ -98,6 +98,115 @@ func TestLiffRateLimit(t *testing.T) {
 	assert.Equal(t, "liff ok", w.Body.String())
 }
 
+func TestRateLimit_RejectedRequestSetsRetryAfter(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	store := NewRateLimitStore(ctx)
+	router := gin.New()
+	router.Use(RateLimit(store, rate.Limit(1.0/60.0), 1))
+	router.GET("/test", func(c *gin.Context) {
+		c.String(http.StatusOK, "ok")
+	})
+
+	first := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/test", http.NoBody)
+	req.Header.Set("X-Forwarded-For", "3.3.3.3")
+	router.ServeHTTP(first, req)
+	assert.Equal(t, http.StatusOK, first.Code)
+
+	second := httptest.NewRecorder()
+	req, _ = http.NewRequest(http.MethodGet, "/test", http.NoBody)
+	req.Header.Set("X-Forwarded-For", "3.3.3.3")
+	router.ServeHTTP(second, req)
+
+	assert.Equal(t, http.StatusTooManyRequests, second.Code)
+	assert.NotEmpty(t, second.Header().Get("Retry-After"))
+}
+
+func TestFailureRateLimit_SuccessfulRequestsAreFree(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	store := NewRateLimitStore(ctx)
+	router := gin.New()
+	router.Use(FailureRateLimit(store, rate.Limit(1.0/60.0), 2))
+	router.POST("/login", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	// burst=2 を大きく超える成功 request がすべて通ることを確認する
+	for range 5 {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/login", http.NoBody)
+		req.RemoteAddr = "4.4.4.4:12345"
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+	}
+}
+
+func TestFailureRateLimit_CountsFailuresOnly(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	store := NewRateLimitStore(ctx)
+	router := gin.New()
+	router.Use(FailureRateLimit(store, rate.Limit(1.0/60.0), 2))
+	router.POST("/login", func(c *gin.Context) {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid"})
+	})
+
+	newRequest := func(remoteAddr string) (*httptest.ResponseRecorder, *http.Request) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/login", http.NoBody)
+		req.RemoteAddr = remoteAddr
+		return w, req
+	}
+
+	// burst=2 の失敗でバケットを使い切る
+	for range 2 {
+		w, req := newRequest("5.5.5.5:12345")
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	}
+
+	w, req := newRequest("5.5.5.5:12345")
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusTooManyRequests, w.Code)
+	assert.NotEmpty(t, w.Header().Get("Retry-After"))
+
+	// 別 IP は独立バケットのため影響を受けない
+	other, otherReq := newRequest("6.6.6.6:12345")
+	router.ServeHTTP(other, otherReq)
+	assert.Equal(t, http.StatusUnauthorized, other.Code)
+}
+
+func TestRateLimitStore_FailureLimiter(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	store := NewRateLimitStore(ctx)
+	limiter := store.NewFailureLimiter(rate.Limit(1.0/60.0), 2)
+
+	retryAfter, ok := limiter.Admit("a@example.com")
+	assert.True(t, ok)
+	assert.Zero(t, retryAfter)
+
+	limiter.RecordFailure("a@example.com")
+	limiter.RecordFailure("a@example.com")
+
+	retryAfter, ok = limiter.Admit("a@example.com")
+	assert.False(t, ok)
+	assert.Positive(t, retryAfter)
+
+	// 別 key は独立したバケットを持つ
+	_, ok = limiter.Admit("b@example.com")
+	assert.True(t, ok)
+}
+
 func TestRateLimit_MiddlewareInstancesUseIndependentBuckets(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ctx, cancel := context.WithCancel(context.Background())

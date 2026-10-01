@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -23,6 +24,23 @@ func (h *HTTPHandler) Login(c *gin.Context) {
 	if err := bindAuthJSON(c, &input); err != nil {
 		httpapi.RespondError(c, err)
 		return
+	}
+
+	// Per-account failure throttle: the gate itself consumes nothing; only
+	// responses with status >= 400 consume budget via the deferred check, so
+	// successful logins are free. This bounds repeated failures against one
+	// account even when the attacker rotates client IPs.
+	accountKey := strings.ToLower(strings.TrimSpace(input.Email))
+	if limiter := h.loginFailures; limiter != nil {
+		if retryAfter, ok := limiter.Admit(accountKey); !ok {
+			respondLoginRateLimited(c, retryAfter)
+			return
+		}
+		defer func() {
+			if c.Writer.Status() >= http.StatusBadRequest {
+				limiter.RecordFailure(accountKey)
+			}
+		}()
 	}
 
 	account, staff, err := h.AuthenticateUser(
@@ -70,6 +88,15 @@ func (h *HTTPHandler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, LoginResponse{
 		IsSystemAdmin: account.IsSystemAdmin,
 		User:          meResponse,
+	})
+}
+
+// respondLoginRateLimited emits the per-account throttle response. Retry-After
+// mirrors the IP-level middleware contract so clients can wait deterministically.
+func respondLoginRateLimited(c *gin.Context, retryAfterSeconds int) {
+	c.Header("Retry-After", strconv.Itoa(retryAfterSeconds))
+	c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+		"error": "ログイン試行が集中しています。しばらくしてから再度お試しください",
 	})
 }
 

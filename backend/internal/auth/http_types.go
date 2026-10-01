@@ -103,6 +103,9 @@ type RateLimitPolicy struct {
 	Requests float64
 	Window   time.Duration
 	Burst    int
+	// CountOnFailure は、status >= 400 の応答だけが予算を消費するモードを
+	// 指定する。成功 request はバケットを消費しない。
+	CountOnFailure bool
 }
 
 // RequestsPerSecond converts the typed policy to the middleware rate unit.
@@ -115,27 +118,41 @@ func (p RateLimitPolicy) RequestsPerSecond() float64 {
 
 // AuthRateLimitConfig contains every auth endpoint's hardened rate policy.
 type AuthRateLimitConfig struct {
-	Login          RateLimitPolicy
-	PasswordReset  RateLimitPolicy
-	Refresh        RateLimitPolicy
-	Logout         RateLimitPolicy
-	LogoutRedirect RateLimitPolicy
+	Login           RateLimitPolicy
+	LoginPerAccount RateLimitPolicy
+	PasswordReset   RateLimitPolicy
+	Refresh         RateLimitPolicy
+	Logout          RateLimitPolicy
+	LogoutRedirect  RateLimitPolicy
 }
 
 // DefaultAuthRateLimitConfig matches the hardened route configuration.
+// Login は IP 単位・失敗応答のみカウント（共有 NAT の正当利用で枯渇しない）。
+// LoginPerAccount はアカウント email 単位の失敗カウンターで、IP を跨いだ
+// 同一アカウントへの継続的な試行を止める。
 func DefaultAuthRateLimitConfig() AuthRateLimitConfig {
 	return AuthRateLimitConfig{
-		Login:          RateLimitPolicy{Requests: 5, Window: time.Minute, Burst: 5},
-		PasswordReset:  RateLimitPolicy{Requests: 3, Window: time.Minute, Burst: 3},
-		Refresh:        RateLimitPolicy{Requests: 30, Window: time.Minute, Burst: 30},
-		Logout:         RateLimitPolicy{Requests: 30, Window: time.Minute, Burst: 30},
-		LogoutRedirect: RateLimitPolicy{Requests: 30, Window: time.Minute, Burst: 30},
+		Login:           RateLimitPolicy{Requests: 30, Window: time.Minute, Burst: 30, CountOnFailure: true},
+		LoginPerAccount: RateLimitPolicy{Requests: 5, Window: time.Minute, Burst: 5, CountOnFailure: true},
+		PasswordReset:   RateLimitPolicy{Requests: 3, Window: time.Minute, Burst: 3},
+		Refresh:         RateLimitPolicy{Requests: 30, Window: time.Minute, Burst: 30},
+		Logout:          RateLimitPolicy{Requests: 30, Window: time.Minute, Burst: 30},
+		LogoutRedirect:  RateLimitPolicy{Requests: 30, Window: time.Minute, Burst: 30},
 	}
+}
+
+// LoginFailureLimiter throttles repeated failed login attempts per account key.
+// Admit reports whether an attempt may proceed now; RecordFailure consumes
+// budget only after a failed attempt, so successful logins are free.
+type LoginFailureLimiter interface {
+	Admit(key string) (retryAfterSeconds int, ok bool)
+	RecordFailure(key string)
 }
 
 // RateLimitStore is a route-local limiter bucket collection.
 type RateLimitStore interface {
 	Middleware(policy RateLimitPolicy) gin.HandlerFunc
+	FailureLimiter(policy RateLimitPolicy) LoginFailureLimiter
 }
 
 // RateLimitStoreFactory creates independently isolated auth rate-limit stores.
@@ -186,6 +203,7 @@ type HTTPHandler struct {
 	deps               HTTPDependencies
 	cookies            CookieConfig
 	loginFailureTiming loginFailureResponseTiming
+	loginFailures      LoginFailureLimiter
 	loginAuditOnce     sync.Once
 	loginAuditSlots    chan struct{}
 	loginAuditGate     backgroundWorkGate
