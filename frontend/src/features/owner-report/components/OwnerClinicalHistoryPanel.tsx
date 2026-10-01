@@ -1,6 +1,9 @@
 import { C } from "@/lib/design-tokens";
 
-import type { OwnerClinicalBriefingData } from "../hooks/use-owner-clinical-briefing-data";
+import type {
+  HistoryLoadMoreControl,
+  OwnerClinicalBriefingData,
+} from "../hooks/use-owner-clinical-briefing-data";
 import { buildClinicalHistoryMatrix, type ClinicalHistoryKind } from "../lib/clinical-briefing";
 import { ClinicalBriefingPanel } from "./ClinicalBriefingPanel";
 import { ClinicalHistoryMatrix, type HistoryRowState } from "./ClinicalHistoryMatrix";
@@ -65,6 +68,23 @@ function historyIsTruncated(data: OwnerClinicalBriefingData): boolean {
   ].some(Boolean);
 }
 
+/**
+ * EMR-242: 手動追加読み込みの行マッピング。
+ * 「薬・処方」と「処置」は同一 treatment-history ソースを共有するため同じ制御を出す。
+ * 診療行（medical-records）と予防接種行は対象外のため制御を出さない。
+ */
+function historyLoadMoreByKind(
+  data: OwnerClinicalBriefingData,
+): Partial<Record<ClinicalHistoryKind, HistoryLoadMoreControl>> {
+  return {
+    // 検査行は健診結果も合算表示するが、追加取得の対象は検査 API のみ。
+    検査: data.historyLoadMore.examinations,
+    "薬・処方": data.historyLoadMore.treatments,
+    処置: data.historyLoadMore.treatments,
+    ケア: data.historyLoadMore.trimming,
+  };
+}
+
 export function ClinicalHistoryPanel({ data }: { data: OwnerClinicalBriefingData }) {
   const matrix = historyMatrix(data);
   const truncated = historyIsTruncated(data);
@@ -77,7 +97,11 @@ export function ClinicalHistoryPanel({ data }: { data: OwnerClinicalBriefingData
       bodyClassName="p-0"
       bodyTestId="owner-report-history-scroll"
     >
-      <ClinicalHistoryMatrix matrix={matrix} rowStates={historyRowStates(data)} />
+      <ClinicalHistoryMatrix
+        matrix={matrix}
+        rowStates={historyRowStates(data)}
+        loadMore={historyLoadMoreByKind(data)}
+      />
       {truncated ? (
         <p className={`sticky left-0 px-2 py-1 text-2xs ${C.text50}`}>
           取得上限を超える履歴があります。件数は表示中の範囲です。

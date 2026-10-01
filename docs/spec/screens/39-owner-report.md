@@ -48,6 +48,8 @@ flowchart TB
 - 検査は依頼中・検査中を履歴から除外する。検査結果明細がAPIから返らない場合は「異常なし」と断定せず「結果明細なし」と表示する。
 - トリミングは status「完了」の施術だけを「ケア」として表示する。
 - 履歴系APIの取得上限は `HISTORY_FETCH_LIMIT`（100件）。上限超過を検知した場合は件数末尾に `+` を付け、打ち切り注記を表示する。
+- 上限超過の検知はバックエンド `total` と累積取得 raw 行数の比較で行い、クライアント側フィルタ（検査の下書き除外・トリミングの完了のみ抽出）後の可視件数では判定しない。
+- 追加読み込み: 「検査」「薬・処方」「処置」「ケア」の4行は、取得元（検査 API・治療履歴 API・トリミング API の3系統）に残ページがある限り行見出しに「続きを読む」を表示する。押下でのみ次ページを取得して累積表示し、初回マウントで page>1 の自動取得は行わない。「薬・処方」と「処置」は同一治療履歴ソースを共有するため同じ制御を両行に出す。「診療」「予防接種」行は対象外。健診結果は「検査」行に合算表示されるが追加取得対象ではない。
 - 治療・予防接種の日付はJST壁日付へ正規化してから表示する。
 
 ### 1.4 レイアウト
@@ -99,7 +101,8 @@ flowchart TB
 - `OwnerReportPanel` / `SelectedPetContext` / `PetSwitcher`: 固定コンテキスト。
 - `OwnerClinicalBriefing`: データを一度ずつ取得し、6領域向けに派生する。
 - `ClinicalBriefingPanel`: 見出し付き境界内スクロール領域。
-- `ClinicalHistoryMatrix`: 縦=種類、横=日付の履歴表。
+- `ClinicalHistoryMatrix`: 縦=種類、横=日付の履歴表。残ページのある行は行見出しに「続きを読む」を出す。
+- `useGetPetExaminations` / `useGetPetTreatmentHistory` / `useGetPetTrimmingHistory`: `useInfiniteQuery` ベースの履歴3系統。ページは `fetchNextPage` で手動追加され、消費側には累積済み `{items, isTruncated}` を返す。
 
 ### API連携
 
@@ -109,11 +112,11 @@ flowchart TB
 | GET | `/api/v1/owners/:id/report/pets` | Owner Report用に絞った同居ペット一覧 | `owners:view` |
 | GET | `/api/v1/pets/:id/first-visit` | 初診日 | `medical-records:view` |
 | GET | `/api/v1/medical-records?pet_id=&status=finalized&sort=date&order=desc` | 前回診療・診療履歴（最大100件） | `medical-records:view` |
-| GET | `/api/v1/pets/:id/treatment-history` | 薬・処方と処置（filter=all） | `medical-records:view` |
+| GET | `/api/v1/pets/:id/treatment-history?page=` | 薬・処方と処置（filter=all・手動追加読み込み） | `medical-records:view` |
 | GET | `/api/v1/vaccinations?pet_id=` | 予防予定・予防接種履歴 | `vaccinations:view` |
-| GET | `/api/v1/examinations?pet_id=` | 最新検査・検査履歴 | `examinations:view` |
+| GET | `/api/v1/examinations?pet_id=&page=` | 最新検査・検査履歴（手動追加読み込み） | `examinations:view` |
 | GET | `/api/v1/checkups/field-results?pet_id=` | 健診履歴 | `checkups:view` |
-| GET | `/api/v1/trimmings?pet_id=` | ケア履歴 | `trimming:view` |
+| GET | `/api/v1/trimmings?pet_id=&page=` | ケア履歴（手動追加読み込み） | `trimming:view` |
 | GET | `/api/v1/reservations?pet_id=&start_date=&end_date=` | 今日の来院・次回予約（今日から365日） | `reservations:view` |
 
 clinic隔離・論理削除除外は各バックエンドAPIが担保する。

@@ -33,6 +33,36 @@ function useClinicalPermissions() {
   };
 }
 
+/**
+ * EMR-242: 種類別履歴の手動追加読み込み制御。
+ * hasMore の判定は各 api hook（useInfiniteQuery）側で total > 累積 raw 行数により行う。
+ */
+export interface HistoryLoadMoreControl {
+  /** 残ページがある場合 true。 */
+  hasMore: boolean;
+  /** 次ページ取得中。 */
+  isLoadingMore: boolean;
+  /** ユーザー操作で次ページを読み込む。初回マウント時の自動取得は行わない。 */
+  onLoadMore: () => void;
+}
+
+/** テストで素のオブジェクトに差し替えられた query でも動くよう optional フィールドで受ける。 */
+interface LoadMoreQuerySource {
+  hasNextPage?: boolean;
+  isFetchingNextPage?: boolean;
+  fetchNextPage?: () => Promise<unknown>;
+}
+
+function loadMoreControl(query: LoadMoreQuerySource): HistoryLoadMoreControl {
+  return {
+    hasMore: query.hasNextPage === true,
+    isLoadingMore: query.isFetchingNextPage === true,
+    onLoadMore: () => {
+      void query.fetchNextPage?.();
+    },
+  };
+}
+
 function useClinicalQueries(
   petId: string,
   today: string,
@@ -78,7 +108,18 @@ export function useOwnerClinicalBriefingData(petId: string) {
   const today = todayJSTISO();
   const queries = useClinicalQueries(petId, today, permissions);
 
-  return { permissions, today, ...queries };
+  return {
+    permissions,
+    today,
+    ...queries,
+    // EMR-242: 追加読み込み対象は検査・治療履歴・トリミングの3系統のみ
+    // （診療行 medical-records と予防接種行は対象外）。
+    historyLoadMore: {
+      examinations: loadMoreControl(queries.examinationsQuery),
+      treatments: loadMoreControl(queries.treatmentsQuery),
+      trimming: loadMoreControl(queries.trimmingQuery),
+    },
+  };
 }
 
 export type OwnerClinicalBriefingData = ReturnType<typeof useOwnerClinicalBriefingData>;
