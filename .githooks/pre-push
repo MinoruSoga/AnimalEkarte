@@ -1,5 +1,6 @@
 #!/bin/sh
-# Scoped verify for outgoing HEAD vs remote base (lint/test lives here, not pre-commit).
+# Scoped verify for outgoing HEAD vs remote base is OPT-IN (PREPUSH_VERIFY=1);
+# PR CI runs the same checks, so the default skips it to keep pushes fast.
 # Offline image settings are explicit user-local AGENT_VERIFY_{BACKEND,FRONTEND}_IMAGE
 # and optional *_DEPENDENCY_VOLUME environment variables; no implicit provisioning.
 set -eu
@@ -11,6 +12,7 @@ trap 'rm -f "$REFS_FILE"' EXIT HUP INT TERM
 cat > "$REFS_FILE"
 # Dirty worktrees are allowed: verification runs against HEAD commits only.
 HEAD_SHA=$(git rev-parse HEAD)
+if [ "${PREPUSH_VERIFY:-0}" = "1" ]; then
 while read -r local_ref local_sha remote_ref remote_sha; do
   case "$local_sha" in
     0000000000000000000000000000000000000000) continue ;;
@@ -30,7 +32,10 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   esac
   python3 -B "$ROOT/scripts/verify-agent-task.py" --base "$base"
 done < "$REFS_FILE"
+printf '%s\n' 'Pre-push: selected outgoing checks finished; see evidence above.'
+else
+  echo 'Pre-push: scoped verification skipped (default off; PREPUSH_VERIFY=1 to enable).' >&2
+fi
 if command -v git-lfs >/dev/null 2>&1; then
   git lfs pre-push "$@" < "$REFS_FILE"
 fi
-printf '%s\n' 'Pre-push: selected outgoing checks finished; see evidence above.'
