@@ -205,6 +205,13 @@ awk '
   sec = $0; sub(/^#+ /, "", sec)
   m = split(sec, a, /[ \t]/)
   formid = a[1]
+  # "### V04 §3 master-medicine — ..." style headers carry the real formId as a
+  # later ASCII token; the leading "V04" is only the V-series prefix.
+  if (formid !~ /^[a-z][a-z0-9.-]*$/) {
+    for (t = 2; t <= m; t++) {
+      if (a[t] ~ /^[a-z][a-z0-9-]+$/) { formid = a[t]; break }
+    }
+  }
   exact = 0; syst = 0; nonx = 0
   keyidx = 0; roidx = 0; fidx = 0; fidcol = 0; intable = 0
   next
