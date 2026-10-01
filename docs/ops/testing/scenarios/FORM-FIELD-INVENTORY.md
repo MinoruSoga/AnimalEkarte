@@ -633,17 +633,25 @@ L-step/LINE settings は V05 が唯一の owner。V04 では実行・集計し�
 | is_active | O | boolean | **create は dead key（BE struct 非保持）**・PATCH 有効。`system_key` 保持行の OFF は 409 | F4 F6 |
 | （system_key） | S | — | **wire 非送信**（FE/BE request ともに存在しない）。DB immutable 識別子・GET 応答のみ | F6 |
 
-### V04 §2 診療項目マスタ 5 タブ — `/settings/treatment-items?tab=…`
+### treatment-items-master — 診療項目マスタ 5 タブ — `/settings/treatment-items?tab=…` — [V04 §2](V04-settings-master-forms.md)
 
-5 タブ共通: `name`(R・FE 必須)・`price`(O・`<0` 拒否)・`description`(O・`||undefined`→クリア不可)・`is_active`(O)・`parent_id`(O・truthy 時のみ送信・子持ち時非表示)・`clear_parent_id`(O・PATCH のみ・parentId=""→`true`)。**タブ別 wire 差異**: `tax_type`/`tax_rate` は consultation・procedure のみ送信、`is_non_insurance` は examination のみ、`anesthesia`（`none|local|sedation|general`・BE create required）は procedure のみ。vaccine・checkup は上記 4+parent のみ。**パネルに表示されるが非送信の UI-only 項目を永続 field に数えない**。検査タブは API resource が `checkup-types` でなく `examination-types`。
+5 タブ共通の SidePanel。**パネルに表示されるが非送信の UI-only 項目は永続 field に数えない**。検査タブの API resource は `checkup-types` でなく `examination-types`。
 
-| タブ | endpoint | 追加 wire key |
-| :-- | :-- | :-- |
-| consultation | `/v1/masters/consultations` | tax_type(`omitempty,oneof`)・tax_rate(`min=0,max=1`) |
-| examination | `/v1/masters/examination-types` | is_non_insurance(bool)。**+ 検査項目サブリソース**: `POST/PATCH …/fields[/:fid] {name(R),inspection_value,normal_value,unit}`・`PUT …/fields/:fid/reference-ranges {ranges:[{animal_species_id(R),ref_min,ref_max,qualitative_min,qualitative_max}]}`（重複種別拒否・numeric XOR qualitative・min≤max）・reorder `PATCH …/fields/reorder {ids[]}` |
-| procedure | `/v1/masters/procedures` | tax_type(create `required,oneof`)・tax_rate・anesthesia(create `required,oneof none|local|sedation|general`・既定 `none`) |
-| vaccine | `/v1/masters/vaccines` | なし（共通のみ） |
-| checkup | `/v1/masters/checkup-types` | なし（共通のみ） |
+| fieldKey | ラベル概要 | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| name | 項目名 | R | string | FE 必須 | F0 F1 F4 |
+| price | 単価 | O | money | `<0` 拒否 | F3 F4 |
+| description | 説明 | O | text | `||undefined`→クリア不可 | F4 |
+| is_active | 有効 | O | boolean | | F4 |
+| parent_id | 親項目 | O | uint64 | truthy 時のみ送信・子持ち時非表示 | F0 F4 |
+| clear_parent_id | 親解除 | O | boolean | PATCH のみ・parentId=""→`true` | F5 |
+| tax_type | 税区分 | C | enum | consultation・procedure のみ送信。`omitempty,oneof` | F0 F4 |
+| tax_rate | 税率 | C | float | 同上。`min=0,max=1` | F3 F4 |
+| is_non_insurance | 保険外 | C | boolean | examination のみ送信 | F4 |
+| anesthesia | 麻酔区分 | C | enum `none|local|sedation|general` | procedure のみ。create `required`・既定 `none` | F1 F4 |
+
+タブ別 endpoint: consultation=`/v1/masters/consultations`・examination=`/v1/masters/examination-types`・procedure=`/v1/masters/procedures`・vaccine=`/v1/masters/vaccines`・checkup=`/v1/masters/checkup-types`（vaccine・checkup は共通 6 項目のみ送信）。
+検査項目サブリソース（examination・**動的行のため exact key 非計上** — 実行時に定義 id を run report inventory へ列挙）: `POST/PATCH …/fields[/:fid] {name(R),inspection_value,normal_value,unit}`・`PUT …/fields/:fid/reference-ranges {ranges:[{animal_species_id(R),ref_min,ref_max,qualitative_min,qualitative_max}]}`（重複種別拒否・numeric XOR qualitative・min≤max）・reorder `PATCH …/fields/reorder {ids[]}`。
 
 ### V04 §3 master-medicine — `/settings/medicine`
 
@@ -699,13 +707,37 @@ L-step/LINE settings は V05 が唯一の owner。V04 では実行・集計し�
 | specific_date | C | date | specific のみ。**FE 検証なし** → 空は BE 400 | C F2 |
 | （重複） | — | — | type+day/date+start_time 重複は BE 409 | — |
 
-### V04 §6 締め時間設定 — `/settings/closing-time`（3 フォーム）
+### closing-standard-time — `/settings/closing-time` — [V04 §6](V04-settings-master-forms.md)
 
-closing-standard-time `PATCH /v1/closing-settings`: `closing_am_pm_boundary`(R・HH:MM・**両終了時刻より前必須**)、`closing_weekday_end`(R)、`closing_sunday_end`(R)、`closed_weekdays`(O・int64[]・0–6 重複なし)。全項目 F1/F2（time 形式）・F4。
+PATCH `/v1/closing-settings`。
 
-closing-holiday `POST /v1/closing-settings/holidays` / `DELETE …/:date`: `date`(R・YYYY-MM-DD)、`reason`(O・`""`→undefined・BE max=500)。同日再 POST は 409（insert-only）。F1/F2/F3/F4。
+| fieldKey | ラベル概要 | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| closing_am_pm_boundary | AM/PM 境界 | R | time HH:MM | 両終了時刻より前必須 | F0 F1 F2 F4 |
+| closing_weekday_end | 平日終了 | R | time HH:MM | | F1 F2 F4 |
+| closing_sunday_end | 日曜終了 | R | time HH:MM | | F1 F2 F4 |
+| closed_weekdays | 定休日 | O | int[] 0–6 | 重複なし | F4 F5 |
 
-closing-special-period `POST /v1/closing-settings/special-periods` / `DELETE …/:id`: `note`(O・max=1000)、`start_date`(R)、`end_date`(R・start>end 拒否)、`am_pm_boundary`(R・pm_end より前)、`pm_end`(R)。MasterSidePanel は `<form noValidate>` — required 属性はブラウザ非強制で **BE `binding:"required"` が唯一のゲート**。期間重複は 409。F1(BE)/F2/F3/F4。
+### closing-holiday — `/settings/closing-time` — [V04 §6](V04-settings-master-forms.md)
+
+POST `/v1/closing-settings/holidays` / `DELETE …/:date`（insert-only・同日再 POST は 409）。
+
+| fieldKey | ラベル概要 | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| date | 休診日 | R | date YYYY-MM-DD | 同日再 POST 409 | F1 F2 F4 F6 |
+| reason | 理由 | O | text | `""`→undefined・BE max=500 | F3 F4 |
+
+### closing-special-period — `/settings/closing-time` — [V04 §6](V04-settings-master-forms.md)
+
+POST `/v1/closing-settings/special-periods` / `DELETE …/:id`。MasterSidePanel は `<form noValidate>` — required 属性はブラウザ非強制で **BE `binding:"required"` が唯一のゲート**。期間重複は 409。
+
+| fieldKey | ラベル概要 | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| note | 名称 | O | text | max=1000 | F3 F4 |
+| start_date | 開始日 | R | date | | F1 F2 F4 |
+| end_date | 終了日 | R | date | start>end 拒否 | F1 F2 F4 |
+| am_pm_boundary | AM/PM 境界 | R | time HH:MM | pm_end より前 | F1 F2 F4 |
+| pm_end | PM 終了 | R | time HH:MM | | F1 F2 F4 |
 
 ### V04 §7 master-shift-template — `/settings/shift-templates`
 
@@ -947,6 +979,21 @@ api.yaml の write endpoint のうち FE 実装が無いもの。実装 PR で�
 | `/v1/checkup-package-imports`（preview 含む） | FE 送出なし | 取込 UI 実装時に V01 へ収録 |
 | `/v1/masters/staffs/{id}/excluded-reservation-types` | FE 送出なし | UI 実装時に V03 §9 へ収録 |
 | `/v1/owners/{id}/lstep-opt-out` | FE 送出なし（`/owners/{id}/lstep/opt-out` と競合疑い） | 実装/削除判断時に整理 |
+
+---
+
+## write endpoint 突合の残余（2026-10-01 トリアージ）
+
+`backend/docs/api.yaml` 全 238 write endpoint × 本表突合のうち、11 グループ収録後も語幹照合に掛からない 26 endpoint の分類。**未収録ギャップはゼロ** — いずれも下記のとおり非対象または収録済みフォームの操作。
+
+| 分類 | 件数 | endpoint | 非収録の根拠 |
+|:--|---:|:--|:--|
+| 収録済みフォームの行操作・別名一致 | 16 | hospitalizations/{id}/care-plan-items(/itemId)・daily-records・hospitalizations+medical-records の treatment-plans(/planId)・treatments/{treatmentId}・vitals/{vitalId}・addenda・chief-complaint-types（master-chief-complaint と別名一致）・lab-device-item-masters/ensure・lab-imports/{job}/detach・revert・reservations/{id}/reservation-route（本表 S 行）・billing-confirmation/return | 親フォームは本表収録済み。param は行識別子で独立フォームなし |
+| LINE 連携操作 | 1 | clinics/{cid}/line-customers/{customerId}/link-owner | 入力フォームなしの操作。S12・V05 §19 の lane |
+| 認証トークン操作 | 3 | auth/refresh・auth/refresh/logout・logout | 入力フォームなし。E2E auth-flows の対象 |
+| 機器レーン | 3 | lab-device/frames・station・lab-devices/{id}/configuration | [LAB_DEVICE_CLIENT_UAT.md](LAB_DEVICE_CLIENT_UAT.md) の対象レーン |
+| テスト用ツール | 1 | uat/synthetic-closings | 製品フォームでない |
+| UI 未実装 API の行操作 | 2 | prescriptions/{prescriptionId}・chronic-conditions/{cc_id} | 「未実装 API」節で追跡中の親 endpoint |
 
 ---
 

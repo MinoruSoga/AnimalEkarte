@@ -343,6 +343,28 @@ fi
 # and is intentionally NOT parsed here (results are never written to scenario files).
 info "scope: S-series execution status is in reports/uat-*/ run reports and UAT-DOMAIN-STATUS.md — not mechanically diffed here"
 
+# ---------------------------------------------------------------------------
+# Layer 3: screen doc traceability (docs/spec/screens <-> scenarios/ or e2e/)
+# ---------------------------------------------------------------------------
+echo "=== Layer 3: screen doc traceability ==="
+
+E2E_DIR="$ROOT/frontend/e2e"
+screens_total=0
+screens_uncovered=0
+for f in "$ROOT"/docs/spec/screens/*.md; do
+  [ -e "$f" ] || continue
+  base=$(basename "$f" .md)
+  [ "$base" = "CLAUDE" ] && continue  # directory instructions, not a screen
+  screens_total=$((screens_total + 1))
+  if ! grep -rqF "$base" "$SCEN" "$E2E_DIR" 2>/dev/null; then
+    bad "screen spec doc not referenced by scenarios/ or frontend/e2e/: $base"
+    screens_uncovered=$((screens_uncovered + 1))
+  fi
+done
+if [ "$screens_uncovered" -eq 0 ]; then
+  pass "screen doc traceability: $screens_total screens referenced by scenarios/ or e2e/"
+fi
+
 echo "=== summary: PASS=$ok FAIL=$fail WARN=$warn ==="
 if [ "${DEBUG:-0}" = "1" ]; then
   info "DEBUG inv.tsv dump (SUMMARY/KEY/REQ/NA rows):"
