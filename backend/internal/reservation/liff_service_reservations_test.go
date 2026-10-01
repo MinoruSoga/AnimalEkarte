@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -572,4 +573,53 @@ func TestLiffService_tryAttachReservationOwnerPet(t *testing.T) {
 			assert.Equal(t, uint64(300), *appt.PetID)
 		}
 	})
+
+	// EMR-235: livingPets が生存として選んだ候補でも、DB 再確認が死亡/確認不能を
+	// 返した場合は pet_id のみスキップし owner_id 付与と予約成功は維持される。
+	deceasedAt := time.Now().Add(-24 * time.Hour)
+	for _, tc := range []struct {
+		name string
+		pet  *model.Pet
+		err  error
+	}{
+		{name: "DB再確認: Status=deceased -> pet_id スキップ", pet: &model.Pet{ID: 300, Status: model.PetStatusDeceased}},
+		{name: "DB再確認: Status=deceased + DeceasedAt -> pet_id スキップ", pet: &model.Pet{ID: 300, Status: model.PetStatusDeceased, DeceasedAt: &deceasedAt}},
+		{name: "DB再確認: DeceasedAt のみ非NULL -> pet_id スキップ", pet: &model.Pet{ID: 300, Status: model.PetStatusAlive, DeceasedAt: &deceasedAt}},
+		{name: "DB再確認: FindPetByIDInClinic エラー -> pet_id スキップ", err: errors.New("db error")},
+		{name: "DB再確認: FindPetByIDInClinic NotFound -> pet_id スキップ", err: apperrors.ErrNotFound},
+		{name: "DB再確認: FindPetByIDInClinic nil pet -> pet_id スキップ"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var capturedFields map[string]any
+			updateCalls := 0
+			svc := &liffService{
+				reservationRepo: &mockLiffReservationRepository{
+					findPetByIDInClinicFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+						return tc.pet, tc.err
+					},
+					updateFieldsFn: func(_ context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
+						updateCalls++
+						capturedFields = fields
+						return &model.Reservation{ID: id, ClinicID: clinicID, OwnerID: ptrUint64(200)}, nil
+					},
+				},
+				customerRepo: &mockLiffCustomerRepository{
+					findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
+						return &model.LineCustomer{
+							ID: 1, OwnerID: ptrUint64(200),
+							// preload スナップショット上は生存に見える（DeceasedAt=nil）が
+							// DB 再確認が死亡/確認不能を返すケースを再現する。
+							Owner: &model.Owner{ID: 200, Pets: []model.Pet{{ID: 300, Name: "ポチ"}}},
+						}, nil
+					},
+				},
+			}
+			appt := &model.Reservation{ID: 77}
+			svc.tryAttachReservationOwnerPet(context.Background(), 3, 1, appt, nil)
+			assert.Equal(t, 1, updateCalls, "update は1回だけ呼ばれること")
+			_, hasPetID := capturedFields["pet_id"]
+			assert.False(t, hasPetID, "pet_id は書き込まれないこと")
+			assert.Equal(t, uint64(200), capturedFields["owner_id"], "owner_id は付与されること")
+		})
+	}
 }

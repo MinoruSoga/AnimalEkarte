@@ -402,6 +402,7 @@ func (m *mockLiffOwnerRepository) FindByIDs(_ context.Context, _ uint64, _ []uin
 type mockLiffReservationRepository struct {
 	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
 	countByTypeAndStartTimeFn func(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
+	findPetByIDInClinicFn     func(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
 }
 
 func (m *mockLiffReservationRepository) FindAll(_ context.Context, _ []uint64, _, _ int, _, _, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
@@ -494,7 +495,10 @@ func (m *mockLiffReservationRepository) FindPetOwnerInClinic(_ context.Context, 
 	return 0, nil
 }
 
-func (m *mockLiffReservationRepository) FindPetByIDInClinic(_ context.Context, _, petID uint64) (*model.Pet, error) {
+func (m *mockLiffReservationRepository) FindPetByIDInClinic(ctx context.Context, clinicID, petID uint64) (*model.Pet, error) {
+	if m.findPetByIDInClinicFn != nil {
+		return m.findPetByIDInClinicFn(ctx, clinicID, petID)
+	}
 	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
 }
 
