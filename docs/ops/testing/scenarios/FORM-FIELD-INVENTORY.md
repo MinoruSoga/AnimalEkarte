@@ -732,7 +732,7 @@ V04 が唯一の owner。V05 では数えない。
 | lstep-tag-config             | 3 追加フォーム: prefix+category / condition_code+tag_name / purpose+tag_prefix — 下表参照 | V05-15                          |
 | lstep-csv-import             | file（multipart・パート名 `file`・.csv・BE 上限 ~51MB）                         | V05-16・F0 F1 F3 F4                                   |
 | lstep-bulk-tag-remove        | （body なし・tagName/ownerId は URL パス・逐次 DELETE）                         | V05-17・F0 F6                                         |
-| lstep-checkup-sync-create    | checkup_type, owner_ids[](1–100), tag_name + preview query 12 key — 下表参照    | V05-18                                                |
+| lstep-checkup-sync-create    | checkup_type, owner_ids[]（1–100）, tag_name + preview query 12 key — 下表参照    | V05-18                                                |
 
 ### line-reserve-create — line-reserve アプリ（`frontend/line-reserve/`・独立 SPA）— V05-6
 
