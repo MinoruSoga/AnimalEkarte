@@ -175,17 +175,17 @@ test("backend deploy keeps the STG path and adds a Production-gated path", () =>
   );
 });
 
-test("frontend deploy bakes VERCEL_ENV into the prebuilt Vite bundle", () => {
+test("frontend deploy builds the Vite bundle and deploys via wrangler", () => {
   const workflow = read(".github/workflows/frontend-deploy.yml");
-  assert.match(
-    workflow,
-    /VERCEL_ENV="\$ENV" VITE_VERCEL_ENV="\$ENV" pnpm --dir frontend build/,
-  );
-  assert.match(workflow, /if \[ "\$ENV" = "preview" \]/);
-  assert.match(
-    workflow,
-    /vercel alias set "\$DEPLOY_URL" stg\.noah-karte\.com/,
-  );
+  // EMR-255: Vercel CLI 経路を撤去し、APP_ENV 固定の vite build +
+  // wrangler deploy(frontend/wrangler{,.production}.jsonc)へ移行した。
+  assert.match(workflow, /APP_ENV="\$ENV" pnpm --dir frontend build/);
+  assert.match(workflow, /npx wrangler deploy -c "\$CONFIG"/);
+  assert.match(workflow, /CONFIG="wrangler\.production\.jsonc"/);
+  assert.match(workflow, /if \[ "\$ENV" = "production" \]/);
+  assert.match(workflow, /secrets\.CLOUDFLARE_API_TOKEN/);
+  assert.match(workflow, /secrets\.PROD_CLOUDFLARE_API_TOKEN/);
+  assert.doesNotMatch(workflow, /vercel (deploy|alias|pull)/);
 });
 
 test("CI plans domain/feature test scope with dynamic matrices", () => {

@@ -527,9 +527,9 @@ restart-api:
 restart-front:
 	$(DC) restart frontend
 
-# 本番ビルド（backend のみ。FE の本番配信は Vercel(frontend-deploy.yml)が担い、
-# frontend/Dockerfile は「本番」と称する dev サーバイメージという矛盾があったため
-# IR-12 A案で削除済み。dev 環境のイメージビルドは frontend/Dockerfile.dev のまま）
+# 本番ビルド（backend のみ。FE の本番配信は Cloudflare Workers(frontend-deploy.yml,
+# EMR-255)が担い、frontend/Dockerfile は「本番」と称する dev サーバイメージという
+# 矛盾があったため IR-12 A案で削除済み。dev 環境のイメージビルドは frontend/Dockerfile.dev のまま）
 build-prod:
 	docker build -f backend/Dockerfile.production -t animal-ekarte-api:latest ./backend
 

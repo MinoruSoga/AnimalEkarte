@@ -1,0 +1,52 @@
+// EMR-255: PROD frontend 用 Wrangler 設定(ドラフト。#253 本番整備時に有効化)。
+// backend/wrangler.production.jsonc と同じ方針: production は最初から独自ドメイン
+// route を使い、workers_dev は公開しない(STG 運用原則を踏襲)。
+//
+// - routes … apex と www を frontend Worker で受ける。有効化には DNS 側の対応が必要:
+//   www.noah-karte.com … infra/cloudflare/production/zone.tf の frontend_www(proxied)。
+//   noah-karte.com(apex) … infra/cloudflare/zone.tf の apex_flatten(CNAME→Vercel)を
+//     A プレースホルダ(proxied)へ置き換える。同名レコードのため同一ゾーン内で両立不可。
+//     いずれも apply 時点で実トラフィックが切り替わるため、PROD frontend Worker の
+//     deploy・検証完了後に限る。
+// - services.API … animalekarte-prod-api(#253 で deploy される backend Worker)。
+//
+// デプロイは `wrangler deploy -c frontend/wrangler.production.jsonc`
+// (-c 必須。省略すると wrangler.jsonc = STG が使われる)。
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "animalekarte-prod-frontend",
+  "main": "./worker/index.ts",
+  // STG(wrangler.jsonc)と同一日付で開始する。以後 STG 側を更新した際は本ファイルも
+  // 追随させること(2ファイルに分割されている構造上、自動同期はできない)。
+  "compatibility_date": "2026-07-05",
+
+  "workers_dev": false,
+
+  "routes": [
+    {
+      "pattern": "noah-karte.com/*",
+      "zone_name": "noah-karte.com",
+    },
+    {
+      "pattern": "www.noah-karte.com/*",
+      "zone_name": "noah-karte.com",
+    },
+  ],
+
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "none",
+  },
+
+  "services": [
+    {
+      "binding": "API",
+      "service": "animalekarte-prod-api",
+    },
+  ],
+
+  "observability": {
+    "enabled": true,
+  },
+}

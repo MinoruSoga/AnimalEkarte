@@ -1,4 +1,4 @@
-name: Frontend Deploy (Vercel)
+name: Frontend Deploy (Cloudflare Workers)
 
 on:
   push:
@@ -7,6 +7,8 @@ on:
       - production
     paths:
       - 'frontend/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
       - '.github/workflows/frontend-deploy.yml'
   workflow_dispatch:
     inputs:
@@ -28,7 +30,7 @@ env:
 
 jobs:
   deploy:
-    name: Deploy to Vercel
+    name: Deploy to Cloudflare Workers
     runs-on: ubuntu-latest
     # Production GitHub Environment is restricted to refs/heads/production.
     # Preview is used for staging pushes and non-production workflow_dispatch.
@@ -57,73 +59,81 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            frontend/pnpm-lock.yaml
 
       - name: Install dependencies
-        working-directory: frontend
-        run: pnpm install --frozen-lockfile
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --dir frontend install --frozen-lockfile
 
-      - name: Pull, build, prebuilt deploy
+      - name: Build, deploy, and smoke-check
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          PROD_CLOUDFLARE_API_TOKEN: ${{ secrets.PROD_CLOUDFLARE_API_TOKEN }}
         run: |
           set -euo pipefail
-          ENV=preview
+          ENV=stg
+          WORKER_URL="https://animalekarte-stg-frontend.baritech-soga.workers.dev"
+          CONFIG="wrangler.jsonc"
           if [ "${GITHUB_EVENT_NAME}" = "push" ] && [ "${GITHUB_REF}" = "refs/heads/production" ]; then
             ENV=production
+            WORKER_URL="https://noah-karte.com"
+            CONFIG="wrangler.production.jsonc"
           elif [ "${{ github.event.inputs.environment }}" = "production" ]; then
             if [ "${GITHUB_REF}" != "refs/heads/production" ]; then
               echo "::error::Production frontend deploy is only allowed from refs/heads/production."
               exit 1
             fi
             ENV=production
+            WORKER_URL="https://noah-karte.com"
+            CONFIG="wrangler.production.jsonc"
           fi
 
-          pnpm --dir frontend exec vercel pull --yes --environment="$ENV" --token="$VERCEL_TOKEN"
-          mkdir -p .vercel
-          cp -a frontend/.vercel/project.json .vercel/project.json
-
-          # --prebuilt は cwd 直下の .vercel/output を見る。
-          # Dashboard の rootDirectory=frontend は prebuilt 時に frontend/frontend を誘発するため外す。
-          node <<'NODE'
-          const fs = require('fs');
-          const path = '.vercel/project.json';
-          const j = JSON.parse(fs.readFileSync(path, 'utf8'));
-          j.projectSettings = j.projectSettings || {};
-          delete j.projectSettings.rootDirectory;
-          j.projectSettings.outputDirectory = 'dist';
-          fs.writeFileSync(path, JSON.stringify(j, null, 2));
-          console.log('projectSettings', JSON.stringify(j.projectSettings));
-          NODE
-
-          # Vite はコマンドラインの VERCEL_ENV を読む。デモパスワードは LoginForm の固定値。
-          VERCEL_ENV="$ENV" VITE_VERCEL_ENV="$ENV" pnpm --dir frontend build
-          test -f frontend/dist/index.html
-
-          rm -rf .vercel/output
-          mkdir -p .vercel/output/static
-          cp -a frontend/dist/. .vercel/output/static/
-          cat > .vercel/output/config.json <<'EOF'
-          {
-            "version": 3,
-            "routes": [
-              { "handle": "filesystem" },
-              { "src": "/line-reserve/(.*)", "dest": "/line-reserve/index.html" },
-              { "src": "/(.*)", "dest": "/index.html" }
-            ]
-          }
-          EOF
-          test -f .vercel/output/static/index.html
-          test -f .vercel/output/config.json
-
-          EXTRA=()
+          # backend-deploy.yml と同じトークン棲み分け: production は Production
+          # environment の PROD_* secret、それ以外はリポジトリの CLOUDFLARE_API_TOKEN。
+          TOKEN="$CLOUDFLARE_API_TOKEN"
           if [ "$ENV" = "production" ]; then
-            EXTRA+=(--prod)
+            TOKEN="$PROD_CLOUDFLARE_API_TOKEN"
           fi
-          DEPLOY_URL=$(./frontend/node_modules/.bin/vercel deploy --prebuilt --yes "${EXTRA[@]}" --token="$VERCEL_TOKEN" | tail -n1)
-          echo "deployed ${DEPLOY_URL}"
-          if [ "$ENV" = "preview" ]; then
-            ./frontend/node_modules/.bin/vercel alias set "$DEPLOY_URL" stg.noah-karte.com --token="$VERCEL_TOKEN"
+          if [ -z "${TOKEN}" ]; then
+            echo "::error::Cloudflare API token for $ENV is not configured (docs/ops/infra/architecture.md)"
+            exit 1
           fi
+          export CLOUDFLARE_API_TOKEN="$TOKEN"
+
+          # APP_ENV は vite.config.ts の環境分岐の正本(__VERCEL_ENV__ へ写像)。
+          # VITE_API_URL は注入しない — /api/* は Worker が service binding で
+          # 同一オリジン中継する(frontend/worker/index.ts)。
+          APP_ENV="$ENV" pnpm --dir frontend build
+          test -f frontend/dist/index.html
+          test -f frontend/dist/line-reserve/index.html
+          test -f frontend/dist/liff/index.html
+          test -f frontend/dist/_headers
+
+          # pnpm exec は workspace root を CWD にするため、wrangler.jsonc を拾うには
+          # frontend を working-directory にした npx が必要(backend-deploy.yml 同様)。
+          cd frontend
+          npx wrangler deploy -c "$CONFIG"
+          cd ..
+
+          # workers_dev(STG) / 独自ドメイン(PROD)上での配信確認。
+          # DNS 切替(infra/cloudflare/zone.tf apply)前でも STG は workers.dev で検証できる。
+          # server: cloudflare も併せて確認する — CSP ヘッダは旧 Vercel 配信も返すため、
+          # PROD で DNS 未切替のままだと smoke が Vercel に対して誤って PASS する。
+          for attempt in 1 2 3 4 5; do
+            HEADERS="$(curl -fsSI "$WORKER_URL/" || true)"
+            if echo "$HEADERS" | grep -qi "content-security-policy" && echo "$HEADERS" | grep -qi "^server: cloudflare"; then
+              echo "smoke: CSP header + server=cloudflare at $WORKER_URL (attempt $attempt)"
+              break
+            fi
+            echo "smoke attempt $attempt failed; retrying in 10s"
+            sleep 10
+            if [ "$attempt" = "5" ]; then
+              echo "::error::frontend smoke check failed at $WORKER_URL"
+              exit 1
+            fi
+          done
+          curl -fsS -o /dev/null -w "spa-fallback: %{http_code}\n" "$WORKER_URL/owners"
+          curl -fsS -o /dev/null -w "line-reserve: %{http_code}\n" "$WORKER_URL/line-reserve/smoke-clinic/"

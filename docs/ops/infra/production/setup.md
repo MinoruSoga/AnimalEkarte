@@ -14,7 +14,7 @@ A human owner must record dated evidence for all items before deployment:
 - production database, role, backup/restore owner, R2, DNS, and certificate are verified;
 - a GitHub Environment with required reviewers exists and its exact case-sensitive name matches the workflows (`frontend-deploy.yml` and `backend-deploy.yml` job `deploy-production` both bind `Production`);
 - production secrets are environment-scoped and staging values are not reused unless explicitly approved;
-- frontend production settings are verified. `frontend-deploy.yml` binds `Production` and rejects production dispatch from non-production refs. `VERCEL_ENV=production` makes `frontend/vite.config.ts` select the production API; `.env.production` remains STG-valued outside that override. Verify the deployed target and the external Environment reviewers;
+- frontend production settings are verified. `frontend-deploy.yml` binds `Production` and rejects production dispatch from non-production refs. `APP_ENV=production` selects `frontend/wrangler.production.jsonc` (`animalekarte-prod-frontend`, EMR-255); `/api/*` is proxied same-origin via service binding so no absolute API URL is baked into the bundle. Verify the deployed target and the external Environment reviewers;
 - workflow/config tests and `actionlint` are green on the reviewed change;
 - current Plane delivery state and go-live date are confirmed externally.
 

@@ -13,16 +13,23 @@ flowchart LR
 
 ```text
 STG user
-  -> Vercel SPA (checked-in frontend/vercel.json rewrite is STG-specific)
-  -> /api rewrite -> api.stg.noah-karte.com
-  -> Cloudflare Worker -> Durable Object -> Container (Go/Gin)
+  -> Cloudflare Worker animalekarte-stg-frontend (Static Assets = Vite dist)
+  -> /api/* -> service binding -> animalekarte-stg-api Worker
+  -> Durable Object -> Container (Go/Gin)
   -> direct PlanetScale Postgres connection (`sslmode=verify-full`, `DB_SSL_ROOT_CERT=system`)
   -> R2 for clinical images
 
 PROD
-  -> planned api.noah-karte.com topology
+  -> planned: animalekarte-prod-frontend (apex + www) / api.noah-karte.com topology
   -> production Wrangler/Terraform files remain drafts until external verification
 ```
+
+EMR-255 で frontend 配信を Vercel から Cloudflare Workers Static Assets へ移行。
+`frontend/vercel.json` の rewrite/header 規則は `frontend/worker/index.ts` と
+`frontend/public/_headers` が引き継ぐ。`/api/*` は同一オリジンの service binding
+経路になり、`api.stg.noah-karte.com` への外部 rewrite は不要になった
+(同ホスト名の backend Worker route は引き続き稼働)。`frontend/vercel.json` は
+移行期のロールバック経路として残置し、CF 側の安定稼働確認後に削除する。
 
 Hyperdrive は Containers から利用できず、credential を Terraform state に載せるため再導入しない。
 
@@ -31,6 +38,8 @@ Hyperdrive は Containers から利用できず、credential を Terraform state
 | | STG config | PROD config |
 |---|---|---|
 | Worker | `animalekarte-stg-api` | `animalekarte-prod-api` |
+| Frontend Worker | `animalekarte-stg-frontend` | `animalekarte-prod-frontend` planned |
+| Frontend route | `stg.noah-karte.com/*` | `noah-karte.com/*` + `www.noah-karte.com/*` planned |
 | API route | `api.stg.noah-karte.com/*` | `api.noah-karte.com/*` planned |
 | R2 | `animalekarte-stg-images` | `animalekarte-prod-images` planned |
 | Container | `basic`, max 3, `sleepAfter = "1h"` | production draft |

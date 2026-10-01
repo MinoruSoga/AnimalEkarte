@@ -47,6 +47,25 @@ resource "cloudflare_dns_record" "api_prod_backend" {
   comment = "production Backend API(#253)。Workers Route宛のプレースホルダレコード。実トラフィックはWorkerが横取りするためcontentは未使用"
 }
 
+# EMR-255: PROD frontend(animalekarte-prod-frontend Worker)用 DNS レコード。
+# frontend/wrangler.production.jsonc の route "www.noah-karte.com/*" が機能するには
+# proxied=true のレコードが必要(wildcard CNAME→Vercel では route は発火しない)。
+# content は Worker が横取りするため TEST-NET-1 プレースホルダ(api_prod_backend 同規則)。
+resource "cloudflare_dns_record" "frontend_www" {
+  zone_id = data.cloudflare_zone.noah_karte.id
+  name    = "www.${var.zone_name}"
+  type    = "A"
+  content = "192.0.2.1"
+  ttl     = 1
+  proxied = true
+  comment = "EMR-255: PROD frontend www=animalekarte-prod-frontend Worker(Workers Route宛プレースホルダ)"
+}
+
+# apex(noah-karte.com)は infra/cloudflare/zone.tf(STG state)の apex_flatten が
+# CNAME→Vercel として管理中。同名レコードは同一ゾーンで両立できないため、PROD
+# frontend 切替時に apex_flatten を A プレースホルダ(proxied)へ置き換える。
+# 本ファイルには宣言しない(別 tfstate の管理領域を二重宣言すると apply が衝突する)。
+
 output "zone_id" {
   description = "noah-karte.com ゾーンのID(STGとの共有ゾーン。参照用)"
   value       = data.cloudflare_zone.noah_karte.id
