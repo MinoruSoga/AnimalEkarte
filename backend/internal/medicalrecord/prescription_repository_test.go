@@ -10,8 +10,7 @@ package medicalrecord
 //   - Update / Delete は対象なしで NotFound を返す。
 //   - Delete はソフトデリートであり、以後 FindByID / FindActiveByOwner から除外される。
 //
-// makeTestOwner は testdb.MakeTestOwner に直接委譲する。withTx は repository.Transactor.WithTx
-// を import cycle なしで再現する repohelpers 直結ヘルパー（BE8-4 方針）。
+// 共有テストヘルパー（makeTestOwner / withTx）は repository_test_helpers_test.go を参照。
 
 import (
 	"context"
@@ -24,23 +23,8 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
-
-func makeTestOwner(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Owner {
-	t.Helper()
-	return testdb.MakeTestOwner(t, db, clinicID, name)
-}
-
-// withTx mirrors repository.Transactor.WithTx (repohelpers-based ambient tx) without
-// importing the flat repository package, which would create an import cycle
-// (repository imports this subpackage via its facade).
-func withTx(ctx context.Context, db *gorm.DB, fn func(ctx context.Context) error) error {
-	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		return fn(persistence.WithTxValue(ctx, tx))
-	})
-}
 
 // setupPrescriptionTestDB は prescriptions と、FK 先の pets/animal_species を用意する。
 // owners / medical_records は setupTestDB がすでに用意する。
