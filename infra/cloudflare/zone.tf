@@ -81,14 +81,22 @@ resource "cloudflare_dns_record" "wildcard" {
   comment = "P1-1 棚卸し複製。Vercel 既定ワイルドカード ALIAS の代替(www 等をカバー)"
 }
 
+# EMR-255: STG フロントエンドを Vercel から animalekarte-stg-frontend Worker へ切替。
+# noah-karte.com ゾーンは既に Cloudflare authoritative(P1-2 実測済み)のため、
+# 本変更の apply = STG 実トラフィックの即時切替になる。
+# 【apply 前提】frontend-deploy.yml(CI)による animalekarte-stg-frontend の
+# deploy と workers.dev での検証完了後に限る。先に apply すると route 未登録の
+# まま proxied 化し、stg が到達不能になる。
+# content は Workers Route 経由でエッジが横取りするため未使用。TEST-NET-1
+# プレースホルダ(production/zone.tf の api_prod_backend と同規則)。
 resource "cloudflare_dns_record" "stg_frontend" {
   zone_id = cloudflare_zone.noah_karte.id
   name    = "stg.${var.zone_name}"
-  type    = "CNAME"
-  content = "cname.vercel-dns.com"
-  ttl     = 60
-  proxied = false
-  comment = "P1-1 棚卸し複製。STG フロントエンド(Vercel)"
+  type    = "A"
+  content = "192.0.2.1"
+  ttl     = 1 # proxied=true の場合 ttl は自動扱い
+  proxied = true
+  comment = "EMR-255: STG frontend=animalekarte-stg-frontend Worker(Workers Route宛プレースホルダ)。旧: CNAME→Vercel"
 }
 
 resource "cloudflare_dns_record" "api_stg_backend" {

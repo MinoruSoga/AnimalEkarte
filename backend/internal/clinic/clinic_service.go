@@ -104,8 +104,9 @@ func BuildClinicUpdate(input *UpdateClinicInput) (map[string]any, error) {
 //
 // 出所: backend/migrations/seeds/002_master/accounts/permission_group_rules.csv の
 // 執行=奇数ID / 一般=偶数ID / 閲覧専用=group 9 パターン。
-// model.AllResources (36) をすべてカバーする。既存デモ seed は明示 rollout 前の
-// examination-unconfirm を含めず、同権限は新規クリニックでも default-deny とする。
+// model.AllResources (37) をすべてカバーする。既存デモ seed は明示 rollout 前の
+// examination-unconfirm を含まない。同権限は新規クリニックでは執行のみ edit を
+// 初期付与し、一般は default-deny とする（EMR-234）。既存クリニック・seed 行は不変。
 //
 // 設定系フォールバック（accounting-reports /
 // master-payment-method / lstep-csv-import / lstep-analytics / manual-edit）:
@@ -135,8 +136,10 @@ var defaultPermissionRuleTable = []defaultPermissionRule{
 	{model.ResourceHospitalization, true, true, true, true, true, true, true, false},
 	{model.ResourceTrimming, true, true, true, true, true, true, true, false},
 	{model.ResourceExaminations, true, true, true, true, true, true, true, false},
-	// Unconfirm changes an immutable clinical workflow boundary. It is never granted by default.
-	{model.ResourceExaminationUnconfirm, false, false, false, false, false, false, false, false},
+	// Unconfirm changes an immutable clinical workflow boundary. New clinics grant
+	// edit to the executive group only (EMR-234); general stays fully denied, and
+	// existing clinics/seeded groups are unchanged (no retroactive rollout).
+	{model.ResourceExaminationUnconfirm, false, false, true, false, false, false, false, false},
 	{model.ResourceAccounting, true, true, true, true, true, false, false, false},
 	{model.ResourceVaccinations, true, true, true, true, true, true, true, false},
 	{model.ResourceCheckups, true, true, true, true, true, false, false, false},

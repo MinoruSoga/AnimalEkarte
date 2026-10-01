@@ -99,7 +99,7 @@ flowchart TB
 | **最小権限** | 会計取消・締め後修正・マスタ編集・権限変更は管理者系グループに限定する | 同上・#255 役割方針 |
 | **新規医院の既定グループ** | 医院開設時に「執行」「一般」がデフォルトルール付きで自動作成される | [master-permission-group.md](../spec/screens/settings/master-permission-group.md) |
 | **監査** | 業務上重要な変更は DB の `audit_logs` に操作者・時刻付きで記録（全テーブル自動監査ではない。経路ごとに明示実装） | [specification.md §2.1](../spec/specification.md) |
-| **ログイン保護** | 失敗のみカウントする二段レート制限（同一 IP 30 回 / 1 分 + 同一アカウント 5 回 / 1 分）。**アカウントロックはない**（Q&A No.25 / #256） | [OPERATION_MANUAL.md §1](OPERATION_MANUAL.md)／[21-login.md](../spec/screens/21-login.md) |
+| **ログイン保護** | 失敗のみカウントする二段レート制限（同一 IP 30 回 / 1 分 + 同一アカウント 10 回 / 1 分）。**アカウントロックはない**（Q&A No.25 / #256） | [OPERATION_MANUAL.md §1](OPERATION_MANUAL.md)／[21-login.md](../spec/screens/21-login.md) |
 
 ルート定義の正本は `frontend/src/config/paths.ts`（本節および §2 で引用する path と一致）。
 

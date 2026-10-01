@@ -514,6 +514,13 @@ func TestService_CreateClinic_DefaultPermissionGroupRules(t *testing.T) {
 				assert.False(t, hs.CanCreate, "設定系リソースは執行でも作成不可であること")
 				assert.False(t, hs.CanDelete, "設定系リソースは執行でも削除不可であること")
 			}
+			unconfirm := findRule(c.rules, model.ResourceExaminationUnconfirm)
+			if assert.NotNil(t, unconfirm, "執行に examination-unconfirm ルールが存在すること") {
+				assert.False(t, unconfirm.CanView)
+				assert.False(t, unconfirm.CanCreate)
+				assert.True(t, unconfirm.CanEdit, "執行は新規クリニックで examination-unconfirm:edit を持つこと (EMR-234)")
+				assert.False(t, unconfirm.CanDelete)
+			}
 		case "一般":
 			owners := findRule(c.rules, model.ResourceOwners)
 			if assert.NotNil(t, owners, "一般に owners ルールが存在すること") {
@@ -529,6 +536,13 @@ func TestService_CreateClinic_DefaultPermissionGroupRules(t *testing.T) {
 				assert.False(t, mp.CanEdit)
 				assert.False(t, mp.CanDelete)
 			}
+			unconfirm := findRule(c.rules, model.ResourceExaminationUnconfirm)
+			if assert.NotNil(t, unconfirm, "一般に examination-unconfirm ルールが存在すること") {
+				assert.False(t, unconfirm.CanView)
+				assert.False(t, unconfirm.CanCreate)
+				assert.False(t, unconfirm.CanEdit, "一般は examination-unconfirm:edit を持たないこと")
+				assert.False(t, unconfirm.CanDelete)
+			}
 		default:
 			t.Fatalf("unexpected group name captured: %q", c.groupName)
 		}
@@ -537,7 +551,8 @@ func TestService_CreateClinic_DefaultPermissionGroupRules(t *testing.T) {
 
 // TestDefaultPermissionRuleTable_CoversAllResources は defaultPermissionRuleTable が
 // model.AllResources (37) を過不足なくカバーし、共有マスタ animal-species が
-// 執行・一般とも view-only、examination-unconfirm / checkup-package-import が default-deny であることを固定する。
+// 執行・一般とも view-only、examination-unconfirm が執行のみ edit 付与
+// （一般は default-deny、EMR-234）、checkup-package-import が default-deny であることを固定する。
 func TestDefaultPermissionRuleTable_CoversAllResources(t *testing.T) {
 	require.Len(t, model.AllResources, 37, "AllResources 件数の契約が変わったら permission rollout を同時に更新すること")
 	require.Len(t, defaultPermissionRuleTable, len(model.AllResources),
@@ -591,8 +606,14 @@ func TestDefaultPermissionRuleTable_CoversAllResources(t *testing.T) {
 		if assert.NotNilf(t, unconfirm, "%s に examination-unconfirm があること", profile) {
 			assert.False(t, unconfirm.CanView)
 			assert.False(t, unconfirm.CanCreate)
-			assert.False(t, unconfirm.CanEdit)
 			assert.False(t, unconfirm.CanDelete)
+			// EMR-234: 新規クリニックでは執行のみ examination-unconfirm:edit を初期付与。
+			// 一般は全ビット default-deny。create/delete は執行にも付かない。
+			if isExecutive {
+				assert.True(t, unconfirm.CanEdit, "執行は新規クリニックで examination-unconfirm:edit を持つこと (EMR-234)")
+			} else {
+				assert.False(t, unconfirm.CanEdit, "一般は examination-unconfirm:edit を持たないこと")
+			}
 		}
 
 		var pkgImport *model.PermissionGroupRule

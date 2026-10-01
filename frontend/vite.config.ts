@@ -130,23 +130,26 @@ function resolveManualChunk(id: string): string | undefined {
   return undefined;
 }
 
-const vercelEnv = process.env.VERCEL_ENV ?? "";
-const STG_API_URL = "https://api.stg.noah-karte.com/api";
-const PROD_API_URL = "https://api.noah-karte.com/api";
+// EMR-255: 配信基盤は Cloudflare Workers(frontend/wrangler.jsonc)へ移行。
+// 環境指定は APP_ENV ("stg" | "production") が正本で、旧名 VERCEL_ENV
+// (preview|production) も互換で受け付ける。__VERCEL_ENV__ 定数名は
+// LoginForm のリテラル参照と tree-shake 契約維持のため据え置き、
+// APP_ENV=stg を旧 preview 相当の "preview" へ写像する
+// (features/auth/lib/show-demo-accounts.ts 参照)。
+const appEnv =
+  process.env.APP_ENV ??
+  (process.env.VERCEL_ENV === "preview" ? "stg" : (process.env.VERCEL_ENV ?? ""));
 const define: Record<string, string> = {
-  __VERCEL_ENV__: JSON.stringify(vercelEnv),
+  __VERCEL_ENV__: JSON.stringify(appEnv === "stg" ? "preview" : appEnv),
 };
-if (vercelEnv === "preview" || vercelEnv === "production") {
-  // loadEnv は frontend/.env.production を読む。AWS ALB が入っていると CSP
-  // connect-src（api.stg.noah-karte.com / api.noah-karte.com）と食い違い、
-  // ログインが「接続できません」になる。preview/production はホストを define で固定する。
-  define["import.meta.env.VITE_API_URL"] = JSON.stringify(
-    vercelEnv === "preview" ? STG_API_URL : PROD_API_URL,
-  );
-}
+// VITE_API_URL は注入しない: Worker が /api/* を backend Worker へ同一オリジン
+// 中継するため、全環境で import.meta.env.VITE_API_URL 未設定 -> "/api" fallback
+// (src/lib/axios.ts) が正しい挙動となる。frontend/.env.production 側にも
+// VITE_API_URL を置かないこと(PROD ビルドが STG API を叩く事故を防ぐ)。
 
 export default defineConfig({
-  // M-10: Vercel が自動注入する VERCEL_ENV をビルド時定数として埋め込む。
+  // M-10: 環境種別をビルド時定数として埋め込む(EMR-255 で APP_ENV へ移行、
+  // 定数名は __VERCEL_ENV__ のまま据え置き)。
   // frontend/src/features/auth/lib/show-demo-accounts.ts 参照。
   define,
   plugins: [react(), tailwindcss(), lineReserveDevPlugin(), liffDevPlugin()],

@@ -1,0 +1,42 @@
+// EMR-255: STG frontend 用 Wrangler 設定(Vite build 成果物の Static Assets 配信)。
+// backend/wrangler.jsonc と同じく deploy 経路は wrangler が正本(Terraform 管轄外)。
+//
+// - routes[0] … stg.noah-karte.com の DNS レコードが proxied=false(CNAME→Vercel)の間は
+//   ドーマント。切替は infra/cloudflare/zone.tf の stg_frontend を proxied placeholder に
+//   変える apply で行う(apply 前に本 Worker の deploy と workers.dev 検証を完了させること)。
+// - workers_dev=true … *.workers.dev で切替前の動作検証が可能。
+// - services.API … backend Worker への service binding。/api/* は worker/index.ts が
+//   この binding へフォワードする(同一オリジン化・api.stg の公開経路に依存しない)。
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "animalekarte-stg-frontend",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-07-05",
+
+  "workers_dev": true,
+
+  "routes": [
+    {
+      "pattern": "stg.noah-karte.com/*",
+      "zone_name": "noah-karte.com",
+    },
+  ],
+
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    // 404 処理は worker/index.ts が SPA 別に振り分けるため asset 側では行わない。
+    "not_found_handling": "none",
+  },
+
+  "services": [
+    {
+      "binding": "API",
+      "service": "animalekarte-stg-api",
+    },
+  ],
+
+  "observability": {
+    "enabled": true,
+  },
+}

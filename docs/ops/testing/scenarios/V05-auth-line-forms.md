@@ -41,7 +41,7 @@
 | 2 | 正しいメール + 7 文字パスワードで送信 | ログインされない。**FE/BE 乖離の重点確認**: フォームは `noValidate` のため HTML `minLength={6}` は submit を止めない（FE は空欄のみ拒否）。BE は `binding:"required,min=8,max=72"`（`http_response.go`）で 8 文字未満を拒否する |
 | 3 | 正しい資格情報で送信 → ページ再読込 → `/login` を直アクセス | ダッシュボード（または `from` state/query の内部パス）へ遷移。再読込後もセッション維持（httpOnly Cookie — [21-login.md §3.1](../../../spec/screens/21-login.md)）。**BUG-031**: `/login` でも cookie セッションを restore し、認証済みなら `LoginForm` が `<Navigate to="/" />`（password-recovery 公開ルート `/forgot-password`・`/reset-password` のみ restore スキップ） |
 | 4 | 保護ルートへ未ログインでアクセス後にログイン成功 | ログイン後は `location.state.from` または `?from=` の内部パスへ戻る（`parseInternalPath` で open redirect 防止）。未指定時は `/` |
-| 5 | 誤パスワードで 1 分内に 6 回連続送信 | アカウント単位のレート制限（失敗のみ 5 回/分 — [21-login.md §1.2](../../../spec/screens/21-login.md)）で拒否される。429 時は「N秒後に自動で再試行します…」の通知と Retry-After 待機後の 1 回自動再試行を確認し、再試行後は認証エラーまたは集中エラーのいずれかが表示されること。成功ログインは IP 側（30 回/分）・アカウント側とも予算を消費しないため、手順後に正しい資格情報でログインできる |
+| 5 | 誤パスワードで 1 分内に 11 回連続送信 | アカウント単位のレート制限（失敗のみ 10 回/分 — [21-login.md §1.2](../../../spec/screens/21-login.md)）で拒否される。429 時は「N秒後に自動で再試行します…」の通知と Retry-After 待機後の 1 回自動再試行を確認し、再試行後は認証エラーまたは集中エラーのいずれかが表示されること。成功ログインは IP 側（30 回/分）・アカウント側とも予算を消費しないため、手順後に正しい資格情報でログインできる |
 
 ### V05-2 パスワード変更（`auth-change-password` / 全画面共通 Sidebar アカウントメニュー）
 
@@ -240,4 +240,4 @@ clinic 単位 1 レコードの PATCH（C3(b) は UI 上到達不能）。フィ
   - V05-8: LINE 予約設定フィールド名（booking_window_* / calendar_months / time_slot_interval / line_channel_id / liff_id）と secret/token 非送信を明記
   - V05-12: Lステップ設定のフィールド契約（secret3+text2+numeric23）と閾値 0/負値の二段ガードを request builder と照合
   - 認証ルート（`/login`・`/forgot-password`・`/reset-password`）・LINE（`/line-reservation/settings|page-editor|slots`）・Lステップ（`/settings/integrations/lstep`・`/settings/lstep/tags`）を `paths.ts` と一致確認
-  - V05-1 手順 5 を二段レート制限（IP 30 回/分 + アカウント 5 回/分、いずれも失敗のみカウント）と 429 の Retry-After 自動再試行 UX に合わせて更新
+  - V05-1 手順 5 を二段レート制限（IP 30 回/分 + アカウント 10 回/分、いずれも失敗のみカウント）と 429 の Retry-After 自動再試行 UX に合わせて更新

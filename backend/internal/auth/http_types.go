@@ -133,7 +133,7 @@ type AuthRateLimitConfig struct {
 func DefaultAuthRateLimitConfig() AuthRateLimitConfig {
 	return AuthRateLimitConfig{
 		Login:           RateLimitPolicy{Requests: 30, Window: time.Minute, Burst: 30, CountOnFailure: true},
-		LoginPerAccount: RateLimitPolicy{Requests: 5, Window: time.Minute, Burst: 5, CountOnFailure: true},
+		LoginPerAccount: RateLimitPolicy{Requests: 10, Window: time.Minute, Burst: 10, CountOnFailure: true},
 		PasswordReset:   RateLimitPolicy{Requests: 3, Window: time.Minute, Burst: 3},
 		Refresh:         RateLimitPolicy{Requests: 30, Window: time.Minute, Burst: 30},
 		Logout:          RateLimitPolicy{Requests: 30, Window: time.Minute, Burst: 30},

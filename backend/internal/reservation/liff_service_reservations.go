@@ -144,7 +144,13 @@ func (s *liffService) tryAttachReservationOwnerPet(
 		"owner_id": customer.Owner.ID,
 	}
 	if petID := resolveReservationPetID(customer, customerFields); petID != nil {
-		fields["pet_id"] = *petID
+		// EMR-235: preload スナップショットはロックなしで、登録と attach の間に
+		// 死亡が記録されうるため、pet_id 書込前に DB で再確認する（fail-closed）。
+		if err := ValidateReservationPetNotDeceased(ctx, s.reservationRepo, clinicID, petID); err != nil {
+			slog.WarnContext(ctx, "skipping pet_id attach: pet deceased re-check failed (best-effort)", "error", err)
+		} else {
+			fields["pet_id"] = *petID
+		}
 	}
 
 	updated, err := s.reservationRepo.update(ctx, clinicID, appt.ID, fields)

@@ -62,16 +62,20 @@ describe("LoginForm SHOW_DEMO — DEV or Vercel preview (#91 / SEC-CS2-F01)", ()
     expect(mod.SHOW_DEMO).toBe(true);
   });
 
-  it("vite.config は preview/production の API を Cloudflare ホストに define する", () => {
+  // EMR-255: API 呼出は frontend Worker の service binding 経由の same-origin /api が
+  // 正本。vite.config が VITE_API_URL を注入したり .env.production が絶対 URL を
+  // 持つと、PROD ビルドが STG API を叩く事故に戻るため禁止する。
+  it("vite.config は VITE_API_URL を注入せず APP_ENV で環境を分岐する（EMR-255）", () => {
     const frontendRoot = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
     const src = readFileSync(join(frontendRoot, "vite.config.ts"), "utf8");
-    expect(src).toContain('define["import.meta.env.VITE_API_URL"]');
-    expect(src).toContain("https://api.stg.noah-karte.com/api");
-    expect(src).toContain("https://api.noah-karte.com/api");
+    expect(src).not.toContain('define["import.meta.env.VITE_API_URL"]');
+    expect(src).toContain("process.env.APP_ENV");
+    // APP_ENV=stg は demo 表示契約の "preview" へ写像する（fail-closed 維持）。
+    expect(src).toContain('"preview"');
     expect(src).not.toContain("elb.amazonaws.com");
 
     const envProduction = readFileSync(join(frontendRoot, ".env.production"), "utf8");
-    expect(envProduction).toContain("https://api.stg.noah-karte.com/api");
+    expect(envProduction).not.toMatch(/^\s*VITE_API_URL\s*=/m);
     expect(envProduction).not.toContain("elb.amazonaws.com");
   });
 
