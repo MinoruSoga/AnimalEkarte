@@ -1,21 +1,21 @@
 # データベース設計書 (Entity Relationship Diagram)
 
-> **目的**: 全130テーブルの inventory と主要リレーションを記録し、テーブル数等の統計値の正本とする。DDL は列・制約の正本。
+> **目的**: 全129テーブルの inventory と主要リレーションを記録し、テーブル数等の統計値の正本とする。DDL は列・制約の正本。
 > **読者**: 全開発者。
 > **タイミング**: スキーマ変更・DB設計判断時。
 
-<!-- ERD:TABLE_COUNT=130 -->
+<!-- ERD:TABLE_COUNT=129 -->
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **最終照合**: 2026-09-28 | **対象**: `backend/migrations/` 直下の `001`〜`013`（130テーブル）。記録者FKの置換と治療明細の生涯一意制約を含む、順次適用後のスキーマを記録する。`011_support_bug_reports.sql` の `support_bug_reports` と `013_support_chat_messages.sql` の `support_chat_messages` を含む。
+> **最終照合**: 2026-10-01 | **対象**: `backend/migrations/` 直下の `001`〜`015`（129テーブル）。記録者FKの置換と治療明細の生涯一意制約を含む、順次適用後のスキーマを記録する。`011_support_bug_reports.sql` の `support_bug_reports` と `013_support_chat_messages.sql` の `support_chat_messages` を含み、`014_drop_prescriptions.sql` で `prescriptions`（EMR-236）は除去済み。
 >
 > **確認範囲**: repo内DDL・関連コードとの静的照合。稼働DBのmigration適用状態・実データ・STG/本番受入は未確認。DDLの存在をDB適用済みとは扱わない。後続変更は [migration方針](../../backend/migrations/README.md) に従い、適用済みSQLを編集・再統合しない。
 
 ---
 
-## 1. データモデルの全体像 (全 130 テーブル)
+## 1. データモデルの全体像 (全 129 テーブル)
 
-本システムは、臨床・経営・外部連携を支える 130 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
+本システムは、臨床・経営・外部連携を支える 129 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
 
 ### 1.1 主要ドメイン別構成
 
@@ -154,11 +154,11 @@ erDiagram
 
 | 項目 | 結果 | 判定 |
 |:---|:---|:---|
-| `001_init.sql` の `CREATE TABLE` 数 | 128（統合schema。現行の直下DDLは `001`〜`013` の13本・`011` は2ファイル・`008` 欠番） | 2026-07-04統合済みの5テーブルに加え、2026-07-27統合の旧005由来 `exam_reference_ranges` と旧003由来 `pet_owners`、2026-07-31統合の identity links 4 と upload quota 1、2026-08-04統合の close adjustments / examination revisions / checkup package receipts / lab import compensation、2026-08-20統合の billing_items exam_id provenance・`exams` UNIQUE (id, clinic_id) を含む。2026-08-25統合は CHECK 除去のみでテーブル数不変。2026-09-01〜02 は `fk_estimates_pet_clinic` / `fk_lab_device_waits_staff_clinic` / `lab_devices` RLS、重複 `uq_pets_id_clinic` の除去、予約グラフ複合 FK / EXCLUDE / trigger-copied `clinic_id` でテーブル数不変（2026-09-29 訂正: 括弧内「直下DDLは001〜004の4本」→ 現行は `002`〜`013` の増分を含む13本。`001_init.sql` 自体の CREATE TABLE 数 128 は不変） |
+| `001_init.sql` の `CREATE TABLE` 数 | 128（統合schema。現行の直下DDLは `001`〜`015` の15本・`011` は2ファイル・`008` 欠番） | 2026-07-04統合済みの5テーブルに加え、2026-07-27統合の旧005由来 `exam_reference_ranges` と旧003由来 `pet_owners`、2026-07-31統合の identity links 4 と upload quota 1、2026-08-04統合の close adjustments / examination revisions / checkup package receipts / lab import compensation、2026-08-20統合の billing_items exam_id provenance・`exams` UNIQUE (id, clinic_id) を含む。2026-08-25統合は CHECK 除去のみでテーブル数不変。2026-09-01〜02 は `fk_estimates_pet_clinic` / `fk_lab_device_waits_staff_clinic` / `lab_devices` RLS、重複 `uq_pets_id_clinic` の除去、予約グラフ複合 FK / EXCLUDE / trigger-copied `clinic_id` でテーブル数不変（2026-09-29 訂正: 括弧内「直下DDLは001〜004の4本」→ 現行は `002`〜`013` の増分を含む13本。`001_init.sql` 自体の CREATE TABLE 数 128 は不変） |
 | 旧増分マイグレーションが追加していたテーブル | 6: `lab_import_jobs` / `lab_import_events` (旧`005`)、`medicine_dose_params` (旧`009`)、`checkup_type_fields` / `checkup_field_results` (旧`010`)、`exam_reference_ranges`（2026-07-27統合の旧`005`） | 現在は全て `001_init.sql` に直接定義（旧ファイルは削除済み） |
-| 全マイグレーション（`backend/migrations/*.sql` 行頭 `CREATE TABLE` 合算）の物理テーブル総数 | 130 | 直下 DDL の在庫は `ls backend/migrations/*.sql` を正とする。`001_init.sql` の 128 に `011_support_bug_reports.sql` の `support_bug_reports` と `013_support_chat_messages.sql` の `support_chat_messages` が加わり 130。`002_allow_negative_billing_amounts.sql` は統合第9回で削除（CHECK 除去は 001 の CREATE TABLE へ畳み込み）。`lab_devices` は 001 セクション14内。ERD の全体数と一致（2026-09-29 訂正: 128 → 130） |
-| 現行増分 `002`〜`013` | 新規テーブル2（`support_bug_reports`・`support_chat_messages`） | 記録者FK2件の置換、治療明細のlifetime unique、子レコード楽観ロック `version`、accounts RLS ops bypass、billings 複合index、seed checksum reconcile 2件、`care_plan_items.other_reason`、pets 由来列2件（§4.4。2026-09-29 訂正: 「002 / 003 / 004・新規テーブル0」→ `002`〜`013`・新規テーブル2） |
-| ERD ドメイン表の物理テーブル数 | 130 | migrations と一致（2026-09-29 訂正: 128 → 130。§1.1 に `support_bug_reports` / `support_chat_messages` を含む） |
+| 全マイグレーション（`backend/migrations/*.sql` 行頭 `CREATE TABLE` 合算から `DROP TABLE` 対象を除いた現行値）の物理テーブル総数 | 129 | 直下 DDL の在庫は `ls backend/migrations/*.sql` を正とする。`001_init.sql` の 128 に `011_support_bug_reports.sql` の `support_bug_reports` と `013_support_chat_messages.sql` の `support_chat_messages` が加わり 130、`014_drop_prescriptions.sql` の `prescriptions` DROP（EMR-236）で 129。`002_allow_negative_billing_amounts.sql` は統合第9回で削除（CHECK 除去は 001 の CREATE TABLE へ畳み込み）。`lab_devices` は 001 セクション14内。ERD の全体数と一致（2026-09-29 訂正: 128 → 130、EMR-236 で 130 → 129） |
+| 現行増分 `002`〜`015` | 新規テーブル2（`support_bug_reports`・`support_chat_messages`）。`014` は `prescriptions` DROP（純減1）、`015` は検索 index のみ | 記録者FK2件の置換、治療明細のlifetime unique、子レコード楽観ロック `version`、accounts RLS ops bypass、billings 複合index、seed checksum reconcile 2件、`care_plan_items.other_reason`、pets 由来列2件（§4.4。2026-09-29 訂正: 「002 / 003 / 004・新規テーブル0」→ `002`〜`013`・新規テーブル2） |
+| ERD ドメイン表の物理テーブル数 | 129 | migrations と一致（2026-09-29 訂正: 128 → 130。§1.1 に `support_bug_reports` / `support_chat_messages` を含む。EMR-236 で `prescriptions` 除去し 129） |
 | ERD へ追加した不足テーブル | 11: 従来6（`token_blacklist`, `reservation_type_available_slots`, `trimming_course_types`, `campaigns`, `campaign_target_categories`, `campaign_target_items`）+ identity 4 + `medical_record_image_upload_quota` | migration に存在し、用途コメントまたはドメイン上の継続理由があるため追加 |
 | migrations にあり ERD にないテーブル | 0 | 整合済み |
 | ERD にあり migrations にないテーブル | 0 | 整合済み |
@@ -222,7 +222,7 @@ erDiagram
 
 `seeds/003_demo` / `seeds/004_staging` は commit `09d2c9e2b` で退役済み。以下に現れる同名 path は historical reference である。
 
-物理テーブル総数 = **130**（ゲート3aと `TestERDTableCount_MatchesSchema` は直下の全 `*.sql` にあるdistinct `CREATE TABLE` を正とする。seed配下・migration管理用テーブルはこのinventoryに含めない。直下 DDL 在庫は `ls backend/migrations/*.sql` で確認する。2026-09-29 訂正: 128 → 130。`011_support_bug_reports` / `013_support_chat_messages` の2テーブルが 001 の 128 に加算）。
+物理テーブル総数 = **129**（ゲート3aと `TestERDTableCount_MatchesSchema` は直下の全 `*.sql` にあるdistinct `CREATE TABLE` から `DROP TABLE` 対象を除いた現行値を正とする。seed配下・migration管理用テーブルはこのinventoryに含めない。直下 DDL 在庫は `ls backend/migrations/*.sql` で確認する。2026-09-29 訂正: 128 → 130（`011_support_bug_reports` / `013_support_chat_messages` が 001 の 128 に加算）。EMR-236 で `014_drop_prescriptions.sql` が `prescriptions` を DROP し 130 → 129）。
 
 2026-07-31統合分の論理的な記録（旧ファイル名は履歴識別子、現行所在は全て`001_init.sql`末尾セクション10）:
 
@@ -338,7 +338,7 @@ erDiagram
 
 ### 4.4 現行の追加migration（2026-09-29照合）
 
-下表のmigrationを001の後に番号順で適用したDDLが、本書の図・現在の制約説明の基準。テーブル数は **130**（2026-09-29 訂正: 旧見出し「2026-09-22照合」「テーブル数は128のまま」→ `005`〜`013` を表へ追加し、support 2 テーブル新設により総数 130）。SQL自体は変更しておらず、稼働DBへの適用状態は未確認。
+下表のmigrationを001の後に番号順で適用したDDLが、本書の図・現在の制約説明の基準。テーブル数は **129**（2026-09-29 訂正: 旧見出し「2026-09-22照合」「テーブル数は128のまま」→ `005`〜`013` を表へ追加し、support 2 テーブル新設により総数 130。EMR-236 の `014` で `prescriptions` 除去し 129）。SQL自体は変更しておらず、稼働DBへの適用状態は未確認。
 
 | migration | 最終DDL上の変更 | 関係・境界 |
 |:---|:---|:---|

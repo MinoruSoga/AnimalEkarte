@@ -486,6 +486,8 @@ export function useAccountingItemActions({
   // EMR-230: 金額（税抜小計 = 単価×数量−割引額）の直接編集。
   // 新規カラムを増やさず unit_price = round((amount + discountAmount) / quantity) に換算して PATCH する
   // （サーバ側が小計・税・合計を再計算して正本化する）。
+  // 数量>1 で割り切れない金額は表現不能なため round が最も近い表示可能値に寄せ、
+  // 再計算後の表示が入力量と最大 数量/2 円ずれうる（スキーマ上の不可避な制約）。
   const handleUpdateItemAmount = useCallback(
     (item: AccountingItem, amount: number) => {
       if (!Number.isFinite(amount) || amount < 0) {

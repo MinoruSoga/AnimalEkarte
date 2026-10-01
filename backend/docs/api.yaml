@@ -238,11 +238,26 @@ components:
           type: integer
           format: int64
           nullable: true
+        medical_record_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 未請求候補など treatment 由来の親カルテID（DB列ではない仮想値）
+        service_date:
+          type: string
+          format: date-time
+          nullable: true
+          description: 未請求候補の発生日（DB列ではない仮想値。EMR-246 当日/過去区分表示用）
         vaccination_id:
           type: integer
           format: int64
           nullable: true
           description: 予防接種イベント由来の明細に紐づく接種記録ID
+        exam_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 検査イベント由来の明細に紐づく検査記録ID
         appointment_id:
           type: integer
           format: int64
@@ -1214,7 +1229,7 @@ components:
         clinic_id:
           type: integer
           format: int64
-          description: '#86 拠点横断一覧の医院表示・編集可否判定に使用'
+          description: '#86 医院横断一覧の医院表示・編集可否判定に使用'
         owner_id:
           type: integer
           format: int64
@@ -2186,6 +2201,10 @@ components:
             items+warnings の決定的フィンガープリント（EMR-196）。
             POST /accountings/complete の expected_unbilled_revision として返送する
             楽観ロック token。形式は "u1:<sha256-hex>"。
+        owner_discount_rate:
+          type: number
+          format: double
+          description: pet→主飼主マスタの割引率(%)（EMR-229。手入力追加行の初期表示用）
     CompleteAccountingItemRequest:
       type: object
       description: 会計確定時に一括作成する明細1件（BUG-018）
@@ -7561,7 +7580,7 @@ components:
           format: int64
     DailySummaryForClinics:
       type: object
-      description: 拠点別日次集計（clinic_ids 複数指定時 #86）
+      description: 医院別日次集計（clinic_ids 複数指定時 #86）
       properties:
         per_clinic:
           type: array
@@ -11131,7 +11150,7 @@ paths:
             default: false
         - name: clinic_ids
           in: query
-          description: '#86 拠点横断一覧。カンマ区切りの複数医院ID。未指定は現在の医院のみ（所属検証はサーバ側）'
+          description: '#86 医院横断一覧。カンマ区切りの複数医院ID。未指定は現在の医院のみ（所属検証はサーバ側）'
           schema:
             type: string
       responses:
@@ -11933,6 +11952,30 @@ paths:
           description: 飼主名（かな）、ペット名（かな）、カルテNo、主訴、治療内容、治療メモ、処置名、薬剤名、診察名、在庫品名を部分一致で横断検索
           schema:
             type: string
+        - name: medicine_id
+          in: query
+          description: 薬剤マスタIDを含むカルテに絞り込み
+          schema:
+            type: integer
+            format: int64
+        - name: procedure_id
+          in: query
+          description: 処置マスタIDを含むカルテに絞り込み
+          schema:
+            type: integer
+            format: int64
+        - name: consultation_id
+          in: query
+          description: 診察マスタIDを含むカルテに絞り込み
+          schema:
+            type: integer
+            format: int64
+        - name: inventory_id
+          in: query
+          description: 在庫品マスタIDを含むカルテに絞り込み
+          schema:
+            type: integer
+            format: int64
       responses:
         '200':
           description: カルテ一覧
@@ -12845,7 +12888,7 @@ paths:
         - name: clinic_ids
           in: query
           required: false
-          description: 拠点横断閲覧用のカンマ区切りclinic_id一覧。未指定時はログイン中の医院のみ。
+          description: 医院横断閲覧用のカンマ区切りclinic_id一覧。未指定時はログイン中の医院のみ。
           schema:
             type: string
       responses:
@@ -13688,6 +13731,10 @@ paths:
             schema:
               type: object
               properties:
+                name:
+                  type: string
+                  maxLength: 255
+                  description: 項目名（EMR-229。trim後が空なら拒否）
                 unit_price:
                   type: integer
                   format: int64
@@ -13708,6 +13755,10 @@ paths:
                   format: double
                 is_insurance_applicable:
                   type: boolean
+                post_close_reason:
+                  type: string
+                  maxLength: 500
+                  description: 締め後編集理由（レジ締め済み期間の明細変更時は必須。BUG-463）
       responses:
         '200':
           description: 更新成功
@@ -14458,9 +14509,11 @@ paths:
             default: 1
         - name: limit
           in: query
+          description: 上限は MaxMasterListRows(10000)。フィルタ全件選択用に大きな値を許容
           schema:
             type: integer
             default: 20
+            maximum: 10000
         - name: category
           in: query
           schema:

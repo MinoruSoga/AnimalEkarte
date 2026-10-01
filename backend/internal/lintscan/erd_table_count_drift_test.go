@@ -23,6 +23,13 @@ var (
 			sqlIdentifierPattern +
 			`))?[\t ]*(?:\(|$)`,
 	)
+	dropTablePattern = regexp.MustCompile(
+		`(?i)^[\t ]*DROP[\t ]+TABLE[\t ]+(?:IF[\t ]+EXISTS[\t ]+)?(` +
+			sqlIdentifierPattern +
+			`)(?:[\t ]*\.[\t ]*(` +
+			sqlIdentifierPattern +
+			`))?[\t ;,]`,
+	)
 	erdTableCountMarkerPattern = regexp.MustCompile(
 		`(?m)^[\t ]*<!--[ \t]+ERD:TABLE_COUNT=([0-9]+)[ \t]+-->[\t ]*\r?$`,
 	)
@@ -64,6 +71,61 @@ func distinctCreateTableNames(sql string) []string {
 	}
 	sort.Strings(names)
 	return names
+}
+
+func distinctDropTableNames(sql string) []string {
+	distinctNames := make(map[string]struct{})
+	for _, line := range strings.Split(sql, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "--") {
+			continue
+		}
+
+		match := dropTablePattern.FindStringSubmatch(line)
+		if match == nil {
+			continue
+		}
+
+		name := normalizeSQLIdentifier(match[1])
+		if match[2] != "" {
+			name += "." + normalizeSQLIdentifier(match[2])
+		}
+		distinctNames[name] = struct{}{}
+	}
+
+	if len(distinctNames) == 0 {
+		return nil
+	}
+
+	names := make([]string, 0, len(distinctNames))
+	for name := range distinctNames {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// currentPhysicalTableNames は CREATE TABLE されたテーブルから後続の
+// DROP TABLE で除去されるものを引いた、現行スキーマの物理テーブル集合を返す
+// （例: 014_drop_prescriptions.sql の prescriptions / EMR-236）。
+func currentPhysicalTableNames(sql string) []string {
+	created := distinctCreateTableNames(sql)
+	dropped := distinctDropTableNames(sql)
+	if len(dropped) == 0 {
+		return created
+	}
+
+	droppedSet := make(map[string]struct{}, len(dropped))
+	for _, name := range dropped {
+		droppedSet[name] = struct{}{}
+	}
+
+	physical := make([]string, 0, len(created))
+	for _, name := range created {
+		if _, isDropped := droppedSet[name]; !isDropped {
+			physical = append(physical, name)
+		}
+	}
+	return physical
 }
 
 func parseERDTableCountMarker(markdown string) (int, error) {
@@ -203,7 +265,7 @@ func TestERDTableCount_MatchesSchema(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	schemaCount := len(distinctCreateTableNames(schemaDDL))
+	schemaCount := len(currentPhysicalTableNames(schemaDDL))
 	declaredCount, err := parseERDTableCountMarker(erdMarkdown)
 	if err != nil {
 		t.Fatalf("parse %q marker: %v", erdTableCountMarker, err)

@@ -356,6 +356,31 @@ func TestToBillingItemResponse_MerchandiseItemIDRoundTrips(t *testing.T) {
 	})
 }
 
+// EMR-246: service_date（未請求候補の発生日）は応答DTOでも往復しなければならない。
+// BUG-433/436 と同型の乖離を防ぐ（model にだけ載せて応答に出ないと、FE では常に
+// undefined となり当日/過去区分が全件当日に倒れる）。
+func TestToBillingItemResponse_ServiceDateRoundTrips(t *testing.T) {
+	serviceDate := time.Date(2026, 3, 20, 10, 0, 0, 0, time.UTC)
+
+	t.Run("emits service_date when the item carries it", func(t *testing.T) {
+		got := ToBillingItemResponse(&model.BillingItem{
+			ID: 1, BillingID: 10, Category: model.ItemCategoryExamination, Name: "診察",
+			UnitPrice: 1000, Quantity: 1, TaxType: model.TaxTypeExcluded, TaxRate: 0.10,
+			ServiceDate: &serviceDate,
+		})
+		require.NotNil(t, got.ServiceDate)
+		assert.Equal(t, serviceDate, *got.ServiceDate)
+	})
+
+	t.Run("omits service_date when unset", func(t *testing.T) {
+		got := ToBillingItemResponse(&model.BillingItem{
+			ID: 2, BillingID: 10, Category: model.ItemCategoryOther, Name: "手入力",
+			UnitPrice: 500, Quantity: 1, TaxType: model.TaxTypeExcluded, TaxRate: 0.10,
+		})
+		assert.Nil(t, got.ServiceDate)
+	})
+}
+
 // ---- toPaymentResponse ----
 
 func TestToPaymentResponse(t *testing.T) {

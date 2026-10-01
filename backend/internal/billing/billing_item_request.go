@@ -147,15 +147,17 @@ type BillingItemResponse struct {
 	OtherReason           *string `json:"other_reason,omitempty" binding:"omitempty,max=500"`
 	TreatmentID           *uint64 `json:"treatment_id,omitempty"`
 	// MedicalRecordID は未請求候補など、treatment 由来の親カルテ（DB 列ではない仮想値）。
-	MedicalRecordID   *uint64   `json:"medical_record_id,omitempty"`
-	VaccinationID     *uint64   `json:"vaccination_id,omitempty"`
-	ExamID            *uint64   `json:"exam_id,omitempty"`
-	AppointmentID     *uint64   `json:"appointment_id,omitempty"`
-	TrimmingCourseID  *uint64   `json:"trimming_course_id,omitempty"`
-	TrimmingOptionID  *uint64   `json:"trimming_option_id,omitempty"`
-	MerchandiseItemID *uint64   `json:"merchandise_item_id,omitempty"`
-	SortOrder         int       `json:"sort_order"`
-	CreatedAt         time.Time `json:"created_at"`
+	MedicalRecordID *uint64 `json:"medical_record_id,omitempty"`
+	// ServiceDate は未請求候補の発生日（DB 列ではない仮想値。EMR-246 当日/過去区分用）。
+	ServiceDate       *time.Time `json:"service_date,omitempty"`
+	VaccinationID     *uint64    `json:"vaccination_id,omitempty"`
+	ExamID            *uint64    `json:"exam_id,omitempty"`
+	AppointmentID     *uint64    `json:"appointment_id,omitempty"`
+	TrimmingCourseID  *uint64    `json:"trimming_course_id,omitempty"`
+	TrimmingOptionID  *uint64    `json:"trimming_option_id,omitempty"`
+	MerchandiseItemID *uint64    `json:"merchandise_item_id,omitempty"`
+	SortOrder         int        `json:"sort_order"`
+	CreatedAt         time.Time  `json:"created_at"`
 }
 
 func ToBillingItemResponse(item *model.BillingItem) BillingItemResponse {
@@ -180,6 +182,7 @@ func ToBillingItemResponse(item *model.BillingItem) BillingItemResponse {
 		OtherReason:           item.OtherReason,
 		TreatmentID:           item.TreatmentID,
 		MedicalRecordID:       item.MedicalRecordID,
+		ServiceDate:           item.ServiceDate,
 		VaccinationID:         item.VaccinationID,
 		ExamID:                item.ExamID,
 		AppointmentID:         item.AppointmentID,

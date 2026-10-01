@@ -31,10 +31,9 @@ export interface InventoryOption {
  */
 export function useGetAllInventoryItems() {
   return useQuery({
-    queryKey: queryKeys.inventoryItems.list({
-      page: 1,
-      limit: INVENTORY_LIST_ALL_LIMIT,
-    }),
+    // ページネーション行データ(useGetInventoryItemsPage)とは戻り値の型が異なるため
+    // 専用 options キーで分離する（同じ list(params) ハッシュだと shape が衝突する）。
+    queryKey: queryKeys.inventoryItems.options(),
     queryFn: async (): Promise<InventoryOption[]> => {
       const { data } = await axios.get<InventoryListResponse>("/v1/inventory", {
         params: { page: 1, limit: INVENTORY_LIST_ALL_LIMIT },
