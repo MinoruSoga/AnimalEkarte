@@ -57,7 +57,7 @@ func TestDiagnosisTypeRepository_CountChildrenByParentID(t *testing.T) {
 		assert.Equal(t, int64(1), count)
 	})
 
-	t.Run("別クリニックからは0件", func(t *testing.T) {
+	t.Run("別医院からは0件", func(t *testing.T) {
 		count, err := repo.CountChildrenByParentID(ctx, clinicB, typeA.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)

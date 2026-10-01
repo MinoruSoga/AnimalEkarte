@@ -8,7 +8,7 @@ package lstep
 // 実装上の注意（テストで明示的に固定する）:
 //   model.SharedFile.DeletedAt は gorm.DeletedAt のため、GORM の自動ソフトデリート機構が
 //   Delete() 発行時に発火する（UPDATE ... SET deleted_at = ... であり物理 DELETE ではない）。
-//   別クリニックからの Delete は RowsAffected == 0 を検知して NotFound を返す
+//   別医院からの Delete は RowsAffected == 0 を検知して NotFound を返す
 //   （appointment_admin_repository.go の SoftDelete と同型パターン）。
 
 import (
@@ -59,14 +59,14 @@ func TestSharedFileRepository_Create_FindByID(t *testing.T) {
 
 	f := makeSharedFile(t, repo, clinicA, "result-a.pdf")
 
-	t.Run("FindByID は自クリニックのレコードを返す", func(t *testing.T) {
+	t.Run("FindByID は自医院のレコードを返す", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, f.ID)
 		require.NoError(t, err)
 		require.NotNil(t, got)
 		assert.Equal(t, "result-a.pdf", got.FileName)
 	})
 
-	t.Run("FindByID は別クリニックのレコードを返さない（NotFound）", func(t *testing.T) {
+	t.Run("FindByID は別医院のレコードを返さない（NotFound）", func(t *testing.T) {
 		_, err := repo.FindByID(ctx, clinicB, f.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -105,7 +105,7 @@ func TestSharedFileRepository_FindAll(t *testing.T) {
 		Update("created_at", time.Now().Add(-1*time.Hour)).Error)
 	newer := makeSharedFile(t, repo, clinicA, "newer.pdf")
 
-	// 別クリニックのファイルは混入しない
+	// 別医院のファイルは混入しない
 	makeSharedFile(t, repo, clinicB, "clinicB.pdf")
 
 	// deleted_at 済みは除外される
@@ -113,7 +113,7 @@ func TestSharedFileRepository_FindAll(t *testing.T) {
 	now := time.Now()
 	require.NoError(t, db.WithContext(ctx).Model(&model.SharedFile{}).Where("id = ?", deleted.ID).Update("deleted_at", &now).Error)
 
-	t.Run("自クリニックのファイルのみ created_at 降順で返す", func(t *testing.T) {
+	t.Run("自医院のファイルのみ created_at 降順で返す", func(t *testing.T) {
 		got, err := repo.FindAll(ctx, clinicA)
 		require.NoError(t, err)
 		require.Len(t, got, 2, "clinicB・deleted 済みは含まれない")
@@ -121,7 +121,7 @@ func TestSharedFileRepository_FindAll(t *testing.T) {
 		assert.Equal(t, older.ID, got[1].ID)
 	})
 
-	t.Run("別クリニックは自身のファイルのみ返す", func(t *testing.T) {
+	t.Run("別医院は自身のファイルのみ返す", func(t *testing.T) {
 		got, err := repo.FindAll(ctx, clinicB)
 		require.NoError(t, err)
 		require.Len(t, got, 1)
@@ -138,7 +138,7 @@ func TestSharedFileRepository_Delete(t *testing.T) {
 
 	f := makeSharedFile(t, repo, clinicA, "to-delete.pdf")
 
-	t.Run("別クリニックからの削除は RowsAffected==0 を検知して NotFound を返す", func(t *testing.T) {
+	t.Run("別医院からの削除は RowsAffected==0 を検知して NotFound を返す", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, f.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -149,7 +149,7 @@ func TestSharedFileRepository_Delete(t *testing.T) {
 		assert.Equal(t, f.ID, got.ID)
 	})
 
-	t.Run("正常系: 自クリニックからの削除でソフトデリートされる（行は残る）", func(t *testing.T) {
+	t.Run("正常系: 自医院からの削除でソフトデリートされる（行は残る）", func(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, clinicA, f.ID))
 
 		_, err := repo.FindByID(ctx, clinicA, f.ID)
@@ -187,7 +187,7 @@ func TestSharedFileRepository_FindExpired(t *testing.T) {
 
 	threshold := time.Now().Add(-24 * time.Hour).Unix()
 
-	t.Run("しきい値より古く未削除のファイルをクリニック横断で返す", func(t *testing.T) {
+	t.Run("しきい値より古く未削除のファイルを医院横断で返す", func(t *testing.T) {
 		got, err := repo.FindExpired(ctx, threshold)
 		require.NoError(t, err)
 
@@ -196,7 +196,7 @@ func TestSharedFileRepository_FindExpired(t *testing.T) {
 			ids[f.ID] = true
 		}
 		assert.True(t, ids[old.ID], "しきい値より古いファイルが含まれる")
-		assert.True(t, ids[oldOtherClinic.ID], "FindExpired はクリニックを横断して抽出する（バッチ用途）")
+		assert.True(t, ids[oldOtherClinic.ID], "FindExpired は医院を横断して抽出する（バッチ用途）")
 		assert.False(t, ids[recent.ID], "しきい値より新しいファイルは含まれない")
 		assert.False(t, ids[oldButDeleted.ID], "deleted_at 設定済みは除外される")
 	})

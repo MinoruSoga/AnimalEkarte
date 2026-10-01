@@ -71,7 +71,7 @@ func TestBillingConfirmationRepository_Create_FindByMedicalRecordID(t *testing.T
 		assert.NotZero(t, review.ID)
 	})
 
-	t.Run("自クリニックの medical_record_id で取得できる", func(t *testing.T) {
+	t.Run("自医院の medical_record_id で取得できる", func(t *testing.T) {
 		got, err := repo.FindByMedicalRecordID(ctx, clinicA, mrA.ID)
 		require.NoError(t, err)
 		require.NotNil(t, got)
@@ -79,7 +79,7 @@ func TestBillingConfirmationRepository_Create_FindByMedicalRecordID(t *testing.T
 		assert.Equal(t, model.ConfirmationStatusPending, got.Status)
 	})
 
-	t.Run("別クリニックからの取得は NotFound（medical_records JOIN 経由の隔離）", func(t *testing.T) {
+	t.Run("別医院からの取得は NotFound（medical_records JOIN 経由の隔離）", func(t *testing.T) {
 		_, err := repo.FindByMedicalRecordID(ctx, clinicB, mrA.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
@@ -121,7 +121,7 @@ func TestBillingConfirmationRepository_Update(t *testing.T) {
 		assert.Equal(t, confirmer.ID, *got.ConfirmedBy)
 	})
 
-	t.Run("別クリニックからの更新は NotFound", func(t *testing.T) {
+	t.Run("別医院からの更新は NotFound", func(t *testing.T) {
 		memo := "乗っ取り"
 		err := repo.Update(ctx, clinicB, review.ID, UpdateBillingConfirmationInput{Memo: &memo})
 		require.Error(t, err)

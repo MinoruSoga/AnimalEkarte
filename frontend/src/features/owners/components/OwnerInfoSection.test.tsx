@@ -62,7 +62,10 @@ describe("OwnerInfoSection", () => {
 
   it("mobileでは単一列にし、sm以上で2列、lg以上で既存の4列へ戻す", () => {
     const { container } = renderOwnerInfo();
-    const dangerousField = screen.getByText("危険人物").parentElement;
+    // EMR-231: 特記領域は折りたたみ行（role=button の親の親が grid セル）
+    const staffNoteField = screen.getByRole("button", {
+      name: /スタッフ向け特記/,
+    }).parentElement?.parentElement;
 
     expect(container.firstElementChild).toHaveClass(
       "w-full",
@@ -70,8 +73,8 @@ describe("OwnerInfoSection", () => {
       "sm:grid-cols-2",
       "lg:grid-cols-4",
     );
-    expect(dangerousField).toHaveClass("col-span-1", "sm:col-span-2", "lg:col-span-1");
-    expect(dangerousField).not.toHaveClass("col-span-2");
+    expect(staffNoteField).toHaveClass("col-span-1", "sm:col-span-2", "lg:col-span-1");
+    expect(staffNoteField).not.toHaveClass("col-span-2");
   });
 
   it("DM区分を未設定/必要/不要として編集できる", async () => {

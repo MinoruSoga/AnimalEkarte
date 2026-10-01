@@ -49,9 +49,9 @@ describe("ErrorPage（BUG-027: LIFF / LINE-reserve 共通エラー chrome）", (
   });
 
   it("showAction=false のときアクションを出さない（恒久的な設定ミス用）", () => {
-    render(<ErrorPage message="クリニックIDが見つかりません" showAction={false} />);
+    render(<ErrorPage message="医院IDが見つかりません" showAction={false} />);
 
-    expect(screen.getByRole("alert")).toHaveTextContent("クリニックIDが見つかりません");
+    expect(screen.getByRole("alert")).toHaveTextContent("医院IDが見つかりません");
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 });

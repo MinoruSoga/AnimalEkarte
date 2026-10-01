@@ -73,43 +73,28 @@ func applyBillingOwnerPetSearch(q *gorm.DB, search string) *gorm.DB {
 	if qSearch == "" {
 		return q.Where("1 = 0")
 	}
-	rawPattern := "%" + textsearch.EscapeLike(qSearch) + "%"
 	normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(qSearch)) + "%"
 	return q.Where(
 		`(
-			EXISTS (
-				SELECT 1 FROM owners o
-				WHERE o.id = billings.owner_id
-				  AND o.clinic_id = billings.clinic_id
-				  AND o.deleted_at IS NULL
+			(billings.owner_id, billings.clinic_id) IN (
+				SELECT o.id, o.clinic_id FROM owners o
+				WHERE o.deleted_at IS NULL
 				  AND (
-				    o.name ILIKE ? ESCAPE '\'
-				    OR translate(o.name, ?, ?) ILIKE ? ESCAPE '\'
-				    OR translate(o.name, ?, ?) ILIKE ? ESCAPE '\'
-				    OR translate(COALESCE(o.name_kana, ''), ?, ?) ILIKE ? ESCAPE '\'
+				    `+textsearch.FoldedExpr("o.name")+` ILIKE ? ESCAPE '\'
+				    OR `+textsearch.FoldedExpr("o.name_kana")+` ILIKE ? ESCAPE '\'
 				  )
 			)
-			OR EXISTS (
-				SELECT 1 FROM pets p
-				WHERE p.id = billings.pet_id
-				  AND p.clinic_id = billings.clinic_id
-				  AND p.deleted_at IS NULL
+			OR (billings.pet_id, billings.clinic_id) IN (
+				SELECT p.id, p.clinic_id FROM pets p
+				WHERE p.deleted_at IS NULL
 				  AND (
-				    p.name ILIKE ? ESCAPE '\'
-				    OR translate(p.name, ?, ?) ILIKE ? ESCAPE '\'
-				    OR translate(p.name, ?, ?) ILIKE ? ESCAPE '\'
-				    OR translate(COALESCE(p.name_kana, ''), ?, ?) ILIKE ? ESCAPE '\'
+				    `+textsearch.FoldedExpr("p.name")+` ILIKE ? ESCAPE '\'
+				    OR `+textsearch.FoldedExpr("p.name_kana")+` ILIKE ? ESCAPE '\'
 				  )
 			)
 		)`,
-		rawPattern,
-		textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
-		textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
-		textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
-		rawPattern,
-		textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
-		textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
-		textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+		normalizedPattern, normalizedPattern,
+		normalizedPattern, normalizedPattern,
 	)
 }
 

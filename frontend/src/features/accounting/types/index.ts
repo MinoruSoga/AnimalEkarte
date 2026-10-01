@@ -51,6 +51,8 @@ export interface AccountingItem {
   appointmentId?: string;
   trimmingCourseId?: string;
   trimmingOptionId?: string;
+  /** EMR-246: 未請求候補の発生日（JST YYYY-MM-DD）。当日/過去区分表示用 */
+  serviceDate?: string;
 }
 
 /** @see {@link import("@/types/generated/models").Payment} */

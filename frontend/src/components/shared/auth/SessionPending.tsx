@@ -11,7 +11,7 @@ interface SessionPendingProps {
 export function SessionPending({ message = DEFAULT_MESSAGE }: SessionPendingProps) {
   return (
     <div
-      className={`min-h-screen flex flex-col items-center justify-center px-4 ${C.bgPage}`}
+      className={`h-dvh overflow-y-auto flex flex-col items-center-safe justify-center-safe px-4 ${C.bgPage}`}
       role="status"
       aria-live="polite"
       aria-atomic="true"

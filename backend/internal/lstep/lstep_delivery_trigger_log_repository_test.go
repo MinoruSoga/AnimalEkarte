@@ -328,7 +328,7 @@ func TestLstepDeliveryTriggerLogRepository_ExistsTodayByOwnerAndType(t *testing.
 		assert.False(t, exists)
 	})
 
-	t.Run("別クリニックの同条件ログは既存扱いしない（clinic_id 分離）", func(t *testing.T) {
+	t.Run("別医院の同条件ログは既存扱いしない（clinic_id 分離）", func(t *testing.T) {
 		exists, err := repo.ExistsTodayByOwnerAndType(ctx, clinicB, ownerA, model.TriggerTypeBirthdayMessage, target)
 		require.NoError(t, err)
 		assert.False(t, exists)
@@ -410,11 +410,11 @@ func TestLstepDeliveryTriggerLogRepository_UpdateStatus(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
 	})
 
-	t.Run("別クリニックの ID 指定は NotFound を返す（clinic_id 分離）", func(t *testing.T) {
+	t.Run("別医院の ID 指定は NotFound を返す（clinic_id 分離）", func(t *testing.T) {
 		log := makeDeliveryTriggerLog(t, db, clinicA, 11, model.TriggerTypeBirthdayMessage, model.TriggerStatusScheduled, scheduledAt)
 		err := repo.UpdateStatus(ctx, clinicB, log.ID, model.TriggerStatusFired, nil, nil)
 		require.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err), "別クリニックからの更新は NotFound であるべき: %v", err)
+		assert.True(t, apperrors.IsNotFound(err), "別医院からの更新は NotFound であるべき: %v", err)
 
 		// 実データは変更されていないことを確認
 		var stored model.LstepDeliveryTriggerLog
@@ -439,7 +439,7 @@ func TestLstepDeliveryTriggerLogRepository_CountByStatusAndDateRange(t *testing.
 	makeDeliveryTriggerLog(t, db, clinicA, ownerA.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, within)
 	makeDeliveryTriggerLog(t, db, clinicA, ownerA.ID, model.TriggerTypeVaccineDeadline30, model.TriggerStatusExcluded, within)
 	makeDeliveryTriggerLog(t, db, clinicA, ownerA.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, from.AddDate(0, -1, 0)) // 範囲外
-	makeDeliveryTriggerLog(t, db, clinicB, ownerB.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, within)                 // 別クリニック
+	makeDeliveryTriggerLog(t, db, clinicB, ownerB.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, within)                 // 別医院
 	makeDeliveryTriggerLog(t, db, clinicA, ownerB.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, within)                 // 不整合owner参照
 
 	t.Run("トリガー種別指定なしは全種別を集計する", func(t *testing.T) {
@@ -585,9 +585,9 @@ func TestLstepDeliveryTriggerLogRepository_FindByDateRangeWithFilters(t *testing
 		assert.Equal(t, l1.ID, rows[0].ID, "offset=1 の2番目の有効行が返るべき")
 	})
 
-	t.Run("別クリニック owner を指す不整合ログから owner 名を露出しない", func(t *testing.T) {
+	t.Run("別医院 owner を指す不整合ログから owner 名を露出しない", func(t *testing.T) {
 		const clinicB = uint64(2)
-		otherClinicOwner := testdb.MakeTestOwner(t, db, clinicB, "別クリニック飼主")
+		otherClinicOwner := testdb.MakeTestOwner(t, db, clinicB, "別医院飼主")
 		log := makeDeliveryTriggerLog(t, db, clinicA, otherClinicOwner.ID, "cross_clinic_owner", model.TriggerStatusScheduled, time.Date(2026, 6, 13, 9, 0, 0, 0, time.UTC))
 
 		rows, total, err := repo.FindByDateRangeWithFilters(ctx, clinicA, from, to, "cross_clinic_owner", model.TriggerStatusScheduled, 10, 0)
@@ -693,8 +693,8 @@ func TestLstepDeliveryTriggerLogRepository_CountVisitConversionsByType(t *testin
 	scheduledOwner := testdb.MakeTestOwner(t, db, clinicA, "未配信の飼主")
 	makeDeliveryTriggerLog(t, db, clinicA, scheduledOwner.ID, "T1", model.TriggerStatusScheduled, firedAt)
 
-	// 別クリニックのログは集計対象外
-	otherClinicOwner := testdb.MakeTestOwner(t, db, clinicB, "別クリニック飼主")
+	// 別医院のログは集計対象外
+	otherClinicOwner := testdb.MakeTestOwner(t, db, clinicB, "別医院飼主")
 	makeDeliveryTriggerLog(t, db, clinicB, otherClinicOwner.ID, "T1", model.TriggerStatusFired, firedAt)
 	makeDeliveryTriggerLog(t, db, clinicA, otherClinicOwner.ID, "CROSS_OWNER", model.TriggerStatusFired, firedAt)
 
@@ -743,7 +743,7 @@ func TestLstepDeliveryTriggerLogRepository_FindByOwnerAndDate(t *testing.T) {
 	// Different trigger type on same JST day — suppression lookup returns all types for the owner/day.
 	otherType := makeDeliveryTriggerLog(t, db, clinicA, ownerA, model.TriggerTypeVaccineDeadline30, model.TriggerStatusScheduled, target.Add(10*time.Hour))
 	makeDeliveryTriggerLog(t, db, clinicA, ownerB, model.TriggerTypeBirthdayMessage, model.TriggerStatusScheduled, target.Add(9*time.Hour))                   // 別飼主
-	makeDeliveryTriggerLog(t, db, clinicB, ownerA, model.TriggerTypeBirthdayMessage, model.TriggerStatusScheduled, target.Add(9*time.Hour))                   // 別クリニック
+	makeDeliveryTriggerLog(t, db, clinicB, ownerA, model.TriggerTypeBirthdayMessage, model.TriggerStatusScheduled, target.Add(9*time.Hour))                   // 別医院
 	makeDeliveryTriggerLog(t, db, clinicA, ownerA, model.TriggerTypeBirthdayMessage, model.TriggerStatusScheduled, target.AddDate(0, 0, -1).Add(9*time.Hour)) // 前日
 	makeDeliveryTriggerLog(t, db, clinicA, ownerA, model.TriggerTypeBirthdayMessage, model.TriggerStatusScheduled, target.AddDate(0, 0, 1).Add(1*time.Hour))  // 翌日
 
@@ -822,10 +822,10 @@ func TestLstepDeliveryTriggerLogRepository_UpdateSuppressed(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
 	})
 
-	t.Run("別クリニックの ID 指定は NotFound を返す（clinic_id 分離）", func(t *testing.T) {
+	t.Run("別医院の ID 指定は NotFound を返す（clinic_id 分離）", func(t *testing.T) {
 		log := makeDeliveryTriggerLog(t, db, clinicA, 11, model.TriggerTypeDormantPrevention365, model.TriggerStatusFired, scheduledAt)
 		err := repo.UpdateSuppressed(ctx, clinicB, log.ID, "reason")
 		require.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err), "別クリニックからの更新は NotFound であるべき: %v", err)
+		assert.True(t, apperrors.IsNotFound(err), "別医院からの更新は NotFound であるべき: %v", err)
 	})
 }

@@ -69,7 +69,13 @@ export const InsuranceCard = memo(function InsuranceCard({
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <CreditCard className={ICON.action} /> ペット保険（窓口精算）
           </CardTitle>
+          {/* form action 完了時に React が form.reset() を実行し、Radix は mount 時点の
+              checked を初期値として復元する（initialCheckedStateRef）。既存会計では mount 時
+              hasInsurance=false → 同期 effect で true になるため、key で remount して
+              reset の復元先を常に現在値へ揃える。なければ確定済み修正の確認ダイアログ後に
+              保険が false へ巻き戻り OFF として送信される（S15 手順6 で実測）。 */}
           <Switch
+            key={useInsurance ? "on" : "off"}
             checked={useInsurance}
             onCheckedChange={onUseInsuranceChange}
             aria-label="ペット保険を利用"
@@ -80,7 +86,14 @@ export const InsuranceCard = memo(function InsuranceCard({
         <CardContent className="p-4 space-y-4">
           <div className="space-y-2">
             <Label className="text-xs">負担割合（保険会社が支払う割合）</Label>
-            <Select value={insuranceRatio} onValueChange={onInsuranceRatioChange}>
+            {/* Switch と同じ reset 巻き戻し対策: Select も mount 時 value を初期値として
+                form.reset() で復元する（initialValueRef）。比率変更後の submit で
+                mount 値へ戻らないよう key で remount する。 */}
+            <Select
+              key={insuranceRatio}
+              value={insuranceRatio}
+              onValueChange={onInsuranceRatioChange}
+            >
               <SelectTrigger className="h-11" aria-label="負担割合">
                 <SelectValue />
               </SelectTrigger>

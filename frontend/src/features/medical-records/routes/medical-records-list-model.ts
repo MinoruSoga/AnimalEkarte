@@ -1,4 +1,13 @@
-import { Calendar, CircleDot, PawPrint, User } from "lucide-react";
+import {
+  Activity,
+  Calendar,
+  CircleDot,
+  Package,
+  PawPrint,
+  Pill,
+  Stethoscope,
+  User,
+} from "lucide-react";
 import type { FilterCondition, FilterProperty } from "@/components/shared/PropertyFilter/types";
 import { C, STYLE } from "@/lib/design-tokens";
 
@@ -7,6 +16,10 @@ interface MedicalRecordsFilterMaster {
   activeSpecies: { id: number; name: string }[];
   isSpeciesError: boolean;
   isSpeciesLoading: boolean;
+  medicines: { id: string; name: string; isActive: boolean }[] | undefined;
+  procedures: { id: string; name: string; isActive: boolean }[] | undefined;
+  consultations: { id: string; name: string; isActive: boolean }[] | undefined;
+  inventories: { id: string; name: string }[] | undefined;
 }
 
 export function buildMedicalRecordsFilterProperties(
@@ -36,6 +49,44 @@ export function buildMedicalRecordsFilterProperties(
       icon: PawPrint,
       conditions: SERVER_EQUALITY_ONLY,
       options: speciesOptions,
+    },
+    {
+      key: "medicine",
+      label: "薬剤",
+      type: "select" as const,
+      icon: Pill,
+      conditions: SERVER_EQUALITY_ONLY,
+      options: (input.medicines ?? [])
+        .filter((m) => m.isActive)
+        .map((m) => ({ value: m.id, label: m.name })),
+    },
+    {
+      key: "procedure",
+      label: "処置",
+      type: "select" as const,
+      icon: Activity,
+      conditions: SERVER_EQUALITY_ONLY,
+      options: (input.procedures ?? [])
+        .filter((p) => p.isActive)
+        .map((p) => ({ value: p.id, label: p.name })),
+    },
+    {
+      key: "consultation",
+      label: "診察",
+      type: "select" as const,
+      icon: Stethoscope,
+      conditions: SERVER_EQUALITY_ONLY,
+      options: (input.consultations ?? [])
+        .filter((c) => c.isActive)
+        .map((c) => ({ value: c.id, label: c.name })),
+    },
+    {
+      key: "inventory",
+      label: "在庫品",
+      type: "select" as const,
+      icon: Package,
+      conditions: SERVER_EQUALITY_ONLY,
+      options: (input.inventories ?? []).map((i) => ({ value: i.id, label: i.name })),
     },
   ];
 }

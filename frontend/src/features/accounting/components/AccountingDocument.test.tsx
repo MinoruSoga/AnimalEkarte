@@ -96,7 +96,7 @@ describe("AccountingDocument 移行負額", () => {
 });
 
 describe("AccountingDocument #179 ① 帳票レイアウト設定", () => {
-  it("登録番号未設定警告を病院設定で非表示にできる", () => {
+  it("登録番号未設定警告を医院設定で非表示にできる", () => {
     renderDocument({
       name: "テスト病院",
       accountingDocumentShowRegistrationWarning: false,
@@ -105,7 +105,7 @@ describe("AccountingDocument #179 ① 帳票レイアウト設定", () => {
     expect(screen.queryByText(/登録番号が未設定です/)).not.toBeInTheDocument();
   });
 
-  it("項目カテゴリ表示とフッター文言を病院設定から切り替える", () => {
+  it("項目カテゴリ表示とフッター文言を医院設定から切り替える", () => {
     renderDocument({
       name: "テスト病院",
       accountingDocumentShowItemCategory: false,
@@ -150,7 +150,7 @@ describe("AccountingDocument #190 セクション表示/非表示と順序", () 
     expect(screen.getByText("請求金額")).toBeInTheDocument();
   });
 
-  it("accountingDocumentShowClinicHeader: false で病院情報ヘッダーを非表示にする", () => {
+  it("accountingDocumentShowClinicHeader: false で医院情報ヘッダーを非表示にする", () => {
     renderDocument({ name: "テスト病院", accountingDocumentShowClinicHeader: false });
 
     expect(screen.queryByRole("heading", { name: "明細兼領収書" })).not.toBeInTheDocument();

@@ -15,7 +15,7 @@ const DATA: Pet[] = [
   { id: 3, name: "ピーちゃん", species: "鳥", owner: "佐藤" },
 ];
 
-const COLUMNS = [{ header: "名前" }, { header: "種別" }, { header: "飼い主" }];
+const COLUMNS = [{ header: "名前" }, { header: "種別" }, { header: "飼主" }];
 
 function renderPetRow(pet: Pet) {
   return (

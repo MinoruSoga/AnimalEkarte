@@ -63,7 +63,7 @@ export function LabDeviceItemMasterSettings() {
                     onSuccess: (result) => {
                       toast.success(
                         result.insertedCount > 0
-                          ? `既定項目を ${result.insertedCount} 件用意しました`
+                          ? `既定項目を ${result.insertedCount.toLocaleString()} 件用意しました`
                           : "既定項目は揃っています",
                       );
                     },

@@ -61,14 +61,14 @@ func TestReservationTypeRepository_FindAll(t *testing.T) {
 	rtA := makeReservationTypeLinked(t, db, clinicA, "A区分", nil, nil)
 	_ = makeReservationTypeLinked(t, db, clinicB, "B区分", nil, nil)
 
-	t.Run("同一クリニックのみ取得できる", func(t *testing.T) {
+	t.Run("同一医院のみ取得できる", func(t *testing.T) {
 		got, err := repo.FindAll(ctx, clinicA)
 		require.NoError(t, err)
 		require.Len(t, got, 1)
 		assert.Equal(t, rtA.ID, got[0].ID)
 	})
 
-	t.Run("別クリニックIDでは見えない", func(t *testing.T) {
+	t.Run("別医院IDでは見えない", func(t *testing.T) {
 		got, err := repo.FindAll(ctx, clinicB)
 		require.NoError(t, err)
 		require.Len(t, got, 1)
@@ -188,7 +188,7 @@ func TestReservationTypeRepository_CountUsageByReservationTypeID(t *testing.T) {
 		assert.Equal(t, int64(1), count)
 	})
 
-	t.Run("別クリニックIDでは0件（clinic_id 隔離）", func(t *testing.T) {
+	t.Run("別医院IDでは0件（clinic_id 隔離）", func(t *testing.T) {
 		count, err := repo.CountUsageByReservationTypeID(ctx, clinicB, rtA.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)
@@ -252,14 +252,14 @@ func TestReservationTypeRepository_Update(t *testing.T) {
 
 	rt := makeReservationTypeLinked(t, db, clinicA, "更新前区分", nil, nil)
 
-	t.Run("正しいクリニックIDで更新できる", func(t *testing.T) {
+	t.Run("正しい医院IDで更新できる", func(t *testing.T) {
 		name := "更新後区分"
 		updated, err := repo.Update(ctx, clinicA, rt.ID, UpdateReservationTypeInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後区分", updated.Name)
 	})
 
-	t.Run("別クリニックIDでは NotFound", func(t *testing.T) {
+	t.Run("別医院IDでは NotFound", func(t *testing.T) {
 		name := "不正更新"
 		updated, err := repo.Update(ctx, clinicB, rt.ID, UpdateReservationTypeInput{Name: &name})
 		assert.Error(t, err)
@@ -276,13 +276,13 @@ func TestReservationTypeRepository_Delete(t *testing.T) {
 
 	rt := makeReservationTypeLinked(t, db, clinicA, "削除対象区分", nil, nil)
 
-	t.Run("別クリニックIDでは NotFound", func(t *testing.T) {
+	t.Run("別医院IDでは NotFound", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, rt.ID)
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("正しいクリニックIDで削除できる", func(t *testing.T) {
+	t.Run("正しい医院IDで削除できる", func(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, clinicA, rt.ID))
 		_, err := repo.FindByID(ctx, clinicA, rt.ID)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -356,7 +356,7 @@ func TestReservationTypeRepository_Reorder(t *testing.T) {
 		assert.Equal(t, 3, got2.SortOrder)
 	})
 
-	t.Run("他クリニックの id を含むと失敗する", func(t *testing.T) {
+	t.Run("他医院の id を含むと失敗する", func(t *testing.T) {
 		otherClinicRT := makeReservationTypeLinked(t, db, uint64(2), "別医院区分", nil, nil)
 		err := repo.Reorder(ctx, clinicA, []uint64{rt1.ID, otherClinicRT.ID})
 		assert.Error(t, err, "clinic A のスコープに存在しない id を含む Reorder は失敗するべき")

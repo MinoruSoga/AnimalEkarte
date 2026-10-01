@@ -37,7 +37,6 @@ type realDBRecordsFixture struct {
 	checkupH     *CheckupHandler
 	clinicalH    *ClinicalPlanHandler
 	imageH       *MedicalRecordImageHandler
-	rxH          *PrescriptionHandler
 	treatmentH   *TreatmentHandler
 	planH        *TreatmentPlanHandler
 	vitalH       *VitalHandler
@@ -51,14 +50,14 @@ func setupRealDBRecordsDB(t *testing.T) *gorm.DB {
 		&model.Company{}, &model.Clinic{}, &model.Staff{}, &model.StaffClinicAssignment{},
 		&model.AnimalSpecies{}, &model.Owner{}, &model.Pet{}, &model.MedicalRecord{},
 		&model.ClinicalPlan{}, &model.MedicalRecordAddendum{}, &model.MedicalRecordImage{},
-		&model.Prescription{}, &model.Treatment{}, &model.TreatmentPlan{}, &model.VitalRecord{},
+		&model.Treatment{}, &model.TreatmentPlan{}, &model.VitalRecord{},
 		&model.CheckupType{}, &model.Checkup{}, &model.CheckupTypeField{}, &model.CheckupFieldResult{},
 		&model.Vaccine{}, &model.Vaccination{},
 	))
 	testdb.Truncate(t, db,
 		"checkup_field_results", "checkups", "checkup_type_fields", "checkup_types",
 		"vaccinations", "vaccines", "vital_records", "treatments", "treatment_plans",
-		"prescriptions", "medical_record_images", "medical_record_addenda", "clinical_plans",
+		"medical_record_images", "medical_record_addenda", "clinical_plans",
 		"medical_records", "pets", "owners",
 		"staff_clinic_assignments", "staffs",
 	)
@@ -95,7 +94,6 @@ func wireRecordsHandlers(t *testing.T, db *gorm.DB, forbidden uint64) realDBReco
 
 	addendumSvc := MedicalRecordAddendumService(NewMedicalRecordAddendumService(NewMedicalRecordAddendumRepository(db), mrRepo, nil, tx))
 	imageSvc := MedicalRecordImageService(NewMedicalRecordImageService(NewMedicalRecordImageRepository(db), mrRepo, tx))
-	rxSvc := PrescriptionService(NewPrescriptionService(NewPrescriptionRepository(db), mrRepo, nil, tx))
 	treatmentSvc := TreatmentService(NewTreatmentServiceWithAudit(
 		NewTreatmentRepository(db), mrRepo, nil, nil, nil, nil, NewVitalRepository(db), nil, tx, nil,
 	))
@@ -112,7 +110,6 @@ func wireRecordsHandlers(t *testing.T, db *gorm.DB, forbidden uint64) realDBReco
 		g := clinicIDGuard{t: t, forbiddenClinicID: forbidden}
 		addendumSvc = &addendumQueryGuard{MedicalRecordAddendumService: addendumSvc, g: g}
 		imageSvc = &imageQueryGuard{MedicalRecordImageService: imageSvc, g: g}
-		rxSvc = &rxQueryGuard{PrescriptionService: rxSvc, g: g}
 		treatmentSvc = &treatmentQueryGuard{TreatmentService: treatmentSvc, g: g}
 		planSvc = &treatmentPlanQueryGuard{TreatmentPlanService: planSvc, g: g}
 		vitalSvc = &vitalQueryGuard{VitalService: vitalSvc, g: g}
@@ -128,7 +125,6 @@ func wireRecordsHandlers(t *testing.T, db *gorm.DB, forbidden uint64) realDBReco
 		checkupH:     NewCheckupHandler(checkupSvc, fieldSvc),
 		clinicalH:    NewClinicalPlanHandler(clinicalSvc),
 		imageH:       NewMedicalRecordImageHandler(imageSvc, mrSvc, nil),
-		rxH:          NewPrescriptionHandler(rxSvc),
 		treatmentH:   NewTreatmentHandler(treatmentSvc, nil),
 		planH:        NewTreatmentPlanHandler(planSvc, nil, mrSvc, nil),
 		vitalH:       NewVitalHandler(vitalSvc, mrSvc),
@@ -154,16 +150,6 @@ type imageQueryGuard struct {
 func (s *imageQueryGuard) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
 	s.g.check(clinicID, "image List")
 	return s.MedicalRecordImageService.List(ctx, clinicID, medicalRecordID)
-}
-
-type rxQueryGuard struct {
-	PrescriptionService
-	g clinicIDGuard
-}
-
-func (s *rxQueryGuard) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Prescription, error) {
-	s.g.check(clinicID, "rx List")
-	return s.PrescriptionService.List(ctx, clinicID, medicalRecordID)
 }
 
 type treatmentQueryGuard struct {
@@ -263,13 +249,6 @@ func seedRealDBRecordsFixture(t *testing.T, db *gorm.DB, forbidden uint64) realD
 		MedicalRecordID: recordB.ID, ImageURL: realDBImageURLB, ImageType: model.MedicalImageTypePhoto, FileName: "b.png",
 	}).Error)
 
-	require.NoError(t, db.WithContext(ctx).Create(&model.Prescription{
-		ClinicID: fx.ClinicA, OwnerID: ownerA.ID, PetID: &petA.ID, MedicalRecordID: &recordA.ID, PrescribedAt: realDBNow(),
-	}).Error)
-	require.NoError(t, db.WithContext(ctx).Create(&model.Prescription{
-		ClinicID: fx.ClinicB, OwnerID: ownerB.ID, PetID: &petB.ID, MedicalRecordID: &recordB.ID, PrescribedAt: realDBNow(),
-	}).Error)
-
 	require.NoError(t, db.WithContext(ctx).Create(&model.Treatment{
 		MedicalRecordID: recordA.ID, ItemType: model.TreatmentItemTypeOther, Content: realDBTreatmentA,
 	}).Error)
@@ -345,7 +324,7 @@ func TestRealDB_RecordsSelectedClinicBGrantAIsolation(t *testing.T) {
 				fx := seedRealDBRecordsFixture(t, db, 0)
 				handlers := wireRecordsHandlers(t, db, fx.fx.ClinicB)
 				fx.mrH, fx.addendumH, fx.checkupH, fx.clinicalH = handlers.mrH, handlers.addendumH, handlers.checkupH, handlers.clinicalH
-				fx.imageH, fx.rxH, fx.treatmentH, fx.planH = handlers.imageH, handlers.rxH, handlers.treatmentH, handlers.planH
+				fx.imageH, fx.treatmentH, fx.planH = handlers.imageH, handlers.treatmentH, handlers.planH
 				fx.vitalH, fx.vaccinationH = handlers.vitalH, handlers.vaccinationH
 				fn(t, fx)
 				return
@@ -418,9 +397,6 @@ func TestRealDB_RecordsSelectedClinicBGrantAIsolation(t *testing.T) {
 		{"images", func(fx realDBRecordsFixture) string {
 			return fmt.Sprintf("/api/v1/medical-records/%d/images", fx.recordB.ID)
 		}, func(fx realDBRecordsFixture, c *gin.Context) { fx.imageH.ListMedicalRecordImages(c) }, realDBImageURLB, realDBImageURLA},
-		{"prescriptions", func(fx realDBRecordsFixture) string {
-			return fmt.Sprintf("/api/v1/medical-records/%d/prescriptions", fx.recordB.ID)
-		}, func(fx realDBRecordsFixture, c *gin.Context) { fx.rxH.ListPrescriptions(c) }, fmt.Sprintf(`"owner_id":%d`, 0), ""}, // filled later
 		{"treatment_plans", func(fx realDBRecordsFixture) string {
 			return fmt.Sprintf("/api/v1/medical-records/%d/treatment-plans", fx.recordB.ID)
 		}, func(fx realDBRecordsFixture, c *gin.Context) { fx.planH.ListTreatmentPlansByMedicalRecord(c) }, realDBTreatmentPlanB, realDBTreatmentPlanA},
@@ -446,9 +422,6 @@ func TestRealDB_RecordsSelectedClinicBGrantAIsolation(t *testing.T) {
 		run(nc.name+"_grantB_nonempty", false, func(t *testing.T, fx realDBRecordsFixture) {
 			path := nc.path(fx)
 			marker := nc.marker
-			if nc.name == "prescriptions" {
-				marker = fmt.Sprintf(`"owner_id":"%d"`, fx.ownerB.ID)
-			}
 			c, w := testdb.NewHTTPTestContext(t, http.MethodGet, path, withIDParam(configureGrant(fx.fx, resMR, fx.fx.ClinicB), fx.recordB.ID))
 			nc.invoke(fx, c)
 			require.Equal(t, http.StatusOK, w.Code, w.Body.String())
@@ -461,7 +434,7 @@ func TestRealDB_RecordsSelectedClinicBGrantAIsolation(t *testing.T) {
 			c, w := testdb.NewHTTPTestContext(t, http.MethodGet, stringsReplace(nc.path(fx), fx.recordB.ID, fx.recordA.ID), withIDParam(configureGrant(fx.fx, resMR, fx.fx.ClinicB), fx.recordA.ID))
 			nc.invoke(fx, c)
 			switch nc.name {
-			case "checkups", "prescriptions", "treatments":
+			case "checkups", "treatments":
 				require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 				body := w.Body.String()
 				assert.NotContains(t, body, realDBRecordNoA)

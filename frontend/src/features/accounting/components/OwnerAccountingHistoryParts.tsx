@@ -46,7 +46,9 @@ export function AccountingHistorySummary({
       className={`flex items-center justify-between rounded-lg ${C.bgPage} px-4 py-3 border ${C.borderMedium}`}
       data-testid="accounting-history-summary"
     >
-      <span className={`text-xs ${C.text60}`}>累計支払い金額（精算済 {completedCount} 件）</span>
+      <span className={`text-xs ${C.text60}`}>
+        累計支払い金額（精算済 {completedCount.toLocaleString()} 件）
+      </span>
       <span className={`text-base font-bold ${C.text} font-mono`}>
         {formatCurrency(completedTotal)}
       </span>

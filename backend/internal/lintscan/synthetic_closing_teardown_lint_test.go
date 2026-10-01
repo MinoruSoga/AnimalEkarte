@@ -241,6 +241,7 @@ var (
 	teardownCompositeFKRe = regexp.MustCompile(`(?is)(?:CONSTRAINT\s+(\w+)\s+)?FOREIGN KEY\s*\(([\w,\s]+)\)\s*REFERENCES\s+(\w+)\s*\(([\w,\s]+)\)\s*(ON DELETE\s+\w+(?:\s+\w+)?)?`)
 	teardownConstraintRe  = regexp.MustCompile(`(?i)CONSTRAINT\s+(\w+)\s+`)
 	teardownDropRe        = regexp.MustCompile(`(?i)DROP CONSTRAINT(?: IF EXISTS)?\s+(\w+)`)
+	teardownDropTableRe   = regexp.MustCompile(`(?i)DROP TABLE(?: IF EXISTS)?\s+(\w+)`)
 	teardownNonBlockingRe = regexp.MustCompile(`(?i)ON DELETE\s+(CASCADE|SET NULL|SET DEFAULT)`)
 	teardownDeleteFromRe  = regexp.MustCompile(`DELETE FROM\s+(\w+)\b`)
 	teardownStringSliceRe = func(name string) *regexp.Regexp {
@@ -262,6 +263,12 @@ var (
 func parseTeardownBlockingEdges(schema string) []teardownFKEdge {
 	var edges []teardownFKEdge
 	dropped := make(map[string]bool)
+	// DROP TABLE はテーブル自体を消すため、その child/parent 両方向の edge も消える
+	// （DROP CONSTRAINT だけでは検出できない点をカバー — 例: 014_drop_prescriptions.sql）。
+	droppedTables := make(map[string]bool)
+	for _, m := range teardownDropTableRe.FindAllStringSubmatch(schema, -1) {
+		droppedTables[m[1]] = true
+	}
 
 	addEdge := func(child, parent, column, constraint, onDelete string) {
 		if teardownNonBlockingRe.MatchString(onDelete) {
@@ -318,10 +325,13 @@ func parseTeardownBlockingEdges(schema string) []teardownFKEdge {
 		}
 	}
 
-	if len(dropped) > 0 {
+	if len(dropped) > 0 || len(droppedTables) > 0 {
 		kept := edges[:0]
 		for _, edge := range edges {
 			if dropped[edge.child+"."+edge.constraint] {
+				continue
+			}
+			if droppedTables[edge.child] || droppedTables[edge.parent] {
 				continue
 			}
 			kept = append(kept, edge)

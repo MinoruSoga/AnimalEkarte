@@ -536,7 +536,6 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"owner/repository.go|ownerRepository.UpdateLineBlockedAt":  {},
 	"owner/repository.go|ownerRepository.UpdateLineFollowedAt": {},
 	"owner/repository.go|ownerRepository.UpdateLineUserID":     {},
-	// prescription (X-11 Appendix-A finalize-child-write-race fix — same FK-deadlock rationale as examination)
 	// procedure (MRC-07 ambient tx for delete usage check)
 	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.FindAll":                 {},
 	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.FindByID":                {},
@@ -550,22 +549,13 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// Runtime: cage_delete_concurrency_test.go ConcurrentAssignFirst / DeleteFirst /
 	// CountUsage_AmbientTxSeesUncommittedHospitalization /
 	// LockByIDForUpdate_RequiresAmbientTransaction.
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.FindAll":              {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.FindByID":             {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.LockByIDForUpdate":    {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.Create":               {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.update":               {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.Delete":               {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountUsageByCageID":   {},
-	"medicalrecord/prescription_repository.go|prescriptionRepository.Create":   {}, // BE8-4 batch7: moved from prescription_repository.go
-	"medicalrecord/prescription_repository.go|prescriptionRepository.FindByID": {}, // MRC-01: response re-fetch must observe and govern the same tx mutation
-	"medicalrecord/prescription_repository.go|prescriptionRepository.update":   {}, // BE8-4 batch7: moved from prescription_repository.go
-	// prescription Delete (BE-refactor.md H-8e: prescriptionService.Delete が finalize ロック確認・
-	// Delete を s.transactor.WithTx で束ねるようになったための追加。examination Delete=H-8d と同型)
-	"medicalrecord/prescription_repository.go|prescriptionRepository.Delete": {}, // BE8-4 batch7: moved from prescription_repository.go
-	// UAT-R2-EXCLUSIVE-LOCK: CAS update の0件後に ambient tx 内で存在再照会し not-found/
-	// version-conflict を正規化。Runtime: child_records_optimistic_lock_test.go
-	"medicalrecord/prescription_repository.go|prescriptionRepository.existsInClinic": {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.FindAll":            {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.FindByID":           {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.LockByIDForUpdate":  {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.Create":             {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.update":             {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.Delete":             {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountUsageByCageID": {},
 	// refund (R1-1 TOCTOU)
 	"billing/refund_repository.go|refundRepository.Create":                         {}, // BE8-4 batch8: moved from refund_repository.go
 	"billing/refund_repository.go|refundRepository.SumByBillingID":                 {}, // BE8-4 batch8: moved from refund_repository.go

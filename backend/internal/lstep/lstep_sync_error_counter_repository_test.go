@@ -69,7 +69,7 @@ func TestLstepSyncErrorCounterRepository_IncrementFailure(t *testing.T) {
 
 		countClinicB, err := repo.IncrementFailure(ctx, 20, ownerID)
 		require.NoError(t, err)
-		assert.Equal(t, 1, countClinicB, "別クリニックは独立したカウンターを持つ")
+		assert.Equal(t, 1, countClinicB, "別医院は独立したカウンターを持つ")
 	})
 }
 
@@ -93,7 +93,7 @@ func TestLstepSyncErrorCounterRepository_ResetFailure(t *testing.T) {
 		require.NoError(t, repo.ResetFailure(ctx, 1, 999999))
 	})
 
-	t.Run("別クリニックのカウンターには影響しない", func(t *testing.T) {
+	t.Run("別医院のカウンターには影響しない", func(t *testing.T) {
 		const ownerID = uint64(500)
 		_, err := repo.IncrementFailure(ctx, 1, ownerID)
 		require.NoError(t, err)
@@ -104,7 +104,7 @@ func TestLstepSyncErrorCounterRepository_ResetFailure(t *testing.T) {
 
 		var countClinic2 int64
 		require.NoError(t, db.Model(&model.LstepSyncErrorCounter{}).Where("clinic_id = ? AND owner_id = ?", 2, ownerID).Count(&countClinic2).Error)
-		assert.Equal(t, int64(1), countClinic2, "別クリニックのカウンターは削除されない")
+		assert.Equal(t, int64(1), countClinic2, "別医院のカウンターは削除されない")
 	})
 }
 
@@ -131,7 +131,7 @@ func TestLstepSyncErrorCounterRepository_FindByOwner(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("別クリニックのカウンターは見えない（clinic_id 分離）", func(t *testing.T) {
+	t.Run("別医院のカウンターは見えない（clinic_id 分離）", func(t *testing.T) {
 		const ownerID = uint64(800)
 		_, err := repo.IncrementFailure(ctx, 30, ownerID)
 		require.NoError(t, err)

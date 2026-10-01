@@ -1138,7 +1138,7 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 	})
 
 	// #124: exam_type_field のクロステナント/別種別 紐付け防止。03bf1cb5 は親 exam_type_id のみ
-	// 検証し、ReplaceItems の exam_type_field_id は未検証だった。別クリニック/別種別のフィールドを
+	// 検証し、ReplaceItems の exam_type_field_id は未検証だった。別医院/別種別のフィールドを
 	// 紐付けると、その基準値・単位が結果に誤適用される（#124 実害と同型）。
 	t.Run("rejects exam_type_field not belonging to the exam's clinic-owned type (#124)", func(t *testing.T) {
 		repo := &mockExaminationRepository{

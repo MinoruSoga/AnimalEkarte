@@ -85,7 +85,7 @@ func TestVitalRepository_Create_FindByID(t *testing.T) {
 		assert.NotZero(t, vital.ID)
 	})
 
-	t.Run("FindByID は自クリニックのレコードを返す", func(t *testing.T) {
+	t.Run("FindByID は自医院のレコードを返す", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, vital.ID)
 		require.NoError(t, err)
 		require.NotNil(t, got)
@@ -95,7 +95,7 @@ func TestVitalRepository_Create_FindByID(t *testing.T) {
 		assert.InDelta(t, 38.5, *got.Temperature, 0.001)
 	})
 
-	t.Run("FindByID は別クリニックのレコードを返さない（NotFound）", func(t *testing.T) {
+	t.Run("FindByID は別医院のレコードを返さない（NotFound）", func(t *testing.T) {
 		_, err := repo.FindByID(ctx, clinicB, vital.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
@@ -130,7 +130,7 @@ func TestVitalRepository_FindByMedicalRecordID(t *testing.T) {
 	require.NoError(t, repo.Create(ctx, deleted))
 	require.NoError(t, repo.Delete(ctx, clinicA, deleted.ID))
 
-	// 別クリニックの vital が同じ medical_record_id を偽装しても、親 medical_records.clinic と
+	// 別医院の vital が同じ medical_record_id を偽装しても、親 medical_records.clinic と
 	// 相関しない行は返らない（SEC-SWEEP-02-MR-B1）。
 	crossClinicVital := &model.VitalRecord{ClinicID: clinicB, PetID: petA.ID, MedicalRecordID: &mrA.ID, RecordedAt: time.Date(2026, 6, 1, 10, 0, 0, 0, time.UTC), Notes: "越境"}
 	require.NoError(t, repo.Create(ctx, crossClinicVital))
@@ -143,7 +143,7 @@ func TestVitalRepository_FindByMedicalRecordID(t *testing.T) {
 		assert.Equal(t, "12時", got[1].Notes)
 	})
 
-	t.Run("別クリニックで問い合わせると空を返す（clinic_id 隔離 + 親相関）", func(t *testing.T) {
+	t.Run("別医院で問い合わせると空を返す（clinic_id 隔離 + 親相関）", func(t *testing.T) {
 		got, err := repo.FindByMedicalRecordID(ctx, clinicB, mrA.ID)
 		require.NoError(t, err)
 		// clinicB の vital は親 medical_records(clinicA) と clinic が不一致のため除外される。
@@ -180,7 +180,7 @@ func TestVitalRepository_Update(t *testing.T) {
 		assert.Equal(t, "更新後", got.Notes)
 	})
 
-	t.Run("別クリニックからの更新は NotFound", func(t *testing.T) {
+	t.Run("別医院からの更新は NotFound", func(t *testing.T) {
 		notes := "乗っ取り"
 		err := repo.Update(ctx, clinicB, vital.ID, UpdateVitalInput{Notes: &notes})
 		require.Error(t, err)
@@ -209,7 +209,7 @@ func TestVitalRepository_Delete(t *testing.T) {
 	vital := &model.VitalRecord{ClinicID: clinicA, PetID: petA.ID, RecordedAt: time.Now(), Notes: "削除対象"}
 	require.NoError(t, repo.Create(ctx, vital))
 
-	t.Run("別クリニックからの削除は NotFound", func(t *testing.T) {
+	t.Run("別医院からの削除は NotFound", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, vital.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))

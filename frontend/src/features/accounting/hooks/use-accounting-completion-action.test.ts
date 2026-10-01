@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { completeAccounting } from "../api/complete-accounting";
 import { updateAccounting } from "../api/update-accounting";
 import type { Accounting } from "../api/transforms";
+import type { AccountingItem } from "../types";
 import {
   focusAccountingCompletionError,
   resolveAccountingCompletionFocusTarget,
@@ -724,5 +725,77 @@ describe("useAccountingCompletionAction unbilled revision (EMR-196②)", () => {
     );
     expect(isUnbilledRevisionConflict(new Error("x"))).toBe(false);
     expect(isUnbilledRevisionConflict({ response: { status: 409 } })).toBe(false);
+  });
+});
+
+// EMR-229: complete 明細の割引 wire contract。
+// manual（社販）行は表示中の owner_rate 事前適用を echo せず 0 を送って BE の自動割引解決に委ね、
+// 非 manual 行は表示値を echo してカルテ上の明示割引額を保持する。
+describe("useAccountingCompletionAction item discount payload (EMR-229)", () => {
+  beforeEach(() => {
+    completeAccountingMock.mockReset();
+    updateAccountingMock.mockReset();
+    handleApiErrorMock.mockReset();
+    vi.mocked(toast.error).mockReset();
+    vi.mocked(toast.success).mockReset();
+  });
+
+  const manualItem: AccountingItem = {
+    id: "manual_1",
+    category: "goods",
+    name: "社販フード",
+    unitPrice: 1000,
+    quantity: 1,
+    discountRate: 10,
+    discountAmount: 100,
+    taxType: "excluded",
+    taxRate: 0.1,
+    taxAmount: 90,
+    subtotal: 900,
+    isInsuranceApplicable: false,
+    source: "manual",
+  };
+  const treatmentItem: AccountingItem = {
+    id: "treatment_41",
+    category: "procedure",
+    name: "処置A",
+    unitPrice: 15000,
+    quantity: 1,
+    discountRate: 0,
+    discountAmount: 500,
+    taxType: "excluded",
+    taxRate: 0.1,
+    taxAmount: 1450,
+    subtotal: 14500,
+    isInsuranceApplicable: false,
+    source: "medical_record",
+    treatmentId: "41",
+  };
+
+  it("manual 行は discount 0 を送り、非 manual 行は表示値の割引を echo する", async () => {
+    const args = {
+      ...buildHookArgs({ accountingId: undefined }),
+      displayItems: [manualItem, treatmentItem],
+    };
+    completeAccountingMock.mockResolvedValue({ ...waitingAccounting(), status: "completed" });
+    const { result } = renderHook(() => useAccountingCompletionAction(args));
+
+    await submitCompletionAction(result.current.formAction);
+
+    const payload = completeAccountingMock.mock.calls[0]?.[0];
+    expect(payload?.items).toHaveLength(2);
+    // manual（社販）: 0 を送って BE が飼主率 vs キャンペーンの大きい方を再解決する
+    expect(payload?.items?.[0]).toMatchObject({
+      name: "社販フード",
+      discount_rate: 0,
+      discount_amount: 0,
+    });
+    // medical_record 由来: カルテ上の明示割引額 500 を保持（自動割引で上書きしない）
+    expect(payload?.items?.[1]).toMatchObject({
+      name: "処置A",
+      discount_rate: 0,
+      discount_amount: 500,
+      treatment_id: 41,
+    });
   });
 });

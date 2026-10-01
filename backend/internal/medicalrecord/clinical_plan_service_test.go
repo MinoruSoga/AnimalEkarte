@@ -44,7 +44,7 @@ func (m *mockClinicalPlanRepository) Delete(ctx context.Context, clinicID, planI
 	return m.deleteFn(ctx, clinicID, planID)
 }
 
-// okMedRecForPlan は親カルテの所有権検証が成功する（同一クリニック）モックを返す。
+// okMedRecForPlan は親カルテの所有権検証が成功する（同一医院）モックを返す。
 func okMedRecForPlan() *mockMedicalRecordRepository {
 	return &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
@@ -413,7 +413,7 @@ func TestClinicalPlanService_Update_FinalizedParentRejected(t *testing.T) {
 }
 
 // TestClinicalPlanService_Update_ValidateDiagnosisFKsError は、貼り替え先の診断マスタFKが
-// 呼び出し元クリニックの所有でない場合に Update がエラーを返し、repo.Update が呼ばれない
+// 呼び出し元医院の所有でない場合に Update がエラーを返し、repo.Update が呼ばれない
 // ことを検証する（クロステナント write 防止）。
 func TestClinicalPlanService_Update_ValidateDiagnosisFKsError(t *testing.T) {
 	foreignTypeID := uint64(999)

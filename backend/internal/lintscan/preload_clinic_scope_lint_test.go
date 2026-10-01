@@ -108,7 +108,7 @@ var clinicScopedMasterAssoc = map[string]string{
 	// gorm:"foreignKey:...ID" association フィールドが既に存在するが、本ファイル作成時点では
 	// repository 層でまだ一度も Preload されていない「未点火の地雷」だった。read 側に未登録のまま
 	// 誰かが初めて Preload した瞬間、本ゲートの `!isMaster` 分岐を素通りして無述語のまま
-	// 別クリニックのマスタ名が混入しうる。Preload が実際に書かれる前に事前登録することで、
+	// 別医院のマスタ名が混入しうる。Preload が実際に書かれる前に事前登録することで、
 	// 「新規 master 登録漏れ」を発生源で塞ぐ（read/write 両ゲートの双方向整合）。
 	"ChiefComplaintType":  "ChiefComplaintType",  // inquiry.ChiefComplaintType (inquiry.go)
 	"HospitalizationPlan": "HospitalizationPlan", // care_plan_item.HospitalizationPlan (hospitalization.go)

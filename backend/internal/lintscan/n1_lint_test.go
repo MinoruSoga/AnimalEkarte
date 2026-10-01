@@ -127,6 +127,11 @@ var n1Allowlist = map[string]bool{
 	// validateReservationMasterOwnership helper (pure master-FK ownership check); key renamed
 	// to match, reasoning unchanged.
 	n1AllowlistKey("validateReservationMasterOwnership", "trimmingOptionRepo.FindByID"): true,
+	// applyUnbilledDiscounts の items は単一ペットの未請求明細（清算フロー1回分の
+	// スコープ）で、FindApplicableForItem は (category, merchandise_item_id) キーの
+	// campaigns マップでメモ化され実際の発火は distinct キー数（少数）のみ。
+	// ループ回数に対し DB 呼出しが増えないため N+1 ではない。
+	n1AllowlistKey("applyUnbilledDiscounts", "campaignRepo.FindApplicableForItem"): true,
 	// --- Category 2: tracked pre-existing debt ---
 	// (empty) PERF-FOLLOWUP-08 (2026-07-12) resolved both prior entries by hoisting the
 	// per-iteration Find call above the loop: SyncLTVTopPercent now batches via
@@ -467,6 +472,7 @@ func TestN1Lint_AllowlistEntriesAreLive(t *testing.T) {
 	wantOccurrences := map[string]int{
 		n1AllowlistKey("validateOwnerPetsInsuranceOwnership", "insuranceFinder.FindByID"):   1,
 		n1AllowlistKey("validateReservationMasterOwnership", "trimmingOptionRepo.FindByID"): 1,
+		n1AllowlistKey("applyUnbilledDiscounts", "campaignRepo.FindApplicableForItem"):      1,
 	}
 	if len(n1Allowlist) != len(wantOccurrences) {
 		t.Fatalf("n1Allowlist has %d entries but this test pins %d; keep both lists in sync", len(n1Allowlist), len(wantOccurrences))

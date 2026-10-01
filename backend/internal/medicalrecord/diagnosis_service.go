@@ -337,7 +337,7 @@ func (s *diagnosisNameService) Delete(ctx context.Context, clinicID, id uint64) 
 		return apperrors.Wrap(err, "failed to check diagnosis name dependencies")
 	}
 	if count > 0 {
-		return apperrors.WrapConflict("この診断名は診療記録で使用中のため削除できません")
+		return apperrors.WrapConflict("この診断名はカルテで使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete diagnosis name")

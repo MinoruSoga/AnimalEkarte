@@ -10,9 +10,9 @@ package medicalrecord
 // 保護する不変条件:
 //   - FindAll/FindByID/Update/Delete/Reorder は clinic_id で正しく分離される。
 //   - FindAll はソフトデリート済みを除外し sort_order/name で並ぶ。
-//   - CountUsageByConsultationID は medical_records を JOIN してクリニック分離しつつ
+//   - CountUsageByConsultationID は medical_records を JOIN して医院分離しつつ
 //     ソフトデリート済み treatment を除外する（P2）。
-//   - CountChildrenByParentID はソフトデリート済み子・別クリニックの子を除外する（P2）。
+//   - CountChildrenByParentID はソフトデリート済み子・別医院の子を除外する（P2）。
 
 import (
 	"context"
@@ -72,13 +72,13 @@ func TestConsultationRepository_FindAll(t *testing.T) {
 	c1 := makeConsultation(t, db, clinicA, "内科診察", nil)
 	c2 := makeConsultation(t, db, clinicA, "外科診察", nil)
 	deleted := makeConsultation(t, db, clinicA, "廃止診察", nil)
-	makeConsultation(t, db, clinicB, "別クリニック診察", nil)
+	makeConsultation(t, db, clinicB, "別医院診察", nil)
 
 	require.NoError(t, repo.Delete(ctx, clinicA, deleted.ID))
 
 	got, err := repo.FindAll(ctx, clinicA)
 	require.NoError(t, err)
-	require.Len(t, got, 2, "ソフトデリート済み・別クリニックは除外されるべき")
+	require.Len(t, got, 2, "ソフトデリート済み・別医院は除外されるべき")
 	ids := []uint64{got[0].ID, got[1].ID}
 	assert.Contains(t, ids, c1.ID)
 	assert.Contains(t, ids, c2.ID)
@@ -92,13 +92,13 @@ func TestConsultationRepository_FindByID(t *testing.T) {
 
 	c := makeConsultation(t, db, clinicA, "問診", nil)
 
-	t.Run("同一クリニックIDでは取得できる", func(t *testing.T) {
+	t.Run("同一医院IDでは取得できる", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, c.ID)
 		require.NoError(t, err)
 		assert.Equal(t, c.ID, got.ID)
 	})
 
-	t.Run("別クリニックIDでは取得できない（clinic_id隔離）", func(t *testing.T) {
+	t.Run("別医院IDでは取得できない（clinic_id隔離）", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicB, c.ID)
 		require.Error(t, err)
 		assert.Nil(t, got)
@@ -138,7 +138,7 @@ func TestConsultationRepository_Update(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	t.Run("同一クリニックの更新は成功する", func(t *testing.T) {
+	t.Run("同一医院の更新は成功する", func(t *testing.T) {
 		c := makeConsultation(t, db, clinicA, "更新前", nil)
 		name := "更新後"
 		got, err := repo.Update(ctx, clinicA, c.ID, UpdateConsultationInput{Name: &name})
@@ -153,7 +153,7 @@ func TestConsultationRepository_Update(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("別クリニックIDからの更新はNotFoundを返し値は変わらない", func(t *testing.T) {
+	t.Run("別医院IDからの更新はNotFoundを返し値は変わらない", func(t *testing.T) {
 		c := makeConsultation(t, db, clinicA, "越境前", nil)
 		name := "越境後"
 		_, err := repo.Update(ctx, clinicB, c.ID, UpdateConsultationInput{Name: &name})
@@ -172,7 +172,7 @@ func TestConsultationRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	t.Run("同一クリニックの削除はソフトデリートされる", func(t *testing.T) {
+	t.Run("同一医院の削除はソフトデリートされる", func(t *testing.T) {
 		c := makeConsultation(t, db, clinicA, "削除対象", nil)
 		require.NoError(t, repo.Delete(ctx, clinicA, c.ID))
 
@@ -191,7 +191,7 @@ func TestConsultationRepository_Delete(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("別クリニックの削除はNotFoundを返し削除されない", func(t *testing.T) {
+	t.Run("別医院の削除はNotFoundを返し削除されない", func(t *testing.T) {
 		c := makeConsultation(t, db, clinicA, "越境削除対象", nil)
 		err := repo.Delete(ctx, clinicB, c.ID)
 		require.Error(t, err)
@@ -224,7 +224,7 @@ func TestConsultationRepository_Reorder(t *testing.T) {
 		assert.Equal(t, 3, got2.SortOrder)
 	})
 
-	t.Run("別クリニックのIDを含む場合はエラーになる", func(t *testing.T) {
+	t.Run("別医院のIDを含む場合はエラーになる", func(t *testing.T) {
 		cOther := makeConsultation(t, db, clinicB, "他院", nil)
 		err := repo.Reorder(ctx, clinicA, []uint64{c1.ID, cOther.ID})
 		require.Error(t, err, "clinic_id 隔離により対象外IDでエラーになるべき")
@@ -243,16 +243,16 @@ func TestConsultationRepository_CountChildrenByParentID(t *testing.T) {
 	deletedChild := makeConsultation(t, db, clinicA, "削除済み子", &parent.ID)
 	require.NoError(t, repo.Delete(ctx, clinicA, deletedChild.ID))
 	// clinicB 側に「parent_id が clinicA の親を指す」行を作成する。CountChildrenByParentID の
-	// クエリは常に対象行自身の clinic_id でスコープする（parent_id の値がどのクリニックの親を
+	// クエリは常に対象行自身の clinic_id でスコープする（parent_id の値がどの医院の親を
 	// 指すかは信頼しない）ため、この行は clinicB 視点では自院の正当な行として1件カウントされる
-	// のが正しい挙動。同時に、下の「同一クリニックの有効な子のみカウントする」subtest が
+	// のが正しい挙動。同時に、下の「同一医院の有効な子のみカウントする」subtest が
 	// clinicA からのカウントに clinicB のこの行が混入しない（2件のまま）ことも検証する。
-	makeConsultation(t, db, clinicB, "別クリニックの子", &parent.ID)
+	makeConsultation(t, db, clinicB, "別医院の子", &parent.ID)
 
-	t.Run("同一クリニックの有効な子のみカウントする", func(t *testing.T) {
+	t.Run("同一医院の有効な子のみカウントする", func(t *testing.T) {
 		count, err := repo.CountChildrenByParentID(ctx, clinicA, parent.ID)
 		require.NoError(t, err)
-		assert.Equal(t, int64(2), count, "別クリニックの同名parent_id行が混入してはならない")
+		assert.Equal(t, int64(2), count, "別医院の同名parent_id行が混入してはならない")
 	})
 
 	t.Run("子が無い場合は0を返す", func(t *testing.T) {
@@ -261,7 +261,7 @@ func TestConsultationRepository_CountChildrenByParentID(t *testing.T) {
 		assert.Equal(t, int64(0), count)
 	})
 
-	t.Run("clinic_id隔離: カウント対象は常に問い合わせ元クリニック自身の行のみ", func(t *testing.T) {
+	t.Run("clinic_id隔離: カウント対象は常に問い合わせ元医院自身の行のみ", func(t *testing.T) {
 		// clinicB は自院に parent_id=parent.ID の行を1件持つため、その1件が正しくカウントされる
 		// （parent.ID が clinicA 所属という事実は clinic_id スコープの判定に影響しない）。
 		count, err := repo.CountChildrenByParentID(ctx, clinicB, parent.ID)
@@ -298,7 +298,7 @@ func TestConsultationRepository_CountUsageByConsultationID(t *testing.T) {
 		assert.Equal(t, int64(0), count)
 	})
 
-	t.Run("別クリニックからは使用実績が見えない（clinic_id隔離）", func(t *testing.T) {
+	t.Run("別医院からは使用実績が見えない（clinic_id隔離）", func(t *testing.T) {
 		count, err := repo.CountUsageByConsultationID(ctx, clinicB, consultation.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)

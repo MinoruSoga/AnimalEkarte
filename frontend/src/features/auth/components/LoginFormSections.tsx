@@ -29,6 +29,7 @@ interface LoginFormCredentialFieldsProps {
   showPassword: boolean;
   isPending: boolean;
   error: string | null;
+  retryNotice?: string | null;
   onEmailChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onPasswordChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onTogglePassword: () => void;
@@ -40,6 +41,7 @@ export function LoginFormCredentialFields({
   showPassword,
   isPending,
   error,
+  retryNotice,
   onEmailChange,
   onPasswordChange,
   onTogglePassword,
@@ -96,6 +98,11 @@ export function LoginFormCredentialFields({
       </div>
 
       <FormFieldError id="login-error" message={error} />
+      {retryNotice ? (
+        <p role="status" aria-live="polite" className={`text-sm ${C.text60}`}>
+          {retryNotice}
+        </p>
+      ) : null}
 
       <SubmitButton colorVariant="brand" className="w-full h-[52px]" loadingText="ログイン中...">
         ログイン

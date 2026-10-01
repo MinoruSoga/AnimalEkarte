@@ -6,6 +6,7 @@ import { ManualPage } from "./pages/manual-page";
 // E2E flow tests for manual pages:
 // /manual (index with sidebar navigation)
 // /manual/:category/:slug (dynamic article pages)
+// Spec: docs/spec/screens/35-internal-manual.md
 // Covers: page load, sidebar category navigation, article display.
 // Seed data: admin@noavet.jp is system_admin with full access.
 

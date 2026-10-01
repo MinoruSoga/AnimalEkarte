@@ -48,7 +48,7 @@ func TestPetRepository_Insurance_CrossClinicPreloadIsolation(t *testing.T) {
 	// (i) 別テナント保険は FindByID(単一)で混入しない
 	gotCross, err := repo.FindByID(ctx, clinicA, petCross.ID)
 	require.NoError(t, err)
-	assert.Nil(t, gotCross.Insurance, "別クリニックの保険マスタが混入してはならない")
+	assert.Nil(t, gotCross.Insurance, "別医院の保険マスタが混入してはならない")
 
 	// (ii) #86: 認可集合 [A,B] なら B の保険は見える
 	gotForBoth, err := repo.FindByIDForClinics(ctx, []uint64{clinicA, clinicB}, petCross.ID)
@@ -76,7 +76,7 @@ func TestPetRepository_FindByID_ClinicIsolation(t *testing.T) {
 	// makeSpeciesAndPet は animal_species + pet を作成する。insurance_id は nil。
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ポチ（隔離テスト）")
 
-	t.Run("同一クリニックIDでは取得できる", func(t *testing.T) {
+	t.Run("同一医院IDでは取得できる", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, petA.ID)
 		require.NoError(t, err)
 		require.NotNil(t, got)
@@ -84,7 +84,7 @@ func TestPetRepository_FindByID_ClinicIsolation(t *testing.T) {
 		assert.Equal(t, clinicA, got.ClinicID)
 	})
 
-	t.Run("別クリニックIDでは取得できない（clinic_id 隔離）", func(t *testing.T) {
+	t.Run("別医院IDでは取得できない（clinic_id 隔離）", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicB, petA.ID)
 		assert.Error(t, err, "clinic B から clinic A のペットを取得できてはならない")
 		assert.Nil(t, got)
@@ -105,7 +105,7 @@ func TestPetRepository_Delete_ClinicIsolation(t *testing.T) {
 	ownerA := makeTestOwner(t, db, clinicA, "ペット削除テスト飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "削除テストペット")
 
-	t.Run("別クリニックIDからの Delete は NotFound を返す", func(t *testing.T) {
+	t.Run("別医院IDからの Delete は NotFound を返す", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, petA.ID)
 		require.Error(t, err, "clinic B から clinic A のペットを削除できてはならない")
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
@@ -114,7 +114,7 @@ func TestPetRepository_Delete_ClinicIsolation(t *testing.T) {
 	t.Run("ペットはまだ存在する（不正削除防止）", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, petA.ID)
 		require.NoError(t, err)
-		assert.NotNil(t, got, "clinic A のペットは別クリニックの Delete で消えてはならない")
+		assert.NotNil(t, got, "clinic A のペットは別医院の Delete で消えてはならない")
 		assert.Equal(t, petA.ID, got.ID)
 	})
 }
@@ -308,11 +308,11 @@ func TestPetRepository_Update_ClinicIsolation(t *testing.T) {
 	ownerA := makeTestOwner(t, db, clinicA, "医院Aの飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "医院Aのポチ")
 
-	t.Run("別クリニックIDからの Update は NotFound を返す", func(t *testing.T) {
+	t.Run("別医院IDからの Update は NotFound を返す", func(t *testing.T) {
 		name := "改ざん"
 		err := repo.Update(ctx, clinicB, petA.ID, UpdatePetInput{Name: &name})
 		require.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err), "別クリニックの Update は NotFound: %v", err)
+		assert.True(t, apperrors.IsNotFound(err), "別医院の Update は NotFound: %v", err)
 	})
 
 	t.Run("ペットの値は変更されていない（データ改ざん防止）", func(t *testing.T) {
@@ -321,7 +321,7 @@ func TestPetRepository_Update_ClinicIsolation(t *testing.T) {
 		assert.Equal(t, "医院Aのポチ", got.Name, "越境 Update で値が書き換わってはならない")
 	})
 
-	t.Run("同一クリニックIDからの Update は成功する（false-reject なし）", func(t *testing.T) {
+	t.Run("同一医院IDからの Update は成功する（false-reject なし）", func(t *testing.T) {
 		name := "正規更新"
 		err := repo.Update(ctx, clinicA, petA.ID, UpdatePetInput{Name: &name})
 		require.NoError(t, err)

@@ -36,6 +36,6 @@ describe("current-clinic storage helpers", () => {
 
   it("clinic_id が未選択なら requireStoredClinicId は例外を投げる", () => {
     localStorage.setItem(CURRENT_CLINIC_STORAGE_KEY, "");
-    expect(() => requireStoredClinicId()).toThrow("クリニックが選択されていません");
+    expect(() => requireStoredClinicId()).toThrow("医院が選択されていません");
   });
 });

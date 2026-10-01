@@ -48,7 +48,7 @@ func TestClinicSettingsRepository_FindByClinicID(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("行が存在しなければデフォルト値を返す(エラーなし)", func(t *testing.T) {
-		clinic := makeClinicFixture(t, db, "設定未作成クリニック")
+		clinic := makeClinicFixture(t, db, "設定未作成医院")
 		got, err := repo.FindByClinicID(ctx, clinic.ID)
 		require.NoError(t, err)
 		require.NotNil(t, got)
@@ -75,7 +75,7 @@ func TestClinicSettingsRepository_FindByClinicID(t *testing.T) {
 	})
 
 	t.Run("行が存在すれば実際の値を返す", func(t *testing.T) {
-		clinic := makeClinicFixture(t, db, "設定既存クリニック")
+		clinic := makeClinicFixture(t, db, "設定既存医院")
 		s := &model.ClinicSettings{ClinicID: clinic.ID, ClosingAmPmBoundary: "13:00", ClosingWeekdayEnd: "19:00", ClosingSundayEnd: "16:00"}
 		_, err := repo.Save(ctx, clinic.ID, s)
 		require.NoError(t, err)
@@ -90,7 +90,7 @@ func TestClinicSettingsRepository_Save(t *testing.T) {
 	db := setupClinicSettingsTestDB(t)
 	repo := NewClinicSettingsRepository(db)
 	ctx := context.Background()
-	clinic := makeClinicFixture(t, db, "Save用クリニック")
+	clinic := makeClinicFixture(t, db, "Save用医院")
 
 	first := &model.ClinicSettings{ClinicID: clinic.ID, ClosingAmPmBoundary: "11:00", ClosingWeekdayEnd: "18:00", ClosingSundayEnd: "17:00"}
 	saved, err := repo.Save(ctx, clinic.ID, first)

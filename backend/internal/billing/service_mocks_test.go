@@ -413,6 +413,18 @@ func (m *mockOwnerRepository) FindByID(ctx context.Context, clinicID, id uint64)
 	return &model.Owner{ID: id, ClinicID: clinicID}, nil
 }
 
+// mockPetOwnerFinder — billingPetOwnerFinder（FindPetOwnerInClinic のみ）の最小view mock（EMR-229）。
+type mockPetOwnerFinder struct {
+	findPetOwnerInClinicFn func(ctx context.Context, clinicID, petID uint64) (uint64, error)
+}
+
+func (m *mockPetOwnerFinder) FindPetOwnerInClinic(ctx context.Context, clinicID, petID uint64) (uint64, error) {
+	if m.findPetOwnerInClinicFn != nil {
+		return m.findPetOwnerInClinicFn(ctx, clinicID, petID)
+	}
+	return 0, nil
+}
+
 // reject系builder — service側同名のview型版複製。
 func rejectTrimmingCourseRepo(ownedID uint64) trimmingCourseFinder {
 	return &mockTrimmingCourseFinder{findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourse, error) {

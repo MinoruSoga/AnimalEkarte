@@ -211,7 +211,7 @@ func TestRunDeliveryTriggerBatchAllClinics_SkipsWhenSyncCheckErrors(t *testing.T
 
 	err := svc.RunDeliveryTriggerBatchAllClinics(context.Background())
 	require.NoError(t, err)
-	assert.Empty(t, trigger.callCounts, "sync確認エラー時はそのクリニックをスキップする")
+	assert.Empty(t, trigger.callCounts, "sync確認エラー時はその医院をスキップする")
 }
 
 func TestRunDeliveryTriggerBatchAllClinics_SkipsWhenSyncDisabled(t *testing.T) {
@@ -238,7 +238,7 @@ func TestRunDeliveryTriggerBatchAllClinics_SkipsWhenSyncDisabled(t *testing.T) {
 
 	err := svc.RunDeliveryTriggerBatchAllClinics(context.Background())
 	require.NoError(t, err)
-	assert.Empty(t, trigger.callCounts, "sync無効クリニックはスキップする")
+	assert.Empty(t, trigger.callCounts, "sync無効医院はスキップする")
 }
 
 func TestRunDeliveryTriggerBatchAllClinics_LogsAuditWhenCountPositive(t *testing.T) {

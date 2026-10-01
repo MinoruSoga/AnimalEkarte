@@ -177,6 +177,11 @@ func TestBillingItemRepository_FindUnbilledTrimmingItemsByPetID(t *testing.T) {
 		assert.Equal(t, int64(500), optionItem.UnitPrice)
 		assert.Equal(t, opt.ID, *optionItem.TrimmingOptionID)
 		assert.Nil(t, optionItem.TrimmingCourseID, "オプション行はtrimming_course_idを持たない")
+		// EMR-246: 当日/過去区分表示用に予約日時が応答へ載る。
+		require.NotNil(t, courseItem.ServiceDate)
+		assert.True(t, courseItem.ServiceDate.Equal(appt.StartTime))
+		require.NotNil(t, optionItem.ServiceDate)
+		assert.True(t, optionItem.ServiceDate.Equal(appt.StartTime))
 	})
 
 	t.Run("並び順はappointment_id→sort_order(コース0/オプション100+ato.sort_order)昇順", func(t *testing.T) {
@@ -282,7 +287,7 @@ func TestBillingItemRepository_FindUnbilledTrimmingItemsByPetID(t *testing.T) {
 		assert.Equal(t, "有効コース", items[0].Name)
 	})
 
-	t.Run("クリニック/ペット/status/カテゴリ不一致は除外", func(t *testing.T) {
+	t.Run("医院/ペット/status/カテゴリ不一致は除外", func(t *testing.T) {
 		db := setupBillingItemTrimmingTestDB(t)
 		repo := NewBillingItemRepository(db)
 		owner := testdb.MakeTestOwner(t, db, clinicA, "G11-3飼主6")
@@ -291,13 +296,13 @@ func TestBillingItemRepository_FindUnbilledTrimmingItemsByPetID(t *testing.T) {
 		rtTrimming := makeTrimmingReservationType(t, db, clinicA)
 		rtGeneral := makeReservationType(t, db, clinicA) // カテゴリ: general（一般区分）
 
-		otherClinicOwner := testdb.MakeTestOwner(t, db, clinicB, "別クリニック飼主")
-		otherClinicPet := makeSpeciesAndPet(t, db, clinicB, otherClinicOwner.ID, "別クリニックペット")
+		otherClinicOwner := testdb.MakeTestOwner(t, db, clinicB, "別医院飼主")
+		otherClinicPet := makeSpeciesAndPet(t, db, clinicB, otherClinicOwner.ID, "別医院ペット")
 		rtOtherClinic := makeTrimmingReservationType(t, db, clinicB)
 
-		// 別クリニックの appointment（同一クエリのclinicIDでは見えないはず）
+		// 別医院の appointment（同一クエリのclinicIDでは見えないはず）
 		apptOtherClinic := makeTrimmingAppointment(t, db, clinicB, otherClinicPet.ID, rtOtherClinic.ID, model.ReservationStatusAccounting)
-		courseOtherClinic := makeTrimmingCourse(t, db, clinicB, "別クリニックコース", priceOf(1000))
+		courseOtherClinic := makeTrimmingCourse(t, db, clinicB, "別医院コース", priceOf(1000))
 		attachTrimmingCourse(t, db, clinicB, apptOtherClinic.ID, courseOtherClinic.ID)
 
 		// 別ペットの appointment
@@ -317,7 +322,7 @@ func TestBillingItemRepository_FindUnbilledTrimmingItemsByPetID(t *testing.T) {
 
 		items, err := repo.FindUnbilledTrimmingItemsByPetID(ctx, clinicA, pet.ID)
 		require.NoError(t, err)
-		assert.Empty(t, items, "別クリニック/別ペット/status≠accounting/カテゴリ≠trimmingはすべて除外される")
+		assert.Empty(t, items, "別医院/別ペット/status≠accounting/カテゴリ≠trimmingはすべて除外される")
 	})
 
 	t.Run("foreign master/detail corruption is excluded and foreign billing cannot suppress valid items", func(t *testing.T) {

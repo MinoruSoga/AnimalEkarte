@@ -87,13 +87,13 @@ func TestMedicalRecordAddendumRepository_FindByID(t *testing.T) {
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "ADD-2", time.Now())
 	addendum := makeAddendum(t, db, clinicA, mr.ID, staff.ID, "新テキスト2", "理由2")
 
-	t.Run("同一クリニックIDでは取得できる", func(t *testing.T) {
+	t.Run("同一医院IDでは取得できる", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, addendum.ID)
 		require.NoError(t, err)
 		assert.Equal(t, addendum.ID, got.ID)
 	})
 
-	t.Run("別クリニックIDでは取得できない（clinic_id隔離）", func(t *testing.T) {
+	t.Run("別医院IDでは取得できない（clinic_id隔離）", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicB, addendum.ID)
 		require.Error(t, err)
 		assert.Nil(t, got)
@@ -122,10 +122,10 @@ func TestMedicalRecordAddendumRepository_FindByMedicalRecordID(t *testing.T) {
 	first := makeAddendum(t, db, clinicA, mr.ID, staff.ID, "1回目修正", "理由1")
 	time.Sleep(2 * time.Millisecond)
 	second := makeAddendum(t, db, clinicA, mr.ID, staff.ID, "2回目修正", "理由2")
-	// 同じ medical_record_id だが別クリニックの追記行（isolation 検証用）
-	makeAddendum(t, db, clinicB, mr.ID, staff.ID, "別クリニックの修正", "理由X")
+	// 同じ medical_record_id だが別医院の追記行（isolation 検証用）
+	makeAddendum(t, db, clinicB, mr.ID, staff.ID, "別医院の修正", "理由X")
 
-	t.Run("同一クリニック・同一カルテの追記のみ古い順で返す", func(t *testing.T) {
+	t.Run("同一医院・同一カルテの追記のみ古い順で返す", func(t *testing.T) {
 		got, err := repo.FindByMedicalRecordID(ctx, clinicA, mr.ID)
 		require.NoError(t, err)
 		require.Len(t, got, 2)
@@ -133,7 +133,7 @@ func TestMedicalRecordAddendumRepository_FindByMedicalRecordID(t *testing.T) {
 		assert.Equal(t, second.ID, got[1].ID)
 	})
 
-	t.Run("別クリニックIDでは0件になる（親カルテclinic相関）", func(t *testing.T) {
+	t.Run("別医院IDでは0件になる（親カルテclinic相関）", func(t *testing.T) {
 		got, err := repo.FindByMedicalRecordID(ctx, clinicB, mr.ID)
 		require.NoError(t, err)
 		assert.Empty(t, got)

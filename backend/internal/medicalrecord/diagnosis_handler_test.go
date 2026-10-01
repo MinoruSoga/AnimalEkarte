@@ -972,7 +972,7 @@ func TestDeleteDiagnosisName(t *testing.T) {
 			paramID: "2",
 			nameSvc: &mockDiagnosisNameService{
 				deleteFn: func(_ context.Context, _, _ uint64) error {
-					return apperrors.WrapConflict("この診断名は診療記録で使用中のため削除できません")
+					return apperrors.WrapConflict("この診断名はカルテで使用中のため削除できません")
 				},
 			},
 			wantStatus: http.StatusConflict,

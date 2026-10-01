@@ -348,7 +348,7 @@ func TestStaffRepository_Update_NotFoundWithoutAssignment(t *testing.T) {
 	name := "改ざん試行"
 	err := repo.Update(ctx, clinicB, staff.ID, UpdateStaffInput{Name: &name})
 	require.Error(t, err)
-	assert.True(t, apperrors.IsNotFound(err), "配属のないクリニックからの更新は NotFound: %v", err)
+	assert.True(t, apperrors.IsNotFound(err), "配属のない医院からの更新は NotFound: %v", err)
 
 	got, err := repo.FindByID(ctx, staff.ID)
 	require.NoError(t, err)
@@ -454,7 +454,7 @@ func TestStaffRepository_Delete_NotFoundWithoutAssignment(t *testing.T) {
 	assert.True(t, apperrors.IsNotFound(err))
 
 	got, err := repo.FindByID(ctx, staff.ID)
-	require.NoError(t, err, "配属のないクリニックからの削除で消えてはならない")
+	require.NoError(t, err, "配属のない医院からの削除で消えてはならない")
 	assert.Equal(t, staff.ID, got.ID)
 }
 
@@ -675,5 +675,5 @@ func TestStaffRepository_CountBlockingReferencesByStaffID_ClinicIsolation(t *tes
 	// clinicB から同じ staff_id を問い合わせても医院Aのカルテは見えない
 	deps, err := repo.CountBlockingReferencesByStaffID(ctx, clinicB, staff.ID)
 	require.NoError(t, err)
-	assert.Empty(t, deps, "別クリニックからは参照が0件であるべき")
+	assert.Empty(t, deps, "別医院からは参照が0件であるべき")
 }

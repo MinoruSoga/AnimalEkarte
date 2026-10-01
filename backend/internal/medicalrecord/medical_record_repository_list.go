@@ -18,11 +18,11 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 		return []model.MedicalRecord{}, 0, nil
 	}
 
-	// search / animal_species_id / 列ソート(pet_name・owner_name) は pets / owners / inquiries への JOIN が必要。
-	// inquiries.medical_record_id と owners/pets の FK は 1 レコードにつき高々1件のため LEFT JOIN による重複行は発生しない。
-	needsPetJoin := filters.AnimalSpeciesID != nil || filters.Search != "" || filters.Sort == "pet_name"
-	needsOwnerJoin := filters.Search != "" || filters.Sort == "owner_name"
-	needsInquiryJoin := filters.Search != ""
+	// animal_species_id / 列ソート(pet_name・owner_name) は pets / owners への JOIN が必要。
+	// search はペア IN + UNION のID集合駆動（applyMedicalRecordSearch）で組み立てるため
+	// JOIN 不要 — JOIN+OR は複数テーブルにまたがる OR でインデックスを殺し全行逐行評価化する。
+	needsPetJoin := filters.AnimalSpeciesID != nil || filters.Sort == "pet_name"
+	needsOwnerJoin := filters.Sort == "owner_name"
 
 	buildBase := func(withIsolation bool) *gorm.DB {
 		// clinicScopeIn は "clinic_id" を無修飾で参照するため、pets/owners
@@ -40,9 +40,6 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 		}
 		if needsOwnerJoin {
 			q = q.Joins("LEFT JOIN owners ON owners.id = medical_records.owner_id AND owners.clinic_id = medical_records.clinic_id AND owners.deleted_at IS NULL")
-		}
-		if needsInquiryJoin {
-			q = q.Joins("LEFT JOIN inquiries ON inquiries.medical_record_id = medical_records.id")
 		}
 		if filters.PetID != nil {
 			q = q.Where("medical_records.pet_id = ?", *filters.PetID)
@@ -76,6 +73,18 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 		if filters.AnimalSpeciesID != nil {
 			q = q.Where("pets.animal_species_id = ?", *filters.AnimalSpeciesID)
 		}
+		if filters.MedicineID != nil {
+			q = applyTreatmentItemIDFilter(q, "medicine_id", *filters.MedicineID)
+		}
+		if filters.ProcedureID != nil {
+			q = applyTreatmentItemIDFilter(q, "procedure_id", *filters.ProcedureID)
+		}
+		if filters.ConsultationID != nil {
+			q = applyTreatmentItemIDFilter(q, "consultation_id", *filters.ConsultationID)
+		}
+		if filters.InventoryID != nil {
+			q = applyTreatmentItemIDFilter(q, "inventory_id", *filters.InventoryID)
+		}
 		if filters.Search != "" {
 			q = applyMedicalRecordSearch(q, filters.Search)
 		}
@@ -98,4 +107,21 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 		return nil, 0, apperrors.FromGORM(err, "medical_record", "")
 	}
 	return records, total, nil
+}
+
+// applyTreatmentItemIDFilter は「treatments のマスタ列（medicine_id/procedure_id/
+// consultation_id/inventory_id）が指定IDのカルテ」を返す AND フィルタ。
+// treatments(<列>) の btree インデックスで一致集合を先に計算し、id の半結合で引く。
+// treatments には clinic_id 列がないため相関は medical_record_id のみ
+// （clinic スコープは外側の medical_records.clinic_id IN が担保）。
+// column は呼出側が固定リテラルで渡す内部限定値（ユーザー入力は渡さない）。
+func applyTreatmentItemIDFilter(q *gorm.DB, column string, id uint64) *gorm.DB {
+	return q.Where(
+		`medical_records.id IN (`+
+			`SELECT filtered_treatment.medical_record_id`+
+			` FROM treatments filtered_treatment`+
+			` WHERE filtered_treatment.`+column+` = ?`+
+			` AND filtered_treatment.deleted_at IS NULL)`,
+		id,
+	)
 }

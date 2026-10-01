@@ -48,8 +48,17 @@ type authRateLimitStore struct {
 func (s authRateLimitStore) Middleware(
 	policy auth.RateLimitPolicy,
 ) gin.HandlerFunc {
-	return middleware.RateLimit(
-		s.inner,
+	rps := rate.Limit(policy.RequestsPerSecond())
+	if policy.CountOnFailure {
+		return middleware.FailureRateLimit(s.inner, rps, policy.Burst)
+	}
+	return middleware.RateLimit(s.inner, rps, policy.Burst)
+}
+
+func (s authRateLimitStore) FailureLimiter(
+	policy auth.RateLimitPolicy,
+) auth.LoginFailureLimiter {
+	return s.inner.NewFailureLimiter(
 		rate.Limit(policy.RequestsPerSecond()),
 		policy.Burst,
 	)

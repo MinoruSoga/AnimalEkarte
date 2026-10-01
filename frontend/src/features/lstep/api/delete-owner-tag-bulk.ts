@@ -37,7 +37,7 @@ export function useBulkRemoveTag(): UseBulkRemoveTagResult {
 
     setProgress((prev) => ({ ...prev, isRunning: false }));
     queryClient.invalidateQueries({ queryKey: queryKeys.lstepTagSummary() });
-    toast.success(`タグ「${tagName}」を${ownerIds.length}名から解除しました`);
+    toast.success(`タグ「${tagName}」を${ownerIds.length.toLocaleString()}名から解除しました`);
   };
 
   return { bulkRemove, progress };

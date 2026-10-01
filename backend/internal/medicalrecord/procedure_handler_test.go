@@ -543,7 +543,7 @@ func TestDeleteProcedure(t *testing.T) {
 			paramID: "3",
 			svc: &mockProcedureService{
 				deleteFn: func(_ context.Context, _, _ uint64) error {
-					return apperrors.WrapConflict("この診療項目は診療記録で使用中のため削除できません")
+					return apperrors.WrapConflict("この診療項目はカルテで使用中のため削除できません")
 				},
 			},
 			wantStatus: http.StatusConflict,

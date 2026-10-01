@@ -112,7 +112,7 @@ func TestLstepCsvImportRepository_FindByID(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("別クリニックからは見えない（clinic_id分離）", func(t *testing.T) {
+	t.Run("別医院からは見えない（clinic_id分離）", func(t *testing.T) {
 		_, err := repo.FindByID(ctx, clinicB, imp.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -164,7 +164,7 @@ func TestLstepCsvImportRepository_FindAllByClinicID(t *testing.T) {
 		assert.Equal(t, "new.csv", results[0].FileName)
 	})
 
-	t.Run("別クリニックの履歴は含まれない", func(t *testing.T) {
+	t.Run("別医院の履歴は含まれない", func(t *testing.T) {
 		results, err := repo.FindAllByClinicID(ctx, clinicB, 10)
 		require.NoError(t, err)
 		require.Len(t, results, 1)

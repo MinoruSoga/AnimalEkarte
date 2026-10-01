@@ -133,11 +133,9 @@ func buildLTVWhere(params *FindOwnerLTVParams) (where string, whereArgs []any) {
 	if qSearch == "" {
 		return where + " AND 1 = 0", whereArgs
 	}
-	where += " AND translate(o.name, ?, ?) ILIKE ? ESCAPE '\\'"
+	where += " AND " + textsearch.FoldedExpr("o.name") + " ILIKE ? ESCAPE '\\'"
 	whereArgs = append(
 		whereArgs,
-		textsearch.KanaAndSpaceSourceChars,
-		textsearch.KanaAndSpaceTargetChars,
 		"%"+textsearch.EscapeLike(textsearch.NormalizeKana(qSearch))+"%",
 	)
 	return where, whereArgs

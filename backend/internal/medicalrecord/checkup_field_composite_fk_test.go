@@ -4,7 +4,7 @@ package medicalrecord
 // 複合 FK（clinic_id 込み）による越境 INSERT/UPDATE の物理拒否を検証する。
 //
 // migration 012 は checkup_field_results(checkup_type_field_id, clinic_id) →
-// checkup_type_fields(id, clinic_id) の複合 FK を張り、別クリニックのフィールド定義を参照する
+// checkup_type_fields(id, clinic_id) の複合 FK を張り、別医院のフィールド定義を参照する
 // 結果行の永続化を DB レベルで拒否する（アプリ層 FindByID ガード #124 f4e7b7a7 の defense-in-depth）。
 // ON DELETE SET NULL (checkup_type_field_id) で migration 010 の患者結果値保護（フィールド定義削除時に
 // 結果値を残す）を挙動保存する。
@@ -150,12 +150,12 @@ func TestCheckupFieldResult_CompositeFK_RejectsCrossClinicField(t *testing.T) {
 		ValueBool: &boolTrue, SortOrder: 1,
 	}).Error
 
-	require.Error(t, err, "別クリニックのフィールド定義を参照する結果行は複合 FK で拒否される")
+	require.Error(t, err, "別医院のフィールド定義を参照する結果行は複合 FK で拒否される")
 	assert.True(t, isFKConstraintErr(err), "FK 違反(23503)であること: %v", err)
 }
 
 // TestCheckupFieldResult_CompositeFK_AcceptsSameClinicField は挙動保存の確認:
-// 同一クリニックのフィールド定義を参照する正当な結果行は従来どおり永続化できる（false-reject なし）。
+// 同一医院のフィールド定義を参照する正当な結果行は従来どおり永続化できる（false-reject なし）。
 func TestCheckupFieldResult_CompositeFK_AcceptsSameClinicField(t *testing.T) {
 	db := setupCheckupCompositeFKTestDB(t)
 	ctx := context.Background()
@@ -178,7 +178,7 @@ func TestCheckupFieldResult_CompositeFK_AcceptsSameClinicField(t *testing.T) {
 		ValueBool: &boolTrue, SortOrder: 1,
 	}).Error
 
-	require.NoError(t, err, "同一クリニックのフィールド定義参照は許可される（false-reject なし）")
+	require.NoError(t, err, "同一医院のフィールド定義参照は許可される（false-reject なし）")
 }
 
 // TestCheckupFieldResult_CompositeFK_PreservesSetNullBehavior は挙動保存の要:

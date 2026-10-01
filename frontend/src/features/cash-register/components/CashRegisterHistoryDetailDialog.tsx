@@ -86,7 +86,7 @@ export function CashRegisterHistoryDetailDialog({
                           {formatCurrency(row.total)}
                           {row.count !== undefined ? (
                             <span className={`ml-2 ${C.text60}`}>
-                              {row.count === null ? "記録なし" : `${row.count}件`}
+                              {row.count === null ? "記録なし" : `${row.count.toLocaleString()}件`}
                             </span>
                           ) : null}
                         </dd>

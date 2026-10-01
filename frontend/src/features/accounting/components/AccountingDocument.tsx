@@ -137,7 +137,7 @@ export const AccountingDocument = memo(function AccountingDocument({
         <div
           className={`border ${C.borderRed300} ${C.bgRed50} ${C.textRed700} p-2 text-xs rounded print:hidden`}
         >
-          登録番号が未設定です。病院設定から登録してください。適格請求書として無効となります。
+          登録番号が未設定です。医院設定から登録してください。適格請求書として無効となります。
         </div>
       ) : null}
 
@@ -157,7 +157,7 @@ export const AccountingDocument = memo(function AccountingDocument({
                 {showLogo ? (
                   <img
                     src={logoSrc}
-                    alt={`${clinic?.name ?? "病院"}ロゴ`}
+                    alt={`${clinic?.name ?? "医院"}ロゴ`}
                     className="max-h-12 ml-auto mb-2 object-contain"
                   />
                 ) : null}

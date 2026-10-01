@@ -41,6 +41,13 @@ type Config struct {
 	// DBSlowQueryMS は slow-query ログの閾値(ms)。0 は記録しない。
 	DBSlowQueryMS int
 
+	// DBStatementTimeoutMS は接続プールが張る各セッションの statement_timeout(ms)。
+	// 既定 120000 (120s) — 停滞クエリがプール枠を長時間占有し続けた 2026-10-01
+	// 障害の再発防止。getEnvInt の性質上 0/負値は既定値にフォールバックする。
+	DBStatementTimeoutMS int
+	// DBConnectTimeoutSec は新規接続確立のタイムアウト秒。既定 5。
+	DBConnectTimeoutSec int
+
 	JWTSecret string
 
 	// SMTP設定（空文字=無効）。LINE アクセストークン・通知先メールはクリニックごとに DB で管理する。
@@ -138,9 +145,11 @@ func Load() *Config {
 		DBSSLRootCert: os.Getenv("DB_SSL_ROOT_CERT"),
 		GinMode:       ginMode,
 
-		DBMaxOpenConns: getEnvInt("DB_MAX_OPEN_CONNS", 50),
-		DBMaxIdleConns: getEnvInt("DB_MAX_IDLE_CONNS", 25),
-		DBSlowQueryMS:  getEnvInt("DB_SLOW_QUERY_MS", 300),
+		DBMaxOpenConns:       getEnvInt("DB_MAX_OPEN_CONNS", 50),
+		DBMaxIdleConns:       getEnvInt("DB_MAX_IDLE_CONNS", 25),
+		DBSlowQueryMS:        getEnvInt("DB_SLOW_QUERY_MS", 300),
+		DBStatementTimeoutMS: getEnvInt("DB_STATEMENT_TIMEOUT_MS", 120000),
+		DBConnectTimeoutSec:  getEnvInt("DB_CONNECT_TIMEOUT_S", 5),
 
 		JWTSecret: getEnv("JWT_SECRET", "dev-secret-change-me"),
 
@@ -411,6 +420,15 @@ func (c *Config) DSN() string {
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=%s",
 		c.DBHost, c.DBPort, c.DBUser, c.DBPass, c.DBName, c.DBSSLMode, JapanTimeZone,
 	)
+	// connect_timeout は pgx 側の接続確立タイムアウト(秒)。0 は省略し pgx 既定に従う。
+	if c.DBConnectTimeoutSec > 0 {
+		dsn += fmt.Sprintf(" connect_timeout=%d", c.DBConnectTimeoutSec)
+	}
+	// statement_timeout は未認識キーとして startup runtime parameter に流れ
+	// PostgreSQL 側の文タイムアウト(ms)になる。0 は省略しサーバー既定に従う。
+	if c.DBStatementTimeoutMS > 0 {
+		dsn += fmt.Sprintf(" statement_timeout=%d", c.DBStatementTimeoutMS)
+	}
 	if c.DBSSLRootCert != "" {
 		dsn += " sslrootcert=" + c.DBSSLRootCert
 	}

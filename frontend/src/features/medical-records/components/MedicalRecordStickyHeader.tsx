@@ -127,14 +127,14 @@ export function MedicalRecordStickyHeader({
         disabled={!canEdit || isFinalized}
       />
 
-      {/* 診察日 */}
+      {/* 診療日 */}
       <div className="flex flex-col gap-0 shrink-0 min-w-[110px]">
-        <span className={`text-xs ${C.text50}`}>診察日</span>
+        <span className={`text-xs ${C.text50}`}>診療日</span>
         {canEditDate ? (
           <input
             key={dateInputValue}
             type="date"
-            aria-label="診察日"
+            aria-label="診療日"
             defaultValue={dateInputValue}
             onChange={(e) => {
               if (e.target.value) onDateChange!(e.target.value);

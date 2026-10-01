@@ -99,7 +99,9 @@ export const PropertyFilter = memo(function PropertyFilter({
       {/* Toolbar row */}
       <div className="flex flex-wrap items-center gap-2">
         {/* 左側: 件数 + ソートピル + フィルタピル + フィルタ追加 */}
-        {count !== undefined ? <span className={STYLE.searchCount}>{count} 件</span> : null}
+        {count !== undefined ? (
+          <span className={STYLE.searchCount}>{count.toLocaleString()} 件</span>
+        ) : null}
 
         {/* Sort pills (orange) */}
         {hasActiveSorts && sortProperties

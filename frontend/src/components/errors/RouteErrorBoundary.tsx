@@ -21,7 +21,9 @@ export function RouteErrorBoundary() {
   }
 
   return (
-    <div className={`flex-1 p-6 flex flex-col items-center justify-center gap-4 ${C.bgPage}`}>
+    <div
+      className={`flex-1 p-6 flex flex-col items-center-safe justify-center-safe gap-4 overflow-y-auto ${C.bgPage}`}
+    >
       <AlertCircle className={`size-12 ${C.danger}`} />
       <h1 className={`text-xl font-bold ${C.text}`}>{title}</h1>
       <p className={`${C.text50} text-center max-w-md`}>{message}</p>
@@ -44,7 +46,9 @@ export function RootErrorBoundary() {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col items-center justify-center gap-4 ${C.bgPage} p-4`}>
+    <div
+      className={`h-dvh overflow-y-auto flex flex-col items-center-safe justify-center-safe gap-4 ${C.bgPage} p-4`}
+    >
       <AlertCircle className={`size-16 ${C.danger}`} />
       <h1 className={`text-heading-3 font-bold ${C.text}`}>エラーが発生しました</h1>
       <p className={`${C.text50} text-center max-w-md`}>{message}</p>

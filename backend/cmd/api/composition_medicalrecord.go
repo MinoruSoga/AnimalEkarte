@@ -99,7 +99,6 @@ func (c medicalRecordComposition) newHandler(
 		medicalrecord.NewCheckupTypeHandler(s.reference.checkupTypes),
 		medicalrecord.NewVaccineHandler(s.reference.vaccines),
 		medicalrecord.NewVaccinationHandler(s.preventive.vaccinations),
-		medicalrecord.NewPrescriptionHandler(s.preventive.prescriptions),
 		medicalrecord.NewInquiryHandler(s.preventive.inquiries),
 		medicalrecord.NewInquiryTemplateHandler(s.reference.inquiryTemplates),
 		medicalrecord.NewLabImportHandler(s.lab.resultImport, s.lab.jobs, s.lab.audit, s.lab.revert).

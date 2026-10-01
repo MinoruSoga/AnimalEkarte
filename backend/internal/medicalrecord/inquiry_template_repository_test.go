@@ -49,7 +49,7 @@ func TestInquiryTemplateRepository_FindAll_ClinicIsolationAndSortOrder(t *testin
 	assert.Equal(t, first.ID, got[0].ID, "sort_order 昇順で先頭に来る")
 	assert.Equal(t, second.ID, got[1].ID)
 	for _, tpl := range got {
-		assert.NotEqual(t, tplB.ID, tpl.ID, "別クリニックの定型文が混入してはならない")
+		assert.NotEqual(t, tplB.ID, tpl.ID, "別医院の定型文が混入してはならない")
 	}
 }
 
@@ -62,13 +62,13 @@ func TestInquiryTemplateRepository_FindByID(t *testing.T) {
 	tpl := &model.InquiryTemplate{ClinicID: clinicA, Title: "問診定型文A"}
 	require.NoError(t, db.WithContext(ctx).Create(tpl).Error)
 
-	t.Run("同一クリニックで取得できる", func(t *testing.T) {
+	t.Run("同一医院で取得できる", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, tpl.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "問診定型文A", got.Title)
 	})
 
-	t.Run("別クリニックからは NotFound", func(t *testing.T) {
+	t.Run("別医院からは NotFound", func(t *testing.T) {
 		_, err := repo.FindByID(ctx, clinicB, tpl.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -105,14 +105,14 @@ func TestInquiryTemplateRepository_Update(t *testing.T) {
 	tpl := &model.InquiryTemplate{ClinicID: clinicA, Title: "旧タイトル"}
 	require.NoError(t, db.WithContext(ctx).Create(tpl).Error)
 
-	t.Run("同一クリニックで更新できる", func(t *testing.T) {
+	t.Run("同一医院で更新できる", func(t *testing.T) {
 		title := "新タイトル"
 		got, err := repo.Update(ctx, clinicA, tpl.ID, UpdateInquiryTemplateInput{Title: &title})
 		require.NoError(t, err)
 		assert.Equal(t, "新タイトル", got.Title)
 	})
 
-	t.Run("別クリニックからの更新は NotFound", func(t *testing.T) {
+	t.Run("別医院からの更新は NotFound", func(t *testing.T) {
 		title := "乗っ取り"
 		_, err := repo.Update(ctx, clinicB, tpl.ID, UpdateInquiryTemplateInput{Title: &title})
 		require.Error(t, err)
@@ -136,7 +136,7 @@ func TestInquiryTemplateRepository_Delete(t *testing.T) {
 	tpl := &model.InquiryTemplate{ClinicID: clinicA, Title: "削除対象"}
 	require.NoError(t, db.WithContext(ctx).Create(tpl).Error)
 
-	t.Run("別クリニックからの削除は NotFound", func(t *testing.T) {
+	t.Run("別医院からの削除は NotFound", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, tpl.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -148,7 +148,7 @@ func TestInquiryTemplateRepository_Delete(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("同一クリニックで削除でき、ソフトデリートされ FindAll から除外される", func(t *testing.T) {
+	t.Run("同一医院で削除でき、ソフトデリートされ FindAll から除外される", func(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, clinicA, tpl.ID))
 
 		_, err := repo.FindByID(ctx, clinicA, tpl.ID)
@@ -214,7 +214,7 @@ func TestInquiryTemplateRepository_Reorder(t *testing.T) {
 		assert.Equal(t, t2.ID, got[2].ID)
 	})
 
-	t.Run("別クリニックの ID を含むと失敗する", func(t *testing.T) {
+	t.Run("別医院の ID を含むと失敗する", func(t *testing.T) {
 		other := &model.InquiryTemplate{ClinicID: clinicB, Title: "他院"}
 		require.NoError(t, db.WithContext(ctx).Create(other).Error)
 		err := repo.Reorder(ctx, clinicA, []uint64{t1.ID, other.ID})

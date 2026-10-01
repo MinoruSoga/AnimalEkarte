@@ -444,6 +444,12 @@ func TestBillingItemService_UpdateItem(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			// EMR-229: 空白のみの name 更新は create と同じく拒否する
+			name:    "returns error for blank name",
+			input:   &UpdateBillingItemInput{Name: ptrString("   ")},
+			wantErr: true,
+		},
+		{
 			name:    "propagates FindByID error",
 			input:   &UpdateBillingItemInput{UnitPrice: &newPrice},
 			findErr: apperrors.WrapNotFound("billing_item", "1"),
@@ -480,6 +486,29 @@ func TestBillingItemService_UpdateItem(t *testing.T) {
 				assert.NotNil(t, result)
 			}
 		})
+	}
+}
+
+// EMR-229: name は trim 後の値が repo.Update（UpdateBillingItemInput）へ渡される。
+func TestBillingItemService_UpdateItem_Name(t *testing.T) {
+	existingItem := &model.BillingItem{ID: 1, BillingID: 10, UnitPrice: 3000, Name: "旧名称"}
+	var gotName *string
+
+	repo := defaultMockBillingItemRepo()
+	repo.findByIDFn = func(_ context.Context, _, _ uint64) (*model.BillingItem, error) {
+		return existingItem, nil
+	}
+	repo.updateFieldsFn = func(_ context.Context, _, _ uint64, cmd UpdateBillingItemInput) error {
+		gotName = cmd.Name
+		return nil
+	}
+	svc := NewBillingItemServiceWithCampaign(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
+
+	result, err := svc.UpdateItem(context.Background(), 1, 1, &UpdateBillingItemInput{Name: ptrString(" 社販 2024-05 ")})
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	if assert.NotNil(t, gotName) {
+		assert.Equal(t, " 社販 2024-05 ", *gotName, "input はそのまま渡され trim は buildBillingItemUpdate が担当")
 	}
 }
 
@@ -623,6 +652,7 @@ func TestBuildBillingItemUpdate(t *testing.T) {
 		{
 			name: "all fields set returns all keys",
 			input: &UpdateBillingItemInput{
+				Name:                  ptrString("社販 2024-05"),
 				UnitPrice:             ptrInt64(1000),
 				Quantity:              ptrFloat64(2),
 				DiscountRate:          ptrFloat64(0.1),
@@ -631,7 +661,7 @@ func TestBuildBillingItemUpdate(t *testing.T) {
 				TaxRate:               ptrFloat64(0.08),
 				IsInsuranceApplicable: ptrBool(true),
 			},
-			wantLen: 7,
+			wantLen: 8,
 		},
 		{
 			name: "single field set returns single key",
@@ -648,6 +678,13 @@ func TestBuildBillingItemUpdate(t *testing.T) {
 			assert.Len(t, fields, tt.wantLen)
 		})
 	}
+}
+
+// EMR-229: name 更新は前後空白を trim して name 列へ写像する。
+func TestBuildBillingItemUpdate_Name(t *testing.T) {
+	name := "  社販 2024-05  "
+	fields := buildBillingItemUpdate(&UpdateBillingItemInput{Name: &name})
+	assert.Equal(t, "社販 2024-05", fields[colBillingItemName])
 }
 
 // ---- treatmentTypeToItemCategory (resolver delegation) ----
@@ -772,31 +809,44 @@ func TestBillingItemService_ResolveOwnerDiscountRate(t *testing.T) {
 
 func TestBillingItemService_ResolveAutoDiscount(t *testing.T) {
 	ownerID := uint64(7)
+	billingWithOwner := &model.Billing{ID: 10, OwnerID: &ownerID, ScheduledDate: time.Now()}
+	owner10 := &mockOwnerRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+			return &model.Owner{ID: ownerID, DiscountRate: 10}, nil
+		},
+	}
 
 	tests := []struct {
 		name         string
 		campaignRepo CampaignRepository // interface type: keeps the "nil campaignRepo" case a true nil interface, not a typed-nil *mockCampaignRepository
-		billingRepo  *mockAccountingRepository
-		ownerRepo    *mockOwnerRepository
-		input        *CreateBillingItemInput
-		want         int64
+		ownerRepo    billingOwnerReader // interface type: same reason as campaignRepo
+		billing      *model.Billing
+		category     model.ItemCategory
+		unitPrice    int64
+		quantity     float64
+		wantAmount   int64
+		wantRate     float64
 	}{
 		{
-			name:         "nil campaignRepo returns zero",
-			campaignRepo: nil,
-			input:        &CreateBillingItemInput{ClinicID: 1, BillingID: 10, UnitPrice: 1000, Quantity: 1},
-			want:         0,
+			name:       "no repos returns zero",
+			billing:    billingWithOwner,
+			category:   model.ItemCategoryExamination,
+			unitPrice:  1000,
+			quantity:   1,
+			wantAmount: 0,
+			wantRate:   0,
 		},
 		{
-			name:         "billing not found returns zero",
-			campaignRepo: &mockCampaignRepository{},
-			billingRepo: &mockAccountingRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
-					return nil, errors.New("not found")
-				},
-			},
-			input: &CreateBillingItemInput{ClinicID: 1, BillingID: 10, UnitPrice: 1000, Quantity: 1},
-			want:  0,
+			// EMR-229 回帰: campaignRepo 未配線でも飼主割引率は適用される（従来は 0 固定だった）。
+			name:         "nil campaignRepo still applies owner rate",
+			campaignRepo: nil,
+			ownerRepo:    owner10,
+			billing:      billingWithOwner,
+			category:     model.ItemCategoryExamination,
+			unitPrice:    1000,
+			quantity:     1,
+			wantAmount:   100, // 1000 * 10%
+			wantRate:     10,
 		},
 		{
 			name: "campaign lookup error falls back to owner-rate-only (best-effort)",
@@ -805,52 +855,86 @@ func TestBillingItemService_ResolveAutoDiscount(t *testing.T) {
 					return nil, errors.New("lookup failed")
 				},
 			},
-			billingRepo: &mockAccountingRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
-					return &model.Billing{ID: 10, OwnerID: &ownerID, ScheduledDate: time.Now()}, nil
-				},
-			},
-			ownerRepo: &mockOwnerRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
-					return &model.Owner{ID: ownerID, DiscountRate: 10}, nil
-				},
-			},
-			input: &CreateBillingItemInput{ClinicID: 1, BillingID: 10, Category: string(model.ItemCategoryExamination), UnitPrice: 1000, Quantity: 1},
-			want:  100, // 1000 * 10%
+			ownerRepo:  owner10,
+			billing:    billingWithOwner,
+			category:   model.ItemCategoryExamination,
+			unitPrice:  1000,
+			quantity:   1,
+			wantAmount: 100, // 1000 * 10%
+			wantRate:   10,
 		},
 		{
-			name: "applies campaign discount when higher than owner rate",
+			name: "applies campaign discount when higher than owner rate and exposes campaign rate",
 			campaignRepo: &mockCampaignRepository{
 				findApplicableForItemFn: func(_ context.Context, _ uint64, _ time.Time, _ model.ItemCategory, _ *uint64) (*model.Campaign, error) {
 					return &model.Campaign{ID: 1, DiscountType: model.CampaignDiscountTypeRate, DiscountValue: 30}, nil
 				},
 			},
-			billingRepo: &mockAccountingRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
-					return &model.Billing{ID: 10, OwnerID: &ownerID, ScheduledDate: time.Now()}, nil
+			ownerRepo:  owner10,
+			billing:    billingWithOwner,
+			category:   model.ItemCategoryExamination,
+			unitPrice:  1000,
+			quantity:   1,
+			wantAmount: 300, // 1000 * 30%
+			wantRate:   30,
+		},
+		{
+			name: "amount campaign winning exposes zero rate (fixed amount has no percent)",
+			campaignRepo: &mockCampaignRepository{
+				findApplicableForItemFn: func(_ context.Context, _ uint64, _ time.Time, _ model.ItemCategory, _ *uint64) (*model.Campaign, error) {
+					return &model.Campaign{ID: 1, DiscountType: model.CampaignDiscountTypeAmount, DiscountValue: 500}, nil
 				},
 			},
-			ownerRepo: &mockOwnerRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
-					return &model.Owner{ID: ownerID, DiscountRate: 10}, nil
+			ownerRepo:  owner10,
+			billing:    billingWithOwner,
+			category:   model.ItemCategoryExamination,
+			unitPrice:  1000,
+			quantity:   1,
+			wantAmount: 500,
+			wantRate:   0,
+		},
+		{
+			name: "owner rate wins over smaller campaign and exposes owner rate",
+			campaignRepo: &mockCampaignRepository{
+				findApplicableForItemFn: func(_ context.Context, _ uint64, _ time.Time, _ model.ItemCategory, _ *uint64) (*model.Campaign, error) {
+					return &model.Campaign{ID: 1, DiscountType: model.CampaignDiscountTypeRate, DiscountValue: 5}, nil
 				},
 			},
-			input: &CreateBillingItemInput{ClinicID: 1, BillingID: 10, Category: string(model.ItemCategoryExamination), UnitPrice: 1000, Quantity: 1},
-			want:  300, // 1000 * 30%
+			ownerRepo:  owner10,
+			billing:    billingWithOwner,
+			category:   model.ItemCategoryExamination,
+			unitPrice:  1000,
+			quantity:   1,
+			wantAmount: 100, // 1000 * 10%
+			wantRate:   10,
+		},
+		{
+			name:         "nil owner id resolves campaign only",
+			campaignRepo: &mockCampaignRepository{},
+			ownerRepo:    owner10,
+			billing:      &model.Billing{ID: 10, OwnerID: nil, ScheduledDate: time.Now()},
+			category:     model.ItemCategoryExamination,
+			unitPrice:    1000,
+			quantity:     1,
+			wantAmount:   0,
+			wantRate:     0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := &billingItemService{campaignRepo: tt.campaignRepo, billingRepo: tt.billingRepo, ownerRepo: tt.ownerRepo}
-			got := svc.resolveAutoDiscount(
+			svc := &billingItemService{campaignRepo: tt.campaignRepo, ownerRepo: tt.ownerRepo}
+			gotAmount, gotRate := svc.resolveAutoDiscount(
 				context.Background(),
-				tt.input,
-				model.ItemCategory(tt.input.Category),
-				tt.input.UnitPrice,
-				tt.input.Quantity,
+				1,
+				tt.billing,
+				tt.category,
+				nil,
+				tt.unitPrice,
+				tt.quantity,
 			)
-			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.wantAmount, gotAmount)
+			assert.Equal(t, tt.wantRate, gotRate)
 		})
 	}
 }
@@ -890,6 +974,48 @@ func TestNewBillingItemServiceWithCampaign_AppliesAutoDiscount(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, int64(200), result.DiscountAmount) // 1000 * 20% (owner rate, no campaign configured)
+	// EMR-229: 自動割引の適用率も永続化する（画面で飼主割引率が 0 ではなく 20 と表示される）
+	assert.Equal(t, float64(20), result.DiscountRate)
+}
+
+// EMR-229 回帰: 明示 discount_amount 指定時は自動割引をスキップし、送られた rate/amount の組を
+// そのまま永続化する（unbilled 事前適用の echo / 手動割引の保存経路）。
+func TestNewBillingItemServiceWithCampaign_ExplicitDiscountSkipsAutoResolve(t *testing.T) {
+	ownerID := uint64(9)
+	repo := defaultMockBillingItemRepo()
+	repo.createFn = func(_ context.Context, item *model.BillingItem) error {
+		item.ID = 1
+		return nil
+	}
+	billingRepo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			return &model.Billing{ID: 10, OwnerID: &ownerID, ScheduledDate: time.Now()}, nil
+		},
+	}
+	ownerRepo := &mockOwnerRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+			return &model.Owner{ID: ownerID, DiscountRate: 20}, nil
+		},
+	}
+	campaignRepo := &mockCampaignRepository{}
+
+	svc := NewBillingItemServiceWithCampaign(repo, billingRepo, defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), campaignRepo, ownerRepo)
+
+	result, err := svc.CreateItem(context.Background(), &CreateBillingItemInput{
+		ClinicID:       1,
+		BillingID:      10,
+		Category:       string(model.ItemCategoryExamination),
+		Name:           "診察料",
+		UnitPrice:      1000,
+		Quantity:       1,
+		DiscountRate:   5,
+		DiscountAmount: 50,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, int64(50), result.DiscountAmount, "明示 discount_amount を優先し自動割引で上書きしない")
+	assert.Equal(t, float64(5), result.DiscountRate, "明示 discount_rate を保持する")
 }
 
 // ---- GetDiscountSuggestions ----

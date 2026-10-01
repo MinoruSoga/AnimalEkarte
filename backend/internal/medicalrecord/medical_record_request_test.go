@@ -44,6 +44,10 @@ func TestListMedicalRecordQuery_ToServiceFilters_InvalidInput(t *testing.T) {
 		{name: "owner_id", query: listMedicalRecordQuery{OwnerID: "abc"}},
 		{name: "start_date", query: listMedicalRecordQuery{StartDate: "2026/05/01"}},
 		{name: "end_date", query: listMedicalRecordQuery{EndDate: "2026/05/31"}},
+		{name: "medicine_id", query: listMedicalRecordQuery{MedicineID: "abc"}},
+		{name: "procedure_id", query: listMedicalRecordQuery{ProcedureID: "abc"}},
+		{name: "consultation_id", query: listMedicalRecordQuery{ConsultationID: "abc"}},
+		{name: "inventory_id", query: listMedicalRecordQuery{InventoryID: "abc"}},
 	}
 
 	for _, tt := range tests {

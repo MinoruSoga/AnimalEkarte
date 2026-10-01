@@ -7,21 +7,26 @@ import { DangerBadge } from "./DangerBadge";
 
 const REASON = "診察時に咬傷歴あり";
 
+// EMR-231: 画面・支援技術経路のどこにも出してはいけない直接文言。
+const FORBIDDEN_TEXT = [/危険/, /注意/, /噛/];
+
 describe("DangerBadge variant=pet", () => {
-  it("高は赤い ⚠ 危険 バッジを出し、click で危険理由を開閉できる", async () => {
+  it("高は赤いアイコンのみのバッジを出し、click で補足メモを開閉できる", async () => {
     const user = userEvent.setup();
     render(<DangerBadge variant="pet" level="高" subjectName="ポチ" reason={REASON} />);
 
-    const trigger = screen.getByRole("button", { name: "ポチの危険理由を表示" });
+    const trigger = screen.getByRole("button", { name: "ポチの詳細を表示" });
     expect(trigger.tagName).toBe("BUTTON");
     expect(trigger).toHaveAttribute("type", "button");
-    expect(trigger).toHaveTextContent("⚠ 危険");
+    // アイコンのみ: trigger に直接文言を含めない
+    expect(trigger.textContent).toBe("");
+    expect(trigger.querySelector("svg")).not.toBeNull();
     expect(trigger).toHaveClass(C.bgDanger10, C.danger, C.borderDanger20);
     expect(trigger).toHaveAttribute("aria-expanded", "false");
 
     await user.click(trigger);
     expect(await screen.findByText(REASON)).toBeInTheDocument();
-    expect(screen.getByText("危険理由")).toHaveClass(C.danger);
+    expect(screen.getByText("特記レベル: 高")).toBeInTheDocument();
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(trigger).toHaveAttribute("aria-controls");
 
@@ -32,32 +37,46 @@ describe("DangerBadge variant=pet", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("中は黄の ⚠ 注意 バッジを出し、注意理由として Popover を開く", async () => {
+  it("中は黄いアイコンのみのバッジを出し、同じ中立名で Popover を開く", async () => {
     const user = userEvent.setup();
     render(<DangerBadge variant="pet" level="中" subjectName="ミドル" reason={REASON} />);
 
-    // 段階が文言で区別できること: 高の「危険理由」名前は付かず「注意理由」になる。
-    const trigger = screen.getByRole("button", { name: "ミドルの注意理由を表示" });
-    expect(trigger).toHaveTextContent("⚠ 注意");
+    const trigger = screen.getByRole("button", { name: "ミドルの詳細を表示" });
+    expect(trigger.textContent).toBe("");
     expect(trigger).toHaveClass(C.bgNotice, C.textBadgeYellow, C.borderNotice);
-    expect(
-      screen.queryByRole("button", { name: "ミドルの危険理由を表示" }),
-    ).not.toBeInTheDocument();
 
     await user.click(trigger);
     expect(await screen.findByText(REASON)).toBeInTheDocument();
-    expect(screen.getByText("注意理由")).toHaveClass(C.textBadgeYellow);
+    expect(screen.getByText("特記レベル: 中")).toBeInTheDocument();
     expect(trigger).toHaveAttribute("aria-expanded", "true");
   });
 
+  it("高と中は色だけでなくアイコン形状でも区別できる", () => {
+    render(
+      <>
+        <DangerBadge variant="pet" level="高" subjectName="ポチ" reason={REASON} />
+        <DangerBadge variant="pet" level="中" subjectName="ミケ" reason={REASON} />
+      </>,
+    );
+
+    const highIcon = screen.getByRole("button", { name: "ポチの詳細を表示" }).querySelector("svg");
+    const mediumIcon = screen
+      .getByRole("button", { name: "ミケの詳細を表示" })
+      .querySelector("svg");
+    // lucide はアイコン名を class に含める（lucide-octagon-alert / lucide-triangle-alert）
+    expect(highIcon).toHaveClass("lucide-octagon-alert");
+    expect(mediumIcon).toHaveClass("lucide-triangle-alert");
+  });
+
   it.each([
-    ["wire high", "high", "⚠ 危険", "ポチの危険理由を表示"],
-    ["wire medium", "medium", "⚠ 注意", "ポチの注意理由を表示"],
-  ])("%s 値 %s も同じバッジを描画する", (_caseName, level, label, ariaName) => {
+    ["wire high", "high"],
+    ["wire medium", "medium"],
+  ])("wire 値 %s も同じアイコンバッジを描画する", (_caseName, level) => {
     render(<DangerBadge variant="pet" level={level} subjectName="ポチ" reason={REASON} />);
 
-    const trigger = screen.getByRole("button", { name: ariaName });
-    expect(trigger).toHaveTextContent(label);
+    const trigger = screen.getByRole("button", { name: "ポチの詳細を表示" });
+    expect(trigger.textContent).toBe("");
+    expect(trigger.querySelector("svg")).not.toBeNull();
   });
 
   it.each([
@@ -67,26 +86,25 @@ describe("DangerBadge variant=pet", () => {
     ["空文字", ""],
     ["未設定", undefined],
     ["未知値", "extreme"],
-  ])("危険度が %s ならバッジを描画しない", (_caseName, level) => {
+  ])("特記レベルが %s ならバッジを描画しない", (_caseName, level) => {
     const { container } = render(
       <DangerBadge variant="pet" level={level} subjectName="ポチ" reason={REASON} />,
     );
 
     expect(container).toBeEmptyDOMElement();
-    expect(screen.queryByText(/⚠/)).not.toBeInTheDocument();
   });
 
   it.each([
     ["undefined", undefined],
     ["空文字", ""],
     ["空白のみ", "   "],
-  ])("危険理由が %s なら理由未登録を表示する", async (_caseName, reason) => {
+  ])("補足メモが %s なら内容未登録を表示する", async (_caseName, reason) => {
     const user = userEvent.setup();
     render(<DangerBadge variant="pet" level="高" subjectName="ポチ" reason={reason} />);
 
-    await user.click(screen.getByRole("button", { name: "ポチの危険理由を表示" }));
+    await user.click(screen.getByRole("button", { name: "ポチの詳細を表示" }));
 
-    expect(await screen.findByText("理由未登録")).toBeInTheDocument();
+    expect(await screen.findByText("内容未登録")).toBeInTheDocument();
   });
 
   it.each([
@@ -95,7 +113,7 @@ describe("DangerBadge variant=pet", () => {
   ])("%s で Popover を開閉できる", async (_keyName, key) => {
     const user = userEvent.setup();
     render(<DangerBadge variant="pet" level="高" subjectName="ポチ" reason={REASON} />);
-    const trigger = screen.getByRole("button", { name: "ポチの危険理由を表示" });
+    const trigger = screen.getByRole("button", { name: "ポチの詳細を表示" });
 
     trigger.focus();
     await user.keyboard(key);
@@ -117,7 +135,7 @@ describe("DangerBadge variant=pet", () => {
       </div>,
     );
 
-    await user.click(screen.getByRole("button", { name: "ポチの危険理由を表示" }));
+    await user.click(screen.getByRole("button", { name: "ポチの詳細を表示" }));
 
     expect(onParentClick).not.toHaveBeenCalled();
     expect(await screen.findByText(REASON)).toBeInTheDocument();
@@ -125,11 +143,13 @@ describe("DangerBadge variant=pet", () => {
 });
 
 describe("DangerBadge variant=owner", () => {
-  it("⚠ 危険人物 をテキスト表示し、interactive な trigger を持たない", () => {
+  it("アイコンのみの静的マークを出し、interactive な trigger を持たない", () => {
     render(<DangerBadge variant="owner" />);
 
-    const mark = screen.getByText("⚠ 危険人物");
+    const mark = screen.getByRole("img", { name: "特記" });
     expect(mark.tagName).toBe("SPAN");
+    expect(mark.textContent).toBe("");
+    expect(mark.querySelector("svg")).not.toBeNull();
     expect(mark).toHaveClass(C.bgDanger10, C.danger, C.borderDanger20);
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
@@ -143,8 +163,30 @@ describe("DangerBadge variant=owner", () => {
       </div>,
     );
 
-    await user.click(screen.getByText("⚠ 危険人物"));
+    await user.click(screen.getByRole("img", { name: "特記" }));
 
     expect(onParentClick).not.toHaveBeenCalled();
+  });
+});
+
+describe("DangerBadge プライバシー (EMR-231)", () => {
+  it("バッジ・aria-label・Popover 見出しに直接文言を出さない", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <DangerBadge variant="pet" level="高" subjectName="ポチ" reason={REASON} />,
+    );
+
+    for (const pattern of FORBIDDEN_TEXT) {
+      expect(container).not.toHaveTextContent(pattern);
+    }
+    const trigger = screen.getByRole("button");
+    expect(trigger.getAttribute("aria-label")).toBe("ポチの詳細を表示");
+    expect(trigger.getAttribute("title")).toBeNull();
+
+    await user.click(trigger);
+    await screen.findByText(REASON);
+    // Popover 見出しも中立文言のみ（ユーザー入力のメモ本文はそのまま出す）
+    expect(screen.getByText("特記レベル: 高")).toBeInTheDocument();
+    expect(screen.queryByText(/危険|注意/)).not.toBeInTheDocument();
   });
 });

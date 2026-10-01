@@ -58,10 +58,12 @@
 | 5 | (C2) 未精算会計で明細・支払方法を変更して保存 → 一覧/詳細反映 → 再読込 → 再オープン | C2-1〜C2-3 のとおり永続・初期表示される |
 | 6 | (C3-2) 既に会計が存在するカルテから 2 件目の会計を作成しようとする | DB partial UNIQUE → Create は HTTP **409**。FE 主 UI は `medical_record_id` 未送信のため UNIQUE に届かない。同一 medical_record 2 件目 fixture が無い環境は API 直のみ（BLOCKEDとして記録し完了扱いにしない） |
 | 7 | (C3-3) `/accounting/<存在しない ID>` を直叩き | エラー画面が表示される |
-| 8 | 締め済み期間の会計を修正理由なしで保存 → 理由入力して保存 | 理由なしは拒否（#115 post_close_reason 必須）、入力後は保存成功。精算済み (completed) の修正は ConfirmDialog を経由する |
-| 9 | 部分入金: 請求額より少ない入金での保存を試みる | `/accounting/:id` で請求>0・支払未入力時に『**残り ¥… 未入力**』+ 確定 disabled を観測。部分入金 UI 経路なし・BE 合計≠請求 400。会計待ちのまま部分保存する UI は存在しない（S08 同趣旨） |
-| 10 | 会計一覧の未納タブを期間未指定で開く | JST 当月で API が発火する（BUG-002）。空のまま「未納者はいません」にしない |
-| 11 | 締め済み日に新規会計を確定する | 理由欄が出る。空は物理ブロック。権限なしは確定不可。`POST /accountings/complete` は `post_close_reason` を FK より先に見る（汎用 FK エラーにしない） |
+| 8 | (C2) 未精算会計の明細行で項目名を編集して保存 → 再読込 → 再オープン | PATCH `/v1/billing-items/{id}` で永続・初期表示される（EMR-229） |
+| 9 | `source = manual` 明細行で数量・金額を編集して保存 → 再読込 | 永続。金額入力は `unit_price = (amount + discount_amount) / quantity` に換算。医療・トリミング由来行は編集不可（EMR-230） |
+| 10 | 締め済み期間の会計を修正理由なしで保存 → 理由入力して保存 | 理由なしは拒否（#115 post_close_reason 必須）、入力後は保存成功。精算済み (completed) の修正は ConfirmDialog を経由する |
+| 11 | 部分入金: 請求額より少ない入金での保存を試みる | `/accounting/:id` で請求>0・支払未入力時に『**残り ¥… 未入力**』+ 確定 disabled を観測。部分入金 UI 経路なし・BE 合計≠請求 400。会計待ちのまま部分保存する UI は存在しない（S08 同趣旨） |
+| 12 | 会計一覧の未納タブを期間未指定で開く | JST 当月で API が発火する（BUG-002）。空のまま「未納者はいません」にしない |
+| 13 | 締め済み日に新規会計を確定する | 理由欄が出る。空は物理ブロック。権限なしは確定不可。`POST /accountings/complete` は `post_close_reason` を FK より先に見る（汎用 FK エラーにしない） |
 
 ## 2. 会計明細追加ダイアログ (accounting-item-add-dialog)
 
@@ -224,6 +226,10 @@ stateDiagram-v2
 | 7 | 後片付け: 「V02在庫」を削除または一覧から除外 | 受入データが残らない |
 
 - カテゴリ enum 外は UI 上選択不能（BE 拒否は unit test 正本）。一意制約（同名在庫）が UI から再現できる場合のみ C3-2 を追加実施。
+
+## 13. 予約担当スタッフ — 注記 (reservation-staffs)
+
+- BE は POST `/{staffId}`・`/sort-order`・`/status` を受理するが **FE 送出なし**（FE は GET のみ）。スタッフ管理の正本は V03 staff-side-panel と V03 §9。wire key は inventory に計上しない（注記のみ）。2026-09-13 UAT の staff-res CRUD 実行跡は API レベル。
 
 ## 確認観点
 

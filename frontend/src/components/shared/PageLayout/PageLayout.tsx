@@ -3,6 +3,7 @@ import { FormHeader } from "@/components/shared/Form/FormHeader";
 import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
 import { SUPPORT_WIDGET_LAYOUT } from "@/constants/support-widget-layout";
 import { LAYOUT, STYLE } from "@/lib/design-tokens";
+import { cn } from "@/lib/utils";
 import type { Resource } from "@/types/generated/models";
 
 interface PageLayoutProps {
@@ -16,6 +17,8 @@ interface PageLayoutProps {
   resource?: Resource;
   maxWidth?: string;
   className?: string;
+  /** コンテンツラッパーの追加クラス。タブバーを sticky ヘッダ直下に寄せる等（例: "pt-0"）に使用 */
+  contentClassName?: string;
   align?: "center" | "left";
   /** BUG-MEDI-005: スクロールコンテナへの ref（タブ切替時に scrollTop = 0 に使用） */
   scrollContainerRef?: RefObject<HTMLDivElement | null>;
@@ -31,6 +34,7 @@ export const PageLayout = memo(function PageLayout({
   resource,
   maxWidth = LAYOUT.pageContentMaxWidth.default,
   className,
+  contentClassName,
   align = "center",
   scrollContainerRef,
 }: PageLayoutProps) {
@@ -56,7 +60,12 @@ export const PageLayout = memo(function PageLayout({
         className={`flex-1 min-w-0 overflow-y-auto relative w-full flex flex-col ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}
       >
         <div
-          className={`${maxWidth} ${align === "center" ? "mx-auto" : ""} min-w-0 w-full px-3 py-6 flex-1 flex flex-col`}
+          className={cn(
+            maxWidth,
+            align === "center" && "mx-auto",
+            "min-w-0 w-full px-3 py-6 flex-1 flex flex-col",
+            contentClassName,
+          )}
         >
           {children}
         </div>

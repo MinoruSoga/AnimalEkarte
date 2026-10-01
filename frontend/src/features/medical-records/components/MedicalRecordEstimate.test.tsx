@@ -35,7 +35,7 @@ vi.mock("@/hooks/use-permission", () => ({
 }));
 
 // FE-RC-048: useClinicTaxRates は独立に useAuth() を呼ぶため最小モックが必要。
-// mockClinic は病院マスタの税率設定をテストごとに切り替えるための可変参照。
+// mockClinic は医院マスタの税率設定をテストごとに切り替えるための可変参照。
 const { mockClinic } = vi.hoisted(() => ({
   mockClinic: { current: {} as { standardTaxRate?: number; reducedTaxRate?: number } },
 }));
@@ -180,7 +180,7 @@ describe("MedicalRecordEstimate BUG-016 resave", () => {
     });
   });
 
-  it("FE-RC-048: 病院マスタの税率設定 (8%) を消費税計算に反映する", () => {
+  it("FE-RC-048: 医院マスタの税率設定 (8%) を消費税計算に反映する", () => {
     mockClinic.current = { standardTaxRate: 0.08 };
     mockExisting = {
       id: 8,

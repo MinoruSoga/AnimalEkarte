@@ -177,16 +177,23 @@ check_number() {
   done < <(extract_claims "$regex" "$@")
 }
 
-# 3a. テーブル数（正 = 全 backend/migrations/*.sql 直下の行頭 CREATE TABLE 合算。seeds/ は対象外）
+# 3a. テーブル数（正 = 全 backend/migrations/*.sql 直下の行頭 CREATE TABLE 合算から
+# 後続 migration の行頭 DROP TABLE で除去されるテーブルを引いた現行物理テーブル数。
+# seeds/ は対象外）
 # 「全nテーブル」形式の総数宣言のみを対象とし、部分集合の言及（「この5テーブル」等）は対象外。
 # find+grep: BSD/GNU 両対応（macOS の grep は --include 非対応のため）。-maxdepth 1 で seeds/ を除外。
 if [[ -d "$ROOT/backend/migrations" ]]; then
   tables="$(
-    {
-      find "$ROOT/backend/migrations" -maxdepth 1 -name '*.sql' -type f -print0 2>/dev/null \
-        | xargs -0 grep -h '^CREATE TABLE' 2>/dev/null || true
-    } | sed -E 's/^CREATE TABLE( IF NOT EXISTS)? ([a-zA-Z_][a-zA-Z0-9_]*).*/\2/' \
-      | sort -u | wc -l | tr -d ' '
+    comm -23 \
+      <({
+        find "$ROOT/backend/migrations" -maxdepth 1 -name '*.sql' -type f -print0 2>/dev/null \
+          | xargs -0 grep -h '^CREATE TABLE' 2>/dev/null || true
+      } | sed -E 's/^CREATE TABLE( IF NOT EXISTS)? ([a-zA-Z_][a-zA-Z0-9_]*).*/\2/' | sort -u) \
+      <({
+        find "$ROOT/backend/migrations" -maxdepth 1 -name '*.sql' -type f -print0 2>/dev/null \
+          | xargs -0 grep -h '^DROP TABLE' 2>/dev/null || true
+      } | sed -E 's/^DROP TABLE( IF EXISTS)? ([a-zA-Z_][a-zA-Z0-9_]*).*/\2/' | sort -u) \
+      | wc -l | tr -d ' '
   )"
   tables="${tables:-0}"
   # 総数の正本は ERD + specification（ゲートが強制する宣言面）。
@@ -205,7 +212,15 @@ if [[ -d "$ROOT/backend/migrations" ]]; then
     find "$ROOT/backend/migrations" -maxdepth 1 -name '*.sql' -type f -print0 2>/dev/null \
       | xargs -0 grep -h '^CREATE TABLE' 2>/dev/null || true
   } | sed -E 's/^CREATE TABLE( IF NOT EXISTS)? ([a-zA-Z_][a-zA-Z0-9_]*).*/\2/' \
-    | sort -u > "$migration_tables"
+    | sort -u > "$TMP/migration_created.txt"
+  # 後続 migration で DROP TABLE された物理テーブルは現行スキーマに存在しないため
+  # 在庫集合から除く（例: 014_drop_prescriptions.sql の prescriptions / EMR-236）。
+  {
+    find "$ROOT/backend/migrations" -maxdepth 1 -name '*.sql' -type f -print0 2>/dev/null \
+      | xargs -0 grep -h '^DROP TABLE' 2>/dev/null || true
+  } | sed -E 's/^DROP TABLE( IF EXISTS)? ([a-zA-Z_][a-zA-Z0-9_]*).*/\2/' \
+    | sort -u > "$TMP/migration_dropped.txt"
+  comm -23 "$TMP/migration_created.txt" "$TMP/migration_dropped.txt" > "$migration_tables"
   awk '
     /^### 1\.1 / { in_domain_inventory = 1; next }
     /^## 2\./ { in_domain_inventory = 0 }

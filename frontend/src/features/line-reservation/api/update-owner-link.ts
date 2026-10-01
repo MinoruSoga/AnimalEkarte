@@ -25,7 +25,7 @@ export function useUpdateOwnerLink(clinicId: string | null) {
       queryClient.invalidateQueries({ queryKey: queryKeys.lineCustomers(clinicId!) });
     },
     onError: (error) => {
-      handleApiError(error, "オーナー紐付け");
+      handleApiError(error, "飼主紐付け");
     },
   });
 }

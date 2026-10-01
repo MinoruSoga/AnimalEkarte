@@ -285,7 +285,9 @@ export const VitalsTab = memo(function VitalsTab({
 
       {sortedVitals.length > 0 ? (
         <div className={`${C.bgWhite} border ${C.borderLight} rounded-lg px-4 py-3`}>
-          <span className={`text-sm ${C.text60}`}>バイタル記録 {sortedVitals.length} 件</span>
+          <span className={`text-sm ${C.text60}`}>
+            バイタル記録 {sortedVitals.length.toLocaleString()} 件
+          </span>
         </div>
       ) : null}
 

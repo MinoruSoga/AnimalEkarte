@@ -318,7 +318,7 @@ describe("AggregationOwnerTable", () => {
     expect(screen.getByText("107日")).toBeInTheDocument();
   });
 
-  // 仕様 §4.3: 来院なしの飼い主は「来院なし」バッジで明示的に判別できる
+  // 仕様 §4.3: 来院なしの飼主は「来院なし」バッジで明示的に判別できる
   it("should render no_visit owner with dedicated badge and dashes for missing dates", () => {
     const noVisitOwner: AggregationOwner = {
       owner_id: "owner3",

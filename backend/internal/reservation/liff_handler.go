@@ -37,7 +37,7 @@ func (h *LiffHandler) checkDoctorClinicAssignment(ctx context.Context, clinicID,
 			return nil
 		}
 	}
-	return apperrors.WrapInvalidInput("指定されたスタッフはこのクリニックに所属していません")
+	return apperrors.WrapInvalidInput("指定されたスタッフはこの医院に所属していません")
 }
 
 // GetLiffSettings はLIFF公開設定を返す。

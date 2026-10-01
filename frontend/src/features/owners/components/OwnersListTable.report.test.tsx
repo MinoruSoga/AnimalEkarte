@@ -113,15 +113,15 @@ describe("OwnersListTable 臨床ステータス", () => {
   });
 });
 
-describe("OwnersListTable 危険理由 Popover (#234)", () => {
-  it("危険度 high の保存済み理由を click で開示し、同じ trigger の再 click で閉じる", async () => {
+describe("OwnersListTable 特記メモ Popover (#234/EMR-231)", () => {
+  it("特記レベル high の保存済みメモを click で開示し、同じ trigger の再 click で閉じる", async () => {
     const user = userEvent.setup();
     renderTable({
       pets: [{ ...pet, dangerLevel: "高", dangerReason: "保定時に噛む" }],
     });
 
     const trigger = screen.getByRole("button", {
-      name: "ポチの危険理由を表示",
+      name: "ポチの詳細を表示",
     });
     expect(trigger.tagName).toBe("BUTTON");
     expect(trigger).toHaveAttribute("aria-expanded", "false");
@@ -142,27 +142,27 @@ describe("OwnersListTable 危険理由 Popover (#234)", () => {
     { caseName: "undefined", dangerReason: undefined },
     { caseName: "空文字", dangerReason: "" },
     { caseName: "空白のみ", dangerReason: " \t\n " },
-  ])("dangerReason が $caseName の high 個体は理由未登録を開示する", async ({ dangerReason }) => {
+  ])("dangerReason が $caseName の high 個体は内容未登録を開示する", async ({ dangerReason }) => {
     const user = userEvent.setup();
     renderTable({
       pets: [{ ...pet, dangerLevel: "高", dangerReason }],
     });
 
-    await user.click(screen.getByRole("button", { name: "ポチの危険理由を表示" }));
+    await user.click(screen.getByRole("button", { name: "ポチの詳細を表示" }));
 
-    expect(await screen.findByText("理由未登録")).toBeInTheDocument();
+    expect(await screen.findByText("内容未登録")).toBeInTheDocument();
   });
 
   it.each([
     { keyName: "Enter", key: "{Enter}" },
     { keyName: "Space", key: " " },
-  ])("$keyName の同一キー操作で危険理由を開閉する", async ({ key }) => {
+  ])("$keyName の同一キー操作で補足メモを開閉する", async ({ key }) => {
     const user = userEvent.setup();
     renderTable({
       pets: [{ ...pet, dangerLevel: "高", dangerReason: "診察台で噛む" }],
     });
     const trigger = screen.getByRole("button", {
-      name: "ポチの危険理由を表示",
+      name: "ポチの詳細を表示",
     });
 
     trigger.focus();
@@ -176,7 +176,7 @@ describe("OwnersListTable 危険理由 Popover (#234)", () => {
     });
   });
 
-  it("危険度 high だけ既存の警告文言と視覚クラスを trigger に維持する", () => {
+  it("高・中はアイコンバッジを出し、低は何も出さない（文言なし・色と形で識別）", () => {
     renderTable({
       pets: [
         { ...pet, id: "high", name: "ポチ", dangerLevel: "高" },
@@ -186,26 +186,26 @@ describe("OwnersListTable 危険理由 Popover (#234)", () => {
     });
 
     const trigger = screen.getByRole("button", {
-      name: "ポチの危険理由を表示",
+      name: "ポチの詳細を表示",
     });
-    expect(trigger).toHaveTextContent("⚠ 危険");
+    expect(trigger.textContent).toBe("");
     expect(trigger).toHaveClass(
       "inline-flex",
       "items-center",
       "rounded",
       "px-1.5",
       "py-0.5",
-      "text-xs",
-      "font-semibold",
       C.bgDanger10,
       C.danger,
       C.borderDanger20,
     );
-    expect(screen.getAllByText("⚠ 危険")).toHaveLength(1);
-    expect(screen.queryByRole("button", { name: "ミケの危険理由を表示" })).not.toBeInTheDocument();
+    // 高=八角形 / 中=三角形（色だけに依存しない識別）
+    expect(trigger.querySelector("svg")).toHaveClass("lucide-octagon-alert");
     expect(
-      screen.queryByRole("button", { name: "コタロウの危険理由を表示" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "ミケの詳細を表示" }).querySelector("svg"),
+    ).toHaveClass("lucide-triangle-alert");
+    expect(screen.queryByText(/危険|注意/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "コタロウの詳細を表示" })).not.toBeInTheDocument();
   });
 });
 

@@ -167,5 +167,5 @@ func (r *medicineRepository) normalizeMedicineDeleteMiss(ctx context.Context, cl
 	if childCount > 0 {
 		return apperrors.WrapConflict(fmt.Sprintf("このカテゴリには%d件の薬剤が含まれています。先に薬剤を削除してください", childCount))
 	}
-	return apperrors.WrapConflict("この薬剤は診療記録で使用中のため削除できません")
+	return apperrors.WrapConflict("この薬剤はカルテで使用中のため削除できません")
 }

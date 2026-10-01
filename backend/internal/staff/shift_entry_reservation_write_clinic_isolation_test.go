@@ -73,7 +73,7 @@ func TestRepository_SaveByStaffDate_RejectsUnauthorizedStaffGraph(t *testing.T) 
 		{
 			name: "foreign clinic assignment",
 			prepare: func(t *testing.T, db *gorm.DB) (uint64, uint64) {
-				staff := makeShiftEntryDoctor(t, db, 2, "クリニックB医師")
+				staff := makeShiftEntryDoctor(t, db, 2, "医院B医師")
 				return 1, staff.ID
 			},
 		},
@@ -132,7 +132,7 @@ func TestRepository_DeleteByStaffDate_ClinicIsolation(t *testing.T) {
 	repo := NewShiftEntryRepository(db)
 	ctx := context.Background()
 
-	staffB := makeShiftEntryDoctor(t, db, 2, "クリニックB医師")
+	staffB := makeShiftEntryDoctor(t, db, 2, "医院B医師")
 	date := time.Date(2026, 7, 22, 0, 0, 0, 0, time.UTC)
 	entryB := makeShiftEntryWithType(t, db, 2, staffB.ID, date, model.ShiftTypeFull)
 
@@ -145,7 +145,7 @@ func TestRepository_DeleteByStaffDate_ClinicIsolation(t *testing.T) {
 	assert.Equal(t, int64(1), count, "clinic B のエントリが削除されてはならない")
 }
 
-// TestRepository_SaveByStaffDate_UpsertsWithinClinic は同一クリニック内の upsert が
+// TestRepository_SaveByStaffDate_UpsertsWithinClinic は同一医院内の upsert が
 // 既存行の更新+breaks 全置換になる（delegate 移動後の挙動保持）ことを検証する。
 func TestRepository_SaveByStaffDate_UpsertsWithinClinic(t *testing.T) {
 	db := setupShiftEntryTestDB(t)

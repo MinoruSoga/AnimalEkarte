@@ -127,6 +127,10 @@ export interface BillingItem {
    * MedicalRecordID は DB 列ではない。未請求候補（treatment 由来）など API 応答用の仮想フィールド。
    */
   medical_record_id?: number /* uint64 */;
+  /**
+   * ServiceDate は DB 列ではない。未請求候補の発生日（会計画面の当日/過去区分用、EMR-246）。
+   */
+  service_date?: string;
   vaccination_id?: number /* uint64 */;
   exam_id?: number /* uint64 */;
   appointment_id?: number /* uint64 */;
@@ -3058,35 +3062,6 @@ export interface PetOwner {
   relationship: string;
   created_at: string;
   updated_at: string;
-}
-
-//////////
-// source: prescription.go
-
-/**
- * Prescription は処方薬記録（LSTEP-BE-009）
- */
-export interface Prescription {
-  id: number /* uint64 */;
-  clinic_id: number /* uint64 */;
-  owner_id: number /* uint64 */;
-  pet_id?: number /* uint64 */;
-  medical_record_id?: number /* uint64 */;
-  prescribed_at: string;
-  duration_days: number /* int */;
-  /**
-   * Version は楽観的ロック用（UAT-R2-EXCLUSIVE-LOCK）。更新は version+1 を書き戻し、
-   * caller の読取版を expectedVersion として WHERE 照合する（clinical_plan/medical_record と同型）。
-   */
-  version: number /* int */;
-  created_at: string;
-  updated_at: string;
-  /**
-   * Relations
-   */
-  owner?: Owner;
-  pet?: Pet;
-  medical_record?: MedicalRecord;
 }
 
 //////////

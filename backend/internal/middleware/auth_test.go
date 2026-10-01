@@ -207,7 +207,7 @@ func TestAuth(t *testing.T) {
 
 // clinicSwitchClaims は FEAT-374 Phase 2 audit テスト用の JWT claim を生成する。
 // 全 caller で user_id="1" / main clinic_id="1" 固定のため、両方を引数から除外している
-// (unparam 解消)。可変なのは clinicIDs (caller の所属クリニック範囲) のみ。
+// (unparam 解消)。可変なのは clinicIDs (caller の所属医院範囲) のみ。
 func clinicSwitchClaims(clinicIDs []uint64) jwt.MapClaims {
 	now := time.Now()
 	return jwt.MapClaims{
@@ -222,7 +222,7 @@ func clinicSwitchClaims(clinicIDs []uint64) jwt.MapClaims {
 	}
 }
 
-// TestAuth_ClinicSwitch_AuditLog は FEAT-374 Phase 2 のクリニック切替 audit log 動作を検証する。
+// TestAuth_ClinicSwitch_AuditLog は FEAT-374 Phase 2 の医院切替 audit log 動作を検証する。
 func TestAuth_ClinicSwitch_AuditLog(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

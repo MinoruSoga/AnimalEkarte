@@ -57,5 +57,5 @@ func TestReservationRepository_FindAllByCategory_ReservationTypeJoinClinicIsolat
 			break
 		}
 	}
-	assert.Nil(t, found, "別クリニックの診療区分マスタで clinic A の予約をカテゴリ分類してはならない")
+	assert.Nil(t, found, "別医院の診療区分マスタで clinic A の予約をカテゴリ分類してはならない")
 }

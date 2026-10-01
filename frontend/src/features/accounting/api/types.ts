@@ -21,10 +21,14 @@ export interface BackendAccountingItem extends BillingItem {
   subtotal?: number;
   /** 未請求候補など treatment 由来の親カルテ（仮想。DB 列ではない） */
   medical_record_id?: number;
+  /** EMR-246: 未請求候補の発生日（仮想。DB 列ではない）。当日/過去区分表示用 */
+  service_date?: string | null;
 }
 
 // BillingItem の更新リクエスト
 export interface UpdateBillingItemRequest {
+  /** EMR-229: 社販処理の目安として項目名（年月追記等）を更新できる */
+  name?: string;
   unit_price?: number;
   quantity?: number;
   discount_rate?: number;

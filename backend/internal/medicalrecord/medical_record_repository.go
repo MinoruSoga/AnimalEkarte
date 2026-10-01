@@ -26,7 +26,14 @@ type MedicalRecordListFilters struct {
 	Status          *model.MedicalRecordStatus
 	DoctorID        *uint64
 	AnimalSpeciesID *uint64
-	Search          string
+	// MedicineID / ProcedureID / ConsultationID / InventoryID は「そのマスタ項目を
+	// 処置(treatments)したカルテ」の完全一致フィルタ。フリーテキスト検索の名前腕とは
+	// 別物（ID 一致・誤ヒットなし・btree 駆動）。
+	MedicineID     *uint64
+	ProcedureID    *uint64
+	ConsultationID *uint64
+	InventoryID    *uint64
+	Search         string
 	// Sort/Order: B-1 follow-up（列ソート server 化）。Sort はハンドラ層で検証済みの許可キー
 	// （medicalRecordSortColumns の key）のみが渡される想定。空文字は既定順
 	// （date DESC, created_at DESC）を維持する。Order は "asc"/"desc"（既定 "desc"）。

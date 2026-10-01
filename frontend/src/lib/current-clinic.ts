@@ -30,7 +30,7 @@ export function setStoredClinicId(clinicId: string): boolean {
 export function requireStoredClinicId(): string {
   const clinicId = getStoredClinicId();
   if (clinicId === null) {
-    throw new Error("クリニックが選択されていません。ページをリロードしてください。");
+    throw new Error("医院が選択されていません。ページをリロードしてください。");
   }
   return clinicId;
 }

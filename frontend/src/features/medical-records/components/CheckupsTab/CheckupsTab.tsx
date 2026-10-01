@@ -214,7 +214,9 @@ export const CheckupsTab = memo(function CheckupsTab({
 
       {checkupList.length > 0 ? (
         <div className={`${C.bgWhite} border ${C.borderLight} rounded-lg px-4 py-3`}>
-          <span className={`text-sm ${C.text60}`}>健診記録 {checkupList.length} 件</span>
+          <span className={`text-sm ${C.text60}`}>
+            健診記録 {checkupList.length.toLocaleString()} 件
+          </span>
         </div>
       ) : null}
 

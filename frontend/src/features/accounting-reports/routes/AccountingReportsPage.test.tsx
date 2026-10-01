@@ -93,7 +93,7 @@ describe("AccountingReportsPage 印刷 / PDF出力 (#184) + 操作UI除外 (#179
     expect(await screen.findByRole("link", { name: /税率設定を変更/ })).toHaveClass("min-h-11");
   });
 
-  it("#184: 印刷エリアに 病院名・対象年月・日次明細 が含まれる", async () => {
+  it("#184: 印刷エリアに 医院名・対象年月・日次明細 が含まれる", async () => {
     renderPage();
     const printArea = await screen.findByTestId("monthly-report-print-area");
     expect(within(printArea).getByText("テスト動物病院")).toBeInTheDocument();

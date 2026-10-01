@@ -36,7 +36,7 @@ func TestOccupationRepository_Create_FindByID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	t.Run("作成した職種を同一クリニックで取得できる", func(t *testing.T) {
+	t.Run("作成した職種を同一医院で取得できる", func(t *testing.T) {
 		occ := &model.Occupation{ClinicID: clinicA, Name: "獣医師"}
 		require.NoError(t, repo.Create(ctx, occ))
 		require.NotZero(t, occ.ID)
@@ -64,11 +64,11 @@ func TestOccupationRepository_Create_FindByID(t *testing.T) {
 		assert.False(t, raw, "raw is_active must be false")
 	})
 
-	t.Run("別クリニックからは取得できずNotFoundを返す", func(t *testing.T) {
+	t.Run("別医院からは取得できずNotFoundを返す", func(t *testing.T) {
 		occ := makeOccupation(t, db, clinicA, "看護師")
 		_, err := repo.FindByID(ctx, clinicB, occ.ID)
 		require.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err), "別クリニックの職種取得はNotFoundでラップされるべき")
+		assert.True(t, apperrors.IsNotFound(err), "別医院の職種取得はNotFoundでラップされるべき")
 	})
 
 	t.Run("存在しないIDはNotFoundを返す", func(t *testing.T) {
@@ -84,7 +84,7 @@ func TestOccupationRepository_FindAll(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	t.Run("クリニックで隔離され sort_order/name の昇順で返る", func(t *testing.T) {
+	t.Run("医院で隔離され sort_order/name の昇順で返る", func(t *testing.T) {
 		occB := makeOccupation(t, db, clinicB, "医院Bの職種")
 		occA2 := &model.Occupation{ClinicID: clinicA, Name: "B職種", SortOrder: 2}
 		require.NoError(t, db.WithContext(ctx).Create(occA2).Error)
@@ -97,7 +97,7 @@ func TestOccupationRepository_FindAll(t *testing.T) {
 		assert.Equal(t, occA1.ID, got[0].ID, "sort_order昇順で先頭")
 		assert.Equal(t, occA2.ID, got[1].ID)
 		for _, o := range got {
-			assert.NotEqual(t, occB.ID, o.ID, "別クリニックの職種が混入してはならない")
+			assert.NotEqual(t, occB.ID, o.ID, "別医院の職種が混入してはならない")
 		}
 	})
 
@@ -124,7 +124,7 @@ func TestOccupationRepository_Update(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	t.Run("同一クリニックの更新は反映される", func(t *testing.T) {
+	t.Run("同一医院の更新は反映される", func(t *testing.T) {
 		occ := makeOccupation(t, db, clinicA, "更新前職種")
 		name := "更新後職種"
 		got, err := repo.Update(ctx, clinicA, occ.ID, UpdateOccupationInput{Name: &name})
@@ -132,7 +132,7 @@ func TestOccupationRepository_Update(t *testing.T) {
 		assert.Equal(t, "更新後職種", got.Name)
 	})
 
-	t.Run("別クリニックの更新はNotFound", func(t *testing.T) {
+	t.Run("別医院の更新はNotFound", func(t *testing.T) {
 		occ := makeOccupation(t, db, clinicA, "他院からの更新対象")
 		name := "越境更新"
 		_, err := repo.Update(ctx, clinicB, occ.ID, UpdateOccupationInput{Name: &name})
@@ -154,7 +154,7 @@ func TestOccupationRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	t.Run("同一クリニックの削除は成功しその後取得できない", func(t *testing.T) {
+	t.Run("同一医院の削除は成功しその後取得できない", func(t *testing.T) {
 		occ := makeOccupation(t, db, clinicA, "削除対象職種")
 		require.NoError(t, repo.Delete(ctx, clinicA, occ.ID))
 
@@ -163,7 +163,7 @@ func TestOccupationRepository_Delete(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("別クリニックの削除はNotFoundで対象データは残る", func(t *testing.T) {
+	t.Run("別医院の削除はNotFoundで対象データは残る", func(t *testing.T) {
 		occ := makeOccupation(t, db, clinicA, "越境削除対象")
 		err := repo.Delete(ctx, clinicB, occ.ID)
 		require.Error(t, err)
@@ -221,12 +221,12 @@ func TestOccupationRepository_Reorder(t *testing.T) {
 		assert.Equal(t, 3, byID[occ2.ID].SortOrder)
 	})
 
-	t.Run("別クリニックのIDが混ざるとエラーになる", func(t *testing.T) {
+	t.Run("別医院のIDが混ざるとエラーになる", func(t *testing.T) {
 		occA := makeOccupation(t, db, clinicA, "医院A職種")
 		occB := makeOccupation(t, db, clinicB, "医院B職種")
 
 		err := repo.Reorder(ctx, clinicA, []uint64{occA.ID, occB.ID})
-		require.Error(t, err, "別クリニックのIDを含むReorderは失敗するべき")
+		require.Error(t, err, "別医院のIDを含むReorderは失敗するべき")
 	})
 }
 
@@ -243,7 +243,7 @@ func TestOccupationRepository_CountUsageByOccupationID(t *testing.T) {
 		staffInA := makeStaffWithOccupation(t, db, clinicA, occ.ID, "医院Aスタッフ")
 		makeStaffClinicAssignment(t, db, staffInA.ID, clinicA)
 
-		// 主クリニックはAだが実際の配属はBのみ（JOINのclinic_idはclinic_assignmentsで判定）
+		// 主医院はAだが実際の配属はBのみ（JOINのclinic_idはclinic_assignmentsで判定）
 		staffAssignedElsewhere := makeStaffWithOccupation(t, db, clinicA, occ.ID, "配属先違いスタッフ")
 		makeStaffClinicAssignment(t, db, staffAssignedElsewhere.ID, clinicB)
 

@@ -44,7 +44,9 @@ export function ForgotPasswordPage() {
   const errorMessage = state.status === "error" ? state.error : null;
 
   return (
-    <div className={`min-h-screen flex items-center justify-center ${C.bgPage} p-4`}>
+    <div
+      className={`h-dvh overflow-y-auto flex items-center-safe justify-center-safe ${C.bgPage} p-4`}
+    >
       <div className="w-full max-w-[380px] mx-auto">
         {/* Header */}
         <div className="text-center mb-8">

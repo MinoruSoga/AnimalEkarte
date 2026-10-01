@@ -464,10 +464,10 @@ func TestRunDormantDetectionAllClinics_PersistsAuditMetadata(t *testing.T) {
 	assert.Equal(t, 180, meta["min_days_since"], "判定閾値を後で再現できる")
 }
 
-// TestRunBatchAllClinics_全滅クリニックでも監査ログが記録されエラー本文は秘匿される は
+// TestRunBatchAllClinics_全滅医院でも監査ログが記録されエラー本文は秘匿される は
 // perClinic が (0, errs) を返す全滅ケースでも audit が記録される一方、外部API由来の
 // エラー本文（LINE user ID 等を含み得る）はログへ出さないことを検証する。
-func TestRunBatchAllClinics_全滅クリニックでも監査ログが記録されエラー本文は秘匿される(t *testing.T) {
+func TestRunBatchAllClinics_全滅医院でも監査ログが記録されエラー本文は秘匿される(t *testing.T) {
 	var logBuf bytes.Buffer
 	prev := slog.Default()
 	slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelError})))
@@ -497,7 +497,7 @@ func TestRunBatchAllClinics_全滅クリニックでも監査ログが記録さ�
 		},
 	)
 	assert.NoError(t, err)
-	assert.True(t, spy.called, "全滅クリニックでも監査ログが記録される")
+	assert.True(t, spy.called, "全滅医院でも監査ログが記録される")
 	assert.Equal(t, "batch_test_wipeout", spy.capturedAction)
 
 	meta, ok := spy.capturedMetadata.(map[string]any)

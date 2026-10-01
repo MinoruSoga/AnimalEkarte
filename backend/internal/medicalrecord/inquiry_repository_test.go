@@ -53,7 +53,7 @@ func TestInquiryRepository_SaveByMedicalRecordID(t *testing.T) {
 
 	mrA := makeInquiryMedicalRecord(t, db, clinicA, "MR-A-001")
 
-	t.Run("medical_record が別クリニックの場合 NotFound", func(t *testing.T) {
+	t.Run("medical_record が別医院の場合 NotFound", func(t *testing.T) {
 		_, err := repo.SaveByMedicalRecordID(ctx, clinicB, InquiryUpsertFields{MedicalRecordID: mrA.ID, ChiefComplaint: strPtr("嘔吐")})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))

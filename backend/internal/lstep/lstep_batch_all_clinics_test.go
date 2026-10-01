@@ -13,7 +13,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// TestAllClinicsFiltersBySyncEnabled: AllClinics バッチが is_sync_enabled=false のクリニックをスキップする
+// TestAllClinicsFiltersBySyncEnabled: AllClinics バッチが is_sync_enabled=false の医院をスキップする
 func TestAllClinicsFiltersBySyncEnabled(t *testing.T) {
 	t.Run("RunNoShowCheckAllClinics skips disabled clinics", func(t *testing.T) {
 		processed := make([]uint64, 0)

@@ -447,7 +447,7 @@ CREATE TABLE settings (
     id BIGSERIAL PRIMARY KEY,
     additional_fields jsonb NOT NULL DEFAULT '[
         {"key":"phone","label":"電話番号","placeholder":"例) 090-1234-5678"},
-        {"key":"owner_name","label":"飼い主名","placeholder":""}
+        {"key":"owner_name","label":"飼主名","placeholder":""}
     ]',
     line_channel_id text NOT NULL DEFAULT '',
     created_at timestamptz NOT NULL DEFAULT now()

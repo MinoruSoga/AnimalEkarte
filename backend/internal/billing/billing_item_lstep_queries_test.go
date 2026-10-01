@@ -72,7 +72,7 @@ func TestBillingItemRepository_HasItemByOwnerSince(t *testing.T) {
 		assert.False(t, ok)
 	})
 
-	t.Run("別クリニックならfalse", func(t *testing.T) {
+	t.Run("別医院ならfalse", func(t *testing.T) {
 		ok, err := repo.HasItemByOwnerSince(ctx, clinicB, owner.ID, since, []string{"対象商品A"})
 		require.NoError(t, err)
 		assert.False(t, ok)

@@ -1,3 +1,5 @@
+import { OctagonAlert, TriangleAlert } from "lucide-react";
+
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { DatePicker } from "@/components/shared/DatePicker";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
@@ -5,10 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { isOneOf } from "@/lib/type-utils";
 
 import { ACQUISITION_TYPE_VALUES, DANGER_LEVEL_VALUES } from "../types";
+import { StaffNoteDisclosure } from "./StaffNoteDisclosure";
 import {
   LABEL_CLS,
   INPUT_CLS,
@@ -139,53 +142,76 @@ export function PetPhysicalSection({
         </Select>
       </div>
 
-      <div className="space-y-1">
-        <Label htmlFor="dangerLevel" className={LABEL_CLS}>
-          ペットの危険度
-        </Label>
-        <Select
-          value={formData.dangerLevel || ""}
-          onValueChange={(value) => {
-            if (isOneOf(value, DANGER_LEVEL_VALUES)) {
-              setFormData((prev) => ({ ...prev, dangerLevel: value }));
-              if (value !== "高") {
-                clearFieldError("dangerReason");
+      {/* EMR-231: スタッフ向け内部情報は普段畳み、操作したときだけ開く。
+          項目名・placeholder・aria 経路にも直接の警戒文言は出さない。
+          理由フィールドにエラーがあるときは一度だけ自動展開してエラーを見せる。 */}
+      <StaffNoteDisclosure
+        id="pet-staff-note-panel"
+        flagged={
+          formData.dangerLevel === "高" ||
+          formData.dangerLevel === "中" ||
+          Boolean(formData.dangerReason?.trim())
+        }
+        autoOpen={Boolean(fieldErrors.dangerReason)}
+        icon={
+          formData.dangerLevel === "高" ? (
+            <OctagonAlert className={`${ICON.smXs} ${C.danger}`} aria-hidden="true" />
+          ) : formData.dangerLevel === "中" ? (
+            <TriangleAlert className={`${ICON.smXs} ${C.textBadgeYellow}`} aria-hidden="true" />
+          ) : (
+            <TriangleAlert className={`${ICON.smXs} ${C.text40}`} aria-hidden="true" />
+          )
+        }
+      >
+        <div className="space-y-1">
+          <Label htmlFor="dangerLevel" className={LABEL_CLS}>
+            特記レベル
+          </Label>
+          <Select
+            value={formData.dangerLevel || ""}
+            onValueChange={(value) => {
+              if (isOneOf(value, DANGER_LEVEL_VALUES)) {
+                setFormData((prev) => ({ ...prev, dangerLevel: value }));
+                if (value !== "高") {
+                  clearFieldError("dangerReason");
+                }
               }
-            }
-          }}
-        >
-          <SelectTrigger id="dangerLevel" className={INPUT_CLS}>
-            <SelectValue placeholder="選択してください" />
-          </SelectTrigger>
-          <SelectContent>{DANGER_SELECT_ITEMS}</SelectContent>
-        </Select>
-      </div>
+            }}
+          >
+            <SelectTrigger id="dangerLevel" className={INPUT_CLS}>
+              <SelectValue placeholder="選択してください" />
+            </SelectTrigger>
+            <SelectContent>{DANGER_SELECT_ITEMS}</SelectContent>
+          </Select>
+        </div>
 
-      <div className="space-y-1">
-        <Label htmlFor="dangerReason" className={LABEL_CLS}>
-          危険と判断した理由
-          {formData.dangerLevel === "高" ? (
-            <span className={C.textRequired} aria-hidden="true">
-              *
-            </span>
-          ) : null}
-        </Label>
-        <Textarea
-          id="dangerReason"
-          value={formData.dangerReason || ""}
-          placeholder="危険と判断した理由を入力してください（500文字以内）"
-          aria-label="危険と判断した理由"
-          aria-required={formData.dangerLevel === "高"}
-          aria-invalid={!!fieldErrors.dangerReason}
-          aria-describedby={fieldErrors.dangerReason ? "dangerReason-error" : undefined}
-          onChange={(e) => {
-            setFormData((prev) => ({ ...prev, dangerReason: e.target.value }));
-            clearFieldError("dangerReason");
-          }}
-          className={`${STYLE.textarea} ${fieldErrors.dangerReason ? STYLE.formInputError : ""}`}
-        />
-        <FormFieldError id="dangerReason-error" message={fieldErrors.dangerReason} />
-      </div>
+        <div className="space-y-1">
+          <Label htmlFor="dangerReason" className={LABEL_CLS}>
+            理由
+            {formData.dangerLevel === "高" ? (
+              <span className={C.textRequired} aria-hidden="true">
+                {" "}
+                *
+              </span>
+            ) : null}
+          </Label>
+          <Textarea
+            id="dangerReason"
+            value={formData.dangerReason || ""}
+            placeholder="理由を入力してください（500文字以内）"
+            aria-label="理由"
+            aria-required={formData.dangerLevel === "高"}
+            aria-invalid={!!fieldErrors.dangerReason}
+            aria-describedby={fieldErrors.dangerReason ? "dangerReason-error" : undefined}
+            onChange={(e) => {
+              setFormData((prev) => ({ ...prev, dangerReason: e.target.value }));
+              clearFieldError("dangerReason");
+            }}
+            className={`${STYLE.textarea} ${fieldErrors.dangerReason ? STYLE.formInputError : ""}`}
+          />
+          <FormFieldError id="dangerReason-error" message={fieldErrors.dangerReason} />
+        </div>
+      </StaffNoteDisclosure>
     </div>
   );
 }

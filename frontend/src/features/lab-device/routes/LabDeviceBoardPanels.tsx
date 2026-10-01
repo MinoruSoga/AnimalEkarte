@@ -251,8 +251,9 @@ export function LabDeviceAgentPanel({ agentStatus }: { agentStatus: LabDeviceAge
       </p>
       {agentStatus.degraded ? (
         <p className={`text-sm ${C.textWarning}`}>
-          未処理 {agentStatus.pending}件 · 判定失敗 {agentStatus.rejected}件 · 受付超過{" "}
-          {agentStatus.overflow + agentStatus.inputOverflow}件
+          未処理 {agentStatus.pending.toLocaleString()}件 · 判定失敗{" "}
+          {agentStatus.rejected.toLocaleString()}件 · 受付超過{" "}
+          {(agentStatus.overflow + agentStatus.inputOverflow).toLocaleString()}件
         </p>
       ) : null}
       {degradedMessage ? <p className={`text-sm ${C.textWarning}`}>{degradedMessage}</p> : null}

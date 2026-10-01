@@ -116,7 +116,7 @@ export function PetLinkSection({
         title="ペットの連携を解除しますか？"
         description={
           unlinkTarget
-            ? `医院 ${unlinkTarget.clinic_id} のペット「${unlinkTarget.name}」を同一ペットグループから解除します。解除後、このペットはグループに紐づく連携診療履歴の対象外になります。`
+            ? `医院 ${unlinkTarget.clinic_id} のペット「${unlinkTarget.name}」を同一ペットグループから解除します。解除後、このペットはグループに紐付く連携診療履歴の対象外になります。`
             : undefined
         }
         confirmLabel="解除する"

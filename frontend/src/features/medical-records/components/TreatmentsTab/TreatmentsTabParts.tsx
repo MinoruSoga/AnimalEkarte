@@ -239,11 +239,11 @@ export function TreatmentTotals({
     <div className={`${C.bgWhite} border ${C.borderLight} rounded-lg px-4 py-3`}>
       <div className="flex flex-col gap-1.5">
         <div className={`flex items-center justify-between text-sm ${C.text60}`}>
-          <span>全明細合計 ({totalCount}件)</span>
+          <span>全明細合計 ({totalCount.toLocaleString()}件)</span>
           <span className="font-mono">{formatCurrency(totalSubtotal)}</span>
         </div>
         <div className={`flex items-center justify-between text-sm font-medium ${C.text}`}>
-          <span>選択済み合計 ({selectedCount}件)</span>
+          <span>選択済み合計 ({selectedCount.toLocaleString()}件)</span>
           <span className="font-mono text-base">{formatCurrency(selectedSubtotal)}</span>
         </div>
         <div

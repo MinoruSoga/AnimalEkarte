@@ -168,7 +168,7 @@ func TestRunLTVTopPercentSyncAllClinics_SkipsWhenSyncDisabled(t *testing.T) {
 
 	err := svc.RunLTVTopPercentSyncAllClinics(context.Background())
 	assert.NoError(t, err)
-	assert.False(t, called, "sync 無効なクリニックは SyncLTVTopPercent を呼ばない")
+	assert.False(t, called, "sync 無効な医院は SyncLTVTopPercent を呼ばない")
 }
 
 func TestRunLTVTopPercentSyncAllClinics_SkipsOnSyncCheckError(t *testing.T) {
@@ -191,7 +191,7 @@ func TestRunLTVTopPercentSyncAllClinics_SkipsOnSyncCheckError(t *testing.T) {
 	)
 
 	err := svc.RunLTVTopPercentSyncAllClinics(context.Background())
-	assert.NoError(t, err, "sync 有効判定の失敗はクリニックをスキップしバッチ全体は継続する")
+	assert.NoError(t, err, "sync 有効判定の失敗は医院をスキップしバッチ全体は継続する")
 	assert.False(t, called)
 }
 
@@ -334,7 +334,7 @@ func TestRunVisitDormantSyncAllClinics_PartialSyncErrorsStillSucceeds(t *testing
 func TestRunVisitDormantSyncAllClinics_SkipsWhenSyncDisabled(t *testing.T) {
 	medRepo := &batchMockMedRecordRepo{
 		findDormantFn: func(_ context.Context, _ uint64, _ int) ([]medicalrecord.DormantOwnerEntry, error) {
-			t.Fatal("sync 無効なクリニックでは日次記録取得を呼ばない")
+			t.Fatal("sync 無効な医院では日次記録取得を呼ばない")
 			return nil, nil
 		},
 	}
@@ -357,7 +357,7 @@ func TestRunVisitDormantSyncAllClinics_SkipsWhenSyncDisabled(t *testing.T) {
 func TestRunVisitDormantSyncAllClinics_SkipsOnSyncCheckError(t *testing.T) {
 	medRepo := &batchMockMedRecordRepo{
 		findDormantFn: func(_ context.Context, _ uint64, _ int) ([]medicalrecord.DormantOwnerEntry, error) {
-			t.Fatal("sync 有効判定に失敗したクリニックでは日次記録取得を呼ばない")
+			t.Fatal("sync 有効判定に失敗した医院では日次記録取得を呼ばない")
 			return nil, nil
 		},
 	}

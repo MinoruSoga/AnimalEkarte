@@ -88,7 +88,7 @@ func TestOwnerRepository_FindAll(t *testing.T) {
 		assert.Empty(t, got)
 	})
 
-	t.Run("該当しないクリニックの飼主は含まれない", func(t *testing.T) {
+	t.Run("該当しない医院の飼主は含まれない", func(t *testing.T) {
 		got, _, err := repo.FindAll(ctx, []uint64{clinicA}, 1, 100, "")
 		require.NoError(t, err)
 		for _, o := range got {
@@ -107,13 +107,13 @@ func TestOwnerRepository_FindByIDForClinics(t *testing.T) {
 
 	owner := makeTestOwner(t, db, clinicA, "拠点横断飼主")
 
-	t.Run("所属クリニックのいずれかに一致すれば取得できる", func(t *testing.T) {
+	t.Run("所属医院のいずれかに一致すれば取得できる", func(t *testing.T) {
 		got, err := repo.FindByIDForClinics(ctx, []uint64{clinicA, clinicC}, owner.ID)
 		require.NoError(t, err)
 		assert.Equal(t, owner.ID, got.ID)
 	})
 
-	t.Run("所属していないクリニック集合ではNotFound", func(t *testing.T) {
+	t.Run("所属していない医院集合ではNotFound", func(t *testing.T) {
 		got, err := repo.FindByIDForClinics(ctx, []uint64{clinicB, clinicC}, owner.ID)
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -137,7 +137,7 @@ func TestOwnerRepository_FindByEmail(t *testing.T) {
 	owner := &model.Owner{ClinicID: clinicA, Name: "メール検索飼主", Email: "search-target@example.com"}
 	require.NoError(t, db.WithContext(ctx).Create(owner).Error)
 
-	t.Run("同一クリニックで見つかる", func(t *testing.T) {
+	t.Run("同一医院で見つかる", func(t *testing.T) {
 		got, err := repo.FindByEmail(ctx, clinicA, "search-target@example.com")
 		require.NoError(t, err)
 		require.NotNil(t, got)
@@ -150,7 +150,7 @@ func TestOwnerRepository_FindByEmail(t *testing.T) {
 		assert.Nil(t, got)
 	})
 
-	t.Run("別クリニックからはnil,nil", func(t *testing.T) {
+	t.Run("別医院からはnil,nil", func(t *testing.T) {
 		got, err := repo.FindByEmail(ctx, clinicB, "search-target@example.com")
 		require.NoError(t, err)
 		assert.Nil(t, got)
@@ -166,7 +166,7 @@ func TestOwnerRepository_FindByPhone(t *testing.T) {
 	owner := &model.Owner{ClinicID: clinicA, Name: "電話検索飼主", Phone: "090-1234-5678"}
 	require.NoError(t, db.WithContext(ctx).Create(owner).Error)
 
-	t.Run("同一クリニックで見つかる", func(t *testing.T) {
+	t.Run("同一医院で見つかる", func(t *testing.T) {
 		got, err := repo.FindByPhone(ctx, clinicA, "090-1234-5678")
 		require.NoError(t, err)
 		require.NotNil(t, got)
@@ -179,7 +179,7 @@ func TestOwnerRepository_FindByPhone(t *testing.T) {
 		assert.Nil(t, got)
 	})
 
-	t.Run("別クリニックからはnil,nil", func(t *testing.T) {
+	t.Run("別医院からはnil,nil", func(t *testing.T) {
 		got, err := repo.FindByPhone(ctx, clinicB, "090-1234-5678")
 		require.NoError(t, err)
 		assert.Nil(t, got)
@@ -334,7 +334,7 @@ func TestOwnerRepository_FindByLineUserID(t *testing.T) {
 	owner := makeTestOwner(t, db, clinicA, "LINE検索飼主")
 	require.NoError(t, repo.UpdateLineUserID(ctx, clinicA, owner.ID, &lineID))
 
-	t.Run("同一クリニックで見つかる", func(t *testing.T) {
+	t.Run("同一医院で見つかる", func(t *testing.T) {
 		got, err := repo.FindByLineUserID(ctx, clinicA, lineID)
 		require.NoError(t, err)
 		assert.Equal(t, owner.ID, got.ID)
@@ -346,7 +346,7 @@ func TestOwnerRepository_FindByLineUserID(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("別クリニックからは見つからない", func(t *testing.T) {
+	t.Run("別医院からは見つからない", func(t *testing.T) {
 		got, err := repo.FindByLineUserID(ctx, clinicB, lineID)
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -461,7 +461,7 @@ func TestOwnerRepository_UpdateLineFollowedAt(t *testing.T) {
 	pastBlock := time.Now().Add(-24 * time.Hour)
 	require.NoError(t, db.Model(&model.Owner{}).Where("id = ?", owner.ID).Update("line_blocked_at", pastBlock).Error)
 
-	t.Run("同一クリニックからの更新でフォロー日時がセットされブロック日時がリセットされる", func(t *testing.T) {
+	t.Run("同一医院からの更新でフォロー日時がセットされブロック日時がリセットされる", func(t *testing.T) {
 		followedAt := time.Now()
 		updated, err := repo.UpdateLineFollowedAt(ctx, clinicA, owner.ID, lineUserID, followedAt)
 		require.NoError(t, err)
@@ -474,7 +474,7 @@ func TestOwnerRepository_UpdateLineFollowedAt(t *testing.T) {
 		assert.Nil(t, got.LineBlockedAt, "フォロー時にブロック日時はリセットされるべき")
 	})
 
-	t.Run("別クリニックからの更新は実データを変更しない（clinic_id述語で対象0件）", func(t *testing.T) {
+	t.Run("別医院からの更新は実データを変更しない（clinic_id述語で対象0件）", func(t *testing.T) {
 		other := makeTestOwner(t, db, clinicA, "変更されないはずの飼主")
 		otherLineUserID := "U-follow-other"
 		require.NoError(t, repo.UpdateLineUserID(ctx, clinicA, other.ID, &otherLineUserID))
@@ -484,7 +484,7 @@ func TestOwnerRepository_UpdateLineFollowedAt(t *testing.T) {
 
 		got, err := repo.FindByID(ctx, clinicA, other.ID)
 		require.NoError(t, err)
-		assert.Nil(t, got.LineFollowedAt, "別クリニックからの呼び出しでは実際には更新されない")
+		assert.Nil(t, got.LineFollowedAt, "別医院からの呼び出しでは実際には更新されない")
 	})
 
 	t.Run("再連携後の古いLINE User IDイベントは更新しない", func(t *testing.T) {
@@ -508,7 +508,7 @@ func TestOwnerRepository_UpdateLineBlockedAt(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	t.Run("同一クリニックからブロック日時を更新できる", func(t *testing.T) {
+	t.Run("同一医院からブロック日時を更新できる", func(t *testing.T) {
 		owner := makeTestOwner(t, db, clinicA, "LINEブロック飼主")
 		lineUserID := "U-block-owner"
 		require.NoError(t, repo.UpdateLineUserID(ctx, clinicA, owner.ID, &lineUserID))
@@ -523,7 +523,7 @@ func TestOwnerRepository_UpdateLineBlockedAt(t *testing.T) {
 		assert.WithinDuration(t, blockedAt, *got.LineBlockedAt, time.Second)
 	})
 
-	t.Run("別クリニックからの更新はNotFoundになる", func(t *testing.T) {
+	t.Run("別医院からの更新はNotFoundになる", func(t *testing.T) {
 		owner := makeTestOwner(t, db, clinicA, "変更されないブロック飼主")
 		lineUserID := "U-block-other"
 		require.NoError(t, repo.UpdateLineUserID(ctx, clinicA, owner.ID, &lineUserID))
@@ -722,7 +722,7 @@ func TestOwnerRepository_CountPetsByOwnerID(t *testing.T) {
 		assert.Equal(t, int64(1), count)
 	})
 
-	t.Run("別クリニックからは0件", func(t *testing.T) {
+	t.Run("別医院からは0件", func(t *testing.T) {
 		count, err := repo.CountPetsByOwnerID(ctx, clinicB, owner.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)
@@ -741,14 +741,14 @@ func TestOwnerRepository_FindByIDs(t *testing.T) {
 	o2 := makeTestOwner(t, db, clinicA, "一括取得飼主2")
 	o3 := makeTestOwner(t, db, clinicB, "医院B飼主")
 
-	t.Run("指定した同一クリニックのIDのみ返す", func(t *testing.T) {
+	t.Run("指定した同一医院のIDのみ返す", func(t *testing.T) {
 		got, err := repo.FindByIDs(ctx, clinicA, []uint64{o1.ID, o2.ID, o3.ID})
 		require.NoError(t, err)
 		ids := make([]uint64, len(got))
 		for i, o := range got {
 			ids[i] = o.ID
 		}
-		assert.ElementsMatch(t, []uint64{o1.ID, o2.ID}, ids, "別クリニックのIDは除外される")
+		assert.ElementsMatch(t, []uint64{o1.ID, o2.ID}, ids, "別医院のIDは除外される")
 	})
 
 	t.Run("空スライスはnilを返す", func(t *testing.T) {

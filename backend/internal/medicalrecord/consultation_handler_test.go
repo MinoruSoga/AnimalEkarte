@@ -705,7 +705,7 @@ func TestDeleteConsultation(t *testing.T) {
 			paramID: "2",
 			svc: &mockConsultationService{
 				deleteFn: func(_ context.Context, _, _ uint64) error {
-					return apperrors.WrapConflict("この診察種別は診療記録で使用中のため削除できません")
+					return apperrors.WrapConflict("この診察種別はカルテで使用中のため削除できません")
 				},
 			},
 			wantStatus: http.StatusConflict,

@@ -25,7 +25,6 @@ func setupPetGrandchildReadClinicIsolationDB(t *testing.T) *gorm.DB {
 		&model.Staff{},
 		&model.Hospitalization{},
 		&model.TreatmentPlan{},
-		&model.Prescription{},
 		&model.MedicalRecordAddendum{},
 		&model.CheckupType{},
 		&model.Checkup{},
@@ -37,7 +36,6 @@ func setupPetGrandchildReadClinicIsolationDB(t *testing.T) *gorm.DB {
 			medical_record_addenda,
 			checkup_field_results,
 			treatment_plans,
-			prescriptions,
 			checkups,
 			hospitalizations,
 			staffs,
@@ -80,10 +78,7 @@ func TestPetGrandchildReadClinicIsolation(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := testdb.MakeTestOwner(t, db, clinicA, "孫read飼主A")
-	ownerOtherA := testdb.MakeTestOwner(t, db, clinicA, "孫read別飼主A")
 	ownerB := testdb.MakeTestOwner(t, db, clinicB, "孫read飼主B")
-	petOtherA := testdb.MakeSpeciesAndPet(t, db, clinicA, ownerOtherA.ID, "孫read別ペットA")
 	petB := testdb.MakeSpeciesAndPet(t, db, clinicB, ownerB.ID, "孫readペットB")
 
 	mrB := createGrandchildMedicalRecord(t, db, clinicB, "GRANDCHILD-MR-B", &ownerB.ID, &petB.ID)
@@ -100,27 +95,6 @@ func TestPetGrandchildReadClinicIsolation(t *testing.T) {
 
 	treatmentByMR := makeTreatmentPlan(t, db, clinicA, &mrB.ID, nil, "他院カルテ治療計画", 1)
 	treatmentByHospitalization := makeTreatmentPlan(t, db, clinicA, nil, &hospB.ID, "他院入院治療計画", 1)
-
-	prescriptionByMR := &model.Prescription{
-		ClinicID: clinicA, OwnerID: ownerA.ID, MedicalRecordID: &mrB.ID,
-		PrescribedAt: time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC), DurationDays: 7,
-	}
-	require.NoError(t, db.Create(prescriptionByMR).Error)
-	prescriptionByOwner := &model.Prescription{
-		ClinicID: clinicA, OwnerID: ownerB.ID,
-		PrescribedAt: time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC), DurationDays: 7,
-	}
-	require.NoError(t, db.Create(prescriptionByOwner).Error)
-	prescriptionByPet := &model.Prescription{
-		ClinicID: clinicA, OwnerID: ownerA.ID, PetID: &petB.ID,
-		PrescribedAt: time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC), DurationDays: 7,
-	}
-	require.NoError(t, db.Create(prescriptionByPet).Error)
-	prescriptionOwnerPetMismatch := &model.Prescription{
-		ClinicID: clinicA, OwnerID: ownerA.ID, PetID: &petOtherA.ID,
-		PrescribedAt: time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC), DurationDays: 7,
-	}
-	require.NoError(t, db.Create(prescriptionOwnerPetMismatch).Error)
 
 	checkupTypeB := makeCheckupTypeMaster(t, db, clinicB, "孫read他院健診")
 	checkupBID := makeCheckupRec(t, db, clinicB, mrB.ID, petB.ID, checkupTypeB.ID)
@@ -161,27 +135,6 @@ func TestPetGrandchildReadClinicIsolation(t *testing.T) {
 	t.Run("medical record addenda reject a foreign-clinic medical record parent by ID", func(t *testing.T) {
 		got, err := NewMedicalRecordAddendumRepository(db).FindByID(ctx, clinicA, addendumByMR.ID)
 		assertGrandchildNotFound(t, got == nil, err)
-	})
-
-	t.Run("prescriptions reject foreign parents and allow historical owner snapshots", func(t *testing.T) {
-		repo := NewPrescriptionRepository(db)
-
-		byMR, err := repo.FindByMedicalRecordID(ctx, clinicA, mrB.ID)
-		require.NoError(t, err)
-		assert.Empty(t, byMR)
-
-		byOwner, err := repo.FindActiveByOwner(ctx, clinicA, ownerB.ID)
-		require.NoError(t, err)
-		assert.Empty(t, byOwner)
-
-		got, err := repo.FindByID(ctx, clinicA, prescriptionByMR.ID)
-		assertGrandchildNotFound(t, got == nil, err)
-		got, err = repo.FindByID(ctx, clinicA, prescriptionByPet.ID)
-		assertGrandchildNotFound(t, got == nil, err)
-		got, err = repo.FindByID(ctx, clinicA, prescriptionOwnerPetMismatch.ID)
-		require.NoError(t, err)
-		require.NotNil(t, got)
-		assert.Equal(t, prescriptionOwnerPetMismatch.ID, got.ID, "snapshot owner may differ from the pet's current owner")
 	})
 
 }

@@ -21,8 +21,8 @@ export const MonthlySummaryCards = memo(function MonthlySummaryCards({
   taxSettingsLink,
 }: MonthlySummaryCardsProps) {
   const topCards = [
-    { label: "診療日数", value: `${summary.workingDays}日`, sub: null },
-    { label: "会計件数", value: `${summary.totalBillings}件`, sub: null },
+    { label: "診療日数", value: `${summary.workingDays.toLocaleString()}日`, sub: null },
+    { label: "会計件数", value: `${summary.totalBillings.toLocaleString()}件`, sub: null },
     {
       label: "売上合計",
       value: formatCurrency(summary.totalAmount),

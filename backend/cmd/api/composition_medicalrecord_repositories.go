@@ -41,7 +41,6 @@ type medicalRecordRepositories struct {
 	medicalRecords          medicalrecord.MedicalRecordRepository
 	medicineDoseParameters  medicalrecord.MedicineDoseParamRepository
 	medicines               medicalrecord.MedicineRepository
-	prescriptions           medicalrecord.PrescriptionRepository
 	procedures              medicalrecord.ProcedureRepository
 	treatmentPlans          medicalrecord.TreatmentPlanRepository
 	treatments              medicalrecord.TreatmentRepository
@@ -83,7 +82,6 @@ func newMedicalRecordRepositories(db *gorm.DB) medicalRecordRepositories {
 		medicalRecords:          medicalrecord.NewMedicalRecordRepository(db),
 		medicineDoseParameters:  medicalrecord.NewMedicineDoseParamRepository(db),
 		medicines:               medicalrecord.NewMedicineRepository(db),
-		prescriptions:           medicalrecord.NewPrescriptionRepository(db),
 		procedures:              medicalrecord.NewProcedureRepository(db),
 		treatmentPlans:          medicalrecord.NewTreatmentPlanRepository(db),
 		treatments:              medicalrecord.NewTreatmentRepository(db),

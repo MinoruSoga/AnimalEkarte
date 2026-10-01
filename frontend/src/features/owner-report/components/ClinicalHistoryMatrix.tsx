@@ -149,7 +149,7 @@ function HistoryRow({ columns, kind, count, state }: HistoryRowProps) {
           <strong className={`text-2xs font-semibold ${C.text}`}>{kind}</strong>
         </span>
         <small className={`ml-2.5 block text-2xs font-semibold tabular-nums ${C.text60}`}>
-          {canShowEntries ? `${count}件` : "—"}
+          {canShowEntries ? `${count.toLocaleString()}件` : "—"}
         </small>
       </th>
       {columns.map((column, index) => (

@@ -65,7 +65,7 @@ flowchart TB
 
 - 「Don't restrict access by IP address」（webhook受信側）: LINE Platform公式は送信元IPを開示しないため、webhook受信をIPで絞ることを明示的に禁止している（署名検証を使うこと）。
 - 「Restrict who can call the API when using a long-lived channel access token (optional)」: push送信などのAPI呼び出し（outbound）側は、long-lived channel access token使用時に限り、LINE Developers Console > Security タブでIPアドレス/CIDRを登録してAPI呼び出し元を制限する**オプション機能**が存在する。
-- 結論: 本システムがLINEへ送信する際（`api.line.me`へのoutbound）にこのオプション機能を有効化しているクリニックがあれば、Cloudflareの非固定egress IPでは送信が拒否される。デフォルトは無効なため、無効なクリニックには影響しない。カットオーバー前に対象クリニックのLINE Developers Console設定を確認する運用手順を追加することを推奨（本ドキュメントの提言、実施はP7-3）。
+- 結論: 本システムがLINEへ送信する際（`api.line.me`へのoutbound）にこのオプション機能を有効化している医院があれば、Cloudflareの非固定egress IPでは送信が拒否される。デフォルトは無効なため、無効な医院には影響しない。カットオーバー前に対象医院のLINE Developers Console設定を確認する運用手順を追加することを推奨（本ドキュメントの提言、実施はP7-3）。
 
 参考: LINE Developers公式ドキュメント（`developers.line.biz/en/docs/messaging-api/development-guidelines/`, `developers.line.biz/en/docs/messaging-api/building-bot/`）2026-07-05時点の内容。
 

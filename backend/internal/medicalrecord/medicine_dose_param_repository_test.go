@@ -3,8 +3,8 @@ package medicalrecord
 // medicine_dose_param_repository_test.go — MedicineDoseParamRepository の統合テスト（実 Postgres テスト DB）。
 //
 // medicine_dose_param_clinic_isolation_test.go が clinic_id 隔離（FindByMedicineAndSpecies /
-// Create の ClinicID 強制上書き / FindByMedicineID / Update・Delete の別クリニック拒否）を既にカバーしているため、
-// 本ファイルはそこで未カバーの happy path（同一クリニックでの Update/Delete 成功）・not-found ケース・
+// Create の ClinicID 強制上書き / FindByMedicineID / Update・Delete の別医院拒否）を既にカバーしているため、
+// 本ファイルはそこで未カバーの happy path（同一医院での Update/Delete 成功）・not-found ケース・
 // 空結果・ソート順を対象とする。setupMedicineDoseParamIsolationTestDB / makeDoseTestMedicine /
 // makeDoseParam は medicine_dose_param_clinic_isolation_test.go で定義済みのため再利用する。
 

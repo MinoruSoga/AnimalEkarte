@@ -146,10 +146,10 @@ describe("LstepTagManagementPage — C: LTV タグ一覧 (FEAT-380)", () => {
 });
 
 // ─────────────────────────────────────────────────────────────
-// D: タグ別飼い主一覧ドロワー（FEAT-380）
+// D: タグ別飼主一覧ドロワー（FEAT-380）
 // ─────────────────────────────────────────────────────────────
 
-describe("LstepTagManagementPage — D: タグ別飼い主一覧ドロワー (FEAT-380)", () => {
+describe("LstepTagManagementPage — D: タグ別飼主一覧ドロワー (FEAT-380)", () => {
   it("HLTH_健診あり 行の「対象者一覧」クリックでドロワーが開く", async () => {
     setupOwnersHandler();
     await renderAndWait();

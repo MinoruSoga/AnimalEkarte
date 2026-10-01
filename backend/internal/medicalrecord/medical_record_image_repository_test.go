@@ -118,13 +118,13 @@ func TestMedicalRecordImageRepository_FindByMedicalRecordID(t *testing.T) {
 	time.Sleep(2 * time.Millisecond)
 	second := makeMedRecordImage(t, db, mr.ID, "2-second.jpg")
 
-	// 別クリニックのカルテに紐づく画像は混入してはならない
+	// 別医院のカルテに紐づく画像は混入してはならない
 	ownerB := makeTestOwner(t, db, clinicB, "画像一覧飼主B")
 	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "画像一覧犬B")
 	mrB := makeHistoryMedicalRecord(t, db, clinicB, petB.ID, "MR-IMG-LIST-B", time.Now())
 	makeMedRecordImage(t, db, mrB.ID, "other-clinic.jpg")
 
-	t.Run("同一クリニック・同一カルテの画像のみ sort_order/created_at 順で返す", func(t *testing.T) {
+	t.Run("同一医院・同一カルテの画像のみ sort_order/created_at 順で返す", func(t *testing.T) {
 		got, err := repo.FindByMedicalRecordID(ctx, clinicA, mr.ID)
 		require.NoError(t, err)
 		require.Len(t, got, 2)
@@ -135,7 +135,7 @@ func TestMedicalRecordImageRepository_FindByMedicalRecordID(t *testing.T) {
 		assert.Nil(t, got[1].Staff, "staff_id 未設定の画像は Staff が nil であるべき")
 	})
 
-	t.Run("別クリニックIDでは0件を返す（clinic_id隔離）", func(t *testing.T) {
+	t.Run("別医院IDでは0件を返す（clinic_id隔離）", func(t *testing.T) {
 		got, err := repo.FindByMedicalRecordID(ctx, clinicB, mr.ID)
 		require.NoError(t, err)
 		assert.Empty(t, got)
@@ -320,18 +320,18 @@ func TestMedicalRecordImageRepository_FindByID_ClinicIsolation(t *testing.T) {
 	mrA := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-IMG-A", time.Now())
 	imgA := makeMedRecordImage(t, db, mrA.ID, "a.jpg")
 
-	t.Run("同一クリニックIDでは取得できる", func(t *testing.T) {
+	t.Run("同一医院IDでは取得できる", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, imgA.ID)
 		require.NoError(t, err)
 		require.NotNil(t, got)
 		assert.Equal(t, imgA.ID, got.ID)
 	})
 
-	t.Run("別クリニックIDでは取得できない（親カルテ JOIN スコープ）", func(t *testing.T) {
+	t.Run("別医院IDでは取得できない（親カルテ JOIN スコープ）", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicB, imgA.ID)
 		require.Error(t, err)
 		assert.Nil(t, got)
-		assert.True(t, apperrors.IsNotFound(err), "別クリニックからは NotFound: %v", err)
+		assert.True(t, apperrors.IsNotFound(err), "別医院からは NotFound: %v", err)
 	})
 }
 
@@ -349,10 +349,10 @@ func TestMedicalRecordImageRepository_Delete_ClinicIsolation(t *testing.T) {
 	mrA := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-IMG-DEL", time.Now())
 	imgA := makeMedRecordImage(t, db, mrA.ID, "del.jpg")
 
-	t.Run("別クリニックIDからの Delete は NotFound を返す", func(t *testing.T) {
+	t.Run("別医院IDからの Delete は NotFound を返す", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, imgA.ID)
 		require.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err), "別クリニックの Delete は NotFound: %v", err)
+		assert.True(t, apperrors.IsNotFound(err), "別医院の Delete は NotFound: %v", err)
 	})
 
 	t.Run("画像はまだ存在する（不正削除防止）", func(t *testing.T) {
@@ -361,7 +361,7 @@ func TestMedicalRecordImageRepository_Delete_ClinicIsolation(t *testing.T) {
 		require.NotNil(t, got)
 	})
 
-	t.Run("同一クリニックIDからの Delete は成功する", func(t *testing.T) {
+	t.Run("同一医院IDからの Delete は成功する", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicA, imgA.ID)
 		require.NoError(t, err)
 		_, err = repo.FindByID(ctx, clinicA, imgA.ID)

@@ -55,7 +55,7 @@ func TestReservationStaffRepository_FindAll(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	t.Run("clinic_id 隔離: 別クリニック所属のスタッフは含まれない", func(t *testing.T) {
+	t.Run("clinic_id 隔離: 別医院所属のスタッフは含まれない", func(t *testing.T) {
 		staffA := makeDoctorAssignedToClinic(t, db, clinicA, "FindAllテストA用スタッフ")
 		staffB := makeDoctorAssignedToClinic(t, db, clinicB, "FindAllテストB用スタッフ")
 
@@ -94,7 +94,7 @@ func TestReservationStaffRepository_FindAll(t *testing.T) {
 		}
 	})
 
-	t.Run("多施設所属スタッフはどちらのクリニックからも取得できる", func(t *testing.T) {
+	t.Run("多施設所属スタッフはどちらの医院からも取得できる", func(t *testing.T) {
 		staff := makeDoctor(t, db, clinicA, "FindAll多施設所属テスト用スタッフ")
 		makeStaffClinicAssignment(t, db, staff.ID, clinicA)
 		makeStaffClinicAssignment(t, db, staff.ID, clinicB)
@@ -163,7 +163,7 @@ func TestReservationStaffRepository_UpdateSortOrder(t *testing.T) {
 	t.Run("隣接するスタッフが存在しない場合は変更なし・エラーなし", func(t *testing.T) {
 		// clinicA は本 Test 関数内の前段サブテスト(up/down)で作成済みの staff が残存し
 		// sort_order 10〜200 の範囲に複数存在する（サブテスト間で TRUNCATE されない共有 DB 接続のため）。
-		// 「隣接なし」を検証するには、それらと競合しない専用クリニックを使う。
+		// 「隣接なし」を検証するには、それらと競合しない専用医院を使う。
 		const clinicSortOrderIsolated = uint64(3)
 		only := makeDoctorAssignedToClinic(t, db, clinicSortOrderIsolated, "SortOrder単独スタッフ")
 		require.NoError(t, db.Model(&model.Staff{}).Where("id = ?", only.ID).Update("sort_order", 500).Error)
@@ -173,8 +173,8 @@ func TestReservationStaffRepository_UpdateSortOrder(t *testing.T) {
 		assert.Equal(t, 500, sortOrderOf(only.ID), "隣接なしの場合 sort_order は変化しないべき")
 	})
 
-	t.Run("別クリニックのIDを指定するとNotFound", func(t *testing.T) {
-		staffB := makeDoctorAssignedToClinic(t, db, clinicB, "SortOrder別クリニックスタッフ")
+	t.Run("別医院のIDを指定するとNotFound", func(t *testing.T) {
+		staffB := makeDoctorAssignedToClinic(t, db, clinicB, "SortOrder別医院スタッフ")
 
 		err := repo.UpdateSortOrder(ctx, clinicA, staffB.ID, "up")
 		require.Error(t, err)

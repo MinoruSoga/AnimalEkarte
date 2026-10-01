@@ -4,7 +4,7 @@ package persistence
 //
 // 保護する不変条件:
 //   - ReorderByClinicID / ReorderGlobal は渡された ids の順序通りに sort_order (1始まり) を設定する。
-//   - ReorderByClinicID は ClinicScope を通すため、別クリニックの id を混ぜると
+//   - ReorderByClinicID は ClinicScope を通すため、別医院の id を混ぜると
 //     "not found in this clinic" エラーとなりトランザクション全体がロールバックされる。
 //   - 存在しない id を含む場合はエラーとなり、既に反映されかけた更新も含めて全てロールバックされる。
 //
@@ -58,7 +58,7 @@ func TestReorderByClinicID(t *testing.T) {
 		assert.Equal(t, 3, reloadedB.SortOrder)
 	})
 
-	t.Run("別クリニックのidを含むとエラーになり全体がロールバックされる", func(t *testing.T) {
+	t.Run("別医院のidを含むとエラーになり全体がロールバックされる", func(t *testing.T) {
 		const clinicA, clinicB = uint64(10), uint64(20)
 		own := &model.ChiefComplaintType{ClinicID: clinicA, Name: "own", SortOrder: 99}
 		foreign := &model.ChiefComplaintType{ClinicID: clinicB, Name: "foreign", SortOrder: 99}
@@ -93,7 +93,7 @@ func TestReorderGlobal(t *testing.T) {
 	db := setupHelpersTestDB(t)
 	ctx := context.Background()
 
-	t.Run("渡されたid順にsort_orderを1始まりで設定する（クリニック横断マスタ）", func(t *testing.T) {
+	t.Run("渡されたid順にsort_orderを1始まりで設定する（医院横断マスタ）", func(t *testing.T) {
 		dog := &model.AnimalSpecies{Name: "犬"}
 		cat := &model.AnimalSpecies{Name: "猫"}
 		rabbit := &model.AnimalSpecies{Name: "うさぎ"}
@@ -150,7 +150,7 @@ func TestUpdateScopedByID(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("別クリニックのidはWrapNotFoundを返し更新されない", func(t *testing.T) {
+	t.Run("別医院のidはWrapNotFoundを返し更新されない", func(t *testing.T) {
 		const clinicA, clinicB = uint64(11), uint64(12)
 		foreign := &model.ChiefComplaintType{ClinicID: clinicB, Name: "foreign"}
 		require.NoError(t, db.Create(foreign).Error)
@@ -161,7 +161,7 @@ func TestUpdateScopedByID(t *testing.T) {
 
 		var reloaded model.ChiefComplaintType
 		require.NoError(t, db.First(&reloaded, foreign.ID).Error)
-		assert.Equal(t, "foreign", reloaded.Name, "別クリニックのレコードは変更されない")
+		assert.Equal(t, "foreign", reloaded.Name, "別医院のレコードは変更されない")
 	})
 }
 
@@ -187,7 +187,7 @@ func TestFindByIDScoped(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("別クリニックのidはNotFoundを返す", func(t *testing.T) {
+	t.Run("別医院のidはNotFoundを返す", func(t *testing.T) {
 		const clinicA, clinicB = uint64(31), uint64(32)
 		foreign := &model.ChiefComplaintType{ClinicID: clinicB, Name: "foreign3"}
 		require.NoError(t, db.Create(foreign).Error)
@@ -222,7 +222,7 @@ func TestDeleteScopedByID(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("別クリニックのidはWrapNotFoundを返し削除されない", func(t *testing.T) {
+	t.Run("別医院のidはWrapNotFoundを返し削除されない", func(t *testing.T) {
 		const clinicA, clinicB = uint64(21), uint64(22)
 		foreign := &model.ChiefComplaintType{ClinicID: clinicB, Name: "foreign2"}
 		require.NoError(t, db.Create(foreign).Error)
@@ -233,6 +233,6 @@ func TestDeleteScopedByID(t *testing.T) {
 
 		var count int64
 		require.NoError(t, db.Model(&model.ChiefComplaintType{}).Where("id = ?", foreign.ID).Count(&count).Error)
-		assert.Equal(t, int64(1), count, "別クリニックのレコードは削除されない")
+		assert.Equal(t, int64(1), count, "別医院のレコードは削除されない")
 	})
 }

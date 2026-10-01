@@ -216,7 +216,7 @@ func (s *consultationService) Delete(ctx context.Context, clinicID, id uint64) e
 		return apperrors.Wrap(err, "failed to check consultation dependencies")
 	}
 	if count > 0 {
-		return apperrors.WrapConflict("この診察項目は診療記録で使用中のため削除できません")
+		return apperrors.WrapConflict("この診察項目はカルテで使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete consultation")

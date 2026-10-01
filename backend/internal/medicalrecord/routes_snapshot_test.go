@@ -19,7 +19,7 @@ import (
 // internal/handler/testdata/route_snapshot.golden as part of *handler.Handler.RegisterRoutes
 // (25 master-CRUD routes via RegisterMasterRoutes in 2C, plus 37 more in 2D — the
 // vaccine/checkup-type/inquiry-template masters, /vaccinations, /checkups, and the
-// checkup/prescription/inquiry medical-record sub-resources — plus 6 lab saga routes in
+// checkup/inquiry medical-record sub-resources — plus 6 lab saga routes in
 // sub-batch③: /lab-imports preview/commit/job/events + /lab-reports summaries/exam, plus 11
 // vital/clinical-plan/image medical-record sub-resources in sub-batch④a, for 79 total);
 // that golden file was updated to
@@ -41,7 +41,6 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		NewCheckupTypeHandler(nil),
 		NewVaccineHandler(nil),
 		NewVaccinationHandler(nil),
-		NewPrescriptionHandler(nil),
 		NewInquiryHandler(nil),
 		NewInquiryTemplateHandler(nil),
 		NewLabImportHandler(nil, nil, nil),
@@ -102,7 +101,6 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"DELETE /api/v1/medical-records/:id/checkups/:checkupId DeleteCheckup\n" +
 		"DELETE /api/v1/medical-records/:id/clinical-plan DeleteClinicalPlan\n" +
 		"DELETE /api/v1/medical-records/:id/images/:imageId DeleteMedicalRecordImage\n" +
-		"DELETE /api/v1/medical-records/:id/prescriptions/:prescriptionId DeletePrescription\n" +
 		"DELETE /api/v1/medical-records/:id/treatment-plans/:planId DeleteTreatmentPlanInMedicalRecord\n" +
 		"DELETE /api/v1/medical-records/:id/treatments/:treatmentId DeleteTreatment\n" +
 		"DELETE /api/v1/medical-records/:id/vitals/:vitalId DeleteVital\n" +
@@ -163,7 +161,6 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/v1/medical-records/:id/checkups/:checkupId/field-results ListCheckupFieldResults\n" +
 		"GET /api/v1/medical-records/:id/clinical-plan GetClinicalPlan\n" +
 		"GET /api/v1/medical-records/:id/images ListMedicalRecordImages\n" +
-		"GET /api/v1/medical-records/:id/prescriptions ListPrescriptions\n" +
 		"GET /api/v1/medical-records/:id/treatment-plans ListTreatmentPlansByMedicalRecord\n" +
 		"GET /api/v1/medical-records/:id/treatments ListTreatments\n" +
 		"GET /api/v1/medical-records/:id/vitals ListVitals\n" +
@@ -206,7 +203,6 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"PATCH /api/v1/medical-records/:id/checkups/:checkupId UpdateCheckup\n" +
 		"PATCH /api/v1/medical-records/:id/clinical-plan UpdateClinicalPlan\n" +
 		"PATCH /api/v1/medical-records/:id/inquiries UpdateInquiry\n" +
-		"PATCH /api/v1/medical-records/:id/prescriptions/:prescriptionId UpdatePrescription\n" +
 		"PATCH /api/v1/medical-records/:id/recommendation-reason UpdateMedicalRecordRecommendationReason\n" +
 		"PATCH /api/v1/medical-records/:id/treatment-plans/:planId UpdateTreatmentPlanInMedicalRecord\n" +
 		"PATCH /api/v1/medical-records/:id/treatments/:treatmentId UpdateTreatment\n" +
@@ -250,7 +246,6 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/medical-records/:id/checkups CreateCheckup\n" +
 		"POST /api/v1/medical-records/:id/images CreateMedicalRecordImage\n" +
 		"POST /api/v1/medical-records/:id/images/upload UploadMedicalRecordImage\n" +
-		"POST /api/v1/medical-records/:id/prescriptions CreatePrescription\n" +
 		"POST /api/v1/medical-records/:id/treatment-plans CreateTreatmentPlanForMedicalRecord\n" +
 		"POST /api/v1/medical-records/:id/treatments CreateTreatment\n" +
 		"POST /api/v1/medical-records/:id/vitals CreateVital\n" +
@@ -292,7 +287,6 @@ func TestRegisterRoutes_HospitalizationDischargeAndExaminationUnconfirmPermissio
 		NewCheckupTypeHandler(nil),
 		NewVaccineHandler(nil),
 		NewVaccinationHandler(nil),
-		NewPrescriptionHandler(nil),
 		NewInquiryHandler(nil),
 		NewInquiryTemplateHandler(nil),
 		NewLabImportHandler(nil, nil, nil),

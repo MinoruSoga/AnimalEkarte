@@ -28,6 +28,10 @@ func CORS(allowedOrigin string) gin.HandlerFunc {
 			}
 		}
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		// Retry-After は 429 応答で frontend が参照するためブラウザへ公開する
+		// (preflight 複製側の backend/worker/index.ts は実レスポンスヘッダを
+		// 持たないため変更不要)。
+		c.Writer.Header().Set("Access-Control-Expose-Headers", "Retry-After")
 		// SEC-601: X-Requested-With (CSRF対策ヘッダ)を許可
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-ID, X-Clinic-ID, X-Requested-With, Idempotency-Key")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")

@@ -174,7 +174,7 @@ export function DailyAccountingTab({
 
           {summary ? (
             <div className="flex flex-wrap gap-2" data-testid="daily-summary-cards">
-              <SummaryCard label="会計件数" value={`${summary.billing_count}件`} />
+              <SummaryCard label="会計件数" value={`${summary.billing_count.toLocaleString()}件`} />
               <SummaryCard label="売上合計" value={formatCurrency(summary.grand_total)} />
               {summary.payment_totals.map((pt) => (
                 <SummaryCard
@@ -193,10 +193,13 @@ export function DailyAccountingTab({
                   className={`rounded-lg border ${C.borderLight} px-3 py-2 ${C.bgWhite}`}
                 >
                   <p className={`text-xs font-medium ${C.text60} mb-1.5`}>
-                    {clinicNameById.get(String(cs.clinic_id)) ?? `拠点 ${cs.clinic_id}`}
+                    {clinicNameById.get(String(cs.clinic_id)) ?? `医院 ${cs.clinic_id}`}
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    <SummaryCard label="会計件数" value={`${cs.summary.billing_count}件`} />
+                    <SummaryCard
+                      label="会計件数"
+                      value={`${cs.summary.billing_count.toLocaleString()}件`}
+                    />
                     <SummaryCard label="売上合計" value={formatCurrency(cs.summary.grand_total)} />
                     {cs.summary.payment_totals.map((pt) => (
                       <SummaryCard
@@ -231,7 +234,7 @@ export function DailyAccountingTab({
                     </TableHead>
                     {isMultiClinic ? (
                       <TableHead className={`${C.text60} whitespace-nowrap w-[100px]`}>
-                        拠点
+                        医院
                       </TableHead>
                     ) : null}
                     <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>
@@ -319,7 +322,7 @@ export function DailyAccountingTab({
                 <TableFooter>
                   <TableRow className={`font-semibold border-t-2 ${C.borderLight}`}>
                     <TableCell colSpan={labelColSpan} className="text-sm">
-                      合計（{rows.length}件）
+                      合計（{rows.length.toLocaleString()}件）
                     </TableCell>
                     <TableCell className="text-right text-sm font-mono">
                       {formatCurrencyIfNonzero(totals.medical)}

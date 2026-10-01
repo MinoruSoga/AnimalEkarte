@@ -247,7 +247,7 @@ func (s *procedureService) Delete(ctx context.Context, clinicID, id uint64) erro
 			return apperrors.Wrap(err, "failed to check procedure dependencies")
 		}
 		if count > 0 {
-			return apperrors.WrapConflict("この診療項目は診療記録で使用中のため削除できません")
+			return apperrors.WrapConflict("この診療項目はカルテで使用中のため削除できません")
 		}
 		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
 			return apperrors.Wrap(err, "failed to delete procedure")

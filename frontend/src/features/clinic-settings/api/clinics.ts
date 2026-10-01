@@ -100,7 +100,7 @@ export function useCreateClinic() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.clinics.all() });
     },
-    onError: (error) => handleApiError(error, "クリニック作成"),
+    onError: (error) => handleApiError(error, "医院作成"),
   });
 }
 
@@ -111,7 +111,7 @@ export function useUpdateClinic() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.clinics.all() });
     },
-    onError: (error) => handleApiError(error, "クリニック更新"),
+    onError: (error) => handleApiError(error, "医院更新"),
   });
 }
 
@@ -122,6 +122,6 @@ export function useDeleteClinic() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.clinics.all() });
     },
-    onError: (error) => handleApiError(error, "クリニック削除"),
+    onError: (error) => handleApiError(error, "医院削除"),
   });
 }

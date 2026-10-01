@@ -65,6 +65,6 @@ func TestAppointmentTrimmingDetailRepository_FindByAppointmentID_MasterPreloadCl
 	got, err := repo.FindByAppointmentID(ctx, clinicA, apptID)
 	require.NoError(t, err)
 	require.NotNil(t, got)
-	assert.Nil(t, got.Course, "別クリニックのトリミングコースマスタが Preload で混入してはならない")
-	assert.Empty(t, got.Options, "別クリニックのトリミングオプションマスタが Preload で混入してはならない")
+	assert.Nil(t, got.Course, "別医院のトリミングコースマスタが Preload で混入してはならない")
+	assert.Empty(t, got.Options, "別医院のトリミングオプションマスタが Preload で混入してはならない")
 }

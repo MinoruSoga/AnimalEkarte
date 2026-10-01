@@ -338,7 +338,7 @@ func (r *staffRepository) Delete(ctx context.Context, clinicID, id uint64) error
 			return operationErr
 		}
 		if len(assignments) > 1 {
-			operationErr = apperrors.WrapConflict("複数のクリニックに所属しているスタッフは削除できません")
+			operationErr = apperrors.WrapConflict("複数の医院に所属しているスタッフは削除できません")
 			return operationErr
 		}
 

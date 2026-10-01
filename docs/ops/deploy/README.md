@@ -69,7 +69,7 @@ workers.dev の `/health` と実 URL を比較して DNS / Worker / Container �
 ### 3.2 ログの確認
 
 Cloudflare Dashboard の Workers Logs / Containers と、対象の GitHub Actions run を確認します。
-Workers Logs はインフラ障害調査用で、診療記録の変更監査は DB の `audit_logs` が正本です。
+Workers Logs はインフラ障害調査用で、カルテの変更監査は DB の `audit_logs` が正本です。
 
 ### 3.3 手動デプロイの実行（共有STG・人間承認必須）
 

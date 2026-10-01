@@ -1,6 +1,6 @@
 # V05: 認証・LINE系フォーム検証（入力・更新・DB整合）
 
-> **目的**: 認証（ログイン・パスワード管理）・LIFF/LINE予約（飼い主側）・LINE予約設定（病院側）・Lステップ連携の収録済みフォームについて、入力バリデーション・更新の永続化・DB 整合（FK 選択肢・一意制約・URL 直叩き）が実機ブラウザ経由で機能することを納品前に証明する。
+> **目的**: 認証（ログイン・パスワード管理）・LIFF/LINE予約（飼主側）・LINE予約設定（病院側）・Lステップ連携の収録済みフォームについて、入力バリデーション・更新の永続化・DB 整合（FK 選択肢・一意制約・URL 直叩き）が実機ブラウザ経由で機能することを納品前に証明する。
 > **所要目安**: 120分 / **深度**: フォーム検証 + **項目単位 F プロトコル**
 > **フォーム数**: inventory 再構築中のため算定保留。全フォーム完了はまだ主張しない。
 > **項目単位**: [FIELD-LEVEL-PROTOCOL.md](FIELD-LEVEL-PROTOCOL.md) + [FORM-FIELD-INVENTORY.md](FORM-FIELD-INVENTORY.md) §V05。line-reserve は**ステップ上の全入力**、Lステップ設定は secret/閾値/タグ行を含む全項目。
@@ -41,7 +41,7 @@
 | 2 | 正しいメール + 7 文字パスワードで送信 | ログインされない。**FE/BE 乖離の重点確認**: フォームは `noValidate` のため HTML `minLength={6}` は submit を止めない（FE は空欄のみ拒否）。BE は `binding:"required,min=8,max=72"`（`http_response.go`）で 8 文字未満を拒否する |
 | 3 | 正しい資格情報で送信 → ページ再読込 → `/login` を直アクセス | ダッシュボード（または `from` state/query の内部パス）へ遷移。再読込後もセッション維持（httpOnly Cookie — [21-login.md §3.1](../../../spec/screens/21-login.md)）。**BUG-031**: `/login` でも cookie セッションを restore し、認証済みなら `LoginForm` が `<Navigate to="/" />`（password-recovery 公開ルート `/forgot-password`・`/reset-password` のみ restore スキップ） |
 | 4 | 保護ルートへ未ログインでアクセス後にログイン成功 | ログイン後は `location.state.from` または `?from=` の内部パスへ戻る（`parseInternalPath` で open redirect 防止）。未指定時は `/` |
-| 5 | 誤パスワードで 1 分内に 6 回連続送信 | レート制限（5 回/分）で拒否される（[21-login.md §1.2](../../../spec/screens/21-login.md)） |
+| 5 | 誤パスワードで 1 分内に 6 回連続送信 | アカウント単位のレート制限（失敗のみ 5 回/分 — [21-login.md §1.2](../../../spec/screens/21-login.md)）で拒否される。429 時は「N秒後に自動で再試行します…」の通知と Retry-After 待機後の 1 回自動再試行を確認し、再試行後は認証エラーまたは集中エラーのいずれかが表示されること。成功ログインは IP 側（30 回/分）・アカウント側とも予算を消費しないため、手順後に正しい資格情報でログインできる |
 
 ### V05-2 パスワード変更（`auth-change-password` / 全画面共通 Sidebar アカウントメニュー）
 
@@ -71,7 +71,7 @@
 | 4 | 有効トークン + 英数字混在 8 文字で確定 | 成功し `/login` へ遷移。新パスワードでログイン可 |
 | 5 | 手順 4 で使用済みのトークンで再度確定 | 拒否される（ワンタイムトークン・有効期限 30 分 — [21-login.md §2](../../../spec/screens/21-login.md)。期限切れを実行できない場合は BLOCKED として run report に理由を記録） |
 
-## 2. LIFF・LINE予約（飼い主側）
+## 2. LIFF・LINE予約（飼主側）
 
 ### V05-5 LIFF LINEアカウント連携（`liff-account-link` / LIFF アプリ URL に `?token=`+`clinic_id` 付きアクセスで自動実行）
 
@@ -85,7 +85,7 @@ flowchart TB
   Q -->|"token + clinic_id あり"| RUN["アカウント連携を実行"]
   Q -->|"token なし"| HC["health-card 分岐（連携を実行しない）"]
   Q -->|"clinic_id なし"| INV["無効 URL"]
-  RUN -->|"有効な linkToken"| OK["連携成功 → 飼い主に LINE 紐付け（院内 LINE 連携セクションにも反映）"]
+  RUN -->|"有効な linkToken"| OK["連携成功 → 飼主に LINE 紐付け（院内 LINE 連携セクションにも反映）"]
   RUN -->|"連携済み"| DUP["409 すでに連携済み — 二重紐付けなし"]
   RUN -->|"無効・期限切れ"| NG["トークン無効 / 期限切れ表示 — 連携されない"]
 ```
@@ -93,7 +93,7 @@ flowchart TB
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | 1 | token 付き URL から `clinic_id` を外して起動。別に token なしで起動 | token あり・clinic_id なしは無効 URL。token なしは health-card 分岐となり連携を実行しない（`frontend/liff/src/App.tsx`）。`/liff/{clinicId}/` は Vite rewrite 必須。無いと `/liff/{clinicId}/src/main.tsx` が 503 で白紙（BUG-017） |
-| 2 | 有効な連携 URL で起動 | 連携成功表示。飼い主に LINE が紐づく（Identity Mapping — [line/architecture.md §2](../../../spec/line/architecture.md)）。院内 `/owners/:id` の LINE 連携セクション（V05-11）にも反映される |
+| 2 | 有効な連携 URL で起動 | 連携成功表示。飼主に LINE が紐づく（Identity Mapping — [line/architecture.md §2](../../../spec/line/architecture.md)）。院内 `/owners/:id` の LINE 連携セクション（V05-11）にも反映される |
 | 3 | 連携済みの状態で再度同じ連携を実行 | 409「すでに連携済み」の専用表示となり、二重紐付けされない（C3(b) 相当） |
 | 4 | 無効・期限切れの linkToken で起動 | 400 系のトークン無効/期限切れ表示となり、連携されない |
 
@@ -104,10 +104,10 @@ flowchart TB
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | 1 | コース選択肢を確認。院内の予約区分マスタで新規区分を公開 → 再表示 | マスタで公開設定された区分のみ表示され、追加分が反映される（[reservation-spec.md §2](../../../spec/line/reservation-spec.md)・C3(a)） |
-| 2 | 【代表・無効化マスタ】予約作成後にそのコース区分を無効化 → 飼い主側と院内を再確認 | **一覧は inactive を除外**（GetCourses が !IsActive を skip）。確定 POST も inactive 拒否。既存予約表示は継続 |
+| 2 | 【代表・無効化マスタ】予約作成後にそのコース区分を無効化 → 飼主側と院内を再確認 | **一覧は inactive を除外**（GetCourses が !IsActive を skip）。確定 POST も inactive 拒否。既存予約表示は継続 |
 | 3 | お名前・電話番号をスペースのみにして次へ | エラーが表示され進めない（FE: trim 後の非空必須） |
 | 4 | 電話番号に数字以外（`abc`）を入力して進める | FE `CustomerInfoPage` の `isBackendCompatiblePhone`（`/^[0-9+ ()-]+$/` + 数字≥10桁 — BE `isValidLiffPhone` と同規約）で拒否し「電話番号の形式が正しくありません（例：090-1234-5678 または +81 90 1234 5678）」。次へ進めない |
-| 5 | 新規ペット追加でペット名を空のまま追加 | エラーが表示され追加できない（名前非空必須）。既存紐付けペットが 1 頭なら自動選択される（`CustomerInfoPage.tsx`）。既存ペット選択肢は飼い主の実データ由来（C3(a)） |
+| 5 | 新規ペット追加でペット名を空のまま追加 | エラーが表示され追加できない（名前非空必須）。既存紐付けペットが 1 頭なら自動選択される（`CustomerInfoPage.tsx`）。既存ペット選択肢は飼主の実データ由来（C3(a)） |
 | 6 | ご要望メモに 1001 文字を入力して確定（境界: 1000 文字は成功） | 拒否され保存されない（BE: request_text ≤1000 文字 — `backend/internal/reservation/liff_validation.go`） |
 | 7 | 正常フローで確定 | 完了表示。院内 `/reservations` に source=line で自動反映（[reservation-spec.md §1](../../../spec/line/reservation-spec.md)・C2 相当）。マイ予約一覧にも表示される。LINE 完了通知の実配信はローカルでは観測対象外（同 §5） |
 | 8 | 選択した時間枠へ院内側で先に予約を入れてから確定 | 409「選択された時間枠は既に予約が入っています」が表示され保存されず、再選択に誘導される（枠競合 — `backend/internal/reservation/reservation_validators.go`。C3(b) 相当） |
@@ -129,7 +129,7 @@ clinic 単位 1 レコードの全量 PUT（一意制約は UI 上到達不能�
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
-| 1 | LINE予約受付を「停止中」で保存 → 飼い主側予約アプリを起動 | 保存が永続し、settings 取得後も `MaintenancePage`（「メンテナンス中」）を表示する。LIFF 初期化完了で Top へ上書きされない。settings error も sticky に維持する |
+| 1 | LINE予約受付を「停止中」で保存 → 飼主側予約アプリを起動 | 保存が永続し、settings 取得後も `MaintenancePage`（「メンテナンス中」）を表示する。LIFF 初期化完了で Top へ上書きされない。settings error も sticky に維持する |
 | 2 | 受付期間・表示月数・スロット間隔へ 0/負値/範囲外を入力して保存 | FE の native min により拒否される: 最長受付 `booking_window_max_days` `min=1`・表示月数 `calendar_months` `min=1` max=6・スロット間隔 `time_slot_interval_minutes` `min=5` step=5。ブラウザ制約メッセージ（例: 「値は 1 以上にする必要があります。」）で API 未到達。最短受付 `booking_window_min_days` は `min=0` で 0 入力可。BE 到達時の境界は FE 通過後のみ別途確認 |
 | 3 | 営業時間・休憩時間を編集して保存 | HHMM 形式で永続する（BE: `break_hours` は `[{start,end}]` HHMM 形式必須 — `line_reservation_setting_service.go`）。曜日別営業時間（`business_hours_by_weekday`）の有効/無効切替・定休曜日（`closed_weekdays`）も再オープンで保持される |
 | 4 | チャネル ID・LIFF ID を入力して保存 → 再読込 | 保存され永続する。入力欄は `line_channel_id`・`liff_id` のみ。**`line_channel_secret` / `line_access_token` はこの画面では入力・再表示せず、PUT body にもキー自体を含めない**（`LineReservationSettingsForm.test.tsx` 回帰） |
@@ -141,7 +141,7 @@ clinic 単位 1 レコードの全量 PUT（一意制約は UI 上到達不能�
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | 1 | ヘッダーテキスト・予約時注意事項・キャンセル時注意事項・プライバシーポリシー・リクエスト例を編集して保存 | 保存成功。再読込・再オープンで永続（C2） |
-| 2 | 飼い主側予約アプリで表示確認 | 編集した文言が反映される（[28-line-reservation.md §2](../../../spec/screens/28-line-reservation.md)） |
+| 2 | 飼主側予約アプリで表示確認 | 編集した文言が反映される（[28-line-reservation.md §2](../../../spec/screens/28-line-reservation.md)） |
 | 3 | 【代表 PATCH 非破壊】保存後に基本設定（V05-8）を再表示 | 受付期間・スロット間隔・クレデンシャル・曜日別営業時間が消えていない（同一エンティティのマージ更新） |
 | 4 | 長文（1 万字程度）を保存 | **BE 上限あり・FE maxLength なし**。`header_text`/`request_example` max=2000（1 万字 header → **400** `header_text は 2000 以下で入力してください`）。`reservation_notice`/`cancel_notice` max=10000（1 万字 notice → **200** 受理）。`privacy_policy` max=100000。FE textarea に client max なし |
 
@@ -151,12 +151,12 @@ clinic 単位 1 レコードの全量 PUT（一意制約は UI 上到達不能�
 |:--|:--|:--|
 | 1 | 予約区分ツリーを確認 | 予約区分マスタの実データ由来（C3(a)）。無効区分は「（無効）」表記で選択可能（[28-line-reservation.md §4](../../../spec/screens/28-line-reservation.md)） |
 | 2 | 日付セルをクリックし特定日枠（開始時刻）を追加 → 再読込 | 15 分刻みで追加でき、永続する（C2）。営業時間から自動生成される枠への「加算方式」の案内が画面上部に常時表示されている（同 §4） |
-| 3 | 枠 1 件登録済みの区分を飼い主側で予約 | 登録した開始時刻が営業時間由来の枠へ追加される。営業時間内の他の時刻も予約可能なままで、枠のない日も営業時間から自動生成される（加算方式 — 同 §4） |
-| 4 | 枠をすべて削除して飼い主側を再確認 | 追加分だけが消え、営業時間設定からの空き枠自動生成は継続する（同 §4） |
+| 3 | 枠 1 件登録済みの区分を飼主側で予約 | 登録した開始時刻が営業時間由来の枠へ追加される。営業時間内の他の時刻も予約可能なままで、枠のない日も営業時間から自動生成される（加算方式 — 同 §4） |
+| 4 | 枠をすべて削除して飼主側を再確認 | 追加分だけが消え、営業時間設定からの空き枠自動生成は継続する（同 §4） |
 | 5 | 同一日×同一開始時刻を重複追加 | 拒否される（C3(b)）。既存時刻選択時に「この時刻は既に登録済みです」表示・追加ボタン disabled。画面上部案内も「重複する時刻は追加されません」 |
 | 6 | 毎週枠の表示・不正 typeId/親区分 ID で URL 直叩き | 毎週枠は読み取り専用（リピートアイコン付き。登録・削除は予約区分マスタ側 — 同 §4）。不正 typeId は有効な末端区分へ自動フォールバックし白画面にならない（`LineReservationSlotsSettings.tsx` の typeId 正規化・C3(c) 相当） |
 
-### V05-11 飼い主⇄LINE顧客 紐付け/解除（`owner-line-customer-link` / `/owners/:id` 内 LINE 連携セクション）
+### V05-11 飼主⇄LINE顧客 紐付け/解除（`owner-line-customer-link` / `/owners/:id` 内 LINE 連携セクション）
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
@@ -190,7 +190,7 @@ clinic 単位 1 レコードの PATCH（C3(b) は UI 上到達不能）。フィ
 | V05-14 | タグコードマッピング（`lstep-tag-code-mappings`） | 同上 | tagName 単位の entries（全量置換 PUT） | tagName 単位で置換 | 編集 → 保存 → 再読込で永続（C2）。**形式違反は BE 400**: codes=[] → `codes must contain at least one entry`; codes=[''] → `codes must not contain empty values`; code_type=invalid_type → `invalid code_type: invalid_type`。空 entries PUT は 200（全削除・batch3 と同契約） |
 | V05-15 | タグ設定（`lstep-tag-config`） | 同上（追加フォーム 3 種） | フォーム1: プレフィックス+カテゴリ / フォーム2: 疾患コード+タグ名 / フォーム3: 送信目的+タグプレフィックス | プレフィックス・疾患コード重複 409 | 片方空で追加 → 「プレフィックスとカテゴリは必須です」「疾患コードとタグ名は必須です」「送信目的とタグプレフィックスは必須です」（C1 — `LstepTagConfigSection.tsx`）。追加 → 再読込永続 → 行削除（C2）。同一プレフィックス再追加は POST 409。**同一疾患コードも 409**: 新規 POST 201 後、同一 `condition_code` 再 POST → **409** 日本語「慢性疾患コード『{code}』は既に使用されています」（`localizeAlreadyExistsMessage`。空 `''` は旧観測）。seed コード再追加も同様 409。フォーム3（`send-purpose-tag-prefixes`）の `purpose`/`tag_prefix` も同様に必須・追加・永続・削除を実施。テスト行は DELETE 204 で後始末。**POST/DELETE は `requireSystemAdmin`** — UAT 実行は system_admin 権限前提 |
 | V05-16 | 友だち属性 CSV 取込（`lstep-csv-import`） | `/lstep/analytics` 内セクション | CSV ファイル | — | 未選択・空ファイルで実行 → 「CSVファイルを選択してください」（C1 — `LstepCsvImportSection.tsx`）。取込後に履歴一覧へステータス行が追加される（C2 相当）。**列不正は 400**: `POST .../lstep/csv-imports/friend-attributes` に `foo,bar` ヘッダのみ → **400** `required column not found: line_user_id (expected one of: LINE ID, line_user_id, userId)`（`lstep_csv_helpers.go`） |
-| V05-17 | タグ一括解除（`lstep-bulk-tag-remove`） | `/settings/lstep/tags` の対象者ドロワーから起動 | 対象タグ + 対象飼い主（起動元で確定・ダイアログ内入力なし） | — | 「この操作は取り消せません」の確認ダイアログ経由でのみ実行可。進捗バー付き逐次実行・実行中キャンセル不可（`BulkTagRemoveDialog.tsx`）。**解除後の観測点**: 手動タグ `優良顧客` で `DELETE /owners/:id/lstep/tags/:tag` が **204** でも、直後の `GET tag-summary` の `owner_count` と `GET .../lstep/owners?tag=` 件数は変化しない場合がある（Write API 停止/同期オフ時は外部タグ・キャッシュ非更新）。FE は `invalidateQueries(lstepTagSummary)` + toast「…名から解除しました」— 一覧再取得後も件数が同じなら「UI 上は成功だが件数不変」を記録。LSTEP 実タグは観測対象外 |
+| V05-17 | タグ一括解除（`lstep-bulk-tag-remove`） | `/settings/lstep/tags` の対象者ドロワーから起動 | 対象タグ + 対象飼主（起動元で確定・ダイアログ内入力なし） | — | 「この操作は取り消せません」の確認ダイアログ経由でのみ実行可。進捗バー付き逐次実行・実行中キャンセル不可（`BulkTagRemoveDialog.tsx`）。**解除後の観測点**: 手動タグ `優良顧客` で `DELETE /owners/:id/lstep/tags/:tag` が **204** でも、直後の `GET tag-summary` の `owner_count` と `GET .../lstep/owners?tag=` 件数は変化しない場合がある（Write API 停止/同期オフ時は外部タグ・キャッシュ非更新）。FE は `invalidateQueries(lstepTagSummary)` + toast「…名から解除しました」— 一覧再取得後も件数が同じなら「UI 上は成功だが件数不変」を記録。LSTEP 実タグは観測対象外 |
 
 ### V05-18 健診対象者一括タグ付与（`lstep-checkup-sync-create` / `/lstep/checkup-sync`）
 
@@ -205,6 +205,28 @@ clinic 単位 1 レコードの PATCH（C3(b) は UI 上到達不能）。フィ
 | 5 | Lステップ API 未設定の状態で実行 | 拒否される（BE: 「Lステップ API が設定されていません」 — 同ファイル） |
 | 6 | API 設定済みで妥当なタグ名で実行 | 完了表示。実行が `audit_logs` に記録される（DB 参照は USER 実施 — S01 と同運用）。Write API 停止中のため Lステップ側実タグは変化しない |
 
+## 5. owner LINE 連携カード群 (owner-line-integration-card)
+
+- owner 詳細の LINE 連携カード。1 操作 1 endpoint の小フォーム群（inventory: V05-19）。
+
+| # | 操作 | 期待結果 |
+|:--|:--|:--|
+| 1 | LINE ユーザー ID を手動設定して保存 → 再読込 | 設定した ID が永続する。解除（null）保存でも null が永続する（F4/F5） |
+| 2 | 配信注意 ON 保存 → 解除保存 | caution true/false がそれぞれ永続。reason の必須性は観測して記録（要実測） |
+| 3 | 配信除外 ON/OFF 保存・転院済み ON/OFF 保存 | excluded / is_transferred がそれぞれ永続する |
+| 4 | LINE 送信ファイルを添付して送信 | アップロード成功反馈。`purpose="other"`・`owner_id` は自動付与 |
+| 5 | 確認済み化（line-id-confirm）・連携トークン発行（link-token）を実行 | 各操作が成功反馈しカード状態が更新される（入力項目なしの操作） |
+| 6 | 権限のないスタッフで上記を試行 | 拒否される（F6） |
+
+## 6. LSTEP トリガー優先度 (lstep-trigger-priorities)
+
+- `/settings` LSTEP セクション。全セット PATCH（inventory: V05-20）。
+
+| # | 操作 | 期待結果 |
+|:--|:--|:--|
+| 1 | 優先度を変更して保存 → 再読込 | 変更後の優先度が永続する |
+| 2 | 優先度を空/0 にして保存 | FE が保存をブロックする（draft チェック）。無音失敗しない |
+
 ## 確認観点
 
 - 既存の機械テストが覆う範囲: FE component test（`ChangePasswordDialog` / `ForgotPasswordPage` / `use-liff-link` / `CustomerInfoPage` / `ConfirmPage` / `MyReservationsPage` / `LstepSettingsForm` / `TriggerPrioritySection` / `LstepTagCodeMappingsSection` / `LstepTagConfigSection` 等）が FE 単体のバリデーション分岐を、BE テスト（auth/password_reset・liff_validation・line_reservation_setting・lstep_settings/tag/csv/checkup_sync 各 service/handler test）がサーバ側検証・部分更新非破壊・テナント隔離を網羅する。E2E（auth-flows / line-reservation-flow / lstep-flow）は表示と主要導線のみ。
@@ -218,3 +240,4 @@ clinic 単位 1 レコードの PATCH（C3(b) は UI 上到達不能）。フィ
   - V05-8: LINE 予約設定フィールド名（booking_window_* / calendar_months / time_slot_interval / line_channel_id / liff_id）と secret/token 非送信を明記
   - V05-12: Lステップ設定のフィールド契約（secret3+text2+numeric23）と閾値 0/負値の二段ガードを request builder と照合
   - 認証ルート（`/login`・`/forgot-password`・`/reset-password`）・LINE（`/line-reservation/settings|page-editor|slots`）・Lステップ（`/settings/integrations/lstep`・`/settings/lstep/tags`）を `paths.ts` と一致確認
+  - V05-1 手順 5 を二段レート制限（IP 30 回/分 + アカウント 5 回/分、いずれも失敗のみカウント）と 429 の Retry-After 自動再試行 UX に合わせて更新

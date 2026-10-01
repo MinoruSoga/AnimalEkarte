@@ -10,7 +10,7 @@ package medicalrecord
 //
 // 注: DiagnosisType/DiagnosisName の Preload クロステナント混入防止テストは
 //     master_preload_clinic_isolation_test.go に既存のため、本ファイルでは重複させず
-//     Create/Update/Delete と自クリニック内の Preload happy path に焦点を当てる。
+//     Create/Update/Delete と自医院内の Preload happy path に焦点を当てる。
 
 import (
 	"context"
@@ -90,7 +90,7 @@ func TestClinicalPlanRepository_Create_FindByMedicalRecordID(t *testing.T) {
 		assert.NotZero(t, plan.ID)
 	})
 
-	t.Run("自クリニックで取得すると診断マスタが Preload される", func(t *testing.T) {
+	t.Run("自医院で取得すると診断マスタが Preload される", func(t *testing.T) {
 		got, err := repo.FindByMedicalRecordID(ctx, clinicA, mrA.ID)
 		require.NoError(t, err)
 		require.NotNil(t, got)
@@ -101,7 +101,7 @@ func TestClinicalPlanRepository_Create_FindByMedicalRecordID(t *testing.T) {
 		assert.Equal(t, "急性胃腸炎", got.DiagnosisName.Name)
 	})
 
-	t.Run("別クリニックからの取得は NotFound（medical_records JOIN 経由の隔離）", func(t *testing.T) {
+	t.Run("別医院からの取得は NotFound（medical_records JOIN 経由の隔離）", func(t *testing.T) {
 		_, err := repo.FindByMedicalRecordID(ctx, clinicB, mrA.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
@@ -134,7 +134,7 @@ func TestClinicalPlanRepository_Update(t *testing.T) {
 		assert.Equal(t, "更新後", got.PhysicalExam)
 	})
 
-	t.Run("別クリニックからの更新は NotFound", func(t *testing.T) {
+	t.Run("別医院からの更新は NotFound", func(t *testing.T) {
 		exam := "乗っ取り"
 		err := repo.Update(ctx, clinicB, plan.ID, UpdateClinicalPlanInput{PhysicalExam: &exam}, nil)
 		require.Error(t, err)
@@ -174,7 +174,7 @@ func TestClinicalPlanRepository_Delete(t *testing.T) {
 	plan := &model.ClinicalPlan{MedicalRecordID: mrA.ID, PhysicalExam: "削除対象"}
 	require.NoError(t, repo.Create(ctx, plan))
 
-	t.Run("別クリニックからの削除は NotFound", func(t *testing.T) {
+	t.Run("別医院からの削除は NotFound", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, plan.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))

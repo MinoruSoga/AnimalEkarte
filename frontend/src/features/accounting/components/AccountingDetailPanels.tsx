@@ -13,7 +13,7 @@ import {
 import { C, ICON, Z_CLASS } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
 import type { TaxType } from "@/types/generated/models";
-import type { Accounting, AddAccountingItemInput, PaymentMethod } from "../types";
+import type { Accounting, AccountingItem, AddAccountingItemInput, PaymentMethod } from "../types";
 import { AccountingDocument, type ClinicInfo } from "./AccountingDocument";
 import { InsuranceCard } from "./InsuranceCard";
 import { ItemListCard } from "./ItemListCard";
@@ -112,8 +112,8 @@ export function UngroupedItemsWarningBanner({
   if (!show || (medicalRecordCount === 0 && trimmingCount === 0)) return null;
 
   const parts: string[] = [];
-  if (medicalRecordCount > 0) parts.push(`診察 ${medicalRecordCount}件`);
-  if (trimmingCount > 0) parts.push(`トリミング ${trimmingCount}件`);
+  if (medicalRecordCount > 0) parts.push(`診察 ${medicalRecordCount.toLocaleString()}件`);
+  if (trimmingCount > 0) parts.push(`トリミング ${trimmingCount.toLocaleString()}件`);
 
   return (
     <div
@@ -153,9 +153,9 @@ export function UnbilledBlockingWarningBanner({
 
   const labels = blocking.map((w) => {
     if (w.code === "vaccination_master_unbillable") {
-      return `予防接種マスタ未設定/価格不正 ${w.count}件`;
+      return `予防接種マスタ未設定/価格不正 ${w.count.toLocaleString()}件`;
     }
-    return `${w.source} ${w.count}件`;
+    return `${w.source} ${w.count.toLocaleString()}件`;
   });
 
   return (
@@ -238,6 +238,10 @@ interface AccountingDetailColumnsProps {
   onDeleteItem: (itemId: string) => void;
   onUpdateItemTax: (itemId: string, taxType: TaxType, taxRate: number) => void;
   onUpdateItemDiscount: (itemId: string, discountAmount: number) => void;
+  /** EMR-229/230: 項目名・数量・金額（税抜小計）の明細編集 */
+  onUpdateItemName?: (itemId: string, name: string) => void;
+  onUpdateItemQuantity?: (itemId: string, quantity: number) => void;
+  onUpdateItemAmount?: (item: AccountingItem, amount: number) => void;
   onUseInsuranceChange: (enabled: boolean) => void;
   onInsuranceRatioChange: (ratio: string) => void;
   onSplitsChange: (splits: PaymentSplitDraft[]) => void;
@@ -261,6 +265,9 @@ export function AccountingDetailColumns({
   onDeleteItem,
   onUpdateItemTax,
   onUpdateItemDiscount,
+  onUpdateItemName,
+  onUpdateItemQuantity,
+  onUpdateItemAmount,
   onUseInsuranceChange,
   onInsuranceRatioChange,
   onSplitsChange,
@@ -281,6 +288,9 @@ export function AccountingDetailColumns({
           accountingId={accountingId}
           onUpdateItemTax={onUpdateItemTax}
           onUpdateItemDiscount={onUpdateItemDiscount}
+          onUpdateItemName={onUpdateItemName}
+          onUpdateItemQuantity={onUpdateItemQuantity}
+          onUpdateItemAmount={onUpdateItemAmount}
           canEdit={canEdit}
           canDelete={canDelete}
         />

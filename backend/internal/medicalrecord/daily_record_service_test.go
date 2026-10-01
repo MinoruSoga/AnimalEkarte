@@ -48,7 +48,7 @@ func (m *mockDailyRecordRepository) CreateStaffNote(ctx context.Context, sn *mod
 	return m.createStaffNoteFn(ctx, sn)
 }
 
-// okHospRepoForDailyRecord は親入院の所有権検証が成功する（同一クリニック）モックを返す。
+// okHospRepoForDailyRecord は親入院の所有権検証が成功する（同一医院）モックを返す。
 func okHospRepoForDailyRecord() *mockHospitalizationRepository {
 	return &mockHospitalizationRepository{
 		findByIDFn: func(_ context.Context, clinicID, hospitalizationID uint64) (*model.Hospitalization, error) {

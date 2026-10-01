@@ -37,7 +37,7 @@ func resolvePaymentMethodMasterID(method model.PaymentMethod, existing *uint64, 
 	}
 	// 明示供給された id は当該 clinic の当該 method マスタと一致する場合のみ許可する。
 	if existing != nil && *existing != id {
-		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("指定された支払方法 id (%d) は当該クリニックの支払方法 (system_key=%s) と一致しません", *existing, key))
+		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("指定された支払方法 id (%d) は当該医院の支払方法 (system_key=%s) と一致しません", *existing, key))
 	}
 	resolved := id
 	return &resolved, nil

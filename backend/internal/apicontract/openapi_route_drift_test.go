@@ -351,18 +351,24 @@ func (rc *routeCollector) handleAssign(s *ast.AssignStmt, env map[string]string)
 	if len(s.Lhs) != 1 || len(s.Rhs) != 1 {
 		return // multi-value assignment; not a Group() binding shape used in this codebase
 	}
+	call, isCall := s.Rhs[0].(*ast.CallExpr)
+	sel, isSel := (*ast.SelectorExpr)(nil), false
+	if isCall {
+		sel, isSel = call.Fun.(*ast.SelectorExpr)
+	}
+	isGroup := isSel && sel.Sel.Name == "Group"
 	lhsName, ok := identName(s.Lhs[0])
 	if !ok {
-		rc.unresolved = append(rc.unresolved, "assignment with non-ident LHS (not a simple `x := ...` binding)")
+		// `h.loginFailures = store.FailureLimiter(...)` is a field write, not a route
+		// binding. Fail closed only when the RHS is `.Group(...)`: a non-ident LHS there
+		// would hide every route registered on that group.
+		if isGroup {
+			rc.unresolved = append(rc.unresolved, "assignment with non-ident LHS (not a simple `x := ...` binding)")
+		}
 		return
 	}
-	call, ok := s.Rhs[0].(*ast.CallExpr)
-	if !ok {
+	if !isGroup {
 		return // e.g. `x := someNonCallExpr`; not a routing binding, nothing to lose
-	}
-	sel, ok := call.Fun.(*ast.SelectorExpr)
-	if !ok || sel.Sel.Name != "Group" {
-		return // call to something other than .Group(...); not a routing binding
 	}
 	baseName, ok := identName(sel.X)
 	if !ok {
@@ -809,6 +815,7 @@ func TestOpenAPIRouteDrift_Walker(t *testing.T) {
 
 func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	api := r.Group("/api/v1")
+	h.loginFailures = limiter.FailureLimiter(policy)
 	protected := api.Group("")
 	h.registerOwnerRoutesWithAuth(protected)
 	r.GET("/health", h.Health)

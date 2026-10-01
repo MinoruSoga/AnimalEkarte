@@ -257,6 +257,8 @@ export const queryKeys = {
   inventoryItems: {
     all: () => ["inventoryItems"] as const,
     list: <P>(params: P) => ["inventoryItems", params] as const,
+    /** 全件選択肢（InventoryOption[]）用。ページネーション行データ(InventoryItemsPage)とキーを分離 */
+    options: () => ["inventoryItems", "options"] as const,
     /** 既知の未解決ギャップ: 詳細プレフィックスが list と異なり、update/create は list しか invalidate していない */
     detail: (id: string) => ["inventoryItem", id] as const,
   },

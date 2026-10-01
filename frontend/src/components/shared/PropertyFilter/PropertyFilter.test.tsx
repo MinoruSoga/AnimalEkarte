@@ -38,3 +38,20 @@ describe("PropertyFilter accessibility", () => {
     expect(screen.getByRole("textbox", { name: "検索..." })).toHaveClass("pr-11");
   });
 });
+
+describe("PropertyFilter count display", () => {
+  it("件数はカンマ区切りで表示する", () => {
+    render(
+      <PropertyFilter
+        properties={[]}
+        activeFilters={[]}
+        onFilterChange={vi.fn()}
+        searchTerm=""
+        onSearchChange={vi.fn()}
+        count={13025}
+      />,
+    );
+
+    expect(screen.getByText("13,025 件")).toBeInTheDocument();
+  });
+});

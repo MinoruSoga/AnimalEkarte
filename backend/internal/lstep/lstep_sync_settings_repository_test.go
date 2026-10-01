@@ -60,7 +60,7 @@ func TestLstepSyncSettingsRepository_FindByClinicID(t *testing.T) {
 		assert.True(t, found.IsSyncEnabled)
 	})
 
-	t.Run("別クリニックの clinic_id は NotFound を返す（clinic_id 分離）", func(t *testing.T) {
+	t.Run("別医院の clinic_id は NotFound を返す（clinic_id 分離）", func(t *testing.T) {
 		_, err := repo.FindByClinicID(ctx, clinicB)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
@@ -125,7 +125,7 @@ func TestLstepSyncSettingsRepository_Upsert(t *testing.T) {
 		assert.Equal(t, int64(1), count, "Upsert 2回実行後も1行のみであるべき（ON CONFLICT DO UPDATE）")
 	})
 
-	t.Run("別クリニックの Upsert は他クリニックの行に影響しない（clinic_id 分離）", func(t *testing.T) {
+	t.Run("別医院の Upsert は他医院の行に影響しない（clinic_id 分離）", func(t *testing.T) {
 		before, err := repo.FindByClinicID(ctx, clinicA)
 		require.NoError(t, err)
 

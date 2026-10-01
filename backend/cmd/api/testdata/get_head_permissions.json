@@ -2657,22 +2657,6 @@
   },
   {
     "method": "GET",
-    "path": "/api/v1/medical-records/:id/prescriptions",
-    "handler": "github.com/animal-ekarte/backend/internal/medicalrecord.(*PrescriptionHandler).ListPrescriptions-fm",
-    "class": "clinic-fixed",
-    "resource": "medical-records",
-    "action": "view",
-    "source": "internal/medicalrecord/routes_records.go",
-    "routeExpression": "records.GET(\"/:id/prescriptions\", perm(model.ResourceMedicalRecords, \"view\"), h.prescription.ListPrescriptions)",
-    "handlerSource": "internal/medicalrecord/prescription_handler.go",
-    "marker": "RequireSelectedClinicGrant",
-    "authorization": "assigned grant in composition; selected grant in handler",
-    "scope": "selected-clinic",
-    "regression": "internal/medicalrecord/prescription_handler_test.go#TestListPrescriptionsSelectedClinicGrant",
-    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed; realdb-return-data:internal/medicalrecord/realdb_records_isolation_test.go#TestRealDB_RecordsSelectedClinicBGrantAIsolation"
-  },
-  {
-    "method": "GET",
     "path": "/api/v1/medical-records/:id/treatment-plans",
     "handler": "github.com/animal-ekarte/backend/internal/medicalrecord.(*TreatmentPlanHandler).ListTreatmentPlansByMedicalRecord-fm",
     "class": "clinic-fixed",

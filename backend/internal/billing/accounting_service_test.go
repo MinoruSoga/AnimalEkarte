@@ -1158,7 +1158,7 @@ func TestAccountingService_Update_ResolvesPaymentMethodID(t *testing.T) {
 		}
 	})
 
-	t.Run("明示供給 id が method/clinic と矛盾する場合は拒否する（他クリニック id 混入防止）", func(t *testing.T) {
+	t.Run("明示供給 id が method/clinic と矛盾する場合は拒否する（他医院 id 混入防止）", func(t *testing.T) {
 		var captured []model.PaymentSplit
 		svc := NewAccountingService(newRepo(&captured), nil, nil, nil, nil, &mockTransactor{}, &mockAuditService{}, seededPayMethodMock())
 

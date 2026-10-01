@@ -42,9 +42,9 @@ func setupCapabilityIsolationTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-// makeDoctorAssignedToClinic はスタッフを1件作成し、指定クリニックへの所属
+// makeDoctorAssignedToClinic はスタッフを1件作成し、指定医院への所属
 // （staff_clinic_assignments）を紐づける。UpdateReservationCapabilities は
-// 内部で FindByID を呼びスタッフの当該クリニック所属を要求するため、
+// 内部で FindByID を呼びスタッフの当該医院所属を要求するため、
 // 単純な makeDoctor だけでは "record not found" になる。
 func makeDoctorAssignedToClinic(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Staff {
 	t.Helper()
@@ -57,7 +57,7 @@ func makeDoctorAssignedToClinic(t *testing.T, db *gorm.DB, clinicID uint64, name
 
 // TestReservationStaffRepository_UpdateReservationCapabilities_ClinicIsolation は
 // clinic A のスタッフに clinic B の予約区分を対応可能コースとして書き込めないことを検証する。
-// 型IDの clinic_id 検証を削除すると「別クリニックの区分IDは拒否される」が失敗する。
+// 型IDの clinic_id 検証を削除すると「別医院の区分IDは拒否される」が失敗する。
 func TestReservationStaffRepository_UpdateReservationCapabilities_ClinicIsolation(t *testing.T) {
 	db := setupCapabilityIsolationTestDB(t)
 	repo := NewReservationStaffRepository(db, staffpkg.NewRepository(db))
@@ -80,19 +80,19 @@ func TestReservationStaffRepository_UpdateReservationCapabilities_ClinicIsolatio
 		return n
 	}
 
-	t.Run("別クリニックの区分IDは拒否され、行が永続化されない（clinic_id 隔離）", func(t *testing.T) {
+	t.Run("別医院の区分IDは拒否され、行が永続化されない（clinic_id 隔離）", func(t *testing.T) {
 		err := repo.UpdateReservationCapabilities(ctx, clinicA, staffA.ID, []uint64{typeB.ID})
 		require.Error(t, err, "clinic A のスタッフに clinic B の予約区分を対応可能設定できてはならない")
 		assert.Zero(t, countCapabilities(staffA.ID), "拒否時に staff_reservation_capabilities 行を残してはならない")
 	})
 
-	t.Run("同一クリニックの区分IDは許可され、行が永続化される", func(t *testing.T) {
+	t.Run("同一医院の区分IDは許可され、行が永続化される", func(t *testing.T) {
 		err := repo.UpdateReservationCapabilities(ctx, clinicA, staffA.ID, []uint64{typeA.ID})
 		require.NoError(t, err)
-		assert.Equal(t, int64(1), countCapabilities(staffA.ID), "同一クリニックの対応区分設定は1件保存されるべき")
+		assert.Equal(t, int64(1), countCapabilities(staffA.ID), "同一医院の対応区分設定は1件保存されるべき")
 	})
 
-	t.Run("一部が別クリニックの区分なら全体を拒否する（DELETE前検証・部分書き込み防止）", func(t *testing.T) {
+	t.Run("一部が別医院の区分なら全体を拒否する（DELETE前検証・部分書き込み防止）", func(t *testing.T) {
 		// staffA は前ケースで typeA の対応区分1件を持つ。混在入力は拒否され、既存も変化しない。
 		err := repo.UpdateReservationCapabilities(ctx, clinicA, staffA.ID, []uint64{typeA.ID, typeB.ID})
 		require.Error(t, err, "clinic B の区分が混在する場合は全体を拒否すべき")

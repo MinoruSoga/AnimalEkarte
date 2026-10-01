@@ -76,7 +76,6 @@ type medicalRecordPreventiveServices struct {
 	checkups            medicalrecord.CheckupService
 	checkupFieldResults medicalrecord.CheckupFieldResultService
 	vaccinations        medicalrecord.VaccinationService
-	prescriptions       medicalrecord.PrescriptionService
 	inquiries           medicalrecord.InquiryService
 }
 
@@ -111,12 +110,6 @@ func newMedicalRecordPreventiveServices(
 			d.TagSync,
 			d.Reservations,
 			r.medicalRecords,
-			d.Transactor,
-		),
-		prescriptions: medicalrecord.NewPrescriptionService(
-			r.prescriptions,
-			r.medicalRecords,
-			d.TagSync,
 			d.Transactor,
 		),
 		inquiries: medicalrecord.NewInquiryService(r.inquiries, r.chiefComplaints),

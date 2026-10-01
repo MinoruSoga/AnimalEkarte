@@ -61,14 +61,14 @@ func TestReservationTypeGroupRepository_FindAll(t *testing.T) {
 	groupA := makeReservationTypeGroup(t, db, clinicA, "医院Aグループ")
 	_ = makeReservationTypeGroup(t, db, clinicB, "医院Bグループ")
 
-	t.Run("同一クリニックのみ取得できる", func(t *testing.T) {
+	t.Run("同一医院のみ取得できる", func(t *testing.T) {
 		got, err := repo.FindAll(ctx, clinicA)
 		require.NoError(t, err)
 		require.Len(t, got, 1)
 		assert.Equal(t, groupA.ID, got[0].ID)
 	})
 
-	t.Run("別クリニックIDでは見えない", func(t *testing.T) {
+	t.Run("別医院IDでは見えない", func(t *testing.T) {
 		got, err := repo.FindAll(ctx, clinicB)
 		require.NoError(t, err)
 		require.Len(t, got, 1)
@@ -95,13 +95,13 @@ func TestReservationTypeGroupRepository_FindByID(t *testing.T) {
 
 	groupA := makeReservationTypeGroup(t, db, clinicA, "単体取得グループ")
 
-	t.Run("同一クリニックIDで取得できる", func(t *testing.T) {
+	t.Run("同一医院IDで取得できる", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, groupA.ID)
 		require.NoError(t, err)
 		assert.Equal(t, groupA.ID, got.ID)
 	})
 
-	t.Run("別クリニックIDでは NotFound", func(t *testing.T) {
+	t.Run("別医院IDでは NotFound", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicB, groupA.ID)
 		assert.Error(t, err)
 		assert.Nil(t, got)
@@ -141,7 +141,7 @@ func TestReservationTypeGroupRepository_CountUsageByReservationTypeGroupID(t *te
 		assert.Equal(t, int64(1), count)
 	})
 
-	t.Run("別クリニックIDでは0件（clinic_id 隔離）", func(t *testing.T) {
+	t.Run("別医院IDでは0件（clinic_id 隔離）", func(t *testing.T) {
 		count, err := groupRepo.CountUsageByReservationTypeGroupID(ctx, clinicB, groupA.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)
@@ -193,14 +193,14 @@ func TestReservationTypeGroupRepository_Update(t *testing.T) {
 
 	g := makeReservationTypeGroup(t, db, clinicA, "更新前グループ")
 
-	t.Run("正しいクリニックIDで更新できる", func(t *testing.T) {
+	t.Run("正しい医院IDで更新できる", func(t *testing.T) {
 		name := "更新後グループ"
 		updated, err := repo.Update(ctx, clinicA, g.ID, UpdateReservationTypeGroupInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後グループ", updated.Name)
 	})
 
-	t.Run("別クリニックIDでは NotFound", func(t *testing.T) {
+	t.Run("別医院IDでは NotFound", func(t *testing.T) {
 		name := "不正更新"
 		updated, err := repo.Update(ctx, clinicB, g.ID, UpdateReservationTypeGroupInput{Name: &name})
 		assert.Error(t, err)
@@ -217,13 +217,13 @@ func TestReservationTypeGroupRepository_Delete(t *testing.T) {
 
 	g := makeReservationTypeGroup(t, db, clinicA, "削除対象グループ")
 
-	t.Run("別クリニックIDでは NotFound", func(t *testing.T) {
+	t.Run("別医院IDでは NotFound", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, g.ID)
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("正しいクリニックIDで削除できる", func(t *testing.T) {
+	t.Run("正しい医院IDで削除できる", func(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, clinicA, g.ID))
 		_, err := repo.FindByID(ctx, clinicA, g.ID)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -279,7 +279,7 @@ func TestReservationTypeGroupRepository_Reorder(t *testing.T) {
 		assert.Equal(t, 3, got2.SortOrder)
 	})
 
-	t.Run("他クリニックの id を含むと失敗する", func(t *testing.T) {
+	t.Run("他医院の id を含むと失敗する", func(t *testing.T) {
 		otherClinicGroup := makeReservationTypeGroup(t, db, uint64(2), "別医院グループ")
 		err := repo.Reorder(ctx, clinicA, []uint64{g1.ID, otherClinicGroup.ID})
 		assert.Error(t, err, "clinic A のスコープに存在しない id を含む Reorder は失敗するべき")

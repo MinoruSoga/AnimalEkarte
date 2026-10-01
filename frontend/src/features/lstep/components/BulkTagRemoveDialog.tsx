@@ -62,14 +62,15 @@ export function BulkTagRemoveDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>タグを一括解除します</AlertDialogTitle>
           <AlertDialogDescription>
-            タグ「{tagName}」を{ownerCount}名全員から解除します。この操作は取り消せません。
+            タグ「{tagName}」を{ownerCount.toLocaleString()}
+            名全員から解除します。この操作は取り消せません。
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         {progress.isRunning ? (
           <div className="flex flex-col gap-2 py-2">
             <p className={`text-sm ${C.text70}`}>
-              {progress.total}名中{progress.done}名完了...
+              {progress.total.toLocaleString()}名中{progress.done.toLocaleString()}名完了...
             </p>
             <div className={`w-full h-2 ${C.bgInactive} rounded-full overflow-hidden`}>
               <div

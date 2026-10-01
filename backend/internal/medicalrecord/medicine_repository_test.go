@@ -63,11 +63,11 @@ func TestMedicineRepository_Create_And_FindByID(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
 	})
 
-	t.Run("別クリニックからは FindByID できない（clinic_id 隔離）", func(t *testing.T) {
+	t.Run("別医院からは FindByID できない（clinic_id 隔離）", func(t *testing.T) {
 		m := makeMedicine(t, db, clinicID, "医院1限定薬")
 		_, err := repo.FindByID(ctx, uint64(999), m.ID)
 		require.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err), "別クリニックからは NotFound であるべき: %v", err)
+		assert.True(t, apperrors.IsNotFound(err), "別医院からは NotFound であるべき: %v", err)
 	})
 }
 
@@ -177,14 +177,14 @@ func TestMedicineRepository_Update(t *testing.T) {
 
 	m := makeMedicine(t, db, clinicA, "更新前薬剤")
 
-	t.Run("同一クリニックでは Update が反映される", func(t *testing.T) {
+	t.Run("同一医院では Update が反映される", func(t *testing.T) {
 		name := "更新後薬剤"
 		got, err := repo.Update(ctx, clinicA, m.ID, UpdateMedicineInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後薬剤", got.Name)
 	})
 
-	t.Run("別クリニックからの Update は NotFound", func(t *testing.T) {
+	t.Run("別医院からの Update は NotFound", func(t *testing.T) {
 		name := "改ざん試行"
 		_, err := repo.Update(ctx, clinicB, m.ID, UpdateMedicineInput{Name: &name})
 		require.Error(t, err)
@@ -193,7 +193,7 @@ func TestMedicineRepository_Update(t *testing.T) {
 		// 改ざんされていないことを確認
 		got, err := repo.FindByID(ctx, clinicA, m.ID)
 		require.NoError(t, err)
-		assert.Equal(t, "更新後薬剤", got.Name, "別クリニックからの Update で名称が変わってはならない")
+		assert.Equal(t, "更新後薬剤", got.Name, "別医院からの Update で名称が変わってはならない")
 	})
 
 	t.Run("存在しない ID の Update は NotFound", func(t *testing.T) {
@@ -212,17 +212,17 @@ func TestMedicineRepository_Delete(t *testing.T) {
 
 	m := makeMedicine(t, db, clinicA, "削除対象薬剤")
 
-	t.Run("別クリニックからの Delete は NotFound で行が残る", func(t *testing.T) {
+	t.Run("別医院からの Delete は NotFound で行が残る", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, m.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 
 		got, err := repo.FindByID(ctx, clinicA, m.ID)
 		require.NoError(t, err)
-		assert.Equal(t, m.ID, got.ID, "別クリニックからの Delete で行が消えてはならない")
+		assert.Equal(t, m.ID, got.ID, "別医院からの Delete で行が消えてはならない")
 	})
 
-	t.Run("同一クリニックでは Delete が成功し以後 FindByID は NotFound", func(t *testing.T) {
+	t.Run("同一医院では Delete が成功し以後 FindByID は NotFound", func(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, clinicA, m.ID))
 		_, err := repo.FindByID(ctx, clinicA, m.ID)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -256,7 +256,7 @@ func TestMedicineRepository_Reorder(t *testing.T) {
 		assert.Equal(t, m2.ID, got[2].ID)
 	})
 
-	t.Run("別クリニックの ID を含む Reorder はエラーで中断する", func(t *testing.T) {
+	t.Run("別医院の ID を含む Reorder はエラーで中断する", func(t *testing.T) {
 		mOther := makeMedicine(t, db, clinicB, "他院薬")
 		err := repo.Reorder(ctx, clinicA, []uint64{m1.ID, mOther.ID})
 		require.Error(t, err, "clinicA スコープに存在しない ID を含む Reorder は失敗すべき")
@@ -280,13 +280,13 @@ func TestMedicineRepository_CountUsageByMedicineID_TreatmentUsage(t *testing.T) 
 	treatment := &model.Treatment{MedicalRecordID: mr.ID, ItemType: model.TreatmentItemTypeMedicine, MedicineID: &medA.ID}
 	require.NoError(t, db.WithContext(ctx).Create(treatment).Error)
 
-	t.Run("同一クリニックの treatment 使用が1件カウントされる", func(t *testing.T) {
+	t.Run("同一医院の treatment 使用が1件カウントされる", func(t *testing.T) {
 		count, err := repo.CountUsageByMedicineID(ctx, clinicA, medA.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), count)
 	})
 
-	t.Run("別クリニックからは0件（clinic_id 隔離・JOIN スコープ）", func(t *testing.T) {
+	t.Run("別医院からは0件（clinic_id 隔離・JOIN スコープ）", func(t *testing.T) {
 		count, err := repo.CountUsageByMedicineID(ctx, clinicB, medA.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)

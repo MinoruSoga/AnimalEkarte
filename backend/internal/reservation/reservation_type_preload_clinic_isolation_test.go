@@ -30,7 +30,7 @@ func setupReservationTypePreloadTestDB(t *testing.T) *gorm.DB {
 }
 
 // TestReservationTypeRepository_GroupParentChildren_CrossClinicPreloadIsolation は
-// Group/Parent/Children の clinic_id 述語が別クリニックのマスタ混入を防ぐことを動作で証明する。
+// Group/Parent/Children の clinic_id 述語が別医院のマスタ混入を防ぐことを動作で証明する。
 // legit ケース(同一clinicはPreloadされる)と cross ケース(別clinicは nil)の対で、
 // 述語が「効いている」かつ「正規データを壊していない」ことを同時に示す（anti-vacuous）。
 func TestReservationTypeRepository_GroupParentChildren_CrossClinicPreloadIsolation(t *testing.T) {
@@ -46,28 +46,28 @@ func TestReservationTypeRepository_GroupParentChildren_CrossClinicPreloadIsolati
 	legit := makeReservationTypeLinked(t, db, clinicA, "正規区分", &groupA.ID, nil)
 	gotLegit, err := repo.FindByID(ctx, clinicA, legit.ID)
 	require.NoError(t, err)
-	require.NotNil(t, gotLegit.Group, "同一クリニックの Group は Preload されるべき")
+	require.NotNil(t, gotLegit.Group, "同一医院の Group は Preload されるべき")
 	assert.Equal(t, groupA.ID, gotLegit.Group.ID)
 
-	// (i) Group: 別クリニックの group_id を植え付けた区分 → Group は混入しない
+	// (i) Group: 別医院の group_id を植え付けた区分 → Group は混入しない
 	crossGroup := makeReservationTypeLinked(t, db, clinicA, "越境Group区分", &groupB.ID, nil)
 	gotCrossGroup, err := repo.FindByID(ctx, clinicA, crossGroup.ID)
 	require.NoError(t, err)
-	assert.Nil(t, gotCrossGroup.Group, "別クリニックの Group マスタが混入してはならない")
+	assert.Nil(t, gotCrossGroup.Group, "別医院の Group マスタが混入してはならない")
 
-	// (ii) Parent: 別クリニックの reservation_type を親に植え付け → Parent は混入しない
+	// (ii) Parent: 別医院の reservation_type を親に植え付け → Parent は混入しない
 	parentB := makeReservationTypeLinked(t, db, clinicB, "医院Bの親区分", nil, nil)
 	crossParent := makeReservationTypeLinked(t, db, clinicA, "越境Parent区分", nil, &parentB.ID)
 	gotCrossParent, err := repo.FindByID(ctx, clinicA, crossParent.ID)
 	require.NoError(t, err)
-	assert.Nil(t, gotCrossParent.Parent, "別クリニックの Parent 区分が混入してはならない")
+	assert.Nil(t, gotCrossParent.Parent, "別医院の Parent 区分が混入してはならない")
 
-	// (iii) Children: 別クリニックの子(parent_id=A親)は Children に含まれない
+	// (iii) Children: 別医院の子(parent_id=A親)は Children に含まれない
 	parentA := makeReservationTypeLinked(t, db, clinicA, "医院Aの親区分", nil, nil)
 	childA := makeReservationTypeLinked(t, db, clinicA, "医院Aの子区分", nil, &parentA.ID)
 	_ = makeReservationTypeLinked(t, db, clinicB, "越境子区分", nil, &parentA.ID) // B の子が A 親を参照
 	gotWithChildren, err := repo.FindByIDWithChildren(ctx, clinicA, parentA.ID)
 	require.NoError(t, err)
-	require.Len(t, gotWithChildren.Children, 1, "Children は同一クリニックの子のみであるべき")
+	require.Len(t, gotWithChildren.Children, 1, "Children は同一医院の子のみであるべき")
 	assert.Equal(t, childA.ID, gotWithChildren.Children[0].ID)
 }

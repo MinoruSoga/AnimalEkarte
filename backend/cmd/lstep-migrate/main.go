@@ -80,7 +80,6 @@ func run() int {
 		billing.NewAccountingRepository(db),
 		lstep.NewLstepTagCacheRepository(db),
 		petRepo,
-		medicalrecord.NewPrescriptionRepository(db),
 		medicalrecord.NewCheckupRepository(db),
 		lstep.NewLstepSyncErrorCounterRepository(db),
 		lstep.NewLstepTagCodeMappingRepository(db),

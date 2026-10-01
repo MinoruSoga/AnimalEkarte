@@ -177,7 +177,7 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
         if (plan.mode === "hard") {
           if (!setStoredClinicId(plan.clinicId)) {
             toast.error(
-              "クリニックの切替に失敗しました。登録は完了しています。医院を切り替えてから詳細を開いてください。",
+              "医院の切替に失敗しました。登録は完了しています。医院を切り替えてから詳細を開いてください。",
             );
             navigate(paths.owners.getHref());
             return;

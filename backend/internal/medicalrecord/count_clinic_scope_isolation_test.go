@@ -6,7 +6,7 @@ package medicalrecord
 // これまで clinic_id 述語なしで id のみをキーに集計していた。呼び出し元（各 Delete）は
 // FindByID(ctx, clinicID, id) で id の所有権を事前検証済みのため実害は低いが、
 // 「repository の読取は clinic スコープ必須」の規約に無追跡の例外として残っていた。
-// 本テストは他クリニックの子データが誤って集計に混入しないことを固定する
+// 本テストは他医院の子データが誤って集計に混入しないことを固定する
 // （clinic_id 述語を削除すると必ず失敗するよう設計）。
 
 import (
@@ -48,15 +48,15 @@ func TestMedicalRecordRepository_CountEstimatesByMedicalRecordID_ClinicIsolation
 	est := &model.Estimate{ClinicID: clinicA, MedicalRecordID: &mr.ID}
 	require.NoError(t, db.WithContext(ctx).Create(est).Error)
 
-	t.Run("同一クリニックIDでは件数が見える", func(t *testing.T) {
+	t.Run("同一医院IDでは件数が見える", func(t *testing.T) {
 		count, err := repo.CountEstimatesByMedicalRecordID(ctx, clinicA, mr.ID)
 		require.NoError(t, err)
 		require.Equal(t, int64(1), count)
 	})
 
-	t.Run("別クリニックIDでは0件を返す（漏洩しない）", func(t *testing.T) {
+	t.Run("別医院IDでは0件を返す（漏洩しない）", func(t *testing.T) {
 		count, err := repo.CountEstimatesByMedicalRecordID(ctx, clinicB, mr.ID)
 		require.NoError(t, err)
-		require.Equal(t, int64(0), count, "clinic_id 述語が無いと過去汚染データで別クリニックの件数が混入しうる")
+		require.Equal(t, int64(0), count, "clinic_id 述語が無いと過去汚染データで別医院の件数が混入しうる")
 	})
 }

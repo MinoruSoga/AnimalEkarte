@@ -5,7 +5,7 @@
 - **URLパターン**: `/settings/animal-species`
 - **アクセス権限**:
   - **一覧・参照**: `master-animal-species` の `view`（`ResourceMasterAnimalSpecies`）。
-  - **作成・更新・削除・並び替え**: システム管理者のみ（`is_system_admin` / backend `requireSystemAdminForGlobalMaster`）。全クリニック共有マスタのため、clinic-scoped の resource create/edit/delete では mutation 不可。FE も `canMutate = isSystemAdmin`。
+  - **作成・更新・削除・並び替え**: システム管理者のみ（`is_system_admin` / backend `requireSystemAdminForGlobalMaster`）。全医院共有マスタのため、clinic-scoped の resource create/edit/delete では mutation 不可。FE も `canMutate = isSystemAdmin`。
 
 ---
 

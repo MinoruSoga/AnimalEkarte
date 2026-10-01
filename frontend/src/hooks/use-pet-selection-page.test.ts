@@ -271,7 +271,7 @@ describe("usePetSelectionPage", () => {
 
   // EMR-222: 複数拠点スタッフが分院のペットを検索対象に含められるよう、
   // 所属医院IDをすべて backend へ送る（MedicalRecords.tsx の clinicIdsForApi 先例）。
-  it("複数拠点に所属するユーザーは所属医院IDをすべてclinicIdsとしてbackendへ渡す", () => {
+  it("複数医院に所属するユーザーは所属医院IDをすべてclinicIdsとしてbackendへ渡す", () => {
     authState = MULTI_CLINIC_AUTH;
 
     renderHook(() => usePetSelectionPage(CONFIG));
@@ -284,7 +284,7 @@ describe("usePetSelectionPage", () => {
     });
   });
 
-  it("所属医院が現在拠点のみならclinicIdsを送らず既存の既定scopeを維持する", () => {
+  it("所属医院が現在医院のみならclinicIdsを送らず既存の既定scopeを維持する", () => {
     authState = SINGLE_CLINIC_AUTH;
 
     renderHook(() => usePetSelectionPage(CONFIG));
@@ -513,7 +513,7 @@ describe("usePetSelectionPage", () => {
 
   // EMR-222: 他拠点のペットは新規記録作成へ進めない（medical-records の read-only
   // ルールと同じ抑制を選択ハンドラ層で行う）。閲覧はカルテ一覧経路へ送る。
-  it("他拠点のペットは作成画面へ進まずカルテ一覧の閲覧経路へ遷移する", () => {
+  it("他医院のペットは作成画面へ進まずカルテ一覧の閲覧経路へ遷移する", () => {
     authState = MULTI_CLINIC_AUTH;
     const otherClinicPet = { ...katakanaOwnerPet, clinicId: "2" } as Pet;
     mockUseGetPets.mockReturnValue({ data: [otherClinicPet] });
@@ -529,7 +529,7 @@ describe("usePetSelectionPage", () => {
     expect(navigate.mock.calls.every(([to]) => !String(to).startsWith("/trimming/new"))).toBe(true);
   });
 
-  it("現在拠点のペットは従来どおり作成画面へ進む", () => {
+  it("現在医院のペットは従来どおり作成画面へ進む", () => {
     authState = MULTI_CLINIC_AUTH;
     const sameClinicPet = { ...katakanaOwnerPet, clinicId: "1" } as Pet;
     mockUseGetPets.mockReturnValue({ data: [sameClinicPet] });

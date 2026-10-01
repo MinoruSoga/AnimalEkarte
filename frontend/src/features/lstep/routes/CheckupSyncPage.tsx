@@ -109,18 +109,22 @@ export function CheckupSyncPage() {
               </p>
               <p className={`mt-1 text-sm ${C.text60}`}>
                 成功:{" "}
-                <span className={`font-semibold ${C.text}`}>{syncResult.success_count}件</span>
+                <span className={`font-semibold ${C.text}`}>
+                  {syncResult.success_count.toLocaleString()}件
+                </span>
                 {syncResult.skip_count > 0 ? (
                   <>
                     {"　"}スキップ:{" "}
-                    <span className={`font-semibold ${C.text50}`}>{syncResult.skip_count}件</span>
+                    <span className={`font-semibold ${C.text50}`}>
+                      {syncResult.skip_count.toLocaleString()}件
+                    </span>
                   </>
                 ) : null}
                 {syncResult.failed_count > 0 ? (
                   <>
                     {"　"}失敗:{" "}
                     <span className={`font-semibold ${C.textBadgeRed}`}>
-                      {syncResult.failed_count}件
+                      {syncResult.failed_count.toLocaleString()}件
                     </span>
                   </>
                 ) : null}
@@ -134,8 +138,10 @@ export function CheckupSyncPage() {
               <p className={`text-sm ${C.text60}`}>
                 {selectedOwnerIds.size > 0 ? (
                   <>
-                    <span className={`font-semibold ${C.text}`}>{selectedOwnerIds.size}名</span>
-                    を選択中（最大{CHECKUP_SYNC_OWNER_LIMIT}名）
+                    <span className={`font-semibold ${C.text}`}>
+                      {selectedOwnerIds.size.toLocaleString()}名
+                    </span>
+                    を選択中（最大{CHECKUP_SYNC_OWNER_LIMIT.toLocaleString()}名）
                   </>
                 ) : (
                   "LINE連携済みの対象者を選択してください"

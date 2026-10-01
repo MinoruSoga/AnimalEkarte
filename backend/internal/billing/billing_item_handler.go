@@ -285,10 +285,12 @@ func (h *BillingItemHandler) GetUnbilledItems(c *gin.Context) {
 // unbilledDetailsResponse は BUG-013 additive envelope。
 // warnings は {source, code, count, blocking} のみ（内部情報を載せない）。
 // revision は EMR-196② の楽観ロック token（complete の expected_unbilled_revision へ返送）。
+// owner_discount_rate は EMR-229: pet→主飼主マスタの割引率(%)で、手入力追加行の初期表示に使う。
 type unbilledDetailsResponse struct {
-	Items    []BillingItemResponse `json:"items"`
-	Warnings []UnbilledWarning     `json:"warnings"`
-	Revision string                `json:"revision"`
+	Items             []BillingItemResponse `json:"items"`
+	Warnings          []UnbilledWarning     `json:"warnings"`
+	Revision          string                `json:"revision"`
+	OwnerDiscountRate float64               `json:"owner_discount_rate"`
 }
 
 // GetUnbilledItemDetails godoc
@@ -326,9 +328,10 @@ func (h *BillingItemHandler) GetUnbilledItemDetails(c *gin.Context) {
 		warnings = []UnbilledWarning{}
 	}
 	c.JSON(http.StatusOK, unbilledDetailsResponse{
-		Items:    httpapi.MapSlice(details.Items, ToBillingItemResponse),
-		Warnings: warnings,
-		Revision: details.Revision,
+		Items:             httpapi.MapSlice(details.Items, ToBillingItemResponse),
+		Warnings:          warnings,
+		Revision:          details.Revision,
+		OwnerDiscountRate: details.OwnerDiscountRate,
 	})
 }
 

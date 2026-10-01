@@ -76,7 +76,7 @@ export function LstepTagList({
           className={`self-start h-auto py-0.5 px-1 text-xs ${C.text50} ${C.hoverText}`}
           onClick={() => setExpanded((prev) => !prev)}
         >
-          {expanded ? "折りたたむ" : `もっと見る（残り ${hiddenCount} 件）`}
+          {expanded ? "折りたたむ" : `もっと見る（残り ${hiddenCount.toLocaleString()} 件）`}
         </Button>
       ) : null}
     </div>

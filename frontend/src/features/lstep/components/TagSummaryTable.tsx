@@ -91,7 +91,9 @@ export function TagSummaryTable({ tags, isLoading, onViewOwners }: TagSummaryTab
           </SelectContent>
         </Select>
 
-        <span className={`text-sm ${C.text50} ml-auto`}>{filteredTags.length}件</span>
+        <span className={`text-sm ${C.text50} ml-auto`}>
+          {filteredTags.length.toLocaleString()}件
+        </span>
       </div>
 
       {/* テーブル */}
@@ -100,9 +102,7 @@ export function TagSummaryTable({ tags, isLoading, onViewOwners }: TagSummaryTab
           <TableHeader>
             <TableRow className={STYLE.tableHeaderRow}>
               <TableHead className={`${STYLE.sectionLabel} px-4`}>タグ名</TableHead>
-              <TableHead className={`${STYLE.sectionLabel} px-4 w-24 text-right`}>
-                飼い主数
-              </TableHead>
+              <TableHead className={`${STYLE.sectionLabel} px-4 w-24 text-right`}>飼主数</TableHead>
               <TableHead className={`${STYLE.sectionLabel} px-4 w-28`}>種別</TableHead>
               <TableHead className={`${STYLE.sectionLabel} px-4 w-40 text-right`}>操作</TableHead>
             </TableRow>

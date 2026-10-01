@@ -45,6 +45,11 @@ func (h *HTTPHandler) RegisterRoutes(
 		return nil, fmt.Errorf("auth rate-limit store creation failed")
 	}
 
+	h.loginFailures = loginRateStore.FailureLimiter(rateLimits.LoginPerAccount)
+	if h.loginFailures == nil {
+		return nil, fmt.Errorf("auth rate-limit store creation failed")
+	}
+
 	api.POST(
 		"/login",
 		middlewarePorts.CSRF,
@@ -94,6 +99,7 @@ func validateRateLimitConfig(config AuthRateLimitConfig) error {
 		policy RateLimitPolicy
 	}{
 		{name: "login", policy: config.Login},
+		{name: "login_per_account", policy: config.LoginPerAccount},
 		{name: "password_reset", policy: config.PasswordReset},
 		{name: "refresh", policy: config.Refresh},
 		{name: "logout", policy: config.Logout},

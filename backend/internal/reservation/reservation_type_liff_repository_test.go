@@ -84,7 +84,7 @@ func TestReservationTypeLiffRepository_FindAll(t *testing.T) {
 	rt1 := makeLiffTypeWithSortOrder(t, db, clinicA, "コース1", 1)
 	_ = makeLiffTypeWithSortOrder(t, db, clinicB, "医院Bコース", 1)
 
-	t.Run("同一クリニックのみ sort_order 昇順で取得できる", func(t *testing.T) {
+	t.Run("同一医院のみ sort_order 昇順で取得できる", func(t *testing.T) {
 		got, err := repo.FindAll(ctx, clinicA)
 		require.NoError(t, err)
 		require.Len(t, got, 2)
@@ -92,7 +92,7 @@ func TestReservationTypeLiffRepository_FindAll(t *testing.T) {
 		assert.Equal(t, rt2.ID, got[1].ID)
 	})
 
-	t.Run("別クリニックIDでは見えない", func(t *testing.T) {
+	t.Run("別医院IDでは見えない", func(t *testing.T) {
 		got, err := repo.FindAll(ctx, clinicB)
 		require.NoError(t, err)
 		require.Len(t, got, 1)
@@ -109,13 +109,13 @@ func TestReservationTypeLiffRepository_FindByID(t *testing.T) {
 
 	rt := makeReservationTypeLinked(t, db, clinicA, "単体取得コース", nil, nil)
 
-	t.Run("同一クリニックIDで取得できる", func(t *testing.T) {
+	t.Run("同一医院IDで取得できる", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, rt.ID)
 		require.NoError(t, err)
 		assert.Equal(t, rt.ID, got.ID)
 	})
 
-	t.Run("別クリニックIDでは NotFound", func(t *testing.T) {
+	t.Run("別医院IDでは NotFound", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicB, rt.ID)
 		assert.Error(t, err)
 		assert.Nil(t, got)
@@ -187,14 +187,14 @@ func TestReservationTypeLiffRepository_Update(t *testing.T) {
 
 	rt := makeReservationTypeLinked(t, db, clinicA, "更新前コース", nil, nil)
 
-	t.Run("正しいクリニックIDで更新できる", func(t *testing.T) {
+	t.Run("正しい医院IDで更新できる", func(t *testing.T) {
 		name := "更新後コース"
 		updated, err := repo.Update(ctx, clinicA, rt.ID, UpdateReservationTypeLiffInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後コース", updated.Name)
 	})
 
-	t.Run("別クリニックIDでは NotFound", func(t *testing.T) {
+	t.Run("別医院IDでは NotFound", func(t *testing.T) {
 		name := "不正更新"
 		updated, err := repo.Update(ctx, clinicB, rt.ID, UpdateReservationTypeLiffInput{Name: &name})
 		assert.Error(t, err)
@@ -211,13 +211,13 @@ func TestReservationTypeLiffRepository_Delete(t *testing.T) {
 
 	rt := makeReservationTypeLinked(t, db, clinicA, "削除対象コース", nil, nil)
 
-	t.Run("別クリニックIDでは NotFound", func(t *testing.T) {
+	t.Run("別医院IDでは NotFound", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, rt.ID)
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("正しいクリニックIDで削除できる", func(t *testing.T) {
+	t.Run("正しい医院IDで削除できる", func(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, clinicA, rt.ID))
 		_, err := repo.FindByID(ctx, clinicA, rt.ID)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -316,12 +316,12 @@ func TestReservationTypeLiffRepository_UpdateSortOrder(t *testing.T) {
 	})
 
 	t.Run("隣接レコードが無い場合は変更なし（no-op）", func(t *testing.T) {
-		// UpdateSortOrder の "adjacent" 判定は sort_order の大小関係のみで決まる（隣接クリニック内で
+		// UpdateSortOrder の "adjacent" 判定は sort_order の大小関係のみで決まる（隣接医院内で
 		// target.SortOrder より小さい最大値を探す）。この t.Run は同一 db/repo を共有する親テスト内で
 		// 前の t.Run（down1=10→20, down2=20→10, up1=30→40, up2=40→30 のスワップ後）が既に
 		// clinicA に sort_order={10,20,30,40} の行を残しているため、同じ clinicA を使うと
 		// sort_order=100 の "up" は 40 を隣接として誤ってヒットしてしまう。
-		// 真に隣接なしを検証するため、他の t.Run が触れない専用クリニックIDを使う。
+		// 真に隣接なしを検証するため、他の t.Run が触れない専用医院IDを使う。
 		const soloClinic = uint64(999)
 		solo := makeLiffTypeWithSortOrder(t, db, soloClinic, "隣接なし", 100)
 
@@ -332,10 +332,10 @@ func TestReservationTypeLiffRepository_UpdateSortOrder(t *testing.T) {
 		assert.Equal(t, 100, got.SortOrder, "隣接レコードが無ければ sort_order は変わらないべき")
 	})
 
-	t.Run("別クリニックIDの対象は NotFound", func(t *testing.T) {
+	t.Run("別医院IDの対象は NotFound", func(t *testing.T) {
 		rt := makeLiffTypeWithSortOrder(t, db, clinicA, "越境対象", 200)
 		err := repo.UpdateSortOrder(ctx, clinicB, rt.ID, "down")
 		assert.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err), "クリニック不一致は NotFound であるべき: %v", err)
+		assert.True(t, apperrors.IsNotFound(err), "医院不一致は NotFound であるべき: %v", err)
 	})
 }

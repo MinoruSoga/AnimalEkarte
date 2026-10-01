@@ -14,7 +14,7 @@ package persistence
 // 本テストは適用済みスキーマやアプリを一切変更しない（probe テーブル/ロールはテスト内で作成/破棄）。
 //
 // 実証する経路（すべて実 SQL を実行して検証。名前だけの主張はしない）:
-//   (a) USING       — clinic 1/2 セッションが自クリニックの行のみ read できる（差分で証明）
+//   (a) USING       — clinic 1/2 セッションが自医院の行のみ read できる（差分で証明）
 //   (b) WITH CHECK  — 同一 clinic INSERT は成功し（positive control）、越境 clinic INSERT は拒否される
 //   (c) bypass_rls  — batch セッションは全 clinic を横断 read できる
 //   (d) fail-closed — GUC 未設定セッションは 0 行（非 owner ロールで clinic context 必須を示す）

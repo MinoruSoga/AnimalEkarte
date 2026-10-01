@@ -31,7 +31,6 @@ type Handler struct {
 	checkupType           *CheckupTypeHandler
 	vaccine               *VaccineHandler
 	vaccination           *VaccinationHandler
-	prescription          *PrescriptionHandler
 	inquiry               *InquiryHandler
 	inquiryTemplate       *InquiryTemplateHandler
 	labImport             *LabImportHandler
@@ -66,7 +65,6 @@ func NewHandler(
 	checkupType *CheckupTypeHandler,
 	vaccine *VaccineHandler,
 	vaccination *VaccinationHandler,
-	prescription *PrescriptionHandler,
 	inquiry *InquiryHandler,
 	inquiryTemplate *InquiryTemplateHandler,
 	labImport *LabImportHandler,
@@ -99,7 +97,6 @@ func NewHandler(
 		checkupType:           checkupType,
 		vaccine:               vaccine,
 		vaccination:           vaccination,
-		prescription:          prescription,
 		inquiry:               inquiry,
 		inquiryTemplate:       inquiryTemplate,
 		labImport:             labImport,

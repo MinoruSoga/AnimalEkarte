@@ -31,7 +31,7 @@ export function VitalsModal({
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>バイタル記録</DialogTitle>
-          <DialogDescription>この診療記録に紐づくバイタルを確認・編集します。</DialogDescription>
+          <DialogDescription>このカルテに紐付くバイタルを確認・編集します。</DialogDescription>
         </DialogHeader>
         <VitalsTab
           medicalRecordId={medicalRecordId}

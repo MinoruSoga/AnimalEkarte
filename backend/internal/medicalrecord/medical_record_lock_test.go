@@ -15,7 +15,7 @@ import (
 func TestLockDraftMedicalRecord_NilParentFailsClosed(t *testing.T) {
 	repo := &mockMedicalRecordRepository{} // findByIDFn 未設定 = (nil, nil) を返す
 
-	err := lockDraftMedicalRecord(context.Background(), repo, 1, 999, "failed to get medical record", "確定済みの診療記録です")
+	err := lockDraftMedicalRecord(context.Background(), repo, 1, 999, "failed to get medical record", "確定済みのカルテです")
 
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, apperrors.ErrNotFound)

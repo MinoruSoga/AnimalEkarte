@@ -33,7 +33,7 @@ export function LstepDeliveryMonitorLogsTable({
           <thead>
             <tr className={STYLE.tableHeaderRow}>
               <th className={`${STYLE.tableHeaderCell} text-left w-48`}>種別</th>
-              <th className={`${STYLE.tableHeaderCell} text-left w-36`}>飼い主</th>
+              <th className={`${STYLE.tableHeaderCell} text-left w-36`}>飼主</th>
               <th className={`${STYLE.tableHeaderCell} text-left w-40`}>予定日時</th>
               <th className={`${STYLE.tableHeaderCell} text-left w-24`}>ステータス</th>
               <th className={`${STYLE.tableHeaderCell} text-left w-40`}>送信日時</th>

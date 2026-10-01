@@ -104,7 +104,7 @@ func makeDoseParam(t *testing.T, db *gorm.DB, clinicID, medicineID uint64, speci
 }
 
 // TestMedicineDoseParamRepository_FindByMedicineAndSpecies_ClinicIsolation は
-// 計算時ルックアップが別クリニックのパラメータを取得できないことを検証する（クロステナント計算拒否）。
+// 計算時ルックアップが別医院のパラメータを取得できないことを検証する（クロステナント計算拒否）。
 func TestMedicineDoseParamRepository_FindByMedicineAndSpecies_ClinicIsolation(t *testing.T) {
 	db := setupMedicineDoseParamIsolationTestDB(t)
 	repo := NewMedicineDoseParamRepository(db)
@@ -118,7 +118,7 @@ func TestMedicineDoseParamRepository_FindByMedicineAndSpecies_ClinicIsolation(t 
 	medA := makeDoseTestMedicine(t, db, clinicA, "医院Aの薬剤")
 	paramA := makeDoseParam(t, db, clinicA, medA.ID, model.MedicineDoseSpeciesDog)
 
-	t.Run("同一クリニックでは取得できる", func(t *testing.T) {
+	t.Run("同一医院では取得できる", func(t *testing.T) {
 		got, err := repo.FindByMedicineAndSpecies(ctx, clinicA, medA.ID, model.MedicineDoseSpeciesDog)
 		require.NoError(t, err)
 		require.NotNil(t, got)
@@ -126,7 +126,7 @@ func TestMedicineDoseParamRepository_FindByMedicineAndSpecies_ClinicIsolation(t 
 		assert.Equal(t, clinicA, got.ClinicID)
 	})
 
-	t.Run("別クリニックからは取得できない（クロステナント計算拒否＝fail-closed）", func(t *testing.T) {
+	t.Run("別医院からは取得できない（クロステナント計算拒否＝fail-closed）", func(t *testing.T) {
 		got, err := repo.FindByMedicineAndSpecies(ctx, clinicB, medA.ID, model.MedicineDoseSpeciesDog)
 		assert.Error(t, err, "clinic B から clinic A の dose param を取得できてはならない")
 		assert.Nil(t, got)
@@ -149,7 +149,7 @@ func TestMedicineDoseParamRepository_Create_ForcesClinicID(t *testing.T) {
 	medA := makeDoseTestMedicine(t, db, clinicA, "医院Aの薬剤")
 	maxRate := 10.0
 
-	// 悪意ある（または bug の）呼び出し: param.ClinicID に別クリニック B を仕込む。
+	// 悪意ある（または bug の）呼び出し: param.ClinicID に別医院 B を仕込む。
 	param := &model.MedicineDoseParam{
 		ClinicID:   clinicB, // ← 上書きされるべき
 		MedicineID: medA.ID,
@@ -174,7 +174,7 @@ func TestMedicineDoseParamRepository_Create_ForcesClinicID(t *testing.T) {
 	})
 }
 
-// TestMedicineDoseParamRepository_FindByMedicineID_ClinicIsolation は一覧が別クリニックで空になることを検証する。
+// TestMedicineDoseParamRepository_FindByMedicineID_ClinicIsolation は一覧が別医院で空になることを検証する。
 func TestMedicineDoseParamRepository_FindByMedicineID_ClinicIsolation(t *testing.T) {
 	db := setupMedicineDoseParamIsolationTestDB(t)
 	repo := NewMedicineDoseParamRepository(db)
@@ -211,7 +211,7 @@ func TestMedicineDoseParamRepository_FindByMedicineID_ClinicIsolation(t *testing
 	})
 }
 
-// TestMedicineDoseParamRepository_Update_ClinicIsolation は別クリニックからの更新が拒否され行が不変なことを検証する。
+// TestMedicineDoseParamRepository_Update_ClinicIsolation は別医院からの更新が拒否され行が不変なことを検証する。
 func TestMedicineDoseParamRepository_Update_ClinicIsolation(t *testing.T) {
 	db := setupMedicineDoseParamIsolationTestDB(t)
 	repo := NewMedicineDoseParamRepository(db)
@@ -224,7 +224,7 @@ func TestMedicineDoseParamRepository_Update_ClinicIsolation(t *testing.T) {
 	medA := makeDoseTestMedicine(t, db, clinicA, "医院Aの薬剤")
 	paramA := makeDoseParam(t, db, clinicA, medA.ID, model.MedicineDoseSpeciesDog)
 
-	t.Run("別クリニックからの Update は NotFound", func(t *testing.T) {
+	t.Run("別医院からの Update は NotFound", func(t *testing.T) {
 		_, err := repo.Update(ctx, clinicB, paramA.ID, MedicineDoseParamInput{
 			DoseBasis: model.MedicineDoseBasisPerAdministration,
 			DosePerKg: 999,
@@ -236,11 +236,11 @@ func TestMedicineDoseParamRepository_Update_ClinicIsolation(t *testing.T) {
 	t.Run("dose_per_kg が改ざんされていない", func(t *testing.T) {
 		got, err := repo.FindByMedicineAndSpecies(ctx, clinicA, medA.ID, model.MedicineDoseSpeciesDog)
 		require.NoError(t, err)
-		assert.Equal(t, 5.0, got.DosePerKg, "別クリニックからの Update で dose_per_kg が変わってはならない")
+		assert.Equal(t, 5.0, got.DosePerKg, "別医院からの Update で dose_per_kg が変わってはならない")
 	})
 }
 
-// TestMedicineDoseParamRepository_Delete_ClinicIsolation は別クリニックからの削除が拒否され行が残ることを検証する。
+// TestMedicineDoseParamRepository_Delete_ClinicIsolation は別医院からの削除が拒否され行が残ることを検証する。
 func TestMedicineDoseParamRepository_Delete_ClinicIsolation(t *testing.T) {
 	db := setupMedicineDoseParamIsolationTestDB(t)
 	repo := NewMedicineDoseParamRepository(db)
@@ -253,7 +253,7 @@ func TestMedicineDoseParamRepository_Delete_ClinicIsolation(t *testing.T) {
 	medA := makeDoseTestMedicine(t, db, clinicA, "医院Aの薬剤")
 	paramA := makeDoseParam(t, db, clinicA, medA.ID, model.MedicineDoseSpeciesDog)
 
-	t.Run("別クリニックからの Delete は NotFound", func(t *testing.T) {
+	t.Run("別医院からの Delete は NotFound", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, paramA.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)

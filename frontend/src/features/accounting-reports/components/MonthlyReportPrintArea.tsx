@@ -54,13 +54,13 @@ export function MonthlyReportPrintArea({
               診療日数
             </th>
             <td className={`border ${C.borderGray300} px-2 py-1 text-right`}>
-              {summary.workingDays}日
+              {summary.workingDays.toLocaleString()}日
             </td>
             <th className={`border ${C.borderGray300} ${C.bgGray100} px-2 py-1 text-left`}>
               会計件数
             </th>
             <td className={`border ${C.borderGray300} px-2 py-1 text-right`}>
-              {summary.totalBillings}件
+              {summary.totalBillings.toLocaleString()}件
             </td>
             <th className={`border ${C.borderGray300} ${C.bgGray100} px-2 py-1 text-left`}>
               売上合計

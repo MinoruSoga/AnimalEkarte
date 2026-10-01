@@ -224,7 +224,7 @@ describe("FEAT-374: switchClinic", () => {
     expect(reloadSpy).not.toHaveBeenCalled();
     expect(mockQueryClient.clear).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith(
-      "クリニックの切替に失敗しました。ブラウザのストレージ設定を確認してください。",
+      "医院の切替に失敗しました。ブラウザのストレージ設定を確認してください。",
     );
 
     setItemSpy.mockRestore();

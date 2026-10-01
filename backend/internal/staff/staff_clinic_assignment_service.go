@@ -293,7 +293,7 @@ func (s *staffService) ensureRemovedClinicAssignmentsUnused(
 		)
 	}
 	if len(reservationClinicIDs) > 0 {
-		return apperrors.WrapConflict("予約データがあるクリニック所属は解除できません")
+		return apperrors.WrapConflict("予約データがある医院所属は解除できません")
 	}
 
 	shiftClinicIDs, dependencyErr := s.shiftEntryRepo.FindClinicIDsByStaffID(ctx, clinicIDs, staffID)
@@ -304,7 +304,7 @@ func (s *staffService) ensureRemovedClinicAssignmentsUnused(
 		)
 	}
 	if len(shiftClinicIDs) > 0 {
-		return apperrors.WrapConflict("シフトデータがあるクリニック所属は解除できません")
+		return apperrors.WrapConflict("シフトデータがある医院所属は解除できません")
 	}
 	return nil
 }

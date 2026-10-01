@@ -50,13 +50,15 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 			Where("vaccinations.clinic_id = ?", clinicID).
 			Scopes(vaccinationPatientRelationsScope(clinicID))
 		hasSearch := search != ""
-		if petID != nil || ownerID != nil || hasSearch {
+		// 検索は相関 EXISTS で完結するため hasSearch は JOIN 条件から外す。
+		// （INNER JOIN の「存在ゲート」意味は検索 WHERE 内の EXISTS で保持する）
+		if petID != nil || ownerID != nil {
 			q = q.Joins("JOIN pets ON pets.id = vaccinations.pet_id AND pets.clinic_id = vaccinations.clinic_id AND pets.deleted_at IS NULL")
 		}
 		if petID != nil {
 			q = q.Where("vaccinations.pet_id = ?", *petID)
 		}
-		if ownerID != nil || hasSearch {
+		if ownerID != nil {
 			q = q.Joins("JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = vaccinations.clinic_id AND owners.deleted_at IS NULL")
 		}
 		if ownerID != nil {
@@ -74,26 +76,41 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 				q = q.Where("1 = 0")
 				return q
 			}
-			q = q.Joins("LEFT JOIN vaccines ON vaccines.id = vaccinations.vaccine_id AND vaccines.clinic_id = vaccinations.clinic_id AND vaccines.deleted_at IS NULL")
-			rawPattern := "%" + textsearch.EscapeLike(qSearch) + "%"
 			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(qSearch)) + "%"
+			// 検索時の pets/owners INNER JOIN は「同一 clinic の有効な pet+owner が
+			// 存在する」ことを全腕の前提にしていた。その存在ゲートを先頭のペア IN で
+			// 保持しつつ、各一致腕も (fk, clinic_id) のペア IN にして内側を
+			// trgm/btree インデックス駆動にする。JOIN+OR は複数テーブル横断の OR で
+			// インデックスが効かず全行逐行評価になる（2026-10-01 障害の型）。
+			// ペア一致は JOIN ON の id/clinic_id/deleted_at 相関と同義
+			// （owner の clinic = pet の clinic = vaccinations の clinic が推移する）。
+			// vaccines は元が LEFT JOIN のため存在は要求しない。
 			q = q.Where(
-				`(pets.name ILIKE ? ESCAPE '\'`+
-					` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR owners.name ILIKE ? ESCAPE '\'`+
-					` OR translate(owners.name, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR translate(owners.name, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR vaccines.name ILIKE ? ESCAPE '\'`+
-					` OR translate(vaccines.name, ?, ?) ILIKE ? ESCAPE '\')`,
-				rawPattern,
-				textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
-				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
-				rawPattern,
-				textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
-				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
-				rawPattern,
-				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+				`(vaccinations.pet_id, vaccinations.clinic_id) IN (`+
+					`SELECT gated_pet.id, gated_pet.clinic_id FROM pets gated_pet`+
+					` WHERE gated_pet.deleted_at IS NULL`+
+					` AND (gated_pet.owner_id, gated_pet.clinic_id) IN (`+
+					`SELECT gated_owner.id, gated_owner.clinic_id FROM owners gated_owner`+
+					` WHERE gated_owner.deleted_at IS NULL))`+
+					` AND (`+
+					`(vaccinations.pet_id, vaccinations.clinic_id) IN (`+
+					`SELECT searched_pet.id, searched_pet.clinic_id FROM pets searched_pet`+
+					` WHERE searched_pet.deleted_at IS NULL`+
+					` AND `+textsearch.FoldedExpr("searched_pet.name")+` ILIKE ? ESCAPE '\')`+
+					` OR (vaccinations.pet_id, vaccinations.clinic_id) IN (`+
+					`SELECT searched_pet.id, searched_pet.clinic_id FROM pets searched_pet`+
+					` WHERE searched_pet.deleted_at IS NULL`+
+					` AND (searched_pet.owner_id, searched_pet.clinic_id) IN (`+
+					`SELECT searched_owner.id, searched_owner.clinic_id FROM owners searched_owner`+
+					` WHERE searched_owner.deleted_at IS NULL`+
+					` AND `+textsearch.FoldedExpr("searched_owner.name")+` ILIKE ? ESCAPE '\'))`+
+					` OR (vaccinations.vaccine_id, vaccinations.clinic_id) IN (`+
+					`SELECT searched_vaccine.id, searched_vaccine.clinic_id FROM vaccines searched_vaccine`+
+					` WHERE searched_vaccine.deleted_at IS NULL`+
+					` AND `+textsearch.FoldedExpr("searched_vaccine.name")+` ILIKE ? ESCAPE '\'))`,
+				normalizedPattern,
+				normalizedPattern,
+				normalizedPattern,
 			)
 		}
 		return q

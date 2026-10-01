@@ -56,7 +56,7 @@ func TestHospitalizationPlanRepository_FindAll(t *testing.T) {
 	planA2 := makeHospitalizationPlanFixture(t, db, clinicA, "プレミアムプラン")
 	_ = makeHospitalizationPlanFixture(t, db, clinicB, "医院Bのプラン")
 
-	t.Run("同一クリニックのプランのみ取得する", func(t *testing.T) {
+	t.Run("同一医院のプランのみ取得する", func(t *testing.T) {
 		got, err := repo.FindAll(ctx, clinicA)
 		require.NoError(t, err)
 		require.Len(t, got, 2)
@@ -64,7 +64,7 @@ func TestHospitalizationPlanRepository_FindAll(t *testing.T) {
 		assert.ElementsMatch(t, []uint64{planA1.ID, planA2.ID}, ids)
 	})
 
-	t.Run("別クリニックからは見えない", func(t *testing.T) {
+	t.Run("別医院からは見えない", func(t *testing.T) {
 		got, err := repo.FindAll(ctx, clinicB)
 		require.NoError(t, err)
 		require.Len(t, got, 1)
@@ -79,7 +79,7 @@ func TestHospitalizationPlanRepository_FindByID(t *testing.T) {
 
 	planA := makeHospitalizationPlanFixture(t, db, clinicA, "個別取得プラン")
 
-	t.Run("同一クリニックで取得できる", func(t *testing.T) {
+	t.Run("同一医院で取得できる", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, planA.ID)
 		require.NoError(t, err)
 		assert.Equal(t, planA.ID, got.ID)
@@ -91,7 +91,7 @@ func TestHospitalizationPlanRepository_FindByID(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("別クリニックからは取得できない", func(t *testing.T) {
+	t.Run("別医院からは取得できない", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicB, planA.ID)
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -123,14 +123,14 @@ func TestHospitalizationPlanRepository_Update(t *testing.T) {
 
 	planA := makeHospitalizationPlanFixture(t, db, clinicA, "更新前プラン")
 
-	t.Run("同一クリニックからの更新は成功する", func(t *testing.T) {
+	t.Run("同一医院からの更新は成功する", func(t *testing.T) {
 		name := "更新後プラン"
 		got, err := repo.Update(ctx, clinicA, planA.ID, UpdateHospitalizationPlanInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後プラン", got.Name)
 	})
 
-	t.Run("別クリニックからの更新はNotFound", func(t *testing.T) {
+	t.Run("別医院からの更新はNotFound", func(t *testing.T) {
 		name := "不正更新"
 		got, err := repo.Update(ctx, clinicB, planA.ID, UpdateHospitalizationPlanInput{Name: &name})
 		assert.Nil(t, got)
@@ -153,7 +153,7 @@ func TestHospitalizationPlanRepository_Delete(t *testing.T) {
 
 	planA := makeHospitalizationPlanFixture(t, db, clinicA, "削除対象プラン")
 
-	t.Run("別クリニックからの削除はNotFoundで実際には削除されない", func(t *testing.T) {
+	t.Run("別医院からの削除はNotFoundで実際には削除されない", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, planA.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -163,7 +163,7 @@ func TestHospitalizationPlanRepository_Delete(t *testing.T) {
 		assert.NotNil(t, got)
 	})
 
-	t.Run("同一クリニックからの削除は成功しソフトデリートされる", func(t *testing.T) {
+	t.Run("同一医院からの削除は成功しソフトデリートされる", func(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, clinicA, planA.ID))
 
 		got, err := repo.FindByID(ctx, clinicA, planA.ID)

@@ -9,7 +9,7 @@ const TWO_CLINICS: ClinicMembership[] = [
   { clinicId: "2", clinicName: "分院", isMain: false },
 ];
 
-describe("ClinicScopeFilter — #86 拠点横断フィルタ", () => {
+describe("ClinicScopeFilter — #86 医院横断フィルタ", () => {
   it("単一所属では何も描画しない", () => {
     render(
       <ClinicScopeFilter clinics={[TWO_CLINICS[0]]} selectedIds={["1"]} onToggle={() => {}} />,

@@ -312,7 +312,7 @@ func TestShiftEntryRepository_Delete(t *testing.T) {
 
 		var count int64
 		require.NoError(t, db.Model(&model.ShiftEntry{}).Where("id = ?", entry.ID).Count(&count).Error)
-		assert.Equal(t, int64(1), count, "別クリニックからの削除は反映されない")
+		assert.Equal(t, int64(1), count, "別医院からの削除は反映されない")
 	})
 
 	t.Run("deletes successfully (hard delete)", func(t *testing.T) {
@@ -428,12 +428,12 @@ func TestShiftEntryRepository_FindOnDutyStaffs(t *testing.T) {
 	makeShiftEntryWithType(t, db, clinicA, retired.ID, date, model.ShiftTypeFull)
 	require.NoError(t, db.Delete(retired).Error)
 
-	otherClinicStaff := makeShiftEntryDoctor(t, db, clinicB, "別クリニック医")
+	otherClinicStaff := makeShiftEntryDoctor(t, db, clinicB, "別医院医")
 	makeShiftEntryWithType(t, db, clinicB, otherClinicStaff.ID, date, model.ShiftTypeFull)
 
 	got, err := repo.FindOnDutyStaffs(ctx, clinicA, date)
 	require.NoError(t, err)
-	require.Len(t, got, 1, "非番・非アクティブ・退職・別クリニックは除外される")
+	require.Len(t, got, 1, "非番・非アクティブ・退職・別医院は除外される")
 	assert.Equal(t, onDuty.ID, got[0].ID)
 }
 

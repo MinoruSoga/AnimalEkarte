@@ -44,7 +44,7 @@ func (m *mockCarePlanItemRepository) Delete(ctx context.Context, clinicID, itemI
 	return m.deleteFn(ctx, clinicID, itemID)
 }
 
-// okHospRepoForCarePlan は親入院の所有権検証が成功する（同一クリニック）モックを返す。
+// okHospRepoForCarePlan は親入院の所有権検証が成功する（同一医院）モックを返す。
 func okHospRepoForCarePlan() *mockHospitalizationRepository {
 	return &mockHospitalizationRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {

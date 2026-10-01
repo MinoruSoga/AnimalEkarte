@@ -44,5 +44,5 @@ func TestReservationAdminRepository_FindByIDForNotify_ReservationTypePreloadClin
 	got, err := repo.FindByIDForNotify(ctx, clinicA, res.ID)
 	require.Error(t, err)
 	assert.Nil(t, got)
-	assert.True(t, apperrors.IsNotFound(err), "別クリニックの診療区分を指す予約は親行ごと fail-closed: %v", err)
+	assert.True(t, apperrors.IsNotFound(err), "別医院の診療区分を指す予約は親行ごと fail-closed: %v", err)
 }

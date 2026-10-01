@@ -26,7 +26,7 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
       <div className="mb-3 text-center">
         <h1 className="text-[14pt] font-bold">日次集計一覧表</h1>
         <p className="text-[10pt]">
-          対象日: {date} 件数: {rows.length}件
+          対象日: {date} 件数: {rows.length.toLocaleString()}件
         </p>
       </div>
 
@@ -114,10 +114,10 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
           })}
         </tbody>
         <tfoot>
-          {/* 病院合計行 */}
+          {/* 医院合計行 */}
           <tr className={`${C.bgMuted} font-semibold`}>
             <td colSpan={1} className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt]`}>
-              病院合計
+              医院合計
             </td>
             <td className={`border ${C.borderGray300} px-1 py-0.5 text-right text-[9pt]`}>
               {formatCurrencyIfNonzero(totals.medical)}

@@ -19,7 +19,7 @@
 
 ### 2.1 臨床の安全 (Clinical Safety)
 - **入力・確認の支援**: 死亡ペットへの新規記録作成・臨床操作の制限（EMR-177 以降、選択自体は識別表示付きで許可し、作成可否は各機能の死亡ゲートが拒否する）、検査異常値の自動ハイライト、ワクチン次回予定の自動計算を備える。適用範囲・例外は各画面仕様を参照する。
-- **整合性と監査**: 臨床・会計・権限など業務上重要な変更は `audit_logs` に操作者・時刻付きで記録する（全 130 テーブルの自動全件監査ではない。経路ごとに明示実装し、締め後会計編集など clinical/financial integrity が要求する監査は同一 transaction で fail-closed）。臨床記録の真正性を担保する確定（Lock）フローを実装。安全制御は確定後の不変化（編集 UI 無効化、確定解除不可、訂正は追記のみ）である。現在の UI は確定操作前に確認ダイアログも表示する。[product philosophy](../product-philosophy.md) に従い、ダイアログは明示同意の補助とし、安全性はサーバー側の状態検証・ロックで担保する。詳細: [screens/06-medical-records-form.md §2.3](screens/06-medical-records-form.md)。
+- **整合性と監査**: 臨床・会計・権限など業務上重要な変更は `audit_logs` に操作者・時刻付きで記録する（全 129 テーブルの自動全件監査ではない。経路ごとに明示実装し、締め後会計編集など clinical/financial integrity が要求する監査は同一 transaction で fail-closed）。臨床記録の真正性を担保する確定（Lock）フローを実装。安全制御は確定後の不変化（編集 UI 無効化、確定解除不可、訂正は追記のみ）である。現在の UI は確定操作前に確認ダイアログも表示する。[product philosophy](../product-philosophy.md) に従い、ダイアログは明示同意の補助とし、安全性はサーバー側の状態検証・ロックで担保する。詳細: [screens/06-medical-records-form.md §2.3](screens/06-medical-records-form.md)。
 
 ### 2.2 高い操作性 (Notion-like UX)
 - **コンテキストの維持**: 画面遷移を最小限に抑える「サイドパネル編集」と、入力と同時に結果が変わる「リアクティブ検索」を採用。
@@ -58,7 +58,7 @@ flowchart LR
 ## 4. 技術スタックと信頼性
 
 - **フロントエンド**: React 19 / Tailwind 4 / shadcn/ui による高速な SPA。
-- **バックエンド**: Go 1.25 / Gin / GORM による API（スキーマは **130 テーブル**（2026-09-29 訂正: 128 → 130。`ls backend/migrations/*.sql` 直下の `CREATE TABLE` 実測に追随。[check-docs-symbol-drift](../../scripts/check-docs-symbol-drift.sh) のゲート値）。[ADR-006](../architecture/adr/006-backend-domain-package-boundaries.md) により domain/capability-first の modular monolith へ cutover 済み。production 実装は `internal/<domain>` および命名済み cross-cutting package に置き、旧 layer-first 集約（`internal/handler` / `internal/service` / `internal/repository`）は削除済み。ADR-006 の Implemented は code/package 境界の完了であり、release ready ではない）。
+- **バックエンド**: Go 1.25 / Gin / GORM による API（スキーマは **129 テーブル**（2026-09-29 訂正: 128 → 130、EMR-236 の `prescriptions` DROP で 130 → 129。`ls backend/migrations/*.sql` 直下の `CREATE TABLE` から `DROP TABLE` を除いた実測に追随。[check-docs-symbol-drift](../../scripts/check-docs-symbol-drift.sh) のゲート値）。[ADR-006](../architecture/adr/006-backend-domain-package-boundaries.md) により domain/capability-first の modular monolith へ cutover 済み。production 実装は `internal/<domain>` および命名済み cross-cutting package に置き、旧 layer-first 集約（`internal/handler` / `internal/service` / `internal/repository`）は削除済み。ADR-006 の Implemented は code/package 境界の完了であり、release ready ではない）。
 - **認可・セキュリティ**: **37 種類のリソース**に対する RBAC 制御と、共有テーブル上の論理テナント隔離（`clinic_id` scope + ownership / authorization checks）。
 - **品質保証**: クリティカルな domain には unit / integration test と write-owner 等の静的 gate を置く。Playwright E2E は表示・主要導線の任意検証であり、全クリティカルパス網羅や全 handler 結合テスト完備を主張しない（方針: [docs/ops/ci-policy.md](../ops/ci-policy.md)、[docs/ops/testing/](../ops/testing/README.md)）。
 

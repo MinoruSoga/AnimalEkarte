@@ -1,8 +1,11 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { ItemListCard } from "./ItemListCard";
+import type { AccountingItem } from "../types";
+import { todayJSTISO } from "@/lib/jst-date";
 
 vi.mock("../api/get-merchandise-items", () => ({
   useGetAllMerchandiseItems: () => ({
@@ -181,5 +184,72 @@ describe("ItemListCard merchandise selection", () => {
       price: "500",
       category: "test",
     });
+  });
+});
+
+// EMR-246: 未請求候補の当日/過去セクション区分
+function makeItem(overrides: Partial<AccountingItem> = {}): AccountingItem {
+  return {
+    id: "item-1",
+    category: "other",
+    name: "項目",
+    unitPrice: 100,
+    quantity: 1,
+    discountRate: 0,
+    discountAmount: 0,
+    taxType: "excluded",
+    taxRate: 0.1,
+    taxAmount: 10,
+    subtotal: 100,
+    isInsuranceApplicable: false,
+    source: "manual",
+    ...overrides,
+  };
+}
+
+function renderWithItems(items: AccountingItem[]) {
+  // AccountingItemRow → DiscountCell が useQuery を使うため Provider が必要。
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <ItemListCard
+        items={items}
+        subtotal={0}
+        taxTotal={0}
+        totalAmount={0}
+        newItemOpen={false}
+        onNewItemOpenChange={vi.fn()}
+        onAddItem={vi.fn()}
+        onDeleteItem={vi.fn()}
+        canEdit={false}
+        canDelete={false}
+      />
+    </QueryClientProvider>,
+  );
+}
+
+describe("ItemListCard 当日/過去の区分", () => {
+  it("過去の発生日を持つ明細があると当日分/過去分の見出しが出る", () => {
+    renderWithItems([
+      makeItem({ id: "today-1", name: "当日項目", serviceDate: todayJSTISO() }),
+      makeItem({ id: "past-1", name: "過去項目", serviceDate: "2020-01-15" }),
+      makeItem({ id: "manual-1", name: "手入力項目" }),
+    ]);
+
+    expect(screen.getByText("当日分")).toBeInTheDocument();
+    expect(screen.getByText("過去の未請求分")).toBeInTheDocument();
+    expect(screen.getByLabelText("発生日: 2020-01-15")).toBeInTheDocument();
+    // 当日項目には発生日バッジが出ない
+    expect(screen.queryByLabelText(`発生日: ${todayJSTISO()}`)).not.toBeInTheDocument();
+  });
+
+  it("過去分がなければセクション見出しを出さない", () => {
+    renderWithItems([
+      makeItem({ id: "today-1", name: "当日項目", serviceDate: todayJSTISO() }),
+      makeItem({ id: "manual-1", name: "手入力項目" }),
+    ]);
+
+    expect(screen.queryByText("当日分")).not.toBeInTheDocument();
+    expect(screen.queryByText("過去の未請求分")).not.toBeInTheDocument();
   });
 });

@@ -3,9 +3,9 @@ package medicalrecord
 // master_preload_clinic_isolation_test.go
 // クロステナント READ IDOR remediation follow-up — (b) single-clinic master Preload 隔離回帰テスト。
 //
-// 保護する不変条件: clinic-scoped マスタを FK 値で Preload する際、別クリニックの
+// 保護する不変条件: clinic-scoped マスタを FK 値で Preload する際、別医院の
 // マスタ(名前/価格等)を応答へ混入させない。必須マスタを指す Checkup は、現在の
-// relation scope により汚染行そのものを fail-closed で除外し、同一クリニックの
+// relation scope により汚染行そのものを fail-closed で除外し、同一医院の
 // マスタと整合した患者・医師関係は従来どおり Preload する。
 
 import (
@@ -84,8 +84,8 @@ func TestHospitalizationRepository_FindAll_CagePreloadClinicIsolation(t *testing
 	}
 	require.Contains(t, byID, cross.ID)
 	require.Contains(t, byID, legit.ID)
-	assert.Nil(t, byID[cross.ID].Cage, "別クリニックのケージマスタが Preload で混入してはならない")
-	require.NotNil(t, byID[legit.ID].Cage, "同一クリニックのケージは Preload されるべき")
+	assert.Nil(t, byID[cross.ID].Cage, "別医院のケージマスタが Preload で混入してはならない")
+	require.NotNil(t, byID[legit.ID].Cage, "同一医院のケージは Preload されるべき")
 	assert.Equal(t, cageA.ID, byID[legit.ID].Cage.ID)
 }
 
@@ -131,12 +131,12 @@ func TestCheckupRepository_FindByID_CheckupTypePreloadClinicIsolation(t *testing
 		wantTypeID   uint64
 	}{
 		{
-			name:         "別クリニックの必須健診種別を指す行は取得対象外",
+			name:         "別医院の必須健診種別を指す行は取得対象外",
 			id:           crossID,
 			wantNotFound: true,
 		},
 		{
-			name:       "同一クリニックの健診種別と整合した患者医師関係を取得",
+			name:       "同一医院の健診種別と整合した患者医師関係を取得",
 			id:         legitID,
 			wantTypeID: typeA.ID,
 		},
@@ -148,12 +148,12 @@ func TestCheckupRepository_FindByID_CheckupTypePreloadClinicIsolation(t *testing
 			if tt.wantNotFound {
 				require.Error(t, err)
 				assert.True(t, apperrors.IsNotFound(err))
-				assert.Nil(t, got, "別クリニックの健診種別を参照する行を返してはならない")
+				assert.Nil(t, got, "別医院の健診種別を参照する行を返してはならない")
 				return
 			}
 
 			require.NoError(t, err)
-			require.NotNil(t, got.CheckupType, "同一クリニックの健診種別は Preload されるべき")
+			require.NotNil(t, got.CheckupType, "同一医院の健診種別は Preload されるべき")
 			assert.Equal(t, tt.wantTypeID, got.CheckupType.ID)
 			require.NotNil(t, got.MedicalRecord)
 			require.NotNil(t, got.MedicalRecord.Pet)
@@ -217,8 +217,8 @@ func TestCarePlanItemRepository_FindByID_MasterPreloadClinicIsolation(t *testing
 
 	got, err := repo.FindByID(ctx, clinicA, item.ID)
 	require.NoError(t, err)
-	assert.Nil(t, got.Medicine, "別クリニックの薬剤マスタが Preload で混入してはならない")
-	assert.Nil(t, got.Procedure, "別クリニックの手技マスタが Preload で混入してはならない")
+	assert.Nil(t, got.Medicine, "別医院の薬剤マスタが Preload で混入してはならない")
+	assert.Nil(t, got.Procedure, "別医院の手技マスタが Preload で混入してはならない")
 }
 
 // --- (b4) clinical_plan: DiagnosisType / DiagnosisName ---
@@ -254,8 +254,8 @@ func TestClinicalPlanRepository_FindByMedicalRecordID_DiagnosisPreloadClinicIsol
 	got, err := repo.FindByMedicalRecordID(ctx, clinicA, mrA.ID)
 	require.NoError(t, err)
 	require.NotNil(t, got)
-	assert.Nil(t, got.DiagnosisType, "別クリニックの診断分類マスタが Preload で混入してはならない")
-	assert.Nil(t, got.DiagnosisName, "別クリニックの診断名マスタが Preload で混入してはならない")
+	assert.Nil(t, got.DiagnosisType, "別医院の診断分類マスタが Preload で混入してはならない")
+	assert.Nil(t, got.DiagnosisName, "別医院の診断名マスタが Preload で混入してはならない")
 }
 
 // --- (b6) diagnosis: Names (子マスタ) ---
@@ -286,15 +286,15 @@ func TestDiagnosisTypeRepository_FindAll_NamesPreloadClinicIsolation(t *testing.
 	}
 	require.NotNil(t, found, "clinic A の診断分類は取得できる")
 	for _, n := range found.Names {
-		assert.NotEqual(t, nameCross.ID, n.ID, "別クリニックの診断名が Names Preload で混入してはならない")
+		assert.NotEqual(t, nameCross.ID, n.ID, "別医院の診断名が Names Preload で混入してはならない")
 		assert.Equal(t, clinicA, n.ClinicID, "Preload された診断名は全て clinic A 所属であるべき")
 	}
-	// 同一クリニックの診断名は混入する（非破壊）
+	// 同一医院の診断名は混入する（非破壊）
 	var sawLegit bool
 	for _, n := range found.Names {
 		if n.ID == nameLegit.ID {
 			sawLegit = true
 		}
 	}
-	assert.True(t, sawLegit, "同一クリニックの診断名は Names に含まれるべき")
+	assert.True(t, sawLegit, "同一医院の診断名は Names に含まれるべき")
 }

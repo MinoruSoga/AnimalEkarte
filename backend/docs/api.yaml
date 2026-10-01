@@ -13,7 +13,7 @@ info:
     |----------|------|---------|------|------|
     | `access_token` | JWT (HS256) | 15分 | `/` | 全保護エンドポイントの認証 |
     | `refresh_token` | JWT (HS256, sub=refresh) | 7日 | `/api/v1/auth` | アクセストークン再発行・ログアウト |
-    | `prev_clinic_id` | クリニックID数値 | 15分 | `/` | クリニック切替の監査・履歴用 |
+    | `prev_clinic_id` | 医院ID数値 | 15分 | `/` | 医院切替の監査・履歴用 |
     | `auth_token` | (legacy) | — | `/` | 旧 Cookie 名。読み取りのみ後方互換 |
 
     本番環境では `Secure=true` + `SameSite=None`、開発環境では `Secure=false` + `SameSite=Lax`。
@@ -238,11 +238,26 @@ components:
           type: integer
           format: int64
           nullable: true
+        medical_record_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 未請求候補など treatment 由来の親カルテID（DB列ではない仮想値）
+        service_date:
+          type: string
+          format: date-time
+          nullable: true
+          description: 未請求候補の発生日（DB列ではない仮想値。EMR-246 当日/過去区分表示用）
         vaccination_id:
           type: integer
           format: int64
           nullable: true
           description: 予防接種イベント由来の明細に紐づく接種記録ID
+        exam_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 検査イベント由来の明細に紐づく検査記録ID
         appointment_id:
           type: integer
           format: int64
@@ -617,7 +632,7 @@ components:
           readOnly: true
         clinic_id:
           type: integer
-          description: クリニックID
+          description: 医院ID
         pets:
           type: array
           description: |
@@ -1214,7 +1229,7 @@ components:
         clinic_id:
           type: integer
           format: int64
-          description: '#86 拠点横断一覧の医院表示・編集可否判定に使用'
+          description: '#86 医院横断一覧の医院表示・編集可否判定に使用'
         owner_id:
           type: integer
           format: int64
@@ -1857,7 +1872,7 @@ components:
         date:
           type: string
           format: date
-          description: 診察日
+          description: 診療日
         owner_id:
           type: integer
           format: int64
@@ -2115,7 +2130,7 @@ components:
               type: string
         medical_record:
           type: object
-          description: 診療記録（Preload時のみ含まれる。会計画面向けの軽量表現）
+          description: カルテ（Preload時のみ含まれる。会計画面向けの軽量表現）
           nullable: true
           readOnly: true
           properties:
@@ -2186,6 +2201,10 @@ components:
             items+warnings の決定的フィンガープリント（EMR-196）。
             POST /accountings/complete の expected_unbilled_revision として返送する
             楽観ロック token。形式は "u1:<sha256-hex>"。
+        owner_discount_rate:
+          type: number
+          format: double
+          description: pet→主飼主マスタの割引率(%)（EMR-229。手入力追加行の初期表示用）
     CompleteAccountingItemRequest:
       type: object
       description: 会計確定時に一括作成する明細1件（BUG-018）
@@ -3977,7 +3996,7 @@ components:
         clinic_id:
           type: integer
           format: int64
-          description: クリニックID
+          description: 医院ID
         medical_record_id:
           type: integer
           format: int64
@@ -4169,7 +4188,7 @@ components:
           example: 1741996800
         is_system_admin:
           type: boolean
-          description: システム管理者フラグ（true の場合クロスクリニック権限）
+          description: システム管理者フラグ（true の場合クロス医院権限）
           example: false
         user:
           $ref: '#/components/schemas/MeResponse'
@@ -5510,73 +5529,6 @@ components:
           maxItems: 200
           items:
             $ref: '#/components/schemas/UpsertCheckupFieldResultRequest'
-
-    # ─── Prescription (処方薬記録 LSTEP-BE-009) ───────────────────────────────
-    Prescription:
-      type: object
-      properties:
-        id:
-          type: string
-          description: uint64 を文字列化して配信
-        clinic_id:
-          type: string
-        owner_id:
-          type: string
-        pet_id:
-          type: string
-          nullable: true
-        medical_record_id:
-          type: string
-          nullable: true
-        prescribed_at:
-          type: string
-          format: date
-        duration_days:
-          type: integer
-          format: int32
-        version:
-          type: integer
-          format: int32
-          description: |
-            楽観的ロック用バージョン番号（UAT-R2-EXCLUSIVE-LOCK）。
-            次回 PATCH の version にはこの値をそのまま使う。
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-
-    CreatePrescriptionRequest:
-      type: object
-      required: [date, duration_days]
-      properties:
-        date:
-          type: string
-          format: date
-        duration_days:
-          type: integer
-          format: int32
-
-    UpdatePrescriptionRequest:
-      type: object
-      properties:
-        date:
-          type: string
-          format: date
-          nullable: true
-        duration_days:
-          type: integer
-          format: int32
-          nullable: true
-        version:
-          type: integer
-          format: int32
-          nullable: true
-          description: |
-            楽観的ロック用バージョン番号（UAT-R2-EXCLUSIVE-LOCK、updatePrescriptionRequest.Version）。
-            省略/null の場合はバージョン照合をスキップする（後方互換）。GET/PATCH レスポンス
-            の Prescription.version をそのまま次回送信すること。不一致時は 409 Conflict。
 
     # ─── MedicalRecordAddendum (カルテ追記・訂正履歴) ─────────────────────────
     MedicalRecordAddendum:
@@ -7628,7 +7580,7 @@ components:
           format: int64
     DailySummaryForClinics:
       type: object
-      description: 拠点別日次集計（clinic_ids 複数指定時 #86）
+      description: 医院別日次集計（clinic_ids 複数指定時 #86）
       properties:
         per_clinic:
           type: array
@@ -9448,7 +9400,7 @@ components:
           type: boolean
     CheckupGlobal:
       type: object
-      description: クリニック横断の健診記録一覧レスポンス（MedicalRecord.Pet.Owner を含む）
+      description: 医院横断の健診記録一覧レスポンス（MedicalRecord.Pet.Owner を含む）
       properties:
         id:
           type: string
@@ -9483,7 +9435,7 @@ components:
           type: string
           nullable: true
     PetCheckupResult:
-      description: 飼い主レポート用に親 checkup の日付・パッケージ名を付与した結果レスポンス（#211）
+      description: 飼主レポート用に親 checkup の日付・パッケージ名を付与した結果レスポンス（#211）
       allOf:
         - $ref: '#/components/schemas/CheckupFieldResult'
         - type: object
@@ -10231,7 +10183,7 @@ paths:
     get:
       operationId: getMe
       summary: ログインユーザー情報取得
-      description: JWTクレームからログインユーザーの詳細情報（所属クリニック・権限含む）を返す
+      description: JWTクレームからログインユーザーの詳細情報（所属医院・権限含む）を返す
       tags: [Auth]
       responses:
         '200':
@@ -10354,7 +10306,7 @@ paths:
     get:
       operationId: listOwners
       summary: 飼主一覧
-      description: クリニックの飼主一覧をページネーション付きで取得
+      description: 医院の飼主一覧をページネーション付きで取得
       tags: [Owners]
       parameters:
         - name: page
@@ -10995,7 +10947,7 @@ paths:
   /owners/{id}/line/link-token:
     post:
       operationId: generateOwnerLineLinkToken
-      summary: 飼い主向け LINE 連携トークン発行
+      summary: 飼主向け LINE 連携トークン発行
       description: BE-021。owners edit 権限が必要。
       tags: [Owners]
       parameters:
@@ -11198,7 +11150,7 @@ paths:
             default: false
         - name: clinic_ids
           in: query
-          description: '#86 拠点横断一覧。カンマ区切りの複数医院ID。未指定は現在の医院のみ（所属検証はサーバ側）'
+          description: '#86 医院横断一覧。カンマ区切りの複数医院ID。未指定は現在の医院のみ（所属検証はサーバ側）'
           schema:
             type: string
       responses:
@@ -12000,6 +11952,30 @@ paths:
           description: 飼主名（かな）、ペット名（かな）、カルテNo、主訴、治療内容、治療メモ、処置名、薬剤名、診察名、在庫品名を部分一致で横断検索
           schema:
             type: string
+        - name: medicine_id
+          in: query
+          description: 薬剤マスタIDを含むカルテに絞り込み
+          schema:
+            type: integer
+            format: int64
+        - name: procedure_id
+          in: query
+          description: 処置マスタIDを含むカルテに絞り込み
+          schema:
+            type: integer
+            format: int64
+        - name: consultation_id
+          in: query
+          description: 診察マスタIDを含むカルテに絞り込み
+          schema:
+            type: integer
+            format: int64
+        - name: inventory_id
+          in: query
+          description: 在庫品マスタIDを含むカルテに絞り込み
+          schema:
+            type: integer
+            format: int64
       responses:
         '200':
           description: カルテ一覧
@@ -12912,7 +12888,7 @@ paths:
         - name: clinic_ids
           in: query
           required: false
-          description: 拠点横断閲覧用のカンマ区切りclinic_id一覧。未指定時はログイン中の医院のみ。
+          description: 医院横断閲覧用のカンマ区切りclinic_id一覧。未指定時はログイン中の医院のみ。
           schema:
             type: string
       responses:
@@ -13755,6 +13731,10 @@ paths:
             schema:
               type: object
               properties:
+                name:
+                  type: string
+                  maxLength: 255
+                  description: 項目名（EMR-229。trim後が空なら拒否）
                 unit_price:
                   type: integer
                   format: int64
@@ -13775,6 +13755,10 @@ paths:
                   format: double
                 is_insurance_applicable:
                   type: boolean
+                post_close_reason:
+                  type: string
+                  maxLength: 500
+                  description: 締め後編集理由（レジ締め済み期間の明細変更時は必須。BUG-463）
       responses:
         '200':
           description: 更新成功
@@ -14525,9 +14509,11 @@ paths:
             default: 1
         - name: limit
           in: query
+          description: 上限は MaxMasterListRows(10000)。フィルタ全件選択用に大きな値を許容
           schema:
             type: integer
             default: 20
+            maximum: 10000
         - name: category
           in: query
           schema:
@@ -14680,11 +14666,11 @@ paths:
   /clinics:
     get:
       operationId: listClinics
-      summary: クリニック一覧
+      summary: 医院一覧
       tags: [Clinics]
       responses:
         '200':
-          description: クリニック一覧
+          description: 医院一覧
           content:
             application/json:
               schema:
@@ -14699,7 +14685,7 @@ paths:
           $ref: '#/components/responses/InternalError'
     post:
       operationId: createClinic
-      summary: クリニック作成
+      summary: 医院作成
       tags: [Clinics]
       requestBody:
         required: true
@@ -14725,7 +14711,7 @@ paths:
   /clinics/{id}:
     get:
       operationId: getClinic
-      summary: クリニック取得
+      summary: 医院取得
       tags: [Clinics]
       parameters:
         - name: id
@@ -14736,7 +14722,7 @@ paths:
             format: int64
       responses:
         '200':
-          description: クリニック情報
+          description: 医院情報
           content:
             application/json:
               schema:
@@ -14751,7 +14737,7 @@ paths:
           $ref: '#/components/responses/InternalError'
     patch:
       operationId: updateClinic
-      summary: クリニック更新
+      summary: 医院更新
       tags: [Clinics]
       parameters:
         - name: id
@@ -14785,7 +14771,7 @@ paths:
           $ref: '#/components/responses/InternalError'
     delete:
       operationId: deleteClinic
-      summary: クリニック削除
+      summary: 医院削除
       tags: [Clinics]
       parameters:
         - name: id
@@ -14809,7 +14795,7 @@ paths:
     get:
       operationId: getCompany
       summary: 法人情報取得
-      description: ログインユーザーが所属するメインクリニックの法人情報を返す
+      description: ログインユーザーが所属するメイン医院の法人情報を返す
       tags: [Company]
       responses:
         '200':
@@ -14829,7 +14815,7 @@ paths:
     patch:
       operationId: updateCompany
       summary: 法人情報更新
-      description: ログインユーザーのメインクリニック情報を部分更新する
+      description: ログインユーザーのメイン医院情報を部分更新する
       tags: [Company]
       requestBody:
         required: true
@@ -14929,7 +14915,7 @@ paths:
       description: |
         指定した順序で `sort_order` を一括更新する。
         リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
-        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+        存在しない ID または他医院の ID を含む場合は 400 を返す。
       tags: [Masters]
       requestBody:
         required: true
@@ -15103,7 +15089,7 @@ paths:
   /masters/staffs/{id}/clinics:
     get:
       operationId: getStaffClinicAssignments
-      summary: スタッフの勤務先クリニック一覧取得
+      summary: スタッフの勤務先医院一覧取得
       tags: [Masters]
       parameters:
         - name: id
@@ -15135,7 +15121,7 @@ paths:
           $ref: '#/components/responses/InternalError'
     put:
       operationId: setStaffClinicAssignments
-      summary: スタッフの勤務先クリニック割り当て更新
+      summary: スタッフの勤務先医院割り当て更新
       tags: [Masters]
       parameters:
         - name: id
@@ -15157,7 +15143,7 @@ paths:
                   items:
                     type: integer
                     format: int64
-                  description: 割り当てるクリニック ID（空配列=全解除）
+                  description: 割り当てる医院 ID（空配列=全解除）
       responses:
         '200':
           description: 更新成功
@@ -15576,7 +15562,7 @@ paths:
       description: |
         指定した順序で `sort_order` を一括更新する。
         リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
-        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+        存在しない ID または他医院の ID を含む場合は 400 を返す。
       tags: [Masters]
       requestBody:
         required: true
@@ -15749,7 +15735,7 @@ paths:
       description: |
         指定した順序で `sort_order` を一括更新する。
         リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
-        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+        存在しない ID または他医院の ID を含む場合は 400 を返す。
       tags: [Masters]
       requestBody:
         required: true
@@ -16030,7 +16016,7 @@ paths:
       description: |
         指定した順序で `sort_order` を一括更新する。
         リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
-        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+        存在しない ID または他医院の ID を含む場合は 400 を返す。
       tags: [Masters]
       requestBody:
         required: true
@@ -16204,7 +16190,7 @@ paths:
       description: |
         指定した順序で `sort_order` を一括更新する。
         リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
-        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+        存在しない ID または他医院の ID を含む場合は 400 を返す。
       tags: [Masters]
       requestBody:
         required: true
@@ -16539,7 +16525,7 @@ paths:
       description: |
         指定した順序で `sort_order` を一括更新する。
         リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
-        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+        存在しない ID または他医院の ID を含む場合は 400 を返す。
       tags: [Masters]
       requestBody:
         required: true
@@ -16997,7 +16983,7 @@ paths:
       description: |
         指定した順序で `sort_order` を一括更新する。
         リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
-        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+        存在しない ID または他医院の ID を含む場合は 400 を返す。
       tags: [Masters]
       requestBody:
         required: true
@@ -17171,7 +17157,7 @@ paths:
       description: |
         指定した順序で `sort_order` を一括更新する。
         リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
-        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+        存在しない ID または他医院の ID を含む場合は 400 を返す。
       tags: [Masters]
       requestBody:
         required: true
@@ -17344,7 +17330,7 @@ paths:
       description: |
         指定した順序で `sort_order` を一括更新する。
         リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
-        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+        存在しない ID または他医院の ID を含む場合は 400 を返す。
       tags: [Masters]
       requestBody:
         required: true
@@ -17518,7 +17504,7 @@ paths:
       description: |
         指定した順序で `sort_order` を一括更新する。
         リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
-        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+        存在しない ID または他医院の ID を含む場合は 400 を返す。
       tags: [Masters]
       requestBody:
         required: true
@@ -17853,7 +17839,7 @@ paths:
       description: |
         指定した順序で `sort_order` を一括更新する。
         リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
-        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+        存在しない ID または他医院の ID を含む場合は 400 を返す。
       tags: [Masters]
       requestBody:
         required: true
@@ -18027,7 +18013,7 @@ paths:
       description: |
         指定した順序で `sort_order` を一括更新する。
         リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
-        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+        存在しない ID または他医院の ID を含む場合は 400 を返す。
       tags: [Masters]
       requestBody:
         required: true
@@ -18367,7 +18353,7 @@ paths:
       description: |
         指定した順序で `sort_order` を一括更新する。
         リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
-        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+        存在しない ID または他医院の ID を含む場合は 400 を返す。
       tags: [Masters]
       requestBody:
         required: true
@@ -18509,7 +18495,7 @@ paths:
       operationId: createDiagnosisName
       summary: 診断名登録
       description: |
-        `diagnosis_category_id` に指定したカテゴリが同クリニックに存在しない場合は 400 を返す（FK validation）。
+        `diagnosis_category_id` に指定したカテゴリが同医院に存在しない場合は 400 を返す（FK validation）。
       tags: [Masters]
       requestBody:
         required: true
@@ -18580,7 +18566,7 @@ paths:
       description: |
         指定した順序で `sort_order` を一括更新する。
         リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
-        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+        存在しない ID または他医院の ID を含む場合は 400 を返す。
       tags: [Masters]
       requestBody:
         required: true
@@ -18754,7 +18740,7 @@ paths:
       description: |
         指定した順序で `sort_order` を一括更新する。
         リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
-        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+        存在しない ID または他医院の ID を含む場合は 400 を返す。
       tags: [Masters]
       requestBody:
         required: true
@@ -19091,7 +19077,7 @@ paths:
       description: |
         指定した順序で `sort_order` を一括更新する。
         リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
-        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+        存在しない ID または他医院の ID を含む場合は 400 を返す。
       tags: [Masters]
       requestBody:
         required: true
@@ -19976,7 +19962,7 @@ paths:
       description: |
         指定した順序で `sort_order` を一括更新する。
         リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
-        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+        存在しない ID または他医院の ID を含む場合は 400 を返す。
       tags: [PermissionGroups]
       requestBody:
         required: true
@@ -21398,11 +21384,11 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  # ─── Checkups (クリニック横断) ────────────────────────────────
+  # ─── Checkups (医院横断) ────────────────────────────────
   /checkups:
     get:
       operationId: listGlobalCheckups
-      summary: クリニック横断の健診記録一覧
+      summary: 医院横断の健診記録一覧
       description: MedicalRecord.Pet.Owner を含む一覧。実サーバページング（page/limit）で返す（X-16②）。
       tags: [Checkups]
       parameters:
@@ -21463,7 +21449,7 @@ paths:
   /checkups/field-results:
     get:
       operationId: listPetCheckupResults
-      summary: pet 単位の健診結果値一覧（飼い主レポート用）
+      summary: pet 単位の健診結果値一覧（飼主レポート用）
       description: '#211: 親 checkup の日付・パッケージ名を付与した結果値一覧。'
       tags: [Checkups]
       parameters:
@@ -21680,132 +21666,6 @@ paths:
                   $ref: '#/components/schemas/CheckupFieldResult'
         '400':
           $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
-  # ─── Prescriptions (処方薬記録・カルテネスト LSTEP-BE-009) ────────
-  /medical-records/{id}/prescriptions:
-    get:
-      operationId: listPrescriptions
-      summary: 処方薬記録一覧
-      tags: [MedicalRecords]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: カルテID
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: 処方薬記録一覧
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Prescription'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalError'
-    post:
-      operationId: createPrescription
-      summary: 処方薬記録作成
-      tags: [MedicalRecords]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: カルテID
-          schema:
-            type: integer
-            format: int64
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreatePrescriptionRequest'
-      responses:
-        '201':
-          description: 作成成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Prescription'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalError'
-  /medical-records/{id}/prescriptions/{prescriptionId}:
-    patch:
-      operationId: updatePrescription
-      summary: 処方薬記録更新
-      tags: [MedicalRecords]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: カルテID
-          schema:
-            type: integer
-            format: int64
-        - name: prescriptionId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdatePrescriptionRequest'
-      responses:
-        '200':
-          description: 更新成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Prescription'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
-    delete:
-      operationId: deletePrescription
-      summary: 処方薬記録削除（soft delete）
-      tags: [MedicalRecords]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: カルテID
-          schema:
-            type: integer
-            format: int64
-        - name: prescriptionId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '204':
-          description: 削除成功
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -23095,7 +22955,7 @@ paths:
     put:
       operationId: saveLineReservationSetting
       summary: LINE予約設定作成・更新（Upsert）
-      description: クリニックに設定が未存在なら作成(201)、既存なら更新(200)する。
+      description: 医院に設定が未存在なら作成(201)、既存なら更新(200)する。
       tags: [LINE予約設定]
       parameters:
         - name: clinic_id
@@ -24854,7 +24714,7 @@ paths:
   /lstep/tag-summary:
     get:
       operationId: getLstepTagSummary
-      summary: タグ別飼い主数集計(BE-020)
+      summary: タグ別飼主数集計(BE-020)
       description: lstep-analytics view 権限が必要。
       tags: [LstepSettings]
       responses:
@@ -24871,7 +24731,7 @@ paths:
   /lstep/owners:
     get:
       operationId: searchLstepOwnersByTag
-      summary: タグで飼い主を絞り込み(BE-020)
+      summary: タグで飼主を絞り込み(BE-020)
       description: lstep-analytics view 権限が必要。format=csv で CSV ダウンロード(RFC 5987 ファイル名エンコード)。
       tags: [LstepSettings]
       parameters:
@@ -24883,7 +24743,7 @@ paths:
         - name: q
           in: query
           required: false
-          description: 飼い主名の部分一致検索
+          description: 飼主名の部分一致検索
           schema:
             type: string
         - name: format
@@ -24904,7 +24764,7 @@ paths:
             type: integer
       responses:
         '200':
-          description: 飼い主一覧(format=csv 時は text/csv)
+          description: 飼主一覧(format=csv 時は text/csv)
           content:
             application/json:
               schema:
@@ -25011,7 +24871,7 @@ paths:
     get:
       operationId: getCheckupSyncPreview
       summary: 健診同期タグ付与の対象者プレビュー
-      description: BE-004。健診リマインダー配信対象となる飼い主のプレビュー一覧を返す。
+      description: BE-004。健診リマインダー配信対象となる飼主のプレビュー一覧を返す。
       tags: [LstepSettings]
       parameters:
         - name: clinic_id
@@ -25094,7 +24954,7 @@ paths:
   /clinics/{clinic_id}/lstep/checkup-sync:
     post:
       operationId: createCheckupSync
-      summary: 選択した飼い主に健診リマインダータグを一括付与
+      summary: 選択した飼主に健診リマインダータグを一括付与
       description: BE-004。
       tags: [LstepSettings]
       parameters:
@@ -25373,7 +25233,7 @@ paths:
   # ─── Lstep tag-code mappings / CSV imports / analytics (Phase C) ───
   # /clinics/{clinic_id}/lstep-tag-code-mappings エイリアスは同一ハンドラの
   # 重複登録のため意図的に未記載(Phase B の death エイリアスと同様)。
-  # csv-imports・analytics はクリニックネスト形が唯一の実装(非ネスト版は存在しない)。
+  # csv-imports・analytics は医院ネスト形が唯一の実装(非ネスト版は存在しない)。
   #
   # BE-refactor.md Phase D-1 で解消済み: GET /clinics/{clinic_id}/owners/{id}/lstep/friend-attributes
   # と、同じ co := rg.Group("/clinics/:clinic_id/owners")（handler.go:178）配下の owner ネスト
@@ -25471,7 +25331,7 @@ paths:
     post:
       operationId: postLstepCsvImportFriendAttributes
       summary: 友だち属性 CSV インポート(FEAT-385)
-      description: lstep-csv-import edit 権限が必要。CSV本体は50MiB、100,000データ行、64列、1セル64KiBまで。1病院1件、APIプロセス全体で2件まで同時実行でき、いずれかの上限を超えた場合は本文を解析せず429を返す。
+      description: lstep-csv-import edit 権限が必要。CSV本体は50MiB、100,000データ行、64列、1セル64KiBまで。1医院1件、APIプロセス全体で2件まで同時実行でき、いずれかの上限を超えた場合は本文を解析せず429を返す。
       tags: [LstepCsvImports]
       parameters:
         - name: clinic_id
@@ -25507,7 +25367,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '429':
-          description: 病院単位またはAPIプロセス全体の同時実行上限に達している
+          description: 医院単位またはAPIプロセス全体の同時実行上限に達している
         '500':
           $ref: '#/components/responses/InternalError'
   /clinics/{clinic_id}/lstep/analytics/delivery-stats:

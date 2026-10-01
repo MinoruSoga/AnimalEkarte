@@ -179,9 +179,9 @@ export function useMedicalRecordQuickPatchActions({
           await queryClient.invalidateQueries({
             queryKey: queryKeys.medicalRecords.detail(recordId),
           });
-          toast.success(`診察日を ${newDate} に変更しました`);
+          toast.success(`診療日を ${newDate} に変更しました`);
         } catch (error) {
-          handleApiError(error, "診察日変更");
+          handleApiError(error, "診療日変更");
         }
       });
     },

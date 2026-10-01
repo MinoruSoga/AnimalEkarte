@@ -3,7 +3,7 @@
 > **注記**: 本画面仕様は文面定義のみで、現時点で画像差分は未収録。
 
 ## 概要
-- **画面の目的**: 飼い主向け LINE 予約システムの稼働状態、受付ルール、および表示内容を一元管理する。
+- **画面の目的**: 飼主向け LINE 予約システムの稼働状態、受付ルール、および表示内容を一元管理する。
 - **URLパターン**: 
   - 基本設定: `/line-reservation/settings`
   - ページ編集: `/line-reservation/page-editor`
@@ -26,7 +26,7 @@
 - **数値入力**: `min` 付き number は HTML5 が先に拒否し、範囲外は API 未到達（V05-8）。本画面の休診は売上集計の締め休診とは別モデル。
 
 ### 2. 表示ページ編集 (`/page-editor`)
-LINE アプリ内で飼い主が見る画面の文言を編集します。`LineReservationPageEditor` はフェーズ別タブ切替ではなく、5 つのテキストエリアを縦に並べた単一フォームです（セクション選択 UI は存在しない）。
+LINE アプリ内で飼主が見る画面の文言を編集します。`LineReservationPageEditor` はフェーズ別タブ切替ではなく、5 つのテキストエリアを縦に並べた単一フォームです（セクション選択 UI は存在しない）。
 - **ヘッダーテキスト (`header_text`)**: LINE 予約ページのヘッダーに表示するテキスト。
 - **予約時の注意事項 (`reservation_notice`)**: 予約時に顧客へ表示する注意事項。
 - **キャンセル時の注意事項 (`cancel_notice`)**: キャンセル時に表示する注意事項。
@@ -53,7 +53,7 @@ LINE アプリ内で飼い主が見る画面の文言を編集します。`LineR
 ## 主要な機能
 
 ### 1. リアルタイムな空き枠計算
-ここでの設定と、予約受付スタッフの個人スケジュール（`reservation_schedule_service.go`）、および既に確定している予約 (`/reservations`) を掛け合わせ、飼い主側には常に「最新の空き状況」が表示されます。
+ここでの設定と、予約受付スタッフの個人スケジュール（`reservation_schedule_service.go`）、および既に確定している予約 (`/reservations`) を掛け合わせ、飼主側には常に「最新の空き状況」が表示されます。
 
 ```mermaid
 flowchart TB
@@ -73,7 +73,7 @@ flowchart TB
 ```
 
 ### 2. 自動通知連携
-予約の完了およびキャンセルの通知が、Messaging API を通じて飼い主の LINE へ自動送信されます（あわせて病院の通知メール宛にメール通知）。
+予約の完了およびキャンセルの通知が、Messaging API を通じて飼主の LINE へ自動送信されます（あわせて病院の通知メール宛にメール通知）。
 
 ---
 
@@ -84,7 +84,7 @@ flowchart TB
 - **`LineReservationPageEditor`**: 表示ページ編集（§2）。`Textarea`（shadcn/ui）5 個の単一フォーム。
 - **`LineReservationSlotsSettings`**: 予約枠カレンダーページ（`features/master`）。
 - **`ReservationTypeAvailableSlotsCalendar`**: 週カレンダー + 日別編集パネル。
-- **飼主側予約アプリ (`frontend/line-reserve`・別エントリ)**: 飼い主が操作する LINE 内予約フロー。画面仕様は [37-line-reserve-owner-flow.md](./37-line-reserve-owner-flow.md) を参照。
+- **飼主側予約アプリ (`frontend/line-reserve`・別エントリ)**: 飼主が操作する LINE 内予約フロー。画面仕様は [37-line-reserve-owner-flow.md](./37-line-reserve-owner-flow.md) を参照。
 - **枠計算エンジン (`timeslot_engine.go`)**: 空き時間を算出するバックエンドロジック。
 
 ### API連携

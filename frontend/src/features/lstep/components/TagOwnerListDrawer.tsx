@@ -110,7 +110,9 @@ export function TagOwnerListDrawer({
         <SheetContent side="right" className="w-full max-w-full sm:max-w-[480px] flex flex-col p-0">
           <SheetHeader className="px-4 py-4 pr-16 border-b shrink-0">
             <SheetTitle className={`${C.text} text-base`}>タグ「{tagName}」の対象者一覧</SheetTitle>
-            <SheetDescription className={C.text50}>{ownerCount}名</SheetDescription>
+            <SheetDescription className={C.text50}>
+              {ownerCount.toLocaleString()}名
+            </SheetDescription>
           </SheetHeader>
 
           {/* ツールバー */}

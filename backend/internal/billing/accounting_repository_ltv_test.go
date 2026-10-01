@@ -71,7 +71,7 @@ func TestAccountingRepository_SumPaidByOwner_ClinicIsolation(t *testing.T) {
 
 	total, err := repo.SumPaidByOwner(ctx, clinicB, owner.ID)
 	require.NoError(t, err)
-	assert.Equal(t, int64(0), total, "別クリニックからは飼主の支払いが見えてはならない")
+	assert.Equal(t, int64(0), total, "別医院からは飼主の支払いが見えてはならない")
 }
 
 func TestAccountingRepository_MaxSingleVisitAmountByOwner_ReturnsMaxOfCompleted(t *testing.T) {

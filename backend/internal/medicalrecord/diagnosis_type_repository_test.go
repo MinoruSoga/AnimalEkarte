@@ -64,7 +64,7 @@ func TestDiagnosisTypeRepository_FindAll(t *testing.T) {
 	typeA2 := makeDiagnosisTypeMaster(t, db, clinicA, "外科")
 	_ = makeDiagnosisTypeMaster(t, db, clinicB, "医院Bの分類")
 
-	t.Run("同一クリニックの分類のみ取得する", func(t *testing.T) {
+	t.Run("同一医院の分類のみ取得する", func(t *testing.T) {
 		got, total, err := repo.FindAll(ctx, clinicA, 1, 100)
 		require.NoError(t, err)
 		assert.Equal(t, int64(2), total)
@@ -80,7 +80,7 @@ func TestDiagnosisTypeRepository_FindAll(t *testing.T) {
 		assert.Len(t, got, 1)
 	})
 
-	t.Run("別クリニックからはクリニックAの分類が見えない", func(t *testing.T) {
+	t.Run("別医院からは医院Aの分類が見えない", func(t *testing.T) {
 		got, total, err := repo.FindAll(ctx, clinicB, 1, 100)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), total)
@@ -99,7 +99,7 @@ func TestDiagnosisTypeRepository_FindByID(t *testing.T) {
 	typeA := makeDiagnosisTypeMaster(t, db, clinicA, "皮膚科")
 	nameA := makeDiagnosisNameRec(t, db, clinicA, typeA.ID, "アトピー性皮膚炎")
 
-	t.Run("同一クリニックで取得できNamesがPreloadされる", func(t *testing.T) {
+	t.Run("同一医院で取得できNamesがPreloadされる", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, typeA.ID)
 		require.NoError(t, err)
 		require.NotNil(t, got)
@@ -114,7 +114,7 @@ func TestDiagnosisTypeRepository_FindByID(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("別クリニックからは取得できない", func(t *testing.T) {
+	t.Run("別医院からは取得できない", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicB, typeA.ID)
 		assert.Nil(t, got)
 		require.Error(t, err)
@@ -145,14 +145,14 @@ func TestDiagnosisTypeRepository_Update(t *testing.T) {
 
 	typeA := makeDiagnosisTypeMaster(t, db, clinicA, "更新前")
 
-	t.Run("同一クリニックからの更新は成功する", func(t *testing.T) {
+	t.Run("同一医院からの更新は成功する", func(t *testing.T) {
 		name := "更新後"
 		got, err := repo.Update(ctx, clinicA, typeA.ID, UpdateDiagnosisTypeInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後", got.Name)
 	})
 
-	t.Run("別クリニックからの更新はNotFoundで変更されない", func(t *testing.T) {
+	t.Run("別医院からの更新はNotFoundで変更されない", func(t *testing.T) {
 		name := "不正更新"
 		got, err := repo.Update(ctx, clinicB, typeA.ID, UpdateDiagnosisTypeInput{Name: &name})
 		assert.Nil(t, got)
@@ -181,7 +181,7 @@ func TestDiagnosisTypeRepository_Delete(t *testing.T) {
 
 	typeA := makeDiagnosisTypeMaster(t, db, clinicA, "削除対象")
 
-	t.Run("別クリニックからの削除はNotFoundで実際には削除されない", func(t *testing.T) {
+	t.Run("別医院からの削除はNotFoundで実際には削除されない", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, typeA.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -191,7 +191,7 @@ func TestDiagnosisTypeRepository_Delete(t *testing.T) {
 		assert.NotNil(t, got)
 	})
 
-	t.Run("同一クリニックからの削除は成功しソフトデリートされる", func(t *testing.T) {
+	t.Run("同一医院からの削除は成功しソフトデリートされる", func(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, clinicA, typeA.ID))
 
 		got, err := repo.FindByID(ctx, clinicA, typeA.ID)

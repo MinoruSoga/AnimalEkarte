@@ -47,21 +47,18 @@ func (r *repository) SearchOwners(ctx context.Context, clinicIDs []uint64, query
 		return []model.Owner{}, nil
 	}
 
-	rawPattern := "%" + textsearch.EscapeLike(q) + "%"
 	normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(q)) + "%"
 
 	var owners []model.Owner
 	err := r.conn(ctx).
 		Scopes(persistence.ClinicScopeIn(clinicIDs)).
 		Where(
-			`(translate(name, ?, ?) ILIKE ? ESCAPE '\'
-			  OR name_kana ILIKE ? ESCAPE '\' OR phone ILIKE ? ESCAPE '\'
-			  OR translate(name, ?, ?) ILIKE ? ESCAPE '\'
-			  OR translate(name_kana, ?, ?) ILIKE ? ESCAPE '\')`,
-			textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
-			rawPattern, rawPattern,
-			textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
-			textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+			`(`+textsearch.FoldedExpr("name")+` ILIKE ? ESCAPE '\'
+			  OR phone ILIKE ? ESCAPE '\'
+			  OR `+textsearch.FoldedExpr("name_kana")+` ILIKE ? ESCAPE '\')`,
+			normalizedPattern,
+			normalizedPattern,
+			normalizedPattern,
 		).
 		Order("clinic_id ASC, id ASC").
 		Limit(limit).
@@ -84,21 +81,18 @@ func (r *repository) SearchPets(ctx context.Context, clinicIDs []uint64, query s
 		return []model.Pet{}, nil
 	}
 
-	rawPattern := "%" + textsearch.EscapeLike(q) + "%"
 	normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(q)) + "%"
 
 	var pets []model.Pet
 	err := r.conn(ctx).
 		Scopes(persistence.ClinicScopeIn(clinicIDs)).
 		Where(
-			`(translate(name, ?, ?) ILIKE ? ESCAPE '\'
-			  OR name_kana ILIKE ? ESCAPE '\' OR pet_number ILIKE ? ESCAPE '\'
-			  OR translate(name, ?, ?) ILIKE ? ESCAPE '\'
-			  OR translate(name_kana, ?, ?) ILIKE ? ESCAPE '\')`,
-			textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
-			rawPattern, rawPattern,
-			textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
-			textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+			`(`+textsearch.FoldedExpr("name")+` ILIKE ? ESCAPE '\'
+			  OR pet_number ILIKE ? ESCAPE '\'
+			  OR `+textsearch.FoldedExpr("name_kana")+` ILIKE ? ESCAPE '\')`,
+			normalizedPattern,
+			normalizedPattern,
+			normalizedPattern,
 		).
 		Order("clinic_id ASC, id ASC").
 		Limit(limit).

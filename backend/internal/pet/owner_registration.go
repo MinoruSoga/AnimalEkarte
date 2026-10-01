@@ -232,20 +232,21 @@ func normalizeCreatePetDrafts(pets []CreatePetDraft) ([]CreatePetDraft, error) {
 }
 
 func normalizeDangerReason(level model.DangerLevel, reason *string) (*string, error) {
+	// EMR-231: 400 の error 本文は FE の toast にそのまま出るため、警戒表現は含めない。
 	if reason == nil {
 		if level == model.DangerLevelHigh {
-			return nil, apperrors.WrapInvalidInput("危険度がhighの場合は危険理由を入力してください")
+			return nil, apperrors.WrapInvalidInput("特記レベルがhighの場合は理由を入力してください")
 		}
 		return nil, nil
 	}
 
 	trimmed := strings.TrimSpace(*reason)
 	if utf8.RuneCountInString(trimmed) > dangerReasonMaxRunes {
-		return nil, apperrors.WrapInvalidInput("危険理由は500文字以内で入力してください")
+		return nil, apperrors.WrapInvalidInput("理由は500文字以内で入力してください")
 	}
 	if trimmed == "" {
 		if level == model.DangerLevelHigh {
-			return nil, apperrors.WrapInvalidInput("危険度がhighの場合は危険理由を入力してください")
+			return nil, apperrors.WrapInvalidInput("特記レベルがhighの場合は理由を入力してください")
 		}
 		return nil, nil
 	}

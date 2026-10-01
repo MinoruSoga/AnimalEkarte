@@ -40,7 +40,7 @@ export function validateUploadFiles(files: readonly File[]): UploadFilesValidati
   if (files.length > MAX_UPLOAD_FILES) {
     return {
       ok: false,
-      message: `一度にアップロードできるファイルは${MAX_UPLOAD_FILES}件までです`,
+      message: `一度にアップロードできるファイルは${MAX_UPLOAD_FILES.toLocaleString()}件までです`,
     };
   }
   const totalBytes = files.reduce((sum, f) => sum + f.size, 0);

@@ -81,7 +81,7 @@ func TestReservationRepository_FindAll(t *testing.T) {
 	resA := makeReservation(t, db, clinicA)
 	makeReservation(t, db, clinicB)
 
-	t.Run("clinic_id隔離: 指定クリニックのみ返す", func(t *testing.T) {
+	t.Run("clinic_id隔離: 指定医院のみ返す", func(t *testing.T) {
 		got, total, err := repo.FindAll(ctx, []uint64{clinicA}, 1, 10, nil, nil, nil, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.EqualValues(t, 1, total)
@@ -403,7 +403,7 @@ func TestReservationRepository_FindNoShowCandidates(t *testing.T) {
 		assert.NotContains(t, ids, finalized.ID, "確定済みカルテがある予約はノーショウ候補外のはず")
 	})
 
-	t.Run("該当データが無いクリニックは空を返す", func(t *testing.T) {
+	t.Run("該当データが無い医院は空を返す", func(t *testing.T) {
 		got, err := repo.FindNoShowCandidates(ctx, uint64(999999))
 		require.NoError(t, err)
 		assert.Empty(t, got)

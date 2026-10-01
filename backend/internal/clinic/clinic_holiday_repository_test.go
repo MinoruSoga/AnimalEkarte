@@ -63,8 +63,8 @@ func TestClinicHolidayRepository_FindAllByYearMonth(t *testing.T) {
 	require.NoError(t, db.WithContext(ctx).Create(&model.ClinicHoliday{ClinicID: clinicA.ID, Date: julyLate, Reason: "夏季休診(後半)"}).Error)
 	require.NoError(t, db.WithContext(ctx).Create(&model.ClinicHoliday{ClinicID: clinicA.ID, Date: julyEarly, Reason: "夏季休診(前半)"}).Error)
 	require.NoError(t, db.WithContext(ctx).Create(&model.ClinicHoliday{ClinicID: clinicA.ID, Date: august, Reason: "8月の休診"}).Error)
-	// 別クリニックの休診日（結果に混入してはならない）
-	require.NoError(t, db.WithContext(ctx).Create(&model.ClinicHoliday{ClinicID: clinicB.ID, Date: julyEarly, Reason: "別クリニックの休診"}).Error)
+	// 別医院の休診日（結果に混入してはならない）
+	require.NoError(t, db.WithContext(ctx).Create(&model.ClinicHoliday{ClinicID: clinicB.ID, Date: julyEarly, Reason: "別医院の休診"}).Error)
 
 	t.Run("yearMonth 指定で該当月のみ date ASC で返る", func(t *testing.T) {
 		got, err := repo.FindAllByYearMonth(ctx, clinicA.ID, "2026-07")
@@ -81,11 +81,11 @@ func TestClinicHolidayRepository_FindAllByYearMonth(t *testing.T) {
 		assert.Len(t, got, 3)
 	})
 
-	t.Run("別クリニックの休診日は含まれない", func(t *testing.T) {
+	t.Run("別医院の休診日は含まれない", func(t *testing.T) {
 		got, err := repo.FindAllByYearMonth(ctx, clinicB.ID, "2026-07")
 		require.NoError(t, err)
 		require.Len(t, got, 1)
-		assert.Equal(t, "別クリニックの休診", got[0].Reason)
+		assert.Equal(t, "別医院の休診", got[0].Reason)
 	})
 }
 
@@ -174,13 +174,13 @@ func TestClinicHolidayRepository_FindByDate(t *testing.T) {
 
 	require.NoError(t, db.WithContext(ctx).Create(&model.ClinicHoliday{ClinicID: clinicA.ID, Date: date, Reason: "文化の日"}).Error)
 
-	t.Run("同一クリニックでは取得できる", func(t *testing.T) {
+	t.Run("同一医院では取得できる", func(t *testing.T) {
 		got, err := repo.FindByDate(ctx, clinicA.ID, date)
 		require.NoError(t, err)
 		assert.Equal(t, "文化の日", got.Reason)
 	})
 
-	t.Run("別クリニックからは取得できない(clinic_id 隔離)", func(t *testing.T) {
+	t.Run("別医院からは取得できない(clinic_id 隔離)", func(t *testing.T) {
 		got, err := repo.FindByDate(ctx, clinicB.ID, date)
 		assert.Nil(t, got)
 		require.Error(t, err)

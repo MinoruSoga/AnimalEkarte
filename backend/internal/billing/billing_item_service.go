@@ -16,6 +16,7 @@ import (
 // --- DB column constants ---
 
 const (
+	colBillingItemName                  = "name"
 	colBillingItemUnitPrice             = "unit_price"
 	colBillingItemQuantity              = "quantity"
 	colBillingItemDiscountRate          = "discount_rate"
@@ -60,6 +61,8 @@ type CreateBillingItemInput struct {
 
 // UpdateBillingItemInput は billing_item 更新の入力DTO（nil = 未指定）
 type UpdateBillingItemInput struct {
+	// EMR-229: 社販処理の目安として項目名に年月等を追記できるよう name 更新を許可する。
+	Name                  *string
 	UnitPrice             *int64
 	Quantity              *float64
 	DiscountRate          *float64
@@ -85,6 +88,9 @@ type DeleteBillingItemInput struct {
 
 func buildBillingItemUpdate(input *UpdateBillingItemInput) map[string]any {
 	fields := make(map[string]any)
+	if input.Name != nil {
+		fields[colBillingItemName] = strings.TrimSpace(*input.Name)
+	}
 	if input.UnitPrice != nil {
 		fields[colBillingItemUnitPrice] = *input.UnitPrice
 	}
@@ -243,10 +249,12 @@ type UnbilledWarning struct {
 
 // UnbilledDetails は additive GET /billing-items/unbilled-details の結果。
 // Revision は items+warnings の決定的フィンガープリント（EMR-196② の楽観ロック token）。
+// OwnerDiscountRate は pet→主飼主マスタの割引率(%)（EMR-229: 手入力追加行の初期表示用）。
 type UnbilledDetails struct {
-	Items    []model.BillingItem
-	Warnings []UnbilledWarning
-	Revision string
+	Items             []model.BillingItem
+	Warnings          []UnbilledWarning
+	Revision          string
+	OwnerDiscountRate float64
 }
 
 type billingItemService struct {
@@ -258,7 +266,9 @@ type billingItemService struct {
 	trimmingOptionRepo trimmingOptionFinder // X-4: クロステナント write 防止用の所有権検証
 	campaignRepo       CampaignRepository   // #81 段階2b: nil の場合は自動割引なし
 	ownerRepo          billingOwnerReader   // #81 段階2b: 飼主割引取得用
-	auditTx            billingAuditTxLogger // #115 / BUG-463: 締め後編集 fail-closed 監査
+	// petOwnerFinder は EMR-229: 未請求候補集約で pet→主飼主を解決する（任意 DI・nil なら飼主割引 0）。
+	petOwnerFinder billingPetOwnerFinder
+	auditTx        billingAuditTxLogger // #115 / BUG-463: 締め後編集 fail-closed 監査
 	// closeRepo は W-013 締め後明細変更の append-only adjustment 台帳用（任意 DI）。
 	closeRepo CashRegisterCloseRepository
 }
@@ -285,6 +295,13 @@ func WithBillingItemAuditTx(auditTx billingAuditTxLogger) billingItemServiceOpti
 func WithBillingItemCloseRepository(repo CashRegisterCloseRepository) billingItemServiceOption {
 	return func(s *billingItemService) {
 		s.closeRepo = repo
+	}
+}
+
+// WithBillingItemPetOwnerFinder は未請求候補集約での pet→飼主割引率解決に使う finder を配線する（EMR-229）。
+func WithBillingItemPetOwnerFinder(finder billingPetOwnerFinder) billingItemServiceOption {
+	return func(s *billingItemService) {
+		s.petOwnerFinder = finder
 	}
 }
 

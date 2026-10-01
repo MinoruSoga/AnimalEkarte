@@ -11,7 +11,9 @@ const RESET_PASSWORD_INPUT_BASE = `w-full h-[48px] text-base rounded-xxs ${C.bgI
 
 export function ResetPasswordInvalidLink() {
   return (
-    <div className={`min-h-screen flex items-center justify-center ${C.bgPage} p-4`}>
+    <div
+      className={`h-dvh overflow-y-auto flex items-center-safe justify-center-safe ${C.bgPage} p-4`}
+    >
       <div className="w-full max-w-[380px] mx-auto text-center space-y-4">
         <div
           data-testid="reset-password-invalid-brand-mark"

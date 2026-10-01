@@ -36,6 +36,24 @@ func TestDSNIncludesJapanTimeZone(t *testing.T) {
 	}
 }
 
+func TestDSNIncludesStatementAndConnectTimeouts(t *testing.T) {
+	cfg := &Config{
+		DBHost:               "db",
+		DBPort:               "5432",
+		DBUser:               "user",
+		DBPass:               "pass",
+		DBName:               "ekarte",
+		DBSSLMode:            "disable",
+		DBConnectTimeoutSec:  5,
+		DBStatementTimeoutMS: 120000,
+	}
+
+	want := "host=db port=5432 user=user password=pass dbname=ekarte sslmode=disable TimeZone=Asia/Tokyo connect_timeout=5 statement_timeout=120000"
+	if got := cfg.DSN(); got != want {
+		t.Fatalf("DSN() = %q, want %q", got, want)
+	}
+}
+
 func TestDSNIncludesConfiguredSSLRootCert(t *testing.T) {
 	cfg := &Config{
 		DBHost:        "db.example.com",

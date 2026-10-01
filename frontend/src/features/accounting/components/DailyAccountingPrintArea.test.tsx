@@ -59,7 +59,7 @@ const ROWS: RowData[] = [
   row({ accounting: accounting({ id: "2", ownerName: "鈴木花子", petName: "タマ" }), total: 0 }),
 ];
 
-// 病院合計 = medical(10000) + surgery(0) + rv(5000) + food(0) + goods(2000) = 17000
+// 医院合計 = medical(10000) + surgery(0) + rv(5000) + food(0) + goods(2000) = 17000
 // トリミング合計 = trimming(3000) + hotel(500) = 3500
 const TOTALS: TotalsData = {
   medical: 10000,
@@ -83,10 +83,10 @@ describe("DailyAccountingPrintArea: 金額セルの印字が固定されてい�
     expect(within(area).getByText("¥0")).toBeInTheDocument();
   });
 
-  it("病院合計行は 0 円科目を「-」にし、合計は ¥ 区切りで表示する", () => {
+  it("医院合計行は 0 円科目を「-」にし、合計は ¥ 区切りで表示する", () => {
     render(<DailyPrintArea date="2026-07-01" rows={ROWS} totals={TOTALS} />);
     const area = screen.getByTestId("daily-print-area");
-    const hospitalRow = within(area).getByText("病院合計").closest("tr")!;
+    const hospitalRow = within(area).getByText("医院合計").closest("tr")!;
     expect(within(hospitalRow).getByText("¥10,000")).toBeInTheDocument();
     expect(within(hospitalRow).getByText("¥5,000")).toBeInTheDocument();
     expect(within(hospitalRow).getByText("¥17,000")).toBeInTheDocument();
@@ -131,7 +131,7 @@ describe("DailyAccountingPrintArea: 金額セルの印字が固定されてい�
     };
     render(<DailyPrintArea date="2026-07-01" rows={ROWS} totals={negativeTotals} />);
     const area = screen.getByTestId("daily-print-area");
-    const hospitalRow = within(area).getByText("病院合計").closest("tr")!;
+    const hospitalRow = within(area).getByText("医院合計").closest("tr")!;
     const cells = hospitalRow.querySelectorAll("td");
     expect(cells[1]).toHaveTextContent("¥-3,000");
     expect(within(hospitalRow).queryByText("¥0")).not.toBeInTheDocument();
@@ -200,11 +200,11 @@ describe("EMR-186: 列順 — 飼主名・ペット名が最右端の2列（こ�
     expect(cellTexts[cellTexts.length - 3]).toBe("¥12,345");
   });
 
-  it("各集計行（病院/トリミング/全体合計）のセル数がヘッダー列数と一致する", () => {
+  it("各集計行（医院/トリミング/全体合計）のセル数がヘッダー列数と一致する", () => {
     render(<DailyPrintArea date="2026-07-01" rows={ROWS} totals={TOTALS} />);
     const area = screen.getByTestId("daily-print-area");
     const headerCount = area.querySelectorAll("thead th").length;
-    for (const label of ["病院合計", "トリミング合計", "全体合計"]) {
+    for (const label of ["医院合計", "トリミング合計", "全体合計"]) {
       const tr = within(area).getByText(label).closest("tr")!;
       const span = Array.from(tr.querySelectorAll("td")).reduce(
         (sum, td) => sum + (Number(td.getAttribute("colspan")) || 1),

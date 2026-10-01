@@ -42,7 +42,9 @@ function CardRow({ label, description, icon, count, onClick }: CardRowProps) {
         <div className={`text-base ${C.text60} mt-0.5 truncate`}>{description}</div>
       </div>
       {count !== undefined ? (
-        <span className={`text-base ${C.text60} tabular-nums shrink-0`}>{count}件</span>
+        <span className={`text-base ${C.text60} tabular-nums shrink-0`}>
+          {count.toLocaleString()}件
+        </span>
       ) : null}
       <ChevronRight className={`${ICON.action} ${C.text35} shrink-0`} aria-hidden="true" />
     </button>

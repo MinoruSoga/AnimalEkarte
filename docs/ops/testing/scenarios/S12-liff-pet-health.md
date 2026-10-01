@@ -1,6 +1,6 @@
 # S12: LIFF ペットヘルスとアカウント連携
 
-> **目的**: 飼い主が LIFF でアカウント連携（LINE アカウントと飼主レコードの紐付け）を完了でき、ペットヘルスページで自分のペットの健康情報のみが閲覧でき、他の飼主のデータが見えないことを納品前に証明する。
+> **目的**: 飼主が LIFF でアカウント連携（LINE アカウントと飼主レコードの紐付け）を完了でき、ペットヘルスページで自分のペットの健康情報のみが閲覧でき、他の飼主のデータが見えないことを納品前に証明する。
 > **所要目安**: 15分 / **深度**: 薄い
 > **仕様正本**: [line/architecture.md §2 認証・紐付けロジック](../../../spec/line/architecture.md)・[screens/04-owners-form.md §1.3](../../../spec/screens/04-owners-form.md)・[screens/38-liff-pet-health.md](../../../spec/screens/38-liff-pet-health.md)。実装参照: `frontend/liff/src/pages/PetHealthPage.tsx`・`backend/internal/reservation/liff_service_health_card.go`。
 
@@ -23,7 +23,7 @@
 | 5 | token なしの URL（`?clinic_id=...` のみ）で LIFF アプリを開く | ペットヘルスページに切り替わり、ヘッダーに飼主名（API の owner_name、未連携時は LINE 表示名）とプロフィール画像が表示される |
 | 6 | ペットカードの表示内容を確認する | ペットごとに、ペット名・種/品種・最終来院日（記録がない場合は「記録なし」）・ワクチン記録テーブル（ワクチン名/接種日/次回予定日、予定なしは「—」）が表示される（`PetHealthPage.tsx`）。API は `GET /api/liff/:clinicId/health-card`（profile ではない）。 |
 | 7 | 別の飼主（前提条件の 2 人目）の LINE アカウント／トークンで同様に連携し、ペットヘルスを開く | その飼主自身のペットのみが表示され、手順 6 の飼主のペットは一切表示されない — 飼主間隔離の実機証明 |
-| 8 | `clinic_id` クエリなしの URL でペットヘルスを開く | 「クリニックIDが見つかりません」系エラー（`PetHealthPage` が clinic_id 必須 reject）。他テナントデータは出ない |
+| 8 | `clinic_id` クエリなしの URL でペットヘルスを開く | 「医院IDが見つかりません」系エラー（`PetHealthPage` が clinic_id 必須 reject）。他テナントデータは出ない |
 | 9 | バックエンド停止などで健康記録の取得を失敗させる（ローカルのみ） | 「データ取得に失敗しました」と再試行ボタン。401（ID Token 失効）は再試行ボタンを出さない |
 
 **連携とヘルスカード取得の流れ**（手順 1〜7 と確認観点「飼主間隔離」の概要）:
@@ -50,7 +50,7 @@ sequenceDiagram
 - 連携トークンは単回使用。トークン値・実 LINE アカウント情報を本ディレクトリやレポートに記録しないこと。
 - ヘルスカードのレスポンスはフロントで zod スキーマ検証され、形状不正時は無音で欠落表示にならずエラーになる（`frontend/liff/src/api/liff-api.ts`）。
 - 死亡ペット（`DeceasedAt != nil`）はヘルスカードに表示されない（`liff_service_health_card.go` で確認済み）。
-- clinic_id 隔離: URL の clinicId と異なるクリニックの飼主・ペットが返らないこと。
+- clinic_id 隔離: URL の clinicId と異なる医院の飼主・ペットが返らないこと。
 - 本シナリオの LIFF アプリはペットヘルス・連携用（`frontend/liff`）であり、LINE 予約アプリ（line-reserve — [S04](S04-liff-reservation-journey.md)）とは別アプリ。予約機能の検証は S04 が正本。
 
 ## 実装突合

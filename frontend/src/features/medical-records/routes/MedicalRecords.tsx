@@ -1,13 +1,5 @@
 // React/Framework
-import {
-  useState,
-  useCallback,
-  useDeferredValue,
-  useMemo,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-} from "react";
+import { useState, useCallback, useMemo, useEffect, useLayoutEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 // Auth
@@ -16,6 +8,13 @@ import { useClinicScope } from "@/hooks/use-clinic-scope";
 // Hooks
 import { useModalState } from "@/hooks/use-modal-state";
 import { useGetStaffs } from "@/hooks/use-staffs";
+import {
+  useGetAllMedicinesMaster,
+  useGetAllProcedures,
+  useGetAllConsultations,
+} from "@/hooks/use-treatment-master";
+import { useGetAllInventoryItems } from "@/hooks/use-inventory-items";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 // External
 import { paths } from "@/config/paths";
@@ -87,6 +86,11 @@ function useMedicalRecordsDeleteFlow(canDelete: boolean, records: MedicalRecord[
   return { deleteModal, onDeleteConfirm };
 }
 
+// 検索語は入力のたびにクエリへ渡さず、入力が止まってから反映する。
+// useDeferredValue は描画を遅らせるだけでリクエストは毎キー発火するため、
+// 1検索=一覧+件数の重いDBクエリ2発が連打されていた（2026-10-01障害の増幅要因）。
+const SEARCH_DEBOUNCE_MS = 300;
+
 export function MedicalRecords() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -103,9 +107,13 @@ export function MedicalRecords() {
   } = useClinicScope({ resetParamsOnToggle: CLINIC_TOGGLE_RESET_PARAMS });
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
-  const deferredSearch = useDeferredValue(searchTerm);
+  const debouncedSearch = useDebouncedValue(searchTerm, SEARCH_DEBOUNCE_MS);
 
   const { data: staffs } = useGetStaffs();
+  const { data: medicines } = useGetAllMedicinesMaster();
+  const { data: procedures } = useGetAllProcedures();
+  const { data: consultations } = useGetAllConsultations();
+  const { data: inventories } = useGetAllInventoryItems();
   const {
     activeSpecies,
     isLoading: isSpeciesLoading,
@@ -119,11 +127,24 @@ export function MedicalRecords() {
         activeSpecies,
         isSpeciesError,
         isSpeciesLoading,
+        medicines,
+        procedures,
+        consultations,
+        inventories,
       }),
-    [staffs, activeSpecies, isSpeciesError, isSpeciesLoading],
+    [
+      staffs,
+      activeSpecies,
+      isSpeciesError,
+      isSpeciesLoading,
+      medicines,
+      procedures,
+      consultations,
+      inventories,
+    ],
   );
 
-  const resetKey = `${deferredSearch}|${JSON.stringify(activeFilters)}|${petId ?? ""}`;
+  const resetKey = `${debouncedSearch}|${JSON.stringify(activeFilters)}|${petId ?? ""}`;
   const { currentPage, sortKey, sortOrder, handleSortToggle, directionForSort, handlePageChange } =
     useMedicalRecordsUrlState(resetKey);
 
@@ -133,7 +154,7 @@ export function MedicalRecords() {
       ? undefined
       : selectedClinicIds;
   const { records, total, isLoading, isError, isPlaceholderData } = useMedicalRecordsList({
-    searchTerm: deferredSearch,
+    searchTerm: debouncedSearch,
     activeFilters,
     clinicIds: clinicIdsForApi,
     petId,
@@ -158,7 +179,7 @@ export function MedicalRecords() {
 
   const startIndex = total === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const endIndex = Math.min(currentPage * PAGE_SIZE, total);
-  const isFiltering = searchTerm !== deferredSearch || isPlaceholderData;
+  const isFiltering = searchTerm !== debouncedSearch || isPlaceholderData;
 
   const handleNavigateToForm = useCallback(
     (recordId?: string) => {

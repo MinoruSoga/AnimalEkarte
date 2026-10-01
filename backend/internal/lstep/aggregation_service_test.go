@@ -232,7 +232,7 @@ func TestListOwnerAggregation_CPMStageParity(t *testing.T) {
 }
 
 // TestListOwnerAggregation_CPMStageFilter は cpm_stage クエリフィルタが
-// CPM ステージ判定結果と一致する飼い主のみを抽出することを検証する（ISSUE-006）。
+// CPM ステージ判定結果と一致する飼主のみを抽出することを検証する（ISSUE-006）。
 // "spot" / "cpm_spot" の両表記を受け付ける。
 func TestListOwnerAggregation_CPMStageFilter(t *testing.T) {
 	now := time.Now()

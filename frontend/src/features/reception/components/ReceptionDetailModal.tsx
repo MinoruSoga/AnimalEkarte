@@ -132,7 +132,9 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`${LAYOUT.modal.sm} p-0 gap-0 overflow-hidden ${C.bgWhite}`}>
+      <DialogContent
+        className={`${LAYOUT.modal.sm} max-h-[85vh] p-0 gap-0 overflow-hidden ${C.bgWhite} flex flex-col`}
+      >
         <ReceptionDialogHeader appointment={appointment} currentStatus={currentStatus} />
         <ReceptionDialogBody
           appointment={appointment}

@@ -76,7 +76,7 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://api.stg.noah-karte.com/health
 ### 2.3 Workers / Containers エラーログ監視
 
 Cloudflare Dashboard の Workers Logs / Containers で、デプロイ時刻以降の ERROR/FATAL と
-request error を確認する。Workers Logs はインフラ障害調査用で、診療記録の変更監査は
+request error を確認する。Workers Logs はインフラ障害調査用で、カルテの変更監査は
 DB の `audit_logs` が正本。
 
 **異常時**:

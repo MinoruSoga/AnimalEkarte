@@ -27,13 +27,13 @@ type medicalRecordFinder interface {
 }
 
 // medicalRecordLocker は LockByIDForUpdate 1メソッドの narrow interface（BE-refactor.md E-5）。
-// prescriptionService / checkupFieldResultService が確定と子書込の競合防止（X-11）に使う。
+// checkupFieldResultService などの子書込サービスが確定と子書込の競合防止（X-11）に使う。
 type medicalRecordLocker interface {
 	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 }
 
 // Transactor は repository.Transactor の consumer-side view（WithTx のみ）。
-// prescriptionService / checkupFieldResultService が「削除+挿入+監査」を単一 tx に収めるために使う。
+// checkupFieldResultService などが「削除+挿入+監査」を単一 tx に収めるために使う。
 type Transactor interface {
 	WithTx(ctx context.Context, fn func(ctx context.Context) error) error
 }
@@ -76,11 +76,6 @@ type vaccinationTagSyncer interface {
 // vaccinationRelationVerifier は接種記録の Pet→Owner と担当医の現在所属を検証する最小 view。
 // 具象は reservation domain の store だが、medicalrecord は consumer-side interface のみを持つ。
 type vaccinationRelationVerifier = ClinicalRelationVerifier
-
-// prescriptionTagSyncer は prescriptionService が使う LstepTagSyncService の最小 view。nil 許容。
-type prescriptionTagSyncer interface {
-	SyncPrescriptionTag(ctx context.Context, clinicID, ownerID uint64) error
-}
 
 // checkupFollowUpTrigger は checkupService の健診フォローアップ配信トリガーの最小 view
 // （LstepDeliveryTriggerService.TriggerCheckupFollowUp 相当）。nil 許容（未設定ならトリガーしない）。

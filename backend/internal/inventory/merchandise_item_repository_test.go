@@ -108,7 +108,7 @@ func TestMerchandiseItemRepository_Create_FindByID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	t.Run("作成した物販品を同一クリニックで取得できる", func(t *testing.T) {
+	t.Run("作成した物販品を同一医院で取得できる", func(t *testing.T) {
 		item := &model.MerchandiseItem{ClinicID: clinicA, Name: "フード", Category: model.ItemCategoryFood, UnitPrice: 2000}
 		require.NoError(t, repo.Create(ctx, item))
 		require.NotZero(t, item.ID)
@@ -119,7 +119,7 @@ func TestMerchandiseItemRepository_Create_FindByID(t *testing.T) {
 		assert.Equal(t, model.ItemCategoryFood, got.Category)
 	})
 
-	t.Run("別クリニックからはNotFound", func(t *testing.T) {
+	t.Run("別医院からはNotFound", func(t *testing.T) {
 		item := makeMerchItem(t, db, clinicA, "医院A専用品", model.ItemCategoryGoods)
 		_, err := repo.FindByID(ctx, clinicB, item.ID)
 		require.Error(t, err)
@@ -240,12 +240,12 @@ func TestMerchandiseItemRepository_FindAll(t *testing.T) {
 	goodsA := makeMerchItem(t, db, clinicA, "医院Aの雑貨", model.ItemCategoryGoods)
 	medicineA := makeMerchItem(t, db, clinicA, "医院Aの療法食", model.ItemCategoryFood)
 
-	t.Run("クリニックで隔離される", func(t *testing.T) {
+	t.Run("医院で隔離される", func(t *testing.T) {
 		got, err := repo.FindAll(ctx, clinicA, "")
 		require.NoError(t, err)
 		require.Len(t, got, 2)
 		for _, it := range got {
-			assert.NotEqual(t, itemB.ID, it.ID, "別クリニックの品目が混入してはならない")
+			assert.NotEqual(t, itemB.ID, it.ID, "別医院の品目が混入してはならない")
 		}
 	})
 
@@ -382,7 +382,7 @@ func TestMerchandiseItemRepository_Update(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	t.Run("同一クリニックの更新は反映される", func(t *testing.T) {
+	t.Run("同一医院の更新は反映される", func(t *testing.T) {
 		item := makeMerchItem(t, db, clinicA, "更新前品目", model.ItemCategoryGoods)
 		name := "更新後品目"
 		price := int64(3000)
@@ -392,7 +392,7 @@ func TestMerchandiseItemRepository_Update(t *testing.T) {
 		assert.Equal(t, int64(3000), got.UnitPrice)
 	})
 
-	t.Run("別クリニックの更新はNotFound", func(t *testing.T) {
+	t.Run("別医院の更新はNotFound", func(t *testing.T) {
 		item := makeMerchItem(t, db, clinicA, "越境更新対象品目", model.ItemCategoryGoods)
 		name := "越境更新"
 		_, err := repo.Update(ctx, clinicB, item.ID, UpdateMerchandiseItemInput{Name: &name})
@@ -485,7 +485,7 @@ func TestMerchandiseItemRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	t.Run("同一クリニックの削除は成功しその後取得できない", func(t *testing.T) {
+	t.Run("同一医院の削除は成功しその後取得できない", func(t *testing.T) {
 		item := makeMerchItem(t, db, clinicA, "削除対象品目", model.ItemCategoryGoods)
 		require.NoError(t, repo.Delete(ctx, clinicA, item.ID))
 
@@ -494,7 +494,7 @@ func TestMerchandiseItemRepository_Delete(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("別クリニックの削除はNotFoundで対象データは残る", func(t *testing.T) {
+	t.Run("別医院の削除はNotFoundで対象データは残る", func(t *testing.T) {
 		item := makeMerchItem(t, db, clinicA, "越境削除対象品目", model.ItemCategoryGoods)
 		err := repo.Delete(ctx, clinicB, item.ID)
 		require.Error(t, err)
@@ -550,7 +550,7 @@ func TestMerchandiseItemRepository_Reorder(t *testing.T) {
 		assert.Equal(t, 3, byID[item2.ID].SortOrder)
 	})
 
-	t.Run("別クリニックのIDが混ざるとエラーになる", func(t *testing.T) {
+	t.Run("別医院のIDが混ざるとエラーになる", func(t *testing.T) {
 		itemA := makeMerchItem(t, db, clinicA, "医院A品目", model.ItemCategoryGoods)
 		itemB := makeMerchItem(t, db, clinicB, "医院B品目", model.ItemCategoryGoods)
 
@@ -596,7 +596,7 @@ func TestMerchandiseItemRepository_CountUsageByMerchandiseItemID_RealDB(t *testi
 		assert.Equal(t, int64(0), count)
 	})
 
-	t.Run("別クリニックの請求に紐づく参照はカウントされない", func(t *testing.T) {
+	t.Run("別医院の請求に紐づく参照はカウントされない", func(t *testing.T) {
 		item := makeMerchItem(t, db, clinicA, "越境参照対象品目", model.ItemCategoryGoods)
 		// clinic B の billing から clinic A の品目を参照する汚染データを模擬
 		billingB := makeMerchBilling(t, db, clinicB)
@@ -604,7 +604,7 @@ func TestMerchandiseItemRepository_CountUsageByMerchandiseItemID_RealDB(t *testi
 
 		count, err := repo.CountUsageByMerchandiseItemID(ctx, clinicA, item.ID)
 		require.NoError(t, err)
-		assert.Equal(t, int64(0), count, "別クリニックのbillingに紐づく参照はJOINで除外される")
+		assert.Equal(t, int64(0), count, "別医院のbillingに紐づく参照はJOINで除外される")
 	})
 }
 

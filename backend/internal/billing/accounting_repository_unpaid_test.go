@@ -1,14 +1,18 @@
 package billing
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/testdb"
@@ -62,7 +66,7 @@ func makeSpeciesAndPet(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, petN
 }
 
 // TestSumUnpaidByOwner は飼主単位の未納残高が status=waiting のみ・soft-delete 除外・
-// クリニック/飼主スコープで正しく集計されることを検証する。#182
+// 医院/飼主スコープで正しく集計されることを検証する。#182
 func TestSumUnpaidByOwner(t *testing.T) {
 	db := testdb.SetupTestDB(t)
 	repo := NewAccountingRepository(db)
@@ -97,7 +101,7 @@ func TestSumUnpaidByOwner(t *testing.T) {
 		assert.Equal(t, int64(0), got.Count)
 	})
 
-	t.Run("別クリニックスコープでは混入しない", func(t *testing.T) {
+	t.Run("別医院スコープでは混入しない", func(t *testing.T) {
 		got, err := repo.SumUnpaidByOwner(ctx, 999, owner.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), got.TotalAmount)
@@ -373,6 +377,124 @@ func TestFindPeriodUnpaidCarryover_EmptyResult(t *testing.T) {
 	assert.Equal(t, int64(0), summary.PeriodEndCarryover)
 	assert.Equal(t, int64(0), total)
 	assert.Empty(t, items)
+}
+
+// TestFindPeriodUnpaidCarryover_ExcludesOwnerWithoutInPeriodBilling は
+// 期間内に billing（売上）を持たない飼主が期間指定の未納一覧・サマリーから除外されることを
+// 検証する。EMR-228: 期間内売上がある飼主の期間外未納は繰越列として残る（飼主単位の判定）。
+func TestFindPeriodUnpaidCarryover_ExcludesOwnerWithoutInPeriodBilling(t *testing.T) {
+	db := setupUnpaidCarryoverTestDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	clinicID := uint64(1)
+
+	ghost := testdb.MakeTestOwner(t, db, clinicID, "期間外未納のみ飼主")
+	active := testdb.MakeTestOwner(t, db, clinicID, "期間内売上あり飼主")
+	paidOnly := testdb.MakeTestOwner(t, db, clinicID, "期間内完納飼主")
+	cancelledOnly := testdb.MakeTestOwner(t, db, clinicID, "期間内取消のみ飼主")
+	multiPet := testdb.MakeTestOwner(t, db, clinicID, "複数ペット飼主")
+
+	inPeriod := time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)
+
+	// ghost: 期間外(2020)の未納のみ → 行・サマリーから除外（EMR-228 の主症状）
+	makeBilling(t, db, clinicID, &ghost.ID, nil, 4000, model.BillingStatusWaiting,
+		time.Date(2020, 4, 10, 0, 0, 0, 0, time.UTC))
+
+	// active: 期間外の未納 + 期間内の未納 → 掲載。繰越列は両方残る
+	makeBilling(t, db, clinicID, &active.ID, nil, 1000, model.BillingStatusWaiting,
+		time.Date(2020, 5, 15, 0, 0, 0, 0, time.UTC))
+	makeBilling(t, db, clinicID, &active.ID, nil, 2000, model.BillingStatusWaiting, inPeriod)
+
+	// paidOnly: 期間内に完納 billing（未収0）+ 期間外の未納 → 期間内売上があるため掲載
+	makeBilling(t, db, clinicID, &paidOnly.ID, nil, 3000, model.BillingStatusWaiting,
+		time.Date(2021, 3, 10, 0, 0, 0, 0, time.UTC))
+	makeBilling(t, db, clinicID, &paidOnly.ID, nil, 9000, model.BillingStatusCompleted, inPeriod)
+
+	// cancelledOnly: 期間内に cancelled のみ + 期間外の未納
+	// → cancelled は論理削除相当で売上とみなさないため除外
+	makeBilling(t, db, clinicID, &cancelledOnly.ID, nil, 5000, model.BillingStatusWaiting,
+		time.Date(2019, 8, 10, 0, 0, 0, 0, time.UTC))
+	makeBilling(t, db, clinicID, &cancelledOnly.ID, nil, 7000, model.BillingStatusCancelled, inPeriod)
+
+	// multiPet: petA は期間内に売上、petB は期間外の未納のみ
+	// → 飼主単位で期間内売上を持つため petB の繰越行も掲載される
+	petA := makeSpeciesAndPet(t, db, clinicID, multiPet.ID, "ぽち")
+	petB := makeSpeciesAndPet(t, db, clinicID, multiPet.ID, "たま")
+	makeBilling(t, db, clinicID, &multiPet.ID, &petA.ID, 8000, model.BillingStatusCompleted, inPeriod)
+	makeBilling(t, db, clinicID, &multiPet.ID, &petB.ID, 1500, model.BillingStatusWaiting,
+		time.Date(2020, 2, 10, 0, 0, 0, 0, time.UTC))
+
+	items, total, summary, err := repo.FindPeriodUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
+	require.NoError(t, err)
+
+	assert.Equal(t, int64(3), total, "掲載は active + paidOnly + multiPet(petB) の3行")
+	require.Len(t, items, 3)
+
+	byOwner := make(map[uint64]PeriodUnpaidOwnerPet, len(items))
+	for _, it := range items {
+		byOwner[it.OwnerID] = it
+	}
+	require.Contains(t, byOwner, active.ID, "期間内未納を持つ飼主は残る")
+	require.Contains(t, byOwner, paidOnly.ID, "期間内に完納売上があり期間外未納を持つ飼主も残る")
+	require.Contains(t, byOwner, multiPet.ID, "期間内売上が別ペットでも飼主の繰越行は残る")
+	assert.NotContains(t, byOwner, ghost.ID, "期間外のみ未納の飼主は一覧に出ない")
+	assert.NotContains(t, byOwner, cancelledOnly.ID, "期間内に cancelled しかない飼主は一覧に出ない")
+
+	// active: 期間外1000 + 期間内2000
+	assert.Equal(t, int64(1000), byOwner[active.ID].PrevPeriodCarryover)
+	assert.Equal(t, int64(2000), byOwner[active.ID].CurrentPeriodUnpaid)
+	assert.Equal(t, int64(3000), byOwner[active.ID].PeriodEndCarryover)
+
+	// paidOnly: 期間外3000 のみ（期間内は完納で未収0）
+	assert.Equal(t, int64(3000), byOwner[paidOnly.ID].PrevPeriodCarryover)
+	assert.Equal(t, int64(0), byOwner[paidOnly.ID].CurrentPeriodUnpaid)
+	assert.Equal(t, int64(3000), byOwner[paidOnly.ID].PeriodEndCarryover)
+	assert.Equal(t, "2021-03-10", byOwner[paidOnly.ID].LatestScheduled,
+		"期間内売上がある飼主では最新未納日が期間外でもよい（繰越表示の維持）")
+
+	// multiPet: petB の期間外1500 が繰越として残る
+	assert.Equal(t, int64(1500), byOwner[multiPet.ID].PrevPeriodCarryover)
+	assert.Equal(t, int64(0), byOwner[multiPet.ID].CurrentPeriodUnpaid)
+	require.NotNil(t, byOwner[multiPet.ID].PetID)
+	assert.Equal(t, petB.ID, *byOwner[multiPet.ID].PetID)
+
+	// サマリーは掲載飼主の金額と一致し、ghost 4000 / cancelledOnly 5000 は混入しない
+	assert.Equal(t, int64(5500), summary.PrevPeriodCarryover, "active 1000 + paidOnly 3000 + multiPet 1500")
+	assert.Equal(t, int64(2000), summary.CurrentPeriodUnpaid)
+	assert.Equal(t, int64(7500), summary.PeriodEndCarryover, "prev+current")
+}
+
+// TestWhereOwnerHasBillingInPeriod_GeneratesExistsPredicate は
+// whereOwnerHasBillingInPeriod が飼主の期間内 billing EXISTS 述語を生成し、
+// startDate/endDate がパラメータバインドされることを DryRun の生成SQLで検証する
+// （実DB不要）。EMR-228
+func TestWhereOwnerHasBillingInPeriod_GeneratesExistsPredicate(t *testing.T) {
+	var output bytes.Buffer
+	db, err := gorm.Open(
+		postgres.Open("host=localhost user=test dbname=test sslmode=disable"),
+		&gorm.Config{
+			DisableAutomaticPing:   true,
+			DryRun:                 true,
+			Logger:                 logger.New(log.New(&output, "", 0), logger.Config{LogLevel: logger.Info}),
+			SkipDefaultTransaction: true,
+		},
+	)
+	require.NoError(t, err)
+
+	billings := make([]model.Billing, 0)
+	require.NoError(t, db.WithContext(context.Background()).
+		Model(&model.Billing{}).
+		Scopes(whereOwnerHasBillingInPeriod(firstDay2026June, lastDay2026June)).
+		Find(&billings).Error)
+
+	query := output.String()
+	assert.Contains(t, query, "billings AS period_billing")
+	assert.Contains(t, query, "period_billing.clinic_id = billings.clinic_id")
+	assert.Contains(t, query, "period_billing.owner_id = billings.owner_id")
+	assert.Contains(t, query, "period_billing.status != 'cancelled'")
+	assert.Contains(t, query,
+		`period_billing.scheduled_date BETWEEN '2026-06-01' AND '2026-06-30'`,
+		"期間内 billing は startDate〜endDate にバインドされる")
 }
 
 // TestAccountingRepository_FindUnpaidByBilling_ReturnsWaitingWithinRangeOnly は

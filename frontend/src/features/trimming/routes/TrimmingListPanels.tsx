@@ -94,7 +94,7 @@ export function TrimmingListContent({
       <div className="flex flex-col gap-4">
         {isTruncated ? (
           <p className={`text-xs ${C.text50}`} role="status">
-            取得上限の{HISTORY_FETCH_LIMIT}件を対象に検索・絞り込みしています
+            取得上限の{HISTORY_FETCH_LIMIT.toLocaleString()}件を対象に検索・絞り込みしています
           </p>
         ) : null}
         <TrimmingListTable

@@ -48,7 +48,7 @@ function buildParams(
   } as unknown as QueryClient;
 
   return {
-    accountingId: overrides.accountingId ?? "42",
+    accountingId: "accountingId" in overrides ? overrides.accountingId : "42",
     baseItems: [],
     queryClient,
     setLocalItems,
@@ -331,5 +331,266 @@ describe("useAccountingItemActions permissions (FE-RC-001 fail-closed)", () => {
     });
 
     expect(updateBillingItemMock).not.toHaveBeenCalled();
+  });
+
+  it("canEdit=false では handleUpdateItemName / Quantity / Amount が API を呼ばない (EMR-229/230)", () => {
+    const params = buildParams();
+    const item = { id: "9", quantity: 1, discountAmount: 0 } as AccountingItem;
+    const { result } = renderHook(() =>
+      useAccountingItemActions({
+        ...params,
+        permissions: { canCreate: true, canEdit: false, canDelete: true },
+      }),
+    );
+
+    act(() => {
+      result.current.handleUpdateItemName("7", "社販 2024-05");
+      result.current.handleUpdateItemQuantity("8", 2);
+      result.current.handleUpdateItemAmount(item, 1500);
+    });
+
+    expect(updateBillingItemMock).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith("この操作を行う権限がありません");
+  });
+});
+
+// EMR-229/230: 項目名・数量・金額（税抜小計）の明細編集。
+// 既存会計は PATCH、新規会計ドラフトは localItems への immutable 反映。
+describe("useAccountingItemActions item name/quantity/amount (EMR-229/230)", () => {
+  const baseManualItem: AccountingItem = {
+    id: "manual_draft",
+    category: "goods",
+    name: "社販フード",
+    unitPrice: 800,
+    quantity: 1,
+    discountRate: 0,
+    discountAmount: 0,
+    taxType: "excluded",
+    taxRate: 0.1,
+    taxAmount: 80,
+    subtotal: 800,
+    isInsuranceApplicable: false,
+    source: "manual",
+  };
+
+  beforeEach(() => {
+    createBillingItemMock.mockReset();
+    deleteBillingItemMock.mockReset();
+    updateBillingItemMock.mockReset();
+    vi.mocked(toast.error).mockClear();
+    updateBillingItemMock.mockResolvedValue({} as never);
+  });
+
+  it("項目名の更新は trim して name を PATCH する (EMR-229)", async () => {
+    const params = buildParams();
+    const { result } = renderHook(() => useAccountingItemActions(params));
+
+    act(() => {
+      result.current.handleUpdateItemName("7", "  社販 2024-05  ");
+    });
+
+    await waitFor(() => {
+      expect(updateBillingItemMock).toHaveBeenCalledTimes(1);
+    });
+    expect(updateBillingItemMock).toHaveBeenCalledWith(
+      "7",
+      expect.objectContaining({ name: "社販 2024-05" }),
+    );
+  });
+
+  it("空白のみの項目名は API を呼ばずエラーを表示する (EMR-229)", () => {
+    const params = buildParams();
+    const { result } = renderHook(() => useAccountingItemActions(params));
+
+    act(() => {
+      result.current.handleUpdateItemName("7", "   ");
+    });
+
+    expect(updateBillingItemMock).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith("項目名は必須です");
+  });
+
+  it("数量の更新は quantity を PATCH する (EMR-230)", async () => {
+    const params = buildParams();
+    const { result } = renderHook(() => useAccountingItemActions(params));
+
+    act(() => {
+      result.current.handleUpdateItemQuantity("7", 3);
+    });
+
+    await waitFor(() => {
+      expect(updateBillingItemMock).toHaveBeenCalledTimes(1);
+    });
+    expect(updateBillingItemMock).toHaveBeenCalledWith(
+      "7",
+      expect.objectContaining({ quantity: 3 }),
+    );
+  });
+
+  it("数量0以下は API を呼ばない (EMR-230)", () => {
+    const params = buildParams();
+    const { result } = renderHook(() => useAccountingItemActions(params));
+
+    act(() => {
+      result.current.handleUpdateItemQuantity("7", 0);
+    });
+
+    expect(updateBillingItemMock).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith("数量は正の値で入力してください");
+  });
+
+  it("金額の更新は (amount + discountAmount) / quantity を unit_price へ換算して PATCH する (EMR-230)", async () => {
+    const params = buildParams();
+    const item: AccountingItem = { ...baseManualItem, id: "7", quantity: 2, discountAmount: 100 };
+    const { result } = renderHook(() => useAccountingItemActions(params));
+
+    act(() => {
+      result.current.handleUpdateItemAmount(item, 1500);
+    });
+
+    await waitFor(() => {
+      expect(updateBillingItemMock).toHaveBeenCalledTimes(1);
+    });
+    // (1500 + 100) / 2 = 800
+    expect(updateBillingItemMock).toHaveBeenCalledWith(
+      "7",
+      expect.objectContaining({ unit_price: 800 }),
+    );
+  });
+
+  it("追加直後の仮ID行（manual_<uuid>）は PATCH せず案内する (EMR-229/230)", () => {
+    const params = buildParams();
+    const item: AccountingItem = { ...baseManualItem, id: "manual_abc" };
+    const { result } = renderHook(() => useAccountingItemActions(params));
+
+    act(() => {
+      result.current.handleUpdateItemName("manual_abc", "社販 R7.5");
+      result.current.handleUpdateItemQuantity("manual_abc", 2);
+      result.current.handleUpdateItemAmount(item, 1000);
+    });
+
+    expect(updateBillingItemMock).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith("明細の登録が反映されてから編集してください");
+  });
+
+  it("新規会計ドラフトの項目名変更は localItems へ immutable に反映し API は呼ばない (EMR-229)", () => {
+    const params = buildParams({ accountingId: undefined });
+    const { result } = renderHook(() =>
+      useAccountingItemActions({ ...params, baseItems: [baseManualItem] }),
+    );
+
+    act(() => {
+      result.current.handleUpdateItemName("manual_draft", "社販フード R7.5");
+    });
+
+    const applyUpdate = params.setLocalItems.mock.calls[0]?.[0] as (
+      prev: AccountingItem[] | null,
+    ) => AccountingItem[];
+    const items = applyUpdate(null);
+    expect(items[0]?.name).toBe("社販フード R7.5");
+    // 非対象行・元オブジェクトは変更しない（immutable）
+    expect(baseManualItem.name).toBe("社販フード");
+    expect(updateBillingItemMock).not.toHaveBeenCalled();
+  });
+
+  it("ドラフトの数量変更は subtotal/taxAmount を BE 同式で再計算する (EMR-230)", () => {
+    const params = buildParams({ accountingId: undefined });
+    const { result } = renderHook(() =>
+      useAccountingItemActions({ ...params, baseItems: [baseManualItem] }),
+    );
+
+    act(() => {
+      result.current.handleUpdateItemQuantity("manual_draft", 3);
+    });
+
+    const applyUpdate = params.setLocalItems.mock.calls[0]?.[0] as (
+      prev: AccountingItem[] | null,
+    ) => AccountingItem[];
+    const items = applyUpdate(null);
+    // 800 * 3 - 0 = 2400、外税 10% → 240
+    expect(items[0]).toMatchObject({ quantity: 3, subtotal: 2400, taxAmount: 240 });
+    expect(updateBillingItemMock).not.toHaveBeenCalled();
+  });
+
+  it("ドラフトの金額変更は unit_price 換算して localItems を更新する (EMR-230)", () => {
+    const params = buildParams({ accountingId: undefined });
+    const item: AccountingItem = {
+      ...baseManualItem,
+      quantity: 2,
+      discountAmount: 100,
+      subtotal: 1500,
+      taxAmount: 150,
+    };
+    const { result } = renderHook(() => useAccountingItemActions({ ...params, baseItems: [item] }));
+
+    act(() => {
+      result.current.handleUpdateItemAmount(item, 2000);
+    });
+
+    const applyUpdate = params.setLocalItems.mock.calls[0]?.[0] as (
+      prev: AccountingItem[] | null,
+    ) => AccountingItem[];
+    const items = applyUpdate(null);
+    // unit_price = (2000 + 100) / 2 = 1050 → subtotal = 1050*2 - 100 = 2000, tax = 200
+    expect(items[0]).toMatchObject({ unitPrice: 1050, subtotal: 2000, taxAmount: 200 });
+    expect(updateBillingItemMock).not.toHaveBeenCalled();
+  });
+});
+
+// EMR-229: 手入力追加行への飼主マスタ割引率の optimistic 事前適用。
+describe("useAccountingItemActions owner discount prefill (EMR-229)", () => {
+  beforeEach(() => {
+    createBillingItemMock.mockReset();
+    updateBillingItemMock.mockReset();
+    createBillingItemMock.mockResolvedValue({} as never);
+  });
+
+  it("ownerDiscountRate がある追加は割引を optimistic 適用し、POST には割引を送らない", async () => {
+    const params = buildParams();
+    const { result } = renderHook(() =>
+      useAccountingItemActions({ ...params, ownerDiscountRate: 10 }),
+    );
+
+    act(() => {
+      result.current.handleAddItem({ name: "社販フード", price: "1000", category: "food" });
+    });
+
+    // ローカルプレビュー: 1000 * 10% = 100 引、小計 900、外税 90
+    const applyUpdate = params.setLocalItems.mock.calls[0]?.[0] as (
+      prev: AccountingItem[] | null,
+    ) => AccountingItem[];
+    expect(applyUpdate(null).at(-1)).toMatchObject({
+      discountRate: 10,
+      discountAmount: 100,
+      subtotal: 900,
+      taxAmount: 90,
+    });
+
+    await waitFor(() => {
+      expect(createBillingItemMock).toHaveBeenCalledTimes(1);
+    });
+    // POST body には割引を載せない（BE が飼主率 vs キャンペーンの大きい方で再解決する）
+    const req = createBillingItemMock.mock.calls[0]?.[0];
+    expect(req).not.toHaveProperty("discount_amount");
+    expect(req).not.toHaveProperty("discount_rate");
+  });
+
+  it("ownerDiscountRate 未指定の追加は従来どおり割引0で表示する（回帰）", async () => {
+    const params = buildParams();
+    const { result } = renderHook(() => useAccountingItemActions(params));
+
+    act(() => {
+      result.current.handleAddItem({ name: "通常明細", price: "500", category: "goods" });
+    });
+
+    const applyUpdate = params.setLocalItems.mock.calls[0]?.[0] as (
+      prev: AccountingItem[] | null,
+    ) => AccountingItem[];
+    expect(applyUpdate(null).at(-1)).toMatchObject({
+      discountRate: 0,
+      discountAmount: 0,
+      subtotal: 500,
+      taxAmount: 50,
+    });
   });
 });

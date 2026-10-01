@@ -112,7 +112,7 @@ func TestCheckupRepository_FindByClinicID_FiltersAndClinicIsolation(t *testing.T
 	old := makeCheckupWithDates(t, db, clinicA, mrA.ID, petA.ID, ctA.ID, d1, nil)
 	mid := makeCheckupWithDates(t, db, clinicA, mrA.ID, petA.ID, ctA.ID, d2, &n1)
 	recent := makeCheckupWithDates(t, db, clinicA, mrA.ID, petA.ID, ctA.ID, d3, nil)
-	_ = makeCheckupWithDates(t, db, clinicB, mrB.ID, petB.ID, ctB.ID, d2, nil) // 別クリニック
+	_ = makeCheckupWithDates(t, db, clinicB, mrB.ID, petB.ID, ctB.ID, d2, nil) // 別医院
 
 	t.Run("フィルタ無しで clinic A の健診が date DESC で返り total は全件数", func(t *testing.T) {
 		got, total, err := repo.FindByClinicID(ctx, clinicA, CheckupFilters{}, 1, 20)
@@ -456,14 +456,14 @@ func TestCheckupRepository_FindByID(t *testing.T) {
 	ct := makeCheckupTypeMaster(t, db, clinicA, "単体健診種別")
 	c := makeCheckupWithDates(t, db, clinicA, mr.ID, pet.ID, ct.ID, time.Now(), nil)
 
-	t.Run("同一クリニックで取得しMedicalRecordがPreloadされる", func(t *testing.T) {
+	t.Run("同一医院で取得しMedicalRecordがPreloadされる", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, c.ID)
 		require.NoError(t, err)
 		require.NotNil(t, got.MedicalRecord)
 		assert.Equal(t, mr.ID, got.MedicalRecord.ID)
 	})
 
-	t.Run("別クリニックからは NotFound", func(t *testing.T) {
+	t.Run("別医院からは NotFound", func(t *testing.T) {
 		_, err := repo.FindByID(ctx, clinicB, c.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -508,7 +508,7 @@ func TestCheckupRepository_Update(t *testing.T) {
 	ct := makeCheckupTypeMaster(t, db, clinicA, "更新健診種別")
 	c := makeCheckupWithDates(t, db, clinicA, mr.ID, pet.ID, ct.ID, time.Now(), nil)
 
-	t.Run("同一クリニックで更新できる", func(t *testing.T) {
+	t.Run("同一医院で更新できる", func(t *testing.T) {
 		result := "異常なし"
 		require.NoError(t, repo.Update(ctx, clinicA, c.ID, UpdateCheckupInput{Result: &result}))
 		got, err := repo.FindByID(ctx, clinicA, c.ID)
@@ -516,7 +516,7 @@ func TestCheckupRepository_Update(t *testing.T) {
 		assert.Equal(t, "異常なし", got.Result)
 	})
 
-	t.Run("別クリニックからの更新は NotFound", func(t *testing.T) {
+	t.Run("別医院からの更新は NotFound", func(t *testing.T) {
 		result := "乗っ取り"
 		err := repo.Update(ctx, clinicB, c.ID, UpdateCheckupInput{Result: &result})
 		require.Error(t, err)
@@ -543,7 +543,7 @@ func TestCheckupRepository_Delete(t *testing.T) {
 	ct := makeCheckupTypeMaster(t, db, clinicA, "削除健診種別")
 	c := makeCheckupWithDates(t, db, clinicA, mr.ID, pet.ID, ct.ID, time.Now(), nil)
 
-	t.Run("別クリニックからの削除は NotFound", func(t *testing.T) {
+	t.Run("別医院からの削除は NotFound", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, c.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -555,7 +555,7 @@ func TestCheckupRepository_Delete(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("同一クリニックで削除でき、ソフトデリートされる", func(t *testing.T) {
+	t.Run("同一医院で削除でき、ソフトデリートされる", func(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, clinicA, c.ID))
 
 		_, err := repo.FindByID(ctx, clinicA, c.ID)

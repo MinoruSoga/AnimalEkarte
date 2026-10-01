@@ -359,7 +359,7 @@ func (s *staffService) Delete(ctx context.Context, clinicID, id uint64, isSystem
 			return apperrors.WrapNotFound("staff", fmt.Sprintf("%d", id))
 		}
 		if len(assignments) > 1 {
-			return apperrors.WrapConflict("複数のクリニックに所属しているスタッフは削除できません")
+			return apperrors.WrapConflict("複数の医院に所属しているスタッフは削除できません")
 		}
 		scopeClinicID, scopeErr := mutationClinicID(id, clinicID, assignments, isSystemAdmin)
 		if scopeErr != nil {

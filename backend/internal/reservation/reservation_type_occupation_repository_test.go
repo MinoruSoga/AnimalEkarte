@@ -117,7 +117,7 @@ func TestReservationTypeOccupationRepository_FindAll(t *testing.T) {
 	// (cross) clinic A の紐付けに clinic B の occupation_id を植え付け（汚染データ模擬）
 	cross := makeReservationTypeOccupationLink(t, db, clinicA, rtA.ID, occB.ID)
 
-	t.Run("同一クリニックの紐付けを取得し、Occupation は clinic_id が一致する場合のみ Preload される", func(t *testing.T) {
+	t.Run("同一医院の紐付けを取得し、Occupation は clinic_id が一致する場合のみ Preload される", func(t *testing.T) {
 		got, err := repo.FindAll(ctx, clinicA, rtA.ID)
 		require.NoError(t, err)
 		require.Len(t, got, 2)
@@ -129,15 +129,15 @@ func TestReservationTypeOccupationRepository_FindAll(t *testing.T) {
 
 		gotLegit, ok := byID[legit.ID]
 		require.True(t, ok)
-		require.NotNil(t, gotLegit.Occupation, "同一クリニックの Occupation は Preload されるべき")
+		require.NotNil(t, gotLegit.Occupation, "同一医院の Occupation は Preload されるべき")
 		assert.Equal(t, occA.ID, gotLegit.Occupation.ID)
 
 		gotCross, ok := byID[cross.ID]
 		require.True(t, ok, "越境FKの紐付け行自体は base クエリで返るべき")
-		assert.Nil(t, gotCross.Occupation, "別クリニックの Occupation マスタが混入してはならない")
+		assert.Nil(t, gotCross.Occupation, "別医院の Occupation マスタが混入してはならない")
 	})
 
-	t.Run("別クリニックIDでは0件（clinic_id 隔離）", func(t *testing.T) {
+	t.Run("別医院IDでは0件（clinic_id 隔離）", func(t *testing.T) {
 		got, err := repo.FindAll(ctx, clinicB, rtA.ID)
 		require.NoError(t, err)
 		assert.Empty(t, got)
@@ -154,7 +154,7 @@ func TestReservationTypeOccupationRepository_FindByID(t *testing.T) {
 	occA := makeOccupation(t, db, clinicA, "単体取得用職種")
 	link := makeReservationTypeOccupationLink(t, db, clinicA, rtA.ID, occA.ID)
 
-	t.Run("同一クリニックIDで取得でき、Occupation が Preload される", func(t *testing.T) {
+	t.Run("同一医院IDで取得でき、Occupation が Preload される", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, rtA.ID, occA.ID)
 		require.NoError(t, err)
 		assert.Equal(t, link.ID, got.ID)
@@ -162,7 +162,7 @@ func TestReservationTypeOccupationRepository_FindByID(t *testing.T) {
 		assert.Equal(t, occA.ID, got.Occupation.ID)
 	})
 
-	t.Run("別クリニックIDでは NotFound", func(t *testing.T) {
+	t.Run("別医院IDでは NotFound", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicB, rtA.ID, occA.ID)
 		assert.Error(t, err)
 		assert.Nil(t, got)
@@ -205,13 +205,13 @@ func TestReservationTypeOccupationRepository_Delete(t *testing.T) {
 	occA := makeOccupation(t, db, clinicA, "削除対象職種")
 	makeReservationTypeOccupationLink(t, db, clinicA, rtA.ID, occA.ID)
 
-	t.Run("別クリニックIDでは NotFound", func(t *testing.T) {
+	t.Run("別医院IDでは NotFound", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, rtA.ID, occA.ID)
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("正しいクリニックIDで削除できる（物理削除）", func(t *testing.T) {
+	t.Run("正しい医院IDで削除できる（物理削除）", func(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, clinicA, rtA.ID, occA.ID))
 		_, err := repo.FindByID(ctx, clinicA, rtA.ID, occA.ID)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -270,7 +270,7 @@ func TestReservationTypeOccupationRepository_CountWorkingStaffByReservationTypeI
 		assert.True(t, hasNoShiftKey, "候補が1人以上ならシフト無し日のキーも埋める")
 	})
 
-	t.Run("別クリニックIDでは空map（clinic_id 隔離）", func(t *testing.T) {
+	t.Run("別医院IDでは空map（clinic_id 隔離）", func(t *testing.T) {
 		result, err := repo.CountWorkingStaffByReservationTypeIDs(ctx, clinicB, rtA.ID, []time.Time{dateA, dateB})
 		require.NoError(t, err)
 		assert.Empty(t, result)

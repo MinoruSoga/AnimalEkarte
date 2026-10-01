@@ -293,7 +293,7 @@ func requireOwnedExamTypeFields(examType *model.ExaminationType, items []LabExam
 			continue
 		}
 		if _, ok := owned[*item.ExamTypeFieldID]; !ok {
-			return apperrors.WrapInvalidInput("exam_type_field が当該検査種別に属していません（別クリニック/別種別の項目は紐付けできません）")
+			return apperrors.WrapInvalidInput("exam_type_field が当該検査種別に属していません（別医院/別種別の項目は紐付けできません）")
 		}
 	}
 	return nil

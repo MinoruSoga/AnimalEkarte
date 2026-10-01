@@ -61,7 +61,9 @@ function useOwnerPetSelection(pets: ReadonlyArray<Pet>) {
 
 function ReportStatus({ error = false }: { error?: boolean }) {
   return (
-    <div className={`flex min-h-dvh items-center justify-center ${C.bgPage} p-6`}>
+    <div
+      className={`h-dvh overflow-y-auto flex items-center-safe justify-center-safe ${C.bgPage} p-6`}
+    >
       <p
         className={`text-sm ${error ? C.danger : C.text50}`}
         role={error ? "alert" : "status"}

@@ -74,7 +74,7 @@ func TestEstimateRepository_Create_FindByID(t *testing.T) {
 		assert.Equal(t, "健康診断パック", got.Items[0].Name)
 	})
 
-	t.Run("別クリニックからはNotFound", func(t *testing.T) {
+	t.Run("別医院からはNotFound", func(t *testing.T) {
 		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
 
 		_, err := repo.FindByID(ctx, clinicB, e.ID)
@@ -140,7 +140,7 @@ func TestEstimateRepository_Update(t *testing.T) {
 
 	owner := testdb.MakeTestOwner(t, db, clinicA, "更新飼主")
 
-	t.Run("同一クリニックの更新は成功する", func(t *testing.T) {
+	t.Run("同一医院の更新は成功する", func(t *testing.T) {
 		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
 
 		status := model.EstimateStatusSent

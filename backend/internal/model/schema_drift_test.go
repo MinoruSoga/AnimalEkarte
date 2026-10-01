@@ -77,7 +77,7 @@ func allModels() []any {
 		&model.ExaminationRevisionItem{},
 		&model.Vaccination{},
 		&model.Checkup{},
-		&model.Prescription{},
+
 		&model.MedicalRecordImage{},
 		&model.Reservation{},
 		&model.Inquiry{},
@@ -117,7 +117,7 @@ func allModels() []any {
 		&model.StaffPermissionGroup{},
 		// 予約種別グループ
 		&model.ReservationTypeGroup{},
-		// クリニック休診日
+		// 医院休診日
 		&model.ClinicHoliday{},
 		// FEAT-368: 集計・締め機能
 		&model.ClinicSettings{},

@@ -38,13 +38,13 @@ func TestEstimateRepository_CountItemsByEstimateID_ClinicIsolation(t *testing.T)
 	item := &model.EstimateItem{EstimateID: est.ID, Name: "テスト項目", Category: model.ItemCategoryOther}
 	require.NoError(t, db.WithContext(ctx).Create(item).Error)
 
-	t.Run("同一クリニックIDでは件数が見える", func(t *testing.T) {
+	t.Run("同一医院IDでは件数が見える", func(t *testing.T) {
 		count, err := repo.CountItemsByEstimateID(ctx, clinicA, est.ID)
 		require.NoError(t, err)
 		require.Equal(t, int64(1), count)
 	})
 
-	t.Run("別クリニックIDでは0件を返す（JOIN述語がないと漏洩しうる）", func(t *testing.T) {
+	t.Run("別医院IDでは0件を返す（JOIN述語がないと漏洩しうる）", func(t *testing.T) {
 		count, err := repo.CountItemsByEstimateID(ctx, clinicB, est.ID)
 		require.NoError(t, err)
 		require.Equal(t, int64(0), count)

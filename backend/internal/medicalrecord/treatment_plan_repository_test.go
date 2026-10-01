@@ -81,7 +81,7 @@ func TestTreatmentPlanRepository_FindByMedicalRecordID(t *testing.T) {
 	planSecond := makeTreatmentPlan(t, db, clinicA, &mrA.ID, nil, "後・治療計画", 2)
 	planFirst := makeTreatmentPlan(t, db, clinicA, &mrA.ID, nil, "先・治療計画", 1)
 	makeTreatmentPlan(t, db, clinicA, &mrOther.ID, nil, "別カルテの計画", 1)
-	makeTreatmentPlan(t, db, clinicB, &mrB.ID, nil, "別クリニックの計画", 1)
+	makeTreatmentPlan(t, db, clinicB, &mrB.ID, nil, "別医院の計画", 1)
 
 	t.Run("returns plans for the medical record ordered by sort_order ASC", func(t *testing.T) {
 		got, err := repo.FindByMedicalRecordID(ctx, clinicA, mrA.ID)
@@ -126,7 +126,7 @@ func TestTreatmentPlanRepository_FindByHospitalizationID(t *testing.T) {
 	planSecond := makeTreatmentPlan(t, db, clinicA, nil, &hospA.ID, "後・入院治療計画", 2)
 	planFirst := makeTreatmentPlan(t, db, clinicA, nil, &hospA.ID, "先・入院治療計画", 1)
 	makeTreatmentPlan(t, db, clinicA, nil, &hospOther.ID, "別入院の計画", 1)
-	makeTreatmentPlan(t, db, clinicB, nil, &hospB.ID, "別クリニック入院の計画", 1)
+	makeTreatmentPlan(t, db, clinicB, nil, &hospB.ID, "別医院入院の計画", 1)
 
 	t.Run("returns plans for the hospitalization ordered by sort_order ASC", func(t *testing.T) {
 		got, err := repo.FindByHospitalizationID(ctx, clinicA, hospA.ID)

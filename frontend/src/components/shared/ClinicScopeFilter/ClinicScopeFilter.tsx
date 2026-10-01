@@ -19,7 +19,7 @@ export function ClinicScopeFilter({ clinics, selectedIds, onToggle }: ClinicScop
 
   return (
     <div className="flex items-center gap-1.5 flex-wrap" data-testid="clinic-scope-filter">
-      <span className={`text-sm ${C.text60}`}>表示拠点:</span>
+      <span className={`text-sm ${C.text60}`}>表示医院:</span>
       {clinics.map((membership) => {
         const selected = selectedIds.includes(membership.clinicId);
         return (

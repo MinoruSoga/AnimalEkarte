@@ -33,6 +33,8 @@ func newBillingCoreServices(
 		billing.WithBillingItemAuditTx(auditTx),
 		// W-013 HIGH-2: 明細締め後変更も adjustment 台帳へ追記
 		billing.WithBillingItemCloseRepository(r.cashRegisterCloses),
+		// EMR-229: 未請求候補の飼主割引率事前適用（pet→主飼主解決）
+		billing.WithBillingItemPetOwnerFinder(d.Reservations),
 	)
 	return billingCoreServices{
 		accounting: billing.NewAccountingService(

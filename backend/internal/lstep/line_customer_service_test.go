@@ -178,7 +178,7 @@ func TestLineCustomerService_LinkOwner(t *testing.T) {
 			wantNF:      true,
 		},
 		{
-			// Regression for FE-refactor.md 残件 3: 他クリニック / 不存在の ownerID は
+			// Regression for FE-refactor.md 残件 3: 他医院 / 不存在の ownerID は
 			// UpdateOwnerLink を呼ばず NotFound を返すこと（旧挙動は未検証のままリンク成功していた）。
 			name:                  "returns not found error when ownerID belongs to a different clinic",
 			id:                    1,

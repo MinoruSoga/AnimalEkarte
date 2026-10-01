@@ -536,6 +536,74 @@ func TestMedicalRecordRepository_FindAll_Filters(t *testing.T) {
 		assert.Equal(t, finalized.ID, got[0].ID)
 	})
 
+	medicine := &model.Medicine{ClinicID: clinicA, Name: "フィルタ検証薬", IsActive: true}
+	require.NoError(t, db.WithContext(ctx).Create(medicine).Error)
+	otherMedicine := &model.Medicine{ClinicID: clinicA, Name: "別の薬", IsActive: true}
+	require.NoError(t, db.WithContext(ctx).Create(otherMedicine).Error)
+	makeTreatmentSearchTreatment(t, db, &model.Treatment{
+		MedicalRecordID: draft.ID,
+		ItemType:        model.TreatmentItemTypeMedicine,
+		MedicineID:      &medicine.ID,
+	})
+	makeTreatmentSearchTreatment(t, db, &model.Treatment{
+		MedicalRecordID: finalized.ID,
+		ItemType:        model.TreatmentItemTypeMedicine,
+		MedicineID:      &otherMedicine.ID,
+	})
+	procedure := &model.Procedure{ClinicID: clinicA, Name: "フィルタ検証処置"}
+	require.NoError(t, db.WithContext(ctx).Create(procedure).Error)
+	makeTreatmentSearchTreatment(t, db, &model.Treatment{
+		MedicalRecordID: draft.ID,
+		ItemType:        model.TreatmentItemTypeProcedure,
+		ProcedureID:     &procedure.ID,
+	})
+	consultation := &model.Consultation{ClinicID: clinicA, Name: "フィルタ検証診察"}
+	require.NoError(t, db.WithContext(ctx).Create(consultation).Error)
+	makeTreatmentSearchTreatment(t, db, &model.Treatment{
+		MedicalRecordID: finalized.ID,
+		ItemType:        model.TreatmentItemTypeConsultation,
+		ConsultationID:  &consultation.ID,
+	})
+	inventory := &model.InventoryItem{ClinicID: clinicA, Name: "フィルタ検証物品", Category: model.InventoryCategoryOther}
+	require.NoError(t, db.WithContext(ctx).Create(inventory).Error)
+	makeTreatmentSearchTreatment(t, db, &model.Treatment{
+		MedicalRecordID: draft.ID,
+		ItemType:        model.TreatmentItemTypeOther,
+		InventoryID:     &inventory.ID,
+	})
+
+	t.Run("medicine_id で絞り込める", func(t *testing.T) {
+		got, total, err := repo.FindAll(ctx, []uint64{clinicA}, MedicalRecordListFilters{MedicineID: &medicine.ID}, 1, 100)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), total)
+		require.Len(t, got, 1)
+		assert.Equal(t, draft.ID, got[0].ID)
+	})
+
+	t.Run("procedure_id で絞り込める", func(t *testing.T) {
+		got, total, err := repo.FindAll(ctx, []uint64{clinicA}, MedicalRecordListFilters{ProcedureID: &procedure.ID}, 1, 100)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), total)
+		require.Len(t, got, 1)
+		assert.Equal(t, draft.ID, got[0].ID)
+	})
+
+	t.Run("consultation_id で絞り込める", func(t *testing.T) {
+		got, total, err := repo.FindAll(ctx, []uint64{clinicA}, MedicalRecordListFilters{ConsultationID: &consultation.ID}, 1, 100)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), total)
+		require.Len(t, got, 1)
+		assert.Equal(t, finalized.ID, got[0].ID)
+	})
+
+	t.Run("inventory_id で絞り込める", func(t *testing.T) {
+		got, total, err := repo.FindAll(ctx, []uint64{clinicA}, MedicalRecordListFilters{InventoryID: &inventory.ID}, 1, 100)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), total)
+		require.Len(t, got, 1)
+		assert.Equal(t, draft.ID, got[0].ID)
+	})
+
 	t.Run("start_date/end_date で絞り込める（既存挙動の維持）", func(t *testing.T) {
 		start := "2026-02-01"
 		end := "2026-02-28"
@@ -747,7 +815,7 @@ func TestMedicalRecordRepository_FindByID(t *testing.T) {
 	})
 }
 
-// TestMedicalRecordRepository_FindByIDForClinics はマルチクリニック横断取得の
+// TestMedicalRecordRepository_FindByIDForClinics はマルチ医院横断取得の
 // clinic_id 隔離（許可リスト外は拒否）を検証する。
 func TestMedicalRecordRepository_FindByIDForClinics(t *testing.T) {
 	db := setupMedicalRecordListTestDB(t)

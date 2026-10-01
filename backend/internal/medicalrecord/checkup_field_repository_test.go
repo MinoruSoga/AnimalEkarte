@@ -154,8 +154,8 @@ func TestCheckupFieldResultRepository_FindByPetID_FieldPreloadClinicIsolation(t 
 		require.NotNil(t, r.CheckupTypeFieldID)
 		byFieldID[*r.CheckupTypeFieldID] = r
 	}
-	assert.Nil(t, byFieldID[fieldB.ID].CheckupTypeField, "別クリニックの field 定義マスタが Preload で混入してはならない")
-	require.NotNil(t, byFieldID[fieldA.ID].CheckupTypeField, "同一クリニックの field 定義は Preload されるべき")
+	assert.Nil(t, byFieldID[fieldB.ID].CheckupTypeField, "別医院の field 定義マスタが Preload で混入してはならない")
+	require.NotNil(t, byFieldID[fieldA.ID].CheckupTypeField, "同一医院の field 定義は Preload されるべき")
 	assert.Equal(t, "医院Aの項目", byFieldID[fieldA.ID].CheckupTypeField.Name)
 }
 
@@ -204,7 +204,7 @@ func TestCheckupTypeFieldRepository_FindByCheckupTypeID_ClinicScoped(t *testing.
 	require.Len(t, got, 1, "clinic A の field のみ返るべき（別 clinic の汚染行は除外）")
 	assert.Equal(t, fieldA.ID, got[0].ID)
 	for _, f := range got {
-		assert.NotEqual(t, fieldB.ID, f.ID, "別クリニックの field 定義が混入してはならない")
+		assert.NotEqual(t, fieldB.ID, f.ID, "別医院の field 定義が混入してはならない")
 		assert.Equal(t, clinicA, f.ClinicID)
 	}
 }
@@ -298,7 +298,7 @@ func TestCheckupTypeFieldRepository_LockFieldByID_ScopedAndLocking(t *testing.T)
 	require.NoError(t, err)
 	assert.Equal(t, field.ID, got.ID)
 
-	// 複合スコープ: 他クリニック / 別パッケージ / 未存在 id は全て NotFound。
+	// 複合スコープ: 他医院 / 別パッケージ / 未存在 id は全て NotFound。
 	for _, tc := range []struct {
 		name          string
 		clinicID      uint64
@@ -339,7 +339,7 @@ func TestCheckupTypeFieldRepository_UpdateField_PartialUpdateScoped(t *testing.T
 	assert.Equal(t, model.CheckupFieldTypeText, updated.FieldType)
 	assert.Nil(t, updated.MinValue)
 
-	// 複合スコープ外の更新は NotFound（他クリニックの同 id 行は触れない）。
+	// 複合スコープ外の更新は NotFound（他医院の同 id 行は触れない）。
 	_, err = repo.UpdateField(ctx, clinicB, ctB.ID, field.ID, map[string]any{"name": "Bの名前"})
 	require.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
@@ -370,7 +370,7 @@ func TestCheckupTypeFieldRepository_DeleteField_SoftDeletesScoped(t *testing.T) 
 		Where("id = ? AND deleted_at IS NOT NULL", field.ID).Count(&count).Error)
 	assert.EqualValues(t, 1, count, "定義行自体は残る（履歴参照用）")
 
-	// 他クリニックスコープからの削除は NotFound。
+	// 他医院スコープからの削除は NotFound。
 	err := repo.DeleteField(ctx, clinicB, ctB.ID, field.ID)
 	require.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
@@ -394,7 +394,7 @@ func TestCheckupTypeFieldRepository_ReorderFields_AtomicScoped(t *testing.T) {
 	require.Len(t, got, 2)
 	assert.Equal(t, []uint64{f2.ID, f1.ID}, []uint64{got[0].ID, got[1].ID})
 
-	// 他クリニック id 混在は複合スコープで NotFound。
+	// 他医院 id 混在は複合スコープで NotFound。
 	err = repo.ReorderFields(ctx, clinicA, ctA.ID, []uint64{f1.ID, fB.ID})
 	require.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err), "foreign id は NotFound")

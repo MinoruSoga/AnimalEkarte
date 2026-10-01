@@ -4,7 +4,7 @@
 > **読者**: 新規参加開発者・非エンジニア(院長等)。
 > **タイミング**: LINE連携機能の全体像を把握したい時。
 
-> **Animal Ekarte**: 飼い主向け予約体験と CRM 戦略の統合
+> **Animal Ekarte**: 飼主向け予約体験と CRM 戦略の統合
 > **最新更新**: 2026-09-06（repo `7c6592f9f` / GitHub #259 本文・コメント照合）
 
 ---
@@ -15,7 +15,7 @@
 
 ### 技術・アーキテクチャ
 - **[architecture.md](./architecture.md)**: 予約システム(v1)と Lステップ(v2)の全体像、認証フロー、非同期同期ロジック。
-- **[reservation-spec.md](./reservation-spec.md)**: 飼い主向け予約アプリ（LIFF）の機能要件、画面遷移、空き枠計算エンジン。
+- **[reservation-spec.md](./reservation-spec.md)**: 飼主向け予約アプリ（LIFF）の機能要件、画面遷移、空き枠計算エンジン。
 
 ### 導入・設定
 - **[setup.md](./setup.md)**: LINE Developers Console、Messaging API、および Lステップ管理画面の初期設定手順。
@@ -29,16 +29,16 @@
 
 ## 2. システム概要
 
-本機能は、電子カルテ本体（Go API）を共通の脳とし、飼い主が直接操作する **LIFF App** と、病院側が運用する **Lステップ管理基盤** を高度に連携させます。
+本機能は、電子カルテ本体（Go API）を共通の脳とし、飼主が直接操作する **LIFF App** と、病院側が運用する **Lステップ管理基盤** を高度に連携させます。
 
 ### 主要な価値
 - **オペレーションの自動化**: LINE 予約がカルテ受付（カンバン）へ即座に反映され、スタッフの手入力コストを削減。
-- **臨床データに基づく CRM**: 診察結果や最終来院日に基づき、Lステップが「忘れられない病院」として自動で飼い主をフォロー。
+- **臨床データに基づく CRM**: 診察結果や最終来院日に基づき、Lステップが「忘れられない病院」として自動で飼主をフォロー。
 - **競合を拒否する空き枠管理**: 作成transaction内で予約種別規則とappointment conflictを再検証する。明示staffはclinic所属・capability・LIFF公開/activeを検査するが、**選択時刻のshift再検証は未実装のsource gap**であり、frontendのshift絞り込みだけを安全根拠にしない。
 
 ```mermaid
 flowchart LR
-    Owner["飼い主<br/>LINE アプリ"]
+    Owner["飼主<br/>LINE アプリ"]
     LIFF["LIFF App"]
     API["電子カルテ本体<br/>Go API（共通の脳）"]
     Kanban["受付カンバン"]

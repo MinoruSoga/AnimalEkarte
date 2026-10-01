@@ -43,7 +43,7 @@ func TestReservationRepository_ReservationType_CrossClinicPreloadIsolation(t *te
 	gotCross, err := repo.FindByID(ctx, clinicA, resCross.ID)
 	require.Error(t, err)
 	assert.Nil(t, gotCross)
-	assert.True(t, apperrors.IsNotFound(err), "別クリニックの診療区分を指す予約は NotFound にする: %v", err)
+	assert.True(t, apperrors.IsNotFound(err), "別医院の診療区分を指す予約は NotFound にする: %v", err)
 
 	// (ii) #86 [A,B] でも、clinic A の予約と clinic B の診療区分は相関しない
 	gotBoth, err := repo.FindByIDForClinics(ctx, []uint64{clinicA, clinicB}, resCross.ID)

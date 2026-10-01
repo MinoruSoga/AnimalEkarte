@@ -79,7 +79,7 @@ func makeAssignedDoctor(t *testing.T, db *gorm.DB, clinicID uint64, name string,
 }
 
 // TestStaffRepository_CreateForReservation_BindsAssignmentToClinic は
-// 作成された StaffClinicAssignment が呼び出し元クリニックへ IsMain で紐づくことを検証する。
+// 作成された StaffClinicAssignment が呼び出し元医院へ IsMain で紐づくことを検証する。
 func TestStaffRepository_CreateForReservation_BindsAssignmentToClinic(t *testing.T) {
 	db := setupStaffReservationWriteTestDB(t)
 	repo := NewRepository(db)
@@ -145,7 +145,7 @@ func TestStaffRepository_UpdateForReservation_ClinicIsolation(t *testing.T) {
 	repo := NewRepository(db)
 	ctx := context.Background()
 
-	staffB := makeAssignedDoctor(t, db, 2, "クリニックB医師", 1)
+	staffB := makeAssignedDoctor(t, db, 2, "医院B医師", 1)
 
 	err := repo.UpdateForReservation(ctx, 1, staffB.ID, ReservationStaffUpdate{Name: ptr("改ざん")})
 	require.Error(t, err)
@@ -153,7 +153,7 @@ func TestStaffRepository_UpdateForReservation_ClinicIsolation(t *testing.T) {
 
 	var reloaded model.Staff
 	require.NoError(t, db.First(&reloaded, staffB.ID).Error)
-	assert.Equal(t, "クリニックB医師", reloaded.Name)
+	assert.Equal(t, "医院B医師", reloaded.Name)
 }
 
 func TestStaffRepository_UpdateForReservation_EmptyCommandNoop(t *testing.T) {
@@ -195,7 +195,7 @@ func TestStaffRepository_SwapSortOrderForReservation_ClinicIsolation(t *testing.
 	assert.Equal(t, 2, r2.SortOrder)
 }
 
-// TestStaffRepository_SwapSortOrderForReservation_SwapsWithinClinic は同一クリニック内で
+// TestStaffRepository_SwapSortOrderForReservation_SwapsWithinClinic は同一医院内で
 // 隣接スタッフと sort_order が入れ替わる（delegate 移動後の挙動保持）ことを検証する。
 func TestStaffRepository_SwapSortOrderForReservation_SwapsWithinClinic(t *testing.T) {
 	db := setupStaffReservationWriteTestDB(t)

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import { C } from "@/lib/design-tokens";
 import { PatientInfoCard } from "./PatientInfoCard";
 
 vi.mock("@/assets/231a870df600a37e011a0e1140e7608b1f4c3340.png", () => ({ default: "/pet.png" }));
@@ -94,41 +95,40 @@ describe("PatientInfoCard next visit alert", () => {
   });
 });
 
-describe("PatientInfoCard 危険マーク (EMR-173)", () => {
-  it("ownerIsDangerous=true なら飼主名の横に ⚠ 危険人物 を出す", () => {
+describe("PatientInfoCard 特記マーク (EMR-173/231)", () => {
+  it("ownerIsDangerous=true なら飼主名の横にアイコンマークを出す", () => {
     render(<PatientInfoCard {...baseProps} ownerIsDangerous />);
 
-    expect(screen.getByText("⚠ 危険人物")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "特記" })).toBeInTheDocument();
   });
 
-  it("ownerIsDangerous 未指定なら危険人物マークを出さない", () => {
+  it("ownerIsDangerous 未指定なら特記マークを出さない", () => {
     render(<PatientInfoCard {...baseProps} />);
 
-    expect(screen.queryByText("⚠ 危険人物")).not.toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "特記" })).not.toBeInTheDocument();
   });
 
-  it("petDangerLevel=高ならペット名の横に ⚠ 危険 badge を出し理由を開ける", async () => {
+  it("petDangerLevel=高ならペット名の横にアイコンバッジを出しメモを開ける", async () => {
     const user = userEvent.setup();
     render(<PatientInfoCard {...baseProps} petDangerLevel="高" petDangerReason="保定時に噛む" />);
 
-    const trigger = screen.getByRole("button", { name: "ポチの危険理由を表示" });
+    const trigger = screen.getByRole("button", { name: "ポチの詳細を表示" });
     await user.click(trigger);
     expect(await screen.findByText("保定時に噛む")).toBeInTheDocument();
   });
 
-  it("petDangerLevel=中なら黄色 ⚠ 注意 badge を出し、低・未指定は何も出さない", () => {
+  it("petDangerLevel=中ならアイコンバッジを出し、低・未指定は何も出さない", () => {
     const { rerender } = render(<PatientInfoCard {...baseProps} petDangerLevel="中" />);
 
-    expect(screen.getByRole("button", { name: "ポチの注意理由を表示" })).toHaveTextContent(
-      "⚠ 注意",
-    );
-    expect(screen.queryByText("⚠ 危険")).not.toBeInTheDocument();
+    const mediumTrigger = screen.getByRole("button", { name: "ポチの詳細を表示" });
+    expect(mediumTrigger.textContent).toBe("");
+    expect(mediumTrigger).toHaveClass(C.bgNotice, C.textBadgeYellow, C.borderNotice);
 
     rerender(<PatientInfoCard {...baseProps} petDangerLevel="低" />);
-    expect(screen.queryByText("⚠ 注意")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /の詳細を表示/ })).not.toBeInTheDocument();
 
     rerender(<PatientInfoCard {...baseProps} />);
-    expect(screen.queryByText("⚠ 危険")).not.toBeInTheDocument();
-    expect(screen.queryByText("⚠ 注意")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /の詳細を表示/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "特記" })).not.toBeInTheDocument();
   });
 });

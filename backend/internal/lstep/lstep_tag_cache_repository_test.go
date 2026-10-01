@@ -6,8 +6,8 @@ package lstep
 //   - UpsertTag は (clinic_id, owner_id, tag_name) で UPSERT する（重複行を作らない、reason 空文字は NULL 保存）。
 //   - DeleteTag / DeleteAllByOwner / FindByOwner / FindByOwners / CountByTag / FindOwnerIDsByTag は clinic_id で分離される。
 //   - FindByOwners はタグを持たない owner_id をキーとして含めず、ownerIDs 空引数は空mapを即返す。
-//   - TagSummary はタグ名・カテゴリ別の飼い主数集計を返し、totalOwnersWithLstep はタグ保持飼い主の重複排除数。
-//   - FindOwnersByTag は owners.clinic_id + owners.deleted_at IS NULL を満たす飼い主のみ対象とし、
+//   - TagSummary はタグ名・カテゴリ別の飼主数集計を返し、totalOwnersWithLstep はタグ保持飼主の重複排除数。
+//   - FindOwnersByTag は owners.clinic_id + owners.deleted_at IS NULL を満たす飼主のみ対象とし、
 //     nameQuery 部分一致・ページネーション・タグ一覧付与を行う。
 //   - BulkReplaceOwnerTags は既存タグを全削除してから指定タグを一括挿入する。
 
@@ -96,13 +96,13 @@ func TestLstepTagCacheRepository_DeleteTag(t *testing.T) {
 		assert.Equal(t, int64(0), count)
 	})
 
-	t.Run("同一飼い主の別タグは残る", func(t *testing.T) {
+	t.Run("同一飼主の別タグは残る", func(t *testing.T) {
 		var count int64
 		require.NoError(t, db.Model(&model.LstepTagCache{}).Where("clinic_id = ? AND owner_id = ? AND tag_name = ?", 1, 200, "tag-b").Count(&count).Error)
 		assert.Equal(t, int64(1), count)
 	})
 
-	t.Run("別クリニックの同名タグは削除されない（clinic_id分離）", func(t *testing.T) {
+	t.Run("別医院の同名タグは削除されない（clinic_id分離）", func(t *testing.T) {
 		var count int64
 		require.NoError(t, db.Model(&model.LstepTagCache{}).Where("clinic_id = ? AND owner_id = ? AND tag_name = ?", 2, 200, "tag-a").Count(&count).Error)
 		assert.Equal(t, int64(1), count)
@@ -120,13 +120,13 @@ func TestLstepTagCacheRepository_DeleteAllByOwner(t *testing.T) {
 
 	require.NoError(t, repo.DeleteAllByOwner(ctx, 1, 300))
 
-	t.Run("対象飼い主の全タグが削除される", func(t *testing.T) {
+	t.Run("対象飼主の全タグが削除される", func(t *testing.T) {
 		var count int64
 		require.NoError(t, db.Model(&model.LstepTagCache{}).Where("clinic_id = ? AND owner_id = ?", 1, 300).Count(&count).Error)
 		assert.Equal(t, int64(0), count)
 	})
 
-	t.Run("別飼い主のタグは残る", func(t *testing.T) {
+	t.Run("別飼主のタグは残る", func(t *testing.T) {
 		var count int64
 		require.NoError(t, db.Model(&model.LstepTagCache{}).Where("clinic_id = ? AND owner_id = ?", 1, 301).Count(&count).Error)
 		assert.Equal(t, int64(1), count)
@@ -142,13 +142,13 @@ func TestLstepTagCacheRepository_FindByOwner(t *testing.T) {
 	require.NoError(t, repo.UpsertTag(ctx, 1, 400, "tag-b", "auto", ""))
 	require.NoError(t, repo.UpsertTag(ctx, 2, 400, "tag-c", "auto", ""))
 
-	t.Run("対象飼い主のタグ一覧を返す", func(t *testing.T) {
+	t.Run("対象飼主のタグ一覧を返す", func(t *testing.T) {
 		records, err := repo.FindByOwner(ctx, 1, 400)
 		require.NoError(t, err)
 		require.Len(t, records, 2)
 	})
 
-	t.Run("別クリニックの同一owner_idは含まれない（clinic_id分離）", func(t *testing.T) {
+	t.Run("別医院の同一owner_idは含まれない（clinic_id分離）", func(t *testing.T) {
 		records, err := repo.FindByOwner(ctx, 2, 400)
 		require.NoError(t, err)
 		require.Len(t, records, 1)
@@ -182,7 +182,7 @@ func TestLstepTagCacheRepository_FindByOwners(t *testing.T) {
 		assert.False(t, hasMissing, "タグなしowner_idはキーとして存在しない")
 	})
 
-	t.Run("別クリニックのタグは含まれない（clinic_id分離）", func(t *testing.T) {
+	t.Run("別医院のタグは含まれない（clinic_id分離）", func(t *testing.T) {
 		result, err := repo.FindByOwners(ctx, 2, []uint64{400})
 		require.NoError(t, err)
 		require.Len(t, result[400], 1)
@@ -204,12 +204,12 @@ func TestLstepTagCacheRepository_TagSummary(t *testing.T) {
 	require.NoError(t, repo.UpsertTag(ctx, 1, 600, "dormant_365d", "auto", ""))
 	require.NoError(t, repo.UpsertTag(ctx, 1, 601, "dormant_365d", "auto", ""))
 	require.NoError(t, repo.UpsertTag(ctx, 1, 601, "manual_note", "manual", ""))
-	require.NoError(t, repo.UpsertTag(ctx, 2, 602, "dormant_365d", "auto", "")) // 別クリニック
+	require.NoError(t, repo.UpsertTag(ctx, 2, 602, "dormant_365d", "auto", "")) // 別医院
 
 	rows, total, err := repo.TagSummary(ctx, 1)
 	require.NoError(t, err)
 
-	t.Run("タグ名・カテゴリ別の飼い主数を集計する", func(t *testing.T) {
+	t.Run("タグ名・カテゴリ別の飼主数を集計する", func(t *testing.T) {
 		require.Len(t, rows, 2)
 		byTag := make(map[string]TagSummaryRow, len(rows))
 		for _, r := range rows {
@@ -221,11 +221,11 @@ func TestLstepTagCacheRepository_TagSummary(t *testing.T) {
 		assert.Equal(t, int64(1), byTag["manual_note"].OwnerCount)
 	})
 
-	t.Run("totalOwnersWithLstep はタグ保持飼い主のユニーク数", func(t *testing.T) {
+	t.Run("totalOwnersWithLstep はタグ保持飼主のユニーク数", func(t *testing.T) {
 		assert.Equal(t, int64(2), total, "owner 600, 601 の2名（601は2タグ持つが重複排除）")
 	})
 
-	t.Run("別クリニックは集計に含まれない", func(t *testing.T) {
+	t.Run("別医院は集計に含まれない", func(t *testing.T) {
 		otherRows, otherTotal, err := repo.TagSummary(ctx, 2)
 		require.NoError(t, err)
 		require.Len(t, otherRows, 1)
@@ -241,8 +241,8 @@ func TestLstepTagCacheRepository_FindOwnersByTag(t *testing.T) {
 	const clinicA, clinicB = uint64(1), uint64(2)
 	tanaka := testdb.MakeTestOwner(t, db, clinicA, "田中太郎")
 	yamada := testdb.MakeTestOwner(t, db, clinicA, "山田花子")
-	deletedOwner := testdb.MakeTestOwner(t, db, clinicA, "削除済み飼い主")
-	otherClinicOwner := testdb.MakeTestOwner(t, db, clinicB, "別クリニック飼い主")
+	deletedOwner := testdb.MakeTestOwner(t, db, clinicA, "削除済み飼主")
+	otherClinicOwner := testdb.MakeTestOwner(t, db, clinicB, "別医院飼主")
 
 	require.NoError(t, repo.UpsertTag(ctx, clinicA, tanaka.ID, "dormant_365d", "auto", "reason-tanaka"))
 	require.NoError(t, repo.UpsertTag(ctx, clinicA, tanaka.ID, "manual_note", "manual", ""))
@@ -253,7 +253,7 @@ func TestLstepTagCacheRepository_FindOwnersByTag(t *testing.T) {
 	// ソフトデリート
 	require.NoError(t, db.Delete(&model.Owner{}, deletedOwner.ID).Error)
 
-	t.Run("該当タグを持つ飼い主をタグ一覧付きで返す（ソフトデリート・他クリニック除外）", func(t *testing.T) {
+	t.Run("該当タグを持つ飼主をタグ一覧付きで返す（ソフトデリート・他医院除外）", func(t *testing.T) {
 		results, total, err := repo.FindOwnersByTag(ctx, clinicA, "dormant_365d", "", 0, 10)
 		require.NoError(t, err)
 		assert.Equal(t, int64(2), total)
@@ -267,7 +267,7 @@ func TestLstepTagCacheRepository_FindOwnersByTag(t *testing.T) {
 		assert.ElementsMatch(t, []string{"dormant_365d", "manual_note"}, byID[tanaka.ID].Tags)
 		require.NotNil(t, byID[tanaka.ID].Reason)
 		assert.Equal(t, "reason-tanaka", *byID[tanaka.ID].Reason)
-		assert.NotContains(t, byID, deletedOwner.ID, "ソフトデリート済み飼い主は除外される")
+		assert.NotContains(t, byID, deletedOwner.ID, "ソフトデリート済み飼主は除外される")
 	})
 
 	t.Run("nameQuery で部分一致フィルタする", func(t *testing.T) {
@@ -309,16 +309,16 @@ func TestLstepTagCacheRepository_FindOwnerIDsByTag(t *testing.T) {
 	require.NoError(t, db.WithContext(ctx).Create([]*model.Owner{ownerA1, ownerA2, ownerB}).Error)
 	require.NoError(t, repo.UpsertTag(ctx, 1, ownerA1.ID, "dormant_365d", "auto", ""))
 	require.NoError(t, repo.UpsertTag(ctx, 1, ownerA2.ID, "dormant_365d", "auto", ""))
-	require.NoError(t, repo.UpsertTag(ctx, 2, ownerB.ID, "dormant_365d", "auto", "")) // 別クリニック
+	require.NoError(t, repo.UpsertTag(ctx, 2, ownerB.ID, "dormant_365d", "auto", "")) // 別医院
 	require.NoError(t, repo.UpsertTag(ctx, 1, ownerB.ID, "dormant_365d", "auto", "")) // 不整合行
 
-	t.Run("該当タグを持つ飼い主IDを重複なく返す", func(t *testing.T) {
+	t.Run("該当タグを持つ飼主IDを重複なく返す", func(t *testing.T) {
 		ids, err := repo.FindOwnerIDsByTag(ctx, 1, "dormant_365d")
 		require.NoError(t, err)
 		assert.ElementsMatch(t, []uint64{ownerA1.ID, ownerA2.ID}, ids)
 	})
 
-	t.Run("別クリニックのIDは含まれない", func(t *testing.T) {
+	t.Run("別医院のIDは含まれない", func(t *testing.T) {
 		ids, err := repo.FindOwnerIDsByTag(ctx, 2, "dormant_365d")
 		require.NoError(t, err)
 		assert.ElementsMatch(t, []uint64{ownerB.ID}, ids)

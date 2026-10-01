@@ -545,7 +545,7 @@ func TestGetClinic_NonAdmin_OwnClinic_ReturnsOK(t *testing.T) {
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodGet, "/clinics/1", http.NoBody)
 	c.Params = gin.Params{{Key: "clinic_id", Value: "1"}}
-	// is_system_admin=false、clinic_id=1 → 自分のクリニックなのでアクセス可
+	// is_system_admin=false、clinic_id=1 → 自分の医院なのでアクセス可
 	setNonSystemAdmin(c)
 	setClinicID(c) // clinic_id=1
 
@@ -564,7 +564,7 @@ func TestGetClinic_NonAdmin_OtherClinic_Returns403(t *testing.T) {
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodGet, "/clinics/2", http.NoBody)
 	c.Params = gin.Params{{Key: "clinic_id", Value: "2"}}
-	// is_system_admin=false、clinic_id=1 → id=2 は別クリニック → 403
+	// is_system_admin=false、clinic_id=1 → id=2 は別医院 → 403
 	setNonSystemAdmin(c)
 	setClinicID(c) // clinic_id=1
 
@@ -644,7 +644,7 @@ func TestListClinics_ScopeAll_ServiceError_Returns500(t *testing.T) {
 func TestUpdateClinic(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	newName := "改名後クリニック"
+	newName := "改名後医院"
 	validBody := UpdateClinicRequest{Name: &newName}
 
 	tests := []struct {
@@ -671,7 +671,7 @@ func TestUpdateClinic(t *testing.T) {
 				},
 			},
 			wantStatus: http.StatusOK,
-			wantBody:   `"name":"改名後クリニック"`,
+			wantBody:   `"name":"改名後医院"`,
 		},
 		{
 			name:       "returns 400 when clinic_id param is invalid",
@@ -765,7 +765,7 @@ func TestUpdateClinic(t *testing.T) {
 func TestCreateClinic(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	validBody := CreateClinicRequest{Name: "新規クリニック"}
+	validBody := CreateClinicRequest{Name: "新規医院"}
 
 	tests := []struct {
 		name       string
@@ -781,13 +781,13 @@ func TestCreateClinic(t *testing.T) {
 			body: validBody,
 			svc: &mockService{
 				createClinicFn: func(_ context.Context, input *CreateClinicInput) (*model.Clinic, error) {
-					assert.Equal(t, "新規クリニック", input.Name)
-					return &model.Clinic{ID: 7, Name: "新規クリニック"}, nil
+					assert.Equal(t, "新規医院", input.Name)
+					return &model.Clinic{ID: 7, Name: "新規医院"}, nil
 				},
 			},
 			wantStatus: http.StatusCreated,
 			wantHeader: "/api/v1/clinics/7",
-			wantBody:   `"name":"新規クリニック"`,
+			wantBody:   `"name":"新規医院"`,
 		},
 		{
 			name:       "returns 400 when body is malformed",
@@ -872,12 +872,12 @@ func TestCreateClinic_RequiresSystemAdminWithoutCallingService(t *testing.T) {
 			svc := &mockService{
 				createClinicFn: func(_ context.Context, _ *CreateClinicInput) (*model.Clinic, error) {
 					serviceCalled = true
-					return &model.Clinic{ID: 7, Name: "新規クリニック"}, nil
+					return &model.Clinic{ID: 7, Name: "新規医院"}, nil
 				},
 			}
 			h := newHandlerWithClinicSvc(svc)
 
-			body, err := json.Marshal(CreateClinicRequest{Name: "新規クリニック"})
+			body, err := json.Marshal(CreateClinicRequest{Name: "新規医院"})
 			require.NoError(t, err)
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)

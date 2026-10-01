@@ -488,7 +488,7 @@ describe("ownerLoader — PERF-E5-N1-PETS ペット一括取得", () => {
 
   // BUG-010 回帰防止: 選択中医院と異なる医院の飼主でも、飼主の所属医院を
   // clinic_ids へ渡してペット一覧が空にならないことを保証する。
-  it("他医院所属の飼主では clinic_ids に飼主の clinicId を渡す（拠点横断回帰）", async () => {
+  it("他医院所属の飼主では clinic_ids に飼主の clinicId を渡す（医院横断回帰）", async () => {
     mockedGet
       .mockResolvedValueOnce({ data: { ...ownerApiResponse, clinic_id: 2 } })
       .mockResolvedValueOnce(petsListResponse);
