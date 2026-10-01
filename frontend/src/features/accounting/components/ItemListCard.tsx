@@ -34,6 +34,7 @@ import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldErro
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { DEFAULT_STANDARD_TAX_RATE, DEFAULT_REDUCED_TAX_RATE } from "@/constants/tax";
 import { formatCurrency } from "@/lib/format/number";
+import { isPastJSTDate } from "@/lib/jst-date";
 import { normalizeKana } from "@/lib/normalize-kana";
 import { CATEGORY_LABELS } from "@/constants/item-category";
 import type { TaxType } from "@/types/generated/models";
@@ -56,6 +57,9 @@ const MERCHANDISE_CATEGORY_SELECT_ITEMS = MERCHANDISE_CATEGORY_OPTIONS.map((o) =
     {o.label}
   </SelectItem>
 ));
+
+/** EMR-246: 当日/過去のセクション見出し行がまたぐ明細テーブルの列数。 */
+const ITEM_TABLE_COLUMN_COUNT = 11;
 
 const MANUAL_CATEGORY_SELECT_ITEMS = Object.entries(CATEGORY_LABELS).map(([value, label]) => (
   <SelectItem key={value} value={value}>
@@ -193,9 +197,24 @@ export const ItemListCard = memo(function ItemListCard({
     onNewItemOpenChange(false);
   }, [manualName, manualPrice, manualCategory, manualOtherReason, onAddItem, onNewItemOpenChange]);
 
-  const itemRows = useMemo(
-    () =>
-      items.map((item) => (
+  // EMR-246: 未請求候補は全期間集約のため、当日分と過去分を視覚的に区分する。
+  // serviceDate なし（手動追加分など）は当日扱い。
+  const { todayItems, pastItems } = useMemo(() => {
+    const today: AccountingItem[] = [];
+    const past: AccountingItem[] = [];
+    for (const item of items) {
+      if (item.serviceDate != null && isPastJSTDate(item.serviceDate)) {
+        past.push(item);
+      } else {
+        today.push(item);
+      }
+    }
+    return { todayItems: today, pastItems: past };
+  }, [items]);
+
+  const renderItemRows = useCallback(
+    (groupItems: AccountingItem[]) =>
+      groupItems.map((item) => (
         <AccountingItemRow
           key={item.id}
           item={item}
@@ -211,7 +230,6 @@ export const ItemListCard = memo(function ItemListCard({
         />
       )),
     [
-      items,
       accountingId,
       onDeleteItem,
       onUpdateItemTax,
@@ -223,6 +241,10 @@ export const ItemListCard = memo(function ItemListCard({
       canDelete,
     ],
   );
+
+  const todayItemRows = useMemo(() => renderItemRows(todayItems), [renderItemRows, todayItems]);
+  const pastItemRows = useMemo(() => renderItemRows(pastItems), [renderItemRows, pastItems]);
+  const hasPastItems = pastItemRows.length > 0;
 
   return (
     <Card className="flex-1 flex flex-col overflow-hidden">
@@ -424,7 +446,24 @@ export const ItemListCard = memo(function ItemListCard({
               <TableHead className="w-[50px]" />
             </TableRow>
           </TableHeader>
-          <TableBody>{itemRows}</TableBody>
+          <TableBody>
+            {hasPastItems ? (
+              <TableRow className={C.bgPage}>
+                <TableCell colSpan={ITEM_TABLE_COLUMN_COUNT}>
+                  <span className={`text-2xs font-semibold ${C.text50}`}>当日分</span>
+                </TableCell>
+              </TableRow>
+            ) : null}
+            {todayItemRows}
+            {hasPastItems ? (
+              <TableRow className={C.bgPage}>
+                <TableCell colSpan={ITEM_TABLE_COLUMN_COUNT}>
+                  <span className={`text-2xs font-semibold ${C.text50}`}>過去の未請求分</span>
+                </TableCell>
+              </TableRow>
+            ) : null}
+            {pastItemRows}
+          </TableBody>
         </Table>
       </CardContent>
       <div className={`p-4 ${C.bgPage} border-t flex justify-end gap-6 text-sm`}>

@@ -2,6 +2,7 @@ import type { BackendAccounting, BackendAccountingItem } from "./types";
 import type { BillingRefund, Payment, PaymentSplit } from "@/types/generated/models";
 import type { ItemCategory, AccountingStatus, PaymentMethod } from "../types";
 import { DEFAULT_STANDARD_TAX_RATE } from "@/constants/tax";
+import { formatJSTDate } from "@/lib/jst-date";
 
 /** Payment にバックエンドが付与する結合フィールドを加えたローカル拡張型 */
 type PaymentWithStaff = Payment & {
@@ -35,6 +36,8 @@ export function transformAccountingItem(item: BackendAccountingItem) {
     appointmentId: item.appointment_id ? String(item.appointment_id) : undefined,
     trimmingCourseId: item.trimming_course_id ? String(item.trimming_course_id) : undefined,
     trimmingOptionId: item.trimming_option_id ? String(item.trimming_option_id) : undefined,
+    /** EMR-246: 未請求候補の発生日（JST YYYY-MM-DD）。当日/過去区分表示用 */
+    serviceDate: item.service_date ? formatJSTDate(item.service_date) : undefined,
   };
 }
 
