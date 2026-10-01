@@ -99,14 +99,17 @@ resource "cloudflare_dns_record" "stg_frontend" {
   comment = "EMR-255: STG frontend=animalekarte-stg-frontend Worker(Workers Route宛プレースホルダ)。旧: CNAME→Vercel"
 }
 
+# EMR-255 follow-up: live 実態は proxied=true(backend Worker route api.stg.noah-karte.com/*
+# がエッジで横取りするため content の CloudFront CNAME は実質プレースホルダ。stg_frontend と同規則)。
+# P1-1 棚卸し時の proxied=false が残っていたため、apply で proxied 解除→API 停止を防ぐべく live に合わせる。
 resource "cloudflare_dns_record" "api_stg_backend" {
   zone_id = cloudflare_zone.noah_karte.id
   name    = "api.stg.${var.zone_name}"
   type    = "CNAME"
   content = "dcqico6azu5w2.cloudfront.net"
-  ttl     = 300
-  proxied = false
-  comment = "P1-1 棚卸し複製。STG Backend API(CloudFront)。Phase 4 完了後に Worker 経由へ切替"
+  ttl     = 1 # proxied=true の場合 ttl は自動扱い
+  proxied = true
+  comment = "P1-1 棚卸し複製→現在は backend Worker route 宛プレースホルダ(proxied)。content の CloudFront は不使用"
 }
 
 # ACM 証明書のDNS検証レコード。用途未確定だが削除すると証明書自動更新が失敗するリスクがあるため維持。
