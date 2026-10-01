@@ -2,8 +2,14 @@
 
 ## 概要
 - **画面の目的**: 院内全体の稼働状況を30秒間隔の定期同期で把握・管理するためのカンバンボード型ホーム画面。
-- **URLパターン**: `/`
+- **URLパターン**: `/`（EMR-243: `/?date=YYYY-MM-DD` で任意日の受付状況を表示可。未指定・空・形式不正・非存在の暦日は当日 JST へフォールバック。ヘッダーの日付入力（`aria-label="表示日"`）からも切替えられる）。
 - **アクセス権限**: `reception:view`（`RequirePermission` によるルートガード。デフォルト action は `view`）。個別アクション（新規予約・カルテ作成・会計・入院登録・取消）はさらに各リソースの `create`/`edit`/`delete` 権限で制御される。
+
+### 表示日の切替え（EMR-243）
+- クエリ `date` は `resolveReceptionDateParam`（`reception-model.ts`）で `YYYY-MM-DD` 形式 + 実在暦日を検証し、解決した日付だけを `useGetReception(date)` で取得する（選択日以外のクエリは発行しない）。
+- **非本日表示の制約**: 当日受付（`checked_in`）を作る導線は当日のみ。受付済列の「＋」ボタンは非本日では非表示（`canAddColumnEntryOnDate`）。受付予約列の「＋」は残り、`?newReservation=1&date=<選択日>` で選択日・現在時刻15分丸めの予約 stub を作る。ヘッダー「新規予約登録」も非本日では `newReservation=1&date=<選択日>` になる。`?reception=1` 経路は `date` が付いていても常に当日の `checked_in` stub を作る（意味を変えない）。
+- **戻り先の保持**: 予約作成からの復帰は `location.state.from = "/?date=<選択日>"` で選択日のボードへ戻る。
+- **テレメトリ**: 非本日では件数ラベルが「対象日の受付」になり、待ち時間統計（平均待ち/最長待ち）は「今からの経過」に基づくため表示しない（`ReceptionTelemetryStrip` の `isToday`）。
 
 ---
 
@@ -50,17 +56,17 @@ stateDiagram-v2
 | **担当医** | 指名がある場合は「指」ラベルを表示。未設定時は「担当医未設定」と表示。 |
 
 ### 3. 受付テレメトリ (`ReceptionTelemetryStrip`)
-ヘッダー直下に本日の受付状況サマリーを常時表示します。
-- **本日受付**: フィルタ非適用の全体件数（`columns` から算出、`filteredColumns` は使用しない）。
-- **平均待ち／最長待ち**: `checked_in_at` を用いた待ち時間統計（常時表示。対象0件時は「—」表示。60秒間隔でローカル再計算）。
+ヘッダー直下に表示日の受付状況サマリーを常時表示します。
+- **本日受付 / 対象日の受付**: フィルタ非適用の全体件数（`columns` から算出、`filteredColumns` は使用しない）。非本日表示ではラベルが「対象日の受付」になります（EMR-243）。
+- **平均待ち／最長待ち**: `checked_in_at` を用いた待ち時間統計（当日表示時のみ。対象0件時は「—」表示。60秒間隔でローカル再計算）。待ち時間は現在時刻基準のため、非本日表示では表示しません（EMR-243）。
 
 ---
 
 ## 操作詳細
 
 ### 進行・ナビゲーション
-- **ヘッダー「新規予約登録」**: walk-in（`?reception=1`）。status=`checked_in`・経路=`reception` で受付済列に載る（`reservations:create` が必要）。
-- **受付予約列の「+」**: 通常予約（`?newReservation=1`、status=`confirmed`）。診療中・会計待ち・会計済列に追加ボタンは無い。
+- **ヘッダー「新規予約登録」**: 当日表示時は walk-in（`?reception=1`）。status=`checked_in`・経路=`reception` で受付済列に載る（`reservations:create` が必要）。非本日表示時は `?newReservation=1&date=<選択日>` の通常予約作成になる（EMR-243）。
+- **受付予約列の「+」**: 通常予約（`?newReservation=1`、status=`confirmed`、非本日では `&date=<選択日>` 付き）。**受付済列の「+」**は当日受付 walk-in（`?reception=1`）で、非本日表示では非表示。診療中・会計待ち・会計済列に追加ボタンは無い。
 - **受付済→診療中**: DnD は禁止。トースト「カルテ作成が必要です」。進行はカード／詳細のカルテ作成・トリミング記録（同時に `advanceStatus`）。入院系は詳細の「診察を開始する」。
 - **会計済の完了**: 詳細から完了確定するとその端末のボードから外れる。再読込すると当日 `completed` は再び会計済列に載る。
 - **詳細表示**: カードをクリックすると `ReceptionDetailModal` が開き、来院詳細の確認、ステータス進行（`onConfirm`）、編集（`onEdit`、`ReservationFormModal` を起動）、取消（`onCancel`、`ConfirmDialog` で確認後に予約を取り消し）、飼主/ペット詳細ページへの遷移が可能です。取消は `reservations:delete`、編集は `reservations:edit` 権限を持つ場合のみ表示されます。患者情報セクション（`ReceptionDialogBody`）にも同じ `DangerBadge` マークを表示: ペット名横に特記アイコンバッジ（高=赤い八角形/中=黄い三角形、文言なし・Popover で補足メモ）、飼主名横に文言なしの赤い八角形アイコン（`is_dangerous`、代替名「特記」）。
@@ -93,7 +99,7 @@ stateDiagram-v2
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
-| GET | `/api/v1/reservations` | 本日の予約・受付状況一覧の取得 | `reservations` | `view` |
+| GET | `/api/v1/reservations` | 表示日の予約・受付状況一覧の取得（`?date=` の選択日、既定は当日） | `reservations` | `view` |
 | PATCH | `/api/v1/reservations/:id` | 予約・受付ステータスの更新 | `reservations` | `edit` |
 | GET | `/api/v1/masters/staffs` | 担当医フィルター用スタッフマスタ取得 | `master-staff` | `view` |
 

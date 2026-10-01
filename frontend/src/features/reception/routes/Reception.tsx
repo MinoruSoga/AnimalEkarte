@@ -1,13 +1,14 @@
 // React/Framework
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 
 // External
 import { pointerWithin, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { useSearchParams } from "react-router";
 import { formatDateWithWeekday } from "@/lib/format/date";
 
 // Internal
-import { toJSTWallDate } from "@/lib/jst-date";
+import { buildJSTWallDateTime, todayJSTISO } from "@/lib/jst-date";
 import {
   ResourceReservations,
   ResourceMedicalRecords,
@@ -23,8 +24,32 @@ import { useReceptionDragHandlers } from "../hooks/use-reception-drag-handlers";
 import { useReceptionModalHandlers } from "../hooks/use-reception-modal-handlers";
 import { ReceptionPageBody } from "./ReceptionPagePanels";
 import { useReceptionColumnView } from "../hooks/use-reception-column-view";
+import { resolveReceptionDateParam } from "./reception-model";
 
 export function Reception() {
+  // EMR-243: `?date=YYYY-MM-DD` で表示日を切替える。未指定/不正は当日 JST。
+  // todayJSTISO() は毎レンダー評価する（30秒ポーリング/60秒テレメトリtickで
+  // JST 日跨ぎにも追従）。明示指定された date は日跨ぎしてもピン留めされる。
+  const [searchParams, setSearchParams] = useSearchParams();
+  const dateParam = searchParams.get("date");
+  const today = todayJSTISO();
+  const selectedDate = resolveReceptionDateParam(dateParam, today);
+  const isToday = selectedDate === today;
+  const handleDateChange = useCallback(
+    (value: string) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        // 空文字クリアは param 削除で当日へフォールバックさせる
+        if (value) {
+          next.set("date", value);
+        } else {
+          next.delete("date");
+        }
+        return next;
+      });
+    },
+    [setSearchParams],
+  );
   const {
     canCreate: canCreateReservation,
     canEdit: canEditReservation,
@@ -48,6 +73,7 @@ export function Reception() {
   } = useReceptionKanban({
     canEditReservation,
     canDeleteReservation,
+    date: selectedDate,
   });
 
   // スタッフAPIから医師フィルター選択肢を動的生成
@@ -96,7 +122,9 @@ export function Reception() {
   // 受付ヘッダー テレメトリ（change-ui.md）: 集計は必ず columns（フィルタ非適用）から算出する。
   // filteredColumns を渡すと「本日受付」件数がフィルタ操作で変動してしまう。
   const telemetry = useReceptionTelemetry(columns);
-  const todayLabel = formatDateWithWeekday(toJSTWallDate(new Date()));
+  // 表示日ラベル: 当日だけでなく `?date=` で選んだ暦日も同じ書式で出す。
+  // "YYYY-MM-DD" は buildJSTWallDateTime 経由でローカル壁時計に置く（UTC 深夜罠を避ける）。
+  const dateLabel = formatDateWithWeekday(buildJSTWallDateTime(selectedDate, "00:00"));
 
   const { columnElements, appointmentColumnTitleMap, goToNewReservation } = useReceptionColumnView({
     filteredColumns,
@@ -104,6 +132,8 @@ export function Reception() {
     canEditReservation,
     advanceStatus,
     onCardClick: handleCardClick,
+    selectedDate,
+    isToday,
   });
 
   if (isLoading) {
@@ -116,11 +146,17 @@ export function Reception() {
 
   return (
     <ReceptionPageBody
-      todayLabel={todayLabel}
+      dateLabel={dateLabel}
+      selectedDate={selectedDate}
+      isToday={isToday}
+      onDateChange={handleDateChange}
       isFilterOpen={isFilterOpen}
       onToggleFilter={() => setIsFilterOpen((prev) => !prev)}
       canCreateReservation={canCreateReservation}
-      onNewReception={() => goToNewReservation("reception=1")}
+      onNewReception={() =>
+        // 本日: 従来通り当日受付（checked_in）。非本日: 選択日の通常予約作成。
+        goToNewReservation(isToday ? "reception=1" : "newReservation=1")
+      }
       telemetry={telemetry}
       selectedVisitTypes={filters.selectedVisitTypes}
       selectedDoctor={filters.selectedDoctor}

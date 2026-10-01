@@ -23,6 +23,7 @@ const {
   toastErrorMock,
   toastSuccessMock,
   handleApiErrorMock,
+  getReceptionSpy,
   stableEmptyStaffs,
   stableEmptyStaffMap,
 } = vi.hoisted(() => ({
@@ -30,6 +31,7 @@ const {
   toastErrorMock: vi.fn(),
   toastSuccessMock: vi.fn(),
   handleApiErrorMock: vi.fn(),
+  getReceptionSpy: vi.fn(),
   stableEmptyStaffs: [] as never[],
   stableEmptyStaffMap: new Map<string, string>(),
 }));
@@ -46,8 +48,10 @@ vi.mock("@/lib/handle-api-error", () => ({
 let apiColumnsHolder: ReceptionColumn[] | undefined;
 
 vi.mock("../api/get-reception", () => ({
-  todayISO: () => "2026-06-01",
-  useGetReception: () => ({ data: apiColumnsHolder, isLoading: false, isError: false }),
+  useGetReception: (date: string) => {
+    getReceptionSpy(date);
+    return { data: apiColumnsHolder, isLoading: false, isError: false };
+  },
 }));
 
 vi.mock("../api/get-staffs", () => ({
@@ -134,17 +138,25 @@ function createDeferred<T>() {
 interface PermissionProps {
   canEditReservation?: boolean;
   canDeleteReservation?: boolean;
+  /** EMR-243: 表示日（YYYY-MM-DD）。未指定時は既定値を使う。 */
+  date?: string;
 }
 
+const DEFAULT_VIEW_DATE = "2026-06-01";
+
 async function renderKanban(
-  initialPermissions: PermissionProps = {
+  initialProps: PermissionProps = {
     canEditReservation: true,
     canDeleteReservation: true,
   },
 ) {
-  const view = renderHook((permissions: PermissionProps) => useReceptionKanban(permissions), {
-    initialProps: initialPermissions,
-  });
+  const view = renderHook(
+    (props: PermissionProps) =>
+      useReceptionKanban({ ...props, date: props.date ?? DEFAULT_VIEW_DATE }),
+    {
+      initialProps,
+    },
+  );
   // 派生 state の inline 同期 + ref 更新 effect が落ち着くまで待つ
   await waitFor(() => expect(view.result.current.columns.length).toBe(5));
   return view;
@@ -157,7 +169,16 @@ describe("useReceptionKanban", () => {
     toastErrorMock.mockReset();
     toastSuccessMock.mockReset();
     handleApiErrorMock.mockReset();
+    getReceptionSpy.mockClear();
     apiColumnsHolder = undefined;
+  });
+
+  it("指定した date をそのまま useGetReception へ渡す（選択日のクエリのみ取得）", async () => {
+    setApiColumns([]);
+    await renderKanban({ date: "2026-06-10" });
+
+    expect(getReceptionSpy).toHaveBeenCalledWith("2026-06-10");
+    expect(getReceptionSpy).not.toHaveBeenCalledWith("2026-06-01");
   });
 
   it("API データから 5 カラムを構築し、各 appointment を所属カラムに配置する", async () => {

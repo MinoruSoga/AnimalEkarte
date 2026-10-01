@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import type { ColumnData, ReservationStatus } from "@/types";
 import { PetStatusDeceased } from "@/types/generated/models";
 // bundle-barrel-imports: barrel経由ではなく各ファイルから直接import
-import { useGetReception, todayISO } from "../api/get-reception";
+import { useGetReception } from "../api/get-reception";
 import { useGetStaffs, buildStaffMap } from "../api/get-staffs";
 import { useUpdateAppointmentStatus } from "../api/update-appointment-status";
 import { COLUMN_TITLE_TO_STATUS, RECEPTION_COLUMNS } from "../api/transforms";
@@ -60,14 +60,19 @@ interface UseReceptionKanbanPermissions {
   canDeleteReservation?: boolean;
 }
 
+interface UseReceptionKanbanArgs extends UseReceptionKanbanPermissions {
+  /** EMR-243: ボード表示中の日付（JST "YYYY-MM-DD"）。Reception が `?date=` を解決した値を渡す。 */
+  date: string;
+}
+
 type ReservationMutationAction = "edit" | "delete";
 
 export function useReceptionKanban({
   canEditReservation,
   canDeleteReservation,
-}: UseReceptionKanbanPermissions) {
-  const today = useMemo(() => todayISO(), []);
-  const { data: apiColumns, isLoading, isError } = useGetReception(today);
+  date,
+}: UseReceptionKanbanArgs) {
+  const { data: apiColumns, isLoading, isError } = useGetReception(date);
   const { data: staffs } = useGetStaffs();
   const updateStatusMutation = useUpdateAppointmentStatus();
   const { mutateAsync } = updateStatusMutation;

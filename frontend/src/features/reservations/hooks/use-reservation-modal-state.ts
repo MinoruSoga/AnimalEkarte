@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { addHours } from "date-fns";
 
-import { toJSTWallDate } from "@/lib/jst-date";
+import {
+  buildJSTWallDateTime,
+  formatJSTWallDate,
+  formatJSTWallTime,
+  toJSTWallDate,
+} from "@/lib/jst-date";
+import { parseDateInput } from "@/components/shared/DatePicker/DatePickerModel";
 
 import type { Reservation, ReservationFormData } from "../types";
 
@@ -82,8 +88,17 @@ export function useReservationModalState({ locationSearch }: UseReservationModal
 
     // 受付予約ボードの「新規追加」起点: 通常の新規予約（confirmed → 受付予約カラム）。
     // 受付 walk-in と異なり reservationRoute は強制せずモーダルで選択させる。
+    // EMR-243: `&date=YYYY-MM-DD` があれば stub の日付を選択日にする
+    // （時刻は現在時刻の15分丸めを維持）。未指定/不正は従来通り当日。
+    // reception=1 は当日受付（checked_in）専線のため date を解釈しない。
     if (isNewReservationEntry && !isFormOpenRef.current) {
-      const start = roundUpToNextQuarterHour(toJSTWallDate(new Date()));
+      const roundedNow = roundUpToNextQuarterHour(toJSTWallDate(new Date()));
+      const dateParam = searchParams.get("date");
+      const parsedDate = dateParam === null ? null : parseDateInput(dateParam);
+      const start =
+        parsedDate === null
+          ? roundedNow
+          : buildJSTWallDateTime(formatJSTWallDate(parsedDate), formatJSTWallTime(roundedNow));
 
       const stub: ReservationFormData = {
         start,
