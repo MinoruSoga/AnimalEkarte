@@ -154,7 +154,7 @@ export function ReceptionDialogBody({
   canCreateHospitalization,
 }: ReceptionDialogBodyProps) {
   return (
-    <div className="p-6 space-y-4 overflow-y-auto">
+    <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
       <div className={`flex items-center gap-3 p-3 ${C.bgPage} rounded-lg`}>
         <Clock className={`${ICON.page} ${C.text60} shrink-0`} />
         <span className={`font-mono text-xl font-medium ${C.text}`}>{appointment.time}</span>

@@ -142,7 +142,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className={`sm:max-w-[420px] p-0 gap-0 overflow-hidden ${C.bgWhite} rounded-xl`}
+        className={`sm:max-w-[420px] max-h-[85vh] overflow-y-auto p-0 gap-0 overflow-x-hidden ${C.bgWhite} rounded-xl`}
       >
         {/* Accent Header */}
         <div className={`h-1.5 w-full ${visitAccent.dot}`} />

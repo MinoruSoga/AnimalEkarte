@@ -66,7 +66,7 @@ export function ClinicMasterSidePanel({
       </div>
 
       <form action={formAction} className="flex-1 flex flex-col min-h-0">
-        <fieldset disabled={!canEdit} className="border-0 p-0 m-0 min-w-0">
+        <fieldset disabled={!canEdit} className="contents">
           <div className={STYLE.sidePeekBody}>
             <div className="px-16 pb-8">
               <div className="pt-4 pb-2">

@@ -23,7 +23,7 @@ export function SessionRestoreError({
   const copy = message ?? (kind === "restricted" ? RESTRICTED_MESSAGE : DEFAULT_MESSAGE);
   return (
     <div
-      className={`min-h-screen flex flex-col items-center justify-center px-4 ${C.bgPage}`}
+      className={`h-dvh overflow-y-auto flex flex-col items-center-safe justify-center-safe px-4 ${C.bgPage}`}
       role="alert"
       aria-live="assertive"
       aria-atomic="true"
