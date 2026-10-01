@@ -334,6 +334,10 @@ export const queryKeys = {
     detail: (petId: string) => ["pet-sub-owners", petId] as const,
     metadata: (petId: string) => ["pet", petId, "sub-owner-metadata"] as const,
   },
+  /** EMR-248: 慢性疾患フラグ (GET/POST/PATCH/DELETE /v1/pets/{id}/chronic-conditions) */
+  petChronicConditions: {
+    list: (petId: string) => ["pet-chronic-conditions", petId] as const,
+  },
 
   // ── owner-report ──────────────────────────────────────────────────
   ownerReportPets: (ownerId: string) => ["owner-report-pets", ownerId] as const,
