@@ -3,7 +3,7 @@
 > **目的**: 受入 V シリーズの永続化フォームについて、検証済み exact field key と未収録 gap を管理する。
 > **使い方**: 左の項目を 1 行ずつ [FIELD-LEVEL-PROTOCOL.md](FIELD-LEVEL-PROTOCOL.md) で実施。手順の補足は V01〜V05。
 > **更新規則**: 画面に入力項目を追加したら、本表と該当 V を同 PR で更新する。
-> **ステータス**: V02〜V05 の exact field key は保存 request builder と突合して収録済み（BE 受理だが FE 非送出の key は計上せず注記）。V01 の定義依存行（健診/検査の fixture field）は envelope を確定済みとしたうえで、承認済み定義の id 列挙は実行時作業として残る。一意フォーム総数や「全フォーム/全項目の受入完了」は依然主張しない — inventory 収録は実行完了を意味しない。route inventory は 86 product pages だが page 数と form 数は別。
+> **ステータス**: V02〜V05 の exact field key は保存 request builder と突合して収録済み（BE 受理だが FE 非送出の key は計上せず注記）。2026-10-01: `backend/docs/api.yaml` の全 write endpoint（238）との突合で未収録 11 グループを収録（V01 §13 / V02 §13 注記 / V03 §8–9 / V04 §11–12 / V05 §19–20）。FE 未実装 API は「未実装 API」節で追跡。V01 の定義依存行（健診/検査の fixture field）は envelope を確定済みとしたうえで、承認済み定義の id 列挙は実行時作業として残る。一意フォーム総数や「全フォーム/全項目の受入完了」は依然主張しない — inventory 収録は実行完了を意味しない。route inventory は 86 product pages だが page 数と form 数は別。
 
 凡例: **R**=必須 / **O**=任意 / **C**=条件付き必須 / **S**=システム（入力不可→F は N/A）。fieldKey は保存 request の wire key を使う。response 名や UI state 名が異なる場合は表直前の対応表を参照する。未検証の UI-only helper/context は永続 field と数えない。
 
@@ -195,6 +195,16 @@ Owner: clinical_plan PATCH child resource. The parent medical-record and inquiry
 
 ---
 
+### medical-record-recommendation-reason — `/medical-records/:id` — [V01 §13](V01-clinical-forms.md)
+
+推奨理由セレクト（カルテ詳細ヘッダ）。PATCH `/v1/medical-records/{id}/recommendation-reason`。
+
+| fieldKey | ラベル概要 | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| reason | 推奨理由 | O | enum/null | `null` 送信でクリア。選択肢は `features/medical-records/constants/recommendation-reason` | F0 F4 F5 |
+
+---
+
 ## V02 会計・予約・在庫（算定保留）
 
 ### accounting-settlement-form — [V02 §1](V02-accounting-reservation-forms.md)
@@ -319,6 +329,12 @@ UI form 名は `minStockLevel` / `expiryDate` / `lastRestocked`。保存時は `
 
 ---
 
+### reservation-staffs 注記 — `/clinics/{clinicId}/reservation-staffs*` — [V02 §13](V02-accounting-reservation-forms.md)
+
+BE は POST `/reservation-staffs`・`/{staffId}`・`/{staffId}/sort-order`・`/{staffId}/status` を受理するが **FE 送出なし**（FE は GET のみ。スタッフ管理の正本は V03 staff-side-panel と V03 §9）。wire key は計上せず注記のみ（凡例の「BE 受理だが FE 非送出」）。2026-09-13 UAT の staff-res CRUD 実行跡は API レベル。
+
+---
+
 ## V03 飼主・組織（算定保留）
 
 ### owner-create-edit — [V03 §1](V03-owner-pet-staff-forms.md)
@@ -426,6 +442,26 @@ UI form 名は `minStockLevel` / `expiryDate` / `lastRestocked`。保存時は `
 | accounting_document_show_payment_summary       | O   | boolean | お会計サマリー F4                                                    |
 | accounting_document_section_order              | O   | string[] | 全キー順列送信（欠落キーは末尾補完）。BE enum+重複拒否→400 F4         |
 | accounting_document_footer_note                | O   | string  | 常時送信・`""` クリア可。FE maxLength=500 < BE max=1000（非対称境界）F3 F4 F5 |
+
+---
+
+### pet-sub-owners — ペット詳細 — [V03 §8](V03-owner-pet-staff-forms.md)
+
+副飼主の全置換保存。PUT `/v1/pets/{id}/sub-owners`。
+
+| fieldKey | ラベル概要 | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| version | CAS version | S | number | 全置換 PUT の CAS。返却 version を次の PUT へ | F0 F4 |
+| sub_owners[].owner_id | 副飼主 | R | id | 既存 owner から選択 | F0 F1 F4 |
+| sub_owners[].relationship | 続柄 | R | string | | F0 F1 F4 |
+
+### staff-capable-reservation-types — staff SidePanel — [V03 §9](V03-owner-pet-staff-forms.md)
+
+担当可能予約区分。PUT `/v1/masters/staffs/{id}/capable-reservation-types`（全置換 PUT）。
+
+| fieldKey | ラベル概要 | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| reservation_type_ids | 担当可能区分 | O | int[] | 全置換。空配列=全解除。FE は文字列→int 変換送信 | F0 F4 F5 |
 
 ---
 
@@ -711,6 +747,47 @@ V04 が唯一の owner。V05 では数えない。
 | items[].examTypeFieldId | O   | select FK | F0 F4 C3-1 |
 | items[].isActive        | O   | boolean   | F0 F4      |
 
+### support-bug-report — `/settings/bug-reports` — [V04 §11](V04-settings-master-forms.md)
+
+バグ報告（multipart・認証済み全スタッフ）。POST `/v1/support/bug-reports`。page_url 系 5 項目は FE 自動取得の S。
+
+| fieldKey | ラベル概要 | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| title | 件名 | R | text | | F0 F1 F4 |
+| detail | 詳細 | R | text | | F0 F1 F4 |
+| screenshot | スクリーンショット | O | file | 添付任意 | F0 F4 |
+| page_url / route_path / user_agent / viewport / app_version | 自動収集 5 項目 | S | text | FE が自動取得・単一スラッシュ結合セル | F0 |
+
+### support-bug-report-status — `/settings/bug-reports` — [V04 §11](V04-settings-master-forms.md)
+
+管理者ステータス更新。PATCH `/v1/support/bug-reports/:id/status`（hospital-settings:edit）。
+
+| fieldKey | ラベル概要 | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| status | ステータス | R | enum | 権限不足は F6 で確認 | F0 F1 F6 |
+
+### support-chat-send — サポートチャット — [V04 §11](V04-settings-master-forms.md)
+
+POST `/v1/support/chat`。外部送信・best-effort 永続化。
+
+| fieldKey | ラベル概要 | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| message | メッセージ | R | text | 外部送信。エラー時の無音失敗なしを F6 で確認 | F0 F1 F4 F6 |
+| history / context | 履歴・文脈 | S | array | FE 自動付与 | F0 |
+
+### manual-article-edit — `/manual` 管理編集 — [V04 §12](V04-settings-master-forms.md)
+
+マニュアル記事オーバーライド保存（ResourceManualEdit 権限）。PUT `/v1/manual/articles/{category}/{slug}`。
+
+| fieldKey | ラベル概要 | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| title | 題名 | R | text | | F0 F1 F4 |
+| order_value | 表示順 | R | int | | F0 F4 |
+| section | 節 | O | text | 編集 UI の必須/任意は要実測 | F0 F4 |
+| body_markdown | 本文 | R | markdown | | F0 F1 F4 |
+
+---
+
 ## V05 認証・LINE（算定保留）
 
 | formId                       | 主要 fieldKey（すべて F 適用）                                                  | 参照                                                  |
@@ -832,10 +909,51 @@ V04 が唯一の owner。V05 では数えない。
 
 ---
 
+### owner-line-integration-card — owner 詳細 LINE 連携カード — [V05 §19](V05-auth-line-forms.md)
+
+owner 詳細の LINE 連携カード群（1 操作 1 endpoint の小フォーム群）。
+
+| fieldKey | ラベル概要 | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| line_user_id | LINE ユーザー ID | O | string/null | PATCH `/owners/{id}/line-user-id`。`null` で連携解除 | F4 F5 F6 |
+| caution | 配信注意フラグ | R | boolean | PATCH `/owners/{id}/delivery-caution` | F4 F5 |
+| reason | 注意理由 | C | text | delivery-caution 送信時。caution=true 時の必須性は要実測 | F1 F6 |
+| excluded | 配信除外フラグ | R | boolean | PATCH `/owners/{id}/delivery-exclusion` | F4 F5 |
+| reason | 除外理由 | C | text | delivery-exclusion 送信時。同上 | F1 F6 |
+| is_transferred | 転院済みフラグ | R | boolean | PATCH `/owners/{id}/transfer-status` | F4 F5 |
+| file | LINE 送信ファイル | R | file | POST `/v1/shared-files`。`purpose`(S="other")・`owner_id`(S) 自動付与 | F0 F4 |
+
+注: `line-id-confirm`（確認済み化）と `line/link-token`（連携トークン発行）は入力項目のない操作 endpoint — F0（到達・成功反馈）のみ。
+
+### lstep-trigger-priorities — LSTEP トリガー優先度 — [V05 §20](V05-auth-line-forms.md)
+
+PATCH `/v1/clinics/{clinicId}/lstep/trigger-priorities`（全セット PATCH）。
+
+| fieldKey | ラベル概要 | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| items[].trigger_type | トリガー種別 | R | enum | 種別ごとに優先度を設定 | F0 F4 |
+| items[].priority | 優先度 | R | int ≥1 | 1 未満は FE が保存ブロック（draft チェック） | F1 F3 F6 |
+
+---
+
+## 未実装 API（UI 未着手 — 実装時に本表へ収録）
+
+api.yaml の write endpoint のうち FE 実装が無いもの。実装 PR では本表 + 該当 V への同時収録が必須（チェックリスト運用）。
+
+| endpoint | 状態 | 収録方針 |
+|:--|:--|:--|
+| `/v1/medical-records/{id}/prescriptions` | 型定義・transform のみ・フォームなし | 処方箋 UI 実装時に V01 へ収録 |
+| `/v1/pets/{id}/chronic-conditions` | FE 送出なし | 慢性疾患 UI 実装時に V03 へ収録 |
+| `/v1/checkup-package-imports`（preview 含む） | FE 送出なし | 取込 UI 実装時に V01 へ収録 |
+| `/v1/masters/staffs/{id}/excluded-reservation-types` | FE 送出なし | UI 実装時に V03 §9 へ収録 |
+| `/v1/owners/{id}/lstep-opt-out` | FE 送出なし（`/owners/{id}/lstep/opt-out` と競合疑い） | 実装/削除判断時に整理 |
+
+---
+
 ## カバレッジ更新チェックリスト（開発者）
 
 - [ ] 新規永続フォーム → 本ファイルに formId + fieldKey 追加 + 該当 V に § 追加
 - [ ] 既存フォームに項目追加 → fieldKey 行追加
 - [ ] 必須/境界変更 → R/O と F 重点を更新
-- [ ] route inventory は 86 product pages。page 数と unique persistent form 数を混同しない
+- [ ] route inventory は 87 product leaves（2026-09-29 に `/settings/bug-reports` 追加）。page 数と unique persistent form 数を混同しない
 - [ ] wildcard / UI 全項目 / 動的 placeholder が残る間は inventory incomplete とし、全フォーム完了や総数を主張しない

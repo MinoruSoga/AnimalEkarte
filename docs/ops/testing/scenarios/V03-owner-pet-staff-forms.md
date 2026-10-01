@@ -168,6 +168,27 @@ sequenceDiagram
 
 - ユーザー入力の FK なし（C3-1 該当なし）・サイドパネル起動式のため C3-3 該当なし。
 
+## 8. 副飼主 (pet-sub-owners)
+
+- ペット詳細。PUT 全置換 + CAS version。
+
+| # | 操作 | 期待結果 |
+|:--|:--|:--|
+| 1 | 副飼主を 1 名追加（owner + 続柄）して保存 → 再読込 | 追加した副飼主が永続する（F4） |
+| 2 | owner 選択なし/続柄空で保存 | 保存されずエラー（F1） |
+| 3 | 副飼主を全削除して保存 → 再読込 | 空が永続する（全置換 PUT・F5） |
+| 4 | 旧 version で二重保存 | 後の保存は version 不整合で拒否される（CAS） |
+
+## 9. 担当可能予約区分 (staff-capable-reservation-types)
+
+- staff SidePanel。PUT 全置換。
+
+| # | 操作 | 期待結果 |
+|:--|:--|:--|
+| 1 | 区分を 2 つ選んで保存 → 再読込 | 選択した区分が永続する（F4） |
+| 2 | 全解除して保存 → 再読込 | 空（全解除）が永続する（F5） |
+| 3 | 予約フォームの担当者候補と突合 | 設定したスタッフが候補に現れる（reservation-staffs 連携） |
+
 ## 確認観点
 
 - 既存の機械テストが覆う範囲: FE component test（`OwnerForm` 系 3 本＋`OwnerInfoSection`、`PetEditModalFields`・`PetCareSection`・`pet-form-data`・`use-pet-form-list-state`、`PetDeceasedDialog`/`PetDeceasedBanner`、`StaffSettings`・`StaffSidePanelSections`、`permission-rule-table-model`、clinic `transforms`）が FE 単体のバリデーション分岐を、BE テスト（validators_owner/contact/pet/auth・`backend/internal/owner/service_core_test.go` の重複 409・staff_service_account/permissions・permission_group_service・clinic_service）がサーバ側検証を網羅する。E2E は owners-flow（フォーム表示まで）と settings-smoke（表示のみ）で、保存成功・一意制約違反の通しフローは存在しない。
