@@ -40,6 +40,8 @@ export const OwnerCard: FC<Props> = () => {};
 export const OwnerCard = forwardRef(...);
 ```
 
+- 制御 Radix（`Switch` / `Select` / `Checkbox` / `RadioGroup`）+ `<form action>` の post-action `form.reset()` 巻き戻しは共有 `ui/` ラッパが制御 prop 連動の `key` remount で処理する。生 Radix を直接使う場合は Radix root に `key={currentValue}` を付けること（EMR-252・`docs/ops/EMR-252-radix-form-reset-inventory.md`）。
+
 ## Conditional Render (MANDATORY)
 
 ```typescript

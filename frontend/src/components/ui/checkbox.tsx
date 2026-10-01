@@ -11,6 +11,12 @@ type CheckboxProps = React.ComponentProps<typeof CheckboxPrimitive.Root> & {
 function Checkbox({ className, touchTarget = false, ...props }: CheckboxProps) {
   return (
     <CheckboxPrimitive.Root
+      // EMR-252: React 19 fires form.reset() after a <form action> completes and
+      // Radix restores the mount-time baseline (initialCheckedStateRef / hidden
+      // input defaultChecked). Keying the root on the controlled value remounts
+      // it on every committed change, so the reset baseline is the latest value.
+      // Uncontrolled (checked === undefined) keeps native reset semantics.
+      key={props.checked === undefined ? undefined : String(props.checked)}
       data-slot="checkbox"
       className={cn(
         touchTarget

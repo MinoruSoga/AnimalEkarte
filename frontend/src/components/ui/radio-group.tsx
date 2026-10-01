@@ -10,6 +10,12 @@ function RadioGroup({
 }: React.ComponentProps<typeof RadioGroupPrimitive.Root>) {
   return (
     <RadioGroupPrimitive.Root
+      // EMR-252: React 19 fires form.reset() after a <form action> completes and
+      // Radix restores the mount-time baseline (initialValueRef). Keying the
+      // root on the controlled value remounts it on every committed change, so
+      // the reset baseline is the latest value. Uncontrolled (value ===
+      // undefined) keeps native reset semantics.
+      key={props.value === undefined ? undefined : String(props.value)}
       data-slot="radio-group"
       className={cn("grid gap-3", className)}
       {...props}
