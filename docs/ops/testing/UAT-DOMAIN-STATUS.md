@@ -2,7 +2,7 @@
 
 > **目的**: 受け入れ結果をシナリオ ID だけでなく業務ドメイン単位で俯瞰する。
 > **正本リンク**: [scenarios/README.md](./scenarios/README.md) · [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md)
-> **更新日**: 2026-09-10
+> **更新日**: 2026-10-01
 > **照合**: `QA-UAT-EVIDENCE-SYNC`。2026-09-10 は repo の対象仕様を照合したが、runtime は再実行していない。`reports/` は gitignore。コミット済み正本は本ファイルと [`todo.md#product-bugs`](../../../todo.md#product-bugs)。Linear は未照会（UNKNOWN）。※2026-09-29 訂正: Linear は 2026-09-16 に閉鎖済みで照会先として存在しない。実行状態の正本は Plane（workspace `baritechllc` / Project `EMR`）であり、本書の "Linear で追跡" 等の記述はすべて Plane と読み替える。Plane 側の最新状態は本更新では未照会（UNKNOWN）。
 
 最終実行スナップショット（2026-09-05 / `uat/20260905` @ `2cbd8d9ad` / local FE :3003 · BE :8080）:
@@ -22,6 +22,7 @@
 | V04 受入 | **FAIL**（2026-09-23 browser retest 実施済み・24/24 PASS だが製品欠陥2件を確認。下記 V04 節） |
 | S09 | **BLOCKED**（`e2e/s09-closing-time-boundaries.spec.ts` のブラウザ実行が compose 停止のため未実施。製品 FAIL ではない） |
 | S01 | **PARTIAL**（LSTEP 実送信は E1） |
+| S14–S39（26 シナリオ） | **未実施**（2026-09-24〜29 追加分。下記「未実施シナリオ」節。未実施を PASS に数えない） |
 | r14 | ヘッダだけ「FAIL 0 / PASS 16」と書いてあった regression smoke。V04 再実行の証跡は本ファイルに無く、PASS 翻転ではない。ディレクトリは gitignore のため再読不可 |
 
 下記のコード表記 `reports/uat-*` は gitignore 対象の非配布原証跡の識別子であり、ローカルファイルへのリンクではない。今回の文書更新では原証跡の内容・現在の所在を再確認していない。不在から未実施/完了を推定せず、再検証時は管理者へ原証跡の所在と取得方法を確認する。
@@ -196,6 +197,43 @@
 - **未解消ギャップ（BLOCKED・製品 FAIL ではない）**: V05-17 の LSTEP 実送信 remove（要 sync ON + `LSTEP_WRITE_API_ENABLED` + 到達可能 LSTEP）。ローカル経路（空選択/unlinked 404/validation/idempotent DELETE）は r13 PASS。実 LINE / UAT-254 close は USER。V05-15 は r12 PASS（elevate 復元済）
 - **関連 bug IDs**: （なし。r11 新規 FAIL なし）
 - **証跡**: `reports/uat-2026-09-05-r13/FINAL.md` · `reports/uat-2026-09-05-r12/FINAL-v05-15.md` · `reports/uat-2026-09-05-r11/FINAL-v05-subforms.md` · `reports/uat-2026-09-05-r9/FINAL-v05.md`
+
+---
+
+## 未実施シナリオ（S14–S39）
+
+2026-09-24〜29 に追加された 26 シナリオ。2026-10-01 時点で実行記録はなく、本節は集約対象の明示のみを目的とする。status は最初の実行時に各ドメイン節へ移して更新する。未実施を PASS に数えない。
+
+| シナリオ | 分類（scenarios/README） | status |
+|:---|:---|:---|
+| S14 | 顧客/検索 | 未実施 |
+| S15 | 会計 | 未実施 |
+| S16 | 臨床 | 未実施 |
+| S17 | 臨床 | 未実施 |
+| S18 | 臨床/UI | 未実施 |
+| S19 | 臨床/UI | 未実施 |
+| S20 | 会計/マスタ | 未実施 |
+| S21 | 会計 | 未実施 |
+| S22 | 予約 | 未実施 |
+| S23 | 組織/認可 | 未実施 |
+| S24 | 臨床 | 未実施 |
+| S25 | 臨床 | 未実施 |
+| S26 | 臨床 | 未実施 |
+| S27 | 臨床 | 未実施 |
+| S28 | 臨床(検査) | 未実施 |
+| S29 | 臨床(予防) | 未実施 |
+| S30 | 組織 | 未実施 |
+| S31 | 回帰 | 未実施 |
+| S32 | 顧客/UI | 未実施 |
+| S33 | 会計 | 未実施 |
+| S34 | UI | 未実施 |
+| S35 | UI | 未実施 |
+| S36 | UI | 未実施 |
+| S37 | UI/帳票 | 未実施 |
+| S38 | UI/LIFF | 未実施 |
+| S39 | UI/a11y | 未実施 |
+
+- **証跡**: なし（未実施）
 
 ---
 

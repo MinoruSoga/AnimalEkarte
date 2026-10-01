@@ -560,6 +560,13 @@ def plan(paths):
                 blocked.append(path)
                 continue
             jobs.append({'service': 'host', 'command': ['bash', '-n', path]})
+        elif path == 'docs/ops/testing/scripts/check-scenarios-coverage.sh':
+            # Read-only acceptance-docs gate; running it IS the scoped contract
+            # (nonzero exit fails closed on scenario-doc regressions).
+            if not (ROOT / path).is_file():
+                blocked.append(path)
+                continue
+            jobs.append({'service': 'host', 'command': ['bash', path]})
         elif path in (
             'scripts/verify-agent-task.py',
             'scripts/test_verify_agent_task.py',

@@ -6,6 +6,7 @@ import { LstepPage } from "./pages/lstep-page";
 // E2E flow tests for L-step integration pages:
 // /lstep/checkup-sync, /lstep/delivery-monitor, /lstep/analytics
 // Covers: page load, basic navigation, interaction with filters/selectors.
+// Spec: docs/spec/screens/34-lstep-delivery-monitor.md
 // Seed data: admin@noavet.jp is system_admin with full access.
 
 test.describe("Lステップ連携 フロー E2E", () => {

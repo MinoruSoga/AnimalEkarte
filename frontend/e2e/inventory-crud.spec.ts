@@ -6,6 +6,7 @@ import { InventoryPage } from "./pages/inventory-page";
 // E2E tests for inventory (/inventory) pages.
 // Tests new item creation via /inventory/new form.
 // Note: there is no delete button in the inventory UI; cleanup is not done.
+// Spec: docs/spec/screens/18-inventory-list.md
 // Unique names (timestamp suffix) minimize risk of collisions across test runs.
 //
 // Test order is intentional: fast read/filter tests run first so the slow

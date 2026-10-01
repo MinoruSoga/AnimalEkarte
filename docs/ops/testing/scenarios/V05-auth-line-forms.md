@@ -205,6 +205,28 @@ clinic 単位 1 レコードの PATCH（C3(b) は UI 上到達不能）。フィ
 | 5 | Lステップ API 未設定の状態で実行 | 拒否される（BE: 「Lステップ API が設定されていません」 — 同ファイル） |
 | 6 | API 設定済みで妥当なタグ名で実行 | 完了表示。実行が `audit_logs` に記録される（DB 参照は USER 実施 — S01 と同運用）。Write API 停止中のため Lステップ側実タグは変化しない |
 
+## 5. owner LINE 連携カード群 (owner-line-integration-card)
+
+- owner 詳細の LINE 連携カード。1 操作 1 endpoint の小フォーム群（inventory: V05-19）。
+
+| # | 操作 | 期待結果 |
+|:--|:--|:--|
+| 1 | LINE ユーザー ID を手動設定して保存 → 再読込 | 設定した ID が永続する。解除（null）保存でも null が永続する（F4/F5） |
+| 2 | 配信注意 ON 保存 → 解除保存 | caution true/false がそれぞれ永続。reason の必須性は観測して記録（要実測） |
+| 3 | 配信除外 ON/OFF 保存・転院済み ON/OFF 保存 | excluded / is_transferred がそれぞれ永続する |
+| 4 | LINE 送信ファイルを添付して送信 | アップロード成功反馈。`purpose="other"`・`owner_id` は自動付与 |
+| 5 | 確認済み化（line-id-confirm）・連携トークン発行（link-token）を実行 | 各操作が成功反馈しカード状態が更新される（入力項目なしの操作） |
+| 6 | 権限のないスタッフで上記を試行 | 拒否される（F6） |
+
+## 6. LSTEP トリガー優先度 (lstep-trigger-priorities)
+
+- `/settings` LSTEP セクション。全セット PATCH（inventory: V05-20）。
+
+| # | 操作 | 期待結果 |
+|:--|:--|:--|
+| 1 | 優先度を変更して保存 → 再読込 | 変更後の優先度が永続する |
+| 2 | 優先度を空/0 にして保存 | FE が保存をブロックする（draft チェック）。無音失敗しない |
+
 ## 確認観点
 
 - 既存の機械テストが覆う範囲: FE component test（`ChangePasswordDialog` / `ForgotPasswordPage` / `use-liff-link` / `CustomerInfoPage` / `ConfirmPage` / `MyReservationsPage` / `LstepSettingsForm` / `TriggerPrioritySection` / `LstepTagCodeMappingsSection` / `LstepTagConfigSection` 等）が FE 単体のバリデーション分岐を、BE テスト（auth/password_reset・liff_validation・line_reservation_setting・lstep_settings/tag/csv/checkup_sync 各 service/handler test）がサーバ側検証・部分更新非破壊・テナント隔離を網羅する。E2E（auth-flows / line-reservation-flow / lstep-flow）は表示と主要導線のみ。

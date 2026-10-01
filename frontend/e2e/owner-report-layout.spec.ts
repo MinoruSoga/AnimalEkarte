@@ -3,6 +3,8 @@ import type { BrowserContext, Page } from "@playwright/test";
 
 import { loginAsDemoAdmin } from "./helpers/auth";
 
+// Spec: docs/spec/screens/39-owner-report.md
+
 const REPORT_OWNER_ID = process.env.OWNER_REPORT_E2E_OWNER_ID ?? "1";
 const REPORT_PET_ID = process.env.OWNER_REPORT_E2E_PET_ID ?? "1";
 const REPORT_URL = `/owners/${REPORT_OWNER_ID}/report?petId=${REPORT_PET_ID}`;
