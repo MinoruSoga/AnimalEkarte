@@ -23,6 +23,13 @@ Current unfinished implementation, verification, data, performance, delivery, an
 |:---|:---|:---|:---|:---|:---|
 | BUG-INQUIRY-DEFAULT-TEXT-NOT-SENT | Low | medical-records / 問診 | 保存済み主訴本文を定型文(DEFAULT_CHIEF_COMPLAINT)と完全一致へ戻すと `chief_complaint` が未送信(undefined)になり旧値が残る。`notes`/治療方針も同型（use-medical-record-save-action.ts 問診分岐） | S27 再検証中に観測 | EMR-215 / PR #498（修正マージ済み・UAT中） |
 
+### UAT 2026-10-01 確定分（証拠: `reports/uat-2026-10-01/s15-results.md` / `s15-evidence.jsonl`）
+
+| ID | severity | 領域 | 症状 | シナリオ | Plane / 修正 |
+|:---|:---|:---|:---|:---|:---|
+| BUG-ACCOUNTING-INSURANCE-FORM-RESET | High | accounting / 確定済み会計修正 | 確定済み会計で「修正を保存する → 修正する」を実行すると、React 19 の post-action `form.reset()` が Radix Switch を mount 時値(false)へ巻き戻し、UI は保険 ON 表示のまま PATCH が `has_insurance:false / billing_amount:1100` を送信して BE 400。受理されれば保険をサイレント消去する不具合だった | S15 手順6 | 修正済み commit `df8bc796e`（InsuranceCard Switch/Select に `key={現在値}` で remount）。系統的リスク棚卸しは EMR-252 |
+| BUG-ACCOUNTING-WAITING-FINALIZE-DEADEND | Medium | accounting / waiting billing 詳細 | `status=waiting` の billing 詳細画面に「会計を確定する」が表示され PATCH を送信するが、BE は waiting→completed PATCH を 400 で必ず拒否（正規導線は `/accounting/new` → `POST /accountings/complete`）。到達可能な行き止まり | S15 fixture 調査中に観測 | EMR-253 |
+
 <a id="human-lane"></a>
 
 ## PO / 人間レーン
