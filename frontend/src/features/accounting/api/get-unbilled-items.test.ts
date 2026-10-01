@@ -127,4 +127,22 @@ describe("getUnbilledItemDetails", () => {
     const result = await getUnbilledItemDetails("7");
     expect(result.revision).toBe("");
   });
+
+  it("EMR-229: owner_discount_rate を ownerDiscountRate へマップする", async () => {
+    mockedGet.mockResolvedValue({
+      data: { items: [], warnings: [], revision: "u1:x", owner_discount_rate: 15 },
+    });
+
+    const result = await getUnbilledItemDetails("7");
+    expect(result.ownerDiscountRate).toBe(15);
+  });
+
+  it("EMR-229: owner_discount_rate 欠落時は 0 にフォールバックする", async () => {
+    mockedGet.mockResolvedValue({
+      data: { items: [] },
+    });
+
+    const result = await getUnbilledItemDetails("7");
+    expect(result.ownerDiscountRate).toBe(0);
+  });
 });

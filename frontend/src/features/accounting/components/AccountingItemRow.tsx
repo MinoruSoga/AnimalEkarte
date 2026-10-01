@@ -25,6 +25,12 @@ interface DiscountCellProps {
   onUpdateItemDiscount: ((itemId: string, discountAmount: number) => void) | undefined;
 }
 
+/** EMR-229: 適用割引率(%)のヒント。discountRate>0 のとき (10%) などを併記する。 */
+function DiscountRateHint({ rate }: { rate: number }) {
+  if (rate <= 0) return null;
+  return <span className={`text-2xs ${C.text50} whitespace-nowrap`}>({rate}%)</span>;
+}
+
 function DiscountCell({ item, canEdit, accountingId, onUpdateItemDiscount }: DiscountCellProps) {
   const [open, setOpen] = useState(false);
   const { data: suggestions = [], isFetching } = useGetBillingItemDiscountSuggestions(
@@ -34,13 +40,17 @@ function DiscountCell({ item, canEdit, accountingId, onUpdateItemDiscount }: Dis
 
   if (accountingId === undefined || onUpdateItemDiscount === undefined || !canEdit) {
     return (
-      <span className={`text-sm ${C.text50}`}>{formatCurrencyOrDash(item.discountAmount)}</span>
+      <span className={`text-sm ${C.text50} inline-flex items-center gap-1`}>
+        {formatCurrencyOrDash(item.discountAmount)}
+        <DiscountRateHint rate={item.discountRate} />
+      </span>
     );
   }
 
   return (
     <div className="flex items-center gap-1 justify-center">
       <Input
+        key={item.discountAmount}
         id={`discount-${item.id}`}
         aria-label={`割引額: ${item.name} (ID ${item.id})`}
         type="number"
@@ -51,6 +61,7 @@ function DiscountCell({ item, canEdit, accountingId, onUpdateItemDiscount }: Dis
         }
         className="w-20 min-h-11 text-right"
       />
+      <DiscountRateHint rate={item.discountRate} />
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
@@ -107,6 +118,12 @@ interface AccountingItemRowProps {
   onDeleteItem: (id: string) => void;
   onUpdateItemTax: ((itemId: string, taxType: TaxType, taxRate: number) => void) | undefined;
   onUpdateItemDiscount: ((itemId: string, discountAmount: number) => void) | undefined;
+  /** EMR-229: 項目名の編集（年月追記等の社販処理目安） */
+  onUpdateItemName?: (itemId: string, name: string) => void;
+  /** EMR-230: 数量の編集（手入力/社販明細のみ） */
+  onUpdateItemQuantity?: (itemId: string, quantity: number) => void;
+  /** EMR-230: 金額（税抜小計）の直接編集（手入力/社販明細のみ。unit_price へ換算される） */
+  onUpdateItemAmount?: (item: AccountingItem, amount: number) => void;
 }
 
 export function AccountingItemRow({
@@ -117,7 +134,13 @@ export function AccountingItemRow({
   onDeleteItem,
   onUpdateItemTax,
   onUpdateItemDiscount,
+  onUpdateItemName,
+  onUpdateItemQuantity,
+  onUpdateItemAmount,
 }: AccountingItemRowProps) {
+  // EMR-230: 数量・金額の直接編集は手入力（社販）明細のみ。カルテ/トリミング/入院由来の
+  // 行は発生元の記録と金額が乖離するのを防ぐため表示のみとする。
+  const canEditLineAmounts = canEdit && item.source === "manual";
   return (
     <TableRow className="h-12">
       <TableCell>
@@ -126,7 +149,22 @@ export function AccountingItemRow({
         </Badge>
       </TableCell>
       <TableCell className="font-medium whitespace-nowrap">
-        {item.name}
+        {canEdit && onUpdateItemName !== undefined ? (
+          <Input
+            key={item.name}
+            aria-label={`項目名: ${item.name} (ID ${item.id})`}
+            defaultValue={item.name}
+            onBlur={(e) => {
+              const next = e.target.value.trim();
+              if (next !== "" && next !== item.name) {
+                onUpdateItemName(item.id, next);
+              }
+            }}
+            className="w-56 min-h-11 font-medium"
+          />
+        ) : (
+          item.name
+        )}
         {item.source === "medical_record" ? (
           <span className={`ml-2 text-2xs ${C.textBrand} ${C.bgBrand5} px-1.5 py-0.5 rounded`}>
             カルテ連携
@@ -140,7 +178,25 @@ export function AccountingItemRow({
       </TableCell>
       <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
       <TableCell className="text-center">
-        <div className="flex items-center justify-center gap-2">{item.quantity}</div>
+        {canEditLineAmounts && onUpdateItemQuantity !== undefined ? (
+          <Input
+            key={item.quantity}
+            aria-label={`数量: ${item.name} (ID ${item.id})`}
+            type="number"
+            min={0}
+            step="any"
+            defaultValue={item.quantity}
+            onBlur={(e) => {
+              const next = parseFloat(e.target.value);
+              if (Number.isFinite(next) && next > 0 && next !== item.quantity) {
+                onUpdateItemQuantity(item.id, next);
+              }
+            }}
+            className="w-20 min-h-11 text-center"
+          />
+        ) : (
+          <div className="flex items-center justify-center gap-2">{item.quantity}</div>
+        )}
       </TableCell>
       <TableCell className="text-center">
         <DiscountCell
@@ -186,8 +242,28 @@ export function AccountingItemRow({
           <span className={`${C.text20} text-xs`}>-</span>
         )}
       </TableCell>
+      {/* EMR-230: 金額 = 単価×数量−割引額（税抜。領収書 AccountingDocument の行金額 recordedLineNet と同式）。
+          手入力/社販明細は金額を直接編集でき、サーバ側で unit_price へ換算・再計算される。 */}
       <TableCell className="text-right font-medium">
-        {formatCurrency(item.subtotal + item.taxAmount)}
+        {canEditLineAmounts && onUpdateItemAmount !== undefined ? (
+          <Input
+            key={item.subtotal}
+            aria-label={`金額: ${item.name} (ID ${item.id})`}
+            type="number"
+            min={0}
+            step={1}
+            defaultValue={item.subtotal}
+            onBlur={(e) => {
+              const next = parseInt(e.target.value, 10);
+              if (Number.isFinite(next) && next >= 0 && next !== item.subtotal) {
+                onUpdateItemAmount(item, next);
+              }
+            }}
+            className="w-24 min-h-11 text-right"
+          />
+        ) : (
+          formatCurrency(item.subtotal)
+        )}
       </TableCell>
       <TableCell>
         {accountingId === undefined || (item.source === "manual" && canDelete) ? (

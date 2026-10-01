@@ -25,6 +25,8 @@ export interface BackendAccountingItem extends BillingItem {
 
 // BillingItem の更新リクエスト
 export interface UpdateBillingItemRequest {
+  /** EMR-229: 社販処理の目安として項目名（年月追記等）を更新できる */
+  name?: string;
   unit_price?: number;
   quantity?: number;
   discount_rate?: number;

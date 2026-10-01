@@ -44,33 +44,34 @@ func (s *billingItemService) resolveOwnerDiscountRate(ctx context.Context, clini
 	return owner.DiscountRate
 }
 
-// resolveAutoDiscount は #81 段階2b: 明細に適用するキャンペーン/飼主割引額を算出する(best-effort)。
-// campaignRepo 未配線時は 0。会計日(billing.ScheduledDate)・明細カテゴリ・個別商品IDで該当キャンペーンを検索し、
-// 飼主割引と高い方を採用する(CalculateItemCampaignDiscount)。
+// resolveAutoDiscount は #81 段階2b: 明細に適用するキャンペーン/飼主割引を算出する(best-effort)。
+// 会計日(billing.ScheduledDate)・明細カテゴリ・個別商品IDで該当キャンペーンを検索し、
+// 飼主割引と高い方を採用する(ResolveItemDiscount)。
+// EMR-229: 適用割引率も返す。campaignRepo 未配線でも飼主割引は適用する（従来は campaignRepo
+// 未配線だと飼主割引まで 0 になっていた）。
 func (s *billingItemService) resolveAutoDiscount(
 	ctx context.Context,
-	input *CreateBillingItemInput,
+	clinicID uint64,
+	billing *model.Billing,
 	category model.ItemCategory,
+	merchandiseItemID *uint64,
 	unitPrice int64,
 	quantity float64,
-) int64 {
-	if s.campaignRepo == nil {
-		return 0
-	}
-	billing, err := s.billingRepo.FindByID(ctx, input.ClinicID, input.BillingID)
-	if err != nil || billing == nil {
-		return 0
-	}
-	ownerRate := s.resolveOwnerDiscountRate(ctx, input.ClinicID, billing.OwnerID)
-	campaign, cerr := s.campaignRepo.FindApplicableForItem(ctx, input.ClinicID, billing.ScheduledDate, category, input.MerchandiseItemID)
-	if cerr != nil {
-		// A-4: best-effort 継続自体は妥当（自動割引はあくまで補助機能）だが、クエリ障害で
-		// 自動割引が静かに止まると運用から不可視になるため Warn ログを追加する。
-		slog.WarnContext(ctx, "campaign lookup failed; skipping auto discount", "error", cerr, "clinic_id", input.ClinicID, "billing_id", input.BillingID)
-		campaign = nil // best-effort: キャンペーン検索失敗は割引なしで続行
+) (int64, float64) {
+	ownerRate := s.resolveOwnerDiscountRate(ctx, clinicID, billing.OwnerID)
+	var campaign *model.Campaign
+	if s.campaignRepo != nil {
+		c, cerr := s.campaignRepo.FindApplicableForItem(ctx, clinicID, billing.ScheduledDate, category, merchandiseItemID)
+		if cerr != nil {
+			// A-4: best-effort 継続自体は妥当（自動割引はあくまで補助機能）だが、クエリ障害で
+			// 自動割引が静かに止まると運用から不可視になるため Warn ログを追加する。
+			slog.WarnContext(ctx, "campaign lookup failed; skipping auto discount", "error", cerr, "clinic_id", clinicID, "billing_id", billing.ID)
+		} else {
+			campaign = c
+		}
 	}
 	itemSubtotal := int64(float64(unitPrice) * quantity)
-	return CalculateItemCampaignDiscount(itemSubtotal, campaign, ownerRate)
+	return ResolveItemDiscount(itemSubtotal, campaign, ownerRate)
 }
 
 func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error) {
@@ -177,13 +178,20 @@ func (s *billingItemService) createItemInAmbientTx(ctx context.Context, input *C
 	}
 
 	if item.DiscountAmount == 0 && input.VaccinationID == nil && input.ExamID == nil {
-		item.DiscountAmount = s.resolveAutoDiscount(
+		// EMR-229: 自動割引が掛かった場合は適用率も discount_rate に記録し、
+		// 画面で「飼主マスタの割引率が入っている」状態を再現できるようにする。
+		if amount, appliedRate := s.resolveAutoDiscount(
 			ctx,
-			input,
+			input.ClinicID,
+			billing,
 			item.Category,
+			input.MerchandiseItemID,
 			item.UnitPrice,
 			item.Quantity,
-		)
+		); amount > 0 {
+			item.DiscountAmount = amount
+			item.DiscountRate = appliedRate
+		}
 	}
 
 	if err := s.repo.Create(ctx, item); err != nil {

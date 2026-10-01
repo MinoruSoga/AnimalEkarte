@@ -60,6 +60,8 @@ type createBillingItemRequest struct {
 
 // updateBillingItemRequest は明細更新リクエスト（nil = 未指定）。
 type updateBillingItemRequest struct {
+	// EMR-229: 社販処理の目安として項目名（年月追記等）を会計画面から更新できるようにする。
+	Name                  *string  `json:"name" binding:"omitempty,max=255"`
 	UnitPrice             *int64   `json:"unit_price"`
 	Quantity              *float64 `json:"quantity"`
 	DiscountRate          *float64 `json:"discount_rate" binding:"omitempty,min=0,max=100"`
@@ -115,6 +117,7 @@ func (r updateBillingItemRequest) toServiceInput() (*UpdateBillingItemInput, err
 	}
 
 	return &UpdateBillingItemInput{
+		Name:                  r.Name,
 		UnitPrice:             r.UnitPrice,
 		Quantity:              r.Quantity,
 		DiscountRate:          r.DiscountRate,

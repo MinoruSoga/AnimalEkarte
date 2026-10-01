@@ -51,6 +51,33 @@ interface UseAccountingItemActionsParams {
   startItemUpdateTransition: (callback: () => void) => void;
   /** FE-RC-001: handler 開始時に再検証する canCreate/canEdit/canDelete */
   permissions?: Readonly<AccountingItemMutationPermissions>;
+  /**
+   * EMR-229: 手入力追加行の初期割引表示に使う飼主マスタ割引率(%)（unbilled-details の
+   * owner_discount_rate）。省略時 0。POST body には載せず BE の自動割引解決に委ねるため
+   * ローカルの optimistic 表示のみに使う。
+   */
+  ownerDiscountRate?: number;
+}
+
+/** EMR-230: 単価・数量・金額（小計）変更時のローカル再計算。BE BillingItem.CalculateTaxAmount と同式（割引後ベース・外税/内税は Math.round）。 */
+function recomputeLineAmounts(
+  item: Pick<AccountingItem, "discountAmount" | "taxType" | "taxRate">,
+  unitPrice: number,
+  quantity: number,
+): { subtotal: number; taxAmount: number } {
+  const subtotal = Math.max(Math.round(unitPrice * quantity) - item.discountAmount, 0);
+  const taxAmount =
+    item.taxType === "included"
+      ? Math.round((subtotal * item.taxRate) / (1 + item.taxRate))
+      : item.taxType === "excluded"
+        ? Math.round(subtotal * item.taxRate)
+        : 0;
+  return { subtotal, taxAmount };
+}
+
+/** 既存会計で PATCH 可能な永続行かどうか（追加直後の仮ID `manual_<uuid>` は不可）。 */
+function isPersistedItemId(itemId: string): boolean {
+  return /^\d+$/.test(itemId);
 }
 
 /** 空文字は送らない。trim 後の理由のみ API に載せる（BUG-021 add/delete）。 */
@@ -108,6 +135,7 @@ export function useAccountingItemActions({
   startDeleteItemTransition,
   startItemUpdateTransition,
   permissions = DENIED_ACCOUNTING_ITEM_PERMISSIONS,
+  ownerDiscountRate = 0,
 }: UseAccountingItemActionsParams) {
   const permissionsRef = useRef(permissions);
   useLayoutEffect(() => {
@@ -116,6 +144,14 @@ export function useAccountingItemActions({
   const isMutationAllowed = useCallback(
     (action: keyof AccountingItemMutationPermissions) => permissionsRef.current[action] === true,
     [],
+  );
+
+  /** 新規会計ドラフト（accountingId なし）の明細編集は localItems へ immutable に反映する。 */
+  const patchLocalItem = useCallback(
+    (itemId: string, apply: (item: AccountingItem) => AccountingItem) => {
+      setLocalItems((prev) => (prev ?? baseItems).map((i) => (i.id === itemId ? apply(i) : i)));
+    },
+    [baseItems, setLocalItems],
   );
 
   const handleAddItem = useCallback(
@@ -139,23 +175,24 @@ export function useAccountingItemActions({
       const resolvedTaxType: TaxType = taxType ?? "excluded";
       const tempId = `manual_${crypto.randomUUID()}`;
       const manualOtherReason = category === "other" ? otherReason : undefined;
-      const subtotal = unitPrice * qty;
-      // BE BillingItem.CalculateTaxAmount と同一規則（新規行は割引0: base=unitPrice*qty）。
-      // lib/calculations.ts の lineTaxAmount は非公開のためここで同一式を適用する。
-      const taxAmount =
-        resolvedTaxType === "included"
-          ? Math.round((subtotal * rate) / (1 + rate))
-          : resolvedTaxType === "excluded"
-            ? Math.round(subtotal * rate)
-            : 0;
+      // EMR-229: 飼主マスタ割引率を optimistic な初期表示へ反映する。
+      // request body には discount を載せない（BE がキャンペーンとの大きい方で再解決する）。
+      const prefilledRate = Math.min(Math.max(ownerDiscountRate, 0), 100);
+      const discountAmount = Math.round((unitPrice * qty * prefilledRate) / 100);
+      // BE BillingItem.CalculateTaxAmount と同一規則（base = unitPrice*qty − discountAmount）。
+      const { subtotal, taxAmount } = recomputeLineAmounts(
+        { discountAmount, taxType: resolvedTaxType, taxRate: rate },
+        unitPrice,
+        qty,
+      );
       const newItem: AccountingItem = {
         id: tempId,
         category: category as ItemCategory,
         name,
         unitPrice,
         quantity: qty,
-        discountRate: 0,
-        discountAmount: 0,
+        discountRate: prefilledRate,
+        discountAmount,
         taxType: resolvedTaxType,
         taxRate: rate,
         taxAmount,
@@ -205,6 +242,7 @@ export function useAccountingItemActions({
       accountingId,
       baseItems,
       isMutationAllowed,
+      ownerDiscountRate,
       postCloseReason,
       queryClient,
       setLocalItems,
@@ -334,10 +372,187 @@ export function useAccountingItemActions({
     ],
   );
 
+  // EMR-229: 項目名の編集。社販処理の目安として年月追記などを行う。
+  // 新規会計ドラフトは localItems、既存会計は PATCH /v1/billing-items/:id {name}。
+  const handleUpdateItemName = useCallback(
+    (itemId: string, name: string) => {
+      const trimmed = name.trim();
+      if (trimmed === "") {
+        toast.error("項目名は必須です");
+        return;
+      }
+      if (!isMutationAllowed(accountingId ? "canEdit" : "canCreate")) {
+        toast.error("この操作を行う権限がありません");
+        return;
+      }
+      if (!accountingId) {
+        patchLocalItem(itemId, (i) => ({ ...i, name: trimmed }));
+        return;
+      }
+      if (!isPersistedItemId(itemId)) {
+        // 追加直後の仮ID行は作成 POST 反映後に編集可能になる（仮IDで PATCH すると失敗する）。
+        toast.error("明細の登録が反映されてから編集してください");
+        return;
+      }
+      const gate = buildPostClosePayload({
+        accountingStatus,
+        postCloseReason,
+        canPostCloseEdit,
+        isScheduledDateClosed,
+      });
+      if (!gate.ok) return;
+      startItemUpdateTransition(async () => {
+        try {
+          const req: UpdateBillingItemRequest = {
+            name: trimmed,
+            ...(gate.reason ? { post_close_reason: gate.reason } : {}),
+          };
+          await updateBillingItem(itemId, req);
+          queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(accountingId) });
+        } catch (error) {
+          handleApiError(error, "項目名の更新");
+        }
+      });
+    },
+    [
+      accountingId,
+      accountingStatus,
+      canPostCloseEdit,
+      isMutationAllowed,
+      isScheduledDateClosed,
+      patchLocalItem,
+      postCloseReason,
+      queryClient,
+      startItemUpdateTransition,
+    ],
+  );
+
+  // EMR-230: 数量の編集（単価×数量−割引=金額の明細内訳に対応）。数量は正の値のみ。
+  const handleUpdateItemQuantity = useCallback(
+    (itemId: string, quantity: number) => {
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        toast.error("数量は正の値で入力してください");
+        return;
+      }
+      if (!isMutationAllowed(accountingId ? "canEdit" : "canCreate")) {
+        toast.error("この操作を行う権限がありません");
+        return;
+      }
+      if (!accountingId) {
+        patchLocalItem(itemId, (i) => ({
+          ...i,
+          quantity,
+          ...recomputeLineAmounts(i, i.unitPrice, quantity),
+        }));
+        return;
+      }
+      if (!isPersistedItemId(itemId)) {
+        toast.error("明細の登録が反映されてから編集してください");
+        return;
+      }
+      const gate = buildPostClosePayload({
+        accountingStatus,
+        postCloseReason,
+        canPostCloseEdit,
+        isScheduledDateClosed,
+      });
+      if (!gate.ok) return;
+      startItemUpdateTransition(async () => {
+        try {
+          const req: UpdateBillingItemRequest = {
+            quantity,
+            ...(gate.reason ? { post_close_reason: gate.reason } : {}),
+          };
+          await updateBillingItem(itemId, req);
+          queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(accountingId) });
+        } catch (error) {
+          handleApiError(error, "数量の更新");
+        }
+      });
+    },
+    [
+      accountingId,
+      accountingStatus,
+      canPostCloseEdit,
+      isMutationAllowed,
+      isScheduledDateClosed,
+      patchLocalItem,
+      postCloseReason,
+      queryClient,
+      startItemUpdateTransition,
+    ],
+  );
+
+  // EMR-230: 金額（税抜小計 = 単価×数量−割引額）の直接編集。
+  // 新規カラムを増やさず unit_price = round((amount + discountAmount) / quantity) に換算して PATCH する
+  // （サーバ側が小計・税・合計を再計算して正本化する）。
+  const handleUpdateItemAmount = useCallback(
+    (item: AccountingItem, amount: number) => {
+      if (!Number.isFinite(amount) || amount < 0) {
+        toast.error("金額は0以上の値で入力してください");
+        return;
+      }
+      if (!Number.isFinite(item.quantity) || item.quantity <= 0) {
+        toast.error("数量が0のため金額を編集できません");
+        return;
+      }
+      if (!isMutationAllowed(accountingId ? "canEdit" : "canCreate")) {
+        toast.error("この操作を行う権限がありません");
+        return;
+      }
+      const unitPrice = Math.round((amount + item.discountAmount) / item.quantity);
+      if (!accountingId) {
+        patchLocalItem(item.id, (i) => ({
+          ...i,
+          unitPrice,
+          ...recomputeLineAmounts(i, unitPrice, i.quantity),
+        }));
+        return;
+      }
+      if (!isPersistedItemId(item.id)) {
+        toast.error("明細の登録が反映されてから編集してください");
+        return;
+      }
+      const gate = buildPostClosePayload({
+        accountingStatus,
+        postCloseReason,
+        canPostCloseEdit,
+        isScheduledDateClosed,
+      });
+      if (!gate.ok) return;
+      startItemUpdateTransition(async () => {
+        try {
+          const req: UpdateBillingItemRequest = {
+            unit_price: unitPrice,
+            ...(gate.reason ? { post_close_reason: gate.reason } : {}),
+          };
+          await updateBillingItem(item.id, req);
+          queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(accountingId) });
+        } catch (error) {
+          handleApiError(error, "金額の更新");
+        }
+      });
+    },
+    [
+      accountingId,
+      accountingStatus,
+      canPostCloseEdit,
+      isMutationAllowed,
+      isScheduledDateClosed,
+      patchLocalItem,
+      postCloseReason,
+      queryClient,
+      startItemUpdateTransition,
+    ],
+  );
+
   return {
     handleAddItem,
     handleDeleteItem,
     handleUpdateItemTax,
     handleUpdateItemDiscount,
+    handleUpdateItemName,
+    handleUpdateItemQuantity,
+    handleUpdateItemAmount,
   };
 }

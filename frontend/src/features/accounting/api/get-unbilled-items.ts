@@ -29,12 +29,15 @@ export interface UnbilledItemDetails {
   warnings: UnbilledWarning[];
   /** EMR-196②: 集約版 token。complete の expected_unbilled_revision へそのまま返送する。 */
   revision: string;
+  /** EMR-229: pet→主飼主マスタの割引率(%)。手入力追加行の初期表示に使う。 */
+  ownerDiscountRate: number;
 }
 
 interface BackendUnbilledDetails {
   items?: BackendAccountingItem[] | null;
   warnings?: UnbilledWarning[] | null;
   revision?: string | null;
+  owner_discount_rate?: number | null;
 }
 
 function mapUnbilledItems(data: BackendAccountingItem[] | null | undefined): AccountingItem[] {
@@ -65,5 +68,6 @@ export const getUnbilledItemDetails = async (petId: string): Promise<UnbilledIte
     items: mapUnbilledItems(data?.items),
     warnings: data?.warnings ?? [],
     revision: data?.revision ?? "",
+    ownerDiscountRate: data?.owner_discount_rate ?? 0,
   };
 };

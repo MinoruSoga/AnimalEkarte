@@ -84,6 +84,13 @@ type billingOwnerReader interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
 }
 
+// billingPetOwnerFinder は未請求候補の集約で pet→主飼主を解決する最小view（EMR-229）。
+// reservation.ReservationStore が実装する（sharedkernel.OwnerPetLinkVerifier と同型・
+// pets/owners 双方の clinic 所属を確認した上で OwnerID を返す）。
+type billingPetOwnerFinder interface {
+	FindPetOwnerInClinic(ctx context.Context, clinicID, petID uint64) (uint64, error)
+}
+
 // billingHospitalizationFinder は入院（medicalrecord=topo下流・import不可）のFK検証最小view（AUD-002）。
 type billingHospitalizationFinder interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)

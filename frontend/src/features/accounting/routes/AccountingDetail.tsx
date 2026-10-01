@@ -71,6 +71,7 @@ export const AccountingDetail = memo(function AccountingDetail({
     ungroupedSummary,
     unbilledWarnings,
     unbilledRevision,
+    ownerDiscountRate,
     hasBlockingUnbilledWarning,
     blocksNewAccountingSubmit,
     deceasedPetBlockMessage,
@@ -169,22 +170,31 @@ export const AccountingDetail = memo(function AccountingDetail({
     // rerender-dependencies: user?.clinic（オブジェクト）の代わりに user（安定参照）を deps に使用
   }, [user, invoiceRegistrationNumber]);
 
-  const { handleAddItem, handleDeleteItem, handleUpdateItemTax, handleUpdateItemDiscount } =
-    useAccountingItemActions({
-      accountingId: id,
-      accountingStatus: accounting?.status,
-      postCloseReason,
-      canPostCloseEdit,
-      isScheduledDateClosed,
-      baseItems,
-      queryClient,
-      setLocalItems,
-      setNewItemOpen,
-      startAddItemTransition,
-      startDeleteItemTransition,
-      startItemUpdateTransition,
-      permissions: { canCreate, canEdit, canDelete },
-    });
+  const {
+    handleAddItem,
+    handleDeleteItem,
+    handleUpdateItemTax,
+    handleUpdateItemDiscount,
+    handleUpdateItemName,
+    handleUpdateItemQuantity,
+    handleUpdateItemAmount,
+  } = useAccountingItemActions({
+    accountingId: id,
+    accountingStatus: accounting?.status,
+    postCloseReason,
+    canPostCloseEdit,
+    isScheduledDateClosed,
+    baseItems,
+    queryClient,
+    setLocalItems,
+    setNewItemOpen,
+    startAddItemTransition,
+    startDeleteItemTransition,
+    startItemUpdateTransition,
+    permissions: { canCreate, canEdit, canDelete },
+    // EMR-229: 新規会計では unbilled-details の飼主割引率を手入力追加行の初期表示へ渡す
+    ownerDiscountRate,
+  });
 
   const { handleCancelConfirm, handlePrint, handleRefund } = useAccountingSettlementActions({
     accountingId: id,
@@ -307,6 +317,9 @@ export const AccountingDetail = memo(function AccountingDetail({
               onDeleteItem={setDeleteItemId}
               onUpdateItemTax={handleUpdateItemTax}
               onUpdateItemDiscount={handleUpdateItemDiscount}
+              onUpdateItemName={handleUpdateItemName}
+              onUpdateItemQuantity={handleUpdateItemQuantity}
+              onUpdateItemAmount={handleUpdateItemAmount}
               onUseInsuranceChange={setHasInsurance}
               onInsuranceRatioChange={setInsuranceRatio}
               onSplitsChange={setPaymentSplits}

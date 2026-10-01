@@ -281,12 +281,15 @@ func TestGetUnbilledItemDetails_HandlerEnvelope(t *testing.T) {
 	_, hasItems := body["items"]
 	_, hasWarnings := body["warnings"]
 	_, hasRevision := body["revision"]
+	_, hasOwnerRate := body["owner_discount_rate"]
 	assert.True(t, hasItems)
 	assert.True(t, hasWarnings)
 	// EMR-196②: complete の expected_unbilled_revision へ返送する集約版を公開する
 	assert.True(t, hasRevision)
+	// EMR-229: 手入力追加行の初期割引率に使う飼主率を公開する
+	assert.True(t, hasOwnerRate)
 	// no extra top-level keys
-	assert.Len(t, body, 3)
+	assert.Len(t, body, 4)
 	warnings, ok := body["warnings"].([]any)
 	require.True(t, ok)
 	require.Len(t, warnings, 1)
@@ -417,6 +420,141 @@ func TestBillingItemService_AssertUnbilledForComplete(t *testing.T) {
 		assert.Contains(t, err.Error(), "請求不能な予防接種")
 		var conflict *unbilledRevisionConflictError
 		assert.False(t, errors.As(err, &conflict), "blocking は UNBILLED_ITEMS_CHANGED ではなく BUG-013 の既存契約")
+	})
+}
+
+// ---- EMR-229: 未請求候補への飼主/キャンペーン割引事前適用 ----
+
+// newMatrixServiceWithDeps は割引依存を注入できる newMatrixService の拡張版。
+func newMatrixServiceWithDeps(
+	repo *matrixVaccinationRepo,
+	treatments *matrixTreatmentRepo,
+	campaignRepo CampaignRepository,
+	ownerRepo billingOwnerReader,
+	petOwnerFinder billingPetOwnerFinder,
+) BillingItemService {
+	billingRepo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Billing, error) {
+			petID := uint64(7)
+			return &model.Billing{ID: id, ClinicID: clinicID, PetID: &petID, Status: model.BillingStatusWaiting}, nil
+		},
+	}
+	return NewBillingItemServiceWithCampaign(
+		repo,
+		billingRepo,
+		treatments,
+		&mockTransactor{},
+		nil, nil,
+		campaignRepo, ownerRepo,
+		WithBillingItemPetOwnerFinder(petOwnerFinder),
+	)
+}
+
+func TestBillingItemService_UnbilledDetails_OwnerDiscountPrefill(t *testing.T) {
+	ownerID := uint64(9)
+	finder := &mockPetOwnerFinder{
+		findPetOwnerInClinicFn: func(_ context.Context, clinicID, petID uint64) (uint64, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(7), petID)
+			return ownerID, nil
+		},
+	}
+	ownerRepo := &mockOwnerRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+			assert.Equal(t, ownerID, id)
+			return &model.Owner{ID: ownerID, DiscountRate: 10}, nil
+		},
+	}
+
+	t.Run("owner rate prefills treatment items and is exposed on the envelope", func(t *testing.T) {
+		repo := &matrixVaccinationRepo{mockBillingItemRepository: defaultMockBillingItemRepo()}
+		svc := newMatrixServiceWithDeps(repo, &matrixTreatmentRepo{
+			items: []model.Treatment{
+				{ID: 11, Content: "処置A", UnitPrice: 15000, Quantity: 2},
+			},
+		}, nil, ownerRepo, finder)
+
+		details, err := svc.GetUnbilledItemDetails(context.Background(), 1, 7)
+		require.NoError(t, err)
+		require.Len(t, details.Items, 1)
+		item := details.Items[0]
+		// 15000 * 2 = 30000 * 10% = 3000
+		assert.Equal(t, int64(3000), item.DiscountAmount)
+		assert.Equal(t, float64(10), item.DiscountRate)
+		assert.Equal(t, float64(10), details.OwnerDiscountRate)
+	})
+
+	t.Run("vaccination and exam items are excluded like create-time auto discount", func(t *testing.T) {
+		vaccID := uint64(22)
+		examID := uint64(33)
+		repo := &matrixVaccinationRepo{
+			mockBillingItemRepository: defaultMockBillingItemRepo(),
+			items: []model.BillingItem{
+				{ID: 22, Name: "混合ワクチン", UnitPrice: 5000, Quantity: 1, Category: model.ItemCategoryVaccine, VaccinationID: &vaccID},
+				{ID: 33, Name: "血液検査", UnitPrice: 4000, Quantity: 1, Category: model.ItemCategoryTest, ExamID: &examID},
+			},
+		}
+		svc := newMatrixServiceWithDeps(repo, &matrixTreatmentRepo{}, nil, ownerRepo, finder)
+
+		details, err := svc.GetUnbilledItemDetails(context.Background(), 1, 7)
+		require.NoError(t, err)
+		for _, item := range details.Items {
+			assert.Zero(t, item.DiscountAmount, "vaccination/exam 明細は自動割引対象外")
+			assert.Zero(t, item.DiscountRate)
+		}
+	})
+
+	t.Run("explicit treatment discount_amount is preserved (auto discount skipped)", func(t *testing.T) {
+		repo := &matrixVaccinationRepo{mockBillingItemRepository: defaultMockBillingItemRepo()}
+		svc := newMatrixServiceWithDeps(repo, &matrixTreatmentRepo{
+			items: []model.Treatment{
+				{ID: 11, Content: "処置A", UnitPrice: 15000, Quantity: 1, DiscountAmount: 500},
+			},
+		}, nil, ownerRepo, finder)
+
+		details, err := svc.GetUnbilledItemDetails(context.Background(), 1, 7)
+		require.NoError(t, err)
+		require.Len(t, details.Items, 1)
+		assert.Equal(t, int64(500), details.Items[0].DiscountAmount, "カルテの明示割引額を優先")
+		assert.Zero(t, details.Items[0].DiscountRate, "明示割引に飼主率を混ぜない")
+	})
+
+	t.Run("campaign rate higher than owner rate wins in the prefill", func(t *testing.T) {
+		repo := &matrixVaccinationRepo{mockBillingItemRepository: defaultMockBillingItemRepo()}
+		campaignRepo := &mockCampaignRepository{
+			findApplicableForItemFn: func(_ context.Context, _ uint64, _ time.Time, category model.ItemCategory, _ *uint64) (*model.Campaign, error) {
+				if category == model.ItemCategoryProcedure {
+					return &model.Campaign{ID: 1, DiscountType: model.CampaignDiscountTypeRate, DiscountValue: 30}, nil
+				}
+				return nil, nil
+			},
+		}
+		svc := newMatrixServiceWithDeps(repo, &matrixTreatmentRepo{
+			items: []model.Treatment{
+				{ID: 11, ItemType: model.TreatmentItemTypeProcedure, Content: "処置A", UnitPrice: 15000, Quantity: 1},
+			},
+		}, campaignRepo, ownerRepo, finder)
+
+		details, err := svc.GetUnbilledItemDetails(context.Background(), 1, 7)
+		require.NoError(t, err)
+		require.Len(t, details.Items, 1)
+		assert.Equal(t, int64(4500), details.Items[0].DiscountAmount)
+		assert.Equal(t, float64(30), details.Items[0].DiscountRate, "勝者の率を記録する")
+	})
+
+	t.Run("finder not wired falls back to zero discount", func(t *testing.T) {
+		repo := &matrixVaccinationRepo{mockBillingItemRepository: defaultMockBillingItemRepo()}
+		svc := newMatrixServiceWithDeps(repo, &matrixTreatmentRepo{
+			items: []model.Treatment{
+				{ID: 11, Content: "処置A", UnitPrice: 15000, Quantity: 1},
+			},
+		}, nil, ownerRepo, nil)
+
+		details, err := svc.GetUnbilledItemDetails(context.Background(), 1, 7)
+		require.NoError(t, err)
+		require.Len(t, details.Items, 1)
+		assert.Zero(t, details.Items[0].DiscountAmount)
+		assert.Zero(t, details.OwnerDiscountRate)
 	})
 }
 
