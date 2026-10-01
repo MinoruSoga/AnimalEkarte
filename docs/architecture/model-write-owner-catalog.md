@@ -58,7 +58,7 @@ flowchart LR
 | `MedicalRecord`, addenda, images | `medical_records`, … | `medicalrecord` | Clinical record aggregate |
 | `Checkup`, checkup types/fields/results | `checkups`, … | `medicalrecord` | |
 | `Examination`, `ExamResult`, exam types/fields/ranges | `exams`, `exam_results`, … | `medicalrecord` | |
-| `Prescription`, `Vaccination`, `Vaccine`, `VitalRecord` | clinical child tables | `medicalrecord` | |
+| `Vaccination`, `Vaccine`, `VitalRecord` | clinical child tables | `medicalrecord` | |
 | `Treatment`, `ClinicalPlan`, `Procedure`, `Medicine`, dose params | treatment masters + rows | `medicalrecord` | |
 | `Hospitalization`, daily/care/treatment plan rows, `Cage`, plans | hospitalization tables | `medicalrecord` | Discharge+billing orchestrates billing in same tx — see orchestration catalog |
 | `Inquiry`, `InquiryTemplate`, diagnosis masters, chief complaint | inquiry / diagnosis tables | `medicalrecord` | |

@@ -58,7 +58,6 @@ type migrationTagSync interface {
 	SyncVisitCompletionTags(ctx context.Context, clinicID, ownerID uint64) error
 	SyncCPMStageTag(ctx context.Context, clinicID, ownerID uint64) error
 	SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error
-	SyncPrescriptionTag(ctx context.Context, clinicID, ownerID uint64) error
 }
 
 // Migrator はLステップ初回一括同期を実行する。
@@ -238,9 +237,6 @@ func (m *Migrator) ownerSyncMethods(ctx context.Context, owner *model.Owner) []o
 	tier2 := []ownerSyncFn{
 		{"SyncNextVisitTag", func() error {
 			return m.tagSync.SyncNextVisitTag(ctx, m.cfg.ClinicID, owner.ID)
-		}},
-		{"SyncPrescriptionTag", func() error {
-			return m.tagSync.SyncPrescriptionTag(ctx, m.cfg.ClinicID, owner.ID)
 		}},
 	}
 

@@ -62,7 +62,6 @@ type Dependencies struct {
 	Vaccinations          VaccinationRepository
 	MedicalRecords        MedicalRecordRepository
 	Accounting            tagSyncAccountingRepo
-	Prescriptions         tagSyncPrescriptionRepo
 	Checkups              tagSyncCheckupRepo
 	BillingItems          tagSyncBillingItemRepo
 	ClinicSettings        lstepClinicSettingsRepo

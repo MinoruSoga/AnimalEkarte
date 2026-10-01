@@ -231,17 +231,6 @@ func (m *mockVaccinationRepository) FindByOwner(ctx context.Context, clinicID, o
 	return nil, nil
 }
 
-type mockPrescriptionRepository struct {
-	findActiveByOwnerFn func(context.Context, uint64, uint64) ([]model.Prescription, error)
-}
-
-func (m *mockPrescriptionRepository) FindActiveByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Prescription, error) {
-	if m.findActiveByOwnerFn != nil {
-		return m.findActiveByOwnerFn(ctx, clinicID, ownerID)
-	}
-	return nil, nil
-}
-
 type mockBillingItemRepository struct {
 	hasItemByOwnerSinceFn         func(context.Context, uint64, uint64, time.Time, []string) (bool, error)
 	hasFoodPurchaseByOwnerSinceFn func(context.Context, uint64, uint64, time.Time, []string) (bool, error)

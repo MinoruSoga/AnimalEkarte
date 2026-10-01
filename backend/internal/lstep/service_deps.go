@@ -114,10 +114,6 @@ type tagSyncPetRepo interface {
 	CountLivingByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 }
 
-type tagSyncPrescriptionRepo interface {
-	FindActiveByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Prescription, error)
-}
-
 type tagSyncCheckupRepo interface {
 	FindByOwnerID(ctx context.Context, clinicID, ownerID uint64) ([]model.Checkup, error)
 }

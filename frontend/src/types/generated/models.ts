@@ -3061,35 +3061,6 @@ export interface PetOwner {
 }
 
 //////////
-// source: prescription.go
-
-/**
- * Prescription は処方薬記録（LSTEP-BE-009）
- */
-export interface Prescription {
-  id: number /* uint64 */;
-  clinic_id: number /* uint64 */;
-  owner_id: number /* uint64 */;
-  pet_id?: number /* uint64 */;
-  medical_record_id?: number /* uint64 */;
-  prescribed_at: string;
-  duration_days: number /* int */;
-  /**
-   * Version は楽観的ロック用（UAT-R2-EXCLUSIVE-LOCK）。更新は version+1 を書き戻し、
-   * caller の読取版を expectedVersion として WHERE 照合する（clinical_plan/medical_record と同型）。
-   */
-  version: number /* int */;
-  created_at: string;
-  updated_at: string;
-  /**
-   * Relations
-   */
-  owner?: Owner;
-  pet?: Pet;
-  medical_record?: MedicalRecord;
-}
-
-//////////
 // source: procedure.go
 
 export const AnesthesiaTypeNone = "none";

@@ -172,7 +172,6 @@ func newRuntimeLstepApplication(
 		Vaccinations:          repositories.medicalRecord.vaccinations,
 		MedicalRecords:        repositories.medicalRecord.medicalRecords,
 		Accounting:            repositories.billing.accounting,
-		Prescriptions:         repositories.medicalRecord.prescriptions,
 		Checkups:              repositories.medicalRecord.checkups,
 		BillingItems:          repositories.billing.billingItems,
 		ClinicSettings:        repositories.clinic.Settings,

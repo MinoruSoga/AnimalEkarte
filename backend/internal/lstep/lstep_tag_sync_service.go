@@ -19,7 +19,6 @@ type CPMStage string
 // 検出ロジック（strings.HasPrefix）および生成ロジック（fmt.Sprintf/+）で使用する。
 const (
 	tagPrefixNextVisit   = "next_visit_"
-	tagPrefixRefillDue   = "refill_due_"
 	tagPrefixCheckupDone = "checkup_done_"
 	tagPrefixNextCheckup = "next_checkup_"
 	tagPrefixChronic     = "chronic_"
@@ -166,9 +165,6 @@ type LstepTagSyncService interface {
 	// SyncCheckupTag は健診記録の作成・更新時に checkup_done_{typeID}_{YYYY-MM}/next_checkup_* タグを同期する（BE-008）。
 	// 同一健診種別の古い checkup_done タグを解除してから新タグを付与する。next_checkup_* は最新1件のみ。
 	SyncCheckupTag(ctx context.Context, clinicID, ownerID, checkupTypeID uint64, checkupDate time.Time, nextDate *time.Time) error
-	// SyncPrescriptionTag は飼い主の全アクティブ処方を取得し、補充推奨日が最も遅い処方に基づいて
-	// refill_due_* タグを更新する（BE-009）。処方記録の追加・更新・削除後に呼び出すこと。
-	SyncPrescriptionTag(ctx context.Context, clinicID, ownerID uint64) error
 	// SyncChronicConditionTags は慢性疾患フラグに基づき chronic_* タグを差分同期する（BE-012）。
 	// activeConditionCodes は飼い主の全生存ペットのアクティブ疾患コード一覧。
 	SyncChronicConditionTags(ctx context.Context, clinicID, ownerID uint64, activeConditionCodes []string) error
@@ -206,7 +202,6 @@ type lstepTagSyncService struct {
 	accountRepo      tagSyncAccountingRepo
 	tagCacheRepo     LstepTagCacheRepository
 	petRepo          tagSyncPetRepo
-	prescriptionRepo tagSyncPrescriptionRepo
 	checkupRepo      tagSyncCheckupRepo
 	errorCounterRepo LstepSyncErrorCounterRepository
 	// FEAT-379
@@ -228,7 +223,6 @@ func NewLstepTagSyncService(
 	accountRepo tagSyncAccountingRepo,
 	tagCacheRepo LstepTagCacheRepository,
 	petRepo tagSyncPetRepo,
-	prescriptionRepo tagSyncPrescriptionRepo,
 	checkupRepo tagSyncCheckupRepo,
 	errorCounterRepo LstepSyncErrorCounterRepository,
 	tagCodeRepo LstepTagCodeMappingRepository,
@@ -243,7 +237,6 @@ func NewLstepTagSyncService(
 		accountRepo:      accountRepo,
 		tagCacheRepo:     tagCacheRepo,
 		petRepo:          petRepo,
-		prescriptionRepo: prescriptionRepo,
 		checkupRepo:      checkupRepo,
 		errorCounterRepo: errorCounterRepo,
 		tagCodeRepo:      tagCodeRepo,

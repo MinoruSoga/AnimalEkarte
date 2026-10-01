@@ -26,10 +26,6 @@ func (h *Handler) registerMedicalRecordChildRoutes(records *gin.RouterGroup, per
 	records.DELETE("/:id/checkups/:checkupId", perm(model.ResourceMedicalRecords, "delete"), h.checkup.DeleteCheckup)
 	records.GET("/:id/checkups/:checkupId/field-results", perm(model.ResourceMedicalRecords, "view"), h.checkup.ListCheckupFieldResults)
 	records.PUT("/:id/checkups/:checkupId/field-results", perm(model.ResourceMedicalRecords, "edit"), h.checkup.ReplaceCheckupFieldResults)
-	records.GET("/:id/prescriptions", perm(model.ResourceMedicalRecords, "view"), h.prescription.ListPrescriptions)
-	records.POST("/:id/prescriptions", perm(model.ResourceMedicalRecords, "create"), h.prescription.CreatePrescription)
-	records.PATCH("/:id/prescriptions/:prescriptionId", perm(model.ResourceMedicalRecords, "edit"), h.prescription.UpdatePrescription)
-	records.DELETE("/:id/prescriptions/:prescriptionId", perm(model.ResourceMedicalRecords, "delete"), h.prescription.DeletePrescription)
 	records.PATCH("/:id/inquiries", perm(model.ResourceMedicalRecords, "edit"), h.inquiry.UpdateInquiry)
 
 	// vitals POST is "edit" (not "create"); images POST / upload are "create".

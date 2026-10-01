@@ -77,7 +77,7 @@ func allModels() []any {
 		&model.ExaminationRevisionItem{},
 		&model.Vaccination{},
 		&model.Checkup{},
-		&model.Prescription{},
+
 		&model.MedicalRecordImage{},
 		&model.Reservation{},
 		&model.Inquiry{},

@@ -105,7 +105,13 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	//   PATCH  /api/v1/masters/checkup-types/:id/fields/reorder
 	//   PATCH  /api/v1/masters/checkup-types/:id/fields/:fieldId
 	//   DELETE /api/v1/masters/checkup-types/:id/fields/:fieldId
-	require.Len(t, routes, 538)
+	// 534 — prescription 機能の完全削除（migration 014_drop_prescriptions.sql と
+	// 同時適用）:
+	//   GET    /api/v1/medical-records/:id/prescriptions
+	//   POST   /api/v1/medical-records/:id/prescriptions
+	//   PATCH  /api/v1/medical-records/:id/prescriptions/:prescriptionId
+	//   DELETE /api/v1/medical-records/:id/prescriptions/:prescriptionId
+	require.Len(t, routes, 534)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /health/db",

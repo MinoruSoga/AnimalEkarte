@@ -100,7 +100,7 @@ func deleteDemoGraph(ctx context.Context, tx legacyImportTransaction) error {
 	for _, table := range []string{
 		"billing_items", "payments", "payment_splits", "billing_refunds", "billing_confirmations", "billings",
 		"estimate_items", "estimates", "exam_results", "medical_record_images", "treatments", "treatment_plans", "clinical_plans",
-		"inquiries", "checkups", "vaccinations", "exams", "prescriptions", "medical_record_addenda",
+		"inquiries", "checkups", "vaccinations", "exams", "medical_record_addenda",
 		"care_logs", "staff_notes", "care_plan_items", "vital_records", "daily_records",
 		"appointment_trimming_details", "appointment_trimming_options", "appointments", "hospitalizations",
 		"pet_chronic_conditions", "lstep_delivery_trigger_log", "lstep_tag_cache", "shared_files", "line_send_logs", "line_customers", "medical_records", "pets", "owners",

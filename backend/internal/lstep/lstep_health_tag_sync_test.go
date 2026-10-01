@@ -88,7 +88,6 @@ func buildHealthSvc(
 		nil, // accountRepo
 		tagCache,
 		petRepo,
-		nil, // prescriptionRepo
 		checkupRepo,
 		nil, // errorCounterRepo — client=nil なので notifyAPIFailure は到達しない
 		tagCodeRepo,
@@ -613,7 +612,7 @@ func buildVaccineSvc(ownerRepo tagSyncOwnerRepo, vacRepo tagSyncVaccinationRepo)
 		vacRepo,
 		nil, nil,
 		tagCache,
-		nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil,
 		nil, // tagConfigRepo
 	).(*lstepTagSyncService)
 }

@@ -86,6 +86,17 @@ func TestFindHandoffDeleteClosureGaps_FollowsTransitiveChildren(t *testing.T) {
 	}
 }
 
+func TestWithoutDroppedChildren_RemovesDroppedChild(t *testing.T) {
+	edges := []handoffRestrictEdge{
+		{child: "prescriptions", parent: "medical_records", column: "medical_record_id"},
+		{child: "medical_records", parent: "pets", column: "pet_id"},
+	}
+	got := withoutDroppedChildren(edges, map[string]struct{}{"prescriptions": {}})
+	if len(got) != 1 || got[0].child != "medical_records" {
+		t.Fatalf("dropped child should leave the parent edge only, got %+v", got)
+	}
+}
+
 func TestFindHandoffDeleteOrderInversions_DetectsParentBeforeChild(t *testing.T) {
 	edges := []handoffRestrictEdge{{child: "hospitalizations", parent: "pets", column: "pet_id"}}
 	inversions := findHandoffDeleteOrderInversions(edges, []string{"pets", "hospitalizations"})
@@ -219,6 +230,7 @@ var (
 	handoffCreateTableRe = regexp.MustCompile(`(?s)CREATE TABLE (\w+)\s*\((.*?)\n\);`)
 	handoffReferencesRe  = regexp.MustCompile(`REFERENCES\s+(\w+)\s*\(\s*id\s*\)`)
 	handoffDeleteFromRe  = regexp.MustCompile(`^\s*DELETE FROM\s+(\w+)\b`)
+	handoffDropTableRe   = regexp.MustCompile(`(?i)DROP TABLE(?:\s+IF\s+EXISTS)?\s+(\w+)`)
 
 	// The only ON DELETE actions that clear the reference instead of blocking the
 	// parent delete. Anything else — RESTRICT, NO ACTION, or an omitted clause —
@@ -287,7 +299,42 @@ func mustLoadHandoffRestrictEdges(t *testing.T, moduleRoot string) []handoffRest
 	if len(edges) == 0 {
 		t.Fatalf("no ON DELETE RESTRICT foreign keys parsed from %s; the parser is broken", handoffDeleteMigrationFile)
 	}
-	return edges
+	// 001 stays immutable. A later migration can drop a child table; that table
+	// is gone from the database the reset script runs against.
+	return withoutDroppedChildren(edges, droppedTablesInMigrations(t, moduleRoot))
+}
+
+func droppedTablesInMigrations(t *testing.T, moduleRoot string) map[string]struct{} {
+	t.Helper()
+	paths, err := filepath.Glob(filepath.Join(moduleRoot, "migrations", "*.sql"))
+	if err != nil {
+		t.Fatalf("glob migrations: %v", err)
+	}
+	dropped := map[string]struct{}{}
+	for _, path := range paths {
+		body, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		for _, match := range handoffDropTableRe.FindAllStringSubmatch(string(body), -1) {
+			dropped[match[1]] = struct{}{}
+		}
+	}
+	return dropped
+}
+
+func withoutDroppedChildren(edges []handoffRestrictEdge, dropped map[string]struct{}) []handoffRestrictEdge {
+	if len(dropped) == 0 {
+		return edges
+	}
+	kept := make([]handoffRestrictEdge, 0, len(edges))
+	for _, edge := range edges {
+		if _, ok := dropped[edge.child]; ok {
+			continue
+		}
+		kept = append(kept, edge)
+	}
+	return kept
 }
 
 func mustLoadHandoffDeletedTables(t *testing.T, moduleRoot string) []string {

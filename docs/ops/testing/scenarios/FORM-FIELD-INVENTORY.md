@@ -984,7 +984,7 @@ api.yaml の write endpoint のうち FE 実装が無いもの。実装 PR で�
 
 | endpoint | 状態 | 収録方針 |
 |:--|:--|:--|
-| `/v1/medical-records/{id}/prescriptions` | 型定義・transform のみ・フォームなし | 処方箋 UI 実装時に V01 へ収録 |
+
 | `/v1/pets/{id}/chronic-conditions` | FE 送出なし | 慢性疾患 UI 実装時に V03 へ収録 |
 | `/v1/checkup-package-imports`（preview 含む） | FE 送出なし | 取込 UI 実装時に V01 へ収録 |
 | `/v1/masters/staffs/{id}/excluded-reservation-types` | FE 送出なし | UI 実装時に V03 §9 へ収録 |
@@ -1003,7 +1003,7 @@ api.yaml の write endpoint のうち FE 実装が無いもの。実装 PR で�
 | 認証トークン操作 | 3 | auth/refresh・auth/refresh/logout・logout | 入力フォームなし。E2E auth-flows の対象 |
 | 機器レーン | 3 | lab-device/frames・station・lab-devices/{id}/configuration | [LAB_DEVICE_CLIENT_UAT.md](LAB_DEVICE_CLIENT_UAT.md) の対象レーン |
 | テスト用ツール | 1 | uat/synthetic-closings | 製品フォームでない |
-| UI 未実装 API の行操作 | 2 | prescriptions/{prescriptionId}・chronic-conditions/{cc_id} | 「未実装 API」節で追跡中の親 endpoint |
+| UI 未実装 API の行操作 | 1 | chronic-conditions/{cc_id} | 「未実装 API」節で追跡中の親 endpoint |
 
 ---
 

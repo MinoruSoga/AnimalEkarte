@@ -141,7 +141,6 @@ DELETE FROM vital_records WHERE clinic_id = ${seed_clinic};
 DELETE FROM inquiries WHERE medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ${seed_clinic});
 DELETE FROM clinical_plans WHERE medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ${seed_clinic});
 DELETE FROM medical_record_addenda WHERE clinic_id = ${seed_clinic};
-DELETE FROM prescriptions WHERE clinic_id = ${seed_clinic};
 DELETE FROM medical_records WHERE clinic_id = ${seed_clinic};
 DELETE FROM checkups WHERE clinic_id = ${seed_clinic};
 DELETE FROM hospitalizations WHERE clinic_id = ${seed_clinic};
