@@ -29,7 +29,7 @@
 ```mermaid
 flowchart TB
   D["日次（デプロイ直後）<br/>health・Cloudflare 経路・error log・audit_write_failed"]
-  W["週次（木曜）<br/>Vercel 表示・運用 account login・CRUD smoke・cleanup"]
+  W["週次（木曜）<br/>frontend(Workers) 表示・運用 account login・CRUD smoke・cleanup"]
   M["月次（第1金曜）<br/>ログ・通知監査・deploy 履歴・PlanetScale 健全性・seed integrity"]
   D --> L["§5: 実施ごとに実施ログを正式証跡へ記録"]
   W --> L
@@ -105,9 +105,9 @@ Container stdout は Worker の request log と別の表示面になる場合が
 
 ## 3. 週次検査（毎週木曜 9:00）
 
-### 3.1 Vercel フロントエンド表示確認
+### 3.1 フロントエンド表示確認（Cloudflare Workers）
 
-**環境**: [https://stg.noah-karte.com](https://stg.noah-karte.com)
+**環境**: [https://stg.noah-karte.com](https://stg.noah-karte.com)（EMR-255 以降 `animalekarte-stg-frontend` Worker が配信）
 
 - [ ] ページ読み込み成功（5 秒以内）
 - [ ] ログイン画面表示
@@ -115,7 +115,7 @@ Container stdout は Worker の request log と別の表示面になる場合が
 - [ ] エラーコンソールなし（ブラウザ DevTools F12 → Console）
 - [ ] ネットワークエラーなし（Network タブ）
 
-**失敗時アクション**: [VERCEL-FRONTEND-STAGING-TEST.md](./VERCEL-FRONTEND-STAGING-TEST.md) の §5 トラブルシューティングを参照
+**失敗時アクション**: `npx wrangler tail animalekarte-stg-frontend` と Cloudflare ダッシュボードの Worker ログ/`frontend-deploy.yml` run を確認。旧 [VERCEL-FRONTEND-STAGING-TEST.md](./VERCEL-FRONTEND-STAGING-TEST.md) は Vercel 時代の手順で、rollback 期間中の参照専用。
 
 ---
 
@@ -235,7 +235,7 @@ Demo login account は `002_master` には含まれず、許可された `APP_EN
 - **ヘルスチェック**: <PASS / FAIL / UNKNOWN と証拠>
 - **Cloudflare 経路**: <実 URL / workers.dev の観測>
 - **Workers / Containers Logs**: <観測期間・結果>
-- **Vercel / API 接続先**: <結果>
+- **frontend Worker / API 接続先**: <same-origin `/api` → `animalekarte-stg-api` service binding の結果>
 - **運用アカウントログイン**: <結果。credential は記録しない>
 - **CRUD スモークテスト**: <case ごとの PASS / FAIL / BLOCKED>
 - **cleanup / 復元**: <今回作成した resource のみ。結果・件数>
