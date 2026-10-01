@@ -283,7 +283,7 @@ export function CashRegisterClosePreview({
 
           <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
             <h2 className={`text-base font-semibold ${C.text} mb-4`}>
-              個別会計明細（{preview.billingDetails.length}件）
+              個別会計明細（{preview.billingDetails.length.toLocaleString()}件）
             </h2>
             <BillingDetailTable details={preview.billingDetails} />
           </section>

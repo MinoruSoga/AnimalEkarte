@@ -165,7 +165,7 @@ export function useCopyTreatmentDetails(
           handleApiError(createFailure, "治療追加");
           return;
         }
-        toast.success(`前回の治療明細を ${copied} 件コピーしました`);
+        toast.success(`前回の治療明細を ${copied.toLocaleString()} 件コピーしました`);
       } catch (err) {
         // payload 構築等の想定外失敗（create 経路の失敗は上で処理済み）。
         handleApiError(err, "治療明細の複写");

@@ -186,7 +186,7 @@ export function useReservationSaveActions({
             })),
           });
         }
-        toast.success(`${selectedPets.length}件の予約を作成しました`, {
+        toast.success(`${selectedPets.length.toLocaleString()}件の予約を作成しました`, {
           description: `担当医: ${targetDoctor}`,
         });
         handleCloseCreateForm();

@@ -207,7 +207,7 @@ function checkupEntries(checkups: ReadonlyArray<CheckupSource>): ClinicalHistory
         dateKey,
         source: "健診記録",
         title: first.checkupTypeName || "健診",
-        detail: `${results.length}項目${abnormalCount > 0 ? ` / 要注意 ${abnormalCount}件` : ""}`,
+        detail: `${results.length.toLocaleString()}項目${abnormalCount > 0 ? ` / 要注意 ${abnormalCount.toLocaleString()}件` : ""}`,
         status: abnormalCount > 0 ? "要注意" : undefined,
         isAlert: abnormalCount > 0,
       },

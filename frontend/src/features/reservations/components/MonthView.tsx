@@ -150,7 +150,9 @@ export const MonthView = memo(function MonthView({
                 );
               })}
               {dayAppointments.length > 4 ? (
-                <div className={`text-sm ${C.text60} pl-1`}>他 {dayAppointments.length - 4} 件</div>
+                <div className={`text-sm ${C.text60} pl-1`}>
+                  他 {(dayAppointments.length - 4).toLocaleString()} 件
+                </div>
               ) : null}
             </div>
           </div>,

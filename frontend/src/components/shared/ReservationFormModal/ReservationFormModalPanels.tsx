@@ -330,7 +330,7 @@ function LineStatusNotice({ status }: { status: LstepStatus }) {
   if (status === "not-linked") {
     return (
       <div className={`rounded-xs border ${BADGE.yellow} px-3 py-2 text-xs`}>
-        この飼い主はLINEアカウントが未連携のため、予約確定後のLINE自動通知は送信されません。
+        この飼主はLINEアカウントが未連携のため、予約確定後のLINE自動通知は送信されません。
       </div>
     );
   }
@@ -339,7 +339,7 @@ function LineStatusNotice({ status }: { status: LstepStatus }) {
       <div
         className={`rounded-xs border ${C.borderMediumLight} ${C.bgPage30} px-3 py-2 text-xs ${C.text60}`}
       >
-        この飼い主はLINEメッセージの受信を拒否しています。予約確定後のLINE自動通知は送信されません。
+        この飼主はLINEメッセージの受信を拒否しています。予約確定後のLINE自動通知は送信されません。
       </div>
     );
   }
@@ -386,7 +386,9 @@ export function ReservationModalFooter({
         ) : (
           <>
             <PawPrint className={`${ICON.action} ${C.text60}`} />
-            <span className={`text-sm ${C.text60}`}>{selectedPetsCount}頭 選択中</span>
+            <span className={`text-sm ${C.text60}`}>
+              {selectedPetsCount.toLocaleString()}頭 選択中
+            </span>
           </>
         )}
       </div>

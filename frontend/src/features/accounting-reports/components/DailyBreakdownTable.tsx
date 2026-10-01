@@ -62,11 +62,15 @@ export const DailyBreakdownTable = memo(function DailyBreakdownTable({
                   )}
                 </TableCell>
                 <TableCell className={C.text}>{detail.weekday}</TableCell>
-                <TableCell className={`text-right ${C.text60}`}>{detail.amCount}件</TableCell>
+                <TableCell className={`text-right ${C.text60}`}>
+                  {detail.amCount.toLocaleString()}件
+                </TableCell>
                 <TableCell className={`text-right ${C.text}`}>
                   {formatCurrency(detail.amNet)}
                 </TableCell>
-                <TableCell className={`text-right ${C.text60}`}>{detail.pmCount}件</TableCell>
+                <TableCell className={`text-right ${C.text60}`}>
+                  {detail.pmCount.toLocaleString()}件
+                </TableCell>
                 <TableCell className={`text-right ${C.text}`}>
                   {formatCurrency(detail.pmNet)}
                 </TableCell>

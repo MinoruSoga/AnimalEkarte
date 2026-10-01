@@ -53,11 +53,13 @@ function AggregationDashboardHeaderAction({
       disabled={isLoading || selectedCount === 0}
       title={selectedCount === 0 ? "出力対象を選択してください" : undefined}
       aria-label={
-        selectedCount === 0 ? "CSV出力 (出力対象を選択してください)" : `${selectedCount}件をCSV出力`
+        selectedCount === 0
+          ? "CSV出力 (出力対象を選択してください)"
+          : `${selectedCount.toLocaleString()}件をCSV出力`
       }
     >
       <Download className={`mr-1.5 ${ICON.action}`} />
-      {selectedCount > 0 ? `${selectedCount}件をCSV出力` : "CSV出力"}
+      {selectedCount > 0 ? `${selectedCount.toLocaleString()}件をCSV出力` : "CSV出力"}
     </Button>
   );
 }
@@ -120,10 +122,12 @@ export function AggregationDashboardView({
 
         {/* 件数 + 選択件数 (PropertyFilter のツールバーと同じ密度) */}
         <div className="flex flex-wrap items-center gap-2">
-          {data ? <span className={STYLE.searchCount}>{data.total} 件</span> : null}
+          {data ? (
+            <span className={STYLE.searchCount}>{data.total.toLocaleString()} 件</span>
+          ) : null}
           {selectedCount > 0 ? (
             <span className={`text-base font-medium ${C.textActionPrimaryDark}`}>
-              {selectedCount}件選択中
+              {selectedCount.toLocaleString()}件選択中
             </span>
           ) : null}
         </div>

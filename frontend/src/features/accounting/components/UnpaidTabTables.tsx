@@ -53,14 +53,14 @@ export function UnpaidOwnerTable({ rows, endDate }: UnpaidOwnerTableProps) {
                   {row.owner_name}
                 </DataTableRowLink>
               </TableCell>
-              <TableCell className="text-right">{row.count}</TableCell>
+              <TableCell className="text-right">{row.count.toLocaleString()}</TableCell>
               <TableCell className="text-right font-mono">
                 {formatCurrency(row.total_amount)}
               </TableCell>
               <TableCell>{row.oldest_scheduled}</TableCell>
               <TableCell>{row.latest_scheduled}</TableCell>
               <TableCell className="text-right">
-                {daysSince(row.oldest_scheduled, endDate)}日
+                {daysSince(row.oldest_scheduled, endDate).toLocaleString()}日
               </TableCell>
             </TableRow>
           ))}
@@ -113,7 +113,9 @@ export function UnpaidBillingTable({ billings, endDate }: UnpaidBillingTableProp
                   {formatCurrency(unpaidAmount)}
                 </TableCell>
                 <TableCell className="text-right">
-                  {billing.scheduledDate ? `${daysSince(billing.scheduledDate, endDate)}日` : "-"}
+                  {billing.scheduledDate
+                    ? `${daysSince(billing.scheduledDate, endDate).toLocaleString()}日`
+                    : "-"}
                 </TableCell>
               </TableRow>
             );

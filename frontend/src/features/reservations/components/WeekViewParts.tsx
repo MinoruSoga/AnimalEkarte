@@ -126,7 +126,7 @@ function WeekHeader({ startDate, appointmentsByDay, columnWidth }: WeekHeaderPro
                   <span
                     className={`absolute -right-7 bottom-0 text-xs whitespace-nowrap ${C.textBrand}`}
                   >
-                    {count}件
+                    {count.toLocaleString()}件
                   </span>
                 ) : null}
               </div>

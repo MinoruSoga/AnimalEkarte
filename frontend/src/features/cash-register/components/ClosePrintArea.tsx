@@ -193,7 +193,9 @@ export function ClosePrintArea({
       </div>
 
       {/* 個別会計明細 */}
-      <p className="font-semibold text-[9pt] mb-1">個別会計明細（{billingDetails.length}件）</p>
+      <p className="font-semibold text-[9pt] mb-1">
+        個別会計明細（{billingDetails.length.toLocaleString()}件）
+      </p>
       <table className="w-full text-[8pt] border-collapse">
         <thead>
           <tr className={`${C.bgGray100}`}>

@@ -231,7 +231,7 @@ export function ReservationTypeAvailableSlotsCalendar({
                         {format(day, "M月", { locale: ja })}
                       </div>
                     </div>
-                    <span className={`text-xs ${C.text60}`}>{chips.length}件</span>
+                    <span className={`text-xs ${C.text60}`}>{chips.length.toLocaleString()}件</span>
                   </div>
                   <div className="space-y-1.5 flex-1 overflow-hidden">
                     {chips.map(({ slot, weekly }) => (

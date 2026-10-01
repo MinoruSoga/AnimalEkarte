@@ -59,7 +59,7 @@ function formatDate(dateStr: string | null | undefined): string {
 
 function formatDaysSince(days: number | null | undefined): string {
   if (days === null || days === undefined) return "—";
-  return `${days}日`;
+  return `${days.toLocaleString()}日`;
 }
 
 const OWNER_NAME_COLUMN: AggregationOwnerColumn = {

@@ -29,9 +29,9 @@ export function resolvePatientSelectionText(
 ): string {
   if (selectedCount === 0) return "";
   if (offPageSelectedCount > 0) {
-    return `選択中: ${selectedCount}件（別ページの${offPageSelectedCount}件を含む）`;
+    return `選択中: ${selectedCount.toLocaleString()}件（別ページの${offPageSelectedCount.toLocaleString()}件を含む）`;
   }
-  return `選択中: ${selectedCount}件`;
+  return `選択中: ${selectedCount.toLocaleString()}件`;
 }
 
 export function resolvePatientStatusText(args: {

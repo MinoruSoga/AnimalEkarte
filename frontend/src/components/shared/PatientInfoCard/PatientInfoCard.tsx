@@ -178,7 +178,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
               <Activity className={ICON.xs} /> {weight}
             </span>
             {typeof visitCount === "number" ? (
-              <span className="flex items-center gap-1">来院 {visitCount} 回</span>
+              <span className="flex items-center gap-1">来院 {visitCount.toLocaleString()} 回</span>
             ) : null}
           </div>
         </div>

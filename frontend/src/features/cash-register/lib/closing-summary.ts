@@ -111,5 +111,5 @@ export function buildUnifiedClosingTotals(
 /** 件数セル表示文言（DEC-40: null → 記録なし） */
 export function formatClosingCount(count: number | null): string {
   if (count === null) return "記録なし";
-  return `${count}件`;
+  return `${count.toLocaleString()}件`;
 }

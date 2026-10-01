@@ -58,7 +58,7 @@ export const KanbanColumn = memo(function KanbanColumn({
       ref={setNodeRef}
       className={`${colors.bg} rounded-md p-2 flex flex-col gap-3 w-full lg:flex-1 lg:min-w-[220px] xl:min-w-[280px] transition-colors ${isOver ? `ring-2 ${C.ringPrimary20} ${C.bgActive}` : ""}`}
       role="region"
-      aria-label={`${data.title} — ${data.appointments.length}件`}
+      aria-label={`${data.title} — ${data.appointments.length.toLocaleString()}件`}
     >
       <div className="flex items-center gap-2 px-1 py-1">
         <div className={`${ICON.dot} rounded-full ${colors.dot}`} aria-hidden="true" />

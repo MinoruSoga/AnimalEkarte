@@ -59,7 +59,7 @@ export function ReportSection({
     <>
       {isTruncated ? (
         <p className={`mb-2 text-xs ${C.text50}`} data-testid="section-truncation-notice">
-          直近{HISTORY_FETCH_LIMIT}件を表示しています
+          直近{HISTORY_FETCH_LIMIT.toLocaleString()}件を表示しています
         </p>
       ) : null}
       {children}

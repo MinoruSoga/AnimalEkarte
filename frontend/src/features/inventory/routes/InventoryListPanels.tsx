@@ -189,10 +189,14 @@ export function InventoryListContent({
           <AlertTriangle className={`${ICON.page} ${C.textWarningIcon}`} />
           <div className="flex gap-4 text-base">
             {summary.outOfStock > 0 ? (
-              <span className={`${C.danger} font-medium`}>在庫切れ: {summary.outOfStock}件</span>
+              <span className={`${C.danger} font-medium`}>
+                在庫切れ: {summary.outOfStock.toLocaleString()}件
+              </span>
             ) : null}
             {summary.lowStock > 0 ? (
-              <span className={`${C.textWarning} font-medium`}>残少: {summary.lowStock}件</span>
+              <span className={`${C.textWarning} font-medium`}>
+                残少: {summary.lowStock.toLocaleString()}件
+              </span>
             ) : null}
           </div>
         </div>

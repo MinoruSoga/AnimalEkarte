@@ -83,7 +83,7 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
         <h2 className={`text-sm font-bold ${C.text} pl-1`}>検査結果一覧</h2>
         {isTruncated ? (
           <p className={`mt-1 pl-1 text-xs ${C.text50}`} role="status">
-            直近{HISTORY_FETCH_LIMIT}件を表示しています
+            直近{HISTORY_FETCH_LIMIT.toLocaleString()}件を表示しています
           </p>
         ) : null}
       </div>

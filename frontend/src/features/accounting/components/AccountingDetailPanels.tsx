@@ -112,8 +112,8 @@ export function UngroupedItemsWarningBanner({
   if (!show || (medicalRecordCount === 0 && trimmingCount === 0)) return null;
 
   const parts: string[] = [];
-  if (medicalRecordCount > 0) parts.push(`診察 ${medicalRecordCount}件`);
-  if (trimmingCount > 0) parts.push(`トリミング ${trimmingCount}件`);
+  if (medicalRecordCount > 0) parts.push(`診察 ${medicalRecordCount.toLocaleString()}件`);
+  if (trimmingCount > 0) parts.push(`トリミング ${trimmingCount.toLocaleString()}件`);
 
   return (
     <div
@@ -153,9 +153,9 @@ export function UnbilledBlockingWarningBanner({
 
   const labels = blocking.map((w) => {
     if (w.code === "vaccination_master_unbillable") {
-      return `予防接種マスタ未設定/価格不正 ${w.count}件`;
+      return `予防接種マスタ未設定/価格不正 ${w.count.toLocaleString()}件`;
     }
-    return `${w.source} ${w.count}件`;
+    return `${w.source} ${w.count.toLocaleString()}件`;
   });
 
   return (

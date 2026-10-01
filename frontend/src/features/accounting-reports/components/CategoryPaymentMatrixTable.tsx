@@ -86,7 +86,9 @@ export const CategoryPaymentMatrixTable = memo(function CategoryPaymentMatrixTab
           {rows.map((row) => (
             <tr key={row.label} className={`border-b ${C.borderLight} ${STYLE.tableRow}`}>
               <TableCell className={`font-medium ${C.text}`}>{row.label}</TableCell>
-              <TableCell className={`text-right ${C.text60}`}>{row.count}件</TableCell>
+              <TableCell className={`text-right ${C.text60}`}>
+                {row.count.toLocaleString()}件
+              </TableCell>
               {methods.map((pm) => (
                 <TableCell key={pm.name} className={`text-right ${C.text}`}>
                   {row.byMethod[pm.name] != null ? formatCurrency(row.byMethod[pm.name]) : "—"}
@@ -102,7 +104,7 @@ export const CategoryPaymentMatrixTable = memo(function CategoryPaymentMatrixTab
           <tr className={`border-t-2 ${C.borderMedium} ${C.bgPage}`}>
             <TableCell className={`font-semibold ${C.text}`}>合計</TableCell>
             <TableCell className={`text-right font-semibold ${C.text}`}>
-              {matrix.totals.count}件
+              {matrix.totals.count.toLocaleString()}件
             </TableCell>
             {methods.map((pm) => (
               <TableCell key={pm.name} className={`text-right font-semibold ${C.text}`}>

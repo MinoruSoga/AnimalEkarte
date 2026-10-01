@@ -278,7 +278,9 @@ export function PatientContextHeader({
           ) : null}
           {typeof visitCount === "number" && visitCount > 0 ? (
             <Tooltip content="このペットの通算来院回数です">
-              <span className="flex items-center gap-1 cursor-default">来院 {visitCount} 回</span>
+              <span className="flex items-center gap-1 cursor-default">
+                来院 {visitCount.toLocaleString()} 回
+              </span>
             </Tooltip>
           ) : null}
           {/* Insurance */}

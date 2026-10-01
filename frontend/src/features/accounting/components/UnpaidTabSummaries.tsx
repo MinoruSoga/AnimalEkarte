@@ -17,7 +17,7 @@ export function UnpaidTabSummaries({ groupBy, summary, periodSummary }: UnpaidTa
           <p className={`text-xs ${C.text50} mb-1`}>売掛金総額</p>
           <p className="text-heading-3 font-bold">{formatCurrency(summary.total_amount)}</p>
           <p className={`text-xs ${C.text60} mt-1`}>
-            {summary.billing_count}件 / {summary.owner_count}名
+            {summary.billing_count.toLocaleString()}件 / {summary.owner_count.toLocaleString()}名
           </p>
         </div>
       ) : null}
