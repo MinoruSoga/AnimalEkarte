@@ -3,6 +3,7 @@
 import importlib.util
 import io
 import json
+import os
 import pathlib
 import subprocess
 import tempfile
@@ -575,14 +576,17 @@ class VerificationTests(unittest.TestCase):
                 self.assertEqual((target / 'sentinel').read_text(), 'preserve')
 
     def _git_repo(self, root, gitignore):
-        subprocess.run(['git', 'init', '-q'], cwd=root, check=True, capture_output=True)
+        # テスト内の一時 repo が呼び出し側の GIT_DIR/GIT_WORK_TREE 等を継承すると
+        # 初期化や check-ignore が別 repo を指して失敗するため GIT_* env は除去する。
+        env = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
+        subprocess.run(['git', 'init', '-q'], cwd=root, check=True, capture_output=True, env=env)
         (root / '.gitignore').write_text(gitignore)
         (root / 'frontend').mkdir()
         calls = []
 
         def real_run(command, *args, **kwargs):
             calls.append(command)
-            return subprocess.run(command, cwd=root, capture_output=True, text=True, check=False)
+            return subprocess.run(command, cwd=root, capture_output=True, text=True, check=False, env=env)
 
         return calls, real_run
 
