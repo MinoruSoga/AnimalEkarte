@@ -225,6 +225,10 @@ stateDiagram-v2
 
 - カテゴリ enum 外は UI 上選択不能（BE 拒否は unit test 正本）。一意制約（同名在庫）が UI から再現できる場合のみ C3-2 を追加実施。
 
+## 13. 予約担当スタッフ — 注記 (reservation-staffs)
+
+- BE は POST `/{staffId}`・`/sort-order`・`/status` を受理するが **FE 送出なし**（FE は GET のみ）。スタッフ管理の正本は V03 staff-side-panel と V03 §9。wire key は inventory に計上しない（注記のみ）。2026-09-13 UAT の staff-res CRUD 実行跡は API レベル。
+
 ## 確認観点
 
 - 既存の機械テストとの分担: FE component test（`PaymentCard`・`CreditCorrectionDialog`・`RefundSection`・`EstimateForm`・`ReservationFormModal`・受付 hooks/`ReceptionDialogActionButtons`・`ShiftCalendar`・inventory form hooks）と BE validator/service test（validatePaymentSplits・billing_item・refund・cash_register・estimate・appointment/checkSlotConflict・shift_entry の各 service test）が単体レベルの検証を網羅済み。**本シナリオはブラウザ → API → DB を通した受け入れ時の実機フォーム検証**である。

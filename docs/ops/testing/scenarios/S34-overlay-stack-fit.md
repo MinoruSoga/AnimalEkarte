@@ -2,7 +2,7 @@
 
 > **目的**: モーダル・ドロップダウン・カレンダー・トーストなどのオーバーレイ要素が、親コンテナから見切れず、入れ子で開いても積層・スクロール・フォーカスが破綻しないことを、対象 viewport で納品前に証明する。
 > **所要目安**: 15分 / **深度**: 中
-> **仕様正本**: [screens/06-medical-records-form.md](../../../spec/screens/06-medical-records-form.md)・各モーダル仕様。既知欠陥 `BUG-DIALOG-FOCUS-RESTORE`（bug.md）の回帰確認を含む。
+> **仕様正本**: [screens/06-medical-records-form.md](../../../spec/screens/06-medical-records-form.md)・[screens/common-dialogs.md](../../../spec/screens/common-dialogs.md)・各モーダル仕様。既知欠陥 `BUG-DIALOG-FOCUS-RESTORE`（bug.md）の回帰確認を含む。
 
 ## 前提条件
 

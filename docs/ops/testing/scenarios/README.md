@@ -109,6 +109,7 @@ flowchart TB
 - **AI 実行**: browser-test + Chrome DevTools MCP、または Playwright MCP / 再現スクリプト。
 - **【要実測】**: 観測結果を実装/テスト/承認済み仕様と照合する。観測だけで期待結果へ昇格せず、仕様判断が残る場合は PARTIAL/BLOCKED。
 - **クレデンシャル禁止**: パスワード・トークンを本ディレクトリに書かない。アカウントはロール名。認証は `E2E_LOGIN_*`。
+- **機械チェック**: 文書整合（索引 ↔ ファイル・テンプレート・実行記録混入・リンク）と inventory × reports の F 結果差分は `../scripts/check-scenarios-coverage.sh` で確認する。スクリプト PASS は列挙済み項目の記録整合のみを意味し、実行完了・全フォーム網羅・製品品質を証明しない。
 
 ## シナリオの構造（S テンプレート）
 
