@@ -217,6 +217,16 @@ Owner: clinical_plan PATCH child resource. The parent medical-record and inquiry
 | change_override         | O   | money  | ≥0                       |
 | post_close_reason       | C   | text   | 締め後必須 F1            |
 
+### accounting-item-row-edit — [V02 §1](V02-accounting-reservation-forms.md)
+
+未精算会計の明細行を PATCH `/v1/billing-items/{id}` で行内更新（EMR-229/EMR-230）。金額欄の直接入力は `unit_price = (amount + discount_amount) / quantity` に換算して送信。`name` は全明細行、`quantity`/`unit_price` は `source = manual` 行のみ編集可（医療・トリミング由来行は source 齟齬防止のため read-only）。
+
+| fieldKey   | R/O              | 型                    | F 重点 |
+| :--------- | :--------------- | :-------------------- | :----- |
+| name       | O                | text(≤255, 空白のみ×) | F1 F4  |
+| quantity   | O(manual 行のみ) | number(>0)            | F3 F4  |
+| unit_price | O(manual 行のみ) | money(≥0)             | F3 F4  |
+
 ### accounting-item-add-dialog — [V02 §2](V02-accounting-reservation-forms.md)
 
 | fieldKey            | R/O             | F 重点               |
