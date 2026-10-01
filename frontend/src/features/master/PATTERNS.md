@@ -548,8 +548,8 @@ import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilte
 | `onFilterChange`      | `(filters: ActiveFilter[]) => void` | フィルタ変更ハンドラ                |
 | `filterLogic`         | `"and" \| "or"?`                    | フィルタ論理（デフォルト: `"and"`） |
 | `onFilterLogicChange` | `(logic: FilterLogic) => void?`     | 論理切替ハンドラ                    |
-| `searchTerm`          | `string?`                           | 検索語（state）                     |
-| `onSearchChange`      | `(v: string) => void?`              | 検索変更ハンドラ                    |
+| `searchTerm`          | `string?`                           | 確定済み検索語（state）             |
+| `onSearchChange`      | `(v: string) => void?`              | 検索確定ハンドラ（下記タイミング）  |
 | `searchPlaceholder`   | `string?`                           | 入力プレースホルダー                |
 | `count`               | `number?`                           | 結果件数（`N 件` 表示）             |
 | `sortProperties`      | `SortProperty[]?`                   | ソート可能なプロパティ              |
@@ -557,6 +557,8 @@ import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilte
 | `onSortChange`        | `(sorts: ActiveSort[]) => void?`    | ソート変更ハンドラ                  |
 
 **注意**: `count` は `filteredItems.length`（フィルタ後）を渡す。全件数は渡さない。
+
+**検索の発火タイミング（EMR-247 確定式）**: `onSearchChange` は入力中（キー毎）には呼ばれない。入力欄は内部 draft を保持し、**Enter キーまたは入力欄内の検索ボタン（`aria-label="検索を実行"`）で確定した時に 1 回だけ** `onSearchChange(draft)` が呼ばれる（日本語 IME の変換確定 Enter は確定扱いしない）。クリア ✕ と検索バーを閉じる操作は従来どおり `onSearchChange("")` を即時呼ぶ。呼び出し側は `searchTerm` に確定済みの値のみ保持すればよく、入力と確定の間に debounce 層を挟む必要はない。`searchTerm` を外部から変更すると入力欄の draft はその値へ再同期される。
 
 ---
 

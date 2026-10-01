@@ -14,7 +14,6 @@ import {
   useGetAllConsultations,
 } from "@/hooks/use-treatment-master";
 import { useGetAllInventoryItems } from "@/hooks/use-inventory-items";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 // External
 import { paths } from "@/config/paths";
@@ -86,10 +85,9 @@ function useMedicalRecordsDeleteFlow(canDelete: boolean, records: MedicalRecord[
   return { deleteModal, onDeleteConfirm };
 }
 
-// 検索語は入力のたびにクエリへ渡さず、入力が止まってから反映する。
-// useDeferredValue は描画を遅らせるだけでリクエストは毎キー発火するため、
-// 1検索=一覧+件数の重いDBクエリ2発が連打されていた（2026-10-01障害の増幅要因）。
-const SEARCH_DEBOUNCE_MS = 300;
+// EMR-247: 検索語は PropertyFilter 側の確定操作（Enter / 検索ボタン / クリア）で
+// 確定した値のみが searchTerm に入る。入力途中のクエリ発火はしない
+// （1検索=一覧+件数の重いDBクエリ2発が連打されていた 2026-10-01 障害の増幅要因を防ぐ）。
 
 export function MedicalRecords() {
   const navigate = useNavigate();
@@ -107,7 +105,6 @@ export function MedicalRecords() {
   } = useClinicScope({ resetParamsOnToggle: CLINIC_TOGGLE_RESET_PARAMS });
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
-  const debouncedSearch = useDebouncedValue(searchTerm, SEARCH_DEBOUNCE_MS);
 
   const { data: staffs } = useGetStaffs();
   const { data: medicines } = useGetAllMedicinesMaster();
@@ -144,7 +141,7 @@ export function MedicalRecords() {
     ],
   );
 
-  const resetKey = `${debouncedSearch}|${JSON.stringify(activeFilters)}|${petId ?? ""}`;
+  const resetKey = `${searchTerm}|${JSON.stringify(activeFilters)}|${petId ?? ""}`;
   const { currentPage, sortKey, sortOrder, handleSortToggle, directionForSort, handlePageChange } =
     useMedicalRecordsUrlState(resetKey);
 
@@ -154,7 +151,7 @@ export function MedicalRecords() {
       ? undefined
       : selectedClinicIds;
   const { records, total, isLoading, isError, isPlaceholderData } = useMedicalRecordsList({
-    searchTerm: debouncedSearch,
+    searchTerm,
     activeFilters,
     clinicIds: clinicIdsForApi,
     petId,
@@ -179,7 +176,8 @@ export function MedicalRecords() {
 
   const startIndex = total === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const endIndex = Math.min(currentPage * PAGE_SIZE, total);
-  const isFiltering = searchTerm !== debouncedSearch || isPlaceholderData;
+  // EMR-247: searchTerm は確定済みの値のみ保持するため「確定待ち」状態は存在しない。
+  const isFiltering = isPlaceholderData;
 
   const handleNavigateToForm = useCallback(
     (recordId?: string) => {

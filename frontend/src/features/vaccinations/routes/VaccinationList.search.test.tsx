@@ -102,6 +102,8 @@ describe("VaccinationList 検索 (EMR-60)", () => {
     await user.click(screen.getByRole("button", { name: "検索" }));
     const searchInput = screen.getByPlaceholderText("飼主名、ペット名、予防接種名...");
     fireEvent.change(searchInput, { target: { value: "山田" } });
+    // EMR-247: 入力では発火しない。Enter / 検索ボタンの確定操作で search が送信される。
+    fireEvent.keyDown(searchInput, { key: "Enter" });
 
     // 検索リクエストが handler に届き、応答を保留している状態を確認する。
     await waitFor(() => expect(searchRequestSeen).toBe(true));

@@ -52,8 +52,6 @@ import {
 
 const CLINIC_TOGGLE_RESET_PARAMS = ["page"] as const;
 
-const SEARCH_DEBOUNCE_MS = 300;
-
 export function OwnersList() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -80,7 +78,8 @@ export function OwnersList() {
   } = useClinicScope({ resetParamsOnToggle: CLINIC_TOGGLE_RESET_PARAMS });
 
   // #266: 検索・フィルタ・ページはすべて URL 経由でサーバに転送する（loaders.ts 参照）。
-  // 検索語は即時入力を受けつつ、URL 反映（= loader 再フェッチ）はデバウンスする。
+  // EMR-247: searchTerm は PropertyFilter の確定操作（Enter / 検索ボタン / クリア）で
+  // 届く確定済みの値であり、URL 反映（= loader 再フェッチ）は即時行う。
   const urlSearch = searchParams.get("search") ?? "";
   const [searchTerm, setSearchTerm] = useState(urlSearch);
 
@@ -108,24 +107,21 @@ export function OwnersList() {
 
   useEffect(() => {
     if (searchTerm === urlSearch) return;
-    const timer = setTimeout(() => {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          if (searchTerm) next.set("search", searchTerm);
-          else next.delete("search");
-          next.delete("page");
-          return next;
-        },
-        { replace: true },
-      );
-    }, SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(timer);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (searchTerm) next.set("search", searchTerm);
+        else next.delete("search");
+        next.delete("page");
+        return next;
+      },
+      { replace: true },
+    );
   }, [searchTerm, urlSearch, setSearchParams]);
 
   // ブラウザの戻る/進むなど、こちら以外の経路で URL が変わった場合に検索入力欄を再同期する。
   // rerender-derived-state-no-effect: useEffect の代わりにレンダー中に derived state で処理
-  // （use-pagination.ts の resetKey 比較と同型。デバウンス中の自分自身の書き込みでは値が
+  // （use-pagination.ts の resetKey 比較と同型。URL 確定時の自分自身の書き込みでは値が
   // 一致するため no-op）。
   const searchParamsKey = searchParams.toString();
   const [prevSearchParamsKey, setPrevSearchParamsKey] = useState(searchParamsKey);

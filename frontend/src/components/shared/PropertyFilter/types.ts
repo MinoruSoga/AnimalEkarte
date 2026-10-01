@@ -128,7 +128,16 @@ export interface PropertyFilterProps {
   onFilterChange: (filters: ActiveFilter[]) => void;
   filterLogic?: FilterLogic;
   onFilterLogicChange?: (logic: FilterLogic) => void;
+  /**
+   * 確定済み検索語。入力途中の文字列はコンポーネント内部の draft が保持し、
+   * この prop には確定後の値のみを渡す。外部から変えると入力欄へ再同期される。
+   */
   searchTerm?: string;
+  /**
+   * 検索確定ハンドラ。Enter キーまたは内部の検索ボタンでの確定時と、
+   * クリア ✕ / 検索バーを閉じる際の即時クリア（""）時にのみ呼ばれる。
+   * 入力中（onChange）は呼ばれない。
+   */
   onSearchChange?: (value: string) => void;
   searchPlaceholder?: string;
   count?: number;
