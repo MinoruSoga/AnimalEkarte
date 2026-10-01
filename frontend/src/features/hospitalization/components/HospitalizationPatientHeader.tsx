@@ -9,9 +9,9 @@ import type { Hospitalization } from "@/types";
 interface HospitalizationPatientHeaderProps {
   hospitalization: Hospitalization;
   currentWeight?: string;
-  /** スタッフ向け飼主危険マーク (EMR-173)。呼び出し側が owner 危険情報を持つ時だけ指定する。 */
+  /** スタッフ向け飼主特記マーク (EMR-173/231)。呼び出し側が owner 特記情報を持つ時だけ指定する。 */
   ownerIsDangerous?: boolean;
-  /** ペット危険度 (表示値 "高"/"中"/"低" または wire 値)。高/中のみ Popover バッジを出す。 */
+  /** ペット特記レベル (表示値 "高"/"中"/"低" または wire 値)。高/中のみ Popover バッジを出す。 */
   petDangerLevel?: string;
   petDangerReason?: string;
 }

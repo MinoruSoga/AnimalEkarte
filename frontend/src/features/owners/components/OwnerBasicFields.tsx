@@ -1,3 +1,5 @@
+import { OctagonAlert } from "lucide-react";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +12,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FormFieldError } from "@/components/shared/FormFieldError";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { StaffNoteDisclosure } from "./StaffNoteDisclosure";
 import type { ClinicMembership } from "@/types/auth";
 import type { OwnerFieldSectionProps } from "../lib/owner-info-field-shared";
 
@@ -112,31 +115,46 @@ export function OwnerBasicFields({
         <FormFieldError id="ownerName-error" message={fieldErrors.ownerName} />
       </div>
 
-      <div className="space-y-1.5 col-span-1 sm:col-span-2 lg:col-span-1 lg:row-span-3">
-        <Label className={`text-sm ${C.text60}`}>危険人物</Label>
-        <div className="flex items-center space-x-2 mb-2 h-10">
-          <Switch
-            id="dangerous"
-            aria-label="危険人物に該当する"
-            checked={ownerData.isDangerous}
-            onCheckedChange={(checked) => onChange("isDangerous", checked)}
-            className="origin-left mr-2"
-          />
-          <label htmlFor="dangerous" className={`text-sm cursor-pointer ${C.text}`}>
-            該当する
-          </label>
-        </div>
-        <Label htmlFor="remarks" className={`text-sm ${C.text60}`}>
-          備考・特記事項
-        </Label>
-        <Textarea
-          id="remarks"
-          rows={6}
-          value={ownerData.remarks}
-          maxLength={1000}
-          onChange={(event) => onChange("remarks", event.target.value)}
-          className={`text-sm ${C.text} min-h-[140px] resize-none ${C.borderMedium} p-3`}
-        />
+      {/* EMR-231: スタッフ向け内部情報は普段畳み、操作したときだけ開く。
+          項目名・属性経路にも直接の警戒文言は出さない。 */}
+      <div className="col-span-1 sm:col-span-2 lg:col-span-1 lg:row-span-3">
+        <StaffNoteDisclosure
+          id="owner-staff-note-panel"
+          flagged={ownerData.isDangerous}
+          icon={
+            <OctagonAlert
+              className={`${ICON.smXs} ${ownerData.isDangerous ? C.danger : C.text40}`}
+              aria-hidden="true"
+            />
+          }
+        >
+          <div className="space-y-1.5">
+            <Label className={`text-sm ${C.text60}`}>特記対象</Label>
+            <div className="flex items-center space-x-2 mb-2 h-10">
+              <Switch
+                id="dangerous"
+                aria-label="特記対象にする"
+                checked={ownerData.isDangerous}
+                onCheckedChange={(checked) => onChange("isDangerous", checked)}
+                className="origin-left mr-2"
+              />
+              <label htmlFor="dangerous" className={`text-sm cursor-pointer ${C.text}`}>
+                該当する
+              </label>
+            </div>
+            <Label htmlFor="remarks" className={`text-sm ${C.text60}`}>
+              備考・特記事項
+            </Label>
+            <Textarea
+              id="remarks"
+              rows={6}
+              value={ownerData.remarks}
+              maxLength={1000}
+              onChange={(event) => onChange("remarks", event.target.value)}
+              className={`text-sm ${C.text} min-h-[140px] resize-none ${C.borderMedium} p-3`}
+            />
+          </div>
+        </StaffNoteDisclosure>
       </div>
 
       <div className="space-y-1.5">

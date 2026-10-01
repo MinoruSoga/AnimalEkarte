@@ -298,7 +298,7 @@ describe("AppointmentCard", () => {
     expect(screen.queryByRole("button", { name: /ポチの入院登録/ })).not.toBeInTheDocument();
   });
 
-  it("保存済みの危険理由を click で開示し、再 click で閉じても card click を発火しない", async () => {
+  it("保存済みの補足メモを click で開示し、再 click で閉じても card click を発火しない", async () => {
     const user = userEvent.setup();
     const onCardClick = vi.fn();
     renderCard(
@@ -313,7 +313,7 @@ describe("AppointmentCard", () => {
     );
 
     const trigger = screen.getByRole("button", {
-      name: "ポチの危険理由を表示",
+      name: "ポチの詳細を表示",
     });
 
     await user.click(trigger);
@@ -335,7 +335,7 @@ describe("AppointmentCard", () => {
     ["undefined", undefined],
     ["空文字", ""],
     ["空白のみ", " \n\t "],
-  ])("危険理由が%sの場合は理由未登録を表示する", async (_caseName, petDangerReason) => {
+  ])("補足メモが%sの場合は内容未登録を表示する", async (_caseName, petDangerReason) => {
     const user = userEvent.setup();
     renderCard({
       ...baseAppointment,
@@ -345,17 +345,17 @@ describe("AppointmentCard", () => {
 
     await user.click(
       screen.getByRole("button", {
-        name: "ポチの危険理由を表示",
+        name: "ポチの詳細を表示",
       }),
     );
 
-    expect(await screen.findByText("理由未登録")).toBeInTheDocument();
+    expect(await screen.findByText("内容未登録")).toBeInTheDocument();
   });
 
   it.each([
     ["Enter", "{Enter}"],
     ["Space", " "],
-  ])("危険 badge は%sで同じ trigger から開閉できる", async (_keyName, key) => {
+  ])("特記 badge は%sで同じ trigger から開閉できる", async (_keyName, key) => {
     const user = userEvent.setup();
     renderCard({
       ...baseAppointment,
@@ -364,7 +364,7 @@ describe("AppointmentCard", () => {
     });
 
     const trigger = screen.getByRole("button", {
-      name: "ポチの危険理由を表示",
+      name: "ポチの詳細を表示",
     });
     trigger.focus();
 
@@ -382,19 +382,23 @@ describe("AppointmentCard", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("危険度 high の警告 badge を表示し、既存のカルテ・会計 action は維持する", () => {
+  it("特記レベル high のアイコン badge を表示し、既存のカルテ・会計 action は維持する", () => {
     renderCard({
       ...baseAppointment,
       petDangerLevel: DangerLevelHigh,
     });
 
-    expect(screen.getByText("⚠ 危険")).toHaveClass(C.bgDanger10, C.danger, C.borderDanger20);
+    const trigger = screen.getByRole("button", { name: "ポチの詳細を表示" });
+    expect(trigger.textContent).toBe("");
+    expect(trigger).toHaveClass(C.bgDanger10, C.danger, C.borderDanger20);
+    expect(trigger.querySelector("svg")).toHaveClass("lucide-octagon-alert");
+    expect(screen.queryByText(/危険|注意/)).not.toBeInTheDocument();
     expect(screen.queryByText("【死亡】")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /ポチのカルテ/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /ポチの会計/ })).toBeInTheDocument();
   });
 
-  it("危険度 medium は黄色 ⚠ 注意 badge を出し、注意理由を card click せず開閉できる", async () => {
+  it("特記レベル medium は黄色アイコン badge を出し、メモを card click せず開閉できる", async () => {
     const user = userEvent.setup();
     const onCardClick = vi.fn();
     renderCard(
@@ -408,10 +412,11 @@ describe("AppointmentCard", () => {
       onCardClick,
     );
 
-    const trigger = screen.getByRole("button", { name: "ポチの注意理由を表示" });
-    expect(trigger).toHaveTextContent("⚠ 注意");
+    const trigger = screen.getByRole("button", { name: "ポチの詳細を表示" });
+    expect(trigger.textContent).toBe("");
     expect(trigger).toHaveClass(C.bgNotice, C.textBadgeYellow, C.borderNotice);
-    expect(screen.queryByText("⚠ 危険")).not.toBeInTheDocument();
+    expect(trigger.querySelector("svg")).toHaveClass("lucide-triangle-alert");
+    expect(screen.queryByText(/危険|注意/)).not.toBeInTheDocument();
 
     await user.click(trigger);
     expect(await screen.findByText("興奮しやすい")).toBeInTheDocument();
@@ -419,12 +424,12 @@ describe("AppointmentCard", () => {
     expect(onCardClick).not.toHaveBeenCalled();
   });
 
-  it("飼主が危険人物なら飼主名の横に ⚠ 危険人物 を出し card click は発火しない", async () => {
+  it("特記対象の飼主は飼主名の横にアイコンマークを出し card click は発火しない", async () => {
     const user = userEvent.setup();
     const onCardClick = vi.fn();
     renderCard({ ...baseAppointment, ownerIsDangerous: true }, "受付済", vi.fn(), onCardClick);
 
-    const mark = screen.getByText("⚠ 危険人物");
+    const mark = screen.getByRole("img", { name: "特記" });
     expect(mark).toHaveClass(C.bgDanger10, C.danger, C.borderDanger20);
 
     await user.click(mark);
@@ -434,17 +439,17 @@ describe("AppointmentCard", () => {
   it.each([
     ["false", false],
     ["未設定", undefined],
-  ])("飼主の is_dangerous が%sなら危険人物マークを出さない", (_caseName, ownerIsDangerous) => {
+  ])("飼主の is_dangerous が%sなら特記マークを出さない", (_caseName, ownerIsDangerous) => {
     renderCard({ ...baseAppointment, ownerIsDangerous });
 
-    expect(screen.queryByText("⚠ 危険人物")).not.toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "特記" })).not.toBeInTheDocument();
   });
 
-  it("生存かつ危険度 low では badge を表示せず、既存 action を維持する", () => {
+  it("生存かつ特記レベル low では badge を表示せず、既存 action を維持する", () => {
     renderCard();
 
     expect(screen.queryByText("【死亡】")).not.toBeInTheDocument();
-    expect(screen.queryByText("⚠ 危険")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /の詳細を表示/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /ポチのカルテ/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /ポチの会計/ })).toBeInTheDocument();
   });
@@ -457,7 +462,7 @@ describe("AppointmentCard", () => {
     });
 
     expect(screen.queryByText("【死亡】")).not.toBeInTheDocument();
-    expect(screen.queryByText("⚠ 危険")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /の詳細を表示/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /ポチのカルテ/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /ポチの会計/ })).toBeInTheDocument();
   });

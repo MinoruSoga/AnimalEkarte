@@ -51,11 +51,11 @@ export interface PatientContextHeaderProps {
   visitCount?: number;
   /** 既存 pet.microchip_number。ヘッダーは表示専用。空は出さない。 */
   microchipNumber?: string;
-  /** スタッフ向け飼主危険マーク (EMR-173)。true なら飼主名横に ⚠ 危険人物。 */
+  /** スタッフ向け飼主特記マーク (EMR-173/231)。true なら飼主名横にアイコンのみ出す。 */
   ownerIsDangerous?: boolean;
-  /** ペット危険度 (表示値 "高"/"中"/"低" または wire 値)。高/中のみ Popover バッジを出す。 */
+  /** ペット特記レベル (表示値 "高"/"中"/"低" または wire 値)。高/中のみ Popover バッジを出す。 */
   petDangerLevel?: string;
-  /** ペット危険理由。未設定はバッジ Popover 内で「理由未登録」表示。 */
+  /** ペット特記メモ。未設定はバッジ Popover 内で「内容未登録」表示。 */
   petDangerReason?: string;
   /** 今回カルテの最新バイタル（表示専用。時刻は出さない）。 */
   vitalsSummary?: {

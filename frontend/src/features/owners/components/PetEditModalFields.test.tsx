@@ -83,10 +83,19 @@ function PetFieldsHarness() {
 }
 
 describe("PetEditModalFields", () => {
-  it("保存済みの危険理由を初期表示する", () => {
+  it("特記セクションは既定で折りたたまれ、開くと保存済みの理由を表示する", async () => {
+    const user = userEvent.setup();
     render(<PetFieldsHarness />);
 
-    expect(screen.getByLabelText("危険と判断した理由")).toHaveValue("保定時に噛む");
+    const disclosure = screen.getByRole("button", { name: /スタッフ向け特記/ });
+    expect(disclosure).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByLabelText("理由")).not.toBeInTheDocument();
+
+    await user.click(disclosure);
+
+    expect(disclosure).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByLabelText("理由")).toHaveValue("保定時に噛む");
+    expect(screen.getByRole("combobox", { name: "特記レベル" })).toBeInTheDocument();
   });
 
   it("血液型とマイクロチップ番号を編集できる", async () => {
@@ -183,24 +192,32 @@ function renderPetEditModal(petData: PetFormData, onSave = vi.fn()) {
   return onSave;
 }
 
-async function chooseDangerLevel(user: ReturnType<typeof userEvent.setup>, level: string) {
-  await user.click(screen.getByRole("combobox", { name: "ペットの危険度" }));
+async function openStaffNote(user: ReturnType<typeof userEvent.setup>) {
+  const disclosure = screen.getByRole("button", { name: /スタッフ向け特記/ });
+  if (disclosure.getAttribute("aria-expanded") !== "true") {
+    await user.click(disclosure);
+  }
+}
+
+async function chooseStaffNoteLevel(user: ReturnType<typeof userEvent.setup>, level: string) {
+  await openStaffNote(user);
+  await user.click(screen.getByRole("combobox", { name: "特記レベル" }));
   await user.click(screen.getByRole("option", { name: level }));
 }
 
 describe("PetEditModal danger reason validation", () => {
-  it("dangerLevel=高 で危険理由が空白のみなら保存をブロックする", async () => {
+  it("dangerLevel=高 で理由が空白のみなら保存をブロックする", async () => {
     const user = userEvent.setup();
     const onSave = renderPetEditModal({ ...basePet, dangerReason: " \t " });
 
-    await chooseDangerLevel(user, "高");
+    await chooseStaffNoteLevel(user, "高");
     await user.click(screen.getByRole("button", { name: "更新" }));
 
     expect(onSave).not.toHaveBeenCalled();
-    expect(screen.getByText("危険度が高の場合は理由を入力してください")).toBeInTheDocument();
+    expect(screen.getByText("特記レベルが高の場合は理由を入力してください")).toBeInTheDocument();
   });
 
-  it("危険理由が501 Unicode文字なら保存をブロックする", async () => {
+  it("理由が501 Unicode文字なら保存をブロックする", async () => {
     const user = userEvent.setup();
     const onSave = renderPetEditModal({
       ...basePet,
@@ -210,10 +227,10 @@ describe("PetEditModal danger reason validation", () => {
     await user.click(screen.getByRole("button", { name: "更新" }));
 
     expect(onSave).not.toHaveBeenCalled();
-    expect(screen.getByText("危険理由は500文字以内で入力してください")).toBeInTheDocument();
+    expect(screen.getByText("理由は500文字以内で入力してください")).toBeInTheDocument();
   });
 
-  it("危険理由が500 Unicode文字なら保存できる", async () => {
+  it("理由が500 Unicode文字なら保存できる", async () => {
     const user = userEvent.setup();
     const onSave = renderPetEditModal({
       ...basePet,
@@ -227,21 +244,26 @@ describe("PetEditModal danger reason validation", () => {
     );
   });
 
-  it("危険理由のエラーは入力時と高以外への変更時に解消する", async () => {
+  it("理由のエラーは入力時と高以外への変更時に解消する", async () => {
     const user = userEvent.setup();
     renderPetEditModal({ ...basePet, dangerLevel: "高", dangerReason: "" });
 
     await user.click(screen.getByRole("button", { name: "更新" }));
-    expect(screen.getByText("危険度が高の場合は理由を入力してください")).toBeInTheDocument();
+    expect(screen.getByText("特記レベルが高の場合は理由を入力してください")).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText("危険と判断した理由"), "噛む");
-    expect(screen.queryByText("危険度が高の場合は理由を入力してください")).not.toBeInTheDocument();
+    // フィールドエラーで自動展開されたパネル内の textarea を操作する
+    await user.type(screen.getByLabelText("理由"), "噛む");
+    expect(
+      screen.queryByText("特記レベルが高の場合は理由を入力してください"),
+    ).not.toBeInTheDocument();
 
-    await user.clear(screen.getByLabelText("危険と判断した理由"));
+    await user.clear(screen.getByLabelText("理由"));
     await user.click(screen.getByRole("button", { name: "更新" }));
-    expect(screen.getByText("危険度が高の場合は理由を入力してください")).toBeInTheDocument();
+    expect(screen.getByText("特記レベルが高の場合は理由を入力してください")).toBeInTheDocument();
 
-    await chooseDangerLevel(user, "低");
-    expect(screen.queryByText("危険度が高の場合は理由を入力してください")).not.toBeInTheDocument();
+    await chooseStaffNoteLevel(user, "低");
+    expect(
+      screen.queryByText("特記レベルが高の場合は理由を入力してください"),
+    ).not.toBeInTheDocument();
   });
 });

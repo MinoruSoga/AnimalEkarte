@@ -108,6 +108,7 @@ func ValidatePetDangerLevel(level string) error {
 	case model.DangerLevelLow, model.DangerLevelMedium, model.DangerLevelHigh:
 		return nil
 	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("危険度の値が不正です: %s", level))
+		// EMR-231: 400 の error 本文は FE の toast にそのまま出るため、警戒表現は含めない。
+		return apperrors.WrapInvalidInput(fmt.Sprintf("特記レベルの値が不正です: %s", level))
 	}
 }
