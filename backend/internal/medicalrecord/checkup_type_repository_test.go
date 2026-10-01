@@ -72,7 +72,7 @@ func TestCheckupTypeRepository_FindAll_ClinicIsolationAndSortOrder(t *testing.T)
 	assert.Equal(t, ctFirst.ID, got[0].ID, "sort_order 昇順で先頭に来る")
 	assert.Equal(t, ctSecond.ID, got[1].ID)
 	for _, ct := range got {
-		assert.NotEqual(t, ctB.ID, ct.ID, "別クリニックの健診種別が混入してはならない")
+		assert.NotEqual(t, ctB.ID, ct.ID, "別医院の健診種別が混入してはならない")
 	}
 }
 
@@ -85,13 +85,13 @@ func TestCheckupTypeRepository_FindByID(t *testing.T) {
 	ct := &model.CheckupType{ClinicID: clinicA, Name: "血液検査パック"}
 	require.NoError(t, db.WithContext(ctx).Create(ct).Error)
 
-	t.Run("同一クリニックで取得できる", func(t *testing.T) {
+	t.Run("同一医院で取得できる", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, ct.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "血液検査パック", got.Name)
 	})
 
-	t.Run("別クリニックからは NotFound", func(t *testing.T) {
+	t.Run("別医院からは NotFound", func(t *testing.T) {
 		_, err := repo.FindByID(ctx, clinicB, ct.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
@@ -128,14 +128,14 @@ func TestCheckupTypeRepository_Update(t *testing.T) {
 	ct := &model.CheckupType{ClinicID: clinicA, Name: "旧名称"}
 	require.NoError(t, db.WithContext(ctx).Create(ct).Error)
 
-	t.Run("同一クリニックで更新できる", func(t *testing.T) {
+	t.Run("同一医院で更新できる", func(t *testing.T) {
 		name := "新名称"
 		got, err := repo.Update(ctx, clinicA, ct.ID, UpdateCheckupTypeInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "新名称", got.Name)
 	})
 
-	t.Run("別クリニックからの更新は NotFound", func(t *testing.T) {
+	t.Run("別医院からの更新は NotFound", func(t *testing.T) {
 		name := "乗っ取り"
 		_, err := repo.Update(ctx, clinicB, ct.ID, UpdateCheckupTypeInput{Name: &name})
 		require.Error(t, err)
@@ -159,7 +159,7 @@ func TestCheckupTypeRepository_Delete(t *testing.T) {
 	ct := &model.CheckupType{ClinicID: clinicA, Name: "削除対象"}
 	require.NoError(t, db.WithContext(ctx).Create(ct).Error)
 
-	t.Run("別クリニックからの削除は NotFound", func(t *testing.T) {
+	t.Run("別医院からの削除は NotFound", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, ct.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -171,7 +171,7 @@ func TestCheckupTypeRepository_Delete(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("同一クリニックで削除でき、ソフトデリートされる", func(t *testing.T) {
+	t.Run("同一医院で削除でき、ソフトデリートされる", func(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, clinicA, ct.ID))
 
 		// FindAll / FindByID からは除外される。
@@ -215,7 +215,7 @@ func TestCheckupTypeRepository_Reorder(t *testing.T) {
 		assert.Equal(t, c2.ID, got[2].ID)
 	})
 
-	t.Run("別クリニックの ID を含むと失敗する", func(t *testing.T) {
+	t.Run("別医院の ID を含むと失敗する", func(t *testing.T) {
 		other := &model.CheckupType{ClinicID: clinicB, Name: "他院"}
 		require.NoError(t, db.WithContext(ctx).Create(other).Error)
 		err := repo.Reorder(ctx, clinicA, []uint64{c1.ID, other.ID})
@@ -249,7 +249,7 @@ func TestCheckupTypeRepository_CountUsageByCheckupTypeID(t *testing.T) {
 		assert.Equal(t, int64(1), count)
 	})
 
-	t.Run("別クリニックIDでは 0（クロステナント越境なし）", func(t *testing.T) {
+	t.Run("別医院IDでは 0（クロステナント越境なし）", func(t *testing.T) {
 		count, err := repo.CountUsageByCheckupTypeID(ctx, clinicB, ct.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)
@@ -289,7 +289,7 @@ func TestCheckupTypeRepository_CountChildrenByParentID(t *testing.T) {
 		assert.Equal(t, int64(2), count)
 	})
 
-	t.Run("別クリニックIDでは 0", func(t *testing.T) {
+	t.Run("別医院IDでは 0", func(t *testing.T) {
 		count, err := repo.CountChildrenByParentID(ctx, clinicB, parent.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)

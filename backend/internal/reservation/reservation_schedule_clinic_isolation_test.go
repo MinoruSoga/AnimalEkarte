@@ -42,7 +42,7 @@ func setupScheduleIsolationTestDB(t *testing.T) *gorm.DB {
 
 // TestReservationScheduleRepository_FindAllByDate_ClinicIsolation は
 // clinic A のシフトを clinic B の clinicID で取得できないことを検証する。
-// clinicScope を削除すると「別クリニックIDでは取得できない」が失敗する。
+// clinicScope を削除すると「別医院IDでは取得できない」が失敗する。
 func TestReservationScheduleRepository_FindAllByDate_ClinicIsolation(t *testing.T) {
 	db := setupScheduleIsolationTestDB(t)
 	repo := NewReservationScheduleRepository(db, staffpkg.NewShiftEntryRepository(db))
@@ -57,7 +57,7 @@ func TestReservationScheduleRepository_FindAllByDate_ClinicIsolation(t *testing.
 	staffA := makeDoctor(t, db, clinicA, "スケジュールA用スタッフ")
 	makeShiftEntry(t, db, clinicA, staffA.ID, date)
 
-	t.Run("同一クリニックIDでは取得できる", func(t *testing.T) {
+	t.Run("同一医院IDでは取得できる", func(t *testing.T) {
 		got, err := repo.FindAllByDate(ctx, clinicA, staffA.ID, date)
 		require.NoError(t, err)
 		require.NotNil(t, got)
@@ -65,7 +65,7 @@ func TestReservationScheduleRepository_FindAllByDate_ClinicIsolation(t *testing.
 		assert.Equal(t, staffA.ID, got.StaffID)
 	})
 
-	t.Run("別クリニックIDでは取得できない（clinic_id 隔離）", func(t *testing.T) {
+	t.Run("別医院IDでは取得できない（clinic_id 隔離）", func(t *testing.T) {
 		got, err := repo.FindAllByDate(ctx, clinicB, staffA.ID, date)
 		assert.Error(t, err, "clinic B から clinic A のシフトを取得できてはならない")
 		assert.Nil(t, got)
@@ -75,7 +75,7 @@ func TestReservationScheduleRepository_FindAllByDate_ClinicIsolation(t *testing.
 
 // TestReservationScheduleRepository_FindAllByMonth_ClinicIsolation は
 // clinic A のシフト一覧を clinic B の clinicID で取得できないことを検証する。
-// clinicScope を削除すると「別クリニックIDでは0件」が失敗する。
+// clinicScope を削除すると「別医院IDでは0件」が失敗する。
 func TestReservationScheduleRepository_FindAllByMonth_ClinicIsolation(t *testing.T) {
 	db := setupScheduleIsolationTestDB(t)
 	repo := NewReservationScheduleRepository(db, staffpkg.NewShiftEntryRepository(db))
@@ -90,14 +90,14 @@ func TestReservationScheduleRepository_FindAllByMonth_ClinicIsolation(t *testing
 	staffA := makeDoctor(t, db, clinicA, "月次スケジュールA用スタッフ")
 	makeShiftEntry(t, db, clinicA, staffA.ID, date)
 
-	t.Run("同一クリニックIDでは1件取得できる", func(t *testing.T) {
+	t.Run("同一医院IDでは1件取得できる", func(t *testing.T) {
 		got, err := repo.FindAllByMonth(ctx, clinicA, staffA.ID, "2026-06")
 		require.NoError(t, err)
 		assert.Len(t, got, 1, "clinic A のシフトが1件見えるはず")
 		assert.Equal(t, clinicA, got[0].ClinicID)
 	})
 
-	t.Run("別クリニックIDでは0件（clinic_id 隔離）", func(t *testing.T) {
+	t.Run("別医院IDでは0件（clinic_id 隔離）", func(t *testing.T) {
 		got, err := repo.FindAllByMonth(ctx, clinicB, staffA.ID, "2026-06")
 		require.NoError(t, err, "FindAllByMonth は空リストを返す（エラーではない）")
 		assert.Empty(t, got, "clinic B から clinic A のシフトを見てはならない")
@@ -105,7 +105,7 @@ func TestReservationScheduleRepository_FindAllByMonth_ClinicIsolation(t *testing
 }
 
 // TestReservationScheduleRepository_Delete_ClinicIsolation は
-// 別クリニックIDからの Delete が NotFound を返し、シフトが削除されないことを検証する。
+// 別医院IDからの Delete が NotFound を返し、シフトが削除されないことを検証する。
 // clinicScope を削除すると「シフトはまだ存在する」が失敗する。
 func TestReservationScheduleRepository_Delete_ClinicIsolation(t *testing.T) {
 	db := setupScheduleIsolationTestDB(t)
@@ -121,7 +121,7 @@ func TestReservationScheduleRepository_Delete_ClinicIsolation(t *testing.T) {
 	staffA := makeDoctorAssignedToClinic(t, db, clinicA, "削除テストA用スタッフ")
 	makeShiftEntry(t, db, clinicA, staffA.ID, date)
 
-	t.Run("別クリニックIDからの Delete は NotFound を返す", func(t *testing.T) {
+	t.Run("別医院IDからの Delete は NotFound を返す", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, staffA.ID, date)
 		require.Error(t, err, "clinic B から clinic A のシフトを削除できてはならない")
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
@@ -131,10 +131,10 @@ func TestReservationScheduleRepository_Delete_ClinicIsolation(t *testing.T) {
 		var entry model.ShiftEntry
 		require.NoError(t, db.Where("clinic_id = ? AND staff_id = ? AND date = ?",
 			clinicA, staffA.ID, date.Format("2006-01-02")).First(&entry).Error)
-		assert.Equal(t, staffA.ID, entry.StaffID, "clinic A のシフトは別クリニックの Delete で消えてはならない")
+		assert.Equal(t, staffA.ID, entry.StaffID, "clinic A のシフトは別医院の Delete で消えてはならない")
 	})
 
-	t.Run("正しいクリニックIDからの Delete は成功する", func(t *testing.T) {
+	t.Run("正しい医院IDからの Delete は成功する", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicA, staffA.ID, date)
 		require.NoError(t, err)
 		var entry model.ShiftEntry

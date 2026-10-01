@@ -290,7 +290,7 @@ func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) 
 		if locked.Status != model.MedicalRecordStatusDraft {
 			return wrapMedicalRecordDeleteConflict(
 				medicalRecordDeleteStateConflict,
-				"確定済みまたは下書き以外の診療記録は削除できません",
+				"確定済みまたは下書き以外のカルテは削除できません",
 			)
 		}
 		estimateCount, err := s.repo.CountEstimatesByMedicalRecordID(txCtx, clinicID, id)

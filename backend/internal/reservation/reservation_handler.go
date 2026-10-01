@@ -42,7 +42,7 @@ func (h *CRUDHandler) checkDoctorClinicAssignment(ctx context.Context, clinicID,
 			return nil
 		}
 	}
-	return apperrors.WrapInvalidInput("指定されたスタッフはこのクリニックに所属していません")
+	return apperrors.WrapInvalidInput("指定されたスタッフはこの医院に所属していません")
 }
 
 const reservationListMaxLimit = 1000

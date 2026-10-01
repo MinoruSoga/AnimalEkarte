@@ -8,8 +8,8 @@ import (
 
 // TestBuildTaxBreakdown_ClinicRates は M-7(#191) の回帰テスト。
 // 締めレジ経路の税率分類を固定閾値（>8）から病院マスタ税率の exact-match へ統一した。
-// 1) 既定クリニック（標準10%/軽減8%）では旧実装と同じ分類になる（挙動不変の証明）。
-// 2) 軽減税率 9% のクリニックでは 9% が軽減へ分類される（旧固定閾値では標準へ誤分類）。
+// 1) 既定医院（標準10%/軽減8%）では旧実装と同じ分類になる（挙動不変の証明）。
+// 2) 軽減税率 9% の医院では 9% が軽減へ分類される（旧固定閾値では標準へ誤分類）。
 // 3) 0%（非課税）は軽減と一致しないため標準へ分類する（月次 #191 と同一規則）。
 func TestBuildTaxBreakdown_ClinicRates(t *testing.T) {
 	defaultRates := accountingReportTaxRates{StandardPercent: 10, ReducedPercent: 8}
@@ -26,7 +26,7 @@ func TestBuildTaxBreakdown_ClinicRates(t *testing.T) {
 		assert.Equal(t, int64(40), got.Reduced.TaxAmount)
 	})
 
-	t.Run("軽減9%クリニック: 9%→軽減・10%→標準（旧閾値>8では9%が標準へ誤分類）", func(t *testing.T) {
+	t.Run("軽減9%医院: 9%→軽減・10%→標準（旧閾値>8では9%が標準へ誤分類）", func(t *testing.T) {
 		rows := []TaxBreakdownRow{
 			{TaxRate: 10, TaxableAmount: 1000, TaxAmount: 100},
 			{TaxRate: 9, TaxableAmount: 400, TaxAmount: 36},

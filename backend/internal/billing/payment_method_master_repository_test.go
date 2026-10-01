@@ -86,7 +86,7 @@ func TestPaymentMethodMasterRepository_Create_FindByID_LegacyCoverage(t *testing
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	t.Run("作成した支払方法を同一クリニックで取得できる", func(t *testing.T) {
+	t.Run("作成した支払方法を同一医院で取得できる", func(t *testing.T) {
 		m := &model.PaymentMethodMaster{ClinicID: clinicA, Name: "現金", IsActive: true}
 		created, err := repo.Create(ctx, m)
 		require.NoError(t, err)
@@ -97,7 +97,7 @@ func TestPaymentMethodMasterRepository_Create_FindByID_LegacyCoverage(t *testing
 		assert.Equal(t, "現金", got.Name)
 	})
 
-	t.Run("別クリニックからはNotFound", func(t *testing.T) {
+	t.Run("別医院からはNotFound", func(t *testing.T) {
 		m := makePaymentMethodMaster(t, db, clinicA, "クレジットカード")
 		_, err := repo.FindByID(ctx, clinicB, m.ID)
 		require.Error(t, err)
@@ -123,7 +123,7 @@ func TestPaymentMethodMasterRepository_FindAll(t *testing.T) {
 	mA1 := &model.PaymentMethodMaster{ClinicID: clinicA, Name: "A支払方法", DisplayOrder: 1, IsActive: true}
 	require.NoError(t, db.WithContext(ctx).Create(mA1).Error)
 
-	t.Run("クリニックで隔離されdisplay_order/nameの昇順で返る", func(t *testing.T) {
+	t.Run("医院で隔離されdisplay_order/nameの昇順で返る", func(t *testing.T) {
 		got, err := repo.FindAll(ctx, clinicA)
 		require.NoError(t, err)
 		require.Len(t, got, 2)
@@ -157,7 +157,7 @@ func TestPaymentMethodMasterRepository_Update(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	t.Run("同一クリニックの更新は反映される", func(t *testing.T) {
+	t.Run("同一医院の更新は反映される", func(t *testing.T) {
 		m := makePaymentMethodMaster(t, db, clinicA, "更新前支払方法")
 		name := "更新後支払方法"
 		got, err := repo.Update(ctx, clinicA, m.ID, UpdatePaymentMethodMasterInput{Name: &name})
@@ -165,7 +165,7 @@ func TestPaymentMethodMasterRepository_Update(t *testing.T) {
 		assert.Equal(t, "更新後支払方法", got.Name)
 	})
 
-	t.Run("別クリニックの更新はNotFound", func(t *testing.T) {
+	t.Run("別医院の更新はNotFound", func(t *testing.T) {
 		m := makePaymentMethodMaster(t, db, clinicA, "越境更新対象")
 		name := "越境更新"
 		_, err := repo.Update(ctx, clinicB, m.ID, UpdatePaymentMethodMasterInput{Name: &name})
@@ -230,7 +230,7 @@ func TestPaymentMethodMasterRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	t.Run("同一クリニックの未使用カスタム行は削除に成功しその後取得できない", func(t *testing.T) {
+	t.Run("同一医院の未使用カスタム行は削除に成功しその後取得できない", func(t *testing.T) {
 		m := makeCustomPaymentMethodMaster(t, db, clinicA, "削除対象支払方法")
 		require.NoError(t, repo.Delete(ctx, clinicA, m.ID))
 
@@ -239,7 +239,7 @@ func TestPaymentMethodMasterRepository_Delete(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("別クリニックの削除はNotFoundで対象データは残る", func(t *testing.T) {
+	t.Run("別医院の削除はNotFoundで対象データは残る", func(t *testing.T) {
 		m := makeCustomPaymentMethodMaster(t, db, clinicA, "越境削除対象支払方法")
 		err := repo.Delete(ctx, clinicB, m.ID)
 		require.Error(t, err)
@@ -357,7 +357,7 @@ func TestPaymentMethodMasterRepository_CountUsageByPaymentMethodID(t *testing.T)
 		assert.Equal(t, int64(0), count)
 	})
 
-	t.Run("別クリニックの請求に紐づく支払はカウントされない", func(t *testing.T) {
+	t.Run("別医院の請求に紐づく支払はカウントされない", func(t *testing.T) {
 		mA := makePaymentMethodMaster(t, db, clinicA, "越境参照対象支払方法")
 		// ADR-003 DB boundary rejects cross-clinic payment_method_id pollution.
 		// Prove isolation via a valid clinic-B payment that must not inflate clinic-A usage.
@@ -367,7 +367,7 @@ func TestPaymentMethodMasterRepository_CountUsageByPaymentMethodID(t *testing.T)
 
 		count, err := repo.CountUsageByPaymentMethodID(ctx, clinicA, mA.ID)
 		require.NoError(t, err)
-		assert.Equal(t, int64(0), count, "別クリニックのbillingに紐づく支払はJOINで除外される")
+		assert.Equal(t, int64(0), count, "別医院のbillingに紐づく支払はJOINで除外される")
 	})
 }
 
@@ -397,7 +397,7 @@ func TestPaymentMethodMasterRepository_Reorder(t *testing.T) {
 		assert.Equal(t, 3, byID[m2.ID].DisplayOrder)
 	})
 
-	t.Run("別クリニックのIDが混ざるとエラーになる", func(t *testing.T) {
+	t.Run("別医院のIDが混ざるとエラーになる", func(t *testing.T) {
 		mA := makePaymentMethodMaster(t, db, clinicA, "医院A支払方法")
 		mB := makePaymentMethodMaster(t, db, clinicB, "医院B支払方法")
 

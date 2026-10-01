@@ -82,7 +82,7 @@ func TestLstepFriendAttributeSnapshotRepository_FindLatestByOwner(t *testing.T) 
 	older := makeFriendAttributeSnapshot(t, db, clinicA, lineUserID, time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC))
 	newer := makeFriendAttributeSnapshot(t, db, clinicA, lineUserID, time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC))
 	_ = older
-	// 別クリニックの同一 LINE ユーザーは対象外（clinic_id 分離）
+	// 別医院の同一 LINE ユーザーは対象外（clinic_id 分離）
 	makeFriendAttributeSnapshot(t, db, clinicB, lineUserID, time.Date(2026, 6, 20, 0, 0, 0, 0, time.UTC))
 
 	t.Run("clinic_id + line_user_id スコープで最新の1件を返す", func(t *testing.T) {
@@ -91,7 +91,7 @@ func TestLstepFriendAttributeSnapshotRepository_FindLatestByOwner(t *testing.T) 
 		assert.Equal(t, newer.ID, found.ID)
 	})
 
-	t.Run("別クリニックのみに存在する line_user_id は NotFound を返す（clinic_id 分離）", func(t *testing.T) {
+	t.Run("別医院のみに存在する line_user_id は NotFound を返す（clinic_id 分離）", func(t *testing.T) {
 		_, err := repo.FindLatestByOwner(ctx, clinicA, "U-not-in-clinic-a")
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)

@@ -6,12 +6,12 @@ package staff_test
 //
 // 対象修正サイト（8a51c2eb が clinic_id 述語を付与）:
 //   - staffRepository.FindAll : Preload("Occupation", "clinic_id = ? AND deleted_at IS NULL", clinicID)
-// base クエリは staff_clinic_assignments で clinic-scoped だが、スタッフの occupation_id が別クリニックの
-// 職種マスタを指す汚染データが存在すると、clinic_id 述語の無い Preload は別クリニックの職種名を
+// base クエリは staff_clinic_assignments で clinic-scoped だが、スタッフの occupation_id が別医院の
+// 職種マスタを指す汚染データが存在すると、clinic_id 述語の無い Preload は別医院の職種名を
 // 応答に混入させる（IDOR / read 漏洩）。静的 lint は述語の存在を、本テストは隔離の動作を保証する。
 //
 // 注: Doctor preload（多医院所属の reservation）は staff_preload_clinic_isolation_test.go が別途カバー。
-// 本テストは occupations マスタ（clinic-scoped・単一クリニック述語）の隔離を対象とする。
+// 本テストは occupations マスタ（clinic-scoped・単一医院述語）の隔離を対象とする。
 
 import (
 	"context"
@@ -42,7 +42,7 @@ func setupStaffOccupationPreloadTestDB(t *testing.T) *gorm.DB {
 }
 
 // TestStaffRepository_FindAll_CrossClinicOccupationPreloadIsolation は
-// Staff.Occupation の clinic_id 述語が別クリニックの職種マスタ混入を防ぐことを動作で証明する。
+// Staff.Occupation の clinic_id 述語が別医院の職種マスタ混入を防ぐことを動作で証明する。
 // legit（同一clinicは Preload される）と cross（別clinicは nil）の対で、述語が「効いている」かつ
 // 「正規データを壊していない」ことを同時に示す（anti-vacuous）。
 func TestStaffRepository_FindAll_CrossClinicOccupationPreloadIsolation(t *testing.T) {
@@ -72,11 +72,11 @@ func TestStaffRepository_FindAll_CrossClinicOccupationPreloadIsolation(t *testin
 	}
 
 	legit := byID[staffLegit.ID]
-	require.NotNil(t, legit, "同一クリニックのスタッフが取得されるべき")
-	require.NotNil(t, legit.Occupation, "同一クリニックの Occupation は Preload されるべき")
+	require.NotNil(t, legit, "同一医院のスタッフが取得されるべき")
+	require.NotNil(t, legit.Occupation, "同一医院の Occupation は Preload されるべき")
 	assert.Equal(t, occA.ID, legit.Occupation.ID)
 
 	cross := byID[staffCross.ID]
 	require.NotNil(t, cross, "越境FK のスタッフ自体は base クエリで返るべき")
-	assert.Nil(t, cross.Occupation, "別クリニックの Occupation マスタが混入してはならない")
+	assert.Nil(t, cross.Occupation, "別医院の Occupation マスタが混入してはならない")
 }

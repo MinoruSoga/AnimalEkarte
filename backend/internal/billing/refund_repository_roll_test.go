@@ -82,13 +82,13 @@ func TestRefundRepository_FindByBillingID(t *testing.T) {
 		assert.Equal(t, "返金担当スタッフ", result[0].RefundedByStaff.Name)
 	})
 
-	t.Run("別クリニックのbilling_idでは空配列", func(t *testing.T) {
+	t.Run("別医院のbilling_idでは空配列", func(t *testing.T) {
 		billing := makeBillingForRefund(t, db, clinicA)
 		refund := &model.BillingRefund{
 			ClinicID:   clinicA,
 			BillingID:  billing.ID,
 			Amount:     1500,
-			Reason:     "クリニックB混入確認用",
+			Reason:     "医院B混入確認用",
 			RefundedAt: time.Now(),
 		}
 		require.NoError(t, repo.Create(ctx, refund))
@@ -189,13 +189,13 @@ func TestRefundRepository_SumByBillingID(t *testing.T) {
 		assert.EqualValues(t, 0, total)
 	})
 
-	t.Run("別クリニックの返金は合計に含まれない", func(t *testing.T) {
+	t.Run("別医院の返金は合計に含まれない", func(t *testing.T) {
 		billing := makeBillingForRefund(t, db, clinicA)
 		require.NoError(t, repo.Create(ctx, &model.BillingRefund{
 			ClinicID:   clinicA,
 			BillingID:  billing.ID,
 			Amount:     4000,
-			Reason:     "クリニックA分",
+			Reason:     "医院A分",
 			RefundedAt: time.Now(),
 		}))
 

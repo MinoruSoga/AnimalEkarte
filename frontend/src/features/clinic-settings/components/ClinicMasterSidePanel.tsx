@@ -256,7 +256,7 @@ export function ClinicMasterSidePanel({
                 />
                 {/* #190: セクション表示トグル */}
                 <ClinicBooleanProperty
-                  label="病院情報ヘッダー"
+                  label="医院情報ヘッダー"
                   description="領収書上部に医院情報ヘッダーを表示するかどうかです。"
                   value={formData.accounting_document_show_clinic_header}
                   onChange={(value) =>

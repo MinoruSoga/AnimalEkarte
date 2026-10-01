@@ -258,7 +258,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
   },
   diagnosis_name: {
     label: "診断名マスタ",
-    description: "カテゴリに紐づく病名（食道炎、膀胱炎等）を管理します",
+    description: "カテゴリに紐付く病名（食道炎、膀胱炎等）を管理します",
     settingsPath: "/settings/diagnosis?tab=diagnosis_name",
     IconComponent: FileText,
     resource: ResourceMasterMedical,

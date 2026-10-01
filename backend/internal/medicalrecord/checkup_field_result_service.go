@@ -124,7 +124,7 @@ func buildCheckupFieldResults(clinicID, checkupID uint64, fields []model.Checkup
 		}
 		field, ok := fieldByID[*in.CheckupTypeFieldID]
 		if !ok {
-			return nil, apperrors.WrapInvalidInput("checkup_type_field が当該健診パッケージに属していません（別クリニック/別パッケージの項目は紐付けできません）")
+			return nil, apperrors.WrapInvalidInput("checkup_type_field が当該健診パッケージに属していません（別医院/別パッケージの項目は紐付けできません）")
 		}
 		if err := validateCheckupFieldValue(&field, in); err != nil {
 			return nil, err

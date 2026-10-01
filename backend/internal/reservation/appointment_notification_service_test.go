@@ -71,7 +71,7 @@ func TestReservationNotificationService_NotifyCreated(t *testing.T) {
 
 		select {
 		case gotClinicID := <-done:
-			// 到達assert: クリニック設定が正しく参照され、送信判定（LINE/メール）に到達したことを確認する。
+			// 到達assert: 医院設定が正しく参照され、送信判定（LINE/メール）に到達したことを確認する。
 			// 実ネットワーク送信（LINE Push）完了までは待たない（-race・タイムアウトの安定性のため）。
 			assert.Equal(t, appt.ClinicID, gotClinicID, "notification should look up settings for the reservation's clinic")
 		case <-time.After(2 * time.Second):

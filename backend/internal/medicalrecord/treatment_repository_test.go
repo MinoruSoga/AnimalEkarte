@@ -440,7 +440,7 @@ func TestTreatmentRepository_BulkUpdateSortOrder(t *testing.T) {
 
 		got, err := repo.FindByID(ctx, clinicA, treatments[0].ID)
 		require.NoError(t, err)
-		assert.Equal(t, 9, got.SortOrder, "別クリニックからの更新は反映されない")
+		assert.Equal(t, 9, got.SortOrder, "別医院からの更新は反映されない")
 	})
 
 	t.Run("wrong medical_record_id returns NotFound", func(t *testing.T) {

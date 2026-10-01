@@ -7,9 +7,9 @@ package reservation
 // 対象修正サイト（8a51c2eb が clinic_id 述語を付与）:
 //   - FindAllReservationCapabilities            : Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID)
 //   - FindAllReservationCapabilitiesByStaffIDs  : 同上
-// base クエリは clinic-scoped（WHERE clinic_id = ?）だが、能力行の reservation_type_id が別クリニックの
+// base クエリは clinic-scoped（WHERE clinic_id = ?）だが、能力行の reservation_type_id が別医院の
 // 区分を指す汚染データ（#124/#125 型の write-FK 検証漏れ・過去データ）が存在すると、clinic_id 述語の
-// 無い Preload は別クリニックの予約区分名を応答に混入させる（IDOR / read 漏洩）。
+// 無い Preload は別医院の予約区分名を応答に混入させる（IDOR / read 漏洩）。
 // 静的 lint（preload_clinic_scope_lint_test.go）は述語の存在を、本テストは隔離の動作を保証する。
 
 import (
@@ -55,7 +55,7 @@ func makeStaffReservationCapability(t *testing.T, db *gorm.DB, clinicID, staffID
 }
 
 // TestReservationStaffRepository_Capabilities_CrossClinicReservationTypePreloadIsolation は
-// StaffReservationCapability.ReservationType の clinic_id 述語が別クリニックのマスタ混入を防ぐことを
+// StaffReservationCapability.ReservationType の clinic_id 述語が別医院のマスタ混入を防ぐことを
 // 動作で証明する。legit（同一clinicは Preload される）と cross（別clinicは nil）の対で、
 // 述語が「効いている」かつ「正規データを壊していない」ことを同時に示す（anti-vacuous）。
 func TestReservationStaffRepository_Capabilities_CrossClinicReservationTypePreloadIsolation(t *testing.T) {
@@ -84,13 +84,13 @@ func TestReservationStaffRepository_Capabilities_CrossClinicReservationTypePrelo
 		}
 
 		legit := byType[typeA.ID]
-		require.NotNil(t, legit, "同一クリニックの能力行が取得されるべき")
-		require.NotNil(t, legit.ReservationType, "同一クリニックの ReservationType は Preload されるべき")
+		require.NotNil(t, legit, "同一医院の能力行が取得されるべき")
+		require.NotNil(t, legit.ReservationType, "同一医院の ReservationType は Preload されるべき")
 		assert.Equal(t, typeA.ID, legit.ReservationType.ID)
 
 		cross := byType[typeB.ID]
 		require.NotNil(t, cross, "越境FK の能力行自体は base クエリで返るべき")
-		assert.Nil(t, cross.ReservationType, "別クリニックの ReservationType マスタが混入してはならない")
+		assert.Nil(t, cross.ReservationType, "別医院の ReservationType マスタが混入してはならない")
 	}
 
 	t.Run("FindAllReservationCapabilities", func(t *testing.T) {

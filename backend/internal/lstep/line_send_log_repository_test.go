@@ -3,7 +3,7 @@ package lstep
 // line_send_log_repository_test.go — LineSendLogRepository 統合テスト。
 //
 // 保護する不変条件:
-//   - FindByOwner は clinic_id + owner_id でスコープされる（他クリニック/他飼主の送信ログは混入しない）。
+//   - FindByOwner は clinic_id + owner_id でスコープされる（他医院/他飼主の送信ログは混入しない）。
 //   - FindByOwner は sent_at 降順で返す。
 //   - FindByOwner の limit が有効に機能する。
 
@@ -87,7 +87,7 @@ func TestLineSendLogRepository_FindByOwner(t *testing.T) {
 	makeLineSendLog(t, db, clinicA, ownerA, "reminder", middle)
 	// 別オーナー（混入してはならない）
 	makeLineSendLog(t, db, clinicA, ownerA2, "reminder", newer)
-	// 別クリニックの同一オーナーID（混入してはならない）
+	// 別医院の同一オーナーID（混入してはならない）
 	makeLineSendLog(t, db, clinicB, ownerA, "reminder", newer)
 
 	t.Run("returns only same clinic and owner logs ordered by sent_at DESC", func(t *testing.T) {

@@ -53,14 +53,14 @@ func TestReservationTypeAvailableSlotRepository_FindAll(t *testing.T) {
 	slotA := makeAvailableSlot(t, db, clinicA, rtA.ID, 1, "09:00")
 	makeAvailableSlot(t, db, clinicB, rtB.ID, 1, "09:00")
 
-	t.Run("同一クリニックのみ取得できる", func(t *testing.T) {
+	t.Run("同一医院のみ取得できる", func(t *testing.T) {
 		got, err := repo.FindAll(ctx, clinicA, rtA.ID)
 		require.NoError(t, err)
 		require.Len(t, got, 1)
 		assert.Equal(t, slotA.ID, got[0].ID)
 	})
 
-	t.Run("別クリニックIDでは0件（clinic_id 隔離）", func(t *testing.T) {
+	t.Run("別医院IDでは0件（clinic_id 隔離）", func(t *testing.T) {
 		got, err := repo.FindAll(ctx, clinicB, rtA.ID)
 		require.NoError(t, err)
 		assert.Empty(t, got)
@@ -76,13 +76,13 @@ func TestReservationTypeAvailableSlotRepository_FindByID(t *testing.T) {
 	rtA := makeReservationTypeLinked(t, db, clinicA, "枠単体取得区分", nil, nil)
 	slotA := makeAvailableSlot(t, db, clinicA, rtA.ID, 2, "10:00")
 
-	t.Run("同一クリニックIDで取得できる", func(t *testing.T) {
+	t.Run("同一医院IDで取得できる", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, slotA.ID)
 		require.NoError(t, err)
 		assert.Equal(t, slotA.ID, got.ID)
 	})
 
-	t.Run("別クリニックIDでは NotFound", func(t *testing.T) {
+	t.Run("別医院IDでは NotFound", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicB, slotA.ID)
 		assert.Error(t, err)
 		assert.Nil(t, got)
@@ -163,13 +163,13 @@ func TestReservationTypeAvailableSlotRepository_Delete(t *testing.T) {
 	rtA := makeReservationTypeLinked(t, db, clinicA, "枠削除対象区分", nil, nil)
 	slotA := makeAvailableSlot(t, db, clinicA, rtA.ID, 4, "14:00")
 
-	t.Run("別クリニックIDでは NotFound", func(t *testing.T) {
+	t.Run("別医院IDでは NotFound", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, slotA.ID)
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("正しいクリニックIDで削除できる", func(t *testing.T) {
+	t.Run("正しい医院IDで削除できる", func(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, clinicA, slotA.ID))
 		_, err := repo.FindByID(ctx, clinicA, slotA.ID)
 		assert.True(t, apperrors.IsNotFound(err))

@@ -53,7 +53,7 @@ stateDiagram-v2
 - 死亡登録はサブダイアログの確定時に API 保存され、外側のペット編集フォームにも保存結果が同期される。死亡登録のために外側フォームの「更新」を重ねて押す必要はない（`PetDeceasedDialog.tsx`・`PetDeceasedRecordButton`）。generic `PATCH /pets/:id` では status を送らない（死亡/復活は `/:id/death` に一本化）。
 - 死亡タグ除去のバックエンド処理は `HandlePetDeath`（`backend/internal/lstep/lstep_lifecycle_service.go`）。解除は `HandlePetRevival`。
 - 死亡登録・解除の変更が `audit_logs` に記録されること（[specification.md §2.1](../../../spec/specification.md)）— DB 参照は USER 実施。
-- 全操作が同一クリニック内で完結すること（clinic_id 隔離）。
+- 全操作が同一医院内で完結すること（clinic_id 隔離）。
 - 転院（transferred）も Lステップ配信破棄の対象（[lstep-integration.md §4](../../../spec/line/lstep-integration.md)）だが、本シナリオでは死亡のみを扱う。
 
 ## 異常系

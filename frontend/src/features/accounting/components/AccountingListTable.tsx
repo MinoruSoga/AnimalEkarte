@@ -113,7 +113,7 @@ export function AccountingListTable({
   showClinicColumn,
   clinicNameById,
 }: AccountingListTableProps) {
-  const clinicColumn = showClinicColumn ? [{ header: "拠点", className: "w-[100px]" }] : [];
+  const clinicColumn = showClinicColumn ? [{ header: "医院", className: "w-[100px]" }] : [];
   const columns = [
     ...clinicColumn,
     {

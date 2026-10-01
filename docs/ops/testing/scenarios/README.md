@@ -22,7 +22,7 @@
 | [S01](S01-deceased-pet-guard.md) | 死亡ペット誤操作の物理ブロック | 臨床安全 | 深い |
 | [S02](S02-exam-abnormal-highlight-lock.md) | 検査異常値ハイライトと確定ロック | 臨床安全 | 深い |
 | [S03](S03-vaccination-next-due-autocalc.md) | ワクチン接種→次回予定自動計算 | 臨床安全 | 深い |
-| [S04](S04-liff-reservation-journey.md) | LIFF 飼い主予約ジャーニー通し | 顧客体験 | 薄い+境界 |
+| [S04](S04-liff-reservation-journey.md) | LIFF 飼主予約ジャーニー通し | 顧客体験 | 薄い+境界 |
 | [S05](S05-hospitalization-cycle.md) | 入院サイクル（ケア記録→退院会計） | 入院 | 深い |
 | [S06](S06-record-lock-audit-trail.md) | カルテ確定 Lock と監査証跡 | 臨床安全 | 深い |
 | [S07](S07-estimate-status-control.md) | 見積ステータス制御 | 会計 | 深い |
@@ -41,7 +41,7 @@
 | [S20](S20-master-to-accounting-path.md) | マスタ登録 → 会計明細への経路（価格・税区分・請求不能） | 会計/マスタ | 深い |
 | [S21](S21-accounting-concurrency-idempotency.md) | 会計確定の並行更新 — 冪等リプレイ・409・確定後保護 | 会計 | 深い |
 | [S22](S22-reservation-conflict-and-staff.md) | 予約作成 — 409 理由の表示と担当者候補のフェイルクローズ | 予約 | 中 |
-| [S23](S23-multi-clinic-scope.md) | 複数医院所属 — 拠点スコープと他院操作の境界 | 組織/認可 | 深い |
+| [S23](S23-multi-clinic-scope.md) | 複数医院所属 — 医院スコープと他院操作の境界 | 組織/認可 | 深い |
 | [S24](S24-vital-signs-latest-chips.md) | カルテヘッダーのバイタルサイン — 最新値のみ・バックフィルなし | 臨床 | 薄い |
 | [S25](S25-microchip-header-display.md) | 患者ヘッダーのマイクロチップ番号表示 | 臨床 | 薄い |
 | [S26](S26-medical-record-image-capture.md) | カルテ画像 — 撮影・アップロード入力と同一ファイル再選択 | 臨床 | 薄い |

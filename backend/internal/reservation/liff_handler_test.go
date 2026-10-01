@@ -648,8 +648,8 @@ func TestCreateLiffReservation(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
-	t.Run("指名スタッフが当該クリニックに未所属 → 400", func(t *testing.T) {
-		// mockStaffClinicAssignmentService はクリニック 1, 3 のみ所属を返すため、
+	t.Run("指名スタッフが当該医院に未所属 → 400", func(t *testing.T) {
+		// mockStaffClinicAssignmentService は医院 1, 3 のみ所属を返すため、
 		// clinicId=99 を指定すると checkDoctorClinicAssignment が失敗する。
 		h := newLiffHandler(&mockLiffService{})
 		w := doLiffRequest(t, newLiffRouter(h, true), http.MethodPost, "/api/liff/99/reservations", validBody)

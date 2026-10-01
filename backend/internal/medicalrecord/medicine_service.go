@@ -447,7 +447,7 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 			return apperrors.Wrap(err, "failed to check medicine usage")
 		}
 		if usageCount > 0 {
-			return apperrors.WrapConflict("この薬剤は診療記録で使用中のため削除できません")
+			return apperrors.WrapConflict("この薬剤はカルテで使用中のため削除できません")
 		}
 	}
 

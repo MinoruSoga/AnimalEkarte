@@ -312,7 +312,7 @@ function ConditionTagMappingsSection() {
   return (
     <TagPairSection
       title="慢性疾患コード → タグマッピング"
-      description="慢性疾患コードが記録された飼い主に付与するタグを設定します。"
+      description="慢性疾患コードが記録された飼主に付与するタグを設定します。"
       items={items}
       isLoading={isLoading}
       getId={(item) => item.id}

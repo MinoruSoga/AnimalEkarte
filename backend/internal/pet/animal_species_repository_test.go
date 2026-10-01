@@ -3,7 +3,7 @@ package pet
 // animal_species_repository_test.go — AnimalSpeciesRepository 統合テスト。
 //
 // 保護する不変条件:
-//   - AnimalSpecies はクリニック横断のグローバルマスタ（clinic_id を持たない）。
+//   - AnimalSpecies は医院横断のグローバルマスタ（clinic_id を持たない）。
 //   - FindAll は sort_order ASC, name ASC で返す。
 //   - FindByID / Update / Delete は対象なしで NotFound を返す。
 //   - AnimalSpecies にソフトデリート列は無いため Delete は物理削除。

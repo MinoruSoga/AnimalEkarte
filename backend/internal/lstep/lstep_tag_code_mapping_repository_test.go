@@ -79,7 +79,7 @@ func TestLstepTagCodeMappingRepository_FindAllByClinicID(t *testing.T) {
 		assert.NotNil(t, stored.DeletedAt)
 	})
 
-	t.Run("別クリニックの行は含まれない", func(t *testing.T) {
+	t.Run("別医院の行は含まれない", func(t *testing.T) {
 		mappings, err := repo.FindAllByClinicID(ctx, clinicB)
 		require.NoError(t, err)
 		require.Len(t, mappings, 1)
@@ -103,7 +103,7 @@ func TestLstepTagCodeMappingRepository_FindByClinicIDAndTagName(t *testing.T) {
 		assert.Len(t, mappings, 2)
 	})
 
-	t.Run("別クリニックの同名タグは含まれない", func(t *testing.T) {
+	t.Run("別医院の同名タグは含まれない", func(t *testing.T) {
 		mappings, err := repo.FindByClinicIDAndTagName(ctx, clinicB, "shared-tag")
 		require.NoError(t, err)
 		require.Len(t, mappings, 1)
@@ -176,7 +176,7 @@ func TestLstepTagCodeMappingRepository_SoftDeleteByClinicIDAndTagName(t *testing
 		require.Len(t, mappings, 1)
 	})
 
-	t.Run("別クリニックの同名タグは影響を受けない", func(t *testing.T) {
+	t.Run("別医院の同名タグは影響を受けない", func(t *testing.T) {
 		mappings, err := repo.FindByClinicIDAndTagName(ctx, clinicB, "bulk-tag")
 		require.NoError(t, err)
 		require.Len(t, mappings, 1)

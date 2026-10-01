@@ -31,7 +31,7 @@ func TestPaymentMethodMasterRepository_Create_FindByID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(9001), uint64(9002)
 
-	t.Run("作成した支払方法を同一クリニックで取得できる", func(t *testing.T) {
+	t.Run("作成した支払方法を同一医院で取得できる", func(t *testing.T) {
 		m := &model.PaymentMethodMaster{ClinicID: clinicA, Name: "現金(repotest雛形)", IsActive: true}
 		created, err := repo.Create(ctx, m)
 		require.NoError(t, err)
@@ -42,7 +42,7 @@ func TestPaymentMethodMasterRepository_Create_FindByID(t *testing.T) {
 		assert.Equal(t, "現金(repotest雛形)", got.Name)
 	})
 
-	t.Run("別クリニックからはNotFound", func(t *testing.T) {
+	t.Run("別医院からはNotFound", func(t *testing.T) {
 		m := &model.PaymentMethodMaster{ClinicID: clinicA, Name: "クレジットカード(repotest雛形)", IsActive: true}
 		created, err := repo.Create(ctx, m)
 		require.NoError(t, err)

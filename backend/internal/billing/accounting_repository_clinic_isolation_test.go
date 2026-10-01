@@ -56,7 +56,7 @@ func makeBillingRet(t *testing.T, db *gorm.DB, clinicID uint64) *model.Billing {
 
 // TestAccountingRepository_FindByID_ClinicIsolation は
 // clinic A の会計を clinic B の clinicID で取得できないことを検証する。
-// clinicScope を accounting_repository.go から削除すると「別クリニックIDでは取得できない」が失敗する。
+// clinicScope を accounting_repository.go から削除すると「別医院IDでは取得できない」が失敗する。
 func TestAccountingRepository_FindByID_ClinicIsolation(t *testing.T) {
 	db := setupAccountingIsolationTestDB(t)
 	repo := NewAccountingRepository(db)
@@ -69,7 +69,7 @@ func TestAccountingRepository_FindByID_ClinicIsolation(t *testing.T) {
 
 	billingA := makeBillingRet(t, db, clinicA)
 
-	t.Run("同一クリニックIDでは取得できる", func(t *testing.T) {
+	t.Run("同一医院IDでは取得できる", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, billingA.ID)
 		require.NoError(t, err)
 		require.NotNil(t, got)
@@ -77,7 +77,7 @@ func TestAccountingRepository_FindByID_ClinicIsolation(t *testing.T) {
 		assert.Equal(t, clinicA, got.ClinicID)
 	})
 
-	t.Run("別クリニックIDでは取得できない（clinic_id 隔離）", func(t *testing.T) {
+	t.Run("別医院IDでは取得できない（clinic_id 隔離）", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicB, billingA.ID)
 		assert.Error(t, err, "clinic B から clinic A の会計を取得できてはならない")
 		assert.Nil(t, got)
@@ -87,7 +87,7 @@ func TestAccountingRepository_FindByID_ClinicIsolation(t *testing.T) {
 
 // TestAccountingRepository_LockAndFindByID_ClinicIsolation は
 // clinic A の会計を clinic B の clinicID で FOR UPDATE ロック取得できないことを検証する。
-// clinicScope を削除すると「別クリニックIDでは取得できない」が失敗する。
+// clinicScope を削除すると「別医院IDでは取得できない」が失敗する。
 // LockAndFindByID は会計確定の TOCTOU 防止に使われるため、テナント越境ロックは
 // 支払確定フローの安全性を破壊する最重大リスク。
 func TestAccountingRepository_LockAndFindByID_ClinicIsolation(t *testing.T) {
@@ -102,7 +102,7 @@ func TestAccountingRepository_LockAndFindByID_ClinicIsolation(t *testing.T) {
 
 	billingA := makeBillingRet(t, db, clinicA)
 
-	t.Run("同一クリニックIDではロック取得できる", func(t *testing.T) {
+	t.Run("同一医院IDではロック取得できる", func(t *testing.T) {
 		got, err := repo.LockAndFindByID(ctx, clinicA, billingA.ID)
 		require.NoError(t, err)
 		require.NotNil(t, got)
@@ -110,7 +110,7 @@ func TestAccountingRepository_LockAndFindByID_ClinicIsolation(t *testing.T) {
 		assert.Equal(t, clinicA, got.ClinicID)
 	})
 
-	t.Run("別クリニックIDではロック取得できない（clinic_id 隔離）", func(t *testing.T) {
+	t.Run("別医院IDではロック取得できない（clinic_id 隔離）", func(t *testing.T) {
 		got, err := repo.LockAndFindByID(ctx, clinicB, billingA.ID)
 		assert.Error(t, err, "clinic B から clinic A の会計をロック取得できてはならない")
 		assert.Nil(t, got)
@@ -120,7 +120,7 @@ func TestAccountingRepository_LockAndFindByID_ClinicIsolation(t *testing.T) {
 
 // TestAccountingRepository_FindAll_ClinicIsolation は
 // clinic A の会計一覧を clinic B の clinicID で取得できないことを検証する。
-// clinicScope を accounting_repository.go から削除すると「別クリニックIDでは0件」が失敗する。
+// clinicScope を accounting_repository.go から削除すると「別医院IDでは0件」が失敗する。
 func TestAccountingRepository_FindAll_ClinicIsolation(t *testing.T) {
 	db := setupAccountingIsolationTestDB(t)
 	repo := NewAccountingRepository(db)
@@ -133,14 +133,14 @@ func TestAccountingRepository_FindAll_ClinicIsolation(t *testing.T) {
 
 	makeBillingRet(t, db, clinicA)
 
-	t.Run("別クリニックIDでは0件（clinic_id 隔離）", func(t *testing.T) {
+	t.Run("別医院IDでは0件（clinic_id 隔離）", func(t *testing.T) {
 		billings, total, err := repo.FindAll(ctx, clinicB, AccountingListFilters{}, 1, 100)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), total, "clinic B から clinic A の会計一覧は0件でなければならない")
 		assert.Empty(t, billings)
 	})
 
-	t.Run("同一クリニックIDでは取得できる", func(t *testing.T) {
+	t.Run("同一医院IDでは取得できる", func(t *testing.T) {
 		billings, total, err := repo.FindAll(ctx, clinicA, AccountingListFilters{}, 1, 100)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), total)
@@ -194,7 +194,7 @@ func TestAccountingRepository_SavePaymentSplits_ClinicIsolation(t *testing.T) {
 }
 
 // TestAccountingRepository_Update_ClinicIsolation は
-// 別クリニックIDからの Update が NotFound を返し、行が変更されないことを検証する。
+// 別医院IDからの Update が NotFound を返し、行が変更されないことを検証する。
 // clinicScope を削除すると「行が変更されていない」が失敗する。
 func TestAccountingRepository_Update_ClinicIsolation(t *testing.T) {
 	db := setupAccountingIsolationTestDB(t)
@@ -208,7 +208,7 @@ func TestAccountingRepository_Update_ClinicIsolation(t *testing.T) {
 
 	billingA := makeBillingRet(t, db, clinicA)
 
-	t.Run("別クリニックIDからの Update は NotFound を返す", func(t *testing.T) {
+	t.Run("別医院IDからの Update は NotFound を返す", func(t *testing.T) {
 		amt := int64(9999)
 		_, err := repo.Update(ctx, clinicB, billingA.ID, AccountingUpdate{TotalAmount: &amt})
 		require.Error(t, err, "clinic B から clinic A の会計を更新できてはならない")
@@ -219,10 +219,10 @@ func TestAccountingRepository_Update_ClinicIsolation(t *testing.T) {
 		// preload を使わず直接 DB 読み取りで total_amount が変化していないことを確認する。
 		var b model.Billing
 		require.NoError(t, db.Where("id = ? AND clinic_id = ?", billingA.ID, clinicA).First(&b).Error)
-		assert.Equal(t, int64(1000), b.TotalAmount, "別クリニックからの Update で total_amount が変わってはならない")
+		assert.Equal(t, int64(1000), b.TotalAmount, "別医院からの Update で total_amount が変わってはならない")
 	})
 
-	t.Run("正しいクリニックIDからの Update は成功する", func(t *testing.T) {
+	t.Run("正しい医院IDからの Update は成功する", func(t *testing.T) {
 		amt := int64(2000)
 		got, err := repo.Update(ctx, clinicA, billingA.ID, AccountingUpdate{TotalAmount: &amt})
 		require.NoError(t, err)

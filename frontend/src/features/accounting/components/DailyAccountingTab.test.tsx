@@ -570,7 +570,7 @@ describe("DailyAccountingTab", () => {
     expect(span).toBe(headerCount);
   });
 
-  it("EMR-186: 拠点列表示時も飼主名・ペット名が最右端で列整合が維持される", async () => {
+  it("EMR-186: 医院列表示時も飼主名・ペット名が最右端で列整合が維持される", async () => {
     render(
       <DailyAccountingTab
         selectedClinicIds={["1", "2"]}
@@ -595,7 +595,7 @@ describe("DailyAccountingTab", () => {
       .getAllByRole("columnheader")
       .map((h) => h.textContent);
     expect(headerTexts[0]).toBe("領収No");
-    expect(headerTexts[1]).toBe("拠点");
+    expect(headerTexts[1]).toBe("医院");
     expect(headerTexts.slice(-2)).toEqual(["飼主名", "ペット名"]);
     expect(headerTexts[headerTexts.length - 3]).toBe("支払方法");
 

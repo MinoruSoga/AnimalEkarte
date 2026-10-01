@@ -36,7 +36,7 @@ func TestPERF1_HealthPreventionThresholdsFetchedOncePerClinic(t *testing.T) {
 		},
 	}
 
-	// --- owner repository: ownerCount 件の飼い主を返す ---
+	// --- owner repository: ownerCount 件の飼主を返す ---
 	lineID := "line-u-test"
 	owners := make([]model.Owner, ownerCount)
 	for i := range owners {
@@ -133,7 +133,7 @@ func TestPERFM1M2_MappingsAndThresholdsFetchedOncePerClinic(t *testing.T) {
 		},
 	}
 
-	// --- owner repository: ownerCount 件の飼い主 ---
+	// --- owner repository: ownerCount 件の飼主 ---
 	lineID := "line-u-test"
 	owners := make([]model.Owner, ownerCount)
 	for i := range owners {

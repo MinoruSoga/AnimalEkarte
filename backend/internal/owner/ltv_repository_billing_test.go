@@ -405,7 +405,7 @@ func TestFindOwnerLTV_ClinicIDIsolation(t *testing.T) {
 }
 
 // TestFindOwnerLTV_SameDayMultipleVisitsCountAsOne
-// ISSUE-005 / 仕様書 §3.3: 同一飼い主が同じ日に複数カルテを持つ場合は来院1回として数える。
+// ISSUE-005 / 仕様書 §3.3: 同一飼主が同じ日に複数カルテを持つ場合は来院1回として数える。
 // total_visit_count / period_visit_count は COUNT(DISTINCT mr.date) で算出されるため、
 // 同日複数カルテは1回扱いになるべき。
 func TestFindOwnerLTV_SameDayMultipleVisitsCountAsOne(t *testing.T) {

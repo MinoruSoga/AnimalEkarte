@@ -175,7 +175,7 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_AggregationClinicIsolation
 	makeSyncMedicalRecord(t, db, clinicA, ownerA.ID, livingDog.ID, time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC))
 	makeSyncMedicalRecord(t, db, clinicA, ownerA.ID, livingDog.ID, time.Date(2026, 2, 5, 0, 0, 0, 0, time.UTC))
 
-	// 別クリニックの飼主（混入しないこと）
+	// 別医院の飼主（混入しないこと）
 	ownerB := testdb.MakeTestOwner(t, db, clinicB, "同期飼主B")
 	petB := makeSyncPet(t, db, clinicB, ownerB.ID, dogSpecies.ID, "同期ポチB", nil, nil)
 	makeSyncMedicalRecord(t, db, clinicB, ownerB.ID, petB.ID, time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC))

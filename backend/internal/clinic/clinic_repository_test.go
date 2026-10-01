@@ -122,7 +122,7 @@ func TestClinicRepository_FindByStaffID(t *testing.T) {
 	}
 	assert.Contains(t, ids, clinicA.ID)
 	assert.Contains(t, ids, clinicB.ID)
-	assert.NotContains(t, ids, clinicC.ID, "ソフト削除された割当のクリニックは含まれない")
+	assert.NotContains(t, ids, clinicC.ID, "ソフト削除された割当の医院は含まれない")
 }
 
 func TestClinicRepository_FindByID(t *testing.T) {
@@ -472,14 +472,14 @@ func TestClinicRepository_Create(t *testing.T) {
 	company := &model.Company{Name: "Create用法人"}
 	require.NoError(t, db.WithContext(ctx).Create(company).Error)
 
-	clinic := &model.Clinic{CompanyID: company.ID, Name: "新規作成クリニック"}
+	clinic := &model.Clinic{CompanyID: company.ID, Name: "新規作成医院"}
 	err := repo.Create(ctx, clinic)
 	require.NoError(t, err)
 	assert.NotZero(t, clinic.ID)
 
 	got, err := repo.FindByID(ctx, clinic.ID)
 	require.NoError(t, err)
-	assert.Equal(t, "新規作成クリニック", got.Name)
+	assert.Equal(t, "新規作成医院", got.Name)
 	assert.InDelta(t, 0.10, got.StandardTaxRate, 0.0001, "未指定時は DB デフォルト税率が適用される")
 }
 
@@ -488,15 +488,15 @@ func TestClinicRepository_UpdateClinic(t *testing.T) {
 	repo := NewClinicRepository(db)
 	ctx := context.Background()
 
-	clinic := makeClinicFixture(t, db, "更新前クリニック")
+	clinic := makeClinicFixture(t, db, "更新前医院")
 
 	t.Run("成功", func(t *testing.T) {
-		name := "更新後クリニック"
+		name := "更新後医院"
 		err := repo.UpdateClinic(ctx, clinic.ID, &UpdateClinicInput{Name: &name})
 		require.NoError(t, err)
 		got, err := repo.FindByID(ctx, clinic.ID)
 		require.NoError(t, err)
-		assert.Equal(t, "更新後クリニック", got.Name)
+		assert.Equal(t, "更新後医院", got.Name)
 	})
 
 	t.Run("存在しないIDはNotFound", func(t *testing.T) {
@@ -511,7 +511,7 @@ func TestClinicRepository_UpdateClinic(t *testing.T) {
 		require.NoError(t, err)
 		got, err := repo.FindByID(ctx, clinic.ID)
 		require.NoError(t, err)
-		assert.Equal(t, "更新後クリニック", got.Name)
+		assert.Equal(t, "更新後医院", got.Name)
 	})
 }
 
@@ -520,8 +520,8 @@ func TestClinicRepository_Delete(t *testing.T) {
 	repo := NewClinicRepository(db)
 	ctx := context.Background()
 
-	t.Run("子データのないクリニックは削除できる", func(t *testing.T) {
-		clinic := makeClinicFixture(t, db, "削除対象クリニック")
+	t.Run("子データのない医院は削除できる", func(t *testing.T) {
+		clinic := makeClinicFixture(t, db, "削除対象医院")
 		err := repo.Delete(ctx, clinic.ID)
 		require.NoError(t, err)
 
@@ -530,7 +530,7 @@ func TestClinicRepository_Delete(t *testing.T) {
 	})
 
 	t.Run("直接削除はPermissionGroup所有行を書き換えない", func(t *testing.T) {
-		clinic := makeClinicFixture(t, db, "PG付き削除対象クリニック")
+		clinic := makeClinicFixture(t, db, "PG付き削除対象医院")
 		pg := &model.PermissionGroup{ClinicID: clinic.ID, Name: "削除予定グループ"}
 		require.NoError(t, db.WithContext(ctx).Create(pg).Error)
 		require.NoError(t, db.WithContext(ctx).Delete(pg).Error) // ソフト削除
@@ -558,7 +558,7 @@ func TestClinicRepository_Delete(t *testing.T) {
 
 	t.Run("飼主が紐付いていれば Conflict で行は残る", func(t *testing.T) {
 		require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Owner{}))
-		clinic := makeClinicFixture(t, db, "飼主付き削除拒否クリニック")
+		clinic := makeClinicFixture(t, db, "飼主付き削除拒否医院")
 		testdb.MakeTestOwner(t, db, clinic.ID, "削除阻止飼主")
 
 		err := repo.Delete(ctx, clinic.ID)
@@ -617,11 +617,11 @@ func TestClinicRepository_CountOwnersByClinicID(t *testing.T) {
 	testdb.MakeTestOwner(t, db, clinicA.ID, "飼主2")
 	deletedOwner := testdb.MakeTestOwner(t, db, clinicA.ID, "削除済み飼主")
 	require.NoError(t, db.WithContext(ctx).Delete(deletedOwner).Error)
-	testdb.MakeTestOwner(t, db, clinicB.ID, "別クリニック飼主")
+	testdb.MakeTestOwner(t, db, clinicB.ID, "別医院飼主")
 
 	got, err := repo.CountOwnersByClinicID(ctx, clinicA.ID)
 	require.NoError(t, err)
-	assert.Equal(t, int64(2), got, "ソフト削除・別クリニックを除外して2件")
+	assert.Equal(t, int64(2), got, "ソフト削除・別医院を除外して2件")
 }
 
 func TestClinicRepository_CountStaffByClinicID(t *testing.T) {
@@ -647,8 +647,8 @@ func TestClinicRepository_CountStaffByClinicID(t *testing.T) {
 	require.NoError(t, db.WithContext(ctx).Create(assign3).Error)
 	require.NoError(t, db.WithContext(ctx).Delete(assign3).Error)
 
-	// 別クリニックのみに割当のスタッフは対象外
-	staff4 := &model.Staff{ClinicID: clinicB.ID, Name: "スタッフ4(別クリニックのみ)", StaffType: model.StaffTypeNurse}
+	// 別医院のみに割当のスタッフは対象外
+	staff4 := &model.Staff{ClinicID: clinicB.ID, Name: "スタッフ4(別医院のみ)", StaffType: model.StaffTypeNurse}
 	require.NoError(t, db.WithContext(ctx).Create(staff4).Error)
 	require.NoError(t, db.WithContext(ctx).Create(&model.StaffClinicAssignment{StaffID: staff4.ID, ClinicID: clinicB.ID, IsMain: true}).Error)
 
@@ -667,14 +667,14 @@ func TestClinicRepository_CountBlockingReferencesByClinicID(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("依存データが無ければ空スライス", func(t *testing.T) {
-		clinic := makeClinicFixture(t, db, "依存なしクリニック")
+		clinic := makeClinicFixture(t, db, "依存なし医院")
 		got, err := repo.CountBlockingReferencesByClinicID(ctx, clinic.ID)
 		require.NoError(t, err)
 		assert.Empty(t, got)
 	})
 
 	t.Run("会計データがあれば件数付きでラベルが返る", func(t *testing.T) {
-		clinic := makeClinicFixture(t, db, "会計依存クリニック")
+		clinic := makeClinicFixture(t, db, "会計依存医院")
 		makeClinicBillingFixture(t, db, clinic.ID, 1000, model.BillingStatusWaiting, time.Now())
 		makeClinicBillingFixture(t, db, clinic.ID, 2000, model.BillingStatusWaiting, time.Now())
 
@@ -686,7 +686,7 @@ func TestClinicRepository_CountBlockingReferencesByClinicID(t *testing.T) {
 	})
 
 	t.Run("ソフト削除された会計は除外される(P2)", func(t *testing.T) {
-		clinic := makeClinicFixture(t, db, "会計ソフト削除クリニック")
+		clinic := makeClinicFixture(t, db, "会計ソフト削除医院")
 		makeClinicBillingFixture(t, db, clinic.ID, 1000, model.BillingStatusWaiting, time.Now())
 
 		var b model.Billing
@@ -700,7 +700,7 @@ func TestClinicRepository_CountBlockingReferencesByClinicID(t *testing.T) {
 
 	// Fixed (#236 root cause, 2026-07-13): see comment above TestClinicRepository_CountBlockingReferencesByClinicID.
 	t.Run("clinic_settingsはソフトデリート対象外テーブルとして検出される", func(t *testing.T) {
-		clinic := makeClinicFixture(t, db, "医院設定依存クリニック")
+		clinic := makeClinicFixture(t, db, "医院設定依存医院")
 		require.NoError(t, db.WithContext(ctx).Create(&model.ClinicSettings{ClinicID: clinic.ID}).Error)
 
 		got, err := repo.CountBlockingReferencesByClinicID(ctx, clinic.ID)

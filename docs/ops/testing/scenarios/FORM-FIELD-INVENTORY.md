@@ -446,7 +446,7 @@ BE は POST `/reservation-staffs`・`/{staffId}`・`/{staffId}/sort-order`・`/{
 | accounting_document_show_logo                  | O   | boolean | 常時送信。ロゴ表示 F4                                                |
 | accounting_document_show_registration_warning  | O   | boolean | 登録番号警告（既定 true）F4                                          |
 | accounting_document_show_item_category         | O   | boolean | 項目カテゴリ F4                                                      |
-| accounting_document_show_clinic_header         | O   | boolean | 病院情報ヘッダー F4                                                  |
+| accounting_document_show_clinic_header         | O   | boolean | 医院情報ヘッダー F4                                                  |
 | accounting_document_show_owner_pet_info        | O   | boolean | 飼主・ペット情報 F4                                                  |
 | accounting_document_show_items_table           | O   | boolean | 明細テーブル F4                                                      |
 | accounting_document_show_payment_summary       | O   | boolean | お会計サマリー F4                                                    |

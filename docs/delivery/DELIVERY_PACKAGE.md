@@ -93,7 +93,7 @@ flowchart TB
 
 | 境界 | 内容 | 設定画面 / 根拠 |
 |---|---|---|
-| **医院（`clinic_id`）分離** | 診療・会計・予約等の業務データは共有 DB 内で `clinic_id` により論理分離され、API / Repository でテナントスコープを強制する。医院マスタで定義した拠点がスタッフ所属とデータの源泉になる | [`/settings/clinic`](../spec/screens/19-clinic-settings.md) |
+| **医院（`clinic_id`）分離** | 診療・会計・予約等の業務データは共有 DB 内で `clinic_id` により論理分離され、API / Repository でテナントスコープを強制する。医院マスタで定義した各医院がスタッフ所属とデータの源泉になる | [`/settings/clinic`](../spec/screens/19-clinic-settings.md) |
 | **スタッフ所属医院** | スタッフは複数医院に所属可。操作可能な医院は所属割当で決まる | [`/settings/staff`](../spec/screens/settings/master-staff.md) |
 | **権限グループ（RBAC）** | リソース × 操作（view / create / edit / delete）のマトリクス。API は毎リクエスト評価。画面は定期ポーリングを行わず、別端末の変更がメニューへ即時反映される保証はない | [`/settings/permission-groups`](../spec/screens/settings/master-permission-group.md) |
 | **最小権限** | 会計取消・締め後修正・マスタ編集・権限変更は管理者系グループに限定する | 同上・#255 役割方針 |
@@ -109,11 +109,11 @@ flowchart TB
 
 以下の順に設定する（後の項目が前の項目のマスタに依存するため、**順序どおり**に実施）。各手順の詳細はリンク先の画面仕様書と、システム内マニュアル（ログイン後サイドバー「取扱説明書」→ [`/manual`](../spec/screens/35-internal-manual.md)）を参照。
 
-### Step 1: クリニック（医院）設定
+### Step 1: 医院設定
 
 - 画面 path: **`/settings/clinic`** — [医院マスタ仕様](../spec/screens/19-clinic-settings.md)
 - 権限: `hospital-settings`（`ResourceHospitalSettings`）
-- 設定内容: 院名・住所・電話/FAX・院長名・拠点ごとの登録番号・消費税率（通常/軽減）・明細兼領収書レイアウト。法人単位のインボイス登録番号は画面上部の法人情報セクション（`companies` シングルトン）。
+- 設定内容: 院名・住所・電話/FAX・院長名・医院ごとの登録番号・消費税率（通常/軽減）・明細兼領収書レイアウト。法人単位のインボイス登録番号は画面上部の法人情報セクション（`companies` シングルトン）。
 - ここで登録した医院が全データの分離境界およびスタッフ所属先の選択肢になる。
 - インボイス登録番号・所在地は領収書・明細書に印字されるため正確に入力する。
 

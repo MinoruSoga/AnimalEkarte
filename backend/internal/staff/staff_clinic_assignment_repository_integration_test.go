@@ -1,7 +1,7 @@
 package staff_test
 
 // repository_test.go — Repository の統合テスト（実 Postgres テスト DB）。
-// スタッフ-クリニック中間テーブルの CRUD と GORM SoftDelete スコープの自動適用
+// スタッフ-医院中間テーブルの CRUD と GORM SoftDelete スコープの自動適用
 // （コメントに記載された前提）を実際の DB 動作で検証する。
 //
 // makeDoctor / seedClinicsForFK は親 repository パッケージの

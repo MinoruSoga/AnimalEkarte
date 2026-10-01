@@ -574,7 +574,7 @@ func TestCheckupTypeFieldService_DeleteField_SoftDeletePreservesRowAndResults(t 
 		ClinicID: clinicA, CheckupTypeID: ct.ID, Name: "歯石除去の有無",
 		FieldType: model.CheckupFieldTypeBoolean, SortOrder: 1,
 	})
-	// 別クリニックの同名フィールド（クロステナント削除拒否の検証対象）。
+	// 別医院の同名フィールド（クロステナント削除拒否の検証対象）。
 	fieldB := makeCheckupTypeField(t, db, &model.CheckupTypeField{
 		ClinicID: clinicB, CheckupTypeID: ctB.ID, Name: "医院B項目",
 		FieldType: model.CheckupFieldTypeBoolean, SortOrder: 1,
@@ -607,13 +607,13 @@ func TestCheckupTypeFieldService_DeleteField_SoftDeletePreservesRowAndResults(t 
 	require.NotNil(t, historical.CheckupTypeFieldID)
 	assert.Equal(t, field.ID, *historical.CheckupTypeFieldID)
 
-	// 他クリニック/別パッケージへの削除は NotFound で拒否される。
+	// 他医院/別パッケージへの削除は NotFound で拒否される。
 	err = svc.DeleteField(ctx, clinicB, ctB.ID, field.ID)
 	require.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err), "clinic B が clinic A の field を削除できない")
 	var rowB model.CheckupTypeField
 	require.NoError(t, db.First(&rowB, fieldB.ID).Error)
-	assert.False(t, rowB.DeletedAt.Valid, "別クリニックのフィールドは無傷")
+	assert.False(t, rowB.DeletedAt.Valid, "別医院のフィールドは無傷")
 }
 
 // A4: reorder が sort_order を複合スコープで原子的に振り直す。
@@ -639,7 +639,7 @@ func TestCheckupTypeFieldService_ReorderFields_DB(t *testing.T) {
 	assert.Equal(t, []uint64{f3.ID, f1.ID, f2.ID}, []uint64{got[0].ID, got[1].ID, got[2].ID})
 	assert.Equal(t, []int{1, 2, 3}, []int{got[0].SortOrder, got[1].SortOrder, got[2].SortOrder})
 
-	// 他クリニックの id を混ぜると複合スコープで NotFound（部分更新しない）。
+	// 他医院の id を混ぜると複合スコープで NotFound（部分更新しない）。
 	err = svc.ReorderFields(ctx, clinicA, ct.ID, []uint64{f1.ID, fB.ID})
 	require.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))

@@ -92,7 +92,7 @@ func TestVaccinationRepository_Create_FindByID(t *testing.T) {
 		assert.Equal(t, doctor.ID, got.Doctor.ID)
 	})
 
-	t.Run("別クリニックからはNotFound", func(t *testing.T) {
+	t.Run("別医院からはNotFound", func(t *testing.T) {
 		rec := makeVaccinationRecord(t, db, clinicA, pet.ID, vaccine.ID)
 		_, err := repo.FindByID(ctx, clinicB, rec.ID)
 		require.Error(t, err)
@@ -148,7 +148,7 @@ func TestVaccinationRepository_FindAll(t *testing.T) {
 	makeVaccinationOnDate(clinicA, petA2.ID, vaccineA.ID, mid)
 	makeVaccinationOnDate(clinicB, petB.ID, vaccineB.ID, mid)
 
-	t.Run("クリニックで隔離され全件返る", func(t *testing.T) {
+	t.Run("医院で隔離され全件返る", func(t *testing.T) {
 		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, "", 1, 100)
 		require.NoError(t, err)
 		assert.Equal(t, int64(3), total)
@@ -319,7 +319,7 @@ func TestVaccinationRepository_Update(t *testing.T) {
 	pet := makeVaccinationRepoTestPet(t, db, clinicA, owner.ID, "更新用ペット")
 	vaccine := makeVaccineMaster(t, db, clinicA, "更新用ワクチン")
 
-	t.Run("同一クリニックの更新は反映される", func(t *testing.T) {
+	t.Run("同一医院の更新は反映される", func(t *testing.T) {
 		rec := makeVaccinationRecord(t, db, clinicA, pet.ID, vaccine.ID)
 		remarks := "更新後の備考"
 		got, err := repo.Update(ctx, clinicA, rec.ID, UpdateVaccinationInput{Remarks: &remarks})
@@ -327,7 +327,7 @@ func TestVaccinationRepository_Update(t *testing.T) {
 		assert.Equal(t, "更新後の備考", got.Remarks)
 	})
 
-	t.Run("別クリニックの更新はNotFound", func(t *testing.T) {
+	t.Run("別医院の更新はNotFound", func(t *testing.T) {
 		rec := makeVaccinationRecord(t, db, clinicA, pet.ID, vaccine.ID)
 		remarks := "越境更新"
 		_, err := repo.Update(ctx, clinicB, rec.ID, UpdateVaccinationInput{Remarks: &remarks})
@@ -353,7 +353,7 @@ func TestVaccinationRepository_Delete(t *testing.T) {
 	pet := makeVaccinationRepoTestPet(t, db, clinicA, owner.ID, "削除用ペット")
 	vaccine := makeVaccineMaster(t, db, clinicA, "削除用ワクチン")
 
-	t.Run("同一クリニックの削除は成功しその後取得できない", func(t *testing.T) {
+	t.Run("同一医院の削除は成功しその後取得できない", func(t *testing.T) {
 		rec := makeVaccinationRecord(t, db, clinicA, pet.ID, vaccine.ID)
 		require.NoError(t, repo.Delete(ctx, clinicA, rec.ID))
 
@@ -362,7 +362,7 @@ func TestVaccinationRepository_Delete(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("別クリニックの削除はNotFound", func(t *testing.T) {
+	t.Run("別医院の削除はNotFound", func(t *testing.T) {
 		rec := makeVaccinationRecord(t, db, clinicA, pet.ID, vaccine.ID)
 		err := repo.Delete(ctx, clinicB, rec.ID)
 		require.Error(t, err)
@@ -426,7 +426,7 @@ func TestVaccinationRepository_FindOwnersByVaccineDeadline(t *testing.T) {
 		assert.NotContains(t, ids, owner.ID, "死亡ペットの記録は除外されるべき")
 	})
 
-	t.Run("別クリニックの記録は含まれない", func(t *testing.T) {
+	t.Run("別医院の記録は含まれない", func(t *testing.T) {
 		ownerB := makeTestOwner(t, db, clinicB, "医院B飼主")
 		petB := makeVaccinationRepoTestPet(t, db, clinicB, ownerB.ID, "医院Bペット")
 		vaccineB := makeVaccineMaster(t, db, clinicB, "医院Bワクチン")
@@ -448,7 +448,7 @@ func TestVaccinationRepository_FindOwnersByVaccineDeadline(t *testing.T) {
 		assert.NotContains(t, ids, ownerB.ID)
 	})
 
-	t.Run("医院Aのペットが医院Bの飼い主を誤参照しても含まれない", func(t *testing.T) {
+	t.Run("医院Aのペットが医院Bの飼主を誤参照しても含まれない", func(t *testing.T) {
 		ownerB := makeTestOwner(t, db, clinicB, "不整合ペット飼主B")
 		petA := makeVaccinationRepoTestPet(t, db, clinicA, ownerB.ID, "不整合ペットA")
 		vaccineA := makeVaccineMaster(t, db, clinicA, "不整合ペット用ワクチンA")

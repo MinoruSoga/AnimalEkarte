@@ -815,7 +815,7 @@ func TestMedicalRecordRepository_FindByID(t *testing.T) {
 	})
 }
 
-// TestMedicalRecordRepository_FindByIDForClinics はマルチクリニック横断取得の
+// TestMedicalRecordRepository_FindByIDForClinics はマルチ医院横断取得の
 // clinic_id 隔離（許可リスト外は拒否）を検証する。
 func TestMedicalRecordRepository_FindByIDForClinics(t *testing.T) {
 	db := setupMedicalRecordListTestDB(t)

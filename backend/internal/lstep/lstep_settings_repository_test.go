@@ -119,7 +119,7 @@ func TestLstepSettingsRepository_FindByClinicAndService(t *testing.T) {
 	require.NoError(t, db.Create(&model.ClinicIntegration{ClinicID: clinicA, Service: "other-service", KeyName: "unrelated", KeyValue: "irrelevant"}).Error)
 	require.NoError(t, db.Create(&model.ClinicIntegration{ClinicID: clinicB, Service: model.IntegrationServiceLstep, KeyName: model.IntegrationKeyLstepAPIKey, KeyValue: "b-key"}).Error)
 
-	t.Run("同一クリニック・サービスの設定のみ返す", func(t *testing.T) {
+	t.Run("同一医院・サービスの設定のみ返す", func(t *testing.T) {
 		records, err := repo.FindByClinicAndService(ctx, clinicA, model.IntegrationServiceLstep)
 		require.NoError(t, err)
 		require.Len(t, records, 2)
@@ -129,7 +129,7 @@ func TestLstepSettingsRepository_FindByClinicAndService(t *testing.T) {
 		}
 	})
 
-	t.Run("別クリニックの設定は含まれない（clinic_id 分離）", func(t *testing.T) {
+	t.Run("別医院の設定は含まれない（clinic_id 分離）", func(t *testing.T) {
 		records, err := repo.FindByClinicAndService(ctx, clinicB, model.IntegrationServiceLstep)
 		require.NoError(t, err)
 		require.Len(t, records, 1)
@@ -222,19 +222,19 @@ func TestLstepSettingsRepository_DeleteByClinicAndService(t *testing.T) {
 
 	require.NoError(t, repo.DeleteByClinicAndService(ctx, clinicA, model.IntegrationServiceLstep))
 
-	t.Run("指定クリニック・サービスの設定は削除される", func(t *testing.T) {
+	t.Run("指定医院・サービスの設定は削除される", func(t *testing.T) {
 		var count int64
 		require.NoError(t, db.Model(&model.ClinicIntegration{}).Where("clinic_id = ? AND service = ?", clinicA, model.IntegrationServiceLstep).Count(&count).Error)
 		assert.Equal(t, int64(0), count)
 	})
 
-	t.Run("同一クリニックの別サービスは削除されない", func(t *testing.T) {
+	t.Run("同一医院の別サービスは削除されない", func(t *testing.T) {
 		var count int64
 		require.NoError(t, db.Model(&model.ClinicIntegration{}).Where("clinic_id = ? AND service = ?", clinicA, "other-service").Count(&count).Error)
 		assert.Equal(t, int64(1), count)
 	})
 
-	t.Run("別クリニックの同サービスは削除されない（clinic_id 分離）", func(t *testing.T) {
+	t.Run("別医院の同サービスは削除されない（clinic_id 分離）", func(t *testing.T) {
 		var count int64
 		require.NoError(t, db.Model(&model.ClinicIntegration{}).Where("clinic_id = ? AND service = ?", clinicB, model.IntegrationServiceLstep).Count(&count).Error)
 		assert.Equal(t, int64(1), count)

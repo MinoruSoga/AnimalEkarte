@@ -169,8 +169,8 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
               <AlertTriangle className={`shrink-0 mt-0.5 ${ICON.sm}`} />
               <span>
                 {lineData.lstep_opt_out
-                  ? "この飼い主はLINE配信停止中です。Lステップ同期対象外になります。"
-                  : "この飼い主はLINE未連携です。Lステップ同期対象外になります。"}
+                  ? "この飼主はLINE配信停止中です。Lステップ同期対象外になります。"
+                  : "この飼主はLINE未連携です。Lステップ同期対象外になります。"}
               </span>
             </div>
           ) : null}

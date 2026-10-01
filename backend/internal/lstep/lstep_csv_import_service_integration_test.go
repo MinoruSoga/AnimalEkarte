@@ -216,9 +216,9 @@ func TestImportFriendAttributesCSV_Integration_InvalidHeaderCreatesFailedImport(
 // TestUpdateCsvImportRecordTx_ClinicIsolation は updateCsvImportRecordTx の clinic_id 境界を検証する
 // (HIGH follow-up: 独立security-reviewが発見した tx.Where("clinic_id=?").Save(imp) パターン修正の回帰テスト)。
 // GORM の Save() は imp.ID (主キー) がセット済みだと事前に連結した Where(clinic_id) を無視して主キーの
-// みで UPDATE するため、誤って別クリニックの clinicID を渡しても他クリニックの行を上書きできてしまう
-// 既知の落とし穴がある。本テストは2クリニックの実DBフィクスチャで、同一クリニックの更新は成功し、
-// clinic_id が一致しない場合は他クリニックの行が一切変化しないことを直接確認する。
+// みで UPDATE するため、誤って別医院の clinicID を渡しても他医院の行を上書きできてしまう
+// 既知の落とし穴がある。本テストは2医院の実DBフィクスチャで、同一医院の更新は成功し、
+// clinic_id が一致しない場合は他医院の行が一切変化しないことを直接確認する。
 func TestUpdateCsvImportRecordTx_ClinicIsolation(t *testing.T) {
 	db := setupLstepCsvImportServiceTestDB(t)
 	ctx := context.Background()

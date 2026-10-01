@@ -58,7 +58,7 @@ export function useAccountingDetailState({
       id: "acc_new",
       clinicId: currentClinicId,
       ownerId: newPetData?.ownerId ?? "",
-      ownerName: newPetData?.ownerName ?? "飼い主様",
+      ownerName: newPetData?.ownerName ?? "飼主様",
       petId: newPetId,
       petName: newPetData?.name ?? "ペット",
       petSpecies: newPetData?.species ?? DEFAULT_PET_SPECIES_LABEL,

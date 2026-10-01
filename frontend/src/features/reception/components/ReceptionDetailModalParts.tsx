@@ -183,7 +183,7 @@ export function ReceptionDialogBody({
         <div className={DIVIDER_ROW}>
           <div className={ROW_ICON}>
             <User className={ICON.action} />
-            <span className="text-sm">飼い主</span>
+            <span className="text-sm">飼主</span>
           </div>
           <span className={`font-medium ${C.text} inline-flex items-center gap-1.5`}>
             <span>{appointment.ownerName}</span>

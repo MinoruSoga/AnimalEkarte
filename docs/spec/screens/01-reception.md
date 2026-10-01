@@ -63,7 +63,7 @@ stateDiagram-v2
 - **受付予約列の「+」**: 通常予約（`?newReservation=1`、status=`confirmed`）。診療中・会計待ち・会計済列に追加ボタンは無い。
 - **受付済→診療中**: DnD は禁止。トースト「カルテ作成が必要です」。進行はカード／詳細のカルテ作成・トリミング記録（同時に `advanceStatus`）。入院系は詳細の「診察を開始する」。
 - **会計済の完了**: 詳細から完了確定するとその端末のボードから外れる。再読込すると当日 `completed` は再び会計済列に載る。
-- **詳細表示**: カードをクリックすると `ReceptionDetailModal` が開き、来院詳細の確認、ステータス進行（`onConfirm`）、編集（`onEdit`、`ReservationFormModal` を起動）、取消（`onCancel`、`ConfirmDialog` で確認後に予約を取り消し）、飼主/ペット詳細ページへの遷移が可能です。取消は `reservations:delete`、編集は `reservations:edit` 権限を持つ場合のみ表示されます。患者情報セクション（`ReceptionDialogBody`）にも同じ `DangerBadge` マークを表示: ペット名横に特記アイコンバッジ（高=赤い八角形/中=黄い三角形、文言なし・Popover で補足メモ）、飼い主名横に文言なしの赤い八角形アイコン（`is_dangerous`、代替名「特記」）。
+- **詳細表示**: カードをクリックすると `ReceptionDetailModal` が開き、来院詳細の確認、ステータス進行（`onConfirm`）、編集（`onEdit`、`ReservationFormModal` を起動）、取消（`onCancel`、`ConfirmDialog` で確認後に予約を取り消し）、飼主/ペット詳細ページへの遷移が可能です。取消は `reservations:delete`、編集は `reservations:edit` 権限を持つ場合のみ表示されます。患者情報セクション（`ReceptionDialogBody`）にも同じ `DangerBadge` マークを表示: ペット名横に特記アイコンバッジ（高=赤い八角形/中=黄い三角形、文言なし・Popover で補足メモ）、飼主名横に文言なしの赤い八角形アイコン（`is_dangerous`、代替名「特記」）。
 - **クイックリンク (ミニアクション、`AppointmentCard`)**: 表示条件はカラム・診療区分により異なります。
     - **カルテ作成/施術**: トリミング区分は「受付済」列でのみ、それ以外の一般診療区分（入院系を除く）は「受付済」「診療中」列で表示。`petId` があれば `/medical-records/new`（トリミングは `/trimming/new`）へ、なければ `select-pet` 画面へ遷移。
     - **会計**: 「診療中」列以外で表示。`petId` があれば `/accounting/new?petId=...`、なければ `/accounting/new` へ遷移。

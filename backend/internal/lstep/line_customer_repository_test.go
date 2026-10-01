@@ -5,7 +5,7 @@ package lstep
 // 保護する不変条件:
 //   - FindAll / FindByID は clinic_id でテナント隔離される。
 //   - FindByID は Owner（clinic_id 一致 AND deleted_at IS NULL）を preload する。
-//     LineCustomerService.LinkOwner は service 層で ownerRepo.FindByID による所属クリニック検証を
+//     LineCustomerService.LinkOwner は service 層で ownerRepo.FindByID による所属医院検証を
 //     行うが（FE-refactor.md 残件 3 対応）、本テストは repository 単体の Preload 防御を独立して
 //     固定する — service ガードを経由しない直接呼び出し（不正データ・将来の呼び出し元）でも
 //     Owner は preload されず nil にフォールバックすることを保証する（GetLiffProfile/GetHealthCard
@@ -166,7 +166,7 @@ func TestLineCustomerRepository_FindByID(t *testing.T) {
 	})
 
 	t.Run("cross-clinic owner_id linkage does not leak the other clinic's Owner", func(t *testing.T) {
-		// LineCustomerService.LinkOwner は service 層で他クリニックの ownerID を NotFound
+		// LineCustomerService.LinkOwner は service 層で他医院の ownerID を NotFound
 		// として拒否し、UpdateOwnerLink には到達しない(FE-refactor.md 残件 3 対応)。
 		// 本テストは repository 単体の防御を独立検証するため、service ガードを経由せず
 		// UpdateOwnerLink を直接叩いて不正データ相当の状況を再現し、read 側(Preload の
@@ -177,7 +177,7 @@ func TestLineCustomerRepository_FindByID(t *testing.T) {
 
 		got, err := repo.FindByID(ctx, clinicA, c3.ID)
 		require.NoError(t, err)
-		assert.Nil(t, got.Owner, "他クリニックの owner_id は preload されず nil にフォールバックすること（IDOR 防止）")
+		assert.Nil(t, got.Owner, "他医院の owner_id は preload されず nil にフォールバックすること（IDOR 防止）")
 	})
 }
 
@@ -250,7 +250,7 @@ func TestLineCustomerRepository_UpdateAdditionalFields(t *testing.T) {
 
 		got, err := repo.FindByID(ctx, clinicA, c.ID)
 		require.NoError(t, err)
-		assert.JSONEq(t, `{"foo":"bar"}`, string(got.AdditionalFields), "別クリニックからの更新は反映されない")
+		assert.JSONEq(t, `{"foo":"bar"}`, string(got.AdditionalFields), "別医院からの更新は反映されない")
 	})
 }
 

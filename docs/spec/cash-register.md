@@ -25,7 +25,7 @@
 
 ## 2. 集計の境界 (Closing Boundaries)
 
-売上を「どの日・どのシフト」に計上するかは、締め時間設定およびクリニック設定の AM開始時刻 (`closing_am_start`, 既定 `09:00`) に基づきます。
+売上を「どの日・どのシフト」に計上するかは、締め時間設定および医院設定の AM開始時刻 (`closing_am_start`, 既定 `09:00`) に基づきます。
 以下の時刻例は計算説明用である。全院投入の裁定値は [#252](https://github.com/MinoruSoga/AnimalEkarte/issues/252) の AM 開始 09:00・AM/PM 境界 12:00・平日/日曜終了 18:30（[納品パッケージ](../delivery/DELIVERY_PACKAGE.md)）を参照し、例を投入値として流用しない。
 - **シフトの区分境界**:
   - **AM**: `[am_start, pm_start)` (例: `09:00`〜`14:00`)
@@ -79,6 +79,6 @@ stateDiagram-v2
   - `(clinic_id, close_date, period)` は **完全 UNIQUE**（`deleted_at` を見ない）。soft-delete で同じ区分を再締めする経路は塞がれている。
   - DB 層でも `cash_register_closes` / `cash_register_close_adjustments` の UPDATE/DELETE を immutability trigger で拒否する（`backend/migrations/001_init.sql` の append-only 統合ブロック。コメント上の旧 migration 003）。
 - **締め後訂正モデル**: 会計編集の差分は `cash_register_close_adjustments`（`close_id` 参照・NO CASCADE DELETE）へ append-only 追記。`accounting_delta` は合計変更が分かる場合の best-effort 差分、会計のみの訂正では `cash_movement_amount=0`。
-- **権限**: `cash-register-close` 権限(`view`/`create`)はクリニック単位で付与され、この権限を持つスタッフは同一クリニックの全締め記録を閲覧・作成できる(担当者本人の記録に限定する制御はない)。確定済み close 自体は権限の有無にかかわらず誰も修正・取消できない。締め後会計編集は `accounting-post-close-edit`。
+- **権限**: `cash-register-close` 権限(`view`/`create`)は医院単位で付与され、この権限を持つスタッフは同一医院の全締め記録を閲覧・作成できる(担当者本人の記録に限定する制御はない)。確定済み close 自体は権限の有無にかかわらず誰も修正・取消できない。締め後会計編集は `accounting-post-close-edit`。
 
 ---

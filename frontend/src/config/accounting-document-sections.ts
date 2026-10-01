@@ -10,7 +10,7 @@ export const DOCUMENT_SECTION_KEYS = [
 export type DocumentSectionKey = (typeof DOCUMENT_SECTION_KEYS)[number];
 
 export const DOCUMENT_SECTION_LABELS: Record<DocumentSectionKey, string> = {
-  clinic_header: "病院情報ヘッダー",
+  clinic_header: "医院情報ヘッダー",
   owner_pet_info: "飼主・ペット情報",
   items_table: "明細テーブル",
   payment_summary: "お会計サマリー",

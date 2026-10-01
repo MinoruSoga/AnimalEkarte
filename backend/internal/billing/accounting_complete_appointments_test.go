@@ -6,7 +6,7 @@ package billing
 // 保護する不変条件:
 //   (1) 同日同一ペットの status=accounting 予約のみが completed へ遷移する
 //       （JST日付境界 DATE(start_time AT TIME ZONE 'Asia/Tokyo') 述語）
-//   (2) medical_record_id 経由のサブクエリ更新は自クリニックの appointment のみを対象とし、
+//   (2) medical_record_id 経由のサブクエリ更新は自医院の appointment のみを対象とし、
 //       既に completed/cancelled/no_show の予約には触れない
 //
 // このテストは path(1) の JST DATE 述語または clinic_id 述語を削除すると必ず失敗するよう設計されている。
@@ -131,21 +131,21 @@ func TestReservationRepository_CompleteForAccounting(t *testing.T) {
 		assert.Equal(t, model.ReservationStatusCompleted, reloadAppointmentStatus(t, db, appt.ID))
 	})
 
-	t.Run("経路1除外: 別日/別ペット/別クリニック/status≠accounting/deleted_atは対象外", func(t *testing.T) {
+	t.Run("経路1除外: 別日/別ペット/別医院/status≠accounting/deleted_atは対象外", func(t *testing.T) {
 		db := setupAccountingCompleteAppointmentsTestDB(t)
 		repo := reservation.NewReservationRepository(db)
 		owner := testdb.MakeTestOwner(t, db, clinicA, "除外テスト飼主")
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "除外テストペット")
 		otherPet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "別ペット")
-		otherOwner := testdb.MakeTestOwner(t, db, clinicB, "別クリニック飼主")
-		otherClinicPet := makeSpeciesAndPet(t, db, clinicB, otherOwner.ID, "別クリニックペット")
+		otherOwner := testdb.MakeTestOwner(t, db, clinicB, "別医院飼主")
+		otherClinicPet := makeSpeciesAndPet(t, db, clinicB, otherOwner.ID, "別医院ペット")
 
 		otherDay := makeAccountingAppointment(t, db, clinicA, &owner.ID, &pet.ID, model.ReservationStatusAccounting,
 			time.Date(2026, 6, 9, 3, 0, 0, 0, time.UTC)) // 別日
 		otherPetAppt := makeAccountingAppointment(t, db, clinicA, &owner.ID, &otherPet.ID, model.ReservationStatusAccounting,
 			time.Date(2026, 6, 10, 3, 0, 0, 0, time.UTC)) // 別ペット
 		otherClinicAppt := makeAccountingAppointment(t, db, clinicB, &otherOwner.ID, &otherClinicPet.ID, model.ReservationStatusAccounting,
-			time.Date(2026, 6, 10, 3, 0, 0, 0, time.UTC)) // 別クリニック（同一 owner/pet ID を狙っても clinic_id で拒否されることを petID/ownerID を変えて確認）
+			time.Date(2026, 6, 10, 3, 0, 0, 0, time.UTC)) // 別医院（同一 owner/pet ID を狙っても clinic_id で拒否されることを petID/ownerID を変えて確認）
 		nonAccounting := makeAccountingAppointment(t, db, clinicA, &owner.ID, &pet.ID, model.ReservationStatusPending,
 			time.Date(2026, 6, 10, 3, 0, 0, 0, time.UTC)) // status≠accounting
 		deletedAppt := makeAccountingAppointment(t, db, clinicA, &owner.ID, &pet.ID, model.ReservationStatusAccounting,
@@ -154,11 +154,11 @@ func TestReservationRepository_CompleteForAccounting(t *testing.T) {
 
 		affected, err := completeForAccountingInTx(ctx, t, db, repo, clinicA, nil, &owner.ID, &pet.ID, scheduledDateJun10)
 		require.NoError(t, err)
-		assert.Equal(t, int64(0), affected, "対象クリニック/飼主/ペット/日付/statusに一致する行が無いため0件")
+		assert.Equal(t, int64(0), affected, "対象医院/飼主/ペット/日付/statusに一致する行が無いため0件")
 
 		assert.Equal(t, model.ReservationStatusAccounting, reloadAppointmentStatus(t, db, otherDay.ID), "別日は変更されない")
 		assert.Equal(t, model.ReservationStatusAccounting, reloadAppointmentStatus(t, db, otherPetAppt.ID), "別ペットは変更されない")
-		assert.Equal(t, model.ReservationStatusAccounting, reloadAppointmentStatus(t, db, otherClinicAppt.ID), "別クリニックは変更されない")
+		assert.Equal(t, model.ReservationStatusAccounting, reloadAppointmentStatus(t, db, otherClinicAppt.ID), "別医院は変更されない")
 		assert.Equal(t, model.ReservationStatusPending, reloadAppointmentStatus(t, db, nonAccounting.ID), "status≠accountingは変更されない")
 		assert.Equal(t, model.ReservationStatusAccounting, reloadAppointmentStatus(t, db, deletedAppt.ID), "deleted_atありは変更されない")
 	})
@@ -206,7 +206,7 @@ func TestReservationRepository_CompleteForAccounting(t *testing.T) {
 		assert.Equal(t, model.ReservationStatusCompleted, reloadAppointmentStatus(t, db, appt.ID))
 	})
 
-	t.Run("経路2除外: completed/cancelled/no_showは触らない、別クリニックのmedical_recordは対象外", func(t *testing.T) {
+	t.Run("経路2除外: completed/cancelled/no_showは触らない、別医院のmedical_recordは対象外", func(t *testing.T) {
 		db := setupAccountingCompleteAppointmentsTestDB(t)
 		repo := reservation.NewReservationRepository(db)
 		owner := testdb.MakeTestOwner(t, db, clinicA, "経路2除外飼主")
@@ -227,7 +227,7 @@ func TestReservationRepository_CompleteForAccounting(t *testing.T) {
 			assert.Equal(t, status, reloadAppointmentStatus(t, db, appt.ID))
 		}
 
-		// クリニック隔離: clinic A の medical_record を clinic B のコンテキストで完了化しようとしても対象外。
+		// 医院隔離: clinic A の medical_record を clinic B のコンテキストで完了化しようとしても対象外。
 		petA := makeSpeciesAndPet(t, db, clinicA, owner.ID, "隔離ペットA")
 		apptA := makeAccountingAppointment(t, db, clinicA, &owner.ID, &petA.ID, model.ReservationStatusPending,
 			time.Date(2026, 6, 10, 3, 0, 0, 0, time.UTC))
@@ -235,12 +235,12 @@ func TestReservationRepository_CompleteForAccounting(t *testing.T) {
 
 		affected, err := completeForAccountingInTx(ctx, t, db, repo, clinicB, &mrA.ID, nil, nil, time.Time{})
 		require.NoError(t, err)
-		assert.Equal(t, int64(0), affected, "別クリニックからは medical_record が見つからず対象外")
+		assert.Equal(t, int64(0), affected, "別医院からは medical_record が見つからず対象外")
 		assert.Equal(t, model.ReservationStatusPending, reloadAppointmentStatus(t, db, apptA.ID), "clinic Aの予約は変更されない")
 
-		// 多重防御: medical_record.clinic_id は呼び出し側クリニックと一致するが、
-		// appointment_id が指す先が別クリニックの予約というFKドリフトを想定したケース。
-		// サービス層の書込経路は常にクリニック隔離済みの予約参照から appointment_id を設定するため
+		// 多重防御: medical_record.clinic_id は呼び出し側医院と一致するが、
+		// appointment_id が指す先が別医院の予約というFKドリフトを想定したケース。
+		// サービス層の書込経路は常に医院隔離済みの予約参照から appointment_id を設定するため
 		// 本来到達しないが、外側 Where("clinic_id = ?", clinicID)（Reservation側）が
 		// 独立した防御層として機能することを証明する（repository/CLAUDE.md P3.1の「正本ガード=runtime isolation test」方針）。
 		petFKDrift := makeSpeciesAndPet(t, db, clinicA, owner.ID, "FKドリフトペット")
@@ -250,7 +250,7 @@ func TestReservationRepository_CompleteForAccounting(t *testing.T) {
 
 		affected, err = completeForAccountingInTx(ctx, t, db, repo, clinicB, &mrFKDrift.ID, nil, nil, time.Time{})
 		require.NoError(t, err)
-		assert.Equal(t, int64(0), affected, "medical_record.clinic_id一致でもappointment自体が別クリニックなら外側clinic_id述語で拒否される")
+		assert.Equal(t, int64(0), affected, "medical_record.clinic_id一致でもappointment自体が別医院なら外側clinic_id述語で拒否される")
 		assert.Equal(t, model.ReservationStatusPending, reloadAppointmentStatus(t, db, apptFKDrift.ID), "clinic Aの予約は変更されない")
 
 		// サブクエリ述語: appointment_id IS NULL の medical_record は対象外（エラーにもならない）。

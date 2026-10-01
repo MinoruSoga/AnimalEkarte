@@ -66,14 +66,14 @@ func TestReservationStaffRepository_UpdateExcludedReservationTypes_ClinicIsolati
 		return n
 	}
 
-	t.Run("別クリニックの区分IDは拒否され、行が永続化されない（clinic_id 隔離）", func(t *testing.T) {
+	t.Run("別医院の区分IDは拒否され、行が永続化されない（clinic_id 隔離）", func(t *testing.T) {
 		err := repo.UpdateExcludedReservationTypes(ctx, clinicA, staffA.ID, []uint64{typeB.ID})
 		require.Error(t, err, "clinic A のスタッフに clinic B の予約区分を除外設定できてはならない")
 		assert.Zero(t, countExclusions(staffA.ID), "拒否時に staff_reservation_exclusions 行を残してはならない")
 		assert.Zero(t, countCapabilities(clinicA, staffA.ID), "拒否時に capabilities 行を残してはならない")
 	})
 
-	t.Run("同一クリニックの除外PUTはcapabilities置換のみ（exclusion dual-write禁止）", func(t *testing.T) {
+	t.Run("同一医院の除外PUTはcapabilities置換のみ（exclusion dual-write禁止）", func(t *testing.T) {
 		// universe = {typeA}; excluded = {typeA} → capable = empty
 		err := repo.UpdateExcludedReservationTypes(ctx, clinicA, staffA.ID, []uint64{typeA.ID})
 		require.NoError(t, err)
@@ -93,7 +93,7 @@ func TestReservationStaffRepository_UpdateExcludedReservationTypes_ClinicIsolati
 		assert.Equal(t, typeA2.ID, caps[0].ReservationTypeID)
 	})
 
-	t.Run("一部が別クリニックの区分なら全体を拒否する（部分書き込み防止）", func(t *testing.T) {
+	t.Run("一部が別医院の区分なら全体を拒否する（部分書き込み防止）", func(t *testing.T) {
 		before := countCapabilities(clinicA, staffA.ID)
 		err := repo.UpdateExcludedReservationTypes(ctx, clinicA, staffA.ID, []uint64{typeA.ID, typeB.ID})
 		require.Error(t, err, "clinic B の区分が混在する場合は全体を拒否すべき")

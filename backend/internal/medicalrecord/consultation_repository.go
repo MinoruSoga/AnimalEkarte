@@ -117,7 +117,7 @@ func (r *consultationRepositoryImpl) normalizeConsultationDeleteMiss(ctx context
 	if childCount > 0 {
 		return apperrors.WrapConflict("この診察項目にはサブ項目が登録されているため削除できません")
 	}
-	return apperrors.WrapConflict("この診察項目は診療記録で使用中のため削除できません")
+	return apperrors.WrapConflict("この診察項目はカルテで使用中のため削除できません")
 }
 
 func (r *consultationRepositoryImpl) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

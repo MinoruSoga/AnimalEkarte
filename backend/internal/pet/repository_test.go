@@ -652,8 +652,8 @@ func TestPetRepository_FindOwnersByPetBirthday(t *testing.T) {
 	ownerDeceasedOnly := makeTestOwner(t, db, clinicA, "死亡ペットのみ飼主")
 	makePetDetailed(t, db, clinicA, ownerDeceasedOnly.ID, speciesID, "誕生日一致だが死亡", &matchBirthday, &deceasedAt)
 
-	ownerOtherClinic := makeTestOwner(t, db, clinicB, "別クリニック誕生日一致飼主")
-	makePetDetailed(t, db, clinicB, ownerOtherClinic.ID, speciesID, "別クリニックの誕生日一致ペット", &matchBirthday, nil)
+	ownerOtherClinic := makeTestOwner(t, db, clinicB, "別医院誕生日一致飼主")
+	makePetDetailed(t, db, clinicB, ownerOtherClinic.ID, speciesID, "別医院の誕生日一致ペット", &matchBirthday, nil)
 
 	ownerMismatched := makeTestOwner(t, db, clinicB, "不整合誕生日飼主")
 	makePetDetailed(t, db, clinicA, ownerMismatched.ID, speciesID, "医院Aから医院B飼主を誤参照", &matchBirthday, nil)
@@ -662,7 +662,7 @@ func TestPetRepository_FindOwnersByPetBirthday(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, got, ownerMatch.ID)
 	assert.NotContains(t, got, ownerMismatched.ID)
-	assert.Len(t, got, 1, "重複排除・死亡除外・別クリニック除外・誕生日不一致除外")
+	assert.Len(t, got, 1, "重複排除・死亡除外・別医院除外・誕生日不一致除外")
 }
 
 // makeSyncSpeciesID は AnimalSpecies を1件作成しIDを返す簡易ヘルパー。

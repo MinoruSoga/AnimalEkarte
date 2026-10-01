@@ -39,7 +39,7 @@ func (m *mockBillingConfirmationRepository) LockActiveStaffAssignment(ctx contex
 	return m.lockActiveActorFn(ctx, clinicID, staffID)
 }
 
-// okMedRecForBilling は親カルテの所有権検証が成功する（同一クリニック）モックを返す。
+// okMedRecForBilling は親カルテの所有権検証が成功する（同一医院）モックを返す。
 func okMedRecForBilling() *mockMedicalRecordRepository {
 	return &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {

@@ -49,7 +49,7 @@ func isAutoManagedTagWithPrefixes(tagName string, dbPrefixes []*model.LstepAutoM
 	return false
 }
 
-// OwnerTagsResult は飼い主タグ一覧の取得結果。
+// OwnerTagsResult は飼主タグ一覧の取得結果。
 type OwnerTagsResult struct {
 	LineUserID  *string
 	IsLinked    bool
@@ -58,13 +58,13 @@ type OwnerTagsResult struct {
 	FetchedAt   time.Time
 }
 
-// LstepTagService は飼い主タグの手動 CRUD インターフェース（BE-019）。
+// LstepTagService は飼主タグの手動 CRUD インターフェース（BE-019）。
 type LstepTagService interface {
-	// GetOwnerTags は飼い主の現在のLステップタグ一覧を返す。LINE未連携時は空リスト。
+	// GetOwnerTags は飼主の現在のLステップタグ一覧を返す。LINE未連携時は空リスト。
 	GetOwnerTags(ctx context.Context, clinicID, ownerID uint64) (*OwnerTagsResult, error)
-	// AddOwnerTag は飼い主に手動でタグを付与する。
+	// AddOwnerTag は飼主に手動でタグを付与する。
 	AddOwnerTag(ctx context.Context, clinicID, ownerID uint64, tagName string, actorID *uint64) error
-	// RemoveOwnerTag は飼い主から手動でタグを解除する。冪等（存在しないタグは正常終了）。
+	// RemoveOwnerTag は飼主から手動でタグを解除する。冪等（存在しないタグは正常終了）。
 	RemoveOwnerTag(ctx context.Context, clinicID, ownerID uint64, tagName string, actorID *uint64) error
 }
 
@@ -200,7 +200,7 @@ func (s *lstepTagService) AddOwnerTag(ctx context.Context, clinicID, ownerID uin
 		return apperrors.Wrap(err, "failed to find owner")
 	}
 	if owner.LstepOptOut {
-		return apperrors.WrapForbidden(fmt.Sprintf("飼い主 %d はLステップ配信をオプトアウトしています", ownerID))
+		return apperrors.WrapForbidden(fmt.Sprintf("飼主 %d はLステップ配信をオプトアウトしています", ownerID))
 	}
 	if owner.LineUserID == nil || *owner.LineUserID == "" {
 		return apperrors.WrapNotFound("owner", fmt.Sprintf("%d:line_user_id", ownerID))

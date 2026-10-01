@@ -62,7 +62,7 @@ func TestCampaignRepository_FindAll_ClinicIsolationAndSortOrder(t *testing.T) {
 	assert.Equal(t, first.ID, got[0].ID, "sort_order 昇順で先頭に来る")
 	assert.Equal(t, second.ID, got[1].ID)
 	for _, c := range got {
-		assert.NotEqual(t, other.ID, c.ID, "別クリニックのキャンペーンが混入してはならない")
+		assert.NotEqual(t, other.ID, c.ID, "別医院のキャンペーンが混入してはならない")
 	}
 }
 
@@ -77,13 +77,13 @@ func TestCampaignRepository_FindByID(t *testing.T) {
 	c := &model.Campaign{ClinicID: clinicA, Name: "夏の割引", StartDate: jun, EndDate: jul}
 	require.NoError(t, db.WithContext(ctx).Create(c).Error)
 
-	t.Run("同一クリニックで取得できる", func(t *testing.T) {
+	t.Run("同一医院で取得できる", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, c.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "夏の割引", got.Name)
 	})
 
-	t.Run("別クリニックからは NotFound", func(t *testing.T) {
+	t.Run("別医院からは NotFound", func(t *testing.T) {
 		_, err := repo.FindByID(ctx, clinicB, c.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -216,14 +216,14 @@ func TestCampaignRepository_Update(t *testing.T) {
 	c := &model.Campaign{ClinicID: clinicA, Name: "旧名称", StartDate: jun, EndDate: jul}
 	require.NoError(t, db.WithContext(ctx).Create(c).Error)
 
-	t.Run("同一クリニックで更新できる", func(t *testing.T) {
+	t.Run("同一医院で更新できる", func(t *testing.T) {
 		name := "新名称"
 		got, err := repo.Update(ctx, clinicA, c.ID, UpdateCampaignInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "新名称", got.Name)
 	})
 
-	t.Run("別クリニックからの更新は NotFound", func(t *testing.T) {
+	t.Run("別医院からの更新は NotFound", func(t *testing.T) {
 		name := "乗っ取り"
 		_, err := repo.Update(ctx, clinicB, c.ID, UpdateCampaignInput{Name: &name})
 		require.Error(t, err)
@@ -280,7 +280,7 @@ func TestCampaignRepository_Delete(t *testing.T) {
 	c := &model.Campaign{ClinicID: clinicA, Name: "削除対象", StartDate: jun, EndDate: jul}
 	require.NoError(t, db.WithContext(ctx).Create(c).Error)
 
-	t.Run("別クリニックからの削除は NotFound", func(t *testing.T) {
+	t.Run("別医院からの削除は NotFound", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, c.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -292,7 +292,7 @@ func TestCampaignRepository_Delete(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("同一クリニックで削除でき、ソフトデリートされ FindAll から除外される", func(t *testing.T) {
+	t.Run("同一医院で削除でき、ソフトデリートされ FindAll から除外される", func(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, clinicA, c.ID))
 
 		_, err := repo.FindByID(ctx, clinicA, c.ID)
@@ -336,7 +336,7 @@ func TestCampaignRepository_Reorder(t *testing.T) {
 		assert.Equal(t, c2.ID, got[2].ID)
 	})
 
-	t.Run("別クリニックの ID を含むと失敗する", func(t *testing.T) {
+	t.Run("別医院の ID を含むと失敗する", func(t *testing.T) {
 		other := &model.Campaign{ClinicID: clinicB, Name: "他院", StartDate: jun, EndDate: jul}
 		require.NoError(t, db.WithContext(ctx).Create(other).Error)
 		err := repo.Reorder(ctx, clinicA, []uint64{c1.ID, other.ID})

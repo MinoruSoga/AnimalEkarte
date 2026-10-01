@@ -46,7 +46,7 @@
 ### 2.2 保存プロセス
 - **メイン保存**: 画面右下のフローティング「保存」ボタン（`MedicalRecordFloatingActions`）は、アクティブタブに応じて送信先を切り替える。「問診」タブは `PATCH /medical-records/:id/inquiries`（主訴・主訴区分・治療方針）、「診察/治療プラン」タブは `PATCH /medical-records/:id/clinical-plan`（治療方針・診断詳細・診断名）と `PATCH /medical-records/:id`（次回来院推奨日）を送信する。他タブではカルテ本体の送信は行われない（`PATCH /medical-records/:id` へまとめて送信する方式ではない）。予防接種タブでは偽成功を避けるため外側の保存ボタン自体を表示せず、タブ内の接種記録追加を使う。
 - **主訴区分は任意（空欄可）**: 「問診」タブの主訴区分は必須項目ではない。`InterviewChiefComplaint` 内のクリア可能な `SearchableSelect`（`clearable`）で選択し、候補は `useGetChiefComplaintTypes` の主訴区分マスタから供給される。クリア操作で空欄に戻せ、空欄時は `PATCH /medical-records/:id/inquiries` へ `chief_complaint_type_id: null` が送られる。バックエンドは nullable（`*uint64`）として受け付け、明示的なクリアとして永続化するため、保存・再読込後も空欄のまま維持される。
-- **ヘッダー即時保存**: 担当医・来院種別・診察日・次回予定はヘッダー変更と同時に `PATCH /medical-records/:id` する（保存ボタンを経由しない）。来院種別の成功後は `queryKeys.medicalRecords.detail` を invalidate し、再読込でラベルが戻らないようにする。失敗時はローカル state をロールバックする。appointment 紐付き通常カルテの `date` は予約開始の JST 日付に固定され、変更は BE Conflict（UI は未紐付け時のみ成功する。正本は [99-medical-record-flow.md](./99-medical-record-flow.md) / [reservation-to-record-flow.md](../reservation-to-record-flow.md) §5.5）。
+- **ヘッダー即時保存**: 担当医・来院種別・診療日・次回予定はヘッダー変更と同時に `PATCH /medical-records/:id` する（保存ボタンを経由しない）。来院種別の成功後は `queryKeys.medicalRecords.detail` を invalidate し、再読込でラベルが戻らないようにする。失敗時はローカル state をロールバックする。appointment 紐付き通常カルテの `date` は予約開始の JST 日付に固定され、変更は BE Conflict（UI は未紐付け時のみ成功する。正本は [99-medical-record-flow.md](./99-medical-record-flow.md) / [reservation-to-record-flow.md](../reservation-to-record-flow.md) §5.5）。
 - **アクティブタブの追加保存**: 保存成功直後、その時点で開いているタブが「診察/治療プラン」または「見積書」の場合のみ、`useMedicalRecordPostSave` が対応する登録済みコールバックを追加実行する（他タブ在中時は発火しない。両タブを並行実行することもない）。見積タブは `items` を create/update 同一 tx で置換永続化する（独立画面 `/estimates` はヘッダ金額のみ。詳細は [23-estimate-form.md](./23-estimate-form.md)）。
 - **治療・検査等のサブリソース**: 「治療」タブの明細は行単位の追加/編集/削除操作ごとに `/medical-records/:id/treatments...` へ個別・即時送信される（メイン保存とは独立しており、「バックグラウンド並行保存」ではない）。
 
@@ -59,7 +59,7 @@ flowchart TB
     Q -->|"診察・治療プラン"| B["PATCH /medical-records/:id/clinical-plan<br>+ PATCH /medical-records/:id (次回来院推奨日)"]
     Q -->|"予防接種"| D["保存ボタン非表示<br>タブ内の接種記録追加を使う"]
     Q -->|"その他"| C["カルテ本体の送信なし"]
-    H["ヘッダー項目の変更<br>(担当医・来院種別・診察日・次回予定)"] -->|"保存ボタンを経由せず即時"| E["PATCH /medical-records/:id"]
+    H["ヘッダー項目の変更<br>(担当医・来院種別・診療日・次回予定)"] -->|"保存ボタンを経由せず即時"| E["PATCH /medical-records/:id"]
     T["治療タブ明細の行操作"] -->|"操作ごと個別・即時送信"| F["treatments 系エンドポイント"]
     Save -.->|"成功直後・診察/見積タブ在住時のみ"| G["追加保存コールバック<br>見積 items は同一txで置換"]
 ```
@@ -78,7 +78,7 @@ flowchart TB
 
 ### 2.5 処置マスタのプロビジョニング（皮下点滴）
 
-「治療」タブで選択する処置項目（皮下点滴を含む）は `procedures` テーブルの `clinic_id` 付きレコードであり、**クリニックごとのランタイムマスタデータ**として管理される。seed 配布物（backend/migrations/seeds/002_master に procedures の CSV は存在しない）やコード内の静的定義は存在しない。各クリニックはマスタ設定画面 `/settings/treatment-items` の「処置」タブ（`?tab=procedure`、表示名「処置マスタ」。`ResourceMasterMedical` 権限で保護された `TreatmentPlanMaster`）から `useCreateProcedure` 等で登録・編集する。皮下点滴もこの運用経路でクリニックごとに追加するものであり、デプロイ物・seed 変更を伴う導入経路は存在しない。
+「治療」タブで選択する処置項目（皮下点滴を含む）は `procedures` テーブルの `clinic_id` 付きレコードであり、**医院ごとのランタイムマスタデータ**として管理される。seed 配布物（backend/migrations/seeds/002_master に procedures の CSV は存在しない）やコード内の静的定義は存在しない。各医院はマスタ設定画面 `/settings/treatment-items` の「処置」タブ（`?tab=procedure`、表示名「処置マスタ」。`ResourceMasterMedical` 権限で保護された `TreatmentPlanMaster`）から `useCreateProcedure` 等で登録・編集する。皮下点滴もこの運用経路で医院ごとに追加するものであり、デプロイ物・seed 変更を伴う導入経路は存在しない。
 
 ---
 

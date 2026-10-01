@@ -3,7 +3,7 @@ package pet
 // pet_chronic_condition_repository_test.go — PetChronicConditionRepository の統合テスト（BE-012）。
 //
 // 注意: Update/Delete は updateScopedByID/deleteScopedByID（helpers.go）を使い RowsAffected==0 を
-// NotFound として検査する（F3）。存在しない ID / 別クリニックの ID を渡すと apperrors.IsNotFound
+// NotFound として検査する（F3）。存在しない ID / 別医院の ID を渡すと apperrors.IsNotFound
 // な err を返す。
 
 import (
@@ -58,10 +58,10 @@ func TestPetChronicConditionRepository_FindByPetID(t *testing.T) {
 	deleted := makeChronicCondition(t, db, clinicA, pet.ID, "OLD", "削除済み疾患", time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC), false)
 	require.NoError(t, db.WithContext(ctx).Delete(deleted).Error)
 
-	// 別クリニックの同一ペットID疾患（実際は起こり得ないが clinic_id 述語の検証として作成）
-	otherOwner := makeTestOwner(t, db, clinicB, "別クリニック慢性疾患飼主")
-	otherPet := makeSpeciesAndPet(t, db, clinicB, otherOwner.ID, "別クリニックペット")
-	makeChronicCondition(t, db, clinicB, otherPet.ID, "OTH", "別クリニック疾患", time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), true)
+	// 別医院の同一ペットID疾患（実際は起こり得ないが clinic_id 述語の検証として作成）
+	otherOwner := makeTestOwner(t, db, clinicB, "別医院慢性疾患飼主")
+	otherPet := makeSpeciesAndPet(t, db, clinicB, otherOwner.ID, "別医院ペット")
+	makeChronicCondition(t, db, clinicB, otherPet.ID, "OTH", "別医院疾患", time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), true)
 
 	got, err := repo.FindByPetID(ctx, clinicA, pet.ID)
 	require.NoError(t, err)
@@ -105,13 +105,13 @@ func TestPetChronicConditionRepository_FindByID(t *testing.T) {
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "単件取得ペット")
 	cond := makeChronicCondition(t, db, clinicA, pet.ID, "ASTH", "喘息", time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC), true)
 
-	t.Run("同一クリニックでは取得できる", func(t *testing.T) {
+	t.Run("同一医院では取得できる", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, pet.ID, cond.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "喘息", got.ConditionName)
 	})
 
-	t.Run("別クリニックからは取得できない(clinic_id 隔離)", func(t *testing.T) {
+	t.Run("別医院からは取得できない(clinic_id 隔離)", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicB, pet.ID, cond.ID)
 		assert.Nil(t, got)
 		require.Error(t, err)
@@ -125,7 +125,7 @@ func TestPetChronicConditionRepository_FindByID(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("同一クリニックの別ペットからは取得できない", func(t *testing.T) {
+	t.Run("同一医院の別ペットからは取得できない", func(t *testing.T) {
 		otherPet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "別ペット")
 		got, err := repo.FindByID(ctx, clinicA, otherPet.ID, cond.ID)
 		assert.Nil(t, got)
@@ -217,17 +217,17 @@ func TestPetChronicConditionRepository_Update(t *testing.T) {
 		assert.Equal(t, "食物アレルギー", got.ConditionName)
 	})
 
-	t.Run("別クリニックからのUpdateはNotFoundになり行を変更しない", func(t *testing.T) {
+	t.Run("別医院からのUpdateはNotFoundになり行を変更しない", func(t *testing.T) {
 		name := "不正書き換え"
 		err := repo.Update(ctx, clinicB, pet.ID, cond.ID, UpdateChronicConditionInput{ConditionName: &name})
-		assert.True(t, apperrors.IsNotFound(err), "別クリニックからの Update は RowsAffected==0 で NotFound になるべき")
+		assert.True(t, apperrors.IsNotFound(err), "別医院からの Update は RowsAffected==0 で NotFound になるべき")
 
 		got, err := repo.FindByID(ctx, clinicA, pet.ID, cond.ID)
 		require.NoError(t, err)
-		assert.Equal(t, "食物アレルギー", got.ConditionName, "別クリニックからの Update で値が変わってはならない")
+		assert.Equal(t, "食物アレルギー", got.ConditionName, "別医院からの Update で値が変わってはならない")
 	})
 
-	t.Run("同一クリニックの別ペットからのUpdateはNotFoundになり行を変更しない", func(t *testing.T) {
+	t.Run("同一医院の別ペットからのUpdateはNotFoundになり行を変更しない", func(t *testing.T) {
 		name := "不正書き換え"
 		err := repo.Update(ctx, clinicA, otherPet.ID, cond.ID, UpdateChronicConditionInput{ConditionName: &name})
 		assert.True(t, apperrors.IsNotFound(err))
@@ -257,17 +257,17 @@ func TestPetChronicConditionRepository_Delete(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err), "削除後は NotFound になるべき")
 	})
 
-	t.Run("別クリニックからのDeleteはNotFoundになり対象行を削除しない", func(t *testing.T) {
+	t.Run("別医院からのDeleteはNotFoundになり対象行を削除しない", func(t *testing.T) {
 		cond := makeChronicCondition(t, db, clinicA, pet.ID, "EYE", "白内障", time.Date(2026, 1, 25, 0, 0, 0, 0, time.UTC), true)
 		err := repo.Delete(ctx, clinicB, pet.ID, cond.ID)
-		assert.True(t, apperrors.IsNotFound(err), "別クリニックからの Delete は RowsAffected==0 で NotFound になるべき")
+		assert.True(t, apperrors.IsNotFound(err), "別医院からの Delete は RowsAffected==0 で NotFound になるべき")
 
 		got, err := repo.FindByID(ctx, clinicA, pet.ID, cond.ID)
-		require.NoError(t, err, "別クリニックからの Delete では削除されないはず")
+		require.NoError(t, err, "別医院からの Delete では削除されないはず")
 		assert.Equal(t, cond.ID, got.ID)
 	})
 
-	t.Run("同一クリニックの別ペットからのDeleteはNotFoundになり対象行を削除しない", func(t *testing.T) {
+	t.Run("同一医院の別ペットからのDeleteはNotFoundになり対象行を削除しない", func(t *testing.T) {
 		cond := makeChronicCondition(t, db, clinicA, pet.ID, "EAR", "外耳炎", time.Date(2026, 1, 26, 0, 0, 0, 0, time.UTC), true)
 		err := repo.Delete(ctx, clinicA, otherPet.ID, cond.ID)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -300,14 +300,14 @@ func TestPetChronicConditionRepository_FindActiveConditionCodesByOwner(t *testin
 	require.NoError(t, db.WithContext(ctx).Delete(inactiveDeleted).Error)
 	makeChronicCondition(t, db, clinicA, petDeceased.ID, "DEAD", "死亡ペットの疾患", time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), true)
 
-	// 別クリニックの疾患は混入しない
-	otherOwner := makeTestOwner(t, db, clinicB, "別クリニックアクティブ疾患飼主")
-	otherPet := makeSpeciesAndPet(t, db, clinicB, otherOwner.ID, "別クリニックペット(疾患)")
-	makeChronicCondition(t, db, clinicB, otherPet.ID, "OTH", "別クリニック疾患", time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), true)
+	// 別医院の疾患は混入しない
+	otherOwner := makeTestOwner(t, db, clinicB, "別医院アクティブ疾患飼主")
+	otherPet := makeSpeciesAndPet(t, db, clinicB, otherOwner.ID, "別医院ペット(疾患)")
+	makeChronicCondition(t, db, clinicB, otherPet.ID, "OTH", "別医院疾患", time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), true)
 
 	got, err := repo.FindActiveConditionCodesByOwner(ctx, clinicA, owner.ID)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"CKD", "DM"}, got, "DISTINCT + ORDER BY condition_code、非アクティブ/削除済み/死亡ペット/別クリニックは除外")
+	assert.Equal(t, []string{"CKD", "DM"}, got, "DISTINCT + ORDER BY condition_code、非アクティブ/削除済み/死亡ペット/別医院は除外")
 }
 
 func TestPetChronicConditionRepository_FindActiveConditionCodesByOwner_RejectsCorruptCrossClinicPetRelation(t *testing.T) {

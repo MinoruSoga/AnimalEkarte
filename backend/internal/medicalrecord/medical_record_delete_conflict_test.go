@@ -25,7 +25,7 @@ func TestMedicalRecordService_DeleteConflictKindsPreservePublicContract(t *testi
 			name:         "locked record state changed",
 			lockedStatus: model.MedicalRecordStatusFinalized,
 			wantKind:     medicalRecordDeleteStateConflict,
-			wantMessage:  "確定済みまたは下書き以外の診療記録は削除できません",
+			wantMessage:  "確定済みまたは下書き以外のカルテは削除できません",
 		},
 		{
 			name:              "linked appointment already in consultation",

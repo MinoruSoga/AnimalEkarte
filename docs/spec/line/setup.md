@@ -1,8 +1,8 @@
 # LINE・Lステップ 連携セットアップガイド (External Integration Setup)
 
 > **目的**: LINE Developers Console と Animal Ekarte の初期設定 gate を提供する。
-> **読者**: クリニック導入担当・運用者。
-> **タイミング**: 新規クリニックの LINE 連携初期設定時。
+> **読者**: 医院導入担当・運用者。
+> **タイミング**: 新規医院の LINE 連携初期設定時。
 > **最新更新**: 2026-09-06（repo `7c6592f9f`）
 
 この手順は実値を記録する場所ではない。環境ごとの public host、clinic ID、credential owner、rollback owner は承認済みの環境台帳で確認する。

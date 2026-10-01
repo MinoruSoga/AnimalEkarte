@@ -26,7 +26,7 @@ describe("MonthlySummaryCards 消費税率ラベル動的化 (#179 ②)", () => 
     expect(screen.getByText("軽減税率（8%）")).toBeInTheDocument();
   });
 
-  it("病院マスタ設定値(0.12 / 0.05)が税率ラベルへ反映され、固定の10%/8%表記が出ない", () => {
+  it("医院マスタ設定値(0.12 / 0.05)が税率ラベルへ反映され、固定の10%/8%表記が出ない", () => {
     render(<MonthlySummaryCards summary={SUMMARY} standardTaxRate={0.12} reducedTaxRate={0.05} />);
     // 設定値が動的にラベルへ反映される
     expect(screen.getByText("標準税率（12%）")).toBeInTheDocument();

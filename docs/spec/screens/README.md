@@ -27,7 +27,7 @@ flowchart LR
 | 00 | **ペット選択** | [00-pet-selection.md](./00-pet-selection.md) | 新規データ作成時の共通検索・特定フロー。 |
 | 01 | **当日の受付** | [01-reception.md](./01-reception.md) | カンバン形式による院内稼働状況の管理。 |
 | 02 | **予約管理** | [02-reservations.md](./02-reservations.md) | 月/週カレンダーによる予約枠とシフトの可視化。 |
-| 05 | **カルテ一覧** | [05-medical-records-list.md](./05-medical-records-list.md) | 全診療記録の時系列検索。 |
+| 05 | **カルテ一覧** | [05-medical-records-list.md](./05-medical-records-list.md) | 全カルテの時系列検索。 |
 | 06 | **カルテ詳細・入力** | [06-medical-records-form.md](./06-medical-records-form.md) | SOAPS 形式の診療録作成（9 タブ構成）。 |
 | 12 | **検査一覧** | [12-examinations-list.md](./12-examinations-list.md) | 検査オーダー状況と結果の進捗管理。 |
 | 13 | **検査登録・結果** | [13-examinations-form.md](./13-examinations-form.md) | 数値検査の入力と基準値判定。未紐付け受信は1クリックで後付け。 |
@@ -78,7 +78,7 @@ flowchart LR
 | 24 | **シフト管理** | [24-shift-calendar.md](./24-shift-calendar.md) | スタッフ勤務と LINE 予約の連動. |
 | 28 | **LINE 予約設定** | [28-line-reservation.md](./28-line-reservation.md) | 予約システム稼働ルールと文言編集・予約枠カレンダー. |
 | 37 | **LINE 予約（飼主側）** | [37-line-reserve-owner-flow.md](./37-line-reserve-owner-flow.md) | 飼主が LINE から予約を作成・確認・キャンセルする 13 ステップのフロー。 |
-| 38 | **LIFF 診察券・健康情報** | [38-liff-pet-health.md](./38-liff-pet-health.md) | 飼い主向け LINE ミニアプリ。健康手帳（ワクチン記録）表示と LINE アカウント紐付け。 |
+| 38 | **LIFF 診察券・健康情報** | [38-liff-pet-health.md](./38-liff-pet-health.md) | 飼主向け LINE ミニアプリ。健康手帳（ワクチン記録）表示と LINE アカウント紐付け。 |
 | 31 | **Lステップ連携設定** | [31-lstep-integration.md](./31-lstep-integration.md) | CPM 判定、配信自動化、各種プレフィックス設定。 |
 | - | ├ **Lステップタグ管理** | [31-lstep-integration.md](./31-lstep-integration.md) | 連携タグのマスタ管理・コードマッピング。 |
 | - | ├ **健診タグ一括同期** | [31-lstep-integration.md](./31-lstep-integration.md) | 健診対象者の抽出と一括タグ連携（プレビュー付）。 |
@@ -87,14 +87,14 @@ flowchart LR
 | 35 | **取扱説明書** | [35-internal-manual.md](./35-internal-manual.md) | システム内マニュアルの閲覧と編集。 |
 | 40 | **同一飼主・ペット連携** | [40-identity-links.md](./40-identity-links.md) | 所属医院内の飼主・ペット手動 identity link と最小連携履歴。 |
 | 21 | **ログイン** | [21-login.md](./21-login.md) | 認証プロセスとパスワード再設定。 |
-| 19 | **医院マスタ設定** | [19-clinic-settings.md](./19-clinic-settings.md) | 拠点基本情報と税務設定。 |
+| 19 | **医院マスタ設定** | [19-clinic-settings.md](./19-clinic-settings.md) | 医院基本情報と税務設定。 |
 
 ---
 
 ## 🛠️ 技術・共通基盤
 
 - **[共通ダイアログ](./common-dialogs.md)**: 全画面で共有される検索、入力部品。
-- **[カルテ保存フロー](./99-medical-record-flow.md)**: 診療記録の複雑なライフサイクル。
+- **[カルテ保存フロー](./99-medical-record-flow.md)**: カルテの複雑なライフサイクル。
 - **[マスタ設定ポータル](./20-master-settings.md)**: 各種定義データ管理の入り口。
 - **[マスタ設定画面群 (settings/)](./settings/README.md)**: 個別マスタ設定画面の詳細仕様インデックス。
 

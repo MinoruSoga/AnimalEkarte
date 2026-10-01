@@ -48,7 +48,7 @@ flowchart LR
 - **CPM「Dormant」チップとの区別**: CPM 休眠は `cpm_v1_dormant_days`（既定 240 日）の別軸。#8 の「1年以上」（365 日固定）と件数不一致は不具合ではない。
 - **CPM チップの固定**: 画面チップは V1 の 6 区分 + Unclassified。医院設定の CPM バージョンが V2 でもこの一覧は切り替わらない（仕様正本 36 §1.2）。
 - **来院なしの扱い**: 最終来院タブの「来院なしを含む」と `no_visit` は「1年以上」とは別分類。#8 の絞り込みで混入しないこと。
-- **clinic_id 隔離**: 集計 API は `GET /api/v1/clinics/:clinic_id/owners/aggregations`（lstep ドメイン）。クリニック切替で他院の飼主が混入しないこと。
+- **clinic_id 隔離**: 集計 API は `GET /api/v1/clinics/:clinic_id/owners/aggregations`（lstep ドメイン）。医院切替で他院の飼主が混入しないこと。
 
 ## 実装突合
 - 変更:

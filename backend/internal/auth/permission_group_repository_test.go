@@ -60,8 +60,8 @@ func TestPermissionGroupRepository_FindByID(t *testing.T) {
 		assert.Equal(t, "medical_record", got.Rules[0].Resource)
 	})
 
-	t.Run("別クリニックはNotFound", func(t *testing.T) {
-		g := makePermissionGroup(t, db, clinicA, "別クリニック検証用グループ")
+	t.Run("別医院はNotFound", func(t *testing.T) {
+		g := makePermissionGroup(t, db, clinicA, "別医院検証用グループ")
 		_, err := repo.FindByID(ctx, clinicB, g.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -106,7 +106,7 @@ func TestPermissionGroupRepository_Update(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	t.Run("同一クリニックからの更新は成功する", func(t *testing.T) {
+	t.Run("同一医院からの更新は成功する", func(t *testing.T) {
 		g := makePermissionGroup(t, db, clinicA, "Update正常系グループ")
 		name := "更新後の名前"
 		got, err := repo.Update(ctx, clinicA, g.ID, UpdatePermissionGroupInput{Name: &name})
@@ -114,8 +114,8 @@ func TestPermissionGroupRepository_Update(t *testing.T) {
 		assert.Equal(t, "更新後の名前", got.Name)
 	})
 
-	t.Run("別クリニックからの更新はNotFound", func(t *testing.T) {
-		g := makePermissionGroup(t, db, clinicA, "別クリニック更新拒否対象")
+	t.Run("別医院からの更新はNotFound", func(t *testing.T) {
+		g := makePermissionGroup(t, db, clinicA, "別医院更新拒否対象")
 		name := "改ざん後の名前"
 		_, err := repo.Update(ctx, clinicB, g.ID, UpdatePermissionGroupInput{Name: &name})
 		require.Error(t, err)
@@ -124,7 +124,7 @@ func TestPermissionGroupRepository_Update(t *testing.T) {
 		// 実際に更新されていないことを確認する
 		got, err := repo.FindByID(ctx, clinicA, g.ID)
 		require.NoError(t, err)
-		assert.Equal(t, "別クリニック更新拒否対象", got.Name, "他クリニックからの更新でデータが書き換わってはならない")
+		assert.Equal(t, "別医院更新拒否対象", got.Name, "他医院からの更新でデータが書き換わってはならない")
 	})
 }
 
@@ -134,7 +134,7 @@ func TestPermissionGroupRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	t.Run("同一クリニックからの削除は成功する", func(t *testing.T) {
+	t.Run("同一医院からの削除は成功する", func(t *testing.T) {
 		g := makePermissionGroup(t, db, clinicA, "Delete正常系グループ")
 		err := repo.Delete(ctx, clinicA, g.ID)
 		require.NoError(t, err)
@@ -144,14 +144,14 @@ func TestPermissionGroupRepository_Delete(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("別クリニックからの削除はNotFoundで対象は削除されない", func(t *testing.T) {
-		g := makePermissionGroup(t, db, clinicA, "別クリニック削除拒否対象")
+	t.Run("別医院からの削除はNotFoundで対象は削除されない", func(t *testing.T) {
+		g := makePermissionGroup(t, db, clinicA, "別医院削除拒否対象")
 		err := repo.Delete(ctx, clinicB, g.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 
 		got, err := repo.FindByID(ctx, clinicA, g.ID)
-		require.NoError(t, err, "他クリニックからの削除要求でレコードが消えてはならない")
+		require.NoError(t, err, "他医院からの削除要求でレコードが消えてはならない")
 		assert.Equal(t, g.ID, got.ID)
 	})
 }
@@ -270,7 +270,7 @@ func TestPermissionGroupRepository_UpdateRules(t *testing.T) {
 		assert.Empty(t, got.Rules)
 	})
 
-	t.Run("別クリニックの対象グループはNotFoundで既存ルールを変更しない", func(t *testing.T) {
+	t.Run("別医院の対象グループはNotFoundで既存ルールを変更しない", func(t *testing.T) {
 		g := makePermissionGroup(t, db, clinicA, "UpdateRules越境拒否対象")
 		existing := makeEffPermRule(t, db, g.ID, "medical_record", true, false, false, false)
 
@@ -551,7 +551,7 @@ func TestPermissionGroupRepository_CountUsageByGroupID(t *testing.T) {
 		assert.Zero(t, count)
 	})
 
-	t.Run("別クリニックのgroup_idを指定すると0(clinic_id隔離)", func(t *testing.T) {
+	t.Run("別医院のgroup_idを指定すると0(clinic_id隔離)", func(t *testing.T) {
 		const clinicB = uint64(2)
 		g := makePermissionGroup(t, db, clinicA, "隔離検証用グループ")
 		staff := makeDoctor(t, db, clinicA, "隔離検証用スタッフ")
@@ -559,7 +559,7 @@ func TestPermissionGroupRepository_CountUsageByGroupID(t *testing.T) {
 
 		count, err := repo.CountUsageByGroupID(ctx, clinicB, g.ID)
 		require.NoError(t, err)
-		assert.Zero(t, count, "別クリニックからの参照は使用数に混入してはならない")
+		assert.Zero(t, count, "別医院からの参照は使用数に混入してはならない")
 	})
 }
 
@@ -615,26 +615,26 @@ func TestPermissionGroupRepository_Reorder(t *testing.T) {
 		assert.Equal(t, 3, got2.SortOrder, "3番目に指定したg2は3になるべき")
 	})
 
-	t.Run("別クリニックのIDを混ぜるとエラーになる", func(t *testing.T) {
+	t.Run("別医院のIDを混ぜるとエラーになる", func(t *testing.T) {
 		gA := makePermissionGroup(t, db, clinicA, "Reorderエラー検証clinicA")
 		gB := makePermissionGroup(t, db, clinicB, "Reorderエラー検証clinicB")
 
 		err := repo.Reorder(ctx, clinicA, []uint64{gA.ID, gB.ID})
-		require.Error(t, err, "対象クリニックに属さないIDが含まれる場合はエラーになるべき")
+		require.Error(t, err, "対象医院に属さないIDが含まれる場合はエラーになるべき")
 		assert.True(t, apperrors.IsInvalidInput(err))
 	})
 }
 
 // TestPermissionGroupRepository_UpdateStaffGroups_InvalidGroupID は
 // permission_group_staff_clinic_isolation_test.go のクロステナント検証を補完し、
-// 別クリニックのgroup_idを混ぜた場合に返るエラーが apperrors.WrapInvalidInput 由来
+// 別医院のgroup_idを混ぜた場合に返るエラーが apperrors.WrapInvalidInput 由来
 // (IsInvalidInput=true) であることを明示的に検証する。
 func TestPermissionGroupRepository_UpdateStaffGroups_InvalidGroupID(t *testing.T) {
 	db := setupPermissionGroupRepositoryTestDB(t)
 	repo := NewPermissionGroupRepository(db)
 	ctx := context.Background()
 
-	t.Run("別クリニックのgroup_idを混ぜるとWrapInvalidInputになる", func(t *testing.T) {
+	t.Run("別医院のgroup_idを混ぜるとWrapInvalidInputになる", func(t *testing.T) {
 		clinicA := makePermissionGroupTestClinic(t, db, "InvalidGroupID clinic A").ID
 		clinicB := makePermissionGroupTestClinic(t, db, "InvalidGroupID clinic B").ID
 		staff := makeDoctorAssignedToClinic(t, db, clinicA, "InvalidGroupID検証用スタッフ")
@@ -642,6 +642,6 @@ func TestPermissionGroupRepository_UpdateStaffGroups_InvalidGroupID(t *testing.T
 
 		err := repo.UpdateStaffGroups(ctx, clinicA, staff.ID, []uint64{groupB.ID})
 		require.Error(t, err)
-		assert.True(t, apperrors.IsInvalidInput(err), "別クリニックのgroup_idはWrapInvalidInputで拒否されるべき")
+		assert.True(t, apperrors.IsInvalidInput(err), "別医院のgroup_idはWrapInvalidInputで拒否されるべき")
 	})
 }

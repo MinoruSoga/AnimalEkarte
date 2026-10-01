@@ -741,7 +741,7 @@ func TestCalculateCPMStageV2(t *testing.T) {
 	}
 }
 
-// TestCalculateCPMStageV2_CustomThresholds: クリニック単位閾値を反映する
+// TestCalculateCPMStageV2_CustomThresholds: 医院単位閾値を反映する
 func TestCalculateCPMStageV2_CustomThresholds(t *testing.T) {
 	custom := model.CPMV2Thresholds{Coming: 5, Good: 10, Family: 20, Noah: 30}
 	cases := []struct {

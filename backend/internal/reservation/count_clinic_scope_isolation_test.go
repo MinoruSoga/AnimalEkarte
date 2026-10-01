@@ -36,13 +36,13 @@ func TestReservationRepository_CountMedicalRecordsByReservationID_ClinicIsolatio
 	mr := &model.MedicalRecord{ClinicID: clinicA, RecordNo: "MR-A-2", Date: time.Now(), AppointmentID: &res.ID}
 	require.NoError(t, db.WithContext(ctx).Create(mr).Error)
 
-	t.Run("同一クリニックIDでは件数が見える", func(t *testing.T) {
+	t.Run("同一医院IDでは件数が見える", func(t *testing.T) {
 		count, err := repo.CountMedicalRecordsByReservationID(ctx, clinicA, res.ID)
 		require.NoError(t, err)
 		require.Equal(t, int64(1), count)
 	})
 
-	t.Run("別クリニックIDでは0件を返す（漏洩しない）", func(t *testing.T) {
+	t.Run("別医院IDでは0件を返す（漏洩しない）", func(t *testing.T) {
 		count, err := repo.CountMedicalRecordsByReservationID(ctx, clinicB, res.ID)
 		require.NoError(t, err)
 		require.Equal(t, int64(0), count)

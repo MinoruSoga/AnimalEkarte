@@ -56,7 +56,7 @@ func TestBillingItemRepository_Update_ClinicIsolation(t *testing.T) {
 	assert.Equal(t, int64(1000), reloaded.UnitPrice)
 }
 
-// TestBillingItemRepository_Update_SameClinic は同一クリニックの更新が成功する
+// TestBillingItemRepository_Update_SameClinic は同一医院の更新が成功する
 // （是正後も正常系が壊れていない）ことを検証する。
 func TestBillingItemRepository_Update_SameClinic(t *testing.T) {
 	db := setupBillingItemIsolationTestDB(t)
@@ -91,7 +91,7 @@ func TestBillingItemRepository_Delete_ClinicIsolation(t *testing.T) {
 	assert.Equal(t, int64(1), count, "clinic B の明細が削除されてはならない")
 }
 
-// TestBillingItemRepository_Delete_SameClinic は同一クリニックの削除が成功することを検証する。
+// TestBillingItemRepository_Delete_SameClinic は同一医院の削除が成功することを検証する。
 func TestBillingItemRepository_Delete_SameClinic(t *testing.T) {
 	db := setupBillingItemIsolationTestDB(t)
 	repo := NewBillingItemRepository(db)

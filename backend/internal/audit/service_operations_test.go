@@ -571,7 +571,7 @@ func TestAuditService_LogVitalChange(t *testing.T) {
 	assert.EqualValues(t, medicalRecordID, meta["medical_record_id"])
 }
 
-// TestAuditService_LogClinicSwitch_StaffActor はスタッフによるクリニック切替で
+// TestAuditService_LogClinicSwitch_StaffActor はスタッフによる医院切替で
 // resource="auth", action="switch_clinic", actor_type="staff" かつ
 // old/new_value に clinic_id が含まれることを確認する（FEAT-374 Phase 2）。
 func TestAuditService_LogClinicSwitch_StaffActor(t *testing.T) {

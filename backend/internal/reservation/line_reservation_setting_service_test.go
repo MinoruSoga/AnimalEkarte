@@ -293,7 +293,7 @@ func TestLineReservationSettingService_Save(t *testing.T) {
 
 	// BE-refactor.md D10/F-2 フォローアップ（go-reviewer/security-reviewer 指摘）:
 	// break_hours の unmarshal 失敗を予約作成側で fail-closed にしたため、保存側でも形状を
-	// 検証しないと、構文的には有効だが形状が不正な値が保存された時点で当該クリニックの
+	// 検証しないと、構文的には有効だが形状が不正な値が保存された時点で当該医院の
 	// 全 LINE 予約が拒否され続ける可用性劣化になる。保存時に 400 で弾くことを保証する。
 	t.Run("break_hours: 構文は有効だが形状が不正（オブジェクト）→ 400", func(t *testing.T) {
 		svc := NewLineReservationSettingService(nil, testPlainEncrypt, testPlainDecrypt)

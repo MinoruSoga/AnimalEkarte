@@ -83,7 +83,7 @@ func newHandlerWithLiffSvc(liffSvc liffAvailability) *CRUDHandler {
 	return NewCRUDHandler(nil, nil, liffSvc, &mockStaffClinicAssignmentService{})
 }
 
-// mockStaffClinicAssignmentService はテスト用モック。テストで使われるクリニックID（1, 3）すべてに所属を返す。
+// mockStaffClinicAssignmentService はテスト用モック。テストで使われる医院ID（1, 3）すべてに所属を返す。
 type mockStaffClinicAssignmentService struct{}
 
 func (m *mockStaffClinicAssignmentService) FindAllByStaffID(_ context.Context, staffID uint64) ([]model.StaffClinicAssignment, error) {

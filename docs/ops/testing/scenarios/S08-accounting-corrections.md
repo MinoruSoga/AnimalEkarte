@@ -43,7 +43,7 @@ flowchart LR
 - **権限の分離**: 訂正導線は「確定済み（completed）かつ accounting-post-close-edit の edit 保有」でのみ表示される（BE: `POST /accountings/:id/credit-correction` が同権限を要求）。
 - **未収金の定義**: waiting 全額に加え、クレジット訂正由来の completed 差額（residual）も含む。部分入金 UI は無いが、#3 の訂正後に未納タブで突合できる。
 - **精算済み再保存**: 詳細は「精算済みの会計を修正します」ConfirmDialog を出してから保存する。締め済み日の新規 `POST /accountings/complete` は `post_close_reason` を FK より先に見る。
-- **拠点横断時の訂正対象**: 訂正リクエストはグローバル選択クリニックではなく会計自体のクリニックに対して送られる（`frontend/src/features/accounting/api/correct-credit-payment.ts`、X-Clinic-ID 明示指定）。拠点横断で開いた会計でも誤テナントへ書き込まれないこと。
+- **医院横断時の訂正対象**: 訂正リクエストはグローバル選択医院ではなく会計自体の医院に対して送られる（`frontend/src/features/accounting/api/correct-credit-payment.ts`、X-Clinic-ID 明示指定）。医院横断で開いた会計でも誤テナントへ書き込まれないこと。
 - **原子 complete（BUG-018）**: 新規精算は `completeAccounting` → `POST /v1/accountings/complete`。明細・支払・監査を同一 TX で確定し、Idempotency-Key で再送を安全化する。#1 の成功時に一覧が「精算済」になること。
 - **支払方法 rename 回帰（#197）**: 標準行は表示名を変更しても `system_key` で解決され、精算・現金集計から消えないこと（V04 支払方法マスタと連携）。#6〜#9 の部分入金統合経路は現行 UI では実行できない。
 
@@ -57,4 +57,4 @@ flowchart LR
   - 精算経路を `POST /accountings/complete`（BUG-018 原子 complete）として明記
   - 部分入金拒否を FE `remaining !== 0` + BE `validatePaymentSplits` で再確認
   - クレジット訂正 API パス・カード系 method・未納定義（waiting）を現行実装に合わせて整理
-  - 監査 fail-closed / X-Clinic-ID 拠点横断は変更なし
+  - 監査 fail-closed / X-Clinic-ID 医院横断は変更なし

@@ -201,13 +201,13 @@ func TestExaminationRepository_FindByID(t *testing.T) {
 	et := makeExamTypeMaster(t, db, clinicA, "血液検査")
 	exam := makeExaminationRec(t, db, &model.Examination{ClinicID: clinicA, ExamTypeID: et.ID, Date: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)})
 
-	t.Run("同一クリニックで取得できる", func(t *testing.T) {
+	t.Run("同一医院で取得できる", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, exam.ID)
 		require.NoError(t, err)
 		assert.Equal(t, exam.ID, got.ID)
 	})
 
-	t.Run("別クリニックからは NotFound", func(t *testing.T) {
+	t.Run("別医院からは NotFound", func(t *testing.T) {
 		_, err := repo.FindByID(ctx, clinicB, exam.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -395,7 +395,7 @@ func TestExaminationRepository_FindByJobID(t *testing.T) {
 		assert.Equal(t, e1.ID, got[1].ID)
 	})
 
-	t.Run("別クリニックでは空", func(t *testing.T) {
+	t.Run("別医院では空", func(t *testing.T) {
 		got, err := repo.FindByJobID(ctx, clinicB, job)
 		require.NoError(t, err)
 		assert.Empty(t, got)
@@ -433,13 +433,13 @@ func TestExaminationRepository_Update(t *testing.T) {
 	et := makeExamTypeMaster(t, db, clinicA, "血液検査")
 	exam := makeExaminationRec(t, db, &model.Examination{ClinicID: clinicA, ExamTypeID: et.ID, Date: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)})
 
-	t.Run("同一クリニックで更新できる", func(t *testing.T) {
+	t.Run("同一医院で更新できる", func(t *testing.T) {
 		got, err := repo.Update(ctx, clinicA, exam.ID, UpdateExaminationInput{Status: ptr(model.ExaminationStatusCompleted)})
 		require.NoError(t, err)
 		assert.Equal(t, model.ExaminationStatusCompleted, got.Status)
 	})
 
-	t.Run("別クリニックからの更新は NotFound", func(t *testing.T) {
+	t.Run("別医院からの更新は NotFound", func(t *testing.T) {
 		_, err := repo.Update(ctx, clinicB, exam.ID, UpdateExaminationInput{Status: ptr(model.ExaminationStatusConfirmed)})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -461,7 +461,7 @@ func TestExaminationRepository_Delete(t *testing.T) {
 	et := makeExamTypeMaster(t, db, clinicA, "血液検査")
 	exam := makeExaminationRec(t, db, &model.Examination{ClinicID: clinicA, ExamTypeID: et.ID, Date: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)})
 
-	t.Run("別クリニックからの削除は NotFound", func(t *testing.T) {
+	t.Run("別医院からの削除は NotFound", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, exam.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -473,7 +473,7 @@ func TestExaminationRepository_Delete(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("同一クリニックで削除でき、ソフトデリートされる", func(t *testing.T) {
+	t.Run("同一医院で削除でき、ソフトデリートされる", func(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, clinicA, exam.ID))
 
 		_, err := repo.FindByID(ctx, clinicA, exam.ID)
@@ -509,7 +509,7 @@ func TestExaminationRepository_CountItemsByExamID(t *testing.T) {
 		assert.Equal(t, int64(2), count)
 	})
 
-	t.Run("別クリニックIDでは 0（クロステナント越境なし）", func(t *testing.T) {
+	t.Run("別医院IDでは 0（クロステナント越境なし）", func(t *testing.T) {
 		count, err := repo.CountItemsByExamID(ctx, clinicB, exam.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)
@@ -543,7 +543,7 @@ func TestExaminationRepository_FindAllItemsByExamID(t *testing.T) {
 		assert.Equal(t, "RBC", got[1].Name)
 	})
 
-	t.Run("別クリニックIDでは空", func(t *testing.T) {
+	t.Run("別医院IDでは空", func(t *testing.T) {
 		got, err := repo.FindAllItemsByExamID(ctx, clinicB, exam.ID)
 		require.NoError(t, err)
 		assert.Empty(t, got)
@@ -602,7 +602,7 @@ func TestExaminationRepository_ReplaceItemsByExamID(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("別クリニックの exam ID は NotFound", func(t *testing.T) {
+	t.Run("別医院の exam ID は NotFound", func(t *testing.T) {
 		_, _, err := repo.ReplaceItemsByExamID(ctx, clinicB, exam.ID, []model.ExamResult{{Name: "x"}})
 		require.Error(t, err)
 	})

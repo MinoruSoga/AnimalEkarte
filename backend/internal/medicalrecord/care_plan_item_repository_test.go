@@ -6,7 +6,7 @@ package medicalrecord
 //   - FindByHospitalizationID / FindByID / Update / Delete は hospitalizations を JOIN して
 //     clinic_id でテナント隔離される（care_plan_items 自体は clinic_id 列を持たない）。
 //   - FindByHospitalizationID は sort_order ASC で返す。
-//   - Medicine / Procedure の Preload は clinic_id 述語付きで、別クリニックのマスタは
+//   - Medicine / Procedure の Preload は clinic_id 述語付きで、別医院のマスタは
 //     読み込まれない（P3.1）。
 //   - Update / Delete は対象なしで NotFound を返す。
 //   - Delete は Unscoped() 指定だが CarePlanItem に deleted_at 列は無いため実質的に物理削除。
@@ -88,10 +88,10 @@ func TestCarePlanItemRepository_FindByHospitalizationID(t *testing.T) {
 
 	itemSecond := makeCarePlanItem(t, db, hospA.ID, "後・アイテム", 2, nil, nil)
 	itemFirst := makeCarePlanItem(t, db, hospA.ID, "先・アイテム", 1, &medA.ID, &procA.ID)
-	// 別クリニックの Medicine を紐付けたアイテム（クロステナント Preload 漏洩防止の検証用）
+	// 別医院の Medicine を紐付けたアイテム（クロステナント Preload 漏洩防止の検証用）
 	itemCrossTenantMedicine := makeCarePlanItem(t, db, hospA.ID, "越境薬アイテム", 3, &medB.ID, nil)
 	makeCarePlanItem(t, db, hospOther.ID, "別入院のアイテム", 1, nil, nil)
-	makeCarePlanItem(t, db, hospB.ID, "別クリニック入院のアイテム", 1, nil, nil)
+	makeCarePlanItem(t, db, hospB.ID, "別医院入院のアイテム", 1, nil, nil)
 
 	t.Run("returns items for the hospitalization ordered by sort_order ASC with Medicine/Procedure preloaded", func(t *testing.T) {
 		got, err := repo.FindByHospitalizationID(ctx, clinicA, hospA.ID)
@@ -112,7 +112,7 @@ func TestCarePlanItemRepository_FindByHospitalizationID(t *testing.T) {
 		require.NoError(t, err)
 		for _, item := range got {
 			if item.ID == itemCrossTenantMedicine.ID {
-				assert.Nil(t, item.Medicine, "別クリニックの Medicine は Preload されるべきではない")
+				assert.Nil(t, item.Medicine, "別医院の Medicine は Preload されるべきではない")
 			}
 		}
 	})

@@ -4,7 +4,7 @@ package reservation
 //
 // 対象: FindAllByMonth / FindAllByDay / Create / SoftDelete / FindAllByCustomerID /
 //   CancelByID / FindByIDForNotify。
-// 保護する不変条件: clinic_id 隔離（別クリニックの予約は見えない・更新/削除できない）と
+// 保護する不変条件: clinic_id 隔離（別医院の予約は見えない・更新/削除できない）と
 //   ソフトデリート除外・NotFound ラップ。
 
 import (
@@ -73,9 +73,9 @@ func TestReservationAdminRepository_FindAllByMonth(t *testing.T) {
 
 	inMonth := makeAdminReservationAt(t, db, clinicA, time.Date(2026, 6, 15, 10, 0, 0, 0, time.UTC), nil, nil, nil, nil)
 	makeAdminReservationAt(t, db, clinicA, time.Date(2026, 7, 1, 10, 0, 0, 0, time.UTC), nil, nil, nil, nil)  // 対象月の外
-	makeAdminReservationAt(t, db, clinicB, time.Date(2026, 6, 20, 10, 0, 0, 0, time.UTC), nil, nil, nil, nil) // 別クリニック
+	makeAdminReservationAt(t, db, clinicB, time.Date(2026, 6, 20, 10, 0, 0, 0, time.UTC), nil, nil, nil, nil) // 別医院
 
-	t.Run("同一月・同一クリニックの予約のみ返す", func(t *testing.T) {
+	t.Run("同一月・同一医院の予約のみ返す", func(t *testing.T) {
 		got, err := repo.FindAllByMonth(ctx, clinicA, 2026, time.June)
 		require.NoError(t, err)
 		require.Len(t, got, 1)
@@ -105,9 +105,9 @@ func TestReservationAdminRepository_FindAllByDay(t *testing.T) {
 	targetDay := time.Date(2026, 6, 15, 3, 0, 0, 0, time.UTC) // JST 12:00 相当
 	onDay := makeAdminReservationAt(t, db, clinicA, targetDay, &owner.ID, &pet.ID, &doctor.ID, nil)
 	makeAdminReservationAt(t, db, clinicA, targetDay.AddDate(0, 0, 1), nil, nil, nil, nil) // 翌日
-	makeAdminReservationAt(t, db, clinicB, targetDay, nil, nil, nil, nil)                  // 別クリニック
+	makeAdminReservationAt(t, db, clinicB, targetDay, nil, nil, nil, nil)                  // 別医院
 
-	t.Run("同一日・同一クリニックの予約のみ返し、Owner/Pet/Doctorをpreloadする", func(t *testing.T) {
+	t.Run("同一日・同一医院の予約のみ返し、Owner/Pet/Doctorをpreloadする", func(t *testing.T) {
 		got, err := repo.FindAllByDay(ctx, clinicA, targetDay)
 		require.NoError(t, err)
 		require.Len(t, got, 1)
@@ -145,9 +145,9 @@ func TestReservationAdminRepository_FindTimeRangesByDateRange(t *testing.T) {
 	inRange := makeAdminReservationAt(t, db, clinicA, rangeStart.Add(3*time.Hour), &owner.ID, &pet.ID, &doctor.ID, nil)
 	makeAdminReservationAt(t, db, clinicA, rangeEnd, nil, nil, nil, nil)                     // to は排他的上限のため範囲外
 	makeAdminReservationAt(t, db, clinicA, rangeStart.AddDate(0, -1, 0), nil, nil, nil, nil) // 範囲より前
-	makeAdminReservationAt(t, db, clinicB, rangeStart.Add(3*time.Hour), nil, nil, nil, nil)  // 別クリニック
+	makeAdminReservationAt(t, db, clinicB, rangeStart.Add(3*time.Hour), nil, nil, nil, nil)  // 別医院
 
-	t.Run("範囲内・同クリニックの予約のみ返し、Preloadは行わない（軽量フィールドのみ）", func(t *testing.T) {
+	t.Run("範囲内・同医院の予約のみ返し、Preloadは行わない（軽量フィールドのみ）", func(t *testing.T) {
 		got, err := repo.FindTimeRangesByDateRange(ctx, clinicA, rangeStart, rangeEnd)
 		require.NoError(t, err)
 		require.Len(t, got, 1)
@@ -158,7 +158,7 @@ func TestReservationAdminRepository_FindTimeRangesByDateRange(t *testing.T) {
 		assert.Nil(t, got[0].Pet, "FindAllByDay と異なりPetはPreloadしない")
 	})
 
-	t.Run("別クリニックIDでは0件（clinic_id分離）", func(t *testing.T) {
+	t.Run("別医院IDでは0件（clinic_id分離）", func(t *testing.T) {
 		got, err := repo.FindTimeRangesByDateRange(ctx, clinicB, rangeStart, rangeEnd)
 		require.NoError(t, err)
 		require.Len(t, got, 1, "clinicB自身の予約1件のみ")
@@ -239,7 +239,7 @@ func TestReservationAdminRepository_SoftDelete(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	t.Run("同一クリニックの予約はソフトデリートされる", func(t *testing.T) {
+	t.Run("同一医院の予約はソフトデリートされる", func(t *testing.T) {
 		res := makeAdminReservationAt(t, db, clinicA, time.Now().UTC(), nil, nil, nil, nil)
 		require.NoError(t, repo.SoftDelete(ctx, clinicA, res.ID))
 
@@ -258,14 +258,14 @@ func TestReservationAdminRepository_SoftDelete(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("別クリニックの予約は削除できない（clinic_id隔離）", func(t *testing.T) {
+	t.Run("別医院の予約は削除できない（clinic_id隔離）", func(t *testing.T) {
 		res := makeAdminReservationAt(t, db, clinicA, time.Now().UTC(), nil, nil, nil, nil)
 		err := repo.SoftDelete(ctx, clinicB, res.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 
 		var stillThere model.Reservation
-		require.NoError(t, db.First(&stillThere, res.ID).Error, "別クリニックからの削除で消えてはならない")
+		require.NoError(t, db.First(&stillThere, res.ID).Error, "別医院からの削除で消えてはならない")
 	})
 }
 
@@ -279,9 +279,9 @@ func TestReservationAdminRepository_FindAllByCustomerID(t *testing.T) {
 	older := makeAdminReservationAt(t, db, clinicA, time.Date(2026, 6, 1, 9, 0, 0, 0, time.UTC), nil, nil, nil, &customer.ID)
 	newer := makeAdminReservationAt(t, db, clinicA, time.Date(2026, 6, 10, 9, 0, 0, 0, time.UTC), nil, nil, nil, &customer.ID)
 	makeAdminReservationAt(t, db, clinicA, time.Date(2026, 6, 5, 9, 0, 0, 0, time.UTC), nil, nil, nil, nil)          // 別顧客(nil)
-	makeAdminReservationAt(t, db, clinicB, time.Date(2026, 6, 5, 9, 0, 0, 0, time.UTC), nil, nil, nil, &customer.ID) // 別クリニック
+	makeAdminReservationAt(t, db, clinicB, time.Date(2026, 6, 5, 9, 0, 0, 0, time.UTC), nil, nil, nil, &customer.ID) // 別医院
 
-	t.Run("同一クリニック・同一顧客の予約のみ新しい順で返す", func(t *testing.T) {
+	t.Run("同一医院・同一顧客の予約のみ新しい順で返す", func(t *testing.T) {
 		got, err := repo.FindAllByCustomerID(ctx, clinicA, customer.ID)
 		require.NoError(t, err)
 		require.Len(t, got, 2)
@@ -302,7 +302,7 @@ func TestReservationAdminRepository_CancelByID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	t.Run("正しい顧客・クリニックからのキャンセルは status=cancelled を残し deleted_at は立てない", func(t *testing.T) {
+	t.Run("正しい顧客・医院からのキャンセルは status=cancelled を残し deleted_at は立てない", func(t *testing.T) {
 		customer := makeLineCustomerForAdmin(t, db, clinicA, "U-cancel-001")
 		res := makeAdminReservationAt(t, db, clinicA, time.Now().UTC(), nil, nil, nil, &customer.ID)
 
@@ -338,7 +338,7 @@ func TestReservationAdminRepository_CancelByID(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("別クリニックからのキャンセルは失敗する（clinic_id隔離）", func(t *testing.T) {
+	t.Run("別医院からのキャンセルは失敗する（clinic_id隔離）", func(t *testing.T) {
 		customer := makeLineCustomerForAdmin(t, db, clinicA, "U-cancel-004")
 		res := makeAdminReservationAt(t, db, clinicA, time.Now().UTC(), nil, nil, nil, &customer.ID)
 
@@ -365,7 +365,7 @@ func TestReservationAdminRepository_FindByIDForNotify(t *testing.T) {
 	makeStaffClinicAssignment(t, db, doctor.ID, clinicA)
 	res := makeAdminReservationAt(t, db, clinicA, time.Now().UTC(), &owner.ID, &pet.ID, &doctor.ID, nil)
 
-	t.Run("同一クリニックでは関連エンティティ込みで取得できる", func(t *testing.T) {
+	t.Run("同一医院では関連エンティティ込みで取得できる", func(t *testing.T) {
 		got, err := repo.FindByIDForNotify(ctx, clinicA, res.ID)
 		require.NoError(t, err)
 		require.NotNil(t, got)
@@ -385,7 +385,7 @@ func TestReservationAdminRepository_FindByIDForNotify(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("別クリニックIDでは取得できない（clinic_id隔離）", func(t *testing.T) {
+	t.Run("別医院IDでは取得できない（clinic_id隔離）", func(t *testing.T) {
 		got, err := repo.FindByIDForNotify(ctx, clinicB, res.ID)
 		require.Error(t, err)
 		assert.Nil(t, got)
@@ -432,7 +432,7 @@ func TestReservationAdminRepository_DoctorPreload_MultiClinicStaffIsolation(t *t
 		require.NoError(t, err)
 		ids := adminReservationIDs(got)
 		assert.Contains(t, ids, resShared.ID)
-		assert.NotContains(t, ids, resBOnly.ID, "別クリニック単独所属スタッフを指す予約は一覧に出てはならない")
+		assert.NotContains(t, ids, resBOnly.ID, "別医院単独所属スタッフを指す予約は一覧に出てはならない")
 		for i := range got {
 			if got[i].ID == resShared.ID {
 				require.NotNil(t, got[i].Doctor, "A配属の共有医師はDoctorとしてPreloadされるべき")

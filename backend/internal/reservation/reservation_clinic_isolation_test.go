@@ -387,7 +387,7 @@ func TestReservationRepository_MultiClinicReadsKeepHistoricalParentWithSoftDelet
 
 // TestReservationRepository_FindByID_ClinicIsolation は
 // clinic A の予約を clinic B の clinicID で取得できないことを検証する。
-// clinicScope を reservation_repository.go から削除すると「別クリニックIDでは取得できない」が失敗する。
+// clinicScope を reservation_repository.go から削除すると「別医院IDでは取得できない」が失敗する。
 func TestReservationRepository_FindByID_ClinicIsolation(t *testing.T) {
 	db := setupReservationIsolationTestDB(t)
 	repo := NewReservationRepository(db)
@@ -400,7 +400,7 @@ func TestReservationRepository_FindByID_ClinicIsolation(t *testing.T) {
 
 	resA := makeReservation(t, db, clinicA)
 
-	t.Run("同一クリニックIDでは取得できる", func(t *testing.T) {
+	t.Run("同一医院IDでは取得できる", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, resA.ID)
 		require.NoError(t, err)
 		require.NotNil(t, got)
@@ -408,7 +408,7 @@ func TestReservationRepository_FindByID_ClinicIsolation(t *testing.T) {
 		assert.Equal(t, clinicA, got.ClinicID)
 	})
 
-	t.Run("別クリニックIDでは取得できない（clinic_id 隔離）", func(t *testing.T) {
+	t.Run("別医院IDでは取得できない（clinic_id 隔離）", func(t *testing.T) {
 		// clinicScope が有効なら clinic B から clinic A の予約は見えない。
 		got, err := repo.FindByID(ctx, clinicB, resA.ID)
 		assert.Error(t, err, "clinic B から clinic A の予約を取得できてはならない")
@@ -418,7 +418,7 @@ func TestReservationRepository_FindByID_ClinicIsolation(t *testing.T) {
 }
 
 // TestReservationRepository_Update_ClinicIsolation は
-// 別クリニックIDからの Update が NotFound を返し、行が変更されないことを検証する。
+// 別医院IDからの Update が NotFound を返し、行が変更されないことを検証する。
 // clinicScope を削除すると「行が変更されていない」が失敗する。
 func TestReservationRepository_Update_ClinicIsolation(t *testing.T) {
 	db := setupReservationIsolationTestDB(t)
@@ -432,7 +432,7 @@ func TestReservationRepository_Update_ClinicIsolation(t *testing.T) {
 
 	resA := makeReservation(t, db, clinicA)
 
-	t.Run("別クリニックIDからの Update は NotFound を返す", func(t *testing.T) {
+	t.Run("別医院IDからの Update は NotFound を返す", func(t *testing.T) {
 		_, err := repo.update(ctx, clinicB, resA.ID, map[string]any{"notes": "不正書き換え"})
 		require.Error(t, err, "clinic B から clinic A の予約を更新できてはならない")
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
@@ -442,10 +442,10 @@ func TestReservationRepository_Update_ClinicIsolation(t *testing.T) {
 		// プリロードを使わず直接 DB 読み取りで notes が変化していないことを確認する。
 		var r model.Reservation
 		require.NoError(t, db.Where("id = ? AND clinic_id = ?", resA.ID, clinicA).First(&r).Error)
-		assert.Equal(t, "", r.Notes, "別クリニックからの Update で notes が変わってはならない")
+		assert.Equal(t, "", r.Notes, "別医院からの Update で notes が変わってはならない")
 	})
 
-	t.Run("正しいクリニックIDからの Update は成功する", func(t *testing.T) {
+	t.Run("正しい医院IDからの Update は成功する", func(t *testing.T) {
 		got, err := repo.update(ctx, clinicA, resA.ID, map[string]any{"notes": "正常更新"})
 		require.NoError(t, err)
 		assert.Equal(t, "正常更新", got.Notes)
@@ -453,7 +453,7 @@ func TestReservationRepository_Update_ClinicIsolation(t *testing.T) {
 }
 
 // TestReservationRepository_Delete_ClinicIsolation は
-// 別クリニックIDからの Delete が NotFound を返し、予約が削除されないことを検証する。
+// 別医院IDからの Delete が NotFound を返し、予約が削除されないことを検証する。
 // clinicScope を削除すると「予約はまだ存在する」が失敗する。
 func TestReservationRepository_Delete_ClinicIsolation(t *testing.T) {
 	db := setupReservationIsolationTestDB(t)
@@ -467,7 +467,7 @@ func TestReservationRepository_Delete_ClinicIsolation(t *testing.T) {
 
 	resA := makeReservation(t, db, clinicA)
 
-	t.Run("別クリニックIDからの Delete は NotFound を返す", func(t *testing.T) {
+	t.Run("別医院IDからの Delete は NotFound を返す", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, resA.ID)
 		require.Error(t, err, "clinic B から clinic A の予約を削除できてはならない")
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
@@ -477,6 +477,6 @@ func TestReservationRepository_Delete_ClinicIsolation(t *testing.T) {
 		// プリロードを使わず直接 DB 読み取りで行が残存することを確認する。
 		var r model.Reservation
 		require.NoError(t, db.Where("id = ? AND clinic_id = ?", resA.ID, clinicA).First(&r).Error)
-		assert.Equal(t, resA.ID, r.ID, "clinic A の予約は別クリニックの Delete で消えてはならない")
+		assert.Equal(t, resA.ID, r.ID, "clinic A の予約は別医院の Delete で消えてはならない")
 	})
 }

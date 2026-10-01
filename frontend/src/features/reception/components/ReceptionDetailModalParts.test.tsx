@@ -84,7 +84,7 @@ describe("ReceptionDialogBody 特記マーク (EMR-173/231)", () => {
     onCreateHospitalization: vi.fn(),
   };
 
-  it("特記対象の飼主は飼い主名の横にアイコンマークを出す", () => {
+  it("特記対象の飼主は飼主名の横にアイコンマークを出す", () => {
     render(
       <ReceptionDialogBody
         appointment={{ ...trimmingAppointment, ownerIsDangerous: true }}

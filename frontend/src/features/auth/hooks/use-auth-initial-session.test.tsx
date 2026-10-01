@@ -1307,7 +1307,7 @@ describe("AuthProvider initial session restoration", () => {
       ).toBeInTheDocument();
       expect(loginMock).toHaveBeenCalledOnce();
       expect(toast.error).toHaveBeenCalledWith(
-        "クリニックの切替に失敗しました。ブラウザのストレージ設定を確認してください。",
+        "医院の切替に失敗しました。ブラウザのストレージ設定を確認してください。",
       );
       expect(clearSpy).not.toHaveBeenCalled();
       expect(queryClientMock.setQueryData).not.toHaveBeenCalled();

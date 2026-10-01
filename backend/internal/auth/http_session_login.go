@@ -115,7 +115,7 @@ func (h *HTTPHandler) resolveLoginClinicScope(
 	var scope loginClinicScope
 	assignments, err := h.deps.StaffAssignments.FindAllByStaffID(ctx, staff.ID)
 	if err != nil {
-		return scope, apperrors.Wrap(err, "所属クリニック情報の取得に失敗しました")
+		return scope, apperrors.Wrap(err, "所属医院情報の取得に失敗しました")
 	}
 	scope.staff = withClinicAssignments(staff, assignments)
 

@@ -63,7 +63,7 @@ func makePermissionGroup(t *testing.T, db *gorm.DB, clinicID uint64, name string
 
 // TestPermissionGroupRepository_UpdateStaffGroups_ClinicIsolation は
 // clinic A のスタッフに clinic B の権限グループを紐付けられないことを検証する。
-// group_id の clinic_id 検証を削除すると「別クリニックのグループIDは拒否される」が失敗する。
+// group_id の clinic_id 検証を削除すると「別医院のグループIDは拒否される」が失敗する。
 func TestPermissionGroupRepository_UpdateStaffGroups_ClinicIsolation(t *testing.T) {
 	db := setupPermissionGroupStaffIsolationTestDB(t)
 	repo := NewPermissionGroupRepository(db)
@@ -85,26 +85,26 @@ func TestPermissionGroupRepository_UpdateStaffGroups_ClinicIsolation(t *testing.
 		return n
 	}
 
-	t.Run("別クリニックのグループIDは拒否され、行が永続化されない（clinic_id 隔離）", func(t *testing.T) {
+	t.Run("別医院のグループIDは拒否され、行が永続化されない（clinic_id 隔離）", func(t *testing.T) {
 		err := repo.UpdateStaffGroups(ctx, clinicA, staffA.ID, []uint64{groupB.ID})
 		require.Error(t, err, "clinic A のスタッフに clinic B の権限グループを紐付けできてはならない")
 		assert.Zero(t, countAssignments(staffA.ID), "拒否時に staff_permission_groups 行を残してはならない")
 	})
 
-	t.Run("スタッフが対象クリニックに未所属なら同院グループでも拒否される", func(t *testing.T) {
+	t.Run("スタッフが対象医院に未所属なら同院グループでも拒否される", func(t *testing.T) {
 		err := repo.UpdateStaffGroups(ctx, clinicB, staffA.ID, []uint64{groupB.ID})
 		require.Error(t, err, "clinic B に未所属のスタッフへ clinic B 権限を保存できてはならない")
 		assert.True(t, apperrors.IsNotFound(err), "所属外と不存在は同じ NotFound 境界にする: %v", err)
 		assert.Zero(t, countAssignments(staffA.ID), "拒否時に staff_permission_groups 行を残してはならない")
 	})
 
-	t.Run("同一クリニックのグループIDは許可され、行が永続化される", func(t *testing.T) {
+	t.Run("同一医院のグループIDは許可され、行が永続化される", func(t *testing.T) {
 		err := repo.UpdateStaffGroups(ctx, clinicA, staffA.ID, []uint64{groupA.ID})
 		require.NoError(t, err)
-		assert.Equal(t, int64(1), countAssignments(staffA.ID), "同一クリニックの紐付けは1件保存されるべき")
+		assert.Equal(t, int64(1), countAssignments(staffA.ID), "同一医院の紐付けは1件保存されるべき")
 	})
 
-	t.Run("一部が別クリニックのグループなら全体を拒否する（部分書き込み防止）", func(t *testing.T) {
+	t.Run("一部が別医院のグループなら全体を拒否する（部分書き込み防止）", func(t *testing.T) {
 		err := repo.UpdateStaffGroups(ctx, clinicA, staffA.ID, []uint64{groupA.ID, groupB.ID})
 		require.Error(t, err, "clinic B のグループが混在する場合は全体を拒否すべき")
 		assert.Equal(t, int64(1), countAssignments(staffA.ID), "拒否時に既存の紐付けを破壊してはならない")
@@ -116,7 +116,7 @@ func TestPermissionGroupRepository_UpdateStaffGroups_ClinicIsolation(t *testing.
 // clinic A/B 双方に所属）が clinic B で正当に紐付けた権限グループが、clinic A での
 // 保存操作（DELETE + INSERT の全置換）によって無警告で削除されないことを検証する。
 // staff_permission_groups は自前 clinic_id を持たないため、DELETE を
-// staff_id のみでスコープすると（修正前の実装）、clinic を跨いで他クリニック分の
+// staff_id のみでスコープすると（修正前の実装）、clinic を跨いで他医院分の
 // 紐付けまで消えてしまう。DELETE を group 側の clinic_id サブクエリでスコープすると
 // このテストは PASS する。
 func TestPermissionGroupRepository_UpdateStaffGroups_DeleteScopedToClinic(t *testing.T) {

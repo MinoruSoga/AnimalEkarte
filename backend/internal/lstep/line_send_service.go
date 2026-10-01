@@ -142,10 +142,10 @@ func (s *lineSendService) Send(ctx context.Context, clinicID uint64, input *Send
 		return nil, apperrors.Wrap(err, "failed to find owner")
 	}
 	if owner.LineUserID == nil || *owner.LineUserID == "" {
-		return nil, apperrors.WrapInvalidInput("飼い主にLINE User IDが設定されていません")
+		return nil, apperrors.WrapInvalidInput("飼主にLINE User IDが設定されていません")
 	}
 	if owner.LstepOptOut {
-		return nil, apperrors.WrapInvalidInput("この飼い主はLINEメッセージの受信を拒否しています")
+		return nil, apperrors.WrapInvalidInput("この飼主はLINEメッセージの受信を拒否しています")
 	}
 
 	_, _, lineToken, err := s.lstepSettings.GetRawCredentials(ctx, clinicID)

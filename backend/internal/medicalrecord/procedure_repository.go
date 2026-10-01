@@ -119,7 +119,7 @@ func (r *procedureRepositoryImpl) normalizeProcedureDeleteMiss(ctx context.Conte
 	if childCount > 0 {
 		return apperrors.WrapConflict("この処置は子処置が存在するため削除できません")
 	}
-	return apperrors.WrapConflict("この診療項目は診療記録で使用中のため削除できません")
+	return apperrors.WrapConflict("この診療項目はカルテで使用中のため削除できません")
 }
 
 // CountUsageByProcedureID は treatments と care_plan_items で参照されている件数の合計を返す（BUG-107）

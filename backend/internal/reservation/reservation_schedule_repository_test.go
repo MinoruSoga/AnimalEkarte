@@ -168,7 +168,7 @@ func TestReservationScheduleRepository_FindAllByStaffIDsAndDateRange(t *testing.
 	t.Run("複数スタッフの期間内シフトを1クエリでまとめて返す", func(t *testing.T) {
 		entries, err := repo.FindAllByStaffIDsAndDateRange(ctx, clinicA, []uint64{staff1.ID, staff2.ID}, from, to)
 		require.NoError(t, err)
-		require.Len(t, entries, 2, "範囲内かつ同クリニックの2件のみ(範囲外1件・別クリニック1件は除外)")
+		require.Len(t, entries, 2, "範囲内かつ同医院の2件のみ(範囲外1件・別医院1件は除外)")
 	})
 
 	t.Run("toは排他的上限（指定日そのものは含まれない）", func(t *testing.T) {
@@ -185,7 +185,7 @@ func TestReservationScheduleRepository_FindAllByStaffIDsAndDateRange(t *testing.
 		assert.Empty(t, entries)
 	})
 
-	t.Run("別クリニックIDでは0件（clinic_id分離）", func(t *testing.T) {
+	t.Run("別医院IDでは0件（clinic_id分離）", func(t *testing.T) {
 		entries, err := repo.FindAllByStaffIDsAndDateRange(ctx, clinicB, []uint64{staff1.ID, staff2.ID}, from, to)
 		require.NoError(t, err)
 		assert.Empty(t, entries)

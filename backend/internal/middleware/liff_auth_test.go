@@ -65,7 +65,7 @@ func startMockLINEServer(t *testing.T, statusCode int, resp *lineVerifyResponse)
 	return srv
 }
 
-// validSettingLookup は正常なクリニック設定を返すモック。
+// validSettingLookup は正常な医院設定を返すモック。
 func validSettingLookup(liffID string) *mockSettingLookup {
 	return &mockSettingLookup{
 		findFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {

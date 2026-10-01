@@ -144,7 +144,7 @@ func TestHospitalizationRepository_FindAll(t *testing.T) {
 	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "入院ポチB")
 	_ = makeHospitalizationFixture(t, db, clinicB, ownerB.ID, petB.ID, nil)
 
-	t.Run("同一クリニックの入院のみ取得しリレーションがPreloadされる", func(t *testing.T) {
+	t.Run("同一医院の入院のみ取得しリレーションがPreloadされる", func(t *testing.T) {
 		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, nil, 1, 100)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), total)
@@ -223,7 +223,7 @@ func TestHospitalizationRepository_FindAll(t *testing.T) {
 		}
 	})
 
-	t.Run("別クリニックの入院は含まれない", func(t *testing.T) {
+	t.Run("別医院の入院は含まれない", func(t *testing.T) {
 		got, _, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, nil, 1, 100)
 		require.NoError(t, err)
 		for _, h := range got {
@@ -301,7 +301,7 @@ func TestHospitalizationRepository_FindByID_NotFoundAndIsolation(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("別クリニックからは取得できない", func(t *testing.T) {
+	t.Run("別医院からは取得できない", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicB, hospA.ID)
 		assert.Nil(t, got)
 		require.Error(t, err)
@@ -362,7 +362,7 @@ func TestHospitalizationRepository_Update_NotFoundAndIsolation(t *testing.T) {
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "Updateポチ")
 	hospA := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petA.ID, nil)
 
-	t.Run("別クリニックからの更新はNotFound", func(t *testing.T) {
+	t.Run("別医院からの更新はNotFound", func(t *testing.T) {
 		memo := "不正更新"
 		got, err := repo.Update(ctx, clinicB, hospA.ID, UpdateHospitalizationInput{Memo: &memo})
 		assert.Nil(t, got)
@@ -407,7 +407,7 @@ func TestHospitalizationRepository_Delete(t *testing.T) {
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "Deleteポチ")
 	hospA := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petA.ID, nil)
 
-	t.Run("別クリニックからの削除はNotFoundで実際には削除されない", func(t *testing.T) {
+	t.Run("別医院からの削除はNotFoundで実際には削除されない", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, hospA.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -417,7 +417,7 @@ func TestHospitalizationRepository_Delete(t *testing.T) {
 		assert.Equal(t, int64(1), count)
 	})
 
-	t.Run("同一クリニックからの削除は成功しソフトデリートされる", func(t *testing.T) {
+	t.Run("同一医院からの削除は成功しソフトデリートされる", func(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, clinicA, hospA.ID))
 
 		var count int64
@@ -520,7 +520,7 @@ func TestHospitalizationRepository_CountTreatmentPlansByHospitalizationID(t *tes
 		assert.Equal(t, int64(1), count)
 	})
 
-	t.Run("別クリニックからは0件", func(t *testing.T) {
+	t.Run("別医院からは0件", func(t *testing.T) {
 		count, err := repo.CountTreatmentPlansByHospitalizationID(ctx, clinicB, hospA.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)

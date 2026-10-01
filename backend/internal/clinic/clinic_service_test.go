@@ -428,7 +428,7 @@ func TestService_CreateClinic(t *testing.T) {
 
 // SD-9: CreateClinic はグループ (permission_groups) を作るだけでルール
 // (permission_group_rules) を1件も作らず、is_system_admin 以外の全スタッフが
-// 新規クリニックで全リソースへアクセス不能になるバグがあった。
+// 新規医院で全リソースへアクセス不能になるバグがあった。
 // 修正後は defaultPermissionRuleTable 由来のルールが両グループへ流し込まれることを検証する。
 func TestService_CreateClinic_DefaultPermissionGroupRules(t *testing.T) {
 	repo := &mockClinicRepository{

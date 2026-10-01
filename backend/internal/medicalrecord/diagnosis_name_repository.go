@@ -144,7 +144,7 @@ func (r *diagnosisNameRepository) normalizeDiagnosisNameDeleteMiss(ctx context.C
 	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
 		return err
 	}
-	return apperrors.WrapConflict("この診断名は診療記録で使用中のため削除できません")
+	return apperrors.WrapConflict("この診断名はカルテで使用中のため削除できません")
 }
 
 // CountUsageByDiagnosisNameID は診断名を参照している clinical_plans の件数を返す（BUG-113）

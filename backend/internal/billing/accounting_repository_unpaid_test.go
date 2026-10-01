@@ -66,7 +66,7 @@ func makeSpeciesAndPet(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, petN
 }
 
 // TestSumUnpaidByOwner は飼主単位の未納残高が status=waiting のみ・soft-delete 除外・
-// クリニック/飼主スコープで正しく集計されることを検証する。#182
+// 医院/飼主スコープで正しく集計されることを検証する。#182
 func TestSumUnpaidByOwner(t *testing.T) {
 	db := testdb.SetupTestDB(t)
 	repo := NewAccountingRepository(db)
@@ -101,7 +101,7 @@ func TestSumUnpaidByOwner(t *testing.T) {
 		assert.Equal(t, int64(0), got.Count)
 	})
 
-	t.Run("別クリニックスコープでは混入しない", func(t *testing.T) {
+	t.Run("別医院スコープでは混入しない", func(t *testing.T) {
 		got, err := repo.SumUnpaidByOwner(ctx, 999, owner.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), got.TotalAmount)

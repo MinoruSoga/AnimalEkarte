@@ -296,7 +296,7 @@ function AuthProviderSession({
       }
       const stored = saveClinicToStorage(result.user.mainClinicId);
       if (!stored) {
-        toast.error("クリニックの切替に失敗しました。ブラウザのストレージ設定を確認してください。");
+        toast.error("医院の切替に失敗しました。ブラウザのストレージ設定を確認してください。");
         throw new Error("failed to save clinic selection");
       }
       hydrateUser(result.user);
@@ -343,7 +343,7 @@ function AuthProviderSession({
       // FE6-2: 書込失敗時はここで打ち切る。続行して reload すると旧クリニックIDのまま
       // 復帰し、ユーザーが切替成功と誤認する無音失敗になるため。
       if (!saveClinicToStorage(clinicId)) {
-        toast.error("クリニックの切替に失敗しました。ブラウザのストレージ設定を確認してください。");
+        toast.error("医院の切替に失敗しました。ブラウザのストレージ設定を確認してください。");
         return;
       }
       // 2. FE5-3: reload 前に React Query キャッシュを破棄する。

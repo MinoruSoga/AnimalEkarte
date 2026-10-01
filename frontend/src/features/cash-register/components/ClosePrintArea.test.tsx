@@ -60,7 +60,7 @@ function renderPrint(overrides: Partial<React.ComponentProps<typeof ClosePrintAr
 }
 
 describe("ClosePrintArea (#153 印刷 / PDF出力)", () => {
-  it("印刷エリアが DOM に存在し ヘッダ（病院名・対象日・区分）を含む", () => {
+  it("印刷エリアが DOM に存在し ヘッダ（医院名・対象日・区分）を含む", () => {
     renderPrint();
     const area = screen.getByTestId("close-print-area");
     expect(area).toBeInTheDocument();

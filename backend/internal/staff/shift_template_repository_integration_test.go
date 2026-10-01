@@ -6,7 +6,7 @@ package staff_test
 //   - FindAll / FindByID は clinic_id でテナント隔離される。
 //   - FindAll はソフトデリート済みテンプレートを除外し sort_order/name 順で返す。
 //   - Delete はソフトデリートであり、以後 FindByID/FindAll から除外される。
-//   - Reorder は指定順に sort_order=1..n を割り当て、他クリニックの id を含むと失敗する。
+//   - Reorder は指定順に sort_order=1..n を割り当て、他医院の id を含むと失敗する。
 
 import (
 	"context"
@@ -64,11 +64,11 @@ func TestShiftTemplateRepository_FindAll(t *testing.T) {
 	tplA := makeShiftTemplate(t, db, clinicA, "遅番", 1)
 	deleted := makeShiftTemplate(t, db, clinicA, "廃止済み", 3)
 	require.NoError(t, repo.Delete(ctx, clinicA, deleted.ID))
-	makeShiftTemplate(t, db, clinicB, "別クリニック", 1)
+	makeShiftTemplate(t, db, clinicB, "別医院", 1)
 
 	got, err := repo.FindAll(ctx, clinicA)
 	require.NoError(t, err)
-	require.Len(t, got, 2, "ソフトデリート済み・別クリニックは除外される")
+	require.Len(t, got, 2, "ソフトデリート済み・別医院は除外される")
 	assert.Equal(t, tplA.ID, got[0].ID, "sort_order ASC で先頭は sort_order=1")
 	assert.Equal(t, tplB.ID, got[1].ID)
 }
@@ -271,7 +271,7 @@ func TestShiftTemplateRepository_Reorder(t *testing.T) {
 	)
 	tpl1 := makeShiftTemplate(t, db, clinicA, "A", 1)
 	tpl2 := makeShiftTemplate(t, db, clinicA, "B", 2)
-	otherClinicTpl := makeShiftTemplate(t, db, clinicB, "別クリニック", 1)
+	otherClinicTpl := makeShiftTemplate(t, db, clinicB, "別医院", 1)
 
 	t.Run("reassigns sort_order in the given sequence", func(t *testing.T) {
 		require.NoError(t, repo.Reorder(ctx, clinicA, []uint64{tpl2.ID, tpl1.ID}))
@@ -287,6 +287,6 @@ func TestShiftTemplateRepository_Reorder(t *testing.T) {
 	t.Run("fails when an id belongs to another clinic", func(t *testing.T) {
 		err := repo.Reorder(ctx, clinicA, []uint64{otherClinicTpl.ID})
 		assert.Error(t, err)
-		assert.True(t, apperrors.IsInvalidInput(err), "他クリニックのIDはInvalidInputで拒否される: %v", err)
+		assert.True(t, apperrors.IsInvalidInput(err), "他医院のIDはInvalidInputで拒否される: %v", err)
 	})
 }

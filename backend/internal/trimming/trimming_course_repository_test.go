@@ -93,7 +93,7 @@ func TestTrimmingCourseRepository_FindAll_ClinicIsolationAndSortOrder(t *testing
 	assert.Equal(t, first.ID, got[0].ID, "sort_order 昇順で先頭に来る")
 	assert.Equal(t, second.ID, got[1].ID)
 	for _, x := range got {
-		assert.NotEqual(t, cB.ID, x.ID, "別クリニックのコースが混入してはならない")
+		assert.NotEqual(t, cB.ID, x.ID, "別医院のコースが混入してはならない")
 	}
 }
 
@@ -107,7 +107,7 @@ func TestTrimmingCourseRepository_FindByID(t *testing.T) {
 	c := &model.TrimmingCourse{ClinicID: clinicA, Name: "全身シャンプーコース", Price: &price}
 	require.NoError(t, db.WithContext(ctx).Create(c).Error)
 
-	t.Run("同一クリニックで取得できる", func(t *testing.T) {
+	t.Run("同一医院で取得できる", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, c.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "全身シャンプーコース", got.Name)
@@ -115,7 +115,7 @@ func TestTrimmingCourseRepository_FindByID(t *testing.T) {
 		assert.Equal(t, price, *got.Price)
 	})
 
-	t.Run("別クリニックからは NotFound", func(t *testing.T) {
+	t.Run("別医院からは NotFound", func(t *testing.T) {
 		_, err := repo.FindByID(ctx, clinicB, c.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
@@ -176,14 +176,14 @@ func TestTrimmingCourseRepository_Update(t *testing.T) {
 	c := &model.TrimmingCourse{ClinicID: clinicA, Name: "旧名称"}
 	require.NoError(t, db.WithContext(ctx).Create(c).Error)
 
-	t.Run("同一クリニックで更新できる", func(t *testing.T) {
+	t.Run("同一医院で更新できる", func(t *testing.T) {
 		name := "新名称"
 		got, err := repo.Update(ctx, clinicA, c.ID, UpdateTrimmingCourseInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "新名称", got.Name)
 	})
 
-	t.Run("別クリニックからの更新は NotFound", func(t *testing.T) {
+	t.Run("別医院からの更新は NotFound", func(t *testing.T) {
 		name := "乗っ取り"
 		_, err := repo.Update(ctx, clinicB, c.ID, UpdateTrimmingCourseInput{Name: &name})
 		require.Error(t, err)
@@ -207,7 +207,7 @@ func TestTrimmingCourseRepository_Delete(t *testing.T) {
 	c := &model.TrimmingCourse{ClinicID: clinicA, Name: "削除対象"}
 	require.NoError(t, db.WithContext(ctx).Create(c).Error)
 
-	t.Run("別クリニックからの削除は NotFound", func(t *testing.T) {
+	t.Run("別医院からの削除は NotFound", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, c.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -219,7 +219,7 @@ func TestTrimmingCourseRepository_Delete(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("同一クリニックで削除でき、ソフトデリートされる", func(t *testing.T) {
+	t.Run("同一医院で削除でき、ソフトデリートされる", func(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, clinicA, c.ID))
 
 		_, err := repo.FindByID(ctx, clinicA, c.ID)
@@ -280,7 +280,7 @@ func TestTrimmingCourseRepository_CountUsageByTrimmingCourseID(t *testing.T) {
 		assert.Equal(t, int64(1), count)
 	})
 
-	t.Run("別クリニックIDでは 0（クロステナント越境なし）", func(t *testing.T) {
+	t.Run("別医院IDでは 0（クロステナント越境なし）", func(t *testing.T) {
 		count, err := repo.CountUsageByTrimmingCourseID(ctx, clinicB, course.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)
@@ -318,7 +318,7 @@ func TestTrimmingCourseRepository_Reorder(t *testing.T) {
 		assert.Equal(t, c2.ID, got[2].ID)
 	})
 
-	t.Run("別クリニックの ID を含むと失敗する", func(t *testing.T) {
+	t.Run("別医院の ID を含むと失敗する", func(t *testing.T) {
 		other := &model.TrimmingCourse{ClinicID: clinicB, Name: "他院"}
 		require.NoError(t, db.WithContext(ctx).Create(other).Error)
 		err := repo.Reorder(ctx, clinicA, []uint64{c1.ID, other.ID})

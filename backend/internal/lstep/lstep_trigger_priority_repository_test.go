@@ -56,7 +56,7 @@ func TestLstepTriggerPriorityRepository_FindByClinicID(t *testing.T) {
 		assert.Equal(t, "trigger-low", items[1].TriggerType)
 	})
 
-	t.Run("別クリニックの設定は含まれない（clinic_id分離）", func(t *testing.T) {
+	t.Run("別医院の設定は含まれない（clinic_id分離）", func(t *testing.T) {
 		items, err := repo.FindByClinicID(ctx, clinicB)
 		require.NoError(t, err)
 		require.Len(t, items, 1)
@@ -137,7 +137,7 @@ func TestLstepTriggerPriorityRepository_FindPriorityByTriggerType(t *testing.T) 
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("別クリニックのtrigger_typeは見えない（clinic_id分離）", func(t *testing.T) {
+	t.Run("別医院のtrigger_typeは見えない（clinic_id分離）", func(t *testing.T) {
 		_, err := repo.FindPriorityByTriggerType(ctx, 2, "checkup_followup")
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))

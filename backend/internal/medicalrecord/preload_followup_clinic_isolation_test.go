@@ -4,8 +4,8 @@ package medicalrecord
 // クロステナント READ IDOR remediation follow-up — (a) 既修正だが専用テストの無かった3 repo の
 // master Preload clinic 隔離回帰テスト（examination / trimming / reservation FindAllByCategory）。
 //
-// 各テストは別クリニックのマスタを指す FK を植え付け、clinic_id スコープで
-// 別クリニックのマスタが応答に混入しないことを検証する。必須マスタを指す
+// 各テストは別医院のマスタを指す FK を植え付け、clinic_id スコープで
+// 別医院のマスタが応答に混入しないことを検証する。必須マスタを指す
 // Examination は、現在の relation scope により汚染行そのものを fail-closed で除外する。
 
 import (
@@ -85,12 +85,12 @@ func TestExaminationRepository_FindByID_ExaminationTypePreloadClinicIsolation(t 
 		wantTypeID   uint64
 	}{
 		{
-			name:         "別クリニックの必須検査種別を指す行は取得対象外",
+			name:         "別医院の必須検査種別を指す行は取得対象外",
 			id:           crossID,
 			wantNotFound: true,
 		},
 		{
-			name:       "同一クリニックの検査種別と整合した患者医師関係を取得",
+			name:       "同一医院の検査種別と整合した患者医師関係を取得",
 			id:         legitID,
 			wantTypeID: typeA.ID,
 		},
@@ -102,12 +102,12 @@ func TestExaminationRepository_FindByID_ExaminationTypePreloadClinicIsolation(t 
 			if tt.wantNotFound {
 				require.Error(t, err)
 				assert.True(t, apperrors.IsNotFound(err))
-				assert.Nil(t, got, "別クリニックの検査種別を参照する行を返してはならない")
+				assert.Nil(t, got, "別医院の検査種別を参照する行を返してはならない")
 				return
 			}
 
 			require.NoError(t, err)
-			require.NotNil(t, got.ExaminationType, "同一クリニックの検査種別は Preload されるべき")
+			require.NotNil(t, got.ExaminationType, "同一医院の検査種別は Preload されるべき")
 			assert.Equal(t, tt.wantTypeID, got.ExaminationType.ID)
 			require.NotNil(t, got.Pet)
 			require.NotNil(t, got.Pet.Owner)

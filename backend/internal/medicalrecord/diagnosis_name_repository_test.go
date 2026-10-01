@@ -13,7 +13,7 @@ package medicalrecord
 // 保護する不変条件:
 //   - FindAll/FindAllByCategoryID/FindByID/Update/Delete/Reorder は clinic_id で正しく分離される。
 //   - FindAllByFilter は is_active=true のみ返す（CODE-QUALITY-232）。
-//   - CountUsageByDiagnosisNameID は medical_records を JOIN してクリニック分離しつつ
+//   - CountUsageByDiagnosisNameID は medical_records を JOIN して医院分離しつつ
 //     diagnosis_name_id/diagnosis_2_name_id 両方をカウントし、ソフトデリート済み clinical_plan を除外する（P2）。
 
 import (
@@ -168,7 +168,7 @@ func TestDiagnosisNameRepository_FindByID(t *testing.T) {
 	typeA := makeDiagnosisTypeMaster(t, db, clinicA, "分類A")
 	nameA := makeDiagnosisNameRec(t, db, clinicA, typeA.ID, "診断名A")
 
-	t.Run("同一クリニックで取得できる", func(t *testing.T) {
+	t.Run("同一医院で取得できる", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, nameA.ID)
 		require.NoError(t, err)
 		assert.Equal(t, nameA.ID, got.ID)
@@ -180,7 +180,7 @@ func TestDiagnosisNameRepository_FindByID(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("別クリニックからは取得できない", func(t *testing.T) {
+	t.Run("別医院からは取得できない", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicB, nameA.ID)
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -212,14 +212,14 @@ func TestDiagnosisNameRepository_Update(t *testing.T) {
 	typeA := makeDiagnosisTypeMaster(t, db, clinicA, "分類A")
 	nameA := makeDiagnosisNameRec(t, db, clinicA, typeA.ID, "更新前")
 
-	t.Run("同一クリニックからの更新は成功する", func(t *testing.T) {
+	t.Run("同一医院からの更新は成功する", func(t *testing.T) {
 		name := "更新後"
 		got, err := repo.Update(ctx, clinicA, nameA.ID, UpdateDiagnosisNameInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後", got.Name)
 	})
 
-	t.Run("別クリニックからの更新はNotFound", func(t *testing.T) {
+	t.Run("別医院からの更新はNotFound", func(t *testing.T) {
 		name := "不正"
 		got, err := repo.Update(ctx, clinicB, nameA.ID, UpdateDiagnosisNameInput{Name: &name})
 		assert.Nil(t, got)
@@ -243,7 +243,7 @@ func TestDiagnosisNameRepository_Delete(t *testing.T) {
 	typeA := makeDiagnosisTypeMaster(t, db, clinicA, "分類A")
 	nameA := makeDiagnosisNameRec(t, db, clinicA, typeA.ID, "削除対象")
 
-	t.Run("別クリニックからの削除はNotFoundで実際には削除されない", func(t *testing.T) {
+	t.Run("別医院からの削除はNotFoundで実際には削除されない", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, nameA.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -253,7 +253,7 @@ func TestDiagnosisNameRepository_Delete(t *testing.T) {
 		assert.NotNil(t, got)
 	})
 
-	t.Run("同一クリニックからの削除は成功しソフトデリートされる", func(t *testing.T) {
+	t.Run("同一医院からの削除は成功しソフトデリートされる", func(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, clinicA, nameA.ID))
 		got, err := repo.FindByID(ctx, clinicA, nameA.ID)
 		assert.Nil(t, got)
@@ -328,7 +328,7 @@ func TestDiagnosisNameRepository_CountUsageByDiagnosisNameID(t *testing.T) {
 		assert.Equal(t, int64(1), count)
 	})
 
-	t.Run("別クリニックからのカウントは0件（medical_recordsのclinic_idで隔離）", func(t *testing.T) {
+	t.Run("別医院からのカウントは0件（medical_recordsのclinic_idで隔離）", func(t *testing.T) {
 		count, err := repo.CountUsageByDiagnosisNameID(ctx, clinicB, nameA.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)

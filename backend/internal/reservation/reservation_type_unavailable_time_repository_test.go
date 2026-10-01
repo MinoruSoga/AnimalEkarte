@@ -56,14 +56,14 @@ func TestReservationTypeUnavailableTimeRepository_FindAll(t *testing.T) {
 	utA := makeUnavailableTime(t, db, clinicA, rtA.ID, 1, "12:00", "13:00")
 	makeUnavailableTime(t, db, clinicB, rtB.ID, 1, "12:00", "13:00")
 
-	t.Run("同一クリニックのみ取得できる", func(t *testing.T) {
+	t.Run("同一医院のみ取得できる", func(t *testing.T) {
 		got, err := repo.FindAll(ctx, clinicA, rtA.ID)
 		require.NoError(t, err)
 		require.Len(t, got, 1)
 		assert.Equal(t, utA.ID, got[0].ID)
 	})
 
-	t.Run("別クリニックIDでは0件（clinic_id 隔離）", func(t *testing.T) {
+	t.Run("別医院IDでは0件（clinic_id 隔離）", func(t *testing.T) {
 		got, err := repo.FindAll(ctx, clinicB, rtA.ID)
 		require.NoError(t, err)
 		assert.Empty(t, got)
@@ -114,13 +114,13 @@ func TestReservationTypeUnavailableTimeRepository_FindByID(t *testing.T) {
 	rtA := makeReservationTypeLinked(t, db, clinicA, "不可時間単体取得区分", nil, nil)
 	utA := makeUnavailableTime(t, db, clinicA, rtA.ID, 2, "09:00", "10:00")
 
-	t.Run("同一クリニックIDで取得できる", func(t *testing.T) {
+	t.Run("同一医院IDで取得できる", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, utA.ID)
 		require.NoError(t, err)
 		assert.Equal(t, utA.ID, got.ID)
 	})
 
-	t.Run("別クリニックIDでは NotFound", func(t *testing.T) {
+	t.Run("別医院IDでは NotFound", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicB, utA.ID)
 		assert.Error(t, err)
 		assert.Nil(t, got)
@@ -169,13 +169,13 @@ func TestReservationTypeUnavailableTimeRepository_Delete(t *testing.T) {
 	rtA := makeReservationTypeLinked(t, db, clinicA, "不可時間削除対象区分", nil, nil)
 	utA := makeUnavailableTime(t, db, clinicA, rtA.ID, 4, "17:00", "18:00")
 
-	t.Run("別クリニックIDでは NotFound", func(t *testing.T) {
+	t.Run("別医院IDでは NotFound", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, utA.ID)
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("正しいクリニックIDで削除できる（物理削除）", func(t *testing.T) {
+	t.Run("正しい医院IDで削除できる（物理削除）", func(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, clinicA, utA.ID))
 		_, err := repo.FindByID(ctx, clinicA, utA.ID)
 		assert.True(t, apperrors.IsNotFound(err))

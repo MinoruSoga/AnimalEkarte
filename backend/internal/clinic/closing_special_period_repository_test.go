@@ -79,11 +79,11 @@ func TestClosingSpecialPeriodRepository_Create_And_FindByID(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
 	})
 
-	t.Run("別クリニックからは FindByID できない（clinic_id 隔離）", func(t *testing.T) {
+	t.Run("別医院からは FindByID できない（clinic_id 隔離）", func(t *testing.T) {
 		p := makeClosingSpecialPeriod(t, db, clinicID, time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 9, 3, 0, 0, 0, 0, time.UTC))
 		_, err := repo.FindByID(ctx, uint64(999), p.ID)
 		require.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err), "別クリニックからは NotFound であるべき: %v", err)
+		assert.True(t, apperrors.IsNotFound(err), "別医院からは NotFound であるべき: %v", err)
 	})
 }
 
@@ -133,7 +133,7 @@ func TestClosingSpecialPeriodRepository_FindByDate(t *testing.T) {
 		assert.Nil(t, got)
 	})
 
-	t.Run("別クリニックの期間はヒットしない（clinic_id 隔離）", func(t *testing.T) {
+	t.Run("別医院の期間はヒットしない（clinic_id 隔離）", func(t *testing.T) {
 		got, err := repo.FindByDate(ctx, clinicB, time.Date(2026, 8, 12, 0, 0, 0, 0, time.UTC))
 		require.NoError(t, err)
 		assert.Nil(t, got)
@@ -148,14 +148,14 @@ func TestClosingSpecialPeriodRepository_Update(t *testing.T) {
 
 	p := makeClosingSpecialPeriod(t, db, clinicA, time.Date(2026, 8, 10, 0, 0, 0, 0, time.UTC), time.Date(2026, 8, 15, 0, 0, 0, 0, time.UTC))
 
-	t.Run("同一クリニックでは Update が反映される", func(t *testing.T) {
+	t.Run("同一医院では Update が反映される", func(t *testing.T) {
 		note := "更新後メモ"
 		got, err := repo.Update(ctx, clinicA, p.ID, UpdateSpecialPeriodInput{Note: &note})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後メモ", got.Note)
 	})
 
-	t.Run("別クリニックからの Update は NotFound", func(t *testing.T) {
+	t.Run("別医院からの Update は NotFound", func(t *testing.T) {
 		note := "改ざん試行"
 		_, err := repo.Update(ctx, clinicB, p.ID, UpdateSpecialPeriodInput{Note: &note})
 		require.Error(t, err)
@@ -163,7 +163,7 @@ func TestClosingSpecialPeriodRepository_Update(t *testing.T) {
 
 		got, err := repo.FindByID(ctx, clinicA, p.ID)
 		require.NoError(t, err)
-		assert.Equal(t, "更新後メモ", got.Note, "別クリニックからの Update でメモが変わってはならない")
+		assert.Equal(t, "更新後メモ", got.Note, "別医院からの Update でメモが変わってはならない")
 	})
 
 	t.Run("存在しない ID の Update は NotFound", func(t *testing.T) {
@@ -182,17 +182,17 @@ func TestClosingSpecialPeriodRepository_Delete(t *testing.T) {
 
 	p := makeClosingSpecialPeriod(t, db, clinicA, time.Date(2026, 8, 10, 0, 0, 0, 0, time.UTC), time.Date(2026, 8, 15, 0, 0, 0, 0, time.UTC))
 
-	t.Run("別クリニックからの Delete は NotFound で行が残る", func(t *testing.T) {
+	t.Run("別医院からの Delete は NotFound で行が残る", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, p.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 
 		got, err := repo.FindByID(ctx, clinicA, p.ID)
 		require.NoError(t, err)
-		assert.Equal(t, p.ID, got.ID, "別クリニックからの Delete で行が消えてはならない")
+		assert.Equal(t, p.ID, got.ID, "別医院からの Delete で行が消えてはならない")
 	})
 
-	t.Run("同一クリニックでは Delete が成功し物理削除される（soft-delete 列なし）", func(t *testing.T) {
+	t.Run("同一医院では Delete が成功し物理削除される（soft-delete 列なし）", func(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, clinicA, p.ID))
 		_, err := repo.FindByID(ctx, clinicA, p.ID)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -270,7 +270,7 @@ func TestClosingSpecialPeriodRepository_CheckOverlap(t *testing.T) {
 		assert.False(t, overlap)
 	})
 
-	t.Run("別クリニックの重複期間は影響しない（clinic_id 隔離）", func(t *testing.T) {
+	t.Run("別医院の重複期間は影響しない（clinic_id 隔離）", func(t *testing.T) {
 		overlap, err := repo.CheckOverlap(ctx, clinicB, time.Date(2026, 8, 10, 0, 0, 0, 0, time.UTC), time.Date(2026, 8, 15, 0, 0, 0, 0, time.UTC), nil)
 		require.NoError(t, err)
 		assert.False(t, overlap)

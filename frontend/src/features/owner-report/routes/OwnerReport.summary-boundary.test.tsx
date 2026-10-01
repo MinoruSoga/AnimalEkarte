@@ -372,7 +372,7 @@ describe("OwnerReport — サマリー/権限/認証境界", () => {
     expect(within(basicInfo).getByText("取得失敗")).toBeInTheDocument();
   });
 
-  it("診療記録が取得上限を超える場合は履歴件数を確定値にしない", () => {
+  it("カルテが取得上限を超える場合は履歴件数を確定値にしない", () => {
     hooks.useGetMedicalRecords.mockReturnValue(
       ok({
         data: [{ id: "mr2", date: "2026/05/10", chiefComplaint: "健康診断" }],

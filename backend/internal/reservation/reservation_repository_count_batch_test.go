@@ -106,6 +106,6 @@ func TestReservationRepository_CountByTypeAndStartTimes(t *testing.T) {
 
 		counts, err := repo.CountByTypeAndStartTimes(ctx, clinicID, rt.ID, []time.Time{nineAM}, nil)
 		require.NoError(t, err)
-		assert.Equal(t, int64(2), counts[nineAM.Unix()], "別クリニックの予約が混入しない")
+		assert.Equal(t, int64(2), counts[nineAM.Unix()], "別医院の予約が混入しない")
 	})
 }

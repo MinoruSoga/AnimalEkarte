@@ -10,7 +10,7 @@ package trimming
 // FindByAppointmentID のマスタ Preload clinic 隔離は
 // preload_followup_clinic_isolation_test.go の
 // TestAppointmentTrimmingDetailRepository_FindByAppointmentID_MasterPreloadClinicIsolation で
-// 別途検証済みのため、本ファイルでは同一クリニックの正常系と NotFound 系を中心に補完する。
+// 別途検証済みのため、本ファイルでは同一医院の正常系と NotFound 系を中心に補完する。
 //
 // #212 修正済み: Options many2many タグに foreignKey:AppointmentID / references:ID を追加したことで
 // （backend/internal/model/trimming.go）、GORM の Association()/Preload がソース側結合キーとして
@@ -67,15 +67,15 @@ func TestAppointmentTrimmingDetailRepository_FindByAppointmentID_Success(t *test
 	}
 	require.NoError(t, db.WithContext(ctx).Create(detail).Error)
 
-	t.Run("同一クリニックで取得しCourseがPreloadされる", func(t *testing.T) {
+	t.Run("同一医院で取得しCourseがPreloadされる", func(t *testing.T) {
 		got, err := repo.FindByAppointmentID(ctx, clinicA, appt.ID)
 		require.NoError(t, err)
-		require.NotNil(t, got.Course, "同一クリニックのコースは Preload されるべき")
+		require.NotNil(t, got.Course, "同一医院のコースは Preload されるべき")
 		assert.Equal(t, course.ID, got.Course.ID)
 		assert.Equal(t, "ふわふわに", got.StyleRequest)
 	})
 
-	t.Run("別クリニックからは NotFound", func(t *testing.T) {
+	t.Run("別医院からは NotFound", func(t *testing.T) {
 		_, err := repo.FindByAppointmentID(ctx, clinicB, appt.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -120,9 +120,9 @@ func TestAppointmentTrimmingDetailRepository_FindByAppointmentID_Success(t *test
 	// （エラーなしで常に空配列を返す静かな失敗）。
 	// 既存の TestAppointmentTrimmingDetailRepository_FindByAppointmentID_MasterPreloadClinicIsolation
 	// (preload_followup_clinic_isolation_test.go) はこのバグを検出できていなかった —
-	// 別クリニックの Options が「混入しない」ことだけを assert.Empty で検証しており、同一クリニックの
+	// 別医院の Options が「混入しない」ことだけを assert.Empty で検証しており、同一医院の
 	// Options が実際に返ることを検証する正常系ケースがこれまで存在しなかったため。
-	t.Run("同一クリニックのOptionsはPreloadされる", func(t *testing.T) {
+	t.Run("同一医院のOptionsはPreloadされる", func(t *testing.T) {
 		apptWithOptions := makeReservation(t, db, clinicA)
 		detailWithOptions := &model.AppointmentTrimmingDetail{
 			ClinicID: clinicA, AppointmentID: apptWithOptions.ID, StyleRequest: "オプション付き",
@@ -142,7 +142,7 @@ func TestAppointmentTrimmingDetailRepository_FindByAppointmentID_Success(t *test
 
 		got, err := repo.FindByAppointmentID(ctx, clinicA, apptWithOptions.ID)
 		require.NoError(t, err)
-		require.Len(t, got.Options, 2, "同一クリニックのオプションは Preload されるべき")
+		require.Len(t, got.Options, 2, "同一医院のオプションは Preload されるべき")
 		ids := map[uint64]bool{}
 		for _, o := range got.Options {
 			ids[o.ID] = true
@@ -217,7 +217,7 @@ func TestAppointmentTrimmingDetailRepository_Update(t *testing.T) {
 	}
 	require.NoError(t, repo.Create(ctx, detail))
 
-	t.Run("同一クリニックで更新できる（map による明示的な全フィールド更新）", func(t *testing.T) {
+	t.Run("同一医院で更新できる（map による明示的な全フィールド更新）", func(t *testing.T) {
 		updated := &model.AppointmentTrimmingDetail{
 			ClinicID:      clinicA,
 			AppointmentID: appt.ID,
@@ -237,7 +237,7 @@ func TestAppointmentTrimmingDetailRepository_Update(t *testing.T) {
 		assert.Equal(t, "毛玉なし", got.Remarks)
 	})
 
-	t.Run("別クリニックからの更新は NotFound", func(t *testing.T) {
+	t.Run("別医院からの更新は NotFound", func(t *testing.T) {
 		// bw_unit は Postgres ENUM(body_weight_unit) 型のため、Update() が常に全フィールドを
 		// 上書きする実装（fields map に無条件で bw_unit を含む）である以上、空文字は不正値エラーに
 		// なりゼロ件更新の NotFound と紛れる。有効な値を明示して純粋に clinic_id 隔離のみを検証する。
@@ -268,7 +268,7 @@ func TestAppointmentTrimmingDetailRepository_Update(t *testing.T) {
 	t.Run("存在しないcourse_idへの更新はFK違反でInvalidInput", func(t *testing.T) {
 		// bw_unit は Update() が無条件で上書きするため、22P02（不正な bw_unit）と 23503（course_id FK違反）の
 		// 両方とも FromGORM 経由で InvalidInput にマップされ変数が交絡する。course_id 違反のみを分離検証するため
-		// 有効な BWUnit を明示し、appointment_id は既存の同一クリニックレコードを使う。
+		// 有効な BWUnit を明示し、appointment_id は既存の同一医院レコードを使う。
 		bogusCourseID := uint64(999999)
 		updated := &model.AppointmentTrimmingDetail{
 			ClinicID: clinicA, AppointmentID: appt.ID, CourseID: &bogusCourseID,
@@ -335,15 +335,15 @@ func TestAppointmentTrimmingDetailRepository_SetOptions(t *testing.T) {
 }
 
 // TestAppointmentTrimmingDetailRepository_FindByAppointmentID_OptionsClinicScopeMixed は
-// 同一 appointment に同一クリニックのオプションと別クリニックのオプションが両方リンクされている
+// 同一 appointment に同一医院のオプションと別医院のオプションが両方リンクされている
 // ケースを検証する（#212 修正の検証強化）。
 //
 // preload_followup_clinic_isolation_test.go の
 // TestAppointmentTrimmingDetailRepository_FindByAppointmentID_MasterPreloadClinicIsolation は
-// 別クリニックのオプションのみをリンクし「常に空」を assert.Empty するため、#212 のバグ
+// 別医院のオプションのみをリンクし「常に空」を assert.Empty するため、#212 のバグ
 // （Preload が常に空を返す）があっても偶然パスしてしまい、clinic_id 述語が実際に機能していることを
-// 証明できていなかった。本テストは同一 appointment に両クリニックのオプションを混在させ、
-// 同一クリニック分のみが返ることを検証することで、Preload の clinic_id スコープが実際に効いている
+// 証明できていなかった。本テストは同一 appointment に両医院のオプションを混在させ、
+// 同一医院分のみが返ることを検証することで、Preload の clinic_id スコープが実際に効いている
 // ことを fix-sensitive に証明する。
 func TestAppointmentTrimmingDetailRepository_FindByAppointmentID_OptionsClinicScopeMixed(t *testing.T) {
 	db := setupAppointmentTrimmingDetailTestDB(t)
@@ -371,7 +371,7 @@ func TestAppointmentTrimmingDetailRepository_FindByAppointmentID_OptionsClinicSc
 
 	got, err := repo.FindByAppointmentID(ctx, clinicA, appt.ID)
 	require.NoError(t, err)
-	require.Len(t, got.Options, 1, "同一クリニックのオプションのみ Preload されるべき")
+	require.Len(t, got.Options, 1, "同一医院のオプションのみ Preload されるべき")
 	assert.Equal(t, optA.ID, got.Options[0].ID)
 }
 
@@ -407,7 +407,7 @@ func TestAppointmentTrimmingDetailRepository_FindByAppointmentID_RetainsInactive
 }
 
 // TestAppointmentTrimmingDetailRepository_SetOptions_ClinicIsolation は SetOptions の
-// clinicID 引数（defense-in-depth、clinic-isolation-auditor 指摘）が実際に別クリニックの
+// clinicID 引数（defense-in-depth、clinic-isolation-auditor 指摘）が実際に別医院の
 // appointment_id への書き込みを拒否することを検証する。
 // SetOptions の呼び出し元（trimming_service.go / liff_service_reservations.go）は
 // appointmentID を事前に clinic 検証済みだが、repository 層でも fail-closed に再検証する
@@ -426,7 +426,7 @@ func TestAppointmentTrimmingDetailRepository_SetOptions_ClinicIsolation(t *testi
 	require.NoError(t, db.WithContext(ctx).Create(opt).Error)
 
 	err := repo.SetOptions(ctx, clinicB, appt.ID, []uint64{opt.ID})
-	require.Error(t, err, "別クリニックIDでは appointment_id が一致しても書き込めるべきではない")
+	require.Error(t, err, "別医院IDでは appointment_id が一致しても書き込めるべきではない")
 	assert.True(t, apperrors.IsNotFound(err))
 
 	got, err := repo.FindByAppointmentID(ctx, clinicA, appt.ID)

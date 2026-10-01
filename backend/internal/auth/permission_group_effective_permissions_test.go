@@ -9,7 +9,7 @@ package auth
 //   - 複数グループ所属時のルールは resource 毎に bool_or で合成される
 //   - is_active=false のグループのルールは実効権限に混入しない
 //   - deleted_at IS NOT NULL (ソフトデリート済み) のグループのルールは混入しない
-//   - clinicID 述語により所属外クリニックのグループのルールは混入しない (High-7: マルチクリニック昇格防止)
+//   - clinicID 述語により所属外医院のグループのルールは混入しない (High-7: マルチ医院昇格防止)
 //
 // これらの述語 (pg.is_active = true / pg.deleted_at IS NULL / pg.clinic_id = ?) のいずれかが
 // SQL から脱落すると、該当するテストケースが必ず失敗するよう設計されている。
@@ -40,7 +40,7 @@ func setupEffectivePermissionsTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-// makeEffPermGroup は指定クリニック・is_active・deleted_at 状態の権限グループを作成する。
+// makeEffPermGroup は指定医院・is_active・deleted_at 状態の権限グループを作成する。
 func makeEffPermGroup(t *testing.T, db *gorm.DB, clinicID uint64, name string, isActive bool) *model.PermissionGroup {
 	t.Helper()
 	g := &model.PermissionGroup{ClinicID: clinicID, Name: name, IsActive: isActive}
@@ -194,14 +194,14 @@ func TestPermissionGroupRepository_FindAllEffectivePermissions(t *testing.T) {
 		}
 	})
 
-	t.Run("High-7: クリニック隔離— clinicID指定時に他クリニックのグループのルールが混入しない", func(t *testing.T) {
+	t.Run("High-7: 医院隔離— clinicID指定時に他医院のグループのルールが混入しない", func(t *testing.T) {
 		db := setupEffectivePermissionsTestDB(t)
 		repo := NewPermissionGroupRepository(db)
 		ctx := context.Background()
 
 		// staff は clinicA 所属だが、直接 insert により clinicB のグループにも紐付いている状態を構築する
 		// (実運用では UpdateStaffGroups がこれを拒否するが、本テストは SQL 述語自体の防御を検証する)。
-		staff := makeDoctor(t, db, clinicA, "クリニック隔離テスト用スタッフ")
+		staff := makeDoctor(t, db, clinicA, "医院隔離テスト用スタッフ")
 		groupA := makeEffPermGroup(t, db, clinicA, "clinic Aグループ", true)
 		groupB := makeEffPermGroup(t, db, clinicB, "clinic Bグループ", true)
 		makeEffPermRule(t, db, groupA.ID, "vaccination", true, false, false, false)
@@ -214,7 +214,7 @@ func TestPermissionGroupRepository_FindAllEffectivePermissions(t *testing.T) {
 
 		r := findRuleByResource(t, rules, "vaccination")
 		assert.True(t, r.CanView, "clinicAのグループのルールは反映されるべき")
-		assert.False(t, r.CanDelete, "clinicBのグループのcan_delete=trueが混入してはならない(マルチクリニック昇格防止)")
+		assert.False(t, r.CanDelete, "clinicBのグループのcan_delete=trueが混入してはならない(マルチ医院昇格防止)")
 	})
 
 	t.Run("所属グループなしのスタッフは空スライスを返す", func(t *testing.T) {

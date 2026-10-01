@@ -4,7 +4,7 @@ package medicalrecord
 // LabImportJobRepository / LabImportEventRepository / LabImportDuplicateCheckerDB の統合テスト。
 //
 // 保護する不変条件:
-//   - LabImportJobRepository.Update は clinic_id スコープ（別クリニックからは更新できない）。
+//   - LabImportJobRepository.Update は clinic_id スコープ（別医院からは更新できない）。
 //   - FindByID は clinic_id で正しく分離される。
 //   - LabImportEventRepository.FindByJob は job_id + clinic_id で分離され created_at 昇順。
 //   - LabImportDuplicateCheckerDB.IsDuplicate は完全同一ペイロード（header + items）のみ
@@ -116,7 +116,7 @@ func TestLabImportJobRepository_Update(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	t.Run("同一クリニックの更新は成功する", func(t *testing.T) {
+	t.Run("同一医院の更新は成功する", func(t *testing.T) {
 		job := makeLabImportJob(t, db, clinicA, model.LabImportJobStatusReceived)
 		job.Status = model.LabImportJobStatusValidated
 		job.RowCount = 10
@@ -128,10 +128,10 @@ func TestLabImportJobRepository_Update(t *testing.T) {
 		assert.Equal(t, 10, stored.RowCount)
 	})
 
-	t.Run("別クリニックIDを指定した更新はNotFoundを返す", func(t *testing.T) {
+	t.Run("別医院IDを指定した更新はNotFoundを返す", func(t *testing.T) {
 		job := makeLabImportJob(t, db, clinicA, model.LabImportJobStatusReceived)
 		// clinic_id を書き換えた構造体で Update を呼ぶと、job.ClinicID が Scope に使われるため
-		// 別クリニック扱いになり対象行が見つからない。
+		// 別医院扱いになり対象行が見つからない。
 		mismatched := *job
 		mismatched.ClinicID = clinicB
 		mismatched.Status = model.LabImportJobStatusFailed
@@ -142,7 +142,7 @@ func TestLabImportJobRepository_Update(t *testing.T) {
 
 		var stored model.LabImportJob
 		require.NoError(t, db.First(&stored, "id = ?", job.ID).Error)
-		assert.Equal(t, model.LabImportJobStatusReceived, stored.Status, "別クリニックからの更新で状態が変わってはならない")
+		assert.Equal(t, model.LabImportJobStatusReceived, stored.Status, "別医院からの更新で状態が変わってはならない")
 	})
 }
 
@@ -154,13 +154,13 @@ func TestLabImportJobRepository_FindByID(t *testing.T) {
 
 	job := makeLabImportJob(t, db, clinicA, model.LabImportJobStatusReceived)
 
-	t.Run("同一クリニックIDでは取得できる", func(t *testing.T) {
+	t.Run("同一医院IDでは取得できる", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, job.ID)
 		require.NoError(t, err)
 		assert.Equal(t, job.ID, got.ID)
 	})
 
-	t.Run("別クリニックIDでは取得できない（clinic_id隔離）", func(t *testing.T) {
+	t.Run("別医院IDでは取得できない（clinic_id隔離）", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicB, job.ID)
 		require.Error(t, err)
 		assert.Nil(t, got)
@@ -220,7 +220,7 @@ func TestLabImportEventRepository_FindByJob(t *testing.T) {
 		assert.Equal(t, second.ID, got[1].ID)
 	})
 
-	t.Run("別クリニックIDでは取得できない（clinic_id隔離）", func(t *testing.T) {
+	t.Run("別医院IDでは取得できない（clinic_id隔離）", func(t *testing.T) {
 		got, err := repo.FindByJob(ctx, clinicB, job.ID)
 		require.NoError(t, err)
 		assert.Empty(t, got)
@@ -275,7 +275,7 @@ func TestLabImportDuplicateCheckerDB_IsDuplicate(t *testing.T) {
 		assert.False(t, dup)
 	})
 
-	t.Run("別クリニックの同条件は重複ではない（clinic_id隔離）", func(t *testing.T) {
+	t.Run("別医院の同条件は重複ではない（clinic_id隔離）", func(t *testing.T) {
 		dup, err := checker.IsDuplicate(ctx, LabExamPersistInput{
 			ClinicID: clinicB, ExamTypeID: examType.ID, Date: date, PetID: &pet.ID, Machine: "Analyzer-A",
 		})

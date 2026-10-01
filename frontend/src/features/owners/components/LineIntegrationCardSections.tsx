@@ -26,7 +26,7 @@ export function DeliveryStatusBanner({
       >
         <Ban className={`${ICON.smXs} ${C.textNotionRed} shrink-0`} />
         <span className={`text-sm font-medium ${C.textNotionRed}`}>配信停止中</span>
-        <span className={`text-xs ${C.text50}`}>この飼い主はLステップ配信対象外です</span>
+        <span className={`text-xs ${C.text50}`}>この飼主はLステップ配信対象外です</span>
         {stopReason ? <span className={`text-xs ${C.text50}`}>— {stopReason}</span> : null}
       </div>
     );
@@ -41,7 +41,7 @@ export function DeliveryStatusBanner({
     >
       <AlertTriangle className={`${ICON.smXs} ${C.textNotice} shrink-0`} />
       <span className={`text-sm font-medium ${C.textNotice}`}>配信注意</span>
-      <span className={`text-xs ${C.text50}`}>この飼い主は配信注意対象です</span>
+      <span className={`text-xs ${C.text50}`}>この飼主は配信注意対象です</span>
       {cautionReason ? <span className={`text-xs ${C.text50}`}>— {cautionReason}</span> : null}
     </div>
   );
