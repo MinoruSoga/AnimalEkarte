@@ -64,15 +64,16 @@ function renderTable(overrides: Partial<Props> = {}) {
   );
 }
 
-describe("OwnersListTable 危険度バッジ (EMR-173)", () => {
-  it("危険度 高 は赤い ⚠ 危険 バッジを飼主名列に出し、理由 Popover を開閉できる", async () => {
+describe("OwnersListTable 特記バッジ (EMR-173/231)", () => {
+  it("特記レベル 高 は赤いアイコンバッジを飼主名列に出し、メモ Popover を開閉できる", async () => {
     const user = userEvent.setup();
     renderTable({
       pets: [{ ...pet, dangerLevel: "高", dangerReason: "保定時に噛む" }],
     });
 
-    const trigger = screen.getByRole("button", { name: "ポチの危険理由を表示" });
+    const trigger = screen.getByRole("button", { name: "ポチの詳細を表示" });
     expect(trigger.tagName).toBe("BUTTON");
+    expect(trigger.textContent).toBe("");
     expect(trigger).toHaveClass(C.bgDanger10, C.danger, C.borderDanger20);
 
     await user.click(trigger);
@@ -86,23 +87,22 @@ describe("OwnersListTable 危険度バッジ (EMR-173)", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("危険度 中 は黄色 ⚠ 注意 バッジを出し、注意理由 Popover を開く", async () => {
+  it("特記レベル 中 は黄色アイコンバッジを出し、同じ中立名の Popover を開く", async () => {
     const user = userEvent.setup();
     renderTable({
       pets: [{ ...pet, dangerLevel: "中", dangerReason: "興奮しやすい" }],
     });
 
-    const trigger = screen.getByRole("button", { name: "ポチの注意理由を表示" });
-    expect(trigger).toHaveTextContent("⚠ 注意");
+    const trigger = screen.getByRole("button", { name: "ポチの詳細を表示" });
+    expect(trigger.textContent).toBe("");
     expect(trigger).toHaveClass(C.bgNotice, C.textBadgeYellow, C.borderNotice);
-    expect(screen.queryByRole("button", { name: "ポチの危険理由を表示" })).not.toBeInTheDocument();
 
     await user.click(trigger);
     expect(await screen.findByText("興奮しやすい")).toBeInTheDocument();
     expect(trigger).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("危険度 低・未設定の行は危険バッジを何も出さない", () => {
+  it("特記レベル 低・未設定の行はバッジを何も出さず、直接文言も出ない", () => {
     renderTable({
       pets: [
         { ...pet, id: "low", name: "ロウ", dangerLevel: "低" },
@@ -110,30 +110,30 @@ describe("OwnersListTable 危険度バッジ (EMR-173)", () => {
       ],
     });
 
-    expect(screen.queryByText("⚠ 危険")).not.toBeInTheDocument();
-    expect(screen.queryByText("⚠ 注意")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /の(危険|注意)理由を表示/ }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/危険|注意/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /の詳細を表示/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "特記" })).not.toBeInTheDocument();
   });
 
-  it("飼主が危険人物なら飼主名リンクの横に ⚠ 危険人物 を出す", () => {
+  it("飼主に特記フラグがあれば飼主名リンクの横にアイコンマークを出す", () => {
     renderTable({
       pets: [{ ...pet, ownerIsDangerous: true }],
     });
 
     const ownerCell = screen.getByRole("link", { name: /山田太郎/ }).parentElement;
-    expect(ownerCell).toHaveTextContent("⚠ 危険人物");
+    expect(ownerCell?.querySelector("svg")).not.toBeNull();
+    expect(screen.getByRole("img", { name: "特記" })).toBeInTheDocument();
+    expect(ownerCell).not.toHaveTextContent(/危険|注意/);
   });
 
   it.each([
     { caseName: "false", ownerIsDangerous: false },
     { caseName: "未設定", ownerIsDangerous: undefined },
-  ])("飼主の is_dangerous が $caseName なら危険人物マークを出さない", ({ ownerIsDangerous }) => {
+  ])("飼主の is_dangerous が $caseName なら特記マークを出さない", ({ ownerIsDangerous }) => {
     renderTable({
       pets: [{ ...pet, ownerIsDangerous }],
     });
 
-    expect(screen.queryByText("⚠ 危険人物")).not.toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "特記" })).not.toBeInTheDocument();
   });
 });

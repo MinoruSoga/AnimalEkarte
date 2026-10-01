@@ -82,7 +82,7 @@ export function LstepTagAddDialog({ open, onOpenChange, ownerId }: LstepTagAddDi
               name="tag_name"
               type="text"
               autoFocus
-              placeholder="例: 要注意, VIP顧客"
+              placeholder="例: VIP顧客, 定期検診"
               className={`${STYLE.formInput} w-full rounded-md px-3`}
             />
             {state.error !== null ? <p className={`text-sm ${C.danger}`}>{state.error}</p> : null}

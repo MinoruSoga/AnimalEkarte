@@ -29,7 +29,7 @@ const PET = {
 
 const DANGER_REASON = "診察時に咬傷歴あり";
 
-function renderHighDangerPet(dangerReason: string | undefined) {
+function renderHighLevelPet(dangerReason: string | undefined) {
   render(
     <PetSelectionResultsTable
       pets={createResults([{ ...PET, dangerLevel: "高", dangerReason }])}
@@ -38,7 +38,7 @@ function renderHighDangerPet(dangerReason: string | undefined) {
   );
 
   return screen.getByRole("button", {
-    name: "ポチの危険理由を表示",
+    name: "ポチの詳細を表示",
   });
 }
 
@@ -387,7 +387,7 @@ describe("PetSelectionSearchForm backend filters", () => {
 });
 
 describe("PetSelectionResultsTable row actions", () => {
-  it("危険度が高の個体だけ非色警告を表示する", () => {
+  it("特記レベルが高の個体はアイコンバッジを表示する（文言なし）", () => {
     render(
       <PetSelectionResultsTable
         pets={createResults([
@@ -399,18 +399,18 @@ describe("PetSelectionResultsTable row actions", () => {
       />,
     );
 
-    expect(screen.getAllByText("⚠ 危険")).toHaveLength(1);
-    expect(screen.getByRole("button", { name: "ハイの危険理由を表示" })).toHaveClass(
-      C.bgDanger10,
-      C.danger,
-      C.borderDanger20,
-    );
-    expect(screen.getByText("ハイ").parentElement).toHaveTextContent("⚠ 危険");
-    expect(screen.getByText("ミドル").parentElement).not.toHaveTextContent("⚠ 危険");
-    expect(screen.getByText("未判定").parentElement).not.toHaveTextContent("⚠ 危険");
+    const trigger = screen.getByRole("button", { name: "ハイの詳細を表示" });
+    expect(trigger.textContent).toBe("");
+    expect(trigger).toHaveClass(C.bgDanger10, C.danger, C.borderDanger20);
+    expect(trigger.querySelector("svg")).toHaveClass("lucide-octagon-alert");
+    expect(
+      screen.getByRole("button", { name: "ミドルの詳細を表示" }).querySelector("svg"),
+    ).toHaveClass("lucide-triangle-alert");
+    expect(screen.queryByText(/危険|注意/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "未判定の詳細を表示" })).not.toBeInTheDocument();
   });
 
-  it("危険度が中の個体は黄色 ⚠ 注意 バッジを表示し注意理由を開閉できる", async () => {
+  it("特記レベルが中の個体はアイコンバッジを表示し補足メモを開閉できる", async () => {
     const user = userEvent.setup();
     render(
       <PetSelectionResultsTable
@@ -419,18 +419,18 @@ describe("PetSelectionResultsTable row actions", () => {
       />,
     );
 
-    const trigger = screen.getByRole("button", { name: "ポチの注意理由を表示" });
+    const trigger = screen.getByRole("button", { name: "ポチの詳細を表示" });
     expect(trigger.tagName).toBe("BUTTON");
+    expect(trigger.textContent).toBe("");
     expect(trigger).toHaveClass(C.bgNotice, C.textBadgeYellow, C.borderNotice);
     expect(trigger).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByText("⚠ 危険")).not.toBeInTheDocument();
 
     await user.click(trigger);
     expect(await screen.findByText(DANGER_REASON)).toBeInTheDocument();
     expect(trigger).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("危険度が低・未設定の個体は危険バッジを何も出さない", () => {
+  it("特記レベルが低・未設定の個体はバッジを何も出さない", () => {
     render(
       <PetSelectionResultsTable
         pets={createResults([
@@ -441,31 +441,29 @@ describe("PetSelectionResultsTable row actions", () => {
       />,
     );
 
-    expect(screen.queryByText("⚠ 危険")).not.toBeInTheDocument();
-    expect(screen.queryByText("⚠ 注意")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /の(危険|注意)理由を表示/ }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/危険|注意/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /の詳細を表示/ })).not.toBeInTheDocument();
   });
 
-  it("飼主が危険人物なら飼主名の横に ⚠ 危険人物 を出し、非危険飼主は出さない", () => {
+  it("特記対象の飼主は飼主名の横にアイコンマークを出し、対象外は出さない", () => {
     render(
       <PetSelectionResultsTable
         pets={createResults([
-          { ...PET, id: "pet-dangerous-owner", ownerName: "危険 太郎", ownerIsDangerous: true },
-          { ...PET, id: "pet-safe-owner", ownerName: "通常 花子" },
+          { ...PET, id: "pet-flagged-owner", ownerName: "山田 太郎", ownerIsDangerous: true },
+          { ...PET, id: "pet-plain-owner", ownerName: "通常 花子" },
         ])}
         onSelect={vi.fn()}
       />,
     );
 
-    expect(screen.getByText("危険 太郎").parentElement).toHaveTextContent("⚠ 危険人物");
-    expect(screen.getByText("通常 花子").parentElement).not.toHaveTextContent("⚠ 危険人物");
+    expect(screen.getByRole("img", { name: "特記" })).toBeInTheDocument();
+    expect(screen.getByText("山田 太郎").parentElement).not.toHaveTextContent("特記");
+    expect(screen.queryByText(/危険人物/)).not.toBeInTheDocument();
   });
 
-  it("保存済みの高危険度理由をclickで開き、同じtriggerの再clickで閉じる", async () => {
+  it("保存済みの高レベルメモをclickで開き、同じtriggerの再clickで閉じる", async () => {
     const user = userEvent.setup();
-    const trigger = renderHighDangerPet(DANGER_REASON);
+    const trigger = renderHighLevelPet(DANGER_REASON);
 
     expect(trigger.tagName).toBe("BUTTON");
     expect(trigger).toHaveAttribute("type", "button");
@@ -487,21 +485,21 @@ describe("PetSelectionResultsTable row actions", () => {
     ["undefined", undefined],
     ["空文字", ""],
     ["空白のみ", "   "],
-  ])("高危険度理由が%sならclickで理由未登録を表示する", async (_caseName, dangerReason) => {
+  ])("高レベルのメモが%sならclickで内容未登録を表示する", async (_caseName, dangerReason) => {
     const user = userEvent.setup();
-    const trigger = renderHighDangerPet(dangerReason);
+    const trigger = renderHighLevelPet(dangerReason);
 
     await user.click(trigger);
 
-    expect(await screen.findByText("理由未登録")).toBeInTheDocument();
+    expect(await screen.findByText("内容未登録")).toBeInTheDocument();
   });
 
   it.each([
     ["Enter", "{Enter}"],
     ["Space", " "],
-  ])("%sで高危険度理由を開き、同じキーで閉じる", async (_keyName, key) => {
+  ])("%sで高レベルの補足メモを開き、同じキーで閉じる", async (_keyName, key) => {
     const user = userEvent.setup();
-    const trigger = renderHighDangerPet(DANGER_REASON);
+    const trigger = renderHighLevelPet(DANGER_REASON);
 
     trigger.focus();
     await user.keyboard(key);

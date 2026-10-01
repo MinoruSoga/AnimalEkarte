@@ -125,9 +125,10 @@ export const PetEditModal = memo(function PetEditModal({
     if (!formData.gender) errors.gender = "性別を選択してください";
     const trimmedDangerReason = formData.dangerReason?.trim() ?? "";
     if (formData.dangerLevel === "高" && !trimmedDangerReason) {
-      errors.dangerReason = "危険度が高の場合は理由を入力してください";
+      // EMR-231: 画面に出る文言は中立化（警戒表現を出さない）
+      errors.dangerReason = "特記レベルが高の場合は理由を入力してください";
     } else if (trimmedDangerReason && Array.from(trimmedDangerReason).length > 500) {
-      errors.dangerReason = "危険理由は500文字以内で入力してください";
+      errors.dangerReason = "理由は500文字以内で入力してください";
     }
     if (formData.weight !== "" && formData.weight !== undefined) {
       const weightNum = parseFloat(formData.weight);

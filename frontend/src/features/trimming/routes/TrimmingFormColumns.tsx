@@ -29,9 +29,9 @@ export interface TrimmingPatient {
   insuranceName?: string;
   insuranceDetails?: string;
   status?: string;
-  /** スタッフ向け飼主危険マーク (EMR-173)。Pet transform が供給する。 */
+  /** スタッフ向け飼主特記マーク (EMR-173/231)。Pet transform が供給する。 */
   ownerIsDangerous?: boolean;
-  /** ペット危険度 (表示値 "高"/"中"/"低")。高/中のみ Popover バッジ。 */
+  /** ペット特記レベル (表示値 "高"/"中"/"低")。高/中のみ Popover バッジ。 */
   dangerLevel?: string;
   dangerReason?: string;
 }

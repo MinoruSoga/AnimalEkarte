@@ -1,27 +1,30 @@
+import { OctagonAlert, TriangleAlert, type LucideIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { BADGE, C } from "@/lib/design-tokens";
+import { BADGE, C, ICON } from "@/lib/design-tokens";
 
 /**
- * ペット危険度バッジの段階。
- * 高 = 赤「⚠ 危険」/ 中 = 黄「⚠ 注意」。低・未設定は描画しない。
+ * ペット特記マークの段階（EMR-231）。
+ * 高 = 赤い八角形アイコン / 中 = 黄い三角形アイコン。低・未設定は描画しない。
+ * 文言は一切出さず、アイコンの形と色だけでスタッフが識別する
+ * （色だけに依存しないよう段階ごとに形も分ける）。
  */
 export type DangerBadgePetLevel = "high" | "medium";
 
 const PET_BADGE_STYLE: Record<
   DangerBadgePetLevel,
-  { label: string; reasonLabel: string; badgeClass: string; headingClass: string }
+  { Icon: LucideIcon; badgeClass: string; headingClass: string; levelText: string }
 > = {
   high: {
-    label: "⚠ 危険",
-    reasonLabel: "危険理由",
+    Icon: OctagonAlert,
     badgeClass: `${C.bgDanger10} ${C.danger} ${C.borderDanger20}`,
     headingClass: C.danger,
+    levelText: "高",
   },
   medium: {
-    label: "⚠ 注意",
-    reasonLabel: "注意理由",
+    Icon: TriangleAlert,
     badgeClass: BADGE.yellow,
     headingClass: C.textBadgeYellow,
+    levelText: "中",
   },
 };
 
@@ -47,13 +50,13 @@ function toDangerBadgePetLevel(
 export interface PetDangerBadgeProps {
   variant: "pet";
   /**
-   * 危険度。wire 値 ("high" 等) と画面表示値 ("高" 等) の両方を受け付ける。
+   * 特記レベル。wire 値 ("high" 等) と画面表示値 ("高" 等) の両方を受け付ける。
    * 低・未設定・未知値なら何も描画しない。
    */
   level?: string | null;
   /** aria-label と Popover 見出しに使う対象名（ペット名）。 */
   subjectName: string;
-  /** 危険理由。未設定・空白のみは「理由未登録」を表示する。 */
+  /** スタッフ向け補足メモ（ユーザー入力）。未設定・空白のみは「内容未登録」を表示する。 */
   reason?: string | null;
   /**
    * カード全体が click / drag 対象の場面で true。
@@ -71,9 +74,10 @@ export interface OwnerDangerBadgeProps {
 export type DangerBadgeProps = PetDangerBadgeProps | OwnerDangerBadgeProps;
 
 /**
- * スタッフ向け危険マークの共有バッジ。
- * - variant="pet": 危険度 高/中 の Popover 付きバッジ（⚠ + 文言で色に依存しない識別）
- * - variant="owner": 飼主 is_dangerous の静的バッジ「⚠ 危険人物」（理由は契約上存在しない）
+ * スタッフ向け特記マークの共有バッジ（EMR-231）。
+ * 来院者に意味が伝わる文言は画面・aria-label・title のいずれにも出さない。
+ * - variant="pet": 高/中 の Popover 付きアイコンバッジ。補足メモはクリック開示。
+ * - variant="owner": 飼主 is_dangerous の静的アイコンマーク（補足メモは契約上存在しない）
  */
 export function DangerBadge(props: DangerBadgeProps) {
   const propagationGuard = props.stopPropagation
@@ -86,10 +90,12 @@ export function DangerBadge(props: DangerBadgeProps) {
   if (props.variant === "owner") {
     return (
       <span
-        className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${C.bgDanger10} ${C.danger} ${C.borderDanger20}`}
+        role="img"
+        aria-label="特記"
+        className={`inline-flex items-center rounded px-1.5 py-0.5 leading-none ${C.bgDanger10} ${C.danger} ${C.borderDanger20}`}
         {...propagationGuard}
       >
-        ⚠ 危険人物
+        <OctagonAlert className={ICON.sm} aria-hidden="true" />
       </span>
     );
   }
@@ -103,23 +109,28 @@ export function DangerBadge(props: DangerBadgeProps) {
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={`${props.subjectName}の${style.reasonLabel}を表示`}
-          className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${style.badgeClass} outline-none focus-visible:ring-2 ${C.focusRingAccent40}`}
+          aria-label={`${props.subjectName}の詳細を表示`}
+          className={`inline-flex items-center rounded px-1.5 py-0.5 leading-none ${style.badgeClass} outline-none focus-visible:ring-2 ${C.focusRingAccent40}`}
           {...propagationGuard}
         >
-          {style.label}
+          <style.Icon className={ICON.sm} aria-hidden="true" />
         </button>
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        aria-label={`${props.subjectName}の${style.reasonLabel}`}
+        aria-label={`${props.subjectName}の詳細`}
         onOpenAutoFocus={(event) => event.preventDefault()}
         className="w-64"
         {...propagationGuard}
       >
-        <p className={`text-sm font-semibold ${style.headingClass}`}>{style.reasonLabel}</p>
+        <p className={`text-sm font-semibold ${style.headingClass}`}>
+          <span className="inline-flex items-center gap-1">
+            <style.Icon className={ICON.sm} aria-hidden="true" />
+            特記レベル: {style.levelText}
+          </span>
+        </p>
         <p className={`mt-1 whitespace-pre-wrap break-words text-sm ${C.textInkSecondary}`}>
-          {props.reason?.trim() || "理由未登録"}
+          {props.reason?.trim() || "内容未登録"}
         </p>
       </PopoverContent>
     </Popover>
