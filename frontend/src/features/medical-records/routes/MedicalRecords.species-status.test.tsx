@@ -51,8 +51,8 @@ vi.mock("@/hooks/use-treatment-master", () => ({
   useGetAllConsultations: () => ({ data: [] }),
 }));
 
-vi.mock("@/features/inventory/api/inventory", () => ({
-  useGetAllInventoryItems: () => ({ data: { data: [] } }),
+vi.mock("@/hooks/use-inventory-items", () => ({
+  useGetAllInventoryItems: () => ({ data: [] }),
 }));
 
 vi.mock("../hooks/use-medical-records", () => ({

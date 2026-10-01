@@ -52,8 +52,8 @@ vi.mock("@/hooks/use-treatment-master", () => ({
   useGetAllConsultations: vi.fn(() => ({ data: [] })),
 }));
 
-vi.mock("@/features/inventory/api/inventory", () => ({
-  useGetAllInventoryItems: vi.fn(() => ({ data: { data: [] } })),
+vi.mock("@/hooks/use-inventory-items", () => ({
+  useGetAllInventoryItems: vi.fn(() => ({ data: [] })),
 }));
 
 function defaultClinicScope() {

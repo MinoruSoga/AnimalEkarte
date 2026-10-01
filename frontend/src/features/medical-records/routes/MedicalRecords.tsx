@@ -13,7 +13,7 @@ import {
   useGetAllProcedures,
   useGetAllConsultations,
 } from "@/hooks/use-treatment-master";
-import { useGetAllInventoryItems } from "@/features/inventory/api/inventory";
+import { useGetAllInventoryItems } from "@/hooks/use-inventory-items";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 // External
@@ -113,7 +113,7 @@ export function MedicalRecords() {
   const { data: medicines } = useGetAllMedicinesMaster();
   const { data: procedures } = useGetAllProcedures();
   const { data: consultations } = useGetAllConsultations();
-  const { data: inventoriesPage } = useGetAllInventoryItems();
+  const { data: inventories } = useGetAllInventoryItems();
   const {
     activeSpecies,
     isLoading: isSpeciesLoading,
@@ -130,7 +130,7 @@ export function MedicalRecords() {
         medicines,
         procedures,
         consultations,
-        inventories: inventoriesPage?.data,
+        inventories,
       }),
     [
       staffs,
@@ -140,7 +140,7 @@ export function MedicalRecords() {
       medicines,
       procedures,
       consultations,
-      inventoriesPage,
+      inventories,
     ],
   );
 

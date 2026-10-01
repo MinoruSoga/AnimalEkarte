@@ -77,14 +77,6 @@ export const useGetInventoryItemsPage = (params: GetInventoryItemsPageParams) =>
   });
 };
 
-// バックエンドの ListInventory 上限 (persistence.MaxMasterListRows) と同値。
-// カルテ一覧フィルタ等の「全件から選択」用途で使う。
-export const INVENTORY_LIST_ALL_LIMIT = 10000;
-
-export const useGetAllInventoryItems = () => {
-  return useGetInventoryItemsPage({ page: 1, limit: INVENTORY_LIST_ALL_LIMIT });
-};
-
 const getInventoryItem = async (id: string): Promise<InventoryItem> => {
   const { data } = await axios.get<BackendInventoryItem>(`/v1/inventory/${id}`);
   return transformInventoryItem(data);
