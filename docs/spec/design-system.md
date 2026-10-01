@@ -3,7 +3,7 @@
 > **目的**: [DESIGN.md](../../DESIGN.md)（ルート — Notion Analysis / 意匠言語）を Animal Ekarte の実装に落とし込むための規約を定義する。
 > **読者**: フロントエンド実装者。
 > **タイミング**: UI 実装・レビュー時。
-> **最新更新**: 2026-09-30（薄い surface hover の ink 維持原則・compact/dense 制御の typography・dense 行アクション高さを決裁。色の決定は維持）
+> **最新更新**: 2026-10-01（タブ型マスタページのタブバーは sticky ヘッダ直下に密着・PageLayout contentClassName="pt-0" を §4.1 に決裁として追記。色の決定は維持）
 
 ### SSOT 優先順位 — **軸ごとに正本が異なる**（FE11 決裁・2026-07-21 曽我）
 
@@ -225,6 +225,7 @@ DESIGN.md `typography:` フロントマターに準拠。実装のフォント�
 - **トークン**: `{spacing.xxs}` 4px · `{spacing.xs}` 8px · `{spacing.sm}` 12px · `{spacing.md}` 16px · `{spacing.lg}` 24px · `{spacing.xl}` 28px · `{spacing.xxl}` 32px
 - カード内 padding は `{spacing.lg}`（24px）前後。ユーティリティボタンは 4px/14px。フォームフィールドは 6px 程度。
 - `p-5` / `m-5` / `gap-5`、負値、`[20px]` / `[1.25rem]` 等の20px spacing utilityは禁止（audit C16）。
+- **ページコンテンツ上余白（2026-10-01 決裁）**: `PageLayout` のコンテンツ padding は `{spacing.lg}`（`px-3 py-6`）が既定で、`PageLayout.test.tsx` が機械固定する。例外として **タブ型マスタページ（`MasterTabPage`）はタブバーを sticky ヘッダ直下へ密着**させる — タブバーはコンテンツではなくページ内ナビのため、`PageLayout` の `contentClassName="pt-0"` で上余白（pt 分）のみ除去する。先行パターン: `MedicalRecordStickyHeader`（sticky ヘッダ内 `UnifiedTabsList`・gap なし）。対象: `/settings/treatment-items` `/settings/diagnosis` `/settings/trimming`。先頭要素がコンテンツ（`PropertyFilter` 等）の `MasterListPage` 系は `py-6` を維持。根拠: `/settings/treatment-items` のデザインフィードバック（タブ上部の余白過大）。
 
 ### 4.2 Grid & Container
 

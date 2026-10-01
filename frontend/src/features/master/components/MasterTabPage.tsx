@@ -62,6 +62,9 @@ export const MasterTabPage = memo(function MasterTabPage({
         resource={resource}
         onNew={onNew}
         sidePanel={sidePanel}
+        // タブバーはページ内ナビとして sticky ヘッダに接続するため、コンテンツ上余白（py-6 の pt 分）を
+        // 除去する。先頭要素が PropertyFilter 等のコンテンツである MasterListPage には適用しない。
+        contentClassName="pt-0"
       >
         {children}
       </MasterPageShell>

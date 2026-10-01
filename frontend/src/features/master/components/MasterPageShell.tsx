@@ -23,6 +23,8 @@ interface MasterPageShellProps {
   onNew: () => void;
   /** SidePanel rendered next to main content */
   sidePanel: ReactNode;
+  /** PageLayout contentClassName への転送（MasterTabPage がタブバーをヘッダ直下に寄せるのに使用） */
+  contentClassName?: string;
   /** PageLayout body — MasterListPage wraps with PropertyFilter, MasterTabPage passes UnifiedTabs directly */
   children: ReactNode;
 }
@@ -44,6 +46,7 @@ export const MasterPageShell = memo(function MasterPageShell({
   resource,
   onNew,
   sidePanel,
+  contentClassName,
   children,
 }: MasterPageShellProps) {
   const navigate = useNavigate();
@@ -60,6 +63,7 @@ export const MasterPageShell = memo(function MasterPageShell({
           resource={resource}
           onBack={() => navigate(paths.settings.getHref())}
           maxWidth={LAYOUT.pageContentMaxWidth.full}
+          contentClassName={contentClassName}
           headerAction={
             canCreate ? (
               <PrimaryButton onClick={onNew}>
