@@ -91,6 +91,27 @@ func whereUnpaidBalancePositive(db *gorm.DB) *gorm.DB {
 	return db.Where(fmt.Sprintf("(%s) > 0", unpaidAmountSQL))
 }
 
+// ownerHasPeriodBillingSQL は飼主が期間内に billing（売上）を1件でも持つかを判定する
+// EXISTS 述語。EMR-228: 期間内に売上のない飼主（期間外の繰越未納のみ）を期間指定の
+// 未納一覧から除外するために使う。納付状況は問わないが、cancelled は論理削除相当の
+// ため売上として数えない。
+const ownerHasPeriodBillingSQL = `EXISTS (
+	SELECT 1
+	FROM billings AS period_billing
+	WHERE period_billing.clinic_id = billings.clinic_id
+	  AND period_billing.owner_id = billings.owner_id
+	  AND period_billing.deleted_at IS NULL
+	  AND period_billing.status != 'cancelled'
+	  AND period_billing.scheduled_date BETWEEN ? AND ?
+)`
+
+// whereOwnerHasBillingInPeriod は ownerHasPeriodBillingSQL を適用する Scope。EMR-228
+func whereOwnerHasBillingInPeriod(startDate, endDate string) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Where(ownerHasPeriodBillingSQL, startDate, endDate)
+	}
+}
+
 // attachOutstandingAmounts は Preload 済み Payments から OutstandingAmount を埋める。
 func attachOutstandingAmounts(billings []model.Billing) {
 	for i := range billings {
@@ -205,6 +226,8 @@ func (r *accountingRepository) FindPeriodUnpaidCarryover(ctx context.Context, cl
 
 	// 未収残高 > 0 かつ scheduled_date <= endDate が集計対象。
 	// 期間前繰越(< startDate) + 期間内未納(startDate〜endDate) = 期末繰越(<= endDate)。
+	// EMR-228: 期間内に billing（売上）を持たない飼主は行・サマリーともに除外する。
+	// 期間内売上がある飼主の期間外未納は繰越列として残す（繰越集計の設計を維持）。
 	base := r.db.WithContext(ctx).
 		Table("billings").
 		Joins(
@@ -216,7 +239,8 @@ func (r *accountingRepository) FindPeriodUnpaidCarryover(ctx context.Context, cl
 		Scopes(validBillingOwnerPetScope).
 		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Scopes(whereUnpaidBalancePositive).
-		Where("billings.scheduled_date <= ?", endDate)
+		Where("billings.scheduled_date <= ?", endDate).
+		Scopes(whereOwnerHasBillingInPeriod(startDate, endDate))
 
 	amt := unpaidAmountSQL
 
@@ -244,6 +268,7 @@ func (r *accountingRepository) FindPeriodUnpaidCarryover(ctx context.Context, cl
 			WHERE billings.clinic_id = ? AND billings.deleted_at IS NULL
 			  AND billings.scheduled_date <= ?
 			  AND (%s) > 0
+			  AND %s
 			  AND (
 				billings.owner_id IS NULL
 				OR EXISTS (
@@ -264,7 +289,7 @@ func (r *accountingRepository) FindPeriodUnpaidCarryover(ctx context.Context, cl
 			  )
 			GROUP BY billings.owner_id, billings.pet_id
 		) sub
-	`, unpaidAmountSQL), clinicID, endDate).Scan(&total).Error; err != nil {
+	`, unpaidAmountSQL, ownerHasPeriodBillingSQL), clinicID, endDate, startDate, endDate).Scan(&total).Error; err != nil {
 		return nil, 0, summary, apperrors.FromGORM(err, "billing", "")
 	}
 
