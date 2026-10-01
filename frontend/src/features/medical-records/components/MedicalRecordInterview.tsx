@@ -42,32 +42,10 @@ const INTERVIEW_TEMPLATES: { label: string; text: string }[] = [
   { label: "皮膚", text: "# 皮膚症状\n・痒み：あり\n・発赤：あり\n・部位：" },
 ];
 
-const DEFAULT_HISTORY_ITEMS: InterviewHistoryItem[] = [
-  {
-    id: "1",
-    date: "2022/10/10 (月)",
-    author: "医者A",
-    type: "再診",
-    title: "消化器症状",
-    content: "嘔吐2回、下痢なし。食欲低下。",
-  },
-  {
-    id: "2",
-    date: "2022/10/09 (日)",
-    author: "医者B",
-    type: "初診",
-    title: "定期検診",
-    content: "異常なし。体重3.5kg",
-  },
-  {
-    id: "3",
-    date: "2022/09/15 (木)",
-    author: "医者A",
-    type: "ワクチン",
-    title: "混合ワクチン",
-    content: "5種混合ワクチン接種。副反応なし。",
-  },
-];
+// S16 BUG-INTERVIEW-HISTORY-DEMO-ROWS: 履歴0件時にデモ行（id=1..3 →
+// /medical-records/{1,2,3} への実リンク）を表示すると無関係なカルテへ誘導するため、
+// API 結果が空/未ロードのときは必ず空状態を出す（InterviewHistory 側に EmptyState あり）。
+const EMPTY_HISTORY_ITEMS: InterviewHistoryItem[] = [];
 
 export const MedicalRecordInterview = memo(function MedicalRecordInterview({
   chiefComplaint,
@@ -129,8 +107,7 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
 
   const handleCloseCopyConfirm = useCallback(() => setPendingCopy(null), []);
 
-  const resolvedHistoryItems =
-    historyItems && historyItems.length > 0 ? historyItems : DEFAULT_HISTORY_ITEMS;
+  const resolvedHistoryItems = historyItems ?? EMPTY_HISTORY_ITEMS;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 lg:grid-rows-1 gap-3 flex-1 min-h-0 h-full">

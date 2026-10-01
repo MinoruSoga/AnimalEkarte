@@ -22,7 +22,7 @@
 | V04 受入 | **FAIL**（2026-09-23 browser retest 実施済み・24/24 PASS だが製品欠陥2件を確認。下記 V04 節） |
 | S09 | **BLOCKED**（`e2e/s09-closing-time-boundaries.spec.ts` のブラウザ実行が compose 停止のため未実施。製品 FAIL ではない） |
 | S01 | **PARTIAL**（LSTEP 実送信は E1） |
-| S14–S39（26 シナリオ） | **S14・S15 = PASS**（2026-10-01 ブラウザ実施、`reports/uat-2026-10-01/`）。S16–S39 は **未実施**（下記「未実施シナリオ」節。未実施を PASS に数えない） |
+| S14–S39（26 シナリオ） | **S14・S15・S16 = PASS**（2026-10-01 ブラウザ実施、`reports/uat-2026-10-01/`）。S17–S39 は **未実施**（下記「未実施シナリオ」節。未実施を PASS に数えない） |
 | r14 | ヘッダだけ「FAIL 0 / PASS 16」と書いてあった regression smoke。V04 再実行の証跡は本ファイルに無く、PASS 翻転ではない。ディレクトリは gitignore のため再読不可 |
 
 下記のコード表記 `reports/uat-*` は gitignore 対象の非配布原証跡の識別子であり、ローカルファイルへのリンクではない。今回の文書更新では原証跡の内容・現在の所在を再確認していない。不在から未実施/完了を推定せず、再検証時は管理者へ原証跡の所在と取得方法を確認する。
@@ -202,13 +202,13 @@
 
 ## 未実施シナリオ（S14–S39）
 
-2026-09-24〜29 に追加された 26 シナリオ。S14・S15 は 2026-10-01 に Playwright ブラウザ実行で PASS（S15 修正込み commit `df8bc796e`）。残りは未実施であり、本節は集約対象の明示のみを目的とする。status は最初の実行時に各ドメイン節へ移して更新する。未実施を PASS に数えない。
+2026-09-24〜29 に追加された 26 シナリオ。S14・S15・S16 は 2026-10-01 に Playwright ブラウザ実行で PASS（S15 修正込み commit `df8bc796e`、S16 修正込み）。残りは未実施であり、本節は集約対象の明示のみを目的とする。status は最初の実行時に各ドメイン節へ移して更新する。未実施を PASS に数えない。
 
 | シナリオ | 分類（scenarios/README） | status |
 |:---|:---|:---|
 | S14 | 顧客/検索 | **PASS**（2026-10-01、`reports/uat-2026-10-01/s14-results.md`） |
 | S15 | 会計 | **PASS**（2026-10-01、`reports/uat-2026-10-01/s15-results.md`。実行中に製品不具合を検出・修正済み: 確定済み会計の修正保存で React 19 の post-action `form.reset()` が Radix Switch を mount 時値へ巻き戻し `has_insurance:false` を送信 → `InsuranceCard.tsx` に `key={現在値}` で remount 対処、commit `df8bc796e`。系統的リスク棚卸しは Plane `EMR-252`、waiting billing 詳細確定の行き止まりは `EMR-253`） |
-| S16 | 臨床 | 未実施 |
+| S16 | 臨床 | **PASS**（2026-10-01、`reports/uat-2026-10-01/s16-results.md`。実行中に製品不具合を検出・修正済み: 履歴 API 0 件時に `MedicalRecordInterview` の `DEFAULT_HISTORY_ITEMS` デモ行が `/medical-records/{1,2,3}` へのリンクとして表示 → フォールバック除去で空状態を表示。Plane `EMR-254` / `todo.md` `BUG-INTERVIEW-HISTORY-DEMO-ROWS`） |
 | S17 | 臨床 | 未実施 |
 | S18 | 臨床/UI | 未実施 |
 | S19 | 臨床/UI | 未実施 |

@@ -30,6 +30,12 @@ Current unfinished implementation, verification, data, performance, delivery, an
 | BUG-ACCOUNTING-INSURANCE-FORM-RESET | High | accounting / 確定済み会計修正 | 確定済み会計で「修正を保存する → 修正する」を実行すると、React 19 の post-action `form.reset()` が Radix Switch を mount 時値(false)へ巻き戻し、UI は保険 ON 表示のまま PATCH が `has_insurance:false / billing_amount:1100` を送信して BE 400。受理されれば保険をサイレント消去する不具合だった | S15 手順6 | 修正済み commit `df8bc796e`（InsuranceCard Switch/Select に `key={現在値}` で remount）。系統的リスク棚卸しは EMR-252 |
 | BUG-ACCOUNTING-WAITING-FINALIZE-DEADEND | Medium | accounting / waiting billing 詳細 | `status=waiting` の billing 詳細画面に「会計を確定する」が表示され PATCH を送信するが、BE は waiting→completed PATCH を 400 で必ず拒否（正規導線は `/accounting/new` → `POST /accountings/complete`）。到達可能な行き止まり | S15 fixture 調査中に観測 | EMR-253 |
 
+### UAT 2026-10-01 確定分 S16（証拠: `reports/uat-2026-10-01/s16-results.md` / `s16-evidence.jsonl` / `s16-demo-rows-fail-excerpt.txt`）
+
+| ID | severity | 領域 | 症状 | シナリオ | Plane / 修正 |
+|:---|:---|:---|:---|:---|:---|
+| BUG-INTERVIEW-HISTORY-DEMO-ROWS | High | medical-records / 問診タブ治療履歴 | 履歴 API が 0 件のペットでも `DEFAULT_HISTORY_ITEMS`（ハードコードのデモ3行）が治療履歴に表示され、各行が `/medical-records/{1,2,3}` への実リンクとして機能し無関係なカルテへ誤誘導する | S16 履歴0件観測 | EMR-254 / 修正済み（`MedicalRecordInterview` のフォールバック除去。回帰ガード: `s16-interview-history-navigation.spec.ts` 履歴0件テスト） |
+
 <a id="human-lane"></a>
 
 ## PO / 人間レーン
