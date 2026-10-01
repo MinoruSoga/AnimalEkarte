@@ -436,12 +436,18 @@ def check_e2e_scope(paths):
 
 
 def plan(paths):
-    jobs, blocked, frontend = [], [], []
+    jobs, blocked, frontend, liff = [], [], [], []
     e2e_ts, e2e_pages, e2e_runner, e2e_fixtures = [], [], False, []
     for path in paths:
         validate_path(path)
         if path.startswith('frontend/src/') and path.endswith(('.ts', '.tsx', '.js', '.jsx')):
             frontend.append(path.removeprefix('frontend/'))
+        elif path.startswith('frontend/liff/') and path.endswith(('.ts', '.tsx', '.js', '.jsx')):
+            liff.append(path.removeprefix('frontend/'))
+        elif path.startswith('frontend/liff/') and path.endswith(('.html', '.css')):
+            jobs.append({'service': 'frontend', 'command': [
+                'node', 'node_modules/prettier/bin/prettier.cjs', '--check', path.removeprefix('frontend/'),
+            ]})
         elif path.startswith('frontend/e2e/') and path.endswith('.spec.ts'):
             if not (ROOT / path).is_file():
                 blocked.append(path)
@@ -811,6 +817,23 @@ def plan(paths):
         if existing:
             jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/eslint/bin/eslint.js', '--max-warnings', '0', *existing]})
             jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/prettier/bin/prettier.cjs', '--check', *existing]})
+    if liff:
+        # frontend/liff (LIFF アプリ): vite.config.ts の vitest include 配下で frontend/src/ と
+        # 同系の契約。テスト不在のソースは related が空になり require_frontend_tests で fail-closed。
+        liff_testable = [path for path in liff if not path.endswith('.stories.tsx')]
+        if liff_testable:
+            jobs.append({
+                'service': 'frontend',
+                'command': [
+                    'node', 'node_modules/vitest/vitest.mjs', 'related',
+                    '--run', '--configLoader', 'native', '--reporter=json', *liff_testable,
+                ],
+                'require_frontend_tests': True,
+            })
+        liff_existing = [path for path in liff if (ROOT / 'frontend' / path).is_file()]
+        if liff_existing:
+            jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/eslint/bin/eslint.js', '--max-warnings', '0', *liff_existing]})
+            jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/prettier/bin/prettier.cjs', '--check', *liff_existing]})
     if e2e_pages or e2e_fixtures:
         for spec in list_e2e_spec_paths():
             if spec not in e2e_ts:
