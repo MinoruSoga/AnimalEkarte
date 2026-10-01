@@ -9,6 +9,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // ListInventory godoc
@@ -21,7 +22,9 @@ func (h *Handler) ListInventory(c *gin.Context) {
 		return
 	}
 
-	page, limit, err := httpapi.ParsePagination(c)
+	// フィルタドロップダウン等の全件選択を許すため上限は MaxMasterListRows
+	// （merchandise-items 等のマスタ一覧と同じ安全上限）。既定 per_page=20 は不変。
+	page, limit, err := httpapi.ParsePaginationWithMax(c, persistence.MaxMasterListRows)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return

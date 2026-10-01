@@ -151,10 +151,8 @@ func (r *repository) petCountQuery(ctx context.Context, clinicIDs []uint64, filt
 		q = q.Where("pets.deceased_at IS NULL AND pets.status <> ?", model.PetStatusDeceased)
 	}
 	q = applyPetCheckupHistoryFilter(q, filters.CheckupHistory, now)
-	if filters.Search == "" {
-		return q
-	}
-	q = q.Joins("LEFT JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = pets.clinic_id AND owners.clinic_id IN ? AND owners.deleted_at IS NULL", clinicIDs)
+	// 検索は applyPetListSearch 内の相関 EXISTS で完結するため、
+	// count 側に owners JOIN は不要（petListQuery 側は name_kana ソートのため常時 JOIN）。
 	return applyPetListSearch(q, filters.Search)
 }
 
@@ -209,46 +207,44 @@ func applyPetListSearch(q *gorm.DB, search string) *gorm.DB {
 
 func applyPetListSearchToken(q *gorm.DB, token string) *gorm.DB {
 	compactSearch := compactSearchText(token)
-	// raw name の同一表記一致は既存の trgm index を利用可能な形で残し、
-	// translate() した name/name_kana との比較でカナ表記をまたぐ一致を補う。
+	// name/name_kana はカナ+空白を畳んだ translate() 式の1腕で検索する
+	//（生値・空白差・カナ差の旧複数腕を包含し、GIN 式インデックスが効く）。
 	// 空白除去形は「姓 名」入力の半角/全角/連続空白差を順序保持で吸収する（BUG-001）。
 	// 飼主No は独立カラムではなく owners.id の text 一致。pet_number は文字列列。
 	// いずれもユーザ入力を数値パースせずバインドする。
 	qSearch := textsearch.NormalizeQuerySpaces(token)
-	rawPattern := "%" + textsearch.EscapeLike(qSearch) + "%"
 	normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(qSearch)) + "%"
-	compactPattern := "%" + textsearch.EscapeLike(compactSearch) + "%"
 	compactNormalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(compactSearch)) + "%"
 	trimmedSearch := strings.TrimSpace(token)
+	// owners 側の腕は (owner_id, clinic_id) のペア IN で組み立てる。
+	// JOIN+OR だと OR が2テーブルにまたがり GIN 式インデックスが効かず
+	// JOIN 済み全行を逐行評価する（2026-10-01 障害の型）。ペア IN は内側を
+	// owners の trgm インデックスで駆動し一致集合を先に計算する。
+	// ペア一致は LEFT JOIN ON の id/clinic_id/deleted_at 相関と同義で、
+	// BUG-454 のクロステナント FK 復元防止を維持する。
 	return q.Where(
-		`(pets.name ILIKE ? ESCAPE '\'`+
-			` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
-			` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
-			` OR translate(pets.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
-			` OR owners.name ILIKE ? ESCAPE '\'`+
-			` OR translate(owners.name, ?, ?) ILIKE ? ESCAPE '\'`+
-			` OR translate(owners.name, ?, ?) ILIKE ? ESCAPE '\'`+
-			` OR translate(owners.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
-			` OR owners.phone ILIKE ? ESCAPE '\'`+
+		`(`+textsearch.FoldedExpr("pets.name")+` ILIKE ? ESCAPE '\'`+
+			` OR `+textsearch.FoldedExpr("pets.name_kana")+` ILIKE ? ESCAPE '\'`+
+			` OR pets.pet_number ILIKE ? ESCAPE '\'`+
+			` OR (pets.owner_id, pets.clinic_id) IN (`+
+			`SELECT searched_owner.id, searched_owner.clinic_id FROM owners searched_owner`+
+			` WHERE searched_owner.deleted_at IS NULL`+
+			` AND (`+
+			textsearch.FoldedExpr("searched_owner.name")+` ILIKE ? ESCAPE '\'`+
+			` OR `+textsearch.FoldedExpr("searched_owner.name_kana")+` ILIKE ? ESCAPE '\'`+
+			` OR searched_owner.phone ILIKE ? ESCAPE '\'`+
 			// POSIX [[:space:]] is ASCII-only; include ideographic space U+3000 so
 			// stored full-width spaces match Go compactSearchText (unicode.IsSpace).
-			` OR regexp_replace(owners.name, '[[:space:]　]+', '', 'g') ILIKE ? ESCAPE '\'`+
-			` OR regexp_replace(translate(owners.name, ?, ?), '[[:space:]　]+', '', 'g') ILIKE ? ESCAPE '\'`+
-			` OR CAST(owners.id AS text) = ?`+
-			` OR pets.pet_number ILIKE ? ESCAPE '\')`,
-		rawPattern,
-		textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
-		textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
-		textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
-		rawPattern,
-		textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
-		textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
-		textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+			` OR regexp_replace(`+textsearch.FoldedExpr("searched_owner.name")+`, '`+textsearch.SpaceStripRegexp+`', '', 'g') ILIKE ? ESCAPE '\'`+
+			` OR CAST(searched_owner.id AS text) = ?)))`,
 		normalizedPattern,
-		compactPattern,
-		textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, compactNormalizedPattern,
-		trimmedSearch,
+		normalizedPattern,
 		"%"+textsearch.EscapeLike(trimmedSearch)+"%",
+		normalizedPattern,
+		normalizedPattern,
+		normalizedPattern,
+		compactNormalizedPattern,
+		trimmedSearch,
 	)
 }
 

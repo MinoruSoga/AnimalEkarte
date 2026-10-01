@@ -19,6 +19,10 @@ type listMedicalRecordQuery struct {
 	Status          string
 	DoctorID        string
 	AnimalSpeciesID string
+	MedicineID      string
+	ProcedureID     string
+	ConsultationID  string
+	InventoryID     string
 	Sort            string
 	Order           string
 }
@@ -33,6 +37,10 @@ func newListMedicalRecordQuery(values url.Values) listMedicalRecordQuery {
 		Status:          values.Get("status"),
 		DoctorID:        values.Get("doctor_id"),
 		AnimalSpeciesID: values.Get("animal_species_id"),
+		MedicineID:      values.Get("medicine_id"),
+		ProcedureID:     values.Get("procedure_id"),
+		ConsultationID:  values.Get("consultation_id"),
+		InventoryID:     values.Get("inventory_id"),
 		Sort:            values.Get("sort"),
 		Order:           values.Get("order"),
 	}
@@ -88,6 +96,22 @@ func (q *listMedicalRecordQuery) toServiceFilters() (listMedicalRecordFilters, e
 	if err != nil {
 		return listMedicalRecordFilters{}, err
 	}
+	medicineID, err := parseOptionalUintQueryFilter(q.MedicineID, "medicine_id")
+	if err != nil {
+		return listMedicalRecordFilters{}, err
+	}
+	procedureID, err := parseOptionalUintQueryFilter(q.ProcedureID, "procedure_id")
+	if err != nil {
+		return listMedicalRecordFilters{}, err
+	}
+	consultationID, err := parseOptionalUintQueryFilter(q.ConsultationID, "consultation_id")
+	if err != nil {
+		return listMedicalRecordFilters{}, err
+	}
+	inventoryID, err := parseOptionalUintQueryFilter(q.InventoryID, "inventory_id")
+	if err != nil {
+		return listMedicalRecordFilters{}, err
+	}
 	var status *model.MedicalRecordStatus
 	if q.Status != "" {
 		parsed, err := httpapi.ValidateEnum(q.Status,
@@ -108,6 +132,10 @@ func (q *listMedicalRecordQuery) toServiceFilters() (listMedicalRecordFilters, e
 		Status:          status,
 		DoctorID:        doctorID,
 		AnimalSpeciesID: animalSpeciesID,
+		MedicineID:      medicineID,
+		ProcedureID:     procedureID,
+		ConsultationID:  consultationID,
+		InventoryID:     inventoryID,
 		Search:          q.Search,
 		Sort:            sortKey,
 		Order:           sortOrder,

@@ -18,6 +18,24 @@ const (
 	KanaAndSpaceTargetChars = KanaTargetChars + SpaceTargetChars
 )
 
+// FoldedExpr renders the column-side fold expression as a SQL fragment with the
+// character sets embedded as literals: translate(<column>, '<src>', '<dst>').
+//
+// Search predicates MUST use this literal-embedded form. Passing the charset as
+// bind parameters (translate(col, ?, ?)) is semantically identical but prevents
+// PostgreSQL from matching the predicate against the GIN trigram expression
+// indexes added by migrations/015_search_fold_indexes.sql — expression indexes
+// bind by literal equality, so any change to the fold charsets must update both
+// this helper and that migration together.
+func FoldedExpr(column string) string {
+	return "translate(" + column + ", '" + KanaAndSpaceSourceChars + "', '" + KanaAndSpaceTargetChars + "')"
+}
+
+// SpaceStripRegexp removes every ASCII and ideographic space from already-folded
+// text. Used for order-preserving "姓 名" matching; the same literal appears in
+// the idx_owners_name_compact_fold_trgm index expression.
+const SpaceStripRegexp = "[[:space:]　]+"
+
 // NormalizeQuerySpaces collapses full-width / extra whitespace so owner/pet search
 // matches half-width space queries (BUG-008). Query-side only; stored columns
 // must use SpaceSourceChars / KanaAndSpaceSourceChars with PostgreSQL translate().

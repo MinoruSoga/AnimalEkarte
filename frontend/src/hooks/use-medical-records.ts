@@ -23,6 +23,14 @@ export interface MedicalRecordFilters {
   status?: string;
   doctorId?: string;
   animalSpeciesId?: string;
+  /** 薬剤マスタID完全一致フィルタ（treatments.medicine_id）。名前 ILIKE とは別経路 */
+  medicineId?: string;
+  /** 処置マスタID完全一致フィルタ（treatments.procedure_id） */
+  procedureId?: string;
+  /** 診察マスタID完全一致フィルタ（treatments.consultation_id） */
+  consultationId?: string;
+  /** 在庫品ID完全一致フィルタ（treatments.inventory_id、その他項目） */
+  inventoryId?: string;
   page?: number;
   limit?: number;
   sort?: MedicalRecordSortKey;
@@ -64,6 +72,10 @@ export async function getMedicalRecords(
   if (filters?.status) params.status = filters.status;
   if (filters?.doctorId) params.doctor_id = filters.doctorId;
   if (filters?.animalSpeciesId) params.animal_species_id = filters.animalSpeciesId;
+  if (filters?.medicineId) params.medicine_id = filters.medicineId;
+  if (filters?.procedureId) params.procedure_id = filters.procedureId;
+  if (filters?.consultationId) params.consultation_id = filters.consultationId;
+  if (filters?.inventoryId) params.inventory_id = filters.inventoryId;
   if (filters?.sort) params.sort = filters.sort;
   if (filters?.order) params.order = filters.order;
 

@@ -21,6 +21,72 @@ function captureListUrl() {
 
 const activeFilters: ActiveFilter[] = [];
 
+describe("useMedicalRecordsList medicine filter", () => {
+  it("薬剤フィルタを medicine_id クエリへ伝播する", async () => {
+    const getUrl = captureListUrl();
+    const { result } = renderHook(
+      () =>
+        useMedicalRecordsList({
+          searchTerm: "",
+          activeFilters: [
+            {
+              key: "medicine",
+              condition: "is",
+              value: "7",
+              displayValue: "アモキシシリン",
+            },
+          ],
+          page: 1,
+        }),
+      { wrapper: createTestWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(getUrl()?.searchParams.get("medicine_id")).toBe("7");
+  });
+
+  it("処置・診察フィルタを procedure_id / consultation_id クエリへ伝播する", async () => {
+    const getUrl = captureListUrl();
+    const { result } = renderHook(
+      () =>
+        useMedicalRecordsList({
+          searchTerm: "",
+          activeFilters: [
+            { key: "procedure", condition: "is", value: "11", displayValue: "切開" },
+            { key: "consultation", condition: "is", value: "13", displayValue: "再診" },
+            { key: "inventory", condition: "is", value: "71", displayValue: "シリンジ" },
+          ],
+          page: 1,
+        }),
+      { wrapper: createTestWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(getUrl()?.searchParams.get("procedure_id")).toBe("11");
+    expect(getUrl()?.searchParams.get("consultation_id")).toBe("13");
+    expect(getUrl()?.searchParams.get("inventory_id")).toBe("71");
+  });
+
+  it("薬剤フィルタ未指定なら medicine_id を送信しない", async () => {
+    const getUrl = captureListUrl();
+    const { result } = renderHook(
+      () =>
+        useMedicalRecordsList({
+          searchTerm: "",
+          activeFilters,
+          page: 1,
+        }),
+      { wrapper: createTestWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(getUrl()?.searchParams.has("medicine_id")).toBe(false);
+  });
+});
+
 describe("useMedicalRecordsList pet_id filter", () => {
   it("petId を MedicalRecordFilters.petId へ伝播する", async () => {
     const getUrl = captureListUrl();

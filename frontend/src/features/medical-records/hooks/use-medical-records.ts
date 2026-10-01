@@ -42,6 +42,16 @@ export function useMedicalRecordsList({
     const statusFilter = activeFilters.find((f) => f.key === "status" && f.condition === "is");
     const doctorFilter = activeFilters.find((f) => f.key === "doctor" && f.condition === "is");
     const speciesFilter = activeFilters.find((f) => f.key === "species" && f.condition === "is");
+    const medicineFilter = activeFilters.find((f) => f.key === "medicine" && f.condition === "is");
+    const procedureFilter = activeFilters.find(
+      (f) => f.key === "procedure" && f.condition === "is",
+    );
+    const consultationFilter = activeFilters.find(
+      (f) => f.key === "consultation" && f.condition === "is",
+    );
+    const inventoryFilter = activeFilters.find(
+      (f) => f.key === "inventory" && f.condition === "is",
+    );
 
     return {
       startDate: dateFilter?.from,
@@ -55,6 +65,11 @@ export function useMedicalRecordsList({
           : undefined,
       doctorId: typeof doctorFilter?.value === "string" ? doctorFilter.value : undefined,
       animalSpeciesId: typeof speciesFilter?.value === "string" ? speciesFilter.value : undefined,
+      medicineId: typeof medicineFilter?.value === "string" ? medicineFilter.value : undefined,
+      procedureId: typeof procedureFilter?.value === "string" ? procedureFilter.value : undefined,
+      consultationId:
+        typeof consultationFilter?.value === "string" ? consultationFilter.value : undefined,
+      inventoryId: typeof inventoryFilter?.value === "string" ? inventoryFilter.value : undefined,
       page,
       limit,
       sort,
