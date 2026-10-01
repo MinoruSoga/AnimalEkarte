@@ -13,12 +13,18 @@ CREATE INDEX idx_owners_name_fold_trgm
   ON owners USING gin ((translate(name, 'ァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロヮワヰヱヲンヴヵヶ　', 'ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわゐゑをんゔゕゖ ')) gin_trgm_ops);
 
 -- lstep_tag_cache の飼主名フィルタ等、畳込みなしの素の name LIKE 経路用
+-- 001_init.sql の同名 partial インデックス（WHERE deleted_at IS NULL）は
+-- 述語なし検索に使えないため non-partial で置き換える（上位互換）。
+DROP INDEX IF EXISTS idx_owners_name_trgm;
 CREATE INDEX idx_owners_name_trgm
   ON owners USING gin (name gin_trgm_ops);
 
 CREATE INDEX idx_owners_name_kana_fold_trgm
   ON owners USING gin ((translate(name_kana, 'ァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロヮワヰヱヲンヴヵヶ　', 'ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわゐゑをんゔゕゖ ')) gin_trgm_ops);
 
+-- idx_owners_name_trgm と同様に 001_init.sql の同名 partial インデックスを
+-- non-partial で置き換える（上位互換）。
+DROP INDEX IF EXISTS idx_owners_phone_trgm;
 CREATE INDEX idx_owners_phone_trgm
   ON owners USING gin (phone gin_trgm_ops);
 

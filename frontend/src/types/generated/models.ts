@@ -127,6 +127,10 @@ export interface BillingItem {
    * MedicalRecordID は DB 列ではない。未請求候補（treatment 由来）など API 応答用の仮想フィールド。
    */
   medical_record_id?: number /* uint64 */;
+  /**
+   * ServiceDate は DB 列ではない。未請求候補の発生日（会計画面の当日/過去区分用、EMR-246）。
+   */
+  service_date?: string;
   vaccination_id?: number /* uint64 */;
   exam_id?: number /* uint64 */;
   appointment_id?: number /* uint64 */;
