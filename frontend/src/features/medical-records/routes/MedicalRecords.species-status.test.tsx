@@ -45,6 +45,16 @@ vi.mock("@/hooks/use-staff-validation", () => ({
   useStaffValidation: () => ({ isValidStaff: () => true }),
 }));
 
+vi.mock("@/hooks/use-treatment-master", () => ({
+  useGetAllMedicinesMaster: () => ({ data: [] }),
+  useGetAllProcedures: () => ({ data: [] }),
+  useGetAllConsultations: () => ({ data: [] }),
+}));
+
+vi.mock("@/features/inventory/api/inventory", () => ({
+  useGetAllInventoryItems: () => ({ data: { data: [] } }),
+}));
+
 vi.mock("../hooks/use-medical-records", () => ({
   useMedicalRecordsList: () => ({
     records: [],

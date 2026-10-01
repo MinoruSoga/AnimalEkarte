@@ -46,6 +46,16 @@ vi.mock("@/hooks/use-clinic-scope", () => ({
   useClinicScope: mockUseClinicScope,
 }));
 
+vi.mock("@/hooks/use-treatment-master", () => ({
+  useGetAllMedicinesMaster: vi.fn(() => ({ data: [] })),
+  useGetAllProcedures: vi.fn(() => ({ data: [] })),
+  useGetAllConsultations: vi.fn(() => ({ data: [] })),
+}));
+
+vi.mock("@/features/inventory/api/inventory", () => ({
+  useGetAllInventoryItems: vi.fn(() => ({ data: { data: [] } })),
+}));
+
 function defaultClinicScope() {
   return {
     assignedClinics: [],
