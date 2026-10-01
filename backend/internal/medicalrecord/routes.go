@@ -52,7 +52,6 @@ type Handler struct {
 	medicalRecord         *MedicalRecordHandler
 	medicalRecordAddendum *MedicalRecordAddendumHandler
 	examination           *ExaminationHandler
-	checkupPackageImport  *CheckupPackageImportHandler
 	requirePermission     PermissionMiddleware
 }
 
@@ -86,7 +85,6 @@ func NewHandler(
 	medicalRecord *MedicalRecordHandler,
 	medicalRecordAddendum *MedicalRecordAddendumHandler,
 	examination *ExaminationHandler,
-	checkupPackageImport *CheckupPackageImportHandler,
 	requirePermission PermissionMiddleware,
 ) *Handler {
 	return &Handler{
@@ -118,7 +116,6 @@ func NewHandler(
 		medicalRecord:         medicalRecord,
 		medicalRecordAddendum: medicalRecordAddendum,
 		examination:           examination,
-		checkupPackageImport:  checkupPackageImport,
 		requirePermission:     requirePermission,
 	}
 }

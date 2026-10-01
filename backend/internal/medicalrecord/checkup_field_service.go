@@ -139,15 +139,13 @@ func validateCheckupFieldBounds(minValue, maxValue *float64) error {
 }
 
 // checkupFieldOptionJSON は options を options JSONB カラムへ書き込む際の wire 形。
-// マニフェスト import（checkup_package_import_*）と同じ {value,label} 形に揃える。
+// マニフェストで使う {value,label} 形に揃える。
 type checkupFieldOptionJSON struct {
 	Value string `json:"value"`
 	Label string `json:"label"`
 }
 
 // marshalCheckupFieldOptionInputs は入力 options を JSONB 保存用にシリアライズする。
-// （checkup_package_import_apply.go の manifest 用 marshalCheckupFieldOptions([]string) とは別物 —
-// あちらは非対象ファイルのため本ファイル側で別名にしている）
 func marshalCheckupFieldOptionInputs(options []CheckupFieldOptionInput) (datatypes.JSON, error) {
 	wire := make([]checkupFieldOptionJSON, 0, len(options))
 	for _, opt := range options {

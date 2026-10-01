@@ -12,7 +12,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/inventory"
 	"github.com/animal-ekarte/backend/internal/lstep"
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
-	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/pet"
 	"github.com/animal-ekarte/backend/internal/reservation"
 	"github.com/animal-ekarte/backend/internal/staff"
@@ -46,7 +45,6 @@ type medicalRecordComposition struct {
 	Checkups       medicalrecord.CheckupService
 	DrainCheckups  func()
 	services       medicalRecordServices
-	auditTx        medicalRecordAuditTxBridge
 	// checkupTypeFields は EMR-225 のフィールド定義 write サービス。preventive サービス
 	// struct ではなく composition 直下に保持する（medicalRecordPreventiveServices は
 	// 結果値系サービスの束であり、マスタ write は別責務）。
@@ -78,7 +76,6 @@ func newMedicalRecordComposition(
 		Checkups:       services.preventive.checkups,
 		DrainCheckups:  nilSafeDrain(services.preventive.checkups.Wait),
 		services:       services,
-		auditTx:        auditTx,
 		checkupTypeFields: medicalrecord.NewCheckupTypeFieldService(
 			repositories.checkupTypeFields,
 			repositories.checkupTypes,
@@ -127,13 +124,6 @@ func (c medicalRecordComposition) newHandler(
 		medicalrecord.NewMedicalRecordHandler(s.core.medicalRecords),
 		medicalrecord.NewMedicalRecordAddendumHandler(s.core.addenda),
 		medicalrecord.NewExaminationHandler(s.core.examinations),
-		medicalrecord.NewCheckupPackageImportHandler(
-			medicalrecord.NewCheckupPackageImportService(
-				dependencies.DB,
-				persistence.NewTransactor(dependencies.DB),
-				c.auditTx,
-			),
-		),
 		dependencies.RequirePermission,
 	)
 }

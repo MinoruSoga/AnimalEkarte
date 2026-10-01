@@ -111,7 +111,10 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	//   POST   /api/v1/medical-records/:id/prescriptions
 	//   PATCH  /api/v1/medical-records/:id/prescriptions/:prescriptionId
 	//   DELETE /api/v1/medical-records/:id/prescriptions/:prescriptionId
-	require.Len(t, routes, 534)
+	// 532 — EMR-249: checkup package JSON import API の削除:
+	//   POST /api/v1/checkup-package-imports/preview
+	//   POST /api/v1/checkup-package-imports
+	require.Len(t, routes, 532)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /health/db",

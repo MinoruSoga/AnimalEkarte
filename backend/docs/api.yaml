@@ -3823,28 +3823,6 @@ components:
           maxLength: 500
           pattern: '\S'
           description: 確定解除を必要とする人手入力の理由
-    CheckupPackageImportRequest:
-      type: object
-      required: [manifest]
-      properties:
-        manifest:
-          type: object
-          additionalProperties: true
-          description: versioned checkup package manifest (strict; re-validated server-side)
-    CheckupPackageImportOperatorReceipt:
-      type: object
-      required: [receipt_id, result, types_created, fields_created]
-      properties:
-        receipt_id:
-          type: string
-          description: opaque operator receipt id (no clinic/actor/digest)
-        result:
-          type: string
-          enum: [dry_run_ok, applied, noop, conflict]
-        types_created:
-          type: integer
-        fields_created:
-          type: integer
     ExaminationPrintDisplay:
       type: object
       description: 印刷用の凍結表示ラベル（display_snapshot）。mutable master の現在値は使わない。
@@ -23515,66 +23493,6 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalError'
-  /checkup-package-imports/preview:
-    post:
-      operationId: previewCheckupPackageImport
-      summary: 健診 package import dry-run
-      tags: [Checkups]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CheckupPackageImportRequest'
-      responses:
-        '200':
-          description: dry-run result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CheckupPackageImportOperatorReceipt'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          $ref: '#/components/responses/InternalError'
-  /checkup-package-imports:
-    post:
-      operationId: applyCheckupPackageImport
-      summary: 健診 package import apply
-      tags: [Checkups]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CheckupPackageImportRequest'
-      responses:
-        '200':
-          description: apply result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CheckupPackageImportOperatorReceipt'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
   /lab-imports:
