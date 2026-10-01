@@ -221,6 +221,15 @@ sequenceDiagram
 | 5 | (C3-3) `/trimming/<存在しない ID>` 直叩き | エラー画面が表示される |
 | 6 | 同一担当スタッフで同日に別ペットの record_shortcut 新規を続けて登録 | 固定 10:00 ではなく一意な JST 時刻が付く。`uk_appointment_staff_time` の 409 で無関係な 2 件目がブロックされない |
 
+### 13. 推奨理由 (medical-record-recommendation-reason)
+
+- カルテ詳細ヘッダの推奨理由セレクト。PATCH `/v1/medical-records/{id}/recommendation-reason`。
+
+| # | 操作 | 期待結果 |
+|:--|:--|:--|
+| 1 | 推奨理由を選択して保存 → 再読込 | 選択値が永続する（F4） |
+| 2 | 選択を外して保存（null クリア） | null が永続する（F5） |
+
 ## 確認観点
 
 - 既存の機械テストとの分担: FE component/hook test（use-medical-record-form・TreatmentsTab/dose gate・CheckupsTab・use-examination-form・use-vaccination-form・use-hospitalization-form・use-trimming-form-validation 等）と BE service/validator test（treatment/dose_validators・vital・checkup・vaccination・clinical_plan・hospitalization・trimming 各 service）が単体レベルの入力検証を網羅済み。clinical allowlist は主に表示・検索・遷移であり、`medical-records-create.spec.ts` は mount 時 POST をローカル fulfill して検証する。これを実 DB へのフォーム永続化とは扱わない。**本シナリオはブラウザ → API → DB を貫く項目単位の受入である。** 実行配線と未実施範囲は [CLINICAL-E2E-DESIGN.md](../CLINICAL-E2E-DESIGN.md)。
