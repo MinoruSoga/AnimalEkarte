@@ -24,6 +24,8 @@ interface MedicalRecordImageProps {
   recordClinicId?: string;
   /** SEC-CS-F14: 死亡ペットでは画像アップロードを UI から無効化する */
   isPetDeceased?: boolean;
+  /** EMR-216: 確定済み/送信権限なしの編集ロック。全画像 mutation 経路を拒否する */
+  isLocked?: boolean;
 }
 
 export const MedicalRecordImage = memo(function MedicalRecordImage({
@@ -31,6 +33,7 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
   medicalRecordId,
   recordClinicId,
   isPetDeceased = false,
+  isLocked = false,
 }: MedicalRecordImageProps) {
   const { canCreate, canDelete } = usePermission("medical-records");
   const [searchTerm, setSearchTerm] = useState("");
@@ -77,9 +80,11 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
     );
   }, [apiImageGroups, deferredSearch, dateStart, dateEnd, sortOrder]);
 
-  const canUpload = canCreate && !isPetDeceased;
-  // FE12 二重防壁: 死亡ペットでは削除ボタン自体を出さず、callback 側でも拒否する
-  const canDeleteImage = canDelete && !isPetDeceased;
+  // EMR-216: 確定ロック中はアップロード UI を出さず、callback 側（handleFilesSelected /
+  // handleDrop）も fail-closed に拒否する。fieldset の disabled だけでは D&D 経路を塞げない。
+  const canUpload = canCreate && !isPetDeceased && !isLocked;
+  // FE12 二重防壁: 死亡ペット/ロック中は削除ボタン自体を出さず、callback 側でも拒否する
+  const canDeleteImage = canDelete && !isPetDeceased && !isLocked;
 
   const { mutate: uploadImagesFn } = uploadMutation;
   const handleFilesSelected = useCallback(
