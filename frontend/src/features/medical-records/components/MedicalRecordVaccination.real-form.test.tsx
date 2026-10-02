@@ -27,7 +27,10 @@ vi.mock("@/lib/handle-api-error", () => ({
 
 vi.mock("@/hooks/use-treatment-master", () => ({
   useGetAllVaccinesMaster: () => ({
-    data: [{ id: "7", name: "混合ワクチン", isActive: true }],
+    data: [
+      { id: "7", name: "混合ワクチン", isActive: true },
+      { id: "8", name: "狂犬病ワクチン", isActive: true },
+    ],
   }),
 }));
 
@@ -134,10 +137,18 @@ vi.mock("sonner", () => ({
   },
 }));
 
-// Simulated server-side vaccination store. axios.post pushes the created record
-// so the invalidation-driven refetch (axios.get) returns it — this is what makes
-// the B4 assertion end-to-end instead of a manual rerender.
+// Simulated server-side vaccination store. axios.post echoes the posted body
+// into the store so the invalidation-driven refetch (axios.get) returns the
+// actual per-registration payload — this is what makes the B4 assertion
+// end-to-end instead of a manual rerender, and what lets the EMR-105 same-day
+// test observe whether sequential registrations keep their own fields.
 const historyItems: Record<string, unknown>[] = [];
+let nextVaccinationId = 12;
+
+const vaccineNamesById: Record<number, string> = {
+  7: "新混合ワクチン",
+  8: "狂犬病ワクチン",
+};
 
 const seedVaccination = {
   id: 11,
@@ -149,30 +160,28 @@ const seedVaccination = {
   vaccine: { name: "既存ワクチン" },
 };
 
-const createdVaccination = {
-  id: 12,
-  pet_id: 1,
-  medical_record_id: 99,
-  vaccine_id: 7,
-  date: "2026-07-20T00:00:00+09:00",
-  next_date: null,
-  vaccine: { name: "新混合ワクチン" },
-};
-
 const mockGet = vi.mocked(axios.get);
 const mockPost = vi.mocked(axios.post);
 
 beforeEach(() => {
   historyItems.length = 0;
   historyItems.push(seedVaccination);
+  nextVaccinationId = 12;
   mockGet.mockReset();
   mockPost.mockReset();
   mockGet.mockImplementation(() =>
     Promise.resolve({ data: { data: historyItems.map((item) => ({ ...item })) } }),
   );
-  mockPost.mockImplementation(() => {
-    historyItems.push(createdVaccination);
-    return Promise.resolve({ data: createdVaccination });
+  mockPost.mockImplementation((_url: string, body: unknown) => {
+    const posted = (body ?? {}) as Record<string, unknown>;
+    const vaccineId = Number(posted.vaccine_id);
+    const rec = {
+      ...posted,
+      id: nextVaccinationId++,
+      vaccine: { name: vaccineNamesById[vaccineId] ?? `ワクチン(ID:${vaccineId})` },
+    };
+    historyItems.push(rec);
+    return Promise.resolve({ data: rec });
   });
   vi.mocked(toast.success).mockClear();
 });
@@ -290,5 +299,87 @@ describe("MedicalRecordVaccination real VaccinationForm — nested-form regressi
     // resetForm: 追加フォームは閉じて一覧表示に戻る
     expect(await screen.findByRole("button", { name: "記録を追加" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "接種記録を追加" })).not.toBeInTheDocument();
+  });
+});
+
+// EMR-105 (S29 step 2-5, in-chart entry path): 保存済みカルテ内フォームから
+// 同日に複数ワクチンを順次登録しても、各 POST が独立し、再取得された履歴行の
+// lot / 次回予定 / ワクチン種別 / medical_record 紐付けが混ざらないこと。
+// 単独フォーム経路は 2026-09-23 実保存証拠済み（reports/uat-2026-09-23/S29）のため
+// ここではカルテ内経路のみを実フォームで検証する。
+describe("MedicalRecordVaccination EMR-105 same-day multi-vaccine (in-chart path)", () => {
+  it("保存済みカルテから同日2件を順次登録し、各 POST と再表示行が混ざらない", async () => {
+    renderPanel();
+    // 既存履歴（前日の seed 行）が見えるまで初期取得を待つ
+    expect(await screen.findAllByText("既存ワクチン")).not.toHaveLength(0);
+
+    // ── 1件目: vaccine 7 / LOT-A / 次回 2026-09-26 ──
+    // 接種日はカルテ内フォームの JST 当日 default（2026-08-29）をそのまま使う = 同日接種。
+    await openAddForm();
+    fireEvent.change(screen.getByLabelText("予防接種名"), { target: { value: "7" } });
+    const lot1Input = screen.getByText("LOT1").parentElement?.querySelector("input");
+    expect(lot1Input).not.toBeNull();
+    fireEvent.change(lot1Input as Element, { target: { value: "LOT-A" } });
+    fireEvent.change(screen.getByLabelText("次回接種予定日"), {
+      target: { value: "2026-09-26" },
+    });
+    await submitAddForm();
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledTimes(1);
+    });
+    // 成功後フォームは閉じて一覧に戻る（resetForm）— 2件目は開き直す。
+    expect(await screen.findByRole("button", { name: "記録を追加" })).toBeInTheDocument();
+
+    // ── 2件目: vaccine 8 / LOT-B / 次回 2026-10-10、同日（当日 default）──
+    await openAddForm();
+    fireEvent.change(screen.getByLabelText("予防接種名"), { target: { value: "8" } });
+    const lot1Input2 = screen.getByText("LOT1").parentElement?.querySelector("input");
+    expect(lot1Input2).not.toBeNull();
+    fireEvent.change(lot1Input2 as Element, { target: { value: "LOT-B" } });
+    fireEvent.change(screen.getByLabelText("次回接種予定日"), {
+      target: { value: "2026-10-10" },
+    });
+    await submitAddForm();
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledTimes(2);
+    });
+
+    // 各 POST は同じ pet_id / medical_record_id / date を持つが、
+    // vaccine_id・lot1・next_date は登録ごとの値でなければならない。
+    expect(mockPost).toHaveBeenNthCalledWith(
+      1,
+      "/v1/vaccinations",
+      expect.objectContaining({
+        pet_id: 1,
+        medical_record_id: 99,
+        vaccine_id: 7,
+        date: "2026-08-29",
+        lot1: "LOT-A",
+        next_date: "2026-09-26",
+      }),
+    );
+    expect(mockPost).toHaveBeenNthCalledWith(
+      2,
+      "/v1/vaccinations",
+      expect.objectContaining({
+        pet_id: 1,
+        medical_record_id: 99,
+        vaccine_id: 8,
+        date: "2026-08-29",
+        lot1: "LOT-B",
+        next_date: "2026-10-10",
+      }),
+    );
+
+    // 再表示（invalidation 再取得）: seed + 2件の同日行が各自行として描画される。
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledTimes(3);
+    });
+    expect(await screen.findAllByText("既存ワクチン")).not.toHaveLength(0);
+    expect(await screen.findAllByText("新混合ワクチン")).not.toHaveLength(0);
+    expect(await screen.findAllByText("狂犬病ワクチン")).not.toHaveLength(0);
+    // 次予定列も行ごとに独立（同日だからといって共有・上書きされない）。
+    expect(await screen.findAllByText("26/9/26")).not.toHaveLength(0);
+    expect(await screen.findAllByText("26/10/10")).not.toHaveLength(0);
   });
 });
