@@ -10008,6 +10008,12 @@ components:
         screenshot_url:
           type: string
           description: 署名付き URL(15分 TTL)。スクショなし・署名失敗時は省略。
+        plane_issue_url:
+          type: string
+          description: 起票済み Plane チケットの表示 URL(app.plane.so/<ws>/browse/<IDENT>/)。未起票なら省略。
+        plane_sync_error:
+          type: string
+          description: 直近の Plane 起票失敗理由。成功・未試行なら省略。管理画面の再送判断に使用。
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
   responses:
@@ -25942,6 +25948,56 @@ paths:
               schema:
                 $ref: '#/components/schemas/SupportBugReport'
         '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /support/bug-reports/{id}/plane-ticket:
+    post:
+      operationId: createSupportBugReportPlaneTicket
+      summary: バグ報告を Plane ワークアイテムとして起票(手動再送を兼ねる)
+      description: |
+        hospital-settings edit 権限が必要。報告作成時の自動起票が失敗した場合の
+        手動再送経路でもある。既に起票済み(plane_issue_url あり)なら現在の状態を
+        そのまま返す冪等操作。external_source+external_id で報告と Plane 側を対応付ける。
+        PLANE_API_KEY 未設定の環境では 501。Plane 側エラーは 502 で返し、
+        失敗理由は plane_sync_error に記録される。
+      tags: [Support]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: 起票済み・起票されたバグ報告
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportBugReport'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '501': { description: Plane 連携が未設定(PLANE_API_KEY なし) }
+        '502': { description: Plane 上流エラー(詳細は返さず plane_sync_error に記録) }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /support/bug-reports/{id}:
+    delete:
+      operationId: deleteSupportBugReport
+      summary: バグ報告を削除(論理削除 + 添付スクショのオブジェクト削除)
+      description: |
+        hospital-settings delete 権限が必要。deleted_at を設定する論理削除で、
+        一覧・詳細からは除外される。添付スクリーンショットのオブジェクトは
+        best-effort で削除する（失敗時は孤立オブジェクトが残るのみ）。
+        削除しても Plane 側の既起票チケットは残る。
+      tags: [Support]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '204': { description: 削除完了 }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }

@@ -5,9 +5,11 @@
  * 件名セルの詳細ボタンで詳細ダイアログ（スクリーンショット・画面文脈・ステータス切替）。
  */
 import { useState } from "react";
-import { Bug } from "lucide-react";
+import { Bug, ExternalLink, Trash2 } from "lucide-react";
+import type { UseMutationResult } from "@tanstack/react-query";
 
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { EmptyState, ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { Button } from "@/components/ui/button";
@@ -29,7 +31,10 @@ import {
 import { BADGE, C, ICON, STYLE } from "@/lib/design-tokens";
 import { formatJSTDate, formatJSTTime } from "@/lib/jst-date";
 
+import { usePermission } from "@/hooks/use-permission";
 import { useGetBugReports } from "../api/get-bug-reports";
+import { useCreatePlaneTicket } from "../api/create-plane-ticket";
+import { useDeleteBugReport } from "../api/delete-bug-report";
 import { useUpdateBugReportStatus } from "../api/update-bug-report-status";
 import type { BugReport, BugReportStatus } from "../types";
 
@@ -53,13 +58,65 @@ function StatusBadge({ status }: { status: BugReportStatus }) {
   );
 }
 
+type PlaneTicketMutation = UseMutationResult<BugReport, unknown, number, unknown>;
+
+interface PlaneTicketCellProps {
+  report: BugReport;
+  canEdit: boolean;
+  mutation: PlaneTicketMutation;
+}
+
+/**
+ * Plane 連携状態。
+ * 起票済み → チケットへの外部リンク / 直近失敗 → 失敗表示 + 再送ボタン（edit 権限）/ 未連携 → ―
+ */
+function PlaneTicketCell({ report, canEdit, mutation }: PlaneTicketCellProps) {
+  if (report.plane_issue_url) {
+    return (
+      <a
+        href={report.plane_issue_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`inline-flex items-center gap-1 underline ${C.textActionPrimary} hover:opacity-70`}
+      >
+        <ExternalLink className={ICON.xs} />
+        チケット
+      </a>
+    );
+  }
+  if (report.plane_sync_error) {
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        <span className={`text-2xs ${C.danger}`} title={report.plane_sync_error}>
+          起票失敗
+        </span>
+        {canEdit ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-6 px-2 text-2xs"
+            onClick={() => mutation.mutate(report.id)}
+            disabled={mutation.isPending}
+          >
+            再送
+          </Button>
+        ) : null}
+      </span>
+    );
+  }
+  return <span className={C.text50}>―</span>;
+}
+
 interface BugReportDetailDialogProps {
   report: BugReport | null;
+  canEdit: boolean;
   onClose: () => void;
 }
 
-function BugReportDetailDialog({ report, onClose }: BugReportDetailDialogProps) {
+function BugReportDetailDialog({ report, canEdit, onClose }: BugReportDetailDialogProps) {
   const updateStatus = useUpdateBugReportStatus();
+  const createTicket = useCreatePlaneTicket();
   const nextStatus: BugReportStatus | null =
     report === null ? null : report.status === "open" ? "resolved" : "open";
 
@@ -98,6 +155,10 @@ function BugReportDetailDialog({ report, onClose }: BugReportDetailDialogProps) 
             <dd className={C.text70}>{report.viewport || "―"}</dd>
             <dt className={C.text50}>UA</dt>
             <dd className={`break-all text-2xs ${C.text60}`}>{report.user_agent || "―"}</dd>
+            <dt className={C.text50}>Plane</dt>
+            <dd className={C.text70}>
+              <PlaneTicketCell report={report} canEdit={canEdit} mutation={createTicket} />
+            </dd>
           </dl>
 
           {report.screenshot_url ? (
@@ -135,7 +196,11 @@ function BugReportDetailDialog({ report, onClose }: BugReportDetailDialogProps) 
 
 export function BugReportsPage() {
   const { data: reports, isLoading, isError } = useGetBugReports();
+  const { canEdit, canDelete } = usePermission("hospital-settings");
+  const createTicket = useCreatePlaneTicket();
+  const deleteReport = useDeleteBugReport();
   const [selected, setSelected] = useState<BugReport | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<BugReport | null>(null);
 
   return (
     <PageLayout
@@ -162,6 +227,8 @@ export function BugReportsPage() {
                 <TableHead className="w-[160px]">画面</TableHead>
                 <TableHead className="w-[90px]">スクショ</TableHead>
                 <TableHead className="w-[90px]">状態</TableHead>
+                <TableHead className="w-[120px]">Plane</TableHead>
+                {canDelete ? <TableHead className="w-[64px]" /> : null}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -188,6 +255,23 @@ export function BugReportsPage() {
                   <TableCell>
                     <StatusBadge status={report.status} />
                   </TableCell>
+                  <TableCell>
+                    <PlaneTicketCell report={report} canEdit={canEdit} mutation={createTicket} />
+                  </TableCell>
+                  {canDelete ? (
+                    <TableCell>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className={`h-7 px-2 ${C.danger}`}
+                        aria-label={`削除: ${report.title}`}
+                        onClick={() => setPendingDelete(report)}
+                      >
+                        <Trash2 className={ICON.xs} />
+                      </Button>
+                    </TableCell>
+                  ) : null}
                 </TableRow>
               ))}
             </TableBody>
@@ -195,7 +279,31 @@ export function BugReportsPage() {
         </div>
       )}
 
-      <BugReportDetailDialog report={selected} onClose={() => setSelected(null)} />
+      <BugReportDetailDialog
+        report={selected}
+        canEdit={canEdit}
+        onClose={() => setSelected(null)}
+      />
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={() => {
+          const target = pendingDelete;
+          if (target !== null) {
+            deleteReport.mutate(target.id, {
+              onSuccess: () => setPendingDelete(null),
+            });
+          }
+        }}
+        title={
+          pendingDelete !== null ? `「${pendingDelete.title}」を削除しますか？` : "削除しますか？"
+        }
+        description="報告と添付スクリーンショットが削除されます。Plane に作成済みのチケットは残ります。この操作は取り消せません。"
+        confirmLabel="削除する"
+        variant="destructive"
+        isPending={deleteReport.isPending}
+      />
     </PageLayout>
   );
 }

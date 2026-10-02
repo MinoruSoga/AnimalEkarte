@@ -22,6 +22,10 @@ type Repository interface {
 	FindByClinicID(ctx context.Context, clinicID uint64) ([]BugReportWithReporter, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
 	UpdateStatus(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) error
+	// SetPlaneTicket は起票成功を記録し、claim 成功時（= 先に起票済みでない）に true を返す。
+	SetPlaneTicket(ctx context.Context, clinicID, id uint64, issueID, issueURL string) (bool, error)
+	SetPlaneSyncError(ctx context.Context, clinicID, id uint64, syncErr string) error
+	SoftDeleteBugReport(ctx context.Context, clinicID, id uint64) error
 	CreateChatMessages(ctx context.Context, messages []*model.SupportChatMessage) error
 	ListChatHistory(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
 	ClearChatHistory(ctx context.Context, clinicID, staffID uint64) error
@@ -132,6 +136,54 @@ func (r *repository) UpdateStatus(ctx context.Context, clinicID, id uint64, stat
 		Model(&model.SupportBugReport{}).
 		Where("clinic_id = ? AND id = ?", clinicID, id).
 		Update("status", status)
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "support_bug_report", uintToString(id))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("support_bug_report", uintToString(id))
+	}
+	return nil
+}
+
+// SetPlaneTicket は Plane 起票成功を記録する。二重起票防止のため
+// plane_issue_id IS NULL の行にのみ書き込む（自動起票と手動再送、あるいは
+// 手動再送の二重クリックが競合した場合、後着は claim 失敗 = false を返す）。
+func (r *repository) SetPlaneTicket(ctx context.Context, clinicID, id uint64, issueID, issueURL string) (bool, error) {
+	result := r.db.WithContext(ctx).
+		Model(&model.SupportBugReport{}).
+		Where("clinic_id = ? AND id = ? AND plane_issue_id IS NULL", clinicID, id).
+		Updates(map[string]any{
+			"plane_issue_id":   issueID,
+			"plane_issue_url":  issueURL,
+			"plane_sync_error": nil,
+		})
+	if result.Error != nil {
+		return false, apperrors.FromGORM(result.Error, "support_bug_report", uintToString(id))
+	}
+	return result.RowsAffected > 0, nil
+}
+
+// SetPlaneSyncError は直近の Plane 起票失敗理由を記録する（成功時は SetPlaneTicket が NULL に戻す）。
+func (r *repository) SetPlaneSyncError(ctx context.Context, clinicID, id uint64, syncErr string) error {
+	result := r.db.WithContext(ctx).
+		Model(&model.SupportBugReport{}).
+		Where("clinic_id = ? AND id = ?", clinicID, id).
+		Update("plane_sync_error", syncErr)
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "support_bug_report", uintToString(id))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("support_bug_report", uintToString(id))
+	}
+	return nil
+}
+
+// SoftDeleteBugReport は報告を論理削除する（deleted_at 設定）。対象なしは NotFound。
+// GORM の soft delete により削除済み行は FindByID/一覧から自然に除外される。
+func (r *repository) SoftDeleteBugReport(ctx context.Context, clinicID, id uint64) error {
+	result := r.db.WithContext(ctx).
+		Where("clinic_id = ? AND id = ?", clinicID, id).
+		Delete(&model.SupportBugReport{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "support_bug_report", uintToString(id))
 	}

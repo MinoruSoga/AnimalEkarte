@@ -113,6 +113,21 @@ type Config struct {
 	SupportLLMAPIKey    string
 	SupportLLMModel     string
 	SupportLLMTimeoutMS int
+
+	// Plane* はバグ報告の Plane ワークアイテム自動起票設定。
+	// PLANE_API_KEY 未設定の場合は連携無効（報告はローカル保存のみ、
+	// 管理画面からの手動起票は 501）。BaseURL は Plane REST API、
+	// WebBaseURL はチケット表示 URL 組立用の Web アプリ側。
+	// ProjectID は API パスに使う UUID、ProjectIdentifier は表示 URL 用の
+	// プロジェクト識別子（例 "EMR"。API 応答に identifier が無い場合の fallback）。
+	// API キーは絶対にログに出力しない。
+	PlaneBaseURL           string
+	PlaneWebBaseURL        string
+	PlaneWorkspaceSlug     string
+	PlaneProjectID         string
+	PlaneProjectIdentifier string
+	PlaneAPIKey            string
+	PlaneTimeoutMS         int
 }
 
 // Load reads process environment into Config. Release mode refuses
@@ -187,6 +202,14 @@ func Load() *Config {
 		SupportLLMAPIKey:    os.Getenv("SUPPORT_LLM_API_KEY"),
 		SupportLLMModel:     getEnv("SUPPORT_LLM_MODEL", "gpt-5-nano"),
 		SupportLLMTimeoutMS: getEnvInt("SUPPORT_LLM_TIMEOUT_MS", 30000),
+
+		PlaneBaseURL:           getEnv("PLANE_BASE_URL", "https://api.plane.so"),
+		PlaneWebBaseURL:        getEnv("PLANE_WEB_BASE_URL", "https://app.plane.so"),
+		PlaneWorkspaceSlug:     os.Getenv("PLANE_WORKSPACE_SLUG"),
+		PlaneProjectID:         os.Getenv("PLANE_PROJECT_ID"),
+		PlaneProjectIdentifier: os.Getenv("PLANE_PROJECT_IDENTIFIER"),
+		PlaneAPIKey:            os.Getenv("PLANE_API_KEY"),
+		PlaneTimeoutMS:         getEnvInt("PLANE_TIMEOUT_MS", 10000),
 	}
 }
 
@@ -298,6 +321,17 @@ func (c *Config) Validate() error {
 	}
 	if c.SupportLLMAPIKey != "" {
 		if err := validateOptionalReleaseHTTPSURL("SUPPORT_LLM_BASE_URL", c.SupportLLMBaseURL); err != nil {
+			return err
+		}
+	}
+	if c.PlaneAPIKey != "" {
+		if strings.TrimSpace(c.PlaneWorkspaceSlug) == "" || strings.TrimSpace(c.PlaneProjectID) == "" {
+			return fmt.Errorf("PLANE_WORKSPACE_SLUG and PLANE_PROJECT_ID are required when PLANE_API_KEY is set")
+		}
+		if err := validateOptionalReleaseHTTPSURL("PLANE_BASE_URL", c.PlaneBaseURL); err != nil {
+			return err
+		}
+		if err := validateOptionalReleaseHTTPSURL("PLANE_WEB_BASE_URL", c.PlaneWebBaseURL); err != nil {
 			return err
 		}
 	}

@@ -114,7 +114,10 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	// 532 — EMR-249: checkup package JSON import API の削除:
 	//   POST /api/v1/checkup-package-imports/preview
 	//   POST /api/v1/checkup-package-imports
-	require.Len(t, routes, 532)
+	// 534 — バグ報告の Plane 連携（手動起票/再送）と論理削除:
+	//   POST   /api/v1/support/bug-reports/:id/plane-ticket
+	//   DELETE /api/v1/support/bug-reports/:id
+	require.Len(t, routes, 534)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /health/db",

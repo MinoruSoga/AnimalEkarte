@@ -18,6 +18,10 @@ export interface BugReport {
   reporter_staff_id: number;
   reporter_name: string;
   screenshot_url?: string;
+  /** 起票済み Plane チケットの表示 URL（未起票なら未設定） */
+  plane_issue_url?: string;
+  /** 直近の Plane 起票失敗理由（成功・未試行なら未設定） */
+  plane_sync_error?: string;
   created_at: string;
   updated_at: string;
 }

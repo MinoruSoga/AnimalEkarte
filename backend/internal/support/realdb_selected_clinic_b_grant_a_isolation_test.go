@@ -43,7 +43,7 @@ func TestRealDB_SupportBugReportsSelectedClinicBGrantAIsolation(t *testing.T) {
 	ctx := context.Background()
 
 	repo := NewRepository(db)
-	svc := NewService(repo)
+	svc := NewService(repo, nil)
 
 	const titleA = "D3support-realdb-report-A"
 	const titleB = "D3support-realdb-report-B"

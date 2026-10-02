@@ -74,6 +74,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// 一覧・ステータス更新は管理者向け（hospital-settings 権限を流用）。
 	g.GET("", h.requirePermission(string(model.ResourceHospitalSettings), "view"), h.ListBugReports)
 	g.PATCH("/:id/status", h.requirePermission(string(model.ResourceHospitalSettings), "edit"), h.UpdateBugReportStatus)
+	// Plane への手動起票・再送は edit、報告の削除は delete 権限。
+	g.POST("/:id/plane-ticket", h.requirePermission(string(model.ResourceHospitalSettings), "edit"), h.CreatePlaneTicket)
+	g.DELETE("/:id", h.requirePermission(string(model.ResourceHospitalSettings), "delete"), h.DeleteBugReport)
 }
 
 // CreateBugReport はバグ報告を作成する。
@@ -209,6 +212,57 @@ func (h *Handler) UpdateBugReportStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, toBugReportResponse(report, ""))
 }
 
+// CreatePlaneTicket は報告を Plane ワークアイテムとして起票する。
+// 自動起票に失敗した報告の手動再送経路でもある。起票済みなら現行状態を返す（冪等）。
+//
+// POST /api/v1/support/bug-reports/:id/plane-ticket
+// Requires: hospital-settings edit
+func (h *Handler) CreatePlaneTicket(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := httpapi.ParseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	report, err := h.service.EnsurePlaneTicket(c.Request.Context(), clinicID, id)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	h.logAudit(c, "support_bug_report.plane_ticket", report)
+	c.JSON(http.StatusOK, toBugReportResponse(report, ""))
+}
+
+// DeleteBugReport は報告を論理削除し、添付スクショのオブジェクトも削除する。
+//
+// DELETE /api/v1/support/bug-reports/:id
+// Requires: hospital-settings delete
+func (h *Handler) DeleteBugReport(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := httpapi.ParseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	report, err := h.service.Delete(c.Request.Context(), clinicID, id)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	// スクショのオブジェクト削除は best-effort（失敗時は孤立オブジェクトが残るのみ）
+	if report.ScreenshotKey != nil && h.uploader != nil {
+		if err := h.uploader.Delete(context.WithoutCancel(c.Request.Context()), *report.ScreenshotKey); err != nil {
+			slog.WarnContext(c.Request.Context(), "failed to delete bug report screenshot (best-effort)", "error", err, "report_id", report.ID)
+		}
+	}
+	h.logAudit(c, "support_bug_report.delete", report)
+	c.Status(http.StatusNoContent)
+}
+
 // uploadScreenshot は検証済みスクショを FileUploader へ保存しオブジェクト key を返す。
 // 失敗時はエラーレスポンスを書き false を返す。
 func (h *Handler) uploadScreenshot(c *gin.Context, clinicID uint64, file multipart.File, fileHeader *multipart.FileHeader) (string, bool) {
@@ -251,8 +305,9 @@ func (h *Handler) logAudit(c *gin.Context, action string, report *model.SupportB
 		return
 	}
 	if err := h.audit.LogEntry(c.Request.Context(), AuditEntry{
-		ClinicID:   &report.ClinicID,
-		ActorID:    &report.ReporterStaffID,
+		ClinicID: &report.ClinicID,
+		// actor は操作者（削除・起票では報告者と異なり得る）。取得失敗時は nil のまま残す。
+		ActorID:    httpapi.OptionalStaffID(c),
 		ActorType:  "staff",
 		Action:     action,
 		Resource:   "support_bug_report",

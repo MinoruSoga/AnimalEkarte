@@ -3493,6 +3493,12 @@ export interface SupportBugReport {
   viewport: string;
   app_version: string;
   screenshot_key?: string;
+  /**
+   * Plane 連携結果。起票成功時は PlaneIssueID/PlaneIssueURL、失敗時は PlaneSyncError が入る。
+   */
+  plane_issue_id?: string;
+  plane_issue_url?: string;
+  plane_sync_error?: string;
   status: SupportBugReportStatus;
   created_at: string;
   updated_at: string;
