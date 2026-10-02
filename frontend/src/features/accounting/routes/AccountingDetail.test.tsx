@@ -348,10 +348,12 @@ describe("AccountingDetail — C: 混在支払い UI / payment_splits", () => {
 
   it.skip("amount=1100 / received=1100 入力後 submit → payment_splits を含む payload が送信される", async () => {
     // TODO: depends on button add test
+    // EMR-253: waiting 会計の確定は PATCH ではなく POST /accountings/complete の
+    // takeover（billing_id 指定）を送る。
     let capturedBody: unknown;
     setupWaitingHandlers();
     server.use(
-      http.patch(`/api/v1/accountings/${WAITING_ID}`, async ({ request }) => {
+      http.post("/api/v1/accountings/complete", async ({ request }) => {
         capturedBody = await request.json();
         return HttpResponse.json({ ...waitingAccounting, status: "completed" });
       }),
@@ -388,6 +390,7 @@ describe("AccountingDetail — C: 混在支払い UI / payment_splits", () => {
     await waitFor(() => expect(capturedBody).toBeDefined());
 
     expect(capturedBody).toMatchObject({
+      billing_id: Number(WAITING_ID),
       payment_splits: [
         {
           method: "cash",

@@ -196,6 +196,9 @@ type completeAccountingItemRequest struct {
 // completeAccountingRequest は BUG-018 POST /accountings/complete の body。
 // client total は受け取らず server が items から再計算する。
 type completeAccountingRequest struct {
+	// BillingID は EMR-253: 既存 waiting billing の takeover 対象（退院作成会計の settle 経路）。
+	// 指定時は新規 INSERT せず当該行を FOR UPDATE でロックして in-place 確定する。
+	BillingID         *uint64                         `json:"billing_id" binding:"omitempty,min=1"`
 	MedicalRecordID   *uint64                         `json:"medical_record_id"`
 	HospitalizationID *uint64                         `json:"hospitalization_id"`
 	OwnerID           *uint64                         `json:"owner_id"`
@@ -225,6 +228,7 @@ func (r *completeAccountingRequest) toServiceInput(clinicID, staffID uint64, ide
 		ClinicID:                 clinicID,
 		StaffID:                  &staffID,
 		IdempotencyKey:           idempotencyKey,
+		BillingID:                r.BillingID,
 		MedicalRecordID:          r.MedicalRecordID,
 		HospitalizationID:        r.HospitalizationID,
 		OwnerID:                  r.OwnerID,

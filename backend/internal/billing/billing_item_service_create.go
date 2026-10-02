@@ -291,6 +291,15 @@ func (s *billingItemService) CreateItemForComplete(ctx context.Context, input *C
 	})
 }
 
+// DeleteItemsForComplete は EMR-253: takeover 対象 waiting billing の既存明細を一括削除する。
+// ambient tx（呼出し元の complete tx）に参加し、失敗時は呼出し側が全体 rollback する。
+func (s *billingItemService) DeleteItemsForComplete(ctx context.Context, clinicID, billingID uint64) error {
+	if err := s.repo.DeleteAllByBillingID(ctx, clinicID, billingID); err != nil {
+		return apperrors.Wrap(err, "failed to delete billing items for complete takeover")
+	}
+	return nil
+}
+
 // RecalculateTotalsForComplete は Complete 用に items から totals を再計算して billings に書く。
 func (s *billingItemService) RecalculateTotalsForComplete(ctx context.Context, clinicID, billingID uint64) (subtotal, taxTotal, totalAmount int64, err error) {
 	items, err := s.repo.FindByBillingID(ctx, clinicID, billingID)

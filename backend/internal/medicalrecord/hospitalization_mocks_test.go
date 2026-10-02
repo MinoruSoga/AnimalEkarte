@@ -45,12 +45,28 @@ func (m *mockReservationRepository) AssertMedicalRecordDoctorInClinic(ctx contex
 }
 
 type mockAccountingRepository struct {
-	createFn func(ctx context.Context, clinicID uint64, billing *model.Billing) error
+	createFn                  func(ctx context.Context, clinicID uint64, billing *model.Billing) error
+	findByHospitalizationIDFn func(ctx context.Context, clinicID, hospitalizationID uint64) (*model.Billing, error)
+	softDeleteCancelledFn     func(ctx context.Context, clinicID, id uint64) error
 }
 
 func (m *mockAccountingRepository) Create(ctx context.Context, clinicID uint64, billing *model.Billing) error {
 	if m.createFn != nil {
 		return m.createFn(ctx, clinicID, billing)
+	}
+	return nil
+}
+
+func (m *mockAccountingRepository) FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (*model.Billing, error) {
+	if m.findByHospitalizationIDFn != nil {
+		return m.findByHospitalizationIDFn(ctx, clinicID, hospitalizationID)
+	}
+	return nil, nil
+}
+
+func (m *mockAccountingRepository) SoftDeleteCancelled(ctx context.Context, clinicID, id uint64) error {
+	if m.softDeleteCancelledFn != nil {
+		return m.softDeleteCancelledFn(ctx, clinicID, id)
 	}
 	return nil
 }

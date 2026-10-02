@@ -305,6 +305,13 @@ func (cmd AccountingUpdate) toFields() map[string]any {
 	if cmd.CompletedAt != nil {
 		fields["completed_at"] = *cmd.CompletedAt
 	}
+	// EMR-253: takeover 確定時のみ設定（buildAccountingUpdate = 汎用 PATCH 経路は出さない）。
+	if cmd.CompletionRequestID != nil {
+		fields["completion_request_id"] = *cmd.CompletionRequestID
+	}
+	if cmd.CompletionRequestHash != nil {
+		fields["completion_request_hash"] = *cmd.CompletionRequestHash
+	}
 	return fields
 }
 

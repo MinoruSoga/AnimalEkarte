@@ -20,6 +20,7 @@ type mockBillingItemRepository struct {
 	createFn                      func(ctx context.Context, item *model.BillingItem) error
 	updateFieldsFn                func(ctx context.Context, clinicID, id uint64, cmd UpdateBillingItemInput) error
 	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
+	deleteAllByBillingIDFn        func(ctx context.Context, clinicID, billingID uint64) error
 	updateBillingTotals           func(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error
 	hasItemByOwnerSinceFn         func(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
 	hasFoodPurchaseByOwnerSinceFn func(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
@@ -40,6 +41,12 @@ func (m *mockBillingItemRepository) Update(ctx context.Context, clinicID, id uin
 }
 func (m *mockBillingItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
+}
+func (m *mockBillingItemRepository) DeleteAllByBillingID(ctx context.Context, clinicID, billingID uint64) error {
+	if m.deleteAllByBillingIDFn != nil {
+		return m.deleteAllByBillingIDFn(ctx, clinicID, billingID)
+	}
+	return nil
 }
 func (m *mockBillingItemRepository) UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error {
 	if m.updateBillingTotals != nil {

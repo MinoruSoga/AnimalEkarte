@@ -140,6 +140,11 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// snapshot as the INSERT it precedes; the post-rollback resolution call runs on the
 	// outer ctx via the same method.
 	"billing/accounting_repository_complete.go|accountingRepository.FindCompleteConflict": {},
+	// EMR-253 takeover/discharge-guard slot occupancy probe and cancelled-slot release: both run
+	// inside the caller's ambient transaction so the observed row / released slot is the same
+	// snapshot the subsequent UPDATE/INSERT operates on. Runtime: complete takeover + discharge tests.
+	"billing/accounting_repository_complete.go|accountingRepository.FindByHospitalizationID": {},
+	"billing/accounting_repository_complete.go|accountingRepository.SoftDeleteCancelled":     {},
 	// Audit writes deliberately require an already-open ambient transaction and call
 	// persistence.TxFromContext directly. The explicit expectation below prevents weakening
 	// this fail-closed contract back to fallback DBOrTx behavior.
@@ -156,11 +161,14 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/billing_confirmation_repository.go|billingConfirmationRepository.LockActiveStaffAssignment": {},
 	"billing/billing_confirmation_repository.go|billingConfirmationRepository.update":                    {},
 	// billing_item (R1-1)
-	"billing/billing_item_repository.go|billingItemRepository.Create":          {},
-	"billing/billing_item_repository.go|billingItemRepository.Delete":          {},
-	"billing/billing_item_repository.go|billingItemRepository.FindByBillingID": {},
-	"billing/billing_item_repository.go|billingItemRepository.FindByID":        {},
-	"billing/billing_item_repository.go|billingItemRepository.update":          {},
+	"billing/billing_item_repository.go|billingItemRepository.Create": {},
+	"billing/billing_item_repository.go|billingItemRepository.Delete": {},
+	// EMR-253 complete takeover item replacement: bulk soft-delete must join the caller's
+	// ambient tx so a partial failure rolls back delete+create together. Runtime: takeover tests.
+	"billing/billing_item_repository.go|billingItemRepository.DeleteAllByBillingID": {},
+	"billing/billing_item_repository.go|billingItemRepository.FindByBillingID":      {},
+	"billing/billing_item_repository.go|billingItemRepository.FindByID":             {},
+	"billing/billing_item_repository.go|billingItemRepository.update":               {},
 	// BUG-506 create runs only inside AccountingService.WithTx and requires the ambient tx.
 	// Runtime: billing_item_reference_repository_test.go and accounting Complete tests.
 	"billing/billing_item_service_create.go|billingItemService.createItemInAmbientTx": {},

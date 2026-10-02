@@ -191,6 +191,10 @@ type mockAccountingRepository struct {
 	findByCompletionRequestIDFn func(ctx context.Context, clinicID uint64, requestID string) (*model.Billing, error)
 	// EMR-66: medical_record / hospitalization 確定スロットの既存会計 lookup
 	findCompleteConflictFn func(ctx context.Context, clinicID uint64, medicalRecordID, hospitalizationID *uint64) (*model.Billing, error)
+	// EMR-253: takeover 解決の lock/lookup/release フック
+	lockAndFindByIDFn         func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
+	findByHospitalizationIDFn func(ctx context.Context, clinicID, hospitalizationID uint64) (*model.Billing, error)
+	softDeleteCancelledFn     func(ctx context.Context, clinicID, id uint64) error
 }
 
 func (m *mockAccountingRepository) FindAll(ctx context.Context, clinicID uint64, filters AccountingListFilters, page, limit int) ([]model.Billing, int64, error) {
@@ -216,6 +220,10 @@ func (m *mockAccountingRepository) FindByIDForClinics(_ context.Context, _ []uin
 }
 
 func (m *mockAccountingRepository) LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
+	// EMR-253: takeover テストは lock 済み行を findByIDFn の reload と区別できるよう専用フックを優先する。
+	if m.lockAndFindByIDFn != nil {
+		return m.lockAndFindByIDFn(ctx, clinicID, id)
+	}
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
 	}
@@ -255,6 +263,20 @@ func (m *mockAccountingRepository) FindCompleteConflict(ctx context.Context, cli
 		return m.findCompleteConflictFn(ctx, clinicID, medicalRecordID, hospitalizationID)
 	}
 	return nil, nil
+}
+
+func (m *mockAccountingRepository) FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (*model.Billing, error) {
+	if m.findByHospitalizationIDFn != nil {
+		return m.findByHospitalizationIDFn(ctx, clinicID, hospitalizationID)
+	}
+	return nil, nil
+}
+
+func (m *mockAccountingRepository) SoftDeleteCancelled(ctx context.Context, clinicID, id uint64) error {
+	if m.softDeleteCancelledFn != nil {
+		return m.softDeleteCancelledFn(ctx, clinicID, id)
+	}
+	return nil
 }
 
 func (m *mockAccountingRepository) FindUnpaidByBilling(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error) {

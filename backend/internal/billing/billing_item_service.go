@@ -201,6 +201,9 @@ type BillingItemService interface {
 	// CreateItemForComplete / RecalculateTotalsForComplete は BUG-018 Complete の ambient-tx collaborator。
 	CreateItemForComplete(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error)
 	RecalculateTotalsForComplete(ctx context.Context, clinicID, billingID uint64) (subtotal, taxTotal, totalAmount int64, err error)
+	// DeleteItemsForComplete は EMR-253 Complete takeover の ambient-tx collaborator。
+	// takeover 対象 waiting billing の既存明細を一括 soft-delete する（request items で置換する前提）。
+	DeleteItemsForComplete(ctx context.Context, clinicID, billingID uint64) error
 	UpdateItem(ctx context.Context, clinicID, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error)
 	// DeleteItem は明細を soft-delete する。
 	// input.StaffID は vaccination claim 解放監査 actor（BUG-440）および締め後編集監査 actor。

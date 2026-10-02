@@ -54,6 +54,11 @@ func (m *mockBillingItemService) RecalculateTotalsForComplete(_ context.Context,
 	return 0, 0, 0, nil
 }
 
+// DeleteItemsForComplete は EMR-253 takeover 用。handler テスト経路では呼ばれない。
+func (m *mockBillingItemService) DeleteItemsForComplete(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
 func (m *mockBillingItemService) UpdateItem(ctx context.Context, clinicID, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error) {
 	return m.updateItemFn(ctx, clinicID, id, input)
 }

@@ -21,8 +21,8 @@ export interface BackendAccountingItem extends BillingItem {
   subtotal?: number;
   /** 未請求候補など treatment 由来の親カルテ（仮想。DB 列ではない） */
   medical_record_id?: number;
-  /** EMR-246: 未請求候補の発生日（仮想。DB 列ではない）。当日/過去区分表示用 */
-  service_date?: string | null;
+  /** EMR-246: 未請求候補の発生日（仮想。DB 列ではない）。当日/過去区分表示用。BE は omitempty 付きのため null は返らない */
+  service_date?: string;
 }
 
 // BillingItem の更新リクエスト
@@ -69,6 +69,8 @@ export interface CompleteAccountingItemRequest {
 
 /** BUG-018: 原子的会計確定 command body（client total は送らない） */
 export interface CompleteAccountingRequest {
+  /** EMR-253: 既存 waiting billing の takeover 対象。指定時は新規 INSERT せず in-place で確定する。 */
+  billing_id?: number;
   pet_id: number;
   owner_id: number;
   medical_record_id?: number | null;

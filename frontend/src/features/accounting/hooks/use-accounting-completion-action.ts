@@ -145,6 +145,8 @@ function resolveCompleteMedicalRecordId(
 
 /** mutation 単位の Idempotency-Key を payload 指紋付きで保持する（失敗 retry で再利用）。 */
 function buildCompletePayloadFingerprint(parts: {
+  /** EMR-253: takeover 対象の billing id。同じ key を別 takeover 対象へ再利用させないため指紋に含める。 */
+  billingId?: number;
   petId: string | number;
   ownerId: string | number;
   medicalRecordId?: number;
@@ -343,6 +345,64 @@ export function useAccountingCompletionAction({
           queryClient.invalidateQueries({ queryKey: queryKeys.accountings.all() });
           toast.success("会計を登録・完了しました");
           navigate(paths.accounting.detail.getHref(created.id));
+        } else if (accounting.status === "waiting") {
+          // EMR-253: 退院作成などの既存 waiting 会計は generic PATCH（waiting→completed は BE 拒否）
+          // ではなく complete command の takeover で確定する。billing_id で対象行を指定し、
+          // BE はその行を in-place 更新して completed にする（新規 INSERT しない）。
+          const completeItems = toCompleteItems(displayItems);
+          const medicalRecordId = resolveCompleteMedicalRecordId(accounting, displayItems);
+          const scheduledDate = accounting.scheduledDate
+            ? jstDateStartISOString(accounting.scheduledDate)
+            : jstNowISOString();
+          const insuranceRatioValue = hasInsurance ? parseFloat(insuranceRatio) : null;
+          const insuranceAmountValue =
+            calculation.insuranceAmount !== 0 ? calculation.insuranceAmount : null;
+          const fingerprint = buildCompletePayloadFingerprint({
+            billingId: Number(accountingId),
+            petId: accounting.petId,
+            ownerId: accounting.ownerId,
+            medicalRecordId,
+            scheduledDate,
+            items: completeItems,
+            paymentSplits: builtSplits,
+            postCloseReason: postCloseReason || undefined,
+            insuranceRatio: insuranceRatioValue !== null ? String(insuranceRatioValue) : null,
+            insuranceAmount: insuranceAmountValue,
+          });
+          if (
+            completeIdempotencyKeyRef.current === null ||
+            completePayloadFingerprintRef.current !== fingerprint
+          ) {
+            completeIdempotencyKeyRef.current = createAccountingCompletionIdempotencyKey();
+            completePayloadFingerprintRef.current = fingerprint;
+          }
+          const idempotencyKey = completeIdempotencyKeyRef.current;
+          await completeAccounting(
+            {
+              billing_id: Number(accountingId),
+              pet_id: Number(accounting.petId),
+              owner_id: Number(accounting.ownerId),
+              medical_record_id: medicalRecordId ?? null,
+              hospitalization_id: accounting.hospitalizationId
+                ? Number(accounting.hospitalizationId)
+                : null,
+              // 対象行は既存 billing で「表示した未請求集約の版」は前提にできないため
+              // expected_unbilled_revision は送らない（BE は takeover 時に必須を免除する）。
+              scheduled_date: scheduledDate,
+              has_insurance: hasInsurance,
+              insurance_ratio: insuranceRatioValue,
+              insurance_amount: insuranceAmountValue,
+              items: completeItems,
+              payment_splits: builtSplits,
+              post_close_reason: postCloseReason || undefined,
+            },
+            idempotencyKey,
+          );
+          completeIdempotencyKeyRef.current = null;
+          completePayloadFingerprintRef.current = null;
+          setCompletedPayment(paymentInfo);
+          queryClient.invalidateQueries({ queryKey: queryKeys.accountings.all() });
+          toast.success("会計を完了しました");
         } else {
           // EMR-63: BE の merge セマンティクス（未送信フィールド=既存値保持）と整合するよう、
           // 保険フラグ・比率が取得値から変わっていない無変更時だけ保険フィールドを省略する。

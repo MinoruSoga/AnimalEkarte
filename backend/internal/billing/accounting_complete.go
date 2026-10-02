@@ -43,9 +43,13 @@ type CompleteAccountingItemInput struct {
 // CompleteAccountingInput は POST /accountings/complete のサービス入力。
 // clinic_id / actor は handler が認証 context から注入する。client total は受け取らない。
 type CompleteAccountingInput struct {
-	ClinicID          uint64
-	StaffID           *uint64
-	IdempotencyKey    string
+	ClinicID       uint64
+	StaffID        *uint64
+	IdempotencyKey string
+	// BillingID は EMR-253: 既存 waiting billing の takeover 対象。
+	// 指定時は新規 INSERT せず当該行を FOR UPDATE でロックして in-place 確定する。
+	// waiting 以外の行・他スロットの行を指す場合は 409。
+	BillingID         *uint64
 	MedicalRecordID   *uint64
 	HospitalizationID *uint64
 	OwnerID           *uint64
@@ -121,6 +125,9 @@ func (e *completeUniqueConflictError) Unwrap() error { return e.cause }
 // completeItemWriter は ambient tx 内で明細を作成する collaborator（WithTx を開始しない）。
 type completeItemWriter interface {
 	CreateItemForComplete(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error)
+	// DeleteItemsForComplete は EMR-253: takeover 対象 waiting billing の既存明細を一括削除する。
+	// request items が確定内容の権威のため、古い退院ケアプラン明細を残さない replace 戦略。
+	DeleteItemsForComplete(ctx context.Context, clinicID, billingID uint64) error
 }
 
 // completeTotalsWriter は ambient tx 内で totals を再計算して billings に書く collaborator。
@@ -240,7 +247,9 @@ func (s *accountingService) Complete(ctx context.Context, input *CompleteAccount
 	// EMR-196②: pet 指定の complete は表示した未請求集約の版を必須化する。
 	// 版なし通過を認めると stale 明細での確定を物理ブロックできない（fail-closed）。
 	// handler を迂回する呼び出し元にも不変条件を強制するため binding ではなく service で検証する。
-	if input.PetID != nil && input.ExpectedUnbilledRevision == "" {
+	// EMR-253: takeover（billing_id 明示）は対象が既存 billing で「表示した未請求集約」が前提に
+	// ならないため revision を必須としない（明示された場合は tx 内で照合する）。
+	if input.PetID != nil && input.ExpectedUnbilledRevision == "" && input.BillingID == nil {
 		return nil, apperrors.WrapInvalidInput("pet_id を指定する場合は expected_unbilled_revision が必要です")
 	}
 	if input.PetID == nil && input.ExpectedUnbilledRevision != "" {

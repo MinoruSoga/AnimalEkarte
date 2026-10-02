@@ -345,6 +345,16 @@ func (r *statefulAccountingRepo) Create(_ context.Context, _ uint64, billing *mo
 	return nil
 }
 
+// FindByHospitalizationID / SoftDeleteCancelled は EMR-253 の occupancy guard 用。
+// 本 fixture は「占有者なし」を返す（rollback テストは新規作成経路のまま挙動不変）。
+func (r *statefulAccountingRepo) FindByHospitalizationID(_ context.Context, _, _ uint64) (*model.Billing, error) {
+	return nil, nil
+}
+
+func (r *statefulAccountingRepo) SoftDeleteCancelled(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
 type statefulBillingItemRepo struct {
 	state *dischargePersistenceState
 }

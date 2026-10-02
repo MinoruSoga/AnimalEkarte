@@ -75,10 +75,20 @@ func TestComputeCompleteAccountingDigest_Deterministic(t *testing.T) {
 // ---- mock collaborator doubles ----
 
 type mockCompleteItemWriter struct {
-	calls    int
-	failAt   int // 1-based; 0 = never fail
-	failErr  error
-	createFn func(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error)
+	calls       int
+	failAt      int // 1-based; 0 = never fail
+	failErr     error
+	createFn    func(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error)
+	deleteCalls int
+	deleteFn    func(ctx context.Context, clinicID, billingID uint64) error
+}
+
+func (m *mockCompleteItemWriter) DeleteItemsForComplete(ctx context.Context, clinicID, billingID uint64) error {
+	m.deleteCalls++
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, clinicID, billingID)
+	}
+	return nil
 }
 
 func (m *mockCompleteItemWriter) CreateItemForComplete(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error) {
@@ -1370,6 +1380,10 @@ func (w *countingFailItemWriter) CreateItemForComplete(ctx context.Context, inpu
 		return nil, fmt.Errorf("injected failure at item %d", w.calls)
 	}
 	return w.inner.CreateItemForComplete(ctx, input)
+}
+
+func (w *countingFailItemWriter) DeleteItemsForComplete(ctx context.Context, clinicID, billingID uint64) error {
+	return w.inner.DeleteItemsForComplete(ctx, clinicID, billingID)
 }
 
 func mustDigest(input *CompleteAccountingInput) string {

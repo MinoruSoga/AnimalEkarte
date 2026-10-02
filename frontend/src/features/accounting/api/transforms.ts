@@ -102,6 +102,9 @@ export function transformToAccounting(data: BackendAccounting) {
     id: String(data.id ?? 0),
     clinicId: String(data.clinic_id),
     medicalRecordId: data.medical_record_id ? String(data.medical_record_id) : undefined,
+    // EMR-253: 退院作成 waiting 会計の takeover 確定で hospitalization_id を echo する。
+    // optional key に留めて既存の Accounting フィクスチャを壊さない。
+    ...(data.hospitalization_id ? { hospitalizationId: String(data.hospitalization_id) } : {}),
     ownerId: String(data.owner_id ?? 0),
     ownerName: data.owner?.name ?? "",
     petId: String(data.pet_id ?? 0),
