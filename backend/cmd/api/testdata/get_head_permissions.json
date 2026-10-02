@@ -3137,6 +3137,22 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/support/chat/exchanges",
+    "handler": "github.com/animal-ekarte/backend/internal/support.(*Handler).ListChatExchanges-fm",
+    "class": "global",
+    "resource": "none",
+    "action": "none",
+    "source": "internal/support/handler.go",
+    "routeExpression": "s.GET(\"/chat/exchanges\", h.ListChatExchanges)",
+    "handlerSource": "internal/support/chat.go",
+    "marker": "h.service.ListChatExchanges",
+    "authorization": "Authenticate middleware only; deliberate product decision — chat Q&A pairs are a shared board visible to all staff across all clinics (same model as bug reports)",
+    "scope": "all authenticated staff; all clinics",
+    "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
+    "verification": "global-contract; contract-exclusion-from-selected-clinic-grant; executed-handler:internal/support/chat_test.go#TestListChatExchangesHandler; executed-service:internal/support/service_test.go#TestListChatExchanges"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/support/chat/history",
     "handler": "github.com/animal-ekarte/backend/internal/support.(*Handler).ChatHistory-fm",
     "class": "self",

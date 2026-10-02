@@ -117,7 +117,9 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	// 534 — バグ報告の Plane 連携（手動起票/再送）と論理削除:
 	//   POST   /api/v1/support/bug-reports/:id/plane-ticket
 	//   DELETE /api/v1/support/bug-reports/:id
-	require.Len(t, routes, 534)
+	// 535 — EMR-262 共有チャット履歴ボード（全医院共有・質問+回答ペア）:
+	//   GET    /api/v1/support/chat/exchanges
+	require.Len(t, routes, 535)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /health/db",

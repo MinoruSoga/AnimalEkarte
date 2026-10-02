@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -282,6 +283,71 @@ func TestChatHistory(t *testing.T) {
 
 		c, rec := newRequest(t, http.MethodGet, "/api/v1/support/chat/history", nil, "")
 		h.ChatHistory(c)
+
+		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	})
+}
+
+func TestListChatExchangesHandler(t *testing.T) {
+	t.Run("returns question-answer pairs with provenance", func(t *testing.T) {
+		askedAt := time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
+		svc := &mockService{
+			listExchangesFn: func(_ context.Context) ([]ChatExchange, error) {
+				return []ChatExchange{
+					{
+						ClinicName: "テスト動物病院",
+						StaffName:  "林 文明",
+						UserMessage: model.SupportChatMessage{
+							ID: 10, Role: model.SupportChatRoleUser, Content: "締め方は？", CreatedAt: askedAt,
+						},
+						AssistantMessage: model.SupportChatMessage{
+							ID: 11, Role: model.SupportChatRoleAssistant, Content: "締めボタンから",
+							Sources: json.RawMessage(`[{"title":"画面別 会計","category":"screens","slug":"accounting"}]`),
+						},
+					},
+				}, nil
+			},
+		}
+		h := NewHandler(svc, nil, nil, nil, nil)
+
+		c, rec := newRequest(t, http.MethodGet, "/api/v1/support/chat/exchanges", nil, "")
+		h.ListChatExchanges(c)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+		var resp chatExchangeListResponse
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+		require.Len(t, resp.Data, 1)
+		assert.Equal(t, uint64(11), resp.Data[0].ID)
+		assert.Equal(t, "テスト動物病院", resp.Data[0].ClinicName)
+		assert.Equal(t, "林 文明", resp.Data[0].StaffName)
+		assert.Equal(t, "締め方は？", resp.Data[0].Question)
+		assert.Equal(t, "締めボタンから", resp.Data[0].Answer)
+		require.Len(t, resp.Data[0].Sources, 1)
+		assert.Equal(t, "画面別 会計", resp.Data[0].Sources[0].Title)
+	})
+
+	t.Run("returns empty list when service is nil", func(t *testing.T) {
+		h := NewHandler(nil, nil, nil, nil, nil)
+
+		c, rec := newRequest(t, http.MethodGet, "/api/v1/support/chat/exchanges", nil, "")
+		h.ListChatExchanges(c)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+		var resp chatExchangeListResponse
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+		assert.Empty(t, resp.Data)
+	})
+
+	t.Run("propagates service error", func(t *testing.T) {
+		svc := &mockService{
+			listExchangesFn: func(_ context.Context) ([]ChatExchange, error) {
+				return nil, errors.New("db down")
+			},
+		}
+		h := NewHandler(svc, nil, nil, nil, nil)
+
+		c, rec := newRequest(t, http.MethodGet, "/api/v1/support/chat/exchanges", nil, "")
+		h.ListChatExchanges(c)
 
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
 	})
