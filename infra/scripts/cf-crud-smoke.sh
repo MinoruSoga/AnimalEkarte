@@ -419,7 +419,7 @@ fi
 # =========================================================================
 # AC-11: UI mixed payment（明示 BLOCKED — スコープ外）
 # =========================================================================
-record "AC-11" BLOCKED "UI混在会計(§3〜§10)は本試行スコープ外。frontendのvercel.jsonプロキシがapi.stg.noah-karte.com(AWS)向きのためworkers.dev未接続 — P7-3へdefer"
+record "AC-11" BLOCKED "UI混在会計(§3〜§10)は本試行スコープ外 — P7-3へdefer（EMR-255 以降 frontend は stg.noah-karte.com の CF Worker 配信、/api は service binding 経由）"
 
 # =========================================================================
 # Summary

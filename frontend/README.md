@@ -208,14 +208,14 @@ import type { Owner } from "@/types/owner";
 ログイン画面のデモアカウント一覧は次だけで表示する。各医院の先頭（林 文明）は執行で catalog 全医院に所属し、残りは所属医院の一般。
 
 - ローカル Vite DEV（`import.meta.env.DEV`）
-- Vercel preview（STG。`frontend-deploy.yml` が `VERCEL_ENV=preview` を焼き込む）
+- STG ビルド（`frontend-deploy.yml` が `APP_ENV=stg` を渡し、`vite.config.ts` が `__VERCEL_ENV__="preview"` 定数へ写像する）
 
-本番（`VERCEL_ENV=production`）では出さない。ワンクリック入力のパスワードは
+本番ビルド（`APP_ENV=production`）では出さない。ワンクリック入力のパスワードは
 全デモ共通の `password`（コード固定。production の API は受け付けない）。
 
-STG の API は `https://api.stg.noah-karte.com/api`（CSP `connect-src` と一致）。
-`vite.config.ts` が `VERCEL_ENV=preview` のとき `VITE_API_URL` を define する。
-本番ビルドは `https://api.noah-karte.com/api`。ローカルは `VITE_API_URL=/api`。
+API は全環境 same-origin の `/api`（EMR-255 以降、frontend Worker の service binding が
+backend Worker へ中継する。`VITE_API_URL` の注入は廃止済み）。CSP `connect-src` の
+`api.stg`/`api` 絶対 origin は直接アクセス経路の残存許可。ローカルは `/api` を vite proxy が中継する。
 
 ## トラブルシューティング
 
