@@ -39,7 +39,7 @@ func (m *mockChat) Complete(_ context.Context, messages []ChatMessage) (string, 
 
 func TestChatStatus(t *testing.T) {
 	t.Run("enabled when chat completer is set", func(t *testing.T) {
-		h := NewHandler(nil, nil, nil, nil, &mockChat{}, nil)
+		h := NewHandler(nil, nil, nil, &mockChat{}, nil)
 		c, rec := newRequest(t, http.MethodGet, "/api/v1/support/chat/status", nil, "")
 		h.ChatStatus(c)
 		assert.Equal(t, http.StatusOK, rec.Code)
@@ -47,7 +47,7 @@ func TestChatStatus(t *testing.T) {
 	})
 
 	t.Run("disabled when chat completer is nil", func(t *testing.T) {
-		h := NewHandler(nil, nil, nil, nil, nil, nil)
+		h := NewHandler(nil, nil, nil, nil, nil)
 		c, rec := newRequest(t, http.MethodGet, "/api/v1/support/chat/status", nil, "")
 		h.ChatStatus(c)
 		assert.Equal(t, http.StatusOK, rec.Code)
@@ -168,7 +168,7 @@ func TestChat(t *testing.T) {
 			if !tt.disabled {
 				chat = tt.chat
 			}
-			h := NewHandler(nil, nil, nil, nil, chat, nil)
+			h := NewHandler(nil, nil, nil, chat, nil)
 
 			body := bytes.NewBufferString(tt.body)
 			c, rec := newRequest(t, http.MethodPost, "/api/v1/support/chat", body, "application/json")
@@ -202,7 +202,7 @@ func TestChatPersistsExchange(t *testing.T) {
 			return nil
 		},
 	}
-	h := NewHandler(svc, nil, nil, nil, &mockChat{reply: "回答です"}, nil)
+	h := NewHandler(svc, nil, nil, &mockChat{reply: "回答です"}, nil)
 
 	body := bytes.NewBufferString(`{
 		"message": "会計の締め方は？",
@@ -227,7 +227,7 @@ func TestChatSucceedsWhenPersistFails(t *testing.T) {
 			return errors.New("db down")
 		},
 	}
-	h := NewHandler(svc, nil, nil, nil, &mockChat{reply: "回答です"}, nil)
+	h := NewHandler(svc, nil, nil, &mockChat{reply: "回答です"}, nil)
 
 	body := bytes.NewBufferString(`{"message":"x"}`)
 	c, rec := newRequest(t, http.MethodPost, "/api/v1/support/chat", body, "application/json")
@@ -255,7 +255,7 @@ func TestChatHistory(t *testing.T) {
 				}, nil
 			},
 		}
-		h := NewHandler(svc, nil, nil, nil, nil, nil)
+		h := NewHandler(svc, nil, nil, nil, nil)
 
 		c, rec := newRequest(t, http.MethodGet, "/api/v1/support/chat/history", nil, "")
 		h.ChatHistory(c)
@@ -278,7 +278,7 @@ func TestChatHistory(t *testing.T) {
 				return nil, errors.New("db down")
 			},
 		}
-		h := NewHandler(svc, nil, nil, nil, nil, nil)
+		h := NewHandler(svc, nil, nil, nil, nil)
 
 		c, rec := newRequest(t, http.MethodGet, "/api/v1/support/chat/history", nil, "")
 		h.ChatHistory(c)
@@ -296,7 +296,7 @@ func TestClearChatHistory(t *testing.T) {
 				return nil
 			},
 		}
-		h := NewHandler(svc, nil, nil, nil, nil, nil)
+		h := NewHandler(svc, nil, nil, nil, nil)
 
 		c, rec := newRequest(t, http.MethodDelete, "/api/v1/support/chat/history", nil, "")
 		h.ClearChatHistory(c)
@@ -313,7 +313,7 @@ func TestClearChatHistory(t *testing.T) {
 				return errors.New("db down")
 			},
 		}
-		h := NewHandler(svc, nil, nil, nil, nil, nil)
+		h := NewHandler(svc, nil, nil, nil, nil)
 
 		c, rec := newRequest(t, http.MethodDelete, "/api/v1/support/chat/history", nil, "")
 		h.ClearChatHistory(c)

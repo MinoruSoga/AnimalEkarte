@@ -20,7 +20,9 @@ type BugReportResponse struct {
 	Status          string `json:"status"`
 	ReporterStaffID uint64 `json:"reporter_staff_id"`
 	ReporterName    string `json:"reporter_name"`
-	ScreenshotURL   string `json:"screenshot_url,omitempty"`
+	// ClinicName は報告元医院名。一覧のみ付与（全医院公開のため provenance として必要）。
+	ClinicName    string `json:"clinic_name,omitempty"`
+	ScreenshotURL string `json:"screenshot_url,omitempty"`
 	// PlaneIssueURL は起票済み Plane チケットの表示 URL（未起票なら省略）
 	PlaneIssueURL string `json:"plane_issue_url,omitempty"`
 	// PlaneSyncError は直近の Plane 起票失敗理由（成功・未試行なら省略）
@@ -34,7 +36,7 @@ type BugReportListResponse struct {
 	Data []BugReportResponse `json:"data"`
 }
 
-func toBugReportResponse(report *model.SupportBugReport, reporterName string) BugReportResponse {
+func toBugReportResponse(report *model.SupportBugReport, reporterName, clinicName string) BugReportResponse {
 	resp := BugReportResponse{
 		ID:              report.ID,
 		Title:           report.Title,
@@ -47,6 +49,7 @@ func toBugReportResponse(report *model.SupportBugReport, reporterName string) Bu
 		Status:          string(report.Status),
 		ReporterStaffID: report.ReporterStaffID,
 		ReporterName:    reporterName,
+		ClinicName:      clinicName,
 		CreatedAt:       httpapi.LocalTime(report.CreatedAt),
 		UpdatedAt:       httpapi.LocalTime(report.UpdatedAt),
 	}

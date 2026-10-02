@@ -142,7 +142,7 @@ flowchart LR
 | 臨床 | 検査受信 | /lab-device | LabDeviceBoard | ✅ | 未記録（現行在庫） | 1画面掲示板。本日診療中カルテカード＋日別受信一覧。確認ダイアログなし |
 | 設定/マスタ | Lステップ連携設定 | /settings/integrations/lstep | LstepSettingsPage | ✅ | 未記録（現行在庫） |  |
 | 設定/マスタ | Lステップタグ管理 | /settings/lstep/tags | LstepTagManagementPage | ✅ | 未記録（現行在庫） |  |
-| サポート | バグ報告一覧 | /settings/bug-reports | BugReportsPage | ✅ | pending（未実行） | 2026-09-26 追加（`48ec94c7`）。`ResourceHospitalSettings` ゲート、PageLayout 採用を 2026-09-29 に静的確認。E2E inventory 未登載 |
+| サポート | バグ報告一覧 | /settings/bug-reports | BugReportsPage | ✅ | pending（未実行） | 2026-09-26 追加（`48ec94c7`）。2026-10 に権限ゲート撤廃（全スタッフ・全医院公開の共有ボード — 意図的な製品判断）、PageLayout 採用を 2026-09-29 に静的確認。E2E inventory 未登載 |
 
 **脚注**:
 - runtime 履歴: 2026-07-23 の aggregate は 83 製品ページを対象とした。現行 87 route の route-level runtime 証跡ではない。現行 E2E inventory は 85 route template（protected 82）で `/examinations/new` と `/settings/bug-reports` が欠落し、scoped rerun も未実施。旧 92/92 や「expected pass」件数は現在の完了結果として使わない。

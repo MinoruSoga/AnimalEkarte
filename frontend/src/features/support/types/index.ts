@@ -17,6 +17,8 @@ export interface BugReport {
   status: BugReportStatus;
   reporter_staff_id: number;
   reporter_name: string;
+  /** 報告元医院名（一覧のみ付与 — 全医院共有ボードでの provenance 表示） */
+  clinic_name?: string;
   screenshot_url?: string;
   /** 起票済み Plane チケットの表示 URL（未起票なら未設定） */
   plane_issue_url?: string;

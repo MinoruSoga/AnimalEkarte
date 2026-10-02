@@ -54,7 +54,8 @@ export interface GroupCardConfig {
   description: string;
   IconComponent: LucideIcon;
   path: string;
-  resource: Resource;
+  /** 権限リソース。未設定 = 全認証スタッフに公開するカード（バグ報告など） */
+  resource?: Resource;
   countCategories: MasterSettingsCategory[];
 }
 
@@ -157,13 +158,13 @@ export const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
     resource: ResourceLabImport,
     countCategories: [],
   },
-  // サポートウィジェットのバグ報告一覧（settings-routes bug-reports と同権）
+  // バグ報告一覧は全スタッフ・全医院に公開する共有ボード — 意図的に resource なし
+  // （settings-routes の bug-reports も権限ゲートなし。製品フィードバック基盤としての製品判断）
   bugReports: {
     label: "バグ報告",
     description: "スタッフから送信されたバグ報告（スクリーンショット付き）を確認・対応します",
     IconComponent: Bug,
     path: "/settings/bug-reports",
-    resource: ResourceHospitalSettings,
     countCategories: [],
   },
 };
@@ -198,7 +199,8 @@ export function isGroupCardKey(key: MasterCardKey): key is GroupKey {
   return key in GROUP_CARD_CONFIG;
 }
 
-export function getResourceForCardKey(key: MasterCardKey): Resource {
+/** カードの権限リソース。undefined = 権限ゲートなし（全認証スタッフに公開） */
+export function getResourceForCardKey(key: MasterCardKey): Resource | undefined {
   if (isGroupCardKey(key)) {
     return GROUP_CARD_CONFIG[key].resource;
   }

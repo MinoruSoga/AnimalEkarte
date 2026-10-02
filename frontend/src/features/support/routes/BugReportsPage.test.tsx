@@ -4,16 +4,9 @@ import userEvent from "@testing-library/user-event";
 
 import type { BugReport } from "../types";
 
-const hasPermissionMock = vi.fn();
 const createTicketMutateMock = vi.fn();
 const deleteMutateMock = vi.fn();
 let reportsMock: BugReport[] = [];
-
-vi.mock("@/hooks/use-auth", () => ({
-  useAuth: () => ({
-    hasPermission: hasPermissionMock,
-  }),
-}));
 
 vi.mock("../api/get-bug-reports", () => ({
   useGetBugReports: () => ({ data: reportsMock, isLoading: false, isError: false }),
@@ -46,26 +39,29 @@ function makeReport(overrides: Partial<BugReport> = {}): BugReport {
     status: "open",
     reporter_staff_id: 5,
     reporter_name: "田中",
+    clinic_name: "さくら動物病院",
     created_at: "2026-10-01T00:00:00Z",
     updated_at: "2026-10-01T00:00:00Z",
     ...overrides,
   };
 }
 
-/** hospital-settings の view/edit/delete を権限有りにする（create は無し） */
-function grantAll() {
-  hasPermissionMock.mockImplementation(
-    (resource: string, action: string) =>
-      resource === "hospital-settings" && ["view", "edit", "delete"].includes(action),
-  );
-}
-
 beforeEach(() => {
-  hasPermissionMock.mockReset();
   createTicketMutateMock.mockReset();
   deleteMutateMock.mockReset();
   reportsMock = [makeReport()];
-  grantAll();
+});
+
+describe("BugReportsPage 一覧", () => {
+  it("全医院共有ボードとして医院列を表示し、権限チェックなしで描画する", () => {
+    // 権限ゲートは意図的に無い — useAuth/usePermission をモックせず全操作が描画される
+    render(<BugReportsPage />);
+
+    expect(screen.getByRole("columnheader", { name: "医院" })).toBeInTheDocument();
+    expect(screen.getByText("さくら動物病院")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "詳細: 受付でエラー" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "削除: 受付でエラー" })).toBeInTheDocument();
+  });
 });
 
 describe("BugReportsPage Plane 列", () => {
@@ -91,18 +87,6 @@ describe("BugReportsPage Plane 列", () => {
     expect(createTicketMutateMock).toHaveBeenCalledWith(7);
   });
 
-  it("edit 権限がないと再送ボタンを出さない（起票失敗の表示は残る）", () => {
-    hasPermissionMock.mockImplementation(
-      (resource: string, action: string) =>
-        resource === "hospital-settings" && ["view", "delete"].includes(action),
-    );
-    reportsMock = [makeReport({ plane_sync_error: "plane api error (status 500)" })];
-    render(<BugReportsPage />);
-
-    expect(screen.getByText("起票失敗")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "再送" })).not.toBeInTheDocument();
-  });
-
   it("Plane 情報がない報告は ― を表示する", () => {
     render(<BugReportsPage />);
 
@@ -112,7 +96,7 @@ describe("BugReportsPage Plane 列", () => {
 });
 
 describe("BugReportsPage 削除", () => {
-  it("delete 権限があると削除ボタンを表示し、確認ダイアログ経由で削除する", async () => {
+  it("削除ボタンを表示し、確認ダイアログ経由で削除する", async () => {
     const user = userEvent.setup();
     reportsMock = [makeReport({ id: 7 })];
     render(<BugReportsPage />);
@@ -124,15 +108,5 @@ describe("BugReportsPage 削除", () => {
 
     await user.click(screen.getByRole("button", { name: "削除する" }));
     expect(deleteMutateMock).toHaveBeenCalledWith(7, expect.anything());
-  });
-
-  it("delete 権限がないと削除ボタンを出さない", () => {
-    hasPermissionMock.mockImplementation(
-      (resource: string, action: string) =>
-        resource === "hospital-settings" && ["view", "edit"].includes(action),
-    );
-    render(<BugReportsPage />);
-
-    expect(screen.queryByRole("button", { name: "削除: 受付でエラー" })).not.toBeInTheDocument();
   });
 });

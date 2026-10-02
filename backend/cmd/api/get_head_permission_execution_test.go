@@ -200,7 +200,7 @@ func TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB(t *testing.T) {
 func TestGETHEADPublicLiffSelfAreNotSelectedClinicGrantSurfaces(t *testing.T) {
 	for _, entry := range readGETHEADInventory(t) {
 		switch entry.Class {
-		case "public", "liff", "self":
+		case "public", "liff", "self", "global":
 			require.Equal(t, "none", entry.Resource, entry.Path)
 			require.Equal(t, "none", entry.Action, entry.Path)
 		case "shared-master", "clinic-fixed", "cross-clinic":

@@ -56,7 +56,7 @@ func readGETHEADInventory(t *testing.T) []getHEADInventoryEntry {
 		require.False(t, seen[key], "duplicate inventory row: %s", key)
 		seen[key] = true
 		require.Contains(t, []string{"GET", "HEAD"}, entry.Method, key)
-		require.Contains(t, []string{"public", "liff", "self", "clinic-fixed", "cross-clinic", "shared-master"}, entry.Class, key)
+		require.Contains(t, []string{"public", "liff", "self", "clinic-fixed", "cross-clinic", "shared-master", "global"}, entry.Class, key)
 		for field, value := range map[string]string{
 			"handler": entry.Handler, "resource": entry.Resource, "action": entry.Action,
 			"source": entry.Source, "handlerSource": entry.HandlerSource, "marker": entry.Marker,
@@ -195,6 +195,10 @@ func TestGETHEADInventoryVerificationMentionsExecutedTests(t *testing.T) {
 			require.Contains(t, entry.Verification, "TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB", key)
 		case "public", "liff", "self":
 			require.Contains(t, entry.Verification, "contract-exclusion-from-selected-clinic-grant", key)
+		case "global":
+			// 全認証スタッフ・全医院に開く共有リソース（権限モデルの外側）。 deliberate
+			// product 判断を verification 文字列で明示する。
+			require.Contains(t, entry.Verification, "global-contract", key)
 		case "shared-master":
 			require.Contains(t, entry.Verification, "shared-master-contract", key)
 		}

@@ -75,7 +75,7 @@ flowchart LR
 | `Lstep*` settings/tags/csv/delivery counters | lstep tables | `lstep` | |
 | `OwnerIdentityGroup*`, `PetIdentityGroup*` | identity group tables | `identitylink` | No Go import of owner/pet packages |
 | `ManualArticle`, `ManualArticleVersion` | manual tables | `manualarticle` | |
-| `SupportBugReport`, `SupportChatMessage` | `support_bug_reports`, `support_chat_messages` | `support` | サポートウィジェット（2026-09-26 実装追加の 15 番目 domain）。bug report は `clinic_id`×`reporter_staff_id`、chat history は `clinic_id`×`staff_id` スコープ。管理 list/status 操作は `hospital-settings` 権限を流用 |
+| `SupportBugReport`, `SupportChatMessage` | `support_bug_reports`, `support_chat_messages` | `support` | サポートウィジェット（2026-09-26 実装追加の 15 番目 domain）。bug report は `clinic_id`×`reporter_staff_id` を provenance として記録するが **全医院共有ボード**（2026-10 の製品判断で権限ゲート・医院絞りを意図的に撤廃 — 全スタッフが全医院の報告を一覧・更新・削除・Plane 起票できる）。chat history は `clinic_id`×`staff_id` スコープを維持 |
 | `AuditLog` | `audit_logs` | `audit` (cross-cutting) | Prefer `LogEntryTx` with ambient tx when integrity requires fail-closed |
 
 ### Explicit non-owners (do not write these tables from other domains)

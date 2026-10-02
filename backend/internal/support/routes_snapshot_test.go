@@ -15,10 +15,7 @@ import (
 func TestRegisterRoutes_Snapshot(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	noopPermission := func(_, _ string) gin.HandlerFunc {
-		return func(c *gin.Context) {}
-	}
-	h := NewHandler(nil, nil, nil, noopPermission, nil, nil)
+	h := NewHandler(nil, nil, nil, nil, nil)
 
 	r := gin.New()
 	api := r.Group("/api/v1")

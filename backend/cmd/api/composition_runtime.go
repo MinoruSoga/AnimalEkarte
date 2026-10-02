@@ -588,7 +588,6 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 		support.NewService(support.NewRepository(c.db), c.planeTickets),
 		uploader,
 		supportAuditAdapter{logger: c.audit},
-		c.auth.Handler.RequirePermission,
 		c.supportChat,
 		middleware.RateLimit(
 			middleware.NewRateLimitStore(ctx),

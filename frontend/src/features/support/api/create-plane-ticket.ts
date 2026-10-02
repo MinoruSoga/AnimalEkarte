@@ -1,7 +1,7 @@
 /**
- * create-plane-ticket.ts — バグ報告の Plane 起票（手動再送）API（管理者向け）
+ * create-plane-ticket.ts — バグ報告の Plane 起票（手動再送）API（全スタッフ公開）
  *
- * POST /v1/support/bug-reports/:id/plane-ticket（hospital-settings:edit 権限）
+ * POST /v1/support/bug-reports/:id/plane-ticket（認証済みスタッフ全員 — 他医院の報告も対象）
  * 自動起票に失敗した報告の再送経路。起票済みなら現在の状態を返す冪等操作。
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";

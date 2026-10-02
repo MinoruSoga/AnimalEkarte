@@ -1,7 +1,7 @@
 /**
- * delete-bug-report.ts — バグ報告削除 API（管理者向け）
+ * delete-bug-report.ts — バグ報告削除 API（全スタッフ公開）
  *
- * DELETE /v1/support/bug-reports/:id（hospital-settings:delete 権限）
+ * DELETE /v1/support/bug-reports/:id（認証済みスタッフ全員 — 他医院の報告も対象）
  * 論理削除 + 添付スクショのオブジェクト削除（best-effort）。
  * Plane 側の既起票チケットは残る。
  */

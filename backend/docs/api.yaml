@@ -10014,7 +10014,7 @@ components:
           type: string
     SupportBugReport:
       type: object
-      description: サポートウィジェットからのバグ報告(医院スコープ)。
+      description: サポートウィジェットからのバグ報告(全医院共有の製品フィードバック — 医院スコープではなく provenance として clinic_id/clinic_name を保持)。
       properties:
         id: { type: integer, format: int64 }
         title: { type: string }
@@ -10027,6 +10027,9 @@ components:
         status: { type: string, enum: [open, resolved] }
         reporter_staff_id: { type: integer, format: int64 }
         reporter_name: { type: string }
+        clinic_name:
+          type: string
+          description: 報告元医院名(一覧のみ付与)。全医院一覧での provenance。
         screenshot_url:
           type: string
           description: 署名付き URL(15分 TTL)。スクショなし・署名失敗時は省略。
@@ -25888,8 +25891,11 @@ paths:
   /support/bug-reports:
     get:
       operationId: listSupportBugReports
-      summary: 自医院のバグ報告一覧(新しい順)
-      description: hospital-settings view 権限が必要。スクショは署名付き URL(15分 TTL)で返す。
+      summary: 全医院のバグ報告一覧(新しい順)
+      description: |
+        認証済みスタッフ全員が利用可能(権限ゲート・医院絞りなし — バグ報告は
+        全医院共有の製品フィードバック基盤として意図的に開放)。新しい順に
+        最大200件。スクショは署名付き URL(15分 TTL)で返す。
       tags: [Support]
       responses:
         '200':
@@ -25904,7 +25910,6 @@ paths:
                     items:
                       $ref: '#/components/schemas/SupportBugReport'
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
         '500': { $ref: '#/components/responses/InternalError' }
     post:
       operationId: createSupportBugReport
@@ -25946,7 +25951,7 @@ paths:
     patch:
       operationId: updateSupportBugReportStatus
       summary: バグ報告の対応状況を更新
-      description: hospital-settings edit 権限が必要。status は open/resolved。
+      description: 認証済みスタッフ全員が利用可能(他医院の報告も対象)。status は open/resolved。
       tags: [Support]
       parameters:
         - name: id
@@ -25971,7 +25976,6 @@ paths:
                 $ref: '#/components/schemas/SupportBugReport'
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/InternalError' }
   /support/bug-reports/{id}/plane-ticket:
@@ -25979,11 +25983,11 @@ paths:
       operationId: createSupportBugReportPlaneTicket
       summary: バグ報告を Plane ワークアイテムとして起票(手動再送を兼ねる)
       description: |
-        hospital-settings edit 権限が必要。報告作成時の自動起票が失敗した場合の
-        手動再送経路でもある。既に起票済み(plane_issue_url あり)なら現在の状態を
-        そのまま返す冪等操作。external_source+external_id で報告と Plane 側を対応付ける。
-        PLANE_API_KEY 未設定の環境では 501。Plane 側エラーは 502 で返し、
-        失敗理由は plane_sync_error に記録される。
+        認証済みスタッフ全員が利用可能(他医院の報告も対象)。報告作成時の自動起票が
+        失敗した場合の手動再送経路でもある。既に起票済み(plane_issue_url あり)なら
+        現在の状態をそのまま返す冪等操作。external_source+external_id で報告と
+        Plane 側を対応付ける。PLANE_API_KEY 未設定の環境では 501。Plane 側エラーは
+        502 で返し、失敗理由は plane_sync_error に記録される。
       tags: [Support]
       parameters:
         - name: id
@@ -25998,7 +26002,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/SupportBugReport'
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '501': { description: Plane 連携が未設定(PLANE_API_KEY なし) }
         '502': { description: Plane 上流エラー(詳細は返さず plane_sync_error に記録) }
@@ -26008,9 +26011,9 @@ paths:
       operationId: deleteSupportBugReport
       summary: バグ報告を削除(論理削除 + 添付スクショのオブジェクト削除)
       description: |
-        hospital-settings delete 権限が必要。deleted_at を設定する論理削除で、
-        一覧・詳細からは除外される。添付スクリーンショットのオブジェクトは
-        best-effort で削除する（失敗時は孤立オブジェクトが残るのみ）。
+        認証済みスタッフ全員が利用可能(他医院の報告も対象)。deleted_at を設定する
+        論理削除で、一覧・詳細からは除外される。添付スクリーンショットの
+        オブジェクトは best-effort で削除する（失敗時は孤立オブジェクトが残るのみ）。
         削除しても Plane 側の既起票チケットは残る。
       tags: [Support]
       parameters:
@@ -26021,6 +26024,5 @@ paths:
       responses:
         '204': { description: 削除完了 }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/InternalError' }

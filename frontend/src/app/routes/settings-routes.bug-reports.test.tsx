@@ -1,40 +1,15 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
-import { AuthContext } from "@/hooks/auth-context";
-import type { AuthContextValue } from "@/types/auth";
+import { describe, expect, it } from "vitest";
 import { settingsRoute } from "./settings-routes";
 
-const CLINIC_ID = "clinic-test-1";
-
-function buildAuthContext(hasPermission: AuthContextValue["hasPermission"]): AuthContextValue {
-  return {
-    user: null,
-    currentClinicId: CLINIC_ID,
-    isAuthenticated: true,
-    isLoading: false,
-    login: async () => {},
-    logout: async () => {},
-    switchClinic: () => {},
-    hasPermission,
-    refreshPermissions: async () => {},
-  };
-}
-
-describe("/settings/bug-reports — RBAC guard", () => {
-  it("hospital-settings:view がない場合は拒否する", () => {
-    const hasPermission = vi.fn<AuthContextValue["hasPermission"]>(
-      (resource, action) => resource === "master-staff" && action === "view",
-    );
+describe("/settings/bug-reports — 全スタッフ公開", () => {
+  it("権限ゲート（RequirePermission）なしの lazy ルートである", () => {
+    // バグ報告は全医院共有の製品フィードバック基盤として意図的に権限フリー —
+    // element ベースのガードを持たず、lazy でページを直接解決する。
     const bugReportsRoute = settingsRoute.children?.find((route) => route.path === "bug-reports");
 
     expect(bugReportsRoute).toBeDefined();
-    render(
-      <AuthContext.Provider value={buildAuthContext(hasPermission)}>
-        {bugReportsRoute?.element}
-      </AuthContext.Provider>,
-    );
-
-    expect(hasPermission).toHaveBeenCalledWith("hospital-settings", "view");
-    expect(screen.getByText("アクセス権限がありません")).toBeInTheDocument();
+    expect(bugReportsRoute?.lazy).toBeTypeOf("function");
+    expect(bugReportsRoute?.element).toBeUndefined();
+    expect(bugReportsRoute?.children).toBeUndefined();
   });
 });
