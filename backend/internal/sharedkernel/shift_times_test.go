@@ -63,6 +63,40 @@ func TestValidateShiftTimes_RequiredForWorkingShifts(t *testing.T) {
 	})
 }
 
+// EMR-241: 時刻が不要な区分（off / paid_leave）でも「片方だけ」の時刻指定は
+// 半分欠けたレコードが永続化されるため拒否する。両方 nil のみ許容し、
+// 両方指定された場合は従来どおり時刻フィールドを無視して受理する。
+func TestValidateShiftTimes_OneSidedRejectedForNonWorkingShifts(t *testing.T) {
+	start := "09:00:00"
+	end := "18:00:00"
+
+	nonWorkingTypes := []struct {
+		name      string
+		shiftType model.ShiftType
+	}{
+		{name: "off", shiftType: model.ShiftTypeOff},
+		{name: "paid_leave", shiftType: model.ShiftTypePaidLeave},
+	}
+
+	for _, nt := range nonWorkingTypes {
+		t.Run(nt.name+" rejects one-sided times (start only)", func(t *testing.T) {
+			err := ValidateShiftTimes(nt.shiftType, &start, nil)
+			require.Error(t, err)
+			assert.True(t, apperrors.IsInvalidInput(err))
+		})
+
+		t.Run(nt.name+" rejects one-sided times (end only)", func(t *testing.T) {
+			err := ValidateShiftTimes(nt.shiftType, nil, &end)
+			require.Error(t, err)
+			assert.True(t, apperrors.IsInvalidInput(err))
+		})
+
+		t.Run(nt.name+" allows both-absent times", func(t *testing.T) {
+			assert.NoError(t, ValidateShiftTimes(nt.shiftType, nil, nil))
+		})
+	}
+}
+
 // EMR-241: RequiresTimeSlot の区分判定をピンする。off / paid_leave だけが
 // 時刻任意で、それ以外の勤務区分（full / morning / afternoon）は両時刻必須。
 func TestRequiresTimeSlot(t *testing.T) {

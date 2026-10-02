@@ -53,9 +53,14 @@ func RequiresTimeSlot(shiftType model.ShiftType) bool {
 	}
 }
 
-// ValidateShiftTimes はシフト種別に応じた開始/終了時刻の整合を検証する（BUG-028 / BUG-036）。
+// ValidateShiftTimes はシフト種別に応じた開始/終了時刻の整合を検証する（BUG-028 / BUG-036 / EMR-241）。
+// start_time / end_time は両方指定するか両方省略するかのどちらかのみ許容する。
+// 片方のみの指定は off・paid_leave を含む全 ShiftType で拒否する。
 // off・paid_leave 以外では start_time と end_time の両方が必須。
 func ValidateShiftTimes(shiftType model.ShiftType, startTime, endTime *string) error {
+	if (startTime == nil) != (endTime == nil) {
+		return apperrors.Wrap(apperrors.ErrInvalidInput, "start_time and end_time must both be provided or both be omitted")
+	}
 	if !RequiresTimeSlot(shiftType) {
 		return nil
 	}

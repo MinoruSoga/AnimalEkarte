@@ -7,6 +7,8 @@
 > **EMR-249**: `POST /api/v1/checkup-package-imports[/preview]` import API は
 > 削除された。投入・修正は健診タイプ/項目のマスタ CRUD
 > （`/api/v1/masters/checkup-types*`、EMR-225）で行う。
+> 権限リソース `checkup-package-import` も API 削除に伴い廃止済み
+> （`AllResources`・default seed から除去、残存行は migration 019 で削除）。
 > 既存医院の投入済みデータと `checkup_package_import_receipts` の
 > 適用履歴はこの変更の影響を受けない。
 

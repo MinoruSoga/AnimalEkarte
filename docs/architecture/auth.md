@@ -67,11 +67,11 @@ flowchart TB
 
 ## 3. 全リソース・キー一覧 (Verified)
 
-実装コード (`backend/internal/model/permission.go` の `AllResources`) に定義されている全 37 リソースキーです。
+実装コード (`backend/internal/model/permission.go` の `AllResources`) に定義されている全 36 リソースキーです。
 
 | カテゴリ | リソースキー | 管理対象 |
 |:---|:---|:---|
-| **臨床コア** | `reception`, `owners`, `reservations`, `medical-records`, `hospitalization`, `trimming`, `examinations`, `examination-unconfirm`, `vaccinations`, `checkups`, `checkup-package-import`, `lab-import` | 受付、飼主、予約、カルテ、入院、トリミング、検査、検査確定解除、ワクチン、健診、健診パッケージ取込、外部検査結果インポート。 |
+| **臨床コア** | `reception`, `owners`, `reservations`, `medical-records`, `hospitalization`, `trimming`, `examinations`, `examination-unconfirm`, `vaccinations`, `checkups`, `lab-import` | 受付、飼主、予約、カルテ、入院、トリミング、検査、検査確定解除、ワクチン、健診、外部検査結果インポート。 |
 | **会計・経営** | `accounting`, `accounting-cancel`, `accounting-post-close-edit`, `cash-register-close`, `accounting-reports`, `discount`, `closing-settings`, `master-payment-method` | 会計、会計キャンセル、締め後編集、レジ締め、売上レポート、値引操作、締め時間設定、支払方法。 |
 | **物流・管理** | `inventory`, `estimates`, `shifts`, `hospital-settings` | 在庫、見積書、シフト、医院基本設定。 |
 | **マスタ設定** | `master-animal-species`, `master-medical`, `master-reservation-type`, `master-hospitalization`, `master-trimming`, `master-permission`, `master-staff`, `master-insurance`, `master-merchandise` | 各種定義データの管理。 |

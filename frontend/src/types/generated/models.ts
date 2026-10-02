@@ -315,10 +315,6 @@ export const AuditActionLabImportRevertSucceeded = "lab_import.revert.succeeded"
  */
 export const AuditActionCheckupFieldResultReplace = "checkup_field_result.replace";
 /**
- * TASK-374 / #211: 健診 package の versioned clinic-scoped import apply
- */
-export const AuditActionCheckupPackageImportApply = "checkup_package_import.apply";
-/**
  * BE-refactor.md R1-2 (D1): 検査結果値（exam_results）の置換（既存削除を伴う PUT）監査アクション。
  * checkup_field_result と同型の tx 内 fail-closed 監査。
  */
@@ -362,7 +358,7 @@ export const AuditActionStaffAccountAttach = "staff.account.attach";
 /**
  * 監査アクション定数
  */
-export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionStaffPermissionGroupsReplace | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionAuthPasswordChange | typeof AuditActionAuthPasswordReset | typeof AuditActionAuthPasswordAdminReplace | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionReservationNoShow | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionTrimmingCreate | typeof AuditActionTrimmingUpdate | typeof AuditActionTrimmingDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionBillingVaccinationClaimRelease | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionLabImportRevertSucceeded | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionCheckupPackageImportApply | typeof AuditActionExamResultReplace | typeof AuditActionExaminationCreate | typeof AuditActionExaminationUpdate | typeof AuditActionExaminationConfirm | typeof AuditActionExaminationUnconfirm | typeof AuditActionExaminationDelete | typeof AuditActionClinicalPlanUpdate | typeof AuditActionClinicalPlanDelete | typeof AuditActionPetOwnerReplace | typeof AuditActionHospitalizationDischargeWithBilling | typeof AuditActionOwnerIdentityLinkCreate | typeof AuditActionOwnerIdentityLinkAdd | typeof AuditActionOwnerIdentityLinkUnlink | typeof AuditActionPetIdentityLinkCreate | typeof AuditActionPetIdentityLinkAdd | typeof AuditActionPetIdentityLinkUnlink | typeof AuditActionStaffProvisionCreate | typeof AuditActionStaffProvisionReceipt | typeof AuditActionStaffAccountAttach;
+export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionStaffPermissionGroupsReplace | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionAuthPasswordChange | typeof AuditActionAuthPasswordReset | typeof AuditActionAuthPasswordAdminReplace | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionReservationNoShow | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionTrimmingCreate | typeof AuditActionTrimmingUpdate | typeof AuditActionTrimmingDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionBillingVaccinationClaimRelease | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionLabImportRevertSucceeded | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionExamResultReplace | typeof AuditActionExaminationCreate | typeof AuditActionExaminationUpdate | typeof AuditActionExaminationConfirm | typeof AuditActionExaminationUnconfirm | typeof AuditActionExaminationDelete | typeof AuditActionClinicalPlanUpdate | typeof AuditActionClinicalPlanDelete | typeof AuditActionPetOwnerReplace | typeof AuditActionHospitalizationDischargeWithBilling | typeof AuditActionOwnerIdentityLinkCreate | typeof AuditActionOwnerIdentityLinkAdd | typeof AuditActionOwnerIdentityLinkUnlink | typeof AuditActionPetIdentityLinkCreate | typeof AuditActionPetIdentityLinkAdd | typeof AuditActionPetIdentityLinkUnlink | typeof AuditActionStaffProvisionCreate | typeof AuditActionStaffProvisionReceipt | typeof AuditActionStaffAccountAttach;
 export const AuditResourceAccount = "account";
 export const AuditResourceStaff = "staff";
 export const AuditResourceLabImport = "lab_import";
@@ -376,10 +372,6 @@ export const AuditResourceTreatmentDose = "treatment_dose";
  * #211 健診パッケージ型付き結果値の置換（既存削除を伴う）監査
  */
 export const AuditResourceCheckupFieldResult = "checkup_field_result";
-/**
- * TASK-374 / #211: 健診 package import provenance / apply 監査
- */
-export const AuditResourceCheckupPackageImport = "checkup_package_import";
 /**
  * BE-refactor.md R1-2: 検査結果値の置換（既存削除を伴う）監査
  */
@@ -410,7 +402,7 @@ export const AuditResourceStaffProvisionBatch = "staff_provision_batch";
 /**
  * audit_logs.resource 定数
  */
-export type AuditResource = typeof AuditResourceAccount | typeof AuditResourceStaff | typeof AuditResourceLabImport | typeof AuditResourceMedicineDoseParam | typeof AuditResourceMedicine | typeof AuditResourceTreatmentDose | typeof AuditResourceCheckupFieldResult | typeof AuditResourceCheckupPackageImport | typeof AuditResourceExamResult | typeof AuditResourceExamination | typeof AuditResourceClinicalPlan | typeof AuditResourceReservation | typeof AuditResourceHospitalization | typeof AuditResourceTrimming | typeof AuditResourceCarePlanItem | typeof AuditResourceIdentityLink | typeof AuditResourceStaffProvisionBatch;
+export type AuditResource = typeof AuditResourceAccount | typeof AuditResourceStaff | typeof AuditResourceLabImport | typeof AuditResourceMedicineDoseParam | typeof AuditResourceMedicine | typeof AuditResourceTreatmentDose | typeof AuditResourceCheckupFieldResult | typeof AuditResourceExamResult | typeof AuditResourceExamination | typeof AuditResourceClinicalPlan | typeof AuditResourceReservation | typeof AuditResourceHospitalization | typeof AuditResourceTrimming | typeof AuditResourceCarePlanItem | typeof AuditResourceIdentityLink | typeof AuditResourceStaffProvisionBatch;
 /**
  * care plan item destructive actions (MRA-01)
  */
@@ -2898,11 +2890,7 @@ export const ResourceLabImport = "lab-import";
  * #239: 医院別 owner/pet を残したままの identity link（view / edit 分離・fail-closed default）
  */
 export const ResourceIdentityLinks = "identity-links";
-/**
- * TASK-374 / #211: 健診 package versioned import（default-deny）
- */
-export const ResourceCheckupPackageImport = "checkup-package-import";
-export type Resource = typeof ResourceReception | typeof ResourceOwners | typeof ResourceReservations | typeof ResourceMedicalRecords | typeof ResourceHospitalization | typeof ResourceTrimming | typeof ResourceExaminations | typeof ResourceExaminationUnconfirm | typeof ResourceAccounting | typeof ResourceVaccinations | typeof ResourceCheckups | typeof ResourceInventory | typeof ResourceEstimates | typeof ResourceShifts | typeof ResourceHospitalSettings | typeof ResourceMasterAnimalSpecies | typeof ResourceMasterMedical | typeof ResourceMasterReservationType | typeof ResourceMasterHospitalization | typeof ResourceMasterTrimming | typeof ResourceMasterPermission | typeof ResourceMasterStaff | typeof ResourceMasterInsurance | typeof ResourceMasterMerchandise | typeof ResourceDiscount | typeof ResourceCashRegisterClose | typeof ResourceAccountingReports | typeof ResourceClosingSettings | typeof ResourcePaymentMethod | typeof ResourceLstepCsvImport | typeof ResourceLstepAnalytics | typeof ResourceManualEdit | typeof ResourceAccountingCancel | typeof ResourceAccountingPostCloseEdit | typeof ResourceLabImport | typeof ResourceIdentityLinks | typeof ResourceCheckupPackageImport;
+export type Resource = typeof ResourceReception | typeof ResourceOwners | typeof ResourceReservations | typeof ResourceMedicalRecords | typeof ResourceHospitalization | typeof ResourceTrimming | typeof ResourceExaminations | typeof ResourceExaminationUnconfirm | typeof ResourceAccounting | typeof ResourceVaccinations | typeof ResourceCheckups | typeof ResourceInventory | typeof ResourceEstimates | typeof ResourceShifts | typeof ResourceHospitalSettings | typeof ResourceMasterAnimalSpecies | typeof ResourceMasterMedical | typeof ResourceMasterReservationType | typeof ResourceMasterHospitalization | typeof ResourceMasterTrimming | typeof ResourceMasterPermission | typeof ResourceMasterStaff | typeof ResourceMasterInsurance | typeof ResourceMasterMerchandise | typeof ResourceDiscount | typeof ResourceCashRegisterClose | typeof ResourceAccountingReports | typeof ResourceClosingSettings | typeof ResourcePaymentMethod | typeof ResourceLstepCsvImport | typeof ResourceLstepAnalytics | typeof ResourceManualEdit | typeof ResourceAccountingCancel | typeof ResourceAccountingPostCloseEdit | typeof ResourceLabImport | typeof ResourceIdentityLinks;
 
 //////////
 // source: permission_group.go
