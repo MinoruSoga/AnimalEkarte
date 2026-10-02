@@ -960,12 +960,13 @@ owner 詳細の LINE 連携カード群（1 操作 1 endpoint の小フォーム
 | line_user_id | LINE ユーザー ID | O | string/null | PATCH `/owners/{id}/line-user-id`。`null` で連携解除 | F4 F5 F6 |
 | caution | 配信注意フラグ | R | boolean | PATCH `/owners/{id}/delivery-caution` | F4 F5 |
 | reason | 注意理由 | C | text | delivery-caution 送信時。caution=true 時の必須性は要実測 | F1 F6 |
-| excluded | 配信除外フラグ | R | boolean | PATCH `/owners/{id}/delivery-exclusion` | F4 F5 |
-| reason | 除外理由 | C | text | delivery-exclusion 送信時。同上 | F1 F6 |
+| excluded | 配信除外フラグ（LSTEP 配信の停止/再開） | R | boolean | PATCH `/owners/{id}/delivery-exclusion`。停止=`excluded:true`・再開=`excluded:false`。BE が `delivery_excluded` と `lstep_opt_out` を同時更新する支持経路。「配信を停止する/配信を再開」ボタンと「配信除外」スイッチは同一 endpoint（EMR-251） | F4 F5 |
+| reason | 除外理由 | C | text | delivery-exclusion 送信時。任意・最大 100 文字（FE `maxLength=100` / BE `binding:"omitempty,max=100"`） | F1 F6 |
 | is_transferred | 転院済みフラグ | R | boolean | PATCH `/owners/{id}/transfer-status` | F4 F5 |
 | file | LINE 送信ファイル | R | file | POST `/v1/shared-files`。`purpose`(S="other")・`owner_id`(S) 自動付与 | F0 F4 |
 
 注: `line-id-confirm`（確認済み化）と `line/link-token`（連携トークン発行）は入力項目のない操作 endpoint — F0（到達・成功反馈）のみ。
+停止状態表示の正本は永続化フラグ — `GET /owners/{id}/lstep/tags` の `lstep_opt_out` と owner detail の `delivery_excluded`。transform が固定 false を返す `owner.lstepOptOut` は正本にしない（EMR-251）。転院・退亡会員・全ペット死亡などの独立停止は再開操作で解除されず、残る間は「配信停止中」表示を維持する（`use-line-integration-card-state.ts`）。
 
 ### lstep-trigger-priorities — LSTEP トリガー優先度 — [V05 §20](V05-auth-line-forms.md)
 
@@ -988,7 +989,7 @@ api.yaml の write endpoint のうち FE 実装が無いもの。実装 PR で�
 | `/v1/pets/{id}/chronic-conditions` | FE 送出なし | 慢性疾患 UI 実装時に V03 へ収録 |
 | `/v1/checkup-package-imports`（preview 含む） | FE 送出なし | 取込 UI 実装時に V01 へ収録 |
 | `/v1/masters/staffs/{id}/excluded-reservation-types` | FE 送出なし | UI 実装時に V03 §9 へ収録 |
-| `/v1/owners/{id}/lstep-opt-out` | FE 送出なし（`/owners/{id}/lstep/opt-out` と競合疑い） | 実装/削除判断時に整理 |
+| `/v1/owners/{id}/lstep-opt-out`（POST 互換）・`/v1/owners/{id}/lstep/opt-out`（PATCH 統合） | FE 送出なし。EMR-251 確定: 飼主画面の LSTEP 停止/再開は PATCH `/owners/{id}/delivery-exclusion` が支持経路（`delivery_excluded`+`lstep_opt_out` 同時更新・理由は任意 max100）。外部利用不明の互換 endpoint は残置し、UI 修正の削除条件にしない | 外部利用確認後に削除判断 |
 
 ---
 

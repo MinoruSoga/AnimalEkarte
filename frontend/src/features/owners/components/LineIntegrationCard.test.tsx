@@ -1,14 +1,20 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { render, screen, waitFor, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 import { http, HttpResponse } from "msw";
+import { toast } from "sonner";
 import { server } from "@/testing/mocks/node";
 import { AuthContext } from "@/hooks/auth-context";
 import { LineIntegrationCard } from "./LineIntegrationCard";
 import type { Owner } from "@/types/owner";
+import type { Pet } from "@/types";
 import { LSTEP_EXCL_DELIVERY_STOP } from "@/constants/lstep-tag-names";
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
+}));
 
 const CLINIC_ID = "clinic-test-1";
 const OWNER_ID = "owner-test-1";
@@ -97,12 +103,12 @@ function setupLineTagsHandler(data: typeof linkedLineTags = linkedLineTags) {
   );
 }
 
-function createWrapper() {
+function createWrapper(authValue: typeof mockAuthContext = mockAuthContext) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return ({ children }: { children: React.ReactNode }) => (
-    <AuthContext.Provider value={mockAuthContext}>
+    <AuthContext.Provider value={authValue}>
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>{children}</MemoryRouter>
       </QueryClientProvider>
@@ -125,6 +131,7 @@ async function renderAndWait(
 
 beforeEach(() => {
   localStorage.setItem("auth_current_clinic:v1", CLINIC_ID);
+  vi.clearAllMocks();
 });
 
 afterEach(() => {
@@ -407,5 +414,193 @@ describe("LineIntegrationCard — G: 連携用URL発行", () => {
     const urlInput = await screen.findByLabelText("LINE連携用URL");
     expect(urlInput).toHaveValue(issuedUrl);
     expect(screen.getByRole("button", { name: "コピー" })).toBeInTheDocument();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// H: LSTEP 配信停止/再開（EMR-251）
+// 停止・再開は既存 PATCH /owners/{id}/delivery-exclusion 経路を使い、
+// BE 側で delivery_excluded と lstep_opt_out を同時更新する。
+// 表示の正本は LINE tags API の lstep_opt_out と owner.deliveryExcluded であり、
+// transform で固定 false になる owner.lstepOptOut は正本にしない。
+// ─────────────────────────────────────────────────────────────
+
+const optedOutLineTags = {
+  ...linkedLineTags,
+  lstep_opt_out: true,
+};
+
+describe("LineIntegrationCard — H: LSTEP 配信停止/再開（EMR-251）", () => {
+  it("永続値 lstep_opt_out=true → 配信停止中バナー + 「配信を再開」ボタン（実値を正本に読む）", async () => {
+    await renderAndWait(baseOwner, optedOutLineTags);
+    expect(screen.getByText("配信停止中")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "配信を再開" })).toBeInTheDocument();
+  });
+
+  it("owner.lstepOptOut=true だけでは停止表示しない（固定フィールドを正本にしない）", async () => {
+    await renderAndWait({ ...baseOwner, lstepOptOut: true }, linkedLineTags);
+    expect(screen.queryByText("配信停止中")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "配信を停止する" })).toBeInTheDocument();
+  });
+
+  it("「配信を再開」→ PATCH delivery-exclusion に excluded:false / reason:null・外部タグ API 呼出 0 件", async () => {
+    let capturedBody: unknown = null;
+    let capturedUrl = "";
+    let tagApiCalls = 0;
+    server.use(
+      http.patch(
+        `/api/v1/clinics/${CLINIC_ID}/owners/${OWNER_ID}/delivery-exclusion`,
+        async ({ request }) => {
+          capturedUrl = request.url;
+          capturedBody = await request.json();
+          return HttpResponse.json(minimalOwnerApiResponse);
+        },
+      ),
+      http.post(`/api/v1/clinics/${CLINIC_ID}/owners/${OWNER_ID}/lstep/tags`, () => {
+        tagApiCalls += 1;
+        return HttpResponse.json({});
+      }),
+      http.delete(`/api/v1/clinics/${CLINIC_ID}/owners/${OWNER_ID}/lstep/tags/:tagName`, () => {
+        tagApiCalls += 1;
+        return HttpResponse.json({});
+      }),
+    );
+    await renderAndWait(baseOwner, optedOutLineTags);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "配信を再開" }));
+    await waitFor(() => {
+      expect(capturedBody).toEqual({ excluded: false, reason: null });
+    });
+    // 医院スコープの endpoint を通る（clinic isolation）
+    expect(capturedUrl).toContain(`/api/v1/clinics/${CLINIC_ID}/owners/${OWNER_ID}/`);
+    // 外部 LSTEP タグ API（付与/解除）は一切呼ばない — 同期は BE 側の責務
+    expect(tagApiCalls).toBe(0);
+  });
+
+  it("「配信を停止する」→ 確認確定 → PATCH delivery-exclusion に excluded:true（理由空=省略許容）", async () => {
+    let capturedBody: unknown = null;
+    server.use(
+      http.patch(
+        `/api/v1/clinics/${CLINIC_ID}/owners/${OWNER_ID}/delivery-exclusion`,
+        async ({ request }) => {
+          capturedBody = await request.json();
+          return HttpResponse.json(minimalOwnerApiResponse);
+        },
+      ),
+    );
+    await renderAndWait();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "配信を停止する" }));
+    await user.click(await screen.findByRole("button", { name: "停止する" }));
+    await waitFor(() => {
+      expect(capturedBody).toEqual({ excluded: true });
+    });
+  });
+
+  it("除外理由 100 文字 → PATCH reason がそのまま送られる（上限受理）", async () => {
+    let capturedBody: unknown = null;
+    server.use(
+      http.patch(
+        `/api/v1/clinics/${CLINIC_ID}/owners/${OWNER_ID}/delivery-exclusion`,
+        async ({ request }) => {
+          capturedBody = await request.json();
+          return HttpResponse.json({
+            ...minimalOwnerApiResponse,
+            delivery_excluded: true,
+          });
+        },
+      ),
+    );
+    await renderAndWait();
+    const reason = "あ".repeat(100);
+    const reasonInput = screen.getByPlaceholderText("除外理由（任意・100文字以内）");
+    fireEvent.change(reasonInput, { target: { value: reason } });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "配信を停止する" }));
+    await user.click(await screen.findByRole("button", { name: "停止する" }));
+    await waitFor(() => {
+      expect(capturedBody).toEqual({ excluded: true, reason });
+    });
+  });
+
+  it("PATCH が 400（BE の 100 文字超拒否など）→ エラートースト表示・成功トーストなし", async () => {
+    server.use(
+      http.patch(`/api/v1/clinics/${CLINIC_ID}/owners/${OWNER_ID}/delivery-exclusion`, () =>
+        HttpResponse.json({ error: "理由は100文字以内で入力してください" }, { status: 400 }),
+      ),
+    );
+    await renderAndWait();
+    const user = userEvent.setup();
+    const row = screen.getByText("配信除外").parentElement;
+    expect(row).not.toBeNull();
+    const switchEl = within(row!).getByRole("switch");
+    await user.click(switchEl);
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalled();
+    });
+    // 保存失敗を成功として表示しない
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("再開後も独立停止（転院済み）が残る → refetch 後も「配信停止中」を維持する", async () => {
+    let capturedBody: unknown = null;
+    await renderAndWait({ ...baseOwner, isTransferred: true }, optedOutLineTags);
+    // PATCH 成功後の refetch では lstep_opt_out=false が返るが is_transferred は残る
+    server.use(
+      http.get(`/api/v1/clinics/${CLINIC_ID}/owners/${OWNER_ID}/lstep/tags`, () =>
+        HttpResponse.json({ ...linkedLineTags, lstep_opt_out: false }),
+      ),
+      http.patch(
+        `/api/v1/clinics/${CLINIC_ID}/owners/${OWNER_ID}/delivery-exclusion`,
+        async ({ request }) => {
+          capturedBody = await request.json();
+          return HttpResponse.json({
+            ...minimalOwnerApiResponse,
+            is_transferred: true,
+          });
+        },
+      ),
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "配信を再開" }));
+    await waitFor(() => {
+      expect(capturedBody).toEqual({ excluded: false, reason: null });
+    });
+    // refetch 反映（opt_out=false）で再開ボタンは消えるが、転院の独立停止は残るため
+    // 「配信停止中」のまま — 配信可能と誤表示しない
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "配信を再開" })).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("配信停止中")).toBeInTheDocument();
+    expect(screen.getByText("— 転院済み")).toBeInTheDocument();
+  });
+
+  it("全ペット死亡の飼主は独立停止として「配信停止中」を表示する", async () => {
+    const deadPets = [
+      { id: "p1", status: "死亡" } as unknown as Pet,
+      { id: "p2", status: "死亡", deceasedAt: "2026-01-01T00:00:00Z" } as unknown as Pet,
+    ];
+    await renderAndWait({ ...baseOwner, pets: deadPets });
+    expect(screen.getByText("配信停止中")).toBeInTheDocument();
+    expect(screen.getByText("— 全ペット死亡")).toBeInTheDocument();
+  });
+
+  it("membershipType=退亡者 の飼主は独立停止として「配信停止中」を表示する", async () => {
+    await renderAndWait({ ...baseOwner, membershipType: "退亡者" });
+    expect(screen.getByText("配信停止中")).toBeInTheDocument();
+  });
+
+  it("canEdit=false → 「配信を再開」ボタンも配信除外スイッチも表示しない", async () => {
+    const readOnlyAuth = { ...mockAuthContext, hasPermission: () => false };
+    setupLineTagsHandler(optedOutLineTags);
+    render(<LineIntegrationCard ownerId={OWNER_ID} ownerName="テスト飼い主" owner={baseOwner} />, {
+      wrapper: createWrapper(readOnlyAuth),
+    });
+    await waitFor(() => {
+      expect(screen.getByText("LINE / Lステップ連携")).toBeInTheDocument();
+    });
+    expect(screen.getByText("配信停止中")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "配信を再開" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "配信除外" })).not.toBeInTheDocument();
   });
 });

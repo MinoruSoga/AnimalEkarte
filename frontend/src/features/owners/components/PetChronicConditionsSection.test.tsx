@@ -4,9 +4,9 @@ import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { PetChronicCondition } from "@/types/generated/models";
 import type { UsePermissionResult } from "@/hooks/use-permission";
 
+import type { PetChronicCondition } from "../api/pet-chronic-conditions";
 import { PetChronicConditionsSection } from "./PetChronicConditionsSection";
 
 const mocks = vi.hoisted(() => {

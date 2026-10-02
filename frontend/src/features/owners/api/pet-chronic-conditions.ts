@@ -4,7 +4,24 @@ import { axios } from "@/lib/axios";
 import { isPersistedPetId } from "@/lib/pet-id";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from "@/lib/react-query";
-import type { PetChronicCondition } from "@/types/generated/models";
+
+/**
+ * `/v1/pets/{id}/chronic-conditions` の wire 応答行（GET は包みなし bare array、
+ * POST/PATCH 応答も同形）。Go ドメインモデル由来の generated/models ではなく
+ * このエンドポイント専用 DTO とする（TASK-444-S1）。
+ */
+export interface PetChronicCondition {
+  id: number;
+  clinic_id: number;
+  pet_id: number;
+  condition_code: string;
+  condition_name: string;
+  diagnosed_at: string;
+  notes?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 /**
  * EMR-248: ペット慢性疾患フラグの CRUD。

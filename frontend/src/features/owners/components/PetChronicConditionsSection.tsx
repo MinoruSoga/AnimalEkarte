@@ -10,8 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { usePermission, type UsePermissionResult } from "@/hooks/use-permission";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
-import type { PetChronicCondition } from "@/types/generated/models";
-
+import type { PetChronicCondition } from "../api/pet-chronic-conditions";
 import {
   usePetChronicConditionsSection,
   type ChronicConditionDraft,

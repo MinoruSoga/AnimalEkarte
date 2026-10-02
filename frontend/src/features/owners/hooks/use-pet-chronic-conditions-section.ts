@@ -2,8 +2,7 @@ import { useActionState, useLayoutEffect, useMemo, useRef, useState } from "reac
 
 import { extractApiErrorMessage, handleApiError } from "@/lib/handle-api-error";
 import type { UsePermissionResult } from "@/hooks/use-permission";
-import type { PetChronicCondition } from "@/types/generated/models";
-
+import type { PetChronicCondition } from "../api/pet-chronic-conditions";
 import {
   useCreatePetChronicCondition,
   useDeletePetChronicCondition,

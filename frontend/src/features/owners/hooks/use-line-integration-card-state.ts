@@ -2,6 +2,7 @@ import { useActionState, useRef, useState } from "react";
 
 import { LSTEP_EXCL_DELIVERY_STOP } from "@/constants/lstep-tag-names";
 import { getFormString } from "@/lib/form-data";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { usePermission } from "@/hooks/use-permission";
 import type { Owner } from "@/types/owner";
 
@@ -72,18 +73,29 @@ export function useLineIntegrationCardState({ ownerId, owner }: UseLineIntegrati
   const hasExclusionTag = tags.includes(LSTEP_EXCL_DELIVERY_STOP);
   const lineUserId = owner?.lineUserId ?? data?.line_user_id ?? undefined;
   const lineIdConfirmedAt = owner?.lineIdConfirmedAt;
+  // EMR-251: 表示の正本は永続化済みフラグ — owner.deliveryExcluded（detail DTO）と
+  // data.lstep_opt_out（LINE tags API）。owner.lstepOptOut / lstepOptOutReason は
+  // detail DTO に存在せず transform で固定 false/undefined になるため参照しない。
+  // 独立停止条件は BE SyncExclusionTags（internal/lstep/lstep_tag_sync_pet_exclusion.go）
+  // と同じ集合で判定し、転院・退亡・全ペット死亡が残る限り「配信可能」と誤表示しない。
+  const allPetsDeceased =
+    owner?.pets !== undefined &&
+    owner.pets.length > 0 &&
+    owner.pets.every((pet) => isPetDeceasedForClinicalWrite(pet));
+  const isTransferredStop = Boolean(owner?.isTransferred || owner?.membershipType === "他診/準");
   const isDeliveryStopped = Boolean(
     owner?.deliveryExcluded ||
-    owner?.lstepOptOut ||
-    owner?.isTransferred ||
-    owner?.membershipType === "他診/準" ||
+    isTransferredStop ||
+    owner?.membershipType === "退亡者" ||
+    allPetsDeceased ||
     data?.lstep_opt_out ||
     hasExclusionTag,
   );
   const deliveryStopReason =
     owner?.deliveryExcludedReason ??
-    owner?.lstepOptOutReason ??
-    (owner?.isTransferred || owner?.membershipType === "他診/準" ? "転院済み" : undefined) ??
+    (isTransferredStop ? "転院済み" : undefined) ??
+    (owner?.membershipType === "退亡者" ? "退亡者会員" : undefined) ??
+    (allPetsDeceased ? "全ペット死亡" : undefined) ??
     (hasExclusionTag ? LSTEP_EXCL_DELIVERY_STOP : undefined);
 
   const resumeDelivery = () => {

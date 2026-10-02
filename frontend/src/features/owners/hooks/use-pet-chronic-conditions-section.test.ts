@@ -2,9 +2,9 @@ import { startTransition } from "react";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { PetChronicCondition } from "@/types/generated/models";
 import type { UsePermissionResult } from "@/hooks/use-permission";
 
+import type { PetChronicCondition } from "../api/pet-chronic-conditions";
 import { usePetChronicConditionsSection } from "./use-pet-chronic-conditions-section";
 
 const mocks = vi.hoisted(() => ({
