@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { CheckupsTab } from "./CheckupsTab";
 
@@ -14,6 +15,8 @@ vi.mock("react-router", async (importOriginal) => ({
 vi.mock("@/hooks/use-permission", () => ({
   usePermission: vi.fn(() => ({ canCreate: true, canEdit: true, canDelete: true })),
 }));
+
+import { usePermission } from "@/hooks/use-permission";
 
 const { replaceCheckupFieldResultsMock, handleApiErrorMock, toastSuccessMock } = vi.hoisted(() => ({
   replaceCheckupFieldResultsMock: vi.fn(),
@@ -100,16 +103,11 @@ function renderComponent() {
   return render(<CheckupsTab medicalRecordId="mr-1" />);
 }
 
-/** 追加フォームを開き、健診種別を選択した状態にする */
-function openAddFormWithType() {
-  fireEvent.click(screen.getByText("記録を追加"));
-  // 健診種別セレクト：「選択」という option を持つ最初の combobox
-  const selects = screen.getAllByRole("combobox");
-  const typeSelect = selects.find(
-    (s) => (s as HTMLSelectElement).querySelector("option[value='']")?.textContent === "選択",
-  ) as HTMLSelectElement;
-  fireEvent.change(typeSelect, { target: { value: "1" } });
-  return selects;
+/** 追加フォームを開き、健診種別を選択した状態にする（ui/select = Radix: trigger click → portal option click） */
+async function openAddFormWithType(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByText("記録を追加"));
+  await user.click(screen.getByLabelText("健診種別"));
+  await user.click(screen.getByRole("option", { name: "定期健診" }));
 }
 
 function mockCreateMutateAsync(mutateAsync: ReturnType<typeof vi.fn>) {
@@ -125,6 +123,12 @@ beforeEach(() => {
   replaceCheckupFieldResultsMock.mockResolvedValue(undefined);
   handleApiErrorMock.mockReset();
   toastSuccessMock.mockReset();
+  vi.mocked(usePermission).mockReturnValue({
+    canView: true,
+    canCreate: true,
+    canEdit: true,
+    canDelete: true,
+  });
   vi.mocked(useGetCheckups).mockReturnValue({
     data: [],
     isLoading: false,
@@ -165,29 +169,30 @@ describe("CheckupsTab — doctor field", () => {
     } as ReturnType<typeof useCreateCheckup>);
   });
 
-  it("追加フォームに担当医セレクトが表示される", () => {
+  it("追加フォームに担当医セレクトが表示される", async () => {
+    const user = userEvent.setup();
     renderComponent();
-    fireEvent.click(screen.getByText("記録を追加"));
-    // 担当医 option と staff options が存在する
+    await user.click(screen.getByText("記録を追加"));
+
+    // Radix option は trigger を開いたときだけ portal に描画される
+    await user.click(screen.getByLabelText("担当医"));
+
+    // 未選択肢と staff options が存在する
     expect(screen.getByRole("option", { name: "担当医" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "田中 医師" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "鈴木 医師" })).toBeInTheDocument();
   });
 
   it("担当医を選択して追加すると doctor_id が payload に含まれる", async () => {
+    const user = userEvent.setup();
     renderComponent();
-    openAddFormWithType();
+    await openAddFormWithType(user);
 
-    // 担当医セレクト：「担当医」という option を持つ combobox
-    const doctorSelect = screen
-      .getAllByRole("combobox")
-      .find(
-        (s) => (s as HTMLSelectElement).querySelector("option[value='']")?.textContent === "担当医",
-      ) as HTMLSelectElement;
-    expect(doctorSelect).toBeDefined();
-    fireEvent.change(doctorSelect, { target: { value: "10" } });
+    // 担当医セレクト（追加フォームの Label と trigger が htmlFor/id で対応）
+    await user.click(screen.getByLabelText("担当医"));
+    await user.click(screen.getByRole("option", { name: "田中 医師" }));
 
-    fireEvent.click(screen.getByRole("button", { name: "追加" }));
+    await user.click(screen.getByRole("button", { name: "追加" }));
 
     await waitFor(() => {
       expect(mutateAsyncMock).toHaveBeenCalledWith(expect.objectContaining({ doctor_id: 10 }));
@@ -195,11 +200,13 @@ describe("CheckupsTab — doctor field", () => {
   });
 
   it("担当医未選択の場合 doctor_id は null で送信される", async () => {
+    const user = userEvent.setup();
     renderComponent();
-    openAddFormWithType();
+    await openAddFormWithType(user);
 
-    // 担当医を選ばずにそのまま追加
-    fireEvent.click(screen.getByRole("button", { name: "追加" }));
+    // 担当医を選ばずにそのまま追加（trigger は未選択ラベルのまま）
+    expect(screen.getByLabelText("担当医")).toHaveTextContent("担当医");
+    await user.click(screen.getByRole("button", { name: "追加" }));
 
     await waitFor(() => {
       expect(mutateAsyncMock).toHaveBeenCalledWith(expect.objectContaining({ doctor_id: null }));
@@ -227,22 +234,22 @@ describe("CheckupsTab — doctor clear (Issue #59)", () => {
   });
 
   it("担当医を '-' に変更して保存すると doctor_id_clear=true が payload に含まれる", async () => {
+    const user = userEvent.setup();
     render(<CheckupsTab medicalRecordId="mr-1" />);
 
     // 編集ボタンをクリック
-    fireEvent.click(screen.getByTitle("編集"));
+    await user.click(screen.getByTitle("編集"));
 
-    // 担当医セレクト："-" option を持つ combobox
-    const doctorSelect = screen
-      .getAllByRole("combobox")
-      .find(
-        (s) => (s as HTMLSelectElement).querySelector("option[value='']")?.textContent === "-",
-      ) as HTMLSelectElement;
-    expect(doctorSelect).toBeDefined();
-    fireEvent.change(doctorSelect, { target: { value: "" } });
+    // 担当医セレクト（編集行）は既存値「田中 医師」を表示し、"-" への変更でクリアされる
+    const doctorTrigger = screen.getByRole("combobox", { name: "担当医 (2026-05-01)" });
+    expect(doctorTrigger).toHaveTextContent("田中 医師");
+    await user.click(doctorTrigger);
+    await user.click(screen.getByRole("option", { name: "-" }));
+    // ui/select は value 変化で key remount するため、選択後は trigger を取り直す
+    expect(screen.getByRole("combobox", { name: "担当医 (2026-05-01)" })).toHaveTextContent("-");
 
     // 保存ボタン (Check アイコン) をクリック
-    fireEvent.click(screen.getByTitle("保存"));
+    await user.click(screen.getByTitle("保存"));
 
     await waitFor(() => {
       expect(updateMutateMock).toHaveBeenCalledWith(
@@ -266,9 +273,10 @@ describe("CheckupsTab — dynamic field results (BUG-004)", () => {
     );
   });
 
-  it("健診種別選択後に動的フィールド（所見）を表示する", () => {
+  it("健診種別選択後に動的フィールド（所見）を表示する", async () => {
+    const user = userEvent.setup();
     renderComponent();
-    openAddFormWithType();
+    await openAddFormWithType(user);
 
     expect(screen.getByTestId("dynamic-checkup-fields")).toBeInTheDocument();
     expect(screen.getByText("所見")).toBeInTheDocument();
@@ -278,8 +286,9 @@ describe("CheckupsTab — dynamic field results (BUG-004)", () => {
     const mutateAsyncMock = vi.fn().mockResolvedValue({ id: "c-new" });
     mockCreateMutateAsync(mutateAsyncMock);
 
+    const user = userEvent.setup();
     renderComponent();
-    openAddFormWithType();
+    await openAddFormWithType(user);
     fireEvent.change(screen.getByLabelText("所見"), { target: { value: "異常なし" } });
     fireEvent.click(screen.getByRole("button", { name: "追加" }));
 
@@ -309,8 +318,9 @@ describe("CheckupsTab — dynamic field results (BUG-004)", () => {
     const mutateAsyncMock = vi.fn().mockResolvedValue({ id: "c-new" });
     mockCreateMutateAsync(mutateAsyncMock);
 
+    const user = userEvent.setup();
     renderComponent();
-    openAddFormWithType();
+    await openAddFormWithType(user);
     fireEvent.click(screen.getByRole("button", { name: "追加" }));
 
     await waitFor(() => {
@@ -328,8 +338,9 @@ describe("CheckupsTab — dynamic field results (BUG-004)", () => {
     const mutateAsyncMock = vi.fn().mockRejectedValue(new Error("create failed"));
     mockCreateMutateAsync(mutateAsyncMock);
 
+    const user = userEvent.setup();
     renderComponent();
-    openAddFormWithType();
+    await openAddFormWithType(user);
     fireEvent.change(screen.getByLabelText("所見"), { target: { value: "異常なし" } });
     fireEvent.click(screen.getByRole("button", { name: "追加" }));
 
@@ -345,8 +356,9 @@ describe("CheckupsTab — dynamic field results (BUG-004)", () => {
     mockCreateMutateAsync(mutateAsyncMock);
     replaceCheckupFieldResultsMock.mockRejectedValue(new Error("put failed"));
 
+    const user = userEvent.setup();
     renderComponent();
-    openAddFormWithType();
+    await openAddFormWithType(user);
     fireEvent.change(screen.getByLabelText("所見"), { target: { value: "異常なし" } });
     fireEvent.click(screen.getByRole("button", { name: "追加" }));
 
@@ -356,5 +368,61 @@ describe("CheckupsTab — dynamic field results (BUG-004)", () => {
     expect(handleApiErrorMock).toHaveBeenCalled();
     expect(toastSuccessMock).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "追加" })).toBeInTheDocument();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// EMR-226: raw <select> → ui/select 移行後の保持動作
+// ─────────────────────────────────────────────────────────────
+
+describe("CheckupsTab — shared ui/select preserved behaviors (EMR-226)", () => {
+  beforeEach(() => {
+    vi.mocked(useGetCheckups).mockReturnValue({
+      data: [CHECKUP_WITH_DOCTOR],
+      isLoading: false,
+    } as ReturnType<typeof useGetCheckups>);
+  });
+
+  it("編集行は健診種別・担当医の既存値を trigger に表示する", async () => {
+    const user = userEvent.setup();
+    render(<CheckupsTab medicalRecordId="mr-1" />);
+
+    await user.click(screen.getByTitle("編集"));
+
+    expect(screen.getByRole("combobox", { name: "健診種別 (2026-05-01)" })).toHaveTextContent(
+      "定期健診",
+    );
+    expect(screen.getByRole("combobox", { name: "担当医 (2026-05-01)" })).toHaveTextContent(
+      "田中 医師",
+    );
+  });
+
+  it("健診種別はキーボードだけで選択できる（Enter で開き矢印と Enter で確定）", async () => {
+    const user = userEvent.setup();
+    renderComponent();
+    await user.click(screen.getByText("記録を追加"));
+
+    const typeTrigger = screen.getByLabelText("健診種別");
+    typeTrigger.focus();
+    await user.keyboard("{Enter}");
+    // 未選択肢（先頭）→ 定期健診 へ移動して確定
+    await user.keyboard("{ArrowDown}");
+    await user.keyboard("{Enter}");
+
+    // ui/select は value 変化で key remount するため、選択後は trigger を取り直す
+    expect(screen.getByLabelText("健診種別")).toHaveTextContent("定期健診");
+  });
+
+  it("canEdit=false では編集ボタンが出ず行内セレクトへ到達できない（locked-state denial）", () => {
+    vi.mocked(usePermission).mockReturnValue({
+      canView: true,
+      canCreate: true,
+      canEdit: false,
+      canDelete: false,
+    });
+    render(<CheckupsTab medicalRecordId="mr-1" />);
+
+    expect(screen.queryByTitle("編集")).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 });

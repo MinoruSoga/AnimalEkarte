@@ -1,5 +1,12 @@
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { TableCell, TableHead } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
@@ -42,6 +49,10 @@ const ADMIN_ROUTE_OPTIONS = [
   { value: "吸入", label: "吸入" },
   { value: "その他", label: "その他" },
 ] as const;
+
+// Radix SelectItem は空文字 value を許容しないため、未選択肢は sentinel に写像する
+// （CheckupsTabRows.tsx / MedicineDoseParamsEditor.tsx と同じ方式）。
+const SELECT_EMPTY_VALUE = "__none__";
 
 interface TreatmentsTableProps {
   treatments: Treatment[];
@@ -143,31 +154,40 @@ export function TreatmentAddControls({
   if (isAdding) {
     return (
       <div className={`flex items-center gap-2 px-3 py-2 border-t ${C.borderLight} ${C.bgPage30}`}>
-        <select
+        <Select
           value={addItemType}
-          onChange={(event) => onItemTypeChange(event.target.value as TreatmentItemType)}
-          aria-label="種別"
-          className={`h-9 text-sm rounded-xxs border ${C.borderMedium} ${C.bgWhite} px-2 ${C.text} outline-none ${C.focusBorderAccent} focus-visible:ring-2 ${C.focusRingAccent40}`}
+          onValueChange={(value) => onItemTypeChange(value as TreatmentItemType)}
         >
-          {ITEM_TYPE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        {addItemType === "medicine" ? (
-          <select
-            value={addAdminRoute}
-            onChange={(event) => onAdminRouteChange(event.target.value)}
-            aria-label="投与方法"
-            className={`h-9 text-sm rounded-xxs border ${C.borderMedium} ${C.bgWhite} px-2 ${C.text} outline-none ${C.focusBorderAccent} focus-visible:ring-2 ${C.focusRingAccent40}`}
-          >
-            {ADMIN_ROUTE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
+          <SelectTrigger aria-label="種別" className="h-9 w-auto">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ITEM_TYPE_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
                 {option.label}
-              </option>
+              </SelectItem>
             ))}
-          </select>
+          </SelectContent>
+        </Select>
+        {addItemType === "medicine" ? (
+          <Select
+            value={addAdminRoute === "" ? SELECT_EMPTY_VALUE : addAdminRoute}
+            onValueChange={(value) => onAdminRouteChange(value === SELECT_EMPTY_VALUE ? "" : value)}
+          >
+            <SelectTrigger aria-label="投与方法" className="h-9 w-auto">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ADMIN_ROUTE_OPTIONS.map((option) => (
+                <SelectItem
+                  key={option.value || SELECT_EMPTY_VALUE}
+                  value={option.value === "" ? SELECT_EMPTY_VALUE : option.value}
+                >
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         ) : null}
         <input
           autoFocus
