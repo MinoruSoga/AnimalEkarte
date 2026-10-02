@@ -11,8 +11,10 @@ import {
   CalendarNav,
   ClearButton,
   MonthGrid,
+  RangeEndpointNav,
   YearNav,
   type RangeDatePickerProps,
+  type RangeEditTarget,
 } from "./DatePickerParts";
 import {
   formatIso,
@@ -32,6 +34,7 @@ export function RangePicker({
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"calendar" | "monthGrid">("calendar");
   const [displayMonth, setDisplayMonth] = useState<Date>(() => new Date());
+  const [editTarget, setEditTarget] = useState<RangeEditTarget>("from");
 
   const range = useMemo(() => parseRangeValue(value), [value]);
   const dateRange: DateRange | undefined = range.from
@@ -44,26 +47,30 @@ export function RangePicker({
       if (nextOpen) {
         setView("calendar");
         setDisplayMonth(range.from ?? new Date());
+        setEditTarget(range.from ? "to" : "from");
       }
     },
     [range.from],
   );
 
-  const handleSelect = useCallback(
-    (selected: DateRange | undefined) => {
-      if (!selected?.from) {
-        onChange("");
+  const handleDayClick = useCallback(
+    (day: Date) => {
+      const from = range.from;
+      const to = range.to;
+
+      if (editTarget === "from" || !from) {
+        const nextTo = to && day <= to ? to : undefined;
+        setEditTarget("to");
+        onChange(`${formatIso(day)}~${nextTo ? formatIso(nextTo) : ""}`);
+        if (nextTo) setOpen(false);
         return;
       }
-      const fromIso = formatIso(selected.from);
-      const toIso = selected.to ? formatIso(selected.to) : "";
-      onChange(`${fromIso}~${toIso}`);
 
-      if (selected.from && selected.to) {
-        setOpen(false);
-      }
+      const next = day < from ? { from: day, to: from } : { from, to: day };
+      onChange(`${formatIso(next.from)}~${formatIso(next.to)}`);
+      setOpen(false);
     },
-    [onChange],
+    [editTarget, onChange, range.from, range.to],
   );
 
   const handleClear = useCallback(
@@ -120,6 +127,15 @@ export function RangePicker({
       </div>
 
       <PopoverContent className="w-auto p-0" align="start">
+        <div className="mx-3 mt-3">
+          <RangeEndpointNav
+            from={range.from}
+            to={range.to}
+            editTarget={editTarget}
+            onSelectTarget={setEditTarget}
+          />
+        </div>
+
         {view === "calendar" ? (
           <div className="pt-2">
             <CalendarNav
@@ -145,7 +161,7 @@ export function RangePicker({
             month={displayMonth}
             onMonthChange={setDisplayMonth}
             selected={dateRange}
-            onSelect={handleSelect}
+            onDayClick={handleDayClick}
             numberOfMonths={2}
             locale={ja}
             fixedWeeks

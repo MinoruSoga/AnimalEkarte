@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ReservationDateTimeFields } from "./ReservationDateTimeFields";
@@ -54,5 +54,58 @@ describe("ReservationDateTimeFields — 終了時刻 Select の現在値注入 (
 
     await user.click(screen.getByTestId("res-end-time-trigger"));
     expect(await screen.findAllByRole("option")).toHaveLength(TIME_OPTIONS.length);
+  });
+});
+
+describe("ReservationDateTimeFields — カレンダーナビゲーション", () => {
+  function renderFields(
+    overrides: Partial<React.ComponentProps<typeof ReservationDateTimeFields>> = {},
+  ) {
+    return render(
+      <ReservationDateTimeFields
+        formData={{ start: new Date(2026, 5, 1, 9, 0), end: new Date(2026, 5, 1, 9, 30) }}
+        onChange={() => undefined}
+        isCalendarDateDisabled={() => false}
+        handleMonthChange={() => undefined}
+        startTimeOptions={TIME_OPTIONS}
+        availableTimeSlotMap={undefined}
+        {...overrides}
+      />,
+    );
+  }
+
+  it("タイトル→年ナビ→月グリッドで遠い月へ移動し handleMonthChange に通知する", async () => {
+    const user = userEvent.setup({ delay: null });
+    const handleMonthChange = vi.fn();
+    renderFields({ handleMonthChange });
+
+    await user.click(screen.getByRole("button", { name: /2026\/06\/01/ }));
+    expect(screen.getByRole("button", { name: "2026年 6月" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "2026年 6月" }));
+    await user.click(screen.getByRole("button", { name: "次の年" }));
+    await user.click(screen.getByRole("button", { name: "12月" }));
+
+    expect(screen.getByRole("button", { name: "2027年 12月" })).toBeInTheDocument();
+    expect(handleMonthChange).toHaveBeenLastCalledWith(new Date(2027, 11, 1));
+  });
+
+  it("日付を選ぶと既存の時刻を保持した start/end を onChange する", async () => {
+    const user = userEvent.setup({ delay: null });
+    const onChange = vi.fn();
+    renderFields({
+      formData: {
+        start: new Date(2026, 5, 1, 9, 30),
+        end: new Date(2026, 5, 1, 10, 0),
+      },
+      onChange,
+    });
+
+    await user.click(screen.getByRole("button", { name: /2026\/06\/01/ }));
+    await user.click(screen.getByRole("button", { name: /2026年6月15日/ }));
+
+    const last = onChange.mock.calls.at(-1)?.[0] as Partial<Reservation>;
+    expect(last.start).toEqual(new Date(2026, 5, 15, 9, 30));
+    expect(last.end).toEqual(new Date(2026, 5, 15, 10, 0));
   });
 });

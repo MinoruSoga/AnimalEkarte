@@ -1,8 +1,20 @@
 import { memo, useCallback, useState } from "react";
-import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 
+import {
+  formatIso,
+  formatShort,
+  parseLocalDate,
+  RANGE_CALENDAR_CLASSES,
+} from "@/components/shared/DatePicker/DatePickerModel";
+import {
+  CalendarNav,
+  MonthGrid,
+  RangeEndpointNav,
+  YearNav,
+  type RangeEditTarget,
+} from "@/components/shared/DatePicker/DatePickerParts";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/components/ui/utils";
 import { C } from "@/lib/design-tokens";
@@ -15,48 +27,92 @@ interface DateValueEditorProps {
   onApply: (value: { from?: string; to?: string }, displayValue: string) => void;
 }
 
+type EditTarget = RangeEditTarget;
+type EditorView = "calendar" | "monthGrid";
+
+const EDITOR_CALENDAR_CLASSES = {
+  ...RANGE_CALENDAR_CLASSES,
+  month_caption: "hidden",
+};
+
 export const DateValueEditor = memo(function DateValueEditor({
   currentValue,
   onApply,
 }: DateValueEditorProps) {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
-    if (!currentValue?.from) return undefined;
+    const from = currentValue?.from ? parseLocalDate(currentValue.from) : undefined;
+    if (!from) return undefined;
     return {
-      from: new Date(currentValue.from),
-      to: currentValue.to ? new Date(currentValue.to) : undefined,
+      from,
+      to: currentValue?.to ? parseLocalDate(currentValue.to) : undefined,
     };
   });
+  const [editTarget, setEditTarget] = useState<EditTarget>(() =>
+    currentValue?.from ? "to" : "from",
+  );
+  const [view, setView] = useState<EditorView>("calendar");
+  const [displayMonth, setDisplayMonth] = useState<Date>(
+    () =>
+      (currentValue?.from ? parseLocalDate(currentValue.from) : undefined) ??
+      toJSTWallDate(new Date()),
+  );
+
+  const applyRange = useCallback(
+    (from: Date, to: Date) => {
+      const fromIso = formatIso(from);
+      const toIso = formatIso(to);
+      onApply(
+        { from: fromIso, to: toIso },
+        fromIso === toIso ? formatShort(from) : `${formatShort(from)}〜${formatShort(to)}`,
+      );
+    },
+    [onApply],
+  );
 
   const handlePresetClick = useCallback(
     (from: Date, to: Date, label: string) => {
       setDateRange({ from, to });
-      onApply({ from: format(from, "yyyy-MM-dd"), to: format(to, "yyyy-MM-dd") }, label);
+      setEditTarget("to");
+      setDisplayMonth(from);
+      setView("calendar");
+      onApply({ from: formatIso(from), to: formatIso(to) }, label);
     },
     [onApply],
   );
 
-  const handleCalendarSelect = useCallback(
-    (range: DateRange | undefined) => {
-      setDateRange(range);
-      if (!range?.from) return;
-      if (range.to && range.from.getTime() !== range.to.getTime()) {
-        onApply(
-          { from: format(range.from, "yyyy-MM-dd"), to: format(range.to, "yyyy-MM-dd") },
-          `${format(range.from, "M/d")}〜${format(range.to, "M/d")}`,
-        );
+  const handleDayClick = useCallback(
+    (day: Date) => {
+      const from = dateRange?.from;
+      const to = dateRange?.to;
+
+      if (editTarget === "from" || !from) {
+        const nextTo = to && day <= to ? to : undefined;
+        setDateRange({ from: day, to: nextTo });
+        setEditTarget("to");
+        if (nextTo) applyRange(day, nextTo);
+        return;
       }
+
+      const next = day < from ? { from: day, to: from } : { from, to: day };
+      setDateRange(next);
+      applyRange(next.from, next.to);
     },
-    [onApply],
+    [applyRange, dateRange, editTarget],
   );
 
-  const hasFrom = !!dateRange?.from;
-  const hasTo = !!(
-    dateRange?.to &&
-    dateRange.from &&
-    dateRange.to.getTime() !== dateRange.from.getTime()
-  );
-  const fromDisplay = hasFrom ? format(dateRange.from!, "M月d日") : "開始日";
-  const toDisplay = hasTo ? format(dateRange.to!, "M月d日") : "終了日";
+  const handlePrevMonth = useCallback(() => {
+    setDisplayMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  }, []);
+  const handleNextMonth = useCallback(() => {
+    setDisplayMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  }, []);
+  const handleMonthSelect = useCallback((month: number) => {
+    setDisplayMonth((prev) => new Date(prev.getFullYear(), month, 1));
+    setView("calendar");
+  }, []);
+  const handleYearDelta = useCallback((delta: number) => {
+    setDisplayMonth((prev) => new Date(prev.getFullYear() + delta, prev.getMonth(), 1));
+  }, []);
 
   return (
     <div className={`flex divide-x ${C.divideDivider}`}>
@@ -80,54 +136,46 @@ export const DateValueEditor = memo(function DateValueEditor({
       </div>
 
       <div className="p-3">
-        <div
-          className={`flex items-center justify-center gap-3 mb-3 px-3 py-2 ${C.bgPage} rounded-xs`}
-        >
-          <span
-            className={`text-sm font-mono tabular-nums ${hasFrom ? `${C.text} font-medium` : C.text30}`}
-          >
-            {fromDisplay}
-          </span>
-          <span className={`${C.text30} text-xs`}>→</span>
-          <span
-            className={`text-sm font-mono tabular-nums ${hasTo ? `${C.text} font-medium` : C.text30}`}
-          >
-            {toDisplay}
-          </span>
+        <div className="mb-2">
+          <RangeEndpointNav
+            from={dateRange?.from}
+            to={dateRange?.to}
+            editTarget={editTarget}
+            onSelectTarget={setEditTarget}
+          />
         </div>
-        <Calendar
-          mode="range"
-          selected={dateRange}
-          onSelect={(range) => {
-            if (range) handleCalendarSelect(range);
-          }}
-          locale={ja}
-          numberOfMonths={1}
-          className="rounded-md"
-          captionLayout="dropdown"
-          startMonth={new Date(2020, 0)}
-          endMonth={new Date(toJSTWallDate(new Date()).getFullYear() + 2, 11)}
-          classNames={{
-            months: "relative flex flex-col",
-            month_caption: "flex justify-center items-center h-9 w-full",
-            caption_label: "sr-only",
-            nav: "absolute top-1 left-0 right-0 flex justify-between items-center px-1 pointer-events-none",
-            button_previous: `size-8 min-h-11 min-w-11 p-0 rounded-sm ${C.bgMutedBadge} opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto`,
-            button_next: `size-8 min-h-11 min-w-11 p-0 rounded-sm ${C.bgMutedBadge} opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto`,
-            dropdowns: "flex items-center gap-1",
-            dropdown: `text-sm font-medium bg-transparent border-none cursor-pointer focus:outline-none hover:opacity-70 px-1 min-h-11 rounded ${C.bgMutedBadge} focus-visible:ring-2 ${C.focusRingAccent40}`,
-          }}
-          formatters={{
-            formatMonthDropdown: (month) => {
-              const monthNumber = month instanceof Date ? month.getMonth() + 1 : Number(month) + 1;
-              return `${monthNumber}月`;
-            },
-            formatYearDropdown: (year) => {
-              const yearNumber = year instanceof Date ? year.getFullYear() : Number(year);
-              return `${yearNumber}年`;
-            },
-          }}
-        />
+
+        {view === "calendar" ? (
+          <CalendarNav
+            displayMonth={displayMonth}
+            onPrev={handlePrevMonth}
+            onNext={handleNextMonth}
+            onTitleClick={() => setView("monthGrid")}
+          />
+        ) : (
+          <YearNav
+            year={displayMonth.getFullYear()}
+            onPrevYear={() => handleYearDelta(-1)}
+            onNextYear={() => handleYearDelta(1)}
+          />
+        )}
+
+        {view === "calendar" ? (
+          <Calendar
+            mode="range"
+            month={displayMonth}
+            onMonthChange={setDisplayMonth}
+            selected={dateRange}
+            onDayClick={handleDayClick}
+            numberOfMonths={1}
+            locale={ja}
+            fixedWeeks
+            className="rounded-md pt-0"
+            classNames={EDITOR_CALENDAR_CLASSES}
+          />
+        ) : (
+          <MonthGrid currentMonth={displayMonth.getMonth()} onSelect={handleMonthSelect} />
+        )}
       </div>
     </div>
   );

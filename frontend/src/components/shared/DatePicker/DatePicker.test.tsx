@@ -1,9 +1,17 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { DatePicker } from "./DatePicker";
 import { CalendarNav, ClearButton, MonthGrid, YearNav } from "./DatePickerParts";
+
+// react-day-picker v9 の日ボタン名は ja locale で "2026年10月20日火曜日" 形式
+function dayButton(isoDay: string) {
+  const [year, month, day] = isoDay.split("-").map(Number);
+  return screen.getByRole("button", {
+    name: new RegExp(`${year}年${month}月${day}日`),
+  });
+}
 
 describe("DatePicker — 44px touch targets", () => {
   it("CalendarNavの前月・タイトル・次月を44x44px以上に保つ", () => {
@@ -152,5 +160,83 @@ describe("DatePicker — fixedWeeks layout (Issue #48)", () => {
 
     const cells = screen.getAllByRole("gridcell");
     expect(cells).toHaveLength(84);
+  });
+});
+
+describe("DatePicker — range mode の開始/終了切替", () => {
+  it("開くと終了日が編集対象になり、終了日だけを再選択して閉じる", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<DatePicker mode="range" value="2026-10-01~2026-10-05" onChange={onChange} />);
+
+    await user.click(screen.getByRole("button", { name: /2026\/10\/1/ }));
+
+    const toButton = screen.getByRole("button", { name: "終了日 2026/10/5" });
+    expect(toButton).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "開始日 2026/10/1" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+
+    await user.click(dayButton("2026-10-10"));
+
+    expect(onChange).toHaveBeenLastCalledWith("2026-10-01~2026-10-10");
+    await waitFor(() => expect(screen.queryByRole("grid")).toBeNull());
+  });
+
+  it("開始日ボタンで開始日だけを更新し、逆転しない限り終了日を保持する", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<DatePicker mode="range" value="2026-10-01~2026-10-05" onChange={onChange} />);
+
+    await user.click(screen.getByRole("button", { name: /2026\/10\/1/ }));
+    await user.click(screen.getByRole("button", { name: "開始日 2026/10/1" }));
+    await user.click(dayButton("2026-10-03"));
+
+    expect(onChange).toHaveBeenLastCalledWith("2026-10-03~2026-10-05");
+    await waitFor(() => expect(screen.queryByRole("grid")).toBeNull());
+  });
+
+  it("終了日に開始日より前を選ぶと端点をスワップして確定する", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<DatePicker mode="range" value="2026-10-01~2026-10-05" onChange={onChange} />);
+
+    await user.click(screen.getByRole("button", { name: /2026\/10\/1/ }));
+    await user.click(screen.getByRole("button", { name: "終了日 2026/10/5" }));
+    await user.click(screen.getByRole("button", { name: "前の月" }));
+    // 2ヶ月表示のため隣月のオーバーフロー日は重複表示される。9/15 は9月グリッドのみに現れる
+    await user.click(dayButton("2026-09-15"));
+
+    expect(onChange).toHaveBeenLastCalledWith("2026-09-15~2026-10-01");
+    await waitFor(() => expect(screen.queryByRole("grid")).toBeNull());
+  });
+
+  it("同日を終了日に選ぶと単日レンジとして確定する", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<DatePicker mode="range" value="2026-10-20~" onChange={onChange} />);
+
+    await user.click(screen.getByRole("button", { name: /2026\/10\/20 〜/ }));
+    await user.click(dayButton("2026-10-20"));
+
+    expect(onChange).toHaveBeenLastCalledWith("2026-10-20~2026-10-20");
+    await waitFor(() => expect(screen.queryByRole("grid")).toBeNull());
+  });
+
+  it("終了日未設定の部分値で開始日を選び直すと部分値をemitして開いたまま", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<DatePicker mode="range" value="2026-10-20~" onChange={onChange} />);
+
+    await user.click(screen.getByRole("button", { name: /2026\/10\/20 〜/ }));
+    expect(screen.getByRole("button", { name: "終了日" })).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(screen.getByRole("button", { name: "開始日 2026/10/20" }));
+    await user.click(dayButton("2026-10-18"));
+
+    expect(onChange).toHaveBeenLastCalledWith("2026-10-18~");
+    // 2ヶ月表示のため grid は2個
+    expect(screen.getAllByRole("grid")).toHaveLength(2);
   });
 });
