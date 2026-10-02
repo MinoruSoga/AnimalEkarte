@@ -66,11 +66,12 @@ async function searchBy(page: Page, term: string): Promise<string[]> {
     await cleared;
   } else {
     await page.goto("/owners");
-    await page.getByRole("button", { name: "検索" }).click();
     const input = page.getByPlaceholder("飼主名、ペット名、電話番号、飼主No、ペット番号...");
     await expect(input).toBeVisible();
     const responsePromise = listResponse(true);
     await input.fill(String(term));
+    // EMR-247: Enter / 検索ボタンの確定操作で初めて search リクエストが発行される
+    await input.press("Enter");
     await responsePromise;
   }
   await page.waitForTimeout(300); // table re-render settle

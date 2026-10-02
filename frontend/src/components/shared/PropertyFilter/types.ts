@@ -138,7 +138,7 @@ export interface PropertyFilterProps {
   searchTerm?: string;
   /**
    * 検索確定ハンドラ。Enter キーまたは内部の検索ボタンでの確定時と、
-   * クリア ✕ / 検索バーを閉じる際の即時クリア（""）時にのみ呼ばれる。
+   * クリア ✕ による即時クリア（""）時にのみ呼ばれる。
    * 入力中（onChange）は呼ばれない。
    */
   onSearchChange?: (value: string) => void;

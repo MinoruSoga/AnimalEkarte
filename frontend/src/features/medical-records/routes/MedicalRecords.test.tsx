@@ -284,7 +284,6 @@ describe("MedicalRecords 表示列フィルタ (EMR-245)", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(screen.getByRole("button", { name: "検索" }));
     const searchInput = screen.getByRole("textbox", { name: /横断検索/ });
     await user.type(searchInput, "山田");
     fireEvent.keyDown(searchInput, { key: "Enter" });

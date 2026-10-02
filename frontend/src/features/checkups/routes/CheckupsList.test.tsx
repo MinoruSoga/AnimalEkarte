@@ -233,7 +233,6 @@ describe("CheckupsList — D: かな正規化テキスト検索", () => {
     const user = userEvent.setup();
     render(<CheckupsList />, { wrapper: createWrapper() });
 
-    await user.click(screen.getByRole("button", { name: "検索" }));
     await user.type(screen.getByPlaceholderText("ペット名・飼主名・種別で検索..."), "ぽち");
 
     // EMR-247: 確定操作（Enter/ボタン）までフィルタは適用されない
@@ -258,7 +257,6 @@ describe("CheckupsList — D: かな正規化テキスト検索", () => {
     const user = userEvent.setup();
     render(<CheckupsList />, { wrapper: createWrapper() });
 
-    await user.click(screen.getByRole("button", { name: "検索" }));
     await user.type(screen.getByPlaceholderText("ペット名・飼主名・種別で検索..."), "サトウ");
 
     // EMR-247: 確定操作（Enter/ボタン）までフィルタは適用されない

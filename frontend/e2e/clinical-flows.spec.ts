@@ -35,10 +35,10 @@ test.describe("カルテ フロー E2E", () => {
       await medical.gotoList();
       await expect(medical.listHeading()).toBeVisible();
 
-      await page.getByLabel("検索").click();
       const searchInput = medical.searchInput();
       await expect(searchInput).toBeVisible();
       await searchInput.fill(fixture.ownerSearch);
+      await searchInput.press("Enter");
       await expect(medical.ownerText(fixture.ownerName)).toBeVisible({ timeout: 10000 });
     } finally {
       await page.close();

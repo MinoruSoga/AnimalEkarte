@@ -38,11 +38,10 @@ test.describe("飼主フロー E2E", () => {
       await owners.gotoList();
       await expect(owners.listHeading()).toBeVisible();
 
-      // PropertyFilter: 検索トグルをクリックして入力欄を表示
-      await owners.searchToggle().click();
       const searchInput = owners.searchInput();
       await expect(searchInput).toBeVisible();
       await searchInput.fill("林");
+      await searchInput.press("Enter");
       await expect(owners.hayashiText()).toBeVisible({ timeout: 15000 });
     } finally {
       await page.close();
@@ -56,10 +55,10 @@ test.describe("飼主フロー E2E", () => {
       await owners.gotoList();
       await expect(owners.listHeading()).toBeVisible();
 
-      await owners.searchToggle().click();
       const searchInput = owners.searchInput();
       await expect(searchInput).toBeVisible();
       await searchInput.fill("林");
+      await searchInput.press("Enter");
       await expect(owners.hayashiText()).toBeVisible({ timeout: 15000 });
 
       // 行クリック（first() で複数行対応）

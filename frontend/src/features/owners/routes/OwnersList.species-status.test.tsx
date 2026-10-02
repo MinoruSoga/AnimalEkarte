@@ -129,7 +129,9 @@ describe("OwnersList species status", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(screen.queryByText(rawError)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "新規登録" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "検索" })).toBeEnabled();
+    expect(
+      screen.getByPlaceholderText("飼主名、ペット名、電話番号、飼主No、ペット番号..."),
+    ).toBeEnabled();
     expect(screen.getByRole("button", { name: "フィルタを追加" })).toBeEnabled();
 
     await user.click(screen.getByRole("button", { name: "フィルタを追加" }));
@@ -157,7 +159,9 @@ describe("OwnersList species status", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.queryByText("動物種マスタが登録されていません。")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "新規登録" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "検索" })).toBeEnabled();
+    expect(
+      screen.getByPlaceholderText("飼主名、ペット名、電話番号、飼主No、ペット番号..."),
+    ).toBeEnabled();
     expect(screen.getByRole("button", { name: "フィルタを追加" })).toBeEnabled();
 
     await user.click(screen.getByRole("button", { name: "フィルタを追加" }));

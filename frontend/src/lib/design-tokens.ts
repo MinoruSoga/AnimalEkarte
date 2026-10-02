@@ -795,7 +795,7 @@ export const STYLE = {
   searchInput:
     `pl-8 h-11 w-full text-base ${C.text} ${C.textPlaceholder} ${C.bgPage} border border-transparent rounded-xs outline-none transition-colors ${C.hoverBgPageDark} focus:bg-white ${C.focusBorderLight} focus-visible:ring-2 ${C.focusRingAccent40}`,
   searchIcon:
-    `absolute left-2.5 top-1/2 -translate-y-1/2 size-5 ${C.text30}`,
+    `absolute left-2.5 top-1/2 -translate-y-1/2 size-5 ${C.text50}`,
   searchCount:
     `text-base ${C.text60} whitespace-nowrap`,
 

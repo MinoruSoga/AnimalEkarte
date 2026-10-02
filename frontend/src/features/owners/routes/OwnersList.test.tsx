@@ -110,7 +110,6 @@ describe("OwnersList — #266 サーバサイド検索・フィルタ・ペー�
     await screen.findByText("山田太郎");
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "検索" }));
     const searchInput = screen.getByPlaceholderText(
       "飼主名、ペット名、電話番号、飼主No、ペット番号...",
     );
