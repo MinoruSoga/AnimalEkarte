@@ -61,8 +61,20 @@ vi.mock("@/hooks/use-treatment-master", () => ({
 vi.mock("@/hooks/use-staffs", () => ({
   useGetStaffs: vi.fn(() => ({
     data: [
-      { id: "10", name: "田中 医師", isActive: true, occupationName: "獣医師" },
-      { id: "11", name: "鈴木 医師", isActive: true, occupationName: "獣医師" },
+      {
+        id: "10",
+        name: "田中 医師",
+        isActive: true,
+        occupationName: "獣医師",
+        staffType: "doctor",
+      },
+      {
+        id: "11",
+        name: "鈴木 医師",
+        isActive: true,
+        occupationName: "獣医師",
+        staffType: "doctor",
+      },
     ],
   })),
 }));

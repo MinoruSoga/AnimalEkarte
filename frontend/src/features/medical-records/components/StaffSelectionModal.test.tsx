@@ -10,13 +10,32 @@ vi.mock("@/hooks/use-staffs", () => ({
 }));
 
 const KATAKANA_STAFFS: StaffItem[] = [
-  { id: "1", name: "タナカ ハナコ", isActive: true, occupationName: "獣医師" },
-  { id: "2", name: "サトウ イチロウ", isActive: true, occupationName: "看護師" },
+  { id: "1", name: "タナカ ハナコ", isActive: true, occupationName: "獣医師", staffType: "doctor" },
+  {
+    id: "2",
+    name: "サトウ イチロウ",
+    isActive: true,
+    occupationName: "看護師",
+    staffType: "nurse",
+  },
+  {
+    id: "3",
+    name: "ヤマダ ジロウ",
+    isActive: false,
+    occupationName: "獣医師",
+    staffType: "doctor",
+  },
 ];
 
 const HIRAGANA_STAFFS: StaffItem[] = [
-  { id: "1", name: "たなか はなこ", isActive: true, occupationName: "獣医師" },
-  { id: "2", name: "さとう いちろう", isActive: true, occupationName: "看護師" },
+  { id: "1", name: "たなか はなこ", isActive: true, occupationName: "獣医師", staffType: "doctor" },
+  {
+    id: "2",
+    name: "さとう いちろう",
+    isActive: true,
+    occupationName: "看護師",
+    staffType: "nurse",
+  },
 ];
 
 beforeEach(() => {
@@ -37,10 +56,11 @@ function renderModal(props: { selectedStaffName?: string } = {}) {
 }
 
 describe("StaffSelectionModal — カナ混同検索", () => {
-  it("open=true で全スタッフが表示される", async () => {
+  it("open=true で有効な doctor のみ表示される", async () => {
     renderModal();
     expect(await screen.findByText("タナカ ハナコ")).toBeInTheDocument();
-    expect(screen.getByText("サトウ イチロウ")).toBeInTheDocument();
+    expect(screen.queryByText("サトウ イチロウ")).not.toBeInTheDocument();
+    expect(screen.queryByText("ヤマダ ジロウ")).not.toBeInTheDocument();
   });
 
   it("ひらがなで検索するとカタカナ名のスタッフにヒットする", async () => {

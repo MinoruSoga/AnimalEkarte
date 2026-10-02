@@ -13,7 +13,7 @@ import type { FilterCondition, FilterProperty } from "@/components/shared/Proper
 import { C, STYLE } from "@/lib/design-tokens";
 
 interface MedicalRecordsFilterMaster {
-  staffs: { id: string; name: string; isActive: boolean }[] | undefined;
+  staffs: { id: string; name: string; isActive: boolean; staffType: string }[] | undefined;
   activeSpecies: { id: number; name: string }[];
   isSpeciesError: boolean;
   isSpeciesLoading: boolean;
@@ -27,7 +27,7 @@ export function buildMedicalRecordsFilterProperties(
   input: MedicalRecordsFilterMaster,
 ): FilterProperty[] {
   const doctorOptions = (input.staffs ?? [])
-    .filter((s) => s.isActive)
+    .filter((s) => s.isActive && s.staffType === "doctor")
     .map((s) => ({ value: s.id, label: s.name }));
   const speciesOptions =
     input.isSpeciesError || input.isSpeciesLoading

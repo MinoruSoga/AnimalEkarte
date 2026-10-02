@@ -101,7 +101,7 @@ export function CheckupFieldsPanel({
             value={form.doctorId}
             onValueChange={onDoctorIdChange}
             options={staffs
-              .filter((staff) => staff.isActive)
+              .filter((staff) => staff.isActive && staff.staffType === "doctor")
               .map((staff) => ({ value: staff.id, label: staff.name }))}
             placeholder="選択してください"
             searchPlaceholder="担当医を検索..."
