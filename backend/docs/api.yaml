@@ -11990,6 +11990,64 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: owner_name
+          in: query
+          description: 飼主名の部分一致絞り込み（列フィルタ）
+          schema:
+            type: string
+        - name: pet_name
+          in: query
+          description: ペット名の部分一致絞り込み（列フィルタ）
+          schema:
+            type: string
+        - name: chief_complaint
+          in: query
+          description: 主訴の部分一致絞り込み（列フィルタ）
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: カルテのステータスで絞り込み
+          schema:
+            type: string
+            enum: [draft, finalized]
+        - name: doctor_id
+          in: query
+          description: 担当医スタッフIDで絞り込み
+          schema:
+            type: integer
+            format: int64
+        - name: animal_species_id
+          in: query
+          description: 動物種マスタIDで絞り込み
+          schema:
+            type: integer
+            format: int64
+        - name: start_date
+          in: query
+          description: 診療日の開始日で絞り込み（YYYY-MM-DD）
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          description: 診療日の終了日で絞り込み（YYYY-MM-DD）
+          schema:
+            type: string
+            format: date
+        - name: sort
+          in: query
+          description: ソート列。未指定・許可値外は既定順
+          schema:
+            type: string
+            enum: [date, owner_name, pet_name, status]
+        - name: order
+          in: query
+          description: ソート方向。未指定・許可値外は desc
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
       responses:
         '200':
           description: カルテ一覧
@@ -25856,7 +25914,6 @@ paths:
                               slug: { type: string }
                         created_at: { type: string, description: 質問送信時刻 }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
         '500': { $ref: '#/components/responses/InternalError' }
   /support/chat/history:
     get:
