@@ -29,7 +29,6 @@ const SHIFT_TYPE_OPTIONS = (Object.entries(SHIFT_TYPE_LABELS) as [ShiftType, str
 
 interface ShiftTemplatePropertiesProps {
   formData: TemplateFormData;
-  isTimeHidden: boolean;
   readOnly: boolean;
   onField: <K extends keyof TemplateFormData>(key: K, value: TemplateFormData[K]) => void;
   onBreakChange: (index: number, field: "break_start" | "break_end", value: string) => void;
@@ -37,9 +36,10 @@ interface ShiftTemplatePropertiesProps {
   onRemoveBreak: (index: number) => void;
 }
 
+// EMR-241: 時刻フィールドはカテゴリ名で隠さない。全シフト種別で開始/終了時刻と
+// 休憩を常時表示し、空欄の可否はバックエンドの RequiresTimeSlot 検証に委ねる。
 export function ShiftTemplateProperties({
   formData,
-  isTimeHidden,
   readOnly,
   onField,
   onBreakChange,
@@ -79,28 +79,24 @@ export function ShiftTemplateProperties({
           </Select>
         </PropertyRow>
 
-        {!isTimeHidden ? (
-          <>
-            <PropertyRow label="開始時刻" description="このテンプレートの勤務開始時刻です。">
-              <PropInput
-                type="time"
-                ariaLabel="開始時刻"
-                value={formData.start_time}
-                onChange={(v) => onField("start_time", v)}
-                readOnly={readOnly}
-              />
-            </PropertyRow>
-            <PropertyRow label="終了時刻" description="このテンプレートの勤務終了時刻です。">
-              <PropInput
-                type="time"
-                ariaLabel="終了時刻"
-                value={formData.end_time}
-                onChange={(v) => onField("end_time", v)}
-                readOnly={readOnly}
-              />
-            </PropertyRow>
-          </>
-        ) : null}
+        <PropertyRow label="開始時刻" description="このテンプレートの勤務開始時刻です。">
+          <PropInput
+            type="time"
+            ariaLabel="開始時刻"
+            value={formData.start_time}
+            onChange={(v) => onField("start_time", v)}
+            readOnly={readOnly}
+          />
+        </PropertyRow>
+        <PropertyRow label="終了時刻" description="このテンプレートの勤務終了時刻です。">
+          <PropInput
+            type="time"
+            ariaLabel="終了時刻"
+            value={formData.end_time}
+            onChange={(v) => onField("end_time", v)}
+            readOnly={readOnly}
+          />
+        </PropertyRow>
 
         <PropertyRow
           label="メモ"
@@ -116,15 +112,13 @@ export function ShiftTemplateProperties({
         </PropertyRow>
       </div>
 
-      {!isTimeHidden ? (
-        <BreakEditor
-          breaks={formData.breaks}
-          readOnly={readOnly}
-          onBreakChange={onBreakChange}
-          onAddBreak={onAddBreak}
-          onRemoveBreak={onRemoveBreak}
-        />
-      ) : null}
+      <BreakEditor
+        breaks={formData.breaks}
+        readOnly={readOnly}
+        onBreakChange={onBreakChange}
+        onAddBreak={onAddBreak}
+        onRemoveBreak={onRemoveBreak}
+      />
     </>
   );
 }

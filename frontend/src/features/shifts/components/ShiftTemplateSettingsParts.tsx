@@ -21,7 +21,7 @@ import {
   templateToFormData,
   type TemplateFormData,
 } from "../lib/shift-template-form-model";
-import { isShiftTemplateTimeHidden } from "../lib/shift-template-form-utils";
+import { requiresShiftTimes } from "../lib/shift-template-form-utils";
 import { ShiftTemplateProperties } from "./ShiftTemplateSidePanelFields";
 
 interface ShiftTemplateRowProps {
@@ -35,12 +35,9 @@ export const ShiftTemplateRow = memo(function ShiftTemplateRow({
   canEdit,
   onEdit,
 }: ShiftTemplateRowProps) {
-  const isTimeHidden = isShiftTemplateTimeHidden(item.shift_type);
-  const timeLabel = isTimeHidden
-    ? "-"
-    : item.start_time && item.end_time
-      ? `${item.start_time}〜${item.end_time}`
-      : "-";
+  // EMR-241: 表示はカテゴリ名ではなく時刻の有無だけで決める（off/paid_leave に
+  // 時刻が保存されていればそのまま表示する）。
+  const timeLabel = item.start_time && item.end_time ? `${item.start_time}〜${item.end_time}` : "-";
 
   return (
     <SortableDataTableRow
@@ -114,7 +111,9 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
     [readOnly],
   );
 
-  const isTimeHidden = isShiftTemplateTimeHidden(formData.shift_type);
+  // EMR-241: 「時刻必須か」の判定のみ種別に依存（backend sharedkernel.RequiresTimeSlot と同一）。
+  // フィールドの表示・値の送信可否をカテゴリ名で分岐してはいけない。
+  const timesRequired = requiresShiftTimes(formData.shift_type);
 
   const handleField = useCallback(
     <K extends keyof TemplateFormData>(key: K, value: TemplateFormData[K]) => {
@@ -152,14 +151,22 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
 
   const handleAction = useCallback(() => {
     if (readOnly) return;
-    if (!isTimeHidden && (!formData.start_time || !formData.end_time)) {
+    const hasStartTime = formData.start_time !== "";
+    const hasEndTime = formData.end_time !== "";
+    // EMR-241: 片方だけの時刻入力は全カテゴリで拒否
+    if (hasStartTime !== hasEndTime) {
+      setTimeError("開始時刻と終了時刻を入力してください");
+      return;
+    }
+    // 勤務種別（RequiresTimeSlot）は両方必須。off/paid_leave は両方空を許可。
+    if (timesRequired && !hasStartTime) {
       setTimeError("勤務種別では開始時刻と終了時刻を入力してください");
       return;
     }
     setTimeError(undefined);
     onSave(formData);
     setIsDirty(false);
-  }, [formData, isTimeHidden, onSave, readOnly]);
+  }, [formData, timesRequired, onSave, readOnly]);
 
   return (
     <div data-side-peek className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0`}>
@@ -226,7 +233,6 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
 
           <ShiftTemplateProperties
             formData={formData}
-            isTimeHidden={isTimeHidden}
             readOnly={readOnly}
             onField={handleField}
             onBreakChange={handleBreakChange}

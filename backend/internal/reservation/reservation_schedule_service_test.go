@@ -225,6 +225,58 @@ func TestReservationScheduleService_Save(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			// EMR-241: 予約スケジュールの勤務時間必須は緩めない（EMR-37 A-12 裁定）。
+			// 勤務区分は両方空を拒否し repo.Save へ到達しない。
+			name:      "working shift type with both times empty is rejected before save",
+			input:     &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeFull)},
+			wantErr:   true,
+			wantSaves: 0,
+		},
+		{
+			// EMR-241: 片方だけの時刻は拒否（WorkStart のみ）
+			name:      "working shift type with only work start is rejected before save",
+			input:     &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeMorning), WorkStart: &start},
+			wantErr:   true,
+			wantSaves: 0,
+		},
+		{
+			// EMR-241: 片方だけの時刻は拒否（WorkEnd のみ）
+			name:      "working shift type with only work end is rejected before save",
+			input:     &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeAfternoon), WorkEnd: &end},
+			wantErr:   true,
+			wantSaves: 0,
+		},
+		{
+			// EMR-241: off は時刻なしで保存できる（空時刻受容は off / paid_leave のみ）
+			name:  "off shift type accepts empty times",
+			input: &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeOff)},
+			saveFn: func(_ context.Context, _ uint64, entry *model.ShiftEntry, _ []model.ShiftEntryBreak) (*model.ShiftEntry, []model.ShiftEntryBreak, bool, error) {
+				return entry, nil, true, nil
+			},
+			want: &ScheduleEntry{
+				Entry:  model.ShiftEntry{ClinicID: clinicID, StaffID: staffID, Date: date, ShiftType: model.ShiftTypeOff},
+				Breaks: nil,
+			},
+			wantErr:   false,
+			wantIsNew: true,
+			wantSaves: 1,
+		},
+		{
+			// EMR-241: paid_leave も時刻なしで保存できる
+			name:  "paid_leave shift type accepts empty times",
+			input: &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypePaidLeave)},
+			saveFn: func(_ context.Context, _ uint64, entry *model.ShiftEntry, _ []model.ShiftEntryBreak) (*model.ShiftEntry, []model.ShiftEntryBreak, bool, error) {
+				return entry, nil, true, nil
+			},
+			want: &ScheduleEntry{
+				Entry:  model.ShiftEntry{ClinicID: clinicID, StaffID: staffID, Date: date, ShiftType: model.ShiftTypePaidLeave},
+				Breaks: nil,
+			},
+			wantErr:   false,
+			wantIsNew: true,
+			wantSaves: 1,
+		},
+		{
 			name:  "repo save error propagates",
 			input: &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeFull), WorkStart: &start, WorkEnd: &end},
 			saveFn: func(_ context.Context, _ uint64, _ *model.ShiftEntry, _ []model.ShiftEntryBreak) (*model.ShiftEntry, []model.ShiftEntryBreak, bool, error) {

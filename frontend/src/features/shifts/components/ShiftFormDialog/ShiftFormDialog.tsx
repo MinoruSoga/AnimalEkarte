@@ -47,7 +47,7 @@ import { useGetShiftTemplates } from "../../api/get-shift-templates";
 import { handleApiError } from "@/lib/handle-api-error";
 import { getFormString } from "@/lib/form-data";
 import { queryKeys } from "@/lib/query-keys";
-import { isShiftTemplateTimeHidden } from "../../lib/shift-template-form-utils";
+import { requiresShiftTimes } from "../../lib/shift-template-form-utils";
 import { DEFAULT_BREAK_START, DEFAULT_BREAK_END } from "../../lib/shift-template-form-model";
 
 /**
@@ -147,10 +147,18 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
       const resolvedShiftType = isShiftType(rawShiftType) ? rawShiftType : shiftType;
       const resolvedStartTime = getFormString(formData, "startTime");
       const resolvedEndTime = getFormString(formData, "endTime");
-      // BUG-036: off/paid_leave 以外は開始・終了時刻必須（空のまま API に送らない）
-      const timesRequired = !isShiftTemplateTimeHidden(resolvedShiftType);
+      // EMR-241: 時刻必須は種別の RequiresTimeSlot 判定のみで決める（BUG-036 踏襲）。
+      // フィールドの表示/非活性にはカテゴリ名を使わない。
+      const timesRequired = requiresShiftTimes(resolvedShiftType);
+      const hasStartTime = resolvedStartTime !== "";
+      const hasEndTime = resolvedEndTime !== "";
 
-      if (timesRequired && (!resolvedStartTime || !resolvedEndTime)) {
+      // EMR-241: 片方だけの時刻入力は全カテゴリで拒否
+      if (hasStartTime !== hasEndTime) {
+        return { timeError: "開始時刻と終了時刻を入力してください" };
+      }
+      // 勤務種別は両方必須。off/paid_leave は両方空を許可。
+      if (timesRequired && !hasStartTime) {
         return { timeError: "開始時刻と終了時刻を入力してください" };
       }
 
@@ -161,10 +169,12 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
       try {
         if (isEdit && editShiftId) {
           const validBreaks = breaksRef.current.filter((b) => b.break_start && b.break_end);
+          // EMR-241: 時刻は入力値をそのまま送る。空欄は "" で送りサーバ側でクリアされる
+          // （PATCH は未指定=既存値維持のため、クリア意図を明示する必要がある）。
           const input: UpdateShiftInput = {
             shift_type: resolvedShiftType,
-            start_time: timesRequired ? resolvedStartTime : undefined,
-            end_time: timesRequired ? resolvedEndTime : undefined,
+            start_time: resolvedStartTime,
+            end_time: resolvedEndTime,
             notes: getFormString(formData, "notes") || undefined,
             breaks: validBreaks,
           };
@@ -175,8 +185,8 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
             staff_id: staffId,
             date,
             shift_type: resolvedShiftType,
-            start_time: timesRequired ? resolvedStartTime : undefined,
-            end_time: timesRequired ? resolvedEndTime : undefined,
+            start_time: resolvedStartTime || undefined,
+            end_time: resolvedEndTime || undefined,
             notes: getFormString(formData, "notes") || undefined,
             breaks: validBreaks.length > 0 ? validBreaks : undefined,
           };
@@ -202,8 +212,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
   const { mutate: deleteShift, isPending: isDeletePending } = useDeleteShift();
   // BUG-093: 削除確認ダイアログの表示状態
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  // BUG-092 / BUG-036: 休日・有休は時刻入力不要（テンプレート側と同判定）
-  const isTimeFieldDisabled = isShiftTemplateTimeHidden(shiftType);
+  // EMR-241: 時刻フィールドは全シフト種別で常時表示・有効（カテゴリ名で非表示/非活性にしない）
 
   const handleApplyTemplate = useCallback(
     (templateId: string) => {
@@ -310,33 +319,27 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
               </Select>
             </div>
 
-            {/* BUG-092: 休日選択時は時刻フィールドを非活性 */}
+            {/* EMR-241: 全シフト種別で時刻フィールドを表示する（off/paid_leave でも入力可） */}
             <div className="space-y-1.5">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="start-time" className={isTimeFieldDisabled ? "opacity-40" : ""}>
-                    開始時刻
-                  </Label>
+                  <Label htmlFor="start-time">開始時刻</Label>
                   <Input
                     id="start-time"
                     name="startTime"
                     type="time"
                     value={startTime}
                     onChange={handleStartTimeChange}
-                    disabled={isTimeFieldDisabled}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="end-time" className={isTimeFieldDisabled ? "opacity-40" : ""}>
-                    終了時刻
-                  </Label>
+                  <Label htmlFor="end-time">終了時刻</Label>
                   <Input
                     id="end-time"
                     name="endTime"
                     type="time"
                     value={endTime}
                     onChange={handleEndTimeChange}
-                    disabled={isTimeFieldDisabled}
                   />
                 </div>
               </div>
@@ -353,70 +356,66 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
               />
             </div>
 
-            {/* 休憩時間 */}
-            {!isTimeFieldDisabled ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm">休憩時間</Label>
+            {/* 休憩時間（EMR-241: 全シフト種別で常時表示） */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">休憩時間</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() =>
+                    setBreaks((prev) => [
+                      ...prev,
+                      { break_start: DEFAULT_BREAK_START, break_end: DEFAULT_BREAK_END },
+                    ])
+                  }
+                >
+                  <Plus className={`${ICON.xxs} mr-1`} />
+                  追加
+                </Button>
+              </div>
+              {breaks.map((b, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Input
+                    type="time"
+                    aria-label={`休憩${i + 1} 開始時刻`}
+                    value={b.break_start}
+                    onChange={(e) =>
+                      setBreaks((prev) =>
+                        prev.map((br, j) =>
+                          j === i ? { ...br, break_start: e.target.value } : br,
+                        ),
+                      )
+                    }
+                    className="flex-1"
+                  />
+                  <span className={`text-xs ${C.text50}`}>〜</span>
+                  <Input
+                    type="time"
+                    aria-label={`休憩${i + 1} 終了時刻`}
+                    value={b.break_end}
+                    onChange={(e) =>
+                      setBreaks((prev) =>
+                        prev.map((br, j) => (j === i ? { ...br, break_end: e.target.value } : br)),
+                      )
+                    }
+                    className="flex-1"
+                  />
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-7 px-2 text-xs"
-                    onClick={() =>
-                      setBreaks((prev) => [
-                        ...prev,
-                        { break_start: DEFAULT_BREAK_START, break_end: DEFAULT_BREAK_END },
-                      ])
-                    }
+                    className="h-8 w-8 p-0"
+                    aria-label={`休憩${i + 1}を削除`}
+                    onClick={() => setBreaks((prev) => prev.filter((_, j) => j !== i))}
                   >
-                    <Plus className={`${ICON.xxs} mr-1`} />
-                    追加
+                    <X className={ICON.smXs} />
                   </Button>
                 </div>
-                {breaks.map((b, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <Input
-                      type="time"
-                      aria-label={`休憩${i + 1} 開始時刻`}
-                      value={b.break_start}
-                      onChange={(e) =>
-                        setBreaks((prev) =>
-                          prev.map((br, j) =>
-                            j === i ? { ...br, break_start: e.target.value } : br,
-                          ),
-                        )
-                      }
-                      className="flex-1"
-                    />
-                    <span className={`text-xs ${C.text50}`}>〜</span>
-                    <Input
-                      type="time"
-                      aria-label={`休憩${i + 1} 終了時刻`}
-                      value={b.break_end}
-                      onChange={(e) =>
-                        setBreaks((prev) =>
-                          prev.map((br, j) =>
-                            j === i ? { ...br, break_end: e.target.value } : br,
-                          ),
-                        )
-                      }
-                      className="flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      aria-label={`休憩${i + 1}を削除`}
-                      onClick={() => setBreaks((prev) => prev.filter((_, j) => j !== i))}
-                    >
-                      <X className={ICON.smXs} />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            ) : null}
+              ))}
+            </div>
 
             <DialogFooter className="gap-2">
               {isEdit && canDelete ? (
