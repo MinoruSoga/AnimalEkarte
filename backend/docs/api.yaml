@@ -10573,8 +10573,13 @@ paths:
   /owners/{id}/lstep-opt-out:
     post:
       operationId: postOwnerLstepOptOut
-      summary: Lステップ配信オプトアウト（旧エンドポイント）
-      description: BE-017。owners edit 権限が必要。ISSUE-001 の統合エンドポイント PATCH /owners/{id}/lstep/opt-out も参照。
+      deprecated: true
+      summary: Lステップ配信オプトアウト（旧エンドポイント・非推奨）
+      description: >-
+        BE-017。owners edit 権限が必要。**非推奨（EMR-240）** — opt-out 専用の互換エンドポイント。
+        新規利用は統合エンドポイント PATCH /owners/{id}/lstep/opt-out（opt_out true/false で切替）を使用すること。
+        製品 UI の正規経路は PATCH /owners/{id}/delivery-exclusion（delivery_excluded と lstep_opt_out を同時更新）。
+        外部クライアントの利用確認が取れるまで削除は保留。
       tags: [Owners]
       parameters:
         - name: id

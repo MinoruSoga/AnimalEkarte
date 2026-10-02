@@ -15,16 +15,17 @@ package reservation
 //       （= この層では兼務スタッフの主所属不一致を再現できない）。
 //
 //   (B) migration 実 DDL スクラッチスキーマ:
-//       共有 *_test DB 内の専用スキーマに 001_init.sql + 002 + 003 を適用し、
-//       本番と同じ制約セット（fk_appointments_doctor_clinic 複合 FK 含む）で
-//       同一操作を再実行する。兼務スタッフ（主所属=別医院、当該医院に assignment +
-//       capability あり）を担当医にした予約保存が現行 build でどう振る舞うかを
-//       「制約名まで」記録する。
+//       共有 *_test DB 内の専用スキーマに 001_init.sql + 002 + 003 + 017 を適用し、
+//       本番と同じ制約セットで同一操作を再実行する。兼務スタッフ
+//       （主所属=別医院、当該医院に assignment + capability あり）を担当医にした
+//       予約保存が 017_multiclinic_staff_fk_fix.sql 適用後の実 DDL で
+//       受理されることを pin する（017 適用前は fk_appointments_doctor_clinic
+//       複合 FK が主所属一致を要求して 23503 → 400「参照先が存在しません」で
+//       再現していた — EMR-114 の残余欠陥）。
 //
 // 見つかった差異を隠さず pin する。「legacy composite rejects ...」（
 // reservation_created_by_fk_test.go）と同じく、現在の実 DDL が実際に返す挙動を
-// 固定し、修正が migration を要する場合は本ユニットの forbidden_ops により
-// コード変更は行わず証拠のみ残す。
+// 固定する。
 import (
 	"bytes"
 	"context"
@@ -362,7 +363,8 @@ func setupReservationRefScratchSchema(t *testing.T) *reservationRefScratchFixtur
 	ddl = strings.ReplaceAll(ddl, "'public'", "'"+schema+"'")
 	require.NoError(t, db.Exec(ddl).Error)
 	applyReservationCreatedByMigration(t, db, "../../migrations/002_medical_records_entered_by_staff_fk.sql")
-	applyReservationCreatedByMigration(t, db, reservationCreatedByMigration) // 003: created_by 単一カラム FK 化
+	applyReservationCreatedByMigration(t, db, reservationCreatedByMigration)                       // 003: created_by 単一カラム FK 化
+	applyReservationCreatedByMigration(t, db, "../../migrations/017_multiclinic_staff_fk_fix.sql") // 017: 兼務スタッフ参照の複合 FK 除去
 	fixture := &reservationRefScratchFixture{db: db}
 	require.NoError(t, db.Callback().Create().After("gorm:create").Register("test:capture_reservation_ref_fk", func(tx *gorm.DB) {
 		var pgErr *pgconn.PgError
@@ -495,29 +497,90 @@ func TestReservationStaffReference_RealDDL(t *testing.T) {
 		assert.Equal(t, sharedCreator.ID, *got.CreatedBy)
 	})
 
-	t.Run("assigned multi-clinic doctor on real DDL records current constraint behavior", func(t *testing.T) {
+	t.Run("assigned multi-clinic doctor saves on real DDL post-017", func(t *testing.T) {
 		// 兼務担当医: staffs.clinic_id=B だが clinic A に assignment+capability+shift あり。
-		// アプリ層のチェック（handler assignment / in-tx staff guard / capability）は全て通るため、
-		// 結果は appointments 側の doctor 参照制約のみで決まる。
+		// 017 適用前は fk_appointments_doctor_clinic の主所属一致要求で 23503 →
+		// 400「参照先が存在しません」（報告された障害そのもの）だった。
+		// 017 で複合 FK は単一カラム化済みのため、現行 DDL では受理される。
 		fixture.lastPG = nil
-		before := countAppointments(t, db, f.clinicA.ID)
-
 		w := postReservationRef(t, handler, f.clinicA.ID, f.creator.ID,
 			reservationRefBody(f.start.Add(4*time.Hour), f.end.Add(4*time.Hour), f.reservationType.ID,
 				fmt.Sprintf(`,"doctor_id":%d`, f.doctorShared.ID)))
 
-		// 現行 build の実 DDL では fk_appointments_doctor_clinic が
-		// (doctor_id, clinic_id) -> staffs(id, clinic_id) の主所属一致を要求するため、
-		// この正当な兼務割当は複合 FK 23503 で拒否され「参照先が存在しません」になる。
-		// これは migration を要する残存不具合であり、本ユニットの forbidden_ops
-		// （新規 migration 禁止）によりコード修正は行わず、実挙動を pin して証拠化する。
-		require.Equal(t, http.StatusBadRequest, w.Code, w.Body.String())
-		assert.Contains(t, w.Body.String(), "参照先が存在しません")
-		require.NotNil(t, fixture.lastPG, "expected a captured postgres error")
-		assert.Equal(t, "23503", fixture.lastPG.Code)
-		assert.Equal(t, "fk_appointments_doctor_clinic", fixture.lastPG.ConstraintName)
-		assert.Equal(t, before, countAppointments(t, db, f.clinicA.ID),
-			"rejected create must not leave a partial appointment row")
+		require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+		assert.Nil(t, fixture.lastPG, "no postgres error expected post-017")
+		id := createdReservationID(t, w)
+		loaded, err := repo.FindByID(ctx, f.clinicA.ID, id)
+		require.NoError(t, err)
+		require.NotNil(t, loaded.DoctorID)
+		assert.Equal(t, f.doctorShared.ID, *loaded.DoctorID)
+	})
+
+	t.Run("post-017 constraint shape on real DDL", func(t *testing.T) {
+		// 017 が複合 FK (col, clinic_id) -> staffs(id, clinic_id) を除去し、
+		// 単一カラム FK -> staffs(id) に置き換えたことを構造的に pin する。
+		// ON DELETE 意味論（doctor=SET NULL / actor・staff=RESTRICT）は維持。
+		type fkRow struct {
+			Table      string `gorm:"column:table_name"`
+			Constraint string `gorm:"column:constraint_name"`
+			Columns    int    `gorm:"column:columns"`
+			DeleteRule string `gorm:"column:delete_rule"`
+		}
+		var rows []fkRow
+		require.NoError(t, db.Raw(`
+			SELECT tc.table_name, tc.constraint_name,
+			       COUNT(kcu.column_name) AS columns,
+			       rc.delete_rule
+			FROM information_schema.table_constraints tc
+			JOIN information_schema.key_column_usage kcu
+			  ON kcu.constraint_name = tc.constraint_name
+			 AND kcu.table_name = tc.table_name
+			 AND kcu.table_schema = tc.table_schema
+			JOIN information_schema.referential_constraints rc
+			  ON rc.constraint_name = tc.constraint_name
+			 AND rc.constraint_schema = tc.constraint_schema
+			WHERE tc.table_schema = current_schema()
+			  AND tc.constraint_type = 'FOREIGN KEY'
+			  AND tc.constraint_name IN (
+			    'fk_appointments_doctor',
+			    'fk_hospitalizations_doctor',
+			    'fk_medical_records_doctor',
+			    'fk_cash_register_close_adjustments_actor',
+			    'fk_medical_record_image_upload_quota_staff',
+			    'fk_lab_device_waits_staff'
+			  )
+			GROUP BY tc.table_name, tc.constraint_name, rc.delete_rule
+			ORDER BY tc.constraint_name`).Scan(&rows).Error)
+		require.Len(t, rows, 6, "all six single-column staff FKs must exist post-017")
+		for _, r := range rows {
+			assert.Equal(t, 1, r.Columns, "%s must be a single-column FK", r.Constraint)
+		}
+		// ON DELETE 意味論の維持: doctor 系は SET NULL、actor/staff 系は RESTRICT。
+		deleteRule := map[string]string{}
+		for _, r := range rows {
+			deleteRule[r.Constraint] = r.DeleteRule
+		}
+		assert.Equal(t, "SET NULL", deleteRule["fk_appointments_doctor"])
+		assert.Equal(t, "SET NULL", deleteRule["fk_hospitalizations_doctor"])
+		assert.Equal(t, "SET NULL", deleteRule["fk_medical_records_doctor"])
+		assert.Equal(t, "RESTRICT", deleteRule["fk_cash_register_close_adjustments_actor"])
+		assert.Equal(t, "RESTRICT", deleteRule["fk_medical_record_image_upload_quota_staff"])
+		assert.Equal(t, "RESTRICT", deleteRule["fk_lab_device_waits_staff"])
+		// 旧複合 FK（同一欠陥クラス6件）が残っていないこと。owners/reservation_types
+		// 等の per-clinic エンティティへの *_clinic 複合 FK は正規のため存続する。
+		var stale int64
+		require.NoError(t, db.Raw(`
+			SELECT COUNT(*) FROM information_schema.table_constraints
+			WHERE table_schema = current_schema() AND constraint_type = 'FOREIGN KEY'
+			  AND constraint_name IN (
+			    'fk_appointments_doctor_clinic',
+			    'fk_hospitalizations_doctor_clinic',
+			    'fk_medical_records_doctor_clinic',
+			    'fk_cash_register_close_adjustments_actor_clinic',
+			    'fk_medical_record_image_upload_quota_staff_clinic',
+			    'fk_lab_device_waits_staff_clinic'
+			  )`).Scan(&stale).Error)
+		assert.Zero(t, stale, "the six composite staff FKs must be dropped post-017")
 	})
 
 	t.Run("nonexistent doctor stays rejected on real DDL", func(t *testing.T) {

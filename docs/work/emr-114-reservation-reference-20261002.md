@@ -77,15 +77,15 @@ ok  	github.com/animal-ekarte/backend/internal/reservation	21.172s   （EXIT=0�
 - **ただし同一エラーを出す残存経路が確定的に再現した**: `staff_clinic_assignments` で clinic A へ正当に配属され、capability・当日シフトも揃った兼務スタッフ（`staffs.clinic_id` が別医院）を担当医にすると、A1/A2/A3/A7 をすべて通過した末に `fk_appointments_doctor_clinic` が `(doctor_id, clinic_id) → staffs(id, clinic_id)` の主所属一致を要求して `23503 → 400 参照先が存在しません` となる。created_by 側は migration 003 で単一カラム化済みだが、doctor 側の複合 FK は 001 時点のまま残っており、アプリ層の assignment ベース所属モデル（`FindByID`・preload の `staffAssignedToClinicsCond`・`checkDoctorClinicAssignment`）と DB 制約が矛盾している。
 - 共有テスト DB（AutoMigrate）ではこの操作が成功するため、**従来のテストハーネスでは構造的に検出不可能**だった点も併せて実測で示した。
 
-## 最小修正（本ユニットでは適用できないため提案として記録）
+## 最小修正（→ 2026-10-02 追記: `017_multiclinic_staff_fk_fix.sql` で適用済み）
 
 - 必要な修正は `003_appointments_created_by_staff_fk.sql` と同型の新規 migration: `ALTER TABLE appointments DROP CONSTRAINT fk_appointments_doctor_clinic` + `ADD CONSTRAINT fk_appointments_doctor FOREIGN KEY (doctor_id) REFERENCES staffs (id) ON DELETE SET NULL`（SET NULL 動作は現行制約の `ON DELETE SET NULL (doctor_id)` を維持）。アプリ層の検証（assignment+capability）は既に完全であり、コード変更は不要。
-- 本ユニットの forbidden_ops に「migrate apply / 新規 migration ファイル」が含まれるため、上記修正の実施は **BLOCKED（スコープ外権限）**。本ファイルで再現経路・制約名・修正案を証跡化し、controller の migration フォローアップユニットへ引き渡す。
+- ~~本ユニットの forbidden_ops に「migrate apply / 新規 migration ファイル」が含まれるため、上記修正の実施は BLOCKED（スコープ外権限）~~ → **controller 側フォローアップとして `017_multiclinic_staff_fk_fix.sql` で実施済み**。001 内の同一欠陥クラス全6サイト（`appointments.doctor_id`・`hospitalizations.doctor_id`・`medical_records.doctor_id`・`cash_register_close_adjustments.actor_id`・`medical_record_image_upload_quota.staff_id`・`lab_device_waits.staff_id`）を一括で単一カラム化。`RealDDL` スクラッチスキーマは 017 を適用し、兼務 subtest は成功 pin + 制約形状 pin（単一カラム 6件存在・旧複合 6件不在）に反転済み。
 
 ## close 提案の可否
 
 - 「対応報告後の確認済み」として閉じる条件（対象 build の同じ操作で保存・再読込でき、無効/他院参照が拒否される receipt）は、**標準パスについては満たしている**。
-- ただし「参照先が存在しません」を返す正当操作が兼務スタッフ経路に残存する（再現 receipt 上記）。報告事象そのものは 9/13 修正（doctor_id=0 正規化・created_by FK 単一カラム化）で解消している可能性が高い一方、**同一メッセージを出す残存不具合が現行 build で確実に再現するため、無条件の close ではなく `fk_appointments_doctor_clinic` の migration 修正ユニットへの切り出しを提案する**。切り出し適用後に兼務 subtest を「成功を期待する」pin へ更新すれば close できる。
+- 兼務スタッフ経路の残存不具合は `017_multiclinic_staff_fk_fix.sql` で修正済み（実 DDL ピン留め反転で検証）。**各環境で `make migrate` 適用後に close 可能**。適用前の環境では 001 由来の複合 FK が残るため、兼務スタッフ経路は引き続き `参照先が存在しません` を返すことに注意。
 
 ## ハーネス覚書
 

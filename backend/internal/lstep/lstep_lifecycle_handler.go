@@ -66,6 +66,12 @@ func (h *Handler) DeletePetDeath(c *gin.Context) {
 
 // UpdateOwnerLstepOptOut godoc
 // POST /owners/:id/lstep-opt-out — オーナーの Lステップ配信をオプトアウトする（BE-017）。
+//
+// Deprecated (EMR-240): opt-out 専用の互換エンドポイント。新規利用は
+// PATCH /owners/:id/lstep/opt-out（opt_in/opt_out 統合）を使うこと。
+// 製品 UI の正規経路は PATCH /owners/:id/delivery-exclusion（delivery_excluded
+// と lstep_opt_out を同時更新）。外部クライアントの利用確認が取れるまで
+// 削除は保留し、確認後に廃止する。
 func (h *Handler) UpdateOwnerLstepOptOut(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
