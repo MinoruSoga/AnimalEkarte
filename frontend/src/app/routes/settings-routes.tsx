@@ -467,6 +467,15 @@ export const settingsRoute: RouteObject = {
         return { Component: BugReportsPage };
       },
     },
+    // チャット履歴一覧も同じく全医院共有ボード（権限ゲートなし — 質問傾向の
+    // 横断分析用途。backend の GET /support/chat/exchanges と同じ方針）。
+    {
+      path: "chat-history",
+      lazy: async () => {
+        const { ChatHistoryPage } = await import("@/features/support");
+        return { Component: ChatHistoryPage };
+      },
+    },
     {
       path: "lab-device-item-masters",
       element: (

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,6 +25,7 @@ type mockRepository struct {
 	softDeleteFn   func(ctx context.Context, id uint64) error
 	createChatFn   func(ctx context.Context, messages []*model.SupportChatMessage) error
 	listChatFn     func(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
+	listAllChatFn  func(ctx context.Context) ([]ChatMessageWithMeta, error)
 	clearChatFn    func(ctx context.Context, clinicID, staffID uint64) error
 }
 
@@ -59,6 +61,12 @@ func (m *mockRepository) ListChatHistory(ctx context.Context, clinicID, staffID 
 		return nil, nil
 	}
 	return m.listChatFn(ctx, clinicID, staffID)
+}
+func (m *mockRepository) ListAllChatMessages(ctx context.Context) ([]ChatMessageWithMeta, error) {
+	if m.listAllChatFn == nil {
+		return nil, nil
+	}
+	return m.listAllChatFn(ctx)
 }
 func (m *mockRepository) ClearChatHistory(ctx context.Context, clinicID, staffID uint64) error {
 	if m.clearChatFn == nil {
@@ -300,5 +308,71 @@ func TestServiceDelete(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 		assert.False(t, softDeleteCalled)
+	})
+}
+
+func TestListChatExchanges(t *testing.T) {
+	base := time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
+	msg := func(id uint64, role model.SupportChatMessageRole, content string, clinicID, staffID uint64, min int) ChatMessageWithMeta {
+		return ChatMessageWithMeta{
+			SupportChatMessage: model.SupportChatMessage{
+				ID: id, ClinicID: clinicID, StaffID: staffID, Role: role, Content: content,
+				CreatedAt: base.Add(time.Duration(min) * time.Minute),
+			},
+			StaffName:  "スタッフ" + string(rune('A')+rune(staffID-1)),
+			ClinicName: "医院" + string(rune('A')+rune(clinicID-1)),
+		}
+	}
+
+	t.Run("pairs user+assistant per clinic/staff and returns newest first", func(t *testing.T) {
+		repo := &mockRepository{
+			listAllChatFn: func(_ context.Context) ([]ChatMessageWithMeta, error) {
+				// repo は新しい順で返す — id 降順（新→旧）
+				return []ChatMessageWithMeta{
+					msg(6, model.SupportChatRoleAssistant, "回答2", 1, 1, 30),
+					msg(5, model.SupportChatRoleUser, "質問2", 1, 1, 29),
+					msg(4, model.SupportChatRoleAssistant, "他院回答", 2, 7, 20),
+					msg(3, model.SupportChatRoleUser, "他院質問", 2, 7, 19),
+					msg(2, model.SupportChatRoleAssistant, "回答1", 1, 1, 10),
+					msg(1, model.SupportChatRoleUser, "質問1", 1, 1, 9),
+				}, nil
+			},
+		}
+		svc := NewService(repo, nil)
+
+		got, err := svc.ListChatExchanges(context.Background())
+		require.NoError(t, err)
+		require.Len(t, got, 3)
+		// 新しい順: 質問2 → 他院 → 質問1
+		assert.Equal(t, "質問2", got[0].UserMessage.Content)
+		assert.Equal(t, "回答2", got[0].AssistantMessage.Content)
+		assert.Equal(t, "他院質問", got[1].UserMessage.Content)
+		assert.Equal(t, "医院B", got[1].ClinicName)
+		assert.Equal(t, "質問1", got[2].UserMessage.Content)
+	})
+
+	t.Run("orphan assistant without preceding user is dropped", func(t *testing.T) {
+		repo := &mockRepository{
+			listAllChatFn: func(_ context.Context) ([]ChatMessageWithMeta, error) {
+				return []ChatMessageWithMeta{
+					msg(3, model.SupportChatRoleAssistant, "回答", 1, 1, 20),
+					msg(2, model.SupportChatRoleUser, "質問", 1, 1, 19),
+					msg(1, model.SupportChatRoleAssistant, "窓外の孤立回答", 1, 1, 5),
+				}, nil
+			},
+		}
+		svc := NewService(repo, nil)
+
+		got, err := svc.ListChatExchanges(context.Background())
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		assert.Equal(t, "質問", got[0].UserMessage.Content)
+	})
+
+	t.Run("empty history returns empty list", func(t *testing.T) {
+		svc := NewService(&mockRepository{}, nil)
+		got, err := svc.ListChatExchanges(context.Background())
+		require.NoError(t, err)
+		assert.Empty(t, got)
 	})
 }

@@ -83,6 +83,64 @@ type chatHistoryResponse struct {
 	Data []chatHistoryItem `json:"data"`
 }
 
+// chatExchangeItem は GET /support/chat/exchanges の1行（質問+回答ペア + provenance）
+type chatExchangeItem struct {
+	ID         uint64       `json:"id"`
+	ClinicName string       `json:"clinic_name"`
+	StaffName  string       `json:"staff_name"`
+	Question   string       `json:"question"`
+	Answer     string       `json:"answer"`
+	Sources    []ChatSource `json:"sources,omitempty"`
+	CreatedAt  time.Time    `json:"created_at"`
+}
+
+// chatExchangeListResponse は GET /support/chat/exchanges のレスポンス
+type chatExchangeListResponse struct {
+	Data []chatExchangeItem `json:"data"`
+}
+
+// toChatExchangeItem はペア化済み履歴をレスポンス形に変換する。
+// created_at は質問送信時刻（回答はほぼ即時に続く）。
+func toChatExchangeItem(e ChatExchange) chatExchangeItem {
+	item := chatExchangeItem{
+		ID:         e.AssistantMessage.ID,
+		ClinicName: e.ClinicName,
+		StaffName:  e.StaffName,
+		Question:   e.UserMessage.Content,
+		Answer:     e.AssistantMessage.Content,
+		CreatedAt:  e.UserMessage.CreatedAt,
+	}
+	if len(e.AssistantMessage.Sources) > 0 {
+		var sources []ChatSource
+		if err := json.Unmarshal(e.AssistantMessage.Sources, &sources); err == nil {
+			item.Sources = sources
+		}
+	}
+	return item
+}
+
+// ListChatExchanges は全医院の質問+回答ペアを新しい順で返す。
+//
+// GET /api/v1/support/chat/exchanges
+// 認証済みスタッフ全員が利用できる（権限ゲート・医院絞りなし — バグ報告ボードと
+// 同じ共有ボード方針。質問傾向の横断分析が目的で、個人情報を含み得る点は product 承認済み）。
+func (h *Handler) ListChatExchanges(c *gin.Context) {
+	if h.service == nil {
+		c.JSON(http.StatusOK, chatExchangeListResponse{Data: []chatExchangeItem{}})
+		return
+	}
+	exchanges, err := h.service.ListChatExchanges(c.Request.Context())
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	items := make([]chatExchangeItem, len(exchanges))
+	for i, e := range exchanges {
+		items[i] = toChatExchangeItem(e)
+	}
+	c.JSON(http.StatusOK, chatExchangeListResponse{Data: items})
+}
+
 // parseChatRequest はチャットリクエストをバインド・検証する。
 func parseChatRequest(c *gin.Context) (*chatRequest, error) {
 	var req chatRequest

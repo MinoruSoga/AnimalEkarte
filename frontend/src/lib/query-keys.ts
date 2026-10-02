@@ -409,6 +409,7 @@ export const queryKeys = {
   supportChat: {
     status: () => ["support-chat", "status"] as const,
     history: () => ["support-chat", "history"] as const,
+    exchanges: () => ["support-chat", "exchanges"] as const,
   },
 
   // ── test-only ─────────────────────────────────────────────────────

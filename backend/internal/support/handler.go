@@ -54,6 +54,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	s.GET("/chat/status", h.ChatStatus)
 	s.GET("/chat/history", h.ChatHistory)
 	s.DELETE("/chat/history", h.ClearChatHistory)
+	// 共有一覧はバグ報告と同じく全医院公開（質問傾向の横断分析用途 — product 決定）。
+	s.GET("/chat/exchanges", h.ListChatExchanges)
 	chatHandlers := []gin.HandlerFunc{h.Chat}
 	if h.chatRateLimit != nil {
 		chatHandlers = append([]gin.HandlerFunc{h.chatRateLimit}, chatHandlers...)

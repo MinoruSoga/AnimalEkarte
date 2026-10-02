@@ -78,3 +78,18 @@ export interface SupportChatHistoryRecord {
 export interface SupportChatStatus {
   enabled: boolean;
 }
+
+/**
+ * GET /v1/support/chat/exchanges の1行（質問+回答ペア、全医院共有ボード用）。
+ * clinic_name / staff_name は provenance 表示用（絞り込みではない）。
+ */
+export interface SupportChatExchange {
+  id: number;
+  clinic_name: string;
+  staff_name: string;
+  question: string;
+  answer: string;
+  sources?: SupportChatSource[];
+  /** 質問送信時刻 */
+  created_at: string;
+}

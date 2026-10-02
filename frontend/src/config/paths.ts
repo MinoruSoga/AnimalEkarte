@@ -292,6 +292,10 @@ export const paths = {
     },
     campaigns: { path: "/settings/campaigns", getHref: () => "/settings/campaigns" },
     bugReports: { path: "/settings/bug-reports", getHref: () => "/settings/bug-reports" },
+    chatHistory: {
+      path: "/settings/chat-history",
+      getHref: () => "/settings/chat-history",
+    },
     labDeviceItemMasters: {
       path: "/settings/lab-device-item-masters",
       getHref: () => "/settings/lab-device-item-masters",

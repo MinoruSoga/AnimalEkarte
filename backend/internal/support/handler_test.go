@@ -22,14 +22,15 @@ import (
 // ---- mock Service ----
 
 type mockService struct {
-	createFn       func(ctx context.Context, clinicID, reporterStaffID uint64, input CreateBugReportInput) (*model.SupportBugReport, error)
-	listFn         func(ctx context.Context) ([]BugReportWithReporter, error)
-	updateStatusFn func(ctx context.Context, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error)
-	ensureTicketFn func(ctx context.Context, id uint64) (*model.SupportBugReport, error)
-	deleteFn       func(ctx context.Context, id uint64) (*model.SupportBugReport, error)
-	listChatFn     func(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
-	recordChatFn   func(ctx context.Context, clinicID, staffID uint64, userMessage, assistantReply string, sources []ChatSource) error
-	clearChatFn    func(ctx context.Context, clinicID, staffID uint64) error
+	createFn        func(ctx context.Context, clinicID, reporterStaffID uint64, input CreateBugReportInput) (*model.SupportBugReport, error)
+	listFn          func(ctx context.Context) ([]BugReportWithReporter, error)
+	updateStatusFn  func(ctx context.Context, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error)
+	ensureTicketFn  func(ctx context.Context, id uint64) (*model.SupportBugReport, error)
+	deleteFn        func(ctx context.Context, id uint64) (*model.SupportBugReport, error)
+	listChatFn      func(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
+	listExchangesFn func(ctx context.Context) ([]ChatExchange, error)
+	recordChatFn    func(ctx context.Context, clinicID, staffID uint64, userMessage, assistantReply string, sources []ChatSource) error
+	clearChatFn     func(ctx context.Context, clinicID, staffID uint64) error
 }
 
 func (m *mockService) Create(ctx context.Context, clinicID, reporterStaffID uint64, input CreateBugReportInput) (*model.SupportBugReport, error) {
@@ -58,6 +59,12 @@ func (m *mockService) RecordChatExchange(ctx context.Context, clinicID, staffID 
 		return nil
 	}
 	return m.recordChatFn(ctx, clinicID, staffID, userMessage, assistantReply, sources)
+}
+func (m *mockService) ListChatExchanges(ctx context.Context) ([]ChatExchange, error) {
+	if m.listExchangesFn == nil {
+		return nil, nil
+	}
+	return m.listExchangesFn(ctx)
 }
 func (m *mockService) ClearChatHistory(ctx context.Context, clinicID, staffID uint64) error {
 	if m.clearChatFn == nil {

@@ -5,7 +5,10 @@
 // 報告を一覧・操作できる（権限ゲート・医院絞りなし）。報告は医院の業務データではなく
 // 製品へのフィードバックとして扱う product 決定（2026-10）。スクショに他院の
 // 患者情報が写り得る点は仕様上許容済み。clinic_id/reporter_staff_id は絞り込みではなく
-// provenance として記録する。チャット履歴は個人データのため従来どおり clinic×staff スコープ。
+// provenance として記録する。
+// チャット履歴: 個人スコープの GET/DELETE /chat/history と、全医院共有ボードの
+// GET /chat/exchanges（質問傾向の横断分析目的で意図的に公開 — バグ報告と同じ
+// product 決定。質問内容に個人情報が含まれ得る点はユーザー承認済み）。
 package support
 
 import (
@@ -21,6 +24,10 @@ import (
 // maxBugReportsList caps the shared list endpoint (newest first).
 const maxBugReportsList = 200
 
+// maxChatExchangeMessages caps rows fetched for the shared exchange list
+// (user+assistant pairs — at most half of them become list rows).
+const maxChatExchangeMessages = 1000
+
 // Repository は support_bug_reports と support_chat_messages のデータアクセスインターフェース
 type Repository interface {
 	Create(ctx context.Context, report *model.SupportBugReport) error
@@ -33,6 +40,8 @@ type Repository interface {
 	SoftDeleteBugReport(ctx context.Context, id uint64) error
 	CreateChatMessages(ctx context.Context, messages []*model.SupportChatMessage) error
 	ListChatHistory(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
+	// ListAllChatMessages は全医院の履歴を新しい順で返す（共有一覧ページ用 — 個人履歴と別契約）
+	ListAllChatMessages(ctx context.Context) ([]ChatMessageWithMeta, error)
 	ClearChatHistory(ctx context.Context, clinicID, staffID uint64) error
 }
 
@@ -126,6 +135,31 @@ func (r *repository) ListChatHistory(ctx context.Context, clinicID, staffID uint
 		case err != nil && !errors.Is(err, gorm.ErrRecordNotFound):
 			return nil, apperrors.FromGORM(err, "support_chat_message", "")
 		}
+	}
+	return messages, nil
+}
+
+// ChatMessageWithMeta は共有一覧表示用にスタッフ氏名・医院名を結合した行。
+type ChatMessageWithMeta struct {
+	model.SupportChatMessage
+	StaffName  string
+	ClinicName string
+}
+
+// ListAllChatMessages は全医院の履歴を新しい順で返す（deleted_at 除外・上限 maxChatExchangeMessages）。
+// 質問+回答ペア化は service 側で行う。
+func (r *repository) ListAllChatMessages(ctx context.Context) ([]ChatMessageWithMeta, error) {
+	messages := make([]ChatMessageWithMeta, 0)
+	if err := r.db.WithContext(ctx).
+		Table("support_chat_messages").
+		Select("support_chat_messages.*, staffs.name AS staff_name, clinics.name AS clinic_name").
+		Joins("LEFT JOIN staffs ON staffs.id = support_chat_messages.staff_id").
+		Joins("LEFT JOIN clinics ON clinics.id = support_chat_messages.clinic_id").
+		Where("support_chat_messages.deleted_at IS NULL").
+		Order("support_chat_messages.created_at DESC, support_chat_messages.id DESC").
+		Limit(maxChatExchangeMessages).
+		Scan(&messages).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "support_chat_message", "")
 	}
 	return messages, nil
 }

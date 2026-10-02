@@ -31,6 +31,8 @@ type Service interface {
 	EnsurePlaneTicket(ctx context.Context, id uint64) (*model.SupportBugReport, error)
 	Delete(ctx context.Context, id uint64) (*model.SupportBugReport, error)
 	ListChatHistory(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
+	// ListChatExchanges は全医院の質問+回答ペアを新しい順で返す（共有一覧ページ用）
+	ListChatExchanges(ctx context.Context) ([]ChatExchange, error)
 	RecordChatExchange(ctx context.Context, clinicID, staffID uint64, userMessage, assistantReply string, sources []ChatSource) error
 	ClearChatHistory(ctx context.Context, clinicID, staffID uint64) error
 }
@@ -185,6 +187,53 @@ func (s *service) RecordChatExchange(ctx context.Context, clinicID, staffID uint
 		{ClinicID: clinicID, StaffID: staffID, Role: model.SupportChatRoleUser, Content: userMessage},
 		{ClinicID: clinicID, StaffID: staffID, Role: model.SupportChatRoleAssistant, Content: assistantReply, Sources: sourcesJSON},
 	})
+}
+
+// ChatExchange は一覧表示用の質問+回答ペア（回答行に結合したスタッフ/医院名つき）。
+type ChatExchange struct {
+	UserMessage      model.SupportChatMessage
+	AssistantMessage model.SupportChatMessage
+	StaffName        string
+	ClinicName       string
+}
+
+// ListChatExchanges は全医院の履歴を user→assistant のペアにして新しい順で返す。
+// RecordChatExchange が質問+回答を同一 batch で保存するため、同一 clinic×staff 内で
+// assistant の直前にある user 行がその質問。対が欠けた行（窓の境界など）は除外する。
+func (s *service) ListChatExchanges(ctx context.Context) ([]ChatExchange, error) {
+	messages, err := s.repo.ListAllChatMessages(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// 新しい順で来るので古い順に反転してからペア化する
+	type exchangeKey struct{ clinicID, staffID uint64 }
+	pending := make(map[exchangeKey]*ChatMessageWithMeta, len(messages))
+	exchanges := make([]ChatExchange, 0, len(messages)/2)
+	for i := len(messages) - 1; i >= 0; i-- {
+		m := &messages[i]
+		key := exchangeKey{clinicID: m.ClinicID, staffID: m.StaffID}
+		switch m.Role {
+		case model.SupportChatRoleUser:
+			pending[key] = m
+		case model.SupportChatRoleAssistant:
+			user, ok := pending[key]
+			if !ok {
+				continue
+			}
+			delete(pending, key)
+			exchanges = append(exchanges, ChatExchange{
+				UserMessage:      user.SupportChatMessage,
+				AssistantMessage: m.SupportChatMessage,
+				StaffName:        m.StaffName,
+				ClinicName:       m.ClinicName,
+			})
+		}
+	}
+	// 古い順で組み立てたので新しい順に反転して返す
+	for i, j := 0, len(exchanges)-1; i < j; i, j = i+1, j-1 {
+		exchanges[i], exchanges[j] = exchanges[j], exchanges[i]
+	}
+	return exchanges, nil
 }
 
 // ClearChatHistory は指定スタッフの会話履歴をすべて soft delete する。

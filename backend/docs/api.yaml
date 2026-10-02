@@ -25817,6 +25817,47 @@ paths:
         '501': { description: LLM が未設定(SUPPORT_LLM_API_KEY なし) }
         '502': { description: LLM 上流エラー(プロバイダ詳細は返さない) }
         '500': { $ref: '#/components/responses/InternalError' }
+  /support/chat/exchanges:
+    get:
+      operationId: listSupportChatExchanges
+      summary: ヘルプチャットの質問+回答ペア一覧(全医院共有・新しい順)
+      description: |
+        認証済みスタッフ全員が利用可能（権限ゲート・医院絞りなし — バグ報告ボードと
+        同じ共有ボード方針）。全医院の保存済み履歴を「質問+回答」ペアで返す。
+        clinic_name / staff_name は絞り込みではなく provenance 表示用。
+        質問内容に個人情報が含まれ得る点は製品判断として承認済み（2026-10）。
+        直近最大500ペア（user+assistant 各行最大1000件）を新しい順で返す。
+      tags: [Support]
+      responses:
+        '200':
+          description: 質問+回答ペア一覧(新しい順)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer, description: 回答メッセージのID }
+                        clinic_name: { type: string }
+                        staff_name: { type: string }
+                        question: { type: string }
+                        answer: { type: string }
+                        sources:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              title: { type: string }
+                              category: { type: string }
+                              slug: { type: string }
+                        created_at: { type: string, description: 質問送信時刻 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /support/chat/history:
     get:
       operationId: getSupportChatHistory

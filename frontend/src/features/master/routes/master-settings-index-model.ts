@@ -7,6 +7,7 @@ import {
   Clock,
   CreditCard,
   FolderTree,
+  MessagesSquare,
   Scissors,
   Stethoscope,
   Tag,
@@ -40,7 +41,8 @@ export type GroupKey =
   | "closingTime"
   | "examinationItems"
   | "labDeviceItemMasters"
-  | "bugReports";
+  | "bugReports"
+  | "chatHistory";
 
 export type MasterCardKey = MasterSettingsCategory | GroupKey;
 
@@ -167,6 +169,15 @@ export const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
     path: "/settings/bug-reports",
     countCategories: [],
   },
+  // チャット履歴一覧も bugReports と同じく全スタッフ・全医院に公開（resource なし —
+  // 質問傾向の横断分析用途の共有ボード。settings-routes の chat-history も権限ゲートなし）
+  chatHistory: {
+    label: "チャット履歴",
+    description: "ヘルプチャットの質問・回答履歴を確認します（全医院共有）",
+    IconComponent: MessagesSquare,
+    path: "/settings/chat-history",
+    countCategories: [],
+  },
 };
 
 export const MASTER_SECTIONS: SectionDef[] = [
@@ -192,7 +203,7 @@ export const MASTER_SECTIONS: SectionDef[] = [
   },
   { title: "スタッフ・権限", keys: ["staff", "occupations", "permission_group"] },
   { title: "シフト管理", keys: ["shift_template"] },
-  { title: "サポート", keys: ["bugReports"] },
+  { title: "サポート", keys: ["bugReports", "chatHistory"] },
 ];
 
 export function isGroupCardKey(key: MasterCardKey): key is GroupKey {
