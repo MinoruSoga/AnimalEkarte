@@ -34,6 +34,13 @@ type MedicalRecordListFilters struct {
 	ConsultationID *uint64
 	InventoryID    *uint64
 	Search         string
+	// OwnerName / PetName / ChiefComplaint は EMR-245 の表示列フィルタ。
+	// Search（横断 OR 検索）とは独立した条件で、互いに AND 結合される。
+	// 空文字は条件なし。一致判定は既存検索と同じカナ畳込み+空白正規化の
+	// ILIKE 部分一致（applyMedicalRecordSearch 系と同じ folded 式）。
+	OwnerName      string
+	PetName        string
+	ChiefComplaint string
 	// Sort/Order: B-1 follow-up（列ソート server 化）。Sort はハンドラ層で検証済みの許可キー
 	// （medicalRecordSortColumns の key）のみが渡される想定。空文字は既定順
 	// （date DESC, created_at DESC）を維持する。Order は "asc"/"desc"（既定 "desc"）。

@@ -142,8 +142,32 @@ export function MedicalRecords() {
   );
 
   const resetKey = `${searchTerm}|${JSON.stringify(activeFilters)}|${petId ?? ""}`;
-  const { currentPage, sortKey, sortOrder, handleSortToggle, directionForSort, handlePageChange } =
-    useMedicalRecordsUrlState(resetKey);
+  const {
+    currentPage,
+    sortKey,
+    sortOrder,
+    handleSortToggle,
+    directionForSort,
+    handlePageChange,
+    resetPage,
+  } = useMedicalRecordsUrlState(resetKey);
+
+  // EMR-245: 検索・フィルタ変更は URL の page 除去と同じイベントで行い、
+  // 確定描画から page=1 に戻す（?page=N が残ると検出 pass 捨て後に復活する）。
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchTerm(value);
+      resetPage();
+    },
+    [resetPage],
+  );
+  const handleFilterChange = useCallback(
+    (next: ActiveFilter[]) => {
+      setActiveFilters(next);
+      resetPage();
+    },
+    [resetPage],
+  );
 
   const clinicIdsForApi =
     selectedClinicIds.length === 0 ||
@@ -213,9 +237,9 @@ export function MedicalRecords() {
       hasSpecies={activeSpecies.length > 0}
       filterProperties={filterProperties}
       activeFilters={activeFilters}
-      onFilterChange={setActiveFilters}
+      onFilterChange={handleFilterChange}
       searchTerm={searchTerm}
-      onSearchChange={setSearchTerm}
+      onSearchChange={handleSearchChange}
       total={total}
       isFiltering={isFiltering}
       columns={COLUMNS}

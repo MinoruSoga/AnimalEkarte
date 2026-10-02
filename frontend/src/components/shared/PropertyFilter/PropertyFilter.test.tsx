@@ -31,6 +31,76 @@ describe("PropertyFilter accessibility", () => {
   });
 });
 
+// EMR-245: 表示列テキストフィルタ（type:"text"、contains 固定）。
+describe("PropertyFilter text filter", () => {
+  const textProps = {
+    ...baseProps,
+    properties: [{ key: "owner_name", label: "飼主名", type: "text" as const }],
+  };
+
+  it("text プロパティは条件選択を飛ばしてテキスト入力になる", async () => {
+    const onFilterChange = vi.fn();
+    render(<PropertyFilter {...textProps} onFilterChange={onFilterChange} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "フィルタを追加" }));
+    await user.click(screen.getByRole("option", { name: "飼主名" }));
+
+    const input = await screen.findByRole("textbox", { name: "飼主名を入力" });
+    await user.type(input, "山田");
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onFilterChange).toHaveBeenCalledTimes(1);
+    expect(onFilterChange).toHaveBeenLastCalledWith([
+      { key: "owner_name", condition: "contains", value: "山田", displayValue: "山田" },
+    ]);
+  });
+
+  it("空白のみの入力はフィルタを追加しない", async () => {
+    const onFilterChange = vi.fn();
+    render(<PropertyFilter {...textProps} onFilterChange={onFilterChange} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "フィルタを追加" }));
+    await user.click(screen.getByRole("option", { name: "飼主名" }));
+
+    const input = await screen.findByRole("textbox", { name: "飼主名を入力" });
+    await user.type(input, "   ");
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onFilterChange).not.toHaveBeenCalled();
+  });
+
+  it("追加済み text フィルタは『含む』固定ラベルと値を表示し、値を編集できる", async () => {
+    const onFilterChange = vi.fn();
+    render(
+      <PropertyFilter
+        {...textProps}
+        activeFilters={[
+          { key: "owner_name", condition: "contains", value: "山田", displayValue: "山田" },
+        ]}
+        onFilterChange={onFilterChange}
+      />,
+    );
+    const user = userEvent.setup();
+
+    // 条件セレクタではなく静的ラベル
+    expect(screen.getByText("含む")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "次と一致" })).not.toBeInTheDocument();
+
+    // 値ピルを開いて再編集
+    await user.click(screen.getByRole("button", { name: "山田" }));
+    const input = await screen.findByRole("textbox", { name: "飼主名を入力" });
+    await user.clear(input);
+    await user.type(input, "佐藤");
+    await user.click(screen.getByRole("button", { name: "飼主名フィルタを適用" }));
+
+    expect(onFilterChange).toHaveBeenLastCalledWith([
+      { key: "owner_name", condition: "contains", value: "佐藤", displayValue: "佐藤" },
+    ]);
+  });
+});
+
 describe("PropertyFilter count display", () => {
   it("件数はカンマ区切りで表示する", () => {
     render(<PropertyFilter {...baseProps} searchTerm="" onSearchChange={vi.fn()} count={13025} />);

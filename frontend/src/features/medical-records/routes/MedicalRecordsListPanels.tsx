@@ -294,7 +294,7 @@ function MedicalRecordsListContent({
         onFilterChange={onFilterChange}
         searchTerm={searchTerm}
         onSearchChange={onSearchChange}
-        searchPlaceholder="飼主名、ペット名、カルテNo、主訴で検索..."
+        searchPlaceholder="診療内容を横断検索（カルテNo・飼主名・ペット名・主訴）..."
         count={total}
       />
 

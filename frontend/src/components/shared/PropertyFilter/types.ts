@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 
 /** フィルタプロパティの種類 */
-export type FilterType = "select" | "multi-select" | "date-range";
+export type FilterType = "select" | "multi-select" | "date-range" | "text";
 
 /** select/multi-select の選択肢 */
 export interface FilterOption {
@@ -79,6 +79,9 @@ export const FILTER_CONDITIONS: Record<FilterType, ConditionOption[]> = {
     { value: "is_empty", label: "空" },
     { value: "is_not_empty", label: "空でない" },
   ],
+  // EMR-245: 表示列の部分一致テキストフィルタ。BE が contains（ILIKE 部分一致）
+  // のみ対応するため条件は固定。選択ステップは出さず静的ラベル表示にする。
+  text: [{ value: "contains", label: "含む" }],
 };
 
 // ─── Relative Date ──────────────────────────────────────────

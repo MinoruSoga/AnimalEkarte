@@ -88,6 +88,17 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 		if filters.Search != "" {
 			q = applyMedicalRecordSearch(q, filters.Search)
 		}
+		// EMR-245: 表示列（飼主名・ペット名・主訴）の独立部分一致条件は
+		// Search の横断 OR とは別に AND で積む。
+		if filters.OwnerName != "" {
+			q = applyMedicalRecordOwnerNameFilter(q, filters.OwnerName)
+		}
+		if filters.PetName != "" {
+			q = applyMedicalRecordPetNameFilter(q, filters.PetName)
+		}
+		if filters.ChiefComplaint != "" {
+			q = applyMedicalRecordChiefComplaintFilter(q, filters.ChiefComplaint)
+		}
 		return q
 	}
 

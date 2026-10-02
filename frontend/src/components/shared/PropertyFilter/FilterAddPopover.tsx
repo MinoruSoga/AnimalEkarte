@@ -18,11 +18,12 @@ import type { DateRange } from "react-day-picker";
 import { FILTER_CONDITIONS } from "./types";
 import { DATE_PRESETS, resolvePreset } from "./date-preset-utils";
 import type { DatePreset } from "./date-preset-utils";
+import { TextValueEditor } from "./TextValueEditor";
 import type { FilterProperty, ActiveFilter, FilterCondition, FilterOption } from "./types";
 
 // ─── Step tracking ────────────────────────────────────────
 
-type AddStep = "property" | "condition" | "value" | "date-value";
+type AddStep = "property" | "condition" | "value" | "date-value" | "text-value";
 
 // ─── Component ────────────────────────────────────────────
 
@@ -69,6 +70,12 @@ export const FilterAddPopover = memo(function FilterAddPopover({
       setStep("date-value");
       return;
     }
+    // EMR-245: text は contains 固定のため条件ステップを飛ばして入力へ。
+    if (prop.type === "text") {
+      setSelectedCondition("contains");
+      setStep("text-value");
+      return;
+    }
     setStep("condition");
   }, []);
 
@@ -109,6 +116,21 @@ export const FilterAddPopover = memo(function FilterAddPopover({
       setOpen(false);
     },
     [selectedProperty, selectedCondition, onAdd, resetState],
+  );
+
+  const applyTextFilter = useCallback(
+    (value: string, displayValue: string) => {
+      if (!selectedProperty) return;
+      onAdd({
+        key: selectedProperty.key,
+        condition: "contains",
+        value,
+        displayValue,
+      });
+      resetState();
+      setOpen(false);
+    },
+    [selectedProperty, onAdd, resetState],
   );
 
   const applyDateFilter = useCallback(
@@ -168,6 +190,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
         setSelectedCondition(null);
         break;
       case "date-value":
+      case "text-value":
         // Skip condition step — go back to property
         setStep("property");
         setSelectedProperty(null);
@@ -275,6 +298,12 @@ export const FilterAddPopover = memo(function FilterAddPopover({
               ))}
             </CommandList>
           </Command>
+        ) : step === "text-value" ? (
+          /* Step 3c: Text input (text) — contains 固定 */
+          <div className="py-1">
+            <p className={`text-base ${C.text40} px-3 py-1.5`}>{selectedProperty?.label} - 含む</p>
+            <TextValueEditor label={selectedProperty?.label ?? ""} onApply={applyTextFilter} />
+          </div>
         ) : step === "date-value" ? (
           /* Step 3b: Date range picker — presets + calendar */
           <div className={`flex divide-x ${C.divideDivider}`}>

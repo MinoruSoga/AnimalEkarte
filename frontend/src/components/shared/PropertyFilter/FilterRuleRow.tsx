@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { FILTER_CONDITIONS } from "./types";
 import { DateValueEditor } from "./DateValueEditor";
 import { InlineSelector } from "./InlineSelector";
+import { TextValueEditor } from "./TextValueEditor";
 import type {
   ActiveFilter,
   FilterProperty,
@@ -42,6 +43,8 @@ export const FilterRuleRow = memo(function FilterRuleRow({
 }: FilterRuleRowProps) {
   const filterType = property?.type ?? "select";
   const isDateRange = filterType === "date-range";
+  // EMR-245: text は contains 固定（条件選択肢を出さない）
+  const isText = filterType === "text";
 
   // rerender-dependencies: optional chaining を deps から排除し stable な変数に抽出
   const propertyConditions = property?.conditions;
@@ -90,6 +93,13 @@ export const FilterRuleRow = memo(function FilterRuleRow({
 
   const handleDateValueApply = useCallback(
     (value: { from?: string; to?: string }, displayValue: string) => {
+      onUpdate({ ...filter, value, displayValue });
+    },
+    [filter, onUpdate],
+  );
+
+  const handleTextValueApply = useCallback(
+    (value: string, displayValue: string) => {
       onUpdate({ ...filter, value, displayValue });
     },
     [filter, onUpdate],
@@ -148,8 +158,11 @@ export const FilterRuleRow = memo(function FilterRuleRow({
         {property?.label ?? filter.key}
       </span>
 
-      {/* Condition column — hidden for date-range (always "期間内") */}
-      {isDateRange ? null : (
+      {/* Condition column — hidden for date-range (always "期間内");
+          EMR-245: text は contains 固定のため静的ラベルのみ */}
+      {isDateRange ? null : isText ? (
+        <span className={`text-base ${C.text40} px-2 whitespace-nowrap`}>含む</span>
+      ) : (
         <InlineSelector label={currentConditionLabel || "条件"} popoverWidth="w-[140px]">
           {conditionOptions.map((opt) => (
             <button
@@ -172,6 +185,18 @@ export const FilterRuleRow = memo(function FilterRuleRow({
       {isEmptyCondition ? null : isDateRange ? (
         <InlineSelector label={filter.displayValue || "期間を選択"} popoverWidth="w-auto" noPadding>
           <DateValueEditor currentValue={currentDateValue} onApply={handleDateValueApply} />
+        </InlineSelector>
+      ) : isText ? (
+        <InlineSelector
+          label={filter.displayValue || "値を入力"}
+          popoverWidth="w-[260px]"
+          noPadding
+        >
+          <TextValueEditor
+            label={property?.label ?? filter.key}
+            currentValue={typeof filter.value === "string" ? filter.value : ""}
+            onApply={handleTextValueApply}
+          />
         </InlineSelector>
       ) : (
         <InlineSelector label={filter.displayValue || "値を選択"} popoverWidth="w-[180px]">
