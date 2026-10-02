@@ -22,11 +22,11 @@ data "cloudflare_zone" "noah_karte" {
 }
 
 # production Backend API 用の新規 DNS レコード。STG の api_stg_backend
-# (infra/cloudflare/zone.tf)とは異なり、このホスト名(api.noah-karte.com)には移行前の
-# 「置き換えるべき既存レコード」が存在しない(docs/ops/deploy/README.md: 「本番向け
-# バックエンド自動デプロイワークフローは未整備」)。そのため STG が踏んだ
-# 「まずproxied=falseで作成→Full(strict)SSL確認後にproxied=trueへ切替」という2段階を
-# 踏襲する必要が薄いと判断し、最初から proxied = true で作成する
+# (infra/cloudflare/zone.tf)とは異なり、最初から proxied = true で作成する。
+# 【実測訂正 2026-10-02】api.noah-karte.com には CNAME -> cname.vercel-dns-016.com
+# (Vercel 管理レコード)が既に存在する。同名の CNAME と A は共存できないため、
+# apply 前に既存 CNAME を人間が削除するか、import して置換する必要がある
+# (production は未開業のため削除窓は実害なし。作業手順は setup.md を参照)。
 # (Workers Route は "pattern" + "/*" 形式の場合、マッチ対象ホスト名のDNSレコードが
 # proxied=trueでないとWorkerへルーティングされない。proxied=falseのまま
 # workers_dev=falseで初回デプロイすると、CIのヘルスチェックが到達できるURLが
@@ -50,6 +50,8 @@ resource "cloudflare_dns_record" "api_prod_backend" {
 # EMR-255: PROD frontend(animalekarte-prod-frontend Worker)用 DNS レコード。
 # frontend/wrangler.production.jsonc の route "www.noah-karte.com/*" が機能するには
 # proxied=true のレコードが必要(wildcard CNAME→Vercel では route は発火しない)。
+# 【実測訂正 2026-10-02】www.noah-karte.com にも CNAME -> cname.vercel-dns-016.com が
+# 既に存在する。api_prod_backend と同様に、apply 前の既存 CNAME 削除または import が前提。
 # content は Worker が横取りするため TEST-NET-1 プレースホルダ(api_prod_backend 同規則)。
 resource "cloudflare_dns_record" "frontend_www" {
   zone_id = data.cloudflare_zone.noah_karte.id
