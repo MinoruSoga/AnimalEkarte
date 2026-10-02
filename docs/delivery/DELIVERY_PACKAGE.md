@@ -28,11 +28,11 @@
 
 ```mermaid
 flowchart TB
-  User[スタッフ / 飼主のブラウザ・LINE] -->|HTTPS| Vercel["Vercel<br/>フロントエンド (React)<br/>stg.noah-karte.com / 本番ドメイン"]
-  User -->|HTTPS| CFDNS["Cloudflare<br/>DNS + CDN + SSL<br/>api.stg / api（予定）"]
+  User[スタッフ / 飼主のブラウザ・LINE] -->|HTTPS| CFDNS["Cloudflare<br/>DNS + CDN + SSL<br/>stg / api.stg / 本番ドメイン"]
 
   subgraph CF[Cloudflare]
-    CFDNS --> Worker["Worker<br/>(薄いプロキシ + migrate)"]
+    CFDNS --> FEW["frontend Worker<br/>Static Assets (React SPA)"]
+    FEW -->|"/api/* service binding"| Worker["API Worker<br/>(薄いプロキシ + migrate)"]
     Worker --> Container["Containers<br/>Go API (Gin)"]
     Container -->|"S3 互換 API"| R2[("R2<br/>臨床画像・帳票")]
   end
@@ -45,7 +45,7 @@ flowchart TB
 
 | 層 | 実装 | 根拠 |
 |---|---|---|
-| フロントエンド | Vercel（React 19 SPA） | [architecture.md](../ops/infra/architecture.md) / [deploy/README.md](../ops/deploy/README.md) |
+| フロントエンド | Cloudflare Workers Static Assets（React 19 SPA、`frontend/wrangler*.jsonc`）。Vercel は EMR-255 以降 rollback 残存・退役候補 | [architecture.md](../ops/infra/architecture.md) / [deploy/README.md](../ops/deploy/README.md) |
 | バックエンド API | Cloudflare Workers + Containers（Go/Gin）。Worker は薄いプロキシ + `/_internal/migrate` | 同上 |
 | データベース | PlanetScale PostgreSQL（東京）。Containers は Hyperdrive 不可のため **直結**（`sslmode=verify-full; DB_SSL_ROOT_CERT=system`） | [architecture.md](../ops/infra/architecture.md) 既知の制約 |
 | ファイル | Cloudflare R2（臨床画像等。参照は有効期限付き署名 URL） | 同上 |
@@ -64,7 +64,7 @@ flowchart TB
 |---|---|---|---|
 | Cloudflare | DNS / CDN / API 実行基盤（Workers + Containers）/ R2 | repo 内最終記録では Workers Paid（STG、2026-08-20） | **USER 入力待ち（U1）**（契約名義・移管有無） |
 | PlanetScale | データベース（PostgreSQL） | repo 内最終記録では STG 利用（2026-08-20）。本番プランは **USER 入力待ち（U2）** | **USER 入力待ち（U2）**（本番プラン・契約名義・移管有無） |
-| Vercel | フロントエンドホスティング + ドメイン（noah-karte.com） | **USER 入力待ち（U3）** | **USER 入力待ち（U3）**（契約名義・移管有無） |
+| Vercel | 旧フロントエンドホスティング（EMR-255 で CF Workers Static Assets へ移行済み・退役候補/rollback 残存）+ ドメインレジストラ（noah-karte.com） | **USER 入力待ち（U3）** | **USER 入力待ち（U3）**（契約名義・移管有無） |
 | GitHub | ソースコード・CI/CD（GitHub Actions） | — | **USER 入力待ち（U4）**（リポジトリ運用体制） |
 | LINE 公式アカウント | 飼主向け予約・通知 | — | 各医院で契約（本番チャネル投入は **USER 入力待ち（U5）**） |
 | Lステップ | 配信・タグ管理 | — | 各医院で契約（本番 API キー投入は **USER 入力待ち（U6）**） |
@@ -232,7 +232,7 @@ flowchart TB
 |---|---|---|---|---|---|---|
 | U1 | Cloudflare 契約名義・移管有無 | 先方 / 開発契約担当 | 契約名義、請求先、移管要否 | §1.2 | repo 内最終記録では STG は Workers Paid（2026-08-20、§1.2 / [architecture.md](../ops/infra/architecture.md)）。zone `noah-karte.com`。historical ACM validation CNAME は IaC に残るが、現在配信中の証明書 issuer / SAN / expiry / edge coverage は repo から確定不能。実行時の dated TLS receipt が必要 | **未記入**（名義・請求先・移管要否） |
 | U2 | PlanetScale 本番プラン・契約名義 | 先方 / 開発契約担当 | プラン名、バックアップ頻度・保持、契約名義 | §1.2 / §3.1 | repo 内最終記録（2026-08-20）: STG DB 名 `animalekarte-stg`、リージョン東京。STG 作成スクリプト上の org 名は `noah-animalekarte`、cluster 初期値 `PS-10`（[`pscale-create-stg.sh`](../../infra/scripts/pscale-create-stg.sh)）。STG バックアップ受容条件は **12 時間毎・PITR なし**（§3.1）。本番 DB は未作成 | **未記入**（本番プラン名・契約名義・本番バックアップ保持） |
-| U3 | Vercel プラン・契約名義 | 先方 / 開発契約担当 | プラン、ドメインレジストラ権限 | §1.2 | フロントは Vercel。STG `https://stg.noah-karte.com`。apex `noah-karte.com` は本番予定（§1.3） | **未記入**（プラン名・契約名義・レジストラ権限） |
+| U3 | Vercel プラン・契約名義 | 先方 / 開発契約担当 | プラン、ドメインレジストラ権限 | §1.2 | フロントは EMR-255 で Cloudflare Workers Static Assets へ移行済み（STG `https://stg.noah-karte.com` は CF Worker 配信）。Vercel は rollback 残存・退役候補。apex `noah-karte.com` は本番予定（§1.3） | **未記入**（プラン名・契約名義・レジストラ権限） |
 | U4 | GitHub リポジトリ運用体制 | 先方 / 開発 | 組織・権限・Collaborator 方針 | §1.2 | リポジトリ `MinoruSoga/AnimalEkarte`。日常は `main`、STG は `staging` への PR。`production` 直 push 禁止（[CLAUDE.md](../../.claude/CLAUDE.md) / [CI-CD-PIPELINE.md](../ops/deploy/CI-CD-PIPELINE.md)） | **未記入**（組織移管・先方 Collaborator・権限方針） |
 | U5 | 本番 LINE チャネル情報 | 各医院 | チャネル ID 等（**秘密は secret 管理へ。本書に書かない**） | §2 Step 6 | 投入手順は §2 Step 6。値は本書に書かない | **未記入**（チャネル値は secret 管理へ） |
 | U6 | 本番 Lステップ API キー | 各医院 | API キー（**secret 管理へ。本書に書かない**） | §2 Step 6 | 投入手順は §2 Step 6。値は本書に書かない | **未記入**（API キーは secret 管理へ） |

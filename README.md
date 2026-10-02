@@ -20,7 +20,7 @@
 | **Frontend** | React 19.2 / TypeScript 6.0 / Vite 8.0 / Tailwind CSS 4 / shadcn/ui |
 | **Backend** | Go 1.25.0 / Gin / GORM / Air (Hot Reload) |
 | **Database** | PostgreSQL 18 (Docker: `postgres:18-alpine`) |
-| **Infrastructure** | Docker Compose（ローカル） / Cloudflare Workers + Containers / PlanetScale Postgres / R2 / Vercel |
+| **Infrastructure** | Docker Compose（ローカル） / Cloudflare Workers + Containers + Static Assets / PlanetScale Postgres / R2（Vercel は EMR-255 以降 rollback 残存） |
 | **Testing** | MSW (Mock Service Worker), Vitest, testify |
 
 ```mermaid
@@ -30,9 +30,9 @@ flowchart TB
         L_BE --> L_DB[("db :5434<br/>PostgreSQL 18")]
     end
     subgraph Cloud["STG / 本番"]
-        User["ブラウザ / LINE"] --> Vercel["Vercel<br/>React SPA"]
-        User --> CF["Cloudflare<br/>DNS + CDN + SSL"]
-        CF --> Worker["Worker<br/>薄いプロキシ + migrate"]
+        User["ブラウザ / LINE"] --> CF["Cloudflare<br/>DNS + CDN + SSL"]
+        CF --> FEW["frontend Worker<br/>Static Assets (React SPA)"]
+        FEW -->|"/api/* service binding"| Worker["API Worker<br/>薄いプロキシ + migrate"]
         Worker --> Container["Containers<br/>Go API (Gin)"]
         Container --> PS[("PlanetScale<br/>PostgreSQL")]
         Container --> R2[("R2<br/>臨床画像・帳票")]
@@ -54,7 +54,7 @@ cp .env.example .env.local
 ```
 
 `.env.example` にはローカル Docker 用のキーとダミー値が入っています。**コピーしただけで `make up` できます。**  
-開発用 Make / Compose は `.env.local` を変数源にします（`.env` は使わない）。`.env.local` は Git 管理外です。STG/本番の認証情報・LINE/Vercel トークンは `.env.example` に書かず、必要な人だけ `.env.local` に追記してください。
+開発用 Make / Compose は `.env.local` を変数源にします（`.env` は使わない）。`.env.local` は Git 管理外です。STG/本番の認証情報・LINE/Cloudflare 等のトークンは `.env.example` に書かず、必要な人だけ `.env.local` に追記してください。
 
 ### 2. 起動
 
