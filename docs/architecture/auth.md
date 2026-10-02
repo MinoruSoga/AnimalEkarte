@@ -134,7 +134,7 @@ sequenceDiagram
 
 Cookie認証を使う保護routeとlogin/refresh/logoutには `RequireXRequestedWith` を適用する。適用routeのGET/HEAD/OPTIONSを除くリクエストは、非空の `X-Requested-With` ヘッダーがなければ403となる。publicな `/auth/forgot-password`・`/auth/reset-password` はこのmiddlewareの対象外で、専用のrate limitを使う。Frontendの共通axiosは通常 `XMLHttpRequest` を付けるが、testモードでは省略する。手動HTTP検証でも必要なヘッダーを付け、403をすべて権限不足と判断しない。
 
-別originのブラウザアクセスはCORSによるorigin・credentials・送信ヘッダーの許可も必要。OPTIONSの成功ステータスだけでは確認できない。会計確定の `Idempotency-Key` を含む確認手順は [Vercel STG検証](../ops/deploy/VERCEL-FRONTEND-STAGING-TEST.md) を参照する。
+別originのブラウザアクセスはCORSによるorigin・credentials・送信ヘッダーの許可も必要。OPTIONSの成功ステータスだけでは確認できない。会計確定の `Idempotency-Key` を含む確認手順は [STG readiness check](../ops/deploy/runbooks/STG_PRE_DEPLOY_READINESS_CHECK.md) §3 を参照する（旧 [Vercel STG検証](../ops/deploy/VERCEL-FRONTEND-STAGING-TEST.md) は EMR-255 以降 superseded・rollback 参照専用）。
 
 ### 4.6 実装サーフェス
 

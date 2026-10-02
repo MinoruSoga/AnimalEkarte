@@ -81,7 +81,7 @@ flowchart TB
 - `Idempotency-Key` はUUID形式が必須。同一医院・同一キー・同一内容の再送は既存会計を返し、支払・監査を再作成しない（初回201、再送200）。同じキーで内容が異なる場合、または削除済み会計に使ったキーの再利用は409となる。
 - `expected_unbilled_revision` は同一性判定の digest に含めない（操作内容ではなく前提条件のため）。409 で集約を再取得した後の再送は同じキー・同じ内容なら replay として扱われる。
 - 画面は失敗後も、入力内容が同じ間はキーを保持して再試行に使う。入力内容の変更や画面再読込では新しいキーになる。通信切断で保存結果が不明なときは、会計一覧で登録状態を確認してから操作する。
-- 別ドメインのAPIへ接続する環境では、このヘッダーのCORS許可も必要。バックエンドの固定allowlistに `Idempotency-Key` を含める。デプロイ後の確認は [Vercel STG検証手順](../../ops/deploy/VERCEL-FRONTEND-STAGING-TEST.md) を参照する。
+- 別ドメインのAPIへ接続する環境では、このヘッダーのCORS許可も必要。バックエンドの固定allowlistに `Idempotency-Key` を含める。デプロイ後の確認は [STG readiness check](../../ops/deploy/runbooks/STG_PRE_DEPLOY_READINESS_CHECK.md) §3 を参照する（旧 [Vercel STG検証手順](../../ops/deploy/VERCEL-FRONTEND-STAGING-TEST.md) は EMR-255 以降 superseded）。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
