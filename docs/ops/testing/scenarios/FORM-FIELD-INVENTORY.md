@@ -986,10 +986,13 @@ api.yaml の write endpoint のうち FE 実装が無いもの。実装 PR で�
 | endpoint | 状態 | 収録方針 |
 |:--|:--|:--|
 
-| `/v1/pets/{id}/chronic-conditions` | FE 送出なし | 慢性疾患 UI 実装時に V03 へ収録 |
-| `/v1/checkup-package-imports`（preview 含む） | FE 送出なし | 取込 UI 実装時に V01 へ収録 |
-| `/v1/masters/staffs/{id}/excluded-reservation-types` | FE 送出なし | UI 実装時に V03 §9 へ収録 |
+| `/v1/masters/staffs/{id}/excluded-reservation-types` | FE 送出なし。EMR-250 で対応不可予約区分 UI は `capable-reservation-types`（V03 §9 収録済みの対 endpoint・capableIds 単一書き込みモデル）経由で実装済み。本 endpoint は残存する未送出の write API | 外部利用確認後に削除/保留判断 |
 | `/v1/owners/{id}/lstep-opt-out`（POST 互換）・`/v1/owners/{id}/lstep/opt-out`（PATCH 統合） | FE 送出なし。EMR-251 確定: 飼主画面の LSTEP 停止/再開は PATCH `/owners/{id}/delivery-exclusion` が支持経路（`delivery_excluded`+`lstep_opt_out` 同時更新・理由は任意 max100）。外部利用不明の互換 endpoint は残置し、UI 修正の削除条件にしない | 外部利用確認後に削除判断 |
+
+解消済み（2026-10-02）:
+
+- `/v1/pets/{id}/chronic-conditions` — EMR-248 でペット詳細に慢性疾患 UI を実装（GET/POST/PATCH/DELETE を送出）。**残件: V03 への exact field key 収録**
+- `/v1/checkup-package-imports`（preview 含む）— EMR-249 で API 自体を削除済み。FE 実装の対象が消えたため収録対象外
 
 ---
 
@@ -1004,7 +1007,7 @@ api.yaml の write endpoint のうち FE 実装が無いもの。実装 PR で�
 | 認証トークン操作 | 3 | auth/refresh・auth/refresh/logout・logout | 入力フォームなし。E2E auth-flows の対象 |
 | 機器レーン | 3 | lab-device/frames・station・lab-devices/{id}/configuration | [LAB_DEVICE_CLIENT_UAT.md](LAB_DEVICE_CLIENT_UAT.md) の対象レーン |
 | テスト用ツール | 1 | uat/synthetic-closings | 製品フォームでない |
-| UI 未実装 API の行操作 | 1 | chronic-conditions/{cc_id} | 「未実装 API」節で追跡中の親 endpoint |
+| 実装済み API の行操作 | 1 | chronic-conditions/{cc_id} | EMR-248 で親 endpoint の UI 実装済み。V03 収録は残件（上記「解消済み」参照） |
 
 ---
 
