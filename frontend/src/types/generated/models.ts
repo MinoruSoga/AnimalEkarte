@@ -2968,6 +2968,14 @@ export const PetGenderMale = "male";
 export const PetGenderFemale = "female";
 export const PetGenderUnknown = "unknown";
 export type PetGender = typeof PetGenderMale | typeof PetGenderFemale | typeof PetGenderUnknown;
+/**
+ * PetNeuteredStatus は避妊・去勢の施術状況を表す。
+ * 値は性別中立（オスの去勢・メスの避妊を done で共通に表し、表示層がラベルを分ける）。
+ */
+export const PetNeuteredStatusUnknown = "unknown";
+export const PetNeuteredStatusNotDone = "not_done";
+export const PetNeuteredStatusDone = "done";
+export type PetNeuteredStatus = typeof PetNeuteredStatusUnknown | typeof PetNeuteredStatusNotDone | typeof PetNeuteredStatusDone;
 export const AcquisitionTypePurchase = "purchased";
 export const AcquisitionTypeTransfer = "transferred";
 export const AcquisitionTypeRescued = "rescued";
@@ -2994,6 +3002,7 @@ export interface Pet {
   microchip_number?: string;
   weight?: number /* float64 */;
   neutered_date?: string;
+  neutered_status: PetNeuteredStatus;
   acquisition_type?: AcquisitionType;
   danger_level: DangerLevel;
   danger_reason?: string;

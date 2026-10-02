@@ -36,6 +36,7 @@ type CreatePetDraft struct {
 	MicrochipNumber *string
 	Weight          *float64
 	NeuteredDate    *time.Time
+	NeuteredStatus  model.PetNeuteredStatus
 	AcquisitionType *model.AcquisitionType
 	DangerLevel     model.DangerLevel
 	DangerReason    *string
@@ -114,6 +115,7 @@ func CreatePetDraftFromModel(pet model.Pet) CreatePetDraft {
 		MicrochipNumber: pet.MicrochipNumber,
 		Weight:          pet.Weight,
 		NeuteredDate:    pet.NeuteredDate,
+		NeuteredStatus:  pet.NeuteredStatus,
 		AcquisitionType: pet.AcquisitionType,
 		DangerLevel:     pet.DangerLevel,
 		DangerReason:    pet.DangerReason,
@@ -270,6 +272,7 @@ func (p CreatePetDraft) model(clinicID, ownerID uint64, petNumber string) model.
 		MicrochipNumber: p.MicrochipNumber,
 		Weight:          p.Weight,
 		NeuteredDate:    p.NeuteredDate,
+		NeuteredStatus:  p.NeuteredStatus,
 		AcquisitionType: p.AcquisitionType,
 		DangerLevel:     p.DangerLevel,
 		DangerReason:    p.DangerReason,

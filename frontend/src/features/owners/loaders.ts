@@ -7,6 +7,7 @@ import {
   PET_GENDER_MAP,
   ACQUISITION_TYPE_MAP,
   DANGER_LEVEL_MAP,
+  NEUTERED_STATUS_MAP,
   mapPetStatusLabel,
 } from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
@@ -71,6 +72,9 @@ function transformPetListItemToFrontend(p: PetListResponse): Pet {
     status: mapPetStatusLabel(p.status),
     birthDate: p.birth_date ? p.birth_date.split("T")[0] : undefined,
     neuteredDate: p.neutered_date ? p.neutered_date.split("T")[0] : undefined,
+    neuteredStatus: p.neutered_status
+      ? (NEUTERED_STATUS_MAP[p.neutered_status] ?? p.neutered_status)
+      : undefined,
     weight: p.weight?.toString(),
     food: p.food,
     environment: p.environment,

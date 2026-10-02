@@ -81,6 +81,9 @@ func validateCreatePetInput(input *CreatePetInput) error {
 	if err := validatePetStatus(input.Status); err != nil {
 		return apperrors.Wrap(err, "failed to validate pet status")
 	}
+	if err := sharedkernel.ValidatePetNeuteredStatus(input.NeuteredStatus); err != nil {
+		return apperrors.Wrap(err, "failed to validate pet neutered status")
+	}
 	if err := validatePetAcquisitionType(input.AcquisitionType); err != nil {
 		return apperrors.Wrap(err, "failed to validate pet acquisition type")
 	}
@@ -121,6 +124,11 @@ func validateUpdatePetInput(input *UpdatePetInput) error {
 	if input.DangerLevel != nil {
 		if err := validatePetDangerLevel(*input.DangerLevel); err != nil {
 			return apperrors.Wrap(err, "failed to validate pet danger level")
+		}
+	}
+	if input.NeuteredStatus != nil {
+		if err := sharedkernel.ValidatePetNeuteredStatus(*input.NeuteredStatus); err != nil {
+			return apperrors.Wrap(err, "failed to validate pet neutered status")
 		}
 	}
 	var err error

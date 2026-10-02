@@ -102,6 +102,9 @@ func validatePetForOwnerInput(input *CreatePetForOwnerInput) error {
 	if err := validatePetAcquisitionType(input.AcquisitionType); err != nil {
 		return err
 	}
+	if err := sharedkernel.ValidatePetNeuteredStatus(input.NeuteredStatus); err != nil {
+		return err
+	}
 	return validatePetDangerLevel(input.DangerLevel)
 }
 

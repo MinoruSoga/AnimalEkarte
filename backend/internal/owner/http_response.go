@@ -48,6 +48,7 @@ type PetInOwnerResponse struct {
 	DangerLevel     string     `json:"danger_level"`
 	Weight          *float64   `json:"weight,omitempty"`
 	NeuteredDate    *time.Time `json:"neutered_date,omitempty"`
+	NeuteredStatus  string     `json:"neutered_status"`
 	AcquisitionType *string    `json:"acquisition_type,omitempty"`
 	Food            string     `json:"food"`
 	Environment     string     `json:"environment"`
@@ -124,6 +125,7 @@ func toPetInOwnerResponse(p *model.Pet) PetInOwnerResponse {
 		DangerLevel:     string(p.DangerLevel),
 		Weight:          p.Weight,
 		NeuteredDate:    httpapi.LocalTimePtr(p.NeuteredDate),
+		NeuteredStatus:  string(p.NeuteredStatus),
 		Food:            p.Food,
 		Environment:     p.Environment,
 		LastVisit:       httpapi.LocalTimePtr(p.LastVisit),

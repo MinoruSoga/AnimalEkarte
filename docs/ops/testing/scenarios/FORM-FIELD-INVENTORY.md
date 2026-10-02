@@ -373,7 +373,7 @@ BE は POST `/reservation-staffs`・`/{staffId}`・`/{staffId}/sort-order`・`/{
 
 ### pet-edit-modal / pet-add-pending — [V03 §2–3](V03-owner-pet-staff-forms.md)
 
-保存 request は `frontend/src/lib/transforms/pet.ts`（pending nested create は `frontend/src/types/owner.ts`）。`name_kana` の response 側名称は `pet_name_kana`。性別は `gender`、マイクロチップは `microchip_number`、去勢避妊日は `neutered_date`。
+保存 request は `frontend/src/lib/transforms/pet.ts`（pending nested create は `frontend/src/types/owner.ts`）。`name_kana` の response 側名称は `pet_name_kana`。性別は `gender`、マイクロチップは `microchip_number`、去勢避妊日は `neutered_date`、施術状況は `neutered_status`（unknown/not_done/done。ラベルは性別連動で 去勢/避妊/去勢・避妊）。
 
 | fieldKey          | R/O   | F 重点            |
 | :---------------- | :---- | :---------------- |
@@ -388,6 +388,7 @@ BE は POST `/reservation-staffs`・`/{staffId}`・`/{staffId}/sort-order`・`/{
 | microchip_number         | O     | F4 F5             |
 | blood_type        | O     | F4 F5             |
 | neutered_date       | O     | F4 F5             |
+| neutered_status     | O     | enum F4 F5        |
 | food              | O     | F4 F5             |
 | environment       | O     | F4 F5             |
 | insurance_id      | O     | F4 C3-1           |

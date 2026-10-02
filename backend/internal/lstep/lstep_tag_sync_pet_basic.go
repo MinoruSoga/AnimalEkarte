@@ -122,9 +122,14 @@ func buildPetBasicInfoTags(pets []model.Pet) []string {
 			tagSet["birth_year_"+p.BirthDate.Format("2006")] = struct{}{}
 		}
 
-		if p.NeuteredDate != nil {
+		switch {
+		case p.NeuteredStatus == model.PetNeuteredStatusDone:
 			hasNeutered = true
-		} else {
+		case p.NeuteredStatus == model.PetNeuteredStatusNotDone:
+			hasIntact = true
+		case p.NeuteredDate != nil:
+			hasNeutered = true
+		default:
 			hasIntact = true
 		}
 	}

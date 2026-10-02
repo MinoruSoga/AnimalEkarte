@@ -276,8 +276,11 @@ type EnumType struct {
 	Create string
 }
 
-// SharedTestSchemaEnumTypes hand-duplicates every PostgreSQL ENUM type from 001_init.sql
-// (54 types total, 2026-07-04 consolidated migration + 009 #201 薬量計算 4 型を含む）。
+// SharedTestSchemaEnumTypes hand-duplicates every PostgreSQL ENUM type from migrations/*.sql
+// (54 types in 001_init.sql — 2026-07-04 consolidated migration + 009 #201 薬量計算 4 型を含む —
+//
+//	plus pet_neutered_status from 018_pet_neutered_status.sql）。
+//
 // model.Medicine が calculation_type を持つため、本 setup を使う全テストの medicines
 // AutoMigrate に medicine_calculation_type が必須（欠落で CREATE TABLE 失敗）。
 //
@@ -298,6 +301,7 @@ var SharedTestSchemaEnumTypes = []EnumType{
 	// ペット関連
 	{"pet_status", "CREATE TYPE pet_status AS ENUM ('alive', 'deceased')"},
 	{"pet_gender", "CREATE TYPE pet_gender AS ENUM ('male', 'female', 'unknown')"},
+	{"pet_neutered_status", "CREATE TYPE pet_neutered_status AS ENUM ('unknown', 'not_done', 'done')"},
 	{"acquisition_type", "CREATE TYPE acquisition_type AS ENUM ('purchased', 'transferred', 'rescued', 'other')"},
 	{"danger_level", "CREATE TYPE danger_level AS ENUM ('low', 'medium', 'high')"},
 	{"membership_type", "CREATE TYPE membership_type AS ENUM ('non_member', 'member', 'deceased', 'transferred')"},

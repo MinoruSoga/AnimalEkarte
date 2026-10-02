@@ -96,6 +96,7 @@ export interface PetSummaryResponse {
   gender?: string;
   birth_date?: string;
   neutered_date?: string;
+  neutered_status?: string;
   animal_species?: AnimalSpeciesSummaryResponse;
   owner?: OwnerSummaryResponse;
 }

@@ -27,6 +27,7 @@ export function toPet(pet: OwnerReportPet, ownerId: string): Pet {
     status: pet.status === "生存" || pet.status === "死亡" ? pet.status : "不明",
     birthDate: pet.birthDate,
     neuteredDate: pet.neuteredDate,
+    neuteredStatus: pet.neuteredStatus,
     weight: pet.weight,
     food: pet.food,
     environment: pet.environment,

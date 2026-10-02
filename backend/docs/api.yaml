@@ -447,6 +447,9 @@ components:
           type: string
           format: date
           nullable: true
+        neutered_status:
+          type: string
+          enum: [unknown, not_done, done]
         acquisition_type:
           type: string
           enum: [purchased, transferred, rescued, other]
@@ -692,6 +695,9 @@ components:
           type: string
           format: date
           nullable: true
+        neutered_status:
+          type: string
+          enum: [unknown, not_done, done]
         acquisition_type:
           type: string
           enum: [purchased, transferred, rescued, other]
@@ -1006,6 +1012,9 @@ components:
           type: string
           format: date
           nullable: true
+        neutered_status:
+          type: string
+          enum: [unknown, not_done, done]
         acquisition_type:
           type: string
           enum: [purchased, transferred, rescued, other]
@@ -1270,6 +1279,9 @@ components:
           type: string
           format: date
           nullable: true
+        neutered_status:
+          type: string
+          enum: [unknown, not_done, done]
         acquisition_type:
           type: string
           nullable: true
@@ -1371,6 +1383,7 @@ components:
         - microchip_number
         - weight
         - neutered_date
+        - neutered_status
         - acquisition_type
         - food
         - environment
@@ -1415,6 +1428,9 @@ components:
           type: string
           format: date-time
           nullable: true
+        neutered_status:
+          type: string
+          enum: [unknown, not_done, done]
         acquisition_type:
           type: string
           enum: [purchased, transferred, rescued, other]
@@ -1492,6 +1508,9 @@ components:
           type: string
           format: date
           nullable: true
+        neutered_status:
+          type: string
+          enum: [unknown, not_done, done]
         acquisition_type:
           type: string
           enum: [purchased, transferred, rescued, other]
@@ -1565,6 +1584,9 @@ components:
           type: string
           format: date
           nullable: true
+        neutered_status:
+          type: string
+          enum: [unknown, not_done, done]
         acquisition_type:
           type: string
           enum: [purchased, transferred, rescued, other]

@@ -24,6 +24,7 @@ type PetWritable = Pick<
   | "food"
   | "environment"
   | "neutered_date"
+  | "neutered_status"
   | "acquisition_type"
   | "danger_level"
   | "danger_reason"

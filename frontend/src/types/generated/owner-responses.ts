@@ -51,6 +51,7 @@ export interface PetInOwnerResponse {
   danger_level: string;
   weight?: number /* float64 */;
   neutered_date?: string;
+  neutered_status: string;
   acquisition_type?: string;
   food: string;
   environment: string;

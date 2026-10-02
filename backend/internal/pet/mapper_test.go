@@ -28,6 +28,7 @@ func TestBuildPetModel(t *testing.T) {
 		assert.Equal(t, "ぽち", pet.NameKana)
 		assert.Equal(t, model.PetGender(""), pet.Gender)
 		assert.Equal(t, model.PetStatus(""), pet.Status)
+		assert.Equal(t, model.PetNeuteredStatus(""), pet.NeuteredStatus)
 		assert.Nil(t, pet.AcquisitionType)
 		assert.Equal(t, model.DangerLevel(""), pet.DangerLevel)
 		assert.Nil(t, pet.BloodType)
@@ -45,6 +46,7 @@ func TestBuildPetModel(t *testing.T) {
 			Weight:          &weight,
 			Gender:          "female",
 			Status:          "alive",
+			NeuteredStatus:  "done",
 			AcquisitionType: "rescued",
 			DangerLevel:     "medium",
 			BloodType:       "DEA1.1陽性",
@@ -54,6 +56,7 @@ func TestBuildPetModel(t *testing.T) {
 
 		assert.Equal(t, model.PetGenderFemale, pet.Gender)
 		assert.Equal(t, model.PetStatusAlive, pet.Status)
+		assert.Equal(t, model.PetNeuteredStatusDone, pet.NeuteredStatus)
 		require.NotNil(t, pet.AcquisitionType)
 		assert.Equal(t, model.AcquisitionTypeRescued, *pet.AcquisitionType)
 		assert.Equal(t, model.DangerLevelMedium, pet.DangerLevel)
@@ -87,6 +90,7 @@ func TestBuildPetUpdate(t *testing.T) {
 		microchip := "123456789012345"
 		weight := 5.5
 		neuteredDate := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+		neuteredStatus := "done"
 		acquisitionType := "purchase"
 		dangerLevel := "low"
 		food := "ドライフード"
@@ -111,6 +115,7 @@ func TestBuildPetUpdate(t *testing.T) {
 			MicrochipNumber: &microchip,
 			Weight:          &weight,
 			NeuteredDate:    &neuteredDate,
+			NeuteredStatus:  &neuteredStatus,
 			AcquisitionType: &acquisitionType,
 			DangerLevel:     &dangerLevel,
 			Food:            &food,
@@ -136,6 +141,7 @@ func TestBuildPetUpdate(t *testing.T) {
 		assert.Equal(t, microchip, fields[colPetMicrochipNumber])
 		assert.Equal(t, weight, fields[colPetWeight])
 		assert.Equal(t, neuteredDate, fields["neutered_date"])
+		assert.Equal(t, neuteredStatus, fields["neutered_status"])
 		assert.Equal(t, acquisitionType, fields["acquisition_type"])
 		assert.Equal(t, dangerLevel, fields["danger_level"])
 		assert.Equal(t, food, fields["food"])
@@ -149,7 +155,7 @@ func TestBuildPetUpdate(t *testing.T) {
 		// Status フィールドが存在しないため、この map に status キーが混入する経路はない。
 		_, hasStatus := fields["status"]
 		assert.False(t, hasStatus, "buildPetUpdate は status を書き込んではならない(BUG-415)")
-		assert.Len(t, fields, 21)
+		assert.Len(t, fields, 22)
 	})
 
 	t.Run("clears insurance_id when InsuranceID points to a nil pointer", func(t *testing.T) {

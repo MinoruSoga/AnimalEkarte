@@ -50,6 +50,7 @@ const basePet: PetFormData = {
   microchipNumber: "392140000123456",
   weight: "7.35",
   neuteredDate: "2016-05-20",
+  neuteredStatus: "済",
   acquisitionType: "購入",
   dangerLevel: "中",
   dangerReason: "保定時に噛む",
@@ -61,8 +62,8 @@ const basePet: PetFormData = {
   meetingStory: "里親募集サイトで出会った",
 };
 
-function PetFieldsHarness() {
-  const [formData, setFormData] = useState<PetFormData>(basePet);
+function PetFieldsHarness({ pet }: { pet?: Partial<PetFormData> }) {
+  const [formData, setFormData] = useState<PetFormData>({ ...basePet, ...pet });
 
   return (
     <MemoryRouter>
@@ -115,6 +116,26 @@ describe("PetEditModalFields", () => {
 
     expect(screen.getByLabelText("血液型")).toHaveValue("B");
     expect(screen.getByLabelText("マイクロチップ番号")).toHaveValue("900000000000001");
+  });
+
+  it("オスでは施術状況ラベルを「去勢」と表示する", () => {
+    render(<PetFieldsHarness />);
+
+    expect(screen.getByRole("combobox", { name: "去勢" })).toBeInTheDocument();
+    expect(screen.getByText("去勢手術日")).toBeInTheDocument();
+  });
+
+  it("メスでは施術状況ラベルを「避妊」と表示する", () => {
+    render(<PetFieldsHarness pet={{ gender: "雌" }} />);
+
+    expect(screen.getByRole("combobox", { name: "避妊" })).toBeInTheDocument();
+    expect(screen.getByText("避妊手術日")).toBeInTheDocument();
+  });
+
+  it("性別未選択では「去勢・避妊」と表示する", () => {
+    render(<PetFieldsHarness pet={{ gender: "" }} />);
+
+    expect(screen.getByRole("combobox", { name: "去勢・避妊" })).toBeInTheDocument();
   });
 
   // EMR-174: 名前の由来 / 出逢いのストーリー

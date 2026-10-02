@@ -1,4 +1,9 @@
-import { ACQUISITION_TYPE_VALUES, DANGER_LEVEL_VALUES, type PetFormData } from "../types";
+import {
+  ACQUISITION_TYPE_VALUES,
+  DANGER_LEVEL_VALUES,
+  NEUTERED_STATUS_VALUES,
+  type PetFormData,
+} from "../types";
 
 export function createPetFormData(petData?: PetFormData): PetFormData {
   return {
@@ -18,6 +23,8 @@ export function createPetFormData(petData?: PetFormData): PetFormData {
     microchipNumber: petData?.microchipNumber || "",
     weight: petData?.weight || "",
     neuteredDate: petData?.neuteredDate || "",
+    // 既定はバックエンドの DEFAULT 'unknown' と同じ 不明
+    neuteredStatus: (petData?.neuteredStatus || "不明") as (typeof NEUTERED_STATUS_VALUES)[number],
     acquisitionType: (petData?.acquisitionType ||
       "購入") as (typeof ACQUISITION_TYPE_VALUES)[number],
     dangerLevel: (petData?.dangerLevel || "低") as (typeof DANGER_LEVEL_VALUES)[number],

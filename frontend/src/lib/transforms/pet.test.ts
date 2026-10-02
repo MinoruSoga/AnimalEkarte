@@ -43,6 +43,7 @@ function makeBackendPet(overrides: Partial<PetResponse> = {}): PetResponse {
     pet_name_kana: "ぽち",
     gender: "male",
     status: "alive",
+    neutered_status: "unknown",
     breed: "",
     color: "",
     danger_level: "low",
@@ -119,6 +120,32 @@ describe("transformBackendPetToFrontend", () => {
 
     expect(request.blood_type).toBe("B");
     expect(request.microchip_number).toBe("900000000000001");
+  });
+
+  it("neutered_status を UI ラベルへマッピングする", () => {
+    expect(
+      transformBackendPetToFrontend(makeBackendPet({ neutered_status: "done" })).neuteredStatus,
+    ).toBe("済");
+    expect(
+      transformBackendPetToFrontend(makeBackendPet({ neutered_status: "not_done" })).neuteredStatus,
+    ).toBe("未");
+    expect(
+      transformBackendPetToFrontend(makeBackendPet({ neutered_status: "unknown" })).neuteredStatus,
+    ).toBe("不明");
+  });
+
+  it("作成・更新リクエストへ neutered_status を含める", () => {
+    expect(
+      transformCreatePetRequest({
+        ownerId: "42",
+        name: "ポチ",
+        animalSpeciesId: "1",
+        neuteredStatus: "済",
+      }).neutered_status,
+    ).toBe("done");
+    expect(transformUpdatePetRequest({ neuteredStatus: "未" }).neutered_status).toBe("not_done");
+    expect(transformUpdatePetRequest({ neuteredStatus: "不明" }).neutered_status).toBe("unknown");
+    expect(transformUpdatePetRequest({}).neutered_status).toBeUndefined();
   });
 
   // PR#186 P2-2 Bug#1 回帰テスト: deceased_at は response DTO への追加のみで

@@ -13,11 +13,12 @@ package testdb
 // types absent from the test double (campaign_discount_type / lab_import_job_status /
 // lab_import_source_type / checkup_field_type).
 //
-// This gate extracts every "CREATE TYPE ... AS ENUM (...)" statement from 001_init.sql and
-// compares it, name-for-name and value-for-value (order-sensitive — PostgreSQL enum value
-// order affects comparison operators), against sharedTestSchemaEnumTypes. A new migration
-// ENUM type, an edited value list, or a stale/removed test-double entry fails this gate
-// until sharedTestSchemaEnumTypes is updated to match.
+// This gate extracts every "CREATE TYPE ... AS ENUM (...)" statement from migrations/*.sql
+// (all files, sorted — later files overwrite same-named types) and compares it,
+// name-for-name and value-for-value (order-sensitive — PostgreSQL enum value order affects
+// comparison operators), against sharedTestSchemaEnumTypes. A new migration ENUM type, an
+// edited value list, or a stale/removed test-double entry fails this gate until
+// sharedTestSchemaEnumTypes is updated to match.
 //
 // ─── Technique ──────────────────────────────────────────────────────────────────────
 //
@@ -52,7 +53,7 @@ var createTypeRe = regexp.MustCompile(`(?s)CREATE TYPE\s+(\w+)\s+AS ENUM\s*\((.*
 // using this type").
 var testSchemaEnumParityAllowlist = map[string]string{}
 
-// extractSQLEnumTypes parses every CREATE TYPE ... AS ENUM statement out of 001_init.sql's raw
+// extractSQLEnumTypes parses every CREATE TYPE ... AS ENUM statement out of migration SQL raw
 // text, returning name -> canonical single-line definition in the same style used by
 // sharedTestSchemaEnumTypes ("CREATE TYPE <name> AS ENUM ('a', 'b', ...)", no trailing ";").
 func extractSQLEnumTypes(sql string) map[string]string {
@@ -75,7 +76,7 @@ func goEnumTypes() map[string]string {
 }
 
 // reconcileTestSchemaEnumParity is a pure function: it compares sqlTypes (extracted from
-// 001_init.sql) against goTypes (sharedTestSchemaEnumTypes) and returns a human-readable
+// migrations/*.sql) against goTypes (sharedTestSchemaEnumTypes) and returns a human-readable
 // violation for every missing, value-mismatched, stale, or orphaned entry not covered by
 // allowlist.
 func reconcileTestSchemaEnumParity(sqlTypes, goTypes, allowlist map[string]string) []string {
@@ -88,19 +89,19 @@ func reconcileTestSchemaEnumParity(sqlTypes, goTypes, allowlist map[string]strin
 		goDef, ok := goTypes[name]
 		switch {
 		case !ok:
-			violations = append(violations, "ENUM type "+name+" exists in 001_init.sql but is "+
+			violations = append(violations, "ENUM type "+name+" exists in migrations/*.sql but is "+
 				"missing from sharedTestSchemaEnumTypes (ltv_repository_test.go) — add it, or add "+
 				"a documented exception to testSchemaEnumParityAllowlist. SQL definition: "+sqlDef)
 		case goDef != sqlDef:
 			violations = append(violations, "ENUM type "+name+" drifted: sharedTestSchemaEnumTypes "+
-				"has \""+goDef+"\" but 001_init.sql defines \""+sqlDef+"\" — sync the test double.")
+				"has \""+goDef+"\" but migrations/*.sql defines \""+sqlDef+"\" — sync the test double.")
 		}
 	}
 
 	for name, goDef := range goTypes {
 		if _, ok := sqlTypes[name]; !ok {
 			violations = append(violations, "sharedTestSchemaEnumTypes has ENUM type "+name+
-				" (\""+goDef+"\") that does not exist in 001_init.sql — remove it (typo or stale "+
+				" (\""+goDef+"\") that does not exist in migrations/*.sql — remove it (typo or stale "+
 				"entry from a since-removed migration).")
 		}
 	}
@@ -108,7 +109,7 @@ func reconcileTestSchemaEnumParity(sqlTypes, goTypes, allowlist map[string]strin
 	for name := range allowlist {
 		if _, ok := sqlTypes[name]; !ok {
 			violations = append(violations, "testSchemaEnumParityAllowlist entry "+name+" no "+
-				"longer matches an existing ENUM type in 001_init.sql — remove the stale entry.")
+				"longer matches an existing ENUM type in migrations/*.sql — remove the stale entry.")
 		}
 	}
 
@@ -116,21 +117,38 @@ func reconcileTestSchemaEnumParity(sqlTypes, goTypes, allowlist map[string]strin
 }
 
 // TestTestSchemaEnumParity is the gate: every ENUM type CREATE TYPE ... AS ENUM statement in
-// 001_init.sql must have a byte-for-byte matching entry in sharedTestSchemaEnumTypes, and vice
-// versa (modulo documented exceptions). A floor guards against a vacuous pass if the extraction
-// regex silently breaks.
+// migrations/*.sql must have a byte-for-byte matching entry in sharedTestSchemaEnumTypes, and
+// vice versa (modulo documented exceptions). A floor guards against a vacuous pass if the
+// extraction regex silently breaks.
 func TestTestSchemaEnumParity(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("../../migrations", "001_init.sql")) //nolint:gocritic // B5b requires this relative path.
+	migrationsPath := "../../migrations" // B5b requires this relative path.
+	entries, err := os.ReadDir(migrationsPath)
 	if err != nil {
-		t.Fatalf("read 001_init.sql: %v", err)
+		t.Fatalf("read migrations dir: %v", err)
 	}
 
-	sqlTypes := extractSQLEnumTypes(string(raw))
-	// 54 CREATE TYPE ... AS ENUM statements in 001_init.sql as of G12-2 (2026-07-10). Revisit
-	// this floor if migrations legitimately add/remove ENUM types.
-	if len(sqlTypes) < 54 {
-		t.Fatalf("extracted only %d CREATE TYPE ... AS ENUM statement(s) from 001_init.sql; "+
-			"expected 54+ — the extraction regex likely broke (would vacuously pass)", len(sqlTypes))
+	// os.ReadDir はファイル名ソート順を返すため、同名型が複数 migration に現れた場合は
+	// 後の migration の定義が勝つ（CREATE TYPE の再定義は想定しないが、順序は決定論的）。
+	sqlTypes := map[string]string{}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".sql") {
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join(migrationsPath, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		for name, def := range extractSQLEnumTypes(string(raw)) {
+			sqlTypes[name] = def
+		}
+	}
+
+	// 54 CREATE TYPE ... AS ENUM statements in 001_init.sql as of G12-2 (2026-07-10), plus
+	// pet_neutered_status from 018_pet_neutered_status.sql. Revisit this floor if migrations
+	// legitimately add/remove ENUM types.
+	if len(sqlTypes) < 55 {
+		t.Fatalf("extracted only %d CREATE TYPE ... AS ENUM statement(s) from migrations/*.sql; "+
+			"expected 55+ — the extraction regex likely broke (would vacuously pass)", len(sqlTypes))
 	}
 
 	for _, v := range reconcileTestSchemaEnumParity(sqlTypes, goEnumTypes(), testSchemaEnumParityAllowlist) {
@@ -169,7 +187,7 @@ func TestReconcileTestSchemaEnumParity_Analyzer(t *testing.T) {
 	t.Run("orphaned go-only entry fails", func(t *testing.T) {
 		goTypes := map[string]string{"typo_type": "CREATE TYPE typo_type AS ENUM ('x')"}
 		got := reconcileTestSchemaEnumParity(map[string]string{}, goTypes, map[string]string{})
-		if len(got) != 1 || !strings.Contains(got[0], "does not exist in 001_init.sql") {
+		if len(got) != 1 || !strings.Contains(got[0], "does not exist in migrations/*.sql") {
 			t.Fatalf("expected orphan violation, got %v", got)
 		}
 	})

@@ -1,4 +1,9 @@
-import type { PetGender, AcquisitionType, DangerLevel } from "@/types/generated/models";
+import type {
+  PetGender,
+  PetNeuteredStatus,
+  AcquisitionType,
+  DangerLevel,
+} from "@/types/generated/models";
 import type { PetResponse } from "@/types/generated/pet-responses";
 import { jstDateStartISOString } from "@/lib/jst-date";
 import type { CreatePetRequest, UpdatePetRequest } from "@/types/pet";
@@ -71,6 +76,18 @@ export const DANGER_LEVEL_MAP: Record<string, string> = {
   high: "高",
 };
 
+export const NEUTERED_STATUS_MAP: Record<string, string> = {
+  done: "済",
+  not_done: "未",
+  unknown: "不明",
+};
+
+const NEUTERED_STATUS_REVERSE_MAP: Record<string, PetNeuteredStatus> = {
+  済: "done",
+  未: "not_done",
+  不明: "unknown",
+};
+
 /**
  * バックエンドペット詳細レスポンス（PetResponse）をフロントエンド Pet 型に変換。
  * ReturnType<typeof transformBackendPetToFrontend> が Pet 型の正式定義。
@@ -106,6 +123,9 @@ export const transformBackendPetToFrontend = (p: PetResponse) => ({
   status: mapPetStatusLabel(p.status),
   birthDate: p.birth_date ? p.birth_date.split("T")[0] : undefined,
   neuteredDate: p.neutered_date ? p.neutered_date.split("T")[0] : undefined,
+  neuteredStatus: p.neutered_status
+    ? (NEUTERED_STATUS_MAP[p.neutered_status] ?? p.neutered_status)
+    : undefined,
   weight: p.weight?.toString(),
   food: p.food,
   environment: p.environment,
@@ -157,6 +177,7 @@ type PetFormInput = {
   food?: string;
   environment?: string;
   neuteredDate?: string;
+  neuteredStatus?: string;
   acquisitionType?: string;
   dangerLevel?: string;
   dangerReason?: string;
@@ -196,6 +217,9 @@ export const transformCreatePetRequest = (
   food: data.food,
   environment: data.environment,
   neutered_date: data.neuteredDate ? jstDateStartISOString(data.neuteredDate) : undefined,
+  neutered_status: data.neuteredStatus
+    ? (NEUTERED_STATUS_REVERSE_MAP[data.neuteredStatus] ?? undefined)
+    : undefined,
   acquisition_type: data.acquisitionType
     ? (ACQUISITION_TYPE_REVERSE_MAP[data.acquisitionType] ?? data.acquisitionType)
     : undefined,
@@ -252,6 +276,9 @@ export const transformUpdatePetRequest = (data: PetFormInput): UpdatePetRequest 
   food: data.food,
   environment: data.environment,
   neutered_date: data.neuteredDate ? jstDateStartISOString(data.neuteredDate) : undefined,
+  neutered_status: data.neuteredStatus
+    ? (NEUTERED_STATUS_REVERSE_MAP[data.neuteredStatus] ?? undefined)
+    : undefined,
   acquisition_type: data.acquisitionType
     ? (ACQUISITION_TYPE_REVERSE_MAP[data.acquisitionType] ?? data.acquisitionType)
     : undefined,
