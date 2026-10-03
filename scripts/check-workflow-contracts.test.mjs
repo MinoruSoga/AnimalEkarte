@@ -242,6 +242,27 @@ test("make ci reports a commit status required by staging protection", () => {
   assert.match(policy, /required checks:[^\n]*`make ci`/);
 });
 
+test("make ci --from resume cannot post the required success status", () => {
+  // 部分実行が required check の success を投稿すると「一部だけ走った head が
+  // merge 可能」になる迂回経路になる。success 投稿は FROM=1 のフル実行に
+  // 限定されていることを pin する。
+  const script = read("scripts/run-local-ci.sh");
+  assert.match(script, /--from/);
+  assert.match(script, /if \(\( FROM == 1 \)\); then\n\s+post_ci_status success/);
+});
+
+test("run-local-ci step total equals the begin_step call count", () => {
+  const script = read("scripts/run-local-ci.sh");
+  const calls = script.match(/^ *begin_step "/gm)?.length ?? 0;
+  const total = script.match(/^total=(\d+)$/m);
+  assert.ok(total, "missing total= pin");
+  assert.equal(
+    calls,
+    Number(total[1]),
+    "total= must equal the number of begin_step calls inside step functions",
+  );
+});
+
 test("ci_scope_plan unit coverage stays wired for host verify", () => {
   const planner = read("scripts/ci_scope_plan.py");
   assert.match(planner, /BACKEND_DOMAINS/);

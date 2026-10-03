@@ -58,6 +58,8 @@ staging の required checks: `Workflow Contracts` / `Gitleaks Secret Scan` / `Ag
 
 `make ci` required check の仕組み: `scripts/run-local-ci.sh` は完了時に HEAD SHA へ commit status（context `make ci`、success/failure）を `gh api` で投稿する。status が無い head は Pending となり merge できないため、「staging へマージする head で `make ci` をローカル完走したこと」が機械的に強制される。**これは自己申告制**であり、repo write 権限を持つ者は実走査なしに status を投稿し得る — remote で `make ci` 自体を実行しない限り完全な証明にはならない（最小構成維持とのトレードオフとして採用）。投稿を無効化するには `MAKE_CI_STATUS=0` を使う。
 
+途中再開: `make ci 9`（= `bash scripts/run-local-ci.sh 9` / `--from 9` / `CI_FROM=9`）で step 9 以降のみ実行できる。success の status 投稿は**フル実行（FROM=1）のみ**に限定され、部分実行の成功では投稿しない — さもなければ一部 step だけ走った head が required check を通過してしまう迂回経路になる（failure の投稿は部分実行でも行う）。release 前の最終確認はフル実行が必須。
+
 `production` 作成時の適用例:
 
 ```bash
