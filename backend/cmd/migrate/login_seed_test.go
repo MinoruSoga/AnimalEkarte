@@ -43,6 +43,25 @@ func TestSeedBundlesForEnv_StillExcludesCSVAccounts(t *testing.T) {
 	}
 }
 
+func TestLoginSeedChecksum_FitsSchemaMigrationsColumn(t *testing.T) {
+	// schema_migrations.checksum は VARCHAR(64)。SEC-O8 が catalog+fingerprint の
+	// 生合成値（129 文字）を書き込み "value too long (22001)" で migrate が
+	// 失敗した回帰の pin。sha256 hex 1個分に収める契約を固定する。
+	got := loginSeedChecksum("development")
+	if len(got) != 64 {
+		t.Fatalf("len(checksum) = %d, want 64 (got %q)", len(got), got)
+	}
+}
+
+func TestLoginSeedChecksum_ChangesWithDemoPasswordFingerprint(t *testing.T) {
+	dev := loginSeedChecksum("development")
+	t.Setenv(seedlogin.DemoPasswordEnv, "rotated-secret-value")
+	stg := loginSeedChecksum("staging")
+	if dev == stg {
+		t.Fatal("checksum must change when demo password fingerprint changes")
+	}
+}
+
 func TestLoginSeedNeedsApply_NoRowNeedsApply(t *testing.T) {
 	db := openLoginSeedChecksumDB(t, "", false)
 	needs, err := loginSeedNeedsApply(db, seedlogin.MigrationKey(), "abc")

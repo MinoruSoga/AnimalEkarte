@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -29,7 +31,7 @@ func runLoginSeed(ctx context.Context, db *sql.DB, logger *slog.Logger) error {
 	}
 
 	key := seedlogin.MigrationKey()
-	checksum := seedlogin.CatalogChecksum() + ":" + seedlogin.DemoPasswordFingerprint(appEnv)
+	checksum := loginSeedChecksum(appEnv)
 	needsApply, err := loginSeedNeedsApply(db, key, checksum)
 	if err != nil {
 		return err
@@ -64,6 +66,19 @@ func runLoginSeed(ctx context.Context, db *sql.DB, logger *slog.Logger) error {
 		return fmt.Errorf("commit login seed record: %w", err)
 	}
 	return nil
+}
+
+// loginSeedChecksum は schema_migrations.checksum（VARCHAR(64)、sha256 hex 1個）
+// に収めるため、catalog checksum と demo パスワード fingerprint の合成入力を
+// さらに sha256 化した 64 文字 hex を返す。どちらかが変われば digest も変わる
+// ため、catalog 変更とシークレット轮换の両方を drift として検出できる。
+// 生の合成文字列（64+1+64=129 文字）を書き込むと varchar(64) を溢れて
+// migrate が失敗する（SEC-O8 回帰 22001）。
+func loginSeedChecksum(appEnv string) string {
+	sum := sha256.Sum256([]byte(
+		seedlogin.CatalogChecksum() + ":" + seedlogin.DemoPasswordFingerprint(appEnv),
+	))
+	return hex.EncodeToString(sum[:])
 }
 
 // loginSeedNeedsApply reports whether catalog upsert should run.
