@@ -16,6 +16,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { useBackNavigation, useBackPath } from "@/hooks/use-back-navigation";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useTitle } from "@/hooks/use-title";
 import { usePostalCodeLookup } from "../hooks/use-postal-code-lookup";
@@ -154,6 +155,8 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
 
   const canSubmit = isEdit ? canEdit : canCreate;
 
+  const backPath = useBackPath(paths.owners.getHref());
+
   useTitle(isEdit ? `飼主編集 (${ownerData.ownerName})` : "飼主登録");
 
   // React 19 Action の成功を検知して遷移
@@ -187,9 +190,10 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
           window.location.assign(plan.href);
           return;
         }
-        navigate(plan.href);
+        // state.from を引き継ぎ、詳細ページ側の戻るも遷移元へ戻れるようにする
+        navigate(plan.href, { state: { from: backPath } });
       } else if (isEdit) {
-        navigate(paths.owners.getHref());
+        navigate(backPath);
       }
     }
   }, [
@@ -202,6 +206,7 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
     ownerData.clinicId,
     currentClinicId,
     queryClient,
+    backPath,
   ]);
 
   // fieldErrors の「キーの集合」が変わったときだけ発火させたい（値の再代入では発火不要）。
@@ -225,9 +230,7 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
     el?.focus();
   }, [errorFieldsSignature]);
 
-  const handleBack = () => {
-    navigate(paths.owners.getHref());
-  };
+  const handleBack = useBackNavigation(paths.owners.getHref());
 
   const {
     pendingOwnerChange,

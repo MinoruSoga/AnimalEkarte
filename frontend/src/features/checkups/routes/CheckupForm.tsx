@@ -1,5 +1,4 @@
 import { useCallback, useMemo } from "react";
-import { useNavigate } from "react-router";
 
 import { ClipboardCheck } from "lucide-react";
 
@@ -10,6 +9,7 @@ import { PastRecordHistoryPanel } from "@/components/shared/PastRecordHistoryPan
 import { FormHeaderActions } from "@/components/shared/Form/FormHeaderActions";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { paths } from "@/config/paths";
+import { useBackNavigation } from "@/hooks/use-back-navigation";
 import { formatDate } from "@/lib/format/date";
 import { useGetAllCheckupTypes } from "@/hooks/use-treatment-master";
 import { useGetStaffs } from "@/hooks/use-staffs";
@@ -22,7 +22,6 @@ import { toCheckupHistoryItems } from "./checkup-form-model";
 import { CheckupFieldsPanel } from "./CheckupFormPanels";
 
 export function CheckupForm() {
-  const navigate = useNavigate();
   const { canCreate, canEdit } = usePermission(ResourceMedicalRecords);
 
   const {
@@ -60,9 +59,7 @@ export function CheckupForm() {
     return toCheckupHistoryItems(checkupsResult?.data ?? []);
   }, [checkupsResult?.data, pet?.id]);
 
-  const handleBack = useCallback(() => {
-    navigate(paths.checkups.getHref());
-  }, [navigate]);
+  const handleBack = useBackNavigation(paths.checkups.getHref());
 
   const guardedFormAction = useCallback(
     (formData: FormData) => {

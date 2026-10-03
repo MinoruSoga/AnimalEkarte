@@ -571,4 +571,15 @@ describe("usePetSelectionPage", () => {
       limit: 20,
     });
   });
+
+  // 受付モーダル等が state.from に渡した遷移元へ戻る。無い場合のみ backPath。
+  it("state.from があれば backPath ではなく遷移元へ戻る", () => {
+    const { result } = renderHook(() => usePetSelectionPage(CONFIG));
+
+    act(() => {
+      result.current.handleBack();
+    });
+
+    expect(navigate).toHaveBeenCalledWith("/reservations");
+  });
 });

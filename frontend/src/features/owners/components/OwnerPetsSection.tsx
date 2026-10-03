@@ -152,7 +152,9 @@ const PetTableRow = memo(function PetTableRow({
                     onClick={() => {
                       const current = actionBoundaryRef.current;
                       if (current.status !== "生存" || current.canCreate !== true) return;
-                      navigate(`${paths.reservations.getHref()}?petId=${pet.id}`);
+                      navigate(`${paths.reservations.getHref()}?petId=${pet.id}`, {
+                        state: { from: backFrom },
+                      });
                     }}
                   >
                     <Calendar className={`mr-2 ${ICON.action}`} />

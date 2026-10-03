@@ -88,6 +88,8 @@ export const AppointmentCard = memo(function AppointmentCard({
   const canOpenRecordFromCard = isTrimming
     ? columnTitle === "受付済"
     : isMedical && (columnTitle === "受付済" || columnTitle === "診療中");
+  // 表示中日付のボードへ戻れるよう、from は当日固定ではなく予約日を保持する
+  const backFrom = appointment.visitDate ? `/?date=${appointment.visitDate}` : "/";
 
   const handleKarteClick = useCallback(
     (e: React.MouseEvent) => {
@@ -101,10 +103,10 @@ export const AppointmentCard = memo(function AppointmentCard({
       const basePath = resolveRecordBasePath(isTrimming, Boolean(appointment.petId));
 
       navigate(query ? `${basePath}?${query}` : basePath, {
-        state: { from: "/", appointmentId: appointment.id, visitDate: appointment.visitDate },
+        state: { from: backFrom, appointmentId: appointment.id, visitDate: appointment.visitDate },
       });
     },
-    [navigate, isTrimming, appointment, columnTitle, onRecordOpen],
+    [navigate, isTrimming, appointment, columnTitle, onRecordOpen, backFrom],
   );
 
   const handleAccountingClick = useCallback(
@@ -114,10 +116,10 @@ export const AppointmentCard = memo(function AppointmentCard({
         appointment.petId
           ? `${paths.accounting.new.getHref()}?petId=${appointment.petId}`
           : paths.accounting.new.getHref(),
-        { state: { from: "/", appointmentId: appointment.id } },
+        { state: { from: backFrom, appointmentId: appointment.id } },
       );
     },
-    [navigate, appointment.petId, appointment.id],
+    [navigate, appointment.petId, appointment.id, backFrom],
   );
 
   const handleHospitalizationClick = useCallback(
@@ -127,10 +129,10 @@ export const AppointmentCard = memo(function AppointmentCard({
         appointment.petId
           ? `${paths.hospitalization.new.getHref()}?petId=${appointment.petId}`
           : paths.hospitalization.new.getHref(),
-        { state: { from: "/" } },
+        { state: { from: backFrom } },
       );
     },
-    [navigate, appointment.petId],
+    [navigate, appointment.petId, backFrom],
   );
 
   return (

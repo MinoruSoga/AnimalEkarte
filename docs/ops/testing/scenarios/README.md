@@ -58,6 +58,7 @@
 | [S37](S37-print-documents-layout.md) | 印刷帳票のレイアウト — 領収書以外の印刷面 | UI/帳票 | 中 |
 | [S38](S38-liff-mobile-viewport.md) | LIFF モバイル画面 — スマホ viewport での表示適合 | UI/LIFF | 中 |
 | [S39](S39-state-feedback-visibility.md) | 状態フィードバック — loading・空・エラー・disabled・フォーカスの可視性 | UI/a11y | 中 |
+| [S40](S40-reception-return-navigation.md) | 受付ボード → 別ページ → 戻る で選択日ボードへ復帰 | 回帰/遷移 | 中 |
 
 実行順の制約: S01 を最初に、S10 は S08 の後。S13・S14〜S39 は独立。それ以外は任意順。S21 は `billing-schema-readiness` の DB 制約ゲート、S28 は医院承認の項目表、S23 は複数医院 fixture が前提 — 前提未充足のシナリオは BLOCKED として扱い、スキップを PASS にしない。
 

@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { paths } from "@/config/paths";
+import { useBackNavigation, useBackPath } from "@/hooks/use-back-navigation";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useGetVaccinations } from "../api/get-vaccinations";
 import { useVaccinationForm } from "../hooks/use-vaccination-form";
@@ -54,12 +55,14 @@ export const VaccinationForm = memo(function VaccinationForm() {
     }
   }, [formState.fieldErrors, formState.timestamp]);
 
+  const backPath = useBackPath(paths.vaccinations.getHref());
+
   useEffect(() => {
     if (formState.success) {
       markClean();
-      navigate(paths.vaccinations.getHref());
+      navigate(backPath);
     }
-  }, [formState.success, formState.timestamp, navigate, markClean]);
+  }, [formState.success, formState.timestamp, navigate, markClean, backPath]);
 
   const { selectedPets } = petSelection;
   const selectedPet = selectedPets[0];
@@ -68,9 +71,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
   const allowDelete = canDelete === true && isEditPetReady;
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
-  const handleBack = useCallback(() => {
-    navigate(paths.vaccinations.getHref());
-  }, [navigate]);
+  const handleBack = useBackNavigation(paths.vaccinations.getHref());
 
   const historyPetId = selectedPet?.id;
   const { data: petVaccinations = [] } = useGetVaccinations({

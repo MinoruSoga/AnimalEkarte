@@ -22,9 +22,12 @@ const {
   toastSuccessMock: vi.fn(),
 }));
 
+let locationState: unknown = null;
+
 vi.mock("react-router", () => ({
   useNavigate: () => navigateMock,
   useSearchParams: () => [new URLSearchParams("petId=pet-1")],
+  useLocation: () => ({ state: locationState }),
 }));
 
 vi.mock("sonner", () => ({
@@ -75,6 +78,7 @@ function prepareValidForm(result: { current: ReturnType<typeof useCheckupForm> }
 describe("useCheckupForm mutation boundary", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    locationState = null;
     vi.mocked(useGetPet).mockReturnValue({
       data: { id: "pet-1", ownerId: "owner-1" },
       isLoading: false,
@@ -97,6 +101,17 @@ describe("useCheckupForm mutation boundary", () => {
     expect(createMedicalRecordMock).toHaveBeenCalledOnce();
     expect(createCheckupMock).toHaveBeenCalledOnce();
     expect(toastSuccessMock).toHaveBeenCalledWith("定期健診を登録しました");
+  });
+
+  it("state.from がある場合は保存成功後に遷移元へ戻る", async () => {
+    locationState = { from: "/?date=2026-05-29" };
+    const { result } = renderHook(() => useCheckupForm(ALLOWED_MUTATION_PERMISSIONS));
+
+    prepareValidForm(result);
+    runFormAction(result.current.formAction);
+
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith("/?date=2026-05-29"));
+    expect(navigateMock).not.toHaveBeenCalledWith("/checkups");
   });
 
   it("登録失敗時は一覧へ遷移しない", async () => {

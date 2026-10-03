@@ -7,6 +7,7 @@ import { LAYOUT } from "@/lib/design-tokens";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { paths } from "@/config/paths";
+import { useBackNavigation } from "@/hooks/use-back-navigation";
 import { ResourceHospitalization } from "@/types/generated/models";
 
 // Relative
@@ -24,6 +25,7 @@ export function HospitalizationDetail() {
     useHospitalizationDetail(id);
 
   const [showDischargeDialog, setShowDischargeDialog] = useState(false);
+  const handleBack = useBackNavigation(paths.hospitalization.getHref());
 
   // rerender-dependencies: hospitalization オブジェクトを deps に入れず、petId の primitive を抽出
   const hospitalizationPetId = hospitalization?.petId ? String(hospitalization.petId) : undefined;
@@ -53,7 +55,7 @@ export function HospitalizationDetail() {
   return (
     <PageLayout
       title="入院詳細・カルテ"
-      onBack={() => navigate(paths.hospitalization.getHref())}
+      onBack={handleBack}
       resource={ResourceHospitalization}
       headerAction={
         <HospitalizationDetailActions

@@ -7,6 +7,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { Button } from "@/components/ui/button";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
+import { parseInternalPath } from "@/lib/internal-navigation";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import { useGetMasterItems } from "@/hooks/use-master-items";
 import { useGetStaffs } from "@/hooks/use-staffs";
@@ -191,7 +192,7 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
     handleDeleteConfirm,
   } = useExaminationFormPageActions({
     navigate,
-    fromPath: location.state?.from,
+    fromPath: parseInternalPath(location.state?.from) ?? undefined,
     markDirty,
     markClean,
     setFormData,

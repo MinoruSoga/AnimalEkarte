@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("react-router", () => ({
   useNavigate: () => vi.fn(),
   useParams: () => ({ id: mocks.id }),
+  useLocation: () => ({ state: null }),
 }));
 
 vi.mock("@/hooks/use-permission", () => ({

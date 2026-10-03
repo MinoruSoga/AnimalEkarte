@@ -103,7 +103,7 @@ describe("AppointmentCard", () => {
     expect(onRecordOpen).toHaveBeenCalledWith(baseAppointment, "受付済");
     expect(navigateMock).toHaveBeenCalledWith(
       "/medical-records/new?petId=10&appointmentId=101&visitDate=2026-05-29",
-      { state: { from: "/", appointmentId: "101", visitDate: "2026-05-29" } },
+      { state: { from: "/?date=2026-05-29", appointmentId: "101", visitDate: "2026-05-29" } },
     );
   });
 
@@ -117,7 +117,7 @@ describe("AppointmentCard", () => {
 
     expect(navigateMock).toHaveBeenCalledWith(
       "/medical-records/select-pet?appointmentId=101&visitDate=2026-05-29",
-      { state: { from: "/", appointmentId: "101", visitDate: "2026-05-29" } },
+      { state: { from: "/?date=2026-05-29", appointmentId: "101", visitDate: "2026-05-29" } },
     );
   });
 
@@ -150,7 +150,7 @@ describe("AppointmentCard", () => {
 
     expect(navigateMock).toHaveBeenCalledWith(
       "/trimming/new?petId=10&appointmentId=202&visitDate=2026-05-29",
-      { state: { from: "/", appointmentId: "202", visitDate: "2026-05-29" } },
+      { state: { from: "/?date=2026-05-29", appointmentId: "202", visitDate: "2026-05-29" } },
     );
   });
 
@@ -167,7 +167,7 @@ describe("AppointmentCard", () => {
 
     expect(navigateMock).toHaveBeenCalledWith(
       "/trimming/select-pet?appointmentId=202&visitDate=2026-05-29",
-      { state: { from: "/", appointmentId: "202", visitDate: "2026-05-29" } },
+      { state: { from: "/?date=2026-05-29", appointmentId: "202", visitDate: "2026-05-29" } },
     );
   });
 
