@@ -1,0 +1,4 @@
+CI path-filter verification probe.
+backend/migrations/** の変更だけで Backend Build/Test 全シャードが skip され、
+Backend Migration Tests のみ実行されることを確認するための検証用ファイル。
+このブランチ/PR は検証後に削除する。
