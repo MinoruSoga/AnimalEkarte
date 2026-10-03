@@ -113,7 +113,7 @@ Security invariant の破壊により、攻撃者が開始時に持たない ide
 - Production draft の存在だけでは Internet exposure を証明しません。
 - Dormant RLS だけでは app-layer clinic scope が正しい場合の tenant escape を証明しません。ただし RLS を実効 control と誤記することや、app-layer failure と組み合わさることは評価対象です。
 - 攻撃者がすでに持つ正規権限内の通常動作は、新しい security impact ではありません。
-- Support の閲覧・作成の clinic 横断共有は owner 承認済みの製品決定であり脆弱性ではありません（変更操作は報告元 clinic スコープ）。コンテンツへの患者・飼い主情報の含有も承認済み（2026-10-03）。保持期間は未定であり、期限超過・不許可削除経路は引き続き評価対象です。
+- Support の閲覧・作成の clinic 横断共有は owner 承認済みの製品決定であり脆弱性ではありません（変更操作は報告元 clinic スコープ）。コンテンツへの患者・飼い主情報の含有および**無期限保持**も承認済み（2026-10-03）。不許可削除経路は引き続き評価対象です。
 - STG デモカタログの共有パスワードが全カタログ ID（全医院割当の執行アカウント含む）を認証することは、synthetic demo 用途の owner 承認済み設計であり脆弱性ではありません（2026-10-03、受容済みリスク節を参照）。STG 以外の環境への波及、STG への実データ混入、シークレットの他用途流用は引き続き評価対象です。
 
 ## Scope 外、除外、受容済みリスク
@@ -130,19 +130,18 @@ Security invariant の破壊により、攻撃者が開始時に持たない ide
 - DB RLS は runtime enforcement ではなく、app-layer clinic scope が実効境界です。
 - Rate limit は process-local であり、multi-instance 全体の quota ではありません。
 - Audit は path-dependent で、すべての CUD を一律記録しません。
-- Support の情報区分・外部送信は確定済み（2026-10-03、患者・飼い主情報の含有許可・既存経路への送信承認）。保持期間のみ未定で、当面現行のまま（期限超過・不許可削除経路は評価対象）。閲覧・作成の全医院共有と、変更操作の報告元医院スコープは確定済みです（2026-10）。
+- Support の情報区分・外部送信・保持期間は確定済み（2026-10-03、患者・飼い主情報の含有許可・既存経路への送信承認・**無期限保持の裁定**）。不許可削除経路は引き続き評価対象。閲覧・作成の全医院共有と、変更操作の報告元医院スコープは確定済みです（2026-10）。
 - `S3_PUBLIC_BASE_URL` を求める起動時コメントと、object key + presigned URL を使う実装が一致していません。公開 bucket を前提にしてはなりません。`backend/cmd/api/main.go:151-183` `backend/internal/infra/s3_uploader.go:24-76`
 - Lab agent は Mac restart で未配送 memory queue を失い、端末 hardening と physical-device UAT に依存します。`docs/architecture/adr/008-local-lab-device-agent.md:61-70`
 
 ## 未決の owner 判断
 
-2026-10-03 時点で確定済み: STG の live reachability（Deployment 前提に実測記載）、production は未 live でサポート対象外、Support の閲覧・作成共有/変更スコープの設計、OBJECT-1 の private+signed URL 標準、RLS dormant の実測、重大度基準、**Support の情報区分・外部送信（患者・飼い主情報の含有許可 — 画面特定に必要との裁定。LLM は best-effort スクリーニング付き送信、Plane は明示操作のみ）**、**STG デモカタログ共有パスワードによる全カタログ ID（執行含む）認証の意図的仕様化（受容済みリスクとして記録 — synthetic demo 用途・権限管理デモに全医院視点が必要との裁定）**。
+2026-10-03 時点で確定済み: STG の live reachability（Deployment 前提に実測記載）、production は未 live でサポート対象外、Support の閲覧・作成共有/変更スコープの設計、OBJECT-1 の private+signed URL 標準、RLS dormant の実測、重大度基準、**Support の情報区分・外部送信（患者・飼い主情報の含有許可 — 画面特定に必要との裁定。LLM は best-effort スクリーニング付き送信、Plane は明示操作のみ）**、**STG デモカタログ共有パスワードによる全カタログ ID（執行含む）認証の意図的仕様化（受容済みリスクとして記録 — synthetic demo 用途・権限管理デモに全医院視点が必要との裁定）**、**Support 共有コンテンツの無期限保持（2026-10-03 裁定）**。
 
-残る決定事項:
+残る決定事項（いずれも go-live 時の前提確認）:
 
-1. **Support 共有コンテンツの保持期間**: clinic 横断共有される質問・履歴・bug report・screenshot の retention/deletion 条件。当面現行のまま（期限超過・不許可削除経路は評価対象）。
-2. **Production go-live の前提状態**: GitHub Environment `Production` の required reviewers・deployment branch 制限、production branch 保護、DNS/certificate、prod DB/R2、環境別 secrets、**backup 取得・隔離 restore リハーサル（所要時間計測）**、lab rollout の検証日付き状態。go-live 時に production をサポート対象へ追加する。
-3. **環境別の実効設定の最終確認**: R2 bucket の実効 public/private・lifecycle 方針、scheduler alert の有効状態、`S3_PUBLIC_BASE_URL` コメントと presigned 実装の不整合解消（コード・運用文書の整合）。
+1. **Production go-live の前提状態**: GitHub Environment `Production` の required reviewers・deployment branch 制限、production branch 保護、DNS/certificate、prod DB/R2、環境別 secrets、**backup 取得・隔離 restore リハーサル（所要時間計測）**、lab rollout の検証日付き状態。go-live 時に production をサポート対象へ追加する。
+2. **環境別の実効設定の最終確認**: R2 bucket の実効 public/private・lifecycle 方針、scheduler alert の有効状態、`S3_PUBLIC_BASE_URL` コメントと presigned 実装の不整合解消（コード・運用文書の整合）。
 
 ## セキュリティ更新の通知
 

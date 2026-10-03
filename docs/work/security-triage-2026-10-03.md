@@ -10,7 +10,7 @@ codex-security ワークベンチ (`~/.codex/state/plugins/codex-security/workbe
 - **再スキャン(xj4SPC)**: frontend 再精査 113ファイルで **0 confirmed findings**(report "No findings")。workbench に backend 由来の新規 4 findings(N5-N8)が追加 — N5 owner 受容記録・N6/N7 既存裁定カバー・N8 config WIP で修正済み
 - **再スキャン(WzIAHx)**: frontend 再精査 69ファイルで **Reportable findings: 0** — 2回連続 clean。revision `e783de5a7` + スキャン開始時 snapshot を対象。findings 総数は 55→55 で新規追加なし
 - 注意: スキャン実行中に checkout が変化("Scan target changed"警告) — foreign WIP が継続中のため。frontend スコープの結果は報告対象0件で確定
-- **P判断は `SECURITY.md` で owner 確定**: support 共有 board の受容、OBJECT-1(private+signed URL)標準、**support コンテンツへの患者・飼主情報含有許可 + LLM/Plane への既存経路送信承認(2026-10-03 裁定 — 画面特定に必要)**。未決残件は共有コンテンツの保持期間のみ(EMR-263)
+- **P判断は `SECURITY.md` で owner 確定**: support 共有 board の受容、OBJECT-1(private+signed URL)標準、**support コンテンツへの患者・飼主情報含有許可 + LLM/Plane への既存経路送信承認 + 共有コンテンツ無期限保持(2026-10-03 裁定 — 画面特定に必要)**。残件は go-live 前提・環境実効設定のみ(EMR-263)
 
 ## 本日実施した修正(未対応 → 修正済み・未コミット)
 
