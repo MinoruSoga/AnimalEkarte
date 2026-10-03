@@ -1,7 +1,9 @@
 /**
- * update-bug-report-status.ts — バグ報告ステータス更新 API（全スタッフ公開）
+ * update-bug-report-status.ts — バグ報告ステータス更新 API（報告元医院スコープ）
  *
- * PATCH /v1/support/bug-reports/:id/status（認証済みスタッフ全員 — 他医院の報告も対象）
+ * PATCH /v1/support/bug-reports/:id/status
+ * 閲覧は全医院共有だが変更は報告元医院のスタッフのみ — 他医院の報告への
+ * PATCH はサーバー側で 404 を返す。UI 側も canMutate ゲートでボタンを非表示にする。
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
