@@ -180,11 +180,11 @@ var chatOutboundScreeningPatterns = []*regexp.Regexp{
 	// メールアドレス
 	regexp.MustCompile(`[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+`),
 	// 日本の電話番号（0X0-XXXX-XXXX などハイフン区切り）
-	regexp.MustCompile(`0[0-9]{1,4}-[0-9]{1,4}-[0-9]{4}`),
+	regexp.MustCompile(`0\d{1,4}-\d{1,4}-\d{4}`),
 	// 携帯電話（ハイフンなし 070/080/090 の 11 桁）
-	regexp.MustCompile(`0[789]0[0-9]{8}`),
+	regexp.MustCompile(`0[789]0\d{8}`),
 	// クレジットカード・マイナンバー相当の長い数字列（12 桁以上）
-	regexp.MustCompile(`[0-9]{12,}`),
+	regexp.MustCompile(`\d{12,}`),
 	// 認証情報らしき代入形式（password=..., api_key: ... 等）
 	regexp.MustCompile(`(?i)(password|passwd|api[_-]?key|secret|token|authorization)\s*[:=]\s*\S+`),
 	// Bearer トークン

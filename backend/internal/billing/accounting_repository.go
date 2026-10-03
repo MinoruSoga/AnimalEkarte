@@ -339,7 +339,7 @@ func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, clin
 		return nil
 	})
 	if err := g.Wait(); err != nil {
-		return nil, 0, err
+		return nil, 0, apperrors.Wrap(err, "fetch billings for list")
 	}
 	if err := r.attachBillingListRelations(ctx, billings, clinicIDs); err != nil {
 		return nil, 0, err
@@ -401,7 +401,7 @@ func (r *accountingRepository) attachBillingListRelations(ctx context.Context, b
 		return nil
 	})
 	if err := g.Wait(); err != nil {
-		return err
+		return apperrors.Wrap(err, "fetch billing list relations")
 	}
 
 	paymentsByBilling := make(map[uint64][]model.Payment, len(payments))

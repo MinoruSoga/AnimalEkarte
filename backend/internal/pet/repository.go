@@ -208,7 +208,7 @@ func applyPetListSearch(q *gorm.DB, search string) *gorm.DB {
 func applyPetListSearchToken(q *gorm.DB, token string) *gorm.DB {
 	compactSearch := compactSearchText(token)
 	// name/name_kana はカナ+空白を畳んだ translate() 式の1腕で検索する
-	//（生値・空白差・カナ差の旧複数腕を包含し、GIN 式インデックスが効く）。
+	// （生値・空白差・カナ差の旧複数腕を包含し、GIN 式インデックスが効く）。
 	// 空白除去形は「姓 名」入力の半角/全角/連続空白差を順序保持で吸収する（BUG-001）。
 	// 飼主No は独立カラムではなく owners.id の text 一致。pet_number は文字列列。
 	// いずれもユーザ入力を数値パースせずバインドする。

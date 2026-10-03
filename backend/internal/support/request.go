@@ -10,8 +10,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/google/uuid"
+
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 const (

@@ -125,7 +125,7 @@ type checkupFieldOptionRequest struct {
 }
 
 func (r checkupFieldOptionRequest) toServiceInput() CheckupFieldOptionInput {
-	return CheckupFieldOptionInput{Value: r.Value, Label: r.Label}
+	return CheckupFieldOptionInput(r)
 }
 
 // createCheckupTypeFieldRequest はフィールド定義作成 POST のバインド struct。

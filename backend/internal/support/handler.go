@@ -65,9 +65,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	g := s.Group("/bug-reports")
 
 	// バグ報告は認証済みスタッフ全員・全医院に公開する共有ボード
-	//（権限ゲート・医院絞りなし — 製品フィードバック基盤としての意図的な製品判断）。
+	// （権限ゲート・医院絞りなし — 製品フィードバック基盤としての意図的な製品判断）。
 	// 一覧・作成は全医院公開。status 更新・Plane 起票・削除は報告元医院スコープ
-	//（他医院の報告は共有ボードで閲覧のみ — 2026-10 セキュリティレビュー変更）。
+	// （他医院の報告は共有ボードで閲覧のみ — 2026-10 セキュリティレビュー変更）。
 	g.POST("", h.CreateBugReport)
 	g.GET("", h.ListBugReports)
 	g.PATCH("/:id/status", h.UpdateBugReportStatus)

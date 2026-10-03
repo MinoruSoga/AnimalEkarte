@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -206,7 +207,7 @@ func (m medicalRecordImageUploadMeta) verifySniffedContent(file multipart.File) 
 	const sniffLen = 512
 	head := make([]byte, sniffLen)
 	n, err := file.Read(head)
-	if err != nil && err != io.EOF {
+	if err != nil && !errors.Is(err, io.EOF) {
 		return apperrors.Wrap(err, "failed to read uploaded file")
 	}
 	if _, err := file.Seek(0, io.SeekStart); err != nil {

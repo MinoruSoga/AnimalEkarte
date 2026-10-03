@@ -584,7 +584,7 @@ func deleteClinicScopedRows(tx *gorm.DB, clinicID uint64) error {
 			continue
 		}
 		childWheres[link.child] = append(childWheres[link.child], fmt.Sprintf(
-			`"%s" IN (SELECT "%s" FROM "%s" WHERE clinic_id = ?)`,
+			`%q IN (SELECT %q FROM %q WHERE clinic_id = ?)`,
 			link.childCol, link.parentCol, link.parent))
 	}
 	for _, table := range sortedKeys(childWheres) {

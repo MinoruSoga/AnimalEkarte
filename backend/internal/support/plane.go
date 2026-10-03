@@ -231,13 +231,8 @@ type planeIssueStateResponse struct {
 // FetchIssueStateGroup は GET /v1/workspaces/{slug}/projects/{id}/issues/{issueID}/ の
 // state_detail.group を返す。非 2xx は *planeUpstreamError、group 欠落は空文字。
 func (c *planeClient) FetchIssueStateGroup(ctx context.Context, issueID string) (string, error) {
-	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodGet,
-		fmt.Sprintf("%s/v1/workspaces/%s/projects/%s/issues/%s/",
-			c.baseURL, c.workspaceSlug, c.projectID, url.PathEscape(issueID)),
-		nil,
-	)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/v1/workspaces/%s/projects/%s/issues/%s/",
+		c.baseURL, c.workspaceSlug, c.projectID, url.PathEscape(issueID)), http.NoBody)
 	if err != nil {
 		return "", fmt.Errorf("failed to build plane request: %w", err)
 	}
