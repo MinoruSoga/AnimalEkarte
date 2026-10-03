@@ -54,7 +54,9 @@ flowchart TB
 | `staging` | PR 必須（承認数 0）+ required checks | 直接 push 拒否。main→staging release PR が唯一の CI 検証点・デプロイ入口 |
 | `production` | **未作成 — 作成時に staging と同一の保護を適用すること** | 直 push を許すと CI なしで本番デプロイが走る |
 
-staging の required checks: `Workflow Contracts` / `Gitleaks Secret Scan` / `AgentShield`（`enforce_admins` 有効・force push/削除禁止・strict=false）。remote CI 最小化（2026-10）で `Backend` / `Frontend` / `Worker Tests` / `Codegen Sync` / `Migration Verify` の各 check は廃止し、同等ゲートは `make ci` 側にある。release PR の品質担保は「PR 前に main 側で `make ci` を通したこと」への運用依存となる。
+staging の required checks: `Workflow Contracts` / `Gitleaks Secret Scan` / `AgentShield` / `make ci`（`enforce_admins` 有効・force push/削除禁止・strict=false）。remote CI 最小化（2026-10）で `Backend` / `Frontend` / `Worker Tests` / `Codegen Sync` / `Migration Verify` の各 check は廃止し、同等ゲートは `make ci` 側にある。
+
+`make ci` required check の仕組み: `scripts/run-local-ci.sh` は完了時に HEAD SHA へ commit status（context `make ci`、success/failure）を `gh api` で投稿する。status が無い head は Pending となり merge できないため、「staging へマージする head で `make ci` をローカル完走したこと」が機械的に強制される。**これは自己申告制**であり、repo write 権限を持つ者は実走査なしに status を投稿し得る — remote で `make ci` 自体を実行しない限り完全な証明にはならない（最小構成維持とのトレードオフとして採用）。投稿を無効化するには `MAKE_CI_STATUS=0` を使う。
 
 `production` 作成時の適用例:
 
@@ -63,7 +65,7 @@ gh api -X PUT repos/MinoruSoga/AnimalEkarte/branches/production/protection --inp
 {
   "required_status_checks": {
     "strict": false,
-    "contexts": ["Workflow Contracts", "Gitleaks Secret Scan", "AgentShield"]
+    "contexts": ["Workflow Contracts", "Gitleaks Secret Scan", "AgentShield", "make ci"]
   },
   "enforce_admins": true,
   "required_pull_request_reviews": { "required_approving_review_count": 0 },

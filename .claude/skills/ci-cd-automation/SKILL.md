@@ -32,7 +32,7 @@ description: このプロジェクトの GitHub Actions CI/CD 構成の把握と
 - **方針**: build/test/coverage/lint/migration/worker/codegen/audit は全てローカル必須の `make ci`（`scripts/run-local-ci.sh`）へ集約。remote は GitHub 上でしか担保できない2ゲートのみ
 - **Workflow Contracts**: `node --test scripts/check-workflow-contracts.test.mjs`（workflow 定義自身の契約検査・自己参照のため remote 必須）
 - **Gitleaks Secret Scan**: `gitleaks/gitleaks-action@v3` の PR 差分スキャン（C-1 再発防止の fail ゲート。`make ci` 側は full-history）
-- staging の required checks は `Workflow Contracts` / `Gitleaks Secret Scan` / `AgentShield`（正本: `docs/ops/ci-policy.md`）
+- staging の required checks は `Workflow Contracts` / `Gitleaks Secret Scan` / `AgentShield` / `make ci`（正本: `docs/ops/ci-policy.md`）。`make ci` は `scripts/run-local-ci.sh` が HEAD へ投稿する commit status（自己申告制）で、status 無しの head は Pending で merge 不可
 
 使用アクションの正: `actions/checkout@v7` / `actions/setup-go@v7` / `actions/setup-node@v7` / `actions/upload-artifact@v7` / `actions/download-artifact@v7` / `pnpm/action-setup@v6`。
 （`node-actions/setup-node` や `go-actions/setup-go` というアクションは存在しない — 過去にこのスキルが記載していた誤り）

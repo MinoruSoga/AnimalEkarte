@@ -27,9 +27,11 @@ GITLEAKS_IMAGE="${GITLEAKS_IMAGE:-zricethezav/gitleaks:v8.30.1}"
 
 step=0
 total=30
+CURRENT_STEP=""
 
 begin_step() {
   step=$((step + 1))
+  CURRENT_STEP="$1"
   echo ""
   echo "=== [${step}/${total}] $1 ==="
 }
@@ -45,6 +47,44 @@ require_compose_service() {
     exit 1
   fi
 }
+
+# make ci の結果を HEAD の commit status（context `make ci`）として投稿する。
+# staging branch protection がこの context を required check にしており、
+# main→staging release PR の head SHA に success が無いと merge できない契約
+# （docs/ops/ci-policy.md）。自己申告制である点は同文書を参照。
+# gh が無い・未認証の環境では WARN のみで検証自体は続行する
+# （release 側の強制は status の不在=Pending で効くため）。
+# MAKE_CI_STATUS=0 で投稿を無効化できる（実験的実行用）。
+MAKE_CI_CONTEXT="make ci"
+
+post_ci_status() {
+  local state="$1" description="$2"
+  [[ "${MAKE_CI_STATUS:-1}" == "1" ]] || return 0
+  command -v gh >/dev/null 2>&1 || {
+    echo "WARN: gh CLI が無いため commit status (${MAKE_CI_CONTEXT}) を投稿できません" >&2
+    return 0
+  }
+  local sha repo
+  sha="$(git rev-parse HEAD 2>/dev/null)" || return 0
+  [[ -n "$sha" ]] || return 0
+  repo="$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)" || {
+    echo "WARN: gh repo view に失敗したため commit status を投稿できません" >&2
+    return 0
+  }
+  if ! gh api "repos/${repo}/statuses/${sha}" \
+      -f state="$state" \
+      -f context="$MAKE_CI_CONTEXT" \
+      -f description="$description" \
+      -f target_url="https://github.com/${repo}/blob/${sha}/scripts/run-local-ci.sh" \
+      >/dev/null 2>&1; then
+    echo "WARN: commit status 投稿に失敗しました（repo:status 権限を確認）" >&2
+  fi
+}
+
+on_make_ci_failure() {
+  post_ci_status failure "make ci failed at: ${CURRENT_STEP:-unknown}" || true
+}
+trap on_make_ci_failure ERR
 
 begin_step "Agent instruction and scoped verification contracts"
 python3 -B .claude/scripts/sync-codex-mirror.py "$ROOT"
@@ -238,6 +278,8 @@ docker run --rm \
   -w /app \
   "$NODE_WORKER_IMAGE" \
   bash -lc 'set -euo pipefail; corepack enable; corepack prepare pnpm@'"$WORKER_PNPM_VERSION"' --activate; pnpm config set store-dir /pnpm-store; pnpm install --frozen-lockfile; pnpm run typecheck:worker; pnpm exec vitest run --config backend/worker/vitest.config.mts backend/worker'
+
+post_ci_status success "all ${total} steps passed"
 
 echo ""
 echo "✓ make ci passed"

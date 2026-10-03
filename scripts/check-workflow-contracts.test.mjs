@@ -224,6 +224,24 @@ test("make ci wires the gates retired from remote CI", () => {
   }
 });
 
+test("make ci reports a commit status required by staging protection", () => {
+  // release PR の強制経路: make ci 成功が HEAD の commit status `make ci` として
+  // 投稿され、staging protection の required contexts に含まれることで
+  // 「status 無し = Pending = merge 不可」が成立する。
+  const script = read("scripts/run-local-ci.sh");
+  for (const needle of [
+    "MAKE_CI_CONTEXT=",
+    "statuses/",
+    "post_ci_status success",
+    "on_make_ci_failure",
+    "MAKE_CI_STATUS",
+  ]) {
+    assert.ok(script.includes(needle), `run-local-ci.sh must wire: ${needle}`);
+  }
+  const policy = read("docs/ops/ci-policy.md");
+  assert.match(policy, /required checks:[^\n]*`make ci`/);
+});
+
 test("ci_scope_plan unit coverage stays wired for host verify", () => {
   const planner = read("scripts/ci_scope_plan.py");
   assert.match(planner, /BACKEND_DOMAINS/);

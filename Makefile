@@ -542,6 +542,8 @@ GOLANGCI_LINT_VERSION := v2.11.4
 #   shellcheck / golangci / ESLint / type-check / knip / design CTA + design-audit /
 #   backend+frontend build/test/coverage ratchet / schema / codegen /
 #   migration verify / seed invariants / worker / pnpm audit / gitleaks
+#   成功/失敗を HEAD の commit status `make ci` へ投稿（staging required check・
+#   MAKE_CI_STATUS=0 で投稿無効化）
 # ローカル任意: make e2e（Playwright。リモート自動 CI には含めない）
 # ────────────────────────────────────────────────────────────────
 
