@@ -48,6 +48,9 @@ func testModels() []any {
 
 func ensureAuditLogForeignKeys(t *testing.T, db *gorm.DB) {
 	t.Helper()
+	// audit_logs は core truncate 対象外のため、先行パッケージ（auth の staffs TRUNCATE 等）が
+	// actor_id 孤立行を残し得る。FK 追加は既存行を検証するため、依存テーブルを自前で空にする。
+	require.NoError(t, db.Exec(`TRUNCATE TABLE audit_logs`).Error)
 	require.NoError(t, db.Exec(`
 		DO $$
 		BEGIN
