@@ -36,6 +36,25 @@ Current unfinished implementation, verification, data, performance, delivery, an
 |:---|:---|:---|:---|:---|:---|
 | BUG-INTERVIEW-HISTORY-DEMO-ROWS | High | medical-records / 問診タブ治療履歴 | 履歴 API が 0 件のペットでも `DEFAULT_HISTORY_ITEMS`（ハードコードのデモ3行）が治療履歴に表示され、各行が `/medical-records/{1,2,3}` への実リンクとして機能し無関係なカルテへ誤誘導する | S16 履歴0件観測 | EMR-254 / 修正済み（`MedicalRecordInterview` のフォールバック除去。回帰ガード: `s16-interview-history-navigation.spec.ts` 履歴0件テスト） |
 
+### codex-security スキャン累積 findings トリアージ（2026-10-03）
+
+累積 56 findings（CLI 表示 51 件・dedupe 後、frontend scan `yxoHGs` + backend scan `Vy74Z7`、スキャン対象 `01fdcef`）を HEAD `fd65d1b2b` で照合。**対応済み 48 / 本日修正実施 6 / 製品判断レーン 4 / 部分対応 2**。全件証跡は [トリアージ報告](docs/work/security-triage-2026-10-03.md)。Plane intake は別途行う。
+
+| ID | severity | 領域 | 症状 | 区分 | 対応先 |
+|:---|:---|:---|:---|:---|:---|
+| SEC-O1 | Medium | inventory / 処置数量 | `DecreaseStock` が `int(quantity)` 切捨て。数量0.5の処置で在庫減算が0になり減算を回避できる | 対応済み(未コミット) | `DecreaseStock` 非整数拒否 + Create 時 InventoryID 連動は整数必須化。テスト追加済み |
+| SEC-O2 | Medium | LIFF / body limit | liff グループに body limit なし。`application/octet-stream` ラベルの JSON で生JSON上限を回避 | 対応済み(未コミット) | `liffBodyLimit` 注入 + `liff.Use` で全 LIFF route に 1MiB cap |
+| SEC-O3 | Medium | CI / actions pin | credential 到達 job を含む全 workflow が v-tag 参照(`checkout@v7.0.1`, `setup-node@v7`, `chromaui/action@v18.9.5` 等) | 対応済み(未コミット) | `peaceiris/actions-gh-pages`・`chromaui/action` を SHA pin |
+| SEC-O4 | Medium | CI / k6 install | `performance-tests.yml` が `curl \| apt-key add` + 無版 `apt-get install k6` | 対応済み(未コミット) | k6 v2.3.0 pin + SHA-256 検証インストール |
+| SEC-O5 | Low | lstep-migrate / CSV | `cmd/lstep-migrate` が raw csv.Writer で owner_name/error_message 出力。数式注入のまま | 対応済み | `reporter.go` に `sanitizeCSVCell` 適用済み(既存コード・初回見落とし訂正) |
+| SEC-O6 | Low | medical-records / upload | 宣言 MIME allowlisted なら拡張子不検査 + 非S3時 `/uploads` 無認証 StaticFS（非release環境限定の実害） | 対応済み(未コミット) | 拡張子↔MIME一致必須化 + content-sniff 照合 + 保存拡張子を検証済みmimeから導出 + `/uploads` nosniff |
+| SEC-O7 | Medium | CI / secret-sync | `wrangler@4.107.0` 版 pin 済みだが integrity 検証なし（部分残存） | 対応済み(未コミット) | `pnpm install --frozen-lockfile` + `pnpm exec wrangler`(lockfile integrity) |
+| SEC-O8 | High | seedlogin / STG exec | STG/local に repository-public `SharedPassword="password"` の全医院 executive を provision。production/unknown は拒否済み | 対応済み(WIP) | staging は `SEEDLOGIN_DEMO_PASSWORD` シークレットのみ受付・未設定 fail-closed。repo-public は local 限定(未コミット WIP) |
+| SEC-P1 | High | support / cross-clinic board | bug-reports + chat-exchanges が全医院共有（3 occurrence 統合）。mutation(status/Plane起票/削除)は未コミット WIP で報告元clinic絞り済み。残論点: read 共有(screenshot/PII・会話本文の跨医院公開)の正式受容 | PO判断 | read 共有の受容 or detail 自院絞り |
+| SEC-P2 | High | seedlogin / staging credential | O8 と同根。repo-public password 問題は WIP で解消。残: Internet 到達 STG に共有デモアカウント(exec 含む)を置く運用の受容 | PO判断 | STG デモ運用の受容 or ingress 制限 |
+| SEC-P3 | High | RBAC / 拠点横断 #86 | GET fallback opt-in 化・write selected-clinic 必須は修正済み。残: `ResolveListClinicIDs` の membership 拡張が所属 clinic の per-clinic view grant を要求しない（#86 意図仕様） | PO判断 | 仕様受容確認 |
+| SEC-P4 | Medium | support / chat unredacted | P1 の一部。会話本文の全院共有 | PO判断 | P1 と同じ裁定 |
+
 <a id="human-lane"></a>
 
 ## PO / 人間レーン
