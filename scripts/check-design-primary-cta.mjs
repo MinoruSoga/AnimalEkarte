@@ -23,6 +23,9 @@
  *   コメント行・JSX コメント
  *   非 CTA の C.accent / C.bgAccentLight 等（本スクリプトは上記4トークンのみ）
  *   SubmitButton.tsx / PrimaryButton.tsx（default variant 実装）
+ *   *.stories.tsx の colorVariant="default"（C21/C24 の stories 必須化により
+ *     公開 variant を網羅するカタログであり、"primary" の後方互換 alias を
+ *     示すことは正当。accent トークン自体は stories でも検出する）
  *
  * Usage: node scripts/check-design-primary-cta.mjs [--root <repo-root>]
  * Exit: 0 = clean, 1 = violation
@@ -51,6 +54,11 @@ const SCAN_REL_DIRS = [
 ];
 
 const EXCLUDE_FILE = /(?:\.test\.(?:tsx?|ts)$|design-tokens\.ts$|SubmitButton\.tsx$|PrimaryButton\.tsx$)/;
+
+// *.stories.tsx は C21/C24 が必須化した variant カタログであり、
+// colorVariant="default"（"primary" の後方互換 alias）の列挙は正当。
+// accent トークンの禁止ルールは stories でも維持する。
+const STORIES_FILE = /\.stories\.tsx$/;
 
 const BUTTON_TAG_RE = /<(SubmitButton|PrimaryButton|Button)\b[\s\S]*?(?:\/>|<\/\1>)/g;
 
@@ -98,7 +106,7 @@ function isPrimaryCtaBlock(block) {
   return false;
 }
 
-function findViolations(content, filePath) {
+function findViolations(content, filePath, isStoriesFile = false) {
   const hits = [];
   const strippedFileComments = content.replace(/^\s*\/\/.*$/gm, "");
   let match;
@@ -113,7 +121,7 @@ function findViolations(content, filePath) {
       }
     }
     const isSubmitOrPrimaryButton = block.startsWith("<SubmitButton") || block.startsWith("<PrimaryButton");
-    if (isSubmitOrPrimaryButton && FORBIDDEN_COLOR_VARIANT_DEFAULT.re.test(inspect)) {
+    if (isSubmitOrPrimaryButton && !isStoriesFile && FORBIDDEN_COLOR_VARIANT_DEFAULT.re.test(inspect)) {
       hits.push({
         file: filePath,
         rule: FORBIDDEN_COLOR_VARIANT_DEFAULT.id,
@@ -140,7 +148,7 @@ function main() {
       if (EXCLUDE_FILE.test(file)) continue;
       const relFile = path.relative(root, file);
       const content = readFileSync(file, "utf8");
-      allHits.push(...findViolations(content, relFile));
+      allHits.push(...findViolations(content, relFile, STORIES_FILE.test(file)));
     }
   }
 
