@@ -11,6 +11,7 @@
 ## DB and seed
 
 - migrate は `POST /_internal/migrate` と `MIGRATE_RUN_SECRET` を使う workflow contract。
+- `MIGRATE_RUN_SECRET` のローカル管理ファイルは `infra/cloudflare/.env`（gitignore 済み）。Worker secret・GitHub secret（deploy workflow 用）と3箇所で同値を維持し、ローテーション時は3つ同時更新する。値は write-only で取り出せないため、紛失時はローテーションのみが回復手段。
 - 現行 `BundleOrderForEnv` は全環境で `002_master` のみ。`003_demo` / `004_staging` や full-demo CSV 再投入を前提にしない。画面デモログインは migrate フェーズ3で合成 `一般` アカウントを upsert し、開発/STG は共通デモパスワードで認証する。UAT/clinical data は承認済みの明示 import と lifecycle owner を別途定義する。
 - 過去の「public schema 109 objects」「REASSIGN が唯一解」は dated incident observation であり current fact ではない。schema owner と provider-supported remediation を PlanetScale/runtime で再検証してから ALTER migration を行う。
 - credential rotation、DB access、shared STG operation は人による明示承認が必要。
@@ -22,6 +23,7 @@
 3. DB connection error は pool/slot metrics を確認する。過去事例を current diagnosis とみなさない。
 4. provider status を確認する。
 5. AWS rollback target は repository decision 上存在しない。Cloudflare 側の修正または検証済み backup + IaC restore contract を使う。
+6. **ブート時 migrate デッドロック（seed checksum mismatch）**: コンテナ CMD は `/app/migrate && exec /app/api` のため、migrate が fail すると api も起きず全インスタンスが crash loop（`/health` 500、"container crashed while checking for ports"/"just exited"）になる。適用済み DB で seed bundle CSV が変更されると schema_migrations 記録 checksum と乖離し fail-closed で発生する（009 コメント・2026-09-24/2026-10-03 の発生実績）。コンテナが起きないので `/_internal/migrate` exec 経路も使えない。**復旧手順**: 新規 `0NN_reconcile_002_master_seed_checksum.sql`（009/020 と同型・既知の旧 checksum 限定 UPDATE・データ差分は別 migration で担保）を用意し、workflow `STG Migrate Direct`（dispatch, confirm=migrate）で GitHub Actions から STG PlanetScale へ直接 cmd/migrate を実行して適用する（`.env.staging` の DB_HOST は陳腐化しており直接接続は不可。ホストは public `ap-northeast-2.pg.psdb.cloud`、user は `user.branch` 形式の `STG_DB_USER` secret）。適用後はコンテナが普通に起動する。恒久対策として deploy のイメージにも同ファイルを含めること。
 
 runtime、DB 内容、credential、provider status は本更新では確認していない。
 
