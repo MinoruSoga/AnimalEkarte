@@ -41,7 +41,7 @@ func resetSyntheticAuditSharedState(t *testing.T, db *gorm.DB) {
 	).Scan(&clinicIDs).Error)
 	for _, id := range clinicIDs {
 		require.NoError(t, DeleteSyntheticClosingFixture(
-			ctx, db, "development", "db", id, SyntheticClosingCleanupToken(id),
+			ctx, db, "development", "db", id, testSyntheticClosingSecret, SyntheticClosingCleanupToken(id, testSyntheticClosingSecret),
 		))
 	}
 	// clinic が残っていない孤立 s09 company だけ直接掃除する（監査行は触らない）。
@@ -59,6 +59,7 @@ func createSyntheticAuditFixture(t *testing.T, db *gorm.DB) (*SyntheticClosingRe
 	got, err := CreateSyntheticClosingFixture(ctx, db, SyntheticClosingRequest{
 		AppEnv: "development", DBHost: "db",
 		TargetDate: time.Date(2026, 9, 7, 0, 0, 0, 0, jst), PasswordHash: "x",
+		CleanupSecret: testSyntheticClosingSecret,
 	})
 	require.NoError(t, err)
 	var staffRow model.Staff
@@ -106,7 +107,7 @@ func TestDeleteSyntheticClosingFixture_AuditRowsAnonymizedByDefault(t *testing.T
 	login := createAuditRow(t, db, &got.ClinicID, &staffRow.ID, model.AuditActorTypeStaff, model.AuditActionAuthLoginSuccess, at)
 	logout := createAuditRow(t, db, &got.ClinicID, &staffRow.ID, model.AuditActorTypeStaff, model.AuditActionAuthLogout, at.Add(time.Hour))
 
-	require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, got.CleanupToken))
+	require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, testSyntheticClosingSecret, got.CleanupToken))
 
 	// teardown 完遂: clinic・その staffs・fixture 子孫は消える
 	require.Error(t, db.WithContext(ctx).First(&model.Clinic{}, got.ClinicID).Error)
@@ -169,7 +170,7 @@ func TestSyntheticClosingAuditSentinel_Lifecycle(t *testing.T) {
 	t.Run("audit-free teardown creates no sentinel", func(t *testing.T) {
 		beforeCompanies, beforeClinics, beforeStaffs := countSentinels()
 		got, _ := createSyntheticAuditFixture(t, db)
-		require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, got.CleanupToken))
+		require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, testSyntheticClosingSecret, got.CleanupToken))
 		companies, clinics, staffs := countSentinels()
 		assert.Equal(t, beforeCompanies, companies, "audit-free teardown must not create a sentinel company")
 		assert.Equal(t, beforeClinics, clinics, "audit-free teardown must not create a sentinel clinic")
@@ -180,7 +181,7 @@ func TestSyntheticClosingAuditSentinel_Lifecycle(t *testing.T) {
 	t.Run("audit-bearing teardown resolves to a single sentinel set", func(t *testing.T) {
 		got, staffRow := createSyntheticAuditFixture(t, db)
 		createAuditRow(t, db, &got.ClinicID, &staffRow.ID, model.AuditActorTypeStaff, model.AuditActionAuthLoginSuccess, time.Now())
-		require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, got.CleanupToken))
+		require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, testSyntheticClosingSecret, got.CleanupToken))
 		companies, clinics, staffs := countSentinels()
 		assert.Equal(t, int64(1), companies, "exactly one sentinel company per database")
 		assert.Equal(t, int64(1), clinics, "exactly one sentinel clinic per database")
@@ -196,7 +197,7 @@ func TestSyntheticClosingAuditSentinel_Lifecycle(t *testing.T) {
 	t.Run("second teardown reuses sentinel and never deletes it", func(t *testing.T) {
 		got, staffRow := createSyntheticAuditFixture(t, db)
 		createAuditRow(t, db, &got.ClinicID, &staffRow.ID, model.AuditActorTypeStaff, model.AuditActionAuthLogout, time.Now())
-		require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, got.CleanupToken))
+		require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, testSyntheticClosingSecret, got.CleanupToken))
 		companies, clinics, staffs := countSentinels()
 		assert.Equal(t, int64(1), companies)
 		assert.Equal(t, int64(1), clinics)
@@ -224,7 +225,7 @@ func TestSyntheticClosingAuditReassignment_StrictScope(t *testing.T) {
 	systemOnSynthetic := createAuditRow(t, db, &got.ClinicID, nil, model.AuditActorTypeSystem, model.AuditActionReservationNoShow, base.Add(3*time.Minute))
 	unrelated := createAuditRow(t, db, &otherClinic.ID, &realStaff.ID, model.AuditActorTypeStaff, model.AuditActionAuthLogout, base.Add(4*time.Minute))
 
-	require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, got.CleanupToken))
+	require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, testSyntheticClosingSecret, got.CleanupToken))
 
 	var sentinelStaff model.Staff
 	require.NoError(t, db.First(&sentinelStaff, "name = ?", syntheticAuditSentinelStaffName).Error)
@@ -314,10 +315,10 @@ func TestDeleteSyntheticClosingFixture_AuditPolicyFailureRollsBack(t *testing.T)
 		// 既定 policy の teardown で後始末する（順序が重要）。
 		_ = db.Exec("DROP TRIGGER IF EXISTS trg_s09_audit_test_block_update ON audit_logs").Error
 		_ = db.Exec("DROP FUNCTION IF EXISTS s09_audit_test_block_update()").Error
-		assert.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, got.CleanupToken))
+		assert.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, testSyntheticClosingSecret, got.CleanupToken))
 	})
 
-	err := DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, got.CleanupToken)
+	err := DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, testSyntheticClosingSecret, got.CleanupToken)
 	require.Error(t, err, "a failing reassignment must abort teardown")
 
 	// delete 系列ごと rollback: fixture は残る

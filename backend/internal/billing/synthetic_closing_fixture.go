@@ -32,6 +32,8 @@ type SyntheticClosingRequest struct {
 	TargetDate         time.Time
 	PasswordHash       string
 	ExistingBillingIDs []uint64
+	// CleanupSecret は回収トークン MAC の鍵（UAT_SYNTHETIC_CLOSING_SECRET）。空は拒否。
+	CleanupSecret string
 }
 
 // SyntheticClosingResult は作成した使い捨て clinic と 5 件の完了時刻を返す。
@@ -54,6 +56,9 @@ func CreateSyntheticClosingFixture(ctx context.Context, db *gorm.DB, req Synthet
 	}
 	if strings.TrimSpace(req.PasswordHash) == "" {
 		return nil, apperrors.WrapInvalidInput("password hash is required")
+	}
+	if strings.TrimSpace(req.CleanupSecret) == "" {
+		return nil, apperrors.WrapInvalidInput("cleanup secret is required")
 	}
 	if db == nil {
 		return nil, apperrors.WrapInvalidInput("db is required")
@@ -222,7 +227,7 @@ func CreateSyntheticClosingFixture(ctx context.Context, db *gorm.DB, req Synthet
 			LoginEmail:   SyntheticClosingLoginEmail(clinicID),
 			BillingIDs:   ids,
 			CompletedAt:  completed,
-			CleanupToken: SyntheticClosingCleanupToken(clinicID),
+			CleanupToken: SyntheticClosingCleanupToken(clinicID, req.CleanupSecret),
 		}
 		return nil
 	})
@@ -407,21 +412,24 @@ var syntheticClosingDeleteTargetRe = regexp.MustCompile(`^DELETE FROM (\w+) WHER
 // audit_logs は EMR-211 (b) の既定 policy で削除せず sentinel clinic/staff へ
 // 付け替える（synthetic_closing_audit.go）ため、監査行を持つ合成 clinic の
 // teardown も監査証跡を保ったまま完遂する。
-func DeleteSyntheticClosingFixture(ctx context.Context, db *gorm.DB, appEnv, dbHost string, clinicID uint64, cleanupToken string) error {
-	return DeleteSyntheticClosingFixtureWithAuditPolicy(ctx, db, appEnv, dbHost, clinicID, cleanupToken, SyntheticClosingAuditAnonymizePolicy)
+func DeleteSyntheticClosingFixture(ctx context.Context, db *gorm.DB, appEnv, dbHost string, clinicID uint64, cleanupSecret, cleanupToken string) error {
+	return DeleteSyntheticClosingFixtureWithAuditPolicy(ctx, db, appEnv, dbHost, clinicID, cleanupSecret, cleanupToken, SyntheticClosingAuditAnonymizePolicy)
 }
 
 // DeleteSyntheticClosingFixtureWithAuditPolicy は DeleteSyntheticClosingFixture と同じだが、
 // auditRowsPolicy が非 nil のとき teardown トランザクション内でそれを呼び、
 // clinic スコープの audit_logs 行の扱いを委譲する（EMR-211 の受け口）。
-func DeleteSyntheticClosingFixtureWithAuditPolicy(ctx context.Context, db *gorm.DB, appEnv, dbHost string, clinicID uint64, cleanupToken string, auditRowsPolicy SyntheticClosingAuditRowsPolicy) error {
+func DeleteSyntheticClosingFixtureWithAuditPolicy(ctx context.Context, db *gorm.DB, appEnv, dbHost string, clinicID uint64, cleanupSecret, cleanupToken string, auditRowsPolicy SyntheticClosingAuditRowsPolicy) error {
 	if err := AllowUATSyntheticClosing(appEnv, dbHost); err != nil {
 		return apperrors.WrapInvalidInput(err.Error())
 	}
 	if err := RejectReservedClinicID(clinicID); err != nil {
 		return apperrors.WrapInvalidInput(err.Error())
 	}
-	if !MatchSyntheticClosingCleanupToken(clinicID, cleanupToken) {
+	if strings.TrimSpace(cleanupSecret) == "" {
+		return apperrors.WrapInvalidInput("cleanup secret is required")
+	}
+	if !MatchSyntheticClosingCleanupToken(clinicID, cleanupSecret, cleanupToken) {
 		return apperrors.WrapInvalidInput("cleanup token is invalid")
 	}
 	if db == nil {
