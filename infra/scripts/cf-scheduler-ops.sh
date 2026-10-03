@@ -10,7 +10,7 @@ Usage:
   cf-scheduler-ops.sh status [limit]
   cf-scheduler-ops.sh pause <expected-revision> <reason> [request-id]
   cf-scheduler-ops.sh resume <expected-revision> <reason> [request-id]
-  cf-scheduler-ops.sh run <no_show|delivery|dormant> <scheduled-time-ms> <reason> [request-id]
+  cf-scheduler-ops.sh run <no_show|delivery|dormant|plane_sync> <scheduled-time-ms> <reason> [request-id]
 
 Required environment:
   SCHEDULER_OPS_BASE_URL   HTTPS Worker base URL
@@ -157,7 +157,7 @@ case "${command}" in
     reason="$4"
     request_id=$(request_id_or_new "${5:-}")
     case "${job}" in
-      no_show|delivery|dormant) ;;
+      no_show|delivery|dormant|plane_sync) ;;
       *) usage ;;
     esac
     [[ "${scheduled_time_ms}" =~ ^[0-9]+$ ]] || usage

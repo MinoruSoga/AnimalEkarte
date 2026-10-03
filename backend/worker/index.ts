@@ -131,6 +131,18 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     SUPPORT_LLM_API_KEY: env.SUPPORT_LLM_API_KEY ?? "",
     SUPPORT_LLM_MODEL: env.SUPPORT_LLM_MODEL ?? "",
     SUPPORT_LLM_TIMEOUT_MS: env.SUPPORT_LLM_TIMEOUT_MS ?? "",
+
+    // Plane 連携(バグ報告→起票 + plane_sync の状態同期)。任意: API_KEY 未設定なら
+    // NewPlaneTicketCreator が nil を返し連携無効、plane_sync は fail-closed で
+    // unavailable エラーを返す。secrets.required には入れない(未設定デプロイを許可)。
+    // 値は `wrangler secret put PLANE_API_KEY` でのみ投入する。
+    PLANE_BASE_URL: env.PLANE_BASE_URL ?? "",
+    PLANE_WEB_BASE_URL: env.PLANE_WEB_BASE_URL ?? "",
+    PLANE_API_KEY: env.PLANE_API_KEY ?? "",
+    PLANE_WORKSPACE_SLUG: env.PLANE_WORKSPACE_SLUG ?? "",
+    PLANE_PROJECT_ID: env.PLANE_PROJECT_ID ?? "",
+    PLANE_PROJECT_IDENTIFIER: env.PLANE_PROJECT_IDENTIFIER ?? "",
+    PLANE_TIMEOUT_MS: env.PLANE_TIMEOUT_MS ?? "",
   };
 
   // migrate exec のハングアップ対策(code-reviewer指摘 MEDIUM)。pg_advisory_lock が

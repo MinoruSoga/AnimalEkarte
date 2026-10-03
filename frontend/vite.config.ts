@@ -141,6 +141,13 @@ const appEnv =
   (process.env.VERCEL_ENV === "preview" ? "stg" : (process.env.VERCEL_ENV ?? ""));
 const define: Record<string, string> = {
   __VERCEL_ENV__: JSON.stringify(appEnv === "stg" ? "preview" : appEnv),
+  // EMR-265: STG(preview) のデモアカウント自動入力用。GitHub secret
+  // STG_DEMO_PASSWORD(backend の wrangler secret SEEDLOGIN_DEMO_PASSWORD と同値)
+  // を frontend-deploy.yml が注入し、stg のときだけ bundle に焼き込む。
+  // stg 以外では常に "" を焼き込むので production へ値が混入しない(fail-closed)。
+  "import.meta.env.VITE_DEMO_LOGIN_PASSWORD": JSON.stringify(
+    appEnv === "stg" ? (process.env.STG_DEMO_PASSWORD ?? "") : "",
+  ),
 };
 // VITE_API_URL は注入しない: Worker が /api/* を backend Worker へ同一オリジン
 // 中継するため、全環境で import.meta.env.VITE_API_URL 未設定 -> "/api" fallback
