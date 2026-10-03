@@ -59,7 +59,7 @@ flowchart LR
 
 - **フロントエンド**: React 19 / Tailwind 4 / shadcn/ui による高速な SPA。
 - **バックエンド**: Go 1.25 / Gin / GORM による API（スキーマは **129 テーブル**（2026-09-29 訂正: 128 → 130、EMR-236 の `prescriptions` DROP で 130 → 129。`ls backend/migrations/*.sql` 直下の `CREATE TABLE` から `DROP TABLE` を除いた実測に追随。[check-docs-symbol-drift](../../scripts/check-docs-symbol-drift.sh) のゲート値）。[ADR-006](../architecture/adr/006-backend-domain-package-boundaries.md) により domain/capability-first の modular monolith へ cutover 済み。production 実装は `internal/<domain>` および命名済み cross-cutting package に置き、旧 layer-first 集約（`internal/handler` / `internal/service` / `internal/repository`）は削除済み。ADR-006 の Implemented は code/package 境界の完了であり、release ready ではない）。
-- **認可・セキュリティ**: **37 種類のリソース**に対する RBAC 制御と、共有テーブル上の論理テナント隔離（`clinic_id` scope + ownership / authorization checks）。
+- **認可・セキュリティ**: **36 種類のリソース**に対する RBAC 制御と、共有テーブル上の論理テナント隔離（`clinic_id` scope + ownership / authorization checks）。
 - **品質保証**: クリティカルな domain には unit / integration test と write-owner 等の静的 gate を置く。Playwright E2E は表示・主要導線の任意検証であり、全クリティカルパス網羅や全 handler 結合テスト完備を主張しない（方針: [docs/ops/ci-policy.md](../ops/ci-policy.md)、[docs/ops/testing/](../ops/testing/README.md)）。
 
 ---
