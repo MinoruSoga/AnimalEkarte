@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
 import { createTestWrapper } from "@/testing/TestUtils";
@@ -564,5 +565,49 @@ describe("PatientSelectionTable — 選択操作", () => {
     expect(button).toBeDisabled();
     await user.click(button);
     expect(onSelect).not.toHaveBeenCalled();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// EMR-264: 検索キャッシュの鮮度（電話対応中に登録直後の飼主が出ること）
+// ─────────────────────────────────────────────────────────────
+describe("PatientSelectionTable — 検索結果の鮮度 (EMR-264)", () => {
+  it("同じ検索語でも再マウント時にサーバーへ再取得し、新規登録分が描画される", async () => {
+    // 受付が別端末で新患を登録した状況を、再取得応答に新規行が増える形で再現する。
+    // staleTime が残っていると2回目のマウントはキャッシュヒットで打ち止めになり、
+    // 「登録したのに検索に出ない」退行が起きる。
+    const sharedQueryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const renderWithSharedClient = () =>
+      render(<PatientSelectionTable onSelect={vi.fn()} selectedPets={[]} />, {
+        wrapper: ({ children }: { children: React.ReactNode }) => (
+          <QueryClientProvider client={sharedQueryClient}>{children}</QueryClientProvider>
+        ),
+      });
+
+    mockPetList(() => ({ data: [backendPet(1)], total: 1, page: 1, limit: 20 }));
+
+    const user = userEvent.setup();
+    const first = renderWithSharedClient();
+    await user.type(screen.getByLabelText(SEARCH_LABEL), "タナカ");
+    expect(await screen.findByText("ミケ1")).toBeInTheDocument();
+    const requestCountAfterFirst = petRequests.length;
+    first.unmount();
+
+    mockPetList(() => ({
+      data: [backendPet(1), backendPet(2)],
+      total: 2,
+      page: 1,
+      limit: 20,
+    }));
+
+    const second = renderWithSharedClient();
+    // 2回目も同一語で検索 → クエリキー一致＝staleTime が残ると再取得しない。
+    await user.type(screen.getByLabelText(SEARCH_LABEL), "タナカ");
+
+    await waitFor(() => expect(petRequests.length).toBeGreaterThan(requestCountAfterFirst));
+    expect(await screen.findByText("ミケ2")).toBeInTheDocument();
+    second.unmount();
   });
 });

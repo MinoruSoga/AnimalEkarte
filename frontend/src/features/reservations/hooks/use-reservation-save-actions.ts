@@ -1,8 +1,10 @@
 import { useCallback, useLayoutEffect, useRef, useTransition } from "react";
 import type { RefObject } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { extractApiErrorMessage } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import type { ReservationCreateMutations } from "@/types/reservation-create-mutations";
 
 import { useCreateReservation, useCreateReservationBatch } from "../api/create-reservation";
@@ -62,6 +64,7 @@ export function useReservationSaveActions({
     [],
   );
 
+  const queryClient = useQueryClient();
   const createMutation = useCreateReservation();
   const createBatchMutation = useCreateReservationBatch();
   const updateMutation = useUpdateReservation();
@@ -131,6 +134,9 @@ export function useReservationSaveActions({
             phone: newOwnerData.phone,
           });
           progress.ownerID = String(owner.id);
+          // EMR-264: 注入される生関数は useMutation の invalidate を経由しない。
+          // 部分成功（飼主作成済み・予約未作成）でも検索キャッシュを正す。
+          await queryClient.invalidateQueries({ queryKey: queryKeys.owners.all() });
         }
         if (!progress.petID) {
           const pet = await createMutations.createPetFn({
@@ -139,6 +145,7 @@ export function useReservationSaveActions({
             name: newOwnerData.petName,
           });
           progress.petID = String(pet.id);
+          await queryClient.invalidateQueries({ queryKey: queryKeys.pets.list() });
         }
         const createPayload = transformToCreateRequest(
           { ...data, notes: data.notes ?? newOwnerData.chiefComplaint },
@@ -156,7 +163,13 @@ export function useReservationSaveActions({
         return extractApiErrorMessage(error, "作成");
       }
     },
-    [createReservationAsync, createMutations, handleCloseCreateForm, navigateBackIfNeeded],
+    [
+      createReservationAsync,
+      createMutations,
+      handleCloseCreateForm,
+      navigateBackIfNeeded,
+      queryClient,
+    ],
   );
 
   /** 既存の飼主/ペット（単体・複数）に予約を作成する（FE-RC-046: handleSave から分離した1経路）。 */

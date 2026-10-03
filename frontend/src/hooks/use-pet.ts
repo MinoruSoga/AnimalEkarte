@@ -38,6 +38,9 @@ interface GetPetsQueryOptions {
   enabled?: boolean;
   /** ページ切替中に前回データを保持する一覧画面だけが明示的に有効化する。 */
   preservePreviousData?: boolean;
+  /** 既定は STATIC(30分)。新規登録直後に出る必要がある検索用途は短い値を渡す。 */
+  staleTime?: number;
+  refetchOnWindowFocus?: boolean;
 }
 
 function transformBackendPetListToFrontend(pet: BackendPetList): Pet {
@@ -112,8 +115,9 @@ export function useGetPets(
     },
     enabled: queryOptions.enabled ?? true,
     placeholderData: queryOptions.preservePreviousData ? keepPreviousData : undefined,
-    staleTime: QUERY_STALE_TIMES.STATIC,
+    staleTime: queryOptions.staleTime ?? QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
+    refetchOnWindowFocus: queryOptions.refetchOnWindowFocus,
   });
 
   return {

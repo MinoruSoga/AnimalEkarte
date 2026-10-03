@@ -82,6 +82,9 @@ export function useOwnerForm(
           }
           await updateOwner(id, updateData);
           await queryClient.invalidateQueries({ queryKey: queryKeys.owners.all() });
+          // EMR-264: 飼主名・電話番号はペット検索インデックスの一部のため
+          // pets 一覧キャッシュも破棄する（検索に即反映させる）。
+          await queryClient.invalidateQueries({ queryKey: queryKeys.pets.list() });
           toast.success("飼主情報を更新しました");
           return { success: true, timestamp: Date.now() };
         }
@@ -91,6 +94,9 @@ export function useOwnerForm(
         }
         const newOwner = await createOwner(createData);
         await queryClient.invalidateQueries({ queryKey: queryKeys.owners.all() });
+        // EMR-264: 飼主フォームはペットも同時登録するため pets 一覧キャッシュも破棄する
+        // （受付で登録した新患が予約作成の検索に即出ることが電話対応 UX の前提）。
+        await queryClient.invalidateQueries({ queryKey: queryKeys.pets.list() });
         toast.success("飼主情報を登録しました");
         return {
           success: true,
