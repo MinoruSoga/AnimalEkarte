@@ -260,7 +260,12 @@ function parseControlCommand(
 }
 
 function isScheduledJobName(value: unknown): value is ScheduledJobName {
-  return value === "no_show" || value === "delivery" || value === "dormant";
+  return (
+    value === "no_show" ||
+    value === "delivery" ||
+    value === "dormant" ||
+    value === "plane_sync"
+  );
 }
 
 function parseManualCommand(
