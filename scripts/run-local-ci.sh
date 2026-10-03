@@ -318,8 +318,11 @@ s28() {
 s29() {
   begin_step "Frontend: build + test (with coverage) + ratchet"
   compose exec -T frontend pnpm run build
+  # vitest の fork pool はデフォルトでホスト全コア分の worker を立てるため、
+  # 並行する backend `go test` と CPU 競合して重い RTL テストが 5s timeout する。
+  # worker 数を制限して各テストに十分な CPU を残す（OOM 対策にも寄与）。
   compose exec -T -e NODE_OPTIONS="--max-old-space-size=5120" \
-    frontend pnpm exec vitest run --coverage
+    frontend pnpm exec vitest run --coverage --maxWorkers=4
   compose exec -T frontend node scripts/coverage-ratchet.mjs \
     --summary coverage/coverage-summary.json --baseline .coverage-baseline
 }
