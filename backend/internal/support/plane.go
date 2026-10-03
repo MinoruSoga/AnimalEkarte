@@ -97,7 +97,7 @@ func NewPlaneTicketCreator(
 		return nil
 	}
 	if strings.TrimSpace(baseURL) == "" {
-		baseURL = "https://api.plane.so"
+		baseURL = "https://api.plane.so/api"
 	}
 	if strings.TrimSpace(webBaseURL) == "" {
 		webBaseURL = "https://app.plane.so"

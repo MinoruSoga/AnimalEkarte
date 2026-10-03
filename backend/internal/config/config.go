@@ -211,7 +211,7 @@ func Load() *Config {
 		SupportLLMModel:     getEnv("SUPPORT_LLM_MODEL", "gpt-5-nano"),
 		SupportLLMTimeoutMS: getEnvInt("SUPPORT_LLM_TIMEOUT_MS", 30000),
 
-		PlaneBaseURL:           getEnv("PLANE_BASE_URL", "https://api.plane.so"),
+		PlaneBaseURL:           getEnv("PLANE_BASE_URL", "https://api.plane.so/api"),
 		PlaneWebBaseURL:        getEnv("PLANE_WEB_BASE_URL", "https://app.plane.so"),
 		PlaneWorkspaceSlug:     os.Getenv("PLANE_WORKSPACE_SLUG"),
 		PlaneProjectID:         os.Getenv("PLANE_PROJECT_ID"),
