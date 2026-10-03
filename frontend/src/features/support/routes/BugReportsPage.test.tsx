@@ -111,10 +111,22 @@ describe("BugReportsPage Plane 列", () => {
     expect(screen.queryByRole("button", { name: "再送" })).not.toBeInTheDocument();
   });
 
-  it("Plane 情報がない報告は ― を表示する", () => {
+  it("Plane 情報がない自医院の報告は手動起票ボタンを表示し、起票で mutation を呼ぶ", async () => {
+    const user = userEvent.setup();
+    reportsMock = [makeReport({ id: 7 })];
     render(<BugReportsPage />);
 
     expect(screen.queryByRole("link", { name: "チケット" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "起票" }));
+    expect(createTicketMutateMock).toHaveBeenCalledWith(7);
+  });
+
+  it("Plane 情報がない他医院の報告は ― を表示する（起票ボタンなし）", () => {
+    reportsMock = [makeReport({ id: 7, clinic_id: 2, clinic_name: "他医院" })];
+    render(<BugReportsPage />);
+
+    expect(screen.queryByRole("link", { name: "チケット" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "起票" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "再送" })).not.toBeInTheDocument();
   });
 });

@@ -34,11 +34,6 @@ export interface BugReport {
 
 export type SupportChatRole = "user" | "assistant";
 
-export interface SupportChatHistoryMessage {
-  role: SupportChatRole;
-  content: string;
-}
-
 /** 検索で取得したマニュアル抜粋を LLM の根拠コンテキストとして送る */
 export interface SupportChatContextItem {
   title: string;

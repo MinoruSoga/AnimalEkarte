@@ -25821,6 +25821,10 @@ paths:
         取得した抜粋(context)のみを根拠に LLM へ質問する。SUPPORT_LLM_API_KEY 未設定の
         環境では 501 を返す(フロントエンドは status で検出し検索 UI へフォールバック)。
         LLM 呼び出しコスト抑制のため IP 単位でレート制限あり。
+        会話履歴はクライアント送信値を信頼せず、サーバー保存済みの履歴を使用する。
+        また外部 LLM へ送る入力はサーバー側でスクリーニングし、メールアドレス・
+        電話番号・長い数字列・認証情報らしき内容を含む場合は 400 で拒否する
+        (best-effort の分類 — 検出を保証するものではない)。
       tags: [Support]
       requestBody:
         required: true
@@ -25834,16 +25838,6 @@ paths:
                   type: string
                   maxLength: 2000
                   description: ユーザーの質問
-                history:
-                  type: array
-                  maxItems: 16
-                  description: 直近の会話履歴(user/assistant のみ)
-                  items:
-                    type: object
-                    required: [role, content]
-                    properties:
-                      role: { type: string, enum: [user, assistant] }
-                      content: { type: string, maxLength: 4000 }
                 context:
                   type: array
                   maxItems: 6
@@ -26086,8 +26080,9 @@ paths:
       summary: バグ報告を Plane ワークアイテムとして起票(手動再送を兼ねる)
       description: |
         操作は報告元医院スコープ(他医院の報告は共有ボードで閲覧のみ、対象指定は404)。
-        報告作成時の自動起票が
-        失敗した場合の手動再送経路でもある。既に起票済み(plane_issue_url あり)なら
+        外部へのチケットエクスポートはこの
+        明示操作に限定され、報告作成時の自動送信は行わない(レビュー可能な
+        エクスポート境界)。既に起票済み(plane_issue_url あり)なら
         現在の状態をそのまま返す冪等操作。external_source+external_id で報告と
         Plane 側を対応付ける。PLANE_API_KEY 未設定の環境では 501。Plane 側エラーは
         502 で返し、失敗理由は plane_sync_error に記録される。

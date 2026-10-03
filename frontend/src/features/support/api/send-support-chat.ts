@@ -9,15 +9,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
 
-import type {
-  SupportChatContextItem,
-  SupportChatHistoryMessage,
-  SupportChatResponse,
-} from "../types";
+import type { SupportChatContextItem, SupportChatResponse } from "../types";
 
+// history は送信しない — LLM コンテキストはサーバー保存済み履歴から構築される。
 export interface SendSupportChatParams {
   message: string;
-  history: SupportChatHistoryMessage[];
   context: SupportChatContextItem[];
 }
 

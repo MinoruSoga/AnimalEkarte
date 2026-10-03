@@ -66,11 +66,9 @@ func (s *service) Create(ctx context.Context, clinicID, reporterStaffID uint64, 
 	if err := s.repo.Create(ctx, &report); err != nil {
 		return nil, err
 	}
-	// 報告の保存が先・Plane 起票は後続の best-effort 副作用。
-	// Plane 障害で報告を失わないことが主契約のため、ここは失敗しても 201 を返す。
-	if s.tickets != nil {
-		s.syncPlaneTicket(ctx, &report)
-	}
+	// Plane への外部エクスポートは作成時に自動実行しない。スタッフが内容を
+	// 確認した上で明示操作（EnsurePlaneTicket = POST /:id/plane-ticket）する
+	// reviewable export のみとし、未分類データが外部へ黙って出る経路を閉じる。
 	return &report, nil
 }
 
@@ -124,17 +122,6 @@ func (s *service) Delete(ctx context.Context, clinicID, id uint64) (*model.Suppo
 		return nil, err
 	}
 	return report, nil
-}
-
-// syncPlaneTicket は Plane 起票を best-effort で実行する。
-// 失敗しても報告は保存済みなので、同期状態を DB に記録して WARN ログを残すのみ。
-func (s *service) syncPlaneTicket(ctx context.Context, report *model.SupportBugReport) {
-	issue, err := s.tickets.CreateBugReportIssue(ctx, report)
-	if err != nil {
-		s.recordPlaneFailure(ctx, report, err)
-		return
-	}
-	s.claimPlaneTicket(ctx, report, issue)
 }
 
 // recordPlaneFailure は起票失敗を plane_sync_error に記録し WARN を残す。

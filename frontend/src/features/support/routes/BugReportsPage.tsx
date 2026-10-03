@@ -73,7 +73,8 @@ interface PlaneTicketCellProps {
 
 /**
  * Plane 連携状態。
- * 起票済み → チケットへの外部リンク / 直近失敗 → 失敗表示 + 再送ボタン / 未連携 → ―
+ * 起票済み → チケットへの外部リンク / 直近失敗 → 失敗表示 + 再送ボタン /
+ * 未連携 → 自医院の報告のみ手動起票ボタン（外部エクスポートは明示操作のみ）
  */
 function PlaneTicketCell({ report, mutation, canMutate }: PlaneTicketCellProps) {
   if (report.plane_issue_url) {
@@ -108,6 +109,20 @@ function PlaneTicketCell({ report, mutation, canMutate }: PlaneTicketCellProps) 
           </Button>
         ) : null}
       </span>
+    );
+  }
+  if (canMutate) {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-6 px-2 text-2xs"
+        onClick={() => mutation.mutate(report.id)}
+        disabled={mutation.isPending}
+      >
+        起票
+      </Button>
     );
   }
   return <span className={C.text50}>―</span>;

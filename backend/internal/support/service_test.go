@@ -96,60 +96,26 @@ func savedReportMock(m *mockRepository) {
 	}
 }
 
-// ---- Create: Plane 連携は best-effort ----
+// ---- Create: Plane への外部送信は行わない（reviewable export は手動のみ） ----
 
-func TestServiceCreate_PlaneSync(t *testing.T) {
+func TestServiceCreate_DoesNotExportToPlane(t *testing.T) {
+	// Plane 連携が設定されていても Create は外部へ何も送らない。
+	// 外部エクスポートは EnsurePlaneTicket（POST /:id/plane-ticket の明示操作）に限定し、
+	// 未分類コンテンツが自動で外部へ出る経路を閉じる。
 	tests := []struct {
-		name            string
-		tickets         *mockTicketCreator
-		setTicketResult bool
-		setTicketErr    error
-		wantCalls       int
-		wantIssueID     bool
-		wantSyncErr     bool
+		name    string
+		tickets *mockTicketCreator
 	}{
-		{
-			name:    "local save only when plane integration disabled",
-			tickets: nil,
-		},
-		{
-			name: "records plane fields on successful creation",
-			tickets: &mockTicketCreator{
-				result: &PlaneIssue{ID: "issue-uuid", URL: "https://app.plane.so/ws/browse/EMR-1/"},
-			},
-			setTicketResult: true,
-			wantCalls:       1,
-			wantIssueID:     true,
-		},
-		{
-			name:        "records sync error but keeps report on plane failure",
-			tickets:     &mockTicketCreator{err: &planeUpstreamError{status: 503}},
-			wantCalls:   1,
-			wantSyncErr: true,
-		},
-		{
-			name: "does not set fields when claim lost to a concurrent creator",
-			tickets: &mockTicketCreator{
-				result: &PlaneIssue{ID: "issue-uuid", URL: "https://app.plane.so/ws/browse/EMR-1/"},
-			},
-			setTicketResult: false,
-			wantCalls:       1,
-		},
+		{name: "plane integration disabled", tickets: nil},
+		{name: "plane integration configured", tickets: &mockTicketCreator{
+			result: &PlaneIssue{ID: "issue-uuid", URL: "https://app.plane.so/ws/browse/EMR-1/"},
+		}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockRepository{}
 			savedReportMock(repo)
-			repo.setTicketFn = func(_ context.Context, clinicID, id uint64, issueID, issueURL string) (bool, error) {
-				assert.Equal(t, uint64(1), clinicID)
-				assert.Equal(t, uint64(10), id)
-				return tt.setTicketResult, tt.setTicketErr
-			}
-			repo.setSyncErrFn = func(_ context.Context, _, _ uint64, syncErr string) error {
-				assert.NotEmpty(t, syncErr)
-				return nil
-			}
 
 			var tickets TicketCreator
 			if tt.tickets != nil {
@@ -162,10 +128,10 @@ func TestServiceCreate_PlaneSync(t *testing.T) {
 			require.NotNil(t, report)
 			assert.Equal(t, uint64(10), report.ID)
 			if tt.tickets != nil {
-				assert.Equal(t, tt.wantCalls, tt.tickets.calls)
+				assert.Zero(t, tt.tickets.calls)
 			}
-			assert.Equal(t, tt.wantIssueID, report.PlaneIssueID != nil)
-			assert.Equal(t, tt.wantSyncErr, report.PlaneSyncError != nil)
+			assert.Nil(t, report.PlaneIssueID)
+			assert.Nil(t, report.PlaneSyncError)
 		})
 	}
 }
