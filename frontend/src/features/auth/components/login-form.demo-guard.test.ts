@@ -80,7 +80,7 @@ describe("LoginForm SHOW_DEMO — DEV or Vercel preview (#91 / SEC-CS2-F01)", ()
   });
 
   // EMR-265: STG(preview)のデモ共通パスワードは vite.config.ts の define が
-  // GitHub secret STG_DEMO_PASSWORD を appEnv==="stg" のときだけ焼き込む。
+  // GitHub secret SEEDLOGIN_DEMO_PASSWORD を appEnv==="stg" のときだけ焼き込む。
   // production/未知環境では "" が焼き込まれる(fail-closed)。
   it("デモパスワード自動入力: DEV は公開定数、preview は VITE_DEMO_LOGIN_PASSWORD（STG はシークレット配布）", () => {
     const src = readFileSync(
@@ -117,10 +117,12 @@ describe("LoginForm SHOW_DEMO — DEV or Vercel preview (#91 / SEC-CS2-F01)", ()
   it('vite.config は VITE_DEMO_LOGIN_PASSWORD を stg のみ注入し production では "" を焼き込む（EMR-265）', () => {
     const frontendRoot = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
     const src = readFileSync(join(frontendRoot, "vite.config.ts"), "utf8");
-    // define 経由で appEnv==="stg" のときだけ process.env.STG_DEMO_PASSWORD を焼く。
+    // define 経由で appEnv==="stg" のときだけ process.env.SEEDLOGIN_DEMO_PASSWORD を焼く。
+    // admin smoke 用 STG_DEMO_PASSWORD(admin@noavet.jp)とは別 secret で、
+    // catalog デモ共通パスワードの正本は backend Worker の SEEDLOGIN_DEMO_PASSWORD。
     expect(src).toContain('"import.meta.env.VITE_DEMO_LOGIN_PASSWORD"');
     expect(src).toMatch(
-      /appEnv\s*===\s*"stg"\s*\?\s*\(process\.env\.STG_DEMO_PASSWORD\s*\?\?\s*""\)\s*:\s*""/,
+      /appEnv\s*===\s*"stg"\s*\?\s*\(process\.env\.SEEDLOGIN_DEMO_PASSWORD\s*\?\?\s*""\)\s*:\s*""/,
     );
   });
 });

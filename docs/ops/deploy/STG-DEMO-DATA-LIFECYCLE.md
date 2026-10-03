@@ -8,7 +8,7 @@
 | category | source | retention |
 |---|---|---|
 | Master seed | `backend/migrations/seeds/002_master/` | environment lifetime。通常cleanupしない |
-| Synthetic demo login | migrate フェーズ3 `internal/seedlogin`（LoginForm と同じ `stg-staff-*@example.test`）。共通パスワードは STG では `SEEDLOGIN_DEMO_PASSWORD` シークレット注入（未設定ならログインロック。local/dev/test のみコード定数）。EMR-265 以降、STG ビルドは GitHub secret `STG_DEMO_PASSWORD`（同値）を `VITE_DEMO_LOGIN_PASSWORD` として焼き込み、デモボタン押下で email+password を自動入力する — stg bundle に値が含まれることは意図的（合成データのみの UAT 環境）。production では define が `""` を焼き込み fail-closed | environment lifetime |
+| Synthetic demo login | migrate フェーズ3 `internal/seedlogin`（LoginForm と同じ `stg-staff-*@example.test`）。共通パスワードは STG では `SEEDLOGIN_DEMO_PASSWORD` シークレット注入（未設定ならログインロック。local/dev/test のみコード定数）。EMR-265 以降、STG ビルドは GitHub secret `SEEDLOGIN_DEMO_PASSWORD`（Worker シークレットと同値。admin smoke 用の `STG_DEMO_PASSWORD` とは別物）を `VITE_DEMO_LOGIN_PASSWORD` として焼き込み、デモボタン押下で email+password を自動入力する — stg bundle に値が含まれることは意図的（合成データのみの UAT 環境）。production では define が `""` を焼き込み fail-closed | environment lifetime |
 | Operation-provisioned account | [STAFF_ACCOUNT_PROVISIONING.md](./STAFF_ACCOUNT_PROVISIONING.md) | owner/expiryをrun sheetに記録 |
 | Operator system-admin bootstrap | migrate フェーズ3の `SEEDLOGIN_OPERATOR_*`（CSV/LoginForm には載せない） | environment lifetime |
 | Smoke data | [CRUD-SMOKE-TEST.md](./CRUD-SMOKE-TEST.md) | 同じrunでcleanup |

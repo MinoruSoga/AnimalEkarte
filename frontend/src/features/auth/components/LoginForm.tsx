@@ -308,8 +308,8 @@ function readDemoLoginPassword(): string {
     return "";
   }
   // ローカル開発は公開定数 "password" で自動入力する。
-  // STG(preview)は vite.config.ts の define が GitHub secret STG_DEMO_PASSWORD
-  // (backend の SEEDLOGIN_DEMO_PASSWORD と同値)をビルド時に焼き込むので、
+  // STG(preview)は vite.config.ts の define が GitHub secret
+  // SEEDLOGIN_DEMO_PASSWORD(backend の同名 wrangler secret と同値)をビルド時に焼き込むので、
   // その値で自動入力する。未注入なら "" を返し「別途共有されたものを入力」
   // 表示にフォールバックする（公開の "password" は STG では一切認証されない）。
   return import.meta.env.DEV ? "password" : import.meta.env.VITE_DEMO_LOGIN_PASSWORD;
