@@ -8087,11 +8087,14 @@ components:
           type: integer
     LabDeviceAgentConsumer:
       type: object
-      required: [agent_consumer_token]
+      required: [agent_consumer_token, expires_in]
       properties:
         agent_consumer_token:
           type: string
-          example: test-consumer-token
+          description: 選択医院に束縛された短命 HMAC capability（LAB_DEVICE_AGENT_CONSUMER_TOKEN の生値ではない）
+        expires_in:
+          type: integer
+          description: capability の有効秒数（期限切れ前に再取得すること）
     CreateLabDeviceRequest:
       type: object
       required: [name, source_type]
@@ -24053,8 +24056,8 @@ paths:
   /lab-device/agent-consumer:
     get:
       operationId: getLabDeviceAgentConsumer
-      summary: 検査機器エージェントの consumer token
-      description: ResourceLabImport create. Returns the operator-supplied installation consumer token from LAB_DEVICE_AGENT_CONSUMER_TOKEN. Empty config is 503.
+      summary: 検査機器エージェントの consumer capability
+      description: ResourceLabImport create. Returns a short-lived signed capability bound to the selected clinic — the shared secret LAB_DEVICE_AGENT_CONSUMER_TOKEN itself is never returned. Empty config is 503.
       tags: [LabImports]
       responses:
         '200':

@@ -3,8 +3,6 @@ package labdeviceagent
 import (
 	"bytes"
 	"crypto/rand"
-	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -16,6 +14,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/animal-ekarte/backend/internal/labdevicecap"
 )
 
 const ListenAddress = "127.0.0.1:17654"
@@ -128,11 +128,15 @@ type handler struct {
 	queue                   *Queue
 	status                  *Status
 	lease                   *consumerLease
-	consumerTokenHash       [sha256.Size]byte
+	consumerSecret          string
 	consumerTokenConfigured bool
 	allowedOrigins          map[string]struct{}
 }
 
+// NewHandler — consumerToken is the shared HMAC secret used to verify
+// clinic-bound capabilities issued by the backend (labdevicecap). The raw
+// secret is kept for MAC verification but is never written to logs or
+// responses; callers present only signed capabilities.
 func NewHandler(queue *Queue, status *Status, expectedClinic, consumerToken string, configuredOrigins ...string) http.Handler {
 	origins := map[string]struct{}{
 		"http://localhost:3003": {},
@@ -147,7 +151,7 @@ func NewHandler(queue *Queue, status *Status, expectedClinic, consumerToken stri
 		queue:                   queue,
 		status:                  status,
 		lease:                   &consumerLease{expectedClinic: expectedClinic},
-		consumerTokenHash:       sha256.Sum256([]byte(consumerToken)),
+		consumerSecret:          consumerToken,
 		consumerTokenConfigured: consumerToken != "",
 		allowedOrigins:          origins,
 	}
@@ -373,15 +377,27 @@ func (h *handler) authorizeConsumer(response http.ResponseWriter, request *http.
 
 func (h *handler) authorizeConsumerToken(response http.ResponseWriter, request *http.Request) bool {
 	if !h.consumerTokenConfigured {
-		http.Error(response, "consumer token required", http.StatusUnauthorized)
+		http.Error(response, "consumer capability required", http.StatusUnauthorized)
 		return false
 	}
-	providedHash := sha256.Sum256([]byte(request.Header.Get(consumerTokenHeader)))
-	if subtle.ConstantTimeCompare(h.consumerTokenHash[:], providedHash[:]) != 1 {
-		http.Error(response, "consumer token required", http.StatusUnauthorized)
+	err := labdevicecap.Verify(
+		h.consumerSecret,
+		h.lease.expectedClinic,
+		request.Header.Get(consumerTokenHeader),
+		time.Now(),
+	)
+	switch {
+	case err == nil:
+		return true
+	case errors.Is(err, labdevicecap.ErrClinicMismatch):
+		// 別医院に束縛された真正の capability — claim body の clinic mismatch と
+		// 同じく 403 で返す（認証情報は有効だがこの agent の clinic ではない）。
+		http.Error(response, "clinic mismatch", http.StatusForbidden)
+		return false
+	default:
+		http.Error(response, "consumer capability required", http.StatusUnauthorized)
 		return false
 	}
-	return true
 }
 
 func (h *handler) writeFrames(response http.ResponseWriter) {

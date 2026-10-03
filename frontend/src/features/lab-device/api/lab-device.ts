@@ -127,6 +127,7 @@ interface LabDeviceFramesResponse {
 
 interface LabDeviceAgentConsumerResponse {
   agent_consumer_token: string;
+  expires_in: number;
 }
 
 function toWait(wait: LabDeviceWaitResponse): LabDeviceWait {
@@ -197,6 +198,9 @@ async function fetchBoard(): Promise<LabDeviceBoard> {
   };
 }
 
+// backend labdevicecap.TTL(5min) より短い間隔で capability を再取得する
+const LAB_DEVICE_AGENT_CAPABILITY_REFRESH_MS = 4 * 60 * 1000;
+
 async function fetchLabDeviceAgentConsumerToken(): Promise<string> {
   const { data } = await axios.get<LabDeviceAgentConsumerResponse>("/v1/lab-device/agent-consumer");
   if (typeof data.agent_consumer_token !== "string" || data.agent_consumer_token === "") {
@@ -219,7 +223,8 @@ export function useGetLabDeviceAgentConsumer(enabled = true) {
     queryKey: queryKeys.labDevice.agentConsumer(),
     queryFn: fetchLabDeviceAgentConsumerToken,
     enabled,
-    staleTime: Infinity,
+    staleTime: LAB_DEVICE_AGENT_CAPABILITY_REFRESH_MS,
+    refetchInterval: LAB_DEVICE_AGENT_CAPABILITY_REFRESH_MS,
   });
 }
 

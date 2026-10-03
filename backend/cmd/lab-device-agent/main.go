@@ -33,7 +33,7 @@ func (f *stringListFlag) Set(value string) error {
 func main() {
 	clinicID := flag.String("clinic-id", "", "clinic ID bound to this workstation")
 	portsFile := flag.String("ports-file", "", "newline-delimited allowlist of serial ports")
-	consumerToken := flag.String("consumer-token", "", "consumer token required for protected loopback operations")
+	consumerToken := flag.String("consumer-token", "", "shared HMAC secret used to verify clinic-bound consumer capabilities (never sent on the wire)")
 	var allowedOrigins stringListFlag
 	flag.Var(&allowedOrigins, "allowed-origin", "exact supported deployed frontend origin allowed to use the loopback agent (repeatable)")
 	pimsReply := flag.Bool("pims-reply", false, "write IDEXX ACK+A+IM/SM on the same usbserial port; do not use on hospital VetLab")

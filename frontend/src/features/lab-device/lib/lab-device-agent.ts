@@ -77,14 +77,18 @@ async function decideFrame(
     { method: "POST", signal, headers },
   );
   if (!response.ok) {
-    throw new Error(`lab device agent decision failed: ${response.status}`);
+    throw Object.assign(new Error(`lab device agent decision failed: ${response.status}`), {
+      status: response.status,
+    });
   }
 }
 
 export function createLabDeviceAgentClient(
-  consumerToken: string,
+  consumerToken: string | (() => string),
   fetcher: Fetcher = fetch,
 ): LabDeviceAgentClient {
+  const getConsumerToken =
+    typeof consumerToken === "function" ? consumerToken : () => consumerToken;
   let owner = "";
   let clinicId = "";
   const consumerHeaders = (): HeadersInit => {
@@ -94,7 +98,7 @@ export function createLabDeviceAgentClient(
     return {
       "X-Clinic-ID": clinicId,
       "X-Lab-Device-Owner": owner,
-      "X-Lab-Device-Consumer-Token": consumerToken,
+      "X-Lab-Device-Consumer-Token": getConsumerToken(),
     };
   };
   return {
@@ -104,13 +108,15 @@ export function createLabDeviceAgentClient(
         signal,
         headers: {
           "Content-Type": "application/json",
-          "X-Lab-Device-Consumer-Token": consumerToken,
+          "X-Lab-Device-Consumer-Token": getConsumerToken(),
           ...(owner !== "" && clinicId === nextClinicId ? { "X-Lab-Device-Owner": owner } : {}),
         },
         body: JSON.stringify({ clinic_id: nextClinicId }),
       });
       if (!response.ok) {
-        throw new Error(`lab device agent claim failed: ${response.status}`);
+        throw Object.assign(new Error(`lab device agent claim failed: ${response.status}`), {
+          status: response.status,
+        });
       }
       const value: unknown = await response.json();
       if (!isRecord(value) || typeof value.owner !== "string" || value.owner === "") {

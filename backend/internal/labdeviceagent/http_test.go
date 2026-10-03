@@ -12,13 +12,25 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/animal-ekarte/backend/internal/labdevicecap"
 )
 
 type failingResponseWriter struct {
 	header http.Header
 }
 
+// testConsumerToken は agent プロセスにプロビジョニングされる共有 HMAC
+// シークレット。wire には出さず、テストは labdevicecap.Issue で束縛
+// capability を発行してからヘッダに載せる。
 const testConsumerToken = "test-consumer-token"
+
+func issueTestCapability(t *testing.T, clinicID string) string {
+	t.Helper()
+	capability, err := labdevicecap.Issue(testConsumerToken, clinicID, time.Now())
+	require.NoError(t, err)
+	return capability
+}
 
 func (w *failingResponseWriter) Header() http.Header { return w.header }
 func (w *failingResponseWriter) WriteHeader(int)     {}
@@ -30,7 +42,7 @@ func claimConsumer(t *testing.T, handler http.Handler) string {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:17654/claim", strings.NewReader(`{"clinic_id":"clinic-2"}`))
 	req.Header.Set("Origin", "http://localhost:3003")
-	req.Header.Set("X-Lab-Device-Consumer-Token", testConsumerToken)
+	req.Header.Set("X-Lab-Device-Consumer-Token", issueTestCapability(t, "clinic-2"))
 	res := httptest.NewRecorder()
 	handler.ServeHTTP(res, req)
 	require.Equal(t, http.StatusOK, res.Code)
@@ -42,10 +54,11 @@ func claimConsumer(t *testing.T, handler http.Handler) string {
 	return payload.Owner
 }
 
-func authorizeRequest(request *http.Request, owner string) {
+func authorizeRequest(t *testing.T, request *http.Request, owner string) {
+	t.Helper()
 	request.Header.Set("X-Clinic-ID", "clinic-2")
 	request.Header.Set("X-Lab-Device-Owner", owner)
-	request.Header.Set("X-Lab-Device-Consumer-Token", testConsumerToken)
+	request.Header.Set("X-Lab-Device-Consumer-Token", issueTestCapability(t, "clinic-2"))
 }
 
 func TestHandlerRequiresConsumerTokenForProtectedOperations(t *testing.T) {
@@ -56,22 +69,29 @@ func TestHandlerRequiresConsumerTokenForProtectedOperations(t *testing.T) {
 	tests := []struct {
 		name           string
 		configured     string
-		provided       string
+		provided       func(t *testing.T) string
 		claimStatus    int
 		framesStatus   int
 		decisionStatus int
 	}{
-		{name: "missing token", configured: testConsumerToken, claimStatus: http.StatusUnauthorized, framesStatus: http.StatusUnauthorized, decisionStatus: http.StatusUnauthorized},
-		{name: "invalid token", configured: testConsumerToken, provided: "invalid-token", claimStatus: http.StatusUnauthorized, framesStatus: http.StatusUnauthorized, decisionStatus: http.StatusUnauthorized},
-		{name: "empty configured token fails closed", configured: "", provided: testConsumerToken, claimStatus: http.StatusUnauthorized, framesStatus: http.StatusUnauthorized, decisionStatus: http.StatusUnauthorized},
-		{name: "valid token", configured: testConsumerToken, provided: testConsumerToken, claimStatus: http.StatusOK, framesStatus: http.StatusOK, decisionStatus: http.StatusNoContent},
+		{name: "missing capability", configured: testConsumerToken, claimStatus: http.StatusUnauthorized, framesStatus: http.StatusUnauthorized, decisionStatus: http.StatusUnauthorized},
+		{name: "malformed capability", configured: testConsumerToken, provided: func(*testing.T) string { return "invalid-token" }, claimStatus: http.StatusUnauthorized, framesStatus: http.StatusUnauthorized, decisionStatus: http.StatusUnauthorized},
+		{name: "raw shared secret is not a capability", configured: testConsumerToken, provided: func(*testing.T) string { return testConsumerToken }, claimStatus: http.StatusUnauthorized, framesStatus: http.StatusUnauthorized, decisionStatus: http.StatusUnauthorized},
+		{name: "capability bound to another clinic", configured: testConsumerToken, provided: func(t *testing.T) string { return issueTestCapability(t, "clinic-9") }, claimStatus: http.StatusForbidden, framesStatus: http.StatusForbidden, decisionStatus: http.StatusForbidden},
+		{name: "capability signed with a different secret", configured: testConsumerToken, provided: func(t *testing.T) string {
+			capability, err := labdevicecap.Issue("other-secret", "clinic-2", time.Now())
+			require.NoError(t, err)
+			return capability
+		}, claimStatus: http.StatusUnauthorized, framesStatus: http.StatusUnauthorized, decisionStatus: http.StatusUnauthorized},
+		{name: "empty configured secret fails closed", configured: "", provided: func(t *testing.T) string { return issueTestCapability(t, "clinic-2") }, claimStatus: http.StatusUnauthorized, framesStatus: http.StatusUnauthorized, decisionStatus: http.StatusUnauthorized},
+		{name: "valid capability", configured: testConsumerToken, provided: func(t *testing.T) string { return issueTestCapability(t, "clinic-2") }, claimStatus: http.StatusOK, framesStatus: http.StatusOK, decisionStatus: http.StatusNoContent},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			handler := NewHandler(queue, &Status{}, "clinic-2", test.configured)
 			claim := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:17654/claim", strings.NewReader(`{"clinic_id":"clinic-2"}`))
-			if test.provided != "" {
-				claim.Header.Set("X-Lab-Device-Consumer-Token", test.provided)
+			if test.provided != nil {
+				claim.Header.Set("X-Lab-Device-Consumer-Token", test.provided(t))
 			}
 			claimResponse := httptest.NewRecorder()
 			handler.ServeHTTP(claimResponse, claim)
@@ -88,8 +108,8 @@ func TestHandlerRequiresConsumerTokenForProtectedOperations(t *testing.T) {
 			frames := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:17654/frames", http.NoBody)
 			frames.Header.Set("X-Clinic-ID", "clinic-2")
 			frames.Header.Set("X-Lab-Device-Owner", owner)
-			if test.provided != "" {
-				frames.Header.Set("X-Lab-Device-Consumer-Token", test.provided)
+			if test.provided != nil {
+				frames.Header.Set("X-Lab-Device-Consumer-Token", test.provided(t))
 			}
 			framesResponse := httptest.NewRecorder()
 			handler.ServeHTTP(framesResponse, frames)
@@ -98,8 +118,8 @@ func TestHandlerRequiresConsumerTokenForProtectedOperations(t *testing.T) {
 			decision := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:17654/frames/"+frame.ID+"/ack", http.NoBody)
 			decision.Header.Set("X-Clinic-ID", "clinic-2")
 			decision.Header.Set("X-Lab-Device-Owner", owner)
-			if test.provided != "" {
-				decision.Header.Set("X-Lab-Device-Consumer-Token", test.provided)
+			if test.provided != nil {
+				decision.Header.Set("X-Lab-Device-Consumer-Token", test.provided(t))
 			}
 			decisionResponse := httptest.NewRecorder()
 			handler.ServeHTTP(decisionResponse, decision)
@@ -126,7 +146,7 @@ func TestHandlerExposesFramesWithoutLeakingPortIdentity(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:17654/frames", http.NoBody)
 	req.Header.Set("Origin", "http://localhost:3003")
-	authorizeRequest(req, owner)
+	authorizeRequest(t, req, owner)
 	res := httptest.NewRecorder()
 	handler.ServeHTTP(res, req)
 
@@ -160,7 +180,7 @@ func TestHandlerRejectsForeignOriginsAndAcknowledgesExactFrame(t *testing.T) {
 
 	ack := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:17654/frames/"+frame.ID+"/ack", http.NoBody)
 	ack.Header.Set("Origin", "http://127.0.0.1:3003")
-	authorizeRequest(ack, owner)
+	authorizeRequest(t, ack, owner)
 	ackRes := httptest.NewRecorder()
 	handler.ServeHTTP(ackRes, ack)
 	require.Equal(t, http.StatusNoContent, ackRes.Code)
@@ -236,13 +256,13 @@ func TestHandlerHealthRejectAndUnknownRoutes(t *testing.T) {
 
 	reject := httptest.NewRecorder()
 	rejectRequest := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:17654/frames/"+frame.ID+"/reject", http.NoBody)
-	authorizeRequest(rejectRequest, owner)
+	authorizeRequest(t, rejectRequest, owner)
 	handler.ServeHTTP(reject, rejectRequest)
 	require.Equal(t, http.StatusNoContent, reject.Code)
 
 	missing := httptest.NewRecorder()
 	missingRequest := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:17654/frames/missing/ack", http.NoBody)
-	authorizeRequest(missingRequest, owner)
+	authorizeRequest(t, missingRequest, owner)
 	handler.ServeHTTP(missing, missingRequest)
 	require.Equal(t, http.StatusNotFound, missing.Code)
 
@@ -257,26 +277,26 @@ func TestHandlerBindsClinicAndAllowsOnlyOneConsumer(t *testing.T) {
 	require.NotEmpty(t, owner)
 
 	second := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:17654/claim", strings.NewReader(`{"clinic_id":"clinic-2"}`))
-	second.Header.Set("X-Lab-Device-Consumer-Token", testConsumerToken)
+	second.Header.Set("X-Lab-Device-Consumer-Token", issueTestCapability(t, "clinic-2"))
 	secondRes := httptest.NewRecorder()
 	handler.ServeHTTP(secondRes, second)
 	require.Equal(t, http.StatusConflict, secondRes.Code)
 
 	renew := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:17654/claim", strings.NewReader(`{"clinic_id":"clinic-2"}`))
-	renew.Header.Set("X-Lab-Device-Consumer-Token", testConsumerToken)
+	renew.Header.Set("X-Lab-Device-Consumer-Token", issueTestCapability(t, "clinic-2"))
 	renew.Header.Set("X-Lab-Device-Owner", owner)
 	renewRes := httptest.NewRecorder()
 	handler.ServeHTTP(renewRes, renew)
 	require.Equal(t, http.StatusOK, renewRes.Code)
 
 	wrongClinic := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:17654/claim", strings.NewReader(`{"clinic_id":"clinic-3"}`))
-	wrongClinic.Header.Set("X-Lab-Device-Consumer-Token", testConsumerToken)
+	wrongClinic.Header.Set("X-Lab-Device-Consumer-Token", issueTestCapability(t, "clinic-3"))
 	wrongClinicRes := httptest.NewRecorder()
 	handler.ServeHTTP(wrongClinicRes, wrongClinic)
 	require.Equal(t, http.StatusForbidden, wrongClinicRes.Code)
 
 	unauthorized := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:17654/frames", http.NoBody)
-	unauthorized.Header.Set("X-Lab-Device-Consumer-Token", testConsumerToken)
+	unauthorized.Header.Set("X-Lab-Device-Consumer-Token", issueTestCapability(t, "clinic-2"))
 	unauthorizedRes := httptest.NewRecorder()
 	handler.ServeHTTP(unauthorizedRes, unauthorized)
 	require.Equal(t, http.StatusConflict, unauthorizedRes.Code)
