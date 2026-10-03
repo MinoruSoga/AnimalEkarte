@@ -37,6 +37,9 @@ type Service interface {
 	ListChatExchanges(ctx context.Context) ([]ChatExchange, error)
 	RecordChatExchange(ctx context.Context, clinicID, staffID uint64, userMessage, assistantReply string, sources []ChatSource) error
 	ClearChatHistory(ctx context.Context, clinicID, staffID uint64) error
+	// SyncPlaneTicketStates は scheduled job 用 — Plane 側 completed → resolved の
+	// 一方向同期。全医院横断で動き、各報告の clinic_id で UpdateStatus する。
+	SyncPlaneTicketStates(ctx context.Context) PlaneSyncResult
 }
 
 type service struct {
@@ -127,12 +130,17 @@ func (s *service) Delete(ctx context.Context, clinicID, id uint64) (*model.Suppo
 // recordPlaneFailure は起票失敗を plane_sync_error に記録し WARN を残す。
 // 記録自体の失敗（DB 障害）は追加の ERROR ログのみ（起票失敗の報告を悪化させない）。
 func (s *service) recordPlaneFailure(ctx context.Context, report *model.SupportBugReport, syncErr error) {
-	msg := planeSyncErrorMessage(syncErr)
+	s.persistPlaneFailure(ctx, report, planeSyncErrorMessage(syncErr))
+	slog.WarnContext(ctx, "plane ticket creation failed", "error", syncErr, "report_id", report.ID, "clinic_id", report.ClinicID)
+}
+
+// persistPlaneFailure は sanitize 済みの失敗理由を plane_sync_error に書き込む。
+// ログ出力は呼出側の責務（起票失敗と状態取得失敗で文脈が違うため分離）。
+func (s *service) persistPlaneFailure(ctx context.Context, report *model.SupportBugReport, msg string) {
 	if err := s.repo.SetPlaneSyncError(ctx, report.ClinicID, report.ID, msg); err != nil {
 		slog.ErrorContext(ctx, "failed to persist plane sync error", "error", err, "report_id", report.ID)
 	}
 	report.PlaneSyncError = &msg
-	slog.WarnContext(ctx, "plane ticket creation failed", "error", syncErr, "report_id", report.ID, "clinic_id", report.ClinicID)
 }
 
 // claimPlaneTicket は起票成功を DB に記録する。claim できた場合のみ true。
@@ -228,4 +236,65 @@ func (s *service) ListChatExchanges(ctx context.Context) ([]ChatExchange, error)
 // ClearChatHistory は指定スタッフの会話履歴をすべて soft delete する。
 func (s *service) ClearChatHistory(ctx context.Context, clinicID, staffID uint64) error {
 	return s.repo.ClearChatHistory(ctx, clinicID, staffID)
+}
+
+// planeStateSyncBatchLimit は 1 実行あたりの同期対象上限（防御的上限 — 通常は数件）。
+// 上限超過分は次回 cron に繰り越される（id ASC で安定順のため取り残しはない）。
+const planeStateSyncBatchLimit = 200
+
+// planeStateCompletedGroup は Plane の「完了」状態グループ名（Done 相当）。
+// cancelled は resolved に倒さない — 起票済みのまま open で残し、人が判断する。
+const planeStateCompletedGroup = "completed"
+
+// PlaneSyncResult は scheduled plane_sync ジョブの件数サマリ。
+// scheduler.Result の契約に合わせ Processed == Succeeded + Failed を維持する
+// （fetch/update の失敗だけが Failed — 未完了スキップは Succeeded に含める）。
+type PlaneSyncResult struct {
+	Processed int
+	Succeeded int
+	Failed    int
+}
+
+// SyncPlaneTicketStates は Plane 側で completed になった起票済み報告を resolved に揃える。
+// Plane→ローカルの一方向のみ（ローカルの open/resolved 操作は外部へ反映しない）。
+// 連携無効（tickets が TicketStateReader を実装しない = nil 含む）は zero result で no-op。
+func (s *service) SyncPlaneTicketStates(ctx context.Context) PlaneSyncResult {
+	reader, ok := s.tickets.(TicketStateReader)
+	if !ok || reader == nil {
+		return PlaneSyncResult{}
+	}
+	reports, err := s.repo.ListOpenWithPlaneTicket(ctx, planeStateSyncBatchLimit)
+	if err != nil {
+		slog.ErrorContext(ctx, "plane sync: failed to list open reports", "error", err)
+		return PlaneSyncResult{Processed: 1, Failed: 1}
+	}
+	var result PlaneSyncResult
+	for i := range reports {
+		report := &reports[i]
+		result.Processed++
+		group, err := reader.FetchIssueStateGroup(ctx, *report.PlaneIssueID)
+		if err != nil {
+			result.Failed++
+			// 404 含む upstream 失敗は報告行に記録して一覧から追跡できるようにする。
+			// planeSyncErrorMessage は upstream body を落とした安全な文言のみ返す。
+			s.persistPlaneFailure(ctx, report, planeSyncErrorMessage(err))
+			slog.WarnContext(ctx, "plane sync: failed to fetch issue state",
+				"error", err, "report_id", report.ID, "clinic_id", report.ClinicID)
+			continue
+		}
+		if group != planeStateCompletedGroup {
+			result.Succeeded++
+			continue
+		}
+		if err := s.repo.UpdateStatus(ctx, report.ClinicID, report.ID, model.SupportBugReportStatusResolved); err != nil {
+			result.Failed++
+			slog.WarnContext(ctx, "plane sync: failed to mark report resolved",
+				"error", err, "report_id", report.ID, "clinic_id", report.ClinicID)
+			continue
+		}
+		result.Succeeded++
+		slog.InfoContext(ctx, "plane sync: report resolved via plane completed",
+			"report_id", report.ID, "clinic_id", report.ClinicID)
+	}
+	return result
 }

@@ -40,6 +40,11 @@ type Repository interface {
 	// 取り出すための取得。他医院の id は未存在と同じ NotFound を返す。
 	FindByIDForClinic(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
 	UpdateStatus(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) error
+	// ListOpenWithPlaneTicket は Plane 起票済みで status=open の報告を返す。
+	// scheduled sync（Plane 側 completed → 報告 resolved）の対象抽出用で
+	// 全医院横断 — 起票済み報告は各報告の clinic_id を保持しているため
+	// 返却後の UpdateStatus も報告元 clinic スコープで実行できる。
+	ListOpenWithPlaneTicket(ctx context.Context, limit int) ([]model.SupportBugReport, error)
 	// SetPlaneTicket は起票成功を記録し、claim 成功時（= 先に起票済みでない）に true を返す。
 	SetPlaneTicket(ctx context.Context, clinicID, id uint64, issueID, issueURL string) (bool, error)
 	SetPlaneSyncError(ctx context.Context, clinicID, id uint64, syncErr string) error
@@ -192,6 +197,21 @@ func (r *repository) UpdateStatus(ctx context.Context, clinicID, id uint64, stat
 		return apperrors.WrapNotFound("support_bug_report", uintToString(id))
 	}
 	return nil
+}
+
+func (r *repository) ListOpenWithPlaneTicket(ctx context.Context, limit int) ([]model.SupportBugReport, error) {
+	var reports []model.SupportBugReport
+	query := r.db.WithContext(ctx).
+		Where("status = ?", model.SupportBugReportStatusOpen).
+		Where("plane_issue_id IS NOT NULL").
+		Order("id ASC")
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+	if err := query.Find(&reports).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "support_bug_report", "")
+	}
+	return reports, nil
 }
 
 // SetPlaneTicket は Plane 起票成功を記録する。二重起票防止のため

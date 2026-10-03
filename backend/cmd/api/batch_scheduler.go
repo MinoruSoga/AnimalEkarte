@@ -9,9 +9,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/lstep"
 	"github.com/animal-ekarte/backend/internal/scheduler"
+	"github.com/animal-ekarte/backend/internal/support"
 )
 
 // schedulerInternalTokenHeader is the application-level privilege header for
@@ -38,15 +40,32 @@ type scheduledBatchService interface {
 	) lstep.BatchRunResult
 }
 
+// planeStateSyncer is the support-side dependency behind JobPlaneSync.
+// support.Service satisfies it; nil disables the job fail-closed.
+type planeStateSyncer interface {
+	SyncPlaneTicketStates(ctx context.Context) support.PlaneSyncResult
+}
+
+// planeStateSyncerFor builds the JobPlaneSync dependency only when Plane
+// integration is configured. A nil result makes the job fail closed at
+// execution time instead of silently pretending to succeed.
+func planeStateSyncerFor(db *gorm.DB, tickets support.TicketCreator) planeStateSyncer {
+	if db == nil || tickets == nil {
+		return nil
+	}
+	return support.NewService(support.NewRepository(db), tickets)
+}
+
 type lstepScheduledJobExecutor struct {
-	batch scheduledBatchService
+	batch     scheduledBatchService
+	planeSync planeStateSyncer
 }
 
-func newLstepScheduledJobExecutor(batch scheduledBatchService) *lstepScheduledJobExecutor {
-	return &lstepScheduledJobExecutor{batch: batch}
+func newLstepScheduledJobExecutor(batch scheduledBatchService, planeSync planeStateSyncer) *lstepScheduledJobExecutor {
+	return &lstepScheduledJobExecutor{batch: batch, planeSync: planeSync}
 }
 
-func registerScheduledJobRoutes(routes gin.IRoutes, batch scheduledBatchService, internalToken string) {
+func registerScheduledJobRoutes(routes gin.IRoutes, batch scheduledBatchService, planeSync planeStateSyncer, internalToken string) {
 	// Always register the contract path; middleware fails closed when the shared
 	// secret is unset or the header does not match (DEC-36 / CMD-02).
 	var protected gin.IRoutes
@@ -59,7 +78,7 @@ func registerScheduledJobRoutes(routes gin.IRoutes, batch scheduledBatchService,
 		// Production always passes *gin.Engine; refuse unknown IRoutes shapes.
 		return
 	}
-	scheduler.NewHandler(newLstepScheduledJobExecutor(batch)).RegisterRoutes(protected)
+	scheduler.NewHandler(newLstepScheduledJobExecutor(batch, planeSync)).RegisterRoutes(protected)
 }
 
 func requireSchedulerInternalToken(expected string) gin.HandlerFunc {
@@ -84,38 +103,49 @@ func (e *lstepScheduledJobExecutor) Execute(
 	ctx context.Context,
 	execution scheduler.Execution,
 ) (scheduler.Result, error) {
-	if e == nil || e.batch == nil {
-		return scheduler.Result{}, errScheduledBatchUnavailable
-	}
-
 	// FenceToken protects durable-ledger finalization in the Worker coordinator.
 	// It is intentionally not presented as an application-side revocation fence;
 	// Go work instead obeys ctx and retains each domain's CAS/idempotency checks.
 	var result lstep.BatchRunResult
-	switch execution.Job {
-	case scheduler.JobNoShow:
-		result = e.batch.RunNoShowCheckAllClinicsAt(
-			ctx,
-			execution.ScheduledAt,
-			execution.RunID,
-		)
-	case scheduler.JobDelivery:
-		result = e.batch.RunDeliveryTriggerBatchAllClinicsAt(
-			ctx,
-			execution.ScheduledAt,
-			execution.RunID,
-		)
-	case scheduler.JobDormant:
-		result = e.batch.RunDormantDetectionAllClinicsAt(
-			ctx,
-			execution.ScheduledAt,
-			execution.RunID,
-		)
-	default:
-		return scheduler.Result{}, fmt.Errorf(
-			"unsupported scheduled job %q",
-			execution.Job,
-		)
+	if execution.Job == scheduler.JobPlaneSync {
+		if e == nil || e.planeSync == nil {
+			return scheduler.Result{}, errScheduledBatchUnavailable
+		}
+		syncResult := e.planeSync.SyncPlaneTicketStates(ctx)
+		result = lstep.BatchRunResult{
+			Processed: syncResult.Processed,
+			Succeeded: syncResult.Succeeded,
+			Failed:    syncResult.Failed,
+		}
+	} else {
+		if e == nil || e.batch == nil {
+			return scheduler.Result{}, errScheduledBatchUnavailable
+		}
+		switch execution.Job {
+		case scheduler.JobNoShow:
+			result = e.batch.RunNoShowCheckAllClinicsAt(
+				ctx,
+				execution.ScheduledAt,
+				execution.RunID,
+			)
+		case scheduler.JobDelivery:
+			result = e.batch.RunDeliveryTriggerBatchAllClinicsAt(
+				ctx,
+				execution.ScheduledAt,
+				execution.RunID,
+			)
+		case scheduler.JobDormant:
+			result = e.batch.RunDormantDetectionAllClinicsAt(
+				ctx,
+				execution.ScheduledAt,
+				execution.RunID,
+			)
+		default:
+			return scheduler.Result{}, fmt.Errorf(
+				"unsupported scheduled job %q",
+				execution.Job,
+			)
+		}
 	}
 
 	if err := result.Validate(); err != nil {

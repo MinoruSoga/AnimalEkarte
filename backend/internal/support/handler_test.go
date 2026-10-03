@@ -31,6 +31,7 @@ type mockService struct {
 	listExchangesFn func(ctx context.Context) ([]ChatExchange, error)
 	recordChatFn    func(ctx context.Context, clinicID, staffID uint64, userMessage, assistantReply string, sources []ChatSource) error
 	clearChatFn     func(ctx context.Context, clinicID, staffID uint64) error
+	syncPlaneFn     func(ctx context.Context) PlaneSyncResult
 }
 
 func (m *mockService) Create(ctx context.Context, clinicID, reporterStaffID uint64, input CreateBugReportInput) (*model.SupportBugReport, error) {
@@ -71,6 +72,12 @@ func (m *mockService) ClearChatHistory(ctx context.Context, clinicID, staffID ui
 		return nil
 	}
 	return m.clearChatFn(ctx, clinicID, staffID)
+}
+func (m *mockService) SyncPlaneTicketStates(ctx context.Context) PlaneSyncResult {
+	if m.syncPlaneFn == nil {
+		return PlaneSyncResult{}
+	}
+	return m.syncPlaneFn(ctx)
 }
 
 // ---- mock fileUploader ----

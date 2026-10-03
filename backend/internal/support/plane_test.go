@@ -195,3 +195,97 @@ func TestPlaneIssueName(t *testing.T) {
 	assert.LessOrEqual(t, len([]rune(name)), planeIssueNameMaxRunes)
 	assert.True(t, strings.HasSuffix(name, "…"))
 }
+
+// ---- FetchIssueStateGroup ----
+
+// newPlaneStateTestServer は state_detail 応答のスタブを立て、GET リクエストを記録する。
+func newPlaneStateTestServer(t *testing.T, status int, response string, captured *capturedPlaneRequest) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		captured.path = r.URL.RequestURI()
+		captured.apiKey = r.Header.Get("X-API-Key")
+		captured.contentType = r.Method
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(response))
+	}))
+}
+
+func TestPlaneClient_FetchIssueStateGroup_RequestContract(t *testing.T) {
+	captured := &capturedPlaneRequest{}
+	server := newPlaneStateTestServer(t, http.StatusOK, `{"state_detail":{"group":"completed"}}`, captured)
+	defer server.Close()
+	client := newTestPlaneClient(server, "EMR")
+
+	group, err := client.FetchIssueStateGroup(context.Background(), "issue id/特殊")
+
+	require.NoError(t, err)
+	assert.Equal(t, "completed", group)
+	// issueID は PathEscape されて issues/{id}/ に入る。
+	assert.Equal(t,
+		"/v1/workspaces/baritechllc/projects/proj-uuid/issues/issue%20id%2F%E7%89%B9%E6%AE%8A/",
+		captured.path)
+	assert.Equal(t, "secret-key", captured.apiKey)
+	assert.Equal(t, http.MethodGet, captured.contentType)
+}
+
+func TestPlaneClient_FetchIssueStateGroup_Groups(t *testing.T) {
+	tests := []struct {
+		name      string
+		body      string
+		wantGroup string
+	}{
+		{name: "completed", body: `{"state_detail":{"group":"completed"}}`, wantGroup: "completed"},
+		{name: "started", body: `{"state_detail":{"group":"started"}}`, wantGroup: "started"},
+		{name: "cancelled", body: `{"state_detail":{"group":"cancelled"}}`, wantGroup: "cancelled"},
+		// state_detail 欠落は open 扱いを誤らないよう空文字で返す（呼出側が skip 判定）。
+		{name: "missing state_detail", body: `{"id":"x","name":"y"}`, wantGroup: ""},
+		{name: "null state_detail", body: `{"state_detail":null}`, wantGroup: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			captured := &capturedPlaneRequest{}
+			server := newPlaneStateTestServer(t, http.StatusOK, tt.body, captured)
+			defer server.Close()
+			client := newTestPlaneClient(server, "EMR")
+
+			group, err := client.FetchIssueStateGroup(context.Background(), "issue-1")
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantGroup, group)
+		})
+	}
+}
+
+func TestPlaneClient_FetchIssueStateGroup_Non2xxIsUpstreamError(t *testing.T) {
+	for _, status := range []int{http.StatusNotFound, http.StatusInternalServerError} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			captured := &capturedPlaneRequest{}
+			// upstream のエラーボディが生のまま err に混入しないことをあわせて確認。
+			server := newPlaneStateTestServer(t, status, `{"detail":"sensitive upstream body"}`, captured)
+			defer server.Close()
+			client := newTestPlaneClient(server, "EMR")
+
+			group, err := client.FetchIssueStateGroup(context.Background(), "issue-1")
+
+			require.Error(t, err)
+			assert.Empty(t, group)
+			var upstream *planeUpstreamError
+			require.ErrorAs(t, err, &upstream)
+			assert.Equal(t, status, upstream.status)
+			assert.NotContains(t, err.Error(), "sensitive upstream body")
+		})
+	}
+}
+
+func TestPlaneClient_FetchIssueStateGroup_MalformedResponse(t *testing.T) {
+	captured := &capturedPlaneRequest{}
+	server := newPlaneStateTestServer(t, http.StatusOK, `not-json`, captured)
+	defer server.Close()
+	client := newTestPlaneClient(server, "EMR")
+
+	group, err := client.FetchIssueStateGroup(context.Background(), "issue-1")
+
+	require.Error(t, err)
+	assert.Empty(t, group)
+}

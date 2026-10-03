@@ -15,6 +15,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/lstep"
 	"github.com/animal-ekarte/backend/internal/scheduler"
+	"github.com/animal-ekarte/backend/internal/support"
 )
 
 type scheduledBatchCall struct {
@@ -98,7 +99,7 @@ func TestLstepScheduledJobExecutor_RoutesJobsWithStableScheduleIdentity(t *testi
 			batch := &scheduledBatchStub{
 				results: map[scheduler.Job]lstep.BatchRunResult{tt.job: tt.result},
 			}
-			executor := newLstepScheduledJobExecutor(batch)
+			executor := newLstepScheduledJobExecutor(batch, nil)
 
 			result, err := executor.Execute(context.Background(), scheduler.Execution{
 				Job:         tt.job,
@@ -123,7 +124,7 @@ func TestLstepScheduledJobExecutor_RoutesJobsWithStableScheduleIdentity(t *testi
 }
 
 func TestLstepScheduledJobExecutor_RejectsUnsupportedJob(t *testing.T) {
-	executor := newLstepScheduledJobExecutor(&scheduledBatchStub{})
+	executor := newLstepScheduledJobExecutor(&scheduledBatchStub{}, nil)
 
 	_, err := executor.Execute(context.Background(), scheduler.Execution{
 		Job:         scheduler.Job("forbidden"),
@@ -142,7 +143,7 @@ func TestLstepScheduledJobExecutor_FailsClosedForInvalidBatchResult(t *testing.T
 			scheduler.JobNoShow: {Processed: 2, Succeeded: 1},
 		},
 	}
-	executor := newLstepScheduledJobExecutor(batch)
+	executor := newLstepScheduledJobExecutor(batch, nil)
 
 	_, err := executor.Execute(context.Background(), scheduler.Execution{
 		Job:         scheduler.JobNoShow,
@@ -164,7 +165,7 @@ func TestRegisterScheduledJobRoutes_ExposesOnlyInternalPOSTContract(t *testing.T
 			scheduler.JobNoShow: {Processed: 1, Succeeded: 1},
 		},
 	}
-	registerScheduledJobRoutes(router, batch, token)
+	registerScheduledJobRoutes(router, batch, nil, token)
 
 	body := `{"scheduler":"animalekarte-scheduler-v1","job":"no_show","scheduled_time":1785201200000,"run_id":"animalekarte-scheduler-v1:1785201200000:no_show","fence_token":1}`
 	request := httptest.NewRequest(
@@ -219,7 +220,7 @@ func TestRegisterBaseRoutes_LocalUploadsAndSchedulerAuthSurface(t *testing.T) {
 	t.Setenv("STORAGE_TYPE", "")
 	t.Setenv("SCHEDULER_INTERNAL_TOKEN", "test-scheduler-internal-token-32b!!")
 	router := gin.New()
-	require.NoError(t, registerBaseRoutes(router, nil, nil))
+	require.NoError(t, registerBaseRoutes(router, nil, nil, nil))
 	routes := make(map[string]struct{})
 	for _, route := range router.Routes() {
 		routes[route.Method+" "+route.Path] = struct{}{}
@@ -229,7 +230,7 @@ func TestRegisterBaseRoutes_LocalUploadsAndSchedulerAuthSurface(t *testing.T) {
 
 	t.Setenv("STORAGE_TYPE", "s3")
 	routerS3 := gin.New()
-	require.NoError(t, registerBaseRoutes(routerS3, nil, nil))
+	require.NoError(t, registerBaseRoutes(routerS3, nil, nil, nil))
 	routesS3 := make(map[string]struct{})
 	for _, route := range routerS3.Routes() {
 		routesS3[route.Method+" "+route.Path] = struct{}{}
@@ -245,7 +246,7 @@ func TestRegisterScheduledJobRoutes_EmptyTokenRejectsAll(t *testing.T) {
 			scheduler.JobNoShow: {Processed: 1, Succeeded: 1},
 		},
 	}
-	registerScheduledJobRoutes(router, batch, "")
+	registerScheduledJobRoutes(router, batch, nil, "")
 	body := `{"scheduler":"animalekarte-scheduler-v1","job":"no_show","scheduled_time":1785201200000,"run_id":"animalekarte-scheduler-v1:1785201200000:no_show","fence_token":1}`
 	request := httptest.NewRequest(
 		http.MethodPost,
@@ -260,12 +261,89 @@ func TestRegisterScheduledJobRoutes_EmptyTokenRejectsAll(t *testing.T) {
 }
 
 func TestLstepScheduledJobExecutor_NilBatchFailsClosed(t *testing.T) {
-	executor := newLstepScheduledJobExecutor(nil)
+	executor := newLstepScheduledJobExecutor(nil, nil)
 
 	_, err := executor.Execute(context.Background(), scheduler.Execution{
 		Job:         scheduler.JobNoShow,
 		ScheduledAt: time.Now(),
 		RunID:       "run",
+		FenceToken:  1,
+	})
+
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, errScheduledBatchUnavailable))
+}
+
+// ---- JobPlaneSync dispatch ----
+
+type planeSyncStub struct {
+	calls  int
+	result support.PlaneSyncResult
+}
+
+func (s *planeSyncStub) SyncPlaneTicketStates(context.Context) support.PlaneSyncResult {
+	s.calls++
+	return s.result
+}
+
+func TestLstepScheduledJobExecutor_PlaneSyncDispatchesToSupport(t *testing.T) {
+	tests := []struct {
+		name    string
+		result  support.PlaneSyncResult
+		outcome scheduler.Outcome
+	}{
+		{
+			name:    "all resolved cleanly",
+			result:  support.PlaneSyncResult{Processed: 3, Succeeded: 3},
+			outcome: scheduler.OutcomeSuccess,
+		},
+		{
+			name:    "partial failures",
+			result:  support.PlaneSyncResult{Processed: 3, Succeeded: 2, Failed: 1},
+			outcome: scheduler.OutcomePartial,
+		},
+		{
+			name:    "list error failed closed",
+			result:  support.PlaneSyncResult{Processed: 1, Failed: 1},
+			outcome: scheduler.OutcomeFailed,
+		},
+		{
+			name:    "empty run is success",
+			result:  support.PlaneSyncResult{},
+			outcome: scheduler.OutcomeSuccess,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			batch := &scheduledBatchStub{}
+			sync := &planeSyncStub{result: tt.result}
+			executor := newLstepScheduledJobExecutor(batch, sync)
+
+			result, err := executor.Execute(context.Background(), scheduler.Execution{
+				Job:         scheduler.JobPlaneSync,
+				ScheduledAt: time.Now(),
+				RunID:       "plane-run",
+				FenceToken:  3,
+			})
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.outcome, result.Outcome)
+			assert.Equal(t, tt.result.Processed, result.Processed)
+			assert.Equal(t, tt.result.Succeeded, result.Succeeded)
+			assert.Equal(t, tt.result.Failed, result.Failed)
+			assert.Equal(t, 1, sync.calls)
+			assert.Empty(t, batch.calls, "plane_sync must not touch the lstep batch service")
+		})
+	}
+}
+
+func TestLstepScheduledJobExecutor_PlaneSyncNilSyncerFailsClosed(t *testing.T) {
+	executor := newLstepScheduledJobExecutor(&scheduledBatchStub{}, nil)
+
+	_, err := executor.Execute(context.Background(), scheduler.Execution{
+		Job:         scheduler.JobPlaneSync,
+		ScheduledAt: time.Now(),
+		RunID:       "plane-run",
 		FenceToken:  1,
 	})
 

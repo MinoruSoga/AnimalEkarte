@@ -497,7 +497,7 @@ func (c runtimeComposition) registerRoutes(
 	uploader infra.FileUploader,
 	isProduction bool,
 ) error {
-	if err := registerBaseRoutes(router, c.lstep.Batch, c.db); err != nil {
+	if err := registerBaseRoutes(router, c.lstep.Batch, c.db, c.planeTickets); err != nil {
 		return err
 	}
 	protected, err := c.auth.registerRoutes(

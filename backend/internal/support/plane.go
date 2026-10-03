@@ -9,6 +9,7 @@ import (
 	"html"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -35,6 +36,13 @@ const planeIssueNameMaxRunes = 200
 // nil の場合は連携無効（報告はローカル保存のみ・手動起票は 501 を返す）。
 type TicketCreator interface {
 	CreateBugReportIssue(ctx context.Context, report *model.SupportBugReport) (*PlaneIssue, error)
+}
+
+// TicketStateReader は起票済みチケットの対応状況を外部から読み取る抽象化。
+// TicketCreator とは別 interface に分け、実装が存在する場合のみ
+// scheduled sync が有効になる（mock/nil 実装は読み取り経路を持たない）。
+type TicketStateReader interface {
+	FetchIssueStateGroup(ctx context.Context, issueID string) (string, error)
 }
 
 // PlaneIssue は Plane に作成されたワークアイテムの参照情報。
@@ -209,6 +217,51 @@ func (c *planeClient) CreateBugReportIssue(ctx context.Context, report *model.Su
 		return nil, fmt.Errorf("plane response missing issue id")
 	}
 	return &PlaneIssue{ID: parsed.ID, URL: c.issueURL(&parsed)}, nil
+}
+
+// planeIssueStateResponse は GET issues/{id}/ 応答から対応状況グループだけを抜き出す。
+// Plane の状態グループは backlog/unstarted/started/completed/cancelled —
+// グループが取れない応答は「不明」として空文字を返す（resolved 側へ誤判定しないため）。
+type planeIssueStateResponse struct {
+	StateDetail *struct {
+		Group string `json:"group"`
+	} `json:"state_detail"`
+}
+
+// FetchIssueStateGroup は GET /v1/workspaces/{slug}/projects/{id}/issues/{issueID}/ の
+// state_detail.group を返す。非 2xx は *planeUpstreamError、group 欠落は空文字。
+func (c *planeClient) FetchIssueStateGroup(ctx context.Context, issueID string) (string, error) {
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		fmt.Sprintf("%s/v1/workspaces/%s/projects/%s/issues/%s/",
+			c.baseURL, c.workspaceSlug, c.projectID, url.PathEscape(issueID)),
+		nil,
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to build plane request: %w", err)
+	}
+	req.Header.Set("X-API-Key", c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("plane request failed: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck // クローズ失敗は復旧不可
+
+	if resp.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, planeErrorBodyDiscardBytes))
+		return "", &planeUpstreamError{status: resp.StatusCode}
+	}
+
+	var parsed planeIssueStateResponse
+	if err := json.NewDecoder(io.LimitReader(resp.Body, planeResponseMaxBytes)).Decode(&parsed); err != nil {
+		return "", fmt.Errorf("failed to decode plane response: %w", err)
+	}
+	if parsed.StateDetail == nil {
+		return "", nil
+	}
+	return parsed.StateDetail.Group, nil
 }
 
 // issueURL は app.plane.so/<workspace>/browse/<IDENT>/ 形式の表示 URL を組み立てる。

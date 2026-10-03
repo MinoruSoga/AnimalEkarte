@@ -302,3 +302,20 @@ func TestHandler_Run_FailsClosedWhenExecutorIsNotConfigured(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, response.Code)
 	assert.JSONEq(t, `{"outcome":"failed","processed":1,"succeeded":0,"failed":1}`, response.Body.String())
 }
+
+func TestHandler_Run_AcceptsPlaneSyncJobInClosedSet(t *testing.T) {
+	executor := &recordingExecutor{
+		result: Result{Outcome: OutcomeSuccess, Processed: 2, Succeeded: 2, Failed: 0},
+	}
+	response := performScheduledRequest(
+		t,
+		newSchedulerTestRouter(executor),
+		http.MethodPost,
+		"/_internal/scheduled-jobs/plane_sync:run",
+		validScheduledRequestBody(JobPlaneSync),
+	)
+
+	require.Equal(t, http.StatusOK, response.Code)
+	require.Equal(t, 1, executor.calls)
+	assert.Equal(t, JobPlaneSync, executor.execution.Job)
+}

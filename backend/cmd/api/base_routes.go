@@ -9,6 +9,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"github.com/animal-ekarte/backend/internal/support"
 )
 
 const uploadsDirectory = "/app/uploads"
@@ -66,6 +68,7 @@ func registerBaseRoutes(
 	router *gin.Engine,
 	scheduledBatch scheduledBatchService,
 	db *gorm.DB,
+	planeTickets support.TicketCreator,
 ) error {
 	if router == nil {
 		return fmt.Errorf("base route engine is required")
@@ -82,6 +85,11 @@ func registerBaseRoutes(
 		uploads.Use(uploadsNoSniffHeader)
 		uploads.StaticFS("/", gin.Dir(uploadsDirectory, false))
 	}
-	registerScheduledJobRoutes(router, scheduledBatch, os.Getenv("SCHEDULER_INTERNAL_TOKEN"))
+	registerScheduledJobRoutes(
+		router,
+		scheduledBatch,
+		planeStateSyncerFor(db, planeTickets),
+		os.Getenv("SCHEDULER_INTERNAL_TOKEN"),
+	)
 	return nil
 }
