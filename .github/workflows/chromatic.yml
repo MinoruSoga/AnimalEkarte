@@ -63,7 +63,7 @@ jobs:
 
       - name: Run Chromatic
         if: env.CHROMATIC_PROJECT_TOKEN != ''
-        uses: chromaui/action@v18.9.5
+        uses: chromaui/action@4784f911a3c42cb849c2a2016442342467fa5117 # v18.9.5
         with:
           projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
           workingDir: frontend
