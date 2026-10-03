@@ -2,12 +2,12 @@
 
 ## 概要
 
-codex-security ワークベンチ (`~/.codex/state/plugins/codex-security/workbench.sqlite3`) の累積 56 findings(occurrence ベース、CLI 表示 51 件・dedupe 後)を、HEAD `fd65d1b2b` の現行コードに対して照合した。
+codex-security ワークベンチ (`~/.codex/state/plugins/codex-security/workbench.sqlite3`) の累積 60 findings(occurrence ベース、CLI 表示 54 件・dedupe 後)を、現行コードに対して照合した。
 
 - 検証方法: 各 finding の codeEvidence / 指摘ファイルを現行コードで再確認。静的照合 + scoped test(Docker)・workflow YAML 検証。
-- 結果: **56 occurrence 全件に対応方針が確定** — 対応済み 48 / 本日修正実施 6 / owner 承認済み受容 4(P1-P4、うち P3 は意図仕様) / 部分対応 2(R1 標準確定・R2 修正済み)
-- **作業ツリーに大規模なセキュリティ修正 WIP (~49ファイル・未コミット) が存在**: support の mutation clinic スコープ化(P1)・seedlogin STG シークレット化(O8)・BugReportsPage/LoginForm UI・関連 docs を含む。全て scoped test で検証済み。
-- **P判断は `SECURITY.md`(commit `39404be3b`、2026-10-03 owner 回答)で既に確定**: support 共有 board の受容、OBJECT-1(private+signed URL)標準。未決残件は support 情報区分・外部送信 → EMR-263。
+- 結果: **60 occurrence 全件に対応方針が確定** — 対応済み 48 / 修正実施 10(O1-O4,O6,O7 + N1-N4) / owner 承認済み受容 4(P1-P4) / 部分対応 2(R1,R2)
+- **再スキャン(1YUno8)**: frontend 再精査 20ファイルで新規報告なし。workbench に backend scan 由来の新規 4 findings(N1-N4)が追加済み — 全て未コミット WIP で対応済み・scoped test pass
+- **P判断は `SECURITY.md`(commit `39404be3b`、2026-10-03 owner 回答)で既に確定**: support 共有 board の受容、OBJECT-1(private+signed URL)標準。未決残件は support 情報区分・外部送信 → EMR-263(N2/N3 が一部緩和: 新規入力スクリーニング + Plane 手動 export 化)
 
 ## 本日実施した修正(未対応 → 修正済み・未コミット)
 
@@ -19,6 +19,20 @@ codex-security ワークベンチ (`~/.codex/state/plugins/codex-security/workbe
 | O4 | medium | k6 unpinned install | `performance-tests.yml` を actionlint と同型の pin+SHA-256 検証インストールへ(k6 v2.3.0、checksum 既知) | YAML parse OK |
 | O6 | low | Active-extension upload on local origin | `medical_record_image_request.go`: 拡張子↔宣言MIME一致を必須化、`verifySniffedContent` で先頭512バイトの DetectContentType 照合、保存拡張子を検証済みmimeから導出。`base_routes.go`: 非S3 `/uploads` に `X-Content-Type-Options: nosniff` | upload request tests 追加・pass |
 | O7 | medium | Secret-sync unverified npm artifact | `worker-secret-sync.yml`: `npx -y wrangler@4.107.0` → `pnpm install --frozen-lockfile` + `pnpm exec wrangler`(lockfile integrity 検証済み `wrangler@4.114.0`) | YAML parse OK |
+
+## 追加 findings(2026-10-03 backend scan 由来・workbench 07:53 追加)の対応 WIP
+
+| # | severity | finding | 修正内容 | 検証 |
+|---|----------|---------|----------|------|
+| N1 | medium | Binary Content-Type bypasses lab-frame request limits | `sanitize_null_bytes.go`: `BinaryBodyMaxBytes=16MiB` 共通天井を `SanitizeNullBytes`/`LimitRequestBody` の binary 経路に適用。`lab_device_item_master_handler.go`: ルート固有 `MaxBytesReader(64KiB)` + `MaxBytesError`→413。`request.go`: base64 長事前拒否 | middleware/medicalrecord tests pass |
+| N2 | medium | Staff can send unclassified clinic data to configured LLM | `support/chat.go`: `screenChatOutbound` で email/電話/長数字列/認証情報/Bearer を外部送信前に拒否(汎用 invalid_input、パターン非開示)。`history` をクライアント入力から除去しサーバー保存済み(送信時スクリーニング済み)履歴のみ使用。frontend も history 送信を廃止 | support tests pass・frontend 22 tests pass |
+| N3 | medium | Bug-report creation auto-exports unclassified content to Plane | `support/service.go`: Create 時の自動 `syncPlaneTicket` を廃止。外部 export は reviewable な明示操作(`POST /:id/plane-ticket`)のみ | support tests pass |
+| N4 | low | Shared clinical-file bearer URLs valid 24h | `shared_file_service.go`: TTL を用途別分割 — 対話 `GetSignedURL` 15min / LINE 配送 `GetSignedURLForDelivery` 1h(固定24h→大幅縮小) | lstep tests pass・isolation test guard 拡張 |
+
+### 検証メモ(2026-10-03 夕)
+- backend build + scoped tests(lstep/support/medicalrecord/middleware)pass
+- pre-existing テストインフラ問題を恒久修正: `lstep_settings_tx_atomicity_test.go` が `model.ClinicSettings` を AutoMigrate しており、GORM の `type:time`→`timestamptz` 誤変換で cold schema 時に必ず失敗していた。既存 `testdb.EnsureClinicSettingsTable`(実 migration 準拠の生SQL、5ファイル利用済み)へ切替 — DROP TABLE 後の cold schema 経路で 4 テスト全 pass を確認
+- `TestVitalRepository_Delete`・`TestRealDB_SelectedClinicBGrantAIsolation` は共有DB flake(単独再実行 pass)
 
 ## 対応済み(コミット済み or 既存 WIP で確認・42+2件)
 

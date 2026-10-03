@@ -54,6 +54,10 @@ Current unfinished implementation, verification, data, performance, delivery, an
 | SEC-P2 | High | seedlogin / staging credential | O8 と同根。repo-public password 問題は WIP で解消。STG デモ運用は SECURITY.md に実測記載済み | 受容済み | 対応完了 |
 | SEC-P3 | High | RBAC / 拠点横断 #86 | GET fallback opt-in 化・write selected-clinic 必須は修正済み。`ResolveListClinicIDs` の membership 拡張は #86 配送済み設計 | 受容(意図仕様) | 対応完了 |
 | SEC-P4 | Medium | support / chat unredacted | P1 の一部。会話本文の全院共有 | 受容済み | P1 と同じ（EMR-263 で情報区分追跡） |
+| SEC-N1 | Medium | lab-frame / body limit | binary Content-Type が request limit を JSON decode 前に回避 | 対応済み(WIP) | `BinaryBodyMaxBytes=16MiB` 共通天井 + lab frames ルート 64KiB + base64 長事前拒否 |
+| SEC-N2 | Medium | support / LLM outbound | 認証済み staff が未分類 clinic データを LLM へ送信可能 | 対応済み(WIP) | `screenChatOutbound` で機微パターン拒否 + history をサーバー保存済み履歴のみに限定 |
+| SEC-N3 | Medium | support / Plane export | bug-report 作成時に未分類コンテンツが自動で Plane へ export | 対応済み(WIP) | Create 時の自動起票を廃止 — 明示操作(reviewable export)のみ |
+| SEC-N4 | Low | lstep / signed URL TTL | 共有ファイル bearer URL が 24h 有効 | 対応済み(WIP) | TTL 用途別分割(対話 15min / LINE 配送 1h) |
 
 <a id="human-lane"></a>
 
