@@ -36,16 +36,19 @@ docker run -d --name "$NAME" \
   -v "$ROOT/backend/migrations:/migrations:ro" \
   "$PG_IMAGE" >/dev/null
 
+# pg_isready は「サーバ応答あり」しか確認せず db 存在を見ないため、
+# entrypoint の initdb 一時サーバフェーズ（POSTGRES_DB 未作成）で PASS し得る。
+# 実際に ekarte_db へ接続できるまで待つ必要がある（並列 lane 実行で露呈）。
 ready=0
-for _ in $(seq 1 30); do
-  if docker exec "$NAME" pg_isready -U ekarte_user -d ekarte_db >/dev/null 2>&1; then
+for _ in $(seq 1 60); do
+  if docker exec "$NAME" psql -U ekarte_user -d ekarte_db -tAc 'select 1' >/dev/null 2>&1; then
     ready=1
     break
   fi
   sleep 1
 done
 if [[ "$ready" -ne 1 ]]; then
-  echo "ERROR: postgres did not become ready within 30s" >&2
+  echo "ERROR: postgres did not become ready within 60s" >&2
   exit 1
 fi
 
