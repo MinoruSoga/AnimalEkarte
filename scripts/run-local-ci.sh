@@ -359,27 +359,27 @@ if (( FROM > 1 )); then
 fi
 
 # ── 実行フェーズ ──────────────────────────────────────────────────────
-# フェーズ1（直列・fail-fast）: step 1-16 のメタゲート。安い契約検査を先に
-#   終わらせ、ここで落ちれば重いコンテナ系 step を起動しない。
-# フェーズ2（並列 lane）: step 17-30。相互に状態依存しないため lane 別に
-#   バックグラウンド実行し、出力は "[lane] " プレフィックス付きでライブ表示。
-#   失敗 lane があっても他 lane は完走させてから集約して失敗する
-#   （途中結果がどこまで進んだか分かる方がデバッグしやすい）。
-META_STEPS="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16"
+# フェーズ1（メタゲート・3 lane 並列）: step 1-16 の安い契約検査。
+#   lane 内で並列に回すが、ここで落ちたら重いフェーズ2は起動しない（fail-fast）。
+# フェーズ2（重い step・5 lane 並列）: step 17-30。相互に状態依存しないため
+#   lane 別にバックグラウンド実行する。frontend は「lint/typecheck/knip/audit」
+#   と「build+test+ratchet」で互いの成果物に依存しないため2 lane に分割。
+#
+# 出力は "[lane] " プレフィックス付きでライブ表示。各 step 完了時に
+# "── done in Ns ──" を出す（所要時間の可視化）。失敗 lane があっても
+# 他 lane は完走させてから集約して失敗する（デバッグしやすさ優先）。
+META_LANES=(
+  "meta-a:1 2 3 4 5 6 7 8"
+  "meta-b:9 10 11 12 13 14 15"
+  "meta-c:16"
+)
 LANES=(
   "backend:17 18 19 20 21 22 23"
   "migration:24"
-  "frontend:25 26 27 28 29"
+  "frontend-a:25 26 27 28"
+  "frontend-b:29"
   "worker:30"
 )
-
-run_steps() {
-  local i
-  for i in "$@"; do
-    step=$i
-    "s$(printf '%02d' "$i")"
-  done
-}
 
 pending_steps() {
   local i
@@ -388,60 +388,79 @@ pending_steps() {
   done
 }
 
-# フェーズ1: メタゲートを直列実行
-meta_pending=()
-while IFS= read -r i; do meta_pending+=("$i"); done < <(pending_steps "$META_STEPS")
-if ((${#meta_pending[@]})); then
-  run_steps "${meta_pending[@]}"
-fi
-
-# フェーズ2: lane 並列実行
 LANE_DIR="$(mktemp -d)"
 trap 'rm -rf "$LANE_DIR"' EXIT
 
+# lane 本隊。step は通常コンテキストで裸実行する — `if !` 等の条件
+# コンテキストで呼ぶと -e が step 関数内部まで無効化され、途中コマンドの
+# 失敗が握り潰される（失敗捕捉は lane subshell 側の ERR trap が担う）。
 run_lane() {
   local tag=$1
   shift
   case "$tag" in
-    backend)  CURRENT_STEP="backend container check";  require_compose_service backend ;;
-    frontend) CURRENT_STEP="frontend container check"; require_compose_service frontend ;;
+    backend)   CURRENT_STEP="backend container check";  require_compose_service backend ;;
+    frontend*) CURRENT_STEP="frontend container check"; require_compose_service frontend ;;
   esac
-  local i
+  local i t0
   for i in "$@"; do
     step=$i
-    if ! "s$(printf '%02d' "$i")"; then
-      printf '%s: step %s failed: %s\n' "$tag" "$i" "${CURRENT_STEP:-?}" >>"$LANE_DIR/failures"
-      return 1
-    fi
+    t0=$SECONDS
+    "s$(printf '%02d' "$i")"
+    printf '── step %s/%s done in %ss ──\n' "$i" "$total" "$((SECONDS - t0))"
   done
 }
 
-lane_pids=()
-for spec in "${LANES[@]}"; do
-  tag="${spec%%:*}"
-  lane_steps=()
-  while IFS= read -r i; do lane_steps+=("$i"); done < <(pending_steps "${spec#*:}")
-  ((${#lane_steps[@]})) || continue
-  (
-    run_lane "$tag" "${lane_steps[@]}"
-  ) > >(while IFS= read -r l || [[ -n $l ]]; do
-        if [[ -n $l ]]; then printf '[%s] %s\n' "$tag" "$l"; else printf '\n'; fi
-      done) 2>&1 &
-  lane_pids+=($!)
-done
-
-lane_failed=0
-for pid in "${lane_pids[@]}"; do
-  wait "$pid" || lane_failed=1
-done
-if (( lane_failed )); then
-  if [[ -s "$LANE_DIR/failures" ]]; then
-    CURRENT_STEP="$(head -1 "$LANE_DIR/failures")"
-  else
-    CURRENT_STEP="parallel lane failure"
+# lane spec（"tag:step step ..."）を受け取り並列実行する。
+# 各 lane は subshell 内で ERR trap + errtrace を持ち、step 失敗時に
+# lane/step 名を failures へ記録して非0終了する。失敗 lane があっても
+# 他 lane は完走させてから集約し、ここでスクリプトを異常終了させる
+# （呼出し側は通常コンテキスト — `if !` で囲まないこと）。
+run_lanes() {
+  local phase_label=$1
+  shift
+  local spec tag i pid failed=0
+  local pids=()
+  for spec in "$@"; do
+    tag="${spec%%:*}"
+    local lane_steps=()
+    while IFS= read -r i; do lane_steps+=("$i"); done < <(pending_steps "${spec#*:}")
+    ((${#lane_steps[@]})) || continue
+    (
+      set -E
+      trap 'printf "%s: step %s failed: %s\n" "'"$tag"'" "${step:-?}" "${CURRENT_STEP:-?}" >>"'"$LANE_DIR"'/failures"' ERR
+      run_lane "$tag" "${lane_steps[@]}"
+    ) > >(while IFS= read -r l || [[ -n $l ]]; do
+          if [[ -n $l ]]; then printf '[%s] %s\n' "$tag" "$l"; else printf '\n'; fi
+        done) 2>&1 &
+    pids+=($!)
+  done
+  # bash 3.2 では空配列の "${pids[@]}" 展開が set -u で unbound になるためガード
+  if ((${#pids[@]})); then
+    for pid in "${pids[@]}"; do
+      wait "$pid" || failed=1
+    done
   fi
-  false  # errexit → ERR trap が failure status を投稿して終了
-fi
+  if (( failed )); then
+    if [[ -s "$LANE_DIR/failures" ]]; then
+      CURRENT_STEP="$(head -1 "$LANE_DIR/failures")"
+    else
+      CURRENT_STEP="$phase_label"
+    fi
+    false  # errexit → 親の ERR trap が failure status を投稿して終了
+  fi
+}
+
+CI_T0=$SECONDS
+
+# フェーズ1: メタゲート並列（失敗時はフェーズ2を起動しない）
+echo "── phase 1: meta gates (${#META_LANES[@]} lanes) ──"
+run_lanes "meta gate failure" "${META_LANES[@]}"
+
+# フェーズ2: 重い step の並列 lanes
+echo "── phase 2: heavy lanes (${#LANES[@]} lanes) ──"
+run_lanes "parallel lane failure" "${LANES[@]}"
+
+echo "── total elapsed: $((SECONDS - CI_T0))s ──"
 
 # required check（context `make ci`）の success はフル実行のみ投稿する。
 # 部分実行で success を出すと required check を回避できるため、FROM>1 では
