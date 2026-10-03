@@ -131,7 +131,10 @@ func cutoverRequiredForeignKeys() []cutoverForeignKeySpec {
 		{"medical_records", "clinic_id", "clinics", "id"},
 		{"medical_records", "owner_id", "owners", "id"},
 		{"medical_records", "pet_id", "pets", "id"},
-		// doctor_id remains clinic-scoped composite (see cutoverRequiredCompositeForeignKeys).
+		// doctor_id は migration 017 で単一カラム化。旧複合 (doctor_id, clinic_id)→staffs(id, clinic_id)
+		// は兼務スタッフの主所属一致を誤要求するため削除された（EMR-114）。医院所属の整合は
+		// アプリ層の assignment 検証が担う（002 の entered_by / 003 の created_by と同じ先例）。
+		{"medical_records", "doctor_id", "staffs", "id"},
 		// entered_by is a historical recorder: single-column FK to staffs(id) after migration 002
 		// (home clinic may differ from medical_records.clinic_id). Cutover COPY does not call
 		// AssertEnteredByActor; existence is enforced by this FK only (no active/assignment check).
@@ -144,7 +147,9 @@ func cutoverRequiredForeignKeys() []cutoverForeignKeySpec {
 		{"vital_records", "pet_id", "pets", "id"},
 		{"vital_records", "staff_id", "staffs", "id"},
 		{"appointments", "clinic_id", "clinics", "id"},
-		// owner_id / pet_id / doctor_id are clinic-scoped composites.
+		// owner_id / pet_id are clinic-scoped composites (see cutoverRequiredCompositeForeignKeys).
+		// doctor_id は migration 017 で単一カラム化（medical_records.doctor_id と同じ理由）。
+		{"appointments", "doctor_id", "staffs", "id"},
 		// created_by is historical attribution after migration 003: single-column FK to staffs(id).
 		// Cutover does not call assertReservationCreatedBy (no active/assignment re-check on import).
 		{"appointments", "created_by", "staffs", "id"},
@@ -201,13 +206,8 @@ func cutoverRequiredCompositeForeignKeys() []cutoverCompositeForeignKeySpec {
 			parentTable:   "pets",
 			parentColumns: []string{"clinic_id", "id"},
 		},
-		{
-			childTable:    "medical_records",
-			childColumns:  []string{"doctor_id", "clinic_id"},
-			parentTable:   "staffs",
-			parentColumns: []string{"id", "clinic_id"},
-		},
-		// entered_by is NOT a composite after migration 002; see cutoverRequiredForeignKeys.
+		// entered_by / doctor_id は migration 002 / 017 で単一カラム化済み。
+		// staffs への複合 FK は残っていない。cutoverRequiredForeignKeys 参照。
 		{
 			childTable:    "appointments",
 			childColumns:  []string{"clinic_id", "owner_id"},
@@ -219,12 +219,6 @@ func cutoverRequiredCompositeForeignKeys() []cutoverCompositeForeignKeySpec {
 			childColumns:  []string{"clinic_id", "pet_id"},
 			parentTable:   "pets",
 			parentColumns: []string{"clinic_id", "id"},
-		},
-		{
-			childTable:    "appointments",
-			childColumns:  []string{"doctor_id", "clinic_id"},
-			parentTable:   "staffs",
-			parentColumns: []string{"id", "clinic_id"},
 		},
 		{
 			childTable:    "payments",
