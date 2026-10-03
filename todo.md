@@ -58,6 +58,10 @@ Current unfinished implementation, verification, data, performance, delivery, an
 | SEC-N2 | Medium | support / LLM outbound | 認証済み staff が未分類 clinic データを LLM へ送信可能 | 対応済み(WIP) | `screenChatOutbound` で機微パターン拒否 + history をサーバー保存済み履歴のみに限定 |
 | SEC-N3 | Medium | support / Plane export | bug-report 作成時に未分類コンテンツが自動で Plane へ export | 対応済み(WIP) | Create 時の自動起票を廃止 — 明示操作(reviewable export)のみ |
 | SEC-N4 | Low | lstep / signed URL TTL | 共有ファイル bearer URL が 24h 有効 | 対応済み(WIP) | TTL 用途別分割(対話 15min / LINE 配送 1h) |
+| SEC-N5 | High | seedlogin / STG demo password | 共有パスワードが全 catalog identity(執行含む)を認証 | 受容済み | SECURITY.md に受容済みリスクとして記録(synthetic demo・全医院視点の執行アカウントが権限管理デモに必要) |
+| SEC-N6 | Medium | support / LLM outbound prose | 未分類 prose を外部 LLM へ送信 | 裁定済み | P1/P4 owner 裁定でカバー — PII 許可 + `screenChatOutbound` 付き既存経路のみ |
+| SEC-N7 | Medium | support / Plane export | 手動 export が未分類内容を送信 | 裁定済み | 明示 reviewable 操作のみ(N3)+ 内容含有は owner 裁定済み |
+| SEC-N8 | Low | config / scheduler token | release が推測可能な全医院 scheduler token を受け入れる | 対応済み(WIP) | `SCHEDULER_INTERNAL_TOKEN` release 必須 + 32B 未満 fail-loud、テスト2件追加 |
 
 <a id="human-lane"></a>
 

@@ -2,11 +2,14 @@
 
 ## 概要
 
-codex-security ワークベンチ (`~/.codex/state/plugins/codex-security/workbench.sqlite3`) の累積 60 findings(occurrence ベース、CLI 表示 54 件・dedupe 後)を、現行コードに対して照合した。
+codex-security ワークベンチ (`~/.codex/state/plugins/codex-security/workbench.sqlite3`) の累積 64 findings(occurrence ベース、CLI 表示 55 件・dedupe 後)を、現行コードに対して照合した。
 
 - 検証方法: 各 finding の codeEvidence / 指摘ファイルを現行コードで再確認。静的照合 + scoped test(Docker)・workflow YAML 検証。
-- 結果: **60 occurrence 全件に対応方針が確定** — 対応済み 48 / 修正実施 10(O1-O4,O6,O7 + N1-N4) / owner 承認済み受容 4(P1-P4) / 部分対応 2(R1,R2)
+- 結果: **64 occurrence 全件に対応方針が確定** — 対応済み 48 / 修正実施 11(O1-O4,O6,O7 + N1-N4,N8) / owner 承認済み受容 5(P1-P4,N5) / owner 裁定カバー 2(N6,N7) / 部分対応 2(R1,R2)※重複計上あり
 - **再スキャン(1YUno8)**: frontend 再精査 20ファイルで新規報告なし。workbench に backend scan 由来の新規 4 findings(N1-N4)が追加済み — 全て未コミット WIP で対応済み・scoped test pass
+- **再スキャン(xj4SPC)**: frontend 再精査 113ファイルで **0 confirmed findings**(report "No findings")。workbench に backend 由来の新規 4 findings(N5-N8)が追加 — N5 owner 受容記録・N6/N7 既存裁定カバー・N8 config WIP で修正済み
+- **再スキャン(WzIAHx)**: frontend 再精査 69ファイルで **Reportable findings: 0** — 2回連続 clean。revision `e783de5a7` + スキャン開始時 snapshot を対象。findings 総数は 55→55 で新規追加なし
+- 注意: スキャン実行中に checkout が変化("Scan target changed"警告) — foreign WIP が継続中のため。frontend スコープの結果は報告対象0件で確定
 - **P判断は `SECURITY.md` で owner 確定**: support 共有 board の受容、OBJECT-1(private+signed URL)標準、**support コンテンツへの患者・飼主情報含有許可 + LLM/Plane への既存経路送信承認(2026-10-03 裁定 — 画面特定に必要)**。未決残件は共有コンテンツの保持期間のみ(EMR-263)
 
 ## 本日実施した修正(未対応 → 修正済み・未コミット)
@@ -28,6 +31,17 @@ codex-security ワークベンチ (`~/.codex/state/plugins/codex-security/workbe
 | N2 | medium | Staff can send unclassified clinic data to configured LLM | `support/chat.go`: `screenChatOutbound` で email/電話/長数字列/認証情報/Bearer を外部送信前に拒否(汎用 invalid_input、パターン非開示)。`history` をクライアント入力から除去しサーバー保存済み(送信時スクリーニング済み)履歴のみ使用。frontend も history 送信を廃止 | support tests pass・frontend 22 tests pass |
 | N3 | medium | Bug-report creation auto-exports unclassified content to Plane | `support/service.go`: Create 時の自動 `syncPlaneTicket` を廃止。外部 export は reviewable な明示操作(`POST /:id/plane-ticket`)のみ | support tests pass |
 | N4 | low | Shared clinical-file bearer URLs valid 24h | `shared_file_service.go`: TTL を用途別分割 — 対話 `GetSignedURL` 15min / LINE 配送 `GetSignedURLForDelivery` 1h(固定24h→大幅縮小) | lstep tests pass・isolation test guard 拡張 |
+
+## 追加 findings(2026-10-03 workbench 08:48 追加、frontend scan `xj4SPC` 報告時点)
+
+frontend 再スキャン(`xj4SPC`)は **0 confirmed**(113ファイル精査、レポート "No findings")。同時刻に workbench へ backend scan 由来の新規 4 件が追加 — 並行セッションの WIP で全件対応済み:
+
+| # | severity | finding | 対応 | 検証 |
+|---|----------|---------|------|------|
+| N5 | high | STG demo 共有パスワードが全 catalog identity(全医院執行含む)を認証 | **owner 受容として記録済み**(SECURITY.md WIP): STG は synthetic 専用・権限管理デモに全医院視点が必要のため意図的仕様。制御条件(ShouldApply fail-closed・未設定時 lockedDemoPassword・wrangler secret 管理)と再評価トリガー(実データ混入・シークレット流用)を明記 | `seedlogin/env.go:70-81` `auth_service.go:108-118` 制御実測済み |
+| N6 | medium | Support chat が未分類 prose を外部 LLM へ送信 | **既存 owner 裁定でカバー**(P1/P4 確定): PII 含有許可 + LLM 送信は `screenChatOutbound` スクリーニング付き既存経路に限定(N2 で実装済み) | support tests pass |
+| N7 | medium | 手動 Plane export が未分類 bug-report 内容・clinic metadata を送信 | **既存 owner 裁定でカバー**: Plane 送信は明示 reviewable 操作のみ(N3 で実装済み)、内容含有は裁定済み。`e783de5a7` で Plane state sync が scheduled job として追加(往復同期は owner 承認済み運用の一部) | support tests pass |
+| N8 | low | Release が推測可能な全医院 scheduler token を受け入れる | **修正済み**(config WIP): `config.go` release mode で `SCHEDULER_INTERNAL_TOKEN` 必須 + `minimumSchedulerInternalTokenBytes=32` 未満を fail-loud。DEC-36/CMD-02 の設計メモ付き | `config_validate_test.go` に empty/short 拒否テスト2件追加、package tests pass |
 
 ### 検証メモ(2026-10-03 夕)
 - backend build + scoped tests(lstep/support/medicalrecord/middleware)pass

@@ -62,7 +62,7 @@ AnimalEkarte は日本国内の動物病院向け電子カルテです。スタ�
 5. **OBJECT-1 — object storage:** 診療画像と support screenshot を保存する bucket は private-by-default とし、application が scope check 後に短命の signed URL を発行する設計を標準とします（実装と一致するため採用 — 2026-10-03）。公開 bucket/domain は、公開可能な data class を owner が明示した場合だけ許可します。R2 bucket の実効 public/private 設定は検証要。`backend/internal/infra/s3_uploader.go:24-88` `backend/internal/medicalrecord/medical_record_image_handler.go:277-316` `backend/internal/medicalrecord/medical_record_image_response.go:14-18`
 6. **PROVIDER-1 — 外部送信:** **[2026-10-03 確定]** LLM、ticket、LINE/LSTEP、SMTP、alert endpoint は、承認済みの宛先、data class、retention、削除条件に限ってデータを受け取れます。Support の質問・履歴・manual 抜粋・screenshot および bug report metadata への患者・飼い主情報・clinic-confidential data の含有は **owner 承認済み**（報告対象画面の特定に必要との裁定）。外部送信は既存経路に限定: LLM へは `screenChatOutbound` による best-effort スクリーニング付き（完全な検出は保証しない）、Plane へは reviewable な明示操作のみ。`backend/internal/support/chat.go:122-197` `backend/internal/support/llm.go:77-164` `backend/internal/support/plane.go:80-106` `backend/internal/support/plane.go:130-211`
 7. **AUDIT-1 — path-dependent audit:** 必須と定めた credential、clinical、accounting 等の audit は業務 write と同一 transaction で fail closed にします。一方、すべての CUD が一律に `audit_logs` へ入るとは仮定せず、LSTEP tag sync のような明示的 fail-open・非 audit 経路と区別します。`docs/architecture/data-flow.md:67-101` `docs/architecture/data-flow.md:121-127`
-8. **CONFIG-1 — release fail closed:** release mode は development defaults、loopback DB、非検証 DB TLS、weak/missing secrets、local storage、LIFF mock を拒否しなければなりません。secret、credential、個人情報、不要な内部 error を response、log、report、repository に出してはなりません。`backend/internal/config/config.go:216-338` `backend/internal/config/config.go:341-449`
+8. **CONFIG-1 — release fail closed:** release mode は development defaults、loopback DB、非検証 DB TLS、weak/missing secrets、local storage、LIFF mock を拒否しなければなりません。secret、credential、個人情報、不要な内部 error を response、log、report、repository に出してはなりません。`backend/internal/config/config.go:226-358` `backend/internal/config/config.go:360-469`
 9. **LIMIT-1 — 実 topology を守る上限:** body、response、upload、queue、connection、rate、cost の上限は実際の multi-instance topology を保護しなければなりません。process-local rate limit を shared/global quota と表現してはなりません。`backend/internal/middleware/rate_limit.go:17-42` `backend/internal/middleware/rate_limit.go:82-140`
 
 ## 確立済みコントロール
@@ -114,10 +114,11 @@ Security invariant の破壊により、攻撃者が開始時に持たない ide
 - Dormant RLS だけでは app-layer clinic scope が正しい場合の tenant escape を証明しません。ただし RLS を実効 control と誤記することや、app-layer failure と組み合わさることは評価対象です。
 - 攻撃者がすでに持つ正規権限内の通常動作は、新しい security impact ではありません。
 - Support の閲覧・作成の clinic 横断共有は owner 承認済みの製品決定であり脆弱性ではありません（変更操作は報告元 clinic スコープ）。コンテンツへの患者・飼い主情報の含有も承認済み（2026-10-03）。保持期間は未定であり、期限超過・不許可削除経路は引き続き評価対象です。
+- STG デモカタログの共有パスワードが全カタログ ID（全医院割当の執行アカウント含む）を認証することは、synthetic demo 用途の owner 承認済み設計であり脆弱性ではありません（2026-10-03、受容済みリスク節を参照）。STG 以外の環境への波及、STG への実データ混入、シークレットの他用途流用は引き続き評価対象です。
 
 ## Scope 外、除外、受容済みリスク
 
-- このレビューで owner が確認した新規の除外または受容済みリスクはありません。
+- **[2026-10-03 確定]** STG デモカタログの共有パスワードは全カタログ ID を認証する（受容済みリスク）。`AcceptSharedPassword` のショートカットと、カタログ全行に同一 bcrypt ハッシュをシードする通常照合の両方が同一シークレットを受け入れ、全医院割当の執行アカウント（林 文明）にもなれる。owner 裁定: STG は synthetic データ専用であり、権限管理画面のデモには全医院視点の執行アカウントが必要なため意図的仕様とする。制御条件: production・空・不明な `APP_ENV` は `ShouldApply` が fail-closed（catalog seed 自体を行わない）、STG で `SEEDLOGIN_DEMO_PASSWORD` 未設定なら `lockedDemoPassword` の推測不能ハッシュで全カタログがロック、シークレットは `wrangler secret put` 管理で repo に置かない。STG に実データが混入した場合、または同シークレットが他環境・他用途で使われた場合は再評価対象。`backend/internal/seedlogin/env.go:41-82` `backend/internal/seedlogin/apply.go:25-39` `backend/internal/seedlogin/catalog.go:95-103`
 - 人医療記録は製品の意図した用途外ですが、誤って保存された人医療・個人データの漏えいを報告対象外にはしません。
 - Local uploads と UAT routes は条件付き development surface であり、Internet-facing と推測しません。ただし environment/Host guard の bypass は評価対象です。
 - Lab Mac の同一 OS user は文書化された trust assumption ですが、今回 owner-confirmed exclusion にはしていません。Host、Origin、token、clinic、lease 境界の bypass は引き続き評価対象です。
@@ -135,7 +136,7 @@ Security invariant の破壊により、攻撃者が開始時に持たない ide
 
 ## 未決の owner 判断
 
-2026-10-03 時点で確定済み: STG の live reachability（Deployment 前提に実測記載）、production は未 live でサポート対象外、Support の閲覧・作成共有/変更スコープの設計、OBJECT-1 の private+signed URL 標準、RLS dormant の実測、重大度基準、**Support の情報区分・外部送信（患者・飼い主情報の含有許可 — 画面特定に必要との裁定。LLM は best-effort スクリーニング付き送信、Plane は明示操作のみ）**。
+2026-10-03 時点で確定済み: STG の live reachability（Deployment 前提に実測記載）、production は未 live でサポート対象外、Support の閲覧・作成共有/変更スコープの設計、OBJECT-1 の private+signed URL 標準、RLS dormant の実測、重大度基準、**Support の情報区分・外部送信（患者・飼い主情報の含有許可 — 画面特定に必要との裁定。LLM は best-effort スクリーニング付き送信、Plane は明示操作のみ）**、**STG デモカタログ共有パスワードによる全カタログ ID（執行含む）認証の意図的仕様化（受容済みリスクとして記録 — synthetic demo 用途・権限管理デモに全医院視点が必要との裁定）**。
 
 残る決定事項:
 
