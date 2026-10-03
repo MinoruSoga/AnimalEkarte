@@ -27,6 +27,7 @@ func baseReleaseConfigForValidateTest() *Config {
 		IntegrationEncryptionKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 		TrustedProxyCIDR:         "10.0.0.0/8",
 		CORSAllowedOrigin:        "https://example.com",
+		SchedulerInternalToken:   "0123456789abcdef0123456789abcdef",
 		StorageType:              "s3",
 		S3Bucket:                 "upload-bucket",
 		S3Region:                 "ap-northeast-1",
@@ -216,6 +217,24 @@ func TestConfigValidate_ReleaseRequiresJWTSecret(t *testing.T) {
 	err := cfg.Validate()
 	if err == nil || !strings.Contains(err.Error(), "JWT_SECRET must be explicitly set") {
 		t.Fatalf("expected error for empty JWT_SECRET in release mode, got %v", err)
+	}
+}
+
+func TestConfigValidate_ReleaseRequiresSchedulerInternalToken(t *testing.T) {
+	cfg := baseReleaseConfigForValidateTest()
+	cfg.SchedulerInternalToken = ""
+	err := cfg.Validate()
+	if err == nil || !strings.Contains(err.Error(), "SCHEDULER_INTERNAL_TOKEN") {
+		t.Fatalf("expected error for empty SCHEDULER_INTERNAL_TOKEN in release mode, got %v", err)
+	}
+}
+
+func TestConfigValidate_ReleaseRejectsShortSchedulerInternalToken(t *testing.T) {
+	cfg := baseReleaseConfigForValidateTest()
+	cfg.SchedulerInternalToken = "x"
+	err := cfg.Validate()
+	if err == nil || !strings.Contains(err.Error(), "SCHEDULER_INTERNAL_TOKEN") {
+		t.Fatalf("expected error for weak SCHEDULER_INTERNAL_TOKEN in release mode, got %v", err)
 	}
 }
 
