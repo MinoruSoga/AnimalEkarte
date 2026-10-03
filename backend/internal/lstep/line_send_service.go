@@ -92,7 +92,7 @@ func (s *lineSendService) dispatchLineMessage(ctx context.Context, lineClient li
 			validationErr = apperrors.WrapInvalidInput("file_id は必須です")
 			return
 		}
-		fileURL, fErr := s.sharedFile.GetSignedURL(ctx, clinicID, *input.FileID)
+		fileURL, fErr := s.sharedFile.GetSignedURLForDelivery(ctx, clinicID, *input.FileID)
 		if fErr != nil {
 			validationErr = apperrors.Wrap(fErr, "failed to get file URL")
 			return
