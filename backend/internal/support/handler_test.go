@@ -24,9 +24,9 @@ import (
 type mockService struct {
 	createFn        func(ctx context.Context, clinicID, reporterStaffID uint64, input CreateBugReportInput) (*model.SupportBugReport, error)
 	listFn          func(ctx context.Context) ([]BugReportWithReporter, error)
-	updateStatusFn  func(ctx context.Context, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error)
-	ensureTicketFn  func(ctx context.Context, id uint64) (*model.SupportBugReport, error)
-	deleteFn        func(ctx context.Context, id uint64) (*model.SupportBugReport, error)
+	updateStatusFn  func(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error)
+	ensureTicketFn  func(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
+	deleteFn        func(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
 	listChatFn      func(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
 	listExchangesFn func(ctx context.Context) ([]ChatExchange, error)
 	recordChatFn    func(ctx context.Context, clinicID, staffID uint64, userMessage, assistantReply string, sources []ChatSource) error
@@ -39,14 +39,14 @@ func (m *mockService) Create(ctx context.Context, clinicID, reporterStaffID uint
 func (m *mockService) ListAll(ctx context.Context) ([]BugReportWithReporter, error) {
 	return m.listFn(ctx)
 }
-func (m *mockService) UpdateStatus(ctx context.Context, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error) {
-	return m.updateStatusFn(ctx, id, status)
+func (m *mockService) UpdateStatus(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error) {
+	return m.updateStatusFn(ctx, clinicID, id, status)
 }
-func (m *mockService) EnsurePlaneTicket(ctx context.Context, id uint64) (*model.SupportBugReport, error) {
-	return m.ensureTicketFn(ctx, id)
+func (m *mockService) EnsurePlaneTicket(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error) {
+	return m.ensureTicketFn(ctx, clinicID, id)
 }
-func (m *mockService) Delete(ctx context.Context, id uint64) (*model.SupportBugReport, error) {
-	return m.deleteFn(ctx, id)
+func (m *mockService) Delete(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error) {
+	return m.deleteFn(ctx, clinicID, id)
 }
 func (m *mockService) ListChatHistory(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error) {
 	if m.listChatFn == nil {
@@ -294,10 +294,11 @@ func TestUpdateBugReportStatus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := &mockService{
-				updateStatusFn: func(_ context.Context, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error) {
+				updateStatusFn: func(_ context.Context, clinicID, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error) {
 					if tt.svcErr != nil {
 						return nil, tt.svcErr
 					}
+					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(10), id)
 					return &model.SupportBugReport{ID: id, Status: status}, nil
 				},
@@ -357,7 +358,8 @@ func TestCreatePlaneTicket(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := &mockService{
-				ensureTicketFn: func(_ context.Context, id uint64) (*model.SupportBugReport, error) {
+				ensureTicketFn: func(_ context.Context, clinicID, id uint64) (*model.SupportBugReport, error) {
+					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(10), id)
 					return tt.svcResult, tt.svcErr
 				},
@@ -422,7 +424,8 @@ func TestDeleteBugReport(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := &mockService{
-				deleteFn: func(_ context.Context, id uint64) (*model.SupportBugReport, error) {
+				deleteFn: func(_ context.Context, clinicID, id uint64) (*model.SupportBugReport, error) {
+					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(10), id)
 					return tt.svcResult, tt.svcErr
 				},

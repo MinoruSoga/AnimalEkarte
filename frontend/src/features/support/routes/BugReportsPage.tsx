@@ -5,6 +5,8 @@
  * 基盤として意図的に開放。backend も同じ方針）。一覧は全医院の報告を新しい順で返し、
  * 医院列で provenance を識別できる。
  * 件名セルの詳細ボタンで詳細ダイアログ（スクリーンショット・画面文脈・ステータス切替）。
+ * status 切替・Plane 再送・削除は自医院の報告のみ — 他医院の報告は閲覧専用
+ * （backend も報告元 clinic_id スコープで 404 を返す。2026-10 セキュリティレビュー変更）。
  */
 import { useState } from "react";
 import { Bug, ExternalLink, Trash2 } from "lucide-react";
@@ -32,6 +34,7 @@ import {
 } from "@/components/ui/table";
 import { BADGE, C, ICON, STYLE } from "@/lib/design-tokens";
 import { formatJSTDate, formatJSTTime } from "@/lib/jst-date";
+import { useAuth } from "@/hooks/use-auth";
 
 import { useGetBugReports } from "../api/get-bug-reports";
 import { useCreatePlaneTicket } from "../api/create-plane-ticket";
@@ -64,13 +67,15 @@ type PlaneTicketMutation = UseMutationResult<BugReport, unknown, number, unknown
 interface PlaneTicketCellProps {
   report: BugReport;
   mutation: PlaneTicketMutation;
+  /** 自医院の報告のみ再送可能（他医院の報告は閲覧のみ — backend は 404） */
+  canMutate: boolean;
 }
 
 /**
  * Plane 連携状態。
  * 起票済み → チケットへの外部リンク / 直近失敗 → 失敗表示 + 再送ボタン / 未連携 → ―
  */
-function PlaneTicketCell({ report, mutation }: PlaneTicketCellProps) {
+function PlaneTicketCell({ report, mutation, canMutate }: PlaneTicketCellProps) {
   if (report.plane_issue_url) {
     return (
       <a
@@ -90,16 +95,18 @@ function PlaneTicketCell({ report, mutation }: PlaneTicketCellProps) {
         <span className={`text-2xs ${C.danger}`} title={report.plane_sync_error}>
           起票失敗
         </span>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-6 px-2 text-2xs"
-          onClick={() => mutation.mutate(report.id)}
-          disabled={mutation.isPending}
-        >
-          再送
-        </Button>
+        {canMutate ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-6 px-2 text-2xs"
+            onClick={() => mutation.mutate(report.id)}
+            disabled={mutation.isPending}
+          >
+            再送
+          </Button>
+        ) : null}
       </span>
     );
   }
@@ -109,9 +116,11 @@ function PlaneTicketCell({ report, mutation }: PlaneTicketCellProps) {
 interface BugReportDetailDialogProps {
   report: BugReport | null;
   onClose: () => void;
+  /** 自医院の報告のみ status 切替・再送を表示（他医院の報告は閲覧専用） */
+  canMutate: boolean;
 }
 
-function BugReportDetailDialog({ report, onClose }: BugReportDetailDialogProps) {
+function BugReportDetailDialog({ report, onClose, canMutate }: BugReportDetailDialogProps) {
   const updateStatus = useUpdateBugReportStatus();
   const createTicket = useCreatePlaneTicket();
   const nextStatus: BugReportStatus | null =
@@ -156,7 +165,7 @@ function BugReportDetailDialog({ report, onClose }: BugReportDetailDialogProps) 
             <dd className={`break-all text-2xs ${C.text60}`}>{report.user_agent || "―"}</dd>
             <dt className={C.text50}>Plane</dt>
             <dd className={C.text70}>
-              <PlaneTicketCell report={report} mutation={createTicket} />
+              <PlaneTicketCell report={report} mutation={createTicket} canMutate={canMutate} />
             </dd>
           </dl>
 
@@ -176,14 +185,16 @@ function BugReportDetailDialog({ report, onClose }: BugReportDetailDialogProps) 
             <Button variant="outline" size="sm" onClick={onClose}>
               閉じる
             </Button>
-            <Button
-              size="sm"
-              variant={nextStatus === "open" ? "outline" : "default"}
-              onClick={handleToggle}
-              disabled={updateStatus.isPending}
-            >
-              {nextStatus === "resolved" ? "対応済みにする" : "未対応に戻す"}
-            </Button>
+            {canMutate ? (
+              <Button
+                size="sm"
+                variant={nextStatus === "open" ? "outline" : "default"}
+                onClick={handleToggle}
+                disabled={updateStatus.isPending}
+              >
+                {nextStatus === "resolved" ? "対応済みにする" : "未対応に戻す"}
+              </Button>
+            ) : null}
           </div>
         </DialogContent>
       ) : (
@@ -194,16 +205,20 @@ function BugReportDetailDialog({ report, onClose }: BugReportDetailDialogProps) 
 }
 
 export function BugReportsPage() {
+  const { currentClinicId } = useAuth();
   const { data: reports, isLoading, isError } = useGetBugReports();
   const createTicket = useCreatePlaneTicket();
   const deleteReport = useDeleteBugReport();
   const [selected, setSelected] = useState<BugReport | null>(null);
   const [pendingDelete, setPendingDelete] = useState<BugReport | null>(null);
 
+  // 一覧は全医院公開だが、操作は報告元医院スコープ（backend は他医院指定を 404 で拒否）。
+  const isOwnClinic = (report: BugReport): boolean => String(report.clinic_id) === currentClinicId;
+
   return (
     <PageLayout
       title="バグ報告"
-      description="サポートウィジェットから送信されたバグ報告の一覧です（全医院・全スタッフに公開）"
+      description="サポートウィジェットから送信されたバグ報告の一覧です（全医院の報告を閲覧可。操作は自医院の報告のみ）"
       icon={<Bug className={`${ICON.page} ${C.text}`} />}
       maxWidth="max-w-5xl"
     >
@@ -255,19 +270,25 @@ export function BugReportsPage() {
                     <StatusBadge status={report.status} />
                   </TableCell>
                   <TableCell>
-                    <PlaneTicketCell report={report} mutation={createTicket} />
+                    <PlaneTicketCell
+                      report={report}
+                      mutation={createTicket}
+                      canMutate={isOwnClinic(report)}
+                    />
                   </TableCell>
                   <TableCell>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className={`h-7 px-2 ${C.danger}`}
-                      aria-label={`削除: ${report.title}`}
-                      onClick={() => setPendingDelete(report)}
-                    >
-                      <Trash2 className={ICON.xs} />
-                    </Button>
+                    {isOwnClinic(report) ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className={`h-7 px-2 ${C.danger}`}
+                        aria-label={`削除: ${report.title}`}
+                        onClick={() => setPendingDelete(report)}
+                      >
+                        <Trash2 className={ICON.xs} />
+                      </Button>
+                    ) : null}
                   </TableCell>
                 </TableRow>
               ))}
@@ -276,7 +297,11 @@ export function BugReportsPage() {
         </div>
       )}
 
-      <BugReportDetailDialog report={selected} onClose={() => setSelected(null)} />
+      <BugReportDetailDialog
+        report={selected}
+        onClose={() => setSelected(null)}
+        canMutate={selected !== null ? isOwnClinic(selected) : false}
+      />
 
       <ConfirmDialog
         open={pendingDelete !== null}

@@ -16,17 +16,17 @@ import (
 // ---- mock Repository ----
 
 type mockRepository struct {
-	createFn       func(ctx context.Context, report *model.SupportBugReport) error
-	findAllFn      func(ctx context.Context) ([]BugReportWithReporter, error)
-	findByIDFn     func(ctx context.Context, id uint64) (*model.SupportBugReport, error)
-	updateStatusFn func(ctx context.Context, id uint64, status model.SupportBugReportStatus) error
-	setTicketFn    func(ctx context.Context, id uint64, issueID, issueURL string) (bool, error)
-	setSyncErrFn   func(ctx context.Context, id uint64, syncErr string) error
-	softDeleteFn   func(ctx context.Context, id uint64) error
-	createChatFn   func(ctx context.Context, messages []*model.SupportChatMessage) error
-	listChatFn     func(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
-	listAllChatFn  func(ctx context.Context) ([]ChatMessageWithMeta, error)
-	clearChatFn    func(ctx context.Context, clinicID, staffID uint64) error
+	createFn           func(ctx context.Context, report *model.SupportBugReport) error
+	findAllFn          func(ctx context.Context) ([]BugReportWithReporter, error)
+	findByIDForClinicF func(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
+	updateStatusFn     func(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) error
+	setTicketFn        func(ctx context.Context, clinicID, id uint64, issueID, issueURL string) (bool, error)
+	setSyncErrFn       func(ctx context.Context, clinicID, id uint64, syncErr string) error
+	softDeleteFn       func(ctx context.Context, clinicID, id uint64) error
+	createChatFn       func(ctx context.Context, messages []*model.SupportChatMessage) error
+	listChatFn         func(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
+	listAllChatFn      func(ctx context.Context) ([]ChatMessageWithMeta, error)
+	clearChatFn        func(ctx context.Context, clinicID, staffID uint64) error
 }
 
 func (m *mockRepository) Create(ctx context.Context, report *model.SupportBugReport) error {
@@ -35,20 +35,20 @@ func (m *mockRepository) Create(ctx context.Context, report *model.SupportBugRep
 func (m *mockRepository) FindAll(ctx context.Context) ([]BugReportWithReporter, error) {
 	return m.findAllFn(ctx)
 }
-func (m *mockRepository) FindByID(ctx context.Context, id uint64) (*model.SupportBugReport, error) {
-	return m.findByIDFn(ctx, id)
+func (m *mockRepository) FindByIDForClinic(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error) {
+	return m.findByIDForClinicF(ctx, clinicID, id)
 }
-func (m *mockRepository) UpdateStatus(ctx context.Context, id uint64, status model.SupportBugReportStatus) error {
-	return m.updateStatusFn(ctx, id, status)
+func (m *mockRepository) UpdateStatus(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) error {
+	return m.updateStatusFn(ctx, clinicID, id, status)
 }
-func (m *mockRepository) SetPlaneTicket(ctx context.Context, id uint64, issueID, issueURL string) (bool, error) {
-	return m.setTicketFn(ctx, id, issueID, issueURL)
+func (m *mockRepository) SetPlaneTicket(ctx context.Context, clinicID, id uint64, issueID, issueURL string) (bool, error) {
+	return m.setTicketFn(ctx, clinicID, id, issueID, issueURL)
 }
-func (m *mockRepository) SetPlaneSyncError(ctx context.Context, id uint64, syncErr string) error {
-	return m.setSyncErrFn(ctx, id, syncErr)
+func (m *mockRepository) SetPlaneSyncError(ctx context.Context, clinicID, id uint64, syncErr string) error {
+	return m.setSyncErrFn(ctx, clinicID, id, syncErr)
 }
-func (m *mockRepository) SoftDeleteBugReport(ctx context.Context, id uint64) error {
-	return m.softDeleteFn(ctx, id)
+func (m *mockRepository) SoftDeleteBugReport(ctx context.Context, clinicID, id uint64) error {
+	return m.softDeleteFn(ctx, clinicID, id)
 }
 func (m *mockRepository) CreateChatMessages(ctx context.Context, messages []*model.SupportChatMessage) error {
 	if m.createChatFn == nil {
@@ -141,11 +141,12 @@ func TestServiceCreate_PlaneSync(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockRepository{}
 			savedReportMock(repo)
-			repo.setTicketFn = func(_ context.Context, id uint64, issueID, issueURL string) (bool, error) {
+			repo.setTicketFn = func(_ context.Context, clinicID, id uint64, issueID, issueURL string) (bool, error) {
+				assert.Equal(t, uint64(1), clinicID)
 				assert.Equal(t, uint64(10), id)
 				return tt.setTicketResult, tt.setTicketErr
 			}
-			repo.setSyncErrFn = func(_ context.Context, _ uint64, syncErr string) error {
+			repo.setSyncErrFn = func(_ context.Context, _, _ uint64, syncErr string) error {
 				assert.NotEmpty(t, syncErr)
 				return nil
 			}
@@ -178,7 +179,7 @@ func TestServiceEnsurePlaneTicket(t *testing.T) {
 		report        *model.SupportBugReport
 		findErr       error
 		tickets       *mockTicketCreator
-		setTicketFn   func(ctx context.Context, id uint64, issueID, issueURL string) (bool, error)
+		setTicketFn   func(ctx context.Context, clinicID, id uint64, issueID, issueURL string) (bool, error)
 		wantCalls     int
 		wantErr       error
 		wantIssueID   bool
@@ -209,7 +210,7 @@ func TestServiceEnsurePlaneTicket(t *testing.T) {
 			name:    "claims ticket on success",
 			report:  &model.SupportBugReport{ID: 10, ClinicID: 1},
 			tickets: &mockTicketCreator{result: &PlaneIssue{ID: "new-uuid", URL: "https://app.plane.so/ws/browse/EMR-9/"}},
-			setTicketFn: func(_ context.Context, _ uint64, _, _ string) (bool, error) {
+			setTicketFn: func(_ context.Context, _, _ uint64, _, _ string) (bool, error) {
 				return true, nil
 			},
 			wantCalls:   1,
@@ -219,7 +220,7 @@ func TestServiceEnsurePlaneTicket(t *testing.T) {
 			name:    "returns latest state when claim is lost",
 			report:  &model.SupportBugReport{ID: 10, ClinicID: 1},
 			tickets: &mockTicketCreator{result: &PlaneIssue{ID: "new-uuid", URL: "u"}},
-			setTicketFn: func(_ context.Context, _ uint64, _, _ string) (bool, error) {
+			setTicketFn: func(_ context.Context, _, _ uint64, _, _ string) (bool, error) {
 				return false, nil
 			},
 			wantCalls: 1,
@@ -229,13 +230,15 @@ func TestServiceEnsurePlaneTicket(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockRepository{
-				findByIDFn: func(_ context.Context, id uint64) (*model.SupportBugReport, error) {
+				findByIDForClinicF: func(_ context.Context, clinicID, id uint64) (*model.SupportBugReport, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(10), id)
 					if tt.findErr != nil {
 						return nil, tt.findErr
 					}
 					return tt.report, nil
 				},
-				setSyncErrFn: func(_ context.Context, _ uint64, syncErr string) error {
+				setSyncErrFn: func(_ context.Context, _, _ uint64, syncErr string) error {
 					assert.NotEmpty(t, syncErr)
 					return nil
 				},
@@ -248,7 +251,7 @@ func TestServiceEnsurePlaneTicket(t *testing.T) {
 			}
 			svc := NewService(repo, tickets)
 
-			report, err := svc.EnsurePlaneTicket(context.Background(), 10)
+			report, err := svc.EnsurePlaneTicket(context.Background(), 1, 10)
 			if tt.wantErr != nil {
 				require.Error(t, err)
 				assert.True(t, errors.Is(err, tt.wantErr), "want %v, got %v", tt.wantErr, err)
@@ -274,10 +277,12 @@ func TestServiceDelete(t *testing.T) {
 	t.Run("returns pre-delete report after soft delete", func(t *testing.T) {
 		deleted := false
 		repo := &mockRepository{
-			findByIDFn: func(_ context.Context, _ uint64) (*model.SupportBugReport, error) {
+			findByIDForClinicF: func(_ context.Context, clinicID, _ uint64) (*model.SupportBugReport, error) {
+				assert.Equal(t, uint64(1), clinicID)
 				return &model.SupportBugReport{ID: 10, ClinicID: 1, Title: "対象"}, nil
 			},
-			softDeleteFn: func(_ context.Context, id uint64) error {
+			softDeleteFn: func(_ context.Context, clinicID, id uint64) error {
+				assert.Equal(t, uint64(1), clinicID)
 				assert.Equal(t, uint64(10), id)
 				deleted = true
 				return nil
@@ -285,7 +290,7 @@ func TestServiceDelete(t *testing.T) {
 		}
 		svc := NewService(repo, nil)
 
-		report, err := svc.Delete(context.Background(), 10)
+		report, err := svc.Delete(context.Background(), 1, 10)
 		require.NoError(t, err)
 		assert.True(t, deleted)
 		assert.Equal(t, uint64(10), report.ID)
@@ -294,17 +299,17 @@ func TestServiceDelete(t *testing.T) {
 	t.Run("does not delete when report is missing", func(t *testing.T) {
 		softDeleteCalled := false
 		repo := &mockRepository{
-			findByIDFn: func(_ context.Context, _ uint64) (*model.SupportBugReport, error) {
+			findByIDForClinicF: func(_ context.Context, _, _ uint64) (*model.SupportBugReport, error) {
 				return nil, apperrors.WrapNotFound("support_bug_report", "99")
 			},
-			softDeleteFn: func(_ context.Context, _ uint64) error {
+			softDeleteFn: func(_ context.Context, _, _ uint64) error {
 				softDeleteCalled = true
 				return nil
 			},
 		}
 		svc := NewService(repo, nil)
 
-		_, err := svc.Delete(context.Background(), 99)
+		_, err := svc.Delete(context.Background(), 2, 99)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 		assert.False(t, softDeleteCalled)

@@ -22,14 +22,16 @@ type CreateBugReportInput struct {
 }
 
 // Service はバグ報告とヘルプチャット履歴のユースケースインターフェース。
-// バグ報告操作は全医院横断（clinicID を取らない）。Create は provenance として
-// clinic_id/reporter_staff_id を記録する。チャット履歴のみ clinic×staff スコープ。
+// バグ報告の一覧・作成は全医院横断だが、status 更新・Plane 起票・削除は
+// 報告元 clinicID スコープ（共有ボードは閲覧のみ公開）。Create は provenance
+// として clinic_id/reporter_staff_id を記録する。チャット履歴のみ
+// clinic×staff スコープ。
 type Service interface {
 	Create(ctx context.Context, clinicID, reporterStaffID uint64, input CreateBugReportInput) (*model.SupportBugReport, error)
 	ListAll(ctx context.Context) ([]BugReportWithReporter, error)
-	UpdateStatus(ctx context.Context, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error)
-	EnsurePlaneTicket(ctx context.Context, id uint64) (*model.SupportBugReport, error)
-	Delete(ctx context.Context, id uint64) (*model.SupportBugReport, error)
+	UpdateStatus(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error)
+	EnsurePlaneTicket(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
+	Delete(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
 	ListChatHistory(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
 	// ListChatExchanges は全医院の質問+回答ペアを新しい順で返す（共有一覧ページ用）
 	ListChatExchanges(ctx context.Context) ([]ChatExchange, error)
@@ -76,20 +78,20 @@ func (s *service) ListAll(ctx context.Context) ([]BugReportWithReporter, error) 
 	return s.repo.FindAll(ctx)
 }
 
-func (s *service) UpdateStatus(ctx context.Context, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error) {
+func (s *service) UpdateStatus(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error) {
 	if !model.IsValidSupportBugReportStatus(string(status)) {
 		return nil, apperrors.WrapInvalidInput("invalid status")
 	}
-	if err := s.repo.UpdateStatus(ctx, id, status); err != nil {
+	if err := s.repo.UpdateStatus(ctx, clinicID, id, status); err != nil {
 		return nil, err
 	}
-	return s.repo.FindByID(ctx, id)
+	return s.repo.FindByIDForClinic(ctx, clinicID, id)
 }
 
 // EnsurePlaneTicket は一覧からの手動起票・再送。起票済みなら現行値をそのまま返す（冪等）。
 // Plane 未設定なら 501、起票失敗は同期状態を記録した上で 502 を返す。
-func (s *service) EnsurePlaneTicket(ctx context.Context, id uint64) (*model.SupportBugReport, error) {
-	report, err := s.repo.FindByID(ctx, id)
+func (s *service) EnsurePlaneTicket(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error) {
+	report, err := s.repo.FindByIDForClinic(ctx, clinicID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -108,17 +110,17 @@ func (s *service) EnsurePlaneTicket(ctx context.Context, id uint64) (*model.Supp
 		return report, nil
 	}
 	// claim 失敗（並行起票の後着 or DB 書き込み失敗）は最新状態を返して実態に合わせる。
-	return s.repo.FindByID(ctx, id)
+	return s.repo.FindByIDForClinic(ctx, clinicID, id)
 }
 
 // Delete は報告を論理削除する。返り値は削除前に読み取った行で、
 // handler がスクショの後始末と監査記録に使う。
-func (s *service) Delete(ctx context.Context, id uint64) (*model.SupportBugReport, error) {
-	report, err := s.repo.FindByID(ctx, id)
+func (s *service) Delete(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error) {
+	report, err := s.repo.FindByIDForClinic(ctx, clinicID, id)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.repo.SoftDeleteBugReport(ctx, id); err != nil {
+	if err := s.repo.SoftDeleteBugReport(ctx, clinicID, id); err != nil {
 		return nil, err
 	}
 	return report, nil
@@ -139,7 +141,7 @@ func (s *service) syncPlaneTicket(ctx context.Context, report *model.SupportBugR
 // 記録自体の失敗（DB 障害）は追加の ERROR ログのみ（起票失敗の報告を悪化させない）。
 func (s *service) recordPlaneFailure(ctx context.Context, report *model.SupportBugReport, syncErr error) {
 	msg := planeSyncErrorMessage(syncErr)
-	if err := s.repo.SetPlaneSyncError(ctx, report.ID, msg); err != nil {
+	if err := s.repo.SetPlaneSyncError(ctx, report.ClinicID, report.ID, msg); err != nil {
 		slog.ErrorContext(ctx, "failed to persist plane sync error", "error", err, "report_id", report.ID)
 	}
 	report.PlaneSyncError = &msg
@@ -150,7 +152,7 @@ func (s *service) recordPlaneFailure(ctx context.Context, report *model.SupportB
 // false の場合、別経路が先に記録済み（二重起票の防止）か DB 書き込み失敗。
 // 後者は Plane 側に孤立チケットが残りうるため ERROR ログを残す。
 func (s *service) claimPlaneTicket(ctx context.Context, report *model.SupportBugReport, issue *PlaneIssue) bool {
-	claimed, err := s.repo.SetPlaneTicket(ctx, report.ID, issue.ID, issue.URL)
+	claimed, err := s.repo.SetPlaneTicket(ctx, report.ClinicID, report.ID, issue.ID, issue.URL)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to persist plane ticket; plane-side issue may be orphaned",
 			"error", err, "report_id", report.ID, "plane_issue_id", issue.ID)

@@ -10027,6 +10027,10 @@ components:
         status: { type: string, enum: [open, resolved] }
         reporter_staff_id: { type: integer, format: int64 }
         reporter_name: { type: string }
+        clinic_id:
+          type: integer
+          format: int64
+          description: 報告元医院ID。一覧の自院判定（操作可否のUI制御）と provenance。
         clinic_name:
           type: string
           description: 報告元医院名(一覧のみ付与)。全医院一覧での provenance。
@@ -26049,7 +26053,7 @@ paths:
     patch:
       operationId: updateSupportBugReportStatus
       summary: バグ報告の対応状況を更新
-      description: 認証済みスタッフ全員が利用可能(他医院の報告も対象)。status は open/resolved。
+      description: 操作は報告元医院スコープ(他医院の報告は共有ボードで閲覧のみ、対象指定は404)。status は open/resolved。
       tags: [Support]
       parameters:
         - name: id
@@ -26081,7 +26085,8 @@ paths:
       operationId: createSupportBugReportPlaneTicket
       summary: バグ報告を Plane ワークアイテムとして起票(手動再送を兼ねる)
       description: |
-        認証済みスタッフ全員が利用可能(他医院の報告も対象)。報告作成時の自動起票が
+        操作は報告元医院スコープ(他医院の報告は共有ボードで閲覧のみ、対象指定は404)。
+        報告作成時の自動起票が
         失敗した場合の手動再送経路でもある。既に起票済み(plane_issue_url あり)なら
         現在の状態をそのまま返す冪等操作。external_source+external_id で報告と
         Plane 側を対応付ける。PLANE_API_KEY 未設定の環境では 501。Plane 側エラーは
@@ -26109,7 +26114,8 @@ paths:
       operationId: deleteSupportBugReport
       summary: バグ報告を削除(論理削除 + 添付スクショのオブジェクト削除)
       description: |
-        認証済みスタッフ全員が利用可能(他医院の報告も対象)。deleted_at を設定する
+        操作は報告元医院スコープ(他医院の報告は共有ボードで閲覧のみ、対象指定は404)。
+        deleted_at を設定する
         論理削除で、一覧・詳細からは除外される。添付スクリーンショットの
         オブジェクトは best-effort で削除する（失敗時は孤立オブジェクトが残るのみ）。
         削除しても Plane 側の既起票チケットは残る。

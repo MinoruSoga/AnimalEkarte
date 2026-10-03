@@ -17,6 +17,8 @@ export interface BugReport {
   status: BugReportStatus;
   reporter_staff_id: number;
   reporter_name: string;
+  /** 報告元医院ID（一覧の自院判定 — 操作可否のUI制御） */
+  clinic_id: number;
   /** 報告元医院名（一覧のみ付与 — 全医院共有ボードでの provenance 表示） */
   clinic_name?: string;
   screenshot_url?: string;
