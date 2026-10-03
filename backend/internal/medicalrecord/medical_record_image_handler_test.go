@@ -85,6 +85,12 @@ func newHandlerWithMedicalRecordImageSvc(mrSvc medicalRecordGetter, imgSvc Medic
 	return NewMedicalRecordImageHandler(imgSvc, mrSvc, uploader, newMemoryMedicalRecordImageUploadQuotaStore())
 }
 
+// uploadFixturePNG は SEC-CS3-O6 の content-sniff 照合を通過する PNG 実バイトを返す。
+// 成功パスの fixture は宣言 image/png と sniff 結果が一致する必要がある。
+func uploadFixturePNG() []byte {
+	return []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x01}
+}
+
 // buildImageMultipart はテスト用の multipart/form-data ボディを組み立てる。
 // contentType が空文字の場合は Content-Type ヘッダを省略する（拡張子判定経路を検証するため）。
 func buildImageMultipart(t *testing.T, fileName, contentType string, content []byte) (body *bytes.Buffer, contentTypeHeader string) {
@@ -484,7 +490,7 @@ func TestUploadMedicalRecordImage(t *testing.T) {
 			name:    "returns 201 with Location header on success",
 			paramID: "5",
 			buildRequest: func(t *testing.T) *http.Request {
-				body, ct := buildImageMultipart(t, "photo.png", "image/png", []byte("fake-image-bytes"))
+				body, ct := buildImageMultipart(t, "photo.png", "image/png", uploadFixturePNG())
 				req := httptest.NewRequest(http.MethodPost, "/medical-records/5/images/upload", body)
 				req.Header.Set("Content-Type", ct)
 				return req
@@ -599,7 +605,7 @@ func TestUploadMedicalRecordImage(t *testing.T) {
 			name:    "returns 500 when uploader fails",
 			paramID: "5",
 			buildRequest: func(t *testing.T) *http.Request {
-				body, ct := buildImageMultipart(t, "photo.png", "image/png", []byte("fake"))
+				body, ct := buildImageMultipart(t, "photo.png", "image/png", uploadFixturePNG())
 				req := httptest.NewRequest(http.MethodPost, "/medical-records/5/images/upload", body)
 				req.Header.Set("Content-Type", ct)
 				return req
@@ -622,7 +628,7 @@ func TestUploadMedicalRecordImage(t *testing.T) {
 			name:    "cleans up uploaded file when service create fails",
 			paramID: "5",
 			buildRequest: func(t *testing.T) *http.Request {
-				body, ct := buildImageMultipart(t, "photo.png", "image/png", []byte("fake"))
+				body, ct := buildImageMultipart(t, "photo.png", "image/png", uploadFixturePNG())
 				req := httptest.NewRequest(http.MethodPost, "/medical-records/5/images/upload", body)
 				req.Header.Set("Content-Type", ct)
 				return req
@@ -719,7 +725,7 @@ func TestUploadMedicalRecordImage_PersistsObjectKeyAndReturnsSignedURL(t *testin
 		uploader,
 	)
 
-	body, ct := buildImageMultipart(t, "photo.png", "image/png", []byte("fake-image-bytes"))
+	body, ct := buildImageMultipart(t, "photo.png", "image/png", uploadFixturePNG())
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodPost, "/medical-records/5/images/upload", body)
@@ -756,7 +762,7 @@ func TestUploadMedicalRecordImage_CleanupDeletesObjectKeyNotPublicURL(t *testing
 		uploader,
 	)
 
-	body, ct := buildImageMultipart(t, "photo.png", "image/png", []byte("fake"))
+	body, ct := buildImageMultipart(t, "photo.png", "image/png", uploadFixturePNG())
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodPost, "/medical-records/5/images/upload", body)
@@ -1040,7 +1046,7 @@ func TestUploadMedicalRecordImage_SignErrorDeletesObjectAndDoesNotCreate(t *test
 		uploader,
 	)
 
-	body, ct := buildImageMultipart(t, "photo.png", "image/png", []byte("fake"))
+	body, ct := buildImageMultipart(t, "photo.png", "image/png", uploadFixturePNG())
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodPost, "/medical-records/5/images/upload", body)

@@ -233,6 +233,11 @@ func (h *MedicalRecordImageHandler) UploadMedicalRecordImage(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
+	// SEC-CS3-O6: 宣言・拡張子の検証に加え、実バイトの content-sniff を照合する。
+	if err := uploadMeta.verifySniffedContent(file); err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
 	storedName, err := uploadMeta.newStoredName(time.Now())
 	if err != nil {
 		httpapi.RespondError(c, err)

@@ -185,6 +185,7 @@ func TestTreatmentService_ListPetHistory(t *testing.T) {
 func TestTreatmentService_Create(t *testing.T) {
 	const clinicID = uint64(1)
 	procedureID := uint64(1)
+	inventoryID := uint64(20)
 	unitPrice := int64(10000)
 	discountRate := 0.1
 	quantity := 1.0
@@ -254,6 +255,20 @@ func TestTreatmentService_Create(t *testing.T) {
 				Quantity:  quantity,
 			},
 			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+		{
+			// SEC-CS3-O1: 在庫連動の処置で小数数量を送ると n が int 変換で 0 減算になる
+			// 迂回を防ぐため、Create 時点で拒否する。
+			name:            "SEC-CS3-O1: rejects fractional quantity for inventory-linked treatment",
+			medicalRecordID: 1,
+			input: &CreateTreatmentInput{
+				ItemType:    model.TreatmentItemTypeMedicine,
+				InventoryID: &inventoryID,
+				UnitPrice:   unitPrice,
+				Quantity:    0.5,
+			},
+			repoErr: nil,
 			wantErr: true,
 		},
 	}

@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"context"
 	"log/slog"
+	"math"
 	"strconv"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -182,6 +183,10 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 	}
 	if input.Quantity <= 0 {
 		return nil, apperrors.WrapInvalidInput(errMsgQuantityPositive)
+	}
+	// SEC-CS3-O1: 在庫連動する処置は整数数量を必須化する（0.5 等が int 変換で 0 減算になる迂回防止）。
+	if input.InventoryID != nil && *input.InventoryID > 0 && input.Quantity != math.Trunc(input.Quantity) {
+		return nil, apperrors.WrapInvalidInput(errMsgQuantityIntegerForInventory)
 	}
 	if err := validateDiscountRate(input.DiscountRate); err != nil {
 		return nil, err

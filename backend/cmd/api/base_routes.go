@@ -66,7 +66,13 @@ func registerBaseRoutes(
 	router.GET("/health/db", healthDB(db))
 	// CMD-05: do not expose local upload PHI via StaticFS when object storage is configured.
 	if os.Getenv("STORAGE_TYPE") != "s3" {
-		router.StaticFS("/uploads", gin.Dir(uploadsDirectory, false))
+		// SEC-CS3-O6: nosniff を強制し、保存ファイルが Content-Type 偽装で
+		// active content として解釈される経路を塞ぐ（upload 側でも ext/sniff 照合済み）。
+		uploads := router.Group("/uploads", func(c *gin.Context) {
+			c.Header("X-Content-Type-Options", "nosniff")
+			c.Next()
+		})
+		uploads.StaticFS("/", gin.Dir(uploadsDirectory, false))
 	}
 	registerScheduledJobRoutes(router, scheduledBatch, os.Getenv("SCHEDULER_INTERNAL_TOKEN"))
 	return nil
