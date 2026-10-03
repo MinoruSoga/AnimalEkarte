@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { MutableRefObject } from "react";
+import { createElement, type MutableRefObject, type ReactNode } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 
 import type { ReservationFormData } from "../types";
@@ -61,18 +62,24 @@ function setup(checkOverlap = vi.fn(() => false)) {
   };
   const handleCloseForm = vi.fn();
   const navigateBackIfNeeded = vi.fn();
-  const { result } = renderHook(() =>
-    useReservationSaveActions({
-      editingAppointmentRef,
-      checkOverlap,
-      handleCloseForm,
-      navigateBackIfNeeded,
-      createMutations: {
-        createOwnerFn: vi.fn(),
-        createPetFn: vi.fn(),
-      },
-      permissions: ALL_ALLOWED,
-    }),
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const { result } = renderHook(
+    () =>
+      useReservationSaveActions({
+        editingAppointmentRef,
+        checkOverlap,
+        handleCloseForm,
+        navigateBackIfNeeded,
+        createMutations: {
+          createOwnerFn: vi.fn(),
+          createPetFn: vi.fn(),
+        },
+        permissions: ALL_ALLOWED,
+      }),
+    {
+      wrapper: ({ children }: { children: ReactNode }) =>
+        createElement(QueryClientProvider, { client: queryClient }, children),
+    },
   );
   return { result, checkOverlap, handleCloseForm, navigateBackIfNeeded };
 }
@@ -120,15 +127,21 @@ describe("useReservationSaveActions 409 conflict message (EMR-76)", () => {
     const editingAppointmentRef: MutableRefObject<ReservationFormData | null> = {
       current: { ...makeFormData(), id: "r1" } as ReservationFormData,
     };
-    const { result } = renderHook(() =>
-      useReservationSaveActions({
-        editingAppointmentRef,
-        checkOverlap: vi.fn(() => false),
-        handleCloseForm: vi.fn(),
-        navigateBackIfNeeded: vi.fn(),
-        createMutations: { createOwnerFn: vi.fn(), createPetFn: vi.fn() },
-        permissions: ALL_ALLOWED,
-      }),
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { result } = renderHook(
+      () =>
+        useReservationSaveActions({
+          editingAppointmentRef,
+          checkOverlap: vi.fn(() => false),
+          handleCloseForm: vi.fn(),
+          navigateBackIfNeeded: vi.fn(),
+          createMutations: { createOwnerFn: vi.fn(), createPetFn: vi.fn() },
+          permissions: ALL_ALLOWED,
+        }),
+      {
+        wrapper: ({ children }: { children: ReactNode }) =>
+          createElement(QueryClientProvider, { client: queryClient }, children),
+      },
     );
     await act(async () => {
       const message = await result.current.handleSave(makeFormData(), [

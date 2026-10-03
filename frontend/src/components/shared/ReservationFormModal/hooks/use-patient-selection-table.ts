@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useGetPets } from "@/hooks/use-pet";
 import { SEARCH_DEBOUNCE_MS } from "@/hooks/use-pet-selection-page";
+import { QUERY_STALE_TIMES } from "@/lib/react-query";
 import type { Pet } from "@/types";
 
 import {
@@ -53,7 +54,15 @@ export function usePatientSelectionTable({
       ...(debouncedSearchParams.search ? { search: debouncedSearchParams.search } : {}),
       ...(debouncedSearchParams.species ? { species: debouncedSearchParams.species } : {}),
     },
-    { enabled: hasSearchConditions, preservePreviousData: true },
+    // EMR-264: 電話対応中の検索では「登録直後の飼主が出ない」が最悪の失敗。
+    // 検索語ごとのキャッシュを常に stale 扱いにし、モーダル再表示・タブ復帰のたびに
+    // 最新結果を取り直す。gcTime(30分)の保持は placeholderData 経由で即時表示に活きる。
+    {
+      enabled: hasSearchConditions,
+      preservePreviousData: true,
+      staleTime: QUERY_STALE_TIMES.NONE,
+      refetchOnWindowFocus: true,
+    },
   );
 
   const isBusy = Boolean(isLoading || isPlaceholderData || isSearchPending);

@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { MutableRefObject } from "react";
+import { createElement, type MutableRefObject, type ReactNode } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import type { Reservation, ReservationFormData, ReservationStatus } from "../types";
@@ -93,6 +94,7 @@ function setup(options: SetupOptions = {}) {
   const handleCloseForm = vi.fn();
   const createOwnerFn = options.createOwnerFn ?? vi.fn();
   const createPetFn = options.createPetFn ?? vi.fn();
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const { result, rerender } = renderHook(
     (props: {
       statusConfirmTarget: StatusConfirmTarget | null;
@@ -127,6 +129,8 @@ function setup(options: SetupOptions = {}) {
         permissions: options.permissions,
         deleteTarget: options.deleteTarget ?? null,
       },
+      wrapper: ({ children }: { children: ReactNode }) =>
+        createElement(QueryClientProvider, { client: queryClient }, children),
     },
   );
 
