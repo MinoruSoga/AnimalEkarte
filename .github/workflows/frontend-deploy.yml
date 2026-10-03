@@ -74,8 +74,10 @@ jobs:
           PROD_CLOUDFLARE_API_TOKEN: ${{ secrets.PROD_CLOUDFLARE_API_TOKEN }}
           # EMR-265: STG デモアカウント自動入力用。vite.config.ts が appEnv==="stg"
           # のときだけ import.meta.env.VITE_DEMO_LOGIN_PASSWORD に焼き込む。
+          # backend Worker の SEEDLOGIN_DEMO_PASSWORD(catalog 全デモ共通)と同値。
+          # admin smoke 用の STG_DEMO_PASSWORD とは別物なので混同しないこと。
           # production ビルドでは読まれず bundle に値は入らない(fail-closed)。
-          STG_DEMO_PASSWORD: ${{ secrets.STG_DEMO_PASSWORD }}
+          SEEDLOGIN_DEMO_PASSWORD: ${{ secrets.SEEDLOGIN_DEMO_PASSWORD }}
         run: |
           set -euo pipefail
           ENV=stg
