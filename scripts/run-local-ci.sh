@@ -373,11 +373,14 @@ META_LANES=(
   "meta-b:9 10 11 12 13 14 15"
   "meta-c:16"
 )
+# frontend は単一コンテナ内で exec 実行するため lane を分けると
+# lint/typecheck と build+vitest が同時に走りメモリピークが倍増し、
+# コンテナの PID1 (vite dev server) が OOM kill されて両 lane が死ぬ。
+# そのため frontend は単一 lane に直列化する。
 LANES=(
   "backend:17 18 19 20 21 22 23"
   "migration:24"
-  "frontend-a:25 26 27 28"
-  "frontend-b:29"
+  "frontend:25 26 27 28 29"
   "worker:30"
 )
 
