@@ -5,6 +5,8 @@ interface ImportMetaEnv {
   readonly VITE_SHOW_DEMO_ACCOUNTS?: string;
   /** Build-time Vercel environment: "preview" (STG) or "production". Unset is fail-closed. */
   readonly VITE_VERCEL_ENV?: string;
+  /** STG ビルドのみ vite.config.ts の define で注入されるデモ共通パスワード。他環境は ""。 */
+  readonly VITE_DEMO_LOGIN_PASSWORD: string;
 }
 
 interface ImportMeta {
