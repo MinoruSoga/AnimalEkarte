@@ -6,9 +6,9 @@
 
 | 区分 | 契約 | 実装の正本 |
 |---|---|---|
-| Remote | workflow contract 静的検査、path-filtered backend/frontend build・test・coverage、secret scan、worker、codegen、main PR の migration verify | `.github/workflows/ci.yml` |
+| Remote | **最小構成**: workflow contract 静的検査と gitleaks secret scan のみ。build / test / coverage / migration / worker / codegen / audit はすべてローカル側へ集約した | `.github/workflows/ci.yml` |
 | AgentShield | main 向け PR で agent config が変わった場合、または manual dispatch で `force_fail_on_findings` を有効にした場合だけ findings を fail 扱い。他の branch/trigger は report-only | `.github/workflows/security-scan.yml` |
-| Local process policy | push/PR 前に `make ci` を実行する。GitHub はこのローカル実行を強制も証明もしない | `scripts/run-local-ci.sh` |
+| Local process policy | push/PR 前に `make ci` を実行する。build/test/coverage ratchet/lint/migration verify/worker/codegen/audit/gitleaks 全ゲートを含む。GitHub はこのローカル実行を強制も証明もしない | `scripts/run-local-ci.sh` |
 | E2E | `workflow_dispatch` のみ。自動 push/PR gate ではない | `.github/workflows/e2e.yml` |
 | Performance | schedule と manual dispatch。push trigger はない | `.github/workflows/performance-tests.yml` |
 
@@ -16,13 +16,12 @@
 
 ```mermaid
 flowchart TB
-    Push["PR"] --> Remote["Remote CI"]
-    Remote --> Scope{"変更 path を domain / feature に分解"}
-    Scope -->|"partial"| P["変更 domain / feature のみ build・test<br/>coverage ratchet は SKIP"]
-    Scope -->|"full（shared / migration / workflow / 横断）"| F["backend・frontend の shard test<br/>coverage は merge 後に ratchet"]
+    Push["PR"] --> Remote["Remote CI（最小構成）"]
+    Remote --> WC["Workflow Contracts<br/>node --test 契約検査"]
+    Remote --> GL["Gitleaks Secret Scan<br/>PR 差分スキャン"]
     Push -.->|"main 向け PR で agent config 変更<br/>または manual dispatch で有効化"| AS["AgentShield が findings を fail 扱い<br/>他は report-only"]
     subgraph NonAuto["自動 push/PR ゲートではない区分"]
-        L["Local: push/PR 前に make ci<br/>GitHub は強制も証明もしない"]
+        L["Local: push/PR 前に make ci<br/>build/test/coverage/lint/migration/worker<br/>codegen/audit/gitleaks 全ゲート<br/>GitHub は強制も証明もしない"]
         E["E2E: workflow_dispatch のみ"]
         Perf["Performance: schedule / manual dispatch"]
     end
@@ -30,15 +29,11 @@ flowchart TB
 
 ## Remote CI の要点
 
-- 変更 path は `scripts/ci_scope_plan.py` で **backend domain / frontend feature** に分解する。
-- **partial**: 変更 domain/feature のテストだけを dynamic matrix で実行する。全体 coverage ratchet は **SKIP**（summary に明示）。
-- **full**（shared / migration / workflow / 横断ヒット）: Backend は独立 PostgreSQL を持つ従来 4 shard。Frontend は Vitest 2 shard。coverage は merge 後に ratchet。
-- Backend coverage profile の結合は `scripts/merge_go_coverprofiles.py`（full 時のみ）。Frontend blob も full 時のみ merge。
-- `main`、`staging`、`production` 向け PR は、path filter に該当する層の build と、スコープ計画に応じた test を行う。
-- frontend install は frozen lockfile を使う。
-- Backend は console 出力を制限し、gzip の full log artifact を 7 日保持する。
-- Frontend は `vitest-full.log` を削除する。Vitest blob を artifact にし、失敗時は bounded `vitest-tail.log` のみ追加 upload する。Backend と同じ full-log 契約ではない。
-- job timeout で暴走を止める。
+- **最小構成**（2026-10 縮小）: remote は `Workflow Contracts` と `Gitleaks Secret Scan` の2 job のみ。build/test/coverage/lint/migration/worker/codegen/audit の実行ゲートはすべて `make ci` 側にある。
+- workflow contracts は workflow 定義自身の整合検査であり自己参照のため remote に残す（`make ci` でも同一テストを実行する二重配線）。
+- gitleaks は PR 差分スキャンとして remote にも残す。`make ci` 側は履歴全体を対象にする上位互換。
+- scoped verification（`scripts/ci_scope_plan.py`）は remote ではなく `PREPUSH_VERIFY=1` / `verify-agent-task.py` 経由のローカル利用に限定される。
+- `main`、`staging`、`production` 向け PR でこの2 check が走る。required check は staging の branch protection が定義する。
 
 ## Actions ピン方針
 
@@ -59,7 +54,7 @@ flowchart TB
 | `staging` | PR 必須（承認数 0）+ required checks | 直接 push 拒否。main→staging release PR が唯一の CI 検証点・デプロイ入口 |
 | `production` | **未作成 — 作成時に staging と同一の保護を適用すること** | 直 push を許すと CI なしで本番デプロイが走る |
 
-staging の required checks: `Workflow Contracts` / `Gitleaks Secret Scan` / `Backend` / `Frontend` / `Worker Tests` / `Codegen Sync` / `AgentShield`（`enforce_admins` 有効・force push/削除禁止・strict=false）。`Migration Verify` は `base_ref == 'main'` 限定 job のため staging/production 側の required check には含めない。
+staging の required checks: `Workflow Contracts` / `Gitleaks Secret Scan` / `AgentShield`（`enforce_admins` 有効・force push/削除禁止・strict=false）。remote CI 最小化（2026-10）で `Backend` / `Frontend` / `Worker Tests` / `Codegen Sync` / `Migration Verify` の各 check は廃止し、同等ゲートは `make ci` 側にある。release PR の品質担保は「PR 前に main 側で `make ci` を通したこと」への運用依存となる。
 
 `production` 作成時の適用例:
 
@@ -68,7 +63,7 @@ gh api -X PUT repos/MinoruSoga/AnimalEkarte/branches/production/protection --inp
 {
   "required_status_checks": {
     "strict": false,
-    "contexts": ["Workflow Contracts", "Gitleaks Secret Scan", "Backend", "Frontend", "Worker Tests", "Codegen Sync", "AgentShield"]
+    "contexts": ["Workflow Contracts", "Gitleaks Secret Scan", "AgentShield"]
   },
   "enforce_admins": true,
   "required_pull_request_reviews": { "required_approving_review_count": 0 },
@@ -93,4 +88,4 @@ JSON
 
 ## Historical decision record
 
-2026-07 に remote CI を軽量化し、再現可能な inventory/guardrail を local process policy へ移した。これは当時の設計判断であり、現在の step/action inventory ではない。現在値は必ず workflow と `begin_step` から確認する。
+2026-07 に remote CI を軽量化し、再現可能な inventory/guardrail を local process policy へ移した。2026-10 には remote を `Workflow Contracts` + `Gitleaks Secret Scan` の最小構成へさらに縮小し、build/test/coverage/migration/worker/codegen/audit も `make ci` へ集約した。これらは当時の設計判断であり、現在の step/action inventory ではない。現在値は必ず workflow と `begin_step` から確認する。

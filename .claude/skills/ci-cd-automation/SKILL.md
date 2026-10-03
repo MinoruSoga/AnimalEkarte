@@ -26,18 +26,13 @@ description: このプロジェクトの GitHub Actions CI/CD 構成の把握と
 これらの workflow 名を復旧手順として案内・実行しない。現行インフラと障害初動の正本は
 `docs/ops/infra/architecture.md` と `docs/ops/infra/staging/runbook.md`。
 
-## ci.yml の実ジョブ構成
+## ci.yml の実ジョブ構成（最小構成・2026-10 縮小）
 
-- **トリガー**: `pull_request: branches: [main, staging, production]` + `push: branches: [main]`
-- **changes**: paths-filter で backend / frontend / migration 変更を判定。openな`main→staging` PRが同じhead SHAを検証する場合だけpush側の重いjobをskip（API障害時はfail-open）
-- **Backend Build**: DB不要の`go build ./...`。test shardsと並列
-- **Backend Test matrix**: 4つの独立PostgreSQLで`medicalrecord` / `auth` / `staff+billing+reservation` / remainingを並列実行。各shard内は`-race -coverpkg=./internal/... -p 1`
-- **Backend**: 4 profileをblock単位で統合し、coverage summary / ratchetを実行する集約check
-- **Frontend Build**: `pnpm install --frozen-lockfile` → audit → build
-- **Frontend Test matrix**: Vitest 2 shard。coverage payloadをblob reporterへ保存
-- **Frontend**: `vitest --mergeReports`でcoverageをnative mergeし、ratchetを実行する集約check
-- **codegen-check**: Go モデル ↔ models.ts の同期検証
-- **migration-verify**: PR→mainのマイグレーション検証
+- **トリガー**: `pull_request: branches: [main, staging, production]`
+- **方針**: build/test/coverage/lint/migration/worker/codegen/audit は全てローカル必須の `make ci`（`scripts/run-local-ci.sh`）へ集約。remote は GitHub 上でしか担保できない2ゲートのみ
+- **Workflow Contracts**: `node --test scripts/check-workflow-contracts.test.mjs`（workflow 定義自身の契約検査・自己参照のため remote 必須）
+- **Gitleaks Secret Scan**: `gitleaks/gitleaks-action@v3` の PR 差分スキャン（C-1 再発防止の fail ゲート。`make ci` 側は full-history）
+- staging の required checks は `Workflow Contracts` / `Gitleaks Secret Scan` / `AgentShield`（正本: `docs/ops/ci-policy.md`）
 
 使用アクションの正: `actions/checkout@v7` / `actions/setup-go@v7` / `actions/setup-node@v7` / `actions/upload-artifact@v7` / `actions/download-artifact@v7` / `pnpm/action-setup@v6`。
 （`node-actions/setup-node` や `go-actions/setup-go` というアクションは存在しない — 過去にこのスキルが記載していた誤り）
@@ -62,8 +57,8 @@ gh run list --branch main --json databaseId,event,conclusion,headSha --limit 10
 gh run view <run-id> --json jobs
 ```
 
-- **aggregate マスク**: `Backend` / `Frontend` はbranch protection互換の集約check。赤い場合は集約stepだけでなく、`Backend Build`・4 test shards、`Frontend Build`・2 test shardsのどれが先に失敗したか確認する。matrixは`fail-fast: false`なので全shardの結論を列挙する
-- **paths-filter silent green**: changes ジョブで skip されたジョブは実行されていないのに全体は success に見える。skip されたジョブがあれば当該層は「未検証」として扱う
+- **最小構成下の失敗調査**: remote は `Workflow Contracts` / `Gitleaks Secret Scan` のみ。品質ゲートの失敗は remote では出ず、`make ci`（`scripts/run-local-ci.sh`）側で最初に失敗した `begin_step` 名から切り分ける
+- **green でも未検証に注意**: remote green は build/test 合格を意味しない（これらは remote に存在しない）。検証済みかは「当該 head で `make ci` を通したか」で判断する
 （出典: memory feedback_ci_step_order_masks_lint / feedback_paths_filter_silent_green / ops_golangci_lint_cap_and_reconcile_20260630）
 
 ### 3. golangci-lint の件数 cap に注意

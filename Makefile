@@ -537,10 +537,11 @@ build-prod:
 GOLANGCI_LINT_VERSION := v2.11.4
 
 # ── 品質チェック分担（詳細: docs/ops/ci-policy.md）────────────────
-# リモート CI 必須: path-filtered build/test/coverage、gitleaks、
-#                   codegen/migration 検証、AgentShield
-# ローカル必須（make ci）: inventory / guardrail / shellcheck / golangci /
-#                          ESLint / type-check / knip / design CTA + design-audit + build/test
+# リモート CI（最小構成）: Workflow Contracts + gitleaks（+ 別wf AgentShield）
+# ローカル必須（make ci）: 旧 remote を含む全ゲート — inventory / guardrail /
+#   shellcheck / golangci / ESLint / type-check / knip / design CTA + design-audit /
+#   backend+frontend build/test/coverage ratchet / schema / codegen /
+#   migration verify / seed invariants / worker / pnpm audit / gitleaks
 # ローカル任意: make e2e（Playwright。リモート自動 CI には含めない）
 # ────────────────────────────────────────────────────────────────
 
