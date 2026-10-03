@@ -1,0 +1,14 @@
+import{i as e,s as t}from"./preload-helper-xPQekRTU.js";import{O as n}from"./iframe-Bt5VGDn5.js";import{t as r}from"./jsx-runtime-CaZkqeYb.js";import{t as i}from"./utils-DnULZP2N.js";import{t as a}from"./utils-OInfGPY8.js";import{d as o,n as s,s as c}from"./design-tokens-CoIxcO1x.js";import{n as l,t as u}from"./textarea-D-fuKgK5.js";var d,f,p,m=e((()=>{d=t(n(),1),a(),l(),o(),f=r(),p=(0,d.memo)(function({value:e,onChange:t,maxLength:n=500,placeholder:r,className:a,textareaClassName:o,disabled:l,id:d,name:p}){let m=e.length,h=m>=n;return(0,f.jsxs)(`div`,{className:i(`flex flex-col gap-1`,a),children:[(0,f.jsx)(u,{id:d,name:p,value:e,onChange:e=>t(e.target.value),maxLength:n,placeholder:r,disabled:l,className:i(c.textarea,`flex-1`,`focus-visible:ring-2 ${s.focusRingAccent40}`,o)}),(0,f.jsxs)(`p`,{className:i(`text-xs text-right select-none`,h?s.danger:s.text40),"aria-live":`polite`,"aria-atomic":`true`,children:[m,` / `,n,` 文字`]})]})}),p.__docgenInfo={description:`Textarea with a character count indicator shown below.
+Displays "X / maxLength 文字" and turns red when the limit is reached.`,methods:[],displayName:`CharCountTextarea`,props:{value:{required:!0,tsType:{name:`string`},description:``},onChange:{required:!0,tsType:{name:`signature`,type:`function`,raw:`(value: string) => void`,signature:{arguments:[{type:{name:`string`},name:`value`}],return:{name:`void`}}},description:``},maxLength:{required:!1,tsType:{name:`number`},description:``,defaultValue:{value:`500`,computed:!1}},placeholder:{required:!1,tsType:{name:`string`},description:``},className:{required:!1,tsType:{name:`string`},description:``},textareaClassName:{required:!1,tsType:{name:`string`},description:``},disabled:{required:!1,tsType:{name:`boolean`},description:``},id:{required:!1,tsType:{name:`string`},description:``},name:{required:!1,tsType:{name:`string`},description:``}}}})),h,g,_,v,y,b;e((()=>{m(),h={title:`Shared/CharCountTextarea`,component:p,tags:[`autodocs`],args:{value:`食欲不振が3日続いている。`,onChange:()=>{},maxLength:200,placeholder:`症状を入力`}},g={},_={args:{value:`あ`.repeat(190)}},v={args:{value:`あ`.repeat(200)}},y={args:{disabled:!0}},b=[`Default`,`NearLimit`,`AtLimit`,`Disabled`],g.parameters={...g.parameters,docs:{...g.parameters?.docs,source:{originalSource:`{}`,...g.parameters?.docs?.source}}},_.parameters={..._.parameters,docs:{..._.parameters?.docs,source:{originalSource:`{
+  args: {
+    value: "あ".repeat(190)
+  }
+}`,..._.parameters?.docs?.source}}},v.parameters={...v.parameters,docs:{...v.parameters?.docs,source:{originalSource:`{
+  args: {
+    value: "あ".repeat(200)
+  }
+}`,...v.parameters?.docs?.source}}},y.parameters={...y.parameters,docs:{...y.parameters?.docs,source:{originalSource:`{
+  args: {
+    disabled: true
+  }
+}`,...y.parameters?.docs?.source}}}}))();export{v as AtLimit,g as Default,y as Disabled,_ as NearLimit,b as __namedExportsOrder,h as default};

@@ -1,0 +1,1 @@
+import{i as e}from"./preload-helper-xPQekRTU.js";function t(e){return e.replace(/[ァ-ヶ]/g,e=>String.fromCharCode(e.charCodeAt(0)-96))}function n(e,n){return t(e).toLowerCase().includes(t(n).toLowerCase())}var r=e((()=>{}));export{t as n,n as r,r as t};

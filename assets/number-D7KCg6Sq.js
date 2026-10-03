@@ -1,0 +1,1 @@
+import{i as e}from"./preload-helper-xPQekRTU.js";function t(e){return e==null?`-`:`¥${e.toLocaleString(`ja-JP`)}`}var n=e((()=>{}));export{n,t};

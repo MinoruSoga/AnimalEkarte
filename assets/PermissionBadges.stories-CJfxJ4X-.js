@@ -1,0 +1,9 @@
+import{i as e}from"./preload-helper-xPQekRTU.js";import{t}from"./jsx-runtime-CaZkqeYb.js";import{i as n,r}from"./use-auth-DIRfpKbK.js";import{n as i,t as a}from"./PermissionBadges-Pb3K1LWw.js";var o,s,c,l,u,d,f,p,m;e((()=>{n(),i(),o=t(),s=e=>({user:null,currentClinicId:`1`,isAuthenticated:!0,isLoading:!1,login:async()=>{},logout:async()=>{},switchClinic:()=>{},hasPermission:(t,n)=>e===`all`||e.includes(n),refreshPermissions:async()=>{}}),c=e=>function(t){return(0,o.jsx)(r.Provider,{value:s(e),children:(0,o.jsx)(t,{})})},l={title:`Shared/PermissionBadges`,component:a,tags:[`autodocs`],args:{resource:`medical-records`}},u={decorators:[c([`view`])]},d={decorators:[c([`view`,`edit`])]},f={decorators:[c(`all`)]},p={decorators:[c([])]},m=[`ViewOnly`,`ViewAndEdit`,`AllAllowed`,`NoneAllowed`],u.parameters={...u.parameters,docs:{...u.parameters?.docs,source:{originalSource:`{
+  decorators: [withAuth(["view"])]
+}`,...u.parameters?.docs?.source},description:{story:`「閲覧のみ」専用バッジ`,...u.parameters?.docs?.description}}},d.parameters={...d.parameters,docs:{...d.parameters?.docs,source:{originalSource:`{
+  decorators: [withAuth(["view", "edit"])]
+}`,...d.parameters?.docs?.source},description:{story:`一部権限のみ → 持っている権限のバッジを表示`,...d.parameters?.docs?.description}}},f.parameters={...f.parameters,docs:{...f.parameters?.docs,source:{originalSource:`{
+  decorators: [withAuth("all")]
+}`,...f.parameters?.docs?.source},description:{story:`全権限あり → コンポーネントの契約上 何も描画しない（空白が正解）`,...f.parameters?.docs?.description}}},p.parameters={...p.parameters,docs:{...p.parameters?.docs,source:{originalSource:`{
+  decorators: [withAuth([])]
+}`,...p.parameters?.docs?.source},description:{story:`権限ゼロ → AccessDenied 前提のため通常到達しないが、こちらも非表示`,...p.parameters?.docs?.description}}}}))();export{f as AllAllowed,p as NoneAllowed,d as ViewAndEdit,u as ViewOnly,m as __namedExportsOrder,l as default};

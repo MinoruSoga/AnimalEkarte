@@ -1,0 +1,17 @@
+import{i as e}from"./preload-helper-xPQekRTU.js";import{t}from"./jsx-runtime-CaZkqeYb.js";import{d as n,n as r}from"./design-tokens-CoIxcO1x.js";import{n as i,t as a}from"./label-0jG7eM-1.js";import{n as o,t as s}from"./DatePicker-Bpax6VJe.js";import{a as c,i as l,n as u,o as d,r as f,t as p}from"./select-QiJ9CgwX.js";var m,h=e((()=>{m=[{value:`3weeks`,label:`3週後`},{value:`4weeks`,label:`4週後`},{value:`1year`,label:`1年後`},{value:`other`,label:`以外（手動）`}]}));function g({typeId:e,dateId:t,scheduleType:n,nextDate:i,onScheduleTypeChange:o,onNextDateChange:d,dateAriaLabel:h=`次回予定日`,options:g=m,error:v,className:y}){return(0,_.jsxs)(`div`,{className:`space-y-2 ${y??``}`,children:[(0,_.jsx)(a,{htmlFor:e,children:`次回の予定`}),(0,_.jsxs)(`div`,{className:`flex flex-wrap items-center gap-3`,children:[(0,_.jsxs)(p,{value:n,onValueChange:o,children:[(0,_.jsx)(l,{id:e,className:`w-[130px]`,children:(0,_.jsx)(c,{})}),(0,_.jsx)(u,{children:g.map(e=>(0,_.jsx)(f,{value:e.value,children:e.label},e.value))})]}),(0,_.jsx)(a,{htmlFor:t,className:`sr-only`,children:h}),(0,_.jsx)(s,{id:t,value:i,onChange:d,className:`min-w-[160px] flex-1`})]}),v?(0,_.jsx)(`p`,{role:`alert`,className:`text-sm ${r.danger}`,children:v}):null]})}var _,v=e((()=>{o(),i(),d(),n(),h(),_=t(),g.__docgenInfo={description:``,methods:[],displayName:`NextScheduleField`,props:{typeId:{required:!0,tsType:{name:`string`},description:``},dateId:{required:!0,tsType:{name:`string`},description:``},scheduleType:{required:!0,tsType:{name:`string`},description:``},nextDate:{required:!0,tsType:{name:`string`},description:``},onScheduleTypeChange:{required:!0,tsType:{name:`signature`,type:`function`,raw:`(value: string) => void`,signature:{arguments:[{type:{name:`string`},name:`value`}],return:{name:`void`}}},description:``},onNextDateChange:{required:!0,tsType:{name:`signature`,type:`function`,raw:`(value: string) => void`,signature:{arguments:[{type:{name:`string`},name:`value`}],return:{name:`void`}}},description:``},dateAriaLabel:{required:!1,tsType:{name:`string`},description:``,defaultValue:{value:`"次回予定日"`,computed:!1}},options:{required:!1,tsType:{name:`unknown`},description:``,defaultValue:{value:`[
+  { value: "3weeks", label: "3週後" },
+  { value: "4weeks", label: "4週後" },
+  { value: "1year", label: "1年後" },
+  { value: "other", label: "以外（手動）" },
+]`,computed:!1}},error:{required:!1,tsType:{name:`string`},description:``},className:{required:!1,tsType:{name:`string`},description:``}}}})),y,b,x,S,C;e((()=>{v(),y={title:`Shared/NextScheduleField`,component:g,tags:[`autodocs`],args:{typeId:`next-schedule-type`,dateId:`next-schedule-date`,scheduleType:``,nextDate:``,onScheduleTypeChange:()=>{},onNextDateChange:()=>{}}},b={},x={args:{scheduleType:`ワクチン`,nextDate:`2027-03-15`}},S={args:{scheduleType:`ワクチン`,nextDate:``,error:`次回予定日を入力してください`}},C=[`Empty`,`Filled`,`WithError`],b.parameters={...b.parameters,docs:{...b.parameters?.docs,source:{originalSource:`{}`,...b.parameters?.docs?.source}}},x.parameters={...x.parameters,docs:{...x.parameters?.docs,source:{originalSource:`{
+  args: {
+    scheduleType: "ワクチン",
+    nextDate: "2027-03-15"
+  }
+}`,...x.parameters?.docs?.source}}},S.parameters={...S.parameters,docs:{...S.parameters?.docs,source:{originalSource:`{
+  args: {
+    scheduleType: "ワクチン",
+    nextDate: "",
+    error: "次回予定日を入力してください"
+  }
+}`,...S.parameters?.docs?.source}}}}))();export{b as Empty,x as Filled,S as WithError,C as __namedExportsOrder,y as default};

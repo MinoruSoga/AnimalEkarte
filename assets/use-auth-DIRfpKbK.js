@@ -1,0 +1,1 @@
+import{i as e,s as t}from"./preload-helper-xPQekRTU.js";import{O as n}from"./iframe-Bt5VGDn5.js";var r,i,a=e((()=>{r=t(n(),1),i=(0,r.createContext)(null)}));function o(){let e=(0,s.useContext)(i);if(!e)throw Error(`useAuth must be used within an AuthProvider`);return e}var s,c=e((()=>{s=t(n(),1),a()}));export{a as i,o as n,i as r,c as t};

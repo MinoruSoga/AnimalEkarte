@@ -1,0 +1,5 @@
+import{i as e}from"./preload-helper-xPQekRTU.js";import{n as t,t as n}from"./ImageWithFallback-gClyNf0o.js";var r,i,a,o;e((()=>{t(),r={title:`Shared/Feedback`,component:n,tags:[`autodocs`],args:{alt:`ペットの写真`,className:`size-24 rounded-md object-cover`,src:`data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==`}},i={},a={args:{src:`data:image/png;base64,INVALID`}},o=[`Loaded`,`ErrorFallback`],i.parameters={...i.parameters,docs:{...i.parameters?.docs,source:{originalSource:`{}`,...i.parameters?.docs?.source}}},a.parameters={...a.parameters,docs:{...a.parameters?.docs,source:{originalSource:`{
+  args: {
+    src: "data:image/png;base64,INVALID"
+  }
+}`,...a.parameters?.docs?.source},description:{story:`読み込み失敗時のフォールバック表示（無効な data URI でネットワーク 404 を発生させない）`,...a.parameters?.docs?.description}}}}))();export{a as ErrorFallback,i as Loaded,o as __namedExportsOrder,r as default};

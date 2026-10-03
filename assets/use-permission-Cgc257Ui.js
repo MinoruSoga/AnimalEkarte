@@ -1,0 +1,1 @@
+import{i as e}from"./preload-helper-xPQekRTU.js";import{n as t,t as n}from"./use-auth-DIRfpKbK.js";function r(e){let{hasPermission:n}=t();return{canView:n(e,`view`),canCreate:n(e,`create`),canEdit:n(e,`edit`),canDelete:n(e,`delete`)}}var i=e((()=>{n()}));export{r as n,i as t};

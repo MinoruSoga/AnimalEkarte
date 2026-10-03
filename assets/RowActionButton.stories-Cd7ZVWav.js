@@ -1,0 +1,11 @@
+import{i as e,s as t}from"./preload-helper-xPQekRTU.js";import{O as n}from"./iframe-Bt5VGDn5.js";import{t as r}from"./jsx-runtime-CaZkqeYb.js";import{Ot as i,S as a,m as o,t as s}from"./lucide-react-yS7Xowms.js";import{t as c}from"./utils-DnULZP2N.js";import{t as l}from"./utils-OInfGPY8.js";import{c as u,d,r as f}from"./design-tokens-CoIxcO1x.js";import{n as p,t as m}from"./button-DzIL5X86.js";var h,g,_,v=e((()=>{h=t(n(),1),p(),s(),l(),d(),g=r(),_=(0,h.memo)(function({icon:e=a,onClick:t,className:n,"aria-label":r}){return(0,g.jsx)(`div`,{className:`flex items-center justify-end gap-1`,children:(0,g.jsx)(m,{variant:`ghost`,size:`icon`,"aria-label":r,className:c(u.actionButton,n),onClick:e=>{e.stopPropagation(),t(e)},children:(0,g.jsx)(e,{className:f.page})})})}),_.__docgenInfo={description:``,methods:[],displayName:`RowActionButton`,props:{icon:{required:!1,tsType:{name:`ReactElementType`,raw:`React.ElementType`},description:``,defaultValue:{value:`Edit`,computed:!0}},onClick:{required:!0,tsType:{name:`signature`,type:`function`,raw:`(e: React.MouseEvent) => void`,signature:{arguments:[{type:{name:`ReactMouseEvent`,raw:`React.MouseEvent`},name:`e`}],return:{name:`void`}}},description:``},className:{required:!1,tsType:{name:`string`},description:``},"aria-label":{required:!0,tsType:{name:`string`},description:``}}}})),y,b,x,S,C;e((()=>{s(),v(),y={title:`Shared/RowActionButton`,component:_,tags:[`autodocs`],args:{"aria-label":`編集`,onClick:()=>{}}},b={},x={args:{icon:i,"aria-label":`詳細を見る`}},S={args:{icon:o,"aria-label":`削除`}},C=[`Default`,`CustomIcon`,`DeleteIcon`],b.parameters={...b.parameters,docs:{...b.parameters?.docs,source:{originalSource:`{}`,...b.parameters?.docs?.source}}},x.parameters={...x.parameters,docs:{...x.parameters?.docs,source:{originalSource:`{
+  args: {
+    icon: Eye,
+    "aria-label": "詳細を見る"
+  }
+}`,...x.parameters?.docs?.source}}},S.parameters={...S.parameters,docs:{...S.parameters?.docs,source:{originalSource:`{
+  args: {
+    icon: Trash2,
+    "aria-label": "削除"
+  }
+}`,...S.parameters?.docs?.source}}}}))();export{x as CustomIcon,b as Default,S as DeleteIcon,C as __namedExportsOrder,y as default};
