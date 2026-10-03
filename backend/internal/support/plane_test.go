@@ -213,7 +213,7 @@ func newPlaneStateTestServer(t *testing.T, status int, response string, captured
 
 func TestPlaneClient_FetchIssueStateGroup_RequestContract(t *testing.T) {
 	captured := &capturedPlaneRequest{}
-	server := newPlaneStateTestServer(t, http.StatusOK, `{"state_detail":{"group":"completed"}}`, captured)
+	server := newPlaneStateTestServer(t, http.StatusOK, `{"state_group":"completed"}`, captured)
 	defer server.Close()
 	client := newTestPlaneClient(server, "EMR")
 
@@ -235,12 +235,17 @@ func TestPlaneClient_FetchIssueStateGroup_Groups(t *testing.T) {
 		body      string
 		wantGroup string
 	}{
-		{name: "completed", body: `{"state_detail":{"group":"completed"}}`, wantGroup: "completed"},
-		{name: "started", body: `{"state_detail":{"group":"started"}}`, wantGroup: "started"},
-		{name: "cancelled", body: `{"state_detail":{"group":"cancelled"}}`, wantGroup: "cancelled"},
-		// state_detail 欠落は open 扱いを誤らないよう空文字で返す（呼出側が skip 判定）。
-		{name: "missing state_detail", body: `{"id":"x","name":"y"}`, wantGroup: ""},
-		{name: "null state_detail", body: `{"state_detail":null}`, wantGroup: ""},
+		// Plane Cloud の実応答はフラットな state_group（STG 実測）。
+		{name: "completed", body: `{"state_group":"completed"}`, wantGroup: "completed"},
+		{name: "started", body: `{"state_group":"started"}`, wantGroup: "started"},
+		{name: "cancelled", body: `{"state_group":"cancelled"}`, wantGroup: "cancelled"},
+		{name: "backlog", body: `{"state_group":"backlog"}`, wantGroup: "backlog"},
+		// state_detail.group は別版互換のフォールバック。
+		{name: "state_detail fallback", body: `{"state_detail":{"group":"completed"}}`, wantGroup: "completed"},
+		{name: "state_group wins over state_detail", body: `{"state_group":"started","state_detail":{"group":"completed"}}`, wantGroup: "started"},
+		// 両方欠落は open 扱いを誤らないよう空文字で返す（呼出側が skip 判定）。
+		{name: "missing state fields", body: `{"id":"x","name":"y"}`, wantGroup: ""},
+		{name: "null state fields", body: `{"state_group":"","state_detail":null}`, wantGroup: ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -223,13 +223,16 @@ func (c *planeClient) CreateBugReportIssue(ctx context.Context, report *model.Su
 // Plane の状態グループは backlog/unstarted/started/completed/cancelled —
 // グループが取れない応答は「不明」として空文字を返す（resolved 側へ誤判定しないため）。
 type planeIssueStateResponse struct {
+	// Plane Cloud の実応答はフラットな state_group を返す（STG で実測確認）。
+	// state_detail.group はセルフホスト等の別版互換のフォールバックとして残す。
+	StateGroup  string `json:"state_group"`
 	StateDetail *struct {
 		Group string `json:"group"`
 	} `json:"state_detail"`
 }
 
 // FetchIssueStateGroup は GET /v1/workspaces/{slug}/projects/{id}/issues/{issueID}/ の
-// state_detail.group を返す。非 2xx は *planeUpstreamError、group 欠落は空文字。
+// state_group（欠落時は state_detail.group）を返す。非 2xx は *planeUpstreamError、group 欠落は空文字。
 func (c *planeClient) FetchIssueStateGroup(ctx context.Context, issueID string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/v1/workspaces/%s/projects/%s/issues/%s/",
 		c.baseURL, c.workspaceSlug, c.projectID, url.PathEscape(issueID)), http.NoBody)
@@ -252,6 +255,9 @@ func (c *planeClient) FetchIssueStateGroup(ctx context.Context, issueID string) 
 	var parsed planeIssueStateResponse
 	if err := json.NewDecoder(io.LimitReader(resp.Body, planeResponseMaxBytes)).Decode(&parsed); err != nil {
 		return "", fmt.Errorf("failed to decode plane response: %w", err)
+	}
+	if parsed.StateGroup != "" {
+		return parsed.StateGroup, nil
 	}
 	if parsed.StateDetail == nil {
 		return "", nil
