@@ -18,8 +18,8 @@ const mockUseClinicScope = vi.hoisted(() => vi.fn());
 const mockUsePermission = vi.hoisted(() => vi.fn());
 const mockDeleteRecord = vi.hoisted(() => vi.fn());
 
-vi.mock("../api/get-medical-records", () => ({
-  useGetMedicalRecords: mockUseGetMedicalRecords,
+vi.mock("../api/get-medical-records-page", () => ({
+  useGetMedicalRecordsPage: mockUseGetMedicalRecords,
 }));
 
 vi.mock("../api/delete-medical-record", () => ({
@@ -210,6 +210,86 @@ describe("MedicalRecords clinic scope", () => {
 
     expect(mockUseGetMedicalRecords).toHaveBeenLastCalledWith(
       expect.objectContaining({ clinicIds: ["clinic-1", "clinic-2"] }),
+      expect.objectContaining({ preservePreviousData: true }),
+    );
+  });
+});
+
+describe("MedicalRecords 表示列フィルタ (EMR-245)", () => {
+  async function addColumnTextFilter(label: string, value: string) {
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "フィルタを追加" }));
+    await user.click(screen.getByRole("option", { name: label }));
+    const input = await screen.findByRole("textbox", { name: `${label}を入力` });
+    await user.type(input, value);
+    fireEvent.keyDown(input, { key: "Enter" });
+    return user;
+  }
+
+  it("フィルタ追加メニューに表示列（飼主名・ペット名・主訴）が列挙される", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: "フィルタを追加" }));
+
+    expect(screen.getByRole("option", { name: "飼主名" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "ペット名" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "主訴" })).toBeInTheDocument();
+  });
+
+  it("飼主名フィルタは独立した ownerName パラメータとして送信される", async () => {
+    renderPage();
+
+    await addColumnTextFilter("飼主名", "山田");
+
+    expect(mockUseGetMedicalRecords).toHaveBeenLastCalledWith(
+      expect.objectContaining({ ownerName: "山田" }),
+      expect.objectContaining({ preservePreviousData: true }),
+    );
+  });
+
+  it("ペット名・主訴フィルタも独立パラメータとして送信される", async () => {
+    renderPage();
+
+    await addColumnTextFilter("ペット名", "ポチ");
+    expect(mockUseGetMedicalRecords).toHaveBeenLastCalledWith(
+      expect.objectContaining({ petName: "ポチ" }),
+      expect.objectContaining({ preservePreviousData: true }),
+    );
+
+    await addColumnTextFilter("主訴", "嘔吐");
+    expect(mockUseGetMedicalRecords).toHaveBeenLastCalledWith(
+      expect.objectContaining({ petName: "ポチ", chiefComplaint: "嘔吐" }),
+      expect.objectContaining({ preservePreviousData: true }),
+    );
+  });
+
+  it("列フィルタを追加すると page が 1 にリセットされる", async () => {
+    renderPage("/medical-records?page=3");
+
+    expect(mockUseGetMedicalRecords).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 3 }),
+      expect.objectContaining({ preservePreviousData: true }),
+    );
+
+    await addColumnTextFilter("飼主名", "山田");
+
+    expect(mockUseGetMedicalRecords).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 1, ownerName: "山田" }),
+      expect.objectContaining({ preservePreviousData: true }),
+    );
+  });
+
+  it("横断検索バーは列フィルタと区別されたUIとして残る", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    const searchInput = screen.getByRole("textbox", { name: /横断検索/ });
+    await user.type(searchInput, "山田");
+    fireEvent.keyDown(searchInput, { key: "Enter" });
+
+    expect(mockUseGetMedicalRecords).toHaveBeenLastCalledWith(
+      expect.objectContaining({ search: "山田", ownerName: undefined }),
       expect.objectContaining({ preservePreviousData: true }),
     );
   });

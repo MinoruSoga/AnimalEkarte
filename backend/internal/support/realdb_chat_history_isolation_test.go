@@ -33,7 +33,7 @@ func TestRealDB_SupportChatHistoryClinicStaffIsolation(t *testing.T) {
 	other := &model.Staff{ClinicID: fx.ClinicB, Name: "D3support-chathistory other staff", StaffType: model.StaffTypeDoctor, IsActive: true}
 	require.NoError(t, db.WithContext(ctx).Create(other).Error)
 
-	svc := NewService(NewRepository(db))
+	svc := NewService(NewRepository(db), nil)
 
 	const msgA = "D3support-chathistory-Aの質問"
 	const msgB = "D3support-chathistory-Bの質問"
@@ -43,7 +43,7 @@ func TestRealDB_SupportChatHistoryClinicStaffIsolation(t *testing.T) {
 		[]ChatSource{{Title: "画面別 会計", Category: "screens", Slug: "accounting"}}))
 	require.NoError(t, svc.RecordChatExchange(ctx, fx.ClinicB, other.ID, msgOther, "他人の回答", nil))
 
-	handler := NewHandler(svc, nil, nil, nil, nil, nil)
+	handler := NewHandler(svc, nil, nil, nil, nil)
 	const listPath = "/api/v1/support/chat/history"
 
 	t.Run("list_returns_only_selected_clinic_and_staff_rows", func(t *testing.T) {

@@ -77,6 +77,7 @@ export function MedicalRecordServiceTabs({
           medicalRecordId={recordId}
           recordClinicId={recordClinicId}
           isPetDeceased={selectedPet.status === "死亡"}
+          isLocked={isLocked}
         />
       </MedicalRecordMountedTab>
       <MedicalRecordMountedTab

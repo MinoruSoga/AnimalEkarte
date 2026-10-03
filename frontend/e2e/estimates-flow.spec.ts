@@ -105,10 +105,10 @@ test.describe("見積書管理 フロー E2E", () => {
       const rows = estimates.rows();
       const initialRowCount = await rows.count();
 
-      await estimates.searchToggle().click();
       const searchInput = estimates.searchInput();
       await expect(searchInput).toBeVisible();
       await searchInput.fill(fixture.estimateTitle);
+      await searchInput.press("Enter");
 
       await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => null);
 

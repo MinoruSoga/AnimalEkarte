@@ -56,18 +56,15 @@ export class SettingsMasterPage extends BasePage {
     return this.deleteDialog().getByRole("button", { name: confirmLabel });
   }
 
-  searchToggle(): Locator {
-    return this.page.getByLabel("検索");
-  }
-
   searchInput(placeholder: string): Locator {
     return this.page.getByPlaceholder(placeholder);
   }
 
-  /** Open PropertyFilter search and fill the placeholder-specific input. */
+  /** Fill the always-visible PropertyFilter search input and commit with Enter. */
   async searchFor(placeholder: string, term: string): Promise<void> {
-    await this.searchToggle().click();
-    await this.searchInput(placeholder).fill(term);
+    const input = this.searchInput(placeholder);
+    await input.fill(term);
+    await input.press("Enter");
   }
 
   /** Medicine side-panel unit price field. */

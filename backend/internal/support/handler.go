@@ -20,11 +20,6 @@ import (
 // screenshotSignedURLTTL は一覧レスポンスの署名付き URL 有効期限
 const screenshotSignedURLTTL = 15 * time.Minute
 
-// PermissionMiddleware builds the gin.HandlerFunc that gates a route on (resource, action).
-// Consumer-side view of the permission middleware — same seam as manualarticle; the
-// composition root supplies the concrete implementation.
-type PermissionMiddleware func(resource, action string) gin.HandlerFunc
-
 // fileUploader is the consumer-side view of infra.FileUploader.
 type fileUploader interface {
 	Upload(ctx context.Context, key string, body io.Reader, contentType string) (string, error)
@@ -34,20 +29,19 @@ type fileUploader interface {
 
 // Handler serves the support HTTP boundary.
 type Handler struct {
-	service           Service
-	uploader          fileUploader
-	audit             AuditLogger
-	requirePermission PermissionMiddleware
-	chat              ChatCompleter
-	chatRateLimit     gin.HandlerFunc
+	service       Service
+	uploader      fileUploader
+	audit         AuditLogger
+	chat          ChatCompleter
+	chatRateLimit gin.HandlerFunc
 }
 
 // NewHandler initializes a Handler. uploader may be nil (screenshot upload then fails closed).
 // audit may be nil (audit logging is then skipped, best-effort).
 // chat may be nil (help chat is then disabled and frontend falls back to manual search).
 // chatRateLimit may be nil (chat POST is then unbounded — production wiring always supplies one).
-func NewHandler(service Service, uploader fileUploader, audit AuditLogger, requirePermission PermissionMiddleware, chat ChatCompleter, chatRateLimit gin.HandlerFunc) *Handler {
-	return &Handler{service: service, uploader: uploader, audit: audit, requirePermission: requirePermission, chat: chat, chatRateLimit: chatRateLimit}
+func NewHandler(service Service, uploader fileUploader, audit AuditLogger, chat ChatCompleter, chatRateLimit gin.HandlerFunc) *Handler {
+	return &Handler{service: service, uploader: uploader, audit: audit, chat: chat, chatRateLimit: chatRateLimit}
 }
 
 // RegisterRoutes はサポート関連ルートを登録する。
@@ -60,6 +54,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	s.GET("/chat/status", h.ChatStatus)
 	s.GET("/chat/history", h.ChatHistory)
 	s.DELETE("/chat/history", h.ClearChatHistory)
+	// 共有一覧はバグ報告と同じく全医院公開（質問傾向の横断分析用途 — product 決定）。
+	s.GET("/chat/exchanges", h.ListChatExchanges)
 	chatHandlers := []gin.HandlerFunc{h.Chat}
 	if h.chatRateLimit != nil {
 		chatHandlers = append([]gin.HandlerFunc{h.chatRateLimit}, chatHandlers...)
@@ -68,12 +64,13 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 	g := s.Group("/bug-reports")
 
-	// 報告送信は認証済みスタッフ全員が使える（権限ゲートなし）。
+	// バグ報告は認証済みスタッフ全員・全医院に公開する共有ボード
+	//（権限ゲート・医院絞りなし — 製品フィードバック基盤としての意図的な製品判断）。
 	g.POST("", h.CreateBugReport)
-
-	// 一覧・ステータス更新は管理者向け（hospital-settings 権限を流用）。
-	g.GET("", h.requirePermission(string(model.ResourceHospitalSettings), "view"), h.ListBugReports)
-	g.PATCH("/:id/status", h.requirePermission(string(model.ResourceHospitalSettings), "edit"), h.UpdateBugReportStatus)
+	g.GET("", h.ListBugReports)
+	g.PATCH("/:id/status", h.UpdateBugReportStatus)
+	g.POST("/:id/plane-ticket", h.CreatePlaneTicket)
+	g.DELETE("/:id", h.DeleteBugReport)
 }
 
 // CreateBugReport はバグ報告を作成する。
@@ -155,42 +152,33 @@ func (h *Handler) CreateBugReport(c *gin.Context) {
 	}
 
 	h.logAudit(c, "support_bug_report.create", report)
-	resp := toBugReportResponse(report, "")
+	resp := toBugReportResponse(report, "", "")
 	h.signScreenshotURL(c.Request.Context(), report, &resp)
 	c.JSON(http.StatusCreated, resp)
 }
 
-// ListBugReports は自医院のバグ報告一覧を新しい順で返す。
+// ListBugReports は全医院のバグ報告一覧を新しい順で返す。
+// 認証済みスタッフ全員が利用可能（権限ゲート・医院絞りなし — 意図的な製品判断）。
 //
 // GET /api/v1/support/bug-reports
-// Requires: hospital-settings view
 func (h *Handler) ListBugReports(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
-	if !ok {
-		return
-	}
-	reports, err := h.service.ListByClinic(c.Request.Context(), clinicID)
+	reports, err := h.service.ListAll(c.Request.Context())
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
 	data := make([]BugReportResponse, len(reports))
 	for i := range reports {
-		data[i] = toBugReportResponse(&reports[i].SupportBugReport, reports[i].ReporterName)
+		data[i] = toBugReportResponse(&reports[i].SupportBugReport, reports[i].ReporterName, reports[i].ClinicName)
 		h.signScreenshotURL(c.Request.Context(), &reports[i].SupportBugReport, &data[i])
 	}
 	c.JSON(http.StatusOK, BugReportListResponse{Data: data})
 }
 
-// UpdateBugReportStatus は報告の対応状況を更新する。
+// UpdateBugReportStatus は報告の対応状況を更新する。認証済みスタッフ全員が利用可能。
 //
 // PATCH /api/v1/support/bug-reports/:id/status
-// Requires: hospital-settings edit
 func (h *Handler) UpdateBugReportStatus(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
-	if !ok {
-		return
-	}
 	id, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {
 		return
@@ -200,13 +188,56 @@ func (h *Handler) UpdateBugReportStatus(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput("invalid request body"))
 		return
 	}
-	report, err := h.service.UpdateStatus(c.Request.Context(), clinicID, id, model.SupportBugReportStatus(req.Status))
+	report, err := h.service.UpdateStatus(c.Request.Context(), id, model.SupportBugReportStatus(req.Status))
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
 	h.logAudit(c, "support_bug_report.update_status", report)
-	c.JSON(http.StatusOK, toBugReportResponse(report, ""))
+	c.JSON(http.StatusOK, toBugReportResponse(report, "", ""))
+}
+
+// CreatePlaneTicket は報告を Plane ワークアイテムとして起票する。
+// 自動起票に失敗した報告の手動再送経路でもある。起票済みなら現行状態を返す（冪等）。
+// 認証済みスタッフ全員が利用可能。
+//
+// POST /api/v1/support/bug-reports/:id/plane-ticket
+func (h *Handler) CreatePlaneTicket(c *gin.Context) {
+	id, ok := httpapi.ParseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	report, err := h.service.EnsurePlaneTicket(c.Request.Context(), id)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	h.logAudit(c, "support_bug_report.plane_ticket", report)
+	c.JSON(http.StatusOK, toBugReportResponse(report, "", ""))
+}
+
+// DeleteBugReport は報告を論理削除し、添付スクショのオブジェクトも削除する。
+// 認証済みスタッフ全員が利用可能。
+//
+// DELETE /api/v1/support/bug-reports/:id
+func (h *Handler) DeleteBugReport(c *gin.Context) {
+	id, ok := httpapi.ParseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	report, err := h.service.Delete(c.Request.Context(), id)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	// スクショのオブジェクト削除は best-effort（失敗時は孤立オブジェクトが残るのみ）
+	if report.ScreenshotKey != nil && h.uploader != nil {
+		if err := h.uploader.Delete(context.WithoutCancel(c.Request.Context()), *report.ScreenshotKey); err != nil {
+			slog.WarnContext(c.Request.Context(), "failed to delete bug report screenshot (best-effort)", "error", err, "report_id", report.ID)
+		}
+	}
+	h.logAudit(c, "support_bug_report.delete", report)
+	c.Status(http.StatusNoContent)
 }
 
 // uploadScreenshot は検証済みスクショを FileUploader へ保存しオブジェクト key を返す。
@@ -251,8 +282,9 @@ func (h *Handler) logAudit(c *gin.Context, action string, report *model.SupportB
 		return
 	}
 	if err := h.audit.LogEntry(c.Request.Context(), AuditEntry{
-		ClinicID:   &report.ClinicID,
-		ActorID:    &report.ReporterStaffID,
+		ClinicID: &report.ClinicID,
+		// actor は操作者（削除・起票では報告者と異なり得る）。取得失敗時は nil のまま残す。
+		ActorID:    httpapi.OptionalStaffID(c),
 		ActorType:  "staff",
 		Action:     action,
 		Resource:   "support_bug_report",

@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { isOneOf } from "@/lib/type-utils";
 
-import { ACQUISITION_TYPE_VALUES, DANGER_LEVEL_VALUES } from "../types";
+import { ACQUISITION_TYPE_VALUES, DANGER_LEVEL_VALUES, NEUTERED_STATUS_VALUES } from "../types";
 import { StaffNoteDisclosure } from "./StaffNoteDisclosure";
 import {
   LABEL_CLS,
@@ -18,6 +18,7 @@ import {
   BREED_SUGGESTIONS,
   ACQUISITION_SELECT_ITEMS,
   DANGER_SELECT_ITEMS,
+  NEUTERED_SELECT_ITEMS,
   type PetFieldSectionProps,
 } from "./PetEditFieldShared";
 
@@ -28,6 +29,9 @@ export function PetPhysicalSection({
   clearFieldError,
 }: PetFieldSectionProps) {
   const breedSuggestions = BREED_SUGGESTIONS[formData.species];
+  // 性別に応じて 去勢（オス）/ 避妊（メス）/ 去勢・避妊（未選択・不明）を使い分ける
+  const neuteredLabel =
+    formData.gender === "雄" ? "去勢" : formData.gender === "雌" ? "避妊" : "去勢・避妊";
 
   return (
     <div className="space-y-2">
@@ -112,8 +116,32 @@ export function PetPhysicalSection({
       </div>
 
       <div className="space-y-1">
+        <Label htmlFor="neuteredStatus" className={LABEL_CLS}>
+          {neuteredLabel}
+        </Label>
+        <Select
+          value={formData.neuteredStatus || ""}
+          onValueChange={(value) => {
+            if (isOneOf(value, NEUTERED_STATUS_VALUES)) {
+              setFormData((prev) => ({ ...prev, neuteredStatus: value }));
+              clearFieldError("neuteredStatus");
+            }
+          }}
+        >
+          <SelectTrigger
+            id="neuteredStatus"
+            className={`${INPUT_CLS} ${fieldErrors.neuteredStatus ? STYLE.formInputError : ""}`}
+          >
+            <SelectValue placeholder="選択してください" />
+          </SelectTrigger>
+          <SelectContent>{NEUTERED_SELECT_ITEMS}</SelectContent>
+        </Select>
+        <FormFieldError id="neuteredStatus-error" message={fieldErrors.neuteredStatus} />
+      </div>
+
+      <div className="space-y-1">
         <Label htmlFor="neuteredDate" className={LABEL_CLS}>
-          去勢・避妊手術日
+          {neuteredLabel}手術日
         </Label>
         <DatePicker
           id="neuteredDate"

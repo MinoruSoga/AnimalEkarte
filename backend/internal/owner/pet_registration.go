@@ -23,6 +23,7 @@ type PetRegistrationDraft struct {
 	BirthDate       *time.Time
 	Weight          *float64
 	NeuteredDate    *time.Time
+	NeuteredStatus  model.PetNeuteredStatus
 	AcquisitionType *model.AcquisitionType
 	DangerLevel     model.DangerLevel
 	DangerReason    *string

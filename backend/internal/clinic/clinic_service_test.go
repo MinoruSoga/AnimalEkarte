@@ -550,11 +550,11 @@ func TestService_CreateClinic_DefaultPermissionGroupRules(t *testing.T) {
 }
 
 // TestDefaultPermissionRuleTable_CoversAllResources は defaultPermissionRuleTable が
-// model.AllResources (37) を過不足なくカバーし、共有マスタ animal-species が
+// model.AllResources (36) を過不足なくカバーし、共有マスタ animal-species が
 // 執行・一般とも view-only、examination-unconfirm が執行のみ edit 付与
-// （一般は default-deny、EMR-234）、checkup-package-import が default-deny であることを固定する。
+// （一般は default-deny、EMR-234）であることを固定する。
 func TestDefaultPermissionRuleTable_CoversAllResources(t *testing.T) {
-	require.Len(t, model.AllResources, 37, "AllResources 件数の契約が変わったら permission rollout を同時に更新すること")
+	require.Len(t, model.AllResources, 36, "AllResources 件数の契約が変わったら permission rollout を同時に更新すること")
 	require.Len(t, defaultPermissionRuleTable, len(model.AllResources),
 		"defaultPermissionRuleTable は AllResources と同数であること")
 
@@ -615,20 +615,6 @@ func TestDefaultPermissionRuleTable_CoversAllResources(t *testing.T) {
 				assert.False(t, unconfirm.CanEdit, "一般は examination-unconfirm:edit を持たないこと")
 			}
 		}
-
-		var pkgImport *model.PermissionGroupRule
-		for i := range rules {
-			if rules[i].Resource == string(model.ResourceCheckupPackageImport) {
-				pkgImport = &rules[i]
-				break
-			}
-		}
-		if assert.NotNilf(t, pkgImport, "%s に checkup-package-import があること", profile) {
-			assert.False(t, pkgImport.CanView)
-			assert.False(t, pkgImport.CanCreate)
-			assert.False(t, pkgImport.CanEdit)
-			assert.False(t, pkgImport.CanDelete)
-		}
 	}
 }
 
@@ -647,7 +633,7 @@ var demoPermissionSeedGroupProfiles = map[uint64]string{
 }
 
 func TestDemoSeedGroupRules_Parity(t *testing.T) {
-	require.Len(t, model.AllResources, 37)
+	require.Len(t, model.AllResources, 36)
 	require.Len(t, demoPermissionSeedGroupProfiles, 9, "002_master は 9 権限グループを持つ契約")
 	seedResources := make([]model.Resource, 0, len(model.AllResources)-1)
 	for _, resource := range model.AllResources {

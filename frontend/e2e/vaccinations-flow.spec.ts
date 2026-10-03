@@ -46,12 +46,11 @@ test.describe("予防接種管理 フロー E2E", () => {
         await vaccinations.gotoList();
         await expect(vaccinations.listHeading()).toBeVisible({ timeout: 15000 });
 
-        // PropertyFilter: 検索トグルボタンをクリックして入力欄を表示
-        await vaccinations.searchToggleButton().click();
+        // 検索入力は常時表示
         const searchInput = vaccinations.searchInput();
         await expect(searchInput).toBeVisible();
 
-        // search は deferred 経由で GET /v1/vaccinations?search=… を発行する。
+        // EMR-247: Enter / 検索ボタン確定で GET /v1/vaccinations?search=… を発行する。
         // fill より先に waitForResponse を登録して取りこぼさない。
         const filteredResponsePromise = page.waitForResponse((response) => {
           const url = new URL(response.url());
@@ -63,6 +62,7 @@ test.describe("予防接種管理 フロー E2E", () => {
         });
         await searchInput.fill(fixture.ownerSearch);
         await expect(searchInput).toHaveValue(fixture.ownerSearch, { timeout: 10000 });
+        await searchInput.press("Enter");
         // fill 直後（filtered response 到達前）の一覧 DOM を証跡として採取する。
         // eslint-disable-next-line no-restricted-properties -- Playwright の innerHTML() は読み取り専用の証跡採取（代入ではない）
         const domAfterFill = await vaccinations

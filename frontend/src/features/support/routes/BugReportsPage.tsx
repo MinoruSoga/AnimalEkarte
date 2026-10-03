@@ -1,13 +1,17 @@
 /**
- * BugReportsPage — バグ報告の一覧・対応管理ページ（管理者向け）
+ * BugReportsPage — バグ報告の一覧・対応管理ページ（全スタッフ・全医院に公開）
  *
- * /settings/bug-reports（hospital-settings 権限、settings-routes でゲート）。
+ * /settings/bug-reports（権限ゲートなし — バグ報告は全医院共有の製品フィードバック
+ * 基盤として意図的に開放。backend も同じ方針）。一覧は全医院の報告を新しい順で返し、
+ * 医院列で provenance を識別できる。
  * 件名セルの詳細ボタンで詳細ダイアログ（スクリーンショット・画面文脈・ステータス切替）。
  */
 import { useState } from "react";
-import { Bug } from "lucide-react";
+import { Bug, ExternalLink, Trash2 } from "lucide-react";
+import type { UseMutationResult } from "@tanstack/react-query";
 
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { EmptyState, ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { Button } from "@/components/ui/button";
@@ -30,6 +34,8 @@ import { BADGE, C, ICON, STYLE } from "@/lib/design-tokens";
 import { formatJSTDate, formatJSTTime } from "@/lib/jst-date";
 
 import { useGetBugReports } from "../api/get-bug-reports";
+import { useCreatePlaneTicket } from "../api/create-plane-ticket";
+import { useDeleteBugReport } from "../api/delete-bug-report";
 import { useUpdateBugReportStatus } from "../api/update-bug-report-status";
 import type { BugReport, BugReportStatus } from "../types";
 
@@ -53,6 +59,53 @@ function StatusBadge({ status }: { status: BugReportStatus }) {
   );
 }
 
+type PlaneTicketMutation = UseMutationResult<BugReport, unknown, number, unknown>;
+
+interface PlaneTicketCellProps {
+  report: BugReport;
+  mutation: PlaneTicketMutation;
+}
+
+/**
+ * Plane 連携状態。
+ * 起票済み → チケットへの外部リンク / 直近失敗 → 失敗表示 + 再送ボタン / 未連携 → ―
+ */
+function PlaneTicketCell({ report, mutation }: PlaneTicketCellProps) {
+  if (report.plane_issue_url) {
+    return (
+      <a
+        href={report.plane_issue_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`inline-flex items-center gap-1 underline ${C.textActionPrimary} hover:opacity-70`}
+      >
+        <ExternalLink className={ICON.xs} />
+        チケット
+      </a>
+    );
+  }
+  if (report.plane_sync_error) {
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        <span className={`text-2xs ${C.danger}`} title={report.plane_sync_error}>
+          起票失敗
+        </span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-6 px-2 text-2xs"
+          onClick={() => mutation.mutate(report.id)}
+          disabled={mutation.isPending}
+        >
+          再送
+        </Button>
+      </span>
+    );
+  }
+  return <span className={C.text50}>―</span>;
+}
+
 interface BugReportDetailDialogProps {
   report: BugReport | null;
   onClose: () => void;
@@ -60,6 +113,7 @@ interface BugReportDetailDialogProps {
 
 function BugReportDetailDialog({ report, onClose }: BugReportDetailDialogProps) {
   const updateStatus = useUpdateBugReportStatus();
+  const createTicket = useCreatePlaneTicket();
   const nextStatus: BugReportStatus | null =
     report === null ? null : report.status === "open" ? "resolved" : "open";
 
@@ -84,6 +138,8 @@ function BugReportDetailDialog({ report, onClose }: BugReportDetailDialogProps) 
           </DialogHeader>
 
           <dl className="grid grid-cols-[96px_1fr] gap-x-3 gap-y-1.5 text-sm">
+            <dt className={C.text50}>医院</dt>
+            <dd className={C.text70}>{report.clinic_name || "―"}</dd>
             <dt className={C.text50}>詳細</dt>
             <dd className={`whitespace-pre-wrap break-words ${C.text}`}>
               {report.detail || "（記載なし）"}
@@ -98,6 +154,10 @@ function BugReportDetailDialog({ report, onClose }: BugReportDetailDialogProps) 
             <dd className={C.text70}>{report.viewport || "―"}</dd>
             <dt className={C.text50}>UA</dt>
             <dd className={`break-all text-2xs ${C.text60}`}>{report.user_agent || "―"}</dd>
+            <dt className={C.text50}>Plane</dt>
+            <dd className={C.text70}>
+              <PlaneTicketCell report={report} mutation={createTicket} />
+            </dd>
           </dl>
 
           {report.screenshot_url ? (
@@ -135,14 +195,16 @@ function BugReportDetailDialog({ report, onClose }: BugReportDetailDialogProps) 
 
 export function BugReportsPage() {
   const { data: reports, isLoading, isError } = useGetBugReports();
+  const createTicket = useCreatePlaneTicket();
+  const deleteReport = useDeleteBugReport();
   const [selected, setSelected] = useState<BugReport | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<BugReport | null>(null);
 
   return (
     <PageLayout
       title="バグ報告"
-      description="サポートウィジェットから送信されたバグ報告の一覧です"
+      description="サポートウィジェットから送信されたバグ報告の一覧です（全医院・全スタッフに公開）"
       icon={<Bug className={`${ICON.page} ${C.text}`} />}
-      resource="hospital-settings"
       maxWidth="max-w-5xl"
     >
       {isLoading ? (
@@ -157,11 +219,14 @@ export function BugReportsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[130px]">日時</TableHead>
+                <TableHead className="w-[110px]">医院</TableHead>
                 <TableHead className="w-[110px]">報告者</TableHead>
                 <TableHead>件名</TableHead>
                 <TableHead className="w-[160px]">画面</TableHead>
                 <TableHead className="w-[90px]">スクショ</TableHead>
                 <TableHead className="w-[90px]">状態</TableHead>
+                <TableHead className="w-[120px]">Plane</TableHead>
+                <TableHead className="w-[64px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -170,6 +235,7 @@ export function BugReportsPage() {
                   <TableCell className={C.text70}>
                     {formatJSTDate(report.created_at)} {formatJSTTime(report.created_at)}
                   </TableCell>
+                  <TableCell className={C.text70}>{report.clinic_name || "―"}</TableCell>
                   <TableCell className={C.text70}>
                     {report.reporter_name || `#${report.reporter_staff_id}`}
                   </TableCell>
@@ -188,6 +254,21 @@ export function BugReportsPage() {
                   <TableCell>
                     <StatusBadge status={report.status} />
                   </TableCell>
+                  <TableCell>
+                    <PlaneTicketCell report={report} mutation={createTicket} />
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className={`h-7 px-2 ${C.danger}`}
+                      aria-label={`削除: ${report.title}`}
+                      onClick={() => setPendingDelete(report)}
+                    >
+                      <Trash2 className={ICON.xs} />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -196,6 +277,26 @@ export function BugReportsPage() {
       )}
 
       <BugReportDetailDialog report={selected} onClose={() => setSelected(null)} />
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={() => {
+          const target = pendingDelete;
+          if (target !== null) {
+            deleteReport.mutate(target.id, {
+              onSuccess: () => setPendingDelete(null),
+            });
+          }
+        }}
+        title={
+          pendingDelete !== null ? `「${pendingDelete.title}」を削除しますか？` : "削除しますか？"
+        }
+        description="報告と添付スクリーンショットが削除されます。Plane に作成済みのチケットは残ります。この操作は取り消せません。"
+        confirmLabel="削除する"
+        variant="destructive"
+        isPending={deleteReport.isPending}
+      />
     </PageLayout>
   );
 }

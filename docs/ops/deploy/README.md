@@ -32,7 +32,7 @@
 - **[STG デモデータライフサイクル (STG-DEMO-DATA-LIFECYCLE.md)](./STG-DEMO-DATA-LIFECYCLE.md)**: Seed/Demo/Smoke テストデータの分類、作成元、Cleanup 方針、明示承認が必要な DB 再作成境界。
 - **[STG 継続運用チェックリスト (STG-CONTINUOUS-OPERATIONS.md)](./STG-CONTINUOUS-OPERATIONS.md)**: 日次/週次/月次の STG 環境監視・検査・メンテナンス。
 - **[Durable Scheduler運用 (runbooks/SCHEDULER_OPERATIONS.md)](./runbooks/SCHEDULER_OPERATIONS.md)**: 定期jobのstatus、pause/resume、missing-slot catch-up、通知、障害復旧。BE9のcode/configは実装済みだが、今回versionの実環境deploy/rehearsalはrelease gateとして未実施。
-- **[Vercel フロントエンド検証手順 (VERCEL-FRONTEND-STAGING-TEST.md)](./VERCEL-FRONTEND-STAGING-TEST.md)**: デプロイ後の UI・ログイン・API 連携検証。
+- **[旧] Vercel フロントエンド検証手順 (VERCEL-FRONTEND-STAGING-TEST.md)](./VERCEL-FRONTEND-STAGING-TEST.md)**: Vercel 時代の検証手順。EMR-255 で frontend は Cloudflare Workers Static Assets へ移行済み — rollback 期間中の参照専用（現行確認手順は frontend Worker の smoke/tail）。
 - **[休憩時間データ形状監査 (BREAK-HOURS-SHAPE-AUDIT.md)](./BREAK-HOURS-SHAPE-AUDIT.md)**: R1-3 デプロイ前の STG/本番 break_hours 形状監査手順。
 - **[本番 Cloudflare 基盤 事前構築手順 (../infra/production/setup.md)](./../infra/production/setup.md)**: 本番環境（noah-karte.com）を CF Workers + Containers + PlanetScale で新設する実施手順（billing recovery と production approval gate の実装・検証後に USER が日程を決定）。
 - **[PlanetScale STG シード投入 Runbook (STG_PLANETSCALE_SEED_RUNBOOK.md)](./STG_PLANETSCALE_SEED_RUNBOOK.md)**: PlanetScale STG の `cmd/migrate` 適用・検証。承認済み再構築（`DB_RESET` → master/login → `_old_db_handoff`）のオペレータ手順は同文書 §6。

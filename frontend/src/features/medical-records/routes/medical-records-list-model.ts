@@ -2,6 +2,7 @@ import {
   Activity,
   Calendar,
   CircleDot,
+  FileText,
   Package,
   PawPrint,
   Pill,
@@ -12,7 +13,7 @@ import type { FilterCondition, FilterProperty } from "@/components/shared/Proper
 import { C, STYLE } from "@/lib/design-tokens";
 
 interface MedicalRecordsFilterMaster {
-  staffs: { id: string; name: string; isActive: boolean }[] | undefined;
+  staffs: { id: string; name: string; isActive: boolean; staffType: string }[] | undefined;
   activeSpecies: { id: number; name: string }[];
   isSpeciesError: boolean;
   isSpeciesLoading: boolean;
@@ -26,7 +27,7 @@ export function buildMedicalRecordsFilterProperties(
   input: MedicalRecordsFilterMaster,
 ): FilterProperty[] {
   const doctorOptions = (input.staffs ?? [])
-    .filter((s) => s.isActive)
+    .filter((s) => s.isActive && s.staffType === "doctor")
     .map((s) => ({ value: s.id, label: s.name }));
   const speciesOptions =
     input.isSpeciesError || input.isSpeciesLoading
@@ -101,6 +102,27 @@ const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
     label: "診療日",
     type: "date-range",
     icon: Calendar,
+  },
+  // EMR-245: 表示列（飼主名・ペット名・主訴）の部分一致フィルタ。
+  // type:"text" は contains 固定（BE は owner_name / pet_name / chief_complaint
+  // の ILIKE 部分一致のみ受け付ける）。横断検索の search とは別パラメータで送る。
+  {
+    key: "owner_name",
+    label: "飼主名",
+    type: "text",
+    icon: User,
+  },
+  {
+    key: "pet_name",
+    label: "ペット名",
+    type: "text",
+    icon: PawPrint,
+  },
+  {
+    key: "chief_complaint",
+    label: "主訴",
+    type: "text",
+    icon: FileText,
   },
   {
     key: "status",

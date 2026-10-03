@@ -51,15 +51,12 @@ test.describe("会計 smoke E2E", () => {
         page.locator("tbody").getByText(DEMO_ACCOUNTING_OFFPAGE_PET.displayName, { exact: true }),
       ).toHaveCount(0);
 
-      const searchToggle = accounting.searchToggle();
-      await expect(searchToggle).toBeVisible({ timeout: 15000 });
-      await searchToggle.click();
-
       const searchInput = accounting.searchInput();
-      await expect(searchInput).toBeVisible({ timeout: 5000 });
+      await expect(searchInput).toBeVisible({ timeout: 15000 });
 
       // べるす → ベルス (server NormalizeKana + translate)
       await searchInput.fill(DEMO_ACCOUNTING_OFFPAGE_PET.hiraganaSearch);
+      await searchInput.press("Enter");
       await expect(
         page
           .locator("tbody")
@@ -78,14 +75,11 @@ test.describe("会計 smoke E2E", () => {
       await accounting.gotoList();
       await expect(accounting.listTab()).toBeVisible({ timeout: 30000 });
 
-      const searchToggle = accounting.searchToggle();
-      await expect(searchToggle).toBeVisible({ timeout: 15000 });
-      await searchToggle.click();
-
       const searchInput = accounting.searchInput();
-      await expect(searchInput).toBeVisible({ timeout: 5000 });
+      await expect(searchInput).toBeVisible({ timeout: 15000 });
 
       await searchInput.fill(DEMO_ACCOUNTING_OFFPAGE_PET.katakanaSearch);
+      await searchInput.press("Enter");
       await expect(
         page
           .locator("tbody")
@@ -103,8 +97,10 @@ test.describe("会計 smoke E2E", () => {
     try {
       await accounting.gotoList();
       await expect(accounting.listTab()).toBeVisible({ timeout: 30000 });
-      await accounting.searchToggle().click();
-      await accounting.searchInput().fill(DEMO_ACCOUNTING_KANA_PET.hiraganaSearch);
+      const searchInput = accounting.searchInput();
+      await expect(searchInput).toBeVisible({ timeout: 15000 });
+      await searchInput.fill(DEMO_ACCOUNTING_KANA_PET.hiraganaSearch);
+      await searchInput.press("Enter");
       await expect(accounting.kanaPetCell()).toBeVisible({ timeout: 15000 });
     } finally {
       await page.close();

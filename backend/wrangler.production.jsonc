@@ -106,6 +106,13 @@
     // STG と同じプロバイダ構成。OpenAI へ戻す場合はこの2行を変更する。
     "SUPPORT_LLM_BASE_URL": "https://api.z.ai/api/paas/v4",
     "SUPPORT_LLM_MODEL": "glm-4.5-flash",
+
+    // バグ報告 → Plane ワークアイテム自動起票(STG と同じ宛先: workspace baritechllc /
+    // EMR プロジェクト)。PLANE_API_KEY はシークレット(backend/.env → `pnpm cf:secrets:prod`)。
+    // 未設定なら連携無効(報告はローカル保存のみ・手動起票は 501)。
+    "PLANE_WORKSPACE_SLUG": "baritechllc",
+    "PLANE_PROJECT_ID": "6a009324-8a8a-455c-b16a-41b3f6207b0e",
+    "PLANE_PROJECT_IDENTIFIER": "EMR",
   },
 
   "observability": {
@@ -189,6 +196,8 @@
       // 値は gitignore 済み backend/.env から `pnpm cf:secrets:prod`
       // (= wrangler secret bulk .env --config wrangler.production.jsonc) で投入する。
       // SUPPORT_LLM_BASE_URL/MODEL(Z.AI)は vars で管理。TIMEOUT_MS は Go 既定値(30s)。
+      // PLANE_API_KEY も required 外 — バグ報告→Plane起票の任意機能。未設定なら連携無効。
+      // STG と同じ backend/.env + `pnpm cf:secrets:prod` 経路で投入する。
     ],
   },
 }

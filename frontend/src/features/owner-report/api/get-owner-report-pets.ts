@@ -17,6 +17,7 @@ interface OwnerReportPetWire {
   microchip_number?: string | null;
   weight?: number | null;
   neutered_date?: string | null;
+  neutered_status?: string;
   acquisition_type?: string | null;
   food: string;
   environment: string;
@@ -48,6 +49,7 @@ export interface OwnerReportPet {
   microchipNumber?: string;
   weight?: string;
   neuteredDate?: string;
+  neuteredStatus?: string;
   acquisitionType?: string;
   food: string;
   environment: string;
@@ -76,6 +78,12 @@ const ACQUISITION_TYPE_LABELS: Readonly<Record<string, string>> = {
   other: "その他",
 };
 
+const NEUTERED_STATUS_LABELS: Readonly<Record<string, string>> = {
+  done: "済",
+  not_done: "未",
+  unknown: "不明",
+};
+
 function dateOnly(value: string | null | undefined): string | undefined {
   return value?.split("T")[0];
 }
@@ -94,6 +102,9 @@ function mapOwnerReportPet(pet: OwnerReportPetWire): OwnerReportPet {
     microchipNumber: pet.microchip_number ?? undefined,
     weight: pet.weight?.toString(),
     neuteredDate: dateOnly(pet.neutered_date),
+    neuteredStatus: pet.neutered_status
+      ? (NEUTERED_STATUS_LABELS[pet.neutered_status] ?? pet.neutered_status)
+      : undefined,
     acquisitionType: pet.acquisition_type
       ? (ACQUISITION_TYPE_LABELS[pet.acquisition_type] ?? pet.acquisition_type)
       : undefined,

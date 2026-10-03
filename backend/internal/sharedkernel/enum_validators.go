@@ -87,6 +87,18 @@ func ValidatePetStatus(status string) error {
 	}
 }
 
+func ValidatePetNeuteredStatus(status string) error {
+	if status == "" {
+		return nil
+	}
+	switch model.PetNeuteredStatus(status) {
+	case model.PetNeuteredStatusUnknown, model.PetNeuteredStatusNotDone, model.PetNeuteredStatusDone:
+		return nil
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("避妊・去勢ステータスの値が不正です: %s", status))
+	}
+}
+
 func ValidatePetAcquisitionType(acquisitionType string) error {
 	if acquisitionType == "" {
 		return nil

@@ -53,13 +53,13 @@ test.describe("在庫管理 E2E", () => {
       await inventory.gotoList();
       await expect(inventory.listHeading()).toBeVisible();
 
-      // PropertyFilter: 検索トグルボタンをクリックして入力欄を表示
-      await page.getByLabel("検索").click();
+      // 検索入力は常時表示（EMR-247: Enter / 検索ボタンで確定）
       const searchInput = inventory.searchInput();
       await expect(searchInput).toBeVisible();
       // 存在しない品名で検索 — 入力が受け付けられることを確認
       await searchInput.fill("存在しない品名_XXXXXXXXXXXXXXXX");
       await expect(searchInput).toHaveValue("存在しない品名_XXXXXXXXXXXXXXXX");
+      await searchInput.press("Enter");
       // 検索クリア
       await searchInput.clear();
       await expect(searchInput).toHaveValue("");
@@ -107,12 +107,11 @@ test.describe("在庫管理 E2E", () => {
       await expect(page).toHaveURL("/inventory", { timeout: 15000 });
       await expect(inventory.listHeading()).toBeVisible();
 
-      // 登録した品名が一覧に表示される
-      // PropertyFilter: 検索トグルボタンをクリックして入力欄を表示
-      await page.getByLabel("検索").click();
+      // 登録した品名が一覧に表示される（検索入力は常時表示、Enter で確定）
       const searchInput = inventory.searchInput();
       await expect(searchInput).toBeVisible();
       await searchInput.fill(itemName);
+      await searchInput.press("Enter");
       await expect(inventory.itemText(itemName)).toBeVisible({ timeout: 10000 });
     } finally {
       await page.close();

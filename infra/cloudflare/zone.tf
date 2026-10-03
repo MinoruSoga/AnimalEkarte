@@ -58,28 +58,10 @@ resource "cloudflare_zone" "noah_karte" {
 # 値が返ることを確認済み)。末尾ドット付きで宣言すると apply 毎に in-place update の
 # 差分が発生し続ける(値としての意味は同じだが plan が収束しない)ため、以下は末尾ドット無しで統一する。
 
-# apex(@) — Vercel 側の実体は ALIAS(cname.vercel-dns-016.com への動的解決)。
-# Cloudflare は zone apex の CNAME を自動フラット化するため CNAME で代替する。
-resource "cloudflare_dns_record" "apex_flatten" {
-  zone_id = cloudflare_zone.noah_karte.id
-  name    = var.zone_name
-  type    = "CNAME"
-  content = "cname.vercel-dns-016.com"
-  ttl     = 60
-  proxied = false
-  comment = "P1-1 棚卸し複製。Vercel apex ALIAS の代替(CNAME flattening)。apex 自体は現状デプロイ未割当(本番未使用)"
-}
-
-# ワイルドカード — www 含む未定義サブドメインすべてを Vercel へ向ける現行動作を維持。
-resource "cloudflare_dns_record" "wildcard" {
-  zone_id = cloudflare_zone.noah_karte.id
-  name    = "*.${var.zone_name}"
-  type    = "CNAME"
-  content = "cname.vercel-dns-016.com"
-  ttl     = 60
-  proxied = false
-  comment = "P1-1 棚卸し複製。Vercel 既定ワイルドカード ALIAS の代替(www 等をカバー)"
-}
+# apex(@)/wildcard — 2026-10-02 削除。Vercel プロジェクト退役に伴い、
+# ALIAS 代替 CNAME(cname.vercel-dns-016.com)を destroy する。
+# apex は 10/20 本番切替(EMR-256)で frontend Worker 宛の proxied A レコードとして
+# production/zone.tf 側に再作成する。それまでは NXDOMAIN(実害なし・未開業)。
 
 # EMR-255: STG フロントエンドを Vercel から animalekarte-stg-frontend Worker へ切替。
 # noah-karte.com ゾーンは既に Cloudflare authoritative(P1-2 実測済み)のため、
@@ -99,14 +81,17 @@ resource "cloudflare_dns_record" "stg_frontend" {
   comment = "EMR-255: STG frontend=animalekarte-stg-frontend Worker(Workers Route宛プレースホルダ)。旧: CNAME→Vercel"
 }
 
+# EMR-255 follow-up: live 実態は proxied=true(backend Worker route api.stg.noah-karte.com/*
+# がエッジで横取りするため content の CloudFront CNAME は実質プレースホルダ。stg_frontend と同規則)。
+# P1-1 棚卸し時の proxied=false が残っていたため、apply で proxied 解除→API 停止を防ぐべく live に合わせる。
 resource "cloudflare_dns_record" "api_stg_backend" {
   zone_id = cloudflare_zone.noah_karte.id
   name    = "api.stg.${var.zone_name}"
   type    = "CNAME"
   content = "dcqico6azu5w2.cloudfront.net"
-  ttl     = 300
-  proxied = false
-  comment = "P1-1 棚卸し複製。STG Backend API(CloudFront)。Phase 4 完了後に Worker 経由へ切替"
+  ttl     = 1 # proxied=true の場合 ttl は自動扱い
+  proxied = true
+  comment = "P1-1 棚卸し複製→現在は backend Worker route 宛プレースホルダ(proxied)。content の CloudFront は不使用"
 }
 
 # ACM 証明書のDNS検証レコード。用途未確定だが削除すると証明書自動更新が失敗するリスクがあるため維持。
@@ -126,9 +111,8 @@ resource "cloudflare_dns_record" "acm_validation_stg" {
 #    実体は apex と同じ wildcard ALIAS(`*` → cname.vercel-dns-016.com)経由の動的解決の
 #    スナップショット(Cloudflare Add a Site 時の自動スキャン取り込み)であり、apex で発覚した
 #    「Anycast IPが変動する」問題と同種。固定IPのまま放置すると Vercel 側のIPローテーションで
-#    将来的に www が到達不能になるリスクがあるため、既存の cloudflare_dns_record.wildcard
-#    (CNAME flatten)にフォールバックさせる方が正しい。proxied=true だった点も
-#    DNS onlyポリシーに反するため削除で解消。
+#    将来的に www が到達不能になるリスクがあるため削除で解消した
+#    (当時のフォールバック先だった wildcard CNAME 自体も 2026-10-02 に Vercel 退役で削除済み)。
 # 2. _domainconnect.noah-karte.com CNAME(→ _domainconnect.vercel-dns.com)→ import して以下で管理。
 #    Domain Connect プロトコルの discovery レコード(Vercel registrar が自動提供する第三者向け
 #    ワンクリックDNS設定用エンドポイント)。用途未確定だが削除の安全性が確認できないため

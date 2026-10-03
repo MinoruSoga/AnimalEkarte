@@ -4,7 +4,13 @@
  * See backend/internal/owner/http_request.go for the authoritative field names.
  */
 import type { Pet } from "./index";
-import type { AcquisitionType, DangerLevel, PetGender, PetStatus } from "./generated/models";
+import type {
+  AcquisitionType,
+  DangerLevel,
+  PetGender,
+  PetNeuteredStatus,
+  PetStatus,
+} from "./generated/models";
 
 /** UI-facing Owner type (camelCase, string IDs — post-transform) */
 export interface Owner {
@@ -60,6 +66,7 @@ export interface CreateOwnerPetRequest {
   birth_date?: string;
   weight?: number;
   neutered_date?: string;
+  neutered_status?: PetNeuteredStatus;
   acquisition_type?: AcquisitionType;
   danger_level?: DangerLevel;
   food?: string;

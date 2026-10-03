@@ -34,6 +34,7 @@ type ownerReportResponse struct {
 	MicrochipNumber *string                           `json:"microchip_number"`
 	Weight          *float64                          `json:"weight"`
 	NeuteredDate    *time.Time                        `json:"neutered_date"`
+	NeuteredStatus  string                            `json:"neutered_status"`
 	AcquisitionType *string                           `json:"acquisition_type"`
 	Food            string                            `json:"food"`
 	Environment     string                            `json:"environment"`
@@ -67,6 +68,7 @@ func toOwnerReportResponse(p *model.Pet) ownerReportResponse {
 		MicrochipNumber: p.MicrochipNumber,
 		Weight:          p.Weight,
 		NeuteredDate:    httpapi.LocalTimePtr(p.NeuteredDate),
+		NeuteredStatus:  string(p.NeuteredStatus),
 		AcquisitionType: acquisitionType,
 		Food:            p.Food,
 		Environment:     p.Environment,

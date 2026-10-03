@@ -19,6 +19,9 @@ func TestLiveInsertStandardReservationTypesFailsClosed(t *testing.T) {
 		"RAISE EXCEPTION",
 		"WHERE NOT EXISTS",
 		"deleted_at IS NULL",
+		// EMR-220: 事後条件は is_active=true の live 行を要求する。
+		// inactive な同名 live 行の残存を成功扱いにしないための pin。
+		"AND e.is_active",
 		"'診察'", "'お手入れ'", "'ワクチン'", "'健診'",
 		"'general'",
 		"CROSS JOIN desired_reservation_types",

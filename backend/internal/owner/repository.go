@@ -284,6 +284,7 @@ func ownerRegistrationPetDrafts(pets []model.Pet) []PetRegistrationDraft {
 			BirthDate:       pet.BirthDate,
 			Weight:          pet.Weight,
 			NeuteredDate:    pet.NeuteredDate,
+			NeuteredStatus:  pet.NeuteredStatus,
 			AcquisitionType: pet.AcquisitionType,
 			DangerLevel:     pet.DangerLevel,
 			DangerReason:    pet.DangerReason,

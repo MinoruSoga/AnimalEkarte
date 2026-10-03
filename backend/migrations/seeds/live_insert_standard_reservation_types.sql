@@ -31,8 +31,11 @@
 --   では INSERT をスキップする。idx_reservation_types_clinic_name は
 --   deleted_at IS NULL 限定の一意のため既存行との衝突は起きない。
 --   既存行（手動作成の「診察」等）は属性を一切上書きしない。
---   事後条件として全医院に 4 区分の live 行が揃うことを検証し、
---   未達なら例外で transaction 全体を rollback する。
+--   事後条件として全医院に 4 区分の live かつ is_active=true の行が揃う
+--   ことを検証し、未達なら例外で transaction 全体を rollback する
+--   （EMR-220）。同名の inactive live 行が残っている場合は INSERT skip
+--   の対象のまま post-condition を満たさず fail する。inactive 行を
+--   こちらから再活性化することはしない。
 --
 -- 適用後に fresh DB へも同内容を含めたい場合は、別途 CSV bundle の
 -- 正規再生成（cmd/seed-export）をユーザーが行う。本スクリプトの適用だけ
@@ -85,6 +88,7 @@ BEGIN
   WHERE EXISTS (
     SELECT 1 FROM reservation_types e
     WHERE e.clinic_id = c.id AND e.name = d.name AND e.deleted_at IS NULL
+      AND e.is_active
   );
   IF actual <> expected THEN
     RAISE EXCEPTION 'standard reservation types postcondition mismatch: expected %, got %', expected, actual;

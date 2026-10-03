@@ -41,6 +41,8 @@ type completeDigestSplit struct {
 }
 
 type completeDigestRoot struct {
+	// BillingID は EMR-253: takeover 対象も request identity の一部（別行への同一 key 再利用は 409）。
+	BillingID         uint64                `json:"billing_id"`
 	MedicalRecordID   uint64                `json:"medical_record_id"`
 	HospitalizationID uint64                `json:"hospitalization_id"`
 	OwnerID           uint64                `json:"owner_id"`
@@ -78,6 +80,9 @@ func buildCompleteDigestRoot(input *CompleteAccountingInput) completeDigestRoot 
 		ScheduledDate: input.ScheduledDate.UTC().Format(time.RFC3339),
 		Items:         make([]completeDigestItem, 0, len(input.Items)),
 		PaymentSplits: make([]completeDigestSplit, 0, len(input.PaymentSplits)),
+	}
+	if input.BillingID != nil {
+		root.BillingID = *input.BillingID
 	}
 	if input.MedicalRecordID != nil {
 		root.MedicalRecordID = *input.MedicalRecordID

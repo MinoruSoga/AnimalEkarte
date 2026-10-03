@@ -4,11 +4,13 @@ import { useMemo } from "react";
 import { SelectItem } from "@/components/ui/select";
 import { type SearchableSelectOption } from "@/components/ui/searchable-select";
 
+import { C } from "@/lib/design-tokens";
 import { isPersistedPetId } from "@/lib/pet-id";
 
 import { PetIdentitySection, type AnimalSpeciesOption } from "./PetIdentitySection";
 import { PetPhysicalSection } from "./PetPhysicalSection";
 import { PetCareSection, type InsuranceOption } from "./PetCareSection";
+import { PetChronicConditionsSection } from "./PetChronicConditionsSection";
 import { PetSubOwnersSection } from "./PetSubOwnersSection";
 import type { PetFormData } from "../types";
 
@@ -127,6 +129,14 @@ export function PetEditModalFields({
       {isEdit && isPersistedPetId(formData.id) && formData.isPending !== true ? (
         <PetSubOwnersSection petId={formData.id} canEdit={canEdit} />
       ) : null}
+      {/* EMR-248: 慢性疾患も同じゲートで API セクションを出す。非永続ペットは保存後の登録案内 */}
+      {isEdit && isPersistedPetId(formData.id) && formData.isPending !== true ? (
+        <PetChronicConditionsSection petId={formData.id} canEdit={canEdit} />
+      ) : (
+        <p className={`col-span-1 text-sm md:col-span-2 lg:col-span-3 ${C.text60}`}>
+          慢性疾患はペットを保存すると登録できます。
+        </p>
+      )}
     </div>
   );
 }

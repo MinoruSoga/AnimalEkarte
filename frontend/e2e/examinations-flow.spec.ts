@@ -98,10 +98,10 @@ test.describe("検査管理 フロー E2E", () => {
         { timeout: 15000 },
       );
 
-      await examinations.searchToggleButton().click();
       const searchInput = examinations.searchInput();
       await expect(searchInput).toBeVisible();
       await searchInput.fill(fixture.petName);
+      await searchInput.press("Enter");
       await expect(examinations.chartTabDetailLink(fixture.petName)).toBeVisible({
         timeout: 10000,
       });

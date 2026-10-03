@@ -4,6 +4,7 @@ import type { CollisionDetection } from "@dnd-kit/core";
 import Filter from "lucide-react/dist/esm/icons/filter";
 import { C, ICON } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
 import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
@@ -17,7 +18,14 @@ import { ReceptionDetailModal, ReservationFormModal } from "./ReceptionLazyModal
 import type { Reservation } from "@/types";
 
 interface ReceptionPageBodyProps {
-  todayLabel: string;
+  /** 表示日の書式済みラベル（例: 2026年6月5日（金））。 */
+  dateLabel: string;
+  /** EMR-243: `?date=` で解決した表示日（JST "YYYY-MM-DD"）。 */
+  selectedDate: string;
+  /** 表示日が当日なら true。非本日では当日限定の導線・待ち時間を出さない。 */
+  isToday: boolean;
+  /** ヘッダーの日付入力が変わった時に `?date=` を更新する。 */
+  onDateChange: (value: string) => void;
   isFilterOpen: boolean;
   onToggleFilter: () => void;
   canCreateReservation: boolean;
@@ -57,7 +65,10 @@ interface ReceptionPageBodyProps {
 }
 
 export function ReceptionPageBody({
-  todayLabel,
+  dateLabel,
+  selectedDate,
+  isToday,
+  onDateChange,
   isFilterOpen,
   onToggleFilter,
   canCreateReservation,
@@ -99,10 +110,18 @@ export function ReceptionPageBody({
     <div className={`flex-1 flex flex-col h-full ${C.bgPage}`}>
       <FormHeader
         title="当日の受付"
-        description={`${todayLabel} - 受付状況をリアルタイムで確認`}
+        description={`${dateLabel} - 受付状況をリアルタイムで確認`}
         action={
           <div className="flex flex-wrap items-center gap-2">
             <PermissionBadges resource={ResourceReception} />
+            {/* EMR-243: `?date=` を直書きしなくても表示日を切替えられる入口 */}
+            <Input
+              type="date"
+              aria-label="表示日"
+              className={`h-11 w-auto text-base ${C.bgWhite} ${C.text} ${C.borderMedium}`}
+              value={selectedDate}
+              onChange={(e) => onDateChange(e.target.value)}
+            />
             <Button
               variant={isFilterOpen ? "secondary" : "outline"}
               className={`gap-2 ${C.bgWhite} h-11 text-base ${C.text} ${C.borderMedium}`}
@@ -118,7 +137,11 @@ export function ReceptionPageBody({
         }
       />
 
-      <ReceptionTelemetryStrip totalCount={telemetry.totalCount} waitStats={telemetry} />
+      <ReceptionTelemetryStrip
+        totalCount={telemetry.totalCount}
+        waitStats={telemetry}
+        isToday={isToday}
+      />
 
       {isFilterOpen ? (
         <ReceptionFilterPanel

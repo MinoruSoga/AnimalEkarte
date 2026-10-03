@@ -104,7 +104,7 @@ func BuildClinicUpdate(input *UpdateClinicInput) (map[string]any, error) {
 //
 // 出所: backend/migrations/seeds/002_master/accounts/permission_group_rules.csv の
 // 執行=奇数ID / 一般=偶数ID / 閲覧専用=group 9 パターン。
-// model.AllResources (37) をすべてカバーする。既存デモ seed は明示 rollout 前の
+// model.AllResources (36) をすべてカバーする。既存デモ seed は明示 rollout 前の
 // examination-unconfirm を含まない。同権限は新規クリニックでは執行のみ edit を
 // 初期付与し、一般は default-deny とする（EMR-234）。既存クリニック・seed 行は不変。
 //
@@ -174,8 +174,6 @@ var defaultPermissionRuleTable = []defaultPermissionRule{
 	{model.ResourceLabImport, true, true, true, false, true, true, false, false},
 	// #239 identity-links: fail-closed（通常 staff へ自動付与しない。運用で明示付与）
 	{model.ResourceIdentityLinks, false, false, false, false, false, false, false, false},
-	// TASK-374 / #211 checkup package import: default-deny（明示付与のみ）
-	{model.ResourceCheckupPackageImport, false, false, false, false, false, false, false, false},
 }
 
 // buildDefaultPermissionGroupRules は defaultPermissionRuleTable から、指定グループが

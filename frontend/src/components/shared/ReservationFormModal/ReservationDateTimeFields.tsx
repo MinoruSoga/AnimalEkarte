@@ -1,3 +1,4 @@
+import { useCallback, useState } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { C, ICON } from "@/lib/design-tokens";
@@ -11,6 +12,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
+import { CalendarNav, MonthGrid, YearNav } from "@/components/shared/DatePicker/DatePickerParts";
+import { SINGLE_CALENDAR_CLASSES } from "@/components/shared/DatePicker/DatePickerModel";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarIcon, Clock, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -94,11 +97,59 @@ export function ReservationDateTimeFields({
     TIME_OPTIONS,
     formData.end ? format(formData.end, DISPLAY_TIME_FORMAT) : undefined,
   );
+
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarView, setCalendarView] = useState<"calendar" | "monthGrid">("calendar");
+  const [displayMonth, setDisplayMonth] = useState<Date>(() => formData.start ?? new Date());
+
+  // 表示月の変更を親へ通知し、当月の空き枠を再取得させる
+  const goToMonth = useCallback(
+    (month: Date) => {
+      setDisplayMonth(month);
+      handleMonthChange(month);
+    },
+    [handleMonthChange],
+  );
+
+  const handleCalendarOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      setCalendarOpen(nextOpen);
+      if (nextOpen) {
+        setCalendarView("calendar");
+        goToMonth(formData.start ?? new Date());
+      }
+    },
+    [formData.start, goToMonth],
+  );
+
+  const handlePrevMonth = useCallback(() => {
+    goToMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() - 1, 1));
+  }, [displayMonth, goToMonth]);
+
+  const handleNextMonth = useCallback(() => {
+    goToMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1, 1));
+  }, [displayMonth, goToMonth]);
+
+  const handleMonthSelect = useCallback(
+    (month: number) => {
+      goToMonth(new Date(displayMonth.getFullYear(), month, 1));
+      setCalendarView("calendar");
+    },
+    [displayMonth, goToMonth],
+  );
+
+  const handleYearDelta = useCallback(
+    (delta: number) => {
+      goToMonth(new Date(displayMonth.getFullYear() + delta, displayMonth.getMonth(), 1));
+    },
+    [displayMonth, goToMonth],
+  );
+
   return (
     <div className={`rounded-lg border ${C.bgSubtle} p-3 space-y-3 ${C.borderMediumLight}`}>
       <div className="space-y-1.5">
         <FieldLabel required>日付</FieldLabel>
-        <Popover>
+        <Popover open={calendarOpen} onOpenChange={handleCalendarOpenChange}>
           <PopoverTrigger asChild>
             <button
               type="button"
@@ -118,27 +169,55 @@ export function ReservationDateTimeFields({
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0">
-            <Calendar
-              mode="single"
-              selected={formData.start}
-              onSelect={(date) => {
-                if (!date) return;
-                const newStart = new Date(date);
-                const newEnd = new Date(date);
+            {calendarView === "calendar" ? (
+              <div className="pt-2">
+                <CalendarNav
+                  displayMonth={displayMonth}
+                  onPrev={handlePrevMonth}
+                  onNext={handleNextMonth}
+                  onTitleClick={() => setCalendarView("monthGrid")}
+                />
+              </div>
+            ) : (
+              <div className="pt-2">
+                <YearNav
+                  year={displayMonth.getFullYear()}
+                  onPrevYear={() => handleYearDelta(-1)}
+                  onNextYear={() => handleYearDelta(1)}
+                />
+              </div>
+            )}
 
-                if (formData.start) {
-                  newStart.setHours(formData.start.getHours(), formData.start.getMinutes());
-                }
-                if (formData.end) {
-                  newEnd.setHours(formData.end.getHours(), formData.end.getMinutes());
-                }
+            {calendarView === "calendar" ? (
+              <Calendar
+                mode="single"
+                month={displayMonth}
+                onMonthChange={goToMonth}
+                selected={formData.start}
+                onSelect={(date) => {
+                  if (!date) return;
+                  const newStart = new Date(date);
+                  const newEnd = new Date(date);
 
-                onChange({ ...formData, start: newStart, end: newEnd });
-              }}
-              disabled={isCalendarDateDisabled}
-              onMonthChange={handleMonthChange}
-              autoFocus
-            />
+                  if (formData.start) {
+                    newStart.setHours(formData.start.getHours(), formData.start.getMinutes());
+                  }
+                  if (formData.end) {
+                    newEnd.setHours(formData.end.getHours(), formData.end.getMinutes());
+                  }
+
+                  onChange({ ...formData, start: newStart, end: newEnd });
+                }}
+                disabled={isCalendarDateDisabled}
+                locale={ja}
+                fixedWeeks
+                autoFocus
+                className="rounded-md pt-0"
+                classNames={SINGLE_CALENDAR_CLASSES}
+              />
+            ) : (
+              <MonthGrid currentMonth={displayMonth.getMonth()} onSelect={handleMonthSelect} />
+            )}
           </PopoverContent>
         </Popover>
         {validationErrors?.date ? (

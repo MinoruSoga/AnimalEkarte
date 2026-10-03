@@ -6,7 +6,18 @@ import { cn } from "./utils";
 import { STATE } from "@/lib/design-tokens";
 
 function Select({ ...props }: React.ComponentProps<typeof SelectPrimitive.Root>) {
-  return <SelectPrimitive.Root data-slot="select" {...props} />;
+  return (
+    <SelectPrimitive.Root
+      // EMR-252: React 19 fires form.reset() after a <form action> completes and
+      // Radix restores the mount-time baseline (initialValueRef + hidden select
+      // defaultValue). Keying the root on the controlled `value` only remounts
+      // it on every committed change, so the reset baseline is the latest
+      // value. Uncontrolled (value === undefined) keeps native reset semantics.
+      key={props.value === undefined ? undefined : String(props.value)}
+      data-slot="select"
+      {...props}
+    />
+  );
 }
 
 function SelectValue({ ...props }: React.ComponentProps<typeof SelectPrimitive.Value>) {

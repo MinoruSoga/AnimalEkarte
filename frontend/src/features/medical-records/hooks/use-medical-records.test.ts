@@ -87,6 +87,81 @@ describe("useMedicalRecordsList medicine filter", () => {
   });
 });
 
+describe("useMedicalRecordsList 表示列フィルタ (EMR-245)", () => {
+  it("owner_name / pet_name / chief_complaint を独立クエリへ伝播する", async () => {
+    const getUrl = captureListUrl();
+    const { result } = renderHook(
+      () =>
+        useMedicalRecordsList({
+          searchTerm: "",
+          activeFilters: [
+            { key: "owner_name", condition: "contains", value: "山田", displayValue: "山田" },
+            { key: "pet_name", condition: "contains", value: "ポチ", displayValue: "ポチ" },
+            {
+              key: "chief_complaint",
+              condition: "contains",
+              value: "嘔吐",
+              displayValue: "嘔吐",
+            },
+          ],
+          page: 1,
+        }),
+      { wrapper: createTestWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(getUrl()?.searchParams.get("owner_name")).toBe("山田");
+    expect(getUrl()?.searchParams.get("pet_name")).toBe("ポチ");
+    expect(getUrl()?.searchParams.get("chief_complaint")).toBe("嘔吐");
+  });
+
+  it("列フィルタは横断 search や既存フィルタと AND で併存する", async () => {
+    const getUrl = captureListUrl();
+    const { result } = renderHook(
+      () =>
+        useMedicalRecordsList({
+          searchTerm: "横断",
+          activeFilters: [
+            { key: "owner_name", condition: "contains", value: "山田", displayValue: "山田" },
+            { key: "medicine", condition: "is", value: "7", displayValue: "アモキシシリン" },
+            { key: "status", condition: "is", value: "確定済", displayValue: "確定済" },
+          ],
+          page: 1,
+        }),
+      { wrapper: createTestWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const url = getUrl();
+    expect(url?.searchParams.get("owner_name")).toBe("山田");
+    expect(url?.searchParams.get("search")).toBe("横断");
+    expect(url?.searchParams.get("medicine_id")).toBe("7");
+    expect(url?.searchParams.get("status")).toBe("finalized");
+  });
+
+  it("列フィルタ未指定なら owner_name / pet_name / chief_complaint を送信しない", async () => {
+    const getUrl = captureListUrl();
+    const { result } = renderHook(
+      () =>
+        useMedicalRecordsList({
+          searchTerm: "",
+          activeFilters,
+          page: 1,
+        }),
+      { wrapper: createTestWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const url = getUrl();
+    expect(url?.searchParams.has("owner_name")).toBe(false);
+    expect(url?.searchParams.has("pet_name")).toBe(false);
+    expect(url?.searchParams.has("chief_complaint")).toBe(false);
+  });
+});
+
 describe("useMedicalRecordsList pet_id filter", () => {
   it("petId を MedicalRecordFilters.petId へ伝播する", async () => {
     const getUrl = captureListUrl();

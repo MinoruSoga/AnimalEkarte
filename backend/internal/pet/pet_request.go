@@ -119,6 +119,7 @@ type createPetRequest struct {
 	MicrochipNumber string    `json:"microchip_number" binding:"omitempty,max=64"`
 	Weight          *float64  `json:"weight"`
 	NeuteredDate    *jsonDate `json:"neutered_date"`
+	NeuteredStatus  string    `json:"neutered_status"`
 	AcquisitionType string    `json:"acquisition_type"`
 	DangerLevel     string    `json:"danger_level"`
 	DangerReason    *string   `json:"danger_reason"    binding:"omitempty,max=500"`
@@ -147,6 +148,7 @@ func (r *createPetRequest) toServiceInput() *CreatePetInput {
 		MicrochipNumber: r.MicrochipNumber,
 		Weight:          r.Weight,
 		NeuteredDate:    jsonDatePtr(r.NeuteredDate),
+		NeuteredStatus:  r.NeuteredStatus,
 		AcquisitionType: r.AcquisitionType,
 		DangerLevel:     r.DangerLevel,
 		DangerReason:    r.DangerReason,
@@ -189,6 +191,7 @@ type updatePetRequest struct {
 	MicrochipNumber *string                    `json:"microchip_number" binding:"omitempty,max=64"`
 	Weight          *float64                   `json:"weight"`
 	NeuteredDate    *jsonDate                  `json:"neutered_date"`
+	NeuteredStatus  *string                    `json:"neutered_status"`
 	AcquisitionType *string                    `json:"acquisition_type"`
 	DangerLevel     *string                    `json:"danger_level"`
 	DangerReason    nullableStringRequestField `json:"danger_reason"`
@@ -218,6 +221,7 @@ func (r *updatePetRequest) toServiceInput() *UpdatePetInput {
 		MicrochipNumber: r.MicrochipNumber,
 		Weight:          r.Weight,
 		NeuteredDate:    jsonDatePtr(r.NeuteredDate),
+		NeuteredStatus:  r.NeuteredStatus,
 		AcquisitionType: r.AcquisitionType,
 		DangerLevel:     r.DangerLevel,
 		DangerReason:    r.DangerReason.toServiceInput(),

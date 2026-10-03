@@ -87,6 +87,8 @@ export interface Accounting {
   id: string;
   clinicId: string;
   medicalRecordId?: string;
+  /** EMR-253: 退院作成 waiting 会計の takeover 確定で hospitalization_id を echo する。 */
+  hospitalizationId?: string;
   ownerId: string;
   ownerName: string;
   petId: string;

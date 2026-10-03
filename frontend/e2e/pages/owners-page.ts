@@ -28,11 +28,6 @@ export class OwnersPage extends BasePage {
     return this.page.getByRole("button", { name: "新規登録" });
   }
 
-  /** PropertyFilter search toggle (aria-label / accessible name = 検索). */
-  searchToggle(): Locator {
-    return this.page.getByRole("button", { name: "検索" });
-  }
-
   /** Matches OwnersListTable searchPlaceholder (includes 飼主No / ペット番号). */
   searchInput(): Locator {
     return this.page.getByPlaceholder("飼主名、ペット名、電話番号、飼主No、ペット番号...");

@@ -1,5 +1,7 @@
 # Vercel STG frontend verification
 
+> **⚠️ 旧手順（EMR-255 で superseded）**: frontend は 2026-10 に Cloudflare Workers Static Assets（`animalekarte-stg-frontend`）へ移行済み。本文書は Vercel 配信時代の手順であり、rollback 期間中の参照専用。現行の確認手順: `frontend-deploy.yml` の smoke、`npx wrangler tail animalekarte-stg-frontend`、`curl -sI https://stg.noah-karte.com` で `server: cloudflare` + CSP。
+>
 > **目的**: Vite frontendのdeployment、assets、cookie-auth API、settings routesを確認する。
 > **対象**: `https://stg.noah-karte.com`。credential/cookie値を記録しない。
 

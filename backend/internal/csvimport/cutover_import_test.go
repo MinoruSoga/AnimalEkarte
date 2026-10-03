@@ -1063,12 +1063,46 @@ func TestCutoverRequiredCompositeForeignKeysExcludeEnteredByAfterMigration002(t 
 	}
 }
 
+// migration 017: staffs への複合 FK は全て削除された（兼務スタッフの主所属一致を
+// 誤要求した EMR-114 の修正）。cutover preflight も doctor_id 複合を要求しない
+// ことを pin する。医院所属の整合はアプリ層の assignment 検証が担う。
+func TestCutoverRequiredCompositeForeignKeysExcludeStaffsAfterMigration017(t *testing.T) {
+	for _, foreignKey := range cutoverRequiredCompositeForeignKeys() {
+		if foreignKey.parentTable == "staffs" {
+			t.Fatalf("staffs への複合 FK は migration 017 で削除済み: %s(%s)->%s(%s)",
+				foreignKey.childTable,
+				strings.Join(foreignKey.childColumns, ", "),
+				foreignKey.parentTable,
+				strings.Join(foreignKey.parentColumns, ", "))
+		}
+	}
+}
+
+// migration 017: medical_records.doctor_id / appointments.doctor_id の単一カラム
+// staffs FK が validated であることを preflight が要求することを pin する。
+func TestCutoverRequiredForeignKeysIncludeDoctorSingleColumnAfterMigration017(t *testing.T) {
+	required := map[string]bool{
+		"medical_records.doctor_id->staffs.id": false,
+		"appointments.doctor_id->staffs.id":    false,
+	}
+	for _, foreignKey := range cutoverRequiredForeignKeys() {
+		key := foreignKey.childTable + "." + foreignKey.childColumn + "->" +
+			foreignKey.parentTable + "." + foreignKey.parentColumn
+		if _, ok := required[key]; ok {
+			required[key] = true
+		}
+	}
+	for key, found := range required {
+		if !found {
+			t.Errorf("missing required post-017 doctor foreign key %s", key)
+		}
+	}
+}
+
 func TestCutoverRequiredCompositeForeignKeysIncludePaymentClinicAxis(t *testing.T) {
 	required := map[string]bool{
-		"medical_records(doctor_id, clinic_id)->staffs(id, clinic_id)":           false,
 		"appointments(clinic_id, owner_id)->owners(clinic_id, id)":               false,
 		"appointments(clinic_id, pet_id)->pets(clinic_id, id)":                   false,
-		"appointments(doctor_id, clinic_id)->staffs(id, clinic_id)":              false,
 		"payments(billing_id, clinic_id)->billings(id, clinic_id)":               false,
 		"payments(payment_method_id, clinic_id)->payment_methods(id, clinic_id)": false,
 	}

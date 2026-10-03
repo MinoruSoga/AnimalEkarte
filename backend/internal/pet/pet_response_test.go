@@ -47,6 +47,7 @@ func TestToPetListResponseIncludesOwnerReportDetailFields(t *testing.T) {
 		MicrochipNumber: &microchipNumber,
 		Weight:          &weight,
 		NeuteredDate:    &neuteredDate,
+		NeuteredStatus:  model.PetNeuteredStatusDone,
 		AcquisitionType: &acquisitionType,
 		DangerLevel:     model.DangerLevelMedium,
 		Food:            "療法食",
@@ -66,6 +67,7 @@ func TestToPetListResponseIncludesOwnerReportDetailFields(t *testing.T) {
 	// tz 表現ではなくカレンダー日付で検証する (格納値 2016-05-20 を保持)。
 	require.NotNil(t, resp.NeuteredDate)
 	assert.Equal(t, "2016-05-20", resp.NeuteredDate.Format("2006-01-02"))
+	assert.Equal(t, "done", resp.NeuteredStatus)
 	require.NotNil(t, resp.AcquisitionType)
 	assert.Equal(t, "purchased", *resp.AcquisitionType)
 	assert.Equal(t, "medium", resp.DangerLevel)

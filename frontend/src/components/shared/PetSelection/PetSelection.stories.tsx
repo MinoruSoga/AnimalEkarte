@@ -27,6 +27,7 @@ const PET: Pet = {
   status: "生存",
   birthDate: "2020-04-01",
   neuteredDate: undefined,
+  neuteredStatus: undefined,
   weight: "5.2",
   food: "ドライフード",
   environment: "室内",

@@ -153,6 +153,7 @@ export function usePetFormListState({
         food: petData.food,
         environment: petData.environment,
         neuteredDate: petData.neuteredDate,
+        neuteredStatus: petData.neuteredStatus,
         acquisitionType: petData.acquisitionType,
         dangerLevel: petData.dangerLevel,
         dangerReason: petData.dangerReason,
@@ -217,6 +218,7 @@ export function usePetFormListState({
         food: petData.food,
         environment: petData.environment,
         neuteredDate: petData.neuteredDate,
+        neuteredStatus: petData.neuteredStatus,
         acquisitionType: petData.acquisitionType,
         dangerLevel: petData.dangerLevel,
         dangerReason: petData.dangerReason,
@@ -248,6 +250,7 @@ export function usePetFormListState({
             food: newPetData.food || "",
             environment: newPetData.environment || "",
             neuteredDate: newPetData.neuteredDate || "",
+            neuteredStatus: (newPetData.neuteredStatus as PetFormData["neuteredStatus"]) || "不明",
             acquisitionType:
               (newPetData.acquisitionType as PetFormData["acquisitionType"]) || "購入",
             dangerLevel: (newPetData.dangerLevel as PetFormData["dangerLevel"]) || "低",

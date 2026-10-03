@@ -297,6 +297,35 @@ func TestShiftTemplateService_Create(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			// EMR-241: 勤務区分テンプレートは両方空の時刻を拒否（FE「空欄も保存できる」は
+			// off / paid_leave に限る。勤務区分の空時刻テンプレートはサーバが弾く）。
+			name: "エラー: 勤務区分(full)で時刻なし → InvalidInput",
+			input: &CreateShiftTemplateInput{
+				Name:      "空時刻テンプレート",
+				ShiftType: string(model.ShiftTypeFull),
+				StartTime: "",
+				EndTime:   "",
+				IsActive:  boolPtr(true),
+			},
+			setupFn: func(_ *mockShiftTemplateRepository) {},
+			wantErr: true,
+			errIs:   apperrors.ErrInvalidInput,
+		},
+		{
+			// EMR-241: 片方だけの時刻は拒否（start のみ）
+			name: "エラー: 勤務区分(full)で start のみ → InvalidInput",
+			input: &CreateShiftTemplateInput{
+				Name:      "片方時刻テンプレート",
+				ShiftType: string(model.ShiftTypeFull),
+				StartTime: "09:00",
+				EndTime:   "",
+				IsActive:  boolPtr(true),
+			},
+			setupFn: func(_ *mockShiftTemplateRepository) {},
+			wantErr: true,
+			errIs:   apperrors.ErrInvalidInput,
+		},
+		{
 			name: "エラー: endTime が startTime より前 → InvalidInput エラー",
 			input: &CreateShiftTemplateInput{
 				Name:      "不正シフト",

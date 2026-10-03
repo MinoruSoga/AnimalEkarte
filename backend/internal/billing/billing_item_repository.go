@@ -30,6 +30,10 @@ type BillingItemRepository interface {
 	Create(ctx context.Context, item *model.BillingItem) error
 	Update(ctx context.Context, clinicID, id uint64, cmd UpdateBillingItemInput) error
 	Delete(ctx context.Context, clinicID, id uint64) error
+	// DeleteAllByBillingID は EMR-253: takeover 対象 billing の既存明細を一括 soft-delete する。
+	// 個別 Delete と同じ原子的更新（vaccination/exam provenance + denormalized clinic_id を解放）。
+	// 0 件（明細なし）は正常系として nil を返す。
+	DeleteAllByBillingID(ctx context.Context, clinicID, billingID uint64) error
 	UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error
 	// UpdateBillingTotalsForCompletedCorrection は確定済み会計の明細訂正時のみ totals 再計算を許可する（BUG-009）。
 	// cancelled は引き続き拒否。通常経路は UpdateBillingTotals を使う。
@@ -330,6 +334,29 @@ func (r *billingItemRepository) Delete(ctx context.Context, clinicID, id uint64)
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("billing_item", fmt.Sprintf("%d", id))
+	}
+	return nil
+}
+
+// DeleteAllByBillingID は EMR-253: takeover 対象 billing の既存明細を一括 soft-delete する。
+// 個別 Delete と同じ原子的更新で vaccination/exam provenance と denormalized clinic_id を解放する
+// （解放により削除済み接種/検査イベントを再度取り込める）。
+// billing_items.clinic_id が NULL の行（退院会計は clinic 未設定で挿し得る）も、EXISTS 副問合せで
+// 親 billings の clinic scope を強制して拾う。0 件（明細なし）は正常系。
+func (r *billingItemRepository) DeleteAllByBillingID(ctx context.Context, clinicID, billingID uint64) error {
+	result := persistence.DBOrTx(ctx, r.db).
+		Model(&model.BillingItem{}).
+		Where("billing_items.billing_id = ?", billingID).
+		Where("billing_items.deleted_at IS NULL").
+		Where("EXISTS (SELECT 1 FROM billings WHERE billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL)", clinicID).
+		Updates(map[string]any{
+			"vaccination_id": nil,
+			"exam_id":        nil,
+			"clinic_id":      nil,
+			"deleted_at":     time.Now(),
+		})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "billing_item", fmt.Sprintf("billing_id=%d", billingID))
 	}
 	return nil
 }

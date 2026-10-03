@@ -45,11 +45,11 @@ test.describe("設定マスタ CRUD E2E", () => {
       await settings.open("/settings/animal-species");
       await expect(settings.heading("動物種類マスタ")).toBeVisible();
 
-      // PropertyFilter: 検索トグルを開いてから入力
-      await page.getByLabel("検索").click();
+      // 検索入力は常時表示（EMR-247: Enter で確定）
       const searchInput = page.getByPlaceholder("動物種類名で検索...");
       await expect(searchInput).toBeVisible();
       await searchInput.fill(speciesName);
+      await searchInput.press("Enter");
       await expect(page.getByText(speciesName)).toBeVisible({ timeout: 10000 });
 
       // 行の「操作」ボタンをクリックしてパネルを開く
@@ -78,16 +78,17 @@ test.describe("設定マスタ CRUD E2E", () => {
       await settings.open("/settings/animal-species");
       await expect(settings.heading("動物種類マスタ")).toBeVisible();
 
-      // PropertyFilter: 検索トグルボタンをクリックして入力欄を表示
-      await page.getByLabel("検索").click();
+      // 検索入力は常時表示（EMR-247: Enter で確定）
       const searchInput = page.getByPlaceholder("動物種類名で検索...");
       await expect(searchInput).toBeVisible();
       // 検索で絞り込み: seed にある「犬」に含まれる文字で検索
       await searchInput.fill("犬");
       await expect(searchInput).toHaveValue("犬");
+      await searchInput.press("Enter");
       await expect(page.getByText("犬").first()).toBeVisible({ timeout: 10000 });
-      // 検索クリア
+      // 検索クリア（空文字を Enter で確定すると絞り込み解除）
       await searchInput.clear();
+      await searchInput.press("Enter");
       await expect(searchInput).toHaveValue("");
     } finally {
       await page.close();

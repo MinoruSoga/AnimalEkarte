@@ -351,6 +351,47 @@ func TestShiftEntryService_Create(t *testing.T) {
 			wantInvalidInput: true,
 		},
 		{
+			// EMR-241: 勤務区分（morning）でも両方空は InvalidInput
+			name:     "returns invalid input when morning shift has no times",
+			clinicID: 1,
+			input: &CreateShiftEntryInput{
+				StaffID:   1,
+				Date:      date,
+				ShiftType: string(model.ShiftTypeMorning),
+			},
+			repoErr:          nil,
+			wantErr:          true,
+			wantInvalidInput: true,
+		},
+		{
+			// EMR-241: 片方だけの時刻は拒否（start のみ）
+			name:     "returns invalid input when full shift has only start_time",
+			clinicID: 1,
+			input: &CreateShiftEntryInput{
+				StaffID:   1,
+				Date:      date,
+				ShiftType: string(model.ShiftTypeFull),
+				StartTime: &startTime,
+			},
+			repoErr:          nil,
+			wantErr:          true,
+			wantInvalidInput: true,
+		},
+		{
+			// EMR-241: 片方だけの時刻は拒否（end のみ）
+			name:     "returns invalid input when afternoon shift has only end_time",
+			clinicID: 1,
+			input: &CreateShiftEntryInput{
+				StaffID:   1,
+				Date:      date,
+				ShiftType: string(model.ShiftTypeAfternoon),
+				EndTime:   &endTime,
+			},
+			repoErr:          nil,
+			wantErr:          true,
+			wantInvalidInput: true,
+		},
+		{
 			// BUG-028: end_time == start_time は InvalidInput
 			name:     "returns invalid input when end_time equals start_time",
 			clinicID: 1,

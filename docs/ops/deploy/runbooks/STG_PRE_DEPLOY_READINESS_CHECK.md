@@ -12,7 +12,7 @@ flowchart TB
   G2 --> G3["§3 Post-deploy checks<br/>Infrastructure + Corrected CRUD cases"]
   G3 --> Rec["PASS → §5 Record で証跡を記録"]
   G1 & G2 & G3 -.->|"1つでも該当"| Stop["§4 Stop criteria"]
-  Stop --> Fix["release success にしない。<br/>Cloudflare / Vercel 側の修正・rebuild / redeploy で復旧<br/>（AWS は rollback 先ではない）"]
+  Stop --> Fix["release success にしない。<br/>Cloudflare 側の修正・rebuild / redeploy で復旧<br/>（AWS は rollback 先ではない）"]
   Rec -.-> Bound["この check の PASS だけで production へ merge / push しない<br/>（production approval gates は別途）"]
 ```
 
@@ -48,7 +48,7 @@ Shared DB rebuildはworkflow optionではない。[STG_PLANETSCALE_SEED_RUNBOOK.
 - [ ] failure時はapproved workers.dev endpointと比較し、DNS/routeとWorker/Container/DBを分離した。
 - [ ] backend workflowのdeploy/migrate/post-migrate healthが全てsuccess。
 - [ ] image更新を伴う場合はdocumented rolling window後にも確認した。
-- [ ] frontend の build-time API target、cookie/CORS、API JSON/status を [Vercel runbook](../VERCEL-FRONTEND-STAGING-TEST.md) で確認した。same-origin `/api` を使う build は rewrite も検証した。
+- [ ] frontend の same-origin `/api` が frontend Worker の service binding 経由で API JSON/status を返すことを確認した（`/api/v1/me` が SPA HTML ではなく backend の JSON を返すこと。SPA fallback は非 `/api` GET のみ）。旧 [Vercel runbook](../VERCEL-FRONTEND-STAGING-TEST.md) は rollback 期間中の参照専用。
 
 ### 3.2 Corrected CRUD cases
 
@@ -76,7 +76,7 @@ Clinic/staffはHTTP/resource state、permission-group成功mutationだけexplici
 - restore/cleanup failure
 - required approval gate、backup/rollback、account/provisioningが未確認
 
-AWSはretiredでrollback先ではない。Cloudflare/Vercel側の修正・last-known-good rebuild/redeployとcurrent infra runbookで復旧する。
+AWSはretiredでrollback先ではない。Cloudflare側の修正・last-known-good rebuild/redeployとcurrent infra runbookで復旧する。frontend は Vercel 側デプロイが残存する間だけ DNS 復旧で切り戻せる。
 
 ## 5. Record
 

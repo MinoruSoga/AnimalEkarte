@@ -66,6 +66,7 @@ type PetResponse struct {
 	MicrochipNumber *string    `json:"microchip_number,omitempty"`
 	Weight          *float64   `json:"weight,omitempty"`
 	NeuteredDate    *time.Time `json:"neutered_date,omitempty"`
+	NeuteredStatus  string     `json:"neutered_status"`
 	AcquisitionType *string    `json:"acquisition_type,omitempty"`
 	DangerLevel     string     `json:"danger_level"`
 	DangerReason    *string    `json:"danger_reason,omitempty"`
@@ -129,6 +130,7 @@ type PetListResponse struct {
 	MicrochipNumber *string    `json:"microchip_number,omitempty"`
 	Weight          *float64   `json:"weight,omitempty"`
 	NeuteredDate    *time.Time `json:"neutered_date,omitempty"`
+	NeuteredStatus  string     `json:"neutered_status"`
 	AcquisitionType *string    `json:"acquisition_type,omitempty"`
 	DangerLevel     string     `json:"danger_level"`
 	DangerReason    *string    `json:"danger_reason,omitempty"`
@@ -183,6 +185,7 @@ func toPetListResponse(p *model.Pet) PetListResponse {
 		MicrochipNumber: p.MicrochipNumber,
 		Weight:          p.Weight,
 		NeuteredDate:    httpapi.LocalTimePtr(p.NeuteredDate),
+		NeuteredStatus:  string(p.NeuteredStatus),
 		AcquisitionType: acquisitionType,
 		DangerLevel:     string(p.DangerLevel),
 		DangerReason:    p.DangerReason,
@@ -266,6 +269,7 @@ func toResponse(p *model.Pet) PetResponse {
 		MicrochipNumber: p.MicrochipNumber,
 		Weight:          p.Weight,
 		NeuteredDate:    httpapi.LocalTimePtr(p.NeuteredDate),
+		NeuteredStatus:  string(p.NeuteredStatus),
 		AcquisitionType: acquisitionType,
 		DangerLevel:     string(p.DangerLevel),
 		DangerReason:    p.DangerReason,

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
@@ -134,12 +134,16 @@ describe("HospitalizationList — かな正規化テキスト検索", () => {
     // リストビューに切り替え (ToggleGroup type="single" は role="radio")
     await user.click(screen.getByRole("radio", { name: "List View" }));
 
-    // 検索入力を開いて入力
-    await user.click(screen.getByRole("button", { name: "検索" }));
+    // 検索入力（常時表示）へ入力
     await user.type(screen.getByPlaceholderText("飼主名、ペット名、入院No..."), "ぽち");
 
+    // EMR-247: 確定操作（Enter/ボタン）までフィルタは適用されない
+    expect(screen.getByText("たろう")).toBeInTheDocument();
+
+    await user.keyboard("{Enter}");
+
     expect(await screen.findByText("ポチ")).toBeInTheDocument();
-    expect(screen.queryByText("たろう")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("たろう")).not.toBeInTheDocument());
   });
 
   it("カタカナ入力でひらがな ownerName がヒットする", async () => {
@@ -152,11 +156,15 @@ describe("HospitalizationList — かな正規化テキスト検索", () => {
     render(<HospitalizationList />, { wrapper: createWrapper() });
 
     await user.click(screen.getByRole("radio", { name: "List View" }));
-    await user.click(screen.getByRole("button", { name: "検索" }));
     await user.type(screen.getByPlaceholderText("飼主名、ペット名、入院No..."), "サトウ");
 
+    // EMR-247: 確定操作（Enter/ボタン）までフィルタは適用されない
+    expect(screen.getByText("ポチ")).toBeInTheDocument();
+
+    await user.keyboard("{Enter}");
+
     expect(await screen.findByText("たろう")).toBeInTheDocument();
-    expect(screen.queryByText("ポチ")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("ポチ")).not.toBeInTheDocument());
   });
 });
 

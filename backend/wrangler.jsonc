@@ -102,6 +102,15 @@
     // (Go 既定値は api.openai.com/v1 + gpt-5-nano。config.go 参照)。
     "SUPPORT_LLM_BASE_URL": "https://api.z.ai/api/paas/v4",
     "SUPPORT_LLM_MODEL": "glm-4.5-flash",
+
+    // バグ報告 → Plane ワークアイテム自動起票。宛先は workspace baritechllc の
+    // EMR プロジェクト(ノア動物病院電子カルテ)。非機密の宛先情報のみ vars で管理し、
+    // PLANE_API_KEY だけがシークレット(gitignore 済み backend/.env → `pnpm cf:secrets` で bulk 投入)。
+    // API_KEY 未設定なら連携無効: 報告はローカル保存のみ・手動起票エンドポイントは 501 を返す。
+    // BASE_URL/WEB_BASE_URL/TIMEOUT_MS は Go 既定値(api.plane.so / app.plane.so / 10s)。
+    "PLANE_WORKSPACE_SLUG": "baritechllc",
+    "PLANE_PROJECT_ID": "6a009324-8a8a-455c-b16a-41b3f6207b0e",
+    "PLANE_PROJECT_IDENTIFIER": "EMR",
   },
 
   "observability": {
@@ -222,6 +231,9 @@
       // 値は gitignore 済み backend/.env に KEY=VALUE で置き
       // `pnpm cf:secrets`(= wrangler secret bulk .env) で投入する(secret put 単発でも可)。
       // SUPPORT_LLM_BASE_URL/MODEL(Z.AI)は vars で管理。TIMEOUT_MS は Go 既定値(30s)。
+      // PLANE_API_KEY はバグ報告→Plane起票用の任意シークレット。required 外 — 未設定なら
+      // 連携無効(報告はローカル保存のみ)。SUPPORT_LLM_API_KEY と同じ backend/.env +
+      // `pnpm cf:secrets` 経路で投入。workspace/project の宛先は vars で管理。
     ],
   },
 }

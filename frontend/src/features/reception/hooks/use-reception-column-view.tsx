@@ -4,7 +4,7 @@ import { paths } from "@/config/paths";
 import { KanbanColumn } from "../components/KanbanColumn";
 import type { ReceptionAppointment } from "../api/types";
 import type { ColumnData } from "@/types";
-import { NO_ADD_BUTTON_COLUMNS } from "../routes/reception-model";
+import { canAddColumnEntryOnDate, receptionColumnAddKind } from "../routes/reception-model";
 
 interface UseReceptionColumnViewArgs {
   filteredColumns: ColumnData[];
@@ -12,6 +12,10 @@ interface UseReceptionColumnViewArgs {
   canEditReservation: boolean;
   advanceStatus: (appointment: ReceptionAppointment) => void;
   onCardClick: (appointment: ReceptionAppointment) => void;
+  /** EMR-243: ボード表示中の日付（JST "YYYY-MM-DD"、検証済み）。 */
+  selectedDate: string;
+  /** selectedDate が当日なら true。非本日では checked_in 起点を出さない。 */
+  isToday: boolean;
 }
 
 export function useReceptionColumnView({
@@ -20,6 +24,8 @@ export function useReceptionColumnView({
   canEditReservation,
   advanceStatus,
   onCardClick,
+  selectedDate,
+  isToday,
 }: UseReceptionColumnViewArgs): {
   columnElements: ReactNode;
   appointmentColumnTitleMap: Map<string, string>;
@@ -44,20 +50,25 @@ export function useReceptionColumnView({
   );
 
   // 当日受付ページから新規予約作成モーダルを自動オープンする遷移ヘルパー。
+  // EMR-243: 非本日表示では予約作成クエリへ選択日を付与し、戻り先にも ?date= を保持する。
   const goToNewReservation = useCallback(
     (query: string) => {
-      navigate(`${paths.reservations.getHref()}?${query}`, {
-        state: { from: paths.home.getHref() },
+      const datedQuery = isToday ? query : `${query}&date=${selectedDate}`;
+      navigate(`${paths.reservations.getHref()}?${datedQuery}`, {
+        state: {
+          from: isToday ? paths.home.getHref() : `${paths.home.getHref()}?date=${selectedDate}`,
+        },
       });
     },
-    [navigate],
+    [navigate, isToday, selectedDate],
   );
 
   // 受付予約ボード → 通常の新規予約（confirmed → 受付予約カラム）。
   // 受付済ボード → 受付 walk-in（checked_in → 受付済カラム、route=reception）。
+  // 非本日では reception 系は canAddColumnEntryOnDate でボタン自体を出さない。
   const handleAddClick = useCallback(
     (columnTitle: string) => {
-      goToNewReservation(columnTitle === "受付予約" ? "newReservation=1" : "reception=1");
+      goToNewReservation(`${receptionColumnAddKind(columnTitle)}=1`);
     },
     [goToNewReservation],
   );
@@ -69,11 +80,13 @@ export function useReceptionColumnView({
     for (const column of filteredColumns) {
       handlers.set(
         column.title,
-        NO_ADD_BUTTON_COLUMNS.has(column.title) ? undefined : () => handleAddClick(column.title),
+        canAddColumnEntryOnDate(column.title, isToday)
+          ? () => handleAddClick(column.title)
+          : undefined,
       );
     }
     return handlers;
-  }, [filteredColumns, handleAddClick, canCreateReservation]);
+  }, [filteredColumns, handleAddClick, canCreateReservation, isToday]);
 
   const columnElements = useMemo(
     () =>

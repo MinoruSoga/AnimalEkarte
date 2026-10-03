@@ -60,8 +60,4 @@ export class EstimatesPage extends BasePage {
   draftDetailLink(): Locator {
     return this.draftRow().getByRole("link").first();
   }
-
-  searchToggle(): Locator {
-    return this.page.getByRole("button", { name: "検索" });
-  }
 }

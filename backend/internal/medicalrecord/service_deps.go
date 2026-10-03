@@ -177,9 +177,13 @@ type cageFinder interface {
 }
 
 // accountingCreator は DischargeWithBilling の会計レコード作成 write view
-// （repository.AccountingRepository.Create 相当・R1-1 dbOrTx 参加済み）。
+// （repository.AccountingRepository の部分集合・R1-1 dbOrTx 参加済み）。
+// FindByHospitalizationID / SoftDeleteCancelled は EMR-253: 退院時の会計二重作成防止に使う
+// 入院スロット占有者の lookup / cancelled 占有行の解放。見つからなければ (nil, nil)。
 type accountingCreator interface {
 	Create(ctx context.Context, clinicID uint64, billing *model.Billing) error
+	FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (*model.Billing, error)
+	SoftDeleteCancelled(ctx context.Context, clinicID, id uint64) error
 }
 
 // billingItemWriter は DischargeWithBilling の明細作成+合計更新 write view

@@ -48,6 +48,7 @@ export interface PetResponse {
   microchip_number?: string;
   weight?: number /* float64 */;
   neutered_date?: string;
+  neutered_status: string;
   acquisition_type?: string;
   danger_level: string;
   danger_reason?: string;
@@ -105,6 +106,7 @@ export interface PetListResponse {
   microchip_number?: string;
   weight?: number /* float64 */;
   neutered_date?: string;
+  neutered_status: string;
   acquisition_type?: string;
   danger_level: string;
   danger_reason?: string;

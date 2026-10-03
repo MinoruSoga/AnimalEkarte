@@ -44,6 +44,7 @@ func (a *OwnerRegistrationAdapter) CreateForOwnerRegistration(
 			BirthDate:       draft.BirthDate,
 			Weight:          draft.Weight,
 			NeuteredDate:    draft.NeuteredDate,
+			NeuteredStatus:  draft.NeuteredStatus,
 			AcquisitionType: draft.AcquisitionType,
 			DangerLevel:     draft.DangerLevel,
 			DangerReason:    draft.DangerReason,

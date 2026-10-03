@@ -186,3 +186,81 @@ describe("useMedicalRecordVaccinationForm save payload", () => {
     expect(result.current.vaccineName).toBe("7");
   });
 });
+
+describe("useMedicalRecordVaccinationForm EMR-105 same-day sequential registrations", () => {
+  it("同日2件の順次登録で各 create payload が独立する（lot/next_date が混ざらない）", async () => {
+    const { result } = renderHook(() => useMedicalRecordVaccinationForm("1", "99"));
+
+    // 1件目: vaccine 7 / LOT-A。接種日は JST 当日 default（resetForm 後も当日に戻る）。
+    act(() => {
+      result.current.setIsAdding(true);
+    });
+    act(() => {
+      result.current.setVaccineName("7");
+    });
+    act(() => {
+      result.current.setLot1("LOT-A");
+    });
+    act(() => {
+      result.current.setNextDate("2026-09-26");
+    });
+    act(() => {
+      result.current.setRemarks("1回目メモ");
+    });
+    submit(result.current.formAction);
+
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledTimes(1);
+    });
+    // 成功後はリセット済み — 2件目は新規入力として開き直す（接種日は当日に戻る＝同日）。
+    expect(result.current.isAdding).toBe(false);
+    expect(result.current.lot1).toBe("");
+
+    // 2件目: vaccine 8 / LOT-B — 同日（当日 default）のまま登録。
+    act(() => {
+      result.current.setIsAdding(true);
+    });
+    act(() => {
+      result.current.setVaccineName("8");
+    });
+    act(() => {
+      result.current.setLot1("LOT-B");
+    });
+    act(() => {
+      result.current.setNextDate("2026-10-10");
+    });
+    act(() => {
+      result.current.setRemarks("2回目メモ");
+    });
+    submit(result.current.formAction);
+
+    await waitFor(() => {
+      expect(mockCreateVaccination).toHaveBeenCalledTimes(2);
+    });
+
+    expect(mockCreateVaccination).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        pet_id: 1,
+        medical_record_id: 99,
+        vaccine_id: 7,
+        date: "2026-08-29",
+        lot1: "LOT-A",
+        next_date: "2026-09-26",
+        remarks: "1回目メモ",
+      }),
+    );
+    expect(mockCreateVaccination).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        pet_id: 1,
+        medical_record_id: 99,
+        vaccine_id: 8,
+        date: "2026-08-29",
+        lot1: "LOT-B",
+        next_date: "2026-10-10",
+        remarks: "2回目メモ",
+      }),
+    );
+  });
+});

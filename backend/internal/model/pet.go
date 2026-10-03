@@ -21,6 +21,16 @@ const (
 	PetGenderUnknown PetGender = "unknown"
 )
 
+// PetNeuteredStatus は避妊・去勢の施術状況を表す。
+// 値は性別中立（オスの去勢・メスの避妊を done で共通に表し、表示層がラベルを分ける）。
+type PetNeuteredStatus string
+
+const (
+	PetNeuteredStatusUnknown PetNeuteredStatus = "unknown"
+	PetNeuteredStatusNotDone PetNeuteredStatus = "not_done"
+	PetNeuteredStatusDone    PetNeuteredStatus = "done"
+)
+
 type AcquisitionType string
 
 const (
@@ -39,31 +49,32 @@ const (
 )
 
 type Pet struct {
-	ID              uint64           `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	ClinicID        uint64           `gorm:"not null"                                       json:"clinic_id"`
-	OwnerID         uint64           `gorm:"not null"                                       json:"owner_id"`
-	AnimalSpeciesID uint64           `gorm:"not null"                                       json:"animal_species_id"`
-	PetNumber       string           `gorm:"default:''"                                     json:"pet_number"`
-	Name            string           `gorm:"not null"                                       json:"name"`
-	NameKana        string           `gorm:"column:name_kana;default:''"                    json:"name_kana"`
-	Gender          PetGender        `gorm:"type:pet_gender;default:'unknown'"               json:"gender"`
-	Status          PetStatus        `gorm:"type:pet_status;default:'alive'"                 json:"status"`
-	BirthDate       *time.Time       `gorm:"type:date"                                      json:"birth_date,omitempty"`
-	Breed           string           `gorm:"default:''"                                     json:"breed"`
-	Color           string           `gorm:"default:''"                                     json:"color"`
-	BloodType       *string          `gorm:"column:blood_type"                              json:"blood_type,omitempty"`
-	MicrochipNumber *string          `gorm:"column:microchip_number"                        json:"microchip_number,omitempty"`
-	Weight          *float64         `gorm:"type:numeric(6,2)"                              json:"weight,omitempty"`
-	NeuteredDate    *time.Time       `gorm:"type:date"                                      json:"neutered_date,omitempty"`
-	AcquisitionType *AcquisitionType `gorm:"type:acquisition_type"                          json:"acquisition_type,omitempty"`
-	DangerLevel     DangerLevel      `gorm:"type:danger_level;default:'low'"                 json:"danger_level"`
-	DangerReason    *string          `gorm:"column:danger_reason"                           json:"danger_reason,omitempty"`
-	Food            string           `gorm:"default:''"                                     json:"food"`
-	Environment     string           `gorm:"default:''"                                     json:"environment"`
-	Phone           string           `gorm:"default:''"                                     json:"phone"`
-	LastVisit       *time.Time       `gorm:"type:date"                                      json:"last_visit,omitempty"`
-	InsuranceID     *uint64          `                                                      json:"insurance_id,omitempty"`
-	Remarks         string           `gorm:"default:''"                                     json:"remarks"`
+	ID              uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID        uint64            `gorm:"not null"                                       json:"clinic_id"`
+	OwnerID         uint64            `gorm:"not null"                                       json:"owner_id"`
+	AnimalSpeciesID uint64            `gorm:"not null"                                       json:"animal_species_id"`
+	PetNumber       string            `gorm:"default:''"                                     json:"pet_number"`
+	Name            string            `gorm:"not null"                                       json:"name"`
+	NameKana        string            `gorm:"column:name_kana;default:''"                    json:"name_kana"`
+	Gender          PetGender         `gorm:"type:pet_gender;default:'unknown'"               json:"gender"`
+	Status          PetStatus         `gorm:"type:pet_status;default:'alive'"                 json:"status"`
+	BirthDate       *time.Time        `gorm:"type:date"                                      json:"birth_date,omitempty"`
+	Breed           string            `gorm:"default:''"                                     json:"breed"`
+	Color           string            `gorm:"default:''"                                     json:"color"`
+	BloodType       *string           `gorm:"column:blood_type"                              json:"blood_type,omitempty"`
+	MicrochipNumber *string           `gorm:"column:microchip_number"                        json:"microchip_number,omitempty"`
+	Weight          *float64          `gorm:"type:numeric(6,2)"                              json:"weight,omitempty"`
+	NeuteredDate    *time.Time        `gorm:"type:date"                                      json:"neutered_date,omitempty"`
+	NeuteredStatus  PetNeuteredStatus `gorm:"type:pet_neutered_status;default:'unknown'"    json:"neutered_status"`
+	AcquisitionType *AcquisitionType  `gorm:"type:acquisition_type"                          json:"acquisition_type,omitempty"`
+	DangerLevel     DangerLevel       `gorm:"type:danger_level;default:'low'"                 json:"danger_level"`
+	DangerReason    *string           `gorm:"column:danger_reason"                           json:"danger_reason,omitempty"`
+	Food            string            `gorm:"default:''"                                     json:"food"`
+	Environment     string            `gorm:"default:''"                                     json:"environment"`
+	Phone           string            `gorm:"default:''"                                     json:"phone"`
+	LastVisit       *time.Time        `gorm:"type:date"                                      json:"last_visit,omitempty"`
+	InsuranceID     *uint64           `                                                      json:"insurance_id,omitempty"`
+	Remarks         string            `gorm:"default:''"                                     json:"remarks"`
 	// EMR-174: 名前の由来 / 出逢いのストーリーは任意記録。NULL=未記録。
 	NameOrigin     *string        `gorm:"column:name_origin"                             json:"name_origin,omitempty"`
 	MeetingStory   *string        `gorm:"column:meeting_story"                           json:"meeting_story,omitempty"`

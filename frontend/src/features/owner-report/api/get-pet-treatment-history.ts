@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
@@ -96,16 +96,30 @@ export function transformHistoryItem(row: BackendPetTreatmentHistory): PetTreatm
 
 export interface PetTreatmentHistoryResult {
   items: PetTreatmentHistoryItem[];
-  /** SD-18: 取得上限(HISTORY_FETCH_LIMIT)により実件数より少ない可能性がある場合 true。 */
+  /**
+   * SD-18: 取得上限(HISTORY_FETCH_LIMIT)により実件数より少ない可能性がある場合 true。
+   * EMR-242: 追加ページ読み込み後も同じ判定を維持する（total > 全ページの累積 raw 行数）。
+   */
   isTruncated: boolean;
+}
+
+/** 1 ページ分の取得結果。rawCount はレスポンス生行数。 */
+interface PetTreatmentHistoryPage {
+  items: PetTreatmentHistoryItem[];
+  rawCount: number;
+  total?: number;
 }
 
 const getPetTreatmentHistory = async (
   petId: string,
   filter: TreatmentHistoryFilter,
   options: TreatmentHistoryOptions = {},
-): Promise<PetTreatmentHistoryResult> => {
-  const params: Record<string, string | number | boolean> = { limit: HISTORY_FETCH_LIMIT };
+  page: number,
+): Promise<PetTreatmentHistoryPage> => {
+  const params: Record<string, string | number | boolean> = {
+    page,
+    limit: HISTORY_FETCH_LIMIT,
+  };
   if (filter !== "all") params.item_type = filter;
   if (options.anesthesiaOnly) params.anesthesia_only = true;
   if (options.isSurgery) params.is_surgery = true;
@@ -116,18 +130,34 @@ const getPetTreatmentHistory = async (
   const rawRows = data.data ?? [];
   return {
     items: rawRows.map(transformHistoryItem),
-    isTruncated: typeof data.total === "number" && data.total > rawRows.length,
+    rawCount: rawRows.length,
+    total: data.total,
   };
 };
+
+/** 累積 raw 行数が total に届いていなければ true。 */
+function historyHasMore(pages: ReadonlyArray<{ rawCount: number; total?: number }>): boolean {
+  const fetched = pages.reduce((sum, page) => sum + page.rawCount, 0);
+  const total = pages[pages.length - 1]?.total;
+  return typeof total === "number" && total > fetched;
+}
 
 export const useGetPetTreatmentHistory = (
   petId: string | undefined,
   filter: TreatmentHistoryFilter,
   options: TreatmentHistoryOptions = {},
 ) => {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: queryKeys.petTreatmentHistory(petId!, filter, options),
-    queryFn: () => getPetTreatmentHistory(petId!, filter, options),
+    queryFn: ({ pageParam }) => getPetTreatmentHistory(petId!, filter, options, pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (_lastPage, allPages) =>
+      historyHasMore(allPages) ? allPages.length + 1 : undefined,
+    // 消費側の既存 shape ({items, isTruncated}) を維持しつつ全ページを累積する。
+    select: (data): PetTreatmentHistoryResult => ({
+      items: data.pages.flatMap((page) => page.items),
+      isTruncated: historyHasMore(data.pages),
+    }),
     enabled: !!petId,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,

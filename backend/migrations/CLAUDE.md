@@ -13,6 +13,13 @@
 
 連番は既存の最大番号 + 1。説明は snake_case。
 
+> **既知の番号重複（許容済み例外）**: `011` は `011_care_plan_items_manual_other.sql` と
+> `011_support_bug_reports.sql` の2本が存在する（2026-09-26、並行ブランチ由来の採番衝突）。
+> `schema_migrations` は filename を主キーに記録するため、適用済みファイルのリネームは
+> 禁止（未適用扱いとなり DDL が重複実行されて失敗する）。この2本は共存を維持する。
+> 新たな番号重複は `go test ./internal/lintscan -run TestMigrationNumberUniqueness` で
+> 検出・FAIL する。並行ブランチをマージする際は両側の最大連番を必ず確認すること。
+
 ## 必須チェック
 
 - **clinic_id スコープ**: 新テーブルにクリニック間分離が必要な場合は `clinic_id NOT NULL` を付ける

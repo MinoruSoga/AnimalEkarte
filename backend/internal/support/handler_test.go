@@ -22,22 +22,31 @@ import (
 // ---- mock Service ----
 
 type mockService struct {
-	createFn       func(ctx context.Context, clinicID, reporterStaffID uint64, input CreateBugReportInput) (*model.SupportBugReport, error)
-	listFn         func(ctx context.Context, clinicID uint64) ([]BugReportWithReporter, error)
-	updateStatusFn func(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error)
-	listChatFn     func(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
-	recordChatFn   func(ctx context.Context, clinicID, staffID uint64, userMessage, assistantReply string, sources []ChatSource) error
-	clearChatFn    func(ctx context.Context, clinicID, staffID uint64) error
+	createFn        func(ctx context.Context, clinicID, reporterStaffID uint64, input CreateBugReportInput) (*model.SupportBugReport, error)
+	listFn          func(ctx context.Context) ([]BugReportWithReporter, error)
+	updateStatusFn  func(ctx context.Context, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error)
+	ensureTicketFn  func(ctx context.Context, id uint64) (*model.SupportBugReport, error)
+	deleteFn        func(ctx context.Context, id uint64) (*model.SupportBugReport, error)
+	listChatFn      func(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
+	listExchangesFn func(ctx context.Context) ([]ChatExchange, error)
+	recordChatFn    func(ctx context.Context, clinicID, staffID uint64, userMessage, assistantReply string, sources []ChatSource) error
+	clearChatFn     func(ctx context.Context, clinicID, staffID uint64) error
 }
 
 func (m *mockService) Create(ctx context.Context, clinicID, reporterStaffID uint64, input CreateBugReportInput) (*model.SupportBugReport, error) {
 	return m.createFn(ctx, clinicID, reporterStaffID, input)
 }
-func (m *mockService) ListByClinic(ctx context.Context, clinicID uint64) ([]BugReportWithReporter, error) {
-	return m.listFn(ctx, clinicID)
+func (m *mockService) ListAll(ctx context.Context) ([]BugReportWithReporter, error) {
+	return m.listFn(ctx)
 }
-func (m *mockService) UpdateStatus(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error) {
-	return m.updateStatusFn(ctx, clinicID, id, status)
+func (m *mockService) UpdateStatus(ctx context.Context, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error) {
+	return m.updateStatusFn(ctx, id, status)
+}
+func (m *mockService) EnsurePlaneTicket(ctx context.Context, id uint64) (*model.SupportBugReport, error) {
+	return m.ensureTicketFn(ctx, id)
+}
+func (m *mockService) Delete(ctx context.Context, id uint64) (*model.SupportBugReport, error) {
+	return m.deleteFn(ctx, id)
 }
 func (m *mockService) ListChatHistory(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error) {
 	if m.listChatFn == nil {
@@ -50,6 +59,12 @@ func (m *mockService) RecordChatExchange(ctx context.Context, clinicID, staffID 
 		return nil
 	}
 	return m.recordChatFn(ctx, clinicID, staffID, userMessage, assistantReply, sources)
+}
+func (m *mockService) ListChatExchanges(ctx context.Context) ([]ChatExchange, error) {
+	if m.listExchangesFn == nil {
+		return nil, nil
+	}
+	return m.listExchangesFn(ctx)
 }
 func (m *mockService) ClearChatHistory(ctx context.Context, clinicID, staffID uint64) error {
 	if m.clearChatFn == nil {
@@ -65,6 +80,7 @@ type mockUploader struct {
 	uploadedBytes []byte
 	uploadErr     error
 	deletedKey    string
+	deleteErr     error
 }
 
 func (m *mockUploader) Upload(_ context.Context, key string, body io.Reader, _ string) (string, error) {
@@ -81,7 +97,7 @@ func (m *mockUploader) Upload(_ context.Context, key string, body io.Reader, _ s
 }
 func (m *mockUploader) Delete(_ context.Context, key string) error {
 	m.deletedKey = key
-	return nil
+	return m.deleteErr
 }
 func (m *mockUploader) GetSignedURL(_ context.Context, key string, _ time.Duration) (string, error) {
 	return "/uploads/" + key, nil
@@ -203,7 +219,7 @@ func TestCreateBugReport(t *testing.T) {
 				},
 			}
 			uploader := &mockUploader{}
-			h := NewHandler(svc, uploader, nil, nil, nil, nil)
+			h := NewHandler(svc, uploader, nil, nil, nil)
 
 			body, contentType := buildMultipartBody(t, tt.fields, tt.fileField, tt.fileName, tt.fileContent)
 			c, rec := newRequest(t, http.MethodPost, "/api/v1/support/bug-reports", body, contentType)
@@ -224,8 +240,7 @@ func TestCreateBugReport(t *testing.T) {
 
 func TestListBugReports(t *testing.T) {
 	svc := &mockService{
-		listFn: func(_ context.Context, clinicID uint64) ([]BugReportWithReporter, error) {
-			assert.Equal(t, uint64(1), clinicID)
+		listFn: func(_ context.Context) ([]BugReportWithReporter, error) {
 			key := "support-bug-reports/clinic-1/x.png"
 			return []BugReportWithReporter{{
 				SupportBugReport: model.SupportBugReport{
@@ -234,16 +249,18 @@ func TestListBugReports(t *testing.T) {
 					ScreenshotKey: &key,
 				},
 				ReporterName: "田中",
+				ClinicName:   "テスト医院A",
 			}}, nil
 		},
 	}
-	h := NewHandler(svc, &mockUploader{}, nil, nil, nil, nil)
+	h := NewHandler(svc, &mockUploader{}, nil, nil, nil)
 
 	c, rec := newRequest(t, http.MethodGet, "/api/v1/support/bug-reports", nil, "")
 	h.ListBugReports(c)
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), `"reporter_name":"田中"`)
+	assert.Contains(t, rec.Body.String(), `"clinic_name":"テスト医院A"`)
 	assert.Contains(t, rec.Body.String(), `"screenshot_url":"/uploads/support-bug-reports/clinic-1/x.png"`)
 }
 
@@ -277,16 +294,15 @@ func TestUpdateBugReportStatus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := &mockService{
-				updateStatusFn: func(_ context.Context, clinicID, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error) {
+				updateStatusFn: func(_ context.Context, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error) {
 					if tt.svcErr != nil {
 						return nil, tt.svcErr
 					}
-					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(10), id)
 					return &model.SupportBugReport{ID: id, Status: status}, nil
 				},
 			}
-			h := NewHandler(svc, nil, nil, nil, nil, nil)
+			h := NewHandler(svc, nil, nil, nil, nil)
 
 			body := strings.NewReader(tt.body)
 			rec := httptest.NewRecorder()
@@ -300,6 +316,132 @@ func TestUpdateBugReportStatus(t *testing.T) {
 
 			h.UpdateBugReportStatus(c)
 			assert.Equal(t, tt.wantStatus, rec.Code)
+		})
+	}
+}
+
+// ---- CreatePlaneTicket ----
+
+func TestCreatePlaneTicket(t *testing.T) {
+	issueURL := "https://app.plane.so/baritechllc/browse/EMR-42/"
+	tests := []struct {
+		name         string
+		svcResult    *model.SupportBugReport
+		svcErr       error
+		wantStatus   int
+		wantBodyPart string
+	}{
+		{
+			name:         "returns report with plane url",
+			svcResult:    &model.SupportBugReport{ID: 10, PlaneIssueURL: &issueURL},
+			wantStatus:   http.StatusOK,
+			wantBodyPart: `"plane_issue_url":"https://app.plane.so/baritechllc/browse/EMR-42/"`,
+		},
+		{
+			name:       "returns 501 when plane is not configured",
+			svcErr:     apperrors.WrapNotImplemented("plane integration is not configured"),
+			wantStatus: http.StatusNotImplemented,
+		},
+		{
+			name:       "returns 502 on upstream failure",
+			svcErr:     apperrors.WrapBadGateway("plane ticket creation failed"),
+			wantStatus: http.StatusBadGateway,
+		},
+		{
+			name:       "returns 404 for unknown report",
+			svcErr:     apperrors.WrapNotFound("support_bug_report", "10"),
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := &mockService{
+				ensureTicketFn: func(_ context.Context, id uint64) (*model.SupportBugReport, error) {
+					assert.Equal(t, uint64(10), id)
+					return tt.svcResult, tt.svcErr
+				},
+			}
+			h := NewHandler(svc, nil, nil, nil, nil)
+
+			rec := httptest.NewRecorder()
+			gin.SetMode(gin.TestMode)
+			c, _ := gin.CreateTestContext(rec)
+			c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/support/bug-reports/10/plane-ticket", nil)
+			c.Params = gin.Params{{Key: "id", Value: "10"}}
+			setAuthContext(c)
+
+			h.CreatePlaneTicket(c)
+			assert.Equal(t, tt.wantStatus, rec.Code)
+			if tt.wantBodyPart != "" {
+				assert.Contains(t, rec.Body.String(), tt.wantBodyPart)
+			}
+		})
+	}
+}
+
+// ---- DeleteBugReport ----
+
+func TestDeleteBugReport(t *testing.T) {
+	screenshotKey := "support-bug-reports/clinic-1/shot.png"
+	tests := []struct {
+		name           string
+		svcResult      *model.SupportBugReport
+		svcErr         error
+		deleteErr      error
+		wantStatus     int
+		wantObjDeleted bool
+	}{
+		{
+			name:           "soft deletes and removes screenshot object",
+			svcResult:      &model.SupportBugReport{ID: 10, ClinicID: 1, ScreenshotKey: &screenshotKey},
+			wantStatus:     http.StatusNoContent,
+			wantObjDeleted: true,
+		},
+		{
+			name:           "still returns 204 when screenshot deletion fails",
+			svcResult:      &model.SupportBugReport{ID: 10, ClinicID: 1, ScreenshotKey: &screenshotKey},
+			deleteErr:      assert.AnError,
+			wantStatus:     http.StatusNoContent,
+			wantObjDeleted: true,
+		},
+		{
+			name:           "skips object deletion when report has no screenshot",
+			svcResult:      &model.SupportBugReport{ID: 10, ClinicID: 1},
+			wantStatus:     http.StatusNoContent,
+			wantObjDeleted: false,
+		},
+		{
+			name:           "returns 404 for unknown report",
+			svcErr:         apperrors.WrapNotFound("support_bug_report", "10"),
+			wantStatus:     http.StatusNotFound,
+			wantObjDeleted: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := &mockService{
+				deleteFn: func(_ context.Context, id uint64) (*model.SupportBugReport, error) {
+					assert.Equal(t, uint64(10), id)
+					return tt.svcResult, tt.svcErr
+				},
+			}
+			uploader := &mockUploader{deleteErr: tt.deleteErr}
+			h := NewHandler(svc, uploader, nil, nil, nil)
+
+			rec := httptest.NewRecorder()
+			gin.SetMode(gin.TestMode)
+			c, _ := gin.CreateTestContext(rec)
+			c.Request = httptest.NewRequest(http.MethodDelete, "/api/v1/support/bug-reports/10", nil)
+			c.Params = gin.Params{{Key: "id", Value: "10"}}
+			setAuthContext(c)
+
+			h.DeleteBugReport(c)
+			// c.Status(204) は Gin の WriteHeaderNow まで recorder に反映されないため
+			// ハンドラ直呼びのテストでは writer.Status() で検証する。
+			assert.Equal(t, tt.wantStatus, c.Writer.Status())
+			assert.Equal(t, tt.wantObjDeleted, uploader.deletedKey != "")
 		})
 	}
 }

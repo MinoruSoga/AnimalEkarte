@@ -28,7 +28,7 @@ export const StaffSelectionModal = memo(function StaffSelectionModal({
   const { data: staffs = [] } = useGetStaffs();
 
   const groupedStaffs = useMemo(() => {
-    const active = staffs.filter((s) => s.isActive);
+    const active = staffs.filter((s) => s.isActive && s.staffType === "doctor");
     const groups: Record<string, typeof active> = {};
     const occupationOrder: string[] = [];
     for (const s of active) {

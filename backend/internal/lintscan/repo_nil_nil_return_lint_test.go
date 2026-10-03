@@ -81,6 +81,10 @@ var repoNilNilAllowlist = []repoNilNilSiteException{
 		reason: "EMR-66 duplicate-complete probe: 'no billing occupies this medical_record/hospitalization slot yet' is the normal first-attempt state; assertCompleteSlotAvailable and resolveCompleteUniqueConflict branch on blocking != nil to decide create-vs-409. NotFound would invert that branch. Packet: NILCONTRACT-SOFT-MISS-OPTIONAL-ENTITY",
 	},
 	{
+		file: "billing/accounting_repository_complete.go", fn: "FindByHospitalizationID", occurrences: 1,
+		reason: "EMR-253 slot-occupancy probe: 'no billing occupies this hospitalization slot' is the normal create state; complete takeover resolution and the discharge no-duplicate guard branch on occupant != nil to decide takeover/release/reuse-vs-create. NotFound would invert that branch. Packet: NILCONTRACT-SOFT-MISS-OPTIONAL-ENTITY",
+	},
+	{
 		file: "billing/accounting_repository.go", fn: "FindByCompletionRequestID", occurrences: 2,
 		reason: "BUG-018 idempotency probe: 'no billing has claimed this completion key yet' is the normal first-attempt state, and Complete branches on existing != nil to decide create-vs-replay; NotFound would invert that branch. NOTE the two sites are NOT the same shape — the gorm.ErrRecordNotFound site is the intended soft miss, while the requestID == \"\" early return is an input-validation short-circuit that should be rejected at the boundary instead of imitating a miss; it is waived here only to keep this gate green and is tracked separately. Packet: NILCONTRACT-SOFT-MISS-OPTIONAL-ENTITY",
 	},

@@ -152,6 +152,7 @@ func TestCreatePetForOwnerRequest_ToServiceInput(t *testing.T) {
 			BirthDate:       &birthDate,
 			Weight:          &weight,
 			NeuteredDate:    &neuteredDate,
+			NeuteredStatus:  "done",
 			AcquisitionType: "purchase",
 			DangerLevel:     "none",
 			Food:            "ドライフード",
@@ -175,6 +176,7 @@ func TestCreatePetForOwnerRequest_ToServiceInput(t *testing.T) {
 		require.NotNil(t, input.Weight)
 		assert.Equal(t, weight, *input.Weight)
 		require.NotNil(t, input.NeuteredDate)
+		assert.Equal(t, "done", input.NeuteredStatus)
 		assert.Equal(t, "purchase", input.AcquisitionType)
 		assert.Equal(t, "none", input.DangerLevel)
 		assert.Equal(t, "ドライフード", input.Food)
@@ -192,6 +194,7 @@ func TestCreatePetForOwnerRequest_ToServiceInput(t *testing.T) {
 		assert.Nil(t, input.BirthDate)
 		assert.Nil(t, input.Weight)
 		assert.Nil(t, input.NeuteredDate)
+		assert.Equal(t, "", input.NeuteredStatus)
 		assert.Nil(t, input.InsuranceID)
 	})
 }

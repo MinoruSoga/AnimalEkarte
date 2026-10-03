@@ -42,16 +42,14 @@ test.describe("飼主一覧 かな検索", () => {
         await owners.gotoList();
         await expect(page).toHaveURL(/\/owners/);
 
-        // Open search bar (toggle button with aria-label="検索")
-        await page.getByRole("button", { name: "検索" }).click();
-
-        // Search input appears
+        // Search input is always visible (EMR-247: commits on Enter)
         const searchInput = owners.searchInput();
         await expect(searchInput).toBeVisible();
 
         // Full hiragana form — single-char「ぴ」matches 500+ pets and may omit ピーター on page 1.
         // Owners list loader uses GET /v1/pets with NormalizeKana symmetry.
         await searchInput.fill(DEMO_PETER_PET.hiraganaSearch);
+        await searchInput.press("Enter");
 
         await expect(owners.peterText()).toBeVisible({ timeout: 15000 });
       } finally {
@@ -66,11 +64,11 @@ test.describe("飼主一覧 かな検索", () => {
         await owners.gotoList();
         await expect(page).toHaveURL(/\/owners/);
 
-        await page.getByRole("button", { name: "検索" }).click();
         const searchInput = owners.searchInput();
         await expect(searchInput).toBeVisible();
 
         await searchInput.fill(DEMO_PETER_PET.katakanaSearch);
+        await searchInput.press("Enter");
 
         await expect(owners.peterText()).toBeVisible({ timeout: 15000 });
       } finally {

@@ -37,6 +37,9 @@ func buildPetModel(clinicID uint64, petNumber string, input *CreatePetInput) *mo
 	if input.Status != "" {
 		pet.Status = model.PetStatus(input.Status)
 	}
+	if input.NeuteredStatus != "" {
+		pet.NeuteredStatus = model.PetNeuteredStatus(input.NeuteredStatus)
+	}
 	if input.AcquisitionType != "" {
 		at := model.AcquisitionType(input.AcquisitionType)
 		pet.AcquisitionType = &at

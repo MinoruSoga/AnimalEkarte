@@ -6,6 +6,7 @@ import type {
   ClinicalHistoryKind,
   ClinicalHistoryMatrix as ClinicalHistoryMatrixModel,
 } from "../lib/clinical-briefing";
+import type { HistoryLoadMoreControl } from "../hooks/use-owner-clinical-briefing-data";
 
 export type HistoryRowState =
   "ready" | "partial-permission" | "no-permission" | "loading" | "error";
@@ -13,6 +14,8 @@ export type HistoryRowState =
 interface ClinicalHistoryMatrixProps {
   matrix: ClinicalHistoryMatrixModel;
   rowStates: Record<ClinicalHistoryKind, HistoryRowState>;
+  /** EMR-242: 行の取得元に残ページがある場合の追加読み込み制御。対象外の行は省略する。 */
+  loadMore?: Partial<Record<ClinicalHistoryKind, HistoryLoadMoreControl>>;
 }
 
 type HistoryColumn = ClinicalHistoryMatrixModel["columns"][number];
@@ -133,9 +136,10 @@ interface HistoryRowProps {
   kind: ClinicalHistoryKind;
   count: number;
   state: HistoryRowState;
+  loadMore?: HistoryLoadMoreControl;
 }
 
-function HistoryRow({ columns, kind, count, state }: HistoryRowProps) {
+function HistoryRow({ columns, kind, count, state, loadMore }: HistoryRowProps) {
   const tone = rowToneClasses[kind];
   const canShowEntries = state === "ready" || state === "partial-permission";
   return (
@@ -151,6 +155,16 @@ function HistoryRow({ columns, kind, count, state }: HistoryRowProps) {
         <small className={`ml-2.5 block text-2xs font-semibold tabular-nums ${C.text60}`}>
           {canShowEntries ? `${count.toLocaleString()}件` : "—"}
         </small>
+        {canShowEntries && loadMore?.hasMore ? (
+          <button
+            type="button"
+            onClick={loadMore.onLoadMore}
+            disabled={loadMore.isLoadingMore}
+            className={`ml-2.5 block text-2xs font-semibold underline disabled:no-underline ${C.textActionPrimaryDark}`}
+          >
+            {loadMore.isLoadingMore ? "読み込み中..." : "続きを読む"}
+          </button>
+        ) : null}
       </th>
       {columns.map((column, index) => (
         <HistoryCell
@@ -190,7 +204,7 @@ function HistoryTableHeader({ columns }: { columns: ReadonlyArray<HistoryColumn>
 }
 
 /** 縦=情報種類、横=日付。薬・予防接種・処置を混同しない履歴マトリクス。 */
-export function ClinicalHistoryMatrix({ matrix, rowStates }: ClinicalHistoryMatrixProps) {
+export function ClinicalHistoryMatrix({ matrix, rowStates, loadMore }: ClinicalHistoryMatrixProps) {
   const columns: ReadonlyArray<HistoryColumn> =
     matrix.columns.length > 0
       ? matrix.columns
@@ -216,6 +230,7 @@ export function ClinicalHistoryMatrix({ matrix, rowStates }: ClinicalHistoryMatr
             kind={row.kind}
             count={row.count}
             state={rowStates[row.kind]}
+            loadMore={loadMore?.[row.kind]}
           />
         ))}
       </tbody>

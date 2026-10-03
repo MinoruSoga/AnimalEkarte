@@ -20,7 +20,9 @@ vi.mock("@/hooks/use-treatment-master", () => ({
 }));
 
 vi.mock("@/hooks/use-staffs", () => ({
-  useGetStaffs: () => ({ data: [{ id: "10", name: "獣医師A", isActive: true }] }),
+  useGetStaffs: () => ({
+    data: [{ id: "10", name: "獣医師A", isActive: true, staffType: "doctor" }],
+  }),
 }));
 
 vi.mock("../api/get-checkups", () => ({

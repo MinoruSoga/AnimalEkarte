@@ -31,10 +31,6 @@ export class AccountingPage extends BasePage {
     return this.page.getByRole("tab", { name: "当日会計" });
   }
 
-  searchToggle(): Locator {
-    return this.page.getByRole("button", { name: "検索" });
-  }
-
   searchInput(): Locator {
     return this.page.getByPlaceholder("飼主名、ペット名...");
   }

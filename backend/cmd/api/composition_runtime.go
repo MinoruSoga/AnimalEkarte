@@ -89,6 +89,7 @@ type runtimeComposition struct {
 	trimming      trimmingRuntime
 	lstep         *lstep.Application
 	supportChat   support.ChatCompleter
+	planeTickets  support.TicketCreator
 }
 
 type runtimeCompositionDependencies struct {
@@ -258,6 +259,18 @@ func newRuntimeDomainCompositions(
 			dependencies.Config.SupportLLMAPIKey,
 			dependencies.Config.SupportLLMModel,
 			time.Duration(dependencies.Config.SupportLLMTimeoutMS)*time.Millisecond,
+		),
+		// Plane 連携は PLANE_API_KEY 未設定の場合 nil（連携無効）を返す。
+		// 報告自体は連携の有無に関わらずローカル保存される。
+		planeTickets: support.NewPlaneTicketCreator(
+			dependencies.Config.PlaneBaseURL,
+			dependencies.Config.PlaneWebBaseURL,
+			dependencies.Config.PlaneAPIKey,
+			dependencies.Config.PlaneWorkspaceSlug,
+			dependencies.Config.PlaneProjectID,
+			dependencies.Config.PlaneProjectIdentifier,
+			dependencies.Config.FrontendURL,
+			time.Duration(dependencies.Config.PlaneTimeoutMS)*time.Millisecond,
 		),
 	}
 }
@@ -572,10 +585,9 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 		c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
 	).RegisterRoutes(protected)
 	support.NewHandler(
-		support.NewService(support.NewRepository(c.db)),
+		support.NewService(support.NewRepository(c.db), c.planeTickets),
 		uploader,
 		supportAuditAdapter{logger: c.audit},
-		c.auth.Handler.RequirePermission,
 		c.supportChat,
 		middleware.RateLimit(
 			middleware.NewRateLimitStore(ctx),

@@ -21,6 +21,9 @@ func TestShiftEntryService_Update(t *testing.T) {
 	// BUG-036: Full 勤務の既存行は start/end を持つ前提で検証する
 	existingStart := "09:00:00"
 	existingEnd := "18:00:00"
+	// EMR-241: 空文字は normalize で nil → 時刻クリアを意味する
+	emptyTime := ""
+	offType := string(model.ShiftTypeOff)
 
 	tests := []struct {
 		name            string
@@ -67,6 +70,50 @@ func TestShiftEntryService_Update(t *testing.T) {
 			repoUpdateErr:   errors.New("db error"),
 			repoReturnEntry: nil,
 			wantErr:         true,
+		},
+		{
+			// EMR-241: 勤務区分（既存 full）の時刻を両方クリアする更新は InvalidInput。
+			// 空文字は normalize で nil になり、実効値が両方 NULL になるため拒否される。
+			name:     "returns invalid input when clearing both times on a working shift",
+			clinicID: 1,
+			id:       1,
+			input: &UpdateShiftEntryInput{
+				StartTime: &emptyTime,
+				EndTime:   &emptyTime,
+			},
+			repoUpdateErr:   nil,
+			repoReturnEntry: nil,
+			wantErr:         true,
+		},
+		{
+			// EMR-241: 勤務区分への片方だけの時刻更新は既存値と併せて検証され、
+			// end<=start なら InvalidInput（片方だけの矛盾した更新を許さない）。
+			name:     "returns invalid input when one-sided update breaks start<end",
+			clinicID: 1,
+			id:       1,
+			input: &UpdateShiftEntryInput{
+				StartTime: &existingEnd, // 18:00 → 既存 end(18:00) と等しくなり拒否
+			},
+			repoUpdateErr:   nil,
+			repoReturnEntry: nil,
+			wantErr:         true,
+		},
+		{
+			// EMR-241: off への変更と時刻クリアは許可（off は時刻任意）
+			name:     "allows clearing times when switching to off",
+			clinicID: 1,
+			id:       1,
+			input: &UpdateShiftEntryInput{
+				ShiftType: &offType,
+				StartTime: &emptyTime,
+				EndTime:   &emptyTime,
+			},
+			repoUpdateErr: nil,
+			repoReturnEntry: &model.ShiftEntry{
+				ID:        1,
+				ShiftType: model.ShiftTypeOff,
+			},
+			wantErr: false,
 		},
 	}
 

@@ -1,7 +1,7 @@
 /**
- * update-bug-report-status.ts — バグ報告ステータス更新 API（管理者向け）
+ * update-bug-report-status.ts — バグ報告ステータス更新 API（全スタッフ公開）
  *
- * PATCH /v1/support/bug-reports/:id/status（hospital-settings:edit 権限）
+ * PATCH /v1/support/bug-reports/:id/status（認証済みスタッフ全員 — 他医院の報告も対象）
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -18,10 +18,9 @@ interface UpdateBugReportStatusParams {
 }
 
 async function updateBugReportStatus(params: UpdateBugReportStatusParams): Promise<BugReport> {
-  const { data } = await axios.patch<BugReport>(
-    `/v1/support/bug-reports/${params.id}/status`,
-    { status: params.status },
-  );
+  const { data } = await axios.patch<BugReport>(`/v1/support/bug-reports/${params.id}/status`, {
+    status: params.status,
+  });
   return data;
 }
 

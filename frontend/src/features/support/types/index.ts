@@ -17,7 +17,13 @@ export interface BugReport {
   status: BugReportStatus;
   reporter_staff_id: number;
   reporter_name: string;
+  /** 報告元医院名（一覧のみ付与 — 全医院共有ボードでの provenance 表示） */
+  clinic_name?: string;
   screenshot_url?: string;
+  /** 起票済み Plane チケットの表示 URL（未起票なら未設定） */
+  plane_issue_url?: string;
+  /** 直近の Plane 起票失敗理由（成功・未試行なら未設定） */
+  plane_sync_error?: string;
   created_at: string;
   updated_at: string;
 }
@@ -71,4 +77,19 @@ export interface SupportChatHistoryRecord {
 
 export interface SupportChatStatus {
   enabled: boolean;
+}
+
+/**
+ * GET /v1/support/chat/exchanges の1行（質問+回答ペア、全医院共有ボード用）。
+ * clinic_name / staff_name は provenance 表示用（絞り込みではない）。
+ */
+export interface SupportChatExchange {
+  id: number;
+  clinic_name: string;
+  staff_name: string;
+  question: string;
+  answer: string;
+  sources?: SupportChatSource[];
+  /** 質問送信時刻 */
+  created_at: string;
 }

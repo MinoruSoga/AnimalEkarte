@@ -74,6 +74,9 @@ func buildOwnerPetModels(inputs []CreatePetForOwnerInput) []model.Pet {
 		if p.Status != "" {
 			pet.Status = model.PetStatus(p.Status)
 		}
+		if p.NeuteredStatus != "" {
+			pet.NeuteredStatus = model.PetNeuteredStatus(p.NeuteredStatus)
+		}
 		if p.AcquisitionType != "" {
 			at := model.AcquisitionType(p.AcquisitionType)
 			pet.AcquisitionType = &at

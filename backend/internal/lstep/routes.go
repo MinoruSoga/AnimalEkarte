@@ -191,6 +191,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 	// BE-017 / ISSUE-001: lifecycle routes (canonical + clinic alias).
 	owners.DELETE("/:id/line", h.requirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwnerLine)
+	// Deprecated (EMR-240): POST lstep-opt-out は opt-out 専用の互換エンドポイント。
+	// 新規利用は PATCH lstep/opt-out、製品 UI は PATCH delivery-exclusion を使用。
+	// 外部利用の確認が取れるまで削除は保留。
 	owners.POST("/:id/lstep-opt-out", h.requirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLstepOptOut)
 	owners.PATCH("/:id/lstep/opt-out", h.requirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerLstepOptOut)
 	co.POST("/:id/lstep-opt-out", h.requirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLstepOptOut)

@@ -458,23 +458,23 @@ export const settingsRoute: RouteObject = {
         },
       ],
     },
-    // サポートウィジェットのバグ報告一覧（backend は hospital-settings view/edit でゲート）
+    // バグ報告一覧は全スタッフ・全医院に公開する共有ボード（権限ゲートなし —
+    // 製品フィードバック基盤としての意図的な製品判断。backend も同じ方針）。
     {
       path: "bug-reports",
-      element: (
-        <RequirePermission resource={ResourceHospitalSettings}>
-          <Outlet />
-        </RequirePermission>
-      ),
-      children: [
-        {
-          index: true,
-          lazy: async () => {
-            const { BugReportsPage } = await import("@/features/support");
-            return { Component: BugReportsPage };
-          },
-        },
-      ],
+      lazy: async () => {
+        const { BugReportsPage } = await import("@/features/support");
+        return { Component: BugReportsPage };
+      },
+    },
+    // チャット履歴一覧も同じく全医院共有ボード（権限ゲートなし — 質問傾向の
+    // 横断分析用途。backend の GET /support/chat/exchanges と同じ方針）。
+    {
+      path: "chat-history",
+      lazy: async () => {
+        const { ChatHistoryPage } = await import("@/features/support");
+        return { Component: ChatHistoryPage };
+      },
     },
     {
       path: "lab-device-item-masters",

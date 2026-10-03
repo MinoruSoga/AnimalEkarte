@@ -1,11 +1,11 @@
 ---
 name: deployment
-description: バックエンド(Cloudflare Workers + Containers)・フロントエンド(Vercel)へのアプリケーションデプロイ。両方とも GitHub Actions 経由で自動化。
+description: バックエンド(Cloudflare Workers + Containers)・フロントエンド(Cloudflare Workers Static Assets)へのアプリケーションデプロイ。両方とも GitHub Actions 経由で自動化。
 ---
 
 # デプロイメントスキル
 
-> AnimalEkarte は **バックエンドを Cloudflare Workers + Containers**、**フロントエンドを Vercel** にデプロイ。両方とも GitHub Actions ワークフロー経由で自動化（`backend-deploy.yml` / `frontend-deploy.yml`）。
+> AnimalEkarte は **バックエンドを Cloudflare Workers + Containers**、**フロントエンドを Cloudflare Workers Static Assets**（EMR-255 で Vercel から移行）にデプロイ。両方とも GitHub Actions ワークフロー経由で自動化（`backend-deploy.yml` / `frontend-deploy.yml`）。
 > AWS ECS/RDS は廃止済みで、切り戻し先やホットスタンバイではない。
 
 ## このスキルを使用するタイミング
@@ -18,7 +18,7 @@ description: バックエンド(Cloudflare Workers + Containers)・フロント�
 
 ```
 Backend:  git push → backend-deploy.yml → wrangler deploy → migrate（Cloudflare Workers + Containers）
-Frontend: git push → frontend-deploy.yml → vercel pull → vercel build → vercel deploy（VERCEL_TOKEN使用）
+Frontend: git push → frontend-deploy.yml → APP_ENV付き pnpm build → wrangler deploy（CLOUDFLARE_API_TOKEN使用）
 ```
 
 ## デプロイ方法
@@ -55,4 +55,4 @@ gh run list --workflow=frontend-deploy.yml
 - 現行インフラ: [`docs/ops/infra/architecture.md`](../../../docs/ops/infra/architecture.md)
 - STG 運用: [`docs/ops/infra/staging/runbook.md`](../../../docs/ops/infra/staging/runbook.md)
 - AWS 退役記録（実行禁止）: [platforms/aws.md](./platforms/aws.md)
-- フロントエンドは Vercel（`.github/workflows/frontend-deploy.yml`）にデプロイ。AWS 対象外。
+- フロントエンドは Cloudflare Workers Static Assets（`.github/workflows/frontend-deploy.yml` → `frontend/wrangler.jsonc`）にデプロイ。AWS 対象外。`/api/*` は Worker の service binding が backend へ同一オリジン中継する。

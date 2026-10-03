@@ -235,7 +235,8 @@ describe("useAccountingCompletionAction post-close 400 focus (BUG-009)", () => {
   });
 
   it("post_close_reason の 400 では textarea#postCloseReason にフォーカスし toast は handleApiError のみ", async () => {
-    updateAccountingMock.mockRejectedValue(axiosError(400, { error: POST_CLOSE_REASON_400 }));
+    // EMR-253: waiting 会計の確定は PATCH ではなく complete takeover を送る。
+    completeAccountingMock.mockRejectedValue(axiosError(400, { error: POST_CLOSE_REASON_400 }));
     mountFocusFields({ receivedAmount: true, paymentSplit: true });
     const { result } = renderHook(() => useAccountingCompletionAction(buildHookArgs()));
 
@@ -249,10 +250,12 @@ describe("useAccountingCompletionAction post-close 400 focus (BUG-009)", () => {
     expect(handleApiErrorMock).toHaveBeenCalledTimes(1);
     expect(handleApiErrorMock).toHaveBeenCalledWith(expect.anything(), "会計の処理");
     expect(toast.error).not.toHaveBeenCalled();
+    expect(completeAccountingMock).toHaveBeenCalledTimes(1);
+    expect(updateAccountingMock).not.toHaveBeenCalled();
   });
 
   it("post_close_reason を含まない 400 では receivedAmount にフォーカスし postCloseReason は触らない", async () => {
-    updateAccountingMock.mockRejectedValue(axiosError(400, { error: GENERIC_400 }));
+    completeAccountingMock.mockRejectedValue(axiosError(400, { error: GENERIC_400 }));
     mountFocusFields({ receivedAmount: true, paymentSplit: true });
     const { result } = renderHook(() => useAccountingCompletionAction(buildHookArgs()));
 
@@ -264,6 +267,8 @@ describe("useAccountingCompletionAction post-close 400 focus (BUG-009)", () => {
     expect(document.activeElement).toBe(document.getElementById("receivedAmount"));
     expect(document.activeElement).not.toBe(document.getElementById("postCloseReason"));
     expect(handleApiErrorMock).toHaveBeenCalledTimes(1);
+    expect(completeAccountingMock).toHaveBeenCalledTimes(1);
+    expect(updateAccountingMock).not.toHaveBeenCalled();
   });
 
   it("新規 complete の post_close_reason 400 でも postCloseReason にフォーカスする", async () => {
@@ -369,7 +374,7 @@ describe("useAccountingCompletionAction completed accounting updates", () => {
     expect(args.navigate).toHaveBeenCalledWith("/accounting/123");
   });
 
-  it.each([["新規 complete", undefined] as const, ["既存 update", "123"] as const])(
+  it.each([["新規 complete", undefined] as const, ["既存 waiting takeover", "123"] as const])(
     "EMR-62: insurance_amount は正の magnitude で送信する（%s）",
     async (_label, accountingId) => {
       const args = {
@@ -400,18 +405,102 @@ describe("useAccountingCompletionAction completed accounting updates", () => {
           }),
           "test-idempotency-key",
         );
-        const sent = completeAccountingMock.mock.calls[0]?.[0]?.insurance_amount;
-        expect(sent).toBeGreaterThanOrEqual(0);
       } else {
-        expect(updateAccountingMock).toHaveBeenCalledExactlyOnceWith(
-          accountingId,
-          expect.objectContaining({ insurance_amount: 550 }),
+        // EMR-253: 既存 waiting の確定は complete takeover（billing_id 指定）で in-place 確定。
+        expect(completeAccountingMock).toHaveBeenCalledExactlyOnceWith(
+          expect.objectContaining({
+            billing_id: 123,
+            has_insurance: true,
+            insurance_ratio: 0.5,
+            insurance_amount: 550,
+          }),
+          "test-idempotency-key",
         );
-        const sent = updateAccountingMock.mock.calls[0]?.[1]?.insurance_amount;
-        expect(sent).toBeGreaterThanOrEqual(0);
+        expect(updateAccountingMock).not.toHaveBeenCalled();
       }
+      const sent = completeAccountingMock.mock.calls[0]?.[0]?.insurance_amount;
+      expect(sent).toBeGreaterThanOrEqual(0);
     },
   );
+});
+
+describe("useAccountingCompletionAction waiting takeover (EMR-253)", () => {
+  beforeEach(() => {
+    completeAccountingMock.mockReset();
+    updateAccountingMock.mockReset();
+    handleApiErrorMock.mockReset();
+    vi.mocked(toast.error).mockReset();
+    vi.mocked(toast.success).mockReset();
+  });
+
+  it("waiting 会計の確定は POST /complete（billing_id 指定）で in-place 確定し PATCH を送らない", async () => {
+    const args = buildHookArgs();
+    completeAccountingMock.mockResolvedValue({ ...waitingAccounting(), status: "completed" });
+    const { result } = renderHook(() => useAccountingCompletionAction(args));
+
+    await submitCompletionAction(result.current.formAction);
+
+    expect(completeAccountingMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        billing_id: 123,
+        pet_id: 20,
+        owner_id: 10,
+        scheduled_date: "2026-05-01T00:00:00+09:00",
+        payment_splits: [
+          expect.objectContaining({ method: "cash", amount: 1100, received_amount: 1100 }),
+        ],
+      }),
+      "test-idempotency-key",
+    );
+    expect(updateAccountingMock).not.toHaveBeenCalled();
+    expect(result.current.formState.success).toBe(true);
+    expect(args.setCompletedPayment).toHaveBeenCalledTimes(1);
+    expect(args.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: queryKeys.accountings.all(),
+    });
+    expect(toast.success).toHaveBeenCalledWith("会計を完了しました");
+    expect(args.navigate).not.toHaveBeenCalled();
+  });
+
+  it("waiting takeover は hospitalization_id を echo し expected_unbilled_revision は送らない", async () => {
+    const args = {
+      ...buildHookArgs(),
+      accounting: { ...waitingAccounting(), hospitalizationId: "55" },
+    };
+    completeAccountingMock.mockResolvedValue({ ...waitingAccounting(), status: "completed" });
+    const { result } = renderHook(() => useAccountingCompletionAction(args));
+
+    await submitCompletionAction(result.current.formAction);
+
+    const payload = completeAccountingMock.mock.calls[0]?.[0];
+    expect(payload).toMatchObject({ billing_id: 123, hospitalization_id: 55 });
+    expect(payload).not.toHaveProperty("expected_unbilled_revision");
+    expect(updateAccountingMock).not.toHaveBeenCalled();
+  });
+
+  it("waiting takeover は completed 確認ダイアログを開かず即送信する", async () => {
+    const args = buildHookArgs();
+    completeAccountingMock.mockResolvedValue({ ...waitingAccounting(), status: "completed" });
+    const { result } = renderHook(() => useAccountingCompletionAction(args));
+
+    await submitCompletionAction(result.current.formAction);
+
+    expect(result.current.editConfirmOpen).toBe(false);
+    expect(completeAccountingMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("waiting takeover 失敗時は handleApiError にフォールバックし PATCH は呼ばない", async () => {
+    const args = buildHookArgs();
+    completeAccountingMock.mockRejectedValue(axiosError(409, { error: "conflict" }));
+    const { result } = renderHook(() => useAccountingCompletionAction(args));
+
+    await submitCompletionAction(result.current.formAction);
+
+    expect(result.current.formState.success).toBe(false);
+    expect(handleApiErrorMock).toHaveBeenCalledTimes(1);
+    expect(updateAccountingMock).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+  });
 });
 
 describe("useAccountingCompletionAction insurance wire contract (EMR-63)", () => {
@@ -445,7 +534,7 @@ describe("useAccountingCompletionAction insurance wire contract (EMR-63)", () =>
     };
   }
 
-  it("保険なし会計で ON にすると has_insurance:true と比率・金額を送る（なし→あり遷移）", async () => {
+  it("保険なし waiting 会計で ON にすると complete takeover で has_insurance:true と比率・金額を送る（なし→あり遷移）", async () => {
     const args = {
       ...buildHookArgs(),
       hasInsurance: true,
@@ -459,19 +548,23 @@ describe("useAccountingCompletionAction insurance wire contract (EMR-63)", () =>
       },
       paymentSplits: [{ method: "cash" as const, amount: "550", receivedAmount: "550" }],
     };
-    updateAccountingMock.mockResolvedValue({ ...waitingAccounting(), status: "completed" });
+    completeAccountingMock.mockResolvedValue({ ...waitingAccounting(), status: "completed" });
     const { result } = renderHook(() => useAccountingCompletionAction(args));
 
     await submitCompletionAction(result.current.formAction);
 
-    expect(updateAccountingMock).toHaveBeenCalledExactlyOnceWith(
-      "123",
+    // EMR-253: waiting 会計は complete takeover で確定する。PATCH merge 契約ではなく
+    // command body に確定値をそのまま送る。
+    expect(completeAccountingMock).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
+        billing_id: 123,
         has_insurance: true,
         insurance_ratio: 0.5,
         insurance_amount: 550,
       }),
+      "test-idempotency-key",
     );
+    expect(updateAccountingMock).not.toHaveBeenCalled();
   });
 
   it("確定済み保険会計で OFF にすると has_insurance:false と明示 0 を送る（あり→なし遷移）", async () => {

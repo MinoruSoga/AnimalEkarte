@@ -1,7 +1,14 @@
-import { memo, useCallback, useState, type ChangeEvent } from "react";
+import { memo, useCallback, useState } from "react";
 import { Check, Pencil, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { TableCell } from "@/components/ui/table";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
@@ -326,6 +333,10 @@ export function CheckupAddRow({
   );
 }
 
+// Radix SelectItem は空文字 value を許容しないため、未選択肢は sentinel に写像する
+// （MedicineDoseParamsEditor.tsx の "__none__" と同じ方式）。
+const SELECT_EMPTY_VALUE = "__none__";
+
 function CheckupTypeSelect({
   value,
   checkupTypes,
@@ -344,20 +355,22 @@ function CheckupTypeSelect({
   ariaLabel?: string;
 }) {
   return (
-    <select
-      id={id}
-      value={value}
-      onChange={(e: ChangeEvent<HTMLSelectElement>) => onChange(e.target.value)}
-      aria-label={ariaLabel}
-      className={`${className} text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} focus-visible:ring-2 ${C.focusRingAccent40} w-32`}
+    <Select
+      value={value ? String(value) : SELECT_EMPTY_VALUE}
+      onValueChange={(next) => onChange(next === SELECT_EMPTY_VALUE ? "" : next)}
     >
-      <option value="">{emptyLabel}</option>
-      {checkupTypes.map((type) => (
-        <option key={type.id} value={type.id}>
-          {type.name}
-        </option>
-      ))}
-    </select>
+      <SelectTrigger id={id} aria-label={ariaLabel} className={`${className} w-32`}>
+        <SelectValue placeholder={emptyLabel} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={SELECT_EMPTY_VALUE}>{emptyLabel}</SelectItem>
+        {checkupTypes.map((type) => (
+          <SelectItem key={type.id} value={String(type.id)}>
+            {type.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -379,19 +392,21 @@ function StaffSelect({
   ariaLabel?: string;
 }) {
   return (
-    <select
-      id={id}
-      value={value}
-      onChange={(e: ChangeEvent<HTMLSelectElement>) => onChange(e.target.value)}
-      aria-label={ariaLabel}
-      className={`${className} text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} focus-visible:ring-2 ${C.focusRingAccent40} w-32`}
+    <Select
+      value={value ? String(value) : SELECT_EMPTY_VALUE}
+      onValueChange={(next) => onChange(next === SELECT_EMPTY_VALUE ? "" : next)}
     >
-      <option value="">{emptyLabel}</option>
-      {staffs.map((staff) => (
-        <option key={staff.id} value={staff.id}>
-          {staff.name}
-        </option>
-      ))}
-    </select>
+      <SelectTrigger id={id} aria-label={ariaLabel} className={`${className} w-32`}>
+        <SelectValue placeholder={emptyLabel} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={SELECT_EMPTY_VALUE}>{emptyLabel}</SelectItem>
+        {staffs.map((staff) => (
+          <SelectItem key={staff.id} value={String(staff.id)}>
+            {staff.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

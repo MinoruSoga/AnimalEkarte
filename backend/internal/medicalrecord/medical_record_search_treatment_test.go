@@ -81,22 +81,39 @@ func assertTreatmentSearchEmpty(t *testing.T, repo MedicalRecordRepository, clin
 	assert.Empty(t, got)
 }
 
-func TestMedicalRecordRepository_FindAll_TreatmentSearch(t *testing.T) {
+// TestMedicalRecordRepository_FindAll_TreatmentSearchExcluded は EMR-244 で
+// 治療内容・治療メモ・治療マスタ名を検索する UNION 腕（旧 arm 5）をカルテ一覧の
+// free 検索から外した契約を固定する。残る検索対象は
+// 「カルテ番号 / 飼主名・カナ / ペット名・カナ / 主訴」の4条件のみ。
+func TestMedicalRecordRepository_FindAll_TreatmentSearchExcluded(t *testing.T) {
 	db := setupMedicalRecordTreatmentSearchTestDB(t)
 	repo := NewMedicalRecordRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	baseDate := time.Date(2026, 7, 25, 0, 0, 0, 0, time.UTC)
 
-	targetRecord := makeTreatmentSearchRecord(t, db, clinicA, "TS-TARGET", baseDate)
+	// 4条件すべてに針を持つ対象カルテ。飼主カナ・ペットカナも個別に検証するため
+	// name_kana を明示的に設定する（makeTestOwner/makeSpeciesAndPet はセットしない）。
+	owner := makeTestOwner(t, db, clinicA, "四条件飼主")
+	require.NoError(t, db.Model(owner).Update("name_kana", "ヨンジョウケン").Error)
+	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "四条件ペット")
+	require.NoError(t, db.Model(pet).Update("name_kana", "シカイペット").Error)
+
+	targetRecord := makeFullMedicalRecord(t, db, &model.MedicalRecord{
+		ClinicID: clinicA,
+		RecordNo: "TS-TARGET-237",
+		Date:     baseDate,
+		OwnerID:  &owner.ID,
+		PetID:    &pet.ID,
+	})
+	makeInquiryForRecord(t, db, targetRecord.ID, "四条件主訴：食欲不振")
+
+	// 旧 arm 5 でだけヒットしていた針: treatment の content/memo と
+	// procedure/medicine/consultation/inventory 各マスタ名。
 	makeTreatmentSearchTreatment(t, db, &model.Treatment{
 		MedicalRecordID: targetRecord.ID,
 		ItemType:        model.TreatmentItemTypeOther,
 		Content:         "content-needle-237",
-	})
-	makeTreatmentSearchTreatment(t, db, &model.Treatment{
-		MedicalRecordID: targetRecord.ID,
-		ItemType:        model.TreatmentItemTypeOther,
 		Memo:            "memo-needle-237",
 	})
 	targetProcedure := &model.Procedure{ClinicID: clinicA, Name: "procedure-needle-237"}
@@ -131,176 +148,54 @@ func TestMedicalRecordRepository_FindAll_TreatmentSearch(t *testing.T) {
 		InventoryID:     &targetInventory.ID,
 	})
 
-	kanaRecord := makeTreatmentSearchRecord(t, db, clinicA, "TS-KANA", baseDate.Add(time.Hour))
 	kanaMedicine := &model.Medicine{ClinicID: clinicA, Name: "アモキシシリン"}
 	require.NoError(t, db.WithContext(ctx).Create(kanaMedicine).Error)
 	makeTreatmentSearchTreatment(t, db, &model.Treatment{
-		MedicalRecordID: kanaRecord.ID,
+		MedicalRecordID: targetRecord.ID,
 		ItemType:        model.TreatmentItemTypeMedicine,
 		MedicineID:      &kanaMedicine.ID,
 	})
 
-	duplicateRecord := makeTreatmentSearchRecord(t, db, clinicA, "TS-DUPLICATE", baseDate.Add(2*time.Hour))
-	for range 2 {
-		makeTreatmentSearchTreatment(t, db, &model.Treatment{
-			MedicalRecordID: duplicateRecord.ID,
-			ItemType:        model.TreatmentItemTypeOther,
-			Content:         "duplicate-needle-237",
-		})
-	}
-
-	ownerA := makeTestOwner(t, db, clinicA, "汚染テスト自院飼主")
-	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "汚染テスト自院ペット")
-	pollutedRecord := makeFullMedicalRecord(t, db, &model.MedicalRecord{
+	// 同一語が飼主名とペット名の両腕にヒットしても UNION 側で行が重複しないことを見る。
+	dedupOwner := makeTestOwner(t, db, clinicA, "同名検索飼主")
+	dedupPet := makeSpeciesAndPet(t, db, clinicA, dedupOwner.ID, "同名検索飼主")
+	dedupRecord := makeFullMedicalRecord(t, db, &model.MedicalRecord{
 		ClinicID: clinicA,
-		RecordNo: "TS-POLLUTED",
-		Date:     baseDate.Add(3 * time.Hour),
-		OwnerID:  &ownerA.ID,
-		PetID:    &petA.ID,
+		RecordNo: "TS-MULTIARM-237",
+		Date:     baseDate.Add(time.Hour),
+		OwnerID:  &dedupOwner.ID,
+		PetID:    &dedupPet.ID,
 	})
-	pollutedProcedure := &model.Procedure{ClinicID: clinicB, Name: "foreign-procedure-needle-237"}
-	pollutedMedicine := &model.Medicine{ClinicID: clinicB, Name: "foreign-medicine-needle-237"}
-	pollutedConsultation := &model.Consultation{ClinicID: clinicB, Name: "foreign-consultation-needle-237"}
-	pollutedInventory := &model.InventoryItem{
-		ClinicID: clinicB,
-		Name:     "foreign-inventory-needle-237",
-		Category: model.InventoryCategoryOther,
+
+	// LIKE ワイルドカードのエスケープは残った腕（カルテ番号 ILIKE）でも維持する。
+	type wildcardFixture struct {
+		name     string
+		search   string
+		recordNo string
+		decoyNo  string
+		record   *model.MedicalRecord
 	}
-	for _, master := range []any{pollutedProcedure, pollutedMedicine, pollutedConsultation, pollutedInventory} {
-		require.NoError(t, db.WithContext(ctx).Create(master).Error)
+	wildcardFixtures := []wildcardFixture{
+		{name: "percent", search: "pct%needle-237", recordNo: "TS-PCT%NEEDLE-237", decoyNo: "TS-PCTXNEEDLE-237"},
+		{name: "underscore", search: "under_score-237", recordNo: "TS-UNDER_SCORE-237", decoyNo: "TS-UNDERXSCORE-237"},
+		{name: "backslash", search: `back\slash-237`, recordNo: `TS-BACK\SLASH-237`, decoyNo: "TS-BACKXSLASH-237"},
 	}
-	pollutedTreatments := []model.Treatment{
-		{
-			MedicalRecordID: pollutedRecord.ID,
-			ItemType:        model.TreatmentItemTypeProcedure,
-			ProcedureID:     &pollutedProcedure.ID,
-			Content:         "polluted-procedure-content-237",
-			Memo:            "polluted-procedure-memo-237",
-		},
-		{
-			MedicalRecordID: pollutedRecord.ID,
-			ItemType:        model.TreatmentItemTypeMedicine,
-			MedicineID:      &pollutedMedicine.ID,
-			Content:         "polluted-medicine-content-237",
-			Memo:            "polluted-medicine-memo-237",
-		},
-		{
-			MedicalRecordID: pollutedRecord.ID,
-			ItemType:        model.TreatmentItemTypeConsultation,
-			ConsultationID:  &pollutedConsultation.ID,
-			Content:         "polluted-consultation-content-237",
-			Memo:            "polluted-consultation-memo-237",
-		},
-		{
-			MedicalRecordID: pollutedRecord.ID,
-			ItemType:        model.TreatmentItemTypeOther,
-			InventoryID:     &pollutedInventory.ID,
-			Content:         "polluted-inventory-content-237",
-			Memo:            "polluted-inventory-memo-237",
-		},
-	}
-	for i := range pollutedTreatments {
-		makeTreatmentSearchTreatment(t, db, &pollutedTreatments[i])
+	for i := range wildcardFixtures {
+		wildcardFixtures[i].record = makeTreatmentSearchRecord(
+			t, db, clinicA, wildcardFixtures[i].recordNo, baseDate.Add(time.Duration(4+i)*time.Hour),
+		)
+		makeTreatmentSearchRecord(t, db, clinicA, wildcardFixtures[i].decoyNo, baseDate.Add(time.Duration(7+i)*time.Hour))
 	}
 
-	deletedMasterRecord := makeTreatmentSearchRecord(t, db, clinicA, "TS-DELETED-MASTERS", baseDate.Add(4*time.Hour))
-	deletedProcedure := &model.Procedure{ClinicID: clinicA, Name: "deleted-procedure-needle-237"}
-	deletedMedicine := &model.Medicine{ClinicID: clinicA, Name: "deleted-medicine-needle-237"}
-	deletedConsultation := &model.Consultation{ClinicID: clinicA, Name: "deleted-consultation-needle-237"}
-	deletedInventory := &model.InventoryItem{
-		ClinicID: clinicA,
-		Name:     "deleted-inventory-needle-237",
-		Category: model.InventoryCategoryOther,
-	}
-	for _, master := range []any{deletedProcedure, deletedMedicine, deletedConsultation, deletedInventory} {
-		require.NoError(t, db.WithContext(ctx).Create(master).Error)
-	}
-	deletedMasterTreatments := []model.Treatment{
-		{MedicalRecordID: deletedMasterRecord.ID, ItemType: model.TreatmentItemTypeProcedure, ProcedureID: &deletedProcedure.ID},
-		{MedicalRecordID: deletedMasterRecord.ID, ItemType: model.TreatmentItemTypeMedicine, MedicineID: &deletedMedicine.ID},
-		{MedicalRecordID: deletedMasterRecord.ID, ItemType: model.TreatmentItemTypeConsultation, ConsultationID: &deletedConsultation.ID},
-		{MedicalRecordID: deletedMasterRecord.ID, ItemType: model.TreatmentItemTypeOther, InventoryID: &deletedInventory.ID},
-	}
-	for i := range deletedMasterTreatments {
-		makeTreatmentSearchTreatment(t, db, &deletedMasterTreatments[i])
-	}
-	for _, master := range []any{deletedProcedure, deletedMedicine, deletedConsultation, deletedInventory} {
-		require.NoError(t, db.WithContext(ctx).Delete(master).Error)
-	}
+	deletedRecord := makeTreatmentSearchRecord(t, db, clinicA, "TS-DELETED-237", baseDate.Add(10*time.Hour))
+	require.NoError(t, db.WithContext(ctx).Delete(deletedRecord).Error)
 
-	deletedTreatmentRecord := makeTreatmentSearchRecord(t, db, clinicA, "TS-DELETED-TREATMENT", baseDate.Add(5*time.Hour))
-	deletedTreatmentMedicine := &model.Medicine{ClinicID: clinicA, Name: "deleted-treatment-master-237"}
-	require.NoError(t, db.WithContext(ctx).Create(deletedTreatmentMedicine).Error)
-	deletedTreatment := makeTreatmentSearchTreatment(t, db, &model.Treatment{
-		MedicalRecordID: deletedTreatmentRecord.ID,
-		ItemType:        model.TreatmentItemTypeMedicine,
-		MedicineID:      &deletedTreatmentMedicine.ID,
-		Content:         "deleted-treatment-content-237",
-		Memo:            "deleted-treatment-memo-237",
-	})
-	require.NoError(t, db.WithContext(ctx).Delete(deletedTreatment).Error)
-
-	foreignRecord := makeTreatmentSearchRecord(t, db, clinicB, "TS-FOREIGN-RECORD", baseDate.Add(6*time.Hour))
+	foreignRecord := makeTreatmentSearchRecord(t, db, clinicB, "TS-FOREIGN-237", baseDate.Add(11*time.Hour))
 	makeTreatmentSearchTreatment(t, db, &model.Treatment{
 		MedicalRecordID: foreignRecord.ID,
 		ItemType:        model.TreatmentItemTypeOther,
 		Content:         "foreign-record-content-237",
 	})
-
-	type wildcardFixture struct {
-		name         string
-		search       string
-		literalValue string
-		decoyValue   string
-		record       *model.MedicalRecord
-	}
-	wildcardFixtures := []wildcardFixture{
-		{
-			name:         "percent",
-			search:       "pct%needle237",
-			literalValue: "pct%needle237",
-			decoyValue:   "pctXneedle237",
-		},
-		{
-			name:         "underscore",
-			search:       "under_score_237",
-			literalValue: "under_score_237",
-			decoyValue:   "underXscoreX237",
-		},
-		{
-			name:         "backslash",
-			search:       `back\slash237`,
-			literalValue: `back\slash237`,
-			decoyValue:   "backXslash237",
-		},
-	}
-	for i := range wildcardFixtures {
-		literalRecord := makeTreatmentSearchRecord(
-			t,
-			db,
-			clinicA,
-			"TS-WILDCARD-LITERAL-"+wildcardFixtures[i].name,
-			baseDate.Add(time.Duration(7+i)*time.Hour),
-		)
-		makeTreatmentSearchTreatment(t, db, &model.Treatment{
-			MedicalRecordID: literalRecord.ID,
-			ItemType:        model.TreatmentItemTypeOther,
-			Content:         wildcardFixtures[i].literalValue,
-		})
-		decoyRecord := makeTreatmentSearchRecord(
-			t,
-			db,
-			clinicA,
-			"TS-WILDCARD-DECOY-"+wildcardFixtures[i].name,
-			baseDate.Add(time.Duration(10+i)*time.Hour),
-		)
-		makeTreatmentSearchTreatment(t, db, &model.Treatment{
-			MedicalRecordID: decoyRecord.ID,
-			ItemType:        model.TreatmentItemTypeOther,
-			Content:         wildcardFixtures[i].decoyValue,
-		})
-		wildcardFixtures[i].record = literalRecord
-	}
 
 	pagedRecords := make([]*model.MedicalRecord, 3)
 	for i := range pagedRecords {
@@ -308,83 +203,51 @@ func TestMedicalRecordRepository_FindAll_TreatmentSearch(t *testing.T) {
 			t,
 			db,
 			clinicA,
-			"TS-PAGE-"+string(rune('A'+i)),
+			"TS-PAGE-"+string(rune('A'+i))+"-237",
 			baseDate.Add(time.Duration(20+i)*time.Hour),
 		)
-		makeTreatmentSearchTreatment(t, db, &model.Treatment{
-			MedicalRecordID: pagedRecords[i].ID,
-			ItemType:        model.TreatmentItemTypeOther,
-			Content:         "page-needle-237",
-		})
 	}
 
-	positiveCases := []struct {
-		name   string
-		search string
-	}{
-		{name: "治療内容(content)で検索できる", search: "content-needle-237"},
-		{name: "治療メモ(memo)で検索できる", search: "memo-needle-237"},
-		{name: "処置名で検索できる", search: "procedure-needle-237"},
-		{name: "薬剤名で検索できる", search: "medicine-needle-237"},
-		{name: "診察名で検索できる", search: "consultation-needle-237"},
-		{name: "在庫品名で検索できる", search: "inventory-needle-237"},
-	}
-	for _, tt := range positiveCases {
-		t.Run(tt.name, func(t *testing.T) {
-			assertTreatmentSearchResult(t, repo, []uint64{clinicA}, tt.search, targetRecord.ID)
-		})
-	}
+	t.Run("治療内容・メモ・治療マスタ名では検索ヒットしない", func(t *testing.T) {
+		for _, search := range []string{
+			"content-needle-237",
+			"memo-needle-237",
+			"procedure-needle-237",
+			"medicine-needle-237",
+			"consultation-needle-237",
+			"inventory-needle-237",
+		} {
+			assertTreatmentSearchEmpty(t, repo, []uint64{clinicA}, search)
+		}
+	})
 
-	t.Run("カタカナのマスタ名はカタカナ入力でもひらがな入力でもヒットする", func(t *testing.T) {
+	t.Run("カタカナの治療マスタ名もカタカナ・ひらがなどちらでもヒットしない", func(t *testing.T) {
 		for _, search := range []string{"アモキシ", "あもきし"} {
-			assertTreatmentSearchResult(t, repo, []uint64{clinicA}, search, kanaRecord.ID)
-		}
-	})
-
-	t.Run("一致treatmentが複数でも行が重複しない", func(t *testing.T) {
-		assertTreatmentSearchResult(t, repo, []uint64{clinicA}, "duplicate-needle-237", duplicateRecord.ID)
-	})
-
-	t.Run("汚染マスタFKの外部clinic名では検索ヒットしない", func(t *testing.T) {
-		masterSearches := []string{
-			pollutedProcedure.Name,
-			pollutedMedicine.Name,
-			pollutedConsultation.Name,
-			pollutedInventory.Name,
-		}
-		for _, search := range masterSearches {
-			assertTreatmentSearchEmpty(t, repo, []uint64{clinicA, clinicB}, search)
-		}
-		for i := range pollutedTreatments {
-			treatment := &pollutedTreatments[i]
-			assertTreatmentSearchResult(t, repo, []uint64{clinicA, clinicB}, treatment.Content, pollutedRecord.ID)
-			assertTreatmentSearchResult(t, repo, []uint64{clinicA, clinicB}, treatment.Memo, pollutedRecord.ID)
-		}
-	})
-
-	t.Run("論理削除済みマスタ名では検索ヒットしない", func(t *testing.T) {
-		for _, search := range []string{
-			deletedProcedure.Name,
-			deletedMedicine.Name,
-			deletedConsultation.Name,
-			deletedInventory.Name,
-		} {
 			assertTreatmentSearchEmpty(t, repo, []uint64{clinicA}, search)
 		}
 	})
 
-	t.Run("論理削除済みtreatmentは検索対象外", func(t *testing.T) {
-		for _, search := range []string{
-			deletedTreatment.Content,
-			deletedTreatment.Memo,
-			deletedTreatmentMedicine.Name,
-		} {
-			assertTreatmentSearchEmpty(t, repo, []uint64{clinicA}, search)
-		}
+	t.Run("検索対象はカルテ番号・飼主名/カナ・ペット名/カナ・主訴の4条件", func(t *testing.T) {
+		assertTreatmentSearchResult(t, repo, []uint64{clinicA}, "ts-target-237", targetRecord.ID)
+		assertTreatmentSearchResult(t, repo, []uint64{clinicA}, "四条件飼主", targetRecord.ID)
+		assertTreatmentSearchResult(t, repo, []uint64{clinicA}, "よんじょうけん", targetRecord.ID)
+		assertTreatmentSearchResult(t, repo, []uint64{clinicA}, "四条件ペット", targetRecord.ID)
+		assertTreatmentSearchResult(t, repo, []uint64{clinicA}, "しかいぺっと", targetRecord.ID)
+		assertTreatmentSearchResult(t, repo, []uint64{clinicA}, "四条件主訴", targetRecord.ID)
+	})
+
+	t.Run("複数の検索腕に一致しても行が重複しない", func(t *testing.T) {
+		assertTreatmentSearchResult(t, repo, []uint64{clinicA}, "同名検索飼主", dedupRecord.ID)
 	})
 
 	t.Run("別clinicのカルテは検索対象外", func(t *testing.T) {
+		assertTreatmentSearchResult(t, repo, []uint64{clinicB}, "ts-foreign-237", foreignRecord.ID)
+		assertTreatmentSearchEmpty(t, repo, []uint64{clinicA}, "ts-foreign-237")
 		assertTreatmentSearchEmpty(t, repo, []uint64{clinicA}, "foreign-record-content-237")
+	})
+
+	t.Run("論理削除済みカルテは検索対象外", func(t *testing.T) {
+		assertTreatmentSearchEmpty(t, repo, []uint64{clinicA}, "ts-deleted-237")
 	})
 
 	t.Run("LIKEワイルドカードはエスケープされる", func(t *testing.T) {
@@ -398,8 +261,8 @@ func TestMedicalRecordRepository_FindAll_TreatmentSearch(t *testing.T) {
 	t.Run("空文字と長大な検索語の境界", func(t *testing.T) {
 		got, total, err := repo.FindAll(ctx, []uint64{clinicA}, MedicalRecordListFilters{Search: ""}, 1, 100)
 		require.NoError(t, err)
-		assert.Equal(t, int64(15), total)
-		assert.Len(t, got, 15)
+		assert.Equal(t, int64(11), total)
+		assert.Len(t, got, 11)
 
 		assertTreatmentSearchEmpty(t, repo, []uint64{clinicA}, strings.Repeat("長", 1000))
 	})
@@ -408,7 +271,7 @@ func TestMedicalRecordRepository_FindAll_TreatmentSearch(t *testing.T) {
 		firstPage, firstTotal, err := repo.FindAll(
 			ctx,
 			[]uint64{clinicA},
-			MedicalRecordListFilters{Search: "page-needle-237"},
+			MedicalRecordListFilters{Search: "ts-page"},
 			1,
 			2,
 		)
@@ -416,7 +279,7 @@ func TestMedicalRecordRepository_FindAll_TreatmentSearch(t *testing.T) {
 		secondPage, secondTotal, err := repo.FindAll(
 			ctx,
 			[]uint64{clinicA},
-			MedicalRecordListFilters{Search: "page-needle-237"},
+			MedicalRecordListFilters{Search: "ts-page"},
 			2,
 			2,
 		)

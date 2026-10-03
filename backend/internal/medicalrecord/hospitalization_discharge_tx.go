@@ -37,6 +37,10 @@ func (s *hospitalizationService) dischargeWithBillingInTx(
 		if s.auditTx == nil {
 			return apperrors.WrapInternalServerError("hospitalization discharge billing audit dependency is required")
 		}
+		// EMR-253: no-duplicate ガード（FindByHospitalizationID/SoftDeleteCancelled）を含め required。
+		if s.accountingRepo == nil {
+			return apperrors.WrapInternalServerError("hospitalization discharge billing repository dependency is required")
+		}
 	}
 
 	dischargedStatus := model.HospitalizationStatusDischarged
@@ -47,6 +51,43 @@ func (s *hospitalizationService) dischargeWithBillingInTx(
 		return apperrors.Wrap(err, "failed to discharge hospitalization")
 	}
 	if !input.CreateAccounting {
+		return nil
+	}
+
+	// EMR-253: 同じ入院に既存の非削除 billing がある場合は二重作成しない。
+	// cancelled 行は部分 UNIQUE（hospitalization_id, deleted_at IS NULL）を占有したまま残るため
+	// 同一 tx で解放してから新規作成する。waiting/pending/completed の既存行はそのまま会計として
+	// 再利用し、確定は POST /accountings/complete の takeover 経路に委ねる。
+	occupant, err := s.accountingRepo.FindByHospitalizationID(txCtx, clinicID, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to lookup existing hospitalization billing")
+	}
+	if occupant != nil && occupant.Status == model.BillingStatusCancelled {
+		if err := s.accountingRepo.SoftDeleteCancelled(txCtx, clinicID, occupant.ID); err != nil {
+			return apperrors.Wrap(err, "failed to release cancelled hospitalization billing")
+		}
+		occupant = nil
+	}
+	if occupant != nil {
+		result.AccountingID = &occupant.ID
+		resourceID := id
+		if err := s.auditTx.LogEntryTx(txCtx, &AuditEntry{
+			ClinicID:   &clinicID,
+			ActorID:    input.ActorID,
+			ActorType:  model.AuditActorTypeStaff,
+			Action:     model.AuditActionHospitalizationDischargeWithBilling,
+			Resource:   model.AuditResourceHospitalization,
+			ResourceID: &resourceID,
+			NewValue: map[string]any{
+				"billing_id":      occupant.ID,
+				"subtotal_amount": occupant.Subtotal,
+				"tax_amount":      occupant.TaxTotal,
+				"total_amount":    occupant.TotalAmount,
+				"reused":          true,
+			},
+		}); err != nil {
+			return apperrors.Wrap(err, "failed to audit hospitalization discharge billing")
+		}
 		return nil
 	}
 

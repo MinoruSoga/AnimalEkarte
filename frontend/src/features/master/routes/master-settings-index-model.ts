@@ -7,6 +7,7 @@ import {
   Clock,
   CreditCard,
   FolderTree,
+  MessagesSquare,
   Scissors,
   Stethoscope,
   Tag,
@@ -40,7 +41,8 @@ export type GroupKey =
   | "closingTime"
   | "examinationItems"
   | "labDeviceItemMasters"
-  | "bugReports";
+  | "bugReports"
+  | "chatHistory";
 
 export type MasterCardKey = MasterSettingsCategory | GroupKey;
 
@@ -54,7 +56,8 @@ export interface GroupCardConfig {
   description: string;
   IconComponent: LucideIcon;
   path: string;
-  resource: Resource;
+  /** 権限リソース。未設定 = 全認証スタッフに公開するカード（バグ報告など） */
+  resource?: Resource;
   countCategories: MasterSettingsCategory[];
 }
 
@@ -157,13 +160,22 @@ export const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
     resource: ResourceLabImport,
     countCategories: [],
   },
-  // サポートウィジェットのバグ報告一覧（settings-routes bug-reports と同権）
+  // バグ報告一覧は全スタッフ・全医院に公開する共有ボード — 意図的に resource なし
+  // （settings-routes の bug-reports も権限ゲートなし。製品フィードバック基盤としての製品判断）
   bugReports: {
     label: "バグ報告",
     description: "スタッフから送信されたバグ報告（スクリーンショット付き）を確認・対応します",
     IconComponent: Bug,
     path: "/settings/bug-reports",
-    resource: ResourceHospitalSettings,
+    countCategories: [],
+  },
+  // チャット履歴一覧も bugReports と同じく全スタッフ・全医院に公開（resource なし —
+  // 質問傾向の横断分析用途の共有ボード。settings-routes の chat-history も権限ゲートなし）
+  chatHistory: {
+    label: "チャット履歴",
+    description: "ヘルプチャットの質問・回答履歴を確認します（全医院共有）",
+    IconComponent: MessagesSquare,
+    path: "/settings/chat-history",
     countCategories: [],
   },
 };
@@ -191,14 +203,15 @@ export const MASTER_SECTIONS: SectionDef[] = [
   },
   { title: "スタッフ・権限", keys: ["staff", "occupations", "permission_group"] },
   { title: "シフト管理", keys: ["shift_template"] },
-  { title: "サポート", keys: ["bugReports"] },
+  { title: "サポート", keys: ["bugReports", "chatHistory"] },
 ];
 
 export function isGroupCardKey(key: MasterCardKey): key is GroupKey {
   return key in GROUP_CARD_CONFIG;
 }
 
-export function getResourceForCardKey(key: MasterCardKey): Resource {
+/** カードの権限リソース。undefined = 権限ゲートなし（全認証スタッフに公開） */
+export function getResourceForCardKey(key: MasterCardKey): Resource | undefined {
   if (isGroupCardKey(key)) {
     return GROUP_CARD_CONFIG[key].resource;
   }

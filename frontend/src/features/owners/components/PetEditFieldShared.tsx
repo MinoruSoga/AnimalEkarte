@@ -6,6 +6,7 @@ import { C, STYLE } from "@/lib/design-tokens";
 import {
   ACQUISITION_TYPE_VALUES,
   DANGER_LEVEL_VALUES,
+  NEUTERED_STATUS_VALUES,
   PET_GENDER_VALUES,
   type PetFormData,
 } from "../types";
@@ -75,6 +76,11 @@ export const ACQUISITION_SELECT_ITEMS = ACQUISITION_TYPE_VALUES.map((t) => (
 export const DANGER_SELECT_ITEMS = DANGER_LEVEL_VALUES.map((d) => (
   <SelectItem key={d} value={d}>
     {d}
+  </SelectItem>
+));
+export const NEUTERED_SELECT_ITEMS = NEUTERED_STATUS_VALUES.map((s) => (
+  <SelectItem key={s} value={s}>
+    {s}
   </SelectItem>
 ));
 

@@ -88,6 +88,10 @@ type AccountingUpdate struct {
 	Memo              *string
 	Status            *model.BillingStatus
 	CompletedAt       *time.Time
+	// CompletionRequestID / CompletionRequestHash は EMR-253 takeover で既存 waiting 行へ
+	// complete の冪等キーを記録するための専用フィールド（汎用 PATCH からは設定しない）。
+	CompletionRequestID   *string
+	CompletionRequestHash *string
 }
 
 // CorrectCreditPaymentInput は確定済み会計のクレジット（カード）金額を確定後に訂正する入力DTO（#189）。
@@ -145,6 +149,13 @@ type AccountingRepository interface {
 	// FindCompleteConflict は EMR-66: complete 確定スロットの UNIQUE インデックスと同じ意味論で
 	// 衝突する既存 billing を返す。見つからなければ (nil, nil)。
 	FindCompleteConflict(ctx context.Context, clinicID uint64, medicalRecordID, hospitalizationID *uint64) (*model.Billing, error)
+	// FindByHospitalizationID は EMR-253: 入院スロット（deleted_at IS NULL）の占有 billing を返す。
+	// status 非依存・見つからなければ (nil, nil)（complete takeover 解決と退院 no-duplicate ガードが共有）。
+	FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (*model.Billing, error)
+	// SoftDeleteCancelled は EMR-253: cancelled 占有行を同一 tx 内で解放し、
+	// 部分 UNIQUE（deleted_at IS NULL）のスロットを再利用可能にする。
+	// status=cancelled の行のみを対象にし、既に解放済み（0件）も冪等に成功とする。
+	SoftDeleteCancelled(ctx context.Context, clinicID, id uint64) error
 }
 
 type AccountingService interface {

@@ -26,7 +26,7 @@
 
 同一人物は 1 つの `accounts` 行で表し、医院ごとに別アカウントを発行しない。複数医院への所属は `staff_clinic_assignments` の行で表現し、`staffs.clinic_id` は主所属である。
 
-`staffs` 行の粒度は登録経路で異なる。通常のスタッフ登録・`staff-provision` は 1 人物 = 1 staffs 行で、兼務は assignment の追加で表す。一方、旧DB移行データでは `(doctor_id, clinic_id)` 複合FK が医院別の staffs 行を要求するため、同一人物が医院別に複数の staffs 行を持ちうる。その場合、同一人物の全行は同一 `account_id` を共有し、各行は所属医院すべてへの assignment を持つ（`scripts/sql/link-old-db-cross-clinic-staff-accounts.sql` のリンクモデル）。統合の根拠は old_db 側の権威 identity map で、製品側は `scripts/sql/link-old-db-staff-identity-map.sql` が `CONFIRMED` 分類のグループのみを適用する（`NEEDS_REVIEW` / `UNRESOLVED` は別アカウントを維持）。map 非指定のローカル reset 経路では同名ヒューリスティック版が fallback として残る。
+`staffs` 行の粒度は登録経路で異なる。通常のスタッフ登録・`staff-provision` は 1 人物 = 1 staffs 行で、兼務は assignment の追加で表す。一方、旧DB移行データは 017 適用前の `(doctor_id, clinic_id)` 複合FK の名残として、同一人物が医院別に複数の staffs 行を持ちうる（複合FK 自体は migration 017 で単一カラム FK へ置換済みだが、既存行の形状は変わらない）。その場合、同一人物の全行は同一 `account_id` を共有し、各行は所属医院すべてへの assignment を持つ（`scripts/sql/link-old-db-cross-clinic-staff-accounts.sql` のリンクモデル）。統合の根拠は old_db 側の権威 identity map で、製品側は `scripts/sql/link-old-db-staff-identity-map.sql` が `CONFIRMED` 分類のグループのみを適用する（`NEEDS_REVIEW` / `UNRESOLVED` は別アカウントを維持）。map 非指定のローカル reset 経路では同名ヒューリスティック版が fallback として残る。
 
 認証・認可は `staffs.account_id` から 1 つの staff 行を解決する（`FindByAccountID` は単一の staff を返す）。同一人物の複数行が同等の assignment を持つため、解決先の行によらず同一の医院アクセスを得る前提である。DB は `staffs.account_id` の一意性を制約で強制しないため、この不変条件はアプリ・プロビジョニング・移行手順が維持する。同一人物かどうかの判定は同姓同名の一致だけでは根拠にならず、統合には権威ある identity 対応表が必要である。
 
@@ -67,11 +67,11 @@ flowchart TB
 
 ## 3. 全リソース・キー一覧 (Verified)
 
-実装コード (`backend/internal/model/permission.go` の `AllResources`) に定義されている全 37 リソースキーです。
+実装コード (`backend/internal/model/permission.go` の `AllResources`) に定義されている全 36 リソースキーです。
 
 | カテゴリ | リソースキー | 管理対象 |
 |:---|:---|:---|
-| **臨床コア** | `reception`, `owners`, `reservations`, `medical-records`, `hospitalization`, `trimming`, `examinations`, `examination-unconfirm`, `vaccinations`, `checkups`, `checkup-package-import`, `lab-import` | 受付、飼主、予約、カルテ、入院、トリミング、検査、検査確定解除、ワクチン、健診、健診パッケージ取込、外部検査結果インポート。 |
+| **臨床コア** | `reception`, `owners`, `reservations`, `medical-records`, `hospitalization`, `trimming`, `examinations`, `examination-unconfirm`, `vaccinations`, `checkups`, `lab-import` | 受付、飼主、予約、カルテ、入院、トリミング、検査、検査確定解除、ワクチン、健診、外部検査結果インポート。 |
 | **会計・経営** | `accounting`, `accounting-cancel`, `accounting-post-close-edit`, `cash-register-close`, `accounting-reports`, `discount`, `closing-settings`, `master-payment-method` | 会計、会計キャンセル、締め後編集、レジ締め、売上レポート、値引操作、締め時間設定、支払方法。 |
 | **物流・管理** | `inventory`, `estimates`, `shifts`, `hospital-settings` | 在庫、見積書、シフト、医院基本設定。 |
 | **マスタ設定** | `master-animal-species`, `master-medical`, `master-reservation-type`, `master-hospitalization`, `master-trimming`, `master-permission`, `master-staff`, `master-insurance`, `master-merchandise` | 各種定義データの管理。 |
@@ -134,7 +134,7 @@ sequenceDiagram
 
 Cookie認証を使う保護routeとlogin/refresh/logoutには `RequireXRequestedWith` を適用する。適用routeのGET/HEAD/OPTIONSを除くリクエストは、非空の `X-Requested-With` ヘッダーがなければ403となる。publicな `/auth/forgot-password`・`/auth/reset-password` はこのmiddlewareの対象外で、専用のrate limitを使う。Frontendの共通axiosは通常 `XMLHttpRequest` を付けるが、testモードでは省略する。手動HTTP検証でも必要なヘッダーを付け、403をすべて権限不足と判断しない。
 
-別originのブラウザアクセスはCORSによるorigin・credentials・送信ヘッダーの許可も必要。OPTIONSの成功ステータスだけでは確認できない。会計確定の `Idempotency-Key` を含む確認手順は [Vercel STG検証](../ops/deploy/VERCEL-FRONTEND-STAGING-TEST.md) を参照する。
+別originのブラウザアクセスはCORSによるorigin・credentials・送信ヘッダーの許可も必要。OPTIONSの成功ステータスだけでは確認できない。会計確定の `Idempotency-Key` を含む確認手順は [STG readiness check](../ops/deploy/runbooks/STG_PRE_DEPLOY_READINESS_CHECK.md) §3 を参照する（旧 [Vercel STG検証](../ops/deploy/VERCEL-FRONTEND-STAGING-TEST.md) は EMR-255 以降 superseded・rollback 参照専用）。
 
 ### 4.6 実装サーフェス
 

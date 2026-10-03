@@ -16,6 +16,9 @@ type listMedicalRecordQuery struct {
 	StartDate       string
 	EndDate         string
 	Search          string
+	OwnerName       string
+	PetName         string
+	ChiefComplaint  string
 	Status          string
 	DoctorID        string
 	AnimalSpeciesID string
@@ -34,6 +37,9 @@ func newListMedicalRecordQuery(values url.Values) listMedicalRecordQuery {
 		StartDate:       values.Get("start_date"),
 		EndDate:         values.Get("end_date"),
 		Search:          values.Get("search"),
+		OwnerName:       values.Get("owner_name"),
+		PetName:         values.Get("pet_name"),
+		ChiefComplaint:  values.Get("chief_complaint"),
 		Status:          values.Get("status"),
 		DoctorID:        values.Get("doctor_id"),
 		AnimalSpeciesID: values.Get("animal_species_id"),
@@ -112,6 +118,18 @@ func (q *listMedicalRecordQuery) toServiceFilters() (listMedicalRecordFilters, e
 	if err != nil {
 		return listMedicalRecordFilters{}, err
 	}
+	ownerName, err := validateColumnTextQueryFilter(q.OwnerName, "owner_name")
+	if err != nil {
+		return listMedicalRecordFilters{}, err
+	}
+	petName, err := validateColumnTextQueryFilter(q.PetName, "pet_name")
+	if err != nil {
+		return listMedicalRecordFilters{}, err
+	}
+	chiefComplaint, err := validateColumnTextQueryFilter(q.ChiefComplaint, "chief_complaint")
+	if err != nil {
+		return listMedicalRecordFilters{}, err
+	}
 	var status *model.MedicalRecordStatus
 	if q.Status != "" {
 		parsed, err := httpapi.ValidateEnum(q.Status,
@@ -137,6 +155,9 @@ func (q *listMedicalRecordQuery) toServiceFilters() (listMedicalRecordFilters, e
 		ConsultationID:  consultationID,
 		InventoryID:     inventoryID,
 		Search:          q.Search,
+		OwnerName:       ownerName,
+		PetName:         petName,
+		ChiefComplaint:  chiefComplaint,
 		Sort:            sortKey,
 		Order:           sortOrder,
 	}, nil

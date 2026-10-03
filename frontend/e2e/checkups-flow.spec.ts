@@ -90,10 +90,10 @@ test.describe("定期健診 フロー E2E", () => {
       const rows = checkups.rows();
       const initialRowCount = await rows.count();
 
-      await page.getByLabel("検索").click();
       const searchInput = checkups.searchInput();
       await expect(searchInput).toBeVisible();
       await searchInput.fill(fixture.petName);
+      await searchInput.press("Enter");
 
       await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => null);
 

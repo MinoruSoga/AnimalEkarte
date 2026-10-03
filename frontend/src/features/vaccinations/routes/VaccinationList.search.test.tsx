@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
 import { createTestWrapper } from "@/testing/TestUtils";
@@ -91,7 +90,6 @@ describe("VaccinationList 検索 (EMR-60)", () => {
       }),
     );
 
-    const user = userEvent.setup();
     render(<VaccinationList />, {
       wrapper: createTestWrapper({ initialEntries: ["/vaccinations"] }),
     });
@@ -99,9 +97,10 @@ describe("VaccinationList 検索 (EMR-60)", () => {
     await screen.findByText("山田太郎");
     expect(screen.getByText("佐藤花子")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "検索" }));
     const searchInput = screen.getByPlaceholderText("飼主名、ペット名、予防接種名...");
     fireEvent.change(searchInput, { target: { value: "山田" } });
+    // EMR-247: 入力では発火しない。Enter / 検索ボタンの確定操作で search が送信される。
+    fireEvent.keyDown(searchInput, { key: "Enter" });
 
     // 検索リクエストが handler に届き、応答を保留している状態を確認する。
     await waitFor(() => expect(searchRequestSeen).toBe(true));

@@ -108,6 +108,7 @@ func TestCreatePetRequest_ToServiceInput(t *testing.T) {
 		Color:           "茶",
 		Weight:          &weight,
 		NeuteredDate:    neuteredDate,
+		NeuteredStatus:  "done",
 		AcquisitionType: "purchase",
 		DangerLevel:     "low",
 		Food:            "ドライ",
@@ -127,6 +128,7 @@ func TestCreatePetRequest_ToServiceInput(t *testing.T) {
 	assert.Equal(t, birthDate.Time, *input.BirthDate)
 	require.NotNil(t, input.NeuteredDate)
 	assert.Equal(t, neuteredDate.Time, *input.NeuteredDate)
+	assert.Equal(t, "done", input.NeuteredStatus)
 	assert.Same(t, &weight, input.Weight)
 	assert.Same(t, &insuranceID, input.InsuranceID)
 	assert.Equal(t, "備考", input.Remarks)
@@ -139,6 +141,7 @@ func TestUpdatePetRequest_ToServiceInput(t *testing.T) {
 	name := "タマ"
 	insuranceID := uint64(12)
 	insuranceIDField := &insuranceID
+	neuteredStatus := "not_done"
 
 	input := (&updatePetRequest{
 		OwnerID:         &ownerID,
@@ -146,6 +149,7 @@ func TestUpdatePetRequest_ToServiceInput(t *testing.T) {
 		Name:            &name,
 		LastVisit:       lastVisit,
 		InsuranceID:     &insuranceIDField,
+		NeuteredStatus:  &neuteredStatus,
 	}).toServiceInput()
 
 	assert.Same(t, &ownerID, input.OwnerID)
@@ -156,6 +160,7 @@ func TestUpdatePetRequest_ToServiceInput(t *testing.T) {
 	require.NotNil(t, input.InsuranceID)
 	require.NotNil(t, *input.InsuranceID)
 	assert.Equal(t, insuranceID, **input.InsuranceID)
+	assert.Same(t, &neuteredStatus, input.NeuteredStatus)
 }
 
 func TestUpdatePetRequest_ToServiceInput_InsuranceIDClear(t *testing.T) {

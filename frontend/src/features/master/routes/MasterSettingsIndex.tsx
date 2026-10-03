@@ -54,20 +54,16 @@ function CardRow({ label, description, icon, count, onClick }: CardRowProps) {
 // ─────────────────────────────────────────────────
 // Permission-filtered card wrapper (BUG-123)
 // Hook のルール: usePermission はコンポーネントトップレベルでのみ呼べるため、
-// カード単位のラッパーコンポーネントで権限チェックを行う。
+// 権限ゲート付きカードは専用ラッパー（GatedCard）で権限チェックを行う。
+// resource 未定義のカード（バグ報告など全スタッフ公開）はゲートを通さず直接描画する。
 // ─────────────────────────────────────────────────
-function PermissionFilteredCard({
+function CardContent({
   cardKey,
   navigate,
 }: {
   cardKey: MasterCardKey;
   navigate: (path: string) => void;
 }) {
-  const resource = getResourceForCardKey(cardKey);
-  const { canView } = usePermission(resource);
-
-  if (!canView) return null;
-
   if (isGroupCardKey(cardKey)) {
     const cfg = GROUP_CARD_CONFIG[cardKey];
     const Icon = cfg.IconComponent;
@@ -95,6 +91,34 @@ function PermissionFilteredCard({
   );
 }
 
+function GatedCard({
+  cardKey,
+  resource,
+  navigate,
+}: {
+  cardKey: MasterCardKey;
+  resource: Resource;
+  navigate: (path: string) => void;
+}) {
+  const { canView } = usePermission(resource);
+  if (!canView) return null;
+  return <CardContent cardKey={cardKey} navigate={navigate} />;
+}
+
+function PermissionFilteredCard({
+  cardKey,
+  navigate,
+}: {
+  cardKey: MasterCardKey;
+  navigate: (path: string) => void;
+}) {
+  const resource = getResourceForCardKey(cardKey);
+  if (resource === undefined) {
+    return <CardContent cardKey={cardKey} navigate={navigate} />;
+  }
+  return <GatedCard cardKey={cardKey} resource={resource} navigate={navigate} />;
+}
+
 /** セクション内の全カードが非表示の場合、セクションごと非表示にするラッパー。
  *  useAuth の hasPermission を使い、フックのルールに違反しない形で一括判定する。 */
 function PermissionFilteredSection({
@@ -106,9 +130,10 @@ function PermissionFilteredSection({
   navigate: (path: string) => void;
   hasPermission: (resource: Resource, action: ResourceAction) => boolean;
 }) {
-  const hasVisibleCards = section.keys.some((key) =>
-    hasPermission(getResourceForCardKey(key), "view"),
-  );
+  const hasVisibleCards = section.keys.some((key) => {
+    const resource = getResourceForCardKey(key);
+    return resource === undefined || hasPermission(resource, "view");
+  });
   if (!hasVisibleCards) return null;
 
   return (

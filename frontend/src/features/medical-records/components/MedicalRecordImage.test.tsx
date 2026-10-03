@@ -233,3 +233,46 @@ describe("MedicalRecordImage — 画像D&D取り込み", () => {
     expect(screen.queryByText(DROP_GUIDE_TEXT)).not.toBeInTheDocument();
   });
 });
+
+describe("MedicalRecordImage — isLocked 確定/権限ロック (EMR-216)", () => {
+  it("ロック中は作成権限があってもアップロード・撮影ボタンを出さない", () => {
+    permissionState.canCreate = true;
+    render(<MedicalRecordImage medicalRecordId="123" isLocked />);
+
+    expect(screen.queryByRole("button", { name: "画像アップロード" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "撮影" })).not.toBeInTheDocument();
+  });
+
+  it("ロック中はドロップガイドを出さず、ドロップしてもアップロード API を呼ばない", () => {
+    permissionState.canCreate = true;
+    const { container } = render(<MedicalRecordImage medicalRecordId="123" isLocked />);
+    const dropZone = container.firstElementChild as HTMLElement;
+
+    fireFileDragEvent(dropZone, "dragenter");
+    expect(screen.queryByText(DROP_GUIDE_TEXT)).not.toBeInTheDocument();
+
+    fireFileDragEvent(dropZone, "drop", [new File(["i"], "a.jpg", { type: "image/jpeg" })]);
+    expect(apiMocks.uploadMutate).not.toHaveBeenCalled();
+  });
+
+  it("ロック中は削除権限があっても削除ボタンを出さない（画像の閲覧は維持）", () => {
+    permissionState.canDelete = true;
+    render(<MedicalRecordImage medicalRecordId="123" isLocked />);
+
+    expect(screen.getByText("レントゲン画像")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /を削除$/ })).not.toBeInTheDocument();
+  });
+
+  it("ロック解除でアップロード・ドロップ導線が復帰する", () => {
+    permissionState.canCreate = true;
+    const { container, rerender } = render(<MedicalRecordImage medicalRecordId="123" isLocked />);
+    expect(screen.queryByRole("button", { name: "画像アップロード" })).not.toBeInTheDocument();
+
+    rerender(<MedicalRecordImage medicalRecordId="123" isLocked={false} />);
+    expect(screen.getByRole("button", { name: "画像アップロード" })).toBeInTheDocument();
+
+    const dropZone = container.firstElementChild as HTMLElement;
+    fireFileDragEvent(dropZone, "drop", [new File(["i"], "a.jpg", { type: "image/jpeg" })]);
+    expect(apiMocks.uploadMutate).toHaveBeenCalledTimes(1);
+  });
+});

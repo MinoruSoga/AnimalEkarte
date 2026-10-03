@@ -13,10 +13,15 @@ interface UseMedicalRecordsUrlStateResult {
   handleSortToggle: (key: MedicalRecordSortKey) => void;
   directionForSort: (key: MedicalRecordSortKey) => "ascending" | "descending" | "none";
   handlePageChange: (page: number) => void;
+  resetPage: () => void;
 }
 
 // カルテ一覧の URL 同期（page/sort/order）専用フック。
-// 検索・フィルタが変わったら1ページ目へリセットする（useEffect不使用、rerender-derived-state-no-effect）。
+// 検索・フィルタ変更時の1ページ目リセットは、呼出側が search/filters 更新と同じ
+// イベント内で resetPage を呼び URL の page パラメータを除去して行う。
+// EMR-245: render-phase 調整（prevResetKey）だけでは検出 pass の currentPage=1 が
+// React に破棄され、確定描画では URL 上の page が復活する。リセットは URL 更新で
+// 確定させる必要があるため、UI 起点の変更は呼出側で resetPage を併用する。
 export function useMedicalRecordsUrlState(resetKey: string): UseMedicalRecordsUrlStateResult {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -97,8 +102,17 @@ export function useMedicalRecordsUrlState(resetKey: string): UseMedicalRecordsUr
     [updateParams],
   );
 
+  // EMR-245: 検索・フィルタ変更時の1ページ目リセット。page パラメータを URL から
+  // 除去するだけでよい（urlPage は既定 1 に畳まれる）。呼出側の search/filters
+  // state 更新と同じイベントで呼ぶことで確定描画から一貫する。
+  const resetPage = useCallback(() => {
+    updateParams((next) => {
+      next.delete("page");
+    });
+  }, [updateParams]);
+
   // raw の setSearchParams は latestParamsRef を迂回するため公開しない。
-  // URL 更新は必ず updateParams 経由（handleSortToggle/handlePageChange）に限定する。
+  // URL 更新は必ず updateParams 経由（handleSortToggle/handlePageChange/resetPage）に限定する。
   return {
     searchParams,
     currentPage,
@@ -107,5 +121,6 @@ export function useMedicalRecordsUrlState(resetKey: string): UseMedicalRecordsUr
     handleSortToggle,
     directionForSort,
     handlePageChange,
+    resetPage,
   };
 }

@@ -79,8 +79,4 @@ func (h *Handler) registerExaminationAndPackageRoutes(rg *gin.RouterGroup, perm 
 	examinations.DELETE("/:id", perm(model.ResourceExaminations, "delete"), h.examination.DeleteExamination)
 	examinations.GET("/:id/items", perm(model.ResourceExaminations, "view"), h.examination.ListExaminationItems)
 	examinations.PUT("/:id/items", perm(model.ResourceExaminations, "edit"), h.examination.ReplaceExaminationItems)
-
-	checkupPackageImports := rg.Group("/checkup-package-imports")
-	checkupPackageImports.POST("/preview", perm(model.ResourceCheckupPackageImport, "create"), h.checkupPackageImport.PreviewCheckupPackageImport)
-	checkupPackageImports.POST("", perm(model.ResourceCheckupPackageImport, "create"), h.checkupPackageImport.ApplyCheckupPackageImport)
 }

@@ -1,8 +1,6 @@
 import { C, ICON } from "@/lib/design-tokens";
 import { memo, useState, useCallback, useMemo } from "react";
 import { Plus, ChevronLeft } from "lucide-react";
-import { format } from "date-fns";
-import { ja } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -12,17 +10,14 @@ import {
   CommandList,
   CommandEmpty,
 } from "@/components/ui/command";
-import { Calendar } from "@/components/ui/calendar";
-import { toJSTWallDate } from "@/lib/jst-date";
-import type { DateRange } from "react-day-picker";
 import { FILTER_CONDITIONS } from "./types";
-import { DATE_PRESETS, resolvePreset } from "./date-preset-utils";
-import type { DatePreset } from "./date-preset-utils";
+import { TextValueEditor } from "./TextValueEditor";
+import { DateValueEditor } from "./DateValueEditor";
 import type { FilterProperty, ActiveFilter, FilterCondition, FilterOption } from "./types";
 
 // ─── Step tracking ────────────────────────────────────────
 
-type AddStep = "property" | "condition" | "value" | "date-value";
+type AddStep = "property" | "condition" | "value" | "date-value" | "text-value";
 
 // ─── Component ────────────────────────────────────────────
 
@@ -41,7 +36,6 @@ export const FilterAddPopover = memo(function FilterAddPopover({
   const [step, setStep] = useState<AddStep>("property");
   const [selectedProperty, setSelectedProperty] = useState<FilterProperty | null>(null);
   const [selectedCondition, setSelectedCondition] = useState<FilterCondition | null>(null);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   // Filter out already-used properties
   const activeKeys = useMemo(() => new Set(activeFilters.map((f) => f.key)), [activeFilters]);
@@ -56,7 +50,6 @@ export const FilterAddPopover = memo(function FilterAddPopover({
     setStep("property");
     setSelectedProperty(null);
     setSelectedCondition(null);
-    setDateRange(undefined);
   }, []);
 
   // ── Handlers ──
@@ -67,6 +60,12 @@ export const FilterAddPopover = memo(function FilterAddPopover({
     if (prop.type === "date-range") {
       setSelectedCondition("is_between");
       setStep("date-value");
+      return;
+    }
+    // EMR-245: text は contains 固定のため条件ステップを飛ばして入力へ。
+    if (prop.type === "text") {
+      setSelectedCondition("contains");
+      setStep("text-value");
       return;
     }
     setStep("condition");
@@ -111,14 +110,14 @@ export const FilterAddPopover = memo(function FilterAddPopover({
     [selectedProperty, selectedCondition, onAdd, resetState],
   );
 
-  const applyDateFilter = useCallback(
-    (from: Date, to: Date, label: string) => {
+  const applyTextFilter = useCallback(
+    (value: string, displayValue: string) => {
       if (!selectedProperty) return;
       onAdd({
         key: selectedProperty.key,
-        condition: "is_between",
-        value: { from: format(from, "yyyy-MM-dd"), to: format(to, "yyyy-MM-dd") },
-        displayValue: label,
+        condition: "contains",
+        value,
+        displayValue,
       });
       resetState();
       setOpen(false);
@@ -126,27 +125,19 @@ export const FilterAddPopover = memo(function FilterAddPopover({
     [selectedProperty, onAdd, resetState],
   );
 
-  const handlePresetClick = useCallback(
-    (preset: DatePreset) => {
-      const { from, to } = resolvePreset(preset);
-      applyDateFilter(from, to, preset.label);
+  const handleDateEditorApply = useCallback(
+    (value: { from?: string; to?: string }, displayValue: string) => {
+      if (!selectedProperty) return;
+      onAdd({
+        key: selectedProperty.key,
+        condition: "is_between",
+        value,
+        displayValue,
+      });
+      resetState();
+      setOpen(false);
     },
-    [applyDateFilter],
-  );
-
-  const handleCalendarSelect = useCallback(
-    (range: DateRange | undefined) => {
-      setDateRange(range);
-      if (!range?.from) return;
-      if (range.to && range.from.getTime() !== range.to.getTime()) {
-        applyDateFilter(
-          range.from,
-          range.to,
-          `${format(range.from, "M/d")}〜${format(range.to, "M/d")}`,
-        );
-      }
-    },
-    [applyDateFilter],
+    [selectedProperty, onAdd, resetState],
   );
 
   const handleOpenChange = useCallback(
@@ -168,6 +159,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
         setSelectedCondition(null);
         break;
       case "date-value":
+      case "text-value":
         // Skip condition step — go back to property
         setStep("property");
         setSelectedProperty(null);
@@ -182,16 +174,6 @@ export const FilterAddPopover = memo(function FilterAddPopover({
   if (availableProperties.length === 0) return null;
 
   const showBackButton = step !== "property";
-
-  // FROM → TO display for date-value step
-  const hasFrom = !!dateRange?.from;
-  const hasTo = !!(
-    dateRange?.to &&
-    dateRange.from &&
-    dateRange.to.getTime() !== dateRange.from.getTime()
-  );
-  const fromDisplay = hasFrom ? format(dateRange!.from!, "M月d日") : "開始日";
-  const toDisplay = hasTo ? format(dateRange!.to!, "M月d日") : "終了日";
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
@@ -275,77 +257,15 @@ export const FilterAddPopover = memo(function FilterAddPopover({
               ))}
             </CommandList>
           </Command>
-        ) : step === "date-value" ? (
-          /* Step 3b: Date range picker — presets + calendar */
-          <div className={`flex divide-x ${C.divideDivider}`}>
-            {/* Presets column */}
-            <div className="w-[108px] py-1 shrink-0">
-              {DATE_PRESETS.map((preset) => (
-                <button
-                  key={preset.label}
-                  type="button"
-                  onClick={() => handlePresetClick(preset)}
-                  className={`w-full text-left px-3 min-h-11 text-sm ${C.text} ${C.hoverBgLight} transition-colors`}
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Calendar column */}
-            <div className="p-3">
-              {/* FROM → TO header */}
-              <div
-                className={`flex items-center justify-center gap-3 mb-3 px-3 py-2 ${C.bgPage} rounded-xs`}
-              >
-                <span
-                  className={`text-sm font-mono tabular-nums ${hasFrom ? `${C.text} font-medium` : C.text30}`}
-                >
-                  {fromDisplay}
-                </span>
-                <span className={`${C.text30} text-xs`}>→</span>
-                <span
-                  className={`text-sm font-mono tabular-nums ${hasTo ? `${C.text} font-medium` : C.text30}`}
-                >
-                  {toDisplay}
-                </span>
-              </div>
-              <Calendar
-                mode="range"
-                selected={dateRange}
-                onSelect={(range) => {
-                  if (range) handleCalendarSelect(range);
-                }}
-                numberOfMonths={1}
-                locale={ja}
-                className="rounded-md"
-                captionLayout="dropdown"
-                startMonth={new Date(2020, 0)}
-                endMonth={new Date(toJSTWallDate(new Date()).getFullYear() + 2, 11)}
-                classNames={{
-                  months: "relative flex flex-col",
-                  month_caption: "flex justify-center items-center h-9 w-full",
-                  caption_label: "sr-only",
-                  nav: "absolute top-1 left-0 right-0 flex justify-between items-center px-1 pointer-events-none",
-                  button_previous: `size-8 min-h-11 min-w-11 p-0 rounded-sm ${C.hoverBgLight} opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto`,
-                  button_next: `size-8 min-h-11 min-w-11 p-0 rounded-sm ${C.hoverBgLight} opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto`,
-                  dropdowns: "flex items-center gap-1",
-                  dropdown: `text-sm font-medium bg-transparent border-none cursor-pointer focus:outline-none hover:opacity-70 px-1 min-h-11 rounded ${C.hoverBgLight} focus-visible:ring-2 ${C.focusRingAccent40}`,
-                }}
-                formatters={{
-                  formatMonthDropdown: (month) => {
-                    const monthNumber =
-                      month instanceof Date ? month.getMonth() + 1 : Number(month) + 1;
-                    return `${monthNumber}月`;
-                  },
-                  formatYearDropdown: (year) => {
-                    const yearNumber = year instanceof Date ? year.getFullYear() : Number(year);
-                    return `${yearNumber}年`;
-                  },
-                }}
-              />
-            </div>
+        ) : step === "text-value" ? (
+          /* Step 3c: Text input (text) — contains 固定 */
+          <div className="py-1">
+            <p className={`text-base ${C.text40} px-3 py-1.5`}>{selectedProperty?.label} - 含む</p>
+            <TextValueEditor label={selectedProperty?.label ?? ""} onApply={applyTextFilter} />
           </div>
+        ) : step === "date-value" ? (
+          /* Step 3b: 日付レンジ — 既存フィルタ再編集と同じ DateValueEditor を共有 */
+          <DateValueEditor onApply={handleDateEditorApply} />
         ) : null}
       </PopoverContent>
     </Popover>

@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 func TestValidatePetGender(t *testing.T) {
@@ -30,6 +31,14 @@ func TestValidatePetDangerLevel(t *testing.T) {
 	assert.NoError(t, validatePetDangerLevel(""))
 	assert.NoError(t, validatePetDangerLevel(string(model.DangerLevelLow)))
 	assert.Error(t, validatePetDangerLevel("invalid_danger"))
+}
+
+func TestValidatePetNeuteredStatus(t *testing.T) {
+	assert.NoError(t, sharedkernel.ValidatePetNeuteredStatus(""))
+	assert.NoError(t, sharedkernel.ValidatePetNeuteredStatus(string(model.PetNeuteredStatusDone)))
+	assert.NoError(t, sharedkernel.ValidatePetNeuteredStatus(string(model.PetNeuteredStatusNotDone)))
+	assert.NoError(t, sharedkernel.ValidatePetNeuteredStatus(string(model.PetNeuteredStatusUnknown)))
+	assert.Error(t, sharedkernel.ValidatePetNeuteredStatus("invalid_neutered"))
 }
 
 func TestValidateCreatePetInput(t *testing.T) {

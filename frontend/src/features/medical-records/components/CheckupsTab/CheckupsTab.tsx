@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 
@@ -49,6 +49,10 @@ export const CheckupsTab = memo(function CheckupsTab({
   const { data: checkups, isLoading } = useGetCheckups(medicalRecordId);
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
   const { data: staffs = [] } = useGetStaffs();
+  const doctorStaffs = useMemo(
+    () => staffs.filter((s) => s.isActive && s.staffType === "doctor"),
+    [staffs],
+  );
   const createMutation = useCreateCheckup(medicalRecordId);
   const updateMutation = useUpdateCheckup(medicalRecordId);
   const deleteMutation = useDeleteCheckup(medicalRecordId);
@@ -192,7 +196,7 @@ export const CheckupsTab = memo(function CheckupsTab({
         addForm={addForm}
         addFormErrors={addFormErrors}
         checkupTypes={checkupTypes}
-        staffs={staffs}
+        staffs={doctorStaffs}
         canCreate={Boolean(canCreate && !isPetDeceased)}
         canEdit={Boolean(canEdit && !isPetDeceased)}
         canDelete={Boolean(canDelete && !isPetDeceased)}

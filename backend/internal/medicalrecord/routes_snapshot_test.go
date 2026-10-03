@@ -62,7 +62,6 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		NewMedicalRecordHandler(nil),
 		NewMedicalRecordAddendumHandler(nil),
 		NewExaminationHandler(nil),
-		NewCheckupPackageImportHandler(nil),
 		noopPermission,
 	)
 
@@ -208,8 +207,6 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"PATCH /api/v1/medical-records/:id/treatments/:treatmentId UpdateTreatment\n" +
 		"PATCH /api/v1/medical-records/:id/vitals/:vitalId UpdateVital\n" +
 		"PATCH /api/v1/vaccinations/:id UpdateVaccination\n" +
-		"POST /api/v1/checkup-package-imports ApplyCheckupPackageImport\n" +
-		"POST /api/v1/checkup-package-imports/preview PreviewCheckupPackageImport\n" +
 		"POST /api/v1/examinations CreateExamination\n" +
 		"POST /api/v1/examinations/:id/unconfirm UnconfirmExamination\n" +
 		"POST /api/v1/hospitalizations CreateHospitalization\n" +
@@ -308,7 +305,6 @@ func TestRegisterRoutes_HospitalizationDischargeAndExaminationUnconfirmPermissio
 		NewMedicalRecordHandler(nil),
 		NewMedicalRecordAddendumHandler(nil),
 		NewExaminationHandler(nil),
-		NewCheckupPackageImportHandler(nil),
 		permSpy,
 	)
 

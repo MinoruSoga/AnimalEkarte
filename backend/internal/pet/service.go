@@ -47,6 +47,7 @@ type CreatePetInput struct {
 	MicrochipNumber string
 	Weight          *float64
 	NeuteredDate    *time.Time
+	NeuteredStatus  string
 	AcquisitionType string
 	DangerLevel     string
 	DangerReason    *string
@@ -80,6 +81,7 @@ type UpdatePetInput struct {
 	MicrochipNumber *string
 	Weight          *float64
 	NeuteredDate    *time.Time
+	NeuteredStatus  *string
 	AcquisitionType *string
 	DangerLevel     *string
 	// DangerReason は nil=未指定 / &nil=NULLクリア / &&value=更新対象。
@@ -144,6 +146,9 @@ func buildPetUpdate(input *UpdatePetInput) map[string]any {
 	}
 	if input.NeuteredDate != nil {
 		fields["neutered_date"] = *input.NeuteredDate
+	}
+	if input.NeuteredStatus != nil {
+		fields["neutered_status"] = *input.NeuteredStatus
 	}
 	if input.AcquisitionType != nil {
 		fields["acquisition_type"] = *input.AcquisitionType

@@ -47,13 +47,11 @@ test.describe("会計フロー E2E", () => {
       await accounting.gotoList();
       await expect(accounting.listTab()).toBeVisible({ timeout: 30000 });
 
-      const searchToggle = accounting.searchToggle();
-      await expect(searchToggle).toBeVisible({ timeout: 15000 });
-      await searchToggle.click();
       const searchInput = accounting.searchInput();
-      await expect(searchInput).toBeVisible({ timeout: 5000 });
+      await expect(searchInput).toBeVisible({ timeout: 15000 });
       // page-scoped client filter — DEMO_ACCOUNTING_KANA_PET is on page 1
       await searchInput.fill("さき");
+      await searchInput.press("Enter");
 
       await expect(accounting.kanaPetCell()).toBeVisible({ timeout: 10000 });
       await accounting.kanaPetDetailLink().click();

@@ -3,6 +3,8 @@ import type { Calendar } from "@/components/ui/calendar";
 import { C, ICON } from "@/lib/design-tokens";
 import { cn } from "@/lib/utils";
 
+import { formatShort } from "./DatePickerModel";
+
 export interface SingleDatePickerProps {
   mode?: "single";
   value: string;
@@ -126,6 +128,60 @@ export function MonthGrid({
           {label}
         </button>
       ))}
+    </div>
+  );
+}
+
+export type RangeEditTarget = "from" | "to";
+
+function endpointButtonClass(active: boolean, hasValue: boolean): string {
+  return cn(
+    "px-1.5 py-0.5 rounded-xxs text-sm font-mono tabular-nums transition-colors",
+    `focus-visible:ring-2 focus-visible:ring-offset-1 ${C.focusRingAccent40}`,
+    active
+      ? `${C.bgBrand5} ${C.textBrand} font-medium`
+      : `${hasValue ? C.text : C.text30} ${C.hoverBgMutedBadge}`,
+  );
+}
+
+/**
+ * レンジ選択の開始日/終了日ヘッダ。押した側がカレンダークリックの編集対象になる
+ * （react-day-picker range モードの固定サイクル from→to→from リセットを避けるため）。
+ */
+export function RangeEndpointNav({
+  from,
+  to,
+  editTarget,
+  onSelectTarget,
+}: {
+  from?: Date;
+  to?: Date;
+  editTarget: RangeEditTarget;
+  onSelectTarget: (target: RangeEditTarget) => void;
+}) {
+  const fromDisplay = from ? formatShort(from) : "開始日";
+  const toDisplay = to ? formatShort(to) : "終了日";
+  return (
+    <div className={`flex items-center justify-center gap-2 px-3 py-2 ${C.bgPage} rounded-xs`}>
+      <button
+        type="button"
+        onClick={() => onSelectTarget("from")}
+        aria-pressed={editTarget === "from"}
+        aria-label={from ? `開始日 ${fromDisplay}` : "開始日"}
+        className={endpointButtonClass(editTarget === "from", !!from)}
+      >
+        {fromDisplay}
+      </button>
+      <span className={`${C.text30} text-xs`}>→</span>
+      <button
+        type="button"
+        onClick={() => onSelectTarget("to")}
+        aria-pressed={editTarget === "to"}
+        aria-label={to ? `終了日 ${toDisplay}` : "終了日"}
+        className={endpointButtonClass(editTarget === "to", !!to)}
+      >
+        {toDisplay}
+      </button>
     </div>
   );
 }

@@ -70,11 +70,6 @@ export class ExaminationsPage extends BasePage {
     return this.page.getByRole("combobox", { name: "検査種別" });
   }
 
-  /** PropertyFilter の検索トグルボタン（aria-label="検索"）。 */
-  searchToggleButton(): Locator {
-    return this.page.getByRole("button", { name: "検索" });
-  }
-
   searchInput(): Locator {
     return this.page.getByPlaceholder("飼主名、ペット名、検査種別...");
   }

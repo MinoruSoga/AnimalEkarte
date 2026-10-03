@@ -59,6 +59,7 @@ type CreatePetForOwnerInput struct {
 	BirthDate       *time.Time
 	Weight          *float64
 	NeuteredDate    *time.Time
+	NeuteredStatus  string
 	AcquisitionType string
 	DangerLevel     string
 	DangerReason    *string

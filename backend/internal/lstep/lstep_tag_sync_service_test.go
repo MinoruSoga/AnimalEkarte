@@ -240,6 +240,24 @@ func TestBuildPetBasicInfoTags_MultiPet_BothNeuteredStates(t *testing.T) {
 	assert.Contains(t, tags, "sex_female")
 }
 
+// 明示ステータスは手術日ヒューリスティックに優先する:
+// done は日付なしでも施術済み、not_done は日付が残っていても未施術として扱う。
+func TestBuildPetBasicInfoTags_NeuteredStatus(t *testing.T) {
+	nd := time.Date(2022, 6, 1, 0, 0, 0, 0, time.UTC)
+
+	doneOnly := buildPetBasicInfoTags([]model.Pet{
+		{Gender: model.PetGenderMale, NeuteredStatus: model.PetNeuteredStatusDone},
+	})
+	assert.Contains(t, doneOnly, "spay_neutered")
+	assert.NotContains(t, doneOnly, "intact")
+
+	notDone := buildPetBasicInfoTags([]model.Pet{
+		{Gender: model.PetGenderFemale, NeuteredStatus: model.PetNeuteredStatusNotDone, NeuteredDate: &nd},
+	})
+	assert.Contains(t, notDone, "intact")
+	assert.NotContains(t, notDone, "spay_neutered")
+}
+
 func TestBuildPetBasicInfoTags_Empty(t *testing.T) {
 	tags := buildPetBasicInfoTags(nil)
 	assert.Empty(t, tags)

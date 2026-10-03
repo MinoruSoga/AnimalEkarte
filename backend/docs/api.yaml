@@ -447,6 +447,9 @@ components:
           type: string
           format: date
           nullable: true
+        neutered_status:
+          type: string
+          enum: [unknown, not_done, done]
         acquisition_type:
           type: string
           enum: [purchased, transferred, rescued, other]
@@ -692,6 +695,9 @@ components:
           type: string
           format: date
           nullable: true
+        neutered_status:
+          type: string
+          enum: [unknown, not_done, done]
         acquisition_type:
           type: string
           enum: [purchased, transferred, rescued, other]
@@ -1006,6 +1012,9 @@ components:
           type: string
           format: date
           nullable: true
+        neutered_status:
+          type: string
+          enum: [unknown, not_done, done]
         acquisition_type:
           type: string
           enum: [purchased, transferred, rescued, other]
@@ -1270,6 +1279,9 @@ components:
           type: string
           format: date
           nullable: true
+        neutered_status:
+          type: string
+          enum: [unknown, not_done, done]
         acquisition_type:
           type: string
           nullable: true
@@ -1371,6 +1383,7 @@ components:
         - microchip_number
         - weight
         - neutered_date
+        - neutered_status
         - acquisition_type
         - food
         - environment
@@ -1415,6 +1428,9 @@ components:
           type: string
           format: date-time
           nullable: true
+        neutered_status:
+          type: string
+          enum: [unknown, not_done, done]
         acquisition_type:
           type: string
           enum: [purchased, transferred, rescued, other]
@@ -1492,6 +1508,9 @@ components:
           type: string
           format: date
           nullable: true
+        neutered_status:
+          type: string
+          enum: [unknown, not_done, done]
         acquisition_type:
           type: string
           enum: [purchased, transferred, rescued, other]
@@ -1565,6 +1584,9 @@ components:
           type: string
           format: date
           nullable: true
+        neutered_status:
+          type: string
+          enum: [unknown, not_done, done]
         acquisition_type:
           type: string
           enum: [purchased, transferred, rescued, other]
@@ -3823,28 +3845,6 @@ components:
           maxLength: 500
           pattern: '\S'
           description: 確定解除を必要とする人手入力の理由
-    CheckupPackageImportRequest:
-      type: object
-      required: [manifest]
-      properties:
-        manifest:
-          type: object
-          additionalProperties: true
-          description: versioned checkup package manifest (strict; re-validated server-side)
-    CheckupPackageImportOperatorReceipt:
-      type: object
-      required: [receipt_id, result, types_created, fields_created]
-      properties:
-        receipt_id:
-          type: string
-          description: opaque operator receipt id (no clinic/actor/digest)
-        result:
-          type: string
-          enum: [dry_run_ok, applied, noop, conflict]
-        types_created:
-          type: integer
-        fields_created:
-          type: integer
     ExaminationPrintDisplay:
       type: object
       description: 印刷用の凍結表示ラベル（display_snapshot）。mutable master の現在値は使わない。
@@ -10014,7 +10014,7 @@ components:
           type: string
     SupportBugReport:
       type: object
-      description: サポートウィジェットからのバグ報告(医院スコープ)。
+      description: サポートウィジェットからのバグ報告(全医院共有の製品フィードバック — 医院スコープではなく provenance として clinic_id/clinic_name を保持)。
       properties:
         id: { type: integer, format: int64 }
         title: { type: string }
@@ -10027,9 +10027,18 @@ components:
         status: { type: string, enum: [open, resolved] }
         reporter_staff_id: { type: integer, format: int64 }
         reporter_name: { type: string }
+        clinic_name:
+          type: string
+          description: 報告元医院名(一覧のみ付与)。全医院一覧での provenance。
         screenshot_url:
           type: string
           description: 署名付き URL(15分 TTL)。スクショなし・署名失敗時は省略。
+        plane_issue_url:
+          type: string
+          description: 起票済み Plane チケットの表示 URL(app.plane.so/<ws>/browse/<IDENT>/)。未起票なら省略。
+        plane_sync_error:
+          type: string
+          description: 直近の Plane 起票失敗理由。成功・未試行なら省略。管理画面の再送判断に使用。
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
   responses:
@@ -10595,8 +10604,13 @@ paths:
   /owners/{id}/lstep-opt-out:
     post:
       operationId: postOwnerLstepOptOut
-      summary: Lステップ配信オプトアウト（旧エンドポイント）
-      description: BE-017。owners edit 権限が必要。ISSUE-001 の統合エンドポイント PATCH /owners/{id}/lstep/opt-out も参照。
+      deprecated: true
+      summary: Lステップ配信オプトアウト（旧エンドポイント・非推奨）
+      description: >-
+        BE-017。owners edit 権限が必要。**非推奨（EMR-240）** — opt-out 専用の互換エンドポイント。
+        新規利用は統合エンドポイント PATCH /owners/{id}/lstep/opt-out（opt_out true/false で切替）を使用すること。
+        製品 UI の正規経路は PATCH /owners/{id}/delivery-exclusion（delivery_excluded と lstep_opt_out を同時更新）。
+        外部クライアントの利用確認が取れるまで削除は保留。
       tags: [Owners]
       parameters:
         - name: id
@@ -11949,7 +11963,7 @@ paths:
             format: int64
         - name: search
           in: query
-          description: 飼主名（かな）、ペット名（かな）、カルテNo、主訴、治療内容、治療メモ、処置名、薬剤名、診察名、在庫品名を部分一致で横断検索
+          description: 飼主名（かな）、ペット名（かな）、カルテNo、主訴を部分一致で横断検索
           schema:
             type: string
         - name: medicine_id
@@ -11976,6 +11990,64 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: owner_name
+          in: query
+          description: 飼主名の部分一致絞り込み（列フィルタ）
+          schema:
+            type: string
+        - name: pet_name
+          in: query
+          description: ペット名の部分一致絞り込み（列フィルタ）
+          schema:
+            type: string
+        - name: chief_complaint
+          in: query
+          description: 主訴の部分一致絞り込み（列フィルタ）
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: カルテのステータスで絞り込み
+          schema:
+            type: string
+            enum: [draft, finalized]
+        - name: doctor_id
+          in: query
+          description: 担当医スタッフIDで絞り込み
+          schema:
+            type: integer
+            format: int64
+        - name: animal_species_id
+          in: query
+          description: 動物種マスタIDで絞り込み
+          schema:
+            type: integer
+            format: int64
+        - name: start_date
+          in: query
+          description: 診療日の開始日で絞り込み（YYYY-MM-DD）
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          description: 診療日の終了日で絞り込み（YYYY-MM-DD）
+          schema:
+            type: string
+            format: date
+        - name: sort
+          in: query
+          description: ソート列。未指定・許可値外は既定順
+          schema:
+            type: string
+            enum: [date, owner_name, pet_name, status]
+        - name: order
+          in: query
+          description: ソート方向。未指定・許可値外は desc
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
       responses:
         '200':
           description: カルテ一覧
@@ -23517,66 +23589,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
-  /checkup-package-imports/preview:
-    post:
-      operationId: previewCheckupPackageImport
-      summary: 健診 package import dry-run
-      tags: [Checkups]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CheckupPackageImportRequest'
-      responses:
-        '200':
-          description: dry-run result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CheckupPackageImportOperatorReceipt'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          $ref: '#/components/responses/InternalError'
-  /checkup-package-imports:
-    post:
-      operationId: applyCheckupPackageImport
-      summary: 健診 package import apply
-      tags: [Checkups]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CheckupPackageImportRequest'
-      responses:
-        '200':
-          description: apply result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CheckupPackageImportOperatorReceipt'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          $ref: '#/components/responses/InternalError'
   /lab-imports:
     post:
       operationId: postLabImportCommit
@@ -25863,6 +25875,46 @@ paths:
         '501': { description: LLM が未設定(SUPPORT_LLM_API_KEY なし) }
         '502': { description: LLM 上流エラー(プロバイダ詳細は返さない) }
         '500': { $ref: '#/components/responses/InternalError' }
+  /support/chat/exchanges:
+    get:
+      operationId: listSupportChatExchanges
+      summary: ヘルプチャットの質問+回答ペア一覧(全医院共有・新しい順)
+      description: |
+        認証済みスタッフ全員が利用可能（権限ゲート・医院絞りなし — バグ報告ボードと
+        同じ共有ボード方針）。全医院の保存済み履歴を「質問+回答」ペアで返す。
+        clinic_name / staff_name は絞り込みではなく provenance 表示用。
+        質問内容に個人情報が含まれ得る点は製品判断として承認済み（2026-10）。
+        直近最大500ペア（user+assistant 各行最大1000件）を新しい順で返す。
+      tags: [Support]
+      responses:
+        '200':
+          description: 質問+回答ペア一覧(新しい順)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer, description: 回答メッセージのID }
+                        clinic_name: { type: string }
+                        staff_name: { type: string }
+                        question: { type: string }
+                        answer: { type: string }
+                        sources:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              title: { type: string }
+                              category: { type: string }
+                              slug: { type: string }
+                        created_at: { type: string, description: 質問送信時刻 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /support/chat/history:
     get:
       operationId: getSupportChatHistory
@@ -25937,8 +25989,11 @@ paths:
   /support/bug-reports:
     get:
       operationId: listSupportBugReports
-      summary: 自医院のバグ報告一覧(新しい順)
-      description: hospital-settings view 権限が必要。スクショは署名付き URL(15分 TTL)で返す。
+      summary: 全医院のバグ報告一覧(新しい順)
+      description: |
+        認証済みスタッフ全員が利用可能(権限ゲート・医院絞りなし — バグ報告は
+        全医院共有の製品フィードバック基盤として意図的に開放)。新しい順に
+        最大200件。スクショは署名付き URL(15分 TTL)で返す。
       tags: [Support]
       responses:
         '200':
@@ -25953,7 +26008,6 @@ paths:
                     items:
                       $ref: '#/components/schemas/SupportBugReport'
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
         '500': { $ref: '#/components/responses/InternalError' }
     post:
       operationId: createSupportBugReport
@@ -25995,7 +26049,7 @@ paths:
     patch:
       operationId: updateSupportBugReportStatus
       summary: バグ報告の対応状況を更新
-      description: hospital-settings edit 権限が必要。status は open/resolved。
+      description: 認証済みスタッフ全員が利用可能(他医院の報告も対象)。status は open/resolved。
       tags: [Support]
       parameters:
         - name: id
@@ -26020,6 +26074,53 @@ paths:
                 $ref: '#/components/schemas/SupportBugReport'
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /support/bug-reports/{id}/plane-ticket:
+    post:
+      operationId: createSupportBugReportPlaneTicket
+      summary: バグ報告を Plane ワークアイテムとして起票(手動再送を兼ねる)
+      description: |
+        認証済みスタッフ全員が利用可能(他医院の報告も対象)。報告作成時の自動起票が
+        失敗した場合の手動再送経路でもある。既に起票済み(plane_issue_url あり)なら
+        現在の状態をそのまま返す冪等操作。external_source+external_id で報告と
+        Plane 側を対応付ける。PLANE_API_KEY 未設定の環境では 501。Plane 側エラーは
+        502 で返し、失敗理由は plane_sync_error に記録される。
+      tags: [Support]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: 起票済み・起票されたバグ報告
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportBugReport'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '501': { description: Plane 連携が未設定(PLANE_API_KEY なし) }
+        '502': { description: Plane 上流エラー(詳細は返さず plane_sync_error に記録) }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /support/bug-reports/{id}:
+    delete:
+      operationId: deleteSupportBugReport
+      summary: バグ報告を削除(論理削除 + 添付スクショのオブジェクト削除)
+      description: |
+        認証済みスタッフ全員が利用可能(他医院の報告も対象)。deleted_at を設定する
+        論理削除で、一覧・詳細からは除外される。添付スクリーンショットの
+        オブジェクトは best-effort で削除する（失敗時は孤立オブジェクトが残るのみ）。
+        削除しても Plane 側の既起票チケットは残る。
+      tags: [Support]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '204': { description: 削除完了 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/InternalError' }

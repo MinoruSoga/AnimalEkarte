@@ -129,6 +129,7 @@ type createPetForOwnerRequest struct {
 	BirthDate       *jsonDate `json:"birth_date"`
 	Weight          *float64  `json:"weight"`
 	NeuteredDate    *jsonDate `json:"neutered_date"`
+	NeuteredStatus  string    `json:"neutered_status"`
 	AcquisitionType string    `json:"acquisition_type"`
 	DangerLevel     string    `json:"danger_level"`
 	DangerReason    *string   `json:"danger_reason"`
@@ -155,6 +156,7 @@ func (r *createPetForOwnerRequest) toServiceInput() CreatePetForOwnerInput {
 		BirthDate:       jsonDatePtr(r.BirthDate),
 		Weight:          r.Weight,
 		NeuteredDate:    jsonDatePtr(r.NeuteredDate),
+		NeuteredStatus:  r.NeuteredStatus,
 		AcquisitionType: r.AcquisitionType,
 		DangerLevel:     r.DangerLevel,
 		DangerReason:    r.DangerReason,

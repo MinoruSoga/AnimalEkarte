@@ -35,6 +35,34 @@ func TestListMedicalRecordQuery_ToServiceFilters(t *testing.T) {
 	}
 }
 
+// TestListMedicalRecordQuery_ToServiceFilters_ColumnTextFilters は EMR-245 の
+// 表示列フィルタ（owner_name / pet_name / chief_complaint）が独立した
+// フィルタ値としてそのまま service 層へ渡ることを検証する。
+func TestListMedicalRecordQuery_ToServiceFilters_ColumnTextFilters(t *testing.T) {
+	filters, err := (&listMedicalRecordQuery{
+		OwnerName:      "山田",
+		PetName:        "ポチ",
+		ChiefComplaint: "嘔吐",
+		Search:         "横断",
+	}).toServiceFilters()
+	if err != nil {
+		t.Fatalf("toServiceFilters returned error: %v", err)
+	}
+
+	if filters.OwnerName != "山田" {
+		t.Fatalf("OwnerName = %q, want 山田", filters.OwnerName)
+	}
+	if filters.PetName != "ポチ" {
+		t.Fatalf("PetName = %q, want ポチ", filters.PetName)
+	}
+	if filters.ChiefComplaint != "嘔吐" {
+		t.Fatalf("ChiefComplaint = %q, want 嘔吐", filters.ChiefComplaint)
+	}
+	if filters.Search != "横断" {
+		t.Fatalf("Search = %q, want 横断", filters.Search)
+	}
+}
+
 func TestListMedicalRecordQuery_ToServiceFilters_InvalidInput(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -48,6 +76,9 @@ func TestListMedicalRecordQuery_ToServiceFilters_InvalidInput(t *testing.T) {
 		{name: "procedure_id", query: listMedicalRecordQuery{ProcedureID: "abc"}},
 		{name: "consultation_id", query: listMedicalRecordQuery{ConsultationID: "abc"}},
 		{name: "inventory_id", query: listMedicalRecordQuery{InventoryID: "abc"}},
+		{name: "owner_name too long", query: listMedicalRecordQuery{OwnerName: strings.Repeat("あ", 256)}},
+		{name: "pet_name too long", query: listMedicalRecordQuery{PetName: strings.Repeat("あ", 256)}},
+		{name: "chief_complaint too long", query: listMedicalRecordQuery{ChiefComplaint: strings.Repeat("あ", 256)}},
 	}
 
 	for _, tt := range tests {

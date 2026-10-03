@@ -43,6 +43,18 @@ describe("master-settings-index-model campaigns entry (V04-A01)", () => {
     expect(chart?.keys).toEqual(expect.arrayContaining(["labDeviceItemMasters"]));
   });
 
+  it("バグ報告カードはサポート節にあり権限リソースを持たない（全スタッフ・全医院公開）", () => {
+    // バグ報告は全医院共有の製品フィードバック基盤として意図的に権限ゲートなし
+    expect(GROUP_CARD_CONFIG.bugReports).toMatchObject({
+      label: "バグ報告",
+      path: "/settings/bug-reports",
+    });
+    expect(GROUP_CARD_CONFIG.bugReports.resource).toBeUndefined();
+    expect(getResourceForCardKey("bugReports")).toBeUndefined();
+    const support = MASTER_SECTIONS.find((s) => s.title === "サポート");
+    expect(support?.keys).toEqual(expect.arrayContaining(["bugReports"]));
+  });
+
   it("会計・商品セクションに paymentMethods と同列で campaigns が並ぶ", () => {
     const accounting = MASTER_SECTIONS.find((s) => s.title === "会計・商品");
     expect(accounting).toBeDefined();

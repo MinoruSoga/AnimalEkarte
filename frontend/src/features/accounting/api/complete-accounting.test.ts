@@ -120,6 +120,37 @@ describe("completeAccounting", () => {
     );
   });
 
+  it("EMR-253: billing_id を request body に載せる（waiting billing の takeover 確定）", async () => {
+    await completeAccounting(
+      {
+        billing_id: 456,
+        pet_id: 1,
+        owner_id: 2,
+        hospitalization_id: 55,
+        scheduled_date: "2026-08-01T00:00:00+09:00",
+        items: [
+          {
+            category: "examination",
+            name: "診察",
+            unit_price: 1000,
+            quantity: 1,
+            tax_type: "excluded",
+            tax_rate: 0.1,
+            is_insurance_applicable: false,
+            source: "manual",
+          },
+        ],
+      },
+      "44444444-4444-4444-8444-444444444444",
+    );
+
+    expect(postMock).toHaveBeenCalledWith(
+      "/v1/accountings/complete",
+      expect.objectContaining({ billing_id: 456, hospitalization_id: 55 }),
+      expect.anything(),
+    );
+  });
+
   it("同一 Idempotency-Key で2回 POST しても key は呼び出し側が再利用できる", async () => {
     const key = "22222222-2222-4222-8222-222222222222";
     const body = {
