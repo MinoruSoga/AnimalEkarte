@@ -1,11 +1,15 @@
 package medicalrecord
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -71,13 +75,17 @@ func newDeviceMasterHandler(svc LabDeviceItemMasterService) *LabImportHandler {
 }
 
 type mockLabDeviceReceiveService struct {
-	boardFn      func(ctx context.Context, clinicID uint64) (*LabDeviceBoard, error)
-	unlinkedFn   func(ctx context.Context, clinicID uint64) ([]LabDeviceJobCard, error)
-	getStationFn func(ctx context.Context, clinicID uint64) (*LabDeviceStationView, error)
+	boardFn         func(ctx context.Context, clinicID uint64) (*LabDeviceBoard, error)
+	unlinkedFn      func(ctx context.Context, clinicID uint64) ([]LabDeviceJobCard, error)
+	getStationFn    func(ctx context.Context, clinicID uint64) (*LabDeviceStationView, error)
+	receiveFramesFn func(ctx context.Context, clinicID uint64, payload []byte, deviceHint string) (*LabDeviceReceiveResult, error)
 }
 
-func (m *mockLabDeviceReceiveService) ReceiveFrames(context.Context, uint64, []byte, string) (*LabDeviceReceiveResult, error) {
-	return nil, errors.New("not used")
+func (m *mockLabDeviceReceiveService) ReceiveFrames(ctx context.Context, clinicID uint64, payload []byte, deviceHint string) (*LabDeviceReceiveResult, error) {
+	if m.receiveFramesFn == nil {
+		return nil, errors.New("not used")
+	}
+	return m.receiveFramesFn(ctx, clinicID, payload, deviceHint)
 }
 
 func (m *mockLabDeviceReceiveService) PutWait(context.Context, uint64, uint64, uint64) (*LabDeviceWaitView, error) {
@@ -388,4 +396,91 @@ func TestGetLabDeviceStation_SelectedClinicLacksViewGrant(t *testing.T) {
 	setSelectedClinicWithoutLabImportGrant(c, "view")
 	h.GetLabDeviceStation(c)
 	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+// ---- ReceiveLabDeviceFrames: ボディ上限 + base64 長事前チェック ----
+
+func newDeviceReceiveHandler(svc LabDeviceReceiveService) *LabImportHandler {
+	return NewLabImportHandler(nil, nil, nil).WithDeviceReceive(svc)
+}
+
+// framesRequest はテスト用に Content-Type を偽装できるよう生ボディで送る。
+func newFramesRequest(t *testing.T, body io.Reader, contentType string, contentLength int64) *http.Request {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/lab-device/frames", body)
+	req.Header.Set("Content-Type", contentType)
+	req.ContentLength = contentLength
+	return req
+}
+
+func TestReceiveLabDeviceFrames_RejectsOversizedBody(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name        string
+		contentType string
+	}{
+		// 偽装 Content-Type でもルート固有の 64KiB 上限が効くことを確認する
+		{name: "application/json", contentType: "application/json"},
+		{name: "application/octet-stream (bypass attempt)", contentType: "application/octet-stream"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newDeviceReceiveHandler(&mockLabDeviceReceiveService{
+				receiveFramesFn: func(context.Context, uint64, []byte, string) (*LabDeviceReceiveResult, error) {
+					t.Fatal("ReceiveFrames must not be reached")
+					return nil, errors.New("not used")
+				},
+			})
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			// 64KiB 上限を超える有効な JSON 形状 — デコーダが文字列値を読み進める
+			// 途中で MaxBytesReader が MaxBytesError を返し 413 になる。
+			body := `{"payload_base64":"` + strings.Repeat("A", labDeviceFramesMaxRequestBytes) + `"}`
+			c.Request = newFramesRequest(t, io.NopCloser(strings.NewReader(body)), tt.contentType, -1)
+			setClinicID(c)
+			h.ReceiveLabDeviceFrames(c)
+			assert.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
+		})
+	}
+}
+
+func TestReceiveLabDeviceFrames_RejectsOversizedBase64(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := newDeviceReceiveHandler(&mockLabDeviceReceiveService{
+		receiveFramesFn: func(context.Context, uint64, []byte, string) (*LabDeviceReceiveResult, error) {
+			t.Fatal("ReceiveFrames must not be reached")
+			return nil, errors.New("not used")
+		},
+	})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	// base64 文字列としては 64KiB の JSON 上限内だが、デコード後 8KiB を超える長さ
+	payload := `{"payload_base64":"` + strings.Repeat("A", labDeviceMaxPayloadBase64Len+4) + `"}`
+	c.Request = newFramesRequest(t, strings.NewReader(payload), "application/json", int64(len(payload)))
+	setClinicID(c)
+	h.ReceiveLabDeviceFrames(c)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestReceiveLabDeviceFrames_AcceptsMaxPayload(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	payload := bytes.Repeat([]byte{0xAB}, labDeviceMaxPayloadBytes) // 8KiB ちょうど
+	h := newDeviceReceiveHandler(&mockLabDeviceReceiveService{
+		receiveFramesFn: func(_ context.Context, clinicID uint64, got []byte, deviceHint string) (*LabDeviceReceiveResult, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, "fuji_nx600", deviceHint)
+			require.Len(t, got, labDeviceMaxPayloadBytes)
+			assert.Equal(t, payload, got)
+			return &LabDeviceReceiveResult{}, nil
+		},
+	})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	body := `{"payload_base64":"` + base64.StdEncoding.EncodeToString(payload) + `","device_hint":"fuji_nx600"}`
+	c.Request = newFramesRequest(t, strings.NewReader(body), "application/json", int64(len(body)))
+	setClinicID(c)
+	h.ReceiveLabDeviceFrames(c)
+	require.Equal(t, http.StatusOK, w.Code, "body: %s", w.Body.String())
 }

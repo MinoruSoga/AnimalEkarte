@@ -236,6 +236,97 @@ func TestSanitizeNullBytes_MultipartBinaryUntouched(t *testing.T) {
 	assert.Equal(t, wantBody, gotBody, "multipart body must pass through byte-exact (PNG signature must not be corrupted)")
 }
 
+// バイナリ系 Content-Type はサニタイズ対象外だが、Content-Type 偽装による
+// 無制限ボディを許さないため BinaryBodyMaxBytes の共通天井を適用する。
+func TestBinaryContentType_DeclaredLengthRespectsRawByteLimit(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	middlewares := []struct {
+		name string
+		mw   gin.HandlerFunc
+	}{
+		{name: "SanitizeNullBytes", mw: SanitizeNullBytes()},
+		{name: "LimitRequestBody", mw: LimitRequestBody(DefaultJSONBodyMaxBytes)},
+	}
+	contentTypes := []string{
+		"application/octet-stream",
+		"multipart/form-data; boundary=----test",
+	}
+	for _, m := range middlewares {
+		for _, ct := range contentTypes {
+			t.Run(m.name+"/"+ct, func(t *testing.T) {
+				w := httptest.NewRecorder()
+				c, _ := gin.CreateTestContext(w)
+				req, err := http.NewRequest(http.MethodPost, "/test", bytes.NewReader([]byte(`{}`)))
+				require.NoError(t, err)
+				req.Header.Set("Content-Type", ct)
+				req.ContentLength = BinaryBodyMaxBytes + 1
+				c.Request = req
+
+				m.mw(c)
+
+				assert.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
+				assert.True(t, c.IsAborted())
+			})
+		}
+	}
+}
+
+// 宣言 Content-Length が天井以下・不明（chunked）のバイナリボディは
+// MaxBytesReader で読み取り側を制限し、ボディを無変更のまま後続へ渡す。
+func TestSanitizeNullBytes_BinaryChunkedBodyIsBoundedNotSanitized(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	payload := bytes.Repeat([]byte{0x1A, 0x0E, 0x00, 'x'}, 256) // 制御文字を含むバイナリ
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req, err := http.NewRequest(http.MethodPost, "/test", bytes.NewReader(payload))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/octet-stream")
+	req.ContentLength = -1
+	originalBody := req.Body
+	c.Request = req
+
+	SanitizeNullBytes()(c)
+
+	assert.False(t, c.IsAborted())
+	assert.False(t, originalBody == c.Request.Body, "binary body must be wrapped with MaxBytesReader")
+	got, readErr := io.ReadAll(c.Request.Body)
+	require.NoError(t, readErr)
+	assert.Equal(t, payload, got, "binary body must pass through byte-exact (no control-byte stripping)")
+}
+
+// zeroReader は確保せず無限に 0x00 を吐く reader（天井超過のストリーミング検証用）。
+type zeroReader struct{}
+
+func (zeroReader) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = 'x'
+	}
+	return len(p), nil
+}
+
+// 天井超過のチャンク転送バイナリは読み取り時に MaxBytesError で打ち切られる。
+func TestSanitizeNullBytes_BinaryChunkedBodyOverLimitFailsOnRead(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req, err := http.NewRequest(http.MethodPost, "/test", io.NopCloser(zeroReader{}))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/octet-stream")
+	req.ContentLength = -1 // chunked: 宣言値に頼れないケース
+	c.Request = req
+
+	SanitizeNullBytes()(c)
+
+	assert.False(t, c.IsAborted())
+	_, readErr := io.ReadAll(c.Request.Body)
+	require.Error(t, readErr, "chunked binary body over the ceiling must fail on read")
+	var maxBytesErr *http.MaxBytesError
+	assert.ErrorAs(t, readErr, &maxBytesErr)
+}
+
 func TestSanitizeNullBytes_DoesNotPreReadNonBinaryBody(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	body := &countingSanitizerReader{reader: bytes.NewReader(bytes.Repeat([]byte("x"), 1024*1024))}
