@@ -4,9 +4,10 @@
 
 codex-security ワークベンチ (`~/.codex/state/plugins/codex-security/workbench.sqlite3`) の累積 56 findings(occurrence ベース、CLI 表示 51 件・dedupe 後)を、HEAD `fd65d1b2b` の現行コードに対して照合した。
 
-- 検証方法: 各 finding の codeEvidence / 指摘ファイルを現行コードで再確認。静的照合のみ(実行・デプロイ検証なし)。
-- 結果: **対応済み 48 / 本日修正実施 6 / 製品判断レーン 4 / 部分対応(残存) 2**
-- **作業ツリーに大規模なセキュリティ修正 WIP (~49ファイル・未コミット) が存在**: support の mutation clinic スコープ化(P1)・seedlogin STG シークレット化(O8)・BugReportsPage UI・関連 docs を含む。本トリアージ後半でその一部を検証・補完した。
+- 検証方法: 各 finding の codeEvidence / 指摘ファイルを現行コードで再確認。静的照合 + scoped test(Docker)・workflow YAML 検証。
+- 結果: **56 occurrence 全件に対応方針が確定** — 対応済み 48 / 本日修正実施 6 / owner 承認済み受容 4(P1-P4、うち P3 は意図仕様) / 部分対応 2(R1 標準確定・R2 修正済み)
+- **作業ツリーに大規模なセキュリティ修正 WIP (~49ファイル・未コミット) が存在**: support の mutation clinic スコープ化(P1)・seedlogin STG シークレット化(O8)・BugReportsPage/LoginForm UI・関連 docs を含む。全て scoped test で検証済み。
+- **P判断は `SECURITY.md`(commit `39404be3b`、2026-10-03 owner 回答)で既に確定**: support 共有 board の受容、OBJECT-1(private+signed URL)標準。未決残件は support 情報区分・外部送信 → EMR-263。
 
 ## 本日実施した修正(未対応 → 修正済み・未コミット)
 
@@ -54,20 +55,22 @@ codex-security ワークベンチ (`~/.codex/state/plugins/codex-security/workbe
 #### Low
 - Actionlint installer(pin+sha256)、vercel@latest(除去・wrangler へ)、cage delete race(SEC-CS-F13)、deceased draft image upload(SEC-CS-F14)、identity-link DELETE body limit、LSTEP 404 LINE ID、migrate bearer ≥32bytes、discount TOCTOU ×3(SEC-CS-F09/F10/F15)、manualarticle retention(MaxVersionsPerArticle=50)、tag-code mapping caps(32/100/200)、multi-file burst(MAX_UPLOAD_FILES=10+有界並列)、owner CSV injection(escapeCsvTextCell)、inactive clinics(is_active filter)、LIFF availability hidden types
 
-## 製品判断レーン — PO/運用確認が必要(4件)
+## 製品判断レーン — SECURITY.md で owner 承認済み(4件)
 
-| # | severity | finding | 状況 |
+> `SECURITY.md`(commit `39404be3b`, 2026-10-03 owner 回答) で P1/P2/P4 の裁定は確定済み。scanner の high 評価は「repo コメントを認可例外と見なさない」ための検出であり、owner 承認済みの製品決定として正式に記録されている。
+
+| # | severity | finding | 裁定 |
 |---|----------|---------|------|
-| P1 | high | Cross-clinic support board(bug-reports + chat-exchanges)3 occurrence 統合 | **mutation 側は未コミット WIP で修正済み**: `backend/internal/support/` 変更で status 更新・Plane 起票・削除を報告元 `clinic_id` スコープ化(`FindByIDForClinic`/`UpdateStatus(clinicID,...)`/他医院は404=閲覧のみ)。`BugReportResponse.ClinicID` 追加で UI 操作制御も対応。support package tests pass。**残る PO 判断は read 共有のみ**: 一覧・スクリーンショット・チャット本文の跨医院公開を正式受容するか、PII を含む detail を自院に絞るか |
-| P2 | high | Public staging exposes demo sysadmin credential | **repo-public password 問題は WIP で解消**(O8 と同根)。残る論点: Internet 到達 STG 上に共有デモアカウント(全医院 executive 含む)を置く運用自体の受容 — シークレット化済みなら製品判断として許容可能か、STG ingress 制限/VPN が必要か |
-| P3 | high | Clinic-scoped RBAC reused across assignments(#86 拠点横断) | GET fallback は opt-in 化済み(`RequirePermissionAllowingAssignedClinicGrant`)、write は selected-clinic 必須に修正済み。残存論点: `ResolveListClinicIDs` の membership 拡張は list read で所属 clinic への per-clinic resource grant を要求しない(#86 の意図仕様)。仕様受容か、拡張先 clinic にも view grant を要求するかの PO 確認 |
-| P4 | medium | Support-chat conversations unredacted | P1 の read 側の一部。共有一覧で会話本文を全院に出す判断の受容確認 |
+| P1 | high | Cross-clinic support board(bug-reports + chat-exchanges)3 occurrence 統合 | **受容済み(owner 承認)**: 「閲覧・作成の clinic 横断共有は owner 承認済みの製品決定であり脆弱性ではない」(SECURITY.md:116)。mutation は報告元 clinic スコープ — 未コミット WIP で実装済み・tests pass。**未決残件は情報区分のみ**(screenshot に患者/飼い主情報を含めてよいか・保持期間・LLM/Plane への外部送信 data class) → EMR-263 で追跡 |
+| P2 | high | Public staging exposes demo sysadmin credential | **受容済み**: repo-public password 問題は WIP で解消(staging は `SEEDLOGIN_DEMO_PASSWORD` シークレットのみ・未設定 fail-closed、LoginForm も DEV 限定自動入力に修正済み)。STG live reachability は SECURITY.md に実測記載済み |
+| P3 | high | Clinic-scoped RBAC reused across assignments(#86 拠点横断) | **意図仕様として受容**: GET fallback opt-in 化・write selected-clinic 必須は修正済み。`ResolveListClinicIDs` の membership 拡張は #86 拠点横断スコープの配送済み設計 |
+| P4 | medium | Support-chat conversations unredacted | P1 と同じく受容済み。未決の情報区分・外部送信条件は EMR-263 |
 
 ## 部分対応 — 残存リスク小(2件)
 
 | # | severity | finding | 状況 |
 |---|----------|---------|------|
-| R1 | high | Public R2 domain bypass for shared files | 読取系は全て `GetSignedURL`(presigned, fail-closed)化済みで shared file / medical image とも app 認可経由に修正。残存: `S3_PUBLIC_BASE_URL` の仕組み自体は残る(`wrangler*.jsonc` は空 placeholder)。運用上 public domain を bucket に付けなければ無害 — 設定ガード文書化のみ |
+| R1 | high | Public R2 domain bypass for shared files | **OBJECT-1 標準採用(2026-10-03)**: private bucket + app scope check 後の短命 signed URL が標準と SECURITY.md に確定。読取系は全て presigned。R2 bucket の実効 public/private は検証要と明記済み — 運用確認事項のみ |
 | R2 | medium | Secret-sync unverified artifact | O7 修正で解消(version pin → lockfile integrity) |
 
 ## 残存する運用確認事項
