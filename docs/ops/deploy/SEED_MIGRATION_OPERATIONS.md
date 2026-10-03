@@ -7,7 +7,7 @@
 - `backend/migrations/` 直下の `*.sql` はDDL。顔ぶれと本数はcurrent checkoutから導出する。
 - `cmd/migrate` はDDLを昇順適用後、`seedbundle.BundleOrderForEnv(APP_ENV)`を適用する。
 - **全 `APP_ENV` で CSV order は `002_master` のみ。** `003_demo` / `004_staging` は退役済み。accounts.csv は置かない。
-- フェーズ3 のログイン upsert（`internal/seedlogin`）は CSV ではない。適用時だけ `seeds/003_login` を記録する。デモパスワードはコード定数（全カタログ共通）。任意のシステム管理者は `SEEDLOGIN_OPERATOR_*` 環境変数からの upsert（値は git に置かない）。production / empty / unknown はスキップ。開発/STG のログインは bcrypt に加え、カタログ email + 共通パスワードを許可する。オペレータ email は共通パスワード対象外。
+- フェーズ3 のログイン upsert（`internal/seedlogin`）は CSV ではない。適用時だけ `seeds/003_login` を記録する。デモパスワードは local/dev/test ではコード定数（全カタログ共通）、staging では `SEEDLOGIN_DEMO_PASSWORD` シークレット注入 — 未設定ならカタログログインはロックされる（公開定数は STG では認証されない）。任意のシステム管理者は `SEEDLOGIN_OPERATOR_*` 環境変数からの upsert（値は git に置かない）。production / empty / unknown はスキップ。開発/STG のログインは bcrypt に加え、カタログ email + 共通パスワードを許可する。オペレータ email は共通パスワード対象外。
 - migration keyはDDL filenameと`seeds/002_master`、およびログイン seed を適用した環境では `seeds/003_login`。fresh DBのexpected historyはcurrent DDL keys + current bundle order + 適用したログイン seedから導出し、固定行数を文書へ複製しない。
 - bundle checksumは`manifest.json`と全CSVから導出される。CSV手編集や適用済みbundleの変更はchecksum mismatchの対象になる。
 - `002_master/manifest.json` がtable inventoryとload orderのSSOT。現在は12 tableだが、runbookはmanifestから導出する。

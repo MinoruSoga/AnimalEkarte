@@ -14,10 +14,13 @@ import (
 
 // runLoginSeed is phase 3: upsert synthetic demo logins matching LoginForm,
 // then optionally one operator system-admin from SEEDLOGIN_OPERATOR_* env.
-// It is not a CSV bundle. The shared password is seedlogin.SharedPassword
-// and applies only to catalog emails. Production / empty / unknown APP_ENV skip.
-// When schema_migrations already records the current catalog checksum, skip.
-// Catalog changes (checksum drift) re-upsert and refresh the record.
+// It is not a CSV bundle. The shared password is env-resolved —
+// seedlogin.SharedPassword on local/dev/test, SEEDLOGIN_DEMO_PASSWORD on
+// staging — and applies only to catalog emails. Production / empty / unknown
+// APP_ENV skip. When schema_migrations already records the current checksum,
+// skip. Catalog changes or demo-password changes (fingerprint drift)
+// re-upsert and refresh the record, so rotating the staging secret
+// re-seeds hashes instead of leaving the old password valid.
 func runLoginSeed(ctx context.Context, db *sql.DB, logger *slog.Logger) error {
 	appEnv := os.Getenv("APP_ENV")
 	if !seedlogin.ShouldApply(appEnv) {
@@ -26,7 +29,7 @@ func runLoginSeed(ctx context.Context, db *sql.DB, logger *slog.Logger) error {
 	}
 
 	key := seedlogin.MigrationKey()
-	checksum := seedlogin.CatalogChecksum()
+	checksum := seedlogin.CatalogChecksum() + ":" + seedlogin.DemoPasswordFingerprint(appEnv)
 	needsApply, err := loginSeedNeedsApply(db, key, checksum)
 	if err != nil {
 		return err

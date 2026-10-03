@@ -7,7 +7,7 @@
 
 - `cmd/migrate`はtop-level `backend/migrations/*.sql`を昇順適用した後、`BundleOrderForEnv(APP_ENV)`を適用する。
 - current CSV bundle orderは**全environmentで`002_master`だけ**。`003_demo` / `004_staging`は削除済みで復元対象ではない。
-- フェーズ3 が LoginForm と同じ合成デモログインを upsert する。パスワードはコード定数（全デモ共通）。production の API は受け付けない。
+- フェーズ3 が LoginForm と同じ合成デモログインを upsert する。共通パスワードは STG では `SEEDLOGIN_DEMO_PASSWORD` シークレット（`wrangler secret put`）が正本 — 未設定のまま migrate するとデモログインはロックされる（公開のコード定数は STG では認証されない）。production の API は受け付けない。
 - `002_master/manifest.json`がtable inventory/load orderのSSOT（現在12 table）。固定checksum、固定row count、固定table countをrunbookへ複製しない。
 - fresh DBのexpected historyはcurrent DDL filename keys + `seeds/002_master` + ログイン seed 適用時の `seeds/003_login`。`Migration key coverage missing=0`を一次判定にする。
 - Cloudflare backend workflowはdeploy、`POST /_internal/migrate`、post-migrate healthの順。path filterによりbackend対象変更だけが自動起動する。

@@ -8,7 +8,7 @@
 | category | source | retention |
 |---|---|---|
 | Master seed | `backend/migrations/seeds/002_master/` | environment lifetime。通常cleanupしない |
-| Synthetic demo login | migrate フェーズ3 `internal/seedlogin`（LoginForm と同じ `stg-staff-*@example.test`）。共通パスワードはコード定数 | environment lifetime |
+| Synthetic demo login | migrate フェーズ3 `internal/seedlogin`（LoginForm と同じ `stg-staff-*@example.test`）。共通パスワードは STG では `SEEDLOGIN_DEMO_PASSWORD` シークレット注入（未設定ならログインロック。local/dev/test のみコード定数） | environment lifetime |
 | Operation-provisioned account | [STAFF_ACCOUNT_PROVISIONING.md](./STAFF_ACCOUNT_PROVISIONING.md) | owner/expiryをrun sheetに記録 |
 | Operator system-admin bootstrap | migrate フェーズ3の `SEEDLOGIN_OPERATOR_*`（CSV/LoginForm には載せない） | environment lifetime |
 | Smoke data | [CRUD-SMOKE-TEST.md](./CRUD-SMOKE-TEST.md) | 同じrunでcleanup |

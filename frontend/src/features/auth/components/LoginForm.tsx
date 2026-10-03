@@ -307,7 +307,10 @@ function readDemoLoginPassword(): string {
   if (!SHOW_DEMO) {
     return "";
   }
-  return "password";
+  // 自動入力はローカル開発のみ。STG(preview)のデモ共通パスワードは
+  // バックエンドの SEEDLOGIN_DEMO_PASSWORD シークレットが正本で、bundle に
+  // 値を焼かない（公開の "password" は STG では一切認証されない）。
+  return import.meta.env.DEV ? "password" : "";
 }
 
 const DemoAccount = memo(function DemoAccount({
@@ -469,7 +472,7 @@ export const LoginForm = memo(function LoginForm() {
           <p className={`text-sm text-center mb-2 ${C.text60}`}>
             {readDemoLoginPassword() !== ""
               ? "パスワードは自動入力されます（全デモ共通）"
-              : "デモ用パスワード未設定"}
+              : "パスワードは別途共有されたものを入力してください"}
           </p>
           <div className="max-h-[min(40vh,320px)] overflow-y-auto space-y-px">
             {DEMO_ACCOUNTS.map((cred) => (

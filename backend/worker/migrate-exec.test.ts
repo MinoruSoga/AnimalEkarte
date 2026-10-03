@@ -211,6 +211,30 @@ describe("attachLoginSeedMigrateEnv", () => {
       APP_ENV: "staging",
     });
   });
+
+  it("passes SEEDLOGIN_DEMO_PASSWORD through when set", () => {
+    expect(
+      attachLoginSeedMigrateEnv(dbEnv, "staging", {}, "stg-demo-secret-1"),
+    ).toEqual({
+      DB_HOST: "db.example.test",
+      DB_PORT: "5432",
+      APP_ENV: "staging",
+      SEEDLOGIN_DEMO_PASSWORD: "stg-demo-secret-1",
+    });
+  });
+
+  it("omits SEEDLOGIN_DEMO_PASSWORD when unset so Go fails closed", () => {
+    expect(attachLoginSeedMigrateEnv(dbEnv, "staging", {}, "")).toEqual({
+      DB_HOST: "db.example.test",
+      DB_PORT: "5432",
+      APP_ENV: "staging",
+    });
+    expect(attachLoginSeedMigrateEnv(dbEnv, "staging", {}, undefined)).toEqual({
+      DB_HOST: "db.example.test",
+      DB_PORT: "5432",
+      APP_ENV: "staging",
+    });
+  });
 });
 
 describe("expectedMigrationFromRequest", () => {

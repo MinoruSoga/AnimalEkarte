@@ -98,6 +98,12 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     SEEDLOGIN_OPERATOR_NAME: env.SEEDLOGIN_OPERATOR_NAME ?? "",
     SEEDLOGIN_OPERATOR_PASSWORD: env.SEEDLOGIN_OPERATOR_PASSWORD ?? "",
 
+    // STG shared demo password (login seed + auth shortcut). Not in
+    // secrets.required — unset keeps staging demo logins locked (fail-closed);
+    // the repo-public SharedPassword is never accepted on staging.
+    // Value via `wrangler secret put SEEDLOGIN_DEMO_PASSWORD` only.
+    SEEDLOGIN_DEMO_PASSWORD: env.SEEDLOGIN_DEMO_PASSWORD ?? "",
+
     // SMTP(releaseではaccount recoveryを成立させるため全項目必須)
     SMTP_HOST: env.SMTP_HOST,
     SMTP_PORT: env.SMTP_PORT,
@@ -179,6 +185,7 @@ export class AnimalEkarteApiContainer extends Container<Env> {
         name: this.envVars.SEEDLOGIN_OPERATOR_NAME,
         password: this.envVars.SEEDLOGIN_OPERATOR_PASSWORD,
       },
+      this.envVars.SEEDLOGIN_DEMO_PASSWORD,
     );
 
     const proc = await rawContainer.exec(["/app/migrate"], {

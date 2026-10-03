@@ -46,7 +46,7 @@ Source: [env.go](../../../backend/internal/seedlogin/env.go), [catalog.go](../..
 |---|---|---|
 | `ShouldApply` is true only after trim/lowercase `APP_ENV` ∈ {`development`,`local`,`dev`,`test`,`staging`} | env.go L19–28; env_test.go L18–28 | Live `APP_ENV` on each host is **UNKNOWN** this session |
 | `production`, empty, unknown (`preview`, `prod`, …) fail closed | env.go L20–27; env_test.go L24–28 | Demo seed must not be planned for production login |
-| Shared-password shortcut requires allowlisted env **and** catalog email **and** `SharedPassword` | env.go L45–59 | Do not paste the constant value into this sheet or chat. Production auth must not accept it (env.go L10–12) |
+| Shared-password shortcut requires allowlisted env **and** catalog email **and** the env-resolved shared password — code constant on local/dev/test, `SEEDLOGIN_DEMO_PASSWORD` secret on staging (unset = closed) | env.go `AcceptSharedPassword` | Do not paste credential values into this sheet or chat. Production auth must not accept it |
 | Catalog emails are `stg-staff-{staffID}@example.test` | catalog.go `emailPattern`; catalog_test.go first/last emails | `@example.test` is synthetic ([STAFF_ACCOUNT_PROVISIONING.md](../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L24). Formal emails are I-EMAIL **未記入** |
 | Four catalog clinic bands: id `1` 八王子病院, `2` 城東センター病院, `3` ノア動物病院　敷島病院, `4` ノア動物病院　Hako bu neco | catalog.go `clinicBands` L73–78 | These are **demo seed labels**, not a verified live `clinic_id` map (I-CLINIC **未記入**) |
 | Permission groups assigned to demo logins: `一般` (home clinic) and `執行` (one all-clinic executive) | catalog.go L17–21, L80–92 | Formal role → `permission_group_ids` is I-ROLE **未記入**; inference is forbidden (ops doc L21) |
