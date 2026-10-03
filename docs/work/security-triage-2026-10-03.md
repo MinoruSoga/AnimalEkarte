@@ -7,7 +7,7 @@ codex-security ワークベンチ (`~/.codex/state/plugins/codex-security/workbe
 - 検証方法: 各 finding の codeEvidence / 指摘ファイルを現行コードで再確認。静的照合 + scoped test(Docker)・workflow YAML 検証。
 - 結果: **60 occurrence 全件に対応方針が確定** — 対応済み 48 / 修正実施 10(O1-O4,O6,O7 + N1-N4) / owner 承認済み受容 4(P1-P4) / 部分対応 2(R1,R2)
 - **再スキャン(1YUno8)**: frontend 再精査 20ファイルで新規報告なし。workbench に backend scan 由来の新規 4 findings(N1-N4)が追加済み — 全て未コミット WIP で対応済み・scoped test pass
-- **P判断は `SECURITY.md`(commit `39404be3b`、2026-10-03 owner 回答)で既に確定**: support 共有 board の受容、OBJECT-1(private+signed URL)標準。未決残件は support 情報区分・外部送信 → EMR-263(N2/N3 が一部緩和: 新規入力スクリーニング + Plane 手動 export 化)
+- **P判断は `SECURITY.md` で owner 確定**: support 共有 board の受容、OBJECT-1(private+signed URL)標準、**support コンテンツへの患者・飼主情報含有許可 + LLM/Plane への既存経路送信承認(2026-10-03 裁定 — 画面特定に必要)**。未決残件は共有コンテンツの保持期間のみ(EMR-263)
 
 ## 本日実施した修正(未対応 → 修正済み・未コミット)
 
@@ -75,10 +75,10 @@ codex-security ワークベンチ (`~/.codex/state/plugins/codex-security/workbe
 
 | # | severity | finding | 裁定 |
 |---|----------|---------|------|
-| P1 | high | Cross-clinic support board(bug-reports + chat-exchanges)3 occurrence 統合 | **受容済み(owner 承認)**: 「閲覧・作成の clinic 横断共有は owner 承認済みの製品決定であり脆弱性ではない」(SECURITY.md:116)。mutation は報告元 clinic スコープ — 未コミット WIP で実装済み・tests pass。**未決残件は情報区分のみ**(screenshot に患者/飼い主情報を含めてよいか・保持期間・LLM/Plane への外部送信 data class) → EMR-263 で追跡 |
+| P1 | high | Cross-clinic support board(bug-reports + chat-exchanges)3 occurrence 統合 | **受容済み(owner 承認)**: 「閲覧・作成の clinic 横断共有は owner 承認済みの製品決定であり脆弱性ではない」(SECURITY.md:116)。mutation は報告元 clinic スコープで実装・tests pass。**情報区分も 2026-10-03 に裁定**: 患者・飼い主情報の含有許可(画面特定に必要) + LLM/Plane への既存経路送信承認 → SECURITY.md PROVIDER-1 確定。残件は保持期間のみ(EMR-263) |
 | P2 | high | Public staging exposes demo sysadmin credential | **受容済み**: repo-public password 問題は WIP で解消(staging は `SEEDLOGIN_DEMO_PASSWORD` シークレットのみ・未設定 fail-closed、LoginForm も DEV 限定自動入力に修正済み)。STG live reachability は SECURITY.md に実測記載済み |
 | P3 | high | Clinic-scoped RBAC reused across assignments(#86 拠点横断) | **意図仕様として受容**: GET fallback opt-in 化・write selected-clinic 必須は修正済み。`ResolveListClinicIDs` の membership 拡張は #86 拠点横断スコープの配送済み設計 |
-| P4 | medium | Support-chat conversations unredacted | P1 と同じく受容済み。未決の情報区分・外部送信条件は EMR-263 |
+| P4 | medium | Support-chat conversations unredacted | P1 と同じく受容済み。情報区分は 2026-10-03 裁定済み、残件は保持期間のみ(EMR-263) |
 
 ## 部分対応 — 残存リスク小(2件)
 

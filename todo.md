@@ -50,7 +50,7 @@ Current unfinished implementation, verification, data, performance, delivery, an
 | SEC-O6 | Low | medical-records / upload | 宣言 MIME allowlisted なら拡張子不検査 + 非S3時 `/uploads` 無認証 StaticFS（非release環境限定の実害） | 対応済み(未コミット) | 拡張子↔MIME一致必須化 + content-sniff 照合 + 保存拡張子を検証済みmimeから導出 + `/uploads` nosniff |
 | SEC-O7 | Medium | CI / secret-sync | `wrangler@4.107.0` 版 pin 済みだが integrity 検証なし（部分残存） | 対応済み(未コミット) | `pnpm install --frozen-lockfile` + `pnpm exec wrangler`(lockfile integrity) |
 | SEC-O8 | High | seedlogin / STG exec | STG/local に repository-public `SharedPassword="password"` の全医院 executive を provision。production/unknown は拒否済み | 対応済み(WIP) | staging は `SEEDLOGIN_DEMO_PASSWORD` シークレットのみ受付・未設定 fail-closed。repo-public は local 限定(未コミット WIP) |
-| SEC-P1 | High | support / cross-clinic board | bug-reports + chat-exchanges が全医院共有（3 occurrence 統合）。mutation(status/Plane起票/削除)は WIP で報告元clinic絞り済み。read 共有は owner 承認済みの製品決定（SECURITY.md:116） | 受容済み | 情報区分・外部送信条件の未決残件は EMR-263 |
+| SEC-P1 | High | support / cross-clinic board | bug-reports + chat-exchanges が全医院共有（3 occurrence 統合）。mutation(status/Plane起票/削除)は報告元clinic絞り済み。read 共有 + コンテンツへの患者・飼主情報含有は owner 承認済みの製品決定（SECURITY.md:116, 2026-10-03 裁定） | 受容済み | 対応完了。保持期間のみ未定（EMR-263 残件） |
 | SEC-P2 | High | seedlogin / staging credential | O8 と同根。repo-public password 問題は WIP で解消。STG デモ運用は SECURITY.md に実測記載済み | 受容済み | 対応完了 |
 | SEC-P3 | High | RBAC / 拠点横断 #86 | GET fallback opt-in 化・write selected-clinic 必須は修正済み。`ResolveListClinicIDs` の membership 拡張は #86 配送済み設計 | 受容(意図仕様) | 対応完了 |
 | SEC-P4 | Medium | support / chat unredacted | P1 の一部。会話本文の全院共有 | 受容済み | P1 と同じ（EMR-263 で情報区分追跡） |

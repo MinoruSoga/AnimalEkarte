@@ -60,7 +60,7 @@ AnimalEkarte は日本国内の動物病院向け電子カルテです。スタ�
 3. **PUBLIC-1 — route 固有の公開境界:** LIFF、LINE webhook、health、internal operations、local uploads、UAT、support、lab agent を一律の `RequirePermission` 対象として記述してはなりません。それぞれの identity、integrity、environment、method、rate-limit 条件が失敗時に fail closed でなければなりません。
 4. **PRIV-1 — 特権操作:** migration、scheduler control/manual run、all-clinic batch、release、provisioning、import は通常 staff session と分離した credential または検証済み operator identity を要求し、対象・revision・入力・backup・結果を結び付けなければなりません。`backend/worker/migrate-exec.ts:18-113` `backend/worker/scheduler-access-auth.ts:350-441` `backend/worker/scheduler-ops.ts:302-409` `backend/cmd/api/batch_scheduler.go:17-81`
 5. **OBJECT-1 — object storage:** 診療画像と support screenshot を保存する bucket は private-by-default とし、application が scope check 後に短命の signed URL を発行する設計を標準とします（実装と一致するため採用 — 2026-10-03）。公開 bucket/domain は、公開可能な data class を owner が明示した場合だけ許可します。R2 bucket の実効 public/private 設定は検証要。`backend/internal/infra/s3_uploader.go:24-88` `backend/internal/medicalrecord/medical_record_image_handler.go:277-316` `backend/internal/medicalrecord/medical_record_image_response.go:14-18`
-6. **PROVIDER-1 — 外部送信:** **[要オーナーレビュー]** LLM、ticket、LINE/LSTEP、SMTP、alert endpoint は、承認済みの宛先、data class、retention、削除条件に限ってデータを受け取れます。Support の質問・履歴・manual 抜粋および bug report metadata は外部送信され得るため、owner 決定前は患者・飼い主情報や clinic-confidential data を入力可能な情報区分として承認しません。`backend/internal/support/chat.go:122-197` `backend/internal/support/llm.go:77-164` `backend/internal/support/plane.go:80-106` `backend/internal/support/plane.go:130-211`
+6. **PROVIDER-1 — 外部送信:** **[2026-10-03 確定]** LLM、ticket、LINE/LSTEP、SMTP、alert endpoint は、承認済みの宛先、data class、retention、削除条件に限ってデータを受け取れます。Support の質問・履歴・manual 抜粋・screenshot および bug report metadata への患者・飼い主情報・clinic-confidential data の含有は **owner 承認済み**（報告対象画面の特定に必要との裁定）。外部送信は既存経路に限定: LLM へは `screenChatOutbound` による best-effort スクリーニング付き（完全な検出は保証しない）、Plane へは reviewable な明示操作のみ。`backend/internal/support/chat.go:122-197` `backend/internal/support/llm.go:77-164` `backend/internal/support/plane.go:80-106` `backend/internal/support/plane.go:130-211`
 7. **AUDIT-1 — path-dependent audit:** 必須と定めた credential、clinical、accounting 等の audit は業務 write と同一 transaction で fail closed にします。一方、すべての CUD が一律に `audit_logs` へ入るとは仮定せず、LSTEP tag sync のような明示的 fail-open・非 audit 経路と区別します。`docs/architecture/data-flow.md:67-101` `docs/architecture/data-flow.md:121-127`
 8. **CONFIG-1 — release fail closed:** release mode は development defaults、loopback DB、非検証 DB TLS、weak/missing secrets、local storage、LIFF mock を拒否しなければなりません。secret、credential、個人情報、不要な内部 error を response、log、report、repository に出してはなりません。`backend/internal/config/config.go:216-338` `backend/internal/config/config.go:341-449`
 9. **LIMIT-1 — 実 topology を守る上限:** body、response、upload、queue、connection、rate、cost の上限は実際の multi-instance topology を保護しなければなりません。process-local rate limit を shared/global quota と表現してはなりません。`backend/internal/middleware/rate_limit.go:17-42` `backend/internal/middleware/rate_limit.go:82-140`
@@ -82,7 +82,7 @@ AnimalEkarte は日本国内の動物病院向け電子カルテです。スタ�
 - Assigned-clinic fallback を使う GET/HEAD は middleware 通過を最終認可とせず、返却対象 clinic ごとに filter または authorize しなければなりません。`docs/architecture/auth.md:152-169`
 - 入力は HTTP boundary で型・長さ・形式を検証します。SQL は原則 parameter binding を使い、限定的な `Raw` も parameterized にします。client input を文字列連結した新規 SQL は禁止します。
 - Secret は保護された環境変数または deployment secret store に置き、tracked frontend environment には公開可能な build-time 値だけを置きます。
-- **[要オーナーレビュー]** Support の情報区分が決まるまで、staff は患者・飼い主情報または clinic-confidential data を質問、本文、manual context、screenshot に含めないものとします。現在の UI 警告は技術的な分類・redaction control ではありません。`frontend/src/features/support/components/BugReportTab.tsx:242-245`
+- **[2026-10-03 確定]** Support の質問・本文・manual context・screenshot には患者・飼い主情報または clinic-confidential data を含めてよい（owner 裁定 — 報告対象画面の特定に必要）。コンテンツは全医院のスタッフに共有され、LLM（best-effort スクリーニング付き）・Plane（明示操作のみ）へ送信され得る。UI 警告は送信前確認の注意喚起であり、技術的な分類・redaction control ではありません。`frontend/src/features/support/components/BugReportTab.tsx:242-245`
 - Operator workflow は、review 済み input、target host/database、revision/digest、backup 状態、出力 report を mutation 前後で拘束しなければなりません。
 - Lab deployment は OS account 分離、screen lock、malware 対策、token file 保護、固定 serial wiring、physical-device UAT を維持しなければなりません。同一 OS user の process を consumer token が隔離するとは主張しません。`docs/architecture/adr/008-local-lab-device-agent.md:51-70`
 
@@ -113,7 +113,7 @@ Security invariant の破壊により、攻撃者が開始時に持たない ide
 - Production draft の存在だけでは Internet exposure を証明しません。
 - Dormant RLS だけでは app-layer clinic scope が正しい場合の tenant escape を証明しません。ただし RLS を実効 control と誤記することや、app-layer failure と組み合わさることは評価対象です。
 - 攻撃者がすでに持つ正規権限内の通常動作は、新しい security impact ではありません。
-- Support の閲覧・作成の clinic 横断共有は owner 承認済みの製品決定であり脆弱性ではありません（変更操作は報告元 clinic スコープ）。ただし情報区分・保持・外部送信条件の未決部分を根拠に、患者情報等の不許可送信は引き続き評価対象です。
+- Support の閲覧・作成の clinic 横断共有は owner 承認済みの製品決定であり脆弱性ではありません（変更操作は報告元 clinic スコープ）。コンテンツへの患者・飼い主情報の含有も承認済み（2026-10-03）。保持期間は未定であり、期限超過・不許可削除経路は引き続き評価対象です。
 
 ## Scope 外、除外、受容済みリスク
 
@@ -129,17 +129,17 @@ Security invariant の破壊により、攻撃者が開始時に持たない ide
 - DB RLS は runtime enforcement ではなく、app-layer clinic scope が実効境界です。
 - Rate limit は process-local であり、multi-instance 全体の quota ではありません。
 - Audit は path-dependent で、すべての CUD を一律記録しません。
-- Support の情報区分（screenshot に患者・飼い主情報を含めうるか）、保持期間、外部 provider への送信 data class は未決です。閲覧・作成の全医院共有と、変更操作の報告元医院スコープは確定済みです（2026-10）。
+- Support の情報区分・外部送信は確定済み（2026-10-03、患者・飼い主情報の含有許可・既存経路への送信承認）。保持期間のみ未定で、当面現行のまま（期限超過・不許可削除経路は評価対象）。閲覧・作成の全医院共有と、変更操作の報告元医院スコープは確定済みです（2026-10）。
 - `S3_PUBLIC_BASE_URL` を求める起動時コメントと、object key + presigned URL を使う実装が一致していません。公開 bucket を前提にしてはなりません。`backend/cmd/api/main.go:151-183` `backend/internal/infra/s3_uploader.go:24-76`
 - Lab agent は Mac restart で未配送 memory queue を失い、端末 hardening と physical-device UAT に依存します。`docs/architecture/adr/008-local-lab-device-agent.md:61-70`
 
 ## 未決の owner 判断
 
-2026-10-03 時点で確定済み: STG の live reachability（Deployment 前提に実測記載）、production は未 live でサポート対象外、Support の閲覧・作成共有/変更スコープの設計、OBJECT-1 の private+signed URL 標準、RLS dormant の実測、重大度基準。
+2026-10-03 時点で確定済み: STG の live reachability（Deployment 前提に実測記載）、production は未 live でサポート対象外、Support の閲覧・作成共有/変更スコープの設計、OBJECT-1 の private+signed URL 標準、RLS dormant の実測、重大度基準、**Support の情報区分・外部送信（患者・飼い主情報の含有許可 — 画面特定に必要との裁定。LLM は best-effort スクリーニング付き送信、Plane は明示操作のみ）**。
 
 残る決定事項:
 
-1. **Support の情報区分・保持・外部送信**: 質問・本文・manual context・screenshot に患者・飼い主情報を含めてよいか、clinic 横断共有の保持期間、LLM（support chat）・ticket provider（Plane）へ送信可能な data class を確定する。
+1. **Support 共有コンテンツの保持期間**: clinic 横断共有される質問・履歴・bug report・screenshot の retention/deletion 条件。当面現行のまま（期限超過・不許可削除経路は評価対象）。
 2. **Production go-live の前提状態**: GitHub Environment `Production` の required reviewers・deployment branch 制限、production branch 保護、DNS/certificate、prod DB/R2、環境別 secrets、**backup 取得・隔離 restore リハーサル（所要時間計測）**、lab rollout の検証日付き状態。go-live 時に production をサポート対象へ追加する。
 3. **環境別の実効設定の最終確認**: R2 bucket の実効 public/private・lifecycle 方針、scheduler alert の有効状態、`S3_PUBLIC_BASE_URL` コメントと presigned 実装の不整合解消（コード・運用文書の整合）。
 
