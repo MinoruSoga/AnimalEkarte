@@ -1,6 +1,7 @@
 import { useParams, useLocation, useSearchParams } from "react-router";
 
 import { usePermission } from "@/hooks/use-permission";
+import { parseInternalPath } from "@/lib/internal-navigation";
 import { PartnerRecordLink } from "@/components/shared/PartnerRecordLink/PartnerRecordLink";
 import { useTrimmingForm } from "../hooks/use-trimming-form";
 import { useTrimmingFormChrome } from "../hooks/use-trimming-form-chrome";
@@ -42,8 +43,8 @@ export function TrimmingForm() {
   const isPetDeceased = selectedPet?.status === "死亡";
   const canSubmit = (mode === "edit" ? canEdit && isEditPetReady : canCreate) && !isPetDeceased;
   const allowDelete = canDelete === true && isEditPetReady && !isPetDeceased;
-  const redirectPath = typeof location.state?.from === "string" ? location.state.from : "/trimming";
-  const fromPath = location.state?.from as string | undefined;
+  const fromPath = parseInternalPath(location.state?.from) ?? undefined;
+  const redirectPath = fromPath ?? "/trimming";
   const chrome = useTrimmingFormChrome({
     formData,
     setFormData,

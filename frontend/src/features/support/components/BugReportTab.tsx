@@ -241,6 +241,7 @@ export function BugReportTab({ onClose }: BugReportTabProps) {
         />
         <p className={`text-2xs leading-relaxed ${C.text60}`}>
           スクリーンショットには患者・飼主の個人情報が写り込む場合があります。
+          報告は全医院のスタッフに共有され、AI・チケット管理ツールへ送信される場合があります。
           内容を確認してから送信してください。
         </p>
       </fieldset>

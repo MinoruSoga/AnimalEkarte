@@ -1,6 +1,7 @@
 package medicalrecord
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -234,7 +235,16 @@ func (h *LabImportHandler) ReceiveLabDeviceFrames(c *gin.Context) {
 		return
 	}
 	var req labDeviceFramesRequest
+	// ルート固有の上限: payload_base64 は 8KiB デコード済み（base64 で ~10.7KiB）なので
+	// JSON ボディは 64KiB で十分。グローバルの binary Content-Type 天井（16MiB）より
+	// 厳しく絞り、偽装 Content-Type での過大ボディを読み取り段階で打ち切る。
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, labDeviceFramesMaxRequestBytes)
 	if err := c.ShouldBindJSON(&req); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			httpapi.RespondError(c, apperrors.WrapPayloadTooLarge("lab device frames request exceeds size limit"))
+			return
+		}
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}

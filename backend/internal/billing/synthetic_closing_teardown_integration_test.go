@@ -71,6 +71,7 @@ func teardownIntegrationFixture(t *testing.T, db *gorm.DB) *SyntheticClosingResu
 	got, err := CreateSyntheticClosingFixture(ctx, db, SyntheticClosingRequest{
 		AppEnv: "development", DBHost: "db",
 		TargetDate: time.Date(2026, 9, 7, 0, 0, 0, 0, jst), PasswordHash: "x",
+		CleanupSecret: testSyntheticClosingSecret,
 	})
 	require.NoError(t, err)
 	return got
@@ -99,7 +100,7 @@ INSERT INTO cash_register_close_adjustments (clinic_id, close_id, billing_id, re
 VALUES (?, ?, ?, 's09 teardown regression', ?)`,
 		got.ClinicID, closeID, got.BillingIDs[0], staffID).Error)
 
-	require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, got.CleanupToken))
+	require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, testSyntheticClosingSecret, got.CleanupToken))
 
 	for _, table := range []string{
 		"cash_register_close_adjustments", "cash_register_closes",
@@ -153,7 +154,7 @@ INSERT INTO audit_logs (clinic_id, actor_id, actor_type, action, resource)
 VALUES (?, ?, 'staff', 'login', 'session')
 RETURNING id, created_at`, got.ClinicID, staffID).Row().Scan(&auditID, &auditCreatedAt))
 
-	require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, got.CleanupToken))
+	require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, testSyntheticClosingSecret, got.CleanupToken))
 
 	// The audit row survives, re-pointed at the sentinel staff + clinic; the
 	// immutable fields keep their original values.
@@ -223,7 +224,7 @@ INSERT INTO audit_logs (clinic_id, actor_id, actor_type, action, resource)
 VALUES (?, ?, 'staff', 'login', 'session')`, got.ClinicID, staffID).Error)
 
 	policyErr := errors.New("s09 audit policy sentinel failure")
-	err := DeleteSyntheticClosingFixtureWithAuditPolicy(ctx, db, "development", "db", got.ClinicID, got.CleanupToken,
+	err := DeleteSyntheticClosingFixtureWithAuditPolicy(ctx, db, "development", "db", got.ClinicID, testSyntheticClosingSecret, got.CleanupToken,
 		func(_ context.Context, _ *gorm.DB, _ uint64) error { return policyErr })
 	require.ErrorIs(t, err, policyErr)
 
@@ -237,7 +238,7 @@ VALUES (?, ?, 'staff', 'login', 'session')`, got.ClinicID, staffID).Error)
 	assert.Equal(t, int64(1), remaining)
 
 	// The default anonymization policy then tears the same fixture down.
-	require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, got.CleanupToken))
+	require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, testSyntheticClosingSecret, got.CleanupToken))
 	require.NoError(t, db.Raw("SELECT count(*) FROM clinics WHERE id = ?", got.ClinicID).Scan(&remaining).Error)
 	assert.Zero(t, remaining)
 }

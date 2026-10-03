@@ -30,6 +30,7 @@ type Handler struct {
 	// composition root (cmd/api/main.go) が注入する）
 	liffAuth      gin.HandlerFunc
 	liffRateLimit func(limit int) gin.HandlerFunc
+	liffBodyLimit gin.HandlerFunc
 	// linkLiffAccount は LINE 紐付け handler（line_link=lstep 系・未移行）の注入 closure。
 	linkLiffAccount   gin.HandlerFunc
 	requirePermission PermissionMiddleware
@@ -48,6 +49,7 @@ func NewHandler(
 	liff *LiffHandler,
 	liffAuth gin.HandlerFunc,
 	liffRateLimit func(limit int) gin.HandlerFunc,
+	liffBodyLimit gin.HandlerFunc,
 	linkLiffAccount gin.HandlerFunc,
 	requirePermission PermissionMiddleware,
 ) *Handler {
@@ -63,6 +65,7 @@ func NewHandler(
 		liff:                   liff,
 		liffAuth:               liffAuth,
 		liffRateLimit:          liffRateLimit,
+		liffBodyLimit:          liffBodyLimit,
 		linkLiffAccount:        linkLiffAccount,
 		requirePermission:      requirePermission,
 	}
@@ -165,6 +168,9 @@ func (h *Handler) RegisterLiffRoutes(r *gin.Engine) {
 	// store の構築（ctx 付き cleanup goroutine）は composition root 側（liffRateLimit closure に内包）。
 
 	liff := r.Group("/api/liff/:clinicId")
+	// SEC-CS3-O2: LIFF は JSON only のため全 route に raw body 上限を掛ける。
+	// application/octet-stream 偽装 JSON によるグローバル body limit 迂回を塞ぐ。
+	liff.Use(h.liffBodyLimit)
 
 	// 設定は認証不要（トップページ表示用）— 30回/分
 	liff.GET("/settings", h.liffRateLimit(30), h.liff.GetLiffSettings)

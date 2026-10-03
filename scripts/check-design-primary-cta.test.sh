@@ -56,6 +56,28 @@ EOF
 
 run_expect "violation-fixture" 1 "$FIXTURE"
 
+# 3. stories の colorVariant="default" は許容（C21/C24 カタログが公開 variant を網羅するため）
+STORIES_OK="$TMP_ROOT/stories-ok"
+mkdir -p "$STORIES_OK/frontend/src/features" "$STORIES_OK/frontend/src/components/shared/Form"
+cat > "$STORIES_OK/frontend/src/components/shared/Form/Form.stories.tsx" <<'EOF'
+export const SubmitButtons = () => (
+  <PrimaryButton colorVariant="default">default alias</PrimaryButton>
+);
+EOF
+
+run_expect "stories-default-alias-allowed" 0 "$STORIES_OK"
+
+# 4. stories であっても禁止 accent トークンは検出する
+STORIES_BAD="$TMP_ROOT/stories-bad"
+mkdir -p "$STORIES_BAD/frontend/src/features" "$STORIES_BAD/frontend/src/components/shared/Form"
+cat > "$STORIES_BAD/frontend/src/components/shared/Form/Form.stories.tsx" <<'EOF'
+export const BadCta = () => (
+  <PrimaryButton className={STYLE.confirmPrimary}>bad accent</PrimaryButton>
+);
+EOF
+
+run_expect "stories-accent-token-still-forbidden" 1 "$STORIES_BAD"
+
 if [[ "$failures" -gt 0 ]]; then
   echo "FAIL  $failures test case(s) failed"
   exit 1

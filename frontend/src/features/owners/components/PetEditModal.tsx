@@ -169,7 +169,7 @@ export const PetEditModal = memo(function PetEditModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={`${LAYOUT.modal.xl} overflow-y-auto`}>
-        <DialogHeader>
+        <DialogHeader className="pr-12">
           <div className="flex items-center justify-between">
             <div>
               <DialogTitle className={`text-sm font-bold ${C.text}`}>

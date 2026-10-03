@@ -35,9 +35,6 @@ import type { SupportChatHistoryRecord, SupportChatTurn } from "../types";
 const CONTEXT_TOP_K = 3;
 /** 各記事の抜粋文字数（バックエンド上限 6000 内で 3 件に収まるサイズ） */
 const CONTEXT_EXCERPT_LENGTH = 1800;
-/** 送信する会話履歴の最大件数（バックエンド上限 16 より余裕を持たせる） */
-const HISTORY_MAX_MESSAGES = 12;
-
 const SEND_ERROR_MESSAGE =
   "送信に失敗しました。時間をおいて再度お試しください。マニュアル検索で代わりに調べることもできます。";
 const RESET_ERROR_MESSAGE = "履歴の削除に失敗しました。時間をおいて再度お試しください。";
@@ -159,21 +156,17 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
   }, [turns.length, send.isPending]);
 
   /**
-   * 質問を送信する。priorTurns は history 構築に使う「この質問より前のターン列」で、
-   * 既定は現在の turns。再送時は失敗したやり取りを除いた列を渡す。
+   * 質問を送信する。会話履歴はサーバー保存済みのものが使われるため、
+   * リクエストには message と検索コンテキストのみを送る。
    */
-  const sendMessage = (text: string, priorTurns: SupportChatTurn[] = turns) => {
+  const sendMessage = (text: string) => {
     if (text.length === 0 || send.isPending || !hydrated) return;
 
     const context = buildChatContext(search, text, CONTEXT_TOP_K, CONTEXT_EXCERPT_LENGTH);
-    const history = priorTurns
-      .filter((t) => !t.isError)
-      .slice(-HISTORY_MAX_MESSAGES)
-      .map((t) => ({ role: t.role, content: t.content }));
 
     setTurns((prev) => [...prev, { role: "user", content: text }]);
     send.mutate(
-      { message: text, history, context },
+      { message: text, context },
       {
         onSuccess: (res) => {
           setTurns((prev) => [
@@ -220,7 +213,7 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
 
   /**
    * 失敗した質問を送り直す。エラーターンと直前の失敗ユーザーターンを取り除き、
-   * 同じ質問を末尾から新規送信する（history に失敗した質問が重複して残らない）。
+   * 同じ質問を末尾から新規送信する（サーバー保存履歴に失敗した質問が残らない）。
    */
   const handleRetry = (errorIndex: number) => {
     const retryMessage = turns[errorIndex]?.retryMessage;
@@ -228,7 +221,7 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
     const failedUserIndex = turns[errorIndex - 1]?.role === "user" ? errorIndex - 1 : -1;
     const remaining = turns.filter((_, i) => i !== errorIndex && i !== failedUserIndex);
     setTurns(remaining);
-    sendMessage(retryMessage, remaining);
+    sendMessage(retryMessage);
   };
 
   return (

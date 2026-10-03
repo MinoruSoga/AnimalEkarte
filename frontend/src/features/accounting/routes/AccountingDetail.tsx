@@ -7,6 +7,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
+import { useBackNavigation } from "@/hooks/use-back-navigation";
 import { useGetCashRegisterCloses } from "@/hooks/use-cash-register-closes";
 import { usePermission } from "@/hooks/use-permission";
 import { paths } from "@/config/paths";
@@ -53,6 +54,7 @@ export const AccountingDetail = memo(function AccountingDetail({
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const handleBack = useBackNavigation(paths.accounting.getHref());
   const queryClient = useQueryClient();
   const [, startItemUpdateTransition] = useTransition();
   const [, startAddItemTransition] = useTransition();
@@ -238,7 +240,7 @@ export const AccountingDetail = memo(function AccountingDetail({
           title="会計精算"
           resource={ResourceAccounting}
           description={`受付No: ${accounting.id} | ${accounting.ownerName}様 - ${accounting.petName}ちゃん`}
-          onBack={() => navigate(paths.accounting.getHref())}
+          onBack={handleBack}
           headerAction={
             <AccountingHeaderActions
               status={accounting.status}

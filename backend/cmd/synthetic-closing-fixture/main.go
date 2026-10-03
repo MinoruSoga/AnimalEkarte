@@ -47,6 +47,10 @@ func run(args []string) error {
 	}
 
 	appEnv := os.Getenv("APP_ENV")
+	cleanupSecret := os.Getenv("UAT_SYNTHETIC_CLOSING_SECRET")
+	if cleanupSecret == "" {
+		return fmt.Errorf("UAT_SYNTHETIC_CLOSING_SECRET is required")
+	}
 	params, err := dbconn.FromEnv()
 	if err != nil {
 		return err
@@ -88,10 +92,11 @@ func run(args []string) error {
 			return fmt.Errorf("hash login password")
 		}
 		result, err := billing.CreateSyntheticClosingFixture(ctx, db, billing.SyntheticClosingRequest{
-			AppEnv:       appEnv,
-			DBHost:       params.Host,
-			TargetDate:   day,
-			PasswordHash: string(hash),
+			AppEnv:        appEnv,
+			DBHost:        params.Host,
+			TargetDate:    day,
+			PasswordHash:  string(hash),
+			CleanupSecret: cleanupSecret,
 		})
 		if err != nil {
 			return err
@@ -112,7 +117,7 @@ func run(args []string) error {
 		if *clinicID == 0 {
 			return fmt.Errorf("--clinic-id is required")
 		}
-		return billing.DeleteSyntheticClosingFixture(ctx, db, appEnv, params.Host, *clinicID, *cleanupToken)
+		return billing.DeleteSyntheticClosingFixture(ctx, db, appEnv, params.Host, *clinicID, cleanupSecret, *cleanupToken)
 	}
 	return fmt.Errorf("unknown command %q", strings.TrimSpace(command))
 }

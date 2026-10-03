@@ -65,9 +65,14 @@ func TestAllowUATSyntheticClosingHTTPHost(t *testing.T) {
 	require.Error(t, AllowUATSyntheticClosingHTTPHost(""))
 }
 
+// testSyntheticClosingSecret はテスト共通の cleanup MAC 鍵（本物のシークレットではない）。
+const testSyntheticClosingSecret = "test-uat-cleanup-secret"
+
 func TestSyntheticClosingCleanupToken(t *testing.T) {
 	t.Parallel()
-	token := SyntheticClosingCleanupToken(920001)
-	assert.True(t, MatchSyntheticClosingCleanupToken(920001, token))
-	assert.False(t, MatchSyntheticClosingCleanupToken(920002, token))
+	token := SyntheticClosingCleanupToken(920001, testSyntheticClosingSecret)
+	assert.True(t, MatchSyntheticClosingCleanupToken(920001, testSyntheticClosingSecret, token))
+	assert.False(t, MatchSyntheticClosingCleanupToken(920002, testSyntheticClosingSecret, token))
+	// 別シークレットで鍵付けしたトークンは受理しない（公開定数由来は不可）。
+	assert.False(t, MatchSyntheticClosingCleanupToken(920001, "other-secret", token))
 }

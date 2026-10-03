@@ -22,19 +22,26 @@ type CreateBugReportInput struct {
 }
 
 // Service はバグ報告とヘルプチャット履歴のユースケースインターフェース。
-// バグ報告操作は全医院横断（clinicID を取らない）。Create は provenance として
-// clinic_id/reporter_staff_id を記録する。チャット履歴のみ clinic×staff スコープ。
+// バグ報告の一覧・作成は全医院横断だが、status 更新・Plane 起票・削除は
+// 報告元 clinicID スコープ（共有ボードは閲覧のみ公開）。Create は provenance
+// として clinic_id/reporter_staff_id を記録する。チャット履歴のみ
+// clinic×staff スコープ。
 type Service interface {
 	Create(ctx context.Context, clinicID, reporterStaffID uint64, input CreateBugReportInput) (*model.SupportBugReport, error)
 	ListAll(ctx context.Context) ([]BugReportWithReporter, error)
-	UpdateStatus(ctx context.Context, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error)
-	EnsurePlaneTicket(ctx context.Context, id uint64) (*model.SupportBugReport, error)
-	Delete(ctx context.Context, id uint64) (*model.SupportBugReport, error)
+	// Get は報告元 clinicID スコープで 1 件を返す。他医院は NotFound（404）。
+	Get(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
+	UpdateStatus(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error)
+	EnsurePlaneTicket(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
+	Delete(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
 	ListChatHistory(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
 	// ListChatExchanges は全医院の質問+回答ペアを新しい順で返す（共有一覧ページ用）
 	ListChatExchanges(ctx context.Context) ([]ChatExchange, error)
 	RecordChatExchange(ctx context.Context, clinicID, staffID uint64, userMessage, assistantReply string, sources []ChatSource) error
 	ClearChatHistory(ctx context.Context, clinicID, staffID uint64) error
+	// SyncPlaneTicketStates は scheduled job 用 — Plane 側 completed → resolved の
+	// 一方向同期。全医院横断で動き、各報告の clinic_id で UpdateStatus する。
+	SyncPlaneTicketStates(ctx context.Context) PlaneSyncResult
 }
 
 type service struct {
@@ -64,11 +71,9 @@ func (s *service) Create(ctx context.Context, clinicID, reporterStaffID uint64, 
 	if err := s.repo.Create(ctx, &report); err != nil {
 		return nil, err
 	}
-	// 報告の保存が先・Plane 起票は後続の best-effort 副作用。
-	// Plane 障害で報告を失わないことが主契約のため、ここは失敗しても 201 を返す。
-	if s.tickets != nil {
-		s.syncPlaneTicket(ctx, &report)
-	}
+	// Plane への外部エクスポートは作成時に自動実行しない。スタッフが内容を
+	// 確認した上で明示操作（EnsurePlaneTicket = POST /:id/plane-ticket）する
+	// reviewable export のみとし、未分類データが外部へ黙って出る経路を閉じる。
 	return &report, nil
 }
 
@@ -76,20 +81,24 @@ func (s *service) ListAll(ctx context.Context) ([]BugReportWithReporter, error) 
 	return s.repo.FindAll(ctx)
 }
 
-func (s *service) UpdateStatus(ctx context.Context, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error) {
+func (s *service) Get(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error) {
+	return s.repo.FindByIDForClinic(ctx, clinicID, id)
+}
+
+func (s *service) UpdateStatus(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error) {
 	if !model.IsValidSupportBugReportStatus(string(status)) {
 		return nil, apperrors.WrapInvalidInput("invalid status")
 	}
-	if err := s.repo.UpdateStatus(ctx, id, status); err != nil {
+	if err := s.repo.UpdateStatus(ctx, clinicID, id, status); err != nil {
 		return nil, err
 	}
-	return s.repo.FindByID(ctx, id)
+	return s.repo.FindByIDForClinic(ctx, clinicID, id)
 }
 
 // EnsurePlaneTicket は一覧からの手動起票・再送。起票済みなら現行値をそのまま返す（冪等）。
 // Plane 未設定なら 501、起票失敗は同期状態を記録した上で 502 を返す。
-func (s *service) EnsurePlaneTicket(ctx context.Context, id uint64) (*model.SupportBugReport, error) {
-	report, err := s.repo.FindByID(ctx, id)
+func (s *service) EnsurePlaneTicket(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error) {
+	report, err := s.repo.FindByIDForClinic(ctx, clinicID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -108,49 +117,43 @@ func (s *service) EnsurePlaneTicket(ctx context.Context, id uint64) (*model.Supp
 		return report, nil
 	}
 	// claim 失敗（並行起票の後着 or DB 書き込み失敗）は最新状態を返して実態に合わせる。
-	return s.repo.FindByID(ctx, id)
+	return s.repo.FindByIDForClinic(ctx, clinicID, id)
 }
 
 // Delete は報告を論理削除する。返り値は削除前に読み取った行で、
 // handler がスクショの後始末と監査記録に使う。
-func (s *service) Delete(ctx context.Context, id uint64) (*model.SupportBugReport, error) {
-	report, err := s.repo.FindByID(ctx, id)
+func (s *service) Delete(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error) {
+	report, err := s.repo.FindByIDForClinic(ctx, clinicID, id)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.repo.SoftDeleteBugReport(ctx, id); err != nil {
+	if err := s.repo.SoftDeleteBugReport(ctx, clinicID, id); err != nil {
 		return nil, err
 	}
 	return report, nil
 }
 
-// syncPlaneTicket は Plane 起票を best-effort で実行する。
-// 失敗しても報告は保存済みなので、同期状態を DB に記録して WARN ログを残すのみ。
-func (s *service) syncPlaneTicket(ctx context.Context, report *model.SupportBugReport) {
-	issue, err := s.tickets.CreateBugReportIssue(ctx, report)
-	if err != nil {
-		s.recordPlaneFailure(ctx, report, err)
-		return
-	}
-	s.claimPlaneTicket(ctx, report, issue)
-}
-
 // recordPlaneFailure は起票失敗を plane_sync_error に記録し WARN を残す。
 // 記録自体の失敗（DB 障害）は追加の ERROR ログのみ（起票失敗の報告を悪化させない）。
 func (s *service) recordPlaneFailure(ctx context.Context, report *model.SupportBugReport, syncErr error) {
-	msg := planeSyncErrorMessage(syncErr)
-	if err := s.repo.SetPlaneSyncError(ctx, report.ID, msg); err != nil {
+	s.persistPlaneFailure(ctx, report, planeSyncErrorMessage(syncErr))
+	slog.WarnContext(ctx, "plane ticket creation failed", "error", syncErr, "report_id", report.ID, "clinic_id", report.ClinicID)
+}
+
+// persistPlaneFailure は sanitize 済みの失敗理由を plane_sync_error に書き込む。
+// ログ出力は呼出側の責務（起票失敗と状態取得失敗で文脈が違うため分離）。
+func (s *service) persistPlaneFailure(ctx context.Context, report *model.SupportBugReport, msg string) {
+	if err := s.repo.SetPlaneSyncError(ctx, report.ClinicID, report.ID, msg); err != nil {
 		slog.ErrorContext(ctx, "failed to persist plane sync error", "error", err, "report_id", report.ID)
 	}
 	report.PlaneSyncError = &msg
-	slog.WarnContext(ctx, "plane ticket creation failed", "error", syncErr, "report_id", report.ID, "clinic_id", report.ClinicID)
 }
 
 // claimPlaneTicket は起票成功を DB に記録する。claim できた場合のみ true。
 // false の場合、別経路が先に記録済み（二重起票の防止）か DB 書き込み失敗。
 // 後者は Plane 側に孤立チケットが残りうるため ERROR ログを残す。
 func (s *service) claimPlaneTicket(ctx context.Context, report *model.SupportBugReport, issue *PlaneIssue) bool {
-	claimed, err := s.repo.SetPlaneTicket(ctx, report.ID, issue.ID, issue.URL)
+	claimed, err := s.repo.SetPlaneTicket(ctx, report.ClinicID, report.ID, issue.ID, issue.URL)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to persist plane ticket; plane-side issue may be orphaned",
 			"error", err, "report_id", report.ID, "plane_issue_id", issue.ID)
@@ -239,4 +242,65 @@ func (s *service) ListChatExchanges(ctx context.Context) ([]ChatExchange, error)
 // ClearChatHistory は指定スタッフの会話履歴をすべて soft delete する。
 func (s *service) ClearChatHistory(ctx context.Context, clinicID, staffID uint64) error {
 	return s.repo.ClearChatHistory(ctx, clinicID, staffID)
+}
+
+// planeStateSyncBatchLimit は 1 実行あたりの同期対象上限（防御的上限 — 通常は数件）。
+// 上限超過分は次回 cron に繰り越される（id ASC で安定順のため取り残しはない）。
+const planeStateSyncBatchLimit = 200
+
+// planeStateCompletedGroup は Plane の「完了」状態グループ名（Done 相当）。
+// cancelled は resolved に倒さない — 起票済みのまま open で残し、人が判断する。
+const planeStateCompletedGroup = "completed"
+
+// PlaneSyncResult は scheduled plane_sync ジョブの件数サマリ。
+// scheduler.Result の契約に合わせ Processed == Succeeded + Failed を維持する
+// （fetch/update の失敗だけが Failed — 未完了スキップは Succeeded に含める）。
+type PlaneSyncResult struct {
+	Processed int
+	Succeeded int
+	Failed    int
+}
+
+// SyncPlaneTicketStates は Plane 側で completed になった起票済み報告を resolved に揃える。
+// Plane→ローカルの一方向のみ（ローカルの open/resolved 操作は外部へ反映しない）。
+// 連携無効（tickets が TicketStateReader を実装しない = nil 含む）は zero result で no-op。
+func (s *service) SyncPlaneTicketStates(ctx context.Context) PlaneSyncResult {
+	reader, ok := s.tickets.(TicketStateReader)
+	if !ok || reader == nil {
+		return PlaneSyncResult{}
+	}
+	reports, err := s.repo.ListOpenWithPlaneTicket(ctx, planeStateSyncBatchLimit)
+	if err != nil {
+		slog.ErrorContext(ctx, "plane sync: failed to list open reports", "error", err)
+		return PlaneSyncResult{Processed: 1, Failed: 1}
+	}
+	var result PlaneSyncResult
+	for i := range reports {
+		report := &reports[i]
+		result.Processed++
+		group, err := reader.FetchIssueStateGroup(ctx, *report.PlaneIssueID)
+		if err != nil {
+			result.Failed++
+			// 404 含む upstream 失敗は報告行に記録して一覧から追跡できるようにする。
+			// planeSyncErrorMessage は upstream body を落とした安全な文言のみ返す。
+			s.persistPlaneFailure(ctx, report, planeSyncErrorMessage(err))
+			slog.WarnContext(ctx, "plane sync: failed to fetch issue state",
+				"error", err, "report_id", report.ID, "clinic_id", report.ClinicID)
+			continue
+		}
+		if group != planeStateCompletedGroup {
+			result.Succeeded++
+			continue
+		}
+		if err := s.repo.UpdateStatus(ctx, report.ClinicID, report.ID, model.SupportBugReportStatusResolved); err != nil {
+			result.Failed++
+			slog.WarnContext(ctx, "plane sync: failed to mark report resolved",
+				"error", err, "report_id", report.ID, "clinic_id", report.ClinicID)
+			continue
+		}
+		result.Succeeded++
+		slog.InfoContext(ctx, "plane sync: report resolved via plane completed",
+			"report_id", report.ID, "clinic_id", report.ClinicID)
+	}
+	return result
 }

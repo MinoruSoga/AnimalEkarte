@@ -20,7 +20,7 @@
 「クリニック管理者」は独立した user type / flag ではなく、院内で full access を与えるよう設定した permission-group profile である。
 
 ### 1.2 リソースベース認可 (RBAC)
-システム内の **37 種類のリソース** に対し、`View (閲覧)`, `Create (作成)`, `Edit (編集)`, `Delete (削除)` の 4 アクション単位でアクセスを制御します。
+システム内の **36 種類のリソース** に対し、`View (閲覧)`, `Create (作成)`, `Edit (編集)`, `Delete (削除)` の 4 アクション単位でアクセスを制御します。
 
 ### 1.3 アカウント・スタッフ・医院所属の不変条件
 
@@ -126,7 +126,7 @@ sequenceDiagram
 
 ### 4.4 非本番デモログインの例外
 
-`auth_service.go` は通常の password hash 照合に加え、`seedlogin.AcceptSharedPassword` による合成デモ catalog 限定の認証補助を持つ。`APP_ENV` の許可集合は `development` / `local` / `dev` / `test` / `staging`（trim/lowercase 後）で、production・未設定・未知値および catalog 外アカウントは対象外である。認証補助が成立しても account の active/deleted 判定と後続の staff/clinic authority 解決を通る。資格情報の値は本書へ複製しない。
+`auth_service.go` は通常の password hash 照合に加え、`seedlogin.AcceptSharedPassword` による合成デモ catalog 限定の認証補助を持つ。`APP_ENV` の許可集合は `development` / `local` / `dev` / `test` / `staging`（trim/lowercase 後）で、production・未設定・未知値および catalog 外アカウントは対象外である。共通パスワードの正本は環境で分岐し、local/dev/test はコード定数、staging は `SEEDLOGIN_DEMO_PASSWORD` シークレット（未設定なら認証補助は成立しない）。認証補助が成立しても account の active/deleted 判定と後続の staff/clinic authority 解決を通る。資格情報の値は本書へ複製しない。
 
 適用責務と境界は [exception-package-discipline.md](exception-package-discipline.md#a8-7--seedlogin-is-an-explicit-non-production-exception) を参照する。環境設定の実測や本番受入の記録ではない。
 

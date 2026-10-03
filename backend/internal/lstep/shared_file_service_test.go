@@ -192,12 +192,33 @@ func TestSharedFileService_GetSignedURL(t *testing.T) {
 		storage := &mockFileStorage{
 			getSignedURLFn: func(_ context.Context, key string, ttl time.Duration) (string, error) {
 				assert.Equal(t, "dummy-key", key)
-				assert.Equal(t, 24*time.Hour, ttl)
+				// 対話用途は bearer URL の露出窓口を最小化する 15min
+				assert.Equal(t, 15*time.Minute, ttl)
 				return "https://signed-url.com", nil
 			},
 		}
 		svc := NewSharedFileService(repo, nil, storage)
 		url, err := svc.GetSignedURL(ctx, 1, 100)
+		assert.NoError(t, err)
+		assert.Equal(t, "https://signed-url.com", url)
+	})
+
+	t.Run("delivery URL uses shorter TTL than legacy 24h", func(t *testing.T) {
+		repo := &mockSharedFileRepository{
+			findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.SharedFile, error) {
+				return &model.SharedFile{ID: id, ClinicID: clinicID, FileKey: "dummy-key"}, nil
+			},
+		}
+		storage := &mockFileStorage{
+			getSignedURLFn: func(_ context.Context, key string, ttl time.Duration) (string, error) {
+				assert.Equal(t, "dummy-key", key)
+				// LINE 配送用途は配送遅延の余裕を残しつつ 1h（固定 24h より短縮）
+				assert.Equal(t, 1*time.Hour, ttl)
+				return "https://signed-url.com", nil
+			},
+		}
+		svc := NewSharedFileService(repo, nil, storage)
+		url, err := svc.GetSignedURLForDelivery(ctx, 1, 100)
 		assert.NoError(t, err)
 		assert.Equal(t, "https://signed-url.com", url)
 	})

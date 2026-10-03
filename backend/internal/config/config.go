@@ -15,8 +15,14 @@ import (
 const (
 	BcryptCost            = 12
 	minimumJWTSecretBytes = 32
-	maxReleaseDBOpenConns = 10
-	maxReleaseDBIdleConns = 5
+	// minimumSchedulerInternalTokenBytes は release で要求する scheduler 内部
+	// トークンの最小バイト長。JWT_SECRET と同じ 32 を下限とする。
+	// 弱い共有秘密では全院バッチの認可境界が崩れる（CWE-521）ため、
+	// 未設定・短い値は起動時に fail-loud とする（middleware は空 expected で
+	// 全リクエスト 401 の fail-closed — 起動失敗の方が設定ミスを早期に顕在化する）。
+	minimumSchedulerInternalTokenBytes = 32
+	maxReleaseDBOpenConns              = 10
+	maxReleaseDBIdleConns              = 5
 )
 
 // Config holds process environment for the API and related commands.
@@ -100,8 +106,10 @@ type Config struct {
 	CORSAllowedOrigin string
 
 	// SchedulerInternalToken protects POST /_internal/scheduled-jobs (DEC-36 / CMD-02).
-	// Callers must send header X-Scheduler-Token. Empty expected token keeps the
-	// route registered but middleware fails closed (every request 401).
+	// Callers must send header X-Scheduler-Token. Release mode requires an
+	// explicit value of at least minimumSchedulerInternalTokenBytes (Validate).
+	// Outside release an empty expected token keeps the route registered but
+	// middleware fails closed (every request 401).
 	SchedulerInternalToken string
 
 	// SupportLLM* はサポートウィジェットのヘルプチャット用 LLM 設定（OpenAI 互換 API）。
@@ -287,6 +295,17 @@ func (c *Config) Validate() error {
 		return fmt.Errorf(
 			"JWT_SECRET must be at least %d bytes in release mode",
 			minimumJWTSecretBytes,
+		)
+	}
+	// DEC-36 / CMD-02: Worker→Container の X-Scheduler-Token 共有秘密。
+	// STG/本番とも secrets.required に含まれるため release では必須。
+	if c.SchedulerInternalToken == "" {
+		return fmt.Errorf("SCHEDULER_INTERNAL_TOKEN must be explicitly set in release mode")
+	}
+	if len(c.SchedulerInternalToken) < minimumSchedulerInternalTokenBytes {
+		return fmt.Errorf(
+			"SCHEDULER_INTERNAL_TOKEN must be at least %d bytes in release mode",
+			minimumSchedulerInternalTokenBytes,
 		)
 	}
 	if c.DBPass == "" || c.DBPass == "ekarte_password" {

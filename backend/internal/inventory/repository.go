@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
@@ -208,6 +209,10 @@ func (r *repository) normalizeDeleteIfUnusedMiss(ctx context.Context, clinicID, 
 // RowsAffected==0 のとき FindByID で存在確認し、存在すれば Conflict（在庫不足）、
 // なければ NotFound を返す。
 func (r *repository) DecreaseStock(ctx context.Context, clinicID, id uint64, quantity float64) error {
+	// SEC-CS3-O1: 小数数量は int 変換で 0 減算となり在庫減算を迂回しうるため fail-closed で拒否する。
+	if quantity <= 0 || quantity != math.Trunc(quantity) {
+		return apperrors.WrapInvalidInput("在庫減算の数量は正の整数でなければなりません")
+	}
 	qty := int(quantity)
 	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.InventoryItem{}).

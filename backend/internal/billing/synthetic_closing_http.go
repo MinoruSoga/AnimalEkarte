@@ -1,6 +1,7 @@
 package billing
 
 import (
+	"crypto/subtle"
 	"net/http"
 	"os"
 	"strconv"
@@ -24,6 +25,7 @@ type SyntheticClosingHandler struct {
 	AppEnv   string
 	DBHost   string
 	Password string
+	Secret   string
 }
 
 type createSyntheticClosingHTTPRequest struct {
@@ -86,6 +88,7 @@ func (h *SyntheticClosingHandler) CreateSyntheticClosings(c *gin.Context) {
 		TargetDate:         day,
 		PasswordHash:       string(hash),
 		ExistingBillingIDs: req.ExistingBillingIDs,
+		CleanupSecret:      h.secret(),
 	})
 	if err != nil {
 		httpapi.RespondError(c, err)
@@ -122,6 +125,7 @@ func (h *SyntheticClosingHandler) DeleteSyntheticClosings(c *gin.Context) {
 		h.appEnv(),
 		h.dbHost(),
 		clinicID,
+		h.secret(),
 		c.GetHeader(syntheticClosingCleanupHeader),
 	); err != nil {
 		httpapi.RespondError(c, err)
@@ -135,6 +139,16 @@ func (h *SyntheticClosingHandler) allowHTTP(c *gin.Context) bool {
 		return false
 	}
 	if err := AllowUATSyntheticClosingHTTPHost(c.Request.Host); err != nil {
+		return false
+	}
+	// Host ヘッダは caller 制御で偽装できるため、bearer secret も必須にする。
+	// 未設定なら全拒否（fail closed）。
+	secret := h.secret()
+	if secret == "" {
+		return false
+	}
+	token := strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
+	if token == c.GetHeader("Authorization") || subtle.ConstantTimeCompare([]byte(token), []byte(secret)) != 1 {
 		return false
 	}
 	return true
@@ -159,4 +173,11 @@ func (h *SyntheticClosingHandler) password() string {
 		return h.Password
 	}
 	return os.Getenv("UAT_SYNTHETIC_CLOSING_PASSWORD")
+}
+
+func (h *SyntheticClosingHandler) secret() string {
+	if h != nil && h.Secret != "" {
+		return h.Secret
+	}
+	return os.Getenv("UAT_SYNTHETIC_CLOSING_SECRET")
 }

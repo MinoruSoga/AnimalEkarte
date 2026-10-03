@@ -52,14 +52,18 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
   const petId = appointment?.petId;
   const appointmentId = appointment?.id;
   const ownerId = appointment?.ownerId;
+  const ownerName = appointment?.ownerName;
   const visitDate = appointment?.visitDate;
 
   const navigateAndClose = useCallback(
     (path: string, extraState?: Record<string, unknown>) => {
-      navigate(path, { state: { from: "/", ...extraState } });
+      // 表示中日付のボードへ戻れるよう、from は当日固定ではなく予約日を保持する
+      // （?date=<当日> は Reception.tsx の isToday 判定で / と同じボードになる）
+      const from = visitDate ? `/?date=${visitDate}` : "/";
+      navigate(path, { state: { from, ...extraState } });
       onClose();
     },
-    [navigate, onClose],
+    [navigate, onClose, visitDate],
   );
 
   const handleCreateMedicalRecord = useCallback(
@@ -116,11 +120,16 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
 
   const handleOpenOwnerDetail = useCallback(() => {
     if (ownerId) {
-      navigateAndClose(`/owners/${ownerId}`);
-    } else if (petId) {
-      navigateAndClose(`/pets/${petId}`);
+      navigateAndClose(paths.owners.detail.getHref(ownerId));
+      return;
     }
-  }, [ownerId, petId, navigateAndClose]);
+    // /pets/:id 相当のページは存在しないため、ownerId 未連携のデータは
+    // 飼主一覧の name 検索へ逃がす（backend は name/name_kana/phone/email を検索）。
+    const params = new URLSearchParams();
+    if (ownerName) params.set("search", ownerName);
+    const query = params.toString();
+    navigateAndClose(query ? `${paths.owners.getHref()}?${query}` : paths.owners.getHref());
+  }, [ownerId, ownerName, navigateAndClose]);
 
   if (!appointment) return null;
 

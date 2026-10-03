@@ -369,6 +369,10 @@ func (s *sharedFileQueryGuard) GetSignedURL(ctx context.Context, clinicID, id ui
 	guardClinicID(s.t, "sharedFile.GetSignedURL", clinicID, s.forbidden)
 	return s.SharedFileService.GetSignedURL(ctx, clinicID, id)
 }
+func (s *sharedFileQueryGuard) GetSignedURLForDelivery(ctx context.Context, clinicID, id uint64) (string, error) {
+	guardClinicID(s.t, "sharedFile.GetSignedURLForDelivery", clinicID, s.forbidden)
+	return s.SharedFileService.GetSignedURLForDelivery(ctx, clinicID, id)
+}
 
 func seedLivingPet(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, petName string) {
 	t.Helper()

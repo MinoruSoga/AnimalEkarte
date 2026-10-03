@@ -44,7 +44,7 @@ export function ReceptionDialogHeader({ appointment, currentStatus }: ReceptionD
       : `${C.bgActive} ${C.text60}`;
 
   return (
-    <DialogHeader className={`p-6 pb-4 border-b ${C.borderLight} pr-12`}>
+    <DialogHeader className={`p-6 pb-4 border-b ${C.borderLight} pr-16`}>
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <span

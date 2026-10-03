@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -14,10 +16,13 @@ import (
 
 // runLoginSeed is phase 3: upsert synthetic demo logins matching LoginForm,
 // then optionally one operator system-admin from SEEDLOGIN_OPERATOR_* env.
-// It is not a CSV bundle. The shared password is seedlogin.SharedPassword
-// and applies only to catalog emails. Production / empty / unknown APP_ENV skip.
-// When schema_migrations already records the current catalog checksum, skip.
-// Catalog changes (checksum drift) re-upsert and refresh the record.
+// It is not a CSV bundle. The shared password is env-resolved —
+// seedlogin.SharedPassword on local/dev/test, SEEDLOGIN_DEMO_PASSWORD on
+// staging — and applies only to catalog emails. Production / empty / unknown
+// APP_ENV skip. When schema_migrations already records the current checksum,
+// skip. Catalog changes or demo-password changes (fingerprint drift)
+// re-upsert and refresh the record, so rotating the staging secret
+// re-seeds hashes instead of leaving the old password valid.
 func runLoginSeed(ctx context.Context, db *sql.DB, logger *slog.Logger) error {
 	appEnv := os.Getenv("APP_ENV")
 	if !seedlogin.ShouldApply(appEnv) {
@@ -26,7 +31,7 @@ func runLoginSeed(ctx context.Context, db *sql.DB, logger *slog.Logger) error {
 	}
 
 	key := seedlogin.MigrationKey()
-	checksum := seedlogin.CatalogChecksum()
+	checksum := loginSeedChecksum(appEnv)
 	needsApply, err := loginSeedNeedsApply(db, key, checksum)
 	if err != nil {
 		return err
@@ -61,6 +66,19 @@ func runLoginSeed(ctx context.Context, db *sql.DB, logger *slog.Logger) error {
 		return fmt.Errorf("commit login seed record: %w", err)
 	}
 	return nil
+}
+
+// loginSeedChecksum は schema_migrations.checksum（VARCHAR(64)、sha256 hex 1個）
+// に収めるため、catalog checksum と demo パスワード fingerprint の合成入力を
+// さらに sha256 化した 64 文字 hex を返す。どちらかが変われば digest も変わる
+// ため、catalog 変更とシークレット轮换の両方を drift として検出できる。
+// 生の合成文字列（64+1+64=129 文字）を書き込むと varchar(64) を溢れて
+// migrate が失敗する（SEC-O8 回帰 22001）。
+func loginSeedChecksum(appEnv string) string {
+	sum := sha256.Sum256([]byte(
+		seedlogin.CatalogChecksum() + ":" + seedlogin.DemoPasswordFingerprint(appEnv),
+	))
+	return hex.EncodeToString(sum[:])
 }
 
 // loginSeedNeedsApply reports whether catalog upsert should run.

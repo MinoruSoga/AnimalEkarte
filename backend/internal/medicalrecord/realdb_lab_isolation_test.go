@@ -2,10 +2,12 @@ package medicalrecord
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -13,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/labdevicecap"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
@@ -276,8 +279,13 @@ func TestRealDB_LabSelectedClinicBGrantAIsolation(t *testing.T) {
 		c, w := testdb.NewHTTPTestContext(t, http.MethodGet, "/api/v1/lab-device/agent-consumer", configureGrantAction(fx.fx, res, "create", fx.fx.ClinicB))
 		fx.labH.GetLabDeviceAgentConsumer(c)
 		require.Equal(t, http.StatusOK, w.Code, w.Body.String())
-		assert.Contains(t, w.Body.String(), realDBAgentToken)
-		_ = os.Unsetenv
+		assert.NotContains(t, w.Body.String(), realDBAgentToken)
+		var body struct {
+			Capability string `json:"agent_consumer_token"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		require.NoError(t, labdevicecap.Verify(realDBAgentToken, strconv.FormatUint(fx.fx.ClinicB, 10), body.Capability, time.Now()))
+		require.ErrorIs(t, labdevicecap.Verify(realDBAgentToken, strconv.FormatUint(fx.fx.ClinicA, 10), body.Capability, time.Now()), labdevicecap.ErrClinicMismatch)
 	})
 
 	run("import_job_grantA_403", true, func(t *testing.T, fx realDBLabFixture) {

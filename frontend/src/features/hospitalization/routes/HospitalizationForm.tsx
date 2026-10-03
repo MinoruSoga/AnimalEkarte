@@ -6,6 +6,7 @@ import { useHospitalizationForm } from "../hooks/use-hospitalization-form";
 import { useHospitalizationFormChrome } from "../hooks/use-hospitalization-form-chrome";
 import { useDeleteHospitalization } from "../api/delete-hospitalization";
 import { paths } from "@/config/paths";
+import { parseInternalPath } from "@/lib/internal-navigation";
 import { resolveHospitalizationFormGate } from "./hospitalization-form-model";
 import {
   HospitalizationFormBody,
@@ -24,7 +25,7 @@ export function HospitalizationForm() {
   const { mutate: deleteHospitalization } = useDeleteHospitalization();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDeletePending, startDeleteTransition] = useTransition();
-  const locationFrom = location.state?.from as string | undefined;
+  const locationFrom = parseInternalPath(location.state?.from) ?? undefined;
 
   const form = useHospitalizationForm(hospitalizationId, canSubmit === true);
   const selectedPet = form.petSelection.selectedPets[0];

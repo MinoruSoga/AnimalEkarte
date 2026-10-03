@@ -43,6 +43,7 @@ type UploadSharedFileInput struct {
 type SharedFileService interface {
 	Upload(ctx context.Context, clinicID, uploadedBy uint64, input *UploadSharedFileInput) (*SharedFileResponse, error)
 	GetSignedURL(ctx context.Context, clinicID, id uint64) (string, error)
+	GetSignedURLForDelivery(ctx context.Context, clinicID, id uint64) (string, error)
 	FindAll(ctx context.Context, clinicID uint64) ([]*SharedFileResponse, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	// CleanupExpired は7日 - 25時間経過したファイルを削除する（バッチ用）。
@@ -110,12 +111,34 @@ func (s *sharedFileService) Upload(ctx context.Context, clinicID, uploadedBy uin
 	return toSharedFileSvcResponse(record), nil
 }
 
+// 署名付き URL は bearer トークンであり発行後の失効手段がないため、
+// 露出窓口を用途別に最小化する（固定 24h → 対話 15min / 配送 1h）。
+const (
+	// sharedFileInteractiveURLTTL は管理画面からの直接取得用。
+	// 表示と同時にブラウザが開く用途のため最短にする（screenshot / カルテ画像と同じ 15min）。
+	sharedFileInteractiveURLTTL = 15 * time.Minute
+	// sharedFileDeliveryURLTTL は LINE Messaging API 配送用。push 時に
+	// LINE プラットフォームがフェッチする用途で、配送遅延の余裕として 1h。
+	sharedFileDeliveryURLTTL = 1 * time.Hour
+)
+
 func (s *sharedFileService) GetSignedURL(ctx context.Context, clinicID, id uint64) (string, error) {
+	return s.signedURL(ctx, clinicID, id, sharedFileInteractiveURLTTL)
+}
+
+// GetSignedURLForDelivery は LINE 配送など外部プラットフォームがフェッチする
+// 用途の署名付き URL を返す。対話用より配送遅延分だけ長いが、従来の固定 24h
+// より露出窓口は大幅に小さい。
+func (s *sharedFileService) GetSignedURLForDelivery(ctx context.Context, clinicID, id uint64) (string, error) {
+	return s.signedURL(ctx, clinicID, id, sharedFileDeliveryURLTTL)
+}
+
+func (s *sharedFileService) signedURL(ctx context.Context, clinicID, id uint64, ttl time.Duration) (string, error) {
 	record, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return "", apperrors.Wrap(err, "failed to find shared file")
 	}
-	url, err := s.storage.GetSignedURL(ctx, record.FileKey, 24*time.Hour)
+	url, err := s.storage.GetSignedURL(ctx, record.FileKey, ttl)
 	if err != nil {
 		return "", apperrors.Wrap(err, "failed to generate signed URL")
 	}

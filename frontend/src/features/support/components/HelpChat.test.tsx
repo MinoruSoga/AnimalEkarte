@@ -129,7 +129,7 @@ describe("HelpChat", () => {
     expect(mutateMock).toHaveBeenCalledTimes(1);
     const [params] = mutateMock.mock.calls[0] as [SendSupportChatParams, MutateOptions];
     expect(params.message).toBe("レジ締めの手順は？");
-    expect(params.history).toEqual([]);
+    expect(params).not.toHaveProperty("history");
     expect(params.context.length).toBeGreaterThan(0);
     expect(params.context[0].title).toBe("画面別 会計");
     expect(params.context[0].slug).toBe("accounting");
@@ -200,7 +200,7 @@ describe("HelpChat", () => {
     expect(mutateMock).toHaveBeenCalledTimes(1);
     const [params] = mutateMock.mock.calls[0] as [SendSupportChatParams, MutateOptions];
     expect(params.message).toBe("予約の変更方法は？");
-    expect(params.history).toEqual([]);
+    expect(params).not.toHaveProperty("history");
   });
 
   it("Enter で送信し、Shift+Enter と IME 変換中の Enter では送信しない", async () => {
@@ -240,8 +240,8 @@ describe("HelpChat", () => {
     expect(mutateMock).toHaveBeenCalledTimes(2);
     const [retryParams] = mutateMock.mock.calls[1] as [SendSupportChatParams, MutateOptions];
     expect(retryParams.message).toBe("レジ締めの手順は？");
-    // 失敗したやり取りは history に含めず、画面のエラー表示は消える
-    expect(retryParams.history).toEqual([]);
+    // 画面のエラー表示は消える（会話履歴はサーバー側で管理される）
+    expect(retryParams).not.toHaveProperty("history");
     expect(screen.queryByText(/送信に失敗しました/)).not.toBeInTheDocument();
   });
 

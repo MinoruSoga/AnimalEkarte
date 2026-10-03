@@ -75,7 +75,7 @@ func TestRegisterBaseRoutesOwnsNonDomainHTTPRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
-	require.NoError(t, registerBaseRoutes(router, nil, nil))
+	require.NoError(t, registerBaseRoutes(router, nil, nil, nil))
 
 	routes := make(map[string]struct{})
 	for _, route := range router.Routes() {

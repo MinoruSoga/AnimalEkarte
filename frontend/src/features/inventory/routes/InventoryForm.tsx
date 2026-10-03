@@ -2,6 +2,7 @@ import { useCallback, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { paths } from "@/config/paths";
+import { useBackNavigation, useBackPath } from "@/hooks/use-back-navigation";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useInventoryForm } from "../hooks/use-inventory-form";
 import { usePermission } from "@/hooks/use-permission";
@@ -35,16 +36,16 @@ export function InventoryForm() {
   const canSubmit = isEdit ? canEdit : canCreate;
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
+  const backPath = useBackPath(paths.inventory.getHref());
+
   useEffect(() => {
     if (formState.success) {
       markClean();
-      navigate(paths.inventory.getHref());
+      navigate(backPath);
     }
-  }, [formState.success, formState.timestamp, navigate, markClean]);
+  }, [formState.success, formState.timestamp, navigate, markClean, backPath]);
 
-  const handleBack = useCallback(() => {
-    navigate(paths.inventory.getHref());
-  }, [navigate]);
+  const handleBack = useBackNavigation(paths.inventory.getHref());
 
   const handleCategoryChange = useCallback(
     (value: InventoryItem["category"]) => {

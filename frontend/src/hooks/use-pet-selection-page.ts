@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useGetPets } from "@/hooks/use-pet";
 import { useAuth } from "@/hooks/use-auth";
+import { useBackNavigation } from "@/hooks/use-back-navigation";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { paths } from "@/config/paths";
 import type { Pet } from "@/types";
@@ -166,9 +167,7 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
     [navigate, config.selectPath, location.search, location.state, currentClinicId],
   );
 
-  const handleBack = useCallback(() => {
-    navigate(config.backPath);
-  }, [navigate, config.backPath]);
+  const handleBack = useBackNavigation(config.backPath);
 
   return {
     searchParams,

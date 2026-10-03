@@ -36,13 +36,13 @@ func (m *mockLineSendLogRepo) FindByOwner(ctx context.Context, clinicID, ownerID
 
 // ---- mock SharedFileService ----
 
-// mockSharedFileSvc は SharedFileService のテスト用モック。GetSignedURL のみ設定可能
-// （line_send_service.go の Send は GetSignedURL しか呼ばないため他は固定挙動のままでよい）。
+// mockSharedFileSvc は lstepSharedFileService のテスト用モック。GetSignedURLForDelivery
+// のみ設定可能（line_send_service.go の Send はそれしか呼ばないため他は不要）。
 type mockSharedFileSvc struct {
 	getSignedURLFn func(ctx context.Context, clinicID, id uint64) (string, error)
 }
 
-func (m *mockSharedFileSvc) GetSignedURL(ctx context.Context, clinicID, id uint64) (string, error) {
+func (m *mockSharedFileSvc) GetSignedURLForDelivery(ctx context.Context, clinicID, id uint64) (string, error) {
 	if m.getSignedURLFn != nil {
 		return m.getSignedURLFn(ctx, clinicID, id)
 	}

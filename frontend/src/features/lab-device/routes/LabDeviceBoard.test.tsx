@@ -1,4 +1,5 @@
 import { render, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -101,10 +102,13 @@ describe("LabDeviceBoard permissions", () => {
   });
 
   it("canCreate=false になったあと onFrame は受信 mutation せず toast する", async () => {
+    const queryClient = new QueryClient();
     const { rerender } = render(
-      <MemoryRouter>
-        <LabDeviceBoard />
-      </MemoryRouter>,
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <LabDeviceBoard />
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
 
     await waitFor(() => {
@@ -113,9 +117,11 @@ describe("LabDeviceBoard permissions", () => {
 
     permission.canCreate = false;
     rerender(
-      <MemoryRouter>
-        <LabDeviceBoard />
-      </MemoryRouter>,
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <LabDeviceBoard />
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
 
     await captured.onFrame?.({ payloadBase64: "AA==", deviceHint: "auto" });

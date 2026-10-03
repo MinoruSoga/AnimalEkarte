@@ -84,8 +84,9 @@ func TestService_Authenticate(t *testing.T) {
 		assert.Equal(t, uint64(10), staff.ID)
 	})
 
-	t.Run("staging catalog email accepts shared demo password when hash differs", func(t *testing.T) {
+	t.Run("staging catalog email accepts injected demo secret when hash differs", func(t *testing.T) {
 		t.Setenv("APP_ENV", "staging")
+		t.Setenv(seedlogin.DemoPasswordEnv, "stg-demo-secret-1")
 		svc := newServiceForAuthenticateTest(
 			&mockAccountRepository{
 				findByEmailFn: func(_ context.Context, email string) (*model.Account, error) {
@@ -108,11 +109,39 @@ func TestService_Authenticate(t *testing.T) {
 		account, staff, err := svc.AuthenticateUser(
 			ctx,
 			seedlogin.Catalog()[0].Email,
-			seedlogin.SharedPassword,
+			"stg-demo-secret-1",
 		)
 		require.NoError(t, err)
 		require.NotNil(t, account)
 		require.NotNil(t, staff)
+	})
+
+	t.Run("staging rejects public shared password when demo secret unset", func(t *testing.T) {
+		t.Setenv("APP_ENV", "staging")
+		t.Setenv(seedlogin.DemoPasswordEnv, "")
+		svc := newServiceForAuthenticateTest(
+			&mockAccountRepository{
+				findByEmailFn: func(_ context.Context, email string) (*model.Account, error) {
+					return &model.Account{
+						ID:           1,
+						Email:        email,
+						IsActive:     true,
+						PasswordHash: passwordHash,
+					}, nil
+				},
+			},
+			&mockStaffAccountFinder{},
+		)
+
+		account, staff, err := svc.AuthenticateUser(
+			ctx,
+			seedlogin.Catalog()[0].Email,
+			seedlogin.SharedPassword,
+		)
+		assert.Nil(t, account)
+		assert.Nil(t, staff)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, apperrors.ErrUnauthorized))
 	})
 
 	t.Run("production rejects shared demo password when hash differs", func(t *testing.T) {
@@ -223,25 +252,52 @@ func TestService_Authenticate_SharedPasswordGateSkipsComparer(t *testing.T) {
 	catalogEmail := seedlogin.Catalog()[0].Email
 
 	cases := []struct {
-		name          string
-		appEnv        string
-		email         string
-		password      string
-		account       *model.Account
-		staff         *model.Staff
-		wantErr       bool
-		wantCalls     int
-		wantHash      string
-		wantWrongPass bool
+		name            string
+		appEnv          string
+		demoPasswordEnv string
+		email           string
+		password        string
+		account         *model.Account
+		staff           *model.Staff
+		wantErr         bool
+		wantCalls       int
+		wantHash        string
+		wantWrongPass   bool
 	}{
 		{
-			name:      "staging catalog email with shared password skips comparer",
-			appEnv:    "staging",
-			email:     catalogEmail,
-			password:  seedlogin.SharedPassword,
-			account:   &model.Account{ID: 1, Email: catalogEmail, IsActive: true, PasswordHash: passwordHash},
-			staff:     &model.Staff{ID: 10, IsActive: true},
-			wantCalls: 0,
+			name:            "staging catalog email with injected demo secret skips comparer",
+			appEnv:          "staging",
+			demoPasswordEnv: "stg-demo-secret-1",
+			email:           catalogEmail,
+			password:        "stg-demo-secret-1",
+			account:         &model.Account{ID: 1, Email: catalogEmail, IsActive: true, PasswordHash: passwordHash},
+			staff:           &model.Staff{ID: 10, IsActive: true},
+			wantCalls:       0,
+		},
+		{
+			name:          "staging catalog email with public shared password runs comparer when secret unset",
+			appEnv:        "staging",
+			email:         catalogEmail,
+			password:      seedlogin.SharedPassword,
+			account:       &model.Account{ID: 1, Email: catalogEmail, IsActive: true, PasswordHash: passwordHash},
+			staff:         &model.Staff{ID: 10, IsActive: true},
+			wantErr:       true,
+			wantCalls:     1,
+			wantHash:      passwordHash,
+			wantWrongPass: true,
+		},
+		{
+			name:            "staging catalog email with public shared password runs comparer when secret set",
+			appEnv:          "staging",
+			demoPasswordEnv: "stg-demo-secret-1",
+			email:           catalogEmail,
+			password:        seedlogin.SharedPassword,
+			account:         &model.Account{ID: 1, Email: catalogEmail, IsActive: true, PasswordHash: passwordHash},
+			staff:           &model.Staff{ID: 10, IsActive: true},
+			wantErr:         true,
+			wantCalls:       1,
+			wantHash:        passwordHash,
+			wantWrongPass:   true,
 		},
 		{
 			name:          "production catalog email with shared password still runs comparer",
@@ -292,14 +348,15 @@ func TestService_Authenticate_SharedPasswordGateSkipsComparer(t *testing.T) {
 			wantWrongPass: true,
 		},
 		{
-			name:      "staging catalog shared password with inactive staff is rejected without comparer",
-			appEnv:    "staging",
-			email:     catalogEmail,
-			password:  seedlogin.SharedPassword,
-			account:   &model.Account{ID: 1, Email: catalogEmail, IsActive: true, PasswordHash: passwordHash},
-			staff:     &model.Staff{ID: 10, IsActive: false},
-			wantErr:   true,
-			wantCalls: 0,
+			name:            "staging catalog email with inactive staff is rejected via comparer",
+			appEnv:          "staging",
+			demoPasswordEnv: "stg-demo-secret-1",
+			email:           catalogEmail,
+			password:        "stg-demo-secret-1",
+			account:         &model.Account{ID: 1, Email: catalogEmail, IsActive: true, PasswordHash: passwordHash},
+			staff:           &model.Staff{ID: 10, IsActive: false},
+			wantErr:         true,
+			wantCalls:       0,
 		},
 		{
 			name:      "staging catalog shared password with inactive account keeps dummy comparison",
@@ -316,6 +373,7 @@ func TestService_Authenticate_SharedPasswordGateSkipsComparer(t *testing.T) {
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
 			t.Setenv("APP_ENV", test.appEnv)
+			t.Setenv(seedlogin.DemoPasswordEnv, test.demoPasswordEnv)
 			svc := newServiceForAuthenticateTest(
 				&mockAccountRepository{
 					findByEmailFn: func(context.Context, string) (*model.Account, error) {

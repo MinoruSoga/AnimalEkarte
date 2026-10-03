@@ -136,7 +136,7 @@ func findOrCreateSyntheticAuditSentinel(ctx context.Context, tx *gorm.DB) (*synt
 	// sentinel staff の find-or-create は staff package 側の helper へ委譲する。
 	staffRow, err := staff.FindOrCreateSyntheticAuditSentinelStaff(ctx, tx, clinic.ID, syntheticAuditSentinelStaffName)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "find or create synthetic audit sentinel staff")
 	}
 
 	return &syntheticAuditSentinel{companyID: company.ID, clinicID: clinic.ID, staffID: staffRow.ID}, nil

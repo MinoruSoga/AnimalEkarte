@@ -55,9 +55,15 @@ BACKEND_SHARED_PACKAGES = frozenset({
 
 BACKEND_FULL_PATH_PREFIXES = (
     'backend/cmd/',
-    'backend/migrations/',
     'backend/worker/',
     'backend/docs/',
+)
+
+# backend/migrations/** は Go テストのスコープ判定対象外。migration/seed のみの
+# 変更は paths-filter の backend_migrations が Backend Migration Tests ジョブを
+# 起動する（Go domain shard の対象は Go コード）。
+BACKEND_IGNORE_PATH_PREFIXES = (
+    'backend/migrations/',
 )
 
 BACKEND_FULL_EXACT = frozenset({
@@ -102,6 +108,8 @@ def classify_backend_path(path: str) -> tuple[str, str | None]:
     path = _posix(path)
     if path in BACKEND_FULL_EXACT:
         return 'shared', path
+    if path.startswith(BACKEND_IGNORE_PATH_PREFIXES):
+        return 'ignore', 'backend-migrations'
     if path.startswith(BACKEND_FULL_PATH_PREFIXES):
         return 'shared', path
     if not path.startswith('backend/'):

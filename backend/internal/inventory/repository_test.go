@@ -321,6 +321,25 @@ func TestInventoryRepository_DecreaseStock(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 0, got.Quantity)
 	})
+
+	// SEC-CS3-O1: 小数数量は int 変換で 0 減算になる迂回を防ぐため InvalidInput で拒否。
+	t.Run("小数数量は InvalidInput で拒否され在庫は変わらない", func(t *testing.T) {
+		fracItem := makeInventoryItem(t, db, clinicA, "小数拒否在庫", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
+
+		err := repo.DecreaseStock(ctx, clinicA, fracItem.ID, 0.5)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input for fractional quantity, got: %v", err)
+
+		got, findErr := repo.FindByID(ctx, clinicA, fracItem.ID)
+		require.NoError(t, findErr)
+		assert.Equal(t, 10, got.Quantity)
+	})
+
+	t.Run("非正の数量は InvalidInput で拒否される", func(t *testing.T) {
+		err := repo.DecreaseStock(ctx, clinicA, item.ID, 0)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
 }
 
 func TestInventoryRepository_DecreaseStock_AmbientTxRollback(t *testing.T) {

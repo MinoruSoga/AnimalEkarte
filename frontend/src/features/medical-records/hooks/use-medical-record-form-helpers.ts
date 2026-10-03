@@ -22,6 +22,7 @@ import {
   resolveEntityReadResult,
   type EntityReadResult,
 } from "@/lib/entity-read-result";
+import { parseInternalPath } from "@/lib/internal-navigation";
 import type { ActionState } from "@/types/form";
 import type { MedicalRecord } from "../api/transforms";
 import type { Pet } from "@/types";
@@ -325,8 +326,9 @@ export function createMedicalRecordBackHandler(input: {
   navigate: (to: string) => void;
 }): () => void {
   return () => {
-    if (input.from) {
-      input.navigate(input.from as string);
+    const from = parseInternalPath(input.from);
+    if (from) {
+      input.navigate(from);
       return;
     }
     if (!input.recordId) {

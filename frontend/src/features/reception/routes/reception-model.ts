@@ -1,4 +1,4 @@
-export const NO_ADD_BUTTON_COLUMNS = new Set(["診療中", "会計待ち", "会計済"]);
+const NO_ADD_BUTTON_COLUMNS = new Set(["診療中", "会計待ち", "会計済"]);
 
 /** `?date=` が受理する形式。暦日の実在性は別途フィールド往復一致で検査する。 */
 const RECEPTION_DATE_PARAM_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;

@@ -44,6 +44,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		NewLiffHandler(nil, nil),
 		nil,
 		func(limit int) gin.HandlerFunc { return func(c *gin.Context) {} },
+		func(c *gin.Context) {},
 		stubLinkLiffAccount,
 		noopPermission,
 	)
@@ -148,6 +149,7 @@ func TestRegisterLiffRoutes_RateLimitsEveryPublicAuthenticatedRoute(t *testing.T
 			configuredLimits = append(configuredLimits, limit)
 			return func(c *gin.Context) { c.Next() }
 		},
+		func(c *gin.Context) { c.Next() },
 		stubLinkLiffAccount,
 		func(_, _ string) gin.HandlerFunc { return func(c *gin.Context) { c.Next() } },
 	)

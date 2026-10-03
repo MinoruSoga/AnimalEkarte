@@ -149,7 +149,7 @@ type checkupFieldOptionJSON struct {
 func marshalCheckupFieldOptionInputs(options []CheckupFieldOptionInput) (datatypes.JSON, error) {
 	wire := make([]checkupFieldOptionJSON, 0, len(options))
 	for _, opt := range options {
-		wire = append(wire, checkupFieldOptionJSON{Value: opt.Value, Label: opt.Label})
+		wire = append(wire, checkupFieldOptionJSON(opt))
 	}
 	b, err := json.Marshal(wire)
 	if err != nil {
@@ -169,7 +169,7 @@ func decodeCheckupFieldOptions(raw datatypes.JSON) ([]CheckupFieldOptionInput, e
 	}
 	options := make([]CheckupFieldOptionInput, 0, len(wire))
 	for _, opt := range wire {
-		options = append(options, CheckupFieldOptionInput{Value: opt.Value, Label: opt.Label})
+		options = append(options, CheckupFieldOptionInput(opt))
 	}
 	return options, nil
 }

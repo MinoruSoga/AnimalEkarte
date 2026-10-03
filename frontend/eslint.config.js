@@ -73,7 +73,7 @@ const generatedModelsRelativeImportPattern = {
 };
 
 export default tseslint.config(
-  { ignores: ["dist", "node_modules", "coverage", "src/types/generated/**"] },
+  { ignores: ["dist", "node_modules", "coverage", "storybook-static", "src/types/generated/**"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],

@@ -35,6 +35,10 @@ func (m *mockSharedFileService) GetSignedURL(ctx context.Context, clinicID, id u
 	return m.getSignedURLFn(ctx, clinicID, id)
 }
 
+func (m *mockSharedFileService) GetSignedURLForDelivery(ctx context.Context, clinicID, id uint64) (string, error) {
+	return m.getSignedURLFn(ctx, clinicID, id)
+}
+
 func (m *mockSharedFileService) FindAll(ctx context.Context, clinicID uint64) ([]*SharedFileResponse, error) {
 	return m.findAllFn(ctx, clinicID)
 }

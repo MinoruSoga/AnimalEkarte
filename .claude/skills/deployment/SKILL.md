@@ -42,7 +42,7 @@ gh run list --workflow=frontend-deploy.yml
 
 ## CI パイプライン（ci.yml）
 
-実ジョブ構成は `ci-cd-automation` スキルを参照（changes判定 + 6本のインベントリlint + backend(build/lint/test/schema-drift) + frontend(audit/type-check/test/lint/build の4ゲート) + codegen-check + migration-verify）。
+実ジョブ構成は `ci-cd-automation` スキルを参照（最小構成: `Workflow Contracts` + `Gitleaks Secret Scan` のみ。build/test/coverage/lint/migration/worker/codegen/audit は `make ci` = `scripts/run-local-ci.sh` 側に集約済み）。
 
 ## 重要な注意事項
 

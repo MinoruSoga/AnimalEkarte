@@ -4,6 +4,7 @@ import type { NavigateFunction } from "react-router";
 import { toast } from "sonner";
 
 import { getReservationStatusLabel } from "@/lib/status-helpers";
+import { parseInternalPath } from "@/lib/internal-navigation";
 import type { ReservationCreateMutations } from "@/types/reservation-create-mutations";
 
 import { useDeleteReservation } from "../api/delete-reservation";
@@ -106,8 +107,9 @@ export function useReservationActions({
   );
 
   const navigateBackIfNeeded = useCallback(() => {
-    if (locationFrom) {
-      navigate(locationFrom);
+    const from = parseInternalPath(locationFrom);
+    if (from) {
+      navigate(from);
     }
   }, [locationFrom, navigate]);
 

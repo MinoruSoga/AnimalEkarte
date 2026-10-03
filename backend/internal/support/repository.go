@@ -2,10 +2,14 @@
 // screenshots and page context, submitted from the in-app floating widget.
 //
 // バグ報告は意図的な全医院公開の共有ボード: 認証済みスタッフなら誰でも全医院の
-// 報告を一覧・操作できる（権限ゲート・医院絞りなし）。報告は医院の業務データではなく
+// 報告を一覧できる（権限ゲート・医院絞りなし）。報告は医院の業務データではなく
 // 製品へのフィードバックとして扱う product 決定（2026-10）。スクショに他院の
 // 患者情報が写り得る点は仕様上許容済み。clinic_id/reporter_staff_id は絞り込みではなく
 // provenance として記録する。
+// 変更（2026-10 セキュリティレビュー）: 一覧・作成は全医院公開を維持するが、
+// status 更新・Plane 起票・削除は報告元 clinic_id スコープに限定する。
+// 他医院の報告への操作は「操作対象として存在しない」= 通常の NotFound と同じ
+// 応答を返す。
 // チャット履歴: 個人スコープの GET/DELETE /chat/history と、全医院共有ボードの
 // GET /chat/exchanges（質問傾向の横断分析目的で意図的に公開 — バグ報告と同じ
 // product 決定。質問内容に個人情報が含まれ得る点はユーザー承認済み）。
@@ -32,12 +36,19 @@ const maxChatExchangeMessages = 1000
 type Repository interface {
 	Create(ctx context.Context, report *model.SupportBugReport) error
 	FindAll(ctx context.Context) ([]BugReportWithReporter, error)
-	FindByID(ctx context.Context, id uint64) (*model.SupportBugReport, error)
-	UpdateStatus(ctx context.Context, id uint64, status model.SupportBugReportStatus) error
+	// FindByIDForClinic は報告元医院スコープの操作（更新・起票・削除）が対象行を
+	// 取り出すための取得。他医院の id は未存在と同じ NotFound を返す。
+	FindByIDForClinic(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
+	UpdateStatus(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) error
+	// ListOpenWithPlaneTicket は Plane 起票済みで status=open の報告を返す。
+	// scheduled sync（Plane 側 completed → 報告 resolved）の対象抽出用で
+	// 全医院横断 — 起票済み報告は各報告の clinic_id を保持しているため
+	// 返却後の UpdateStatus も報告元 clinic スコープで実行できる。
+	ListOpenWithPlaneTicket(ctx context.Context, limit int) ([]model.SupportBugReport, error)
 	// SetPlaneTicket は起票成功を記録し、claim 成功時（= 先に起票済みでない）に true を返す。
-	SetPlaneTicket(ctx context.Context, id uint64, issueID, issueURL string) (bool, error)
-	SetPlaneSyncError(ctx context.Context, id uint64, syncErr string) error
-	SoftDeleteBugReport(ctx context.Context, id uint64) error
+	SetPlaneTicket(ctx context.Context, clinicID, id uint64, issueID, issueURL string) (bool, error)
+	SetPlaneSyncError(ctx context.Context, clinicID, id uint64, syncErr string) error
+	SoftDeleteBugReport(ctx context.Context, clinicID, id uint64) error
 	CreateChatMessages(ctx context.Context, messages []*model.SupportChatMessage) error
 	ListChatHistory(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
 	// ListAllChatMessages は全医院の履歴を新しい順で返す（共有一覧ページ用 — 個人履歴と別契約）
@@ -86,10 +97,10 @@ func (r *repository) FindAll(ctx context.Context) ([]BugReportWithReporter, erro
 	return reports, nil
 }
 
-func (r *repository) FindByID(ctx context.Context, id uint64) (*model.SupportBugReport, error) {
+func (r *repository) FindByIDForClinic(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error) {
 	var report model.SupportBugReport
 	err := r.db.WithContext(ctx).
-		Where("id = ?", id).
+		Where("id = ? AND clinic_id = ?", id, clinicID).
 		First(&report).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "support_bug_report", uintToString(id))
@@ -174,10 +185,10 @@ func (r *repository) ClearChatHistory(ctx context.Context, clinicID, staffID uin
 	return nil
 }
 
-func (r *repository) UpdateStatus(ctx context.Context, id uint64, status model.SupportBugReportStatus) error {
+func (r *repository) UpdateStatus(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.SupportBugReport{}).
-		Where("id = ?", id).
+		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Update("status", status)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "support_bug_report", uintToString(id))
@@ -188,13 +199,28 @@ func (r *repository) UpdateStatus(ctx context.Context, id uint64, status model.S
 	return nil
 }
 
+func (r *repository) ListOpenWithPlaneTicket(ctx context.Context, limit int) ([]model.SupportBugReport, error) {
+	var reports []model.SupportBugReport
+	query := r.db.WithContext(ctx).
+		Where("status = ?", model.SupportBugReportStatusOpen).
+		Where("plane_issue_id IS NOT NULL").
+		Order("id ASC")
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+	if err := query.Find(&reports).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "support_bug_report", "")
+	}
+	return reports, nil
+}
+
 // SetPlaneTicket は Plane 起票成功を記録する。二重起票防止のため
 // plane_issue_id IS NULL の行にのみ書き込む（自動起票と手動再送、あるいは
 // 手動再送の二重クリックが競合した場合、後着は claim 失敗 = false を返す）。
-func (r *repository) SetPlaneTicket(ctx context.Context, id uint64, issueID, issueURL string) (bool, error) {
+func (r *repository) SetPlaneTicket(ctx context.Context, clinicID, id uint64, issueID, issueURL string) (bool, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.SupportBugReport{}).
-		Where("id = ? AND plane_issue_id IS NULL", id).
+		Where("id = ? AND clinic_id = ? AND plane_issue_id IS NULL", id, clinicID).
 		Updates(map[string]any{
 			"plane_issue_id":   issueID,
 			"plane_issue_url":  issueURL,
@@ -207,10 +233,10 @@ func (r *repository) SetPlaneTicket(ctx context.Context, id uint64, issueID, iss
 }
 
 // SetPlaneSyncError は直近の Plane 起票失敗理由を記録する（成功時は SetPlaneTicket が NULL に戻す）。
-func (r *repository) SetPlaneSyncError(ctx context.Context, id uint64, syncErr string) error {
+func (r *repository) SetPlaneSyncError(ctx context.Context, clinicID, id uint64, syncErr string) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.SupportBugReport{}).
-		Where("id = ?", id).
+		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Update("plane_sync_error", syncErr)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "support_bug_report", uintToString(id))
@@ -223,9 +249,9 @@ func (r *repository) SetPlaneSyncError(ctx context.Context, id uint64, syncErr s
 
 // SoftDeleteBugReport は報告を論理削除する（deleted_at 設定）。対象なしは NotFound。
 // GORM の soft delete により削除済み行は FindByID/一覧から自然に除外される。
-func (r *repository) SoftDeleteBugReport(ctx context.Context, id uint64) error {
+func (r *repository) SoftDeleteBugReport(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Where("id = ?", id).
+		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Delete(&model.SupportBugReport{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "support_bug_report", uintToString(id))

@@ -2,11 +2,13 @@ package seedlogin
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"log/slog"
+	"os"
 	"strconv"
 	"strings"
 
@@ -15,10 +17,23 @@ import (
 	"github.com/animal-ekarte/backend/internal/config"
 )
 
-// Apply upserts curated demo staffs + accounts using SharedPassword.
-// The password value must not be written to logs.
+// Apply upserts curated demo staffs + accounts with the environment's shared
+// demo password (SharedPassword locally; SEEDLOGIN_DEMO_PASSWORD on staging).
+// When staging has no secret injected, accounts are still upserted but get an
+// unguessable password — catalog logins stay closed (fail-closed) until the
+// secret is set and migrate re-runs. The password value must not be written to logs.
 func Apply(ctx context.Context, db *sql.DB) (int, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(SharedPassword), config.BcryptCost)
+	password := sharedPasswordForEnv(os.Getenv("APP_ENV"))
+	if password == "" {
+		var err error
+		password, err = lockedDemoPassword()
+		if err != nil {
+			return 0, err
+		}
+		slog.Warn("seedlogin: demo password secret unset — catalog logins locked",
+			slog.String("env", DemoPasswordEnv))
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), config.BcryptCost)
 	if err != nil {
 		return 0, fmt.Errorf("hash demo login password: %w", err)
 	}
@@ -49,6 +64,17 @@ func Apply(ctx context.Context, db *sql.DB) (int, error) {
 		return 0, fmt.Errorf("commit login seed tx: %w", err)
 	}
 	return applied, nil
+}
+
+// lockedDemoPassword returns an unguessable password for catalog accounts when
+// the environment provides no shared demo password. The plaintext is discarded
+// after hashing — its only purpose is a bcrypt hash no credential can match.
+func lockedDemoPassword() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("generate locked demo password: %w", err)
+	}
+	return hex.EncodeToString(b), nil
 }
 
 // CatalogChecksum is a non-secret fingerprint of the curated account set.

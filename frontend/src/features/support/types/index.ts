@@ -17,6 +17,8 @@ export interface BugReport {
   status: BugReportStatus;
   reporter_staff_id: number;
   reporter_name: string;
+  /** 報告元医院ID（一覧の自院判定 — 操作可否のUI制御） */
+  clinic_id: number;
   /** 報告元医院名（一覧のみ付与 — 全医院共有ボードでの provenance 表示） */
   clinic_name?: string;
   screenshot_url?: string;
@@ -30,12 +32,7 @@ export interface BugReport {
 
 // ── ヘルプチャット（POST /v1/support/chat） ──────────────────────────
 
-export type SupportChatRole = "user" | "assistant";
-
-export interface SupportChatHistoryMessage {
-  role: SupportChatRole;
-  content: string;
-}
+type SupportChatRole = "user" | "assistant";
 
 /** 検索で取得したマニュアル抜粋を LLM の根拠コンテキストとして送る */
 export interface SupportChatContextItem {
@@ -45,7 +42,7 @@ export interface SupportChatContextItem {
   text: string;
 }
 
-export interface SupportChatSource {
+interface SupportChatSource {
   title: string;
   category: string;
   slug: string;

@@ -8,7 +8,7 @@
 
 - `CreateSyntheticClosingFixture` は transaction 内で新規 company/clinic/settings/staff(account, system admin)/owner/species/pet/会計ヘッダ/明細/payment/payment_splits と指定 5 時刻の completed billing を作る。支払方法は clinic INSERT の `trg_create_default_payment_methods` が入れた `cash` を再利用し、testdb のように trigger が無いときだけ INSERT する。既存 billing ID の指定を拒否し、既存会計の UPDATE はしない。平日以外の対象日は拒否する。
 - `synthetic_closing_env.go` は `APP_ENV=test/development/local/dev`、DB host `db/localhost/127.0.0.1`、HTTP host `backend/localhost/127.0.0.1` を fail-closed で判定する。接続済み DB の hostname 同一性検証は呼び出し側が渡す `DB_HOST` に依存する。
-- HTTP: `POST /api/v1/uat/synthetic-closings` と `DELETE /api/v1/uat/synthetic-closings/:clinic_id`（`X-UAT-Cleanup-Token`）。staging/production と許可外 HTTP host は 404。ログインパスワードは応答に出さず `UAT_SYNTHETIC_CLOSING_PASSWORD` からハッシュする。
+- HTTP: `POST /api/v1/uat/synthetic-closings` と `DELETE /api/v1/uat/synthetic-closings/:clinic_id`（`X-UAT-Cleanup-Token`）。staging/production と許可外 HTTP host は 404。全リクエストに `Authorization: Bearer <UAT_SYNTHETIC_CLOSING_SECRET>` が必須（未設定なら全拒否、Host ヘッダは caller 制御で偽装可能なため bearer で fail closed）。cleanup トークンは同 secret を鍵とする HMAC で、公開定数からは計算不能。ログインパスワードは応答に出さず `UAT_SYNTHETIC_CLOSING_PASSWORD` からハッシュする。
 - CLI: `backend/cmd/synthetic-closing-fixture` の `setup` / `teardown`。
 - ブラウザ UAT（S09 #2–#6）と締めプレビュー集計の目視は未。S09 は **BLOCKED を維持**する。（2026-09-29 追記: `frontend/e2e/s09-closing-time-boundaries.spec.ts` が #2–#6 の帰属プレビューを自動化する spec として追加済み。fixture は `POST/DELETE /api/v1/uat/synthetic-closings` 経由、`UAT_SYNTHETIC_CLOSING_PASSWORD` 必須、`run-e2e.sh` の allowlist には入らず明示 spec path で実行する。spec の存在は実行証跡ではなく、記録済み run がない限り BLOCKED の判定は変わらない）
 

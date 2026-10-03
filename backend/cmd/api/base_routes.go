@@ -9,6 +9,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"github.com/animal-ekarte/backend/internal/support"
 )
 
 const uploadsDirectory = "/app/uploads"
@@ -43,6 +45,16 @@ func healthDB(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// uploadsNoSniffHeader は /uploads 静的配信へ X-Content-Type-Options: nosniff を付与する。
+// SEC-CS3-O6: 保存ファイルが Content-Type 偽装で active content として解釈される
+// 経路を塞ぐ（upload 側でも ext/sniff 照合済み）。
+// 名前付き関数にするのは、registerBaseRoutes 内に無名ハンドラを増やすと
+// healthDB.funcN の inlining 採番がずれて get_head_permissions.json の
+// ハンドラ照合が壊れるため（ルート walker も Group(path) 1引数形のみ解決する）。
+func uploadsNoSniffHeader(c *gin.Context) {
+	c.Header("X-Content-Type-Options", "nosniff")
+}
+
 // registerBaseRoutes installs the non-domain HTTP surface. Domain routes are
 // registered separately after auth creates the protected API group.
 //
@@ -56,6 +68,7 @@ func registerBaseRoutes(
 	router *gin.Engine,
 	scheduledBatch scheduledBatchService,
 	db *gorm.DB,
+	planeTickets support.TicketCreator,
 ) error {
 	if router == nil {
 		return fmt.Errorf("base route engine is required")
@@ -66,8 +79,17 @@ func registerBaseRoutes(
 	router.GET("/health/db", healthDB(db))
 	// CMD-05: do not expose local upload PHI via StaticFS when object storage is configured.
 	if os.Getenv("STORAGE_TYPE") != "s3" {
-		router.StaticFS("/uploads", gin.Dir(uploadsDirectory, false))
+		// SEC-CS3-O6: nosniff を強制（名前付き middleware — Group(path) 1引数形で
+		// 静的ルート walker が解決できる形に保つ）。
+		uploads := router.Group("/uploads")
+		uploads.Use(uploadsNoSniffHeader)
+		uploads.StaticFS("/", gin.Dir(uploadsDirectory, false))
 	}
-	registerScheduledJobRoutes(router, scheduledBatch, os.Getenv("SCHEDULER_INTERNAL_TOKEN"))
+	registerScheduledJobRoutes(
+		router,
+		scheduledBatch,
+		planeStateSyncerFor(db, planeTickets),
+		os.Getenv("SCHEDULER_INTERNAL_TOKEN"),
+	)
 	return nil
 }

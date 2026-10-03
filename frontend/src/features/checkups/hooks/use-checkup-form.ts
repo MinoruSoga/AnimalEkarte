@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
+import { useBackPath } from "@/hooks/use-back-navigation";
 import { useGetPet } from "@/hooks/use-pet";
 import { INITIAL_ACTION_STATE, type ActionState } from "@/types/form";
 import {
@@ -31,6 +32,7 @@ export function useCheckupForm(
   permissions: Readonly<CheckupMutationPermissions> = DENIED_MUTATION_PERMISSIONS,
 ) {
   const navigate = useNavigate();
+  const backPath = useBackPath(paths.checkups.getHref());
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId") ?? "";
 
@@ -140,9 +142,9 @@ export function useCheckupForm(
 
   useEffect(() => {
     if (formState.success) {
-      navigate(paths.checkups.getHref());
+      navigate(backPath);
     }
-  }, [formState.success, formState.timestamp, navigate]);
+  }, [formState.success, formState.timestamp, navigate, backPath]);
 
   // FE-RC-064: フックは return 文の外で定義する（Rules of Hooks の可読性規約）。
   const setCheckupTypeId = useCallback(

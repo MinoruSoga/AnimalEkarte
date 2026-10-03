@@ -1,6 +1,7 @@
 package medicalrecord
 
 import (
+	"bytes"
 	"mime/multipart"
 	"net/textproto"
 	"strings"
@@ -171,7 +172,7 @@ func TestMedicalRecordImageUploadRequest_Validate_RejectsUnsupportedExt(t *testi
 func TestMedicalRecordImageUploadMeta_NewStoredName(t *testing.T) {
 	now := time.Date(2026, 5, 28, 9, 0, 0, 123, time.UTC)
 
-	storedName, err := (medicalRecordImageUploadMeta{fileExt: ".png"}).newStoredName(now)
+	storedName, err := (medicalRecordImageUploadMeta{mimeType: "image/png"}).newStoredName(now)
 	if err != nil {
 		t.Fatalf("newStoredName returned error: %v", err)
 	}
@@ -187,7 +188,7 @@ func TestMedicalRecordImageUploadMeta_NewStoredName(t *testing.T) {
 func TestMedicalRecordImageUploadMeta_NewStoredName_DifferentExtAndTime(t *testing.T) {
 	now := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	storedName, err := (medicalRecordImageUploadMeta{fileExt: ".pdf"}).newStoredName(now)
+	storedName, err := (medicalRecordImageUploadMeta{mimeType: "application/pdf"}).newStoredName(now)
 	if err != nil {
 		t.Fatalf("newStoredName returned error: %v", err)
 	}
@@ -293,5 +294,66 @@ func TestMedicalRecordImageUploadMeta_ToUploadedInput(t *testing.T) {
 	}
 	if got.TakenAt == nil || !got.TakenAt.Equal(takenAt) {
 		t.Errorf("TakenAt = %v, want %v", got.TakenAt, takenAt)
+	}
+}
+
+// SEC-CS3-O6: .html を image/png 宣言で偽装したファイルを拡張子↔MIME 一致で拒否する。
+func TestMedicalRecordImageUploadRequest_Validate_RejectsActiveExtDisguise(t *testing.T) {
+	header := multipart.FileHeader{
+		Filename: "evil.html",
+		Header:   textproto.MIMEHeader{"Content-Type": []string{"image/png"}},
+		Size:     1024,
+	}
+
+	_, err := newMedicalRecordImageUploadRequest(&header).validate()
+	if err == nil {
+		t.Fatal("validate accepted .html disguised as image/png")
+	}
+	if !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("error = %q, want extension mismatch message", err.Error())
+	}
+}
+
+// SEC-CS3-O6: 拡張子と宣言 MIME が一致しない正当画像も拒否する（.png に image/jpeg 宣言）。
+func TestMedicalRecordImageUploadRequest_Validate_RejectsExtDeclaredMismatch(t *testing.T) {
+	header := multipart.FileHeader{
+		Filename: "scan.png",
+		Header:   textproto.MIMEHeader{"Content-Type": []string{"image/jpeg"}},
+		Size:     1024,
+	}
+
+	if _, err := newMedicalRecordImageUploadRequest(&header).validate(); err == nil {
+		t.Fatal("validate accepted ext/declared MIME mismatch")
+	}
+}
+
+// sniffFile は multipart.File を bytes.Reader ベースで満たすテスト用実装。
+type sniffFile struct {
+	*bytes.Reader
+}
+
+func (sniffFile) Close() error { return nil }
+
+// SEC-CS3-O6: content-sniff 照合 — PNG バイトは image/png として受理、HTML バイトは拒否。
+func TestMedicalRecordImageUploadMeta_VerifySniffedContent(t *testing.T) {
+	pngBytes := append([]byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}, make([]byte, 64)...)
+	htmlBytes := []byte("<!DOCTYPE html><html><script>alert(1)</script></html>")
+
+	if err := (medicalRecordImageUploadMeta{mimeType: "image/png"}).verifySniffedContent(
+		sniffFile{bytes.NewReader(pngBytes)},
+	); err != nil {
+		t.Fatalf("verifySniffedContent rejected PNG bytes: %v", err)
+	}
+
+	if err := (medicalRecordImageUploadMeta{mimeType: "image/png"}).verifySniffedContent(
+		sniffFile{bytes.NewReader(htmlBytes)},
+	); err == nil {
+		t.Fatal("verifySniffedContent accepted HTML bytes as image/png")
+	}
+
+	if err := (medicalRecordImageUploadMeta{mimeType: "image/png"}).verifySniffedContent(
+		sniffFile{bytes.NewReader(nil)},
+	); err == nil {
+		t.Fatal("verifySniffedContent accepted empty file")
 	}
 }

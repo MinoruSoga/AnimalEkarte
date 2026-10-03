@@ -38,6 +38,9 @@ const (
 	JobNoShow   Job = "no_show"
 	JobDelivery Job = "delivery"
 	JobDormant  Job = "dormant"
+	// JobPlaneSync syncs Plane ticket states back to bug reports
+	// (Plane completed -> report resolved, one direction only).
+	JobPlaneSync Job = "plane_sync"
 )
 
 // RunRequest is the exact Worker-to-Go request contract.
@@ -211,7 +214,7 @@ func parseJobAction(action string) (Job, bool) {
 
 func (j Job) valid() bool {
 	switch j {
-	case JobNoShow, JobDelivery, JobDormant:
+	case JobNoShow, JobDelivery, JobDormant, JobPlaneSync:
 		return true
 	default:
 		return false

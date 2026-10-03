@@ -74,6 +74,17 @@ function requireSyntheticClosingPassword(): string {
   return password;
 }
 
+// backend の allowHTTP が Authorization: Bearer で検証する fixture ゲート用シークレット。
+function requireSyntheticClosingSecret(): string {
+  const secret = process.env.UAT_SYNTHETIC_CLOSING_SECRET ?? "";
+  if (!secret) {
+    throw new Error(
+      "UAT_SYNTHETIC_CLOSING_SECRET must be set for S09 fixture e2e (no in-repo fallback; value is never logged)",
+    );
+  }
+  return secret;
+}
+
 function parseFixture(body: unknown, targetDate: string): SyntheticClosingFixture {
   if (typeof body !== "object" || body === null) {
     throw new Error("synthetic-closings response is not an object");
@@ -120,6 +131,7 @@ async function createSyntheticClosingFixture(
     `${syntheticClosingApiBase()}/api/v1/uat/synthetic-closings`,
     {
       data: { targetDate },
+      headers: { Authorization: `Bearer ${requireSyntheticClosingSecret()}` },
       failOnStatusCode: false,
     },
   );
@@ -141,7 +153,10 @@ async function deleteSyntheticClosingFixture(
   const response = await request.delete(
     `${syntheticClosingApiBase()}/api/v1/uat/synthetic-closings/${fixture.clinicId}`,
     {
-      headers: { "X-UAT-Cleanup-Token": fixture.cleanupToken },
+      headers: {
+        "X-UAT-Cleanup-Token": fixture.cleanupToken,
+        Authorization: `Bearer ${requireSyntheticClosingSecret()}`,
+      },
       failOnStatusCode: false,
     },
   );

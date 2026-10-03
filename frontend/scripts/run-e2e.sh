@@ -122,6 +122,7 @@ if [ -n "${E2E_CLINICAL_FIXTURE:-}" ]; then DOCKER_ENV="$DOCKER_ENV -e E2E_CLINI
 if [ -n "${E2E_CLINICAL_TEARDOWN:-}" ]; then DOCKER_ENV="$DOCKER_ENV -e E2E_CLINICAL_TEARDOWN"; fi
 # S09 synthetic closing fixture: password + optional API origin (name-only -e; never =value on argv).
 if [ -n "${UAT_SYNTHETIC_CLOSING_PASSWORD:-}" ]; then DOCKER_ENV="$DOCKER_ENV -e UAT_SYNTHETIC_CLOSING_PASSWORD"; fi
+if [ -n "${UAT_SYNTHETIC_CLOSING_SECRET:-}" ]; then DOCKER_ENV="$DOCKER_ENV -e UAT_SYNTHETIC_CLOSING_SECRET"; fi
 if [ -n "${UAT_SYNTHETIC_CLOSING_API_BASE:-}" ]; then DOCKER_ENV="$DOCKER_ENV -e UAT_SYNTHETIC_CLOSING_API_BASE"; fi
 
 # All args passed through safely as positional params to sh -c via -- "$@".

@@ -48,7 +48,7 @@ export function buildMasterSelectionPayload(params: {
  * を含むためそのまま代入可能。wire 上の治療明細 *_id は number で返る実態に合わせ、
  * マスタ照合は String 正規化で行う（GET treatments 応答は transform を通さない）。
  */
-export interface CopyTreatmentMasterRef {
+interface CopyTreatmentMasterRef {
   id: string;
   price: number;
 }

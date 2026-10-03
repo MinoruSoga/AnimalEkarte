@@ -3,7 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { transformOwner, type OwnerApiResponse } from "@/lib/transforms/owner";
 
-export const OWNER_SEARCH_LIMIT = 100;
+const OWNER_SEARCH_LIMIT = 100;
 
 export interface OwnerSummary {
   id: string;

@@ -76,8 +76,9 @@ type lineChannelCredentialReader interface {
 }
 
 // lstepSharedFileService は共有ファイル署名付きURL取得のconsumer-side最小view。
+// LINE 配送は外部プラットフォームのフェッチ用途のため delivery TTL を使う。
 type lstepSharedFileService interface {
-	GetSignedURL(ctx context.Context, clinicID, id uint64) (string, error)
+	GetSignedURLForDelivery(ctx context.Context, clinicID, id uint64) (string, error)
 }
 
 // tagOwnerFinder は手動タグ操作が必要とする飼主参照の最小view。

@@ -267,7 +267,7 @@ func TestUploadMedicalRecordImage_ParallelSharedStoreEnforcesConcurrency(t *test
 		go func(idx int) {
 			defer wg.Done()
 			h := newHandler()
-			body, contentType := buildImageMultipart(t, "photo.png", "image/png", []byte("fake-image-bytes"))
+			body, contentType := buildImageMultipart(t, "photo.png", "image/png", uploadFixturePNG())
 			req := httptest.NewRequest(http.MethodPost, "/medical-records/5/images/upload", body)
 			req.Header.Set("Content-Type", contentType)
 			req.ContentLength = int64(body.Len())

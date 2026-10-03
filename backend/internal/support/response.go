@@ -20,6 +20,8 @@ type BugReportResponse struct {
 	Status          string `json:"status"`
 	ReporterStaffID uint64 `json:"reporter_staff_id"`
 	ReporterName    string `json:"reporter_name"`
+	// ClinicID は報告元医院ID。一覧の自院判定（操作可否のUI制御）と provenance。
+	ClinicID uint64 `json:"clinic_id"`
 	// ClinicName は報告元医院名。一覧のみ付与（全医院公開のため provenance として必要）。
 	ClinicName    string `json:"clinic_name,omitempty"`
 	ScreenshotURL string `json:"screenshot_url,omitempty"`
@@ -49,6 +51,7 @@ func toBugReportResponse(report *model.SupportBugReport, reporterName, clinicNam
 		Status:          string(report.Status),
 		ReporterStaffID: report.ReporterStaffID,
 		ReporterName:    reporterName,
+		ClinicID:        report.ClinicID,
 		ClinicName:      clinicName,
 		CreatedAt:       httpapi.LocalTime(report.CreatedAt),
 		UpdatedAt:       httpapi.LocalTime(report.UpdatedAt),

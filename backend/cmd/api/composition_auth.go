@@ -155,7 +155,7 @@ func newAuthServices(
 		dependencies.StaffAssignments,
 		dependencies.Clinics,
 	)
-	var cachedCurrentAccess auth.CurrentAccessResolver = currentAccess
+	var cachedCurrentAccess = currentAccess
 	if ttl := currentAccessCacheTTL(); ttl > 0 {
 		cachedCurrentAccess = auth.NewCachedCurrentAccessResolver(currentAccess, ttl)
 	}

@@ -24,7 +24,12 @@ var errSentinelLstepSettingsTx = errors.New("simulated post-write failure in amb
 func setupLstepSettingsAtomicityDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupLstepSettingsTestDB(t)
-	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.LstepSettings{}, &model.ClinicSettings{}))
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
+		&model.Company{}, &model.Clinic{}, &model.LstepSettings{}))
+	// ClinicSettings は AutoMigrate できない（GORM が gorm:"type:time" を timestamptz 化し
+	// default '14:00' で CREATE TABLE が失敗する既知の相性問題 — L175 参照）。
+	// 実マイグレーション準拠の生SQLヘルパーで用意する（clinic_settings_repository_test.go と同型）。
+	testdb.EnsureClinicSettingsTable(t, db)
 	db.Exec("TRUNCATE TABLE lstep_settings CASCADE")
 	db.Exec("TRUNCATE TABLE clinic_settings CASCADE")
 	db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_test_lstep_settings_clinic ON lstep_settings (clinic_id)`)

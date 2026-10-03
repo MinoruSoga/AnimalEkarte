@@ -87,10 +87,6 @@ func TestLabDeviceOpenAPIResponseParity(t *testing.T) {
 	assert.Equal(t, "boolean", visit.Properties["pet_is_deceased"].Type)
 }
 
-type labDeviceAgentConsumerResponse struct {
-	AgentConsumerToken string `json:"agent_consumer_token"`
-}
-
 func TestLabDeviceOpenAPIAgentConsumerPath(t *testing.T) {
 	src, err := os.ReadFile("../../docs/api.yaml")
 	require.NoError(t, err)

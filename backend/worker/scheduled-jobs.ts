@@ -7,7 +7,7 @@ export const SCHEDULED_JOB_LEASE_MS = 150_000;
 export const SCHEDULED_JOBS_INTERNAL_PREFIX = "/_internal/scheduled-jobs";
 const MAX_PATH_DECODE_PASSES = 16;
 
-export type ScheduledJobName = "no_show" | "delivery" | "dormant";
+export type ScheduledJobName = "no_show" | "delivery" | "dormant" | "plane_sync";
 export type ScheduledJobOutcomeStatus = "success" | "partial" | "failed";
 
 export interface ScheduledJobRequest {
@@ -31,6 +31,7 @@ const CRON_JOB_PLAN = {
   "0 1 * * *": ["no_show", "delivery"],
   "0 6,11 * * *": ["no_show"],
   "0 17 * * *": ["dormant"],
+  "*/15 * * * *": ["plane_sync"],
 } as const satisfies Readonly<Record<string, readonly ScheduledJobName[]>>;
 
 function isNonNegativeSafeInteger(value: unknown): value is number {

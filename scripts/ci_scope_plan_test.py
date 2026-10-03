@@ -51,10 +51,28 @@ class CiScopePlanTests(unittest.TestCase):
         )
         self.assertEqual(plan['frontend_shard_count'], 2)
 
-    def test_migration_forces_full(self):
+    def test_migration_only_skips_backend_scope(self):
+        # backend/migrations/** は Go テストスコープ外 — paths-filter の
+        # backend_migrations が Backend Migration Tests ジョブを起動する。
         plan = plan_mod.plan_scope(['backend/migrations/002_medical_records_entered_by_staff_fk.sql'])
+        self.assertEqual(plan['mode'], 'skip')
+        self.assertEqual(plan['run_backend_tests'], False)
+
+    def test_migration_plus_domain_keeps_domain_scope(self):
+        # migration + Go コード混在では Go 側のスコープがそのまま効く
+        plan = plan_mod.plan_scope([
+            'backend/migrations/002_medical_records_entered_by_staff_fk.sql',
+            'backend/internal/auth/x.go',
+        ])
+        self.assertEqual(plan['mode'], 'partial')
+        self.assertEqual(plan['backend_domains'], ['auth'])
+
+    def test_migration_plus_shared_is_full(self):
+        plan = plan_mod.plan_scope([
+            'backend/migrations/002_x.sql',
+            'backend/internal/model/y.go',
+        ])
         self.assertEqual(plan['mode'], 'full')
-        self.assertEqual(plan['coverage_ratchet'], 'run')
 
     def test_httpapi_is_shared_not_domain(self):
         plan = plan_mod.plan_scope(['backend/internal/httpapi/response.go'])

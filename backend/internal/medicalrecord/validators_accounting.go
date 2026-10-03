@@ -8,6 +8,10 @@ import "github.com/animal-ekarte/backend/internal/sharedkernel"
 const errMsgPriceZeroOrMore = sharedkernel.ErrMsgPriceZeroOrMore
 const errMsgQuantityPositive = sharedkernel.ErrMsgQuantityPositive
 
+// errMsgQuantityIntegerForInventory は SEC-CS3-O1: InventoryID 連動処置の数量は
+// 在庫単位(整数)と一致させる契約のメッセージ。
+const errMsgQuantityIntegerForInventory = "在庫連動する処置の数量は整数で入力してください"
+
 func validateNonNegativePrice(price *int64) error {
 	return sharedkernel.ValidateNonNegativePrice(price)
 }

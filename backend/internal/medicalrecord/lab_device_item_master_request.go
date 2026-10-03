@@ -231,7 +231,18 @@ func toLabDeviceResponse(device *model.LabDevice) labDeviceResponse {
 	}
 }
 
+// labDeviceFramesMaxRequestBytes は frames 受信 JSON ボディの上限。
+// 8KiB ペイロードの base64 (~10.7KiB) + JSON オーバーヘッドで 64KiB は十分。
+const labDeviceFramesMaxRequestBytes = 64 * 1024
+
+// labDeviceMaxPayloadBase64Len は base64 文字列の最大長（8KiB デコード済み相当、
+// padding 込み）。DecodeString 前に拒否し、過大文字列の確保を防ぐ。
+const labDeviceMaxPayloadBase64Len = 4 * ((labDeviceMaxPayloadBytes + 2) / 3)
+
 func decodeLabDevicePayloadBase64(encoded string) ([]byte, error) {
+	if len(encoded) > labDeviceMaxPayloadBase64Len {
+		return nil, apperrors.WrapInvalidInput("invalid_payload")
+	}
 	payload, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("payload_base64 is invalid")

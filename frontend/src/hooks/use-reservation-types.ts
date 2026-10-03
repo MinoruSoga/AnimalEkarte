@@ -6,7 +6,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 
 /** Stable API code for in-clinic available-times when LINE settings row is missing. */
-export const LINE_RESERVATION_SETTINGS_UNSET_CODE = "LINE_RESERVATION_SETTINGS_UNSET";
+const LINE_RESERVATION_SETTINGS_UNSET_CODE = "LINE_RESERVATION_SETTINGS_UNSET";
 
 /** True when available-times failed because LINE reservation settings are unset. */
 export function isLineReservationSettingsUnsetError(error: unknown): boolean {

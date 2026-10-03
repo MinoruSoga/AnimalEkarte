@@ -1,6 +1,7 @@
 import { ICON, C } from "@/lib/design-tokens";
 import { todayJSTISO } from "@/lib/jst-date";
 import { paths } from "@/config/paths";
+import { useBackNavigation } from "@/hooks/use-back-navigation";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { useNavigate, useParams } from "react-router";
 import { FileText } from "lucide-react";
@@ -32,6 +33,7 @@ export function EstimateDetail() {
   const [successorReasonError, setSuccessorReasonError] = useState<string | null>(null);
 
   const { data: estimate, isLoading, isError } = useGetEstimate(id);
+  const handleBack = useBackNavigation(paths.estimates.getHref());
   const { mutate: deleteEstimate, isPending: isDeleting } = useDeleteEstimate();
   const { mutateAsync: createSuccessorAsync, isPending: isCreatingSuccessor } =
     useCreateEstimateSuccessor();
@@ -107,7 +109,7 @@ export function EstimateDetail() {
       icon={<FileText className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <EstimateDetailHeaderActions
-          onBack={() => navigate(paths.estimates.getHref())}
+          onBack={handleBack}
           showEdit={showEdit}
           onEdit={() => (id ? navigate(paths.estimates.edit.getHref(id)) : undefined)}
           showDelete={showDelete}

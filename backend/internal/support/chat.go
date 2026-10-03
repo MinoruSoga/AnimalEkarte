@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -49,10 +50,11 @@ type chatContextItem struct {
 	Text     string `json:"text"`
 }
 
-// chatRequest は POST /support/chat のボディ
+// chatRequest は POST /support/chat のボディ。
+// history は意図的に受け付けない — LLM に送る会話履歴はクライアント入力ではなく
+// サーバー保存済みのやり取り（送信時にスクリーニング済み）だけを使う。
 type chatRequest struct {
 	Message string            `json:"message"`
-	History []ChatMessage     `json:"history"`
 	Context []chatContextItem `json:"context"`
 }
 
@@ -154,17 +156,6 @@ func parseChatRequest(c *gin.Context) (*chatRequest, error) {
 	if len(req.Message) > chatMessageMaxLength {
 		return nil, apperrors.WrapInvalidInput("message is too long")
 	}
-	if len(req.History) > chatHistoryMaxMessages {
-		return nil, apperrors.WrapInvalidInput("history is too long")
-	}
-	for _, m := range req.History {
-		if m.Role != "user" && m.Role != "assistant" {
-			return nil, apperrors.WrapInvalidInput("invalid history role")
-		}
-		if len(m.Content) > chatHistoryMaxLength {
-			return nil, apperrors.WrapInvalidInput("history message is too long")
-		}
-	}
 	if len(req.Context) > chatContextMaxItems {
 		return nil, apperrors.WrapInvalidInput("context has too many items")
 	}
@@ -176,15 +167,56 @@ func parseChatRequest(c *gin.Context) (*chatRequest, error) {
 			return nil, apperrors.WrapInvalidInput("context item is too long")
 		}
 	}
+	if err := screenChatOutbound(&req); err != nil {
+		return nil, err
+	}
 	return &req, nil
 }
 
+// chatOutboundScreeningPatterns は外部 LLM へ送信する前に拒否する機微情報パターン。
+// ヒューリスティックな best-effort 分類（完全な検出は保証しない）— 方針として
+// 個人情報・認証情報らしき入力は外部 LLM へ送らず invalid input で拒否する。
+var chatOutboundScreeningPatterns = []*regexp.Regexp{
+	// メールアドレス
+	regexp.MustCompile(`[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+`),
+	// 日本の電話番号（0X0-XXXX-XXXX などハイフン区切り）
+	regexp.MustCompile(`0\d{1,4}-\d{1,4}-\d{4}`),
+	// 携帯電話（ハイフンなし 070/080/090 の 11 桁）
+	regexp.MustCompile(`0[789]0\d{8}`),
+	// クレジットカード・マイナンバー相当の長い数字列（12 桁以上）
+	regexp.MustCompile(`\d{12,}`),
+	// 認証情報らしき代入形式（password=..., api_key: ... 等）
+	regexp.MustCompile(`(?i)(password|passwd|api[_-]?key|secret|token|authorization)\s*[:=]\s*\S+`),
+	// Bearer トークン
+	regexp.MustCompile(`(?i)bearer\s+[a-z0-9._\-]{8,}`),
+}
+
+// screenChatOutbound は外部 LLM へ送信する新規入力（message・context 抜粋）に
+// 機微情報らしき内容が含まれないか検査する。該当時は汎用 invalid_input を返し
+// （どのパターンに当たったかは開示しない）、LLM 呼び出し自体を行わない。
+func screenChatOutbound(req *chatRequest) error {
+	texts := make([]string, 0, len(req.Context)*2+1)
+	texts = append(texts, req.Message)
+	for _, item := range req.Context {
+		texts = append(texts, item.Title, item.Text)
+	}
+	for _, text := range texts {
+		for _, pattern := range chatOutboundScreeningPatterns {
+			if pattern.MatchString(text) {
+				return apperrors.WrapInvalidInput("sensitive information is not allowed in support chat")
+			}
+		}
+	}
+	return nil
+}
+
 // buildChatMessages はシステムプロンプト + 会話履歴 + 最新質問（マニュアル抜粋注入）を組み立てる。
-// 抜粋は最終ユーザーメッセージに埋め込み、履歴は会話だけを保持する形にする。
-func buildChatMessages(req *chatRequest) []ChatMessage {
-	messages := make([]ChatMessage, 0, len(req.History)+2)
+// history はサーバー保存済みの履歴（クライアント入力ではない）。抜粋は最終
+// ユーザーメッセージに埋め込み、履歴は会話だけを保持する形にする。
+func buildChatMessages(req *chatRequest, history []ChatMessage) []ChatMessage {
+	messages := make([]ChatMessage, 0, len(history)+2)
 	messages = append(messages, ChatMessage{Role: "system", Content: chatSystemPrompt})
-	messages = append(messages, req.History...)
+	messages = append(messages, history...)
 
 	content := "質問: " + req.Message
 	if len(req.Context) > 0 {
@@ -231,6 +263,30 @@ func (h *Handler) ChatStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"enabled": h.chat != nil})
 }
 
+// loadChatHistory は保存済みの会話履歴を LLM コンテキスト用に整形して返す。
+// クライアント送信の history は信頼しない — 外部 LLM へ送るのはサーバー保存済み
+// （送信時にスクリーニング済み）のやり取りだけに限定する。
+// 読み取り失敗・service 未配線時は履歴なしで継続する（回答自体は成立する）。
+func (h *Handler) loadChatHistory(ctx context.Context, clinicID, staffID uint64) []ChatMessage {
+	if h.service == nil {
+		return nil
+	}
+	stored, err := h.service.ListChatHistory(ctx, clinicID, staffID)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to load support chat history; continuing without it",
+			"error", err, "clinic_id", clinicID, "staff_id", staffID)
+		return nil
+	}
+	if len(stored) > chatHistoryMaxMessages {
+		stored = stored[len(stored)-chatHistoryMaxMessages:]
+	}
+	messages := make([]ChatMessage, 0, len(stored))
+	for _, m := range stored {
+		messages = append(messages, ChatMessage{Role: string(m.Role), Content: m.Content})
+	}
+	return messages
+}
+
 // Chat はマニュアル抜粋を根拠に LLM へ質問し回答を返す。
 //
 // POST /api/v1/support/chat
@@ -253,7 +309,7 @@ func (h *Handler) Chat(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	reply, err := h.chat.Complete(c.Request.Context(), buildChatMessages(req))
+	reply, err := h.chat.Complete(c.Request.Context(), buildChatMessages(req, h.loadChatHistory(c.Request.Context(), clinicID, staffID)))
 	if err != nil {
 		var upstream *upstreamError
 		switch {

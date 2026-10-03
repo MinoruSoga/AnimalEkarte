@@ -51,6 +51,10 @@ describe("jobsForCron", () => {
     expect(jobsForCron("0 17 * * *")).toEqual(["dormant"]);
   });
 
+  it("runs plane_sync every 15 minutes", () => {
+    expect(jobsForCron("*/15 * * * *")).toEqual(["plane_sync"]);
+  });
+
   it("fails closed for an unknown cron expression", () => {
     expect(() => jobsForCron("*/5 * * * *")).toThrowError(/unknown cron/i);
   });

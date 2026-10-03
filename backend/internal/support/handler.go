@@ -65,7 +65,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	g := s.Group("/bug-reports")
 
 	// バグ報告は認証済みスタッフ全員・全医院に公開する共有ボード
-	//（権限ゲート・医院絞りなし — 製品フィードバック基盤としての意図的な製品判断）。
+	// （権限ゲート・医院絞りなし — 製品フィードバック基盤としての意図的な製品判断）。
+	// 一覧・作成は全医院公開。status 更新・Plane 起票・削除は報告元医院スコープ
+	// （他医院の報告は共有ボードで閲覧のみ — 2026-10 セキュリティレビュー変更）。
 	g.POST("", h.CreateBugReport)
 	g.GET("", h.ListBugReports)
 	g.PATCH("/:id/status", h.UpdateBugReportStatus)
@@ -175,10 +177,15 @@ func (h *Handler) ListBugReports(c *gin.Context) {
 	c.JSON(http.StatusOK, BugReportListResponse{Data: data})
 }
 
-// UpdateBugReportStatus は報告の対応状況を更新する。認証済みスタッフ全員が利用可能。
+// UpdateBugReportStatus は報告の対応状況を更新する。
+// 操作は報告元医院スコープ — 他医院の報告は共有ボードで閲覧のみ（404）。
 //
 // PATCH /api/v1/support/bug-reports/:id/status
 func (h *Handler) UpdateBugReportStatus(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
 	id, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {
 		return
@@ -188,7 +195,7 @@ func (h *Handler) UpdateBugReportStatus(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput("invalid request body"))
 		return
 	}
-	report, err := h.service.UpdateStatus(c.Request.Context(), id, model.SupportBugReportStatus(req.Status))
+	report, err := h.service.UpdateStatus(c.Request.Context(), clinicID, id, model.SupportBugReportStatus(req.Status))
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
@@ -199,15 +206,19 @@ func (h *Handler) UpdateBugReportStatus(c *gin.Context) {
 
 // CreatePlaneTicket は報告を Plane ワークアイテムとして起票する。
 // 自動起票に失敗した報告の手動再送経路でもある。起票済みなら現行状態を返す（冪等）。
-// 認証済みスタッフ全員が利用可能。
+// 操作は報告元医院スコープ — 他医院の報告は共有ボードで閲覧のみ（404）。
 //
 // POST /api/v1/support/bug-reports/:id/plane-ticket
 func (h *Handler) CreatePlaneTicket(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
 	id, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {
 		return
 	}
-	report, err := h.service.EnsurePlaneTicket(c.Request.Context(), id)
+	report, err := h.service.EnsurePlaneTicket(c.Request.Context(), clinicID, id)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
@@ -217,24 +228,37 @@ func (h *Handler) CreatePlaneTicket(c *gin.Context) {
 }
 
 // DeleteBugReport は報告を論理削除し、添付スクショのオブジェクトも削除する。
-// 認証済みスタッフ全員が利用可能。
+// 操作は報告元医院スコープ — 他医院の報告は共有ボードで閲覧のみ（404）。
 //
 // DELETE /api/v1/support/bug-reports/:id
 func (h *Handler) DeleteBugReport(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
 	id, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {
 		return
 	}
-	report, err := h.service.Delete(c.Request.Context(), id)
+	report, err := h.service.Get(c.Request.Context(), clinicID, id)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
-	// スクショのオブジェクト削除は best-effort（失敗時は孤立オブジェクトが残るのみ）
+	// スクショのオブジェクト削除は論理削除より先に行う — ストレージ失敗時に
+	// 行だけ消えると retry 経路を失い孤立オブジェクトが残るため、失敗は 502
+	// で報告行を残す（呼び出し側が再試行できる）。
 	if report.ScreenshotKey != nil && h.uploader != nil {
-		if err := h.uploader.Delete(context.WithoutCancel(c.Request.Context()), *report.ScreenshotKey); err != nil {
-			slog.WarnContext(c.Request.Context(), "failed to delete bug report screenshot (best-effort)", "error", err, "report_id", report.ID)
+		if err := h.uploader.Delete(c.Request.Context(), *report.ScreenshotKey); err != nil {
+			slog.WarnContext(c.Request.Context(), "failed to delete bug report screenshot", "error", err, "report_id", report.ID)
+			httpapi.RespondError(c, apperrors.WrapBadGateway("screenshot storage delete failed; report was not deleted"))
+			return
 		}
+	}
+	report, err = h.service.Delete(c.Request.Context(), clinicID, id)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
 	}
 	h.logAudit(c, "support_bug_report.delete", report)
 	c.Status(http.StatusNoContent)

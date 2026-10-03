@@ -105,7 +105,7 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page,
 		q := r.db.WithContext(ctx).Model(&model.Owner{}).Scopes(persistence.ClinicScopeIn(clinicIDs))
 		if search != "" {
 			// name / name_kana はカナ+空白を畳んだ translate() 式1腕で検索する
-			//（生値・空白差・カナ差の旧複数腕を包含し、GIN 式インデックスが効く）。
+			// （生値・空白差・カナ差の旧複数腕を包含し、GIN 式インデックスが効く）。
 			// phone と email は従来どおり正規化済み pattern で比較する。
 			// 空白のみは fail-closed で 0 件 (BUG-001)。
 			qSearch := textsearch.NormalizeQuerySpaces(search)

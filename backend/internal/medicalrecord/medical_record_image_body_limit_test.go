@@ -63,10 +63,10 @@ func TestUploadMedicalRecordImage_RejectsChunkedOversizedRequestBeforeUpload(t *
 }
 
 func TestUploadMedicalRecordImage_AllowsExactFileLimitWithMultipartOverhead(t *testing.T) {
-	c, recorder := newMedicalRecordImageUploadContext(
-		t,
-		make([]byte, medicalRecordImageMaxUploadSize),
-	)
+	// SEC-CS3-O6: content-sniff 照合を通すため先頭に実 PNG マジックを置く（残りは 0 詰め）。
+	content := make([]byte, medicalRecordImageMaxUploadSize)
+	copy(content, uploadFixturePNG())
+	c, recorder := newMedicalRecordImageUploadContext(t, content)
 	h := newHandlerWithMedicalRecordImageSvc(
 		&mockMedicalRecordService{
 			getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {

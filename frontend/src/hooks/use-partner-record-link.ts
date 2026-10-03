@@ -21,7 +21,7 @@ import { useGetMedicalRecords } from "@/hooks/use-medical-records";
 
 export type PartnerRecordKind = "medical-record" | "trimming";
 
-export interface PartnerRecordTarget {
+interface PartnerRecordTarget {
   /** "open": 相方が既に存在 → 既存データへ。"create": 未存在 → record_shortcut 入力経路へ。 */
   mode: "open" | "create";
   /** 遷移先 URL。reception 既存導線と同じ query 契約（petId / appointmentId / visitDate）。 */

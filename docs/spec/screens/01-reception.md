@@ -8,7 +8,7 @@
 ### 表示日の切替え（EMR-243）
 - クエリ `date` は `resolveReceptionDateParam`（`reception-model.ts`）で `YYYY-MM-DD` 形式 + 実在暦日を検証し、解決した日付だけを `useGetReception(date)` で取得する（選択日以外のクエリは発行しない）。
 - **非本日表示の制約**: 当日受付（`checked_in`）を作る導線は当日のみ。受付済列の「＋」ボタンは非本日では非表示（`canAddColumnEntryOnDate`）。受付予約列の「＋」は残り、`?newReservation=1&date=<選択日>` で選択日・現在時刻15分丸めの予約 stub を作る。ヘッダー「新規予約登録」も非本日では `newReservation=1&date=<選択日>` になる。`?reception=1` 経路は `date` が付いていても常に当日の `checked_in` stub を作る（意味を変えない）。
-- **戻り先の保持**: 予約作成からの復帰は `location.state.from = "/?date=<選択日>"` で選択日のボードへ戻る。
+- **戻り先の保持**: 受付ボード発の全ページ遷移（予約作成・詳細モーダル/カードの各導線）は `location.state.from = "/?date=<選択日>"`（当日は `"/"`）を渡し、遷移先の「戻る」・保存後リダイレクトは `useBackNavigation`/`useBackPath`（`parseInternalPath` で内部パス検証）経由で選択日のボードへ戻る。往復回帰は UAT `S40` で検証する。
 - **テレメトリ**: 非本日では件数ラベルが「対象日の受付」になり、待ち時間統計（平均待ち/最長待ち）は「今からの経過」に基づくため表示しない（`ReceptionTelemetryStrip` の `isToday`）。
 
 ---
@@ -69,8 +69,8 @@ stateDiagram-v2
 - **受付予約列の「+」**: 通常予約（`?newReservation=1`、status=`confirmed`、非本日では `&date=<選択日>` 付き）。**受付済列の「+」**は当日受付 walk-in（`?reception=1`）で、非本日表示では非表示。診療中・会計待ち・会計済列に追加ボタンは無い。
 - **受付済→診療中**: DnD は禁止。トースト「カルテ作成が必要です」。進行はカード／詳細のカルテ作成・トリミング記録（同時に `advanceStatus`）。入院系は詳細の「診察を開始する」。
 - **会計済の完了**: 詳細から完了確定するとその端末のボードから外れる。再読込すると当日 `completed` は再び会計済列に載る。
-- **詳細表示**: カードをクリックすると `ReceptionDetailModal` が開き、来院詳細の確認、ステータス進行（`onConfirm`）、編集（`onEdit`、`ReservationFormModal` を起動）、取消（`onCancel`、`ConfirmDialog` で確認後に予約を取り消し）、飼主/ペット詳細ページへの遷移が可能です。取消は `reservations:delete`、編集は `reservations:edit` 権限を持つ場合のみ表示されます。患者情報セクション（`ReceptionDialogBody`）にも同じ `DangerBadge` マークを表示: ペット名横に特記アイコンバッジ（高=赤い八角形/中=黄い三角形、文言なし・Popover で補足メモ）、飼主名横に文言なしの赤い八角形アイコン（`is_dangerous`、代替名「特記」）。
-- **クイックリンク (ミニアクション、`AppointmentCard`)**: 表示条件はカラム・診療区分により異なります。
+- **詳細表示**: カードをクリックすると `ReceptionDetailModal` が開き、来院詳細の確認、ステータス進行（`onConfirm`）、編集（`onEdit`、`ReservationFormModal` を起動）、取消（`onCancel`、`ConfirmDialog` で確認後に予約を取り消し）、飼主/ペット詳細ページへの遷移が可能です。「飼主詳細」は `ownerId` がある予約は `/owners/:id` へ、未連携（`ownerId` 不在）の予約は `/owners?search=<飼主名>` の一覧検索へ遷移します。取消は `reservations:delete`、編集は `reservations:edit` 権限を持つ場合のみ表示されます。患者情報セクション（`ReceptionDialogBody`）にも同じ `DangerBadge` マークを表示: ペット名横に特記アイコンバッジ（高=赤い八角形/中=黄い三角形、文言なし・Popover で補足メモ）、飼主名横に文言なしの赤い八角形アイコン（`is_dangerous`、代替名「特記」）。
+- **クイックリンク (ミニアクション、`AppointmentCard`)**: 表示条件はカラム・診療区分により異なります。いずれの遷移も `state.from` に `"/?date=<選択日>"`（当日は `"/"`）を渡す。
     - **カルテ作成/施術**: トリミング区分は「受付済」列でのみ、それ以外の一般診療区分（入院系を除く）は「受付済」「診療中」列で表示。`petId` があれば `/medical-records/new`（トリミングは `/trimming/new`）へ、なければ `select-pet` 画面へ遷移。
     - **会計**: 「診療中」列以外で表示。`petId` があれば `/accounting/new?petId=...`、なければ `/accounting/new` へ遷移。
     - **入院**: 「診療中」列以外、かつ診療区分に入院/ホテルが含まれる場合のみ表示。`/hospitalization/new` へ遷移。

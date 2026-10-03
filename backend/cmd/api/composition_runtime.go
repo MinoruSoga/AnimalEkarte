@@ -497,7 +497,7 @@ func (c runtimeComposition) registerRoutes(
 	uploader infra.FileUploader,
 	isProduction bool,
 ) error {
-	if err := registerBaseRoutes(router, c.lstep.Batch, c.db); err != nil {
+	if err := registerBaseRoutes(router, c.lstep.Batch, c.db, c.planeTickets); err != nil {
 		return err
 	}
 	protected, err := c.auth.registerRoutes(
@@ -648,6 +648,9 @@ func (c runtimeComposition) newReservationHandler(
 			LiffRateLimit: func(limit int) gin.HandlerFunc {
 				return middleware.LiffRateLimit(liffRateLimitStore, limit)
 			},
+			// SEC-CS3-O2: Content-Type 偽装によるグローバル body limit 迂回を塞ぐ
+			// （LIFF は JSON のみ。multipart/octet-stream でも同じ上限を強制する）。
+			LiffBodyLimit:     middleware.LimitRequestBody(middleware.DefaultJSONBodyMaxBytes),
 			LinkLiffAccount:   lstepHandler.LinkLiffAccount,
 			RequirePermission: c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
 		},

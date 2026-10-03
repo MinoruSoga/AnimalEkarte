@@ -261,6 +261,43 @@ func TestApplyUpsertsOperatorSystemAdminFromEnv(t *testing.T) {
 	assert.True(t, again.IsSystemAdmin)
 }
 
+func TestApplySeedsStagingDemoPasswordFromEnv(t *testing.T) {
+	db := setupLoginSeedDB(t)
+	t.Setenv("APP_ENV", "staging")
+	t.Setenv(DemoPasswordEnv, "stg-demo-secret-1")
+	sqlDB, err := db.DB()
+	require.NoError(t, err)
+
+	_, err = Apply(context.Background(), sqlDB)
+	require.NoError(t, err)
+
+	// staging ではシークレット注入値がシードされ、公開定数は認証不可。
+	assertLoginCatalog(t, db, "stg-demo-secret-1")
+	assert.True(t, AcceptSharedPassword("staging", Catalog()[0].Email, "stg-demo-secret-1"))
+	assert.False(t, AcceptSharedPassword("staging", Catalog()[0].Email, SharedPassword))
+}
+
+func TestApplyLocksDemoLoginsOnStagingWithoutSecret(t *testing.T) {
+	db := setupLoginSeedDB(t)
+	t.Setenv("APP_ENV", "staging")
+	t.Setenv(DemoPasswordEnv, "")
+	sqlDB, err := db.DB()
+	require.NoError(t, err)
+
+	_, err = Apply(context.Background(), sqlDB)
+	require.NoError(t, err)
+
+	// シークレット未注入の staging でもカタログアカウントは upsert されるが、
+	// パスワードは照合不可能 — 公開定数でも空文字でもログインできない（fail-closed）。
+	for _, spec := range Catalog() {
+		var account model.Account
+		require.NoError(t, db.Where("email = ?", spec.Email).First(&account).Error)
+		assert.Error(t, bcrypt.CompareHashAndPassword([]byte(account.PasswordHash), []byte(SharedPassword)))
+		assert.Error(t, bcrypt.CompareHashAndPassword([]byte(account.PasswordHash), []byte("")))
+	}
+	assert.False(t, AcceptSharedPassword("staging", Catalog()[0].Email, SharedPassword))
+}
+
 func TestApplyRejectsOperatorCatalogEmail(t *testing.T) {
 	db := setupLoginSeedDB(t)
 	catalog := Catalog()[0]
@@ -279,6 +316,9 @@ func setupLoginSeedDB(t *testing.T) *gorm.DB {
 	t.Setenv(operatorEnvEmail, "")
 	t.Setenv(operatorEnvName, "")
 	t.Setenv(operatorEnvPassword, "")
+	// ambient 環境の SEEDLOGIN_DEMO_PASSWORD からテストを隔離する。
+	// staging 固有の検証は各テストで明示的に上書きする。
+	t.Setenv(DemoPasswordEnv, "")
 	db := testdb.SetupTestDB(t)
 	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.Company{},

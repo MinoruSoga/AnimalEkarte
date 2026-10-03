@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import {
   createLabDeviceAgentClient,
@@ -63,11 +63,16 @@ function toStatus(health: LabDeviceAgentHealth): LabDeviceAgentListenStatus {
   };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 export function useLabDeviceAgentListen(input: {
   enabled: boolean;
   clinicId: string | null;
   consumerToken?: string;
   onFrame: (frame: { payloadBase64: string; deviceHint: "auto" }) => Promise<void>;
+  onUnauthorized?: () => void;
   client?: LabDeviceAgentClient;
 }): LabDeviceAgentListenStatus {
   const [snapshot, setSnapshot] = useState<{
@@ -76,21 +81,36 @@ export function useLabDeviceAgentListen(input: {
   }>({ clinicId: null, status: disconnectedStatus });
   const onFrameRef = useRef(input.onFrame);
   const enabledRef = useRef(input.enabled);
+  const onUnauthorizedRef = useRef(input.onUnauthorized);
+  const consumerTokenRef = useRef(input.consumerToken);
   useLayoutEffect(() => {
     onFrameRef.current = input.onFrame;
   }, [input.onFrame]);
   useLayoutEffect(() => {
     enabledRef.current = input.enabled;
   }, [input.enabled]);
-  const client = useMemo(
-    () =>
-      input.client ??
-      (input.consumerToken ? createLabDeviceAgentClient(input.consumerToken) : undefined),
-    [input.client, input.consumerToken],
-  );
+  useLayoutEffect(() => {
+    onUnauthorizedRef.current = input.onUnauthorized;
+  }, [input.onUnauthorized]);
+  useLayoutEffect(() => {
+    consumerTokenRef.current = input.consumerToken;
+  }, [input.consumerToken]);
+  const hasConsumerToken = input.consumerToken !== undefined;
 
   useEffect(() => {
-    if (!input.enabled || !client) {
+    if (!input.enabled) {
+      return;
+    }
+    // client は effect 内で構築する（capability getter が最新値を ref 経由で読む
+    // ため render スコープの useMemo では react-hooks/refs に抵触する）。
+    // deps に consumerToken 値自体ではなく hasConsumerToken のみを入れることで、
+    // capability ローテーション時に effect が再実行されず claim も再走しない。
+    const client =
+      input.client ??
+      (hasConsumerToken
+        ? createLabDeviceAgentClient(() => consumerTokenRef.current ?? "")
+        : undefined);
+    if (!client) {
       return;
     }
     const controller = new AbortController();
@@ -124,9 +144,13 @@ export function useLabDeviceAgentListen(input: {
         } else {
           retryInterval = POLL_INTERVAL_MS;
         }
-      } catch {
+      } catch (error: unknown) {
         if (!controller.signal.aborted) {
           setSnapshot({ clinicId: input.clinicId, status: disconnectedStatus });
+          // capability の期限切れ・他医院束縛を検知したら再取得を促す
+          if (isRecord(error) && (error.status === 401 || error.status === 403)) {
+            onUnauthorizedRef.current?.();
+          }
         }
         retryInterval = Math.min(retryInterval * 2, MAX_RETRY_INTERVAL_MS);
         nextInterval = retryInterval;
@@ -142,7 +166,7 @@ export function useLabDeviceAgentListen(input: {
         window.clearTimeout(timer);
       }
     };
-  }, [client, input.clinicId, input.enabled]);
+  }, [input.client, hasConsumerToken, input.clinicId, input.enabled]);
 
   return input.enabled && snapshot.clinicId === input.clinicId
     ? snapshot.status

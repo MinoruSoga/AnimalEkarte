@@ -131,13 +131,16 @@ function copyNonEmptyEnv(
 
 /**
  * migrate exec は Container 起動 env を継承しない。DB_* に加え、ログイン seed が
- * 読む APP_ENV と任意の SEEDLOGIN_OPERATOR_* だけを足す。JWT/SMTP は渡さない。
- * オペレータ変数が空なら載せない（Go 側は未設定としてスキップする）。
+ * 読む APP_ENV と任意の SEEDLOGIN_OPERATOR_* / SEEDLOGIN_DEMO_PASSWORD だけを足す。
+ * JWT/SMTP は渡さない。オペレータ変数が空なら載せない（Go 側は未設定として
+ * スキップする）。SEEDLOGIN_DEMO_PASSWORD も空なら載せない — staging で未設定の
+ * まま migrate すると Go 側がカタログログインをロックする（fail-closed）。
  */
 export function attachLoginSeedMigrateEnv(
   dbEnv: Record<string, string>,
   appEnv: string | undefined,
   operatorEnv: LoginSeedOperatorEnv = {},
+  demoPassword?: string,
 ): Record<string, string> {
   const migrateEnv: Record<string, string> = { ...dbEnv };
   if (appEnv !== undefined && appEnv !== "") {
@@ -146,5 +149,6 @@ export function attachLoginSeedMigrateEnv(
   copyNonEmptyEnv(migrateEnv, "SEEDLOGIN_OPERATOR_EMAIL", operatorEnv.email);
   copyNonEmptyEnv(migrateEnv, "SEEDLOGIN_OPERATOR_NAME", operatorEnv.name);
   copyNonEmptyEnv(migrateEnv, "SEEDLOGIN_OPERATOR_PASSWORD", operatorEnv.password);
+  copyNonEmptyEnv(migrateEnv, "SEEDLOGIN_DEMO_PASSWORD", demoPassword);
   return migrateEnv;
 }

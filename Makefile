@@ -537,10 +537,13 @@ build-prod:
 GOLANGCI_LINT_VERSION := v2.11.4
 
 # ── 品質チェック分担（詳細: docs/ops/ci-policy.md）────────────────
-# リモート CI 必須: path-filtered build/test/coverage、gitleaks、
-#                   codegen/migration 検証、AgentShield
-# ローカル必須（make ci）: inventory / guardrail / shellcheck / golangci /
-#                          ESLint / type-check / knip / design CTA + design-audit + build/test
+# リモート CI（最小構成）: Workflow Contracts + gitleaks（+ 別wf AgentShield）
+# ローカル必須（make ci）: 旧 remote を含む全ゲート — inventory / guardrail /
+#   shellcheck / golangci / ESLint / type-check / knip / design CTA + design-audit /
+#   backend+frontend build/test/coverage ratchet / schema / codegen /
+#   migration verify / seed invariants / worker / pnpm audit / gitleaks
+#   成功/失敗を HEAD の commit status `make ci` へ投稿（staging required check・
+#   MAKE_CI_STATUS=0 で投稿無効化）
 # ローカル任意: make e2e（Playwright。リモート自動 CI には含めない）
 # ────────────────────────────────────────────────────────────────
 
@@ -649,8 +652,21 @@ mod-tidy:
 # ローカル一括 CI（リモート CI から外した静的ゲート + build/test/lint）
 # 実行前に make up でコンテナを起動しておくこと（メタゲートは Docker 不要で先に fail-fast）。
 # 実体: scripts/run-local-ci.sh / 分担: docs/ops/ci-policy.md
+#
+# 途中再開: `make ci 9` で step 9 から実行する（`bash scripts/run-local-ci.sh 9`
+# / `CI_FROM=9` と同等）。数値の追目標は開始 step として run-local-ci.sh へ
+# 渡すため、ci 指定時だけ phony 化して make の「No rule」エラーを回避する。
+# 数値以外の追目標は run-local-ci.sh 側の usage チェックでエラーになる。
+ifeq ($(filter ci,$(MAKECMDGOALS)),ci)
+_CI_FROM := $(filter-out ci,$(MAKECMDGOALS))
+ifneq ($(_CI_FROM),)
+.PHONY: $(_CI_FROM)
+$(_CI_FROM):
+	@true
+endif
+endif
 ci:
-	@bash scripts/run-local-ci.sh
+	@bash scripts/run-local-ci.sh $(_CI_FROM)
 
 # git hooks セットアップ（初回・新メンバーオンボーディング時に実行）
 # Source of truth: .githooks/* — wrappers installed into .git/hooks for readiness/tooling that

@@ -106,7 +106,7 @@ test("Docker, packageManager declarations, and CI use pnpm 10.15.0", () => {
   }
   assert.equal(
     setupCount,
-    8,
+    4,
     "expected every pnpm/action-setup use to be covered",
   );
 });
@@ -188,22 +188,79 @@ test("frontend deploy builds the Vite bundle and deploys via wrangler", () => {
   assert.doesNotMatch(workflow, /vercel (deploy|alias|pull)/);
 });
 
-test("CI plans domain/feature test scope with dynamic matrices", () => {
+test("CI stays minimal: only workflow contracts and gitleaks run remotely", () => {
   const workflow = read(".github/workflows/ci.yml");
-  assert.match(workflow, /Plan domain\/feature test scope/);
-  assert.match(workflow, /scripts\/ci_scope_plan\.py/);
-  assert.match(
+  const jobs = yamlBlock(workflow, "jobs", 0);
+  const jobIds = [...jobs.matchAll(/^ {2}([a-z0-9_-]+):$/gim)]
+    .map((match) => match[1])
+    .sort();
+  assert.deepEqual(jobIds, ["secret-scan", "workflow-contracts"]);
+  assert.match(workflow, /gitleaks\/gitleaks-action@v3/);
+  // build/test/coverage/migration/worker/codegen は scripts/run-local-ci.sh 側へ
+  // 集約済み。remote job を再導入する場合は docs/ops/ci-policy.md の分担表と
+  // staging required checks も同じ変更で更新すること。
+  assert.doesNotMatch(
     workflow,
-    /include: \$\{\{ fromJson\(needs\.changes\.outputs\.backend_matrix\) \}\}/,
+    /postgres|ci_scope_plan|coverage_ratchet|pnpm\/action-setup|setup-go|go test|vitest/,
   );
-  assert.match(
-    workflow,
-    /include: \$\{\{ fromJson\(needs\.changes\.outputs\.frontend_matrix\) \}\}/,
+});
+
+test("make ci wires the gates retired from remote CI", () => {
+  const script = read("scripts/run-local-ci.sh");
+  for (const needle of [
+    "check-workflow-contracts.test.mjs",
+    "check-actions-version-drift.sh",
+    "check-test-worker-makefile.test.sh",
+    "verify_seed.py",
+    "ci-migration-verify.sh",
+    "gitleaks",
+    "typecheck:worker",
+    "cmd/coverage-ratchet",
+    "coverage-ratchet.mjs",
+    "-coverprofile=coverage.out",
+    "pnpm audit",
+  ]) {
+    assert.ok(script.includes(needle), `run-local-ci.sh must wire: ${needle}`);
+  }
+});
+
+test("make ci reports a commit status required by staging protection", () => {
+  // release PR の強制経路: make ci 成功が HEAD の commit status `make ci` として
+  // 投稿され、staging protection の required contexts に含まれることで
+  // 「status 無し = Pending = merge 不可」が成立する。
+  const script = read("scripts/run-local-ci.sh");
+  for (const needle of [
+    "MAKE_CI_CONTEXT=",
+    "statuses/",
+    "post_ci_status success",
+    "on_make_ci_failure",
+    "MAKE_CI_STATUS",
+  ]) {
+    assert.ok(script.includes(needle), `run-local-ci.sh must wire: ${needle}`);
+  }
+  const policy = read("docs/ops/ci-policy.md");
+  assert.match(policy, /required checks:[^\n]*`make ci`/);
+});
+
+test("make ci --from resume cannot post the required success status", () => {
+  // 部分実行が required check の success を投稿すると「一部だけ走った head が
+  // merge 可能」になる迂回経路になる。success 投稿は FROM=1 のフル実行に
+  // 限定されていることを pin する。
+  const script = read("scripts/run-local-ci.sh");
+  assert.match(script, /--from/);
+  assert.match(script, /if \(\( FROM == 1 \)\); then\n\s+post_ci_status success/);
+});
+
+test("run-local-ci step total equals the begin_step call count", () => {
+  const script = read("scripts/run-local-ci.sh");
+  const calls = script.match(/^ *begin_step "/gm)?.length ?? 0;
+  const total = script.match(/^total=(\d+)$/m);
+  assert.ok(total, "missing total= pin");
+  assert.equal(
+    calls,
+    Number(total[1]),
+    "total= must equal the number of begin_step calls inside step functions",
   );
-  assert.match(workflow, /run_backend_tests == 'true'/);
-  assert.match(workflow, /run_frontend_tests == 'true'/);
-  assert.match(workflow, /coverage_ratchet == 'run'/);
-  assert.match(workflow, /Skip coverage ratchet \(partial/);
 });
 
 test("ci_scope_plan unit coverage stays wired for host verify", () => {
@@ -227,8 +284,10 @@ test("STG migrate timeouts leave margin for login seed", () => {
 });
 
 test("frontend audit treats registry audit endpoint timeouts as unavailable", () => {
-  const workflow = read(".github/workflows/ci.yml");
-  assert.match(workflow, /ERR_PNPM_AUDIT_BAD_RESPONSE\|ERR_SOCKET_TIMEOUT/);
+  // pnpm audit は remote Frontend Build job から make ci 側へ移設済み。
+  // endpoint 障害を脆弱性 fail と誤認しないフォールバックは同スクリプトが正本。
+  const script = read("scripts/run-local-ci.sh");
+  assert.match(script, /ERR_PNPM_AUDIT_BAD_RESPONSE\|ERR_SOCKET_TIMEOUT/);
 });
 
 test("frontend pnpm install policy remains explicit", () => {

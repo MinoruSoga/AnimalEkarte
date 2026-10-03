@@ -81,17 +81,19 @@ func SyntheticClosingLoginEmail(clinicID uint64) string {
 	return fmt.Sprintf("s09-%d@example.test", clinicID)
 }
 
-// SyntheticClosingCleanupToken は clinic 単位の回収トークン。秘密は env ではなく MAC で束ねる。
-func SyntheticClosingCleanupToken(clinicID uint64) string {
-	mac := hmac.New(sha256.New, []byte(syntheticClosingCleanupMACKey))
+// SyntheticClosingCleanupToken は clinic 単位の回収トークン。MAC 鍵は
+// UAT_SYNTHETIC_CLOSING_SECRET 由来 — 公開定数では計算不能にする。
+func SyntheticClosingCleanupToken(clinicID uint64, secret string) string {
+	mac := hmac.New(sha256.New, []byte(secret))
 	var buf [8]byte
 	binary.BigEndian.PutUint64(buf[:], clinicID)
+	_, _ = mac.Write([]byte(syntheticClosingCleanupMACKey))
 	_, _ = mac.Write(buf[:])
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
 // MatchSyntheticClosingCleanupToken は回収トークンを定数時間比較する。
-func MatchSyntheticClosingCleanupToken(clinicID uint64, token string) bool {
-	expected := SyntheticClosingCleanupToken(clinicID)
+func MatchSyntheticClosingCleanupToken(clinicID uint64, secret, token string) bool {
+	expected := SyntheticClosingCleanupToken(clinicID, secret)
 	return hmac.Equal([]byte(expected), []byte(strings.TrimSpace(token)))
 }

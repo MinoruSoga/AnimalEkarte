@@ -36,18 +36,41 @@ func TestShouldApply(t *testing.T) {
 }
 
 func TestAcceptSharedPassword(t *testing.T) {
-	t.Parallel()
-
+	// staging ではシークレット未注入 = ショートカット常に閉鎖（公開定数も不可）。
+	// t.Setenv を使うため t.Parallel() にはしない。
+	t.Setenv(DemoPasswordEnv, "")
 	demoEmail := Catalog()[0].Email
 
-	assert.True(t, AcceptSharedPassword("staging", demoEmail, SharedPassword))
-	assert.True(t, AcceptSharedPassword("development", demoEmail, SharedPassword))
-	assert.True(t, AcceptSharedPassword("staging", strings.ToUpper(demoEmail), SharedPassword))
+	// local/dev/test は従来通り公開定数でログインできる。
+	for _, env := range []string{"development", "local", "dev", "test"} {
+		assert.True(t, AcceptSharedPassword(env, demoEmail, SharedPassword), env)
+		assert.False(t, AcceptSharedPassword(env, demoEmail, "other-pass"), env)
+	}
+
+	// staging はシークレット未設定で完全に閉じる（公開定数は Internet 到達可能な
+	// Worker では認証させない — codex-security 指摘対応）。
+	assert.False(t, AcceptSharedPassword("staging", demoEmail, SharedPassword))
+	assert.False(t, AcceptSharedPassword("staging", demoEmail, ""))
+	assert.False(t, AcceptSharedPassword("staging", strings.ToUpper(demoEmail), SharedPassword))
+
 	assert.False(t, AcceptSharedPassword("production", demoEmail, SharedPassword))
 	assert.False(t, AcceptSharedPassword("", demoEmail, SharedPassword))
 	assert.False(t, AcceptSharedPassword("staging", "stg-operator@example.test", SharedPassword))
 	assert.False(t, AcceptSharedPassword("staging", demoEmail, "other-pass"))
 	assert.False(t, AcceptSharedPassword("staging", "user@test.com", SharedPassword))
+}
+
+func TestAcceptSharedPassword_StagingSecret(t *testing.T) {
+	t.Setenv(DemoPasswordEnv, "stg-demo-secret-1")
+	demoEmail := Catalog()[0].Email
+
+	assert.True(t, AcceptSharedPassword("staging", demoEmail, "stg-demo-secret-1"))
+	assert.True(t, AcceptSharedPassword("staging", strings.ToUpper(demoEmail), "stg-demo-secret-1"))
+	// 公開定数は staging では受け付けない。シークレットも他環境・他アカウントには効かない。
+	assert.False(t, AcceptSharedPassword("staging", demoEmail, SharedPassword))
+	assert.False(t, AcceptSharedPassword("staging", "user@test.com", "stg-demo-secret-1"))
+	assert.False(t, AcceptSharedPassword("production", demoEmail, "stg-demo-secret-1"))
+	assert.False(t, AcceptSharedPassword("development", demoEmail, "stg-demo-secret-1"))
 }
 
 func TestOperatorFromEnv(t *testing.T) {

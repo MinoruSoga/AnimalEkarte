@@ -16,7 +16,7 @@ interface ReservationsResponse {
 }
 
 /** 今日の日付を YYYY-MM-DD 形式で返す */
-export function todayISO(): string {
+function todayISO(): string {
   return todayJSTISO();
 }
 

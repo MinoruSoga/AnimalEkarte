@@ -79,7 +79,7 @@ describe("LoginForm SHOW_DEMO — DEV or Vercel preview (#91 / SEC-CS2-F01)", ()
     expect(envProduction).not.toContain("elb.amazonaws.com");
   });
 
-  it("デモパスワードは SHOW_DEMO が真のときだけ返す", () => {
+  it("デモパスワードの自動入力は SHOW_DEMO かつローカル DEV のときだけ返す（STG はシークレット配布）", () => {
     const src = readFileSync(
       join(dirname(fileURLToPath(import.meta.url)), "LoginForm.tsx"),
       "utf8",
@@ -102,7 +102,10 @@ describe("LoginForm SHOW_DEMO — DEV or Vercel preview (#91 / SEC-CS2-F01)", ()
     expect(fnEnd).toBeGreaterThan(fnStart);
     const fn = src.slice(fnStart, fnEnd + 1);
     expect(fn).toMatch(/if\s*\(\s*!SHOW_DEMO\s*\)/);
-    expect(fn).toContain('"password"');
+    // ローカル開発は従来の公開定数で自動入力するが、STG(preview)では
+    // SEEDLOGIN_DEMO_PASSWORD が正本のため bundle に値を焼かない。
+    // 三項演算子で DEV ゲートされていることを pin する。
+    expect(fn).toMatch(/import\.meta\.env\.DEV\s*\?\s*"password"\s*:\s*""/);
     expect(src).not.toContain("VITE_DEMO_LOGIN_PASSWORD");
   });
 });

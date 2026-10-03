@@ -54,6 +54,7 @@ func TestCreateSyntheticClosingFixture_RejectsUnsafeRequest(t *testing.T) {
 	t.Run("staging env", func(t *testing.T) {
 		_, err := CreateSyntheticClosingFixture(ctx, db, SyntheticClosingRequest{
 			AppEnv: "staging", DBHost: "db", TargetDate: day, PasswordHash: "x",
+			CleanupSecret: testSyntheticClosingSecret,
 		})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "APP_ENV")
@@ -62,6 +63,7 @@ func TestCreateSyntheticClosingFixture_RejectsUnsafeRequest(t *testing.T) {
 	t.Run("existing billing ids", func(t *testing.T) {
 		_, err := CreateSyntheticClosingFixture(ctx, db, SyntheticClosingRequest{
 			AppEnv: "development", DBHost: "db", TargetDate: day, PasswordHash: "x", ExistingBillingIDs: []uint64{3},
+			CleanupSecret: testSyntheticClosingSecret,
 		})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "existing billing")
@@ -70,6 +72,7 @@ func TestCreateSyntheticClosingFixture_RejectsUnsafeRequest(t *testing.T) {
 	t.Run("empty password hash", func(t *testing.T) {
 		_, err := CreateSyntheticClosingFixture(ctx, db, SyntheticClosingRequest{
 			AppEnv: "development", DBHost: "db", TargetDate: day,
+			CleanupSecret: testSyntheticClosingSecret,
 		})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "password hash")
@@ -79,6 +82,7 @@ func TestCreateSyntheticClosingFixture_RejectsUnsafeRequest(t *testing.T) {
 		saturday := time.Date(2026, 9, 5, 0, 0, 0, 0, time.UTC)
 		_, err := CreateSyntheticClosingFixture(ctx, db, SyntheticClosingRequest{
 			AppEnv: "development", DBHost: "db", TargetDate: saturday, PasswordHash: "x",
+			CleanupSecret: testSyntheticClosingSecret,
 		})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "weekday")
@@ -94,6 +98,7 @@ func TestCreateSyntheticClosingFixture_CreatesFiveNewCompletedBillings(t *testin
 
 	got, err := CreateSyntheticClosingFixture(ctx, db, SyntheticClosingRequest{
 		AppEnv: "development", DBHost: "db", TargetDate: day, PasswordHash: "test-hash-not-for-login",
+		CleanupSecret: testSyntheticClosingSecret,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, got)
@@ -101,7 +106,7 @@ func TestCreateSyntheticClosingFixture_CreatesFiveNewCompletedBillings(t *testin
 	require.Len(t, got.BillingIDs, 5)
 	require.Len(t, got.CompletedAt, 5)
 	assert.Equal(t, SyntheticClosingLoginEmail(got.ClinicID), got.LoginEmail)
-	assert.Equal(t, SyntheticClosingCleanupToken(got.ClinicID), got.CleanupToken)
+	assert.Equal(t, SyntheticClosingCleanupToken(got.ClinicID, testSyntheticClosingSecret), got.CleanupToken)
 
 	wantHours := [][2]int{{10, 0}, {13, 30}, {14, 0}, {20, 0}, {2, 0}}
 	var persisted []model.Billing
@@ -135,7 +140,7 @@ func TestCreateSyntheticClosingFixture_CreatesFiveNewCompletedBillings(t *testin
 	require.NoError(t, db.WithContext(ctx).Where("email = ?", got.LoginEmail).First(&account).Error)
 	assert.True(t, account.IsSystemAdmin)
 
-	require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, got.CleanupToken))
+	require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, testSyntheticClosingSecret, got.CleanupToken))
 	var remaining int64
 	require.NoError(t, db.WithContext(ctx).Model(&model.Billing{}).Where("clinic_id = ?", got.ClinicID).Count(&remaining).Error)
 	assert.Zero(t, remaining)
@@ -195,6 +200,7 @@ func TestCreateSyntheticClosingFixture_ReusesTriggerCreatedCash(t *testing.T) {
 
 		created, createErr := CreateSyntheticClosingFixture(ctx, tx, SyntheticClosingRequest{
 			AppEnv: "development", DBHost: "db", TargetDate: time.Date(2026, 9, 7, 0, 0, 0, 0, jst), PasswordHash: "x",
+			CleanupSecret: testSyntheticClosingSecret,
 		})
 		if createErr != nil {
 			return createErr
@@ -231,12 +237,13 @@ func TestDeleteSyntheticClosingFixture_RejectsWrongToken(t *testing.T) {
 	require.NoError(t, err)
 	got, err := CreateSyntheticClosingFixture(ctx, db, SyntheticClosingRequest{
 		AppEnv: "development", DBHost: "db", TargetDate: time.Date(2026, 9, 7, 0, 0, 0, 0, jst), PasswordHash: "x",
+		CleanupSecret: testSyntheticClosingSecret,
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		assert.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, got.CleanupToken))
+		assert.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, testSyntheticClosingSecret, got.CleanupToken))
 	})
-	err = DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, "deadbeef")
+	err = DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, testSyntheticClosingSecret, "deadbeef")
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "cleanup token")
 }
@@ -258,6 +265,7 @@ func TestDeleteSyntheticClosingFixture_RemovesCashRegisterCloseGraph(t *testing.
 
 	got, err := CreateSyntheticClosingFixture(ctx, db, SyntheticClosingRequest{
 		AppEnv: "development", DBHost: "db", TargetDate: day, PasswordHash: "x",
+		CleanupSecret: testSyntheticClosingSecret,
 	})
 	require.NoError(t, err)
 
@@ -280,7 +288,7 @@ func TestDeleteSyntheticClosingFixture_RemovesCashRegisterCloseGraph(t *testing.
 	}
 	require.NoError(t, db.WithContext(ctx).Create(adjustment).Error)
 
-	require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, got.CleanupToken))
+	require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, testSyntheticClosingSecret, got.CleanupToken))
 
 	for name, modelPtr := range map[string]any{
 		"cash_register_close_adjustments": &model.CashRegisterCloseAdjustment{},
@@ -314,14 +322,15 @@ func TestDeleteSyntheticClosingFixture_AuditRowsPolicySeam(t *testing.T) {
 	t.Run("policy error aborts teardown", func(t *testing.T) {
 		got, err := CreateSyntheticClosingFixture(ctx, db, SyntheticClosingRequest{
 			AppEnv: "development", DBHost: "db", TargetDate: day, PasswordHash: "x",
+			CleanupSecret: testSyntheticClosingSecret,
 		})
 		require.NoError(t, err)
 		t.Cleanup(func() {
-			assert.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, got.CleanupToken))
+			assert.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, testSyntheticClosingSecret, got.CleanupToken))
 		})
 
 		policyErr := errors.New("audit policy refused")
-		err = DeleteSyntheticClosingFixtureWithAuditPolicy(ctx, db, "development", "db", got.ClinicID, got.CleanupToken,
+		err = DeleteSyntheticClosingFixtureWithAuditPolicy(ctx, db, "development", "db", got.ClinicID, testSyntheticClosingSecret, got.CleanupToken,
 			func(context.Context, *gorm.DB, uint64) error { return policyErr })
 		require.ErrorIs(t, err, policyErr)
 
@@ -332,6 +341,7 @@ func TestDeleteSyntheticClosingFixture_AuditRowsPolicySeam(t *testing.T) {
 	t.Run("policy resolves audit rows inside tx", func(t *testing.T) {
 		got, err := CreateSyntheticClosingFixture(ctx, db, SyntheticClosingRequest{
 			AppEnv: "development", DBHost: "db", TargetDate: day, PasswordHash: "x",
+			CleanupSecret: testSyntheticClosingSecret,
 		})
 		require.NoError(t, err)
 		var staffRow model.Staff
@@ -346,7 +356,7 @@ func TestDeleteSyntheticClosingFixture_AuditRowsPolicySeam(t *testing.T) {
 		// 解決は組み込みの匿名化 policy に委譲する（実 FK を持つ testdb では
 		// 参照を付け替えない policy では teardown は完遂しない）。
 		var sawClinic uint64
-		err = DeleteSyntheticClosingFixtureWithAuditPolicy(ctx, db, "development", "db", got.ClinicID, got.CleanupToken,
+		err = DeleteSyntheticClosingFixtureWithAuditPolicy(ctx, db, "development", "db", got.ClinicID, testSyntheticClosingSecret, got.CleanupToken,
 			func(pctx context.Context, tx *gorm.DB, clinicID uint64) error {
 				sawClinic = clinicID
 				if err := tx.Exec("UPDATE audit_logs SET user_agent = 's09-seam-marker' WHERE clinic_id = ?", clinicID).Error; err != nil {
@@ -736,7 +746,7 @@ func TestDeleteSyntheticClosingFixture_AmbientTxJoinsSavepoint(t *testing.T) {
 	var policyTx, policyCtxTx *gorm.DB
 	err := DeleteSyntheticClosingFixtureWithAuditPolicy(
 		persistence.WithTxValue(ctx, ambient), db, "development", "db", clinicID,
-		SyntheticClosingCleanupToken(clinicID),
+		testSyntheticClosingSecret, SyntheticClosingCleanupToken(clinicID, testSyntheticClosingSecret),
 		func(pctx context.Context, tx *gorm.DB, _ uint64) error {
 			policyTx = tx
 			policyCtxTx = persistence.TxFromContext(pctx)
@@ -772,8 +782,9 @@ func TestCreateSyntheticClosingFixture_AmbientTxJoinsSavepoint(t *testing.T) {
 	got, err := CreateSyntheticClosingFixture(
 		persistence.WithTxValue(ctx, ambient), db, SyntheticClosingRequest{
 			AppEnv: "development", DBHost: "db",
-			TargetDate:   time.Date(2026, 9, 7, 0, 0, 0, 0, time.UTC),
-			PasswordHash: "x",
+			TargetDate:    time.Date(2026, 9, 7, 0, 0, 0, 0, time.UTC),
+			PasswordHash:  "x",
+			CleanupSecret: testSyntheticClosingSecret,
 		})
 	require.NoError(t, err)
 	require.NotNil(t, got)
@@ -796,7 +807,7 @@ func TestDeleteSyntheticClosingFixture_PlainCtxSingleTxConnection(t *testing.T) 
 	drv.responder = s09TeardownResponder(clinicID)
 
 	require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", clinicID,
-		SyntheticClosingCleanupToken(clinicID)))
+		testSyntheticClosingSecret, SyntheticClosingCleanupToken(clinicID, testSyntheticClosingSecret)))
 
 	connID := s09RequireSingleTxConn(t, drv)
 	assert.Equal(t, 1, len(drv.ops("commit")), "the teardown transaction must commit")
@@ -815,6 +826,7 @@ func TestRegisterUATRoutes_TeardownCoversCreatedTables(t *testing.T) {
 	drv.responder = s09CreateResponder()
 	h := &SyntheticClosingHandler{
 		DB: db, AppEnv: "development", DBHost: "db", Password: "s09-local-password",
+		Secret: testSyntheticClosingSecret,
 	}
 	r := gin.New()
 	RegisterUATRoutes(r.Group("/api/v1"), h)
@@ -823,6 +835,7 @@ func TestRegisterUATRoutes_TeardownCoversCreatedTables(t *testing.T) {
 		bytes.NewBufferString(`{"targetDate":"2026-09-07"}`))
 	req.Host = "localhost"
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+testSyntheticClosingSecret)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
@@ -837,6 +850,7 @@ func TestRegisterUATRoutes_TeardownCoversCreatedTables(t *testing.T) {
 	del := httptest.NewRequest(http.MethodDelete,
 		"/api/v1/uat/synthetic-closings/"+strconv.FormatUint(body.ClinicID, 10), nil)
 	del.Host = "127.0.0.1"
+	del.Header.Set("Authorization", "Bearer "+testSyntheticClosingSecret)
 	del.Header.Set(syntheticClosingCleanupHeader, body.CleanupToken)
 	dw := httptest.NewRecorder()
 	r.ServeHTTP(dw, del)
@@ -876,15 +890,16 @@ func TestDeleteSyntheticClosingFixture_AmbientTxJoinLeavesNoResidue(t *testing.T
 	require.NoError(t, err)
 	got, err := CreateSyntheticClosingFixture(ctx, db, SyntheticClosingRequest{
 		AppEnv: "development", DBHost: "db",
-		TargetDate:   time.Date(2026, 9, 7, 0, 0, 0, 0, jst),
-		PasswordHash: "x",
+		TargetDate:    time.Date(2026, 9, 7, 0, 0, 0, 0, jst),
+		PasswordHash:  "x",
+		CleanupSecret: testSyntheticClosingSecret,
 	})
 	require.NoError(t, err)
 
 	txErr := db.WithContext(ctx).Transaction(func(ambient *gorm.DB) error {
 		if err := DeleteSyntheticClosingFixtureWithAuditPolicy(
 			persistence.WithTxValue(ctx, ambient), db,
-			"development", "db", got.ClinicID, got.CleanupToken, nil); err != nil {
+			"development", "db", got.ClinicID, testSyntheticClosingSecret, got.CleanupToken, nil); err != nil {
 			return err
 		}
 		return errRollbackSyntheticClosingAmbient
@@ -903,7 +918,7 @@ func TestDeleteSyntheticClosingFixture_AmbientTxJoinLeavesNoResidue(t *testing.T
 	require.NoError(t, db.WithContext(ctx).Transaction(func(ambient *gorm.DB) error {
 		return DeleteSyntheticClosingFixtureWithAuditPolicy(
 			persistence.WithTxValue(ctx, ambient), db,
-			"development", "db", got.ClinicID, got.CleanupToken, nil)
+			"development", "db", got.ClinicID, testSyntheticClosingSecret, got.CleanupToken, nil)
 	}))
 	for name, modelPtr := range map[string]any{
 		"payment_splits": &model.PaymentSplit{},
@@ -930,6 +945,7 @@ func TestRegisterUATRoutes_DeleteLeavesNoResidue(t *testing.T) {
 	db := testdbSetupSyntheticClosing(t)
 	h := &SyntheticClosingHandler{
 		DB: db, AppEnv: "development", DBHost: "db", Password: "s09-local-password",
+		Secret: testSyntheticClosingSecret,
 	}
 	r := gin.New()
 	RegisterUATRoutes(r.Group("/api/v1"), h)
@@ -938,6 +954,7 @@ func TestRegisterUATRoutes_DeleteLeavesNoResidue(t *testing.T) {
 		bytes.NewBufferString(`{"targetDate":"2026-09-07"}`))
 	req.Host = "localhost"
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+testSyntheticClosingSecret)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
@@ -949,6 +966,7 @@ func TestRegisterUATRoutes_DeleteLeavesNoResidue(t *testing.T) {
 	del := httptest.NewRequest(http.MethodDelete,
 		"/api/v1/uat/synthetic-closings/"+strconv.FormatUint(body.ClinicID, 10), nil)
 	del.Host = "127.0.0.1"
+	del.Header.Set("Authorization", "Bearer "+testSyntheticClosingSecret)
 	del.Header.Set(syntheticClosingCleanupHeader, body.CleanupToken)
 	dw := httptest.NewRecorder()
 	r.ServeHTTP(dw, del)

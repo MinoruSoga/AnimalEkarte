@@ -288,6 +288,7 @@ type reservationHandlerDependencies struct {
 	StaffAssignments  reservationStaffAssignments
 	LiffAuth          gin.HandlerFunc
 	LiffRateLimit     func(limit int) gin.HandlerFunc
+	LiffBodyLimit     gin.HandlerFunc
 	LinkLiffAccount   gin.HandlerFunc
 	RequirePermission reservation.PermissionMiddleware
 }
@@ -320,6 +321,7 @@ func (c reservationComposition) newHandler(
 		reservation.NewLiffHandler(c.Liff, dependencies.StaffAssignments),
 		dependencies.LiffAuth,
 		dependencies.LiffRateLimit,
+		dependencies.LiffBodyLimit,
 		dependencies.LinkLiffAccount,
 		dependencies.RequirePermission,
 	)

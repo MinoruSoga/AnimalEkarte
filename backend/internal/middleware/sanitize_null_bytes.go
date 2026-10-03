@@ -19,6 +19,14 @@ import (
 // cannot be bypassed.
 const DefaultJSONBodyMaxBytes int64 = 1 << 20 // 1 MiB
 
+// BinaryBodyMaxBytes はバイナリ系 Content-Type（multipart/octet-stream）の
+// 生バイト上限。バイナリは制御文字除去を適用できないが（PNG 破損 — X-1）、
+// Content-Type を偽装して無制限ボディを送りつける DoS を許してはならない。
+// 最大のルート固有アップロード上限（共有ファイル 10MiB・カルテ画像 11MiB）
+// をカバーする共通天井として 16MiB とする。各アップロードハンドラは
+// さらに厳しいルート固有の MaxBytesReader を掛ける。
+const BinaryBodyMaxBytes int64 = 16 << 20 // 16 MiB
+
 // SanitizeNullBytes は POST/PATCH/PUT およびボディ付き DELETE のボディから
 // NULL バイトおよび制御文字を除去するミドルウェア。
 // PostgreSQL は NULL バイト（\u0000）を含む文字列を拒否するため、
@@ -58,6 +66,7 @@ func SanitizeNullBytes() gin.HandlerFunc {
 
 		contentType := c.Request.Header.Get("Content-Type")
 		if isBinaryContentType(contentType) && c.Request.Method != http.MethodDelete {
+			boundBinaryRequestBody(c)
 			c.Next()
 			return
 		}
@@ -114,6 +123,7 @@ func LimitRequestBody(maxBytes int64) gin.HandlerFunc {
 		}
 		contentType := c.Request.Header.Get("Content-Type")
 		if isBinaryContentType(contentType) && c.Request.Method != http.MethodDelete {
+			boundBinaryRequestBody(c)
 			c.Next()
 			return
 		}
@@ -128,6 +138,21 @@ func LimitRequestBody(maxBytes int64) gin.HandlerFunc {
 		}
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBytes)
 		c.Next()
+	}
+}
+
+// boundBinaryRequestBody はバイナリ系ボディへ共通天井を適用する。
+// 宣言 Content-Length が上限超過なら即 413、それ以外（チャンク転送含む）は
+// MaxBytesReader で読み取り側を制限する。上限を超えた場合の 413 変換は
+// 各ルート固有の MaxBytesReader/ハンドラに委ねる。
+func boundBinaryRequestBody(c *gin.Context) {
+	if c.Request.ContentLength > BinaryBodyMaxBytes {
+		httpapi.RespondError(c, apperrors.WrapPayloadTooLarge("request body exceeds size limit"))
+		c.Abort()
+		return
+	}
+	if c.Request.Body != nil {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, BinaryBodyMaxBytes)
 	}
 }
 

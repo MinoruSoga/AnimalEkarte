@@ -51,8 +51,24 @@ jobs:
             echo "JWT_SECRET=${{ secrets.CI_JWT_SECRET || 'ci-test-secret-not-for-prod-use-32chars-min' }}"
           } > .env.local
 
-      - name: Install k6
-        run: sudo apt-get install -y gnupg software-properties-common && curl https://dl.k6.io/key.gpg | sudo apt-key add - && sudo add-apt-repository "deb https://dl.k6.io/deb stable main" && sudo apt-get update && sudo apt-get install k6
+      - name: Install k6 (pinned release + checksum)
+        shell: bash
+        # サプライチェーン対策（docs/ops/ci-policy.md）: apt-key + 無版 install を廃止し、
+        # GitHub Releases tarball を SHA-256 検証してから展開する。
+        # 更新時は K6_VERSION と K6_SHA256 を同時に bump すること。
+        # checksum source: grafana/k6 releases v2.3.0 k6-v2.3.0-checksums.txt
+        env:
+          K6_VERSION: "2.3.0"
+          K6_SHA256: "39c3117b6af817592dcd0ce4242105c0a7af10948c2a425306f0be8f7a8a8ab1"
+        run: |
+          set -euo pipefail
+          archive="k6-v${K6_VERSION}-linux-amd64.tar.gz"
+          url="https://github.com/grafana/k6/releases/download/v${K6_VERSION}/${archive}"
+          curl -fsSL "$url" -o "$archive"
+          echo "${K6_SHA256}  ${archive}" | sha256sum -c -
+          tar -xzf "$archive"
+          sudo install -m 0755 "k6-v${K6_VERSION}-linux-amd64/k6" /usr/local/bin/k6
+          k6 version
 
       - name: Start Docker services
         run: docker compose up -d db backend

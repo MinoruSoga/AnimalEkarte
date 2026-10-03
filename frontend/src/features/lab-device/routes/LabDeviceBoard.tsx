@@ -1,4 +1,5 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import Axios from "axios";
 import { toast } from "sonner";
 
@@ -7,6 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { usePermission } from "@/hooks/use-permission";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import { todayJSTISO } from "@/lib/jst-date";
+import { queryKeys } from "@/lib/query-keys";
 import { ResourceLabImport } from "@/types/generated/models";
 
 import {
@@ -165,11 +167,17 @@ export function LabDeviceBoard() {
     },
     [detach],
   );
+  const queryClient = useQueryClient();
+  const refreshAgentCapability = useCallback(
+    () => void queryClient.invalidateQueries({ queryKey: queryKeys.labDevice.agentConsumer() }),
+    [queryClient],
+  );
   const agentStatus = useLabDeviceAgentListen({
     enabled: canCreate && currentClinicId !== null,
     clinicId: currentClinicId,
     consumerToken: agentConsumerToken,
     onFrame,
+    onUnauthorized: refreshAgentCapability,
   });
   const linkLabel = labDeviceAgentConnectionLabel(agentStatus);
 
