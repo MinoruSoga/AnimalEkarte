@@ -32,7 +32,7 @@ interface MedicalRecordsListResponse {
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 
-export async function getMedicalRecordsPage(
+async function getMedicalRecordsPage(
   filters?: MedicalRecordsPageFilters,
 ): Promise<MedicalRecordsResult> {
   const params: Record<string, string | number> = {

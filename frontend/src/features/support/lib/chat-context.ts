@@ -45,7 +45,7 @@ const STOPWORDS = new Set([
  * 自然文の質問から検索キーワードを抽出する。
  * 助詞・文末表現・質問語を取り除き、2 文字以上の語を重複なく返す。
  */
-export function extractSearchTerms(message: string): string[] {
+function extractSearchTerms(message: string): string[] {
   const seen = new Set<string>();
   for (const raw of message.split(TOKEN_SPLIT)) {
     const term = raw.replace(SUFFIX_STRIP, "");

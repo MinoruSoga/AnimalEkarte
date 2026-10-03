@@ -17,7 +17,7 @@ type DangerLevel = (typeof DANGER_LEVEL_VALUES)[number];
 
 // 避妊・去勢の施術状況（UI 値は性別中立。ラベルは性別に応じて 去勢/避妊/去勢・避妊 と表示層が分ける）
 export const NEUTERED_STATUS_VALUES = ["済", "未", "不明"] as const;
-export type NeuteredStatus = (typeof NEUTERED_STATUS_VALUES)[number];
+type NeuteredStatus = (typeof NEUTERED_STATUS_VALUES)[number];
 
 // Owner-related type constants and definitions
 export const MEMBERSHIP_TYPE_VALUES = ["非会員", "会員", "退亡者", "他診/準"] as const;

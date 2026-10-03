@@ -8,7 +8,7 @@ import { BADGE, C, ICON } from "@/lib/design-tokens";
  * 文言は一切出さず、アイコンの形と色だけでスタッフが識別する
  * （色だけに依存しないよう段階ごとに形も分ける）。
  */
-export type DangerBadgePetLevel = "high" | "medium";
+type DangerBadgePetLevel = "high" | "medium";
 
 const PET_BADGE_STYLE: Record<
   DangerBadgePetLevel,
@@ -47,7 +47,7 @@ function toDangerBadgePetLevel(
   }
 }
 
-export interface PetDangerBadgeProps {
+interface PetDangerBadgeProps {
   variant: "pet";
   /**
    * 特記レベル。wire 値 ("high" 等) と画面表示値 ("高" 等) の両方を受け付ける。
@@ -65,13 +65,13 @@ export interface PetDangerBadgeProps {
   stopPropagation?: boolean;
 }
 
-export interface OwnerDangerBadgeProps {
+interface OwnerDangerBadgeProps {
   variant: "owner";
   /** カード全体が click / drag 対象の場面で true。 */
   stopPropagation?: boolean;
 }
 
-export type DangerBadgeProps = PetDangerBadgeProps | OwnerDangerBadgeProps;
+type DangerBadgeProps = PetDangerBadgeProps | OwnerDangerBadgeProps;
 
 /**
  * スタッフ向け特記マークの共有バッジ（EMR-231）。

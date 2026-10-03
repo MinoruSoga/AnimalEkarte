@@ -32,7 +32,7 @@ export interface BugReport {
 
 // ── ヘルプチャット（POST /v1/support/chat） ──────────────────────────
 
-export type SupportChatRole = "user" | "assistant";
+type SupportChatRole = "user" | "assistant";
 
 /** 検索で取得したマニュアル抜粋を LLM の根拠コンテキストとして送る */
 export interface SupportChatContextItem {
@@ -42,7 +42,7 @@ export interface SupportChatContextItem {
   text: string;
 }
 
-export interface SupportChatSource {
+interface SupportChatSource {
   title: string;
   category: string;
   slug: string;

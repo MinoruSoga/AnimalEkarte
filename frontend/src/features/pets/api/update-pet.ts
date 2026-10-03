@@ -7,7 +7,7 @@ import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
 import type { PetResponse } from "@/types/generated/pet-responses";
 import type { UpdatePetRequest } from "@/types/pet";
 
-export const updatePet = async (id: string, req: UpdatePetRequest): Promise<Pet> => {
+const updatePet = async (id: string, req: UpdatePetRequest): Promise<Pet> => {
   const { data } = await axios.patch<PetResponse>(`/v1/pets/${id}`, req);
   return transformBackendPetToFrontend(data);
 };

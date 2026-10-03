@@ -105,7 +105,7 @@ export function useGetMedicalRecords(
 }
 
 /** EMR-182: 前回複写ペイロード（feature InterviewHistoryCopySource と同形）。 */
-export interface MedicalRecordInterviewHistoryCopySource {
+interface MedicalRecordInterviewHistoryCopySource {
   /** EMR-219: 治療明細複写の起点となる元カルテ id。明細行は適用時に lazy fetch する。 */
   recordId?: string;
   chiefComplaint?: string;

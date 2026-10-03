@@ -63,12 +63,12 @@ export interface DeletePetChronicConditionVariables {
   conditionId: number;
 }
 
-export async function getPetChronicConditions(petId: string): Promise<PetChronicCondition[]> {
+async function getPetChronicConditions(petId: string): Promise<PetChronicCondition[]> {
   const { data } = await axios.get<PetChronicCondition[]>(`/v1/pets/${petId}/chronic-conditions`);
   return data;
 }
 
-export async function createPetChronicCondition(
+async function createPetChronicCondition(
   petId: string,
   request: CreatePetChronicConditionRequest,
 ): Promise<PetChronicCondition> {
@@ -79,7 +79,7 @@ export async function createPetChronicCondition(
   return data;
 }
 
-export async function updatePetChronicCondition(
+async function updatePetChronicCondition(
   petId: string,
   conditionId: number,
   request: UpdatePetChronicConditionRequest,
@@ -91,7 +91,7 @@ export async function updatePetChronicCondition(
   return data;
 }
 
-export async function deletePetChronicCondition(petId: string, conditionId: number): Promise<void> {
+async function deletePetChronicCondition(petId: string, conditionId: number): Promise<void> {
   await axios.delete(`/v1/pets/${petId}/chronic-conditions/${conditionId}`);
 }
 

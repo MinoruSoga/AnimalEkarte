@@ -8,8 +8,7 @@ import { formatCurrency } from "@/lib/format/number";
 
 import type { Treatment, UpdateTreatmentInput } from "../../types";
 
-// eslint-disable-next-line react-refresh/only-export-components -- キー操作を editor cells と同居
-export function handleTreatmentEditorKeyDown(
+function handleTreatmentEditorKeyDown(
   event: KeyboardEvent,
   commit: () => void,
   onStopEdit: () => void,

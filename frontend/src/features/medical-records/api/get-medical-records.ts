@@ -6,6 +6,5 @@ export {
   useGetMedicalRecords,
   getMedicalRecords,
   useGetPetMedicalHistory,
-  type MedicalRecordFilters,
   type MedicalRecordSortKey,
 } from "@/hooks/use-medical-records";
