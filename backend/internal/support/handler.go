@@ -240,16 +240,25 @@ func (h *Handler) DeleteBugReport(c *gin.Context) {
 	if !ok {
 		return
 	}
-	report, err := h.service.Delete(c.Request.Context(), clinicID, id)
+	report, err := h.service.Get(c.Request.Context(), clinicID, id)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
-	// スクショのオブジェクト削除は best-effort（失敗時は孤立オブジェクトが残るのみ）
+	// スクショのオブジェクト削除は論理削除より先に行う — ストレージ失敗時に
+	// 行だけ消えると retry 経路を失い孤立オブジェクトが残るため、失敗は 502
+	// で報告行を残す（呼び出し側が再試行できる）。
 	if report.ScreenshotKey != nil && h.uploader != nil {
-		if err := h.uploader.Delete(context.WithoutCancel(c.Request.Context()), *report.ScreenshotKey); err != nil {
-			slog.WarnContext(c.Request.Context(), "failed to delete bug report screenshot (best-effort)", "error", err, "report_id", report.ID)
+		if err := h.uploader.Delete(c.Request.Context(), *report.ScreenshotKey); err != nil {
+			slog.WarnContext(c.Request.Context(), "failed to delete bug report screenshot", "error", err, "report_id", report.ID)
+			httpapi.RespondError(c, apperrors.WrapBadGateway("screenshot storage delete failed; report was not deleted"))
+			return
 		}
+	}
+	report, err = h.service.Delete(c.Request.Context(), clinicID, id)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
 	}
 	h.logAudit(c, "support_bug_report.delete", report)
 	c.Status(http.StatusNoContent)

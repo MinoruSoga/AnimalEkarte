@@ -24,6 +24,7 @@ import (
 type mockService struct {
 	createFn        func(ctx context.Context, clinicID, reporterStaffID uint64, input CreateBugReportInput) (*model.SupportBugReport, error)
 	listFn          func(ctx context.Context) ([]BugReportWithReporter, error)
+	getFn           func(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
 	updateStatusFn  func(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error)
 	ensureTicketFn  func(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
 	deleteFn        func(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
@@ -39,6 +40,12 @@ func (m *mockService) Create(ctx context.Context, clinicID, reporterStaffID uint
 }
 func (m *mockService) ListAll(ctx context.Context) ([]BugReportWithReporter, error) {
 	return m.listFn(ctx)
+}
+func (m *mockService) Get(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error) {
+	if m.getFn == nil {
+		return nil, apperrors.WrapNotFound("support_bug_report", "0")
+	}
+	return m.getFn(ctx, clinicID, id)
 }
 func (m *mockService) UpdateStatus(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error) {
 	return m.updateStatusFn(ctx, clinicID, id, status)
@@ -400,40 +407,51 @@ func TestDeleteBugReport(t *testing.T) {
 		deleteErr      error
 		wantStatus     int
 		wantObjDeleted bool
+		wantSvcDelete  bool
 	}{
 		{
 			name:           "soft deletes and removes screenshot object",
 			svcResult:      &model.SupportBugReport{ID: 10, ClinicID: 1, ScreenshotKey: &screenshotKey},
 			wantStatus:     http.StatusNoContent,
 			wantObjDeleted: true,
+			wantSvcDelete:  true,
 		},
 		{
-			name:           "still returns 204 when screenshot deletion fails",
+			// オブジェクト削除に失敗したら 502 で報告行を残す（retry で orphan を防ぐ）。
+			name:           "returns 502 and keeps the report when screenshot deletion fails",
 			svcResult:      &model.SupportBugReport{ID: 10, ClinicID: 1, ScreenshotKey: &screenshotKey},
 			deleteErr:      assert.AnError,
-			wantStatus:     http.StatusNoContent,
+			wantStatus:     http.StatusBadGateway,
 			wantObjDeleted: true,
+			wantSvcDelete:  false,
 		},
 		{
 			name:           "skips object deletion when report has no screenshot",
 			svcResult:      &model.SupportBugReport{ID: 10, ClinicID: 1},
 			wantStatus:     http.StatusNoContent,
 			wantObjDeleted: false,
+			wantSvcDelete:  true,
 		},
 		{
 			name:           "returns 404 for unknown report",
 			svcErr:         apperrors.WrapNotFound("support_bug_report", "10"),
 			wantStatus:     http.StatusNotFound,
 			wantObjDeleted: false,
+			wantSvcDelete:  false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			svcDeleted := false
 			svc := &mockService{
-				deleteFn: func(_ context.Context, clinicID, id uint64) (*model.SupportBugReport, error) {
+				getFn: func(_ context.Context, clinicID, id uint64) (*model.SupportBugReport, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(10), id)
+					return tt.svcResult, tt.svcErr
+				},
+				deleteFn: func(_ context.Context, clinicID, id uint64) (*model.SupportBugReport, error) {
+					svcDeleted = true
 					return tt.svcResult, tt.svcErr
 				},
 			}
@@ -452,6 +470,7 @@ func TestDeleteBugReport(t *testing.T) {
 			// ハンドラ直呼びのテストでは writer.Status() で検証する。
 			assert.Equal(t, tt.wantStatus, c.Writer.Status())
 			assert.Equal(t, tt.wantObjDeleted, uploader.deletedKey != "")
+			assert.Equal(t, tt.wantSvcDelete, svcDeleted)
 		})
 	}
 }

@@ -29,6 +29,8 @@ type CreateBugReportInput struct {
 type Service interface {
 	Create(ctx context.Context, clinicID, reporterStaffID uint64, input CreateBugReportInput) (*model.SupportBugReport, error)
 	ListAll(ctx context.Context) ([]BugReportWithReporter, error)
+	// Get は報告元 clinicID スコープで 1 件を返す。他医院は NotFound（404）。
+	Get(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
 	UpdateStatus(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error)
 	EnsurePlaneTicket(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
 	Delete(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
@@ -77,6 +79,10 @@ func (s *service) Create(ctx context.Context, clinicID, reporterStaffID uint64, 
 
 func (s *service) ListAll(ctx context.Context) ([]BugReportWithReporter, error) {
 	return s.repo.FindAll(ctx)
+}
+
+func (s *service) Get(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error) {
+	return s.repo.FindByIDForClinic(ctx, clinicID, id)
 }
 
 func (s *service) UpdateStatus(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error) {
