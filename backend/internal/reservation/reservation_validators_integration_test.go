@@ -34,6 +34,9 @@ func TestReservationValidators_RealDBRejectsForeignStaffAndRollsBackTrimmingGrap
 	db := setupReservationRepoTestDB(t)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
+	// staff_clinic_assignments は clinic_id に FK があるため先行して医院行が必要
+	// （他テストの残りデータ依存にしない）。
+	testdb.SeedClinicsForFK(t, db, clinicA, clinicB)
 
 	reservationRepo := NewReservationRepository(db)
 	typeRepo := NewReservationTypeRepository(db)
