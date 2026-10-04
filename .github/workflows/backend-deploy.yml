@@ -1,7 +1,7 @@
 # Cloudflare Workers + Containers デプロイ (docs/ops/infra/architecture.md)
 # 旧 AWS ECS 版 CI は 2026-07-20 に廃止済み。履歴は git で確認する。
-# jobs は2系統: deploy (STG) と、GitHub Environment `Production` でゲートされた
-# deploy-production (本番。setup.md の人間前提条件が揃うまで実行不可)。
+# jobs は2系統: deploy (STG。GitHub Environment `staging`) と、
+# GitHub Environment `Production` でゲートされた deploy-production。
 
 name: Backend Deploy
 
@@ -40,10 +40,15 @@ jobs:
     if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/staging') || (github.event_name == 'workflow_dispatch' && inputs.target != 'production') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Environment `staging` の必須レビュアーとブランチ制限が承認境界。
+    # checkout は承認されたコミット (github.sha) に固定し、後から branch 先端を取り直さない。
+    environment: staging
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
 
       # workflow_dispatch で任意ブランチを指定できるが、production ブランチからの
       # STG deploy は prod リリース経路と混線するため fail-closed で拒否する

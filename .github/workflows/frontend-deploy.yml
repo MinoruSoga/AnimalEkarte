@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "デプロイ先 (preview = ステージング相当 / production = 本番)"
+        description: "デプロイ先 (preview = ステージング。Environment 名は staging / production = 本番)"
         required: false
         default: "preview"
         type: choice
@@ -32,9 +32,9 @@ jobs:
   deploy:
     name: Deploy to Cloudflare Workers
     runs-on: ubuntu-latest
-    # Production GitHub Environment is restricted to refs/heads/production.
-    # Preview is used for staging pushes and non-production workflow_dispatch.
-    environment: ${{ (github.event.inputs.environment == 'production' || (github.event_name == 'push' && github.ref == 'refs/heads/production')) && 'Production' || 'Preview' }}
+    # Production は refs/heads/production。それ以外のこの workflow はステージング配置なので
+    # Environment `staging` を使う。入力名 preview は従来の dispatch 値で、Environment 名ではない。
+    environment: ${{ (github.event.inputs.environment == 'production' || (github.event_name == 'push' && github.ref == 'refs/heads/production')) && 'Production' || 'staging' }}
     permissions:
       contents: read
       deployments: write
@@ -48,6 +48,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6

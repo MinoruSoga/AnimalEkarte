@@ -118,7 +118,8 @@ test("backend deploy keeps the STG path and adds a Production-gated path", () =>
   assert.match(on, /^\s+- production\s*$/m);
 
   const staging = workflowJob(wf, "deploy");
-  assert.doesNotMatch(staging, /^\s+environment:/m);
+  assert.match(staging, /^\s+environment: staging\s*$/m);
+  assert.match(staging, /ref: \$\{\{ github\.sha \}\}/);
   assert.match(staging, /github\.ref == 'refs\/heads\/staging'/);
   // workflow_dispatch --ref production -f target=staging は STG 側で fail-closed される。
   const stgGuard = namedStep(
@@ -185,6 +186,9 @@ test("frontend deploy builds the Vite bundle and deploys via wrangler", () => {
   assert.match(workflow, /if \[ "\$ENV" = "production" \]/);
   assert.match(workflow, /secrets\.CLOUDFLARE_API_TOKEN/);
   assert.match(workflow, /secrets\.PROD_CLOUDFLARE_API_TOKEN/);
+  assert.match(workflow, /\|\| 'staging' \}\}/);
+  assert.doesNotMatch(workflow, /\|\| 'Preview' \}\}/);
+  assert.match(workflow, /ref: \$\{\{ github\.sha \}\}/);
   assert.doesNotMatch(workflow, /vercel (deploy|alias|pull)/);
 });
 
@@ -683,4 +687,12 @@ test("one-off staging SQL workflows and the ghost worker delete are absent", () 
   assert.doesNotMatch(sync, /workers\/scripts/);
   assert.match(sync, /wrangler secret put DB_USER --name animalekarte-stg-api/);
   assert.match(sync, /wrangler secret put DB_PASSWORD --name animalekarte-stg-api/);
+  assert.match(sync, /^\s+environment: staging\s*$/m);
+  assert.match(sync, /ref: \$\{\{ github\.sha \}\}/);
+
+  const migrate = read(".github/workflows/stg-migrate-direct.yml");
+  assert.match(migrate, /^\s+environment: staging\s*$/m);
+  assert.match(migrate, /ref: \$\{\{ github\.sha \}\}/);
+  assert.doesNotMatch(migrate, /inputs\.confirm/);
+  assert.doesNotMatch(migrate, /confirm=migrate/);
 });
