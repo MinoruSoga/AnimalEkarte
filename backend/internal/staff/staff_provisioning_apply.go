@@ -309,6 +309,8 @@ func (p *StaffProvisioner) createAllStaff(
 
 		// EMR-289: the account mirrors the staff's initial active state so a
 		// manifest never produces an inactive staff holding a usable credential.
+		// gorm default:true drops a false is_active from INSERT, so the pair is
+		// created active and deactivated post-create inside the same ambient tx.
 		account := &model.Account{
 			Email:        strings.TrimSpace(strings.ToLower(entry.Email)),
 			PasswordHash: string(hashed),
@@ -330,6 +332,13 @@ func (p *StaffProvisioner) createAllStaff(
 		}
 		if err := p.repo.CreateStaff(ctx, staff); err != nil {
 			return 0, err
+		}
+		if !entry.IsActive {
+			if err := p.repo.SetStaffPairInactive(ctx, account.ID, staff.ID); err != nil {
+				return 0, err
+			}
+			account.IsActive = false
+			staff.IsActive = false
 		}
 
 		// Main clinic first, then remaining assignments sorted.

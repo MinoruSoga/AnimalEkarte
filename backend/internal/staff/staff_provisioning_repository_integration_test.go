@@ -177,6 +177,29 @@ func (f *provisionIntegrationFixture) singleStaffManifest(t *testing.T, multiCli
 	return manifest, secrets
 }
 
+// EMR-289: is_active:false の manifest は account+staff ペアを非アクティブで作成する。
+// gorm default:true は false を INSERT から落とすため、作成後 UPDATE がないと
+// 「無効スタッフ＋生きた資格情報」が生まれる。
+func TestStaffProvisioning_Integration_InactiveManifestCreatesInactivePair(t *testing.T) {
+	f := newProvisionIntegrationFixture(t)
+	manifest, secrets := f.singleStaffManifest(t, false)
+	manifest.Staff[0].IsActive = false
+	mp, sp := f.writeInputs(t, manifest, secrets)
+
+	result, err := f.provisioner.Apply(context.Background(), mp, sp)
+	require.NoError(t, err)
+	require.Equal(t, "applied", result.Status)
+
+	var staff model.Staff
+	require.NoError(t, f.db.Where("name = ?", "合成発行スタッフ").First(&staff).Error)
+	assert.False(t, staff.IsActive, "staffs.is_active が manifest どおり false になる")
+	require.NotNil(t, staff.AccountID)
+
+	var account model.Account
+	require.NoError(t, f.db.First(&account, *staff.AccountID).Error)
+	assert.False(t, account.IsActive, "accounts.is_active が manifest どおり false になる")
+}
+
 func TestStaffProvisioning_Integration_PreflightZeroWrites(t *testing.T) {
 	f := newProvisionIntegrationFixture(t)
 	manifest, secrets := f.singleStaffManifest(t, false)

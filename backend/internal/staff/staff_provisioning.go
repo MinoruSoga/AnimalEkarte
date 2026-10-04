@@ -110,6 +110,7 @@ type StaffProvisioningRepository interface {
 	HasMasterStaffCreate(ctx context.Context, staffID, clinicID uint64) (bool, error)
 	CreateAccount(ctx context.Context, account *model.Account) error
 	CreateStaff(ctx context.Context, staff *model.Staff) error
+	SetStaffPairInactive(ctx context.Context, accountID, staffID uint64) error
 	CreateAssignment(ctx context.Context, assignment *model.StaffClinicAssignment) error
 	AssignPermissionGroups(ctx context.Context, clinicID, staffID uint64, groupIDs []uint64) error
 	LockOccupationForShare(ctx context.Context, clinicID, occupationID uint64) error
