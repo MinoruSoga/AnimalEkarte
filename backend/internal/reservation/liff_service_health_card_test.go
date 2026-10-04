@@ -269,4 +269,39 @@ func TestLiffService_GetHealthCard(t *testing.T) {
 		require.Len(t, result.Pets, 1)
 		assert.Equal(t, uint64(31), result.Pets[0].PetID)
 	})
+
+	t.Run("status=deceased pets with NULL deceased_at are excluded (EMR-290 legacy data)", func(t *testing.T) {
+		ownerID := uint64(50)
+		customerRepo := &mockLiffCustomerRepository{
+			findByIDFn: func(ctx context.Context, clinicID, id uint64) (*model.LineCustomer, error) {
+				return &model.LineCustomer{
+					ID:       id,
+					ClinicID: clinicID,
+					OwnerID:  &ownerID,
+					Owner: &model.Owner{
+						ID:   ownerID,
+						Name: "高橋三郎",
+						Pets: []model.Pet{
+							// 旧移行データ: status=deceased だが deceased_at IS NULL
+							{ID: 40, OwnerID: ownerID, Name: "シロ", Status: model.PetStatusDeceased, DeceasedAt: nil},
+							{ID: 41, OwnerID: ownerID, Name: "チビ", Status: model.PetStatusAlive, DeceasedAt: nil},
+						},
+					},
+				}, nil
+			},
+		}
+		vaccinationRepo := &mockVaccinationRepository{
+			findByOwnerFn: func(ctx context.Context, clinicID, requestedOwnerID uint64) ([]model.Vaccination, error) {
+				return nil, nil
+			},
+		}
+
+		svc := newHealthCardTestService(customerRepo, vaccinationRepo)
+
+		result, err := svc.GetHealthCard(context.Background(), 1, 100)
+
+		require.NoError(t, err)
+		require.Len(t, result.Pets, 1)
+		assert.Equal(t, uint64(41), result.Pets[0].PetID, "status=deceased + deceased_at NULL のペットは除外される")
+	})
 }

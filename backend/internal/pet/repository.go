@@ -27,7 +27,7 @@ type PetListFilters struct {
 	OwnerID         *uint64
 	Search          string
 	AnimalSpeciesID *uint64
-	// IncludeDeceased: false（既定）は deceased_at IS NULL（生存のみ）に絞る。
+	// IncludeDeceased: false（既定）は deceased_at IS NULL かつ status <> 'deceased'（生存のみ）に絞る。
 	IncludeDeceased bool
 	// CheckupHistory: EMR-197-01 健診受診履歴の列挙フィルタ。空文字はフィルタ無し。
 	CheckupHistory CheckupHistoryFilter
@@ -42,7 +42,7 @@ type Repository interface {
 	FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error)
 	FindLivingByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Pet, error)
 	CountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
-	// CountLivingByOwner は指定オーナーの生存ペット数（deceased_at IS NULL）を返す。
+	// CountLivingByOwner は指定オーナーの生存ペット数（deceased_at IS NULL かつ status <> 'deceased'）を返す。
 	// ISSUE-007: CreateCheckupSync のサーバ側二重防御で誤配信を防ぐ。
 	CountLivingByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 	// CountLivingByOwnerIDs は複数オーナーの生存ペット数を一括取得する（N+1 解消用）。
@@ -334,10 +334,11 @@ func compactSearchText(value string) string {
 
 func (r *repository) FindLivingByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Pet, error) {
 	var pets []model.Pet
+	// EMR-290: 生存判定は status=deceased または deceased_at 非NULL の OR 契約（BUG-001 と同じ）。
 	err := r.db.WithContext(ctx).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Preload("AnimalSpecies").
-		Where("owner_id = ? AND deceased_at IS NULL AND deleted_at IS NULL", ownerID).
+		Where("owner_id = ? AND deceased_at IS NULL AND status <> ? AND deleted_at IS NULL", ownerID, model.PetStatusDeceased).
 		Order("created_at ASC").
 		Find(&pets).Error
 	if err != nil {
@@ -357,13 +358,14 @@ func (r *repository) CountByOwner(ctx context.Context, clinicID, ownerID uint64)
 	return count, nil
 }
 
-// CountLivingByOwner は指定オーナーの生存ペット数（deceased_at IS NULL）を返す。
+// CountLivingByOwner は指定オーナーの生存ペット数（deceased_at IS NULL かつ status <> 'deceased'）を返す。
 // ISSUE-007: CreateCheckupSync のサーバ側二重防御で死亡ペットのみの飼い主を除外するために使用する。
+// EMR-290: status=deceased でも deceased_at IS NULL の旧データは死亡として数えない。
 func (r *repository) CountLivingByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&model.Pet{}).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("owner_id = ? AND deceased_at IS NULL AND deleted_at IS NULL", ownerID).
+		Where("owner_id = ? AND deceased_at IS NULL AND status <> ? AND deleted_at IS NULL", ownerID, model.PetStatusDeceased).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "pet", "")
 	}
@@ -383,7 +385,7 @@ func (r *repository) CountLivingByOwnerIDs(ctx context.Context, clinicID uint64,
 	if err := r.db.WithContext(ctx).Model(&model.Pet{}).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Select("owner_id, COUNT(*) AS count").
-		Where("owner_id IN ? AND deceased_at IS NULL AND deleted_at IS NULL", ownerIDs).
+		Where("owner_id IN ? AND deceased_at IS NULL AND status <> ? AND deleted_at IS NULL", ownerIDs, model.PetStatusDeceased).
 		Group("owner_id").
 		Scan(&rows).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "pet", "")
@@ -724,13 +726,14 @@ func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {
 }
 
 // FindOwnersByPetBirthday は指定月日と一致する誕生日の生存ペットを持つ飼い主IDリストを返す（FEAT-383）。
+// EMR-290: 生存判定は deceased_at IS NULL かつ status <> 'deceased' の両方を見る。
 func (r *repository) FindOwnersByPetBirthday(ctx context.Context, clinicID uint64, month, day int) ([]uint64, error) {
 	type row struct{ OwnerID uint64 }
 	var rows []row
 	err := r.db.WithContext(ctx).
 		Table("pets AS p").
 		Joins("JOIN owners AS o ON o.id = p.owner_id AND o.clinic_id = p.clinic_id AND o.deleted_at IS NULL").
-		Where("p.clinic_id = ? AND p.deceased_at IS NULL AND p.deleted_at IS NULL", clinicID).
+		Where("p.clinic_id = ? AND p.deceased_at IS NULL AND p.status <> ? AND p.deleted_at IS NULL", clinicID, model.PetStatusDeceased).
 		Where("EXTRACT(month FROM p.birth_date) = ? AND EXTRACT(day FROM p.birth_date) = ?", month, day).
 		Distinct("p.owner_id").
 		Scan(&rows).Error

@@ -320,6 +320,32 @@ func TestResolveReservationPetID(t *testing.T) {
 			customerFields: []byte(`{"pets":[{"name":"タマ"}]}`),
 			wantNil:        true,
 		},
+		{
+			// EMR-290: status=deceased だが deceased_at IS NULL の旧移行データは死亡扱い。
+			name: "単頭だが status=deceased + deceased_at NULL -> nil",
+			customer: &model.LineCustomer{ID: 1, Owner: &model.Owner{ID: 10, Pets: []model.Pet{
+				{ID: 300, Name: "ポチ", Status: model.PetStatusDeceased, DeceasedAt: nil},
+			}}},
+			wantNil: true,
+		},
+		{
+			name: "生存1頭+status=deceased（deceased_at NULL）1頭 -> 生存ID",
+			customer: &model.LineCustomer{ID: 1, Owner: &model.Owner{ID: 10, Pets: []model.Pet{
+				{ID: 300, Name: "ポチ", Status: model.PetStatusDeceased, DeceasedAt: nil},
+				{ID: 301, Name: "タマ", Status: model.PetStatusAlive, DeceasedAt: nil},
+			}}},
+			wantID: 301,
+		},
+		{
+			name: "複数頭生存・名前一致だが status=deceased（deceased_at NULL）-> nil",
+			customer: &model.LineCustomer{ID: 1, Owner: &model.Owner{ID: 10, Pets: []model.Pet{
+				{ID: 300, Name: "ポチ", Status: model.PetStatusAlive, DeceasedAt: nil},
+				{ID: 301, Name: "タマ", Status: model.PetStatusDeceased, DeceasedAt: nil},
+				{ID: 302, Name: "ハチ", Status: model.PetStatusAlive, DeceasedAt: nil},
+			}}},
+			customerFields: []byte(`{"pets":[{"name":"タマ"}]}`),
+			wantNil:        true,
+		},
 	}
 
 	for _, tt := range tests {

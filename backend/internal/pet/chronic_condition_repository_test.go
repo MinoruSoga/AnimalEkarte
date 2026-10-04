@@ -291,6 +291,7 @@ func TestPetChronicConditionRepository_FindActiveConditionCodesByOwner(t *testin
 	petAlive1 := makePetDetailed(t, db, clinicA, owner.ID, aliveSpeciesID, "アクティブ疾患ペット1", nil, nil)
 	petAlive2 := makePetDetailed(t, db, clinicA, owner.ID, aliveSpeciesID, "アクティブ疾患ペット2", nil, nil)
 	petDeceased := makePetDetailed(t, db, clinicA, owner.ID, aliveSpeciesID, "死亡ペット", nil, &deceasedAt)
+	petStatusDeceased := makeStatusDeceasedPet(t, db, clinicA, owner.ID, aliveSpeciesID, "status死亡ペット", nil)
 
 	makeChronicCondition(t, db, clinicA, petAlive1.ID, "DM", "糖尿病", time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), true)
 	makeChronicCondition(t, db, clinicA, petAlive1.ID, "DM", "糖尿病(重複コード)", time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), true)
@@ -299,6 +300,8 @@ func TestPetChronicConditionRepository_FindActiveConditionCodesByOwner(t *testin
 	inactiveDeleted := makeChronicCondition(t, db, clinicA, petAlive1.ID, "DELETED", "削除済み疾患", time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), true)
 	require.NoError(t, db.WithContext(ctx).Delete(inactiveDeleted).Error)
 	makeChronicCondition(t, db, clinicA, petDeceased.ID, "DEAD", "死亡ペットの疾患", time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), true)
+	// EMR-290: status=deceased だが deceased_at IS NULL の旧移行ペットのアクティブ疾患も除外する
+	makeChronicCondition(t, db, clinicA, petStatusDeceased.ID, "DEAD2", "status死亡ペットの疾患", time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), true)
 
 	// 別医院の疾患は混入しない
 	otherOwner := makeTestOwner(t, db, clinicB, "別医院アクティブ疾患飼主")
@@ -307,7 +310,7 @@ func TestPetChronicConditionRepository_FindActiveConditionCodesByOwner(t *testin
 
 	got, err := repo.FindActiveConditionCodesByOwner(ctx, clinicA, owner.ID)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"CKD", "DM"}, got, "DISTINCT + ORDER BY condition_code、非アクティブ/削除済み/死亡ペット/別医院は除外")
+	assert.Equal(t, []string{"CKD", "DM"}, got, "DISTINCT + ORDER BY condition_code、非アクティブ/削除済み/死亡ペット(status含む)/別医院は除外")
 }
 
 func TestPetChronicConditionRepository_FindActiveConditionCodesByOwner_RejectsCorruptCrossClinicPetRelation(t *testing.T) {

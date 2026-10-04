@@ -116,6 +116,7 @@ WHERE pcc.clinic_id = ?
   AND pcc.is_active = TRUE
   AND pcc.deleted_at IS NULL
   AND p.deceased_at IS NULL
+  AND p.status <> 'deceased'
 ORDER BY pcc.condition_code
 `, clinicID, clinicID, ownerID).Scan(&codes).Error
 	if err != nil {
