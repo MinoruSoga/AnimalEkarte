@@ -125,6 +125,17 @@ func resolveMedicalRecordImageStorageKey(stored string) (key string, isStorageOb
 	return "", false, nil
 }
 
+// medicalRecordImageStoredValueUsesKey reports whether a stored URL is the same storage
+// object as key. Exact keys, /uploads/ keys, and HTTP URLs whose path resolves to key match.
+// A longer or unrelated suffix does not.
+func medicalRecordImageStoredValueUsesKey(stored, key string) bool {
+	if key == "" {
+		return false
+	}
+	resolved, isObject, err := resolveMedicalRecordImageStorageKey(stored)
+	return err == nil && isObject && resolved == key
+}
+
 func medicalRecordImageKeyFromURLPath(path string) (string, bool) {
 	marker := "/" + medicalRecordImageStorageKeyPrefix
 	idx := strings.Index(path, marker)

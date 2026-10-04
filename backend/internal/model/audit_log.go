@@ -126,6 +126,9 @@ const (
 	AuditActionStaffProvisionCreate  = "staff.provision.create"
 	AuditActionStaffProvisionReceipt = "staff.provision.receipt"
 	AuditActionStaffAccountAttach    = "staff.account.attach"
+
+	// 診療画像の物理削除。監査は同じ transaction の fail-closed 記録であり、削除権限そのものではない。
+	AuditActionMedicalRecordImageDelete = "medical_record_image.delete"
 )
 
 // audit_logs.resource 定数
@@ -155,6 +158,8 @@ const (
 	AuditResourceIdentityLink = "identity_link"
 	// #255 staff batch provisioning receipt（clinic-scoped, PII-free）
 	AuditResourceStaffProvisionBatch = "staff_provision_batch"
+	// 診療画像の物理削除。署名停止の正本は medical_record_image_deletions であり、この resource 名は監査のラベル。
+	AuditResourceMedicalRecordImage = "medical_record_image"
 )
 
 // care plan item destructive actions (MRA-01)

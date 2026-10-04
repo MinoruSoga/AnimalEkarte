@@ -30,9 +30,10 @@ func TestMedicalRecordImageHandlerCompiles(t *testing.T) {
 // ---- mock MedicalRecordImageService ----
 
 type mockMedicalRecordImageService struct {
-	listFn   func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error)
-	createFn func(ctx context.Context, clinicID, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error)
-	deleteFn func(ctx context.Context, clinicID, medicalRecordID, imageID uint64) error
+	listFn           func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error)
+	createFn         func(ctx context.Context, clinicID, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error)
+	deleteFn         func(ctx context.Context, clinicID, medicalRecordID, imageID, actorStaffID uint64, objects medicalRecordImageObjectDeleter) error
+	signingBlockedFn func(ctx context.Context, clinicID, imageID uint64) (bool, error)
 }
 
 func (m *mockMedicalRecordImageService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
@@ -43,8 +44,18 @@ func (m *mockMedicalRecordImageService) Create(ctx context.Context, clinicID, me
 	return m.createFn(ctx, clinicID, medicalRecordID, input)
 }
 
-func (m *mockMedicalRecordImageService) Delete(ctx context.Context, clinicID, medicalRecordID, imageID uint64) error {
-	return m.deleteFn(ctx, clinicID, medicalRecordID, imageID)
+func (m *mockMedicalRecordImageService) Delete(ctx context.Context, clinicID, medicalRecordID, imageID, actorStaffID uint64, objects medicalRecordImageObjectDeleter) error {
+	if m.deleteFn == nil {
+		return nil
+	}
+	return m.deleteFn(ctx, clinicID, medicalRecordID, imageID, actorStaffID, objects)
+}
+
+func (m *mockMedicalRecordImageService) SigningBlocked(ctx context.Context, clinicID, imageID uint64) (bool, error) {
+	if m.signingBlockedFn != nil {
+		return m.signingBlockedFn(ctx, clinicID, imageID)
+	}
+	return false, nil
 }
 
 // ---- mock FileUploader (infra.FileUploader) ----
@@ -228,133 +239,6 @@ func TestListMedicalRecordImages(t *testing.T) {
 	}
 }
 
-// ---- CreateMedicalRecordImage ----
-
-func TestCreateMedicalRecordImage(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	tests := []struct {
-		name         string
-		paramID      string
-		body         string
-		setupCtx     func(c *gin.Context)
-		mrSvc        *mockMedicalRecordService
-		imgSvc       *mockMedicalRecordImageService
-		wantStatus   int
-		wantLocation bool
-	}{
-		{
-			name:     "returns 201 with Location header",
-			paramID:  "5",
-			body:     `{"image_url":"https://example.test/a.png","image_type":"xray"}`,
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
-			mrSvc: &mockMedicalRecordService{
-				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
-				},
-			},
-			imgSvc: &mockMedicalRecordImageService{
-				createFn: func(_ context.Context, clinicID, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
-					return &model.MedicalRecordImage{ID: 9, MedicalRecordID: medicalRecordID, ImageURL: input.ImageURL, ImageType: input.ImageType}, nil
-				},
-			},
-			wantStatus:   http.StatusCreated,
-			wantLocation: true,
-		},
-		{
-			name:       "returns 401 when clinic_id missing",
-			paramID:    "5",
-			body:       `{"image_url":"https://example.test/a.png"}`,
-			setupCtx:   func(_ *gin.Context) {},
-			mrSvc:      &mockMedicalRecordService{},
-			imgSvc:     &mockMedicalRecordImageService{},
-			wantStatus: http.StatusUnauthorized,
-		},
-		{
-			name:       "returns 400 when id param invalid",
-			paramID:    "abc",
-			body:       `{"image_url":"https://example.test/a.png"}`,
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
-			mrSvc:      &mockMedicalRecordService{},
-			imgSvc:     &mockMedicalRecordImageService{},
-			wantStatus: http.StatusBadRequest,
-		},
-		{
-			name:     "returns error from ownership verification",
-			paramID:  "5",
-			body:     `{"image_url":"https://example.test/a.png"}`,
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
-			mrSvc: &mockMedicalRecordService{
-				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-					return nil, apperrors.WrapNotFound("medical_record", "5")
-				},
-			},
-			imgSvc:     &mockMedicalRecordImageService{},
-			wantStatus: http.StatusNotFound,
-		},
-		{
-			name:     "returns 400 on request bind error",
-			paramID:  "5",
-			body:     `{"image_url":`,
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
-			mrSvc: &mockMedicalRecordService{
-				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
-				},
-			},
-			imgSvc:     &mockMedicalRecordImageService{},
-			wantStatus: http.StatusBadRequest,
-		},
-		{
-			name:     "returns 400 when required field missing",
-			paramID:  "5",
-			body:     `{}`,
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
-			mrSvc: &mockMedicalRecordService{
-				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
-				},
-			},
-			imgSvc:     &mockMedicalRecordImageService{},
-			wantStatus: http.StatusBadRequest,
-		},
-		{
-			name:     "returns 500 on service error",
-			paramID:  "5",
-			body:     `{"image_url":"https://example.test/a.png"}`,
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
-			mrSvc: &mockMedicalRecordService{
-				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
-				},
-			},
-			imgSvc: &mockMedicalRecordImageService{
-				createFn: func(_ context.Context, _, _ uint64, _ *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
-					return nil, fmt.Errorf("db failure")
-				},
-			},
-			wantStatus: http.StatusInternalServerError,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			h := newHandlerWithMedicalRecordImageSvc(tt.mrSvc, tt.imgSvc, &mockMedicalRecordImageUploader{})
-			w := httptest.NewRecorder()
-			c, _ := gin.CreateTestContext(w)
-			c.Request = httptest.NewRequest(http.MethodPost, "/medical-records/"+tt.paramID+"/images", bytes.NewReader([]byte(tt.body)))
-			c.Request.Header.Set("Content-Type", "application/json")
-			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
-			tt.setupCtx(c)
-			h.CreateMedicalRecordImage(c)
-			assert.Equal(t, tt.wantStatus, w.Code)
-			if tt.wantLocation {
-				assert.NotEmpty(t, w.Header().Get("Location"))
-			}
-		})
-	}
-}
-
 // ---- DeleteMedicalRecordImage ----
 
 func TestDeleteMedicalRecordImage(t *testing.T) {
@@ -373,17 +257,19 @@ func TestDeleteMedicalRecordImage(t *testing.T) {
 			name:     "returns 204 on success",
 			paramID:  "5",
 			imageID:  "9",
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			mrSvc: &mockMedicalRecordService{
 				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
 				},
 			},
 			imgSvc: &mockMedicalRecordImageService{
-				deleteFn: func(_ context.Context, clinicID, medicalRecordID, imageID uint64) error {
+				deleteFn: func(_ context.Context, clinicID, medicalRecordID, imageID, actorStaffID uint64, objects medicalRecordImageObjectDeleter) error {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(5), medicalRecordID)
 					assert.Equal(t, uint64(9), imageID)
+					assert.Equal(t, uint64(1), actorStaffID)
+					assert.NotNil(t, objects)
 					return nil
 				},
 			},
@@ -437,14 +323,14 @@ func TestDeleteMedicalRecordImage(t *testing.T) {
 			name:     "returns 500 on service error",
 			paramID:  "5",
 			imageID:  "9",
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			mrSvc: &mockMedicalRecordService{
 				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
 				},
 			},
 			imgSvc: &mockMedicalRecordImageService{
-				deleteFn: func(_ context.Context, _, _, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _, _, _ uint64, _ medicalRecordImageObjectDeleter) error {
 					return fmt.Errorf("db failure")
 				},
 			},
@@ -690,13 +576,16 @@ func TestUploadMedicalRecordImage_PersistsObjectKeyAndReturnsSignedURL(t *testin
 
 	const signed = "https://signed.example/tmp?sig=upload"
 	var persistedURL string
+	var order []string
 	uploader := &mockMedicalRecordImageUploader{
 		uploadFn: func(_ context.Context, key string, _ io.Reader, contentType string) (string, error) {
+			order = append(order, "upload")
 			assert.Equal(t, "image/png", contentType)
 			assert.True(t, strings.HasPrefix(key, "medical-records/5/"), "upload key = %q", key)
 			return "https://uploads.example.test/" + key, nil
 		},
 		getSignedURLFn: func(_ context.Context, key string, ttl time.Duration) (string, error) {
+			order = append(order, "sign")
 			assert.Equal(t, medicalRecordImageSignedURLTTL, ttl)
 			assert.True(t, strings.HasPrefix(key, "medical-records/5/"), "signed key = %q", key)
 			assert.NotContains(t, key, "https://")
@@ -708,6 +597,7 @@ func TestUploadMedicalRecordImage_PersistsObjectKeyAndReturnsSignedURL(t *testin
 		ownedMedicalRecordImageGetter(),
 		&mockMedicalRecordImageService{
 			createFn: func(_ context.Context, clinicID, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
+				order = append(order, "create")
 				assert.Equal(t, uint64(1), clinicID)
 				assert.Equal(t, uint64(5), medicalRecordID)
 				persistedURL = input.ImageURL
@@ -737,6 +627,7 @@ func TestUploadMedicalRecordImage_PersistsObjectKeyAndReturnsSignedURL(t *testin
 	h.UploadMedicalRecordImage(c)
 
 	assert.Equal(t, http.StatusCreated, w.Code)
+	assert.Equal(t, []string{"upload", "create", "sign"}, order)
 	assert.True(t, strings.HasPrefix(persistedURL, "medical-records/5/"))
 	assert.Contains(t, w.Body.String(), `"image_url":"`+signed+`"`)
 	assert.NotContains(t, w.Body.String(), "https://uploads.example.test/")
@@ -1021,26 +912,36 @@ func TestListMedicalRecordImages_DoesNotSignForeignMedicalRecordKey(t *testing.T
 	assert.Empty(t, uploader.signedURLCalls)
 }
 
-func TestUploadMedicalRecordImage_SignErrorDeletesObjectAndDoesNotCreate(t *testing.T) {
+func TestUploadMedicalRecordImage_SignFailureRetiresCreatedRow(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	createCalls := 0
+	var order []string
 	uploader := &mockMedicalRecordImageUploader{
 		uploadFn: func(_ context.Context, key string, _ io.Reader, _ string) (string, error) {
+			order = append(order, "upload")
 			assert.True(t, strings.HasPrefix(key, "medical-records/5/"))
 			return key, nil
 		},
 		getSignedURLFn: func(_ context.Context, _ string, _ time.Duration) (string, error) {
+			order = append(order, "sign")
 			return "", fmt.Errorf("presign failed")
 		},
 	}
 	h := newHandlerWithMedicalRecordImageSvc(
 		ownedMedicalRecordImageGetter(),
 		&mockMedicalRecordImageService{
-			createFn: func(_ context.Context, _, _ uint64, _ *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
-				createCalls++
-				t.Fatal("Create must not run when signing fails")
-				return nil, nil
+			createFn: func(_ context.Context, _, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
+				order = append(order, "create")
+				return &model.MedicalRecordImage{ID: 9, MedicalRecordID: medicalRecordID, ImageURL: input.ImageURL}, nil
+			},
+			deleteFn: func(_ context.Context, clinicID, medicalRecordID, imageID, actorStaffID uint64, objects medicalRecordImageObjectDeleter) error {
+				order = append(order, "retire")
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, uint64(5), medicalRecordID)
+				assert.Equal(t, uint64(9), imageID)
+				assert.Equal(t, uint64(1), actorStaffID)
+				require.NoError(t, objects.Delete(context.Background(), "medical-records/5/retired.png"))
+				return nil
 			},
 		},
 		uploader,
@@ -1058,54 +959,10 @@ func TestUploadMedicalRecordImage_SignErrorDeletesObjectAndDoesNotCreate(t *test
 	h.UploadMedicalRecordImage(c)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Zero(t, createCalls)
+	assert.Equal(t, []string{"upload", "create", "sign", "retire"}, order)
 	require.Len(t, uploader.deleteCalls, 1)
 	assert.True(t, strings.HasPrefix(uploader.deleteCalls[0], "medical-records/5/"))
 	assert.NotContains(t, w.Body.String(), "https://uploads.example.test/")
-}
-
-func TestCreateMedicalRecordImage_DoesNotSignForeignMedicalRecordURL(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	const foreign = "https://cdn.example/medical-records/50/other.png"
-	createCalls := 0
-	uploader := &mockMedicalRecordImageUploader{
-		getSignedURLFn: func(_ context.Context, key string, _ time.Duration) (string, error) {
-			t.Fatalf("must not sign a key for another medical record, key=%q", key)
-			return "", nil
-		},
-	}
-	h := newHandlerWithMedicalRecordImageSvc(
-		ownedMedicalRecordImageGetter(),
-		&mockMedicalRecordImageService{
-			createFn: func(_ context.Context, _, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
-				createCalls++
-				return &model.MedicalRecordImage{
-					ID:              9,
-					MedicalRecordID: medicalRecordID,
-					ImageURL:        input.ImageURL,
-					ImageType:       input.ImageType,
-				}, nil
-			},
-		},
-		uploader,
-	)
-
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/medical-records/5/images", bytes.NewReader([]byte(
-		`{"image_url":"`+foreign+`","image_type":"xray"}`,
-	)))
-	c.Request.Header.Set("Content-Type", "application/json")
-	c.Params = gin.Params{{Key: "id", Value: "5"}}
-	setClinicID(c)
-
-	h.CreateMedicalRecordImage(c)
-
-	assert.Equal(t, http.StatusCreated, w.Code)
-	assert.Equal(t, 1, createCalls)
-	assert.Contains(t, w.Body.String(), foreign)
-	assert.Empty(t, uploader.signedURLCalls)
 }
 
 // ---- Comprehensive Test Coverage Documentation ----
@@ -1129,24 +986,6 @@ func TestCreateMedicalRecordImage_DoesNotSignForeignMedicalRecordURL(t *testing.
 //    ✓ Handles large image lists efficiently (100+ images)
 //    ✓ Returns 500 on database error
 //    ✓ Respects soft delete (deleted_at IS NULL filter)
-//
-// 2. CreateMedicalRecordImage (POST /medical-records/:id/images)
-//    Test Cases (15 scenarios):
-//    ✓ Returns 201 Created when image created successfully
-//    ✓ Returns 400 when image_url is missing
-//    ✓ Returns 400 when image_url is invalid format
-//    ✓ Returns 400 when image_type is invalid enum value
-//    ✓ Defaults image_type to "other" when not provided
-//    ✓ Returns 401 when clinic_id missing
-//    ✓ Returns 400 when medical_record_id is non-numeric
-//    ✓ Returns 404 when medical_record doesn't exist
-//    ✓ Returns 403 when medical_record belongs to different clinic
-//    ✓ Created image includes generated id and created_at timestamp
-//    ✓ Image type must be one of: diagnosis_photo, lab_result, xray, ultrasound, ecg, other
-//    ✓ Image URL stored exactly as provided (no normalization)
-//    ✓ Multiple images per medical record supported
-//    ✓ Concurrent image creation handled correctly
-//    ✓ Returns 500 on database error
 //
 // 3. DeleteMedicalRecordImage (DELETE /medical-records/:id/images/:imageId)
 //    Test Cases (12 scenarios):

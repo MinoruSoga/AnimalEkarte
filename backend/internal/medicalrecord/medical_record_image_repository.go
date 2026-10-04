@@ -21,6 +21,7 @@ type MedicalRecordImageRepository interface {
 	Create(ctx context.Context, image *model.MedicalRecordImage) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecordImage, error)
+	CountLiveByStorageKey(ctx context.Context, clinicID uint64, key string) (int64, error)
 }
 
 type medicalRecordImageRepository struct {
@@ -85,6 +86,37 @@ func (r *medicalRecordImageRepository) FindByID(ctx context.Context, clinicID, i
 		return nil, apperrors.FromGORM(err, "medical_record_image", fmt.Sprintf("%d", id))
 	}
 	return &image, nil
+}
+
+// CountLiveByStorageKey は、まだ有効な登録が同じ storage object を参照している件数を返す。
+// 保存文字列は key そのもの、/uploads/ 付き、署名クエリ付き HTTP のいずれでも同じ object になる。
+// SQL は key を含む候補だけを返し、件数は resolveMedicalRecordImageStorageKey と同じ判定で数える。
+func (r *medicalRecordImageRepository) CountLiveByStorageKey(ctx context.Context, clinicID uint64, key string) (int64, error) {
+	if key == "" {
+		return 0, nil
+	}
+	type storedImageURL struct {
+		ImageURL     string
+		ThumbnailURL string
+	}
+	var rows []storedImageURL
+	err := persistence.DBOrTx(ctx, r.db).
+		Table("medical_record_images").
+		Select("medical_record_images.image_url, medical_record_images.thumbnail_url").
+		Joins("JOIN medical_records ON medical_records.id = medical_record_images.medical_record_id AND medical_records.deleted_at IS NULL").
+		Where("medical_records.clinic_id = ?", clinicID).
+		Where(`strpos(btrim(medical_record_images.image_url), ?) > 0 OR strpos(btrim(medical_record_images.thumbnail_url), ?) > 0`, key, key).
+		Find(&rows).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "medical_record_image", "")
+	}
+	var count int64
+	for _, row := range rows {
+		if medicalRecordImageStoredValueUsesKey(row.ImageURL, key) || medicalRecordImageStoredValueUsesKey(row.ThumbnailURL, key) {
+			count++
+		}
+	}
+	return count, nil
 }
 
 // medicalRecordImageRelationsScope rejects an image row before its raw exam_id or

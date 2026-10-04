@@ -29,7 +29,8 @@ type CreateMedicalRecordImageInput struct {
 type MedicalRecordImageService interface {
 	List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error)
 	Create(ctx context.Context, clinicID, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error)
-	Delete(ctx context.Context, clinicID, medicalRecordID, imageID uint64) error
+	Delete(ctx context.Context, clinicID, medicalRecordID, imageID, actorStaffID uint64, objects medicalRecordImageObjectDeleter) error
+	SigningBlocked(ctx context.Context, clinicID, imageID uint64) (bool, error)
 }
 
 type medicalRecordImageService struct {
@@ -40,6 +41,8 @@ type medicalRecordImageService struct {
 	staffs           clinicalStaffLocker
 	staffAssignments clinicalStaffAssignmentLocker
 	transactor       Transactor
+	auditTx          AuditTxLogger
+	deletions        medicalRecordImageDeletionStore
 }
 
 type medicalRecordImageExaminationFinder interface {
@@ -69,8 +72,9 @@ func NewMedicalRecordImageServiceWithRelationValidation(
 	staffs clinicalStaffLocker,
 	staffAssignments clinicalStaffAssignmentLocker,
 	transactor Transactor,
+	audits ...ImageDeletionAudit,
 ) MedicalRecordImageService {
-	return &medicalRecordImageService{
+	svc := &medicalRecordImageService{
 		repo:             repo,
 		medRec:           medRec,
 		pets:             pets,
@@ -79,6 +83,11 @@ func NewMedicalRecordImageServiceWithRelationValidation(
 		staffAssignments: staffAssignments,
 		transactor:       transactor,
 	}
+	if len(audits) > 0 {
+		svc.auditTx = audits[0].audit
+		svc.deletions = audits[0].store
+	}
+	return svc
 }
 
 func (s *medicalRecordImageService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
@@ -253,35 +262,5 @@ func validateClinicalStaffReference(
 	if assignment == nil || assignment.StaffID != *staffID || assignment.ClinicID != clinicID {
 		return apperrors.WrapNotFound("staff", "active assignment")
 	}
-	return nil
-}
-
-func (s *medicalRecordImageService) Delete(ctx context.Context, clinicID, medicalRecordID, imageID uint64) error {
-	image, err := s.repo.FindByID(ctx, clinicID, imageID)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to get record image")
-	}
-	if image.MedicalRecordID != medicalRecordID {
-		return apperrors.WrapNotFound("medical_record_image", "not found in this medical record")
-	}
-
-	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		// SD-2 + BE-refactor.md H-8d: 親カルテが確定済みの場合は画像削除を拒否。LockByIDForUpdate の
-		// 行ロックで finalize と直列化し、確定と同時の画像削除が確定済みカルテに混入する競合を防ぐ
-		// （examination_service.go Delete 同型）。
-		if err := lockDraftMedicalRecord(txCtx, s.medRec, clinicID, medicalRecordID,
-			"failed to find medical record", "確定済みカルテの画像は削除できません"); err != nil {
-			return err
-		}
-
-		if err := s.repo.Delete(txCtx, clinicID, imageID); err != nil {
-			return apperrors.Wrap(err, "failed to delete record image")
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
-
-	slog.InfoContext(ctx, "record image deleted", slog.Uint64("image_id", imageID))
 	return nil
 }

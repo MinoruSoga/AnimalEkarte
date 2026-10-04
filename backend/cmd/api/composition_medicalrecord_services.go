@@ -228,6 +228,7 @@ func newMedicalRecordClinicalServices(
 			d.Staff,
 			d.StaffAssignments,
 			d.Transactor,
+			medicalrecord.NewImageDeletionAudit(d.DB, auditTx),
 		),
 	}
 }

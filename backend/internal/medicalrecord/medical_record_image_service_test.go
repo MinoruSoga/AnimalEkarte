@@ -38,6 +38,7 @@ type mockMedicalRecordImageRepository struct {
 	findByIDFn              func(ctx context.Context, clinicID, imageID uint64) (*model.MedicalRecordImage, error)
 	createFn                func(ctx context.Context, image *model.MedicalRecordImage) error
 	deleteFn                func(ctx context.Context, clinicID, imageID uint64) error
+	countLiveByStorageKeyFn func(ctx context.Context, clinicID uint64, key string) (int64, error)
 }
 
 func (m *mockMedicalRecordImageRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
@@ -54,6 +55,13 @@ func (m *mockMedicalRecordImageRepository) Create(ctx context.Context, image *mo
 
 func (m *mockMedicalRecordImageRepository) Delete(ctx context.Context, clinicID, imageID uint64) error {
 	return m.deleteFn(ctx, clinicID, imageID)
+}
+
+func (m *mockMedicalRecordImageRepository) CountLiveByStorageKey(ctx context.Context, clinicID uint64, key string) (int64, error) {
+	if m.countLiveByStorageKeyFn != nil {
+		return m.countLiveByStorageKeyFn(ctx, clinicID, key)
+	}
+	return 0, nil
 }
 
 type clinicalStaffLockerStub struct {
@@ -300,6 +308,15 @@ func TestMedicalRecordImageService_Create(t *testing.T) {
 	}
 }
 
+func attachImageDeletionDeps(svc MedicalRecordImageService) {
+	concrete := svc.(*medicalRecordImageService)
+	concrete.auditTx = &scriptImageAudit{}
+	concrete.deletions = &memDeletionStore{
+		committed: map[uint64]medicalRecordImageDeletion{},
+		staged:    map[uint64]medicalRecordImageDeletion{},
+	}
+}
+
 func TestMedicalRecordImageService_Delete(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -376,8 +393,9 @@ func TestMedicalRecordImageService_Delete(t *testing.T) {
 				},
 			}
 			svc := NewMedicalRecordImageService(repo, medRecRepo, &mockCheckupTransactor{})
+			attachImageDeletionDeps(svc)
 
-			err := svc.Delete(context.Background(), 1, tt.medicalRecordID, tt.imageID)
+			err := svc.Delete(context.Background(), 1, tt.medicalRecordID, tt.imageID, 1, nil)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -433,8 +451,9 @@ func TestMedicalRecordImageService_FinalizedGuard(t *testing.T) {
 			},
 		}
 		svc := NewMedicalRecordImageService(repo, medRecRepo, &mockCheckupTransactor{})
+		attachImageDeletionDeps(svc)
 
-		err := svc.Delete(context.Background(), 1, 1, 1)
+		err := svc.Delete(context.Background(), 1, 1, 1, 1, nil)
 
 		assert.Error(t, err)
 	})

@@ -5128,42 +5128,6 @@ components:
           type: string
           format: date-time
 
-    CreateMedicalRecordImageRequest:
-      type: object
-      required: [image_url]
-      properties:
-        image_url:
-          type: string
-          format: uri
-        thumbnail_url:
-          type: string
-        file_name:
-          type: string
-        file_size:
-          type: integer
-          format: int64
-        mime_type:
-          type: string
-        image_type:
-          type: string
-          enum: [xray, echo, photo, endoscope, ct, mri, microscope, other]
-        description:
-          type: string
-        taken_at:
-          type: string
-          format: date-time
-          nullable: true
-        exam_id:
-          type: integer
-          format: int64
-          nullable: true
-        staff_id:
-          type: integer
-          format: int64
-          nullable: true
-        sort_order:
-          type: integer
-
     # ─── TreatmentPlan (治療計画) ─────────────────────────────────────────────
     TreatmentPlan:
       type: object
@@ -21158,36 +21122,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/MedicalRecordImage'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalError'
-    post:
-      operationId: createMedicalRecordImage
-      summary: 診療画像追加
-      tags: [MedicalRecords]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateMedicalRecordImageRequest'
-      responses:
-        '201':
-          description: 追加成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MedicalRecordImage'
-        '400':
-          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':

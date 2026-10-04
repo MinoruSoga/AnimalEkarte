@@ -241,7 +241,6 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/medical-records CreateMedicalRecord\n" +
 		"POST /api/v1/medical-records/:id/addenda CreateMedicalRecordAddendum\n" +
 		"POST /api/v1/medical-records/:id/checkups CreateCheckup\n" +
-		"POST /api/v1/medical-records/:id/images CreateMedicalRecordImage\n" +
 		"POST /api/v1/medical-records/:id/images/upload UploadMedicalRecordImage\n" +
 		"POST /api/v1/medical-records/:id/treatment-plans CreateTreatmentPlanForMedicalRecord\n" +
 		"POST /api/v1/medical-records/:id/treatments CreateTreatment\n" +
