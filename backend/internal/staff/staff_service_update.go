@@ -58,7 +58,7 @@ func (s *staffService) applyStaffUpdateInTx(
 		}
 	}
 	if input.IsActive != nil && !*input.IsActive {
-		if err := s.guardStaffDeactivation(txCtx, id, lockedStaff, input.ActorStaffID); err != nil {
+		if err := GuardStaffDeactivation(txCtx, s.repo, id, lockedStaff, input.ActorStaffID); err != nil {
 			return nil, err
 		}
 	}

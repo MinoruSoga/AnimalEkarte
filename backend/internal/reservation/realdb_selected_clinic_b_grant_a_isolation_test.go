@@ -318,7 +318,7 @@ func newRealDBReservationHandlers(t *testing.T, db *gorm.DB, fx realDBReservatio
 	typeSvc := ReservationTypeService(NewReservationTypeService(typeRepo, unavailableRepo, occRepo, occupationFinderStub{db: db}, groupRepo, slotRepo))
 	groupSvc := ReservationTypeGroupService(NewReservationTypeGroupService(groupRepo))
 	liffTypeSvc := ReservationTypeLiffService(NewReservationTypeLiffService(NewReservationTypeLiffRepository(db), resStore))
-	staffSvc := ReservationStaffService(NewReservationStaffService(staffRepo, &mockTransactor{}, nil))
+	staffSvc := ReservationStaffService(NewReservationStaffService(staffRepo, &mockTransactor{}, nil, nil))
 	scheduleSvc := ReservationScheduleService(NewReservationScheduleService(scheduleRepo))
 	adminSvc := ReservationAdminService(NewReservationAdminServiceWithAvailabilityAndType(adminRepo, resStore, typeRepo, &mockTransactor{}, nil, nil))
 	crudSvc := ReservationService(NewReservationServiceWithAvailabilityAndType(resStore, typeRepo, &mockTransactor{}, nil, nil))

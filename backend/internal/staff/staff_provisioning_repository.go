@@ -257,15 +257,36 @@ func (r *staffProvisioningRepository) CreateStaff(ctx context.Context, staff *mo
 	return nil
 }
 
-// SetStaffPairInactive は新規作成した account+staff ペアを is_active=false にする。
-// gorm default:true は false のゼロ値を INSERT から落とすため、is_active:false の
-// manifest は作成後 UPDATE でしか反映できない（EMR-289）。ambient tx 配下で呼ぶこと。
-func (r *staffProvisioningRepository) SetStaffPairInactive(ctx context.Context, accountID, staffID uint64) error {
+// ApplyProvisioningFlags は新規作成した account+staff ペアの manifest フラグを
+// 作成後 UPDATE で反映する。gorm default:true は false のゼロ値を INSERT から
+// 落とすため、is_active:false / reservation_visible:false は作成では表現できない
+// （EMR-289）。ambient tx 配下で呼ぶこと。
+func (r *staffProvisioningRepository) ApplyProvisioningFlags(
+	ctx context.Context,
+	accountID, staffID uint64,
+	isActive, reservationVisible bool,
+) error {
 	db := persistence.DBOrTx(ctx, r.db)
-	if err := db.Model(&model.Account{}).Where("id = ?", accountID).Update("is_active", false).Error; err != nil {
-		return apperrors.FromGORM(err, "account", fmt.Sprintf("%d", accountID))
+	if !isActive {
+		if err := db.Model(&model.Account{}).
+			Where("id = ?", accountID).
+			Update("is_active", false).Error; err != nil {
+			return apperrors.FromGORM(err, "account", fmt.Sprintf("%d", accountID))
+		}
 	}
-	if err := db.Model(&model.Staff{}).Where("id = ?", staffID).Update("is_active", false).Error; err != nil {
+	staffUpdates := map[string]any{}
+	if !isActive {
+		staffUpdates["is_active"] = false
+	}
+	if !reservationVisible {
+		staffUpdates["reservation_visible"] = false
+	}
+	if len(staffUpdates) == 0 {
+		return nil
+	}
+	if err := db.Model(&model.Staff{}).
+		Where("id = ?", staffID).
+		Updates(staffUpdates).Error; err != nil {
 		return apperrors.FromGORM(err, "staff", fmt.Sprintf("%d", staffID))
 	}
 	return nil

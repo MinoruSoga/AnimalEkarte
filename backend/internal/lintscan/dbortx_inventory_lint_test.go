@@ -707,6 +707,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// staff_provisioning_repository_tx_atomicity_test.go +
 	// staff_provisioning_repository_integration_test.go (Apply path).
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.AcquireBatchLock":               {},
+	"staff/staff_provisioning_repository.go|staffProvisioningRepository.ApplyProvisioningFlags":         {},
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.AssignPermissionGroups":         {},
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.ClinicExists":                   {},
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.CreateAccount":                  {},

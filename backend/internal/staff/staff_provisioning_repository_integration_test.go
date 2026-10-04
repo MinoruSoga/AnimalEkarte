@@ -179,11 +179,13 @@ func (f *provisionIntegrationFixture) singleStaffManifest(t *testing.T, multiCli
 
 // EMR-289: is_active:false の manifest は account+staff ペアを非アクティブで作成する。
 // gorm default:true は false を INSERT から落とすため、作成後 UPDATE がないと
-// 「無効スタッフ＋生きた資格情報」が生まれる。
+// 「無効スタッフ＋生きた資格情報」が生まれる。reservation_visible:false も同じ罠に
+// かかるため併せて固定する。
 func TestStaffProvisioning_Integration_InactiveManifestCreatesInactivePair(t *testing.T) {
 	f := newProvisionIntegrationFixture(t)
 	manifest, secrets := f.singleStaffManifest(t, false)
 	manifest.Staff[0].IsActive = false
+	manifest.Staff[0].ReservationVisible = false
 	mp, sp := f.writeInputs(t, manifest, secrets)
 
 	result, err := f.provisioner.Apply(context.Background(), mp, sp)
@@ -193,6 +195,7 @@ func TestStaffProvisioning_Integration_InactiveManifestCreatesInactivePair(t *te
 	var staff model.Staff
 	require.NoError(t, f.db.Where("name = ?", "合成発行スタッフ").First(&staff).Error)
 	assert.False(t, staff.IsActive, "staffs.is_active が manifest どおり false になる")
+	assert.False(t, staff.ReservationVisible, "staffs.reservation_visible が manifest どおり false になる")
 	require.NotNil(t, staff.AccountID)
 
 	var account model.Account

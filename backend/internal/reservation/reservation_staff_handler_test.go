@@ -32,7 +32,7 @@ type mockReservationStaffService struct {
 	createFn                 func(ctx context.Context, clinicID uint64, input *CreateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error)
 	updateFn                 func(ctx context.Context, clinicID, id uint64, input *UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error)
 	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
-	patchStatusFn            func(ctx context.Context, clinicID, id uint64, isActive bool) (*model.Staff, []model.StaffReservationExclusion, error)
+	patchStatusFn            func(ctx context.Context, clinicID, id uint64, isActive bool, actorStaffID uint64) (*model.Staff, []model.StaffReservationExclusion, error)
 	patchSortOrderFn         func(ctx context.Context, clinicID, id uint64, direction string) error
 	getExcludedFn            func(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
 	listExcludedByStaffIDsFn func(ctx context.Context, clinicID uint64, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error)
@@ -73,9 +73,9 @@ func (m *mockReservationStaffService) Delete(ctx context.Context, clinicID, id u
 	return nil
 }
 
-func (m *mockReservationStaffService) PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.Staff, []model.StaffReservationExclusion, error) {
+func (m *mockReservationStaffService) PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool, actorStaffID uint64) (*model.Staff, []model.StaffReservationExclusion, error) {
 	if m.patchStatusFn != nil {
-		return m.patchStatusFn(ctx, clinicID, id, isActive)
+		return m.patchStatusFn(ctx, clinicID, id, isActive, actorStaffID)
 	}
 	return nil, nil, nil
 }
@@ -459,12 +459,13 @@ func TestPatchReservationStaffStatus(t *testing.T) {
 			name:     "activates reservation staff successfully",
 			paramID:  "3",
 			body:     map[string]any{"is_active": true},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			svc: &mockReservationStaffService{
-				patchStatusFn: func(_ context.Context, clinicID, id uint64, isActive bool) (*model.Staff, []model.StaffReservationExclusion, error) {
+				patchStatusFn: func(_ context.Context, clinicID, id uint64, isActive bool, actorStaffID uint64) (*model.Staff, []model.StaffReservationExclusion, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(3), id)
 					assert.True(t, isActive)
+					assert.Equal(t, uint64(1), actorStaffID)
 					return &model.Staff{ID: 3, IsActive: isActive}, nil, nil
 				},
 			},
@@ -498,9 +499,9 @@ func TestPatchReservationStaffStatus(t *testing.T) {
 			name:     "returns 404 when reservation staff not found",
 			paramID:  "999",
 			body:     map[string]any{"is_active": true},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			svc: &mockReservationStaffService{
-				patchStatusFn: func(_ context.Context, _, _ uint64, _ bool) (*model.Staff, []model.StaffReservationExclusion, error) {
+				patchStatusFn: func(_ context.Context, _, _ uint64, _ bool, _ uint64) (*model.Staff, []model.StaffReservationExclusion, error) {
 					return nil, nil, apperrors.WrapNotFound("staff", "999")
 				},
 			},

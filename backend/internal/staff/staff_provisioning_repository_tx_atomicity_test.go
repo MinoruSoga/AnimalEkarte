@@ -317,3 +317,45 @@ func TestStaffProvisioningRepository_CreateAccountAmbientHandleIsRequiredForRoll
 		Count(&n).Error)
 	assert.Zero(t, n)
 }
+
+// ApplyProvisioningFlags は ambient tx に参加し、rollback で post-create 補正が
+// 巻き戻されることを固定する（EMR-289: 「無効 manifest → 生きた資格情報」の
+// 部分コミット防止）。
+func TestStaffProvisioningRepository_ApplyProvisioningFlagsRollsBackWithAmbientTx(t *testing.T) {
+	f := newProvisionIntegrationFixture(t)
+	ctx := context.Background()
+
+	account := &model.Account{
+		Email:        "pair-flags-rollback@example.test",
+		PasswordHash: "hash",
+		IsActive:     true,
+	}
+	require.NoError(t, f.repo.CreateAccount(ctx, account))
+	staff := &model.Staff{
+		ClinicID:           f.clinicA,
+		AccountID:          &account.ID,
+		Name:               "pair-flags-rollback",
+		OccupationID:       &f.occupationID,
+		IsActive:           true,
+		ReservationVisible: true,
+	}
+	require.NoError(t, f.repo.CreateStaff(ctx, staff))
+
+	forced := errors.New("forced post-flag rollback")
+	err := f.repo.WithTx(ctx, func(txCtx context.Context) error {
+		if err := f.repo.ApplyProvisioningFlags(txCtx, account.ID, staff.ID, false, false); err != nil {
+			return err
+		}
+		return forced
+	})
+	require.ErrorIs(t, err, forced)
+
+	var reloadedAccount model.Account
+	require.NoError(t, f.db.First(&reloadedAccount, account.ID).Error)
+	assert.True(t, reloadedAccount.IsActive, "rollback 後 account.is_active は true のまま")
+
+	var reloadedStaff model.Staff
+	require.NoError(t, f.db.First(&reloadedStaff, staff.ID).Error)
+	assert.True(t, reloadedStaff.IsActive, "rollback 後 staff.is_active は true のまま")
+	assert.True(t, reloadedStaff.ReservationVisible, "rollback 後 staff.reservation_visible は true のまま")
+}

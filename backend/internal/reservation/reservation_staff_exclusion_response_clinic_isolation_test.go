@@ -98,7 +98,7 @@ func TestListReservationStaffs_DoesNotExposeOtherClinicExclusionIDOrName(t *test
 	// Legacy exclusion rows (if any) are ignored; do not seed them.
 
 	repo := NewReservationStaffRepository(db, exclusionResponseStaffWriter{})
-	service := NewReservationStaffService(repo, nil, nil)
+	service := NewReservationStaffService(repo, nil, nil, nil)
 	handler := NewReservationStaffHandler(service)
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
