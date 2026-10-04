@@ -165,16 +165,20 @@ func toLiffProfileResponse(c *model.LineCustomer) liffProfileResponse {
 		AdditionalFields: json.RawMessage(c.AdditionalFields),
 	}
 	if c.Owner != nil {
-		pets := make([]liffProfileOwnerPetResponse, 0, len(c.Owner.Pets))
-		for i := range c.Owner.Pets {
+		// EMR-290: プロフィールの pets は予約画面の選択肢として使われるため生存ペットに
+		// 限定する（livingPets と同じ OR 契約）。死亡ペットを選ぶと resolveReservationPetID が
+		// attach を拒否し、pet_id なしの予約が作られる。
+		living := livingPets(c.Owner.Pets)
+		pets := make([]liffProfileOwnerPetResponse, 0, len(living))
+		for i := range living {
 			pet := liffProfileOwnerPetResponse{
-				ID:   c.Owner.Pets[i].ID,
-				Name: c.Owner.Pets[i].Name,
+				ID:   living[i].ID,
+				Name: living[i].Name,
 			}
-			if c.Owner.Pets[i].AnimalSpecies != nil {
+			if living[i].AnimalSpecies != nil {
 				pet.AnimalSpecies = &struct {
 					Name string `json:"name"`
-				}{Name: c.Owner.Pets[i].AnimalSpecies.Name}
+				}{Name: living[i].AnimalSpecies.Name}
 			}
 			pets = append(pets, pet)
 		}

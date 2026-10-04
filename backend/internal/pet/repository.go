@@ -360,7 +360,7 @@ func (r *repository) CountByOwner(ctx context.Context, clinicID, ownerID uint64)
 
 // CountLivingByOwner は指定オーナーの生存ペット数（deceased_at IS NULL かつ status <> 'deceased'）を返す。
 // ISSUE-007: CreateCheckupSync のサーバ側二重防御で死亡ペットのみの飼い主を除外するために使用する。
-// EMR-290: status=deceased でも deceased_at IS NULL の旧データは死亡として数えない。
+// EMR-290: status=deceased でも deceased_at IS NULL の旧データは生存として数えない。
 func (r *repository) CountLivingByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&model.Pet{}).

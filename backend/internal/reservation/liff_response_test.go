@@ -295,6 +295,44 @@ func TestToLiffHealthCardResponse(t *testing.T) {
 	})
 }
 
+// ---- toLiffProfileResponse ----
+
+// EMR-290: プロフィールの owner.pets は予約画面の選択肢として使われるため、
+// status=deceased（deceased_at 不問）または deceased_at 非NULL のペットを除外する。
+func TestToLiffProfileResponse(t *testing.T) {
+	deceasedAt := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+
+	t.Run("excludes deceased pets from owner.pets", func(t *testing.T) {
+		got := toLiffProfileResponse(&model.LineCustomer{
+			ID:          1,
+			LineUserID:  "U123",
+			DisplayName: "テスト",
+			Owner: &model.Owner{
+				Name:  "山田花子",
+				Phone: "090-0000-0000",
+				Pets: []model.Pet{
+					{ID: 11, Name: "ポチ", Status: model.PetStatusAlive},
+					// 旧データ由来: status=deceased だが deceased_at IS NULL
+					{ID: 12, Name: "タマ", Status: model.PetStatusDeceased},
+					// 通常の死亡登録: deceased_at 非NULL
+					{ID: 13, Name: "ミケ", Status: model.PetStatusDeceased, DeceasedAt: &deceasedAt},
+					// alive でも deceased_at が残っている行は除外
+					{ID: 14, Name: "ゴロ", Status: model.PetStatusAlive, DeceasedAt: &deceasedAt},
+				},
+			},
+		})
+		require.NotNil(t, got.Owner)
+		require.Len(t, got.Owner.Pets, 1)
+		assert.Equal(t, uint64(11), got.Owner.Pets[0].ID)
+		assert.Equal(t, "ポチ", got.Owner.Pets[0].Name)
+	})
+
+	t.Run("nil owner leaves owner field empty", func(t *testing.T) {
+		got := toLiffProfileResponse(&model.LineCustomer{ID: 2, LineUserID: "U456"})
+		assert.Nil(t, got.Owner)
+	})
+}
+
 // ---- toLiffTrimmingCourseResponse ----
 
 func TestToLiffTrimmingCourseResponse(t *testing.T) {
