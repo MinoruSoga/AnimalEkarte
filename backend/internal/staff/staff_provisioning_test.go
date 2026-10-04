@@ -622,6 +622,13 @@ func (m *mockProvisionRepo) CreateStaff(ctx context.Context, staff *model.Staff)
 	return nil
 }
 
+func (m *mockProvisionRepo) ApplyProvisioningFlags(ctx context.Context, accountID, staffID uint64, isActive, reservationVisible bool) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.writes++
+	return nil
+}
+
 func (m *mockProvisionRepo) CreateAssignment(ctx context.Context, assignment *model.StaffClinicAssignment) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

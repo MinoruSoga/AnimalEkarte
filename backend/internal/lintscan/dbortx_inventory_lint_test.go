@@ -659,9 +659,13 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"staff/staff_repository.go|staffRepository.LockActiveByIDForUpdateInClinic":  {},
 	"staff/staff_repository.go|staffRepository.AttachAccountID":                  {},
 	"staff/staff_repository.go|staffRepository.Reorder":                          {},
-	"staff/staff_repository.go|staffRepository.update":                           {},
-	"staff/staff_repository.go|staffRepository.UpdatePrimaryClinicID":            {},
-	"staff/staff_repository.go|staffRepository.activeSystemAdminStaffQuery":      {},
+	// Exported Update wraps update + deactivateLinkedAccountTx in
+	// DBOrTx.Transaction (ambient SAVEPOINT) when is_active=false (EMR-289).
+	// Runtime: staff_account_deactivation_test.go ambient rollback test.
+	"staff/staff_repository.go|staffRepository.Update":                      {},
+	"staff/staff_repository.go|staffRepository.update":                      {},
+	"staff/staff_repository.go|staffRepository.UpdatePrimaryClinicID":       {},
+	"staff/staff_repository.go|staffRepository.activeSystemAdminStaffQuery": {},
 	// ADR-006 論点#1 案A: reservation_staff_repository.go から移動した予約用途 write
 	"staff/staff_repository.go|staffRepository.CreateForReservation":        {},
 	"staff/staff_repository.go|staffRepository.UpdateForReservation":        {},
@@ -703,6 +707,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// staff_provisioning_repository_tx_atomicity_test.go +
 	// staff_provisioning_repository_integration_test.go (Apply path).
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.AcquireBatchLock":               {},
+	"staff/staff_provisioning_repository.go|staffProvisioningRepository.ApplyProvisioningFlags":         {},
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.AssignPermissionGroups":         {},
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.ClinicExists":                   {},
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.CreateAccount":                  {},

@@ -51,7 +51,7 @@ func TestReservationStaffService_Delete_DelegatesToCanonicalService(t *testing.T
 		},
 	}
 	deleter := &reservationStaffDeleteRecorder{}
-	svc := NewReservationStaffService(repo, &mockTransactor{}, deleter)
+	svc := NewReservationStaffService(repo, &mockTransactor{}, deleter, nil)
 
 	err := svc.Delete(context.Background(), 17, 29)
 
@@ -67,7 +67,7 @@ func TestReservationStaffService_Delete_DelegatesToCanonicalService(t *testing.T
 }
 
 func TestReservationStaffService_Delete_FailsClosedWithoutCanonicalDeleter(t *testing.T) {
-	svc := NewReservationStaffService(&mockReservationStaffRepository{}, &mockTransactor{}, nil)
+	svc := NewReservationStaffService(&mockReservationStaffRepository{}, &mockTransactor{}, nil, nil)
 
 	err := svc.Delete(context.Background(), 17, 29)
 
@@ -82,6 +82,7 @@ func TestReservationStaffService_Delete_PreservesCanonicalErrorCategory(t *testi
 		&mockReservationStaffRepository{},
 		&mockTransactor{},
 		deleter,
+		nil,
 	)
 
 	err := svc.Delete(context.Background(), 17, 29)
@@ -119,6 +120,6 @@ func TestReservationStaffDeleteSourceContract(t *testing.T) {
 	assert.Contains(
 		t,
 		string(compositionSource),
-		"reservation.NewReservationStaffService(repositories.ReservationStaff, dependencies.Transactor, dependencies.StaffDeleter)",
+		"reservation.NewReservationStaffService(repositories.ReservationStaff, dependencies.Transactor, dependencies.StaffDeleter, repositories.StaffAdminQueries)",
 	)
 }

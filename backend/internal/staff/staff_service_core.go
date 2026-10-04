@@ -214,10 +214,20 @@ const (
 	errMsgLastSystemAdminDeletion     = "最後の有効なシステム管理者を削除することはできません"
 )
 
-// guardStaffDeactivation enforces self-deactivation and last-active-system-admin
-// rejection before is_active=false is persisted.
-func (s *staffService) guardStaffDeactivation(
+// SystemAdminStaffQuerier is the minimal read surface the deactivation guard
+// needs. Both the staff Repository and consumer-side delegated views satisfy it.
+type SystemAdminStaffQuerier interface {
+	IsActiveSystemAdminStaff(ctx context.Context, staffID uint64) (bool, error)
+	CountActiveSystemAdminStaff(ctx context.Context) (int64, error)
+}
+
+// GuardStaffDeactivation enforces self-deactivation and last-active-system-admin
+// rejection before is_active=false is persisted. The caller must run it inside
+// the mutation transaction so the admin count is consistent with concurrent
+// deactivation attempts.
+func GuardStaffDeactivation(
 	ctx context.Context,
+	q SystemAdminStaffQuerier,
 	targetID uint64,
 	lockedStaff *model.Staff,
 	actorStaffID uint64,
@@ -228,14 +238,14 @@ func (s *staffService) guardStaffDeactivation(
 	if actorStaffID != 0 && actorStaffID == targetID {
 		return apperrors.WrapInvalidInput(errMsgSelfDeactivationForbidden)
 	}
-	isSystemAdminStaff, err := s.repo.IsActiveSystemAdminStaff(ctx, targetID)
+	isSystemAdminStaff, err := q.IsActiveSystemAdminStaff(ctx, targetID)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check system administrator status")
 	}
 	if !isSystemAdminStaff {
 		return nil
 	}
-	activeAdminCount, err := s.repo.CountActiveSystemAdminStaff(ctx)
+	activeAdminCount, err := q.CountActiveSystemAdminStaff(ctx)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to count active system administrators")
 	}
