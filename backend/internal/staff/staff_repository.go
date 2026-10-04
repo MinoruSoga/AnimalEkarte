@@ -258,8 +258,46 @@ func (r *staffRepository) Create(ctx context.Context, staff *model.Staff) error 
 	return nil
 }
 
+// Update applies the master staff update. EMR-289: a deactivation command
+// (is_active=false) must also disable the linked global login account inside the
+// same transaction — a deactivated staff must never leave a usable credential
+// behind. Reactivation is intentionally asymmetric: is_active=true never
+// re-enables the account (account reactivation is a separate explicit step).
 func (r *staffRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateStaffInput) error {
-	return r.update(ctx, clinicID, id, buildStaffUpdate(&cmd))
+	fields := buildStaffUpdate(&cmd)
+	if cmd.IsActive == nil || *cmd.IsActive {
+		return r.update(ctx, clinicID, id, fields)
+	}
+	return persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		if err := r.update(persistence.WithTxValue(ctx, tx), clinicID, id, fields); err != nil {
+			return err
+		}
+		return deactivateLinkedAccountTx(tx, id)
+	})
+}
+
+// deactivateLinkedAccountTx disables the login account referenced by the staff
+// row on the in-flight transaction (EMR-289). The account is a global identity
+// and is intentionally not clinic-scoped; it is keyed off the staff row so it
+// also resolves correctly right after the staff's own soft delete. Staffs
+// without a linked account (or an already inactive/deleted account) are a no-op.
+//
+// This write never runs for reactivation commands — account reactivation stays
+// a separate explicit operation (e.g. seedlogin upsert / operational tooling).
+func deactivateLinkedAccountTx(tx *gorm.DB, staffID uint64) error {
+	result := tx.
+		Model(&model.Account{}).
+		Where("id = (SELECT account_id FROM staffs WHERE id = ?)", staffID).
+		Where("is_active = TRUE").
+		Update("is_active", false)
+	if result.Error != nil {
+		return apperrors.FromGORM(
+			result.Error,
+			"account",
+			fmt.Sprintf("staff_id=%d", staffID),
+		)
+	}
+	return nil
 }
 
 func (r *staffRepository) AttachAccountID(ctx context.Context, clinicID, staffID, accountID uint64) error {
@@ -424,6 +462,12 @@ func (r *staffRepository) Delete(ctx context.Context, clinicID, id uint64) error
 		}
 		if result.RowsAffected == 0 {
 			operationErr = r.normalizeStaffDeleteMiss(persistence.WithTxValue(ctx, tx), clinicID, id)
+			return operationErr
+		}
+		// EMR-289: a deleted staff must not keep a usable login — disable the
+		// linked account inside this same transaction.
+		if err := deactivateLinkedAccountTx(tx, id); err != nil {
+			operationErr = err
 			return operationErr
 		}
 		return nil
@@ -609,12 +653,23 @@ func (r *staffRepository) CreateForReservation(ctx context.Context, staff *model
 // BE-refactor.md X-8: persistence.DBOrTx(ctx, r.db) にすることで、reservationStaffService.Update が
 // Transactor.WithTx で本メソッドと UpdateExcludedReservationTypes を括った場合に同一 tx へ参加する。
 // Empty commands are a no-op so reservation can always delegate without a map length check.
+// EMR-289: a PatchStatus deactivation (is_active=false) also disables the linked
+// login account in the same transaction; reactivation stays asymmetric and never
+// revives the account.
 func (r *staffRepository) UpdateForReservation(ctx context.Context, clinicID, id uint64, cmd ReservationStaffUpdate) error {
 	fields := reservationStaffUpdateFields(cmd)
 	if len(fields) == 0 {
 		return nil
 	}
-	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Staff{}, "reservation_staff", clinicID, id, fields)
+	if cmd.IsActive == nil || *cmd.IsActive {
+		return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Staff{}, "reservation_staff", clinicID, id, fields)
+	}
+	return persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		if err := persistence.UpdateScopedByID(ctx, tx, &model.Staff{}, "reservation_staff", clinicID, id, fields); err != nil {
+			return err
+		}
+		return deactivateLinkedAccountTx(tx, id)
+	})
 }
 
 // SwapSortOrderForReservation は隣接スタッフと sort_order を入れ替える（予約画面の並び替え）。

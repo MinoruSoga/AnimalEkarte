@@ -307,10 +307,12 @@ func (p *StaffProvisioner) createAllStaff(
 			}
 		}
 
+		// EMR-289: the account mirrors the staff's initial active state so a
+		// manifest never produces an inactive staff holding a usable credential.
 		account := &model.Account{
 			Email:        strings.TrimSpace(strings.ToLower(entry.Email)),
 			PasswordHash: string(hashed),
-			IsActive:     true,
+			IsActive:     entry.IsActive,
 		}
 		if err := p.repo.CreateAccount(ctx, account); err != nil {
 			return 0, err
