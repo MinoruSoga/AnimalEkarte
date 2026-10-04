@@ -81,12 +81,24 @@ type service struct {
 	repo       Repository
 	transactor persistence.Transactor
 	audit      audit.TxLogger
+	authorizer LinkWriteAuthorizer
 }
 
 // NewService constructs the identity-link service. audit must be non-nil;
-// nil audit is fail-closed at write time.
-func NewService(repo Repository, transactor persistence.Transactor, auditLogger audit.TxLogger) Service {
-	return &service{repo: repo, transactor: transactor, audit: auditLogger}
+// nil audit is fail-closed at write time. A nil authorizer fails closed on
+// every link write. The authorizer is not a substitute for VerifiedClinics.
+func NewService(
+	repo Repository,
+	transactor persistence.Transactor,
+	auditLogger audit.TxLogger,
+	authorizer LinkWriteAuthorizer,
+) Service {
+	return &service{
+		repo:       repo,
+		transactor: transactor,
+		audit:      auditLogger,
+		authorizer: authorizer,
+	}
 }
 
 func (s *service) SearchOwners(ctx context.Context, actor ActorContext, query string, limit int) ([]model.Owner, error) {

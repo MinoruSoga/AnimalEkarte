@@ -600,6 +600,7 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 			identitylink.NewRepository(c.db),
 			persistence.NewTransactor(c.db),
 			c.audit,
+			identitylink.NewDBLinkWriteAuthorizer(c.db),
 		),
 		c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
 	).RegisterRoutes(protected)

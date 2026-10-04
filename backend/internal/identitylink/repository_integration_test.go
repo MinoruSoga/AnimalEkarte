@@ -89,7 +89,7 @@ func TestRepository_CreateOwnerGroupAndLastMemberUnlink(t *testing.T) {
 	tx := persistence.NewTransactor(db)
 	auditRepo := audit.NewRepository(db)
 	auditSvc := audit.NewService(auditRepo)
-	svc := NewService(repo, tx, auditSvc)
+	svc := NewService(repo, tx, auditSvc, allowLinkWrites{})
 
 	o1 := seedClinicOwner(t, db, 1, "OwnerA")
 	o2 := seedClinicOwner(t, db, 2, "OwnerB")
@@ -144,7 +144,7 @@ func TestRepository_MixedHiddenReject_NoPartialWrite(t *testing.T) {
 	db := setupIdentityLinkTestDB(t)
 	repo := NewRepository(db)
 	tx := persistence.NewTransactor(db)
-	svc := NewService(repo, tx, audit.NewService(audit.NewRepository(db)))
+	svc := NewService(repo, tx, audit.NewService(audit.NewRepository(db)), allowLinkWrites{})
 
 	o1 := seedClinicOwner(t, db, 1, "OwnerA")
 	actor := testActor(1, 2)
@@ -173,7 +173,7 @@ func TestRepository_CrossClinicActorReject(t *testing.T) {
 	db := setupIdentityLinkTestDB(t)
 	repo := NewRepository(db)
 	tx := persistence.NewTransactor(db)
-	svc := NewService(repo, tx, audit.NewService(audit.NewRepository(db)))
+	svc := NewService(repo, tx, audit.NewService(audit.NewRepository(db)), allowLinkWrites{})
 
 	o1 := seedClinicOwner(t, db, 1, "OwnerA")
 	o2 := seedClinicOwner(t, db, 2, "OwnerB")
@@ -195,7 +195,7 @@ func TestRepository_LinkedTreatmentHistory_PairScope(t *testing.T) {
 	db := setupIdentityLinkTestDB(t)
 	repo := NewRepository(db)
 	tx := persistence.NewTransactor(db)
-	svc := NewService(repo, tx, audit.NewService(audit.NewRepository(db)))
+	svc := NewService(repo, tx, audit.NewService(audit.NewRepository(db)), allowLinkWrites{})
 
 	o1 := seedClinicOwner(t, db, 1, "OwnerA")
 	o2 := seedClinicOwner(t, db, 2, "OwnerB")

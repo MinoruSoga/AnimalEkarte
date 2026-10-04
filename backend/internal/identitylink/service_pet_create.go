@@ -54,6 +54,23 @@ func (s *service) createPetGroupInTx(
 	if err != nil {
 		return nil, nil, err
 	}
+	authAnchor := pickCreatedClinicID(actor, refs[0].ClinicID)
+	var allPetMembers []model.PetIdentityGroupMember
+	if existing.group != nil {
+		authAnchor = existing.group.CreatedClinicID
+		allPetMembers, err = s.repo.ListActivePetMembers(txCtx, existing.group.ID)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	decision, authErr := s.authorizeAffectedClinics(
+		txCtx,
+		actor,
+		petAffectedClinicIDs(authAnchor, allPetMembers, refs, ownerGroup, ownerMembers),
+	)
+	if authErr != nil {
+		return nil, nil, authErr
+	}
 	if existing.group != nil {
 		return existing.group, existing.members, nil
 	}
@@ -94,7 +111,7 @@ func (s *service) createPetGroupInTx(
 		"group_id":       group.ID,
 		"owner_group_id": ownerGroupID,
 		"members":        petRefsAudit(refs),
-	}); auditErr != nil {
+	}, decision); auditErr != nil {
 		return nil, nil, auditErr
 	}
 	return group, memberRows, nil

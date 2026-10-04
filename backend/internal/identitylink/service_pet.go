@@ -87,6 +87,22 @@ func (s *service) AddPetMembers(
 		if err := assertCanManagePetGroup(actor, group, existing, refs); err != nil {
 			return err
 		}
+		ownerGroup, ownerErr := s.repo.FindOwnerGroupByID(txCtx, group.OwnerGroupID)
+		if ownerErr != nil {
+			return ownerErr
+		}
+		ownerMembers, ownerListErr := s.repo.ListActiveOwnerMembers(txCtx, group.OwnerGroupID)
+		if ownerListErr != nil {
+			return ownerListErr
+		}
+		decision, authErr := s.authorizeAffectedClinics(
+			txCtx,
+			actor,
+			petAffectedClinicIDs(group.CreatedClinicID, existing, refs, ownerGroup, ownerMembers),
+		)
+		if authErr != nil {
+			return authErr
+		}
 
 		pets, lockPetsErr := s.repo.LockPets(txCtx, refs)
 		if lockPetsErr != nil {
@@ -128,7 +144,7 @@ func (s *service) AddPetMembers(
 			if auditErr := s.writeAudit(txCtx, actor, model.AuditActionPetIdentityLinkAdd, group.ID, nil, map[string]any{
 				"group_id": group.ID,
 				"members":  petRefsAudit(refsFromPetMembers(toCreate)),
-			}); auditErr != nil {
+			}, decision); auditErr != nil {
 				return auditErr
 			}
 		}
@@ -177,6 +193,22 @@ func (s *service) UnlinkPetMember(
 		if err := assertCanManagePetGroup(actor, group, existing, []PetMemberRef{member}); err != nil {
 			return err
 		}
+		ownerGroup, ownerErr := s.repo.FindOwnerGroupByID(txCtx, group.OwnerGroupID)
+		if ownerErr != nil {
+			return ownerErr
+		}
+		ownerMembers, ownerListErr := s.repo.ListActiveOwnerMembers(txCtx, group.OwnerGroupID)
+		if ownerListErr != nil {
+			return ownerListErr
+		}
+		decision, authErr := s.authorizeAffectedClinics(
+			txCtx,
+			actor,
+			petAffectedClinicIDs(group.CreatedClinicID, existing, []PetMemberRef{member}, ownerGroup, ownerMembers),
+		)
+		if authErr != nil {
+			return authErr
+		}
 
 		var target *model.PetIdentityGroupMember
 		for i := range existing {
@@ -210,7 +242,7 @@ func (s *service) UnlinkPetMember(
 			"group_soft_deleted": groupSoftDeleted,
 			"clinic_id":          member.ClinicID,
 			"pet_id":             member.PetID,
-		})
+		}, decision)
 	})
 	if err != nil {
 		return apperrors.Wrap(err, "failed to unlink pet identity member")

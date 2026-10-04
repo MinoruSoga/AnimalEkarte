@@ -90,6 +90,13 @@ func (s *service) createOwnerGroupInTx(
 			return nil, nil, listErr
 		}
 		if sameOwnerMemberSet(active, refs) {
+			if _, authErr := s.authorizeAffectedClinics(
+				txCtx,
+				actor,
+				ownerAffectedClinicIDs(group.CreatedClinicID, active, nil),
+			); authErr != nil {
+				return nil, nil, authErr
+			}
 			return group, filterOwnerMembersByClinics(active, actor.VerifiedClinics), nil
 		}
 	}
@@ -106,6 +113,14 @@ func (s *service) createOwnerGroupInTx(
 	}
 
 	createdClinicID := pickCreatedClinicID(actor, refs[0].ClinicID)
+	decision, authErr := s.authorizeAffectedClinics(
+		txCtx,
+		actor,
+		ownerAffectedClinicIDs(createdClinicID, nil, refs),
+	)
+	if authErr != nil {
+		return nil, nil, authErr
+	}
 	group := &model.OwnerIdentityGroup{
 		CreatedClinicID: createdClinicID,
 		Version:         1,
@@ -129,7 +144,7 @@ func (s *service) createOwnerGroupInTx(
 		"group_id":          group.ID,
 		"created_clinic_id": group.CreatedClinicID,
 		"members":           ownerRefsAudit(refs),
-	}); auditErr != nil {
+	}, decision); auditErr != nil {
 		return nil, nil, auditErr
 	}
 	return group, memberRows, nil
@@ -174,6 +189,14 @@ func (s *service) AddOwnerMembers(
 		if err := assertCanManageOwnerGroup(actor, group, existing, refs); err != nil {
 			return err
 		}
+		decision, authErr := s.authorizeAffectedClinics(
+			txCtx,
+			actor,
+			ownerAffectedClinicIDs(group.CreatedClinicID, existing, refs),
+		)
+		if authErr != nil {
+			return authErr
+		}
 
 		if _, lockOwnersErr := s.repo.LockOwners(txCtx, refs); lockOwnersErr != nil {
 			return lockOwnersErr
@@ -206,7 +229,7 @@ func (s *service) AddOwnerMembers(
 			if auditErr := s.writeAudit(txCtx, actor, model.AuditActionOwnerIdentityLinkAdd, group.ID, nil, map[string]any{
 				"group_id": group.ID,
 				"members":  ownerRefsAudit(refsFromOwnerMembers(toCreate)),
-			}); auditErr != nil {
+			}, decision); auditErr != nil {
 				return auditErr
 			}
 		}
@@ -255,6 +278,14 @@ func (s *service) UnlinkOwnerMember(
 		if err := assertCanManageOwnerGroup(actor, group, existing, []OwnerMemberRef{member}); err != nil {
 			return err
 		}
+		decision, authErr := s.authorizeAffectedClinics(
+			txCtx,
+			actor,
+			ownerAffectedClinicIDs(group.CreatedClinicID, existing, []OwnerMemberRef{member}),
+		)
+		if authErr != nil {
+			return authErr
+		}
 
 		var target *model.OwnerIdentityGroupMember
 		for i := range existing {
@@ -295,7 +326,7 @@ func (s *service) UnlinkOwnerMember(
 			"group_soft_deleted": groupSoftDeleted,
 			"clinic_id":          member.ClinicID,
 			"owner_id":           member.OwnerID,
-		})
+		}, decision)
 	})
 	if err != nil {
 		return apperrors.Wrap(err, "failed to unlink owner identity member")
