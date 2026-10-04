@@ -173,8 +173,7 @@ func newAuthServices(
 // currentAccessCacheTTL は CURRENT_ACCESS_CACHE_TTL_SEC(秒)を読む。
 // 未設定・非数値・0以下なら 0 を返し、呼び出し側はキャッシュを有効化しない。
 // CurrentAccess のキャッシュは権限/clinic無効化の反映をTTL分遅らせるため
-// (3148d229f で修正した認可ギャップの再発を避ける)既定では無効とし、
-// 合成データのみの STG でのみ vars 設定により有効化する。
+// (3148d229f で修正した認可ギャップの再発を避ける)既定では無効とする。
 func currentAccessCacheTTL() time.Duration {
 	sec, err := strconv.Atoi(os.Getenv("CURRENT_ACCESS_CACHE_TTL_SEC"))
 	if err != nil || sec <= 0 {
