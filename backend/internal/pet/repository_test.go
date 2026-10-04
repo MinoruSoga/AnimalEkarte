@@ -49,6 +49,22 @@ func makePetDetailed(t *testing.T, db *gorm.DB, clinicID, ownerID, speciesID uin
 	return pet
 }
 
+// makeStatusDeceasedPet は status=deceased だが deceased_at IS NULL の旧移行データを再現する（EMR-290）。
+func makeStatusDeceasedPet(t *testing.T, db *gorm.DB, clinicID, ownerID, speciesID uint64, name string, birthDate *time.Time) *model.Pet {
+	t.Helper()
+	pet := &model.Pet{
+		ClinicID:        clinicID,
+		OwnerID:         ownerID,
+		AnimalSpeciesID: speciesID,
+		Name:            name,
+		BirthDate:       birthDate,
+		DeceasedAt:      nil,
+		Status:          model.PetStatusDeceased,
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(pet).Error)
+	return pet
+}
+
 func TestPetRepository_FindAll(t *testing.T) {
 	db := setupPetRepositoryTestDB(t)
 	repo := NewRepository(db)
@@ -448,6 +464,7 @@ func TestPetRepository_FindLivingByOwner(t *testing.T) {
 	alive1 := makePetDetailed(t, db, clinicA, owner.ID, makeSyncSpeciesID(t, db), "生存ペット1", nil, nil)
 	alive2 := makePetDetailed(t, db, clinicA, owner.ID, makeSyncSpeciesID(t, db), "生存ペット2", nil, nil)
 	dead := makePetDetailed(t, db, clinicA, owner.ID, makeSyncSpeciesID(t, db), "死亡ペット", nil, &deceasedAt)
+	statusDead := makeStatusDeceasedPet(t, db, clinicA, owner.ID, makeSyncSpeciesID(t, db), "status死亡ペット", nil)
 	softDeleted := makePetDetailed(t, db, clinicA, owner.ID, makeSyncSpeciesID(t, db), "削除済みペット", nil, nil)
 	require.NoError(t, db.WithContext(ctx).Delete(softDeleted).Error)
 
@@ -461,6 +478,7 @@ func TestPetRepository_FindLivingByOwner(t *testing.T) {
 	assert.Contains(t, ids, alive1.ID)
 	assert.Contains(t, ids, alive2.ID)
 	assert.NotContains(t, ids, dead.ID, "死亡ペットは除外される")
+	assert.NotContains(t, ids, statusDead.ID, "status=deceased + deceased_at NULL のペットは除外される（EMR-290）")
 	assert.NotContains(t, ids, softDeleted.ID, "ソフト削除済みペットは除外される")
 }
 
@@ -491,10 +509,11 @@ func TestPetRepository_CountLivingByOwner(t *testing.T) {
 	deceasedAt := time.Now().Add(-24 * time.Hour)
 	makePetDetailed(t, db, clinicA, owner.ID, makeSyncSpeciesID(t, db), "生存中", nil, nil)
 	makePetDetailed(t, db, clinicA, owner.ID, makeSyncSpeciesID(t, db), "死亡済み", nil, &deceasedAt)
+	makeStatusDeceasedPet(t, db, clinicA, owner.ID, makeSyncSpeciesID(t, db), "status死亡", nil)
 
 	got, err := repo.CountLivingByOwner(ctx, clinicA, owner.ID)
 	require.NoError(t, err)
-	assert.Equal(t, int64(1), got, "死亡ペットは除外して生存1頭のみ")
+	assert.Equal(t, int64(1), got, "死亡ペット・status=deceased(deceased_at NULL)を除外して生存1頭のみ（EMR-290）")
 }
 
 func TestPetRepository_CountLivingByOwnerIDs(t *testing.T) {
@@ -517,12 +536,13 @@ func TestPetRepository_CountLivingByOwnerIDs(t *testing.T) {
 	makeSpeciesAndPet(t, db, clinicA, owner1.ID, "一括1-2")
 	deceasedAt := time.Now().Add(-24 * time.Hour)
 	makePetDetailed(t, db, clinicA, owner1.ID, makeSyncSpeciesID(t, db), "一括1-死亡", nil, &deceasedAt)
+	makeStatusDeceasedPet(t, db, clinicA, owner1.ID, makeSyncSpeciesID(t, db), "一括1-status死亡", nil)
 	makeSpeciesAndPet(t, db, clinicA, owner2.ID, "一括2-1")
 
 	t.Run("複数飼主を一括集計", func(t *testing.T) {
 		got, err := repo.CountLivingByOwnerIDs(ctx, clinicA, []uint64{owner1.ID, owner2.ID, ownerNoPets.ID})
 		require.NoError(t, err)
-		assert.Equal(t, int64(2), got[owner1.ID], "死亡ペットを除いた生存数")
+		assert.Equal(t, int64(2), got[owner1.ID], "死亡ペット・status=deceased(deceased_at NULL)を除いた生存数（EMR-290）")
 		assert.Equal(t, int64(1), got[owner2.ID])
 		_, exists := got[ownerNoPets.ID]
 		assert.False(t, exists, "ペット無し飼主はマップに現れない(呼び出し側で0扱い)")
@@ -652,6 +672,9 @@ func TestPetRepository_FindOwnersByPetBirthday(t *testing.T) {
 	ownerDeceasedOnly := makeTestOwner(t, db, clinicA, "死亡ペットのみ飼主")
 	makePetDetailed(t, db, clinicA, ownerDeceasedOnly.ID, speciesID, "誕生日一致だが死亡", &matchBirthday, &deceasedAt)
 
+	ownerStatusDeceasedOnly := makeTestOwner(t, db, clinicA, "status死亡ペットのみ飼主")
+	makeStatusDeceasedPet(t, db, clinicA, ownerStatusDeceasedOnly.ID, speciesID, "誕生日一致だがstatus死亡", &matchBirthday)
+
 	ownerOtherClinic := makeTestOwner(t, db, clinicB, "別医院誕生日一致飼主")
 	makePetDetailed(t, db, clinicB, ownerOtherClinic.ID, speciesID, "別医院の誕生日一致ペット", &matchBirthday, nil)
 
@@ -661,6 +684,10 @@ func TestPetRepository_FindOwnersByPetBirthday(t *testing.T) {
 	got, err := repo.FindOwnersByPetBirthday(ctx, clinicA, int(time.March), 15)
 	require.NoError(t, err)
 	assert.Contains(t, got, ownerMatch.ID)
+	assert.NotContains(t, got, ownerDeceasedOnly.ID)
+	assert.NotContains(t, got, ownerStatusDeceasedOnly.ID, "status=deceased + deceased_at NULL のペットのみの飼主は除外（EMR-290）")
+	assert.NotContains(t, got, ownerOther.ID)
+	assert.NotContains(t, got, ownerOtherClinic.ID)
 	assert.NotContains(t, got, ownerMismatched.ID)
 	assert.Len(t, got, 1, "重複排除・死亡除外・別医院除外・誕生日不一致除外")
 }

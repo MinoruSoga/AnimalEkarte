@@ -15,7 +15,7 @@ import (
 )
 
 // CheckupSyncPreviewRow はプレビュークエリの結果行。
-// PetNamesCSV と LivingPetCount は生存ペット（pets.deceased_at IS NULL）のみを集計する。
+// PetNamesCSV と LivingPetCount は生存ペット（pets.deceased_at IS NULL かつ status <> 'deceased'）のみを集計する。
 //
 // ISSUE-009 で追加された集計値は CPM ステージ判定（service層 CalculateCPMStage）に必要となる。
 // repository は SQL で済む絞り込みを担当し、CPM ステージ絞り込みは service 層で post-filter する。
@@ -124,7 +124,8 @@ func buildCheckupSyncWhere(params *FindCheckupSyncPreviewParams) (where string, 
 
 	if params.Species != "" {
 		// ISSUE-005: 種別判定は生存ペットに限定する（死亡ペットの種別だけで対象化しない）。
-		where += " AND EXISTS (SELECT 1 FROM pets p2 JOIN animal_species sp ON sp.id = p2.animal_species_id WHERE p2.owner_id = o.id AND p2.clinic_id = o.clinic_id AND p2.deleted_at IS NULL AND p2.deceased_at IS NULL AND LOWER(sp.name) = LOWER(?))"
+		// EMR-290: 生存判定は deceased_at IS NULL かつ status <> 'deceased' の OR 契約の両側を見る。
+		where += " AND EXISTS (SELECT 1 FROM pets p2 JOIN animal_species sp ON sp.id = p2.animal_species_id WHERE p2.owner_id = o.id AND p2.clinic_id = o.clinic_id AND p2.deleted_at IS NULL AND p2.deceased_at IS NULL AND p2.status <> 'deceased' AND LOWER(sp.name) = LOWER(?))"
 		args = append(args, params.Species)
 	}
 
