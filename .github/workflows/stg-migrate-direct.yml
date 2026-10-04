@@ -7,8 +7,8 @@
 # surface the real error in CI logs and to apply pending migrations so the
 # container boot chain unblocks.
 #
-# Pattern mirrors stg-sql-probe-brt71.yml (STG_DB_USER/STG_DB_PASSWORD secrets,
-# public ap-northeast-2 host + sslmode=require).
+# Uses STG_DB_USER/STG_DB_PASSWORD, the public ap-northeast-2 host, and
+# sslmode=require.
 name: STG Migrate Direct
 
 on:
@@ -53,14 +53,14 @@ jobs:
       - name: Run cmd/migrate against STG
         working-directory: backend
         env:
-          # Non-secret topology from wrangler.jsonc vars / stg-sql-probe.
+          # Non-secret topology from wrangler.jsonc vars.
           DB_HOST: ap-northeast-2.pg.psdb.cloud
           DB_PORT: "5432"
           DB_NAME: postgres
           DB_USER: ${{ secrets.STG_DB_USER }}
           DB_PASSWORD: ${{ secrets.STG_DB_PASSWORD }}
-          # sslmode=require is proven by stg-sql-probe-brt71; the container uses
-          # verify-full + DB_SSL_ROOT_CERT which has no equivalent CA file here.
+          # sslmode=require stays because this runner has no CA file for verify-full.
+          # The container uses verify-full + DB_SSL_ROOT_CERT.
           DB_SSL_MODE: require
           # Matches wrangler.jsonc vars — gates seedlogin + seed bundle order.
           APP_ENV: staging

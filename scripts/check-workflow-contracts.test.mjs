@@ -668,3 +668,19 @@ test("clinical-plan inventory matches the bounded current PATCH contract", () =>
     /updateTreatmentPlanMutation\.mutateAsync\(treatmentPlanPayload\)/,
   );
 });
+
+test("one-off staging SQL workflows and the ghost worker delete are absent", () => {
+  for (const name of [
+    ".github/workflows/stg-sql-probe-brt71.yml",
+    ".github/workflows/stg-ensure-pet-owners-brt71.yml",
+  ]) {
+    assert.throws(() => read(name), { code: "ENOENT" }, name);
+  }
+
+  const sync = read(".github/workflows/worker-secret-sync.yml");
+  assert.doesNotMatch(sync, /delete_ghost/);
+  assert.doesNotMatch(sync, /nimal-karte/);
+  assert.doesNotMatch(sync, /workers\/scripts/);
+  assert.match(sync, /wrangler secret put DB_USER --name animalekarte-stg-api/);
+  assert.match(sync, /wrangler secret put DB_PASSWORD --name animalekarte-stg-api/);
+});
