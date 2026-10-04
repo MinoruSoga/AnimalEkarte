@@ -109,7 +109,7 @@ export function TrimmingFormColumns({
         }
         weight={selectedPet.weight || ""}
         staffName={formData.staffName}
-        staffLabel="担当医"
+        staffLabel="担当"
         staffButtonId="staffId"
         reservationType="トリミング"
         petDetails={formatPatientPetDetails({
