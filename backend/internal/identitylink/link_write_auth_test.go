@@ -415,7 +415,7 @@ func petManageRepo(group *model.PetIdentityGroup, owner *model.OwnerIdentityGrou
 		listActivePetMembersFn: func(context.Context, uint64) ([]model.PetIdentityGroupMember, error) {
 			return petMembers, nil
 		},
-		findOwnerGroupByIDFn: func(context.Context, uint64) (*model.OwnerIdentityGroup, error) { return owner, nil },
+		lockOwnerGroupByIDFn: func(context.Context, uint64) (*model.OwnerIdentityGroup, error) { return owner, nil },
 		listActiveOwnerMembersFn: func(context.Context, uint64) ([]model.OwnerIdentityGroupMember, error) {
 			return ownerMembers(owner, ownerClinics), nil
 		},

@@ -87,7 +87,10 @@ func (s *service) AddPetMembers(
 		if err := assertCanManagePetGroup(actor, group, existing, refs); err != nil {
 			return err
 		}
-		ownerGroup, ownerErr := s.repo.FindOwnerGroupByID(txCtx, group.OwnerGroupID)
+		// 認可境界となる owner group は FOR UPDATE で読む。非ロック読みだと並行する
+		// owner 側の変更（AddOwnerMembers 等）が割り込み、stale な affected-clinic
+		// 集合で認可が通る TOCTOU になる。
+		ownerGroup, ownerErr := s.repo.LockOwnerGroupByID(txCtx, group.OwnerGroupID)
 		if ownerErr != nil {
 			return ownerErr
 		}
@@ -193,7 +196,9 @@ func (s *service) UnlinkPetMember(
 		if err := assertCanManagePetGroup(actor, group, existing, []PetMemberRef{member}); err != nil {
 			return err
 		}
-		ownerGroup, ownerErr := s.repo.FindOwnerGroupByID(txCtx, group.OwnerGroupID)
+		// AddPetMembers と同じく owner group は FOR UPDATE で読み、認可計算の
+		// TOCTOU を閉じる。
+		ownerGroup, ownerErr := s.repo.LockOwnerGroupByID(txCtx, group.OwnerGroupID)
 		if ownerErr != nil {
 			return ownerErr
 		}

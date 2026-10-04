@@ -81,6 +81,33 @@ func (s *sqlMedicalRecordImageDeletionStore) FindByImageID(
 	}, nil
 }
 
+func (s *sqlMedicalRecordImageDeletionStore) BlockedImageIDs(
+	ctx context.Context,
+	clinicID uint64,
+	imageIDs []uint64,
+) (map[uint64]bool, error) {
+	if s == nil || s.db == nil {
+		return nil, errors.New("medical record image deletion store is not configured")
+	}
+	blocked := make(map[uint64]bool, len(imageIDs))
+	if len(imageIDs) == 0 {
+		return blocked, nil
+	}
+	var ids []uint64
+	err := persistence.DBOrTx(ctx, s.db).Raw(`
+		SELECT image_id
+		FROM medical_record_image_deletions
+		WHERE clinic_id = ? AND image_id IN ? AND deleted_at IS NULL
+	`, clinicID, imageIDs).Scan(&ids).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range ids {
+		blocked[id] = true
+	}
+	return blocked, nil
+}
+
 func (s *sqlMedicalRecordImageDeletionStore) UpdateStorageResult(
 	ctx context.Context,
 	clinicID, imageID uint64,

@@ -350,6 +350,9 @@ var syntheticClosingDeleteStatements = []string{
 	"DELETE FROM lstep_tag_code_mappings WHERE clinic_id = ?",
 	"DELETE FROM lstep_trigger_priorities WHERE clinic_id = ?",
 	"DELETE FROM medical_record_addenda WHERE clinic_id = ?",
+	// medical_record_image_deletions: clinic_id → clinics ON DELETE RESTRICT（migration 021）。
+	// 画像行自体は無くても台帳が clinics 削除を塞ぐため teardown 系列に含める。
+	"DELETE FROM medical_record_image_deletions WHERE clinic_id = ?",
 	"DELETE FROM medical_record_image_upload_quota WHERE clinic_id = ?",
 	"DELETE FROM merchandise_items WHERE clinic_id = ?",
 	"DELETE FROM occupations WHERE clinic_id = ?",

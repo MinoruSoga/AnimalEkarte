@@ -30,10 +30,11 @@ func TestMedicalRecordImageHandlerCompiles(t *testing.T) {
 // ---- mock MedicalRecordImageService ----
 
 type mockMedicalRecordImageService struct {
-	listFn           func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error)
-	createFn         func(ctx context.Context, clinicID, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error)
-	deleteFn         func(ctx context.Context, clinicID, medicalRecordID, imageID, actorStaffID uint64, objects medicalRecordImageObjectDeleter) error
-	signingBlockedFn func(ctx context.Context, clinicID, imageID uint64) (bool, error)
+	listFn            func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error)
+	createFn          func(ctx context.Context, clinicID, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error)
+	deleteFn          func(ctx context.Context, clinicID, medicalRecordID, imageID, actorStaffID uint64, objects medicalRecordImageObjectDeleter) error
+	signingBlockedFn  func(ctx context.Context, clinicID, imageID uint64) (bool, error)
+	blockedImageIDsFn func(ctx context.Context, clinicID uint64, imageIDs []uint64) (map[uint64]bool, error)
 }
 
 func (m *mockMedicalRecordImageService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
@@ -56,6 +57,23 @@ func (m *mockMedicalRecordImageService) SigningBlocked(ctx context.Context, clin
 		return m.signingBlockedFn(ctx, clinicID, imageID)
 	}
 	return false, nil
+}
+
+func (m *mockMedicalRecordImageService) BlockedImageIDs(ctx context.Context, clinicID uint64, imageIDs []uint64) (map[uint64]bool, error) {
+	if m.blockedImageIDsFn != nil {
+		return m.blockedImageIDsFn(ctx, clinicID, imageIDs)
+	}
+	blocked := make(map[uint64]bool, len(imageIDs))
+	for _, id := range imageIDs {
+		b, err := m.SigningBlocked(ctx, clinicID, id)
+		if err != nil {
+			return nil, err
+		}
+		if b {
+			blocked[id] = true
+		}
+	}
+	return blocked, nil
 }
 
 // ---- mock FileUploader (infra.FileUploader) ----

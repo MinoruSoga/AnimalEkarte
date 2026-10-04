@@ -54,10 +54,13 @@ func setupRealDBRecordsDB(t *testing.T) *gorm.DB {
 		&model.CheckupType{}, &model.Checkup{}, &model.CheckupTypeField{}, &model.CheckupFieldResult{},
 		&model.Vaccine{}, &model.Vaccination{},
 	))
+	// 削除台帳は GORM model を持たないため AutoMigrate 対象外。migration 021 と一致する生SQLで用意。
+	testdb.EnsureMedicalRecordImageDeletionsTable(t, db)
 	testdb.Truncate(t, db,
 		"checkup_field_results", "checkups", "checkup_type_fields", "checkup_types",
 		"vaccinations", "vaccines", "vital_records", "treatments", "treatment_plans",
 		"medical_record_images", "medical_record_addenda", "clinical_plans",
+		"medical_record_image_deletions",
 		"medical_records", "pets", "owners",
 		"staff_clinic_assignments", "staffs",
 	)
@@ -93,7 +96,12 @@ func wireRecordsHandlers(t *testing.T, db *gorm.DB, forbidden uint64) realDBReco
 	}
 
 	addendumSvc := MedicalRecordAddendumService(NewMedicalRecordAddendumService(NewMedicalRecordAddendumRepository(db), mrRepo, nil, tx))
-	imageSvc := MedicalRecordImageService(NewMedicalRecordImageService(NewMedicalRecordImageRepository(db), mrRepo, tx))
+	// 一覧の署名停止チェックは削除台帳を必要とするため、production composition と同じく
+	// 台帳 store を注入する（監査 logger はこの fixture で削除 API を叩かないので nil）。
+	imageSvc := MedicalRecordImageService(NewMedicalRecordImageServiceWithRelationValidation(
+		NewMedicalRecordImageRepository(db), mrRepo, nil, nil, nil, nil, tx,
+		NewImageDeletionAudit(db, nil),
+	))
 	treatmentSvc := TreatmentService(NewTreatmentServiceWithAudit(
 		NewTreatmentRepository(db), mrRepo, nil, nil, nil, nil, NewVitalRepository(db), nil, tx, nil,
 	))

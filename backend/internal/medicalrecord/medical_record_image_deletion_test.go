@@ -113,6 +113,16 @@ func (s *memDeletionStore) FindByImageID(_ context.Context, clinicID, imageID ui
 	return &copied, nil
 }
 
+func (s *memDeletionStore) BlockedImageIDs(_ context.Context, clinicID uint64, imageIDs []uint64) (map[uint64]bool, error) {
+	blocked := make(map[uint64]bool, len(imageIDs))
+	for _, id := range imageIDs {
+		if row, ok := s.committed[id]; ok && row.ClinicID == clinicID {
+			blocked[id] = true
+		}
+	}
+	return blocked, nil
+}
+
 func (s *memDeletionStore) UpdateStorageResult(_ context.Context, clinicID, imageID uint64, status, lastError string) error {
 	row, ok := s.committed[imageID]
 	if !ok || row.ClinicID != clinicID {
@@ -227,9 +237,12 @@ func TestMedicalRecordImageDelete_StorageFailureDoesNotResumeSigning(t *testing.
 	h := newImageDeleteHarness(model.MedicalRecordImage{ID: 4, MedicalRecordID: 5, ImageURL: key})
 	h.objects.err = errors.New("storage unavailable")
 
-	require.NoError(t, h.delete(4))
+	// storage 削除失敗は caller へ error で返る（204 で握り潰すと再試行経路が途切れる）
+	err := h.delete(4)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "storage unavailable")
 
-	_, err := h.repo.FindByID(context.Background(), 1, 4)
+	_, err = h.repo.FindByID(context.Background(), 1, 4)
 	require.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
 	row := h.store.committed[4]
@@ -248,6 +261,29 @@ func TestMedicalRecordImageDelete_StorageFailureDoesNotResumeSigning(t *testing.
 	blocked, err = h.svc.SigningBlocked(context.Background(), 1, 4)
 	require.NoError(t, err)
 	assert.True(t, blocked)
+}
+
+// TestMedicalRecordImageDelete_StorageRetryAllowedAfterFinalization は確定済みカルテでも
+// 認可済み台帳行の物理削除リトライが拒否されないことを検証する。
+func TestMedicalRecordImageDelete_StorageRetryAllowedAfterFinalization(t *testing.T) {
+	const key = "medical-records/5/original.png"
+	h := newImageDeleteHarness(model.MedicalRecordImage{ID: 4, MedicalRecordID: 5, ImageURL: key})
+	h.objects.err = errors.New("storage unavailable")
+
+	// draft 中の初回削除: storage 失敗で台帳は pending_storage のまま
+	require.Error(t, h.delete(4))
+	require.Equal(t, medicalRecordImageDeletionPending, h.store.committed[4].StorageStatus)
+
+	// カルテを確定させてから再 DELETE（= 台帳経由の物理削除リトライ）
+	h.medRec.findByIDFn = func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+		return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusFinalized}, nil
+	}
+	h.objects.err = nil
+	require.NoError(t, h.delete(4))
+
+	assert.Equal(t, []string{key}, h.objects.deleted)
+	assert.Equal(t, medicalRecordImageDeletionDeleted, h.store.committed[4].StorageStatus)
+	assert.Equal(t, 1, h.store.inserts)
 }
 
 func TestMedicalRecordImageDelete_BlocksReregisteredKeyButAllowsOtherLiveImage(t *testing.T) {
@@ -315,7 +351,10 @@ func TestMedicalRecordImageDelete_DoesNotDeleteKeyOutsideRecord(t *testing.T) {
 	const key = "medical-records/5/../../etc/passwd"
 	h := newImageDeleteHarness(model.MedicalRecordImage{ID: 4, MedicalRecordID: 5, ImageURL: key})
 
-	require.NoError(t, h.delete(4))
+	// 台帳外の key 拒否は error で surface し、台帳は pending_storage に残る
+	err := h.delete(4)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "outside the record")
 
 	assert.Empty(t, h.objects.deleted)
 	assert.Equal(t, medicalRecordImageDeletionPending, h.store.committed[4].StorageStatus)
@@ -430,7 +469,7 @@ func TestListMedicalRecordImages_DoesNotSignDeletedImageID(t *testing.T) {
 	const stored = "https://cdn.example/already-stored.jpg"
 	uploader := &mockMedicalRecordImageUploader{
 		getSignedURLFn: func(context.Context, string, time.Duration) (string, error) {
-			t.Fatal("deleted image id must not be signed or echoed")
+			t.Fatal("non-object stored URL must not reach the signer")
 			return "", nil
 		},
 	}
@@ -442,8 +481,8 @@ func TestListMedicalRecordImages_DoesNotSignDeletedImageID(t *testing.T) {
 					ID: 4, MedicalRecordID: 5, ImageURL: stored,
 				}}, nil
 			},
-			signingBlockedFn: func(context.Context, uint64, uint64) (bool, error) {
-				return true, nil
+			blockedImageIDsFn: func(context.Context, uint64, []uint64) (map[uint64]bool, error) {
+				return map[uint64]bool{4: true}, nil
 			},
 		},
 		uploader,
@@ -460,6 +499,43 @@ func TestListMedicalRecordImages_DoesNotSignDeletedImageID(t *testing.T) {
 	assert.NotEqual(t, http.StatusOK, w.Code)
 	assert.NotContains(t, w.Body.String(), stored)
 	assert.Empty(t, uploader.signedURLCalls)
+}
+
+// TestListMedicalRecordImages_BlocksSigningAfterConcurrentDelete は署名発行と
+// 削除 commit が交差しても一括突合で応答を落とすことを検証する（署名後チェック）。
+func TestListMedicalRecordImages_BlocksSigningAfterConcurrentDelete(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	const signed = "https://signed.example/medical-records/5/uuid.png?sig=x"
+	uploader := &mockMedicalRecordImageUploader{
+		getSignedURLFn: func(_ context.Context, key string, _ time.Duration) (string, error) {
+			return signed, nil
+		},
+	}
+	handler := newHandlerWithMedicalRecordImageSvc(
+		ownedMedicalRecordImageGetter(),
+		&mockMedicalRecordImageService{
+			listFn: func(context.Context, uint64, uint64) ([]model.MedicalRecordImage, error) {
+				return []model.MedicalRecordImage{{
+					ID: 4, MedicalRecordID: 5, ImageURL: "medical-records/5/uuid.png",
+				}}, nil
+			},
+			blockedImageIDsFn: func(context.Context, uint64, []uint64) (map[uint64]bool, error) {
+				return map[uint64]bool{4: true}, nil
+			},
+		},
+		uploader,
+	)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/medical-records/5/images", http.NoBody)
+	c.Params = gin.Params{{Key: "id", Value: "5"}}
+	setClinicID(c)
+
+	handler.ListMedicalRecordImages(c)
+
+	assert.NotEqual(t, http.StatusOK, w.Code)
+	assert.NotContains(t, w.Body.String(), signed)
 }
 
 func TestUploadMedicalRecordImage_SignFailureLeavesNeitherRowNorObject(t *testing.T) {

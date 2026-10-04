@@ -419,6 +419,16 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/medical_record_image_repository.go|medicalRecordImageRepository.Create":   {},
 	"medicalrecord/medical_record_image_repository.go|medicalRecordImageRepository.Delete":   {},
 	"medicalrecord/medical_record_image_repository.go|medicalRecordImageRepository.FindByID": {},
+	// CountLiveByStorageKey guards object-key sharing inside the image delete tx so a
+	// concurrent commit cannot make the ledger claim a key no live row still references.
+	"medicalrecord/medical_record_image_repository.go|medicalRecordImageRepository.CountLiveByStorageKey": {},
+	// Image deletion ledger store: Insert/FindByImageID/UpdateStorageResult join the caller's
+	// ambient tx so the ledger row and the image-row soft delete commit or roll back together;
+	// BlockedImageIDs must read ledger state consistent with that same tx.
+	"medicalrecord/medical_record_image_deletion_store.go|sqlMedicalRecordImageDeletionStore.BlockedImageIDs":     {},
+	"medicalrecord/medical_record_image_deletion_store.go|sqlMedicalRecordImageDeletionStore.FindByImageID":       {},
+	"medicalrecord/medical_record_image_deletion_store.go|sqlMedicalRecordImageDeletionStore.Insert":              {},
+	"medicalrecord/medical_record_image_deletion_store.go|sqlMedicalRecordImageDeletionStore.UpdateStorageResult": {},
 
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.LockByIDForUpdate": {},
 	// Auto-create holds one ambient transaction from the non-blocking advisory lock through the
@@ -727,6 +737,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// identitylink/repository_tx_atomicity_test.go
 	"identitylink/repository.go|repository.conn":             {},
 	"identitylink/repository.go|repository.requireAmbientTx": {},
+	// AuthorizeLinkWrite re-reads membership + identity-links edit via DBOrTx so the
+	// authorization decision observes the caller's ambient-tx snapshot (link_write_auth.go).
+	// Runtime: link_write_auth_test.go service-level authorization cases.
+	"identitylink/link_write_auth.go|dbLinkWriteAuthorizer.AuthorizeLinkWrite": {},
 	// trimming detail (uniform dbOrTx)
 	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.Create":              {},
 	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.FindByAppointmentID": {},

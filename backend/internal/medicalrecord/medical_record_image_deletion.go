@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
+	"strings"
 
 	"gorm.io/gorm"
 
@@ -42,6 +44,8 @@ type medicalRecordImageDeletion struct {
 type medicalRecordImageDeletionStore interface {
 	Insert(ctx context.Context, row medicalRecordImageDeletion) error
 	FindByImageID(ctx context.Context, clinicID, imageID uint64) (*medicalRecordImageDeletion, error)
+	// BlockedImageIDs は一覧内の削除台帳を一括で引く（一覧時の N+1 防止）。
+	BlockedImageIDs(ctx context.Context, clinicID uint64, imageIDs []uint64) (map[uint64]bool, error)
 	UpdateStorageResult(ctx context.Context, clinicID, imageID uint64, status, lastError string) error
 }
 
@@ -71,6 +75,14 @@ func (s *medicalRecordImageService) SigningBlocked(ctx context.Context, clinicID
 		return true, err
 	}
 	return row != nil, nil
+}
+
+// BlockedImageIDs は一覧の削除台帳突合を 1 クエリで行う。
+func (s *medicalRecordImageService) BlockedImageIDs(ctx context.Context, clinicID uint64, imageIDs []uint64) (map[uint64]bool, error) {
+	if s.deletions == nil {
+		return nil, apperrors.WrapInternalServerError("medical record image deletion dependency is required")
+	}
+	return s.deletions.BlockedImageIDs(ctx, clinicID, imageIDs)
 }
 
 func (s *medicalRecordImageService) Delete(
@@ -147,8 +159,13 @@ func (s *medicalRecordImageService) Delete(
 		return txErr
 	}
 
-	// 署名 URL は発行済みなら最大 15 分残る。storage 削除の失敗では削除台帳を戻さない。
-	s.removeImageStorage(ctx, committed, objects, resolveErr)
+	// 署名 URL は発行済みなら最大 15 分残る。storage 削除の失敗では削除台帳を戻さず
+	// pending_storage のまま残し、失敗を caller へ返す。204 を返すと frontend は
+	// 画像を一覧から消し、再試行経路（同一 imageID への再 DELETE → retryImageStorageDelete）
+	// が実質到達不能になって orphan オブジェクトが残るため。
+	if err := s.removeImageStorage(ctx, committed, objects, resolveErr); err != nil {
+		return err
+	}
 	slog.InfoContext(ctx, "record image deleted", slog.Uint64("image_id", imageID))
 	return nil
 }
@@ -175,8 +192,10 @@ func (s *medicalRecordImageService) auditImageDeletion(ctx context.Context, row 
 			"medical_record_id":    row.MedicalRecordID,
 			"image_object_key":     row.ImageObjectKey,
 			"thumbnail_object_key": row.ThumbnailObjectKey,
-			"image_url":            imageURL,
-			"thumbnail_url":        thumbnailURL,
+			// legacy 行は presigned URL が image_url に残っていることがある。
+			// クエリ署名（token）を監査ログへ永続化しないよう query/fragment は剥ぐ。
+			"image_url":     auditSafeMedicalRecordImageURL(imageURL),
+			"thumbnail_url": auditSafeMedicalRecordImageURL(thumbnailURL),
 		},
 	})
 	if err != nil {
@@ -185,17 +204,29 @@ func (s *medicalRecordImageService) auditImageDeletion(ctx context.Context, row 
 	return nil
 }
 
+// auditSafeMedicalRecordImageURL は監査向けに URL の query/fragment を除去する。
+// object key のような非 URL 値（parse で path 扱い）はそのまま返り、parse 失敗時は
+// クエリ以降だけを落とす。
+func auditSafeMedicalRecordImageURL(stored string) string {
+	if u, err := url.Parse(stored); err == nil {
+		u.RawQuery = ""
+		u.Fragment = ""
+		return u.String()
+	}
+	if i := strings.IndexByte(stored, '?'); i >= 0 {
+		return stored[:i]
+	}
+	return stored
+}
+
 func (s *medicalRecordImageService) retryImageStorageDelete(
 	ctx context.Context,
 	clinicID, medicalRecordID, imageID uint64,
 	objects medicalRecordImageObjectDeleter,
 ) error {
-	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		return lockDraftMedicalRecord(txCtx, s.medRec, clinicID, medicalRecordID,
-			"failed to find medical record", "確定済みカルテの画像は削除できません")
-	}); err != nil {
-		return err
-	}
+	// 台帳行は「認可済みの論理削除」（clinic 検証 + draft ロック下の tx で挿入済み）
+	// の証跡なので、物理削除の再試行はカルテの draft 状態に依存しない。
+	// draft ロックを要求すると確定後のカルテの pending_storage が回収不能になる。
 	existing, err := s.deletions.FindByImageID(ctx, clinicID, imageID)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to read medical record image deletion")
@@ -206,26 +237,27 @@ func (s *medicalRecordImageService) retryImageStorageDelete(
 	if existing.StorageStatus != medicalRecordImageDeletionPending {
 		return nil
 	}
-	s.removeImageStorage(ctx, *existing, objects, nil)
-	return nil
+	return s.removeImageStorage(ctx, *existing, objects, nil)
 }
 
+// removeImageStorage は台帳行に対応する storage オブジェクトを削除し、結果を台帳へ記録する。
+// 失敗時は pending_storage に留めて error を返す（caller が HTTP error として表面化する）。
 func (s *medicalRecordImageService) removeImageStorage(
 	ctx context.Context,
 	row medicalRecordImageDeletion,
 	objects medicalRecordImageObjectDeleter,
 	resolveErr error,
-) {
+) error {
 	if resolveErr != nil {
 		slog.ErrorContext(ctx, "medical record image storage key unresolved after delete",
 			slog.Uint64("image_id", row.ImageID), slog.String("error", resolveErr.Error()))
 		s.recordImageStorageResult(ctx, row, medicalRecordImageDeletionPending, resolveErr)
-		return
+		return resolveErr
 	}
 	keys := uniqueMedicalRecordImageKeys(row.ImageObjectKey, row.ThumbnailObjectKey)
 	if len(keys) == 0 {
 		s.recordImageStorageResult(ctx, row, medicalRecordImageDeletionDeleted, nil)
-		return
+		return nil
 	}
 
 	retained := false
@@ -248,6 +280,10 @@ func (s *medicalRecordImageService) removeImageStorage(
 		status = medicalRecordImageDeletionShared
 	}
 	s.recordImageStorageResult(ctx, row, status, failed)
+	if failed != nil {
+		return apperrors.Wrap(failed, "failed to delete medical record image storage object")
+	}
+	return nil
 }
 
 func (s *medicalRecordImageService) deleteOneImageObject(

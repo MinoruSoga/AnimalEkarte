@@ -4,7 +4,7 @@ package lintscan
 //
 // ─── Purpose ────────────────────────────────────────────────────────────────────────
 //
-// 021_backfill_staff_reservation_capabilities.sql は TASK-021 Stage B 切替時に欠落した
+// 023_backfill_staff_reservation_capabilities.sql は TASK-021 Stage B 切替時に欠落した
 // データ backfill を補う migration であり、runtime の fail-closed 契約そのものは変更しない。
 // その代わりに「誰へ何を grant するか」の SELECT 条件が唯一の安全境界になるため、
 // 本ゲートは backfill の不変条件を字義 pin する:
@@ -29,7 +29,7 @@ import (
 	"testing"
 )
 
-const capabilityBackfillMigration = "021_backfill_staff_reservation_capabilities.sql"
+const capabilityBackfillMigration = "023_backfill_staff_reservation_capabilities.sql"
 
 func readCapabilityBackfillSQL(t *testing.T) string {
 	t.Helper()
@@ -78,6 +78,11 @@ func TestCapabilityBackfillMigration_Contract(t *testing.T) {
 			pattern: regexp.MustCompile(`(?is)rt\.clinic_id\s*=\s*sca\.clinic_id`),
 		},
 		{
+			name: "未設定スタッフのみ（capabilities_configured_at IS NULL マーカー）",
+			pattern: regexp.MustCompile(
+				`(?is)sca\.capabilities_configured_at\s+IS\s+NULL`),
+		},
+		{
 			name: "未設定スタッフのみ（capability NOT EXISTS ガード・同一 clinic+staff）",
 			pattern: regexp.MustCompile(
 				`(?is)NOT\s+EXISTS\s*\(\s*SELECT\s+1\s+FROM\s+staff_reservation_capabilities\s+cap\b[\s\S]*?cap\.clinic_id\s*=\s*sca\.clinic_id[\s\S]*?cap\.staff_id\s*=\s*sca\.staff_id`),
@@ -100,13 +105,17 @@ func TestCapabilityBackfillMigration_Contract(t *testing.T) {
 	}
 
 	// 変更系は INSERT 1 文のみ — UPDATE/DELETE/DDL の混入は fail。
+	// ただし SELECT 文の行ロック句 `FOR UPDATE [OF <alias>]` は更新系ではないため、
+	// 禁止キーワード走査の前に同一行内の分だけ除去する（write path と同一行を直列化する
+	// 目的で backfill が意図的に使う）。
+	mutationScan := regexp.MustCompile(`(?m)FOR\s+UPDATE(?:[ \t]+OF[ \t]+[a-zA-Z0-9_, \t]+)?`).ReplaceAllString(upper, " ")
 	forbidden := []string{
 		`\bUPDATE\b`, `\bDELETE\b`, `\bTRUNCATE\b`, `\bALTER\b`, `\bDROP\b`,
 		`\bCREATE\b`, `\bMERGE\b`,
 	}
 	for _, kw := range forbidden {
 		re := regexp.MustCompile(kw)
-		if loc := re.FindStringIndex(upper); loc != nil {
+		if loc := re.FindStringIndex(mutationScan); loc != nil {
 			t.Errorf("backfill migration must be INSERT-only; found %s at byte %d",
 				strings.Trim(kw, `\b`), loc[0])
 		}

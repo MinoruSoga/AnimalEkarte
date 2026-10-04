@@ -129,6 +129,9 @@ func setupReservationCreatedByFK(t *testing.T) *reservationCreatedByFixture {
 	ddl = strings.ReplaceAll(ddl, "'public'", "'"+schema+"'")
 	require.NoError(t, db.Exec(ddl).Error)
 	applyReservationCreatedByMigration(t, db, "../../migrations/002_medical_records_entered_by_staff_fk.sql")
+	// 022: capabilities_configured_at — StaffClinicAssignment の GORM create/update が
+	// モデル経由で同列を参照するため、実 DDL schema にも反映が必要。
+	applyReservationCreatedByMigration(t, db, "../../migrations/022_staff_clinic_assignments_capability_configured_at.sql")
 	fixture := &reservationCreatedByFixture{db: db}
 	require.NoError(t, db.Callback().Create().After("gorm:create").Register("test:capture_reservation_fk", func(tx *gorm.DB) {
 		var pgErr *pgconn.PgError

@@ -31,6 +31,8 @@ type MedicalRecordImageService interface {
 	Create(ctx context.Context, clinicID, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error)
 	Delete(ctx context.Context, clinicID, medicalRecordID, imageID, actorStaffID uint64, objects medicalRecordImageObjectDeleter) error
 	SigningBlocked(ctx context.Context, clinicID, imageID uint64) (bool, error)
+	// BlockedImageIDs は一覧表示向けの削除台帳一括突合（N+1 防止）。
+	BlockedImageIDs(ctx context.Context, clinicID uint64, imageIDs []uint64) (map[uint64]bool, error)
 }
 
 type medicalRecordImageService struct {

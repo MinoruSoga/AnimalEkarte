@@ -83,14 +83,28 @@ func (h *MedicalRecordImageHandler) ListMedicalRecordImages(c *gin.Context) {
 		return
 	}
 
+	// 署名は全件発行してから削除台帳と一括突合する。先に blocked 判定すると、
+	// 判定後の署名発行中に削除 commit が割り込み retired 画像の署名 URL を返しうる
+	// （TOCTOU）。署名後チェックで「発行済み URL が削除済みだった」ケースを検出する。
 	items := make([]medicalRecordImageResponse, 0, len(images))
+	imageIDs := make([]uint64, 0, len(images))
 	for i := range images {
-		item, signErr := h.signedMedicalRecordImageResponse(c.Request.Context(), clinicID, &images[i])
+		item, signErr := h.signMedicalRecordImageResponse(c.Request.Context(), &images[i])
 		if signErr != nil {
 			httpapi.RespondError(c, apperrors.Wrap(signErr, "failed to sign medical record image url"))
 			return
 		}
 		items = append(items, item)
+		imageIDs = append(imageIDs, images[i].ID)
+	}
+	blocked, err := h.service.BlockedImageIDs(c.Request.Context(), clinicID, imageIDs)
+	if err != nil {
+		httpapi.RespondError(c, apperrors.Wrap(err, "failed to check medical record image deletion"))
+		return
+	}
+	if len(blocked) > 0 {
+		httpapi.RespondError(c, errMedicalRecordImageSigningRetired)
+		return
 	}
 	c.JSON(http.StatusOK, items)
 }
@@ -236,15 +250,29 @@ func (h *MedicalRecordImageHandler) retireUploadAfterSignFailure(
 ) {
 	retireErr := h.service.Delete(c.Request.Context(), clinicID, medicalRecordID, imageID, staffID, h.uploader)
 	if retireErr != nil {
+		// 画像行と削除台帳は commit 済みの可能性がある（storage 削除だけが失敗した
+		// 場合も含む）。単に signErr を返すとクライアントは「アップロード自体が
+		// 失敗した」と解釈して再送し、commit 済み画像と重複する。
 		slog.ErrorContext(c.Request.Context(), "failed to retire medical record image after sign failure",
 			slog.Uint64("image_id", imageID), slog.String("error", retireErr.Error()))
-		httpapi.RespondError(c, retireErr)
+		httpapi.RespondError(c, apperrors.WrapInternalServerError(fmt.Sprintf(
+			"medical record image %d was saved but could not be signed; retry listing images instead of re-uploading",
+			imageID)))
 		return
 	}
 	httpapi.RespondError(c, apperrors.Wrap(signErr, "failed to sign medical record image url"))
 }
 
+// signedMedicalRecordImageResponse は署名発行→削除台帳確認の順で返す。
+// 先に blocked 判定してから署名すると、判定後に削除 commit が割り込んで
+// retired 画像の署名 URL を発行しうる（TOCTOU）。署名後に確認すれば
+// 「発行済みだが削除済み」ケースを確実に検出できる（発行自体の競合窓は
+// 署名 API 側の仕組みでは塞げないため、残存窓は台帳側で検出して応答を落とす）。
 func (h *MedicalRecordImageHandler) signedMedicalRecordImageResponse(ctx context.Context, clinicID uint64, img *model.MedicalRecordImage) (medicalRecordImageResponse, error) {
+	resp, err := h.signMedicalRecordImageResponse(ctx, img)
+	if err != nil {
+		return medicalRecordImageResponse{}, err
+	}
 	blocked, err := h.service.SigningBlocked(ctx, clinicID, img.ID)
 	if err != nil {
 		return medicalRecordImageResponse{}, err
@@ -252,6 +280,12 @@ func (h *MedicalRecordImageHandler) signedMedicalRecordImageResponse(ctx context
 	if blocked {
 		return medicalRecordImageResponse{}, errMedicalRecordImageSigningRetired
 	}
+	return resp, nil
+}
+
+// signMedicalRecordImageResponse は削除台帳を見ずに署名だけを行う
+// （一覧時は署名後に BlockedImageIDs で一括突合する）。
+func (h *MedicalRecordImageHandler) signMedicalRecordImageResponse(ctx context.Context, img *model.MedicalRecordImage) (medicalRecordImageResponse, error) {
 	resp := toMedicalRecordImageResponse(img)
 	imageURL, err := h.signStoredMedicalRecordImageURL(ctx, img.MedicalRecordID, resp.ImageURL)
 	if err != nil {
