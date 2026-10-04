@@ -190,7 +190,7 @@ flowchart TB
 
 1. **現場での一次切り分け**（スタッフ）: システム内マニュアル「エラー・トラブル対応」「システム障害時の対応（BCP）」に従い、再読み込み・別ブラウザ・ネットワーク確認を実施。
 2. **管理者への報告**（各医院の管理者）: 複数端末・複数スタッフで再現する場合は障害と判断。
-3. **開発側窓口へ連絡**: 窓口の連絡手段・宛先・受付時間は **USER 入力待ち（U7）**（[GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md) §5 のサポート体制と共通）。報告時は「発生時刻・操作していた画面・エラーメッセージ・影響範囲（何人が困っているか）」を添える。
+3. **開発側窓口へ連絡**: 連絡手段は **Slack**（EMR-151 決定）。宛先チャネル・受付時間・一次対応者は **USER 入力待ち（U7）**（[GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md) §5 のサポート体制と共通）。報告時は「発生時刻・操作していた画面・エラーメッセージ・影響範囲（何人が困っているか）」を添える。
 4. **開発側の対応**（STG 実績ベース）:
    - `/health` 確認（workers.dev 直行と実 URL の両方 — [staging/runbook.md](../ops/infra/staging/runbook.md)）
    - デプロイ直後はローリング更新の旧イメージ残留を疑い、必要なら 15 分静置後に再確認
@@ -236,7 +236,7 @@ flowchart TB
 | U4 | GitHub リポジトリ運用体制 | 先方 / 開発 | 組織・権限・Collaborator 方針 | §1.2 | リポジトリ `MinoruSoga/AnimalEkarte`。日常は `main`、STG は `staging` への PR。`production` 直 push 禁止（[CLAUDE.md](../../.claude/CLAUDE.md) / [CI-CD-PIPELINE.md](../ops/deploy/CI-CD-PIPELINE.md)） | **未記入**（組織移管・先方 Collaborator・権限方針） |
 | U5 | 本番 LINE チャネル情報 | 各医院 | チャネル ID 等（**秘密は secret 管理へ。本書に書かない**） | §2 Step 6 | 投入手順は §2 Step 6。値は本書に書かない | **未記入**（チャネル値は secret 管理へ） |
 | U6 | 本番 Lステップ API キー | 各医院 | API キー（**secret 管理へ。本書に書かない**） | §2 Step 6 | 投入手順は §2 Step 6。値は本書に書かない | **未記入**（API キーは secret 管理へ） |
-| U7 | 障害・サポート窓口 | 先方 × 開発 | 連絡手段・宛先・受付時間・一次対応者 | §3.2 / GOLIVE_RUNBOOK §5 | 連絡フロー骨格は §3.2。宛先は repo に無い | **未記入**（手段・宛先・受付時間・一次対応者） |
+| U7 | 障害・サポート窓口 | 先方 × 開発 | 宛先チャネル・受付時間・一次対応者 | §3.2 / GOLIVE_RUNBOOK §5 | 連絡フロー骨格は §3.2。連絡手段は Slack（EMR-151 決定）。宛先は repo に無い | **未記入**（宛先チャネル・受付時間・一次対応者） |
 | U8 | 監視通知メール | 開発 / 先方 | 送信先メール（Cloudflare 側事前検証要） | §3.2 / `notifications.tf` | `TF_VAR_notification_email` 未供給のため `notifications.tf` は genuine BLOCKED（[infra/cloudflare/README.md](../../infra/cloudflare/README.md)）。アドレスは tfvars に書かない | **未記入**（送信先メール） |
 | U9 | 本番バックアップ方針の実測 | 開発（#253） | 頻度・保持・リストア手順・所要時間 | §3.1 | repo 内最終記録（2026-08-20）では Production 未構築。リストア実測なし | **未記入**（#253 後） |
 | U10 | R2 バックアップ/バージョニング | 開発 / 先方 | 方針の採否 | §3.1 | STG バケット名 `animalekarte-stg-images`（apac）。PROD 予定名 `animalekarte-prod-images`。IaC（[`r2.tf`](../../infra/cloudflare/r2.tf)）に versioning 設定なし | **未記入**（バックアップ/バージョニング方針の採否） |
