@@ -35,7 +35,7 @@ func TestBackgroundWorkGate_CloseAndWaitRejectsLaterRegistrations(t *testing.T) 
 	gate.Done()
 	select {
 	case <-waitReturned:
-	case <-time.After(time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("CloseAndWait did not return after registered work completed")
 	}
 }

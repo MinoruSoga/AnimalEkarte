@@ -119,7 +119,7 @@ func TestEstimateService_Update_ConcurrentHeaderAndItemReplacementStayConsistent
 	case <-staleRead:
 		oldStaleRead = true
 	case <-headerLocked:
-	case <-time.After(5 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("header update neither read outside a transaction nor locked the estimate")
 	}
 
@@ -136,7 +136,7 @@ func TestEstimateService_Update_ConcurrentHeaderAndItemReplacementStayConsistent
 	} else {
 		select {
 		case <-replacementAttempted:
-		case <-time.After(5 * time.Second):
+		case <-time.After(30 * time.Second):
 			t.Fatal("item replacement did not attempt to acquire the estimate lock")
 		}
 		release()

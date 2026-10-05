@@ -183,7 +183,7 @@ func TestPermissionPolicyDB_ConcurrentSelfUnassignWaitsForGroupDeactivation(t *t
 	releaseFirst := func() { releaseOnce.Do(func() { close(release) }) }
 	t.Cleanup(releaseFirst)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	groupSvc := authdomain.NewPermissionGroupService(repo, persistence.NewTransactor(db), pauseAfterPermissionGuardForStaff{

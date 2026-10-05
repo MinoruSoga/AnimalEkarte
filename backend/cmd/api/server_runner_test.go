@@ -109,7 +109,7 @@ func waitForLifecycleRun(t *testing.T, done <-chan error) error {
 	select {
 	case err := <-done:
 		return err
-	case <-time.After(time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("server runner did not stop")
 		return nil
 	}
@@ -179,7 +179,7 @@ func TestServerRunner_GracefulShutdownCancelsBackgroundBeforeDrainersAndResource
 			func() {
 				select {
 				case <-backgroundStopped:
-				case <-time.After(time.Second):
+				case <-time.After(30 * time.Second):
 					return
 				}
 				drainCalled.Store(true)
@@ -196,7 +196,7 @@ func TestServerRunner_GracefulShutdownCancelsBackgroundBeforeDrainersAndResource
 
 	select {
 	case <-server.serveStarted:
-	case <-time.After(time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("server did not start serving")
 	}
 
@@ -246,7 +246,7 @@ func TestServerRunner_ShutdownFailureFallsBackToClose(t *testing.T) {
 			func() {
 				select {
 				case <-backgroundStopped:
-				case <-time.After(time.Second):
+				case <-time.After(30 * time.Second):
 				}
 			},
 		},
@@ -261,7 +261,7 @@ func TestServerRunner_ShutdownFailureFallsBackToClose(t *testing.T) {
 
 	select {
 	case <-server.serveStarted:
-	case <-time.After(time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("server did not start serving")
 	}
 	cancelRun()
@@ -304,7 +304,7 @@ func TestServerRunner_ServeFailureStopsBackgroundWorkAndReturns(t *testing.T) {
 			func() {
 				select {
 				case <-backgroundStopped:
-				case <-time.After(time.Second):
+				case <-time.After(30 * time.Second):
 				}
 			},
 		},

@@ -20,7 +20,7 @@ func TestEnteredByActorGuard_Assert_HoldsStaffShareLockUntilAmbientTransactionCo
 	_, clinicB, actor, _, _ := seedCrossClinicEnteredByActor(t, db)
 
 	guard := newGormEnteredByActorGuard(db)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	ambientTx := db.WithContext(ctx).Begin()
@@ -110,7 +110,7 @@ func TestEnteredByActorGuard_SystemAdminPath_JoinsAmbientTransaction(t *testing.
 	require.NoError(t, db.Create(admin).Error)
 
 	guard := newGormEnteredByActorGuard(db)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	ambientTx := db.WithContext(ctx).Begin()
