@@ -114,8 +114,8 @@ importers:
         specifier: ^7.5.0
         version: 7.5.0
       html2canvas-pro:
-        specifier: ^2.4.5
-        version: 2.4.5
+        specifier: ^2.5.0
+        version: 2.5.0
       lucide-react:
         specifier: ^1.49.0
         version: 1.49.0(@types/react@19.2.17)(react@19.2.7)
@@ -4422,8 +4422,8 @@ packages:
   html-url-attributes@3.0.1:
     resolution: {integrity: sha512-ol6UPyBWqsrO6EJySPz2O7ZSr856WDrEzM5zMqp+FJJLGMW35cLYmmZnl0vztAZxRUoNZJFTCohfjuIJ8I4QBQ==}
 
-  html2canvas-pro@2.4.5:
-    resolution: {integrity: sha512-aeAwXx+Tt+i3ci0PJffMJVyxr0FJzuz44SkB7j/2Mh6Mjb7/+OeMhms56wK4j72zzKlKthoxSMzd883Lr0PcCA==}
+  html2canvas-pro@2.5.0:
+    resolution: {integrity: sha512-+xuLQWcYMGvbXtlIzVOLvNJEXqL/dY7Dbn2T4qYtJvqfPVtJ8BcNr1CrrUp/uCxne9DE/F+eZHsf1khb1dbMyg==}
     engines: {node: '>=16.0.0'}
 
   http-errors@1.7.3:
@@ -10907,7 +10907,7 @@ snapshots:
 
   html-url-attributes@3.0.1: {}
 
-  html2canvas-pro@2.4.5:
+  html2canvas-pro@2.5.0:
     dependencies:
       css-line-break: 2.1.0
       text-segmentation: 1.0.3
