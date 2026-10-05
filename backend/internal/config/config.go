@@ -136,6 +136,12 @@ type Config struct {
 	PlaneProjectIdentifier string
 	PlaneAPIKey            string
 	PlaneTimeoutMS         int
+
+	// DISCORD_BUG_REPORT_WEBHOOK_URL はバグ報告を DB 保存前に Discord チャンネルへ
+	// 転送する Incoming Webhook URL。未設定なら通知無効。送信失敗でも報告作成は
+	// 続行する（best-effort）。webhook URL は秘密値でありログに出力しない。
+	DiscordBugReportWebhookURL string
+	DiscordWebhookTimeoutMS    int
 }
 
 // Load reads process environment into Config. Release mode refuses
@@ -218,6 +224,9 @@ func Load() *Config {
 		PlaneProjectIdentifier: os.Getenv("PLANE_PROJECT_IDENTIFIER"),
 		PlaneAPIKey:            os.Getenv("PLANE_API_KEY"),
 		PlaneTimeoutMS:         getEnvInt("PLANE_TIMEOUT_MS", 10000),
+
+		DiscordBugReportWebhookURL: os.Getenv("DISCORD_BUG_REPORT_WEBHOOK_URL"),
+		DiscordWebhookTimeoutMS:    getEnvInt("DISCORD_WEBHOOK_TIMEOUT_MS", 5000),
 	}
 }
 
@@ -351,6 +360,11 @@ func (c *Config) Validate() error {
 			return err
 		}
 		if err := validateOptionalReleaseHTTPSURL("PLANE_WEB_BASE_URL", c.PlaneWebBaseURL); err != nil {
+			return err
+		}
+	}
+	if c.DiscordBugReportWebhookURL != "" {
+		if err := validateOptionalReleaseHTTPSURL("DISCORD_BUG_REPORT_WEBHOOK_URL", c.DiscordBugReportWebhookURL); err != nil {
 			return err
 		}
 	}

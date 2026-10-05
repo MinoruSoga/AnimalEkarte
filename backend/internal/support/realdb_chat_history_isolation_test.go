@@ -33,7 +33,7 @@ func TestRealDB_SupportChatHistoryClinicStaffIsolation(t *testing.T) {
 	other := &model.Staff{ClinicID: fx.ClinicB, Name: "D3support-chathistory other staff", StaffType: model.StaffTypeDoctor, IsActive: true}
 	require.NoError(t, db.WithContext(ctx).Create(other).Error)
 
-	svc := NewService(NewRepository(db), nil)
+	svc := NewService(NewRepository(db), nil, nil)
 
 	const msgA = "D3support-chathistory-Aの質問"
 	const msgB = "D3support-chathistory-Bの質問"

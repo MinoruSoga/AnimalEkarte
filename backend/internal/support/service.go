@@ -50,13 +50,14 @@ type Service interface {
 }
 
 type service struct {
-	repo    Repository
-	tickets TicketCreator // nil = Plane 連携無効（ローカル保存のみ）
+	repo     Repository
+	tickets  TicketCreator     // nil = Plane 連携無効（ローカル保存のみ）
+	notifier BugReportNotifier // nil = Discord 通知無効
 }
 
 // NewService は Service を初期化して返す
-func NewService(repo Repository, tickets TicketCreator) Service {
-	return &service{repo: repo, tickets: tickets}
+func NewService(repo Repository, tickets TicketCreator, notifier BugReportNotifier) Service {
+	return &service{repo: repo, tickets: tickets, notifier: notifier}
 }
 
 func (s *service) Create(ctx context.Context, clinicID, reporterStaffID uint64, input CreateBugReportInput) (*model.SupportBugReport, error) {
@@ -72,6 +73,15 @@ func (s *service) Create(ctx context.Context, clinicID, reporterStaffID uint64, 
 		AppVersion:      input.AppVersion,
 		ScreenshotKey:   input.ScreenshotKey,
 		Status:          model.SupportBugReportStatusOpen,
+	}
+	// Discord 通知は DB 保存前に best-effort で実行する（報告原文の外部転写を優先）。
+	// 失敗しても報告作成は続行する（Discord 障害で報告自体を失わせない）。
+	// ID は未採番のため通知に含まれない。
+	if s.notifier != nil {
+		if err := s.notifier.NotifyBugReport(ctx, &report); err != nil {
+			slog.WarnContext(ctx, "failed to send bug report discord notification",
+				"clinic_id", clinicID, "reporter_staff_id", reporterStaffID, "error", err)
+		}
 	}
 	if err := s.repo.Create(ctx, &report); err != nil {
 		return nil, err
