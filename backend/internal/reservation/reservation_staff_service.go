@@ -208,7 +208,7 @@ func (s *reservationStaffService) PatchStatus(ctx context.Context, clinicID, id 
 				return apperrors.WrapInternalServerError("reservation staff deactivation guard is not configured")
 			}
 			if err := staffpkg.GuardStaffDeactivation(txCtx, s.sysAdminStaffs, id, locked, actorStaffID); err != nil {
-				return err
+				return err //nolint:wrapcheck // GuardStaffDeactivation は全分岐で apperrors 型付きエラーを返す（同義二重ラップ回避）
 			}
 		}
 		if err := s.repo.Update(txCtx, clinicID, id, staffpkg.ReservationStaffUpdate{IsActive: &isActive}); err != nil {

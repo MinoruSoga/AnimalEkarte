@@ -22,6 +22,13 @@ export interface StaffClinicAssignment {
   staff_id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   is_main: boolean;
+  /**
+   * CapabilitiesConfiguredAt は予約対応区分が PUT /v1/staffs/:id/reservation-capabilities
+   * （または exclusion facade 経由）で明示設定された時刻。空選択による保存（junction 行 0 件）
+   * でも設定される durable marker で、NULL = 未設定（backfill migration 023 の対象）。
+   * write path のみが書き込み、消す経路はない。
+   */
+  capabilities_configured_at?: string;
   created_at: string;
   updated_at: string;
   /**
@@ -356,9 +363,13 @@ export const AuditActionStaffProvisionCreate = "staff.provision.create";
 export const AuditActionStaffProvisionReceipt = "staff.provision.receipt";
 export const AuditActionStaffAccountAttach = "staff.account.attach";
 /**
+ * 診療画像の物理削除。監査は同じ transaction の fail-closed 記録であり、削除権限そのものではない。
+ */
+export const AuditActionMedicalRecordImageDelete = "medical_record_image.delete";
+/**
  * 監査アクション定数
  */
-export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionStaffPermissionGroupsReplace | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionAuthPasswordChange | typeof AuditActionAuthPasswordReset | typeof AuditActionAuthPasswordAdminReplace | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionReservationNoShow | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionTrimmingCreate | typeof AuditActionTrimmingUpdate | typeof AuditActionTrimmingDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionBillingVaccinationClaimRelease | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionLabImportRevertSucceeded | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionExamResultReplace | typeof AuditActionExaminationCreate | typeof AuditActionExaminationUpdate | typeof AuditActionExaminationConfirm | typeof AuditActionExaminationUnconfirm | typeof AuditActionExaminationDelete | typeof AuditActionClinicalPlanUpdate | typeof AuditActionClinicalPlanDelete | typeof AuditActionPetOwnerReplace | typeof AuditActionHospitalizationDischargeWithBilling | typeof AuditActionOwnerIdentityLinkCreate | typeof AuditActionOwnerIdentityLinkAdd | typeof AuditActionOwnerIdentityLinkUnlink | typeof AuditActionPetIdentityLinkCreate | typeof AuditActionPetIdentityLinkAdd | typeof AuditActionPetIdentityLinkUnlink | typeof AuditActionStaffProvisionCreate | typeof AuditActionStaffProvisionReceipt | typeof AuditActionStaffAccountAttach;
+export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionStaffPermissionGroupsReplace | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionAuthPasswordChange | typeof AuditActionAuthPasswordReset | typeof AuditActionAuthPasswordAdminReplace | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionReservationNoShow | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionTrimmingCreate | typeof AuditActionTrimmingUpdate | typeof AuditActionTrimmingDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionBillingVaccinationClaimRelease | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionLabImportRevertSucceeded | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionExamResultReplace | typeof AuditActionExaminationCreate | typeof AuditActionExaminationUpdate | typeof AuditActionExaminationConfirm | typeof AuditActionExaminationUnconfirm | typeof AuditActionExaminationDelete | typeof AuditActionClinicalPlanUpdate | typeof AuditActionClinicalPlanDelete | typeof AuditActionPetOwnerReplace | typeof AuditActionHospitalizationDischargeWithBilling | typeof AuditActionOwnerIdentityLinkCreate | typeof AuditActionOwnerIdentityLinkAdd | typeof AuditActionOwnerIdentityLinkUnlink | typeof AuditActionPetIdentityLinkCreate | typeof AuditActionPetIdentityLinkAdd | typeof AuditActionPetIdentityLinkUnlink | typeof AuditActionStaffProvisionCreate | typeof AuditActionStaffProvisionReceipt | typeof AuditActionStaffAccountAttach | typeof AuditActionMedicalRecordImageDelete;
 export const AuditResourceAccount = "account";
 export const AuditResourceStaff = "staff";
 export const AuditResourceLabImport = "lab_import";
@@ -400,9 +411,13 @@ export const AuditResourceIdentityLink = "identity_link";
  */
 export const AuditResourceStaffProvisionBatch = "staff_provision_batch";
 /**
+ * 診療画像の物理削除。署名停止の正本は medical_record_image_deletions であり、この resource 名は監査のラベル。
+ */
+export const AuditResourceMedicalRecordImage = "medical_record_image";
+/**
  * audit_logs.resource 定数
  */
-export type AuditResource = typeof AuditResourceAccount | typeof AuditResourceStaff | typeof AuditResourceLabImport | typeof AuditResourceMedicineDoseParam | typeof AuditResourceMedicine | typeof AuditResourceTreatmentDose | typeof AuditResourceCheckupFieldResult | typeof AuditResourceExamResult | typeof AuditResourceExamination | typeof AuditResourceClinicalPlan | typeof AuditResourceReservation | typeof AuditResourceHospitalization | typeof AuditResourceTrimming | typeof AuditResourceCarePlanItem | typeof AuditResourceIdentityLink | typeof AuditResourceStaffProvisionBatch;
+export type AuditResource = typeof AuditResourceAccount | typeof AuditResourceStaff | typeof AuditResourceLabImport | typeof AuditResourceMedicineDoseParam | typeof AuditResourceMedicine | typeof AuditResourceTreatmentDose | typeof AuditResourceCheckupFieldResult | typeof AuditResourceExamResult | typeof AuditResourceExamination | typeof AuditResourceClinicalPlan | typeof AuditResourceReservation | typeof AuditResourceHospitalization | typeof AuditResourceTrimming | typeof AuditResourceCarePlanItem | typeof AuditResourceIdentityLink | typeof AuditResourceStaffProvisionBatch | typeof AuditResourceMedicalRecordImage;
 /**
  * care plan item destructive actions (MRA-01)
  */

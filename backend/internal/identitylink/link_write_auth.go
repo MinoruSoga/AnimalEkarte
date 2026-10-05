@@ -205,7 +205,8 @@ func ownerAffectedClinicIDs(
 	existing []model.OwnerIdentityGroupMember,
 	refs []OwnerMemberRef,
 ) []uint64 {
-	ids := []uint64{anchor}
+	ids := make([]uint64, 0, 1+len(existing)+len(refs))
+	ids = append(ids, anchor)
 	for _, member := range existing {
 		ids = append(ids, member.ClinicID)
 	}

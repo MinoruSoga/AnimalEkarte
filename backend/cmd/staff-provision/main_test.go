@@ -353,6 +353,9 @@ func (m *cliMockRepo) AssignPermissionGroups(context.Context, uint64, uint64, []
 }
 func (m *cliMockRepo) LockOccupationForShare(context.Context, uint64, uint64) error { return nil }
 func (m *cliMockRepo) WriteAudit(context.Context, *model.AuditLog) error            { return nil }
+func (m *cliMockRepo) ApplyProvisioningFlags(context.Context, uint64, uint64, bool, bool) error {
+	return nil
+}
 
 var _ staff.StaffProvisioningRepository = (*cliMockRepo)(nil)
 
