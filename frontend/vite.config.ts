@@ -201,6 +201,9 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: "./src/testing/setup.ts",
+    // 並行負荷（make ci の backend -race レーン等）で DOM 描画 + userEvent が
+    // 遅延し 5s 既定値を超過するフレークを防ぐ（ReservationFormModal 等の大型モーダル）。
+    testTimeout: 20_000,
     css: true,
     // scripts/**: node:test ベースのガードレール回帰テスト（例: check-eslint-disable-rationale.test.mjs）は
     // 専用 CI ジョブが `node --test` で直接実行する。Vitest のデフォルト include glob (*.test.mjs) にも
