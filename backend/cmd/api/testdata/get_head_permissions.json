@@ -3153,6 +3153,22 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/support/chat/rooms",
+    "handler": "github.com/animal-ekarte/backend/internal/support.(*Handler).ListChatRooms-fm",
+    "class": "global",
+    "resource": "none",
+    "action": "none",
+    "source": "internal/support/handler.go",
+    "routeExpression": "s.GET(\"/chat/rooms\", h.ListChatRooms)",
+    "handlerSource": "internal/support/chat.go",
+    "marker": "h.service.ListChatRooms",
+    "authorization": "Authenticate middleware only; deliberate product decision — chat conversation rooms (30min-gap pseudo sessions) are a shared board visible to all staff across all clinics (same model as exchanges/bug reports)",
+    "scope": "all authenticated staff; all clinics",
+    "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
+    "verification": "global-contract; contract-exclusion-from-selected-clinic-grant; executed-service:internal/support/service_test.go#TestListChatRooms"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/support/chat/history",
     "handler": "github.com/animal-ekarte/backend/internal/support.(*Handler).ChatHistory-fm",
     "class": "self",

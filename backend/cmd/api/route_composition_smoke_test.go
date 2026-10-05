@@ -119,9 +119,11 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	//   DELETE /api/v1/support/bug-reports/:id
 	// 535 — EMR-262 共有チャット履歴ボード（全医院共有・質問+回答ペア）:
 	//   GET    /api/v1/support/chat/exchanges
+	// 587 — EMR-295 チャット履歴の疑似会話ルーム一覧（30分ギャップ分割・共有ボード）:
+	//   GET    /api/v1/support/chat/rooms
 	// 534 — deb0795e2 で JSON による画像登録を廃止（upload 経路のみ残す）:
 	//   POST   /api/v1/medical-records/:id/images
-	require.Len(t, routes, 534)
+	require.Len(t, routes, 535)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /health/db",
