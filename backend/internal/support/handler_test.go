@@ -30,6 +30,7 @@ type mockService struct {
 	deleteFn        func(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
 	listChatFn      func(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
 	listExchangesFn func(ctx context.Context) ([]ChatExchange, error)
+	listRoomsFn     func(ctx context.Context) ([]ChatRoom, error)
 	recordChatFn    func(ctx context.Context, clinicID, staffID uint64, userMessage, assistantReply string, sources []ChatSource) error
 	clearChatFn     func(ctx context.Context, clinicID, staffID uint64) error
 	syncPlaneFn     func(ctx context.Context) PlaneSyncResult
@@ -73,6 +74,12 @@ func (m *mockService) ListChatExchanges(ctx context.Context) ([]ChatExchange, er
 		return nil, nil
 	}
 	return m.listExchangesFn(ctx)
+}
+func (m *mockService) ListChatRooms(ctx context.Context) ([]ChatRoom, error) {
+	if m.listRoomsFn == nil {
+		return nil, nil
+	}
+	return m.listRoomsFn(ctx)
 }
 func (m *mockService) ClearChatHistory(ctx context.Context, clinicID, staffID uint64) error {
 	if m.clearChatFn == nil {

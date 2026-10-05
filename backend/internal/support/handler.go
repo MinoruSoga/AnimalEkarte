@@ -56,6 +56,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	s.DELETE("/chat/history", h.ClearChatHistory)
 	// 共有一覧はバグ報告と同じく全医院公開（質問傾向の横断分析用途 — product 決定）。
 	s.GET("/chat/exchanges", h.ListChatExchanges)
+	// 会話ルーム表示 — 同じ共有ボード方針で、発言ストリームを時間ギャップで疑似セッション化して返す。
+	s.GET("/chat/rooms", h.ListChatRooms)
 	chatHandlers := []gin.HandlerFunc{h.Chat}
 	if h.chatRateLimit != nil {
 		chatHandlers = append([]gin.HandlerFunc{h.chatRateLimit}, chatHandlers...)
