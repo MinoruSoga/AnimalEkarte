@@ -51,6 +51,7 @@ flowchart LR
 
 ### 3.3 LINE 予約 & Lステップ CRM
 - **予約**: スタッフシフトと連動した 24 時間自動受付。
+  - 2026-10-05 決定: スタッフの対応可能予約区分（`staff_reservation_capabilities`）は医院が明示設定し、未設定スタッフへの自動 backfill は行わない（未設定は fail-closed = 予約不可）。
 - **CRM**: 顧客の状態（CPM）に合わせた配信ロジック（Lステップ連携）。再開条件と停止中の運用は [LINE / Lステップ仕様](line/README.md) を参照する。
 
 ---
