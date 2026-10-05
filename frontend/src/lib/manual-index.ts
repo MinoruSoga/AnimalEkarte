@@ -17,15 +17,40 @@ export interface ManualArticle {
   section: string;
   content: string;
   searchText: string;
+  /**
+   * frontmatter `keywords:` の検索用言い換え語（カンマ区切り）。
+   * DB オーバーライド行には存在しないため optional。
+   */
+  keywords?: string[];
+  /**
+   * frontmatter `keywords_vi:` のベトナム語検索語（カンマ区切り）。
+   * VN の質問を JA 記事へ導くための語彙。DB オーバーライド行には
+   * 存在しないため optional。
+   */
+  keywords_vi?: string[];
 }
 
 export interface RawFrontmatter {
   title?: string;
   order?: number;
   section?: string;
+  keywords?: string[];
+  keywords_vi?: string[];
 }
 
 const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
+
+/**
+ * `keywords:` / `keywords_vi:` の値を分割する。
+ * 1 行のカンマ区切り（frontmatter は行単位・最初のコロン分割のため
+ * YAML ブロックリストは使えない）。空要素は捨てる。
+ */
+function splitKeywordList(value: string): string[] {
+  return value
+    .split(/[,、]/)
+    .map((k) => k.trim())
+    .filter((k) => k.length > 0);
+}
 
 export function parseFrontmatter(raw: string): { meta: RawFrontmatter; body: string } {
   const m = FRONTMATTER_RE.exec(raw);
@@ -43,6 +68,11 @@ export function parseFrontmatter(raw: string): { meta: RawFrontmatter; body: str
     if (key === "title") meta.title = value;
     else if (key === "order") meta.order = Number(value);
     else if (key === "section") meta.section = value;
+    else if (key === "keywords") {
+      meta.keywords = splitKeywordList(value);
+    } else if (key === "keywords_vi") {
+      meta.keywords_vi = splitKeywordList(value);
+    }
   }
   return { meta, body };
 }
@@ -83,6 +113,8 @@ function build(category: ManualCategory, modules: Record<string, string>): Manua
       content: body,
       // 検索用: markdown 記号を粗く除去
       searchText: `${title} ${section} ${body.replace(/[#*`>[\]()\-_!]/g, " ")}`,
+      keywords: meta.keywords,
+      keywords_vi: meta.keywords_vi,
     });
   }
   list.sort((a, b) => a.order - b.order);
@@ -94,26 +126,40 @@ export const workflowArticles: ManualArticle[] = build("workflows", workflowModu
 
 const MANUAL_FUSE_OPTIONS = {
   keys: [
-    { name: "title", weight: 0.6 },
-    { name: "section", weight: 0.2 },
-    { name: "searchText", weight: 0.2 },
+    { name: "title", weight: 0.5 },
+    { name: "keywords", weight: 0.3 },
+    { name: "keywords_vi", weight: 0.3 },
+    { name: "section", weight: 0.1 },
+    { name: "searchText", weight: 0.1 },
   ],
   threshold: 0.4,
   ignoreLocation: true,
   minMatchCharLength: 2,
+  // score は includeScore 指定時のみ返る（採点・ソートに必須）
+  includeScore: true,
 };
+
+/**
+ * Fuse のマッチスコア付き記事。score は 0 が最良・1 が最悪。
+ * チャットのコンテキスト構築で弱いヒットを弾く採点に使う。
+ */
+export interface ScoredManualArticle extends ManualArticle {
+  matchScore: number;
+}
 
 /**
  * 命令型のマニュアル検索関数を生成する。React の外（イベントハンドラ等）からも
  * 呼べるよう、Fuse インスタンスを一度だけ構築して返す。
  * useManualSearch はこの関数の React ラッパー。
  */
-export function createManualSearcher(articles: ManualArticle[]): (query: string) => ManualArticle[] {
+export function createManualSearcher(
+  articles: ManualArticle[],
+): (query: string) => ScoredManualArticle[] {
   const fuse = new Fuse(articles, MANUAL_FUSE_OPTIONS);
   return (query: string) => {
     const q = query.trim();
-    if (q.length === 0) return articles;
-    return fuse.search(q).map((r) => r.item);
+    if (q.length === 0) return articles.map((a) => ({ ...a, matchScore: 0 }));
+    return fuse.search(q).map((r) => ({ ...r.item, matchScore: r.score ?? 1 }));
   };
 }
 
@@ -162,6 +208,12 @@ export function applyOverrides(
       section: o.section,
       content: o.body_markdown,
       searchText: `${o.title} ${o.section} ${o.body_markdown.replace(/[#*`>[\]()\-_!]/g, " ")}`,
+      // DB 行は frontmatter を持たず keywords/keywords_vi を保持できない。
+      // 置換対象のバンドル記事がそれらを持つ場合は引き継ぐ
+      // （言い換え語の検索カバレッジを DB override で失わないため）。
+      // DB だけの新規記事は keywords/keywords_vi 無し（undefined）のまま。
+      keywords: byKey.get(key)?.keywords,
+      keywords_vi: byKey.get(key)?.keywords_vi,
     };
     byKey.set(key, article);
   }

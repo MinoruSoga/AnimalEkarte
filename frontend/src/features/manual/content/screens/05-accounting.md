@@ -2,6 +2,8 @@
 title: 会計
 order: 5
 section: 運用・管理
+keywords: 会計処理, 精算, 支払い, 請求処理
+keywords_vi: thanh toán viện phí, thanh toán, viện phí, thu ngân, hóa đơn, tính tiền
 ---
 
 # 会計

@@ -2,6 +2,7 @@
 title: 同一飼主・ペット連携
 order: 15.9
 section: 運用・管理
+keywords_vi: liên kết chủ nuôi, ghép hồ sơ trùng, hợp nhất chủ nuôi, liên kết thú cưng
 ---
 
 # 同一飼主・ペット連携

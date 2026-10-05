@@ -2,6 +2,7 @@
 title: 共通の UI 機能・ダイアログ
 order: 1.5
 section: 基本
+keywords_vi: hộp thoại chung, chức năng chung, thao tác chung, giao diện chung, dialog chung
 ---
 
 # 共通の UI 機能・ダイアログ

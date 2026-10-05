@@ -2,6 +2,7 @@
 title: 予約なし来院の受付登録
 order: 3
 section: 受付業務
+keywords_vi: khách đến không hẹn, tiếp nhận khẩn cấp, đăng ký khám không hẹn, khách đến đột xuất
 ---
 
 # 予約なし来院の受付登録

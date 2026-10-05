@@ -2,6 +2,7 @@
 title: 集計・分析
 order: 15.5
 section: 運用・管理
+keywords_vi: thống kê, phân tích, tổng hợp dữ liệu, báo cáo phân tích, phân tích doanh thu
 ---
 
 # 集計・分析

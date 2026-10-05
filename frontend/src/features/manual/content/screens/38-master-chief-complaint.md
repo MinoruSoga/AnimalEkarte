@@ -2,6 +2,7 @@
 title: 主訴マスタ
 order: 19.7
 section: システム設定
+keywords_vi: master triệu chứng chính, danh mục lý do khám, triệu chứng, lý do đến khám
 ---
 
 # 主訴マスタ

@@ -2,6 +2,7 @@
 title: セキュリティと複数医院の運用
 order: 9.5
 section: 管理者向け
+keywords_vi: bảo mật, vận hành nhiều phòng khám, an ninh hệ thống, nhiều chi nhánh
 ---
 
 # セキュリティと複数医院の運用

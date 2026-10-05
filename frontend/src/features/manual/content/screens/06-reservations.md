@@ -2,6 +2,8 @@
 title: 予約管理
 order: 6
 section: 診療業務
+keywords: 予約登録, 予約の取り方, 新規予約
+keywords_vi: đặt lịch hẹn, lịch hẹn, đặt lịch hẹn cho thú cưng, hẹn khám, quản lý lịch hẹn, đăng ký lịch hẹn
 ---
 
 # 予約管理

@@ -2,6 +2,7 @@
 title: 飼主からの問い合わせ対応 FAQ
 order: 1.5
 section: 受付業務
+keywords_vi: câu hỏi thường gặp, trả lời khách hàng, hỏi đáp chủ nuôi, faq chủ nuôi
 ---
 
 # 飼主からの問い合わせ対応 FAQ

@@ -2,6 +2,7 @@
 title: スタッフマスタ
 order: 18.4
 section: システム設定
+keywords_vi: danh sách nhân viên, master nhân viên, quản lý nhân viên, tài khoản nhân viên
 ---
 
 # スタッフマスタ

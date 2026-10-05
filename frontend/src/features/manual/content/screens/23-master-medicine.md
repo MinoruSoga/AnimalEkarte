@@ -2,6 +2,7 @@
 title: 薬剤マスタ
 order: 18.2
 section: システム設定
+keywords_vi: danh mục thuốc, master thuốc, thuốc, thiết lập thuốc, tên thuốc
 ---
 
 # 薬剤マスタ

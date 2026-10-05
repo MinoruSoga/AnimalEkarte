@@ -2,6 +2,7 @@
 title: 当日の受付
 order: 2
 section: 診療業務
+keywords_vi: tiếp nhận, tiếp đón khách, đăng ký khám, lễ tân, check-in
 ---
 
 # 当日の受付

@@ -2,6 +2,7 @@
 title: 権限グループ
 order: 18.3
 section: システム設定
+keywords_vi: nhóm quyền, phân quyền, quyền hạn, thiết lập quyền, quyền truy cập
 ---
 
 # 権限グループ

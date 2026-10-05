@@ -2,6 +2,7 @@
 title: トリミング
 order: 10
 section: 診療業務
+keywords_vi: cắt tỉa lông, tắm cho thú cưng, chải lông, dịch vụ cắt tỉa
 ---
 
 # トリミング

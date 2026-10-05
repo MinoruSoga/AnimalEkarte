@@ -2,6 +2,7 @@
 title: システムの自動化ルール一覧
 order: 1.7
 section: 基本
+keywords_vi: quy tắc tự động, danh sách tự động hóa, tự động hóa hệ thống, luật tự động
 ---
 
 # システムの自動化ルール一覧

@@ -2,6 +2,7 @@
 title: 定期健診
 order: 11
 section: 診療業務
+keywords_vi: khám sức khỏe định kỳ, kiểm tra sức khỏe, khám định kỳ, khám bệnh định kỳ
 ---
 
 # 定期健診

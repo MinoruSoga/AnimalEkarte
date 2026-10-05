@@ -2,6 +2,7 @@
 title: シフト管理
 order: 15
 section: 運用・管理
+keywords_vi: quản lý ca làm việc, lịch làm việc, xếp ca, phân ca làm việc, ca trực
 ---
 
 # シフト管理

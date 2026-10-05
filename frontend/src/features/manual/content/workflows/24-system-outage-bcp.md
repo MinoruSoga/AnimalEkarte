@@ -2,6 +2,7 @@
 title: システム障害時の応急対応
 order: 10.5
 section: 管理者向け
+keywords_vi: sự cố hệ thống, ứng phó khi hệ thống lỗi, mất kết nối hệ thống, phương án dự phòng
 ---
 
 # システム障害時の応急対応

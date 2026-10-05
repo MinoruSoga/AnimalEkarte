@@ -2,6 +2,7 @@
 title: ログイン
 order: 1
 section: 基本
+keywords_vi: đăng nhập, đăng nhập hệ thống, mật khẩu, quên mật khẩu, đặt lại mật khẩu
 ---
 
 # ログイン

@@ -2,6 +2,7 @@
 title: ワクチン接種の登録とタグ自動付与
 order: 6
 section: 定期業務
+keywords_vi: đăng ký tiêm phòng, nhắc lịch vaccine, gắn thẻ tự động, nhắc tiêm chủng
 ---
 
 # ワクチン接種の登録とタグ自動付与

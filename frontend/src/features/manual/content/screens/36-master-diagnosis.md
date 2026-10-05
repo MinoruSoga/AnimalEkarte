@@ -2,6 +2,7 @@
 title: 診断マスタ
 order: 19.5
 section: システム設定
+keywords_vi: master chẩn đoán, danh mục chẩn đoán, tên bệnh, kết quả chẩn đoán
 ---
 
 # 診断マスタ

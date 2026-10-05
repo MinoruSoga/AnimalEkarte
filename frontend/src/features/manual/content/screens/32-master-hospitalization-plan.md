@@ -2,6 +2,7 @@
 title: 入院プランマスタ
 order: 19.1
 section: システム設定
+keywords_vi: master gói nội trú, gói nhập viện, kế hoạch nội trú, loại hình nhập viện
 ---
 
 # 入院プランマスタ

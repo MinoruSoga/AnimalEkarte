@@ -2,6 +2,7 @@
 title: 監査ログ・操作履歴の確認
 order: 9.7
 section: 管理者向け
+keywords_vi: nhật ký kiểm toán, lịch sử thao tác, xem log hoạt động, kiểm tra nhật ký
 ---
 
 # 監査ログ・操作履歴の確認

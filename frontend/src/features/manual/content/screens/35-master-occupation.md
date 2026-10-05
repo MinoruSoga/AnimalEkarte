@@ -2,6 +2,7 @@
 title: 職種マスタ
 order: 19.4
 section: システム設定
+keywords_vi: chức danh, master nghề nghiệp, danh mục chức vụ, loại công việc
 ---
 
 # 職種マスタ

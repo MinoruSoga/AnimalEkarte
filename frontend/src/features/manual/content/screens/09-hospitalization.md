@@ -2,6 +2,8 @@
 title: 入院・ホテル
 order: 9
 section: 運用・管理
+keywords: 入院手続き, 手続き, 入院登録, ペットホテル
+keywords_vi: nhập viện, quy trình nhập viện, nhập viện cho thú cưng, nội trú, khách sạn thú cưng, xuất viện
 ---
 
 # 入院・ホテル

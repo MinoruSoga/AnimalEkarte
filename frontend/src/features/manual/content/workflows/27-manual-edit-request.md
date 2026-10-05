@@ -2,6 +2,7 @@
 title: マニュアルの編集依頼方法
 order: 9.9
 section: 管理者向け
+keywords_vi: yêu cầu chỉnh sửa hướng dẫn, gửi yêu cầu sửa manual, đề nghị sửa cẩm nang, sửa hướng dẫn
 ---
 
 # マニュアルの編集依頼方法

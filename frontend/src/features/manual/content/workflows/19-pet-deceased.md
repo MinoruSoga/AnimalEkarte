@@ -2,6 +2,7 @@
 title: ペット死亡時の処理
 order: 3.9
 section: 来院対応
+keywords_vi: xử lý khi thú cưng chết, thú cưng qua đời, thủ tục khi thú cưng mất, thú cưng đã chết
 ---
 
 # ペット死亡時の処理

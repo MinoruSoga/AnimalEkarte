@@ -2,6 +2,8 @@
 title: 予防接種
 order: 8
 section: 診療業務
+keywords: ワクチン, ワクチン接種, 予防注射, 接種記録
+keywords_vi: nhập thông tin tiêm phòng vaccine, tiêm phòng, vaccine, ghi tiêm phòng, tiêm chủng, lịch tiêm phòng
 ---
 
 # 予防接種

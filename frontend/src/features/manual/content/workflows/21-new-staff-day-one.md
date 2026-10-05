@@ -2,6 +2,7 @@
 title: 新人スタッフ初日のセットアップ
 order: 0.5
 section: 受付業務
+keywords_vi: nhân viên mới ngày đầu, thiết lập tài khoản nhân viên mới, hướng dẫn nhân viên mới
 ---
 
 # 新人スタッフ初日のセットアップ

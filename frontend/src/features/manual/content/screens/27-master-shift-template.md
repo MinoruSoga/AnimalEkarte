@@ -2,6 +2,7 @@
 title: シフトテンプレートマスタ
 order: 18.6
 section: システム設定
+keywords_vi: mẫu ca làm việc, master mẫu ca, mẫu xếp ca, template ca làm việc
 ---
 
 # シフトテンプレートマスタ

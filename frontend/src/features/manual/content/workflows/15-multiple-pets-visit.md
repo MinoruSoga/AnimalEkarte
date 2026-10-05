@@ -2,6 +2,7 @@
 title: 複数ペットの同時来院
 order: 3.5
 section: 来院対応
+keywords_vi: nhiều thú cưng cùng lúc, khám nhiều thú cưng, đăng ký nhiều thú cưng
 ---
 
 # 複数ペットの同時来院

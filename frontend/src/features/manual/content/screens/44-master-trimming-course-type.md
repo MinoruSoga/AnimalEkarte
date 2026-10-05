@@ -2,6 +2,7 @@
 title: コース種別マスタ
 order: 19.91
 section: システム設定
+keywords_vi: loại gói cắt tỉa, master gói cắt tỉa, danh mục gói trimming
 ---
 
 # コース種別マスタ
