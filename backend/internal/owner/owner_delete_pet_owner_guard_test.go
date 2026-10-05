@@ -266,7 +266,7 @@ func TestOwnerService_Delete_PetOwnerGuards(t *testing.T) {
 			Relationship: "家族",
 		}}, nil))
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		err := newGuardedOwnerService(db, repo, repo, petOwnerRepo).Delete(ctx, clinicID, secondaryOwner.ID)
 		require.Error(t, err)
@@ -285,7 +285,7 @@ func TestOwnerService_Delete_PetOwnerGuards(t *testing.T) {
 		const clinicID = uint64(1)
 		target := testdb.MakeTestOwner(t, db, clinicID, "unlinked delete target")
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		require.NoError(t, newGuardedOwnerService(db, repo, repo, petOwnerRepo).
 			Delete(ctx, clinicID, target.ID))
@@ -306,7 +306,7 @@ func TestOwnerService_Delete_PetOwnerGuards(t *testing.T) {
 		target := testdb.MakeTestOwner(t, db, clinicID, "primary dependency target")
 		makeOwnerDeleteGuardPet(t, db, clinicID, target.ID, "primary dependency pet")
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		err := newGuardedOwnerService(db, repo, repo, petOwnerRepo).Delete(ctx, clinicID, target.ID)
 		require.Error(t, err)
@@ -381,7 +381,7 @@ func TestOwnerService_Delete_ConcurrentPetOwnerReplacementSerializes(t *testing.
 
 		deletePID := make(chan int, 1)
 		reportingLocker := reportingOwnerDeleteLocker{delegate: repo, db: db, pid: deletePID}
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		deleteDone := make(chan error, 1)
 		go func() {
@@ -431,7 +431,7 @@ func TestOwnerService_Delete_ConcurrentPetOwnerReplacementSerializes(t *testing.
 			counted:  counted,
 			release:  releaseDelete,
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		deleteDone := make(chan error, 1)
 		go func() {

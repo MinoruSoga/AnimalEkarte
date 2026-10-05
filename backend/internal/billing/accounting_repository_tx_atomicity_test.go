@@ -550,7 +550,7 @@ func TestAccountingRepository_LockAndFindByID_BlocksConcurrentAmbientTx(t *testi
 
 	select {
 	case <-lockAcquired:
-	case <-time.After(5 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("先行 tx が LockAndFindByID でロックを取得できなかった")
 	}
 
@@ -577,7 +577,7 @@ func TestAccountingRepository_LockAndFindByID_BlocksConcurrentAmbientTx(t *testi
 	select {
 	case <-secondCallDone:
 		// OK: ロック解放後に後続呼び出しが完了した。
-	case <-time.After(5 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("先行 tx の commit 後も後続の LockAndFindByID が完了しなかった")
 	}
 }

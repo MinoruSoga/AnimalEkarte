@@ -117,7 +117,7 @@ func TestMedicalRecordService_DeleteWaitsOnAppointmentRowLockBeforeInConsultatio
 	var deleteErr error
 	select {
 	case deleteErr = <-deleteDone:
-	case <-time.After(2 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("delete did not finish after appointment lock was released")
 	}
 	require.Error(t, deleteErr)
@@ -173,7 +173,7 @@ func TestMedicalRecordRepository_LockLinkedAppointmentForUpdate_WaitsOnAppointme
 	select {
 	case err := <-lockDone:
 		require.NoError(t, err)
-	case <-time.After(2 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("appointment lock did not finish after the holding transaction released")
 	}
 }

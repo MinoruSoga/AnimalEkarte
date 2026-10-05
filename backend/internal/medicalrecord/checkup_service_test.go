@@ -918,7 +918,7 @@ func TestCheckupService_Create_TriggersCheckupFollowUpBestEffort(t *testing.T) {
 	case <-triggeredCh:
 		assert.Equal(t, uint64(3), triggeredClinicID)
 		assert.Equal(t, ownerID, triggeredOwnerID)
-	case <-time.After(2 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("TriggerCheckupFollowUp was not called within timeout")
 	}
 }

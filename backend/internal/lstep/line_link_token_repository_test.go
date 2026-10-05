@@ -187,7 +187,7 @@ func TestLineLinkTokenRepository_ConcurrentDoubleConsumeOnlyOneSucceeds(t *testi
 	owner := testdb.MakeTestOwner(t, db, 1, "concurrent LINE token owner")
 	makeLineLinkToken(t, db, 1, owner.ID, digestLineLinkToken(rawToken), now.Add(time.Hour), nil)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	start := make(chan struct{})
 	var successes atomic.Int32

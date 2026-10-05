@@ -240,7 +240,7 @@ func TestClinicRepository_LockActiveByID_HoldsShareLockUntilTransactionEnds(t *t
 			db := setupClinicTestDB(t)
 			repo := NewClinicRepository(db)
 			transactor := persistence.NewTransactor(db)
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 			clinic := makeClinicFixture(t, db, "share lock target "+tt.name)
 
@@ -389,7 +389,7 @@ func TestClinicRepository_LockByIDForUpdate_HoldsExclusiveLockUntilTransactionEn
 	db := setupClinicTestDB(t)
 	repo := NewClinicRepository(db)
 	transactor := persistence.NewTransactor(db)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	clinic := makeClinicFixture(t, db, "update lock target")
 

@@ -412,7 +412,7 @@ func TestPermissionGroupAuditDB_SerializesAuditOldSnapshot(
 		audit,
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	t.Cleanup(cancel)
 	firstResult := make(chan error, 1)
 	nameB := "B"

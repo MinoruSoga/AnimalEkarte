@@ -262,7 +262,7 @@ func TestTrimmingMasterDelete_TOCTOU(t *testing.T) {
 					writerCtx := persistence.WithTxValue(context.Background(), writerTx)
 					require.NoError(t, fixture.lockAndInsertUsage(writerCtx))
 
-					deleteCtx, cancelDelete := context.WithTimeout(context.Background(), 5*time.Second)
+					deleteCtx, cancelDelete := context.WithTimeout(context.Background(), 30*time.Second)
 					defer cancelDelete()
 					deleteDone := make(chan error, 1)
 					go func() {

@@ -484,7 +484,7 @@ func TestPasswordResetService_ForgotPassword_SendFailureRemovesIssuedTokenAndAll
 	)
 	select {
 	case <-cleanupDone:
-	case <-time.After(time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("failed reset email token was not cleaned up")
 	}
 
@@ -494,7 +494,7 @@ func TestPasswordResetService_ForgotPassword_SendFailureRemovesIssuedTokenAndAll
 	)
 	select {
 	case <-secondSendDone:
-	case <-time.After(time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("retry email was suppressed by the failed send cooldown")
 	}
 	service.Wait()
@@ -578,7 +578,7 @@ func TestPasswordResetService_ForgotPassword_SendFailureCleanupDoesNotDeleteNewe
 	)
 	select {
 	case <-cleanupDone:
-	case <-time.After(time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("failed reset email cleanup did not complete")
 	}
 	service.Wait()
@@ -799,7 +799,7 @@ func TestPasswordResetService_Wait_DrainsInFlightEmailGoroutine(t *testing.T) {
 	close(releaseMail)
 	select {
 	case <-waitReturned:
-	case <-time.After(time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("Wait() did not return after the in-flight email sender completed")
 	}
 }

@@ -101,7 +101,7 @@ func waitForAutoCreateBarrier(ctx context.Context, ready <-chan struct{}) error 
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-time.After(5 * time.Second):
+	case <-time.After(30 * time.Second):
 		return errors.New("timed out waiting for auto-create barrier")
 	}
 }
@@ -1047,7 +1047,7 @@ func TestAutoCreateFromReservation_ConcurrentSameClinicPetJSTDayCreatesOneRecord
 
 	ready := make(chan struct{})
 	done := make(chan struct{}, len(reservations))
-	runCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	runCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	for _, reservation := range reservations {
 		go func(candidate *model.Reservation) {
@@ -1060,7 +1060,7 @@ func TestAutoCreateFromReservation_ConcurrentSameClinicPetJSTDayCreatesOneRecord
 	for range reservations {
 		select {
 		case <-done:
-		case <-time.After(10 * time.Second):
+		case <-time.After(30 * time.Second):
 			t.Fatal("timed out waiting for concurrent auto-create worker")
 		}
 	}

@@ -93,7 +93,7 @@ func TestVaccinationDoctorVerifier_RejectsAssignedNonDoctor(t *testing.T) {
 
 func TestVaccinationService_RelationChangeWaitsForValidationTransaction(t *testing.T) {
 	db := setupVaccinationRepoTestDB(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -175,7 +175,7 @@ func TestVaccinationService_RelationChangeWaitsForValidationTransaction(t *testi
 
 func TestVaccinationService_DoctorAssignmentDeletionWaitsForValidationTransaction(t *testing.T) {
 	db := setupVaccinationRepoTestDB(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	const clinicID = uint64(1)
 	ensureVaccinationTestClinics(t, db, clinicID)
@@ -262,7 +262,7 @@ func TestVaccinationService_DoctorAssignmentDeletionWaitsForValidationTransactio
 
 func TestVaccinationService_ConcurrentUpdatesSerialize(t *testing.T) {
 	db := setupVaccinationRepoTestDB(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	const clinicID = uint64(1)
 

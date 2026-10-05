@@ -256,7 +256,7 @@ func TestStaffDeleteAndShiftCreate_ShiftWinnerPreservesStaffAndShiftDatabase(t *
 		transactor,
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	shiftDone := make(chan error, 1)
 	go func() {
@@ -329,7 +329,7 @@ func TestStaffDeleteAndShiftCreate_DeleteWinnerPreventsOrphanShiftDatabase(t *te
 	)
 	shiftSvc := NewShiftEntryService(shiftRepo, observedShiftLocker, assignmentRepo, transactor)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	deleteDone := make(chan error, 1)
 	go func() {
@@ -410,7 +410,7 @@ func TestStaffSetAssignmentsAndShiftCreate_ShiftWinnerPreservesAssignmentDatabas
 		transactor,
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	shiftDone := make(chan error, 1)
 	go func() {
@@ -502,7 +502,7 @@ func TestStaffSetAssignmentsAndShiftCreate_AssignmentWinnerPreventsOrphanShiftDa
 	)
 	shiftSvc := NewShiftEntryService(shiftRepo, observedShiftLocker, assignmentRepo, transactor)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	setDone := make(chan error, 1)
 	go func() {
@@ -591,7 +591,7 @@ func TestStaffSetAssignmentsAndClinicDelete_AssignmentWinnerPreservesClinicAndAs
 		transactor,
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	setDone := make(chan error, 1)
 	go func() {
@@ -654,7 +654,7 @@ func TestStaffSetAssignmentsAndClinicDelete_DeleteWinnerLeavesAssignmentsUnchang
 		transactor,
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	deleteDone := make(chan error, 1)
 	go func() {

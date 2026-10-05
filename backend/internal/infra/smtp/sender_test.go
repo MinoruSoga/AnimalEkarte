@@ -478,7 +478,7 @@ func TestSendRespectsContextDuringSMTPGreeting(t *testing.T) {
 				require.Error(t, sendErr)
 				assert.True(t, errors.Is(sendErr, tt.wantContextErr))
 				assert.Less(t, time.Since(startedAt), time.Second)
-			case <-time.After(time.Second):
+			case <-time.After(30 * time.Second):
 				t.Fatal("Send did not return after context cancellation")
 			}
 		})

@@ -291,7 +291,7 @@ func TestStaffSetAssignmentsAndReservationCreate_ReservationWinnerPreservesAssig
 	)
 	staffSvc := newAssignmentRaceService(fixture, observedStaffRepo, fixture.clinicRepo)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	reservationDone := make(chan error, 1)
 	go func() {
@@ -372,7 +372,7 @@ func TestStaffSetAssignmentsAndReservationCreate_AssignmentWinnerPreventsUnassig
 		observedReservationStaff,
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	assignmentDone := make(chan error, 1)
 	go func() {

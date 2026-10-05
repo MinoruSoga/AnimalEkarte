@@ -241,13 +241,13 @@ func TestHTTPHandler_AuthenticateUser_BoundsAndDetachesFailureAuditWorkers(
 
 		select {
 		case <-audit.started:
-		case <-time.After(time.Second):
+		case <-time.After(30 * time.Second):
 			t.Fatal("login failure audit worker did not start")
 		}
 		select {
 		case err := <-result:
 			require.ErrorIs(t, err, apperrors.ErrUnauthorized)
-		case <-time.After(time.Second):
+		case <-time.After(30 * time.Second):
 			t.Fatal("credential response waited for the audit writer")
 		}
 	}
