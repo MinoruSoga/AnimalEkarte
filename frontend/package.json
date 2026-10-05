@@ -86,7 +86,7 @@
     "eslint-plugin-react-refresh": "^0.5.7",
     "globals": "^17.13.0",
     "jsdom": "^30.1.1",
-    "knip": "^6.25.0",
+    "knip": "^6.39.0",
     "lighthouse": "^13.5.0",
     "msw": "^2.15.0",
     "prettier": "^3.9.9",
