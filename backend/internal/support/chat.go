@@ -143,6 +143,79 @@ func (h *Handler) ListChatExchanges(c *gin.Context) {
 	c.JSON(http.StatusOK, chatExchangeListResponse{Data: items})
 }
 
+// chatRoomTurnItem は GET /support/chat/rooms のルーム内1発言
+type chatRoomTurnItem struct {
+	ID        uint64                       `json:"id"`
+	Role      model.SupportChatMessageRole `json:"role"`
+	Content   string                       `json:"content"`
+	Sources   []ChatSource                 `json:"sources,omitempty"`
+	CreatedAt time.Time                    `json:"created_at"`
+}
+
+// chatRoomItem は GET /support/chat/rooms の1ルーム（疑似セッション + provenance）
+type chatRoomItem struct {
+	ID            string             `json:"id"`
+	ClinicName    string             `json:"clinic_name"`
+	StaffName     string             `json:"staff_name"`
+	StartedAt     time.Time          `json:"started_at"`
+	LastMessageAt time.Time          `json:"last_message_at"`
+	Turns         []chatRoomTurnItem `json:"turns"`
+}
+
+// chatRoomListResponse は GET /support/chat/rooms のレスポンス
+type chatRoomListResponse struct {
+	Data []chatRoomItem `json:"data"`
+}
+
+// toChatRoomItem はサービス層のルームをレスポンス形に変換する。
+func toChatRoomItem(r ChatRoom) chatRoomItem {
+	turns := make([]chatRoomTurnItem, len(r.Turns))
+	for i, t := range r.Turns {
+		turns[i] = chatRoomTurnItem{
+			ID:        t.ID,
+			Role:      t.Role,
+			Content:   t.Content,
+			CreatedAt: t.CreatedAt,
+		}
+		if len(t.Sources) > 0 {
+			var sources []ChatSource
+			if err := json.Unmarshal(t.Sources, &sources); err == nil {
+				turns[i].Sources = sources
+			}
+		}
+	}
+	return chatRoomItem{
+		ID:            r.ID,
+		ClinicName:    r.ClinicName,
+		StaffName:     r.StaffName,
+		StartedAt:     r.StartedAt,
+		LastMessageAt: r.LastMessageAt,
+		Turns:         turns,
+	}
+}
+
+// ListChatRooms は全医院のチャット履歴を疑似会話ルーム単位で返す。
+//
+// GET /api/v1/support/chat/rooms
+// 認証済みスタッフ全員が利用できる（ListChatExchanges と同じ共有ボード方針）。
+// ルーム化は時間ギャップによるヒューリスティック — DB に会話境界は無い。
+func (h *Handler) ListChatRooms(c *gin.Context) {
+	if h.service == nil {
+		c.JSON(http.StatusOK, chatRoomListResponse{Data: []chatRoomItem{}})
+		return
+	}
+	rooms, err := h.service.ListChatRooms(c.Request.Context())
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	items := make([]chatRoomItem, len(rooms))
+	for i, r := range rooms {
+		items[i] = toChatRoomItem(r)
+	}
+	c.JSON(http.StatusOK, chatRoomListResponse{Data: items})
+}
+
 // parseChatRequest はチャットリクエストをバインド・検証する。
 func parseChatRequest(c *gin.Context) (*chatRequest, error) {
 	var req chatRequest

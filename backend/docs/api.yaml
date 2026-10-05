@@ -25850,6 +25850,56 @@ paths:
                         created_at: { type: string, description: 質問送信時刻 }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '500': { $ref: '#/components/responses/InternalError' }
+  /support/chat/rooms:
+    get:
+      operationId: listSupportChatRooms
+      summary: ヘルプチャットの会話ルーム一覧(全医院共有・最終発言の新しい順)
+      description: |
+        認証済みスタッフ全員が利用可能（権限ゲート・医院絞りなし — exchanges と同じ
+        共有ボード方針）。同一 clinic×staff の発言ストリームを、一定の無発言時間
+        （30分）を区切りにした疑似会話ルーム単位で返す。ルーム境界は DB に
+        永続化されない導出値であり、区切りはヒューリスティック。
+        ルームは最終発言の新しい順、ルーム内の発言(turns)は古い順。
+        id は "clinicID-staffID-先頭メッセージID" の導出キーで永続的でない。
+      tags: [Support]
+      responses:
+        '200':
+          description: 疑似会話ルーム一覧(最終発言の新しい順)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string, description: "導出キー clinicID-staffID-先頭メッセージID" }
+                        clinic_name: { type: string }
+                        staff_name: { type: string }
+                        started_at: { type: string, format: date-time, description: ルーム先頭発言の時刻 }
+                        last_message_at: { type: string, format: date-time, description: ルーム最終発言の時刻 }
+                        turns:
+                          type: array
+                          description: ルーム内の発言(古い順)
+                          items:
+                            type: object
+                            properties:
+                              id: { type: integer }
+                              role: { type: string, enum: [user, assistant] }
+                              content: { type: string }
+                              sources:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    title: { type: string }
+                                    category: { type: string }
+                                    slug: { type: string }
+                              created_at: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /support/chat/history:
     get:
       operationId: getSupportChatHistory

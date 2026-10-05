@@ -76,17 +76,25 @@ export interface SupportChatStatus {
   enabled: boolean;
 }
 
-/**
- * GET /v1/support/chat/exchanges の1行（質問+回答ペア、全医院共有ボード用）。
- * clinic_name / staff_name は provenance 表示用（絞り込みではない）。
- */
-export interface SupportChatExchange {
+/** GET /v1/support/chat/rooms のルーム内1発言 */
+export interface SupportChatRoomTurn {
   id: number;
+  role: SupportChatRole;
+  content: string;
+  sources?: SupportChatSource[];
+  created_at: string;
+}
+
+/**
+ * GET /v1/support/chat/rooms の1ルーム。
+ * 同一 clinic×staff の発言ストリームを一定の無発言時間で区切った疑似セッション
+ * （DB に会話境界は無く、サーバーがヒューリスティックで導出する）。
+ */
+export interface SupportChatRoom {
+  id: string;
   clinic_name: string;
   staff_name: string;
-  question: string;
-  answer: string;
-  sources?: SupportChatSource[];
-  /** 質問送信時刻 */
-  created_at: string;
+  started_at: string;
+  last_message_at: string;
+  turns: SupportChatRoomTurn[];
 }

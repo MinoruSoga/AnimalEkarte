@@ -3,7 +3,10 @@ package support
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
+	"sort"
+	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -37,6 +40,8 @@ type Service interface {
 	ListChatHistory(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
 	// ListChatExchanges は全医院の質問+回答ペアを新しい順で返す（共有一覧ページ用）
 	ListChatExchanges(ctx context.Context) ([]ChatExchange, error)
+	// ListChatRooms は全医院の発言ストリームを疑似会話ルーム単位で返す（共有一覧ページ用）
+	ListChatRooms(ctx context.Context) ([]ChatRoom, error)
 	RecordChatExchange(ctx context.Context, clinicID, staffID uint64, userMessage, assistantReply string, sources []ChatSource) error
 	ClearChatHistory(ctx context.Context, clinicID, staffID uint64) error
 	// SyncPlaneTicketStates は scheduled job 用 — Plane 側 completed → resolved の
@@ -237,6 +242,72 @@ func (s *service) ListChatExchanges(ctx context.Context) ([]ChatExchange, error)
 		exchanges[i], exchanges[j] = exchanges[j], exchanges[i]
 	}
 	return exchanges, nil
+}
+
+// chatRoomGap は会話区切りとして扱う無発言時間。同一 clinic×staff の発言が
+// この間隔を超えて空いたら別ルームとみなす（会話区切りはDBスキーマに存在しないためのヒューリスティック）。
+const chatRoomGap = 30 * time.Minute
+
+// ChatRoomTurn はルーム内の1発言（user / assistant）。
+type ChatRoomTurn struct {
+	ID        uint64
+	Role      model.SupportChatMessageRole
+	Content   string
+	Sources   json.RawMessage
+	CreatedAt time.Time
+}
+
+// ChatRoom は同一 clinic×staff の時間的に連続した会話まとまり（擬似ルーム）。
+type ChatRoom struct {
+	// ID は導出キー "clinicID-staffID-先頭メッセージID"。DB に永続化されない。
+	ID            string
+	ClinicName    string
+	StaffName     string
+	StartedAt     time.Time
+	LastMessageAt time.Time
+	Turns         []ChatRoomTurn
+}
+
+// ListChatRooms は全医院のサポートチャット履歴を、同一 clinic×staff の発言ストリームを
+// chatRoomGap を区切りにした「擬似会話ルーム」単位で返す。ルームは最終発言の新しい順、
+// ルーム内の発言は古い順。閲覧範囲は ListChatExchanges と同じ共有ボード方針。
+func (s *service) ListChatRooms(ctx context.Context) ([]ChatRoom, error) {
+	messages, err := s.repo.ListAllChatMessages(ctx)
+	if err != nil {
+		return nil, err
+	}
+	type key struct{ clinicID, staffID uint64 }
+	rooms := make([]ChatRoom, 0, len(messages)/2)
+	open := map[key]int{}
+	// ListAllChatMessages は新しい順 — 古い順に走査して発言をルームへ積む
+	for i := len(messages) - 1; i >= 0; i-- {
+		m := &messages[i]
+		k := key{m.ClinicID, m.StaffID}
+		idx, ok := open[k]
+		if !ok || m.CreatedAt.Sub(rooms[idx].LastMessageAt) > chatRoomGap {
+			idx = len(rooms)
+			rooms = append(rooms, ChatRoom{
+				ID:         fmt.Sprintf("%d-%d-%d", m.ClinicID, m.StaffID, m.ID),
+				ClinicName: m.ClinicName,
+				StaffName:  m.StaffName,
+				StartedAt:  m.CreatedAt,
+				Turns:      []ChatRoomTurn{},
+			})
+			open[k] = idx
+		}
+		rooms[idx].Turns = append(rooms[idx].Turns, ChatRoomTurn{
+			ID:        m.ID,
+			Role:      m.Role,
+			Content:   m.Content,
+			Sources:   m.Sources,
+			CreatedAt: m.CreatedAt,
+		})
+		rooms[idx].LastMessageAt = m.CreatedAt
+	}
+	sort.Slice(rooms, func(i, j int) bool {
+		return rooms[i].LastMessageAt.After(rooms[j].LastMessageAt)
+	})
+	return rooms, nil
 }
 
 // ClearChatHistory は指定スタッフの会話履歴をすべて soft delete する。

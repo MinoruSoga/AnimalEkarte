@@ -18,16 +18,16 @@ import remarkGfm from "remark-gfm";
 import { BookOpen, Loader2, RotateCcw, Send } from "lucide-react";
 
 import { paths } from "@/config/paths";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C } from "@/lib/design-tokens";
 import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { createManualSearcher, type ManualArticle } from "@/lib/manual-index";
-import { getSafeMarkdownHref } from "@/lib/safe-markdown-href";
 
 import { useClearSupportChatHistory } from "../api/clear-support-chat-history";
 import { useGetSupportChatHistory } from "../api/get-support-chat-history";
 import { useSendSupportChat } from "../api/send-support-chat";
 import { buildChatContext } from "../lib/chat-context";
+import { CHAT_MARKDOWN_COMPONENTS } from "../lib/chat-markdown-components";
 import { useHelpChatHistory } from "../lib/help-chat-history";
 import type { SupportChatHistoryRecord, SupportChatTurn } from "../types";
 
@@ -40,65 +40,7 @@ const SEND_ERROR_MESSAGE =
 const RESET_ERROR_MESSAGE = "履歴の削除に失敗しました。時間をおいて再度お試しください。";
 
 // アシスタント回答はマークダウンで返るため react-markdown で描画する。
-// ManualContent とは別に、チャット吹き出しのサイズに合わせたコンパクトな
-// components 上書きを使う（モジュール定数: js-cache-function-results / rerender-memo 対策）。
-const CHAT_MARKDOWN_COMPONENTS: Parameters<typeof ReactMarkdown>[0]["components"] = {
-  h1: ({ children }) => <p className="font-semibold mt-2 mb-1">{children}</p>,
-  h2: ({ children }) => <p className="font-semibold mt-2 mb-1">{children}</p>,
-  h3: ({ children }) => <p className="font-semibold mt-2 mb-1">{children}</p>,
-  h4: ({ children }) => <p className="font-semibold mt-2 mb-1">{children}</p>,
-  h5: ({ children }) => <p className="font-semibold mt-2 mb-1">{children}</p>,
-  h6: ({ children }) => <p className="font-semibold mt-2 mb-1">{children}</p>,
-  p: ({ children }) => <p className="my-1.5 first:mt-0 last:mb-0">{children}</p>,
-  ul: ({ children }) => <ul className="list-disc pl-6 my-1.5 space-y-0.5">{children}</ul>,
-  ol: ({ children }) => <ol className="list-decimal pl-6 my-1.5 space-y-0.5">{children}</ol>,
-  li: ({ children }) => <li>{children}</li>,
-  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-  a: ({ href, children }) => {
-    const safeHref = getSafeMarkdownHref(href);
-    if (!safeHref) {
-      return <span className="underline">{children}</span>;
-    }
-    return (
-      <a
-        href={safeHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`underline ${C.textActionPrimary} hover:opacity-70`}
-      >
-        {children}
-      </a>
-    );
-  },
-  code: ({ className, children }) =>
-    className ? (
-      <code className={`block ${className}`}>{children}</code>
-    ) : (
-      <code className={`px-1 py-0.5 rounded-xxs text-[0.875em] ${C.bgHoverMd}`}>{children}</code>
-    ),
-  pre: ({ children }) => (
-    <pre className={`my-1.5 p-2 rounded-xxs overflow-x-auto text-2xs ${C.bgHoverMd}`}>
-      {children}
-    </pre>
-  ),
-  blockquote: ({ children }) => (
-    <blockquote className={`my-1.5 pl-3 border-l-2 italic ${C.text65} ${C.borderDivider}`}>
-      {children}
-    </blockquote>
-  ),
-  hr: () => <hr className={`my-2 border-t ${C.borderDivider}`} />,
-  table: ({ children }) => (
-    <div className="my-1.5 overflow-x-auto">
-      <table className={`w-full border ${C.borderDivider}`}>{children}</table>
-    </div>
-  ),
-  th: ({ children }) => (
-    <th className={`${STYLE.tableHeaderCell} text-left border ${C.borderDivider}`}>{children}</th>
-  ),
-  td: ({ children }) => (
-    <td className={`${STYLE.tableCell} border ${C.borderDivider}`}>{children}</td>
-  ),
-};
+// components 上書きは lib/chat-markdown-components で履歴ページと共有する。
 
 /** 保存済みメッセージを表示用ターンに変換する（エラー/再送情報は保存対象外） */
 function toHistoryTurn(record: SupportChatHistoryRecord): SupportChatTurn {

@@ -355,6 +355,110 @@ func TestListChatExchanges(t *testing.T) {
 	})
 }
 
+func TestListChatRooms(t *testing.T) {
+	base := time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
+	msg := func(id uint64, role model.SupportChatMessageRole, content string, clinicID, staffID uint64, min int) ChatMessageWithMeta {
+		return ChatMessageWithMeta{
+			SupportChatMessage: model.SupportChatMessage{
+				ID: id, ClinicID: clinicID, StaffID: staffID, Role: role, Content: content,
+				CreatedAt: base.Add(time.Duration(min) * time.Minute),
+			},
+			StaffName:  "スタッフ" + string(rune('A')+rune(staffID-1)),
+			ClinicName: "医院" + string(rune('A')+rune(clinicID-1)),
+		}
+	}
+
+	t.Run("同一スタッフで間隔がchatRoomGap以下なら同一ルームにまとまる", func(t *testing.T) {
+		repo := &mockRepository{
+			listAllChatFn: func(_ context.Context) ([]ChatMessageWithMeta, error) {
+				return []ChatMessageWithMeta{
+					msg(4, model.SupportChatRoleAssistant, "回答2", 1, 1, 40),
+					msg(3, model.SupportChatRoleUser, "質問2", 1, 1, 39),
+					msg(2, model.SupportChatRoleAssistant, "回答1", 1, 1, 10),
+					msg(1, model.SupportChatRoleUser, "質問1", 1, 1, 9),
+				}, nil
+			},
+		}
+		svc := NewService(repo, nil)
+
+		rooms, err := svc.ListChatRooms(context.Background())
+		require.NoError(t, err)
+		require.Len(t, rooms, 1)
+		assert.Equal(t, "1-1-1", rooms[0].ID)
+		assert.Equal(t, "医院A", rooms[0].ClinicName)
+		assert.Equal(t, "スタッフA", rooms[0].StaffName)
+		require.Len(t, rooms[0].Turns, 4)
+		// ルーム内は古い順
+		assert.Equal(t, "質問1", rooms[0].Turns[0].Content)
+		assert.Equal(t, "回答2", rooms[0].Turns[3].Content)
+		assert.Equal(t, base.Add(9*time.Minute), rooms[0].StartedAt)
+		assert.Equal(t, base.Add(40*time.Minute), rooms[0].LastMessageAt)
+	})
+
+	t.Run("chatRoomGap超過で別ルームに分かれる", func(t *testing.T) {
+		repo := &mockRepository{
+			listAllChatFn: func(_ context.Context) ([]ChatMessageWithMeta, error) {
+				return []ChatMessageWithMeta{
+					msg(4, model.SupportChatRoleAssistant, "回答2", 1, 1, 100),
+					msg(3, model.SupportChatRoleUser, "質問2", 1, 1, 99),
+					msg(2, model.SupportChatRoleAssistant, "回答1", 1, 1, 10),
+					msg(1, model.SupportChatRoleUser, "質問1", 1, 1, 9),
+				}, nil
+			},
+		}
+		svc := NewService(repo, nil)
+
+		rooms, err := svc.ListChatRooms(context.Background())
+		require.NoError(t, err)
+		require.Len(t, rooms, 2)
+		// 最終発言が新しいルームが先頭
+		assert.Equal(t, "1-1-3", rooms[0].ID)
+		require.Len(t, rooms[0].Turns, 2)
+		assert.Equal(t, "質問2", rooms[0].Turns[0].Content)
+		assert.Equal(t, "1-1-1", rooms[1].ID)
+		require.Len(t, rooms[1].Turns, 2)
+	})
+
+	t.Run("clinic×staff が違えば別ルーム — 同一時間帯でも混ざらない", func(t *testing.T) {
+		repo := &mockRepository{
+			listAllChatFn: func(_ context.Context) ([]ChatMessageWithMeta, error) {
+				return []ChatMessageWithMeta{
+					msg(4, model.SupportChatRoleAssistant, "他院回答", 2, 7, 21),
+					msg(3, model.SupportChatRoleUser, "他院質問", 2, 7, 20),
+					msg(2, model.SupportChatRoleAssistant, "回答1", 1, 1, 10),
+					msg(1, model.SupportChatRoleUser, "質問1", 1, 1, 9),
+				}, nil
+			},
+		}
+		svc := NewService(repo, nil)
+
+		rooms, err := svc.ListChatRooms(context.Background())
+		require.NoError(t, err)
+		require.Len(t, rooms, 2)
+		assert.Equal(t, "医院B", rooms[0].ClinicName)
+		assert.Equal(t, "スタッフG", rooms[0].StaffName)
+		assert.Equal(t, "医院A", rooms[1].ClinicName)
+	})
+
+	t.Run("空履歴は空リスト", func(t *testing.T) {
+		svc := NewService(&mockRepository{}, nil)
+		rooms, err := svc.ListChatRooms(context.Background())
+		require.NoError(t, err)
+		assert.Empty(t, rooms)
+	})
+
+	t.Run("repo エラーはそのまま返す", func(t *testing.T) {
+		repo := &mockRepository{
+			listAllChatFn: func(context.Context) ([]ChatMessageWithMeta, error) {
+				return nil, assert.AnError
+			},
+		}
+		svc := NewService(repo, nil)
+		_, err := svc.ListChatRooms(context.Background())
+		assert.ErrorIs(t, err, assert.AnError)
+	})
+}
+
 // ---- SyncPlaneTicketStates: Plane completed → resolved の一方向同期 ----
 
 // mockTicketReader は TicketCreator + TicketStateReader の両方を満たす同期用スタブ。
