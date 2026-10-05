@@ -73,12 +73,12 @@ type discordWebhookPayload struct {
 	Embeds []discordEmbed `json:"embeds"`
 }
 
-func truncateRunes(s string, max int) string {
+func truncateRunes(s string, maxLen int) string {
 	r := []rune(s)
-	if len(r) <= max {
+	if len(r) <= maxLen {
 		return s
 	}
-	return string(r[:max-1]) + "…"
+	return string(r[:maxLen-1]) + "…"
 }
 
 // NotifyBugReport は報告原文を Discord チャンネルへ embed として投稿する。
