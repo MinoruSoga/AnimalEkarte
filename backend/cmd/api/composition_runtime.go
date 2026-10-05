@@ -76,20 +76,21 @@ type trimmingRuntime struct {
 }
 
 type runtimeComposition struct {
-	db            *gorm.DB
-	audit         audit.Kernel
-	auth          authComposition
-	staff         staffComposition
-	clinic        clinicComposition
-	ownerPet      ownerPetComposition
-	reservation   reservationComposition
-	billing       billingComposition
-	medicalRecord medicalRecordComposition
-	inventory     inventoryRuntime
-	trimming      trimmingRuntime
-	lstep         *lstep.Application
-	supportChat   support.ChatCompleter
-	planeTickets  support.TicketCreator
+	db                *gorm.DB
+	audit             audit.Kernel
+	auth              authComposition
+	staff             staffComposition
+	clinic            clinicComposition
+	ownerPet          ownerPetComposition
+	reservation       reservationComposition
+	billing           billingComposition
+	medicalRecord     medicalRecordComposition
+	inventory         inventoryRuntime
+	trimming          trimmingRuntime
+	lstep             *lstep.Application
+	supportChat       support.ChatCompleter
+	planeTickets      support.TicketCreator
+	bugReportNotifier support.BugReportNotifier
 }
 
 type runtimeCompositionDependencies struct {
@@ -271,6 +272,12 @@ func newRuntimeDomainCompositions(
 			dependencies.Config.PlaneProjectIdentifier,
 			dependencies.Config.FrontendURL,
 			time.Duration(dependencies.Config.PlaneTimeoutMS)*time.Millisecond,
+		),
+		// Discord 通知は DISCORD_BUG_REPORT_WEBHOOK_URL 未設定の場合 nil（通知無効）。
+		// 通知の成否に関わらず報告はローカル保存される（best-effort）。
+		bugReportNotifier: support.NewDiscordNotifier(
+			dependencies.Config.DiscordBugReportWebhookURL,
+			time.Duration(dependencies.Config.DiscordWebhookTimeoutMS)*time.Millisecond,
 		),
 	}
 }
@@ -585,7 +592,7 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 		c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
 	).RegisterRoutes(protected)
 	support.NewHandler(
-		support.NewService(support.NewRepository(c.db), c.planeTickets),
+		support.NewService(support.NewRepository(c.db), c.planeTickets, c.bugReportNotifier),
 		uploader,
 		supportAuditAdapter{logger: c.audit},
 		c.supportChat,

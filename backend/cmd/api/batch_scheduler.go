@@ -53,7 +53,7 @@ func planeStateSyncerFor(db *gorm.DB, tickets support.TicketCreator) planeStateS
 	if db == nil || tickets == nil {
 		return nil
 	}
-	return support.NewService(support.NewRepository(db), tickets)
+	return support.NewService(support.NewRepository(db), tickets, nil)
 }
 
 type lstepScheduledJobExecutor struct {

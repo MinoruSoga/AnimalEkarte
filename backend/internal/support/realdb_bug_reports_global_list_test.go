@@ -37,7 +37,7 @@ func TestRealDB_SupportBugReportsGlobalBoard(t *testing.T) {
 	ctx := context.Background()
 
 	repo := NewRepository(db)
-	svc := NewService(repo, nil)
+	svc := NewService(repo, nil, nil)
 
 	const titleA = "D3support-realdb-global-A"
 	const titleB = "D3support-realdb-global-B"
