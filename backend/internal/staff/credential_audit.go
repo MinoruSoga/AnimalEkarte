@@ -42,14 +42,14 @@ type CredentialAuditTxLogger interface {
 
 func validateStaffCredentialAudit(
 	clinicID, targetStaffID uint64,
-	audit *CredentialMutationAudit,
+	mutation *CredentialMutationAudit,
 ) error {
-	if audit == nil ||
-		audit.ClinicID == 0 ||
-		audit.ClinicID != clinicID ||
-		audit.ActorStaffID == 0 ||
-		audit.TargetStaffID == 0 ||
-		audit.TargetStaffID != targetStaffID {
+	if mutation == nil ||
+		mutation.ClinicID == 0 ||
+		mutation.ClinicID != clinicID ||
+		mutation.ActorStaffID == 0 ||
+		mutation.TargetStaffID == 0 ||
+		mutation.TargetStaffID != targetStaffID {
 		return apperrors.WrapInternalServerError(
 			"staff credential audit metadata is invalid",
 		)
@@ -58,11 +58,11 @@ func validateStaffCredentialAudit(
 }
 
 func staffCredentialAuditEntry(
-	audit CredentialMutationAudit,
+	mutation CredentialMutationAudit,
 	accountID uint64,
 ) CredentialAuditEntry {
-	clinicID := audit.ClinicID
-	actorID := audit.ActorStaffID
+	clinicID := mutation.ClinicID
+	actorID := mutation.ActorStaffID
 	resourceID := accountID
 	return CredentialAuditEntry{
 		ClinicID:   &clinicID,
@@ -72,19 +72,19 @@ func staffCredentialAuditEntry(
 		Resource:   model.AuditResourceAccount,
 		ResourceID: &resourceID,
 		NewValue: map[string]any{
-			"staff_id": audit.TargetStaffID,
+			"staff_id": mutation.TargetStaffID,
 		},
-		IPAddress: audit.IPAddress,
-		UserAgent: audit.UserAgent,
+		IPAddress: mutation.IPAddress,
+		UserAgent: mutation.UserAgent,
 	}
 }
 
 func staffAccountAttachAuditEntry(
-	audit CredentialMutationAudit,
+	mutation CredentialMutationAudit,
 	accountID uint64,
 ) CredentialAuditEntry {
-	clinicID := audit.ClinicID
-	actorID := audit.ActorStaffID
+	clinicID := mutation.ClinicID
+	actorID := mutation.ActorStaffID
 	resourceID := accountID
 	return CredentialAuditEntry{
 		ClinicID:   &clinicID,
@@ -94,10 +94,10 @@ func staffAccountAttachAuditEntry(
 		Resource:   model.AuditResourceAccount,
 		ResourceID: &resourceID,
 		NewValue: map[string]any{
-			"staff_id": audit.TargetStaffID,
+			"staff_id": mutation.TargetStaffID,
 		},
-		IPAddress: audit.IPAddress,
-		UserAgent: audit.UserAgent,
+		IPAddress: mutation.IPAddress,
+		UserAgent: mutation.UserAgent,
 	}
 }
 
