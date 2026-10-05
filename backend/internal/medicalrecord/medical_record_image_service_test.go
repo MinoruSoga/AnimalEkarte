@@ -38,7 +38,7 @@ type mockMedicalRecordImageRepository struct {
 	findByIDFn              func(ctx context.Context, clinicID, imageID uint64) (*model.MedicalRecordImage, error)
 	createFn                func(ctx context.Context, image *model.MedicalRecordImage) error
 	deleteFn                func(ctx context.Context, clinicID, imageID uint64) error
-	countLiveByStorageKeyFn func(ctx context.Context, clinicID uint64, key string) (int64, error)
+	countLiveByStorageKeyFn func(ctx context.Context, key string) (int64, error)
 }
 
 func (m *mockMedicalRecordImageRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
@@ -57,9 +57,9 @@ func (m *mockMedicalRecordImageRepository) Delete(ctx context.Context, clinicID,
 	return m.deleteFn(ctx, clinicID, imageID)
 }
 
-func (m *mockMedicalRecordImageRepository) CountLiveByStorageKey(ctx context.Context, clinicID uint64, key string) (int64, error) {
+func (m *mockMedicalRecordImageRepository) CountLiveByStorageKey(ctx context.Context, key string) (int64, error) {
 	if m.countLiveByStorageKeyFn != nil {
-		return m.countLiveByStorageKeyFn(ctx, clinicID, key)
+		return m.countLiveByStorageKeyFn(ctx, key)
 	}
 	return 0, nil
 }

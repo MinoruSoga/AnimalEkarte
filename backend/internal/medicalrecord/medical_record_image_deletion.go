@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/url"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -19,6 +20,10 @@ const (
 	medicalRecordImageDeletionDeleted = "storage_deleted"
 	medicalRecordImageDeletionShared  = "retained_shared"
 	medicalRecordImageDeletionErrMax  = 500
+
+	// medicalRecordImageKeyUnresolvedMark は台帳 LastError に記録する「key 解決失敗」の
+	// マーカー。一時的な storage 失敗（リトライで進む）と区別するための接頭辞。
+	medicalRecordImageKeyUnresolvedMark = "storage-key-unresolved:"
 )
 
 var (
@@ -53,6 +58,14 @@ type medicalRecordImageDeletionStore interface {
 // 署名 URL の発行口とは分け、削除 transaction の外から呼ぶ。
 type medicalRecordImageObjectDeleter interface {
 	Delete(ctx context.Context, key string) error
+}
+
+// medicalRecordImageStorageHostSigner は objects が「自分の storage origin の host」を
+// 自己申告できる場合の追加 view（fileUploader.GetSignedURL と同シグネチャ）。
+// 署名 URL の host はその uploader が発行する唯一の宛先なので、stored URL が自ストレージ
+// 由来かを判別する trusted origin として使う。
+type medicalRecordImageStorageHostSigner interface {
+	GetSignedURL(ctx context.Context, key string, ttl time.Duration) (string, error)
 }
 
 // ImageDeletionAudit は診療画像削除の監査と削除台帳を composition から渡す束。
@@ -111,8 +124,15 @@ func (s *medicalRecordImageService) Delete(
 		return apperrors.WrapNotFound("medical_record_image", "not found in this medical record")
 	}
 
-	imageKey, imageKeyErr := medicalRecordImageObjectKey(image.ImageURL)
-	thumbKey, thumbKeyErr := medicalRecordImageObjectKey(image.ThumbnailURL)
+	// HTTP(S) の stored URL は「設定済み storage origin 発行」のものだけ key 化する。
+	// 外部 host の URL は非 owned として扱い、path がたまたま key 形でも自ストレージの
+	// object 削除対象にしない（trusted host は objects の署名能力から取得する）。
+	var trustedHosts map[string]bool
+	if medicalRecordImageHasHTTPScheme(image.ImageURL) || medicalRecordImageHasHTTPScheme(image.ThumbnailURL) {
+		trustedHosts = medicalRecordImageTrustedStorageHosts(ctx, objects)
+	}
+	imageKey, imageKeyErr := medicalRecordImageObjectKey(image.ImageURL, trustedHosts)
+	thumbKey, thumbKeyErr := medicalRecordImageObjectKey(image.ThumbnailURL, trustedHosts)
 	resolveErr := errors.Join(imageKeyErr, thumbKeyErr)
 
 	var committed medicalRecordImageDeletion
@@ -163,6 +183,8 @@ func (s *medicalRecordImageService) Delete(
 	// pending_storage のまま残し、失敗を caller へ返す。204 を返すと frontend は
 	// 画像を一覧から消し、再試行経路（同一 imageID への再 DELETE → retryImageStorageDelete）
 	// が実質到達不能になって orphan オブジェクトが残るため。
+	// key 解決失敗時も同じ方針: pending_storage に残し、失敗を LastError に記録して
+	// リトライ時に失わない（storage_deleted と嘘をつかない）。
 	if err := s.removeImageStorage(ctx, committed, objects, resolveErr); err != nil {
 		return err
 	}
@@ -204,13 +226,17 @@ func (s *medicalRecordImageService) auditImageDeletion(ctx context.Context, row 
 	return nil
 }
 
-// auditSafeMedicalRecordImageURL は監査向けに URL の query/fragment を除去する。
-// object key のような非 URL 値（parse で path 扱い）はそのまま返り、parse 失敗時は
-// クエリ以降だけを落とす。
+// auditSafeMedicalRecordImageURL は監査向けに URL の query/fragment と HTTP userinfo を除去する。
+// legacy 行には presigned URL（クエリ署名=認証情報）や https://user:pass@host/path 形式の
+// userinfo が残りうるため、いずれも永続化しない。object key のような非 URL 値
+// （parse で path 扱い）はそのまま返り、parse 失敗時はクエリ以降だけを落とす。
 func auditSafeMedicalRecordImageURL(stored string) string {
 	if u, err := url.Parse(stored); err == nil {
 		u.RawQuery = ""
+		u.ForceQuery = false
 		u.Fragment = ""
+		u.RawFragment = ""
+		u.User = nil
 		return u.String()
 	}
 	if i := strings.IndexByte(stored, '?'); i >= 0 {
@@ -237,7 +263,32 @@ func (s *medicalRecordImageService) retryImageStorageDelete(
 	if existing.StorageStatus != medicalRecordImageDeletionPending {
 		return nil
 	}
+	// 初回の key 解決失敗をリトライで握り潰さない。画像行は既に無く再解決もできないため、
+	// keys が空の pending 行や、解決失敗マーカーを持つ行は storage_deleted にせず
+	// pending_storage を維持したまま原因を返す（LastError は既知の記録経路）。
+	if unresolved := imageStorageKeyResolutionFailure(existing); unresolved != nil {
+		s.recordImageStorageResult(ctx, *existing, medicalRecordImageDeletionPending, unresolved)
+		return unresolved
+	}
 	return s.removeImageStorage(ctx, *existing, objects, nil)
+}
+
+// imageStorageKeyResolutionFailure は、リトライ不能な「key 解決失敗」状態の台帳行を
+// 検出してその原因を error として返す。解決失敗は LastError のマーカーで記録される
+// （medicalRecordImageKeyUnresolvedMark）。keys が空の pending 行も同じく再試行しても
+// 進まないため同一扱いとし、storage_deleted へ進めない。該当しなければ nil。
+func imageStorageKeyResolutionFailure(row *medicalRecordImageDeletion) error {
+	if strings.HasPrefix(row.LastError, medicalRecordImageKeyUnresolvedMark) {
+		return errors.New(row.LastError)
+	}
+	if len(uniqueMedicalRecordImageKeys(row.ImageObjectKey, row.ThumbnailObjectKey)) > 0 {
+		return nil
+	}
+	cause := row.LastError
+	if cause == "" {
+		cause = "no storage object keys recorded"
+	}
+	return errors.New(medicalRecordImageKeyUnresolvedMark + " " + cause)
 }
 
 // removeImageStorage は台帳行に対応する storage オブジェクトを削除し、結果を台帳へ記録する。
@@ -251,8 +302,11 @@ func (s *medicalRecordImageService) removeImageStorage(
 	if resolveErr != nil {
 		slog.ErrorContext(ctx, "medical record image storage key unresolved after delete",
 			slog.Uint64("image_id", row.ImageID), slog.String("error", resolveErr.Error()))
-		s.recordImageStorageResult(ctx, row, medicalRecordImageDeletionPending, resolveErr)
-		return resolveErr
+		// LastError にマーカー付きで残し、リトライ側が「解決失敗」を一時的な storage
+		// 失敗と区別できるようにする（imageStorageKeyResolutionFailure 参照）。
+		marked := errors.New(medicalRecordImageKeyUnresolvedMark + " " + resolveErr.Error())
+		s.recordImageStorageResult(ctx, row, medicalRecordImageDeletionPending, marked)
+		return marked
 	}
 	keys := uniqueMedicalRecordImageKeys(row.ImageObjectKey, row.ThumbnailObjectKey)
 	if len(keys) == 0 {
@@ -292,7 +346,7 @@ func (s *medicalRecordImageService) deleteOneImageObject(
 	key string,
 	objects medicalRecordImageObjectDeleter,
 ) (string, error) {
-	count, err := s.repo.CountLiveByStorageKey(ctx, row.ClinicID, key)
+	count, err := s.repo.CountLiveByStorageKey(ctx, key)
 	if err != nil {
 		slog.ErrorContext(ctx, "medical record image live-key count failed",
 			slog.Uint64("image_id", row.ImageID), slog.String("key", key), slog.String("error", err.Error()))
@@ -336,7 +390,14 @@ func (s *medicalRecordImageService) recordImageStorageResult(
 	}
 }
 
-func medicalRecordImageObjectKey(stored string) (string, error) {
+// medicalRecordImageObjectKey は台帳へ記録する削除対象 key を stored URL から解決する。
+// HTTP(S) URL は trustedHosts（uploader が発行する storage origin）に host が一致する
+// 場合だけ object key として採用し、外部 host は非 owned（key="", err=nil）として
+// 自ストレージの削除対象から外す。
+func medicalRecordImageObjectKey(stored string, trustedHosts map[string]bool) (string, error) {
+	if medicalRecordImageHasHTTPScheme(stored) && !medicalRecordImageURLHostTrusted(stored, trustedHosts) {
+		return "", nil
+	}
 	key, isObject, err := resolveMedicalRecordImageStorageKey(stored)
 	if err != nil {
 		return "", err
@@ -345,6 +406,40 @@ func medicalRecordImageObjectKey(stored string) (string, error) {
 		return "", nil
 	}
 	return key, nil
+}
+
+// medicalRecordImageURLHostTrusted は stored URL の host が trustedHosts に含まれるかを返す。
+// host を検証できない場合（parse 失敗・host 空・trustedHosts 空）は false（fail-closed）。
+func medicalRecordImageURLHostTrusted(stored string, trustedHosts map[string]bool) bool {
+	if len(trustedHosts) == 0 {
+		return false
+	}
+	u, err := url.Parse(strings.TrimSpace(stored))
+	if err != nil || u.Host == "" {
+		return false
+	}
+	return trustedHosts[strings.ToLower(u.Host)]
+}
+
+// medicalRecordImageTrustedStorageHosts は、削除対象として信頼できる storage origin の
+// host 集合を返す。objects が署名 URL を発行できる場合、その URL の host を「設定済み
+// storage origin」として採用する。発行できない・host を持たない場合は空（fail-closed:
+// すべての HTTP(S) stored URL を非 owned として扱う）。presign はローカル計算で外部
+// 呼び出しを伴わない。
+func medicalRecordImageTrustedStorageHosts(ctx context.Context, objects medicalRecordImageObjectDeleter) map[string]bool {
+	signer, ok := objects.(medicalRecordImageStorageHostSigner)
+	if !ok || signer == nil {
+		return nil
+	}
+	probe, err := signer.GetSignedURL(ctx, medicalRecordImageStorageKeyPrefix+".probe", medicalRecordImageSignedURLTTL)
+	if err != nil {
+		return nil
+	}
+	u, err := url.Parse(probe)
+	if err != nil || u.Host == "" {
+		return nil
+	}
+	return map[string]bool{strings.ToLower(u.Host): true}
 }
 
 func uniqueMedicalRecordImageKeys(keys ...string) []string {

@@ -62,7 +62,7 @@ func (r *memImageRepo) FindByID(_ context.Context, _, id uint64) (*model.Medical
 	return &copied, nil
 }
 
-func (r *memImageRepo) CountLiveByStorageKey(_ context.Context, _ uint64, key string) (int64, error) {
+func (r *memImageRepo) CountLiveByStorageKey(_ context.Context, key string) (int64, error) {
 	var count int64
 	for id, image := range r.images {
 		if _, gone := r.stagedDelete[id]; gone {
@@ -584,4 +584,329 @@ func TestUploadMedicalRecordImage_SignFailureLeavesNeitherRowNorObject(t *testin
 		require.NoError(t, err)
 		assert.True(t, blocked)
 	}
+}
+
+// signingObjectDeleter は GetSignedURL を持つ object deleter fake。
+// trusted storage origin の host を署名 URL から自己申告する本番 uploader を模す。
+type signingObjectDeleter struct {
+	memObjectStore
+	host string
+}
+
+func (o *signingObjectDeleter) GetSignedURL(_ context.Context, key string, _ time.Duration) (string, error) {
+	return "https://" + o.host + "/" + key + "?sig=x", nil
+}
+
+// TestAuditSafeMedicalRecordImageURL は監査永続化前の URL sanitizer を検証する。
+// presigned query（=認証情報）と HTTP userinfo は audit_logs に残してはいけない。
+func TestAuditSafeMedicalRecordImageURL(t *testing.T) {
+	tests := []struct {
+		name   string
+		stored string
+		want   string
+	}{
+		{
+			name:   "presigned URL strips query and fragment",
+			stored: "https://cdn.example/medical-records/5/a.png?X-Amz-Signature=abc&X-Amz-Credential=x#frag",
+			want:   "https://cdn.example/medical-records/5/a.png",
+		},
+		{
+			name:   "userinfo URL strips credentials",
+			stored: "https://user:password@cdn.example/medical-records/5/a.png?sig=1",
+			want:   "https://cdn.example/medical-records/5/a.png",
+		},
+		{
+			name:   "plain object key is unchanged",
+			stored: "medical-records/5/a.png",
+			want:   "medical-records/5/a.png",
+		},
+		{
+			name:   "uploads path is unchanged",
+			stored: "/uploads/medical-records/5/a.png",
+			want:   "/uploads/medical-records/5/a.png",
+		},
+		{
+			name:   "unparseable value drops query only",
+			stored: "weird%zz?token=1",
+			want:   "weird%zz",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := auditSafeMedicalRecordImageURL(tt.stored)
+			assert.Equal(t, tt.want, got)
+			assert.NotContains(t, got, "password")
+			assert.NotContains(t, got, "X-Amz-Signature")
+		})
+	}
+}
+
+// TestMedicalRecordImageDelete_AuditStripsUserinfoAndQuery は削除フロー経由で
+// audit_logs に書かれる値に userinfo / 署名クエリが残らないことを検証する。
+func TestMedicalRecordImageDelete_AuditStripsUserinfoAndQuery(t *testing.T) {
+	h := newImageDeleteHarness(model.MedicalRecordImage{
+		ID: 4, MedicalRecordID: 5,
+		ImageURL: "https://user:secret@cdn.example/photo.jpg?X-Amz-Signature=tok#frag",
+	})
+
+	require.NoError(t, h.delete(4))
+
+	require.NotNil(t, h.audit.last)
+	oldValue, ok := h.audit.last.OldValue.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "https://cdn.example/photo.jpg", oldValue["image_url"])
+}
+
+// TestMedicalRecordImageDelete_RetryPreservesKeyResolutionFailure は key 解決に
+// 失敗した pending_storage 行のリトライが storage_deleted に進まないことを検証する。
+// 画像行は既に無く再解決もできないため、失敗を保持して返し続ける。
+func TestMedicalRecordImageDelete_RetryPreservesKeyResolutionFailure(t *testing.T) {
+	h := newImageDeleteHarness(model.MedicalRecordImage{ID: 4, MedicalRecordID: 5, ImageURL: "medical-records/"})
+
+	// 初回: key 解決失敗 → error + pending_storage（key 空で記録）
+	require.Error(t, h.delete(4))
+	row := h.store.committed[4]
+	require.Equal(t, medicalRecordImageDeletionPending, row.StorageStatus)
+	assert.Empty(t, row.ImageObjectKey)
+	assert.Empty(t, row.ThumbnailObjectKey)
+	assert.Contains(t, row.LastError, medicalRecordImageKeyUnresolvedMark)
+
+	// リトライ: storage_deleted にせず pending を維持し、失敗を返す
+	err := h.delete(4)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), medicalRecordImageKeyUnresolvedMark)
+	row = h.store.committed[4]
+	assert.Equal(t, medicalRecordImageDeletionPending, row.StorageStatus)
+	assert.NotEqual(t, medicalRecordImageDeletionDeleted, row.StorageStatus)
+	assert.Empty(t, h.objects.deleted)
+	assert.Equal(t, 1, h.store.inserts)
+}
+
+// TestMedicalRecordImageDelete_RetryPreservesPartialResolutionFailure は片方の URL だけ
+// 解決できた部分失敗の行でも、リトライが「解決失敗」を一時失敗と混同しないことを検証する。
+func TestMedicalRecordImageDelete_RetryPreservesPartialResolutionFailure(t *testing.T) {
+	h := newImageDeleteHarness(model.MedicalRecordImage{
+		ID: 4, MedicalRecordID: 5,
+		ImageURL:     "medical-records/5/img.png",
+		ThumbnailURL: "medical-records/",
+	})
+
+	require.Error(t, h.delete(4))
+	row := h.store.committed[4]
+	require.Equal(t, medicalRecordImageDeletionPending, row.StorageStatus)
+	assert.Equal(t, "medical-records/5/img.png", row.ImageObjectKey)
+	assert.Empty(t, row.ThumbnailObjectKey)
+	assert.Contains(t, row.LastError, medicalRecordImageKeyUnresolvedMark)
+
+	// リトライ: 解決済み key を持っていても解決失敗マーカーの行は storage_deleted にせず、
+	// オブジェクト削除にも進まない（orphan 側を黙って見捨てない）。
+	err := h.delete(4)
+	require.Error(t, err)
+	row = h.store.committed[4]
+	assert.Equal(t, medicalRecordImageDeletionPending, row.StorageStatus)
+	assert.Empty(t, h.objects.deleted)
+}
+
+// TestMedicalRecordImageDelete_ExternalHostURLIsNotOwned は外部 host の URL が
+// path に key 形を含んでも自ストレージの object key にならないことを検証する。
+func TestMedicalRecordImageDelete_ExternalHostURLIsNotOwned(t *testing.T) {
+	h := newImageDeleteHarness(model.MedicalRecordImage{
+		ID: 4, MedicalRecordID: 5,
+		ImageURL: "https://evil.example/medical-records/5/x.png?sig=z",
+	})
+	objects := &signingObjectDeleter{host: "trusted.example"}
+
+	require.NoError(t, h.svc.Delete(context.Background(), 1, 5, 4, 7, objects))
+
+	assert.Empty(t, objects.deleted)
+	row := h.store.committed[4]
+	assert.Equal(t, medicalRecordImageDeletionDeleted, row.StorageStatus)
+	assert.Empty(t, row.ImageObjectKey)
+}
+
+// TestMedicalRecordImageDelete_TrustedHostURLDeletesOwnedObject は uploader の
+// storage origin と host が一致する URL だけが削除対象 key になることを検証する。
+func TestMedicalRecordImageDelete_TrustedHostURLDeletesOwnedObject(t *testing.T) {
+	const key = "medical-records/5/x.png"
+	h := newImageDeleteHarness(model.MedicalRecordImage{
+		ID: 4, MedicalRecordID: 5,
+		ImageURL: "https://trusted.example/" + key + "?sig=z",
+	})
+	objects := &signingObjectDeleter{host: "trusted.example"}
+
+	require.NoError(t, h.svc.Delete(context.Background(), 1, 5, 4, 7, objects))
+
+	assert.Equal(t, []string{key}, objects.deleted)
+	assert.Equal(t, medicalRecordImageDeletionDeleted, h.store.committed[4].StorageStatus)
+}
+
+// TestMedicalRecordImageDelete_NoSignerKeepsHTTPNonOwned は署名能力を持たない
+// deleter では HTTP(S) URL を一切 owned key にしない（fail-closed）ことを検証する。
+func TestMedicalRecordImageDelete_NoSignerKeepsHTTPNonOwned(t *testing.T) {
+	h := newImageDeleteHarness(model.MedicalRecordImage{
+		ID: 4, MedicalRecordID: 5,
+		ImageURL: "https://cdn.example/medical-records/5/x.png?sig=z",
+	})
+
+	require.NoError(t, h.delete(4))
+
+	assert.Empty(t, h.objects.deleted)
+	assert.Equal(t, medicalRecordImageDeletionDeleted, h.store.committed[4].StorageStatus)
+}
+
+// TestListMedicalRecordImages_UsesOneBatchedBlockedCheck は一覧の削除台帳突合が
+// 画像数に依らず 1 クエリ（BlockedImageIDs 一括）で行われることを検証する（N+1 防止）。
+func TestListMedicalRecordImages_UsesOneBatchedBlockedCheck(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	var blockedCalls int
+	var gotIDs []uint64
+	handler := newHandlerWithMedicalRecordImageSvc(
+		ownedMedicalRecordImageGetter(),
+		&mockMedicalRecordImageService{
+			listFn: func(context.Context, uint64, uint64) ([]model.MedicalRecordImage, error) {
+				return []model.MedicalRecordImage{
+					{ID: 4, MedicalRecordID: 5, ImageURL: "medical-records/5/a.png"},
+					{ID: 6, MedicalRecordID: 5, ImageURL: "medical-records/5/b.png"},
+					{ID: 8, MedicalRecordID: 5, ImageURL: "medical-records/5/c.png"},
+				}, nil
+			},
+			blockedImageIDsFn: func(_ context.Context, _ uint64, ids []uint64) (map[uint64]bool, error) {
+				blockedCalls++
+				gotIDs = append([]uint64(nil), ids...)
+				return map[uint64]bool{}, nil
+			},
+		},
+		&mockMedicalRecordImageUploader{},
+	)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/medical-records/5/images", http.NoBody)
+	c.Params = gin.Params{{Key: "id", Value: "5"}}
+	setClinicID(c)
+
+	handler.ListMedicalRecordImages(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, 1, blockedCalls, "blocked check must be a single batched query, not per-image")
+	assert.ElementsMatch(t, []uint64{4, 6, 8}, gotIDs)
+}
+
+// TestSignedMedicalRecordImageResponse_DropsSignedURLWhenDeletionCommitted は
+// 署名発行→台帳確認の順序で、削除 commit が間に入った場合に発行済み URL を
+// レスポンスに含めないことを検証する（単体署名経路の ordering 保証）。
+func TestSignedMedicalRecordImageResponse_DropsSignedURLWhenDeletionCommitted(t *testing.T) {
+	const signed = "https://signed.example/medical-records/5/u.png?sig=x"
+	uploader := &mockMedicalRecordImageUploader{
+		getSignedURLFn: func(_ context.Context, _ string, _ time.Duration) (string, error) {
+			return signed, nil
+		},
+	}
+	handler := newHandlerWithMedicalRecordImageSvc(
+		ownedMedicalRecordImageGetter(),
+		&mockMedicalRecordImageService{
+			signingBlockedFn: func(context.Context, uint64, uint64) (bool, error) {
+				return true, nil
+			},
+		},
+		uploader,
+	)
+
+	resp, err := handler.signedMedicalRecordImageResponse(
+		context.Background(), 1,
+		&model.MedicalRecordImage{ID: 4, MedicalRecordID: 5, ImageURL: "medical-records/5/u.png"},
+	)
+
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, errMedicalRecordImageSigningRetired))
+	assert.Empty(t, resp.ImageURL, "blocked image must not leak the issued signed URL")
+	assert.Empty(t, resp.ThumbnailURL)
+	require.Len(t, uploader.signedURLCalls, 1, "sign runs first, then the ledger check drops the result")
+}
+
+// uploadSignFailureHarness は署名失敗→補償削除系の handler テスト共通セットアップ。
+// svc は createFn で画像を返し、deleteFn / signingBlockedFn で補償結果を制御する。
+func uploadSignFailureHandler(
+	t *testing.T,
+	deleteErr error,
+	signingBlockedFn func(context.Context, uint64, uint64) (bool, error),
+) (*MedicalRecordImageHandler, *gin.Context, *httptest.ResponseRecorder) {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	svc := &mockMedicalRecordImageService{
+		createFn: func(_ context.Context, _, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
+			return &model.MedicalRecordImage{ID: 9, MedicalRecordID: medicalRecordID, ImageURL: input.ImageURL}, nil
+		},
+		deleteFn: func(context.Context, uint64, uint64, uint64, uint64, medicalRecordImageObjectDeleter) error {
+			return deleteErr
+		},
+		signingBlockedFn: signingBlockedFn,
+	}
+	uploader := &mockMedicalRecordImageUploader{
+		uploadFn: func(_ context.Context, key string, _ io.Reader, _ string) (string, error) {
+			return key, nil
+		},
+		getSignedURLFn: func(context.Context, string, time.Duration) (string, error) {
+			return "", errors.New("presign failed")
+		},
+	}
+	handler := newHandlerWithMedicalRecordImageSvc(ownedMedicalRecordImageGetter(), svc, uploader)
+	body, contentType := buildImageMultipart(t, "photo.png", "image/png", uploadFixturePNG())
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/medical-records/5/images/upload", body)
+	c.Request.Header.Set("Content-Type", contentType)
+	c.Params = gin.Params{{Key: "id", Value: "5"}}
+	setClinicID(c)
+	setStaffID(c)
+	return handler, c, w
+}
+
+// TestUploadMedicalRecordImage_SignFailureCommittedRetirementResponse は、補償削除が
+// error を返しても台帳 commit 済み（retirement 成立）の場合に「保存済み・一覧再確認」
+// と誤認させる応答を返さないことを検証する。
+func TestUploadMedicalRecordImage_SignFailureCommittedRetirementResponse(t *testing.T) {
+	handler, c, w := uploadSignFailureHandler(t,
+		errors.New("storage unreachable"),
+		func(context.Context, uint64, uint64) (bool, error) { return true, nil },
+	)
+
+	handler.UploadMedicalRecordImage(c)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "was retired")
+	assert.Contains(t, w.Body.String(), "re-upload")
+	assert.NotContains(t, w.Body.String(), "retry listing")
+}
+
+// TestUploadMedicalRecordImage_SignFailureImageRemainsResponse は、補償削除自体が
+// 失敗して画像行が残る場合に「一覧確認（再 upload ではない）」を案内することを検証する。
+func TestUploadMedicalRecordImage_SignFailureImageRemainsResponse(t *testing.T) {
+	handler, c, w := uploadSignFailureHandler(t,
+		errors.New("record finalized before cleanup"),
+		func(context.Context, uint64, uint64) (bool, error) { return false, nil },
+	)
+
+	handler.UploadMedicalRecordImage(c)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "was saved but could not be signed")
+	assert.Contains(t, w.Body.String(), "retry listing images instead of re-uploading")
+}
+
+// TestUploadMedicalRecordImage_SignFailureUnknownOutcomeResponse は、補償削除の
+// 成否自体が判定不能な場合にどちらとも断定しない応答を返すことを検証する。
+func TestUploadMedicalRecordImage_SignFailureUnknownOutcomeResponse(t *testing.T) {
+	handler, c, w := uploadSignFailureHandler(t,
+		errors.New("storage unreachable"),
+		func(context.Context, uint64, uint64) (bool, error) {
+			return false, errors.New("ledger read failed")
+		},
+	)
+
+	handler.UploadMedicalRecordImage(c)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "outcome is uncertain")
+	assert.NotContains(t, w.Body.String(), "retry listing images instead of re-uploading")
 }

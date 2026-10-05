@@ -249,18 +249,36 @@ func (h *MedicalRecordImageHandler) retireUploadAfterSignFailure(
 	signErr error,
 ) {
 	retireErr := h.service.Delete(c.Request.Context(), clinicID, medicalRecordID, imageID, staffID, h.uploader)
-	if retireErr != nil {
-		// 画像行と削除台帳は commit 済みの可能性がある（storage 削除だけが失敗した
-		// 場合も含む）。単に signErr を返すとクライアントは「アップロード自体が
-		// 失敗した」と解釈して再送し、commit 済み画像と重複する。
-		slog.ErrorContext(c.Request.Context(), "failed to retire medical record image after sign failure",
-			slog.Uint64("image_id", imageID), slog.String("error", retireErr.Error()))
-		httpapi.RespondError(c, apperrors.WrapInternalServerError(fmt.Sprintf(
-			"medical record image %d was saved but could not be signed; retry listing images instead of re-uploading",
-			imageID)))
+	if retireErr == nil {
+		httpapi.RespondError(c, apperrors.Wrap(signErr, "failed to sign medical record image url"))
 		return
 	}
-	httpapi.RespondError(c, apperrors.Wrap(signErr, "failed to sign medical record image url"))
+	// 補償削除が error を返した場合、retirement が commit 済みか（台帳あり・画像行なし、
+	// storage 掃除のみ未了）か、補償自体が失敗して画像行が残っているかを分けて返す。
+	// どちらにも「保存成功」と誤解させる応答はしない。
+	slog.ErrorContext(c.Request.Context(), "failed to retire medical record image after sign failure",
+		slog.Uint64("image_id", imageID), slog.String("error", retireErr.Error()))
+	retired, blockedErr := h.service.SigningBlocked(c.Request.Context(), clinicID, imageID)
+	switch {
+	case blockedErr != nil:
+		// commit 状態を判定できない。再 upload が重複になるか不明なので断定しない。
+		slog.ErrorContext(c.Request.Context(), "medical record image retirement state could not be determined",
+			slog.Uint64("image_id", imageID), slog.String("error", blockedErr.Error()))
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(
+			"medical record image %d upload outcome is uncertain; check the image list before re-uploading",
+			imageID)})
+	case retired:
+		// 台帳 commit 済み（storage 掃除のみ pending_storage で残る）: 画像は一覧に出ない。
+		// 「保存済みだから一覧を見よ」とは言わず、再 upload が重複にならないことだけを伝える。
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(
+			"medical record image %d could not be signed and was retired; it will not appear in the image list and may be safely re-uploaded",
+			imageID)})
+	default:
+		// 台帳なし = 補償失敗で画像行は残存。再 upload は重複になるため一覧確認を促す。
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(
+			"medical record image %d was saved but could not be signed; retry listing images instead of re-uploading",
+			imageID)})
+	}
 }
 
 // signedMedicalRecordImageResponse は署名発行→削除台帳確認の順で返す。

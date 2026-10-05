@@ -368,3 +368,44 @@ func TestMedicalRecordImageRepository_Delete_ClinicIsolation(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err), "削除後は取得できない")
 	})
 }
+
+// TestMedicalRecordImageRepository_CountLiveByStorageKey_CrossClinic は、
+// 同じ storage key を参照する画像が別医院にあっても生存参照として数えることを
+// 検証する。clinic scope で絞ると共有 object を誤って物理削除しうるため、
+// このカウントは clinic 横断でなければならない。
+func TestMedicalRecordImageRepository_CountLiveByStorageKey_CrossClinic(t *testing.T) {
+	db := setupMedImageIsolationTestDB(t)
+	repo := NewMedicalRecordImageRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	ensureVaccinationTestClinics(t, db, clinicA, clinicB)
+
+	const sharedKey = "medical-records/5/shared.png"
+	makeImage := func(clinicID uint64, recordNo string) *model.MedicalRecordImage {
+		owner := makeTestOwner(t, db, clinicID, "refcount飼主"+recordNo)
+		pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "refcount犬"+recordNo)
+		mr := makeHistoryMedicalRecord(t, db, clinicID, pet.ID, recordNo, time.Now())
+		img := &model.MedicalRecordImage{
+			MedicalRecordID: mr.ID,
+			ImageURL:        sharedKey,
+			FileName:        "shared.png",
+			ImageType:       model.MedicalImageTypeOther,
+		}
+		require.NoError(t, db.Create(img).Error)
+		return img
+	}
+	imgA := makeImage(clinicA, "MR-IMG-REF-A")
+	makeImage(clinicB, "MR-IMG-REF-B")
+
+	// 削除前は 2 院ぶんの生存参照が見える
+	count, err := repo.CountLiveByStorageKey(ctx, sharedKey)
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), count)
+
+	// clinic A の行を消しても、別医院 B の生存参照が残る限り 1 を返す。
+	// clinic scope があればここで 0 を返し、共有 object を誤削除する。
+	require.NoError(t, repo.Delete(ctx, clinicA, imgA.ID))
+	count, err = repo.CountLiveByStorageKey(ctx, sharedKey)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), count)
+}
