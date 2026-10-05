@@ -156,3 +156,6 @@ codex-security-results/
 
 # Wrangler local state/cache (created by `wrangler types`, `wrangler dev`, containers commands)
 **/.wrangler/
+
+# mimosa local tool state (session/hook-state ledgers; do not commit)
+.mimosa/

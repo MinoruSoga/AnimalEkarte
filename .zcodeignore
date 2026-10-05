@@ -1,0 +1,187 @@
+# Environment
+.env
+.env.*.local
+# frontend/.env.production は意図的に git track する（PO決定 2026-07-02 / Issue #91 / bug.md M-10）。
+# 根拠: VITE_* はビルド成果物に埋め込まれる公開値でありシークレットではない。
+# ルール: この env ファイルにシークレット（トークン・パスワード・鍵）を置くことは禁止。
+#        違反は CI gitleaks で検出する。
+
+# Dependencies
+node_modules/
+vendor/
+.pnpm-store/
+
+# Python bytecode cache
+__pycache__/
+*.pyc
+
+# Build
+dist/
+build/
+tmp/
+
+# Temporary migration/seed files
+# backend/migrations/*_seed_staging.sql
+backend/migrations/seeds/_old_db_handoff/
+backend/migrations/seeds/002_master/accounts/_old_db_handoff/
+
+# Frontend test and debug artifacts
+frontend/coverage/
+frontend/test-results/
+frontend/playwright-report/
+frontend/debug_*.png
+# Playwright MCP のブラウザQA成果物（console ログ・page snapshot yml）。
+# curated な証跡は tmp/ 配下（同じく ignore 済み）へ置く運用のため commit しない。
+.playwright-mcp/
+
+# Session UAT / agent run artifacts. Do not commit; git history has 2026-08-14 runs.
+reports/
+
+# Backend coverage artifacts (CI generates these; non-gating)
+backend/coverage.out
+backend/coverage.html
+backend/coverage-summary.txt
+
+# Design-spec extraction artifacts
+.design-specs/test-results/
+
+# Local data dumps
+prodData/
+cookies.txt
+
+# Local DB reset recovery snapshots (owner-only pg_dumpall under umask 077).
+# Created by scripts/local-db-reset-contract.sh / make reset — never commit.
+.local-db-backups/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Go
+backend/tmp/
+backend/uploads/
+# Compiled cmd binaries: consolidated into backend/.gitignore (/migrate, /seed-old-db,
+# /lstep-migrate) to avoid drift between root and backend/ ignore lists.
+
+# Terraform
+*.tfplan
+tfplan
+# Retired AWS Terraform paths may still contain local state, providers, and
+# tfvars after the tracked IaC is removed. Never surface or recommit them.
+infra/terraform/
+infra/terraform-bootstrap/
+
+# Docker
+postgres_data/
+
+ui-sample/
+# Gemini API keys and sensitive data
+*.key
+*.pem
+google-credentials.json
+service-account-key.json
+
+
+# Local development configuration
+.claude/settings.local.json
+.claude/logs/
+.claude/scheduled_tasks.lock
+.vscode/settings.json
+.DS_Store
+
+# Test results
+test-results/
+.vercel
+
+# Antigravity CLI / Codex local state
+.antigravitycli/
+.codex/
+.agents/
+
+# Root-level schema inspection artifacts
+db_schema.json
+enums.txt
+existing_paths.txt
+existing_schemas.txt
+parse_sql.py
+tables.txt
+
+# Codegraph index (生成キャッシュ・ランタイム成果物。57MB の SQLite DB / socket / daemon ログ)
+.codegraph/
+.env.staging
+.env.local
+
+# k6負荷テストの実行結果（Cookie/JWT等の実行時データを含み得るため、生成物は追跡しない）
+load-tests/results-*.json
+
+# Trash directory
+trash/
+
+# old_db raw migration data — must never be committed
+# These guards catch any accidental copy of sensitive-local/ files into this repo.
+*.import.tsv
+*.import.tsv.header
+sensitive-local/
+.secret
+# STG UAT PlanetScale credentials for make stg-uat-handoff (0600). Never commit.
+scripts/stg-uat-old-db-handoff.local.env
+
+# 監査レポート（秘密の抜粋を含みうるローカル作業ファイル。git外に保つ）
+improvement.html
+improvement_ai.html
+# Codex security CLI のローカル出力（再生成は `pnpm run codex-security:export`）
+codex-security-output/
+codex-security-results/
+# Added by code-review-graph
+.code-review-graph/
+
+# Pre-push test cache (SHA of last green push-gate)
+.test-passed
+
+# Machine-local cached verification images and dependency volumes
+/.claude/verification.local.json
+
+# agent-fast-campaign local ledgers (default: do not commit)
+.planning/agent-fast-campaign/
+
+# Wrangler local state/cache (created by `wrangler types`, `wrangler dev`, containers commands)
+**/.wrangler/
+
+# ===== ↑ 以上同步自 .gitignore（「从 .gitignore 同步」只重写以上部分）=====
+.git/
+.hg/
+.svn/
+bower_components/
+jspm_packages/
+site-packages/
+venv/
+coverage/
+htmlcov/
+lcov-report/
+cmakefiles/
+cmake-build-*/
+bazel-*/
+pods/
+deriveddata/
+storybook-static/
+playwright-report/
+allure-results/
+allure-report/
+cdk.out/
+*.egg-info/
+*.dist-info/
+eggs/
+pip-wheel-metadata/
+wheels/
+# ----- ↑ 以上为 ZCode 默认排除规则（自定义规则请写在本行下方，不会被同步/恢复改动）-----
+# 自定义规则写在下方（本行提示可删除）
