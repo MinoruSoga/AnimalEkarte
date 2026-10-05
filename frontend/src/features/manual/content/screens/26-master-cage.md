@@ -2,6 +2,7 @@
 title: ケージマスタ
 order: 18.5
 section: システム設定
+keywords_vi: master chuồng, danh mục chuồng, quản lý chuồng, chuồng giữ thú cưng
 ---
 
 # ケージマスタ

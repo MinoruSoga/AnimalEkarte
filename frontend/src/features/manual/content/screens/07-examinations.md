@@ -2,6 +2,7 @@
 title: 検査管理
 order: 7
 section: 診療業務
+keywords_vi: xét nghiệm, quản lý xét nghiệm, đăng ký xét nghiệm, kết quả xét nghiệm
 ---
 
 # 検査管理

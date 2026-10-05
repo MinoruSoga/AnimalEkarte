@@ -2,6 +2,7 @@
 title: 月次集計レポートを出す
 order: 5
 section: 日次・月次業務
+keywords_vi: xuất báo cáo tháng, chạy báo cáo cuối tháng, tổng kết tháng, in báo cáo tháng
 ---
 
 # 月次集計レポートを出す

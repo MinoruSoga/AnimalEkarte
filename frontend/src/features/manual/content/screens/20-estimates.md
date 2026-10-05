@@ -2,6 +2,7 @@
 title: 見積書管理
 order: 15.7
 section: 運用・管理
+keywords_vi: báo giá, tạo báo giá, quản lý báo giá, ước tính chi phí, phiếu báo giá
 ---
 
 # 見積書管理

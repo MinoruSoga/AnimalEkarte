@@ -2,6 +2,7 @@
 title: 既存飼主の受付から会計まで
 order: 2
 section: 来院対応
+keywords_vi: khách hàng cũ, tiếp nhận khách quen, quy trình tái khám, khách hàng quen
 ---
 
 # 既存飼主の受付から会計まで

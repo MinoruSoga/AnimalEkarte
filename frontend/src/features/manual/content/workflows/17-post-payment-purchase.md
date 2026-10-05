@@ -2,6 +2,7 @@
 title: 会計済の飼主への追加販売
 order: 3.8
 section: 来院対応
+keywords_vi: bán thêm sau thanh toán, bán hàng sau khi trả tiền, mua thêm sau thanh toán
 ---
 
 # 会計済の飼主への追加販売

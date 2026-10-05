@@ -2,6 +2,7 @@
 title: 動物種類マスタ
 order: 19.3
 section: システム設定
+keywords_vi: loài động vật, master loài, danh mục loài, giống loài thú cưng
 ---
 
 # 動物種類マスタ

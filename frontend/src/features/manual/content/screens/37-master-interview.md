@@ -2,6 +2,7 @@
 title: 問診テンプレートマスタ
 order: 19.6
 section: システム設定
+keywords_vi: mẫu hỏi bệnh, master phiếu hỏi bệnh, mẫu hỏi đáp, template hỏi bệnh sử
 ---
 
 # 問診テンプレートマスタ

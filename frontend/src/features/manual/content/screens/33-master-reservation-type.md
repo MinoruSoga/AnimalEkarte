@@ -2,6 +2,7 @@
 title: 予約区分マスタ
 order: 19.2
 section: システム設定
+keywords_vi: loại lịch hẹn, master loại đặt lịch, phân loại lịch hẹn, kiểu lịch hẹn
 ---
 
 # 予約区分マスタ

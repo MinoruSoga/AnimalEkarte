@@ -2,6 +2,7 @@
 title: 検査受信
 order: 7.5
 section: 診療業務
+keywords_vi: nhận kết quả xét nghiệm, thiết bị xét nghiệm, xét nghiệm từ máy, máy xét nghiệm
 ---
 
 # 検査受信

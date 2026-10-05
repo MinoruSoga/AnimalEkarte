@@ -2,6 +2,7 @@
 title: 物販マスタ
 order: 18.9
 section: システム設定
+keywords_vi: master hàng hóa, danh mục hàng hóa, sản phẩm bán lẻ, hàng bán
 ---
 
 # 物販マスタ

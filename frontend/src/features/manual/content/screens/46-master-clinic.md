@@ -2,6 +2,7 @@
 title: 医院マスタ
 order: 19.93
 section: システム設定
+keywords_vi: master phòng khám, thông tin phòng khám, danh mục bệnh viện thú y, chi nhánh phòng khám
 ---
 
 # 医院マスタ

@@ -2,6 +2,7 @@
 title: トリミングマスタ
 order: 19.8
 section: システム設定
+keywords_vi: master cắt tỉa, danh mục dịch vụ cắt tỉa, master trimming
 ---
 
 # トリミングマスタ

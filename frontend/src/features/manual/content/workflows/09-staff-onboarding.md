@@ -2,6 +2,7 @@
 title: スタッフアカウント・権限の管理
 order: 9
 section: 管理者向け
+keywords_vi: tạo tài khoản nhân viên, quản lý quyền nhân viên, cấp quyền nhân viên, thêm nhân viên
 ---
 
 # スタッフアカウント・権限の管理

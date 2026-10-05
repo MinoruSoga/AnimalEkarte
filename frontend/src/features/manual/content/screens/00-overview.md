@@ -2,6 +2,7 @@
 title: マニュアルの使い方
 order: 0
 section: 基本
+keywords_vi: cách sử dụng hướng dẫn, hướng dẫn sử dụng, cẩm nang hướng dẫn, xem hướng dẫn
 ---
 
 # Animal Ekarte 取扱説明書

@@ -2,6 +2,8 @@
 title: 飼主・ペット管理
 order: 3
 section: 診療業務
+keywords: 飼い主, オーナー, 新規登録, 飼い主さん
+keywords_vi: khách hàng mới, đăng ký khách hàng mới, khách hàng, chủ nuôi, đăng ký chủ nuôi, quản lý khách hàng, hồ sơ chủ nuôi, thú cưng
 ---
 
 # 飼主・ペット管理

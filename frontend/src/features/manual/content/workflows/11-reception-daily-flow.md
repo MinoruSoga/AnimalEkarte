@@ -2,6 +2,7 @@
 title: 受付ステータスの変え方
 order: 0
 section: 受付業務
+keywords_vi: đổi trạng thái tiếp nhận, cách đổi trạng thái, trạng thái lễ tân
 ---
 
 # 受付ステータスの変え方

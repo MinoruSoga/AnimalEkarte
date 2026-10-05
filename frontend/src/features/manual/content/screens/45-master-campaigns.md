@@ -2,6 +2,7 @@
 title: 割引キャンペーンマスタ
 order: 19.92
 section: システム設定
+keywords_vi: chiến dịch giảm giá, master khuyến mãi, chương trình giảm giá, mã giảm giá
 ---
 
 # 割引キャンペーンマスタ

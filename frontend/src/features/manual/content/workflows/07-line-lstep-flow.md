@@ -2,6 +2,7 @@
 title: Lステップ連携の設定とタグ運用
 order: 7
 section: 外部連携運用
+keywords_vi: cài đặt lstep, vận hành thẻ lstep, tích hợp LINE lstep, thiết lập lstep
 ---
 
 # Lステップ連携の設定とタグ運用

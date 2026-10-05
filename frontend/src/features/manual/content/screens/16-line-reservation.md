@@ -2,6 +2,7 @@
 title: LINE予約管理
 order: 16
 section: 外部連携
+keywords_vi: đặt lịch qua LINE, lịch hẹn LINE, quản lý đặt lịch LINE, đặt hẹn LINE
 ---
 
 # LINE予約管理

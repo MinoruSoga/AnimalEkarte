@@ -2,6 +2,8 @@
 title: レジ締め
 order: 13
 section: 運用・管理
+keywords: 締め方, 締め処理, レジ締め, 締め作業
+keywords_vi: đóng ca thu ngân, kiểm tiền cuối ngày, chốt quầy thu ngân, đóng sổ thu ngân, kiểm đếm tiền mặt
 ---
 
 # レジ締め

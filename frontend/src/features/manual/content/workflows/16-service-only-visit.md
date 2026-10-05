@@ -2,6 +2,7 @@
 title: 診察なしの単独サービス来院
 order: 3.7
 section: 来院対応
+keywords_vi: dịch vụ không khám, tắm cắt tỉa không khám, đến dùng dịch vụ, chỉ dùng dịch vụ
 ---
 
 # 診察なしの単独サービス来院

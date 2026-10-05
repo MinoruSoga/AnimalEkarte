@@ -2,6 +2,8 @@
 title: 入院の登録から退院・会計まで
 order: 3
 section: 来院対応
+keywords: 入院手続き, 入院の流れ, 入院受け入れ
+keywords_vi: quy trình nhập viện, đăng ký nhập viện, xuất viện, thanh toán nội trú, nhập viện cho thú cưng
 ---
 
 # 入院の登録から退院・会計まで

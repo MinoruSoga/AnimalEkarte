@@ -2,6 +2,7 @@
 title: 業務効率化のティップス
 order: 11
 section: 管理者向け
+keywords_vi: mẹo hiệu quả công việc, tối ưu thao tác, thủ thuật làm việc nhanh, mẹo tiết kiệm thời gian
 ---
 
 # 業務効率化のティップス

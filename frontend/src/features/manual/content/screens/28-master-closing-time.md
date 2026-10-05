@@ -2,6 +2,7 @@
 title: 締め時間設定
 order: 18.7
 section: システム設定
+keywords_vi: cài đặt giờ chốt, thiết lập thời gian đóng ca, giờ chốt sổ, giờ kết thúc ca
 ---
 
 # 締め時間設定

@@ -2,6 +2,7 @@
 title: 保険マスタ
 order: 18.8
 section: システム設定
+keywords_vi: master bảo hiểm, danh mục bảo hiểm, bảo hiểm thú cưng, loại bảo hiểm
 ---
 
 # 保険マスタ

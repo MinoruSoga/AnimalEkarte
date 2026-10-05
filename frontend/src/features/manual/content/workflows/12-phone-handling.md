@@ -2,6 +2,7 @@
 title: 電話・口頭での予約の入れ方
 order: 1
 section: 受付業務
+keywords_vi: đặt lịch qua điện thoại, ghi lịch hẹn điện thoại, nhận đặt lịch trực tiếp, đặt hẹn bằng điện thoại
 ---
 
 # 電話・口頭での予約の入れ方

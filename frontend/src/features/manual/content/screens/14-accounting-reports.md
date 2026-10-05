@@ -2,6 +2,7 @@
 title: 月次集計レポート
 order: 14
 section: 運用・管理
+keywords_vi: báo cáo tổng hợp tháng, báo cáo cuối tháng, báo cáo doanh thu tháng, tổng hợp tháng
 ---
 
 # 月次集計レポート

@@ -2,6 +2,7 @@
 title: エラー・トラブル対応
 order: 10
 section: 管理者向け
+keywords_vi: xử lý lỗi, khắc phục sự cố, lỗi hệ thống, gặp sự cố, báo lỗi
 ---
 
 # エラー・トラブル対応

@@ -2,6 +2,7 @@
 title: マスタ設定
 order: 18
 section: システム設定
+keywords_vi: cài đặt master, thiết lập dữ liệu gốc, cấu hình master, dữ liệu master
 ---
 
 # マスタ設定

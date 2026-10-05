@@ -2,6 +2,7 @@
 title: 未収金（売掛金）の管理
 order: 4.5
 section: 日次・月次業務
+keywords_vi: quản lý công nợ, tiền chưa thanh toán, nợ phải thu, theo dõi nợ
 ---
 
 # 未収金（売掛金）の管理
