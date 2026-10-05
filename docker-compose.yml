@@ -123,7 +123,7 @@ services:
       start_period: 2m
 
   codegen:
-    image: golang:1.25-alpine
+    image: golang:1.26-alpine
     working_dir: /app
     restart: "no"
     environment:
