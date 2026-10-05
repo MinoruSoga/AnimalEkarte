@@ -32,6 +32,22 @@ func (s *service) createPetGroupInTx(
 		return nil, nil, err
 	}
 
+	// owner group -> pet group -> pet 行の単一ロック順を守るため、既存グループ
+	// 判定（内部で pet group を FOR UPDATE する）は LockPets より先に行う。
+	existing, err := s.existingMatchingPetGroup(txCtx, actor, ownerGroupID, refs)
+	if err != nil {
+		return nil, nil, err
+	}
+	authAnchor := pickCreatedClinicID(actor, refs[0].ClinicID)
+	var allPetMembers []model.PetIdentityGroupMember
+	if existing.group != nil {
+		authAnchor = existing.group.CreatedClinicID
+		allPetMembers, err = s.repo.ListActivePetMembers(txCtx, existing.group.ID)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
 	pets, lockPetsErr := s.repo.LockPets(txCtx, refs)
 	if lockPetsErr != nil {
 		return nil, nil, lockPetsErr
@@ -50,19 +66,6 @@ func (s *service) createPetGroupInTx(
 		}
 	}
 
-	existing, err := s.existingMatchingPetGroup(txCtx, actor, ownerGroupID, refs)
-	if err != nil {
-		return nil, nil, err
-	}
-	authAnchor := pickCreatedClinicID(actor, refs[0].ClinicID)
-	var allPetMembers []model.PetIdentityGroupMember
-	if existing.group != nil {
-		authAnchor = existing.group.CreatedClinicID
-		allPetMembers, err = s.repo.ListActivePetMembers(txCtx, existing.group.ID)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
 	decision, authErr := s.authorizeAffectedClinics(
 		txCtx,
 		actor,

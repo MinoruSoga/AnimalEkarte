@@ -12,18 +12,22 @@ import (
 )
 
 const (
-	errLinkWriteReaderMissing = "identity link permission reader is required"
-	errLinkWriteNotMember     = "actor is not a current member of an affected clinic"
-	errLinkWriteEditRequired  = "identity-links edit is required on every affected clinic"
+	errLinkWriteReaderMissing  = "identity link permission reader is required"
+	errLinkWriteNotMember      = "actor is not a current member of an affected clinic"
+	errLinkWriteEditRequired   = "identity-links edit is required on every affected clinic"
+	errLinkWriteClinicInactive = "an affected clinic is no longer active"
 )
 
 // LinkWriteDecision is the current membership and identity-links edit result.
 // SystemAdmin keeps the existing all-active-clinic access and is not narrowed
-// by NonMemberClinicIDs or EditDeniedClinicIDs.
+// by NonMemberClinicIDs or EditDeniedClinicIDs. InactiveClinicIDs lists
+// affected clinics whose clinics.is_active check failed inside the caller's
+// transaction; it rejects the write for every actor, system admin included.
 type LinkWriteDecision struct {
 	SystemAdmin         bool
 	NonMemberClinicIDs  []uint64
 	EditDeniedClinicIDs []uint64
+	InactiveClinicIDs   []uint64
 	AffectedClinicIDs   []uint64
 }
 
@@ -54,15 +58,28 @@ func (a dbLinkWriteAuthorizer) AuthorizeLinkWrite(
 		return LinkWriteDecision{}, apperrors.WrapForbidden(errLinkWriteReaderMissing)
 	}
 	db := persistence.DBOrTx(ctx, a.db)
+	// Re-read clinics.is_active inside the caller's transaction: a clinic which
+	// was deactivated after the request-level actor-scope resolution must not
+	// authorize the write. The check runs before the system-admin fast path so
+	// an inactive clinic rejects every actor, system admin included.
+	activeClinicIDs, err := loadActiveClinicIDs(db, requested)
+	if err != nil {
+		return LinkWriteDecision{}, err
+	}
+	inactive := inactiveClinicIDs(requested, activeClinicIDs)
 	admin, found, err := loadCurrentSystemAdmin(db, staffID)
 	if err != nil {
 		return LinkWriteDecision{}, err
 	}
 	if !found {
-		return classifyLinkWrite(false, requested, nil, nil), nil
+		decision := classifyLinkWrite(false, requested, nil, nil)
+		decision.InactiveClinicIDs = inactive
+		return decision, nil
 	}
 	if admin {
-		return classifyLinkWrite(true, requested, nil, nil), nil
+		decision := classifyLinkWrite(true, requested, nil, nil)
+		decision.InactiveClinicIDs = inactive
+		return decision, nil
 	}
 	members, err := loadCurrentMemberClinics(db, staffID, requested)
 	if err != nil {
@@ -72,7 +89,9 @@ func (a dbLinkWriteAuthorizer) AuthorizeLinkWrite(
 	if err != nil {
 		return LinkWriteDecision{}, err
 	}
-	return classifyLinkWrite(false, requested, members, editClinics), nil
+	decision := classifyLinkWrite(false, requested, members, editClinics)
+	decision.InactiveClinicIDs = inactive
+	return decision, nil
 }
 
 func loadCurrentSystemAdmin(db *gorm.DB, staffID uint64) (bool, bool, error) {
@@ -97,6 +116,33 @@ func loadCurrentSystemAdmin(db *gorm.DB, staffID uint64) (bool, bool, error) {
 		return false, false, nil
 	}
 	return rows[0].IsSystemAdmin, true, nil
+}
+
+// loadActiveClinicIDs returns the subset of clinicIDs whose clinics.is_active
+// is true, read inside the caller's transaction. clinics has no deleted_at
+// column; activation is expressed by is_active only. A missing clinic lands in
+// the inactive set and therefore fails closed.
+func loadActiveClinicIDs(db *gorm.DB, clinicIDs []uint64) ([]uint64, error) {
+	if len(clinicIDs) == 0 {
+		return nil, nil
+	}
+	var rows []struct {
+		ClinicID uint64 `gorm:"column:clinic_id"`
+	}
+	err := db.Raw(`
+		SELECT id AS clinic_id
+		FROM clinics
+		WHERE id IN ?
+			AND is_active = true
+	`, clinicIDs).Scan(&rows).Error
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to read clinic activation")
+	}
+	ids := make([]uint64, 0, len(rows))
+	for _, row := range rows {
+		ids = append(ids, row.ClinicID)
+	}
+	return ids, nil
 }
 
 func loadCurrentMemberClinics(db *gorm.DB, staffID uint64, clinicIDs []uint64) ([]uint64, error) {
@@ -188,6 +234,11 @@ func (s *service) authorizeAffectedClinics(
 		return LinkWriteDecision{}, err
 	}
 	decision.AffectedClinicIDs = affected
+	// A deactivated clinic rejects the write for every actor; this check is
+	// intentionally ahead of the SystemAdmin fast path.
+	if len(decision.InactiveClinicIDs) > 0 {
+		return LinkWriteDecision{}, apperrors.WrapForbidden(errLinkWriteClinicInactive)
+	}
 	if decision.SystemAdmin {
 		return decision, nil
 	}
@@ -264,4 +315,17 @@ func clinicSet(ids []uint64) map[uint64]struct{} {
 		}
 	}
 	return set
+}
+
+// inactiveClinicIDs returns the requested clinic IDs absent from the active
+// set, preserving the compacted (sorted) request order.
+func inactiveClinicIDs(requested, active []uint64) []uint64 {
+	activeSet := clinicSet(active)
+	var inactive []uint64
+	for _, id := range requested {
+		if _, ok := activeSet[id]; !ok {
+			inactive = append(inactive, id)
+		}
+	}
+	return inactive
 }

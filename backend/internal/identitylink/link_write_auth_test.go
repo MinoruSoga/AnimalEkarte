@@ -411,6 +411,7 @@ func petManageRepo(group *model.PetIdentityGroup, owner *model.OwnerIdentityGrou
 		})
 	}
 	return &mockRepo{
+		findPetGroupByIDFn: func(context.Context, uint64) (*model.PetIdentityGroup, error) { return group, nil },
 		lockPetGroupByIDFn: func(context.Context, uint64) (*model.PetIdentityGroup, error) { return group, nil },
 		listActivePetMembersFn: func(context.Context, uint64) ([]model.PetIdentityGroupMember, error) {
 			return petMembers, nil
@@ -737,4 +738,156 @@ func TestHandlerCreateOwner_DoesNotReplaceVerifiedClinicsWithEditSubset(t *testi
 	assert.Equal(t, uint64(1), stub.homeClinic)
 	assert.Contains(t, w.Body.String(), `"created_clinic_id":1`)
 	assert.Contains(t, w.Body.String(), `"clinic_id":2`)
+}
+
+// Regression for the P2 deadlock finding: every pet-group mutation must acquire
+// the owner identity group lock before the pet identity group lock (and before
+// the pet row lock in create/add). The locked owner-group read also has to run
+// ahead of authorizeAffectedClinics.
+func TestPetGroupMutations_OwnerGroupLocksBeforePetGroup(t *testing.T) {
+	petGroup := &model.PetIdentityGroup{ID: 8, CreatedClinicID: 1, OwnerGroupID: 4, OwnerGroupCreatedClinicID: 1, Version: 1}
+	owner := &model.OwnerIdentityGroup{ID: 4, CreatedClinicID: 1, Version: 1}
+
+	recordedRepo := func(order *[]string) *mockRepo {
+		repo := petManageRepo(petGroup, owner, []uint64{1}, []uint64{1})
+		repo.lockOwnerGroupByIDFn = func(context.Context, uint64) (*model.OwnerIdentityGroup, error) {
+			*order = append(*order, "lockOwnerGroup")
+			return owner, nil
+		}
+		repo.lockPetGroupByIDFn = func(context.Context, uint64) (*model.PetIdentityGroup, error) {
+			*order = append(*order, "lockPetGroup")
+			return petGroup, nil
+		}
+		repo.lockPetsFn = func(_ context.Context, refs []PetMemberRef) ([]model.Pet, error) {
+			*order = append(*order, "lockPets")
+			return petsForRefs(refs, func(uint64) uint64 { return 1 })
+		}
+		return repo
+	}
+
+	t.Run("add members", func(t *testing.T) {
+		var order []string
+		repo := recordedRepo(&order)
+		_, _, err := NewService(repo, noopTransactor{}, &mockTxLogger{}, allowLinkWrites{}).AddPetMembers(
+			context.Background(), testActor(1), petGroup.ID, []PetMemberRef{{ClinicID: 1, PetID: 99}},
+		)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"lockOwnerGroup", "lockPetGroup", "lockPets"}, order)
+	})
+
+	t.Run("unlink member", func(t *testing.T) {
+		var order []string
+		repo := recordedRepo(&order)
+		err := NewService(repo, noopTransactor{}, &mockTxLogger{}, allowLinkWrites{}).UnlinkPetMember(
+			context.Background(), testActor(1), petGroup.ID, PetMemberRef{ClinicID: 1, PetID: 100},
+		)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"lockOwnerGroup", "lockPetGroup"}, order)
+	})
+
+	t.Run("create idempotent retry", func(t *testing.T) {
+		var order []string
+		repo := recordedRepo(&order)
+		// Force the idempotent path: both refs already map to petGroup, which is
+		// then FOR UPDATE locked inside existingMatchingPetGroup before LockPets.
+		repo.findActivePetMembershipFn = func(_ context.Context, clinicID, petID uint64) (*model.PetIdentityGroupMember, error) {
+			return &model.PetIdentityGroupMember{GroupID: petGroup.ID, ClinicID: clinicID, PetID: petID}, nil
+		}
+		repo.listActivePetMembersFn = func(context.Context, uint64) ([]model.PetIdentityGroupMember, error) {
+			return []model.PetIdentityGroupMember{
+				{GroupID: petGroup.ID, ClinicID: 1, PetID: 10, GroupCreatedClinicID: 1},
+				{GroupID: petGroup.ID, ClinicID: 2, PetID: 20, GroupCreatedClinicID: 1},
+			}, nil
+		}
+		repo.listActiveOwnerMembersFn = func(context.Context, uint64) ([]model.OwnerIdentityGroupMember, error) {
+			return []model.OwnerIdentityGroupMember{
+				{GroupID: owner.ID, ClinicID: 1, OwnerID: 10, GroupCreatedClinicID: 1},
+				{GroupID: owner.ID, ClinicID: 2, OwnerID: 20, GroupCreatedClinicID: 1},
+			}, nil
+		}
+		_, _, err := NewService(repo, noopTransactor{}, &mockTxLogger{}, allowLinkWrites{}).CreatePetGroup(
+			context.Background(), testActor(1, 2), owner.ID,
+			[]PetMemberRef{{ClinicID: 1, PetID: 10}, {ClinicID: 2, PetID: 20}},
+		)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"lockOwnerGroup", "lockPetGroup", "lockPets"}, order)
+		assert.Equal(t, 0, repo.createPetGroupCalled)
+	})
+}
+
+// Regression for the P2 stale clinic-set finding: AddPetMembers and
+// UnlinkPetMember must read the owner group via the locking read before
+// authorizeAffectedClinics, not a non-locking Find.
+func TestPetGroupMutations_OwnerGroupLockPrecedesAuthorization(t *testing.T) {
+	petGroup := &model.PetIdentityGroup{ID: 8, CreatedClinicID: 1, OwnerGroupID: 4, OwnerGroupCreatedClinicID: 1, Version: 1}
+	owner := &model.OwnerIdentityGroup{ID: 4, CreatedClinicID: 1, Version: 1}
+
+	newRepo := func(ownerLocked *bool) *mockRepo {
+		repo := petManageRepo(petGroup, owner, []uint64{1}, []uint64{1})
+		repo.lockOwnerGroupByIDFn = func(context.Context, uint64) (*model.OwnerIdentityGroup, error) {
+			*ownerLocked = true
+			return owner, nil
+		}
+		return repo
+	}
+
+	t.Run("add members", func(t *testing.T) {
+		ownerLocked := false
+		repo := newRepo(&ownerLocked)
+		checking := &orderAuthorizer{repo: repo, locked: &ownerLocked}
+		_, _, err := NewService(repo, noopTransactor{}, &mockTxLogger{}, checking).AddPetMembers(
+			context.Background(), testActor(1), petGroup.ID, []PetMemberRef{{ClinicID: 1, PetID: 99}},
+		)
+		require.NoError(t, err)
+		assert.True(t, checking.sawLockedBeforeWrite, "owner group must be locked before authorizeAffectedClinics")
+	})
+
+	t.Run("unlink member", func(t *testing.T) {
+		ownerLocked := false
+		repo := newRepo(&ownerLocked)
+		checking := &orderAuthorizer{repo: repo, locked: &ownerLocked}
+		err := NewService(repo, noopTransactor{}, &mockTxLogger{}, checking).UnlinkPetMember(
+			context.Background(), testActor(1), petGroup.ID, PetMemberRef{ClinicID: 1, PetID: 100},
+		)
+		require.NoError(t, err)
+		assert.True(t, checking.sawLockedBeforeWrite, "owner group must be locked before authorizeAffectedClinics")
+	})
+}
+
+// Regression for the in-transaction clinic activation recheck: a deactivated
+// affected clinic must reject the write for every actor, including system
+// admins (the check is evaluated before the SystemAdmin fast path).
+func TestLinkWrites_InactiveAffectedClinicIsForbidden(t *testing.T) {
+	t.Run("system admin cannot write to a deactivated clinic", func(t *testing.T) {
+		repo := &mockRepo{
+			lockOwnersFn:                ownersForRefs,
+			findActiveOwnerMembershipFn: func(context.Context, uint64, uint64) (*model.OwnerIdentityGroupMember, error) { return nil, nil },
+		}
+		auth := &scriptedAuthorizer{decision: LinkWriteDecision{
+			SystemAdmin:       true,
+			InactiveClinicIDs: []uint64{2},
+		}}
+		_, _, err := NewService(repo, noopTransactor{}, &mockTxLogger{}, auth).CreateOwnerGroup(
+			context.Background(), testActor(1, 2),
+			[]OwnerMemberRef{{ClinicID: 1, OwnerID: 10}, {ClinicID: 2, OwnerID: 20}},
+		)
+		require.ErrorIs(t, err, apperrors.ErrForbidden)
+		assert.Contains(t, err.Error(), errLinkWriteClinicInactive)
+		assertNoLinkWrites(t, repo)
+	})
+
+	t.Run("member staff cannot write to a deactivated clinic", func(t *testing.T) {
+		repo := &mockRepo{
+			lockOwnersFn:                ownersForRefs,
+			findActiveOwnerMembershipFn: func(context.Context, uint64, uint64) (*model.OwnerIdentityGroupMember, error) { return nil, nil },
+		}
+		auth := &scriptedAuthorizer{decision: LinkWriteDecision{InactiveClinicIDs: []uint64{2}}}
+		_, _, err := NewService(repo, noopTransactor{}, &mockTxLogger{}, auth).CreateOwnerGroup(
+			context.Background(), testActor(1, 2),
+			[]OwnerMemberRef{{ClinicID: 1, OwnerID: 10}, {ClinicID: 2, OwnerID: 20}},
+		)
+		require.ErrorIs(t, err, apperrors.ErrForbidden)
+		assert.Contains(t, err.Error(), errLinkWriteClinicInactive)
+		assertNoLinkWrites(t, repo)
+	})
 }
