@@ -146,7 +146,7 @@ OwnersListTable を誤って開いた場合の分離:
 | C5 | PASS | Enter で検索発火。可視外行の「選択」button を `focus()` で scrollport が自動スクロール（top 7106→473）。ESC で閉じる |
 | C6 | PASS | 親 Dialog（`sm:max-w-[1000px] max-h-[90vh] overflow-y-auto` = PetEditModal と同クラス）内の入れ子 Root でも結果 scrollport は独立稼働（scrollTop 6633、末行 hit-test 可） |
 
-証跡 PNG（C0・C1・C2・C3×2・C6・legacy-broken-innerH380 の 7 枚、旧 worktree ルート保存）は 2026-10-05 にリポジトリから削除。証跡添付はチケット側運用とし、必要時は git 履歴から復元可能。
+証跡 PNG（C0・C1・C2・C3×2・C6・legacy-broken-innerH380 の 7 枚、旧 worktree ルート保存）は 2026-10-05 にリポジトリから削除し、Plane EMR-187 に添付済み。必要時は git 履歴（f570a5238^）からも復元可能。
 
 ### 修正前クラス（`flex-1 overflow-auto min-h-[200px]`）との対比 — 機序の訂正
 
