@@ -272,7 +272,7 @@ func (r *staffRepository) Update(ctx context.Context, clinicID, id uint64, cmd U
 		if err := r.update(persistence.WithTxValue(ctx, tx), clinicID, id, fields); err != nil {
 			return err
 		}
-		return deactivateLinkedAccountTx(tx, id)
+		return deactivateLinkedAccountTx(tx, clinicID, id, cmd.ActorStaffID)
 	})
 }
 
@@ -284,10 +284,63 @@ func (r *staffRepository) Update(ctx context.Context, clinicID, id uint64, cmd U
 //
 // This write never runs for reactivation commands — account reactivation stays
 // a separate explicit operation (e.g. seedlogin upsert / operational tooling).
-func deactivateLinkedAccountTx(tx *gorm.DB, staffID uint64) error {
+//
+// PR#551 review findings:
+//   - (4180445703) The account is a shared login surface: while another
+//     non-deleted active staff row still references the same account_id the
+//     credential is in use, so disabling it here is refused with a conflict and
+//     the staff mutation rolls back with the rest of this transaction.
+//   - (4178809086) A successful deactivation writes a durable audit_logs row on
+//     this same transaction; an audit failure rolls the mutation back.
+func deactivateLinkedAccountTx(tx *gorm.DB, clinicID, staffID, actorStaffID uint64) error {
+	// The staff row may already be soft-deleted on the Delete path — read the
+	// link without the soft-delete scope so the account still resolves.
+	var target struct {
+		AccountID *uint64 `gorm:"column:account_id"`
+	}
+	if err := tx.Unscoped().Model(&model.Staff{}).
+		Select("account_id").
+		Where("id = ?", staffID).
+		Take(&target).Error; err != nil {
+		return apperrors.FromGORM(err, "account", fmt.Sprintf("staff_id=%d", staffID))
+	}
+	if target.AccountID == nil {
+		return nil
+	}
+
+	var account struct {
+		ID       uint64
+		IsActive bool
+	}
+	if err := tx.Model(&model.Account{}).
+		Select("id", "is_active").
+		Where("id = ?", *target.AccountID).
+		Take(&account).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil // deleted account — nothing left to disable
+		}
+		return apperrors.FromGORM(err, "account", fmt.Sprintf("%d", *target.AccountID))
+	}
+	if !account.IsActive {
+		return nil // already inactive — nothing to change, nothing to audit
+	}
+
+	var sharedActive int64
+	if err := tx.Model(&model.Staff{}).
+		Where("account_id = ?", *target.AccountID).
+		Where("id <> ?", staffID).
+		Where("is_active = TRUE").
+		Where("deleted_at IS NULL").
+		Count(&sharedActive).Error; err != nil {
+		return apperrors.FromGORM(err, "staff", fmt.Sprintf("account_id=%d", *target.AccountID))
+	}
+	if sharedActive > 0 {
+		return apperrors.WrapConflict("linked account is still used by another active staff")
+	}
+
 	result := tx.
 		Model(&model.Account{}).
-		Where("id = (SELECT account_id FROM staffs WHERE id = ?)", staffID).
+		Where("id = ?", account.ID).
 		Where("is_active = TRUE").
 		Update("is_active", false)
 	if result.Error != nil {
@@ -297,7 +350,10 @@ func deactivateLinkedAccountTx(tx *gorm.DB, staffID uint64) error {
 			fmt.Sprintf("staff_id=%d", staffID),
 		)
 	}
-	return nil
+	if result.RowsAffected == 0 {
+		return nil // a concurrent deactivation won the race — nothing to audit
+	}
+	return writeAccountDeactivationAuditTx(tx, clinicID, staffID, account.ID, actorStaffID)
 }
 
 func (r *staffRepository) AttachAccountID(ctx context.Context, clinicID, staffID, accountID uint64) error {
@@ -465,8 +521,10 @@ func (r *staffRepository) Delete(ctx context.Context, clinicID, id uint64) error
 			return operationErr
 		}
 		// EMR-289: a deleted staff must not keep a usable login — disable the
-		// linked account inside this same transaction.
-		if err := deactivateLinkedAccountTx(tx, id); err != nil {
+		// linked account inside this same transaction. The Delete chain does
+		// not carry an authenticated actor, so the audit row attributes the
+		// deactivation to the system (see deactivateLinkedAccountTx).
+		if err := deactivateLinkedAccountTx(tx, clinicID, id, 0); err != nil {
 			operationErr = err
 			return operationErr
 		}
@@ -668,7 +726,7 @@ func (r *staffRepository) UpdateForReservation(ctx context.Context, clinicID, id
 		if err := persistence.UpdateScopedByID(ctx, tx, &model.Staff{}, "reservation_staff", clinicID, id, fields); err != nil {
 			return err
 		}
-		return deactivateLinkedAccountTx(tx, id)
+		return deactivateLinkedAccountTx(tx, clinicID, id, cmd.ActorStaffID)
 	})
 }
 

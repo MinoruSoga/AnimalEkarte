@@ -1,10 +1,12 @@
 package staff
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"slices"
 	"strconv"
@@ -137,8 +139,18 @@ func NewStaffProvisioner(repo StaffProvisioningRepository, repoRoots []string) *
 }
 
 // DecodeStaffProvisionManifest strictly decodes a manifest and rejects unknown fields.
+//
+// PR#551 review (4178809082): is_active / reservation_visible must be explicitly
+// present per staff entry. A plain Go bool cannot distinguish an omitted key
+// from an explicit false, so after strict decoding a second presence pass runs
+// over the raw document and rejects missing or null flags before any apply
+// path can persist the implicit false.
 func DecodeStaffProvisionManifest(r io.Reader) (*StaffProvisionManifest, error) {
-	decoder := json.NewDecoder(r)
+	raw, err := io.ReadAll(r)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput("マニフェストの形式が正しくありません")
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
 	var manifest StaffProvisionManifest
 	if err := decoder.Decode(&manifest); err != nil {
@@ -148,7 +160,37 @@ func DecodeStaffProvisionManifest(r io.Reader) (*StaffProvisionManifest, error) 
 	if err := decoder.Decode(&struct{}{}); err != io.EOF {
 		return nil, apperrors.WrapInvalidInput("manifest must contain exactly one JSON value")
 	}
+	if err := requireStaffProvisionBooleanFlags(raw); err != nil {
+		return nil, err
+	}
 	return &manifest, nil
+}
+
+// requireStaffProvisionBooleanFlags verifies every staff entry carries explicit
+// is_active / reservation_visible keys. A null literal is treated as absent —
+// the manifest contract requires a concrete boolean decision.
+func requireStaffProvisionBooleanFlags(raw []byte) error {
+	var presence struct {
+		Staff []struct {
+			IsActive           *bool `json:"is_active"`
+			ReservationVisible *bool `json:"reservation_visible"`
+		} `json:"staff"`
+	}
+	// The first decode pass already established the document is well-formed, so
+	// an error here means the shape between the two passes diverged — treat it
+	// as invalid input just like the strict pass.
+	if err := json.Unmarshal(raw, &presence); err != nil {
+		return apperrors.WrapInvalidInput("マニフェストの形式が正しくありません")
+	}
+	for i, entry := range presence.Staff {
+		if entry.IsActive == nil {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("staff[%d]: is_active is required", i))
+		}
+		if entry.ReservationVisible == nil {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("staff[%d]: reservation_visible is required", i))
+		}
+	}
+	return nil
 }
 
 // DecodeStaffProvisionSecrets strictly decodes a secrets file and rejects unknown fields.

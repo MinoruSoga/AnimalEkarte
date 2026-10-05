@@ -10,12 +10,14 @@ package staff_test
 import (
 	"context"
 	"errors"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 	. "github.com/animal-ekarte/backend/internal/staff"
@@ -272,4 +274,276 @@ func TestStaffService_Update_DeactivateDisablesLinkedAccount(t *testing.T) {
 	assert.False(t, updated.IsActive)
 	assert.False(t, accountIsActive(t, db, acc.ID),
 		"EMR-289: 管理画面 Update 経路でも account は同一トランザクションで無効化される")
+}
+
+// ---- PR#551: 共有アカウントの無効化ガード + 無効化の durable 監査 ----
+//
+// レビュー指摘 (4180445703): 同じログインアカウントを共有する別の active スタッフ
+// 行が残っている間はアカウントを無効化してはならない（共有行のログインを奪う）。
+// レビュー指摘 (4178809086): アカウント無効化は変更と同一トランザクション内で
+// audit_logs に永続化されなければならない（監査失敗は全体を rollback する）。
+
+// makeSharedAccountStaff は既存アカウントを参照する active スタッフ行を追加する。
+func makeSharedAccountStaff(
+	t *testing.T,
+	db *gorm.DB,
+	clinicID, accountID uint64,
+	name string,
+) *model.Staff {
+	t.Helper()
+	staff := &model.Staff{
+		ClinicID:  clinicID,
+		Name:      name,
+		StaffType: model.StaffTypeDoctor,
+		AccountID: &accountID,
+		IsActive:  true,
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(staff).Error)
+	makeStaffClinicAssignment(t, db, staff.ID, clinicID)
+	return staff
+}
+
+// findDeactivationAudits は対象アカウントの無効化監査行を返す。
+func findDeactivationAudits(t *testing.T, db *gorm.DB, accountID uint64) []model.AuditLog {
+	t.Helper()
+	var entries []model.AuditLog
+	require.NoError(t, db.WithContext(context.Background()).
+		Where("action = ?", "staff.account.deactivate").
+		Where("resource_id = ?", accountID).
+		Find(&entries).Error)
+	return entries
+}
+
+func TestStaffRepository_Update_DeactivateRefusesSharedAccountAcrossClinics(t *testing.T) {
+	db := setupStaffRepositoryTestDB(t)
+	repo := NewRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	seedClinicsForFK(t, db, clinicA, clinicB)
+
+	acc, staffA := makeAccountLinkedStaff(t, db, clinicA, "shared-across@example.com")
+	staffB := makeSharedAccountStaff(t, db, clinicB, acc.ID, "別医院の共有スタッフ")
+
+	isActive := false
+	err := repo.Update(ctx, clinicA, staffA.ID, UpdateStaffInput{IsActive: &isActive})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err),
+		"共有アカウントの無効化拒否は conflict 型エラーでなければならない")
+
+	assert.True(t, staffRowIsActive(t, db, staffA.ID),
+		"拒否された場合は対象スタッフの is_active も rollback される")
+	assert.True(t, staffRowIsActive(t, db, staffB.ID))
+	assert.True(t, accountIsActive(t, db, acc.ID),
+		"別の active スタッフが使用中のアカウントは無効化されてはならない")
+	assert.Empty(t, findDeactivationAudits(t, db, acc.ID),
+		"拒否された deactivation は監査行を残してはならない")
+}
+
+func TestStaffRepository_Update_DeactivateSharedAccountAllowedWhenOtherRowInactive(t *testing.T) {
+	db := setupStaffRepositoryTestDB(t)
+	repo := NewRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	seedClinicsForFK(t, db, clinicA, clinicB)
+
+	acc, staffA := makeAccountLinkedStaff(t, db, clinicA, "shared-inactive@example.com")
+	other := makeSharedAccountStaff(t, db, clinicB, acc.ID, "無効化済みの共有スタッフ")
+	require.NoError(t, db.Model(&model.Staff{}).
+		Where("id = ?", other.ID).Update("is_active", false).Error)
+
+	isActive := false
+	require.NoError(t, repo.Update(ctx, clinicA, staffA.ID, UpdateStaffInput{IsActive: &isActive}))
+
+	assert.False(t, staffRowIsActive(t, db, staffA.ID))
+	assert.False(t, accountIsActive(t, db, acc.ID),
+		"共有行が inactive なら最後の利用者の無効化でアカウントも無効化される")
+}
+
+func TestStaffRepository_Update_DeactivateSharedAccountAllowedWhenOtherRowDeleted(t *testing.T) {
+	db := setupStaffRepositoryTestDB(t)
+	repo := NewRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	seedClinicsForFK(t, db, clinicA, clinicB)
+
+	acc, staffA := makeAccountLinkedStaff(t, db, clinicA, "shared-deleted@example.com")
+	other := makeSharedAccountStaff(t, db, clinicB, acc.ID, "削除済みの共有スタッフ")
+	require.NoError(t, db.WithContext(ctx).Delete(other).Error)
+	require.True(t, staffRowIsDeleted(t, db, other.ID))
+
+	isActive := false
+	require.NoError(t, repo.Update(ctx, clinicA, staffA.ID, UpdateStaffInput{IsActive: &isActive}))
+
+	assert.False(t, staffRowIsActive(t, db, staffA.ID))
+	assert.False(t, accountIsActive(t, db, acc.ID),
+		"共有行が削除済みならアカウントは無効化できる")
+}
+
+func TestStaffRepository_UpdateForReservation_DeactivateRefusesSharedAccount(t *testing.T) {
+	db := setupStaffRepositoryTestDB(t)
+	repo := NewRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	seedClinicsForFK(t, db, clinicA, clinicB)
+
+	acc, staffA := makeAccountLinkedStaff(t, db, clinicA, "shared-reservation@example.com")
+	makeSharedAccountStaff(t, db, clinicB, acc.ID, "共有スタッフB")
+
+	isActive := false
+	err := repo.UpdateForReservation(
+		ctx, clinicA, staffA.ID, ReservationStaffUpdate{IsActive: &isActive},
+	)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err))
+
+	assert.True(t, staffRowIsActive(t, db, staffA.ID))
+	assert.True(t, accountIsActive(t, db, acc.ID),
+		"予約経路でも共有アカウントは無効化されてはならない")
+}
+
+func TestStaffRepository_Delete_RefusesSharedAccount(t *testing.T) {
+	db := setupStaffRepositoryTestDB(t)
+	repo := NewRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	seedClinicsForFK(t, db, clinicA, clinicB)
+
+	acc, staffA := makeAccountLinkedStaff(t, db, clinicA, "shared-delete@example.com")
+	makeSharedAccountStaff(t, db, clinicB, acc.ID, "共有スタッフB")
+
+	err := repo.Delete(ctx, clinicA, staffA.ID)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err))
+
+	assert.False(t, staffRowIsDeleted(t, db, staffA.ID),
+		"共有アカウント保護で拒否された場合、staffs の soft delete も rollback される")
+	assert.True(t, accountIsActive(t, db, acc.ID))
+}
+
+func TestStaffRepository_Update_DeactivateWritesDurableAudit(t *testing.T) {
+	db := setupStaffRepositoryTestDB(t)
+	repo := NewRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	seedClinicsForFK(t, db, clinicID)
+
+	acc, staff := makeAccountLinkedStaff(t, db, clinicID, "audit@example.com")
+	actor := makeDoctor(t, db, clinicID, "監査実行者")
+	isActive := false
+
+	require.NoError(t, repo.Update(ctx, clinicID, staff.ID, UpdateStaffInput{
+		IsActive:     &isActive,
+		ActorStaffID: actor.ID,
+	}))
+
+	entries := findDeactivationAudits(t, db, acc.ID)
+	require.Len(t, entries, 1, "アカウント無効化は audit_logs に1行永続化される")
+	entry := entries[0]
+	require.NotNil(t, entry.ClinicID)
+	assert.Equal(t, clinicID, *entry.ClinicID)
+	assert.Equal(t, model.AuditActorTypeStaff, entry.ActorType)
+	require.NotNil(t, entry.ActorID)
+	assert.Equal(t, actor.ID, *entry.ActorID)
+	assert.Equal(t, model.AuditResourceAccount, entry.Resource)
+	require.NotNil(t, entry.ResourceID)
+	assert.Equal(t, acc.ID, *entry.ResourceID)
+	assert.Contains(t, string(entry.NewValue), "staff_id")
+}
+
+func TestStaffRepository_Update_DeactivateAuditFailureRollsBackMutation(t *testing.T) {
+	db := setupStaffRepositoryTestDB(t)
+	repo := NewRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	seedClinicsForFK(t, db, clinicID)
+
+	acc, staff := makeAccountLinkedStaff(t, db, clinicID, "audit-fail@example.com")
+
+	// 監査 insert を決定的に失敗させる CHECK 制約を一時的に張る（テスト終了時に除去）。
+	// 対象アカウントの行だけを弾く条件にして、共有テスト DB 上の他テストが
+	// 別アカウントの無効化監査を書く経路を巻き込まないようにする。
+	const constraint = "ck_test_block_deactivation_audit"
+	require.NoError(t, db.Exec(
+		"ALTER TABLE audit_logs ADD CONSTRAINT "+constraint+
+			" CHECK (action <> 'staff.account.deactivate' OR resource_id IS DISTINCT FROM "+
+			strconv.FormatUint(acc.ID, 10)+")",
+	).Error)
+	t.Cleanup(func() {
+		_ = db.Exec("ALTER TABLE audit_logs DROP CONSTRAINT IF EXISTS " + constraint)
+	})
+
+	isActive := false
+	err := repo.Update(ctx, clinicID, staff.ID, UpdateStaffInput{IsActive: &isActive})
+	require.Error(t, err, "監査書き込み失敗は deactivation 全体を失敗させる")
+
+	assert.True(t, staffRowIsActive(t, db, staff.ID),
+		"監査失敗時に staffs.is_active=false は rollback されなければならない")
+	assert.True(t, accountIsActive(t, db, acc.ID),
+		"監査失敗時に accounts.is_active=false も rollback されなければならない")
+}
+
+func TestStaffRepository_Update_DeactivateAuditRollsBackWithAmbientTransaction(t *testing.T) {
+	db := setupStaffRepositoryTestDB(t)
+	repo := NewRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	seedClinicsForFK(t, db, clinicID)
+
+	acc, staff := makeAccountLinkedStaff(t, db, clinicID, "audit-rollback@example.com")
+	isActive := false
+	sentinel := errors.New("abort after deactivation audit")
+
+	err := persistence.NewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
+		require.NoError(t, repo.Update(txCtx, clinicID, staff.ID, UpdateStaffInput{IsActive: &isActive}))
+		return sentinel
+	})
+	require.ErrorIs(t, err, sentinel)
+
+	assert.True(t, staffRowIsActive(t, db, staff.ID))
+	assert.True(t, accountIsActive(t, db, acc.ID))
+	assert.Empty(t, findDeactivationAudits(t, db, acc.ID),
+		"ambient tx の rollback で監査行も残ってはならない")
+}
+
+func TestStaffRepository_Delete_WritesDeactivationAudit(t *testing.T) {
+	db := setupStaffRepositoryTestDB(t)
+	repo := NewRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	seedClinicsForFK(t, db, clinicID)
+
+	acc, staff := makeAccountLinkedStaff(t, db, clinicID, "delete-audit@example.com")
+
+	require.NoError(t, repo.Delete(ctx, clinicID, staff.ID))
+
+	entries := findDeactivationAudits(t, db, acc.ID)
+	require.Len(t, entries, 1,
+		"削除経路のアカウント無効化も audit_logs に永続化される")
+	entry := entries[0]
+	assert.Equal(t, model.AuditResourceAccount, entry.Resource)
+	require.NotNil(t, entry.ResourceID)
+	assert.Equal(t, acc.ID, *entry.ResourceID)
+	// Delete は actor を受け取らない経路のため system actor を記録する。
+	assert.Equal(t, model.AuditActorTypeSystem, entry.ActorType)
+	assert.Nil(t, entry.ActorID)
+}
+
+func TestStaffRepository_Update_DeactivateWithoutAccountWritesNoAudit(t *testing.T) {
+	db := setupStaffRepositoryTestDB(t)
+	repo := NewRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	staff := makeDoctor(t, db, clinicID, "アカウント未紐付けスタッフ(監査)")
+	makeStaffClinicAssignment(t, db, staff.ID, clinicID)
+	isActive := false
+
+	require.NoError(t, repo.Update(ctx, clinicID, staff.ID, UpdateStaffInput{IsActive: &isActive}))
+	assert.False(t, staffRowIsActive(t, db, staff.ID))
+
+	var auditCount int64
+	require.NoError(t, db.Model(&model.AuditLog{}).
+		Where("action = ?", "staff.account.deactivate").
+		Count(&auditCount).Error)
+	assert.Zero(t, auditCount, "アカウント未紐付けの無効化は監査行を書かない")
 }

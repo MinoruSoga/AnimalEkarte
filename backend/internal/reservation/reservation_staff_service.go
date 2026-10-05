@@ -211,7 +211,10 @@ func (s *reservationStaffService) PatchStatus(ctx context.Context, clinicID, id 
 				return err //nolint:wrapcheck // GuardStaffDeactivation は全分岐で apperrors 型付きエラーを返す（同義二重ラップ回避）
 			}
 		}
-		if err := s.repo.Update(txCtx, clinicID, id, staffpkg.ReservationStaffUpdate{IsActive: &isActive}); err != nil {
+		if err := s.repo.Update(txCtx, clinicID, id, staffpkg.ReservationStaffUpdate{
+			IsActive:     &isActive,
+			ActorStaffID: actorStaffID,
+		}); err != nil {
 			return apperrors.Wrap(err, "failed to patch staff status")
 		}
 		result, err = s.repo.FindByID(txCtx, clinicID, id)
