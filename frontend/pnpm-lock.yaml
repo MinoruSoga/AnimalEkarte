@@ -196,8 +196,8 @@ importers:
         specifier: 4.1.11
         version: 4.1.11(vitest@4.1.11)
       chromatic:
-        specifier: 18.9.5
-        version: 18.9.5
+        specifier: 18.10.1
+        version: 18.10.1
       chrome-launcher:
         specifier: ^1.2.1
         version: 1.2.1
@@ -3667,8 +3667,8 @@ packages:
     resolution: {integrity: sha512-+IxzY9BZOQd/XuYPRmrvEVjF/nqj5kgT4kEq7VofrDoM1MxoRjEWkrCC3EtLi59TVawxTAn+orJwFQcrqEN1+g==}
     engines: {node: '>=18'}
 
-  chromatic@18.9.5:
-    resolution: {integrity: sha512-PHYJ7f8j7eeautlPPgIy/FBWTaLY3H8UYavkCpRdfLP9w9wya/dJZ3tjL8RqbFb5EazUkXqg2qCuAOzUS/zTMA==}
+  chromatic@18.10.1:
+    resolution: {integrity: sha512-oeCv4HvMrZPB7SzCD9yuzAPgB4c/TfhqLzDn1/K7dIYGvF/mWhOrwDa5sXHIkaXFJ+mYx9rMKy9fPShWPujH5Q==}
     engines: {node: '>=22.0.0'}
     hasBin: true
     peerDependencies:
@@ -10025,7 +10025,7 @@ snapshots:
 
   chownr@3.0.0: {}
 
-  chromatic@18.9.5:
+  chromatic@18.10.1:
     dependencies:
       semver: 7.8.5
 
