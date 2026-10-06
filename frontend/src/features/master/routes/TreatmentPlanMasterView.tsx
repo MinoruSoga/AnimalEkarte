@@ -97,7 +97,7 @@ export function TreatmentPlanMasterView({
         }
       >
         {isDataError ? (
-          <ErrorFallback message="診療項目マスタの取得に失敗しました" />
+          <ErrorFallback message="診療項目の取得に失敗しました" />
         ) : isDataPending ? (
           <LoadingFallback />
         ) : (

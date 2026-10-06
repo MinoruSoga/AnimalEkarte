@@ -80,7 +80,7 @@ vi.mock("../components/MasterCRUDPage", () => ({
   }) => (
     <>
       <button type="button" onClick={crud.handleNew}>
-        主訴マスタを追加
+        主訴カテゴリを追加
       </button>
       {children}
     </>
@@ -201,7 +201,7 @@ describe("ChiefComplaintSettings", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(screen.getByRole("button", { name: "主訴マスタを追加" }));
+    await user.click(screen.getByRole("button", { name: "主訴カテゴリを追加" }));
     expect(mocks.handleNew).toHaveBeenCalledOnce();
   });
 });

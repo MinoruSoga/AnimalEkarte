@@ -49,7 +49,7 @@ export function ChiefComplaintSettings() {
   const crud = useMasterCRUD<ChiefComplaintType>({
     data,
     deleteMutation,
-    entityLabel: "主訴マスタ",
+    entityLabel: "主訴カテゴリ",
     dirtyGuard: dirty,
     permissions: { canDelete },
   });
@@ -81,9 +81,9 @@ export function ChiefComplaintSettings() {
         title="主訴カテゴリ"
         icon={<MessageSquareText className={`${ICON.page} ${C.text}`} />}
         resource={ResourceMasterMedical}
-        entityLabel="主訴マスタ"
+        entityLabel="主訴カテゴリ"
         searchPlaceholder="名称で検索..."
-        emptyMessage="主訴マスタが登録されていません"
+        emptyMessage="主訴カテゴリが登録されていません"
         crud={crud}
         handleSave={handleSave}
         columns={COLUMNS}
@@ -121,7 +121,7 @@ export function ChiefComplaintSettings() {
         )}
       >
         {isError ? (
-          <ErrorFallback message="主訴マスタの取得に失敗しました" />
+          <ErrorFallback message="主訴カテゴリの取得に失敗しました" />
         ) : isPending ? (
           <LoadingFallback />
         ) : null}

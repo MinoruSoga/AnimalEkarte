@@ -463,7 +463,7 @@ describe("PatientSelectionTable — 動物種の取得状態", () => {
     expect(trigger).toHaveAttribute("aria-describedby", message.id);
   });
 
-  it("動物種マスタが0件ならその旨を提示する", async () => {
+  it("動物種類が0件ならその旨を提示する", async () => {
     mockSpecies([]);
     mockPetList(() => ({ data: [], total: 0, page: 1, limit: 20 }));
 

@@ -286,7 +286,7 @@ export function ReservationTypeAvailableSlotsCalendar({
                   }
                   className={`inline-flex items-center min-h-11 text-xs ${C.text60} ${C.hoverTextBrand} transition-colors`}
                 >
-                  毎週枠は予約区分マスタで編集 →
+                  毎週枠は予約区分で編集 →
                 </button>
               </div>
             ) : null}
