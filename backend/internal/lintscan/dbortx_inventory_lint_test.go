@@ -888,6 +888,22 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// Private DBOrTx helper for receive jobs/waits/station. Runtime:
 	// TestLabDeviceReceiveRepository_CreateJobWithItems_RollsBackWhenAmbientTxFails
 	"medicalrecord/lab_device_receive_repository.go|labDeviceReceiveRepository.q": {},
+
+	// EMR-297 mapping drafts. Writers require TxFromContext. Readers use DBOrTx.
+	// Runtime: TestLabMappingDraftRepository_WritesRequireAmbientTx and
+	// TestLabMappingDraftRepository_ConfirmAndSpeciesOverlay.
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.FindMappingSpecs": {},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.FindExamField":                 {},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.GenerationStopped":             {},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.GetDraft":                      {},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.InsertDraft":                   {},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.ListFieldCandidates":           {},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.LockDraft":                     {},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.MarkConfirmed":                 {},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.SetGenerationStopped":          {},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.UpdateConfirmedItems":          {},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.UpsertDeviceMaster":            {},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.UpsertSpeciesSpec":             {},
 }
 
 type ambientTxParticipationShape uint8
@@ -1009,6 +1025,27 @@ var ambientTxParticipationExpectations = map[string]ambientTxParticipationExpect
 	},
 	// identitylink writes: requireAmbientTx returns TxFromContext handle only.
 	"identitylink/repository.go|repository.requireAmbientTx": {
+		shape: ambientTxRequired,
+	},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.InsertDraft": {
+		shape: ambientTxRequired,
+	},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.LockDraft": {
+		shape: ambientTxRequired,
+	},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.MarkConfirmed": {
+		shape: ambientTxRequired,
+	},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.SetGenerationStopped": {
+		shape: ambientTxRequired,
+	},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.UpdateConfirmedItems": {
+		shape: ambientTxRequired,
+	},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.UpsertDeviceMaster": {
+		shape: ambientTxRequired,
+	},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.UpsertSpeciesSpec": {
 		shape: ambientTxRequired,
 	},
 }

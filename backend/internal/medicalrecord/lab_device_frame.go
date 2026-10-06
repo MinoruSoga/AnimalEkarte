@@ -25,6 +25,7 @@ type LabDeviceFrame struct {
 	MeasuredAt        *time.Time
 	SpecimenIDRaw     string
 	DeviceHint        string
+	Species           string
 	Items             []LabDeviceItem
 	Warnings          []string
 	NeedsReview       bool

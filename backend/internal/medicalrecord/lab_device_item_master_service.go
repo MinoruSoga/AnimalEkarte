@@ -67,6 +67,7 @@ type LabDeviceItemMasterService interface {
 	EnsureDefaults(ctx context.Context, clinicID uint64) (inserted int64, items []model.LabDeviceItemMaster, err error)
 	Update(ctx context.Context, clinicID, id uint64, input UpdateLabDeviceItemMasterInput) (*model.LabDeviceItemMaster, error)
 	ResolveItems(ctx context.Context, clinicID uint64, sourceType string, codes []string) (*LabDeviceMasterResolution, error)
+	ResolveItemsForSpecies(ctx context.Context, clinicID uint64, sourceType, species string, codes []string) (*LabDeviceMasterResolution, error)
 	ListDevices(ctx context.Context, clinicID uint64) ([]model.LabDevice, error)
 	CreateDevice(ctx context.Context, clinicID uint64, input CreateLabDeviceInput) (*model.LabDevice, error)
 	UpdateDevice(ctx context.Context, clinicID, id uint64, input UpdateLabDeviceInput) (*model.LabDevice, error)
@@ -312,6 +313,24 @@ func (s *labDeviceItemMasterService) ResolveItems(
 	sourceType string,
 	codes []string,
 ) (*LabDeviceMasterResolution, error) {
+	return s.resolveItems(ctx, clinicID, sourceType, "", codes)
+}
+
+func (s *labDeviceItemMasterService) ResolveItemsForSpecies(
+	ctx context.Context,
+	clinicID uint64,
+	sourceType, species string,
+	codes []string,
+) (*LabDeviceMasterResolution, error) {
+	return s.resolveItems(ctx, clinicID, sourceType, normalizeLabDeviceSpecies(species), codes)
+}
+
+func (s *labDeviceItemMasterService) resolveItems(
+	ctx context.Context,
+	clinicID uint64,
+	sourceType, species string,
+	codes []string,
+) (*LabDeviceMasterResolution, error) {
 	res := &LabDeviceMasterResolution{
 		Mapped:        make([]LabDeviceResolvedItem, 0),
 		UnmappedCodes: make([]string, 0),
@@ -327,11 +346,20 @@ func (s *labDeviceItemMasterService) ResolveItems(
 		return nil, err
 	}
 	byCode := make(map[string]model.LabDeviceItemMaster, len(rows))
-	fieldIDs := make([]uint64, 0, len(rows))
 	for i := range rows {
 		byCode[rows[i].DeviceItemCode] = rows[i]
-		if rows[i].IsActive && rows[i].ExamTypeFieldID != nil {
-			fieldIDs = append(fieldIDs, *rows[i].ExamTypeFieldID)
+	}
+	if species != "" {
+		specs, specErr := s.repo.FindMappingSpecs(ctx, clinicID, sourceType, species, codes)
+		if specErr != nil {
+			return nil, specErr
+		}
+		overlayMappingSpecs(byCode, specs)
+	}
+	fieldIDs := make([]uint64, 0, len(byCode))
+	for _, row := range byCode {
+		if row.IsActive && row.ExamTypeFieldID != nil {
+			fieldIDs = append(fieldIDs, *row.ExamTypeFieldID)
 		}
 	}
 	fields, err := s.repo.FindExamTypeFields(ctx, clinicID, fieldIDs)
@@ -359,4 +387,19 @@ func (s *labDeviceItemMasterService) ResolveItems(
 		})
 	}
 	return res, nil
+}
+
+func overlayMappingSpecs(byCode map[string]model.LabDeviceItemMaster, specs []model.LabDeviceMappingSpec) {
+	for _, spec := range specs {
+		fieldID := spec.ExamTypeFieldID
+		byCode[spec.DeviceItemCode] = model.LabDeviceItemMaster{
+			ClinicID:        spec.ClinicID,
+			SourceType:      spec.SourceType,
+			DeviceItemCode:  spec.DeviceItemCode,
+			Unit:            spec.Unit,
+			ValueShape:      spec.ValueShape,
+			ExamTypeFieldID: &fieldID,
+			IsActive:        true,
+		}
+	}
 }

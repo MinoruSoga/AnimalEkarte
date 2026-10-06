@@ -135,7 +135,7 @@ func (s *labDeviceReceiveService) receiveOneInTx(
 	for _, item := range frame.Items {
 		codes = append(codes, item.Code)
 	}
-	resolution, resolveErr := s.masters.ResolveItems(txCtx, clinicID, string(frame.SourceType), codes)
+	resolution, resolveErr := s.masters.ResolveItemsForSpecies(txCtx, clinicID, string(frame.SourceType), frame.Species, codes)
 	if resolveErr != nil {
 		return LabDeviceFrameResult{}, nil, uuid.Nil, resolveErr
 	}
@@ -161,6 +161,7 @@ func (s *labDeviceReceiveService) receiveOneInTx(
 		ReceivedAt:        &now,
 		DeviceHint:        frame.DeviceHint,
 		SpecimenIDRaw:     frame.SpecimenIDRaw,
+		Species:           frame.Species,
 		UnmappedItemCount: len(resolution.UnmappedCodes),
 	}
 	if frame.NeedsReview && job.NeedsReviewCount == 0 {

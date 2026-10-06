@@ -56,6 +56,9 @@ func TestLabDeviceOpenAPIResponseParity(t *testing.T) {
 		{"LabDeviceBoard", reflect.TypeOf(labDeviceBoardResponse{})},
 		{"LabDeviceFramesResponse", reflect.TypeOf(labDeviceReceiveResponse{})},
 		{"LabDeviceFrameResult", reflect.TypeOf(labDeviceFrameResultResponse{})},
+		{"LabMappingDraft", reflect.TypeOf(labMappingDraftResponse{})},
+		{"LabMappingDraftItem", reflect.TypeOf(labMappingDraftItemResponse{})},
+		{"LabMappingGeneration", reflect.TypeOf(labMappingGenerationResponse{})},
 	}
 	for _, contract := range contracts {
 		t.Run(contract.name, func(t *testing.T) {

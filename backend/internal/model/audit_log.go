@@ -90,6 +90,8 @@ const (
 	AuditActionLabImportSourceBlocked    = "lab_import.source.blocked"
 	// AuditActionLabImportRevertSucceeded records compensating revert (TASK-032). Distinct from commit.
 	AuditActionLabImportRevertSucceeded = "lab_import.revert.succeeded"
+	// AuditActionLabDeviceMappingConfirm records a person confirming one lab item map (EMR-297).
+	AuditActionLabDeviceMappingConfirm = "lab_device_mapping.confirm"
 
 	// #211 健診結果値の置換（既存削除を伴う PUT）監査アクション
 	AuditActionCheckupFieldResultReplace = "checkup_field_result.replace"
