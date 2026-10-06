@@ -143,6 +143,14 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     PLANE_PROJECT_ID: env.PLANE_PROJECT_ID ?? "",
     PLANE_PROJECT_IDENTIFIER: env.PLANE_PROJECT_IDENTIFIER ?? "",
     PLANE_TIMEOUT_MS: env.PLANE_TIMEOUT_MS ?? "",
+
+    // バグ報告の Discord webhook 転送。任意: URL 未設定なら Go 側の
+    // NewDiscordNotifier が nil を返し通知無効(報告のDB保存は継続)。
+    // Worker の secret に置くだけではコンテナへ届かないため、本経路での
+    // 転送が必須(EMR-312: STG で silent no-op になっていた実績あり)。
+    // 値は `wrangler secret put DISCORD_BUG_REPORT_WEBHOOK_URL` でのみ投入する。
+    DISCORD_BUG_REPORT_WEBHOOK_URL: env.DISCORD_BUG_REPORT_WEBHOOK_URL ?? "",
+    DISCORD_WEBHOOK_TIMEOUT_MS: env.DISCORD_WEBHOOK_TIMEOUT_MS ?? "",
   };
 
   // migrate exec のハングアップ対策(code-reviewer指摘 MEDIUM)。pg_advisory_lock が
