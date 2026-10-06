@@ -16,6 +16,8 @@ AnimalEkarte 固有の安全境界と完成条件を定義する。汎用ワー�
 
 [AGENTS.md](../../AGENTS.md) → [.claude/CLAUDE.md](../../.claude/CLAUDE.md) → 最も近い `CLAUDE.md` と対象Skillの順で必要部分を読む。仕様は [docs索引](../README.md)、API正本は [api.yaml](../../backend/docs/api.yaml)。同名Skillはプロジェクト特有の適応を含むものを優先し、汎用Skillをコピーして増やさない。生成物の正本は `.claude`、生成先は `.agents` / `.codex`。
 
+**生成物は直接編集しない**（`.agents/skills`・`.agents/rules`・`.codex/agents`・`.codex/commands`）。正本（`.claude/skills`・`.claude/commands`・`.claude/rules`）を変更したら `bash .claude/scripts/sync-agents-skills.sh` と `bash .claude/scripts/sync-codex-mirror.sh` で再生成し、`python3 -B .claude/scripts/test_instruction_safety_contracts.py` で一致を確認する。生成物への手編集は hash 所有管理により sync が拒否する（他者 WIP 保護）。例外: `.codex/CODEX.md` は生成対象外の手管理ファイルなので直接編集する。
+
 CLI・ホストアプリ・APIセッションの機能は別々に確認する。2026-09-08 のローカル診断は Codex CLI 0.153.4 の `multi_agent` / Hooks を stable と報告したが、別runtimeでの利用可能性を保証しない。変更時は `codex --version` と機能一覧・現セッションのtool一覧を再確認する。Experimental / Beta / Deprecated / under development は、その実機表示を結果に明記する。機能の固定一覧を各指示ファイルへ複製しない。
 
 ## タスクを閉じる手順
