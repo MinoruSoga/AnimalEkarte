@@ -8278,6 +8278,86 @@ components:
           type: boolean
         job:
           $ref: '#/components/schemas/LabDeviceJobCard'
+    LabMappingDraft:
+      type: object
+      required: [id, status, source_type, species, error_message, items]
+      properties:
+        id:
+          type: integer
+          format: int64
+        status:
+          type: string
+        source_type:
+          type: string
+        species:
+          type: string
+        error_message:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabMappingDraftItem'
+    LabMappingDraftItem:
+      type: object
+      required: [device_item_code, device_unit, chart_unit, unit_mismatch, proposed_field_name, source, llm_error, confirmed]
+      properties:
+        device_item_code:
+          type: string
+        device_unit:
+          type: string
+        chart_unit:
+          type: string
+        unit_mismatch:
+          type: boolean
+        exam_type_field_id:
+          type: integer
+          format: int64
+        proposed_field_name:
+          type: string
+        source:
+          type: string
+        llm_error:
+          type: string
+        confirmed:
+          type: boolean
+    LabMappingGeneration:
+      type: object
+      required: [stopped]
+      properties:
+        stopped:
+          type: boolean
+    LabMappingDraftRequest:
+      type: object
+      required: [payload_base64]
+      properties:
+        payload_base64:
+          type: string
+        device_hint:
+          type: string
+    LabMappingConfirmRequest:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [device_item_code, exam_type_field_id, value_shape, chart_unit]
+            properties:
+              device_item_code:
+                type: string
+              exam_type_field_id:
+                type: integer
+                format: int64
+              value_shape:
+                type: string
+              chart_unit:
+                type: string
+    LabMappingGenerationRequest:
+      type: object
+      required: [stopped]
+      properties:
+        stopped:
+          type: boolean
     LabDevicePetRequest:
       type: object
       required: [pet_id]
@@ -23944,6 +24024,120 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LabDeviceFramesResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-device/mapping-drafts:
+    post:
+      operationId: createLabMappingDraft
+      summary: 検査項目の対応下書きを作る
+      description: ResourceLabImport create。1件の結果だけを受け、未確定の下書きを保存する。測定値とLLM本文は返さない。
+      tags: [LabImports]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LabMappingDraftRequest'
+      responses:
+        '201':
+          description: 未確定または失敗の下書き
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabMappingDraft'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-device/mapping-drafts/{id}:
+    get:
+      operationId: getLabMappingDraft
+      summary: 検査項目の対応下書きを読む
+      description: ResourceLabImport view。測定値とLLM本文は返さない。
+      tags: [LabImports]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 下書き
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabMappingDraft'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-device/mapping-drafts/{id}/confirm:
+    post:
+      operationId: confirmLabMappingDraft
+      summary: 人が提出した対応表だけを確定する
+      description: ResourceLabImport edit。未確定の下書きだけを確定する。省略したコードは既存マスタを消さない。
+      tags: [LabImports]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LabMappingConfirmRequest'
+      responses:
+        '200':
+          description: 確定した下書き
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabMappingDraft'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-device/mapping-generation:
+    put:
+      operationId: putLabMappingGeneration
+      summary: 対応下書きの生成を止める、または再開する
+      description: ResourceLabImport edit。止めても、確定済み対応表による取り込みは止まらない。
+      tags: [LabImports]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LabMappingGenerationRequest'
+      responses:
+        '200':
+          description: 停止状態
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabMappingGeneration'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':

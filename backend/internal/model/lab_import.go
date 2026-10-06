@@ -63,6 +63,7 @@ type LabImportJob struct {
 	ReceivedAt        *time.Time          `                                                       json:"received_at,omitempty"`
 	DeviceHint        string              `gorm:"not null;default:''"                             json:"device_hint"`
 	SpecimenIDRaw     string              `gorm:"not null;default:''"                             json:"specimen_id_raw"`
+	Species           string              `gorm:"type:varchar(32);not null;default:''"            json:"-"`
 	UnmappedItemCount int                 `gorm:"not null;default:0"                              json:"unmapped_item_count"`
 	CreatedAt         time.Time           `gorm:"autoCreateTime"                                  json:"created_at"`
 	UpdatedAt         time.Time           `gorm:"autoUpdateTime"                                  json:"updated_at"`

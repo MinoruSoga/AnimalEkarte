@@ -1265,6 +1265,22 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/lab-device/mapping-drafts/:id",
+    "handler": "github.com/animal-ekarte/backend/internal/medicalrecord.(*LabImportHandler).GetLabMappingDraft-fm",
+    "class": "clinic-fixed",
+    "resource": "lab-import",
+    "action": "view",
+    "source": "internal/medicalrecord/routes_lab.go",
+    "routeExpression": "labDevice.GET(\"/mapping-drafts/:id\", perm(model.ResourceLabImport, \"view\"), h.labImport.GetLabMappingDraft)",
+    "handlerSource": "internal/medicalrecord/lab_device_mapping_handler.go",
+    "marker": "RequireSelectedClinicGrant",
+    "authorization": "assigned grant in composition; selected grant in handler",
+    "scope": "selected-clinic",
+    "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed; realdb-return-data:internal/medicalrecord/realdb_lab_isolation_test.go#TestRealDB_LabSelectedClinicBGrantAIsolation"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/lab-device/station",
     "handler": "github.com/animal-ekarte/backend/internal/medicalrecord.(*LabImportHandler).GetLabDeviceStation-fm",
     "class": "clinic-fixed",

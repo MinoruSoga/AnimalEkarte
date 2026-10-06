@@ -17,6 +17,7 @@ type LabDeviceItemMasterRepository interface {
 	List(ctx context.Context, clinicID uint64, sourceType string) ([]model.LabDeviceItemMaster, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.LabDeviceItemMaster, error)
 	FindByClinicSourceCodes(ctx context.Context, clinicID uint64, sourceType string, codes []string) ([]model.LabDeviceItemMaster, error)
+	FindMappingSpecs(ctx context.Context, clinicID uint64, sourceType, species string, codes []string) ([]model.LabDeviceMappingSpec, error)
 	EnsureCatalog(ctx context.Context, rows []model.LabDeviceItemMaster) (int64, error)
 	Update(ctx context.Context, clinicID, id uint64, cmd UpdateLabDeviceItemMasterInput) (*model.LabDeviceItemMaster, error)
 	FindExamTypeField(ctx context.Context, clinicID, fieldID uint64) (*model.ExamTypeField, error)
@@ -89,6 +90,27 @@ func (r *labDeviceItemMasterRepository) FindByClinicSourceCodes(
 		Find(&rows).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "lab_device_item_master", "")
+	}
+	return rows, nil
+}
+
+func (r *labDeviceItemMasterRepository) FindMappingSpecs(
+	ctx context.Context,
+	clinicID uint64,
+	sourceType, species string,
+	codes []string,
+) ([]model.LabDeviceMappingSpec, error) {
+	rows := make([]model.LabDeviceMappingSpec, 0)
+	if species == "" || len(codes) == 0 {
+		return rows, nil
+	}
+	err := persistence.DBOrTx(ctx, r.db).
+		Where("clinic_id = ? AND source_type = ? AND species = ?", clinicID, sourceType, species).
+		Where("device_item_code IN ?", codes).
+		Limit(persistence.MaxMasterListRows).
+		Find(&rows).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "lab_device_mapping_spec", "")
 	}
 	return rows, nil
 }

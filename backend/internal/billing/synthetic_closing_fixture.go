@@ -384,6 +384,11 @@ var syntheticClosingDeleteStatements = []string{
 	"DELETE FROM examination_revisions WHERE clinic_id = ?",
 	"DELETE FROM cages WHERE clinic_id = ?",
 	"DELETE FROM lab_import_exam_retractions WHERE clinic_id = ?",
+	// EMR-297 mapping rows reference clinics and exam_type_fields with ON DELETE RESTRICT.
+	"DELETE FROM lab_device_mapping_draft_items WHERE clinic_id = ?",
+	"DELETE FROM lab_device_mapping_specs WHERE clinic_id = ?",
+	"DELETE FROM lab_device_mapping_drafts WHERE clinic_id = ?",
+	"DELETE FROM lab_device_mapping_generation WHERE clinic_id = ?",
 	"DELETE FROM exam_type_fields WHERE clinic_id = ?",
 	"DELETE FROM lstep_csv_imports WHERE clinic_id = ?",
 	"DELETE FROM payment_methods WHERE clinic_id = ?",
