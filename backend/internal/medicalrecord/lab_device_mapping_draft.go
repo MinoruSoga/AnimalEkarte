@@ -2,6 +2,7 @@ package medicalrecord
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -26,6 +27,8 @@ type LabMappingDraftView struct {
 	Draft model.LabDeviceMappingDraft
 	Items []model.LabDeviceMappingDraftItem
 }
+
+var errLabMappingGenerationStopped = errors.New("generation_stopped")
 
 // LabMappingDraftService drafts, reads, confirms, and stops lab item maps.
 type LabMappingDraftService interface {
@@ -80,7 +83,7 @@ func (s *labMappingDraftService) Create(
 		return s.persistFailed(ctx, clinicID, raw, "generation_stopped", mappingSourceOrEmpty(frame), frame.Species, frame.SourceFingerprint)
 	}
 	items, err := s.draftItems(ctx, clinicID, frame)
-	if err != nil {
+	if err != nil && !errors.Is(err, errLabMappingGenerationStopped) {
 		return nil, err
 	}
 	if err := ctx.Err(); err != nil {
@@ -93,6 +96,10 @@ func (s *labMappingDraftService) Create(
 		Status:         model.LabMappingDraftStatusUnconfirmed,
 		RawPayload:     raw,
 		RawFingerprint: frame.SourceFingerprint,
+	}
+	if errors.Is(err, errLabMappingGenerationStopped) {
+		draft.Status = model.LabMappingDraftStatusFailed
+		draft.ErrorMessage = "generation_stopped"
 	}
 	return s.insertView(ctx, draft, items)
 }
@@ -181,7 +188,7 @@ func (s *labMappingDraftService) draftItems(
 		seen[code] = struct{}{}
 		row, err := s.draftOne(ctx, clinicID, frame, item, len(items), mapped, candidates)
 		if err != nil {
-			return nil, err
+			return items, err
 		}
 		items = append(items, row)
 	}
@@ -217,6 +224,13 @@ func (s *labMappingDraftService) draftOne(
 	if s.drafter == nil {
 		drafted.LLMError = labMappingLLMUnconfigured
 		return drafted, nil
+	}
+	stopped, err := s.store.GenerationStopped(ctx, clinicID)
+	if err != nil {
+		return model.LabDeviceMappingDraftItem{}, err
+	}
+	if stopped {
+		return model.LabDeviceMappingDraftItem{}, errLabMappingGenerationStopped
 	}
 	if err := ctx.Err(); err != nil {
 		return model.LabDeviceMappingDraftItem{}, err
@@ -418,6 +432,7 @@ func (s *labMappingDraftService) submittedRows(
 		updated := current
 		updated.ExamTypeFieldID = &fieldID
 		updated.ChartUnit = item.ChartUnit
+		updated.UnitMismatch = unitsMismatch(current.DeviceUnit, item.ChartUnit)
 		updated.ProposedFieldName = field.Name
 		updated.Confirmed = true
 		row := confirmedMappingRow{item: updated}

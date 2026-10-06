@@ -169,6 +169,7 @@ func (r *labMappingDraftRepository) UpdateConfirmedItems(
 			Updates(map[string]any{
 				"exam_type_field_id":  items[i].ExamTypeFieldID,
 				"chart_unit":          items[i].ChartUnit,
+				"unit_mismatch":       items[i].UnitMismatch,
 				"proposed_field_name": items[i].ProposedFieldName,
 				"confirmed":           true,
 			})

@@ -25,8 +25,8 @@ const (
 // LabDeviceMappingDraft is one device result kept for a human to confirm.
 // RawPayload is the device frame. It is not a chart write and is not returned by the API.
 type LabDeviceMappingDraft struct {
-	ID                 uint64         `gorm:"primaryKey;autoIncrement;uniqueIndex:uq_lab_device_mapping_drafts_id_clinic" json:"id"`
-	ClinicID           uint64         `gorm:"not null;uniqueIndex:uq_lab_device_mapping_drafts_id_clinic" json:"clinic_id"`
+	ID                 uint64         `gorm:"primaryKey;autoIncrement;uniqueIndex:uq_lab_device_mapping_drafts_id_clinic,priority:2" json:"id"`
+	ClinicID           uint64         `gorm:"not null;uniqueIndex:uq_lab_device_mapping_drafts_id_clinic,priority:1" json:"clinic_id"`
 	SourceType         string         `gorm:"type:varchar(32);not null;default:''" json:"source_type"`
 	Species            string         `gorm:"type:varchar(32);not null;default:''" json:"species"`
 	Status             string         `gorm:"type:varchar(32);not null" json:"status"`

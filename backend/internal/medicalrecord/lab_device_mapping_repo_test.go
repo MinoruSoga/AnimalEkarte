@@ -1,7 +1,15 @@
 package medicalrecord
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"gorm.io/gorm/schema"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -74,6 +82,7 @@ func TestLabMappingDraftRepository_ConfirmAndSpeciesOverlay(t *testing.T) {
 			RawPayload: []byte{0x02, 0x03}, RawFingerprint: "draft-new",
 		}, []model.LabDeviceMappingDraftItem{{
 			DeviceItemCode: "NEW", ItemSource: model.LabMappingItemSourceBlank, ValueRaw: mappingSentinelValue,
+			DeviceUnit: "mg/dl", ChartUnit: "g/dl", UnitMismatch: true,
 		}})
 	}))
 
@@ -136,4 +145,126 @@ func TestLabMappingDraftRepository_ConfirmAndSpeciesOverlay(t *testing.T) {
 	require.NoError(t, db.Model(&model.LabDeviceItemMaster{}).
 		Where("clinic_id = ? AND device_item_code = ?", clinicA, "NEW").Count(&masterCount).Error)
 	assert.Equal(t, int64(1), masterCount)
+	saved, err := svc.Get(ctx, clinicA, draft.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(saved.Items))
+	assert.False(t, saved.Items[0].UnitMismatch, "matching submitted unit must overwrite true")
+	for _, tc := range []struct {
+		unit     string
+		mismatch bool
+	}{{"g/dl", true}, {"", false}, {"mg/dl", false}} {
+		updated := saved.Items[0]
+		updated.ChartUnit = tc.unit
+		updated.UnitMismatch = tc.mismatch
+		require.NoError(t, tx.WithTx(ctx, func(txCtx context.Context) error {
+			return store.UpdateConfirmedItems(txCtx, clinicA, draft.ID, []model.LabDeviceMappingDraftItem{updated})
+		}))
+		var persisted model.LabDeviceMappingDraftItem
+		require.NoError(t, db.Where("clinic_id = ? AND draft_id = ? AND device_item_code = ?", clinicA, draft.ID, "NEW").First(&persisted).Error)
+		assert.Equal(t, tc.mismatch, persisted.UnitMismatch)
+	}
+}
+
+func TestLabMappingDraftRepository_InvalidHTTPBodiesPersist(t *testing.T) {
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.ExaminationType{}, &model.ExamTypeField{}, &model.LabDeviceMappingDraft{}, &model.LabDeviceMappingDraftItem{}))
+	exam := model.ExaminationType{ClinicID: 1, Name: "mapping-http"}
+	require.NoError(t, db.Create(&exam).Error)
+	field := model.ExamTypeField{ClinicID: 1, ExamTypeID: exam.ID, Name: "BUN", Unit: "mg/dl"}
+	require.NoError(t, db.Create(&field).Error)
+	var draftIDs []uint64
+	t.Cleanup(func() {
+		if len(draftIDs) > 0 {
+			db.Unscoped().Where("clinic_id = ? AND draft_id IN ?", 1, draftIDs).Delete(&model.LabDeviceMappingDraftItem{})
+			db.Unscoped().Where("clinic_id = ? AND id IN ?", 1, draftIDs).Delete(&model.LabDeviceMappingDraft{})
+		}
+		db.Unscoped().Where("clinic_id = ?", 1).Delete(&field)
+		db.Unscoped().Where("clinic_id = ?", 1).Delete(&exam)
+	})
+	for _, status := range []int{http.StatusOK, http.StatusBadGateway} {
+		for _, tc := range []struct {
+			name   string
+			body   []byte
+			binary bool
+		}{
+			{"text", []byte("invalid model body"), false},
+			{"nul", []byte{'x', 0, 'y'}, true},
+			{"invalid_utf8", []byte{'x', 0xff, 'y'}, true},
+		} {
+			t.Run(http.StatusText(status)+"/"+tc.name, func(t *testing.T) {
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(status); _, _ = w.Write(tc.body) }))
+				t.Cleanup(server.Close)
+				store := NewLabMappingDraftRepository(db)
+				svc := NewLabMappingDraftService(store, &mappingMasterFake{}, NewOpenAILabItemDrafter(server.Client(), "test-key", server.URL), &scriptAudit{}, persistence.NewTransactor(db))
+				payload := fujiOne("S1", "BUN-P", mappingSentinelValue, "mg/dl", "")
+				view, err := svc.Create(context.Background(), 1, payload, "nx600")
+				require.NoError(t, err)
+				draftIDs = append(draftIDs, view.Draft.ID)
+				saved, err := svc.Get(context.Background(), 1, view.Draft.ID)
+				require.NoError(t, err)
+				assert.Equal(t, model.LabMappingDraftStatusUnconfirmed, saved.Draft.Status)
+				assert.True(t, bytes.Equal(payload, saved.Draft.RawPayload), "raw payload must persist")
+				require.Equal(t, 1, len(saved.Items))
+				assert.Equal(t, model.LabMappingItemSourceBlank, saved.Items[0].ItemSource)
+				category := labMappingLLMParse
+				if status != http.StatusOK {
+					category = labMappingLLMHTTP
+				}
+				assert.Equal(t, category, saved.Items[0].LLMError)
+				assert.True(t, json.Valid(saved.Items[0].LLMResponse))
+				if tc.binary {
+					var retainedBody []byte
+					if saved.Items[0].LLMResponse[0] == '"' {
+						var retained string
+						require.NoError(t, json.Unmarshal(saved.Items[0].LLMResponse, &retained))
+						retainedBody = []byte(retained)
+					} else {
+						var retained struct {
+							Encoding string `json:"encoding"`
+							Body     []byte `json:"body"`
+						}
+						require.NoError(t, json.Unmarshal(saved.Items[0].LLMResponse, &retained))
+						assert.Equal(t, "base64", retained.Encoding)
+						retainedBody = retained.Body
+					}
+					assert.True(t, bytes.Equal(tc.body, retainedBody), "exact response bytes must persist")
+				} else {
+					var retained string
+					require.NoError(t, json.Unmarshal(saved.Items[0].LLMResponse, &retained))
+					assert.True(t, retained == string(tc.body), "response must persist")
+				}
+			})
+		}
+	}
+}
+
+func TestLabMappingDraftRepository_ClinicUniqueSchema(t *testing.T) {
+	t.Run("gorm_index", func(t *testing.T) {
+		parsed, err := schema.Parse(&model.LabDeviceMappingDraft{}, &sync.Map{}, schema.NamingStrategy{})
+		require.NoError(t, err)
+		index := parsed.LookIndex("uq_lab_device_mapping_drafts_id_clinic")
+		require.NotNil(t, index)
+		require.Equal(t, 2, len(index.Fields))
+		assert.Equal(t, "clinic_id", index.Fields[0].DBName)
+		assert.Equal(t, "id", index.Fields[1].DBName)
+	})
+	t.Run("migration", func(t *testing.T) {
+		body, err := os.ReadFile("../../migrations/024_lab_device_mapping_drafts_clinic_unique.sql")
+		require.NoError(t, err)
+		var statements []string
+		for _, statement := range strings.Split(string(body), ";") {
+			normalized := strings.Join(strings.Fields(statement), " ")
+			if normalized != "" {
+				statements = append(statements, normalized)
+			}
+		}
+		assert.Equal(t, []string{
+			"ALTER TABLE lab_device_mapping_draft_items DROP CONSTRAINT fk_lab_device_mapping_draft_items_draft_clinic",
+			"ALTER TABLE lab_device_mapping_specs DROP CONSTRAINT fk_lab_device_mapping_specs_draft_clinic",
+			"ALTER TABLE lab_device_mapping_drafts DROP CONSTRAINT uq_lab_device_mapping_drafts_id_clinic",
+			"ALTER TABLE lab_device_mapping_drafts ADD CONSTRAINT uq_lab_device_mapping_drafts_id_clinic UNIQUE (clinic_id, id)",
+			"ALTER TABLE lab_device_mapping_draft_items ADD CONSTRAINT fk_lab_device_mapping_draft_items_draft_clinic FOREIGN KEY (clinic_id, draft_id) REFERENCES lab_device_mapping_drafts (clinic_id, id) ON DELETE RESTRICT",
+			"ALTER TABLE lab_device_mapping_specs ADD CONSTRAINT fk_lab_device_mapping_specs_draft_clinic FOREIGN KEY (clinic_id, confirmed_draft_id) REFERENCES lab_device_mapping_drafts (clinic_id, id) ON DELETE RESTRICT",
+		}, statements)
+	})
 }

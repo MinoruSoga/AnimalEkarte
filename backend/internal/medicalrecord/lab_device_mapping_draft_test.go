@@ -308,6 +308,11 @@ func TestLabMappingHelpers_SpeciesAndUnits(t *testing.T) {
 	assert.Equal(t, "", labDeviceSpeciesFromText("catheter and hotdog"))
 	assert.Equal(t, "", labDeviceSpeciesFromText("犬種と猫砂"))
 	assert.Equal(t, "", labDeviceSpeciesFromText("xcanine"))
+	for _, text := range []string{"sample_canine_01", "canine_01", "1feline", "dog cat"} {
+		assert.Empty(t, labDeviceSpeciesFromText(text))
+	}
+	assert.Equal(t, "canine", labDeviceSpeciesFromText("result\ncanine WBC"))
+	assert.Equal(t, "feline", labDeviceSpeciesFromText("result-feline-WBC"))
 	assert.False(t, unitsMismatch("mg/dL", "mg/dl"))
 	assert.False(t, unitsMismatch("µmol/L", "umol/l"))
 	assert.True(t, unitsMismatch("mg/dl", "g/dl"))
@@ -561,10 +566,11 @@ func (m *mappingMasterFake) SaveConfiguration(context.Context, uint64, uint64, S
 }
 
 type mappingDrafterFake struct {
-	calls  int
-	last   LabMappingLLMRequest
-	result LabMappingLLMResult
-	err    error
+	afterCall func()
+	calls     int
+	last      LabMappingLLMRequest
+	result    LabMappingLLMResult
+	err       error
 }
 
 func (d *mappingDrafterFake) DraftItem(_ context.Context, req LabMappingLLMRequest) (LabMappingLLMResult, error) {
@@ -581,5 +587,55 @@ func (d *mappingDrafterFake) DraftItem(_ context.Context, req LabMappingLLMReque
 		}
 		result.RequestJSON = body
 	}
+	if d.afterCall != nil {
+		d.afterCall()
+	}
 	return result, nil
+}
+
+func TestLabMappingDraftService_StopBetweenLLMCallsKeepsExchanges(t *testing.T) {
+	svc, store, _, drafter := newMappingHarness()
+	drafter.result = LabMappingLLMResult{ExamTypeFieldID: 7, ResponseJSON: json.RawMessage(`{"exam_type_field_id":7}`)}
+	drafter.afterCall = func() { store.stopped = true }
+	payload := synthFujiHeaderOnly("NORMAL ", "2026-01-15", "10:30", "S1", [][]byte{
+		fujiEqualsSlot("BUN-P", mappingSentinelValue, "mg/dl", ""),
+		fujiEqualsSlot("CRE-P", mappingSentinelValue, "mg/dl", ""),
+	})
+	view, err := svc.Create(context.Background(), 1, payload, "nx600")
+	require.NoError(t, err)
+	assert.Equal(t, 1, drafter.calls)
+	saved, err := svc.Get(context.Background(), 1, view.Draft.ID)
+	require.NoError(t, err)
+	assert.Equal(t, model.LabMappingDraftStatusFailed, saved.Draft.Status)
+	assert.Equal(t, "generation_stopped", saved.Draft.ErrorMessage)
+	assert.True(t, string(payload) == string(saved.Draft.RawPayload), "raw payload must be retained")
+	require.Equal(t, 1, len(saved.Items))
+	assert.Equal(t, "BUN-P", saved.Items[0].DeviceItemCode)
+	assert.True(t, json.Valid(saved.Items[0].LLMRequest))
+	assert.True(t, string(drafter.result.ResponseJSON) == string(saved.Items[0].LLMResponse), "first response must be retained")
+}
+
+func TestLabMappingDraftService_ConfirmRecalculatesUnitMismatch(t *testing.T) {
+	for _, tc := range []struct {
+		name, initial, submitted string
+		want                     bool
+	}{
+		{"resolved", "g/dl", "mg/dl", false},
+		{"introduced", "mg/dl", "g/dl", true},
+		{"empty", "g/dl", "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, _, masters, _ := newMappingHarness()
+			masters.resolution = &LabDeviceMasterResolution{Mapped: []LabDeviceResolvedItem{{DeviceItemCode: "BUN-P", Unit: tc.initial, FieldName: "BUN", ExamTypeFieldID: 7, ExamTypeID: 3}}}
+			created, err := svc.Create(context.Background(), 1, fujiOne("S1", "BUN-P", mappingSentinelValue, "mg/dl", ""), "nx600")
+			require.NoError(t, err)
+			_, err = svc.Confirm(context.Background(), 1, created.Draft.ID, 4, ConfirmLabMappingInput{Items: []ConfirmLabMappingItem{{DeviceItemCode: "BUN-P", ExamTypeFieldID: 7, ValueShape: model.LabDeviceValueShapeNumeric, ChartUnit: tc.submitted}}})
+			require.NoError(t, err)
+			saved, err := svc.Get(context.Background(), 1, created.Draft.ID)
+			require.NoError(t, err)
+			require.Equal(t, 1, len(saved.Items))
+			assert.Equal(t, tc.want, saved.Items[0].UnitMismatch)
+			assert.True(t, saved.Items[0].ValueRaw == mappingSentinelValue, "confirmation must not convert values")
+		})
+	}
 }

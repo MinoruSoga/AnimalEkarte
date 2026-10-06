@@ -98,7 +98,7 @@ func labSpeciesTokens(text string) []labSpeciesToken {
 	tokens := make([]labSpeciesToken, 0, 4)
 	start := -1
 	for i, r := range text {
-		if unicode.IsLetter(r) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' {
 			if start < 0 {
 				start = i
 			}
