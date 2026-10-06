@@ -1,11 +1,11 @@
 ---
-title: 割引キャンペーンマスタ
+title: 割引キャンペーン
 order: 19.92
 section: システム設定
 keywords_vi: chiến dịch giảm giá, master khuyến mãi, chương trình giảm giá, mã giảm giá
 ---
 
-# 割引キャンペーンマスタ
+# 割引キャンペーン
 
 期間限定の **割引キャンペーン**（例: 初回割引・シーズンキャンペーン）を管理するマスタです。会計画面の割引選択肢に反映されます。
 
@@ -15,7 +15,7 @@ keywords_vi: chiến dịch giảm giá, master khuyến mãi, chương trình g
 
 ## 画面イメージ
 
-![割引キャンペーンマスタ 画面](images/45-master-campaigns.png)
+![割引キャンペーン 画面](images/45-master-campaigns.png)
 
 ## キャンペーンを登録する
 

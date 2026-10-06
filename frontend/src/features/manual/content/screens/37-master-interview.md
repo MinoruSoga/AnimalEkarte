@@ -1,11 +1,11 @@
 ---
-title: 問診テンプレートマスタ
+title: 問診設定
 order: 19.6
 section: システム設定
 keywords_vi: mẫu hỏi bệnh, master phiếu hỏi bệnh, mẫu hỏi đáp, template hỏi bệnh sử
 ---
 
-# 問診テンプレートマスタ
+# 問診設定
 
 ## どんな画面か
 
@@ -13,7 +13,7 @@ keywords_vi: mẫu hỏi bệnh, master phiếu hỏi bệnh, mẫu hỏi đáp,
 
 ## 開き方
 
-サイドバー「**マスタ設定**」→「**問診設定**」
+サイドバー「**マスタ設定**」→「**カルテ関連**」→「**問診設定**」
 
 ## テンプレートの例
 
@@ -66,4 +66,4 @@ keywords_vi: mẫu hỏi bệnh, master phiếu hỏi bệnh, mẫu hỏi đáp,
 ## 関連する画面
 
 - 画面マニュアル「**カルテ**」: 問診テンプレートの選択
-- 画面マニュアル「**主訴マスタ**」: 主訴選択肢の管理
+- 画面マニュアル「**主訴カテゴリ**」: 主訴選択肢の管理

@@ -1,12 +1,12 @@
 ---
-title: 飼主・ペット管理
+title: 飼主・ペット
 order: 3
 section: 診療業務
 keywords: 飼い主, オーナー, 新規登録, 飼い主さん
 keywords_vi: khách hàng mới, đăng ký khách hàng mới, khách hàng, chủ nuôi, đăng ký chủ nuôi, quản lý khách hàng, hồ sơ chủ nuôi, thú cưng
 ---
 
-# 飼主・ペット管理
+# 飼主・ペット
 
 ## どんな画面か
 
@@ -18,7 +18,7 @@ keywords_vi: khách hàng mới, đăng ký khách hàng mới, khách hàng, ch
 
 ## 画面イメージ
 
-![飼主・ペット管理 画面](images/03-owners.png)
+![飼主・ペット 画面](images/03-owners.png)
 
 ## 画面の見方
 
@@ -174,7 +174,7 @@ keywords_vi: khách hàng mới, đăng ký khách hàng mới, khách hàng, ch
 | -------------------------- | ------------------ |
 | 当日の受付                 | 新規受付登録の起点 |
 | カルテ                     | 過去カルテへの遷移 |
-| 会計                       | 過去会計の参照     |
+| 会計管理                   | 過去会計の参照     |
 | 予防接種・検査・トリミング | 履歴参照           |
 
 ---

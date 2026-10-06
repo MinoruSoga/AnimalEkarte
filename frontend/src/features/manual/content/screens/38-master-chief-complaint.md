@@ -1,11 +1,11 @@
 ---
-title: 主訴マスタ
+title: 主訴カテゴリ
 order: 19.7
 section: システム設定
 keywords_vi: master triệu chứng chính, danh mục lý do khám, triệu chứng, lý do đến khám
 ---
 
-# 主訴マスタ
+# 主訴カテゴリ
 
 ## どんな画面か
 
@@ -13,7 +13,7 @@ keywords_vi: master triệu chứng chính, danh mục lý do khám, triệu ch�
 
 ## 開き方
 
-サイドバー「**マスタ設定**」→「**問診設定**」（同画面内に主訴タブ）
+サイドバー「**マスタ設定**」→「**カルテ関連**」→「**主訴カテゴリ**」
 
 ## 主訴の例
 
@@ -63,4 +63,4 @@ keywords_vi: master triệu chứng chính, danh mục lý do khám, triệu ch�
 
 - 画面マニュアル「**当日の受付**」: 来院目的の選択
 - 画面マニュアル「**カルテ**」: 主訴セクション
-- 画面マニュアル「**問診テンプレートマスタ**」: 関連マスタ
+- 画面マニュアル「**問診設定**」: 関連マスタ
