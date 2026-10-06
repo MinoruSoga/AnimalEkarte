@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -143,7 +144,7 @@ func (d *openAILabItemDrafter) DraftItem(ctx context.Context, req LabMappingLLMR
 		result.ErrorCategory = labMappingLLMHTTP
 		return result, nil
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		result.ErrorCategory = labMappingLLMHTTP
@@ -210,7 +211,7 @@ func labMappingHasUnpairedSurrogate(raw []byte) bool {
 func labMappingLLMRequestBody(req LabMappingLLMRequest) (json.RawMessage, error) {
 	input, err := json.Marshal(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to marshal lab mapping request input: %w", err)
 	}
 	schema := json.RawMessage(`{"type":"object","additionalProperties":false,"properties":{"exam_type_field_id":{"type":"integer"},"field_name":{"type":"string"}},"required":["exam_type_field_id","field_name"]}`)
 	body := labMappingLLMBody{
@@ -228,7 +229,11 @@ func labMappingLLMRequestBody(req LabMappingLLMRequest) (json.RawMessage, error)
 			Schema: schema,
 		}},
 	}
-	return json.Marshal(body)
+	raw, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal lab mapping request body: %w", err)
+	}
+	return raw, nil
 }
 
 func labMappingFieldIDFromResponse(raw []byte) (uint64, bool) {

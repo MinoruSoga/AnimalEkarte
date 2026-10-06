@@ -160,12 +160,7 @@ func (h *LabImportHandler) ConfirmLabMappingDraft(c *gin.Context) {
 	}
 	items := make([]ConfirmLabMappingItem, 0, len(req.Items))
 	for _, item := range req.Items {
-		items = append(items, ConfirmLabMappingItem{
-			DeviceItemCode:  item.DeviceItemCode,
-			ExamTypeFieldID: item.ExamTypeFieldID,
-			ValueShape:      item.ValueShape,
-			ChartUnit:       item.ChartUnit,
-		})
+		items = append(items, ConfirmLabMappingItem(item))
 	}
 	view, err := svc.Confirm(c.Request.Context(), clinicID, id, staffID, ConfirmLabMappingInput{Items: items})
 	if err != nil {
@@ -199,7 +194,7 @@ func (h *LabImportHandler) PutLabMappingGeneration(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, labMappingGenerationResponse{Stopped: req.Stopped})
+	c.JSON(http.StatusOK, labMappingGenerationResponse(req))
 }
 
 func toLabMappingDraftResponse(view *LabMappingDraftView) labMappingDraftResponse {
