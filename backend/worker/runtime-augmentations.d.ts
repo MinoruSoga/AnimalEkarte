@@ -43,6 +43,10 @@ interface Env {
   PLANE_PROJECT_ID?: string;
   PLANE_PROJECT_IDENTIFIER?: string;
   PLANE_TIMEOUT_MS?: string;
+  // Optional bug-report Discord webhook. URL via `wrangler secret put` only;
+  // unset disables notification (report still saves to DB).
+  DISCORD_BUG_REPORT_WEBHOOK_URL?: string;
+  DISCORD_WEBHOOK_TIMEOUT_MS?: string;
 }
 
 declare namespace Cloudflare {
@@ -75,6 +79,8 @@ declare namespace Cloudflare {
     PLANE_PROJECT_ID?: string;
     PLANE_PROJECT_IDENTIFIER?: string;
     PLANE_TIMEOUT_MS?: string;
+    DISCORD_BUG_REPORT_WEBHOOK_URL?: string;
+    DISCORD_WEBHOOK_TIMEOUT_MS?: string;
   }
 }
 
