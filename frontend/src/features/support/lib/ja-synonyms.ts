@@ -8,7 +8,7 @@
  * グループ内の語は相互に言い換え可能として、検索語・根拠判定の両方で展開する。
  */
 
-export const JA_SYNONYM_GROUPS: readonly (readonly string[])[] = [
+const JA_SYNONYM_GROUPS: readonly (readonly string[])[] = [
   // 飼い主さん → 飼い主 は suffix strip で処理するため不要
   ["飼い主", "飼主", "オーナー"],
   ["作り", "作る", "作成"],

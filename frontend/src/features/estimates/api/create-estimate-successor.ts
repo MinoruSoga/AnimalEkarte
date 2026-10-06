@@ -7,7 +7,7 @@ import type { Estimate } from "../types";
 import { transformEstimate } from "./transforms";
 import type { BackendEstimate } from "./types";
 
-export type CreateEstimateSuccessorRequest = {
+type CreateEstimateSuccessorRequest = {
   reason: string;
   title?: string;
   comment?: string;
