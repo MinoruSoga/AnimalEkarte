@@ -318,6 +318,10 @@ export const AuditActionLabImportSourceBlocked = "lab_import.source.blocked";
  */
 export const AuditActionLabImportRevertSucceeded = "lab_import.revert.succeeded";
 /**
+ * AuditActionLabDeviceMappingConfirm records a person confirming one lab item map (EMR-297).
+ */
+export const AuditActionLabDeviceMappingConfirm = "lab_device_mapping.confirm";
+/**
  * #211 健診結果値の置換（既存削除を伴う PUT）監査アクション
  */
 export const AuditActionCheckupFieldResultReplace = "checkup_field_result.replace";
@@ -369,7 +373,7 @@ export const AuditActionMedicalRecordImageDelete = "medical_record_image.delete"
 /**
  * 監査アクション定数
  */
-export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionStaffPermissionGroupsReplace | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionAuthPasswordChange | typeof AuditActionAuthPasswordReset | typeof AuditActionAuthPasswordAdminReplace | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionReservationNoShow | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionTrimmingCreate | typeof AuditActionTrimmingUpdate | typeof AuditActionTrimmingDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionBillingVaccinationClaimRelease | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionLabImportRevertSucceeded | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionExamResultReplace | typeof AuditActionExaminationCreate | typeof AuditActionExaminationUpdate | typeof AuditActionExaminationConfirm | typeof AuditActionExaminationUnconfirm | typeof AuditActionExaminationDelete | typeof AuditActionClinicalPlanUpdate | typeof AuditActionClinicalPlanDelete | typeof AuditActionPetOwnerReplace | typeof AuditActionHospitalizationDischargeWithBilling | typeof AuditActionOwnerIdentityLinkCreate | typeof AuditActionOwnerIdentityLinkAdd | typeof AuditActionOwnerIdentityLinkUnlink | typeof AuditActionPetIdentityLinkCreate | typeof AuditActionPetIdentityLinkAdd | typeof AuditActionPetIdentityLinkUnlink | typeof AuditActionStaffProvisionCreate | typeof AuditActionStaffProvisionReceipt | typeof AuditActionStaffAccountAttach | typeof AuditActionMedicalRecordImageDelete;
+export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionStaffPermissionGroupsReplace | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionAuthPasswordChange | typeof AuditActionAuthPasswordReset | typeof AuditActionAuthPasswordAdminReplace | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionReservationNoShow | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionTrimmingCreate | typeof AuditActionTrimmingUpdate | typeof AuditActionTrimmingDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionBillingVaccinationClaimRelease | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionLabImportRevertSucceeded | typeof AuditActionLabDeviceMappingConfirm | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionExamResultReplace | typeof AuditActionExaminationCreate | typeof AuditActionExaminationUpdate | typeof AuditActionExaminationConfirm | typeof AuditActionExaminationUnconfirm | typeof AuditActionExaminationDelete | typeof AuditActionClinicalPlanUpdate | typeof AuditActionClinicalPlanDelete | typeof AuditActionPetOwnerReplace | typeof AuditActionHospitalizationDischargeWithBilling | typeof AuditActionOwnerIdentityLinkCreate | typeof AuditActionOwnerIdentityLinkAdd | typeof AuditActionOwnerIdentityLinkUnlink | typeof AuditActionPetIdentityLinkCreate | typeof AuditActionPetIdentityLinkAdd | typeof AuditActionPetIdentityLinkUnlink | typeof AuditActionStaffProvisionCreate | typeof AuditActionStaffProvisionReceipt | typeof AuditActionStaffAccountAttach | typeof AuditActionMedicalRecordImageDelete;
 export const AuditResourceAccount = "account";
 export const AuditResourceStaff = "staff";
 export const AuditResourceLabImport = "lab_import";
@@ -1886,6 +1890,88 @@ export interface LabDeviceItemMaster {
   sort_order: number /* int */;
   is_active: boolean;
   created_at: string;
+  updated_at: string;
+}
+
+//////////
+// source: lab_device_mapping_draft.go
+
+export const LabMappingDraftStatusUnconfirmed = "unconfirmed";
+export const LabMappingDraftStatusConfirmed = "confirmed";
+export const LabMappingDraftStatusFailed = "failed";
+/**
+ * Lab mapping draft statuses. Failed drafts cannot be confirmed.
+ */
+export type LabMappingDraftStatus = typeof LabMappingDraftStatusUnconfirmed | typeof LabMappingDraftStatusConfirmed | typeof LabMappingDraftStatusFailed;
+export const LabMappingItemSourceDictionary = "dictionary";
+export const LabMappingItemSourceLLM = "llm";
+export const LabMappingItemSourceBlank = "blank";
+export const LabMappingItemSourceComment = "comment";
+/**
+ * Lab mapping item sources. Dictionary rows have no LLM payload.
+ */
+export type LabMappingItemSource = typeof LabMappingItemSourceDictionary | typeof LabMappingItemSourceLLM | typeof LabMappingItemSourceBlank | typeof LabMappingItemSourceComment;
+/**
+ * LabDeviceMappingDraft is one device result kept for a human to confirm.
+ * RawPayload is the device frame. It is not a chart write and is not returned by the API.
+ */
+export interface LabDeviceMappingDraft {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  source_type: string;
+  species: string;
+  status: string;
+  raw_fingerprint: string;
+  error_message: string;
+  confirmed_at?: string;
+  confirmed_by_staff_id?: number /* uint64 */;
+  created_at: string;
+  updated_at: string;
+}
+/**
+ * LabDeviceMappingDraftItem is one code on a draft.
+ * ValueRaw and the LLM bodies stay in the database and out of the API.
+ */
+export interface LabDeviceMappingDraftItem {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  draft_id: number /* uint64 */;
+  device_item_code: string;
+  device_unit: string;
+  chart_unit: string;
+  unit_mismatch: boolean;
+  exam_type_field_id?: number /* uint64 */;
+  proposed_field_name: string;
+  item_source: string;
+  llm_error: string;
+  sort_order: number /* int */;
+  confirmed: boolean;
+  created_at: string;
+}
+/**
+ * LabDeviceMappingSpec is a confirmed device+species item map.
+ * Samples with an empty species do not read this table.
+ */
+export interface LabDeviceMappingSpec {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  source_type: string;
+  species: string;
+  device_item_code: string;
+  unit: string;
+  value_shape: string;
+  exam_type_field_id: number /* uint64 */;
+  confirmed_draft_id: number /* uint64 */;
+  created_at: string;
+  updated_at: string;
+}
+/**
+ * LabDeviceMappingGeneration is the per-clinic switch for new drafts.
+ * A missing row means draft generation is allowed. Import does not read it.
+ */
+export interface LabDeviceMappingGeneration {
+  clinic_id: number /* uint64 */;
+  stopped: boolean;
   updated_at: string;
 }
 
