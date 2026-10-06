@@ -12,7 +12,7 @@
  * 採点結果（recall@3）はメトリクスとして出力されるだけで、
  * ベースラインのミス自体はテスト失敗にしない。
  */
-export type EvalLang = "ja" | "vi";
+type EvalLang = "ja" | "vi";
 
 export interface EvalCase {
   /** 自然文の質問 */

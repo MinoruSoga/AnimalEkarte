@@ -29,7 +29,7 @@ export interface PetChronicCondition {
  * （clinic スコープは axios 側の X-Clinic-ID ヘッダで処理、パスには含めない）。
  * GET は包みなしの bare array を返す。
  */
-export interface CreatePetChronicConditionRequest {
+interface CreatePetChronicConditionRequest {
   condition_code: string;
   condition_name: string;
   /** strict YYYY-MM-DD（shared DatePicker 由来の値のみ） */
@@ -38,7 +38,7 @@ export interface CreatePetChronicConditionRequest {
   is_active?: boolean;
 }
 
-export interface UpdatePetChronicConditionRequest {
+interface UpdatePetChronicConditionRequest {
   condition_code?: string;
   condition_name?: string;
   diagnosed_at?: string;
