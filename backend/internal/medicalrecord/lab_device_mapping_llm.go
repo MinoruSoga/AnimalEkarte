@@ -123,7 +123,7 @@ func (d *openAILabItemDrafter) DraftItem(ctx context.Context, req LabMappingLLMR
 	if err != nil {
 		return LabMappingLLMResult{ErrorCategory: labMappingLLMParse}, nil
 	}
-	result := LabMappingLLMResult{RequestJSON: body}
+	result := LabMappingLLMResult{RequestJSON: labMappingResponseJSON(body)}
 	if d.apiKey == "" {
 		result.ErrorCategory = labMappingLLMUnconfigured
 		return result, nil
@@ -164,19 +164,17 @@ func (d *openAILabItemDrafter) DraftItem(ctx context.Context, req LabMappingLLMR
 }
 
 func labMappingResponseJSON(raw []byte) json.RawMessage {
-	if json.Valid(raw) {
-		return raw
-	}
-	if bytes.IndexByte(raw, 0) >= 0 || !utf8.Valid(raw) {
-		// jsonb rejects NUL and string marshaling replaces invalid UTF-8.
-		// A byte slice is encoded as base64, preserving the received body.
+	// jsonb accepts ordinary JSON. It rejects a raw NUL and the \u0000 escape.
+	if bytes.Contains(raw, []byte(`\u0000`)) || bytes.IndexByte(raw, 0) >= 0 || !utf8.Valid(raw) {
 		wrapped, _ := json.Marshal(struct {
 			Encoding string `json:"encoding"`
 			Body     []byte `json:"body"`
 		}{Encoding: "base64", Body: raw})
 		return wrapped
 	}
-	// Marshaling a string cannot fail and keeps non-JSON bodies valid for jsonb.
+	if json.Valid(raw) {
+		return raw
+	}
 	wrapped, _ := json.Marshal(string(raw))
 	return wrapped
 }

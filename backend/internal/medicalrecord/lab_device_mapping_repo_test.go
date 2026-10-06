@@ -172,6 +172,8 @@ func TestLabMappingDraftRepository_InvalidHTTPBodiesPersist(t *testing.T) {
 	require.NoError(t, db.Create(&exam).Error)
 	field := model.ExamTypeField{ClinicID: 1, ExamTypeID: exam.ID, Name: "BUN", Unit: "mg/dl"}
 	require.NoError(t, db.Create(&field).Error)
+	escapedNUL, marshalErr := json.Marshal(map[string]string{"note": "a\x00b"})
+	require.NoError(t, marshalErr)
 	var draftIDs []uint64
 	t.Cleanup(func() {
 		if len(draftIDs) > 0 {
@@ -189,6 +191,7 @@ func TestLabMappingDraftRepository_InvalidHTTPBodiesPersist(t *testing.T) {
 		}{
 			{"text", []byte("invalid model body"), false},
 			{"nul", []byte{'x', 0, 'y'}, true},
+			{"nul_escape", escapedNUL, true},
 			{"invalid_utf8", []byte{'x', 0xff, 'y'}, true},
 		} {
 			t.Run(http.StatusText(status)+"/"+tc.name, func(t *testing.T) {
