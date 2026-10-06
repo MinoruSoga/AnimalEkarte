@@ -148,7 +148,7 @@ func (h *ReservationStaffHandler) UpdateReservationStaffStatus(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	staff, excluded, err := h.svc.PatchStatus(ctx, clinicID, id, req.IsActive, actorStaffID)
+	staff, excluded, err := h.svc.PatchStatus(ctx, clinicID, id, *req.IsActive, actorStaffID)
 	if err != nil {
 		respondError(c, err)
 		return

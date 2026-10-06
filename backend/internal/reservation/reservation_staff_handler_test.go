@@ -496,6 +496,22 @@ func TestPatchReservationStaffStatus(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
+			name:       "returns 400 when is_active is omitted",
+			paramID:    "3",
+			body:       map[string]any{},
+			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
+			svc:        &mockReservationStaffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when is_active is null",
+			paramID:    "3",
+			body:       map[string]any{"is_active": nil},
+			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
+			svc:        &mockReservationStaffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
 			name:     "returns 404 when reservation staff not found",
 			paramID:  "999",
 			body:     map[string]any{"is_active": true},
