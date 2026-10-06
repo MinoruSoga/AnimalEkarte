@@ -1,21 +1,21 @@
 ---
 name: implement-issue
-description: "Linear Issue を指定して、コード規約準拠の実装 → セルフレビュー → Linear の証跡更新までを行う。`/implement BRT-123` のように使用。実行 SoT は Linear、今期外・見送り判断は docs/work/phase2-deferred.md。"
+description: "Plane Issue を指定して、コード規約準拠の実装 → セルフレビュー → Plane の証跡更新までを行う。`/implement EMR-123` のように使用。実行 SoT は Plane、今期外・見送り判断は docs/work/phase2-deferred.md。"
 ---
 
 # Implement Issue — タスク実装ワークフロー
 
-Linear の該当 Issue を読み込み、コード規約に準拠した実装 → セルフレビュー → 証跡更新までを実行する。
+Plane の該当 Issue を読み込み、コード規約に準拠した実装 → セルフレビュー → 証跡更新までを実行する。
 
-> **SoT の注意**: 実行タスク、仕様、受け入れ条件、状態、依存関係は Linear Issue が正本。今期外・見送りの索引は [`docs/work/phase2-deferred.md`](../../../docs/work/phase2-deferred.md) であり、実装台帳ではない。削除済み root ledger や旧 HTML を現在の依存関係・完了状態の根拠に使わない。
+> **SoT の注意**: 実行タスク、仕様、受け入れ条件、状態、依存関係は Plane Issue が正本。今期外・見送りの索引は [`docs/work/phase2-deferred.md`](../../../docs/work/phase2-deferred.md) であり、実装台帳ではない。削除済み root ledger や旧 HTML を現在の依存関係・完了状態の根拠に使わない。
 >
-> GitHub Issue（`#NNN`）が Linear Issue から参照される場合は、仕様・受け入れ条件について該当 Issue 本文とコメント（`gh issue view <NNN>`）も確認する。
+> GitHub Issue（`#NNN`）が Plane Issue から参照される場合は、仕様・受け入れ条件について該当 Issue 本文とコメント（`gh issue view <NNN>`）も確認する。
 
 ## 起動トリガー
 
-- `/implement <Linear ID>`（例: `/implement BRT-123`）— Linear で Issue 本文・状態・コメントを確認する
-- 引数なしの場合: `docs/work/phase2-deferred.md` は見送り索引であることを示し、実装対象の Linear ID をユーザーに求める
-- 旧 `TASK-XXX` / `BUG-XXX` / `BE-XXX` / `FE-XXX` を指定された場合: git 履歴で経緯確認のみ行い、現在の実装対象は対応する Linear Issue を確認してから決める
+- `/implement <Plane ID>`（例: `/implement EMR-123`）— Plane で Issue 本文・状態・コメントを確認する
+- 引数なしの場合: `docs/work/phase2-deferred.md` は見送り索引であることを示し、実装対象の Plane ID をユーザーに求める
+- 旧 `TASK-XXX` / `BUG-XXX` / `BE-XXX` / `FE-XXX` を指定された場合: git 履歴で経緯確認のみ行い、現在の実装対象は対応する Plane Issue を確認してから決める
 
 引数は `$ARGUMENTS` 変数で受け取る。
 
@@ -25,7 +25,7 @@ Linear の該当 Issue を読み込み、コード規約に準拠した実装 �
 
 ### 1.1 引数解析
 
-- Linear ID → Linear で該当 Issue の本文、コメント、状態、親子関係を確認する。
+- Plane ID → Plane で該当 Issue の本文、コメント、状態、親子関係を確認する。
 - repo 内の見送り判断だけを確認する必要がある場合:
 
 ```bash
@@ -35,19 +35,19 @@ grep -n '<キーワード>' docs/work/phase2-deferred.md
 ### 1.1b claim 確認（着手前必須・AGENTS.md packet claim protocol）
 
 ```bash
-git branch --list 'claim/<Linear ID>'
+git branch --list 'claim/<Plane ID>'
 ```
 
-非空なら**ハードストップ**: claim ブランチ名を挙げて BLOCKED を報告し、編集しない。空なら `git branch claim/<Linear ID>` で取得してから着手する（取得失敗も BLOCKED）。claim ブランチの削除（解放）は main 統合後の USER 専権 — エージェントは自他を問わず削除しない。
+非空なら**ハードストップ**: claim ブランチ名を挙げて BLOCKED を報告し、編集しない。空なら `git branch claim/<Plane ID>` で取得してから着手する（取得失敗も BLOCKED）。claim ブランチの解放は AGENTS.md packet claim protocol の作成者別規則に従う（AI 作成 claim は統合・放棄・引き継ぎ確認後に解放可。USER 作成 claim は削除しない）。
 
 ### 1.2 タスクセクション読み込み
 
-Linear Issue 本文・コメント・リンク先仕様を読み込み、以下を抽出:
+Plane Issue 本文・コメント・リンク先仕様を読み込み、以下を抽出:
 - **問題**: 何が問題か・実装内容の概要
 - **根拠**: 対象ファイル・行番号・現状コードの実測情報
 - **修正方針**: 採用案・参照実装・具体的なコード変更指示
 - **受け入れ条件**: 検証可能な完了条件
-- **状態**: 優先度・Linear の依存 Issue・前提条件
+- **状態**: 優先度・Plane の依存 Issue・前提条件
 
 ### タスクセクション記載の実測再検証（着手前必須）
 
@@ -57,8 +57,8 @@ Linear Issue 本文・コメント・リンク先仕様を読み込み、以下�
 
 ### 1.3 依存関係チェック
 
-- Linear の依存関係と各前提 Issue の状態を確認する。完了状態の正本は Linear であり、ローカル検索の不一致から完了を推定しない。
-- `docs/work/phase2-deferred.md` に再開条件がある場合は、Linear Issue の owner と再開条件が満たされるまで着手しない。
+- Plane の依存関係と各前提 Issue の状態を確認する。完了状態の正本は Plane であり、ローカル検索の不一致から完了を推定しない。
+- `docs/work/phase2-deferred.md` に再開条件がある場合は、Plane Issue の owner と再開条件が満たされるまで着手しない。
 - 依存 Issue が未完了の場合、ユーザーに警告する: 「<前提ID> が未完了。先に実装するか？」
 
 ```bash
@@ -73,7 +73,7 @@ git log --all --oneline -- 'docs/archive/**' | head
 
 ### 2.1 対象ファイルの特定
 
-- Linear Issue の「根拠」「修正方針」から、変更対象ファイルパスを抽出し、全て Read で読み込む。
+- Plane Issue の「根拠」「修正方針」から、変更対象ファイルパスを抽出し、全て Read で読み込む。
 
 ### 2.2 参照実装の確認
 
@@ -212,24 +212,24 @@ Lint エラー・型エラー・テスト失敗・規約違反があれば修正
 
 ## Phase 5: クローズ処理
 
-### 5.1 Linear Issue を更新
+### 5.1 Plane Issue を更新
 
-Linear Issue に実装コミット、変更概要、実行した検証コマンドと結果、残余リスクを記録する。状態遷移はレーンの承認手順に従い、実装者が Done を自己遷移しない。
+Plane Issue に実装コミット、変更概要、実行した検証コマンドと結果、残余リスクを記録する。状態遷移は [docs/ops/plane-ticket-conventions.md](../../../docs/ops/plane-ticket-conventions.md) の権限範囲に従う — 実装者は Review/UAT まで自己遷移可、Done/Cancelled/Duplicate は人間の受入・裁定が必須（自己 Done 禁止）。
 
 ### 5.2 関連 Issue の確認
 
-同じ親 Issue・Wave・クラスタの関連 Issue がある場合、影響と残余を Linear に記録する。`docs/work/phase2-deferred.md` は見送り判断専用であり、実装結果を書き足さない。
+同じ親 Issue・Wave・クラスタの関連 Issue がある場合、影響と残余を Plane に記録する。`docs/work/phase2-deferred.md` は見送り判断専用であり、実装結果を書き足さない。
 
-### 5.3 claim 報告（解放は USER 専権）
+### 5.3 claim 報告（解放は作成者別規則）
 
-claim ブランチ（`claim/<Linear ID>`）は**削除しない**。実装コミット完了後にブランチ名をユーザーへ報告し、main 統合後の解放（`git branch -D`）は USER が行う（AGENTS.md packet claim protocol）。
+claim ブランチ（`claim/<Plane ID>`）の解放は [AGENTS.md](../../../AGENTS.md) packet claim protocol の作成者別規則に従う（AI 作成 claim は統合・放棄・引き継ぎの確認後にエージェントが解放可。USER 作成 claim は削除しない）。実装コミット完了後にブランチ名と解放可否の判断材料をユーザーへ報告する。
 
 ### 5.4 完了報告
 
 以下のフォーマットでユーザーに報告:
 
 ```
-## 実装完了: <Linear ID>
+## 実装完了: <Plane ID>
 
 ### 変更ファイル
 - `path/to/file1.tsx` — 変更内容
@@ -241,8 +241,8 @@ claim ブランチ（`claim/<Linear ID>`）は**削除しない**。実装コミ
 - 全体 lint/test: ユーザー手動実行待ち（コマンド提示済み）。未実行を PASS にしない
 
 ### タスク
-- <Linear ID> → Linear にコミット・検証結果・残余を記録済み（Done 遷移は承認手順に従う）
-- claim/<Linear ID> 保持中 — main 統合後に USER が解放
+- <Plane ID> → Plane にコミット・検証結果・残余を記録済み（Done 遷移は承認手順に従う）
+- claim/<Plane ID> 保持中 — 解放可否は AGENTS.md 作成者別規則で判定して報告
 ```
 
 ---
@@ -251,7 +251,7 @@ claim ブランチ（`claim/<Linear ID>`）は**削除しない**。実装コミ
 
 | 状況 | 対応 |
 |------|------|
-| Linear Issue が見つからない | `docs/work/phase2-deferred.md` の再開条件と git 履歴を補助的に確認し、対応する Linear ID をユーザーに求める |
+| Plane Issue が見つからない | `docs/work/phase2-deferred.md` の再開条件と git 履歴を補助的に確認し、対応する Plane ID をユーザーに求める |
 | 依存イシューが未完了 | 警告表示、ユーザーに続行確認 |
 | Docker コンテナ未起動 | `make up` の実行を提案 |
 | Lint/Build 失敗 | エラー内容を表示し、Phase 3 に戻って修正 |

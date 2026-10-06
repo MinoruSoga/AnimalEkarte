@@ -43,6 +43,8 @@ flowchart TB
 | [plane-md-migration-20260923-receipt.md](./plane-md-migration-20260923-receipt.md) | 2026-09-23 Markdown→Plane 移行 receipt。旧 ID → `EMR-*` / `MIG-*` の crosswalk 正本 |
 | [plane-ready-triage-20260927/](./plane-ready-triage-20260927/) | 2026-09-27 Plane Needs Human/Blocked 65 件の ready 判定 verdicts（ready=0、verdicts.json あり） |
 | [emr-89-karte-copy-verification.md](./emr-89-karte-copy-verification.md) · [emr-180-note-staff-starttime-rdt-investigation.md](./emr-180-note-staff-starttime-rdt-investigation.md) · [emr-200-note2-coverage/](./emr-200-note2-coverage/) · [emr-211-synthetic-teardown-audit-logs.md](./emr-211-synthetic-teardown-audit-logs.md) | 各 Plane チケットの調査・検証記録（証跡票） |
+| [infra-cf-rename-task-coverage-review-20261006.md](./infra-cf-rename-task-coverage-review-20261006.md) | 2026-10-06 棚卸し実測に対する CF 移管・改名タスクの網羅性レビュー。実行 SoT ではない |
+| [infra-cf-rename-task-coverage-rereview-20261006.md](./infra-cf-rename-task-coverage-rereview-20261006.md) | 同上のチケット再構成後の再レビュー。実行 SoT ではない |
 | [docs-refresh-20260929/](./docs-refresh-20260929/) | 本キャンペーン（docs 全件照合 2026-09-29）の子レポート置き場 |
 | [docs-perfection/README.md](./docs-perfection/README.md) | **Astra 調査パッケージ入口**（棚卸し・RQ・子 goal・証拠）。製品の実行 SoT は上記 Plane |
 | [docs-perfection/REPAIR-QUEUE.md](./docs-perfection/REPAIR-QUEUE.md) | 調査時点の優先修復キュー（RQ-001〜） |
