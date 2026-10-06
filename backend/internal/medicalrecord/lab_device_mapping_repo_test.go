@@ -193,6 +193,17 @@ func TestLabMappingDraftRepository_InvalidHTTPBodiesPersist(t *testing.T) {
 			{"nul", []byte{'x', 0, 'y'}, true},
 			{"nul_escape", escapedNUL, true},
 			{"invalid_utf8", []byte{'x', 0xff, 'y'}, true},
+			{"high_surrogate", []byte(`{"note":"\uD800"}`), true},
+			{"low_surrogate", []byte(`{"note":"\uDC00"}`), true},
+			{"high_surrogate_lowercase", []byte(`{"note":"\ud800"}`), true},
+			{"low_surrogate_lowercase", []byte(`{"note":"\udc00"}`), true},
+			{"high_surrogate_range_end", []byte(`{"note":"\uDBFF"}`), true},
+			{"low_surrogate_range_end", []byte(`{"note":"\uDFFF"}`), true},
+			{"separated_surrogates", []byte(`{"note":"\uD800 \uDC00"}`), true},
+			{"literal_low_after_high", []byte(`{"note":"\uD800\\uDC00"}`), true},
+			{"escaped_backslash_before_high", []byte(`{"note":"\\\uD800"}`), true},
+			{"well_formed_pair", []byte(`{"note":"\uD800\uDC00"}`), false},
+			{"well_formed_pair_lowercase", []byte(`{"note":"\ud800\udc00"}`), false},
 		} {
 			t.Run(http.StatusText(status)+"/"+tc.name, func(t *testing.T) {
 				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(status); _, _ = w.Write(tc.body) }))
@@ -216,21 +227,23 @@ func TestLabMappingDraftRepository_InvalidHTTPBodiesPersist(t *testing.T) {
 				assert.Equal(t, category, saved.Items[0].LLMError)
 				assert.True(t, json.Valid(saved.Items[0].LLMResponse))
 				if tc.binary {
-					var retainedBody []byte
-					if saved.Items[0].LLMResponse[0] == '"' {
-						var retained string
-						require.NoError(t, json.Unmarshal(saved.Items[0].LLMResponse, &retained))
-						retainedBody = []byte(retained)
-					} else {
-						var retained struct {
-							Encoding string `json:"encoding"`
-							Body     []byte `json:"body"`
-						}
-						require.NoError(t, json.Unmarshal(saved.Items[0].LLMResponse, &retained))
-						assert.Equal(t, "base64", retained.Encoding)
-						retainedBody = retained.Body
+					var retained struct {
+						Encoding string `json:"encoding"`
+						Body     []byte `json:"body"`
 					}
-					assert.True(t, bytes.Equal(tc.body, retainedBody), "exact response bytes must persist")
+					require.NoError(t, json.Unmarshal(saved.Items[0].LLMResponse, &retained))
+					assert.Equal(t, "base64", retained.Encoding)
+					assert.True(t, bytes.Equal(tc.body, retained.Body), "exact response bytes must persist")
+				} else if json.Valid(tc.body) {
+					// jsonb normalizes \u escapes, so reload is semantic. The wrapper decision is the pre-save bytes.
+					assert.True(t, bytes.Equal(tc.body, labMappingResponseJSON(tc.body)), "well-formed pair must stay unwrapped")
+					var retained struct {
+						Note     string `json:"note"`
+						Encoding string `json:"encoding"`
+					}
+					require.NoError(t, json.Unmarshal(saved.Items[0].LLMResponse, &retained))
+					assert.Empty(t, retained.Encoding)
+					assert.Equal(t, "\U00010000", retained.Note)
 				} else {
 					var retained string
 					require.NoError(t, json.Unmarshal(saved.Items[0].LLMResponse, &retained))

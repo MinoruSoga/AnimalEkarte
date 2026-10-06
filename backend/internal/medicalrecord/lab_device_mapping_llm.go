@@ -164,8 +164,9 @@ func (d *openAILabItemDrafter) DraftItem(ctx context.Context, req LabMappingLLMR
 }
 
 func labMappingResponseJSON(raw []byte) json.RawMessage {
-	// jsonb accepts ordinary JSON. It rejects a raw NUL and the \u0000 escape.
-	if bytes.Contains(raw, []byte(`\u0000`)) || bytes.IndexByte(raw, 0) >= 0 || !utf8.Valid(raw) {
+	// jsonb rejects NUL and unpaired surrogate escapes even in syntactically valid JSON.
+	if bytes.Contains(raw, []byte(`\u0000`)) || bytes.IndexByte(raw, 0) >= 0 || !utf8.Valid(raw) ||
+		(json.Valid(raw) && labMappingHasUnpairedSurrogate(raw)) {
 		wrapped, _ := json.Marshal(struct {
 			Encoding string `json:"encoding"`
 			Body     []byte `json:"body"`
@@ -177,6 +178,33 @@ func labMappingResponseJSON(raw []byte) json.RawMessage {
 	}
 	wrapped, _ := json.Marshal(string(raw))
 	return wrapped
+}
+
+// raw must be valid JSON; inspect escapes before decoding can replace lone surrogates.
+func labMappingHasUnpairedSurrogate(raw []byte) bool {
+	for i := 0; i < len(raw); i++ {
+		if raw[i] != '\\' {
+			continue
+		}
+		if raw[i+1] != 'u' {
+			i++ // Skip the escaped character, including a literal backslash.
+			continue
+		}
+		if raw[i+2]|0x20 == 'd' {
+			switch raw[i+3] | 0x20 {
+			case 'c', 'd', 'e', 'f':
+				return true
+			case '8', '9', 'a', 'b':
+				if i+11 >= len(raw) || raw[i+6] != '\\' || raw[i+7] != 'u' ||
+					raw[i+8]|0x20 != 'd' || raw[i+9]|0x20 < 'c' || raw[i+9]|0x20 > 'f' {
+					return true
+				}
+				i += 6 // Consume the matching low-surrogate escape too.
+			}
+		}
+		i += 5
+	}
+	return false
 }
 
 func labMappingLLMRequestBody(req LabMappingLLMRequest) (json.RawMessage, error) {
