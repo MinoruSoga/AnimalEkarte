@@ -172,6 +172,9 @@ jobs:
     # `Production` は frontend-deploy.yml と共有する大文字小文字厳密な GitHub Environment 名。
     # required reviewers と deployment branch (production) 制限は人間設定
     # (docs/ops/infra/production/setup.md)。Environment が未設定でも deploy 前に secret 検査で fail closed。
+    # 2026-10-06 EMR-298: PROD_CLOUDFLARE_API_TOKEN の投入先は新専用アカウントであること。
+    # 共有アカウントを指す token での本番 deploy は禁止（docs/ops/infra/cloudflare-account-separation.md §4/§5）。
+    # EMR-302 段階8 までは token 未結線のため本 job は実質到達しない設計。
     environment: Production
     concurrency:
       group: backend-deploy-production

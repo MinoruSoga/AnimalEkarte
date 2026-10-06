@@ -2,6 +2,8 @@
 
 > Human-operated checklist for the planned Cloudflare Workers + Containers / PlanetScale production environment. **Do not execute from this document until the currently approved go-live date and Plane delivery item are confirmed.** No external runtime/account/billing state was verified during this update.
 >
+> **2026-10-06 追記（EMR-298/302）: 本番構築は新しい専用 Cloudflare アカウントの殻（EMR-302 の G3 成果物: 空 prod-images・cron 停止の prod Worker 殻・本番 token 結線）の上で行う。共有アカウントへの本番構築は禁止**（計画: `docs/ops/infra/cloudflare-account-separation.md` §4/§5）。着手条件: 新アカウント STG 予行合格・STG cron 単一武装・本番殻作成の後。以下の "target account" は新専用アカウントを指す。
+>
 > （2026-09-29 訂正: 実行状態の正本は Linear から Plane（workspace `baritechllc` / Project `EMR`）へ移行済み。Linear は 2026-09-16 に閉鎖され履歴参照のみ。本書の "Linear" 記述はすべて Plane と読み替える）
 
 Checked-in `backend/wrangler.production.jsonc` and `infra/cloudflare/production/` are drafts. Their presence does not prove that GitHub Environment protection, billing, PlanetScale, Cloudflare, DNS, R2, or Vercel production configuration exists.

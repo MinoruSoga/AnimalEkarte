@@ -36,6 +36,9 @@
 // に既に公開値として存在するものを再利用
 // している。新しい ID を書き起こしたものではない。もし production を別アカウントに分離する
 // 判断がなされた場合はここを差し替えること。
+// 【2026-10-06 確定 EMR-298】production は専用アカウントへ分離する。EMR-302 段階8（本番殻）
+// で新 account ID へ差し替える。それまで共有 account ID のまま残るが、共有 account への
+// 本番 deploy は禁止（docs/ops/infra/cloudflare-account-separation.md §4/§5）。
 //
 // デプロイは `wrangler deploy -c wrangler.production.jsonc`（-c で本ファイルを明示指定。
 // 未指定時は wrangler.jsonc = STG が使われるため必ず -c を付けること）。

@@ -2,7 +2,7 @@
 
 > EMR-298 / case BRT-4。2026-10-06 の静的棚卸しと計画。実環境の変更・改名実装は行っていない。
 > 確定前提（保存された依頼文）: 専用アカウント化と全名称の noah-karte ファミリー化。移行先を新名で構築し、旧名を退役する。**共有アカウントへの本番構築は禁止**。
-> 実行 SoT は Plane。後続 EMR-302/303/305/307 と本番チケットの割当は依頼文による。今回 Plane の読み取り API は利用できず、現在の状態・関係は UNKNOWN。§4/§5 を後続手順の正とし、チケットに別仕様を複製しない。
+> 実行 SoT は Plane。後続 EMR-302/303/305/307 と本番チケットの割当は依頼文による。作成時点では Plane の読み取り API が使えず関係を UNKNOWN と記録したが、2026-10-06 に EMR-302/305 の blocked_by 解除・EMR-148/256/134/139 への禁止追記・EMR-302 の子課題分割を実施済み（後続実行者は最新状態を再照合する）。§4/§5 を後続手順の正とし、チケットに別仕様を複製しない。
 
 ## 1. 現状の棚卸し
 
@@ -65,7 +65,7 @@ DNS の用途根拠: `infra/cloudflare/zone.tf:98`、`infra/cloudflare/zone.tf:1
 
 ### 改名対応表（現行名→新名）
 
-下表の新名は計画候補。CF は `noah-karte-*`、class は `NoahKarte*`、DB/docker は `noah_karte*`、表示は `Noah Karte`。repo/dir/module の3文字列だけは §5 の人間承認待ち。同一アカウント内の rename 可否に依存せず、今回は別アカウントへ新規構築する。
+下表の新名は計画候補。CF は `noah-karte-*`、class は `NoahKarte*`、DB/docker は `noah_karte*`、表示は `Noah Karte`。repo/dir/module の3文字列は §5 決定結果（2026-10-06 確定）の太字の値。同一アカウント内の rename 可否に依存せず、今回は別アカウントへ新規構築する。
 
 | 層 | 現行名 | 新名 / 方針 | 根拠 |
 |---|---|---|---|
@@ -158,37 +158,39 @@ DB/docker の underscore と container 自動 suffix の hyphen、macOS reverse-
 
 以下は **後続 EMR-302 の計画**。今回実行しない。移行前後で環境ごとの PlanetScale は同じ DB であるため、cron/DO/migrate の二重実行は安全でなく、Containers 費用も二重化する。
 
-1. **G0 人間承認**: §5 の所有者、費用主体、メール、プラン費用、時期、3文字列、DO 空起動、LINE/LIFF 担当を記録する。通知先は未決のまま EMR-303 へ保留でき、移行を止めない。state 分類と URL 方針を固定し、Plane の現行条件を読み直す。共有 account への本番構築は禁止。移行中の自動 deploy、手動 scheduler、migration/direct migration を凍結する。切り戻し: 未着手に戻す。停止時間: 準備はなし。
+1. **G0 人間承認**: §5 の所有者、費用主体、メール、プラン費用、時期、3文字列、DO 空起動、LINE/LIFF 担当を記録する。通知先は所有者メールと同一で決定済み（§5 決定結果）。state 分類と URL 方針を固定し、Plane の現行条件を読み直す。共有 account への本番構築は禁止。移行中の自動 deploy、手動 scheduler、migration/direct migration を凍結する。切り戻し: 未着手に戻す。停止時間: 準備はなし。
 2. **旧側の前提確認**: 人が資源・secret 名前・bucket 件数・DB/Access・authoritative NS/registrar/DNSSEC/TLS を再照会する。削除済み Hyperdrive は remote の残存・用途を確認し、承認後廃止と旧 state 除外を行う。**除外完了までは新 account への Terraform import/再作成をしない**。旧 state/バックアップの資格残存を保護・整理する。切り戻し: 保護した旧構成を維持、Hyperdrive は未使用なので再導入しない。停止時間: なし（利用発見時は停止・再計画）。
 3. **新 account 準備・G1 人間承認**: account/メンバー/有料プラン、zone と DNS 論理設定、別 state、STG bucket、専用 Access team/application/policy/audience、R2資格を用意する。ゾーンの authoritative 化・NS 変更はまだ承認窓まで実施しない。新 state には新 ID だけを import/作成し、prod zone は参照だけにする。切り戻し: 旧側維持、新側を休止。停止時間: なし。
-4. **STG の2 Worker 初回構築**: STG 予行で更新する CI は `CLOUDFLARE_API_TOKEN` のみ。api と frontend を同一 STG リリースにまとめ、新名と binding を整合させる。旧名での初回 deploy は行わず、DO class の renamed_classes 設計・named instance 改名を初回リリースに含める。Dockerfile を再ビルドし registry/image/container app を新 account に作る。`DB_*` は同じ STG PlanetScale に引き継ぐ。新 cron は **全停止**、新 scheduler/DO の自動/手動実行を禁止し、migrate-runner は停止確認後の排他テスト以外で呼ばない。切り戻し: CI を保管した旧 STG 値/設定へ戻し新側休止。停止時間: 準備はなし。
+4. **STG の2 Worker 初回構築**: STG 予行で更新する CI は `CLOUDFLARE_API_TOKEN` のみ。api と frontend を同一 STG リリースにまとめ、新名と binding を整合させる。旧名での初回 deploy は行わず、DO class の renamed_classes 設計・named instance 改名を初回リリースに含める。ただし renamed_classes は同一 Worker 内の storage 継承の仕組みであり、storage を引き継がない新 account の新 Worker では新 class 宣言だけで足りる可能性がある。段階4の着手前に公式の挙動（新 Worker で v1 旧 class→v2 rename を同時適用する際に旧 class の export を要求されるか等）を確認し、不要なら新規宣言に簡略化する。Dockerfile を再ビルドし registry/image/container app を新 account に作る。`DB_*` は同じ STG PlanetScale に引き継ぐ。新 cron は **全停止**、新 scheduler/DO の自動/手動実行を禁止し、migrate-runner は停止確認後の排他テスト以外で呼ばない。切り戻し: CI を保管した旧 STG 値/設定へ戻し新側休止。停止時間: 準備はなし。
 5. **R2 コピーと予行**: 旧 `animalekarte-stg-images`→新 `noah-karte-stg-images` を copy、object key 集合・件数/bytes と可能ならチェックサム・metadata を照合する。キー名・内容は保護証跡だけに保存する。書込みを止めて最終差分を copy/再照合してから新 bucket へ切り替える。ETag が checksum と等価かは UNKNOWN（multipart 等を一律同一視しない）。旧キーは失効しない。新 S3_ENDPOINT、AWS_*、bucket/binding を整合させる。DO の空状態・再入安全性の試験は旧実行停止→新だけ試験→新停止→必要なら旧再開の排他順序で行う。切り戻し: 新への書込みを止め差分を保全・旧 bucket に照合して戻す。停止時間: copy は並行、最終差分の書込み停止時間は容量・速度 UNKNOWN のため予行で実測。
 6. **G2 STG 切替承認**: 新 Worker の同一 hostname の route/権限/証明書を事前検証する。Pending zone で proxy 動作を証明できないため、新 workers.dev/隔離予行と設定照合、NS 後の受信確認・戻し条件を分ける。同一 hostname を受けられることの確認計画が成立しない場合は DNS を変更せず停止する。切替時は旧 cron/DO/手動 scheduler/migrate 実行を止め、進行中処理・lease が残らない確認後に新側だけ武装する。新旧同時武装の窓を作らない。DNS/NS、LINE webhook/LIFF endpoint、CORS と端末 allowed origin の更新を同じ窓で行う。旧 **資源削除**はまだしない。切り戻し: 新実行停止・drain→STG hostname/LINE/LIFF を旧側へ→旧 STG cron のみ再武装。停止時間: NS/TLS の伝播と処理 drain 次第で UNKNOWN、ゼロを約束しない。
-7. **STG 切り戻し訓練1回→再切替→短い soak**: 旧 R2 キーと旧 Worker を保持したまま上記 STG の戻しを実演し、R2 の新規書込み差分を欠落なく戻せることを確認する。必要な STG CI の復元後、新側へ再切替して新 cron のみ武装する。戻すのは STG hostname、LINE/LIFF、旧 STG cron とその実行に必要な STG 設定だけ。後段の `PROD_CLOUDFLARE_API_TOKEN` と prod Worker 殻は対象外。soak は案として24時間、少なくとも5式それぞれの実行周期を含める。切り戻し: 同じ排他手順。停止時間: 2回の窓を予行で計測。旧 zone の自動削除期限より前に訓練する。
+7. **STG 切り戻し訓練1回→再切替→短い soak**: 旧 R2 キーと旧 Worker を保持したまま上記 STG の戻しを実演し、R2 の新規書込み差分を欠落なく戻せることを確認する。必要な STG CI の復元後、新側へ再切替して新 cron のみ武装する。戻すのは STG hostname、LINE/LIFF、旧 STG cron とその実行に必要な STG 設定だけ。後段の `PROD_CLOUDFLARE_API_TOKEN` と prod Worker 殻は対象外。「hostname を旧側へ戻す」は zone の NS/移管を旧 account へ戻すことを意味する（別 account の workers.dev への proxied CNAME は 1014 エラーになりえるため、実質 NS 戻し）。soak は案として24時間、少なくとも5式それぞれの実行周期を含める。切り戻し: 同じ排他手順。停止時間: 2回の窓を予行で計測。旧 zone の自動削除期限より前に訓練する。
 8. **G3 本番殻作成承認（EMR-302）**: STG 合格・訓練・単一武装後に `PROD_CLOUDFLARE_API_TOKEN` を Production Environment に結線。prod の api/frontend 2つを別の同一リリース単位で作り、cron は **停止したまま**。空を再確認した新 `noah-karte-prod-images` を作る。データコピーはしない。prod DB/資格の確認なしに Container 起動・migration は行わない。切り戻し: 新本番殻を休止し本番公開を延期する。旧共有 account へ本番を作る戻しは禁止。停止時間: 本番未稼働前提では利用者影響なし、違えば再計画。
 9. **本番初回構築・G4（別チケット）**: EMR-302 の成果物境界は「空 prod-images、cron 停止の prod Worker 殻、本番トークン結線」まで。PROD-SETUP=EMR-148、10/20 切替=EMR-256、GOLIVE=EMR-134、初回管理者付与=EMR-139 は、その殻の上の初回本番構築を持つ。DNS/route の有効化、DB/migration・backup/restore、初回管理者、本番公開と **本番 cron 武装は EMR-256** 側の承認へ割り当てる（読み替えは人間決定）。同じ hostname の受信確認後、DNS・LINE/LIFF・CORS の変更を同窓で行う。本番ゲート不合格の切り戻しは未公開のまま延期。停止時間: 初回構築の所要を測定し、人が10/20窓を決定する。
 10. **共有 account 側の退役・G5 人間承認（独立段階）**: stg-images 照合、STG 訓練1回、soak 合格、保護証跡と残存依存ゼロを確認した後に限り、対象旧 API token/R2キーを失効し、旧 Worker×4（実在確認できたもの）、R2×2、DO named instance 2つ/関連 namespace、停止済み cron 5式、当該 Access app/資格、Terraform の当該 state 資源を撤去する。旧 DB secret 等の残置ゼロを確認する。通常 API singleton/container と registry image も当該 app の実測依存だけ整理する。他案件の共有資格を失効しない。account 閉鎖、会社 workers.dev subdomain 解放、共有 Access team 削除は禁止。切り戻し: **失効/削除後は訓練済みの即時 rollback 不可**。新側の復旧/保護バックアップからの再構築が必要。停止時間: 新側安定なら予定なし、復旧時間 UNKNOWN。
 
-### STG 予行の確認項目（後続実行時の証跡を要求）
+### 確認項目（後続実行時の証跡を要求。合格ゲート別）
 
-| 面 | 合格証跡と時点 |
-|---|---|
-| Worker×4 | STG 2つは段階4〜7の実受信・deploy account/version。prod 2つは段階8の殻/停止確認。4つを STG token の予行で作らない |
-| binding | 環境内 frontend→API、同一 account、`/api/*` の実疎通。別 account の旧 API を参照しない |
-| R2 | copy 後 stg-images の集合/件数またはチェックサム照合、read/write。prod-images は本番殻ゲートで空の確認 |
-| DO instance 2つ | 新 class/新名・空状態、scheduler pause/lease/fence/run ledger の空起動と業務側再入安全性、migrate-runner の排他。旧 state を継承したと解釈しない |
-| cron 5式 | STG の登録・時間・単一実行・失敗通知・keep-alive の停止/再武装。prod draft の4式は殻では全停止 |
-| Access | 新 team/application/audience、正規 operator、誤 issuer/audience/期限の拒否、旧資格の効力確認 |
-| LINE/LIFF・CORS | console の before/after 照合、受信・返信、LIFF endpoint、許可 origin。実データを証跡に貼らない |
-| authoritative zone | registrar の NS と authoritative 応答、新 zone Active、TLS chain、CAA/DNSSEC、STG hostname の受信 |
-| CI | STG token の実効投入先 account、Production token 未変更、後段で本番 token/new account を確認。Environment 保護の live は別証跡 |
-| rollback/soak | STG 訓練1回、逆差分 R2 照合、新旧実行の同時武装なし、soak と退役許可の記録 |
+EMR-302 の「**予行合格**」は下表の **G2 列の記載のみ**を指す。G3（本番殻）・G4/G5（本番構築・退役）の記載は各段階の合格条件であり、予行合格を待たず後段のゲートで要求する — 全項目を予行合格に含めると段階8以降を予行が待つ循環になる。
+
+| 面 | G2（STG 予行合格） | G3（本番殻） | G4/G5（本番・退役） |
+|---|---|---|---|
+| Worker | STG 2つの実受信・deploy account/version（段階4〜7）。4つを STG token の予行で作らない | prod 2つの殻/停止確認（段階8） | — |
+| binding | 環境内 frontend→API、同一 account、`/api/*` の実疎通。別 account の旧 API を参照しない | — | — |
+| R2 | copy 後 stg-images の集合/件数またはチェックサム照合、read/write | prod-images の空確認 | — |
+| DO instance 2つ | 新 class/新名・空状態、scheduler pause/lease/fence/run ledger の空起動と業務側再入安全性、migrate-runner の排他。旧 state を継承したと解釈しない | — | — |
+| cron | STG 5式の登録・時間・単一実行・失敗通知・keep-alive の停止/再武装 | prod draft 4式が殻で全停止 | 本番 cron 武装は EMR-256（G4） |
+| Access | 新 team/application/audience、正規 operator、誤 issuer/audience/期限の拒否、旧資格の効力確認 | — | — |
+| LINE/LIFF・CORS | console の before/after 照合、受信・返信、LIFF endpoint、許可 origin。実データを証跡に貼らない | — | — |
+| authoritative zone | registrar の NS と authoritative 応答、新 zone Active、TLS chain、CAA/DNSSEC、STG hostname の受信 | — | — |
+| CI | STG token の実効投入先 account、Production token 未変更 | 本番 token が新 account を指す確認。Environment 保護の live は別証跡 | — |
+| rollback/soak | STG 訓練1回、逆差分 R2 照合、新旧実行の同時武装なし | — | soak と退役許可の記録 |
 
 Container 起動自体が `/app/migrate` を実行する (`backend/Dockerfile.production:78`)。cron を止めるだけでは migration を止められない。段階4〜5の稼働確認前に旧 migration を停止・完了確認し、人が新側の起動/migration を1回だけ承認する。既存 CI も deploy 後 migration を呼ぶ (`.github/workflows/backend-deploy.yml:119`) ため、排他設計を後続実装の前提とする。
 
 ### Cloudflare 外の改名は後続実装タスク
 
-EMR-305（Go module 単位②は子 EMR-307）で行う。①CF runtime 名は EMR-302 初回 deploy に同梱。②Go import・module と repo の in-place 改名は同じ専用窓、③dir/compose/local test DB は別窓、④packaging/導入済み端末、⑤docs/UI/npm/生成型の順に検証する。repo/dir/Go module の改名を DNS 切替窓に重ねず、②と③も分ける。EMR-302 完了や EMR-303 開始を②〜⑤でブロックしない。
+EMR-305（Go module 単位②は子 EMR-307）で行う。①CF runtime 名は EMR-302 初回 deploy に同梱。②Go import・module と repo の in-place 改名は同じ専用窓、④packaging/導入済み端末、⑤docs/UI/npm/生成型はそれぞれ独立窓、**③dir/compose/local test DB は改名単位の最後**にする。repo/dir/Go module の改名を DNS 切替窓に重ねず、②と③も分ける。**②（EMR-307）は STG 予行（段階4〜5）の開始より前に完了するか、GOLIVE 後に行う** — 予行合格後〜本番構築前の窓で②をマージすると、新 account の STG で soak していないコードが本番リリースに載る。EMR-302 完了や EMR-303 開始を②〜⑤でブロックしない。
 
 local DB の値は今回未閲覧。dir/project 変更だけでは固定 volume が再利用されるため、DB 再作成が必須とは断定しない (`docker-compose.yml:207`)。後続では project/volume の実効名・backup を確認し、保全した dump/restore または意図した再利用を選び、旧 volume を勝手に削除しない。テスト DB 名は hosted PlanetScale の改名と混同しない。
 
@@ -227,10 +229,11 @@ lab device agent は label/plist/install path と build bundle を更新し、�
 | 改名実施者 | repo の in-place 改名は人間。module/dir は EMR-305/307 担当＋所有者レビュー |
 | DO 空起動 | 受け入れ。scheduler/migrate-runner の再入安全性確認を実施条件として残す |
 | 10/20 | 新 account 初回本番構築。前提（所有者・費用主体・有料プラン・STG 合格）が間に合わなければ日程を動かす。共有 account 構築は禁止 |
-| LINE/LIFF 担当 | 人間（Minoru）が console 更新を実施。before/after を保護記録 |
+| LINE/LIFF 担当 | 人間（Minoru）が console 更新を実施。before/after を保護記録。代行者は未指名（必要なら別途決定） |
 | 改名3文字列 | module=`github.com/MinoruSoga/noah-karte/backend`、repo slug=`noah-karte`、local dir=`noah-karte` |
 | notification_email | 所有者メールと同一（値は同上） |
 | 定常 URL | 既存 zone の hostname を定常に。新 workers.dev は予行確認のみ |
+| 終了時引継ぎ方式 | **未決（契約項目・G4 の前提に追加）**: 自社所有＋PROD 顧客負担の構成では、契約終了時に PROD を顧客へ渡すには「account ごと譲渡（自社 STG・製品ドメインも渡る）」か「今回と同様の再移行作業」のどちらかになる。G4 本番構築の前提として契約への記載が必要 |
 
 ## 6. リスクと未確認
 
@@ -245,13 +248,13 @@ lab device agent は label/plist/install path と build bundle を更新し、�
 | 本番が既に稼働、prod bucket 非空 | 現在 UNKNOWN。見つかったら空資源前提を撤回して実行停止、別のデータ/停止計画を承認する。本番データコピーは今回の範囲外 |
 | zone Pending・TLS・旧 zone 自動削除 | 新 hostname の受信を DNS 前後に分け、NS/TLS の fail 条件と rollback 期限を実行者が固定。既存 zone を indefinitely 保持できるとはしない |
 | CI・外部連携・端末の live 設定 | Environment/reviewer、token 実効 account、LINE/LIFF、CORS、導入端末は UNKNOWN。設定の存在だけでは合格にしない |
-| Plane 最新状態・関係 | 利用可能な読み取り API なし。依頼文の EMR-302/305/307 blocked_by、EMR-303 開始条件、本番 relates to は未再確認。後続実行者が照合する。今回コメント/状態変更/Done なし |
+| Plane 最新状態・関係 | 本書作成時は読み取り API なしで UNKNOWN と記録。その後 2026-10-06 に EMR-302/305 の blocked_by 解除、EMR-148/256/134/139 への禁止・着手条件追記、EMR-302 の子課題分割（STG 予行/本番殻/退役）を実施。後続実行者は最新状態を再照合する |
 
 移行の範囲外: account 閉鎖、共有 workers.dev subdomain 解放、共有 Zero Trust team 移管/削除、旧 Plane 履歴の一括置換、DO storage の account 間継承、本番データコピー、Cloudflare 外の改名実装。通知 policy の未適用は移行のブロッカーにしない。
 
 ## 7. 費用と通知の方針
 
-費用主体・支払手段・上限は §5 の人間決定。実請求額と現在の使用量は UNKNOWN。専用 account は請求・管理を分離するが、STG/prod が同居するその account 内の請求は環境別に自動分離されるとは断定しない。
+費用主体・支払手段・上限は §5 の人間決定（確定: STG=自社、PROD=顧客、按分は契約・精算側）。実請求額と現在の使用量は UNKNOWN。専用 account は請求・管理を分離するが、STG/prod が同居するその account 内の請求は環境別に自動分離されない — Workers Paid 基本料・zone・registry 等の共通費は環境別に測れない。按分ルールの案: **共通費は固定比率、従量は Worker 名別の Analytics 比率で配分、請求の正は CF 請求書**。これを契約側で固定し、EMR-303 の定期集計は STG/PROD 別に出せることを受け入れ条件に含める。
 
 Containers は Workers Paid の対象で、稼働時間に応じた memory/disk、active CPU、network、Workers/DO/logs 等を確認する。公式には Workers Paid の基本月額 USD 5 が示されるが、総費用・為替・税・支払は未算定。zone Free と有料 Workers は別契約である。[Containers 料金](https://developers.cloudflare.com/containers/platform/pricing/)
 
