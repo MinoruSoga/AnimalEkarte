@@ -221,11 +221,18 @@ test("make ci wires the gates retired from remote CI", () => {
     "typecheck:worker",
     "cmd/coverage-ratchet",
     "coverage-ratchet.mjs",
-    "-coverprofile=coverage.out",
     "pnpm audit",
   ]) {
     assert.ok(script.includes(needle), `run-local-ci.sh must wire: ${needle}`);
   }
+  // coverage.out の生成経路はどちらでもよい（s20 ratchet の入力契約のみ固定）:
+  // (a) 単一 `go test -coverprofile=coverage.out`、または
+  // (b) シャード並列 + GOCOVERDIR → `go tool covdata merge`/`textfmt` で coverage.out。
+  assert.match(
+    script,
+    /-coverprofile=coverage\.out|go tool covdata/,
+    "run-local-ci.sh must wire coverage.out generation (coverprofile or covdata merge)",
+  );
 });
 
 test("make ci reports a commit status required by staging protection", () => {
