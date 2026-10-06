@@ -37,8 +37,8 @@
 
 | 系統 | 付け方 |
 |:---|:---|
-| `source:*`（**必須1つ**） | 手動・エージェント起票 = `source:manual`、Slack転記 = `source:slack`、スプシ = `source:client-sheet`、社内docs移行 = `source:internal-docs`、チャットボット = `source:chatbot`（明示的な reviewable export のみ。自動起票は禁止 — SEC-N3 裁定） |
-| `lane:*`（1つ） | `lane:dev`（実装）、`lane:ops`（運用）、`lane:perf`（性能）、`lane:finance`、`lane:strategy` |
+| `source:*`（**必須1つ**） | 手動・エージェント起票 = `source:manual`、Slack転記 = `source:slack`、スプシ = `source:client-sheet`、社内docs移行 = `source:internal-docs`、チャットボット = `source:chatbot`（明示的な reviewable export のみ。自動起票は禁止 — SEC-N3 裁定）。表にない出典（UAT での発見・GitHub Issue 起点・エージェントが調査/実装中に発見した事案）は `source:manual` とし、出典はタイトルアンカーと本文の【出典】節で保持する |
+| `lane:*`（1つ） | `lane:dev`（実装）、`lane:ops`（運用）、`lane:perf`（性能）、`lane:finance`、`lane:strategy`。複数に跨る場合は**作業の主対象**で1つ選ぶ（性能改善の実装 → `lane:perf`、会計・料金系の実装 → `lane:finance`、いずれでもない機能実装 → `lane:dev`） |
 | `agent:*` / `role:*` | 担当レーンを示すとき。`role:human` = 人間作業、`agent:dev-engineer` = 実装委譲候補、など |
 | `bug` | 製品欠陥（UAT・実運用で確認済みの FAIL）。要望・改善には付けない |
 | `needs-human` | 人間の判断・操作を含む票。state=Needs Human と併用可（label は検索性、state は workflow 位置） |
@@ -67,9 +67,11 @@
 | 今期対象外 | Phase2（ラベルではなく state としても存在する。運用は state を優先） |
 | 本番切替（2026-10-20）までに完了必須 | 本番切替対応 |
 
+複数に同時に該当する場合は滞留・保留側を優先する: `Phase2` > `Needs Human` > `本番切替対応` > `Ready` / `Research` > `Backlog`（切替期限の情報は priority や本文に併記する。state は workflow 上の実際の位置を表す） |
+
 ## 本文テンプレート
 
-プレーンテキストで `【節名】` マーカーを使う（既存票と同じ書式）。1票あたり15〜30行を目安にし、長い根拠はリポジトリ内ファイルへのパス参照にする。
+プレーンテキストで `【節名】` マーカーを使う（既存票と同じ書式）。1票あたり15〜30行を目安にし、長い根拠はリポジトリ内ファイルへのパス参照にする。種別が複数に見える場合は**実行者優先**で選ぶ — `role:human` の作業（人間が手順で実行するバグ修復・データパッチ等）は SOP 型を使い、`bug` ラベルは性質として併用する。
 
 ### 設計思想（採用根拠）
 
@@ -189,7 +191,7 @@
 
 ## 外部ソース連携
 
-- `external_source` / `external_id` を出典追跡に使う。既存慣行: `source:slack` → `SLACK-*`、`source:client-sheet` → `row:N`、`source:internal-docs` → `animalekarte-markdown-migration-*`、`source:manual` → 空
+- `external_source` / `external_id` を出典追跡に使う。既存慣行: `source:slack` → `SLACK-*`、`source:client-sheet` → `row:N`、`source:internal-docs` → `animalekarte-markdown-migration-*`、`source:linear-migration` → external_source=`linear` + external_id=旧 Linear UUID、`source:manual` → 空（`source:chatbot` は自動起票禁止のため形式未確立）。表にない新しい出典（GitHub Issue 起点等）は最初の起票時に形式を決め、この行を更新する
 - スプシ・Slack 原文は本文に `【クライアント原文】` 節として転記する（後で出典を遡れるようにする）。秘密・実データを含む場合は転記しない（下記禁止事項）
 
 ## BE/FE 分割
@@ -202,6 +204,7 @@
 
 - パケット claim protocol（AGENTS.md）の `<TASK-ID>` には Plane ID をそのまま使う: `claim/EMR-298`
 - state 遷移の権限: 作業者は Running → Review → UAT まで自己遷移してよい（UAT 入り＝人間に受入を依頼する意味）。**Done / Cancelled / Duplicate への遷移は人間の受入コメントまたは明示指示がある場合のみ** — 実装者・エージェントは自己 Done しない。遷移時は証跡（コミット・検証結果・受入記録）をコメントに残す
+- 逆方向の遷移（UAT → Running の差戻し、Blocked / Needs Human 解除後の戻し、Running → Backlog の棚卸し）も人間判断または人間のコメント指示に基づく。解除後の戻り先は Backlog（再トリアージ）または Ready（引き続き着手可能なら）
 
 ## 禁止事項
 
@@ -214,7 +217,7 @@
 
 ## 附録: UUID 対応表
 
-MCP 経由で `labels` / `state` を指定する際の UUID（`label list` / `state list` が返す現行値。ID が変わっていたら再取得する）。
+MCP 経由で `labels` / `state` を指定する際の UUID（`label list` / `state list` が返す現行値。2026-10-08 に Plane MCP で実測確認済み。ID が変わっていたら再取得する）。
 
 ### project / workspace
 
