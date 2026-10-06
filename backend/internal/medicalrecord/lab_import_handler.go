@@ -24,6 +24,7 @@ type LabImportHandler struct {
 	revert        LabImportRevertService
 	deviceMasters LabDeviceItemMasterService
 	deviceReceive LabDeviceReceiveService
+	mappingDrafts LabMappingDraftService
 }
 
 // NewLabImportHandler initializes a LabImportHandler. audit may be nil (audit trail disabled).

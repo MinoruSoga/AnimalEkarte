@@ -34,6 +34,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/v1/support/bug-reports ListBugReports\n" +
 		"GET /api/v1/support/chat/exchanges ListChatExchanges\n" +
 		"GET /api/v1/support/chat/history ChatHistory\n" +
+		"GET /api/v1/support/chat/rooms ListChatRooms\n" +
 		"GET /api/v1/support/chat/status ChatStatus\n" +
 		"PATCH /api/v1/support/bug-reports/:id/status UpdateBugReportStatus\n" +
 		"POST /api/v1/support/bug-reports CreateBugReport\n" +

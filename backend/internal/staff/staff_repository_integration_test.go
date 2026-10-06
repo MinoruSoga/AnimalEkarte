@@ -35,6 +35,9 @@ func setupStaffRepositoryTestDB(t *testing.T) *gorm.DB {
 		&model.BillingRefund{}, &model.CashRegisterClose{},
 		&model.Billing{}, &model.Payment{},
 		&model.MedicalRecordAddendum{}, &model.VitalRecord{}, &model.DailyRecord{},
+		// audit_logs: PR#551 linked-account deactivation writes a durable audit
+		// row inside the deactivation transaction; the shared schema lacks it.
+		&model.AuditLog{},
 	))
 	require.NoError(t, db.Exec("TRUNCATE TABLE staff_clinic_assignments, staffs, occupations, accounts, shift_entries CASCADE").Error)
 	return db

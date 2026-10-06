@@ -229,13 +229,108 @@ s18() {
   compose exec -T backend go build ./...
 }
 
-# 旧 remote backend_test shards の統合版: 単一プロセスで全パッケージを
+# 旧 remote backend_test shards の統合版: 全パッケージを
 # -race -coverpkg=./internal/... 付きで実行し coverage.out を生成する
 # （backend/coverage.out は .gitignore 済み）。
+#
+# 並列化（2026-10-07）: 従来は全パッケージが共有テストDB `ekarte_db_test`
+# を使うため `-p 1` 直列実行だった（650s・step全体の92%）。
+# シャード毎に `DB_NAME=ekarte_db_s{1..4}` を割り当てて 4レーン並列にする。
+# TEST_DATABASE_URL は使わない: lstep の csv import テスト等が TEST_DATABASE_URL
+# 設定時に使い捨てDBを作らず共有DBへ DROP TYPE を撃つ経路があるため、DB_NAME 派生
+# （<DB_NAME>_test）に統一して直列時と同じ分離セマンティクスを維持する。
+# 各シャードのカバレッジは `-test.gocoverdir`（covdata バイナリ）に書き出して
+# `go tool covdata merge`→`textfmt` で単一 coverage.out に統合する。
+# 出力契約（coverage.out の形式・配置・atomic mode）は従来と同一。
+#
+# シャード表は completeness contract: 和集合が `go list ./...` と一致しない
+# 場合は FAIL（新規パッケージの暗黙スキップ防止 — lintscan 系 inventory
+# ゲートと同思想）。重みは 2026-10-07 実測で LPT バランス済み（各 ~145s）。
+BACKEND_TEST_SHARD_1="internal/auth internal/trimming internal/csvimport internal/support internal/testdb internal/scheduler internal/seedbundle internal/authjwt internal/clinicale2e internal/logger"
+BACKEND_TEST_SHARD_2="internal/medicalrecord internal/lintscan internal/pet internal/owner internal/audit internal/model internal/dbconn internal/infra internal/labdeviceagent internal/labdevicecap internal/infra/crypto internal/infra/httpx internal/infra/line internal/infra/lstep internal/infra/smtp"
+BACKEND_TEST_SHARD_3="internal/staff internal/lstep internal/clinic internal/inventory internal/persistence internal/textsearch internal/config internal/httpapi internal/sharedkernel internal/apperrors"
+BACKEND_TEST_SHARD_4="internal/seedlogin internal/billing internal/reservation internal/identitylink internal/apicontract internal/manualarticle internal/middleware internal/timeutil cmd/api cmd/auth-d5-dualprocess cmd/clinical-e2e-fixture cmd/coverage-ratchet cmd/csv-import cmd/csv-import-failure-rehearsal cmd/csv-import-stg-uat cmd/lab-device-agent cmd/lstep-migrate cmd/migrate cmd/seed-export cmd/staff-provision cmd/stg-uat-skeleton cmd/stg-uat-staff-attach cmd/synthetic-closing-fixture"
+
 s19() {
-  begin_step "Backend: test (-race, -p 1, timeout 900s, coverage)"
-  compose exec -T backend go test ./... -count=1 -race -timeout 900s -p 1 \
-    -covermode=atomic -coverpkg=./internal/... -coverprofile=coverage.out
+  begin_step "Backend: test (-race, 4 shards × dedicated test DB, timeout 900s, coverage)"
+
+  # completeness contract: シャード和集合 == go list ./...
+  local actual expected missing extra
+  actual="$(compose exec -T backend go list ./... | sed 's|^github.com/animal-ekarte/backend/||' | sort)"
+  expected="$(printf '%s\n' ${BACKEND_TEST_SHARD_1} ${BACKEND_TEST_SHARD_2} ${BACKEND_TEST_SHARD_3} ${BACKEND_TEST_SHARD_4} | sort)"
+  if [[ "$actual" != "$expected" ]]; then
+    missing="$(comm -23 <(printf '%s\n' "$actual") <(printf '%s\n' "$expected") | tr '\n' ' ')"
+    extra="$(comm -13 <(printf '%s\n' "$actual") <(printf '%s\n' "$expected") | tr '\n' ' ')"
+    echo "ERROR: backend test shard 表が go list ./... と不一致です。" >&2
+    [[ -n "$missing" ]] && echo "  未割当パッケージ: $missing" >&2
+    [[ -n "$extra" ]] && echo "  表内の存在しないパッケージ: $extra" >&2
+    echo "  BACKEND_TEST_SHARD_* を更新してください（run-local-ci.sh）" >&2
+    return 1
+  fi
+
+  # シャード別DBペアを冪等作成（共有 ekarte_db / ekarte_db_test を使わない点が
+  # 並列化の前提。${DB_NAME}_s${s}: 本体 — schema_drift_test が実スキーマを検査する
+  # ため schema-only 複製、かつ lstep csv 等の使い捨てテストDBの作成先。
+  # ${DB_NAME}_s${s}_test: 共有テストDB — ekarte_db_test のスキーマ複製にする。
+  # 空作成すると testdb 共有スキーマ + AutoMigrate だけの表面になり、audit_logs 等
+  # （shared schema 未収録・実 migration FK 付きで ekarte_db_test には存在）が FK なしで
+  # 作られ、TRUNCATE ... CASCADE による掃除が効かず直列時と挙動が変わる
+  # （staff.account.deactivate のグローバル件数検証が残存行で破綻する実例あり）。
+  # *_test サフィックスは必須 — testdb/truncate.go の isDedicatedTestDatabaseName
+  # ガードが _test 終端以外のDBでの TRUNCATE を拒否する）
+  local s
+  for s in 1 2 3 4; do
+    compose exec -T db sh -c "set -e; \
+      psql -U \"\$POSTGRES_USER\" -d postgres -tAc \
+        \"SELECT 1 FROM pg_database WHERE datname='\${POSTGRES_DB}_s${s}'\" | grep -q 1 || { \
+        psql -U \"\$POSTGRES_USER\" -d postgres -c \"CREATE DATABASE \\\"\${POSTGRES_DB}_s${s}\\\"\" && \
+        pg_dump -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" --schema-only | \
+          psql -q -U \"\$POSTGRES_USER\" -d \"\${POSTGRES_DB}_s${s}\"; }; \
+      psql -U \"\$POSTGRES_USER\" -d postgres -tAc \
+        \"SELECT 1 FROM pg_database WHERE datname='\${POSTGRES_DB}_s${s}_test'\" | grep -q 1 || { \
+        psql -U \"\$POSTGRES_USER\" -d postgres -c \"CREATE DATABASE \\\"\${POSTGRES_DB}_s${s}_test\\\"\" && \
+        { pg_dump -U \"\$POSTGRES_USER\" -d \"\${POSTGRES_DB}_test\" --schema-only 2>/dev/null || \
+          pg_dump -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" --schema-only; } | \
+          psql -q -U \"\$POSTGRES_USER\" -d \"\${POSTGRES_DB}_s${s}_test\"; }"
+  done
+
+  # covdata 出力先を初期化（前回実行の残骸を除去）
+  compose exec -T backend rm -rf /tmp/ci-cov
+
+  # 4シャード並列実行。各シャードは内部 -p 1（同一DB内では直列が前提）で、
+  # 専用 DB_NAME（<name>_test 派生）と GOCOVERDIR を持つ。ログは LANE_DIR に退避。
+  local pids=() shard_var pkgs
+  for s in 1 2 3 4; do
+    shard_var="BACKEND_TEST_SHARD_${s}"
+    pkgs="${!shard_var}"
+    ( compose exec -T backend sh -c "mkdir -p /tmp/ci-cov/s${s} && \
+        DB_NAME=\"\${DB_NAME}_s${s}\" \
+        go test ./${pkgs// / ./} -count=1 -race -timeout 900s -p 1 \
+          -cover -covermode=atomic -coverpkg=./internal/... \
+          -args -test.gocoverdir=/tmp/ci-cov/s${s}"
+    ) >"$LANE_DIR/test-shard-${s}.log" 2>&1 &
+    pids+=($!)
+  done
+  local failed=0 pid
+  for pid in "${pids[@]}"; do
+    wait "$pid" || failed=1
+  done
+  if (( failed )); then
+    for s in 1 2 3 4; do
+      echo "── shard ${s} log (tail) ──"
+      tail -n 40 "$LANE_DIR/test-shard-${s}.log"
+    done
+    return 1
+  fi
+  for s in 1 2 3 4; do
+    cat "$LANE_DIR/test-shard-${s}.log"
+  done
+
+  # covdata 統合 → 従来と同形式の coverage.out（mode: atomic テキストプロファイル）
+  compose exec -T backend sh -c \
+    "mkdir -p /tmp/ci-cov/merged && \
+     go tool covdata merge -i /tmp/ci-cov/s1,/tmp/ci-cov/s2,/tmp/ci-cov/s3,/tmp/ci-cov/s4 -o /tmp/ci-cov/merged && \
+     go tool covdata textfmt -i /tmp/ci-cov/merged -o coverage.out"
 }
 
 # 旧 remote job「Backend」集約ステップの coverage ratchet 相当。

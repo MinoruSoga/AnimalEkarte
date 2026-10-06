@@ -46,6 +46,10 @@ func (m *mockLabDeviceItemMasterService) ResolveItems(context.Context, uint64, s
 	return nil, apperrors.WrapInvalidInput("not used")
 }
 
+func (m *mockLabDeviceItemMasterService) ResolveItemsForSpecies(context.Context, uint64, string, string, []string) (*LabDeviceMasterResolution, error) {
+	return nil, apperrors.WrapInvalidInput("not used")
+}
+
 func (m *mockLabDeviceItemMasterService) ListDevices(ctx context.Context, clinicID uint64) ([]model.LabDevice, error) {
 	if m.listDevicesFn == nil {
 		return nil, apperrors.WrapInvalidInput("not used")

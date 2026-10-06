@@ -15,7 +15,9 @@ package reservation
 
 import (
 	"context"
+	"database/sql"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -98,6 +100,38 @@ func TestReservationStaffRepository_UpdateReservationCapabilities_ClinicIsolatio
 		require.Error(t, err, "clinic B の区分が混在する場合は全体を拒否すべき")
 		assert.Equal(t, int64(1), countCapabilities(staffA.ID), "拒否時に既存の対応区分設定を破壊してはならない（count検証はDELETE実行前）")
 	})
+}
+
+// TestReservationStaffRepository_UpdateReservationCapabilities_SetsConfiguredMarker は
+// write path が capabilities_configured_at を刻むことを検証する。
+// 空選択での保存（junction 行 0 件）も marker を立てるのが backfill(migration 023) が
+// 「明示的な空設定」を「未設定」と区別するための前提。
+func TestReservationStaffRepository_UpdateReservationCapabilities_SetsConfiguredMarker(t *testing.T) {
+	db := setupCapabilityIsolationTestDB(t)
+	repo := NewReservationStaffRepository(db, staffpkg.NewRepository(db))
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	configuredAt := func(staffID uint64) *time.Time {
+		var v sql.NullTime
+		require.NoError(t, db.Raw(
+			"SELECT capabilities_configured_at FROM staff_clinic_assignments WHERE staff_id = ? AND clinic_id = ? AND deleted_at IS NULL",
+			staffID, clinicA).Scan(&v).Error)
+		if !v.Valid {
+			return nil
+		}
+		return &v.Time
+	}
+
+	staffEmpty := makeDoctorAssignedToClinic(t, db, clinicA, "marker空保存用スタッフ")
+	assert.Nil(t, configuredAt(staffEmpty.ID), "write path 未実行の assignment は NULL（= 未設定）のはず")
+	require.NoError(t, repo.UpdateReservationCapabilities(ctx, clinicA, staffEmpty.ID, []uint64{}))
+	assert.NotNil(t, configuredAt(staffEmpty.ID), "空集合の明示保存でも marker が立つべき（backfill 対象外になる）")
+
+	staffNonEmpty := makeDoctorAssignedToClinic(t, db, clinicA, "marker通常保存用スタッフ")
+	typeA := makeReservationType(t, db, clinicA)
+	require.NoError(t, repo.UpdateReservationCapabilities(ctx, clinicA, staffNonEmpty.ID, []uint64{typeA.ID}))
+	assert.NotNil(t, configuredAt(staffNonEmpty.ID))
 }
 
 // TestReservationStaffRepository_SupportsReservationType はLIFF予約ゲートで使われる

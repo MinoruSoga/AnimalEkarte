@@ -94,7 +94,7 @@ export function InterviewTemplateSettings() {
   return (
     <>
       <MasterCRUDPage
-        title="問診テンプレートマスタ"
+        title="問診設定"
         icon={<FileText className={`${ICON.page} ${C.text}`} />}
         resource={ResourceMasterMedical}
         entityLabel="問診テンプレート"

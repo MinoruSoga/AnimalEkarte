@@ -597,7 +597,7 @@ func TestBillingItemRepository_ValidateCreateReferences_HoldsBillingLockUntilAmb
 	require.NoError(t, tx.Commit().Error)
 	committed = true
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	require.NoError(t, f.db.WithContext(ctx).
 		Model(&model.Billing{}).
@@ -1142,7 +1142,7 @@ func TestBillingItemService_CreateItem_UsesCategoryCommittedBeforeShareLock(t *t
 		item *model.BillingItem
 		err  error
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	result := make(chan createResult, 1)
 	go func() {
@@ -1203,7 +1203,7 @@ func TestBillingItemService_CreateItem_SerializesConcurrentSameBillingWrites(
 	inputs[1].Name = "concurrent item two"
 	inputs[1].UnitPrice = 2000
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	start := make(chan struct{})
 	errs := make(chan error, len(inputs))

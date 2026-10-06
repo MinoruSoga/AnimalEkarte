@@ -41,7 +41,10 @@ func (r updateReservationStaffRequest) toServiceInput() *UpdateReservationStaffI
 }
 
 type patchReservationStaffStatusRequest struct {
-	IsActive bool `json:"is_active"`
+	// IsActive is *bool + required: an omitted/null field must be rejected, not
+	// silently bound to false — the false path cascades into login-account
+	// deactivation (PR#561 Codex P1).
+	IsActive *bool `json:"is_active" binding:"required"`
 }
 
 type patchReservationStaffSortOrderRequest struct {

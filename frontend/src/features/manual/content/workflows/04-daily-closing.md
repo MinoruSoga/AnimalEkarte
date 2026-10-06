@@ -2,6 +2,8 @@
 title: 日次締めの流れ
 order: 4
 section: 日次・月次業務
+keywords: 日次締め, 締め作業, 締めの流れ, デイリー締め
+keywords_vi: chốt sổ cuối ngày, quy trình đóng ca hàng ngày, đóng sổ ngày, kết thúc ngày làm việc
 ---
 
 # 日次締めの流れ

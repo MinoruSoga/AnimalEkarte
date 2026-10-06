@@ -2,6 +2,8 @@
 title: 在庫管理
 order: 12
 section: 運用・管理
+keywords: 在庫数, 在庫確認, 棚卸, 在庫状況
+keywords_vi: kiểm tra hàng tồn kho, hàng tồn kho, tồn kho, quản lý tồn kho, kiểm kê hàng, số lượng tồn kho
 ---
 
 # 在庫管理

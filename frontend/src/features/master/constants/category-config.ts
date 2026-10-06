@@ -131,7 +131,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     codePlaceholder: "",
   },
   reservationType: {
-    label: "予約区分マスタ",
+    label: "予約区分",
     description: "予約の区分（診療、トリミング入院等）を管理します",
     settingsPath: "/settings/reservation-type",
     IconComponent: Activity,
@@ -215,7 +215,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     codePlaceholder: "",
   },
   staff: {
-    label: "スタッフマスタ",
+    label: "スタッフ管理",
     description: "獣医師、スタッフの情報を管理します",
     settingsPath: "/settings/staff",
     IconComponent: Users,
@@ -299,7 +299,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     codePlaceholder: "veterinarian",
   },
   animal_species: {
-    label: "動物種類マスタ",
+    label: "動物種類",
     description: "犬、猫、鳥などの動物種類を管理します",
     settingsPath: "/settings/animal-species",
     IconComponent: PawPrint,
@@ -313,7 +313,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     codePlaceholder: "",
   },
   inquiry_template: {
-    label: "問診テンプレートマスタ",
+    label: "問診設定",
     description: "問診の質問項目テンプレートを管理します",
     settingsPath: "/settings/inquiry-templates",
     IconComponent: FileText,
@@ -327,7 +327,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     codePlaceholder: "",
   },
   merchandise_item: {
-    label: "商品マスタ",
+    label: "物販・フード",
     description: "フード、サプリメント、グッズ等の販売品目を管理します",
     settingsPath: "/settings/merchandise-items",
     IconComponent: ShoppingBag,
@@ -341,7 +341,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     codePlaceholder: "",
   },
   permission_group: {
-    label: "権限グループマスタ",
+    label: "権限グループ",
     description: "スタッフに付与する権限グループを管理します",
     settingsPath: "/settings/permission-groups",
     IconComponent: Lock,

@@ -2,6 +2,8 @@
 title: 新規飼主の登録から初診会計まで
 order: 1
 section: 来院対応
+keywords: 初診, 新規飼い主, 飼い主さん
+keywords_vi: đăng ký chủ nuôi mới, khách hàng mới, quy trình khám lần đầu, khách đến lần đầu, đăng ký khách hàng mới
 ---
 
 # 新規飼主の登録から初診会計まで

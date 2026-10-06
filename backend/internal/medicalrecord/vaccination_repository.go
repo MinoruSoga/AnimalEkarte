@@ -401,7 +401,8 @@ func (r *vaccinationRepository) FindOwnersByVaccineDeadline(ctx context.Context,
 	var rows []row
 	err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Vaccination{}).
-		Joins("JOIN pets ON pets.id = vaccinations.pet_id AND pets.clinic_id = vaccinations.clinic_id AND pets.deleted_at IS NULL AND pets.deceased_at IS NULL").
+		// EMR-290: 生存判定は status=deceased または deceased_at 非NULL の OR 契約。
+		Joins("JOIN pets ON pets.id = vaccinations.pet_id AND pets.clinic_id = vaccinations.clinic_id AND pets.deleted_at IS NULL AND pets.deceased_at IS NULL AND pets.status <> ?", model.PetStatusDeceased).
 		Joins("JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = vaccinations.clinic_id AND owners.deleted_at IS NULL").
 		Where("vaccinations.clinic_id = ? AND vaccinations.deleted_at IS NULL", clinicID).
 		Where("vaccinations.next_date::date = ?::date", target).

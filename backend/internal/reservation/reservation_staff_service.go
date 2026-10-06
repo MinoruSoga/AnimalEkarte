@@ -44,7 +44,7 @@ type ReservationStaffCoreService interface {
 	Create(ctx context.Context, clinicID uint64, input *CreateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
-	PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.Staff, []model.StaffReservationExclusion, error)
+	PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool, actorStaffID uint64) (*model.Staff, []model.StaffReservationExclusion, error)
 	PatchSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
 }
 
@@ -69,20 +69,23 @@ type ReservationStaffService interface {
 }
 
 type reservationStaffService struct {
-	repo         ReservationStaffRepository
-	transactor   Transactor
-	staffDeleter ReservationStaffDeleter
+	repo           ReservationStaffRepository
+	transactor     Transactor
+	staffDeleter   ReservationStaffDeleter
+	sysAdminStaffs staffpkg.SystemAdminStaffQuerier
 }
 
 func NewReservationStaffService(
 	repo ReservationStaffRepository,
 	transactor Transactor,
 	staffDeleter ReservationStaffDeleter,
+	sysAdminStaffs staffpkg.SystemAdminStaffQuerier,
 ) ReservationStaffService {
 	return &reservationStaffService{
-		repo:         repo,
-		transactor:   transactor,
-		staffDeleter: staffDeleter,
+		repo:           repo,
+		transactor:     transactor,
+		staffDeleter:   staffDeleter,
+		sysAdminStaffs: sysAdminStaffs,
 	}
 }
 
@@ -189,17 +192,31 @@ func (s *reservationStaffService) Delete(ctx context.Context, clinicID, id uint6
 	return nil
 }
 
-func (s *reservationStaffService) PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.Staff, []model.StaffReservationExclusion, error) {
+func (s *reservationStaffService) PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool, actorStaffID uint64) (*model.Staff, []model.StaffReservationExclusion, error) {
 	var result *model.Staff
 	var excluded []model.StaffReservationExclusion
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		if _, err := s.repo.LockForMutation(txCtx, clinicID, id); err != nil {
+		locked, err := s.repo.LockForMutation(txCtx, clinicID, id)
+		if err != nil {
 			return apperrors.Wrap(err, "failed to verify reservation staff ownership")
 		}
-		if err := s.repo.Update(txCtx, clinicID, id, staffpkg.ReservationStaffUpdate{IsActive: &isActive}); err != nil {
+		// EMR-289: PatchStatus also deactivates the linked credential now, so the
+		// same self-deactivation / last-system-admin guards as the admin staff
+		// update path apply here.
+		if !isActive {
+			if s.sysAdminStaffs == nil {
+				return apperrors.WrapInternalServerError("reservation staff deactivation guard is not configured")
+			}
+			if err := staffpkg.GuardStaffDeactivation(txCtx, s.sysAdminStaffs, id, locked, actorStaffID); err != nil {
+				return err //nolint:wrapcheck // GuardStaffDeactivation は全分岐で apperrors 型付きエラーを返す（同義二重ラップ回避）
+			}
+		}
+		if err := s.repo.Update(txCtx, clinicID, id, staffpkg.ReservationStaffUpdate{
+			IsActive:     &isActive,
+			ActorStaffID: actorStaffID,
+		}); err != nil {
 			return apperrors.Wrap(err, "failed to patch staff status")
 		}
-		var err error
 		result, err = s.repo.FindByID(txCtx, clinicID, id)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to get reservation staff after patch status")

@@ -199,13 +199,17 @@ func resolveReservationPetID(customer *model.LineCustomer, customerFields []byte
 	return nil
 }
 
-// livingPets は deceased_at が nil のペットだけを返す（#261 P0）。
+// livingPets は生存ペットだけを返す（#261 P0 / EMR-290）。
+// 死亡契約は status=deceased または deceased_at 非NULL（sharedkernel.ValidatePetNotDeceased と同じ
+// OR 契約）。旧データは status=deceased でも deceased_at IS NULL の行があり、deceased_at だけを
+// 見ると死亡個体が予約の pet_id 候補に混入する。
 func livingPets(pets []model.Pet) []model.Pet {
 	out := make([]model.Pet, 0, len(pets))
 	for i := range pets {
-		if pets[i].DeceasedAt == nil {
-			out = append(out, pets[i])
+		if pets[i].Status == model.PetStatusDeceased || pets[i].DeceasedAt != nil {
+			continue
 		}
+		out = append(out, pets[i])
 	}
 	return out
 }

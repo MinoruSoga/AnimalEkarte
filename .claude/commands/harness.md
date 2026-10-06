@@ -1,6 +1,6 @@
 ---
 description: 実装→規約チェック→承認ループ型ハーネス（最大3イテレーション）
-argument-hint: "TASK-XXX | BUG-XXX | <タスク説明>"
+argument-hint: "EMR-XXX | <タスク説明>"
 ---
 
 # 実装ハーネス（Implement → Verify → Approve Loop）
@@ -26,7 +26,7 @@ argument-hint: "TASK-XXX | BUG-XXX | <タスク説明>"
 
 ## $ARGUMENTS の解釈
 
-- Linear Issue ID → Linearを実行SoTとして本文・状態・依存関係を確認して実装モードで対象化。`docs/work/phase2-deferred.md`は見送り索引であり実装台帳ではない。
+- Plane Issue ID（`EMR-N`）→ Planeを実行SoTとして本文・状態・依存関係を確認して実装モードで対象化。`docs/work/phase2-deferred.md`は見送り索引であり実装台帳ではない。
 - テキスト → タスク説明として直接扱う
 - 省略 → `git status` で未コミット変更を対象として検証のみ実行
 

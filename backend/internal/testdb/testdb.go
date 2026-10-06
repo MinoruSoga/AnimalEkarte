@@ -225,6 +225,36 @@ func ensureStaffPermissionGroupsCreatedAt(db *gorm.DB) error {
 	return nil
 }
 
+// EnsureMedicalRecordImageDeletionsTable は削除台帳テーブルを実マイグレーション
+// （backend/migrations/021_medical_record_image_deletions.sql の CREATE TABLE）と
+// 一致する生SQLで用意する。台帳は GORM model を持たず（SQL store が直接触る設計）のため
+// AutoMigrate では作られない。RLS ポリシー（app_private.apply_rls_policy）はテスト
+// スキーマでは省略する。IF NOT EXISTS のため複数回呼んでも安全。
+func EnsureMedicalRecordImageDeletionsTable(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	require.NoError(t, db.Exec(`
+		CREATE TABLE IF NOT EXISTS medical_record_image_deletions (
+			id BIGSERIAL PRIMARY KEY,
+			clinic_id BIGINT NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+			medical_record_id BIGINT NOT NULL,
+			image_id BIGINT NOT NULL,
+			image_object_key TEXT NOT NULL DEFAULT '',
+			thumbnail_object_key TEXT NOT NULL DEFAULT '',
+			storage_status TEXT NOT NULL,
+			attempt_count INTEGER NOT NULL DEFAULT 0,
+			last_error TEXT NOT NULL DEFAULT '',
+			actor_staff_id BIGINT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			deleted_at TIMESTAMPTZ,
+			CONSTRAINT medical_record_image_deletions_status_check
+				CHECK (storage_status IN ('pending_storage', 'storage_deleted', 'retained_shared')),
+			CONSTRAINT medical_record_image_deletions_clinic_image_uidx
+				UNIQUE (clinic_id, image_id)
+		)
+	`).Error)
+}
+
 // MakeTestOwner はテスト用の Owner を作成して返す。
 func MakeTestOwner(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Owner {
 	t.Helper()

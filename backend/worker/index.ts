@@ -73,7 +73,7 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     // 接続プール上限(wrangler.jsonc vars 参照 — スロット枯渇防止のため CF では低値必須)
     DB_MAX_OPEN_CONNS: env.DB_MAX_OPEN_CONNS,
     DB_MAX_IDLE_CONNS: env.DB_MAX_IDLE_CONNS,
-    // STGのみ wrangler.jsonc vars で設定。未設定(空文字)なら Go 側はキャッシュ無効。
+    // 未設定(空文字)なら Go 側はキャッシュ無効。staging wrangler はこの値を置かない。
     CURRENT_ACCESS_CACHE_TTL_SEC: env.CURRENT_ACCESS_CACHE_TTL_SEC ?? "",
 
     JWT_SECRET: env.JWT_SECRET,
@@ -316,8 +316,8 @@ export class AnimalEkarteApiContainer extends Container<Env> {
 // NOTE: api-apac-ne-v1 への locationHint ピン留めは 2026-09-22 に試行・撤回済み。
 // DO は bom09 に固定されたが、コンテナインスタンスが起動毎に別メトロ(ewr01等)へ
 // 配置され、edge→DO→container の二重ホップで health が 0.25s→0.65s に悪化した。
-// 既定の cf-singleton-container は ewr01 で安定しており、低速化の主因である
-// 逐次 DB 往復は CurrentAccess キャッシュ(CURRENT_ACCESS_CACHE_TTL_SEC)側で削る。
+// 既定の cf-singleton-container は ewr01 で安定している。
+// 逐次 DB 往復を CurrentAccess の TTL キャッシュで隠す設定は、権限反映が遅れるため置かない。
 
 type ProxyObservationOutcome =
   | { readonly status: number }

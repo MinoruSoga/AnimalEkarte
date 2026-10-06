@@ -5128,42 +5128,6 @@ components:
           type: string
           format: date-time
 
-    CreateMedicalRecordImageRequest:
-      type: object
-      required: [image_url]
-      properties:
-        image_url:
-          type: string
-          format: uri
-        thumbnail_url:
-          type: string
-        file_name:
-          type: string
-        file_size:
-          type: integer
-          format: int64
-        mime_type:
-          type: string
-        image_type:
-          type: string
-          enum: [xray, echo, photo, endoscope, ct, mri, microscope, other]
-        description:
-          type: string
-        taken_at:
-          type: string
-          format: date-time
-          nullable: true
-        exam_id:
-          type: integer
-          format: int64
-          nullable: true
-        staff_id:
-          type: integer
-          format: int64
-          nullable: true
-        sort_order:
-          type: integer
-
     # ─── TreatmentPlan (治療計画) ─────────────────────────────────────────────
     TreatmentPlan:
       type: object
@@ -8314,6 +8278,86 @@ components:
           type: boolean
         job:
           $ref: '#/components/schemas/LabDeviceJobCard'
+    LabMappingDraft:
+      type: object
+      required: [id, status, source_type, species, error_message, items]
+      properties:
+        id:
+          type: integer
+          format: int64
+        status:
+          type: string
+        source_type:
+          type: string
+        species:
+          type: string
+        error_message:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabMappingDraftItem'
+    LabMappingDraftItem:
+      type: object
+      required: [device_item_code, device_unit, chart_unit, unit_mismatch, proposed_field_name, source, llm_error, confirmed]
+      properties:
+        device_item_code:
+          type: string
+        device_unit:
+          type: string
+        chart_unit:
+          type: string
+        unit_mismatch:
+          type: boolean
+        exam_type_field_id:
+          type: integer
+          format: int64
+        proposed_field_name:
+          type: string
+        source:
+          type: string
+        llm_error:
+          type: string
+        confirmed:
+          type: boolean
+    LabMappingGeneration:
+      type: object
+      required: [stopped]
+      properties:
+        stopped:
+          type: boolean
+    LabMappingDraftRequest:
+      type: object
+      required: [payload_base64]
+      properties:
+        payload_base64:
+          type: string
+        device_hint:
+          type: string
+    LabMappingConfirmRequest:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [device_item_code, exam_type_field_id, value_shape, chart_unit]
+            properties:
+              device_item_code:
+                type: string
+              exam_type_field_id:
+                type: integer
+                format: int64
+              value_shape:
+                type: string
+              chart_unit:
+                type: string
+    LabMappingGenerationRequest:
+      type: object
+      required: [stopped]
+      properties:
+        stopped:
+          type: boolean
     LabDevicePetRequest:
       type: object
       required: [pet_id]
@@ -21162,36 +21206,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
-    post:
-      operationId: createMedicalRecordImage
-      summary: 診療画像追加
-      tags: [MedicalRecords]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateMedicalRecordImageRequest'
-      responses:
-        '201':
-          description: 追加成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MedicalRecordImage'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalError'
   /medical-records/{id}/images/upload:
     post:
       operationId: uploadMedicalRecordImage
@@ -24016,6 +24030,120 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
+  /lab-device/mapping-drafts:
+    post:
+      operationId: createLabMappingDraft
+      summary: 検査項目の対応下書きを作る
+      description: ResourceLabImport create。1件の結果だけを受け、未確定の下書きを保存する。測定値とLLM本文は返さない。
+      tags: [LabImports]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LabMappingDraftRequest'
+      responses:
+        '201':
+          description: 未確定または失敗の下書き
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabMappingDraft'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-device/mapping-drafts/{id}:
+    get:
+      operationId: getLabMappingDraft
+      summary: 検査項目の対応下書きを読む
+      description: ResourceLabImport view。測定値とLLM本文は返さない。
+      tags: [LabImports]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 下書き
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabMappingDraft'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-device/mapping-drafts/{id}/confirm:
+    post:
+      operationId: confirmLabMappingDraft
+      summary: 人が提出した対応表だけを確定する
+      description: ResourceLabImport edit。未確定の下書きだけを確定する。省略したコードは既存マスタを消さない。
+      tags: [LabImports]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LabMappingConfirmRequest'
+      responses:
+        '200':
+          description: 確定した下書き
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabMappingDraft'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-device/mapping-generation:
+    put:
+      operationId: putLabMappingGeneration
+      summary: 対応下書きの生成を止める、または再開する
+      description: ResourceLabImport edit。止めても、確定済み対応表による取り込みは止まらない。
+      tags: [LabImports]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LabMappingGenerationRequest'
+      responses:
+        '200':
+          description: 停止状態
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabMappingGeneration'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /lab-device/wait:
     put:
       operationId: putLabDeviceWait
@@ -25914,6 +26042,56 @@ paths:
                               category: { type: string }
                               slug: { type: string }
                         created_at: { type: string, description: 質問送信時刻 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /support/chat/rooms:
+    get:
+      operationId: listSupportChatRooms
+      summary: ヘルプチャットの会話ルーム一覧(全医院共有・最終発言の新しい順)
+      description: |
+        認証済みスタッフ全員が利用可能（権限ゲート・医院絞りなし — exchanges と同じ
+        共有ボード方針）。同一 clinic×staff の発言ストリームを、一定の無発言時間
+        （30分）を区切りにした疑似会話ルーム単位で返す。ルーム境界は DB に
+        永続化されない導出値であり、区切りはヒューリスティック。
+        ルームは最終発言の新しい順、ルーム内の発言(turns)は古い順。
+        id は "clinicID-staffID-先頭メッセージID" の導出キーで永続的でない。
+      tags: [Support]
+      responses:
+        '200':
+          description: 疑似会話ルーム一覧(最終発言の新しい順)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string, description: "導出キー clinicID-staffID-先頭メッセージID" }
+                        clinic_name: { type: string }
+                        staff_name: { type: string }
+                        started_at: { type: string, format: date-time, description: ルーム先頭発言の時刻 }
+                        last_message_at: { type: string, format: date-time, description: ルーム最終発言の時刻 }
+                        turns:
+                          type: array
+                          description: ルーム内の発言(古い順)
+                          items:
+                            type: object
+                            properties:
+                              id: { type: integer }
+                              role: { type: string, enum: [user, assistant] }
+                              content: { type: string }
+                              sources:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    title: { type: string }
+                                    category: { type: string }
+                                    slug: { type: string }
+                              created_at: { type: string, format: date-time }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '500': { $ref: '#/components/responses/InternalError' }
   /support/chat/history:

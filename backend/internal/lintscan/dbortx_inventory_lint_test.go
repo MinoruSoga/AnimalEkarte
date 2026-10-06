@@ -419,6 +419,16 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/medical_record_image_repository.go|medicalRecordImageRepository.Create":   {},
 	"medicalrecord/medical_record_image_repository.go|medicalRecordImageRepository.Delete":   {},
 	"medicalrecord/medical_record_image_repository.go|medicalRecordImageRepository.FindByID": {},
+	// CountLiveByStorageKey guards object-key sharing inside the image delete tx so a
+	// concurrent commit cannot make the ledger claim a key no live row still references.
+	"medicalrecord/medical_record_image_repository.go|medicalRecordImageRepository.CountLiveByStorageKey": {},
+	// Image deletion ledger store: Insert/FindByImageID/UpdateStorageResult join the caller's
+	// ambient tx so the ledger row and the image-row soft delete commit or roll back together;
+	// BlockedImageIDs must read ledger state consistent with that same tx.
+	"medicalrecord/medical_record_image_deletion_store.go|sqlMedicalRecordImageDeletionStore.BlockedImageIDs":     {},
+	"medicalrecord/medical_record_image_deletion_store.go|sqlMedicalRecordImageDeletionStore.FindByImageID":       {},
+	"medicalrecord/medical_record_image_deletion_store.go|sqlMedicalRecordImageDeletionStore.Insert":              {},
+	"medicalrecord/medical_record_image_deletion_store.go|sqlMedicalRecordImageDeletionStore.UpdateStorageResult": {},
 
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.LockByIDForUpdate": {},
 	// Auto-create holds one ambient transaction from the non-blocking advisory lock through the
@@ -659,9 +669,13 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"staff/staff_repository.go|staffRepository.LockActiveByIDForUpdateInClinic":  {},
 	"staff/staff_repository.go|staffRepository.AttachAccountID":                  {},
 	"staff/staff_repository.go|staffRepository.Reorder":                          {},
-	"staff/staff_repository.go|staffRepository.update":                           {},
-	"staff/staff_repository.go|staffRepository.UpdatePrimaryClinicID":            {},
-	"staff/staff_repository.go|staffRepository.activeSystemAdminStaffQuery":      {},
+	// Exported Update wraps update + deactivateLinkedAccountTx in
+	// DBOrTx.Transaction (ambient SAVEPOINT) when is_active=false (EMR-289).
+	// Runtime: staff_account_deactivation_test.go ambient rollback test.
+	"staff/staff_repository.go|staffRepository.Update":                      {},
+	"staff/staff_repository.go|staffRepository.update":                      {},
+	"staff/staff_repository.go|staffRepository.UpdatePrimaryClinicID":       {},
+	"staff/staff_repository.go|staffRepository.activeSystemAdminStaffQuery": {},
 	// ADR-006 論点#1 案A: reservation_staff_repository.go から移動した予約用途 write
 	"staff/staff_repository.go|staffRepository.CreateForReservation":        {},
 	"staff/staff_repository.go|staffRepository.UpdateForReservation":        {},
@@ -703,6 +717,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// staff_provisioning_repository_tx_atomicity_test.go +
 	// staff_provisioning_repository_integration_test.go (Apply path).
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.AcquireBatchLock":               {},
+	"staff/staff_provisioning_repository.go|staffProvisioningRepository.ApplyProvisioningFlags":         {},
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.AssignPermissionGroups":         {},
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.ClinicExists":                   {},
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.CreateAccount":                  {},
@@ -722,6 +737,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// identitylink/repository_tx_atomicity_test.go
 	"identitylink/repository.go|repository.conn":             {},
 	"identitylink/repository.go|repository.requireAmbientTx": {},
+	// AuthorizeLinkWrite re-reads membership + identity-links edit via DBOrTx so the
+	// authorization decision observes the caller's ambient-tx snapshot (link_write_auth.go).
+	// Runtime: link_write_auth_test.go service-level authorization cases.
+	"identitylink/link_write_auth.go|dbLinkWriteAuthorizer.AuthorizeLinkWrite": {},
 	// trimming detail (uniform dbOrTx)
 	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.Create":              {},
 	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.FindByAppointmentID": {},
@@ -869,6 +888,22 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// Private DBOrTx helper for receive jobs/waits/station. Runtime:
 	// TestLabDeviceReceiveRepository_CreateJobWithItems_RollsBackWhenAmbientTxFails
 	"medicalrecord/lab_device_receive_repository.go|labDeviceReceiveRepository.q": {},
+
+	// EMR-297 mapping drafts. Writers require TxFromContext. Readers use DBOrTx.
+	// Runtime: TestLabMappingDraftRepository_WritesRequireAmbientTx and
+	// TestLabMappingDraftRepository_ConfirmAndSpeciesOverlay.
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.FindMappingSpecs": {},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.FindExamField":                 {},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.GenerationStopped":             {},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.GetDraft":                      {},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.InsertDraft":                   {},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.ListFieldCandidates":           {},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.LockDraft":                     {},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.MarkConfirmed":                 {},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.SetGenerationStopped":          {},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.UpdateConfirmedItems":          {},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.UpsertDeviceMaster":            {},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.UpsertSpeciesSpec":             {},
 }
 
 type ambientTxParticipationShape uint8
@@ -990,6 +1025,27 @@ var ambientTxParticipationExpectations = map[string]ambientTxParticipationExpect
 	},
 	// identitylink writes: requireAmbientTx returns TxFromContext handle only.
 	"identitylink/repository.go|repository.requireAmbientTx": {
+		shape: ambientTxRequired,
+	},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.InsertDraft": {
+		shape: ambientTxRequired,
+	},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.LockDraft": {
+		shape: ambientTxRequired,
+	},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.MarkConfirmed": {
+		shape: ambientTxRequired,
+	},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.SetGenerationStopped": {
+		shape: ambientTxRequired,
+	},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.UpdateConfirmedItems": {
+		shape: ambientTxRequired,
+	},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.UpsertDeviceMaster": {
+		shape: ambientTxRequired,
+	},
+	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.UpsertSpeciesSpec": {
 		shape: ambientTxRequired,
 	},
 }

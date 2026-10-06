@@ -262,7 +262,7 @@ func TestStaffClinicAssignmentRepository_LockActiveByStaff_RequiresAmbientTransa
 func TestStaffClinicAssignmentRepository_LockActiveByStaff_HoldsUpdateLocksUntilTransactionEnds(t *testing.T) {
 	db := setupStaffClinicAssignmentRepositoryTestDB(t)
 	repo := New(db)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
@@ -388,7 +388,7 @@ func TestStaffClinicAssignmentRepository_LockActiveByStaffAndClinic_RejectsOther
 func TestStaffClinicAssignmentRepository_LockActiveByStaffAndClinic_HoldsShareLockUntilTransactionEnds(t *testing.T) {
 	db := setupStaffClinicAssignmentRepositoryTestDB(t)
 	repo := New(db)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)

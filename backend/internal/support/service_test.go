@@ -103,6 +103,22 @@ func savedReportMock(m *mockRepository) {
 	}
 }
 
+// ---- mock BugReportNotifier ----
+
+type mockBugReportNotifier struct {
+	calls int
+	err   error
+	order *[]string // repo.Create との呼び出し順序検証用
+}
+
+func (m *mockBugReportNotifier) NotifyBugReport(_ context.Context, _ *model.SupportBugReport) error {
+	m.calls++
+	if m.order != nil {
+		*m.order = append(*m.order, "notify")
+	}
+	return m.err
+}
+
 // ---- Create: Plane への外部送信は行わない（reviewable export は手動のみ） ----
 
 func TestServiceCreate_DoesNotExportToPlane(t *testing.T) {
@@ -128,7 +144,7 @@ func TestServiceCreate_DoesNotExportToPlane(t *testing.T) {
 			if tt.tickets != nil {
 				tickets = tt.tickets
 			}
-			svc := NewService(repo, tickets)
+			svc := NewService(repo, tickets, nil)
 
 			report, err := svc.Create(context.Background(), 1, 5, CreateBugReportInput{Title: "受付でエラー"})
 			require.NoError(t, err)
@@ -141,6 +157,43 @@ func TestServiceCreate_DoesNotExportToPlane(t *testing.T) {
 			assert.Nil(t, report.PlaneSyncError)
 		})
 	}
+}
+
+// ---- Create: Discord 通知は DB 保存前に best-effort で実行 ----
+
+func TestServiceCreate_NotifiesDiscordBeforeSave(t *testing.T) {
+	repo := &mockRepository{}
+	var order []string
+	notifier := &mockBugReportNotifier{order: &order}
+	repo.createFn = func(_ context.Context, report *model.SupportBugReport) error {
+		order = append(order, "create")
+		report.ID = 10
+		return nil
+	}
+	svc := NewService(repo, nil, notifier)
+
+	report, err := svc.Create(context.Background(), 1, 5, CreateBugReportInput{
+		Title:  "受付でエラー",
+		Detail: "保存ボタンを押すと500になる",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, uint64(10), report.ID)
+	assert.Equal(t, 1, notifier.calls)
+	assert.Equal(t, []string{"notify", "create"}, order)
+}
+
+func TestServiceCreate_DiscordFailureStillSaves(t *testing.T) {
+	// Discord 送信失敗は WARN のみ — 報告作成自体は成功させる（通知障害で報告を失わせない）。
+	repo := &mockRepository{}
+	savedReportMock(repo)
+	notifier := &mockBugReportNotifier{err: errors.New("discord webhook returned status 500")}
+	svc := NewService(repo, nil, notifier)
+
+	report, err := svc.Create(context.Background(), 1, 5, CreateBugReportInput{Title: "件名"})
+	require.NoError(t, err)
+	require.NotNil(t, report)
+	assert.Equal(t, uint64(10), report.ID)
+	assert.Equal(t, 1, notifier.calls)
 }
 
 // ---- EnsurePlaneTicket: 手動起票/再送 ----
@@ -222,7 +275,7 @@ func TestServiceEnsurePlaneTicket(t *testing.T) {
 			if tt.tickets != nil {
 				tickets = tt.tickets
 			}
-			svc := NewService(repo, tickets)
+			svc := NewService(repo, tickets, nil)
 
 			report, err := svc.EnsurePlaneTicket(context.Background(), 1, 10)
 			if tt.wantErr != nil {
@@ -261,7 +314,7 @@ func TestServiceDelete(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewService(repo, nil)
+		svc := NewService(repo, nil, nil)
 
 		report, err := svc.Delete(context.Background(), 1, 10)
 		require.NoError(t, err)
@@ -280,7 +333,7 @@ func TestServiceDelete(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewService(repo, nil)
+		svc := NewService(repo, nil, nil)
 
 		_, err := svc.Delete(context.Background(), 2, 99)
 		require.Error(t, err)
@@ -316,7 +369,7 @@ func TestListChatExchanges(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := NewService(repo, nil)
+		svc := NewService(repo, nil, nil)
 
 		got, err := svc.ListChatExchanges(context.Background())
 		require.NoError(t, err)
@@ -339,7 +392,7 @@ func TestListChatExchanges(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := NewService(repo, nil)
+		svc := NewService(repo, nil, nil)
 
 		got, err := svc.ListChatExchanges(context.Background())
 		require.NoError(t, err)
@@ -348,10 +401,114 @@ func TestListChatExchanges(t *testing.T) {
 	})
 
 	t.Run("empty history returns empty list", func(t *testing.T) {
-		svc := NewService(&mockRepository{}, nil)
+		svc := NewService(&mockRepository{}, nil, nil)
 		got, err := svc.ListChatExchanges(context.Background())
 		require.NoError(t, err)
 		assert.Empty(t, got)
+	})
+}
+
+func TestListChatRooms(t *testing.T) {
+	base := time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
+	msg := func(id uint64, role model.SupportChatMessageRole, content string, clinicID, staffID uint64, min int) ChatMessageWithMeta {
+		return ChatMessageWithMeta{
+			SupportChatMessage: model.SupportChatMessage{
+				ID: id, ClinicID: clinicID, StaffID: staffID, Role: role, Content: content,
+				CreatedAt: base.Add(time.Duration(min) * time.Minute),
+			},
+			StaffName:  "スタッフ" + string(rune('A')+rune(staffID-1)),
+			ClinicName: "医院" + string(rune('A')+rune(clinicID-1)),
+		}
+	}
+
+	t.Run("同一スタッフで間隔がchatRoomGap以下なら同一ルームにまとまる", func(t *testing.T) {
+		repo := &mockRepository{
+			listAllChatFn: func(_ context.Context) ([]ChatMessageWithMeta, error) {
+				return []ChatMessageWithMeta{
+					msg(4, model.SupportChatRoleAssistant, "回答2", 1, 1, 40),
+					msg(3, model.SupportChatRoleUser, "質問2", 1, 1, 39),
+					msg(2, model.SupportChatRoleAssistant, "回答1", 1, 1, 10),
+					msg(1, model.SupportChatRoleUser, "質問1", 1, 1, 9),
+				}, nil
+			},
+		}
+		svc := NewService(repo, nil, nil)
+
+		rooms, err := svc.ListChatRooms(context.Background())
+		require.NoError(t, err)
+		require.Len(t, rooms, 1)
+		assert.Equal(t, "1-1-1", rooms[0].ID)
+		assert.Equal(t, "医院A", rooms[0].ClinicName)
+		assert.Equal(t, "スタッフA", rooms[0].StaffName)
+		require.Len(t, rooms[0].Turns, 4)
+		// ルーム内は古い順
+		assert.Equal(t, "質問1", rooms[0].Turns[0].Content)
+		assert.Equal(t, "回答2", rooms[0].Turns[3].Content)
+		assert.Equal(t, base.Add(9*time.Minute), rooms[0].StartedAt)
+		assert.Equal(t, base.Add(40*time.Minute), rooms[0].LastMessageAt)
+	})
+
+	t.Run("chatRoomGap超過で別ルームに分かれる", func(t *testing.T) {
+		repo := &mockRepository{
+			listAllChatFn: func(_ context.Context) ([]ChatMessageWithMeta, error) {
+				return []ChatMessageWithMeta{
+					msg(4, model.SupportChatRoleAssistant, "回答2", 1, 1, 100),
+					msg(3, model.SupportChatRoleUser, "質問2", 1, 1, 99),
+					msg(2, model.SupportChatRoleAssistant, "回答1", 1, 1, 10),
+					msg(1, model.SupportChatRoleUser, "質問1", 1, 1, 9),
+				}, nil
+			},
+		}
+		svc := NewService(repo, nil, nil)
+
+		rooms, err := svc.ListChatRooms(context.Background())
+		require.NoError(t, err)
+		require.Len(t, rooms, 2)
+		// 最終発言が新しいルームが先頭
+		assert.Equal(t, "1-1-3", rooms[0].ID)
+		require.Len(t, rooms[0].Turns, 2)
+		assert.Equal(t, "質問2", rooms[0].Turns[0].Content)
+		assert.Equal(t, "1-1-1", rooms[1].ID)
+		require.Len(t, rooms[1].Turns, 2)
+	})
+
+	t.Run("clinic×staff が違えば別ルーム — 同一時間帯でも混ざらない", func(t *testing.T) {
+		repo := &mockRepository{
+			listAllChatFn: func(_ context.Context) ([]ChatMessageWithMeta, error) {
+				return []ChatMessageWithMeta{
+					msg(4, model.SupportChatRoleAssistant, "他院回答", 2, 7, 21),
+					msg(3, model.SupportChatRoleUser, "他院質問", 2, 7, 20),
+					msg(2, model.SupportChatRoleAssistant, "回答1", 1, 1, 10),
+					msg(1, model.SupportChatRoleUser, "質問1", 1, 1, 9),
+				}, nil
+			},
+		}
+		svc := NewService(repo, nil, nil)
+
+		rooms, err := svc.ListChatRooms(context.Background())
+		require.NoError(t, err)
+		require.Len(t, rooms, 2)
+		assert.Equal(t, "医院B", rooms[0].ClinicName)
+		assert.Equal(t, "スタッフG", rooms[0].StaffName)
+		assert.Equal(t, "医院A", rooms[1].ClinicName)
+	})
+
+	t.Run("空履歴は空リスト", func(t *testing.T) {
+		svc := NewService(&mockRepository{}, nil, nil)
+		rooms, err := svc.ListChatRooms(context.Background())
+		require.NoError(t, err)
+		assert.Empty(t, rooms)
+	})
+
+	t.Run("repo エラーはそのまま返す", func(t *testing.T) {
+		repo := &mockRepository{
+			listAllChatFn: func(context.Context) ([]ChatMessageWithMeta, error) {
+				return nil, assert.AnError
+			},
+		}
+		svc := NewService(repo, nil, nil)
+		_, err := svc.ListChatRooms(context.Background())
+		assert.ErrorIs(t, err, assert.AnError)
 	})
 }
 
@@ -383,7 +540,7 @@ func openReportWithTicket(id, clinicID uint64, issueID string) model.SupportBugR
 func TestServiceSyncPlaneTicketStates_DisabledWhenNoReader(t *testing.T) {
 	// TicketCreator のみ（reader 未実装 = 旧クライアント相当）は no-op。
 	repo := &mockRepository{}
-	svc := NewService(repo, &mockTicketCreator{})
+	svc := NewService(repo, &mockTicketCreator{}, nil)
 
 	result := svc.SyncPlaneTicketStates(context.Background())
 
@@ -392,7 +549,7 @@ func TestServiceSyncPlaneTicketStates_DisabledWhenNoReader(t *testing.T) {
 }
 
 func TestServiceSyncPlaneTicketStates_NilTicketsIsNoOp(t *testing.T) {
-	svc := NewService(&mockRepository{}, nil)
+	svc := NewService(&mockRepository{}, nil, nil)
 	assert.Equal(t, PlaneSyncResult{}, svc.SyncPlaneTicketStates(context.Background()))
 }
 
@@ -404,7 +561,7 @@ func TestServiceSyncPlaneTicketStates_ListErrorFailsClosed(t *testing.T) {
 	}
 	svc := NewService(repo, &mockTicketReader{fetchFn: func(context.Context, string) (string, error) {
 		return "completed", nil
-	}})
+	}}, nil)
 
 	result := svc.SyncPlaneTicketStates(context.Background())
 
@@ -429,7 +586,7 @@ func TestServiceSyncPlaneTicketStates_CompletedResolvesWithReportClinic(t *testi
 	svc := NewService(repo, &mockTicketReader{fetchFn: func(_ context.Context, issueID string) (string, error) {
 		fetchedID = issueID
 		return "completed", nil
-	}})
+	}}, nil)
 
 	result := svc.SyncPlaneTicketStates(context.Background())
 
@@ -456,7 +613,7 @@ func TestServiceSyncPlaneTicketStates_NonCompletedSkipped(t *testing.T) {
 			}
 			svc := NewService(repo, &mockTicketReader{fetchFn: func(context.Context, string) (string, error) {
 				return group, nil
-			}})
+			}}, nil)
 
 			result := svc.SyncPlaneTicketStates(context.Background())
 
@@ -485,7 +642,7 @@ func TestServiceSyncPlaneTicketStates_FetchErrorRecordsSyncError(t *testing.T) {
 	}
 	svc := NewService(repo, &mockTicketReader{fetchFn: func(context.Context, string) (string, error) {
 		return "", &planeUpstreamError{status: 404}
-	}})
+	}}, nil)
 
 	result := svc.SyncPlaneTicketStates(context.Background())
 
@@ -507,7 +664,7 @@ func TestServiceSyncPlaneTicketStates_UpdateErrorCountsFailed(t *testing.T) {
 	}
 	svc := NewService(repo, &mockTicketReader{fetchFn: func(context.Context, string) (string, error) {
 		return "completed", nil
-	}})
+	}}, nil)
 
 	result := svc.SyncPlaneTicketStates(context.Background())
 	assert.Equal(t, PlaneSyncResult{Processed: 1, Failed: 1}, result)
@@ -542,7 +699,7 @@ func TestServiceSyncPlaneTicketStates_MixedBatch(t *testing.T) {
 		default:
 			return "", errors.New("boom")
 		}
-	}})
+	}}, nil)
 
 	result := svc.SyncPlaneTicketStates(context.Background())
 

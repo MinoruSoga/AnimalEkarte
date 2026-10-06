@@ -622,6 +622,13 @@ func (m *mockProvisionRepo) CreateStaff(ctx context.Context, staff *model.Staff)
 	return nil
 }
 
+func (m *mockProvisionRepo) ApplyProvisioningFlags(ctx context.Context, accountID, staffID uint64, isActive, reservationVisible bool) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.writes++
+	return nil
+}
+
 func (m *mockProvisionRepo) CreateAssignment(ctx context.Context, assignment *model.StaffClinicAssignment) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -679,4 +686,70 @@ func TestStaffProvisioning_StrictDecodeRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, m.BatchID, decoded.BatchID)
 	assert.Equal(t, m.Staff[0].ExternalStaffID, decoded.Staff[0].ExternalStaffID)
+}
+
+// TestStaffProvisioning_DecodeRejectsMissingBooleanFlags は PR#551 レビュー指摘
+// (4178809082) の回帰固定: Go の bool は省略時 false に暗黙退化するため、
+// is_active / reservation_visible は JSON 上のキー存在（かつ非 null）を
+// デコード境界で要求する。明示的な false は受理されなければならない。
+func TestStaffProvisioning_DecodeRejectsMissingBooleanFlags(t *testing.T) {
+	t.Parallel()
+	entryJSON := func(flags string) string {
+		return `{"schema_version":"staff-provision-v1","batch_id":"b","clinic_scope":[1],` +
+			`"actor_account_id":1,"staff":[{"external_staff_id":"e1","name":"n",` +
+			`"email":"a@b.test","main_clinic_id":1,"clinic_ids":[1],"staff_type":"doctor",` +
+			`"secret_ref":"s1"` + flags + `}]}`
+	}
+	tests := []struct {
+		name     string
+		raw      string
+		wantErr  string
+		wantTrue bool
+	}{
+		{
+			name:    "is_active omitted is rejected",
+			raw:     entryJSON(`,"reservation_visible":true`),
+			wantErr: "is_active",
+		},
+		{
+			name:    "reservation_visible omitted is rejected",
+			raw:     entryJSON(`,"is_active":true`),
+			wantErr: "reservation_visible",
+		},
+		{
+			name:    "is_active null is rejected",
+			raw:     entryJSON(`,"is_active":null,"reservation_visible":true`),
+			wantErr: "is_active",
+		},
+		{
+			name:    "reservation_visible null is rejected",
+			raw:     entryJSON(`,"is_active":true,"reservation_visible":null`),
+			wantErr: "reservation_visible",
+		},
+		{
+			name: "explicit false flags are accepted",
+			raw:  entryJSON(`,"is_active":false,"reservation_visible":false`),
+		},
+		{
+			name:     "explicit true flags are accepted",
+			raw:      entryJSON(`,"is_active":true,"reservation_visible":true`),
+			wantTrue: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			decoded, err := DecodeStaffProvisionManifest(strings.NewReader(tt.raw))
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.True(t, apperrors.IsInvalidInput(err))
+				assert.Contains(t, err.Error(), tt.wantErr)
+				assertNoJSONDecoderLeak(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, decoded.Staff, 1)
+			assert.Equal(t, tt.wantTrue, decoded.Staff[0].IsActive)
+			assert.Equal(t, tt.wantTrue, decoded.Staff[0].ReservationVisible)
+		})
+	}
 }

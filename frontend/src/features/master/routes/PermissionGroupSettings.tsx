@@ -122,7 +122,7 @@ export function PermissionGroupSettings() {
   return (
     <>
       <MasterCRUDPage
-        title="権限グループマスタ"
+        title="権限グループ"
         icon={<Lock className={`${ICON.page} ${C.text}`} />}
         resource={ResourceMasterPermission}
         entityLabel="グループ"

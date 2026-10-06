@@ -2,6 +2,7 @@
 title: 在庫の登録・在庫数の更新
 order: 8
 section: 定期業務
+keywords_vi: đăng ký tồn kho, cập nhật số lượng tồn kho, nhập hàng vào kho, quản lý hàng tồn kho
 ---
 
 # 在庫の登録・在庫数の更新

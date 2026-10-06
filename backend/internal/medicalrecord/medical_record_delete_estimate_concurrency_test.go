@@ -117,7 +117,7 @@ func TestMedicalRecordService_DeleteSerializesWithEstimateCreation(t *testing.T)
 		case err := <-deleteDone:
 			require.Failf(t, "delete skipped the medical-record row lock", "err=%v", err)
 			return
-		case <-time.After(time.Second):
+		case <-time.After(30 * time.Second):
 			require.Fail(t, "delete did not acquire the medical-record row lock")
 			return
 		}

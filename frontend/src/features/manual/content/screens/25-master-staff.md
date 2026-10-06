@@ -1,10 +1,11 @@
 ---
-title: スタッフマスタ
+title: スタッフ管理
 order: 18.4
 section: システム設定
+keywords_vi: danh sách nhân viên, master nhân viên, quản lý nhân viên, tài khoản nhân viên
 ---
 
-# スタッフマスタ
+# スタッフ管理
 
 ## どんな画面か
 
@@ -16,7 +17,7 @@ section: システム設定
 
 ## 必要な権限
 
-スタッフマスタの編集権限（通常は管理者・院長）
+スタッフ管理の編集権限（通常は管理者・院長）
 
 ## 一覧の表示項目
 

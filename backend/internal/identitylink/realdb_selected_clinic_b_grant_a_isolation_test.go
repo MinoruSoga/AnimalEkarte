@@ -165,7 +165,7 @@ type realDBIdentityFixture struct {
 
 func newRealDBIdentityHandler(t *testing.T, db *gorm.DB, forbiddenClinicID uint64) *Handler {
 	t.Helper()
-	var svc Service = NewService(NewRepository(db), nil, nil)
+	var svc Service = NewService(NewRepository(db), nil, nil, nil)
 	if forbiddenClinicID != 0 {
 		svc = &identityClinicQueryGuardService{
 			Service:           svc,

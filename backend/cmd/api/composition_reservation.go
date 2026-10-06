@@ -29,6 +29,7 @@ type reservationRepositories struct {
 	TypeOccupations         reservation.ReservationTypeOccupationRepository
 	Occupations             staff.OccupationRepository
 	ClinicHolidays          clinic.ClinicHolidayRepository
+	StaffAdminQueries       staff.SystemAdminStaffQuerier
 }
 
 func newReservationRepositories(
@@ -51,6 +52,7 @@ func newReservationRepositories(
 		TypeOccupations:         reservation.NewReservationTypeOccupationRepository(db),
 		Occupations:             occupations,
 		ClinicHolidays:          clinic.NewClinicHolidayRepository(db),
+		StaffAdminQueries:       staffRepository,
 	}
 }
 
@@ -166,7 +168,7 @@ func newReservationMasterServices(
 		types:     reservationTypes,
 		groups:    reservation.NewReservationTypeGroupService(repositories.ReservationTypeGroups),
 		typeLiff:  reservation.NewReservationTypeLiffService(repositories.ReservationTypeLiff, repositories.Reservations),
-		staff:     reservation.NewReservationStaffService(repositories.ReservationStaff, dependencies.Transactor, dependencies.StaffDeleter),
+		staff:     reservation.NewReservationStaffService(repositories.ReservationStaff, dependencies.Transactor, dependencies.StaffDeleter, repositories.StaffAdminQueries),
 		schedules: reservation.NewReservationScheduleService(repositories.ReservationSchedules),
 		lineSettings: reservation.NewLineReservationSettingService(
 			repositories.LineReservationSettings,

@@ -9,11 +9,12 @@ import (
 )
 
 // D3 coverage gate: clinic-fixed ∪ (cross-clinic except GET /api/v1/clinics).
-// Full set is 177 after GET /support/bug-reports moved to class "global"
+// Full set is 178 after GET /api/v1/lab-device/mapping-drafts/:id joined clinic-fixed (EMR-297).
+// 177 was the count after GET /support/bug-reports moved to class "global"
 // (shared all-clinics board — intentional product decision, no clinic grant surface).
 // Remaining without realdb-return-data must stay 0.
 const (
-	d3CompletedRealDBRouteCount = 177
+	d3CompletedRealDBRouteCount = 178
 	d3MaxRemainingWithoutRealDB = 0
 )
 

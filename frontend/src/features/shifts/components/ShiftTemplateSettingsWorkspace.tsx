@@ -73,7 +73,7 @@ export function ShiftTemplateSettingsWorkspace({
       <div className="flex h-full overflow-hidden">
         <div className="flex-1 min-w-0 overflow-auto">
           <PageLayout
-            title="シフトテンプレートマスタ"
+            title="シフトテンプレート"
             icon={<Calendar className={`${ICON.page} ${C.text}`} />}
             resource={ResourceShifts}
             onBack={onBack}

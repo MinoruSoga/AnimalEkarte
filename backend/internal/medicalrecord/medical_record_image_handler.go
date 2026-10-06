@@ -83,66 +83,30 @@ func (h *MedicalRecordImageHandler) ListMedicalRecordImages(c *gin.Context) {
 		return
 	}
 
+	// 署名は全件発行してから削除台帳と一括突合する。先に blocked 判定すると、
+	// 判定後の署名発行中に削除 commit が割り込み retired 画像の署名 URL を返しうる
+	// （TOCTOU）。署名後チェックで「発行済み URL が削除済みだった」ケースを検出する。
 	items := make([]medicalRecordImageResponse, 0, len(images))
+	imageIDs := make([]uint64, 0, len(images))
 	for i := range images {
-		item, signErr := h.signedMedicalRecordImageResponse(c.Request.Context(), &images[i])
+		item, signErr := h.signMedicalRecordImageResponse(c.Request.Context(), &images[i])
 		if signErr != nil {
 			httpapi.RespondError(c, apperrors.Wrap(signErr, "failed to sign medical record image url"))
 			return
 		}
 		items = append(items, item)
+		imageIDs = append(imageIDs, images[i].ID)
+	}
+	blocked, err := h.service.BlockedImageIDs(c.Request.Context(), clinicID, imageIDs)
+	if err != nil {
+		httpapi.RespondError(c, apperrors.Wrap(err, "failed to check medical record image deletion"))
+		return
+	}
+	if len(blocked) > 0 {
+		httpapi.RespondError(c, errMedicalRecordImageSigningRetired)
+		return
 	}
 	c.JSON(http.StatusOK, items)
-}
-
-// CreateMedicalRecordImage godoc
-// POST /medical-records/:id/images
-func (h *MedicalRecordImageHandler) CreateMedicalRecordImage(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
-	if !ok {
-		return
-	}
-	medicalRecordID, ok := httpapi.ParseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	if !h.verifyOwnership(c, clinicID, medicalRecordID) {
-		return
-	}
-
-	var req createMedicalRecordImageRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
-		return
-	}
-	// MRC-09: JSON create must share MIME/size allowlist with upload path.
-	if err := req.validateJSONCreate(); err != nil {
-		httpapi.RespondError(c, err)
-		return
-	}
-
-	input := req.toServiceInput()
-	signedImageURL, err := h.signStoredMedicalRecordImageURL(c.Request.Context(), medicalRecordID, input.ImageURL)
-	if err != nil {
-		httpapi.RespondError(c, apperrors.Wrap(err, "failed to sign medical record image url"))
-		return
-	}
-	signedThumbURL, err := h.signStoredMedicalRecordImageURL(c.Request.Context(), medicalRecordID, input.ThumbnailURL)
-	if err != nil {
-		httpapi.RespondError(c, apperrors.Wrap(err, "failed to sign medical record image url"))
-		return
-	}
-
-	image, err := h.service.Create(c.Request.Context(), clinicID, medicalRecordID, input)
-	if err != nil {
-		httpapi.RespondError(c, err)
-		return
-	}
-	resp := toMedicalRecordImageResponse(image)
-	resp.ImageURL = signedImageURL
-	resp.ThumbnailURL = signedThumbURL
-	c.Header("Location", fmt.Sprintf("/api/v1/medical-records/%d/images/%d", medicalRecordID, image.ID))
-	c.JSON(http.StatusCreated, resp)
 }
 
 // DeleteMedicalRecordImage godoc
@@ -164,8 +128,12 @@ func (h *MedicalRecordImageHandler) DeleteMedicalRecordImage(c *gin.Context) {
 	if !ok {
 		return
 	}
+	staffID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
 
-	if err := h.service.Delete(c.Request.Context(), clinicID, medicalRecordID, imageID); err != nil {
+	if err := h.service.Delete(c.Request.Context(), clinicID, medicalRecordID, imageID, staffID, h.uploader); err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
@@ -257,29 +225,85 @@ func (h *MedicalRecordImageHandler) UploadMedicalRecordImage(c *gin.Context) {
 		}
 	}
 
-	signedImageURL, err := h.signStoredMedicalRecordImageURL(c.Request.Context(), medicalRecordID, key)
-	if err != nil {
-		cleanupUpload()
-		httpapi.RespondError(c, apperrors.Wrap(err, "failed to sign medical record image url"))
-		return
-	}
-
 	now := time.Now()
 	input := uploadMeta.toUploadedInput(key, now).toServiceInput()
-
 	image, err := h.service.Create(c.Request.Context(), clinicID, medicalRecordID, input)
 	if err != nil {
 		cleanupUpload()
 		httpapi.RespondError(c, err)
 		return
 	}
-	resp := toMedicalRecordImageResponse(image)
-	resp.ImageURL = signedImageURL
+
+	resp, err := h.signedMedicalRecordImageResponse(c.Request.Context(), clinicID, image)
+	if err != nil {
+		h.retireUploadAfterSignFailure(c, clinicID, medicalRecordID, image.ID, staffID, err)
+		return
+	}
 	c.Header("Location", fmt.Sprintf("/api/v1/medical-records/%d/images/%d", medicalRecordID, image.ID))
 	c.JSON(http.StatusCreated, resp)
 }
 
-func (h *MedicalRecordImageHandler) signedMedicalRecordImageResponse(ctx context.Context, img *model.MedicalRecordImage) (medicalRecordImageResponse, error) {
+func (h *MedicalRecordImageHandler) retireUploadAfterSignFailure(
+	c *gin.Context,
+	clinicID, medicalRecordID, imageID, staffID uint64,
+	signErr error,
+) {
+	retireErr := h.service.Delete(c.Request.Context(), clinicID, medicalRecordID, imageID, staffID, h.uploader)
+	if retireErr == nil {
+		httpapi.RespondError(c, apperrors.Wrap(signErr, "failed to sign medical record image url"))
+		return
+	}
+	// 補償削除が error を返した場合、retirement が commit 済みか（台帳あり・画像行なし、
+	// storage 掃除のみ未了）か、補償自体が失敗して画像行が残っているかを分けて返す。
+	// どちらにも「保存成功」と誤解させる応答はしない。
+	slog.ErrorContext(c.Request.Context(), "failed to retire medical record image after sign failure",
+		slog.Uint64("image_id", imageID), slog.String("error", retireErr.Error()))
+	retired, blockedErr := h.service.SigningBlocked(c.Request.Context(), clinicID, imageID)
+	switch {
+	case blockedErr != nil:
+		// commit 状態を判定できない。再 upload が重複になるか不明なので断定しない。
+		slog.ErrorContext(c.Request.Context(), "medical record image retirement state could not be determined",
+			slog.Uint64("image_id", imageID), slog.String("error", blockedErr.Error()))
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(
+			"medical record image %d upload outcome is uncertain; check the image list before re-uploading",
+			imageID)})
+	case retired:
+		// 台帳 commit 済み（storage 掃除のみ pending_storage で残る）: 画像は一覧に出ない。
+		// 「保存済みだから一覧を見よ」とは言わず、再 upload が重複にならないことだけを伝える。
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(
+			"medical record image %d could not be signed and was retired; it will not appear in the image list and may be safely re-uploaded",
+			imageID)})
+	default:
+		// 台帳なし = 補償失敗で画像行は残存。再 upload は重複になるため一覧確認を促す。
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(
+			"medical record image %d was saved but could not be signed; retry listing images instead of re-uploading",
+			imageID)})
+	}
+}
+
+// signedMedicalRecordImageResponse は署名発行→削除台帳確認の順で返す。
+// 先に blocked 判定してから署名すると、判定後に削除 commit が割り込んで
+// retired 画像の署名 URL を発行しうる（TOCTOU）。署名後に確認すれば
+// 「発行済みだが削除済み」ケースを確実に検出できる（発行自体の競合窓は
+// 署名 API 側の仕組みでは塞げないため、残存窓は台帳側で検出して応答を落とす）。
+func (h *MedicalRecordImageHandler) signedMedicalRecordImageResponse(ctx context.Context, clinicID uint64, img *model.MedicalRecordImage) (medicalRecordImageResponse, error) {
+	resp, err := h.signMedicalRecordImageResponse(ctx, img)
+	if err != nil {
+		return medicalRecordImageResponse{}, err
+	}
+	blocked, err := h.service.SigningBlocked(ctx, clinicID, img.ID)
+	if err != nil {
+		return medicalRecordImageResponse{}, err
+	}
+	if blocked {
+		return medicalRecordImageResponse{}, errMedicalRecordImageSigningRetired
+	}
+	return resp, nil
+}
+
+// signMedicalRecordImageResponse は削除台帳を見ずに署名だけを行う
+// （一覧時は署名後に BlockedImageIDs で一括突合する）。
+func (h *MedicalRecordImageHandler) signMedicalRecordImageResponse(ctx context.Context, img *model.MedicalRecordImage) (medicalRecordImageResponse, error) {
 	resp := toMedicalRecordImageResponse(img)
 	imageURL, err := h.signStoredMedicalRecordImageURL(ctx, img.MedicalRecordID, resp.ImageURL)
 	if err != nil {

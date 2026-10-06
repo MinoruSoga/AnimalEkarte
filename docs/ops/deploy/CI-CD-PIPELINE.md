@@ -8,7 +8,7 @@
 | 経路 | トリガー・設定 | 承認境界 |
 |---|---|---|
 | STG backend | `staging` push の `backend/**`、backend workflow、root package/lockfile 変更。または manual dispatch | staging job（`deploy`）の deploy 経路は EMR-148 でも不変（GitHub Environment binding なし。job-level `if:` で `target=production` dispatch では起動しない）。共有環境への dispatch / branch 更新は承認済み operator が行う |
-| STG frontend | `staging` push の `frontend/**` または frontend workflow 変更。または preview dispatch | job は `Preview` Environment に bind。外部 protection の現在値は別途確認 |
+| STG frontend | `staging` push の `frontend/**` または frontend workflow 変更。または preview dispatch | job は `staging` Environment に bind（frontend-deploy.yml の `environment:` 式は production 以外を `staging` へ解決）。外部 protection の現在値は別途確認 |
 | Production backend | `production` push（同じ path filter）または `target=production` dispatch で `deploy-production` job が起動。先頭 step が `refs/heads/production` 以外を拒否。`PROD_*` Environment secret、`npx wrangler deploy -c wrangler.production.jsonc`、`api.noah-karte.com` | job は **`Production`** Environment に bind。Environment reviewers / secrets / provider は人間前提。設定・検証が済むまで実行不可 |
 | Production frontend | `production` push の対象 path 変更。または `environment=production` dispatch | job は **`Production`** Environment に bind。production dispatch は `refs/heads/production` 以外を拒否。Required reviewers と branch protection の現在値は外部確認が必要 |
 | main push | CI。STG deploy workflow の直接 trigger ではない | review 済み `main -> staging` PR で昇格する |
@@ -29,7 +29,7 @@ flowchart TB
   S -->|backend / workflow / lockfile の変更、manual dispatch| BE[backend-deploy.yml]
   BE --> STGB[STG backend]
   S -->|frontend / workflow の変更、preview dispatch| FEP[frontend-deploy.yml]
-  FEP -->|Preview Environment| STGF[STG frontend]
+  FEP -->|staging Environment| STGF[STG frontend]
   P["production push / environment=production dispatch"] -->|production ref 以外は拒否| FPR[frontend-deploy.yml]
   FPR -->|Production Environment| PDF[Production frontend]
   PB_IN["production push / target=production dispatch"] -->|non-production ref は先頭 step で拒否| BPR[backend-deploy.yml deploy-production]
@@ -67,7 +67,7 @@ dispatch 後も run の `headSha == REVIEWED_SHA` を確認する。不一致、
 
 ## 3. Frontend pipeline（EMR-255: Cloudflare Workers Static Assets へ移行）
 
-1. GitHub Environment `Preview` / `Production` を選び、production ref を検証。
+1. GitHub Environment `staging` / `Production` を選び、production ref を検証。
 2. `APP_ENV=stg|production` を付けて `pnpm --dir frontend build`（Vite multi-page build → `dist/`）。
 3. `npx wrangler deploy -c frontend/wrangler{,.production}.jsonc` で frontend Worker + Static Assets を配信。
 4. smoke check で CSP ヘッダと `server: cloudflare`（Vercel 残留との誤検知防止）、SPA fallback、`/line-reserve/` を確認。

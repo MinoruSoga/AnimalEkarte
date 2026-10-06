@@ -2,6 +2,8 @@
 title: カルテ
 order: 4
 section: 診療業務
+keywords: カルテ作成, 作り方, 診療記録, 新規作成, 記入
+keywords_vi: tạo hồ sơ bệnh án, hồ sơ bệnh án, bệnh án, tạo bệnh án mới, ghi bệnh án, hồ sơ khám bệnh
 ---
 
 # カルテ

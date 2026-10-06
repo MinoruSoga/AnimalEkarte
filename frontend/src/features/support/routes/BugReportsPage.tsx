@@ -32,7 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { BADGE, C, ICON, STYLE } from "@/lib/design-tokens";
+import { BADGE, C, ICON, LAYOUT, STYLE } from "@/lib/design-tokens";
 import { formatJSTDate, formatJSTTime } from "@/lib/jst-date";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -235,7 +235,7 @@ export function BugReportsPage() {
       title="バグ報告"
       description="サポートウィジェットから送信されたバグ報告の一覧です（全医院の報告を閲覧可。操作は自医院の報告のみ）"
       icon={<Bug className={`${ICON.page} ${C.text}`} />}
-      maxWidth="max-w-5xl"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
     >
       {isLoading ? (
         <LoadingFallback />
@@ -253,7 +253,6 @@ export function BugReportsPage() {
                 <TableHead className="w-[110px]">報告者</TableHead>
                 <TableHead>件名</TableHead>
                 <TableHead className="w-[160px]">画面</TableHead>
-                <TableHead className="w-[90px]">スクショ</TableHead>
                 <TableHead className="w-[90px]">状態</TableHead>
                 <TableHead className="w-[120px]">Plane</TableHead>
                 <TableHead className="w-[64px]" />
@@ -274,13 +273,12 @@ export function BugReportsPage() {
                       aria-label={`詳細: ${report.title}`}
                       onClick={() => setSelected(report)}
                     >
-                      <span className="line-clamp-2">{report.title}</span>
+                      {report.title}
                     </DataTableRowButton>
                   </TableCell>
                   <TableCell className={`${C.text50} break-all`}>
                     {report.route_path || "―"}
                   </TableCell>
-                  <TableCell className={C.text50}>{report.screenshot_url ? "あり" : "―"}</TableCell>
                   <TableCell>
                     <StatusBadge status={report.status} />
                   </TableCell>

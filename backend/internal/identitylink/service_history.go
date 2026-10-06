@@ -50,6 +50,7 @@ func (s *service) writeAudit(
 	action string,
 	resourceID uint64,
 	oldValue, newValue any,
+	decision LinkWriteDecision,
 ) error {
 	if s.audit == nil {
 		return apperrors.WrapInternalServerError("identity link audit logger is required")
@@ -68,9 +69,22 @@ func (s *service) writeAudit(
 		Resource:   model.AuditResourceIdentityLink,
 		ResourceID: &rid,
 		// Non-PHI only: IDs and group metadata. Never names/phones.
+		// Audit records the admin fact. It is not the permission basis.
 		OldValue:  oldValue,
-		NewValue:  newValue,
+		NewValue:  withLinkWriteAuditFacts(newValue, decision),
 		IPAddress: actor.IPAddress,
 		UserAgent: actor.UserAgent,
 	})
+}
+
+func withLinkWriteAuditFacts(newValue any, decision LinkWriteDecision) map[string]any {
+	out := map[string]any{}
+	if existing, ok := newValue.(map[string]any); ok {
+		for key, value := range existing {
+			out[key] = value
+		}
+	}
+	out["actor_is_system_admin"] = decision.SystemAdmin
+	out["affected_clinic_ids"] = decision.AffectedClinicIDs
+	return out
 }

@@ -66,7 +66,7 @@ export function TreatmentPlanMasterView({
   return (
     <>
       <MasterTabPage
-        title="診療項目マスタ"
+        title="診療項目"
         icon={<Stethoscope className={`${ICON.page} ${C.text}`} />}
         resource={activeResource}
         onNew={onNew}
@@ -97,7 +97,7 @@ export function TreatmentPlanMasterView({
         }
       >
         {isDataError ? (
-          <ErrorFallback message="診療項目マスタの取得に失敗しました" />
+          <ErrorFallback message="診療項目の取得に失敗しました" />
         ) : isDataPending ? (
           <LoadingFallback />
         ) : (

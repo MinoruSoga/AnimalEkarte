@@ -2,6 +2,7 @@
 title: 職種マスタ
 order: 19.4
 section: システム設定
+keywords_vi: chức danh, master nghề nghiệp, danh mục chức vụ, loại công việc
 ---
 
 # 職種マスタ
@@ -64,5 +65,5 @@ section: システム設定
 
 ## 関連する画面
 
-- 画面マニュアル「**スタッフマスタ**」: 職種を選択
+- 画面マニュアル「**スタッフ管理**」: 職種を選択
 - 画面マニュアル「**権限グループ**」: 権限定義

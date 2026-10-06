@@ -38,6 +38,27 @@ func (m *mockChat) Complete(_ context.Context, messages []ChatMessage) (string, 
 	return m.reply, m.err
 }
 
+// TestChatSystemPrompt は回答言語・グラウンディング・拒否ルールの契約を固定する。
+// フォールバック文面は言語別の具体例ではなく「質問の言語で述べる」指示自体を検証する。
+func TestChatSystemPrompt(t *testing.T) {
+	t.Run("instructs answering in the question language", func(t *testing.T) {
+		assert.Contains(t, chatSystemPrompt, "質問と同じ言語")
+		assert.NotContains(t, chatSystemPrompt, "必ず日本語")
+	})
+	t.Run("keeps manual-only grounding", func(t *testing.T) {
+		assert.Contains(t, chatSystemPrompt, "<manual>")
+		assert.Contains(t, chatSystemPrompt, "マニュアル抜粋だけを根拠")
+	})
+	t.Run("keeps a language-relative no-content fallback directive", func(t *testing.T) {
+		assert.Contains(t, chatSystemPrompt, "質問の言語で")
+		assert.Contains(t, chatSystemPrompt, "ベトナム語")
+		assert.Contains(t, chatSystemPrompt, "バグを報告")
+	})
+	t.Run("keeps medical-scope refusal", func(t *testing.T) {
+		assert.Contains(t, chatSystemPrompt, "医療判断・診断・料金・薬")
+	})
+}
+
 func TestChatStatus(t *testing.T) {
 	t.Run("enabled when chat completer is set", func(t *testing.T) {
 		h := NewHandler(nil, nil, nil, &mockChat{}, nil)
@@ -109,6 +130,21 @@ func TestChat(t *testing.T) {
 				t.Helper()
 				require.Len(t, m.messages, 2)
 				assert.Equal(t, "質問: ログアウト方法は？", m.messages[1].Content)
+			},
+		},
+		{
+			// ベトナム語の質問が送信前スクリーニングを通過し、そのまま completer へ届くこと
+			name:       "accepts Vietnamese question without screening false positive",
+			body:       `{"message":"Cách tạo hồ sơ bệnh án?"}`,
+			chat:       &mockChat{reply: "Tạo hồ sơ từ màn hình tiếp nhận."},
+			wantStatus: http.StatusOK,
+			wantReply:  "Tạo hồ sơ từ màn hình tiếp nhận.",
+			assertMessage: func(t *testing.T, m *mockChat) {
+				t.Helper()
+				require.Len(t, m.messages, 2)
+				assert.Equal(t, "system", m.messages[0].Role)
+				assert.Equal(t, "user", m.messages[1].Role)
+				assert.Contains(t, m.messages[1].Content, "Cách tạo hồ sơ bệnh án?")
 			},
 		},
 		{

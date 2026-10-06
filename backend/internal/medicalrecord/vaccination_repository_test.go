@@ -426,6 +426,19 @@ func TestVaccinationRepository_FindOwnersByVaccineDeadline(t *testing.T) {
 		assert.NotContains(t, ids, owner.ID, "死亡ペットの記録は除外されるべき")
 	})
 
+	t.Run("status=deceased + deceased_at NULL のペットの記録は除外される（EMR-290）", func(t *testing.T) {
+		owner := makeTestOwner(t, db, clinicA, "status死亡ペット飼主")
+		// EMR-290: status=deceased だが deceased_at IS NULL の旧移行データ
+		statusDeceasedPet := &model.Pet{ClinicID: clinicA, OwnerID: owner.ID, AnimalSpeciesID: species.ID, Name: "status死亡ペット", Status: model.PetStatusDeceased}
+		require.NoError(t, db.WithContext(ctx).Create(statusDeceasedPet).Error)
+		vaccine := makeVaccineMaster(t, db, clinicA, "status死亡ペット用ワクチン")
+		makeVaccinationWithNextDate(clinicA, statusDeceasedPet.ID, vaccine.ID, target)
+
+		ids, err := repo.FindOwnersByVaccineDeadline(ctx, clinicA, target)
+		require.NoError(t, err)
+		assert.NotContains(t, ids, owner.ID, "status=deceased + deceased_at NULL のペットは除外されるべき")
+	})
+
 	t.Run("別医院の記録は含まれない", func(t *testing.T) {
 		ownerB := makeTestOwner(t, db, clinicB, "医院B飼主")
 		petB := makeVaccinationRepoTestPet(t, db, clinicB, ownerB.ID, "医院Bペット")

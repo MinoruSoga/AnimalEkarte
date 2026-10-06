@@ -143,8 +143,12 @@ func (h *ReservationStaffHandler) UpdateReservationStaffStatus(c *gin.Context) {
 		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
+	actorStaffID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
 	ctx := c.Request.Context()
-	staff, excluded, err := h.svc.PatchStatus(ctx, clinicID, id, req.IsActive)
+	staff, excluded, err := h.svc.PatchStatus(ctx, clinicID, id, *req.IsActive, actorStaffID)
 	if err != nil {
 		respondError(c, err)
 		return

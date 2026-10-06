@@ -88,6 +88,7 @@ func decodeIDEXXLongFrame(body, rawFrame []byte) (LabDeviceFrame, error) {
 		SourceFingerprint: labDeviceFingerprint(rawFrame),
 		DeviceHint:        "VetLab",
 		Items:             items,
+		Species:           labDeviceSpeciesFromText(string(body)),
 	}
 	markUnknownCodes(&out, knownIDEXXCodes)
 	return out, nil

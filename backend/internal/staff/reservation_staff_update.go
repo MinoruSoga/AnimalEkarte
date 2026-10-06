@@ -16,6 +16,11 @@ type ReservationStaffUpdate struct {
 	ReservationComment *string
 	SortOrder          *int
 	IsActive           *bool
+	// ActorStaffID is request metadata (the authenticated staff performing the
+	// mutation) used for the deactivation audit row. It is not a staffs column
+	// and reservationStaffUpdateFields must never map it. Zero means the actor
+	// was not available on the request context.
+	ActorStaffID uint64
 }
 
 const (

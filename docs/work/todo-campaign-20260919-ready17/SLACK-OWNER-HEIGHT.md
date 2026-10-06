@@ -146,7 +146,7 @@ OwnersListTable を誤って開いた場合の分離:
 | C5 | PASS | Enter で検索発火。可視外行の「選択」button を `focus()` で scrollport が自動スクロール（top 7106→473）。ESC で閉じる |
 | C6 | PASS | 親 Dialog（`sm:max-w-[1000px] max-h-[90vh] overflow-y-auto` = PetEditModal と同クラス）内の入れ子 Root でも結果 scrollport は独立稼働（scrollTop 6633、末行 hit-test 可） |
 
-証跡 PNG（worktree ルート）: `slack-owner-height-c0-unsearched-1366x625.png` / `-c1-empty-1366x625.png` / `-c2-3rows-1366x625.png` / `-c3-100rows-scrolled-last-row-1366x625.png` / `-c3-confirm-dialog-1366x625.png` / `-c6-nested-last-row-1366x625.png` / `-legacy-broken-innerH380.png`
+証跡 PNG（C0・C1・C2・C3×2・C6・legacy-broken-innerH380 の 7 枚、旧 worktree ルート保存）は 2026-10-05 にリポジトリから削除し、Plane EMR-187 に添付済み。必要時は git 履歴（f570a5238^）からも復元可能。
 
 ### 修正前クラス（`flex-1 overflow-auto min-h-[200px]`）との対比 — 機序の訂正
 
@@ -158,7 +158,7 @@ DOM の class 差し替えで legacy セットを同一 fixture に再現して�
 | --- | --- | --- |
 | 625 | 322px、scrollport 成立 | PASS（報告値そのままでは再現しない） |
 | 450 | 200px（床）が dialog 360px に辛うじて内蔵（下端差 -7px） | PASS 境界 |
-| 380 | 200px が dialog 下端を **+49px**、viewport を **+11px** 越え。最大 scroll で末行 button bottom 378 vs dialog 下端 342 | 末行が枠外・下端切れ（PNG 証跡あり） |
+| 380 | 200px が dialog 下端を **+49px**、viewport を **+11px** 越え。最大 scroll で末行 button bottom 378 vs dialog 下端 342 | 末行が枠外・下端切れ（PNG 証跡は上記のとおり削除済み） |
 | 340 | 最大 scroll でも末行「選択」 bottom 374 > viewport 340 → **off-viewport・物理的に到達不能**。fixed 版は同条件で results 80px・末行 top 217–261 で到達可 | FAIL=症状一致 |
 
 発火条件はおよそ `0.8 × innerHeight < ヘッダ+検索+padding(実測約153px) + 200px` → **innerHeight ≲ 440 CSS px**。申告「1366×625」が画面解像度で実機 innerHeight がブラウザ UI・OS 表示スケール・ズームで ≲440 まで下がっていたなら「最大化してもスクロールできない」と整合する（最大化は CSS px の innerHeight を変えない）。実機 innerWidth×innerHeight・ズーム・OS スケール・Chrome 版は引き続き **UNKNOWN**（実機受入は別 run で残す）。

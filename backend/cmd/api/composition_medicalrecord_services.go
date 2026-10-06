@@ -125,6 +125,7 @@ type medicalRecordLabServices struct {
 	usageTracker  medicalrecord.LabImportUsageTracker
 	deviceMasters medicalrecord.LabDeviceItemMasterService
 	deviceReceive medicalrecord.LabDeviceReceiveService
+	mappingDrafts medicalrecord.LabMappingDraftService
 }
 
 func newMedicalRecordLabServices(
@@ -161,6 +162,13 @@ func newMedicalRecordLabServices(
 	)
 	return medicalRecordLabServices{
 		deviceMasters: deviceMasters,
+		mappingDrafts: medicalrecord.NewLabMappingDraftService(
+			medicalrecord.NewLabMappingDraftRepository(d.DB),
+			deviceMasters,
+			medicalrecord.NewOpenAILabItemDrafterFromEnv(),
+			medicalRecordAuditTxBridge{logger: d.Audit},
+			d.Transactor,
+		),
 		deviceReceive: medicalrecord.NewLabDeviceReceiveService(
 			r.labDeviceReceive,
 			deviceMasters,
@@ -228,6 +236,7 @@ func newMedicalRecordClinicalServices(
 			d.Staff,
 			d.StaffAssignments,
 			d.Transactor,
+			medicalrecord.NewImageDeletionAudit(d.DB, auditTx),
 		),
 	}
 }

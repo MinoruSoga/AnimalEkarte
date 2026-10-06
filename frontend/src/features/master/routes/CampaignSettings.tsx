@@ -74,7 +74,7 @@ export function CampaignSettings() {
   return (
     <>
       <MasterCRUDPage
-        title="割引キャンペーンマスタ"
+        title="割引キャンペーン"
         icon={<Tag className={`${ICON.page} ${C.text}`} />}
         resource={ResourceAccounting}
         entityLabel="キャンペーン"

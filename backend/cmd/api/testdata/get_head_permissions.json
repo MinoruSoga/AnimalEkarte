@@ -1265,6 +1265,22 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/lab-device/mapping-drafts/:id",
+    "handler": "github.com/animal-ekarte/backend/internal/medicalrecord.(*LabImportHandler).GetLabMappingDraft-fm",
+    "class": "clinic-fixed",
+    "resource": "lab-import",
+    "action": "view",
+    "source": "internal/medicalrecord/routes_lab.go",
+    "routeExpression": "labDevice.GET(\"/mapping-drafts/:id\", perm(model.ResourceLabImport, \"view\"), h.labImport.GetLabMappingDraft)",
+    "handlerSource": "internal/medicalrecord/lab_device_mapping_handler.go",
+    "marker": "RequireSelectedClinicGrant",
+    "authorization": "assigned grant in composition; selected grant in handler",
+    "scope": "selected-clinic",
+    "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed; realdb-return-data:internal/medicalrecord/realdb_lab_isolation_test.go#TestRealDB_LabSelectedClinicBGrantAIsolation"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/lab-device/station",
     "handler": "github.com/animal-ekarte/backend/internal/medicalrecord.(*LabImportHandler).GetLabDeviceStation-fm",
     "class": "clinic-fixed",
@@ -3150,6 +3166,22 @@
     "scope": "all authenticated staff; all clinics",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
     "verification": "global-contract; contract-exclusion-from-selected-clinic-grant; executed-handler:internal/support/chat_test.go#TestListChatExchangesHandler; executed-service:internal/support/service_test.go#TestListChatExchanges"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/support/chat/rooms",
+    "handler": "github.com/animal-ekarte/backend/internal/support.(*Handler).ListChatRooms-fm",
+    "class": "global",
+    "resource": "none",
+    "action": "none",
+    "source": "internal/support/handler.go",
+    "routeExpression": "s.GET(\"/chat/rooms\", h.ListChatRooms)",
+    "handlerSource": "internal/support/chat.go",
+    "marker": "h.service.ListChatRooms",
+    "authorization": "Authenticate middleware only; deliberate product decision — chat conversation rooms (30min-gap pseudo sessions) are a shared board visible to all staff across all clinics (same model as exchanges/bug reports)",
+    "scope": "all authenticated staff; all clinics",
+    "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
+    "verification": "global-contract; contract-exclusion-from-selected-clinic-grant; executed-service:internal/support/service_test.go#TestListChatRooms"
   },
   {
     "method": "GET",

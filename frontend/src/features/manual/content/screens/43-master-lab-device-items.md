@@ -2,6 +2,7 @@
 title: 検査機器マスタ
 order: 19.9
 section: システム設定
+keywords_vi: master thiết bị xét nghiệm, danh mục máy xét nghiệm, thiết bị xét nghiệm
 ---
 
 # 検査機器マスタ

@@ -52,6 +52,7 @@ Mutual exclusion on a ledger task ID / packet ID. Convention over existing `git 
 - Resolve specification blockers before the dependent unit; continue independent authorized work.
 - Once scope is clear, proceed through the in-scope work without asking mid-task confirmation questions.
 - Stop only for explicit safety boundaries: destructive operations (including any working-tree wipe), credential or secret changes, external posting/publishing/pushing/merging, paid actions, production-impacting actions, or irreversible third-party changes.
+- Exception: Plane work item operations (create / update / comment / state transition) within [docs/ops/plane-ticket-conventions.md](docs/ops/plane-ticket-conventions.md) are pre-authorized and are not "external posting". Bulk changes, permission/setting changes, and ticket deletion still require approval.
 
 ## Configuration scope
 
@@ -62,7 +63,7 @@ Generic AI workflow, model preferences, sandbox, Hooks and external connectors b
 - Complete the accepted scope, review the owned diff, fix findings, and run applicable scoped checks.
 - Report changed behavior, checked worktree/diff, commands and results, unresolved items and external state separately.
 - Missing tools, skipped checks and untested behavior are BLOCKED, SKIP or UNKNOWN, never PASS. Static/candidate checks do not establish runtime or release readiness.
-- Keep Linear as execution SoT. When unavailable, prepare a local draft and report its current state UNKNOWN; external posting needs authorization.
+- Keep Plane (workspace `baritechllc`, project `EMR`) as execution SoT. When unavailable, prepare a local draft and report its current state UNKNOWN; ticket format and intake rules follow [docs/ops/plane-ticket-conventions.md](docs/ops/plane-ticket-conventions.md).
 
 ## Verification
 

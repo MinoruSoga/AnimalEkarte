@@ -289,11 +289,19 @@ func TestApplyLocksDemoLoginsOnStagingWithoutSecret(t *testing.T) {
 
 	// シークレット未注入の staging でもカタログアカウントは upsert されるが、
 	// パスワードは照合不可能 — 公開定数でも空文字でもログインできない（fail-closed）。
+	// Apply は全カタログアカウントに同一のハッシュ文字列を書くため、bcrypt 照合は
+	// 先頭アカウントへの1回で十分（cost 12 × 全件ループは -race で数分になる）。
+	var lockedHash string
 	for _, spec := range Catalog() {
 		var account model.Account
 		require.NoError(t, db.Where("email = ?", spec.Email).First(&account).Error)
-		assert.Error(t, bcrypt.CompareHashAndPassword([]byte(account.PasswordHash), []byte(SharedPassword)))
-		assert.Error(t, bcrypt.CompareHashAndPassword([]byte(account.PasswordHash), []byte("")))
+		if lockedHash == "" {
+			lockedHash = account.PasswordHash
+			assert.Error(t, bcrypt.CompareHashAndPassword([]byte(lockedHash), []byte(SharedPassword)))
+			assert.Error(t, bcrypt.CompareHashAndPassword([]byte(lockedHash), []byte("")))
+		} else {
+			assert.Equal(t, lockedHash, account.PasswordHash)
+		}
 	}
 	assert.False(t, AcceptSharedPassword("staging", Catalog()[0].Email, SharedPassword))
 }
@@ -354,6 +362,9 @@ func setupLoginSeedDB(t *testing.T) *gorm.DB {
 
 func assertLoginCatalog(t *testing.T, db *gorm.DB, password string) {
 	t.Helper()
+	// Apply は全カタログアカウントに同一のハッシュ文字列を書くため、bcrypt 照合は
+	// 先頭アカウントへの1回で十分（残りはハッシュ一致で確認）。
+	var expectedHash string
 	for _, spec := range Catalog() {
 		var staff model.Staff
 		require.NoError(t, db.Unscoped().First(&staff, spec.StaffID).Error)
@@ -366,7 +377,12 @@ func assertLoginCatalog(t *testing.T, db *gorm.DB, password string) {
 		assert.Equal(t, spec.Email, account.Email)
 		assert.True(t, account.IsActive)
 		assert.False(t, account.IsSystemAdmin)
-		require.NoError(t, bcrypt.CompareHashAndPassword([]byte(account.PasswordHash), []byte(password)))
+		if expectedHash == "" {
+			require.NoError(t, bcrypt.CompareHashAndPassword([]byte(account.PasswordHash), []byte(password)))
+			expectedHash = account.PasswordHash
+		} else {
+			assert.Equal(t, expectedHash, account.PasswordHash)
+		}
 
 		var assignment model.StaffClinicAssignment
 		require.NoError(t, db.Where("staff_id = ? AND clinic_id = ?", spec.StaffID, spec.ClinicID).First(&assignment).Error)

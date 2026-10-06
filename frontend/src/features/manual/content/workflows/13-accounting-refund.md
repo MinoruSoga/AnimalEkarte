@@ -2,6 +2,7 @@
 title: 会計を取り消す・領収書を再発行する
 order: 2
 section: 受付業務
+keywords_vi: hủy thanh toán, xuất lại hóa đơn, in lại biên lai, hoàn tiền, hủy hóa đơn
 ---
 
 # 会計を取り消す・領収書を再発行する

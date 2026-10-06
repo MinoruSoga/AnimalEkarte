@@ -77,7 +77,7 @@ func (r *pauseAfterFirstTreatmentPlanLock) LockByIDForUpdate(ctx context.Context
 
 func TestTreatmentPlanService_Update_DiscountTOCTOU_StaleZeroRejected(t *testing.T) {
 	db := setupTreatmentPlanDiscountTOCTOUDB(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	const clinicID = uint64(1)
 

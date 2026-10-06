@@ -18,7 +18,7 @@ description: 利用可能なブラウザツールを使った機能テスト。d
 
 **受入正本**: `docs/ops/testing/scenarios/` · アーキテクチャ: `docs/ops/testing/TEST_ARCHITECTURE.md`  
 フォーム V は `FIELD-LEVEL-PROTOCOL.md` を全 fieldKey に適用。環境: `UAT-ENV-SETUP.md`。  
-FAIL 起票先: 確認済み製品 FAIL は root `bug.md` に記録し、その後 Linear Issue 化する。旧 STATUS.md は復活させない。外部投稿の許可がなければレビュー可能な下書きまでで止める。
+FAIL 起票先: 確認済み製品 FAIL はまず Plane の既存 `bug` ラベル票（`workitem list`、label UUID は規約附録）と `todo.md#product-bugs` の両方で重複確認する。既存票があれば新規起票せず、その EMR-N に実測証拠をコメント追記する。新規の場合は `todo.md#product-bugs` に記録後、Plane に `bug` ラベルで起票する（形式は docs/ops/plane-ticket-conventions.md のバグ票）。`bug.md` は空ファイルで台帳として使わない。旧 STATUS.md は復活させない。
 
 ---
 
@@ -111,13 +111,13 @@ Chrome DevTools MCP を使って指定されたテスト項目を実行し、結
 
 1. **テスト結果レポートを出力**する
    - 結果は scenarios / SECTION_14 本体ではなく `reports/uat-YYYY-MM-DD/` またはセッション報告
-   - 確認済み製品 FAIL は `bug.md` に記録し、その後 Linear Issue 化する。STATUS.md や旧二台帳は復活させない
+   - 確認済み製品 FAIL は Plane `bug` ラベル票と `todo.md#product-bugs` の両方で重複確認し、既存なら EMR-N に証拠追記、新規なら todo 記録後に Plane `bug` ラベルで起票する（docs/ops/plane-ticket-conventions.md）。STATUS.md や旧二台帳は復活させない
 
 2. **サマリを表示**する
    ```
    ## テスト完了: {対象}
    - OK: X件 / NG: Y件 / Partial: Z件
-   - 新規バグ: Linear / bug.md（あれば）
+   - 新規バグ: Plane（起票済みなら EMR-N）
    ```
 
 ---

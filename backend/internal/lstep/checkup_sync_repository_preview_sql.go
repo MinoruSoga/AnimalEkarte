@@ -19,10 +19,10 @@ WITH visit_agg AS (
 pet_agg AS (
   SELECT
     p.owner_id,
-    COALESCE(STRING_AGG(DISTINCT p.name, ',' ORDER BY p.name) FILTER (WHERE p.deceased_at IS NULL), '') AS pet_names,
-    COUNT(DISTINCT p.id) FILTER (WHERE p.deceased_at IS NULL) AS living_pet_count,
-    MIN(EXTRACT(YEAR FROM AGE(NOW(), p.birth_date))::int) FILTER (WHERE p.deceased_at IS NULL AND p.birth_date IS NOT NULL) AS min_pet_age_years,
-    MAX(EXTRACT(YEAR FROM AGE(NOW(), p.birth_date))::int) FILTER (WHERE p.deceased_at IS NULL AND p.birth_date IS NOT NULL) AS max_pet_age_years
+    COALESCE(STRING_AGG(DISTINCT p.name, ',' ORDER BY p.name) FILTER (WHERE p.deceased_at IS NULL AND p.status <> 'deceased'), '') AS pet_names,
+    COUNT(DISTINCT p.id) FILTER (WHERE p.deceased_at IS NULL AND p.status <> 'deceased') AS living_pet_count,
+    MIN(EXTRACT(YEAR FROM AGE(NOW(), p.birth_date))::int) FILTER (WHERE p.deceased_at IS NULL AND p.status <> 'deceased' AND p.birth_date IS NOT NULL) AS min_pet_age_years,
+    MAX(EXTRACT(YEAR FROM AGE(NOW(), p.birth_date))::int) FILTER (WHERE p.deceased_at IS NULL AND p.status <> 'deceased' AND p.birth_date IS NOT NULL) AS max_pet_age_years
   FROM pets p
   WHERE p.clinic_id = ?
     AND p.deleted_at IS NULL
@@ -63,6 +63,7 @@ chronic_owners AS (
     ON pp.id = pcc.pet_id
    AND pp.deleted_at IS NULL
    AND pp.deceased_at IS NULL
+   AND pp.status <> 'deceased'
    AND pp.clinic_id = pcc.clinic_id
   WHERE pcc.clinic_id = ?
     AND pcc.is_active = TRUE

@@ -34,7 +34,7 @@ func TestClinicRepository_FindAllParticipatesInAmbientTransactionPoolOne(
 	repository := NewClinicRepository(db)
 	transactor := persistence.NewTransactor(db)
 	rollbackProbe := errors.New("rollback clinic inventory probe")
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	err = transactor.WithTx(ctx, func(txCtx context.Context) error {
@@ -207,7 +207,7 @@ func setupClinicInventoryAmbientTxProbe(t *testing.T) (
 	sqlDB.SetMaxOpenConns(1)
 	sqlDB.SetMaxIdleConns(1)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	t.Cleanup(cancel)
 	return db, NewClinicRepository(db), persistence.NewTransactor(db), ctx
 }

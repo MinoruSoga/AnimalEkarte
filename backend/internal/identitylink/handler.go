@@ -48,6 +48,21 @@ func (h *Handler) actorFromContext(c *gin.Context) (ActorContext, bool) {
 	}, true
 }
 
+// actorForIdentityLinkWrite keeps VerifiedClinics as the membership or admin
+// access set. An empty identity-links edit set uses the single denial already
+// written by FilterClinicIDsForPermission. The handler does not write another.
+func (h *Handler) actorForIdentityLinkWrite(c *gin.Context) (ActorContext, bool) {
+	actor, ok := h.actorFromContext(c)
+	if !ok {
+		return ActorContext{}, false
+	}
+	resource, action := identityLinksEdit()
+	if _, allowed := httpapi.FilterClinicIDsForPermission(c, actor.VerifiedClinics, resource, action); !allowed {
+		return ActorContext{}, false
+	}
+	return actor, true
+}
+
 func (h *Handler) actorWithViewableClinics(c *gin.Context) (ActorContext, bool) {
 	actor, ok := h.actorFromContext(c)
 	if !ok {
@@ -147,7 +162,7 @@ func (h *Handler) FindOwnerGroupByMember(c *gin.Context) {
 
 // CreateOwnerGroup POST /identity-links/owner-groups
 func (h *Handler) CreateOwnerGroup(c *gin.Context) {
-	actor, ok := h.actorFromContext(c)
+	actor, ok := h.actorForIdentityLinkWrite(c)
 	if !ok {
 		return
 	}
@@ -166,7 +181,7 @@ func (h *Handler) CreateOwnerGroup(c *gin.Context) {
 
 // AddOwnerMembers POST /identity-links/owner-groups/:id/members
 func (h *Handler) AddOwnerMembers(c *gin.Context) {
-	actor, ok := h.actorFromContext(c)
+	actor, ok := h.actorForIdentityLinkWrite(c)
 	if !ok {
 		return
 	}
@@ -190,7 +205,7 @@ func (h *Handler) AddOwnerMembers(c *gin.Context) {
 
 // UnlinkOwnerMember DELETE /identity-links/owner-groups/:id/members
 func (h *Handler) UnlinkOwnerMember(c *gin.Context) {
-	actor, ok := h.actorFromContext(c)
+	actor, ok := h.actorForIdentityLinkWrite(c)
 	if !ok {
 		return
 	}
@@ -256,7 +271,7 @@ func (h *Handler) FindPetGroupByMember(c *gin.Context) {
 
 // CreatePetGroup POST /identity-links/pet-groups
 func (h *Handler) CreatePetGroup(c *gin.Context) {
-	actor, ok := h.actorFromContext(c)
+	actor, ok := h.actorForIdentityLinkWrite(c)
 	if !ok {
 		return
 	}
@@ -275,7 +290,7 @@ func (h *Handler) CreatePetGroup(c *gin.Context) {
 
 // AddPetMembers POST /identity-links/pet-groups/:id/members
 func (h *Handler) AddPetMembers(c *gin.Context) {
-	actor, ok := h.actorFromContext(c)
+	actor, ok := h.actorForIdentityLinkWrite(c)
 	if !ok {
 		return
 	}
@@ -299,7 +314,7 @@ func (h *Handler) AddPetMembers(c *gin.Context) {
 
 // UnlinkPetMember DELETE /identity-links/pet-groups/:id/members
 func (h *Handler) UnlinkPetMember(c *gin.Context) {
-	actor, ok := h.actorFromContext(c)
+	actor, ok := h.actorForIdentityLinkWrite(c)
 	if !ok {
 		return
 	}

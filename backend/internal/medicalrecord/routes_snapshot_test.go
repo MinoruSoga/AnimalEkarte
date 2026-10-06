@@ -119,6 +119,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/v1/lab-device-item-masters ListLabDeviceItemMasters\n" +
 		"GET /api/v1/lab-device/agent-consumer GetLabDeviceAgentConsumer\n" +
 		"GET /api/v1/lab-device/board GetLabDeviceBoard\n" +
+		"GET /api/v1/lab-device/mapping-drafts/:id GetLabMappingDraft\n" +
 		"GET /api/v1/lab-device/station GetLabDeviceStation\n" +
 		"GET /api/v1/lab-device/unlinked GetLabDeviceUnlinked\n" +
 		"GET /api/v1/lab-devices ListLabDevices\n" +
@@ -219,6 +220,8 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/hospitalizations/:id/treatment-plans CreateTreatmentPlanForHospitalization\n" +
 		"POST /api/v1/lab-device-item-masters/ensure EnsureLabDeviceItemMasters\n" +
 		"POST /api/v1/lab-device/frames ReceiveLabDeviceFrames\n" +
+		"POST /api/v1/lab-device/mapping-drafts CreateLabMappingDraft\n" +
+		"POST /api/v1/lab-device/mapping-drafts/:id/confirm ConfirmLabMappingDraft\n" +
 		"POST /api/v1/lab-devices CreateLabDevice\n" +
 		"POST /api/v1/lab-imports CommitLabImport\n" +
 		"POST /api/v1/lab-imports/:job_id/attach AttachLabDeviceJob\n" +
@@ -241,13 +244,13 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/medical-records CreateMedicalRecord\n" +
 		"POST /api/v1/medical-records/:id/addenda CreateMedicalRecordAddendum\n" +
 		"POST /api/v1/medical-records/:id/checkups CreateCheckup\n" +
-		"POST /api/v1/medical-records/:id/images CreateMedicalRecordImage\n" +
 		"POST /api/v1/medical-records/:id/images/upload UploadMedicalRecordImage\n" +
 		"POST /api/v1/medical-records/:id/treatment-plans CreateTreatmentPlanForMedicalRecord\n" +
 		"POST /api/v1/medical-records/:id/treatments CreateTreatment\n" +
 		"POST /api/v1/medical-records/:id/vitals CreateVital\n" +
 		"POST /api/v1/vaccinations CreateVaccination\n" +
 		"PUT /api/v1/examinations/:id/items ReplaceExaminationItems\n" +
+		"PUT /api/v1/lab-device/mapping-generation PutLabMappingGeneration\n" +
 		"PUT /api/v1/lab-device/station PutLabDeviceStation\n" +
 		"PUT /api/v1/lab-device/wait PutLabDeviceWait\n" +
 		"PUT /api/v1/lab-devices/:id/configuration SaveLabDeviceConfiguration\n" +

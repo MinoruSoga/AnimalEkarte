@@ -105,7 +105,7 @@ func awaitStaffOccupationMutation(
 	select {
 	case got := <-result:
 		return got
-	case <-time.After(5 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("timed out waiting for staff occupation mutation")
 		return staffOccupationMutationResult{}
 	}

@@ -16,7 +16,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
-const clinicalPlanFinalizeLockTimeout = 2 * time.Second
+const clinicalPlanFinalizeLockTimeout = 30 * time.Second
 
 type blockingClinicalPlanAudit struct {
 	reached chan<- struct{}

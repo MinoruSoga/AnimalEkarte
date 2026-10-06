@@ -1,16 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
 
-import type { SupportChatExchange } from "../types";
+import type { SupportChatRoom } from "../types";
 
-let exchangesMock: SupportChatExchange[] = [];
+let roomsMock: SupportChatRoom[] = [];
 let loadingMock = false;
 let errorMock = false;
 
-vi.mock("../api/get-support-chat-exchanges", () => ({
-  useGetSupportChatExchanges: () => ({
-    data: exchangesMock,
+vi.mock("../api/get-support-chat-rooms", () => ({
+  useGetSupportChatRooms: () => ({
+    data: roomsMock,
     isLoading: loadingMock,
     isError: errorMock,
   }),
@@ -18,77 +19,140 @@ vi.mock("../api/get-support-chat-exchanges", () => ({
 
 import { ChatHistoryPage } from "./ChatHistoryPage";
 
-function makeExchange(overrides: Partial<SupportChatExchange> = {}): SupportChatExchange {
+function renderPage() {
+  return render(
+    <MemoryRouter>
+      <ChatHistoryPage />
+    </MemoryRouter>,
+  );
+}
+
+function makeRoom(overrides: Partial<SupportChatRoom> = {}): SupportChatRoom {
   return {
-    id: 1,
+    id: "1-1-1",
     clinic_name: "さくら動物病院",
     staff_name: "田中",
-    question: "予約のキャンセル方法は？",
-    answer: "予約詳細からキャンセルできます",
-    created_at: "2026-10-01T00:00:00Z",
+    started_at: "2026-10-01T00:00:00Z",
+    last_message_at: "2026-10-01T00:05:00Z",
+    turns: [
+      {
+        id: 1,
+        role: "user",
+        content: "予約のキャンセル方法は？",
+        created_at: "2026-10-01T00:00:00Z",
+      },
+      {
+        id: 2,
+        role: "assistant",
+        content: "予約詳細からキャンセルできます",
+        created_at: "2026-10-01T00:05:00Z",
+      },
+    ],
     ...overrides,
   };
 }
 
 beforeEach(() => {
-  exchangesMock = [makeExchange()];
+  roomsMock = [makeRoom()];
   loadingMock = false;
   errorMock = false;
 });
 
-describe("ChatHistoryPage 一覧", () => {
-  it("全医院共有ボードとして医院・スタッフ列を表示し、権限チェックなしで描画する", () => {
+describe("ChatHistoryPage ルーム一覧", () => {
+  it("サイドバーに医院・スタッフ・先頭質問を持つルームを表示し、権限チェックなしで描画する", () => {
     // 権限ゲートは意図的に無い — useAuth/usePermission をモックせず描画される
-    render(<ChatHistoryPage />);
+    renderPage();
 
-    expect(screen.getByRole("columnheader", { name: "医院" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "スタッフ" })).toBeInTheDocument();
-    expect(screen.getByText("さくら動物病院")).toBeInTheDocument();
-    expect(screen.getByText("田中")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "詳細: 予約のキャンセル方法は？" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "チャットルーム一覧" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /予約のキャンセル方法は？/ })).toBeInTheDocument();
+    expect(screen.getAllByText(/さくら動物病院/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/田中/).length).toBeGreaterThan(0);
   });
 
-  it("質問と回答を1行で表示する", () => {
-    render(<ChatHistoryPage />);
+  it("最新ルームが初期選択され、質問と回答が吹き出しで表示される", () => {
+    renderPage();
 
-    expect(screen.getByText("予約のキャンセル方法は？")).toBeInTheDocument();
-    expect(screen.getByText("予約詳細からキャンセルできます")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /予約のキャンセル方法は？/ })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    const conversation = screen.getByRole("region", { name: "選択中の会話" });
+    expect(conversation).toHaveTextContent("予約のキャンセル方法は？");
+    expect(conversation).toHaveTextContent("予約詳細からキャンセルできます");
+  });
+
+  it("ルームをクリックすると表示会話が切り替わる", async () => {
+    const user = userEvent.setup();
+    roomsMock = [
+      makeRoom(),
+      makeRoom({
+        id: "1-1-3",
+        clinic_name: "ひまわり動物病院",
+        staff_name: "佐藤",
+        turns: [
+          {
+            id: 3,
+            role: "user",
+            content: "ワクチン記録の削除方法は？",
+            created_at: "2026-09-30T01:00:00Z",
+          },
+          {
+            id: 4,
+            role: "assistant",
+            content: "ワクチン一覧から削除できます",
+            created_at: "2026-09-30T01:01:00Z",
+          },
+        ],
+      }),
+    ];
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: /ワクチン記録の削除方法は？/ }));
+
+    const conversation = screen.getByRole("region", { name: "選択中の会話" });
+    expect(conversation).toHaveTextContent("ワクチン記録の削除方法は？");
+    expect(conversation).toHaveTextContent("ワクチン一覧から削除できます");
+    expect(conversation).not.toHaveTextContent("予約のキャンセル方法は？");
+    expect(conversation).toHaveTextContent("ひまわり動物病院");
+    expect(conversation).toHaveTextContent("佐藤");
+  });
+
+  it("回答に参照記事がある場合はリンクとして表示する", () => {
+    roomsMock = [
+      makeRoom({
+        turns: [
+          {
+            id: 1,
+            role: "user",
+            content: "予約のキャンセル方法は？",
+            created_at: "2026-10-01T00:00:00Z",
+          },
+          {
+            id: 2,
+            role: "assistant",
+            content: "予約詳細からキャンセルできます",
+            sources: [{ title: "予約操作マニュアル", category: "screens", slug: "cancel" }],
+            created_at: "2026-10-01T00:05:00Z",
+          },
+        ],
+      }),
+    ];
+    renderPage();
+
+    expect(screen.getByRole("link", { name: "予約操作マニュアル" })).toBeInTheDocument();
   });
 
   it("履歴がない場合は空状態を表示する", () => {
-    exchangesMock = [];
-    render(<ChatHistoryPage />);
+    roomsMock = [];
+    renderPage();
 
     expect(screen.getByText("チャット履歴はまだありません")).toBeInTheDocument();
   });
 
   it("取得失敗時はエラー表示にする", () => {
     errorMock = true;
-    render(<ChatHistoryPage />);
+    renderPage();
 
     expect(screen.getByText(/取得に失敗しました/)).toBeInTheDocument();
-  });
-});
-
-describe("ChatHistoryPage 詳細ダイアログ", () => {
-  it("行クリックで質問・回答全文と参照記事を表示する", async () => {
-    const user = userEvent.setup();
-    exchangesMock = [
-      makeExchange({
-        sources: [{ title: "予約操作マニュアル", category: "予約", slug: "cancel" }],
-      }),
-    ];
-    render(<ChatHistoryPage />);
-
-    await user.click(screen.getByRole("button", { name: "詳細: 予約のキャンセル方法は？" }));
-
-    const dialog = await screen.findByRole("dialog");
-    expect(dialog).toHaveTextContent("予約のキャンセル方法は？");
-    expect(dialog).toHaveTextContent("予約詳細からキャンセルできます");
-    expect(dialog).toHaveTextContent("予約操作マニュアル");
-    expect(dialog).toHaveTextContent("さくら動物病院");
-    expect(dialog).toHaveTextContent("田中");
   });
 });

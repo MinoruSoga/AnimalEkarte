@@ -56,7 +56,7 @@ export function ClinicMasterList({
 }: ClinicMasterListProps) {
   return (
     <PageLayout
-      title="医院マスタ"
+      title="医院"
       resource={ResourceHospitalSettings}
       icon={<Building2 className={`${ICON.page} ${C.text}`} />}
       onBack={onBack}

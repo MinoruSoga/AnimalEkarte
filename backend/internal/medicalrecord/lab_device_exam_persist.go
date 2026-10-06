@@ -92,7 +92,7 @@ func (s *labDeviceExamPersister) persistLinkedJob(
 	for i := range items {
 		codes = append(codes, items[i].DeviceItemCode)
 	}
-	resolution, err := s.masters.ResolveItems(ctx, clinicID, string(job.SourceType), codes)
+	resolution, err := s.masters.ResolveItemsForSpecies(ctx, clinicID, string(job.SourceType), job.Species, codes)
 	if err != nil {
 		return err
 	}

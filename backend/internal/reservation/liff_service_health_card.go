@@ -63,7 +63,8 @@ func (s *liffService) GetHealthCard(ctx context.Context, clinicID, customerID ui
 	pets := make([]PetHealthCard, 0, len(customer.Owner.Pets))
 	for i := range customer.Owner.Pets {
 		p := &customer.Owner.Pets[i]
-		if p.DeceasedAt != nil {
+		// EMR-290: 死亡契約は status=deceased または deceased_at 非NULL（OR 契約）。
+		if p.Status == model.PetStatusDeceased || p.DeceasedAt != nil {
 			continue
 		}
 		species := ""

@@ -350,6 +350,9 @@ var syntheticClosingDeleteStatements = []string{
 	"DELETE FROM lstep_tag_code_mappings WHERE clinic_id = ?",
 	"DELETE FROM lstep_trigger_priorities WHERE clinic_id = ?",
 	"DELETE FROM medical_record_addenda WHERE clinic_id = ?",
+	// medical_record_image_deletions: clinic_id → clinics ON DELETE RESTRICT（migration 021）。
+	// 画像行自体は無くても台帳が clinics 削除を塞ぐため teardown 系列に含める。
+	"DELETE FROM medical_record_image_deletions WHERE clinic_id = ?",
 	"DELETE FROM medical_record_image_upload_quota WHERE clinic_id = ?",
 	"DELETE FROM merchandise_items WHERE clinic_id = ?",
 	"DELETE FROM occupations WHERE clinic_id = ?",
@@ -381,6 +384,11 @@ var syntheticClosingDeleteStatements = []string{
 	"DELETE FROM examination_revisions WHERE clinic_id = ?",
 	"DELETE FROM cages WHERE clinic_id = ?",
 	"DELETE FROM lab_import_exam_retractions WHERE clinic_id = ?",
+	// EMR-297 mapping rows reference clinics and exam_type_fields with ON DELETE RESTRICT.
+	"DELETE FROM lab_device_mapping_draft_items WHERE clinic_id = ?",
+	"DELETE FROM lab_device_mapping_specs WHERE clinic_id = ?",
+	"DELETE FROM lab_device_mapping_drafts WHERE clinic_id = ?",
+	"DELETE FROM lab_device_mapping_generation WHERE clinic_id = ?",
 	"DELETE FROM exam_type_fields WHERE clinic_id = ?",
 	"DELETE FROM lstep_csv_imports WHERE clinic_id = ?",
 	"DELETE FROM payment_methods WHERE clinic_id = ?",

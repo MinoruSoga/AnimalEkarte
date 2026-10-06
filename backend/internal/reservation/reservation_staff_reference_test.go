@@ -365,6 +365,9 @@ func setupReservationRefScratchSchema(t *testing.T) *reservationRefScratchFixtur
 	applyReservationCreatedByMigration(t, db, "../../migrations/002_medical_records_entered_by_staff_fk.sql")
 	applyReservationCreatedByMigration(t, db, reservationCreatedByMigration)                       // 003: created_by 単一カラム FK 化
 	applyReservationCreatedByMigration(t, db, "../../migrations/017_multiclinic_staff_fk_fix.sql") // 017: 兼務スタッフ参照の複合 FK 除去
+	// 022: capabilities_configured_at — replaceReservationCapabilitiesTx の write path が
+	// 同列を NOW() で更新するため、実 DDL schema にも反映が必要。
+	applyReservationCreatedByMigration(t, db, "../../migrations/022_staff_clinic_assignments_capability_configured_at.sql")
 	fixture := &reservationRefScratchFixture{db: db}
 	require.NoError(t, db.Callback().Create().After("gorm:create").Register("test:capture_reservation_ref_fk", func(tx *gorm.DB) {
 		var pgErr *pgconn.PgError

@@ -149,6 +149,10 @@ func allModels() []any {
 		&model.LabImportJob{},
 		&model.LabImportEvent{},
 		&model.LabDeviceItemMaster{},
+		&model.LabDeviceMappingDraft{},
+		&model.LabDeviceMappingDraftItem{},
+		&model.LabDeviceMappingSpec{},
+		&model.LabDeviceMappingGeneration{},
 		&model.LabDevice{},
 		&model.LabImportJobItem{},
 		&model.LabDeviceWait{},
@@ -648,15 +652,18 @@ func TestAllModelsExhaustive(t *testing.T) {
 }
 
 // toSnakeCase はPascalCaseをsnake_caseに変換する。
-// 連続する大文字（ID, URL等）は一つの単語として扱う。
-// 例: MedicalRecordID → medical_record_id（medical_record_i_d ではない）
+// 連続する大文字（ID, URL等）は一つの単語として扱うが、連続大文字の末尾で
+// 次が小文字の場合はその大文字を新しい単語の頭とみなす（GORM NamingStrategy.toDBName と同じ規則）。
+// 例: MedicalRecordID → medical_record_id、LLMRequest → llm_request
 func toSnakeCase(s string) string {
 	runes := []rune(s)
 	var result strings.Builder
 	for i, r := range runes {
 		if r >= 'A' && r <= 'Z' {
-			// 先行文字が小文字の場合のみアンダースコアを挿入
-			if i > 0 && runes[i-1] >= 'a' && runes[i-1] <= 'z' {
+			prevLower := i > 0 && runes[i-1] >= 'a' && runes[i-1] <= 'z'
+			prevUpper := i > 0 && runes[i-1] >= 'A' && runes[i-1] <= 'Z'
+			nextLower := i+1 < len(runes) && runes[i+1] >= 'a' && runes[i+1] <= 'z'
+			if prevLower || (prevUpper && nextLower) {
 				result.WriteByte('_')
 			}
 			result.WriteRune(r + 32) // toLower

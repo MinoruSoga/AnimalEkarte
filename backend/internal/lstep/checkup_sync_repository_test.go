@@ -204,6 +204,53 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_AggregationClinicIsolation
 	})
 }
 
+// EMR-290: status=deceased だが deceased_at IS NULL の旧移行ペットは
+// 生存集計（pet_names / living_pet_count / 年齢）・慢性疾患判定・種別フィルタの
+// すべてから除外される。
+func TestCheckupSyncRepository_FindCheckupSyncPreview_StatusDeceasedWithoutDeceasedAtExcluded(t *testing.T) {
+	db := setupCheckupSyncTestDB(t)
+	repo := NewCheckupSyncRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	dogSpecies := makeSyncSpecies(t, db, "犬")
+	ownerDead := testdb.MakeTestOwner(t, db, clinicA, "status死亡ペット飼主")
+	birthDate := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	statusDeadPet := &model.Pet{
+		ClinicID:        clinicA,
+		OwnerID:         ownerDead.ID,
+		AnimalSpeciesID: dogSpecies.ID,
+		Name:            "status死亡ポチ",
+		BirthDate:       &birthDate,
+		DeceasedAt:      nil,
+		Status:          model.PetStatusDeceased,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(statusDeadPet).Error)
+	makeSyncMedicalRecord(t, db, clinicA, ownerDead.ID, statusDeadPet.ID, time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC))
+	// 死亡ペットのアクティブ慢性疾患が has_chronic_condition を立てないことを確認するため登録する
+	require.NoError(t, db.WithContext(ctx).Create(&model.PetChronicCondition{
+		ClinicID: clinicA, PetID: statusDeadPet.ID, ConditionCode: "DM", ConditionName: "糖尿病",
+		DiagnosedAt: time.Now(), IsActive: true,
+	}).Error)
+
+	rows, err := repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{ClinicID: clinicA})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	row := rows[0]
+	assert.Equal(t, ownerDead.ID, row.OwnerID)
+	assert.Equal(t, int64(0), row.LivingPetCount, "status=deceased + deceased_at NULL は生存頭数に含めない")
+	assert.Equal(t, "", row.PetNamesCSV, "status=deceased ペット名はCSVに含めない")
+	assert.Nil(t, row.MinPetAgeYears, "生存ペットなしなら年齢集計はNULL")
+	assert.Nil(t, row.MaxPetAgeYears, "生存ペットなしなら年齢集計はNULL")
+	assert.False(t, row.HasChronicCondition, "status=deceased ペットの慢性疾患はカウントしない")
+
+	t.Run("種別フィルタもstatus=deceasedペットでは一致しない", func(t *testing.T) {
+		rows, err := repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{ClinicID: clinicA, Species: "犬"})
+		require.NoError(t, err)
+		assert.Len(t, rows, 0, "唯一の犬はstatus=deceasedのため対象外")
+	})
+}
+
 func TestCheckupSyncRepository_FindCheckupSyncPreview_LastVisitDateRangeFilters(t *testing.T) {
 	db := setupCheckupSyncTestDB(t)
 	repo := NewCheckupSyncRepository(db)

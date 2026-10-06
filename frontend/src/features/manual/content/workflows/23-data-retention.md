@@ -2,6 +2,7 @@
 title: 法定保存期間とデータ保護
 order: 9.8
 section: 管理者向け
+keywords_vi: thời hạn lưu trữ dữ liệu, bảo vệ dữ liệu, quy định lưu trữ, lưu trữ theo luật
 ---
 
 # 法定保存期間とデータ保護

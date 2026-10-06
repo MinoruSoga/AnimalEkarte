@@ -2,6 +2,7 @@
 title: LINE予約管理
 order: 16
 section: 外部連携
+keywords_vi: đặt lịch qua LINE, lịch hẹn LINE, quản lý đặt lịch LINE, đặt hẹn LINE
 ---
 
 # LINE予約管理
@@ -16,7 +17,7 @@ section: 外部連携
 
 | サブメニュー         | URL                                                     | 内容                      |
 | -------------------- | ------------------------------------------------------- | ------------------------- |
-| （トップ／基本設定） | `/line-reservation` または `/line-reservation/settings` | 稼働・受付ルール・連携 ID |
+| 基本設定             | `/line-reservation` または `/line-reservation/settings` | 稼働・受付ルール・連携 ID |
 | ページ編集           | `/line-reservation/page-editor`                         | 飼主向け文言              |
 | 予約枠               | `/line-reservation/slots`                               | 区分別の予約可能開始時刻  |
 
@@ -73,11 +74,11 @@ section: 外部連携
 
 - 左の区分ツリーで対象を切替（`?typeId=` で事前選択可）
 - 日付セルをクリックして特定日の開始時刻を追加・削除（15 分刻み）
-- **毎週枠** はカレンダー上は参照表示。登録・削除は予約区分マスタ側
+- **毎週枠** はカレンダー上は参照表示。登録・削除は予約区分側
 
 > 登録した開始時刻は営業時間から自動生成される枠に **加算** されます（ホワイトリストで他時刻を塞ぐ方式ではありません）。枠未登録の日も、営業時間から通常どおり枠が生成されます。
 
-予約枠の API は予約区分マスタ権限（`master-reservation-type`）でガードされます。
+予約枠の API は予約区分権限（`master-reservation-type`）でガードされます。
 
 ---
 
@@ -108,7 +109,7 @@ section: 外部連携
 | 画面                                            | 関係                     |
 | ----------------------------------------------- | ------------------------ |
 | 予約管理（`/reservations`）                     | LINE 予約の表示・運用    |
-| 予約区分マスタ（`/settings/reservation-type`）  | 区分・毎週枠             |
+| 予約区分（`/settings/reservation-type`）  | 区分・毎週枠             |
 | Lステップ連携（`/settings/integrations/lstep`） | 配信・タグ連携（別機能） |
 
 ---

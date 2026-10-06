@@ -21,6 +21,10 @@ type MedicalRecordImageRepository interface {
 	Create(ctx context.Context, image *model.MedicalRecordImage) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecordImage, error)
+	// CountLiveByStorageKey は object を参照する生存登録数を clinic 横断で返す。
+	// 物理削除の安全判定は他医院の参照でも object を残す必要があるため clinic で絞らず、
+	// 他テナントの行データを返さない opaque な件数に限定する。
+	CountLiveByStorageKey(ctx context.Context, key string) (int64, error)
 }
 
 type medicalRecordImageRepository struct {
@@ -85,6 +89,38 @@ func (r *medicalRecordImageRepository) FindByID(ctx context.Context, clinicID, i
 		return nil, apperrors.FromGORM(err, "medical_record_image", fmt.Sprintf("%d", id))
 	}
 	return &image, nil
+}
+
+// CountLiveByStorageKey は、まだ有効な登録が同じ storage object を参照している件数を
+// clinic 横断で返す。別医院の legacy 行が同じ key を参照しうるため、物理削除の安全判定は
+// clinic_id で絞ってはいけない。他テナントの行データは返さず opaque な件数だけを返す。
+// 保存文字列は key そのもの、/uploads/ 付き、署名クエリ付き HTTP のいずれでも同じ object になる。
+// SQL は key を含む候補だけを返し、件数は resolveMedicalRecordImageStorageKey と同じ判定で数える。
+func (r *medicalRecordImageRepository) CountLiveByStorageKey(ctx context.Context, key string) (int64, error) {
+	if key == "" {
+		return 0, nil
+	}
+	type storedImageURL struct {
+		ImageURL     string
+		ThumbnailURL string
+	}
+	var rows []storedImageURL
+	err := persistence.DBOrTx(ctx, r.db).
+		Table("medical_record_images").
+		Select("medical_record_images.image_url, medical_record_images.thumbnail_url").
+		Joins("JOIN medical_records ON medical_records.id = medical_record_images.medical_record_id AND medical_records.deleted_at IS NULL").
+		Where(`strpos(btrim(medical_record_images.image_url), ?) > 0 OR strpos(btrim(medical_record_images.thumbnail_url), ?) > 0`, key, key).
+		Find(&rows).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "medical_record_image", "")
+	}
+	var count int64
+	for _, row := range rows {
+		if medicalRecordImageStoredValueUsesKey(row.ImageURL, key) || medicalRecordImageStoredValueUsesKey(row.ThumbnailURL, key) {
+			count++
+		}
+	}
+	return count, nil
 }
 
 // medicalRecordImageRelationsScope rejects an image row before its raw exam_id or

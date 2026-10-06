@@ -98,7 +98,7 @@ export function AnimalSpeciesSettings() {
     // 新規登録/side panel の mutation affordance も system admin に限定される。
     <>
       <MasterCRUDPage
-        title="動物種類マスタ"
+        title="動物種類"
         icon={<PawPrint className={`${ICON.page} ${C.text}`} />}
         entityLabel="動物種類"
         searchPlaceholder="動物種類名で検索..."
@@ -128,7 +128,7 @@ export function AnimalSpeciesSettings() {
           </p>
         ) : animalSpecies.length === 0 ? (
           <p role="status" aria-live="polite" aria-atomic="true" className={`text-sm ${C.text50}`}>
-            動物種マスタが登録されていません。
+            動物種類が登録されていません。
           </p>
         ) : (
           <AnimalSpeciesSortableTable

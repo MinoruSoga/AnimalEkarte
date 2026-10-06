@@ -2,7 +2,7 @@
 
 > **目的**: 予約作成で時間重複などの 409 が起きたとき理由がモーダル内に表示されて閉じずに修正でき、担当者候補が capability 情報未確定・不在時に「全員出す」へ倒れず fail-closed になることを納品前に証明する。
 > **所要目安**: 15分 / **深度**: 中
-> **仕様正本**: [screens/02-reservations.md](../../../spec/screens/02-reservations.md)。関連 tracker: Plane `BRT-102`（予約作成 409 の理由非表示）・`BRT-103`（担当者フィルタ）。
+> **仕様正本**: [screens/02-reservations.md](../../../spec/screens/02-reservations.md)。関連 tracker: Plane `EMR-13`（旧 Linear `BRT-102`。予約作成 409 の理由非表示）・`EMR-12`（旧 `BRT-103`。担当者フィルタ）。
 
 ## 前提条件
 
@@ -43,7 +43,7 @@ stateDiagram-v2
 
 ## 確認観点
 
-- 409 の表示面は「FE 事前チェック」と「API 409」が**同じモーダル内の inline メッセージ面**に出る設計（`use-reservation-save-actions.ts`）。モーダルが閉じて入力が消えるのは BRT-102 の症状であり FAIL。
+- 409 の表示面は「FE 事前チェック」と「API 409」が**同じモーダル内の inline メッセージ面**に出る設計（`use-reservation-save-actions.ts`）。モーダルが閉じて入力が消えるのは BRT-102（現 EMR-13）の症状であり FAIL。
 - 担当者候補は `filterStaffCandidatesByCapability` が capability 未確定・候補不在で fail-closed（空を返す）する。「誰でも担当可」へのフォールバックは仕様外。
 - `staffCandidateEmptyMessage` は 5 状態（query failure / loading / no capable staff / no staff working / no staff registered）を区別する。全部「担当者なし」に見えるのは FAIL。
 - orphan 医師は候補データが確定してから初めて orphan と判定される（`resolveStaffSelectionEligibility`）。pending 中に orphan 誤判定しない。
@@ -55,5 +55,5 @@ stateDiagram-v2
 - 変更サマリ:
   - `use-reservation-save-actions.ts` の FE precheck inline message（API 409 と同一面）と `extractApiErrorMessage` を現行コードと突合
   - `filterStaffCandidatesByCapability` の fail-closed、`staffCandidateEmptyMessage` の 5 状態、`resolveStaffSelectionEligibility`/`STAFF_ORPHAN_REASON_MESSAGE` の orphan 検出を現行コードと突合
-  - BRT-102（409 理由表示）と BRT-103（担当者フィルタ）の受入を手順 1–6 に対応づけ
+  - EMR-13（旧 BRT-102。409 理由表示）と EMR-12（旧 BRT-103。担当者フィルタ）の受入を手順 1–6 に対応づけ
   - `SLACK-STAFF-SELECT` の対象端末（iPad・報告 PC）での選択→保存→再読込を実機受入として確認観点に追加

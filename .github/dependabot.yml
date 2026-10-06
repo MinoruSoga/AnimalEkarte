@@ -70,7 +70,3 @@ updates:
       - dependencies
       - backend
     open-pull-requests-limit: 5
-    ignore:
-      # 0.56.0 raises the go directive to 1.26. Hold until CI/Docker leave Go 1.25.
-      - dependency-name: "golang.org/x/crypto"
-        versions: ["0.56.0"]

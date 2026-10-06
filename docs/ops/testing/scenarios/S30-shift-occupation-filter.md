@@ -2,7 +2,7 @@
 
 > **目的**: シフト管理カレンダーで職種（occupation）によるスタッフ絞り込みが正しく動き、職種未設定のスタッフだけを出すフィルタと全天/週間ビューで一貫することを納品前に証明する。
 > **所要目安**: 10分 / **深度**: 薄い
-> **仕様正本**: [screens/24-shift-calendar.md](../../../spec/screens/24-shift-calendar.md)。関連 tracker: Plane `BRT-103`（シフトの職種フィルタ）。実装参照: `frontend/src/features/shifts/components/ShiftCalendar/`。
+> **仕様正本**: [screens/24-shift-calendar.md](../../../spec/screens/24-shift-calendar.md)。関連 tracker: Plane `EMR-12`（旧 Linear `BRT-103`。シフトの職種フィルタ）。実装参照: `frontend/src/features/shifts/components/ShiftCalendar/`。
 
 ## 前提条件
 
@@ -41,11 +41,11 @@ flowchart TB
 - 職種フィルタは `ShiftCalendar` の `occupationFilteredStaffs`（`onOccupationChange` で切替）。staff の `occupationId`/`occupationName` で絞り込む（`frontend/src/features/shifts/types/`）。
 - 職種未設定は `occupationId === null` のスタッフだけを出す独立フィルタ。「全員」と「未設定」を混同しない。
 - フィルタは表示の絞り込みで、スタッフのシフトデータや職種マスタを変更しない。再読込で職種が勝手に変わる場合は FAIL。
-- 全天/週間ビューの両方で同じフィルタが効くこと（BRT-103 の受入）。片方だけ効くのは FAIL。
+- 全天/週間ビューの両方で同じフィルタが効くこと（EMR-12（旧 BRT-103）の受入）。片方だけ効くのは FAIL。
 - 職種名の表示はマスタ名と一致。マスタ側の職種管理は V04 の対象。
 
 ## 実装突合
 
 - 変更サマリ:
   - `ShiftCalendar` の `occupationFilteredStaffs`・`onOccupationChange`・職種未設定フィルタ（`occupationId === null`）と `occupationName` 表示を現行コード・テストと突合
-  - BRT-103 の職種フィルタ受入（全天/週間両ビュー）を手順 2–7 に対応づけ
+  - EMR-12（旧 BRT-103）の職種フィルタ受入（全天/週間両ビュー）を手順 2–7 に対応づけ

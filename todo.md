@@ -262,6 +262,30 @@ Linear/BRT-4に関する以下の文言は過去の運用方針記録。2026-09-
 
 ID ごとに状態・次の一手・完了条件・根拠を持つ。主な開始条件が変わったら本文を該当エリアへ移し、件数・トピック対応を更新する。同じIDの本文を複数エリアへ複製しない。完了項目は未対応エリアから外し、エリア5とSlack対応表に回答済み/完了/重複/対象外の根拠と移管先を残す。未完了の検証・運用は専用 TODO へ参照を残す。既存 claim は [AGENTS.md](AGENTS.md) に従って確認し、別担当の作業を取り込まない。
 
+### INFRA-RENAME-NOAH-KARTE: AnimalEkarte 全名称の noah-karte 化（実装タスク・移行と一体）
+
+- **問題**: 2026-10-06 確定。「AnimalEkarte」の全名称を noah-karte ファミリーへ改名する。専用 Cloudflare アカウント移行（EMR-298）と一体で実施し、移行先を新名で構築して旧名を退役させる。
+- **根拠**: Go モジュール `github.com/animal-ekarte/backend`（`backend/go.mod`、約1700ファイルの import path）、CF 資源名 `animalekarte-*`（Worker×4・R2 bucket×2・通知ポリシー・DO・workers.dev URL。約125ファイル）、DO class `AnimalEkarteApiContainer` と named instance `animalekarte-scheduler-v1`/`animalekarte-migrate-runner-v1`、docker/DB 名（`animal_ekarte_test`、compose project は dir 名由来）、macOS packaging 識別子、GitHub repo `MinoruSoga/AnimalEkarte`・ローカル dir・docs/UI 表記。命名規則: `noah-karte-*`（CF資源）/`NoahKarte*`（Go・TS 識別子）/`noah_karte*`（DB・docker）/`noah-karte.com`・`Noah Karte`（docs・UI）。
+- **修正方針**: EMR-298 の移行計画（`docs/ops/infra/cloudflare-account-separation.md`）が改名対応表と CF 側の実施順を定める。実施は5単位に分ける（2026-10-06 網羅性レビュー §3）: ① CF 実行時識別子（Worker名・service binding・container class・DO instance名・bucket名・cron・wrangler の account 依存値 — 新アカウント初回デプロイが `noah-karte-*` で起動）② Go module `github.com/animal-ekarte/backend` の一括置換（対応表で置換先を1文字列に固定してから実施、1コミットでコンパイルとテスト通過。CF 切替の前提ではなく、静かなマージ窓で単体実施）③ ローカル開発名（dir・compose project・`animal_ekarte_test`。volume 名変化とローカルデータリセットを手順に明記。dir 改名は最後）④ packaging（`animalekarte.lab-device-agent.plist` 等と導入済み端末の unload/再登録。CF 切替と別日で可）⑤ 表示名（docs・UI の Noah Karte・Plane の今後分。実行識別子凍結後に並行可）。`renamed_classes` は新アカウント初回デプロイと同一リリースで適用（storage は引き継がれず named instance は空起動 — 受け入れ可否は人間決定）。repo は新規作成ではなく in-place 改名。`docs/ops/infra/rename-to-noah-karte.md` の「内部命名据え置き」決定の撤回に相当。
+- **受け入れ条件**: ① 新アカウントの CF リソースが `noah-karte-*` 名で稼働し旧名が退役 ② `rg -il 'animalekarte|animal-ekarte'` が計画で許容した例外のみ残る ③ `docker compose` 起動とスコープ限定の build/vet/test が新名で通る。
+- **状態**: Medium。2026-10-06 起票: CF 層の改名（単位①）は **EMR-302** に、CF 外の層（単位②-⑤）は **EMR-305** に分割起票。単位②（Go module＋repo in-place 改名）は約1700ファイルのため子課題 **EMR-307** に切り出し済み。改名3文字列・実施者は EMR-298 §5 決定結果で確定済み（module=`github.com/MinoruSoga/noah-karte/backend`、repo slug=`noah-karte`、dir=`noah-karte`、repo in-place 改名は人間）。blocked_by EMR-298 は解除済み。単位②の時期: STG 予行（計画 §4 段階4〜5）開始前に完了するか GOLIVE 後 — 予行合格後〜本番構築前の窓でのマージ禁止。claim 未取得。
+
+### INFRA-CF-ACCOUNT-MIGRATION-EXEC: 専用 Cloudflare アカウント移行の実行（EMR-298 計画の後続）
+
+- **問題**: EMR-298 は棚卸し・計画のみ（実行なしと明記）。専用アカウント作成＋noah-karte 改名が確定したため、計画完了後に移行実行を担うタスクが必要。
+- **根拠**: EMR-298 プロンプト（`~/.claude/prompt-craft-runs/agent-emr-298-cloudflare-account-separation.md`）の Out of scope = アカウント作成・トークン発行・デプロイ・ゾーン移管・secret 変更・git 操作。実行は人間承認ゲートつきの別タスク。
+- **修正方針**: 計画文書 `docs/ops/infra/cloudflare-account-separation.md` §4（番号付き10段階＋ゲート別確認項目表）と §5（人間決定）のみを正とし、ここには順序制約を複製しない。実施単位は EMR-302 の子課題に分割: **EMR-309**（STG 予行・切替・切り戻し訓練＝段階4〜7）、**EMR-310**（本番殻作成＝段階8）、**EMR-311**（旧側退役＝段階10）。依存: EMR-148/256 は EMR-310 に blocked_by（殻の完成まで本番着手を機械的に止める）、EMR-303 は EMR-309 に blocked_by。
+- **受け入れ条件**: ① EMR-309 Done: 計画「確認項目」表の G2 列全通過＋切り戻し訓練1回 ② EMR-310 Done: 空 prod-images＋cron 停止の prod Worker 殻＋本番トークン結線（本番稼働は EMR-148/256 の範囲）③ EMR-311 Done: 照合・訓練・soak 後の旧資格/旧資源の失効記録 ④ 全実行コマンド・承認記録が handoff に残る。
+- **状態**: Medium。人間決定は EMR-298 §5 決定結果で確定済み（残る未決は終了時引継ぎ方式＝契約項目、G4 前提）。10/20 切替との関係: 共有アカウントへの本番構築は禁止として固定（EMR-148・EMR-256 本文に着手条件と禁止を追記済み、EMR-134/139 にも追記済み）。本番 cron の武装は EMR-256 のスコープ。claim 未取得。→ 2026-10-06 に **EMR-302**（専用アカウント移行＋CF 層改名）として起票済み。blocked_by EMR-298 → 同日、計画文書納品＋§5 全決定により解除済み。CF 外の改名は EMR-305（単位②は子課題 EMR-307）。EMR-298 は Review 状態（計画納品済み、§5 決定結果を文末に記録）。リポジトリ側のガードレール: `setup.md`・production `variables.tf`・`wrangler.production.jsonc`・`backend-deploy.yml` に共有アカウント禁止の追記済み（Opus レビュー N2）。
+
+### INFRA-CF-USAGE-CHECK: 専用アカウントの使用量・費用の定期確認の実装
+
+- **問題**: Cloudflare にアカウント全体の支出監視機構が無く、`billing_usage_alert` は Workers/Containers 非対象（`infra/cloudflare/notifications.tf:30-37` の調査記録）。専用アカウント化後の費用把握には定期的な使用量確認が必要。
+- **根拠**: 同上。費用主因は Containers 稼働時間（`animalekarte-stg-api` は keep-alive cron `*/4 0-9 * * *` で営業時間帯連続稼働、`backend/wrangler.jsonc:118-123`）。通知ポリシー `worker_edge_error_rate` は定義済み・未適用（STG state に不在）。
+- **修正方針**: GraphQL Analytics API による Workers/Containers 使用量（リクエスト数・CPU・稼働時間）の定期確認を runbook 化し、実行手段（手動クエリ or 定期ジョブ）を EMR-298 計画 §7 の方針に合わせて実装。通知ポリシー適用（`notification_email` 決定込み）もここで扱う。
+- **受け入れ条件**: ① 新アカウントの直近使用量が1コマンド or 手順書1枚で確認できる ② `notification_email` が決定され通知ポリシーが新アカウントで有効化される ③ 月次確認の運用先（担当・頻度）が記録される。
+- **状態**: Low〜Medium。専用アカウント作成に依存。`notification_email` は所有者メールと同一で決定済み（EMR-298 §5 決定結果）。集計は STG/PROD 別に出せることを受け入れ条件に含める（按分根拠データ: 共通費＝固定比率・従量＝Worker 名別 Analytics 比率、請求の正は CF 請求書 — 計画 §7）。claim 未取得。→ 2026-10-06 に **EMR-303** として起票済み。開始条件「新アカウント STG 稼働＋新トークン照会可」を機械的に表すため blocked_by = **EMR-309**（EMR-302 子1 STG 予行）に設定済み — EMR-302 全体の完了は待たない（再レビュー指摘）。
+
 ---
 
 <a id="verification-ledger"></a>

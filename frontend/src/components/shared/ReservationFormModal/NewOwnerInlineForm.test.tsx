@@ -92,7 +92,7 @@ describe("NewOwnerInlineForm animal species states", () => {
   it("取得成功かつ0件では空状態を表示して動物種を無効化する", () => {
     renderForm();
 
-    expect(screen.getByText("動物種マスタが登録されていません。")).toBeInTheDocument();
+    expect(screen.getByText("動物種類が登録されていません。")).toBeInTheDocument();
     expect(screen.queryByText("動物種を読み込み中です。")).not.toBeInTheDocument();
     expect(screen.queryByText("動物種の取得に失敗しました。")).not.toBeInTheDocument();
     expect(screen.getByRole("combobox")).toBeDisabled();

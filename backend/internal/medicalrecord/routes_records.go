@@ -28,7 +28,8 @@ func (h *Handler) registerMedicalRecordChildRoutes(records *gin.RouterGroup, per
 	records.PUT("/:id/checkups/:checkupId/field-results", perm(model.ResourceMedicalRecords, "edit"), h.checkup.ReplaceCheckupFieldResults)
 	records.PATCH("/:id/inquiries", perm(model.ResourceMedicalRecords, "edit"), h.inquiry.UpdateInquiry)
 
-	// vitals POST is "edit" (not "create"); images POST / upload are "create".
+	// vitals POST is "edit" (not "create"); image upload is "create".
+	// JSON POST /images は登録口を残さない。保存済み外部 URL の返却は別件。
 	records.GET("/:id/vitals", perm(model.ResourceMedicalRecords, "view"), h.vital.ListVitals)
 	records.POST("/:id/vitals", perm(model.ResourceMedicalRecords, "edit"), h.vital.CreateVital)
 	records.PATCH("/:id/vitals/:vitalId", perm(model.ResourceMedicalRecords, "edit"), h.vital.UpdateVital)
@@ -37,7 +38,6 @@ func (h *Handler) registerMedicalRecordChildRoutes(records *gin.RouterGroup, per
 	records.PATCH("/:id/clinical-plan", perm(model.ResourceMedicalRecords, "edit"), h.clinicalPlan.UpdateClinicalPlan)
 	records.DELETE("/:id/clinical-plan", perm(model.ResourceMedicalRecords, "delete"), h.clinicalPlan.DeleteClinicalPlan)
 	records.GET("/:id/images", perm(model.ResourceMedicalRecords, "view"), h.medicalRecordImage.ListMedicalRecordImages)
-	records.POST("/:id/images", perm(model.ResourceMedicalRecords, "create"), h.medicalRecordImage.CreateMedicalRecordImage)
 	records.POST("/:id/images/upload", perm(model.ResourceMedicalRecords, "create"), h.medicalRecordImage.UploadMedicalRecordImage)
 	records.DELETE("/:id/images/:imageId", perm(model.ResourceMedicalRecords, "delete"), h.medicalRecordImage.DeleteMedicalRecordImage)
 

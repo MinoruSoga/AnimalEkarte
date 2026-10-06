@@ -2,6 +2,7 @@
 title: Lステップ連携
 order: 17
 section: 外部連携
+keywords_vi: tích hợp lstep, kết nối lstep, liên kết lstep, cài đặt lstep
 ---
 
 # Lステップ連携

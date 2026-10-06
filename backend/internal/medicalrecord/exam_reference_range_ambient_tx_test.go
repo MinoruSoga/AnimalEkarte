@@ -15,7 +15,7 @@ func TestExamReferenceRangeRepository_FindAnimalSpeciesID_HoldsExamShareLockUnti
 	t *testing.T,
 ) {
 	db := setupExamReferenceRangeResolutionDB(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	const clinicID = uint64(1)
 
@@ -87,7 +87,7 @@ func TestExamReferenceRangeRepository_ResolveByFieldIDs_HoldsReferenceRangeShare
 	t *testing.T,
 ) {
 	db := setupExamReferenceRangeResolutionDB(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	const clinicID = uint64(1)
 

@@ -269,12 +269,22 @@ func testActor(clinics ...uint64) ActorContext {
 	}
 }
 
+type allowLinkWrites struct{}
+
+func (allowLinkWrites) AuthorizeLinkWrite(context.Context, uint64, []uint64) (LinkWriteDecision, error) {
+	return LinkWriteDecision{}, nil
+}
+
+func newAllowingService(repo Repository, logger audit.TxLogger) Service {
+	return NewService(repo, noopTransactor{}, logger, allowLinkWrites{})
+}
+
 // --- tests ---
 
 func TestCreateOwnerGroup_RejectsMixedCrossClinic_NoPartialWrite(t *testing.T) {
 	repo := &mockRepo{}
 	auditLog := &mockTxLogger{}
-	svc := NewService(repo, noopTransactor{}, auditLog)
+	svc := newAllowingService(repo, auditLog)
 
 	// Actor only belongs to clinic 1; member includes clinic 2.
 	_, _, err := svc.CreateOwnerGroup(context.Background(), testActor(1), []OwnerMemberRef{
@@ -292,7 +302,7 @@ func TestCreateOwnerGroup_RejectsMixedCrossClinic_NoPartialWrite(t *testing.T) {
 func TestCreatePetGroup_RejectsMixedCrossClinic_NoPartialWrite(t *testing.T) {
 	repo := &mockRepo{}
 	auditLog := &mockTxLogger{}
-	svc := NewService(repo, noopTransactor{}, auditLog)
+	svc := newAllowingService(repo, auditLog)
 
 	// Actor only belongs to clinic 1; pet members include clinic 2 → reject-all before any write.
 	_, _, err := svc.CreatePetGroup(context.Background(), testActor(1), 1, []PetMemberRef{
@@ -310,7 +320,7 @@ func TestCreatePetGroup_RejectsMixedCrossClinic_NoPartialWrite(t *testing.T) {
 func TestAddOwnerMembers_RejectsMixedCrossClinic_NoPartialWrite(t *testing.T) {
 	repo := &mockRepo{}
 	auditLog := &mockTxLogger{}
-	svc := NewService(repo, noopTransactor{}, auditLog)
+	svc := newAllowingService(repo, auditLog)
 
 	_, _, err := svc.AddOwnerMembers(context.Background(), testActor(1), 3, []OwnerMemberRef{
 		{ClinicID: 1, OwnerID: 10},
@@ -326,7 +336,7 @@ func TestAddOwnerMembers_RejectsMixedCrossClinic_NoPartialWrite(t *testing.T) {
 func TestAddPetMembers_RejectsMixedCrossClinic_NoPartialWrite(t *testing.T) {
 	repo := &mockRepo{}
 	auditLog := &mockTxLogger{}
-	svc := NewService(repo, noopTransactor{}, auditLog)
+	svc := newAllowingService(repo, auditLog)
 
 	_, _, err := svc.AddPetMembers(context.Background(), testActor(1), 7, []PetMemberRef{
 		{ClinicID: 1, PetID: 100},
@@ -346,7 +356,7 @@ func TestCreateOwnerGroup_RejectsHiddenOwner_NoPartialWrite(t *testing.T) {
 		},
 	}
 	auditLog := &mockTxLogger{}
-	svc := NewService(repo, noopTransactor{}, auditLog)
+	svc := newAllowingService(repo, auditLog)
 
 	_, _, err := svc.CreateOwnerGroup(context.Background(), testActor(1, 2), []OwnerMemberRef{
 		{ClinicID: 1, OwnerID: 10},
@@ -377,7 +387,7 @@ func TestCreateOwnerGroup_AuditFailureRollsBack(t *testing.T) {
 	}
 	auditLog := &mockTxLogger{fail: errors.New("audit write failed")}
 	// Use a transactor that surfaces callback errors (simulates rollback).
-	svc := NewService(repo, noopTransactor{}, auditLog)
+	svc := newAllowingService(repo, auditLog)
 
 	_, _, err := svc.CreateOwnerGroup(context.Background(), testActor(1, 2), []OwnerMemberRef{
 		{ClinicID: 1, OwnerID: 10},
@@ -391,7 +401,7 @@ func TestCreateOwnerGroup_AuditFailureRollsBack(t *testing.T) {
 
 func TestCreateOwnerGroup_NilAuditFailClosed(t *testing.T) {
 	repo := &mockRepo{}
-	svc := NewService(repo, noopTransactor{}, nil)
+	svc := newAllowingService(repo, nil)
 	_, _, err := svc.CreateOwnerGroup(context.Background(), testActor(1, 2), []OwnerMemberRef{
 		{ClinicID: 1, OwnerID: 10},
 		{ClinicID: 2, OwnerID: 20},
@@ -419,7 +429,7 @@ func TestCreateOwnerGroup_SuccessWritesAuditWithoutPHI(t *testing.T) {
 		},
 	}
 	auditLog := &mockTxLogger{}
-	svc := NewService(repo, noopTransactor{}, auditLog)
+	svc := newAllowingService(repo, auditLog)
 
 	group, members, err := svc.CreateOwnerGroup(context.Background(), testActor(1, 2), []OwnerMemberRef{
 		{ClinicID: 1, OwnerID: 10},
@@ -456,7 +466,7 @@ func TestUnlinkOwnerMember_LastMemberSoftDeletesGroup(t *testing.T) {
 		},
 	}
 	auditLog := &mockTxLogger{}
-	svc := NewService(repo, noopTransactor{}, auditLog)
+	svc := newAllowingService(repo, auditLog)
 
 	err := svc.UnlinkOwnerMember(context.Background(), testActor(1), 3, OwnerMemberRef{ClinicID: 1, OwnerID: 10})
 	require.NoError(t, err)
@@ -480,7 +490,7 @@ func TestUnlinkOwnerMember_RejectsWhenDependentPetGroupsExist(t *testing.T) {
 			return 1, nil
 		},
 	}
-	svc := NewService(repo, noopTransactor{}, &mockTxLogger{})
+	svc := newAllowingService(repo, &mockTxLogger{})
 
 	err := svc.UnlinkOwnerMember(context.Background(), testActor(1), 3, OwnerMemberRef{ClinicID: 1, OwnerID: 10})
 	require.Error(t, err)
@@ -492,7 +502,7 @@ func TestUnlinkOwnerMember_RejectsWhenDependentPetGroupsExist(t *testing.T) {
 func TestUnlinkOwnerMember_RejectsCrossClinicMember(t *testing.T) {
 	repo := &mockRepo{}
 	auditLog := &mockTxLogger{}
-	svc := NewService(repo, noopTransactor{}, auditLog)
+	svc := newAllowingService(repo, auditLog)
 
 	err := svc.UnlinkOwnerMember(context.Background(), testActor(1), 3, OwnerMemberRef{ClinicID: 9, OwnerID: 10})
 	require.Error(t, err)
@@ -526,7 +536,7 @@ func TestCreatePetGroup_RequiresLinkedOwners(t *testing.T) {
 		},
 	}
 	auditLog := &mockTxLogger{}
-	svc := NewService(repo, noopTransactor{}, auditLog)
+	svc := newAllowingService(repo, auditLog)
 
 	_, _, err := svc.CreatePetGroup(context.Background(), testActor(1, 2), 1, []PetMemberRef{
 		{ClinicID: 1, PetID: 100},
@@ -571,7 +581,7 @@ func TestCreatePetGroup_RejectsMissingParentOwnerAnchorClinic_NoPartialWrite(t *
 		},
 	}
 	auditLog := &mockTxLogger{}
-	svc := NewService(repo, noopTransactor{}, auditLog)
+	svc := newAllowingService(repo, auditLog)
 
 	_, _, err := svc.CreatePetGroup(context.Background(), testActor(1, 2), 1, []PetMemberRef{
 		{ClinicID: 1, PetID: 100},
@@ -619,7 +629,7 @@ func TestCreatePetGroup_RejectsMissingParentOwnerMemberClinic_NoPartialWrite(t *
 		},
 	}
 	auditLog := &mockTxLogger{}
-	svc := NewService(repo, noopTransactor{}, auditLog)
+	svc := newAllowingService(repo, auditLog)
 
 	_, _, err := svc.CreatePetGroup(context.Background(), testActor(1, 2), 1, []PetMemberRef{
 		{ClinicID: 1, PetID: 100},
@@ -667,7 +677,7 @@ func TestCreatePetGroup_AllowsWhenActorCoversAllParentOwnerAndPetClinics(t *test
 		},
 	}
 	auditLog := &mockTxLogger{}
-	svc := NewService(repo, noopTransactor{}, auditLog)
+	svc := newAllowingService(repo, auditLog)
 
 	group, members, err := svc.CreatePetGroup(context.Background(), testActor(1, 2), 1, []PetMemberRef{
 		{ClinicID: 1, PetID: 100},
@@ -688,7 +698,7 @@ func TestGetOwnerGroup_HiddenOutsideScope_NotFound(t *testing.T) {
 			return nil, nil // no visible members
 		},
 	}
-	svc := NewService(repo, noopTransactor{}, &mockTxLogger{})
+	svc := newAllowingService(repo, &mockTxLogger{})
 	_, _, err := svc.GetOwnerGroup(context.Background(), testActor(1), 99)
 	require.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
@@ -708,7 +718,7 @@ func TestGetOwnerGroup_ReturnsPersistedVersion(t *testing.T) {
 			return &model.OwnerIdentityGroup{ID: groupID, CreatedClinicID: 3, Version: 4}, nil
 		},
 	}
-	svc := NewService(repo, noopTransactor{}, &mockTxLogger{})
+	svc := newAllowingService(repo, &mockTxLogger{})
 	group, members, err := svc.GetOwnerGroup(context.Background(), testActor(1), 7)
 	require.NoError(t, err)
 	require.NotNil(t, group)
@@ -738,7 +748,7 @@ func TestGetPetGroup_ReturnsPersistedOwnerGroupAndVersion(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewService(repo, noopTransactor{}, &mockTxLogger{})
+	svc := newAllowingService(repo, &mockTxLogger{})
 	group, members, err := svc.GetPetGroup(context.Background(), testActor(1), 9)
 	require.NoError(t, err)
 	require.NotNil(t, group)
@@ -762,7 +772,7 @@ func TestListLinkedTreatmentHistory_DefaultExcludesLinked(t *testing.T) {
 			return nil, 0, nil
 		},
 	}
-	svc := NewService(repo, noopTransactor{}, &mockTxLogger{})
+	svc := newAllowingService(repo, &mockTxLogger{})
 	_, _, err := svc.ListLinkedTreatmentHistory(context.Background(), testActor(1, 2), 1, 100, false, 1, 20)
 	require.NoError(t, err)
 	require.Len(t, sawPairs, 1)
@@ -784,7 +794,7 @@ func TestListLinkedTreatmentHistory_IncludeLinkedUsesCorrelatedPairs(t *testing.
 			return []LinkedTreatmentHistoryItem{{TreatmentID: 1}}, 1, nil
 		},
 	}
-	svc := NewService(repo, noopTransactor{}, &mockTxLogger{})
+	svc := newAllowingService(repo, &mockTxLogger{})
 	items, total, err := svc.ListLinkedTreatmentHistory(context.Background(), testActor(1, 2), 1, 100, true, 1, 20)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), total)
@@ -817,7 +827,7 @@ func TestCreateOwnerGroup_IdempotentRetry(t *testing.T) {
 		},
 	}
 	auditLog := &mockTxLogger{}
-	svc := NewService(repo, noopTransactor{}, auditLog)
+	svc := newAllowingService(repo, auditLog)
 
 	group, members, err := svc.CreateOwnerGroup(context.Background(), testActor(1, 2), []OwnerMemberRef{
 		{ClinicID: 1, OwnerID: 10},
@@ -837,7 +847,7 @@ func TestFindOwnerGroupByMember_RejectsSelectedClinicWithoutGrant(t *testing.T) 
 			return nil, nil
 		},
 	}
-	svc := NewService(repo, noopTransactor{}, &mockTxLogger{})
+	svc := newAllowingService(repo, &mockTxLogger{})
 	_, _, err := svc.FindOwnerGroupByMember(context.Background(), testActor(1), 2, 9)
 	require.ErrorIs(t, err, apperrors.ErrForbidden)
 }
@@ -849,7 +859,7 @@ func TestFindPetGroupByMember_RejectsSelectedClinicWithoutGrant(t *testing.T) {
 			return nil, nil
 		},
 	}
-	svc := NewService(repo, noopTransactor{}, &mockTxLogger{})
+	svc := newAllowingService(repo, &mockTxLogger{})
 	_, _, err := svc.FindPetGroupByMember(context.Background(), testActor(1), 2, 9)
 	require.ErrorIs(t, err, apperrors.ErrForbidden)
 }
@@ -861,7 +871,7 @@ func TestSearchOwners_ScopesToGrantedClinics(t *testing.T) {
 			return []model.Owner{}, nil
 		},
 	}
-	svc := NewService(repo, noopTransactor{}, &mockTxLogger{})
+	svc := newAllowingService(repo, &mockTxLogger{})
 	owners, err := svc.SearchOwners(context.Background(), testActor(1), "a", 20)
 	require.NoError(t, err)
 	assert.Empty(t, owners)

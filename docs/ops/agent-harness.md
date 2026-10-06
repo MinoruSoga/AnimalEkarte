@@ -16,15 +16,17 @@ AnimalEkarte 固有の安全境界と完成条件を定義する。汎用ワー�
 
 [AGENTS.md](../../AGENTS.md) → [.claude/CLAUDE.md](../../.claude/CLAUDE.md) → 最も近い `CLAUDE.md` と対象Skillの順で必要部分を読む。仕様は [docs索引](../README.md)、API正本は [api.yaml](../../backend/docs/api.yaml)。同名Skillはプロジェクト特有の適応を含むものを優先し、汎用Skillをコピーして増やさない。生成物の正本は `.claude`、生成先は `.agents` / `.codex`。
 
+**生成物は直接編集しない**（`.agents/skills`・`.agents/rules`・`.codex/agents`・`.codex/commands`）。正本（`.claude/skills`・`.claude/commands`・`.claude/rules`）を変更したら `bash .claude/scripts/sync-agents-skills.sh` と `bash .claude/scripts/sync-codex-mirror.sh` で再生成し、`python3 -B .claude/scripts/test_instruction_safety_contracts.py` で一致を確認する。生成物への手編集は hash 所有管理により sync が拒否する（他者 WIP 保護）。例外: `.codex/CODEX.md` は生成対象外の手管理ファイルなので直接編集する。
+
 CLI・ホストアプリ・APIセッションの機能は別々に確認する。2026-09-08 のローカル診断は Codex CLI 0.153.4 の `multi_agent` / Hooks を stable と報告したが、別runtimeでの利用可能性を保証しない。変更時は `codex --version` と機能一覧・現セッションのtool一覧を再確認する。Experimental / Beta / Deprecated / under development は、その実機表示を結果に明記する。機能の固定一覧を各指示ファイルへ複製しない。
 
 ## タスクを閉じる手順
 
-1. 要求と受入条件、現在のdiff、担当パスを確認する。実行 SoT の Plane（workspace `baritechllc`）が利用できなければ現在状態はUNKNOWNとし、必要な更新はローカル下書きにする。投稿には明示承認が必要。（2026-09-29 訂正: 実行 SoT を Linear としていた → Linear は 2026-09-16 閉鎖、現行は Plane）
+1. 要求と受入条件、現在のdiff、担当パスを確認する。実行 SoT の Plane（workspace `baritechllc`）が利用できなければ現在状態はUNKNOWNとし、必要な更新はローカル下書きにする。外部投稿には明示承認が必要だが、**Plane への work item 起票・更新・コメント・状態遷移は [plane-ticket-conventions.md](plane-ticket-conventions.md) の範囲で事前承認済み**とする（一括変更・設定/権限変更・削除は承認対象）。（2026-09-29 訂正: 実行 SoT を Linear としていた → Linear は 2026-09-16 閉鎖、現行は Plane。起票フォーマット・新規起票の権限・状態遷移は同上の規約文書が正本）
 2. ledger/packet ID がある場合は [claim規約](../../AGENTS.md#packet-claim-protocol-mandatory)を守る。並列編集は別worktree。調査・レビューはread-onlyで並列化できる。
 3. 受入条件の失敗ケースを先に確認し、範囲内の実装と関連テストを行う。docs-onlyや低影響の可逆編集に不要な製品テストを増やさない。
 4. 変更した成果物を検証する。独立レビューで見つかった範囲内の不具合を修正し、影響する検証を再実行する。上限・環境障害を成功に変換せず、未完了項目として報告する。
-5. 完了報告には動作変更、対象worktree/diff、検証コマンド・終了結果・対象件数、未実行理由、外部状態、残作業を書く。claim解除とmain統合はユーザー操作のまま維持する。
+5. 完了報告には動作変更、対象worktree/diff、検証コマンド・終了結果・対象件数、未実行理由、外部状態、残作業を書く。claim解除は [AGENTS.md](../../AGENTS.md) packet claim protocol の作成者別規則に従い、main統合はユーザー操作のまま維持する。
 
 ## 変更範囲の検証
 

@@ -129,8 +129,24 @@ func (m *mockReservationStaffRepository) SupportsReservationType(ctx context.Con
 
 // mockTransactor は trimming_service_test.go で定義済み
 
+// stubSysAdminStaffQuerier は PatchStatus の無効化ガード用既定スタブ
+// （非システム管理者を返すため guard を素通りする）。
+type stubSysAdminStaffQuerier struct {
+	isAdmin bool
+	count   int64
+	err     error
+}
+
+func (s stubSysAdminStaffQuerier) IsActiveSystemAdminStaff(context.Context, uint64) (bool, error) {
+	return s.isAdmin, s.err
+}
+
+func (s stubSysAdminStaffQuerier) CountActiveSystemAdminStaff(context.Context) (int64, error) {
+	return s.count, s.err
+}
+
 func newTestReservationStaffService(repo *mockReservationStaffRepository, transactor *mockTransactor) ReservationStaffService {
-	return NewReservationStaffService(repo, transactor, &reservationStaffDeleteRecorder{})
+	return NewReservationStaffService(repo, transactor, &reservationStaffDeleteRecorder{}, stubSysAdminStaffQuerier{})
 }
 
 func TestReservationStaffService_List_ReturnsStaffs(t *testing.T) {
@@ -601,7 +617,7 @@ func TestReservationStaffService_PatchStatus_Success(t *testing.T) {
 	transactor := &mockTransactor{}
 	svc := newTestReservationStaffService(repo, transactor)
 
-	staff, excluded, err := svc.PatchStatus(context.Background(), 1, 1, false)
+	staff, excluded, err := svc.PatchStatus(context.Background(), 1, 1, false, 0)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, staff)
@@ -617,7 +633,7 @@ func TestReservationStaffService_PatchStatus_NotFound(t *testing.T) {
 	transactor := &mockTransactor{}
 	svc := newTestReservationStaffService(repo, transactor)
 
-	staff, excluded, err := svc.PatchStatus(context.Background(), 1, 999, false)
+	staff, excluded, err := svc.PatchStatus(context.Background(), 1, 999, false, 0)
 
 	assert.Error(t, err)
 	assert.Nil(t, staff)
@@ -636,7 +652,7 @@ func TestReservationStaffService_PatchStatus_UpdateError(t *testing.T) {
 	transactor := &mockTransactor{}
 	svc := newTestReservationStaffService(repo, transactor)
 
-	staff, excluded, err := svc.PatchStatus(context.Background(), 1, 1, false)
+	staff, excluded, err := svc.PatchStatus(context.Background(), 1, 1, false, 0)
 
 	assert.Error(t, err)
 	assert.Nil(t, staff)
@@ -657,7 +673,7 @@ func TestReservationStaffService_PatchStatus_FindByIDAfterPatchError(t *testing.
 	transactor := &mockTransactor{}
 	svc := newTestReservationStaffService(repo, transactor)
 
-	staff, excluded, err := svc.PatchStatus(context.Background(), 1, 1, false)
+	staff, excluded, err := svc.PatchStatus(context.Background(), 1, 1, false, 0)
 
 	assert.Error(t, err)
 	assert.Nil(t, staff)
@@ -676,9 +692,56 @@ func TestReservationStaffService_PatchStatus_FindExcludedAfterPatchError(t *test
 	transactor := &mockTransactor{}
 	svc := newTestReservationStaffService(repo, transactor)
 
-	staff, excluded, err := svc.PatchStatus(context.Background(), 1, 1, false)
+	staff, excluded, err := svc.PatchStatus(context.Background(), 1, 1, false, 0)
 
 	assert.Error(t, err)
+	assert.Nil(t, staff)
+	assert.Nil(t, excluded)
+}
+
+// EMR-289: PatchStatus は cascade で紐付きアカウントも無効化するため、
+// admin 経路と同じ自己無効化・最終システム管理者ガードを mutation lock 後に適用する。
+func TestReservationStaffService_PatchStatus_SelfDeactivationForbidden(t *testing.T) {
+	repo := &mockReservationStaffRepository{
+		lockForMutationFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
+			return &model.Staff{ID: id, IsActive: true}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ staffpkg.ReservationStaffUpdate) error {
+			t.Fatal("guard を抜けた update は許されない")
+			return nil
+		},
+	}
+	svc := NewReservationStaffService(repo, &mockTransactor{}, nil, stubSysAdminStaffQuerier{})
+
+	staff, excluded, err := svc.PatchStatus(context.Background(), 1, 7, false, 7)
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Nil(t, staff)
+	assert.Nil(t, excluded)
+}
+
+func TestReservationStaffService_PatchStatus_LastSystemAdminForbidden(t *testing.T) {
+	repo := &mockReservationStaffRepository{
+		lockForMutationFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
+			return &model.Staff{ID: id, IsActive: true}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ staffpkg.ReservationStaffUpdate) error {
+			t.Fatal("guard を抜けた update は許されない")
+			return nil
+		},
+	}
+	svc := NewReservationStaffService(
+		repo,
+		&mockTransactor{},
+		nil,
+		stubSysAdminStaffQuerier{isAdmin: true, count: 1},
+	)
+
+	staff, excluded, err := svc.PatchStatus(context.Background(), 1, 7, false, 42)
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err))
 	assert.Nil(t, staff)
 	assert.Nil(t, excluded)
 }
@@ -708,7 +771,7 @@ func TestReservationStaffService_MutationsAcquireExclusiveOwnershipFirst(t *test
 		{
 			name: "patch status",
 			mutate: func(svc ReservationStaffService) error {
-				_, _, err := svc.PatchStatus(context.Background(), 1, 2, false)
+				_, _, err := svc.PatchStatus(context.Background(), 1, 2, false, 0)
 				return err
 			},
 			wantEvents: []string{"lock", "update", "read", "exclusions"},
@@ -716,7 +779,7 @@ func TestReservationStaffService_MutationsAcquireExclusiveOwnershipFirst(t *test
 		{
 			name: "ownership lock failure stops update",
 			mutate: func(svc ReservationStaffService) error {
-				_, _, err := svc.PatchStatus(context.Background(), 1, 2, false)
+				_, _, err := svc.PatchStatus(context.Background(), 1, 2, false, 0)
 				return err
 			},
 			lockErr:    apperrors.WrapNotFound("reservation_staff", "2"),

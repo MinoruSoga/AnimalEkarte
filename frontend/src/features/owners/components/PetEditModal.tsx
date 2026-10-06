@@ -215,7 +215,7 @@ export const PetEditModal = memo(function PetEditModal({
               aria-atomic="true"
               className={`mb-3 text-sm ${C.text50}`}
             >
-              動物種マスタが登録されていません。
+              動物種類が登録されていません。
             </p>
           ) : null}
 

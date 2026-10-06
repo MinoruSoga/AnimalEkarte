@@ -1,6 +1,11 @@
 import "@testing-library/jest-dom";
+import { configure } from "@testing-library/react";
 import { beforeAll, afterEach, afterAll } from "vitest";
 import { server } from "./mocks/node";
+
+// findBy*/waitFor の既定タイムアウト 1000ms は並行負荷下の CI で不足し、
+// 「要素なし」誤判定のフレークを生むため引き上げる。
+configure({ asyncUtilTimeout: 10_000 });
 
 // jsdom polyfills for Radix UI primitives (Select / Dropdown / Popover etc).
 // jsdom does not implement Pointer Events API or scrollIntoView, which Radix relies on

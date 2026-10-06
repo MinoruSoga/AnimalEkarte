@@ -3,7 +3,7 @@
 # ディレクトリが分かれているため `terraform apply` の cwd を間違えない限り混線しない)。
 
 variable "account_id" {
-  description = "Cloudflare Account ID。STGと同一アカウントを前提とする(migration-cloudflare.md の「課金・管理の一元化」方針)。tfvars に書かず -var か環境変数 TF_VAR_account_id で供給する"
+  description = "Cloudflare Account ID。【2026-10-06 確定 EMR-298】production は専用アカウント（EMR-302 移行先）を指す。共有アカウントへの本番構築は禁止（docs/ops/infra/cloudflare-account-separation.md）。旧前提「STGと同一アカウント(migration-cloudflare.md の課金・管理の一元化)」は廃止。tfvars に書かず -var か環境変数 TF_VAR_account_id で供給する"
   type        = string
   sensitive   = true
 }

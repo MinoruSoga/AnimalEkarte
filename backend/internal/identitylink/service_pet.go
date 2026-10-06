@@ -76,16 +76,24 @@ func (s *service) AddPetMembers(
 	var outMembers []model.PetIdentityGroupMember
 
 	err = s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		group, lockErr := s.repo.LockPetGroupByID(txCtx, groupID)
+		locked, lockErr := s.lockPetGroupForUpdate(txCtx, groupID)
 		if lockErr != nil {
 			return lockErr
 		}
-		existing, listErr := s.repo.ListActivePetMembers(txCtx, groupID)
-		if listErr != nil {
-			return listErr
-		}
+		group := locked.petGroup
+		existing := locked.petMembers
+		ownerGroup := locked.ownerGroup
+		ownerMembers := locked.ownerMembers
 		if err := assertCanManagePetGroup(actor, group, existing, refs); err != nil {
 			return err
+		}
+		decision, authErr := s.authorizeAffectedClinics(
+			txCtx,
+			actor,
+			petAffectedClinicIDs(group.CreatedClinicID, existing, refs, ownerGroup, ownerMembers),
+		)
+		if authErr != nil {
+			return authErr
 		}
 
 		pets, lockPetsErr := s.repo.LockPets(txCtx, refs)
@@ -128,7 +136,7 @@ func (s *service) AddPetMembers(
 			if auditErr := s.writeAudit(txCtx, actor, model.AuditActionPetIdentityLinkAdd, group.ID, nil, map[string]any{
 				"group_id": group.ID,
 				"members":  petRefsAudit(refsFromPetMembers(toCreate)),
-			}); auditErr != nil {
+			}, decision); auditErr != nil {
 				return auditErr
 			}
 		}
@@ -166,16 +174,24 @@ func (s *service) UnlinkPetMember(
 	}
 
 	err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		group, lockErr := s.repo.LockPetGroupByID(txCtx, groupID)
+		locked, lockErr := s.lockPetGroupForUpdate(txCtx, groupID)
 		if lockErr != nil {
 			return lockErr
 		}
-		existing, listErr := s.repo.ListActivePetMembers(txCtx, groupID)
-		if listErr != nil {
-			return listErr
-		}
+		group := locked.petGroup
+		existing := locked.petMembers
+		ownerGroup := locked.ownerGroup
+		ownerMembers := locked.ownerMembers
 		if err := assertCanManagePetGroup(actor, group, existing, []PetMemberRef{member}); err != nil {
 			return err
+		}
+		decision, authErr := s.authorizeAffectedClinics(
+			txCtx,
+			actor,
+			petAffectedClinicIDs(group.CreatedClinicID, existing, []PetMemberRef{member}, ownerGroup, ownerMembers),
+		)
+		if authErr != nil {
+			return authErr
 		}
 
 		var target *model.PetIdentityGroupMember
@@ -210,10 +226,66 @@ func (s *service) UnlinkPetMember(
 			"group_soft_deleted": groupSoftDeleted,
 			"clinic_id":          member.ClinicID,
 			"pet_id":             member.PetID,
-		})
+		}, decision)
 	})
 	if err != nil {
 		return apperrors.Wrap(err, "failed to unlink pet identity member")
 	}
 	return nil
+}
+
+// petGroupLockContext carries the rows that AddPetMembers and UnlinkPetMember
+// read under the shared lock order: owner group first, then pet group.
+type petGroupLockContext struct {
+	petGroup     *model.PetIdentityGroup
+	ownerGroup   *model.OwnerIdentityGroup
+	ownerMembers []model.OwnerIdentityGroupMember
+	petMembers   []model.PetIdentityGroupMember
+}
+
+// lockPetGroupForUpdate locks the owner identity group before the pet identity
+// group so AddPetMembers / UnlinkPetMember share the same lock order as
+// createPetGroupInTx (owner group -> pet group -> pet rows). The pet group's
+// OwnerGroupID is resolved by a non-locking pre-read; the locked pet group row
+// is authoritative and a divergence fails closed with a conflict. The owner
+// group lock still precedes authorizeAffectedClinics, keeping the FOR UPDATE
+// read ahead of the pet-write authorization TOCTOU window.
+func (s *service) lockPetGroupForUpdate(
+	ctx context.Context,
+	groupID uint64,
+) (*petGroupLockContext, error) {
+	seed, findErr := s.repo.FindPetGroupByID(ctx, groupID)
+	if findErr != nil {
+		return nil, findErr
+	}
+	// 認可境界となる owner group は FOR UPDATE で読み、かつ pet group のロック
+	// より先に取得する。非ロック読みだと並行する owner 側の変更
+	// （AddOwnerMembers 等）が割り込み、stale な affected-clinic 集合で認可が
+	// 通る TOCTOU になり、ロック順序を逆転させると createPetGroupInTx との間で
+	// デッドロックを起こし得る。
+	ownerGroup, ownerErr := s.repo.LockOwnerGroupByID(ctx, seed.OwnerGroupID)
+	if ownerErr != nil {
+		return nil, ownerErr
+	}
+	ownerMembers, ownerListErr := s.repo.ListActiveOwnerMembers(ctx, seed.OwnerGroupID)
+	if ownerListErr != nil {
+		return nil, ownerListErr
+	}
+	group, lockErr := s.repo.LockPetGroupByID(ctx, groupID)
+	if lockErr != nil {
+		return nil, lockErr
+	}
+	if group.OwnerGroupID != ownerGroup.ID {
+		return nil, apperrors.WrapConflict("pet identity group changed owner identity group")
+	}
+	petMembers, listErr := s.repo.ListActivePetMembers(ctx, groupID)
+	if listErr != nil {
+		return nil, listErr
+	}
+	return &petGroupLockContext{
+		petGroup:     group,
+		ownerGroup:   ownerGroup,
+		ownerMembers: ownerMembers,
+		petMembers:   petMembers,
+	}, nil
 }

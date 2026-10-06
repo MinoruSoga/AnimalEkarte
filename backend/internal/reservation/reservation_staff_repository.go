@@ -450,6 +450,19 @@ func replaceReservationCapabilitiesTx(tx *gorm.DB, clinicID, staffID uint64, typ
 	if err := lockReservationTypesForShare(tx, clinicID, typeIDs); err != nil {
 		return err
 	}
+	// Durable marker: 空選択での保存（junction 行 0 件）を「未設定」と区別するため
+	// assignment に刻む。caller が assignment 行を FOR UPDATE でロック済みなので
+	// backfill(migration 023) の FOR UPDATE OF sca と直列化する。
+	if err := tx.
+		Model(&model.StaffClinicAssignment{}).
+		Where("staff_id = ? AND clinic_id = ? AND deleted_at IS NULL", staffID, clinicID).
+		Update("capabilities_configured_at", gorm.Expr("NOW()")).Error; err != nil {
+		return apperrors.FromGORM(
+			err,
+			"staff_clinic_assignment",
+			fmt.Sprintf("staff=%d,clinic=%d", staffID, clinicID),
+		)
+	}
 	if err := persistence.DeleteJunctionByClinicAndStaff(tx, clinicID, staffID,
 		&model.StaffReservationCapability{}, "staff_reservation_capability", fmt.Sprintf("%d", staffID)); err != nil {
 		return err

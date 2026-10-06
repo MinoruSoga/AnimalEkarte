@@ -221,12 +221,21 @@ type grandchildParentResidualSite struct {
 // sites must be removed from this list (stale entries fail closed).
 // Measured after SEC-SWEEP-02-RES-B1: 0 residual findings remain.
 // Last residual (reservation CountMedicalRecordsByReservationID) repaired; Estimate restored.
-// Residual gate machinery (type/gate/bidirectional tests) is intentionally retained at count 0.
-var grandchildParentClinicCorrelationResidualSites = []grandchildParentResidualSite{}
+// Residual gate machinery (type/gate/bidirectional tests) is intentionally retained.
+//
+// 2026-10-05 residual: CountLiveByStorageKey is the intentional cross-clinic
+// opaque count added for the shared storage-object deletion guard (PR #551
+// review comment 4178907803). It must span clinics — correlating to the
+// deleting clinic's parent medical_records.clinic_id would miss other tenants'
+// references and silently reintroduce shared-object deletion. It returns only
+// an opaque count and never row data, so no tenant data crosses the boundary.
+var grandchildParentClinicCorrelationResidualSites = []grandchildParentResidualSite{
+	{file: "medicalrecord/medical_record_image_repository.go", function: "medicalRecordImageRepository.CountLiveByStorageKey", modelName: "MedicalRecordImage", childTable: "medical_record_images"},
+}
 
 // grandchildParentClinicCorrelationResidualSiteCount pins the allowlist size.
 // Mismatch with observed residual findings is a hard failure.
-const grandchildParentClinicCorrelationResidualSiteCount = 0
+const grandchildParentClinicCorrelationResidualSiteCount = 1
 
 func grandchildParentResidualSiteKey(file, function, modelName, childTable string) string {
 	return file + "\x00" + function + "\x00" + modelName + "\x00" + childTable

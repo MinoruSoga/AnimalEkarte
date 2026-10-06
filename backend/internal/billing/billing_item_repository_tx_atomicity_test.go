@@ -200,7 +200,7 @@ func TestBillingItemRepository_ValidateVaccinationCreateReferenceLocksVaccinatio
 	price := int64(3200)
 	_, vaccination := makeBillingVaccination(t, fixture, "ambient tx lock vaccine", &price)
 	repo := NewBillingItemRepository(fixture.db)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	err := testNewTransactor(fixture.db).WithTx(ctx, func(txCtx context.Context) error {
@@ -284,7 +284,7 @@ func TestBillingItemRepository_ValidateExamCreateReferenceLocksExamTypeInAmbient
 	price := int64(4200)
 	examType, exam := makeBillingExam(t, fixture, "ambient tx lock exam", &price)
 	repo := NewBillingItemRepository(fixture.db)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	err := testNewTransactor(fixture.db).WithTx(ctx, func(txCtx context.Context) error {

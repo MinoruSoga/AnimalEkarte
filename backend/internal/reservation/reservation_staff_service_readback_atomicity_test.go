@@ -58,7 +58,7 @@ func TestReservationStaffService_Create_ReadbackFailureRollsBack(t *testing.T) {
 		ReservationStaffRepository: base,
 		failExcluded:               true,
 	}
-	service := NewReservationStaffService(repo, testNewTransactor(db), nil)
+	service := NewReservationStaffService(repo, testNewTransactor(db), nil, nil)
 
 	staff, exclusions, err := service.Create(
 		context.Background(),
@@ -88,7 +88,7 @@ func TestReservationStaffService_Update_StaffReadbackFailureRollsBack(t *testing
 		ReservationStaffRepository: base,
 		failFindCall:               1,
 	}
-	service := NewReservationStaffService(repo, testNewTransactor(db), nil)
+	service := NewReservationStaffService(repo, testNewTransactor(db), nil, nil)
 	updatedName := "readback rollback update after"
 
 	updated, exclusions, err := service.Update(
@@ -120,13 +120,14 @@ func TestReservationStaffService_PatchStatus_ExclusionReadbackFailureRollsBack(t
 		ReservationStaffRepository: base,
 		failExcluded:               true,
 	}
-	service := NewReservationStaffService(repo, testNewTransactor(db), nil)
+	service := NewReservationStaffService(repo, testNewTransactor(db), nil, staffpkg.NewRepository(db))
 
 	updated, exclusions, err := service.PatchStatus(
 		context.Background(),
 		clinicID,
 		target.ID,
 		false,
+		0,
 	)
 
 	require.ErrorIs(t, err, errReservationStaffReadback)
