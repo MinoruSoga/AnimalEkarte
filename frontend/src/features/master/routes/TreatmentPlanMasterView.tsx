@@ -66,7 +66,7 @@ export function TreatmentPlanMasterView({
   return (
     <>
       <MasterTabPage
-        title="診療項目マスタ"
+        title="診療項目"
         icon={<Stethoscope className={`${ICON.page} ${C.text}`} />}
         resource={activeResource}
         onNew={onNew}

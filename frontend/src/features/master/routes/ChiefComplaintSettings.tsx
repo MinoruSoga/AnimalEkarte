@@ -78,7 +78,7 @@ export function ChiefComplaintSettings() {
   return (
     <>
       <MasterCRUDPage
-        title="主訴マスタ"
+        title="主訴カテゴリ"
         icon={<MessageSquareText className={`${ICON.page} ${C.text}`} />}
         resource={ResourceMasterMedical}
         entityLabel="主訴マスタ"

@@ -63,7 +63,7 @@ export interface GroupCardConfig {
 
 export const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
   clinic: {
-    label: "医院マスタ",
+    label: "医院",
     description: "院名、住所、電話番号などの医院基本情報を管理します",
     IconComponent: Building2,
     path: "/settings/clinic",
@@ -71,7 +71,7 @@ export const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
     countCategories: [],
   },
   treatmentItems: {
-    label: "診療項目マスタ",
+    label: "診療項目",
     description: "診察・検査・処置・予防接種・定期健診の項目と単価(税込)を管理します",
     IconComponent: Stethoscope,
     path: "/settings/treatment-items",
@@ -103,7 +103,7 @@ export const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
     countCategories: [],
   },
   inquiry_template: {
-    label: "問診テンプレート",
+    label: "問診設定",
     description: "問診票のテンプレートを管理します",
     IconComponent: ClipboardList,
     path: "/settings/inquiry-templates",
@@ -111,7 +111,7 @@ export const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
     countCategories: [],
   },
   shift_template: {
-    label: "シフトテンプレートマスタ",
+    label: "シフトテンプレート",
     description: "シフト登録で使用するテンプレートを管理します",
     IconComponent: Calendar,
     path: "/settings/shift-templates",
@@ -119,7 +119,7 @@ export const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
     countCategories: [],
   },
   paymentMethods: {
-    label: "支払方法マスタ",
+    label: "支払方法",
     description: "現金・クレジットカードなど支払方法の種別を管理します",
     IconComponent: CreditCard,
     path: "/settings/payment-methods",
@@ -128,7 +128,7 @@ export const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
   },
   // #81: 割引キャンペーンは会計割引マスタのため ResourceAccounting（settings-routes campaigns と同権）
   campaigns: {
-    label: "割引キャンペーンマスタ",
+    label: "割引キャンペーン",
     description: "会計割引に使うキャンペーン期間と対象商品を管理します",
     IconComponent: Tag,
     path: "/settings/campaigns",
@@ -194,7 +194,7 @@ export const MASTER_SECTIONS: SectionDef[] = [
       "labDeviceItemMasters",
     ],
   },
-  { title: "予約管理マスタ", keys: ["reservationType"] },
+  { title: "予約管理", keys: ["reservationType"] },
   { title: "入院・ケージ管理", keys: ["hospitalization", "cage"] },
   { title: "トリミング関連", keys: ["trimmingGroup", "trimmingCourseTypes"] },
   {

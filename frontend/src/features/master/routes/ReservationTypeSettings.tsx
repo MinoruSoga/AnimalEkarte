@@ -19,7 +19,7 @@ export function ReservationTypeSettings() {
       <div className="flex h-full">
         <div className="flex-1 min-w-0">
           <PageLayout
-            title="予約区分マスタ"
+            title="予約区分"
             icon={<Activity className={`${ICON.page} ${C.text}`} />}
             resource={ResourceMasterReservationType}
             onBack={() => navigate(paths.settings.getHref())}

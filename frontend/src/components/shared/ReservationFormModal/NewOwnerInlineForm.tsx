@@ -113,7 +113,7 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
           </p>
         ) : activeSpecies.length === 0 ? (
           <p role="status" aria-live="polite" aria-atomic="true" className={`text-xs ${C.text50}`}>
-            動物種マスタが登録されていません。
+            動物種類が登録されていません。
           </p>
         ) : null}
         <FormFieldError message={errors.animalSpeciesId} />

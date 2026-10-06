@@ -157,7 +157,7 @@ describe("OwnersList species status", () => {
     expect(status).toHaveAttribute("aria-live", "polite");
     expect(status).toHaveAttribute("aria-atomic", "true");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.queryByText("動物種マスタが登録されていません。")).not.toBeInTheDocument();
+    expect(screen.queryByText("動物種類が登録されていません。")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "新規登録" })).toBeEnabled();
     expect(
       screen.getByPlaceholderText("飼主名、ペット名、電話番号、飼主No、ペット番号..."),
@@ -184,7 +184,7 @@ describe("OwnersList species status", () => {
     renderOwnersList();
 
     const status = await screen.findByRole("status");
-    expect(status).toHaveTextContent("動物種マスタが登録されていません。");
+    expect(status).toHaveTextContent("動物種類が登録されていません。");
     expect(status).toHaveAttribute("aria-live", "polite");
     expect(status).toHaveAttribute("aria-atomic", "true");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();

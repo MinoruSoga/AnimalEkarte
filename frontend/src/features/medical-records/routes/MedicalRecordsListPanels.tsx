@@ -54,7 +54,7 @@ function MedicalRecordsSpeciesStatus({
   if (!hasSpecies) {
     return (
       <p role="status" aria-live="polite" aria-atomic="true" className={`text-sm ${C.text50}`}>
-        動物種マスタが登録されていません。
+        動物種類が登録されていません。
       </p>
     );
   }

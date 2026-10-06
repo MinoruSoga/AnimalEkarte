@@ -127,7 +127,7 @@ function ExamTypeFieldReferenceRanges({
         </p>
       ) : animalSpecies.length === 0 ? (
         <p role="status" aria-live="polite" aria-atomic="true" className={`text-sm ${C.text50}`}>
-          動物種マスタが登録されていないため、基準範囲を設定できません。
+          動物種類が登録されていないため、基準範囲を設定できません。
         </p>
       ) : (
         <>

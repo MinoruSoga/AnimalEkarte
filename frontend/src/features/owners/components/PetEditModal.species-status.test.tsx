@@ -177,7 +177,7 @@ describe("PetEditModal species status", () => {
     expect(status).toHaveAttribute("aria-live", "polite");
     expect(status).toHaveAttribute("aria-atomic", "true");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.queryByText("動物種マスタが登録されていません。")).not.toBeInTheDocument();
+    expect(screen.queryByText("動物種類が登録されていません。")).not.toBeInTheDocument();
     const speciesSelect = screen.getByRole("combobox", { name: /動物種/ });
     expect(speciesSelect).toBeDisabled();
     expect(speciesSelect).toHaveTextContent(/^読み込み中\.\.\.$/);
@@ -194,7 +194,7 @@ describe("PetEditModal species status", () => {
     renderModal();
 
     const status = screen.getByRole("status");
-    expect(status).toHaveTextContent("動物種マスタが登録されていません。");
+    expect(status).toHaveTextContent("動物種類が登録されていません。");
     expect(status).toHaveAttribute("aria-live", "polite");
     expect(status).toHaveAttribute("aria-atomic", "true");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();

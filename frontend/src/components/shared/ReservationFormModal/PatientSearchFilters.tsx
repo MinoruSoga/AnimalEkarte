@@ -78,7 +78,7 @@ function SpeciesSelectField({
           aria-atomic="true"
           className={`text-xs ${C.text50}`}
         >
-          動物種マスタが登録されていません。
+          動物種類が登録されていません。
         </p>
       ) : null}
     </div>

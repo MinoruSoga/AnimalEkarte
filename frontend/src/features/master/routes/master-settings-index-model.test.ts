@@ -9,7 +9,7 @@ describe("master-settings-index-model campaigns entry (V04-A01)", () => {
   it("campaigns カードが GROUP_CARD_CONFIG にあり /settings/campaigns と accounting resource を持つ", () => {
     // ResourceAccounting 定数 import は generated-model allowlist を増やすため文字列で固定
     expect(GROUP_CARD_CONFIG.campaigns).toMatchObject({
-      label: "割引キャンペーンマスタ",
+      label: "割引キャンペーン",
       path: "/settings/campaigns",
       resource: "accounting",
     });

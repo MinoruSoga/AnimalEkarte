@@ -88,7 +88,7 @@ export function PaymentMethodSettings() {
   return (
     <>
       <MasterCRUDPage
-        title="支払方法マスタ"
+        title="支払方法"
         icon={<CreditCard className={`${ICON.page} ${C.text}`} />}
         resource={ResourcePaymentMethod}
         entityLabel="支払方法"

@@ -238,7 +238,7 @@ describe("AnimalSpeciesSettings", () => {
     expect(alert).toHaveTextContent("動物種の取得に失敗しました。");
     expect(alert).toHaveAttribute("aria-atomic", "true");
     expect(screen.queryByText("動物種を読み込み中です。")).not.toBeInTheDocument();
-    expect(screen.queryByText("動物種マスタが登録されていません。")).not.toBeInTheDocument();
+    expect(screen.queryByText("動物種類が登録されていません。")).not.toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
     expect(screen.queryByText("GET /v1/masters/animal-species 500")).not.toBeInTheDocument();
     expect(mocks.crudData).toEqual([]);
@@ -262,7 +262,7 @@ describe("AnimalSpeciesSettings", () => {
     expect(status).toHaveTextContent("動物種を読み込み中です。");
     expect(status).toHaveAttribute("aria-live", "polite");
     expect(status).toHaveAttribute("aria-atomic", "true");
-    expect(screen.queryByText("動物種マスタが登録されていません。")).not.toBeInTheDocument();
+    expect(screen.queryByText("動物種類が登録されていません。")).not.toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
     expect(mocks.crudData).toEqual([]);
     expect(mocks.crudCanDelete).toBe(false);
@@ -276,7 +276,7 @@ describe("AnimalSpeciesSettings", () => {
     renderPage();
 
     const status = screen.getByRole("status");
-    expect(status).toHaveTextContent("動物種マスタが登録されていません。");
+    expect(status).toHaveTextContent("動物種類が登録されていません。");
     expect(status).toHaveAttribute("aria-live", "polite");
     expect(status).toHaveAttribute("aria-atomic", "true");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();

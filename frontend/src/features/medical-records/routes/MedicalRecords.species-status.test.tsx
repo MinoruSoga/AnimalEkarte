@@ -153,7 +153,7 @@ describe("MedicalRecords animal species status", () => {
     expect(status).toHaveAttribute("aria-live", "polite");
     expect(status).toHaveAttribute("aria-atomic", "true");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.queryByText("動物種マスタが登録されていません。")).not.toBeInTheDocument();
+    expect(screen.queryByText("動物種類が登録されていません。")).not.toBeInTheDocument();
 
     await openSpeciesFilter(user);
 
@@ -172,7 +172,7 @@ describe("MedicalRecords animal species status", () => {
     renderPage();
 
     const status = screen.getByRole("status");
-    expect(status).toHaveTextContent("動物種マスタが登録されていません。");
+    expect(status).toHaveTextContent("動物種類が登録されていません。");
     expect(status).toHaveAttribute("aria-live", "polite");
     expect(status).toHaveAttribute("aria-atomic", "true");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();

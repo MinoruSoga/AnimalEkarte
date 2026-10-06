@@ -134,7 +134,7 @@ export function StaffSettings() {
   return (
     <>
       <MasterCRUDPage
-        title="スタッフマスタ"
+        title="スタッフ管理"
         icon={<UserRound className={`${ICON.page} ${C.text}`} />}
         resource={ResourceMasterStaff}
         entityLabel="スタッフ"

@@ -276,7 +276,7 @@ describe("ExamTypeFieldsEditor", () => {
     expect(status).toHaveAttribute("aria-live", "polite");
     expect(status).toHaveAttribute("aria-atomic", "true");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.queryByText(/動物種マスタが登録されていない/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/動物種類が登録されていない/)).not.toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "基準範囲を保存" })).not.toBeInTheDocument();
   });
@@ -304,7 +304,7 @@ describe("ExamTypeFieldsEditor", () => {
     expect(screen.queryByText(rawError)).not.toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(screen.queryByText(/動物種を読み込み中/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/動物種マスタが登録されていない/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/動物種類が登録されていない/)).not.toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "基準範囲を保存" })).not.toBeInTheDocument();
   });
@@ -326,9 +326,7 @@ describe("ExamTypeFieldsEditor", () => {
     );
 
     const status = screen.getByRole("status");
-    expect(status).toHaveTextContent(
-      "動物種マスタが登録されていないため、基準範囲を設定できません。",
-    );
+    expect(status).toHaveTextContent("動物種類が登録されていないため、基準範囲を設定できません。");
     expect(status).toHaveAttribute("aria-live", "polite");
     expect(status).toHaveAttribute("aria-atomic", "true");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();

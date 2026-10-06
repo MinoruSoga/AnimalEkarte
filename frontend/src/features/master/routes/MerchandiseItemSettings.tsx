@@ -90,7 +90,7 @@ export function MerchandiseItemSettings() {
   return (
     <>
       <MasterCRUDPage
-        title="商品マスタ"
+        title="物販・フード"
         icon={<ShoppingBag className={`${ICON.page} ${C.text}`} />}
         resource={ResourceMasterMerchandise}
         entityLabel="品目"

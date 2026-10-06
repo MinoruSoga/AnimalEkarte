@@ -469,7 +469,7 @@ describe("PatientSelectionTable — 動物種の取得状態", () => {
 
     renderTable();
 
-    expect(await screen.findByText("動物種マスタが登録されていません。")).toBeInTheDocument();
+    expect(await screen.findByText("動物種類が登録されていません。")).toBeInTheDocument();
   });
 });
 
