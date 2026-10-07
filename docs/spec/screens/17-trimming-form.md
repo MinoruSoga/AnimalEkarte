@@ -1,7 +1,7 @@
 # トリミング登録/編集 仕様書 (Trimming Form)
 
 ## 概要
-- **画面の目的**: トリミング施術の詳細（コース、オプション、カットスタイル、身体状態）の記録。画像欄は現在プレビューまでで、選択ファイルのアップロード保存は未配線。
+- **画面の目的**: トリミング施術の詳細（コース、オプション、カットスタイル、身体状態）の記録。画像欄は選択・撮影直後に `POST /api/v1/trimmings/images/upload` へアップロードされ、返却 object key が `style_image` / `completed_image` として保存 request で永続化される（§1.2）。
 - **URLパターン**: 
   - 新規作成: `/trimming/new?petId=xxx`
   - 編集: `/trimming/:id`

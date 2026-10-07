@@ -170,7 +170,7 @@ Owner: clinical_plan PATCH child resource. The parent medical-record and inquiry
 
 ### trimming-form — [V01 §12](V01-clinical-forms.md)
 
-保存 request は `frontend/src/features/trimming/hooks/trimming-form-utils.ts`。`record_shortcut` の時刻は現在時刻の秒・ミリ秒から生成される。画像の UI preview は存在するが、下記 create/update builder に画像キーは含まれないため、画像の永続化経路は coverage gap として別に追跡する。
+保存 request は `frontend/src/features/trimming/hooks/trimming-form-utils.ts`。`record_shortcut` の時刻は現在時刻の秒・ミリ秒から生成される。画像は選択直後に `uploadTrimmingImage`（`POST /api/v1/trimmings/images/upload`）で object key を取得し、create/update builder が `style_image` / `completed_image` として同一 POST/PATCH body に含めて永続化する（下表「画像保存経路」行）。
 
 | fieldKey | R/O | F 重点 |
 |:--|:--|:--|
