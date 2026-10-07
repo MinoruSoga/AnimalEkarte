@@ -37,5 +37,5 @@ flowchart LR
 ## AI エージェント向け注記
 
 - API contract の正本は本フォルダではなく [`backend/docs/api.yaml`](../../backend/docs/api.yaml)。
-- `scripts/check-docs-symbol-drift.sh` の gate matrix は、`erd.md` のテーブル総数・テーブル inventory、`auth.md` の resource 数、screen/design-system docs の限定された CamelCase/file symbol である。`auth.md` / `overview.md` の本文や全固定 symbol を機械検証するものではない。数値を変更する場合は実装側の実測値と一致させること。
+- `scripts/checks/check-docs-symbol-drift.sh` の gate matrix は、`erd.md` のテーブル総数・テーブル inventory、`auth.md` の resource 数、screen/design-system docs の限定された CamelCase/file symbol である。`auth.md` / `overview.md` の本文や全固定 symbol を機械検証するものではない。数値を変更する場合は実装側の実測値と一致させること。
 - docs-symbol-drift は ADR 本文の narrative 整合、status 文言、歴史的 snapshot の全面 alignment を検証しない。narrative の正本は各 ADR 本体と boundary map を読むこと。

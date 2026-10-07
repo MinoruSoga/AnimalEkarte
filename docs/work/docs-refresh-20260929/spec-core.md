@@ -52,7 +52,7 @@
 | 場所 | 旧主張 | 新主張 | 根拠 |
 |---|---|---|---|
 | `specification.md:8` | release gate の作業入口は Linear `BRT-4` | Linear は 2026-09-16 閉鎖。SoT は Plane `baritechllc`/`EMR`/hub `EMR-1`/case `BRT-4` | vault `AGENTS.md` PLANE-CASE-ROUTE、`docs/work/plane-md-migration-20260923-receipt.md` |
-| `specification.md:22` | 全 128 テーブル | 全 130 テーブル | `ls backend/migrations/*.sql` 直下 `CREATE TABLE` 実測 130（`scripts/check-docs-symbol-drift.sh` ゲート値） |
+| `specification.md:22` | 全 128 テーブル | 全 130 テーブル | `ls backend/migrations/*.sql` 直下 `CREATE TABLE` 実測 130（`scripts/checks/check-docs-symbol-drift.sh` ゲート値） |
 | `specification.md:61` | スキーマは 128 テーブル | 130 テーブル | 同上 |
 | `screens/README.md:7` | `route-inventory` の product leaf = 86 | 87（`/settings/bug-reports` 追加） | `frontend/src/app/routes/route-inventory.test.tsx:57`（`expect(pages).toHaveLength(87)`）、`settings-routes.tsx:463`、コミット `48ec94c7`（2026-09-26） |
 | `screens/README.md:103` | release state は Linear hub `BRT-4` | Plane `EMR` / hub `EMR-1` | 同上 Linear 閉鎖 |
@@ -79,7 +79,7 @@
 | コマンド | 結果 |
 |---|---|
 | `git diff --check -- docs/spec` | 0（OK） |
-| `bash scripts/check-docs-symbol-drift.sh` | 0 — `OK ドリフトなし（検査トークン 606 件）`。130 テーブル宣言と migration 実測が一致 |
+| `bash scripts/checks/check-docs-symbol-drift.sh` | 0 — `OK ドリフトなし（検査トークン 606 件）`。130 テーブル宣言と migration 実測が一致 |
 | `git status --porcelain` | 変更は allowlist 内 5 ファイルのみ（spec 4 ファイル + 本レポート）。allowlist 外の差分なし |
 
 **スコープ外確認**: runtime / E2E / `pnpm design-audit` / ビルド / DB / STG / Plane 書き込みは一切未実施（禁止事項どおり）。

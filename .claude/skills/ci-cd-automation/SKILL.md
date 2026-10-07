@@ -29,10 +29,10 @@ description: このプロジェクトの GitHub Actions CI/CD 構成の把握と
 ## ci.yml の実ジョブ構成（最小構成・2026-10 縮小）
 
 - **トリガー**: `pull_request: branches: [main, staging, production]`
-- **方針**: build/test/coverage/lint/migration/worker/codegen/audit は全てローカル必須の `make ci`（`scripts/run-local-ci.sh`）へ集約。remote は GitHub 上でしか担保できない2ゲートのみ
-- **Workflow Contracts**: `node --test scripts/check-workflow-contracts.test.mjs`（workflow 定義自身の契約検査・自己参照のため remote 必須）
+- **方針**: build/test/coverage/lint/migration/worker/codegen/audit は全てローカル必須の `make ci`（`scripts/ci/run-local-ci.sh`）へ集約。remote は GitHub 上でしか担保できない2ゲートのみ
+- **Workflow Contracts**: `node --test scripts/ci/check-workflow-contracts.test.mjs`（workflow 定義自身の契約検査・自己参照のため remote 必須）
 - **Gitleaks Secret Scan**: `gitleaks/gitleaks-action@v3` の PR 差分スキャン（C-1 再発防止の fail ゲート。`make ci` 側は full-history）
-- staging の required checks は `Workflow Contracts` / `Gitleaks Secret Scan` / `AgentShield` / `make ci`（正本: `docs/ops/ci-policy.md`）。`make ci` は `scripts/run-local-ci.sh` が HEAD へ投稿する commit status（自己申告制）で、status 無しの head は Pending で merge 不可
+- staging の required checks は `Workflow Contracts` / `Gitleaks Secret Scan` / `AgentShield` / `make ci`（正本: `docs/ops/ci-policy.md`）。`make ci` は `scripts/ci/run-local-ci.sh` が HEAD へ投稿する commit status（自己申告制）で、status 無しの head は Pending で merge 不可
 
 使用アクションの正: `actions/checkout@v7` / `actions/setup-go@v7` / `actions/setup-node@v7` / `actions/upload-artifact@v7` / `actions/download-artifact@v7` / `pnpm/action-setup@v6`。
 （`node-actions/setup-node` や `go-actions/setup-go` というアクションは存在しない — 過去にこのスキルが記載していた誤り）
@@ -57,7 +57,7 @@ gh run list --branch main --json databaseId,event,conclusion,headSha --limit 10
 gh run view <run-id> --json jobs
 ```
 
-- **最小構成下の失敗調査**: remote は `Workflow Contracts` / `Gitleaks Secret Scan` のみ。品質ゲートの失敗は remote では出ず、`make ci`（`scripts/run-local-ci.sh`）側で最初に失敗した `begin_step` 名から切り分ける
+- **最小構成下の失敗調査**: remote は `Workflow Contracts` / `Gitleaks Secret Scan` のみ。品質ゲートの失敗は remote では出ず、`make ci`（`scripts/ci/run-local-ci.sh`）側で最初に失敗した `begin_step` 名から切り分ける
 - **green でも未検証に注意**: remote green は build/test 合格を意味しない（これらは remote に存在しない）。検証済みかは「当該 head で `make ci` を通したか」で判断する
 （出典: memory feedback_ci_step_order_masks_lint / feedback_paths_filter_silent_green / ops_golangci_lint_cap_and_reconcile_20260630）
 
@@ -98,8 +98,8 @@ warm-DB（前 run のテーブル残存）でローカル PASS しても CI の 
 
 - **バージョン統一**: Actions のバージョンはリポジトリ全体で統一されている（現在は setup-node v7 等）。1ファイルだけ上げない（出典: memory infra002_github_actions_unification_complete — 「value の DRY ≠ actions の DRY」）
 - **drift スキャンは `with:` / `env:` / `working-directory:` も対象**（出典: memory feedback_workflow_with_param_drift）
-- **actionlint はバージョンドリフトを検出しない**。「actionlint が通った＝Actions バージョン統一が保たれている」は誤り。ドリフト検査の正本は `scripts/check-actions-version-drift.sh`（actionlint.yml に組込済）
-- **新規ワークフロー追加は既存の「統一済み」状態を静かに壊す**。新規 yml 追加時は、`scripts/check-actions-version-drift.sh`で既存workflowの現在のactionバージョンと必ず突合する（backend-deploy.yml に setup-node@v4 が混入し #195 が回帰した実例）
+- **actionlint はバージョンドリフトを検出しない**。「actionlint が通った＝Actions バージョン統一が保たれている」は誤り。ドリフト検査の正本は `scripts/ci/check-actions-version-drift.sh`（actionlint.yml に組込済）
+- **新規ワークフロー追加は既存の「統一済み」状態を静かに壊す**。新規 yml 追加時は、`scripts/ci/check-actions-version-drift.sh`で既存workflowの現在のactionバージョンと必ず突合する（backend-deploy.yml に setup-node@v4 が混入し #195 が回帰した実例）
 
   （出典: memory closed_issue_reaudit_20260707 / commit 2d8ab41d）
 - **production 起動条件（env）変更は CI workflow にも波及**する。`.github/workflows/` の env を同時更新（出典: memory feedback_config_change_ci_propagation）

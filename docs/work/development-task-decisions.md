@@ -43,7 +43,7 @@ addendum response 型移行（`TASK-444-ADDENDUM-CODEGEN`）は完了（2026-09-
 
 ### Worker runnerの訂正
 
-[Makefile](../../Makefile) の `test-worker` は既にrootをDockerへmountし、指定したWorkerテストを実行する。`scripts/check-test-worker-makefile.test.sh` の8項目は今回PASSした。したがって「Docker runnerを新設しないと開始できない」は誤りで、runner新設タスクは不要。
+[Makefile](../../Makefile) の `test-worker` は既にrootをDockerへmountし、指定したWorkerテストを実行する。`scripts/ci/check-test-worker-makefile.test.sh` の8項目は今回PASSした。したがって「Docker runnerを新設しないと開始できない」は誤りで、runner新設タスクは不要。
 
 この確認はWIPテストの実行PASSではない。既存runnerは型検査を含まず、[tsconfig.test.json](../../backend/worker/tsconfig.test.json) に新規 `index.test.ts` は明示されていない。将来の観測採用時の検証条件は統合検証TODOに保存する。現在のWorker WIPの削除・実装・commit・deployは行っていない。
 

@@ -16,7 +16,7 @@ env:
 #
 # 本 workflow は最小構成。build / test / coverage / lint / migration /
 # worker / codegen 検証はすべてローカル必須の `make ci`
-# （scripts/run-local-ci.sh）へ集約した。
+# （scripts/ci/run-local-ci.sh）へ集約した。
 # 残すのは GitHub 上でしか担保できない2ゲートのみ:
 #   - workflow 定義自身の契約検査（自己参照のため remote 必須）
 #   - gitleaks（PR 差分スキャン。C-1 再発防止の fail ゲート）
@@ -37,7 +37,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Verify workflow contracts
-        run: node --test scripts/check-workflow-contracts.test.mjs
+        run: node --test scripts/ci/check-workflow-contracts.test.mjs
 
   # ──────────────────────────────────────────────
   # C-1 再発防止: gitleaks によるシークレット漏洩スキャン。

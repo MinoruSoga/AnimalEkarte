@@ -144,9 +144,9 @@ func TestMakefileSTGUATHandoffWrapperUsesScript(t *testing.T) {
 		t.Error("stg-uat-handoff-all must not exist; stg-uat-handoff always imports every clinic")
 	}
 	for _, want := range []string{
-		`bash scripts/stg-uat-old-db-handoff.sh preflight`,
-		`bash scripts/stg-uat-old-db-handoff.sh import`,
-		`bash scripts/stg-uat-old-db-handoff.sh verify`,
+		`bash scripts/old-db/stg-uat-old-db-handoff.sh preflight`,
+		`bash scripts/old-db/stg-uat-old-db-handoff.sh import`,
+		`bash scripts/old-db/stg-uat-old-db-handoff.sh verify`,
 		`DB_SSL_ROOT_CERT="$${DB_SSL_ROOT_CERT}"`,
 	} {
 		if !strings.Contains(makefile, want) {

@@ -95,7 +95,7 @@ check(not any(secret_pattern.search(p.read_text()) for p in OUT.rglob("*") if p.
 validation = json.loads((OUT / "EVIDENCE/delivery-validation.json").read_text())
 check(validation["ok"] and validation["harness"]["ok"] and validation["receiver"]["ok"], "saved prompt harness and receiver")
 drift = (OUT / "EVIDENCE/docs-symbol-drift.txt").read_text()
-check("$ bash scripts/check-docs-symbol-drift.sh" in drift and "exit=" in drift, "drift command output and exit recorded")
+check("$ bash scripts/checks/check-docs-symbol-drift.sh" in drift and "exit=" in drift, "drift command output and exit recorded")
 if FINAL:
     check("coordinator-complete" in goal and "coordinator-complete" in (OUT / "PROGRESS.md").read_text(), "coordinator-complete checkpoint")
     for label in ("B", "C"):

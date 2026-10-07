@@ -84,7 +84,7 @@ PHIを含み得るinput/outputはGit、chat、artifactへ出さない。manifest
 
 ## 5. Validation and recovery
 
-1. `python3 scripts/verify_seed.py`でcurrent CSV contractを確認する。
+1. `python3 scripts/old-db/verify_seed.py`でcurrent CSV contractを確認する。
 2. scoped migrate/seed testsをDocker経由で行う。
 3. current DDL keys + `BundleOrderForEnv(APP_ENV)`（+ ログイン seed を適用したなら `seeds/003_login`）についてmigration coverage `missing=0`を確認する。
 4. checksum mismatch、legacy translation後のmaster完全性、rebuild要否をrelease前に記録する。

@@ -56,8 +56,8 @@
 ## 検証
 
 - `git diff --check -- docs/ops/infra docs/ops/testing` → exit 0（PASS）
-- `bash scripts/check-docs-symbol-drift.sh` → exit 1。**FAIL 3 件は全て本区画外**（`docs/architecture/erd.md`・`docs/spec/specification.md` の「全 128 テーブル」宣言 vs 実測 130 = `backend/migrations/*.sql` 行頭 `CREATE TABLE` 合算）。main checkout でも同一 3 件 FAIL を再現（605 トークン一致）。本区画の変更による新規ドリフトなし。architecture/spec 区画の子への手続き対象。
-- `node scripts/check-workflow-contracts.test.mjs` → 21/21 pass（workflow 契約記述との整合）
+- `bash scripts/checks/check-docs-symbol-drift.sh` → exit 1。**FAIL 3 件は全て本区画外**（`docs/architecture/erd.md`・`docs/spec/specification.md` の「全 128 テーブル」宣言 vs 実測 130 = `backend/migrations/*.sql` 行頭 `CREATE TABLE` 合算）。main checkout でも同一 3 件 FAIL を再現（605 トークン一致）。本区画の変更による新規ドリフトなし。architecture/spec 区画の子への手続き対象。
+- `node scripts/ci/check-workflow-contracts.test.mjs` → 21/21 pass（workflow 契約記述との整合）
 - `ls frontend/e2e/` → 35 spec。E2E 文書記載の spec 名（clinical-flows/clinical-smoke/examinations/vaccinations/checkups/hospitalization/estimates/auth-flows/s09/medical-records-*）は全て実在。
 - `git status --porcelain` → allowlist 内 14 ファイルのみ。allowlist 外差分: なし
 - `docs/ops/testing/scripts/check-uat-env.sh` → 実在確認のみ（runtime 実行は brief 禁止範囲のため未実行）

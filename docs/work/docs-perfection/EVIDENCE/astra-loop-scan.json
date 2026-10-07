@@ -2288,7 +2288,7 @@
       "declared_evidence_lines": [
         {
           "line": 3,
-          "text": "> `.github/workflows/*.yml` と `scripts/run-local-ci.sh` が実装の正本。この文書は契約を要約し、手作業の action/step inventory は持たない。"
+          "text": "> `.github/workflows/*.yml` と `scripts/ci/run-local-ci.sh` が実装の正本。この文書は契約を要約し、手作業の action/step inventory は持たない。"
         },
         {
           "line": 7,
@@ -2300,7 +2300,7 @@
         },
         {
           "line": 36,
-          "text": "実際の action version は workflow の `uses:` が正本。`scripts/check-actions-version-drift.sh` が同一 action の混在を検出する。古い version inventory は保持しない。"
+          "text": "実際の action version は workflow の `uses:` が正本。`scripts/ci/check-actions-version-drift.sh` が同一 action の混在を検出する。古い version inventory は保持しない。"
         },
         {
           "line": 47,
@@ -9102,7 +9102,7 @@
         },
         {
           "line": 8,
-          "text": "verification: [\"開始時に git status --short と git branch --list claim/DOCS-PERFECT-ARCHITECTURE を確認。claimがあれば編集せずBLOCKED。なければ git branch claim/DOCS-PERFECT-ARCHITECTURE を取得。claim削除はUSERのみ。\", \"bash scripts/check-docs-symbol-drift.sh\", \"git diff --check -- docs/architecture\", \"git diff --name-only と git status --short を開始時baselineに比較し、tracked/staged/untracked全ての新規差分がallowlist内であることを検査する。\", \"rg -n 'Decision ownership|型|owner|history|historical|履歴' docs/architecture/overview.md docs/architecture/model-write-owner-catalog.md docs/architecture/be9-2a-boundary-map.md\", \"ERD/auth/overviewの現行主張を backend/migrations/001_init.sql、backend/internal/model/permission.go、backend/internal/lintscan の該当定義と行単位で突合する。DDLを適用しない。\", \"全ADR差分を手動監査し、日付・訂正内容・理由・直接証拠が付かない本文の事実修正と、採択理由の静かな書換えが0件であることを確認する。\"]"
+          "text": "verification: [\"開始時に git status --short と git branch --list claim/DOCS-PERFECT-ARCHITECTURE を確認。claimがあれば編集せずBLOCKED。なければ git branch claim/DOCS-PERFECT-ARCHITECTURE を取得。claim削除はUSERのみ。\", \"bash scripts/checks/check-docs-symbol-drift.sh\", \"git diff --check -- docs/architecture\", \"git diff --name-only と git status --short を開始時baselineに比較し、tracked/staged/untracked全ての新規差分がallowlist内であることを検査する。\", \"rg -n 'Decision ownership|型|owner|history|historical|履歴' docs/architecture/overview.md docs/architecture/model-write-owner-catalog.md docs/architecture/be9-2a-boundary-map.md\", \"ERD/auth/overviewの現行主張を backend/migrations/001_init.sql、backend/internal/model/permission.go、backend/internal/lintscan の該当定義と行単位で突合する。DDLを適用しない。\", \"全ADR差分を手動監査し、日付・訂正内容・理由・直接証拠が付かない本文の事実修正と、採択理由の静かな書換えが0件であることを確認する。\"]"
         },
         {
           "line": 9,
@@ -9151,7 +9151,7 @@
         },
         {
           "line": 8,
-          "text": "verification: [\"開始時に git status --short と git branch --list claim/DOCS-PERFECT-DELIVERY を確認。claimがあれば編集せずBLOCKED。なければ git branch claim/DOCS-PERFECT-DELIVERY を取得。claim削除はUSERのみ。\", \"bash scripts/check-docs-symbol-drift.sh\", \"git diff --check -- docs/delivery\", \"git diff --name-only と git status --short を開始時baselineに比較し、tracked/staged/untracked全ての新規差分がallowlist内であることを検査する。\", \"rg -n 'D-254|USER|U13|自動|未完|HOLD' docs/delivery/OPERATION_MANUAL.md docs/delivery/DELIVERY_PACKAGE.md docs/delivery/GOLIVE_RUNBOOK.md\", \"RQ-002のmanual workflow説明とfrontend manual screens/05-accounting.mdを再照合し、D-254等の既存受入入口にdocs外修復依存を明示する。参照先の修復をしていないのに完了/整合済みと書かない。\", \"U1-U12の値はDELIVERY_PACKAGE、U13はOPERATION_MANUALへ一意にリンクし、ops本文のインフラ手順を複製していないことを確認する。\", \"契約・承認・provider/UAT receiptの空欄を検証済みに変えていないことを全4文書の差分で確認する。\"]"
+          "text": "verification: [\"開始時に git status --short と git branch --list claim/DOCS-PERFECT-DELIVERY を確認。claimがあれば編集せずBLOCKED。なければ git branch claim/DOCS-PERFECT-DELIVERY を取得。claim削除はUSERのみ。\", \"bash scripts/checks/check-docs-symbol-drift.sh\", \"git diff --check -- docs/delivery\", \"git diff --name-only と git status --short を開始時baselineに比較し、tracked/staged/untracked全ての新規差分がallowlist内であることを検査する。\", \"rg -n 'D-254|USER|U13|自動|未完|HOLD' docs/delivery/OPERATION_MANUAL.md docs/delivery/DELIVERY_PACKAGE.md docs/delivery/GOLIVE_RUNBOOK.md\", \"RQ-002のmanual workflow説明とfrontend manual screens/05-accounting.mdを再照合し、D-254等の既存受入入口にdocs外修復依存を明示する。参照先の修復をしていないのに完了/整合済みと書かない。\", \"U1-U12の値はDELIVERY_PACKAGE、U13はOPERATION_MANUALへ一意にリンクし、ops本文のインフラ手順を複製していないことを確認する。\", \"契約・承認・provider/UAT receiptの空欄を検証済みに変えていないことを全4文書の差分で確認する。\"]"
         },
         {
           "line": 9,
@@ -9196,7 +9196,7 @@
         },
         {
           "line": 8,
-          "text": "verification: [\"開始時に git status --short と git branch --list claim/DOCS-PERFECT-OPS を確認。claimがあれば編集せずBLOCKED。なければ git branch claim/DOCS-PERFECT-OPS を取得。claim削除はUSERのみ。\", \"bash scripts/check-docs-symbol-drift.sh\", \"git diff --check -- docs/ops\", \"git diff --name-only と git status --short を開始時baselineに比較し、tracked/staged/untracked全ての新規差分がallowlist内であることを検査する。\", \"test -f docs/ops/testing/scripts/check-uat-env.sh\", \"rg -n 'reports/uat-|gitignore|原証跡|保存先|デプロイ直後ログ' docs/ops/testing/UAT-DOMAIN-STATUS.md docs/ops/deploy/STG-CONTINUOUS-OPERATIONS.md\", \"全Markdownのローカルリンクを文書相対で解決し、ローカル不在は明示した非配布証跡識別子/承認済み保管先への案内へ変更する。原証跡は捏造・複製しない。\", \"Makefile、scripts、.github/workflows、backend/wrangler.jsonc とコマンド名/設定参照を静的照合する。runbookにあるコマンドは実行しない。\", \"RQ-005の入口リンクが残り、配布未完了ゲートを隠していないことを確認する。STG/PROD現在状態は未取得ならUNKNOWN。\"]"
+          "text": "verification: [\"開始時に git status --short と git branch --list claim/DOCS-PERFECT-OPS を確認。claimがあれば編集せずBLOCKED。なければ git branch claim/DOCS-PERFECT-OPS を取得。claim削除はUSERのみ。\", \"bash scripts/checks/check-docs-symbol-drift.sh\", \"git diff --check -- docs/ops\", \"git diff --name-only と git status --short を開始時baselineに比較し、tracked/staged/untracked全ての新規差分がallowlist内であることを検査する。\", \"test -f docs/ops/testing/scripts/check-uat-env.sh\", \"rg -n 'reports/uat-|gitignore|原証跡|保存先|デプロイ直後ログ' docs/ops/testing/UAT-DOMAIN-STATUS.md docs/ops/deploy/STG-CONTINUOUS-OPERATIONS.md\", \"全Markdownのローカルリンクを文書相対で解決し、ローカル不在は明示した非配布証跡識別子/承認済み保管先への案内へ変更する。原証跡は捏造・複製しない。\", \"Makefile、scripts、.github/workflows、backend/wrangler.jsonc とコマンド名/設定参照を静的照合する。runbookにあるコマンドは実行しない。\", \"RQ-005の入口リンクが残り、配布未完了ゲートを隠していないことを確認する。STG/PROD現在状態は未取得ならUNKNOWN。\"]"
         },
         {
           "line": 9,
@@ -9241,7 +9241,7 @@
         },
         {
           "line": 8,
-          "text": "verification: [\"開始時に git status --short と git branch --list claim/DOCS-PERFECT-PRODUCT-PHILOSOPHY を確認。claimがあれば編集せずBLOCKED。なければ git branch claim/DOCS-PERFECT-PRODUCT-PHILOSOPHY を取得。claim削除はUSERのみ。\", \"bash scripts/check-docs-symbol-drift.sh\", \"git diff --check -- docs/product-philosophy.md docs/README.md\", \"git diff --name-only と git status --short を開始時baselineに比較し、tracked/staged/untracked全ての新規差分がallowlist内であることを検査する。\", \"docs/product-philosophy.md の各節を .claude/CLAUDE.md と docs/spec/specification.md §2.1 に照合。説明例の修正が既存要件の変更になっていないことをレビューする。\", \"rg -n '確認ダイアログ|明示同意|臨床の安全' docs/product-philosophy.md .claude/CLAUDE.md docs/spec/specification.md\", \"docs/README.md の全ローカルMarkdownリンクが存在し、カテゴリ集合が既存5ディレクトリとproduct-philosophyのままであることを検査する。\"]"
+          "text": "verification: [\"開始時に git status --short と git branch --list claim/DOCS-PERFECT-PRODUCT-PHILOSOPHY を確認。claimがあれば編集せずBLOCKED。なければ git branch claim/DOCS-PERFECT-PRODUCT-PHILOSOPHY を取得。claim削除はUSERのみ。\", \"bash scripts/checks/check-docs-symbol-drift.sh\", \"git diff --check -- docs/product-philosophy.md docs/README.md\", \"git diff --name-only と git status --short を開始時baselineに比較し、tracked/staged/untracked全ての新規差分がallowlist内であることを検査する。\", \"docs/product-philosophy.md の各節を .claude/CLAUDE.md と docs/spec/specification.md §2.1 に照合。説明例の修正が既存要件の変更になっていないことをレビューする。\", \"rg -n '確認ダイアログ|明示同意|臨床の安全' docs/product-philosophy.md .claude/CLAUDE.md docs/spec/specification.md\", \"docs/README.md の全ローカルMarkdownリンクが存在し、カテゴリ集合が既存5ディレクトリとproduct-philosophyのままであることを検査する。\"]"
         },
         {
           "line": 9,
@@ -9290,7 +9290,7 @@
         },
         {
           "line": 8,
-          "text": "verification: [\"開始時に git status --short と git branch --list claim/DOCS-PERFECT-SPEC を確認。claimがあれば編集せずBLOCKED。なければ git branch claim/DOCS-PERFECT-SPEC を取得。claim削除はUSERのみ。\", \"bash scripts/check-docs-symbol-drift.sh\", \"git diff --check -- docs/spec\", \"git diff --name-only と git status --short を開始時baselineに比較し、tracked/staged/untracked全ての新規差分がallowlist内であることを検査する。\", \"rg -n 'HandlePetDeath|N\\\\+1|best-effort|safety gap|fallback' docs/spec/screens/34-lstep-delivery-monitor.md docs/spec/line/lstep-integration.md docs/spec/line/architecture.md\", \"RQ-001/003を backend/internal/lstep/lstep_delivery_trigger_state.go と lstep_delivery_trigger_batch.go に再照合し、現行制約を超える保証が0件であることを独立レビューする。アプリ修正や既存安全要件の撤回をしない。\", \"frontend/src/app/routes の該当lab-device routeとscreens/settings索引の対応を照合。新規の個別仕様を増やす前に既存契約へのリンクで足りるか確認する。\", \"全spec Markdownについて採択済み要件/現在実装/外部依存の区分と根拠を確認する。UI準拠表のruntime pendingを静的検査でPASSに変えない。\"]"
+          "text": "verification: [\"開始時に git status --short と git branch --list claim/DOCS-PERFECT-SPEC を確認。claimがあれば編集せずBLOCKED。なければ git branch claim/DOCS-PERFECT-SPEC を取得。claim削除はUSERのみ。\", \"bash scripts/checks/check-docs-symbol-drift.sh\", \"git diff --check -- docs/spec\", \"git diff --name-only と git status --short を開始時baselineに比較し、tracked/staged/untracked全ての新規差分がallowlist内であることを検査する。\", \"rg -n 'HandlePetDeath|N\\\\+1|best-effort|safety gap|fallback' docs/spec/screens/34-lstep-delivery-monitor.md docs/spec/line/lstep-integration.md docs/spec/line/architecture.md\", \"RQ-001/003を backend/internal/lstep/lstep_delivery_trigger_state.go と lstep_delivery_trigger_batch.go に再照合し、現行制約を超える保証が0件であることを独立レビューする。アプリ修正や既存安全要件の撤回をしない。\", \"frontend/src/app/routes の該当lab-device routeとscreens/settings索引の対応を照合。新規の個別仕様を増やす前に既存契約へのリンクで足りるか確認する。\", \"全spec Markdownについて採択済み要件/現在実装/外部依存の区分と根拠を確認する。UI準拠表のruntime pendingを静的検査でPASSに変えない。\"]"
         },
         {
           "line": 9,
@@ -9339,7 +9339,7 @@
         },
         {
           "line": 8,
-          "text": "verification: [\"開始時に git status --short と git branch --list claim/DOCS-PERFECT-WORK を確認。claimがあれば編集せずBLOCKED。なければ git branch claim/DOCS-PERFECT-WORK を取得。claim削除はUSERのみ。\", \"bash scripts/check-docs-symbol-drift.sh\", \"git diff --check -- docs/work/README.md docs/work/phase2-deferred.md docs/work/linear-f1-f6-mapping.md docs/work/skill-reeval-2026-09-06.md docs/work/decisions\", \"git diff --name-only と git status --short を開始時baselineに比較し、tracked/staged/untracked全ての新規差分がallowlist内であることを検査する。\", \"rg -n 'Needs Human|当時|UNKNOWN|Linear|削除済み' docs/work/README.md docs/work/decisions/fable-po-recommendation.md docs/work/linear-f1-f6-mapping.md\", \"既存6 Markdownの各現在状態表現を照合日/証跡に結び付ける。Linear未照会の状態を現在確認済みと書かない。\", \"docs/work/README.md の削除zoneの全行とcoordinator入口が維持され、旧STATUS.md/PO-todo.mdの新設が0であることを確認する。\", \"docs/work/docs-perfection/** は親coordinator専有として一切変更しない。子の最終報告を親が別セッションで直列統合する。\"]"
+          "text": "verification: [\"開始時に git status --short と git branch --list claim/DOCS-PERFECT-WORK を確認。claimがあれば編集せずBLOCKED。なければ git branch claim/DOCS-PERFECT-WORK を取得。claim削除はUSERのみ。\", \"bash scripts/checks/check-docs-symbol-drift.sh\", \"git diff --check -- docs/work/README.md docs/work/phase2-deferred.md docs/work/linear-f1-f6-mapping.md docs/work/skill-reeval-2026-09-06.md docs/work/decisions\", \"git diff --name-only と git status --short を開始時baselineに比較し、tracked/staged/untracked全ての新規差分がallowlist内であることを検査する。\", \"rg -n 'Needs Human|当時|UNKNOWN|Linear|削除済み' docs/work/README.md docs/work/decisions/fable-po-recommendation.md docs/work/linear-f1-f6-mapping.md\", \"既存6 Markdownの各現在状態表現を照合日/証跡に結び付ける。Linear未照会の状態を現在確認済みと書かない。\", \"docs/work/README.md の削除zoneの全行とcoordinator入口が維持され、旧STATUS.md/PO-todo.mdの新設が0であることを確認する。\", \"docs/work/docs-perfection/** は親coordinator専有として一切変更しない。子の最終報告を親が別セッションで直列統合する。\"]"
         },
         {
           "line": 9,

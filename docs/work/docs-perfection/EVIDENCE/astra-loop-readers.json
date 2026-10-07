@@ -562,7 +562,7 @@
       {
         "path": "docs/spec/screens/CLAUDE.md",
         "basis_line": 15,
-        "body_excerpt": "1.  **情報の鮮度**: 画面変更や新機能追加の際は、速やかに該当ドキュメントを更新し、ソースコードとの乖離を防ぐ。バッククォートで言及したコンポーネント名・フック名・ファイル名はローカル必須ゲート（`make ci` 内の `scripts/check-docs-symbol-drift.sh`）が実在を機械検査する。実在しない名前はローカルゲートを失敗させる。",
+        "body_excerpt": "1.  **情報の鮮度**: 画面変更や新機能追加の際は、速やかに該当ドキュメントを更新し、ソースコードとの乖離を防ぐ。バッククォートで言及したコンポーネント名・フック名・ファイル名はローカル必須ゲート（`make ci` 内の `scripts/checks/check-docs-symbol-drift.sh`）が実在を機械検査する。実在しない名前はローカルゲートを失敗させる。",
         "classification": "symbol driftと臨床安全記述のdirectory rule",
         "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
       },
@@ -830,7 +830,7 @@
         "body_basis": [
           {
             "line": 3,
-            "text": "> `.github/workflows/*.yml` と `scripts/run-local-ci.sh` が実装の正本。この文書は契約を要約し、手作業の action/step inventory は持たない。"
+            "text": "> `.github/workflows/*.yml` と `scripts/ci/run-local-ci.sh` が実装の正本。この文書は契約を要約し、手作業の action/step inventory は持たない。"
           },
           {
             "line": 7,
@@ -842,7 +842,7 @@
           },
           {
             "line": 36,
-            "text": "実際の action version は workflow の `uses:` が正本。`scripts/check-actions-version-drift.sh` が同一 action の混在を検出する。古い version inventory は保持しない。"
+            "text": "実際の action version は workflow の `uses:` が正本。`scripts/ci/check-actions-version-drift.sh` が同一 action の混在を検出する。古い version inventory は保持しない。"
           }
         ],
         "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."

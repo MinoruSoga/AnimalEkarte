@@ -140,7 +140,7 @@ jobs:
       - name: Validate k6 summary aggregates
         if: always()
         run: |
-          node scripts/validate-k6-summary.mjs \
+          node scripts/tools/validate-k6-summary.mjs \
             load-tests/results-endpoints-summary.json \
             load-tests/results-spike-summary.json
 

@@ -119,7 +119,7 @@ if FINAL:
         review = json.loads((OUT / f"EVIDENCE/astra-loop-review-{label}.json").read_text())
         check(review["verdict"] == "PASS" and not review["critical_issues"], "independent review " + label)
     drift = (OUT / "EVIDENCE/astra-loop-drift.txt").read_text()
-    check("$ bash scripts/check-docs-symbol-drift.sh" in drift and "exit=0" in drift, "terminal drift output/exit recorded")
+    check("$ bash scripts/checks/check-docs-symbol-drift.sh" in drift and "exit=0" in drift, "terminal drift output/exit recorded")
     ledger = (OUT / "LEDGER.md").read_text()
     check(all(re.search(r"^\| A" + str(i) + r" \|.*\| PASS \|", ledger, re.M) for i in range(1, 9)), "A1-A8 reconciliation PASS")
 print("RESULT PASS phase=" + ("final" if FINAL else "draft"))

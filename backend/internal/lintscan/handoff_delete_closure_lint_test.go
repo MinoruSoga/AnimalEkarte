@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// scripts/import-old-db-handoffs-on-reset.sh clears the existing demo rows for a
+// scripts/old-db/import-old-db-handoffs-on-reset.sh clears the existing demo rows for a
 // clinic before importing a staged old_db handoff. That DELETE block runs inside a
 // single transaction with ON_ERROR_STOP=1, so one missing table aborts the whole
 // `make reset`.
@@ -25,7 +25,7 @@ import (
 // reset cycles. This gate derives the required set from the schema instead.
 
 const (
-	handoffDeleteScriptRelPath = "../scripts/import-old-db-handoffs-on-reset.sh"
+	handoffDeleteScriptRelPath = "../scripts/old-db/import-old-db-handoffs-on-reset.sh"
 	handoffDeleteMigrationFile = "migrations/001_init.sql"
 )
 

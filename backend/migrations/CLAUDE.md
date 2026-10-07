@@ -81,5 +81,5 @@ seed 側の構成は `seeds/002_master/` — CSV シードバンドル（`*.csv`
 
 - 適用済み migration（`001_init.sql` および incremental DDL）/ seed バンドル（CSV・manifest.json）を編集すると既存 DB は checksum mismatch になる
 - seed データの内容変更は CSV の手編集ではなく `cmd/seed-export` の再実行で行う（上記参照）
-- DB 非依存の最低検証は `python3 scripts/verify_seed.py`（CSV ベース）
+- DB 非依存の最低検証は `python3 scripts/old-db/verify_seed.py`（CSV ベース）
 - 運用メモ: `docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md`
