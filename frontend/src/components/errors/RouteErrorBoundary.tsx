@@ -1,11 +1,37 @@
+import { useLayoutEffect } from "react";
 import { useRouteError, isRouteErrorResponse, Link } from "react-router";
 import { AlertCircle, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ICON, C } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
+import { shouldRecoverByReload, reloadForStaleChunk } from "@/lib/stale-chunk-recovery";
+
+/**
+ * デプロイ後の古いタブは lazy import が必ず失敗する(EMR-271)。
+ * エラー画面を出す前にフルリロードで新 manifest を取り直させ、
+ * リロード不可(オフライン/連続失敗)のときだけ既存のエラー表示へ落とす。
+ */
+function useStaleChunkRecovery(error: unknown): boolean {
+  const recovering = shouldRecoverByReload(error);
+  useLayoutEffect(() => {
+    if (recovering) reloadForStaleChunk();
+  }, [recovering]);
+  return recovering;
+}
+
+function RecoveringFallback() {
+  return (
+    <div className={`flex-1 p-6 flex items-center justify-center ${C.bgPage}`}>
+      <p className={C.text50}>画面を再読み込みしています</p>
+    </div>
+  );
+}
 
 export function RouteErrorBoundary() {
   const error = useRouteError();
+  const recovering = useStaleChunkRecovery(error);
+
+  if (recovering) return <RecoveringFallback />;
 
   let title = "エラーが発生しました";
   let message = "予期しないエラーが発生しました。再度お試しください。";
@@ -39,6 +65,9 @@ export function RouteErrorBoundary() {
 
 export function RootErrorBoundary() {
   const error = useRouteError();
+  const recovering = useStaleChunkRecovery(error);
+
+  if (recovering) return <RecoveringFallback />;
 
   let message = "アプリケーションで予期しないエラーが発生しました。";
   if (isRouteErrorResponse(error)) {
