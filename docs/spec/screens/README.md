@@ -3,8 +3,11 @@
 > **目的**: 全41画面の仕様書インデックスを提供する。
 > **読者**: 新規参加エンジニア・PdM。
 > **タイミング**: 画面インデックス参照・全体像把握時。
+> **編集時のルール**: [CLAUDE.md](CLAUDE.md) を参照。
 
 本ディレクトリ直下の番号付き仕様（`[0-9]*.md`）は **41 ファイル**（フロー文書 `99-medical-record-flow` を含む）。製品ルートの product leaf 数（`route-inventory` の 87）とは数え方が異なる。各ファイルに画面の機能、レイアウト、API 連携の詳細を定義する。（2026-09-29 訂正: product leaf は 86 → 87。`/settings/bug-reports`（`BugReportsPage`、2026-09-26 コミット `48ec94c7` で追加）がルート在庫に加わった。同画面の番号付き仕様書は未作成のため、本索引の 41 ファイル数は変わらない）
+
+> 追記（2026-10-07 監査）: 番号付き仕様のない設定画面は 2 つ — `/settings/bug-reports`（`BugReportsPage`。2026-09-26 コミット `48ec94c7`。コミットメッセージに Plane チケット参照なし）と `/settings/chat-history`（`ChatHistoryPage`。2026-10-02 コミット `e9574b28a`。同様にチケット参照なし）。所有記録は上記のコミットハッシュとし、番号付き仕様書（仮番号 41: bug-reports / 42: chat-history）の作成は繰り延べ。現行の詳細契約は `settings-routes.tsx`・`features/support/` と `backend/docs/api.yaml` が保持する。本索引の 41 ファイル数は変わらない。
 
 画面の実装参照は `frontend/src/app/routes/` と各 feature、API の契約参照は `backend/docs/api.yaml` と各 domain の route 登録。GitHub Issue は本文に加えて後続の仕様訂正・集約先を確認する。Closed だけでは臨床承認・UAT・本番稼働の証明にならない。実行状態と残ゲートは [作業入口](../../work/README.md) を参照する。
 

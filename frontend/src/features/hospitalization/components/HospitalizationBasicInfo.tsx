@@ -1,6 +1,6 @@
 // External
 import { memo } from "react";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { Building2, Calendar, ShieldCheck } from "lucide-react";
 
 // Internal
@@ -86,8 +86,8 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
 }: HospitalizationBasicInfoProps) {
   const cageOptions = buildCageSelectOptions(cageItems, formData.cageId);
   return (
-    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box}`}>
-      <h2 className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 ${C.text}`}>
+    <div className={STYLE.formCard}>
+      <h2 className={`${H_STYLES.form.cardHeading} mb-3 flex items-center gap-2`}>
         <Building2 className={`${ICON.action} ${C.text60}`} />
         基本情報
       </h2>
@@ -251,6 +251,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
       </div>
 
       <NextScheduleField
+        className="mb-3"
         typeId="hospitalization-next-schedule"
         dateId="hospitalization-next-date"
         scheduleType={formData.nextVisit ? "other" : "4weeks"}
@@ -272,7 +273,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
           value={formData.memo}
           onChange={(e) => onChange({ memo: e.target.value })}
           placeholder="メモを入力..."
-          className={`min-h-[80px] ${H_STYLES.text.base} resize-none ${C.bgWhite} ${C.borderMedium} ${C.focusVisibleRingActionPrimary}`}
+          className={`min-h-20 resize-none ${C.bgWhite} ${C.borderMedium} ${C.focusVisibleRingActionPrimary}`}
         />
       </div>
     </div>

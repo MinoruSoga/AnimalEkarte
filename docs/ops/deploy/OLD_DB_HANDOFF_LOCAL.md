@@ -36,8 +36,8 @@ backend/migrations/seeds/_old_db_handoff/jouto-local/  # 任意。電話 unique 
 - `REHEARSAL_ONLY` / `PARTIAL` bundle はここに置けるが、**正式 `make csv-import` preflight は拒否**する。
 - 正式 DB 投入は manifest が `status=PASS` かつ `handoffEligibility=TRUSTED_CANDIDATE` のときだけ。
 - 共有 STG への rehearsal 投入は `make stg-uat-handoff`（城東・敷島・箱。八王子は対象外。接続は
-  `scripts/stg-uat-old-db-handoff.sh` の export と gitignored
-  `scripts/stg-uat-old-db-handoff.local.env`）。
+  `scripts/old-db/stg-uat-old-db-handoff.sh` の export と gitignored
+  `scripts/old-db/stg-uat-old-db-handoff.local.env`）。
   schema reset のあとに載せる順序・stale PASS report の退避は
   [STG_PLANETSCALE_SEED_RUNBOOK.md](./STG_PLANETSCALE_SEED_RUNBOOK.md) §6。
 - 21 CSV を `003_demo` へ直接コピーして seed 扱いしてはいけない。

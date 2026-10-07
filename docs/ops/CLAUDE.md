@@ -14,7 +14,7 @@
 
 ## 📂 ディレクトリ構成
 
-ファイル索引の正本は [README.md](README.md)（二重管理を避けるため本書には索引を置かない）。
+ファイル索引の正本は [ops/README.md](README.md)（docs/ops/ 配下の索引。二重管理を避けるため本書には索引を置かない。infra/ 配下は [infra/README.md](infra/README.md) の表が索引の正本）。
 
 ---
 

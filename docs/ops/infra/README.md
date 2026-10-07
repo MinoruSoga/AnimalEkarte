@@ -10,6 +10,8 @@
 | [production/setup.md](production/setup.md) | 本番構築前の契約。すべての runtime 項目は構築時に人手検証が必要 |
 | [production/runbook.md](production/runbook.md) | 本番運用契約。setup 完了・検証前は実行不可 |
 | [reorg-plan.md](reorg-plan.md) | **historical / unfinished plan。実行手順ではない** |
+| [cloudflare-account-separation.md](cloudflare-account-separation.md) | **現行の移行計画正本（EMR-298/302）**。Cloudflare 専用アカウント分離と noah-karte 改名の手順・承認ゲート |
+| [rename-to-noah-karte.md](rename-to-noah-karte.md) | **superseded**（2026-10-06 banner 参照）。旧リネーム計画の履歴。実行手順ではない |
 
 ```mermaid
 flowchart LR

@@ -50,7 +50,7 @@
 - Independent local serial-port agent for Mac workstations ([ADR-008](adr/008-local-lab-device-agent.md)). Not a domain and not a `medicalrecord` implementation detail（2026-09-29 訂正: 「Not a 15th domain」→ `support` が 2026-09-26 に 15 番目の domain になったため「domain でない」と読み替え）。
 - Allowed production consumer is **`cmd/lab-device-agent` only**. Do **not** import `labdeviceagent` from `internal/<domain>` or from `cmd/api`.
 - A8-5 still forbids extracting single-consumer helpers from a domain. This keep-tier exception exists because serial/platform files and tests form a cohesive local agent, not hospital workflow. Need for an in-process API consumer → new ADR, not “import the agent from a domain”.
-- Pinned as keep-tier in `acceptedTopLevelPackages` (count 37). **Not** in `domainPackages` (stay 15) and **not** on `domainImportAllowlist`（2026-09-29 訂正: 「count 36 / stay 14」→ `support` 追加で 37/15）。
+- Pinned as keep-tier in `acceptedTopLevelPackages` (count 37). **Not** in `domainPackages` (stay 15) and **not** on `domainImportAllowlist`（2026-09-29 訂正: 「count 36 / stay 14」→ `support` 追加で 37/15。2026-10-07 監査 訂正: count 37 → 2026-10-03 の SEC-W1 で `labdevicecap` が keep-tier 追加され 38/15。機械 pin は `package_boundary_gate_test.go` の `requireSetSize`）。
 
 ### A8-7 — `seedlogin` is an explicit non-production exception
 

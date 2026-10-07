@@ -1,7 +1,7 @@
 # Badge
 
 > ステータス表示バッジ。配置: `frontend/src/components/ui/badge.tsx`（variants: `badge-variants.ts`）
-> 使用箇所: 約 17 ファイル + `BADGE.*` トークンが status-helpers 経由で数十ステータスに波及 / Storybook: 未作成
+> 使用箇所: 約 17 ファイル + `BADGE.*` トークンが status-helpers 経由で数十ステータスに波及 / Storybook: `badge.stories.tsx`
 
 ## Anatomy
 
@@ -23,4 +23,4 @@
 
 ## 既知のギャップ（重要）
 
-- **コントラスト実測で 6/8 コンボが AA 通常文字未達** — design-states.md §2.1 の表と §2.3 の是正案を参照。`BADGE.gray`（死亡）は 2.38:1 と最悪値であり、臨床 sentinel の可読性問題として優先度高。是正は背景維持・文字暗色化の方針で提案済み（要決裁）。
+- **コントラスト是正済み（2026-09-30 実装）**: 是正前の実測（6/8 コンボが AA 通常文字未達、`BADGE.gray` 死亡 sentinel は 2.38:1）は design-states.md §2.1 のベースライン表に記録済み。実装は §2.3 のとおり `C.textBadge*`（`BADGE.*` の text 参照を差替え、パステル背景は据え置き。`design-tokens.ts` の `C` セクションにメンバ定義）。機械検証は design-token-layers.md §6 C23（全 `BADGE.*` コンボ ≥4.5:1 を design-audit が検証）。

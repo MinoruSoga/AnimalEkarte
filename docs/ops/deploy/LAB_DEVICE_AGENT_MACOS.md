@@ -29,7 +29,7 @@ UAT bundleは信頼済みの共有経路で渡し、build時に表示されたma
 ```bash
 # allowed-origin は配布先frontendの正確な https origin（pathなし）
 # LAB_DEVICE_AGENT_CONSUMER_TOKEN は承認済み経路で設定済みであること
-./scripts/build-lab-device-agent-bundle.sh <医院ID> <https://配布先origin> <新しい出力ディレクトリ>
+./scripts/lab-device/build-lab-device-agent-bundle.sh <医院ID> <https://配布先origin> <新しい出力ディレクトリ>
 ```
 
 クライアントはbundle内で次を実行する。
@@ -41,7 +41,7 @@ UAT bundleは信頼済みの共有経路で渡し、build時に表示されたma
 開発端末から直接導入する場合だけ、Dockerのbackendコンテナを起動した状態で次を使用できる。
 
 ```bash
-./scripts/install-lab-device-agent.sh <医院ID> <https://配布先origin>
+./scripts/lab-device/install-lab-device-agent.sh <医院ID> <https://配布先origin>
 ```
 
 インストール後、配布時に指定した frontend origin の `/lab-device`（開発端末は `http://localhost:3003/lab-device`）の「ローカル受信機」が「稼働中」になり、監視ポート数が表示される。USBを選択する操作はない。

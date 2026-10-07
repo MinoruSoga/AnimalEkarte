@@ -87,7 +87,7 @@ DNS の用途根拠: `infra/cloudflare/zone.tf:98`、`infra/cloudflare/zone.tf:1
 | docker volumes / image | ekarte-postgres-data 等 / ekarte-frontend:latest | noah_karte_postgres_data / noah_karte_frontend_node_modules / noah_karte_go_mod_cache / noah_karte_go_build_cache / noah_karte_frontend:latest | `docker-compose.yml:93`、`docker-compose.yml:207`、`docker-compose.yml:209`、`docker-compose.yml:211`、`docker-compose.yml:213` |
 | ローカル/テスト DB | animal_ekarte / animal_ekarte_test | noah_karte / noah_karte_test。ホスト済み PlanetScale DB の改名ではない | `.github/workflows/performance-tests.yml:25`、`backend/internal/reservation/reservation_created_by_fk_test.go:72` |
 | macOS label/plist | com.animalekarte.lab-device-agent | com.noah-karte.lab-device-agent / 同名.plist | `packaging/macos/com.animalekarte.lab-device-agent.plist:6` |
-| macOS install dir / build temp | Application Support/AnimalEkarte / animalekarte-lab-device-agent-* | Application Support/Noah Karte / noah-karte-lab-device-agent-* | `scripts/install-lab-device-agent.sh:27`、`scripts/build-lab-device-agent-bundle.sh:36` |
+| macOS install dir / build temp | Application Support/AnimalEkarte / animalekarte-lab-device-agent-* | Application Support/Noah Karte / noah-karte-lab-device-agent-* | `scripts/lab-device/install-lab-device-agent.sh:27`、`scripts/lab-device/build-lab-device-agent-bundle.sh:36` |
 | npm package / docs/UI | animal-ekarte-frontend / AnimalEkarte 等 | noah-karte-frontend / Noah Karte（URL は noah-karte.com） | `frontend/package.json:2`、`SECURITY.md:1`、`docs/ops/infra/rename-to-noah-karte.md:38` |
 
 DB/docker の underscore と container 自動 suffix の hyphen、macOS reverse-domain label は層の仕様による例外。会社名・Plane identifier `EMR` は製品名ではなく維持する。通常 API singleton は製品名を含まないため今回の2 named instance の改名とは区別する。
@@ -122,7 +122,7 @@ DB/docker の underscore と container 自動 suffix の hyphen、macOS reverse-
 | `.github/workflows/stg-smoke.yml:18` | API 正規 hostname |
 | `infra/scripts/cf-run-migrate.sh:16` | API 正規 hostname。ただし移行中の migration dispatch は停止 |
 | `infra/scripts/cf-crud-smoke.sh:23` | API 正規 hostname |
-| `scripts/manual-sync.py:55` | API 正規 hostname |
+| `scripts/tools/manual-sync.py:55` | API 正規 hostname |
 | `load-tests/k6-cf-stg-sustained.js:56` | API 正規 hostname |
 | `SECURITY.md:91` | dated live 記録を保全し、新 hostname の検証日付き記録を追加。値の機械置換で履歴を改ざんしない |
 | `docs/ops/infra/rename-to-noah-karte.md:27` | 旧方針撤回と新 account/正規 hostname の対応を追記する後続タスク |

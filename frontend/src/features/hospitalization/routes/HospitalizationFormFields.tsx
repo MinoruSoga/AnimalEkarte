@@ -49,7 +49,6 @@ export interface HospitalizationFormFieldsProps {
   treatmentPlans: HospitalizationTreatmentPlan[];
   totals: {
     subtotalBeforeDiscount: number;
-    subtotalAfterDiscount: number;
     consumptionTax: number;
     total: number;
   };

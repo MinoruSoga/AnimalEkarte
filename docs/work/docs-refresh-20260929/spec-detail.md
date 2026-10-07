@@ -47,6 +47,6 @@
 ## 検証
 
 - `git diff --check -- docs/spec` → exit 0（whitespace エラーなし）
-- `bash scripts/check-docs-symbol-drift.sh` → `NG docs-symbol-drift: 3 件のドリフト（検査トークン 608 件）`（ベースラインと同一。全件 allowlist 外ファイル起因）
+- `bash scripts/checks/check-docs-symbol-drift.sh` → `NG docs-symbol-drift: 3 件のドリフト（検査トークン 608 件）`（ベースラインと同一。全件 allowlist 外ファイル起因）
 - `git status --porcelain` → `M docs/spec/screens/31-lstep-integration.md`、`M docs/spec/screens/38-liff-pet-health.md`、?? `docs/work/docs-refresh-20260929/spec-detail.md` のみ
 - allowlist 外差分: **なし**

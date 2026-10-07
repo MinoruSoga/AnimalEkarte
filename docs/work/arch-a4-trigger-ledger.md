@@ -1,0 +1,38 @@
+# ARCH-A4 trigger ledger
+
+> **Purpose**: Immutable historical record of the 2026-08-07 ARCH-A4 measurement and landed slices. Pain-first; no bulk splits.
+> **Status**: Historical snapshot. `todo.md` no longer has an ARCH-A4 / #259 task pointer. Execution SoT is Plane workspace `baritechllc` project `EMR` (hub `EMR-1`); no active ARCH-A4 work item was verified for this refresh. Remeasure HEAD before using any candidate below.
+> （2026-09-29 訂正: 「Linear/BRT-4 is the execution SoT」→ Linear closed 2026-09-16; execution SoT moved to Plane `EMR`. `BRT-4` is a historical case alias only）
+> **Related**: [composition-root-conventions](../architecture/composition-root-conventions.md).（2026-10-06 移動注記: 本書は `docs/architecture/` から `docs/work/` へ移動したため参照パスを修正）
+
+```mermaid
+flowchart LR
+    trig[着手トリガー] --> remeasure[HEAD 再実測]
+    remeasure --> decide{痛みを実測で確認?}
+    decide -->|yes| slice[同一 package へ小さい slice 抽出・挙動不変]
+    decide -->|no / blocked| nobulk[no bulk — convert on touch]
+    slice --> record[landed slice として本 ledger に記録]
+```
+
+## 2026-08-07 measurement
+
+| Subdomain | Trigger from todo | Evidence | Decision |
+|-----------|-------------------|----------|----------|
+| **lstep** | LINE 再開 #259 直前 | todo-po: #259 **依存待ち**（先方 enable 後） | **blocked** |
+| **billing** | estimate/accounting/billing_item PR が広域 | `billing_item_service.go` **993 → 872** LOC; unbilled 凝集が独立; recent unbilled/billing-item commits | **S1 landed** (unbilled extract) |
+| **reservation** | intent/service 肥大の痛み | `reservation_service.go` 666, repository 826; `map[string]any` は owner 内 primitive として残存 | **no bulk** — convert on touch only |
+
+## Landed slices
+
+| Slice | Change | Commit |
+|-------|--------|--------|
+| **A4-billing-S1** | Extract unbilled aggregation helpers to `billing_item_unbilled.go` (same package, behavior unchanged) | `eca651da3` |
+| **A4-billing-S2** | Extract unbilled repo queries to `billing_item_repository_unbilled.go` (769 → ~559 + 224, behavior unchanged) | `13d043315` |
+| **A4-billing-S3** | Extract estimate successor path to `estimate_service_successor.go` (598 → ~475 + 137, behavior unchanged) | `264777c88` |
+
+## Historical next candidates (as of 2026-08-07; remeasure before use)
+
+1. **billing_item_service residual** (post-close / create helpers) — only when a feature PR already forces wide touch.  
+2. **accounting_*.go** further cohesion — only with accounting feature work.  
+3. **reservation_intent_repository.go** (~626) — only when intent API changes already force large touch.  
+4. **lstep** batch/tag/delivery — after #259 unblocked.

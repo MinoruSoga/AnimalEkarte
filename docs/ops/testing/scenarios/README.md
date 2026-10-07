@@ -60,7 +60,7 @@
 | [S39](S39-state-feedback-visibility.md) | 状態フィードバック — loading・空・エラー・disabled・フォーカスの可視性 | UI/a11y | 中 |
 | [S40](S40-reception-return-navigation.md) | 受付ボード → 別ページ → 戻る で選択日ボードへ復帰 | 回帰/遷移 | 中 |
 
-実行順の制約: S01 を最初に、S10 は S08 の後。S13・S14〜S39 は独立。それ以外は任意順。S21 は `billing-schema-readiness` の DB 制約ゲート、S28 は医院承認の項目表、S23 は複数医院 fixture が前提 — 前提未充足のシナリオは BLOCKED として扱い、スキップを PASS にしない。
+実行順の制約: S01 を最初に、S10 は S08 の後。S13・S14〜S40 は独立。それ以外は任意順。S21 は `billing-schema-readiness` の DB 制約ゲート、S28 は医院承認の項目表、S23 は複数医院 fixture が前提 — 前提未充足のシナリオは BLOCKED として扱い、スキップを PASS にしない。
 
 ```mermaid
 flowchart TB
@@ -71,7 +71,7 @@ flowchart TB
         S28["S28 — 医院承認の項目表"]
         S23["S23 — 複数医院 fixture"]
     end
-    IND["S13・S14〜S39 — 独立（各ファイル冒頭の前提条件を満たした環境で実行）"]
+    IND["S13・S14〜S40 — 独立（各ファイル冒頭の前提条件を満たした環境で実行）"]
 ```
 
 機器クライアントの独立確認票: [LAB_DEVICE_CLIENT_UAT.md](LAB_DEVICE_CLIENT_UAT.md)（NX600/AU10V。未確定機器を PASS にしない）。
@@ -106,7 +106,7 @@ flowchart TB
 - **環境**: 自動投入されるのは `002_master` の参照マスタだけ。各シナリオに記載した合成 fixture を、承認済み UAT skeleton/import 手順でローカルの使い捨て clinic に作成する。手順の正本が `../UAT-ENV-SETUP.md` で修正済みであることを実行前に確認する。共有 STG、既存患者・飼主、固定 ID は使用しない。
 - **実行記録はシナリオファイルに書かない**。証跡は gitignore の `reports/uat-YYYY-MM-DD/`（results は `formId.fieldKey.Fx` 推奨）。
 - **製品 FAIL は `todo.md#product-bugs` 必須**（確認済みのみ · 見出し重複禁止 · env/権限 BLOCKED は書かない）。PARTIAL は todo.md#product-bugs にしない。Plane item 化は後続レーン（2026-09-29 訂正: Linear Issue 化 → Plane item 化。Linear は 2026-09-16 に閉鎖済みで実行 SoT は Plane `baritechllc`/`EMR`）。
-- **S シリーズは core 受入**: local では S01→S39 を実施し FINAL を書く。V シリーズは項目単位の別軸（inventory 全 fieldKey）。「全て実施」は少なくとも core S の実行完了を指し、FAIL/PARTIAL/BLOCKED が残る場合は「全て PASS」と言わない。S14〜S39 は各ファイル冒頭の前提条件（fixture・権限・ゲート）を満たした環境でのみ実行する。
+- **S シリーズは core 受入**: local では S01→S40 を実施し FINAL を書く。V シリーズは項目単位の別軸（inventory 全 fieldKey）。「全て実施」は少なくとも core S の実行完了を指し、FAIL/PARTIAL/BLOCKED が残る場合は「全て PASS」と言わない。S14〜S40 は各ファイル冒頭の前提条件（fixture・権限・ゲート）を満たした環境でのみ実行する。
 - **AI 実行**: browser-test + Chrome DevTools MCP、または Playwright MCP / 再現スクリプト。
 - **【要実測】**: 観測結果を実装/テスト/承認済み仕様と照合する。観測だけで期待結果へ昇格せず、仕様判断が残る場合は PARTIAL/BLOCKED。
 - **クレデンシャル禁止**: パスワード・トークンを本ディレクトリに書かない。アカウントはロール名。認証は `E2E_LOGIN_*`。

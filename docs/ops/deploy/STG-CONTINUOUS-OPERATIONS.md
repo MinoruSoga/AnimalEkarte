@@ -65,11 +65,7 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://api.stg.noah-karte.com/health
 
 **期待結果**: HTTP `200`
 
-**確認ポイント**:
-
-- 実 URL が失敗した場合は workers.dev の `/health` も確認し、DNS / route と Worker / Container を切り分ける
-- イメージ更新を伴うデプロイ後は旧イメージが残りうるため、15 分静置後にも再確認する
-- GitHub Actions `backend-deploy.yml` の deploy / migrate / post-migrate health がすべて成功していること
+**確認ポイント**: GitHub Actions `backend-deploy.yml` の deploy / migrate / post-migrate health がすべて成功していること。実 URL と workers.dev の比較・切り分け、デプロイ直後の 15 分静置を含む triage 手順の正本は [`../infra/staging/runbook.md`](../infra/staging/runbook.md) の Incident triage。
 
 ---
 
@@ -79,11 +75,7 @@ Cloudflare Dashboard の Workers Logs / Containers で、デプロイ時刻以�
 request error を確認する。Workers Logs はインフラ障害調査用で、カルテの変更監査は
 DB の `audit_logs` が正本。
 
-**異常時**:
-
-- 全断 + DB 接続エラーなら、`DB_MAX_OPEN_CONNS` / `DB_MAX_IDLE_CONNS` と PlanetScale 接続枯渇を確認
-- Cloudflare 側の障害情報は https://www.cloudflarestatus.com/ で確認
-- 切り分けと復旧は [STG 運用 Runbook](../infra/staging/runbook.md) に従う
+**異常時**: 切り分けと復旧は [STG 運用 Runbook](../infra/staging/runbook.md) の Incident triage に従う（接続プール・provider status の確認を含む）。Cloudflare 側の障害情報は https://www.cloudflarestatus.com/ で確認。
 
 ---
 
@@ -138,7 +130,7 @@ Container stdout は Worker の request log と別の表示面になる場合が
 - Cookie 検証（F12 → Application → Cookies）
 - Token 期限確認（`refresh_token` が残っているか）
 
-参考: [VERCEL-FRONTEND-STAGING-TEST.md](./VERCEL-FRONTEND-STAGING-TEST.md)
+**現行確認手順**: `frontend-deploy.yml` の smoke / `npx wrangler tail animalekarte-stg-frontend`（旧 VERCEL-FRONTEND-STAGING-TEST.md は Vercel 時代の手順で rollback 期間中の参照専用）
 
 ---
 
@@ -255,17 +247,7 @@ Demo login account は `002_master` には含まれず、許可された `APP_EN
 
 **症状**: `curl: (7) Failed to connect to...` または HTTP 503
 
-**診断**:
-
-1. 実 URL と workers.dev の `/health` を比較する
-2. GitHub Actions `backend-deploy.yml` の直近 run を step 単位で確認する
-3. Cloudflare Dashboard の Workers Logs / Containers を確認する
-4. Cloudflare status と PlanetScale 接続枯渇を確認する
-
-**対処**:
-- デプロイ直後なら 15 分静置して旧イメージ残留を除外する
-- Cloudflare 側の修正・再デプロイを行う
-- 基盤喪失時はスナップショットと現行 IaC から再建する（AWS への切り戻し先はない）
+**診断・対処**: [`../infra/staging/runbook.md`](../infra/staging/runbook.md) の Incident triage に従う（実 URL と workers.dev の `/health` 比較、Actions run の step 確認、Workers Logs / Containers、provider status と PlanetScale 接続枯渇、デプロイ直後の 15 分静置、Cloudflare 側の修正・再デプロイ）。基盤喪失時はスナップショットと現行 IaC から再建する（AWS への切り戻し先はない）。
 
 ---
 
@@ -273,16 +255,7 @@ Demo login account は `002_master` には含まれず、許可された `APP_EN
 
 **症状**: Cloudflare Observability で ERROR/FATAL または 5xx が急増
 
-**診断**:
-
-- Worker request log と Container log を分けて確認する
-- DB 接続エラー、Container の起動/OOM、権限・secret 不足を分類する
-- `backend-deploy.yml` の migrate / health step と発生時刻を突合する
-
-**対処**:
-- DB 接続エラー: PlanetScale 状態と接続スロット、10/5 の接続プール設定を確認
-- Container 起動エラー: 直近デプロイ差分と Cloudflare Containers の観測結果を確認
-- Permission / secret エラー: Cloudflare Worker secrets と GitHub Secrets の同期を確認
+**診断・対処**: [`../infra/staging/runbook.md`](../infra/staging/runbook.md) の Incident triage に従う（Worker request log と Container log の分離、DB 接続エラー時の PlanetScale 状態と接続スロット確認を含む）。本書固有の確認: Container の起動/OOM は直近デプロイ差分と Cloudflare Containers の観測結果、Permission / secret エラーは Cloudflare Worker secrets と GitHub Secrets の同期を確認する。
 
 ---
 
@@ -303,5 +276,5 @@ Demo login account は `002_master` には含まれず、許可された `APP_EN
 - [README.md](./README.md) - デプロイメント・運用ドキュメント（障害判定、コマンド集）
 - [CI-CD-PIPELINE.md](./CI-CD-PIPELINE.md) - 自動デプロイ・手動トリガー
 - [CRUD-SMOKE-TEST.md](./CRUD-SMOKE-TEST.md) - CRUD 操作テスト詳細
-- [VERCEL-FRONTEND-STAGING-TEST.md](./VERCEL-FRONTEND-STAGING-TEST.md) - フロントエンド検証
+- [VERCEL-FRONTEND-STAGING-TEST.md](./VERCEL-FRONTEND-STAGING-TEST.md) - フロントエンド検証 — 旧手順（rollback 期間中の参照専用）
 - [STG-DEMO-DATA-LIFECYCLE.md](./STG-DEMO-DATA-LIFECYCLE.md) - データ分類とライフサイクル

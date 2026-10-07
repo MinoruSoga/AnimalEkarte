@@ -7,6 +7,8 @@
 
 ## 0. Build-time API target
 
+> 追記（2026-10-07 監査）: `VITE_API_URL` ビルド契約は EMR-255 で廃止（現行契約は [CI-CD-PIPELINE.md §3](./CI-CD-PIPELINE.md) — same-origin service binding、`VITE_API_URL` 注入なし）。本書の §0 記述は Vercel 時代の履歴である。
+
 現行 `frontend-deploy.yml` は `VERCEL_ENV=preview|production` を渡してビルドする。`frontend/vite.config.ts` はその値で `VITE_API_URL` を STG / production の絶対 API URL に固定し、`frontend/src/lib/axios.ts` が baseURL に使う。STG の通常 request は `https://api.stg.noah-karte.com/api/...` へ直接向かう。
 
 prebuilt `.vercel/output/config.json` に `/api` rewrite はないが、上記の絶対 URL 経路に rewrite は不要。過去の「rewrite 欠落だけで login 全体 BLOCKED」という判定はこの build contract と一致しない。別の build path で same-origin `/api` を使う場合は、API JSON/status を返す rewrite が必要であり、SPA HTML への fallback は失敗とする。

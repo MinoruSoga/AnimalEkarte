@@ -78,6 +78,8 @@ flowchart TB
 
 ### 参照正本（コード）
 
+> 2026-10-06 注記: 下表の処方行リンク（`prescription_service.go` / `prescription_repository.go`）は歴史参照。処方（prescriptions）テーブル・経路は `backend/migrations/014_drop_prescriptions.sql` で廃止されており、該当ファイルは現行ツリーに存在しない（参照先は 014 適用前の git 履歴）。
+
 | 経路 | Service Update | Repository Update | 子行ロック | 親 draft 直列化 |
 | --- | --- | --- | --- | --- |
 | 治療 | [treatment_service_tx.go](../../../backend/internal/medicalrecord/treatment_service_tx.go) `updateTreatmentInTx` | [treatment_repository.go](../../../backend/internal/medicalrecord/treatment_repository.go) `Update`（version 述語なし） | `LockByIDForUpdate`（ambient tx 必須・SEC-CS-F09） | `lockDraftMedicalRecord` |

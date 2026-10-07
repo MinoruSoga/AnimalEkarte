@@ -23,7 +23,7 @@ def source_files(directory: Path):
 
 
 def command_wrapper(root: Path, source: Path) -> bytes:
-    helper = root / "scripts/yaml-frontmatter-description.mjs"
+    helper = root / "scripts/checks/yaml-frontmatter-description.mjs"
     if helper.is_symlink() or not helper.is_file():
         raise ValueError("missing or symlinked frontmatter helper")
     result = subprocess.run(["node", str(helper), str(source)], capture_output=True, text=True)

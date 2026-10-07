@@ -6,7 +6,44 @@ import { describe, expect, it, vi } from "vitest";
 import type { MasterItem } from "@/types";
 
 import type { HospitalizationFormData } from "../types";
+
 import { HospitalizationBasicInfo } from "./HospitalizationBasicInfo";
+
+const FORM_DATA: HospitalizationFormData = {
+  hospitalizationType: "入院",
+  ownerName: "山田 花子",
+  species: "犬",
+  petName: "ポチ",
+  petNumber: "P-0001",
+  petInsurance: "",
+  petDetails: "",
+  visit: "",
+  nextVisit: "",
+  weight: "",
+  displayDate: "2026-10-07",
+  endDate: "",
+  memo: "",
+  ownerRequest: "",
+  staffNotes: "",
+  doctorId: "",
+  doctorName: "",
+  cageId: "",
+  isInsurance: false,
+  insuranceCompanyName: "",
+  insuranceNumber: "",
+};
+
+function renderBasicInfo(overrides: Partial<HospitalizationFormData> = {}) {
+  return render(
+    <MemoryRouter>
+      <HospitalizationBasicInfo
+        formData={{ ...FORM_DATA, ...overrides }}
+        onChange={vi.fn()}
+        cageItems={[]}
+      />
+    </MemoryRouter>,
+  );
+}
 
 const cage = (id: string, name: string, overrides: Partial<MasterItem> = {}): MasterItem => ({
   id,
@@ -44,7 +81,7 @@ function makeFormData(overrides: Partial<HospitalizationFormData> = {}): Hospita
   };
 }
 
-function renderBasicInfo(cageItems: MasterItem[], formData = makeFormData()) {
+function renderBasicInfoWithCages(cageItems: MasterItem[], formData = makeFormData()) {
   render(
     <MemoryRouter>
       <HospitalizationBasicInfo formData={formData} onChange={vi.fn()} cageItems={cageItems} />
@@ -52,10 +89,45 @@ function renderBasicInfo(cageItems: MasterItem[], formData = makeFormData()) {
   );
 }
 
+describe("HospitalizationBasicInfo", () => {
+  it("カードは DESIGN.md の24px余白・heading-3見出しに従う", () => {
+    renderBasicInfo();
+
+    const heading = screen.getByRole("heading", { name: "基本情報" });
+    expect(heading).toHaveClass("text-heading-3", "font-bold");
+
+    const card = heading.closest("div.rounded-lg");
+    expect(card).toHaveClass("p-6");
+    expect(card).not.toHaveClass("p-2");
+  });
+
+  it("「次回の予定」ブロックと「メモ」の間に12pxの余白を確保する", () => {
+    renderBasicInfo();
+
+    const nextScheduleBlock = screen.getByText("次回の予定").closest("div.space-y-2");
+    expect(nextScheduleBlock).toHaveClass("mb-3");
+  });
+
+  it("メモ textarea は共有 Textarea 既定の text-sm(15px) に任せる", () => {
+    renderBasicInfo();
+
+    const memo = screen.getByRole("textbox", { name: "メモ" });
+    expect(memo).toHaveClass("min-h-20");
+    expect(memo).not.toHaveClass("text-base");
+  });
+
+  it("保険入力欄は text-base(16px) のまま据え置く", () => {
+    renderBasicInfo({ isInsurance: true });
+
+    expect(screen.getByRole("textbox", { name: "保険会社名" })).toHaveClass("text-base");
+    expect(screen.getByRole("textbox", { name: "保険番号" })).toHaveClass("text-base");
+  });
+});
+
 describe("HospitalizationBasicInfo ケージ選択肢 (EMR-306)", () => {
   it("連結メンバーを候補から除外し、代表ケージはメンバー名を ' + ' 連結したラベルで表示する", async () => {
     const user = userEvent.setup();
-    renderBasicInfo([
+    renderBasicInfoWithCages([
       cage("10", "A-1", { description: "大型犬用" }),
       // A-3 を A-2 より先に置き、メンバー順が cageItems 順であることも証明する
       cage("12", "A-3", { mergedIntoCageId: "10" }),
@@ -76,7 +148,7 @@ describe("HospitalizationBasicInfo ケージ選択肢 (EMR-306)", () => {
 
   it("フォーム現在値がメンバーケージを指す場合、そのケージは通常ラベルで候補に残す", async () => {
     const user = userEvent.setup();
-    renderBasicInfo(
+    renderBasicInfoWithCages(
       [
         cage("10", "A-1"),
         cage("11", "A-2", { mergedIntoCageId: "10", description: "連結前の個室" }),

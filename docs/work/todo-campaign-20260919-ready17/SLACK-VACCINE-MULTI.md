@@ -1,6 +1,7 @@
 # SLACK-VACCINE-MULTI: 登録失敗 vs 同日 2–3 件の順次保存（batch API を捏造しない）
 
 > 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-105`。本文の「READY」「PO 残」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+> 再検証記録（2026-10-06 監査）: カルテ内（in-chart）経路の検証は [emr-105-vaccine-multi-20261002.md](../emr-105-vaccine-multi-20261002.md)（2026-10-02）で実行済み — 検証済み・FAIL なし・プロダクトコード変更なし（テスト追加のみ）。
 
 状態: **経路分離 READY／自動回帰（F 失敗 + S 同日順次単件 POST）追加済／batch UX・実機受入は PO 残**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-VACCINE-MULTI`（L142–146、索引 L427）。保持する現場条件:
 

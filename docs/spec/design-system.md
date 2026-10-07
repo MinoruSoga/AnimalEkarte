@@ -128,7 +128,9 @@ DESIGN.md の Semantic 節は「Notion の*マーケ表面*は専用 semantic ra
 - **primary（構造色）と brand（製品識別色）をステータスや装飾に使わない**。値変更時は消費者を操作・製品識別・ステータス・装飾で必ず仕分ける。
 - **外部ブランド例外**: LINE 公式グリーン `#06C755`（`PALETTE.lineGreen`）は外部ブランド識別のため構造色ルールの対象外。構造・CTA には使わない。
 
-### 2.7 適用範囲外（媒体が異なる面・FE11 明文化）
+### 2.6 適用範囲外（媒体が異なる面・FE11 明文化）
+
+> 追記（2026-10-07 監査）: 旧 §2.7（適用範囲外）が旧 §2.6（マッピング表）より先に記載される採番崩れを修正 — 適用範囲外=§2.6、`design-tokens.ts` マッピング表=§2.7 に採番し直した。外部参照（design-token-layers.md §3）は同時更新済み。
 
 本規約は**画面 UI（screen chrome）**を対象とする。以下は媒体が異なり要件も異なるため対象外とし、それぞれの内部で一貫していればよい:
 
@@ -140,7 +142,7 @@ DESIGN.md の Semantic 節は「Notion の*マーケ表面*は専用 semantic ra
 
 > 対象外にする場合は**必ず本節に列挙する**。列挙のない暗黙の除外は「対象ゼロ」を「全件合格」に見せかけるため禁止。
 
-### 2.6 `design-tokens.ts` マッピング表
+### 2.7 `design-tokens.ts` マッピング表
 
 | 役割 | DESIGN.md トークン | 製品採用値 | design-tokens.ts（製品決定同期） |
 |---|---|---|---|
@@ -414,6 +416,6 @@ TypeScriptから参照する共有デザイントークンは`design-tokens.ts`�
 - **`frontend/src/lib/design-tokens.ts`**: `PALETTE`（raw hex）、`C`（Tailwind クラス）、`STYLE`（複合クラスプリセット）、`LAYOUT`（寸法）、`BADGE`（バッジ配色コンボ）、`ICON`（アイコンサイズ）。
 - 新しい色を追加する場合は、必ず `design-tokens.ts` に追加した上でコンポーネントから参照する。**コンポーネント内での hex 直書きは禁止。**
 - **静的クラス生成**: Tailwind が検出できる完全なクラス文字列をトークンとして定義する。`hover:${C.x}`、`focus:${C.x}`、`text-[${value}]` のような実行時合成は CSS が生成されないため禁止する。[design audit の C20](../../frontend/scripts/design-system-audit.mjs) がこれらの形を検出する（コメントを除外）。
-- **規約 vs 実装**: 本書 §2.6 のとおり、brand と primary は tokens・`globals.css` で意味名を分けつつ、値は `#038B94`（active `#027078`）へ統一する。compatibility 用 `PALETTE.accent` は旧値 `#2383E2` を保持するが、存在しない `C.accent` の consumption は audit C1 が機械的に禁止する。
+- **規約 vs 実装**: 本書 §2.7 のとおり、brand と primary は tokens・`globals.css` で意味名を分けつつ、値は `#038B94`（active `#027078`）へ統一する。compatibility 用 `PALETTE.accent` は旧値 `#2383E2` を保持するが、存在しない `C.accent` の consumption は audit C1 が機械的に禁止する。
 
 ---

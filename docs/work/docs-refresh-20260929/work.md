@@ -55,7 +55,7 @@
 | コマンド | 結果 |
 |---|---|
 | `git diff --check -- docs/work` | exit 0（空白・競合マーカーなし） |
-| `bash scripts/check-docs-symbol-drift.sh` | exit 1 — 既存ドリフト（テーブル数 128/130 ×3）。**stash して base で再実行しても同一 FAIL** のため本変更由来ではない（既存 NG / allowlist 外） |
+| `bash scripts/checks/check-docs-symbol-drift.sh` | exit 1 — 既存ドリフト（テーブル数 128/130 ×3）。**stash して base で再実行しても同一 FAIL** のため本変更由来ではない（既存 NG / allowlist 外） |
 | `git status --porcelain` | 変更は `docs/work/` 配下 45 ファイル + 本票のみ。allowlist 外 diff なし、`docs-perfection/**`・`docs-refresh-20260929/**`（本票を除く）への変更なし |
 | アプリ runtime / `go test` / `pnpm lint` / `pnpm build` / `make codegen` | SKIP（docs-only 変更のため不要・heavyweight 禁止に従い未実施） |
 

@@ -39,4 +39,4 @@ jobs:
       # 同一 action の複数バージョン混在はこのスクリプトで機械的に fail させる。
       - name: Check actions version drift
         shell: bash
-        run: bash scripts/check-actions-version-drift.sh
+        run: bash scripts/ci/check-actions-version-drift.sh

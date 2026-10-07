@@ -24,7 +24,7 @@ class SkillMirrorTest(unittest.TestCase):
         (self.root / ".claude/rules/safety.md").write_text("safe rule\n")
         self.command = self.root / ".claude/commands/demo.md"
         self.command.write_text('---\ndescription: "Quote \\"value\\" and backslash \\\\ with 日本語"\n---\n\nBody\n---\nend\n')
-        shutil.copyfile(PROJECT / "scripts/yaml-frontmatter-description.mjs", self.root / "scripts/yaml-frontmatter-description.mjs")
+        shutil.copyfile(PROJECT / "scripts/checks/yaml-frontmatter-description.mjs", self.root / "scripts/checks/yaml-frontmatter-description.mjs")
 
     def run_sync(self, success=True):
         result = subprocess.run([sys.executable, "-B", str(SCRIPT), str(self.root)], capture_output=True, text=True)
