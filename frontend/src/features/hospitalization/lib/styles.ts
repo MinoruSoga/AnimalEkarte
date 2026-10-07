@@ -1,6 +1,8 @@
 import { C } from "@/lib/design-tokens";
 
-// タブレットアクセシビリティ（高密度・大文字・小余白）のためのスタイル定数
+// 入院機能のスタイル定数。text/padding/button/gap/layout はタブレットアクセシビリティ向け
+// （高密度・大文字・小余白）。form は登録フォームの大余白カード用で、カード枠自体は
+// 共有トークン STYLE.formCard（design-tokens.ts）を使う。
 export const H_STYLES = {
   text: {
     base: "text-base leading-snug",
@@ -29,5 +31,8 @@ export const H_STYLES = {
   layout: {
     section_mb: "mb-2",
     card_mb: "mb-1",
+  },
+  form: {
+    cardHeading: `text-heading-3 font-bold ${C.text}`,
   },
 } as const;

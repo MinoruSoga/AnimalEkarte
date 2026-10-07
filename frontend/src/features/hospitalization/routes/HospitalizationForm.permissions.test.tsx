@@ -135,7 +135,6 @@ beforeEach(() => {
     calculateTotals: () => ({
       subtotalBeforeDiscount: 0,
       discountAmount: 0,
-      subtotalAfterDiscount: 0,
       consumptionTax: 0,
       total: 0,
     }),
@@ -211,7 +210,6 @@ describe("HospitalizationForm — mutation permission boundary", () => {
       calculateTotals: () => ({
         subtotalBeforeDiscount: 0,
         discountAmount: 0,
-        subtotalAfterDiscount: 0,
         consumptionTax: 0,
         total: 0,
       }),
@@ -260,7 +258,6 @@ describe("HospitalizationForm BUG-016 not-found gate", () => {
       calculateTotals: () => ({
         subtotalBeforeDiscount: 0,
         discountAmount: 0,
-        subtotalAfterDiscount: 0,
         consumptionTax: 0,
         total: 0,
       }),
@@ -296,7 +293,6 @@ describe("HospitalizationForm BUG-016 not-found gate", () => {
       calculateTotals: () => ({
         subtotalBeforeDiscount: 0,
         discountAmount: 0,
-        subtotalAfterDiscount: 0,
         consumptionTax: 0,
         total: 0,
       }),
