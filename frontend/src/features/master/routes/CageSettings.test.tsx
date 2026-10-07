@@ -31,7 +31,12 @@ vi.mock("@/hooks/use-auth", () => ({
   }),
 }));
 
-function makeCage(id: number, name: string, overrides: Partial<ModelCage> = {}): ModelCage {
+function makeCage(
+  id: number,
+  name: string,
+  // merged_into_cage_id は codegen（UNIT-U1）まで ModelCage に無いため wire 拡張を許容する。
+  overrides: Partial<ModelCage> & { merged_into_cage_id?: number | null } = {},
+): ModelCage {
   return {
     id,
     clinic_id: 1,
@@ -243,5 +248,140 @@ describe("CageSettings (useMasterCRUD / useMasterSave 統合テスト)", () => {
 
     expect(await screen.findByText("名称を入力してください")).toBeInTheDocument();
     expect(createSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("CageSettings ケージ連結 (EMR-306)", () => {
+  it("2件選択し代表を選んで確定すると merge エンドポイントを呼ぶ", async () => {
+    stubCages([makeCage(1, "1番ケージ"), makeCage(2, "2番ケージ"), makeCage(3, "3番ケージ")]);
+
+    let mergedId: string | undefined;
+    let mergeBody: unknown;
+    server.use(
+      http.post("*/v1/masters/cages/:id/merge", async ({ request, params }) => {
+        mergedId = String(params.id);
+        mergeBody = await request.json();
+        stubCages([
+          makeCage(1, "1番ケージ"),
+          makeCage(2, "2番ケージ", { merged_into_cage_id: 3 }),
+          makeCage(3, "3番ケージ"),
+        ]);
+        return HttpResponse.json(makeCage(3, "3番ケージ"));
+      }),
+    );
+
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("1番ケージ");
+
+    await user.click(screen.getByRole("checkbox", { name: "連結選択: ケージ 1番ケージ (ID 1)" }));
+    await user.click(screen.getByRole("checkbox", { name: "連結選択: ケージ 3番ケージ (ID 3)" }));
+
+    await user.click(screen.getByRole("button", { name: "選択したケージを連結" }));
+
+    const dialog = await screen.findByRole("alertdialog");
+    // 代表は選択肢から明示的に選べる（既定は先頭選択だが変更可能）
+    await user.click(within(dialog).getByRole("radio", { name: "3番ケージ" }));
+    await user.click(within(dialog).getByRole("button", { name: "連結する" }));
+
+    await waitFor(() => {
+      expect(mergedId).toBe("3");
+    });
+    expect(mergeBody).toEqual({ member_cage_ids: [1] });
+  });
+
+  it("連結メンバー行には代表ケージ名入りの連結中バッジが出て、連結済み行の選択チェックボックスは無効", async () => {
+    stubCages([
+      makeCage(1, "1番ケージ"),
+      makeCage(2, "2番ケージ", { merged_into_cage_id: 1 }),
+      makeCage(3, "3番ケージ"),
+    ]);
+
+    renderPage();
+    await screen.findByText("1番ケージ");
+
+    const badge = await screen.findByText(/連結中/);
+    expect(badge).toHaveTextContent("1番ケージ");
+    // 連結済み（メンバー・代表）行は merge 対象に選べない
+    expect(
+      screen.getByRole("checkbox", { name: "連結選択: ケージ 1番ケージ (ID 1)" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("checkbox", { name: "連結選択: ケージ 2番ケージ (ID 2)" }),
+    ).toBeDisabled();
+    // 未連結行は選択可能
+    expect(
+      screen.getByRole("checkbox", { name: "連結選択: ケージ 3番ケージ (ID 3)" }),
+    ).toBeEnabled();
+  });
+
+  it("連結解除: メンバー行の解除アクションを確認ダイアログで確定すると代表IDの unmerge を呼ぶ", async () => {
+    stubCages([makeCage(1, "1番ケージ"), makeCage(2, "2番ケージ", { merged_into_cage_id: 1 })]);
+
+    let unmergedId: string | undefined;
+    server.use(
+      http.post("*/v1/masters/cages/:id/unmerge", ({ params }) => {
+        unmergedId = String(params.id);
+        stubCages([makeCage(1, "1番ケージ"), makeCage(2, "2番ケージ")]);
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("1番ケージ");
+
+    await user.click(screen.getByRole("button", { name: "連結解除: ケージ 2番ケージ (ID 2)" }));
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "解除" }));
+
+    await waitFor(() => {
+      expect(unmergedId).toBe("1");
+    });
+  });
+
+  it("1件しか選択していないときは連結ボタンが無効", async () => {
+    stubCages([makeCage(1, "1番ケージ"), makeCage(2, "2番ケージ")]);
+
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("1番ケージ");
+
+    expect(screen.getByRole("button", { name: "選択したケージを連結" })).toBeDisabled();
+
+    await user.click(screen.getByRole("checkbox", { name: "連結選択: ケージ 1番ケージ (ID 1)" }));
+
+    expect(screen.getByRole("button", { name: "選択したケージを連結" })).toBeDisabled();
+
+    await user.click(screen.getByRole("checkbox", { name: "連結選択: ケージ 2番ケージ (ID 2)" }));
+
+    expect(screen.getByRole("button", { name: "選択したケージを連結" })).toBeEnabled();
+  });
+
+  it("連結メンバーのサイドパネルには代表ケージ名入りの連結状態行が表示される", async () => {
+    stubCages([makeCage(1, "1番ケージ"), makeCage(2, "2番ケージ", { merged_into_cage_id: 1 })]);
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "詳細: ケージ 2番ケージ (ID 2)" }));
+
+    // サイドパネルに「連結状態」PropertyRow が出る
+    expect(await screen.findByText("連結状態")).toBeInTheDocument();
+    // 「連結中: <代表名>」は行バッジとパネルバッジの2箇所に出る
+    expect(await screen.findAllByText("連結中: 1番ケージ")).toHaveLength(2);
+  });
+
+  it("edit 権限がない場合は選択チェックボックスが無効で連結ボタンは出ない", async () => {
+    permissionMock.current = { ...permissionMock.current, edit: false };
+    stubCages([makeCage(1, "1番ケージ")]);
+
+    renderPage();
+    await screen.findByText("1番ケージ");
+
+    expect(
+      screen.getByRole("checkbox", { name: "連結選択: ケージ 1番ケージ (ID 1)" }),
+    ).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "選択したケージを連結" })).not.toBeInTheDocument();
   });
 });

@@ -1,6 +1,7 @@
 import { type ComponentProps, useMemo } from "react";
 import { DndContext, DragOverlay, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { Unlink } from "lucide-react";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
@@ -13,6 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { C, STYLE } from "@/lib/design-tokens";
 
 import type { Cage } from "../api/cages";
@@ -21,6 +24,7 @@ import { CageRowOverlay } from "./CageRowOverlay";
 
 const TABLE_COLUMNS = [
   { key: "grip", className: "w-11 px-0" },
+  { key: "select", className: "w-11 px-0" },
   { key: "name", label: "ケージ名", className: "pl-3" },
   { key: "type", label: "エリア", className: "w-[100px]" },
   { key: "size", label: "サイズ", className: "w-[90px]" },
@@ -38,6 +42,11 @@ interface CageSortableTableProps {
   onDragCancel: NonNullable<ComponentProps<typeof DndContext>["onDragCancel"]>;
   canEdit: boolean;
   onEdit: (item: Cage) => void;
+  /** EMR-306: 連結対象として選択中の cage id 集合 */
+  selectedIds: ReadonlySet<string>;
+  onToggleSelect: (id: string, checked: boolean) => void;
+  /** EMR-306: 連結解除要求。メンバー行からは代表 cage id に解決済みで渡される */
+  onRequestUnmerge: (representativeId: string) => void;
 }
 
 export function CageSortableTable({
@@ -49,11 +58,21 @@ export function CageSortableTable({
   onDragCancel,
   canEdit,
   onEdit,
+  selectedIds,
+  onToggleSelect,
+  onRequestUnmerge,
 }: CageSortableTableProps) {
   const activeItem = useMemo(
     () => items.find((item) => item.id === activeId) ?? null,
     [items, activeId],
   );
+
+  // EMR-306: 連結グループの代表 cage id 集合（= 誰かの mergedIntoCageId になっている id）
+  const representativeIds = useMemo(
+    () => new Set(items.map((c) => c.mergedIntoCageId).filter((id): id is number => id != null)),
+    [items],
+  );
+  const cageNameById = useMemo(() => new Map(items.map((c) => [c.id, c.name])), [items]);
 
   return (
     <div className={STYLE.tableContainer}>
@@ -78,7 +97,7 @@ export function CageSortableTable({
             <TableBody>
               {items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className={STYLE.tableEmpty}>
+                  <TableCell colSpan={8} className={STYLE.tableEmpty}>
                     ケージが登録されていません
                   </TableCell>
                 </TableRow>
@@ -87,43 +106,79 @@ export function CageSortableTable({
                 items={items.map((item) => item.id)}
                 strategy={verticalListSortingStrategy}
               >
-                {items.map((item) => (
-                  <SortableDataTableRow
-                    key={item.id}
-                    id={item.id}
-                    dragLabel={`並べ替え: ケージ ${item.name} (ID ${item.id})`}
-                    dragDisabled={!canEdit}
-                  >
-                    <TableCell className={`font-medium ${C.text}`}>
-                      <DataTableRowButton
-                        aria-label={`詳細: ケージ ${item.name} (ID ${item.id})`}
-                        onClick={() => onEdit(item)}
-                      >
-                        {item.name}
-                      </DataTableRowButton>
-                    </TableCell>
-                    <TableCell className={C.text70}>
-                      {CAGE_TYPE_LABELS[item.cageType] || item.cageType}
-                    </TableCell>
-                    <TableCell className={C.text70}>
-                      {CAGE_SIZE_LABELS[item.cageSize] || item.cageSize}
-                    </TableCell>
-                    <TableCell className={`text-right font-mono ${C.text} pr-4`}>
-                      {formatCagePrice(item.price)}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <StatusPill isActive={item.isActive} />
-                    </TableCell>
-                    <TableCell className="text-right pr-2">
-                      {canEdit ? (
-                        <RowActionButton
-                          aria-label={`編集: ケージ ${item.name} (ID ${item.id})`}
-                          onClick={() => onEdit(item)}
+                {items.map((item) => {
+                  // EMR-306: メンバー行は mergedIntoCageId が指す代表名を badge 表示し、
+                  // 代表行・メンバー行ともグループ全体の解除アクションを持つ。
+                  // 連結済み・無効行は merge の選択対象外（checkbox は disabled 表示）。
+                  const mergedRepName =
+                    item.mergedIntoCageId != null
+                      ? (cageNameById.get(String(item.mergedIntoCageId)) ??
+                        `ID ${item.mergedIntoCageId}`)
+                      : null;
+                  const isMergedMember = item.mergedIntoCageId != null;
+                  const isMergedRepresentative = representativeIds.has(Number(item.id));
+                  const isMerged = isMergedMember || isMergedRepresentative;
+                  const unmergeRepId = isMergedMember ? String(item.mergedIntoCageId) : item.id;
+                  return (
+                    <SortableDataTableRow
+                      key={item.id}
+                      id={item.id}
+                      dragLabel={`並べ替え: ケージ ${item.name} (ID ${item.id})`}
+                      dragDisabled={!canEdit}
+                    >
+                      <TableCell className="w-11 px-0 text-center">
+                        <Checkbox
+                          aria-label={`連結選択: ケージ ${item.name} (ID ${item.id})`}
+                          checked={selectedIds.has(item.id)}
+                          disabled={!canEdit || isMerged || !item.isActive}
+                          onCheckedChange={(checked) => onToggleSelect(item.id, checked === true)}
                         />
-                      ) : null}
-                    </TableCell>
-                  </SortableDataTableRow>
-                ))}
+                      </TableCell>
+                      <TableCell className={`font-medium ${C.text}`}>
+                        <div className="flex items-center gap-2">
+                          <DataTableRowButton
+                            aria-label={`詳細: ケージ ${item.name} (ID ${item.id})`}
+                            onClick={() => onEdit(item)}
+                          >
+                            {item.name}
+                          </DataTableRowButton>
+                          {isMergedMember ? (
+                            <Badge variant="secondary">{`連結中: ${mergedRepName}`}</Badge>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                      <TableCell className={C.text70}>
+                        {CAGE_TYPE_LABELS[item.cageType] || item.cageType}
+                      </TableCell>
+                      <TableCell className={C.text70}>
+                        {CAGE_SIZE_LABELS[item.cageSize] || item.cageSize}
+                      </TableCell>
+                      <TableCell className={`text-right font-mono ${C.text} pr-4`}>
+                        {formatCagePrice(item.price)}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <StatusPill isActive={item.isActive} />
+                      </TableCell>
+                      <TableCell className="text-right pr-2">
+                        <div className="flex items-center justify-end gap-1">
+                          {canEdit && isMerged ? (
+                            <RowActionButton
+                              icon={Unlink}
+                              aria-label={`連結解除: ケージ ${item.name} (ID ${item.id})`}
+                              onClick={() => onRequestUnmerge(unmergeRepId)}
+                            />
+                          ) : null}
+                          {canEdit ? (
+                            <RowActionButton
+                              aria-label={`編集: ケージ ${item.name} (ID ${item.id})`}
+                              onClick={() => onEdit(item)}
+                            />
+                          ) : null}
+                        </div>
+                      </TableCell>
+                    </SortableDataTableRow>
+                  );
+                })}
               </SortableContext>
             </TableBody>
           </Table>

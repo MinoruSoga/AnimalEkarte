@@ -18,22 +18,25 @@ type cageResponse struct {
 	IsActive    bool           `json:"is_active"`
 	Description string         `json:"description"`
 	SortOrder   int            `json:"sort_order"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
+	// EMR-306: 連結中の構成ケージが参照する代表ケージID。NULL = 独立ケージまたは代表ケージ自身。
+	MergedIntoCageID *uint64   `json:"merged_into_cage_id,omitempty"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 func toCageResponse(c *model.Cage) cageResponse {
 	return cageResponse{
-		ID:          c.ID,
-		ClinicID:    c.ClinicID,
-		Name:        c.Name,
-		CageType:    c.CageType,
-		CageSize:    c.CageSize,
-		Price:       c.Price,
-		IsActive:    c.IsActive,
-		Description: c.Description,
-		SortOrder:   c.SortOrder,
-		CreatedAt:   httpapi.LocalTime(c.CreatedAt),
-		UpdatedAt:   httpapi.LocalTime(c.UpdatedAt),
+		ID:               c.ID,
+		ClinicID:         c.ClinicID,
+		Name:             c.Name,
+		CageType:         c.CageType,
+		CageSize:         c.CageSize,
+		Price:            c.Price,
+		IsActive:         c.IsActive,
+		Description:      c.Description,
+		SortOrder:        c.SortOrder,
+		MergedIntoCageID: c.MergedIntoCageID,
+		CreatedAt:        httpapi.LocalTime(c.CreatedAt),
+		UpdatedAt:        httpapi.LocalTime(c.UpdatedAt),
 	}
 }

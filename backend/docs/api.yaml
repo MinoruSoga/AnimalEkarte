@@ -2667,6 +2667,12 @@ components:
             - large
         sort_order:
           type: integer
+        merged_into_cage_id:
+          type: integer
+          format: int64
+          nullable: true
+          readOnly: true
+          description: 連結中の構成ケージが参照する代表ケージID（EMR-306 ケージ一時連結）。NULL = 独立ケージまたは代表ケージ自身
         created_at:
           type: string
           format: date-time
@@ -15795,6 +15801,89 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/cages/{id}/merge:
+    post:
+      operationId: mergeCage
+      summary: ケージ一時連結
+      description: |
+        代表ケージ `id` のもとに `member_cage_ids` で指定したケージを一時連結する。
+        グループは代表+構成の単一階層のみ（ネスト不可）。代表および全構成ケージが
+        同一医院・有効・未連結で、`admitted`/`reserved` の入院を持たない場合のみ連結できる。
+        連結中のケージは無効化・削除できず、解除（unmerge）してから行う。
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [member_cage_ids]
+              properties:
+                member_cage_ids:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: integer
+                    format: int64
+            example:
+              member_cage_ids: [12, 13]
+      responses:
+        '200':
+          description: 連結成功（代表ケージ）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/cages/{id}/unmerge:
+    post:
+      operationId: unmergeCage
+      summary: ケージ一時連結解除
+      description: |
+        代表ケージ `id` が率いる連結グループを解除し、全構成ケージの
+        `merged_into_cage_id` をクリアする。グループ内のいずれかのケージに
+        `admitted`/`reserved` の入院がある場合は解除できない（退院済み履歴のみは可）。
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 解除成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/medicines:

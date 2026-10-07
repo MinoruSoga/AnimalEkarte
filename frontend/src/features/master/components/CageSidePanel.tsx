@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { LAYOUT, STYLE } from "@/lib/design-tokens";
 
@@ -24,11 +25,14 @@ import {
   CAGE_SIZE_OPTIONS,
   CAGE_TYPE_OPTIONS,
   cageToFormData,
+  findCageRepresentative,
   type CageFormData,
 } from "../lib/cage-side-panel-model";
 
 interface CageSidePanelProps {
   item: Cage | null;
+  /** EMR-306: 連結中の代表ケージ名の解決に使うケージ一覧 */
+  cages: Cage[];
   onClose: () => void;
   onSave: (data: CageFormData) => Promise<boolean> | boolean;
   onDeleteRequest?: (item: Cage) => void;
@@ -38,6 +42,7 @@ interface CageSidePanelProps {
 
 export const CageSidePanel = memo(function CageSidePanel({
   item,
+  cages,
   onClose,
   onSave,
   onDeleteRequest,
@@ -111,6 +116,9 @@ export const CageSidePanel = memo(function CageSidePanel({
     onClose();
   }, [onClose, setIsDirty]);
 
+  // EMR-306: 連結メンバーの場合、代表ケージ名をサイドパネルに表示する（readOnly 含む）。
+  const mergedRepresentative = findCageRepresentative(cages, item);
+
   return (
     <MasterSidePanel
       isNew={item === null}
@@ -126,6 +134,14 @@ export const CageSidePanel = memo(function CageSidePanel({
       readOnly={readOnly}
     >
       <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
+      {mergedRepresentative !== null ? (
+        <PropertyRow
+          label="連結状態"
+          description="このケージは代表ケージに一時連結されています。連結中は無効化・削除できず、解除（unmerge）してから行います。"
+        >
+          <Badge variant="secondary">{`連結中: ${mergedRepresentative.name}`}</Badge>
+        </PropertyRow>
+      ) : null}
       <PropertyRow
         label="エリア"
         description="ケージが属するエリア種別（ICU・犬舎・猫舎・汎用）です。入院管理でケージを分類するために使われます。"

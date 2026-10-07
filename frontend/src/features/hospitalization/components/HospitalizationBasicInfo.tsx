@@ -31,12 +31,60 @@ interface HospitalizationBasicInfoProps {
   cageIdError?: string;
 }
 
+interface CageSelectOption {
+  value: string;
+  label: string;
+}
+
+function formatCageOptionLabel(cage: MasterItem): string {
+  return cage.description ? `${cage.name}（${cage.description}）` : cage.name;
+}
+
+/**
+ * EMR-306 ケージ一時連結: 連結メンバーケージ（mergedIntoCageId 設定済み）は
+ * 新規選択肢から除外する（選択しても backend が 422 で拒否するため UX 側で防ぐ）。
+ * 代表ケージのラベルは「代表名 + メンバー名…」（' + ' 連結・cageItems 順）で
+ * メンバー構成を表示し、（description）suffix は非連結ケージのみに付ける。
+ * フォーム現在値がメンバーを指す場合（登録後に連結された）は、保存値の表示を
+ * 維持するため通常ラベルで候補に残す。
+ */
+function buildCageSelectOptions(
+  cageItems: MasterItem[],
+  currentCageId: string,
+): CageSelectOption[] {
+  // 代表 cageId → メンバー一覧（cageItems 順）。mergedIntoCageId と id は
+  // transform 後ともに string だが、id は union 型なので String() で揃えて比較する。
+  const membersByRepId = new Map<string, MasterItem[]>();
+  for (const cage of cageItems) {
+    if (cage.mergedIntoCageId == null) continue;
+    const members = membersByRepId.get(cage.mergedIntoCageId);
+    if (members) {
+      members.push(cage);
+    } else {
+      membersByRepId.set(cage.mergedIntoCageId, [cage]);
+    }
+  }
+
+  return cageItems
+    .filter((cage) => cage.mergedIntoCageId == null || String(cage.id) === currentCageId)
+    .map((cage) => {
+      const members =
+        cage.mergedIntoCageId == null ? membersByRepId.get(String(cage.id)) : undefined;
+      const label =
+        members == null
+          ? formatCageOptionLabel(cage)
+          : [cage.name, ...members.map((member) => member.name)].join(" + ");
+      return { value: String(cage.id), label };
+    });
+}
+
 export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
   formData,
   onChange,
   cageItems,
   cageIdError,
 }: HospitalizationBasicInfoProps) {
+  const cageOptions = buildCageSelectOptions(cageItems, formData.cageId);
   return (
     <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box}`}>
       <h2 className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 ${C.text}`}>
@@ -132,10 +180,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
           id="cage_id"
           value={formData.cageId}
           onValueChange={(val) => onChange({ cageId: val })}
-          options={cageItems.map((cage) => ({
-            value: String(cage.id),
-            label: cage.description ? `${cage.name}（${cage.description}）` : cage.name,
-          }))}
+          options={cageOptions}
           placeholder="選択してください"
           searchPlaceholder="ケージを検索..."
           ariaInvalid={Boolean(cageIdError)}

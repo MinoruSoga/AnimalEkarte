@@ -66,6 +66,9 @@ function transformGenericMasterItem(data: GenericMasterBackendItem): MasterItem 
     duration: data.duration != null ? Number(data.duration) : null,
     // TrimmingCourse-specific field (#73)
     courseTypeId: data.course_type_id != null ? String(data.course_type_id) : undefined,
+    // EMR-306: ケージ一時連結の代表ケージ ID（wire に無い場合は undefined のまま）
+    mergedIntoCageId:
+      data.merged_into_cage_id != null ? String(data.merged_into_cage_id) : undefined,
   };
 }
 

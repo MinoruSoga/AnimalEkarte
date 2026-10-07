@@ -107,6 +107,9 @@ func (h *Handler) registerLateMasterRoutes(masters *gin.RouterGroup, perm medica
 	masters.GET("/cages/:id", perm(model.ResourceMasterHospitalization, "view"), h.cage.GetCage)
 	masters.PATCH("/cages/:id", perm(model.ResourceMasterHospitalization, "edit"), h.cage.UpdateCage)
 	masters.DELETE("/cages/:id", perm(model.ResourceMasterHospitalization, "delete"), h.cage.DeleteCage)
+	// EMR-306 ケージ一時連結。ハンドラ未配線時は perm が先に abort するため無条件登録でよい。
+	masters.POST("/cages/:id/merge", perm(model.ResourceMasterHospitalization, "edit"), h.cage.MergeCage)
+	masters.POST("/cages/:id/unmerge", perm(model.ResourceMasterHospitalization, "edit"), h.cage.UnmergeCage)
 
 	masters.GET("/hospitalization-plans", perm(model.ResourceMasterHospitalization, "view"), h.hospitalizationPlan.ListHospitalizationPlans)
 	masters.POST("/hospitalization-plans", perm(model.ResourceMasterHospitalization, "create"), h.hospitalizationPlan.CreateHospitalizationPlan)

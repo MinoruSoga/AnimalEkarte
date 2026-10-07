@@ -7,12 +7,13 @@ import {
   DndContext,
   KeyboardSensor,
   PointerSensor,
+  useDndContext,
   useSensor,
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
-import { Plus, GripVertical } from "lucide-react";
+import { Plus, GripVertical, Link2 } from "lucide-react";
 
 // Internal
 import { C, ICON, BADGE } from "@/lib/design-tokens";
@@ -24,6 +25,14 @@ import { getHospitalizationTypeColor } from "@/lib/status-helpers";
 
 // Relative
 import { cageKeyboardCoordinateGetter } from "../lib/cage-keyboard-coordinates";
+import {
+  isCageRepresentative,
+  isMergeDragSource,
+  isMergeEligibleTarget,
+  isMergedMember,
+  mergeCageDragId,
+  resolveRepresentativeName,
+} from "../lib/cage-merge-model";
 import { HOSPITALIZATION_STATUS } from "../constants";
 import { H_STYLES } from "../lib/styles";
 
@@ -37,32 +46,84 @@ interface HospitalizationBoardProps {
   onMovePet: (hospitalizationId: string, targetCageId: string) => void;
   canCreate: boolean;
   canEdit: boolean;
+  /** EMR-306: true のとき pet-move DnD を止め、ケージ連結 DnD に切り替える */
+  mergeMode?: boolean;
+  /** master-hospitalization:edit 権限（連結/解除操作のゲート） */
+  canMerge?: boolean;
+  /** merge-mode で eligible target への drop が確定したとき呼ばれる（dragged, target） */
+  onRequestMerge?: (draggedCageId: string, targetCageId: string) => void;
+  /** 連結グループの解除要求。常に代表ケージ ID が渡る */
+  onRequestUnmerge?: (representativeId: string) => void;
 }
 
 interface CageCardProps {
   cage: MasterItem;
+  /** EMR-306: merge 判定（代表検出・member 解決）に使う全ケージ一覧 */
+  cages: readonly MasterItem[];
   occupant?: Hospitalization;
+  /** member cage の場合の代表ケージ名（board 側で解決済み） */
+  mergedRepresentativeName?: string;
+  hasVisibleOccupant: (cageId: string) => boolean;
   onNavigateToForm: (id?: string) => void;
+  onRequestUnmerge?: (representativeId: string) => void;
   canCreate: boolean;
   canEdit: boolean;
+  mergeMode: boolean;
+  canMerge: boolean;
 }
 
 const CageCard = memo(function CageCard({
   cage,
+  cages,
   occupant,
+  mergedRepresentativeName,
+  hasVisibleOccupant,
   onNavigateToForm,
+  onRequestUnmerge,
   canCreate,
   canEdit,
+  mergeMode,
+  canMerge,
 }: CageCardProps) {
   const isDeceased = occupant?.petIsDeceased ?? false;
   // EMR-227: 退院済み入院はケージ移動（書込み）を render 側でも禁止する。
   const isDischarged = occupant?.status === HOSPITALIZATION_STATUS.DISCHARGED;
+  const mergedMember = isMergedMember(cage);
   const cageContext = cage.category ? `${cage.category} ${cage.name}` : cage.name;
   const emptyCageActionLabel = `${cageContext}（ケージID: ${cage.id}）の空き枠に入院・ホテルを登録`;
-  const canDrag = Boolean(occupant) && !isDeceased && !isDischarged && canEdit;
+  const mergeDragLabel = `${cageContext}（ケージID: ${cage.id}）を連結元としてドラッグ`;
+  const canDrag = !mergeMode && Boolean(occupant) && !isDeceased && !isDischarged && canEdit;
   // FE-RC-044: 詳細への遷移は :127-138 の `詳細` button（aria-label 付き）に一本化する。
   // Card 自体は非フォーカス可能・キーボード操作不可のため、同じ操作を onClick で重複させない。
   const canShowDetailButton = Boolean(occupant) && !isDeceased && canEdit;
+
+  // EMR-306: merge mode では cage card 自体が連結 source になる（patient drag は無効）。
+  const mergeDraggable =
+    mergeMode &&
+    canMerge &&
+    isMergeDragSource({ cages, cage, hasVisibleOccupant: occupant !== undefined });
+  const dragEnabled = mergeMode ? mergeDraggable : canDrag;
+
+  const { active } = useDndContext();
+  const activeMergeCageId =
+    mergeMode && typeof active?.data.current?.mergeCageId === "string"
+      ? active.data.current.mergeCageId
+      : null;
+
+  // merge-mode の drop target 可否（advisory）。drag 未開始時は member・代表・無効ケージを
+  // target から除外し、drag 中は source/occupant を含めて再判定する。
+  const mergeTargetEligible =
+    canMerge &&
+    !mergedMember &&
+    !isCageRepresentative(cages, String(cage.id)) &&
+    cage.status === "active" &&
+    (activeMergeCageId === null ||
+      isMergeEligibleTarget({
+        cages,
+        draggedCageId: activeMergeCageId,
+        targetCageId: String(cage.id),
+        hasVisibleOccupant,
+      }));
 
   const {
     attributes,
@@ -70,23 +131,36 @@ const CageCard = memo(function CageCard({
     setNodeRef: setDragRef,
     isDragging,
   } = useDraggable({
-    id: occupant?.id ?? `empty-${cage.id}`,
-    data: { hospitalizationId: occupant?.id },
-    disabled: !canDrag,
+    // EMR-306: merge mode では `merge-cage-` prefix の別 id 系を使い、
+    // patient drag（hospitalization id）と衝突しない。
+    id: mergeMode ? mergeCageDragId(String(cage.id)) : (occupant?.id ?? `empty-${cage.id}`),
+    data: mergeMode ? { mergeCageId: String(cage.id) } : { hospitalizationId: occupant?.id },
+    disabled: !dragEnabled,
   });
 
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: `cage-${cage.id}`,
     data: { cageId: cage.id },
-    disabled: !canEdit,
+    // EMR-306: 連結メンバーケージは pet-move drop も受け付けない。
+    disabled: mergeMode ? !mergeTargetEligible : !canEdit || mergedMember,
   });
+
+  // merge-mode static 表示: merge に一切参加できない cage（member・代表・inactive・占有）のみ mute。
+  // 代表 cage は drag source にも drop target にもなれない（BE は既存グループへの追加を
+  // 409 拒否する）ため merge 不参加として mute する。
+  const mergeParticipates =
+    canMerge && isMergeDragSource({ cages, cage, hasVisibleOccupant: occupant !== undefined });
+  const mergeStaticMuted = mergeMode && activeMergeCageId === null && !mergeParticipates;
+  const mergeDragHighlighted = mergeMode && activeMergeCageId !== null && mergeTargetEligible;
+  const mergeDragMuted = mergeMode && activeMergeCageId !== null && !mergeTargetEligible;
 
   return (
     <div ref={setDropRef} className="h-full">
       <Card
         ref={setDragRef}
-        {...(canDrag ? attributes : {})}
-        {...(canDrag ? listeners : {})}
+        {...(dragEnabled ? attributes : {})}
+        {...(dragEnabled ? listeners : {})}
+        {...(mergeDraggable ? { "aria-label": mergeDragLabel } : {})}
         className={`relative flex flex-col h-40 transition-all border touch-none
                   ${
                     occupant
@@ -97,7 +171,9 @@ const CageCard = memo(function CageCard({
                   }
                   ${isDragging ? "opacity-50 scale-95" : "hover:shadow-level1"}
                   ${isOver ? `ring-2 ${C.ringMedicalBlue} ring-offset-2 ${C.bgMedicalBlue5}` : ""}
-                  ${canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-default"}
+                  ${dragEnabled ? "cursor-grab active:cursor-grabbing" : "cursor-default"}
+                  ${mergeDragHighlighted ? `ring-2 ${C.ringMedicalBlue} ring-offset-2` : ""}
+                  ${mergeStaticMuted || mergeDragMuted ? "opacity-50" : ""}
                 `}
       >
         <CardHeader
@@ -107,6 +183,10 @@ const CageCard = memo(function CageCard({
             {canDrag ? (
               <div className={`cursor-grab active:cursor-grabbing ${C.text20} ${C.hoverText60}`}>
                 <GripVertical className={ICON.action} />
+              </div>
+            ) : mergeDraggable ? (
+              <div className={`cursor-grab active:cursor-grabbing ${C.text20} ${C.hoverText60}`}>
+                <Link2 className={ICON.action} />
               </div>
             ) : null}
             <span className={`${H_STYLES.text.sm} font-mono ${C.text60} font-semibold`}>
@@ -125,6 +205,31 @@ const CageCard = memo(function CageCard({
         <CardContent
           className={`${H_STYLES.padding.card} flex-1 flex flex-col justify-center items-start text-left`}
         >
+          {mergedMember ? (
+            <div className="mb-1 flex w-full flex-col items-start gap-1">
+              <Badge
+                variant="secondary"
+                className={`${H_STYLES.text.xs} px-1.5 py-0 h-5 font-medium`}
+              >
+                {`連結中: ${mergedRepresentativeName ?? `ID ${cage.mergedIntoCageId}`}`}
+              </Badge>
+              {canMerge && onRequestUnmerge ? (
+                <button
+                  type="button"
+                  aria-label={`${mergedRepresentativeName ?? "代表ケージ"}への連結を解除`}
+                  className={`flex min-h-8 items-center justify-center text-2xs ${C.textBrand} border ${C.borderBrandLight} rounded px-1.5 ${C.hoverBgBrandLight60} transition-colors`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (cage.mergedIntoCageId != null) {
+                      onRequestUnmerge(cage.mergedIntoCageId);
+                    }
+                  }}
+                >
+                  連結解除
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           {occupant ? (
             <>
               {occupant.startDate ? (
@@ -167,7 +272,7 @@ const CageCard = memo(function CageCard({
           ) : (
             <div className={`flex flex-col items-center justify-center h-full ${C.text20}`}>
               <span className={H_STYLES.text.sm}>空き</span>
-              {canCreate ? (
+              {canCreate && !mergedMember ? (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -197,17 +302,53 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({
   onMovePet,
   canCreate,
   canEdit,
+  mergeMode = false,
+  canMerge = false,
+  onRequestMerge,
+  onRequestUnmerge,
 }: HospitalizationBoardProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: cageKeyboardCoordinateGetter }),
   );
 
+  // js-index-maps: cageId → Hospitalization の Map を事前構築（O(n)）しレンダーループ内で O(1) 検索
+  // 親コンポーネントがタブに応じて既にフィルタリング済みのデータを渡すため、ここでは再フィルタしない
+  const occupantByCageId = useMemo(
+    () => new Map(hospitalizations.map((h) => [h.cageId, h])),
+    [hospitalizations],
+  );
+
+  const hasVisibleOccupant = useCallback(
+    (cageId: string) => occupantByCageId.has(cageId),
+    [occupantByCageId],
+  );
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
-      if (!canEdit) return;
       const { active, over } = event;
       if (!over) return;
+
+      // EMR-306: merge mode では cage merge drop を確認ダイアログ要求に変換する。
+      if (mergeMode) {
+        if (!canMerge || !onRequestMerge) return;
+        const draggedCageId = active.data.current?.mergeCageId;
+        if (typeof draggedCageId !== "string" || !draggedCageId) return;
+        const overId = over.id;
+        if (typeof overId !== "string" || !overId.startsWith("cage-")) return;
+        const targetCageId = overId.slice("cage-".length);
+        const eligible = isMergeEligibleTarget({
+          cages,
+          draggedCageId,
+          targetCageId,
+          hasVisibleOccupant,
+        });
+        if (!eligible) return;
+        onRequestMerge(draggedCageId, targetCageId);
+        return;
+      }
+
+      if (!canEdit) return;
 
       // FE-RC-037: dnd-kit の data/id は unknown 相当のため、無検証キャストせず typeof で確認する。
       const hospitalizationId = active.data.current?.hospitalizationId;
@@ -217,9 +358,12 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({
       if (typeof overId !== "string" || !overId.startsWith("cage-")) return;
 
       const targetCageId = overId.replace("cage-", "");
+      // EMR-306: 連結メンバーケージへの pet-move drop を拒否する（droppable disabled の二重ガード）。
+      const targetCage = cages.find((c) => String(c.id) === targetCageId);
+      if (targetCage != null && targetCage.mergedIntoCageId != null) return;
       onMovePet(hospitalizationId, targetCageId);
     },
-    [canEdit, onMovePet],
+    [canEdit, canMerge, mergeMode, cages, hasVisibleOccupant, onMovePet, onRequestMerge],
   );
 
   // Group cages by category (Area)
@@ -231,13 +375,6 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({
       return acc;
     },
     {} as Record<string, MasterItem[]>,
-  );
-
-  // js-index-maps: cageId → Hospitalization の Map を事前構築（O(n)）しレンダーループ内で O(1) 検索
-  // 親コンポーネントがタブに応じて既にフィルタリング済みのデータを渡すため、ここでは再フィルタしない
-  const occupantByCageId = useMemo(
-    () => new Map(hospitalizations.map((h) => [h.cageId, h])),
-    [hospitalizations],
   );
 
   return (
@@ -254,14 +391,24 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {areaCages.map((cage) => {
                 const occupant = occupantByCageId.get(String(cage.id));
+                const mergedRepName =
+                  cage.mergedIntoCageId != null
+                    ? resolveRepresentativeName(cages, cage.mergedIntoCageId)
+                    : undefined;
                 return (
                   <CageCard
                     key={cage.id}
                     cage={cage}
+                    cages={cages}
                     occupant={occupant}
+                    mergedRepresentativeName={mergedRepName}
+                    hasVisibleOccupant={hasVisibleOccupant}
                     onNavigateToForm={onNavigateToForm}
+                    onRequestUnmerge={onRequestUnmerge}
                     canCreate={canCreate}
                     canEdit={canEdit}
+                    mergeMode={mergeMode}
+                    canMerge={canMerge}
                   />
                 );
               })}

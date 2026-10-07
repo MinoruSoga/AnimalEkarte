@@ -162,6 +162,13 @@ export function extractApiErrorMessage(err: unknown, context = "操作"): string
         "他のユーザーによって更新されています。一度リロードしてください。"
       );
     }
+    if (status === 422) {
+      // EMR-306: 連結メンバーケージへの入院割当等のドメイン違反。BE の日本語 error を通す。
+      return (
+        (isUserFacingJapanese(serverMessage) ? serverMessage : undefined) ??
+        `${context}に失敗しました。入力内容を確認してください。`
+      );
+    }
     if (status !== undefined && status >= 500) {
       return "サーバーエラーが発生しました。しばらく経ってから再度お試しください。";
     }

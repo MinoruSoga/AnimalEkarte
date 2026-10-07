@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"context"
 	"log/slog"
+	"sort"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
@@ -76,6 +77,19 @@ type CageService interface {
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateCageInput) (*model.Cage, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+}
+
+// CageMerger はケージ一時連結（EMR-306）の書込み面。*cageService が実装する。
+// CageService へはメソッドを追加しない（INTERFACE STABILITY: 非所有モックが
+// CageService を実装しているためコンパイルを壊さない）。ハンドラは
+// service.(CageMerger) の型アサーションで取得する。
+type CageMerger interface {
+	// Merge は memberCageIDs を代表ケージ representativeID のもとに連結し、
+	// 代表ケージを返す。memberCageIDs は1件以上・重複なし・同一医院・有効・
+	// 未連結・グループ非代表・占有なしのケージのみ許容する。
+	Merge(ctx context.Context, clinicID, representativeID uint64, memberCageIDs []uint64) (*model.Cage, error)
+	// Unmerge は representativeID が率いるグループの全構成ケージの連結を解除する。
+	Unmerge(ctx context.Context, clinicID, representativeID uint64) error
 }
 
 type cageService struct {
@@ -171,6 +185,10 @@ func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input *Up
 	if len(buildCageUpdate(input)) == 0 {
 		return nil, apperrors.WrapInvalidInput(errMsgAtLeastOneField)
 	}
+	// EMR-306: is_active=false の無効化は連結状態との競合を FOR UPDATE で直列化して判定する。
+	if input.IsActive != nil && !*input.IsActive {
+		return s.deactivateCage(ctx, clinicID, id, input)
+	}
 	cage, err := s.repo.Update(ctx, clinicID, id, *input)
 	if err != nil {
 		nameForConflict := ""
@@ -197,8 +215,23 @@ func (s *cageService) Delete(ctx context.Context, clinicID, id uint64) error {
 		return apperrors.WrapInternalServerError("cage write transaction dependency is required")
 	}
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		if _, err := s.repo.LockByIDForUpdate(txCtx, clinicID, id); err != nil {
+		cage, err := s.repo.LockByIDForUpdate(txCtx, clinicID, id)
+		if err != nil {
 			return apperrors.Wrap(err, "failed to get cage")
+		}
+		// EMR-306: 連結中のケージ（構成・代表の双方）は削除不可。解除してから削除する。
+		if cage.MergedIntoCageID != nil {
+			return apperrors.WrapConflict("連結中のケージは削除できません")
+		}
+		// 代表判定は merge 面が配線されている場合のみ（未配線モックテスト互換）。
+		if mergeRepo := s.mergeRepo(); mergeRepo != nil {
+			memberCounts, err := mergeRepo.CountMergedMembers(txCtx, clinicID, []uint64{id})
+			if err != nil {
+				return apperrors.Wrap(err, "failed to count merged members")
+			}
+			if memberCounts[id] > 0 {
+				return apperrors.WrapConflict("連結グループの代表ケージは削除できません")
+			}
 		}
 		count, err := s.repo.CountUsageByCageID(txCtx, clinicID, id)
 		if err != nil {
@@ -230,4 +263,200 @@ func (s *cageService) Reorder(ctx context.Context, clinicID uint64, ids []uint64
 	}
 	slog.InfoContext(ctx, "cage reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
 	return nil
+}
+
+// ---- cage merge (EMR-306) ----
+
+// mergeRepo は任意の連結データアクセス面を解決する。CageRepository のみを実装する
+// 非所有モックでは nil を返す。Merge/Unmerge は nil を fail-closed（500）とし、
+// Update/Delete の連結ガードは代表判定のみスキップする（構成判定はモデルフィールド
+// で常に実行できるため無条件）。
+func (s *cageService) mergeRepo() CageMergeRepository {
+	mergeRepo, _ := s.repo.(CageMergeRepository)
+	return mergeRepo
+}
+
+var _ CageMerger = (*cageService)(nil)
+
+func (s *cageService) Merge(ctx context.Context, clinicID, representativeID uint64, memberCageIDs []uint64) (*model.Cage, error) {
+	mergeRepo := s.mergeRepo()
+	if mergeRepo == nil {
+		return nil, apperrors.WrapInternalServerError("cage merge repository dependency is required")
+	}
+	if s.transactor == nil {
+		return nil, apperrors.WrapInternalServerError("cage write transaction dependency is required")
+	}
+	if len(memberCageIDs) == 0 {
+		return nil, apperrors.WrapInvalidInput("member_cage_ids は1件以上指定してください")
+	}
+	seen := make(map[uint64]struct{}, len(memberCageIDs))
+	for _, memberID := range memberCageIDs {
+		if memberID == representativeID {
+			return nil, apperrors.WrapInvalidInput("代表ケージ自身は連結メンバーに指定できません")
+		}
+		if _, dup := seen[memberID]; dup {
+			return nil, apperrors.WrapInvalidInput("member_cage_ids に重複したIDが含まれています")
+		}
+		seen[memberID] = struct{}{}
+	}
+
+	// 代表+構成を id 昇順に並べ、全行を同一順序で FOR UPDATE ロックする（デッドロック回避）。
+	allIDs := append([]uint64{representativeID}, memberCageIDs...)
+	sort.Slice(allIDs, func(i, j int) bool { return allIDs[i] < allIDs[j] })
+
+	var representative *model.Cage
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		cages, err := mergeRepo.LockCagesForUpdate(txCtx, clinicID, allIDs)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to lock cages")
+		}
+		for i := range cages {
+			cage := &cages[i]
+			if !cage.IsActive {
+				return apperrors.WrapConflict("無効化されているケージは連結できません")
+			}
+			if cage.MergedIntoCageID != nil {
+				return apperrors.WrapConflict("すでに連結済みのケージは連結できません")
+			}
+			if cage.ID == representativeID {
+				representative = cage
+			}
+		}
+		// 単一階層のみ: 代表・構成のどれも既存グループの代表であってはならない（ネスト拒否）。
+		memberCounts, err := mergeRepo.CountMergedMembers(txCtx, clinicID, allIDs)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to count merged members")
+		}
+		for _, n := range memberCounts {
+			if n > 0 {
+				return apperrors.WrapConflict("連結グループの代表ケージは別のグループに連結できません")
+			}
+		}
+		occupied, err := mergeRepo.CountOccupiedCages(txCtx, clinicID, allIDs)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to check cage occupancy")
+		}
+		for _, n := range occupied {
+			if n > 0 {
+				return apperrors.WrapConflict("入院中または予約中のケージは連結できません")
+			}
+		}
+		if err := mergeRepo.SetMergedInto(txCtx, clinicID, representativeID, memberCageIDs); err != nil {
+			return apperrors.Wrap(err, "failed to merge cages")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	slog.InfoContext(ctx, "cages merged",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("representative_cage_id", representativeID),
+		slog.Int("member_count", len(memberCageIDs)))
+	return representative, nil
+}
+
+func (s *cageService) Unmerge(ctx context.Context, clinicID, representativeID uint64) error {
+	mergeRepo := s.mergeRepo()
+	if mergeRepo == nil {
+		return apperrors.WrapInternalServerError("cage merge repository dependency is required")
+	}
+	if s.transactor == nil {
+		return apperrors.WrapInternalServerError("cage write transaction dependency is required")
+	}
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// 代表+構成を1文の id 昇順 FOR UPDATE で原子的にロック（Merge と同一の
+		// 昇順ロック規約でデッドロックを避け、集合の発見とロックを同時に行う）。
+		group, err := mergeRepo.LockCageGroupForUpdate(txCtx, clinicID, representativeID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to lock cage group")
+		}
+		var representative *model.Cage
+		groupIDs := make([]uint64, 0, len(group))
+		memberCount := 0
+		for i := range group {
+			groupIDs = append(groupIDs, group[i].ID)
+			if group[i].ID == representativeID {
+				representative = &group[i]
+			} else {
+				memberCount++
+			}
+		}
+		if representative.MergedIntoCageID != nil {
+			return apperrors.WrapConflict("連結メンバーのケージは連結解除できません")
+		}
+		if memberCount == 0 {
+			return apperrors.WrapConflict("連結グループを持たないケージは連結解除できません")
+		}
+		occupied, err := mergeRepo.CountOccupiedCages(txCtx, clinicID, groupIDs)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to check cage occupancy")
+		}
+		for _, n := range occupied {
+			if n > 0 {
+				return apperrors.WrapConflict("入院中または予約中のケージを含む連結は解除できません")
+			}
+		}
+		if err := mergeRepo.ClearMergedInto(txCtx, clinicID, representativeID); err != nil {
+			return apperrors.Wrap(err, "failed to unmerge cages")
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	slog.InfoContext(ctx, "cages unmerged",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("representative_cage_id", representativeID))
+	return nil
+}
+
+// deactivateCage は is_active=false 更新を FOR UPDATE 行ロック下で実行し、
+// Merge との競合を直列化する（EMR-306）。連結中の構成ケージおよびグループ代表
+// ケージは、解除するまで無効化できない。merged_into_cage_id 自体はここでは触らない。
+func (s *cageService) deactivateCage(ctx context.Context, clinicID, id uint64, input *UpdateCageInput) (*model.Cage, error) {
+	if s.transactor == nil {
+		return nil, apperrors.WrapInternalServerError("cage write transaction dependency is required")
+	}
+	var cage *model.Cage
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		locked, err := s.repo.LockByIDForUpdate(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to get cage")
+		}
+		// EMR-306: 連結中のケージ（構成・代表の双方）は無効化不可。解除してから行う。
+		if locked.MergedIntoCageID != nil {
+			return apperrors.WrapConflict("連結中のケージは無効化できません")
+		}
+		// 代表判定は merge 面が配線されている場合のみ（未配線モックテスト互換）。
+		if mergeRepo := s.mergeRepo(); mergeRepo != nil {
+			memberCounts, err := mergeRepo.CountMergedMembers(txCtx, clinicID, []uint64{id})
+			if err != nil {
+				return apperrors.Wrap(err, "failed to count merged members")
+			}
+			if memberCounts[id] > 0 {
+				return apperrors.WrapConflict("連結グループの代表ケージは無効化できません")
+			}
+		}
+		updated, err := s.repo.Update(txCtx, clinicID, id, *input)
+		if err != nil {
+			nameForConflict := ""
+			if input.Name != nil {
+				nameForConflict = *input.Name
+			}
+			if conflict := apperrors.AsNameUniqueConflict(
+				err,
+				nameForConflict,
+				apperrors.ConstraintCageName,
+				apperrors.CodeCageNameConflict,
+			); conflict != nil {
+				return conflict
+			}
+			return apperrors.Wrap(err, "failed to update cage")
+		}
+		cage = updated
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	slog.InfoContext(ctx, "cage deactivated", slog.Uint64("clinic_id", clinicID), slog.Uint64("cage_id", id))
+	return cage, nil
 }

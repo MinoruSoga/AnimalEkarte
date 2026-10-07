@@ -21,6 +21,11 @@ func (s *hospitalizationService) createHospitalizationInTx(
 	if err := validatePetNotDeceased(txCtx, s.petRepo, clinicID, petID, "死亡したペットは入院登録できません"); err != nil {
 		return err
 	}
+	// EMR-306 step3: 連結ケージ割当ガード — FindByID(FOR SHARE) より先に
+	// LockCageGroupForUpdate(FOR UPDATE) を取るため所有権検証より前に置く。
+	if err := s.validateCageAssignmentGuard(txCtx, clinicID, input.CageID); err != nil {
+		return err
+	}
 	if err := validateOwnedMasterFK(txCtx, "cage", clinicID, input.CageID,
 		func(actx context.Context, cid, mid uint64) error {
 			_, err := s.cageRepo.FindByID(actx, cid, mid)

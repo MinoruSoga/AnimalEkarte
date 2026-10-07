@@ -23,7 +23,14 @@ export type CreateCageRequest = Pick<CageRequestBase, "name" | "cage_type" | "ca
 
 export type UpdateCageRequest = Partial<CageRequestBase>;
 
-function transformCage(data: ModelCage) {
+// EMR-306: merged_into_cage_id は UNIT-U1 の codegen まで generated ModelCage に
+// 存在しないため、wire 応答のみローカル intersection で拡張する（本ファイルは
+// generated-models-import-allowlist 登録済み）。codegen で実フィールドが生成
+// された後も intersection は実フィールドと同型で競合せず、mapping 行はそのまま
+// 実フィールドを参照するため動作は変わらない。
+type CageWire = ModelCage & { merged_into_cage_id?: number | null };
+
+function transformCage(data: CageWire) {
   return {
     id: String(data.id ?? 0),
     name: data.name,
@@ -33,6 +40,7 @@ function transformCage(data: ModelCage) {
     isActive: data.is_active,
     description: data.description,
     sortOrder: data.sort_order,
+    mergedIntoCageId: data.merged_into_cage_id ?? null,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   };
@@ -41,7 +49,7 @@ function transformCage(data: ModelCage) {
 export type Cage = ReturnType<typeof transformCage>;
 
 const getAllCages = async (): Promise<Cage[]> => {
-  const { data } = await axios.get<ModelCage[]>("/v1/masters/cages");
+  const { data } = await axios.get<CageWire[]>("/v1/masters/cages");
   return data.map(transformCage);
 };
 
@@ -55,7 +63,7 @@ export const useGetAllCages = () => {
 };
 
 const createCage = async (req: CreateCageRequest): Promise<Cage> => {
-  const { data } = await axios.post<ModelCage>("/v1/masters/cages", req);
+  const { data } = await axios.post<CageWire>("/v1/masters/cages", req);
   return transformCage(data);
 };
 
@@ -71,7 +79,7 @@ export const useCreateCage = () => {
 };
 
 const updateCage = async (id: string, req: UpdateCageRequest): Promise<Cage> => {
-  const { data } = await axios.patch<ModelCage>(`/v1/masters/cages/${id}`, req);
+  const { data } = await axios.patch<CageWire>(`/v1/masters/cages/${id}`, req);
   return transformCage(data);
 };
 
