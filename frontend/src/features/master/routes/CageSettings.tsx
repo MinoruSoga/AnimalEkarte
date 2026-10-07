@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { C, ICON } from "@/lib/design-tokens";
+import { resolveCageNameById } from "@/lib/cage-name";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
@@ -216,10 +217,7 @@ export function CageSettings() {
 
   const unmergeTargetName = useMemo(() => {
     if (unmergeRepresentativeId === null) return "";
-    return (
-      (data ?? []).find((cage) => cage.id === unmergeRepresentativeId)?.name ??
-      `ID ${unmergeRepresentativeId}`
-    );
+    return resolveCageNameById(data ?? [], unmergeRepresentativeId);
   }, [data, unmergeRepresentativeId]);
 
   const handleUnmergeConfirm = useCallback(() => {

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { resolveCageNameById } from "@/lib/cage-name";
 import type { Hospitalization, MasterItem } from "@/types";
 import { Plus } from "lucide-react";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -105,10 +106,7 @@ function HospitalizationListContent({
     setPendingUnmergeRepId(representativeId);
   }, []);
 
-  const cageNameById = useCallback(
-    (id: string) => cages.find((c) => String(c.id) === id)?.name ?? `ID ${id}`,
-    [cages],
-  );
+  const cageNameById = useCallback((id: string) => resolveCageNameById(cages, id), [cages]);
 
   const handleMergeConfirm = useCallback(() => {
     if (canMergeRef.current !== true || pendingMerge === null) return;

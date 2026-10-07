@@ -59,5 +59,5 @@ export function formatCagePrice(price: number | null | undefined) {
  */
 export function findCageRepresentative(cages: readonly Cage[], cage: Cage | null): Cage | null {
   if (cage == null || cage.mergedIntoCageId == null) return null;
-  return cages.find((c) => c.id === String(cage.mergedIntoCageId)) ?? null;
+  return cages.find((c) => c.id === cage.mergedIntoCageId) ?? null;
 }

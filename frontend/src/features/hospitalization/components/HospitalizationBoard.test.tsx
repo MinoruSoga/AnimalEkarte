@@ -591,6 +591,27 @@ describe("HospitalizationBoard EMR-306 merged member cards", () => {
     expect(onRequestUnmerge).toHaveBeenCalledWith("10");
   });
 
+  it("rep card は 連結中（代表）バッジを表示し、解除 button は代表自身の id で onRequestUnmerge を呼ぶ", async () => {
+    const user = userEvent.setup();
+    const onRequestUnmerge = vi.fn();
+    render(
+      <HospitalizationBoard
+        cages={repAndMember}
+        hospitalizations={[]}
+        onNavigateToForm={vi.fn()}
+        onMovePet={vi.fn()}
+        canCreate
+        canEdit
+        canMerge
+        onRequestUnmerge={onRequestUnmerge}
+      />,
+    );
+
+    expect(screen.getByText("連結中（代表）")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "ケージ10の連結を解除" }));
+    expect(onRequestUnmerge).toHaveBeenCalledWith("10");
+  });
+
   it("canMerge=false では member card に 連結解除 button を出さない", () => {
     render(
       <HospitalizationBoard

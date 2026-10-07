@@ -64,5 +64,6 @@ func (r updateCageRequest) toServiceInput() *UpdateCageInput {
 // member_cage_ids は1件以上必須。重複・自己参照・未連結状態などのドメイン検証は
 // サービス側が担う（handler は malformed/empty のみ 400 に落とす）。
 type mergeCageRequest struct {
-	MemberCageIDs []uint64 `json:"member_cage_ids" binding:"required,min=1"`
+	// max は cageService の maxCageMergeMembers と同一値（gin tag はリテラル必須）。
+	MemberCageIDs []uint64 `json:"member_cage_ids" binding:"required,min=1,max=32"`
 }

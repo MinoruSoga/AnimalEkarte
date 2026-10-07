@@ -24,7 +24,7 @@ interface MergeCageRequest {
   member_cage_ids: number[];
 }
 
-export interface MergeCagesVariables {
+interface MergeCagesVariables {
   /** 代表ケージ ID。POST /v1/masters/cages/:id/merge の :id になる */
   representativeId: string;
   /** 代表以外の構成ケージ ID 配列（member_cage_ids にそのまま送る） */

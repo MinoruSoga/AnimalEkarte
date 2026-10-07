@@ -191,22 +191,28 @@ func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input *Up
 	}
 	cage, err := s.repo.Update(ctx, clinicID, id, *input)
 	if err != nil {
-		nameForConflict := ""
-		if input.Name != nil {
-			nameForConflict = *input.Name
-		}
-		if conflict := apperrors.AsNameUniqueConflict(
-			err,
-			nameForConflict,
-			apperrors.ConstraintCageName,
-			apperrors.CodeCageNameConflict,
-		); conflict != nil {
-			return nil, conflict
-		}
-		return nil, apperrors.Wrap(err, "failed to update cage")
+		return nil, cageUpdateError(err, input.Name)
 	}
 	slog.InfoContext(ctx, "cage updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("cage_id", id))
 	return cage, nil
+}
+
+// cageUpdateError は repo Update 系の失敗を共通変換する: cage 名の unique 制約
+// 違反は 409 conflict、それ以外は internal wrap。Update と deactivateCage で共有する。
+func cageUpdateError(err error, name *string) error {
+	nameForConflict := ""
+	if name != nil {
+		nameForConflict = *name
+	}
+	if conflict := apperrors.AsNameUniqueConflict(
+		err,
+		nameForConflict,
+		apperrors.ConstraintCageName,
+		apperrors.CodeCageNameConflict,
+	); conflict != nil {
+		return conflict
+	}
+	return apperrors.Wrap(err, "failed to update cage")
 }
 func (s *cageService) Delete(ctx context.Context, clinicID, id uint64) error {
 	// SEC-CS-F13: FOR UPDATE → usage count → soft-delete in one ambient tx so a
@@ -278,6 +284,10 @@ func (s *cageService) mergeRepo() CageMergeRepository {
 
 var _ CageMerger = (*cageService)(nil)
 
+// maxCageMergeMembers は1回の連結で指定できる構成ケージ数の上限。
+// mergeCageRequest の binding max と同一値を保つ（gin tag はリテラル必須）。
+const maxCageMergeMembers = 32
+
 func (s *cageService) Merge(ctx context.Context, clinicID, representativeID uint64, memberCageIDs []uint64) (*model.Cage, error) {
 	mergeRepo := s.mergeRepo()
 	if mergeRepo == nil {
@@ -288,6 +298,12 @@ func (s *cageService) Merge(ctx context.Context, clinicID, representativeID uint
 	}
 	if len(memberCageIDs) == 0 {
 		return nil, apperrors.WrapInvalidInput("member_cage_ids は1件以上指定してください")
+	}
+	// SEC-CS-F04 同型: member 配列のファンアウト UPDATE を上限で制限する。
+	// 運用上の連結は隣接する少数ケージ（2〜4室）を想定しており、上限は異常入力の
+	// 早期拒否用（binding の max タグはリテラル必須のためサービス側でも検査する）。
+	if len(memberCageIDs) > maxCageMergeMembers {
+		return nil, apperrors.WrapInvalidInput("member_cage_ids は32件以内で指定してください")
 	}
 	seen := make(map[uint64]struct{}, len(memberCageIDs))
 	for _, memberID := range memberCageIDs {
@@ -387,6 +403,10 @@ func (s *cageService) Unmerge(ctx context.Context, clinicID, representativeID ui
 		if memberCount == 0 {
 			return apperrors.WrapConflict("連結グループを持たないケージは連結解除できません")
 		}
+		// EMR-306: 占有検査は構成ケージだけでなく代表を含むグループ全体に対して行う。
+		// 入院は代表ケージにのみ紐付くため、構成ケージ限定の検査は常に空振りし、
+		// 占有中の連結室を誤って解除できてしまう。spec 文言の意図（占有中は解除不可）
+		// に合わせてグループ単位で判定する。
 		occupied, err := mergeRepo.CountOccupiedCages(txCtx, clinicID, groupIDs)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to check cage occupancy")
@@ -438,19 +458,7 @@ func (s *cageService) deactivateCage(ctx context.Context, clinicID, id uint64, i
 		}
 		updated, err := s.repo.Update(txCtx, clinicID, id, *input)
 		if err != nil {
-			nameForConflict := ""
-			if input.Name != nil {
-				nameForConflict = *input.Name
-			}
-			if conflict := apperrors.AsNameUniqueConflict(
-				err,
-				nameForConflict,
-				apperrors.ConstraintCageName,
-				apperrors.CodeCageNameConflict,
-			); conflict != nil {
-				return conflict
-			}
-			return apperrors.Wrap(err, "failed to update cage")
+			return cageUpdateError(err, input.Name)
 		}
 		cage = updated
 		return nil

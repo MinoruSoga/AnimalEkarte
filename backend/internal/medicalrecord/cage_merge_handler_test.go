@@ -267,6 +267,14 @@ func TestUnmergeCage(t *testing.T) {
 func TestMergeCageRequest_Binding(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	// maxCageMergeMembers 超の配列は binding max=32 で 400 に落ちる。
+	overLimitIDs := make([]uint64, maxCageMergeMembers+1)
+	for i := range overLimitIDs {
+		overLimitIDs[i] = uint64(i + 1)
+	}
+	overLimitBody, err := json.Marshal(map[string]any{"member_cage_ids": overLimitIDs})
+	require.NoError(t, err)
+
 	tests := []struct {
 		name      string
 		body      string
@@ -278,6 +286,7 @@ func TestMergeCageRequest_Binding(t *testing.T) {
 		{name: "missing field rejected", body: `{}`, wantError: true},
 		{name: "null rejected", body: `{"member_cage_ids":null}`, wantError: true},
 		{name: "string id rejected", body: `{"member_cage_ids":["2"]}`, wantError: true},
+		{name: "over max members rejected", body: string(overLimitBody), wantError: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

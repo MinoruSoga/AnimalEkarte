@@ -26,8 +26,8 @@ import { getHospitalizationTypeColor } from "@/lib/status-helpers";
 // Relative
 import { cageKeyboardCoordinateGetter } from "../lib/cage-keyboard-coordinates";
 import {
+  cageMergeCardState,
   isCageRepresentative,
-  isMergeDragSource,
   isMergeEligibleTarget,
   isMergedMember,
   mergeCageDragId,
@@ -89,6 +89,8 @@ const CageCard = memo(function CageCard({
   // EMR-227: 退院済み入院はケージ移動（書込み）を render 側でも禁止する。
   const isDischarged = occupant?.status === HOSPITALIZATION_STATUS.DISCHARGED;
   const mergedMember = isMergedMember(cage);
+  // EMR-306: 代表ケージも連結グループの一員 — カードにも連結中表示を持たせる。
+  const isRepresentative = isCageRepresentative(cages, String(cage.id));
   const cageContext = cage.category ? `${cage.category} ${cage.name}` : cage.name;
   const emptyCageActionLabel = `${cageContext}（ケージID: ${cage.id}）の空き枠に入院・ホテルを登録`;
   const mergeDragLabel = `${cageContext}（ケージID: ${cage.id}）を連結元としてドラッグ`;
@@ -97,33 +99,31 @@ const CageCard = memo(function CageCard({
   // Card 自体は非フォーカス可能・キーボード操作不可のため、同じ操作を onClick で重複させない。
   const canShowDetailButton = Boolean(occupant) && !isDeceased && canEdit;
 
-  // EMR-306: merge mode では cage card 自体が連結 source になる（patient drag は無効）。
-  const mergeDraggable =
-    mergeMode &&
-    canMerge &&
-    isMergeDragSource({ cages, cage, hasVisibleOccupant: occupant !== undefined });
-  const dragEnabled = mergeMode ? mergeDraggable : canDrag;
-
   const { active } = useDndContext();
   const activeMergeCageId =
     mergeMode && typeof active?.data.current?.mergeCageId === "string"
       ? active.data.current.mergeCageId
       : null;
 
-  // merge-mode の drop target 可否（advisory）。drag 未開始時は member・代表・無効ケージを
-  // target から除外し、drag 中は source/occupant を含めて再判定する。
-  const mergeTargetEligible =
-    canMerge &&
-    !mergedMember &&
-    !isCageRepresentative(cages, String(cage.id)) &&
-    cage.status === "active" &&
-    (activeMergeCageId === null ||
-      isMergeEligibleTarget({
-        cages,
-        draggedCageId: activeMergeCageId,
-        targetCageId: String(cage.id),
-        hasVisibleOccupant,
-      }));
+  // EMR-306: merge mode では cage card 自体が連結 source になる（patient drag は無効）。
+  // draggable / droppable / static mute / drag 中 highlight・mute の5状態は
+  // cage-merge-model の純粋関数に集約する。
+  const {
+    mergeDraggable,
+    mergeTargetEligible,
+    mergeStaticMuted,
+    mergeDragHighlighted,
+    mergeDragMuted,
+  } = cageMergeCardState({
+    cages,
+    cage,
+    mergeMode,
+    canMerge,
+    hasOccupant: occupant !== undefined,
+    activeMergeCageId,
+    hasVisibleOccupant,
+  });
+  const dragEnabled = mergeMode ? mergeDraggable : canDrag;
 
   const {
     attributes,
@@ -144,15 +144,6 @@ const CageCard = memo(function CageCard({
     // EMR-306: 連結メンバーケージは pet-move drop も受け付けない。
     disabled: mergeMode ? !mergeTargetEligible : !canEdit || mergedMember,
   });
-
-  // merge-mode static 表示: merge に一切参加できない cage（member・代表・inactive・占有）のみ mute。
-  // 代表 cage は drag source にも drop target にもなれない（BE は既存グループへの追加を
-  // 409 拒否する）ため merge 不参加として mute する。
-  const mergeParticipates =
-    canMerge && isMergeDragSource({ cages, cage, hasVisibleOccupant: occupant !== undefined });
-  const mergeStaticMuted = mergeMode && activeMergeCageId === null && !mergeParticipates;
-  const mergeDragHighlighted = mergeMode && activeMergeCageId !== null && mergeTargetEligible;
-  const mergeDragMuted = mergeMode && activeMergeCageId !== null && !mergeTargetEligible;
 
   return (
     <div ref={setDropRef} className="h-full">
@@ -223,6 +214,30 @@ const CageCard = memo(function CageCard({
                     if (cage.mergedIntoCageId != null) {
                       onRequestUnmerge(cage.mergedIntoCageId);
                     }
+                  }}
+                >
+                  連結解除
+                </button>
+              ) : null}
+            </div>
+          ) : isRepresentative ? (
+            // EMR-306: 代表ケージにも連結中表示を持たせる（メンバーだけでは
+            // グループの見た目が片寄る）。解除はグループ全体に効くため代表からも行える。
+            <div className="mb-1 flex w-full flex-col items-start gap-1">
+              <Badge
+                variant="secondary"
+                className={`${H_STYLES.text.xs} px-1.5 py-0 h-5 font-medium`}
+              >
+                連結中（代表）
+              </Badge>
+              {canMerge && onRequestUnmerge ? (
+                <button
+                  type="button"
+                  aria-label={`${cage.name}の連結を解除`}
+                  className={`flex min-h-8 items-center justify-center text-2xs ${C.textBrand} border ${C.borderBrandLight} rounded px-1.5 ${C.hoverBgBrandLight60} transition-colors`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onRequestUnmerge(String(cage.id));
                   }}
                 >
                   連結解除

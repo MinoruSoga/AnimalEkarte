@@ -90,6 +90,12 @@ func TestCageService_Merge_RejectsInvalidMemberIDs(t *testing.T) {
 	rep := makeCageMaster(t, db, clinicID, "代表ケージ")
 	m1 := makeCageMaster(t, db, clinicID, "構成ケージ1")
 
+	// 上限超（maxCageMergeMembers+1）はドメイン検査前に InvalidInput で早期拒否される。
+	overLimit := make([]uint64, maxCageMergeMembers+1)
+	for i := range overLimit {
+		overLimit[i] = uint64(i + 1)
+	}
+
 	tests := []struct {
 		name      string
 		memberIDs []uint64
@@ -97,6 +103,7 @@ func TestCageService_Merge_RejectsInvalidMemberIDs(t *testing.T) {
 		{name: "empty member list", memberIDs: nil},
 		{name: "duplicate member ids", memberIDs: []uint64{m1.ID, m1.ID}},
 		{name: "representative itself in members", memberIDs: []uint64{rep.ID}},
+		{name: "member count exceeds cap", memberIDs: overLimit},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

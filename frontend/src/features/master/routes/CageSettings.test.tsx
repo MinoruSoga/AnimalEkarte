@@ -34,8 +34,8 @@ vi.mock("@/hooks/use-auth", () => ({
 function makeCage(
   id: number,
   name: string,
-  // merged_into_cage_id は codegen（UNIT-U1）まで ModelCage に無いため wire 拡張を許容する。
-  overrides: Partial<ModelCage> & { merged_into_cage_id?: number | null } = {},
+  // EMR-306: merged_into_cage_id は generated ModelCage に含まれる（codegen 済み）。
+  overrides: Partial<ModelCage> = {},
 ): ModelCage {
   return {
     id,
@@ -300,8 +300,10 @@ describe("CageSettings ケージ連結 (EMR-306)", () => {
     renderPage();
     await screen.findByText("1番ケージ");
 
-    const badge = await screen.findByText(/連結中/);
-    expect(badge).toHaveTextContent("1番ケージ");
+    // メンバー行には代表名入りバッジ、代表行にも連結中表示が出る（EMR-306 レビュー対応）
+    const badge = await screen.findByText("連結中: 1番ケージ");
+    expect(badge).toBeInTheDocument();
+    expect(screen.getByText("連結中（代表）")).toBeInTheDocument();
     // 連結済み（メンバー・代表）行は merge 対象に選べない
     expect(
       screen.getByRole("checkbox", { name: "連結選択: ケージ 1番ケージ (ID 1)" }),

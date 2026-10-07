@@ -17,6 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { C, STYLE } from "@/lib/design-tokens";
+import { resolveCageNameById } from "@/lib/cage-name";
 
 import type { Cage } from "../api/cages";
 import { CAGE_SIZE_LABELS, CAGE_TYPE_LABELS, formatCagePrice } from "../lib/cage-side-panel-model";
@@ -69,10 +70,9 @@ export function CageSortableTable({
 
   // EMR-306: 連結グループの代表 cage id 集合（= 誰かの mergedIntoCageId になっている id）
   const representativeIds = useMemo(
-    () => new Set(items.map((c) => c.mergedIntoCageId).filter((id): id is number => id != null)),
+    () => new Set(items.map((c) => c.mergedIntoCageId).filter((id): id is string => id != null)),
     [items],
   );
-  const cageNameById = useMemo(() => new Map(items.map((c) => [c.id, c.name])), [items]);
 
   return (
     <div className={STYLE.tableContainer}>
@@ -112,13 +112,12 @@ export function CageSortableTable({
                   // 連結済み・無効行は merge の選択対象外（checkbox は disabled 表示）。
                   const mergedRepName =
                     item.mergedIntoCageId != null
-                      ? (cageNameById.get(String(item.mergedIntoCageId)) ??
-                        `ID ${item.mergedIntoCageId}`)
+                      ? resolveCageNameById(items, item.mergedIntoCageId)
                       : null;
                   const isMergedMember = item.mergedIntoCageId != null;
-                  const isMergedRepresentative = representativeIds.has(Number(item.id));
+                  const isMergedRepresentative = representativeIds.has(item.id);
                   const isMerged = isMergedMember || isMergedRepresentative;
-                  const unmergeRepId = isMergedMember ? String(item.mergedIntoCageId) : item.id;
+                  const unmergeRepId = item.mergedIntoCageId ?? item.id;
                   return (
                     <SortableDataTableRow
                       key={item.id}
@@ -144,6 +143,8 @@ export function CageSortableTable({
                           </DataTableRowButton>
                           {isMergedMember ? (
                             <Badge variant="secondary">{`連結中: ${mergedRepName}`}</Badge>
+                          ) : isMergedRepresentative ? (
+                            <Badge variant="secondary">連結中（代表）</Badge>
                           ) : null}
                         </div>
                       </TableCell>

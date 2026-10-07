@@ -1,4 +1,5 @@
 import type { MasterItem } from "@/types";
+import { resolveCageNameById } from "@/lib/cage-name";
 
 /**
  * EMR-306 ケージ一時連結: 入院ボード merge mode の pure model。
@@ -32,7 +33,7 @@ export function resolveRepresentativeName(
   cages: readonly MasterItem[],
   mergedIntoCageId: string,
 ): string {
-  return cages.find((c) => String(c.id) === mergedIntoCageId)?.name ?? `ID ${mergedIntoCageId}`;
+  return resolveCageNameById(cages, mergedIntoCageId);
 }
 
 /**
@@ -86,4 +87,53 @@ export function isMergeEligibleTarget(args: {
   if (target.status !== "active") return false;
   if (hasVisibleOccupant(draggedCageId) || hasVisibleOccupant(targetCageId)) return false;
   return true;
+}
+
+/**
+ * merge-mode 中のケージカード視覚状態を一括算出する（draggable / droppable /
+ * static mute / drag 中 highlight・mute の5状態）。全て advisory で、最終可否は BE が持つ。
+ */
+export function cageMergeCardState(args: {
+  cages: readonly MasterItem[];
+  cage: MasterItem;
+  mergeMode: boolean;
+  canMerge: boolean;
+  /** カードに入院 occupant が載っているか（visible な一覧基準） */
+  hasOccupant: boolean;
+  /** merge-mode で drag 中の source cage id（未 drag 時は null） */
+  activeMergeCageId: string | null;
+  hasVisibleOccupant: (cageId: string) => boolean;
+}): {
+  mergeDraggable: boolean;
+  mergeTargetEligible: boolean;
+  mergeStaticMuted: boolean;
+  mergeDragHighlighted: boolean;
+  mergeDragMuted: boolean;
+} {
+  const { cages, cage, mergeMode, canMerge, hasOccupant, activeMergeCageId, hasVisibleOccupant } =
+    args;
+  const participates =
+    canMerge && isMergeDragSource({ cages, cage, hasVisibleOccupant: hasOccupant });
+  const mergeDraggable = mergeMode && participates;
+  // drop target 可否（advisory）。drag 未開始時は member・代表・無効ケージを
+  // target から除外し、drag 中は source/occupant を含めて再判定する。
+  const mergeTargetEligible =
+    canMerge &&
+    cage.mergedIntoCageId == null &&
+    !isCageRepresentative(cages, String(cage.id)) &&
+    cage.status === "active" &&
+    (activeMergeCageId === null ||
+      isMergeEligibleTarget({
+        cages,
+        draggedCageId: activeMergeCageId,
+        targetCageId: String(cage.id),
+        hasVisibleOccupant,
+      }));
+  return {
+    mergeDraggable,
+    mergeTargetEligible,
+    mergeStaticMuted: mergeMode && activeMergeCageId === null && !participates,
+    mergeDragHighlighted: mergeMode && activeMergeCageId !== null && mergeTargetEligible,
+    mergeDragMuted: mergeMode && activeMergeCageId !== null && !mergeTargetEligible,
+  };
 }

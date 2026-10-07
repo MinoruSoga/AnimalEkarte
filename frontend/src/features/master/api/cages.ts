@@ -10,9 +10,17 @@ export type CageType = "icu" | "dog" | "cat" | "general";
 export type CageSize = "small" | "medium" | "large";
 
 // Request types (derived from models.ts, with strict unions for cage_type/cage_size)
+// merged_into_cage_id は merge/unmerge 専用エンドポイントが管理するため
+// create/update のリクエスト型からは除外する。
 type CageRequestBase = Omit<
   ModelCage,
-  "id" | "clinic_id" | "created_at" | "updated_at" | "cage_type" | "cage_size"
+  | "id"
+  | "clinic_id"
+  | "created_at"
+  | "updated_at"
+  | "cage_type"
+  | "cage_size"
+  | "merged_into_cage_id"
 > & {
   cage_type: CageType;
   cage_size: CageSize;
@@ -23,12 +31,12 @@ export type CreateCageRequest = Pick<CageRequestBase, "name" | "cage_type" | "ca
 
 export type UpdateCageRequest = Partial<CageRequestBase>;
 
-// EMR-306: merged_into_cage_id は UNIT-U1 の codegen まで generated ModelCage に
-// 存在しないため、wire 応答のみローカル intersection で拡張する（本ファイルは
-// generated-models-import-allowlist 登録済み）。codegen で実フィールドが生成
-// された後も intersection は実フィールドと同型で競合せず、mapping 行はそのまま
-// 実フィールドを参照するため動作は変わらない。
-type CageWire = ModelCage & { merged_into_cage_id?: number | null };
+// EMR-306: merged_into_cage_id は generated ModelCage に含まれるが、wire の実値は
+// DB NULL 時に JSON null で返る（generated 型は number のみで null を持たない）。
+// wire 型だけ null を許容し、transform で MasterItem と同じ string 系に正規化する。
+type CageWire = Omit<ModelCage, "merged_into_cage_id"> & {
+  merged_into_cage_id?: number | null;
+};
 
 function transformCage(data: CageWire) {
   return {
@@ -40,7 +48,7 @@ function transformCage(data: CageWire) {
     isActive: data.is_active,
     description: data.description,
     sortOrder: data.sort_order,
-    mergedIntoCageId: data.merged_into_cage_id ?? null,
+    mergedIntoCageId: data.merged_into_cage_id != null ? String(data.merged_into_cage_id) : null,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   };
