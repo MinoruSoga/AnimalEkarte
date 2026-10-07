@@ -1,6 +1,6 @@
 // External
 import { memo } from "react";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { Building2, Calendar, ShieldCheck } from "lucide-react";
 
 // Internal
@@ -38,7 +38,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
   cageIdError,
 }: HospitalizationBasicInfoProps) {
   return (
-    <div className={H_STYLES.form.card}>
+    <div className={STYLE.formCard}>
       <h2 className={`${H_STYLES.form.cardHeading} mb-3 flex items-center gap-2`}>
         <Building2 className={`${ICON.action} ${C.text60}`} />
         基本情報
@@ -228,7 +228,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
           value={formData.memo}
           onChange={(e) => onChange({ memo: e.target.value })}
           placeholder="メモを入力..."
-          className={`min-h-[80px] resize-none ${C.bgWhite} ${C.borderMedium} ${C.focusVisibleRingActionPrimary}`}
+          className={`min-h-20 resize-none ${C.bgWhite} ${C.borderMedium} ${C.focusVisibleRingActionPrimary}`}
         />
       </div>
     </div>

@@ -42,7 +42,7 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
   readOnly = false,
 }: HospitalizationTreatmentTableProps) {
   return (
-    <div className={`${H_STYLES.form.card} mb-3`}>
+    <div className={`${STYLE.formCard} mb-3`}>
       <div className="flex items-center justify-between mb-3">
         <h2 className={`${H_STYLES.form.cardHeading} flex items-center gap-2`}>
           <FileText className={`${ICON.action} ${C.text60}`} />

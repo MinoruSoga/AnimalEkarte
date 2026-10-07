@@ -2,7 +2,7 @@
 import { memo } from "react";
 
 // Internal
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { Textarea } from "@/components/ui/textarea";
 import { H_STYLES } from "../lib/styles";
 
@@ -27,7 +27,7 @@ export const HospitalizationNoteCard = memo(function HospitalizationNoteCard({
   placeholder,
 }: HospitalizationNoteCardProps) {
   return (
-    <div className={H_STYLES.form.card}>
+    <div className={STYLE.formCard}>
       <h2
         id={id ? `${id}-label` : undefined}
         className={`${H_STYLES.form.cardHeading} mb-3 flex items-center gap-2`}
@@ -41,7 +41,7 @@ export const HospitalizationNoteCard = memo(function HospitalizationNoteCard({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={`min-h-[200px] resize-none ${C.bgWhite} ${C.borderMedium} ${C.focusVisibleRingActionPrimary}`}
+        className={`min-h-50 resize-none ${C.bgWhite} ${C.borderMedium} ${C.focusVisibleRingActionPrimary}`}
       />
     </div>
   );

@@ -65,7 +65,7 @@ describe("HospitalizationBasicInfo", () => {
     renderBasicInfo();
 
     const memo = screen.getByRole("textbox", { name: "メモ" });
-    expect(memo).toHaveClass("min-h-[80px]");
+    expect(memo).toHaveClass("min-h-20");
     expect(memo).not.toHaveClass("text-base");
   });
 

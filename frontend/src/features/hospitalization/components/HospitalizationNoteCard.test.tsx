@@ -41,7 +41,7 @@ describe("HospitalizationNoteCard", () => {
     const textarea = screen.getByRole("textbox", { name: "主訴" });
     expect(textarea).toHaveValue("元気がない");
     expect(textarea).toHaveAttribute("aria-labelledby", "owner_request-label");
-    expect(textarea).toHaveClass("min-h-[200px]");
+    expect(textarea).toHaveClass("min-h-50");
     expect(textarea).not.toHaveClass("text-base");
 
     fireEvent.change(textarea, { target: { value: "嘔吐" } });

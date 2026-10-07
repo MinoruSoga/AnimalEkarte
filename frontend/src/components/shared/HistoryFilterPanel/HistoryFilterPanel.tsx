@@ -118,7 +118,7 @@ export const HistoryFilterPanel = memo(function HistoryFilterPanel({
           >
             <SelectTrigger
               aria-label="並び順"
-              className={`w-auto min-w-24 h-11 text-sm bg-white ${C.borderMedium} ${C.text}`}
+              className={`w-auto min-w-24 h-11 text-sm ${C.bgWhite} ${C.borderMedium} ${C.text}`}
             >
               <SelectValue />
             </SelectTrigger>
