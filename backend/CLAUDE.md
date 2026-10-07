@@ -39,6 +39,7 @@ backend を変更する前に次を読む。
 - host で `go` command を直接実行しない。Docker の scoped command を使う。
 - full `go test ./...`、full lint、DB reset/migration apply は自動実行しない。
 - 変更 package に限定した test、format、lint を優先する。
+- DB を触る package を複数束ねる `go test` は必ず `-p 1` を付ける（docker-compose.yml の `GOFLAGS: "-p=4"` をコマンド側で上書き）。並列パッケージ実行は共有 test DB の fixture TRUNCATE/seed が衝突して高頻度 flake する（FK 23503 / deadlock 40P01）。`Makefile: test`・`scripts/ci/run-local-ci.sh` の shard 内実行と同じ規約。
 - docs-only change は runtime verification 不要。link、reference、format drift を確認する。
 
 P1–P18 は廃止された project 固有 checklist であり、レビュー基準に使わない。レビューは [Go/Gin Backend Review](../.claude/refs/go-gin-backend-review.md) を使う。

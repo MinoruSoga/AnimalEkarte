@@ -204,8 +204,11 @@
 ## claim / 作業開始時
 
 - パケット claim protocol（AGENTS.md）の `<TASK-ID>` には Plane ID をそのまま使う: `claim/EMR-298`
+- **claim 取得 = state を `Running` に更新する**。`claim/EMR-N` ブランチの取得と Plane の state 遷移は1組で行い、片方だけの状態にしない。`Backlog` / `Ready` / `Research` / `本番切替対応` のいずれからでも着手者が自己遷移してよい（`本番切替対応` から動かす場合も切替期限の情報は priority・target_date・本文に残る）。`Phase2` / `Needs Human` / `Blocked` の票は claim しない — 滞留・保留理由の解消が先
 - state 遷移の権限: 作業者は Running → Review → UAT まで自己遷移してよい（UAT 入り＝人間に受入を依頼する意味）。**Done / Cancelled / Duplicate への遷移は人間の受入コメントまたは明示指示がある場合のみ** — 実装者・エージェントは自己 Done しない。遷移時は証跡（コミット・検証結果・受入記録）をコメントに残す
 - 逆方向の遷移（UAT → Running の差戻し、Blocked / Needs Human 解除後の戻し、Running → Backlog の棚卸し）も人間判断または人間のコメント指示に基づく。解除後の戻り先は Backlog（再トリアージ）または Ready（引き続き着手可能なら）
+- **Running 不整合チェック**: 「claim ブランチがあるのに unstarted 系 state」「claim が無いのに Running のまま」は運用不整合として発見者が報告する。棚卸し（Running → Backlog 等）自体は上記の通り人間判断
+- **委譲・ファンアウト時**: 子セッションのブリーフが Plane 書き込み禁止の場合があるため、Running への遷移はディスパッチする側（オーケストレータ）が行う
 - `Backlog → Ready` の昇格（トリアージ）は、受入条件・現状・方針が揃った票なら起票者・着手者が行ってよい（作成時 Ready と同等の判断）。判断に迷うものは人間に振る
 
 ## 禁止事項

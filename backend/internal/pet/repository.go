@@ -440,48 +440,66 @@ func (r *repository) update(ctx context.Context, clinicID, id uint64, fields map
 		}
 	}
 	db := persistence.DBOrTx(ctx, r.db)
-	if expectedStatus, conflictMessage, ok := legacyLifecycleTransition(fields); ok {
-		return updateLegacyLifecycleFieldsWithDB(db, clinicID, id, expectedStatus, fields, conflictMessage)
+	if deathRecord, conflictMessage, ok := legacyLifecycleTransition(fields); ok {
+		return updateLegacyLifecycleFieldsWithDB(db, clinicID, id, deathRecord, fields, conflictMessage)
 	}
 	return updatePetFieldsWithDB(db, clinicID, id, fields)
 }
 
-func legacyLifecycleTransition(fields map[string]any) (model.PetStatus, string, bool) {
+// legacyLifecycleTransition は旧ライフサイクル更新フォーム（deceased_at/deceased_reason/status
+// の3フィールド同時更新）の遷移方向を返す。deathRecord=true は死亡記録、false は死亡取り消し。
+// EMR-328: 前置条件は status 単独ではなく OR 契約（deceased = status='deceased' OR
+// deceased_at IS NOT NULL）と整合させるため方向を返す。
+func legacyLifecycleTransition(fields map[string]any) (deathRecord bool, conflictMessage string, ok bool) {
 	if len(fields) != 3 {
-		return "", "", false
+		return false, "", false
 	}
 	if _, ok := fields["deceased_at"]; !ok {
-		return "", "", false
+		return false, "", false
 	}
 	if _, ok := fields["deceased_reason"]; !ok {
-		return "", "", false
+		return false, "", false
 	}
 	status, ok := fields["status"]
 	if !ok {
-		return "", "", false
+		return false, "", false
 	}
 
 	switch status {
 	case model.PetStatusDeceased:
-		return model.PetStatusAlive, "死亡記録は既に登録されています", true
+		return true, "死亡記録は既に登録されています", true
 	case model.PetStatusAlive:
-		return model.PetStatusDeceased, "死亡記録が登録されていないため解除できません", true
+		return false, "死亡記録が登録されていないため解除できません", true
 	default:
-		return "", "", false
+		return false, "", false
 	}
+}
+
+func legacyLifecycleExpectedStatus(deathRecord bool) model.PetStatus {
+	if deathRecord {
+		return model.PetStatusAlive
+	}
+	return model.PetStatusDeceased
 }
 
 func updateLegacyLifecycleFieldsWithDB(
 	db *gorm.DB,
 	clinicID, petID uint64,
-	expectedStatus model.PetStatus,
+	deathRecord bool,
 	fields map[string]any,
 	conflictMessage string,
 ) error {
+	// 死亡記録側は status='alive' かつ deceased_at IS NULL のみ通す（半死亡行の二重死亡を拒否）。
+	// 取り消し側は status='deceased' または deceased_at≠NULL（半死亡行の復活を許可）。
+	precondition := "status = ? AND deceased_at IS NULL"
+	if !deathRecord {
+		precondition = "(status = ? OR deceased_at IS NOT NULL)"
+	}
 	result := db.
 		Model(&model.Pet{}).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ? AND status = ?", petID, expectedStatus).
+		Where("id = ?", petID).
+		Where(precondition, legacyLifecycleExpectedStatus(deathRecord)).
 		Select("deceased_at", "deceased_reason", "status").
 		Updates(fields)
 	if result.Error != nil {
@@ -682,7 +700,7 @@ func (r *repository) RecordDeath(ctx context.Context, clinicID, petID uint64, de
 	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Pet{}).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ? AND status = ?", petID, model.PetStatusAlive).
+		Where("id = ? AND status = ? AND deceased_at IS NULL", petID, model.PetStatusAlive).
 		Select("deceased_at", "deceased_reason", "status").
 		Updates(&model.Pet{
 			DeceasedAt:     &deceasedAt,
@@ -702,7 +720,7 @@ func (r *repository) ClearDeath(ctx context.Context, clinicID, petID uint64) err
 	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Pet{}).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ? AND status = ?", petID, model.PetStatusDeceased).
+		Where("id = ? AND (status = ? OR deceased_at IS NOT NULL)", petID, model.PetStatusDeceased).
 		Select("deceased_at", "deceased_reason", "status").
 		Updates(&model.Pet{Status: model.PetStatusAlive})
 	if result.Error != nil {

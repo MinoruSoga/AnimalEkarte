@@ -1488,3 +1488,74 @@ func TestLstepLifecycleService_HandleOwnerDeletion_RemoveTagsErrorIsBestEffort(t
 
 	assert.NoError(t, err)
 }
+
+// ---- EMR-328: 半死亡行（status=alive + deceased_at≠NULL）の OR 契約 ----
+
+// HandlePetDeath は半死亡行を既に死亡として conflict し、RecordDeath/監査/タグ同期を実行しない。
+func TestLstepLifecycleService_HandlePetDeath_HalfDeadRowConflict(t *testing.T) {
+	deceasedAt := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	pet := &model.Pet{
+		ID:         1,
+		OwnerID:    10,
+		Status:     model.PetStatusAlive,
+		DeceasedAt: &deceasedAt,
+	}
+	var updateCalls int
+	petRepo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			return pet, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateCalls++
+			return nil
+		},
+	}
+	svc := newLstepLifecycleSvc(
+		defaultLstepSettingsSvc(),
+		&mockOwnerRepository{},
+		petRepo,
+		&mockLstepTagCacheRepository{},
+		&mockLstepTagSyncService{},
+	)
+
+	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気", nil)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err))
+	assert.Equal(t, 0, updateCalls, "RecordDeath must not run for an already-deceased (half-dead) row")
+}
+
+// HandlePetRevival は半死亡行を死亡扱いして ClearDeath へ進める（従来は status≠deceased で復活不能だった）。
+func TestLstepLifecycleService_HandlePetRevival_HalfDeadRowSucceeds(t *testing.T) {
+	deceasedAt := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	pet := &model.Pet{
+		ID:         1,
+		OwnerID:    10,
+		Status:     model.PetStatusAlive,
+		DeceasedAt: &deceasedAt,
+	}
+	var updateCalls int
+	petRepo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			return pet, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, fields map[string]any) error {
+			updateCalls++
+			assert.Equal(t, model.PetStatusAlive, fields["status"])
+			return nil
+		},
+		findLivingByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Pet, error) {
+			return []model.Pet{{ID: 2, OwnerID: 10, Status: model.PetStatusAlive}}, nil
+		},
+	}
+	svc := newLstepLifecycleSvc(
+		defaultLstepSettingsSvc(),
+		&mockOwnerRepository{},
+		petRepo,
+		&mockLstepTagCacheRepository{},
+		&mockLstepTagSyncService{},
+	)
+
+	err := svc.HandlePetRevival(context.Background(), 1, 1, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 1, updateCalls, "ClearDeath must run for a half-dead row")
+}
