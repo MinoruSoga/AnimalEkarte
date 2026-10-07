@@ -28,18 +28,19 @@
 - **備考**: 自由入力メモ。
 
 ### 1.2 画像管理
-- **希望スタイル画像・完成画像**: ファイルを選択すると `useTrimmingFormImages` が `FileReader` でローカルプレビューを表示する。既存レコードの画像 URL があれば再表示する。
-- **保存の制限**: `buildCreateTrimmingRequest` / `buildUpdateTrimmingRequest` は画像キーを送信せず、別のファイルアップロード処理も呼ばない。画面で選択・削除した画像は保存ボタンを押しても永続化されない。バックエンドの `style_image` / `completed_image` フィールドの存在を、この画面のアップロード完了と見なさない。
+- **希望スタイル画像・完成画像**: ファイルを選択するか、`TrimmingImageUploadField` の「撮影」で背面カメラを起動する（隠し input の `capture="environment"`）。`useTrimmingFormImages` は選択直後に `uploadTrimmingImage` で `POST /api/v1/trimmings/images/upload` を呼び、返った object key をフォームへ入れる。プレビューは返った `signed_url`（空なら data URL）を使う。既存レコードの署名付き URL があれば再表示する。
+- **保存**: `buildCreateTrimmingRequest` / `buildUpdateTrimmingRequest` は、画像を変更したときだけ `style_image` / `completed_image` に object key を載せる。未変更の再保存ではそのフィールドを省く。明示的な削除は空文字を送る。署名 URL は保存しない。アップロード失敗は toast を出し、直前の key とプレビューは残す。
 
 画像選択から保存までの扱い：
 
 ```mermaid
 flowchart TB
-    A["画像ファイルを選択"] --> B["FileReader でローカルプレビュー"]
-    E0["既存レコードの画像 URL"] --> B
+    A["画像を選択または撮影"] --> U["POST /api/v1/trimmings/images/upload"]
+    U --> B["key を保持し signed_url でプレビュー"]
+    E0["既存レコードの署名付き URL"] --> B
     B --> C["保存ボタン"]
-    C --> D["POST / PATCH リクエスト<br/>画像キーは送信しない"]
-    D --> E["画像は永続化されない<br/>BE の style_image / completed_image はアップロード完了を意味しない"]
+    C --> D["POST / PATCH<br/>style_image / completed_image に key"]
+    D --> E["サーバが clinic 配下の key を保存し、読み出し時に署名 URL を返す"]
 ```
 
 ### 1.3 過去履歴の参照と引用 (History Sync)
@@ -70,13 +71,14 @@ flowchart TB
 - **`TrimmingForm`**: 統合フォーム。
 - **`TrimmingLeftColumn`/`TrimmingMiddleColumn`**: コース・オプション・スタイル要望・身体状態等の入力欄。
 - **`TrimmingRightColumn`**: 過去履歴パネル。クリックで過去データを現在のフォームへマージ。
-- **`TrimmingImageUploadField`**: 希望スタイル画像・完成画像の選択とプレビュー UI（保存の制限は §1.2）。
+- **`TrimmingImageUploadField`**: 希望スタイル画像・完成画像のファイル選択、`capture="environment"` の撮影ボタン、プレビューと削除。永続化は §1.2。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
 | GET | `/api/v1/trimmings/:id` | 施術詳細および画像 URL の取得 | `trimming` | `view` |
-| POST | `/api/v1/trimmings` | 新規保存 | `trimming` | `create` |
+| POST | `/api/v1/trimmings/images/upload` | 画像を先にアップロードし object key と署名 URL を返す | `trimming` | `create` または `edit` |
+| POST | `/api/v1/trimmings` | 新規保存。変更した画像は `style_image` / `completed_image` に key を載せる | `trimming` | `create` |
 | PATCH | `/api/v1/trimmings/:id` | 内容の更新 | `trimming` | `edit` |
 | GET | `/api/v1/trimmings` | 過去のカット履歴の取得（クエリパラメータ: `pet_id=xxx`） | `trimming` | `view` |
 | DELETE | `/api/v1/trimmings/:id` | 記録の削除（編集画面のみ、`delete` 権限保有者にヘッダーの削除ボタンを表示） | `trimming` | `delete` |

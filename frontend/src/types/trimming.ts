@@ -111,14 +111,16 @@ export interface TrimmingFormData {
   startTime: string;
   endTime: string;
   styleRequest: string;
-  styleImage: File | null;
+  /** オブジェクトキー。null は未変更（update では省略）、空文字は削除。署名 URL は入れない。 */
+  styleImage: string | null;
   bw: string;
   bwUnit: "Kg" | "g";
   bt: string;
   usedShampoo: string;
   usedRibbon: string;
   remarks: string;
-  completedImage: File | null;
+  /** オブジェクトキー。null は未変更（update では省略）、空文字は削除。署名 URL は入れない。 */
+  completedImage: string | null;
   courseId: string;
   optionIds: string[];
   staffId: string;

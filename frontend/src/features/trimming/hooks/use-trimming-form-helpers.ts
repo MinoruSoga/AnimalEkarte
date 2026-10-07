@@ -5,6 +5,84 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
 import type { TrimmingFormData } from "@/types/trimming";
 import type { Pet } from "@/types";
+import { uploadTrimmingImage } from "../api/upload-trimming-image";
+
+type TrimmingImageField = "styleImage" | "completedImage";
+
+type TrimmingImageOverrides = (
+  updater: (prev: Partial<TrimmingFormData>) => Partial<TrimmingFormData>,
+) => void;
+
+function selectedImageFile(event: React.ChangeEvent<HTMLInputElement>): File | null {
+  const file = event.target.files?.[0] ?? null;
+  event.target.value = "";
+  return file;
+}
+
+function readImageDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === "string" && reader.result !== "") {
+        resolve(reader.result);
+        return;
+      }
+      reject(reader.error ?? new Error("image preview unavailable"));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function applyTrimmingImageSelection(input: {
+  file: File;
+  isCurrent: () => boolean;
+  onStored: (key: string, preview: string) => void;
+}): Promise<void> {
+  try {
+    const uploaded = await uploadTrimmingImage(input.file);
+    const preview =
+      uploaded.signed_url !== "" ? uploaded.signed_url : await readImageDataUrl(input.file);
+    if (!input.isCurrent()) return;
+    input.onStored(uploaded.key, preview);
+  } catch (error) {
+    if (!input.isCurrent()) return;
+    handleApiError(error, "画像アップロード");
+  }
+}
+
+function useTrimmingImageField(
+  field: TrimmingImageField,
+  setPreview: (value: string | null) => void,
+  setLocalOverrides: TrimmingImageOverrides,
+) {
+  const requestIdRef = useRef(0);
+
+  const handleChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = selectedImageFile(event);
+      if (!file) return undefined;
+      const requestId = requestIdRef.current + 1;
+      requestIdRef.current = requestId;
+      return applyTrimmingImageSelection({
+        file,
+        isCurrent: () => requestIdRef.current === requestId,
+        onStored: (key, preview) => {
+          setLocalOverrides((prev) => ({ ...prev, [field]: key }));
+          setPreview(preview);
+        },
+      });
+    },
+    [field, setLocalOverrides, setPreview],
+  );
+
+  const remove = useCallback(() => {
+    requestIdRef.current += 1;
+    setLocalOverrides((prev) => ({ ...prev, [field]: "" }));
+    setPreview(null);
+  }, [field, setLocalOverrides, setPreview]);
+
+  return { handleChange, remove };
+}
 
 type TrimmingHydrateSource = {
   styleRequest?: string;
@@ -118,59 +196,25 @@ export function useTrimmingFormHydration(input: {
   ]);
 }
 
-export function useTrimmingFormImages(
-  setLocalOverrides: (
-    updater: (prev: Partial<TrimmingFormData>) => Partial<TrimmingFormData>,
-  ) => void,
-) {
+export function useTrimmingFormImages(setLocalOverrides: TrimmingImageOverrides) {
   const [styleImagePreview, setStyleImagePreview] = useState<string | null>(null);
   const [completedImagePreview, setCompletedImagePreview] = useState<string | null>(null);
-
-  const handleStyleImageChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        setLocalOverrides((prev) => ({ ...prev, styleImage: file }));
-        const reader = new FileReader();
-        reader.onloadend = () => setStyleImagePreview(reader.result as string);
-        reader.readAsDataURL(file);
-      }
-    },
-    [setLocalOverrides],
+  const styleImage = useTrimmingImageField("styleImage", setStyleImagePreview, setLocalOverrides);
+  const completedImage = useTrimmingImageField(
+    "completedImage",
+    setCompletedImagePreview,
+    setLocalOverrides,
   );
-
-  const handleCompletedImageChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        setLocalOverrides((prev) => ({ ...prev, completedImage: file }));
-        const reader = new FileReader();
-        reader.onloadend = () => setCompletedImagePreview(reader.result as string);
-        reader.readAsDataURL(file);
-      }
-    },
-    [setLocalOverrides],
-  );
-
-  const removeStyleImage = useCallback(() => {
-    setLocalOverrides((prev) => ({ ...prev, styleImage: null }));
-    setStyleImagePreview(null);
-  }, [setLocalOverrides]);
-
-  const removeCompletedImage = useCallback(() => {
-    setLocalOverrides((prev) => ({ ...prev, completedImage: null }));
-    setCompletedImagePreview(null);
-  }, [setLocalOverrides]);
 
   return {
     styleImagePreview,
     setStyleImagePreview,
     completedImagePreview,
     setCompletedImagePreview,
-    handleStyleImageChange,
-    handleCompletedImageChange,
-    removeStyleImage,
-    removeCompletedImage,
+    handleStyleImageChange: styleImage.handleChange,
+    handleCompletedImageChange: completedImage.handleChange,
+    removeStyleImage: styleImage.remove,
+    removeCompletedImage: completedImage.remove,
   };
 }
 

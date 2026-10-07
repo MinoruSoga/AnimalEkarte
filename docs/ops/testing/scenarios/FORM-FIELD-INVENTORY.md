@@ -191,7 +191,7 @@ Owner: clinical_plan PATCH child resource. The parent medical-record and inquiry
 | used_shampoo | O | 使用シャンプー F4 F5 |
 | used_ribbon | O | 使用リボン F4 F5 |
 | remarks | O | 備考 F4 F5 |
-| （画像保存経路） | — | wire key は `style_image` / `completed_image`（string≤2048・同一 POST/PATCH body）で確定済み。ただし FE は File を preview のみに使い upload 手段が存在せず送信されないため永続化 PASS には数えない（既知 gap、[17-trimming-form.md](../../../spec/screens/17-trimming-form.md)） |
+| （画像保存経路） | `uploadTrimmingImage` → `buildCreateTrimmingRequest` / `buildUpdateTrimmingRequest` | `style_image` / `completed_image`（string≤2048）を同一 POST/PATCH body で永続化する。選択直後に `POST /api/v1/trimmings/images/upload` し、保存するのは object key。署名 URL は表示専用。未変更の再保存ではフィールドを省き、削除は空文字（[17-trimming-form.md](../../../spec/screens/17-trimming-form.md)） |
 
 ---
 

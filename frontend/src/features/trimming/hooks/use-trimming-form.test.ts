@@ -98,13 +98,19 @@ vi.mock("../api/delete-trimming", () => ({
   })),
 }));
 
-vi.mock("@/config/paths", () => ({
-  paths: {
-    trimming: {
-      selectPet: { getHref: () => "/trimming/select-pet" },
+vi.mock("@/config/paths", async () => {
+  const actual = await vi.importActual<typeof import("@/config/paths")>("@/config/paths");
+  return {
+    ...actual,
+    paths: {
+      ...actual.paths,
+      trimming: {
+        ...actual.paths.trimming,
+        selectPet: { getHref: () => "/trimming/select-pet" },
+      },
     },
-  },
-}));
+  };
+});
 
 async function submitFormAction(action: (payload: FormData) => void | Promise<unknown>) {
   await act(async () => {
