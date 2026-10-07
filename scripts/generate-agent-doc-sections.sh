@@ -18,6 +18,7 @@ rows = [
     ("frontend/src/features/", "Feature Indexing, index.ts structure"),
     ("frontend/src/hooks/", "Shared global hooks — placement rules, React hook rules"),
     ("infra/", "Infra-specific agent rules (`infra/CLAUDE.md`)"),
+    ("scripts/", "Repo utility index — CI contracts, reset/old_db, security checks (`scripts/CLAUDE.md`)"),
 ]
 missing = [d for d, _ in rows if not (root / d / "CLAUDE.md").exists()]
 if missing:
