@@ -55,25 +55,10 @@
 ## 3. 技術仕様
 
 ### 3.1 同期エンジンと失敗契約
-経路ごとに失敗契約を混同しない（詳細: [line/architecture.md](../line/architecture.md) §4、[line/lstep-integration.md](../line/lstep-integration.md) §5）。
+> 追記（2026-10-07 監査）: 経路別の失敗契約と二重 gate の契約本文は正本へ集約した。本節では契約の重複掲載をやめ、参照先のみを示す。
 
-| 経路 | 契約 | 画面・運用への影響 |
-|:---|:---|:---|
-| 会計完了・ペット登録・死亡記録などイベント直後のタグ更新 | **request-local nonfatal secondary notification** | 本処理（会計等）は成功のまま。タグ同期失敗はログのみで本処理を反転させない。**配信トリガーログには書かない** |
-| 1 飼主分のタグ同期本体（画面操作やバッチ内 1 owner） | **single-owner propagation** | 望ましいタグ Add/Remove 失敗は error 伝播。呼び出し元が失敗を観測・計上する |
-| 定時バッチ（dormant / no_show / delivery / LTV 等 multi-resource） | **scheduled multi-resource best effort** | 1 件失敗後も続行。`BatchRunResult` と `processed_count`/`error_count` 監査による **durable 部分結果計上**が必須。必須 dependency 欠落は fail-closed |
-
-- **Deploy gate（`LSTEP_WRITE_API_ENABLED`）**: Write 系（AddTag / RemoveTag / AddTagBulk / SetProperty）は exact `"true"` のときだけ HTTP を送る。未設定・空・`"false"`・未知値は無効。無効時は **`ErrWriteDisabled` を返し HTTP を送らない（`nil` 成功にしない）**。内部タグキャッシュ・判定・監査のアプリ内更新は経路により継続し得るが、Lステップ側実タグは変わらない。enable / stop / rollback の手順正本は [`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)（本 spec に手順・環境実値を複製しない）。
-- **Clinic gate（`is_sync_enabled` / API キー）**: `is_sync_enabled=false` または API キー未設定の clinic は `buildClient` がクライアントを構築せず `nil, nil` を返す（意図的スキップ）。deploy gate の `ErrWriteDisabled` とは**別契約**である。
-
-```mermaid
-flowchart TB
-    W["Write 系呼び出し<br/>AddTag / RemoveTag / AddTagBulk / SetProperty"] --> CG{"Clinic gate<br/>is_sync_enabled / API キー"}
-    CG -->|"無効・キー未設定"| SKIP["クライアント未構築の意図的スキップ<br/>nil, nil"]
-    CG -->|"有効"| DG{"Deploy gate<br/>LSTEP_WRITE_API_ENABLED"}
-    DG -->|"exact true 以外"| ERR["ErrWriteDisabled を返す<br/>HTTP は送らない"]
-    DG -->|"exact true"| SEND["Lステップ API へ HTTP 送信"]
-```
+- **失敗契約の三分法**（request-local nonfatal secondary notification / single-owner propagation / scheduled multi-resource best effort — `BatchRunResult` と `processed_count`/`error_count` 監査による durable 計上を含む）の正本: [line/architecture.md](../line/architecture.md) §4。実装側の整理は [line/lstep-integration.md](../line/lstep-integration.md) §5。
+- **Write 二重 gate**（deploy gate `LSTEP_WRITE_API_ENABLED` / clinic gate `is_sync_enabled` / API キー — `ErrWriteDisabled` とクライアント未構築の意図的スキップ `nil, nil` は別契約）: 契約本文は [line/architecture.md](../line/architecture.md) 冒頭注記。環境変数の評価規則（exact `true` のみ有効）と enable / stop / rollback 手順の正本は [`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)（本 spec に手順・環境実値を複製しない）。
 - **バッチ同期（scheduler/cron）**: Cloudflare scheduled event の式と job 対応は code/config へ配線済み（毎日 02:00 JST に `dormant`、10:00 JST に `no_show`→`delivery`、15:00/20:00 JST に `no_show`。durable coordinator、重複防止、pause/resume、missing-slot catch-up、失敗通知を含む）。**配線済みであることと、対象環境（STG/production）での自然発火・実送信・運用 rehearsal が完了していることは別事実である。** 後者は release gate として未実測（[Scheduler Operations](../../ops/deploy/runbooks/SCHEDULER_OPERATIONS.md)）。
 - **配信トリガー候補の読み取り**: 通常経路は clinic スコープ bulk-read を必須とし、owner ループ内の N+1 読み（owner / 当日 claim / 抑制 / tag-cache）を置かない。opt-out・suppression・daily-claim 意味論と bounded memory は維持する。現行実装に残る bulk 失敗後の per-owner fallback と是正契約は [line/lstep-integration.md §5.2](../line/lstep-integration.md) を参照する。この劣化経路を含めた無条件の no-N+1 は未達である。
 - **流量**: Messaging API / Lステップ API のレート制限は固定のクライアント方針と監視で扱う。バッチとリアルタイムを動的に切り替える rate adjustment は持たない。

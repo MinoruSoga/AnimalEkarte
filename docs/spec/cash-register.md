@@ -68,7 +68,7 @@ stateDiagram-v2
 
 - **日次レジ締め報告書**: 担当者名、支払方法・カテゴリ別内訳、過不足、売上構成を A4 形式で出力。
 - **支払方法別レポート**: 現金、クレジットカード、電子マネーの利用比率を可視化。
-- **部門 × 支払方法**: [#247](https://github.com/MinoruSoga/AnimalEkarte/issues/247) の DEC-16⑥に従い、会計単位で支払実額を配賦する。最大剰余法で行・列・総額を円単位で保存し、件数は会計 distinct。支払列は医院マスタから生成し、期間内実績のある無効・履歴 method も残す。月次・締めは `backend/internal/billing/allocation.go` の共通契約を使用する。
+- **部門 × 支払方法**: [#247](https://github.com/MinoruSoga/AnimalEkarte/issues/247) の DEC-16⑥に従い、会計単位で支払実額を配賦する。追記（2026-10-07 監査）: 配賦契約の契約本文（最大剰余法による円単位保存・返金の負値行・件数 distinct・支払列の生成規則・KPI との総額差）の正本は [screens/29-closing-aggregation.md §3](screens/29-closing-aggregation.md) に一元化したため、本書では要約と参照のみを残す。月次・締めは `backend/internal/billing/allocation.go` の共通契約を使用する。
 
 ---
 

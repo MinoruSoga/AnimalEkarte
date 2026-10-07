@@ -1,7 +1,7 @@
 # Input
 
 > テキスト入力。配置: `frontend/src/components/ui/input.tsx`
-> 使用箇所: 約 52 ファイル / Storybook: `input.stories.tsx`（未作成）
+> 使用箇所: 約 52 ファイル / Storybook: `input.stories.tsx`
 
 ## Anatomy
 
@@ -11,8 +11,8 @@
 
 | 状態 | 実装 | 備考 |
 |---|---|---|
-| hover | ○ | `PALETTE.hoverBgInput`（暖色 neutral） |
-| focus | ○ | `focus:bg-white` + focus ring（shadow-focus-primary） |
+| hover | ○ | `STATE.hoverBgInput` | 背景が warm neutral に |
+| focus | ○ | `focus:bg-white` + `STATE.focusBorderLegacyAccent` + `STATE.focusRingActionPrimary` | Select / Textarea と同一レシピ |
 | focus-visible | ○ | ring-2 系 |
 | disabled | ○ | `opacity-50` + `cursor-not-allowed` |
 | invalid | ○ | `aria-invalid:border-destructive` + `bg-destructive/5` |
@@ -21,4 +21,4 @@
 ## 既知のギャップ
 
 - readonly の視覚仕様が未実装（薄い surface + hairline 化が望ましい）
-- `PALETTE.*` の状態クラス直参照は層リーク（design-token-layers.md §5 — STATE バケット移行対象）
+- ~~`PALETTE.*` の状態クラス直参照は層リーク~~ → **解決済み（2026-09-30）**: 状態クラスは `STATE`（L2.5）へ移設済みで Input も `STATE.*` を参照 — design-token-layers.md §5 の解決記録に準拠。

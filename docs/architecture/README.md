@@ -24,12 +24,14 @@ flowchart LR
 | [composition-root-conventions.md](composition-root-conventions.md) | `cmd/api` composition 規律・Application 横展開評価・route smoke（ARCH-A5） | composition / DI 配線・route 追加の設計・レビュー時 |
 | [exception-package-discipline.md](exception-package-discipline.md) | 例外 package 規律（csvimport cmd 限定・identitylink 隔離・bucket 禁止）（ARCH-A8） | 横断 package 追加・cutover ツール・identity 境界のレビュー時 |
 | [fe-feature-be-domain-map.md](fe-feature-be-domain-map.md) | FE `features/*` ↔ BE domain / RBAC resource 対応と共有昇格ルール（ARCH-A7） | 新規画面配置・FE 共有化・LIFF 境界の設計・レビュー時 |
-| [be9-2a-boundary-map.md](be9-2a-boundary-map.md) | BE9-2A historical domain boundary map・分類 inventory（ADR-006 の入力。現行 allowlist は `internal/lintscan` が正本） | domain 分類・package 境界の根拠確認時 |
-| [arch-a4-trigger-ledger.md](arch-a4-trigger-ledger.md) | ARCH-A4 着手トリガー実測と landed スライス記録 | domain 内 file 分割を始める前の go/no-go |
+| [be9-2a-boundary-map.md](be9-2a-boundary-map.md) | BE9-2A historical domain boundary map・分類 inventory（ADR-006 の measurement-data annex。現行 allowlist は `internal/lintscan` が正本） | domain 分類・package 境界の根拠確認時 |
+| [be9-2a-classification-manifest.csv](be9-2a-classification-manifest.csv) | BE9-2A 分類マニフェスト（全 761 production Go source row の immutable snapshot。ADR-006・boundary map §1 が引用。未分類 0 件） | 分類 provenance の照合時。現行 tree の物理 file 数との突合には使わない（2026-10-07 追記: 索引へ登録漏れだったため追加） |
+| [arch-a4-trigger-ledger.md](../work/arch-a4-trigger-ledger.md) | ARCH-A4 着手トリガー実測と landed スライス記録。**2026-10-07 追記: 本フォルダから docs/work/arch-a4-trigger-ledger.md へ移設済み**（行は移設案内として残す） | domain 内 file 分割を始める前の go/no-go（移設先を参照） |
 | [erd.md](erd.md) | データベース設計（全テーブル inventory・主要リレーション。テーブル数の正本） | スキーマ調査・migration 作成前 |
 | [auth.md](auth.md) | RBAC 権限モデル・マルチテナント（clinic_id）隔離 | 認可・権限・テナント境界の実装前 |
 | [data-flow.md](data-flow.md) | リクエスト追跡（Request ID）と非同期同期の仕組み | ログ調査・非同期処理の実装前 |
 | [delete-soft-delete-patterns.md](delete-soft-delete-patterns.md) | Hard Delete / Soft Delete の使い分けと FK 制約 | 削除系機能・FK 設計の実装前 |
+| [EMR-252-radix-form-reset-inventory.md](EMR-252-radix-form-reset-inventory.md) | React 19 `requestFormReset` による Radix controlled コンポーネントの post-action form.reset() 巻き戻しの現象・共有 `components/ui/` ラッパ修正方式・影響フォーム棚卸しとコーディングルール | Radix switch/checkbox/radio/select を使う controlled form の設計・レビュー時（2026-10-07 追記: docs/ops/ から移設、本索引へ登録） |
 | [adr/](adr/README.md) | アーキテクチャ意思決定記録（ADR）。ADR-008 は ADR-007 のローカル受信 agent 判断を部分的に supersede | 「なぜこの設計か」の経緯確認時 |
 
 ## AI エージェント向け注記

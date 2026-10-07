@@ -38,7 +38,7 @@ flowchart TB
 
 ## 3. L4 の範囲
 
-S01–S39 と V01–V05 が宣言済み受入範囲である（2026-09-29 訂正: 旧記述は S01–S13。現行 [scenarios/](scenarios/README.md) は S01–S39 + V01–V05 + UAT-254-CLOSE-CHECKLIST を索引する）。unique form総数はinventory再構築完了まで算定保留である。したがって次を区別する。
+S01–S40 と V01–V05 が宣言済み受入範囲である（2026-09-29 訂正: 旧記述は S01–S13。現行 [scenarios/](scenarios/README.md) は S01–S39 + V01–V05 + UAT-254-CLOSE-CHECKLIST を索引する。追記（2026-10-07 監査）: S40 受付ボード復帰遷移を宣言済み受入範囲に追加 — 現行索引は S01–S40）。unique form総数はinventory再構築完了まで算定保留である。したがって次を区別する。
 
 - **列挙済み項目**: [FIELD-LEVEL-PROTOCOL.md](scenarios/FIELD-LEVEL-PROTOCOL.md) の適用対象。
 - **wildcard/実測待ち**: source と照合して列挙されるまで coverage gap。

@@ -81,13 +81,15 @@ Sparkle `Button` の `loading` prop に対応する本システムの標準:
 - `loading` 中は `onClick` を発火させない（`disabled` 経由）。
 - フォーム送信は React 19 `useActionState` の `isPending` を `loading` に接続するのが正パターン（`SubmitButton` 参照）。
 
-## 4. 状態トークンの配置（将来タスク）
+## 4. 状態トークンの配置（解決済み）
 
-`PALETTE` 末尾に混入している状態クラス 4 件（`hoverBgInput` / `focusBorderLegacyAccent` / `focusRingActionPrimary` / `focusRingBrand`）は、将来 `export const STATE`（L2.5: interaction-state バケット）に移す正本化を予定する。当面は design-token-layers.md §5 のリーク記録どおり現状維持。
+`PALETTE` 末尾に混入していた状態クラス 4 件（`hoverBgInput` / `focusBorderLegacyAccent` / `focusRingActionPrimary` / `focusRingBrand`）は `export const STATE`（L2.5: interaction-state バケット）への移設で正本化**済み**。Input / Select / Textarea は `STATE.*` を参照する。
+
+> 追記（2026-10-07 監査）: L2.5 移設は 2026-09-30 に完了（commit f534e9ee2）。層配置・リーク記録の正本は design-token-layers.md §5、`PALETTE` への新規クラス混入は design-audit C22 が hard fail する。本節では移設の完了を記録するのみで、詳細は記載しない。
 
 ## 5. 検証手段
 
-- `pnpm design-audit` — 値・構造ルール（C1–C19）
+- `pnpm design-audit` — 値・構造ルール（C1–C24。C20–C24 の詳細は design-token-layers.md §6）
 - `button.test.tsx` / `dialog.test.tsx` 等 — focus-visible ring の回帰テスト（EMR-207 由来）
 - **Storybook + `@storybook/addon-a11y`** — 全 variant × 全状態の目視/axe 検査（導入後はカタログが状態仕様のリビングドキュメントになる）
 - コントラスト再計測 — 本書 §2 の表を再計算して更新する（値変更時に同コミットで更新すること）

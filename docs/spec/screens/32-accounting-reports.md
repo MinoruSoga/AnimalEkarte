@@ -35,10 +35,7 @@ flowchart TB
 
 ### ゾーン3. 部門×支払方法統合表（#247 / DEC-16⑥）— `CategoryPaymentMatrixTable`
 - **目的**: カテゴリ×支払方法を 1 表で確認し、別集計・手計算を削除する。
-- **金額**: 支払実額基準（割引適用後・締め合計と一致する配賦 helper を共有）。
-- **配賦**: 会計単位・明細金額比例・最大剰余法。返金は発生日の負値。
-- **件数**: 会計 distinct（フッタ件数は期間内完了会計の総 distinct。行件数の単純合算ではない）。
-- **列順**: 医院 payment method master 順。期間内データ付き inactive / unknown は末尾。
+- **配賦契約**: 支払実額基準（締め合計と一致）・会計単位・明細金額比例・最大剰余法・返金は発生日の負値・件数は会計 distinct・列順は医院 master 順。追記（2026-10-07 監査）: 契約本文の正本は [29-closing-aggregation.md §3](./29-closing-aggregation.md) に一元化したため、本節は画面構成に固有の事項のみ記載する。フッタ件数は期間内完了会計の総 distinct を表示し、行件数の単純合算ではない。
 - **印刷**: `MonthlyReportPrintArea` が同一 `category_payment_matrix` を描画（列欠落・横切れを避けるため A4 横）。
 
 ### ゾーン4. 結論（KPI + 内訳）— `MonthlySummaryCards`

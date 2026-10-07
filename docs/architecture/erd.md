@@ -23,7 +23,7 @@
 |:---|:---|
 | **システム基盤 (15)** | `accounts`, `clinics`, `clinic_settings`, `clinic_holidays`, `closing_special_periods`, `staffs`, `permission_groups`, `permission_group_rules`, `audit_logs`, `companies`, `password_reset_tokens`, `token_blacklist`, `occupations`, `support_bug_reports`, `support_chat_messages` |
 | **入院・稼働 (11)** | `hospitalizations`, `daily_records`, `care_plan_items`, `care_logs`, `cages`, `hospitalization_plans`, `staff_notes`, `staff_clinic_assignments`, `staff_permission_groups`, `staff_reservation_exclusions`, `staff_reservation_capabilities` |
-| **臨床・診察 (25)** | `owners`, `pets`, `pet_owners`, `pet_chronic_conditions`, `animal_species`, `chief_complaint_types`, `medical_records`, `medical_record_addenda`, `medical_record_images`, `medical_record_image_upload_quota`, `medical_record_image_deletions`, `clinical_plans`, `treatment_plans`, `treatments`, `procedures`, `vital_records`, `inquiries`, `consultations`, `diagnosis_names`, `diagnosis_types`, `inquiry_templates`, `medicines`, `medicine_dose_params`, `vaccines` |
+| **臨床・診察 (24)** | `owners`, `pets`, `pet_owners`, `pet_chronic_conditions`, `animal_species`, `chief_complaint_types`, `medical_records`, `medical_record_addenda`, `medical_record_images`, `medical_record_image_upload_quota`, `medical_record_image_deletions`, `clinical_plans`, `treatment_plans`, `treatments`, `procedures`, `vital_records`, `inquiries`, `consultations`, `diagnosis_names`, `diagnosis_types`, `inquiry_templates`, `medicines`, `medicine_dose_params`, `vaccines` |
 | **検査・予防 (29)** | `exams`, `exam_results`, `exam_types`, `exam_type_fields`, `exam_reference_ranges`, `examination_revisions`, `examination_revision_items`, `vaccinations`, `checkups`, `checkup_types`, `checkup_type_fields`, `checkup_field_results`, `checkup_package_import_receipts`, `shared_files`, `lab_import_jobs`, `lab_import_events`, `lab_import_exam_retractions`, `lab_import_exam_retraction_items`, `lab_import_usage_receipts`, `lab_import_revert_receipts`, `lab_devices`, `lab_device_item_masters`, `lab_import_job_items`, `lab_device_waits`, `lab_device_station_settings`, `lab_device_mapping_drafts`, `lab_device_mapping_draft_items`, `lab_device_mapping_specs`, `lab_device_mapping_generation` |
 | **予約・シフト (12)** | `appointments`, `reservation_types`, `reservation_type_groups`, `reservation_type_occupations`, `reservation_type_available_slots`, `reservation_type_unavailable_times`, `appointment_trimming_details`, `appointment_trimming_options`, `shift_entries`, `shift_entry_breaks`, `shift_templates`, `shift_template_breaks` |
 | **会計・経営 (16)** | `billings`, `billing_items`, `payments`, `payment_splits`, `billing_refunds`, `billing_confirmations`, `cash_register_closes`, `cash_register_close_adjustments`, `payment_methods`, `merchandise_items`, `estimate_items`, `estimates`, `insurances`, `campaigns`, `campaign_target_categories`, `campaign_target_items` |
@@ -31,6 +31,8 @@
 | **在庫 (1)** | `inventory_items` |
 | **LINE/CRM (19)** | `line_customers`, `line_link_tokens`, `line_send_logs`, `line_reservation_settings`, `lstep_settings`, `lstep_trigger_priorities`, `lstep_delivery_trigger_log`, `lstep_csv_imports`, `lstep_tag_cache`, `lstep_tag_code_mappings`, `lstep_auto_managed_prefixes`, `lstep_condition_tag_mappings`, `lstep_send_purpose_tag_prefixes`, `lstep_friend_attribute_snapshots`, `lstep_sync_error_counters`, `clinic_integrations`, `manual_articles`, `manual_article_versions`, `lstep_migration_progress` |
 | **横断・identity links (4)** | `owner_identity_groups`, `owner_identity_group_members`, `pet_identity_groups`, `pet_identity_group_members`（`001_init.sql` セクション10・旧 `004_add_identity_links.sql` 原文・医院横断の owner/pet 明示リンク） |
+
+> 追記（2026-10-07 監査）: 「臨床・診察」ラベルを (25) → (24) へ訂正（`prescriptions` は `014_drop_prescriptions.sql` / EMR-236 で除去済みだがラベルが減算されていなかった）。10 区分の合計は 134 で `ERD:TABLE_COUNT` ゲート pin（`backend/internal/lintscan/erd_table_count_drift_test.go`）と一致する。
 
 ---
 
@@ -40,7 +42,7 @@
 
 図の親側 `||` は参照先が設定されている場合の関係を示す。nullable FK の未設定は省略し、列の NULL 可否は DDL を正とする。`billings ||--|| payments` は支払いが存在する場合の1対1を表し、全会計に支払い行の存在を強制する制約ではない。予約とカルテは削除済み行を含めると1対多で、active カルテだけが予約ごとに最大1件となる。治療・接種・検査から会計明細への `o|` は、それぞれの参照IDに対する部分一意indexによる最大1件（明細の論理削除後も含む）を表す。治療の制約は `004` 適用後の定義であり、稼働DBへの適用証明ではない。
 
-`staffs.clinic_id` は主所属、`staff_clinic_assignments` は医院への所属を表す。不変条件は**同一人物に対する `accounts` 行は 1 つ**であり、医院ごとに別アカウントを発行しない（`account_id` に一意制約はなく、アプリ・プロビジョニング・移行手順で維持する）。通常のスタッフ登録は 1 人物 = 1 staffs 行で兼務は assignment で表すが、旧DB移行データは 017 適用前の `(doctor_id, clinic_id)` 複合FK の名残として、同一人物が医院別の複数行を持ちうる（複合FK は migration 017 で単一カラム FK へ置換済み）。その場合は全行が同一 `account_id` を共有し、各行は所属医院すべてへの assignment を持つ。カルテの `entered_by` と予約の `created_by` は記録者として `staffs(id)` を参照し、親レコードの医院と主所属の一致をDBでは強制しない。担当医の `doctor_id` とは異なる関係で、記録時の医院権限はアプリ側の検証対象（§4.4）。
+`staffs.clinic_id` は主所属、`staff_clinic_assignments` は医院への所属を表す。（追記（2026-10-07 監査）: 同一人物 = 1 `accounts` 行、旧DB移行データの医院別複数 staffs 行（migration 017 適用前の `(doctor_id, clinic_id)` 複合FK 名残・同FKは 017 で単一カラム FK へ置換済み）、`staffs.account_id` に DB 一意制約がない点を含むアカウント・スタッフ・医院所属の不変条件の正本は [auth.md §1.3](auth.md) に集約した。FK 構造として `staffs.account_id` → `accounts(id)` で、同一人物の医院別行は同一 `account_id` を共有し、各行は所属医院すべてへの assignment を持つ）カルテの `entered_by` と予約の `created_by` は記録者として `staffs(id)` を参照し、親レコードの医院と主所属の一致をDBでは強制しない。担当医の `doctor_id` とは異なる関係で、記録時の医院権限はアプリ側の検証対象（§4.4）。
 
 ```mermaid
 erDiagram
@@ -279,6 +281,7 @@ erDiagram
   - `clinics` テーブルに `accounting_document_show_clinic_header`、`accounting_document_show_owner_pet_info`、`accounting_document_show_items_table`、`accounting_document_show_payment_summary`、`accounting_document_section_order` を定義済み。
 - **健康診断マスタ投入 (Issue #160 → 003_seed_demo.sql に統合)**
   - `exam_types` (id 12000-12003) および `exam_type_fields` (id 45-58) を clinic 1 向けに 003_seed_demo.sql 末尾へシード定義済み。
+  - （追記（2026-10-07 監査）: この exam 系健診 seed は [ADR-004](adr/004-checkup-canonical-system.md)（commit `406c6264`）で撤去済み。ID 12000-12003 / 45-58 は既適用環境に残存しうるため**再利用禁止**。上記 2 行は 2026-06-26 統合時点の履歴記録として保持する）
 - **手術処置フラグ追加 (Issue #159 → 001_init.sql に統合)**
   - `procedures.is_surgery` (BOOLEAN NOT NULL DEFAULT false) と部分インデックス `idx_procedures_clinic_is_surgery` を定義済み。
 

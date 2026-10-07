@@ -1,6 +1,7 @@
 # PO-PET-DECEASED-DATA-BACKFILL: 死亡日限定訂正の机上計画
 
 > 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-108`。本文の「机上設計のみ」「未実施」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+> 2026-10-06 注記: 下記「根拠と適用境界」の `bug.md#plan-po-pet-deceased-data-backfill`（修復計画）リンクは歴史参照。`bug.md` は 2026-09-27 の台帳整理で 0 バイトの残存文件となっており、アンカーは現行では解決しない（内容は git 履歴。docs/work/README.md の「削除済み docs」参照）。
 
 状態: **机上設計のみ**。実データの読取・件数集計・訂正、DB 操作、migration、STG/本番での検証、医院 UAT は未実施。
 

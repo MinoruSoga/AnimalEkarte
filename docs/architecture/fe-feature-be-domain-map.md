@@ -68,7 +68,7 @@ RBAC strings match `model.Resource*` / generated FE constants (kebab-case values
 | *(shared-liff)* | `reservation` | public LIFF (clinic-scoped token / open routes) | Not under `features/`; see A7-4 |
 | `medical-records` | `medicalrecord` (+ billing actions) | `medical-records`, `accounting` | |
 | `examinations` | `medicalrecord` | `examinations`, `examination-unconfirm` | |
-| `checkups` | `medicalrecord` | `checkups`, `checkup-package-import`, `medical-records` | |
+| `checkups` | `medicalrecord` | `checkups`, `medical-records` | （追記（2026-10-07 監査）: `checkup-package-import` は EMR-249 / `backend/migrations/019_drop_checkup_package_import_permission.sql` で廃止済みの権限リソース。現行 36 リソース一覧は [auth.md §3](auth.md)） |
 | `vaccinations` | `medicalrecord` | `vaccinations` | |
 | `hospitalization` | `medicalrecord` (+ `billing` on discharge) | `hospitalization` | Cross-domain discharge: orchestration catalog |
 | `accounting` | `billing` | `accounting`, `accounting-cancel`, `accounting-post-close-edit`, `cash-register-close`, `discount` | |
