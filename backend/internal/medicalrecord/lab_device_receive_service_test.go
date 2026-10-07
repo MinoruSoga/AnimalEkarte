@@ -85,8 +85,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS testdb_uq_lab_device_waits_clinic_active
 	alive := &model.Pet{ID: 11, ClinicID: clinicA, Name: "タロウ", Status: model.PetStatusAlive}
 	dead := &model.Pet{ID: 12, ClinicID: clinicA, Name: "亡", Status: model.PetStatusDeceased}
 	other := &model.Pet{ID: 21, ClinicID: clinicB, Name: "他院", Status: model.PetStatusAlive}
+	halfDeadAt := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	halfDead := &model.Pet{ID: 14, ClinicID: clinicA, Name: "半", Status: model.PetStatusAlive, DeceasedAt: &halfDeadAt}
 	finder := stubLabDevicePetFinder{pets: map[uint64]*model.Pet{
-		11: alive, 12: dead, 21: other, 13: {ID: 13, ClinicID: clinicA, Name: "ジロウ", Status: model.PetStatusAlive},
+		11: alive, 12: dead, 21: other, 14: halfDead, 13: {ID: 13, ClinicID: clinicA, Name: "ジロウ", Status: model.PetStatusAlive},
 	}}
 	svc := NewLabDeviceReceiveService(
 		NewLabDeviceReceiveRepository(db),
@@ -353,6 +355,28 @@ func TestLabDeviceReceiveService_PersistFailureLeavesUnlinked(t *testing.T) {
 	unlinked, err := svc.Unlinked(ctx, clinicA)
 	require.NoError(t, err)
 	require.NotEmpty(t, unlinked)
+}
+
+// EMR-328: status='alive' + deceased_at≠NULL の半死亡行は OR 契約上死亡扱い。
+// requireAlivePet（PutWait/Attach の共通ゲート）が拒否することを検証する。
+func TestLabDeviceReceiveService_RejectsHalfDeadPet(t *testing.T) {
+	db, svc, _ := setupLabDeviceReceiveTest(t)
+	ctx := context.Background()
+	const clinicA = uint64(9701)
+
+	_, err := svc.PutWait(ctx, clinicA, 7, 14)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not alive")
+
+	job := &model.LabImportJob{
+		ClinicID:   clinicA,
+		SourceType: model.LabImportSourceTypeFujiAU10V,
+		Status:     model.LabImportJobStatusReceived,
+	}
+	require.NoError(t, db.Create(job).Error)
+	_, err = svc.Attach(ctx, clinicA, job.ID, 14)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not alive")
 }
 
 func TestLabDeviceHasClockSkew(t *testing.T) {

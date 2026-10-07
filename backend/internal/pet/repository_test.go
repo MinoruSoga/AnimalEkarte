@@ -65,6 +65,23 @@ func makeStatusDeceasedPet(t *testing.T, db *gorm.DB, clinicID, ownerID, species
 	return pet
 }
 
+// makeHalfDeadPet は status=alive だが deceased_at が埋まった不整合行を再現する（EMR-328）。
+// 正準契約 deceased = (status='deceased' OR deceased_at IS NOT NULL) では死亡扱い。
+func makeHalfDeadPet(t *testing.T, db *gorm.DB, clinicID, ownerID, speciesID uint64, name string) *model.Pet {
+	t.Helper()
+	deceasedAt := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	pet := &model.Pet{
+		ClinicID:        clinicID,
+		OwnerID:         ownerID,
+		AnimalSpeciesID: speciesID,
+		Name:            name,
+		Status:          model.PetStatusAlive,
+		DeceasedAt:      &deceasedAt,
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(pet).Error)
+	return pet
+}
+
 func TestPetRepository_FindAll(t *testing.T) {
 	db := setupPetRepositoryTestDB(t)
 	repo := NewRepository(db)
