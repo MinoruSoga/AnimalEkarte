@@ -3,7 +3,7 @@
 > **Purpose**: Immutable historical record of the 2026-08-07 ARCH-A4 measurement and landed slices. Pain-first; no bulk splits.
 > **Status**: Historical snapshot. `todo.md` no longer has an ARCH-A4 / #259 task pointer. Execution SoT is Plane workspace `baritechllc` project `EMR` (hub `EMR-1`); no active ARCH-A4 work item was verified for this refresh. Remeasure HEAD before using any candidate below.
 > （2026-09-29 訂正: 「Linear/BRT-4 is the execution SoT」→ Linear closed 2026-09-16; execution SoT moved to Plane `EMR`. `BRT-4` is a historical case alias only）
-> **Related**: [composition-root-conventions](../../architecture/composition-root-conventions.md).（2026-10-06 移動注記: 本書は `docs/architecture/` から `docs/work/` へ移動したため参照パスを修正）
+> **Related**: [composition-root-conventions](../architecture/composition-root-conventions.md).（2026-10-06 移動注記: 本書は `docs/architecture/` から `docs/work/` へ移動したため参照パスを修正）
 
 ```mermaid
 flowchart LR
