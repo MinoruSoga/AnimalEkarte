@@ -18,15 +18,15 @@ describe("HistoryFilterPanel", () => {
       />,
     );
 
-    expect(screen.getByPlaceholderText("開始日").parentElement).toHaveClass("min-w-0");
-    expect(screen.getByPlaceholderText("終了日").parentElement).toHaveClass("min-w-0");
+    expect(screen.getByPlaceholderText("開始日").closest("div.min-w-0")).not.toBeNull();
+    expect(screen.getByPlaceholderText("終了日").closest("div.min-w-0")).not.toBeNull();
     expect(screen.getByLabelText("検索単語")).toHaveClass("h-11");
     expect(screen.getByRole("button", { name: "クリア" })).toHaveClass("h-11");
     const sortTrigger = screen.getByRole("combobox", { name: "並び順" });
     expect(sortTrigger).toHaveClass("h-11");
     // EMR-313: 80px固定で「新→古」が切れていたため内容幅+96px下限へ
     expect(sortTrigger).not.toHaveClass("w-[80px]");
-    expect(sortTrigger).toHaveClass("w-auto", "min-w-[96px]");
+    expect(sortTrigger).toHaveClass("w-auto", "min-w-24");
   });
 
   it("開始日・終了日の実inputに明示labelとid/nameを接続する", () => {

@@ -19,7 +19,7 @@ describe("HospitalizationNoteCard", () => {
     const heading = screen.getByRole("heading", { name: "主訴" });
     expect(heading).toHaveClass("text-heading-3", "font-bold");
 
-    const card = heading.parentElement;
+    const card = heading.closest("div.rounded-lg");
     expect(card).toHaveClass("p-6");
     expect(card).not.toHaveClass("h-full");
     expect(card).not.toHaveClass("p-2");

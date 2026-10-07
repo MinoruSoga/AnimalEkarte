@@ -42,9 +42,9 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
   readOnly = false,
 }: HospitalizationTreatmentTableProps) {
   return (
-    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-6 mb-3`}>
+    <div className={`${H_STYLES.form.card} mb-3`}>
       <div className="flex items-center justify-between mb-3">
-        <h2 className={`text-heading-3 font-bold flex items-center gap-2 ${C.text}`}>
+        <h2 className={`${H_STYLES.form.cardHeading} flex items-center gap-2`}>
           <FileText className={`${ICON.action} ${C.text60}`} />
           治療プラン
         </h2>

@@ -30,4 +30,8 @@ export const H_STYLES = {
     section_mb: "mb-2",
     card_mb: "mb-1",
   },
+  form: {
+    card: `${C.bgWhite} rounded-lg border ${C.borderMedium} p-6`,
+    cardHeading: `text-heading-3 font-bold ${C.text}`,
+  },
 } as const;

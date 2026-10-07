@@ -49,7 +49,7 @@ describe("HospitalizationBasicInfo", () => {
     const heading = screen.getByRole("heading", { name: "基本情報" });
     expect(heading).toHaveClass("text-heading-3", "font-bold");
 
-    const card = heading.parentElement;
+    const card = heading.closest("div.rounded-lg");
     expect(card).toHaveClass("p-6");
     expect(card).not.toHaveClass("p-2");
   });
@@ -57,7 +57,7 @@ describe("HospitalizationBasicInfo", () => {
   it("「次回の予定」ブロックと「メモ」の間に12pxの余白を確保する", () => {
     renderBasicInfo();
 
-    const nextScheduleBlock = screen.getByText("次回の予定").parentElement;
+    const nextScheduleBlock = screen.getByText("次回の予定").closest("div.space-y-2");
     expect(nextScheduleBlock).toHaveClass("mb-3");
   });
 

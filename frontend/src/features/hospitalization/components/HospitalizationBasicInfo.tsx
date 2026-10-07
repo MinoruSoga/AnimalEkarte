@@ -38,8 +38,8 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
   cageIdError,
 }: HospitalizationBasicInfoProps) {
   return (
-    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-6`}>
-      <h2 className={`text-heading-3 font-bold mb-3 flex items-center gap-2 ${C.text}`}>
+    <div className={H_STYLES.form.card}>
+      <h2 className={`${H_STYLES.form.cardHeading} mb-3 flex items-center gap-2`}>
         <Building2 className={`${ICON.action} ${C.text60}`} />
         基本情報
       </h2>

@@ -16,8 +16,8 @@ export const HospitalizationCostSummary = memo(function HospitalizationCostSumma
   totals,
 }: HospitalizationCostSummaryProps) {
   return (
-    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-6`}>
-      <h2 className={`text-heading-3 font-bold mb-3 ${C.text}`}>診療費計算</h2>
+    <div className={H_STYLES.form.card}>
+      <h2 className={`${H_STYLES.form.cardHeading} mb-3`}>診療費計算</h2>
 
       <div className="space-y-2">
         {/* 小計 */}

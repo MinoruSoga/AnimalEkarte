@@ -4,6 +4,7 @@ import { memo } from "react";
 // Internal
 import { C, ICON } from "@/lib/design-tokens";
 import { Textarea } from "@/components/ui/textarea";
+import { H_STYLES } from "../lib/styles";
 
 // Types
 import type { LucideIcon } from "lucide-react";
@@ -26,10 +27,10 @@ export const HospitalizationNoteCard = memo(function HospitalizationNoteCard({
   placeholder,
 }: HospitalizationNoteCardProps) {
   return (
-    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-6`}>
+    <div className={H_STYLES.form.card}>
       <h2
         id={id ? `${id}-label` : undefined}
-        className={`text-heading-3 font-bold mb-3 flex items-center gap-2 ${C.text}`}
+        className={`${H_STYLES.form.cardHeading} mb-3 flex items-center gap-2`}
       >
         <Icon className={`${ICON.action} ${C.text60}`} />
         {title}
