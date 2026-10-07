@@ -9,6 +9,7 @@ import (
 // RegisterRoutes registers trimming's 23 authenticated legacy-compatible routes.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	trimmings := rg.Group("/trimmings")
+	trimmings.POST("/images/upload", h.trimmingImageUploadPermission(), h.UploadTrimmingImage)
 	trimmings.GET("", h.requirePermission(string(model.ResourceTrimming), "view"), h.ListTrimmings)
 	trimmings.GET("/:id", h.requirePermission(string(model.ResourceTrimming), "view"), h.GetTrimming)
 	trimmings.POST("", h.requirePermission(string(model.ResourceTrimming), "create"), h.CreateTrimming)

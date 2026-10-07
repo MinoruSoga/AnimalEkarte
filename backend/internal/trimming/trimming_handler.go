@@ -47,7 +47,11 @@ func (h *Handler) ListTrimmings(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	responses := httpapi.MapSlice(appts, toTrimmingResponse)
+	responses, err := h.signedTrimmingResponses(c.Request.Context(), clinicID, appts)
+	if err != nil {
+		httpapi.RespondError(c, apperrors.Wrap(err, "failed to sign trimming image url"))
+		return
+	}
 	c.JSON(http.StatusOK, httpapi.NewPaginatedResponse(responses, total, page, limit))
 }
 
@@ -69,7 +73,12 @@ func (h *Handler) GetTrimming(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toTrimmingResponse(appt))
+	resp, err := h.signTrimmingResponse(c.Request.Context(), clinicID, appt)
+	if err != nil {
+		httpapi.RespondError(c, apperrors.Wrap(err, "failed to sign trimming image url"))
+		return
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 // CreateTrimming はトリミング予約を作成する
@@ -96,13 +105,22 @@ func (h *Handler) CreateTrimming(c *gin.Context) {
 
 	input := req.toServiceInput()
 	input.ActorID = &actorID
+	if err := normalizeCreateTrimmingImages(clinicID, input); err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
 	appt, err := h.svc.Trimming.Create(c.Request.Context(), clinicID, input)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
+	resp, err := h.signTrimmingResponse(c.Request.Context(), clinicID, appt)
+	if err != nil {
+		httpapi.RespondError(c, apperrors.Wrap(err, "failed to sign trimming image url"))
+		return
+	}
 	c.Header("Location", fmt.Sprintf("/api/v1/trimmings/%d", appt.ID))
-	c.JSON(http.StatusCreated, toTrimmingResponse(appt))
+	c.JSON(http.StatusCreated, resp)
 }
 
 // UpdateTrimming はトリミング予約を部分更新する
@@ -128,12 +146,26 @@ func (h *Handler) UpdateTrimming(c *gin.Context) {
 
 	input := req.toServiceInput()
 	input.ActorID = &actorID
+	if err := normalizeUpdateTrimmingImages(clinicID, input); err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	previous, ok := h.previousTrimmingImages(c, clinicID, id, input)
+	if !ok {
+		return
+	}
 	appt, err := h.svc.Trimming.Update(c.Request.Context(), clinicID, id, input)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toTrimmingResponse(appt))
+	h.deleteReplacedTrimmingImages(c.Request.Context(), clinicID, previous, appt)
+	resp, err := h.signTrimmingResponse(c.Request.Context(), clinicID, appt)
+	if err != nil {
+		httpapi.RespondError(c, apperrors.Wrap(err, "failed to sign trimming image url"))
+		return
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 // DeleteTrimming はトリミング予約を削除する（論理削除）
@@ -150,9 +182,21 @@ func (h *Handler) DeleteTrimming(c *gin.Context) {
 	if !ok {
 		return
 	}
+	existing, err := h.svc.Trimming.GetByID(c.Request.Context(), clinicID, id)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
 	if err := h.svc.Trimming.Delete(c.Request.Context(), clinicID, id, &actorID); err != nil {
 		httpapi.RespondError(c, err)
 		return
+	}
+	if style, completed, ok := trimmingStoredImages(existing); ok {
+		h.deleteSupersededTrimmingImages(
+			c.Request.Context(),
+			trimmingRecordClinicID(existing, clinicID),
+			style, completed, "", "",
+		)
 	}
 	c.Status(http.StatusNoContent)
 }

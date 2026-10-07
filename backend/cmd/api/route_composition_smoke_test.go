@@ -128,7 +128,9 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	//   GET    /api/v1/support/chat/rooms
 	// 534 — deb0795e2 で JSON による画像登録を廃止（upload 経路のみ残す）:
 	//   POST   /api/v1/medical-records/:id/images
-	require.Len(t, routes, 539)
+	// 540 — EMR-300 trimming image upload (create or edit, unkeyed multipart):
+	//   POST   /api/v1/trimmings/images/upload
+	require.Len(t, routes, 540)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /health/db",
@@ -154,6 +156,7 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 		"GET /api/v1/clinics",
 		"GET /api/v1/medical-records",
 		"GET /api/v1/reservations",
+		"POST /api/v1/trimmings/images/upload",
 		"GET /api/v1/accountings",
 		"GET /api/v1/lstep-settings",
 		"GET /api/liff/:clinicId/courses",
