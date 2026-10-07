@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { MasterItem } from "@/types";
 import {
   isCageRepresentative,
+  isInMergedGroup,
   isMergeDragSource,
   isMergeEligibleTarget,
   isMergedMember,
@@ -132,5 +133,18 @@ describe("cage-merge-model (EMR-306)", () => {
         hasVisibleOccupant: noOccupant,
       }),
     ).toBe(false);
+  });
+
+  // Grok review HIGH-1: 連結スワップ事前拒否の判定関数
+  it("isInMergedGroup: メンバーと代表は true、独立・一覧外・空値は false", () => {
+    expect(isInMergedGroup(cages, "12")).toBe(true); // member
+    expect(isInMergedGroup(cages, "10")).toBe(true); // representative
+    expect(isInMergedGroup(cages, "11")).toBe(false); // standalone
+    expect(isInMergedGroup(cages, "14")).toBe(false); // inactive standalone
+    expect(isInMergedGroup(cages, "999")).toBe(false); // 一覧外
+    expect(isInMergedGroup(cages, null)).toBe(false);
+    expect(isInMergedGroup(cages, undefined)).toBe(false);
+    expect(isInMergedGroup(cages, "")).toBe(false);
+    expect(isInMergedGroup([], "10")).toBe(false); // ケージ未取得時は検知不可（BE が最終判定）
   });
 });

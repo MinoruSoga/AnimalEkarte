@@ -19,6 +19,7 @@ type cageResponse struct {
 	Description string         `json:"description"`
 	SortOrder   int            `json:"sort_order"`
 	// EMR-306: 連結中の構成ケージが参照する代表ケージID。NULL = 独立ケージまたは代表ケージ自身。
+	// omitempty のため NULL 時はキー自体が省略される（JSON null ではない）。
 	MergedIntoCageID *uint64   `json:"merged_into_cage_id,omitempty"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`

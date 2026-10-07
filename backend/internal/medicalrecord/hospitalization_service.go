@@ -255,8 +255,9 @@ func isOccupyingHospitalizationStatus(status model.HospitalizationStatus) bool {
 }
 
 // validateCageAssignmentGuard はケージ割当の連結ガード（EMR-306 Phase1 step3）。
-// s.cageRepo が CageMergeRepository 面を持たない場合は no-op（INTERFACE STABILITY:
-// cageFinder を広げず、面なし注入では従来の validateOwnedMasterFK のみが走る）。
+// s.cageRepo が CageMergeRepository 面を持たない場合は 500 fail-closed（Grok review
+// LOW-4: fail-open だと cageFinder だけのラッパー差し替えで構成ケージへの割当が
+// 素通りするため、Merge/Unmerge と同じく依存不足は内部エラーにする）。
 //
 // ambient tx 内で validateOwnedMasterFK より前に呼ぶこと: cageRepo.FindByID は
 // tx 中に FOR SHARE を取るため、先に LockCageGroupForUpdate (FOR UPDATE) で
@@ -270,7 +271,7 @@ func (s *hospitalizationService) validateCageAssignmentGuard(txCtx context.Conte
 	}
 	mergeRepo, ok := s.cageRepo.(CageMergeRepository)
 	if !ok {
-		return nil
+		return apperrors.WrapInternalServerError("cage merge repository dependency is required")
 	}
 	// 代表+構成ケージを id 昇順の1文で FOR UPDATE（占有確認と同一 tx・同一行集合。
 	// ロック順は merge/unmerge と同一の昇順でデッドロックを避ける）。

@@ -14,14 +14,20 @@ import (
 
 // mockCageRepository は CageRepository のテスト用モック実装
 type mockCageRepository struct {
-	findAllFn            func(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error)
-	findByIDFn           func(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
-	lockByIDForUpdateFn  func(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
-	countUsageByCageIDFn func(ctx context.Context, clinicID, id uint64) (int64, error)
-	createFn             func(ctx context.Context, cage *model.Cage) error
-	updateFieldsFn       func(ctx context.Context, clinicID, id uint64, cmd UpdateCageInput) (*model.Cage, error)
-	deleteFn             func(ctx context.Context, clinicID, id uint64) error
-	reorderFn            func(ctx context.Context, clinicID uint64, ids []uint64) error
+	findAllFn                func(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error)
+	findByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
+	lockByIDForUpdateFn      func(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
+	countUsageByCageIDFn     func(ctx context.Context, clinicID, id uint64) (int64, error)
+	createFn                 func(ctx context.Context, cage *model.Cage) error
+	updateFieldsFn           func(ctx context.Context, clinicID, id uint64, cmd UpdateCageInput) (*model.Cage, error)
+	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
+	reorderFn                func(ctx context.Context, clinicID uint64, ids []uint64) error
+	lockCagesForUpdateFn     func(ctx context.Context, clinicID uint64, ids []uint64) ([]model.Cage, error)
+	lockCageGroupForUpdateFn func(ctx context.Context, clinicID, representativeID uint64) ([]model.Cage, error)
+	countMergedMembersFn     func(ctx context.Context, clinicID uint64, representativeIDs []uint64) (map[uint64]int64, error)
+	countOccupiedCagesFn     func(ctx context.Context, clinicID uint64, cageIDs []uint64) (map[uint64]int64, error)
+	setMergedIntoFn          func(ctx context.Context, clinicID, representativeID uint64, memberIDs []uint64) error
+	clearMergedIntoFn        func(ctx context.Context, clinicID, representativeID uint64) error
 }
 
 func (m *mockCageRepository) FindAll(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error) {
@@ -65,6 +71,57 @@ func (m *mockCageRepository) CountUsageByCageID(ctx context.Context, clinicID, i
 func (m *mockCageRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if m.reorderFn != nil {
 		return m.reorderFn(ctx, clinicID, ids)
+	}
+	return nil
+}
+
+// EMR-306 (Grok review LOW-4): 入院割当ガードが CageMergeRepository 面なしを
+// fail-closed にしたため、本モックは merge 面を pass-through 既定値で実装する。
+// 既定は「未連結の独立ケージ相当」— ガードは len(group)<=1 で no-op となり、
+// 既存モックテストの従来挙動を維持する。
+
+func (m *mockCageRepository) LockCagesForUpdate(ctx context.Context, clinicID uint64, ids []uint64) ([]model.Cage, error) {
+	if m.lockCagesForUpdateFn != nil {
+		return m.lockCagesForUpdateFn(ctx, clinicID, ids)
+	}
+	cages := make([]model.Cage, 0, len(ids))
+	for _, id := range ids {
+		cages = append(cages, model.Cage{ID: id})
+	}
+	return cages, nil
+}
+
+func (m *mockCageRepository) LockCageGroupForUpdate(ctx context.Context, clinicID, representativeID uint64) ([]model.Cage, error) {
+	if m.lockCageGroupForUpdateFn != nil {
+		return m.lockCageGroupForUpdateFn(ctx, clinicID, representativeID)
+	}
+	return []model.Cage{{ID: representativeID}}, nil
+}
+
+func (m *mockCageRepository) CountMergedMembers(ctx context.Context, clinicID uint64, representativeIDs []uint64) (map[uint64]int64, error) {
+	if m.countMergedMembersFn != nil {
+		return m.countMergedMembersFn(ctx, clinicID, representativeIDs)
+	}
+	return map[uint64]int64{}, nil
+}
+
+func (m *mockCageRepository) CountOccupiedCages(ctx context.Context, clinicID uint64, cageIDs []uint64) (map[uint64]int64, error) {
+	if m.countOccupiedCagesFn != nil {
+		return m.countOccupiedCagesFn(ctx, clinicID, cageIDs)
+	}
+	return map[uint64]int64{}, nil
+}
+
+func (m *mockCageRepository) SetMergedInto(ctx context.Context, clinicID, representativeID uint64, memberIDs []uint64) error {
+	if m.setMergedIntoFn != nil {
+		return m.setMergedIntoFn(ctx, clinicID, representativeID, memberIDs)
+	}
+	return nil
+}
+
+func (m *mockCageRepository) ClearMergedInto(ctx context.Context, clinicID, representativeID uint64) error {
+	if m.clearMergedIntoFn != nil {
+		return m.clearMergedIntoFn(ctx, clinicID, representativeID)
 	}
 	return nil
 }

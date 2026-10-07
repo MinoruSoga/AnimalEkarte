@@ -125,6 +125,13 @@ beforeEach(() => {
   dndHarness.useDroppable.mockClear();
   dndHarness.active = null;
   perm.masterCanEdit = true;
+  // EMR-306: merge-mode ON で走る占有クエリ（admitted/reserved 全件取得）の既定
+  // ハンドラ。個別テストの server.use が上書きする。
+  server.use(
+    http.get("*/v1/hospitalizations", () =>
+      HttpResponse.json({ data: [], total: 0, page: 1, limit: 100 }),
+    ),
+  );
 });
 
 afterEach(() => {

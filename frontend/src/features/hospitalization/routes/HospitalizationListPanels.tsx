@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { LayoutGrid, List, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import type {
@@ -23,6 +23,8 @@ import { usePermission } from "@/hooks/use-permission";
 import { useMergeCages, useUnmergeCages } from "@/hooks/use-cage-merge";
 import { HospitalizationBoard } from "../components/HospitalizationBoard";
 import { HospitalizationListView } from "../components/HospitalizationListView";
+import { useGetHospitalizations } from "../api/get-hospitalizations";
+import { HOSPITALIZATION_FILTER_STATUS, HOSPITALIZATION_OCCUPANCY_LIMIT } from "../constants";
 import {
   HOSPITALIZATION_SORT_PROPERTIES,
   HOSPITALIZATION_TAB_ITEMS,
@@ -97,6 +99,42 @@ function HospitalizationListContent({
   }, [canMergeCages]);
 
   const boardMergeMode = canMergeCages === true && mergeMode;
+
+  // EMR-306 (Grok review MEDIUM-2): merge-mode の占有判定は表示タブ/ページに依存させない。
+  // admitted/reserved の cageId 全集合を別クエリで取得する（advisory。最終可否は BE）。
+  // boardMergeMode 中のみ有効化し、それ以外では余分な API 呼び出しを発生させない。
+  const { data: admittedOccupancy, isLoading: admittedOccupancyLoading } = useGetHospitalizations(
+    {
+      statusFilter: HOSPITALIZATION_FILTER_STATUS.ACTIVE,
+      limit: HOSPITALIZATION_OCCUPANCY_LIMIT,
+    },
+    { enabled: boardMergeMode },
+  );
+  const { data: reservedOccupancy, isLoading: reservedOccupancyLoading } = useGetHospitalizations(
+    {
+      statusFilter: HOSPITALIZATION_FILTER_STATUS.RESERVED,
+      limit: HOSPITALIZATION_OCCUPANCY_LIMIT,
+    },
+    { enabled: boardMergeMode },
+  );
+  const hasMergeOccupant = useMemo(() => {
+    // 非 merge-mode・占有クエリ読込中は undefined — board 側は表示中データの
+    // 占有判定へフォールバックする（advisory であり、最終可否は BE が持つ）。
+    if (!boardMergeMode || admittedOccupancyLoading || reservedOccupancyLoading) return undefined;
+    const occupied = new Set<string>();
+    for (const page of [admittedOccupancy, reservedOccupancy]) {
+      for (const h of page?.data ?? []) {
+        if (h.cageId) occupied.add(h.cageId);
+      }
+    }
+    return (cageId: string) => occupied.has(cageId);
+  }, [
+    boardMergeMode,
+    admittedOccupancy,
+    reservedOccupancy,
+    admittedOccupancyLoading,
+    reservedOccupancyLoading,
+  ]);
 
   const handleRequestMerge = useCallback((draggedCageId: string, targetCageId: string) => {
     setPendingMerge({ draggedCageId, targetCageId });
@@ -211,6 +249,7 @@ function HospitalizationListContent({
             canEdit={canEdit}
             mergeMode={boardMergeMode}
             canMerge={canMergeCages === true}
+            hasMergeOccupant={hasMergeOccupant}
             onRequestMerge={handleRequestMerge}
             onRequestUnmerge={handleRequestUnmerge}
           />

@@ -31,9 +31,10 @@ export type CreateCageRequest = Pick<CageRequestBase, "name" | "cage_type" | "ca
 
 export type UpdateCageRequest = Partial<CageRequestBase>;
 
-// EMR-306: merged_into_cage_id は generated ModelCage に含まれるが、wire の実値は
-// DB NULL 時に JSON null で返る（generated 型は number のみで null を持たない）。
-// wire 型だけ null を許容し、transform で MasterItem と同じ string 系に正規化する。
+// EMR-306: merged_into_cage_id は generated ModelCage に含まれる。BE 側は
+// json:"...,omitempty" のため DB NULL 時はキー自体が省略される（欠落または null の
+// 両方を許容する）。wire 型だけ null/欠落を許容し、transform で MasterItem と同じ
+// string 系に正規化する。
 type CageWire = Omit<ModelCage, "merged_into_cage_id"> & {
   merged_into_cage_id?: number | null;
 };

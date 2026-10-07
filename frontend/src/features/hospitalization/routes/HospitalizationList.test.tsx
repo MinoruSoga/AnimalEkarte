@@ -194,7 +194,10 @@ describe("HospitalizationList — BUG-009 status tab → server filter", () => {
     await user.click(screen.getByRole("tab", { name: "予約" }));
 
     const calls = vi.mocked(useGetHospitalizations).mock.calls;
-    const lastFilters = calls[calls.length - 1]?.[0];
+    // EMR-306: merge-mode 占有クエリ（admitted/reserved 全件・page キーなし）が
+    // 混ざるため、ページングを持つ一覧呼び出しだけを対象にする。
+    const listFilters = calls.map((c) => c[0]).filter((f) => f?.page != null);
+    const lastFilters = listFilters[listFilters.length - 1];
     expect(lastFilters).toEqual(
       expect.objectContaining({
         statusFilter: "reserved",

@@ -26,6 +26,21 @@ export function isCageRepresentative(cages: readonly MasterItem[], cageId: strin
 }
 
 /**
+ * cageId が連結グループに属するか（構成メンバー or 代表）。
+ * EMR-306 (Grok review HIGH-1): 連結グループが絡む入院の入れ替えは FE の2本の
+ * 独立 PATCH が片方だけ成功し得るため、送信前の事前検知に使う。
+ */
+export function isInMergedGroup(
+  cages: readonly MasterItem[],
+  cageId: string | null | undefined,
+): boolean {
+  if (cageId == null || cageId === "") return false;
+  const cage = cages.find((c) => String(c.id) === cageId);
+  if (cage == null) return false;
+  return cage.mergedIntoCageId != null || isCageRepresentative(cages, cageId);
+}
+
+/**
  * 連結中 badge 表示用の代表ケージ名。代表ケージが一覧に見つからない場合は
  * `ID <id>` にフォールバックする。
  */

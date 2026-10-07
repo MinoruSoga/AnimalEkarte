@@ -50,6 +50,12 @@ interface HospitalizationBoardProps {
   mergeMode?: boolean;
   /** master-hospitalization:edit 権限（連結/解除操作のゲート） */
   canMerge?: boolean;
+  /**
+   * EMR-306 (Grok review MEDIUM-2): merge-mode の占有判定。呼び出し元が
+   * admitted/reserved 全件（タブ・ページ非依存）のルックアップを渡す。
+   * 未提供時は表示中の入院データにフォールバック（advisory。最終可否は BE）。
+   */
+  hasMergeOccupant?: (cageId: string) => boolean;
   /** merge-mode で eligible target への drop が確定したとき呼ばれる（dragged, target） */
   onRequestMerge?: (draggedCageId: string, targetCageId: string) => void;
   /** 連結グループの解除要求。常に代表ケージ ID が渡る */
@@ -119,7 +125,9 @@ const CageCard = memo(function CageCard({
     cage,
     mergeMode,
     canMerge,
-    hasOccupant: occupant !== undefined,
+    // カード単位の占有も同一ルックアップを使う — 他タブ/別ページの占有のみ持つ
+    // ケージが merge source として draggable に見えないよう整合させる。
+    hasOccupant: hasVisibleOccupant(String(cage.id)),
     activeMergeCageId,
     hasVisibleOccupant,
   });
@@ -319,6 +327,7 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({
   canEdit,
   mergeMode = false,
   canMerge = false,
+  hasMergeOccupant,
   onRequestMerge,
   onRequestUnmerge,
 }: HospitalizationBoardProps) {
@@ -334,9 +343,11 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({
     [hospitalizations],
   );
 
+  // EMR-306: merge-mode の占有判定は hasMergeOccupant（admitted/reserved 全件・
+  // 表示タブ/ページ非依存）を優先し、未提供時は表示中データへフォールバックする。
   const hasVisibleOccupant = useCallback(
-    (cageId: string) => occupantByCageId.has(cageId),
-    [occupantByCageId],
+    (cageId: string) => hasMergeOccupant?.(cageId) ?? occupantByCageId.has(cageId),
+    [hasMergeOccupant, occupantByCageId],
   );
 
   const handleDragEnd = useCallback(

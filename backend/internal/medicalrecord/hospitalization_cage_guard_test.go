@@ -4,7 +4,7 @@ package medicalrecord
 // - 構成ケージ（merged_into_cage_id IS NOT NULL）への割当 → ErrUnprocessable（API層 422）
 // - 連結グループ代表への割当でグループ内に未削除の admitted/reserved 入院があれば → 409
 // - 退院済み履歴のみのグループ・未連結ケージは従来挙動（追加チェックなし）
-// - cageFinder のみを実装する repo（CageMergeRepository 面なし）ではガード no-op
+// - cageFinder のみを実装する repo（CageMergeRepository 面なし）の注入は 500 fail-closed
 // 実 Postgres テスト DB（setupHospitalizationRepoTestDB）で検証する。
 
 import (
@@ -335,16 +335,26 @@ func TestHospitalizationCageGuard_Update_ReactivationGroupOccupiedConflict(t *te
 	assert.True(t, apperrors.IsConflict(err), "グループ占有中の再有効化は Conflict: %v", err)
 }
 
-// TestHospitalizationCageGuard_LegacyCageFinderSkipsGuard は CageMergeRepository 面を持たない
-// cageFinder 注入サービスのレガシー経路回帰: FindByID が構成ケージ相当の行を返しても
-// ガードは no-op で、従来の validateOwnedMasterFK のみが走る。
-func TestHospitalizationCageGuard_LegacyCageFinderSkipsGuard(t *testing.T) {
+// cageFinderOnlyRepo は cageFinder のみを実装する最小スタブ（Grok review LOW-4:
+// CageMergeRepository 面を持たない注入が 500 fail-closed になることの検証用。
+// mockCageRepository は merge 面を持つため、faceless 経路は別型で表現する）。
+type cageFinderOnlyRepo struct {
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
+}
+
+func (m *cageFinderOnlyRepo) FindByID(ctx context.Context, clinicID, id uint64) (*model.Cage, error) {
+	return m.findByIDFn(ctx, clinicID, id)
+}
+
+// TestHospitalizationCageGuard_FacelessRepoFailsClosed は CageMergeRepository 面を持たない
+// cageFinder 注入の fail-closed 契約を固定する: ガードは no-op ではなく内部エラーを返す
+// （fail-open だと構成ケージへの割当が素通りするため — Merge/Unmerge と同じ扱い）。
+func TestHospitalizationCageGuard_FacelessRepoFailsClosed(t *testing.T) {
 	const clinicID = uint64(1)
 
 	newSvc := func(hosp *mockHospitalizationRepository) HospitalizationService {
-		mergedInto := uint64(77) // FindByID が返すケージは「構成ケージ」に見える
-		legacyCages := &mockCageRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.Cage, error) {
-			return &model.Cage{ID: id, MergedIntoCageID: &mergedInto}, nil
+		facelessCages := &cageFinderOnlyRepo{findByIDFn: func(_ context.Context, _, id uint64) (*model.Cage, error) {
+			return &model.Cage{ID: id}, nil
 		}}
 		return NewHospitalizationService(
 			hosp,
@@ -355,13 +365,13 @@ func TestHospitalizationCageGuard_LegacyCageFinderSkipsGuard(t *testing.T) {
 			&mockPetRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
 				return &model.Pet{ID: id, Status: model.PetStatusAlive}, nil
 			}},
-			legacyCages,
+			facelessCages,
 			nil, nil, nil,
 			&mockTransactor{},
 		)
 	}
 
-	t.Run("create on member-looking cage succeeds without the merge face", func(t *testing.T) {
+	t.Run("create with cage fails closed without the merge face", func(t *testing.T) {
 		created := false
 		svc := newSvc(&mockHospitalizationRepository{
 			createFn: func(_ context.Context, _ *model.Hospitalization) error { created = true; return nil },
@@ -377,12 +387,14 @@ func TestHospitalizationCageGuard_LegacyCageFinderSkipsGuard(t *testing.T) {
 			Status:              model.HospitalizationStatusAdmitted,
 			CageID:              &cageID,
 		})
-		require.NoError(t, err, "merge 面なしでは構成ケージ相当でも従来どおり作成できる")
-		assert.NotNil(t, got)
-		assert.True(t, created)
+		require.Error(t, err, "merge 面なし注入は fail-closed（500）")
+		assert.Nil(t, got)
+		assert.False(t, created, "ガード不通過で永続化してはならない")
+		status, _, _ := httpapi.ResolveErrorResponse(err)
+		assert.Equal(t, http.StatusInternalServerError, status)
 	})
 
-	t.Run("update cage change succeeds without the merge face", func(t *testing.T) {
+	t.Run("update cage change fails closed without the merge face", func(t *testing.T) {
 		updated := false
 		svc := newSvc(&mockHospitalizationRepository{
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
@@ -395,8 +407,10 @@ func TestHospitalizationCageGuard_LegacyCageFinderSkipsGuard(t *testing.T) {
 		})
 		cageID := uint64(99)
 		got, err := svc.Update(context.Background(), clinicID, 1, &UpdateHospitalizationInput{CageID: &cageID})
-		require.NoError(t, err, "merge 面なしではケージ変更ガードは発火しない")
-		assert.NotNil(t, got)
-		assert.True(t, updated)
+		require.Error(t, err, "merge 面なし注入は fail-closed（500）")
+		assert.Nil(t, got)
+		assert.False(t, updated, "ガード不通過で更新してはならない")
+		status, _, _ := httpapi.ResolveErrorResponse(err)
+		assert.Equal(t, http.StatusInternalServerError, status)
 	})
 }

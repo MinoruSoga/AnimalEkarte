@@ -471,6 +471,29 @@ describe("HospitalizationBoard EMR-306 merge mode", () => {
     expect(onRequestMerge).not.toHaveBeenCalled();
   });
 
+  // Grok review MEDIUM-2: hasMergeOccupant は表示タブ/ページ外の占有も反映する
+  it("merge mode ON: hasMergeOccupant で非表示の占有ケージは drop target・source とも不適格", () => {
+    const onRequestMerge = vi.fn();
+    // cage-15 は hospitalizations（表示中タブ/ページ）には載っていないが、
+    // 全件占有集合では占有（= 別タブの入院か予約）。hasMergeOccupant が優先される。
+    renderMergeBoard({
+      onRequestMerge,
+      hasMergeOccupant: (id) => id === "15" || id === "13",
+    });
+    // 占有 source（15）は drag 不可
+    expect(dndHarness.useDraggable).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "merge-cage-15", disabled: true }),
+    );
+    // 占有 target（15）への drop は拒否
+    act(() => {
+      dndHarness.onDragEnd?.({
+        active: { data: { current: { mergeCageId: "11" } } },
+        over: { id: "cage-15" },
+      });
+    });
+    expect(onRequestMerge).not.toHaveBeenCalled();
+  });
+
   it("merge mode ON: drag 中は eligible target が強調・ineligible がグレー表示/drop 不可になる", () => {
     const { rerender } = renderMergeBoard();
 
