@@ -5,9 +5,6 @@ import { memo } from "react";
 import { C, ICON } from "@/lib/design-tokens";
 import { Textarea } from "@/components/ui/textarea";
 
-// Relative
-import { H_STYLES } from "../lib/styles";
-
 // Types
 import type { LucideIcon } from "lucide-react";
 
@@ -29,12 +26,10 @@ export const HospitalizationNoteCard = memo(function HospitalizationNoteCard({
   placeholder,
 }: HospitalizationNoteCardProps) {
   return (
-    <div
-      className={`${C.bgWhite} rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box} h-full`}
-    >
+    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-6`}>
       <h2
         id={id ? `${id}-label` : undefined}
-        className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 ${C.text}`}
+        className={`text-heading-3 font-bold mb-3 flex items-center gap-2 ${C.text}`}
       >
         <Icon className={`${ICON.action} ${C.text60}`} />
         {title}
@@ -45,7 +40,7 @@ export const HospitalizationNoteCard = memo(function HospitalizationNoteCard({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={`min-h-[200px] ${H_STYLES.text.base} resize-none ${C.bgWhite} ${C.borderMedium} ${C.focusVisibleRingActionPrimary}`}
+        className={`min-h-[200px] resize-none ${C.bgWhite} ${C.borderMedium} ${C.focusVisibleRingActionPrimary}`}
       />
     </div>
   );
