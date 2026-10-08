@@ -246,7 +246,7 @@ func (r *reservationRepository) FindPetByIDInClinic(ctx context.Context, clinicI
 		db = db.Clauses(clause.Locking{Strength: "SHARE"})
 	}
 	err := db.
-		Select("pets.id", "pets.owner_id", "pets.deceased_at", "pets.status").
+		Select("pets.id", "pets.clinic_id", "pets.owner_id", "pets.deceased_at", "pets.status").
 		Where("pets.id = ? AND pets.clinic_id = ? AND pets.deleted_at IS NULL", petID, clinicID).
 		First(&pet).Error
 	if err != nil {

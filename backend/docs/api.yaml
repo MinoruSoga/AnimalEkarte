@@ -11999,6 +11999,11 @@ paths:
     patch:
       operationId: updateReservation
       summary: 予約更新
+      description: |
+        飼主詳細からの当日受付では expected_updated_at に取得した updated_at をそのまま指定する。
+        指定時の変更は status=checked_in のみ許可。同じ医院・当日・confirmed・同じ更新時刻の
+        予約だけを原子的に受付し、並行する状態・日付・飼主・ペット等の変更は409で拒否する。
+        省略した通常更新・再受付の既存挙動は維持する。
       tags: [Reservations]
       parameters:
         - name: id
@@ -12012,7 +12017,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ReservationAppointment'
+              allOf:
+                - $ref: '#/components/schemas/ReservationAppointment'
+                - type: object
+                  properties:
+                    expected_updated_at:
+                      type: string
+                      format: date-time
+                      description: 当日 confirmed 予約を受付する際、取得した updated_at をそのまま指定する。status=checked_in のみ変更可能。
       responses:
         '200':
           description: 更新成功
@@ -12028,6 +12040,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: 予約の状態・更新時刻・当日日付が受付条件に一致しません。再読み込みしてください。
         '500':
           $ref: '#/components/responses/InternalError'
     delete:

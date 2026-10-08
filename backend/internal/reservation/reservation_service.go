@@ -47,6 +47,7 @@ type ReservationBatchPet struct {
 }
 
 type UpdateReservationInput struct {
+	ExpectedUpdatedAt *time.Time
 	StartTime         *time.Time
 	EndTime           *time.Time
 	OwnerID           *uint64

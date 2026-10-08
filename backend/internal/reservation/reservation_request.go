@@ -243,6 +243,7 @@ func (r patchReservationReservationRouteRequest) toServiceInput() UpdateReservat
 
 // updateReservationRequest は予約更新のバインド struct
 type updateReservationRequest struct {
+	ExpectedUpdatedAt *time.Time `json:"expected_updated_at"`
 	StartTime         *time.Time `json:"start_time"`
 	EndTime           *time.Time `json:"end_time"`
 	OwnerID           *uint64    `json:"owner_id"`
@@ -257,6 +258,7 @@ type updateReservationRequest struct {
 
 func (r *updateReservationRequest) toServiceInput() (UpdateReservationInput, error) {
 	input := UpdateReservationInput{
+		ExpectedUpdatedAt: r.ExpectedUpdatedAt,
 		StartTime:         r.StartTime,
 		EndTime:           r.EndTime,
 		OwnerID:           r.OwnerID,
@@ -290,6 +292,9 @@ func (r *updateReservationRequest) toServiceInput() (UpdateReservationInput, err
 			return UpdateReservationInput{}, fmt.Errorf("invalid status: %w", err)
 		}
 		input.Status = &status
+	}
+	if err := validateGuardedCheckInInput(&input); err != nil {
+		return UpdateReservationInput{}, err
 	}
 	return input, nil
 }
