@@ -145,3 +145,71 @@ func TestMedicalRecordAddendumRepository_FindByMedicalRecordID(t *testing.T) {
 		assert.Empty(t, got)
 	})
 }
+
+// TestMedicalRecordAddendumRepository_FindByMedicalRecordID_AuthorStaffResolution は
+// 追記者（AuthorStaff）が「親カルテの clinic_id」スコープかつ deleted_at IS NULL でのみ
+// 解決されることを検証する。未解決は nil → 応答側で author_user_id フォールバック。
+// is_active=false（退職）でも解決するのは監査帰属の仕様（scopedBillingStaffPreload と同判断）。
+func TestMedicalRecordAddendumRepository_FindByMedicalRecordID_AuthorStaffResolution(t *testing.T) {
+	db := setupMedicalRecordAddendumTestDB(t)
+	repo := NewMedicalRecordAddendumRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	ensureVaccinationTestClinics(t, db, clinicA, clinicB)
+
+	owner := makeTestOwner(t, db, clinicA, "追記飼主4")
+	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "追記犬4")
+	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "ADD-4", time.Now())
+
+	findAuthorStaff := func(t *testing.T, addendumID uint64) *model.Staff {
+		t.Helper()
+		got, err := repo.FindByMedicalRecordID(ctx, clinicA, mr.ID)
+		require.NoError(t, err)
+		for _, a := range got {
+			if a.ID == addendumID {
+				return a.AuthorStaff
+			}
+		}
+		t.Fatalf("addendum %d not found in list response", addendumID)
+		return nil
+	}
+
+	t.Run("同医院の追記者は氏名が解決される", func(t *testing.T) {
+		staff := makeDoctor(t, db, clinicA, "追記医師A")
+		a := makeAddendum(t, db, clinicA, mr.ID, staff.ID, "同医院追記", "理由")
+		got := findAuthorStaff(t, a.ID)
+		require.NotNil(t, got)
+		assert.Equal(t, "追記医師A", got.Name)
+	})
+
+	t.Run("改名後は新しい氏名が返る", func(t *testing.T) {
+		staff := makeDoctor(t, db, clinicA, "改名前医師")
+		a := makeAddendum(t, db, clinicA, mr.ID, staff.ID, "改名追記", "理由")
+		require.NoError(t, db.Model(staff).Update("name", "改名後医師").Error)
+		got := findAuthorStaff(t, a.ID)
+		require.NotNil(t, got)
+		assert.Equal(t, "改名後医師", got.Name)
+	})
+
+	t.Run("削除済みスタッフは解決されずnilになる（IDフォールバック）", func(t *testing.T) {
+		staff := makeDoctor(t, db, clinicA, "削除予定医師")
+		a := makeAddendum(t, db, clinicA, mr.ID, staff.ID, "削除追記", "理由")
+		require.NoError(t, db.Delete(staff).Error)
+		assert.Nil(t, findAuthorStaff(t, a.ID))
+	})
+
+	t.Run("他医院スタッフは解決されない（氏名漏洩なし）", func(t *testing.T) {
+		other := makeDoctor(t, db, clinicB, "他院医師")
+		a := makeAddendum(t, db, clinicA, mr.ID, other.ID, "他院追記", "理由")
+		assert.Nil(t, findAuthorStaff(t, a.ID))
+	})
+
+	t.Run("is_active=falseでも監査帰属のため氏名は解決される", func(t *testing.T) {
+		staff := makeDoctor(t, db, clinicA, "退職医師")
+		require.NoError(t, db.Model(staff).Update("is_active", false).Error)
+		a := makeAddendum(t, db, clinicA, mr.ID, staff.ID, "退職追記", "理由")
+		got := findAuthorStaff(t, a.ID)
+		require.NotNil(t, got)
+		assert.Equal(t, "退職医師", got.Name)
+	})
+}

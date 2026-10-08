@@ -1,4 +1,7 @@
-import type { MedicalRecordResponse } from "@/types/generated/medicalrecord-responses";
+import type {
+  MedicalRecordResponse,
+  MedicalRecordAddendumResponse,
+} from "@/types/generated/medicalrecord-responses";
 import type { RecommendationReason } from "../constants/recommendation-reason";
 
 /**
@@ -6,6 +9,17 @@ import type { RecommendationReason } from "../constants/recommendation-reason";
  * Source of truth: MedicalRecordResponse (domain-owned DTO / tygo), not models.MedicalRecord.
  */
 export type BackendMedicalRecord = MedicalRecordResponse;
+
+// ── MedicalRecordAddendum + author_name (EMR-326) ──
+// BE は追記応答に author_name（親カルテの医院スコープで解決した追記者氏名）を
+// additive に追加したが、生成型は codegen 手動実行のため未反映。
+// `make codegen` で medicalrecord-responses.ts が再生成されたら本拡張は削除し、
+// generated の MedicalRecordAddendumResponse を直接使うこと。
+// author_name: 未解決（削除・異動・他医院）時はキー省略または null →
+// UI は author_user_id へフォールバック表示する。
+export type MedicalRecordAddendumWithAuthorName = MedicalRecordAddendumResponse & {
+  author_name?: string | null;
+};
 
 // ── CreateMedicalRecordRequest ──
 // Backend handler (medical_record_request.go) createMedicalRecordRequest に準拠。

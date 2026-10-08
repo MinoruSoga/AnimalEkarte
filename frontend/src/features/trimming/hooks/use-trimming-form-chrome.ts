@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
+import { toast } from "sonner";
 
 import { useGetMasterItems } from "@/hooks/use-master-items";
 import { useGetTrimmingCourseTypes } from "@/hooks/use-trimming-course-types";
@@ -11,6 +12,45 @@ import {
   TRIMMING_PRIORITY_FIELDS,
 } from "../routes/trimming-form-model";
 import type { TrimmingFormData } from "@/types/trimming";
+
+const HISTORY_COPY_TOAST_MESSAGE = "前回の内容を反映しました";
+
+// EMR-282: 履歴コピー対象フィールド → 反映先フォーム要素の DOM id（フォーム内の DOM 順、
+// courseId が最上段）。optionIds のチェックボックスは option-<id> の動的 id のため
+// 先頭の選択肢をアンカーにする。
+const HISTORY_COPY_FIELD_ANCHORS: ReadonlyArray<{
+  field: keyof TrimmingFormData;
+  resolveAnchorId: (updates: Partial<TrimmingFormData>) => string | undefined;
+}> = [
+  { field: "courseId", resolveAnchorId: () => "courseId" },
+  { field: "staffName", resolveAnchorId: () => "staffId" },
+  { field: "styleRequest", resolveAnchorId: () => "trimming-style-request" },
+  {
+    field: "optionIds",
+    resolveAnchorId: (updates) =>
+      updates.optionIds && updates.optionIds.length > 0
+        ? `option-${updates.optionIds[0]}`
+        : undefined,
+  },
+  { field: "usedShampoo", resolveAnchorId: () => "trimming-used-shampoo" },
+  { field: "usedRibbon", resolveAnchorId: () => "trimming-used-ribbon" },
+  { field: "remarks", resolveAnchorId: () => "trimming-remarks" },
+];
+
+// バリデーションエラー時のスクロール（上の useEffect）と同じ smooth/center 規約で、
+// コピーされたフィールドのうち最初に DOM 上で解決できたアンカーへスクロールする。
+function scrollCopiedFieldIntoView(updates: Partial<TrimmingFormData>): void {
+  for (const { field, resolveAnchorId } of HISTORY_COPY_FIELD_ANCHORS) {
+    if (updates[field] === undefined) continue;
+    const anchorId = resolveAnchorId(updates);
+    if (anchorId === undefined) continue;
+    const element = document.getElementById(anchorId);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+  }
+}
 
 export function useTrimmingFormChrome(input: {
   formData: TrimmingFormData;
@@ -86,7 +126,10 @@ export function useTrimmingFormChrome(input: {
   }, [input.fromPath, navigate]);
   const handleHistoryClick = useCallback(
     (updates: Partial<TrimmingFormData>) => {
-      handleFormChange(history.handleHistoryClick(updates));
+      const applied = history.handleHistoryClick(updates);
+      handleFormChange(applied);
+      scrollCopiedFieldIntoView(applied);
+      toast.success(HISTORY_COPY_TOAST_MESSAGE);
     },
     [history, handleFormChange],
   );

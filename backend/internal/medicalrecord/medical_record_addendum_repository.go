@@ -50,6 +50,7 @@ func (r *medicalRecordAddendumRepository) FindByID(ctx context.Context, clinicID
 func (r *medicalRecordAddendumRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]*model.MedicalRecordAddendum, error) {
 	var addenda []*model.MedicalRecordAddendum
 	err := persistence.DBOrTx(ctx, r.db).
+		Preload("AuthorStaff", medicalRecordAddendumAuthorStaffPreload(clinicID)).
 		Joins("JOIN medical_records ON medical_records.id = medical_record_addenda.medical_record_id AND medical_records.clinic_id = medical_record_addenda.clinic_id AND medical_records.deleted_at IS NULL").
 		Where("medical_record_addenda.clinic_id = ? AND medical_record_addenda.medical_record_id = ?", clinicID, medicalRecordID).
 		Order("medical_record_addenda.created_at ASC").
@@ -58,4 +59,20 @@ func (r *medicalRecordAddendumRepository) FindByMedicalRecordID(ctx context.Cont
 		return nil, apperrors.FromGORM(err, "medical_record_addendum", fmt.Sprintf("medical_record_id=%d", medicalRecordID))
 	}
 	return addenda, nil
+}
+
+// medicalRecordAddendumAuthorStaffPreload は追記者を「親カルテの clinic_id」スコープで
+// 解決するバッチ preload（行ごとのクエリは発行しない）。一覧の全追記は親カルテと同じ
+// clinic_id を持つため、引数 clinicID がそのまま親カルテの医院を表す。
+//   - staffs.id = medical_record_addenda.author_user_id（foreignKey 既定）
+//   - staffs.clinic_id = 親カルテの clinic_id かつ staffs.deleted_at IS NULL
+//
+// 削除・他院異動・クロス医院の追記者は解決されず AuthorStaff=nil → 応答側で
+// author_user_id フォールバック（他医院スタッフ名は絶対に漏らさない）。
+// is_active は掛けない: 退職後も監査上の帰属名は残す（scopedBillingStaffPreload と同じ
+// 判断。clinic 非スコープの medicalRecordEnteredByStaffPreload は真似しない）。
+func medicalRecordAddendumAuthorStaffPreload(clinicID uint64) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Where("staffs.deleted_at IS NULL AND staffs.clinic_id = ?", clinicID)
+	}
 }
