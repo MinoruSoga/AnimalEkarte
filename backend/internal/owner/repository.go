@@ -106,6 +106,8 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page,
 		if search != "" {
 			// name / name_kana はカナ+空白を畳んだ translate() 式1腕で検索する
 			// （生値・空白差・カナ差の旧複数腕を包含し、GIN 式インデックスが効く）。
+			// name の空白除去腕は姓名の空白有無を吸収する。式リテラルは
+			// idx_owners_name_compact_fold_trgm と一致させる。
 			// phone と email は従来どおり正規化済み pattern で比較する。
 			// 空白のみは fail-closed で 0 件 (BUG-001)。
 			qSearch := textsearch.NormalizeQuerySpaces(search)
@@ -114,15 +116,18 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page,
 				return q
 			}
 			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(qSearch)) + "%"
+			compactPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(textsearch.CompactSearchText(search))) + "%"
 			q = q.Where(
 				`(`+textsearch.FoldedExpr("name")+` ILIKE ? ESCAPE '\'`+
 					` OR `+textsearch.FoldedExpr("name_kana")+` ILIKE ? ESCAPE '\'`+
 					` OR phone ILIKE ? ESCAPE '\'`+
-					` OR email ILIKE ? ESCAPE '\')`,
+					` OR email ILIKE ? ESCAPE '\'`+
+					` OR regexp_replace(`+textsearch.FoldedExpr("name")+`, '`+textsearch.SpaceStripRegexp+`', '', 'g') ILIKE ? ESCAPE '\')`,
 				normalizedPattern,
 				normalizedPattern,
 				normalizedPattern,
 				normalizedPattern,
+				compactPattern,
 			)
 		}
 		return q
