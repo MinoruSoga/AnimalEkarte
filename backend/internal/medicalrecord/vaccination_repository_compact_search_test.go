@@ -215,6 +215,43 @@ func TestVaccinationRepository_FindAll_CompactSearchRepresentativeBudget(t *test
 		representativeVaccinationOwnerNameRows, vaccinationCompactSearchBudget, elapsed)
 }
 
+func TestVaccinationRepository_FindAll_CompactSpaceMatchesPostgresClass(t *testing.T) {
+	db := setupVaccinationRepoTestDB(t)
+	repo := NewVaccinationRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	ensureVaccinationTestClinics(t, db, clinicA, clinicB)
+
+	t.Run("stored NBSP matches the same NBSP query", func(t *testing.T) {
+		const stored = "接種契約甲姓\u00A0接種契約甲名"
+		_, match := makeVaccinationForOwnerName(t, db, clinicA, stored, "nbsp-pet", "nbsp-vaccine")
+		_, foreign := makeVaccinationForOwnerName(t, db, clinicB, stored, "nbsp-foreign-pet", "nbsp-foreign-vaccine")
+		requireVaccinationSearchHit(t, repo, ctx, clinicA, stored, match.ID)
+		got, _, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, stored, 1, 100)
+		require.NoError(t, err)
+		require.NotEqual(t, foreign.ID, got[0].ID)
+		miss, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, "接種契約甲姓接種契約甲名", 1, 100)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), total)
+		require.Empty(t, miss)
+	})
+
+	t.Run("stored narrow NBSP matches the same narrow NBSP query", func(t *testing.T) {
+		const stored = "接種契約乙姓\u202F接種契約乙名"
+		_, match := makeVaccinationForOwnerName(t, db, clinicA, stored, "nnbsp-pet", "nnbsp-vaccine")
+		requireVaccinationSearchHit(t, repo, ctx, clinicA, stored, match.ID)
+		miss, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, "接種契約乙姓接種契約乙名", 1, 100)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), total)
+		require.Empty(t, miss)
+	})
+
+	t.Run("ASCII-spaced stored name still matches an NBSP query", func(t *testing.T) {
+		_, match := makeVaccinationForOwnerName(t, db, clinicA, "接種契約丙姓 接種契約丙名", "ascii-pet", "ascii-vaccine")
+		requireVaccinationSearchHit(t, repo, ctx, clinicA, "接種契約丙姓\u00A0接種契約丙名", match.ID)
+	})
+}
+
 func makeVaccinationForOwnerName(
 	t *testing.T,
 	db *gorm.DB,

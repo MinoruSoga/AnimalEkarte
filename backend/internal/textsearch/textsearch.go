@@ -47,23 +47,39 @@ func NormalizeQuerySpaces(value string) string {
 	return strings.Join(strings.Fields(strings.TrimSpace(value)), " ")
 }
 
-// CompactSearchText removes every Unicode space while preserving character order.
-// Query-side companion of:
+// CompactSearchText removes the spaces SpaceStripRegexp removes on PostgreSQL 18
+// with libc en_US.utf8, preserving character order. Query-side companion of:
 //
 //	regexp_replace(FoldedExpr(column), SpaceStripRegexp, '', 'g')
 //
-// Callers still kana-normalize and EscapeLike the result. Do not put the strip
-// charset in a SQL bind parameter.
+// That POSIX class includes ASCII whitespace, U+3000, and the other spaces it
+// matches in this locale. It leaves U+00A0, U+1680, U+2007, and U+202F in place.
+// Those runes stay on the stored side too, so the query keeps them. Removing
+// them in SQL needs a new migration and idx_owners_name_compact_fold_trgm
+// together. Do not edit migration 015. Callers still kana-normalize and
+// EscapeLike the result. Do not put the strip charset in a SQL bind parameter.
 func CompactSearchText(value string) string {
 	var b strings.Builder
 	b.Grow(len(value))
 	for _, r := range value {
-		if unicode.IsSpace(r) {
+		if compactSearchSpace(r) {
 			continue
 		}
 		b.WriteRune(r)
 	}
 	return b.String()
+}
+
+// compactSearchSpace matches [[:space:]] on postgres:18-alpine en_US.utf8.
+// unicode.IsSpace also treats U+00A0, U+1680, U+2007, and U+202F as space.
+// The POSIX class on this locale does not.
+func compactSearchSpace(r rune) bool {
+	switch r {
+	case '\u00A0', '\u1680', '\u2007', '\u202F':
+		return false
+	default:
+		return unicode.IsSpace(r)
+	}
 }
 
 // NormalizeKana converts katakana to hiragana while preserving every other

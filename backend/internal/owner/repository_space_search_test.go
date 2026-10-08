@@ -224,6 +224,42 @@ func TestOwnerRepository_FindAll_CompactSearchRepresentativeBudget(t *testing.T)
 		representativeOwnerNameRows, ownerCompactSearchBudget, elapsed)
 }
 
+func TestOwnerRepository_FindAll_CompactSpaceMatchesPostgresClass(t *testing.T) {
+	db := setupOwnerPetIsolationTestDB(t)
+	repo := newTestRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	t.Run("stored NBSP matches the same NBSP query", func(t *testing.T) {
+		const stored = "契約甲姓\u00A0契約甲名"
+		match := makeTestOwner(t, db, clinicA, stored)
+		foreign := makeTestOwner(t, db, clinicB, stored)
+		requireOwnerSearchHit(t, repo, ctx, clinicA, stored, match.ID)
+		got, _, err := repo.FindAll(ctx, []uint64{clinicA}, 1, 100, stored)
+		require.NoError(t, err)
+		require.NotEqual(t, foreign.ID, got[0].ID)
+		miss, total, err := repo.FindAll(ctx, []uint64{clinicA}, 1, 100, "契約甲姓契約甲名")
+		require.NoError(t, err)
+		require.Equal(t, int64(0), total)
+		require.Empty(t, miss)
+	})
+
+	t.Run("stored narrow NBSP matches the same narrow NBSP query", func(t *testing.T) {
+		const stored = "契約乙姓\u202F契約乙名"
+		match := makeTestOwner(t, db, clinicA, stored)
+		requireOwnerSearchHit(t, repo, ctx, clinicA, stored, match.ID)
+		miss, total, err := repo.FindAll(ctx, []uint64{clinicA}, 1, 100, "契約乙姓契約乙名")
+		require.NoError(t, err)
+		require.Equal(t, int64(0), total)
+		require.Empty(t, miss)
+	})
+
+	t.Run("ASCII-spaced stored name still matches an NBSP query", func(t *testing.T) {
+		match := makeTestOwner(t, db, clinicA, "契約丙姓 契約丙名")
+		requireOwnerSearchHit(t, repo, ctx, clinicA, "契約丙姓\u00A0契約丙名", match.ID)
+	})
+}
+
 func requireOwnerSearchHit(t *testing.T, repo Repository, ctx context.Context, clinicID uint64, query string, wantID uint64) {
 	t.Helper()
 	got, total, err := repo.FindAll(ctx, []uint64{clinicID}, 1, 100, query)
