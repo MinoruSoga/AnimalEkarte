@@ -182,11 +182,18 @@ export function useReservationSaveActions({
       data: ReservationFormData,
       selectedPets: Pick<Pet, "id" | "ownerId" | "name">[],
       targetDoctor: string,
+      preventDuplicateReception = false,
     ): Promise<string | null> => {
       try {
+        const duplicateGuard = preventDuplicateReception
+          ? { prevent_duplicate_reception: true }
+          : {};
         if (selectedPets.length === 1) {
           const pet = selectedPets[0];
-          await createReservationAsync(transformToCreateRequest(data, pet.id, pet.ownerId));
+          await createReservationAsync({
+            ...transformToCreateRequest(data, pet.id, pet.ownerId),
+            ...duplicateGuard,
+          });
         } else {
           // A selected multi-pet booking is one atomic server-side operation. Do not
           // issue individual creates: the second intentional overlap must not conflict.
@@ -197,6 +204,7 @@ export function useReservationSaveActions({
           } = transformToCreateRequest(data, "0", "0");
           await createBatchReservationAsync({
             ...base,
+            ...duplicateGuard,
             pets: selectedPets.map((pet) => ({
               pet_id: Number(pet.id),
               owner_id: Number(pet.ownerId),
@@ -248,7 +256,7 @@ export function useReservationSaveActions({
           return "当日の既存予約があります。受付画面でペットごとに受付してください";
         const reservation = existing[0];
         if (!reservation)
-          return await saveExistingPetsReservation(data, selectedPets, targetDoctor);
+          return await saveExistingPetsReservation(data, selectedPets, targetDoctor, true);
         if (
           !["confirmed", "checked_in", "in_consultation", "accounting"].includes(reservation.status)
         )

@@ -184,6 +184,7 @@ describe("EMR-318 reception reuse", () => {
     setStoredClinicId("1");
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-29T01:00:00Z"));
+    createBatchMutateAsyncMock.mockReset();
     receptionErrorHandlerMock.mockReset();
     receptionCandidatesMock.mockReset();
     createMutateAsyncMock.mockReset();
@@ -307,6 +308,79 @@ describe("EMR-318 reception reuse", () => {
       expect(await result.current.handleSave(reception(), pets)).toContain("受付日");
     });
     expect(createMutateAsyncMock).not.toHaveBeenCalled();
+  });
+
+  it("guards both independent hook POSTs and keeps a conflicted form open until refetch reuse", async () => {
+    receptionCandidatesMock.mockResolvedValue([]);
+    const first = setup();
+    const second = setup();
+    const duplicate = axiosError(409, {
+      error: "当日の予約が既に存在します",
+      code: "reservation_reception_conflict",
+    });
+    createMutateAsyncMock.mockResolvedValueOnce(undefined).mockRejectedValueOnce(duplicate);
+    await act(async () => {
+      const outcomes = await Promise.all([
+        first.result.current.handleSave(reception(), pets),
+        second.result.current.handleSave(reception(), pets),
+      ]);
+      expect(outcomes).toEqual([null, "当日の予約が既に存在します"]);
+    });
+    expect(receptionCandidatesMock).toHaveBeenCalledTimes(2);
+    expect(createMutateAsyncMock).toHaveBeenCalledTimes(2);
+    for (const [payload] of createMutateAsyncMock.mock.calls) {
+      expect(payload).toHaveProperty("prevent_duplicate_reception", true);
+    }
+    expect(first.handleCloseForm).toHaveBeenCalledOnce();
+    expect(second.handleCloseForm).not.toHaveBeenCalled();
+    expect(second.navigateBackIfNeeded).not.toHaveBeenCalled();
+    receptionCandidatesMock.mockResolvedValue([candidate(5, "checked_in")]);
+    await act(async () => {
+      expect(await second.result.current.handleSave(reception(), pets)).toBeNull();
+    });
+    expect(createMutateAsyncMock).toHaveBeenCalledTimes(2);
+    expect(updateMutateMock).not.toHaveBeenCalled();
+    expect(second.handleCloseForm).toHaveBeenCalledOnce();
+    expect(second.navigateBackIfNeeded).toHaveBeenCalledOnce();
+  });
+  it("opts batch reception creation into the same server guard", async () => {
+    receptionCandidatesMock.mockResolvedValue([]);
+    createBatchMutateAsyncMock.mockResolvedValueOnce(undefined);
+    const { result } = setup();
+    await act(async () => {
+      expect(
+        await result.current.handleSave(reception(), [
+          pets[0],
+          { id: "11", ownerId: "20", name: "タマ" },
+        ]),
+      ).toBeNull();
+    });
+    expect(createBatchMutateAsyncMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prevent_duplicate_reception: true,
+        pets: [
+          { pet_id: 10, owner_id: 20 },
+          { pet_id: 11, owner_id: 20 },
+        ],
+      }),
+    );
+    expect(createMutateAsyncMock).not.toHaveBeenCalled();
+  });
+  it.each(["normal", "record_shortcut"])("omits the opt-in flag for %s creation", async (route) => {
+    createMutateAsyncMock.mockResolvedValueOnce(undefined);
+    const data =
+      route === "normal"
+        ? makeFormData()
+        : { ...reception(), reservationRoute: "record_shortcut" as const };
+    const { result } = setup();
+    await act(async () => {
+      expect(await result.current.handleSave(data, pets)).toBeNull();
+    });
+    expect(createMutateAsyncMock).toHaveBeenCalledOnce();
+    expect(createMutateAsyncMock.mock.calls[0][0]).not.toHaveProperty(
+      "prevent_duplicate_reception",
+    );
+    expect(receptionCandidatesMock).not.toHaveBeenCalled();
   });
   it("prevents a second in-flight save", async () => {
     receptionCandidatesMock.mockResolvedValue([]);

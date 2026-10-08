@@ -11,6 +11,8 @@ import type { Reservation as BackendReservation } from "@/types/generated/models
  * models.ts の Appointment から導出
  */
 export interface CreateReservationRequest {
+  /** Opt in only for the same-day existing-patient reception shortcut. */
+  prevent_duplicate_reception?: boolean;
   pet_id: number;
   owner_id: number;
   doctor_id?: number;
