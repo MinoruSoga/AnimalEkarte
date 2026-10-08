@@ -146,7 +146,7 @@ func TestService_Update_RejectsPetFromAnotherClinic(t *testing.T) {
 	}
 	svc := newTrimmingClinicIsolationTestService(reserv, detail)
 
-	got, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{PetID: &petID})
+	got, _, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{PetID: &petID})
 
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
@@ -243,7 +243,7 @@ func TestService_Update_AcceptsPetFromSameClinicAfterLock(t *testing.T) {
 	}
 	svc := newTrimmingClinicIsolationTestService(reserv, detail)
 
-	got, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{PetID: &petID})
+	got, _, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{PetID: &petID})
 
 	assert.NoError(t, err)
 	assert.NotNil(t, got)
@@ -286,7 +286,7 @@ func TestService_Update_RejectsPetBelongingToDifferentOwner(t *testing.T) {
 	}
 	svc := newTrimmingClinicIsolationTestService(reserv, detail)
 
-	got, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{PetID: &petID})
+	got, _, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{PetID: &petID})
 
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))

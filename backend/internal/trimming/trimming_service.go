@@ -96,13 +96,22 @@ type Service interface {
 	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error)
-	Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, *TrimmingReplacedImages, error)
 	Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error
 	// ImageKeyInUse は trimming 詳細レコードによる画像キー参照の有無を返す。
 	// DELETE /trimmings/images（exceptAppointmentID=0: どの参照でも拒否）と
 	// superseded 削除（exceptAppointmentID=対象レコード: 他レコード共有時のみ保留）
 	// の fail-closed ガード — 参照中キーの削除要求は 409 で拒否される。
 	ImageKeyInUse(ctx context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error)
+}
+
+// TrimmingReplacedImages は Update が commit 時に置き換えた画像値。
+// update tx 内（booking lock・行ロック下）で捕捉した直前値 — 同時 PATCH は
+// シリアライズされるため各呼び出しは直前の書き込みを正確に見る。tx 前に
+// handler が読んだスナップショットでは並行書き込みの画像を掃除候補から漏らす。
+type TrimmingReplacedImages struct {
+	Style     string
+	Completed string
 }
 
 type trimmingService struct {

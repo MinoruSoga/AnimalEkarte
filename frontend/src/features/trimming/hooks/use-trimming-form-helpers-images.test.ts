@@ -247,6 +247,47 @@ describe("useTrimmingFormImages", () => {
     expect(mockDeleteTrimmingImage).not.toHaveBeenCalled();
   });
 
+  it("確定 pre-commit 失敗で所有権が戻ったキーは削除ボタンでクライアント削除できる", async () => {
+    mockUploadTrimmingImage.mockResolvedValue({ key: STYLE_KEY, signed_url: STYLE_SIGNED });
+    const { result } = renderHook(() => useImageHarness());
+
+    await act(async () => {
+      await result.current.handleStyleImageChange(imageChange("style.jpg"));
+    });
+    let submitted!: ReturnType<typeof result.current.markSubmittedKeys>;
+    act(() => {
+      submitted = result.current.markSubmittedKeys();
+    });
+    // 4xx 応答 = サーバー未 commit が確定 → caller が所有権を戻す
+    act(() => {
+      result.current.restoreSubmittedKeys(submitted);
+    });
+    act(() => {
+      result.current.removeStyleImage();
+    });
+
+    expect(result.current.formData.styleImage).toBe("");
+    expect(mockDeleteTrimmingImage).toHaveBeenCalledWith(STYLE_KEY);
+  });
+
+  it("送信成功後は restore せずキーは server 所有のまま（クライアント削除しない）", async () => {
+    mockUploadTrimmingImage.mockResolvedValue({ key: STYLE_KEY, signed_url: STYLE_SIGNED });
+    const { result } = renderHook(() => useImageHarness());
+
+    await act(async () => {
+      await result.current.handleStyleImageChange(imageChange("style.jpg"));
+    });
+    act(() => {
+      result.current.markSubmittedKeys();
+    });
+    // 応答無し/5xx = commit 状態不明 → restore しない（呼ばない）まま削除
+    act(() => {
+      result.current.removeStyleImage();
+    });
+
+    expect(mockDeleteTrimmingImage).not.toHaveBeenCalled();
+  });
+
   it("編集の署名 URL はプレビューのみに使い、未変更の再保存では画像を省略する", async () => {
     const { result } = renderHook(() =>
       useImageHarness({ styleImage: STYLE_SIGNED, completedImage: COMPLETED_SIGNED }, true),

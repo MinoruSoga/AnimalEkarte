@@ -138,16 +138,12 @@ func (h *Handler) UpdateTrimming(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	previous, ok := h.previousTrimmingImages(c, clinicID, id, input)
-	if !ok {
-		return
-	}
-	appt, err := h.svc.Trimming.Update(c.Request.Context(), clinicID, id, input)
+	appt, replaced, err := h.svc.Trimming.Update(c.Request.Context(), clinicID, id, input)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
-	h.deleteReplacedTrimmingImages(c.Request.Context(), clinicID, previous, appt)
+	h.deleteReplacedTrimmingImages(c.Request.Context(), clinicID, replaced, appt)
 	// 署名失敗は unsigned echo に degrade（commit 済みレコードを 500 にしない）。
 	resp := h.signTrimmingResponse(c.Request.Context(), clinicID, appt)
 	c.JSON(http.StatusOK, resp)

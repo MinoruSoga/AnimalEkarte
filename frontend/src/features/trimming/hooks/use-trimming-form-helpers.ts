@@ -142,11 +142,20 @@ function useTrimmingImageField(
   }, [field, setLocalOverrides, markDirty, releaseAllBlobs]);
 
   // 保存リクエスト送信時に呼ぶ。ペイロードへ含めたキーは送信以後サーバー側の
-  // 所有物として扱う — 保存成否に関わらずクライアントは削除しない
-  // （commit 済みレコードの参照を消さないため。未commit なら orphan となるが
-  // 参照中オブジェクトの削除より安全）。置換・削除は backend superseded が担う。
-  const markSubmitted = useCallback(() => {
+  // 所有物として扱い、手放したキー（session 管理だったもの。無ければ null）を返す。
+  // 応答が確定 pre-commit 失敗（4xx = サーバーが commit していない）なら
+  // caller は restoreSubmitted で session 所有へ戻す。応答無し/5xx は commit
+  // 状態不明のため戻さない — 参照中オブジェクトを消すより orphan の方が安全。
+  const markSubmitted = useCallback((): string | null => {
+    const key = sessionKeyRef.current;
     sessionKeyRef.current = null;
+    return key;
+  }, []);
+
+  const restoreSubmitted = useCallback((key: string | null) => {
+    // 別キーへ既に所有権が動いていたら上書きしない（起こり得ないが安全側）。
+    if (key === null || sessionKeyRef.current !== null) return;
+    sessionKeyRef.current = key;
   }, []);
 
   // hydration 等で確定済みプレビューを外部から設定する（record の署名URL）。
@@ -162,6 +171,7 @@ function useTrimmingImageField(
     handleChange,
     remove,
     markSubmitted,
+    restoreSubmitted,
   };
 }
 
@@ -277,6 +287,13 @@ export function useTrimmingFormHydration(input: {
   ]);
 }
 
+// markSubmittedKeys が返す送信時点の session 所有キー。
+// restoreSubmittedKeys へそのまま渡して所有権を巻き戻す。
+export type SubmittedTrimmingImageKeys = {
+  styleImage: string | null;
+  completedImage: string | null;
+};
+
 export function useTrimmingFormImages(
   setLocalOverrides: TrimmingImageOverrides,
   markDirty: () => void,
@@ -285,11 +302,25 @@ export function useTrimmingFormImages(
   const completedImage = useTrimmingImageField("completedImage", setLocalOverrides, markDirty);
   const markStyleSubmitted = styleImage.markSubmitted;
   const markCompletedSubmitted = completedImage.markSubmitted;
+  const restoreStyleSubmitted = styleImage.restoreSubmitted;
+  const restoreCompletedSubmitted = completedImage.restoreSubmitted;
 
-  const markSubmittedKeys = useCallback(() => {
-    markStyleSubmitted();
-    markCompletedSubmitted();
+  const markSubmittedKeys = useCallback((): SubmittedTrimmingImageKeys => {
+    return {
+      styleImage: markStyleSubmitted(),
+      completedImage: markCompletedSubmitted(),
+    };
   }, [markStyleSubmitted, markCompletedSubmitted]);
+
+  // 確定 pre-commit 失敗（4xx 応答）のときだけ呼ぶ — 退避したキーを session
+  // 所有へ戻し、remove/離脱クリーンアップで削除可能にする。
+  const restoreSubmittedKeys = useCallback(
+    (keys: SubmittedTrimmingImageKeys) => {
+      restoreStyleSubmitted(keys.styleImage);
+      restoreCompletedSubmitted(keys.completedImage);
+    },
+    [restoreStyleSubmitted, restoreCompletedSubmitted],
+  );
 
   return {
     styleImagePreview: styleImage.preview,
@@ -302,6 +333,7 @@ export function useTrimmingFormImages(
     removeCompletedImage: completedImage.remove,
     isImageUploading: styleImage.pendingCount > 0 || completedImage.pendingCount > 0,
     markSubmittedKeys,
+    restoreSubmittedKeys,
   };
 }
 

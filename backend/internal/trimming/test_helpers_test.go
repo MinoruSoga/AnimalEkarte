@@ -88,7 +88,7 @@ func (s *trimmingServiceWithTestActor) Update(
 	ctx context.Context,
 	clinicID, id uint64,
 	input *UpdateTrimmingInput,
-) (*model.Reservation, error) {
+) (*model.Reservation, *TrimmingReplacedImages, error) {
 	if input == nil || input.ActorID != nil {
 		return s.Service.Update(ctx, clinicID, id, input)
 	}

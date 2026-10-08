@@ -1094,7 +1094,7 @@ func TestService_Update_MissingOptionRepositoryFailsClosed(t *testing.T) {
 		noopTrimmingAuditTxLogger{},
 	))
 
-	got, err := svc.Update(context.Background(), 1, 77, &UpdateTrimmingInput{OptionIDs: &optionIDs})
+	got, _, err := svc.Update(context.Background(), 1, 77, &UpdateTrimmingInput{OptionIDs: &optionIDs})
 
 	require.Error(t, err)
 	assert.Nil(t, got)
@@ -1656,7 +1656,7 @@ func TestService_Update(t *testing.T) {
 			}
 			svc := newTrimmingTestService(reserv, detail)
 
-			appt, err := svc.Update(context.Background(), tt.clinicID, tt.id, &tt.input)
+			appt, _, err := svc.Update(context.Background(), tt.clinicID, tt.id, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -1704,7 +1704,7 @@ func TestService_Update_DetailOnlyBackfillsMissingOwner(t *testing.T) {
 	}
 	svc := newTrimmingTestService(reserv, detail)
 
-	got, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{StyleRequest: &styleRequest})
+	got, _, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{StyleRequest: &styleRequest})
 
 	require.NoError(t, err)
 	require.NotNil(t, got)
@@ -1748,7 +1748,7 @@ func TestService_Update_RejectsTerminalDetailMutation(t *testing.T) {
 			svc := newTrimmingTestService(reserv, detail)
 			style := "must not change"
 
-			appointment, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{
+			appointment, _, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{
 				StyleRequest: &style,
 			})
 
@@ -1772,7 +1772,7 @@ func TestService_Update_FindByIDError(t *testing.T) {
 	}
 	svc := newTrimmingTestService(reserv, &mockTrimmingDetailRepository{})
 
-	appt, err := svc.Update(context.Background(), 1, 999, &UpdateTrimmingInput{StyleRequest: ptrStr("x")})
+	appt, _, err := svc.Update(context.Background(), 1, 999, &UpdateTrimmingInput{StyleRequest: ptrStr("x")})
 
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
@@ -1828,7 +1828,7 @@ func TestService_Update_RejectsSlotConflictBeforeWrite(t *testing.T) {
 		&mockTrimmingUnavailableTimeRepository{},
 	)
 
-	appointment, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{
+	appointment, _, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{
 		StartTime: &newStart,
 		EndTime:   &newEnd,
 	})

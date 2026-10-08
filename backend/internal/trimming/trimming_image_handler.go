@@ -123,8 +123,15 @@ func (h *Handler) UploadTrimmingImage(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "upload quota unavailable"})
 		return
 	}
-	// Release must not inherit a canceled request context (lease would stick until stale TTL).
-	defer release(context.WithoutCancel(c.Request.Context()))
+	// Release must not inherit a canceled request context (lease would stick
+	// until stale TTL); bound it so a stalled quota store cannot hold the
+	// upload response open past the detached-cleanup deadline.
+	releaseCtx, releaseCancel := context.WithTimeout(
+		context.WithoutCancel(c.Request.Context()), supersededImageCleanupTimeout)
+	defer func() {
+		defer releaseCancel()
+		release(releaseCtx)
+	}()
 
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, trimmingImageMaxRequestSize)
 	file, fileHeader, err := c.Request.FormFile("file")
@@ -163,7 +170,9 @@ func (h *Handler) UploadTrimmingImage(c *gin.Context) {
 
 	signedURL, err := h.imageUploader.GetSignedURL(c.Request.Context(), key, trimmingImageSignedURLTTL)
 	if err != nil {
-		deleteCtx := context.WithoutCancel(c.Request.Context())
+		deleteCtx, cancel := context.WithTimeout(
+			context.WithoutCancel(c.Request.Context()), supersededImageCleanupTimeout)
+		defer cancel()
 		if delErr := h.imageUploader.Delete(deleteCtx, key); delErr != nil {
 			slog.WarnContext(deleteCtx, "failed to delete uploaded trimming image on sign failure (best-effort)", "error", delErr, "key", key)
 		}

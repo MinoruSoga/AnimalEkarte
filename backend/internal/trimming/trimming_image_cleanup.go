@@ -5,59 +5,27 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/gin-gonic/gin"
-
-	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type loadedTrimmingImages struct {
-	clinicID  uint64
-	style     string
-	completed string
-	loaded    bool
-}
-
-func (h *Handler) previousTrimmingImages(
-	c *gin.Context,
-	clinicID, id uint64,
-	input *UpdateTrimmingInput,
-) (loadedTrimmingImages, bool) {
-	if input == nil || (input.StyleImage == nil && input.CompletedImage == nil) {
-		return loadedTrimmingImages{}, true
-	}
-	existing, err := h.svc.Trimming.GetByID(c.Request.Context(), clinicID, id)
-	if err != nil {
-		httpapi.RespondError(c, err)
-		return loadedTrimmingImages{}, false
-	}
-	style, completed, _ := trimmingStoredImages(existing)
-	return loadedTrimmingImages{
-		clinicID:  trimmingRecordClinicID(existing, clinicID),
-		style:     style,
-		completed: completed,
-		loaded:    true,
-	}, true
-}
-
+// deleteReplacedTrimmingImages は Update commit 後の置き換え済み画像を掃除する。
+// replaced は update tx 内で捕捉した直前値（Service.Update が返す）— tx 前の
+// スナップショットより正確で、同時 PATCH が互いの新値を掃除候補から漏らさない。
 func (h *Handler) deleteReplacedTrimmingImages(
 	ctx context.Context,
 	fallbackClinicID uint64,
-	previous loadedTrimmingImages,
+	replaced *TrimmingReplacedImages,
 	updated *model.Reservation,
 ) {
-	if !previous.loaded {
+	if replaced == nil {
 		return
 	}
 	newStyle, newCompleted, ok := trimmingStoredImages(updated)
 	if !ok {
 		return
 	}
-	clinicID := previous.clinicID
-	if clinicID == 0 {
-		clinicID = trimmingRecordClinicID(updated, fallbackClinicID)
-	}
-	h.deleteSupersededTrimmingImages(ctx, clinicID, updated.ID, previous.style, previous.completed, newStyle, newCompleted)
+	clinicID := trimmingRecordClinicID(updated, fallbackClinicID)
+	h.deleteSupersededTrimmingImages(ctx, clinicID, updated.ID, replaced.Style, replaced.Completed, newStyle, newCompleted)
 }
 
 func trimmingImageObjectKey(stored string, clinicID uint64) (string, bool) {

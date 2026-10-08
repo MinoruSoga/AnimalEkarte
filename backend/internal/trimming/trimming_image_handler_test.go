@@ -648,12 +648,10 @@ func TestUpdateTrimming_DeletesReplacedImageKey(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	uploader := &fakeTrimmingImageUploader{}
 	svc := &mockService{
-		getByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
-			return trimmingDetailReservation("trimming-images/1/old-style.jpg", "trimming-images/1/done.png"), nil
-		},
-		updateFn: func(_ context.Context, _, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error) {
+		updateFn: func(_ context.Context, _, id uint64, input *UpdateTrimmingInput) (*model.Reservation, *TrimmingReplacedImages, error) {
 			require.NotNil(t, input.StyleImage)
-			return trimmingDetailReservation(*input.StyleImage, "trimming-images/1/done.png"), nil
+			replaced := &TrimmingReplacedImages{Style: "trimming-images/1/old-style.jpg", Completed: "trimming-images/1/done.png"}
+			return trimmingDetailReservation(*input.StyleImage, "trimming-images/1/done.png"), replaced, nil
 		},
 	}
 	h := newImageHandler(svc, uploader, &fakeImageUploadQuotaStore{})
@@ -678,11 +676,9 @@ func TestUpdateTrimming_RetainsImageKeySharedWithOtherRecord(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	uploader := &fakeTrimmingImageUploader{}
 	svc := &mockService{
-		getByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
-			return trimmingDetailReservation("trimming-images/1/shared.jpg", "trimming-images/1/done.png"), nil
-		},
-		updateFn: func(_ context.Context, _, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error) {
-			return trimmingDetailReservation(*input.StyleImage, "trimming-images/1/done.png"), nil
+		updateFn: func(_ context.Context, _, id uint64, input *UpdateTrimmingInput) (*model.Reservation, *TrimmingReplacedImages, error) {
+			replaced := &TrimmingReplacedImages{Style: "trimming-images/1/shared.jpg", Completed: "trimming-images/1/done.png"}
+			return trimmingDetailReservation(*input.StyleImage, "trimming-images/1/done.png"), replaced, nil
 		},
 		imageKeyInUseFn: func(_ context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error) {
 			assert.Equal(t, uint64(1), clinicID)
@@ -735,13 +731,11 @@ func TestUpdateTrimming_DeletesClearedImageKey(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	uploader := &fakeTrimmingImageUploader{}
 	svc := &mockService{
-		getByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
-			return trimmingDetailReservation("trimming-images/1/old-style.jpg", "trimming-images/1/done.png"), nil
-		},
-		updateFn: func(_ context.Context, _, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error) {
+		updateFn: func(_ context.Context, _, id uint64, input *UpdateTrimmingInput) (*model.Reservation, *TrimmingReplacedImages, error) {
 			require.NotNil(t, input.StyleImage)
 			assert.Empty(t, *input.StyleImage)
-			return trimmingDetailReservation("", "trimming-images/1/done.png"), nil
+			replaced := &TrimmingReplacedImages{Style: "trimming-images/1/old-style.jpg", Completed: "trimming-images/1/done.png"}
+			return trimmingDetailReservation("", "trimming-images/1/done.png"), replaced, nil
 		},
 	}
 	h := newImageHandler(svc, uploader, &fakeImageUploadQuotaStore{})
@@ -762,13 +756,11 @@ func TestUpdateTrimming_UntouchedImagesNotDeleted(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	uploader := &fakeTrimmingImageUploader{}
 	svc := &mockService{
-		getByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
-			return trimmingDetailReservation("trimming-images/1/style.jpg", "trimming-images/1/done.png"), nil
-		},
-		updateFn: func(_ context.Context, _, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error) {
+		updateFn: func(_ context.Context, _, id uint64, input *UpdateTrimmingInput) (*model.Reservation, *TrimmingReplacedImages, error) {
 			assert.Nil(t, input.StyleImage)
 			assert.Nil(t, input.CompletedImage)
-			return trimmingDetailReservation("trimming-images/1/style.jpg", "trimming-images/1/done.png"), nil
+			replaced := &TrimmingReplacedImages{Style: "trimming-images/1/style.jpg", Completed: "trimming-images/1/done.png"}
+			return trimmingDetailReservation("trimming-images/1/style.jpg", "trimming-images/1/done.png"), replaced, nil
 		},
 	}
 	h := newImageHandler(svc, uploader, &fakeImageUploadQuotaStore{})
@@ -789,11 +781,9 @@ func TestUpdateTrimming_NeverDeletesForeignKeys(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	uploader := &fakeTrimmingImageUploader{}
 	svc := &mockService{
-		getByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
-			return trimmingDetailReservation("trimming-images/2/foreign.jpg", "trimming-images/1/style.jpg"), nil
-		},
-		updateFn: func(_ context.Context, _, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error) {
-			return trimmingDetailReservation("trimming-images/1/new.jpg", "trimming-images/1/style.jpg"), nil
+		updateFn: func(_ context.Context, _, id uint64, input *UpdateTrimmingInput) (*model.Reservation, *TrimmingReplacedImages, error) {
+			replaced := &TrimmingReplacedImages{Style: "trimming-images/2/foreign.jpg", Completed: "trimming-images/1/style.jpg"}
+			return trimmingDetailReservation("trimming-images/1/new.jpg", "trimming-images/1/style.jpg"), replaced, nil
 		},
 	}
 	h := newImageHandler(svc, uploader, &fakeImageUploadQuotaStore{})

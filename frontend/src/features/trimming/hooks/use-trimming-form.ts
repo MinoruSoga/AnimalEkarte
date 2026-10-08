@@ -152,6 +152,24 @@ export function useTrimmingForm(
   }, [petFromEdit]);
 
   const markSubmittedKeys = images.markSubmittedKeys;
+  const restoreSubmittedKeys = images.restoreSubmittedKeys;
+
+  // mutate 直前に画像キーの所有権をサーバーへ移譲する。応答が確定
+  // pre-commit 失敗（4xx = サーバーが commit していない）なら未永続化キーは
+  // session 所有へ戻し remove/離脱クリーンアップで削除可能にする。
+  // 応答無し/5xx は commit 状態不明のため復元しない（orphan 側へ倒す）。
+  const submitTrimmingMutation = async (run: () => Promise<unknown>) => {
+    const submitted = markSubmittedKeys();
+    try {
+      await run();
+    } catch (err) {
+      const status = (err as { response?: { status?: unknown } } | null)?.response?.status;
+      if (typeof status === "number" && status >= 400 && status < 500) {
+        restoreSubmittedKeys(submitted);
+      }
+      throw err;
+    }
+  };
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
       try {
@@ -166,11 +184,12 @@ export function useTrimmingForm(
           if (!petFromEditRef.current) {
             return refuseTrimmingMutation("ペット情報の読み込みが完了してから保存してください");
           }
-          markSubmittedKeys();
-          await updateMutation.mutateAsync({
-            id,
-            req: buildUpdateTrimmingRequest(currentFormData),
-          });
+          await submitTrimmingMutation(() =>
+            updateMutation.mutateAsync({
+              id,
+              req: buildUpdateTrimmingRequest(currentFormData),
+            }),
+          );
           toast.success("トリミング情報を更新しました");
         } else if (
           (existingAppointmentHasDetail && existingAppointmentId) ||
@@ -179,11 +198,12 @@ export function useTrimmingForm(
           if (!isMutationAllowed("canCreate")) {
             return refuseTrimmingMutation(TRIMMING_PERMISSION_DENIED_MESSAGE);
           }
-          markSubmittedKeys();
-          await updateMutation.mutateAsync({
-            id: existingAppointmentId || reusableTrimming?.id || "",
-            req: buildUpdateTrimmingRequest(currentFormData),
-          });
+          await submitTrimmingMutation(() =>
+            updateMutation.mutateAsync({
+              id: existingAppointmentId || reusableTrimming?.id || "",
+              req: buildUpdateTrimmingRequest(currentFormData),
+            }),
+          );
           toast.success("トリミング情報を更新しました");
         } else {
           if (!isMutationAllowed("canCreate")) {
@@ -220,8 +240,7 @@ export function useTrimmingForm(
             req.status = currentFormData.initialStatus;
             req.reservation_route = "record_shortcut";
           }
-          markSubmittedKeys();
-          await createMutation.mutateAsync(req);
+          await submitTrimmingMutation(() => createMutation.mutateAsync(req));
           toast.success("トリミング情報を登録しました");
         }
         return { success: true, timestamp: Date.now() };

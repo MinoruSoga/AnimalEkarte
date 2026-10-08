@@ -46,28 +46,28 @@ func (s *trimmingService) createDetailForExistingAppointment(
 	return result, nil
 }
 
-func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error) {
+func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, *TrimmingReplacedImages, error) {
 	if input == nil {
-		return nil, apperrors.WrapInvalidInput("trimming update input is required")
+		return nil, nil, apperrors.WrapInvalidInput("trimming update input is required")
 	}
 	if err := requireTrimmingStaffAuditActor(input.ActorID); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := s.requireAuditTx(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var optionIDs []uint64
 	if input.OptionIDs != nil {
 		optionIDs = *input.OptionIDs
 	}
 	if input.CourseID != nil && s.trimmingCourseRepo == nil {
-		return nil, apperrors.WrapInternalServerError("trimming course repository is required")
+		return nil, nil, apperrors.WrapInternalServerError("trimming course repository is required")
 	}
 	if len(optionIDs) > 0 && s.trimmingOptionRepo == nil {
-		return nil, apperrors.WrapInternalServerError("trimming option repository is required")
+		return nil, nil, apperrors.WrapInternalServerError("trimming option repository is required")
 	}
 	if _, err := s.reservation.FindTrimmingByID(ctx, clinicID, id); err != nil {
-		return nil, apperrors.Wrap(err, "failed to get trimming appointment")
+		return nil, nil, apperrors.Wrap(err, "failed to get trimming appointment")
 	}
 
 	appointmentUpdate := reservation.UpdateTrimmingReservationInput{
@@ -84,22 +84,24 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 	// #228: course_id/option_ids の is_active 検証は、既存紐付け ID（is_active チェック免除対象）
 	// を判定するため、tx 内で trimming_detail を取得した直後・フィールド上書き前に行う。
 	var result *model.Reservation
+	var replaced *TrimmingReplacedImages
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		updated, err := s.updateTrimmingInTx(txCtx, clinicID, id, input, optionIDs, appointmentUpdate)
+		updated, rep, err := s.updateTrimmingInTx(txCtx, clinicID, id, input, optionIDs, appointmentUpdate)
 		if err != nil {
 			return err
 		}
 		result = updated
+		replaced = rep
 		return nil
 	}); err != nil {
-		return nil, apperrors.Wrap(err, "failed to update trimming appointment")
+		return nil, nil, apperrors.Wrap(err, "failed to update trimming appointment")
 	}
 
 	slog.InfoContext(ctx, "trimming appointment updated",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("appointment_id", id))
 
-	return result, nil
+	return result, replaced, nil
 }
 
 func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error {
