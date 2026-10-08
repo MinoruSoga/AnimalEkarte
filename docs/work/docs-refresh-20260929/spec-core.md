@@ -69,7 +69,7 @@
 | 健診パッケージ要件（vault `14_健診パッケージ_クライアント要件_2026-08-24.md`） | **未承認** — 臨床 + PO 承認待ち。spec 側は実装済み/確定として記述していないことを確認（番号付き仕様 `25-checkups-list` は spec-detail パーティション） | vault 14、宿題 F14「仕様承認は 14 / 臨床+PO · 記録のみ」 |
 | `/examinations/new`・`/settings/bug-reports` の E2E inventory 欠落 + scoped rerun | **別 task** — docs-only 変更では未対応 | `ui-design-compliance.md` 脚注 |
 | `/identity-links`・新規 route の route 単位 runtime 証跡 | **pending（未実行）** — runtime E2E は再実行していない | 同上 |
-| トリミング画像アップロード | 未配線（FE のプレビューのみ）。実装判断は別 task | `screens/17-trimming-form.md` §1.2 |
+| トリミング画像アップロード | **解消済み（EMR-300 / PR #602）** — 選択時に `POST /v1/trimmings/images/upload`、object key を `style_image`/`completed_image` で永続化、読み出しは署名 URL | `screens/17-trimming-form.md` §1.2 |
 | 予約の明示 staff 選択時刻 shift 再検証 | **source gap** — backend 未実装。FE shift 絞り込みを安全根拠にしない | `reservation-to-record-flow.md`、`line/README.md` §2 |
 | Lステップ connection-test の既知 gap（非401/403 を成功扱い・HTTP200+失敗フラグ・FE が component result を評価しない） | **source gap** — docs-only では未修正 | `line/setup.md` §5 |
 | 八王子 `TBL_KNJO_DATA` 破損・Dr.わん現地疎通・端末棚卸し 等 | **BLOCKED_EXTERNAL / WAIT** — spec-core の記述とは非矛盾（移行/運用側の宿題） | vault `02_宿題と未決.md` H1/D1/T1 |
