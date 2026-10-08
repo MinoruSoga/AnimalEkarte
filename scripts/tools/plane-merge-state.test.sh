@@ -36,15 +36,21 @@ prs_of() {
   printf '%s' "$1" | extract_referenced_pr_numbers
 }
 
-assert_eq "brackets only, numeric order, unique" \
+assert_eq "brackets, numeric order, unique" \
   $'EMR-3\nEMR-12' \
   "$(ids_of $'see [EMR-12] and [EMR-3] and [EMR-12]')"
 
-assert_eq "bare identifier is ignored" "" "$(ids_of 'EMR-12 and EMR-3')"
-assert_eq "unclosed bracket is ignored" "" "$(ids_of '[EMR-12')"
+assert_eq "bare identifiers count" $'EMR-3\nEMR-12' "$(ids_of 'EMR-12 and EMR-3')"
+assert_eq "unclosed bracket still counts" "EMR-12" "$(ids_of '[EMR-12')"
 assert_eq "lowercase is ignored" "" "$(ids_of '[emr-12]')"
 assert_eq "zero and leading zero are ignored" "" "$(ids_of '[EMR-0] [EMR-01]')"
 assert_eq "one bracketed identifier" "EMR-306" "$(ids_of 'prefix [EMR-306] suffix')"
+assert_eq "fullwidth paren slash list" \
+  $'EMR-282\nEMR-325\nEMR-326' \
+  "$(ids_of 'feat: カルテ画面UX改善一式（EMR-282/325/326）')"
+assert_eq "halfwidth paren slash list" \
+  $'EMR-270\nEMR-274\nEMR-275\nEMR-318\nEMR-321' \
+  "$(ids_of 'fix: 予約 (EMR-270/274/275/318/321)')"
 
 assert_eq "squash and merge-commit PR numbers" \
   $'600\n601' \
@@ -137,7 +143,7 @@ cat >"$FIXTURE" <<'EOF'
 EOF
 
 assert_eq "staging page keeps new main tickets only" \
-  $'EMR-10\nEMR-11' \
+  $'EMR-10\nEMR-11\nEMR-12' \
   "$(tickets_from_graphql_payload staging 9 "$FIXTURE" | extract_ticket_ids)"
 assert_eq "main page uses commit messages only" \
   "EMR-10" \

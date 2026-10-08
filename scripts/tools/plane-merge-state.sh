@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Move Plane EMR work items when a GitHub pull request merges.
 #
-# main    + [EMR-N]                         -> Review
-# staging + [EMR-N] now reaching staging    -> UAT, and only from Review
+# main    + EMR-N                           -> Review
+# staging + EMR-N now reaching staging      -> UAT, and only from Review
 #
-# Bracket form only. Done, Cancelled, Duplicate, Needs Human, Blocked, and
-# Phase2 never move. production is ignored.
+# EMR-123, [EMR-123], and EMR-282/325/326 all count. Parentheses are optional.
+# Done, Cancelled, Duplicate, Needs Human, Blocked, and Phase2 never move.
+# production is ignored.
 #
 # Auth: PLANE_GITHUB_AUTOMATION_KEY (Plane API key). This is not PLANE_API_KEY.
 # The key is never printed. Scopes: projects.work_items:read,
@@ -84,14 +85,28 @@ decide_transition() {
   printf '%s\n' "SKIP not-review"
 }
 
+# Expand EMR-282 and EMR-282/325/326 into one EMR-N per line.
+expand_ticket_tokens() {
+  local token head rest
+  while IFS= read -r token; do
+    [[ -z "$token" ]] && continue
+    head="${token%%/*}"
+    printf '%s\n' "$head"
+    if [[ "$token" == */* ]]; then
+      rest="${token#*/}"
+      printf '%s\n' "$rest" | tr '/' '\n' | sed 's/^/EMR-/'
+    fi
+  done
+}
+
 # stdout: EMR-N, one per line, numerically unique. Reads stdin.
 extract_ticket_ids() {
   local matches
-  matches="$(grep -oE '\[EMR-[1-9][0-9]*\]' || true)"
+  matches="$(grep -oE 'EMR-[1-9][0-9]*(/[1-9][0-9]*)*' || true)"
   if [[ -z "$matches" ]]; then
     return 0
   fi
-  printf '%s\n' "$matches" | sed -E 's/^\[//; s/\]$//' | LC_ALL=C sort -u -t- -k2,2n
+  printf '%s\n' "$matches" | expand_ticket_tokens | LC_ALL=C sort -u -t- -k2,2n
 }
 
 # stdout: PR numbers referenced as "(#123)" or "Merge pull request #123".
@@ -555,7 +570,7 @@ main() {
   collect_source_text "$owner" "$name" "$number" "$base" "$title" "$body" "$sources"
   extract_ticket_ids <"$sources" >"$tickets_file"
   if [[ ! -s "$tickets_file" ]]; then
-    log_line "SKIP  no [EMR-N] references on ${base} PR #${number}"
+    log_line "SKIP  no EMR-N references on ${base} PR #${number}"
     exit 0
   fi
 

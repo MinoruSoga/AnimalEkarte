@@ -721,7 +721,7 @@ test("merged pull requests move Plane work items by base branch", () => {
   assert.doesNotMatch(workflow, /contents:\s*write/);
 
   assert.match(script, /PLANE_GITHUB_AUTOMATION_KEY/);
-  assert.match(script, /EMR-\[1-9\]\[0-9\]\*/);
+  assert.match(script, /EMR-\[1-9\]\[0-9\]\*\(\/\[1-9\]\[0-9\]\*\)\*/);
   assert.match(script, /SKIP protected/);
   assert.match(script, /"Review"/);
   assert.match(script, /"UAT"/);
