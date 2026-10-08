@@ -229,6 +229,7 @@ export function VaccinationFormBody({
                 neuteredDate: selectedPet.neuteredDate,
               })}
               status={selectedPet.status === "死亡" ? "deceased" : "alive"}
+              birthDate={selectedPet.birthDate}
               insuranceName={selectedPet.insuranceName}
               insuranceDetails={selectedPet.insuranceDetails}
               ownerIsDangerous={selectedPet.ownerIsDangerous}

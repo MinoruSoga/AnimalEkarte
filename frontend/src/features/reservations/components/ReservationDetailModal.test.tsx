@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Reservation } from "../types";
 import { ReservationDetailModal } from "./ReservationDetailModal";
@@ -322,5 +322,54 @@ describe("ReservationDetailModal — tentative (EMR-308)", () => {
     expect(screen.queryByText("期限超過・未対応")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "予約を確定" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /カルテ作成/ })).toBeInTheDocument();
+  });
+});
+
+describe("ReservationDetailModal 誕生月バッジ (EMR-301)", () => {
+  beforeEach(() => {
+    // 現在JST月を 2026-10 に固定して決定的にする
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-10T00:00:00+09:00"));
+    getPetResult.current = { data: undefined };
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function renderModal(reservation: Reservation) {
+    render(<ReservationDetailModal isOpen={true} onClose={vi.fn()} reservation={reservation} />);
+  }
+
+  it("今月(JST)誕生月のペットはペット名行に Cake バッジを表示する", () => {
+    renderModal({ ...baseReservation, petBirthDate: "2018-10-05" });
+
+    expect(screen.getByRole("button", { name: "今月誕生日" })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["誕生月でない", "2018-09-05"],
+    ["birth_date 未登録", undefined],
+  ])("%s のペットには Cake バッジを表示しない", (_label, petBirthDate) => {
+    renderModal({ ...baseReservation, petBirthDate });
+
+    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
+  });
+
+  it("petStatus=deceased（ワイヤ sentinel）のペットには誕生月でも表示しない", () => {
+    renderModal({
+      ...baseReservation,
+      petBirthDate: "2018-10-05",
+      petStatus: "deceased",
+    });
+
+    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
+  });
+
+  it("detailPet が死亡判定（status=死亡）のペットには誕生月でも表示しない", () => {
+    getPetResult.current = { data: { status: "死亡" } };
+    renderModal({ ...baseReservation, petBirthDate: "2018-10-05" });
+
+    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
   });
 });

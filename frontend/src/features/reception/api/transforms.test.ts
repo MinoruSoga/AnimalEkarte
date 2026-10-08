@@ -216,6 +216,36 @@ describe("transformReservationToReceptionAppointment", () => {
     expect(result.petDangerReason).toBe("保定時に噛む");
   });
 
+  it("pet.birth_date を petBirthDate にマップする (EMR-301)", () => {
+    const result = transformReservationToReceptionAppointment({
+      ...minimal,
+      pet: {
+        id: 10,
+        clinic_id: 1,
+        owner_id: 20,
+        animal_species_id: 1,
+        pet_number: "P00010",
+        name: "ポチ",
+        name_kana: "ポチ",
+        gender: PetGenderMale,
+        status: PetStatusDeceased,
+        birth_date: "2018-10-05",
+        breed: "",
+        color: "",
+        food: "",
+        environment: "",
+        phone: "",
+        remarks: "",
+        created_at: "2026-03-25T00:00:00Z",
+        updated_at: "2026-03-25T00:00:00Z",
+      } satisfies NonNullable<BackendReservation["pet"]>,
+    });
+
+    expect(result.petBirthDate).toBe("2018-10-05");
+    // 死亡 sentinel は既存通り伝播し、誕生月判定側で suppress できる
+    expect(result.petStatus).toBe(PetStatusDeceased);
+  });
+
   it("pet が未紐付けの場合 reception sentinel は undefined", () => {
     const result = transformReservationToReceptionAppointment({
       ...minimal,
@@ -224,6 +254,7 @@ describe("transformReservationToReceptionAppointment", () => {
 
     expect(result.petStatus).toBeUndefined();
     expect(result.petDangerLevel).toBeUndefined();
+    expect(result.petBirthDate).toBeUndefined();
   });
 
   it("LINE予約で relation が無い場合 customer_fields.owner_name を ownerName にフォールバックする", () => {

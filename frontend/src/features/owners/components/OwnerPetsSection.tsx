@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
@@ -95,28 +96,34 @@ const PetTableRow = memo(function PetTableRow({
     >
       <TableCell className={STYLE.tableCell}>{pet.petNumber}</TableCell>
       <TableCell className={STYLE.tableCell}>
-        {ownerId && isPersistedPetId(pet.id) && pet.isPending !== true ? (
-          // EMR-174: 永続化済みペット名は詳細 deep link（閲覧は canEdit 不要）。
-          // pending (temp-*) はサーバに存在しないため従来どおりローカル編集ボタン。
-          <DataTableRowLink
-            to={paths.owners.detail.pet.getHref(ownerId, pet.id)}
-            aria-label={`${isDeceased ? "死亡・" : ""}ペット詳細を開く: ${pet.petName} (ID ${pet.id})`}
-          >
-            {pet.petName}
-          </DataTableRowLink>
-        ) : canEdit ? (
-          <DataTableRowButton
-            aria-label={`詳細・編集: ペット ${pet.petName} (ID ${pet.id})`}
-            onClick={() => {
-              if (actionBoundaryRef.current.canEdit !== true) return;
-              onEdit(pet);
-            }}
-          >
-            {pet.petName}
-          </DataTableRowButton>
-        ) : (
-          pet.petName
-        )}
+        <span className="inline-flex items-center gap-1.5">
+          {ownerId && isPersistedPetId(pet.id) && pet.isPending !== true ? (
+            // EMR-174: 永続化済みペット名は詳細 deep link（閲覧は canEdit 不要）。
+            // pending (temp-*) はサーバに存在しないため従来どおりローカル編集ボタン。
+            <DataTableRowLink
+              to={paths.owners.detail.pet.getHref(ownerId, pet.id)}
+              aria-label={`${isDeceased ? "死亡・" : ""}ペット詳細を開く: ${pet.petName} (ID ${pet.id})`}
+            >
+              {pet.petName}
+            </DataTableRowLink>
+          ) : canEdit ? (
+            <DataTableRowButton
+              aria-label={`詳細・編集: ペット ${pet.petName} (ID ${pet.id})`}
+              onClick={() => {
+                if (actionBoundaryRef.current.canEdit !== true) return;
+                onEdit(pet);
+              }}
+            >
+              {pet.petName}
+            </DataTableRowButton>
+          ) : (
+            pet.petName
+          )}
+          {/* EMR-301: 誕生月 Cake バッジ（死亡ペット抑制） */}
+          {!isDeceased ? (
+            <BirthdayBadge birthDate={pet.birthDate} subjectName={pet.petName} />
+          ) : null}
+        </span>
       </TableCell>
       <TableCell className={STYLE.tableCell}>
         {pet.status ? (
@@ -285,6 +292,8 @@ const SharedPetTableRow = memo(function SharedPetTableRow({
       <TableCell className={STYLE.tableCell}>
         <div className="flex items-center gap-2">
           <span>{pet.name}</span>
+          {/* EMR-301: 誕生月 Cake バッジ（死亡ペット抑制）。副飼主ペットも対象。 */}
+          {!isDeceased ? <BirthdayBadge birthDate={pet.birth_date} subjectName={pet.name} /> : null}
           <Badge variant="outline">副飼主</Badge>
           {pet.relationship !== "" ? <span>{pet.relationship}</span> : null}
         </div>

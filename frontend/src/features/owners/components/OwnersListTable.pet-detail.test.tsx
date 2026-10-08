@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 
@@ -103,5 +103,37 @@ describe("OwnersListTable pet detail deep link (EMR-174)", () => {
     expect(
       screen.queryByRole("link", { name: "ペット「ポチ」(ID: 7) の詳細を開く" }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("OwnersListTable 誕生月バッジ (EMR-301)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-10T00:00:00+09:00"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("今月(JST)誕生月のペット行はペット名セルに Cake バッジを表示する", () => {
+    renderTable({ pets: [{ ...pet, birthDate: "2018-10-05" }] });
+
+    expect(screen.getByRole("button", { name: "今月誕生日" })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["誕生月でない", "2018-09-05"],
+    ["birthDate 未登録", undefined],
+  ])("%s のペットには Cake バッジを表示しない", (_label, birthDate) => {
+    renderTable({ pets: [{ ...pet, birthDate }] });
+
+    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
+  });
+
+  it("死亡ペット（status=死亡）には誕生月でも Cake バッジを表示しない", () => {
+    renderTable({ pets: [{ ...pet, status: "死亡", birthDate: "2018-10-05" }] });
+
+    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
   });
 });

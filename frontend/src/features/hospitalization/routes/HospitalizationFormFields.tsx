@@ -141,6 +141,7 @@ export function HospitalizationFormFields({
           petDangerLevel={selectedPet.dangerLevel}
           petDangerReason={selectedPet.dangerReason}
           status={selectedPet.status === "死亡" ? "deceased" : "alive"}
+          birthDate={selectedPet.birthDate}
           nextVisitDate={resolveNextVisitDate(formData)}
           nextVisitContent={resolveNextVisitContent(formData)}
           onStaffClick={canSubmit ? onOpenStaffModal : undefined}

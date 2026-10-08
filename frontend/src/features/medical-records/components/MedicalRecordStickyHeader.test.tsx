@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { calcAgePartsAt } from "@/lib/calc-age";
 import { C } from "@/lib/design-tokens";
@@ -190,5 +190,37 @@ describe("MedicalRecordStickyHeader スタッフ向け特記バッジ (EMR-164 N
 
     expect(screen.getByRole("img", { name: "特記" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "モカの詳細を表示" })).not.toBeInTheDocument();
+  });
+});
+
+describe("MedicalRecordStickyHeader 誕生月バッジ (EMR-301)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-10T00:00:00+09:00"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("今月(JST)誕生月の生存ペットは患者名横に Cake バッジを表示する", () => {
+    renderHeader({ selectedPet: makePet({ birthDate: "2018-10-05" }) });
+
+    expect(screen.getByRole("button", { name: "今月誕生日" })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["誕生月でない", "2018-09-05" as const],
+    ["birthDate 未登録", undefined],
+  ])("%s のペットには Cake バッジを表示しない", (_label, birthDate) => {
+    renderHeader({ selectedPet: makePet({ birthDate }) });
+
+    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
+  });
+
+  it("死亡ペット（status=死亡）には誕生月でも Cake バッジを表示しない", () => {
+    renderHeader({ selectedPet: makePet({ birthDate: "2018-10-05", status: "死亡" }) });
+
+    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
   });
 });

@@ -15,6 +15,7 @@ import BedDouble from "lucide-react/dist/esm/icons/bed-double";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DangerBadge } from "@/components/shared/DangerBadge";
+import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { paths } from "@/config/paths";
 import { C, ICON } from "@/lib/design-tokens";
 import { getVisitTypeColor } from "@/constants/status-colors";
@@ -194,6 +195,14 @@ export const AppointmentCard = memo(function AppointmentCard({
                 reason={appointment.petDangerReason}
                 stopPropagation
               />
+              {/* EMR-301: 誕生月バッジ。死亡ペットは suppress（既存 death sentinel と整合）。 */}
+              {!isDeceased ? (
+                <BirthdayBadge
+                  birthDate={appointment.petBirthDate}
+                  subjectName={appointment.petName}
+                  stopPropagation
+                />
+              ) : null}
             </div>
           </div>
 

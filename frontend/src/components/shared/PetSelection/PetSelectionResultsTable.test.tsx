@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { C } from "@/lib/design-tokens";
 import type { Pet } from "@/types";
@@ -562,5 +562,49 @@ describe("PetSelectionResultsTable row actions", () => {
         name: "状態不明・選択不可: ポチ (ID pet-1)",
       }),
     ).toBeDisabled();
+  });
+});
+
+describe("PetSelectionResultsTable 誕生月バッジ (EMR-301)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-10T00:00:00+09:00"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("今月(JST)誕生月のペット行のペット名横に Cake バッジを表示する", () => {
+    render(
+      <PetSelectionResultsTable
+        pets={createResults([{ ...PET, birthDate: "2018-10-05" }])}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "今月誕生日" })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["誕生月でない", "2018-09-05"],
+    ["birth_date 未登録", undefined],
+  ])("%s のペットには Cake バッジを表示しない", (_label, birthDate) => {
+    render(
+      <PetSelectionResultsTable pets={createResults([{ ...PET, birthDate }])} onSelect={vi.fn()} />,
+    );
+
+    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
+  });
+
+  it("死亡ペット（status=死亡）には誕生月でも Cake バッジを表示しない", () => {
+    render(
+      <PetSelectionResultsTable
+        pets={createResults([{ ...PET, status: "死亡", birthDate: "2018-10-05" }])}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
   });
 });

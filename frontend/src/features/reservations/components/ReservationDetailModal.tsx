@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import type { Reservation, ReservationStatus } from "../types";
 import { RESERVATION_STATUS_VALUES } from "../types";
@@ -136,11 +137,13 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
 }: ReservationDetailModalProps) {
   const { getColor } = useReservationTypeColorMap();
   const { data: lineData } = useGetOwnerLineTags(reservation?.ownerId ?? "");
-  // EMR-227: Reservation 型は共有 transform (src/lib/transforms/reservation.ts) 由来で
-  // petStatus を持たないため、detail 表示層では petId から直接 pet を引いて死亡区分を復元する。
-  // positive-match: 取得完了かつ死亡判定のみゲート。未取得/エラー時は従来どおり操作可能。
+  // EMR-227/EMR-301: 共有 transform (src/lib/transforms/reservation.ts) が petStatus を
+  // additive 伝播するようになったためワイヤ値を第一判定とし、detailPet フェッチの
+  // positive-match を補助判定として併用する。未取得/エラー時は従来どおり操作可能。
   const { data: detailPet } = useGetPet(reservation?.petId ?? "");
-  const isDeceasedPet = detailPet ? isPetDeceasedForClinicalWrite(detailPet) : false;
+  const isDeceasedPet =
+    reservation?.petStatus === "deceased" ||
+    (detailPet ? isPetDeceasedForClinicalWrite(detailPet) : false);
 
   if (!reservation) return null;
 
@@ -260,6 +263,13 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
               <InfoRow label="ペット名">
                 <span className="font-medium inline-flex items-center gap-1.5">
                   {reservation.petName}
+                  {/* EMR-301: 誕生月 Cake バッジ（死亡ペット抑制） */}
+                  {!isDeceasedPet ? (
+                    <BirthdayBadge
+                      birthDate={reservation.petBirthDate}
+                      subjectName={reservation.petName}
+                    />
+                  ) : null}
                   {isDeceasedPet ? (
                     <span
                       className={`text-2xs font-semibold px-1.5 py-0.5 rounded ${C.bgDanger} ${C.textWhite} uppercase`}

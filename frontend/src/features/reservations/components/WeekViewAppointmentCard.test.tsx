@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Reservation } from "@/types";
 import type { ReservationTypeColor } from "../lib/week-view-grid-constants";
@@ -204,5 +204,74 @@ describe("WeekView AppointmentCard inactive type label (BUG-016)", () => {
     const card = screen.getByRole("button", { name: /general_revisit（無効）/ });
     expect(card).toHaveClass("opacity-60");
     expect(card).toHaveClass("line-through");
+  });
+});
+
+describe("WeekView AppointmentCard 誕生月バッジ (EMR-301)", () => {
+  // HOUR_HEIGHT=176 のため duration → 高さ: 15分=44(compact), 25分≈73(narrow), 60分=176(full)
+  const cardOf = (minutes: number, overrides: Partial<Reservation> = {}) => {
+    const start = new Date("2026-07-21T09:00:00");
+    return {
+      ...appointment,
+      start,
+      // 分を時刻文字列へ埋め込むと 60 で "09:60" となり Invalid Date になるため、ms 加算で算出する
+      end: new Date(start.getTime() + minutes * 60_000),
+      ...overrides,
+    };
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    // JST 2026-10-15（当月 = 10月）
+    vi.setSystemTime(new Date("2026-10-15T01:00:00Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it.each([
+    ["compact(15分)", 15],
+    ["narrow(25分)", 25],
+    ["full(60分)", 60],
+  ])("%s 形態のペット名行に Cake バッジを表示する", (_label, minutes) => {
+    render(
+      <AppointmentCard
+        appointment={cardOf(minutes, { petBirthDate: "2018-10-05" })}
+        layoutStyle={{ left: "0%", width: "100%" }}
+        onClick={vi.fn()}
+      />,
+    );
+
+    // カード自体が button のため static 変種（role=img + title tooltip）
+    const badge = screen.getByRole("img", { name: "今月誕生日" });
+    expect(badge).toHaveAttribute("title", "マメラの生年月日: 2018-10-05");
+  });
+
+  it.each([
+    ["誕生月でない", "2018-09-05"],
+    ["birth_date 未登録", undefined],
+  ])("%s のペットには Cake バッジを表示しない", (_label, petBirthDate) => {
+    render(
+      <AppointmentCard
+        appointment={cardOf(15, { petBirthDate })}
+        layoutStyle={{ left: "0%", width: "100%" }}
+        onClick={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("img", { name: "今月誕生日" })).not.toBeInTheDocument();
+  });
+
+  it("死亡ペット（petStatus=deceased）には誕生月でも Cake バッジを表示しない", () => {
+    render(
+      <AppointmentCard
+        appointment={cardOf(15, { petBirthDate: "2018-10-05", petStatus: "deceased" })}
+        layoutStyle={{ left: "0%", width: "100%" }}
+        onClick={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("img", { name: "今月誕生日" })).not.toBeInTheDocument();
   });
 });

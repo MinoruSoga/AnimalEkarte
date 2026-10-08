@@ -1,6 +1,7 @@
 import { FileText, Pencil, Trash2 } from "lucide-react";
 
 import { TableCell } from "@/components/ui/table";
+import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { DangerBadge } from "@/components/shared/DangerBadge";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
@@ -223,18 +224,22 @@ function OwnersListRow({
         {pet.petNumber || "-"}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
-        {canViewDetail ? (
-          // EMR-174: ペット名は飼主詳細の ?pet= deep link（ペット詳細モーダルが開く）。
-          // 別医院行（canViewDetail=false）は閲覧不可のためリンクを出さない。
-          <DataTableRowLink
-            to={paths.owners.detail.pet.getHref(pet.ownerId, pet.id)}
-            aria-label={`ペット「${pet.name}」(ID: ${pet.id}) の詳細を開く`}
-          >
-            {pet.name}
-          </DataTableRowLink>
-        ) : (
-          pet.name
-        )}
+        <span className="inline-flex items-center gap-1.5">
+          {canViewDetail ? (
+            // EMR-174: ペット名は飼主詳細の ?pet= deep link（ペット詳細モーダルが開く）。
+            // 別医院行（canViewDetail=false）は閲覧不可のためリンクを出さない。
+            <DataTableRowLink
+              to={paths.owners.detail.pet.getHref(pet.ownerId, pet.id)}
+              aria-label={`ペット「${pet.name}」(ID: ${pet.id}) の詳細を開く`}
+            >
+              {pet.name}
+            </DataTableRowLink>
+          ) : (
+            pet.name
+          )}
+          {/* EMR-301: 誕生月 Cake バッジ（死亡ペット抑制） */}
+          {!isDeceased ? <BirthdayBadge birthDate={pet.birthDate} subjectName={pet.name} /> : null}
+        </span>
       </TableCell>
       <TableCell className="whitespace-nowrap">
         {pet.status ? (

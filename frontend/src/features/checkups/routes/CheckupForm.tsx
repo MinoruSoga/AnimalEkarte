@@ -113,6 +113,7 @@ export function CheckupForm() {
             staffName={doctorName}
             nextVisitDate={form.nextDate ? formatDate(form.nextDate) : undefined}
             status={isPetDeceased ? "deceased" : "alive"}
+            birthDate={pet.birthDate}
           />
         ) : null}
         {isPetDeceased ? (

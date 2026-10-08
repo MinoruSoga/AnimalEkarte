@@ -95,10 +95,13 @@ export function transformReservationToReceptionAppointment(
     petStatus?: PetStatus;
     petDangerLevel?: DangerLevel;
     petDangerReason?: string;
+    petBirthDate?: string;
   } = {
     petStatus: pet?.status,
     petDangerLevel: pet?.danger_level,
     petDangerReason: pet?.danger_reason,
+    // EMR-301: 誕生月バッジ判定用。YYYY-MM-DD wire 値をそのまま伝播する。
+    petBirthDate: pet?.birth_date,
   };
   const ownerName = reservation.owner?.name ?? cf.owner_name ?? cf.customer_name ?? "";
   // スタッフ向け飼主危険マーク (EMR-173)。reservation.owner は owner サマリで

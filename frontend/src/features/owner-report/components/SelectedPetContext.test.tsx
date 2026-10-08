@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Pet } from "@/types";
 
@@ -39,5 +39,38 @@ describe("SelectedPetContext", () => {
 
     expect(screen.getByRole("heading", { name: "-" })).toBeInTheDocument();
     expect(screen.queryByText("死亡")).not.toBeInTheDocument();
+  });
+});
+
+describe("SelectedPetContext 誕生月バッジ (EMR-301)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-10T00:00:00+09:00"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("今月(JST)誕生月の生存ペットはペット名横に Cake バッジを表示する", () => {
+    render(<SelectedPetContext pet={makePet({ birthDate: "2015-10-14", status: "生存" })} />);
+
+    expect(screen.getByRole("button", { name: "今月誕生日" })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["誕生月でない", "2015-09-14" as const],
+    ["birthDate 未登録", undefined],
+  ])("%s のペットには Cake バッジを表示しない", (_label, birthDate) => {
+    render(<SelectedPetContext pet={makePet({ birthDate, status: "生存" })} />);
+
+    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
+  });
+
+  it("死亡ペット（status=死亡）には誕生月でも Cake バッジを表示しない", () => {
+    render(<SelectedPetContext pet={makePet({ birthDate: "2015-10-14", status: "死亡" })} />);
+
+    expect(screen.getByText("死亡")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
   });
 });

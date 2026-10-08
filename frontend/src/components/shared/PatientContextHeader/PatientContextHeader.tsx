@@ -6,6 +6,7 @@ import { calcAgePartsAt } from "@/lib/calc-age";
 import imgEllipse1 from "@/assets/231a870df600a37e011a0e1140e7608b1f4c3340.png";
 import { ImageWithFallback } from "@/components/shared/Feedback";
 import { Tooltip } from "@/components/ui/tooltip";
+import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { DangerBadge } from "@/components/shared/DangerBadge";
 
 // ──────────────────────────────────────────────────────────
@@ -194,6 +195,8 @@ export function PatientContextHeader({
             subjectName={petName}
             reason={petDangerReason}
           />
+          {/* EMR-301: 誕生月 Cake バッジ（死亡ペット抑制） */}
+          {!isDeceased ? <BirthdayBadge birthDate={birthDate} subjectName={petName} /> : null}
           {microchipNumber ? (
             <Tooltip content={microchipNumber} className="min-w-0 max-w-[200px]">
               <span

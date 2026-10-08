@@ -4,6 +4,7 @@ import { Check, Octagon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Pagination } from "@/components/shared/Pagination";
+import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { DangerBadge } from "@/components/shared/DangerBadge";
 import {
   Table,
@@ -150,6 +151,10 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                         subjectName={pet.name}
                         reason={pet.dangerReason}
                       />
+                      {/* EMR-301: 誕生月 Cake バッジ（死亡ペット抑制） */}
+                      {!isDeceased ? (
+                        <BirthdayBadge birthDate={pet.birthDate} subjectName={pet.name} />
+                      ) : null}
                     </span>
                   </TableCell>
                   <TableCell className="whitespace-nowrap">

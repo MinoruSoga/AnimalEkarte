@@ -1,6 +1,6 @@
 import type { ReservationStatus } from "@/types";
 import { toJSTWallDate } from "@/lib/jst-date";
-import type { Reservation as BackendReservation } from "@/types/generated/models";
+import type { PetStatus, Reservation as BackendReservation } from "@/types/generated/models";
 
 // BE 契約: reservation_route は "line" | "phone" | "reception" | "exam_room" | "record_shortcut" のみ
 // （features/reservations/constants/reservation-route.ts の RESERVATION_ROUTE_VALUES と同一値域）。
@@ -40,6 +40,16 @@ export const transformReservation = (reservation: BackendReservation) => {
   // ペットの種類（犬種等）: カルテ紐付け前は customer_fields から取得
   const petType = reservation.pet?.animal_species?.name ?? cf.pets?.[0]?.type;
 
+  // EMR-301: 誕生月バッジ判定用に pet sentinel を additive 伝播する。
+  // reception transform (petStatus/petBirthDate) と同じ命名で揃える。
+  const petSentinelFields: {
+    petStatus?: PetStatus;
+    petBirthDate?: string;
+  } = {
+    petStatus: reservation.pet?.status,
+    petBirthDate: reservation.pet?.birth_date,
+  };
+
   return {
     id: String(reservation.id ?? 0),
     start: toJSTWallDate(reservation.start_time),
@@ -47,6 +57,7 @@ export const transformReservation = (reservation: BackendReservation) => {
     ownerName,
     petName,
     petType,
+    ...petSentinelFields,
     visitType: (reservation.visit_type as "first" | "revisit") ?? "first",
     type: reservation.reservation_type?.name ?? "",
     category: reservation.reservation_type?.category ?? "general",

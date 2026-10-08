@@ -16,6 +16,7 @@ import {
 import { ja } from "date-fns/locale";
 
 // Internal
+import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { C } from "@/lib/design-tokens";
 import { toJSTWallDate } from "@/lib/jst-date";
 import { getReservationTypeColor } from "@/lib/status-helpers";
@@ -145,6 +146,14 @@ export const MonthView = memo(function MonthView({
                         </span>
                       )}
                       <span className="truncate text-xs font-medium">{app.petName}</span>
+                      {/* EMR-301: 誕生月 Cake 小アイコン（チップ自体が button のため static 変種） */}
+                      {app.petStatus !== "deceased" ? (
+                        <BirthdayBadge
+                          birthDate={app.petBirthDate}
+                          subjectName={app.petName}
+                          variant="static"
+                        />
+                      ) : null}
                     </div>
                     {isTentative ? (
                       <div className={`text-2xs font-semibold ${C.textWarning} truncate mt-0.5`}>

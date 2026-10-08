@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
@@ -325,5 +325,38 @@ describe("PatientContextHeader 特記マーク (EMR-173/231)", () => {
     rerender(<PatientContextHeader {...baseProps} />);
     expect(screen.queryByRole("button", { name: /の詳細を表示/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("img", { name: "特記" })).not.toBeInTheDocument();
+  });
+});
+
+describe("PatientContextHeader 誕生月バッジ (EMR-301)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-10T00:00:00+09:00"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("今月(JST)誕生月の生存ペットはペット名横に Cake バッジを表示する", () => {
+    render(<PatientContextHeader {...baseProps} birthDate="2018-10-05" />);
+
+    expect(screen.getByRole("button", { name: "今月誕生日" })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["誕生月でない", "2018-09-05" as const],
+    ["birthDate 未指定", undefined],
+  ])("%s なら Cake バッジを表示しない", (_label, birthDate) => {
+    render(<PatientContextHeader {...baseProps} birthDate={birthDate} />);
+
+    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
+  });
+
+  it("死亡ペット（status=deceased）には誕生月でも Cake バッジを表示しない", () => {
+    render(<PatientContextHeader {...baseProps} birthDate="2018-10-05" status="deceased" />);
+
+    expect(screen.getByText("【死亡】")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
   });
 });
