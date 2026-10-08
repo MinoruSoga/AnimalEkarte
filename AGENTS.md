@@ -35,9 +35,34 @@ Full policy: [.claude/rules/git-worktree-safety.md](.claude/rules/git-worktree-s
 ### Branch deletion by creator (Mandatory)
 
 - **User-created branches must not be deleted by agents.** This includes user-created claim branches.
-- **AI-created branches may be deleted by agents** after verifying that the work is integrated, explicitly abandoned, or handed off with all remaining changes preserved, and that no active session or worktree still uses the branch. Do not delete `main`, `staging`, or `production` as routine cleanup.
-- Determine the creator from session records or an explicit user statement; a branch name or commit author alone is not proof. If the creator or active use is unknown, preserve the branch and report the uncertainty.
-- Prefer `git branch -d <exact-branch>` for local cleanup. If it refuses, inspect unmerged work instead of automatically forcing deletion. Remote branch deletion remains an external action requiring explicit authorization. Report which branches were deleted.
+- **AI-created branches may be deleted by agents** after verifying that the work is integrated, explicitly abandoned, or handed off with all remaining changes preserved, and that no active session or worktree still uses the branch. Do not delete `main`, `staging`, `production`, or `gh-pages` as routine cleanup.
+- Determine the creator from session records or an explicit user statement; a branch name or commit author alone is not proof. If the creator or active use is unknown, preserve the branch and report the uncertainty. A merged pull request follows the cleanup rule below and does not wait on creator identification.
+- Prefer `git branch -d <exact-branch>` for local cleanup. If it refuses, inspect unmerged work instead of using `-D`. Remote deletion of any ref other than a merged pull-request head still requires an explicit user request. Report which branches were deleted.
+
+### Merged PR cleanup (Mandatory)
+
+GitHub `delete_branch_on_merge` is false. When a pull request into `main` or `staging` is merged, remove that PR's worktree and branch before the session ends. A later session that finds a leftover matching the conditions below removes it then. Do not wait for a separate cleanup request.
+
+A MERGED pull request is the integration evidence. Creator uncertainty does not keep that head or its clean worktree. This does not apply to `claim/*`, to a branch with no pull request, or to a pull request that is closed and not merged.
+
+Remove a branch worktree only when all of these hold:
+
+- `gh` shows the latest pull request for that head as MERGED, and that head has no open pull request. Use the pull request state. A squash merge is not an ancestor of `origin/main`, so `git merge-base --is-ancestor` is the wrong test.
+- `git status --porcelain` in that worktree is empty.
+- The branch is not `main`, `staging`, `production`, or `gh-pages`.
+- No other worktree has that branch checked out.
+
+Also remove a porcelain-clean detached worktree when its HEAD is that merged pull request's head, or when its HEAD is reachable from that head and is not reachable from `origin/main` or from an open pull request head. Leave a dirty worktree, the shared `main` checkout, a detached checkout of any other commit already on `origin/main`, and files that are not registered worktrees.
+
+From the main repository, in this order:
+
+1. If that worktree has its own running Compose project, run `docker compose --env-file .env.local down` in that directory. Do not stop the main `animalekarte` project or any other project. Volume deletion still follows [.claude/rules/worktree-runtime.md](.claude/rules/worktree-runtime.md).
+2. `git worktree remove <path>` with no `--force`. If it refuses, stop on that path and report it.
+3. `git branch -d <branch>`. If it refuses, do not use `-D`. Report the branch.
+4. `git push origin --delete <branch>`. This rule authorizes that non-force delete for a MERGED head only.
+5. When the same branch exists on the Artifacts remote, delete that ref with the task-branch push setup. Never print `ARTIFACTS_TOKEN`. Never delete Artifacts `main`, `staging`, or `production`. If that step cannot run, report Artifacts as BLOCKED and still finish the GitHub delete.
+
+Classify every candidate before deleting refs. A local or `origin` branch with no worktree is included when its latest pull request is MERGED and it has no open pull request.
 
 ### Packet claim protocol (Mandatory)
 
@@ -55,6 +80,7 @@ Mutual exclusion on a ledger task ID / packet ID. Convention over existing `git 
 - Once scope is clear, proceed through the in-scope work without asking mid-task confirmation questions.
 - Stop only for explicit safety boundaries: destructive operations (including any working-tree wipe), credential or secret changes, external posting/publishing/pushing/merging, paid actions, production-impacting actions, or irreversible third-party changes.
 - Exception: Plane work item operations (create / update / comment / state transition) within [docs/ops/plane-ticket-conventions.md](docs/ops/plane-ticket-conventions.md) are pre-authorized and are not "external posting". Bulk changes, permission/setting changes, and ticket deletion still require approval.
+- Exception: removing a merged pull-request worktree and deleting that head on `origin` and Artifacts, as specified under Merged PR cleanup, is pre-authorized. Force-push, deletion of `main` / `staging` / `production` / `gh-pages`, and deletion of any other remote ref still require an explicit user request.
 
 ## Configuration scope
 
