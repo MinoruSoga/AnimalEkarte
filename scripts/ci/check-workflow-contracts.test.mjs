@@ -703,3 +703,26 @@ test("one-off staging SQL workflows and the ghost worker delete are absent", () 
   assert.doesNotMatch(migrate, /inputs\.confirm/);
   assert.doesNotMatch(migrate, /confirm=migrate/);
 });
+
+test("merged pull requests move Plane work items by base branch", () => {
+  const workflow = read(".github/workflows/plane-merge-state.yml");
+  const script = read("scripts/tools/plane-merge-state.sh");
+
+  assert.match(workflow, /types:\s*\[closed\]/);
+  assert.match(workflow, /branches:\s*\[main,\s*staging\]/);
+  assert.doesNotMatch(workflow, /branches:\s*\[[^\]]*production/);
+  assert.match(workflow, /github\.event\.pull_request\.merged == true/);
+  assert.match(workflow, /secrets\.PLANE_GITHUB_AUTOMATION_KEY/);
+  assert.doesNotMatch(workflow, /secrets\.PLANE_API_KEY/);
+  assert.match(workflow, /actions\/checkout@v7\.0\.1/);
+  assert.match(workflow, /bash scripts\/tools\/plane-merge-state\.sh/);
+  assert.match(workflow, /contents:\s*read/);
+  assert.match(workflow, /pull-requests:\s*read/);
+  assert.doesNotMatch(workflow, /contents:\s*write/);
+
+  assert.match(script, /PLANE_GITHUB_AUTOMATION_KEY/);
+  assert.match(script, /EMR-\[1-9\]\[0-9\]\*/);
+  assert.match(script, /SKIP protected/);
+  assert.match(script, /"Review"/);
+  assert.match(script, /"UAT"/);
+});
