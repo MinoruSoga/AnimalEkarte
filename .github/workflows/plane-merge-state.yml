@@ -1,8 +1,9 @@
 name: Plane state on merge
 
-# main へのマージで [EMR-N] を Review に、staging へのマージで
-# そのリリースに含まれる main マージ済み PR の [EMR-N] を UAT にする。
-# 括弧付きの [EMR-N] だけが対象。マージせずクローズした PR と production は動かさない。
+# main へのマージで EMR-N を Review に、staging へのマージで
+# そのリリースに含まれる main マージ済み PR の EMR-N を UAT にする。
+# EMR-123、[EMR-123]、EMR-282/325/326 を対象にする。括弧は不要。
+# マージせずクローズした PR と production は動かさない。
 # Done / Cancelled / Duplicate / Needs Human / Blocked / Phase2 は動かさない。
 # staging で UAT にするのは、現在 Review の票だけ。
 #
