@@ -18,6 +18,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/inventory"
 	"github.com/animal-ekarte/backend/internal/lstep"
 	"github.com/animal-ekarte/backend/internal/manualarticle"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/owner"
 	"github.com/animal-ekarte/backend/internal/persistence"
@@ -628,7 +629,11 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 		c.trimming.courseTypes,
 		c.trimming.options,
 		c.auth.Handler.RequirePermission,
-	).RegisterRoutes(protected)
+	).WithImageSupport(trimming.ImageDependencies{
+		Uploader:             uploader,
+		Quota:                medicalrecord.NewPostgresMedicalRecordImageUploadQuotaStore(c.db),
+		RequireAnyPermission: adaptTrimmingPermissionAny(c.auth.Handler.RequirePermissionAny),
+	}).RegisterRoutes(protected)
 	c.medicalRecord.newHandler(
 		medicalRecordHTTPDependencies{
 			Uploader:          uploader,
@@ -637,6 +642,21 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 			RequirePermission: c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
 		},
 	).RegisterRoutes(protected)
+}
+
+func adaptTrimmingPermissionAny(
+	require func(...auth.PermissionRequirement) gin.HandlerFunc,
+) trimming.PermissionAnyMiddleware {
+	return func(requirements ...trimming.PermissionRequirement) gin.HandlerFunc {
+		target := make([]auth.PermissionRequirement, len(requirements))
+		for i, requirement := range requirements {
+			target[i] = auth.PermissionRequirement{
+				Resource: requirement.Resource,
+				Action:   requirement.Action,
+			}
+		}
+		return require(target...)
+	}
 }
 
 func (c runtimeComposition) newLstepHandler() *lstep.Handler {

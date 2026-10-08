@@ -10,9 +10,17 @@ export type CageType = "icu" | "dog" | "cat" | "general";
 export type CageSize = "small" | "medium" | "large";
 
 // Request types (derived from models.ts, with strict unions for cage_type/cage_size)
+// merged_into_cage_id は merge/unmerge 専用エンドポイントが管理するため
+// create/update のリクエスト型からは除外する。
 type CageRequestBase = Omit<
   ModelCage,
-  "id" | "clinic_id" | "created_at" | "updated_at" | "cage_type" | "cage_size"
+  | "id"
+  | "clinic_id"
+  | "created_at"
+  | "updated_at"
+  | "cage_type"
+  | "cage_size"
+  | "merged_into_cage_id"
 > & {
   cage_type: CageType;
   cage_size: CageSize;
@@ -23,7 +31,15 @@ export type CreateCageRequest = Pick<CageRequestBase, "name" | "cage_type" | "ca
 
 export type UpdateCageRequest = Partial<CageRequestBase>;
 
-function transformCage(data: ModelCage) {
+// EMR-306: merged_into_cage_id は generated ModelCage に含まれる。BE 側は
+// json:"...,omitempty" のため DB NULL 時はキー自体が省略される（欠落または null の
+// 両方を許容する）。wire 型だけ null/欠落を許容し、transform で MasterItem と同じ
+// string 系に正規化する。
+type CageWire = Omit<ModelCage, "merged_into_cage_id"> & {
+  merged_into_cage_id?: number | null;
+};
+
+function transformCage(data: CageWire) {
   return {
     id: String(data.id ?? 0),
     name: data.name,
@@ -33,6 +49,7 @@ function transformCage(data: ModelCage) {
     isActive: data.is_active,
     description: data.description,
     sortOrder: data.sort_order,
+    mergedIntoCageId: data.merged_into_cage_id != null ? String(data.merged_into_cage_id) : null,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   };
@@ -41,7 +58,7 @@ function transformCage(data: ModelCage) {
 export type Cage = ReturnType<typeof transformCage>;
 
 const getAllCages = async (): Promise<Cage[]> => {
-  const { data } = await axios.get<ModelCage[]>("/v1/masters/cages");
+  const { data } = await axios.get<CageWire[]>("/v1/masters/cages");
   return data.map(transformCage);
 };
 
@@ -55,7 +72,7 @@ export const useGetAllCages = () => {
 };
 
 const createCage = async (req: CreateCageRequest): Promise<Cage> => {
-  const { data } = await axios.post<ModelCage>("/v1/masters/cages", req);
+  const { data } = await axios.post<CageWire>("/v1/masters/cages", req);
   return transformCage(data);
 };
 
@@ -71,7 +88,7 @@ export const useCreateCage = () => {
 };
 
 const updateCage = async (id: string, req: UpdateCageRequest): Promise<Cage> => {
-  const { data } = await axios.patch<ModelCage>(`/v1/masters/cages/${id}`, req);
+  const { data } = await axios.patch<CageWire>(`/v1/masters/cages/${id}`, req);
   return transformCage(data);
 };
 

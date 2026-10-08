@@ -117,4 +117,6 @@ export interface MasterItem {
   duration?: number | null;
   /** トリミングコース種別マスタ ID（#73・trimmingCourse 固有） */
   courseTypeId?: string;
+  /** EMR-306: 連結メンバーケージが指す代表ケージ ID（未連結は null。Cage.mergedIntoCageId と sentinel を統一） */
+  mergedIntoCageId?: string | null;
 }

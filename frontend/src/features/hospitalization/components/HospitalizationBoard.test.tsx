@@ -1,6 +1,6 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
 import type { Hospitalization, MasterItem } from "@/types";
@@ -9,11 +9,16 @@ import { HospitalizationBoard } from "./HospitalizationBoard";
 
 const dndHarness = vi.hoisted(() => ({
   onDragEnd: undefined as ((event: unknown) => void) | undefined,
+  active: null as unknown,
   useDraggable: vi.fn(() => ({
     attributes: { "data-drag-attributes": "enabled" },
     listeners: { "data-drag-listener": "enabled" },
     setNodeRef: vi.fn(),
     isDragging: false,
+  })),
+  useDroppable: vi.fn(() => ({
+    setNodeRef: vi.fn(),
+    isOver: false,
   })),
 }));
 
@@ -34,11 +39,15 @@ vi.mock("@dnd-kit/core", () => ({
   useSensor: vi.fn(() => ({})),
   useSensors: vi.fn(() => []),
   useDraggable: dndHarness.useDraggable,
-  useDroppable: vi.fn(() => ({
-    setNodeRef: vi.fn(),
-    isOver: false,
-  })),
+  useDroppable: dndHarness.useDroppable,
+  useDndContext: vi.fn(() => ({ active: dndHarness.active })),
 }));
+
+beforeEach(() => {
+  dndHarness.useDraggable.mockClear();
+  dndHarness.useDroppable.mockClear();
+  dndHarness.active = null;
+});
 
 const cages: MasterItem[] = [
   {
@@ -299,5 +308,348 @@ describe("HospitalizationBoard narrow layout (BUG-458)", () => {
     );
     expect(hasMinWidthConstraint).toBe(false);
     expect(container.querySelector(".grid-cols-1")).not.toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// EMR-306: ケージ一時連結 merge mode
+// ─────────────────────────────────────────────────────────────
+
+const mergeCages: MasterItem[] = [
+  { id: "10", name: "ケージ10", category: "犬舎", price: 0, status: "active" },
+  { id: "11", name: "ケージ11", category: "犬舎", price: 0, status: "active" },
+  {
+    id: "12",
+    name: "ケージ12",
+    category: "犬舎",
+    price: 0,
+    status: "active",
+    mergedIntoCageId: "10",
+  },
+  { id: "13", name: "ケージ13", category: "犬舎", price: 0, status: "active" },
+  { id: "14", name: "ケージ14", category: "犬舎", price: 0, status: "inactive" },
+  { id: "15", name: "ケージ15", category: "犬舎", price: 0, status: "active" },
+];
+
+const occupiedOn13: Hospitalization = {
+  id: "hospitalization-13",
+  cageId: "13",
+  petName: "タマ",
+  ownerName: "飼主B",
+  species: "猫",
+  hospitalizationType: "入院",
+  petIsDeceased: false,
+} as Hospitalization;
+
+function renderMergeBoard(overrides: Partial<Parameters<typeof HospitalizationBoard>[0]> = {}) {
+  return render(
+    <HospitalizationBoard
+      cages={mergeCages}
+      hospitalizations={[occupiedOn13]}
+      onNavigateToForm={vi.fn()}
+      onMovePet={vi.fn()}
+      canCreate
+      canEdit
+      mergeMode
+      canMerge
+      onRequestMerge={vi.fn()}
+      onRequestUnmerge={vi.fn()}
+      {...overrides}
+    />,
+  );
+}
+
+describe("HospitalizationBoard EMR-306 merge mode", () => {
+  it("merge mode ON: standalone cage は merge-cage- id で drag 可能、patient drag id は登録されない", () => {
+    renderMergeBoard();
+
+    // standalone & active & 非占有 の 11・15 が source になる
+    for (const id of ["merge-cage-11", "merge-cage-15"]) {
+      expect(dndHarness.useDraggable).toHaveBeenCalledWith(
+        expect.objectContaining({ id, disabled: false }),
+      );
+    }
+    expect(dndHarness.useDraggable).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "merge-cage-11",
+        data: { mergeCageId: "11" },
+      }),
+    );
+    // 代表(10)・member(12)・占有(13)・inactive(14) は source 不可
+    for (const id of ["merge-cage-10", "merge-cage-12", "merge-cage-13", "merge-cage-14"]) {
+      expect(dndHarness.useDraggable).toHaveBeenCalledWith(
+        expect.objectContaining({ id, disabled: true }),
+      );
+    }
+    // pet-move 用の hospitalization id / empty- id は一切登録されない
+    expect(dndHarness.useDraggable).not.toHaveBeenCalledWith(
+      expect.objectContaining({ id: occupiedOn13.id }),
+    );
+    expect(dndHarness.useDraggable).not.toHaveBeenCalledWith(
+      expect.objectContaining({ id: expect.stringMatching(/^empty-/) }),
+    );
+    // KeyboardSensor はそのまま（cage drag も keyboard-operable）
+    expect(useSensor).toHaveBeenCalledWith(
+      KeyboardSensor,
+      expect.objectContaining({ coordinateGetter: expect.any(Function) }),
+    );
+  });
+
+  it("merge mode ON: source cage の card に連結元 aria-label が付く（keyboard 操作の activator）", () => {
+    renderMergeBoard();
+
+    const sourceCard = screen.getByText("ケージ11").closest("[data-slot='card']") as HTMLElement;
+    expect(sourceCard.getAttribute("aria-label")).toBe(
+      "犬舎 ケージ11（ケージID: 11）を連結元としてドラッグ",
+    );
+    expect(sourceCard).toHaveAttribute("data-drag-listener", "enabled");
+  });
+
+  it("merge mode ON: eligible drop で onRequestMerge(dragged, target) を呼ぶ", () => {
+    const onRequestMerge = vi.fn();
+    renderMergeBoard({ onRequestMerge });
+
+    // drag 11 → drop on 15（standalone cage。代表 cage への追加連結は BE が
+    // 単一階層制約で 409 拒否するため target 不適格）
+    act(() => {
+      dndHarness.onDragEnd?.({
+        active: { data: { current: { mergeCageId: "11" } } },
+        over: { id: "cage-15" },
+      });
+    });
+    expect(onRequestMerge).toHaveBeenCalledWith("11", "15");
+  });
+
+  it("merge mode ON: ineligible drop（member/self/占有 target, source 不適格, over なし）を拒否する", () => {
+    const onRequestMerge = vi.fn();
+    renderMergeBoard({ onRequestMerge });
+
+    const drops = [
+      // 代表(10) への drop（既存グループへの member 追加は BE が 409 拒否）
+      {
+        active: { data: { current: { mergeCageId: "11" } } },
+        over: { id: "cage-10" },
+      },
+      // member(12) への drop
+      {
+        active: { data: { current: { mergeCageId: "11" } } },
+        over: { id: "cage-12" },
+      },
+      // self drop
+      {
+        active: { data: { current: { mergeCageId: "11" } } },
+        over: { id: "cage-11" },
+      },
+      // 占有 cage(13) への drop
+      {
+        active: { data: { current: { mergeCageId: "11" } } },
+        over: { id: "cage-13" },
+      },
+      // member(12) を source にした drop（source 不適格）
+      {
+        active: { data: { current: { mergeCageId: "12" } } },
+        over: { id: "cage-11" },
+      },
+      // inactive(14) への drop
+      {
+        active: { data: { current: { mergeCageId: "11" } } },
+        over: { id: "cage-14" },
+      },
+      // over なし
+      { active: { data: { current: { mergeCageId: "11" } } }, over: null },
+      // patient drag 形式の active data は無視
+      {
+        active: { data: { current: { hospitalizationId: "h-1" } } },
+        over: { id: "cage-10" },
+      },
+    ];
+    for (const event of drops) {
+      act(() => {
+        dndHarness.onDragEnd?.(event);
+      });
+    }
+    expect(onRequestMerge).not.toHaveBeenCalled();
+  });
+
+  // Grok review MEDIUM-2: hasMergeOccupant は表示タブ/ページ外の占有も反映する
+  it("merge mode ON: hasMergeOccupant で非表示の占有ケージは drop target・source とも不適格", () => {
+    const onRequestMerge = vi.fn();
+    // cage-15 は hospitalizations（表示中タブ/ページ）には載っていないが、
+    // 全件占有集合では占有（= 別タブの入院か予約）。hasMergeOccupant が優先される。
+    renderMergeBoard({
+      onRequestMerge,
+      hasMergeOccupant: (id) => id === "15" || id === "13",
+    });
+    // 占有 source（15）は drag 不可
+    expect(dndHarness.useDraggable).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "merge-cage-15", disabled: true }),
+    );
+    // 占有 target（15）への drop は拒否
+    act(() => {
+      dndHarness.onDragEnd?.({
+        active: { data: { current: { mergeCageId: "11" } } },
+        over: { id: "cage-15" },
+      });
+    });
+    expect(onRequestMerge).not.toHaveBeenCalled();
+  });
+
+  it("merge mode ON: drag 中は eligible target が強調・ineligible がグレー表示/drop 不可になる", () => {
+    const { rerender } = renderMergeBoard();
+
+    dndHarness.active = { data: { current: { mergeCageId: "11" } } };
+    rerender(
+      <HospitalizationBoard
+        cages={mergeCages}
+        hospitalizations={[occupiedOn13]}
+        onNavigateToForm={vi.fn()}
+        onMovePet={vi.fn()}
+        canCreate
+        canEdit
+        mergeMode
+        canMerge
+        onRequestMerge={vi.fn()}
+        onRequestUnmerge={vi.fn()}
+      />,
+    );
+
+    // eligible: 15（standalone・空き）, ineligible: 10(代表),11(self),12(member),13(占有),14(inactive)
+    expect(dndHarness.useDroppable).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "cage-15", disabled: false }),
+    );
+    for (const id of ["cage-10", "cage-11", "cage-12", "cage-13", "cage-14"]) {
+      expect(dndHarness.useDroppable).toHaveBeenCalledWith(
+        expect.objectContaining({ id, disabled: true }),
+      );
+    }
+
+    const eligibleCard = screen.getByText("ケージ15").closest("[data-slot='card']") as HTMLElement;
+    const memberCard = screen.getByText("ケージ12").closest("[data-slot='card']") as HTMLElement;
+    expect(eligibleCard.className).toMatch(/ring-2/);
+    expect(memberCard.className).toMatch(/opacity-50/);
+  });
+
+  it("merge mode ON: static 表示では merge に参加できない cage がグレーアウトする", () => {
+    renderMergeBoard();
+
+    // member(12)・代表(10)・占有(13)・inactive(14) は merge に参加できない → mute
+    for (const name of ["ケージ10", "ケージ12", "ケージ13", "ケージ14"]) {
+      const card = screen.getByText(name).closest("[data-slot='card']") as HTMLElement;
+      expect(card.className).toMatch(/opacity-50/);
+    }
+    // source(11) と standalone target(15) は mute しない
+    for (const name of ["ケージ11", "ケージ15"]) {
+      const card = screen.getByText(name).closest("[data-slot='card']") as HTMLElement;
+      expect(card.className).not.toMatch(/opacity-50/);
+    }
+  });
+});
+
+describe("HospitalizationBoard EMR-306 merged member cards", () => {
+  const repAndMember: MasterItem[] = [
+    { id: "10", name: "ケージ10", category: "犬舎", price: 0, status: "active" },
+    {
+      id: "12",
+      name: "ケージ12",
+      category: "犬舎",
+      price: 0,
+      status: "active",
+      mergedIntoCageId: "10",
+    },
+  ];
+
+  it("member card は 連結中 + 代表ケージ名を表示し、新規 + button を出さず pet-move drop を拒否する", () => {
+    const onMovePet = vi.fn();
+    render(
+      <HospitalizationBoard
+        cages={repAndMember}
+        hospitalizations={[]}
+        onNavigateToForm={vi.fn()}
+        onMovePet={onMovePet}
+        canCreate
+        canEdit
+      />,
+    );
+
+    expect(screen.getByText("連結中: ケージ10")).toBeInTheDocument();
+    // member(12) の空きカードには新規登録 + button が無い
+    expect(
+      screen.queryByRole("button", { name: /ケージ12（ケージID: 12）の空き枠に入院/ }),
+    ).not.toBeInTheDocument();
+    // 非 member(10) には従来通り + button がある
+    expect(
+      screen.getByRole("button", { name: /ケージ10（ケージID: 10）の空き枠に入院/ }),
+    ).toBeInTheDocument();
+    // droppable disabled（pet-move drop 拒否）
+    expect(dndHarness.useDroppable).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "cage-12", disabled: true }),
+    );
+    // handler 側の二重ガード
+    act(() => {
+      dndHarness.onDragEnd?.({
+        active: { data: { current: { hospitalizationId: "h-1" } } },
+        over: { id: "cage-12" },
+      });
+    });
+    expect(onMovePet).not.toHaveBeenCalled();
+  });
+
+  it("member card の 連結解除 button は代表 id で onRequestUnmerge を呼ぶ（canMerge 権限必須）", async () => {
+    const user = userEvent.setup();
+    const onRequestUnmerge = vi.fn();
+    render(
+      <HospitalizationBoard
+        cages={repAndMember}
+        hospitalizations={[]}
+        onNavigateToForm={vi.fn()}
+        onMovePet={vi.fn()}
+        canCreate
+        canEdit
+        canMerge
+        onRequestUnmerge={onRequestUnmerge}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "ケージ10への連結を解除" }));
+    expect(onRequestUnmerge).toHaveBeenCalledWith("10");
+  });
+
+  it("rep card は 連結中（代表）バッジを表示し、解除 button は代表自身の id で onRequestUnmerge を呼ぶ", async () => {
+    const user = userEvent.setup();
+    const onRequestUnmerge = vi.fn();
+    render(
+      <HospitalizationBoard
+        cages={repAndMember}
+        hospitalizations={[]}
+        onNavigateToForm={vi.fn()}
+        onMovePet={vi.fn()}
+        canCreate
+        canEdit
+        canMerge
+        onRequestUnmerge={onRequestUnmerge}
+      />,
+    );
+
+    expect(screen.getByText("連結中（代表）")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "ケージ10の連結を解除" }));
+    expect(onRequestUnmerge).toHaveBeenCalledWith("10");
+  });
+
+  it("canMerge=false では member card に 連結解除 button を出さない", () => {
+    render(
+      <HospitalizationBoard
+        cages={repAndMember}
+        hospitalizations={[]}
+        onNavigateToForm={vi.fn()}
+        onMovePet={vi.fn()}
+        canCreate
+        canEdit
+        canMerge={false}
+        onRequestUnmerge={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("連結中: ケージ10")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /連結を解除/ })).not.toBeInTheDocument();
   });
 });

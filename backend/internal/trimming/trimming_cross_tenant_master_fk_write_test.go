@@ -180,7 +180,7 @@ func TestService_Update_RejectsCrossClinicCourseFK(t *testing.T) {
 	t.Run("rejects cross-clinic course_id", func(t *testing.T) {
 		updated := false
 		foreign := foreignID
-		result, err := newService(&updated, rejectTrimmingCourseRepo(ownedID)).Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{CourseID: &foreign})
+		result, _, err := newService(&updated, rejectTrimmingCourseRepo(ownedID)).Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{CourseID: &foreign})
 		assert.Error(t, err)
 		assert.Nil(t, result)
 		assert.False(t, updated)
@@ -189,7 +189,7 @@ func TestService_Update_RejectsCrossClinicCourseFK(t *testing.T) {
 	t.Run("accepts same-clinic course_id", func(t *testing.T) {
 		updated := false
 		owned := ownedID
-		result, err := newService(&updated, rejectTrimmingCourseRepo(ownedID)).Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{CourseID: &owned})
+		result, _, err := newService(&updated, rejectTrimmingCourseRepo(ownedID)).Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{CourseID: &owned})
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.True(t, updated)
@@ -217,7 +217,7 @@ func TestService_Update_RejectsCrossClinicOptionFK(t *testing.T) {
 	t.Run("rejects cross-clinic option_id", func(t *testing.T) {
 		updated := false
 		foreign := []uint64{foreignID}
-		result, err := newService(&updated, rejectTrimmingOptionRepo(ownedID)).Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{OptionIDs: &foreign})
+		result, _, err := newService(&updated, rejectTrimmingOptionRepo(ownedID)).Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{OptionIDs: &foreign})
 		assert.Error(t, err)
 		assert.Nil(t, result)
 		assert.False(t, updated)
@@ -226,7 +226,7 @@ func TestService_Update_RejectsCrossClinicOptionFK(t *testing.T) {
 	t.Run("accepts same-clinic option_id", func(t *testing.T) {
 		updated := false
 		owned := []uint64{ownedID}
-		result, err := newService(&updated, rejectTrimmingOptionRepo(ownedID)).Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{OptionIDs: &owned})
+		result, _, err := newService(&updated, rejectTrimmingOptionRepo(ownedID)).Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{OptionIDs: &owned})
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.True(t, updated)

@@ -15,8 +15,11 @@ type handlerServices struct {
 
 // Handler owns the trimming HTTP behavior and route registration.
 type Handler struct {
-	svc               *handlerServices
-	requirePermission PermissionMiddleware
+	svc                  *handlerServices
+	requirePermission    PermissionMiddleware
+	imageUploader        FileUploader
+	imageQuota           ImageUploadQuotaStore
+	imageWritePermission gin.HandlerFunc
 }
 
 // NewHandler constructs the compatibility HTTP handler. Direct route composition uses

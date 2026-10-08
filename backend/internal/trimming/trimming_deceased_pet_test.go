@@ -134,7 +134,7 @@ func TestService_Update_RejectsDeceasedPetWhenPetIDOmitted(t *testing.T) {
 	}
 	svc := newDeceasedGuardTestService(reserv, detail, audit)
 
-	got, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{
+	got, _, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{
 		Remarks: &remarks,
 		// PetID intentionally omitted — finalPetID resolves to locked.PetID
 	})
@@ -189,7 +189,7 @@ func TestService_Update_RejectsDeceasedPetReplacement(t *testing.T) {
 	}
 	svc := newDeceasedGuardTestService(reserv, detail, audit)
 
-	got, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{
+	got, _, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{
 		PetID: &deceasedPetID,
 	})
 

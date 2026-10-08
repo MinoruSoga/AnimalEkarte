@@ -47,26 +47,26 @@ func (s *trimmingService) updateTrimmingInTx(
 	input *UpdateTrimmingInput,
 	optionIDs []uint64,
 	appointmentUpdate reservation.UpdateTrimmingReservationInput,
-) (*model.Reservation, error) {
+) (*model.Reservation, *TrimmingReplacedImages, error) {
 	if err := s.reservation.AcquireBookingLock(txCtx, clinicID); err != nil {
-		return nil, apperrors.Wrap(err, "failed to acquire trimming booking lock")
+		return nil, nil, apperrors.Wrap(err, "failed to acquire trimming booking lock")
 	}
 	locked, err := s.reservation.LockTrimmingByID(txCtx, clinicID, id)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to lock trimming appointment")
+		return nil, nil, apperrors.Wrap(err, "failed to lock trimming appointment")
 	}
 	if err := reservation.ValidateTrimmingAppointmentMutable(locked.Status); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	finalPetID := locked.PetID
 	if input.PetID != nil {
 		finalPetID = input.PetID
 	}
 	if err := reservation.ValidateReservationOwnerPetLinksWithRepo(txCtx, s.reservation, clinicID, locked.OwnerID, finalPetID); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := reservation.ValidateReservationPetNotDeceased(txCtx, s.reservation, clinicID, finalPetID); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	resolvedStart := locked.StartTime
 	if input.StartTime != nil {
@@ -80,58 +80,63 @@ func (s *trimmingService) updateTrimmingInTx(
 	if input.StaffID != nil {
 		resolvedDoctorID = input.StaffID
 		if err := reservation.ValidateReservationStaffCapability(txCtx, s.reservationStaff, clinicID, resolvedDoctorID, locked.ReservationTypeID); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	if input.StartTime != nil || input.EndTime != nil {
 		if err := s.requireBookingConstraintDependencies(); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if err := reservation.ValidateReservationTypeAvailableTime(txCtx, s.unavailableTime, clinicID, locked.ReservationTypeID, resolvedStart, resolvedEnd); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	if input.StartTime != nil || input.EndTime != nil || input.StaffID != nil {
 		if err := s.requireBookingConstraintDependencies(); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if err := reservation.CheckSlotConflict(txCtx, s.reservation, clinicID, resolvedDoctorID, resolvedStart, resolvedEnd, &id); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if err := reservation.CheckReservationTypeCapacity(txCtx, s.reservation, s.reservationType, clinicID, locked.ReservationTypeID, resolvedStart, &id); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	if needsTrimmingAppointmentUpdate(appointmentUpdate, locked) {
 		if _, err := s.reservation.UpdateForTrimming(txCtx, clinicID, id, appointmentUpdate); err != nil {
-			return nil, apperrors.Wrap(err, "failed to update trimming appointment")
+			return nil, nil, apperrors.Wrap(err, "failed to update trimming appointment")
 		}
 	}
 
 	detail, err := s.trimmingDetail.FindByAppointmentID(txCtx, clinicID, id)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get trimming detail for update")
+		return nil, nil, apperrors.Wrap(err, "failed to get trimming detail for update")
 	}
+	// 置き換え前の画像値を lock 保持の tx 内で捕捉する — 同時 PATCH は
+	// booking lock でシリアライズされるため、各呼び出しは直前の書き込みを
+	// 正確に見る（handler が tx 前に読むスナップショットは並行書き込みの
+	// 新値を掃除候補から漏らす）。
+	replaced := &TrimmingReplacedImages{Style: detail.StyleImage, Completed: detail.CompletedImage}
 	oldValue := trimmingAuditValue(locked, detail)
 	existingOptionIDs := make([]uint64, len(detail.Options))
 	for i := range detail.Options {
 		existingOptionIDs[i] = detail.Options[i].ID
 	}
 	if err := s.validateTrimmingCourseAndOptions(txCtx, clinicID, input.CourseID, optionIDs, detail.CourseID, existingOptionIDs); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	applyTrimmingDetailFields(detail, input)
 	if err := s.trimmingDetail.Update(txCtx, detail); err != nil {
-		return nil, apperrors.Wrap(err, "failed to update trimming detail")
+		return nil, nil, apperrors.Wrap(err, "failed to update trimming detail")
 	}
 	if input.OptionIDs != nil {
 		if err := s.trimmingDetail.SetOptions(txCtx, clinicID, id, *input.OptionIDs); err != nil {
-			return nil, apperrors.Wrap(err, "failed to set trimming options")
+			return nil, nil, apperrors.Wrap(err, "failed to set trimming options")
 		}
 	}
 	result, err := s.GetByID(txCtx, clinicID, id)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := s.logTrimmingAuditTx(
 		txCtx,
@@ -143,7 +148,7 @@ func (s *trimmingService) updateTrimmingInTx(
 		oldValue,
 		trimmingAuditValue(result, result.TrimmingDetail),
 	); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return result, nil
+	return result, replaced, nil
 }

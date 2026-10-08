@@ -15,8 +15,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { LAYOUT, STYLE } from "@/lib/design-tokens";
+import { cageMembersByRepresentative } from "@/lib/cage-merge";
 
 import type { Cage, CageSize, CageType } from "../api/cages";
 import { useMasterSidePanelForm } from "../hooks/use-master-side-panel-form";
@@ -24,11 +26,14 @@ import {
   CAGE_SIZE_OPTIONS,
   CAGE_TYPE_OPTIONS,
   cageToFormData,
+  findCageRepresentative,
   type CageFormData,
 } from "../lib/cage-side-panel-model";
 
 interface CageSidePanelProps {
   item: Cage | null;
+  /** EMR-306: 連結中の代表ケージ名の解決に使うケージ一覧 */
+  cages: Cage[];
   onClose: () => void;
   onSave: (data: CageFormData) => Promise<boolean> | boolean;
   onDeleteRequest?: (item: Cage) => void;
@@ -38,6 +43,7 @@ interface CageSidePanelProps {
 
 export const CageSidePanel = memo(function CageSidePanel({
   item,
+  cages,
   onClose,
   onSave,
   onDeleteRequest,
@@ -111,6 +117,14 @@ export const CageSidePanel = memo(function CageSidePanel({
     onClose();
   }, [onClose, setIsDirty]);
 
+  // EMR-306: 連結メンバーの場合は代表ケージ名を、代表ケージの場合は構成メンバー
+  // 一覧をサイドパネルに表示する（readOnly 含む）。
+  const mergedRepresentative = findCageRepresentative(cages, item);
+  const mergedMembers =
+    item != null && mergedRepresentative === null
+      ? cageMembersByRepresentative(cages).get(item.id)
+      : undefined;
+
   return (
     <MasterSidePanel
       isNew={item === null}
@@ -126,6 +140,26 @@ export const CageSidePanel = memo(function CageSidePanel({
       readOnly={readOnly}
     >
       <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
+      {mergedRepresentative !== null ? (
+        <PropertyRow
+          label="連結状態"
+          description="このケージは代表ケージに一時連結されています。連結中は無効化・削除できず、解除（unmerge）してから行います。"
+        >
+          <Badge variant="secondary">{`連結中: ${mergedRepresentative.name}`}</Badge>
+        </PropertyRow>
+      ) : mergedMembers != null && mergedMembers.length > 0 ? (
+        <PropertyRow
+          label="連結状態"
+          description="このケージは連結グループの代表ケージです。構成ケージへの入院割当はできず、連結中は無効化・削除できません（解除してから行います）。"
+        >
+          <div className="flex flex-wrap items-center gap-1">
+            <Badge variant="secondary">連結中（代表）</Badge>
+            {mergedMembers.map((member) => (
+              <Badge key={member.id} variant="outline">{`構成: ${member.name}`}</Badge>
+            ))}
+          </div>
+        </PropertyRow>
+      ) : null}
       <PropertyRow
         label="エリア"
         description="ケージが属するエリア種別（ICU・犬舎・猫舎・汎用）です。入院管理でケージを分類するために使われます。"

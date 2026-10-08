@@ -571,6 +571,14 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/cage_repository.go|cageRepositoryImpl.update":             {},
 	"medicalrecord/cage_repository.go|cageRepositoryImpl.Delete":             {},
 	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountUsageByCageID": {},
+	// EMR-306 ケージ一時連結: 連結の永続化・解除・グループロック・構成員/占有カウントは
+	// 呼び出し元の ambient transaction に参加する（cage_repository_tx_atomicity_test.go）。
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.SetMergedInto":          {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.ClearMergedInto":        {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.LockCagesForUpdate":     {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.LockCageGroupForUpdate": {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountMergedMembers":     {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountOccupiedCages":     {},
 	// refund (R1-1 TOCTOU)
 	"billing/refund_repository.go|refundRepository.Create":                         {}, // BE8-4 batch8: moved from refund_repository.go
 	"billing/refund_repository.go|refundRepository.SumByBillingID":                 {}, // BE8-4 batch8: moved from refund_repository.go
@@ -763,8 +771,11 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// trimming detail (uniform dbOrTx)
 	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.Create":              {},
 	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.FindByAppointmentID": {},
-	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.SetOptions":          {},
-	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.Update":              {},
+	// EMR-300: image-key reference probe must observe the caller's ambient tx —
+	// a cleanup delete issued post-commit inside a tx must see uncommitted writes.
+	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.ImageKeyInUse": {},
+	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.SetOptions":    {},
+	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.Update":        {},
 	// vital (X-11 Appendix-A finalize-child-write-race fix — same FK-deadlock rationale as examination)
 	// BE9-2D sub-batch④a: moved to internal/medicalrecord (facade kept in internal/repository).
 	// FindByMedicalRecordID: BE9-2D ④b — treatmentService の dose 体重解決が保存 tx 内から読む

@@ -1,9 +1,20 @@
 import { describe, it, expect } from "vitest";
+import type { TrimmingFormData } from "@/types/trimming";
 import {
+  buildCreateTrimmingRequest,
+  buildUpdateTrimmingRequest,
+  DEFAULT_TRIMMING_FORM_DATA,
   defaultRecordShortcutTimes,
   filterActiveOrSelectedMasterItems,
   findDefaultTrimmingReservationTypeId,
 } from "./trimming-form-utils";
+
+const STYLE_KEY = "trimming-images/1/style.jpg";
+const COMPLETED_KEY = "trimming-images/1/done.jpg";
+
+function trimmingForm(overrides: Partial<TrimmingFormData> = {}): TrimmingFormData {
+  return { ...DEFAULT_TRIMMING_FORM_DATA, ...overrides };
+}
 
 describe("defaultRecordShortcutTimes", () => {
   it("uses unique JST clock time instead of a fixed 10:00 slot", () => {
@@ -78,5 +89,48 @@ describe("filterActiveOrSelectedMasterItems", () => {
     const result = filterActiveOrSelectedMasterItems(items, [""]);
 
     expect(result).toEqual([{ id: "1", name: "スタンダードコース", status: "active" }]);
+  });
+});
+
+describe("trimming image request fields", () => {
+  it("create はオブジェクトキーを style_image / completed_image として送る", () => {
+    const req = buildCreateTrimmingRequest(
+      trimmingForm({ styleImage: STYLE_KEY, completedImage: COMPLETED_KEY }),
+      10,
+      9,
+      undefined,
+      undefined,
+    );
+
+    expect(req.style_image).toBe(STYLE_KEY);
+    expect(req.completed_image).toBe(COMPLETED_KEY);
+  });
+
+  it("未選択の画像フィールドは create / update とも省略する", () => {
+    const createReq = buildCreateTrimmingRequest(trimmingForm(), 10, 9, undefined, undefined);
+    const updateReq = buildUpdateTrimmingRequest(trimmingForm());
+
+    expect(createReq).not.toHaveProperty("style_image");
+    expect(createReq).not.toHaveProperty("completed_image");
+    expect(updateReq).not.toHaveProperty("style_image");
+    expect(updateReq).not.toHaveProperty("completed_image");
+  });
+
+  it("明示削除は空文字を送り、触っていない側は省略する", () => {
+    const updateReq = buildUpdateTrimmingRequest(
+      trimmingForm({ styleImage: "", completedImage: null }),
+    );
+    const createReq = buildCreateTrimmingRequest(
+      trimmingForm({ styleImage: null, completedImage: "" }),
+      10,
+      9,
+      undefined,
+      undefined,
+    );
+
+    expect(updateReq.style_image).toBe("");
+    expect(updateReq).not.toHaveProperty("completed_image");
+    expect(createReq).not.toHaveProperty("style_image");
+    expect(createReq.completed_image).toBe("");
   });
 });

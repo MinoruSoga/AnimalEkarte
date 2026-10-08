@@ -549,6 +549,11 @@ export interface Cage {
   cage_type: CageType;
   cage_size: CageSize;
   sort_order: number /* int */;
+  /**
+   * MergedIntoCageID は EMR-306 ケージ一時連結の構成ケージが参照する代表ケージID。
+   * NULL = 独立ケージまたは代表ケージ自身（連結なし）。
+   */
+  merged_into_cage_id?: number /* uint64 */;
   created_at: string;
   updated_at: string;
 }
