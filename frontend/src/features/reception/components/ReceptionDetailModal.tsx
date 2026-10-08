@@ -28,6 +28,7 @@ interface ReceptionDetailModalProps {
   canCreateMedicalRecord?: boolean;
   canCreateAccounting?: boolean;
   canCreateHospitalization?: boolean;
+  canViewVaccinations?: boolean;
 }
 
 function isHospitalizationReservationType(reservationType: string): boolean {
@@ -45,6 +46,7 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
   canCreateMedicalRecord,
   canCreateAccounting,
   canCreateHospitalization,
+  canViewVaccinations = false,
 }: ReceptionDetailModalProps) {
   const navigate = useNavigate();
 
@@ -131,6 +133,17 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
     navigateAndClose(query ? `${paths.owners.getHref()}?${query}` : paths.owners.getHref());
   }, [ownerId, ownerName, navigateAndClose]);
 
+  const handleOpenPetDetail = useCallback(() => {
+    if (!ownerId || !petId) return;
+    navigateAndClose(paths.owners.detail.pet.getHref(ownerId, petId));
+  }, [ownerId, petId, navigateAndClose]);
+
+  const handleOpenVaccinations = useCallback(() => {
+    if (!petId) return;
+    const params = new URLSearchParams({ petId });
+    navigateAndClose(`${paths.vaccinations.getHref()}?${params.toString()}`);
+  }, [petId, navigateAndClose]);
+
   if (!appointment) return null;
 
   const isTrimming = appointment.reservationCategory === "trimming";
@@ -138,6 +151,7 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
   const isMedical = !isTrimming && !isHospitalization;
   const canOpenMedicalRecordFromRelatedPages =
     isMedical && canCreateMedicalRecord === true && currentStatus === "診療中";
+  const canOpenVaccinations = canViewVaccinations === true && Boolean(petId);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -148,6 +162,7 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
         <ReceptionDialogBody
           appointment={appointment}
           isTrimming={isTrimming}
+          onOpenPetDetail={handleOpenPetDetail}
           onCreateMedicalRecord={handleCreateMedicalRecord}
           onCreateTrimming={handleCreateTrimming}
           onCreateAccounting={handleCreateAccounting}
@@ -155,6 +170,8 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
           canCreateMedicalRecord={canOpenMedicalRecordFromRelatedPages}
           canCreateAccounting={canCreateAccounting}
           canCreateHospitalization={canCreateHospitalization}
+          canViewVaccinations={canOpenVaccinations}
+          onOpenVaccinations={handleOpenVaccinations}
         />
         <ReceptionDialogFooter
           currentStatus={currentStatus}

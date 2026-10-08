@@ -116,4 +116,26 @@ describe("VaccinationList 検索 (EMR-60)", () => {
     expect(screen.getByText("山田太郎")).toBeInTheDocument();
     expect(searchInput).toBeVisible();
   });
+
+  it("petId クエリを GET pet_id に載せ、新規登録は残す", async () => {
+    let seenPetId: string | null = null;
+    server.use(
+      http.get("/api/v1/vaccinations", ({ request }) => {
+        seenPetId = new URL(request.url).searchParams.get("pet_id");
+        return HttpResponse.json({
+          data: [backendVaccination(9, "山田太郎", "ポチ")],
+          total: 1,
+          page: 1,
+          limit: HISTORY_FETCH_LIMIT,
+        });
+      }),
+    );
+
+    render(<VaccinationList />, {
+      wrapper: createTestWrapper({ initialEntries: ["/vaccinations?petId=pet-9"] }),
+    });
+
+    await waitFor(() => expect(seenPetId).toBe("pet-9"));
+    expect(screen.getByRole("button", { name: "新規登録" })).toBeInTheDocument();
+  });
 });

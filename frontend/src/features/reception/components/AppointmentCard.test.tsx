@@ -466,4 +466,34 @@ describe("AppointmentCard", () => {
     expect(screen.getByRole("button", { name: /ポチのカルテ/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /ポチの会計/ })).toBeInTheDocument();
   });
+
+  it("予約内容があるときは1行に省略表示し、空や未設定では行を出さずカードを壊さない", () => {
+    const notes = "皮膚のかゆみ\n<b>重要</b>";
+    const { rerender } = renderCard({ ...baseAppointment, notes });
+
+    const line = screen.getByText("予約内容").closest("p");
+    expect(line).toHaveClass("truncate");
+    expect(line).toHaveTextContent("予約内容");
+    expect(line).toHaveTextContent("皮膚のかゆみ");
+    expect(line).toHaveTextContent("<b>重要</b>");
+    expect(line).toHaveAttribute("title", notes);
+    expect(line?.querySelector("b")).toBeNull();
+    expect(screen.getByText("山田")).toBeInTheDocument();
+
+    for (const emptyNotes of ["", " \n\t ", undefined] as const) {
+      rerender(
+        <DndContext>
+          <AppointmentCard
+            appointment={{ ...baseAppointment, notes: emptyNotes }}
+            columnTitle="受付済"
+            onCardClick={vi.fn()}
+            onRecordOpen={vi.fn()}
+          />
+        </DndContext>,
+      );
+
+      expect(screen.queryByText("予約内容")).not.toBeInTheDocument();
+      expect(screen.getByText("山田")).toBeInTheDocument();
+    }
+  });
 });

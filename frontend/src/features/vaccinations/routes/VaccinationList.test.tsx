@@ -286,6 +286,27 @@ describe("VaccinationList 次回予定の期限超過表示", () => {
   });
 });
 
+describe("VaccinationList petId query", () => {
+  it("URL の petId を既存 GET フィルタ引数へ渡し、新規登録は残す", () => {
+    render(
+      <MemoryRouter initialEntries={["/vaccinations?petId=pet-9"]}>
+        <VaccinationList />
+      </MemoryRouter>,
+    );
+
+    const filters = mockUseFilterVaccinations.mock.calls.at(-1)?.[1] as { petId?: string };
+    expect(filters.petId).toBe("pet-9");
+    expect(screen.getByRole("button", { name: "新規登録" })).toBeInTheDocument();
+  });
+
+  it("petId が無い一覧は GET フィルタに petId を載せない", () => {
+    renderPage();
+
+    const filters = mockUseFilterVaccinations.mock.calls.at(-1)?.[1] as { petId?: string };
+    expect(filters).not.toHaveProperty("petId");
+  });
+});
+
 describe("VaccinationList URL page 同期（FE-RC-028: useUrlPageSync）", () => {
   it("totalPagesを超えるURL pageは読み込み後にクランプされる", async () => {
     render(

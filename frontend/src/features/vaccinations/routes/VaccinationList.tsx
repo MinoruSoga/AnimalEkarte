@@ -54,12 +54,15 @@ export function VaccinationList() {
   const deferredSearchTerm = useDeferredValue(searchTerm);
   const isFiltering = searchTerm !== deferredSearchTerm;
 
+  const petId = searchParams.get("petId")?.trim() ?? "";
   const filters = useMemo(() => {
-    return buildVaccinationListQueryOptions({
+    const options = buildVaccinationListQueryOptions({
       dateRange: vaccinationDateRange(activeFilters),
       search: deferredSearchTerm,
     });
-  }, [activeFilters, deferredSearchTerm]);
+    if (petId === "") return options;
+    return { ...options, petId };
+  }, [activeFilters, deferredSearchTerm, petId]);
 
   const {
     data: filteredRecords,
