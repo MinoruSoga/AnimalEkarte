@@ -140,6 +140,51 @@ describe("ShiftCalendar staffs 表示", () => {
   });
 });
 
+function hasScrollportClass(element: Element): boolean {
+  return [...element.classList].some((name) => name.startsWith("overflow-"));
+}
+
+describe("ShiftCalendar sticky scrollport", () => {
+  it("日付ヘッダーとスタッフ名を同じ高さ拘束のスクロールポートに置き、角を両方より上に置く", () => {
+    const staffs: ShiftStaff[] = [
+      { id: "s1", name: "スタッフA", occupationId: "1", occupationName: "医師" },
+      { id: "s2", name: "スタッフB", occupationId: "1", occupationName: "医師" },
+    ];
+    const { container } = renderCalendar("2026-01", { staffs });
+
+    const root = container.firstElementChild;
+    expect(root).toHaveClass("flex", "min-h-0", "flex-1", "flex-col", "h-full");
+
+    const scrolls = container.querySelectorAll(".overflow-auto");
+    expect(scrolls).toHaveLength(1);
+    const scroll = scrolls[0];
+    expect(scroll).toHaveClass("min-h-0", "flex-1");
+
+    const corner = screen.getByText("スタッフ");
+    expect(corner).toHaveClass("sticky", "left-0", "z-30");
+    const headerRow = corner.parentElement;
+    expect(headerRow).toHaveClass("sticky", "top-0", "z-20");
+    expect(headerRow).not.toHaveClass("z-10");
+
+    const staffCell = screen
+      .getAllByText("スタッフA")
+      .map((node) => node.parentElement)
+      .find((element) => element?.classList.contains("sticky"));
+    expect(staffCell).toHaveClass("sticky", "left-0", "z-10");
+    expect(staffCell).not.toHaveClass("z-20", "z-30");
+
+    expect(scroll).toContainElement(headerRow);
+    expect(scroll).toContainElement(staffCell ?? null);
+
+    let between = headerRow?.parentElement ?? null;
+    while (between && between !== scroll) {
+      expect(hasScrollportClass(between)).toBe(false);
+      between = between.parentElement;
+    }
+    expect(between).toBe(scroll);
+  });
+});
+
 describe("ShiftCalendar — BUG-022 cell overflow", () => {
   it("日付ボディセルはoverflow-hiddenでチップテキストのはみ出しを防ぐ", () => {
     const { container } = renderCalendar("2026-01", {
