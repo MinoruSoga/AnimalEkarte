@@ -12376,6 +12376,62 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
         '500':
           $ref: '#/components/responses/InternalError'
+  /hospitalizations/cage-swap:
+    post:
+      operationId: swapHospitalizationCages
+      summary: 入院ケージの入れ替え（単一トランザクション）
+      description: >-
+        2件の入院の cage_id を原子性を持って交換する。ボード DnD の入れ替え専用 —
+        2本の独立 PATCH では片方のみ commit され得るため本エンドポイントを使う。
+        連結ケージが絡む場合は通常の割当ガードが各移動に適用され、構成ケージ宛は 422、
+        占有グループ宛は 409 で両方ロールバックする。
+      tags: [Hospitalizations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hospitalization_ids]
+              properties:
+                hospitalization_ids:
+                  type: array
+                  minItems: 2
+                  maxItems: 2
+                  items:
+                    type: integer
+                    format: int64
+                    minimum: 1
+                  description: ケージを交換する入院IDのペア（順序は問わない）
+      responses:
+        '200':
+          description: 交換成功（交換後の2件を入力順で返す）
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [hospitalizations]
+                properties:
+                  hospitalizations:
+                    type: array
+                    minItems: 2
+                    maxItems: 2
+                    items:
+                      $ref: '#/components/schemas/Hospitalization'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /hospitalizations/{id}:
     get:
       operationId: getHospitalization

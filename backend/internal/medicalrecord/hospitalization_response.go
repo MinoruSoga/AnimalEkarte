@@ -35,6 +35,11 @@ type HospitalizationResponse struct {
 	Doctor *StaffSummaryResponse `json:"doctor,omitempty"`
 }
 
+// CageSwapResponse はケージ入れ替えのレスポンス。交換後の2件を入力順で返す。
+type CageSwapResponse struct {
+	Hospitalizations []HospitalizationResponse `json:"hospitalizations"`
+}
+
 func toHospitalizationResponse(h *model.Hospitalization) HospitalizationResponse {
 	return HospitalizationResponse{
 		ID:                   h.ID,

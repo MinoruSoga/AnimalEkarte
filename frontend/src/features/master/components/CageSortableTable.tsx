@@ -47,6 +47,12 @@ interface CageSortableTableProps {
   /** EMR-306: 連結対象として選択中の cage id 集合 */
   selectedIds: ReadonlySet<string>;
   onToggleSelect: (id: string, checked: boolean) => void;
+  /**
+   * EMR-306: 占有中（admitted/reserved 入院が存在）の cage id 集合。
+   * undefined = 占有状況が不明 — spec「占有中でないケージのみ選択可」に従い
+   * fail-closed で選択不可とする（最終可否は BE の 409 が担保）。
+   */
+  occupiedCageIds: ReadonlySet<string> | undefined;
   /** EMR-306: 連結解除要求。メンバー行からは代表 cage id に解決済みで渡される */
   onRequestUnmerge: (representativeId: string) => void;
 }
@@ -62,6 +68,7 @@ export function CageSortableTable({
   onEdit,
   selectedIds,
   onToggleSelect,
+  occupiedCageIds,
   onRequestUnmerge,
 }: CageSortableTableProps) {
   const activeItem = useMemo(
@@ -118,6 +125,9 @@ export function CageSortableTable({
                   const isMergedRepresentative = mergedMembers != null;
                   const isMerged = isMergedMember || isMergedRepresentative;
                   const unmergeRepId = item.mergedIntoCageId ?? item.id;
+                  // EMR-306 spec: 選択できるのは未連結・有効・占有中でないケージのみ。
+                  // 占有状況が不明（undefined）な間も選択不可とする fail-closed。
+                  const isOccupied = occupiedCageIds === undefined || occupiedCageIds.has(item.id);
                   return (
                     <SortableDataTableRow
                       key={item.id}
@@ -129,7 +139,7 @@ export function CageSortableTable({
                         <Checkbox
                           aria-label={`連結選択: ケージ ${item.name} (ID ${item.id})`}
                           checked={selectedIds.has(item.id)}
-                          disabled={!canEdit || isMerged || !item.isActive}
+                          disabled={!canEdit || isMerged || !item.isActive || isOccupied}
                           onCheckedChange={(checked) => onToggleSelect(item.id, checked === true)}
                         />
                       </TableCell>

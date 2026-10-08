@@ -6,6 +6,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { useState } from "react";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
+import { queryKeys } from "@/lib/query-keys";
 import type { Cage as ModelCage } from "@/types/generated/models";
 import { CageSettings } from "./CageSettings";
 
@@ -53,8 +54,21 @@ function makeCage(
   };
 }
 
+// EMR-306 (Codex review P2): 連結ピッカーは GET /v1/hospitalizations の占有状況で
+// fail-closed に絞るため、未シードだと全チェックボックスが disabled になる。
+// 既定で「占有なし」をキャッシュにシードし、占有シナリオは server.use + invalidate で差し替える。
+const EMPTY_OCCUPANCY_PAGE = { data: [] as { cage_id: number | null }[], total: 0 };
+
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  queryClient.setQueryData(
+    queryKeys.hospitalizations.cageOccupancy("admitted"),
+    EMPTY_OCCUPANCY_PAGE,
+  );
+  queryClient.setQueryData(
+    queryKeys.hospitalizations.cageOccupancy("reserved"),
+    EMPTY_OCCUPANCY_PAGE,
+  );
   let refreshPermissions = () => undefined;
   function PermissionHarness() {
     const [, setPermissionVersion] = useState(0);
@@ -74,6 +88,7 @@ function renderPage() {
   return {
     ...result,
     refreshPermissions,
+    queryClient,
   };
 }
 
@@ -405,5 +420,108 @@ describe("CageSettings ケージ連結 (EMR-306)", () => {
       screen.getByRole("checkbox", { name: "連結選択: ケージ 1番ケージ (ID 1)" }),
     ).toBeDisabled();
     expect(screen.queryByRole("button", { name: "選択したケージを連結" })).not.toBeInTheDocument();
+  });
+
+  // EMR-306 (Codex review P2): 占有中ケージは連結ピッカーで選択不可（BE Merge は 409 で
+  // 拒否するが、UI 側も spec「占有中でないケージのみ選択可」に合わせて disable する）。
+  it("占有が判明したケージの連結選択チェックボックスは無効になる", async () => {
+    stubCages([makeCage(1, "1番ケージ"), makeCage(2, "2番ケージ")]);
+
+    const { queryClient } = renderPage();
+    const cage1 = await screen.findByRole("checkbox", {
+      name: "連結選択: ケージ 1番ケージ (ID 1)",
+    });
+    const cage2 = screen.getByRole("checkbox", { name: "連結選択: ケージ 2番ケージ (ID 2)" });
+    // 既定シード（占有なし）では両方選択可能
+    expect(cage1).toBeEnabled();
+    expect(cage2).toBeEnabled();
+
+    // cage 1 に入院中の占有が載ったレスポンスに差し替えて再取得
+    server.use(
+      http.get("*/v1/hospitalizations", () =>
+        HttpResponse.json({ data: [{ cage_id: 1 }], total: 1 }),
+      ),
+    );
+    await act(async () => {
+      await queryClient.invalidateQueries();
+    });
+
+    await waitFor(() => expect(cage1).toBeDisabled());
+    expect(cage2).toBeEnabled();
+  });
+
+  it("占有クエリがエラーのとき全ケージの連結選択が無効になる（fail-closed）", async () => {
+    stubCages([makeCage(1, "1番ケージ"), makeCage(2, "2番ケージ")]);
+
+    const { queryClient } = renderPage();
+    const cage1 = await screen.findByRole("checkbox", {
+      name: "連結選択: ケージ 1番ケージ (ID 1)",
+    });
+    const cage2 = screen.getByRole("checkbox", { name: "連結選択: ケージ 2番ケージ (ID 2)" });
+    expect(cage1).toBeEnabled();
+
+    server.use(http.get("*/v1/hospitalizations", () => new HttpResponse(null, { status: 500 })));
+    await act(async () => {
+      await queryClient.invalidateQueries();
+    });
+
+    await waitFor(() => {
+      expect(cage1).toBeDisabled();
+      expect(cage2).toBeDisabled();
+    });
+  });
+
+  it("占有クエリが先頭ページ打ち切り（total が取得数超過）のとき選択が無効になる", async () => {
+    stubCages([makeCage(1, "1番ケージ")]);
+
+    const { queryClient } = renderPage();
+    const cage1 = await screen.findByRole("checkbox", {
+      name: "連結選択: ケージ 1番ケージ (ID 1)",
+    });
+    expect(cage1).toBeEnabled();
+
+    server.use(
+      http.get("*/v1/hospitalizations", () =>
+        HttpResponse.json({ data: [{ cage_id: null }], total: 101 }),
+      ),
+    );
+    await act(async () => {
+      await queryClient.invalidateQueries();
+    });
+
+    await waitFor(() => expect(cage1).toBeDisabled());
+  });
+
+  it("選択済みケージが後から占有と判明した場合は選択表示・連結ボタンから除外される", async () => {
+    stubCages([makeCage(1, "1番ケージ"), makeCage(2, "2番ケージ"), makeCage(3, "3番ケージ")]);
+
+    const user = userEvent.setup();
+    const { queryClient } = renderPage();
+    const cage1 = await screen.findByRole("checkbox", {
+      name: "連結選択: ケージ 1番ケージ (ID 1)",
+    });
+    await user.click(cage1);
+    await user.click(screen.getByRole("checkbox", { name: "連結選択: ケージ 2番ケージ (ID 2)" }));
+
+    expect(screen.getByText("2件選択中")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "選択したケージを連結" })).toBeEnabled();
+
+    // 別画面での入院登録等で cage 1 が占有と判明
+    server.use(
+      http.get("*/v1/hospitalizations", () =>
+        HttpResponse.json({ data: [{ cage_id: 1 }], total: 1 }),
+      ),
+    );
+    await act(async () => {
+      await queryClient.invalidateQueries();
+    });
+
+    // 占有ケージは派生選択から除かれ、残り1件なので連結ボタンは無効に戻る
+    await waitFor(() => expect(screen.getByText("1件選択中")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "選択したケージを連結" })).toBeDisabled();
+    expect(cage1).not.toBeChecked();
+    expect(
+      screen.getByRole("checkbox", { name: "連結選択: ケージ 2番ケージ (ID 2)" }),
+    ).toBeChecked();
   });
 });

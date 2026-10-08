@@ -21,10 +21,9 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { ResourceHospitalization, ResourceMasterHospitalization } from "@/types/generated/models";
 import { usePermission } from "@/hooks/use-permission";
 import { useMergeCages, useUnmergeCages } from "@/hooks/use-cage-merge";
+import { useCageOccupancy } from "@/hooks/use-cage-occupancy";
 import { HospitalizationBoard } from "../components/HospitalizationBoard";
 import { HospitalizationListView } from "../components/HospitalizationListView";
-import { useGetHospitalizations } from "../api/get-hospitalizations";
-import { HOSPITALIZATION_FILTER_STATUS, HOSPITALIZATION_OCCUPANCY_LIMIT } from "../constants";
 import {
   HOSPITALIZATION_SORT_PROPERTIES,
   HOSPITALIZATION_TAB_ITEMS,
@@ -101,60 +100,18 @@ function HospitalizationListContent({
   const boardMergeMode = canMergeCages === true && mergeMode;
 
   // EMR-306 (Grok review MEDIUM-2): merge-mode の占有判定は表示タブ/ページに依存させない。
-  // admitted/reserved の cageId 全集合を別クエリで取得する（advisory。最終可否は BE）。
-  // boardMergeMode 中のみ有効化し、それ以外では余分な API 呼び出しを発生させない。
-  const {
-    data: admittedOccupancy,
-    isLoading: admittedOccupancyLoading,
-    isError: admittedOccupancyError,
-  } = useGetHospitalizations(
-    {
-      statusFilter: HOSPITALIZATION_FILTER_STATUS.ACTIVE,
-      limit: HOSPITALIZATION_OCCUPANCY_LIMIT,
-    },
-    { enabled: boardMergeMode },
-  );
-  const {
-    data: reservedOccupancy,
-    isLoading: reservedOccupancyLoading,
-    isError: reservedOccupancyError,
-  } = useGetHospitalizations(
-    {
-      statusFilter: HOSPITALIZATION_FILTER_STATUS.RESERVED,
-      limit: HOSPITALIZATION_OCCUPANCY_LIMIT,
-    },
-    { enabled: boardMergeMode },
-  );
+  // admitted/reserved の cageId 全集合は共有フック useCageOccupancy が取得する
+  // （advisory。最終可否は BE）。boardMergeMode 中のみ有効化し、それ以外では
+  // 余分な API 呼び出しを発生させない。
+  const { occupiedCageIds } = useCageOccupancy({ enabled: boardMergeMode });
   const hasMergeOccupant = useMemo(() => {
-    // 非 merge-mode・占有クエリ読込中は undefined — board 側は表示中データの
-    // 占有判定へフォールバックする（advisory であり、最終可否は BE が持つ）。
-    if (!boardMergeMode || admittedOccupancyLoading || reservedOccupancyLoading) return undefined;
-    // fail-closed (Grok review MEDIUM-2): クエリ失敗・または total が先頭ページを
-    // 超えて打ち切られた場合は「空室」と断定できないため undefined を返す。
-    if (admittedOccupancyError || reservedOccupancyError) return undefined;
-    if (admittedOccupancy === undefined || reservedOccupancy === undefined) return undefined;
-    if (
-      admittedOccupancy.total > admittedOccupancy.data.length ||
-      reservedOccupancy.total > reservedOccupancy.data.length
-    ) {
-      return undefined;
-    }
-    const occupied = new Set<string>();
-    for (const page of [admittedOccupancy, reservedOccupancy]) {
-      for (const h of page.data) {
-        if (h.cageId) occupied.add(h.cageId);
-      }
-    }
+    // 非 merge-mode・占有クエリ不明（読込中/エラー/打ち切り）は undefined —
+    // board 側は表示中データの占有判定へフォールバックする（advisory であり、
+    // 最終可否は BE が持つ）。
+    if (!boardMergeMode || occupiedCageIds === undefined) return undefined;
+    const occupied = occupiedCageIds;
     return (cageId: string) => occupied.has(cageId);
-  }, [
-    boardMergeMode,
-    admittedOccupancy,
-    reservedOccupancy,
-    admittedOccupancyLoading,
-    reservedOccupancyLoading,
-    admittedOccupancyError,
-    reservedOccupancyError,
-  ]);
+  }, [boardMergeMode, occupiedCageIds]);
 
   const handleRequestMerge = useCallback((draggedCageId: string, targetCageId: string) => {
     setPendingMerge({ draggedCageId, targetCageId });

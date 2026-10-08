@@ -138,6 +138,7 @@ type HospitalizationService interface {
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	DischargeWithBilling(ctx context.Context, clinicID, id uint64, input DischargeWithBillingInput) (*DischargeWithBillingResult, error)
+	SwapCages(ctx context.Context, clinicID, idA, idB uint64) (*model.Hospitalization, *model.Hospitalization, error)
 }
 
 type hospitalizationService struct {

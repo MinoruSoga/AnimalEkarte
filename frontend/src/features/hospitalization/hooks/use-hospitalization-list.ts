@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { updateHospitalization } from "../api/update-hospitalization";
+import { swapHospitalizationCages } from "../api/swap-hospitalization-cages";
 import { isInMergedGroup } from "../lib/cage-merge-model";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
@@ -78,10 +79,10 @@ export const useHospitalizationList = (canEdit = false) => {
 
       try {
         if (targetHosp) {
-          // EMR-306 (Grok review HIGH-1): 連結グループ（代表/構成）が絡む入れ替えは
-          // 2本の独立 PATCH が片方だけ成功し得る — 代表宛は BE が占有で 409 拒否するが、
-          // 反対側の独立ケージ宛は成功し半スワップの不整合になる。同一トランザクションの
-          // swap API がないため、ここで送信前に丸ごと拒否する（PATCH を1本も送らない）。
+          // EMR-306 (Codex review P1): 入れ替えは単一トランザクションの cage-swap API で
+          // 行う — 2本の独立 PATCH は片方だけ commit され得る（preflight と PATCH の間に
+          // 別セッションが連結する TOCTOU 含む）。下の preflight は UX 用の早期拒否であり、
+          // 最終的な拒否・原子性はバックエンドが保証する。
           if (
             isInMergedGroup(cages ?? [], sourceHosp.cageId) ||
             isInMergedGroup(cages ?? [], targetCageId)
@@ -89,17 +90,7 @@ export const useHospitalizationList = (canEdit = false) => {
             toast.error("連結中のケージを含む入れ替えはできません");
             return;
           }
-          // 元のケージがない場合は cage_id フィールドを送らない（空文字列は uint64 として不正）
-          const swapPayload = sourceHosp.cageId ? { cage_id: sourceHosp.cageId } : {};
-          const results = await Promise.allSettled([
-            updateHospitalization(sourceHosp.id, { cage_id: targetCageId }),
-            updateHospitalization(targetHosp.id, swapPayload),
-          ]);
-          // どちらかが失敗した場合はエラー表示（ロールバックは BE で処理）
-          const failed = results.filter((r) => r.status === "rejected");
-          if (failed.length > 0) {
-            handleApiError(failed[0].reason, "スワップ");
-          }
+          await swapHospitalizationCages(sourceHosp.id, targetHosp.id);
         } else {
           await updateHospitalization(sourceHosp.id, { cage_id: targetCageId });
         }

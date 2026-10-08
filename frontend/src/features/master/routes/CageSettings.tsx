@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { useMergeCages, useUnmergeCages } from "@/hooks/use-cage-merge";
+import { useCageOccupancy } from "@/hooks/use-cage-occupancy";
 import { Building2 } from "lucide-react";
 import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
@@ -114,6 +115,12 @@ export function CageSettings() {
   const mergeMutation = useMergeCages();
   const unmergeMutation = useUnmergeCages();
 
+  // EMR-306 (Codex review P2): 連結ピッカーの占有無効化。spec「選択できるのは
+  // 未連結・有効・占有中でないケージのみ」に合わせる。canEdit でない閲覧者には
+  // チェックボックス自体が disabled なので占有クエリは発行しない。
+  // undefined（読込中/エラー/打ち切り）は table 側で fail-closed に選択不可扱い。
+  const { occupiedCageIds } = useCageOccupancy({ enabled: canEdit === true });
+
   // EMR-306: 連結選択状態はページローカル。use-editable-id-selection は
   // フォーム dirty 連動のためここでは素の Set state を使う。
   const [selectedCageIds, setSelectedCageIds] = useState<ReadonlySet<string>>(new Set());
@@ -170,6 +177,17 @@ export function CageSettings() {
     permissions: { canCreate, canEdit },
   });
 
+  // 選択後に占有と判明したケージ（入院登録との競合）は表示・送信から除外する —
+  // チェックボックスの disabled と合わせて二重に防ぐ。effect による state 書き戻しは
+  // react-hooks/set-state-in-effect 禁止のため、レンダー中の派生集合で表現する。
+  const effectiveSelectedCageIds = useMemo(() => {
+    if (occupiedCageIds === undefined) return selectedCageIds;
+    if ([...selectedCageIds].every((id) => !occupiedCageIds.has(id))) {
+      return selectedCageIds;
+    }
+    return new Set([...selectedCageIds].filter((id) => !occupiedCageIds.has(id)));
+  }, [selectedCageIds, occupiedCageIds]);
+
   const handleToggleCageSelect = useCallback((id: string, checked: boolean) => {
     setSelectedCageIds((prev) => {
       const next = new Set(prev);
@@ -183,8 +201,8 @@ export function CageSettings() {
   }, []);
 
   const selectedCages = useMemo(
-    () => (data ?? []).filter((cage) => selectedCageIds.has(cage.id)),
-    [data, selectedCageIds],
+    () => (data ?? []).filter((cage) => effectiveSelectedCageIds.has(cage.id)),
+    [data, effectiveSelectedCageIds],
   );
 
   const handleOpenMergeDialog = useCallback(() => {
@@ -264,14 +282,14 @@ export function CageSettings() {
             {canEdit ? (
               <div className="flex items-center justify-end gap-3">
                 <span className={`text-sm ${C.text65}`}>
-                  {selectedCageIds.size > 0
-                    ? `${selectedCageIds.size}件選択中`
+                  {effectiveSelectedCageIds.size > 0
+                    ? `${effectiveSelectedCageIds.size}件選択中`
                     : "連結するケージを2件以上選択"}
                 </span>
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={selectedCageIds.size < 2}
+                  disabled={effectiveSelectedCageIds.size < 2}
                   onClick={handleOpenMergeDialog}
                 >
                   選択したケージを連結
@@ -287,8 +305,9 @@ export function CageSettings() {
               onDragCancel={handleDragCancel}
               canEdit={canEdit}
               onEdit={crud.handleEdit}
-              selectedIds={selectedCageIds}
+              selectedIds={effectiveSelectedCageIds}
               onToggleSelect={handleToggleCageSelect}
+              occupiedCageIds={occupiedCageIds}
               onRequestUnmerge={handleRequestUnmerge}
             />
           </>

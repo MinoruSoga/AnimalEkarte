@@ -9,6 +9,7 @@ import { queryKeys } from "@/lib/query-keys";
 import type { Hospitalization, MasterItem } from "@/types";
 
 import { updateHospitalization } from "../api/update-hospitalization";
+import { swapHospitalizationCages } from "../api/swap-hospitalization-cages";
 import { useHospitalizationList } from "./use-hospitalization-list";
 
 const mocks = vi.hoisted(() => ({
@@ -25,6 +26,10 @@ vi.mock("sonner", () => ({
 
 vi.mock("../api/update-hospitalization", () => ({
   updateHospitalization: vi.fn().mockResolvedValue({}),
+}));
+
+vi.mock("../api/swap-hospitalization-cages", () => ({
+  swapHospitalizationCages: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/handle-api-error", () => ({
@@ -129,6 +134,7 @@ describe("useHospitalizationList — cage move mutation boundary", () => {
     });
 
     expect(updateHospitalization).not.toHaveBeenCalled();
+    expect(swapHospitalizationCages).not.toHaveBeenCalled();
   });
 
   it("生存petかつ編集権限ありなら既存の移動payloadを維持する", async () => {
@@ -148,6 +154,7 @@ describe("useHospitalizationList — cage move mutation boundary", () => {
     });
 
     expect(updateHospitalization).toHaveBeenCalledWith("hospitalization-1", { cage_id: "cage-2" });
+    expect(swapHospitalizationCages).not.toHaveBeenCalled();
   });
 
   // EMR-306 (Grok review HIGH-1): 連結グループが絡むスワップは 2 本の独立 PATCH が
@@ -178,6 +185,7 @@ describe("useHospitalizationList — cage move mutation boundary", () => {
     });
 
     expect(updateHospitalization).not.toHaveBeenCalled();
+    expect(swapHospitalizationCages).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith("連結中のケージを含む入れ替えはできません");
   });
 
@@ -207,10 +215,13 @@ describe("useHospitalizationList — cage move mutation boundary", () => {
     });
 
     expect(updateHospitalization).not.toHaveBeenCalled();
+    expect(swapHospitalizationCages).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith("連結中のケージを含む入れ替えはできません");
   });
 
-  it("連結に関わらない通常スワップは従来どおり2本の PATCH を送る", async () => {
+  // EMR-306 (Codex review P1): 通常スワップは 2 本の独立 PATCH ではなく
+  // POST /v1/hospitalizations/cage-swap の単一トランザクション API を呼ぶ。
+  it("連結に関わらない通常スワップは cage-swap API を1回だけ呼ぶ", async () => {
     mocks.cages = [
       { id: "cage-1", name: "A", price: 0, status: "active" },
       { id: "cage-2", name: "B", price: 0, status: "active" },
@@ -233,9 +244,9 @@ describe("useHospitalizationList — cage move mutation boundary", () => {
       await result.current.movePet("hospitalization-1", "cage-2");
     });
 
-    expect(updateHospitalization).toHaveBeenCalledTimes(2);
-    expect(updateHospitalization).toHaveBeenCalledWith("hospitalization-1", { cage_id: "cage-2" });
-    expect(updateHospitalization).toHaveBeenCalledWith("hospitalization-2", { cage_id: "cage-1" });
+    expect(swapHospitalizationCages).toHaveBeenCalledTimes(1);
+    expect(swapHospitalizationCages).toHaveBeenCalledWith("hospitalization-1", "hospitalization-2");
+    expect(updateHospitalization).not.toHaveBeenCalled();
     expect(toast.error).not.toHaveBeenCalled();
   });
 });
