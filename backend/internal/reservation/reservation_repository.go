@@ -43,7 +43,8 @@ type ReservationCRUDRepository interface {
 // typed write operation。すべて ambient transaction 必須・clinic スコープ・fail-closed。
 type ReservationNextVisitIntentRepository interface {
 	// SetNextVisitIntent はペットの active tentative を作成または更新する（upsert）。
-	SetNextVisitIntent(ctx context.Context, clinicID, petID uint64, input SetNextVisitIntentInput) (*model.Reservation, error)
+	// 第2戻り値は upsert で変更された旧 owner_id（新規・未変更は nil）。
+	SetNextVisitIntent(ctx context.Context, clinicID, petID uint64, input SetNextVisitIntentInput) (*model.Reservation, *uint64, error)
 	// ClearNextVisitIntent はペットの active tentative を論理削除する。未存在は冪等成功。
 	ClearNextVisitIntent(ctx context.Context, clinicID, petID uint64) (bool, error)
 	// ConfirmTentative は tentative 予約を pending/confirmed へ遷移する。
@@ -61,6 +62,10 @@ type ReservationTentativeLifecycleRepository interface {
 	// PromoteTentativeOnCheckin は当日受付（checked_in 作成）でペットの active tentative を
 	// 同一行昇格する。tentative 未存在時は通常 INSERT にフォールバックする。
 	PromoteTentativeOnCheckin(ctx context.Context, booking *model.Reservation) (*model.Reservation, error)
+	// WithTentativeReminderSerialization は tentative mutation と同じ (clinic,pet)
+	// intent advisory lock を保持する tx 内で fn を実行する（LSTEP リマインダーの
+	// 再検証〜外部送信 race 対策）。
+	WithTentativeReminderSerialization(ctx context.Context, clinicID, petID uint64, fn func(txCtx context.Context) error) error
 }
 
 // ReservationIntentRepository は reservation 外の consumer が使う appointment write operation。

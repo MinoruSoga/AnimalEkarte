@@ -1836,6 +1836,10 @@ components:
           nullable: true
           readOnly: true
           description: EMR-308 次回予定（tentative）行の予定日。JST 暦日。非 tentative では null。
+        had_intended_date:
+          type: boolean
+          readOnly: true
+          description: EMR-308 この予約が次回予定意図（intended_date）を持つか。取消・更新レスポンスでは、元 tentative が意図日を持っていたかを示し、FE が意図の再設定を提案できる（自動復活はしない）。
         source_medical_record_id:
           type: integer
           format: int64
@@ -9970,7 +9974,9 @@ components:
         route:
           type: string
           maxLength: 20
-          enum: [line, phone, reception, exam_room, record_shortcut, record_intent]
+          # EMR-308: record_intent は次回予定（tentative）専用の provenance で、
+          # 経路更新 API は拒否する（enum から除外）。
+          enum: [line, phone, reception, exam_room, record_shortcut]
     # ─── EMR-308 次回予定（tentative appointment） ─────────────────────────────
     SetNextVisitIntentRequest:
       type: object
@@ -11865,7 +11871,8 @@ paths:
                 status: { type: string, enum: [confirmed, pending, cancelled, checked_in, in_consultation, accounting, completed] }
                 notes: { type: string }
                 source: { type: string, enum: [manual, line] }
-                reservation_route: { type: string, enum: [line, phone, reception, exam_room, record_shortcut, record_intent] }
+                # EMR-308: record_intent は次回予定専用 provenance —— 作成時指定不可（runtime binding も拒否）。
+                reservation_route: { type: string, enum: [line, phone, reception, exam_room, record_shortcut] }
                 pets:
                   type: array
                   minItems: 2

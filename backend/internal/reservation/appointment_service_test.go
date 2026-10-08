@@ -33,7 +33,7 @@ type mockReservationRepository struct {
 	findPetByIDInClinicFn              func(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
 	assertLineCustomerInClinicFn       func(ctx context.Context, clinicID, lineCustomerID uint64) error
 	acquireBookingLockFn               func(ctx context.Context, clinicID uint64) error
-	setNextVisitIntentFn               func(ctx context.Context, clinicID, petID uint64, input SetNextVisitIntentInput) (*model.Reservation, error)
+	setNextVisitIntentFn               func(ctx context.Context, clinicID, petID uint64, input SetNextVisitIntentInput) (*model.Reservation, *uint64, error)
 	clearNextVisitIntentFn             func(ctx context.Context, clinicID, petID uint64) (bool, error)
 	confirmTentativeFn                 func(ctx context.Context, clinicID, id uint64, input ConfirmTentativeUpdate) (*model.Reservation, error)
 	absorbTentativeOnBookingFn         func(ctx context.Context, booking *model.Reservation) (*model.Reservation, error)
@@ -200,11 +200,11 @@ func (m *mockReservationRepository) DeleteForTrimming(_ context.Context, _, _ ui
 	return nil
 }
 
-func (m *mockReservationRepository) SetNextVisitIntent(ctx context.Context, clinicID, petID uint64, input SetNextVisitIntentInput) (*model.Reservation, error) {
+func (m *mockReservationRepository) SetNextVisitIntent(ctx context.Context, clinicID, petID uint64, input SetNextVisitIntentInput) (*model.Reservation, *uint64, error) {
 	if m.setNextVisitIntentFn != nil {
 		return m.setNextVisitIntentFn(ctx, clinicID, petID, input)
 	}
-	return nil, nil
+	return nil, nil, nil
 }
 
 func (m *mockReservationRepository) ClearNextVisitIntent(ctx context.Context, clinicID, petID uint64) (bool, error) {
@@ -241,6 +241,10 @@ func (m *mockReservationRepository) PromoteTentativeOnCheckin(ctx context.Contex
 		return nil, err
 	}
 	return booking, nil
+}
+
+func (m *mockReservationRepository) WithTentativeReminderSerialization(ctx context.Context, _ uint64, _ uint64, fn func(txCtx context.Context) error) error {
+	return fn(ctx)
 }
 
 func ptrTime(t time.Time) *time.Time { return &t }

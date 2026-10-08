@@ -204,7 +204,9 @@ describe("NextVisitButton — ガード", () => {
 });
 
 describe("NextVisitButton — 権限分割（PUT=create / DELETE=edit）", () => {
-  it("create のみ（edit 無し）: tentative のクリアは DELETE を発行しない", async () => {
+  it("create のみ（edit 無し）: 既存 tentative の変更・クリアは不可（trigger 自体が無効）", async () => {
+    // BE は既存 intent の PUT upsert と DELETE に edit を要求するため、
+    // create-only ユーザーに actionable な操作が残らない → trigger を disabled にする。
     mockPermission(true, false);
     const user = userEvent.setup();
     mockReservations([reservationOf("tentative", wallDateInDays(45, 0, 0))]);
@@ -212,9 +214,11 @@ describe("NextVisitButton — 権限分割（PUT=create / DELETE=edit）", () =>
       render(<NextVisitButton petId="10" medicalRecordId="99" />);
     });
 
-    await user.click(screen.getByRole("button", { name: "次回予定を変更" }));
-    await user.click(screen.getByRole("button", { name: "クリア" }));
+    const trigger = screen.getByRole("button", { name: "次回予定を変更" });
+    expect(trigger).toBeDisabled();
+    await user.click(trigger);
 
+    expect(setMutateAsync).not.toHaveBeenCalled();
     expect(clearMutateAsync).not.toHaveBeenCalled();
   });
 

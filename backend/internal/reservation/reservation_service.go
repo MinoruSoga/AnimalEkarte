@@ -264,8 +264,8 @@ func ValidateReservationPetNotDeceased(ctx context.Context, repo petByIDInClinic
 // createOrPromoteTentative は全実予約作成経路（内部 Create・CreateBatch・admin/walk-in
 // Create・LIFF）で共有する EMR-308 absorb 入口。booking.PetID の active tentative があれば
 // 新規行を作らず同じ id の行を実予約へ昇格し、なければ通常 INSERT する。
-// status=checked_in の当日受付作成は PromoteTentativeOnCheckin 経路（区分は tentative 行の
-// general placeholder を維持し checked_in_at に実受付時刻）、それ以外は
+// status=checked_in の当日受付作成は PromoteTentativeOnCheckin 経路（要求された
+// reservation_type_id を書込み checked_in_at に実受付時刻）、それ以外は
 // AbsorbTentativeOnBooking 経路でパス固有の pending/confirmed 等へ昇格する。
 // repo op が ambient tx を必須とするため、呼び出し側は WithTx 内で呼ぶこと。
 func createOrPromoteTentative(ctx context.Context, repo ReservationRepository, booking *model.Reservation) (*model.Reservation, error) {

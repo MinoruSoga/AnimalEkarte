@@ -267,7 +267,7 @@ func TestReservationRepository_PromoteTentativeOnCheckin(t *testing.T) {
 		assert.Nil(t, got)
 	})
 
-	t.Run("promotes tentative to checked_in keeping placeholder type and provenance", func(t *testing.T) {
+	t.Run("promotes tentative to checked_in applying requested type and preserving provenance", func(t *testing.T) {
 		pet := makePetForReservationIntentTest(t, db, clinicA, ownerA.ID, "受付ペット1")
 		record := makeMedicalRecordForNextVisitIntentTest(t, db, clinicA, ownerA.ID, pet.ID, "CISRC")
 		intended := time.Date(2030, 9, 9, 0, 0, 0, 0, config.JST)
@@ -279,7 +279,8 @@ func TestReservationRepository_PromoteTentativeOnCheckin(t *testing.T) {
 
 		checkinStart := time.Date(2030, 9, 9, 11, 30, 0, 0, config.JST)
 		checkinEnd := checkinStart.Add(15 * time.Minute)
-		// 受付作成では別区分が渡ってきても tentative 行の general placeholder を維持する。
+		// Codex 指摘: 受付作成でも要求区分を書き込む — general placeholder 維持だと
+		// trimming 受付が診療ワークフローへ誤振分けされる。
 		otherType := &model.ReservationType{ClinicID: clinicA, Name: "受付別区分", Category: model.ReservationTypeCategoryGeneral, IsActive: true}
 		require.NoError(t, db.Create(otherType).Error)
 
@@ -300,8 +301,8 @@ func TestReservationRepository_PromoteTentativeOnCheckin(t *testing.T) {
 
 		assert.Equal(t, tentative.ID, got.ID)
 		assert.Equal(t, model.ReservationStatusCheckedIn, got.Status)
-		assert.Equal(t, tentative.ReservationTypeID, got.ReservationTypeID, "当日受付昇格は placeholder 区分を維持する")
-		assert.Equal(t, typeA.ID, got.ReservationTypeID)
+		assert.Equal(t, otherType.ID, got.ReservationTypeID, "当日受付昇格も要求区分を適用する")
+		assert.NotEqual(t, typeA.ID, got.ReservationTypeID)
 		require.NotNil(t, got.CheckedInAt)
 		assert.True(t, got.StartTime.Equal(checkinStart))
 		assert.True(t, got.EndTime.Equal(checkinEnd))
@@ -747,6 +748,57 @@ func TestReservationService_Update_TentativeCheckinRejectsDeceasedPet(t *testing
 	assert.Contains(t, err.Error(), reservationDeceasedPetMessage)
 }
 
+func TestReservationService_Update_TentativeCheckinRejectsExtraFields(t *testing.T) {
+	// Codex 指摘: status と同時に owner/pet/区分/schedule を送ると link・区分・競合
+	// 検証を bypass して CAS が書き込む。tentative 遷移は status-only に限定する。
+	petID := uint64(22)
+	otherPetID := uint64(99)
+	otherOwnerID := uint64(88)
+	typeID := uint64(55)
+	notes := "x"
+	sentinelStart := time.Date(2030, 1, 5, 0, 0, 0, 0, config.JST)
+	checkedIn := model.ReservationStatusCheckedIn
+	cases := []struct {
+		name  string
+		input *UpdateReservationInput
+	}{
+		{"pet_id 差し替え", &UpdateReservationInput{Status: &checkedIn, PetID: &otherPetID}},
+		{"owner_id 差し替え", &UpdateReservationInput{Status: &checkedIn, OwnerID: &otherOwnerID}},
+		{"reservation_type_id 差し替え", &UpdateReservationInput{Status: &checkedIn, ReservationTypeID: &typeID}},
+		{"start_time 指定", &UpdateReservationInput{Status: &checkedIn, StartTime: &sentinelStart}},
+		{"notes 同時変更", &UpdateReservationInput{Status: &checkedIn, Notes: &notes}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := &mockReservationRepository{
+				findByIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.Reservation, error) {
+					return &model.Reservation{
+						ID: 42, ClinicID: 1, PetID: &petID,
+						Status:            model.ReservationStatusTentative,
+						StartTime:         sentinelStart,
+						EndTime:           sentinelStart.Add(nextVisitIntentDurationMinutes * time.Minute),
+						ReservationTypeID: 7,
+						Source:            model.ReservationSourceManual,
+					}, nil
+				},
+				updateTentativeStatusFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+					t.Fatal("status 以外のフィールドを伴う tentative 遷移は書込に到達してはならない")
+					return nil, nil
+				},
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+					t.Fatal("status 以外のフィールドを伴う tentative 遷移は書込に到達してはならない")
+					return nil, nil
+				},
+			}
+			svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, &mockClinicHolidayFinder{})
+			got, err := svc.Update(context.Background(), 1, 42, tc.input)
+			require.Error(t, err)
+			assert.Nil(t, got)
+			assert.True(t, apperrors.IsInvalidInput(err), "status 以外のフィールド同時送信は 400")
+		})
+	}
+}
+
 func TestReservationService_Update_TentativeCheckinCasConflictPropagates(t *testing.T) {
 	// 並行 ConfirmTentative に先勝ちされた行: repo の status CAS が conflict を返し、
 	// service はそのまま伝播させる（汎用 update へのフォールバックはしない）。
@@ -938,9 +990,9 @@ func TestReservationService_Update_CancelConvertedRowDoesNotRevive(t *testing.T)
 			deleteCalled = true
 			return nil
 		},
-		setNextVisitIntentFn: func(_ context.Context, _, _ uint64, _ SetNextVisitIntentInput) (*model.Reservation, error) {
+		setNextVisitIntentFn: func(_ context.Context, _, _ uint64, _ SetNextVisitIntentInput) (*model.Reservation, *uint64, error) {
 			intentWriteCalled = true
-			return nil, nil
+			return nil, nil, nil
 		},
 	}
 	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, &mockClinicHolidayFinder{})

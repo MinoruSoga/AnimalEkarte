@@ -36,7 +36,8 @@ interface ExpiredTentativeRowProps {
  * 行単位コンポーネント — useGetPet を行ごとに呼ぶための境界。
  * 「確定」は tentative を実予約化する臨床 write のため死亡ペットは隠す
  * （EMR-177 positive-match 契約: pet 不明時は表示維持し BE 側ガードに委譲）。
- * 「再設定」「終了」は intent 操作のまま（実予約を作らない）のでゲートしない。
+ * 「再設定」も死亡ペットには出さない（BE の PUT intent が死亡ペットを拒否するため
+ * 押せても必ず失敗する — Codex 指摘）。「終了」は死亡ペットにも有効な操作なので残す。
  */
 function ExpiredTentativeRow({
   reservation,
@@ -75,7 +76,7 @@ function ExpiredTentativeRow({
             確定
           </Button>
         ) : null}
-        {canReset ? (
+        {canReset && !isDeceasedPet ? (
           <Button
             type="button"
             variant="outline"

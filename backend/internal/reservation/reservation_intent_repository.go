@@ -114,6 +114,11 @@ func (r *reservationRepository) BackfillForMedicalRecord(
 	if err != nil {
 		return err
 	}
+	if current.Status == model.ReservationStatusTentative {
+		// tentative 行は general placeholder 区分を持つため category チェックを素通り
+		// するが、未確定の日付意図行にカルテは紐付けない（先に実予約へ昇格させる）。
+		return apperrors.WrapConflict("次回予定（未確定）をカルテの対象予約にはできません。先に予約を確定してください")
+	}
 	if err := r.assertGeneralMedicalRecordReservationType(ctx, clinicID, current.ReservationTypeID); err != nil {
 		return err
 	}
@@ -252,6 +257,11 @@ func (r *reservationRepository) PrepareForMedicalRecordFinalization(ctx context.
 	switch appointment.Status {
 	case model.ReservationStatusNoShow, model.ReservationStatusCancelled:
 		return apperrors.WrapConflict("no-showまたはキャンセル済みの予約に紐づくカルテは確定できません")
+	case model.ReservationStatusTentative:
+		// tentative（次回予定）は general placeholder 区分を持つため category チェックを
+		// 素通りし、未確定の sentinel 時刻に対してカルテ確定できてしまう。実予約へ
+		// 昇格（confirm / absorb / check-in）してからでなければカルテを紐付けない。
+		return apperrors.WrapConflict("次回予定（未確定）に紐づくカルテは確定できません。先に予約を確定してください")
 	default:
 		return nil
 	}
@@ -358,10 +368,13 @@ func (r *reservationRepository) CreateForTrimming(
 		Source:            model.ReservationSourceManual,
 		ReservationRoute:  input.ReservationRoute,
 	}
-	if err := r.Create(ctx, appointment); err != nil {
+	// EMR-308/Codex: trimming 作成も他経路と同じく tentative absorb を通す。
+	// ペットに active tentative があれば新規行ではなく同一行を要求区分で昇格し、
+	// なければ通常 INSERT にフォールバックする。死亡ペットは tx 内で拒否する。
+	if err := ValidateReservationPetNotDeceased(ctx, r, clinicID, input.PetID); err != nil {
 		return nil, err
 	}
-	return appointment, nil
+	return createOrPromoteTentative(ctx, r, appointment)
 }
 
 func (r *reservationRepository) resolveTrimmingOwnerForPet(
@@ -655,6 +668,10 @@ type SetNextVisitIntentInput struct {
 	IntendedDate          time.Time
 	SourceMedicalRecordID *uint64
 	CreatedBy             *uint64
+	// CanUpdateExisting は reservations:edit 権限を handler が解決して渡す。
+	// active tentative が既にある場合の upsert は既存行の更新であり、create のみの
+	// ロールが他人の intent を上書きできないよう既存行の上書き時に 403 へ倒す。
+	CanUpdateExisting bool
 }
 
 // ConfirmTentativeUpdate は tentative 行が本予約へ遷移する際に確定した値を渡す。
@@ -688,6 +705,27 @@ func (r *reservationRepository) acquireNextVisitIntentLock(ctx context.Context, 
 		return apperrors.FromGORM(err, "reservation", lockKey)
 	}
 	return nil
+}
+
+// WithTentativeReminderSerialization は tentative mutation（set/clear/confirm/
+// absorb/checkin）と同じ (clinic,pet) intent advisory lock を保持する tx 内で
+// fn を実行する（EMR-308/Codex: LSTEP リマインダーの再検証〜外部送信 race 対策）。
+// ロック取得時点でコミット済みの mutation は fn 内の再読み込みに反映され、
+// ロック保持中に到着した mutation は tx 完了まで待機するため、stale な tentative
+// に基づく外部送信を防げる。fn に渡す ctx が tx スコープの再検証に使うもので、
+// 外部送信や別リポジトリへの書込は呼び出し側が元の ctx で行ってよい。
+func (r *reservationRepository) WithTentativeReminderSerialization(
+	ctx context.Context,
+	clinicID, petID uint64,
+	fn func(txCtx context.Context) error,
+) error {
+	return persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		if err := r.acquireNextVisitIntentLock(txCtx, clinicID, petID); err != nil {
+			return err
+		}
+		return fn(txCtx)
+	})
 }
 
 // findActiveTentativeForUpdate はペットの active tentative を行ロックして返す。未存在は nil を返す。
@@ -755,28 +793,31 @@ func nextVisitIntentTimeBounds(intendedDate time.Time) (start, end time.Time) {
 
 // SetNextVisitIntent はペットの次回予定を書き込む。active tentative が既にある場合は
 // 同一行を更新（upsert）し、なければ sentinel 時刻の tentative 行を作成する。
+// upsert は既存行の更新のため input.CanUpdateExisting（=reservations:edit）を要求する。
+// 第2戻り値は upsert で変更された旧 owner_id（未変更/新規は nil）— caller の
+// post-commit タグ再同期が旧飼い主側の stale タグも除去できるようにする。
 // 容量・時間枠・通知パスには乗らない。部分ユニーク索引違反は friendly error に変換する。
 func (r *reservationRepository) SetNextVisitIntent(
 	ctx context.Context,
 	clinicID, petID uint64,
 	input SetNextVisitIntentInput,
-) (*model.Reservation, error) {
+) (*model.Reservation, *uint64, error) {
 	if err := requireNextVisitIntentAmbientTransaction(ctx); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if input.IntendedDate.IsZero() {
-		return nil, apperrors.WrapInvalidInput("intended_date is required")
+		return nil, nil, apperrors.WrapInvalidInput("intended_date is required")
 	}
 	if err := r.acquireNextVisitIntentLock(ctx, clinicID, petID); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	ownerID, err := r.FindPetOwnerInClinic(ctx, clinicID, petID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if input.SourceMedicalRecordID != nil {
 		if err := r.assertSourceMedicalRecordForPet(ctx, clinicID, *input.SourceMedicalRecordID, petID); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	start, end := nextVisitIntentTimeBounds(input.IntendedDate)
@@ -784,23 +825,37 @@ func (r *reservationRepository) SetNextVisitIntent(
 
 	existing, err := r.findActiveTentativeForUpdate(ctx, clinicID, petID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if existing != nil {
+		if !input.CanUpdateExisting {
+			return nil, nil, apperrors.WrapForbidden("既存の次回予定を更新するには予約の編集権限が必要です")
+		}
 		fields := map[string]any{
 			"intended_date": intended,
 			"start_time":    start,
 			"end_time":      end,
+			// ペット譲渡で現 owner が変わっていたら intent 行の owner も追従する —
+			// 旧 owner 宛の表示・リマインダー・タグ同期が残り続けるのを防ぐ。
+			"owner_id": ownerID,
 		}
 		if input.SourceMedicalRecordID != nil {
 			fields["source_medical_record_id"] = *input.SourceMedicalRecordID
 		}
-		return r.update(ctx, clinicID, existing.ID, fields)
+		updated, err := r.update(ctx, clinicID, existing.ID, fields)
+		if err != nil {
+			return nil, nil, err
+		}
+		var prevOwnerID *uint64
+		if existing.OwnerID == nil || *existing.OwnerID != ownerID {
+			prevOwnerID = existing.OwnerID
+		}
+		return updated, prevOwnerID, nil
 	}
 
 	reservationTypeID, err := r.findGeneralReservationTypeID(ctx, clinicID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	route := nextVisitIntentRoute
 	appointment := &model.Reservation{
@@ -821,11 +876,15 @@ func (r *reservationRepository) SetNextVisitIntent(
 	}
 	if err := r.Create(ctx, appointment); err != nil {
 		if apperrors.IsAlreadyExists(err) {
-			return nil, apperrors.WrapAlreadyExistsMessage("このペットの次回予定は既に登録されています")
+			return nil, nil, apperrors.WrapAlreadyExistsMessage("このペットの次回予定は既に登録されています")
 		}
-		return nil, err
+		return nil, nil, err
 	}
-	return r.FindByID(ctx, clinicID, appointment.ID)
+	loaded, err := r.FindByID(ctx, clinicID, appointment.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	return loaded, nil, nil
 }
 
 // ClearNextVisitIntent はペットの active tentative を終了させる。
@@ -881,6 +940,19 @@ func (r *reservationRepository) ConfirmTentative(
 ) (*model.Reservation, error) {
 	if err := requireNextVisitIntentAmbientTransaction(ctx); err != nil {
 		return nil, err
+	}
+	// Codex: LSTEP リマインダー送信との直列化のため、tentative mutation はすべて
+	// (clinic,pet) intent advisory lock を通る必要がある。行ロック前にロックなし
+	// read で pet を解決し intent lock → row lock の順序で取得する（absorb 経路と
+	// 同一順序でデッドロックを回避）。
+	pre, err := r.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, err
+	}
+	if pre.PetID != nil {
+		if err := r.acquireNextVisitIntentLock(ctx, clinicID, *pre.PetID); err != nil {
+			return nil, err
+		}
 	}
 	current, err := r.LockAndFindByID(ctx, clinicID, id)
 	if err != nil {
@@ -956,6 +1028,18 @@ func (r *reservationRepository) updateTentativeStatus(
 	var loaded *model.Reservation
 	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := persistence.WithTxValue(ctx, tx)
+		// Codex: LSTEP リマインダー送信との直列化のため tentative mutation は
+		// (clinic,pet) intent advisory lock を通す。CAS 前に tx 内 read で pet を
+		// 解決し intent lock を取得する（lock 順序は intent → row で統一）。
+		current, findErr := r.FindByID(txCtx, clinicID, id)
+		if findErr != nil {
+			return findErr
+		}
+		if current.PetID != nil {
+			if lockErr := r.acquireNextVisitIntentLock(txCtx, clinicID, *current.PetID); lockErr != nil {
+				return lockErr
+			}
+		}
 		result := tx.Model(&model.Reservation{}).
 			Where("clinic_id = ? AND id = ? AND status = ? AND deleted_at IS NULL",
 				clinicID, id, model.ReservationStatusTentative).
@@ -969,9 +1053,9 @@ func (r *reservationRepository) updateTentativeStatus(
 		if result.RowsAffected == 0 {
 			return apperrors.WrapConflict("次回予定が同時に更新されました。再読み込みしてください")
 		}
-		var findErr error
-		loaded, findErr = r.FindByID(txCtx, clinicID, id)
-		return findErr
+		var reloadErr error
+		loaded, reloadErr = r.FindByID(txCtx, clinicID, id)
+		return reloadErr
 	})
 	if err != nil {
 		return nil, err
@@ -1080,8 +1164,8 @@ func (r *reservationRepository) promoteOrCreateFromTentative(
 // tentativeAbsorbFields は tentative 行へ実予約の値を上書きする列セットを組み立てる。
 // id / clinic_id / pet_id（照合キー）と provenance（intended_date /
 // source_medical_record_id / reservation_route=record_intent）は更新しない。
-// toCheckin=true（当日受付昇格）では区分を tentative 行の general placeholder のまま
-// 維持するため reservation_type_id を書き換えず、checked_in_at に実受付時刻を入れる。
+// toCheckin（当日受付昇格）でも要求区分を書き込む — general placeholder を維持すると
+// trimming 当日受付が診療ワークフロー・カルテ自動作成へ誤振分けされるため。
 // owner_id / line_customer_id / customer_fields / created_by は booking 側に実値が
 // ある場合だけ上書きし、未解決（nil/空）なら tentative 側の provenance を残す。
 func tentativeAbsorbFields(booking *model.Reservation, toCheckin bool, checkedInAt time.Time) map[string]any {
@@ -1111,9 +1195,7 @@ func tentativeAbsorbFields(booking *model.Reservation, toCheckin bool, checkedIn
 		"notes":              booking.Notes,
 		"source":             source,
 	}
-	if !toCheckin {
-		fields["reservation_type_id"] = booking.ReservationTypeID
-	}
+	fields["reservation_type_id"] = booking.ReservationTypeID
 	if status == model.ReservationStatusCheckedIn {
 		stamp := checkedInAt
 		if booking.CheckedInAt != nil {

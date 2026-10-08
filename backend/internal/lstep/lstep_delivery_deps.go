@@ -28,6 +28,10 @@ type deliveryAppointmentRepository interface {
 	// 取消・完了・削除・実予約昇格済みの stale candidate を排除するために使う。
 	// 該当なしは (nil, nil)。
 	FindTentativeByOwnerAndIntendedDate(ctx context.Context, clinicID, ownerID uint64, targetDate time.Time) (*model.Reservation, error)
+	// WithTentativeReminderSerialization は tentative mutation と同じ
+	// (clinic,pet) advisory lock を保持する tx 内で fn を実行する。
+	// 送信直前再検証〜外部送信を直列化し、stale candidate への配信を防ぐ。
+	WithTentativeReminderSerialization(ctx context.Context, clinicID, petID uint64, fn func(txCtx context.Context) error) error
 }
 
 type deliveryVaccinationRepository interface {

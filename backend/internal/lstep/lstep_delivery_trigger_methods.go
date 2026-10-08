@@ -71,12 +71,43 @@ func (s *lstepDeliveryTriggerService) runTentativeReminderBatch(
 	}
 	// EMR-308: 送信直前の stale 再検証。candidate 抽出時点以降に tentative が
 	// 取消・完了・削除・実予約昇格・日付変更されていれば送信せず除外ログを残す。
-	revalidate := func(ctx context.Context, ownerID uint64) (bool, string, error) {
+	// Codex: 再検証 read と外部送信の間に mutation が割り込めるため、tentative
+	// mutation と同じ (clinic,pet) advisory lock を保持する tx 内で再読み込み→
+	// 送信を直列化する（WithTentativeReminderSerialization）。
+	revalidate := func(ctx context.Context, ownerID uint64, send func(context.Context) error) (bool, string, error) {
 		candidate, err := s.appointmentRepo.FindTentativeByOwnerAndIntendedDate(ctx, clinicID, ownerID, target)
 		if err != nil {
 			return false, "", apperrors.Wrap(err, "failed to revalidate tentative appointment")
 		}
-		return candidate != nil, "stale_tentative_appointment", nil
+		if candidate == nil || candidate.PetID == nil {
+			return false, "stale_tentative_appointment", nil
+		}
+		stillValid := false
+		serErr := s.appointmentRepo.WithTentativeReminderSerialization(ctx, clinicID, *candidate.PetID, func(txCtx context.Context) error {
+			// ロック取得時点のコミット済み状態で再検証 —— 同時実行中の mutation は
+			// ここで待機し、コミット済みなら再読み込みに反映される。
+			current, err := s.appointmentRepo.FindTentativeByOwnerAndIntendedDate(txCtx, clinicID, ownerID, target)
+			if err != nil {
+				return apperrors.Wrap(err, "failed to revalidate tentative appointment")
+			}
+			if current == nil {
+				return nil // stale: send せず tx のみ commit
+			}
+			// 外部送信・ログ書込は元 ctx（tx 外）で実行 —— 送信自体はロック保持中の
+			// 直列化境界内にあり、送信後のログ更新が tx ロールバックで巻き戻るのを防ぐ。
+			if err := send(ctx); err != nil {
+				return err
+			}
+			stillValid = true
+			return nil
+		})
+		if serErr != nil {
+			return false, "", serErr
+		}
+		if !stillValid {
+			return false, "stale_tentative_appointment", nil
+		}
+		return true, "", nil
 	}
 	return s.runBatch(ctx, clinicID, ownerIDs, triggerType, triggerType, asOf, revalidate)
 }

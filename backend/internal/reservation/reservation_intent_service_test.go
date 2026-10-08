@@ -86,7 +86,9 @@ func TestReservationService_SetNextVisitIntent_DateValidation(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, got)
 		edge := today.AddDate(nextVisitIntentMaxYearsAhead, 0, 0)
-		got, err = svc.SetNextVisitIntent(ctx, clinicID, pet.ID, SetNextVisitIntentInput{IntendedDate: edge})
+		// 2回目は既存 intent の upsert — handler が edit 権限を解決して立てる
+		// CanUpdateExisting を service 層テストで再現する。
+		got, err = svc.SetNextVisitIntent(ctx, clinicID, pet.ID, SetNextVisitIntentInput{IntendedDate: edge, CanUpdateExisting: true})
 		require.NoError(t, err)
 		assert.Equal(t, model.ReservationStatusTentative, got.Status)
 	})
@@ -110,7 +112,7 @@ func TestReservationService_SetNextVisitIntent_Flow(t *testing.T) {
 		assert.Equal(t, "record_intent", *got.ReservationRoute)
 
 		later := intendedDate.AddDate(0, 1, 0)
-		updated, err := svc.SetNextVisitIntent(ctx, clinicA, petA.ID, SetNextVisitIntentInput{IntendedDate: later})
+		updated, err := svc.SetNextVisitIntent(ctx, clinicA, petA.ID, SetNextVisitIntentInput{IntendedDate: later, CanUpdateExisting: true})
 		require.NoError(t, err)
 		assert.Equal(t, got.ID, updated.ID)
 		assert.Equal(t, int64(1), countTentativeForPet(t, db, clinicA, petA.ID))

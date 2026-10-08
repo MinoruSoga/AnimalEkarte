@@ -115,6 +115,13 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 		default:
 			return nil, apperrors.WrapInvalidInput("仮予約（次回予定）は予約確定操作でのみ本予約へ変更できます")
 		}
+		// tentative 遷移は status のみ許可 — owner/pet/区分/schedule の同時書換は
+		// 下流の link・区分・capability・競合検証を経由せず CAS に流れ込むため拒否する。
+		if input.StartTime != nil || input.EndTime != nil || input.OwnerID != nil ||
+			input.PetID != nil || input.VisitType != nil || input.ReservationTypeID != nil ||
+			input.DoctorID != nil || input.IsDesignated != nil || input.Notes != nil {
+			return nil, apperrors.WrapInvalidInput("仮予約（次回予定）の受付・終了では status 以外のフィールドを変更できません")
+		}
 	}
 	if err := validateLineReservationCheckedInLink(current, input); err != nil {
 		return nil, err
@@ -142,18 +149,13 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	// EMR-308: tentative（record_intent）行の当日受付は sentinel 時刻（JST 00:00-00:15）を
 	// 実受付時刻に置き換え、同じ行を checked_in へ昇格する。general placeholder 区分・
 	// intended_date・source_medical_record_id の provenance は維持し新規行は作らない。
+	// tentative PATCH は status-only に制限済み（上記ゲート）のため input の時刻は常に nil。
 	// status-only PATCH では schedule 不変扱いのため枠競合・休診日チェックは発火しない。
-	// sentinel をそのまま echo してくる全量 PATCH（input の値が現在値と一致）も
-	// 実受付時刻へ置き換える。sentinel と異なる時刻を明示した場合はその意図を尊重する。
 	if input.Status != nil && *input.Status == model.ReservationStatusCheckedIn &&
 		current.Status == model.ReservationStatusTentative {
 		now := time.Now()
-		if input.StartTime == nil || input.StartTime.Equal(current.StartTime) {
-			fields["start_time"] = now
-		}
-		if input.EndTime == nil || input.EndTime.Equal(current.EndTime) {
-			fields["end_time"] = now.Add(nextVisitIntentDurationMinutes * time.Minute)
-		}
+		fields["start_time"] = now
+		fields["end_time"] = now.Add(nextVisitIntentDurationMinutes * time.Minute)
 	}
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")

@@ -514,8 +514,8 @@ func (m *mockLiffReservationRepository) AssertLineCustomerInClinic(_ context.Con
 	return nil
 }
 
-func (m *mockLiffReservationRepository) SetNextVisitIntent(_ context.Context, _, _ uint64, _ SetNextVisitIntentInput) (*model.Reservation, error) {
-	return nil, nil
+func (m *mockLiffReservationRepository) SetNextVisitIntent(_ context.Context, _, _ uint64, _ SetNextVisitIntentInput) (*model.Reservation, *uint64, error) {
+	return nil, nil, nil
 }
 
 func (m *mockLiffReservationRepository) ClearNextVisitIntent(_ context.Context, _, _ uint64) (bool, error) {
@@ -532,6 +532,10 @@ func (m *mockLiffReservationRepository) AbsorbTentativeOnBooking(_ context.Conte
 
 func (m *mockLiffReservationRepository) PromoteTentativeOnCheckin(_ context.Context, booking *model.Reservation) (*model.Reservation, error) {
 	return booking, nil
+}
+
+func (m *mockLiffReservationRepository) WithTentativeReminderSerialization(ctx context.Context, _ uint64, _ uint64, fn func(txCtx context.Context) error) error {
+	return fn(ctx)
 }
 
 // --- mockLiffValidators ---

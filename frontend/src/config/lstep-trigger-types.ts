@@ -4,6 +4,10 @@ export const TriggerTypeLabels: Record<string, string> = {
   first_visit_followup_3d: "初診フォロー 3日後",
   first_visit_followup_7d: "初診フォロー 7日後",
   next_visit_reminder: "次回来院リマインド",
+  // EMR-308: 次回予定（tentative）リマインダー。旧 next_visit_reminder は退役済みだが
+  // 旧履歴ログ表示のため残し、現行発行種別を追加する。
+  next_visit_tentative_reminder_3d: "次回予定リマインド 3日前",
+  next_visit_tentative_reminder_0d: "次回予定リマインド 当日",
   vaccine_deadline_60d: "ワクチン期限 60日前",
   vaccine_deadline_30d: "ワクチン期限 30日前",
   birthday_message: "誕生日メッセージ",

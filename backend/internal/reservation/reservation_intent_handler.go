@@ -83,6 +83,12 @@ func (h *CRUDHandler) SetNextVisitIntent(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
+	// EMR-308: PUT は upsert — 既存 intent の上書きは更新操作のため reservations:edit を
+	// repo のロック内で要求する。ルート middleware の create チェックとは別に、ここで
+	// edit 権限を解決して input へ載せる（checker 不在時は fail-closed で false）。
+	if check, ok := httpapi.PeekClinicPermissionChecker(c); ok {
+		input.CanUpdateExisting = check(c, clinicID, string(model.ResourceReservations), "edit")
+	}
 	reservation, err := h.svc.SetNextVisitIntent(c.Request.Context(), clinicID, petID, input)
 	if err != nil {
 		respondError(c, err)

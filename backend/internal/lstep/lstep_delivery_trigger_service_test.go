@@ -319,6 +319,7 @@ func (m *mockPetRepoForDelivery) CountLivingByOwnerIDs(_ context.Context, _ uint
 type mockDeliveryAppointmentRepository struct {
 	findOwnerIDsWithTentativeFn func(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
 	findTentativeByOwnerFn      func(ctx context.Context, clinicID, ownerID uint64, targetDate time.Time) (*model.Reservation, error)
+	withReminderSerializationFn func(ctx context.Context, clinicID, petID uint64, fn func(txCtx context.Context) error) error
 }
 
 func (m *mockDeliveryAppointmentRepository) FindOwnerIDsWithTentativeIntendedDate(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
@@ -333,7 +334,18 @@ func (m *mockDeliveryAppointmentRepository) FindTentativeByOwnerAndIntendedDate(
 		return m.findTentativeByOwnerFn(ctx, clinicID, ownerID, targetDate)
 	}
 	// デフォルトは active tentative 生存＝再検証通過（再検証ケース以外のセットアップを簡潔にする）。
-	return &model.Reservation{OwnerID: &ownerID, Status: model.ReservationStatusTentative}, nil
+	// PetID は直列化ロックのキー解決に必須のためスタブ値を付ける。
+	petID := uint64(9001)
+	return &model.Reservation{OwnerID: &ownerID, PetID: &petID, Status: model.ReservationStatusTentative}, nil
+}
+
+func (m *mockDeliveryAppointmentRepository) WithTentativeReminderSerialization(ctx context.Context, clinicID, petID uint64, fn func(txCtx context.Context) error) error {
+	if m.withReminderSerializationFn != nil {
+		return m.withReminderSerializationFn(ctx, clinicID, petID, fn)
+	}
+	// デフォルトはロックなし pass-through —— 実装側の直列化は repo 統合テストで担保し、
+	// ここでは hook 呼出の有無だけを検証可能にする。
+	return fn(ctx)
 }
 
 // ---- helpers ----

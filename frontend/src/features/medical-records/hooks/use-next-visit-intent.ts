@@ -20,6 +20,9 @@ interface UseNextVisitIntentParams {
   petId: string;
   /** 保存済みカルテがあればその id。PUT 時に source_medical_record_id として送る。 */
   medicalRecordId?: string;
+  /** EMR-308/Codex: 拠点横断カルテではレコード自身の clinicId を指定する。
+   *  query の X-Clinic-ID に使い、mutation 側は呼び出し元が同値で構築済みを前提とする。 */
+  clinicId?: string;
   isPetDeceased: boolean;
   setIntentMutation: AsyncMutation<SetNextVisitIntentVariables, unknown>;
   clearIntentMutation: AsyncMutation<string, unknown>;
@@ -35,29 +38,34 @@ interface UseNextVisitIntentParams {
 export function useNextVisitIntent({
   petId,
   medicalRecordId,
+  clinicId,
   isPetDeceased,
   setIntentMutation,
   clearIntentMutation,
 }: UseNextVisitIntentParams) {
   // TASK-444-S1: generated/models 直 import 禁止のためリソースは文字列リテラルで渡す
   const { canCreate, canEdit } = usePermission("reservations");
-  // PUT intent は reservations:create、DELETE intent は reservations:edit（routes.go）。
-  // 方向別に権限を分ける — create のみのスタッフが既存 intent を消せないよう fail-closed。
-  const canSetIntent = canCreate && !isPetDeceased;
-  const canClearIntent = canEdit && !isPetDeceased;
-  const intentCapsRef = useRef({ set: canSetIntent, clear: canClearIntent });
-  useLayoutEffect(() => {
-    intentCapsRef.current = { set: canSetIntent, clear: canClearIntent };
-  }, [canSetIntent, canClearIntent]);
 
   const { data: reservations } = useGetReservations({
     petId,
     startDate: todayJSTISO(),
     endDate: nextVisitFetchEndDate(),
     enabled: petId !== "",
+    clinicId,
   });
 
   const nextVisit = deriveNextVisitState(reservations ?? [], toJSTWallDate(new Date()));
+
+  // PUT intent は upsert: 新規は reservations:create、既存 intent の上書きは
+  // reservations:edit を要する（BE が repo ロック内で 403 を返す）。DELETE intent は
+  // reservations:edit。方向別に権限を分ける — fail-closed。
+  const hasExistingIntent = nextVisit.kind === "tentative";
+  const canSetIntent = canCreate && !isPetDeceased && (!hasExistingIntent || canEdit);
+  const canClearIntent = canEdit && !isPetDeceased;
+  const intentCapsRef = useRef({ set: canSetIntent, clear: canClearIntent });
+  useLayoutEffect(() => {
+    intentCapsRef.current = { set: canSetIntent, clear: canClearIntent };
+  }, [canSetIntent, canClearIntent]);
 
   // EMR-308 A1: 確定導線用に tentative 行そのもの（start/visitType/doctor 等を含む
   // transformed Reservation）を露出する。id だけでなく行全体を返すのは、

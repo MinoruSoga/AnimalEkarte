@@ -27,7 +27,18 @@ export interface SetNextVisitIntentVariables {
   medicalRecordId?: string;
 }
 
-const setNextVisitIntent = async (variables: SetNextVisitIntentVariables): Promise<Reservation> => {
+// EMR-308/Codex: 拠点横断で開いたカルテ（record.clinicId）上の次回予定操作は、
+// グローバル選択クリニックではなくレコード自身の clinicId を X-Clinic-ID で送る
+// （P2-15 vitals の clinicHeaderConfig と同じ先例）。省略時はインターセプタが
+// グローバル選択値にフォールバックする従来挙動を維持。
+function intentClinicConfig(clinicId?: string) {
+  return clinicId ? { headers: { "X-Clinic-ID": clinicId } } : undefined;
+}
+
+const setNextVisitIntent = async (
+  variables: SetNextVisitIntentVariables,
+  clinicId?: string,
+): Promise<Reservation> => {
   const { data } = await axios.put<ReservationApiResponse>(
     `/v1/reservations/pets/${variables.petId}/next-visit-intent`,
     {
@@ -36,6 +47,7 @@ const setNextVisitIntent = async (variables: SetNextVisitIntentVariables): Promi
         ? { source_medical_record_id: Number(variables.medicalRecordId) }
         : {}),
     },
+    intentClinicConfig(clinicId),
   );
   return transformReservationWithIntent(data);
 };
@@ -45,15 +57,18 @@ const setNextVisitIntent = async (variables: SetNextVisitIntentVariables): Promi
  * ペットのアクティブな次回予定を除去する（冪等）。BE 権限は reservations:edit。
  * active tentative はペットごとに1件（部分ユニーク索引）なので petId で一意に終わらせられる。
  */
-const clearNextVisitIntent = async (petId: string): Promise<void> => {
-  await axios.delete(`/v1/reservations/pets/${petId}/next-visit-intent`);
+const clearNextVisitIntent = async (petId: string, clinicId?: string): Promise<void> => {
+  await axios.delete(
+    `/v1/reservations/pets/${petId}/next-visit-intent`,
+    intentClinicConfig(clinicId),
+  );
 };
 
-export const useSetNextVisitIntent = () => {
+export const useSetNextVisitIntent = (clinicId?: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: setNextVisitIntent,
+    mutationFn: (variables: SetNextVisitIntentVariables) => setNextVisitIntent(variables, clinicId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.reservations.all() });
     },
@@ -61,11 +76,11 @@ export const useSetNextVisitIntent = () => {
   });
 };
 
-export const useClearNextVisitIntent = () => {
+export const useClearNextVisitIntent = (clinicId?: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: clearNextVisitIntent,
+    mutationFn: (petId: string) => clearNextVisitIntent(petId, clinicId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.reservations.all() });
     },

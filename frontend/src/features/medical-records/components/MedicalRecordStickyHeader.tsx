@@ -171,6 +171,7 @@ export function MedicalRecordStickyHeader({
         <NextVisitButton
           petId={selectedPet.id}
           medicalRecordId={medicalRecordId}
+          clinicId={recordClinicId}
           isPetDeceased={selectedPet.status === "死亡"}
           hasLineIntegration={hasLineIntegration}
         />

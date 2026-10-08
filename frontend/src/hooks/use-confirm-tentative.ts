@@ -39,21 +39,27 @@ class ConfirmTentativeBodyError extends Error {
   }
 }
 
-const confirmTentative = async (variables: ConfirmTentativeVariables): Promise<Reservation> => {
+const confirmTentative = async (
+  variables: ConfirmTentativeVariables,
+  clinicId?: string,
+): Promise<Reservation> => {
   const body: ConfirmTentativeRequestBody | null = buildConfirmTentativeBody(variables.formData);
   if (body === null) throw new ConfirmTentativeBodyError();
   const { data } = await axios.post<ReservationApiResponse>(
     `/v1/reservations/${variables.reservationId}/confirm-tentative`,
     body,
+    // EMR-308/Codex: 拠点横断カルテ上の確定操作はレコード自身の clinicId を
+    // X-Clinic-ID で送る（vitals の clinicHeaderConfig と同じ先例）。
+    clinicId ? { headers: { "X-Clinic-ID": clinicId } } : undefined,
   );
   return transformReservationWithIntent(data);
 };
 
-export const useConfirmTentative = () => {
+export const useConfirmTentative = (clinicId?: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: confirmTentative,
+    mutationFn: (variables: ConfirmTentativeVariables) => confirmTentative(variables, clinicId),
     onSuccess: (reservation) => {
       // useUpdateReservation と同等の invalidation（一覧 + 受付 + detail）
       queryClient.invalidateQueries({ queryKey: queryKeys.reservations.all() });

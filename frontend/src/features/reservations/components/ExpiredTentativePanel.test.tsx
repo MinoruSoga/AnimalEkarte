@@ -170,9 +170,9 @@ describe("ExpiredTentativePanel (EMR-308 A3)", () => {
     expect(screen.queryByRole("button", { name: /次回予定を終了/ })).not.toBeInTheDocument();
   });
 
-  it("死亡ペットの行では確定ボタンを出さない（再設定・終了は出す）", () => {
-    // EMR-308 review fix: 確定は実予約化する臨床 write のため死亡ペットはゲート。
-    // intent 操作（再設定/終了）は実予約を作らないため残す。
+  it("死亡ペットの行では確定・再設定を出さない（終了は出す）", () => {
+    // EMR-308 review fix: 確定は実予約化、再設定は PUT intent — いずれも
+    // BE が死亡ペットを拒否するため表示しない。「終了」（DELETE intent）は有効なので残す。
     getPetResult.current = {
       data: { status: "死亡", deceasedAt: "2026-09-10" },
     };
@@ -189,7 +189,7 @@ describe("ExpiredTentativePanel (EMR-308 A3)", () => {
     );
 
     expect(screen.queryByRole("button", { name: /次回予定を確定/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /次回予定を再設定/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /次回予定を再設定/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /次回予定を終了/ })).toBeInTheDocument();
   });
 

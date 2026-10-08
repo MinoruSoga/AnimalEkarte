@@ -99,6 +99,12 @@ func (v *reservationValidators) createLineReservationInTx(
 	appt := buildLineReservation(input, startDT, endDT, confirmationNumber)
 	// EMR-308: LINE 予約でもペットの active tentative を同一行昇格する。
 	// pet 未解決（未リンク顧客）のときは repo 側が通常 INSERT にフォールバックする。
+	// Codex 指摘: 事前解決時の死亡チェック（resolveReservationOwnerPet）はロックを
+	// 伴わない事前 read のため、昇格・INSERT 直前に tx 内で再検証する（tx 内の
+	// FindPetByIDInClinic は SHARE lock を取り、検証〜書込の死亡遷移を閉じる）。
+	if err := ValidateReservationPetNotDeceased(ctx, v.repo, input.ClinicID, appt.PetID); err != nil {
+		return nil, err
+	}
 	promoted, err := createOrPromoteTentative(ctx, v.repo, appt)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to create reservation")

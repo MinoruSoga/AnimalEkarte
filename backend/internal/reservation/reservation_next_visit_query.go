@@ -41,12 +41,22 @@ var nextVisitActiveStatuses = []model.ReservationStatus{
 // または pets.deceased_at 非NULL）で、両フィールドは独立管理のため OR で評価する。
 // 死亡ペットの tentative 行は自動キャンセルされず残り得るため、candidate 抽出・
 // 送信直前再検証・タグ同期の3経路すべてで共通適用する。
-// pet_id NULL（飼い主直結予約）は pets 行が存在しないので自然に対象へ残る。
+// pet_id NULL（飼い主直結予約）は pets 行が存在しないので対象に残す一方、
+// pet_id 非 NULL は「生存かつ未削除」の pets 行を必須とする — soft-delete 済みの
+// 生存ペットをリマインダー・タグ同期の対象から外す。
 const nextVisitLivingPetClause = `NOT EXISTS (
 	SELECT 1 FROM pets
 	WHERE pets.id = appointments.pet_id
 	  AND pets.clinic_id = appointments.clinic_id
 	  AND (pets.status = 'deceased' OR pets.deceased_at IS NOT NULL)
+) AND (
+	appointments.pet_id IS NULL
+	OR EXISTS (
+		SELECT 1 FROM pets live_pet
+		WHERE live_pet.id = appointments.pet_id
+		  AND live_pet.clinic_id = appointments.clinic_id
+		  AND live_pet.deleted_at IS NULL
+	)
 )`
 
 // jstCalendarDate は t を含む JST 暦日の開始時刻と YYYY-MM-DD 文字列を返す。

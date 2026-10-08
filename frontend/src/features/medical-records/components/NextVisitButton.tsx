@@ -23,6 +23,8 @@ interface NextVisitButtonProps {
   petId: string;
   /** 保存済みカルテの id。PUT 時に source_medical_record_id として送る。 */
   medicalRecordId?: string;
+  /** EMR-308/Codex: 拠点横断カルテ（record.clinicId）ではその医院を X-Clinic-ID として送る */
+  clinicId?: string;
   isPetDeceased?: boolean;
   hasLineIntegration?: boolean;
 }
@@ -35,12 +37,13 @@ interface NextVisitButtonProps {
 export function NextVisitButton({
   petId,
   medicalRecordId,
+  clinicId,
   isPetDeceased = false,
   hasLineIntegration,
 }: NextVisitButtonProps) {
-  const setIntentMutation = useSetNextVisitIntent();
-  const clearIntentMutation = useClearNextVisitIntent();
-  const confirmTentativeMutation = useConfirmTentative();
+  const setIntentMutation = useSetNextVisitIntent(clinicId);
+  const clearIntentMutation = useClearNextVisitIntent(clinicId);
+  const confirmTentativeMutation = useConfirmTentative(clinicId);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const {
     nextVisitLabel,
@@ -53,6 +56,7 @@ export function NextVisitButton({
   } = useNextVisitIntent({
     petId,
     medicalRecordId,
+    clinicId,
     isPetDeceased,
     setIntentMutation,
     clearIntentMutation,

@@ -58,19 +58,21 @@ func (s *reservationService) SetNextVisitIntent(
 		return nil, apperrors.WrapInternalServerError("reservation transaction dependency is required")
 	}
 	var appointment *model.Reservation
+	var prevOwnerID *uint64
 	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		if err := ValidateReservationPetNotDeceased(ctx, s.repo, clinicID, &petID); err != nil {
 			return err
 		}
 		var writeErr error
-		appointment, writeErr = s.repo.SetNextVisitIntent(ctx, clinicID, petID, input)
+		appointment, prevOwnerID, writeErr = s.repo.SetNextVisitIntent(ctx, clinicID, petID, input)
 		return writeErr
 	})
 	if err != nil {
 		return nil, err
 	}
 	// EMR-308: tentative 書込で飼い主の次回来院が変わるため post-commit で再同期する。
-	syncNextVisitTagBestEffort(ctx, s.nextVisitTagSync, clinicID, appointment.OwnerID)
+	// upsert で owner が差し替わった場合は旧飼い主側の stale タグも除去対象に含める。
+	syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, appointment.OwnerID, prevOwnerID)
 	slog.InfoContext(ctx, "next visit intent set",
 		slog.Uint64("reservation_id", appointment.ID),
 		slog.Uint64("clinic_id", clinicID),

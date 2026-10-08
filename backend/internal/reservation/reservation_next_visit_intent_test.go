@@ -41,10 +41,13 @@ func setNextVisitIntentInTx(
 	clinicID, petID uint64,
 	input SetNextVisitIntentInput,
 ) (*model.Reservation, error) {
+	// この helper は repo の upsert 機構を対象にするため edit 権限相当を常に許可する。
+	// CanUpdateExisting=false の拒否自体は専用テストで固定する。
+	input.CanUpdateExisting = true
 	var got *model.Reservation
 	err := testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
 		var err error
-		got, err = repo.SetNextVisitIntent(txCtx, clinicID, petID, input)
+		got, _, err = repo.SetNextVisitIntent(txCtx, clinicID, petID, input)
 		return err
 	})
 	return got, err
@@ -133,7 +136,7 @@ func TestReservationRepository_SetNextVisitIntent(t *testing.T) {
 	intendedDate := time.Date(2030, 3, 10, 0, 0, 0, 0, config.JST)
 
 	t.Run("requires an ambient transaction", func(t *testing.T) {
-		got, err := repo.SetNextVisitIntent(ctx, clinicA, petA.ID, SetNextVisitIntentInput{IntendedDate: intendedDate})
+		got, _, err := repo.SetNextVisitIntent(ctx, clinicA, petA.ID, SetNextVisitIntentInput{IntendedDate: intendedDate})
 		require.Error(t, err)
 		assert.Nil(t, got)
 		assert.Equal(t, int64(0), countTentativeForPet(t, db, clinicA, petA.ID))
@@ -183,6 +186,58 @@ func TestReservationRepository_SetNextVisitIntent(t *testing.T) {
 		assert.Equal(t, int64(1), countTentativeForPet(t, db, clinicA, petA.ID))
 	})
 
+	t.Run("rejects overwrite without update permission (CanUpdateExisting=false)", func(t *testing.T) {
+		// Codex 指摘: PUT intent は upsert — 既存行の更新は reservations:edit 相当を
+		// 要求する（create のみのロールが他人の intent を上書きできないよう fail-closed）。
+		pet := makePetForReservationIntentTest(t, db, clinicA, ownerA.ID, "権限拒否ペット")
+		created, err := setNextVisitIntentInTx(ctx, db, repo, clinicA, pet.ID, SetNextVisitIntentInput{IntendedDate: intendedDate})
+		require.NoError(t, err)
+
+		var got *model.Reservation
+		newDate := intendedDate.AddDate(0, 0, 7)
+		err = testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
+			var err error
+			got, _, err = repo.SetNextVisitIntent(txCtx, clinicA, pet.ID, SetNextVisitIntentInput{IntendedDate: newDate})
+			return err
+		})
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, apperrors.ErrForbidden), "既存 intent 上書きは edit 権限なしで 403")
+		assert.Nil(t, got)
+		var reloaded model.Reservation
+		require.NoError(t, db.First(&reloaded, created.ID).Error)
+		require.NotNil(t, reloaded.IntendedDate)
+		assert.Equal(t, "2030-03-10",
+			reloaded.IntendedDate.In(config.JST).Format(time.DateOnly),
+			"拒否された上書きは intended_date を変更しない")
+	})
+
+	t.Run("refreshes owner_id on upsert after pet transfer and reports previous owner", func(t *testing.T) {
+		// Codex 指摘: ペット譲渡後の upsert で owner_id を追従させ、旧 owner を
+		// post-commit タグ再同期へ返す。
+		pet := makePetForReservationIntentTest(t, db, clinicA, ownerA.ID, "譲渡ペット")
+		_, err := setNextVisitIntentInTx(ctx, db, repo, clinicA, pet.ID, SetNextVisitIntentInput{IntendedDate: intendedDate})
+		require.NoError(t, err)
+
+		newOwner := testdb.MakeTestOwner(t, db, clinicA, "譲渡先飼主")
+		require.NoError(t, db.Model(&model.Pet{}).Where("id = ?", pet.ID).Update("owner_id", newOwner.ID).Error)
+
+		var updated *model.Reservation
+		var prevOwner *uint64
+		err = testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
+			var err error
+			updated, prevOwner, err = repo.SetNextVisitIntent(txCtx, clinicA, pet.ID, SetNextVisitIntentInput{
+				IntendedDate:      intendedDate.AddDate(0, 0, 3),
+				CanUpdateExisting: true,
+			})
+			return err
+		})
+		require.NoError(t, err)
+		require.NotNil(t, updated.OwnerID)
+		assert.Equal(t, newOwner.ID, *updated.OwnerID, "upsert は現 owner を書き込む")
+		require.NotNil(t, prevOwner)
+		assert.Equal(t, ownerA.ID, *prevOwner, "旧 owner を返してタグ再同期できる")
+	})
+
 	t.Run("rejects a pet owned by another clinic", func(t *testing.T) {
 		_, _, _ = makeNextVisitIntentFixture(t, db, clinicB, "B")
 		got, err := setNextVisitIntentInTx(ctx, db, repo, clinicA, 999999, SetNextVisitIntentInput{IntendedDate: intendedDate})
@@ -220,7 +275,7 @@ func TestReservationRepository_SetNextVisitIntent(t *testing.T) {
 		pet := makePetForReservationIntentTest(t, db, clinicA, owner.ID, "次回予定rollbackペット")
 		sentinel := errors.New("rollback intent write")
 		err := testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
-			if _, err := repo.SetNextVisitIntent(txCtx, clinicA, pet.ID, SetNextVisitIntentInput{IntendedDate: intendedDate}); err != nil {
+			if _, _, err := repo.SetNextVisitIntent(txCtx, clinicA, pet.ID, SetNextVisitIntentInput{IntendedDate: intendedDate}); err != nil {
 				return err
 			}
 			return sentinel
@@ -403,7 +458,8 @@ func TestReservationRepository_UpdateTentativeStatus(t *testing.T) {
 		})
 		require.Error(t, err)
 		assert.Nil(t, got)
-		assert.True(t, apperrors.IsConflict(err))
+		// lock 用の tx 内 FindByID が先に走るため跨医院行は 404（ConfirmTentative と同契約）。
+		assert.True(t, apperrors.IsNotFound(err))
 		assert.Equal(t, model.ReservationStatusTentative, reloadReservationIntentStatus(t, db, tentative.ID))
 	})
 }

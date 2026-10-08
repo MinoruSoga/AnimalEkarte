@@ -611,13 +611,14 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// EMR-308 next-visit intent (tentative) write surface. SetNextVisitIntent itself carries no
 	// literal DBOrTx (it delegates through these helpers + r.Create/r.update) — same registration
 	// shape as BackfillForMedicalRecord/CreateForTrimming which are likewise unregistered.
-	"reservation/reservation_intent_repository.go|reservationRepository.ClearNextVisitIntent":            {}, // EMR-308 idempotent tentative soft-delete
-	"reservation/reservation_intent_repository.go|reservationRepository.ConfirmTentative":                {}, // EMR-308 tentative → pending/confirmed transition
-	"reservation/reservation_intent_repository.go|reservationRepository.updateTentativeStatus":           {}, // EMR-308 tentative-limited CAS update (WHERE status=tentative)
-	"reservation/reservation_intent_repository.go|reservationRepository.acquireNextVisitIntentLock":      {}, // EMR-308 (clinic,pet) advisory lock; ambient-tx bound
-	"reservation/reservation_intent_repository.go|reservationRepository.findActiveTentativeForUpdate":    {}, // EMR-308 single-active-tentative lookup under row lock
-	"reservation/reservation_intent_repository.go|reservationRepository.findGeneralReservationTypeID":    {}, // EMR-308 general placeholder type resolution
-	"reservation/reservation_intent_repository.go|reservationRepository.assertSourceMedicalRecordForPet": {}, // EMR-308 provenance guard (same clinic + same pet)
+	"reservation/reservation_intent_repository.go|reservationRepository.ClearNextVisitIntent":               {}, // EMR-308 idempotent tentative soft-delete
+	"reservation/reservation_intent_repository.go|reservationRepository.ConfirmTentative":                   {}, // EMR-308 tentative → pending/confirmed transition
+	"reservation/reservation_intent_repository.go|reservationRepository.updateTentativeStatus":              {}, // EMR-308 tentative-limited CAS update (WHERE status=tentative)
+	"reservation/reservation_intent_repository.go|reservationRepository.WithTentativeReminderSerialization": {}, // EMR-308 LSTEP revalidate→send serialization via (clinic,pet) advisory lock
+	"reservation/reservation_intent_repository.go|reservationRepository.acquireNextVisitIntentLock":         {}, // EMR-308 (clinic,pet) advisory lock; ambient-tx bound
+	"reservation/reservation_intent_repository.go|reservationRepository.findActiveTentativeForUpdate":       {}, // EMR-308 single-active-tentative lookup under row lock
+	"reservation/reservation_intent_repository.go|reservationRepository.findGeneralReservationTypeID":       {}, // EMR-308 general placeholder type resolution
+	"reservation/reservation_intent_repository.go|reservationRepository.assertSourceMedicalRecordForPet":    {}, // EMR-308 provenance guard (same clinic + same pet)
 	// AbsorbTentativeOnBooking/PromoteTentativeOnCheckin delegate through this shared
 	// implementation (same unregistered-shape rule as SetNextVisitIntent).
 	"reservation/reservation_intent_repository.go|reservationRepository.promoteOrCreateFromTentative": {}, // EMR-308 tentative 同一行昇格 (booking/check-in absorb)
