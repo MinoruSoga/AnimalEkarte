@@ -155,6 +155,11 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	reservations.PATCH("/:id", h.requirePermission(string(model.ResourceReservations), "edit"), h.reservationCRUD.UpdateReservation)
 	reservations.PATCH("/:id/reservation-route", h.requirePermission(string(model.ResourceReservations), "edit"), h.reservationCRUD.UpdateReservationReservationRoute)
 	reservations.DELETE("/:id", h.requirePermission(string(model.ResourceReservations), "delete"), h.reservationCRUD.DeleteReservation)
+	// EMR-308: 次回予定（tentative appointment）。カルテ「次回予定」の正本として
+	// ペット単位で upsert/除去し、ID指定で tentative→本予約へ確定する。
+	reservations.PUT("/pets/:petId/next-visit-intent", h.requirePermission(string(model.ResourceReservations), "create"), h.reservationCRUD.SetNextVisitIntent)
+	reservations.DELETE("/pets/:petId/next-visit-intent", h.requirePermission(string(model.ResourceReservations), "edit"), h.reservationCRUD.ClearNextVisitIntent)
+	reservations.POST("/:id/confirm-tentative", h.requirePermission(string(model.ResourceReservations), "edit"), h.reservationCRUD.ConfirmTentativeAppointment)
 }
 
 // RegisterLiffRoutes はLIFF公開APIのルートを登録する（LINE IDトークン認証）。

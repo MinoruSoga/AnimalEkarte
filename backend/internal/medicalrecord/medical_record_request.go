@@ -177,9 +177,6 @@ type createMedicalRecordRequest struct {
 	AppointmentID *string    `json:"appointment_id"`              // FE送信（string）→ uint64に変換
 	Status        string     `json:"status"                       binding:"omitempty,oneof=draft finalized"`
 
-	// BE-006: 次回来院推奨日
-	NextVisitRecommendedDate *string `json:"next_visit_recommended_date"` // "YYYY-MM-DD" or null
-
 	// ClinicalPlan関連フィールド（原子的作成用）
 	ChiefComplaint       *string `json:"chief_complaint"`
 	ChiefComplaintTypeID *uint64 `json:"chief_complaint_type_id"`
@@ -226,11 +223,6 @@ func (r *createMedicalRecordRequest) toServiceInput(staffID uint64) (CreateMedic
 		return CreateMedicalRecordInput{}, err
 	}
 
-	nextVisitDate, err := r.nextVisitDate(recordDate)
-	if err != nil {
-		return CreateMedicalRecordInput{}, err
-	}
-
 	visitType := model.VisitTypeRevisit
 	if r.VisitType == string(model.VisitTypeFirst) {
 		visitType = model.VisitTypeFirst
@@ -253,17 +245,16 @@ func (r *createMedicalRecordRequest) toServiceInput(staffID uint64) (CreateMedic
 	}
 
 	return CreateMedicalRecordInput{
-		RecordNo:                 r.RecordNo,
-		Date:                     recordDate,
-		OwnerID:                  ownerID,
-		PetID:                    petID,
-		DoctorID:                 doctorID,
-		AppointmentID:            appointmentID,
-		Status:                   status,
-		VisitType:                visitType,
-		NextVisitRecommendedDate: nextVisitDate,
-		RecommendationReason:     recommendationReason,
-		EnteredBy:                &staffID,
+		RecordNo:             r.RecordNo,
+		Date:                 recordDate,
+		OwnerID:              ownerID,
+		PetID:                petID,
+		DoctorID:             doctorID,
+		AppointmentID:        appointmentID,
+		Status:               status,
+		VisitType:            visitType,
+		RecommendationReason: recommendationReason,
+		EnteredBy:            &staffID,
 	}, nil
 }
 
@@ -280,23 +271,6 @@ func (r *createMedicalRecordRequest) recordDate() (time.Time, error) {
 	default:
 		return time.Now(), nil
 	}
-}
-
-func (r *createMedicalRecordRequest) nextVisitDate(recordDate time.Time) (*time.Time, error) {
-	if r.NextVisitRecommendedDate == nil || *r.NextVisitRecommendedDate == "" {
-		return nil, nil
-	}
-	parsed, err := time.ParseInLocation(time.DateOnly, *r.NextVisitRecommendedDate, time.Local)
-	if err != nil {
-		return nil, apperrors.WrapInvalidInput("invalid next_visit_recommended_date format (expected YYYY-MM-DD)")
-	}
-	if !parsed.After(recordDate) {
-		return nil, apperrors.WrapInvalidInput("next_visit_recommended_date must be after the record date")
-	}
-	if parsed.After(recordDate.AddDate(2, 0, 0)) {
-		return nil, apperrors.WrapInvalidInput("next_visit_recommended_date must be within 2 years")
-	}
-	return &parsed, nil
 }
 
 func (r *createMedicalRecordRequest) toSubRecordsInput() CreateSubRecordsInput {
@@ -336,15 +310,14 @@ func (r patchMedicalRecordRecommendationReasonRequest) toServiceInput() UpdateRe
 
 // updateMedicalRecordRequest はカルテ更新のバインド struct
 type updateMedicalRecordRequest struct {
-	Date                     *time.Time `json:"date"`
-	OwnerID                  *uint64    `json:"owner_id"`
-	PetID                    *uint64    `json:"pet_id"`
-	DoctorID                 *uint64    `json:"doctor_id"`
-	AppointmentID            *uint64    `json:"appointment_id"`
-	Status                   *string    `json:"status"      binding:"omitempty,oneof=draft finalized"`
-	Version                  *int       `json:"version"`                     // 楽観的ロック用
-	NextVisitRecommendedDate *string    `json:"next_visit_recommended_date"` // "YYYY-MM-DD" or null
-	VisitType                *string    `json:"visit_type"`                  // "first" | "revisit"
+	Date          *time.Time `json:"date"`
+	OwnerID       *uint64    `json:"owner_id"`
+	PetID         *uint64    `json:"pet_id"`
+	DoctorID      *uint64    `json:"doctor_id"`
+	AppointmentID *uint64    `json:"appointment_id"`
+	Status        *string    `json:"status"      binding:"omitempty,oneof=draft finalized"`
+	Version       *int       `json:"version"`    // 楽観的ロック用
+	VisitType     *string    `json:"visit_type"` // "first" | "revisit"
 }
 
 func (r updateMedicalRecordRequest) toServiceInput(actorID uint64) (UpdateMedicalRecordInput, error) {
@@ -360,19 +333,6 @@ func (r updateMedicalRecordRequest) toServiceInput(actorID uint64) (UpdateMedica
 		status = &s
 	}
 
-	var nextVisitDate *time.Time
-	var clearNextVisit bool
-	if r.NextVisitRecommendedDate != nil && *r.NextVisitRecommendedDate == "" {
-		clearNextVisit = true // 空文字 = 明示的クリア → DB を NULL にする
-	}
-	if r.NextVisitRecommendedDate != nil && *r.NextVisitRecommendedDate != "" {
-		parsed, err := time.ParseInLocation(time.DateOnly, *r.NextVisitRecommendedDate, time.Local)
-		if err != nil {
-			return UpdateMedicalRecordInput{}, apperrors.WrapInvalidInput("invalid next_visit_recommended_date format (expected YYYY-MM-DD)")
-		}
-		nextVisitDate = &parsed
-	}
-
 	var visitType *model.VisitType
 	if r.VisitType != nil {
 		vt, err := httpapi.ValidateEnum(*r.VisitType, model.VisitTypeFirst, model.VisitTypeRevisit)
@@ -383,16 +343,14 @@ func (r updateMedicalRecordRequest) toServiceInput(actorID uint64) (UpdateMedica
 	}
 
 	return UpdateMedicalRecordInput{
-		Date:                          r.Date,
-		OwnerID:                       r.OwnerID,
-		PetID:                         r.PetID,
-		DoctorID:                      r.DoctorID,
-		AppointmentID:                 r.AppointmentID,
-		Status:                        status,
-		Version:                       r.Version,
-		NextVisitRecommendedDate:      nextVisitDate,
-		ClearNextVisitRecommendedDate: clearNextVisit,
-		VisitType:                     visitType,
-		ActorID:                       &actorID,
+		Date:          r.Date,
+		OwnerID:       r.OwnerID,
+		PetID:         r.PetID,
+		DoctorID:      r.DoctorID,
+		AppointmentID: r.AppointmentID,
+		Status:        status,
+		Version:       r.Version,
+		VisitType:     visitType,
+		ActorID:       &actorID,
 	}, nil
 }

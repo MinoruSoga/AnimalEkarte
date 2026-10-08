@@ -16,6 +16,7 @@
 | 予約種別 | `reservation_types.category` | `general` / `trimming` で遷移先を決める |
 | スタッフ対応可能種別 | `staff_reservation_capabilities` | staff 可否判定と write 検証の肯定形 SoT |
 | 予約経路 | `appointments.reservation_route` | `line`、`reception`、`record_shortcut` 等の業務入口 |
+| 次回予定（EMR-308） | `appointments`（`status='tentative'`） | 日付のみ確定の未予約意図。`intended_date` が正本で `reservation_route='record_intent'`・`source_medical_record_id` に由来カルテを保持。枠・容量・時間枠競合・通知の対象外 |
 
 通常診療とトリミングを同日に行う場合は appointment を 2 件作る。会計は appointment 単位に固定せず、同日・同一 owner/pet の未会計項目をまとめられる。
 
@@ -52,14 +53,21 @@
 | 会計待ち | `accounting` |
 | 会計済 | `completed` |
 
-`cancelled` / `no_show` は通常の進行列には表示しない。
+`cancelled` / `no_show` / `tentative` は通常の進行列には表示しない。
+
+EMR-308: `tentative`（次回予定・未予約）はカルテヘッダーの「次回予定」（`PUT/DELETE /v1/reservations/pets/:petId/next-visit-intent`）で書かれる sentinel 行で、実時刻を持たず（`start_time`/`end_time` は `intended_date` の JST 00:00–00:15 sentinel）カンバン・空き枠・定員計算に参加しない。実予約への遷移は2経路ある。(a) 予約詳細の「予約を確定」（`POST /v1/reservations/:id/confirm-tentative`）で明示時刻・担当を付けて `pending`/`confirmed` へ昇格、(b) 同一ペットへの実予約・当日受付・walk-in 作成経路（内部 Create・CreateBatch・admin/walk-in・LIFF）が `createOrPromoteTentative` で active tentative を同一行昇格し、受付時に sentinel 時刻を実時刻へ置き換える。`DELETE next-visit-intent` は tentative を論理削除する。
 
 ```mermaid
 stateDiagram-v2
     [*] --> pending : 予約 (LINE / 院内)
+    [*] --> tentative : 次回予定の設定 (route=record_intent)
     pending --> confirmed
     pending --> checked_in : 来院受付
     confirmed --> checked_in : 来院受付
+    tentative --> pending : 予約を確定 (confirm-tentative)
+    tentative --> confirmed : 実予約作成時の同一行昇格
+    tentative --> checked_in : 当日受付/walk-in 昇格
+    tentative --> [*] : next-visit-intent 取消 (論理削除)
     [*] --> checked_in : 予約なし来院 (route=reception)
     [*] --> in_consultation : direct consultation / record_shortcut
     checked_in --> in_consultation : 診療/トリミング開始
@@ -112,7 +120,7 @@ clinic-owned relation は tenant boundary を明示する。主要 column は次
 
 | テーブル | 主要 column |
 |---|---|
-| `appointments` | `id`, `clinic_id`, `start_time`, `end_time`, `owner_id`, `pet_id`, `reservation_type_id`, `doctor_id`, `status`, `source`, `reservation_route`, `actual_reservation_at`, `line_customer_id`, `customer_fields` |
+| `appointments` | `id`, `clinic_id`, `start_time`, `end_time`, `owner_id`, `pet_id`, `reservation_type_id`, `doctor_id`, `status`, `source`, `reservation_route`, `actual_reservation_at`, `line_customer_id`, `customer_fields`, `intended_date`, `source_medical_record_id` |
 | `reservation_types` | `id`, `clinic_id`, `name`, `duration_minutes`, `category`, `reservation_visible`, `reservation_day_option`, `is_internal`, `group_id` |
 | `reservation_type_occupations` | `clinic_id`, `reservation_type_id`, `occupation_id` |
 | `staffs` | `id`, `clinic_id`, `name`, `is_active`, `staff_type`, `reservation_visible` |

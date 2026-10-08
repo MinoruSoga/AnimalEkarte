@@ -2,6 +2,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
+import {
+  transformReservationWithIntent,
+  type Reservation,
+  type ReservationApiResponse,
+} from "@/hooks/reservation-intent-response";
 import type { ReservationStatus } from "@/types";
 
 interface UpdateStatusPayload {
@@ -9,9 +14,17 @@ interface UpdateStatusPayload {
   status: ReservationStatus;
 }
 
-/** 予約ステータスを更新する */
-async function updateAppointmentStatus(id: string, status: ReservationStatus): Promise<void> {
-  await axios.patch(`/v1/reservations/${id}`, { status });
+/**
+ * 予約ステータスを更新する。
+ * EMR-308: PATCH 応答を transform して返す — 呼び出し側が had_intended_date /
+ * pet_id（tentative 由来 provenance）を見てキャンセル後の任意再設定を提示できるようにする。
+ */
+async function updateAppointmentStatus(
+  id: string,
+  status: ReservationStatus,
+): Promise<Reservation> {
+  const { data } = await axios.patch<ReservationApiResponse>(`/v1/reservations/${id}`, { status });
+  return transformReservationWithIntent(data);
 }
 
 /** カンバン操作時のステータス更新 mutation hook */

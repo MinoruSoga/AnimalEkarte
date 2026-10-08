@@ -30,16 +30,15 @@ type mockMedicalRecordRepository struct {
 	findOwnerVisitSummaryFn           func(ctx context.Context, clinicID, ownerID uint64) (*OwnerVisitSummary, error)
 	countByOwnerIDFn                  func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 	countByOwnerIDCallCount           int
-	// 以下4フィールドは F-3 統合で追加（旧 mockMedRecordRepoForDelivery / mockMedRecordRepoForLstepVisit
+	// 以下2フィールドは F-3 統合で追加（旧 mockMedRecordRepoForDelivery / mockMedRecordRepoForLstepVisit
 	// が個別に持っていたフック）。未設定時は旧共有モックと同じ nil,nil を返す（挙動不変）。
-	findLatestByOwnerFn         func(ctx context.Context, clinicID, ownerID uint64) (*model.MedicalRecord, error)
 	findOwnersByFirstVisitFn    func(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
 	findOwnersByLastVisitDaysFn func(ctx context.Context, clinicID uint64, exactDays int, asOf time.Time) ([]uint64, error)
-	findOwnersByNextVisitRecFn  func(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
-	assertOwnerInClinicFn       func(ctx context.Context, clinicID, ownerID uint64) error
-	findPetOwnerInClinicFn      func(ctx context.Context, clinicID, petID uint64) (uint64, error)
-	assertDoctorInClinicFn      func(ctx context.Context, clinicID, doctorID uint64) error
-	withTxFn                    func(ctx context.Context, fn func(context.Context) error) error
+
+	assertOwnerInClinicFn  func(ctx context.Context, clinicID, ownerID uint64) error
+	findPetOwnerInClinicFn func(ctx context.Context, clinicID, petID uint64) (uint64, error)
+	assertDoctorInClinicFn func(ctx context.Context, clinicID, doctorID uint64) error
+	withTxFn               func(ctx context.Context, fn func(context.Context) error) error
 }
 
 func (m *mockMedicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint64, filters MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error) {
@@ -110,13 +109,6 @@ func (m *mockMedicalRecordRepository) FindOwnerVisitSummary(ctx context.Context,
 	return &OwnerVisitSummary{}, nil
 }
 
-func (m *mockMedicalRecordRepository) FindLatestByOwner(ctx context.Context, clinicID, ownerID uint64) (*model.MedicalRecord, error) {
-	if m.findLatestByOwnerFn != nil {
-		return m.findLatestByOwnerFn(ctx, clinicID, ownerID)
-	}
-	return nil, nil
-}
-
 func (m *mockMedicalRecordRepository) FindDormantOwnerEntries(_ context.Context, _ uint64, _ int) ([]DormantOwnerEntry, error) {
 	return nil, nil
 }
@@ -135,13 +127,6 @@ func (m *mockMedicalRecordRepository) FindOwnersByFirstVisitDate(ctx context.Con
 func (m *mockMedicalRecordRepository) FindOwnersByLastVisitDays(ctx context.Context, clinicID uint64, exactDays int, asOf time.Time) ([]uint64, error) {
 	if m.findOwnersByLastVisitDaysFn != nil {
 		return m.findOwnersByLastVisitDaysFn(ctx, clinicID, exactDays, asOf)
-	}
-	return nil, nil
-}
-
-func (m *mockMedicalRecordRepository) FindOwnersByNextVisitRecommended(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
-	if m.findOwnersByNextVisitRecFn != nil {
-		return m.findOwnersByNextVisitRecFn(ctx, clinicID, targetDate)
 	}
 	return nil, nil
 }
@@ -222,7 +207,6 @@ type mockLstepTagSyncService struct {
 	syncCheckupTagFn          func(ctx context.Context, clinicID, ownerID, checkupTypeID uint64, checkupDate time.Time, nextDate *time.Time) error
 	resyncOwnerCheckupTagsFn  func(ctx context.Context, clinicID, ownerID uint64) error
 	syncPrescriptionTagFn     func(ctx context.Context, clinicID, ownerID uint64) error
-	syncNextVisitTagFn        func(ctx context.Context, clinicID, ownerID uint64) error
 	syncVisitCompletionTagsFn func(ctx context.Context, clinicID, ownerID uint64) error
 }
 
@@ -283,12 +267,6 @@ func (m *mockLstepTagSyncService) SyncPetBasicInfoTags(_ context.Context, _, _ u
 	return nil
 }
 func (m *mockLstepTagSyncService) SyncCPMStageTag(_ context.Context, _, _ uint64) error { return nil }
-func (m *mockLstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error {
-	if m.syncNextVisitTagFn != nil {
-		return m.syncNextVisitTagFn(ctx, clinicID, ownerID)
-	}
-	return nil
-}
 
 // mockAuditService は mrAuditLogger（LogMedicalRecordChange/LogAddendumCreate）の test double
 // （⑦移動テスト用・internal/service の同名 mock の該当 subset をfield名互換で再宣言）。

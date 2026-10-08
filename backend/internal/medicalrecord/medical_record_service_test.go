@@ -226,17 +226,16 @@ func createMedicalRecordForTest(ctx context.Context, svc MedicalRecordService, r
 		visitType = *record.VisitType
 	}
 	return svc.Create(ctx, record.ClinicID, &CreateMedicalRecordInput{
-		RecordNo:                 record.RecordNo,
-		Date:                     record.Date,
-		OwnerID:                  record.OwnerID,
-		PetID:                    record.PetID,
-		DoctorID:                 record.DoctorID,
-		AppointmentID:            record.AppointmentID,
-		Status:                   status,
-		VisitType:                visitType,
-		NextVisitRecommendedDate: record.NextVisitRecommendedDate,
-		RecommendationReason:     record.RecommendationReason,
-		EnteredBy:                record.EnteredBy,
+		RecordNo:             record.RecordNo,
+		Date:                 record.Date,
+		OwnerID:              record.OwnerID,
+		PetID:                record.PetID,
+		DoctorID:             record.DoctorID,
+		AppointmentID:        record.AppointmentID,
+		Status:               status,
+		VisitType:            visitType,
+		RecommendationReason: record.RecommendationReason,
+		EnteredBy:            record.EnteredBy,
 	})
 }
 
@@ -666,43 +665,6 @@ func TestMedicalRecordService_Create_AppointmentLifecycleGuard(t *testing.T) {
 	})
 }
 
-func TestMedicalRecordService_Create_SyncsNextVisitTagBestEffort(t *testing.T) {
-	ownerID := uint64(10)
-	var syncedClinicID, syncedOwnerID uint64
-
-	repo := &mockMedicalRecordRepository{
-		createFn: func(_ context.Context, record *model.MedicalRecord) error {
-			record.ID = 30
-			return nil
-		},
-	}
-	tagSync := &mockLstepTagSyncService{
-		syncNextVisitTagFn: func(_ context.Context, clinicID, ownerID uint64) error {
-			syncedClinicID = clinicID
-			syncedOwnerID = ownerID
-			return errors.New("sync failed")
-		},
-	}
-	reservationVerifier := &mockReservationRepoForMedicalRecord{
-		assertOwnerFn: func(_ context.Context, clinicID, gotOwnerID uint64) error {
-			assert.Equal(t, uint64(1), clinicID)
-			assert.Equal(t, ownerID, gotOwnerID)
-			return nil
-		},
-	}
-	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, reservationVerifier, nil, nil, nil, &mockTransactor{}, tagSync)
-
-	record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
-		Date:    time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC),
-		OwnerID: &ownerID,
-	})
-
-	assert.NoError(t, err)
-	assert.NotNil(t, record)
-	assert.Equal(t, uint64(1), syncedClinicID)
-	assert.Equal(t, ownerID, syncedOwnerID)
-}
-
 func TestMedicalRecordService_Update(t *testing.T) {
 	now := time.Now()
 	statusFinalized := model.MedicalRecordStatusFinalized
@@ -1031,10 +993,10 @@ func TestMedicalRecordService_Update_FinalizationUsesAppointmentLifecycleGuard(t
 	})
 }
 
-func TestMedicalRecordService_Update_SyncsVisitCompletionAndNextVisitTags(t *testing.T) {
+func TestMedicalRecordService_Update_SyncsVisitCompletionTags(t *testing.T) {
 	ownerID := uint64(10)
 	statusFinalized := model.MedicalRecordStatusFinalized
-	var visitCompletionOwnerID, nextVisitOwnerID uint64
+	var visitCompletionOwnerID uint64
 
 	repo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
@@ -1049,10 +1011,6 @@ func TestMedicalRecordService_Update_SyncsVisitCompletionAndNextVisitTags(t *tes
 			visitCompletionOwnerID = ownerID
 			return errors.New("sync failed")
 		},
-		syncNextVisitTagFn: func(_ context.Context, _, ownerID uint64) error {
-			nextVisitOwnerID = ownerID
-			return errors.New("sync failed")
-		},
 	}
 	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTreatmentAuditTxLogger{}, &mockTransactor{}, tagSync)
 
@@ -1061,7 +1019,6 @@ func TestMedicalRecordService_Update_SyncsVisitCompletionAndNextVisitTags(t *tes
 	assert.NoError(t, err)
 	assert.NotNil(t, record)
 	assert.Equal(t, ownerID, visitCompletionOwnerID)
-	assert.Equal(t, ownerID, nextVisitOwnerID)
 }
 
 func TestMedicalRecordService_Update_OwnerValidation(t *testing.T) {
@@ -1269,11 +1226,10 @@ func TestMedicalRecordService_Delete(t *testing.T) {
 	}
 }
 
-func TestMedicalRecordService_Delete_SyncsVisitCompletionAndNextVisitTagsAfterDelete(t *testing.T) {
+func TestMedicalRecordService_Delete_SyncsVisitCompletionTagsAfterDelete(t *testing.T) {
 	ownerID := uint64(10)
 	deleted := false
 	visitCompletionAfterDelete := false
-	nextVisitAfterDelete := false
 
 	repo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.MedicalRecord, error) {
@@ -1298,11 +1254,6 @@ func TestMedicalRecordService_Delete_SyncsVisitCompletionAndNextVisitTagsAfterDe
 			assert.Equal(t, ownerID, syncedOwnerID)
 			return nil
 		},
-		syncNextVisitTagFn: func(_ context.Context, _, syncedOwnerID uint64) error {
-			nextVisitAfterDelete = deleted
-			assert.Equal(t, ownerID, syncedOwnerID)
-			return nil
-		},
 	}
 	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{}, tagSync)
 
@@ -1310,7 +1261,6 @@ func TestMedicalRecordService_Delete_SyncsVisitCompletionAndNextVisitTagsAfterDe
 
 	assert.NoError(t, err)
 	assert.True(t, visitCompletionAfterDelete)
-	assert.True(t, nextVisitAfterDelete)
 }
 
 func TestMedicalRecordService_CreateSubRecords_SkipsEmptyInquiryInput(t *testing.T) {

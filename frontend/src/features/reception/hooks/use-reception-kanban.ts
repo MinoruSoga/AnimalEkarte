@@ -8,6 +8,7 @@ import { useGetStaffs, buildStaffMap } from "../api/get-staffs";
 import { useUpdateAppointmentStatus } from "../api/update-appointment-status";
 import { COLUMN_TITLE_TO_STATUS, RECEPTION_COLUMNS } from "../api/transforms";
 import type { ReceptionColumn, ReceptionAppointment } from "../api/types";
+import type { Reservation } from "@/hooks/reservation-intent-response";
 import {
   captureCardSnapshot,
   findAppointment,
@@ -63,6 +64,11 @@ interface UseReceptionKanbanPermissions {
 interface UseReceptionKanbanArgs extends UseReceptionKanbanPermissions {
   /** EMR-243: ボード表示中の日付（JST "YYYY-MM-DD"）。Reception が `?date=` を解決した値を渡す。 */
   date: string;
+  /**
+   * EMR-308: tentative 由来（had_intended_date）の予約をキャンセルし終えた直後に呼ぶ。
+   * キャンセル自体は完了済み — 呼び出し側が任意の「次回予定の再設定」導線を開く。
+   */
+  onTentativeCancelled?: (reservation: Reservation) => void;
 }
 
 type ReservationMutationAction = "edit" | "delete";
@@ -71,6 +77,7 @@ export function useReceptionKanban({
   canEditReservation,
   canDeleteReservation,
   date,
+  onTentativeCancelled,
 }: UseReceptionKanbanArgs) {
   const { data: apiColumns, isLoading, isError } = useGetReception(date);
   const { data: staffs } = useGetStaffs();
@@ -83,6 +90,12 @@ export function useReceptionKanban({
   useLayoutEffect(() => {
     permissionsRef.current = { canEditReservation, canDeleteReservation };
   }, [canEditReservation, canDeleteReservation]);
+
+  // transition 内の非同期コールバックから最新の callback を参照するため ref 化
+  const onTentativeCancelledRef = useRef(onTentativeCancelled);
+  useLayoutEffect(() => {
+    onTentativeCancelledRef.current = onTentativeCancelled;
+  }, [onTentativeCancelled]);
 
   const hasMutationPermission = useCallback((action: ReservationMutationAction): boolean => {
     return action === "edit"
@@ -177,7 +190,7 @@ export function useReceptionKanban({
       opts: {
         action: ReservationMutationAction;
         rollbackSnapshot?: CardSnapshot | null;
-        onSuccess?: () => void;
+        onSuccess?: (updated: Reservation) => void;
       },
     ): Promise<boolean> => {
       if (!hasMutationPermission(opts.action)) return Promise.resolve(false);
@@ -188,8 +201,8 @@ export function useReceptionKanban({
       return new Promise<boolean>((resolve) => {
         startUpdateStatusTransition(async () => {
           try {
-            await mutateAsync({ id, status });
-            opts.onSuccess?.();
+            const updated = await mutateAsync({ id, status });
+            opts.onSuccess?.(updated);
             resolve(true);
           } catch {
             // useUpdateAppointmentStatus の onError が handleApiError 済み。ここでは再通知しない。
@@ -341,6 +354,13 @@ export function useReceptionKanban({
       return runStatusMutation(appointmentId, "cancelled", {
         action: "delete",
         rollbackSnapshot,
+        onSuccess: (updated) => {
+          // EMR-308: キャンセル完了後、tentative 由来の予約なら任意の再設定導線を開く。
+          // キャンセル自体は確定済み — 再設定は自動実行しない。
+          if (updated.hadIntendedDate && updated.petId) {
+            onTentativeCancelledRef.current?.(updated);
+          }
+        },
       });
     },
     [hasMutationPermission, runStatusMutation],

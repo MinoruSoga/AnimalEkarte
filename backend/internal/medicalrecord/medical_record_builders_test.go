@@ -48,7 +48,6 @@ func TestGenerateRecordNo(t *testing.T) {
 
 func TestBuildMedicalRecordUpdate(t *testing.T) {
 	date := time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)
-	nextVisit := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
 	ownerID := uint64(1)
 	petID := uint64(2)
 	doctorID := uint64(3)
@@ -102,24 +101,6 @@ func TestBuildMedicalRecordUpdate(t *testing.T) {
 			want:  map[string]any{"visit_type": visitType},
 		},
 		{
-			name:  "NextVisitRecommendedDate が設定される",
-			input: UpdateMedicalRecordInput{NextVisitRecommendedDate: &nextVisit},
-			want:  map[string]any{"next_visit_recommended_date": nextVisit},
-		},
-		{
-			name:  "ClearNextVisitRecommendedDate=true は NULL クリア",
-			input: UpdateMedicalRecordInput{ClearNextVisitRecommendedDate: true},
-			want:  map[string]any{"next_visit_recommended_date": nil},
-		},
-		{
-			name: "ClearNextVisitRecommendedDate が NextVisitRecommendedDate より優先される",
-			input: UpdateMedicalRecordInput{
-				ClearNextVisitRecommendedDate: true,
-				NextVisitRecommendedDate:      &nextVisit,
-			},
-			want: map[string]any{"next_visit_recommended_date": nil},
-		},
-		{
 			name: "全フィールド指定",
 			input: UpdateMedicalRecordInput{
 				Date:          &date,
@@ -157,24 +138,22 @@ func TestBuildMedicalRecordForCreate(t *testing.T) {
 	petID := uint64(2)
 	doctorID := uint64(3)
 	apptID := uint64(4)
-	nextVisit := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
 	reason := "revisit"
 	enteredBy := uint64(9)
 
 	t.Run("Status 指定時はその値を使う", func(t *testing.T) {
 		status := model.MedicalRecordStatusFinalized
 		input := &CreateMedicalRecordInput{
-			RecordNo:                 "MR-20260401-1-ABC123",
-			Date:                     date,
-			OwnerID:                  &ownerID,
-			PetID:                    &petID,
-			DoctorID:                 &doctorID,
-			AppointmentID:            &apptID,
-			Status:                   &status,
-			VisitType:                model.VisitType("revisit"),
-			NextVisitRecommendedDate: &nextVisit,
-			RecommendationReason:     &reason,
-			EnteredBy:                &enteredBy,
+			RecordNo:             "MR-20260401-1-ABC123",
+			Date:                 date,
+			OwnerID:              &ownerID,
+			PetID:                &petID,
+			DoctorID:             &doctorID,
+			AppointmentID:        &apptID,
+			Status:               &status,
+			VisitType:            model.VisitType("revisit"),
+			RecommendationReason: &reason,
+			EnteredBy:            &enteredBy,
 		}
 		got := buildMedicalRecordForCreate(1, input)
 		assert.Equal(t, uint64(1), got.ClinicID)
@@ -188,7 +167,6 @@ func TestBuildMedicalRecordForCreate(t *testing.T) {
 		if assert.NotNil(t, got.VisitType) {
 			assert.Equal(t, model.VisitType("revisit"), *got.VisitType)
 		}
-		assert.Equal(t, &nextVisit, got.NextVisitRecommendedDate)
 		assert.Equal(t, &reason, got.RecommendationReason)
 		assert.Equal(t, &enteredBy, got.EnteredBy)
 	})

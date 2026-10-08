@@ -3,8 +3,7 @@ import { axios } from "@/lib/axios";
 import { DAY_VIEW_FETCH_LIMIT } from "@/config/fetch-limits";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import { transformReservation } from "@/lib/transforms/reservation";
-import type { Reservation } from "@/lib/transforms/reservation";
+import { transformReservationWithIntent, type Reservation } from "./reservation-intent-response";
 import type { Reservation as BackendReservation } from "@/types/generated/models";
 
 interface ReservationsListResponse {
@@ -27,6 +26,9 @@ export interface ReservationFilters {
   enabled?: boolean;
   /** #86: 拠点横断表示。複数医院IDをカンマ区切りで送信。未指定=現在の医院のみ */
   clinicIds?: string[];
+  /** EMR-308/Codex: 拠点横断カルテ等、レコード自身の医院を操作対象にするときの
+   *  X-Clinic-ID 上書き（P2-15 vitals の clinicHeaderConfig と同じ先例）。 */
+  clinicId?: string;
 }
 
 function buildReservationParams(filters?: ReservationFilters): Record<string, string | number> {
@@ -49,10 +51,29 @@ function buildReservationParams(filters?: ReservationFilters): Record<string, st
 }
 
 const getReservations = async (filters?: ReservationFilters): Promise<Reservation[]> => {
-  const { data } = await axios.get<ReservationsListResponse>("/v1/reservations", {
-    params: buildReservationParams(filters),
-  });
-  return data.data.map(transformReservation);
+  const params = buildReservationParams(filters);
+  const requestConfig = {
+    params,
+    ...(filters?.clinicId ? { headers: { "X-Clinic-ID": filters.clinicId } } : {}),
+  };
+  const { data: first } = await axios.get<ReservationsListResponse>(
+    "/v1/reservations",
+    requestConfig,
+  );
+  let rows = first.data;
+  // EMR-308/Codex: レンジ取得は limit=1000 で打ち切られ、期限超過 tentative の
+  // actionable list が total を超えると黙って欠落する。total まで全ページを取得する。
+  let page = 1;
+  while (rows.length < first.total) {
+    page += 1;
+    const { data: next } = await axios.get<ReservationsListResponse>("/v1/reservations", {
+      ...requestConfig,
+      params: { ...params, page },
+    });
+    if (next.data.length === 0) break; // total 不整合・並行削除への防御
+    rows = rows.concat(next.data);
+  }
+  return rows.map(transformReservationWithIntent);
 };
 
 /**

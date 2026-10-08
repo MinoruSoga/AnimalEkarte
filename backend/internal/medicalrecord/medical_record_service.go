@@ -10,17 +10,15 @@ import (
 
 // UpdateMedicalRecordInput はカルテ更新のサービス入力 DTO
 type UpdateMedicalRecordInput struct {
-	Date                          *time.Time
-	OwnerID                       *uint64
-	PetID                         *uint64
-	DoctorID                      *uint64
-	AppointmentID                 *uint64
-	Status                        *model.MedicalRecordStatus
-	Version                       *int // 楽観的ロック用: nil の場合はチェックをスキップ
-	NextVisitRecommendedDate      *time.Time
-	ClearNextVisitRecommendedDate bool // true の場合 DB を NULL にクリアする
-	VisitType                     *model.VisitType
-	ActorID                       *uint64 // 監査ログ用: 操作スタッフ ID（nil = システム）
+	Date          *time.Time
+	OwnerID       *uint64
+	PetID         *uint64
+	DoctorID      *uint64
+	AppointmentID *uint64
+	Status        *model.MedicalRecordStatus
+	Version       *int // 楽観的ロック用: nil の場合はチェックをスキップ
+	VisitType     *model.VisitType
+	ActorID       *uint64 // 監査ログ用: 操作スタッフ ID（nil = システム）
 	// persistVersion is set only by service after next-version calculation. HTTP/client must not set it.
 	persistVersion *int
 	// persistFields is set only by service/tests for columns outside the HTTP command. HTTP/client must not set it.
@@ -29,17 +27,16 @@ type UpdateMedicalRecordInput struct {
 
 // CreateMedicalRecordInput はカルテ作成のサービス入力 DTO
 type CreateMedicalRecordInput struct {
-	RecordNo                 string
-	Date                     time.Time
-	OwnerID                  *uint64
-	PetID                    *uint64
-	DoctorID                 *uint64
-	AppointmentID            *uint64
-	Status                   *model.MedicalRecordStatus
-	VisitType                model.VisitType
-	NextVisitRecommendedDate *time.Time
-	RecommendationReason     *string
-	EnteredBy                *uint64
+	RecordNo             string
+	Date                 time.Time
+	OwnerID              *uint64
+	PetID                *uint64
+	DoctorID             *uint64
+	AppointmentID        *uint64
+	Status               *model.MedicalRecordStatus
+	VisitType            model.VisitType
+	RecommendationReason *string
+	EnteredBy            *uint64
 	// EnteredBySystemAdmin is set only by the HTTP handler from auth context.
 	// Request JSON cannot set this field.
 	EnteredBySystemAdmin bool
@@ -77,12 +74,10 @@ type MedicalRecordRepository interface {
 	FindFirstVisitDateByPetID(ctx context.Context, clinicID, petID uint64) (*time.Time, error)
 	CountEstimatesByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (int64, error)
 	FindOwnerVisitSummary(ctx context.Context, clinicID, ownerID uint64) (*OwnerVisitSummary, error)
-	FindLatestByOwner(ctx context.Context, clinicID, ownerID uint64) (*model.MedicalRecord, error)
 	FindDormantOwnerEntries(ctx context.Context, clinicID uint64, minDaysSince int) ([]DormantOwnerEntry, error)
 	FindDormantOwnerEntriesCursor(ctx context.Context, clinicID uint64, minDaysSince int, afterOwnerID uint64, limit int) ([]DormantOwnerEntry, error)
 	FindOwnersByFirstVisitDate(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
 	FindOwnersByLastVisitDays(ctx context.Context, clinicID uint64, exactDays int, asOf time.Time) ([]uint64, error)
-	FindOwnersByNextVisitRecommended(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
 	CountByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 	LockLinkedAppointmentForUpdate(ctx context.Context, clinicID, medicalRecordID uint64) (*linkedAppointmentLock, error)
 	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)

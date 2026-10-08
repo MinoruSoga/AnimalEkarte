@@ -122,7 +122,7 @@ func (r *reservationAdminRepository) FindAllByCustomerID(ctx context.Context, cl
 		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", staffAssignedToClinicsCond, []uint64{clinicID}).
 		Scopes(persistence.ClinicScope(clinicID), reservationRelationsMatchParentClinic).
-		Where("line_customer_id = ? AND deleted_at IS NULL", customerID).
+		Where("line_customer_id = ? AND status NOT IN ('tentative') AND deleted_at IS NULL", customerID).
 		Order("start_time DESC").
 		Limit(maxCustomerHistoryRows).
 		Find(&items).Error

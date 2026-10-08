@@ -229,9 +229,10 @@ type mrDeliveryTrigger interface {
 	TriggerFirstVisitWelcome(ctx context.Context, clinicID, ownerID uint64) error
 }
 
-// mrTagSyncer は来院系 Lstep タグ同期 view（nil 許容）。
+// mrTagSyncer は来院完了 Lstep タグ同期 view（nil 許容）。next_visit_* タグは
+// appointment 変更容易点（reservation domain）が post-commit で再計算するため、
+// カルテ CUD からはトリガーしない。
 type mrTagSyncer interface {
-	SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error
 	SyncVisitCompletionTags(ctx context.Context, clinicID, ownerID uint64) error
 }
 

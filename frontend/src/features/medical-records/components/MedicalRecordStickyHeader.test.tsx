@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { calcAgePartsAt } from "@/lib/calc-age";
 import { C } from "@/lib/design-tokens";
@@ -11,6 +11,7 @@ import type { Pet } from "@/types";
 import type { PetResponse } from "@/types/generated/pet-responses";
 
 import { MedicalRecordStickyHeader } from "./MedicalRecordStickyHeader";
+import { NextVisitButton } from "./NextVisitButton";
 
 // EMR-164 / 改善依頼 No.28③④ の固定。カルテ画面のヘッダーで
 // PatientContextHeader の実描画（年齢・性別・避妊去勢・特記バッジ）を検証するため
@@ -33,7 +34,7 @@ vi.mock("./VisitTypeSelect", () => ({
 }));
 
 vi.mock("./NextVisitButton", () => ({
-  NextVisitButton: () => null,
+  NextVisitButton: vi.fn(() => <div data-testid="next-visit-button" />),
 }));
 
 function makePet(overrides: Partial<Pet> = {}): Pet {
@@ -49,7 +50,17 @@ function makePet(overrides: Partial<Pet> = {}): Pet {
   };
 }
 
-function renderHeader({ selectedPet = makePet() }: { selectedPet?: Pet } = {}) {
+function renderHeader({
+  selectedPet = makePet(),
+  recordStatus = "draft",
+  isNewRecord = false,
+  medicalRecordId,
+}: {
+  selectedPet?: Pet;
+  recordStatus?: string;
+  isNewRecord?: boolean;
+  medicalRecordId?: string;
+} = {}) {
   return render(
     <MemoryRouter>
       <MedicalRecordStickyHeader
@@ -59,16 +70,14 @@ function renderHeader({ selectedPet = makePet() }: { selectedPet?: Pet } = {}) {
         visitType="再診"
         visitCount={3}
         canEdit={true}
-        isNewRecord={false}
+        isNewRecord={isNewRecord}
         tabs={[{ value: "問診", label: "問診" }]}
         recordDate="2026/10/02"
-        recordStatus="draft"
-        nextVisitDate=""
+        recordStatus={recordStatus}
+        medicalRecordId={medicalRecordId}
         onVisitTypeChange={vi.fn()}
         onStaffClick={vi.fn()}
         onOwnerClick={vi.fn()}
-        onNextVisitDatePatch={vi.fn()}
-        onNextVisitDateValidChange={vi.fn()}
       />
     </MemoryRouter>,
   );
@@ -119,6 +128,45 @@ describe("MedicalRecordStickyHeader 患者属性ヘッダー (EMR-164 No.28③)"
     const neuteredLabel = screen.getByText("避妊去勢");
     expect(neuteredLabel.parentElement).toHaveTextContent("—");
     expect(screen.queryByText("避妊済")).not.toBeInTheDocument();
+  });
+});
+
+describe("MedicalRecordStickyHeader 次回予定コントロール (EMR-308)", () => {
+  beforeEach(() => {
+    vi.mocked(NextVisitButton).mockClear();
+  });
+
+  it("既存カルテでは NextVisitButton に petId / medicalRecordId / isPetDeceased を渡す", () => {
+    renderHeader({ medicalRecordId: "99" });
+
+    expect(screen.getByTestId("next-visit-button")).toBeInTheDocument();
+    expect(vi.mocked(NextVisitButton).mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        petId: "10",
+        medicalRecordId: "99",
+        isPetDeceased: false,
+      }),
+    );
+  });
+
+  it("確定済みカルテでも次回予定コントロールは無効化・非表示にしない（ペット属性の tentative は別権限）", () => {
+    renderHeader({ recordStatus: "finalized", medicalRecordId: "99" });
+
+    expect(screen.getByTestId("next-visit-button")).toBeInTheDocument();
+  });
+
+  it("死亡ペットでは isPetDeceased=true を渡す", () => {
+    renderHeader({ selectedPet: makePet({ status: "死亡" }), medicalRecordId: "99" });
+
+    expect(vi.mocked(NextVisitButton).mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({ isPetDeceased: true }),
+    );
+  });
+
+  it("新規作成時はコントロールを出さない（recordId 未確定のため）", () => {
+    renderHeader({ isNewRecord: true });
+
+    expect(screen.queryByTestId("next-visit-button")).not.toBeInTheDocument();
   });
 });
 

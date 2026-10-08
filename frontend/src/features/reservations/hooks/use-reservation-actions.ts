@@ -9,6 +9,7 @@ import type { ReservationCreateMutations } from "@/types/reservation-create-muta
 
 import { useDeleteReservation } from "../api/delete-reservation";
 import { useUpdateReservation } from "../api/update-reservation";
+import { isTentativeReservation } from "../lib/tentative";
 import {
   buildUpdatePayload,
   isDestructiveReservationStatus,
@@ -52,6 +53,12 @@ interface UseReservationActionsArgs {
   createMutations: ReservationCreateMutations;
   /** FE-RC-204: 未指定は fail-closed（全拒否）。 */
   permissions?: Readonly<ReservationMutationPermissions>;
+  /**
+   * EMR-308 A4: tentative 由来予約のキャンセル成功時に呼ばれる任意コールバック。
+   * キャンセル自体は既に確定済み — 呼び出し側で「次回予定を再設定」導線を開く。
+   * 自動再作成はしない。
+   */
+  onTentativeCancelled?: (reservation: Reservation) => void;
 }
 
 export function useReservationActions({
@@ -70,6 +77,7 @@ export function useReservationActions({
   navigate,
   createMutations,
   permissions: permissionsArg,
+  onTentativeCancelled,
 }: UseReservationActionsArgs) {
   const permissions = permissionsArg ?? DENIED_RESERVATION_MUTATION_PERMISSIONS;
   const { canCreate, canEdit, canDelete } = permissions;
@@ -77,6 +85,11 @@ export function useReservationActions({
   useLayoutEffect(() => {
     permissionsRef.current = { canCreate, canEdit, canDelete };
   }, [canCreate, canDelete, canEdit]);
+  // EMR-308 A4: transition 内コールバックから最新参照を取るため ref 同期（permissionsRef と同型）
+  const onTentativeCancelledRef = useRef(onTentativeCancelled);
+  useLayoutEffect(() => {
+    onTentativeCancelledRef.current = onTentativeCancelled;
+  }, [onTentativeCancelled]);
   const isMutationAllowed = useCallback(
     (action: keyof ReservationMutationPermissions) => permissionsRef.current[action] === true,
     [],
@@ -100,6 +113,8 @@ export function useReservationActions({
       appointments.some((app) => {
         if ((excludeId && app.id === excludeId) || excludeIds?.has(app.id)) return false;
         if (app.status === "cancelled") return false;
+        // EMR-308: tentative は実時間枠を持たない（意図日 sentinel）ため重複判定しない
+        if (isTentativeReservation(app)) return false;
         if (app.doctorId !== doctor) return false;
         return newStart < app.end && newEnd > app.start;
       }),
@@ -126,6 +141,14 @@ export function useReservationActions({
     (reservation: Reservation, newStart: Date, newEnd: Date) => {
       if (!isMutationAllowed("canEdit")) {
         toast.error(PERMISSION_DENIED_MESSAGE);
+        return;
+      }
+      // EMR-308: tentative の時刻は意図日 sentinel でありドラッグ更新の意味を持たない。
+      // 日時確定は confirm-tentative 経路のみ（sentinel/status の混在更新を防ぐ fail-closed）。
+      if (isTentativeReservation(reservation)) {
+        toast.error("次回予定はドラッグで変更できません", {
+          description: "「予約を確定」で日時を設定してください。",
+        });
         return;
       }
       const hasOverlap = checkOverlap(newStart, newEnd, reservation.doctorId ?? "", reservation.id);
@@ -161,12 +184,17 @@ export function useReservationActions({
         updateReservationFn(
           { id: reservation.id, req: { status } },
           {
-            onSuccess: () => {
+            onSuccess: (updated) => {
               setDetailAppointment((prev) => (prev ? { ...prev, status } : null));
               const statusLabel = getReservationStatusLabel(status);
               toast.success("ステータスを更新しました", {
                 description: `${reservation.petName} → ${statusLabel}`,
               });
+              // EMR-308 A4: tentative 由来予約（BE が intended_date を保持）のキャンセル後は
+              // 任意の「次回予定を再設定」導線を呼び出す。自動再作成はしない。
+              if (status === "cancelled" && updated.hadIntendedDate && updated.petId) {
+                onTentativeCancelledRef.current?.(updated);
+              }
             },
           },
         );

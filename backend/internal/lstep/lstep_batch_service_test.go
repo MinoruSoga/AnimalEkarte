@@ -72,6 +72,7 @@ func (m *batchMockMedRecordRepo) FindDormantOwnerEntriesCursor(ctx context.Conte
 // batchMockTagSyncSvc は batch テスト専用 LstepTagSyncService モック
 type batchMockTagSyncSvc struct {
 	syncDormantTagsWithThresholdsFn func(ctx context.Context, clinicID, ownerID uint64, daysSince int, thresholds model.DormantThresholds) error
+	syncNextVisitTagFn              func(ctx context.Context, clinicID, ownerID uint64) error
 }
 
 func (m *batchMockTagSyncSvc) SyncVaccineTag(_ context.Context, _, _, _ uint64) error { return nil }
@@ -84,7 +85,12 @@ func (m *batchMockTagSyncSvc) SyncOwnerAnimalClassificationTags(_ context.Contex
 func (m *batchMockTagSyncSvc) SyncPetBasicInfoTags(_ context.Context, _, _ uint64) error {
 	return nil
 }
-func (m *batchMockTagSyncSvc) SyncNextVisitTag(_ context.Context, _, _ uint64) error { return nil }
+func (m *batchMockTagSyncSvc) SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error {
+	if m.syncNextVisitTagFn != nil {
+		return m.syncNextVisitTagFn(ctx, clinicID, ownerID)
+	}
+	return nil
+}
 func (m *batchMockTagSyncSvc) SyncCheckupTag(_ context.Context, _, _, _ uint64, _ time.Time, _ *time.Time) error {
 	return nil
 }

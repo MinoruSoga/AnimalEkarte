@@ -80,6 +80,21 @@ describe("usePartnerRecordLink — kind=trimming（カルテ→トリミング�
     });
   });
 
+  // EMR-308: tentative（次回予定・未予約）行は実時間を持たない sentinel。
+  // 相方として再利用すると昇格（同一行の実予約化）が起きないため除外し、
+  // 作成経路（record_shortcut → BE createOrPromoteTentative 同一行昇格）へ回す。
+  it("tentative の appointment は相方として再利用せず create を返す", () => {
+    mocks.reservationsData = [
+      { id: "55", category: "trimming", status: "tentative" },
+      { id: "60", category: "general", status: "tentative" },
+    ];
+
+    const { result } = renderHook(() => usePartnerRecordLink({ kind: "trimming", ...BASE_INPUT }));
+
+    expect(result.current.target?.mode).toBe("create");
+    expect(result.current.target?.appointmentId).toBeUndefined();
+  });
+
   it("完了/キャンセル済みの trimming appointment は相方なしとして create を返す", () => {
     mocks.reservationsData = [
       { id: "55", category: "trimming", status: "completed" },

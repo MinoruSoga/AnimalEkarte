@@ -133,19 +133,17 @@ func TestCreateMedicalRecordRequest_ToServiceInput(t *testing.T) {
 	doctorID := "30"
 	appointmentID := "40"
 	visitDate := "2026-05-28"
-	nextVisitDate := "2026-06-28"
 	reason := "checkup"
 	req := createMedicalRecordRequest{
-		RecordNo:                 "MR-1",
-		VisitDate:                &visitDate,
-		VisitType:                string(model.VisitTypeFirst),
-		OwnerID:                  &ownerID,
-		PetID:                    &petID,
-		DoctorID:                 &doctorID,
-		AppointmentID:            &appointmentID,
-		Status:                   string(model.MedicalRecordStatusFinalized),
-		NextVisitRecommendedDate: &nextVisitDate,
-		RecommendationReason:     &reason,
+		RecordNo:             "MR-1",
+		VisitDate:            &visitDate,
+		VisitType:            string(model.VisitTypeFirst),
+		OwnerID:              &ownerID,
+		PetID:                &petID,
+		DoctorID:             &doctorID,
+		AppointmentID:        &appointmentID,
+		Status:               string(model.MedicalRecordStatusFinalized),
+		RecommendationReason: &reason,
 	}
 
 	input, err := req.toServiceInput(9)
@@ -172,9 +170,6 @@ func TestCreateMedicalRecordRequest_ToServiceInput(t *testing.T) {
 	}
 	if input.Status == nil || *input.Status != model.MedicalRecordStatusFinalized {
 		t.Fatalf("Status = %v, want %q", input.Status, model.MedicalRecordStatusFinalized)
-	}
-	if input.NextVisitRecommendedDate == nil || input.NextVisitRecommendedDate.Format("2006-01-02") != nextVisitDate {
-		t.Fatalf("NextVisitRecommendedDate = %v, want %q", input.NextVisitRecommendedDate, nextVisitDate)
 	}
 	if input.RecommendationReason == nil || *input.RecommendationReason != reason {
 		t.Fatalf("RecommendationReason = %v, want %q", input.RecommendationReason, reason)
@@ -241,30 +236,6 @@ func TestCreateMedicalRecordRequest_ToServiceInput_InvalidStatusDoesNotLeakEnumE
 	}
 }
 
-func TestCreateMedicalRecordRequest_ToServiceInput_NextVisitDateValidation(t *testing.T) {
-	ownerID := "10"
-	petID := "20"
-	visitDate := "2026-05-28"
-	nextVisitDate := "2026-05-28"
-	req := createMedicalRecordRequest{
-		OwnerID:                  &ownerID,
-		PetID:                    &petID,
-		VisitDate:                &visitDate,
-		NextVisitRecommendedDate: &nextVisitDate,
-	}
-
-	input, err := req.toServiceInput(9)
-	if err == nil {
-		t.Fatal("toServiceInput returned nil error")
-	}
-	if input.EnteredBy != nil {
-		t.Fatalf("input = %#v, want zero value", input)
-	}
-	if !apperrors.IsInvalidInput(err) {
-		t.Fatalf("error = %v, want invalid input", err)
-	}
-}
-
 func TestCreateMedicalRecordRequest_ToSubRecordsInput(t *testing.T) {
 	complaint := "cough"
 	plan := "observe"
@@ -291,13 +262,11 @@ func TestCreateMedicalRecordRequest_ToSubRecordsInput(t *testing.T) {
 func TestUpdateMedicalRecordRequest_ToServiceInput(t *testing.T) {
 	date := time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
 	status := string(model.MedicalRecordStatusFinalized)
-	nextVisitDate := "2026-06-28"
 	version := 3
 	req := updateMedicalRecordRequest{
-		Date:                     &date,
-		Status:                   &status,
-		Version:                  &version,
-		NextVisitRecommendedDate: &nextVisitDate,
+		Date:    &date,
+		Status:  &status,
+		Version: &version,
 	}
 
 	input, err := req.toServiceInput(9)
@@ -314,27 +283,8 @@ func TestUpdateMedicalRecordRequest_ToServiceInput(t *testing.T) {
 	if input.Version == nil || *input.Version != version {
 		t.Fatalf("Version = %v, want %d", input.Version, version)
 	}
-	if input.NextVisitRecommendedDate == nil || input.NextVisitRecommendedDate.Format("2006-01-02") != nextVisitDate {
-		t.Fatalf("NextVisitRecommendedDate = %v, want %q", input.NextVisitRecommendedDate, nextVisitDate)
-	}
 	if input.ActorID == nil || *input.ActorID != 9 {
 		t.Fatalf("ActorID = %v, want 9", input.ActorID)
-	}
-}
-
-func TestUpdateMedicalRecordRequest_ToServiceInput_InvalidNextVisitDate(t *testing.T) {
-	nextVisitDate := "2026/06/28"
-	req := updateMedicalRecordRequest{NextVisitRecommendedDate: &nextVisitDate}
-
-	input, err := req.toServiceInput(9)
-	if err == nil {
-		t.Fatal("toServiceInput returned nil error")
-	}
-	if input.ActorID != nil {
-		t.Fatalf("input = %#v, want zero value", input)
-	}
-	if !apperrors.IsInvalidInput(err) {
-		t.Fatalf("error = %v, want invalid input", err)
 	}
 }
 

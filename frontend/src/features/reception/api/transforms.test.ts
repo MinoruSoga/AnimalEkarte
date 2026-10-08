@@ -363,6 +363,23 @@ describe("transformReservationsToReceptionColumns", () => {
     expect(allAppointments.every((a) => a.id !== "2")).toBe(true);
   });
 
+  // EMR-308: tentative（次回予定・未予約）は実受付ではない sentinel 行。
+  // STATUS_TO_COLUMN_ID 未登録 → 受付予約列に落ちるのを防ぐため transform で除外する。
+  it("tentative の予約はカンバンに含まれない", () => {
+    const tentative = {
+      ...minimal,
+      id: 9,
+      status: "tentative",
+    } as unknown as BackendReservation;
+    const columns = transformReservationsToReceptionColumns([
+      { ...minimal, id: 1, status: "confirmed" },
+      tentative,
+    ]);
+    const allAppointments = columns.flatMap((c) => c.appointments);
+    expect(allAppointments.some((a) => a.id === "9")).toBe(false);
+    expect(allAppointments.some((a) => a.id === "1")).toBe(true);
+  });
+
   it("no_show の予約はカンバンに含まれない", () => {
     const reservations: BackendReservation[] = [
       { ...minimal, id: 1, status: "confirmed" },

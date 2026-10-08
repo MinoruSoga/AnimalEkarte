@@ -1150,6 +1150,7 @@ func TestNewLiffService(t *testing.T) {
 		&mockTrimmingDetailRepository{},
 		&mockVaccinationRepository{},
 		openDayHolidayFinder(),
+		nil,
 	)
 	require.NotNil(t, svc)
 
@@ -1182,6 +1183,7 @@ func TestNewLiffServiceWithType(t *testing.T) {
 		&mockTrimmingDetailRepository{},
 		&mockVaccinationRepository{},
 		openDayHolidayFinder(),
+		nil,
 		medicalRecord,
 	)
 	require.NotNil(t, svc)
@@ -1228,6 +1230,7 @@ func TestNewLiffServiceWithType_FindAllOnlyReaders(t *testing.T) {
 		&mockTrimmingDetailRepository{},
 		&mockVaccinationRepository{},
 		openDayHolidayFinder(),
+		nil,
 	)
 	require.NotNil(t, svc)
 
@@ -1256,6 +1259,7 @@ func TestNewLiffServiceWithType_FindAllOnlyReaders(t *testing.T) {
 		&mockTrimmingDetailRepository{},
 		&mockVaccinationRepository{},
 		openDayHolidayFinder(),
+		nil,
 	)
 	nilImpl, ok := nilSlotSvc.(*liffService)
 	require.True(t, ok)

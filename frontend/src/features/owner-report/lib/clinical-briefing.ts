@@ -317,6 +317,10 @@ interface AppointmentSource {
   start: Date;
   end: Date;
   status: string;
+  /** EMR-308: tentative（次回予定・未予約）行。実予約ではなく sentinel 00:00-00:15 JST の start/end を持つ。 */
+  isTentative?: boolean;
+  /** tentative の意図日（YYYY-MM-DD、JST 暦日）。tentative 行のみ */
+  intendedDate?: string;
 }
 
 // FE-RC-027: ローカル getter (getFullYear/getMonth/getDate) はクライアント OS の
@@ -332,9 +336,11 @@ export function selectAppointmentBriefing<T extends AppointmentSource>(
   reservations: ReadonlyArray<T>,
   today: string,
 ): { today?: T; next?: T } {
-  const sorted = [...reservations].sort(
-    (left, right) => left.start.getTime() - right.start.getTime(),
-  );
+  // EMR-308: tentative（次回予定）は実予約ではない。sentinel 00:00 JST の start を持つため
+  // 「今日の来院」「次回予約」の選定対象から外し、意図日は selectTentativeBriefing で扱う。
+  const sorted = [...reservations]
+    .filter((reservation) => reservation.isTentative !== true)
+    .sort((left, right) => left.start.getTime() - right.start.getTime());
   const todayReservations = sorted.filter(
     (reservation) => wallDateISO(reservation.start) === today,
   );
@@ -347,4 +353,20 @@ export function selectAppointmentBriefing<T extends AppointmentSource>(
   );
 
   return { today: todayActive ?? todayReservations[0], next };
+}
+
+/**
+ * EMR-308: tentative（次回予定・未予約）行の選定。
+ * tentative は (clinic_id, pet_id) あたり未削除1件が正本（uq_appointments_one_active_tentative）。
+ * 意図日が今日以降の行だけを「次の行動」対象とする（過去日は stale）。
+ */
+export function selectTentativeBriefing<T extends AppointmentSource>(
+  reservations: ReadonlyArray<T>,
+  today: string,
+): T | undefined {
+  return reservations.find(
+    (reservation) =>
+      reservation.isTentative === true &&
+      (reservation.intendedDate ?? wallDateISO(reservation.start)) >= today,
+  );
 }

@@ -28,6 +28,9 @@ type mockReservationService struct {
 	updateFn                 func(ctx context.Context, clinicID, id uint64, input *UpdateReservationInput) (*model.Reservation, error)
 	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
 	updateReservationRouteFn func(ctx context.Context, clinicID, id uint64, input UpdateReservationRouteInput) (*model.Reservation, error)
+	setNextVisitIntentFn     func(ctx context.Context, clinicID, petID uint64, input SetNextVisitIntentInput) (*model.Reservation, error)
+	clearNextVisitIntentFn   func(ctx context.Context, clinicID, petID uint64) error
+	confirmTentativeFn       func(ctx context.Context, clinicID, id uint64, input *ConfirmTentativeInput) (*model.Reservation, error)
 }
 
 func (m *mockReservationService) List(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
@@ -67,6 +70,27 @@ func (m *mockReservationService) Delete(ctx context.Context, clinicID, id uint64
 func (m *mockReservationService) UpdateReservationRoute(ctx context.Context, clinicID, id uint64, input UpdateReservationRouteInput) (*model.Reservation, error) {
 	if m.updateReservationRouteFn != nil {
 		return m.updateReservationRouteFn(ctx, clinicID, id, input)
+	}
+	return nil, nil
+}
+
+func (m *mockReservationService) SetNextVisitIntent(ctx context.Context, clinicID, petID uint64, input SetNextVisitIntentInput) (*model.Reservation, error) {
+	if m.setNextVisitIntentFn != nil {
+		return m.setNextVisitIntentFn(ctx, clinicID, petID, input)
+	}
+	return nil, nil
+}
+
+func (m *mockReservationService) ClearNextVisitIntent(ctx context.Context, clinicID, petID uint64) error {
+	if m.clearNextVisitIntentFn != nil {
+		return m.clearNextVisitIntentFn(ctx, clinicID, petID)
+	}
+	return nil
+}
+
+func (m *mockReservationService) ConfirmTentative(ctx context.Context, clinicID, id uint64, input *ConfirmTentativeInput) (*model.Reservation, error) {
+	if m.confirmTentativeFn != nil {
+		return m.confirmTentativeFn(ctx, clinicID, id, input)
 	}
 	return nil, nil
 }

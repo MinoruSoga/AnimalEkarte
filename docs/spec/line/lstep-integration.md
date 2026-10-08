@@ -1,6 +1,6 @@
 # Lステップ連携 戦略仕様書 (L-Step CRM Integration)
 
-> **目的**: CPM判定・全15種配信トリガーのLステップ戦略を定義する。
+> **目的**: CPM判定・全17種配信トリガーのLステップ戦略を定義する。
 > **読者**: マーケ担当・実装者。
 > **タイミング**: CPM判定・配信トリガー仕様の確認時。
 
@@ -66,7 +66,7 @@ stateDiagram-v2
 
 ---
 
-## 3. 自動配信トリガーの一覧 (全 15 種)
+## 3. 自動配信トリガーの一覧 (全 17 種)
 
 カルテ上のイベントに基づき、Lステップ側のシナリオが発火します。これらは**「衝突回避優先順位」**（数値が小さいほど優先）に従って制御されます。
 
@@ -80,7 +80,8 @@ stateDiagram-v2
 | **7** | `dormant_prevention_180d` | 休眠防止ステップ（180日経過）。 |
 | **8** | `vaccine_deadline_60d` / `vaccine_deadline_30d` | ワクチン期限の 60日/30日前通知。 |
 | **10** | `food_refill_reminder` | 療法食の購入から約 30日後の案内。 |
-| **11** | `next_visit_reminder` | カルテ指定の「次回来院推奨日」の当日。 |
+| **11** | `next_visit_reminder` | EMR-308 で退役: カルテ推奨日カラム撤廃に伴い実行スケジュールから除外。履歴ログ・優先度互換のため登録は維持するが発火しない。 |
+| **11** | `next_visit_tentative_reminder_3d` / `next_visit_tentative_reminder_0d` | EMR-308 で `next_visit_reminder` の後継。ペットの active tentative appointment（次回予定・未予約）の `intended_date` 3 日前と当日の 2 ステージ。tentative 昇格・取消で対象は自動追従。 |
 | **12** | `birthday_message` | ペットの誕生日の当日祝い。 |
 | **13** | `first_visit_followup_3d` / `first_visit_followup_7d` | 初診の 3日後、7日後の調子伺い。 |
 | **14** | `first_visit_welcome` | 初回 medical record 作成後（post-commit）の挨拶。会計完了起点ではない。 |
@@ -115,7 +116,7 @@ LSTEP の失敗時挙動は経路ごとに 1 契約だけを持つ。
 
 ## 6. 運用と効果測定
 
-外部 write 再開の承認・受入は [#259 の再開条件](README.md#3-再開条件259) を参照。全 15 種は実装契約であり、先方 API 有効化や本番配信完了の証拠ではない。scheduler 配線の正本と実環境証跡の区別は [architecture.md §4.2](architecture.md#42-checked-in-scheduler-と運用証跡) に示す。
+外部 write 再開の承認・受入は [#259 の再開条件](README.md#3-再開条件259) を参照。全 17 種は実装契約であり、先方 API 有効化や本番配信完了の証拠ではない。scheduler 配線の正本と実環境証跡の区別は [architecture.md §4.2](architecture.md#42-checked-in-scheduler-と運用証跡) に示す。
 
 - **配信監視 (`/lstep/delivery-monitor`)**: **自動配信トリガー**の実行ログ、除外理由、API 失敗を監視（ordinary タグ同期の request-local 経路は対象外）。
 - **来院転換分析**: メッセージ配信から 30 日以内の来院率を自動集計。

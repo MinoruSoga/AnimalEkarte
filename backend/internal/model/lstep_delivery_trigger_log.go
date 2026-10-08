@@ -24,6 +24,11 @@ const (
 	TriggerTypeFoodRefillReminder   TriggerType = "food_refill_reminder"
 	TriggerTypeFirstVisitWelcome    TriggerType = "first_visit_welcome"
 	TriggerTypeCheckupFollowUp      TriggerType = "checkup_followup"
+	// EMR-308: 次回予定（tentative appointment）リマインダーの 2 ステージ。
+	// trigger_type 自体がステージ識別子となり、(owner, date, trigger_type) の
+	// 日次 claim がステージ単位の抑制・冪等性を保証する（stage 列追加なし）。
+	TriggerTypeNextVisitTentativeReminder3d TriggerType = "next_visit_tentative_reminder_3d"
+	TriggerTypeNextVisitTentativeReminder0d TriggerType = "next_visit_tentative_reminder_0d"
 )
 
 // FE6-1: tygo の detectEnumGroup は 1 つの const() ブロック（1 GenDecl）につき
@@ -55,6 +60,8 @@ func AllTriggerTypes() []string {
 		TriggerTypeFoodRefillReminder,
 		TriggerTypeFirstVisitWelcome,
 		TriggerTypeCheckupFollowUp,
+		TriggerTypeNextVisitTentativeReminder3d,
+		TriggerTypeNextVisitTentativeReminder0d,
 	}
 }
 

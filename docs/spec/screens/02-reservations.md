@@ -45,6 +45,7 @@
 予約詳細（`ReservationDetailModal`）から、来院後のステータスをシームレスに更新できます。
 
 - **ステータス**: 詳細モーダルは 仮予約 / 予約確定 / 受付済 / 診療中 / 会計待ち / 完了 / キャンセル / 未来院 を扱う。来院後の主経路は `予約確定` → `受付済` → `診療中` → `会計待ち` → `完了`。
+- **tentative（EMR-308）**: `status='tentative'` の appointment は「次回予定・未予約」— 日付のみ確定（`intended_date`）で時間・枠・担当医は未定。カレンダー（`MonthView`/`WeekViewAppointmentCard`）は色ではなく明示テキスト「次回予定・未予約」（`TENTATIVE_APPOINTMENT_LABEL`）で識別し、空き枠・定員を消費しない。カルテヘッダーの「次回予定」ボタン（`PUT/DELETE /v1/reservations/pets/:petId/next-visit-intent`）で作成・取消され、詳細モーダルではステータス変更でなく「予約を確定」で実予約へ昇格する。当日受付への昇格は [reservation-to-record-flow.md](../reservation-to-record-flow.md) を参照。
 - **受付への反映**: プッシュではない。受付側の 30 秒ポーリングとフォーカス再取得。
 - **レコード作成**: 予約詳細からワンクリックで「カルテ作成」「入院・ホテル登録」「トリミング記録作成」を開始可能。
 

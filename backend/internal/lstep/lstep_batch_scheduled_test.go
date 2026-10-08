@@ -206,8 +206,8 @@ func TestRunDeliveryTriggerBatchAllClinicsAt_UsesScheduledTimeForEveryTrigger(t 
 		"animalekarte-scheduler-v1:1785200400000:delivery",
 	)
 
-	assert.Equal(t, BatchRunResult{Processed: 13, Succeeded: 13}, result)
-	require.Len(t, captured, 13)
+	assert.Equal(t, BatchRunResult{Processed: 14, Succeeded: 14}, result)
+	require.Len(t, captured, 14)
 	for _, asOf := range captured {
 		assert.Equal(t, scheduledAt, asOf)
 	}

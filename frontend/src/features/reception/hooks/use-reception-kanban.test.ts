@@ -5,6 +5,7 @@ import { PetStatusDeceased } from "@/types/generated/models";
 
 import { useReceptionKanban } from "./use-reception-kanban";
 import type { ReceptionAppointment, ReceptionColumn } from "../api/types";
+import type { Reservation } from "@/hooks/reservation-intent-response";
 
 /**
  * use-reception-kanban の楽観更新ロジックを保護するテスト。
@@ -140,6 +141,8 @@ interface PermissionProps {
   canDeleteReservation?: boolean;
   /** EMR-243: 表示日（YYYY-MM-DD）。未指定時は既定値を使う。 */
   date?: string;
+  /** EMR-308: tentative 由来予約のキャンセル完了コールバック */
+  onTentativeCancelled?: (reservation: Reservation) => void;
 }
 
 const DEFAULT_VIEW_DATE = "2026-06-01";
@@ -165,7 +168,13 @@ async function renderKanban(
 describe("useReceptionKanban", () => {
   beforeEach(() => {
     mutateAsyncMock.mockReset();
-    mutateAsyncMock.mockResolvedValue(undefined);
+    // EMR-308: PATCH mutation は transformed Reservation を返す契約。
+    // undefined を返すと onSuccess 内の hadIntendedDate 参照で落ちるため、
+    // デフォルトは provenance なしの最小 Reservation を返す。
+    mutateAsyncMock.mockResolvedValue({
+      id: "updated",
+      hadIntendedDate: false,
+    } as unknown as Reservation);
     toastErrorMock.mockReset();
     toastSuccessMock.mockReset();
     handleApiErrorMock.mockReset();
@@ -669,6 +678,77 @@ describe("useReceptionKanban", () => {
 
       expect(columnOf(result.current.columns, "a2")).toBe("受付済");
       expect(mutateAsyncMock).not.toHaveBeenCalled();
+    });
+
+    // EMR-308 A4: tentative 由来（had_intended_date）の予約をキャンセルし終えたら
+    // onTentativeCancelled で「次回予定の再設定」導線を開く。自動再設定はしない。
+    it("had_intended_date+pet_id の応答で onTentativeCancelled を呼ぶ", async () => {
+      const onTentativeCancelled = vi.fn();
+      const updated = {
+        id: "a2",
+        status: "cancelled",
+        hadIntendedDate: true,
+        intendedDate: "2026-06-20",
+        petId: "10",
+        petName: "ポチ",
+        sourceMedicalRecordId: "99",
+      } as unknown as Reservation;
+      mutateAsyncMock.mockResolvedValue(updated);
+      setApiColumns([makeAppointment({ id: "a2", status: "checked_in" })]);
+      const { result } = await renderKanban({
+        canEditReservation: true,
+        canDeleteReservation: true,
+        onTentativeCancelled,
+      });
+
+      await act(async () => {
+        expect(await result.current.cancelAppointment("a2")).toBe(true);
+      });
+
+      // キャンセル自体は確定済み（カード除外 + cancelled PATCH）— その後に任意導線を呼ぶ
+      expect(mutateAsyncMock).toHaveBeenCalledWith({ id: "a2", status: "cancelled" });
+      expect(columnOf(result.current.columns, "a2")).toBeUndefined();
+      expect(onTentativeCancelled).toHaveBeenCalledTimes(1);
+      expect(onTentativeCancelled).toHaveBeenCalledWith(updated);
+    });
+
+    it("had_intended_date でない通常予約のキャンセルでは onTentativeCancelled を呼ばない", async () => {
+      const onTentativeCancelled = vi.fn();
+      mutateAsyncMock.mockResolvedValue({
+        id: "a2",
+        status: "cancelled",
+        hadIntendedDate: false,
+        petId: "10",
+      } as unknown as Reservation);
+      setApiColumns([makeAppointment({ id: "a2", status: "checked_in" })]);
+      const { result } = await renderKanban({
+        canEditReservation: true,
+        canDeleteReservation: true,
+        onTentativeCancelled,
+      });
+
+      await act(async () => {
+        await result.current.cancelAppointment("a2");
+      });
+
+      expect(onTentativeCancelled).not.toHaveBeenCalled();
+    });
+
+    it("キャンセル失敗時は onTentativeCancelled を呼ばない", async () => {
+      const onTentativeCancelled = vi.fn();
+      mutateAsyncMock.mockRejectedValue(new Error("boom"));
+      setApiColumns([makeAppointment({ id: "a2", status: "checked_in" })]);
+      const { result } = await renderKanban({
+        canEditReservation: true,
+        canDeleteReservation: true,
+        onTentativeCancelled,
+      });
+
+      await act(async () => {
+        expect(await result.current.cancelAppointment("a2")).toBe(false);
+      });
+
+      expect(onTentativeCancelled).not.toHaveBeenCalled();
     });
   });
 

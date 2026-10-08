@@ -132,7 +132,16 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	//   POST   /api/v1/trimmings/images/upload
 	// 541 — EMR-300 review: orphaned-upload cleanup for unkeyed trimming images:
 	//   DELETE /api/v1/trimmings/images
-	require.Len(t, routes, 541)
+	// 545 — EMR-306 ケージ連結（main 側で本 smoke 未更新のためここで追記）:
+	//   POST   /api/v1/hospitalizations/cage-swap
+	//   GET    /api/v1/masters/cages/occupancy
+	//   POST   /api/v1/masters/cages/:id/merge
+	//   POST   /api/v1/masters/cages/:id/unmerge
+	// 548 — EMR-308 次回予定（tentative appointment）の staff surface:
+	//   PUT    /api/v1/reservations/pets/:petId/next-visit-intent
+	//   DELETE /api/v1/reservations/pets/:petId/next-visit-intent
+	//   POST   /api/v1/reservations/:id/confirm-tentative
+	require.Len(t, routes, 548)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /health/db",

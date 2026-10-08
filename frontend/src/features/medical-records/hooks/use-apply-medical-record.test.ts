@@ -13,7 +13,6 @@ function recordFixture(overrides: Partial<MedicalRecord> = {}): MedicalRecord {
     assessment: "",
     notes: "",
     visitType: "再診",
-    nextVisitRecommendedDate: "",
     version: 1,
     ...overrides,
   } as MedicalRecord;
@@ -28,7 +27,6 @@ function buildArgs(existingRecord: MedicalRecord | undefined) {
     setPlan: vi.fn(),
     setAssessment: vi.fn(),
     setVisitType: vi.fn(),
-    setNextVisitDate: vi.fn(),
   };
 }
 
