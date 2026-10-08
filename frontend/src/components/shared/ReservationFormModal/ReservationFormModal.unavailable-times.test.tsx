@@ -449,7 +449,12 @@ describe("ReservationFormModal — EMR-270 編集開始時刻の再選択", () =
         await user.click(screen.getByTestId("res-start-time-trigger"));
         const option = await screen.findByRole("option", { name: new RegExp(`^${start}`) });
         expect(option).not.toHaveAttribute("data-disabled");
-        fireEvent.click(option);
+        await user.click(option);
+        expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+        expect(screen.getByTestId("res-start-time-trigger")).toHaveAttribute(
+          "aria-expanded",
+          "false",
+        );
         expect(screen.getByTestId("res-start-time-trigger")).toHaveTextContent(start);
         expect(screen.getByTestId("res-end-time-trigger")).toHaveTextContent(end);
       }
