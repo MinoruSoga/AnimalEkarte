@@ -70,9 +70,9 @@ function isMenuItemVisible(
   return selfOk;
 }
 
-function purposeForPath(path: string | undefined): string | undefined {
-  if (path === undefined) return undefined;
-  return sidebarItemDescriptions[path];
+function purposeForKey(key: string | undefined): string | undefined {
+  if (key === undefined) return undefined;
+  return sidebarItemDescriptions[key];
 }
 
 function owningSidebarRow(node: Element): Element | null {
@@ -186,7 +186,7 @@ const SidebarItem = memo(function SidebarItem({
     ? checkAnyChildActive(item.subItems ?? [], location.pathname)
     : false;
   const isExpanded = manualExpanded ?? hasActiveChild;
-  const description = purposeForPath(purposePath ?? item.path);
+  const description = purposeForKey(item.purposeKey ?? purposePath ?? item.path);
   const descriptionId = useId();
   const [rowElement, setRowElement] = useState<HTMLDivElement | null>(null);
   const keyboardIntent = useRef(false);

@@ -425,14 +425,29 @@ const DESCRIBED_MENU: ReadonlyArray<{ label: string; path: string; purpose: stri
     purpose:
       "システムの操作方法、運用ルール、およびトラブルシューティングをスタッフが院内でいつでも閲覧・検索できる統合ヘルプセンター。",
   },
-];
-
-const UNDESCRIBED_MENU: ReadonlyArray<{ label: string; path?: string }> = [
-  { label: "検査受信", path: paths.labDevice.getHref() },
-  { label: "検査機器マスタ", path: paths.settings.labDeviceItemMasters.getHref() },
-  { label: "カルテ関連" },
-  { label: "入院・ケージ" },
-  { label: "トリミング" },
+  {
+    label: "検査受信",
+    path: paths.labDevice.getHref(),
+    purpose: "医院に設定された検査機器の受信を1画面で見て、本日診療中のカルテへ紐付ける。",
+  },
+  {
+    label: "検査機器マスタ",
+    path: paths.settings.labDeviceItemMasters.getHref(),
+    purpose:
+      "検査機器の項目コードと検査フィールドの対応を定義する。日常の受信操作はここでは行わない。",
+  },
+  {
+    label: "カルテ関連",
+    purpose: "カルテで使う診療項目、診断、問診、主訴、薬剤、検査、検査機器の定義をまとめて開く。",
+  },
+  {
+    label: "入院・ケージ",
+    purpose: "入院プランと院内ケージの定義をまとめて開く。",
+  },
+  {
+    label: "トリミング",
+    purpose: "トリミングの基本コース、追加オプション、コース種別の定義をまとめて開く。",
+  },
 ];
 
 function flattenMenu(items: MenuItem[]): MenuItem[] {
@@ -447,6 +462,12 @@ function requireMenuItem(label: string, path: string | undefined): MenuItem {
     throw new Error(`menu item not found: ${label}`);
   }
   return found;
+}
+
+function descriptionFor(item: MenuItem): string | undefined {
+  const key = item.purposeKey ?? item.path;
+  if (key === undefined) return undefined;
+  return sidebarItemDescriptions[key];
 }
 
 function focusVisible(element: HTMLElement) {
@@ -654,24 +675,48 @@ describe("sidebar item purpose descriptions", () => {
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 
-  it("画面の目的がある項目だけその文を受け取り、無い5件は説明を持たない", () => {
+  it("左メニューの全項目が画面の目的を受け取る", () => {
     for (const row of DESCRIBED_MENU) {
       const item = requireMenuItem(row.label, row.path);
-      expect(item.path && sidebarItemDescriptions[item.path]).toBe(row.purpose);
+      expect(descriptionFor(item)).toBe(row.purpose);
       expect(row.purpose).not.toMatch(/\/manual|help-article|記事/);
     }
 
-    for (const row of UNDESCRIBED_MENU) {
-      const item = requireMenuItem(row.label, row.path);
-      expect(item.path ? sidebarItemDescriptions[item.path] : undefined).toBeUndefined();
-    }
-
-    const describedKeys = new Set(DESCRIBED_MENU.map((row) => `${row.label}\t${row.path}`));
-    const undescribedKeys = new Set(
-      UNDESCRIBED_MENU.map((row) => `${row.label}\t${row.path ?? ""}`),
-    );
+    const describedKeys = new Set(DESCRIBED_MENU.map((row) => `${row.label}\t${row.path ?? ""}`));
     expect(flatMenu.map((item) => `${item.label}\t${item.path ?? ""}`).sort()).toEqual(
-      [...describedKeys, ...undescribedKeys].sort(),
+      [...describedKeys].sort(),
     );
+  });
+
+  it("索引に目的が無かった5項目も展開時と折りたたみ時に説明を出す", () => {
+    const wanted: ReadonlyArray<{ label: string; path?: string }> = [
+      { label: "検査受信", path: paths.labDevice.getHref() },
+      { label: "検査機器マスタ", path: paths.settings.labDeviceItemMasters.getHref() },
+      { label: "カルテ関連" },
+      { label: "入院・ケージ" },
+      { label: "トリミング" },
+    ];
+    const rows = wanted.map((row) => {
+      const found = DESCRIBED_MENU.find(
+        (item) => item.label === row.label && item.path === row.path,
+      );
+      if (!found) {
+        throw new Error(`described row missing: ${row.label}`);
+      }
+      return found;
+    });
+
+    for (const row of rows) {
+      for (const collapsed of [false, true]) {
+        const item = requireMenuItem(row.label, row.path);
+        const view = renderSidebarItem(item, collapsed);
+        const control = screen.getByRole(item.path ? "link" : "button", {
+          name: item.path ? row.label : new RegExp(`^${row.label}$`),
+        });
+        expectPurposeExposed(control, row.purpose, "hover");
+        expectPurposeExposed(control, row.purpose, "focus-visible");
+        view.unmount();
+      }
+    }
   });
 });

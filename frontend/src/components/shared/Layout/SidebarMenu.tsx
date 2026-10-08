@@ -72,6 +72,10 @@ export interface SidebarMenuSection {
   items: MenuItem[];
 }
 
+const chartMastersPurposeKey = "group:chart-masters";
+const hospitalizationCagePurposeKey = "group:hospitalization-cage";
+const trimmingMastersPurposeKey = "group:trimming-masters";
+
 export const sidebarMenuSections: SidebarMenuSection[] = [
   {
     title: "診療業務",
@@ -279,6 +283,7 @@ export const sidebarMenuSections: SidebarMenuSection[] = [
           {
             icon: <FileText className={ICON.toolbar} />,
             label: "カルテ関連",
+            purposeKey: chartMastersPurposeKey,
             resource: ResourceMasterMedical,
             subItems: [
               {
@@ -334,6 +339,7 @@ export const sidebarMenuSections: SidebarMenuSection[] = [
           {
             icon: <Bed className={ICON.toolbar} />,
             label: "入院・ケージ",
+            purposeKey: hospitalizationCagePurposeKey,
             resource: ResourceMasterHosp,
             subItems: [
               {
@@ -353,6 +359,7 @@ export const sidebarMenuSections: SidebarMenuSection[] = [
           {
             icon: <Scissors className={ICON.toolbar} />,
             label: "トリミング",
+            purposeKey: trimmingMastersPurposeKey,
             resource: ResourceMasterTrim,
             subItems: [
               {
@@ -451,7 +458,7 @@ const lineReservationPurpose =
 const lstepPurpose =
   "Lステップ（LINE公式アカウント拡張ツール）との高度な連携設定、自動配信タグの管理、およびマーケティング施策の効果分析。";
 
-/** Screen-purpose sentences keyed by menu path. Path-less groups stay absent. */
+/** Screen-purpose sentences keyed by menu path, or by purposeKey for path-less groups. */
 export const sidebarItemDescriptions: Readonly<Record<string, string>> = {
   [paths.home.getHref()]:
     "院内全体の稼働状況を30秒間隔の定期同期で把握・管理するためのカンバンボード型ホーム画面。",
@@ -463,6 +470,8 @@ export const sidebarItemDescriptions: Readonly<Record<string, string>> = {
     "院内で行われた全カルテ（診療記録）の時系列検索、および診察内容の参照。",
   [paths.examinations.getHref()]:
     "院内および院外（外部委託）で実施される全検査のオーダー状況および、測定結果ステータスの一元管理。",
+  [paths.labDevice.getHref()]:
+    "医院に設定された検査機器の受信を1画面で見て、本日診療中のカルテへ紐付ける。",
   [paths.trimming.getHref()]: "院内で実施されるトリミング施術の予約・実績・進捗管理。",
   [paths.vaccinations.getHref()]:
     "院内で行われた全予防接種（混合ワクチン、狂犬病ワクチン、フィラリア・ノミダニ予防等）の実績管理。",
@@ -539,4 +548,11 @@ export const sidebarItemDescriptions: Readonly<Record<string, string>> = {
     "所属医院内の飼主・ペットを手動で identity group にリンク／unlink し、連携先ペットの最小治療履歴を参照する（Phase 1 workbench）。",
   [paths.manual.getHref()]:
     "システムの操作方法、運用ルール、およびトラブルシューティングをスタッフが院内でいつでも閲覧・検索できる統合ヘルプセンター。",
+  [paths.settings.labDeviceItemMasters.getHref()]:
+    "検査機器の項目コードと検査フィールドの対応を定義する。日常の受信操作はここでは行わない。",
+  [chartMastersPurposeKey]:
+    "カルテで使う診療項目、診断、問診、主訴、薬剤、検査、検査機器の定義をまとめて開く。",
+  [hospitalizationCagePurposeKey]: "入院プランと院内ケージの定義をまとめて開く。",
+  [trimmingMastersPurposeKey]:
+    "トリミングの基本コース、追加オプション、コース種別の定義をまとめて開く。",
 };

@@ -27,6 +27,8 @@ export interface MenuItem {
   icon?: ReactNode;
   label: string;
   path?: string;
+  /** path を持たないグループが sidebarItemDescriptions を引くキー。 */
+  purposeKey?: string;
   resource?: Resource; // 型安全な Resource 文字列を使用
   subItems?: MenuItem[];
 }
