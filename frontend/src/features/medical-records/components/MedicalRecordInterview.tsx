@@ -1,6 +1,9 @@
 // React/Framework
 import { memo, useCallback, useState } from "react";
 
+// External
+import { toast } from "sonner";
+
 // Internal
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 
@@ -47,6 +50,14 @@ const INTERVIEW_TEMPLATES: { label: string; text: string }[] = [
 // API 結果が空/未ロードのときは必ず空状態を出す（InterviewHistory 側に EmptyState あり）。
 const EMPTY_HISTORY_ITEMS: InterviewHistoryItem[] = [];
 
+// EMR-325: 明細複写の単価注意。対応マスタが見つかる明細のみ取得済みマスタ価格で追加され、
+// その他・対応マスタが見つからない明細は元単価を引き継ぐ（実態は
+// ../lib/treatments-tab-model.ts buildCopiedTreatmentPayload）。「すべて現行マスタ価格に
+// 更新」は言い過ぎのため使わない。確認ダイアログ説明文と、ダイアログを通らない経路を含む
+// 全コピー経路の toast で同一文を使う（チケット最新コメントの訂正文に準拠）。
+const COPY_PRICE_CAUTION =
+  "対応するマスタが見つかる明細は取得済みのマスタ価格で追加されます。その他・対応マスタが見つからない明細は元の単価を引き継ぎます。コピー後に単価をご確認ください。";
+
 export const MedicalRecordInterview = memo(function MedicalRecordInterview({
   chiefComplaint,
   setChiefComplaint,
@@ -71,6 +82,10 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
 
   const applyCopySource = useCallback(
     (source: InterviewHistoryCopySource) => {
+      // EMR-325: 即時適用・確認ダイアログ確定・recordId 無しの問診のみ複写の全経路が
+      // この一点を通るため単価注意をここで通知する。useCopyTreatmentDetails の toast に
+      // 置くと recordId 無し経路で発火せず、発火タイミングも複写完了後にずれる。
+      toast.warning(COPY_PRICE_CAUTION);
       if (source.chiefComplaint !== undefined) setChiefComplaint(source.chiefComplaint);
       if (source.treatmentPolicy !== undefined) setTreatmentPolicy(source.treatmentPolicy);
       if (source.chiefComplaintTypeId !== undefined) {
@@ -146,7 +161,7 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
         onClose={handleCloseCopyConfirm}
         onConfirm={handleConfirmCopy}
         title="過去の問診内容をコピーしますか？"
-        description="主訴詳細・治療方針・主訴区分の現在の入力が上書きされ、前回の治療明細も追加されます。"
+        description={`主訴詳細・治療方針・主訴区分の現在の入力が上書きされ、前回の治療明細も追加されます。${COPY_PRICE_CAUTION}`}
         confirmLabel="コピー"
       />
     </div>

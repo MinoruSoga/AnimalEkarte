@@ -1,8 +1,8 @@
 import { C } from "@/lib/design-tokens";
-import type { MedicalRecordAddendumResponse } from "@/types/generated/medicalrecord-responses";
+import type { MedicalRecordAddendumWithAuthorName } from "../../api/types";
 
 interface AddendumItemProps {
-  addendum: MedicalRecordAddendumResponse;
+  addendum: MedicalRecordAddendumWithAuthorName;
 }
 
 function formatDateTime(iso: string): string {
@@ -18,7 +18,7 @@ export function AddendumItem({ addendum }: AddendumItemProps) {
       <div className={`flex items-center gap-2 text-sm ${C.text60}`}>
         <time dateTime={addendum.created_at}>{formattedDate}</time>
         <span aria-hidden="true">·</span>
-        <span>スタッフID: {addendum.author_user_id}</span>
+        <span>{addendum.author_name ?? `スタッフID: ${addendum.author_user_id}`}</span>
       </div>
       <div>
         <p className={`text-sm font-medium ${C.text60} mb-1`}>修正理由</p>

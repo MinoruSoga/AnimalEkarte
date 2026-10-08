@@ -11,6 +11,13 @@ type MedicalRecordAddendum struct {
 	AfterText       string    `gorm:"not null"                 json:"after_text"`
 	Reason          string    `gorm:"not null"                 json:"reason"`
 	CreatedAt       time.Time `gorm:"autoCreateTime"           json:"created_at"`
+
+	// Relations
+	// AuthorStaff は追記者の氏名解決専用の preload-only リレーション。
+	// repository が「親カルテの clinic_id + deleted_at IS NULL」スコープでのみ
+	// Preload する。wire 露出は response DTO の author_name が担うため
+	// json:"-"（非直列化）かつ tygo:"-"（models.ts へ出さない: EMR-326）。
+	AuthorStaff *Staff `gorm:"foreignKey:AuthorUserID" json:"-" tygo:"-"`
 }
 
 func (MedicalRecordAddendum) TableName() string { return "medical_record_addenda" }

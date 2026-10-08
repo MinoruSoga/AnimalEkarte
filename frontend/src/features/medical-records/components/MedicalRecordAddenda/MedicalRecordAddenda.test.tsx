@@ -12,7 +12,7 @@ import {
   useMedicalRecordAddenda,
   useCreateMedicalRecordAddendum,
 } from "../../hooks/use-medical-record-addenda";
-import type { MedicalRecordAddendumResponse as AddendumType } from "@/types/generated/medicalrecord-responses";
+import type { MedicalRecordAddendumWithAuthorName as AddendumType } from "../../api/types";
 
 function makeAddendum(overrides: Partial<AddendumType> = {}): AddendumType {
   return {
@@ -87,6 +87,41 @@ describe("MedicalRecordAddenda", () => {
     expect(items[0]).toHaveTextContent("1番目");
     expect(items[1]).toHaveTextContent("2番目");
     expect(items[2]).toHaveTextContent("3番目");
+  });
+
+  it("author_name がある追記は追記者氏名を表示する（スタッフIDは出さない）", () => {
+    vi.mocked(useMedicalRecordAddenda).mockReturnValue({
+      data: [makeAddendum({ id: 1, author_user_id: 5, author_name: "田中 太郎" })],
+      isLoading: false,
+    } as ReturnType<typeof useMedicalRecordAddenda>);
+
+    render(<MedicalRecordAddenda medicalRecordId="1" canEdit={false} recordStatus="確定済" />);
+
+    const item = screen.getByTestId("addendum-item");
+    expect(item).toHaveTextContent("田中 太郎");
+    expect(item).not.toHaveTextContent("スタッフID");
+  });
+
+  it("author_name が null の追記はスタッフIDにフォールバック表示する", () => {
+    vi.mocked(useMedicalRecordAddenda).mockReturnValue({
+      data: [makeAddendum({ id: 1, author_user_id: 5, author_name: null })],
+      isLoading: false,
+    } as ReturnType<typeof useMedicalRecordAddenda>);
+
+    render(<MedicalRecordAddenda medicalRecordId="1" canEdit={false} recordStatus="確定済" />);
+
+    expect(screen.getByTestId("addendum-item")).toHaveTextContent("スタッフID: 5");
+  });
+
+  it("author_name が省略された追記もスタッフIDにフォールバック表示する", () => {
+    vi.mocked(useMedicalRecordAddenda).mockReturnValue({
+      data: [makeAddendum({ id: 1, author_user_id: 7 })],
+      isLoading: false,
+    } as ReturnType<typeof useMedicalRecordAddenda>);
+
+    render(<MedicalRecordAddenda medicalRecordId="1" canEdit={false} recordStatus="確定済" />);
+
+    expect(screen.getByTestId("addendum-item")).toHaveTextContent("スタッフID: 7");
   });
 
   it("「追記する」ボタンクリックでモーダルが開く", async () => {
