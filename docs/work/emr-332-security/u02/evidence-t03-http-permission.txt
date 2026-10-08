@@ -1,0 +1,22 @@
+=== RUN   TestHTTPHandler_HasPermissionAndMiddleware
+--- PASS: TestHTTPHandler_HasPermissionAndMiddleware (0.00s)
+=== RUN   TestHTTPHandler_HasPermission_RepositoryErrorFailsClosed
+--- PASS: TestHTTPHandler_HasPermission_RepositoryErrorFailsClosed (0.00s)
+=== RUN   TestHTTPHandler_HasPermission_SystemAdminBypassesRepository
+--- PASS: TestHTTPHandler_HasPermission_SystemAdminBypassesRepository (0.00s)
+=== RUN   TestHTTPHandler_HasPermission_MissingContextDoesNotWriteResponse
+--- PASS: TestHTTPHandler_HasPermission_MissingContextDoesNotWriteResponse (0.00s)
+=== RUN   TestHTTPHandler_HasPermissionInClinic_UsesDestinationClinic
+--- PASS: TestHTTPHandler_HasPermissionInClinic_UsesDestinationClinic (0.00s)
+=== RUN   TestHTTPHandler_HasPermissionInClinic_MemoizesEffectivePermissions
+--- PASS: TestHTTPHandler_HasPermissionInClinic_MemoizesEffectivePermissions (0.00s)
+=== RUN   TestHTTPHandler_HasPermissionInClinic_ErrorNotMemoized
+--- PASS: TestHTTPHandler_HasPermissionInClinic_ErrorNotMemoized (0.00s)
+=== RUN   TestHTTPHandler_RequirePermission_AttachesClinicChecker
+--- PASS: TestHTTPHandler_RequirePermission_AttachesClinicChecker (0.00s)
+=== RUN   TestHTTPHandler_RequirePermission_RejectsGETWhenOnlyAnotherClinicHasGrant
+--- PASS: TestHTTPHandler_RequirePermission_RejectsGETWhenOnlyAnotherClinicHasGrant (0.00s)
+=== RUN   TestHTTPHandler_RequirePermissionAllowingAssignedClinicGrant_AllowsGETWhenAnotherAuthorizedClinicHasGrant
+--- PASS: TestHTTPHandler_RequirePermissionAllowingAssignedClinicGrant_AllowsGETWhenAnotherAuthorizedClinicHasGrant (0.00s)
+PASS
+ok  	github.com/animal-ekarte/backend/internal/auth	0.009s

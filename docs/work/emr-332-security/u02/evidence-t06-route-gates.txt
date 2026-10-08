@@ -1,0 +1,1136 @@
+=== RUN   TestGETHEADRoutesAreClassifiedForSelectedClinicGrant
+=== RUN   TestGETHEADRoutesAreClassifiedForSelectedClinicGrant/storage=
+=== RUN   TestGETHEADRoutesAreClassifiedForSelectedClinicGrant/storage=s3
+--- PASS: TestGETHEADRoutesAreClassifiedForSelectedClinicGrant (0.00s)
+    --- PASS: TestGETHEADRoutesAreClassifiedForSelectedClinicGrant/storage= (0.00s)
+    --- PASS: TestGETHEADRoutesAreClassifiedForSelectedClinicGrant/storage=s3 (0.00s)
+=== RUN   TestGETHEADInventoryRejectsRouteDrift
+=== RUN   TestGETHEADInventoryRejectsRouteDrift/known-prefix-addition
+=== RUN   TestGETHEADInventoryRejectsRouteDrift/removal
+=== RUN   TestGETHEADInventoryRejectsRouteDrift/method-change
+=== RUN   TestGETHEADInventoryRejectsRouteDrift/handler-change
+=== RUN   TestGETHEADInventoryRejectsRouteDrift/write-method-change
+--- PASS: TestGETHEADInventoryRejectsRouteDrift (0.00s)
+    --- PASS: TestGETHEADInventoryRejectsRouteDrift/known-prefix-addition (0.00s)
+    --- PASS: TestGETHEADInventoryRejectsRouteDrift/removal (0.00s)
+    --- PASS: TestGETHEADInventoryRejectsRouteDrift/method-change (0.00s)
+    --- PASS: TestGETHEADInventoryRejectsRouteDrift/handler-change (0.00s)
+    --- PASS: TestGETHEADInventoryRejectsRouteDrift/write-method-change (0.00s)
+=== RUN   TestGETHEADInventoryEvidenceReferences
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/liff/:clinicId/available-dates
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/liff/:clinicId/available-times
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/liff/:clinicId/courses
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/liff/:clinicId/health-card
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/liff/:clinicId/my-reservations
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/liff/:clinicId/profile
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/liff/:clinicId/settings
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/liff/:clinicId/staffs
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/liff/:clinicId/trimming-courses
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/liff/:clinicId/trimming-options
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/accountings
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/accountings/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/accountings/:id/refunds
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/accountings/daily-summary
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/accountings/unpaid
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/accountings/unpaid-balance
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/accountings/unpaid-period
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/billing-items/:id/discount-suggestions
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/billing-items/unbilled
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/billing-items/unbilled-details
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/billing-items/ungrouped-same-day
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/cash-register/closes
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/cash-register/closes/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/cash-register/preview
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/checkups
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/checkups/field-results
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinic-holidays
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/line-customers
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/line-reservation-settings
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/lstep-settings
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/lstep-tag-code-mappings
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/lstep/analytics/delivery-stats
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/lstep/analytics/visit-conversion
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/lstep/checkup-sync/preview
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/lstep/csv-imports
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/lstep/delivery-monitor/logs
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/lstep/delivery-monitor/summary
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/lstep/owners
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/lstep/tag-summary
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/lstep/trigger-priorities
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/owners/:id/line/send-logs
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/owners/:id/lstep/friend-attributes
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/owners/:id/lstep/tags
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/owners/aggregations
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/reservation-staffs
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/reservation-types
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/reservations
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/closing-settings
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/closing-settings/holidays
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/closing-settings/special-periods
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/company
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/estimates
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/estimates/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/examinations
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/examinations/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/examinations/:id/items
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/examinations/:id/print-snapshot
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/health
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/hospitalizations
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/hospitalizations/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/hospitalizations/:id/care-plan-items
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/hospitalizations/:id/daily-records
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/hospitalizations/:id/daily-records/:date
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/hospitalizations/:id/treatment-plans
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/identity-links/owner-groups/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/identity-links/owners/:clinic_id/:owner_id/group
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/identity-links/owners/search
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/identity-links/pet-groups/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/identity-links/pets/:clinic_id/:pet_id/group
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/identity-links/pets/:clinic_id/:pet_id/treatment-history
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/identity-links/pets/search
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/inventory
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/inventory/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lab-device-item-masters
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lab-device/agent-consumer
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lab-device/board
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lab-device/mapping-drafts/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lab-device/station
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lab-device/unlinked
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lab-devices
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lab-imports/:job_id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lab-imports/:job_id/events
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lab-reports/exams/:exam_id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lab-reports/jobs/:job_id/summaries
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lstep-settings
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lstep-tag-code-mappings
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lstep-tag-config/auto-managed-prefixes
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lstep-tag-config/condition-tag-mappings
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lstep-tag-config/send-purpose-tag-prefixes
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lstep/delivery-monitor/logs
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lstep/delivery-monitor/summary
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lstep/owners
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lstep/tag-summary
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lstep/trigger-priorities
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/manual/articles
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/manual/articles/:category/:slug
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/manual/articles/:category/:slug/versions
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/animal-species
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/animal-species/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/cages
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/cages/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/cages/occupancy
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/campaigns
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/campaigns/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/checkup-types
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/checkup-types/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/checkup-types/:id/fields
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/chief-complaint-types
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/chief-complaint-types/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/consultations
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/consultations/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/diagnosis-names
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/diagnosis-names/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/diagnosis-names/all
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/diagnosis-types
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/diagnosis-types/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/examination-types
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/examination-types/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/hospitalization-plans
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/hospitalization-plans/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/inquiry-templates
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/inquiry-templates/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/insurances
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/insurances/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/medicines
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/medicines/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/medicines/:id/dose-params
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/merchandise-items
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/merchandise-items/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/occupations
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/occupations/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/permission-groups
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/permission-groups/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/procedures
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/procedures/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/reservation-type-groups
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/reservation-type-groups/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/reservation-types
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/reservation-types/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/reservation-types/:id/available-slots
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/reservation-types/:id/occupations
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/reservation-types/:id/unavailable-times
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/staffs
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/staffs/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/staffs/:id/capable-reservation-types
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/staffs/:id/clinics
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/staffs/:id/excluded-reservation-types
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/staffs/:id/permission-groups
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/trimming-course-types
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/trimming-course-types/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/trimming-courses
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/trimming-courses/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/trimming-options
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/trimming-options/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/vaccines
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/vaccines/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/me
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/medical-records
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/medical-records/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/medical-records/:id/addenda
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/medical-records/:id/billing-confirmation
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/medical-records/:id/checkups
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/medical-records/:id/checkups/:checkupId/field-results
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/medical-records/:id/clinical-plan
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/medical-records/:id/images
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/medical-records/:id/treatment-plans
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/medical-records/:id/treatments
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/medical-records/:id/vitals
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/owners
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/owners/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/owners/:id/line/send-logs
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/owners/:id/lstep/send-history
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/owners/:id/lstep/tags
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/owners/:id/report/pets
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/owners/:id/shared-pets
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/payment-methods
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/payment-methods/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/pets
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/pets/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/pets/:id/chronic-conditions
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/pets/:id/first-visit
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/pets/:id/sub-owners
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/pets/:id/treatment-history
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/reports/monthly
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/reports/monthly/csv
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/reservations
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/reservations/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/reservations/available-times
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/shared-files
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/shared-files/:id/signed-url
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/shift-templates
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/shift-templates/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/shifts
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/shifts/on-duty-staffs
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/support/bug-reports
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/support/chat/exchanges
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/support/chat/rooms
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/support/chat/history
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/support/chat/status
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/trimmings
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/trimmings/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/vaccinations
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/api/v1/vaccinations/:id
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/health
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/health/db
+=== RUN   TestGETHEADInventoryEvidenceReferences/GET_/uploads/*filepath
+=== RUN   TestGETHEADInventoryEvidenceReferences/HEAD_/uploads/*filepath
+--- PASS: TestGETHEADInventoryEvidenceReferences (0.17s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/liff/:clinicId/available-dates (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/liff/:clinicId/available-times (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/liff/:clinicId/courses (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/liff/:clinicId/health-card (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/liff/:clinicId/my-reservations (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/liff/:clinicId/profile (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/liff/:clinicId/settings (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/liff/:clinicId/staffs (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/liff/:clinicId/trimming-courses (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/liff/:clinicId/trimming-options (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/accountings (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/accountings/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/accountings/:id/refunds (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/accountings/daily-summary (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/accountings/unpaid (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/accountings/unpaid-balance (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/accountings/unpaid-period (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/billing-items/:id/discount-suggestions (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/billing-items/unbilled (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/billing-items/unbilled-details (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/billing-items/ungrouped-same-day (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/cash-register/closes (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/cash-register/closes/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/cash-register/preview (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/checkups (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/checkups/field-results (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinic-holidays (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/line-customers (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/line-reservation-settings (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/lstep-settings (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/lstep-tag-code-mappings (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/lstep/analytics/delivery-stats (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/lstep/analytics/visit-conversion (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/lstep/checkup-sync/preview (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/lstep/csv-imports (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/lstep/delivery-monitor/logs (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/lstep/delivery-monitor/summary (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/lstep/owners (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/lstep/tag-summary (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/lstep/trigger-priorities (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/owners/:id/line/send-logs (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/owners/:id/lstep/friend-attributes (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/owners/:id/lstep/tags (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/owners/aggregations (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/reservation-staffs (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/reservation-types (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/clinics/:clinic_id/reservations (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/closing-settings (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/closing-settings/holidays (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/closing-settings/special-periods (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/company (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/estimates (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/estimates/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/examinations (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/examinations/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/examinations/:id/items (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/examinations/:id/print-snapshot (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/health (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/hospitalizations (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/hospitalizations/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/hospitalizations/:id/care-plan-items (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/hospitalizations/:id/daily-records (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/hospitalizations/:id/daily-records/:date (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/hospitalizations/:id/treatment-plans (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/identity-links/owner-groups/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/identity-links/owners/:clinic_id/:owner_id/group (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/identity-links/owners/search (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/identity-links/pet-groups/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/identity-links/pets/:clinic_id/:pet_id/group (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/identity-links/pets/:clinic_id/:pet_id/treatment-history (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/identity-links/pets/search (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/inventory (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/inventory/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lab-device-item-masters (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lab-device/agent-consumer (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lab-device/board (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lab-device/mapping-drafts/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lab-device/station (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lab-device/unlinked (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lab-devices (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lab-imports/:job_id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lab-imports/:job_id/events (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lab-reports/exams/:exam_id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lab-reports/jobs/:job_id/summaries (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lstep-settings (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lstep-tag-code-mappings (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lstep-tag-config/auto-managed-prefixes (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lstep-tag-config/condition-tag-mappings (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lstep-tag-config/send-purpose-tag-prefixes (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lstep/delivery-monitor/logs (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lstep/delivery-monitor/summary (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lstep/owners (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lstep/tag-summary (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/lstep/trigger-priorities (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/manual/articles (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/manual/articles/:category/:slug (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/manual/articles/:category/:slug/versions (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/animal-species (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/animal-species/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/cages (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/cages/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/cages/occupancy (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/campaigns (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/campaigns/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/checkup-types (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/checkup-types/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/checkup-types/:id/fields (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/chief-complaint-types (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/chief-complaint-types/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/consultations (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/consultations/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/diagnosis-names (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/diagnosis-names/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/diagnosis-names/all (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/diagnosis-types (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/diagnosis-types/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/examination-types (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/examination-types/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/hospitalization-plans (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/hospitalization-plans/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/inquiry-templates (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/inquiry-templates/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/insurances (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/insurances/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/medicines (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/medicines/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/medicines/:id/dose-params (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/merchandise-items (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/merchandise-items/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/occupations (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/occupations/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/permission-groups (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/permission-groups/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/procedures (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/procedures/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/reservation-type-groups (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/reservation-type-groups/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/reservation-types (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/reservation-types/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/reservation-types/:id/available-slots (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/reservation-types/:id/occupations (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/reservation-types/:id/unavailable-times (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/staffs (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/staffs/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/staffs/:id/capable-reservation-types (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/staffs/:id/clinics (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/staffs/:id/excluded-reservation-types (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/staffs/:id/permission-groups (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/trimming-course-types (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/trimming-course-types/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/trimming-courses (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/trimming-courses/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/trimming-options (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/trimming-options/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/vaccines (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/masters/vaccines/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/me (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/medical-records (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/medical-records/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/medical-records/:id/addenda (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/medical-records/:id/billing-confirmation (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/medical-records/:id/checkups (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/medical-records/:id/checkups/:checkupId/field-results (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/medical-records/:id/clinical-plan (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/medical-records/:id/images (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/medical-records/:id/treatment-plans (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/medical-records/:id/treatments (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/medical-records/:id/vitals (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/owners (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/owners/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/owners/:id/line/send-logs (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/owners/:id/lstep/send-history (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/owners/:id/lstep/tags (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/owners/:id/report/pets (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/owners/:id/shared-pets (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/payment-methods (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/payment-methods/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/pets (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/pets/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/pets/:id/chronic-conditions (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/pets/:id/first-visit (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/pets/:id/sub-owners (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/pets/:id/treatment-history (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/reports/monthly (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/reports/monthly/csv (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/reservations (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/reservations/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/reservations/available-times (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/shared-files (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/shared-files/:id/signed-url (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/shift-templates (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/shift-templates/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/shifts (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/shifts/on-duty-staffs (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/support/bug-reports (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/support/chat/exchanges (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/support/chat/rooms (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/support/chat/history (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/support/chat/status (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/trimmings (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/trimmings/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/vaccinations (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/api/v1/vaccinations/:id (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/health (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/health/db (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/GET_/uploads/*filepath (0.00s)
+    --- PASS: TestGETHEADInventoryEvidenceReferences/HEAD_/uploads/*filepath (0.00s)
+=== RUN   TestGETHEADInventoryVerificationMentionsExecutedTests
+--- PASS: TestGETHEADInventoryVerificationMentionsExecutedTests (0.00s)
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/accountings/:id/refunds
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/accountings/unpaid
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/accountings/unpaid-balance
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/accountings/unpaid-period
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/billing-items/:id/discount-suggestions
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/billing-items/unbilled
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/billing-items/unbilled-details
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/billing-items/ungrouped-same-day
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/cash-register/closes
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/cash-register/closes/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/cash-register/preview
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/checkups
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/checkups/field-results
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinic-holidays
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/line-customers
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/lstep-settings
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/lstep-tag-code-mappings
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/lstep/analytics/delivery-stats
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/lstep/analytics/visit-conversion
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/lstep/checkup-sync/preview
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/lstep/csv-imports
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/lstep/delivery-monitor/logs
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/lstep/delivery-monitor/summary
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/lstep/owners
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/lstep/tag-summary
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/lstep/trigger-priorities
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/owners/:id/line/send-logs
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/owners/:id/lstep/friend-attributes
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/owners/:id/lstep/tags
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/owners/aggregations
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/reservation-staffs
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/reservation-types
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/reservations
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/closing-settings
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/closing-settings/holidays
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/closing-settings/special-periods
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/estimates
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/estimates/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/examinations
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/examinations/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/examinations/:id/items
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/examinations/:id/print-snapshot
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/hospitalizations
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/hospitalizations/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/hospitalizations/:id/care-plan-items
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/hospitalizations/:id/daily-records
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/hospitalizations/:id/daily-records/:date
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/hospitalizations/:id/treatment-plans
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/inventory
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/inventory/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lab-device-item-masters
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lab-device/agent-consumer
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lab-device/board
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lab-device/mapping-drafts/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lab-device/station
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lab-device/unlinked
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lab-devices
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lab-imports/:job_id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lab-imports/:job_id/events
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lab-reports/exams/:exam_id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lab-reports/jobs/:job_id/summaries
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lstep-settings
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lstep-tag-code-mappings
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lstep/delivery-monitor/logs
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lstep/delivery-monitor/summary
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lstep/owners
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lstep/tag-summary
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lstep/trigger-priorities
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/cages
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/cages/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/cages/occupancy
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/campaigns
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/campaigns/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/checkup-types
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/checkup-types/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/checkup-types/:id/fields
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/chief-complaint-types
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/chief-complaint-types/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/consultations
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/consultations/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/diagnosis-names
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/diagnosis-names/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/diagnosis-names/all
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/diagnosis-types
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/diagnosis-types/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/examination-types
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/examination-types/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/hospitalization-plans
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/hospitalization-plans/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/inquiry-templates
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/inquiry-templates/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/insurances
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/insurances/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/medicines
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/medicines/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/medicines/:id/dose-params
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/merchandise-items
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/merchandise-items/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/occupations
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/occupations/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/permission-groups
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/permission-groups/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/procedures
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/procedures/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/reservation-type-groups
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/reservation-type-groups/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/reservation-types
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/reservation-types/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/reservation-types/:id/available-slots
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/reservation-types/:id/occupations
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/reservation-types/:id/unavailable-times
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/staffs
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/staffs/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/staffs/:id/capable-reservation-types
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/staffs/:id/clinics
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/staffs/:id/excluded-reservation-types
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/staffs/:id/permission-groups
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/trimming-course-types
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/trimming-course-types/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/trimming-courses
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/trimming-courses/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/trimming-options
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/trimming-options/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/vaccines
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/vaccines/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/medical-records/:id/addenda
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/medical-records/:id/billing-confirmation
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/medical-records/:id/checkups
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/medical-records/:id/checkups/:checkupId/field-results
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/medical-records/:id/clinical-plan
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/medical-records/:id/images
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/medical-records/:id/treatment-plans
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/medical-records/:id/treatments
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/medical-records/:id/vitals
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/owners/:id/line/send-logs
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/owners/:id/lstep/send-history
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/owners/:id/lstep/tags
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/owners/:id/shared-pets
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/payment-methods
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/payment-methods/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/pets/:id/chronic-conditions
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/pets/:id/first-visit
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/pets/:id/sub-owners
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/pets/:id/treatment-history
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/reports/monthly
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/reports/monthly/csv
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/reservations/available-times
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/shared-files
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/shared-files/:id/signed-url
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/shift-templates
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/shift-templates/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/shifts
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/shifts/on-duty-staffs
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/trimmings
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/trimmings/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/vaccinations
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/vaccinations/:id
+--- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden (0.01s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/accountings/:id/refunds (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/accountings/unpaid (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/accountings/unpaid-balance (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/accountings/unpaid-period (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/billing-items/:id/discount-suggestions (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/billing-items/unbilled (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/billing-items/unbilled-details (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/billing-items/ungrouped-same-day (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/cash-register/closes (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/cash-register/closes/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/cash-register/preview (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/checkups (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/checkups/field-results (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinic-holidays (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/line-customers (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/lstep-settings (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/lstep-tag-code-mappings (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/lstep/analytics/delivery-stats (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/lstep/analytics/visit-conversion (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/lstep/checkup-sync/preview (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/lstep/csv-imports (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/lstep/delivery-monitor/logs (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/lstep/delivery-monitor/summary (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/lstep/owners (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/lstep/tag-summary (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/lstep/trigger-priorities (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/owners/:id/line/send-logs (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/owners/:id/lstep/friend-attributes (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/owners/:id/lstep/tags (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/owners/aggregations (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/reservation-staffs (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/reservation-types (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/clinics/:clinic_id/reservations (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/closing-settings (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/closing-settings/holidays (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/closing-settings/special-periods (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/estimates (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/estimates/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/examinations (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/examinations/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/examinations/:id/items (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/examinations/:id/print-snapshot (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/hospitalizations (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/hospitalizations/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/hospitalizations/:id/care-plan-items (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/hospitalizations/:id/daily-records (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/hospitalizations/:id/daily-records/:date (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/hospitalizations/:id/treatment-plans (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/inventory (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/inventory/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lab-device-item-masters (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lab-device/agent-consumer (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lab-device/board (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lab-device/mapping-drafts/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lab-device/station (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lab-device/unlinked (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lab-devices (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lab-imports/:job_id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lab-imports/:job_id/events (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lab-reports/exams/:exam_id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lab-reports/jobs/:job_id/summaries (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lstep-settings (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lstep-tag-code-mappings (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lstep/delivery-monitor/logs (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lstep/delivery-monitor/summary (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lstep/owners (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lstep/tag-summary (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/lstep/trigger-priorities (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/cages (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/cages/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/cages/occupancy (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/campaigns (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/campaigns/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/checkup-types (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/checkup-types/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/checkup-types/:id/fields (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/chief-complaint-types (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/chief-complaint-types/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/consultations (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/consultations/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/diagnosis-names (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/diagnosis-names/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/diagnosis-names/all (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/diagnosis-types (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/diagnosis-types/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/examination-types (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/examination-types/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/hospitalization-plans (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/hospitalization-plans/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/inquiry-templates (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/inquiry-templates/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/insurances (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/insurances/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/medicines (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/medicines/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/medicines/:id/dose-params (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/merchandise-items (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/merchandise-items/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/occupations (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/occupations/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/permission-groups (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/permission-groups/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/procedures (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/procedures/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/reservation-type-groups (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/reservation-type-groups/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/reservation-types (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/reservation-types/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/reservation-types/:id/available-slots (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/reservation-types/:id/occupations (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/reservation-types/:id/unavailable-times (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/staffs (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/staffs/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/staffs/:id/capable-reservation-types (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/staffs/:id/clinics (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/staffs/:id/excluded-reservation-types (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/staffs/:id/permission-groups (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/trimming-course-types (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/trimming-course-types/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/trimming-courses (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/trimming-courses/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/trimming-options (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/trimming-options/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/vaccines (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/masters/vaccines/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/medical-records/:id/addenda (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/medical-records/:id/billing-confirmation (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/medical-records/:id/checkups (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/medical-records/:id/checkups/:checkupId/field-results (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/medical-records/:id/clinical-plan (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/medical-records/:id/images (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/medical-records/:id/treatment-plans (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/medical-records/:id/treatments (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/medical-records/:id/vitals (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/owners/:id/line/send-logs (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/owners/:id/lstep/send-history (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/owners/:id/lstep/tags (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/owners/:id/shared-pets (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/payment-methods (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/payment-methods/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/pets/:id/chronic-conditions (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/pets/:id/first-visit (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/pets/:id/sub-owners (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/pets/:id/treatment-history (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/reports/monthly (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/reports/monthly/csv (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/reservations/available-times (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/shared-files (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/shared-files/:id/signed-url (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/shift-templates (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/shift-templates/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/shifts (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/shifts/on-duty-staffs (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/trimmings (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/trimmings/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/vaccinations (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden/GET_/api/v1/vaccinations/:id (0.00s)
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/accountings/:id/refunds
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/accountings/unpaid
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/accountings/unpaid-balance
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/accountings/unpaid-period
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/billing-items/:id/discount-suggestions
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/billing-items/unbilled
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/billing-items/unbilled-details
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/billing-items/ungrouped-same-day
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/cash-register/closes
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/cash-register/closes/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/cash-register/preview
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/checkups
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/checkups/field-results
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinic-holidays
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/line-customers
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/lstep-settings
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/lstep-tag-code-mappings
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/lstep/analytics/delivery-stats
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/lstep/analytics/visit-conversion
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/lstep/checkup-sync/preview
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/lstep/csv-imports
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/lstep/delivery-monitor/logs
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/lstep/delivery-monitor/summary
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/lstep/owners
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/lstep/tag-summary
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/lstep/trigger-priorities
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/owners/:id/line/send-logs
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/owners/:id/lstep/friend-attributes
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/owners/:id/lstep/tags
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/owners/aggregations
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/reservation-staffs
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/reservation-types
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/reservations
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/closing-settings
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/closing-settings/holidays
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/closing-settings/special-periods
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/estimates
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/estimates/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/examinations
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/examinations/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/examinations/:id/items
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/examinations/:id/print-snapshot
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/hospitalizations
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/hospitalizations/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/hospitalizations/:id/care-plan-items
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/hospitalizations/:id/daily-records
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/hospitalizations/:id/daily-records/:date
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/hospitalizations/:id/treatment-plans
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/inventory
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/inventory/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lab-device-item-masters
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lab-device/agent-consumer
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lab-device/board
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lab-device/mapping-drafts/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lab-device/station
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lab-device/unlinked
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lab-devices
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lab-imports/:job_id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lab-imports/:job_id/events
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lab-reports/exams/:exam_id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lab-reports/jobs/:job_id/summaries
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lstep-settings
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lstep-tag-code-mappings
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lstep/delivery-monitor/logs
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lstep/delivery-monitor/summary
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lstep/owners
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lstep/tag-summary
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lstep/trigger-priorities
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/cages
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/cages/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/cages/occupancy
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/campaigns
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/campaigns/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/checkup-types
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/checkup-types/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/checkup-types/:id/fields
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/chief-complaint-types
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/chief-complaint-types/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/consultations
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/consultations/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/diagnosis-names
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/diagnosis-names/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/diagnosis-names/all
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/diagnosis-types
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/diagnosis-types/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/examination-types
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/examination-types/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/hospitalization-plans
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/hospitalization-plans/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/inquiry-templates
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/inquiry-templates/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/insurances
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/insurances/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/medicines
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/medicines/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/medicines/:id/dose-params
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/merchandise-items
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/merchandise-items/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/occupations
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/occupations/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/permission-groups
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/permission-groups/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/procedures
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/procedures/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/reservation-type-groups
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/reservation-type-groups/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/reservation-types
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/reservation-types/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/reservation-types/:id/available-slots
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/reservation-types/:id/occupations
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/reservation-types/:id/unavailable-times
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/staffs
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/staffs/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/staffs/:id/capable-reservation-types
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/staffs/:id/clinics
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/staffs/:id/excluded-reservation-types
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/staffs/:id/permission-groups
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/trimming-course-types
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/trimming-course-types/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/trimming-courses
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/trimming-courses/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/trimming-options
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/trimming-options/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/vaccines
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/vaccines/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/medical-records/:id/addenda
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/medical-records/:id/billing-confirmation
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/medical-records/:id/checkups
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/medical-records/:id/checkups/:checkupId/field-results
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/medical-records/:id/clinical-plan
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/medical-records/:id/images
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/medical-records/:id/treatment-plans
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/medical-records/:id/treatments
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/medical-records/:id/vitals
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/owners/:id/line/send-logs
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/owners/:id/lstep/send-history
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/owners/:id/lstep/tags
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/owners/:id/shared-pets
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/payment-methods
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/payment-methods/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/pets/:id/chronic-conditions
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/pets/:id/first-visit
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/pets/:id/sub-owners
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/pets/:id/treatment-history
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/reports/monthly
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/reports/monthly/csv
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/reservations/available-times
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/shared-files
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/shared-files/:id/signed-url
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/shift-templates
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/shift-templates/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/shifts
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/shifts/on-duty-staffs
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/trimmings
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/trimmings/:id
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/vaccinations
+=== RUN   TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/vaccinations/:id
+--- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler (0.01s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/accountings/:id/refunds (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/accountings/unpaid (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/accountings/unpaid-balance (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/accountings/unpaid-period (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/billing-items/:id/discount-suggestions (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/billing-items/unbilled (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/billing-items/unbilled-details (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/billing-items/ungrouped-same-day (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/cash-register/closes (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/cash-register/closes/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/cash-register/preview (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/checkups (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/checkups/field-results (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinic-holidays (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/line-customers (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/lstep-settings (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/lstep-tag-code-mappings (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/lstep/analytics/delivery-stats (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/lstep/analytics/visit-conversion (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/lstep/checkup-sync/preview (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/lstep/csv-imports (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/lstep/delivery-monitor/logs (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/lstep/delivery-monitor/summary (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/lstep/owners (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/lstep/tag-summary (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/lstep/trigger-priorities (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/owners/:id/line/send-logs (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/owners/:id/lstep/friend-attributes (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/owners/:id/lstep/tags (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/owners/aggregations (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/reservation-staffs (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/reservation-types (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/clinics/:clinic_id/reservations (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/closing-settings (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/closing-settings/holidays (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/closing-settings/special-periods (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/estimates (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/estimates/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/examinations (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/examinations/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/examinations/:id/items (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/examinations/:id/print-snapshot (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/hospitalizations (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/hospitalizations/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/hospitalizations/:id/care-plan-items (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/hospitalizations/:id/daily-records (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/hospitalizations/:id/daily-records/:date (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/hospitalizations/:id/treatment-plans (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/inventory (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/inventory/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lab-device-item-masters (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lab-device/agent-consumer (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lab-device/board (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lab-device/mapping-drafts/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lab-device/station (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lab-device/unlinked (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lab-devices (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lab-imports/:job_id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lab-imports/:job_id/events (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lab-reports/exams/:exam_id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lab-reports/jobs/:job_id/summaries (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lstep-settings (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lstep-tag-code-mappings (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lstep/delivery-monitor/logs (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lstep/delivery-monitor/summary (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lstep/owners (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lstep/tag-summary (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/lstep/trigger-priorities (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/cages (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/cages/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/cages/occupancy (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/campaigns (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/campaigns/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/checkup-types (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/checkup-types/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/checkup-types/:id/fields (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/chief-complaint-types (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/chief-complaint-types/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/consultations (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/consultations/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/diagnosis-names (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/diagnosis-names/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/diagnosis-names/all (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/diagnosis-types (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/diagnosis-types/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/examination-types (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/examination-types/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/hospitalization-plans (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/hospitalization-plans/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/inquiry-templates (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/inquiry-templates/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/insurances (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/insurances/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/medicines (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/medicines/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/medicines/:id/dose-params (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/merchandise-items (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/merchandise-items/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/occupations (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/occupations/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/permission-groups (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/permission-groups/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/procedures (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/procedures/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/reservation-type-groups (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/reservation-type-groups/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/reservation-types (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/reservation-types/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/reservation-types/:id/available-slots (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/reservation-types/:id/occupations (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/reservation-types/:id/unavailable-times (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/staffs (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/staffs/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/staffs/:id/capable-reservation-types (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/staffs/:id/clinics (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/staffs/:id/excluded-reservation-types (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/staffs/:id/permission-groups (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/trimming-course-types (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/trimming-course-types/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/trimming-courses (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/trimming-courses/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/trimming-options (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/trimming-options/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/vaccines (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/masters/vaccines/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/medical-records/:id/addenda (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/medical-records/:id/billing-confirmation (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/medical-records/:id/checkups (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/medical-records/:id/checkups/:checkupId/field-results (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/medical-records/:id/clinical-plan (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/medical-records/:id/images (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/medical-records/:id/treatment-plans (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/medical-records/:id/treatments (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/medical-records/:id/vitals (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/owners/:id/line/send-logs (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/owners/:id/lstep/send-history (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/owners/:id/lstep/tags (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/owners/:id/shared-pets (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/payment-methods (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/payment-methods/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/pets/:id/chronic-conditions (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/pets/:id/first-visit (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/pets/:id/sub-owners (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/pets/:id/treatment-history (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/reports/monthly (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/reports/monthly/csv (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/reservations/available-times (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/shared-files (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/shared-files/:id/signed-url (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/shift-templates (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/shift-templates/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/shifts (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/shifts/on-duty-staffs (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/trimmings (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/trimmings/:id (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/vaccinations (0.00s)
+    --- PASS: TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler/GET_/api/v1/vaccinations/:id (0.00s)
+=== RUN   TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB
+=== RUN   TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/accountings
+=== RUN   TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/accountings/:id
+=== RUN   TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/accountings/daily-summary
+=== RUN   TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/clinics
+=== RUN   TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/clinics/:clinic_id/line-reservation-settings
+=== RUN   TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/identity-links/owner-groups/:id
+=== RUN   TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/identity-links/owners/:clinic_id/:owner_id/group
+=== RUN   TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/identity-links/owners/search
+=== RUN   TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/identity-links/pet-groups/:id
+=== RUN   TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/identity-links/pets/:clinic_id/:pet_id/group
+=== RUN   TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/identity-links/pets/:clinic_id/:pet_id/treatment-history
+=== RUN   TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/identity-links/pets/search
+=== RUN   TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/medical-records
+=== RUN   TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/medical-records/:id
+=== RUN   TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/owners
+=== RUN   TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/owners/:id
+=== RUN   TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/owners/:id/report/pets
+=== RUN   TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/pets
+=== RUN   TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/pets/:id
+=== RUN   TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/reservations
+=== RUN   TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/reservations/:id
+--- PASS: TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB (0.00s)
+    --- PASS: TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/accountings (0.00s)
+    --- PASS: TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/accountings/:id (0.00s)
+    --- PASS: TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/accountings/daily-summary (0.00s)
+    --- PASS: TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/clinics (0.00s)
+    --- PASS: TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/clinics/:clinic_id/line-reservation-settings (0.00s)
+    --- PASS: TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/identity-links/owner-groups/:id (0.00s)
+    --- PASS: TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/identity-links/owners/:clinic_id/:owner_id/group (0.00s)
+    --- PASS: TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/identity-links/owners/search (0.00s)
+    --- PASS: TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/identity-links/pet-groups/:id (0.00s)
+    --- PASS: TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/identity-links/pets/:clinic_id/:pet_id/group (0.00s)
+    --- PASS: TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/identity-links/pets/:clinic_id/:pet_id/treatment-history (0.00s)
+    --- PASS: TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/identity-links/pets/search (0.00s)
+    --- PASS: TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/medical-records (0.00s)
+    --- PASS: TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/medical-records/:id (0.00s)
+    --- PASS: TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/owners (0.00s)
+    --- PASS: TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/owners/:id (0.00s)
+    --- PASS: TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/owners/:id/report/pets (0.00s)
+    --- PASS: TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/pets (0.00s)
+    --- PASS: TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/pets/:id (0.00s)
+    --- PASS: TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/reservations (0.00s)
+    --- PASS: TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB/GET_/api/v1/reservations/:id (0.00s)
+=== RUN   TestGETHEADPublicLiffSelfAreNotSelectedClinicGrantSurfaces
+--- PASS: TestGETHEADPublicLiffSelfAreNotSelectedClinicGrantSurfaces (0.00s)
+=== RUN   TestGETHEADRealDBReturnDataCoverageStaged
+--- PASS: TestGETHEADRealDBReturnDataCoverageStaged (0.00s)
+=== RUN   TestGETHEADRealDBReturnDataRejectsMockGrantEvidence
+--- PASS: TestGETHEADRealDBReturnDataRejectsMockGrantEvidence (0.00s)
+=== RUN   TestRouteCompositionSmoke_TargetGraphRegistersEverySurface
+--- PASS: TestRouteCompositionSmoke_TargetGraphRegistersEverySurface (0.00s)
+PASS
+ok  	github.com/animal-ekarte/backend/cmd/api	0.210s

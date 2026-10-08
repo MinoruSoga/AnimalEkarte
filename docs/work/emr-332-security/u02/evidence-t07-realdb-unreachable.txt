@@ -1,0 +1,12 @@
+
+2026/10/08 21:56:23 [35m/app/internal/testdb/testdb.go:589
+[0m[31m[error] [0mfailed to initialize database, got error failed to connect to `user=ekarte_user database=ekarte_db`: hostname resolving error: lookup db on 0.250.250.200:53: dial udp 0.250.250.200:53: connect: network is unreachable
+warning: failed to connect to main db: failed to connect to `user=ekarte_user database=ekarte_db`: hostname resolving error: lookup db on 0.250.250.200:53: dial udp 0.250.250.200:53: connect: network is unreachable
+
+2026/10/08 21:56:23 [35m/app/internal/testdb/testdb.go:615
+[0m[31m[error] [0mfailed to initialize database, got error failed to connect to `user=ekarte_user database=ekarte_db_test`: hostname resolving error: lookup db on 0.250.250.200:53: dial udp 0.250.250.200:53: connect: network is unreachable
+--- FAIL: TestRealDB_Owners_List_MembershipABGrantASelectedB_Default_Returns403 (0.00s)
+    realdb_selected_clinic_b_grant_a_isolation_test.go:118: failed to connect to test db: failed to connect to test db: failed to connect to `user=ekarte_user database=ekarte_db_test`: hostname resolving error: lookup db on 0.250.250.200:53: dial udp 0.250.250.200:53: connect: network is unreachable
+FAIL
+FAIL	github.com/animal-ekarte/backend/internal/owner	0.006s
+FAIL
