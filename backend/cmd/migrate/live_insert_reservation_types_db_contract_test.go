@@ -178,7 +178,7 @@ func countContractReservationTypes(t *testing.T, ctx context.Context, conn *pgxp
 	return n
 }
 
-// activeStandardTypeCount は (clinic × 標準4区分) のうち live かつ
+// activeStandardTypeCount は (clinic × 標準5区分) のうち live かつ
 // is_active=true の行を持つ組合せ数を返す。スクリプトの事後条件と同じ定義。
 func activeStandardTypeCount(t *testing.T, ctx context.Context, conn *pgxpool.Conn) int {
 	t.Helper()
@@ -186,7 +186,7 @@ func activeStandardTypeCount(t *testing.T, ctx context.Context, conn *pgxpool.Co
 	if err := conn.QueryRow(ctx, `
 SELECT count(*)
 FROM clinics c
-CROSS JOIN (VALUES ('診察'), ('お手入れ'), ('ワクチン'), ('健診')) AS d(name)
+CROSS JOIN (VALUES ('診察'), ('お手入れ'), ('ワクチン'), ('健診'), ('ホテル')) AS d(name)
 WHERE EXISTS (
   SELECT 1 FROM reservation_types e
   WHERE e.clinic_id = c.id AND e.name = d.name
@@ -198,7 +198,7 @@ WHERE EXISTS (
 }
 
 // TestLiveInsertStandardReservationTypesAllActiveSucceeds は全医院への投入が
-// 成功し、各医院に 4 区分の is_active=true live 行が揃うことを確認する。
+// 成功し、各医院に 5 区分の is_active=true live 行が揃うことを確認する。
 func TestLiveInsertStandardReservationTypesAllActiveSucceeds(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -213,8 +213,8 @@ func TestLiveInsertStandardReservationTypesAllActiveSucceeds(t *testing.T) {
 	if err := runStandardReservationTypesSeed(ctx, conn); err != nil {
 		t.Fatalf("seed run failed: %v", err)
 	}
-	if got := activeStandardTypeCount(t, ctx, conn); got != 8 {
-		t.Fatalf("active standard (clinic,type) pairs = %d, want 8", got)
+	if got := activeStandardTypeCount(t, ctx, conn); got != 10 {
+		t.Fatalf("active standard (clinic,type) pairs = %d, want 10", got)
 	}
 	for _, clinicID := range []int64{clinicA, clinicB} {
 		var names []string
@@ -233,9 +233,22 @@ ORDER BY sort_order`, clinicID)
 			names = append(names, name)
 		}
 		rows.Close()
-		want := []string{"診察", "お手入れ", "ワクチン", "健診"}
+		want := []string{"診察", "お手入れ", "ワクチン", "健診", "ホテル"}
 		if !slices.Equal(names, want) {
 			t.Fatalf("clinic %d active types = %v, want %v", clinicID, names, want)
+		}
+		var duration, sortOrder int
+		var color, category string
+		var visible, internal bool
+		if err := conn.QueryRow(ctx, `
+SELECT duration_minutes, color, sort_order, category, reservation_visible, is_internal
+FROM reservation_types WHERE clinic_id = $1 AND name = 'ホテル' AND deleted_at IS NULL`, clinicID).
+			Scan(&duration, &color, &sortOrder, &category, &visible, &internal); err != nil {
+			t.Fatalf("read hotel attrs: %v", err)
+		}
+		if duration != 15 || color != "#06B6D4" || sortOrder != 5 || category != "general" || visible || internal {
+			t.Fatalf("hotel defaults differ from approved check-in contract: duration=%d color=%s order=%d category=%s visible=%v internal=%v",
+				duration, color, sortOrder, category, visible, internal)
 		}
 	}
 	// 投入行の属性も契約どおりか確認する（category='general', reservation_visible=false）。
@@ -265,7 +278,7 @@ func TestLiveInsertStandardReservationTypesInactiveSameNameFailsAndRollsBack(t *
 	defer teardownReservationTypesContractSchema(t, conn, contractSchema)
 
 	clinicID := insertContractClinic(t, ctx, conn, "contract clinic inactive")
-	insertContractReservationType(t, ctx, conn, clinicID, "診察", false, "既存の無効区分", "#999999", 30)
+	insertContractReservationType(t, ctx, conn, clinicID, "ホテル", false, "既存の無効区分", "#999999", 30)
 
 	err := runStandardReservationTypesSeed(ctx, conn)
 	if err == nil {
@@ -284,7 +297,7 @@ func TestLiveInsertStandardReservationTypesInactiveSameNameFailsAndRollsBack(t *
 	var duration int
 	if err := conn.QueryRow(ctx, `
 SELECT is_active, description, color, duration_minutes
-FROM reservation_types WHERE clinic_id = $1 AND name = '診察' AND deleted_at IS NULL`, clinicID).
+FROM reservation_types WHERE clinic_id = $1 AND name = 'ホテル' AND deleted_at IS NULL`, clinicID).
 		Scan(&isActive, &description, &color, &duration); err != nil {
 		t.Fatalf("read surviving row: %v", err)
 	}
@@ -297,7 +310,7 @@ FROM reservation_types WHERE clinic_id = $1 AND name = '診察' AND deleted_at I
 }
 
 // TestLiveInsertStandardReservationTypesPreservesExistingAttributes は既存の
-// live かつ active な同名行の属性が一切上書きされず、残り 3 区分だけが追加
+// live かつ active な同名行の属性が一切上書きされず、残り 4 区分だけが追加
 // されることを確認する。
 func TestLiveInsertStandardReservationTypesPreservesExistingAttributes(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -308,7 +321,7 @@ func TestLiveInsertStandardReservationTypesPreservesExistingAttributes(t *testin
 	defer teardownReservationTypesContractSchema(t, conn, contractSchema)
 
 	clinicID := insertContractClinic(t, ctx, conn, "contract clinic existing")
-	insertContractReservationType(t, ctx, conn, clinicID, "診察", true, "既存の診察区分", "#ABCDEF", 45)
+	insertContractReservationType(t, ctx, conn, clinicID, "ホテル", true, "既存のホテル区分", "#ABCDEF", 45)
 
 	if err := runStandardReservationTypesSeed(ctx, conn); err != nil {
 		t.Fatalf("seed run failed: %v", err)
@@ -319,20 +332,20 @@ func TestLiveInsertStandardReservationTypesPreservesExistingAttributes(t *testin
 	var duration int
 	if err := conn.QueryRow(ctx, `
 SELECT is_active, description, color, duration_minutes, reservation_visible, category
-FROM reservation_types WHERE clinic_id = $1 AND name = '診察' AND deleted_at IS NULL`, clinicID).
+FROM reservation_types WHERE clinic_id = $1 AND name = 'ホテル' AND deleted_at IS NULL`, clinicID).
 		Scan(&isActive, &description, &color, &duration, &visible, &category); err != nil {
 		t.Fatalf("read existing row: %v", err)
 	}
-	if !isActive || description != "既存の診察区分" || color != "#ABCDEF" || duration != 45 || visible != true || category != "general" {
+	if !isActive || description != "既存のホテル区分" || color != "#ABCDEF" || duration != 45 || visible != true || category != "general" {
 		t.Fatalf("existing row overwritten: (active=%v desc=%s color=%s duration=%d visible=%v category=%s)",
 			isActive, description, color, duration, visible, category)
 	}
 	// visible は既存行の既定 true のまま（seed 既定 false で上書きされていない）。
-	if got := countContractReservationTypes(t, ctx, conn); got != 4 {
-		t.Fatalf("reservation_types rows = %d, want 4 (1 existing + 3 inserted)", got)
+	if got := countContractReservationTypes(t, ctx, conn); got != 5 {
+		t.Fatalf("reservation_types rows = %d, want 5 (1 existing + 4 inserted)", got)
 	}
-	if got := activeStandardTypeCount(t, ctx, conn); got != 4 {
-		t.Fatalf("active standard pairs = %d, want 4", got)
+	if got := activeStandardTypeCount(t, ctx, conn); got != 5 {
+		t.Fatalf("active standard pairs = %d, want 5", got)
 	}
 }
 
@@ -351,8 +364,8 @@ func TestLiveInsertStandardReservationTypesRerunIsNoOp(t *testing.T) {
 	if err := runStandardReservationTypesSeed(ctx, conn); err != nil {
 		t.Fatalf("first seed run failed: %v", err)
 	}
-	if got := countContractReservationTypes(t, ctx, conn); got != 4 {
-		t.Fatalf("rows after first run = %d, want 4", got)
+	if got := countContractReservationTypes(t, ctx, conn); got != 5 {
+		t.Fatalf("rows after first run = %d, want 5", got)
 	}
 	var firstMaxID int64
 	if err := conn.QueryRow(ctx, `SELECT max(id) FROM reservation_types WHERE clinic_id = $1`, clinicID).Scan(&firstMaxID); err != nil {
@@ -362,8 +375,8 @@ func TestLiveInsertStandardReservationTypesRerunIsNoOp(t *testing.T) {
 	if err := runStandardReservationTypesSeed(ctx, conn); err != nil {
 		t.Fatalf("second seed run failed: %v", err)
 	}
-	if got := countContractReservationTypes(t, ctx, conn); got != 4 {
-		t.Fatalf("rows after second run = %d, want 4 (re-run must be a no-op)", got)
+	if got := countContractReservationTypes(t, ctx, conn); got != 5 {
+		t.Fatalf("rows after second run = %d, want 5 (re-run must be a no-op)", got)
 	}
 	var secondMaxID int64
 	if err := conn.QueryRow(ctx, `SELECT max(id) FROM reservation_types WHERE clinic_id = $1`, clinicID).Scan(&secondMaxID); err != nil {

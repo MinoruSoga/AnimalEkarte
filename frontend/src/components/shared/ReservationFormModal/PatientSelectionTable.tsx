@@ -35,7 +35,7 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({
   const table = usePatientSelectionTable({ selectedPets, includeDeceased });
 
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <div className="flex flex-col gap-4 flex-1 min-h-0">
       <PatientSearchFilters
         searchParams={table.searchParams}
         onTextFieldChange={table.handleTextFieldChange}

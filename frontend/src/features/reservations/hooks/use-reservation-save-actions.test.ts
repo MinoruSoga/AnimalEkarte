@@ -1,11 +1,22 @@
 import { act, renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createElement, type MutableRefObject, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 
+import { setStoredClinicId } from "@/lib/current-clinic";
 import type { ReservationFormData } from "../types";
 import { useReservationSaveActions } from "./use-reservation-save-actions";
+
+const receptionErrorHandlerMock = vi.fn();
+vi.mock("@/lib/handle-api-error", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/handle-api-error")>()),
+  handleApiError: (...args: unknown[]) => receptionErrorHandlerMock(...args),
+}));
+const receptionCandidatesMock = vi.fn();
+vi.mock("../api/get-reception-candidates", () => ({
+  getReceptionCandidates: (...args: unknown[]) => receptionCandidatesMock(...args),
+}));
 
 const createMutateAsyncMock = vi.fn();
 const createBatchMutateAsyncMock = vi.fn();
@@ -56,14 +67,17 @@ function makeFormData(): ReservationFormData {
 
 const ALL_ALLOWED = { canCreate: true, canEdit: true, canDelete: true } as const;
 
-function setup(checkOverlap = vi.fn(() => false)) {
+function setup(
+  checkOverlap = vi.fn(() => false),
+  permissions = { canCreate: true, canEdit: true, canDelete: true },
+) {
   const editingAppointmentRef: MutableRefObject<ReservationFormData | null> = {
     current: null,
   };
   const handleCloseForm = vi.fn();
   const navigateBackIfNeeded = vi.fn();
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const { result } = renderHook(
+  const { result, rerender } = renderHook(
     () =>
       useReservationSaveActions({
         editingAppointmentRef,
@@ -74,14 +88,14 @@ function setup(checkOverlap = vi.fn(() => false)) {
           createOwnerFn: vi.fn(),
           createPetFn: vi.fn(),
         },
-        permissions: ALL_ALLOWED,
+        permissions,
       }),
     {
       wrapper: ({ children }: { children: ReactNode }) =>
         createElement(QueryClientProvider, { client: queryClient }, children),
     },
   );
-  return { result, checkOverlap, handleCloseForm, navigateBackIfNeeded };
+  return { result, rerender, checkOverlap, handleCloseForm, navigateBackIfNeeded };
 }
 
 describe("useReservationSaveActions 409 conflict message (EMR-76)", () => {
@@ -162,5 +176,229 @@ describe("useReservationSaveActions 409 conflict message (EMR-76)", () => {
       expect(message).toBe(CONFLICT_MESSAGE);
     });
     expect(createMutateAsyncMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("EMR-318 reception reuse", () => {
+  beforeEach(() => {
+    setStoredClinicId("1");
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-29T01:00:00Z"));
+    createBatchMutateAsyncMock.mockReset();
+    receptionErrorHandlerMock.mockReset();
+    receptionCandidatesMock.mockReset();
+    createMutateAsyncMock.mockReset();
+    updateMutateMock.mockReset();
+  });
+  afterEach(() => vi.useRealTimers());
+  const reception = () => ({
+    ...makeFormData(),
+    reservationRoute: "reception" as const,
+    status: "checked_in" as const,
+  });
+  const pets = [{ id: "10", ownerId: "20", name: "ポチ" }];
+  const candidate = (id = 5, status = "confirmed") => ({
+    id,
+    status,
+    clinic_id: 1,
+    pet_id: 10,
+    owner_id: 20,
+    start_time: "2026-05-29T01:00:00Z",
+    updated_at: "2026-05-29T00:00:00.123456789Z",
+  });
+  it("reuses confirmed reservation with status only and no create", async () => {
+    receptionCandidatesMock.mockResolvedValue([candidate()]);
+    updateMutateMock.mockImplementation((_payload, callbacks) => callbacks.onSuccess());
+    const { result } = setup();
+    await act(async () => {
+      expect(await result.current.handleSave(reception(), pets)).toBeNull();
+    });
+    expect(updateMutateMock).toHaveBeenCalledWith(
+      {
+        id: "5",
+        req: { status: "checked_in", expected_updated_at: "2026-05-29T00:00:00.123456789Z" },
+      },
+      expect.any(Object),
+    );
+    expect(createMutateAsyncMock).not.toHaveBeenCalled();
+  });
+  it("does not repeat check-in or change its date for existing checked-in visit", async () => {
+    receptionCandidatesMock.mockResolvedValue([
+      { ...candidate(5, "checked_in"), checked_in_at: "2026-05-29T00:00:00Z" },
+    ]);
+    const { result } = setup();
+    await act(async () => {
+      expect(await result.current.handleSave(reception(), pets)).toBeNull();
+    });
+    expect(updateMutateMock).not.toHaveBeenCalled();
+    expect(createMutateAsyncMock).not.toHaveBeenCalled();
+  });
+  it("blocks create when candidate lookup fails or multiple candidates exist", async () => {
+    const { result } = setup();
+    receptionCandidatesMock.mockRejectedValue(new Error("fetch failed"));
+    await act(async () => {
+      expect(await result.current.handleSave(reception(), pets)).toBeTruthy();
+    });
+    receptionCandidatesMock.mockResolvedValue([candidate(), candidate(6)]);
+    await act(async () => {
+      expect(await result.current.handleSave(reception(), pets)).toContain("複数");
+    });
+    expect(createMutateAsyncMock).not.toHaveBeenCalled();
+  });
+  it("does not reuse a reservation without edit permission", async () => {
+    receptionCandidatesMock.mockResolvedValue([candidate()]);
+    const { result } = setup(undefined, { canCreate: true, canEdit: false, canDelete: false });
+    await act(async () => {
+      expect(await result.current.handleSave(reception(), pets)).toContain("権限");
+    });
+    expect(updateMutateMock).not.toHaveBeenCalled();
+    expect(createMutateAsyncMock).not.toHaveBeenCalled();
+  });
+  it("blocks mutation if permission changes during lookup", async () => {
+    const permissions = { canCreate: true, canEdit: true, canDelete: true };
+    let resolveLookup: ((value: []) => void) | undefined;
+    receptionCandidatesMock.mockImplementation(
+      () =>
+        new Promise<[]>((resolve) => {
+          resolveLookup = resolve;
+        }),
+    );
+    const { result, rerender } = setup(undefined, permissions);
+    let pending: Promise<string | null> | undefined;
+    act(() => {
+      pending = result.current.handleSave(reception(), pets);
+    });
+    permissions.canCreate = false;
+    act(() => rerender());
+    await act(async () => {
+      resolveLookup?.([]);
+      expect(await pending).toContain("権限");
+    });
+    expect(createMutateAsyncMock).not.toHaveBeenCalled();
+  });
+  it("handles missing selected clinic before lookup once", async () => {
+    localStorage.removeItem("auth_current_clinic:v1");
+    const { result } = setup();
+    await act(async () => {
+      expect(await result.current.handleSave(reception(), pets)).toBeTruthy();
+    });
+    expect(receptionErrorHandlerMock).toHaveBeenCalledTimes(1);
+    expect(receptionCandidatesMock).not.toHaveBeenCalled();
+    expect(createMutateAsyncMock).not.toHaveBeenCalled();
+  });
+  it("blocks mutation if selected clinic changes during lookup", async () => {
+    receptionCandidatesMock.mockImplementation(async () => {
+      setStoredClinicId("2");
+      return [];
+    });
+    const { result } = setup();
+    await act(async () => {
+      expect(await result.current.handleSave(reception(), pets)).toBeTruthy();
+    });
+    expect(createMutateAsyncMock).not.toHaveBeenCalled();
+    expect(updateMutateMock).not.toHaveBeenCalled();
+  });
+  it("blocks mutation when JST date rolls over during lookup", async () => {
+    receptionCandidatesMock.mockImplementation(async () => {
+      vi.setSystemTime(new Date("2026-05-29T15:00:00Z"));
+      return [];
+    });
+    const { result } = setup();
+    await act(async () => {
+      expect(await result.current.handleSave(reception(), pets)).toContain("受付日");
+    });
+    expect(createMutateAsyncMock).not.toHaveBeenCalled();
+  });
+
+  it("guards both independent hook POSTs and keeps a conflicted form open until refetch reuse", async () => {
+    receptionCandidatesMock.mockResolvedValue([]);
+    const first = setup();
+    const second = setup();
+    const duplicate = axiosError(409, {
+      error: "当日の予約が既に存在します",
+      code: "reservation_reception_conflict",
+    });
+    createMutateAsyncMock.mockResolvedValueOnce(undefined).mockRejectedValueOnce(duplicate);
+    await act(async () => {
+      const outcomes = await Promise.all([
+        first.result.current.handleSave(reception(), pets),
+        second.result.current.handleSave(reception(), pets),
+      ]);
+      expect(outcomes).toEqual([null, "当日の予約が既に存在します"]);
+    });
+    expect(receptionCandidatesMock).toHaveBeenCalledTimes(2);
+    expect(createMutateAsyncMock).toHaveBeenCalledTimes(2);
+    for (const [payload] of createMutateAsyncMock.mock.calls) {
+      expect(payload).toHaveProperty("prevent_duplicate_reception", true);
+    }
+    expect(first.handleCloseForm).toHaveBeenCalledOnce();
+    expect(second.handleCloseForm).not.toHaveBeenCalled();
+    expect(second.navigateBackIfNeeded).not.toHaveBeenCalled();
+    receptionCandidatesMock.mockResolvedValue([candidate(5, "checked_in")]);
+    await act(async () => {
+      expect(await second.result.current.handleSave(reception(), pets)).toBeNull();
+    });
+    expect(createMutateAsyncMock).toHaveBeenCalledTimes(2);
+    expect(updateMutateMock).not.toHaveBeenCalled();
+    expect(second.handleCloseForm).toHaveBeenCalledOnce();
+    expect(second.navigateBackIfNeeded).toHaveBeenCalledOnce();
+  });
+  it("opts batch reception creation into the same server guard", async () => {
+    receptionCandidatesMock.mockResolvedValue([]);
+    createBatchMutateAsyncMock.mockResolvedValueOnce(undefined);
+    const { result } = setup();
+    await act(async () => {
+      expect(
+        await result.current.handleSave(reception(), [
+          pets[0],
+          { id: "11", ownerId: "20", name: "タマ" },
+        ]),
+      ).toBeNull();
+    });
+    expect(createBatchMutateAsyncMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prevent_duplicate_reception: true,
+        pets: [
+          { pet_id: 10, owner_id: 20 },
+          { pet_id: 11, owner_id: 20 },
+        ],
+      }),
+    );
+    expect(createMutateAsyncMock).not.toHaveBeenCalled();
+  });
+  it.each(["normal", "record_shortcut"])("omits the opt-in flag for %s creation", async (route) => {
+    createMutateAsyncMock.mockResolvedValueOnce(undefined);
+    const data =
+      route === "normal"
+        ? makeFormData()
+        : { ...reception(), reservationRoute: "record_shortcut" as const };
+    const { result } = setup();
+    await act(async () => {
+      expect(await result.current.handleSave(data, pets)).toBeNull();
+    });
+    expect(createMutateAsyncMock).toHaveBeenCalledOnce();
+    expect(createMutateAsyncMock.mock.calls[0][0]).not.toHaveProperty(
+      "prevent_duplicate_reception",
+    );
+    expect(receptionCandidatesMock).not.toHaveBeenCalled();
+  });
+  it("prevents a second in-flight save", async () => {
+    receptionCandidatesMock.mockResolvedValue([]);
+    let finish: (() => void) | undefined;
+    createMutateAsyncMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const { result } = setup();
+    await act(async () => {
+      const first = result.current.handleSave(reception(), pets);
+      for (let i = 0; i < 10; i += 1) await Promise.resolve();
+      expect(await result.current.handleSave(reception(), pets)).toContain("処理中");
+      finish?.();
+      await first;
+    });
+    expect(createMutateAsyncMock).toHaveBeenCalledTimes(1);
   });
 });

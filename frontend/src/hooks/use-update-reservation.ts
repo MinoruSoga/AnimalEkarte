@@ -10,6 +10,8 @@ import type { Reservation as BackendReservation } from "@/types/generated/models
  * models.ts の Appointment から導出
  */
 export interface UpdateReservationRequest {
+  /** Optional compare-and-set timestamp for read-then-check-in. */
+  expected_updated_at?: string;
   start_time?: string;
   end_time?: string;
   pet_id?: number;

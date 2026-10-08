@@ -28,31 +28,33 @@ function PatientSelectionTableBody({
   onSelect,
 }: PatientSelectionTableBodyProps) {
   return (
-    <Table>
-      <TableHeader className={`${C.bgPage} sticky top-0 z-10`}>
-        <TableRow className={`border-b ${C.borderMedium} h-9 ${C.hoverBgPage}`}>
-          <TableHead className={`min-w-[80px] ${C.text60} h-9`}>飼主No</TableHead>
-          <TableHead className={`min-w-[120px] ${C.text60} h-9`}>飼主名</TableHead>
-          <TableHead className={`min-w-[100px] ${C.text60} h-9`}>ペット名</TableHead>
-          <TableHead className={`min-w-[60px] ${C.text60} h-9`}>種別</TableHead>
-          <TableHead className={`min-w-[60px] ${C.text60} h-9`}>性別</TableHead>
-          <TableHead className={`min-w-[80px] ${C.text60} h-9`}>生年月日</TableHead>
-          <TableHead className={`min-w-[60px] ${C.text60} h-9`}>体重</TableHead>
-          <TableHead className={`min-w-[60px] ${C.text60} h-9`}>操作</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {pets.map((pet) => (
-          <PatientSelectionRow
-            key={pet.id}
-            pet={pet}
-            isBusy={isBusy}
-            isSelected={selectedPetIds.has(pet.id)}
-            onSelect={onSelect}
-          />
-        ))}
-      </TableBody>
-    </Table>
+    <div className="shrink-0">
+      <Table>
+        <TableHeader className={`${C.bgPage} sticky top-0 z-10`}>
+          <TableRow className={`border-b ${C.borderMedium} h-9 ${C.hoverBgPage}`}>
+            <TableHead className={`min-w-[80px] ${C.text60} h-9`}>飼主No</TableHead>
+            <TableHead className={`min-w-[120px] ${C.text60} h-9`}>飼主名</TableHead>
+            <TableHead className={`min-w-[100px] ${C.text60} h-9`}>ペット名</TableHead>
+            <TableHead className={`min-w-[60px] ${C.text60} h-9`}>種別</TableHead>
+            <TableHead className={`min-w-[60px] ${C.text60} h-9`}>性別</TableHead>
+            <TableHead className={`min-w-[80px] ${C.text60} h-9`}>生年月日</TableHead>
+            <TableHead className={`min-w-[60px] ${C.text60} h-9`}>体重</TableHead>
+            <TableHead className={`min-w-[60px] ${C.text60} h-9`}>操作</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {pets.map((pet) => (
+            <PatientSelectionRow
+              key={pet.id}
+              pet={pet}
+              isBusy={isBusy}
+              isSelected={selectedPetIds.has(pet.id)}
+              onSelect={onSelect}
+            />
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
@@ -138,40 +140,43 @@ export function PatientSelectionResults({
   onSelect,
 }: PatientSelectionResultsProps) {
   return (
-    <div className={`flex-1 rounded-lg bg-white overflow-hidden border ${C.borderMedium} min-h-0`}>
-      <div className="overflow-auto h-full flex flex-col">
-        {!hasSearchConditions && !isSearchPending ? (
-          <div className="flex flex-col items-center justify-center flex-1 text-center gap-3">
+    <div
+      role="region"
+      aria-label="患者検索結果"
+      tabIndex={0}
+      className={`flex flex-col flex-1 rounded-lg ${C.bgWhite} overflow-auto border ${C.borderMedium} min-h-0`}
+    >
+      {!hasSearchConditions && !isSearchPending ? (
+        <div className="flex flex-col items-center justify-center flex-1 text-center gap-3">
+          <Search className={`${ICON.xl} ${C.text20}`} />
+          <div className={`text-sm ${C.text60}`}>検索条件を入力してください</div>
+        </div>
+      ) : error ? (
+        <div className="flex-1 flex items-center justify-center">
+          <ErrorFallback message="患者一覧の取得に失敗しました" />
+        </div>
+      ) : isBusy && pets.length === 0 ? (
+        <div className="flex flex-col items-center justify-center flex-1 text-center gap-3">
+          <div className="animate-spin">
             <Search className={`${ICON.xl} ${C.text20}`} />
-            <div className={`text-sm ${C.text60}`}>検索条件を入力してください</div>
           </div>
-        ) : error ? (
-          <div className="flex-1 flex items-center justify-center">
-            <ErrorFallback message="患者一覧の取得に失敗しました" />
-          </div>
-        ) : isBusy && pets.length === 0 ? (
-          <div className="flex flex-col items-center justify-center flex-1 text-center gap-3">
-            <div className="animate-spin">
-              <Search className={`${ICON.xl} ${C.text20}`} />
-            </div>
-            <div className={`text-sm ${C.text60}`}>検索中...</div>
-          </div>
-        ) : pets.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center">
-            <EmptyState
-              icon={<SearchX className={ICON.xl} />}
-              message="該当する患者が見つかりませんでした"
-            />
-          </div>
-        ) : (
-          <PatientSelectionTableBody
-            pets={pets}
-            isBusy={isBusy}
-            selectedPetIds={selectedPetIds}
-            onSelect={onSelect}
+          <div className={`text-sm ${C.text60}`}>検索中...</div>
+        </div>
+      ) : pets.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center">
+          <EmptyState
+            icon={<SearchX className={ICON.xl} />}
+            message="該当する患者が見つかりませんでした"
           />
-        )}
-      </div>
+        </div>
+      ) : (
+        <PatientSelectionTableBody
+          pets={pets}
+          isBusy={isBusy}
+          selectedPetIds={selectedPetIds}
+          onSelect={onSelect}
+        />
+      )}
     </div>
   );
 }

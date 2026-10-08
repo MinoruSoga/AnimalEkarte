@@ -40,6 +40,7 @@ export interface StaffSelectionState {
 
 interface ReservationFormFieldsProps {
   formData: Partial<Reservation>;
+  lockedVisitType?: Reservation["visitType"];
   onChange: (data: Partial<Reservation>) => void;
   validationErrors?: Record<string, string>;
   onClearError?: (field: string) => void;
@@ -53,6 +54,7 @@ interface ReservationFormFieldsProps {
 
 export const ReservationFormFields = memo(function ReservationFormFields({
   formData,
+  lockedVisitType,
   onChange,
   validationErrors,
   onClearError: _onClearError,
@@ -337,6 +339,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
 
       <ReservationTypeAndStaffFields
         formData={formData}
+        lockedVisitType={lockedVisitType}
         onChange={onChange}
         validationErrors={validationErrors}
         typePickerOpen={typePickerOpen}
