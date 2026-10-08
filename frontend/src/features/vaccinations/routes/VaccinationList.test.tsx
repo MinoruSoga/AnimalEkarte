@@ -1,13 +1,40 @@
 import { act, useLayoutEffect } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createMemoryRouter, Link, MemoryRouter, RouterProvider, useLocation } from "react-router";
+import {
+  createMemoryRouter,
+  Link,
+  MemoryRouter,
+  Outlet,
+  RouterProvider,
+  useLocation,
+} from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { C } from "@/lib/design-tokens";
 import { useBackNavigation } from "@/hooks/use-back-navigation";
 import { useGetPet } from "@/hooks/use-pet";
+import type { Pet } from "@/types";
 import type { VaccinationRecord } from "../api/transforms";
+import { VaccinationForm } from "./VaccinationForm";
 import { VaccinationList } from "./VaccinationList";
+import { VaccinationPetSelection } from "./VaccinationPetSelection";
+
+const selectionPet = vi.hoisted(
+  () =>
+    ({
+      id: "pet-9",
+      ownerId: "owner-1",
+      ownerName: "山田太郎",
+      name: "ポチ",
+      species: "犬",
+      status: "生存",
+      birthDate: "2020-01-01",
+      weight: "5",
+      environment: "室内",
+      lastVisit: "2026-05-01",
+      petNumber: "P-9",
+    }) as Pet,
+);
 
 const mockUseFilterVaccinations = vi.hoisted(() => vi.fn());
 const listMocks = vi.hoisted(() => ({
@@ -39,6 +66,113 @@ vi.mock("@/hooks/use-pet", () => ({
     isLoading: false,
     isError: false,
   })),
+  useGetPets: vi.fn(() => ({
+    data: [selectionPet],
+    total: 1,
+    page: 1,
+    limit: 20,
+    error: null,
+    isLoading: false,
+    isPlaceholderData: false,
+  })),
+}));
+
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({
+    user: { clinics: [{ clinicId: "clinic-1" }] },
+    currentClinicId: "clinic-1",
+  }),
+}));
+
+vi.mock("@/hooks/use-unsaved-changes", () => ({
+  useUnsavedChanges: () => ({
+    isDirty: false,
+    markDirty: vi.fn(),
+    markClean: vi.fn(),
+  }),
+}));
+
+vi.mock("../api/get-vaccinations", () => ({
+  useGetVaccinations: () => ({ data: [] }),
+}));
+
+vi.mock("../hooks/use-vaccination-form", async () => {
+  const { useState } = await import("react");
+  return {
+    useVaccinationForm: () => {
+      const [success, setSuccess] = useState(false);
+      return {
+        isEdit: false,
+        isReadLoading: false,
+        isEditPetReady: true,
+        isReadNotFound: false,
+        isReadError: false,
+        retryRead: vi.fn(),
+        petSelection: {
+          selectedPets: [{ id: "pet-9", ownerId: "owner-1", name: "ポチ", status: "生存" }],
+        },
+        form: {
+          doctorName: "",
+          date: "",
+          setDate: vi.fn(),
+          vaccineId: "",
+          setVaccineId: vi.fn(),
+          vaccineOptions: [],
+          nextScheduleType: "1year",
+          setNextScheduleType: vi.fn(),
+          nextDate: "",
+          setNextDate: vi.fn(),
+          supplemental: "",
+          setSupplemental: vi.fn(),
+          lot1: "",
+          setLot1: vi.fn(),
+          lot2: "",
+          setLot2: vi.fn(),
+          lot3: "",
+          setLot3: vi.fn(),
+          lot4: "",
+          setLot4: vi.fn(),
+          remarks: "",
+          setRemarks: vi.fn(),
+        },
+        formAction: () => setSuccess(true),
+        formState: { success, timestamp: success ? 1 : 0, fieldErrors: {} },
+        isSaving: false,
+        fieldErrors: {},
+        handleDelete: vi.fn(),
+        isDeleting: false,
+        historyFilter: {
+          filterStartDate: "",
+          setFilterStartDate: vi.fn(),
+          filterEndDate: "",
+          setFilterEndDate: vi.fn(),
+          historySearchTerm: "",
+          setHistorySearchTerm: vi.fn(),
+          sortOrder: "desc" as const,
+          setSortOrder: vi.fn(),
+          handleClearHistoryFilter: vi.fn(),
+        },
+      };
+    },
+  };
+});
+
+vi.mock("../components/VaccinationFormPanels", () => ({
+  VaccinationFieldsPanel: () => null,
+  VaccinationHistoryPanel: () => null,
+}));
+
+vi.mock("@/components/shared/PatientInfoCard", () => ({
+  PatientInfoCard: () => null,
+  formatPatientPetDetails: () => "",
+}));
+
+vi.mock("@/components/shared/NavigationBlocker", () => ({
+  NavigationBlocker: () => null,
+}));
+
+vi.mock("@/components/shared/PetSelection/PetSelectionSearchForm", () => ({
+  PetSelectionSearchForm: () => null,
 }));
 
 vi.mock("@/components/shared/ConfirmDialog/ConfirmDialog", () => ({
@@ -71,6 +205,42 @@ const vaccination: VaccinationRecord = {
 function LocationProbe() {
   const { pathname, search } = useLocation();
   return <output data-testid="location">{`${pathname}${search}`}</output>;
+}
+
+function RegistrationShell() {
+  const location = useLocation();
+  return (
+    <>
+      <output data-testid="location">{`${location.pathname}${location.search}`}</output>
+      <output data-testid="nav-state">{JSON.stringify(location.state ?? null)}</output>
+      <Outlet />
+    </>
+  );
+}
+
+function renderRegistrationFlow() {
+  const router = createMemoryRouter(
+    [
+      {
+        element: <RegistrationShell />,
+        children: [
+          { path: "/vaccinations", element: <VaccinationList /> },
+          { path: "/vaccinations/select-pet", element: <VaccinationPetSelection /> },
+          { path: "/vaccinations/new", element: <VaccinationForm /> },
+        ],
+      },
+    ],
+    {
+      initialEntries: [
+        {
+          pathname: "/vaccinations",
+          search: "?petId=10",
+          state: { from: "/?date=2026-05-29" },
+        },
+      ],
+    },
+  );
+  render(<RouterProvider router={router} />);
 }
 
 function DetailReturnHarness() {
@@ -550,5 +720,52 @@ describe("VaccinationList detail return", () => {
 
     expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations\?petId=10$/);
     expect(screen.getByTestId("nav-state")).toHaveTextContent("/?date=2026-05-29");
+  });
+});
+
+describe("VaccinationList registration return", () => {
+  it("新規登録をやめるとペット指定の一覧と受付の戻り先へ戻る", async () => {
+    const user = userEvent.setup();
+    renderRegistrationFlow();
+
+    await user.click(screen.getByRole("button", { name: "新規登録" }));
+
+    expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations\/select-pet$/);
+    expect(screen.getByTestId("nav-state")).toHaveTextContent('"/vaccinations?petId=10"');
+    expect(screen.getByTestId("nav-state")).toHaveTextContent("/?date=2026-05-29");
+
+    await user.click(screen.getByRole("button", { name: "戻る" }));
+
+    expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations\?petId=10$/);
+    expect(screen.getByTestId("nav-state")).toHaveTextContent('{"from":"/?date=2026-05-29"}');
+  });
+
+  it("選択後に戻ると同じ一覧と受付の戻り先へ戻る", async () => {
+    const user = userEvent.setup();
+    renderRegistrationFlow();
+
+    await user.click(screen.getByRole("button", { name: "新規登録" }));
+    await user.click(screen.getByRole("button", { name: "選択: ポチ (ID pet-9)" }));
+
+    expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations\/new\?petId=pet-9$/);
+    expect(screen.getByTestId("nav-state")).toHaveTextContent('"/vaccinations?petId=10"');
+    expect(screen.getByTestId("nav-state")).toHaveTextContent("/?date=2026-05-29");
+
+    await user.click(screen.getByRole("button", { name: "戻る" }));
+
+    expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations\?petId=10$/);
+    expect(screen.getByTestId("nav-state")).toHaveTextContent('{"from":"/?date=2026-05-29"}');
+  });
+
+  it("選択後に保存すると同じ一覧と受付の戻り先へ戻る", async () => {
+    const user = userEvent.setup();
+    renderRegistrationFlow();
+
+    await user.click(screen.getByRole("button", { name: "新規登録" }));
+    await user.click(screen.getByRole("button", { name: "選択: ポチ (ID pet-9)" }));
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations\?petId=10$/);
+    expect(screen.getByTestId("nav-state")).toHaveTextContent('{"from":"/?date=2026-05-29"}');
   });
 });

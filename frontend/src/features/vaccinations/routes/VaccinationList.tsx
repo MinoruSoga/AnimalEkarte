@@ -147,8 +147,8 @@ export function VaccinationList() {
   );
 
   const handleCreate = useCallback(() => {
-    navigate(paths.vaccinations.selectPet.getHref());
-  }, [navigate]);
+    navigate(paths.vaccinations.selectPet.getHref(), { state: detailState });
+  }, [detailState, navigate]);
 
   const handleEdit = useCallback(
     (record: VaccinationRecord) => {
