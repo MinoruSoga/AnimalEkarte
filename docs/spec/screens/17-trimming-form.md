@@ -28,17 +28,21 @@
 - **備考**: 自由入力メモ。
 
 ### 1.2 画像管理
-- **希望スタイル画像・完成画像**: ファイルを選択するか、`TrimmingImageUploadField` の「撮影」で背面カメラを起動する（隠し input の `capture="environment"`）。`useTrimmingFormImages` は選択直後に `uploadTrimmingImage` で `POST /api/v1/trimmings/images/upload` を呼び、返った object key をフォームへ入れる。プレビューは返った `signed_url`（空なら data URL）を使う。既存レコードの署名付き URL があれば再表示する。
+- **希望スタイル画像・完成画像**: ファイルを選択するか、`TrimmingImageUploadField` の「撮影」で背面カメラを起動する（隠し input の `capture="environment"`）。選択直後にローカルの object URL で即時プレビューし、並行して `useTrimmingFormImages` が `uploadTrimmingImage` で `POST /api/v1/trimmings/images/upload` を呼ぶ。返った object key をフォームへ入れ、プレビューは返った `signed_url`（空ならローカル URL のまま）へ切り替える。既存レコードの署名付き URL があれば再表示する。
+- **アップロード中の保存ブロック**: いずれかの画像アップロードが in-flight の間は保存ボタンを無効化し「画像アップロード中...」と表示する。画像の選択・削除は未保存変更として dirty に記録され、離脱ガード（§2.3）の対象になる。
 - **保存**: `buildCreateTrimmingRequest` / `buildUpdateTrimmingRequest` は、画像を変更したときだけ `style_image` / `completed_image` に object key を載せる。未変更の再保存ではそのフィールドを省く。明示的な削除は空文字を送る。署名 URL は保存しない。アップロード失敗は toast を出し、直前の key とプレビューは残す。
+- **未保存アップロードの掃除**: 選択の置き換え・削除・遅延解決・フォーム放棄でレコードに永続化されなくなったアップロード済みオブジェクトは `DELETE /api/v1/trimmings/images` で best-effort 削除する（失敗時は孤立オブジェクトが残るのみで通知しない）。永続化済みフィールドの削除は PATCH/DELETE の superseded 処理が担う。
 
 画像選択から保存までの扱い：
 
 ```mermaid
 flowchart TB
-    A["画像を選択または撮影"] --> U["POST /api/v1/trimmings/images/upload"]
+    A["画像を選択または撮影"] --> P["object URL で即時プレビュー"]
+    A --> U["POST /api/v1/trimmings/images/upload"]
     U --> B["key を保持し signed_url でプレビュー"]
     E0["既存レコードの署名付き URL"] --> B
-    B --> C["保存ボタン"]
+    P --> B
+    B --> C["保存ボタン<br/>アップロード中は無効"]
     C --> D["POST / PATCH<br/>style_image / completed_image に key"]
     D --> E["サーバが clinic 配下の key を保存し、読み出し時に署名 URL を返す"]
 ```
@@ -61,7 +65,7 @@ flowchart TB
 
 - 新規作成APIを呼ぶ経路ではペット・担当者・コースが必須。トリミング予約区分は選択値または既定値を解決できなければ送信せず、該当欄にエラーを表示する。既存記録を更新する経路では、この新規用バリデーションを再実行しない。
 - 死亡ペットは保存・削除不可。編集時はペット情報の取得が完了するまで保存・削除を無効化し、各操作の権限も確認する。
-- 未保存変更がある状態で画面を離れる際は確認を表示する（保存中を除く）。
+- 未保存変更がある状態で画面を離れる際は確認を表示する（保存中を除く）。画像の選択・削除のみの変更も未保存変更に含む。
 
 ---
 
@@ -78,6 +82,7 @@ flowchart TB
 |:---|:---|:---|:---|:---|
 | GET | `/api/v1/trimmings/:id` | 施術詳細および画像 URL の取得 | `trimming` | `view` |
 | POST | `/api/v1/trimmings/images/upload` | 画像を先にアップロードし object key と署名 URL を返す | `trimming` | `create` または `edit` |
+| DELETE | `/api/v1/trimmings/images` | 未保存のまま残ったアップロード済みオブジェクトの掃除 | `trimming` | `create` または `edit` |
 | POST | `/api/v1/trimmings` | 新規保存。変更した画像は `style_image` / `completed_image` に key を載せる | `trimming` | `create` |
 | PATCH | `/api/v1/trimmings/:id` | 内容の更新 | `trimming` | `edit` |
 | GET | `/api/v1/trimmings` | 過去のカット履歴の取得（クエリパラメータ: `pet_id=xxx`） | `trimming` | `view` |

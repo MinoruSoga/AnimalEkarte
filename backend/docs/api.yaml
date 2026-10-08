@@ -14180,6 +14180,38 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
+  /trimmings/images:
+    delete:
+      operationId: deleteTrimmingImage
+      summary: トリミング画像オブジェクト削除（未保存アップロードの掃除）
+      description: |
+        フォーム放棄・置換でレコードに永続化されなかったアップロード済みオブジェクトを削除する。
+        ボディの `key` は自医院スコープ `trimming-images/{clinic_id}/...` のオブジェクトキーのみ受理
+        （/uploads/ ラップ形式も可）。永続化済みフィールドの削除は PATCH/DELETE の superseded 処理が担う。
+        trimming の create または edit 権限が必要。
+      tags: [Trimmings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [key]
+              properties:
+                key:
+                  type: string
+                  description: trimming-images/{clinic_id}/... のオブジェクトキー
+      responses:
+        '204':
+          description: 削除成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /trimmings/{id}:
     get:
       operationId: getTrimming

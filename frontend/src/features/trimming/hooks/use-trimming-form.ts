@@ -1,9 +1,18 @@
-import { useState, useCallback, useMemo, useActionState, useLayoutEffect, useRef } from "react";
+import {
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useActionState,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { useLocation, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetPet } from "@/hooks/use-pet";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
 import { useGetTrimming } from "../api/get-trimming";
 import { useGetTrimmings } from "../api/get-trimmings";
@@ -99,7 +108,8 @@ export function useTrimmingForm(
     Number.isFinite(appointmentIdFromState) || Number.isFinite(reusableAppointmentId);
   const { fieldErrors, validate } = useTrimmingFormValidation();
   const [localOverrides, setLocalOverrides] = useState<Partial<TrimmingFormData>>({});
-  const images = useTrimmingFormImages(setLocalOverrides);
+  const unsaved = useUnsavedChanges();
+  const images = useTrimmingFormImages(setLocalOverrides, unsaved.markDirty);
 
   useTrimmingFormHydration({
     isEdit,
@@ -227,6 +237,15 @@ export function useTrimmingForm(
     INITIAL_ACTION_STATE,
   );
 
+  // 保存成功でアップロード済みキーの所有権がレコードへ移る。以後の削除は
+  // backend の superseded 処理が担うため session 追跡を解除する。
+  const commitUploadedKeys = images.commitUploadedKeys;
+  useEffect(() => {
+    if (formState.success) {
+      commitUploadedKeys();
+    }
+  }, [formState.success, formState.timestamp, commitUploadedKeys]);
+
   useTrimmingFormPetSync({
     isEdit,
     petId,
@@ -266,12 +285,14 @@ export function useTrimmingForm(
     formState,
     handleDelete,
     isSaving: isPending,
+    isImageUploading: images.isImageUploading,
     isDeleting: deleteMutation.isPending,
     fieldErrors,
     isLoading: isEdit
       ? isTrimmingLoading || (editPetId !== "" && isEditPetLoading)
       : isPetLoading || isAppointmentLoading || isSameDayTrimmingsLoading,
     isEditPetReady: !isEdit || Boolean(petFromEdit),
+    unsaved,
     notFound: isEdit && !isTrimmingLoading && !existingTrimming && !!id,
     hasExistingAppointment,
     // EMR-168: 相方カルテ解決の基準日（YYYY-MM-DD）。編集は appointment 日付、新規は入力予定日。

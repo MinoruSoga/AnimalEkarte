@@ -6,6 +6,7 @@ import { paths } from "@/config/paths";
 import type { TrimmingFormData } from "@/types/trimming";
 import type { Pet } from "@/types";
 import { uploadTrimmingImage } from "../api/upload-trimming-image";
+import { deleteTrimmingImage } from "../api/delete-trimming-image";
 
 type TrimmingImageField = "styleImage" | "completedImage";
 
@@ -13,49 +14,58 @@ type TrimmingImageOverrides = (
   updater: (prev: Partial<TrimmingFormData>) => Partial<TrimmingFormData>,
 ) => void;
 
+/** 未永続化のまま残ったアップロード済みキーを捨てる best-effort 掃除。失敗は握り潰す。 */
+function discardUploadedKey(key: string): void {
+  deleteTrimmingImage(key).catch(() => {
+    // best-effort GC: 削除失敗時は orphan が残るだけなので通知しない
+  });
+}
+
 function selectedImageFile(event: React.ChangeEvent<HTMLInputElement>): File | null {
   const file = event.target.files?.[0] ?? null;
   event.target.value = "";
   return file;
 }
 
-function readImageDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result === "string" && reader.result !== "") {
-        resolve(reader.result);
-        return;
-      }
-      reject(reader.error ?? new Error("image preview unavailable"));
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
-async function applyTrimmingImageSelection(input: {
-  file: File;
-  isCurrent: () => boolean;
-  onStored: (key: string, preview: string) => void;
-}): Promise<void> {
-  try {
-    const uploaded = await uploadTrimmingImage(input.file);
-    const preview =
-      uploaded.signed_url !== "" ? uploaded.signed_url : await readImageDataUrl(input.file);
-    if (!input.isCurrent()) return;
-    input.onStored(uploaded.key, preview);
-  } catch (error) {
-    if (!input.isCurrent()) return;
-    handleApiError(error, "画像アップロード");
-  }
-}
-
 function useTrimmingImageField(
   field: TrimmingImageField,
-  setPreview: (value: string | null) => void,
   setLocalOverrides: TrimmingImageOverrides,
+  markDirty: () => void,
 ) {
   const requestIdRef = useRef(0);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
+  // 即時プレビュー用 object URL と未保存アップロードキーを追跡する。
+  const blobUrlsRef = useRef<Set<string>>(new Set());
+  const sessionKeyRef = useRef<string | null>(null);
+  const previewRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    previewRef.current = preview;
+  }, [preview]);
+
+  // アンマウント時: in-flight を無効化し、blob URL と未保存アップロードを解放する。
+  useEffect(
+    () => () => {
+      requestIdRef.current += 1;
+      for (const url of blobUrlsRef.current) {
+        URL.revokeObjectURL(url);
+      }
+      blobUrlsRef.current.clear();
+      if (sessionKeyRef.current) {
+        discardUploadedKey(sessionKeyRef.current);
+        sessionKeyRef.current = null;
+      }
+    },
+    [],
+  );
+
+  const releaseBlobIfUnused = useCallback((blobUrl: string) => {
+    if (previewRef.current === blobUrl) return;
+    if (blobUrlsRef.current.delete(blobUrl)) {
+      URL.revokeObjectURL(blobUrl);
+    }
+  }, []);
 
   const handleChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -63,25 +73,66 @@ function useTrimmingImageField(
       if (!file) return undefined;
       const requestId = requestIdRef.current + 1;
       requestIdRef.current = requestId;
-      return applyTrimmingImageSelection({
-        file,
-        isCurrent: () => requestIdRef.current === requestId,
-        onStored: (key, preview) => {
-          setLocalOverrides((prev) => ({ ...prev, [field]: key }));
-          setPreview(preview);
-        },
-      });
+      const previousPreview = previewRef.current;
+      const blobUrl = URL.createObjectURL(file);
+      blobUrlsRef.current.add(blobUrl);
+      setPreview(blobUrl); // アップロード完了を待たず即時プレビュー
+      setPendingCount((count) => count + 1);
+      const isCurrent = () => requestIdRef.current === requestId;
+      return uploadTrimmingImage(file)
+        .then((uploaded) => {
+          if (!isCurrent()) {
+            discardUploadedKey(uploaded.key);
+            return;
+          }
+          const replacedSessionKey = sessionKeyRef.current;
+          sessionKeyRef.current = uploaded.key;
+          setLocalOverrides((prev) => ({ ...prev, [field]: uploaded.key }));
+          markDirty();
+          if (uploaded.signed_url !== "") {
+            setPreview(uploaded.signed_url);
+          }
+          // 未保存で置き換わった先行アップロードは到達不能 → 掃除
+          if (replacedSessionKey && replacedSessionKey !== uploaded.key) {
+            discardUploadedKey(replacedSessionKey);
+          }
+        })
+        .catch((error) => {
+          if (!isCurrent()) return;
+          setPreview(previousPreview);
+          handleApiError(error, "画像アップロード");
+        })
+        .finally(() => {
+          setPendingCount((count) => count - 1);
+          releaseBlobIfUnused(blobUrl);
+        });
     },
-    [field, setLocalOverrides, setPreview],
+    [field, setLocalOverrides, markDirty, releaseBlobIfUnused],
   );
 
   const remove = useCallback(() => {
     requestIdRef.current += 1;
     setLocalOverrides((prev) => ({ ...prev, [field]: "" }));
+    markDirty();
     setPreview(null);
-  }, [field, setLocalOverrides, setPreview]);
+    const sessionKey = sessionKeyRef.current;
+    sessionKeyRef.current = null;
+    if (sessionKey) {
+      discardUploadedKey(sessionKey);
+    }
+    for (const url of blobUrlsRef.current) {
+      URL.revokeObjectURL(url);
+    }
+    blobUrlsRef.current.clear();
+  }, [field, setLocalOverrides, markDirty]);
 
-  return { handleChange, remove };
+  // 保存成功でキーの所有権がレコードへ移った後に呼ぶ。以後の削除は backend の
+  // superseded 処理が担うため、session 追跡を止める。
+  const commitUploadedKey = useCallback(() => {
+    sessionKeyRef.current = null;
+  }, []);
+
+  return { preview, setPreview, pendingCount, handleChange, remove, commitUploadedKey };
 }
 
 type TrimmingHydrateSource = {
@@ -196,25 +247,31 @@ export function useTrimmingFormHydration(input: {
   ]);
 }
 
-export function useTrimmingFormImages(setLocalOverrides: TrimmingImageOverrides) {
-  const [styleImagePreview, setStyleImagePreview] = useState<string | null>(null);
-  const [completedImagePreview, setCompletedImagePreview] = useState<string | null>(null);
-  const styleImage = useTrimmingImageField("styleImage", setStyleImagePreview, setLocalOverrides);
-  const completedImage = useTrimmingImageField(
-    "completedImage",
-    setCompletedImagePreview,
-    setLocalOverrides,
-  );
+export function useTrimmingFormImages(
+  setLocalOverrides: TrimmingImageOverrides,
+  markDirty: () => void,
+) {
+  const styleImage = useTrimmingImageField("styleImage", setLocalOverrides, markDirty);
+  const completedImage = useTrimmingImageField("completedImage", setLocalOverrides, markDirty);
+  const commitStyleImageKey = styleImage.commitUploadedKey;
+  const commitCompletedImageKey = completedImage.commitUploadedKey;
+
+  const commitUploadedKeys = useCallback(() => {
+    commitStyleImageKey();
+    commitCompletedImageKey();
+  }, [commitStyleImageKey, commitCompletedImageKey]);
 
   return {
-    styleImagePreview,
-    setStyleImagePreview,
-    completedImagePreview,
-    setCompletedImagePreview,
+    styleImagePreview: styleImage.preview,
+    setStyleImagePreview: styleImage.setPreview,
+    completedImagePreview: completedImage.preview,
+    setCompletedImagePreview: completedImage.setPreview,
     handleStyleImageChange: styleImage.handleChange,
     handleCompletedImageChange: completedImage.handleChange,
     removeStyleImage: styleImage.remove,
     removeCompletedImage: completedImage.remove,
+    isImageUploading: styleImage.pendingCount > 0 || completedImage.pendingCount > 0,
+    commitUploadedKeys,
   };
 }
 

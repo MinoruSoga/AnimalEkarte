@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -18,6 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/imageupload"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -331,7 +333,7 @@ func TestUploadTrimmingImage_MissingClinicContext(t *testing.T) {
 func TestUploadTrimmingImage_QuotaRateLimit(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	uploader := &fakeTrimmingImageUploader{}
-	quota := &fakeImageUploadQuotaStore{acquireErr: ErrImageUploadRateLimit}
+	quota := &fakeImageUploadQuotaStore{acquireErr: imageupload.ErrQuotaRateLimit}
 	h := newImageHandler(&mockService{}, uploader, quota)
 
 	req := newMultipartUploadRequest(t, "file", "style.png", "image/png", bytes.NewReader(testPNGBytes))
@@ -339,13 +341,16 @@ func TestUploadTrimmingImage_QuotaRateLimit(t *testing.T) {
 	h.UploadTrimmingImage(newTrimmingHandlerContext(w, req))
 
 	assert.Equal(t, http.StatusTooManyRequests, w.Code)
+	assert.Contains(t, w.Body.String(), "rate limit exceeded")
 	assert.Empty(t, uploader.uploads)
 }
 
 func TestUploadTrimmingImage_SharedStoreLimitMessage(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	uploader := &fakeTrimmingImageUploader{}
-	quota := &fakeImageUploadQuotaStore{acquireErr: errors.New("medical record image upload rate limit exceeded")}
+	// Mirrors the error shape emitted by the shared postgres quota store:
+	// a medical-record message wrapping the imageupload sentinel.
+	quota := &fakeImageUploadQuotaStore{acquireErr: fmt.Errorf("medical record %w", imageupload.ErrQuotaRateLimit)}
 	h := newImageHandler(&mockService{}, uploader, quota)
 
 	req := newMultipartUploadRequest(t, "file", "style.png", "image/png", bytes.NewReader(testPNGBytes))
@@ -353,13 +358,16 @@ func TestUploadTrimmingImage_SharedStoreLimitMessage(t *testing.T) {
 	h.UploadTrimmingImage(newTrimmingHandlerContext(w, req))
 
 	assert.Equal(t, http.StatusTooManyRequests, w.Code)
+	// 429 body must be the trimming endpoint's fixed message — never the
+	// wrapped store error's text (medical-record wording must not leak).
+	assert.Contains(t, w.Body.String(), `"error":"image upload rate limit exceeded"`)
 	assert.Empty(t, uploader.uploads)
 }
 
 func TestUploadTrimmingImage_QuotaUnavailableFailsClosed(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	uploader := &fakeTrimmingImageUploader{}
-	quota := &fakeImageUploadQuotaStore{acquireErr: ErrImageUploadQuotaUnavailable}
+	quota := &fakeImageUploadQuotaStore{acquireErr: imageupload.ErrQuotaUnavailable}
 	h := newImageHandler(&mockService{}, uploader, quota)
 
 	req := newMultipartUploadRequest(t, "file", "style.png", "image/png", bytes.NewReader(testPNGBytes))
@@ -733,4 +741,78 @@ func TestDeleteTrimming_SkipsForeignAndLegacyValues(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, c.Writer.Status())
 	assert.Empty(t, uploader.deletes,
 		"foreign keys and non-object values are never deleted by cleanup")
+}
+
+// ---- DeleteTrimmingImage ----
+
+func newDeleteImageRequest(t *testing.T, body string) *http.Request {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/trimmings/images", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	return req
+}
+
+func TestDeleteTrimmingImage_OwnedKey(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	uploader := &fakeTrimmingImageUploader{}
+	h := newImageHandler(&mockService{}, uploader, &fakeImageUploadQuotaStore{})
+
+	w := httptest.NewRecorder()
+	c := newTrimmingHandlerContext(w, newDeleteImageRequest(t, `{"key":"trimming-images/1/style.jpg"}`))
+	h.DeleteTrimmingImage(c)
+
+	assert.Equal(t, http.StatusNoContent, c.Writer.Status())
+	assert.Equal(t, []string{"trimming-images/1/style.jpg"}, uploader.deletes)
+}
+
+func TestDeleteTrimmingImage_QueryWrappedUploadsValueResolves(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	uploader := &fakeTrimmingImageUploader{}
+	h := newImageHandler(&mockService{}, uploader, &fakeImageUploadQuotaStore{})
+
+	w := httptest.NewRecorder()
+	c := newTrimmingHandlerContext(w,
+		newDeleteImageRequest(t, `{"key":"/uploads/trimming-images/1/style.jpg?v=123#frag"}`))
+	h.DeleteTrimmingImage(c)
+
+	assert.Equal(t, http.StatusNoContent, c.Writer.Status())
+	assert.Equal(t, []string{"trimming-images/1/style.jpg"}, uploader.deletes,
+		"query/fragment must be stripped before ownership check and delete")
+}
+
+func TestDeleteTrimmingImage_ForeignKeyRejected(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	uploader := &fakeTrimmingImageUploader{}
+	h := newImageHandler(&mockService{}, uploader, &fakeImageUploadQuotaStore{})
+
+	w := httptest.NewRecorder()
+	h.DeleteTrimmingImage(newTrimmingHandlerContext(w,
+		newDeleteImageRequest(t, `{"key":"trimming-images/2/foreign.jpg"}`)))
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Empty(t, uploader.deletes)
+}
+
+func TestDeleteTrimmingImage_MissingOrMalformedKeyRejected(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	uploader := &fakeTrimmingImageUploader{}
+	h := newImageHandler(&mockService{}, uploader, &fakeImageUploadQuotaStore{})
+
+	for _, body := range []string{`{"key":""}`, `{"key":"trimming-images/"}`, `{}`, `not-json`} {
+		w := httptest.NewRecorder()
+		h.DeleteTrimmingImage(newTrimmingHandlerContext(w, newDeleteImageRequest(t, body)))
+		assert.Equal(t, http.StatusBadRequest, w.Code, "body=%q", body)
+	}
+	assert.Empty(t, uploader.deletes)
+}
+
+func TestDeleteTrimmingImage_UploaderNotConfiguredFailsClosed(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := newHandlerWithTrimmingSvc(&mockService{})
+
+	w := httptest.NewRecorder()
+	h.DeleteTrimmingImage(newTrimmingHandlerContext(w,
+		newDeleteImageRequest(t, `{"key":"trimming-images/1/style.jpg"}`)))
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }

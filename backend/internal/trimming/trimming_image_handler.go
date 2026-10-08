@@ -6,13 +6,13 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/imageupload"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -29,9 +29,7 @@ type FileUploader interface {
 // clinic/staff image-upload quota store. The composition root supplies the
 // shared PostgreSQL-backed store used by the medical-record image pipeline.
 // release must be called when the request finishes (success or failure).
-type ImageUploadQuotaStore interface {
-	Acquire(ctx context.Context, clinicID, staffID uint64, declaredBytes int64) (release func(context.Context), err error)
-}
+type ImageUploadQuotaStore = imageupload.QuotaStore
 
 // PermissionRequirement identifies one resource/action pair for an OR authorization gate.
 type PermissionRequirement struct {
@@ -44,20 +42,10 @@ type PermissionRequirement struct {
 // package never imports auth internals (lstep precedent).
 type PermissionAnyMiddleware func(...PermissionRequirement) gin.HandlerFunc
 
-// Quota error sentinels produced by adapted quota stores so this package can
-// classify Acquire failures without importing the shared store's package
-// internals. Unclassified errors map to fail-closed 500.
-var (
-	ErrImageUploadConcurrency      = errors.New("too many concurrent image uploads")
-	ErrImageUploadRateLimit        = errors.New("image upload rate limit exceeded")
-	ErrImageUploadByteBudget       = errors.New("image upload byte budget exceeded")
-	ErrImageUploadQuotaUnavailable = errors.New("upload quota unavailable")
-)
-
 // ImageDependencies carries the optional upload/sign/delete collaborators for
-// the trimming image slice. RequireAnyPermission gates the unkeyed upload
-// route with an any-of trimming create|edit grant — the same endpoint serves
-// both the create form and the edit form before a record exists.
+// the trimming image slice. RequireAnyPermission gates the unkeyed upload and
+// orphan-cleanup routes with an any-of trimming create|edit grant — the same
+// endpoints serve both the create form and the edit form before a record exists.
 type ImageDependencies struct {
 	Uploader             FileUploader
 	Quota                ImageUploadQuotaStore
@@ -66,7 +54,7 @@ type ImageDependencies struct {
 
 // WithImageSupport attaches the trimming-image upload/sign/delete collaborators.
 // The any-of create|edit write gate is resolved eagerly here; without this call
-// the upload route still registers but denies (fail-closed) and stored image
+// the image routes still register but deny (fail-closed) and stored image
 // values pass through unsigned on reads.
 func (h *Handler) WithImageSupport(deps ImageDependencies) *Handler {
 	h.imageUploader = deps.Uploader
@@ -151,24 +139,24 @@ func (h *Handler) UploadTrimmingImage(c *gin.Context) {
 	}
 	defer file.Close() //nolint:errcheck // multipart ファイルのクローズ失敗は復旧不可のため無視
 
-	uploadMeta, err := newTrimmingImageUploadRequest(fileHeader).validate()
+	uploadMeta, err := trimmingImageConstraints.ValidateFileHeader(fileHeader)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
-	if err := uploadMeta.verifySniffedContent(file); err != nil {
+	if err := imageupload.VerifySniffedContent(file, uploadMeta.MIMEType); err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
-	storedName, err := uploadMeta.newStoredName(time.Now())
+	storedName, err := trimmingImageConstraints.NewStoredName(uploadMeta.MIMEType, time.Now())
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
 
 	// Upload via FileUploader (S3 or local). Persist/return the object key, never a public URL.
-	key := uploadMeta.uploadKey(clinicID, storedName)
-	if _, err := h.imageUploader.Upload(c.Request.Context(), key, file, uploadMeta.mimeType); err != nil {
+	key := imageupload.StoredKey(trimmingImageStorageKeyPrefix, clinicID, storedName)
+	if _, err := h.imageUploader.Upload(c.Request.Context(), key, file, uploadMeta.MIMEType); err != nil {
 		httpapi.RespondError(c, apperrors.Wrap(err, "failed to upload file"))
 		return
 	}
@@ -186,27 +174,64 @@ func (h *Handler) UploadTrimmingImage(c *gin.Context) {
 	c.JSON(http.StatusCreated, trimmingImageUploadResponse{Key: key, SignedURL: signedURL})
 }
 
-// respondTrimmingImageUploadQuotaError maps quota errors to stable HTTP 429 messages
-// (or fail-closed 500 when the quota store is unavailable).
+// respondTrimmingImageUploadQuotaError maps quota errors to stable HTTP 429
+// messages via typed sentinels (or fail-closed 500 when the quota store is
+// unavailable). Internal error details are never echoed to the client.
 func respondTrimmingImageUploadQuotaError(c *gin.Context, err error) {
-	if trimmingImageUploadQuotaLimited(err) {
-		c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": err.Error()})
-		return
+	switch {
+	case errors.Is(err, imageupload.ErrQuotaConcurrency):
+		c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+			"error": imageupload.ErrQuotaConcurrency.Error(),
+		})
+	case errors.Is(err, imageupload.ErrQuotaRateLimit):
+		c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+			"error": imageupload.ErrQuotaRateLimit.Error(),
+		})
+	case errors.Is(err, imageupload.ErrQuotaByteBudget):
+		c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+			"error": imageupload.ErrQuotaByteBudget.Error(),
+		})
+	default:
+		// Infrastructure failure → fail-closed (do not allow unlimited upload).
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"error": "upload quota unavailable",
+		})
 	}
-	c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "upload quota unavailable"})
 }
 
-func trimmingImageUploadQuotaLimited(err error) bool {
-	if err == nil {
-		return false
+// trimmingImageDeleteRequest は DELETE /trimmings/images の要求。
+// フォーム放棄・置換で未永続化になったアップロード済みオブジェクトの掃除に使う。
+type trimmingImageDeleteRequest struct {
+	Key string `json:"key"`
+}
+
+// DeleteTrimmingImage godoc
+// DELETE /trimmings/images — body {"key": "trimming-images/<clinic>/<name>"}。
+// 自医院スコープのオブジェクトキーのみ削除を許可する。レコード参照を持たない
+// 未保存アップロードのクリーンアップ用で、永続化済みフィールドの削除は
+// PATCH/DELETE の superseded 処理が担う。
+func (h *Handler) DeleteTrimmingImage(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
 	}
-	if errors.Is(err, ErrImageUploadConcurrency) ||
-		errors.Is(err, ErrImageUploadRateLimit) ||
-		errors.Is(err, ErrImageUploadByteBudget) {
-		return true
+	if h.imageUploader == nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "image upload not configured"})
+		return
 	}
-	message := err.Error()
-	return strings.Contains(message, "too many concurrent") ||
-		strings.Contains(message, "rate limit exceeded") ||
-		strings.Contains(message, "byte budget exceeded")
+	var req trimmingImageDeleteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("key is required"))
+		return
+	}
+	key, isObject, err := resolveTrimmingImageStorageKey(req.Key)
+	if err != nil || !isObject || !trimmingImageKeyBelongsToClinic(key, clinicID) {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("invalid trimming image key"))
+		return
+	}
+	if err := h.imageUploader.Delete(c.Request.Context(), key); err != nil {
+		httpapi.RespondError(c, apperrors.Wrap(err, "failed to delete trimming image"))
+		return
+	}
+	c.Status(http.StatusNoContent)
 }

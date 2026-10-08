@@ -10,8 +10,12 @@ import (
 )
 
 // signTrimmingResponse signs style_image and completed_image when they are
-// object keys owned by the record's clinic. Legacy values pass through.
-// Foreign or malformed object keys fail closed. The persisted model is unchanged.
+// object keys owned by the record's clinic. Non-object values pass through
+// unchanged, and a foreign http(s) URL embedding a trimming-images/ key is
+// echoed unsigned rather than failing the read — writes are the strict side
+// (normalizeTrimmingImageForPersist rejects foreign keys), while a stray
+// legacy/imported value must not break or blank the record on read.
+// The persisted model is unchanged.
 func (h *Handler) signTrimmingResponse(ctx context.Context, clinicID uint64, appt *model.Reservation) (TrimmingResponse, error) {
 	if appt == nil {
 		return TrimmingResponse{}, nil
@@ -55,6 +59,8 @@ func (h *Handler) signStoredTrimmingImageURL(ctx context.Context, clinicID uint6
 		return stored, nil
 	}
 	if !trimmingImageKeyBelongsToClinic(key, clinicID) {
+		// Foreign keys fail closed — except legacy http(s) values, which echo
+		// unsigned (see signTrimmingResponse). Bare foreign keys still error.
 		if trimmingImageHasHTTPScheme(stored) {
 			return stored, nil
 		}

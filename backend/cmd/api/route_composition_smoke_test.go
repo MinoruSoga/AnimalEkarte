@@ -130,7 +130,9 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	//   POST   /api/v1/medical-records/:id/images
 	// 540 — EMR-300 trimming image upload (create or edit, unkeyed multipart):
 	//   POST   /api/v1/trimmings/images/upload
-	require.Len(t, routes, 540)
+	// 541 — EMR-300 review: orphaned-upload cleanup for unkeyed trimming images:
+	//   DELETE /api/v1/trimmings/images
+	require.Len(t, routes, 541)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /health/db",
@@ -157,6 +159,7 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 		"GET /api/v1/medical-records",
 		"GET /api/v1/reservations",
 		"POST /api/v1/trimmings/images/upload",
+		"DELETE /api/v1/trimmings/images",
 		"GET /api/v1/accountings",
 		"GET /api/v1/lstep-settings",
 		"GET /api/liff/:clinicId/courses",

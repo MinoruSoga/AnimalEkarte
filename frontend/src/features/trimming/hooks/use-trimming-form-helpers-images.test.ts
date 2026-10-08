@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 import { useState, type ChangeEvent } from "react";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { AxiosError } from "axios";
@@ -10,10 +10,14 @@ import {
 } from "./trimming-form-utils";
 import { useTrimmingFormHydration, useTrimmingFormImages } from "./use-trimming-form-helpers";
 
-const { mockToast, mockUploadTrimmingImage } = vi.hoisted(() => ({
-  mockToast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
-  mockUploadTrimmingImage: vi.fn(),
-}));
+const { mockToast, mockUploadTrimmingImage, mockDeleteTrimmingImage, mockMarkDirty } = vi.hoisted(
+  () => ({
+    mockToast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+    mockUploadTrimmingImage: vi.fn(),
+    mockDeleteTrimmingImage: vi.fn(),
+    mockMarkDirty: vi.fn(),
+  }),
+);
 
 vi.mock("sonner", () => ({ toast: mockToast }));
 
@@ -21,10 +25,15 @@ vi.mock("../api/upload-trimming-image", () => ({
   uploadTrimmingImage: mockUploadTrimmingImage,
 }));
 
+vi.mock("../api/delete-trimming-image", () => ({
+  deleteTrimmingImage: mockDeleteTrimmingImage,
+}));
+
 const STYLE_KEY = "trimming-images/1/style.jpg";
 const COMPLETED_KEY = "trimming-images/1/done.jpg";
 const STYLE_SIGNED = "https://signed.example/style.jpg";
 const COMPLETED_SIGNED = "https://signed.example/done.jpg";
+const BLOB_URL = "blob:mock/style.jpg";
 
 function imageChange(name: string): ChangeEvent<HTMLInputElement> {
   const input = document.createElement("input");
@@ -40,7 +49,7 @@ function useImageHarness(
   const [overrides, setOverrides] = useState<Partial<TrimmingFormData>>({});
   const images = useTrimmingFormImages((updater) => {
     setOverrides((prev) => updater(prev));
-  });
+  }, mockMarkDirty);
   useTrimmingFormHydration({
     isEdit,
     existingTrimming: isEdit ? existing : undefined,
@@ -55,12 +64,45 @@ function useImageHarness(
   };
 }
 
+beforeAll(() => {
+  URL.createObjectURL = vi.fn((blob: Blob) => `blob:mock/${(blob as File).name}`);
+  URL.revokeObjectURL = vi.fn();
+});
+
 describe("useTrimmingFormImages", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockDeleteTrimmingImage.mockResolvedValue(undefined);
   });
 
-  it("選択直後にアップロードし、key を保持して signed URL をプレビューする", async () => {
+  it("選択直後に即時プレビューし、upload 完了で key と signed URL に置き換わる", async () => {
+    let resolveUpload: (value: { key: string; signed_url: string }) => void = () => {};
+    mockUploadTrimmingImage.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveUpload = resolve;
+        }),
+    );
+    const { result } = renderHook(() => useImageHarness());
+
+    await act(async () => {
+      void result.current.handleStyleImageChange(imageChange("style.jpg"));
+    });
+    // アップロード完了前から blob URL で即時表示される
+    expect(result.current.styleImagePreview).toBe(BLOB_URL);
+    expect(result.current.isImageUploading).toBe(true);
+
+    await act(async () => {
+      resolveUpload({ key: STYLE_KEY, signed_url: STYLE_SIGNED });
+    });
+
+    expect(result.current.formData.styleImage).toBe(STYLE_KEY);
+    expect(result.current.styleImagePreview).toBe(STYLE_SIGNED);
+    expect(result.current.isImageUploading).toBe(false);
+    expect(mockMarkDirty).toHaveBeenCalled();
+  });
+
+  it("2フィールド同時選択で key を保持して signed URL をプレビューする", async () => {
     mockUploadTrimmingImage
       .mockResolvedValueOnce({ key: STYLE_KEY, signed_url: STYLE_SIGNED })
       .mockResolvedValueOnce({ key: COMPLETED_KEY, signed_url: COMPLETED_SIGNED });
@@ -83,7 +125,7 @@ describe("useTrimmingFormImages", () => {
     expect(req.completed_image).toBe(COMPLETED_KEY);
   });
 
-  it("signed URL が空なら data URL をプレビューにし、key だけを保持する", async () => {
+  it("signed URL が空なら blob プレビューを維持し、key だけを保持する", async () => {
     mockUploadTrimmingImage.mockResolvedValue({ key: STYLE_KEY, signed_url: "" });
     const { result } = renderHook(() => useImageHarness());
 
@@ -92,7 +134,7 @@ describe("useTrimmingFormImages", () => {
     });
 
     expect(result.current.formData.styleImage).toBe(STYLE_KEY);
-    expect(result.current.styleImagePreview).toMatch(/^data:/);
+    expect(result.current.styleImagePreview).toBe(BLOB_URL);
   });
 
   it("アップロード失敗時は toast し、既存の key とプレビューを変えない", async () => {
@@ -113,9 +155,10 @@ describe("useTrimmingFormImages", () => {
     );
     expect(result.current.formData.styleImage).toBe(STYLE_KEY);
     expect(result.current.styleImagePreview).toBe(STYLE_SIGNED);
+    expect(result.current.isImageUploading).toBe(false);
   });
 
-  it("後から成功した古いアップロードで新しい key を上書きしない", async () => {
+  it("後から成功した古いアップロードで新しい key を上書きせず、stale キーを削除する", async () => {
     let resolveFirst: (value: { key: string; signed_url: string }) => void = () => {};
     mockUploadTrimmingImage
       .mockImplementationOnce(
@@ -137,6 +180,45 @@ describe("useTrimmingFormImages", () => {
 
     expect(result.current.formData.styleImage).toBe(COMPLETED_KEY);
     expect(result.current.styleImagePreview).toBe(COMPLETED_SIGNED);
+    // 遅れて届いた stale 結果のオブジェクトは到達不能 → best-effort 削除
+    expect(mockDeleteTrimmingImage).toHaveBeenCalledWith(STYLE_KEY);
+  });
+
+  it("置き換え時に未保存の先行アップロードキーを削除する", async () => {
+    mockUploadTrimmingImage
+      .mockResolvedValueOnce({ key: STYLE_KEY, signed_url: STYLE_SIGNED })
+      .mockResolvedValueOnce({ key: COMPLETED_KEY, signed_url: COMPLETED_SIGNED });
+    const { result } = renderHook(() => useImageHarness());
+
+    await act(async () => {
+      await result.current.handleStyleImageChange(imageChange("style.jpg"));
+    });
+    await act(async () => {
+      await result.current.handleStyleImageChange(imageChange("done.jpg"));
+    });
+
+    expect(result.current.formData.styleImage).toBe(COMPLETED_KEY);
+    expect(mockDeleteTrimmingImage).toHaveBeenCalledWith(STYLE_KEY);
+  });
+
+  it("保存コミット後の置き換えでは先行キーを削除しない（所有権がレコードへ移行）", async () => {
+    mockUploadTrimmingImage
+      .mockResolvedValueOnce({ key: STYLE_KEY, signed_url: STYLE_SIGNED })
+      .mockResolvedValueOnce({ key: COMPLETED_KEY, signed_url: COMPLETED_SIGNED });
+    const { result } = renderHook(() => useImageHarness());
+
+    await act(async () => {
+      await result.current.handleStyleImageChange(imageChange("style.jpg"));
+    });
+    act(() => {
+      result.current.commitUploadedKeys();
+    });
+    await act(async () => {
+      await result.current.handleStyleImageChange(imageChange("done.jpg"));
+    });
+
+    expect(result.current.formData.styleImage).toBe(COMPLETED_KEY);
+    expect(mockDeleteTrimmingImage).not.toHaveBeenCalledWith(STYLE_KEY);
   });
 
   it("編集の署名 URL はプレビューのみに使い、未変更の再保存では画像を省略する", async () => {
@@ -156,7 +238,7 @@ describe("useTrimmingFormImages", () => {
     expect(untouched).not.toHaveProperty("completed_image");
   });
 
-  it("明示削除はプレビューを消し、空文字を update に載せる", async () => {
+  it("明示削除はプレビューを消し、空文字を update に載せて dirty にする", async () => {
     const { result } = renderHook(() =>
       useImageHarness({ styleImage: STYLE_SIGNED, completedImage: COMPLETED_SIGNED }, true),
     );
@@ -172,13 +254,14 @@ describe("useTrimmingFormImages", () => {
     expect(result.current.completedImagePreview).toBe(COMPLETED_SIGNED);
     expect(result.current.formData.styleImage).toBe("");
     expect(result.current.formData.completedImage).toBeNull();
+    expect(mockMarkDirty).toHaveBeenCalled();
 
     const update = buildUpdateTrimmingRequest(result.current.formData);
     expect(update.style_image).toBe("");
     expect(update).not.toHaveProperty("completed_image");
   });
 
-  it("削除後に返ったアップロード結果では画像を復活させない", async () => {
+  it("削除後に返ったアップロード結果では画像を復活させず、キーを削除する", async () => {
     let resolveUpload: (value: { key: string; signed_url: string }) => void = () => {};
     mockUploadTrimmingImage.mockImplementationOnce(
       () =>
@@ -203,5 +286,36 @@ describe("useTrimmingFormImages", () => {
     expect(result.current.formData.completedImage).toBe("");
     expect(result.current.completedImagePreview).toBeNull();
     expect(mockToast.error).not.toHaveBeenCalled();
+    expect(mockDeleteTrimmingImage).toHaveBeenCalledWith(COMPLETED_KEY);
+  });
+
+  it("未保存アップロード済みキーはアンマウント時に削除する", async () => {
+    mockUploadTrimmingImage.mockResolvedValue({ key: STYLE_KEY, signed_url: STYLE_SIGNED });
+    const { result, unmount } = renderHook(() => useImageHarness());
+
+    await act(async () => {
+      await result.current.handleStyleImageChange(imageChange("style.jpg"));
+    });
+    expect(result.current.formData.styleImage).toBe(STYLE_KEY);
+
+    unmount();
+
+    expect(mockDeleteTrimmingImage).toHaveBeenCalledWith(STYLE_KEY);
+  });
+
+  it("保存コミット済みキーはアンマウント時に削除しない", async () => {
+    mockUploadTrimmingImage.mockResolvedValue({ key: STYLE_KEY, signed_url: STYLE_SIGNED });
+    const { result, unmount } = renderHook(() => useImageHarness());
+
+    await act(async () => {
+      await result.current.handleStyleImageChange(imageChange("style.jpg"));
+    });
+    act(() => {
+      result.current.commitUploadedKeys();
+    });
+
+    unmount();
+
+    expect(mockDeleteTrimmingImage).not.toHaveBeenCalled();
   });
 });

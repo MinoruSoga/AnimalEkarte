@@ -70,6 +70,11 @@ func resolveTrimmingImageStorageKey(stored string) (key string, isStorageObject 
 
 	if strings.HasPrefix(stored, trimmingImageLocalURLPrefix) {
 		rest := strings.TrimPrefix(stored, trimmingImageLocalURLPrefix)
+		// /uploads/-wrapped values may carry a query or fragment (e.g. an old
+		// signed URL persisted relative); strip both before key extraction so
+		// they never become part of the resolved key.
+		rest, _, _ = strings.Cut(rest, "?")
+		rest, _, _ = strings.Cut(rest, "#")
 		if rest == "" {
 			return "", false, errTrimmingImageStorageKeyUnresolved
 		}
