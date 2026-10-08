@@ -22,8 +22,7 @@ function parseTrimmingImageUpload(data: unknown): TrimmingImageUploadResult {
 export async function uploadTrimmingImage(file: File): Promise<TrimmingImageUploadResult> {
   const body = new FormData();
   body.append("file", file);
-  const { data } = await axios.post<unknown>("/v1/trimmings/images/upload", body, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  // Content-Type は axios が FormData 用に boundary 付きで設定するため手動指定しない
+  const { data } = await axios.post<unknown>("/v1/trimmings/images/upload", body);
   return parseTrimmingImageUpload(data);
 }
