@@ -191,6 +191,34 @@ func (h *HospitalizationHandler) DischargeWithBilling(c *gin.Context) {
 	c.JSON(http.StatusOK, toDischargeWithBillingResponse(result))
 }
 
+// SwapCages godoc
+// POST /hospitalizations/cage-swap
+// EMR-306 review: 2本の独立 PATCH による半スワップ（片側のみ commit）を防ぐため、
+// 2件の入院のケージ交換を単一トランザクションで実行する。
+func (h *HospitalizationHandler) SwapCages(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
+	var req cageSwapRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		return
+	}
+	first, second, err := h.service.SwapCages(
+		c.Request.Context(), clinicID, req.HospitalizationIDs[0], req.HospitalizationIDs[1])
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, CageSwapResponse{
+		Hospitalizations: []HospitalizationResponse{
+			toHospitalizationResponse(first),
+			toHospitalizationResponse(second),
+		},
+	})
+}
+
 // DeleteHospitalization godoc
 func (h *HospitalizationHandler) DeleteHospitalization(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)

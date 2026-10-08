@@ -30,7 +30,7 @@ while read -r local_ref local_sha remote_ref remote_sha; do
       base=$VERIFY_BASE ;;
     *) base=$remote_sha ;;
   esac
-  python3 -B "$ROOT/scripts/verify-agent-task.py" --base "$base"
+  python3 -B "$ROOT/scripts/checks/verify-agent-task.py" --base "$base"
 done < "$REFS_FILE"
 printf '%s\n' 'Pre-push: selected outgoing checks finished; see evidence above.'
 else

@@ -36,7 +36,17 @@ describe("useUpdateAppointmentStatus", () => {
   it.each([
     {
       label: "成功",
-      arrange: () => mockedPatch.mockResolvedValueOnce({ data: undefined }),
+      // EMR-308: mutationFn は PATCH 応答を transformReservation して返すため、
+      // 最低限の backend reservation 形状を返す（undefined だと transform で落ちる）。
+      arrange: () =>
+        mockedPatch.mockResolvedValueOnce({
+          data: {
+            id: 101,
+            start_time: "2026-06-01T00:00:00Z",
+            end_time: "2026-06-01T00:30:00Z",
+            status: "checked_in",
+          },
+        }),
       expectError: false,
     },
     {

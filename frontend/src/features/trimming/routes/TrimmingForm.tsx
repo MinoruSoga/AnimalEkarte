@@ -30,10 +30,12 @@ export function TrimmingForm() {
     formState,
     handleDelete,
     isSaving,
+    isImageUploading,
     isDeleting,
     fieldErrors,
     isLoading,
     isEditPetReady,
+    unsaved,
     notFound,
     hasExistingAppointment,
     recordDate,
@@ -53,6 +55,7 @@ export function TrimmingForm() {
     redirectPath,
     fromPath,
     handleDelete,
+    unsaved,
   });
 
   const gate = resolveTrimmingFormGate({
@@ -72,6 +75,7 @@ export function TrimmingForm() {
       canSubmit={canSubmit === true}
       canDelete={allowDelete}
       isSaving={isSaving}
+      isImageUploading={isImageUploading}
       isDeleting={isDeleting}
       isDirty={chrome.isDirty}
       hasExistingAppointment={hasExistingAppointment}

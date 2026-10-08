@@ -21,11 +21,12 @@ import (
 // ---- mock Service ----
 
 type mockService struct {
-	listFn    func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
-	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
-	createFn  func(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error)
-	updateFn  func(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error)
-	deleteFn  func(ctx context.Context, clinicID, id uint64, actorID *uint64) error
+	listFn          func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
+	getByIDFn       func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	createFn        func(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error)
+	updateFn        func(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, *TrimmingReplacedImages, error)
+	deleteFn        func(ctx context.Context, clinicID, id uint64, actorID *uint64) error
+	imageKeyInUseFn func(ctx context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error)
 }
 
 func (m *mockService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error) {
@@ -49,11 +50,11 @@ func (m *mockService) Create(ctx context.Context, clinicID uint64, input *Create
 	return &model.Reservation{ID: 1}, nil
 }
 
-func (m *mockService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error) {
+func (m *mockService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, *TrimmingReplacedImages, error) {
 	if m.updateFn != nil {
 		return m.updateFn(ctx, clinicID, id, input)
 	}
-	return &model.Reservation{ID: id}, nil
+	return &model.Reservation{ID: id}, nil, nil
 }
 
 func (m *mockService) Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error {
@@ -61,6 +62,13 @@ func (m *mockService) Delete(ctx context.Context, clinicID, id uint64, actorID *
 		return m.deleteFn(ctx, clinicID, id, actorID)
 	}
 	return nil
+}
+
+func (m *mockService) ImageKeyInUse(ctx context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error) {
+	if m.imageKeyInUseFn != nil {
+		return m.imageKeyInUseFn(ctx, clinicID, key, exceptAppointmentID)
+	}
+	return false, nil
 }
 
 // ---- helper ----
@@ -338,10 +346,10 @@ func TestUpdateTrimming(t *testing.T) {
 			body:     map[string]any{"style_request": "短めにカット"},
 			setupCtx: setTrimmingWriteContext,
 			svc: &mockService{
-				updateFn: func(_ context.Context, _, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error) {
+				updateFn: func(_ context.Context, _, id uint64, input *UpdateTrimmingInput) (*model.Reservation, *TrimmingReplacedImages, error) {
 					require.NotNil(t, input.ActorID)
 					assert.Equal(t, uint64(42), *input.ActorID)
-					return &model.Reservation{ID: id}, nil
+					return &model.Reservation{ID: id}, nil, nil
 				},
 			},
 			wantStatus: http.StatusOK,
@@ -376,8 +384,8 @@ func TestUpdateTrimming(t *testing.T) {
 			body:     map[string]any{"style_request": "test"},
 			setupCtx: setTrimmingWriteContext,
 			svc: &mockService{
-				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateTrimmingInput) (*model.Reservation, error) {
-					return nil, apperrors.WrapNotFound("trimming", "999")
+				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateTrimmingInput) (*model.Reservation, *TrimmingReplacedImages, error) {
+					return nil, nil, apperrors.WrapNotFound("trimming", "999")
 				},
 			},
 			wantStatus: http.StatusNotFound,

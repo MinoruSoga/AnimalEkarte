@@ -305,7 +305,6 @@ export function calculateHospitalizationBillingTotals(
   return {
     subtotalBeforeDiscount: result.subtotal,
     discountAmount: result.globalDiscountAmount,
-    subtotalAfterDiscount: result.taxableAmount,
     consumptionTax: result.tax,
     total: result.total,
   };

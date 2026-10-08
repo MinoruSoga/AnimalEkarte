@@ -127,7 +127,7 @@ func (r *reservationRepository) HasDoctorConflict(ctx context.Context, clinicID,
 		SELECT id FROM appointments
 		WHERE clinic_id = ?
 		  AND deleted_at IS NULL
-		  AND status NOT IN ('cancelled', 'no_show')
+		  AND status NOT IN ('cancelled', 'no_show', 'tentative')
 		  AND start_time < ?
 		  AND end_time > ?
 		  AND doctor_id = ?
@@ -176,7 +176,7 @@ func (r *reservationRepository) CountConflicts(ctx context.Context, clinicID uin
 		SELECT id FROM appointments
 		WHERE clinic_id = ?
 		  AND deleted_at IS NULL
-		  AND status NOT IN ('cancelled')
+		  AND status NOT IN ('cancelled', 'tentative')
 		  AND start_time < ?
 		  AND end_time > ?
 		  AND (? = 0 OR id != ?)

@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+
+	"github.com/animal-ekarte/backend/internal/imageupload"
 )
 
 // Quota constants aligned with FE multi-file caps so legitimate UI uploads succeed.
@@ -23,18 +25,30 @@ const (
 	medicalRecordImageUploadInFlightStale       = 5 * time.Minute
 )
 
+// Quota errors wrap the shared imageupload sentinels while keeping the
+// medical-record message text, so every consumer (including the trimming
+// endpoint sharing this store) can classify with errors.Is — never by
+// matching message substrings.
+// quotaError keeps the medical-record message text while wrapping a shared
+// imageupload sentinel so every consumer can classify with errors.Is.
+type quotaError struct {
+	msg  string
+	kind error
+}
+
+func (e quotaError) Error() string { return e.msg }
+func (e quotaError) Unwrap() error { return e.kind }
+
 var (
-	errMedicalRecordImageUploadConcurrency      = errors.New("too many concurrent medical record image uploads")
-	errMedicalRecordImageUploadRateLimit        = errors.New("medical record image upload rate limit exceeded")
-	errMedicalRecordImageUploadByteBudget       = errors.New("medical record image upload byte budget exceeded")
-	errMedicalRecordImageUploadQuotaUnavailable = errors.New("upload quota unavailable")
+	errMedicalRecordImageUploadConcurrency      = quotaError{"too many concurrent medical record image uploads", imageupload.ErrQuotaConcurrency}
+	errMedicalRecordImageUploadRateLimit        = quotaError{"medical record image upload rate limit exceeded", imageupload.ErrQuotaRateLimit}
+	errMedicalRecordImageUploadByteBudget       = quotaError{"medical record image upload byte budget exceeded", imageupload.ErrQuotaByteBudget}
+	errMedicalRecordImageUploadQuotaUnavailable = imageupload.ErrQuotaUnavailable
 )
 
 // medicalRecordImageUploadQuotaStore reserves concurrency/rate/bytes before heavy multipart work.
 // release must be called when the request finishes (success or failure).
-type medicalRecordImageUploadQuotaStore interface {
-	Acquire(ctx context.Context, clinicID, staffID uint64, declaredBytes int64) (release func(context.Context), err error)
-}
+type medicalRecordImageUploadQuotaStore = imageupload.QuotaStore
 
 // ---------------------------------------------------------------------------
 // Shared-memory store (unit tests / single-process authoritative simulation)

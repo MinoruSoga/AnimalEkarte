@@ -20,6 +20,7 @@ import { C } from "@/lib/design-tokens";
 import { toJSTWallDate } from "@/lib/jst-date";
 import { getReservationTypeColor } from "@/lib/status-helpers";
 import { DAY_OF_WEEK_LABEL_LIST } from "@/constants/day-of-week";
+import { isTentativeReservation, TENTATIVE_APPOINTMENT_LABEL } from "../lib/tentative";
 
 // Types
 import type { Reservation } from "@/types";
@@ -115,12 +116,15 @@ export const MonthView = memo(function MonthView({
               {dayAppointments.slice(0, 4).map((app) => {
                 const colorStyle = getReservationTypeColor(app.type, dynamicColorMap);
                 const isClassNameColor = typeof colorStyle === "string";
+                // EMR-308: tentative（次回予定・未予約）は色だけでなく明示テキストで識別する
+                const isTentative = isTentativeReservation(app);
                 return (
                   <button
                     key={app.id}
                     type="button"
-                    className={`block w-full min-h-11 text-left text-sm px-2 py-1.5 rounded border cursor-pointer hover:opacity-80 leading-tight ${isClassNameColor ? colorStyle : ""}`}
+                    className={`block w-full min-h-11 text-left text-sm px-2 py-1.5 rounded border cursor-pointer hover:opacity-80 leading-tight ${isClassNameColor ? colorStyle : ""} ${isTentative ? "border-dashed" : ""}`}
                     style={isClassNameColor ? undefined : (colorStyle as React.CSSProperties)}
+                    title={isTentative ? TENTATIVE_APPOINTMENT_LABEL : undefined}
                     onClick={(e) => {
                       e.stopPropagation();
                       onAppointmentClick(app);
@@ -142,6 +146,11 @@ export const MonthView = memo(function MonthView({
                       )}
                       <span className="truncate text-xs font-medium">{app.petName}</span>
                     </div>
+                    {isTentative ? (
+                      <div className={`text-2xs font-semibold ${C.textWarning} truncate mt-0.5`}>
+                        {TENTATIVE_APPOINTMENT_LABEL}
+                      </div>
+                    ) : null}
                     <div className="text-2xs opacity-70 truncate mt-0.5">
                       {app.ownerName}
                       {app.doctor ? ` / ${app.doctor}` : ""}

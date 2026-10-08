@@ -30,7 +30,7 @@
 ## 検証（統合後、main checkout で実施）
 
 - `git diff --check -- docs/` → exit 0
-- `bash scripts/check-docs-symbol-drift.sh` → **exit 0（ドリフトなし、検査トークン 609 件）**。前回・各子時点で残存していた「テーブル数 128 vs 実測 130」FAIL は `erd.md`（arch）と `specification.md`（spec-core）の訂正で解消
+- `bash scripts/checks/check-docs-symbol-drift.sh` → **exit 0（ドリフトなし、検査トークン 609 件）**。前回・各子時点で残存していた「テーブル数 128 vs 実測 130」FAIL は `erd.md`（arch）と `specification.md`（spec-core）の訂正で解消
 - docs 変更は runtime 検証不要（docs-only）
 - 各子の `git status` allowlist 外差分 0 を確認済み。統合は `git diff main..<branch> | git apply` で全区画を直列適用
 

@@ -118,6 +118,15 @@ func (s *lstepBatchService) applyNoShowCandidates(
 		}
 		if transition.Changed {
 			count++
+			// EMR-308: no-show 遷移で次回来院が変わり得るため、commit 成功後に
+			// next_visit_* タグを再同期する。同期失敗は当該候補の成否に影響させない
+			// （best-effort・エラーログのみ。errs へは積まない）。
+			if s.tagSyncSvc != nil && r.OwnerID != nil {
+				if err := s.tagSyncSvc.SyncNextVisitTag(ctx, clinicID, *r.OwnerID); err != nil {
+					slog.ErrorContext(ctx, "no-show batch: next visit tag resync failed (best-effort)",
+						"clinic_id", clinicID, "reservation_id", r.ID, "owner_id", *r.OwnerID, "error", err)
+				}
+			}
 		}
 	}
 	return count, errs

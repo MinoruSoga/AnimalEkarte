@@ -7,7 +7,7 @@ import (
 
 const (
 	cutoverManifestName        = "manifest.json"
-	cutoverImportablePredicate = "mapping_status IN ('confirmed','inferred'), plus per-table CSV FK-parent eligibility guards (see scripts/lib/stage-csv-columns.mjs)"
+	cutoverImportablePredicate = "mapping_status IN ('confirmed','inferred'), plus per-table CSV FK-parent eligibility guards (see scripts/rehearsal/lib/stage-csv-columns.mjs)"
 	clinicBandSize             = int64(10_000_000)
 	ownerBandOffset            = int64(300_000)
 	nonOwnerBandOffset         = int64(1_000_000)

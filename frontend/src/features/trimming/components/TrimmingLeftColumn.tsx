@@ -158,7 +158,7 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
       <TrimmingImageUploadField
         label="希望スタイル画像"
         preview={styleImagePreview}
-        previewAlt="Style preview"
+        previewAlt="希望スタイル画像のプレビュー"
         onImageChange={onStyleImageChange}
         onRemoveImage={onRemoveStyleImage}
       />

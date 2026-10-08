@@ -279,6 +279,94 @@ func (m *noShowRollbackSpyTransactor) WithTx(ctx context.Context, fn func(contex
 	return err
 }
 
+// ---- next_visit_* post-commit resync (EMR-308) ----
+
+func TestLstepBatchService_DetectNoShowReservations_ResyncsNextVisitTagPostCommit(t *testing.T) {
+	ownerID := uint64(42)
+	reservationRepo := &noShowMockReservationRepository{
+		findNoShowCandidatesFn: func(_ context.Context, _ uint64) ([]model.Reservation, error) {
+			return []model.Reservation{{ID: 5, OwnerID: &ownerID}}, nil
+		},
+		markNoShowFn: func(_ context.Context, _ uint64, _ uint64) (reservation.NoShowTransition, error) {
+			return reservation.NoShowTransition{Changed: true, PreviousStatus: model.ReservationStatusConfirmed}, nil
+		},
+	}
+	type resyncCall struct {
+		clinicID, ownerID uint64
+	}
+	var calls []resyncCall
+	svc := newNoShowBatchService(reservationRepo, &dormantMockClinicRepository{}, &mockAuditService{}, &mockLstepSettingsService{})
+	svc.tagSyncSvc = &batchMockTagSyncSvc{
+		syncNextVisitTagFn: func(_ context.Context, clinicID, oid uint64) error {
+			calls = append(calls, resyncCall{clinicID: clinicID, ownerID: oid})
+			return nil
+		},
+	}
+
+	count, errs := svc.detectNoShowReservations(context.Background(), 7)
+
+	assert.Equal(t, 1, count)
+	assert.Empty(t, errs)
+	assert.Equal(t, []resyncCall{{clinicID: 7, ownerID: ownerID}}, calls,
+		"a changed no-show transition must resync the appointment's owner tag exactly once")
+}
+
+func TestLstepBatchService_DetectNoShowReservations_NoResyncForNilOwnerOrUnchanged(t *testing.T) {
+	ownerID := uint64(42)
+	reservationRepo := &noShowMockReservationRepository{
+		findNoShowCandidatesFn: func(_ context.Context, _ uint64) ([]model.Reservation, error) {
+			return []model.Reservation{
+				{ID: 5},                    // owner 未紐付け
+				{ID: 6, OwnerID: &ownerID}, // owner あり
+			}, nil
+		},
+		markNoShowFn: func(_ context.Context, _ uint64, id uint64) (reservation.NoShowTransition, error) {
+			if id == 6 {
+				// 未変化（stale candidate）は遷移しないため resync しない。
+				return reservation.NoShowTransition{}, nil
+			}
+			return reservation.NoShowTransition{Changed: true, PreviousStatus: model.ReservationStatusPending}, nil
+		},
+	}
+	var calls int
+	svc := newNoShowBatchService(reservationRepo, &dormantMockClinicRepository{}, &mockAuditService{}, &mockLstepSettingsService{})
+	svc.tagSyncSvc = &batchMockTagSyncSvc{
+		syncNextVisitTagFn: func(_ context.Context, _, _ uint64) error {
+			calls++
+			return nil
+		},
+	}
+
+	count, errs := svc.detectNoShowReservations(context.Background(), 7)
+
+	assert.Equal(t, 1, count)
+	assert.Empty(t, errs)
+	assert.Zero(t, calls, "nil-owner and unchanged transitions must not trigger a resync")
+}
+
+func TestLstepBatchService_DetectNoShowReservations_ResyncFailureDoesNotFailItem(t *testing.T) {
+	ownerID := uint64(42)
+	reservationRepo := &noShowMockReservationRepository{
+		findNoShowCandidatesFn: func(_ context.Context, _ uint64) ([]model.Reservation, error) {
+			return []model.Reservation{{ID: 5, OwnerID: &ownerID}}, nil
+		},
+		markNoShowFn: func(_ context.Context, _ uint64, _ uint64) (reservation.NoShowTransition, error) {
+			return reservation.NoShowTransition{Changed: true, PreviousStatus: model.ReservationStatusPending}, nil
+		},
+	}
+	svc := newNoShowBatchService(reservationRepo, &dormantMockClinicRepository{}, &mockAuditService{}, &mockLstepSettingsService{})
+	svc.tagSyncSvc = &batchMockTagSyncSvc{
+		syncNextVisitTagFn: func(_ context.Context, _, _ uint64) error {
+			return errors.New("tag sync down")
+		},
+	}
+
+	count, errs := svc.detectNoShowReservations(context.Background(), 7)
+
+	assert.Equal(t, 1, count, "tag resync failure must not fail the no-show batch item")
+	assert.Empty(t, errs)
+}
+
 func TestLstepBatchService_DetectNoShowReservations_AuditFailureFailsClosed(t *testing.T) {
 	reservationRepo := &noShowMockReservationRepository{
 		findNoShowCandidatesFn: func(_ context.Context, _ uint64) ([]model.Reservation, error) {

@@ -40,7 +40,7 @@ run 名 `hachioji-intake-20260921-01` が一致しても revision / stage build 
 | 境界 | 現在の実装・根拠 | 設計上の要求 |
 | --- | --- | --- |
 | 医院別判断 | `old_db/config/migration/clinic-mapping-decisions/hachioji.json` の Z5 は blocked、`jkzei_neutral_raw_no_tax_derivation` | 未確定を保持する。城東の判断をコピーしない |
-| producer 共通判断 gate | `old_db/docs/migration/accounting-tax-semantics-decision.json` の approvedClinicCodes は jouto のみ。`scripts/lib/accounting-csv-promotion-gate.mjs` が clinic / Z5 / meaning / evidence / productionEligible を照合 | 八王子の根拠付き判断と実装一致ができるまで formal accounting CSV を拒否 |
+| producer 共通判断 gate | `old_db/docs/migration/accounting-tax-semantics-decision.json` の approvedClinicCodes は jouto のみ。`scripts/rehearsal/lib/accounting-csv-promotion-gate.mjs` が clinic / Z5 / meaning / evidence / productionEligible を照合 | 八王子の根拠付き判断と実装一致ができるまで formal accounting CSV を拒否 |
 | canonical | `old_db/sql/migration/020_canonical.sql` の payment_settlements: Jkzei_Kin → taxable_base_raw、JHOS_TAX + JSAN_TAX → tax_amount_raw（NULL/空は各0への COALESCE） | 八王子にこの意味・NULL処理が妥当という証拠は未確定。neutral raw は保存可能でも正しい課税額の証拠にはならない |
 | stage → CSV | `old_db/sql/migration/030_stage.sql`: subtotal=round(claim_amount − tax_amount)、tax_total=round(tax_amount)、total_amount=親 billing。21表の payments / estimates に税列がある | 税率期間、NULL/0、値引き、返金・負額、端数、合算単位を同一 run で検証し decision digest と結ぶ。payments の確認を estimates の証拠に流用しない |
 | AE 事前検証 | [cutover_contract_validate.go](../../../backend/internal/csvimport/cutover_contract_validate.go)、[cutover_payment_graph.go](../../../backend/internal/csvimport/cutover_payment_graph.go) | v1 は TRUSTED_CANDIDATE / source complete PASS / verified provenance / incomplete tables 空が必須。payment の整数・親子等のチェックは税の業務意味の証明ではない |

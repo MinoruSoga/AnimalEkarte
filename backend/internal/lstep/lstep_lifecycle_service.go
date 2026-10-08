@@ -8,7 +8,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/infra/lstep"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
@@ -96,7 +95,7 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 	if err != nil {
 		return apperrors.Wrap(err, "failed to find pet")
 	}
-	if pet.Status == model.PetStatusDeceased {
+	if sharedkernel.IsPetDeceased(pet) {
 		return apperrors.WrapConflict("死亡記録は既に登録されています")
 	}
 	// BUG-407: status は deceased_at と独立した二重管理フィールドのため、
@@ -192,7 +191,7 @@ func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, 
 	if err != nil {
 		return apperrors.Wrap(err, "failed to find pet")
 	}
-	if pet.Status != model.PetStatusDeceased {
+	if !sharedkernel.IsPetDeceased(pet) {
 		return apperrors.WrapConflict("死亡記録が登録されていないため解除できません")
 	}
 	// BUG-407: 死亡取り消し時も status を "alive" に戻し、deceased_at/status の

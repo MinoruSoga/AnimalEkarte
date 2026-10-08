@@ -11,6 +11,9 @@ func (h *Handler) registerHospitalizationRoutes(hospitalizations *gin.RouterGrou
 	hospitalizations.GET("/:id", perm(model.ResourceHospitalization, "view"), h.hospitalization.GetHospitalization)
 	hospitalizations.POST("", perm(model.ResourceHospitalization, "create"), h.hospitalization.CreateHospitalization)
 	hospitalizations.PATCH("/:id", perm(model.ResourceHospitalization, "edit"), h.hospitalization.UpdateHospitalization)
+	// EMR-306 review: ボード入れ替えの単一 tx 化（2 PATCH の半成功を防ぐ）。
+	// /:id 系 POST より前の静的セグメント登録。
+	hospitalizations.POST("/cage-swap", perm(model.ResourceHospitalization, "edit"), h.hospitalization.SwapCages)
 	hospitalizations.DELETE("/:id", perm(model.ResourceHospitalization, "delete"), h.hospitalization.DeleteHospitalization)
 	hospitalizations.POST("/:id/discharge-with-billing", perm(model.ResourceHospitalization, "edit"), h.hospitalization.DischargeWithBilling)
 	hospitalizations.GET("/:id/daily-records", perm(model.ResourceHospitalization, "view"), h.dailyRecord.ListDailyRecords)

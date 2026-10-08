@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router";
+import { toast } from "sonner";
 import {
   addHours,
   startOfWeek,
@@ -7,13 +8,18 @@ import {
   startOfMonth,
   endOfMonth,
   addDays,
+  subDays,
   format,
 } from "date-fns";
 import { ja } from "date-fns/locale";
+import { formatJSTWallDate, toJSTWallDate } from "@/lib/jst-date";
+import { useConfirmTentative } from "@/hooks/use-confirm-tentative";
+import { useSetNextVisitIntent, useClearNextVisitIntent } from "@/hooks/use-next-visit-intent";
 import type { CalendarView, Reservation, ReservationFormData, NavigationState } from "../types";
 import type { ReservationCreateMutations } from "@/types/reservation-create-mutations";
 
 import { useGetReservations } from "../api/get-reservations";
+import { isExpiredTentativeReservation, isTentativeReservation } from "../lib/tentative";
 import {
   useReservationActions,
   type ReservationMutationPermissions,
@@ -23,6 +29,19 @@ import { useReservationModalState } from "./use-reservation-modal-state";
 import { useReservationRecordNavigation } from "./use-reservation-record-navigation";
 
 const EMPTY_RESERVATIONS: Reservation[] = [];
+
+/** EMR-308 A3: 期限超過 tentative 一覧の探索下限。実運用上の最古意図日をカバーする固定下限。 */
+const EXPIRED_TENTATIVE_RANGE_START = "2000-01-01";
+
+/** EMR-308 A3/A4: 「次回予定を再設定」ダイアログの対象 */
+export interface ResetNextVisitTarget {
+  petId: string;
+  petName: string;
+  /** 直前の意図日（YYYY-MM-DD）。BE はキャンセル後も intended_date を保持する */
+  previousIntendedDate?: string;
+  /** tentative の作成元カルテ id（source_medical_record_id として引き継ぐ） */
+  sourceMedicalRecordId?: string;
+}
 
 interface UseReservationManagementParams {
   currentDate: Date;
@@ -67,6 +86,26 @@ export function useReservationManagement({
     clinicIds,
   });
 
+  // EMR-308 A3: 期限超過 tentative の actionable list 用フェッチ。
+  // BE の end_date は当日を含むため「昨日」指定で意図日 < 今日 に限定する。
+  // （start_time sentinel は意図日の JST 00:00。当日 tentative は範囲外＝期限超過ではない。）
+  // status=tentative は BE の素の等値フィルタ（reservation_repository.go FindAll）で有効。
+  const expiredRangeEndDate = useMemo(
+    () => formatJSTWallDate(subDays(toJSTWallDate(new Date()), 1)),
+    [],
+  );
+  const { data: tentativeRangeAppointments = EMPTY_RESERVATIONS } = useGetReservations({
+    status: "tentative",
+    startDate: EXPIRED_TENTATIVE_RANGE_START,
+    endDate: expiredRangeEndDate,
+    clinicIds,
+  });
+  // サーバー側フィルタに加えて意図日の JST 暦日で厳密に再判定する（fail-safe）
+  const expiredTentativeAppointments = useMemo(
+    () => tentativeRangeAppointments.filter((r) => isExpiredTentativeReservation(r)),
+    [tentativeRangeAppointments],
+  );
+
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Reservation | null>(null);
   const [statusConfirmOpen, setStatusConfirmOpen] = useState(false);
@@ -84,6 +123,121 @@ export function useReservationManagement({
     handleOpenDetail,
     handleCloseDetail,
   } = useReservationModalState({ locationSearch: location.search });
+
+  // ── EMR-308: tentative 確定 / 次回予定の再設定・終了 ──
+  const confirmTentativeMutation = useConfirmTentative();
+  const setIntentMutation = useSetNextVisitIntent();
+  const clearIntentMutation = useClearNextVisitIntent();
+
+  const [confirmTentativeTarget, setConfirmTentativeTarget] = useState<Reservation | null>(null);
+  const [resetNextVisitTarget, setResetNextVisitTarget] = useState<ResetNextVisitTarget | null>(
+    null,
+  );
+  const [endTentativeTarget, setEndTentativeTarget] = useState<Reservation | null>(null);
+
+  // tentative 行を確定モーダルで開く（detail modal / 期限超過パネルからの入口）。
+  // tentative 以外の行や権限なしは fail-closed。
+  const handleOpenConfirmTentative = useCallback(
+    (reservation: Reservation) => {
+      if (permissions?.canEdit !== true) {
+        toast.error("予約を確定する権限がありません");
+        return;
+      }
+      if (!isTentativeReservation(reservation)) return;
+      setConfirmTentativeTarget(reservation);
+    },
+    [permissions],
+  );
+
+  const handleCloseConfirmTentative = useCallback(() => setConfirmTentativeTarget(null), []);
+
+  // ReservationFormModal の tentative 確定モードから呼ばれる保存ハンドラ。
+  // POST /v1/reservations/:id/confirm-tentative — 同一行を昇格する（別行を作らない）。
+  const handleConfirmTentative = useCallback(
+    async (tentativeId: string, data: Partial<Reservation>): Promise<string | null> => {
+      try {
+        await confirmTentativeMutation.mutateAsync({
+          reservationId: tentativeId,
+          formData: data,
+        });
+      } catch {
+        // onError(handleApiError) が toast 済み。モーダル内にインライン表示して開いたまま。
+        return "予約の確定に失敗しました。入力内容を確認して再度お試しください。";
+      }
+      toast.success("次回予定を確定しました");
+      setConfirmTentativeTarget(null);
+      return null;
+    },
+    [confirmTentativeMutation],
+  );
+
+  // 「次回予定を再設定」ダイアログを開く（A4 キャンセル後 / A3 期限超過パネルの共通入口）。
+  // PUT next-visit-intent は reservations:create 相当のため canCreate で fail-closed。
+  const openResetNextVisit = useCallback(
+    (reservation: Reservation) => {
+      if (permissions?.canCreate !== true) {
+        toast.error("次回予定を再設定する権限がありません");
+        return;
+      }
+      if (!reservation.petId) {
+        toast.error("ペット情報が取得できないため次回予定を再設定できません");
+        return;
+      }
+      setResetNextVisitTarget({
+        petId: reservation.petId,
+        petName: reservation.petName,
+        previousIntendedDate: reservation.intendedDate,
+        sourceMedicalRecordId: reservation.sourceMedicalRecordId,
+      });
+    },
+    [permissions],
+  );
+
+  const handleResetNextVisitSubmit = useCallback(
+    async (date: string) => {
+      const target = resetNextVisitTarget;
+      if (!target) throw new Error("再設定対象の次回予定がありません");
+      await setIntentMutation.mutateAsync({
+        petId: target.petId,
+        intendedDate: date,
+        medicalRecordId: target.sourceMedicalRecordId,
+      });
+      toast.success(`次回予定を ${date} に再設定しました`);
+    },
+    [resetNextVisitTarget, setIntentMutation],
+  );
+
+  const handleResetNextVisitClose = useCallback(() => setResetNextVisitTarget(null), []);
+
+  // A3「終了」: tentative を DELETE next-visit-intent（pets スコープ・冪等）で終わらせる。
+  // 実予約のキャンセルや削除ではなく「次回予定の意思表示を閉じる」操作。
+  const handleEndTentativeRequest = useCallback(
+    (reservation: Reservation) => {
+      if (permissions?.canEdit !== true) {
+        toast.error("次回予定を終了する権限がありません");
+        return;
+      }
+      if (!isTentativeReservation(reservation) || !reservation.petId) return;
+      setEndTentativeTarget(reservation);
+    },
+    [permissions],
+  );
+
+  const executeEndTentative = useCallback(async () => {
+    const target = endTentativeTarget;
+    if (!target?.petId) return;
+    try {
+      await clearIntentMutation.mutateAsync(target.petId);
+      toast.success("次回予定を終了しました", {
+        description: `${target.petName}（${target.ownerName}様）`,
+      });
+      setEndTentativeTarget(null);
+    } catch {
+      // onError(handleApiError) が toast 済み。ダイアログは開いたまま再試行可能。
+    }
+  }, [endTentativeTarget, clearIntentMutation]);
+
+  const handleEndTentativeClose = useCallback(() => setEndTentativeTarget(null), []);
 
   const handleTimeSlotClick = useCallback(
     (date: Date) => {
@@ -123,6 +277,9 @@ export function useReservationManagement({
     navigate,
     createMutations,
     permissions,
+    // EMR-308 A4: tentative 昇格済み予約のキャンセル後に「次回予定の再設定」をオプション提示する。
+    // 自動再作成はしない（スタッフが明示的に再設定を選んだ場合のみ PUT intent）。
+    onTentativeCancelled: openResetNextVisit,
   });
 
   const handleDelete = useCallback((reservation: Reservation) => {
@@ -188,5 +345,28 @@ export function useReservationManagement({
     petSelectConfirmOpen,
     setPetSelectConfirmOpen,
     handlePetSelectConfirm,
+
+    // EMR-308 A3: 期限超過 tentative 一覧（actionable panel 用）
+    expiredTentativeAppointments,
+
+    // EMR-308 A2/A3: tentative 確定モーダル
+    confirmTentativeTarget,
+    handleOpenConfirmTentative,
+    handleCloseConfirmTentative,
+    handleConfirmTentative,
+
+    // EMR-308 A3/A4: 次回予定の再設定（キャンセル後オプション＋期限超過パネル「再設定」）
+    resetNextVisitTarget,
+    handleResetNextVisitRequest: openResetNextVisit,
+    handleResetNextVisitSubmit,
+    handleResetNextVisitClose,
+    isResetNextVisitSubmitting: setIntentMutation.isPending,
+
+    // EMR-308 A3: 期限超過 tentative の終了確認
+    endTentativeTarget,
+    handleEndTentativeRequest,
+    executeEndTentative,
+    handleEndTentativeClose,
+    isEndTentativeSubmitting: clearIntentMutation.isPending,
   };
 }

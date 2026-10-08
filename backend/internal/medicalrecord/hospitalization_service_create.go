@@ -21,6 +21,17 @@ func (s *hospitalizationService) createHospitalizationInTx(
 	if err := validatePetNotDeceased(txCtx, s.petRepo, clinicID, petID, "死亡したペットは入院登録できません"); err != nil {
 		return err
 	}
+	// EMR-306 step3: 連結ケージ割当ガード — FindByID(FOR SHARE) より先に
+	// LockCageGroupForUpdate(FOR UPDATE) を取るため所有権検証より前に置く。
+	// 結果ステータスが非占有（discharged バックフィル等）の作成は、構成ケージの
+	// 構造的禁止のみ適用しグループ占有検査は行わない。
+	// 占有判定は Create が解決した hospitalization.Status で行う — input.Status は
+	// 省略可能で、空のまま評価すると省略→admitted/reserved 解決の通常作成が
+	// 占有検査を素通りする（Grok review HIGH）。
+	if err := s.validateCageAssignmentGuard(txCtx, clinicID, input.CageID,
+		isOccupyingHospitalizationStatus(hospitalization.Status), nil); err != nil {
+		return err
+	}
 	if err := validateOwnedMasterFK(txCtx, "cage", clinicID, input.CageID,
 		func(actx context.Context, cid, mid uint64) error {
 			_, err := s.cageRepo.FindByID(actx, cid, mid)

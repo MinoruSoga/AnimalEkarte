@@ -2,6 +2,7 @@ package lstep
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -28,6 +29,15 @@ type deliveryBatchTagOwnersLoader interface {
 // preloading clinic-day trigger logs for already-fired / suppression checks.
 const deliveryBatchDayLogPageSize = 500
 
+// deliveryRevalidationHook は送信直前の candidate 再検証フック（EMR-308）。
+// valid=true で送信する場合、hook が send コールバックを直列化境界（tentative
+// mutation と同じ advisory lock）の内側で呼ぶ責務を持つ — 再検証〜送信の間の
+// stale 化を防ぐため send は hook が制御する（Codex 指摘対応）。
+// 戻り値 (valid, reason, err): valid=false のとき reason を excluded_reason として
+// ログを excluded に更新し送信しない（send 未呼出）。valid=true は send 完了済みを
+// 意味する。nil hook で再検証なし（呼び出し側が send を直接実行）。
+type deliveryRevalidationHook func(ctx context.Context, ownerID uint64, send func(context.Context) error) (valid bool, reason string, err error)
+
 func (s *lstepDeliveryTriggerService) runBatch(
 	ctx context.Context,
 	clinicID uint64,
@@ -35,6 +45,7 @@ func (s *lstepDeliveryTriggerService) runBatch(
 	triggerType string,
 	tagName string,
 	asOf time.Time,
+	revalidate deliveryRevalidationHook,
 ) (int, []error) {
 	client, err := s.buildClient(ctx, clinicID)
 	if err != nil {
@@ -70,7 +81,7 @@ func (s *lstepDeliveryTriggerService) runBatch(
 
 		restore := s.installDeliveryBatchCaches(ctx, clinicID, page, dayLogsByOwner, dayLogsLoaded)
 		for _, ownerID := range page {
-			fired, loopErr := s.processSingleOwner(ctx, client, clinicID, ownerID, triggerType, tagName, asOf)
+			fired, loopErr := s.processSingleOwner(ctx, client, clinicID, ownerID, triggerType, tagName, asOf, revalidate)
 			if loopErr != nil {
 				errs = append(errs, loopErr)
 				continue
@@ -341,12 +352,15 @@ func (c *deliveryBatchTriggerLogCache) UpdateSuppressed(ctx context.Context, cli
 }
 
 // processSingleOwner は1飼い主分のトリガー処理を行い、配信実行されたか否かを返す。
+// revalidate != nil の場合、日次スロット claim 後・LSTEP 送信直前に candidate の
+// 有効性を再検証し、stale な candidate は excluded として記録して送信しない（EMR-308）。
 func (s *lstepDeliveryTriggerService) processSingleOwner(
 	ctx context.Context,
 	client lstep.Client,
 	clinicID, ownerID uint64,
 	triggerType, tagName string,
 	asOf time.Time,
+	revalidate deliveryRevalidationHook,
 ) (bool, error) {
 	owner, err := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
 	if err != nil {
@@ -421,7 +435,39 @@ func (s *lstepDeliveryTriggerService) processSingleOwner(
 		return false, nil
 	}
 
-	if err := s.applyTagAndLog(ctx, clinicID, client, *owner.LineUserID, tagName, logID); err != nil {
+	// EMR-308: 送信直前の candidate 再検証。tentative リマインダーは candidate 抽出と
+	// 送信の間に appointment が取消・完了・削除・昇格・日付変更され得るため、
+	// claim 済みスロットを excluded に記録して外部送信を抑止する。
+	// Codex: 再検証〜送信は tentative mutation と同じ advisory lock 内で行う —
+	// send コールバックを hook へ渡し、hook の直列化境界内で送信させる。
+	send := func(callCtx context.Context) error {
+		return s.applyTagAndLog(callCtx, clinicID, client, *owner.LineUserID, tagName, logID)
+	}
+	if revalidate != nil {
+		stillValid, staleReason, revalidateErr := revalidate(ctx, ownerID, send)
+		if revalidateErr != nil {
+			slog.ErrorContext(ctx, "delivery trigger: revalidation error", "owner_id", ownerID, "trigger", triggerType, "error", revalidateErr)
+			// Codex: claim 済みスロットを scheduled のまま stranded にしない。
+			// 再検証自体が失敗した candidate は failed に記録して解放する。
+			failReason := fmt.Sprintf("revalidation_error: %s", triggerType)
+			if updateErr := s.triggerLogRepo.UpdateStatus(ctx, clinicID, logID, model.TriggerStatusFailed, nil, &failReason); updateErr != nil {
+				slog.ErrorContext(ctx, "failed to record trigger log failed status", "log_id", logID, "error", updateErr)
+				return false, errors.Join(revalidateErr, apperrors.Wrap(updateErr, "failed to update trigger log status to failed"))
+			}
+			return false, revalidateErr
+		}
+		if !stillValid {
+			if updateErr := s.triggerLogRepo.UpdateStatus(ctx, clinicID, logID, model.TriggerStatusExcluded, nil, &staleReason); updateErr != nil {
+				slog.ErrorContext(ctx, "failed to record trigger log excluded status", "log_id", logID, "error", updateErr)
+				return false, apperrors.Wrap(updateErr, "failed to update trigger log status to excluded")
+			}
+			return false, nil
+		}
+		// valid: hook が直列化境界内で send を完了済み。
+		return true, nil
+	}
+
+	if err := send(ctx); err != nil {
 		return false, err
 	}
 	return true, nil

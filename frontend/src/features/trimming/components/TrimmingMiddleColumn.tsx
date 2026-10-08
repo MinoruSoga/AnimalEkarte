@@ -113,7 +113,7 @@ export const TrimmingMiddleColumn = memo(function TrimmingMiddleColumn({
       <TrimmingImageUploadField
         label="完成画像"
         preview={completedImagePreview}
-        previewAlt="Completed preview"
+        previewAlt="完成画像のプレビュー"
         onImageChange={onCompletedImageChange}
         onRemoveImage={onRemoveCompletedImage}
       />

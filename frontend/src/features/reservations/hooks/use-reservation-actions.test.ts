@@ -65,6 +65,10 @@ function makeReservation(overrides: Partial<Reservation> = {}): Reservation {
     ownerId: "20",
     source: "manual",
     reservationRoute: "reception",
+    isTentative: false,
+    intendedDate: undefined,
+    hadIntendedDate: false,
+    sourceMedicalRecordId: undefined,
     ...overrides,
   };
 }
@@ -75,6 +79,7 @@ interface SetupOptions {
   createPetFn?: ReturnType<typeof vi.fn>;
   permissions?: Readonly<ReservationMutationPermissions>;
   deleteTarget?: Reservation | null;
+  onTentativeCancelled?: (reservation: Reservation) => void;
 }
 
 function setup(options: SetupOptions = {}) {
@@ -121,6 +126,7 @@ function setup(options: SetupOptions = {}) {
           createPetFn,
         },
         permissions: props.permissions,
+        onTentativeCancelled: options.onTentativeCancelled,
       }),
     {
       initialProps: {
@@ -591,5 +597,179 @@ describe("useReservationActions permissions (FE-RC-204 fail-closed)", () => {
 
     expect(updateMutateMock).toHaveBeenCalledTimes(1);
     expect(toast.error).not.toHaveBeenCalledWith(PERMISSION_DENIED_MESSAGE);
+  });
+});
+
+// ──────────────────────────────────────────────────────────
+// EMR-308: tentative（次回予定・未予約）関連のガードと provenance コールバック。
+// ──────────────────────────────────────────────────────────
+
+describe("useReservationActions tentative (EMR-308)", () => {
+  beforeEach(() => {
+    updateMutateMock.mockReset();
+    vi.mocked(toast.error).mockClear();
+    vi.mocked(toast.success).mockClear();
+  });
+
+  it("tentative のドラッグ更新は fail-closed — update を呼ばず専用トーストを出す", () => {
+    const { result } = setup({ permissions: ALLOW_ALL_PERMISSIONS });
+
+    act(() => {
+      result.current.handleReservationUpdate(
+        makeReservation({ isTentative: true, intendedDate: "2026-06-01" }),
+        new Date("2026-05-29T05:00:00.000Z"),
+        new Date("2026-05-29T05:30:00.000Z"),
+      );
+    });
+
+    expect(updateMutateMock).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(
+      "次回予定はドラッグで変更できません",
+      expect.objectContaining({ description: expect.any(String) }),
+    );
+    // 権限拒否トーストではなく tentative 専用の案内であること
+    expect(toast.error).not.toHaveBeenCalledWith(PERMISSION_DENIED_MESSAGE);
+  });
+
+  it("重複判定で tentative の sentinel 時間枠は衝突対象にしない", () => {
+    // tentative（意図日 sentinel 00:00）と実予約が時刻的に重なっても overlap にならない
+    const tentative = makeReservation({
+      id: "tent-1",
+      isTentative: true,
+      intendedDate: "2026-05-29",
+      start: new Date("2026-05-29T05:00:00.000Z"),
+      end: new Date("2026-05-29T05:30:00.000Z"),
+      doctorId: "1",
+    });
+    const { result } = setup({
+      appointments: [tentative],
+      permissions: ALLOW_ALL_PERMISSIONS,
+    });
+
+    act(() => {
+      result.current.handleReservationUpdate(
+        makeReservation({ id: "r2", doctorId: "1" }),
+        new Date("2026-05-29T05:00:00.000Z"),
+        new Date("2026-05-29T05:30:00.000Z"),
+      );
+    });
+
+    expect(updateMutateMock).toHaveBeenCalledTimes(1);
+    expect(toast.error).not.toHaveBeenCalledWith("移動先に予約が重複しています", expect.anything());
+  });
+
+  describe("onTentativeCancelled (A4: キャンセル後の任意再設定)", () => {
+    function cancelViaConfirmDialog(
+      result: { current: ReturnType<typeof useReservationActions> },
+      rerender: (props: {
+        statusConfirmTarget: StatusConfirmTarget | null;
+        appointments: Reservation[];
+        permissions?: Readonly<ReservationMutationPermissions>;
+        deleteTarget: Reservation | null;
+      }) => void,
+      reservation: Reservation,
+    ) {
+      act(() => {
+        result.current.handleStatusChange(reservation, "cancelled");
+      });
+      rerender({
+        statusConfirmTarget: { reservation, status: "cancelled" },
+        appointments: [],
+        permissions: ALLOW_ALL_PERMISSIONS,
+        deleteTarget: null,
+      });
+      act(() => {
+        result.current.executeStatusChange();
+      });
+    }
+
+    it("キャンセル成功後、had_intended_date+pet_id の応答で onTentativeCancelled を呼ぶ", () => {
+      const onTentativeCancelled = vi.fn();
+      const { result, rerender } = setup({
+        permissions: ALLOW_ALL_PERMISSIONS,
+        onTentativeCancelled,
+      });
+      const reservation = makeReservation({ status: "confirmed" });
+      const updated = makeReservation({
+        status: "cancelled",
+        hadIntendedDate: true,
+        intendedDate: "2026-06-20",
+        petId: "10",
+        sourceMedicalRecordId: "99",
+      });
+      updateMutateMock.mockImplementation(
+        (_p: unknown, opts?: { onSuccess?: (r: Reservation) => void }) => {
+          opts?.onSuccess?.(updated);
+        },
+      );
+
+      cancelViaConfirmDialog(result, rerender, reservation);
+
+      expect(updateMutateMock).toHaveBeenCalledWith(
+        { id: "r1", req: { status: "cancelled" } },
+        expect.objectContaining({ onSuccess: expect.any(Function) }),
+      );
+      // キャンセル完了後に更新済み reservation をそのまま渡す（自動再設定ではない）
+      expect(onTentativeCancelled).toHaveBeenCalledTimes(1);
+      expect(onTentativeCancelled).toHaveBeenCalledWith(updated);
+    });
+
+    it("had_intended_date=false の通常予約キャンセルでは呼ばない", () => {
+      const onTentativeCancelled = vi.fn();
+      const { result, rerender } = setup({
+        permissions: ALLOW_ALL_PERMISSIONS,
+        onTentativeCancelled,
+      });
+      updateMutateMock.mockImplementation(
+        (_p: unknown, opts?: { onSuccess?: (r: Reservation) => void }) => {
+          opts?.onSuccess?.(makeReservation({ status: "cancelled", petId: "10" }));
+        },
+      );
+
+      cancelViaConfirmDialog(result, rerender, makeReservation({ status: "confirmed" }));
+
+      expect(onTentativeCancelled).not.toHaveBeenCalled();
+    });
+
+    it("petId 欠落の応答では呼ばない（再設定に必須のため fail-closed）", () => {
+      const onTentativeCancelled = vi.fn();
+      const { result, rerender } = setup({
+        permissions: ALLOW_ALL_PERMISSIONS,
+        onTentativeCancelled,
+      });
+      updateMutateMock.mockImplementation(
+        (_p: unknown, opts?: { onSuccess?: (r: Reservation) => void }) => {
+          opts?.onSuccess?.(
+            makeReservation({ status: "cancelled", hadIntendedDate: true, petId: undefined }),
+          );
+        },
+      );
+
+      cancelViaConfirmDialog(result, rerender, makeReservation({ status: "confirmed" }));
+
+      expect(onTentativeCancelled).not.toHaveBeenCalled();
+    });
+
+    it("キャンセル以外のステータス変更では呼ばない", () => {
+      const onTentativeCancelled = vi.fn();
+      const { result } = setup({
+        permissions: ALLOW_ALL_PERMISSIONS,
+        onTentativeCancelled,
+      });
+      updateMutateMock.mockImplementation(
+        (_p: unknown, opts?: { onSuccess?: (r: Reservation) => void }) => {
+          // BE が provenance を残した行でも、cancelled 以外の遷移では呼ばない
+          opts?.onSuccess?.(
+            makeReservation({ status: "checked_in", hadIntendedDate: true, petId: "10" }),
+          );
+        },
+      );
+
+      act(() => {
+        result.current.handleStatusChange(makeReservation({ status: "confirmed" }), "checked_in");
+      });
+
+      expect(onTentativeCancelled).not.toHaveBeenCalled();
+    });
   });
 });

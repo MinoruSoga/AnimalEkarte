@@ -18,14 +18,6 @@ vi.mock("@/hooks/use-trimming-course-types", () => ({
   useGetTrimmingCourseTypes: () => ({ data: [] }),
 }));
 
-vi.mock("@/hooks/use-unsaved-changes", () => ({
-  useUnsavedChanges: () => ({
-    isDirty: false,
-    markDirty: mockMarkDirty,
-    markClean: mockMarkClean,
-  }),
-}));
-
 vi.mock("./use-trimming-history", () => ({
   useTrimmingHistory: () => ({
     sortedHistory: [],
@@ -82,6 +74,7 @@ function renderChrome(overrides: Partial<Parameters<typeof useTrimmingFormChrome
       redirectPath: "/trimming",
       fromPath: undefined,
       handleDelete,
+      unsaved: { isDirty: false, markDirty: mockMarkDirty, markClean: mockMarkClean },
       ...overrides,
     }),
   );

@@ -5,6 +5,7 @@ import { useState, useMemo, useCallback } from "react";
 import { pointerWithin, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { useSearchParams } from "react-router";
+import { toast } from "sonner";
 import { formatDateWithWeekday } from "@/lib/format/date";
 
 // Internal
@@ -16,7 +17,10 @@ import {
   ResourceHospitalization,
 } from "@/types/generated/models";
 import { usePermission } from "@/hooks/use-permission";
+import { useSetNextVisitIntent } from "@/hooks/use-next-visit-intent";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
+import { NextVisitResetDialog } from "@/components/shared/ReservationFormModal/NextVisitResetDialog";
+import type { Reservation } from "@/hooks/reservation-intent-response";
 
 import { useReceptionKanban } from "../hooks/use-reception-kanban";
 import { useReceptionTelemetry } from "../hooks/use-reception-telemetry";
@@ -58,6 +62,34 @@ export function Reception() {
   const { canCreate: canCreateMedicalRecord } = usePermission(ResourceMedicalRecords);
   const { canCreate: canCreateAccounting } = usePermission(ResourceAccounting);
   const { canCreate: canCreateHospitalization } = usePermission(ResourceHospitalization);
+  // EMR-308: tentative 由来の予約をキャンセルし終えた後に開く任意の再設定ダイアログ。
+  // 対象は transform 済み Reservation（petId / intendedDate / sourceMedicalRecordId を持つ）。
+  const [nextVisitResetTarget, setNextVisitResetTarget] = useState<Reservation | null>(null);
+  const setNextVisitIntent = useSetNextVisitIntent();
+  const openNextVisitReset = useCallback(
+    (reservation: Reservation) => {
+      // 再設定は PUT next-visit-intent（BE: reservations:create）— 権限なしは fail-closed
+      if (canCreateReservation !== true) {
+        toast.error("次回予定を再設定する権限がありません");
+        return;
+      }
+      setNextVisitResetTarget(reservation);
+    },
+    [canCreateReservation, setNextVisitResetTarget],
+  );
+  const submitNextVisitReset = useCallback(
+    async (intendedDate: string) => {
+      const target = nextVisitResetTarget;
+      if (!target?.petId) return;
+      await setNextVisitIntent.mutateAsync({
+        petId: target.petId,
+        intendedDate,
+        medicalRecordId: target.sourceMedicalRecordId,
+      });
+    },
+    [nextVisitResetTarget, setNextVisitIntent],
+  );
+
   const {
     columns,
     filteredColumns,
@@ -74,6 +106,7 @@ export function Reception() {
     canEditReservation,
     canDeleteReservation,
     date: selectedDate,
+    onTentativeCancelled: openNextVisitReset,
   });
 
   // スタッフAPIから医師フィルター選択肢を動的生成
@@ -145,56 +178,67 @@ export function Reception() {
   }
 
   return (
-    <ReceptionPageBody
-      dateLabel={dateLabel}
-      selectedDate={selectedDate}
-      isToday={isToday}
-      onDateChange={handleDateChange}
-      isFilterOpen={isFilterOpen}
-      onToggleFilter={() => setIsFilterOpen((prev) => !prev)}
-      canCreateReservation={canCreateReservation}
-      onNewReception={() =>
-        // 本日: 従来通り当日受付（checked_in）。非本日: 選択日の通常予約作成。
-        goToNewReservation(isToday ? "reception=1" : "newReservation=1")
-      }
-      telemetry={telemetry}
-      selectedVisitTypes={filters.selectedVisitTypes}
-      selectedDoctor={filters.selectedDoctor}
-      doctors={doctors}
-      isTrimmingOnly={filters.isTrimmingOnly}
-      onToggleVisitType={filters.toggleVisitType}
-      onSelectedDoctorChange={filters.setSelectedDoctor}
-      onTrimmingOnlyChange={filters.setIsTrimmingOnly}
-      sensors={sensors}
-      collisionDetection={pointerWithin}
-      onDragEnd={handleDragEnd}
-      isUpdatingStatus={isUpdatingStatus}
-      columnElements={columnElements}
-      modalOpen={modalOpen}
-      onCloseModal={() => setModalOpen(false)}
-      onConfirm={canEditReservation === true ? handleAdvanceStatus : undefined}
-      onEdit={canEditReservation === true ? handleEditAppointment : undefined}
-      onCancel={canDeleteReservation === true ? handleCancelAppointment : undefined}
-      selectedAppointment={selectedAppointment}
-      currentStatus={
-        selectedAppointment ? appointmentColumnTitleMap.get(selectedAppointment.id) : undefined
-      }
-      canCreateMedicalRecord={canCreateMedicalRecord}
-      canCreateAccounting={canCreateAccounting}
-      canCreateHospitalization={canCreateHospitalization}
-      isEditModalOpen={isEditModalOpen}
-      onCloseEditModal={closeEditModal}
-      onEditSave={handleEditSave}
-      editingAppointment={editingAppointment}
-      canEditReservation={canEditReservation}
-      cancelConfirmOpen={cancelConfirmOpen}
-      onCloseCancelConfirm={closeCancelConfirm}
-      onConfirmCancel={executeCancel}
-      cancelDescription={
-        cancelTarget
-          ? `${cancelTarget.petName}（${cancelTarget.ownerName}）の予約を取り消します。`
-          : ""
-      }
-    />
+    <>
+      <ReceptionPageBody
+        dateLabel={dateLabel}
+        selectedDate={selectedDate}
+        isToday={isToday}
+        onDateChange={handleDateChange}
+        isFilterOpen={isFilterOpen}
+        onToggleFilter={() => setIsFilterOpen((prev) => !prev)}
+        canCreateReservation={canCreateReservation}
+        onNewReception={() =>
+          // 本日: 従来通り当日受付（checked_in）。非本日: 選択日の通常予約作成。
+          goToNewReservation(isToday ? "reception=1" : "newReservation=1")
+        }
+        telemetry={telemetry}
+        selectedVisitTypes={filters.selectedVisitTypes}
+        selectedDoctor={filters.selectedDoctor}
+        doctors={doctors}
+        isTrimmingOnly={filters.isTrimmingOnly}
+        onToggleVisitType={filters.toggleVisitType}
+        onSelectedDoctorChange={filters.setSelectedDoctor}
+        onTrimmingOnlyChange={filters.setIsTrimmingOnly}
+        sensors={sensors}
+        collisionDetection={pointerWithin}
+        onDragEnd={handleDragEnd}
+        isUpdatingStatus={isUpdatingStatus}
+        columnElements={columnElements}
+        modalOpen={modalOpen}
+        onCloseModal={() => setModalOpen(false)}
+        onConfirm={canEditReservation === true ? handleAdvanceStatus : undefined}
+        onEdit={canEditReservation === true ? handleEditAppointment : undefined}
+        onCancel={canDeleteReservation === true ? handleCancelAppointment : undefined}
+        selectedAppointment={selectedAppointment}
+        currentStatus={
+          selectedAppointment ? appointmentColumnTitleMap.get(selectedAppointment.id) : undefined
+        }
+        canCreateMedicalRecord={canCreateMedicalRecord}
+        canCreateAccounting={canCreateAccounting}
+        canCreateHospitalization={canCreateHospitalization}
+        isEditModalOpen={isEditModalOpen}
+        onCloseEditModal={closeEditModal}
+        onEditSave={handleEditSave}
+        editingAppointment={editingAppointment}
+        canEditReservation={canEditReservation}
+        cancelConfirmOpen={cancelConfirmOpen}
+        onCloseCancelConfirm={closeCancelConfirm}
+        onConfirmCancel={executeCancel}
+        cancelDescription={
+          cancelTarget
+            ? `${cancelTarget.petName}（${cancelTarget.ownerName}）の予約を取り消します。`
+            : ""
+        }
+      />
+      {/* EMR-308: tentative 由来の予約キャンセル完了後にのみ開く任意の再設定ダイアログ */}
+      <NextVisitResetDialog
+        open={nextVisitResetTarget !== null}
+        petName={nextVisitResetTarget?.petName}
+        previousIntendedDate={nextVisitResetTarget?.intendedDate}
+        onSubmit={submitNextVisitReset}
+        onClose={() => setNextVisitResetTarget(null)}
+        isPending={setNextVisitIntent.isPending}
+      />
+    </>
   );
 }

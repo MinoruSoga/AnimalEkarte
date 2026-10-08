@@ -11,10 +11,14 @@ import (
 
 // センチネルエラー
 var (
-	ErrNotFound        = errors.New("resource not found")
-	ErrAlreadyExists   = errors.New("resource already exists")
-	ErrConflict        = errors.New("resource conflict") // FK依存・削除不可など 409 Conflict 専用
-	ErrInvalidInput    = errors.New("invalid input")
+	ErrNotFound      = errors.New("resource not found")
+	ErrAlreadyExists = errors.New("resource already exists")
+	ErrConflict      = errors.New("resource conflict") // FK依存・削除不可など 409 Conflict 専用
+	ErrInvalidInput  = errors.New("invalid input")
+	// ErrUnprocessable は 422 Unprocessable Entity 専用センチネル（EMR-306）。
+	// 入力値自体は正しいが対象リソースの状態が操作を構造的に受け付けない場合
+	// （例: 連結中の構成ケージへの割当）に使う。ErrInvalidInput(400)/ErrConflict(409) と別系。
+	ErrUnprocessable   = errors.New("unprocessable entity")
 	ErrPayloadTooLarge = errors.New("payload too large")
 	ErrUnauthorized    = errors.New("unauthorized")
 	ErrForbidden       = errors.New("forbidden")
@@ -138,6 +142,22 @@ func WrapInvalidInput(message string) error {
 		Message: message,
 		Err:     ErrInvalidInput,
 	}
+}
+
+// WrapUnprocessable は 422 Unprocessable Entity を生成する（EMR-306 連結構成ケージ割当など）。
+// Err はセンチネル単独 — 別の %w センチネルを合成すると errors.Is が先に他 case に
+// マッチするため ErrConflict/ErrInvalidInput をここへ混ぜてはならない。
+func WrapUnprocessable(message string) error {
+	return &AppError{
+		Code:    "UNPROCESSABLE",
+		Message: message,
+		Err:     ErrUnprocessable,
+	}
+}
+
+// IsUnprocessable は 422 Unprocessable Entity 系エラーかどうかを判定する
+func IsUnprocessable(err error) bool {
+	return errors.Is(err, ErrUnprocessable)
 }
 
 // エラー判定ヘルパー

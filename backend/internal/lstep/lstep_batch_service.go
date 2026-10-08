@@ -83,7 +83,8 @@ func scheduledBatchMetadata(scheduledAt time.Time, runID string) map[string]any 
 type lstepBatchDeliveryTrigger interface {
 	TriggerFirstVisitFollowUp3D(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
 	TriggerFirstVisitFollowUp7D(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
-	TriggerNextVisitReminder(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
+	TriggerNextVisitTentativeReminder3D(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
+	TriggerNextVisitTentativeReminder0D(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
 	TriggerVaccineDeadline60(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
 	TriggerVaccineDeadline30(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
 	TriggerBirthdayMessage(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
@@ -198,6 +199,8 @@ type lstepBatchTagSyncer interface {
 	SyncLTVTopPercent(ctx context.Context, clinicID uint64) (int, []error)
 	SyncVisitDormantTags(ctx context.Context, clinicID, ownerID uint64, daysSince int) error
 	SyncHealthPreventionTagsForClinic(ctx context.Context, clinicID uint64) (int, []error)
+	// EMR-308: no-show 遷移でも次回来院が変わり得るため post-commit で再同期する。
+	SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error
 }
 
 type lstepBatchSettingsService interface {

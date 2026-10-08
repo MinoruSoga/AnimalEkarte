@@ -8,7 +8,9 @@ package reservation
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -76,7 +78,10 @@ func TestReservationStaffService_PatchStatus_RefusesSharedAccountDeactivation(t 
 	const clinicA, clinicB = uint64(1), uint64(2)
 	seedClinicsForFK(t, db, clinicA, clinicB)
 
-	account := &model.Account{Email: "shared-reservation-svc@example.com", PasswordHash: "hash"}
+	// 共有 ekarte_db_test は run を跨いで永続するため、固定 email では再実行時に
+	// idx_accounts_email 一意制約で失敗する。seedReservationCreatedByActors と同じく
+	// 実行ごとに一意な email を使う。
+	account := &model.Account{Email: fmt.Sprintf("shared-reservation-svc-%d@example.com", time.Now().UnixNano()), PasswordHash: "hash"}
 	require.NoError(t, db.WithContext(context.Background()).Create(account).Error)
 	target := makeReservationAccountLinkedStaff(t, db, clinicA, account.ID, "予約対象スタッフ")
 	makeReservationAccountLinkedStaff(t, db, clinicB, account.ID, "別医院の共有スタッフ")
@@ -103,7 +108,7 @@ func TestReservationStaffService_PatchStatus_DeactivationAuditCarriesActor(t *te
 	const clinicA = uint64(1)
 	seedClinicsForFK(t, db, clinicA)
 
-	account := &model.Account{Email: "audit-reservation-svc@example.com", PasswordHash: "hash"}
+	account := &model.Account{Email: fmt.Sprintf("audit-reservation-svc-%d@example.com", time.Now().UnixNano()), PasswordHash: "hash"}
 	require.NoError(t, db.WithContext(context.Background()).Create(account).Error)
 	target := makeReservationAccountLinkedStaff(t, db, clinicA, account.ID, "監査対象スタッフ")
 	actor := makeDoctorAssignedToClinic(t, db, clinicA, "監査操作者")

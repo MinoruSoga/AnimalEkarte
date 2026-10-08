@@ -54,14 +54,14 @@ ManualPage が最終リストを表示
 
 DB が空の場合・取得失敗時は MD バンドル版が常に表示される（graceful degradation）。
 
-### 正本モデルと環境間同期（`scripts/manual-sync.py`）
+### 正本モデルと環境間同期（`scripts/tools/manual-sync.py`）
 
 - **正本 = リポジトリの MD ファイル**。レビュー・デプロイを通じて全環境に同じ内容が届く
 - **DB override = その環境の下書き**。リポジトリへ取り込まれるまでは環境ローカルな変更。放置すると古い内容が新しいデプロイを覆い隠す（stale shadow）
 
 | コマンド                                                        | 用途                                                                 |
 | --------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `python3 scripts/manual-sync.py status --env <local\|stg\|url>` | MD ↔ DB の差分一覧（`same`/`diverged`/`db-only`/`file-only`）        |
+| `python3 scripts/tools/manual-sync.py status --env <local\|stg\|url>` | MD ↔ DB の差分一覧（`same`/`diverged`/`db-only`/`file-only`）        |
 | `... export`                                                    | DB override を `content/<category>/<slug>.md` へ書き出す（取り込み） |
 | `... push --content-dir <dir> --execute`                        | 指定 dir の MD 全件を PUT で書き込む（再構築後の復元）               |
 | `... prune --execute`                                           | MD と一致する DB override を DELETE（baseline 化の後始末）           |

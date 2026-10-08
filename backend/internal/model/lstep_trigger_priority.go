@@ -27,12 +27,15 @@ var DefaultTriggerPriorities = map[string]int{
 	TriggerTypeVaccineDeadline30:    8,
 	TriggerTypeVaccineDeadline60:    8,
 	TriggerTypeFoodRefillReminder:   10,
-	// 未マッピング (priority 11+)
-	TriggerTypeNextVisitReminder:    11,
-	TriggerTypeBirthdayMessage:      12,
-	TriggerTypeFirstVisitFollowUp3D: 13,
-	TriggerTypeFirstVisitFollowUp7D: 13,
-	TriggerTypeFirstVisitWelcome:    14,
+	// 未マッピング (priority 11+) — EMR-308: tentative リマインダー 2 ステージは
+	// legacy next_visit_reminder と同順位 11（旧型は歴史ログ/優先度互換のため登録維持）。
+	TriggerTypeNextVisitReminder:            11,
+	TriggerTypeNextVisitTentativeReminder3d: 11,
+	TriggerTypeNextVisitTentativeReminder0d: 11,
+	TriggerTypeBirthdayMessage:              12,
+	TriggerTypeFirstVisitFollowUp3D:         13,
+	TriggerTypeFirstVisitFollowUp7D:         13,
+	TriggerTypeFirstVisitWelcome:            14,
 }
 
 // DefaultPriorityFallback は DefaultTriggerPriorities に未定義のトリガーに使う最後尾優先度。

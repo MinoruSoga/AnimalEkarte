@@ -167,6 +167,13 @@ func (r *createHospitalizationRequest) toServiceInput() (*CreateHospitalizationI
 	}, nil
 }
 
+// cageSwapRequest は入院ケージ入れ替えのバインド struct（EMR-306 review: ボード DnD の
+// 入れ替えが2本の独立 PATCH では片方だけ commit され得るため、1リクエストで受けて
+// 単一トランザクションで交換する）。配列順に意味はなく、交換は対称操作。
+type cageSwapRequest struct {
+	HospitalizationIDs []uint64 `json:"hospitalization_ids" binding:"required,len=2,dive,required,gt=0"`
+}
+
 // updateHospitalizationRequest は入院更新のバインド struct。
 // ClearCageID=true で cage_id を NULL に戻す（「選択なし」。EMR-316）。cage_id との同時指定は 400。
 type updateHospitalizationRequest struct {

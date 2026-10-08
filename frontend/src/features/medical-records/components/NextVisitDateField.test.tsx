@@ -20,15 +20,8 @@ const TWO_YEAR_ERROR = "今日から2年以内の日付を設定してくださ�
 
 function renderField(value: string) {
   const onChange = vi.fn();
-  const onValidationChange = vi.fn();
-  const view = render(
-    <NextVisitDateField
-      value={value}
-      onChange={onChange}
-      onValidationChange={onValidationChange}
-    />,
-  );
-  return { ...view, onChange, onValidationChange };
+  const view = render(<NextVisitDateField value={value} onChange={onChange} />);
+  return { ...view, onChange };
 }
 
 describe("NextVisitDateField", () => {
@@ -66,12 +59,12 @@ describe("NextVisitDateField", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(TWO_YEAR_ERROR);
   });
 
-  it("日付入力の変更で過去日なら onValidationChange(false) を呼ぶ", () => {
-    const { onValidationChange } = renderField("2026-09-03");
+  it("日付入力の変更で過去日でも onChange(newValue) を呼ぶ（バリデーションは表示側で行う）", () => {
+    const { onChange } = renderField("2026-09-03");
     fireEvent.change(screen.getByLabelText("次回来院推奨日"), {
       target: { value: "2026-09-02" },
     });
-    expect(onValidationChange).toHaveBeenCalledWith(false);
+    expect(onChange).toHaveBeenCalledWith("2026-09-02");
   });
 
   it("2月29日起点の2年上限は非閏年2月28日まで（3月1日は上限エラー）", () => {

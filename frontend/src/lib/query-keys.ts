@@ -176,6 +176,15 @@ export const queryKeys = {
     all: () => ["hospitalizations"] as const,
     list: <F>(filters: F) => ["hospitalizations", filters] as const,
     /**
+     * EMR-306: ケージ占有判定の共有クエリ（GET /masters/cages/occupancy）。
+     * master の連結 picker と入院 board の merge-mode が共用する。返却値は
+     * transform 前の wire 形のため list(filters) とキーを分ける
+     * （同一キーで別 shape を書き込むと後勝ちで型が崩れる）。["hospitalizations"]
+     * prefix 配下に置くのは、入院の作成/退院 mutation の all() invalidate で
+     * 占有状況も追従させるため。
+     */
+    cageOccupancy: () => ["hospitalizations", "cage-occupancy"] as const,
+    /**
      * FE-RC-081: 単数形 "hospitalization" が第一要素のため all()/list() の
      * ["hospitalizations", ...] prefix match には含まれない。detail/detailRaw
      * 更新を伴う mutation（update-hospitalization.ts）は all() だけでなく

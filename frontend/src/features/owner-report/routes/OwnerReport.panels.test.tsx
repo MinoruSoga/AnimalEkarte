@@ -198,7 +198,6 @@ beforeEach(() => {
           chiefComplaint: "健康診断",
           doctor: "佐藤",
           visitType: "再診",
-          nextVisitRecommendedDate: "",
         },
         {
           id: "mr1",
@@ -206,7 +205,6 @@ beforeEach(() => {
           chiefComplaint: "外耳炎",
           doctor: "田中",
           visitType: "再診",
-          nextVisitRecommendedDate: "2026-04-01",
         },
       ],
       total: 2,
@@ -226,6 +224,22 @@ beforeEach(() => {
         type: "健康診断",
         doctor: "佐藤",
         status: "checked_in",
+        petId: "7",
+        ownerId: "42",
+      },
+      {
+        // EMR-308: tentative（次回予定）は sentinel 00:00-00:15 JST + intended_date のみを持つ
+        id: "reservation-tentative",
+        start: buildJSTWallDateTime("2099-01-15", "00:00"),
+        end: buildJSTWallDateTime("2099-01-15", "00:15"),
+        ownerName: "山田太郎",
+        petName: "ポチ",
+        visitType: "revisit",
+        type: "再診",
+        doctor: "",
+        status: "tentative",
+        isTentative: true,
+        intendedDate: "2099-01-15",
         petId: "7",
         ownerId: "42",
       },
@@ -390,8 +404,11 @@ describe("OwnerReport", () => {
 
     const nextAction = screen.getByRole("region", { name: "次の行動" });
     expect(within(nextAction).getByText("次回予約")).toBeInTheDocument();
-    expect(within(nextAction).getByText("来院推奨")).toBeInTheDocument();
+    expect(within(nextAction).getByText("次回予定")).toBeInTheDocument();
     expect(within(nextAction).getByText("予防予定")).toBeInTheDocument();
+    // EMR-308: tentative の意図日は日付のみ + 未確定表示。実予約の「次回予約」には出さない
+    expect(within(nextAction).getByText("2099/01/15（未確定）")).toBeInTheDocument();
+    expect(within(nextAction).getByText("予約なし")).toBeInTheDocument();
 
     const previousVisit = screen.getByRole("region", { name: "前回診療" });
     expect(within(previousVisit).getByText("健康診断")).toBeInTheDocument();

@@ -26,6 +26,13 @@ vi.mock("@/hooks/use-side-peek-dirty", () => ({
   }),
 }));
 
+// EMR-306: CageSettings が新規に使う連結 mutation hook。
+// 本 suite は QueryClientProvider なしで render するため stub 化する。
+vi.mock("@/hooks/use-cage-merge", () => ({
+  useMergeCages: () => mutationStub(vi.fn()),
+  useUnmergeCages: () => mutationStub(vi.fn()),
+}));
+
 vi.mock("@/hooks/use-sortable-list", () => ({
   useSortableList: ({
     items,

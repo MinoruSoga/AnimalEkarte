@@ -216,7 +216,7 @@ sequenceDiagram
 | 1 | (C1-1) 担当者・コース未選択で保存 | 「担当者を選択してください」「コースを選択してください」のインラインエラー+トーストで保存されない（実装ガード: `use-trimming-form-validation.ts` 参照） |
 | 2 | (C3-1) トリミングコースマスタに「V01コース」（価格付き）・オプションマスタに「V01オプション」を追加 → フォームの選択肢確認 | いずれも選択肢に現れ、コースには価格が表示される |
 | 3 | 新規登録: 登録時ステータス「予約」（#233）+ コース + オプション複数 + スタイル要望 + 体重（Kg/g 切替）を入力して保存 | 予約として登録される（ステータス選択は新規のみ表示で編集画面には出ない）。(C2) 一覧反映・再読込・再オープンで永続・初期表示される |
-| 3b | 希望スタイル/仕上がり画像（image/*）を選択し、preview と保存 request/再読込を比較する | preview は `useTrimmingFormImages` のローカル状態。現行 create/update builder は画像を送信しないため、preview だけで画像永続化 PASS にしない。画像保存の受入要件は [17-trimming-form.md](../../../spec/screens/17-trimming-form.md) と照合し、この未接続差分を run report に残す |
+| 3b | 希望スタイル/仕上がり画像（image/*）を選択し、preview・保存 request・再読込を比較する | 選択直後に object URL で即時プレビューされ、並行して `POST /api/v1/trimmings/images/upload` が走る（アップロード中は保存 disabled）。保存 request body の `style_image`/`completed_image` に object key（`trimming-images/<clinic_id>/...`）が含まれ、再読込・再オープンで署名 URL 経由の画像が表示される（永続化 PASS）。受入要件は [17-trimming-form.md](../../../spec/screens/17-trimming-form.md) §1.2 に準拠 |
 | 4 | 【代表・無効化マスタ】手順 3 のレコードに紐づく「V01コース」をマスタで無効化 → (a) 新規フォーム (b) 当該レコードの編集を開く | (a) 選択肢から除外される。(b) 「（無効）」表記で選択が維持される（#228） |
 | 5 | (C3-3) `/trimming/<存在しない ID>` 直叩き | エラー画面が表示される |
 | 6 | 同一担当スタッフで同日に別ペットの record_shortcut 新規を続けて登録 | 固定 10:00 ではなく一意な JST 時刻が付く。`uk_appointment_staff_time` の 409 で無関係な 2 件目がブロックされない |

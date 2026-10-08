@@ -20,6 +20,13 @@ const (
 	ReservationStatusNoShow         ReservationStatus = "no_show"
 )
 
+// EMR-308: tentative（次回予定）= date known, time/slot/doctor undecided。hierarchy: tentative < pending < confirmed。
+// 故意に const ブロック外の var で宣言する: tygo enum_style:"union" は const 列挙を
+// ReservationStatus union として生成するため、ここに置くと FE の exhaustive union に
+// "tentative" が混入し既存の予約ステータス分岐（全 status を網羅する前提の switch/map）を
+// 型レベルで壊す。tentative 行は FE へ isTentative / intended_date で届ける別経路。
+var ReservationStatusTentative ReservationStatus = "tentative"
+
 type VisitType string
 
 const (
@@ -65,6 +72,11 @@ type Reservation struct {
 	IsStaffDelegated bool              `gorm:"not null;default:false"                            json:"is_staff_delegated"`
 	CustomerFields   json.RawMessage   `gorm:"type:jsonb;not null;default:'{}'"                  json:"customer_fields"`
 
+	// EMR-308: tentative appointment（次回予定）schema foundation
+	// intended_date = 次回予定の対象日（日付のみ確定）; source_medical_record_id = 起点となったカルテの provenance
+	IntendedDate          *time.Time `gorm:"column:intended_date;type:date"              json:"intended_date,omitempty"`
+	SourceMedicalRecordID *uint64    `gorm:"column:source_medical_record_id"           json:"source_medical_record_id,omitempty"`
+
 	// Relations
 	Owner           *Owner                     `gorm:"foreignKey:OwnerID"              json:"owner,omitempty"`
 	Pet             *Pet                       `gorm:"foreignKey:PetID"                json:"pet,omitempty"`
@@ -73,6 +85,8 @@ type Reservation struct {
 	CreatedByStaff  *Staff                     `gorm:"foreignKey:CreatedBy"            json:"created_by_staff,omitempty" tygo:"-"`
 	LineCustomer    *LineCustomer              `gorm:"foreignKey:LineCustomerID"       json:"line_customer,omitempty"`
 	TrimmingDetail  *AppointmentTrimmingDetail `gorm:"foreignKey:AppointmentID"        json:"trimming_detail,omitempty"`
+
+	SourceMedicalRecord *MedicalRecord `gorm:"foreignKey:SourceMedicalRecordID"      json:"source_medical_record,omitempty"`
 }
 
 func (Reservation) TableName() string { return "appointments" }

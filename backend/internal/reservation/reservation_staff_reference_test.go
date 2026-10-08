@@ -368,6 +368,12 @@ func setupReservationRefScratchSchema(t *testing.T) *reservationRefScratchFixtur
 	// 022: capabilities_configured_at — replaceReservationCapabilitiesTx の write path が
 	// 同列を NOW() で更新するため、実 DDL schema にも反映が必要。
 	applyReservationCreatedByMigration(t, db, "../../migrations/022_staff_clinic_assignments_capability_configured_at.sql")
+	// 025/026: EMR-308 tentative 列 — model.Reservation の INSERT/UPDATE が
+	// intended_date / source_medical_record_id を常に列挙するため、実 DDL schema にも
+	// 反映が必要（enum 'tentative' 追加と同一 tx で値参照できない制約のため 2 ファイルに
+	// 分割されている: 025 で enum value+列、026 で部分 UNIQUE INDEX）。
+	applyReservationCreatedByMigration(t, db, "../../migrations/025_appointments_tentative_status.sql")
+	applyReservationCreatedByMigration(t, db, "../../migrations/026_appointments_one_active_tentative_index.sql")
 	fixture := &reservationRefScratchFixture{db: db}
 	require.NoError(t, db.Callback().Create().After("gorm:create").Register("test:capture_reservation_ref_fk", func(tx *gorm.DB) {
 		var pgErr *pgconn.PgError

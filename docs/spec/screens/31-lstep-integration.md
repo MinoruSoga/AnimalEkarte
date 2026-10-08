@@ -30,11 +30,9 @@
 
 ### 1.3 飼主LINEアカウント連携
 
-- スタッフが飼主単位の24時間link tokenを発行する。raw tokenは発行responseで一度だけ返し、DBにはunpadded base64url SHA-256 digestだけを保存する。
-- LIFF公開endpointは16KiB以下の単一strict JSON objectだけを受け付け、`link_token`と`line_id_token`以外のfield（再紐付けを強制する`force`等）を拒否する。
-- LINE ID token検証はrequest context、5秒timeout、64KiB response上限で行い、upstream response本文をclient errorへ転記しない。
-- link token、対象clinic、飼主をtransaction内でlockし、既存LINE IDがある飼主への上書きを拒否する。飼主更新、tokenの単回CAS消費、成功監査は同一transactionでcommitし、いずれかが失敗した場合は全てrollbackする。
-- 旧versionが発行済みの64桁hex raw tokenだけは期限内互換のため限定検索する。新規tokenを平文保存するfallbackは持たない。
+> 追記（2026-10-07 再監査）: link token / LIFF 紐付けの契約本文（digest-only 保存・LIFF endpoint 制約・ID token 検証・transaction lock・単回 CAS 消費・legacy 64 桁 hex 互換）は [line/architecture.md](../line/architecture.md) §2 が正本。本節は業務概要のみを示す。
+
+スタッフが飼主単位の 24 時間有効な link token を発行し、飼主が LIFF で本人認証（`link_token` + `line_id_token`）して LINE アカウントを紐付ける。既存 LINE ID の上書きは拒否され、紐付け操作は監査ログに記録される。
 
 ---
 
@@ -59,9 +57,9 @@
 
 - **失敗契約の三分法**（request-local nonfatal secondary notification / single-owner propagation / scheduled multi-resource best effort — `BatchRunResult` と `processed_count`/`error_count` 監査による durable 計上を含む）の正本: [line/architecture.md](../line/architecture.md) §4。実装側の整理は [line/lstep-integration.md](../line/lstep-integration.md) §5。
 - **Write 二重 gate**（deploy gate `LSTEP_WRITE_API_ENABLED` / clinic gate `is_sync_enabled` / API キー — `ErrWriteDisabled` とクライアント未構築の意図的スキップ `nil, nil` は別契約）: 契約本文は [line/architecture.md](../line/architecture.md) 冒頭注記。環境変数の評価規則（exact `true` のみ有効）と enable / stop / rollback 手順の正本は [`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)（本 spec に手順・環境実値を複製しない）。
-- **バッチ同期（scheduler/cron）**: Cloudflare scheduled event の式と job 対応は code/config へ配線済み（毎日 02:00 JST に `dormant`、10:00 JST に `no_show`→`delivery`、15:00/20:00 JST に `no_show`。durable coordinator、重複防止、pause/resume、missing-slot catch-up、失敗通知を含む）。**配線済みであることと、対象環境（STG/production）での自然発火・実送信・運用 rehearsal が完了していることは別事実である。** 後者は release gate として未実測（[Scheduler Operations](../../ops/deploy/runbooks/SCHEDULER_OPERATIONS.md)）。
-- **配信トリガー候補の読み取り**: 通常経路は clinic スコープ bulk-read を必須とし、owner ループ内の N+1 読み（owner / 当日 claim / 抑制 / tag-cache）を置かない。opt-out・suppression・daily-claim 意味論と bounded memory は維持する。現行実装に残る bulk 失敗後の per-owner fallback と是正契約は [line/lstep-integration.md §5.2](../line/lstep-integration.md) を参照する。この劣化経路を含めた無条件の no-N+1 は未達である。
-- **流量**: Messaging API / Lステップ API のレート制限は固定のクライアント方針と監視で扱う。バッチとリアルタイムを動的に切り替える rate adjustment は持たない。
+- **バッチ同期（scheduler/cron）**: cron plan（`dormant` / `no_show`→`delivery` の時刻・durable coordinator・重複防止・pause/resume・missing-slot catch-up・失敗通知を含む）の正本は [line/architecture.md](../line/architecture.md) §4.2。**配線済みであることと、対象環境（STG/production）での自然発火・実送信・運用 rehearsal が完了していることは別事実である。** 後者は release gate として未実測（[Scheduler Operations](../../ops/deploy/runbooks/SCHEDULER_OPERATIONS.md)）。
+- **配信トリガー候補の読み取り**: 読み取り要件（clinic スコープ bulk-read・owner ループ内 N+1 読み禁止・opt-out / suppression / daily-claim 意味論・bounded memory）の契約正本は [line/architecture.md](../line/architecture.md) §4.1。現行実装に残る bulk 失敗後の per-owner fallback と是正契約は [line/lstep-integration.md §5.2](../line/lstep-integration.md) を参照する。この劣化経路を含めた無条件の no-N+1 は未達である。
+- **流量**: 固定クライアント方針と運用監視で扱い、バッチとリアルタイムを動的に切り替える rate adjustment は持たない旨の正本は [line/architecture.md](../line/architecture.md) §5。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |

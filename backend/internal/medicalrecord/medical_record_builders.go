@@ -51,11 +51,6 @@ func buildMedicalRecordUpdate(input UpdateMedicalRecordInput) map[string]any {
 	if input.Status != nil {
 		fields["status"] = *input.Status
 	}
-	if input.ClearNextVisitRecommendedDate {
-		fields["next_visit_recommended_date"] = nil
-	} else if input.NextVisitRecommendedDate != nil {
-		fields["next_visit_recommended_date"] = *input.NextVisitRecommendedDate
-	}
 	if input.VisitType != nil {
 		fields["visit_type"] = *input.VisitType
 	}
@@ -71,17 +66,16 @@ func buildMedicalRecordUpdate(input UpdateMedicalRecordInput) map[string]any {
 func buildMedicalRecordForCreate(clinicID uint64, input *CreateMedicalRecordInput) *model.MedicalRecord {
 	visitType := input.VisitType
 	record := &model.MedicalRecord{
-		ClinicID:                 clinicID,
-		RecordNo:                 input.RecordNo,
-		Date:                     input.Date,
-		OwnerID:                  input.OwnerID,
-		PetID:                    input.PetID,
-		DoctorID:                 input.DoctorID,
-		AppointmentID:            input.AppointmentID,
-		VisitType:                &visitType,
-		NextVisitRecommendedDate: input.NextVisitRecommendedDate,
-		RecommendationReason:     input.RecommendationReason,
-		EnteredBy:                input.EnteredBy,
+		ClinicID:             clinicID,
+		RecordNo:             input.RecordNo,
+		Date:                 input.Date,
+		OwnerID:              input.OwnerID,
+		PetID:                input.PetID,
+		DoctorID:             input.DoctorID,
+		AppointmentID:        input.AppointmentID,
+		VisitType:            &visitType,
+		RecommendationReason: input.RecommendationReason,
+		EnteredBy:            input.EnteredBy,
 	}
 	if input.Status != nil {
 		record.Status = *input.Status

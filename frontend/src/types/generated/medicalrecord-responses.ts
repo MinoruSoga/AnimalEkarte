@@ -37,7 +37,6 @@ export interface MedicalRecordResponse {
   version: number /* int */;
   accounting_id?: number /* uint64 */;
   visit_count: number /* int64 */;
-  next_visit_recommended_date?: string;
   recommendation_reason?: string;
   created_at: string;
   updated_at: string;

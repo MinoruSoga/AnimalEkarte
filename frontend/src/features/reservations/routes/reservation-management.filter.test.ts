@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { formatJSTWallDate } from "@/lib/jst-date";
 import type { Reservation } from "../types";
 import { filterCalendarAppointments } from "./ReservationManagement";
 
@@ -26,6 +27,10 @@ function makeReservation(
     source: "manual",
     reservationRoute: null,
     clinicId: undefined,
+    isTentative: false,
+    intendedDate: undefined,
+    hadIntendedDate: false,
+    sourceMedicalRecordId: undefined,
     ...overrides,
   };
 }
@@ -77,5 +82,48 @@ describe("filterCalendarAppointments (#116)", () => {
 
   it("空配列は空配列を返す", () => {
     expect(filterCalendarAppointments([])).toHaveLength(0);
+  });
+});
+
+// EMR-308: tentative（次回予定・未予約）はグリッドに「次回予定・未予約」付きで出すが、
+// 意図日が過ぎた行は ExpiredTentativePanel で処置するためカレンダーからは外す。
+describe("filterCalendarAppointments — tentative (EMR-308)", () => {
+  // 今日の JST 暦日。テストでは実日付に依存させず意図日だけを動かす。
+  const today = formatJSTWallDate(new Date());
+
+  it("当日・未来の tentative はグリッドに残す", () => {
+    const result = filterCalendarAppointments([
+      makeReservation({ id: "t-today", isTentative: true, intendedDate: today }),
+      makeReservation({ id: "t-future", isTentative: true, intendedDate: "2999-12-31" }),
+      makeReservation({ id: "normal", status: "confirmed" }),
+    ]);
+    expect(result.map((a) => a.id).sort()).toEqual(["normal", "t-future", "t-today"]);
+  });
+
+  it("意図日が昨日以前の tentative はカレンダーから除外する（期限超過パネル側で扱う）", () => {
+    const result = filterCalendarAppointments([
+      makeReservation({ id: "t-expired", isTentative: true, intendedDate: "2000-01-01" }),
+      makeReservation({ id: "t-today", isTentative: true, intendedDate: today }),
+    ]);
+    expect(result.map((a) => a.id)).toEqual(["t-today"]);
+  });
+
+  it("intendedDate 欠落の tentative は sentinel start の暦日で期限判定する", () => {
+    const result = filterCalendarAppointments([
+      makeReservation({
+        id: "t-sentinel-past",
+        isTentative: true,
+        start: new Date("2000-01-01T00:00:00+09:00"),
+        end: new Date("2000-01-01T00:30:00+09:00"),
+      }),
+    ]);
+    expect(result).toHaveLength(0);
+  });
+
+  it("hadIntendedDate だけの非 tentative 行（昇格元 provenance）は通常ルールで扱う", () => {
+    const result = filterCalendarAppointments([
+      makeReservation({ id: "promoted", status: "confirmed", hadIntendedDate: true }),
+    ]);
+    expect(result.map((a) => a.id)).toEqual(["promoted"]);
   });
 });

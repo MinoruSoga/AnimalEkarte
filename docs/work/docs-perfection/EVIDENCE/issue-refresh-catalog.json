@@ -33,7 +33,7 @@
               "basis": "OpenAPI API contract exists."
             },
             {
-              "path": "scripts/check-docs-symbol-drift.sh",
+              "path": "scripts/checks/check-docs-symbol-drift.sh",
               "line": 227,
               "basis": "Local docs drift gate checks resource count patterns.",
               "end_line": 228
@@ -61,7 +61,7 @@
               "basis": "OpenAPI contract server root supports API contract anchor."
             },
             {
-              "path": "scripts/check-docs-symbol-drift.sh",
+              "path": "scripts/checks/check-docs-symbol-drift.sh",
               "line": 227,
               "basis": "Script lines show resource-count drift gate implementation cited by the index.",
               "end_line": 228
@@ -1667,7 +1667,7 @@
               "basis": "candidate document substantive contract/boundary line"
             },
             {
-              "path": "scripts/run-local-ci.sh",
+              "path": "scripts/ci/run-local-ci.sh",
               "line": 137,
               "basis": "local CI wrapper concrete checks"
             },
@@ -1677,7 +1677,7 @@
               "basis": "CI workflow concrete jobs"
             },
             {
-              "path": "scripts/check-workflow-remote-exec-policy.sh",
+              "path": "scripts/checks/check-workflow-remote-exec-policy.sh",
               "line": 31,
               "basis": "remote execution policy checker"
             }
@@ -1709,7 +1709,7 @@
               "basis": "candidate document substantive contract/boundary line"
             },
             {
-              "path": "scripts/merge_go_coverprofiles.py",
+              "path": "scripts/ci/merge_go_coverprofiles.py",
               "line": 2,
               "basis": "coverage profile merge implementation"
             },
@@ -1936,7 +1936,7 @@
               "basis": "CSV validation/source constraints"
             },
             {
-              "path": "scripts/stg-uat-old-db-handoff.sh",
+              "path": "scripts/old-db/stg-uat-old-db-handoff.sh",
               "line": 85,
               "basis": "handoff skip/report behavior"
             }
@@ -2162,7 +2162,7 @@
               "basis": "F8/G4 rehearsal Make targets"
             },
             {
-              "path": "scripts/run-f8-g4-rehearsal.mjs",
+              "path": "scripts/rehearsal/run-f8-g4-rehearsal.mjs",
               "line": 203,
               "basis": "F8/G4 rehearsal runner"
             }
@@ -2201,7 +2201,7 @@
               "basis": "candidate document substantive contract/boundary line"
             },
             {
-              "path": "scripts/build-lab-device-agent-bundle.sh",
+              "path": "scripts/lab-device/build-lab-device-agent-bundle.sh",
               "line": 21,
               "basis": "Mac bundle builder guard/output"
             },
@@ -2304,12 +2304,12 @@
               "basis": "reset Make target delegates to contract script"
             },
             {
-              "path": "scripts/local-db-reset-contract.sh",
+              "path": "scripts/old-db/local-db-reset-contract.sh",
               "line": 95,
               "basis": "reset backup/volume guard"
             },
             {
-              "path": "scripts/check-reset-wait-services.sh",
+              "path": "scripts/old-db/check-reset-wait-services.sh",
               "line": 36,
               "basis": "reset wait-set checker"
             }
@@ -2446,12 +2446,12 @@
               "basis": "old_db handoff Make targets"
             },
             {
-              "path": "scripts/stage-old-db-handoff.sh",
+              "path": "scripts/old-db/stage-old-db-handoff.sh",
               "line": 16,
               "basis": "handoff staging script"
             },
             {
-              "path": "scripts/check-old-db-handoff.sh",
+              "path": "scripts/old-db/check-old-db-handoff.sh",
               "line": 12,
               "basis": "handoff checker script"
             }
@@ -2771,7 +2771,7 @@
               "basis": "synthetic login seed source"
             },
             {
-              "path": "scripts/stg-uat-old-db-handoff.sh",
+              "path": "scripts/old-db/stg-uat-old-db-handoff.sh",
               "line": 121,
               "basis": "STG UAT handoff skip behavior"
             }
@@ -3752,7 +3752,7 @@
               "basis": "performance workflow"
             },
             {
-              "path": "scripts/validate-k6-summary.mjs",
+              "path": "scripts/tools/validate-k6-summary.mjs",
               "line": 53,
               "basis": "k6 summary validator"
             }
@@ -4217,7 +4217,7 @@
               "basis": "candidate document substantive contract/boundary line"
             },
             {
-              "path": "scripts/install-lab-device-agent.sh",
+              "path": "scripts/lab-device/install-lab-device-agent.sh",
               "line": 20,
               "basis": "lab device installer"
             },
@@ -7549,19 +7549,19 @@
               "basis": "Directory contract lines define freshness, symbol-drift gate, clinical safety, and accessibility documentation requirements."
             },
             {
-              "path": "scripts/check-docs-symbol-drift.sh",
+              "path": "scripts/checks/check-docs-symbol-drift.sh",
               "line": 20,
               "end_line": 30,
               "basis": "Symbol-drift script header states it checks documented symbols against source and provides usage."
             },
             {
-              "path": "scripts/check-docs-symbol-drift.sh",
+              "path": "scripts/checks/check-docs-symbol-drift.sh",
               "line": 94,
               "end_line": 94,
               "basis": "Script scans frontend/src, frontend/liff, frontend/line-reserve, and backend/internal."
             },
             {
-              "path": "scripts/run-local-ci.sh",
+              "path": "scripts/ci/run-local-ci.sh",
               "line": 56,
               "end_line": 57,
               "basis": "Local CI invokes symbol-drift script and its tests."

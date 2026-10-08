@@ -71,6 +71,9 @@ services:
       DB_HOST: db
       DB_PORT: 5432
       APP_ENV: ${APP_ENV:-development}
+      # build/dev 向けの既定並列度。DB を触る複数パッケージの go test は共有 test DB の
+      # fixture TRUNCATE/seed が衝突するため、コマンド側で `-p 1` を付けて直列化すること
+      # （Makefile:test / run-local-ci.sh shard 内実行と同規約。EMR-329）。
       GOFLAGS: "-p=4"
       GOMAXPROCS: "4"
       # BUG-008/014: ローカル LIFF モックを compose で明示固定（release では config が拒否）

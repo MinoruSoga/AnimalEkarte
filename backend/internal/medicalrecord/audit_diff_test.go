@@ -23,19 +23,17 @@ func TestExtractMedicalRecordImportantFields(t *testing.T) {
 		ownerID := uint64(2)
 		petID := uint64(3)
 		appointmentID := uint64(4)
-		nextVisit := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 		reason := "follow up"
 		date := time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC)
 
 		r := &model.MedicalRecord{
-			Status:                   model.MedicalRecordStatusFinalized,
-			Date:                     date,
-			DoctorID:                 &doctorID,
-			OwnerID:                  &ownerID,
-			PetID:                    &petID,
-			AppointmentID:            &appointmentID,
-			NextVisitRecommendedDate: &nextVisit,
-			RecommendationReason:     &reason,
+			Status:               model.MedicalRecordStatusFinalized,
+			Date:                 date,
+			DoctorID:             &doctorID,
+			OwnerID:              &ownerID,
+			PetID:                &petID,
+			AppointmentID:        &appointmentID,
+			RecommendationReason: &reason,
 		}
 
 		got := extractMedicalRecordImportantFields(r)
@@ -47,7 +45,6 @@ func TestExtractMedicalRecordImportantFields(t *testing.T) {
 		assert.Equal(t, &ownerID, got["owner_id"])
 		assert.Equal(t, &petID, got["pet_id"])
 		assert.Equal(t, &appointmentID, got["appointment_id"])
-		assert.Equal(t, &nextVisit, got["next_visit_recommended_date"])
 		assert.Equal(t, &reason, got["recommendation_reason"])
 	})
 
@@ -66,7 +63,6 @@ func TestExtractMedicalRecordImportantFields(t *testing.T) {
 		assert.Nil(t, got["owner_id"])
 		assert.Nil(t, got["pet_id"])
 		assert.Nil(t, got["appointment_id"])
-		assert.Nil(t, got["next_visit_recommended_date"])
 		assert.Nil(t, got["recommendation_reason"])
 	})
 }
@@ -227,31 +223,6 @@ func TestPtrStringEqual(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, ptrStringEqual(tt.a, tt.b))
-		})
-	}
-}
-
-// ---- ptrTimeEqual ----
-
-func TestPtrTimeEqual(t *testing.T) {
-	a := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	b := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	c := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
-
-	tests := []struct {
-		name string
-		a, b *time.Time
-		want bool
-	}{
-		{name: "both nil", a: nil, b: nil, want: true},
-		{name: "a nil b set", a: nil, b: &b, want: false},
-		{name: "a set b nil", a: &a, b: nil, want: false},
-		{name: "both set equal", a: &a, b: &b, want: true},
-		{name: "both set different", a: &a, b: &c, want: false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, ptrTimeEqual(tt.a, tt.b))
 		})
 	}
 }

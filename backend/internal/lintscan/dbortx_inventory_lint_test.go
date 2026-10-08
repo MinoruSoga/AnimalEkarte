@@ -571,6 +571,14 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/cage_repository.go|cageRepositoryImpl.update":             {},
 	"medicalrecord/cage_repository.go|cageRepositoryImpl.Delete":             {},
 	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountUsageByCageID": {},
+	// EMR-306 ケージ一時連結: 連結の永続化・解除・グループロック・構成員/占有カウントは
+	// 呼び出し元の ambient transaction に参加する（cage_repository_tx_atomicity_test.go）。
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.SetMergedInto":          {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.ClearMergedInto":        {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.LockCagesForUpdate":     {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.LockCageGroupForUpdate": {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountMergedMembers":     {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountOccupiedCages":     {},
 	// refund (R1-1 TOCTOU)
 	"billing/refund_repository.go|refundRepository.Create":                         {}, // BE8-4 batch8: moved from refund_repository.go
 	"billing/refund_repository.go|refundRepository.SumByBillingID":                 {}, // BE8-4 batch8: moved from refund_repository.go
@@ -608,7 +616,26 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_intent_repository.go|reservationRepository.assertGeneralMedicalRecordReservationType": {}, // BackfillForMedicalRecord category guard under appointment tx
 	"reservation/reservation_intent_repository.go|reservationRepository.assertStaffAssignedToClinic":               {}, // BE9-2E-0 doctor tenant guard
 	"reservation/reservation_intent_repository.go|reservationRepository.assertTrimmingReservationType":             {}, // BE9-2E-0 master-FK tenant guard
-	"reservation/appointment_admin_repository.go|reservationAdminRepository.Create":                                {}, // AUD-001
+	// EMR-308 next-visit intent (tentative) write surface. SetNextVisitIntent itself carries no
+	// literal DBOrTx (it delegates through these helpers + r.Create/r.update) — same registration
+	// shape as BackfillForMedicalRecord/CreateForTrimming which are likewise unregistered.
+	"reservation/reservation_intent_repository.go|reservationRepository.ClearNextVisitIntent":               {}, // EMR-308 idempotent tentative soft-delete
+	"reservation/reservation_intent_repository.go|reservationRepository.ConfirmTentative":                   {}, // EMR-308 tentative → pending/confirmed transition
+	"reservation/reservation_intent_repository.go|reservationRepository.updateTentativeStatus":              {}, // EMR-308 tentative-limited CAS update (WHERE status=tentative)
+	"reservation/reservation_intent_repository.go|reservationRepository.WithTentativeReminderSerialization": {}, // EMR-308 LSTEP revalidate→send serialization via (clinic,pet) advisory lock
+	"reservation/reservation_intent_repository.go|reservationRepository.acquireNextVisitIntentLock":         {}, // EMR-308 (clinic,pet) advisory lock; ambient-tx bound
+	"reservation/reservation_intent_repository.go|reservationRepository.findActiveTentativeForUpdate":       {}, // EMR-308 single-active-tentative lookup under row lock
+	"reservation/reservation_intent_repository.go|reservationRepository.findGeneralReservationTypeID":       {}, // EMR-308 general placeholder type resolution
+	"reservation/reservation_intent_repository.go|reservationRepository.assertSourceMedicalRecordForPet":    {}, // EMR-308 provenance guard (same clinic + same pet)
+	// AbsorbTentativeOnBooking/PromoteTentativeOnCheckin delegate through this shared
+	// implementation (same unregistered-shape rule as SetNextVisitIntent).
+	"reservation/reservation_intent_repository.go|reservationRepository.promoteOrCreateFromTentative": {}, // EMR-308 tentative 同一行昇格 (booking/check-in absorb)
+	// EMR-308 next-visit appointment read surface (LSTEP tag sync + tentative reminder
+	// candidate/revalidation). Read-only finders; ambient-tx participation via DBOrTx.
+	"reservation/reservation_next_visit_query.go|reservationRepository.FindNextAppointmentForOwner":           {},
+	"reservation/reservation_next_visit_query.go|reservationRepository.FindOwnerIDsWithTentativeIntendedDate": {},
+	"reservation/reservation_next_visit_query.go|reservationRepository.FindTentativeByOwnerAndIntendedDate":   {},
+	"reservation/appointment_admin_repository.go|reservationAdminRepository.Create":                           {}, // AUD-001
 	// BUG-424: unavailable-time reads participate in the booking transaction.
 	"reservation/reservation_type_unavailable_time_repository.go|reservationTypeUnavailableTimeRepository.FindAll": {},
 	// trimming master reads join the service-owned transaction and hold SHARE locks through
@@ -744,8 +771,11 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// trimming detail (uniform dbOrTx)
 	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.Create":              {},
 	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.FindByAppointmentID": {},
-	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.SetOptions":          {},
-	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.Update":              {},
+	// EMR-300: image-key reference probe must observe the caller's ambient tx —
+	// a cleanup delete issued post-commit inside a tx must see uncommitted writes.
+	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.ImageKeyInUse": {},
+	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.SetOptions":    {},
+	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.Update":        {},
 	// vital (X-11 Appendix-A finalize-child-write-race fix — same FK-deadlock rationale as examination)
 	// BE9-2D sub-batch④a: moved to internal/medicalrecord (facade kept in internal/repository).
 	// FindByMedicalRecordID: BE9-2D ④b — treatmentService の dose 体重解決が保存 tx 内から読む

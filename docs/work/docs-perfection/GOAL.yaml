@@ -34,7 +34,7 @@ checkpoints:
     date: 2026-09-07
     evidence: docs/work/docs-perfection/EVIDENCE/astra-loop-checks-final.txt
 validation_commands:
-  - bash scripts/check-docs-symbol-drift.sh
+  - bash scripts/checks/check-docs-symbol-drift.sh
   - git diff --check -- docs
   - git status --short
   - git diff --name-only

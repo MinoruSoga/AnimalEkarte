@@ -1,7 +1,6 @@
 import { MedicalRecordDiagnosisPlan } from "./MedicalRecordDiagnosisPlan";
 import { MedicalRecordInterview } from "./MedicalRecordInterview";
 import { MedicalRecordTreatment } from "./MedicalRecordTreatment";
-import { NextVisitDateField } from "./NextVisitDateField";
 import { RecommendationReasonSelect } from "./RecommendationReasonSelect";
 import { MedicalRecordMountedTab } from "./MedicalRecordTabsShared";
 import type { MedicalRecordTabsAreaProps } from "../lib/medical-record-tabs-types";
@@ -24,8 +23,6 @@ export function MedicalRecordClinicalTabs({
   diagnosis2CategoryId,
   diagnosis2NameId,
   ownerDiscountRate,
-  nextVisitDate,
-  hasLineIntegration,
   recommendationReason,
   diagnosis1NameIdError,
   recordClinicId,
@@ -41,8 +38,6 @@ export function MedicalRecordClinicalTabs({
   onDiagnosis1NameIdChange,
   onDiagnosis2CategoryIdChange,
   onDiagnosis2NameIdChange,
-  onNextVisitDateChange,
-  onNextVisitDateValidChange,
   onRecommendationReasonChange,
   onCopyRecordTreatments,
 }: MedicalRecordTabsAreaProps & { isFinalized: boolean }) {
@@ -99,13 +94,6 @@ export function MedicalRecordClinicalTabs({
           isPetDeceased={selectedPet.status === "死亡"}
         />
         <div className="px-4 pb-4 mt-4 flex flex-col gap-6">
-          <NextVisitDateField
-            value={nextVisitDate}
-            onChange={onNextVisitDateChange}
-            onValidationChange={onNextVisitDateValidChange}
-            hasLineIntegration={hasLineIntegration}
-            disabled={isNewRecord || isFinalized}
-          />
           {recordId ? (
             <RecommendationReasonSelect
               mode="edit"

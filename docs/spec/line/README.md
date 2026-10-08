@@ -3,6 +3,7 @@
 > **目的**: LINE/Lステップ連携ドキュメントの索引を提供する。
 > **読者**: 新規参加開発者・非エンジニア(院長等)。
 > **タイミング**: LINE連携機能の全体像を把握したい時。
+> **編集時のルール**: [CLAUDE.md](CLAUDE.md) を参照。
 
 > **Animal Ekarte**: 飼主向け予約体験と CRM 戦略の統合
 > **最新更新**: 2026-09-06（repo `7c6592f9f` / GitHub #259 本文・コメント照合）
@@ -19,7 +20,7 @@
 
 ### 導入・設定
 - **[setup.md](./setup.md)**: LINE Developers Console、Messaging API、および Lステップ管理画面の初期設定手順。
-- **[lstep-integration.md](./lstep-integration.md)**: **【重要】** マーケティング戦略、CPM 判定ロジック、15 種の自動配信トリガー詳細。
+- **[lstep-integration.md](./lstep-integration.md)**: **【重要】** マーケティング戦略、CPM 判定ロジック、17 種の自動配信トリガー詳細。
 - **[cost-analysis.md](./cost-analysis.md)**: Messaging / Lステップ課金と実装済み効果測定（docs-only）。配信ボリューム試算・ROI draft・料金 worksheet は [作業ノート](../../work/line-cost-analysis-roi-draft-20261007.md)（2026-10-07 監査で移設）。
 
 ### 原本

@@ -1,5 +1,5 @@
 // Command auth-d5-dualprocess validates disposable DSN allowlisting, then
-// delegates to scripts/auth-d5-dualprocess.sh for the dual-process harness.
+// delegates to scripts/tools/auth-d5-dualprocess.sh for the dual-process harness.
 package main
 
 import (

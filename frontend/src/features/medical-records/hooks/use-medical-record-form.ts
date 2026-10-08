@@ -42,7 +42,6 @@ export function useMedicalRecordForm(recordId?: string) {
     searchParams,
     diagnosis,
     setVisitType: ui.setVisitType,
-    setNextVisitDate: ui.setNextVisitDate,
   });
 
   const queryClient = useQueryClient();
@@ -58,7 +57,6 @@ export function useMedicalRecordForm(recordId?: string) {
     canEdit,
     isSelectedPetDeceased: read.selectedPet?.status === "死亡",
     isFinalized: read.isFinalized,
-    isNextVisitDateValid: ui.isNextVisitDateValid,
     diagnosis1CategoryId: diagnosis.diagnosis1CategoryId,
     diagnosis1NameId: diagnosis.diagnosis1NameId,
     diagnosis2CategoryId: diagnosis.diagnosis2CategoryId,
@@ -73,7 +71,6 @@ export function useMedicalRecordForm(recordId?: string) {
     treatmentPolicy: diagnosis.treatmentPolicy,
     treatmentPolicyDefault: DEFAULT_TREATMENT_POLICY,
     treatmentPolicyBaseline: read.existingRecord?.notes || DEFAULT_TREATMENT_POLICY,
-    nextVisitDate: ui.nextVisitDate,
     existingRecordVersion: read.existingRecord?.version,
     existingClinicalPlanVersion: read.clinicalPlanVersion,
     onClinicalPlanSaved: read.onClinicalPlanSaved,
@@ -81,7 +78,6 @@ export function useMedicalRecordForm(recordId?: string) {
     queryClient,
     updateInquiryMutation,
     updateTreatmentPlanMutation,
-    updateMutation,
   });
 
   const {
@@ -89,7 +85,6 @@ export function useMedicalRecordForm(recordId?: string) {
     startSaveTransition,
     handleChangeDoctor,
     handleVisitTypeChange,
-    handleNextVisitDatePatch,
     handleChangeDate,
     handleFinalize,
   } = useMedicalRecordQuickPatchActions({
@@ -97,8 +92,6 @@ export function useMedicalRecordForm(recordId?: string) {
     existingRecordVersion: read.existingRecord?.version,
     visitType: ui.visitType,
     setVisitType: ui.setVisitType,
-    nextVisitDate: ui.nextVisitDate,
-    setNextVisitDate: ui.setNextVisitDate,
     queryClient,
     updateMutation,
     isSelectedPetDeceased: read.selectedPet?.status === "死亡",
@@ -161,7 +154,6 @@ export function useMedicalRecordForm(recordId?: string) {
     isSavingTransition,
     handleChangeDoctor,
     handleVisitTypeChange,
-    handleNextVisitDatePatch,
     handleChangeDate,
     handleFinalize,
     ownerChange,

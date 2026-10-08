@@ -37,6 +37,7 @@ type mockHospitalizationService struct {
 	updateFn               func(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error)
 	deleteFn               func(ctx context.Context, clinicID, id uint64) error
 	dischargeWithBillingFn func(ctx context.Context, clinicID, id uint64, input DischargeWithBillingInput) (*DischargeWithBillingResult, error)
+	swapCagesFn            func(ctx context.Context, clinicID, idA, idB uint64) (*model.Hospitalization, *model.Hospitalization, error)
 }
 
 func (m *mockHospitalizationService) List(
@@ -73,6 +74,12 @@ func (m *mockHospitalizationService) DischargeWithBilling(
 	ctx context.Context, clinicID, id uint64, input DischargeWithBillingInput,
 ) (*DischargeWithBillingResult, error) {
 	return m.dischargeWithBillingFn(ctx, clinicID, id, input)
+}
+
+func (m *mockHospitalizationService) SwapCages(
+	ctx context.Context, clinicID, idA, idB uint64,
+) (*model.Hospitalization, *model.Hospitalization, error) {
+	return m.swapCagesFn(ctx, clinicID, idA, idB)
 }
 
 func newHandlerWithHospitalizationSvc(svc HospitalizationService) *HospitalizationHandler {
@@ -817,6 +824,134 @@ func TestDischargeWithBilling(t *testing.T) {
 			tt.setupCtx(c)
 
 			h.DischargeWithBilling(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- SwapCages ----
+
+func TestSwapCages(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockHospitalizationService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "swaps cages successfully and returns pair in input order",
+			body:     map[string]any{"hospitalization_ids": []uint64{7, 3}},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockHospitalizationService{
+				swapCagesFn: func(_ context.Context, clinicID, idA, idB uint64) (*model.Hospitalization, *model.Hospitalization, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(7), idA)
+					assert.Equal(t, uint64(3), idB)
+					return &model.Hospitalization{ID: 7}, &model.Hospitalization{ID: 3}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"hospitalizations"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			body:       map[string]any{"hospitalization_ids": []uint64{1, 2}},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when hospitalization_ids is missing",
+			body:       map[string]any{},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when fewer than two ids",
+			body:       map[string]any{"hospitalization_ids": []uint64{1}},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when more than two ids",
+			body:       map[string]any{"hospitalization_ids": []uint64{1, 2, 3}},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when an id is not positive",
+			body:       map[string]any{"hospitalization_ids": []uint64{1, 0}},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for malformed JSON",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "maps service conflict to 409",
+			body:     map[string]any{"hospitalization_ids": []uint64{1, 2}},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockHospitalizationService{
+				swapCagesFn: func(_ context.Context, _, _, _ uint64) (*model.Hospitalization, *model.Hospitalization, error) {
+					return nil, nil, apperrors.WrapConflict("連結グループ内のケージが使用中のため割り当てできません")
+				},
+			},
+			wantStatus: http.StatusConflict,
+		},
+		{
+			name:     "maps service unprocessable to 422",
+			body:     map[string]any{"hospitalization_ids": []uint64{1, 2}},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockHospitalizationService{
+				swapCagesFn: func(_ context.Context, _, _, _ uint64) (*model.Hospitalization, *model.Hospitalization, error) {
+					return nil, nil, apperrors.WrapUnprocessable("連結中の構成ケージには割り当てできません")
+				},
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name:     "returns 500 on service error",
+			body:     map[string]any{"hospitalization_ids": []uint64{1, 2}},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockHospitalizationService{
+				swapCagesFn: func(_ context.Context, _, _, _ uint64) (*model.Hospitalization, *model.Hospitalization, error) {
+					return nil, nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithHospitalizationSvc(tt.svc)
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/hospitalizations/cage-swap", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			tt.setupCtx(c)
+
+			h.SwapCages(c)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
 			if tt.wantBody != "" {

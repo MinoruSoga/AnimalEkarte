@@ -146,7 +146,13 @@ export function transformReservationsToReceptionColumns(
   reservations: BackendReceptionReservation[],
 ): ReceptionColumn[] {
   const activeReservations = reservations.filter(
-    (r) => r.status !== "cancelled" && r.status !== "no_show",
+    (r) =>
+      r.status !== "cancelled" &&
+      r.status !== "no_show" &&
+      // EMR-308: tentative（次回予定・未予約）は実受付ではない sentinel 行。
+      // STATUS_TO_COLUMN_ID 未登録 → 受付予約列に落ちて誤ドラッグされるのを防ぐため除外。
+      // generated 型に "tentative" が無いため String 比較で回避する。
+      String(r.status) !== "tentative",
   );
   const appointments = activeReservations.map(transformReservationToReceptionAppointment);
 
