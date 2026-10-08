@@ -17,13 +17,13 @@ old_db `main` HEAD: `b941a9c80dcde86086a5f6e0aa65988f257212e7`（worktree クリ
 |---|---|---|
 | 修正コミット | `5fbc3b2a7bd15197664af42eb4048e44a10046a2`（2026-09-19 15:43:40 +0900 `fix: preserve gender for neutered legacy pet codes`） | `git merge-base --is-ancestor 5fbc3b2 main` → 祖先（統合済み） |
 | 統合 merge | `a2cea37622fbb05b3bc8b987849611825472a3aa`（2026-09-19 15:43:51 +0900 `merge: integrate reviewed Q3 pet gender mapping`） | `git merge-base --is-ancestor a2cea37 main` → 祖先 |
-| 変更対象 4 パス | `sql/migration/030_stage.sql` / `scripts/lib/mapping-conversion-families.mjs` / `scripts/test-support/test-mapping-conversion-families.mjs` / `scripts/test-support/test-pet-gender-mapping.mjs` | `git show --stat 5fbc3b2` がちょうどこの 4 パス（79 insertions / 7 deletions） |
+| 変更対象 4 パス | `sql/migration/030_stage.sql` / `scripts/rehearsal/lib/mapping-conversion-families.mjs` / `scripts/test-support/test-mapping-conversion-families.mjs` / `scripts/test-support/test-pet-gender-mapping.mjs` | `git show --stat 5fbc3b2` がちょうどこの 4 パス（79 insertions / 7 deletions） |
 | 修正内容（現行 main 実読） | `030_stage.sql` L443-444: `CASE WHEN p.sex_kbn IN ('1','01','3','03') THEN 'male' WHEN p.sex_kbn IN ('2','02','4','04') THEN 'female' ELSE 'unknown' END`。classifier `mapping-conversion-families.mjs` L603-604 と oracle regex L311 が同一デコード | 承認デコード `{1,3}=male, {2,4}=female, {5,0}=unknown` と一致。`PetOpe_Date`・1900 年ガード不変（候補検証で確認済み） |
 | 修正前の状態 | 元 main `2eab89ac`（2026-09-16）の CASE は `('1','01')→male`・`('2','02')→female`・else unknown のみ | `docs/work/stg-uat-clinic-feedback-q1-q4.md` L148 |
 
 ## 2. bundle 側の識別子：`stageMappingSha256` の意味
 
-`manifest.json` の `stageMappingSha256` は old_db `scripts/lib/stage-csv-output.mjs` の `stageMappingBundleSha256()`（L193-198）が出力する値で、`STAGE_MAPPING_FILES`（L68-186。**`sql/migration/030_stage.sql` を含む**）全ファイルの内容 sha256 を束ねたハッシュ。性別 CASE を含むため、bundle の mapping 世代を識別できる。
+`manifest.json` の `stageMappingSha256` は old_db `scripts/rehearsal/lib/stage-csv-output.mjs` の `stageMappingBundleSha256()`（L193-198）が出力する値で、`STAGE_MAPPING_FILES`（L68-186。**`sql/migration/030_stage.sql` を含む**）全ファイルの内容 sha256 を束ねたハッシュ。性別 CASE を含むため、bundle の mapping 世代を識別できる。
 
 照合用に今回計算した参照値（`git show` 由来の読み取りのみ、old_db 無変更）:
 

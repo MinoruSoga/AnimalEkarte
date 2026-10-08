@@ -9,7 +9,7 @@
 | README.md | corrected | Linear 言及が stale（Linear 2026-09-16 閉鎖・実行 SoT は Plane）。索引のファイル集合・実行順制約・V テーブルは現行セットと一致を確認 |
 | FIELD-LEVEL-PROTOCOL.md | kept | F0–F6 定義・記録形式・status 語彙・完了判定は inventory/V 文書と整合。集計例は例示で非実行結果 |
 | FORM-FIELD-INVENTORY.md | kept | wire key 命名・`is_active` 作成時デッドキー・`system_key` レスポンス限定・L-step write-only 秘密・`discount_value` 要実測注記・86 route pages 注記を現行 request builder/DDL と突合 |
-| LAB_DEVICE_CLIENT_UAT.md | kept | bundle 内 `install.sh`/`diagnose.sh`/`SHA256SUMS`・manifest 別経路 SHA-256・NX600/AU10V 限定・「受付超過」運用は `scripts/build-lab-device-agent-bundle.sh`（57–68 行目）と `packaging/macos/` の実体と一致 |
+| LAB_DEVICE_CLIENT_UAT.md | kept | bundle 内 `install.sh`/`diagnose.sh`/`SHA256SUMS`・manifest 別経路 SHA-256・NX600/AU10V 限定・「受付超過」運用は `scripts/lab-device/build-lab-device-agent-bundle.sh`（57–68 行目）と `packaging/macos/` の実体と一致 |
 | UAT-254-CLOSE-CHECKLIST.md | corrected | Linear 言及 5 箇所（Rules・owner comment・close gate 2 箇所・mermaid）を Plane へ訂正。5 flow mapping・禁止事項・mock 非代替の枠組みは現行と一致 |
 | V01-clinical-forms.md | kept | 新規カルテ pet 未選択リダイレクト（`shouldRedirectToSelectPet`）、バイタル未来日時拒否・4 項目の少なくとも 1 つ必須、画像 10MB 上限（`medical_record_image_request.go`）、addendum 訂正内容+理由必須を突合 |
 | V02-accounting-reservation-forms.md | kept | 在庫フォーム §12・数量/最低在庫の非負整数・単位必須（HTML+BE binding）・「inventory 再構築中は全フォーム完了を主張しない」・クレジット訂正監査の fail-closed は BE テスト領域と明記・共有 STG を append-only 締めテストに使わない旨を突合 |
@@ -90,7 +90,7 @@
 ## 検証
 
 - `git diff --check -- docs/ops/testing/scenarios` → exit 0（whitespace error なし）
-- `bash scripts/check-docs-symbol-drift.sh` → exit 1（FAIL 3 件「テーブル数: docs 宣言 128 vs 実測 130」）。**base commit（stash 適用前）でも同一 3 件が出る既存ドリフト**で、宣言面は `docs/spec/specification.md`（:22,:61）と `docs/architecture/erd.md` — いずれも本区画 allowlist 外（spec-core/arch の担当範囲）。scenarios/** 配下の編集が原因のドリフトではないことを stash 検証で確認。本区画に起因する新規 FAIL なし。
+- `bash scripts/checks/check-docs-symbol-drift.sh` → exit 1（FAIL 3 件「テーブル数: docs 宣言 128 vs 実測 130」）。**base commit（stash 適用前）でも同一 3 件が出る既存ドリフト**で、宣言面は `docs/spec/specification.md`（:22,:61）と `docs/architecture/erd.md` — いずれも本区画 allowlist 外（spec-core/arch の担当範囲）。scenarios/** 配下の編集が原因のドリフトではないことを stash 検証で確認。本区画に起因する新規 FAIL なし。
 - `git status --porcelain` → `docs/ops/testing/scenarios/` 6 ファイル + 本レポートのみ（allowlist 外差分なし）
 - 索引とファイル集合: `ls` 実体 49 ファイルと README 索引（S01–S39・V01–V05・4 shared）が一致
 - クライアント一次ソース突合: `13_UAT-R5確定仕様_2026-08-22.md`（BUG-017 実名 409 → V04 §2 手順 4 と整合）、`会話ログ/Slack_電子カルテ開発_曽我/2026-08-20以降_不具合等Slack全文.md`（担当者選択 iPad 9-13・飼主検索スクロール 9-14・主訴空欄/バイタル位置/マイクロチップ/同日複数予防/写真撮影/検査受信/領収書 PDF+締め 9-16・他院カルテ可視性 9-13・旧システム排他 8 月 → 各 SLACK-* キューと S04/S16-S19/S22-S33 の根拠と整合）

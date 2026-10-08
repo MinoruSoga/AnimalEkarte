@@ -13,7 +13,7 @@
 | [003-payment-method-identity-and-consistency.md](003-payment-method-identity-and-consistency.md) | 支払方法の安定識別と payment_methods 整合性 |
 | [004-checkup-canonical-system.md](004-checkup-canonical-system.md) | 健診機能の正系統 — Checkup パッケージ系に一本化 |
 | [005-go-gin-backend-guidelines.md](005-go-gin-backend-guidelines.md) | Go/Gin公式ベースライン採用と固定3層構成の廃止 |
-| [006-backend-domain-package-boundaries.md](006-backend-domain-package-boundaries.md) | backend domain package境界・許可依存グラフ（Status: Accepted/Implemented、2026-07-24 amended） |
+| [006-backend-domain-package-boundaries.md](006-backend-domain-package-boundaries.md) | backend domain package境界・許可依存グラフ（Status: Accepted（実装済み）。2026-10-07 監査訂正: 旧表記「Accepted/Implemented」→ Status 語彙統一。2026-07-24 amended） |
 | [007-lab-device-receive-and-commit.md](007-lab-device-receive-and-commit.md) | 城東検査機器の受信永続化・1画面・即 persist + detach（ローカル受信 agent 判断は ADR-008 が部分的に supersede） |
 | [008-local-lab-device-agent.md](008-local-lab-device-agent.md) | Mac ローカル受信 agent。ADR-007 の「デーモンを作らない」判断を部分的に supersede |
 
@@ -28,4 +28,5 @@ flowchart LR
 ## 運用ルール
 
 - ADR は追記型。決定を覆す場合は既存 ADR を書き換えず、新番号の ADR で「supersedes ADR-XXX」と明記する。
+- Status 語彙は **Proposed / Accepted / Superseded** に統一する。実装状態・部分 supersede などの補足は Status 行の括弧書きまたは続くセミナー記法の注記として併記する（例: `Accepted（実装済み）`、`Accepted; ... superseded by [ADR-XXX]`）。（2026-10-07 監査追記: 歴史的な Status 表記は書き換えず、訂正は日付付き追記・括弧内訂正で行う）
 - 新規 ADR の起票対象は「複数の実装に波及する不可逆性の高い判断」のみ。個別機能の仕様は [../../spec/](../../spec/README.md) に書く。

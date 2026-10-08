@@ -23,7 +23,7 @@
 - RQ-010: resolved
 - Changed files: `docs/product-philosophy.md:41` (1 insertion, 1 deletion)
 - docs/README.md: unchanged; Markdown links=11, missing=0; category set unchanged
-- bash scripts/check-docs-symbol-drift.sh: exit 0 — OK docs-symbol-drift（検査トークン 565 件）
+- bash scripts/checks/check-docs-symbol-drift.sh: exit 0 — OK docs-symbol-drift（検査トークン 565 件）
 - git diff --check -- docs/product-philosophy.md docs/README.md: exit 0
 - Independent reviews: product_santa_b PASS; product_santa_c PASS（実行側報告）。生成側 Mode 3 再照合でも文言整合を確認。
 - Unresolved CRITICAL/HIGH: 0
@@ -78,7 +78,7 @@ exit=0。生JSONは [delivery-validation.json](EVIDENCE/delivery-validation.json
 ### docs-symbol-drift
 
 ```text
-$ bash scripts/check-docs-symbol-drift.sh
+$ bash scripts/checks/check-docs-symbol-drift.sh
 OK    docs-symbol-drift: ドリフトなし（検査トークン 565 件）
 exit=0
 ```
@@ -100,7 +100,7 @@ Build / Types / full Lint / Tests / coverage / DB / browser / deploy = **N/A**�
 | AC3 | Severity×Impact順、根拠と処置 | 11RQ、両側根拠、allowlist外依存を区別 | PASS | verify.pyのscore/action/引用検査、根拠本文の再読 | `PASS repair queue=11 Severity*Impact descending` |
 | AC4 | 6子、各done_condition/verification | 6schema PASS、DAG非循環、全pending | PASS | 各frontmatterをキー別検査 | `PASS six required categories` / checks-draft.txtのchild schema全6件 |
 | AC5 | 親active、coordinator完了checkpoint | active、coordinator-completeを記録 | PASS | GOAL.yamlとPROGRESS照合、verify.py --final | `PASS parent status active` / `PASS coordinator-complete checkpoint` |
-| AC6 | driftのexitとverbatim出力 | 565トークン検査、exit=0を保存 | PASS | bash scripts/check-docs-symbol-drift.sh | 本書のdocs-symbol-drift節 / EVIDENCE/docs-symbol-drift.txt |
+| AC6 | driftのexitとverbatim出力 | 565トークン検査、exit=0を保存 | PASS | bash scripts/checks/check-docs-symbol-drift.sh | 本書のdocs-symbol-drift節 / EVIDENCE/docs-symbol-drift.txt |
 | AC7 | このunitの差分がallowlist内 | docs外tracked内容とindex不変、既存untrackedはstatus維持。README2件とcoordinatorのみ | PASS | status/tracked/staged/untracked/baseline hash | `PASS outside docs tracked content unchanged from baseline` / `PASS tracked/untracked status delta within allowlist`。既存untracked内容hashの比較は未実施 |
 | AC8 | カテゴリ本文修復なし | ops/deploy READMEに案内1行のみ | PASS | git diff --name-only -- docs/architecture docs/spec docs/ops docs/delivery | `docs/ops/deploy/README.md`。役割表から配布前提ownerへ辿るため |
 | AC9 | 独立2レビュー | fresh B2/C2ともPASS、CRITICAL/HIGH=0 | PASS | 同一元仕様・同一rubric・相互評価を見ないレビューとverify.py --final | EVIDENCE/review-B.json / review-C.json の `"verdict": "PASS"`, `"critical_issues": []` |
@@ -206,7 +206,7 @@ README追加がinventoryに未反映だったため1行を追加。coordinator�
 | A2 | 調査正本読了 | 上の読了表と各artifactの役割確認 |
 | A3 | 各先行差分の採否 | baseline patchの全docsファイルとRQの対応表 |
 | A4 | docs-owned RQ resolved/BLOCKED、RQ-002 external | RQと本文・指定code/spec参照を再照合、子契約の検証 |
-| A5 | drift実行 | bash scripts/check-docs-symbol-drift.sh の原文出力・exit |
+| A5 | drift実行 | bash scripts/checks/check-docs-symbol-drift.sh の原文出力・exit |
 | A6 | whitespace健全 | git diff --check -- docs |
 | A7 | 独立2レビュー | 同一入力・rubric、相互評価を見ない2 agentでCRITICAL/HIGH 0 |
 | A8 | 親偽完了なし | rg -n '^status:' docs/work/docs-perfection/GOAL.yaml がactive |
@@ -286,7 +286,7 @@ Phase Cはarchitecture → spec → ops → delivery → workの5ユニット。
 | A2 | 調査正本読了 | 役割別読了表と既存証拠の時点を記録 | PASS | 本書Phase A表、artifact本文・schema確認 | 本書「Phase A — 調査正本の配置確認」 |
 | A3 | 全先行差分の採否 | 12件adopt7/amend5/revert0 | PASS | baseline patchと現在diff、RQ照合 | 本書Phase Bの12行 |
 | A4 | docs-owned RQ解消/依存明示 | 9件resolved、RQ005 index-only、RQ002 external | PASS | RQ/code/spec/子検証 | REPAIR-QUEUE.md:9–19 / EVIDENCE/astra-loop-{architecture,spec,ops,delivery,work}-checks.json |
-| A5 | drift終端実行 | exit0、565トークン検査 | PASS | bash scripts/check-docs-symbol-drift.sh | `OK    docs-symbol-drift: ドリフトなし（検査トークン 565 件）` / EVIDENCE/astra-loop-drift.txt |
+| A5 | drift終端実行 | exit0、565トークン検査 | PASS | bash scripts/checks/check-docs-symbol-drift.sh | `OK    docs-symbol-drift: ドリフトなし（検査トークン 565 件）` / EVIDENCE/astra-loop-drift.txt |
 | A6 | whitespace健全 | exit0 | PASS | git diff --check -- docs | `PASS git diff --check -- docs` |
 | A7 | 独立2レビュー | B/CともPASS、CRITICAL/HIGH0 | PASS | santa dual review | EVIDENCE/astra-loop-review-B.json:2 / astra-loop-review-C.json:2、各critical_issuesは空 |
 | A8 | 親偽完了なし | active、RQ002未修復 | PASS | rg -n '^status:' GOAL.yaml | `status: active`、GOAL.yaml:5 |

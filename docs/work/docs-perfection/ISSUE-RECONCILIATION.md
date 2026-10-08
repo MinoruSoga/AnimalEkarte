@@ -53,7 +53,7 @@ Linearは利用可能な取得経路で現在値を取得できず **UNKNOWN**�
 
 `ecc:loop-design-check` の反復需要ゲートでは週次実績を確認できなかったため、常設ループ・cronを設けず一回の手動処理とした。独立担当が編集前に受入仕様/検証器を固定し、本文修復と独立judgeを分離。同一失敗は最大3回までとし、基準を下げて合格にしない。
 
-確認する項目は、全件の確認記録とIssue引用、直接根拠の行一致、全差分の開始時hashとの対応、35補助ファイルとdocs外WIPの保持、ローカルリンク、`git diff --check -- docs`、`bash scripts/check-docs-symbol-drift.sh`。独立レビューは全新規差分と6カテゴリの根拠を確認する。機械検査の成功は本文の全命題やruntime成功を保証しない。
+確認する項目は、全件の確認記録とIssue引用、直接根拠の行一致、全差分の開始時hashとの対応、35補助ファイルとdocs外WIPの保持、ローカルリンク、`git diff --check -- docs`、`bash scripts/checks/check-docs-symbol-drift.sh`。独立レビューは全新規差分と6カテゴリの根拠を確認する。機械検査の成功は本文の全命題やruntime成功を保証しない。
 
 docs-only変更のためruntimeテストは不要。承認を要する外部書込み・本番操作・migration・commit/push/mergeは実行しない。人間の受入は **awaiting-human-verification** のままとする。claim `claim/DOCS-REFRESH-ISSUE-RECONCILIATION` はUSERが統合または明示放棄後に解放する。
 

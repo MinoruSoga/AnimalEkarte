@@ -58,8 +58,8 @@
 preflight はこれを拒否します。共有 STG へ載せる場合は
 `STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL=YES_I_UNDERSTAND` と target 確認付きの
 `make stg-uat-handoff`（城東・敷島・箱。八王子は対象外。seed ID / manifest SHA は
-`scripts/stg-uat-old-db-handoff.sh` が `_old_db_handoff` と `002_master` から埋め、
-接続は同スクリプトの export と gitignored `scripts/stg-uat-old-db-handoff.local.env`）
+`scripts/old-db/stg-uat-old-db-handoff.sh` が `_old_db_handoff` と `002_master` から埋め、
+接続は同スクリプトの export と gitignored `scripts/old-db/stg-uat-old-db-handoff.local.env`）
 を使います。importer が受理する code/ordinal/clinic_id は
 hachioji=1、jouto=2、shikishima=3、hakobuneco=4 だけです。
 apply report が既に `PASS` の医院は wrapper が skip し、残りへ進みます。

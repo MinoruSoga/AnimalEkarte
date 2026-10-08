@@ -55,7 +55,7 @@
 | コマンド | 結果 |
 |---|---|
 | `git diff --check -- docs/delivery docs/README.md docs/product-philosophy.md` | exit 0（warning なし） |
-| `bash scripts/check-docs-symbol-drift.sh` | exit 1 — FAIL 3 件は全て同一の「テーブル数: 宣言 128 / 実測 130」。宣言元は `specification.md`・`architecture/erd.md`（allowlist 外）で、base commit `4722f4db7` 時点からの既存ドリフト。本 diff はテーブル数記述に無関係 |
+| `bash scripts/checks/check-docs-symbol-drift.sh` | exit 1 — FAIL 3 件は全て同一の「テーブル数: 宣言 128 / 実測 130」。宣言元は `specification.md`・`architecture/erd.md`（allowlist 外）で、base commit `4722f4db7` 時点からの既存ドリフト。本 diff はテーブル数記述に無関係 |
 | ローカルリンク検査（7 ファイル） | 181 リンク走査、missing 0 |
 | `git status --porcelain` | `M` 5 ファイル（`docs/README.md`, `docs/delivery/README.md`, `DELIVERY_PACKAGE.md`, `GOLIVE_RUNBOOK.md`, `OPERATION_MANUAL.md`）+ 本レポート新規。allowlist 外差分なし |
 | コミット | `f1269a436 docs: delivery/README/索引の Linear SoT 記述を Plane へ日付付き訂正`（5 files, +9/-9） |

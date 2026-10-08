@@ -1063,7 +1063,7 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle)) (string, str
 			IDBand:                    CutoverIDBand{Base: 0, EndExclusive: 10_000_000, NonOwnerIDOffset: 1_000_000, OwnerFloor: 300_000, ApplicationIDFloor: 1_000_000_000},
 			OutputDir:                 "sensitive-local/animalekarte-csv-export/hachioji/run-1",
 			Format:                    "csv-with-header",
-			ImportablePredicate:       "mapping_status IN ('confirmed','inferred'), plus per-table CSV FK-parent eligibility guards (see scripts/lib/stage-csv-columns.mjs)",
+			ImportablePredicate:       "mapping_status IN ('confirmed','inferred'), plus per-table CSV FK-parent eligibility guards (see scripts/rehearsal/lib/stage-csv-columns.mjs)",
 			PlaceholderColumns:        CutoverPlaceholderColumns(),
 			PlaceholderResolutionNote: "source placeholders",
 			ManifestSchemaVersion:     cutoverManifestSchema,

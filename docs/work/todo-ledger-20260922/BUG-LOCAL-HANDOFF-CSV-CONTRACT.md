@@ -40,7 +40,7 @@ Sheet date: 2026-09-22. Consumer worktree HEAD `5a5828a1dc0f11e03134a9d8d890025f
 - `clinicCode`/`clinicOrdinal` は CLINIC_CSV_IMPORT.md の受理集合(hachioji=1、jouto=2、shikishima=3、hakobuneco=4)と一致。**MATCH**
 - `clinicBandBase`/`EndExclusive`/`stageIdOffset`/`idBand` は全 4 院で ordinal 公式 `((ordinal-1)*10M, ordinal*10M, +1M offset, ownerFloor +0.3M, appFloor 1e9)` と一致(実測値: hachioji 0–10M、jouto 10M–20M、shikishima 20M–30M、hakobuneco 30M–40M)。**MATCH**
 - `outputDir` 束縛: hachioji は `…/hachioji-intake-20260921-01-revisions/paygraph-20260922-01`(reviewed rebuild の `-revisions/` 形、`cutover_contract_validate.go` L163–166 が受理)。他 3 院は `…-rehearsal-hosNN-…-local-ae*` の `-rehearsal-` 接尾辞形で、local/staging rehearsal mode でのみ受理(L171–174)。**MATCH(rehearsal 経路限定)**
-- eligibility: 全 4 院 `REHEARSAL_ONLY`。`make reset` 自動取込(`scripts/import-old-db-handoffs-on-reset.sh` L199 `--allow-local-rehearsal`)の受理域内。formal `make csv-import` は `TRUSTED_CANDIDATE` 必須(L243)のため全 4 院 **BLOCKED**。
+- eligibility: 全 4 院 `REHEARSAL_ONLY`。`make reset` 自動取込(`scripts/old-db/import-old-db-handoffs-on-reset.sh` L199 `--allow-local-rehearsal`)の受理域内。formal `make csv-import` は `TRUSTED_CANDIDATE` 必須(L243)のため全 4 院 **BLOCKED**。
 - `sourceSummaryGeneratedAt` は全 4 院で raw≤intermediate≤stage≤generatedAt の順序を満たす(実測)。**MATCH**
 - stage build UUID 形式・3 層 summary digest・evidence digest(baseLoad、+hachioji は knjoRecovery)は全 4 院で形式適合。**MATCH**
 
@@ -156,7 +156,7 @@ flowchart TB
 - `todo-operations.md` §BUG-LOCAL-HANDOFF-CSV-CONTRACT(L115–119)、`bug.md` §plan-bug-local-handoff-csv-contract(L29–39、L365–376)
 - `docs/ops/deploy/OLD_DB_HANDOFF_LOCAL.md`、`docs/ops/deploy/CLINIC_CSV_IMPORT.md`
 - `backend/internal/csvimport/cutover_contract.go` / `cutover_contract_validate.go`
-- `Makefile` `old-db-handoff-stage`/`old-db-handoff-check`/`csv-import-*`/`stg-uat-*` targets、`scripts/check-old-db-handoff.sh`、`scripts/import-old-db-handoffs-on-reset.sh`
+- `Makefile` `old-db-handoff-stage`/`old-db-handoff-check`/`csv-import-*`/`stg-uat-*` targets、`scripts/old-db/check-old-db-handoff.sh`、`scripts/old-db/import-old-db-handoffs-on-reset.sh`
 - staged `backend/migrations/seeds/_old_db_handoff/{hachioji,hakobuneco,jouto,shikishima}/manifest.json` + 20 CSV(header 行のみ)と `002_master/accounts/_old_db_handoff/<clinic>/staffs.csv`(gitignored quarantine、読取のみ)
 - `sensitive-local/csv-import-reports/*.json` の非 PHI 欄(status/clinicCode/runId/manifestSha256/startedAt)
 - sibling `../old_db` @ `b941a9c`(HEAD・`docs/migration/mapping-scripts.md`・`tmp/producer-iso-generated/migration-stage-summary.json`、読取のみ)

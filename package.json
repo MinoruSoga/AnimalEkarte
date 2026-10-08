@@ -2,7 +2,7 @@
   "scripts": {
     "deploy:frontend": "pnpm exec wrangler deploy -c frontend/wrangler.jsonc",
     "deploy:frontend:prod": "pnpm exec wrangler deploy -c frontend/wrangler.production.jsonc",
-    "codex-security:export": "bash scripts/export-codex-security-latest.sh",
+    "codex-security:export": "bash scripts/tools/export-codex-security-latest.sh",
     "cf:whoami": "wrangler whoami",
     "cf:deploy": "cd backend && wrangler deploy",
     "cf:secrets": "cd backend && wrangler secret bulk .env --config wrangler.jsonc",

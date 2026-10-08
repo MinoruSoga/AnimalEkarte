@@ -9,7 +9,9 @@
 
 ---
 
-> **注記 (2026-07-10 / 更新 2026-07-31)**: Lステップへの Write API（タグ付与・タグ解除・プロパティ更新）は **`LSTEP_WRITE_API_ENABLED`（既定 OFF）+ clinic `is_sync_enabled` の二重 gate** で抑止。gate OFF 時は外部 HTTP 0 + `ErrWriteDisabled`（silent noop 成功ではない）。その後のローカル DB / cache / audit / logging は呼び出し元ごとの失敗契約に従い、一律には継続しない。詳細: [`docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)
+> **注記 (2026-07-10 / 更新 2026-07-31)**: Lステップへの Write API（タグ付与・タグ解除・プロパティ更新）は **`LSTEP_WRITE_API_ENABLED`（既定 OFF）+ clinic `is_sync_enabled` の二重 gate** で抑止される。運用手順正本: [`docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)。
+>
+> 追記（2026-10-07 監査）: 二重 gate の契約本文（`ErrWriteDisabled` とクライアント未構築の意図的スキップ `nil, nil` の区別、gate OFF 後のローカル DB / cache / audit / logging の扱い）は [architecture.md](./architecture.md) 冒頭注記・§4 に一元化した。本書では重複掲載しない。
 
 ---
 
@@ -98,18 +100,13 @@ stateDiagram-v2
 
 ## 5. 失敗契約（経路別・混同禁止）
 
-LSTEP の失敗時挙動は経路ごとに 1 契約だけを持つ。詳細アーキテクチャは [architecture.md](./architecture.md) §4。
+LSTEP の失敗時挙動は経路ごとに 1 契約だけを持つ。
 
-| 経路 | 契約 | 要点 |
-|:---|:---|:---|
-| 定時バッチ（配信トリガー・休眠・LTV・健診予防など multi-clinic / multi-owner） | **scheduled multi-resource best effort** | 1 件失敗後も続行。`BatchRunResult`（`Processed = Succeeded + Failed`）と `processed_count`/`error_count` 監査で **durable な部分結果計上を必須**。必須 dependency 欠落は fail-closed。silent swallow は新規禁止 |
-| 1 飼主分のタグ同期本体（バッチ内 1 owner 処理を含む） | **single-owner propagation** | 望ましいタグ Add/Remove 失敗は呼び出し元へ伝播し、上位の Failed 計上に載せる |
-| 会計確定後の CPM 同期、手動 LINE 送信後の purpose タグなど副次処理 | **request-local nonfatal secondary notification** | 本処理（会計・送信本体）は成功のまま。副次失敗はログ必須で本処理を反転させない。**`lstep_delivery_trigger_log` は使わない** |
+> 追記（2026-10-07 監査）: 失敗契約の三分法（scheduled multi-resource best effort / single-owner propagation / request-local nonfatal secondary notification）の契約表・失敗時の振る舞い・耐久計上の正本は [architecture.md](./architecture.md) §4。本書では契約表の重複掲載をやめ、経路ごとの詳細は同節を参照すること。
 
 ### 5.1 書き込み停止と運用停止
 
-- **Write dual-gate**: タグ付与・解除・プロパティ更新の外部 HTTP は deploy/clinic gate で抑止され `ErrWriteDisabled` が返る。その後のローカル DB / cache / audit / logging は呼び出し元ごとの失敗契約に従い、一律には継続しない。[`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)
-- **clinic 停止**: `is_sync_enabled=false` の医院は再有効化後もサービス層で同期対象外。
+> 追記（2026-10-07 監査）: Write dual-gate（gate OFF 時は外部 HTTP を送らず `ErrWriteDisabled`。後続のローカル処理は呼び出し元ごとの失敗契約に従う）と clinic 停止（`is_sync_enabled=false` は再有効化後もサービス層で同期対象外）の契約本文の正本は [architecture.md](./architecture.md) 冒頭注記・§4.3。本節では重複掲載しない。運用手順正本: [`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)
 
 ### 5.2 定時 delivery バッチの読み取り要件
 

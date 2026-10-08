@@ -63,7 +63,7 @@ clean:
 	$(DC) build --no-cache
 
 # 完全リセット（スキーマ・シーダー含む）— local 専用・USER のみ実行
-# 単一入口: scripts/local-db-reset-contract.sh
+# 単一入口: scripts/old-db/local-db-reset-contract.sh
 #   1) project/volume を固定値と compose 実測で照合（他環境は拒否）
 #   2) umask 077 で .local-db-backups/<UTC>/ に pg_dumpall + sha256 + manifest
 #   3) サービス停止後 ekarte-postgres-data のみ削除（cache 3 volume は保持）
@@ -71,36 +71,36 @@ clean:
 # snapshot 失敗時は volume 削除へ進まない。compose の全 volume 一括削除は使わない。
 # --wait の wait-set（db backend frontend, codegen 除外）は contract スクリプト側。
 reset:
-	@bash scripts/local-db-reset-contract.sh
+	@bash scripts/old-db/local-db-reset-contract.sh
 
 # reset の wait-set 契約チェック（Docker 不要・純テキスト検査・高速）
 # `make reset` の `up --wait` が長寿命サービス (db backend frontend) だけを
 # 待ち、one-shot codegen を含めないことを静的に保証する。これが裸の `up --wait` に
 # 退行すると cosmetic exit-1 が再発するため、make ci で自動実行する。
 check-reset-contract:
-	@bash scripts/check-reset-wait-services.sh
+	@bash scripts/old-db/check-reset-wait-services.sh
 
 # 上記契約チェック自体の回帰テスト（fixture ベース・Docker 不要）
 # 正しい wait-set は通し、codegen 混入 / 必須欠落 / 裸 up --wait を reject できることを検証する。
 check-reset-contract-test:
-	@bash scripts/check-reset-wait-services.test.sh
+	@bash scripts/old-db/check-reset-wait-services.test.sh
 
 # csv-import の ACCOUNT_SOURCE 解決（handoff 分離 staffs.csv / 空 export / パス大小文字）
 check-csv-import-account-source-test:
-	@bash scripts/check-csv-import-account-source.test.sh
+	@bash scripts/old-db/check-csv-import-account-source.test.sh
 
 # scripts/*.sh の shellcheck ゲート（severity=warning）。
 # shellcheck はローカルに無ければピン留め Docker イメージ経由で実行する（再現可能）。
 # 整形・行継続トリックでは欺けない AST 検査で、シェルスクリプトの退行を手動レビュー
 # ではなく自動で弾く。一括/ファイル全体スコープの disable によるゲート骨抜きも reject する。
 shellcheck:
-	@bash scripts/shellcheck-scripts.sh
+	@bash scripts/checks/shellcheck-scripts.sh
 
 # 上記 shellcheck ゲート自体の回帰テスト（fixture ベース）。
 # 実バグ・行継続で隠したバグ・disable=all / ファイル全体 disable を確実に reject し、
 # clean スクリプトと正当な行内 disable は通すことを検証する。
 shellcheck-test:
-	@bash scripts/shellcheck-scripts.test.sh
+	@bash scripts/checks/shellcheck-scripts.test.sh
 
 # Codex Security の有料 scan が成功した場合だけ、全 artifact を export する。
 # latest-* は codex-security-output/ 直下、原本は timestamped directory に保存される。
@@ -108,7 +108,7 @@ codex-security-scan:
 	corepack pnpm exec codex-security scan . \
 		--model "$(CODEX_SECURITY_MODEL)" \
 		--effort "$(CODEX_SECURITY_EFFORT)"
-	@bash scripts/export-codex-security-latest.sh \
+	@bash scripts/tools/export-codex-security-latest.sh \
 		"$(CODEX_SECURITY_OUTPUT_DIR)" \
 		--full-keep-files
 
@@ -155,10 +155,10 @@ old-db-handoff-stage:
 	@test -n "$${CLINIC_CODE}" || (echo "CLINIC_CODE is required" >&2; exit 1)
 	@test -n "$${MIGRATION_RUN_ID}" || (echo "MIGRATION_RUN_ID is required" >&2; exit 1)
 	@test -n "$${CSV_IMPORT_SOURCE_DIR}" || (echo "CSV_IMPORT_SOURCE_DIR is required" >&2; exit 1)
-	@./scripts/stage-old-db-handoff.sh
+	@./scripts/old-db/stage-old-db-handoff.sh
 
 old-db-handoff-check:
-	@./scripts/check-old-db-handoff.sh
+	@./scripts/old-db/check-old-db-handoff.sh
 
 # ============================================================================
 # F6 CSV import: old_db's immutable 21-table CSV hand-off -> AnimalEkarte
@@ -338,16 +338,16 @@ stg-uat-import:
 		--report-path "/migration-reports/$${CLINIC_CODE}-$${MIGRATION_RUN_ID}-stg-uat-apply.json"
 
 # STG UAT old_db handoff: every staged clinic (jouto, shikishima, hakobuneco).
-# Credentials live in gitignored scripts/stg-uat-old-db-handoff.local.env.
+# Credentials live in gitignored scripts/old-db/stg-uat-old-db-handoff.local.env.
 # Never passes --allow-local-rehearsal. Long-running; operator executes.
 stg-uat-handoff-preflight:
-	@bash scripts/stg-uat-old-db-handoff.sh preflight
+	@bash scripts/old-db/stg-uat-old-db-handoff.sh preflight
 
 stg-uat-handoff:
-	@bash scripts/stg-uat-old-db-handoff.sh import
+	@bash scripts/old-db/stg-uat-old-db-handoff.sh import
 
 stg-uat-handoff-verify:
-	@bash scripts/stg-uat-old-db-handoff.sh verify
+	@bash scripts/old-db/stg-uat-old-db-handoff.sh verify
 
 # STG UAT staff attach: bind accounts onto imported staffs.id.
 # Does not create staff rows (that is cmd/staff-provision).
@@ -358,7 +358,7 @@ stg-uat-handoff-verify:
 # The backend service only injects env_file (.env.local) DB credentials, so
 # for remote targets the caller must also export DB_NAME/DB_USER/DB_PASSWORD/
 # DB_SSL_ROOT_CERT; each is forwarded only when set, preserving the local
-# .env.local fallback used by scripts/import-old-db-handoffs-on-reset.sh.
+# .env.local fallback used by scripts/old-db/import-old-db-handoffs-on-reset.sh.
 # Valueless -e so secrets stay in the process environment and are never
 # echoed into the recipe command line / logs.
 STG_UAT_STAFF_ATTACH_DB_ENV = \
@@ -414,22 +414,22 @@ stg-uat-staff-attach:
 # OLD_DB_STAFF_IDENTITY_MAP_CSV=.../staff-identity-map.csv (0600+SHA256SUMS検証)
 stg-uat-staff-identity-link-preflight:
 	@test -n "$${OLD_DB_STAFF_IDENTITY_MAP_CSV}" || (echo "OLD_DB_STAFF_IDENTITY_MAP_CSV is required" >&2; exit 1)
-	bash scripts/staff-identity-map-link.sh stg --dry-run
+	bash scripts/old-db/staff-identity-map-link.sh stg --dry-run
 
 stg-uat-staff-identity-link:
 	@test -n "$${OLD_DB_STAFF_IDENTITY_MAP_CSV}" || (echo "OLD_DB_STAFF_IDENTITY_MAP_CSV is required" >&2; exit 1)
-	bash scripts/staff-identity-map-link.sh stg
+	bash scripts/old-db/staff-identity-map-link.sh stg
 
 # old_db 権威 staff-activity map で在籍推定済み移行スタッフを有効化。
 # ACTIVE_CONFIRMED のみ is_active=true（他分類は不変更、deactivate しない）。
 # OLD_DB_STAFF_ACTIVITY_MAP_CSV=.../staff-activity-map.csv (0600+SHA256SUMS検証)
 stg-uat-staff-activity-apply-preflight:
 	@test -n "$${OLD_DB_STAFF_ACTIVITY_MAP_CSV}" || (echo "OLD_DB_STAFF_ACTIVITY_MAP_CSV is required" >&2; exit 1)
-	bash scripts/staff-activity-map-apply.sh stg --dry-run
+	bash scripts/old-db/staff-activity-map-apply.sh stg --dry-run
 
 stg-uat-staff-activity-apply:
 	@test -n "$${OLD_DB_STAFF_ACTIVITY_MAP_CSV}" || (echo "OLD_DB_STAFF_ACTIVITY_MAP_CSV is required" >&2; exit 1)
-	bash scripts/staff-activity-map-apply.sh stg
+	bash scripts/old-db/staff-activity-map-apply.sh stg
 
 # ============================================================================
 # A4 UI rehearsal: isolated, disposable, localhost-only full stack
@@ -452,28 +452,28 @@ A4_CSV_IMPORT_DC = COMPOSE_PROJECT_NAME="$${A4_COMPOSE_PROJECT}" docker compose 
 export A4_COMPOSE_PROJECT A4_RUN_ID A4_TARGET_RELEASE_COMMIT A4_ENV_FILE
 
 a4-rehearsal-contract-test:
-	@node --test scripts/check-a4-rehearsal-compose.test.mjs \
-		scripts/check-a4-env-file.test.mjs \
-		scripts/check-a4-resource-boundary.test.mjs \
-		scripts/write-a4-runtime-report.test.mjs
+	@node --test scripts/rehearsal/check-a4-rehearsal-compose.test.mjs \
+		scripts/rehearsal/check-a4-env-file.test.mjs \
+		scripts/rehearsal/check-a4-resource-boundary.test.mjs \
+		scripts/rehearsal/write-a4-runtime-report.test.mjs
 
 a4-rehearsal-config-check:
-	@node scripts/check-a4-rehearsal-compose.mjs
+	@node scripts/rehearsal/check-a4-rehearsal-compose.mjs
 
 a4-rehearsal-up: a4-rehearsal-config-check
-	@node scripts/check-a4-resource-boundary.mjs start
+	@node scripts/rehearsal/check-a4-resource-boundary.mjs start
 	$(A4_REHEARSAL_DC) up -d --build --wait --wait-timeout 1200 db backend frontend
 
 a4-rehearsal-ps:
 	$(A4_REHEARSAL_DC) ps db backend frontend
 
 a4-csv-import-preflight: a4-rehearsal-config-check
-	@node scripts/check-a4-resource-boundary.mjs destroy
+	@node scripts/rehearsal/check-a4-resource-boundary.mjs destroy
 	@install -d -m 700 sensitive-local/csv-import-reports
 	$(A4_CSV_IMPORT_DC) run --rm --no-deps csv-import preflight $(CSV_IMPORT_COMMON_ARGS)
 
 a4-csv-import: a4-rehearsal-config-check
-	@node scripts/check-a4-resource-boundary.mjs destroy
+	@node scripts/rehearsal/check-a4-resource-boundary.mjs destroy
 	@install -d -m 700 sensitive-local/csv-import-reports
 	$(A4_CSV_IMPORT_DC) run --rm --no-deps csv-import apply $(CSV_IMPORT_COMMON_ARGS) \
 		--confirm-target-write --confirm-backup-ready \
@@ -481,17 +481,17 @@ a4-csv-import: a4-rehearsal-config-check
 		--report-path "/migration-reports/$${CLINIC_CODE}-$${MIGRATION_RUN_ID}-apply.json"
 
 a4-csv-import-verify: a4-rehearsal-config-check
-	@node scripts/check-a4-resource-boundary.mjs destroy
+	@node scripts/rehearsal/check-a4-resource-boundary.mjs destroy
 	@install -d -m 700 sensitive-local/csv-import-reports
 	$(A4_CSV_IMPORT_DC) run --rm --no-deps csv-import verify $(CSV_IMPORT_COMMON_ARGS)
 
 a4-rehearsal-runtime-report: a4-rehearsal-config-check
-	@node scripts/write-a4-runtime-report.mjs
+	@node scripts/rehearsal/write-a4-runtime-report.mjs
 
 # Explicit stop/cleanup path for the disposable project. The project name is
 # mandatory, so this cannot fall back to the normal development stack.
 a4-rehearsal-down:
-	@node scripts/check-a4-resource-boundary.mjs destroy
+	@node scripts/rehearsal/check-a4-resource-boundary.mjs destroy
 	$(A4_REHEARSAL_DC) down --volumes --remove-orphans
 
 # ============================================================================
@@ -505,7 +505,7 @@ export F8_G4_COMPOSE_PROJECT F8_G4_RUN_ID F8_G4_TARGET_RELEASE_COMMIT
 export F8_G4_ENV_FILE F8_G4_DB_PORT F8_G4_CLINIC_CODE F8_G4_CLINIC_ORDINAL
 
 f8-g4-rehearsal-contract-test:
-	@node --test scripts/lib/f8-g4-evidence.test.mjs scripts/lib/f8-g4-host-safety.test.mjs
+	@node --test scripts/rehearsal/lib/f8-g4-evidence.test.mjs scripts/rehearsal/lib/f8-g4-host-safety.test.mjs
 
 f8-g4-rehearsal-config-check:
 	@F8_G4_BUILD_CONTEXT="$(CURDIR)/backend" \
@@ -514,10 +514,10 @@ f8-g4-rehearsal-config-check:
 		$(F8_G4_DC) config --quiet
 
 f8-g4-rehearsal-run:
-	@node scripts/run-f8-g4-rehearsal.mjs
+	@node scripts/rehearsal/run-f8-g4-rehearsal.mjs
 
 f8-g4-rehearsal-down:
-	@node scripts/check-f8-g4-resources.mjs
+	@node scripts/rehearsal/check-f8-g4-resources.mjs
 
 # バックエンドのみ再起動
 restart-api:
@@ -609,7 +609,7 @@ test-worker:
 
 # 上記 test-worker ターゲット自体の静的契約テスト（Docker 不要）
 test-worker-makefile-test:
-	@bash scripts/check-test-worker-makefile.test.sh
+	@bash scripts/ci/check-test-worker-makefile.test.sh
 
 # Playwright E2E（ローカルのみ・リモート自動 CI 対象外）
 # 前提: make up 済みで frontend が http://localhost:3003 で応答すること。
@@ -651,9 +651,9 @@ mod-tidy:
 
 # ローカル一括 CI（リモート CI から外した静的ゲート + build/test/lint）
 # 実行前に make up でコンテナを起動しておくこと（メタゲートは Docker 不要で先に fail-fast）。
-# 実体: scripts/run-local-ci.sh / 分担: docs/ops/ci-policy.md
+# 実体: scripts/ci/run-local-ci.sh / 分担: docs/ops/ci-policy.md
 #
-# 途中再開: `make ci 9` で step 9 から実行する（`bash scripts/run-local-ci.sh 9`
+# 途中再開: `make ci 9` で step 9 から実行する（`bash scripts/ci/run-local-ci.sh 9`
 # / `CI_FROM=9` と同等）。数値の追目標は開始 step として run-local-ci.sh へ
 # 渡すため、ci 指定時だけ phony 化して make の「No rule」エラーを回避する。
 # 数値以外の追目標は run-local-ci.sh 側の usage チェックでエラーになる。
@@ -666,7 +666,7 @@ $(_CI_FROM):
 endif
 endif
 ci:
-	@bash scripts/run-local-ci.sh $(_CI_FROM)
+	@bash scripts/ci/run-local-ci.sh $(_CI_FROM)
 
 # git hooks セットアップ（初回・新メンバーオンボーディング時に実行）
 # Source of truth: .githooks/* — wrappers installed into .git/hooks for readiness/tooling that
@@ -747,7 +747,7 @@ help:
 	@echo "  【ローカル必須】make ci（inventory/guardrail/lint/build/test 一括）"
 	@echo "  【ローカル任意】make e2e（Playwright・リモート自動 CI 外）"
 	@echo "  【リモート CI】gitleaks / path-filtered build+test+coverage — docs/ops/ci-policy.md"
-	@echo "  ci            ローカル一括 CI（scripts/run-local-ci.sh）"
+	@echo "  ci            ローカル一括 CI（scripts/ci/run-local-ci.sh）"
 	@echo "  lint          Goリンター実行（golangci・ローカル必須）"
 	@echo "  lint-fix      Goリンター実行（自動修正）"
 	@echo "  test          Goテスト実行"

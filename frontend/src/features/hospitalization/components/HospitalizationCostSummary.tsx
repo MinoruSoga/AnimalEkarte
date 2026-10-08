@@ -1,11 +1,10 @@
 import { memo } from "react";
 import { H_STYLES } from "../lib/styles";
-import { C } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 
 interface HospitalizationCostSummaryProps {
   totals: {
     subtotalBeforeDiscount: number;
-    subtotalAfterDiscount: number;
     consumptionTax: number;
     total: number;
   };
@@ -16,8 +15,8 @@ export const HospitalizationCostSummary = memo(function HospitalizationCostSumma
   totals,
 }: HospitalizationCostSummaryProps) {
   return (
-    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box}`}>
-      <h2 className={`${H_STYLES.text.base} font-bold mb-3 ${C.text}`}>診療費計算</h2>
+    <div className={STYLE.formCard}>
+      <h2 className={`${H_STYLES.form.cardHeading} mb-3`}>診療費計算</h2>
 
       <div className="space-y-2">
         {/* 小計 */}

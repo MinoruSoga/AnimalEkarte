@@ -9,7 +9,6 @@ describe("HospitalizationCostSummary", () => {
       <HospitalizationCostSummary
         totals={{
           subtotalBeforeDiscount: 10_000,
-          subtotalAfterDiscount: 10_000,
           consumptionTax: 1_000,
           total: 11_000,
         }}

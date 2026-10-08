@@ -1,5 +1,7 @@
 # docs-refresh-20260929 — docs/ 全区画 最新化キャンペーン INDEX
 
+> **追記（2026-10-06 監査）**: 本キャンペーンの成果は commit `c8dc3a792`（「docs: docs/ 全区画の最新化 — Linear→Plane 移行と実装照合のドリフト訂正」）で main に統合済み。作業ツリーは clean。下記「claim / branch / worktree の状態」に記載の `claim/DOCS-REFRESH-20260929-*` ブランチ 8 本、`docs-refresh-20260929/*` ブランチ、`/private/tmp/ae-dr29-*` worktree はいずれも削除済み。本文の「awaiting-human-verification（未コミット差分）」は統合前の時点記録であり、現在の状態を示さない。
+
 > **依頼（2026-09-29）**: 「docs/ 配下の内容を全て最新化。間違った情報・古い情報を入念にチェック。仕様はスプシ/Slack の先方やり取り文書（Obsidian 案件フォルダ）から判断。並列で着手」
 > **実行形態**: 親オーケストレーター + 8 並列子エージェント（区画ごとに別 git worktree、claim ブランチで排他）
 > **受入状態**: awaiting-human-verification（変更は main checkout の未コミット差分として配置）
@@ -28,7 +30,7 @@
 ## 検証（統合後、main checkout で実施）
 
 - `git diff --check -- docs/` → exit 0
-- `bash scripts/check-docs-symbol-drift.sh` → **exit 0（ドリフトなし、検査トークン 609 件）**。前回・各子時点で残存していた「テーブル数 128 vs 実測 130」FAIL は `erd.md`（arch）と `specification.md`（spec-core）の訂正で解消
+- `bash scripts/checks/check-docs-symbol-drift.sh` → **exit 0（ドリフトなし、検査トークン 609 件）**。前回・各子時点で残存していた「テーブル数 128 vs 実測 130」FAIL は `erd.md`（arch）と `specification.md`（spec-core）の訂正で解消
 - docs 変更は runtime 検証不要（docs-only）
 - 各子の `git status` allowlist 外差分 0 を確認済み。統合は `git diff main..<branch> | git apply` で全区画を直列適用
 

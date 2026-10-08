@@ -114,8 +114,8 @@ Token is an operator-supplied shared secret. The API does not mint it. Bundlers 
 1. **USER** generates the secret on an approved path (password manager or clinic secret store). This sheet does not specify a generator command and does not run one.
 2. **Same value** is registered in two places that never share a git file:
    - API process environment `LAB_DEVICE_AGENT_CONSUMER_TOKEN` (local Compose: backend `.env.local` — presence/value **UNKNOWN** here).
-   - Agent install: 4th argument to `scripts/build-lab-device-agent-bundle.sh` **or** the same env name at bundle time (`scripts/build-lab-device-agent-bundle.sh` L19–L27). Empty → exit 2.
-3. Bundle writes clinic id, allowed origin, token as three lines of `lab-device-agent.conf` mode `0600` (`scripts/build-lab-device-agent-bundle.sh` L52–L54). Install copies that into LaunchAgent `--consumer-token` (`packaging/macos/configure-lab-device-agent-plist.sh`, plist placeholders `__CONSUMER_TOKEN__`).
+   - Agent install: 4th argument to `scripts/lab-device/build-lab-device-agent-bundle.sh` **or** the same env name at bundle time (`scripts/lab-device/build-lab-device-agent-bundle.sh` L19–L27). Empty → exit 2.
+3. Bundle writes clinic id, allowed origin, token as three lines of `lab-device-agent.conf` mode `0600` (`scripts/lab-device/build-lab-device-agent-bundle.sh` L52–L54). Install copies that into LaunchAgent `--consumer-token` (`packaging/macos/configure-lab-device-agent-plist.sh`, plist placeholders `__CONSUMER_TOKEN__`).
 4. `backend/cmd/lab-device-agent/main.go` requires `--consumer-token` non-empty (exit 2).
 5. **STG/PROD Cloudflare:** `backend/wrangler.jsonc` `secrets.required` (L143–L180) does not list `LAB_DEVICE_AGENT_CONSUMER_TOKEN`. `backend/worker/index.ts` `envVars` (L53–L111) does not inject it. Until USER adds secret + Worker allowlist + verification, GET agent-consumer stays 503. Do not treat STG `/lab-device` as connected.
 

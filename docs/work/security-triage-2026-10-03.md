@@ -75,7 +75,7 @@ frontend 再スキャン(`xj4SPC`)は **0 confirmed**(113ファイル精査、�
 - **Image script-scheme** — `medicalRecordImageHasHTTPScheme` で http(s) のみ
 - **Unbounded reorder** — `MaxReorderIDs=500` + 重複拒否(`slice.go`)
 - **Staged filenames hook** — `execFileSync` argv 形式へ
-- **Staging dump exposure** — ランダム PW + port 非公開(scripts/verify_seed_matches_stg_dump_full.sh)
+- **Staging dump exposure** — ランダム PW + port 非公開(scripts/old-db/verify_seed_matches_stg_dump_full.sh)
 - **Cursor workspace policy** — allowlist モード
 - **Dev image installer** — curl 除去・pinned golangci image
 - **Migrations sysadmin / demo seed verifiers / skip-worktree overlay** — `003_demo` 退役(`cmd/migrate` は全環境 002_master のみ)

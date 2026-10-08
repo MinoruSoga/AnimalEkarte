@@ -25,8 +25,15 @@ func ValidatePetNotDeceased(ctx context.Context, petRepo PetByIDFinder, clinicID
 	if pet == nil {
 		return apperrors.WrapNotFound("pet", "status")
 	}
-	if pet.Status == model.PetStatusDeceased || pet.DeceasedAt != nil {
+	if IsPetDeceased(pet) {
 		return apperrors.WrapInvalidInput(message)
 	}
 	return nil
+}
+
+// IsPetDeceased は読み込み済みペットの死亡判定を行う正準契約
+// （status=deceased OR deceased_at != nil。EMR-290/EMR-328）。
+// status='alive' かつ deceased_at != nil の不整合行も死亡として扱う。
+func IsPetDeceased(pet *model.Pet) bool {
+	return pet != nil && (pet.Status == model.PetStatusDeceased || pet.DeceasedAt != nil)
 }

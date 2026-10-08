@@ -22,7 +22,7 @@ flowchart TB
 
 - 全 shard が `-coverpkg=./internal/...` を使う。`internal/infra` も現在の母集団に含まれる。
 - `cmd/*`（`cmd/lstep-migrate`、`cmd/_archive/seed-old-db` を含む）、`migrations/` はこの母集団の外にある。（2026-09-29 訂正: `lstep-migrate/`・`seed-old-db/` を backend 直下の独立ディレクトリとして記載していた → 現行は `backend/cmd/` 配下へ移動済み。母集団外である結論は変わらない）
-- profile の単純連結は禁止する。`scripts/merge_go_coverprofiles.py` が mode/statement 数を検証し、同一 block を統合する。
+- profile の単純連結は禁止する。`scripts/ci/merge_go_coverprofiles.py` が mode/statement 数を検証し、同一 block を統合する。
 
 ### Frontend
 
@@ -40,7 +40,7 @@ baseline file のコメントが値、run、変更理由の正本である。Bac
 ## Phase status
 
 - **Phase 0 — historical/completed**: artifact 可視化のみだった導入段階。
-- **Phase 1 — implemented and armed**: backend/frontend とも baseline から tolerance（既定 0.5pp）を超える低下を CI で fail する。対象は `scripts/ci_scope_plan.py` が `coverage_ratchet=run`（full mode）と判定した main push / main/staging/production PR。domain/feature のみの **partial** 実行では aggregate ratchet を走らせず、summary に `coverage_ratchet=SKIP` を出す。限定テスト成功を全体 coverage PASS と扱わない。
+- **Phase 1 — implemented and armed**: backend/frontend とも baseline から tolerance（既定 0.5pp）を超える低下を CI で fail する。対象は `scripts/ci/ci_scope_plan.py` が `coverage_ratchet=run`（full mode）と判定した main push / main/staging/production PR。domain/feature のみの **partial** 実行では aggregate ratchet を走らせず、summary に `coverage_ratchet=SKIP` を出す。限定テスト成功を全体 coverage PASS と扱わない。
 - Frontend script の OK/FAIL/baseline 未記録/`--warn-only` の四ケースは一時的な履歴検証として記録されていたが、HEAD に保守される regression test/fixture はない。継続保証とは扱わない。
 - **Phase 2 — proposal, not implemented at reviewed baseline `70dc7405`; current checkout must be revalidated**: patch coverage warning。`octocov` / `diff-cover` は未導入。
 - **Phase 3 — proposal, not implemented at reviewed baseline `70dc7405`; current checkout must be revalidated**: domain/capability baseline と manifest による gate。manifest は未導入。partial 実行の品質ゲート強化は Phase 3 候補。

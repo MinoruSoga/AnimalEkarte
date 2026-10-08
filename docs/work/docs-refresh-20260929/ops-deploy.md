@@ -14,7 +14,7 @@
 | `docs/ops/CLAUDE.md` | kept | 現行と一致（AWS 退役・SSOT 分離の記述が正確） |
 | `docs/ops/agent-harness.md` | **corrected** | 同上（L23） |
 | `docs/ops/backlog-spreadsheet.md` | kept | 外部シートを固定値で書かない設計が現行ポリシーと一致 |
-| `docs/ops/ci-policy.md` | kept | 4 backend shard / 2 frontend vitest shard を `scripts/ci_scope_plan.py:255-269` で確認。E2E manual-only・AgentShield 条件付き fail・action pin 方針も現行通り |
+| `docs/ops/ci-policy.md` | kept | 4 backend shard / 2 frontend vitest shard を `scripts/ci/ci_scope_plan.py:255-269` で確認。E2E manual-only・AgentShield 条件付き fail・action pin 方針も現行通り |
 | `docs/ops/coverage-policy.md` | **corrected** | backend 直下 `lstep-migrate/`・`seed-old-db/` の記述を `cmd/` 配下移動へ日付付き訂正。baseline 87.3%/43.78% は現行通り（変更なし） |
 | `docs/ops/deploy/README.md` | **updated** | `FIRST_SYSTEM_ADMIN.md` が index 未収録だったのを追記（同 doc は 2026-09-11 追加済み） |
 | `docs/ops/deploy/A4_UI_REHEARSAL.md` | kept | `a4-rehearsal-*` Make target・`docker-compose.a4-rehearsal.yml` 実在確認 |
@@ -78,7 +78,7 @@
 | コマンド | exit | 結果 |
 |---|---|---|
 | `git diff --check -- docs/ops` | 0 | whitespace/error なし |
-| `bash scripts/check-docs-symbol-drift.sh` | **1** | `FAIL テーブル数: docs の宣言値 128 が実装の実測値 130 と不一致` ×3。**発生源は allowlist 外**（`docs/spec/specification.md` L22/L61、`docs/architecture/erd.md` L153-216 等）。実測 130 = 128 + `011_support_bug_reports.sql` + `013_support_chat_messages.sql`（`CREATE TABLE` 各1）。spec-core / arch 担当子エージェントへの引き継ぎ事項 |
+| `bash scripts/checks/check-docs-symbol-drift.sh` | **1** | `FAIL テーブル数: docs の宣言値 128 が実装の実測値 130 と不一致` ×3。**発生源は allowlist 外**（`docs/spec/specification.md` L22/L61、`docs/architecture/erd.md` L153-216 等）。実測 130 = 128 + `011_support_bug_reports.sql` + `013_support_chat_messages.sql`（`CREATE TABLE` 各1）。spec-core / arch 担当子エージェントへの引き継ぎ事項 |
 | `git status --porcelain` | — | 変更 9 ファイル、すべて `docs/ops/` 配下 + 本レポート = **allowlist 内のみ** |
 | 参照 sweep（make target / script / workflow 名を機械列挙して存在確認） | — | 実在しない名称の言及はすべて履歴・退役ラベル済み（`make seed-old-db`、`stg-smoke-cleanup.yml`、旧 `002_seed.sql`/`003_*.sql`）か、bundle 内ファイル（`install.sh`/`diagnose.sh`）、producer artifact（`020_canonical.sql`/`030_stage.sql`）、repo 外 secured path（`/secure/first-system-admin/create.sql`）のいずれかで誤記ではない |
 

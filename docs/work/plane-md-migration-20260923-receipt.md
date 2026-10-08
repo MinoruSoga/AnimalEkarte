@@ -3,6 +3,8 @@
 Plane readback: 80 newly created work items and 16 exact existing Plane items verified against a fresh live project list.
 All source statuses were retained; no task was marked Done or closed during migration.
 
+> 2026-10-06 注記: 本書内の `bug.md` / `bug.md#plan-*` 参照（Crosswalk の Source references 列など）は移行時点の記録である。`bug.md` は 2026-09-27 の台帳整理で 0 バイトの残存文件となっており、アンカーは現行では解決しない（内容は git 履歴。docs/work/README.md の「削除済み docs」参照）。
+
 ```mermaid
 flowchart LR
     subgraph Src["移行元（repo の台帳・作業票）"]
