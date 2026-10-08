@@ -41,6 +41,20 @@ function purposeForPath(path: string | undefined): string | undefined {
   return sidebarItemDescriptions[path];
 }
 
+function owningSidebarRow(node: Element): Element | null {
+  return node.closest("[data-sidebar-row]");
+}
+
+function eventTargetInRow(target: EventTarget | null, row: Element): boolean {
+  return target instanceof Element && owningSidebarRow(target) === row;
+}
+
+function controlsOwnedByRow(row: HTMLElement): Element[] {
+  return [...row.querySelectorAll("a, button")].filter(
+    (control) => owningSidebarRow(control) === row,
+  );
+}
+
 function PurposeTooltip({
   id,
   text,
@@ -95,7 +109,7 @@ const SidebarItem = memo(function SidebarItem({
   const isExpanded = manualExpanded ?? hasActiveChild;
   const description = purposeForPath(item.path);
   const descriptionId = useId();
-  const rowRef = useRef<HTMLDivElement>(null);
+  const [rowElement, setRowElement] = useState<HTMLDivElement | null>(null);
   const keyboardIntent = useRef(false);
   const [hovered, setHovered] = useState(false);
   const [keyboardFocused, setKeyboardFocused] = useState(false);
@@ -106,9 +120,9 @@ const SidebarItem = memo(function SidebarItem({
   const describedBy = descriptionOpen ? descriptionId : undefined;
 
   useEffect(() => {
-    const row = rowRef.current;
+    const row = rowElement;
     if (!row || description === undefined) return;
-    const controls = row.querySelectorAll("a, button");
+    const controls = controlsOwnedByRow(row);
     // jsdom fires mouseleave in the same turn as mouseenter. Ignore only that pair.
     let ignorePairedLeave = false;
     const enter = () => {
@@ -124,12 +138,12 @@ const SidebarItem = memo(function SidebarItem({
     };
     const onFocus = (event: Event) => {
       const target = event.target;
-      if (!(target instanceof Element)) return;
+      if (!(target instanceof Element) || owningSidebarRow(target) !== row) return;
       if (target.matches(":focus-visible") || keyboardIntent.current) setKeyboardFocused(true);
     };
     const onBlur = (event: Event) => {
       const next = event instanceof FocusEvent ? event.relatedTarget : null;
-      if (next instanceof Node && row.contains(next)) return;
+      if (eventTargetInRow(next, row)) return;
       setKeyboardFocused(false);
     };
     for (const control of controls) {
@@ -146,7 +160,7 @@ const SidebarItem = memo(function SidebarItem({
         control.removeEventListener("blur", onBlur);
       }
     };
-  }, [description, collapsed, isExpanded, hasSubItems]);
+  }, [description, collapsed, isExpanded, hasSubItems, rowElement]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Tab") keyboardIntent.current = true;
@@ -164,6 +178,10 @@ const SidebarItem = memo(function SidebarItem({
   const showKeyboardFocus = (event: FocusEvent<HTMLElement>) => {
     const target = event.target;
     if (!(target instanceof Element) || description === undefined) return;
+    const row = event.currentTarget.hasAttribute("data-sidebar-row")
+      ? event.currentTarget
+      : event.currentTarget.closest("[data-sidebar-row]");
+    if (row === null || owningSidebarRow(target) !== row) return;
     const focusVisibleTarget = target.matches(":focus-visible") || keyboardIntent.current;
     if (focusVisibleTarget) setKeyboardFocused(true);
   };
@@ -204,12 +222,12 @@ const SidebarItem = memo(function SidebarItem({
 
   return (
     <div
-      ref={rowRef}
+      ref={setRowElement}
+      data-sidebar-row=""
       className="w-full"
       onFocus={showKeyboardFocus}
       onBlur={(event) => {
-        const next = event.relatedTarget;
-        if (next instanceof Node && event.currentTarget.contains(next)) return;
+        if (eventTargetInRow(event.relatedTarget, event.currentTarget)) return;
         setKeyboardFocused(false);
       }}
     >
@@ -277,7 +295,7 @@ const SidebarItem = memo(function SidebarItem({
           id={descriptionId}
           text={description}
           exposure={exposure}
-          anchor={rowRef.current}
+          anchor={rowElement}
         />
       ) : null}
     </div>

@@ -496,6 +496,28 @@ describe("sidebar item purpose descriptions", () => {
     expectPurposeExposed(link, DESCRIBED_MENU[0].purpose, "focus-visible");
   });
 
+  it("展開した子の focus-visible とホバーではその子の役割説明だけを出す", () => {
+    const item = requireMenuItem("Lステップ連携", paths.lstep.settings.getHref());
+    renderSidebarItem(item);
+    fireEvent.click(screen.getByRole("button", { name: "Lステップ連携を展開" }));
+
+    const child = screen.getByRole("link", { name: "配信監視" });
+    focusVisible(child);
+
+    const focused = screen.getAllByRole("tooltip");
+    expect(focused).toHaveLength(1);
+    expect(focused[0]).toHaveTextContent("配信トリガー");
+    expect(focused[0]).not.toHaveTextContent(LSTEP_PURPOSE);
+
+    fireEvent.blur(child);
+    fireEvent.mouseEnter(child);
+
+    const hovered = screen.getAllByRole("tooltip");
+    expect(hovered).toHaveLength(1);
+    expect(hovered[0]).toHaveTextContent("配信トリガー");
+    expect(hovered[0]).not.toHaveTextContent(LSTEP_PURPOSE);
+  });
+
   it("画面の目的がある項目だけその文を受け取り、無い5件は説明を持たない", () => {
     for (const row of DESCRIBED_MENU) {
       const item = requireMenuItem(row.label, row.path);

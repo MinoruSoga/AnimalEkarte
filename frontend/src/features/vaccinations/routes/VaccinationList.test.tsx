@@ -1,7 +1,7 @@
 import { useLayoutEffect } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, useLocation } from "react-router";
+import { Link, MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { C } from "@/lib/design-tokens";
 import { useGetPet } from "@/hooks/use-pet";
@@ -304,6 +304,41 @@ describe("VaccinationList petId query", () => {
 
     const filters = mockUseFilterVaccinations.mock.calls.at(-1)?.[1] as { petId?: string };
     expect(filters).not.toHaveProperty("petId");
+  });
+
+  it("ペット指定の 2 ページ目から一覧全体へ戻ると 1 ページ目を表示する", async () => {
+    const user = userEvent.setup();
+    mockUseFilterVaccinations.mockImplementation(
+      (_search: string, filters?: { petId?: string }) => {
+        const label = filters?.petId ? `pet-${filters.petId}` : "all";
+        const rows = Array.from({ length: 21 }, (_, index) => ({
+          ...vaccination,
+          id: `${label}-${index + 1}`,
+          petName: `${label}-${index + 1}`,
+        }));
+        return { data: rows, allVaccinations: rows, isLoading: false, error: null };
+      },
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/vaccinations?petId=10"]}>
+        <Link to="/vaccinations">予防接種管理</Link>
+        <VaccinationList />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "2" }));
+    expect(screen.getByTestId("location")).toHaveTextContent("petId=10");
+    expect(screen.getByTestId("location")).toHaveTextContent("page=2");
+    expect(screen.getByText("pet-10-21")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("link", { name: "予防接種管理" }));
+
+    expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations$/);
+    expect(screen.getByRole("button", { name: "1" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("all-1")).toBeInTheDocument();
+    expect(screen.queryByText("all-21")).not.toBeInTheDocument();
   });
 });
 

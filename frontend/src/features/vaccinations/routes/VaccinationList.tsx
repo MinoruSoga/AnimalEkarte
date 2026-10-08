@@ -88,7 +88,7 @@ export function VaccinationList() {
     useSortableData(defaultOrderedRecords);
 
   const pagination = usePagination(sortedData, {
-    resetKey: deferredSearchTerm,
+    resetKey: JSON.stringify([deferredSearchTerm, petId]),
   });
 
   const urlPage = Number(searchParams.get("page") ?? 1);

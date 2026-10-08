@@ -221,10 +221,7 @@ describe("ReceptionDialogBody 予約内容", () => {
   it("見出しの下に予約内容の全文をテキストとして表示する", () => {
     const notes = "皮膚のかゆみ\n<b>重要</b>";
     const { container } = render(
-      <ReceptionDialogBody
-        appointment={{ ...trimmingAppointment, notes }}
-        {...relatedPageProps}
-      />,
+      <ReceptionDialogBody appointment={{ ...trimmingAppointment, notes }} {...relatedPageProps} />,
     );
 
     const heading = screen.getByRole("heading", { name: "予約内容" });
