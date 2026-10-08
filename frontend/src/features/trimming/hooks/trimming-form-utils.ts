@@ -69,6 +69,18 @@ function optionalDateTime(value: string): string | undefined {
   return value === "" ? undefined : value;
 }
 
+// null / undefined は未変更として省略する（update の pointer omitempty）。
+// 空文字は明示削除。値はオブジェクトキーであり、署名 URL ではない。
+function trimmingImageRequestFields(formData: TrimmingFormData): {
+  style_image?: string;
+  completed_image?: string;
+} {
+  return {
+    ...(formData.styleImage != null ? { style_image: formData.styleImage } : {}),
+    ...(formData.completedImage != null ? { completed_image: formData.completedImage } : {}),
+  };
+}
+
 export function normalizeVisitDate(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
@@ -123,6 +135,7 @@ export function buildUpdateTrimmingRequest(formData: TrimmingFormData): UpdateTr
     used_ribbon: formData.usedRibbon,
     remarks: formData.remarks,
     option_ids: (formData.optionIds ?? []).map(Number),
+    ...trimmingImageRequestFields(formData),
   };
 }
 
@@ -169,5 +182,6 @@ export function buildCreateTrimmingRequest(
     used_ribbon: formData.usedRibbon,
     remarks: formData.remarks,
     option_ids: (formData.optionIds ?? []).map(Number),
+    ...trimmingImageRequestFields(formData),
   };
 }

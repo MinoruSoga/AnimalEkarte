@@ -68,6 +68,8 @@ interface TrimmingFormBodyProps {
   canSubmit: boolean;
   canDelete: boolean | undefined;
   isSaving: boolean;
+  /** 画像アップロード in-flight。true の間は submit をブロックして画像欠落を防ぐ。 */
+  isImageUploading: boolean;
   isDeleting: boolean;
   isDirty: boolean;
   hasExistingAppointment: boolean;
@@ -116,6 +118,7 @@ export function TrimmingFormBody({
   canSubmit,
   canDelete,
   isSaving,
+  isImageUploading,
   isDeleting,
   isDirty,
   hasExistingAppointment,
@@ -178,8 +181,16 @@ export function TrimmingFormBody({
       headerAction={
         <FormHeaderActions
           onCancel={onBack}
-          submitLabel={canSubmit ? (isSaving ? "保存中..." : "保存") : undefined}
-          submitDisabled={isSaving}
+          submitLabel={
+            canSubmit
+              ? isSaving
+                ? "保存中..."
+                : isImageUploading
+                  ? "画像アップロード中..."
+                  : "保存"
+              : undefined
+          }
+          submitDisabled={isSaving || isImageUploading}
           submitFormId={TRIMMING_FORM_ID}
           extra={
             <>
@@ -214,7 +225,9 @@ export function TrimmingFormBody({
             </span>
           </div>
         ) : null}
-        <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
+        {/* 保存中も画像操作を無効化 — 送信済みキーの remove/置換は対象外だが、
+            isSaving 中の入力変更はペイロードに反映されないため一貫して止める。 */}
+        <fieldset disabled={!canSubmit || isSaving} className="border-0 p-0 m-0 min-w-0">
           {selectedPet ? (
             <TrimmingFormColumns
               selectedPet={selectedPet}

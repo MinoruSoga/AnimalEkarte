@@ -3,7 +3,6 @@ import { useNavigate } from "react-router";
 
 import { useGetMasterItems } from "@/hooks/use-master-items";
 import { useGetTrimmingCourseTypes } from "@/hooks/use-trimming-course-types";
-import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { paths } from "@/config/paths";
 import { useTrimmingHistory } from "./use-trimming-history";
 import {
@@ -21,6 +20,8 @@ export function useTrimmingFormChrome(input: {
   redirectPath: string;
   fromPath: string | undefined;
   handleDelete: (onSuccess: () => void) => void;
+  // useTrimmingForm でリフトした dirty 状態。画像フックと共有するため input 経由で受け取る。
+  unsaved: { isDirty: boolean; markDirty: () => void; markClean: () => void };
 }) {
   const navigate = useNavigate();
   const { data: coursesRaw = [] } = useGetMasterItems("trimmingCourse");
@@ -39,7 +40,7 @@ export function useTrimmingFormChrome(input: {
     () => decorateTrimmingOptions(optionsRaw, input.formData.optionIds),
     [optionsRaw, input.formData.optionIds],
   );
-  const { isDirty, markDirty, markClean } = useUnsavedChanges();
+  const { isDirty, markDirty, markClean } = input.unsaved;
 
   useEffect(() => {
     const errorFields = Object.keys(input.formState.fieldErrors || {});

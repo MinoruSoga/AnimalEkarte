@@ -2407,6 +2407,21 @@ components:
           type: string
           format: date-time
           readOnly: true
+    TrimmingImageUpload:
+      type: object
+      required: [key, signed_url]
+      description: |
+        トリミング画像アップロード結果。key を style_image または completed_image に保存する。
+        signed_url は 15 分有効の署名付き表示 URL。
+      properties:
+        key:
+          type: string
+          description: 医院スコープのオブジェクトキー（trimming-images/{clinic_id}/...）
+          example: trimming-images/1/1710000000000000000_ab.jpg
+        signed_url:
+          type: string
+          format: uri
+          description: 署名付き表示 URL（TTL 15 分）
     TrimmingRecord:
       type: object
       required: [date, staff_id, course_id]
@@ -14187,6 +14202,83 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TrimmingRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /trimmings/images/upload:
+    post:
+      operationId: uploadTrimmingImage
+      summary: トリミング画像アップロード
+      description: |
+        multipart/form-data。フォームフィールド名は `file`。
+        トリミング ID には紐づかない。認証済み医院で trimming の create または edit 権限が必要。
+        ファイル上限 10MiB、リクエスト上限 11MiB。拡張子・MIME・実バイトの content sniff を検証する。
+        共有の医院/スタッフアップロード枠をボディ解析前に確保する。
+        保存先は trimming-images/{clinic_id}/...。応答はオブジェクトキーと署名付き表示 URL（TTL 15 分）。
+      tags: [Trimmings]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: jpeg, png, gif。10MiB 以下。
+      responses:
+        '201':
+          description: アップロード成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrimmingImageUpload'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /trimmings/images:
+    delete:
+      operationId: deleteTrimmingImage
+      summary: トリミング画像オブジェクト削除（未保存アップロードの掃除）
+      description: |
+        フォーム放棄・置換でレコードに永続化されなかったアップロード済みオブジェクトを削除する。
+        ボディの `key` は自医院スコープ `trimming-images/{clinic_id}/...` のオブジェクトキーのみ受理
+        （/uploads/ ラップ形式も可）。レコード参照が残るキーは 409 で拒否する（fail-closed）。
+        永続化済みフィールドの削除は PATCH/DELETE の superseded 処理が担う。
+        trimming の create または edit 権限が必要。
+      tags: [Trimmings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [key]
+              properties:
+                key:
+                  type: string
+                  description: trimming-images/{clinic_id}/... のオブジェクトキー
+      responses:
+        '204':
+          description: 削除成功
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':

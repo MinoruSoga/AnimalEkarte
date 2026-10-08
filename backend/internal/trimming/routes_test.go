@@ -39,6 +39,7 @@ func TestRegisterRoutes_SnapshotAndRBAC(t *testing.T) {
 		"DELETE /api/v1/masters/trimming-courses/:id DeleteTrimmingCourse\n" +
 		"DELETE /api/v1/masters/trimming-options/:id DeleteTrimmingOption\n" +
 		"DELETE /api/v1/trimmings/:id DeleteTrimming\n" +
+		"DELETE /api/v1/trimmings/images DeleteTrimmingImage\n" +
 		"GET /api/v1/masters/trimming-course-types ListTrimmingCourseTypes\n" +
 		"GET /api/v1/masters/trimming-course-types/:id GetTrimmingCourseType\n" +
 		"GET /api/v1/masters/trimming-courses ListTrimmingCourses\n" +
@@ -57,7 +58,8 @@ func TestRegisterRoutes_SnapshotAndRBAC(t *testing.T) {
 		"POST /api/v1/masters/trimming-course-types CreateTrimmingCourseType\n" +
 		"POST /api/v1/masters/trimming-courses CreateTrimmingCourse\n" +
 		"POST /api/v1/masters/trimming-options CreateTrimmingOption\n" +
-		"POST /api/v1/trimmings CreateTrimming\n"
+		"POST /api/v1/trimmings CreateTrimming\n" +
+		"POST /api/v1/trimmings/images/upload UploadTrimmingImage\n"
 
 	assert.Equal(t, wantRoutes, strings.Join(lines, "\n")+"\n")
 	assert.Equal(t, []routePermissionTuple{

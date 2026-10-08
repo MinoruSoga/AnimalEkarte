@@ -122,7 +122,7 @@ func TestService_Update_InactiveCourseFKGuard(t *testing.T) {
 			detail, inactiveTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 
 		course := inactiveCourseID
-		out, err := svc.Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{CourseID: &course})
+		out, _, err := svc.Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{CourseID: &course})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, updated, "trimming detail must NOT be updated to newly reference an inactive course")
@@ -145,7 +145,7 @@ func TestService_Update_InactiveCourseFKGuard(t *testing.T) {
 
 		// クライアントが既存カルテと同じ無効化済み course_id を再送（維持）するケース。
 		sameCourse := inactiveCourseID
-		out, err := svc.Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{CourseID: &sameCourse})
+		out, _, err := svc.Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{CourseID: &sameCourse})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, updated)
@@ -176,7 +176,7 @@ func TestService_Update_InactiveOptionFKGuard(t *testing.T) {
 			detail, okTrimmingCourseRepo(), inactiveTrimmingOptionRepo(), &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 
 		newOptions := []uint64{inactiveOptionID}
-		out, err := svc.Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{OptionIDs: &newOptions})
+		out, _, err := svc.Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{OptionIDs: &newOptions})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, updated, "trimming options must NOT be updated to newly reference an inactive option")
@@ -201,7 +201,7 @@ func TestService_Update_InactiveOptionFKGuard(t *testing.T) {
 
 		// クライアントが既存カルテと同じ無効化済み option_id 集合を再送（維持）するケース。
 		sameOptions := []uint64{inactiveOptionID}
-		out, err := svc.Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{OptionIDs: &sameOptions})
+		out, _, err := svc.Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{OptionIDs: &sameOptions})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, updated)
