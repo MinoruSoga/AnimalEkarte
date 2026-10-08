@@ -49,6 +49,8 @@ interface SearchableSelectProps {
    * フィルタ用途など空が既定の箇所では付けない。
    */
   clearable?: boolean;
+  /** clearable のクリア項目に表示する名前。既定は「選択をクリア」。空が「選択なし」を意味する箇所で差し替える。 */
+  clearLabel?: string;
   /** トリガーに付与する className。 */
   className?: string;
   /** ポップオーバー内容(リスト)に付与する className。 */
@@ -93,6 +95,7 @@ export function SearchableSelect({
   disabled = false,
   fallbackLabel,
   clearable = false,
+  clearLabel = CLEAR_ITEM_LABEL,
   className,
   contentClassName,
   triggerTestId,
@@ -208,7 +211,7 @@ export function SearchableSelect({
               <CommandItem
                 key={CLEAR_ITEM_VALUE}
                 value={CLEAR_ITEM_VALUE}
-                keywords={[CLEAR_ITEM_LABEL, "クリア", "解除"]}
+                keywords={[clearLabel, "クリア", "解除"]}
                 onSelect={() => handleSelect("")}
                 onPointerDown={(event) => {
                   event.preventDefault();
@@ -216,7 +219,7 @@ export function SearchableSelect({
                 className="cursor-pointer"
               >
                 <span className={cn("flex-1 whitespace-nowrap text-sm", C.text40)}>
-                  {CLEAR_ITEM_LABEL}
+                  {clearLabel}
                 </span>
               </CommandItem>
             ) : null}

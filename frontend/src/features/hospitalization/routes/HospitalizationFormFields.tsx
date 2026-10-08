@@ -155,7 +155,6 @@ export function HospitalizationFormFields({
             formData={formData}
             onChange={onFormChange}
             cageItems={cageItems ?? []}
-            cageIdError={fieldErrors?.cage_id}
           />
 
           <HospitalizationNoteCard

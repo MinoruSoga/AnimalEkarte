@@ -364,9 +364,26 @@ func TestHospitalizationService_Create(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:     "rejects missing cage_id without persisting (BUG-037)",
+			// EMR-316: BUG-037 の必須化を撤回。cage_id 未指定は「ケージ未割当」(NULL) として保存する。
+			name:     "persists cageless hospitalization when cage_id is nil (EMR-316)",
 			clinicID: 1,
 			input: &CreateHospitalizationInput{
+				OwnerID:             2,
+				PetID:               5,
+				HospitalizationType: model.HospitalizationTypeInpatient,
+				StartDate:           now,
+				EndDate:             now.Add(24 * time.Hour),
+				Status:              model.HospitalizationStatusAdmitted,
+			},
+			repoErr:    nil,
+			wantErr:    false,
+			wantStatus: model.HospitalizationStatusAdmitted,
+		},
+		{
+			name:     "rejects cage_id 0 without persisting (EMR-316)",
+			clinicID: 1,
+			input: &CreateHospitalizationInput{
+				CageID:              func() *uint64 { v := uint64(0); return &v }(),
 				OwnerID:             2,
 				PetID:               5,
 				HospitalizationType: model.HospitalizationTypeInpatient,
@@ -405,7 +422,7 @@ func TestHospitalizationService_Create(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, hosp)
-				if tt.name == "rejects missing cage_id without persisting (BUG-037)" {
+				if tt.name == "rejects cage_id 0 without persisting (EMR-316)" {
 					assert.Equal(t, 0, createCalls)
 					assert.True(t, apperrors.IsInvalidInput(err))
 				}
@@ -415,6 +432,10 @@ func TestHospitalizationService_Create(t *testing.T) {
 				require.NotNil(t, created)
 				assert.Equal(t, tt.wantStatus, created.Status)
 				assert.Equal(t, tt.wantStatus, hosp.Status)
+				if tt.name == "persists cageless hospitalization when cage_id is nil (EMR-316)" {
+					assert.Equal(t, 1, createCalls)
+					assert.Nil(t, created.CageID, "cageless create must persist cage_id as NULL")
+				}
 			}
 		})
 	}
@@ -940,6 +961,37 @@ func TestBuildHospitalizationUpdate_BasicFields(t *testing.T) {
 func TestBuildHospitalizationUpdate_EmptyInput(t *testing.T) {
 	fields := buildHospitalizationUpdate(&UpdateHospitalizationInput{})
 	assert.Empty(t, fields)
+}
+
+// EMR-316: 「選択なし」への更新は clear_cage_id で cage_id を NULL にする（省略は変更なし）。
+func TestBuildHospitalizationUpdate_ClearCageID(t *testing.T) {
+	fields := buildHospitalizationUpdate(&UpdateHospitalizationInput{ClearCageID: true})
+
+	val, ok := fields["cage_id"]
+	assert.True(t, ok, "clear_cage_id must put cage_id into the update set")
+	assert.Nil(t, val, "clear_cage_id must set cage_id to NULL")
+}
+
+func TestBuildHospitalizationUpdate_SetCageIDAndOmitKeepsCage(t *testing.T) {
+	cageID := uint64(3)
+
+	set := buildHospitalizationUpdate(&UpdateHospitalizationInput{CageID: &cageID})
+	assert.Equal(t, cageID, set["cage_id"])
+
+	omitted := buildHospitalizationUpdate(&UpdateHospitalizationInput{})
+	_, has := omitted["cage_id"]
+	assert.False(t, has, "omitting cage_id must leave the column untouched")
+}
+
+func TestHospitalizationService_Update_RejectsClearAndSetCageID(t *testing.T) {
+	cageID := uint64(3)
+	svc := NewHospitalizationService(&mockHospitalizationRepository{}, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+
+	hosp, err := svc.Update(context.Background(), 1, 1, &UpdateHospitalizationInput{ClearCageID: true, CageID: &cageID})
+
+	assert.Nil(t, hosp)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
 }
 
 // ---- DischargeWithBilling ----

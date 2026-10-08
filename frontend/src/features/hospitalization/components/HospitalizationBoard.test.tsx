@@ -282,6 +282,92 @@ describe("HospitalizationBoard empty cage actions", () => {
   });
 });
 
+// EMR-316: ケージ未設定（cage_id=NULL）の入院を「選択なし」で登録できるようにしたため、
+// ボードから見えなくならないよう「ケージ未割当」欄に表示する。
+describe("HospitalizationBoard cageless hospitalizations (EMR-316)", () => {
+  const cageless: Hospitalization = {
+    id: "hospitalization-cageless",
+    cageId: undefined,
+    petName: "ミケ",
+    ownerName: "飼主B",
+    species: "猫",
+    hospitalizationType: "入院",
+    petIsDeceased: false,
+  } as unknown as Hospitalization;
+
+  it("ケージ未設定の入院を「ケージ未割当」欄に表示し、ケージカードには紛れ込ませない", () => {
+    render(
+      <HospitalizationBoard
+        cages={cages}
+        hospitalizations={[occupied, cageless]}
+        onNavigateToForm={vi.fn()}
+        onMovePet={vi.fn()}
+        canCreate
+        canEdit
+      />,
+    );
+
+    const section = screen.getByRole("region", { name: "ケージ未割当" });
+    expect(section).toHaveTextContent("ミケ");
+    expect(section).toHaveTextContent("飼主B");
+    // ケージ設定済みの入院は従来どおりケージカード側にだけ出る。
+    expect(section).not.toHaveTextContent("ポチ");
+    expect(screen.getAllByText(/ポチ/)).toHaveLength(1);
+    // 未割当の入院は「空き」ケージを増減させない（cage-a-2 だけが空き）。
+    expect(screen.getAllByText("空き")).toHaveLength(1);
+  });
+
+  it("ケージ未設定の入院が無ければ「ケージ未割当」欄を出さない", () => {
+    render(
+      <HospitalizationBoard
+        cages={cages}
+        hospitalizations={[occupied]}
+        onNavigateToForm={vi.fn()}
+        onMovePet={vi.fn()}
+        canCreate
+        canEdit
+      />,
+    );
+
+    expect(screen.queryByRole("region", { name: "ケージ未割当" })).toBeNull();
+  });
+
+  it("未割当カードの詳細ボタンで入院詳細へ遷移する", async () => {
+    const user = userEvent.setup();
+    const onNavigateToForm = vi.fn();
+    render(
+      <HospitalizationBoard
+        cages={cages}
+        hospitalizations={[cageless]}
+        onNavigateToForm={onNavigateToForm}
+        onMovePet={vi.fn()}
+        canCreate
+        canEdit
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "ミケの詳細" }));
+
+    expect(onNavigateToForm).toHaveBeenCalledWith("hospitalization-cageless");
+  });
+
+  it("未割当カードはドラッグ対象にしない（本票は表示と遷移のみ）", () => {
+    dndHarness.useDraggable.mockClear();
+    render(
+      <HospitalizationBoard
+        cages={[]}
+        hospitalizations={[cageless]}
+        onNavigateToForm={vi.fn()}
+        onMovePet={vi.fn()}
+        canCreate
+        canEdit
+      />,
+    );
+
+    expect(dndHarness.useDraggable).not.toHaveBeenCalled();
+  });
+});
+
 describe("HospitalizationBoard narrow layout (BUG-458)", () => {
   it("area container に min-w-[800px] を付けない", () => {
     const { container } = render(

@@ -12,7 +12,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { FormFieldError } from "@/components/shared/FormFieldError";
 import { NextScheduleField, calculateNextDate } from "@/components/shared/NextScheduleField";
 
 // Relative
@@ -26,16 +25,12 @@ interface HospitalizationBasicInfoProps {
   formData: HospitalizationFormData;
   onChange: (updates: Partial<HospitalizationFormData>) => void;
   cageItems: MasterItem[];
-  // rerender-memo: 呼び出し側で毎レンダー新規オブジェクトを作らないよう
-  // プリミティブ値で受け取る（`fieldErrors={{ cage_id: ... }}` を廃止）。
-  cageIdError?: string;
 }
 
 export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
   formData,
   onChange,
   cageItems,
-  cageIdError,
 }: HospitalizationBasicInfoProps) {
   return (
     <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box}`}>
@@ -117,14 +112,12 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
         </div>
       </div>
 
-      {/* ケージ/個室（BUG-037: 必須） */}
+      {/* ケージ/個室（EMR-316: 任意。BUG-037 の必須化を撤回し「選択なし」で登録可能。
+          ケージ未設定の入院はボードの「ケージ未割当」欄に表示される） */}
       <div className="mb-3">
         <div className="flex items-center justify-between mb-1.5">
           <Label htmlFor="cage_id" className={`${H_STYLES.text.sm} ${C.text60}`}>
             ケージ・個室
-            <span className={`${C.textRequired} ml-0.5`} aria-hidden="true">
-              *
-            </span>
           </Label>
           <MasterLink category="cage" label="編集" className="text-2xs" />
         </div>
@@ -136,11 +129,11 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
             value: String(cage.id),
             label: cage.description ? `${cage.name}（${cage.description}）` : cage.name,
           }))}
-          placeholder="選択してください"
+          placeholder="選択なし"
           searchPlaceholder="ケージを検索..."
-          ariaInvalid={Boolean(cageIdError)}
+          clearable
+          clearLabel="選択なし"
         />
-        <FormFieldError message={cageIdError} />
       </div>
 
       {/* 保険 */}

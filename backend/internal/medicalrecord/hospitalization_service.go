@@ -32,7 +32,8 @@ type CreateHospitalizationInput struct {
 	TreatmentPlans []CreateTreatmentPlanInput
 }
 
-// UpdateHospitalizationInput は入院更新のサービス入力 DTO
+// UpdateHospitalizationInput は入院更新のサービス入力 DTO。
+// ClearCageID は cage_id を NULL に戻す（「選択なし」への更新。EMR-316）。CageID との同時指定は不正。
 type UpdateHospitalizationInput struct {
 	OwnerID              *uint64
 	PetID                *uint64
@@ -41,6 +42,7 @@ type UpdateHospitalizationInput struct {
 	EndDate              *time.Time
 	Status               *model.HospitalizationStatus
 	CageID               *uint64
+	ClearCageID          bool
 	DoctorID             *uint64
 	Memo                 *string
 	OwnerRequest         *string
@@ -89,9 +91,8 @@ func buildHospitalizationUpdate(input *UpdateHospitalizationInput) map[string]an
 	if input.Status != nil {
 		fields["status"] = *input.Status
 	}
-	if input.CageID != nil {
-		fields["cage_id"] = *input.CageID
-	}
+	// EMR-316: ClearCageID は NULL 化、非 nil は設定、どちらも無ければ変更なし（PATCH 規約）。
+	setNullableUint64Field(fields, colHospitalizationCageID, input.ClearCageID, input.CageID)
 	if input.DoctorID != nil {
 		fields["doctor_id"] = *input.DoctorID
 	}
@@ -299,9 +300,10 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 	if err := validateHospitalizationDateRange(input.StartDate, input.EndDate); err != nil {
 		return nil, err
 	}
-	// BUG-037: fail-closed — create without cage must not persist (UAT: cage_id=NULL).
-	if input.CageID == nil || *input.CageID == 0 {
-		return nil, apperrors.WrapInvalidInput("cage_id is required")
+	// EMR-316: ケージ未割当（cage_id=NULL）での作成を許可する（BUG-037 の必須化を撤回）。
+	// 0 は存在し得ない id なので不正値として拒否する（NULL に丸めない）。
+	if input.CageID != nil && *input.CageID == 0 {
+		return nil, apperrors.WrapInvalidInput(errMsgCageIDInvalid)
 	}
 	hospitalization := &model.Hospitalization{
 		ClinicID:             clinicID,
@@ -337,6 +339,10 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
+	}
+	// EMR-316: NULL 化と値設定の同時指定は意図が曖昧なので拒否する（clear が黙って勝たない）。
+	if input.ClearCageID && input.CageID != nil {
+		return nil, apperrors.WrapInvalidInput(errMsgCageIDClearConflict)
 	}
 	fields := buildHospitalizationUpdate(input)
 	if len(fields) == 0 {
@@ -425,6 +431,13 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 const (
 	hospitalizationAuditActionDelete    = "hospitalization.delete"
 	hospitalizationAuditActionDischarge = "hospitalization.discharge"
+)
+
+// EMR-316: cage_id（NULL 許容 FK）の列名とエラー文言。request / service で共有する。
+const (
+	colHospitalizationCageID  = "cage_id"
+	errMsgCageIDInvalid       = "cage_id must be a positive id"
+	errMsgCageIDClearConflict = "clear_cage_id and cage_id cannot be set together"
 )
 
 func hospitalizationAuditValue(h *model.Hospitalization) map[string]any {

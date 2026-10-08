@@ -134,9 +134,10 @@ func (r *createHospitalizationRequest) toServiceInput() (*CreateHospitalizationI
 		return nil, err
 	}
 
-	// BUG-037: new hospitalization must assign a cage (DB column remains nullable for legacy rows).
-	if r.CageID == nil || *r.CageID == 0 {
-		return nil, apperrors.WrapInvalidInput("cage_id is required")
+	// EMR-316: cage_id の省略 / null は「ケージ未割当」として受理する（BUG-037 の必須化を撤回）。
+	// 0 は存在し得ない id なので不正値として拒否する。
+	if r.CageID != nil && *r.CageID == 0 {
+		return nil, apperrors.WrapInvalidInput(errMsgCageIDInvalid)
 	}
 
 	plans := make([]CreateTreatmentPlanInput, 0, len(r.TreatmentPlans))
@@ -166,7 +167,8 @@ func (r *createHospitalizationRequest) toServiceInput() (*CreateHospitalizationI
 	}, nil
 }
 
-// updateHospitalizationRequest は入院更新のバインド struct
+// updateHospitalizationRequest は入院更新のバインド struct。
+// ClearCageID=true で cage_id を NULL に戻す（「選択なし」。EMR-316）。cage_id との同時指定は 400。
 type updateHospitalizationRequest struct {
 	OwnerID              *uint64    `json:"owner_id"`
 	PetID                *uint64    `json:"pet_id"`
@@ -175,6 +177,7 @@ type updateHospitalizationRequest struct {
 	EndDate              *time.Time `json:"end_date"`
 	Status               *string    `json:"status"                 binding:"omitempty,oneof=admitted discharged reserved"`
 	CageID               *uint64    `json:"cage_id"`
+	ClearCageID          bool       `json:"clear_cage_id"`
 	DoctorID             *uint64    `json:"doctor_id"`
 	Memo                 *string    `json:"memo"`
 	OwnerRequest         *string    `json:"owner_request"`
@@ -185,12 +188,16 @@ type updateHospitalizationRequest struct {
 }
 
 func (r *updateHospitalizationRequest) toServiceInput() (UpdateHospitalizationInput, error) {
+	if r.ClearCageID && r.CageID != nil {
+		return UpdateHospitalizationInput{}, apperrors.WrapInvalidInput(errMsgCageIDClearConflict)
+	}
 	input := UpdateHospitalizationInput{
 		OwnerID:              r.OwnerID,
 		PetID:                r.PetID,
 		StartDate:            r.StartDate,
 		EndDate:              r.EndDate,
 		CageID:               r.CageID,
+		ClearCageID:          r.ClearCageID,
 		DoctorID:             r.DoctorID,
 		Memo:                 r.Memo,
 		OwnerRequest:         r.OwnerRequest,

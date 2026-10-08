@@ -70,7 +70,8 @@ export function buildUpdateHospitalizationRequest(
     staff_notes: formData.staffNotes,
     memo: formData.memo,
     ...(formData.doctorId ? { doctor_id: formData.doctorId } : {}),
-    ...(formData.cageId ? { cage_id: formData.cageId } : {}),
+    // EMR-316: 「選択なし」は cage_id を省略するだけでは BE が変更なしと解釈するため、明示的に NULL 化を指示する。
+    ...(formData.cageId ? { cage_id: formData.cageId } : { clear_cage_id: true }),
     is_insurance: formData.isInsurance,
     insurance_company_name: toInsuranceCompanyName(formData),
     insurance_number: toInsuranceNumber(formData),
@@ -275,10 +276,10 @@ export function updateTreatmentPlanField(
   return updated;
 }
 
+// EMR-316: ケージ・個室は任意（「選択なし」可）。BUG-037 の必須検証は撤回した。
 export function hospitalizationSubmitFieldErrors(
   pet: Pet | undefined,
   isEdit: boolean,
-  cageId: string | undefined,
 ): Record<string, string> | null {
   if (!pet) {
     return { pet: "ペットを選択してください" };
@@ -289,9 +290,6 @@ export function hospitalizationSubmitFieldErrors(
         ? "死亡したペットは入院情報を更新できません"
         : "死亡したペットは入院登録できません",
     };
-  }
-  if (!(cageId?.trim() ?? "")) {
-    return { cage_id: "ケージ・個室を選択してください" };
   }
   return null;
 }

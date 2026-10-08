@@ -17,7 +17,8 @@ export const updateHospitalization = async (
   req: UpdateHospitalizationRequest,
 ): Promise<Hospitalization> => {
   // cage_id / doctor_id は string として受け取るが、バックエンドは uint64（number）を期待するため変換する。
-  // 空文字列はフィールドを省略する（ケージなし更新はバックエンドが未サポートのため送信しない）。
+  // 空文字列は cage_id を省略する。ケージを外す（選択なし）更新は clear_cage_id: true で表し、
+  // `rest` にそのまま含まれて BE へ渡る（EMR-316）。
   const { cage_id, doctor_id, ...rest } = req;
   const payload: UpdateHospitalizationPayload = { ...rest };
   if (cage_id !== undefined && cage_id !== "") {

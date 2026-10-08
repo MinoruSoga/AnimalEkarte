@@ -26,6 +26,7 @@ import { getHospitalizationTypeColor } from "@/lib/status-helpers";
 import { cageKeyboardCoordinateGetter } from "../lib/cage-keyboard-coordinates";
 import { HOSPITALIZATION_STATUS } from "../constants";
 import { H_STYLES } from "../lib/styles";
+import { HospitalizationUnassignedSection } from "./HospitalizationUnassignedSection";
 
 // Types
 import type { MasterItem, Hospitalization } from "@/types";
@@ -235,10 +236,20 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({
 
   // js-index-maps: cageId → Hospitalization の Map を事前構築（O(n)）しレンダーループ内で O(1) 検索
   // 親コンポーネントがタブに応じて既にフィルタリング済みのデータを渡すため、ここでは再フィルタしない
-  const occupantByCageId = useMemo(
-    () => new Map(hospitalizations.map((h) => [h.cageId, h])),
-    [hospitalizations],
-  );
+  // EMR-316: cageId 未設定の入院は Map の undefined キーに埋もれてボードに出なくなるため、
+  // Map には入れず「ケージ未割当」欄へ回す。
+  const { occupantByCageId, unassigned } = useMemo(() => {
+    const byCage = new Map<string, Hospitalization>();
+    const cageless: Hospitalization[] = [];
+    for (const h of hospitalizations) {
+      if (h.cageId) {
+        byCage.set(h.cageId, h);
+      } else {
+        cageless.push(h);
+      }
+    }
+    return { occupantByCageId: byCage, unassigned: cageless };
+  }, [hospitalizations]);
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
@@ -268,6 +279,11 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({
             </div>
           </div>
         ))}
+        <HospitalizationUnassignedSection
+          hospitalizations={unassigned}
+          onNavigateToForm={onNavigateToForm}
+          canEdit={canEdit}
+        />
       </div>
     </DndContext>
   );

@@ -149,7 +149,7 @@ Owner: clinical_plan PATCH child resource. The parent medical-record and inquiry
 | hospitalization_type   | R   | enum      | 既定「入院」 F0 F4            |
 | start_date             | R   | date      | 既定当日 F1 F4                |
 | end_date               | O   | date      | F4 F5                         |
-| cage_id                | R   | select FK | BUG-037 F1 F4 C3-1            |
+| cage_id                | O   | select FK | EMR-316 選択なし可 F4         |
 | owner_request          | O   | text      | 一覧主訴列 F4 F5              |
 | doctor_id              | O   | select    | F4                            |
 | memo                   | O   | text      | F4 F5                         |

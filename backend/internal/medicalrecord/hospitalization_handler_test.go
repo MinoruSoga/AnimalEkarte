@@ -344,7 +344,8 @@ func TestCreateHospitalization(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name: "returns 400 when cage_id is missing (BUG-037)",
+			// EMR-316: BUG-037 の必須化を撤回。cage_id 省略は「ケージ未割当」として受理する。
+			name: "creates cageless hospitalization when cage_id is omitted (EMR-316)",
 			body: map[string]any{
 				"owner_id":             1,
 				"pet_id":               2,
@@ -353,10 +354,54 @@ func TestCreateHospitalization(t *testing.T) {
 				"end_date":             "2026-05-30T00:00:00Z",
 				"status":               "admitted",
 			},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockHospitalizationService{
+				createFn: func(_ context.Context, clinicID uint64, input *CreateHospitalizationInput) (*model.Hospitalization, error) {
+					assert.Nil(t, input.CageID, "cage_id omitted must reach the service as nil")
+					return &model.Hospitalization{ID: 11, ClinicID: clinicID, OwnerID: input.OwnerID, PetID: input.PetID}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `"id":11`,
+			wantHeader: true,
+		},
+		{
+			name: "creates cageless hospitalization when cage_id is null (EMR-316)",
+			body: map[string]any{
+				"owner_id":             1,
+				"pet_id":               2,
+				"hospitalization_type": "hospitalization",
+				"start_date":           "2026-05-28T00:00:00Z",
+				"end_date":             "2026-05-30T00:00:00Z",
+				"status":               "admitted",
+				"cage_id":              nil,
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockHospitalizationService{
+				createFn: func(_ context.Context, clinicID uint64, input *CreateHospitalizationInput) (*model.Hospitalization, error) {
+					assert.Nil(t, input.CageID)
+					return &model.Hospitalization{ID: 12, ClinicID: clinicID, OwnerID: input.OwnerID, PetID: input.PetID}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `"id":12`,
+			wantHeader: true,
+		},
+		{
+			name: "returns 400 when cage_id is 0 (EMR-316)",
+			body: map[string]any{
+				"owner_id":             1,
+				"pet_id":               2,
+				"hospitalization_type": "hospitalization",
+				"start_date":           "2026-05-28T00:00:00Z",
+				"end_date":             "2026-05-30T00:00:00Z",
+				"status":               "admitted",
+				"cage_id":              0,
+			},
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockHospitalizationService{},
 			wantStatus: http.StatusBadRequest,
-			wantBody:   `"error":"cage_id is required"`,
+			wantBody:   `"error":"cage_id must be a positive id"`,
 		},
 		{
 			name: "returns 400 for inverted date range without wrapping AppError",
@@ -508,6 +553,29 @@ func TestUpdateHospitalization(t *testing.T) {
 				},
 			},
 			wantStatus: http.StatusOK,
+		},
+		{
+			// EMR-316: 編集画面で「選択なし」に戻す操作は clear_cage_id: true で cage_id を NULL にする。
+			name:     "forwards clear_cage_id to the service (EMR-316)",
+			paramID:  "1",
+			body:     map[string]any{"clear_cage_id": true},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockHospitalizationService{
+				updateFn: func(_ context.Context, _, _ uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error) {
+					assert.True(t, input.ClearCageID)
+					assert.Nil(t, input.CageID)
+					return &model.Hospitalization{ID: 1}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 400 when clear_cage_id and cage_id are both set (EMR-316)",
+			paramID:    "1",
+			body:       map[string]any{"clear_cage_id": true, "cage_id": 10},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "returns 401 when clinic_id is missing",

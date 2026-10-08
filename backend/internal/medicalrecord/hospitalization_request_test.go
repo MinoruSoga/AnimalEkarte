@@ -221,7 +221,8 @@ func TestCreateHospitalizationRequest_ToServiceInput_EmptyStatus(t *testing.T) {
 	}
 }
 
-func TestCreateHospitalizationRequest_ToServiceInput_RequiresCageID(t *testing.T) {
+// EMR-316: BUG-037 の必須化を撤回。cage_id 省略は「ケージ未割当」、0 のみ不正値として拒否する。
+func TestCreateHospitalizationRequest_ToServiceInput_CageIDOptional(t *testing.T) {
 	startDate := time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2026, 5, 30, 0, 0, 0, 0, time.UTC)
 	base := createHospitalizationRequest{
@@ -231,19 +232,53 @@ func TestCreateHospitalizationRequest_ToServiceInput_RequiresCageID(t *testing.T
 		StartDate:           startDate,
 		EndDate:             endDate,
 	}
-	t.Run("nil cage_id", func(t *testing.T) {
-		_, err := base.toServiceInput()
-		if err == nil {
-			t.Fatal("toServiceInput() error = nil, want cage_id required")
+	t.Run("nil cage_id is accepted as cageless", func(t *testing.T) {
+		input, err := base.toServiceInput()
+		if err != nil {
+			t.Fatalf("toServiceInput() error = %v, want nil for cageless create", err)
+		}
+		if input.CageID != nil {
+			t.Fatalf("CageID = %v, want nil", *input.CageID)
 		}
 	})
-	t.Run("zero cage_id", func(t *testing.T) {
+	t.Run("zero cage_id is rejected", func(t *testing.T) {
 		zero := uint64(0)
 		req := base
 		req.CageID = &zero
 		_, err := req.toServiceInput()
 		if err == nil {
-			t.Fatal("toServiceInput() error = nil, want cage_id required")
+			t.Fatal("toServiceInput() error = nil, want cage_id invalid")
+		}
+	})
+	t.Run("positive cage_id is preserved", func(t *testing.T) {
+		id := uint64(10)
+		req := base
+		req.CageID = &id
+		input, err := req.toServiceInput()
+		if err != nil {
+			t.Fatalf("toServiceInput() error = %v", err)
+		}
+		if input.CageID != &id {
+			t.Fatal("CageID pointer was not preserved")
+		}
+	})
+}
+
+func TestUpdateHospitalizationRequest_ToServiceInput_ClearCageID(t *testing.T) {
+	t.Run("clear_cage_id is forwarded", func(t *testing.T) {
+		input, err := (&updateHospitalizationRequest{ClearCageID: true}).toServiceInput()
+		if err != nil {
+			t.Fatalf("toServiceInput() error = %v", err)
+		}
+		if !input.ClearCageID || input.CageID != nil {
+			t.Fatalf("ClearCageID=%v CageID=%v, want true/nil", input.ClearCageID, input.CageID)
+		}
+	})
+	t.Run("clear_cage_id with cage_id is rejected", func(t *testing.T) {
+		id := uint64(10)
+		_, err := (&updateHospitalizationRequest{ClearCageID: true, CageID: &id}).toServiceInput()
+		if err == nil {
+			t.Fatal("toServiceInput() error = nil, want conflict error")
 		}
 	})
 }

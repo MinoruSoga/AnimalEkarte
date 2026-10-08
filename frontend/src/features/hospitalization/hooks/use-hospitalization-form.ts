@@ -98,7 +98,7 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
     async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
       const pet = selectedPetRef.current;
       const latestFormData = formDataRef.current;
-      const fieldErrors = hospitalizationSubmitFieldErrors(pet, isEdit, latestFormData.cageId);
+      const fieldErrors = hospitalizationSubmitFieldErrors(pet, isEdit);
       if (fieldErrors) {
         return { success: false, fieldErrors, timestamp: Date.now() };
       }

@@ -7,7 +7,7 @@
 ## 前提条件
 
 - ローカルの使い捨て clinic に、hospitalization create/edit 権限を持つ attached account、生存ペット、担当スタッフ、空きケージ 2 つ、給餌/投薬に使う active マスタを作成する。
-- ケージは create 時の必須入力。対象ペットに active 入院がないことを確認する。
+- ケージは任意入力（EMR-316。BUG-037 の必須化を撤回）だが、本シナリオは用意した空きケージを選んで登録する。対象ペットに active 入院がないことを確認する。
 - 試験後に会計、入院、ケア記録、専用 fixture を削除する。
 - 依存シナリオ: なし。
 
@@ -28,7 +28,7 @@
 
 ```mermaid
 flowchart LR
-    A["入院登録<br/>ケージ必須・治療プラン同一TX"] --> B["入院中"]
+    A["入院登録<br/>ケージ任意・治療プラン同一TX"] --> B["入院中"]
     B --> C{"退院ダイアログ<br/>「会計画面へ進む」"}
     C -->|"チェック ON"| D["POST discharge-with-billing<br/>退院 + 会計生成が同一TX"]
     C -->|"チェック OFF（既定）"| E["PATCH で status=discharged のみ更新"]

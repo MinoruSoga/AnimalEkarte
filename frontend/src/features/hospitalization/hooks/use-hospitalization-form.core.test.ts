@@ -251,14 +251,18 @@ describe("useHospitalizationForm", () => {
       });
     }
 
-    it("ケージ未選択 → create せず fieldErrors.cage_id（BUG-037）", async () => {
+    // EMR-316: BUG-037 の必須化を撤回。「選択なし」のまま登録でき、cage_id は送らない（NULL で保存）。
+    it("ケージ未選択（選択なし）でも create され、cage_id を送らない（EMR-316）", async () => {
       const { result } = renderHospitalizationForm();
 
       await submitForm(result.current.formAction);
 
-      expect(mockCreateHospitalization).not.toHaveBeenCalled();
-      expect(result.current.formState.success).toBe(false);
-      expect(result.current.formState.fieldErrors?.cage_id).toBe("ケージ・個室を選択してください");
+      expect(mockCreateHospitalization).toHaveBeenCalledTimes(1);
+      const request = mockCreateHospitalization.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(request).not.toHaveProperty("cage_id");
+      expect(request).not.toHaveProperty("clear_cage_id");
+      expect(result.current.formState.success).toBe(true);
+      expect(result.current.formState.fieldErrors?.cage_id).toBeUndefined();
     });
 
     it("selectedPets がある & id なし → createHospitalization が呼ばれる", async () => {
@@ -460,13 +464,34 @@ describe("useHospitalizationForm", () => {
       });
     }
 
-    it("ケージ未選択 → update せず fieldErrors.cage_id（BUG-037）", async () => {
+    // EMR-316: 編集で「選択なし」にして保存すると clear_cage_id: true を送り、cage_id は送らない。
+    it("ケージ未選択（選択なし）→ update に clear_cage_id: true を送る（EMR-316）", async () => {
       const { result } = renderHospitalizationForm("42");
 
       await submitForm(result.current.formAction);
 
-      expect(mockUpdateHospitalization).not.toHaveBeenCalled();
-      expect(result.current.formState.fieldErrors?.cage_id).toBe("ケージ・個室を選択してください");
+      expect(mockUpdateHospitalization).toHaveBeenCalledTimes(1);
+      const [, request] = mockUpdateHospitalization.mock.calls[0] as [
+        string,
+        Record<string, unknown>,
+      ];
+      expect(request.clear_cage_id).toBe(true);
+      expect(request).not.toHaveProperty("cage_id");
+      expect(result.current.formState.fieldErrors?.cage_id).toBeUndefined();
+    });
+
+    it("ケージ選択あり → update は cage_id のみ送り clear_cage_id は送らない（EMR-316）", async () => {
+      const { result } = renderHospitalizationForm("42");
+      await selectCage(result);
+
+      await submitForm(result.current.formAction);
+
+      const [, request] = mockUpdateHospitalization.mock.calls[0] as [
+        string,
+        Record<string, unknown>,
+      ];
+      expect(request.cage_id).toBe("10");
+      expect(request).not.toHaveProperty("clear_cage_id");
     });
 
     it("selectedPets がある & id あり → updateHospitalization が呼ばれる", async () => {

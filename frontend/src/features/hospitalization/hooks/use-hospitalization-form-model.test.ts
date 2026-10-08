@@ -11,6 +11,7 @@ import {
   buildUpdateHospitalizationRequest,
   createEmptyTreatmentPlan,
   createInitialHospitalizationFormData,
+  hospitalizationSubmitFieldErrors,
   mergePetIntoHospitalizationFormData,
   updateTreatmentPlanField,
 } from "./use-hospitalization-form-model";
@@ -194,6 +195,43 @@ describe("hospitalization form model", () => {
     expect(request.cage_id).toBeUndefined();
     expect(request.insurance_company_name).toBeNull();
     expect(request.insurance_number).toBeNull();
+  });
+
+  // EMR-316: 編集で「選択なし」に戻すと cage_id を NULL にする指示（clear_cage_id）を送る。
+  it("編集payload: ケージ未選択は clear_cage_id: true、選択中は cage_id のみで clear を送らない", () => {
+    const cleared = buildUpdateHospitalizationRequest({ ...formData, cageId: "" });
+    expect(cleared.clear_cage_id).toBe(true);
+    expect(cleared.cage_id).toBeUndefined();
+
+    const selected = buildUpdateHospitalizationRequest(formData);
+    expect(selected.cage_id).toBe("990019");
+    expect(selected.clear_cage_id).toBeUndefined();
+  });
+
+  it("新規payload: ケージ未選択は cage_id も clear_cage_id も送らない（ケージ未割当で登録）", () => {
+    const pet = buildSelectedPetFromHospitalization(hospitalizationWithPet);
+    expect(pet).not.toBeNull();
+    if (!pet) return;
+
+    const request = buildCreateHospitalizationRequest({ ...formData, cageId: "" }, pet);
+    expect(request).not.toHaveProperty("cage_id");
+    expect(request).not.toHaveProperty("clear_cage_id");
+  });
+
+  it("送信前検証: ケージ未選択でも通る。ペット未選択・死亡のみ拒否する", () => {
+    const alivePet = { id: "1", status: "生存" } as Parameters<
+      typeof hospitalizationSubmitFieldErrors
+    >[0];
+    expect(hospitalizationSubmitFieldErrors(alivePet, false)).toBeNull();
+    expect(hospitalizationSubmitFieldErrors(undefined, false)).toEqual({
+      pet: "ペットを選択してください",
+    });
+    const deceasedPet = { id: "1", status: "死亡" } as Parameters<
+      typeof hospitalizationSubmitFieldErrors
+    >[0];
+    expect(hospitalizationSubmitFieldErrors(deceasedPet, false)?.pet).toBe(
+      "死亡したペットは入院登録できません",
+    );
   });
 
   it("新規payloadへpet/ownerとJST日付を写す", () => {
