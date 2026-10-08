@@ -466,6 +466,82 @@ func TestHospitalizationCageGuard_Update_IntraGroupMoveBlockedByOtherOccupant(t 
 	assert.True(t, apperrors.IsConflict(err), "他者の占有があるグループ内移動は Conflict: %v", err)
 }
 
+// Grok review HIGH: status 省略の通常作成は Create がデフォルト（過去/当日 →
+// admitted、未来日 → reserved）に解決する。ガードは解決後の hospitalization.Status
+// で占有判定するため、省略時も占有中グループへの割当は 409 で拒否される。
+func TestHospitalizationCageGuard_Create_OmittedStatusResolvesToOccupying(t *testing.T) {
+	db := setupHospitalizationRepoTestDB(t)
+	svc := newCageGuardHospitalizationService(t, db)
+	_, merger := newCageMergeService(t, db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	owner := makeTestOwner(t, db, clinicID, "guard飼主 omitted-status")
+	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "guardペット omitted-status")
+
+	newOccupiedGroup := func(t *testing.T, name string) *model.Cage {
+		t.Helper()
+		rep := makeCageMaster(t, db, clinicID, "代表 "+name)
+		member := makeCageMaster(t, db, clinicID, "構成 "+name)
+		require.NoError(t, mustMerge(t, merger, ctx, clinicID, rep.ID, []uint64{member.ID}))
+		makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &member.ID, model.HospitalizationStatusAdmitted)
+		return rep
+	}
+	omittedInput := func(cageID uint64, startDate time.Time) *CreateHospitalizationInput {
+		return &CreateHospitalizationInput{
+			OwnerID:             owner.ID,
+			PetID:               pet.ID,
+			HospitalizationType: model.HospitalizationTypeInpatient,
+			StartDate:           startDate,
+			EndDate:             startDate.AddDate(0, 0, 3),
+			Status:              "", // 画面の作成 payload と同じく省略
+			CageID:              &cageID,
+		}
+	}
+
+	t.Run("omitted status resolves to admitted and conflicts on occupied group", func(t *testing.T) {
+		rep := newOccupiedGroup(t, "omit-admitted")
+		today := time.Now().UTC().Truncate(24 * time.Hour)
+		got, err := svc.Create(ctx, clinicID, omittedInput(rep.ID, today))
+		require.Error(t, err, "省略→admitted 解決の作成も占有検査を受ける")
+		assert.Nil(t, got)
+		assert.True(t, apperrors.IsConflict(err), "Conflict 期待: %v", err)
+		status, _, _ := httpapi.ResolveErrorResponse(err)
+		assert.Equal(t, http.StatusConflict, status)
+	})
+
+	t.Run("omitted status resolves to reserved and conflicts on occupied group", func(t *testing.T) {
+		rep := newOccupiedGroup(t, "omit-reserved")
+		future := time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, 7)
+		got, err := svc.Create(ctx, clinicID, omittedInput(rep.ID, future))
+		require.Error(t, err, "省略→reserved 解決の作成も占有検査を受ける")
+		assert.Nil(t, got)
+		assert.True(t, apperrors.IsConflict(err), "Conflict 期待: %v", err)
+	})
+
+	t.Run("omitted status still rejects member cage with 422", func(t *testing.T) {
+		rep := makeCageMaster(t, db, clinicID, "代表 omit-member")
+		member := makeCageMaster(t, db, clinicID, "構成 omit-member")
+		require.NoError(t, mustMerge(t, merger, ctx, clinicID, rep.ID, []uint64{member.ID}))
+		today := time.Now().UTC().Truncate(24 * time.Hour)
+		got, err := svc.Create(ctx, clinicID, omittedInput(member.ID, today))
+		require.Error(t, err)
+		assert.Nil(t, got)
+		assert.True(t, errors.Is(err, apperrors.ErrUnprocessable), "構成ケージへの構造的 422 は維持: %v", err)
+	})
+
+	t.Run("omitted status allowed when group unoccupied", func(t *testing.T) {
+		rep := makeCageMaster(t, db, clinicID, "代表 omit-empty")
+		member := makeCageMaster(t, db, clinicID, "構成 omit-empty")
+		require.NoError(t, mustMerge(t, merger, ctx, clinicID, rep.ID, []uint64{member.ID}))
+		today := time.Now().UTC().Truncate(24 * time.Hour)
+		got, err := svc.Create(ctx, clinicID, omittedInput(rep.ID, today))
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, model.HospitalizationStatusAdmitted, got.Status, "デフォルト解決が保存される")
+	})
+}
+
 // discharged 結果の更新・作成は非占有であり、グループ占有検査をスキップする
 // （構成ケージへの構造的 422 は維持 — 履歴投入を阻害しない範囲で占有のみ緩和）。
 func TestHospitalizationCageGuard_NonOccupyingResultSkipsOccupancy(t *testing.T) {

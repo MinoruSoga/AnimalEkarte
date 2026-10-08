@@ -7,7 +7,7 @@ import { MemoryRouter } from "react-router";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
 
-import type { MasterItem } from "@/types";
+import type { Hospitalization, MasterItem } from "@/types";
 import { HospitalizationListPageView } from "./HospitalizationListPanels";
 
 // ---- dnd-kit mock（HospitalizationBoard.test.tsx と同型） ----
@@ -83,7 +83,9 @@ function createWrapper() {
   );
 }
 
-function renderPageView() {
+function renderPageView(
+  overrides: Partial<Parameters<typeof HospitalizationListPageView>[0]> = {},
+) {
   return render(
     <HospitalizationListPageView
       canCreateHeader={false}
@@ -115,6 +117,7 @@ function renderPageView() {
         currentPage: 1,
       }}
       onPageChange={vi.fn()}
+      {...overrides}
     />,
     { wrapper: createWrapper() },
   );
@@ -227,6 +230,93 @@ describe("HospitalizationListPanels EMR-306 merge mode toggle", () => {
     });
 
     expect(screen.queryByText("ケージを連結しますか？")).not.toBeInTheDocument();
+  });
+
+  it("占有クエリが cage 占有を返すと merge-mode で該当ケージは merge source 不可", async () => {
+    server.use(
+      http.get("*/v1/hospitalizations", () =>
+        HttpResponse.json({
+          data: [{ id: 1, cage_id: 11, status: "admitted" }],
+          total: 1,
+          page: 1,
+          limit: 100,
+        }),
+      ),
+    );
+
+    const user = userEvent.setup();
+    renderPageView();
+    await user.click(screen.getByRole("button", { name: "ケージ連結モード" }));
+
+    // 占有ルックアップ（admitted/reserved 全件）で cage 11 は occupied → disabled
+    await waitFor(() => {
+      const calls = dndHarness.useDraggable.mock.calls.filter(
+        (c) => (c[0] as { id?: string }).id === "merge-cage-11",
+      );
+      expect((calls.at(-1)?.[0] as { disabled?: boolean }).disabled).toBe(true);
+    });
+    // 空きの 13 は引き続き source 適格
+    await waitFor(() =>
+      expect(dndHarness.useDraggable).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "merge-cage-13", disabled: false }),
+      ),
+    );
+  });
+
+  it("占有クエリが total 打ち切り（limit 超過）でも空室扱いせず表示データへフォールバック", async () => {
+    // Grok MEDIUM-2: 先頭ページ（limit=100）で打ち切られた結果を「全件空室」と
+    // 誤判定しない — hasMergeOccupant=undefined → 表示中 occupantByCageId へフォールバック。
+    server.use(
+      http.get("*/v1/hospitalizations", () =>
+        HttpResponse.json({ data: [], total: 150, page: 1, limit: 100 }),
+      ),
+    );
+    const visibleOccupant = {
+      id: "h-visible-11",
+      cageId: "11",
+      petName: "ポチ",
+      ownerName: "飼主",
+      species: "犬",
+      hospitalizationType: "入院",
+      petIsDeceased: false,
+    } as Hospitalization;
+
+    const user = userEvent.setup();
+    renderPageView({ boardHospitalizations: [visibleOccupant] });
+    await user.click(screen.getByRole("button", { name: "ケージ連結モード" }));
+
+    await waitFor(() => {
+      const calls = dndHarness.useDraggable.mock.calls.filter(
+        (c) => (c[0] as { id?: string }).id === "merge-cage-11",
+      );
+      expect(calls.length).toBeGreaterThan(0);
+      expect((calls.at(-1)?.[0] as { disabled?: boolean }).disabled).toBe(true);
+    });
+  });
+
+  it("占有クエリ失敗（500）でも空室扱いせず表示データへフォールバック", async () => {
+    server.use(http.get("*/v1/hospitalizations", () => new HttpResponse(null, { status: 500 })));
+    const visibleOccupant = {
+      id: "h-visible-11",
+      cageId: "11",
+      petName: "ポチ",
+      ownerName: "飼主",
+      species: "犬",
+      hospitalizationType: "入院",
+      petIsDeceased: false,
+    } as Hospitalization;
+
+    const user = userEvent.setup();
+    renderPageView({ boardHospitalizations: [visibleOccupant] });
+    await user.click(screen.getByRole("button", { name: "ケージ連結モード" }));
+
+    await waitFor(() => {
+      const calls = dndHarness.useDraggable.mock.calls.filter(
+        (c) => (c[0] as { id?: string }).id === "merge-cage-11",
+      );
+      expect(calls.length).toBeGreaterThan(0);
+      expect((calls.at(-1)?.[0] as { disabled?: boolean }).disabled).toBe(true);
+    });
   });
 
   it("member card の 連結解除 → 確認ダイアログ → 解除 で POST /v1/masters/cages/:rep/unmerge", async () => {

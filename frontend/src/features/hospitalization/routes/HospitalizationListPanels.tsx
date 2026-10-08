@@ -103,14 +103,22 @@ function HospitalizationListContent({
   // EMR-306 (Grok review MEDIUM-2): merge-mode の占有判定は表示タブ/ページに依存させない。
   // admitted/reserved の cageId 全集合を別クエリで取得する（advisory。最終可否は BE）。
   // boardMergeMode 中のみ有効化し、それ以外では余分な API 呼び出しを発生させない。
-  const { data: admittedOccupancy, isLoading: admittedOccupancyLoading } = useGetHospitalizations(
+  const {
+    data: admittedOccupancy,
+    isLoading: admittedOccupancyLoading,
+    isError: admittedOccupancyError,
+  } = useGetHospitalizations(
     {
       statusFilter: HOSPITALIZATION_FILTER_STATUS.ACTIVE,
       limit: HOSPITALIZATION_OCCUPANCY_LIMIT,
     },
     { enabled: boardMergeMode },
   );
-  const { data: reservedOccupancy, isLoading: reservedOccupancyLoading } = useGetHospitalizations(
+  const {
+    data: reservedOccupancy,
+    isLoading: reservedOccupancyLoading,
+    isError: reservedOccupancyError,
+  } = useGetHospitalizations(
     {
       statusFilter: HOSPITALIZATION_FILTER_STATUS.RESERVED,
       limit: HOSPITALIZATION_OCCUPANCY_LIMIT,
@@ -121,9 +129,19 @@ function HospitalizationListContent({
     // 非 merge-mode・占有クエリ読込中は undefined — board 側は表示中データの
     // 占有判定へフォールバックする（advisory であり、最終可否は BE が持つ）。
     if (!boardMergeMode || admittedOccupancyLoading || reservedOccupancyLoading) return undefined;
+    // fail-closed (Grok review MEDIUM-2): クエリ失敗・または total が先頭ページを
+    // 超えて打ち切られた場合は「空室」と断定できないため undefined を返す。
+    if (admittedOccupancyError || reservedOccupancyError) return undefined;
+    if (admittedOccupancy === undefined || reservedOccupancy === undefined) return undefined;
+    if (
+      admittedOccupancy.total > admittedOccupancy.data.length ||
+      reservedOccupancy.total > reservedOccupancy.data.length
+    ) {
+      return undefined;
+    }
     const occupied = new Set<string>();
     for (const page of [admittedOccupancy, reservedOccupancy]) {
-      for (const h of page?.data ?? []) {
+      for (const h of page.data) {
         if (h.cageId) occupied.add(h.cageId);
       }
     }
@@ -134,6 +152,8 @@ function HospitalizationListContent({
     reservedOccupancy,
     admittedOccupancyLoading,
     reservedOccupancyLoading,
+    admittedOccupancyError,
+    reservedOccupancyError,
   ]);
 
   const handleRequestMerge = useCallback((draggedCageId: string, targetCageId: string) => {

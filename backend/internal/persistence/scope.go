@@ -1,8 +1,10 @@
 package persistence
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"slices"
 
 	"gorm.io/gorm"
 
@@ -135,7 +137,35 @@ func DeleteScopedByID(
 	return nil
 }
 
+// reorderTarget pairs an id with its requested 1-based order value.
+type reorderTarget struct {
+	id    uint64
+	order int
+}
+
+// sortedReorderTargets pairs each id with its requested order value, then sorts
+// the pairs by id ascending. Row locks are still taken one UPDATE at a time, so
+// applying them in id order matches the ascending FOR UPDATE order used by
+// cage merge/unmerge (cage_repository.go) and keeps lock acquisition
+// deterministic across writers. The written order values still follow the
+// client-supplied sequence.
+func sortedReorderTargets(ids []uint64) []reorderTarget {
+	targets := make([]reorderTarget, len(ids))
+	for index, id := range ids {
+		targets[index] = reorderTarget{id: id, order: index + 1}
+	}
+	// Stable: duplicate ids keep input order so the last write still wins,
+	// identical to the previous sequential behavior.
+	slices.SortStableFunc(targets, func(a, b reorderTarget) int {
+		return cmp.Compare(a.id, b.id)
+	})
+	return targets
+}
+
 // ReorderByClinicID updates orderColumn for IDs under clinic scope.
+// UPDATEs are applied in ascending id order (not the client's display order) so
+// row-lock acquisition order matches other writers — the assigned order values
+// still follow the client-supplied sequence.
 func ReorderByClinicID(
 	ctx context.Context,
 	db *gorm.DB,
@@ -146,21 +176,21 @@ func ReorderByClinicID(
 	orderColumn string,
 ) error {
 	if err := DBOrTx(ctx, db).Transaction(func(tx *gorm.DB) error {
-		for index, id := range ids {
+		for _, target := range sortedReorderTargets(ids) {
 			result := tx.Model(model).
 				Scopes(ClinicScope(clinicID)).
-				Where("id = ?", id).
-				Update(orderColumn, index+1)
+				Where("id = ?", target.id).
+				Update(orderColumn, target.order)
 			if result.Error != nil {
 				return apperrors.FromGORM(
 					result.Error,
 					resource,
-					fmt.Sprintf("%d", id),
+					fmt.Sprintf("%d", target.id),
 				)
 			}
 			if result.RowsAffected == 0 {
 				return apperrors.WrapInvalidInput(
-					fmt.Sprintf("%s id %d not found in this clinic", resource, id),
+					fmt.Sprintf("%s id %d not found in this clinic", resource, target.id),
 				)
 			}
 		}
@@ -172,6 +202,8 @@ func ReorderByClinicID(
 }
 
 // ReorderGlobal updates orderColumn for IDs without clinic scope.
+// Like ReorderByClinicID, UPDATEs run in ascending id order so concurrent
+// reorders lock rows deterministically; order values follow the input sequence.
 func ReorderGlobal(
 	ctx context.Context,
 	db *gorm.DB,
@@ -181,20 +213,20 @@ func ReorderGlobal(
 	orderColumn string,
 ) error {
 	if err := DBOrTx(ctx, db).Transaction(func(tx *gorm.DB) error {
-		for index, id := range ids {
+		for _, target := range sortedReorderTargets(ids) {
 			result := tx.Model(model).
-				Where("id = ?", id).
-				Update(orderColumn, index+1)
+				Where("id = ?", target.id).
+				Update(orderColumn, target.order)
 			if result.Error != nil {
 				return apperrors.FromGORM(
 					result.Error,
 					resource,
-					fmt.Sprintf("%d", id),
+					fmt.Sprintf("%d", target.id),
 				)
 			}
 			if result.RowsAffected == 0 {
 				return apperrors.WrapInvalidInput(
-					fmt.Sprintf("%s id %d not found", resource, id),
+					fmt.Sprintf("%s id %d not found", resource, target.id),
 				)
 			}
 		}
