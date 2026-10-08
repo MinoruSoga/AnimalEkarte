@@ -111,6 +111,7 @@ export function TrimmingFormColumns({
         staffName={formData.staffName}
         staffLabel="担当"
         staffButtonId="staffId"
+        staffInvalid={Boolean(fieldErrors.staffId)}
         reservationType="トリミング"
         petDetails={formatPatientPetDetails({
           species: selectedPet.species,
@@ -124,6 +125,7 @@ export function TrimmingFormColumns({
         petDangerLevel={selectedPet.dangerLevel}
         petDangerReason={selectedPet.dangerReason}
         status={selectedPet.status === "死亡" ? "deceased" : "alive"}
+        birthDate={selectedPet.birthDate}
         nextVisitDate={formData.nextDate ? formatDate(formData.nextDate) : undefined}
         onStaffClick={onOpenStaffModal}
       />

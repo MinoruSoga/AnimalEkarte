@@ -109,3 +109,51 @@ describe("ReservationDateTimeFields — カレンダーナビゲーション", (
     expect(last.end).toEqual(new Date(2026, 5, 15, 10, 0));
   });
 });
+
+describe("ReservationDateTimeFields — 必須エラー表示 (EMR-319)", () => {
+  function renderFields(
+    overrides: Partial<React.ComponentProps<typeof ReservationDateTimeFields>> = {},
+  ) {
+    return render(
+      <ReservationDateTimeFields
+        formData={{}}
+        onChange={() => undefined}
+        isCalendarDateDisabled={() => false}
+        handleMonthChange={() => undefined}
+        startTimeOptions={TIME_OPTIONS}
+        availableTimeSlotMap={undefined}
+        {...overrides}
+      />,
+    );
+  }
+
+  it("日付エラーで日付ボタンが aria-invalid・赤枠・エラー文になる", () => {
+    renderFields({ validationErrors: { date: "日付を選択してください" } });
+
+    const dateButton = screen.getByRole("button", { name: /日付/ });
+    expect(dateButton).toHaveAttribute("aria-invalid", "true");
+    expect(dateButton).toHaveAttribute("aria-describedby", "res-date-error");
+    expect(dateButton.className).toContain("ring-2");
+    expect(document.getElementById("res-date-error")).toHaveTextContent("日付を選択してください");
+  });
+
+  it("時間エラーで開始・終了 SelectTrigger が aria-invalid になり共通エラー文を指す", () => {
+    renderFields({ validationErrors: { time: "時間を選択してください" } });
+
+    for (const testId of ["res-start-time-trigger", "res-end-time-trigger"]) {
+      const trigger = screen.getByTestId(testId);
+      expect(trigger).toHaveAttribute("aria-invalid", "true");
+      expect(trigger).toHaveAttribute("aria-describedby", "res-time-error");
+    }
+    expect(document.getElementById("res-time-error")).toHaveTextContent("時間を選択してください");
+  });
+
+  it("エラーなしでは aria-invalid とエラー文が出ない", () => {
+    renderFields({ validationErrors: {} });
+
+    expect(screen.getByTestId("res-start-time-trigger")).not.toHaveAttribute("aria-invalid");
+    expect(screen.getByTestId("res-end-time-trigger")).not.toHaveAttribute("aria-invalid");
+    expect(document.getElementById("res-date-error")).toBeNull();
+    expect(document.getElementById("res-time-error")).toBeNull();
+  });
+});

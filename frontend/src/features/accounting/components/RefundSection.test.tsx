@@ -158,6 +158,14 @@ describe("RefundSection — 支払方法別返金 (#60)", () => {
     expect(onRefund).not.toHaveBeenCalled();
     // バリデーション失敗時はダイアログが開いたまま (入力値も保持)
     expect(screen.getByPlaceholderText("0")).toBeInTheDocument();
+
+    // EMR-319: toast に加えて返金金額入力にも aria-invalid+エラー文を出す
+    const refundAmountInput = document.getElementById("refund-amount");
+    expect(refundAmountInput).toHaveAttribute("aria-invalid", "true");
+    expect(refundAmountInput).toHaveAttribute("aria-describedby", "refund-amount-error");
+    expect(document.getElementById("refund-amount-error")).toHaveTextContent(
+      /返金額は残額 ¥10,000 以下で入力してください/,
+    );
   }, 15000);
 
   it("単一支払い（splits 空）では支払方法セレクタを表示しない", async () => {

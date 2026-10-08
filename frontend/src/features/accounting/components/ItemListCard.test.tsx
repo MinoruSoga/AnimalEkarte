@@ -163,6 +163,34 @@ describe("ItemListCard merchandise selection", () => {
     expect(screen.queryByLabelText(/その他理由/)).not.toBeInTheDocument();
   });
 
+  // EMR-319: 不正な単価で追加すると単価入力に aria-invalid+エラー文が出る
+  it("単価が不正な場合、追加せず単価入力に aria-invalid+エラー文が出る (EMR-319)", async () => {
+    const user = userEvent.setup();
+    const onAddItem = vi.fn();
+    renderEditableItemListCard(onAddItem);
+
+    await user.click(screen.getByRole("button", { name: "手動入力" }));
+    await user.type(screen.getByLabelText(/品目名/), "不正単価商品");
+    await user.type(screen.getByLabelText(/単価/), "-1");
+    await user.click(screen.getByRole("combobox", { name: "カテゴリ" }));
+    await user.click(screen.getByRole("option", { name: "検査" }));
+    await user.click(screen.getByRole("button", { name: "追加する" }));
+
+    expect(onAddItem).not.toHaveBeenCalled();
+    const priceInput = document.getElementById("manual-price");
+    expect(priceInput).toHaveAttribute("aria-invalid", "true");
+    expect(priceInput).toHaveAttribute("aria-describedby", "manual-price-error");
+    expect(document.getElementById("manual-price-error")).toHaveTextContent(
+      "単価は0以上の整数で入力してください",
+    );
+
+    // 値を直すとエラー表示が解除される
+    await user.clear(priceInput!);
+    await user.type(priceInput!, "500");
+    expect(priceInput).not.toHaveAttribute("aria-invalid");
+    expect(document.getElementById("manual-price-error")).toBeNull();
+  });
+
   it("手動入力でotherから別カテゴリへ戻すと理由欄とpayloadを消す", async () => {
     const user = userEvent.setup();
     const onAddItem = vi.fn();

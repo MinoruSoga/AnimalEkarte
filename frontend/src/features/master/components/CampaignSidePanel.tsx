@@ -3,6 +3,7 @@ import { Tag } from "lucide-react";
 import { toast } from "sonner";
 
 import { MasterSidePanel, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -166,6 +167,8 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
           value={formData.startDate}
           disabled={readOnly}
           onChange={(e) => setFormDataDirty((prev) => ({ ...prev, startDate: e.target.value }))}
+          aria-invalid={Boolean(periodError)}
+          aria-describedby={periodError ? "campaign-period-error" : undefined}
         />
       </PropertyRow>
       <PropertyRow
@@ -178,9 +181,11 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
           value={formData.endDate}
           disabled={readOnly}
           onChange={(e) => setFormDataDirty((prev) => ({ ...prev, endDate: e.target.value }))}
+          aria-invalid={Boolean(periodError)}
+          aria-describedby={periodError ? "campaign-period-error" : undefined}
         />
       </PropertyRow>
-      {periodError ? <p className={`text-xs ${C.danger}`}>{periodError}</p> : null}
+      <FormFieldError id="campaign-period-error" message={periodError} />
       <PropertyRow
         label="割引種別"
         description="割引の指定方法です。「割引率(%)」は対象価格からの割合、「割引額(円)」は固定金額を割り引きます。"

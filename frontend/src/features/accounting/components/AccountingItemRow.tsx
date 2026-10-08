@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
 import { C } from "@/lib/design-tokens";
@@ -142,6 +143,9 @@ export function AccountingItemRow({
   // EMR-230: 数量・金額の直接編集は手入力（社販）明細のみ。カルテ/トリミング/入院由来の
   // 行は発生元の記録と金額が乖離するのを防ぐため表示のみとする。
   const canEditLineAmounts = canEdit && item.source === "manual";
+  // EMR-319: 項目名を空にして blur（インライン保存）した場合、従来は無言で握り潰されていた。
+  // 必須判定（空なら更新しない）は既存のガードのまま不変にし、表示層だけ赤枠+エラー文を足す。
+  const [nameEmptyError, setNameEmptyError] = useState(false);
   return (
     <TableRow className="h-12">
       <TableCell>
@@ -151,18 +155,27 @@ export function AccountingItemRow({
       </TableCell>
       <TableCell className="font-medium whitespace-nowrap">
         {canEdit && onUpdateItemName !== undefined ? (
-          <Input
-            key={item.name}
-            aria-label={`項目名: ${item.name} (ID ${item.id})`}
-            defaultValue={item.name}
-            onBlur={(e) => {
-              const next = e.target.value.trim();
-              if (next !== "" && next !== item.name) {
-                onUpdateItemName(item.id, next);
-              }
-            }}
-            className="w-56 min-h-11 font-medium"
-          />
+          <div className="w-56">
+            <Input
+              key={item.name}
+              aria-label={`項目名: ${item.name} (ID ${item.id})`}
+              defaultValue={item.name}
+              onBlur={(e) => {
+                const next = e.target.value.trim();
+                setNameEmptyError(next === "");
+                if (next !== "" && next !== item.name) {
+                  onUpdateItemName(item.id, next);
+                }
+              }}
+              aria-invalid={nameEmptyError || undefined}
+              aria-describedby={nameEmptyError ? `item-name-error-${item.id}` : undefined}
+              className="w-56 min-h-11 font-medium"
+            />
+            <FormFieldError
+              id={`item-name-error-${item.id}`}
+              message={nameEmptyError ? "項目名は必須です" : undefined}
+            />
+          </div>
         ) : (
           item.name
         )}

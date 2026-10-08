@@ -105,7 +105,11 @@ interface TagPairField {
   monospace?: boolean;
 }
 
-type TagPairFormState = { error?: string } | null;
+type TagPairFormState = {
+  error?: string;
+  /** EMR-319: 必須未入力エラーのみ true（API エラーは赤枠対象外） */
+  requiredInvalid?: boolean;
+} | null;
 
 interface TagPairSectionProps<TItem> {
   title: string;
@@ -149,7 +153,7 @@ function TagPairSection<TItem>({
       const valueB = getFormString(formData, fieldB.name).trim();
       if (!valueA || !valueB) {
         // FE-RC-073: バリデーションエラーは fieldError（下記 FormFieldError）で表示する。toast は使わない。
-        return { error: requiredMessage };
+        return { error: requiredMessage, requiredInvalid: true };
       }
       try {
         await onAdd(valueA, valueB);
@@ -158,7 +162,7 @@ function TagPairSection<TItem>({
       } catch {
         // FE-RC-005: API エラーは各 mutation の onError（use-lstep-tag-config.ts）が
         // handleApiError 済み。ここでは再通知しない。
-        return { error: "追加に失敗しました" };
+        return { error: "追加に失敗しました", requiredInvalid: false };
       }
     },
     null,
@@ -206,7 +210,11 @@ function TagPairSection<TItem>({
             type="text"
             required
             placeholder={fieldA.placeholder}
-            className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none focus-visible:ring-2 ${C.focusRingAccent40} ${fieldA.widthClassName}`}
+            aria-invalid={state?.requiredInvalid || undefined}
+            aria-describedby={
+              state?.requiredInvalid && state.error ? `${fieldA.name}-error` : undefined
+            }
+            className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none focus-visible:ring-2 ${C.focusRingAccent40} ${fieldA.widthClassName}${state?.requiredInvalid ? ` ${STYLE.formInputError}` : ""}`}
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -219,7 +227,11 @@ function TagPairSection<TItem>({
             type="text"
             required
             placeholder={fieldB.placeholder}
-            className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none focus-visible:ring-2 ${C.focusRingAccent40} ${fieldB.widthClassName}`}
+            aria-invalid={state?.requiredInvalid || undefined}
+            aria-describedby={
+              state?.requiredInvalid && state.error ? `${fieldA.name}-error` : undefined
+            }
+            className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none focus-visible:ring-2 ${C.focusRingAccent40} ${fieldB.widthClassName}${state?.requiredInvalid ? ` ${STYLE.formInputError}` : ""}`}
           />
         </div>
         <SubmitButton
@@ -231,7 +243,10 @@ function TagPairSection<TItem>({
         >
           追加
         </SubmitButton>
-        <FormFieldError message={state?.error} />
+        <FormFieldError
+          id={state?.requiredInvalid ? `${fieldA.name}-error` : undefined}
+          message={state?.error}
+        />
       </form>
     </div>
   );

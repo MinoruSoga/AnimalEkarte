@@ -321,7 +321,10 @@ function SelectedPatientSummary({
 
   return (
     <div
-      className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? `${C.bgActionPrimaryLight}/50 ${C.borderActionPrimary}/30` : `${C.bgPage} ${C.borderMediumLight}`}`}
+      role="group"
+      aria-invalid={validationError ? true : undefined}
+      aria-describedby={validationError ? "res-patient-error" : undefined}
+      className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? `${C.bgActionPrimaryLight}/50 ${C.borderActionPrimary}/30` : `${C.bgPage} ${C.borderMediumLight}`} ${validationError ? `${C.borderDanger} ring-2 ring-[#C0392B]/30` : ""}`}
     >
       <Label className={`text-2xs ${C.text60} font-semibold uppercase block mb-3`}>
         予約対象（選択中）
@@ -346,7 +349,9 @@ function SelectedPatientSummary({
           <div className={`text-xs ${C.text60}`}>左側から患者を選択してください</div>
         </div>
       )}
-      {selectedPets.length === 0 ? <FormFieldError message={validationError} /> : null}
+      {selectedPets.length === 0 ? (
+        <FormFieldError id="res-patient-error" message={validationError} />
+      ) : null}
     </div>
   );
 }

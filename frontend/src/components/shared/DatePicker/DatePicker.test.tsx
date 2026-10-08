@@ -103,6 +103,21 @@ describe("DatePicker — 44px touch targets", () => {
     expect(screen.getByRole("button", { name: "日付をクリア" })).toBeInTheDocument();
     expect(container.querySelector("button button")).toBeNull();
   });
+
+  // EMR-319: 必須未入力時に親フォームが ariaInvalid を渡すと aria-invalid+赤枠になる
+  it("single modeでariaInvalidを渡すと入力にaria-invalidと赤枠が付く", () => {
+    render(<DatePicker value="" onChange={() => {}} ariaInvalid />);
+
+    const input = screen.getByPlaceholderText("日付を選択…");
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(input.parentElement).toHaveClass("ring-2");
+  });
+
+  it("single modeでariaInvalid未指定ならaria-invalidは付かない", () => {
+    render(<DatePicker value="" onChange={() => {}} />);
+
+    expect(screen.getByPlaceholderText("日付を選択…")).not.toHaveAttribute("aria-invalid");
+  });
 });
 
 /**

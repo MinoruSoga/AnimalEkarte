@@ -405,10 +405,15 @@ export const ItemListCard = memo(function ItemListCard({
                       step={1}
                       min={0}
                       value={manualPrice}
-                      onChange={(e) => setManualPrice(e.target.value)}
+                      onChange={(e) => {
+                        setManualPrice(e.target.value);
+                        if (manualPriceError) setManualPriceError("");
+                      }}
                       placeholder="例: 3000"
+                      aria-invalid={manualPriceError ? true : undefined}
+                      aria-describedby={manualPriceError ? "manual-price-error" : undefined}
                     />
-                    <FormFieldError message={manualPriceError} />
+                    <FormFieldError id="manual-price-error" message={manualPriceError} />
                   </div>
                   <Button
                     type="button"

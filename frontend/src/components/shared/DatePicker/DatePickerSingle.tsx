@@ -31,6 +31,7 @@ export function SinglePicker({
   id,
   name,
   disabledDays,
+  ariaInvalid = false,
 }: SingleDatePickerProps) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"calendar" | "monthGrid">("calendar");
@@ -133,7 +134,14 @@ export function SinglePicker({
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverAnchor asChild>
-        <div className={cn(TRIGGER_BASE, !value && !focused && C.text40, className)}>
+        <div
+          className={cn(
+            TRIGGER_BASE,
+            !value && !focused && C.text40,
+            ariaInvalid && `${C.borderDanger} ring-2 ring-[#C0392B]/30`,
+            className,
+          )}
+        >
           <PopoverTrigger asChild>
             <button
               type="button"
@@ -147,6 +155,7 @@ export function SinglePicker({
             id={id}
             name={name}
             type="text"
+            aria-invalid={ariaInvalid || undefined}
             value={displayText}
             onChange={(e) => setInputText(e.target.value)}
             onFocus={handleFocus}

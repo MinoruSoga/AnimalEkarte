@@ -242,4 +242,38 @@ describe("AccountingItemRow EMR-229/230 editable cells", () => {
     expect(screen.getByText("(5%)")).toBeInTheDocument();
     expect(screen.getByText("¥60")).toBeInTheDocument();
   });
+
+  // EMR-319: 項目名を空にして blur すると aria-invalid+エラー文、入力で解除される
+  it("項目名を空にして blur すると aria-invalid+エラー文が出て handler は呼ばれない (EMR-319)", async () => {
+    const user = userEvent.setup();
+    const onUpdateItemName = vi.fn();
+    renderRow(true, ITEM, { onUpdateItemName });
+
+    const nameInput = screen.getByRole("textbox", { name: "項目名: 療法食 (ID item-1)" });
+    await user.clear(nameInput);
+    await user.tab();
+
+    expect(onUpdateItemName).not.toHaveBeenCalled();
+    expect(nameInput).toHaveAttribute("aria-invalid", "true");
+    expect(nameInput).toHaveAttribute("aria-describedby", "item-name-error-item-1");
+    expect(document.getElementById("item-name-error-item-1")).toHaveTextContent("項目名は必須です");
+  });
+
+  it("空エラー後に名前を入力して blur するとエラー表示が解除される (EMR-319)", async () => {
+    const user = userEvent.setup();
+    const onUpdateItemName = vi.fn();
+    renderRow(true, ITEM, { onUpdateItemName });
+
+    const nameInput = screen.getByRole("textbox", { name: "項目名: 療法食 (ID item-1)" });
+    await user.clear(nameInput);
+    await user.tab();
+    expect(nameInput).toHaveAttribute("aria-invalid", "true");
+
+    await user.type(nameInput, "療法食 R7.5");
+    await user.tab();
+
+    expect(onUpdateItemName).toHaveBeenCalledWith("item-1", "療法食 R7.5");
+    expect(nameInput).not.toHaveAttribute("aria-invalid");
+    expect(document.getElementById("item-name-error-item-1")).toBeNull();
+  });
 });

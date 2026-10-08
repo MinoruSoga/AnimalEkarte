@@ -170,6 +170,8 @@ describe("EstimateForm statusError aria-describedby", () => {
 
     const trigger = screen.getByRole("combobox");
     expect(trigger).toHaveAttribute("aria-describedby", "status-error");
+    // EMR-319: ステータス必須エラーで SelectTrigger が aria-invalid を持つ
+    expect(trigger).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByRole("alert")).toHaveAttribute("id", "status-error");
     expect(screen.getByRole("alert")).toHaveTextContent(
       "作成時は下書きまたは送付済みのみ選択できます",
@@ -181,7 +183,23 @@ describe("EstimateForm statusError aria-describedby", () => {
 
     const trigger = screen.getByRole("combobox");
     expect(trigger).not.toHaveAttribute("aria-describedby");
+    expect(trigger).not.toHaveAttribute("aria-invalid");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  // EMR-319: タイトル必須エラーで Input が aria-invalid+describedby を持ちエラー文が出る。
+  it("titleError があるときタイトル Input に aria-invalid と title-error 参照を接続する", () => {
+    mockFormState.current = {
+      success: false,
+      timestamp: Date.now(),
+      fieldErrors: { title: "タイトルを入力してください" },
+    };
+    renderCreateForm();
+
+    const titleInput = screen.getByRole("textbox", { name: /タイトル/ });
+    expect(titleInput).toHaveAttribute("aria-invalid", "true");
+    expect(titleInput).toHaveAttribute("aria-describedby", "title-error");
+    expect(document.getElementById("title-error")).toHaveTextContent("タイトルを入力してください");
   });
 });
 

@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { FieldHelp } from "@/components/shared/FieldHelp";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 
 import { SHIFT_TYPE_LABELS, type ShiftType } from "../types";
 import type { TemplateFormData } from "../lib/shift-template-form-model";
@@ -34,6 +34,8 @@ interface ShiftTemplatePropertiesProps {
   onBreakChange: (index: number, field: "break_start" | "break_end", value: string) => void;
   onAddBreak: () => void;
   onRemoveBreak: (index: number) => void;
+  /** EMR-319: 時刻エラー時に開始/終了時刻 PropInput を aria-invalid + 赤枠にする */
+  timeError?: string;
 }
 
 // EMR-241: 時刻フィールドはカテゴリ名で隠さない。全シフト種別で開始/終了時刻と
@@ -45,6 +47,7 @@ export function ShiftTemplateProperties({
   onBreakChange,
   onAddBreak,
   onRemoveBreak,
+  timeError,
 }: ShiftTemplatePropertiesProps) {
   return (
     <>
@@ -86,6 +89,8 @@ export function ShiftTemplateProperties({
             value={formData.start_time}
             onChange={(v) => onField("start_time", v)}
             readOnly={readOnly}
+            ariaInvalid={Boolean(timeError)}
+            errorId="shift-template-time-error"
           />
         </PropertyRow>
         <PropertyRow label="終了時刻" description="このテンプレートの勤務終了時刻です。">
@@ -95,6 +100,8 @@ export function ShiftTemplateProperties({
             value={formData.end_time}
             onChange={(v) => onField("end_time", v)}
             readOnly={readOnly}
+            ariaInvalid={Boolean(timeError)}
+            errorId="shift-template-time-error"
           />
         </PropertyRow>
 
@@ -231,6 +238,8 @@ function PropInput({
   type = "text",
   ariaLabel,
   readOnly = false,
+  ariaInvalid = false,
+  errorId,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -238,12 +247,17 @@ function PropInput({
   type?: string;
   ariaLabel?: string;
   readOnly?: boolean;
+  /** EMR-319: true で aria-invalid + 赤リングを付与（エラー文は errorId の要素を指す） */
+  ariaInvalid?: boolean;
+  errorId?: string;
 }) {
   return (
     <input
       type={type}
       aria-label={ariaLabel}
-      className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 min-h-11 rounded-xxs ${C.hoverBgLight} transition-colors ${C.textPlaceholder} focus-visible:ring-2 ${C.focusRingAccent40}`}
+      aria-invalid={ariaInvalid || undefined}
+      aria-describedby={ariaInvalid && errorId ? errorId : undefined}
+      className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 min-h-11 rounded-xxs ${C.hoverBgLight} transition-colors ${C.textPlaceholder} focus-visible:ring-2 ${C.focusRingAccent40}${ariaInvalid ? ` ${STYLE.formInputError}` : ""}`}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder ?? "空"}

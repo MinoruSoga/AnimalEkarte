@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { CheckupsTab } from "./CheckupsTab";
+import { CheckupAddRow } from "./CheckupsTabRows";
 
 // ── mock ──────────────────────────────────────────────────────────────────
 
@@ -436,5 +437,53 @@ describe("CheckupsTab — shared ui/select preserved behaviors (EMR-226)", () =>
 
     expect(screen.queryByTitle("編集")).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  });
+});
+
+describe("CheckupAddRow 必須エラー表示 (EMR-319)", () => {
+  const addForm = {
+    checkup_type_id: "",
+    date: "",
+    next_schedule_type: "1year",
+    next_date: "",
+    doctor_id: "",
+    result: "",
+  };
+
+  function renderAddRow(errors: Record<string, string>) {
+    return render(
+      <CheckupAddRow
+        addForm={addForm}
+        errors={errors}
+        checkupTypes={[]}
+        staffs={[]}
+        isPending={false}
+        checkupFields={[]}
+        fieldValues={{}}
+        onChange={vi.fn()}
+        onFieldValueChange={vi.fn()}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+  }
+
+  it("errors.date / errors.checkup_type_id で両コントロールが aria-invalid+エラー文になる", () => {
+    renderAddRow({ date: "日付は必須です", checkup_type_id: "健診種別は必須です" });
+
+    expect(screen.getByLabelText("実施日")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("健診種別")).toHaveAttribute("aria-invalid", "true");
+    const alerts = screen.getAllByRole("alert");
+    expect(alerts.map((el) => el.textContent)).toEqual(
+      expect.arrayContaining(["日付は必須です", "健診種別は必須です"]),
+    );
+  });
+
+  it("errors が空なら実施日・健診種別に aria-invalid は付かない", () => {
+    renderAddRow({});
+
+    expect(screen.getByLabelText("実施日")).not.toHaveAttribute("aria-invalid");
+    expect(screen.getByLabelText("健診種別")).not.toHaveAttribute("aria-invalid");
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

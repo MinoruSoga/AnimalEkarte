@@ -126,4 +126,58 @@ describe("StandardClosingTimeSection (#151 時間帯プレビュー・#215 越�
     });
     expect(mockUpdateClosingSettings).not.toHaveBeenCalled();
   });
+
+  // EMR-319: 必須時刻が空で invalid になると赤枠+エラー文+aria-invalid が出る。
+  describe("必須エラー表示 (EMR-319)", () => {
+    it("各必須時刻が invalid になると aria-invalid・赤枠・エラー文が出る", () => {
+      render(<StandardClosingTimeSection settings={makeSettings()} canEdit={true} />);
+
+      const cases = [
+        {
+          label: "午前・午後 区切り時間",
+          errorId: "closing-am-pm-boundary-error",
+          message: "午前・午後 区切り時間を入力してください",
+        },
+        {
+          label: "平日 終了時間",
+          errorId: "closing-weekday-end-error",
+          message: "平日 終了時間を入力してください",
+        },
+        {
+          label: "日曜 終了時間",
+          errorId: "closing-sunday-end-error",
+          message: "日曜 終了時間を入力してください",
+        },
+      ];
+
+      for (const { label } of cases) {
+        fireEvent.invalid(screen.getByLabelText(label));
+      }
+
+      for (const { label, errorId, message } of cases) {
+        const input = screen.getByLabelText(label);
+        expect(input).toHaveAttribute("aria-invalid", "true");
+        expect(input).toHaveAttribute("aria-describedby", errorId);
+        expect(input.className).toContain("ring-2");
+        expect(document.getElementById(errorId)).toHaveTextContent(message);
+      }
+    });
+
+    it("平日 終了時間だけ invalid なら他項目は通常表示のまま、入力で解除される", () => {
+      render(<StandardClosingTimeSection settings={makeSettings()} canEdit={true} />);
+
+      fireEvent.invalid(screen.getByLabelText("平日 終了時間"));
+
+      expect(screen.getByLabelText("平日 終了時間")).toHaveAttribute("aria-invalid", "true");
+      expect(screen.getByLabelText("午前・午後 区切り時間")).not.toHaveAttribute("aria-invalid");
+      expect(screen.getByLabelText("日曜 終了時間")).not.toHaveAttribute("aria-invalid");
+
+      fireEvent.change(screen.getByLabelText("平日 終了時間"), {
+        target: { value: "19:00" },
+      });
+
+      expect(screen.getByLabelText("平日 終了時間")).not.toHaveAttribute("aria-invalid");
+      expect(document.getElementById("closing-weekday-end-error")).toBeNull();
+    });
+  });
 });

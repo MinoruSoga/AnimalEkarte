@@ -306,6 +306,7 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
                     onAddItem={handleAddItem}
                     onRemoveItem={handleRemoveItem}
                     disabled={isResultsLocked}
+                    itemsError={formState.fieldErrors?.examItems}
                   />
                 </div>
               </div>

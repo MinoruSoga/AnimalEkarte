@@ -112,6 +112,24 @@ describe("ShiftFormDialog BUG-036 required times", () => {
     expect(createShiftMock).not.toHaveBeenCalled();
   });
 
+  // EMR-319: 必須時刻エラーで両時刻入力に aria-invalid + describedby(shift-time-error)。
+  it("時刻エラー時に開始・終了時刻 Input が aria-invalid で共通エラー文を指す", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("開始時刻と終了時刻を入力してください");
+    expect(alert).toHaveAttribute("id", "shift-time-error");
+
+    for (const label of ["開始時刻", "終了時刻"]) {
+      const input = screen.getByLabelText(label);
+      expect(input).toHaveAttribute("aria-invalid", "true");
+      expect(input).toHaveAttribute("aria-describedby", "shift-time-error");
+    }
+  });
+
   it("全日で時刻を入れて保存すると createShift が呼ばれる", async () => {
     const user = userEvent.setup();
     createShiftMock.mockResolvedValue({});

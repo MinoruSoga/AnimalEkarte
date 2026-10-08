@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { EmptyState } from "@/components/shared/DataStates";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 import { MasterSidePanel, PropertyRow } from "@/components/shared/SidePeek";
 import { getFormString } from "@/lib/form-data";
 import type { ClosingSpecialPeriod } from "@/types/generated/models";
@@ -44,6 +45,9 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
   const [amPmBoundary, setAmPmBoundary] = useState("");
   const [pmEnd, setPmEnd] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<ClosingSpecialPeriod | null>(null);
+  // EMR-319: ネイティブ required のブラウザバブルの代わりにアプリ側の赤枠+エラー文を表示する。
+  // 必須判定自体は required 属性（ブラウザ）と backend のまま変更しない。
+  const [invalidFields, setInvalidFields] = useState<ReadonlySet<string>>(new Set());
   const createMutation = useCreateSpecialPeriod();
   const deleteMutation = useDeleteSpecialPeriod();
   const { mutateAsync } = deleteMutation;
@@ -55,12 +59,31 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
     canDeleteRef.current = canDelete;
   }, [canCreate, canDelete]);
 
-  const handleShowForm = useCallback(() => setShowForm(true), []);
+  const handleShowForm = useCallback(() => {
+    setInvalidFields(new Set());
+    setShowForm(true);
+  }, []);
   const handleHideForm = useCallback(() => {
     setShowForm(false);
     setNote("");
     setAmPmBoundary("");
     setPmEnd("");
+    setInvalidFields(new Set());
+  }, []);
+
+  // EMR-319: onInvalid でバブルを抑制し、該当 input に aria-invalid + 赤枠を付ける。
+  const markInvalid = useCallback((e: React.InvalidEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const { name } = e.currentTarget;
+    setInvalidFields((prev) => new Set(prev).add(name));
+  }, []);
+  const clearInvalid = useCallback((name: string) => {
+    setInvalidFields((prev) => {
+      if (!prev.has(name)) return prev;
+      const next = new Set(prev);
+      next.delete(name);
+      return next;
+    });
   }, []);
 
   const [, formAction] = useActionState(async (_prev: null, formData: FormData) => {
@@ -140,54 +163,108 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
         >
           <input type="hidden" name="note" value={note} />
           <PropertyRow label="開始日" description="特別期間が始まる日付です。">
-            <input
-              id="start_date"
-              name="start_date"
-              type="date"
-              aria-label="開始日"
-              className={`${STYLE.formInput} w-full rounded-xs border px-3`}
-              required
-            />
+            <div className="flex-1">
+              <input
+                id="start_date"
+                name="start_date"
+                type="date"
+                aria-label="開始日"
+                className={`${STYLE.formInput} w-full rounded-xs border px-3${invalidFields.has("start_date") ? ` ${STYLE.formInputError}` : ""}`}
+                required
+                aria-invalid={invalidFields.has("start_date") || undefined}
+                aria-describedby={
+                  invalidFields.has("start_date") ? "sp-start-date-error" : undefined
+                }
+                onInvalid={markInvalid}
+                onChange={() => clearInvalid("start_date")}
+              />
+              <FormFieldError
+                id="sp-start-date-error"
+                message={invalidFields.has("start_date") ? "開始日を入力してください" : undefined}
+              />
+            </div>
           </PropertyRow>
           <PropertyRow label="終了日" description="特別期間が終わる日付です。">
-            <input
-              id="end_date"
-              name="end_date"
-              type="date"
-              aria-label="終了日"
-              className={`${STYLE.formInput} w-full rounded-xs border px-3`}
-              required
-            />
+            <div className="flex-1">
+              <input
+                id="end_date"
+                name="end_date"
+                type="date"
+                aria-label="終了日"
+                className={`${STYLE.formInput} w-full rounded-xs border px-3${invalidFields.has("end_date") ? ` ${STYLE.formInputError}` : ""}`}
+                required
+                aria-invalid={invalidFields.has("end_date") || undefined}
+                aria-describedby={invalidFields.has("end_date") ? "sp-end-date-error" : undefined}
+                onInvalid={markInvalid}
+                onChange={() => clearInvalid("end_date")}
+              />
+              <FormFieldError
+                id="sp-end-date-error"
+                message={invalidFields.has("end_date") ? "終了日を入力してください" : undefined}
+              />
+            </div>
           </PropertyRow>
           <PropertyRow
             label="午前・午後 区切り時間"
             description="午前（AM）と午後（PM）の区切りとなる時刻です。締め時間帯の計算に使われます。"
           >
-            <input
-              id="am_pm_boundary"
-              name="am_pm_boundary"
-              type="time"
-              aria-label="午前・午後 区切り時間"
-              value={amPmBoundary}
-              onChange={(event) => setAmPmBoundary(event.target.value)}
-              className={`${STYLE.formInput} w-full rounded-xs border px-3`}
-              required
-            />
+            <div className="flex-1">
+              <input
+                id="am_pm_boundary"
+                name="am_pm_boundary"
+                type="time"
+                aria-label="午前・午後 区切り時間"
+                value={amPmBoundary}
+                onChange={(event) => {
+                  setAmPmBoundary(event.target.value);
+                  clearInvalid("am_pm_boundary");
+                }}
+                className={`${STYLE.formInput} w-full rounded-xs border px-3${invalidFields.has("am_pm_boundary") ? ` ${STYLE.formInputError}` : ""}`}
+                required
+                aria-invalid={invalidFields.has("am_pm_boundary") || undefined}
+                aria-describedby={
+                  invalidFields.has("am_pm_boundary") ? "sp-boundary-error" : undefined
+                }
+                onInvalid={markInvalid}
+              />
+              <FormFieldError
+                id="sp-boundary-error"
+                message={
+                  invalidFields.has("am_pm_boundary")
+                    ? "午前・午後 区切り時間を入力してください"
+                    : undefined
+                }
+              />
+            </div>
           </PropertyRow>
           <PropertyRow
             label="午後 終了時間"
             description="午後（PM）時間帯の終了時刻です。これ以降はEMG（時間外）として扱われます。"
           >
-            <input
-              id="pm_end"
-              name="pm_end"
-              type="time"
-              aria-label="午後 終了時間"
-              value={pmEnd}
-              onChange={(event) => setPmEnd(event.target.value)}
-              className={`${STYLE.formInput} w-full rounded-xs border px-3`}
-              required
-            />
+            <div className="flex-1">
+              <input
+                id="pm_end"
+                name="pm_end"
+                type="time"
+                aria-label="午後 終了時間"
+                value={pmEnd}
+                onChange={(event) => {
+                  setPmEnd(event.target.value);
+                  clearInvalid("pm_end");
+                }}
+                className={`${STYLE.formInput} w-full rounded-xs border px-3${invalidFields.has("pm_end") ? ` ${STYLE.formInputError}` : ""}`}
+                required
+                aria-invalid={invalidFields.has("pm_end") || undefined}
+                aria-describedby={invalidFields.has("pm_end") ? "sp-pm-end-error" : undefined}
+                onInvalid={markInvalid}
+              />
+              <FormFieldError
+                id="sp-pm-end-error"
+                message={
+                  invalidFields.has("pm_end") ? "午後 終了時間を入力してください" : undefined
+                }
+              />
+            </div>
           </PropertyRow>
           <PropertyRow
             label="時間帯プレビュー"

@@ -14,6 +14,11 @@ export interface SingleDatePickerProps {
   id?: string;
   name?: string;
   disabledDays?: React.ComponentProps<typeof Calendar>["disabled"];
+  /**
+   * EMR-319: エラー状態の表示配線。true で入力欄に aria-invalid が付き、
+   * トリガー外枠に destructive の赤枠+薄いリングが出る（STYLE.formInputError 準拠）。
+   */
+  ariaInvalid?: boolean;
 }
 
 export interface RangeDatePickerProps {

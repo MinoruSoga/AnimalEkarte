@@ -150,6 +150,14 @@ describe("CreditCorrectionDialog 送信 (#189)", () => {
       expect(toast.error).toHaveBeenCalledWith("訂正理由を入力してください");
     });
     expect(posted).toBe(false);
+
+    // EMR-319: toast に加えてフィールドにも aria-invalid+エラー文を出す
+    const reasonInput = screen.getByLabelText("訂正理由（必須）");
+    expect(reasonInput).toHaveAttribute("aria-invalid", "true");
+    expect(reasonInput).toHaveAttribute("aria-describedby", "cc-reason-error");
+    expect(document.getElementById("cc-reason-error")).toHaveTextContent(
+      "訂正理由を入力してください",
+    );
   });
 
   it("金額が1円未満のとき toast でブロックし POST しない", async () => {

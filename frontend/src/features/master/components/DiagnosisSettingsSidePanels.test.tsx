@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { createTestWrapper } from "@/testing/TestUtils";
 import { DiagnosisSettingsSidePanels } from "./DiagnosisSettingsSidePanels";
@@ -108,5 +109,32 @@ describe("DiagnosisSettingsSidePanels (編集権限あり)", () => {
     expect(screen.getByDisplayValue("テスト病名")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
     expect(screen.getByLabelText("削除")).toBeInTheDocument();
+  });
+
+  // EMR-319: 必須のカテゴリが未選択で保存すると aria-invalid+エラー文が出る
+  it("診断病名: 名称あり・カテゴリ未選択で保存するとカテゴリ欄が aria-invalid+エラー文になる (EMR-319)", async () => {
+    const user = userEvent.setup();
+    const onNameSave = vi.fn().mockResolvedValue(true);
+    const noCategory: DiagnosisName = { ...nameFixture, diagnosisTypeId: "" };
+    renderPanels({
+      ...baseProps(),
+      activeTab: "diagnosis_name",
+      nameEditTarget: noCategory,
+      namePanelItem: noCategory,
+      canEdit: true,
+      onNameSave,
+    });
+
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(document.getElementById("diagnosis-category-error")).toHaveTextContent(
+        "カテゴリを選択してください",
+      );
+    });
+    const categoryTrigger = screen.getByRole("combobox");
+    expect(categoryTrigger).toHaveAttribute("aria-invalid", "true");
+    expect(categoryTrigger).toHaveAttribute("aria-describedby", "diagnosis-category-error");
+    expect(onNameSave).not.toHaveBeenCalled();
   });
 });

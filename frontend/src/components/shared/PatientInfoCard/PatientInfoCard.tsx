@@ -6,6 +6,7 @@ import imgEllipse1 from "@/assets/231a870df600a37e011a0e1140e7608b1f4c3340.png";
 import { ImageWithFallback } from "@/components/shared/Feedback";
 import { CheckupAlertBadge } from "@/components/shared/CheckupAlertBadge/CheckupAlertBadge";
 import { DangerBadge } from "@/components/shared/DangerBadge";
+import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { Button } from "@/components/ui/button";
 
 interface PatientInfoCardProps {
@@ -34,11 +35,15 @@ interface PatientInfoCardProps {
   petDangerLevel?: string;
   /** ペット特記メモ。未設定はバッジ Popover 内で「内容未登録」表示。 */
   petDangerReason?: string;
+  /** EMR-301: 生年月日 (YYYY-MM-DD)。誕生月かつ生存ペットならペット名横に Cake バッジを出す。 */
+  birthDate?: string;
   onStaffClick?: () => void;
   onVitalClick?: () => void;
   onOwnerClick?: () => void;
   onReservationTypeClick?: () => void;
   staffButtonId?: string;
+  /** EMR-319: 担当者選択のエラー状態。true でボタンに aria-invalid + 赤枠を付与する */
+  staffInvalid?: boolean;
   /** EMR-174: 飼主詳細へのリンク（onOwnerClick 併存時はボタン優先） */
   ownerDetailHref?: string;
   /** EMR-174: ペット詳細への deep link（飼主詳細 ?pet=） */
@@ -84,6 +89,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
   ownerIsDangerous,
   petDangerLevel,
   petDangerReason,
+  birthDate,
   sticky = true,
   hideStaff = false,
   onStaffClick,
@@ -91,6 +97,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
   onOwnerClick,
   onReservationTypeClick,
   staffButtonId,
+  staffInvalid = false,
   ownerDetailHref,
   petDetailHref,
 }: PatientInfoCardProps) {
@@ -155,6 +162,8 @@ export const PatientInfoCard = memo(function PatientInfoCard({
               subjectName={petName}
               reason={petDangerReason}
             />
+            {/* EMR-301: 誕生月は生存ペットのみ。死亡は呼び出し側 status で suppress。 */}
+            {!isDeceased ? <BirthdayBadge birthDate={birthDate} subjectName={petName} /> : null}
             {isDeceased ? (
               <span
                 className={`text-2xs font-semibold px-1.5 py-0.5 rounded ${C.bgDanger} ${C.textWhite} uppercase ml-1`}
@@ -249,9 +258,10 @@ export const PatientInfoCard = memo(function PatientInfoCard({
                 id={staffButtonId}
                 type="button"
                 aria-label={staffLabel ? `${staffLabel}${staffName}` : `担当者を選択: ${staffName}`}
+                aria-invalid={staffInvalid || undefined}
                 variant="ghost"
                 size="sm"
-                className={`h-11 text-sm gap-1 px-3 ${C.bgPage} ${C.hoverBgMedium} ${C.text} border ${C.borderMedium}`}
+                className={`h-11 text-sm gap-1 px-3 ${C.bgPage} ${C.hoverBgMedium} ${C.text} border ${staffInvalid ? `${C.borderDanger} ring-2 ring-[#C0392B]/30` : C.borderMedium}`}
                 onClick={onStaffClick}
               >
                 {staffLabel ? `${staffLabel}${staffName}` : staffName}

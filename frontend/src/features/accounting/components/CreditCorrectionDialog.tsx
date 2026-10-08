@@ -27,6 +27,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 
 import { correctCreditPayment } from "../api/correct-credit-payment";
 import {
@@ -62,6 +63,9 @@ export function CreditCorrectionDialog({
   const [amount, setAmount] = useState<string>(String(correctable[0]?.amount ?? ""));
   const [reason, setReason] = useState("");
   const [memo, setMemo] = useState("");
+  // EMR-319: toast に加えて必須項目の赤枠+エラー文を表示するための表示用状態。
+  // 判定ロジック（!reason.trim()）と文案は既存のまま変更しない。
+  const [reasonError, setReasonError] = useState(false);
   const queryClient = useQueryClient();
 
   const [, formAction] = useActionState<null, FormData>(
@@ -72,9 +76,11 @@ export function CreditCorrectionDialog({
       }
       const amountNum = parseInt(amount, 10);
       if (!reason.trim()) {
+        setReasonError(true);
         toast.error("訂正理由を入力してください");
         return null;
       }
+      setReasonError(false);
       if (!Number.isFinite(amountNum) || amountNum <= 0) {
         toast.error("金額は1円以上で入力してください");
         return null;
@@ -126,6 +132,7 @@ export function CreditCorrectionDialog({
       setAmount(String(correctable[0].amount));
       setReason("");
       setMemo("");
+      setReasonError(false);
     }
     setOpen(next);
   };
@@ -193,9 +200,18 @@ export function CreditCorrectionDialog({
             <Textarea
               id="cc-reason"
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              onChange={(e) => {
+                setReason(e.target.value);
+                if (e.target.value.trim()) setReasonError(false);
+              }}
               placeholder="例: レジ端末への入力金額を打ち間違えたため"
               aria-required="true"
+              aria-invalid={reasonError || undefined}
+              aria-describedby={reasonError ? "cc-reason-error" : undefined}
+            />
+            <FormFieldError
+              id="cc-reason-error"
+              message={reasonError ? "訂正理由を入力してください" : undefined}
             />
           </div>
           <div className="space-y-1">

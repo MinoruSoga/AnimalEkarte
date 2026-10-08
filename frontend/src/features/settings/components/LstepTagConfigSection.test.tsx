@@ -178,6 +178,19 @@ describe("LstepTagConfigSection — B: POST 追加", () => {
     await waitFor(() => {
       expect(screen.queryByText("vaccine_")).not.toBeInTheDocument();
     });
+
+    // EMR-319: 必須未入力なら両入力に aria-invalid+赤枠、エラー文が表示される
+    await waitFor(() => {
+      expect(document.getElementById("amp-prefix-error")).toHaveTextContent(
+        "プレフィックスとカテゴリは必須です",
+      );
+    });
+    const prefixInput = document.getElementById("amp-prefix");
+    const categoryInput = document.getElementById("amp-category");
+    expect(prefixInput).toHaveAttribute("aria-invalid", "true");
+    expect(prefixInput).toHaveAttribute("aria-describedby", "amp-prefix-error");
+    expect(categoryInput).toHaveAttribute("aria-invalid", "true");
+    expect(categoryInput).toHaveAttribute("aria-describedby", "amp-prefix-error");
   });
 });
 

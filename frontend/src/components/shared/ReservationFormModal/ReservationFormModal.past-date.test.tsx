@@ -157,5 +157,15 @@ describe("ReservationFormModal — 過去日付検証 (FE-RC-003, JST基準)", (
       await screen.findByText("患者を選択してください", {}, { timeout: 5000 }),
     ).toBeInTheDocument();
     expect(screen.queryByText("本日以降の日付を選択してください")).not.toBeInTheDocument();
+
+    // EMR-319: 患者未選択エラーはエラー文+aria-invalid+赤枠を選択中ペット枠へ表示する
+    const patientError = document.getElementById("res-patient-error");
+    expect(patientError).toHaveTextContent("患者を選択してください");
+    const patientGroup = screen
+      .getAllByRole("group")
+      .find((el) => el.getAttribute("aria-describedby") === "res-patient-error");
+    expect(patientGroup).toBeTruthy();
+    expect(patientGroup).toHaveAttribute("aria-invalid", "true");
+    expect(patientGroup?.className).toContain("ring-2");
   });
 });

@@ -73,4 +73,20 @@ describe("VaccinationForm BUG-015 field errors", () => {
       "接種日を入力してください",
     ]);
   });
+
+  // EMR-319: 必須エラーで接種日 DatePicker の入力に aria-invalid が付き、
+  // エラー文の id と一致する。
+  it("fieldErrors.date で接種日 DatePicker に aria-invalid が付く", () => {
+    const { container } = render(
+      <MemoryRouter>
+        <VaccinationForm {...baseProps} fieldErrors={{ date: "接種日を入力してください" }} />
+      </MemoryRouter>,
+    );
+
+    const errorEl = document.getElementById("mr-vaccine-date-error");
+    expect(errorEl).toHaveTextContent("接種日を入力してください");
+
+    const dateInput = container.querySelector("[aria-invalid='true']");
+    expect(dateInput).not.toBeNull();
+  });
 });

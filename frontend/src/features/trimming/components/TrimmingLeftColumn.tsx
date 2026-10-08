@@ -81,6 +81,7 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
           icon={<Scissors className={ICON.action} />}
           onClick={onCourseModalOpen}
           variant="block"
+          ariaInvalid={Boolean(courseError)}
         />
         <FormFieldError message={courseError} />
       </div>

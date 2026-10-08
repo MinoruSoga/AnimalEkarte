@@ -97,7 +97,7 @@ export const VaccinationForm = memo(function VaccinationForm({
         </div>
         <div className="flex flex-col gap-1.5">
           <Label className={`text-sm font-medium ${C.text60}`}>予防接種日</Label>
-          <DatePicker value={date} onChange={setDate} />
+          <DatePicker value={date} onChange={setDate} ariaInvalid={Boolean(fieldErrors.date)} />
           <FormFieldError id="mr-vaccine-date-error" message={fieldErrors.date} />
         </div>
       </div>

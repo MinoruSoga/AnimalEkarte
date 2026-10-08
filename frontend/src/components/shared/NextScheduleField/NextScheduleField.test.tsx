@@ -54,4 +54,40 @@ describe("NextScheduleField", () => {
     fireEvent.blur(nextDate);
     expect(onNextDateChange).toHaveBeenCalledWith("2026-08-13");
   });
+
+  // EMR-319: error があるとき内部 DatePicker に aria-invalid を伝播する。
+  it("error 指定時は日付入力に aria-invalid が付きエラー文を表示する", () => {
+    render(
+      <NextScheduleField
+        typeId="next-type"
+        dateId="next-date"
+        scheduleType="other"
+        nextDate=""
+        onScheduleTypeChange={vi.fn()}
+        onNextDateChange={vi.fn()}
+        dateAriaLabel="次回接種予定日"
+        error="次回予定日を入力してください"
+      />,
+    );
+
+    expect(screen.getByLabelText("次回接種予定日")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("alert")).toHaveTextContent("次回予定日を入力してください");
+  });
+
+  it("error なしなら日付入力に aria-invalid は付かずエラー文も出ない", () => {
+    render(
+      <NextScheduleField
+        typeId="next-type"
+        dateId="next-date"
+        scheduleType="other"
+        nextDate=""
+        onScheduleTypeChange={vi.fn()}
+        onNextDateChange={vi.fn()}
+        dateAriaLabel="次回接種予定日"
+      />,
+    );
+
+    expect(screen.getByLabelText("次回接種予定日")).not.toHaveAttribute("aria-invalid");
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
 });
