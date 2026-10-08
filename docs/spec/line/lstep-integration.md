@@ -110,7 +110,9 @@ LSTEP の失敗時挙動は経路ごとに 1 契約だけを持つ。
 
 ### 5.2 定時 delivery バッチの読み取り要件
 
-通常経路は clinic スコープの bulk-read を使う。ただし production には bulk failure 後の per-owner day-log / owner / tag-cache read fallback があり、owner 数線形となる既知の degraded-mode gap がある。実行上限・metrics を備えた bounded fallback にするか、source fallback を除去するまで unconditional な no-N+1 invariant は主張しない。opt-out・suppression・daily-claim の意味論と bounded memory は維持する。
+> 追記（2026-10-09 再監査）: 読み取り要件の契約本文（bulk-read 通常経路・bulk failure 時の per-owner fallback と bounded fallback への是正・opt-out / suppression / daily-claim 意味論・bounded memory）の正本は [architecture.md](./architecture.md) §4.1。本節は実装側の現況のみを記す。
+
+実装の現況として、production には bulk failure 後の per-owner day-log / owner / tag-cache read fallback が残り、owner 数線形の既知 degraded-mode gap である。bounded fallback への整理または source fallback の除去まで、unconditional な no-N+1 invariant は主張しない。
 
 ---
 

@@ -31,7 +31,7 @@ flowchart LR
 | [auth.md](auth.md) | RBAC 権限モデル・マルチテナント（clinic_id）隔離 | 認可・権限・テナント境界の実装前 |
 | [data-flow.md](data-flow.md) | リクエスト追跡（Request ID）と非同期同期の仕組み | ログ調査・非同期処理の実装前 |
 | [delete-soft-delete-patterns.md](delete-soft-delete-patterns.md) | Hard Delete / Soft Delete の使い分けと FK 制約 | 削除系機能・FK 設計の実装前 |
-| [EMR-252-radix-form-reset-inventory.md](EMR-252-radix-form-reset-inventory.md) | React 19 `requestFormReset` による Radix controlled コンポーネントの post-action form.reset() 巻き戻しの現象・共有 `components/ui/` ラッパ修正方式・影響フォーム棚卸しとコーディングルール | Radix switch/checkbox/radio/select を使う controlled form の設計・レビュー時（2026-10-07 追記: docs/ops/ から移設、本索引へ登録） |
+| [EMR-252-radix-form-reset-inventory.md](EMR-252-radix-form-reset-inventory.md) | React 19 `requestFormReset` による Radix controlled コンポーネントの post-action form.reset() 巻き戻しの現象・共有 `components/ui/` ラッパ修正方式・コーディングルール（影響フォーム棚卸しは 2026-10-02 時点スナップショット） | Radix switch/checkbox/radio/select を使う controlled form の設計・レビュー時（2026-10-07 追記: docs/ops/ から移設、本索引へ登録） |
 | [adr/](adr/README.md) | アーキテクチャ意思決定記録（ADR）。ADR-008 は ADR-007 のローカル受信 agent 判断を部分的に supersede | 「なぜこの設計か」の経緯確認時 |
 
 ## AI エージェント向け注記

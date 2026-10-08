@@ -53,6 +53,7 @@ flowchart TB
 | [infra-cf-rename-task-coverage-review-20261006.md](./infra-cf-rename-task-coverage-review-20261006.md) | 2026-10-06 棚卸し実測に対する CF 移管・改名タスクの網羅性レビュー（rereview で更新済み）。実行 SoT ではない |
 | [line-cost-analysis-roi-draft-20261007.md](./line-cost-analysis-roi-draft-20261007.md) | cost-analysis.md から 2026-10-07 移設した作業ノート（配信ボリューム試算シミュレーション・計画中 ROI 指標 draft・料金 worksheet）。試算・draft であり仕様の正本ではない |
 | [infra-cf-rename-task-coverage-rereview-20261006.md](./infra-cf-rename-task-coverage-rereview-20261006.md) | 同上のチケット再構成後の再レビュー。実行 SoT ではない |
+| [security-red-blue/](./security-red-blue/) | red-blue-loop スキルのラウンド計画・サマリの正規保存先（スキル規約。証跡画像は Plane 添付のみ）。ラウンド1（2026-10-09・TENANT-1 clinic 分離・STG）: 破れ 0・追加起票 0 |
 | [docs-refresh-20260929/](./docs-refresh-20260929/) | 本キャンペーン（docs 全件照合 2026-09-29）の子レポート置き場。2026-10-06 確認: 完了・統合済み（commit `c8dc3a792`）、claim/branch/worktree は削除済み |
 | [docs-perfection/README.md](./docs-perfection/README.md) | **Astra 調査パッケージ入口**（棚卸し・RQ・子 goal・証拠）。製品の実行 SoT は上記 Plane |
 | [docs-perfection/REPAIR-QUEUE.md](./docs-perfection/REPAIR-QUEUE.md) | 調査時点の優先修復キュー（RQ-001〜） |
