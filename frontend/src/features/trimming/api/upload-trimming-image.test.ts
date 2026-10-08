@@ -26,13 +26,9 @@ describe("uploadTrimmingImage", () => {
 
     const result = await uploadTrimmingImage(file);
 
-    expect(axios.post).toHaveBeenCalledWith(
-      "/v1/trimmings/images/upload",
-      expect.any(FormData),
-      expect.objectContaining({
-        headers: expect.objectContaining({ "Content-Type": "multipart/form-data" }),
-      }),
-    );
+    // Content-Type は axios が FormData 用に boundary 付きで設定するため、手動指定は渡さない
+    expect(axios.post).toHaveBeenCalledWith("/v1/trimmings/images/upload", expect.any(FormData));
+    expect(vi.mocked(axios.post).mock.calls[0]?.[2]).toBeUndefined();
     const body = vi.mocked(axios.post).mock.calls[0]?.[1] as FormData;
     expect(body.get("file")).toBe(file);
     expect(result).toEqual({ key: STYLE_KEY, signed_url: SIGNED_URL });
