@@ -3,9 +3,10 @@ import type { RefObject } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { requireStoredClinicId } from "@/lib/current-clinic";
 import { formatJSTWallDate, todayJSTISO } from "@/lib/jst-date";
 import { getReceptionCandidates } from "../api/get-reception-candidates";
-import { extractApiErrorMessage } from "@/lib/handle-api-error";
+import { extractApiErrorMessage, handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 import type { ReservationCreateMutations } from "@/types/reservation-create-mutations";
 
@@ -232,9 +233,12 @@ export function useReservationSaveActions({
         return "受付日は当日を指定してください";
       savingReceptionRef.current = true;
       try {
+        const receptionClinicId = requireStoredClinicId();
         const candidates = await Promise.all(
           selectedPets.map((pet) => getReceptionCandidates(receptionDate, pet.id, pet.ownerId)),
         );
+        if (requireStoredClinicId() !== receptionClinicId)
+          return "医院が変わりました。再読み込みしてください";
         if (todayJSTISO() !== receptionDate) return "受付日が変わりました。再読み込みしてください";
         if (!isMutationAllowed("canCreate")) return PERMISSION_DENIED_MESSAGE;
         if (candidates.some((rows) => rows.length > 1))
@@ -254,7 +258,10 @@ export function useReservationSaveActions({
           const error = await new Promise<string | null>((resolve) => {
             startUpdateTransition(() =>
               updateReservationFn(
-                { id: String(reservation.id), req: { status: "checked_in" } },
+                {
+                  id: String(reservation.id),
+                  req: { status: "checked_in", expected_updated_at: reservation.updated_at },
+                },
                 {
                   onSuccess: () => resolve(null),
                   onError: (cause: unknown) => resolve(extractApiErrorMessage(cause, "受付")),
@@ -270,6 +277,7 @@ export function useReservationSaveActions({
         navigateBackIfNeeded();
         return null;
       } catch (error) {
+        handleApiError(error, "受付");
         return extractApiErrorMessage(error, "受付");
       } finally {
         savingReceptionRef.current = false;

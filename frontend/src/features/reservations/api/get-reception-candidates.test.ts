@@ -1,28 +1,34 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
+import { setStoredClinicId } from "@/lib/current-clinic";
 import { getReceptionCandidates } from "./get-reception-candidates";
 
 const row = (id: number, status = "confirmed") => ({
   id,
+  clinic_id: 1,
+  updated_at: "2026-10-08T00:00:00.123456789Z",
   status,
   pet_id: 10,
   owner_id: 20,
   start_time: "2026-10-08T01:00:00Z",
 });
 describe("reception candidate fresh API reads", () => {
-  beforeEach(() =>
+  beforeEach(() => {
+    setStoredClinicId("1");
     server.use(
-      http.get("*/v1/pets/10", () => HttpResponse.json({ status: "alive", owner_id: 20 })),
-    ),
-  );
+      http.get("*/v1/pets/10", () =>
+        HttpResponse.json({ id: 10, clinic_id: 1, status: "alive", owner_id: 20 }),
+      ),
+    );
+  });
   it.each([
     { status: "deceased", owner_id: 20 },
     { status: "alive", owner_id: 20, deceased_at: "2026-10-08" },
     { status: "unknown", owner_id: 20 },
     { status: "alive", owner_id: 21 },
   ])("fails closed when fresh pet state changed", async (pet) => {
-    server.use(http.get("*/v1/pets/10", () => HttpResponse.json(pet)));
+    server.use(http.get("*/v1/pets/10", () => HttpResponse.json({ id: 10, clinic_id: 1, ...pet })));
     await expect(getReceptionCandidates("2026-10-08", "10", "20")).rejects.toThrow("再読み込み");
   });
   it("reads every page and excludes closed visits and tentative entries", async () => {
@@ -67,6 +73,42 @@ describe("reception candidate fresh API reads", () => {
       http.get("*/v1/reservations", () =>
         HttpResponse.json({ error: "forbidden" }, { status: 403 }),
       ),
+    );
+    await expect(getReceptionCandidates("2026-10-08", "10", "20")).rejects.toThrow();
+  });
+  it.each([
+    { status: "alive", owner_id: 20 },
+    { id: 11, clinic_id: 1, status: "alive", owner_id: 20 },
+    { id: 10, clinic_id: 2, status: "alive", owner_id: 20 },
+    { id: "10", clinic_id: 1, status: "alive", owner_id: 20 },
+    { id: 10, clinic_id: 1, status: "alive", owner_id: 20, deceased_at: 0 },
+  ])("rejects incomplete or malformed patient identity", async (pet) => {
+    server.use(http.get("*/v1/pets/10", () => HttpResponse.json(pet)));
+    await expect(getReceptionCandidates("2026-10-08", "10", "20")).rejects.toThrow();
+  });
+  it.each([
+    { ...row(1), id: undefined },
+    { ...row(1), id: "1" },
+    { ...row(1), clinic_id: 2 },
+    { ...row(1), updated_at: undefined },
+    { ...row(1), updated_at: "2026-10-08" },
+    { ...row(1), updated_at: "wrong" },
+    { ...row(1), updated_at: "2026-02-30T01:00:00Z" },
+    { ...row(1), updated_at: "2026-10-08T24:00:00Z" },
+    { ...row(1), status: "unknown" },
+  ])("rejects malformed candidate identity and version", async (invalid) => {
+    server.use(
+      http.get("*/v1/reservations", () => HttpResponse.json({ data: [invalid], total: 1 })),
+    );
+    await expect(getReceptionCandidates("2026-10-08", "10", "20")).rejects.toThrow();
+  });
+  it("rejects switching clinic while fetching and pins requests to the captured clinic", async () => {
+    server.use(
+      http.get("*/v1/reservations", ({ request }) => {
+        expect(request.headers.get("X-Clinic-ID")).toBe("1");
+        setStoredClinicId("2");
+        return HttpResponse.json({ data: [], total: 0 });
+      }),
     );
     await expect(getReceptionCandidates("2026-10-08", "10", "20")).rejects.toThrow();
   });

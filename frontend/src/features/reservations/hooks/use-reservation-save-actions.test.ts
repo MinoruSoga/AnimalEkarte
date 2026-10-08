@@ -4,9 +4,15 @@ import { createElement, type MutableRefObject, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 
+import { setStoredClinicId } from "@/lib/current-clinic";
 import type { ReservationFormData } from "../types";
 import { useReservationSaveActions } from "./use-reservation-save-actions";
 
+const receptionErrorHandlerMock = vi.fn();
+vi.mock("@/lib/handle-api-error", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/handle-api-error")>()),
+  handleApiError: (...args: unknown[]) => receptionErrorHandlerMock(...args),
+}));
 const receptionCandidatesMock = vi.fn();
 vi.mock("../api/get-reception-candidates", () => ({
   getReceptionCandidates: (...args: unknown[]) => receptionCandidatesMock(...args),
@@ -175,8 +181,10 @@ describe("useReservationSaveActions 409 conflict message (EMR-76)", () => {
 
 describe("EMR-318 reception reuse", () => {
   beforeEach(() => {
+    setStoredClinicId("1");
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-29T01:00:00Z"));
+    receptionErrorHandlerMock.mockReset();
     receptionCandidatesMock.mockReset();
     createMutateAsyncMock.mockReset();
     updateMutateMock.mockReset();
@@ -188,22 +196,34 @@ describe("EMR-318 reception reuse", () => {
     status: "checked_in" as const,
   });
   const pets = [{ id: "10", ownerId: "20", name: "ポチ" }];
+  const candidate = (id = 5, status = "confirmed") => ({
+    id,
+    status,
+    clinic_id: 1,
+    pet_id: 10,
+    owner_id: 20,
+    start_time: "2026-05-29T01:00:00Z",
+    updated_at: "2026-05-29T00:00:00.123456789Z",
+  });
   it("reuses confirmed reservation with status only and no create", async () => {
-    receptionCandidatesMock.mockResolvedValue([{ id: 5, status: "confirmed" }]);
+    receptionCandidatesMock.mockResolvedValue([candidate()]);
     updateMutateMock.mockImplementation((_payload, callbacks) => callbacks.onSuccess());
     const { result } = setup();
     await act(async () => {
       expect(await result.current.handleSave(reception(), pets)).toBeNull();
     });
     expect(updateMutateMock).toHaveBeenCalledWith(
-      { id: "5", req: { status: "checked_in" } },
+      {
+        id: "5",
+        req: { status: "checked_in", expected_updated_at: "2026-05-29T00:00:00.123456789Z" },
+      },
       expect.any(Object),
     );
     expect(createMutateAsyncMock).not.toHaveBeenCalled();
   });
   it("does not repeat check-in or change its date for existing checked-in visit", async () => {
     receptionCandidatesMock.mockResolvedValue([
-      { id: 5, status: "checked_in", checked_in_at: "2026-05-29T00:00:00Z" },
+      { ...candidate(5, "checked_in"), checked_in_at: "2026-05-29T00:00:00Z" },
     ]);
     const { result } = setup();
     await act(async () => {
@@ -218,17 +238,14 @@ describe("EMR-318 reception reuse", () => {
     await act(async () => {
       expect(await result.current.handleSave(reception(), pets)).toBeTruthy();
     });
-    receptionCandidatesMock.mockResolvedValue([
-      { id: 5, status: "confirmed" },
-      { id: 6, status: "confirmed" },
-    ]);
+    receptionCandidatesMock.mockResolvedValue([candidate(), candidate(6)]);
     await act(async () => {
       expect(await result.current.handleSave(reception(), pets)).toContain("複数");
     });
     expect(createMutateAsyncMock).not.toHaveBeenCalled();
   });
   it("does not reuse a reservation without edit permission", async () => {
-    receptionCandidatesMock.mockResolvedValue([{ id: 5, status: "confirmed" }]);
+    receptionCandidatesMock.mockResolvedValue([candidate()]);
     const { result } = setup(undefined, { canCreate: true, canEdit: false, canDelete: false });
     await act(async () => {
       expect(await result.current.handleSave(reception(), pets)).toContain("権限");
@@ -257,6 +274,28 @@ describe("EMR-318 reception reuse", () => {
       expect(await pending).toContain("権限");
     });
     expect(createMutateAsyncMock).not.toHaveBeenCalled();
+  });
+  it("handles missing selected clinic before lookup once", async () => {
+    localStorage.removeItem("auth_current_clinic:v1");
+    const { result } = setup();
+    await act(async () => {
+      expect(await result.current.handleSave(reception(), pets)).toBeTruthy();
+    });
+    expect(receptionErrorHandlerMock).toHaveBeenCalledTimes(1);
+    expect(receptionCandidatesMock).not.toHaveBeenCalled();
+    expect(createMutateAsyncMock).not.toHaveBeenCalled();
+  });
+  it("blocks mutation if selected clinic changes during lookup", async () => {
+    receptionCandidatesMock.mockImplementation(async () => {
+      setStoredClinicId("2");
+      return [];
+    });
+    const { result } = setup();
+    await act(async () => {
+      expect(await result.current.handleSave(reception(), pets)).toBeTruthy();
+    });
+    expect(createMutateAsyncMock).not.toHaveBeenCalled();
+    expect(updateMutateMock).not.toHaveBeenCalled();
   });
   it("blocks mutation when JST date rolls over during lookup", async () => {
     receptionCandidatesMock.mockImplementation(async () => {
