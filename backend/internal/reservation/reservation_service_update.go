@@ -159,6 +159,14 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 
+	// EMR-308: tentative の終端遷移（checked_in/cancelled）は CAS 専用経路へ。
+	// 冒頭の FindByID はロックを取らないため、汎用 repo.update（status 述語なし）で
+	// 書くと、並行 ConfirmTentative が先に pending/confirmed + 実枠時刻で commit
+	// した行を checked_in/cancelled+論理削除で上書きし得る（TOCTOU）。
+	if current.Status == model.ReservationStatusTentative {
+		return s.updateTentativeStatusTransition(ctx, clinicID, id, current, input, fields)
+	}
+
 	needsLinkValidation := input.OwnerID != nil || input.PetID != nil
 	needsCapabilityCheck := reservationStaffCapabilityRequiresRevalidation(current, input)
 	needsKarteCheck := isTransitioningToInConsultation(current, input)
@@ -212,6 +220,52 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	slog.InfoContext(ctx, "reservation updated",
 		slog.Uint64("reservation_id", id),
 		slog.Uint64("clinic_id", clinicID))
+	return updated, nil
+}
+
+// updateTentativeStatusTransition は tentative 行の終端遷移を status CAS で書く。
+// 呼び出し時点で input.Status は checked_in/cancelled に絞られている（Update 冒頭の
+// tentative ゲート）。
+// checked_in: 実来院への昇格なので ConfirmTentative/Create と同じ死亡ペット境界を
+// 通す（#261。status-only PATCH は付け替え時の死亡チェックを通らないためここで拒否）。
+// cancelled: 汎用 cancel と同じ status update + soft delete の graph を tx で取る。
+func (s *reservationService) updateTentativeStatusTransition(
+	ctx context.Context,
+	clinicID, id uint64,
+	current *model.Reservation,
+	input *UpdateReservationInput,
+	fields map[string]any,
+) (*model.Reservation, error) {
+	if *input.Status == model.ReservationStatusCheckedIn {
+		if err := ValidateReservationPetNotDeceased(ctx, s.repo, clinicID, current.PetID); err != nil {
+			return nil, err
+		}
+		updated, err := s.repo.updateTentativeStatus(ctx, clinicID, id, fields)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to check in tentative reservation")
+		}
+		syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, current.OwnerID, updated.OwnerID)
+		return updated, nil
+	}
+	// cancelled: status=cancelled を刻んでから論理削除（RSV-06/Q7 と同じ graph）。
+	if s.tx == nil {
+		return nil, apperrors.WrapInternalServerError("reservation transaction dependency is required")
+	}
+	var updated *model.Reservation
+	if err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
+		u, err := s.repo.updateTentativeStatus(txCtx, clinicID, id, fields)
+		if err != nil {
+			return err
+		}
+		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
+			return apperrors.Wrap(err, "failed to soft-delete cancelled tentative")
+		}
+		updated = u
+		return nil
+	}); err != nil {
+		return nil, apperrors.Wrap(err, "failed to cancel tentative reservation")
+	}
+	syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, current.OwnerID, updated.OwnerID)
 	return updated, nil
 }
 
@@ -324,6 +378,29 @@ func (s *reservationService) Delete(ctx context.Context, clinicID, id uint64) er
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この予約にはカルテが紐付いているため削除できません")
+	}
+	// EMR-308: tentative の直接削除も終了 semantics を揃える — cancelled を刻んでから
+	// 論理削除（ClearNextVisitIntent/汎用 cancel と同一の終端）。status CAS で
+	// 並行昇格（confirm-tentative）を fail-closed に弾く。
+	if existing != nil && existing.Status == model.ReservationStatusTentative {
+		if s.tx == nil {
+			return apperrors.WrapInternalServerError("reservation transaction dependency is required")
+		}
+		if err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
+			if _, err := s.repo.updateTentativeStatus(txCtx, clinicID, id, map[string]any{
+				"status": model.ReservationStatusCancelled,
+			}); err != nil {
+				return err
+			}
+			return s.repo.Delete(txCtx, clinicID, id)
+		}); err != nil {
+			return apperrors.Wrap(err, "failed to delete tentative reservation")
+		}
+		syncNextVisitTagBestEffort(ctx, s.nextVisitTagSync, clinicID, existing.OwnerID)
+		slog.InfoContext(ctx, "tentative reservation deleted",
+			slog.Uint64("reservation_id", id),
+			slog.Uint64("clinic_id", clinicID))
+		return nil
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete reservation")

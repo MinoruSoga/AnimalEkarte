@@ -401,6 +401,7 @@ func (m *mockLiffOwnerRepository) FindByIDs(_ context.Context, _ uint64, _ []uin
 
 type mockLiffReservationRepository struct {
 	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
+	updateTentativeStatusFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
 	countByTypeAndStartTimeFn func(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
 	findPetByIDInClinicFn     func(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
 }
@@ -424,6 +425,13 @@ func (m *mockLiffReservationRepository) Create(_ context.Context, _ *model.Reser
 func (m *mockLiffReservationRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
 	if m.updateFieldsFn != nil {
 		return m.updateFieldsFn(ctx, clinicID, id, fields)
+	}
+	return &model.Reservation{ID: id, ClinicID: clinicID}, nil
+}
+
+func (m *mockLiffReservationRepository) updateTentativeStatus(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
+	if m.updateTentativeStatusFn != nil {
+		return m.updateTentativeStatusFn(ctx, clinicID, id, fields)
 	}
 	return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 }

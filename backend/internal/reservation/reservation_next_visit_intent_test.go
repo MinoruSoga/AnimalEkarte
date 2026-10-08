@@ -348,6 +348,66 @@ func TestReservationRepository_ClearNextVisitIntent(t *testing.T) {
 	})
 }
 
+func TestReservationRepository_UpdateTentativeStatus(t *testing.T) {
+	db := setupNextVisitIntentTestDB(t)
+	repo := NewReservationRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+	intendedDate := time.Date(2030, 5, 20, 0, 0, 0, 0, config.JST)
+
+	t.Run("writes on a tentative row and reloads", func(t *testing.T) {
+		_, pet, _ := makeNextVisitIntentFixture(t, db, clinicA, "UTS1")
+		tentative, err := setNextVisitIntentInTx(ctx, db, repo, clinicA, pet.ID, SetNextVisitIntentInput{IntendedDate: intendedDate})
+		require.NoError(t, err)
+
+		now := time.Now().UTC()
+		updated, err := repo.updateTentativeStatus(ctx, clinicA, tentative.ID, map[string]any{
+			"status":        model.ReservationStatusCheckedIn,
+			"checked_in_at": now,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, model.ReservationStatusCheckedIn, updated.Status)
+	})
+
+	t.Run("rejects a row already promoted by a concurrent confirm", func(t *testing.T) {
+		// TOCTOU 再現: FindByID で tentative を見た後、ConfirmTentative が先に
+		// confirmed へ commit したケース。status=tentative 述語で RowsAffected=0 →
+		// conflict になり、checked_in/cancelled での上書きを防ぐ。
+		_, pet, _ := makeNextVisitIntentFixture(t, db, clinicA, "UTS2")
+		tentative, err := setNextVisitIntentInTx(ctx, db, repo, clinicA, pet.ID, SetNextVisitIntentInput{IntendedDate: intendedDate})
+		require.NoError(t, err)
+
+		promoted := tentative
+		promoted.Status = model.ReservationStatusConfirmed
+		require.NoError(t, db.Model(&model.Reservation{}).
+			Where("id = ?", tentative.ID).
+			Update("status", model.ReservationStatusConfirmed).Error)
+
+		got, err := repo.updateTentativeStatus(ctx, clinicA, tentative.ID, map[string]any{
+			"status": model.ReservationStatusCancelled,
+		})
+		require.Error(t, err)
+		assert.Nil(t, got)
+		assert.True(t, apperrors.IsConflict(err), "昇格済み行への tentative CAS は 409")
+		assert.Equal(t, model.ReservationStatusConfirmed, reloadReservationIntentStatus(t, db, tentative.ID),
+			"confirmed 昇格を cancelled で上書きしない")
+	})
+
+	t.Run("does not write across clinic boundary", func(t *testing.T) {
+		_, petA, _ := makeNextVisitIntentFixture(t, db, clinicA, "UTS3A")
+		tentative, err := setNextVisitIntentInTx(ctx, db, repo, clinicA, petA.ID, SetNextVisitIntentInput{IntendedDate: intendedDate})
+		require.NoError(t, err)
+
+		got, err := repo.updateTentativeStatus(ctx, uint64(2), tentative.ID, map[string]any{
+			"status": model.ReservationStatusCheckedIn,
+		})
+		require.Error(t, err)
+		assert.Nil(t, got)
+		assert.True(t, apperrors.IsConflict(err))
+		assert.Equal(t, model.ReservationStatusTentative, reloadReservationIntentStatus(t, db, tentative.ID))
+	})
+}
+
 func TestReservationRepository_ConfirmTentative(t *testing.T) {
 	db := setupNextVisitIntentTestDB(t)
 	repo := NewReservationRepository(db)

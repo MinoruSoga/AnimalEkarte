@@ -582,7 +582,7 @@ func TestReservationService_Update_TentativeCheckinFillsActualTime(t *testing.T)
 		lockAndFindByIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.Reservation, error) {
 			return tentative, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
+		updateTentativeStatusFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
 			captured = fields
 			return tentative, nil
 		},
@@ -688,7 +688,7 @@ func TestReservationService_Update_TentativeCancelSetsCancelledAndSoftDeletes(t 
 		findByIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.Reservation, error) {
 			return tentative, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
+		updateTentativeStatusFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
 			captured = fields
 			return tentative, nil
 		},
@@ -705,6 +705,123 @@ func TestReservationService_Update_TentativeCancelSetsCancelledAndSoftDeletes(t 
 	require.NotNil(t, captured)
 	assert.Equal(t, model.ReservationStatusCancelled, captured["status"], "終了は cancelled を記録してから削除する")
 	assert.True(t, deleteCalled, "cancel は soft delete を伴う")
+}
+
+// ---------------------------------------------------------------------------
+// EMR-308 review fix (Grok): tentative 遷移は CAS・死亡ペット境界・cancelled 終端を強制
+// ---------------------------------------------------------------------------
+
+func TestReservationService_Update_TentativeCheckinRejectsDeceasedPet(t *testing.T) {
+	// tentative 行は死亡後も残るため、status-only PATCH による checked_in 昇格も
+	// ConfirmTentative/Create と同じ死亡拒否を通る（#261 境界の抜け穴塞ぎ）。
+	petID := uint64(22)
+	sentinelStart := time.Date(2030, 1, 5, 0, 0, 0, 0, config.JST)
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.Reservation, error) {
+			return &model.Reservation{
+				ID:                42,
+				ClinicID:          1,
+				PetID:             &petID,
+				Status:            model.ReservationStatusTentative,
+				StartTime:         sentinelStart,
+				EndTime:           sentinelStart.Add(nextVisitIntentDurationMinutes * time.Minute),
+				ReservationTypeID: 7,
+				Source:            model.ReservationSourceManual,
+			}, nil
+		},
+		findPetByIDInClinicFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			deceasedAt := time.Now().UTC()
+			return &model.Pet{ID: petID, Status: model.PetStatusDeceased, DeceasedAt: &deceasedAt}, nil
+		},
+		updateTentativeStatusFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+			t.Fatal("死亡ペットの tentative checkin は書込に到達してはならない")
+			return nil, nil
+		},
+	}
+	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, &mockClinicHolidayFinder{})
+
+	checkedIn := model.ReservationStatusCheckedIn
+	got, err := svc.Update(context.Background(), 1, 42, &UpdateReservationInput{Status: &checkedIn})
+	require.Error(t, err)
+	assert.Nil(t, got)
+	assert.Contains(t, err.Error(), reservationDeceasedPetMessage)
+}
+
+func TestReservationService_Update_TentativeCheckinCasConflictPropagates(t *testing.T) {
+	// 並行 ConfirmTentative に先勝ちされた行: repo の status CAS が conflict を返し、
+	// service はそのまま伝播させる（汎用 update へのフォールバックはしない）。
+	petID := uint64(22)
+	sentinelStart := time.Date(2030, 1, 5, 0, 0, 0, 0, config.JST)
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.Reservation, error) {
+			return &model.Reservation{
+				ID:                42,
+				ClinicID:          1,
+				PetID:             &petID,
+				Status:            model.ReservationStatusTentative,
+				StartTime:         sentinelStart,
+				EndTime:           sentinelStart.Add(nextVisitIntentDurationMinutes * time.Minute),
+				ReservationTypeID: 7,
+				Source:            model.ReservationSourceManual,
+			}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+			t.Fatal("tentative 遷移は status 述語なしの汎用 update へ落ちてはならない")
+			return nil, nil
+		},
+		updateTentativeStatusFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+			return nil, apperrors.WrapConflict("次回予定が同時に更新されました。再読み込みしてください")
+		},
+	}
+	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, &mockClinicHolidayFinder{})
+
+	checkedIn := model.ReservationStatusCheckedIn
+	got, err := svc.Update(context.Background(), 1, 42, &UpdateReservationInput{Status: &checkedIn})
+	require.Error(t, err)
+	assert.Nil(t, got)
+	assert.True(t, apperrors.IsConflict(err), "CAS 敗北は 409 として伝播する")
+}
+
+func TestReservationService_Delete_TentativeSetsCancelledBeforeSoftDelete(t *testing.T) {
+	// 汎用 DELETE も tentative を cancelled → soft-delete に揃える（汎用 cancel/
+	// ClearNextVisitIntent と同一の終端 semantics）。
+	petID := uint64(22)
+	ownerID := uint64(9)
+	sentinelStart := time.Date(2030, 1, 5, 0, 0, 0, 0, config.JST)
+	tentative := &model.Reservation{
+		ID:                42,
+		ClinicID:          1,
+		OwnerID:           &ownerID,
+		PetID:             &petID,
+		Status:            model.ReservationStatusTentative,
+		StartTime:         sentinelStart,
+		EndTime:           sentinelStart.Add(nextVisitIntentDurationMinutes * time.Minute),
+		ReservationTypeID: 7,
+		Source:            model.ReservationSourceManual,
+	}
+	var callOrder []string
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.Reservation, error) {
+			return tentative, nil
+		},
+		countMedicalRecordsByReservationID: func(_ context.Context, _ uint64) (int64, error) {
+			return 0, nil
+		},
+		updateTentativeStatusFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
+			callOrder = append(callOrder, "updateTentativeStatus")
+			assert.Equal(t, model.ReservationStatusCancelled, fields["status"])
+			return tentative, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			callOrder = append(callOrder, "delete")
+			return nil
+		},
+	}
+	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, &mockClinicHolidayFinder{})
+
+	require.NoError(t, svc.Delete(context.Background(), 1, 42))
+	assert.Equal(t, []string{"updateTentativeStatus", "delete"}, callOrder,
+		"tentative 削除は cancelled 記録→論理削除の順")
 }
 
 func TestReservationService_UpdateReservationRoute_RecordIntentGuard(t *testing.T) {

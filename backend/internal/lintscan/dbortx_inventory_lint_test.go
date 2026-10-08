@@ -613,6 +613,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// shape as BackfillForMedicalRecord/CreateForTrimming which are likewise unregistered.
 	"reservation/reservation_intent_repository.go|reservationRepository.ClearNextVisitIntent":            {}, // EMR-308 idempotent tentative soft-delete
 	"reservation/reservation_intent_repository.go|reservationRepository.ConfirmTentative":                {}, // EMR-308 tentative → pending/confirmed transition
+	"reservation/reservation_intent_repository.go|reservationRepository.updateTentativeStatus":           {}, // EMR-308 tentative-limited CAS update (WHERE status=tentative)
 	"reservation/reservation_intent_repository.go|reservationRepository.acquireNextVisitIntentLock":      {}, // EMR-308 (clinic,pet) advisory lock; ambient-tx bound
 	"reservation/reservation_intent_repository.go|reservationRepository.findActiveTentativeForUpdate":    {}, // EMR-308 single-active-tentative lookup under row lock
 	"reservation/reservation_intent_repository.go|reservationRepository.findGeneralReservationTypeID":    {}, // EMR-308 general placeholder type resolution

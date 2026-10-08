@@ -167,10 +167,10 @@ func (s *reservationService) ConfirmTentative(
 		if err := s.validateCreateClosedDaysIfConfigured(ctx, clinicID, input.StartTime); err != nil {
 			return err
 		}
-		if s.holidayFinder != nil {
-			if err := s.validateCreateClinicHoliday(ctx, clinicID, input.StartTime); err != nil {
-				return err
-			}
+		// 休診日チェックは create 経路と同じく無条件で呼ぶ — validateClinicHoliday は
+		// finder==nil で 500 fail-closed するため、組み立て漏れの静黙スキップを防ぐ。
+		if err := s.validateCreateClinicHoliday(ctx, clinicID, input.StartTime); err != nil {
+			return err
 		}
 		if err := CheckSlotConflict(ctx, s.repo, clinicID, doctorID, input.StartTime, input.EndTime, &id); err != nil {
 			return err

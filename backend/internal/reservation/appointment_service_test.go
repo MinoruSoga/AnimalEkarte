@@ -21,6 +21,7 @@ type mockReservationRepository struct {
 	lockAndFindByIDFn                  func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	createFn                           func(ctx context.Context, reservation *model.Reservation) error
 	updateFieldsFn                     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
+	updateTentativeStatusFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
 	deleteFn                           func(ctx context.Context, clinicID, id uint64) error
 	countMedicalRecordsByReservationID func(ctx context.Context, reservationID uint64) (int64, error)
 	hasDoctorConflictFn                func(ctx context.Context, clinicID, doctorID uint64, start, end time.Time, excludeID *uint64) (bool, error)
@@ -60,6 +61,10 @@ func (m *mockReservationRepository) Create(ctx context.Context, reservation *mod
 
 func (m *mockReservationRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
+}
+
+func (m *mockReservationRepository) updateTentativeStatus(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
+	return m.updateTentativeStatusFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockReservationRepository) Delete(ctx context.Context, clinicID, id uint64) error {

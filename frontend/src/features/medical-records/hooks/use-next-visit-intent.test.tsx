@@ -206,11 +206,55 @@ describe("useNextVisitIntent — tentative mutation（EMR-308 A2）", () => {
 });
 
 describe("useNextVisitIntent — ガード", () => {
-  it("reservations:create 権限が無い場合 canMutateIntent=false で mutation しない", async () => {
+  it("create なし・edit のみ: set（PUT）は送らず clear（DELETE）は送る", async () => {
+    // PUT intent は reservations:create、DELETE intent は reservations:edit の
+    // 方向別契約（routes.go）。canEdit だけでも intentFieldValue の消去は動く。
     vi.mocked(usePermission).mockReturnValue({
       canView: true,
       canCreate: false,
       canEdit: true,
+      canDelete: false,
+    });
+    const { result, setIntentMutation, clearIntentMutation } = renderIntent();
+
+    await act(async () => {
+      result.current.handleIntentDateChange(validFutureDate());
+    });
+    expect(setIntentMutation.mutateAsync).not.toHaveBeenCalled();
+
+    await act(async () => {
+      result.current.handleIntentDateChange("");
+    });
+    expect(result.current.canMutateIntent).toBe(true);
+    expect(clearIntentMutation.mutateAsync).toHaveBeenCalledWith("10");
+  });
+
+  it("edit なし・create のみ: set（PUT）は送り clear（DELETE）は送らない", async () => {
+    vi.mocked(usePermission).mockReturnValue({
+      canView: true,
+      canCreate: true,
+      canEdit: false,
+      canDelete: false,
+    });
+    const { result, setIntentMutation, clearIntentMutation } = renderIntent();
+
+    await act(async () => {
+      result.current.handleIntentDateChange(validFutureDate());
+    });
+    expect(result.current.canMutateIntent).toBe(true);
+    expect(setIntentMutation.mutateAsync).toHaveBeenCalled();
+
+    await act(async () => {
+      result.current.handleIntentDateChange("");
+    });
+    expect(clearIntentMutation.mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("create/edit 両方無い場合 canMutateIntent=false で mutation しない", async () => {
+    vi.mocked(usePermission).mockReturnValue({
+      canView: true,
+      canCreate: false,
+      canEdit: false,
       canDelete: false,
     });
     const { result, setIntentMutation, clearIntentMutation } = renderIntent();

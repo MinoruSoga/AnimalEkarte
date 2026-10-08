@@ -45,8 +45,8 @@ func newNextVisitIntentService(t *testing.T, db *gorm.DB, guard ReservationStaff
 		nil,
 		nil,
 		nil,
-		nil,
-		nil, // EMR-308: nextVisitTagSync（既存テストは hook 未注入）
+		openDayHolidayFinder(), // ConfirmTentative は create 経路と同じく休診日を無条件検証する
+		nil,                    // EMR-308: nextVisitTagSync（既存テストは hook 未注入）
 	)
 }
 
@@ -279,6 +279,10 @@ func TestReservationService_ConfirmTentative(t *testing.T) {
 		})
 		require.Error(t, err)
 		assert.Nil(t, got)
+		// ガード自体を固定する — 容量/競合等の後段エラーで誤って合格しないよう
+		// 死亡拒否メッセージを明示する（ガードを外すと capacity/conflict で失敗し
+		// 「Error になる」だけでは検出できない）。
+		assert.Contains(t, err.Error(), reservationDeceasedPetMessage)
 		assert.Equal(t, model.ReservationStatusTentative, reloadReservationIntentStatus(t, db, tentative.ID),
 			"死亡ペットの tentative は実予約化されず残る")
 	})

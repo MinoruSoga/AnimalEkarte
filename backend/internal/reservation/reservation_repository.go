@@ -31,6 +31,11 @@ type ReservationCRUDRepository interface {
 	// update は owner package 内だけで使う汎用 persistence primitive。
 	// package 外には ReservationIntentRepository の intent-specific operation だけを公開する。
 	update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
+	// updateTentativeStatus は tentative 行限定の CAS 更新 primitive。
+	// 汎用 update は WHERE に status 述語を持たないため、lock なし FindByID 後の
+	// tentative 遷移（当日受付/終了）が並行 ConfirmTentative の昇格を上書きし得る。
+	// tentative 行への書込は必ずこの述語付き経路を通す。
+	updateTentativeStatus(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 

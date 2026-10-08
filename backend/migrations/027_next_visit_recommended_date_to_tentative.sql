@@ -19,10 +19,12 @@
 --   * reservation_route = 'record_intent', status = 'tentative',
 --     doctor_id = NULL, visit_type = 'revisit', source = 'manual',
 --     customer_fields = '{}'::jsonb;
---   * reservation_type_id = the clinic's general type (same resolution as
---     findGeneralReservationTypeID: category='general', not deleted,
---     is_active DESC, id ASC). Clinics without a general reservation type are
---     skipped — they cannot express tentative intent in the current model;
+--   * reservation_type_id = placeholder type resolved general-first
+--     (category='general' preferred, then any non-deleted active type ordered
+--     is_active DESC, id ASC). The type is a placeholder — the tentative intent
+--     is date-only and confirm-tentative re-resolves/validates the real type.
+--     Clinics with NO active reservation type at all still cannot express
+--     intent; those rows are skipped and reported by the WARNING block below;
 --   * uq_appointments_one_active_tentative (026) allows at most one active
 --     tentative per (clinic_id, pet_id): NOT EXISTS skips pets already holding
 --     one and ON CONFLICT DO NOTHING absorbs any concurrent insert.
@@ -70,9 +72,10 @@ candidates AS (
         SELECT rt.id
         FROM reservation_types AS rt
         WHERE rt.clinic_id = l.clinic_id
-          AND rt.category = 'general'
           AND rt.deleted_at IS NULL
-        ORDER BY rt.is_active DESC, rt.id ASC
+        -- general 優先・なければ任意の active 区分へフォールバック。
+        -- 区分が0件の医院のみ rt.id IS NULL で対象外になる。
+        ORDER BY (rt.category = 'general') DESC, rt.is_active DESC, rt.id ASC
         LIMIT 1
     ) AS rt ON true
     WHERE rt.id IS NOT NULL
@@ -134,6 +137,53 @@ FROM candidates
 ON CONFLICT (clinic_id, pet_id)
     WHERE status = 'tentative' AND deleted_at IS NULL
     DO NOTHING;
+
+-- Fail-loud audit before dropping the column: report pets whose LATEST
+-- non-deleted record carried a future intended date (living pet, live owner)
+-- but no active tentative row now exists. These intents are unrecoverable
+-- after the DROP, so make the loss explicit in the migration output instead of
+-- silently discarding it. A non-zero count means the clinic has no active
+-- reservation type at all — the only remaining skip reason.
+DO $$
+DECLARE
+    skipped_count integer;
+BEGIN
+    WITH latest AS (
+        SELECT DISTINCT ON (mr.clinic_id, mr.pet_id)
+            mr.clinic_id,
+            mr.pet_id,
+            mr.next_visit_recommended_date AS intended_date
+        FROM medical_records AS mr
+        WHERE mr.deleted_at IS NULL
+          AND mr.pet_id IS NOT NULL
+        ORDER BY mr.clinic_id, mr.pet_id, mr.id DESC
+    )
+    SELECT COUNT(*) INTO skipped_count
+    FROM latest AS l
+    JOIN pets AS p
+      ON p.id = l.pet_id
+     AND p.clinic_id = l.clinic_id
+     AND p.deleted_at IS NULL
+     AND p.status <> 'deceased'
+     AND p.deceased_at IS NULL
+    JOIN owners AS o
+      ON o.id = p.owner_id
+     AND o.clinic_id = l.clinic_id
+     AND o.deleted_at IS NULL
+    WHERE l.intended_date IS NOT NULL
+      AND l.intended_date >= (now() AT TIME ZONE 'Asia/Tokyo')::date
+      AND NOT EXISTS (
+          SELECT 1
+          FROM appointments AS a
+          WHERE a.clinic_id = l.clinic_id
+            AND a.pet_id = l.pet_id
+            AND a.status = 'tentative'
+            AND a.deleted_at IS NULL
+      );
+    IF skipped_count > 0 THEN
+        RAISE WARNING 'EMR-308: % pet(s) keep a future next_visit_recommended_date but no tentative appointment was created (clinic has no active reservation type). These dates are dropped with the column.', skipped_count;
+    END IF;
+END $$;
 
 ALTER TABLE medical_records
     DROP COLUMN next_visit_recommended_date;

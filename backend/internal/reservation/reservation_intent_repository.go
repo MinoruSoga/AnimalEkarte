@@ -942,6 +942,43 @@ func (r *reservationRepository) ConfirmTentative(
 	return r.FindByID(ctx, clinicID, id)
 }
 
+// updateTentativeStatus は tentative 行限定の CAS 更新。
+// service 層の FindByID はロックを取らないため、読み取り時点の tentative 判定と
+// 書込時点の status がずれ得る。WHERE status='tentative' を必須述語にすることで、
+// 並行 ConfirmTentative（tentative→pending/confirmed の CAS）に先勝ちされた行への
+// checked_in/cancelled 上書きを RowsAffected=0 → conflict として fail-closed に弾く。
+// write + reload を同一 tx に閉じるのは汎用 update と同じ read-after-write 契約。
+func (r *reservationRepository) updateTentativeStatus(
+	ctx context.Context,
+	clinicID, id uint64,
+	fields map[string]any,
+) (*model.Reservation, error) {
+	var loaded *model.Reservation
+	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		result := tx.Model(&model.Reservation{}).
+			Where("clinic_id = ? AND id = ? AND status = ? AND deleted_at IS NULL",
+				clinicID, id, model.ReservationStatusTentative).
+			Updates(fields)
+		if result.Error != nil {
+			if conflict := asReservationTimeConflict(result.Error); conflict != nil {
+				return conflict
+			}
+			return apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("%d", id))
+		}
+		if result.RowsAffected == 0 {
+			return apperrors.WrapConflict("次回予定が同時に更新されました。再読み込みしてください")
+		}
+		var findErr error
+		loaded, findErr = r.FindByID(txCtx, clinicID, id)
+		return findErr
+	})
+	if err != nil {
+		return nil, err
+	}
+	return loaded, nil
+}
+
 // ---------------------------------------------------------------------------
 // EMR-308 lifecycle absorb: tentative の同一行昇格
 //
