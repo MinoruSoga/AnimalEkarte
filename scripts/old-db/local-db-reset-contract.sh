@@ -107,7 +107,35 @@ extract_compose_volume_names() {
         print $2
       }
     }
-  ' "$file"
+  ' "$file" | while IFS= read -r raw; do
+    resolve_volume_name "$raw"
+  done
+}
+
+# `${VAR:-default}` 形式の `name:` を、`docker compose --env-file` の補間と同じ
+# 規則で実効名に解決する（ENV_FILE に VAR= 指定があればそれ、なければ default）。
+# その他の補間形式（${VAR-default} / ${VAR:?} 等）は解決せずリテラルのまま返し、
+# allowlist 照合で fail-closed に倒す。
+resolve_volume_name() {
+  local raw="$1" var def val
+  if [[ "$raw" =~ ^\$\{([A-Za-z_][A-Za-z0-9_]*):-([^}]*)\}$ ]]; then
+    var="${BASH_REMATCH[1]}"
+    def="${BASH_REMATCH[2]}"
+    val=""
+    if [[ -f "$ENV_FILE" ]]; then
+      # grep no-match の exit 1 が set -e で subshell を殺さないよう || true
+      val="$(grep -E "^${var}=" "$ENV_FILE" | tail -n1 | cut -d= -f2- || true)"
+      # env_file 仕様: quoted 値はそのまま、unquoted 値の " #..." はコメント。
+      case "$val" in
+        \"*\") val="${val#\"}"; val="${val%\"}" ;;
+        \'*\') val="${val#\'}"; val="${val%\'}" ;;
+        *) val="${val%%#*}"; val="${val%"${val##*[![:space:]]}"}" ;;
+      esac
+    fi
+    printf '%s\n' "${val:-$def}"
+  else
+    printf '%s\n' "$raw"
+  fi
 }
 
 # Portable SHA-256 of a file → print hex digest only.

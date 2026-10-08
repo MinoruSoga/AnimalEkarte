@@ -28,6 +28,7 @@ Full policy: [.claude/rules/git-worktree-safety.md](.claude/rules/git-worktree-s
 - **Never** run `git reset --hard`, `git clean -fd(x)`, `git checkout -- .`, `git restore .`, or force-push. Do not assume Claude Hook enforcement applies to Codex; verify the effective runtime controls.
 - To sync with remote: `git fetch` + `git merge` / `git pull --ff-only` (after checking `git status` for foreign WIP).
 - **Parallel Grok/Claude/Codex tasks must use separate git worktrees** (or isolation worktree). Do not share one working tree across concurrent agents.
+- **Worktrees that run the local Docker stack must isolate runtime resources.** Before `make up` in a non-main worktree, generate `.env.local` with `scripts/tools/worktree-env.sh <offset>` (unique ports, project name, DB/node_modules volumes). Always stop the stack (`docker compose down`) before removing a worktree — orphaned containers keep holding ports. Full policy: [.claude/rules/worktree-runtime.md](.claude/rules/worktree-runtime.md).
 - Prefer WIP commits over discarding work. Do not “clean the tree” to unblock yourself.
 
 ### Branch deletion by creator (Mandatory)

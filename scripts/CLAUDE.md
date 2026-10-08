@@ -90,3 +90,4 @@ CI 契約チェック・DB リセット/移行ツール・セキュリティ/ポ
 | `export-codex-security-latest.sh` | Codex セキュリティレポート出力（既定 archive） |
 | `validate-k6-summary.mjs` (+`.test.mjs`) | k6 負荷試験サマリ検証 |
 | `auth-d5-dualprocess.sh` | D5 二重プロセス即時失効/レイテンシハーネス |
+| `worktree-env.sh` (+`.test.sh`) | worktree 用 `.env.local` 生成（ポート/project/volume を offset 隔離。`.claude/rules/worktree-runtime.md`） |
