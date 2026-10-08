@@ -1,7 +1,7 @@
-import { useLayoutEffect } from "react";
+import { act, useLayoutEffect } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Link, MemoryRouter, useLocation } from "react-router";
+import { createMemoryRouter, Link, MemoryRouter, RouterProvider, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { C } from "@/lib/design-tokens";
 import { useGetPet } from "@/hooks/use-pet";
@@ -339,6 +339,82 @@ describe("VaccinationList petId query", () => {
     expect(screen.getByRole("button", { name: "1" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByText("all-1")).toBeInTheDocument();
     expect(screen.queryByText("all-21")).not.toBeInTheDocument();
+  });
+
+  it("URL の page=2 を直接開くと 2 ページ目を表示する", () => {
+    mockUseFilterVaccinations.mockImplementation(
+      (_search: string, filters?: { petId?: string }) => {
+        const label = filters?.petId ? `pet-${filters.petId}` : "all";
+        const rows = Array.from({ length: 21 }, (_, index) => ({
+          ...vaccination,
+          id: `${label}-${index + 1}`,
+          petName: `${label}-${index + 1}`,
+        }));
+        return { data: rows, allVaccinations: rows, isLoading: false, error: null };
+      },
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/vaccinations?petId=10&page=2"]}>
+        <VaccinationList />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("button", { name: "2" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("pet-10-21")).toBeInTheDocument();
+  });
+
+  it("全体一覧から戻るとペット指定の page を表示に戻す", async () => {
+    mockUseFilterVaccinations.mockImplementation(
+      (_search: string, filters?: { petId?: string }) => {
+        const label = filters?.petId ? `pet-${filters.petId}` : "all";
+        const rows = Array.from({ length: 21 }, (_, index) => ({
+          ...vaccination,
+          id: `${label}-${index + 1}`,
+          petName: `${label}-${index + 1}`,
+        }));
+        return { data: rows, allVaccinations: rows, isLoading: false, error: null };
+      },
+    );
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/vaccinations",
+          element: (
+            <>
+              <VaccinationList />
+              <LocationProbe />
+            </>
+          ),
+        },
+      ],
+      {
+        initialEntries: ["/vaccinations?petId=10&page=2", "/vaccinations"],
+        initialIndex: 1,
+      },
+    );
+    render(<RouterProvider router={router} />);
+
+    expect(screen.getByRole("button", { name: "1" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("all-1")).toBeInTheDocument();
+
+    await act(async () => {
+      await router.navigate(-1);
+    });
+
+    expect(screen.getByTestId("location")).toHaveTextContent("petId=10");
+    expect(screen.getByTestId("location")).toHaveTextContent("page=2");
+    expect(screen.getByRole("button", { name: "2" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("pet-10-21")).toBeInTheDocument();
+
+    await act(async () => {
+      await router.navigate(1);
+    });
+
+    expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations$/);
+    expect(screen.getByRole("button", { name: "1" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("all-1")).toBeInTheDocument();
   });
 });
 

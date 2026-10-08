@@ -88,14 +88,30 @@ export function VaccinationList() {
     useSortableData(defaultOrderedRecords);
 
   const pagination = usePagination(sortedData, {
-    resetKey: JSON.stringify([deferredSearchTerm, petId]),
+    resetKey: deferredSearchTerm,
   });
 
-  const urlPage = Number(searchParams.get("page") ?? 1);
-  const { totalPages, goToPage } = pagination;
+  const rawUrlPage = Number(searchParams.get("page") ?? 1);
+  const urlPage = Number.isFinite(rawUrlPage) && rawUrlPage >= 1 ? Math.floor(rawUrlPage) : 1;
+  const { currentPage, totalPages, goToPage } = pagination;
+
+  // URL の page が正本。戻る・直接アクセスの有効な page を内部ページへ合わせ、範囲外はクランプする。
+  useLayoutEffect(() => {
+    if (isLoading) return;
+    const clamped = Math.min(urlPage, Math.max(totalPages, 1));
+    if (currentPage !== clamped) goToPage(clamped);
+  }, [currentPage, goToPage, isLoading, totalPages, urlPage]);
 
   // FE-RC-028: totalPages を超える URL page をクランプして書き戻す（フィルタ変更等で母集団が縮んだ場合の空ページ対策）。
   useUrlPageSync({ urlPage, totalPages, isLoading, setSearchParams });
+
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchTerm(value);
+      setSearchParams((prev) => nextListSearchParamsWithPage(prev, 1), { replace: true });
+    },
+    [setSearchParams],
+  );
 
   const handlePageChange = useCallback(
     (page: number) => {
@@ -163,7 +179,7 @@ export function VaccinationList() {
           activeFilters={activeFilters}
           onFilterChange={setActiveFilters}
           searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
+          onSearchChange={handleSearchChange}
           count={filteredRecords.length}
           activeSorts={activeSorts}
           onSortChange={setActiveSorts}

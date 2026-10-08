@@ -11,8 +11,21 @@ import { sidebarItemDescriptions } from "./SidebarMenu";
 
 interface SidebarItemProps {
   item: MenuItem;
+  /** Path used for the purpose sentence. Survives when navigation path is stripped. */
+  purposePath?: string;
   collapsed?: boolean;
   level?: number;
+}
+
+const TOOLTIP_GAP_PX = 8;
+
+function tooltipBox(
+  anchorRight: number,
+  viewportWidth: number,
+): { left: number; maxWidth: string } {
+  const left = anchorRight + TOOLTIP_GAP_PX;
+  const remaining = Math.max(0, viewportWidth - left - TOOLTIP_GAP_PX);
+  return { left, maxWidth: `min(28rem, ${remaining}px)` };
 }
 
 function checkAnyChildActive(items: MenuItem[], pathname: string): boolean {
@@ -67,6 +80,7 @@ function PurposeTooltip({
   anchor: HTMLElement | null;
 }) {
   const rect = anchor?.getBoundingClientRect();
+  const box = tooltipBox(rect?.right ?? 0, window.innerWidth);
   return createPortal(
     <div
       id={id}
@@ -75,9 +89,9 @@ function PurposeTooltip({
       style={{
         position: "fixed",
         top: rect?.top ?? 0,
-        left: (rect?.right ?? 0) + 8,
+        left: box.left,
         zIndex: Z.overlay,
-        maxWidth: "min(28rem, calc(100vw - 16px))",
+        maxWidth: box.maxWidth,
       }}
       className={`pointer-events-none w-max rounded ${C.bgTooltip} px-2.5 py-1.5 text-xs leading-relaxed ${C.textWhite}`}
     >
@@ -89,6 +103,7 @@ function PurposeTooltip({
 
 const SidebarItem = memo(function SidebarItem({
   item,
+  purposePath,
   collapsed = false,
   level = 0,
 }: SidebarItemProps) {
@@ -107,7 +122,7 @@ const SidebarItem = memo(function SidebarItem({
     ? checkAnyChildActive(item.subItems ?? [], location.pathname)
     : false;
   const isExpanded = manualExpanded ?? hasActiveChild;
-  const description = purposeForPath(item.path);
+  const description = purposeForPath(purposePath ?? item.path);
   const descriptionId = useId();
   const [rowElement, setRowElement] = useState<HTMLDivElement | null>(null);
   const keyboardIntent = useRef(false);
@@ -324,5 +339,7 @@ export const SidebarItemWithPermission = memo(function SidebarItemWithPermission
   const renderItem: MenuItem =
     !selfOk && item.subItems?.length ? { ...item, resource: undefined, path: undefined } : item;
 
-  return <SidebarItem item={renderItem} collapsed={collapsed} level={level} />;
+  return (
+    <SidebarItem item={renderItem} purposePath={item.path} collapsed={collapsed} level={level} />
+  );
 });

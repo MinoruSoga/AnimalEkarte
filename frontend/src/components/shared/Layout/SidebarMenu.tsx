@@ -491,7 +491,7 @@ export const sidebarItemDescriptions: Readonly<Record<string, string>> = {
   [paths.lstep.checkupSync.getHref()]: lstepPurpose,
   [paths.lstep.analytics.getHref()]: lstepPurpose,
   [paths.lstep.deliveryMonitor.getHref()]:
-    "システムが自動生成した Lステップ **配信トリガー** の実行状況、除外判定、および API 通信の成否を取得時点のログで監視する。",
+    "システムが自動生成した Lステップ配信トリガーの実行状況、除外判定、および API 通信の成否を取得時点のログで監視する。",
   [paths.settings.getHref()]:
     "診療、トリミング、入院、スタッフ、権限、および外部連携など、システム全体で共通利用される定義データ（マスタ）を一元的に管理するポータル。",
   [paths.settings.clinic.getHref()]:
@@ -508,7 +508,7 @@ export const sidebarItemDescriptions: Readonly<Record<string, string>> = {
   [paths.settings.medicine.getHref()]:
     "院内で使用・処方される医薬品の定義、単価設定、および在庫システムとの紐付け。",
   [paths.settings.examination.getHref()]:
-    "血液検査や生化学検査等、検査プラン（`exam_types`）の名称・価格の定義、および測定項目（`exam_type_fields`）と基準値の管理。",
+    "血液検査や生化学検査等、検査プラン（exam_types）の名称・価格の定義、および測定項目（exam_type_fields）と基準値の管理。",
   [paths.settings.reservationType.getHref()]:
     "診察、ワクチン、手術、トリミング等の予約枠（スロット）の定義と、LINE 予約への公開設定。",
   [paths.settings.hospitalization.getHref()]: "入院治療やペットホテルの基本料金体系の管理。",

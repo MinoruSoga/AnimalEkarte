@@ -167,6 +167,7 @@ describe("受付詳細からペット詳細へ進んで戻る", () => {
                 canCreateAccounting
                 canCreateHospitalization
                 canViewVaccinations={false}
+                canViewOwners
               />
             </QueryClientProvider>
           ),

@@ -29,6 +29,7 @@ interface ReceptionDetailModalProps {
   canCreateAccounting?: boolean;
   canCreateHospitalization?: boolean;
   canViewVaccinations?: boolean;
+  canViewOwners?: boolean;
 }
 
 function isHospitalizationReservationType(reservationType: string): boolean {
@@ -47,6 +48,7 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
   canCreateAccounting,
   canCreateHospitalization,
   canViewVaccinations = false,
+  canViewOwners = false,
 }: ReceptionDetailModalProps) {
   const navigate = useNavigate();
 
@@ -134,9 +136,9 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
   }, [ownerId, ownerName, navigateAndClose]);
 
   const handleOpenPetDetail = useCallback(() => {
-    if (!ownerId || !petId) return;
+    if (canViewOwners !== true || !ownerId || !petId) return;
     navigateAndClose(paths.owners.detail.pet.getHref(ownerId, petId));
-  }, [ownerId, petId, navigateAndClose]);
+  }, [canViewOwners, ownerId, petId, navigateAndClose]);
 
   const handleOpenVaccinations = useCallback(() => {
     if (!petId) return;
@@ -162,7 +164,7 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
         <ReceptionDialogBody
           appointment={appointment}
           isTrimming={isTrimming}
-          onOpenPetDetail={handleOpenPetDetail}
+          onOpenPetDetail={canViewOwners === true ? handleOpenPetDetail : undefined}
           onCreateMedicalRecord={handleCreateMedicalRecord}
           onCreateTrimming={handleCreateTrimming}
           onCreateAccounting={handleCreateAccounting}

@@ -45,6 +45,7 @@ interface RenderModalOptions {
   currentStatus?: string;
   onClose?: () => void;
   canViewVaccinations?: boolean;
+  canViewOwners?: boolean;
 }
 
 function renderModal({
@@ -52,6 +53,7 @@ function renderModal({
   currentStatus = "受付済",
   onClose = vi.fn(),
   canViewVaccinations = false,
+  canViewOwners = true,
 }: RenderModalOptions = {}) {
   return render(
     <ReceptionDetailModal
@@ -63,6 +65,7 @@ function renderModal({
       canCreateAccounting={true}
       canCreateHospitalization={true}
       canViewVaccinations={canViewVaccinations}
+      canViewOwners={canViewOwners}
     />,
   );
 }
@@ -188,6 +191,18 @@ describe("ReceptionDetailModal", () => {
       state: { from: "/?date=2026-05-29" },
     });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("owners の閲覧権限が無いペット名は文字のままで遷移しない", () => {
+    renderModal({
+      canViewOwners: false,
+      appointment: { ...baseAppointment, ownerId: "20", petId: "10" },
+    });
+
+    const name = screen.getByText("ポチ");
+    expect(name.tagName).toBe("SPAN");
+    fireEvent.click(name);
+    expect(navigateMock).not.toHaveBeenCalled();
   });
 
   it("ownerId が無いペット名はテキストのままで遷移しない", () => {

@@ -54,6 +54,7 @@ interface ReceptionPageBodyProps {
   canCreateAccounting: boolean;
   canCreateHospitalization: boolean;
   canViewVaccinations: boolean;
+  canViewOwners: boolean;
   isEditModalOpen: boolean;
   onCloseEditModal: () => void;
   onEditSave: ComponentProps<typeof ReservationFormModal>["onSave"];
@@ -98,6 +99,7 @@ export function ReceptionPageBody({
   canCreateAccounting,
   canCreateHospitalization,
   canViewVaccinations,
+  canViewOwners,
   isEditModalOpen,
   onCloseEditModal,
   onEditSave,
@@ -184,6 +186,7 @@ export function ReceptionPageBody({
             canCreateAccounting={canCreateAccounting}
             canCreateHospitalization={canCreateHospitalization}
             canViewVaccinations={canViewVaccinations}
+            canViewOwners={canViewOwners}
           />
         </Suspense>
       ) : null}

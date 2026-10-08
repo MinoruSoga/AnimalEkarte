@@ -285,7 +285,7 @@ const DESCRIBED_MENU: ReadonlyArray<{ label: string; path: string; purpose: stri
     label: "配信監視",
     path: paths.lstep.deliveryMonitor.getHref(),
     purpose:
-      "システムが自動生成した Lステップ **配信トリガー** の実行状況、除外判定、および API 通信の成否を取得時点のログで監視する。",
+      "システムが自動生成した Lステップ配信トリガーの実行状況、除外判定、および API 通信の成否を取得時点のログで監視する。",
   },
   {
     label: "マスタ設定",
@@ -334,7 +334,7 @@ const DESCRIBED_MENU: ReadonlyArray<{ label: string; path: string; purpose: stri
     label: "検査マスタ",
     path: paths.settings.examination.getHref(),
     purpose:
-      "血液検査や生化学検査等、検査プラン（`exam_types`）の名称・価格の定義、および測定項目（`exam_type_fields`）と基準値の管理。",
+      "血液検査や生化学検査等、検査プラン（exam_types）の名称・価格の定義、および測定項目（exam_type_fields）と基準値の管理。",
   },
   {
     label: "予約区分",
@@ -516,6 +516,69 @@ describe("sidebar item purpose descriptions", () => {
     expect(hovered).toHaveLength(1);
     expect(hovered[0]).toHaveTextContent("配信トリガー");
     expect(hovered[0]).not.toHaveTextContent(LSTEP_PURPOSE);
+    expect(hovered[0]).not.toHaveTextContent("**");
+  });
+
+  it("役割説明は Markdown の強調と識別子引用を含まない", () => {
+    for (const text of Object.values(sidebarItemDescriptions)) {
+      expect(text).not.toMatch(/\*\*|`/);
+    }
+  });
+
+  it("権限で遷移先を外した親でも元の役割説明を出す", () => {
+    const hasPermission = vi.fn<AuthContextValue["hasPermission"]>(
+      (resource, action) => resource === ResourceLstepAnalytics && action === "view",
+    );
+    renderSidebarItem(
+      {
+        label: "Lステップ連携",
+        path: paths.lstep.settings.getHref(),
+        resource: ResourceHospitalSettings,
+        subItems: [
+          {
+            label: "配信監視",
+            path: paths.lstep.deliveryMonitor.getHref(),
+            resource: ResourceLstepAnalytics,
+          },
+        ],
+      },
+      false,
+      "/",
+      hasPermission,
+    );
+
+    focusVisible(screen.getByRole("button", { name: "Lステップ連携" }));
+    expect(screen.getByRole("tooltip")).toHaveTextContent(LSTEP_PURPOSE);
+  });
+
+  it("折りたたみ時の説明はアンカーの右に残った幅へ収める", () => {
+    const original = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 375 });
+    try {
+      const item = requireMenuItem("当日の受付", paths.home.getHref());
+      renderSidebarItem(item, true);
+      const link = screen.getByRole("link", { name: "当日の受付" });
+      const row = link.closest("[data-sidebar-row]");
+      if (!(row instanceof HTMLElement)) throw new Error("sidebar row missing");
+      row.getBoundingClientRect = () =>
+        ({
+          x: 0,
+          y: 0,
+          top: 10,
+          left: 0,
+          right: 64,
+          bottom: 58,
+          width: 64,
+          height: 48,
+          toJSON: () => ({}),
+        }) as DOMRect;
+      focusVisible(link);
+      const tooltip = screen.getByRole("tooltip");
+      expect(tooltip.style.left).toBe("72px");
+      expect(tooltip.style.maxWidth).toBe("min(28rem, 295px)");
+    } finally {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: original });
+    }
   });
 
   it("画面の目的がある項目だけその文を受け取り、無い5件は説明を持たない", () => {
