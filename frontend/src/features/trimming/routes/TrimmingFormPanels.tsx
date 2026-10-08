@@ -225,7 +225,9 @@ export function TrimmingFormBody({
             </span>
           </div>
         ) : null}
-        <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
+        {/* 保存中も画像操作を無効化 — 送信済みキーの remove/置換は対象外だが、
+            isSaving 中の入力変更はペイロードに反映されないため一貫して止める。 */}
+        <fieldset disabled={!canSubmit || isSaving} className="border-0 p-0 m-0 min-w-0">
           {selectedPet ? (
             <TrimmingFormColumns
               selectedPet={selectedPet}

@@ -98,6 +98,10 @@ type Service interface {
 	Create(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error)
 	Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error
+	// ImageKeyInUse は trimming 詳細レコードによる画像キー参照の有無を返す。
+	// DELETE /trimmings/images が未永続化オブジェクトのみを消せるようにする
+	// fail-closed ガード — 参照中キーの削除要求は 409 で拒否される。
+	ImageKeyInUse(ctx context.Context, clinicID uint64, key string) (bool, error)
 }
 
 type trimmingService struct {
@@ -204,6 +208,10 @@ func (s *trimmingService) GetByID(ctx context.Context, clinicID, id uint64) (*mo
 		return nil, apperrors.Wrap(detailErr, "failed to get trimming detail")
 	}
 	return appt, nil
+}
+
+func (s *trimmingService) ImageKeyInUse(ctx context.Context, clinicID uint64, key string) (bool, error) {
+	return s.trimmingDetail.ImageKeyInUse(ctx, clinicID, key)
 }
 
 func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error) {

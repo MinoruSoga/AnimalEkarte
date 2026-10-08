@@ -51,6 +51,11 @@ func resolveTrimmingImageStorageKey(stored string) (key string, isStorageObject 
 		if parseErr != nil || parsed.Host == "" {
 			return "", false, errTrimmingImageStorageKeyUnresolved
 		}
+		// Host is intentionally not checked: only the path's
+		// trimming-images/<clinic>/... segment is extracted, then re-validated
+		// against the caller's clinic and signed by OUR uploader only. A foreign
+		// host can therefore reference nothing more than the caller's own keys —
+		// equivalent to submitting the key directly.
 		extracted, ok := trimmingImageKeyFromURLPath(parsed.Path)
 		if !ok {
 			return "", false, nil
@@ -101,7 +106,11 @@ func trimmingImageKeyFromURLPath(path string) (string, bool) {
 
 // trimmingImageKeyBelongsToClinic reports whether key has the exact shape
 // trimming-images/<clinic_id>/<name> for the given clinic. Foreign clinics,
-// traversal segments, and malformed shapes are fail-closed.
+// traversal segments, and malformed shapes are fail-closed. The name segment
+// deliberately allows characters like '?' or '/' — object keys are not
+// filesystem paths and may legally contain them (the local uploader still
+// keeps them inside the clinic directory); '..' is rejected because a
+// local-storage backend could traverse out of it.
 func trimmingImageKeyBelongsToClinic(key string, clinicID uint64) bool {
 	rest, ok := strings.CutPrefix(key, trimmingImageStorageKeyPrefix)
 	if !ok {

@@ -38,34 +38,36 @@ function useTrimmingImageField(
   // 即時プレビュー用 object URL と未保存アップロードキーを追跡する。
   const blobUrlsRef = useRef<Set<string>>(new Set());
   const sessionKeyRef = useRef<string | null>(null);
-  const previewRef = useRef<string | null>(null);
+  // フォーム値（最後に確定した key / 既存レコード値）に対応するプレビュー。
+  // アップロード失敗時は常にここへ戻す — 置き換え途中の blob に依存しない。
+  const committedPreviewRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    previewRef.current = preview;
-  }, [preview]);
+  const releaseBlob = useCallback((blobUrl: string) => {
+    if (blobUrlsRef.current.delete(blobUrl)) {
+      URL.revokeObjectURL(blobUrl);
+    }
+  }, []);
+
+  const releaseAllBlobs = useCallback(() => {
+    for (const url of blobUrlsRef.current) {
+      URL.revokeObjectURL(url);
+    }
+    blobUrlsRef.current.clear();
+  }, []);
 
   // アンマウント時: in-flight を無効化し、blob URL と未保存アップロードを解放する。
+  // 送信済みキー（markSubmitted 済み）はレコード参照の可能性があるため捨てない。
   useEffect(
     () => () => {
       requestIdRef.current += 1;
-      for (const url of blobUrlsRef.current) {
-        URL.revokeObjectURL(url);
-      }
-      blobUrlsRef.current.clear();
+      releaseAllBlobs();
       if (sessionKeyRef.current) {
         discardUploadedKey(sessionKeyRef.current);
         sessionKeyRef.current = null;
       }
     },
-    [],
+    [releaseAllBlobs],
   );
-
-  const releaseBlobIfUnused = useCallback((blobUrl: string) => {
-    if (previewRef.current === blobUrl) return;
-    if (blobUrlsRef.current.delete(blobUrl)) {
-      URL.revokeObjectURL(blobUrl);
-    }
-  }, []);
 
   const handleChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -73,24 +75,39 @@ function useTrimmingImageField(
       if (!file) return undefined;
       const requestId = requestIdRef.current + 1;
       requestIdRef.current = requestId;
-      const previousPreview = previewRef.current;
       const blobUrl = URL.createObjectURL(file);
       blobUrlsRef.current.add(blobUrl);
       setPreview(blobUrl); // アップロード完了を待たず即時プレビュー
       setPendingCount((count) => count + 1);
+      markDirty(); // 画像選択自体が未保存変更（転送中の離脱も警告対象）
       const isCurrent = () => requestIdRef.current === requestId;
       return uploadTrimmingImage(file)
         .then((uploaded) => {
           if (!isCurrent()) {
+            // stale: このキーは sessionKeyRef に入ったことがない（=未送信確定）
+            // ので安全に捨てられる。blob も表示中でないため即解放。
+            releaseBlob(blobUrl);
             discardUploadedKey(uploaded.key);
             return;
           }
           const replacedSessionKey = sessionKeyRef.current;
           sessionKeyRef.current = uploaded.key;
           setLocalOverrides((prev) => ({ ...prev, [field]: uploaded.key }));
-          markDirty();
+          const previousCommittedPreview = committedPreviewRef.current;
           if (uploaded.signed_url !== "") {
+            committedPreviewRef.current = uploaded.signed_url;
             setPreview(uploaded.signed_url);
+            releaseBlob(blobUrl); // 表示が署名URLへ切替わった blob は即解放
+          } else {
+            committedPreviewRef.current = blobUrl; // blob が確定プレビューとして残る
+          }
+          // 置き換えで不要になった旧確定 blob（signed_url 空の前回値）を解放
+          if (
+            previousCommittedPreview !== null &&
+            previousCommittedPreview !== committedPreviewRef.current &&
+            blobUrlsRef.current.has(previousCommittedPreview)
+          ) {
+            releaseBlob(previousCommittedPreview);
           }
           // 未保存で置き換わった先行アップロードは到達不能 → 掃除
           if (replacedSessionKey && replacedSessionKey !== uploaded.key) {
@@ -98,16 +115,16 @@ function useTrimmingImageField(
           }
         })
         .catch((error) => {
+          releaseBlob(blobUrl);
           if (!isCurrent()) return;
-          setPreview(previousPreview);
+          setPreview(committedPreviewRef.current); // 直前の確定 key/プレビューを残す
           handleApiError(error, "画像アップロード");
         })
         .finally(() => {
           setPendingCount((count) => count - 1);
-          releaseBlobIfUnused(blobUrl);
         });
     },
-    [field, setLocalOverrides, markDirty, releaseBlobIfUnused],
+    [field, setLocalOverrides, markDirty, releaseBlob],
   );
 
   const remove = useCallback(() => {
@@ -115,24 +132,37 @@ function useTrimmingImageField(
     setLocalOverrides((prev) => ({ ...prev, [field]: "" }));
     markDirty();
     setPreview(null);
+    committedPreviewRef.current = null;
     const sessionKey = sessionKeyRef.current;
     sessionKeyRef.current = null;
     if (sessionKey) {
-      discardUploadedKey(sessionKey);
+      discardUploadedKey(sessionKey); // 未送信セッションキーのみ
     }
-    for (const url of blobUrlsRef.current) {
-      URL.revokeObjectURL(url);
-    }
-    blobUrlsRef.current.clear();
-  }, [field, setLocalOverrides, markDirty]);
+    releaseAllBlobs();
+  }, [field, setLocalOverrides, markDirty, releaseAllBlobs]);
 
-  // 保存成功でキーの所有権がレコードへ移った後に呼ぶ。以後の削除は backend の
-  // superseded 処理が担うため、session 追跡を止める。
-  const commitUploadedKey = useCallback(() => {
+  // 保存リクエスト送信時に呼ぶ。ペイロードへ含めたキーは送信以後サーバー側の
+  // 所有物として扱う — 保存成否に関わらずクライアントは削除しない
+  // （commit 済みレコードの参照を消さないため。未commit なら orphan となるが
+  // 参照中オブジェクトの削除より安全）。置換・削除は backend superseded が担う。
+  const markSubmitted = useCallback(() => {
     sessionKeyRef.current = null;
   }, []);
 
-  return { preview, setPreview, pendingCount, handleChange, remove, commitUploadedKey };
+  // hydration 等で確定済みプレビューを外部から設定する（record の署名URL）。
+  const setCommittedPreview = useCallback((value: string | null) => {
+    committedPreviewRef.current = value;
+    setPreview(value);
+  }, []);
+
+  return {
+    preview,
+    setPreview: setCommittedPreview,
+    pendingCount,
+    handleChange,
+    remove,
+    markSubmitted,
+  };
 }
 
 type TrimmingHydrateSource = {
@@ -253,13 +283,13 @@ export function useTrimmingFormImages(
 ) {
   const styleImage = useTrimmingImageField("styleImage", setLocalOverrides, markDirty);
   const completedImage = useTrimmingImageField("completedImage", setLocalOverrides, markDirty);
-  const commitStyleImageKey = styleImage.commitUploadedKey;
-  const commitCompletedImageKey = completedImage.commitUploadedKey;
+  const markStyleSubmitted = styleImage.markSubmitted;
+  const markCompletedSubmitted = completedImage.markSubmitted;
 
-  const commitUploadedKeys = useCallback(() => {
-    commitStyleImageKey();
-    commitCompletedImageKey();
-  }, [commitStyleImageKey, commitCompletedImageKey]);
+  const markSubmittedKeys = useCallback(() => {
+    markStyleSubmitted();
+    markCompletedSubmitted();
+  }, [markStyleSubmitted, markCompletedSubmitted]);
 
   return {
     styleImagePreview: styleImage.preview,
@@ -271,7 +301,7 @@ export function useTrimmingFormImages(
     removeStyleImage: styleImage.remove,
     removeCompletedImage: completedImage.remove,
     isImageUploading: styleImage.pendingCount > 0 || completedImage.pendingCount > 0,
-    commitUploadedKeys,
+    markSubmittedKeys,
   };
 }
 

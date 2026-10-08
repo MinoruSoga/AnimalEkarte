@@ -21,11 +21,12 @@ import (
 // ---- mock Service ----
 
 type mockService struct {
-	listFn    func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
-	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
-	createFn  func(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error)
-	updateFn  func(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error)
-	deleteFn  func(ctx context.Context, clinicID, id uint64, actorID *uint64) error
+	listFn          func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
+	getByIDFn       func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	createFn        func(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error)
+	updateFn        func(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error)
+	deleteFn        func(ctx context.Context, clinicID, id uint64, actorID *uint64) error
+	imageKeyInUseFn func(ctx context.Context, clinicID uint64, key string) (bool, error)
 }
 
 func (m *mockService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error) {
@@ -61,6 +62,13 @@ func (m *mockService) Delete(ctx context.Context, clinicID, id uint64, actorID *
 		return m.deleteFn(ctx, clinicID, id, actorID)
 	}
 	return nil
+}
+
+func (m *mockService) ImageKeyInUse(ctx context.Context, clinicID uint64, key string) (bool, error) {
+	if m.imageKeyInUseFn != nil {
+		return m.imageKeyInUseFn(ctx, clinicID, key)
+	}
+	return false, nil
 }
 
 // ---- helper ----

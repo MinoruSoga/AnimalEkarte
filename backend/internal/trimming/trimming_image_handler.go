@@ -207,11 +207,17 @@ type trimmingImageDeleteRequest struct {
 
 // DeleteTrimmingImage godoc
 // DELETE /trimmings/images — body {"key": "trimming-images/<clinic>/<name>"}。
-// 自医院スコープのオブジェクトキーのみ削除を許可する。レコード参照を持たない
-// 未保存アップロードのクリーンアップ用で、永続化済みフィールドの削除は
-// PATCH/DELETE の superseded 処理が担う。
+// 自医院スコープのオブジェクトキーのみ削除を許可する。さらにレコード参照が
+// 残るキーは 409 で拒否する（署名URLからキーを得た同権限スタッフが保存済み
+// 画像を消せないよう fail-closed）。この endpoint は未永続化アップロードの
+// best-effort 掃除専用で、永続化済みフィールドの削除は PATCH/DELETE の
+// superseded 処理が担う。
 func (h *Handler) DeleteTrimmingImage(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
+	staffID, ok := httpapi.ExtractStaffID(c)
 	if !ok {
 		return
 	}
@@ -229,9 +235,27 @@ func (h *Handler) DeleteTrimmingImage(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput("invalid trimming image key"))
 		return
 	}
+	// 参照チェックを fail-closed で行う — 参照状況を確認できない限り消さない。
+	if h.svc == nil || h.svc.Trimming == nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "trimming image reference check is not configured"})
+		return
+	}
+	inUse, err := h.svc.Trimming.ImageKeyInUse(c.Request.Context(), clinicID, key)
+	if err != nil {
+		httpapi.RespondError(c, apperrors.Wrap(err, "failed to check trimming image reference"))
+		return
+	}
+	if inUse {
+		c.AbortWithStatusJSON(http.StatusConflict, gin.H{"error": "trimming image is referenced by a record"})
+		return
+	}
 	if err := h.imageUploader.Delete(c.Request.Context(), key); err != nil {
 		httpapi.RespondError(c, apperrors.Wrap(err, "failed to delete trimming image"))
 		return
 	}
+	slog.InfoContext(c.Request.Context(), "trimming image object deleted",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("staff_id", staffID),
+		slog.String("key", key))
 	c.Status(http.StatusNoContent)
 }

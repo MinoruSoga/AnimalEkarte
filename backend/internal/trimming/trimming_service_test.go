@@ -233,6 +233,10 @@ func (m *mockTrimmingDetailRepository) SetOptions(ctx context.Context, clinicID,
 	return nil
 }
 
+func (m *mockTrimmingDetailRepository) ImageKeyInUse(_ context.Context, _ uint64, _ string) (bool, error) {
+	return false, nil
+}
+
 var _ AppointmentTrimmingDetailRepository = (*mockTrimmingDetailRepository)(nil)
 
 // --- mock: Transactor（テスト用：fn を同一コンテキストで直接実行） ---

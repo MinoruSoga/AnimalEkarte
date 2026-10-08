@@ -47,11 +47,7 @@ func (h *Handler) ListTrimmings(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	responses, err := h.signedTrimmingResponses(c.Request.Context(), clinicID, appts)
-	if err != nil {
-		httpapi.RespondError(c, apperrors.Wrap(err, "failed to sign trimming image url"))
-		return
-	}
+	responses := h.signedTrimmingResponses(c.Request.Context(), clinicID, appts)
 	c.JSON(http.StatusOK, httpapi.NewPaginatedResponse(responses, total, page, limit))
 }
 
@@ -73,12 +69,7 @@ func (h *Handler) GetTrimming(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	resp, err := h.signTrimmingResponse(c.Request.Context(), clinicID, appt)
-	if err != nil {
-		httpapi.RespondError(c, apperrors.Wrap(err, "failed to sign trimming image url"))
-		return
-	}
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, h.signTrimmingResponse(c.Request.Context(), clinicID, appt))
 }
 
 // CreateTrimming はトリミング予約を作成する
@@ -114,11 +105,8 @@ func (h *Handler) CreateTrimming(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	resp, err := h.signTrimmingResponse(c.Request.Context(), clinicID, appt)
-	if err != nil {
-		httpapi.RespondError(c, apperrors.Wrap(err, "failed to sign trimming image url"))
-		return
-	}
+	// 署名失敗は unsigned echo に degrade（commit 済みレコードを 500 にしない）。
+	resp := h.signTrimmingResponse(c.Request.Context(), clinicID, appt)
 	c.Header("Location", fmt.Sprintf("/api/v1/trimmings/%d", appt.ID))
 	c.JSON(http.StatusCreated, resp)
 }
@@ -160,11 +148,8 @@ func (h *Handler) UpdateTrimming(c *gin.Context) {
 		return
 	}
 	h.deleteReplacedTrimmingImages(c.Request.Context(), clinicID, previous, appt)
-	resp, err := h.signTrimmingResponse(c.Request.Context(), clinicID, appt)
-	if err != nil {
-		httpapi.RespondError(c, apperrors.Wrap(err, "failed to sign trimming image url"))
-		return
-	}
+	// 署名失敗は unsigned echo に degrade（commit 済みレコードを 500 にしない）。
+	resp := h.signTrimmingResponse(c.Request.Context(), clinicID, appt)
 	c.JSON(http.StatusOK, resp)
 }
 

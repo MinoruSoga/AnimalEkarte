@@ -1,12 +1,4 @@
-import {
-  useState,
-  useCallback,
-  useEffect,
-  useMemo,
-  useActionState,
-  useLayoutEffect,
-  useRef,
-} from "react";
+import { useState, useCallback, useMemo, useActionState, useLayoutEffect, useRef } from "react";
 import { useLocation, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -159,6 +151,7 @@ export function useTrimmingForm(
     petFromEditRef.current = petFromEdit;
   }, [petFromEdit]);
 
+  const markSubmittedKeys = images.markSubmittedKeys;
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
       try {
@@ -173,6 +166,7 @@ export function useTrimmingForm(
           if (!petFromEditRef.current) {
             return refuseTrimmingMutation("ペット情報の読み込みが完了してから保存してください");
           }
+          markSubmittedKeys();
           await updateMutation.mutateAsync({
             id,
             req: buildUpdateTrimmingRequest(currentFormData),
@@ -185,6 +179,7 @@ export function useTrimmingForm(
           if (!isMutationAllowed("canCreate")) {
             return refuseTrimmingMutation(TRIMMING_PERMISSION_DENIED_MESSAGE);
           }
+          markSubmittedKeys();
           await updateMutation.mutateAsync({
             id: existingAppointmentId || reusableTrimming?.id || "",
             req: buildUpdateTrimmingRequest(currentFormData),
@@ -225,6 +220,7 @@ export function useTrimmingForm(
             req.status = currentFormData.initialStatus;
             req.reservation_route = "record_shortcut";
           }
+          markSubmittedKeys();
           await createMutation.mutateAsync(req);
           toast.success("トリミング情報を登録しました");
         }
@@ -236,15 +232,6 @@ export function useTrimmingForm(
     },
     INITIAL_ACTION_STATE,
   );
-
-  // 保存成功でアップロード済みキーの所有権がレコードへ移る。以後の削除は
-  // backend の superseded 処理が担うため session 追跡を解除する。
-  const commitUploadedKeys = images.commitUploadedKeys;
-  useEffect(() => {
-    if (formState.success) {
-      commitUploadedKeys();
-    }
-  }, [formState.success, formState.timestamp, commitUploadedKeys]);
 
   useTrimmingFormPetSync({
     isEdit,

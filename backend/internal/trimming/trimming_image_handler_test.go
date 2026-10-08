@@ -532,12 +532,13 @@ func TestGetTrimming_PassesThroughNonObjectValues(t *testing.T) {
 	assert.Empty(t, uploader.signCalls, "non-object values must not be signed")
 }
 
-func TestGetTrimming_RejectsForeignClinicKey(t *testing.T) {
+func TestGetTrimming_EchoesForeignClinicKeyUnsigned(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	uploader := &fakeTrimmingImageUploader{}
 	svc := &mockService{
 		getByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
-			// Stored key belongs to clinic 2 while the record is clinic 1 — never sign.
+			// Stored key belongs to clinic 2 while the record is clinic 1 —
+			// never signed, but the read degrades to echo instead of 500.
 			return trimmingDetailReservation("trimming-images/2/foreign.jpg", ""), nil
 		},
 	}
@@ -549,11 +550,14 @@ func TestGetTrimming_RejectsForeignClinicKey(t *testing.T) {
 	c.Params = gin.Params{{Key: "id", Value: "7"}}
 	h.GetTrimming(c)
 
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Empty(t, uploader.signCalls)
+	assert.Equal(t, http.StatusOK, w.Code)
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	assert.Equal(t, "trimming-images/2/foreign.jpg", body["style_image"])
+	assert.Empty(t, uploader.signCalls, "foreign keys must never reach the signer")
 }
 
-func TestGetTrimming_RejectsMalformedKey(t *testing.T) {
+func TestGetTrimming_EchoesMalformedKeyUnsigned(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	uploader := &fakeTrimmingImageUploader{}
 	svc := &mockService{
@@ -569,8 +573,55 @@ func TestGetTrimming_RejectsMalformedKey(t *testing.T) {
 	c.Params = gin.Params{{Key: "id", Value: "7"}}
 	h.GetTrimming(c)
 
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	assert.Equal(t, "trimming-images/", body["style_image"])
 	assert.Empty(t, uploader.signCalls)
+}
+
+func TestGetTrimming_SignFailureEchoesStoredValue(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	uploader := &fakeTrimmingImageUploader{signErr: errors.New("signing backend down")}
+	svc := &mockService{
+		getByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
+			return trimmingDetailReservation("trimming-images/1/style.jpg", ""), nil
+		},
+	}
+	h := newImageHandler(svc, uploader, &fakeImageUploadQuotaStore{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/trimmings/7", nil)
+	w := httptest.NewRecorder()
+	c := newTrimmingHandlerContext(w, req)
+	c.Params = gin.Params{{Key: "id", Value: "7"}}
+	h.GetTrimming(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), `"style_image":"trimming-images/1/style.jpg"`,
+		"sign failure degrades to unsigned echo of the stored key")
+}
+
+func TestListTrimmings_OneBadImageDoesNotFailList(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	uploader := &fakeTrimmingImageUploader{}
+	svc := &mockService{
+		listFn: func(_ context.Context, _ uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.Reservation, int64, error) {
+			return []model.Reservation{
+				*trimmingDetailReservation("trimming-images/1/style.jpg", ""),
+				*trimmingDetailReservation("trimming-images/2/foreign.jpg", "trimming-images/1/done.png"),
+			}, 2, nil
+		},
+	}
+	h := newImageHandler(svc, uploader, &fakeImageUploadQuotaStore{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/trimmings", nil)
+	w := httptest.NewRecorder()
+	h.ListTrimmings(newTrimmingHandlerContext(w, req))
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "https://signed.example/trimming-images/1/style.jpg")
+	assert.Contains(t, w.Body.String(), `"style_image":"trimming-images/2/foreign.jpg"`)
+	assert.NotContains(t, w.Body.String(), "signed.example/trimming-images/2/")
 }
 
 func TestListTrimmings_SignsImageKeys(t *testing.T) {
@@ -815,4 +866,55 @@ func TestDeleteTrimmingImage_UploaderNotConfiguredFailsClosed(t *testing.T) {
 		newDeleteImageRequest(t, `{"key":"trimming-images/1/style.jpg"}`)))
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestDeleteTrimmingImage_ReferencedKeyRejected(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	uploader := &fakeTrimmingImageUploader{}
+	svc := &mockService{
+		imageKeyInUseFn: func(_ context.Context, clinicID uint64, key string) (bool, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, "trimming-images/1/style.jpg", key)
+			return true, nil
+		},
+	}
+	h := newImageHandler(svc, uploader, &fakeImageUploadQuotaStore{})
+
+	w := httptest.NewRecorder()
+	h.DeleteTrimmingImage(newTrimmingHandlerContext(w,
+		newDeleteImageRequest(t, `{"key":"trimming-images/1/style.jpg"}`)))
+
+	assert.Equal(t, http.StatusConflict, w.Code)
+	assert.Empty(t, uploader.deletes, "a record-referenced object must never be deleted")
+}
+
+func TestDeleteTrimmingImage_ReferenceCheckErrorFailsClosed(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	uploader := &fakeTrimmingImageUploader{}
+	svc := &mockService{
+		imageKeyInUseFn: func(context.Context, uint64, string) (bool, error) {
+			return false, errors.New("db down")
+		},
+	}
+	h := newImageHandler(svc, uploader, &fakeImageUploadQuotaStore{})
+
+	w := httptest.NewRecorder()
+	h.DeleteTrimmingImage(newTrimmingHandlerContext(w,
+		newDeleteImageRequest(t, `{"key":"trimming-images/1/style.jpg"}`)))
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Empty(t, uploader.deletes, "unchecked keys must not be deleted")
+}
+
+func TestDeleteTrimmingImage_WithoutServiceFailsClosed(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	uploader := &fakeTrimmingImageUploader{}
+	h := (&Handler{}).WithImageSupport(ImageDependencies{Uploader: uploader})
+
+	w := httptest.NewRecorder()
+	h.DeleteTrimmingImage(newTrimmingHandlerContext(w,
+		newDeleteImageRequest(t, `{"key":"trimming-images/1/style.jpg"}`)))
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Empty(t, uploader.deletes)
 }

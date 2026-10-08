@@ -3,6 +3,7 @@ package trimming
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -10,44 +11,49 @@ import (
 )
 
 // signTrimmingResponse signs style_image and completed_image when they are
-// object keys owned by the record's clinic. Non-object values pass through
-// unchanged, and a foreign http(s) URL embedding a trimming-images/ key is
-// echoed unsigned rather than failing the read — writes are the strict side
-// (normalizeTrimmingImageForPersist rejects foreign keys), while a stray
-// legacy/imported value must not break or blank the record on read.
-// The persisted model is unchanged.
-func (h *Handler) signTrimmingResponse(ctx context.Context, clinicID uint64, appt *model.Reservation) (TrimmingResponse, error) {
+// object keys owned by the record's clinic. Every signing failure degrades to
+// an unsigned echo of the stored value (warn-logged) rather than failing the
+// response — writes are the strict side (normalizeTrimmingImageForPersist
+// rejects foreign keys), while a stray legacy/imported value or a transient
+// signer outage must not hide records on read, and create/update must not
+// report failure for a record that already committed. The persisted model is
+// unchanged.
+func (h *Handler) signTrimmingResponse(ctx context.Context, clinicID uint64, appt *model.Reservation) TrimmingResponse {
 	if appt == nil {
-		return TrimmingResponse{}, nil
+		return TrimmingResponse{}
 	}
 	resp := toTrimmingResponse(appt)
 	if appt.TrimmingDetail == nil {
-		return resp, nil
+		return resp
 	}
 	ownerClinic := trimmingRecordClinicID(appt, clinicID)
-	styleImage, err := h.signStoredTrimmingImageURL(ctx, ownerClinic, resp.StyleImage)
-	if err != nil {
-		return TrimmingResponse{}, err
-	}
-	resp.StyleImage = styleImage
-	completedImage, err := h.signStoredTrimmingImageURL(ctx, ownerClinic, resp.CompletedImage)
-	if err != nil {
-		return TrimmingResponse{}, err
-	}
-	resp.CompletedImage = completedImage
-	return resp, nil
+	resp.StyleImage = h.signStoredTrimmingImageURLOrEcho(ctx, ownerClinic, resp.StyleImage)
+	resp.CompletedImage = h.signStoredTrimmingImageURLOrEcho(ctx, ownerClinic, resp.CompletedImage)
+	return resp
 }
 
-func (h *Handler) signedTrimmingResponses(ctx context.Context, clinicID uint64, appts []model.Reservation) ([]TrimmingResponse, error) {
+func (h *Handler) signedTrimmingResponses(ctx context.Context, clinicID uint64, appts []model.Reservation) []TrimmingResponse {
 	responses := make([]TrimmingResponse, 0, len(appts))
 	for i := range appts {
-		resp, err := h.signTrimmingResponse(ctx, clinicID, &appts[i])
-		if err != nil {
-			return nil, err
-		}
-		responses = append(responses, resp)
+		responses = append(responses, h.signTrimmingResponse(ctx, clinicID, &appts[i]))
 	}
-	return responses, nil
+	return responses
+}
+
+// signStoredTrimmingImageURLOrEcho signs one stored image value for display.
+// Owned object keys become signed URLs; other values echo unsigned. Any
+// failure — malformed or foreign key, missing uploader, signer error — degrades
+// to echoing the stored value so one bad field cannot take down a record or
+// list response.
+func (h *Handler) signStoredTrimmingImageURLOrEcho(ctx context.Context, clinicID uint64, stored string) string {
+	signed, err := h.signStoredTrimmingImageURL(ctx, clinicID, stored)
+	if err != nil {
+		slog.WarnContext(ctx, "trimming image signing failed; echoing stored value",
+			slog.String("error", err.Error()),
+			slog.Uint64("clinic_id", clinicID))
+		return stored
+	}
+	return signed
 }
 
 func (h *Handler) signStoredTrimmingImageURL(ctx context.Context, clinicID uint64, stored string) (string, error) {
@@ -59,8 +65,8 @@ func (h *Handler) signStoredTrimmingImageURL(ctx context.Context, clinicID uint6
 		return stored, nil
 	}
 	if !trimmingImageKeyBelongsToClinic(key, clinicID) {
-		// Foreign keys fail closed — except legacy http(s) values, which echo
-		// unsigned (see signTrimmingResponse). Bare foreign keys still error.
+		// Foreign http(s) values echo unsigned directly; bare foreign keys error
+		// here but the caller degrades to echo — either way they are never signed.
 		if trimmingImageHasHTTPScheme(stored) {
 			return stored, nil
 		}

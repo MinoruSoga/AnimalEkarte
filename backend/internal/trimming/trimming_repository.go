@@ -17,6 +17,7 @@ type AppointmentTrimmingDetailRepository interface {
 	Create(ctx context.Context, detail *model.AppointmentTrimmingDetail) error
 	Update(ctx context.Context, detail *model.AppointmentTrimmingDetail) error
 	SetOptions(ctx context.Context, clinicID, appointmentID uint64, optionIDs []uint64) error
+	ImageKeyInUse(ctx context.Context, clinicID uint64, key string) (bool, error)
 }
 
 type appointmentTrimmingDetailRepository struct {
@@ -80,6 +81,24 @@ func (r *appointmentTrimmingDetailRepository) Update(ctx context.Context, detail
 		return apperrors.WrapNotFound("appointment_trimming_detail", fmt.Sprintf("appointment_id=%d", detail.AppointmentID))
 	}
 	return nil
+}
+
+// ImageKeyInUse はいずれかの trimming 詳細レコードが key を画像として参照して
+// いるかを返す（DELETE /trimmings/images の fail-closed 参照チェック用）。
+// 書き込みは必ず canonical key に正規化されるため完全一致で十分（旧世代の
+// ラップ形式は trimming-images/ プレフィックスを持たず、そもそも本 prefix 配下の
+// オブジェクトを指さない）。論理削除済み appointment の detail 行もカウント対象 —
+// 参照残りを消さない方向への過剰保持は許容する。
+func (r *appointmentTrimmingDetailRepository) ImageKeyInUse(ctx context.Context, clinicID uint64, key string) (bool, error) {
+	var count int64
+	err := persistence.DBOrTx(ctx, r.db).
+		Model(&model.AppointmentTrimmingDetail{}).
+		Where("clinic_id = ? AND (style_image = ? OR completed_image = ?)", clinicID, key, key).
+		Count(&count).Error
+	if err != nil {
+		return false, apperrors.Wrap(err, "failed to check trimming image reference")
+	}
+	return count > 0, nil
 }
 
 // SetOptions は appointment に紐づく trimming オプションを全置換する。

@@ -14187,7 +14187,8 @@ paths:
       description: |
         フォーム放棄・置換でレコードに永続化されなかったアップロード済みオブジェクトを削除する。
         ボディの `key` は自医院スコープ `trimming-images/{clinic_id}/...` のオブジェクトキーのみ受理
-        （/uploads/ ラップ形式も可）。永続化済みフィールドの削除は PATCH/DELETE の superseded 処理が担う。
+        （/uploads/ ラップ形式も可）。レコード参照が残るキーは 409 で拒否する（fail-closed）。
+        永続化済みフィールドの削除は PATCH/DELETE の superseded 処理が担う。
         trimming の create または edit 権限が必要。
       tags: [Trimmings]
       requestBody:
@@ -14210,6 +14211,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
   /trimmings/{id}:
