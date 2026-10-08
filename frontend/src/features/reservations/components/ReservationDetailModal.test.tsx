@@ -54,6 +54,19 @@ const baseReservation: Reservation = {
 };
 
 describe("ReservationDetailModal", () => {
+  it("予約内容として既存notesを表示する", () => {
+    render(
+      <ReservationDetailModal
+        isOpen
+        onClose={vi.fn()}
+        reservation={{ ...baseReservation, notes: "既存の予約内容" }}
+      />,
+    );
+    expect(screen.getByText("予約内容")).toBeInTheDocument();
+    expect(screen.getByText("既存の予約内容")).toBeInTheDocument();
+    expect(screen.queryByText("メモ")).not.toBeInTheDocument();
+  });
+
   beforeEach(() => {
     getPetResult.current = { data: undefined };
     getColorMock.mockReset();

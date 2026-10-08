@@ -3,6 +3,7 @@ package reservation
 import (
 	"context"
 	"log/slog"
+	"sort"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -24,20 +25,21 @@ type UpdateReservationRouteInput struct{ Route string }
 
 // CreateManualReservationInput は管理画面からの予約作成入力 DTO。
 type CreateManualReservationInput struct {
-	ClinicID          uint64
-	StartTime         time.Time
-	EndTime           time.Time
-	OwnerID           *uint64
-	PetID             *uint64
-	VisitType         model.VisitType
-	ReservationTypeID uint64
-	DoctorID          *uint64
-	IsDesignated      bool
-	Status            model.ReservationStatus
-	Notes             string
-	Source            model.ReservationSource
-	CreatedBy         *uint64
-	ReservationRoute  *string
+	PreventDuplicateReception bool
+	ClinicID                  uint64
+	StartTime                 time.Time
+	EndTime                   time.Time
+	OwnerID                   *uint64
+	PetID                     *uint64
+	VisitType                 model.VisitType
+	ReservationTypeID         uint64
+	DoctorID                  *uint64
+	IsDesignated              bool
+	Status                    model.ReservationStatus
+	Notes                     string
+	Source                    model.ReservationSource
+	CreatedBy                 *uint64
+	ReservationRoute          *string
 }
 
 // UpdateReservationInput は予約更新のサービス入力 DTO
@@ -47,6 +49,7 @@ type ReservationBatchPet struct {
 }
 
 type UpdateReservationInput struct {
+	ExpectedUpdatedAt *time.Time
 	StartTime         *time.Time
 	EndTime           *time.Time
 	OwnerID           *uint64
@@ -308,6 +311,9 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 			return nil, apperrors.WrapInvalidInput(AllowedReservationRoutesMessage)
 		}
 	}
+	if err := validateReceptionCreationGuard(input); err != nil {
+		return nil, err
+	}
 	enforceBookingConstraints := ShouldEnforceReservationBookingConstraints(input.Status, input.ReservationRoute)
 	if enforceBookingConstraints {
 		if err := ValidateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
@@ -381,7 +387,7 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 			}
 		}
 		// EMR-308: 同ペットの active tentative があれば新規行ではなく同一行を昇格する。
-		created, err := createOrPromoteTentative(ctx, s.repo, reservation)
+		created, err := createOrPromoteTentativeWithGuard(ctx, s.repo, reservation, input.PreventDuplicateReception)
 		if err != nil {
 			return err
 		}
@@ -423,6 +429,9 @@ func (s *reservationService) CreateBatch(ctx context.Context, input *CreateManua
 			return nil, apperrors.Wrap(err, "failed to verify reservation type ownership")
 		}
 	}
+	if err := validateReceptionCreationGuard(input); err != nil {
+		return nil, err
+	}
 	enforceBookingConstraints := ShouldEnforceReservationBookingConstraints(input.Status, input.ReservationRoute)
 	if enforceBookingConstraints {
 		if err := ValidateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
@@ -430,6 +439,8 @@ func (s *reservationService) CreateBatch(ctx context.Context, input *CreateManua
 		}
 	}
 	doctorID := normalizeCreateDoctorID(input.DoctorID)
+	orderedPets := append([]ReservationBatchPet(nil), pets...)
+	sort.Slice(orderedPets, func(i, j int) bool { return orderedPets[i].PetID < orderedPets[j].PetID })
 	created := make([]model.Reservation, 0, len(pets))
 	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		if err := ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, input.ClinicID, doctorID, input.ReservationTypeID); err != nil {
@@ -453,7 +464,7 @@ func (s *reservationService) CreateBatch(ctx context.Context, input *CreateManua
 			}
 		}
 		seen := make(map[uint64]struct{}, len(pets))
-		for _, pet := range pets {
+		for _, pet := range orderedPets {
 			if pet.OwnerID == 0 || pet.PetID == 0 {
 				return apperrors.WrapInvalidInput("owner_id and pet_id are required for a reservation batch")
 			}
@@ -470,7 +481,7 @@ func (s *reservationService) CreateBatch(ctx context.Context, input *CreateManua
 			}
 			reservation := model.Reservation{ClinicID: input.ClinicID, StartTime: input.StartTime, EndTime: input.EndTime, OwnerID: &ownerID, PetID: &petID, VisitType: input.VisitType, ReservationTypeID: input.ReservationTypeID, DoctorID: doctorID, IsDesignated: input.IsDesignated, Status: input.Status, Notes: input.Notes, Source: input.Source, CreatedBy: input.CreatedBy, ReservationRoute: input.ReservationRoute}
 			// EMR-308: ペットごとに active tentative を同一行昇格（なければ通常 INSERT）。
-			promoted, err := createOrPromoteTentative(ctx, s.repo, &reservation)
+			promoted, err := createOrPromoteTentativeWithGuard(ctx, s.repo, &reservation, input.PreventDuplicateReception)
 			if err != nil {
 				return err
 			}
@@ -480,6 +491,13 @@ func (s *reservationService) CreateBatch(ctx context.Context, input *CreateManua
 	})
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to create reservation batch")
+	}
+	byPet := make(map[uint64]model.Reservation, len(created))
+	for i, item := range created {
+		byPet[orderedPets[i].PetID] = item
+	}
+	for i, pet := range pets {
+		created[i] = byPet[pet.PetID]
 	}
 	// EMR-308: バッチ内の各飼い主の次回来院を post-commit で再同期する（重複排除）。
 	ownerIDs := make([]*uint64, 0, len(created))

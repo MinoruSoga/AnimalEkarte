@@ -317,7 +317,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
             <div className={`rounded-lg border ${C.borderLight} ${C.bgPage} p-3`}>
               <div className={`flex items-center gap-1.5 text-sm ${C.text60} mb-1.5`}>
                 <FileText className={`${ICON.xs}`} />
-                <span>メモ</span>
+                <span>予約内容</span>
               </div>
               <p className={`text-sm ${C.text80} whitespace-pre-wrap leading-relaxed`}>
                 {reservation.notes}

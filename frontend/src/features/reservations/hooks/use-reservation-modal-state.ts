@@ -80,6 +80,7 @@ export function useReservationModalState({ locationSearch }: UseReservationModal
         doctor: "",
         isDesignated: false,
         reservationRoute: "reception",
+        ...(petId ? { petId } : {}),
         source: "manual",
       };
       handleOpenForm(stub);

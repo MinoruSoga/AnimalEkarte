@@ -23,6 +23,8 @@ func TestLiveInsertStandardReservationTypesFailsClosed(t *testing.T) {
 		// inactive な同名 live 行の残存を成功扱いにしないための pin。
 		"AND e.is_active",
 		"'診察'", "'お手入れ'", "'ワクチン'", "'健診'",
+		// EMR-321: approved hotel check-in slot; stay duration belongs to hospitalization.
+		"('ホテル', 'ホテル', 15, '#06B6D4', 5)",
 		"'general'",
 		"CROSS JOIN desired_reservation_types",
 		"postcondition mismatch",

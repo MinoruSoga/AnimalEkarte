@@ -250,7 +250,7 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
       ),
     );
 
-    const onSave = vi.fn();
+    const onSave = vi.fn().mockReturnValueOnce("予約の保存に失敗しました");
     const user = userEvent.setup({ delay: null });
     const start = new Date();
     start.setDate(start.getDate() + 1);
@@ -310,7 +310,12 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
       expect(onSave).toHaveBeenCalledOnce();
     });
 
-    const [, , newOwnerArg] = onSave.mock.calls[0];
+    // Reservation save can fail after owner/pet registration; this modal keeps the
+    // new-owner context rather than reclassifying the registered pet as revisit.
+    const [reservationArg, , newOwnerArg] = onSave.mock.calls[0];
+    expect(reservationArg).toMatchObject({ visitType: "first" });
+    expect(screen.getByRole("radio", { name: "初診" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "再診" })).toBeDisabled();
     expect(newOwnerArg).toMatchObject({
       ownerName: "山田太郎",
       phone: "+81 90 1234 5678",
@@ -318,5 +323,13 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
       chiefComplaint: "食欲不振",
       animalSpeciesId: 1,
     });
+    expect(await screen.findByText("予約の保存に失敗しました")).toBeVisible();
+    const retryButton = await screen.findByRole("button", { name: "予約を確定" });
+    await waitFor(() => expect(retryButton).toBeEnabled());
+    await user.click(retryButton);
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2));
+    expect(onSave.mock.calls[1][0]).toMatchObject({ visitType: "first" });
+    expect(onSave.mock.calls[1][2]).toEqual(newOwnerArg);
+    expect(screen.getByRole("radio", { name: "再診" })).toBeDisabled();
   }, 15000);
 });
