@@ -136,15 +136,15 @@ func TestOwnerRepository_FindAll_CompactLikePagingAndExistingFields(t *testing.T
 
 	t.Run("kana query still hits name_kana", func(t *testing.T) {
 		match := makeTestOwner(t, db, clinicA, "漢字のみ飼主")
-		require.NoError(t, db.WithContext(ctx).Model(&model.Owner{}).Where("id = ?", match.ID).Update("name_kana", "けんさくよみがな").Error)
+		require.NoError(t, db.WithContext(ctx).Model(&model.Owner{}).Where("id = ?", match.ID).Updates(model.Owner{NameKana: "けんさくよみがな"}).Error)
 		decoy := makeTestOwner(t, db, clinicA, "別漢字飼主")
-		require.NoError(t, db.WithContext(ctx).Model(&model.Owner{}).Where("id = ?", decoy.ID).Update("name_kana", "べつかな").Error)
+		require.NoError(t, db.WithContext(ctx).Model(&model.Owner{}).Where("id = ?", decoy.ID).Updates(model.Owner{NameKana: "べつかな"}).Error)
 		requireOwnerSearchHit(t, repo, ctx, clinicA, "ケンサクヨミガナ", match.ID)
 	})
 
 	t.Run("phone query still hits", func(t *testing.T) {
 		match := makeTestOwner(t, db, clinicA, "電話照合飼主")
-		require.NoError(t, db.WithContext(ctx).Model(&model.Owner{}).Where("id = ?", match.ID).Update("phone", "080-2731-4455").Error)
+		require.NoError(t, db.WithContext(ctx).Model(&model.Owner{}).Where("id = ?", match.ID).Updates(model.Owner{Phone: "080-2731-4455"}).Error)
 		_ = makeTestOwner(t, db, clinicA, "別電話飼主")
 		requireOwnerSearchHit(t, repo, ctx, clinicA, "080-2731-4455", match.ID)
 	})
@@ -175,11 +175,11 @@ func TestOwnerRepository_FindAll_OwnerNumberStaysInCallerClinic(t *testing.T) {
 	// match. An id-shaped query must not return another clinic or every row.
 	local := makeTestOwner(t, db, clinicA, "番号隔離姓 番号隔離名")
 	foreign := makeTestOwner(t, db, clinicB, "番号隔離姓 番号隔離名")
-	require.NoError(t, db.WithContext(ctx).Model(&model.Owner{}).Where("id = ?", local.ID).Updates(map[string]any{
-		"phone": "090-8000-8000", "name_kana": "ばんごうかくり", "email": "local-owner-number@example.test",
+	require.NoError(t, db.WithContext(ctx).Model(&model.Owner{}).Where("id = ?", local.ID).Updates(model.Owner{
+		Phone: "090-8000-8000", NameKana: "ばんごうかくり", Email: "local-owner-number@example.test",
 	}).Error)
-	require.NoError(t, db.WithContext(ctx).Model(&model.Owner{}).Where("id = ?", foreign.ID).Updates(map[string]any{
-		"phone": "090-7000-7000", "name_kana": "べつばんごう", "email": "foreign-owner-number@example.test",
+	require.NoError(t, db.WithContext(ctx).Model(&model.Owner{}).Where("id = ?", foreign.ID).Updates(model.Owner{
+		Phone: "090-7000-7000", NameKana: "べつばんごう", Email: "foreign-owner-number@example.test",
 	}).Error)
 
 	for _, id := range []uint64{local.ID, foreign.ID} {
@@ -218,6 +218,7 @@ func TestOwnerRepository_FindAll_CompactSearchRepresentativeBudget(t *testing.T)
 	require.Len(t, got, 1)
 	require.Equal(t, target.ID, got[0].ID)
 	require.NotEqual(t, foreign.ID, got[0].ID)
+	t.Logf("compact search elapsed=%s budget=%s rows=%d", elapsed, ownerCompactSearchBudget, representativeOwnerNameRows)
 	require.Less(t, elapsed, ownerCompactSearchBudget,
 		"representativeOwnerNameRows=%d budget=%s elapsed=%s",
 		representativeOwnerNameRows, ownerCompactSearchBudget, elapsed)

@@ -48,7 +48,10 @@ func NormalizeQuerySpaces(value string) string {
 }
 
 // CompactSearchText removes every Unicode space while preserving character order.
-// Query-side companion of regexp_replace(FoldedExpr(column), SpaceStripRegexp, '', 'g').
+// Query-side companion of:
+//
+//	regexp_replace(FoldedExpr(column), SpaceStripRegexp, '', 'g')
+//
 // Callers still kana-normalize and EscapeLike the result. Do not put the strip
 // charset in a SQL bind parameter.
 func CompactSearchText(value string) string {

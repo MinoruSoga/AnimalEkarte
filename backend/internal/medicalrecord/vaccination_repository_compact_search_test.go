@@ -4,12 +4,19 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+// representativeVaccinationOwnerNameRows is the vaccination owner-name volume
+// this test judges. vaccinationCompactSearchBudget is the FindAll response
+// budget for that volume. Seq Scan is not a failure. This revision adds no migration.
+const representativeVaccinationOwnerNameRows = 1000
+const vaccinationCompactSearchBudget = 2 * time.Second
 
 func TestVaccinationRepository_FindAll_OwnerNameCompactSpace(t *testing.T) {
 	db := setupVaccinationRepoTestDB(t)
@@ -102,8 +109,8 @@ func TestVaccinationRepository_FindAll_CompactLikePagingAndExistingFields(t *tes
 	t.Run("phone query stays inside the caller clinic", func(t *testing.T) {
 		owner, _ := makeVaccinationForOwnerName(t, db, clinicA, "電話非対象飼主", "phone-pet", "phone-vaccine")
 		foreignOwner, foreignRec := makeVaccinationForOwnerName(t, db, clinicB, "電話非対象飼主", "phone-foreign-pet", "phone-foreign-vaccine")
-		require.NoError(t, db.WithContext(ctx).Model(&model.Owner{}).Where("id = ?", owner.ID).Update("phone", "080-2732-1000").Error)
-		require.NoError(t, db.WithContext(ctx).Model(&model.Owner{}).Where("id = ?", foreignOwner.ID).Update("phone", "080-2732-1000").Error)
+		require.NoError(t, db.WithContext(ctx).Model(&model.Owner{}).Where("id = ?", owner.ID).Updates(model.Owner{Phone: "080-2732-1000"}).Error)
+		require.NoError(t, db.WithContext(ctx).Model(&model.Owner{}).Where("id = ?", foreignOwner.ID).Updates(model.Owner{Phone: "080-2732-1000"}).Error)
 		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, "080-2732-1000", 1, 100)
 		require.NoError(t, err)
 		require.Equal(t, clinicB, foreignRec.ClinicID)
@@ -133,6 +140,79 @@ func TestVaccinationRepository_FindAll_OwnerNumberStaysInCallerClinic(t *testing
 			require.Equal(t, clinicA, row.ClinicID)
 		}
 	}
+}
+
+func TestVaccinationRepository_FindAll_CompactSearchRepresentativeBudget(t *testing.T) {
+	db := setupVaccinationRepoTestDB(t)
+	repo := NewVaccinationRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	const stored = "予算接種姓 予算接種名"
+	const query = "予算接種姓予算接種名"
+	ensureVaccinationTestClinics(t, db, clinicA, clinicB)
+
+	species := &model.AnimalSpecies{Name: "予算接種犬", IsActive: true}
+	require.NoError(t, db.WithContext(ctx).Create(species).Error)
+	fillerVaccine := &model.Vaccine{ClinicID: clinicA, Name: "充填用混合", IsActive: true}
+	require.NoError(t, db.WithContext(ctx).Create(fillerVaccine).Error)
+
+	fillerCount := representativeVaccinationOwnerNameRows - 1
+	owners := make([]model.Owner, 0, fillerCount)
+	for i := 0; i < fillerCount; i++ {
+		owners = append(owners, model.Owner{
+			ClinicID:       clinicA,
+			Name:           fmt.Sprintf("無関係接種飼主%04d", i),
+			MembershipType: model.MembershipTypeNonMember,
+		})
+	}
+	require.NoError(t, db.WithContext(ctx).CreateInBatches(owners, 200).Error)
+
+	pets := make([]model.Pet, len(owners))
+	for i := range owners {
+		pets[i] = model.Pet{
+			ClinicID:        clinicA,
+			OwnerID:         owners[i].ID,
+			AnimalSpeciesID: species.ID,
+			Name:            fmt.Sprintf("無関係接種ペット%04d", i),
+			PetNumber:       fmt.Sprintf("B%04d", i),
+			Gender:          model.PetGenderUnknown,
+			Status:          model.PetStatusAlive,
+			NeuteredStatus:  model.PetNeuteredStatusUnknown,
+			DangerLevel:     model.DangerLevelLow,
+		}
+	}
+	require.NoError(t, db.WithContext(ctx).CreateInBatches(pets, 200).Error)
+
+	when := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	records := make([]model.Vaccination, len(pets))
+	for i := range pets {
+		petID := pets[i].ID
+		records[i] = model.Vaccination{
+			ClinicID:  clinicA,
+			PetID:     &petID,
+			VaccineID: fillerVaccine.ID,
+			Date:      when,
+		}
+	}
+	require.NoError(t, db.WithContext(ctx).CreateInBatches(records, 200).Error)
+
+	_, target := makeVaccinationForOwnerName(t, db, clinicA, stored, "予算接種ペット", "予算対象外ワクチン")
+	_, foreign := makeVaccinationForOwnerName(t, db, clinicB, stored, "予算接種他院ペット", "予算対象外他院ワクチン")
+
+	started := time.Now()
+	got, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, query, 1, 20)
+	elapsed := time.Since(started)
+
+	require.NoError(t, err)
+	require.Equal(t, int64(1), total)
+	require.Len(t, got, 1)
+	require.Equal(t, target.ID, got[0].ID)
+	require.Equal(t, clinicA, got[0].ClinicID)
+	require.NotEqual(t, foreign.ID, got[0].ID)
+	t.Logf("compact search elapsed=%s budget=%s rows=%d", elapsed, vaccinationCompactSearchBudget, representativeVaccinationOwnerNameRows)
+	require.Less(t, elapsed, vaccinationCompactSearchBudget,
+		"representativeVaccinationOwnerNameRows=%d budget=%s elapsed=%s",
+		representativeVaccinationOwnerNameRows, vaccinationCompactSearchBudget, elapsed)
 }
 
 func makeVaccinationForOwnerName(
