@@ -22,12 +22,14 @@ type ownerReportInsuranceResponse struct {
 }
 
 type ownerReportResponse struct {
-	ID              uint64                            `json:"id"`
-	Name            string                            `json:"name"`
-	PetNameKana     string                            `json:"pet_name_kana"`
-	Gender          string                            `json:"gender"`
-	Status          string                            `json:"status"`
-	BirthDate       *time.Time                        `json:"birth_date"`
+	ID          uint64     `json:"id"`
+	Name        string     `json:"name"`
+	PetNameKana string     `json:"pet_name_kana"`
+	Gender      string     `json:"gender"`
+	Status      string     `json:"status"`
+	BirthDate   *time.Time `json:"birth_date"`
+	// 死亡OR契約（status=deceased または deceased_at 非null）用に FE へ伝播する。
+	DeceasedAt      *time.Time                        `json:"deceased_at"`
 	Breed           string                            `json:"breed"`
 	Color           string                            `json:"color"`
 	BloodType       *string                           `json:"blood_type"`
@@ -62,6 +64,7 @@ func toOwnerReportResponse(p *model.Pet) ownerReportResponse {
 		Gender:          string(p.Gender),
 		Status:          string(p.Status),
 		BirthDate:       httpapi.LocalTimePtr(p.BirthDate),
+		DeceasedAt:      httpapi.LocalTimePtr(p.DeceasedAt),
 		Breed:           p.Breed,
 		Color:           p.Color,
 		BloodType:       p.BloodType,

@@ -40,7 +40,11 @@ import { usePermission } from "@/hooks/use-permission";
 import { paths } from "@/config/paths";
 import { isPersistedPetId } from "@/lib/pet-id";
 import { getPetStatusColor } from "@/lib/status-helpers";
-import { mapPetStatusLabel, PET_GENDER_MAP } from "@/lib/transforms/pet";
+import {
+  isPetDeceasedForClinicalWrite,
+  mapPetStatusLabel,
+  PET_GENDER_MAP,
+} from "@/lib/transforms/pet";
 import {
   useGetOwnerSharedPets,
   type OwnerSharedPetApiResponse,
@@ -88,7 +92,7 @@ const PetTableRow = memo(function PetTableRow({
     };
   }, [canCreate, canDelete, canEdit, canCreateReception, pet.status, pet.deceasedAt]);
   const backFrom = ownerId ? paths.owners.detail.getHref(ownerId) : paths.owners.getHref();
-  const isDeceased = pet.status === "死亡";
+  const isDeceased = isPetDeceasedForClinicalWrite(pet);
 
   return (
     <TableRow
@@ -283,7 +287,7 @@ const SharedPetTableRow = memo(function SharedPetTableRow({
   pet: OwnerSharedPetApiResponse;
 }) {
   const statusLabel = mapPetStatusLabel(pet.status);
-  const isDeceased = statusLabel === "死亡";
+  const isDeceased = statusLabel === "死亡" || pet.deceased_at != null;
   return (
     <TableRow
       className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12 ${isDeceased ? "opacity-60 grayscale-[0.5]" : ""}`}

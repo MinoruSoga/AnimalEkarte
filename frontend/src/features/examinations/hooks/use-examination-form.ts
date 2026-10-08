@@ -31,6 +31,7 @@ import {
   useExaminationFormPetSync,
 } from "./use-examination-form-helpers";
 import { isNonDisclosureReadStatus } from "@/lib/entity-read-result";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 
 export function useExaminationForm(
   id?: string,
@@ -66,7 +67,8 @@ export function useExaminationForm(
     permissionsRef.current = { canCreate, canEdit, canDelete, canUnconfirm };
   }, [canCreate, canDelete, canEdit, canUnconfirm]);
   const hasExplicitlyDeceasedPet =
-    mutationPet?.status === "死亡" || selectedPets[0]?.status === "死亡";
+    (mutationPet != null && isPetDeceasedForClinicalWrite(mutationPet)) ||
+    (selectedPets[0] != null && isPetDeceasedForClinicalWrite(selectedPets[0]));
   const hasExplicitlyDeceasedPetRef = useRef(hasExplicitlyDeceasedPet);
   useLayoutEffect(() => {
     hasExplicitlyDeceasedPetRef.current = hasExplicitlyDeceasedPet;

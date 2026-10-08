@@ -138,10 +138,6 @@ export function AddForm({ onSubmit }: AddFormProps) {
     INITIAL_STATE,
   );
 
-  const canSubmit =
-    !!name.trim() &&
-    (isManualItem ? !!otherReason.trim() && manualUnitPrice.trim() !== "" : !needsRef || !!refId);
-
   return (
     <form action={formAction} className={`border-t ${C.borderLight} pt-3 mt-2`}>
       <p className={`text-xs font-medium ${C.text60} mb-2`}>新しいケアプラン項目を追加</p>
@@ -240,11 +236,7 @@ export function AddForm({ onSubmit }: AddFormProps) {
               ))}
             </div>
           </div>
-          <SubmitButton
-            disabled={!canSubmit}
-            aria-label="ケアプラン項目を追加"
-            className="text-xs gap-1"
-          >
+          <SubmitButton aria-label="ケアプラン項目を追加" className="text-xs gap-1">
             <Plus className={ICON.action} />
             追加
           </SubmitButton>

@@ -1,5 +1,6 @@
 import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { C } from "@/lib/design-tokens";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
 
 import { formatPetAge } from "../lib/pet-age";
@@ -12,7 +13,7 @@ export function SelectedPetContext({ pet }: SelectedPetContextProps) {
   const age = pet.birthDate ? formatPetAge(pet.birthDate) : null;
   const identity = [pet.species, pet.breed].filter(Boolean).join("・");
   const details = [age, pet.gender, pet.weight ? `${pet.weight} kg` : ""].filter(Boolean);
-  const isDeceased = pet.status === "死亡";
+  const isDeceased = isPetDeceasedForClinicalWrite(pet);
 
   return (
     <div className="flex min-w-0 items-center gap-2" aria-live="polite">

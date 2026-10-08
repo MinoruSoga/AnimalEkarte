@@ -1,4 +1,4 @@
-import { Cake } from "lucide-react";
+import Cake from "lucide-react/dist/esm/icons/cake";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { BADGE, C, ICON } from "@/lib/design-tokens";

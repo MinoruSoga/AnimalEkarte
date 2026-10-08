@@ -2,6 +2,7 @@ import { useState, useEffect, useLayoutEffect, useCallback, useActionState, useR
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { paths } from "@/config/paths";
 import { useBackPath } from "@/hooks/use-back-navigation";
 import { useGetPet } from "@/hooks/use-pet";
@@ -45,18 +46,18 @@ export function useCheckupForm(
   const [fieldValues, setFieldValues] = useState<Record<number, CheckupFieldValue>>({});
   const { canCreate, canEdit } = permissions;
   const permissionsRef = useRef(permissions);
-  const petStatusRef = useRef(pet?.status);
+  const petIsDeceasedRef = useRef(isPetDeceasedForClinicalWrite(pet ?? {}));
   useLayoutEffect(() => {
     permissionsRef.current = { canCreate, canEdit };
   }, [canCreate, canEdit]);
   useLayoutEffect(() => {
-    petStatusRef.current = pet?.status;
-  }, [pet?.status]);
+    petIsDeceasedRef.current = isPetDeceasedForClinicalWrite(pet ?? {});
+  }, [pet]);
   const isMutationAllowed = useCallback(
     (action: keyof CheckupMutationPermissions) => permissionsRef.current[action] === true,
     [],
   );
-  const isMutationPetDeceased = useCallback(() => petStatusRef.current === "死亡", []);
+  const isMutationPetDeceased = useCallback(() => petIsDeceasedRef.current, []);
 
   const setField = useCallback(
     <K extends keyof CheckupFormState>(key: K, value: CheckupFormState[K]) => {
@@ -81,7 +82,7 @@ export function useCheckupForm(
       }
       setFieldErrors({});
 
-      if (!pet || pet.status === "死亡") {
+      if (!pet || isPetDeceasedForClinicalWrite(pet)) {
         return { success: false, timestamp: Date.now() };
       }
 

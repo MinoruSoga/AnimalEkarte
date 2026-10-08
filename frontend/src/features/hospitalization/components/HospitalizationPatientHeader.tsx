@@ -2,8 +2,6 @@
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { formatDate } from "@/lib/format/date";
 import { paths } from "@/config/paths";
-import { useGetPet } from "@/hooks/use-pet";
-import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 
 // Types
 import type { Hospitalization } from "@/types";
@@ -25,12 +23,9 @@ export function HospitalizationPatientHeader({
   petDangerLevel,
   petDangerReason,
 }: HospitalizationPatientHeaderProps) {
-  // EMR-301: wire HospitalizationResponse には birth_date があるが transform 未伝播のため
-  // Pet detail を別途取得して誕生月判定に使う（ReservationDetailModal と同型）。
-  // 死亡判定は wire petIsDeceased を正本とし、取得済み Pet でも正一致なら抑制する。
-  const { data: pet } = useGetPet(hospitalization.petId ?? "");
-  const isDeceased =
-    hospitalization.petIsDeceased || (pet ? isPetDeceasedForClinicalWrite(pet) : false);
+  // EMR-301: 誕生月・死亡判定は wire HospitalizationResponse の pet サマリを transform
+  // 伝播した値を使う（/pets/:id は owners:view 権限が別途必要で、入院閲覧者には失敗する）。
+  const isDeceased = hospitalization.petIsDeceased;
 
   return (
     <PatientInfoCard
@@ -47,7 +42,7 @@ export function HospitalizationPatientHeader({
       }
       weight={currentWeight || "-"}
       status={isDeceased ? "deceased" : "alive"}
-      birthDate={pet?.birthDate}
+      birthDate={hospitalization.petBirthDate}
       staffName={hospitalization.doctorName ?? "担当医未設定"}
       reservationType={hospitalization.hospitalizationType}
       petDetails={hospitalization.species}

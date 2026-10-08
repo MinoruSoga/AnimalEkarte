@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { Button } from "@/components/ui/button";
 import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { paths } from "@/config/paths";
 import { ResourceVaccinations } from "@/types/generated/models";
 import type { SortOrder } from "@/types";
@@ -128,6 +129,8 @@ interface VaccinationPatient {
   gender?: string;
   neuteredDate?: string;
   status?: string;
+  /** 死亡OR契約の deceased_at 側。Pet transform が供給する。 */
+  deceasedAt?: string | null;
   insuranceName?: string;
   insuranceDetails?: string;
   /** スタッフ向け飼主特記マーク (EMR-173/231)。Pet transform が供給する。 */
@@ -228,7 +231,7 @@ export function VaccinationFormBody({
                 gender: selectedPet.gender,
                 neuteredDate: selectedPet.neuteredDate,
               })}
-              status={selectedPet.status === "死亡" ? "deceased" : "alive"}
+              status={isPetDeceasedForClinicalWrite(selectedPet) ? "deceased" : "alive"}
               birthDate={selectedPet.birthDate}
               insuranceName={selectedPet.insuranceName}
               insuranceDetails={selectedPet.insuranceDetails}

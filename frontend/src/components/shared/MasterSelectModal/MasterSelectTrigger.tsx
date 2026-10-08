@@ -1,5 +1,5 @@
 import { memo, type ReactNode } from "react";
-import { ICON, C } from "@/lib/design-tokens";
+import { ICON, C, STYLE } from "@/lib/design-tokens";
 import { ChevronRight } from "lucide-react";
 import { formatCurrency } from "@/lib/format/number";
 
@@ -22,8 +22,8 @@ interface MasterSelectTriggerProps {
   ariaInvalid?: boolean;
 }
 
-/** EMR-319: エラー表示用の追加クラス（STYLE.formInputError 相当） */
-const INVALID_CLASSES = `${C.borderDanger} ring-2 ring-[#C0392B]/30`;
+/** EMR-319: エラー表示用の追加クラス */
+const INVALID_CLASSES = STYLE.formInputError;
 
 export const MasterSelectTrigger = memo(function MasterSelectTrigger({
   id,

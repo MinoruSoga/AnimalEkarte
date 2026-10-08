@@ -10,7 +10,7 @@ import { ReservationRouteSelect } from "@/components/shared/ReservationRouteSele
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import type { NewOwnerFormData } from "@/types/reservation-form";
 import type { ReservationRoute } from "@/types/reservation-route";
-import { BADGE, C, ICON, PALETTE } from "@/lib/design-tokens";
+import { BADGE, C, ICON, PALETTE, STYLE } from "@/lib/design-tokens";
 import { cn } from "@/lib/utils";
 import type { Pet, Reservation } from "@/types";
 import { NewOwnerInlineForm } from "./NewOwnerInlineForm";
@@ -324,7 +324,7 @@ function SelectedPatientSummary({
       role="group"
       aria-invalid={validationError ? true : undefined}
       aria-describedby={validationError ? "res-patient-error" : undefined}
-      className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? `${C.bgActionPrimaryLight}/50 ${C.borderActionPrimary}/30` : `${C.bgPage} ${C.borderMediumLight}`} ${validationError ? `${C.borderDanger} ring-2 ring-[#C0392B]/30` : ""}`}
+      className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? `${C.bgActionPrimaryLight}/50 ${C.borderActionPrimary}/30` : `${C.bgPage} ${C.borderMediumLight}`} ${validationError ? STYLE.formInputError : ""}`}
     >
       <Label className={`text-2xs ${C.text60} font-semibold uppercase block mb-3`}>
         予約対象（選択中）

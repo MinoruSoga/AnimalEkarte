@@ -5,6 +5,7 @@ import {
   toJSTWallDate,
 } from "@/lib/jst-date";
 import { calculateBillingTotals } from "@/lib/calculations";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import type { Pet, HospitalizationTreatmentPlan } from "@/types";
 import type { TreatmentPlanResponse } from "@/types/generated/hospitalization-responses";
 
@@ -143,6 +144,9 @@ export function buildSelectedPetFromHospitalization(
       : hospitalization.pet.gender === "female"
         ? "雌"
         : "不明";
+  // BE wire は deceased_at を含む（medicalrecord PetSummaryResponse 共有）。
+  // generated 型は tygo 再生成まで未追従のため structural 拡張で読む（transforms.ts と同じ扱い）。
+  const petWire = hospitalization.pet as { deceased_at?: string | null };
   return {
     id: String(hospitalization.pet_id),
     ownerId: String(hospitalization.owner_id),
@@ -151,6 +155,7 @@ export function buildSelectedPetFromHospitalization(
     species: hospitalization.pet.animal_species?.name ?? "",
     breed: hospitalization.pet.breed,
     status: hospitalization.pet.status === "deceased" ? "死亡" : "生存",
+    deceasedAt: petWire.deceased_at,
     gender,
     birthDate: hospitalization.pet.birth_date ?? "",
     neuteredDate: hospitalization.pet.neutered_date ?? "",
@@ -284,7 +289,7 @@ export function hospitalizationSubmitFieldErrors(
   if (!pet) {
     return { pet: "ペットを選択してください" };
   }
-  if (pet.status === "死亡") {
+  if (isPetDeceasedForClinicalWrite(pet)) {
     return {
       pet: isEdit
         ? "死亡したペットは入院情報を更新できません"

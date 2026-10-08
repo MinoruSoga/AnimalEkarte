@@ -7,6 +7,7 @@ import { FormHeaderActions } from "@/components/shared/Form/FormHeaderActions";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { ICON, C, LAYOUT } from "@/lib/design-tokens";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { ResourceTrimming } from "@/types/generated/models";
 import type { MasterItem, SortOrder } from "@/types";
 import type { TrimmingFormData } from "@/types/trimming";
@@ -214,7 +215,7 @@ export function TrimmingFormBody({
     >
       <NavigationBlocker when={isDirty ? !isSaving : false} />
       <form id={TRIMMING_FORM_ID} action={formAction}>
-        {selectedPet?.status === "死亡" ? (
+        {selectedPet != null && isPetDeceasedForClinicalWrite(selectedPet) ? (
           <div
             role="status"
             aria-label="死亡ペットのため保存不可"

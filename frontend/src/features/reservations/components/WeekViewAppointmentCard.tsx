@@ -82,7 +82,7 @@ export const AppointmentCard = memo(function AppointmentCard({
   const isClassNameColor = typeof colorStyle === "string";
   const isFirstVisit = appointment.visitType === "first";
   // EMR-301: 死亡ペットには誕生月バッジを出さない（既存 death sentinel と整合）。
-  const isDeceasedPet = appointment.petStatus === "deceased";
+  const isDeceasedPet = appointment.petStatus === "deceased" || appointment.petDeceasedAt != null;
   const typeName = getReservationTypeName(appointment.type);
   const typeLabel =
     dynamicColorMap?.get(appointment.type)?.isInactive === true ? `${typeName}（無効）` : typeName;

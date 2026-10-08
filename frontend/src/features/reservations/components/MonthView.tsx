@@ -147,7 +147,7 @@ export const MonthView = memo(function MonthView({
                       )}
                       <span className="truncate text-xs font-medium">{app.petName}</span>
                       {/* EMR-301: 誕生月 Cake 小アイコン（チップ自体が button のため static 変種） */}
-                      {app.petStatus !== "deceased" ? (
+                      {app.petStatus !== "deceased" && app.petDeceasedAt == null ? (
                         <BirthdayBadge
                           birthDate={app.petBirthDate}
                           subjectName={app.petName}

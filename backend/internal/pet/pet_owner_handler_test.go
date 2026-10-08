@@ -138,6 +138,7 @@ func TestPetOwnerHandler_ListSharedPetsReturnsExplicitResponse(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	birthDate := time.Date(2020, time.January, 2, 0, 0, 0, 0, time.Local)
+	deceasedAt := time.Date(2026, time.July, 10, 12, 0, 0, 0, time.Local)
 	weight := 4.2
 	service := &petOwnerHandlerServiceDouble{
 		getSharedPetsByOwnerIDFn: func(
@@ -154,6 +155,7 @@ func TestPetOwnerHandler_ListSharedPetsReturnsExplicitResponse(t *testing.T) {
 				AnimalSpeciesName: "犬",
 				Gender:            model.PetGenderMale,
 				BirthDate:         &birthDate,
+				DeceasedAt:        &deceasedAt,
 				Color:             "茶",
 				Weight:            &weight,
 				Environment:       "室内",
@@ -188,6 +190,7 @@ func TestPetOwnerHandler_ListSharedPetsReturnsExplicitResponse(t *testing.T) {
 		"animal_species",
 		"gender",
 		"birth_date",
+		"deceased_at",
 		"color",
 		"weight",
 		"environment",
@@ -197,6 +200,7 @@ func TestPetOwnerHandler_ListSharedPetsReturnsExplicitResponse(t *testing.T) {
 	assert.Equal(t, float64(7), item["id"])
 	assert.Equal(t, "deceased", item["status"])
 	assert.Equal(t, "2020-01-02", item["birth_date"])
+	assert.NotNil(t, item["deceased_at"])
 	assert.Equal(t, "妻", item["relationship"])
 	species, ok := item["animal_species"].(map[string]any)
 	require.True(t, ok)

@@ -3,23 +3,16 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Reservation } from "../types";
+import type { ReservationTypeColor } from "@/hooks/use-reservation-type-color-map";
 import { ReservationDetailModal } from "./ReservationDetailModal";
 
 vi.mock("@/hooks/use-owner-line-tags", () => ({
   useGetOwnerLineTags: () => ({ data: undefined }),
 }));
 
-// EMR-227: detail modal は petId から pet.status を引いて死亡区分を表示層へ渡す。
-// このテストは QueryClientProvider なしで描画するためフックを固定する。
-const getPetResult = vi.hoisted(() => ({
-  current: { data: undefined as { status?: string; deceasedAt?: string | null } | undefined },
-}));
-
-vi.mock("@/hooks/use-pet", () => ({
-  useGetPet: () => getPetResult.current,
-}));
-
-const getColorMock = vi.fn(() => ({
+// EMR-227/EMR-301: 死亡区分は wire 予約サマリの petStatus/petDeceasedAt で判定する
+//（/pets/:id 取得は owners:view 権限依存のため廃止）。
+const getColorMock = vi.fn((): ReservationTypeColor => ({
   style: { backgroundColor: "rgb(0, 0, 0)" },
   dotStyle: { backgroundColor: "rgb(0, 0, 0)" },
   hex: "#000000",
@@ -51,6 +44,11 @@ const baseReservation: Reservation = {
   ownerId: "20",
   source: "manual",
   reservationRoute: "reception",
+  clinicId: "1",
+  isTentative: false,
+  intendedDate: undefined,
+  hadIntendedDate: false,
+  sourceMedicalRecordId: undefined,
 };
 
 describe("ReservationDetailModal", () => {
@@ -68,7 +66,6 @@ describe("ReservationDetailModal", () => {
   });
 
   beforeEach(() => {
-    getPetResult.current = { data: undefined };
     getColorMock.mockReset();
     getColorMock.mockReturnValue({
       style: { backgroundColor: "rgb(0, 0, 0)" },
@@ -273,12 +270,11 @@ describe("ReservationDetailModal — tentative (EMR-308)", () => {
 
   it("死亡ペットの tentative では確定ボタンを出さない（EMR-177 positive-match ゲート）", () => {
     // 確定は実予約化する臨床 write — BE 側 ConfirmTentative も死亡ガード済み。
-    getPetResult.current = { data: { status: "死亡" } };
     render(
       <ReservationDetailModal
         isOpen={true}
         onClose={vi.fn()}
-        reservation={tentativeReservation}
+        reservation={{ ...tentativeReservation, petStatus: "deceased" }}
         onConfirmTentative={vi.fn()}
       />,
     );
@@ -286,8 +282,20 @@ describe("ReservationDetailModal — tentative (EMR-308)", () => {
     expect(screen.queryByRole("button", { name: "予約を確定" })).not.toBeInTheDocument();
   });
 
-  it("pet 未取得（不明）の tentative では確定ボタンを出す（BE が最終ゲート）", () => {
-    getPetResult.current = { data: undefined };
+  it("deceased_at のみの半死亡ペットでも確定ボタンを出さない（死亡OR契約）", () => {
+    render(
+      <ReservationDetailModal
+        isOpen={true}
+        onClose={vi.fn()}
+        reservation={{ ...tentativeReservation, petDeceasedAt: "2026-07-10T12:00:00+09:00" }}
+        onConfirmTentative={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "予約を確定" })).not.toBeInTheDocument();
+  });
+
+  it("pet サマリ未取得（不明）の tentative では確定ボタンを出す（BE が最終ゲート）", () => {
     render(
       <ReservationDetailModal
         isOpen={true}
@@ -330,7 +338,6 @@ describe("ReservationDetailModal 誕生月バッジ (EMR-301)", () => {
     // 現在JST月を 2026-10 に固定して決定的にする
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-10T00:00:00+09:00"));
-    getPetResult.current = { data: undefined };
   });
 
   afterEach(() => {
@@ -366,9 +373,12 @@ describe("ReservationDetailModal 誕生月バッジ (EMR-301)", () => {
     expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
   });
 
-  it("detailPet が死亡判定（status=死亡）のペットには誕生月でも表示しない", () => {
-    getPetResult.current = { data: { status: "死亡" } };
-    renderModal({ ...baseReservation, petBirthDate: "2018-10-05" });
+  it("petDeceasedAt のみの半死亡ペットには誕生月でも表示しない（死亡OR契約）", () => {
+    renderModal({
+      ...baseReservation,
+      petBirthDate: "2018-10-05",
+      petDeceasedAt: "2026-07-10T12:00:00+09:00",
+    });
 
     expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
   });

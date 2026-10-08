@@ -86,7 +86,11 @@ export const RefundSection = memo(function RefundSection({
   const [, formAction] = useActionState<null, FormData>(
     async (_prev: null, _formData: FormData) => {
       const amount = parseInt(refundAmount, 10);
-      if (!amount || amount <= 0) return null;
+      if (!amount || amount <= 0) {
+        // EMR-319: noValidate フォームのため非正値もフィールドエラーで表示する。
+        setAmountError("返金額は1円以上で入力してください");
+        return null;
+      }
       if (amount > refundableAmount) {
         const message = `返金額は残額 ${formatCurrency(refundableAmount)} 以下で入力してください`;
         setAmountError(message);
@@ -212,9 +216,7 @@ export const RefundSection = memo(function RefundSection({
                     >
                       キャンセル
                     </Button>
-                    <SubmitButton
-                      disabled={!refundAmount || parseInt(refundAmount, 10) <= 0 || isRefunding}
-                    >
+                    <SubmitButton disabled={isRefunding}>
                       {isRefunding ? "処理中..." : "登録する"}
                     </SubmitButton>
                   </DialogFooter>

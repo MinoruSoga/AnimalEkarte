@@ -132,6 +132,10 @@ export const ItemListCard = memo(function ItemListCard({
   const [manualCategory, setManualCategory] = useState("");
   const [manualOtherReason, setManualOtherReason] = useState("");
   const [manualPriceError, setManualPriceError] = useState("");
+  // EMR-319: 必須未入力時に各フィールドへエラーを表示するための状態。
+  const [manualNameError, setManualNameError] = useState("");
+  const [manualCategoryError, setManualCategoryError] = useState("");
+  const [manualOtherReasonError, setManualOtherReasonError] = useState("");
 
   const { data: merchandiseItems = [] } = useGetAllMerchandiseItems();
 
@@ -165,15 +169,25 @@ export const ItemListCard = memo(function ItemListCard({
 
   const handleManualCategoryChange = useCallback((value: string) => {
     setManualCategory(value);
+    setManualCategoryError("");
     if (value !== "other") {
       setManualOtherReason("");
+      setManualOtherReasonError("");
     }
   }, []);
 
   const handleAddManualItem = useCallback(() => {
     const name = manualName.trim();
     const otherReason = manualOtherReason.trim();
-    if (!name || !manualPrice || !manualCategory || (manualCategory === "other" && !otherReason)) {
+    // EMR-319: 必須未入力を黙って return せず、各フィールドのエラー表示を立てる。
+    const nameError = !name ? "品目名を入力してください" : "";
+    const categoryError = !manualCategory ? "カテゴリを選択してください" : "";
+    const otherReasonError =
+      manualCategory === "other" && !otherReason ? "その他理由を入力してください" : "";
+    setManualNameError(nameError);
+    setManualCategoryError(categoryError);
+    setManualOtherReasonError(otherReasonError);
+    if (nameError || categoryError || otherReasonError) {
       return;
     }
 
@@ -366,20 +380,32 @@ export const ItemListCard = memo(function ItemListCard({
                       id="manual-name"
                       autoFocus
                       value={manualName}
-                      onChange={(e) => setManualName(e.target.value)}
+                      onChange={(e) => {
+                        setManualName(e.target.value);
+                        if (manualNameError) setManualNameError("");
+                      }}
                       placeholder="例: 診察料（その他）"
+                      aria-invalid={manualNameError ? true : undefined}
+                      aria-describedby={manualNameError ? "manual-name-error" : undefined}
                     />
+                    <FormFieldError id="manual-name-error" message={manualNameError} />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor="manual-category" className="text-sm">
                       カテゴリ <span className={C.textRequired}>*</span>
                     </Label>
                     <Select value={manualCategory} onValueChange={handleManualCategoryChange}>
-                      <SelectTrigger id="manual-category" aria-label="カテゴリ">
+                      <SelectTrigger
+                        id="manual-category"
+                        aria-label="カテゴリ"
+                        aria-invalid={manualCategoryError ? true : undefined}
+                        aria-describedby={manualCategoryError ? "manual-category-error" : undefined}
+                      >
                         <SelectValue placeholder="カテゴリを選択" />
                       </SelectTrigger>
                       <SelectContent>{MANUAL_CATEGORY_SELECT_ITEMS}</SelectContent>
                     </Select>
+                    <FormFieldError id="manual-category-error" message={manualCategoryError} />
                   </div>
                   {manualCategory === "other" ? (
                     <div className="flex flex-col gap-1.5">
@@ -389,9 +415,20 @@ export const ItemListCard = memo(function ItemListCard({
                       <Input
                         id="manual-other-reason"
                         value={manualOtherReason}
-                        onChange={(e) => setManualOtherReason(e.target.value)}
+                        onChange={(e) => {
+                          setManualOtherReason(e.target.value);
+                          if (manualOtherReasonError) setManualOtherReasonError("");
+                        }}
                         maxLength={MANUAL_OTHER_REASON_MAX_LENGTH}
                         placeholder="例: 締め時に分類を確認"
+                        aria-invalid={manualOtherReasonError ? true : undefined}
+                        aria-describedby={
+                          manualOtherReasonError ? "manual-other-reason-error" : undefined
+                        }
+                      />
+                      <FormFieldError
+                        id="manual-other-reason-error"
+                        message={manualOtherReasonError}
                       />
                     </div>
                   ) : null}
@@ -415,17 +452,7 @@ export const ItemListCard = memo(function ItemListCard({
                     />
                     <FormFieldError id="manual-price-error" message={manualPriceError} />
                   </div>
-                  <Button
-                    type="button"
-                    className="w-full"
-                    disabled={
-                      !manualName.trim() ||
-                      !manualPrice ||
-                      !manualCategory ||
-                      (manualCategory === "other" && !manualOtherReason.trim())
-                    }
-                    onClick={handleAddManualItem}
-                  >
+                  <Button type="button" className="w-full" onClick={handleAddManualItem}>
                     追加する
                   </Button>
                 </div>

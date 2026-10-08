@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Link } from "react-router";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { ChevronDown, User, Calendar, Activity } from "lucide-react";
 import imgEllipse1 from "@/assets/231a870df600a37e011a0e1140e7608b1f4c3340.png";
 import { ImageWithFallback } from "@/components/shared/Feedback";
@@ -261,7 +261,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
                 aria-invalid={staffInvalid || undefined}
                 variant="ghost"
                 size="sm"
-                className={`h-11 text-sm gap-1 px-3 ${C.bgPage} ${C.hoverBgMedium} ${C.text} border ${staffInvalid ? `${C.borderDanger} ring-2 ring-[#C0392B]/30` : C.borderMedium}`}
+                className={`h-11 text-sm gap-1 px-3 ${C.bgPage} ${C.hoverBgMedium} ${C.text} border ${staffInvalid ? STYLE.formInputError : C.borderMedium}`}
                 onClick={onStaffClick}
               >
                 {staffLabel ? `${staffLabel}${staffName}` : staffName}

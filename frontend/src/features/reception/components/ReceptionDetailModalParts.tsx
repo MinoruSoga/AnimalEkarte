@@ -209,7 +209,7 @@ export function ReceptionDialogBody({
                 reason={appointment.petDangerReason}
               />
               {/* EMR-301: 誕生月バッジ。死亡ペットは suppress。 */}
-              {appointment.petStatus !== "deceased" ? (
+              {appointment.petStatus !== "deceased" && appointment.petDeceasedAt == null ? (
                 <BirthdayBadge
                   birthDate={appointment.petBirthDate}
                   subjectName={appointment.petName}

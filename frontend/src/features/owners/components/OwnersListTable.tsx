@@ -17,6 +17,7 @@ import { C, STYLE } from "@/lib/design-tokens";
 import { formatDate } from "@/lib/format/date";
 import { formatWeight } from "@/lib/format/number";
 import { getPetStatusColor } from "@/lib/status-helpers";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
 
 // DESIGN.md ex-data-table-cell: header は canvas-soft 背景 + eyebrow 相当タイポグラフィ（12px/600/tracking）。
@@ -184,7 +185,7 @@ function OwnersListRow({
   onDeleteRequest,
   onReport,
 }: OwnersListRowProps) {
-  const isDeceased = pet.status === "死亡";
+  const isDeceased = isPetDeceasedForClinicalWrite(pet);
   return (
     <DataTableRow className={isDeceased ? "opacity-60 grayscale-[0.5]" : undefined}>
       <TableCell className={`${STYLE.tableCell} whitespace-nowrap hidden lg:table-cell`}>

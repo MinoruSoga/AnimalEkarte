@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { Label } from "@/components/ui/label";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import {
@@ -158,7 +158,7 @@ export function ReservationDateTimeFields({
               className={cn(
                 `flex h-11 w-full items-center justify-between rounded-xs border px-3 py-1 text-sm transition-colors ${C.borderMediumLight} ${C.text} bg-white ${C.hoverBgSubtle}`,
                 !formData.start && C.textMuted,
-                validationErrors?.date && `${C.borderDanger} ring-2 ring-[#C0392B]/30`,
+                validationErrors?.date && STYLE.formInputError,
               )}
             >
               <span className="flex items-center">

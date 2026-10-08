@@ -50,7 +50,9 @@ async function selectType(user: ReturnType<typeof userEvent.setup>, label: strin
 }
 
 describe("AddForm — type連動マスタ参照(BUG-403)", () => {
-  it("type=投薬 選択時、薬剤未選択のままでは追加ボタンが無効", async () => {
+  // EMR-319: ボタンは disabled にせず action のフィールドエラーで案内する
+  // （disabled だとエラー経路に到達できない）。
+  it("type=投薬 選択時、薬剤未選択のまま追加を押すと参照選択のエラーになる", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     render(<AddForm onSubmit={onSubmit} />);
@@ -58,7 +60,12 @@ describe("AddForm — type連動マスタ参照(BUG-403)", () => {
     await selectType(user, "投薬");
     await user.type(screen.getByPlaceholderText("名称を入力"), "抗生剤");
 
-    expect(screen.getByRole("button", { name: /追加/ })).toBeDisabled();
+    const button = screen.getByRole("button", { name: /追加/ });
+    expect(button).toBeEnabled();
+    await user.click(button);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("参照するマスタを選択してください");
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("type=投薬 選択時、薬剤選択後に追加すると medicine_id が payload に含まれる", async () => {
@@ -223,21 +230,24 @@ describe("AddForm — 手入力（その他）明細(EMR-179)", () => {
     );
   });
 
-  it("手入力で理由または単価が空のままでは追加ボタンが無効", async () => {
+  // EMR-319: 必須未入力でもボタンは押せ、action のフィールドエラーで案内する。
+  it("手入力で理由または単価が空のまま追加を押すと対応フィールドのエラーになる", async () => {
     const user = userEvent.setup();
-    render(<AddForm onSubmit={vi.fn()} />);
+    const onSubmit = vi.fn();
+    render(<AddForm onSubmit={onSubmit} />);
 
     await selectType(user, "持ち物");
     await user.click(screen.getByRole("checkbox", { name: /手入力/ }));
     await user.type(screen.getByPlaceholderText("名称を入力"), "持ち込み品");
 
-    expect(screen.getByRole("button", { name: /追加/ })).toBeDisabled();
+    const button = screen.getByRole("button", { name: /追加/ });
+    expect(button).toBeEnabled();
+    await user.click(button);
 
-    await user.type(screen.getByLabelText("手入力の単価"), "800");
-    expect(screen.getByRole("button", { name: /追加/ })).toBeDisabled();
-
-    await user.type(screen.getByLabelText("その他理由"), "   ");
-    expect(screen.getByRole("button", { name: /追加/ })).toBeDisabled();
+    // 理由・単価とも空 → バリデーション順序上 理由エラーが先
+    expect(await screen.findByRole("alert")).toHaveTextContent("その他の理由を入力してください");
+    expect(screen.getByLabelText("その他理由")).toHaveAttribute("aria-invalid", "true");
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("手入力→OFF で理由と単価の入力をクリアして参照選択へ戻る", async () => {
@@ -273,8 +283,6 @@ describe("AddForm — 手入力（その他）明細(EMR-179)", () => {
 });
 
 describe("AddForm — 必須エラー表示 (EMR-319)", () => {
-  // 追加ボタンは canSubmit で無効化されるため、バリデーション経路の到達には
-  // fireEvent.submit を使う（判定ロジックは既存のまま）。
   it("名称が空のまま submit すると名称入力に aria-invalid とエラー文が出る", async () => {
     const user = userEvent.setup();
     render(<AddForm onSubmit={vi.fn()} />);
@@ -314,7 +322,6 @@ describe("AddForm — 必須エラー表示 (EMR-319)", () => {
     await user.type(screen.getByPlaceholderText("名称を入力"), "持ち込み品");
     await user.type(screen.getByLabelText("その他理由"), "持ち込み品のため");
     // type=number では実ブラウザが非数値を空にするため、単価欄を空のままにする
-    // （空なら button disabled だが fireEvent.submit でアクション経路へ到達する）
     const form = screen.getByRole("button", { name: /追加/ }).closest("form");
     fireEvent.submit(form as HTMLFormElement);
 

@@ -4,37 +4,37 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Hospitalization } from "../api/transforms";
 import { HospitalizationPatientHeader } from "./HospitalizationPatientHeader";
 
-// EMR-301: header は petId から Pet detail を引いて誕生月/死亡を判定する。
-// このテストは QueryClientProvider なしで描画するためフックを固定する。
-const getPetResult = vi.hoisted(() => ({
-  current: {
-    data: undefined as
-      { birthDate?: string; status?: string; deceasedAt?: string | null } | undefined,
-  },
-}));
-
-vi.mock("@/hooks/use-pet", () => ({
-  useGetPet: () => getPetResult.current,
-}));
+// EMR-301/EMR-319 レビュー対応: header は HospitalizationResponse の pet サマリ
+// (transform 済み petBirthDate/petIsDeceased) を使い、/pets/:id の追加取得は行わない。
+// owners:view 権限を持たない入院閲覧者でもバッジが出ることをこの依存排除で担保する。
 
 function makeHospitalization(
   petIsDeceased: boolean,
   overrides: Partial<Hospitalization> = {},
 ): Hospitalization {
-  return {
+  const base: Hospitalization = {
     id: "42",
     hospitalizationNo: "42",
     ownerName: "山田",
+    // Router 外で描画するテストのためリンク生成に使う ownerId は未設定。
+    ownerId: undefined,
     petName: "タロウ",
     species: "犬",
     hospitalizationType: "入院",
     startDate: "2026-07-20",
     endDate: "2026-07-25",
     status: "入院中",
-    petIsDeceased,
+    cageId: undefined,
     petId: "10",
-    ...overrides,
+    doctorId: undefined,
+    doctorName: undefined,
+    petIsDeceased,
+    petBirthDate: undefined,
+    memo: undefined,
+    ownerRequest: undefined,
+    staffNotes: undefined,
   };
+  return { ...base, ...overrides };
 }
 
 describe("HospitalizationPatientHeader", () => {
@@ -55,7 +55,6 @@ describe("HospitalizationPatientHeader 誕生月バッジ (EMR-301)", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-10T00:00:00+09:00"));
-    getPetResult.current = { data: undefined };
   });
 
   afterEach(() => {
@@ -63,8 +62,11 @@ describe("HospitalizationPatientHeader 誕生月バッジ (EMR-301)", () => {
   });
 
   it("今月(JST)誕生月の生存ペットは Cake バッジを表示する", () => {
-    getPetResult.current = { data: { birthDate: "2019-10-02", status: "生存" } };
-    render(<HospitalizationPatientHeader hospitalization={makeHospitalization(false)} />);
+    render(
+      <HospitalizationPatientHeader
+        hospitalization={makeHospitalization(false, { petBirthDate: "2019-10-02" })}
+      />,
+    );
 
     expect(screen.getByRole("button", { name: "今月誕生日" })).toBeInTheDocument();
   });
@@ -72,26 +74,24 @@ describe("HospitalizationPatientHeader 誕生月バッジ (EMR-301)", () => {
   it.each([
     ["誕生月でない", "2019-09-02" as const],
     ["birth_date 未登録", undefined],
-    ["Pet 未取得", undefined],
   ])("%s なら Cake バッジを表示しない", (_label, birthDate) => {
-    getPetResult.current = { data: birthDate ? { birthDate, status: "生存" } : undefined };
-    render(<HospitalizationPatientHeader hospitalization={makeHospitalization(false)} />);
+    render(
+      <HospitalizationPatientHeader
+        hospitalization={makeHospitalization(false, { petBirthDate: birthDate })}
+      />,
+    );
 
     expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
   });
 
-  it("wire petIsDeceased の個体には誕生月でも Cake バッジを表示しない", () => {
-    getPetResult.current = { data: { birthDate: "2019-10-02", status: "生存" } };
-    render(<HospitalizationPatientHeader hospitalization={makeHospitalization(true)} />);
+  it("petIsDeceased の個体には誕生月でも Cake バッジを表示しない", () => {
+    render(
+      <HospitalizationPatientHeader
+        hospitalization={makeHospitalization(true, { petBirthDate: "2019-10-02" })}
+      />,
+    );
 
     expect(screen.getByText("【死亡】")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
-  });
-
-  it("取得 Pet が死亡判定（status=死亡）なら誕生月でも Cake バッジを表示しない", () => {
-    getPetResult.current = { data: { birthDate: "2019-10-02", status: "死亡" } };
-    render(<HospitalizationPatientHeader hospitalization={makeHospitalization(false)} />);
-
     expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
   });
 });

@@ -3,6 +3,7 @@ import { useCallback, useMemo, useRef, useState, useTransition } from "react";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PartnerRecordLink } from "@/components/shared/PartnerRecordLink/PartnerRecordLink";
 import { C, LAYOUT } from "@/lib/design-tokens";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { UnifiedTabsRoot } from "@/components/shared/UnifiedTabs";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useAuth } from "@/hooks/use-auth";
@@ -222,7 +223,7 @@ export function MedicalRecordFormReadyPanels({
             kind="trimming"
             petId={selectedPet.id}
             visitDate={form.partnerVisitDate}
-            isPetDeceased={selectedPet.status === "死亡"}
+            isPetDeceased={isPetDeceasedForClinicalWrite(selectedPet)}
           />
         }
       >
@@ -391,7 +392,7 @@ function MedicalRecordFormReadyOverlays({
         onVitalsClick={() => ready.modals.setIsVitalsOpen(true)}
         onPrintClick={ready.modals.handlePrintClick}
         onFinalizeClick={() => ready.modals.setIsFinalizeConfirmOpen(true)}
-        isPetDeceased={selectedPet.status === "死亡"}
+        isPetDeceased={isPetDeceasedForClinicalWrite(selectedPet)}
       />
 
       <MedicalRecordFinalizeDialog
@@ -412,7 +413,7 @@ function MedicalRecordFormReadyOverlays({
         isVitalsOpen={ready.modals.isVitalsOpen}
         onVitalsOpenChange={ready.modals.setIsVitalsOpen}
         recordClinicId={ready.recordClinicId}
-        isPetDeceased={selectedPet.status === "死亡"}
+        isPetDeceased={isPetDeceasedForClinicalWrite(selectedPet)}
         isStaffModalOpen={ready.modals.isStaffModalOpen}
         staffName={ready.staffName}
         onSelectStaff={ready.handleSelectStaff}

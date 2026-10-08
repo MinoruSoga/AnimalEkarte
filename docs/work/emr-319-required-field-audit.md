@@ -257,3 +257,28 @@
 
 - 受付（`features/reception`）の詳細監査 — 上記「範囲外 finding」参照。
 - `aria-describedby` の未付与箇所の統一（aria-invalid + エラー文は満たすが describedby 未接続の少数例 — 表示要件は充足）。
+
+---
+
+## レビュー是正（PR #614 ラウンド2・レビュー指摘対応）
+
+PR #614 レビュー（HEAD `1d76912e2` 時点）で指摘された是正漏れを追加対応した。「是正後の最終状態」節の記述は att-319-001 時点のものであり、本節が最新の正本となる。検証ルール（必須判定・文案・zod schema）はラウンド2でも一切変更していない。
+
+### ラウンド2 是正項目
+
+| 指摘 | 是正 | 検証ルール不変の根拠 |
+|---|---|---|
+| CreditCorrection 金額が toast のみ | `amountError` state + `aria-invalid` + `aria-describedby` + `FormFieldError` + `STYLE.formInputError` を NumberInput へ配線（再オープン時のリセット含む） | 判定 `!Number.isFinite || <=0` と文案・toast は既存のまま |
+| 死亡日時あり（`deceased_at` 非null・status非死亡）でもバッジ表示 | `isPetDeceasedForClinicalWrite`（status=死亡 OR deceasedAt非null）へ全surface統一。共有ヘッダー status・選択ゲート・臨床書込ゲートも同契約に揃えた | BE 死亡契約（`pet/repository_lifecycle_or_contract_test.go`）への準拠。バッジ抑止は新規ルール追加ではなく契約適用 |
+| CarePlanAddForm / ItemListCard / RefundSection の必須エラーに到達不能 | ボタン `disabled` から検証派生条件のみ除去（pending 中の `isRefunding`/`addPending` は維持）。action/handler 内の既存判定はそのままフィールドエラーへ接続 | ボタンの到達性のみ変更。必須判定・早期return・文案は不変 |
+| LstepTag 片側未入力で両欄 invalid | `requiredInvalid` → `missingFields`（未入力フィールド名配列）で per-field invalid 化。共有エラー要素はペア専用 ID（`fieldA__fieldB-error`）を両欄から参照 | 必須判定（両方必須）と文案は不変。invalid 対象の絞り込みのみ |
+| `ring-[#C0392B]/30` 直書き逸脱 | `STYLE.formInputError` へ統一（DatePickerSingle・MasterSelectTrigger・PatientInfoCard・予約モーダル2箇所） | 視覚等価のトークン化のみ |
+| HospitalizationFormFields.test fixture TS2353 | `satisfies` を実 prop 型から導出（`NonNullable<Parameters<typeof HospitalizationFormFields>[0]["selectedPet"]>`） | テスト型のみ |
+| reservation petSummaryResponse に birth_date 未到達 | `birth_date`/`deceased_at` を additive シリアライズ。transform が `petBirthDate`/`petDeceasedAt` を伝播、`ReservationDetailModal`/`HospitalizationPatientHeader` は `useGetPet`（owners:view 依存）を廃止し wire 値を使用 | ワイヤ additive。既存キーは不変（厳密キー集合テスト2件を意図的更新） |
+
+### ラウンド2 検証
+
+- scoped `verify-agent-task.py --paths <変更71+1ファイル>`（Docker ephemeral offline、frontend image `0e3c736f…` + `ekarte-frontend-node-modules`、backend image + `ae-gomod-cache`）
+- BE: `go test -short ./internal/pet ./internal/reservation ./internal/medicalrecord` ＋ 変更ファイル gofmt
+- FE: 変更ファイル scoped vitest / eslint / prettier
+- 回帰テスト追加: CreditCorrection 金額（0/空）、Refund 非正値（0/負/空、実クリック）、LstepTag per-field、ItemListCard 必須3種（実クリック）、AddForm 実クリック、BE serializer（reservation・medicalrecord・pet・shared_pets）

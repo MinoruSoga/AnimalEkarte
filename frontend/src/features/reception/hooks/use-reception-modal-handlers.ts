@@ -12,6 +12,7 @@ import {
   formatJSTWallTime,
   jstWallDateToISOString,
 } from "@/lib/jst-date";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import type { Pet, Reservation } from "@/types";
 import {
   DangerLevelHigh,
@@ -194,7 +195,7 @@ export function useReceptionModalHandlers({
       if (permissionsRef.current.canEditReservation !== true) return;
       if (!editingAppointmentId || !data.start) return;
       if (selectedAppointmentSnapshot?.petStatus === PetStatusDeceased) return;
-      if (selectedPetSnapshot?.status === "死亡") return;
+      if (selectedPetSnapshot && isPetDeceasedForClinicalWrite(selectedPetSnapshot)) return;
       const resolvedPetId =
         selectedPetSnapshot?.id || data.petId || selectedAppointmentSnapshot?.petId;
       const resolvedOwnerId =

@@ -18,7 +18,6 @@ import {
   CalendarCheck,
 } from "lucide-react";
 import { useGetOwnerLineTags } from "@/hooks/use-owner-line-tags";
-import { useGetPet } from "@/hooks/use-pet";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -41,7 +40,6 @@ import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIco
 import type { Reservation, ReservationStatus } from "../types";
 import { RESERVATION_STATUS_VALUES } from "../types";
 import { getReservationTypeName, getReservationStatusLabel } from "@/lib/status-helpers";
-import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { DISPLAY_TIME_FORMAT } from "@/lib/format/date";
 import { typedSetter } from "@/lib/type-utils";
 import { useReservationTypeColorMap } from "../hooks/use-reservation-type-color-map";
@@ -137,13 +135,11 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
 }: ReservationDetailModalProps) {
   const { getColor } = useReservationTypeColorMap();
   const { data: lineData } = useGetOwnerLineTags(reservation?.ownerId ?? "");
-  // EMR-227/EMR-301: 共有 transform (src/lib/transforms/reservation.ts) が petStatus を
-  // additive 伝播するようになったためワイヤ値を第一判定とし、detailPet フェッチの
-  // positive-match を補助判定として併用する。未取得/エラー時は従来どおり操作可能。
-  const { data: detailPet } = useGetPet(reservation?.petId ?? "");
-  const isDeceasedPet =
-    reservation?.petStatus === "deceased" ||
-    (detailPet ? isPetDeceasedForClinicalWrite(detailPet) : false);
+  // EMR-227/EMR-301: 共有 transform (src/lib/transforms/reservation.ts) が petStatus /
+  // petDeceasedAt を additive 伝播する。wire ペットサマリの死亡OR契約
+  // （status=deceased または deceased_at 非null）で判定する。/pets/:id は owners:view
+  // 権限が別途必要なため detail フェッチは行わない。
+  const isDeceasedPet = reservation?.petStatus === "deceased" || reservation?.petDeceasedAt != null;
 
   if (!reservation) return null;
 

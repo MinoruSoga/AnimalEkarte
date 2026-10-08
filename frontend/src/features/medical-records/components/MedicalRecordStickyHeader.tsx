@@ -13,6 +13,7 @@ import { usePermission } from "@/hooks/use-permission";
 import { getMedicalRecordStatusColor } from "@/lib/status-helpers";
 import { ResourceMedicalRecords } from "@/types/generated/models";
 import { todayJSTISO } from "@/lib/jst-date";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
 import { NextVisitButton } from "./NextVisitButton";
 import { VisitTypeSelect } from "./VisitTypeSelect";
@@ -172,7 +173,7 @@ export function MedicalRecordStickyHeader({
           petId={selectedPet.id}
           medicalRecordId={medicalRecordId}
           clinicId={recordClinicId}
-          isPetDeceased={selectedPet.status === "死亡"}
+          isPetDeceased={isPetDeceasedForClinicalWrite(selectedPet)}
           hasLineIntegration={hasLineIntegration}
         />
       ) : null}
@@ -201,7 +202,7 @@ export function MedicalRecordStickyHeader({
         petName={selectedPet.name}
         petNumber={selectedPet.petNumber || selectedPet.id}
         weight={selectedPet.weight ?? undefined}
-        status={selectedPet.status === "死亡" ? "deceased" : "alive"}
+        status={isPetDeceasedForClinicalWrite(selectedPet) ? "deceased" : "alive"}
         birthDate={selectedPet.birthDate ?? undefined}
         species={selectedPet.species}
         gender={selectedPet.gender}

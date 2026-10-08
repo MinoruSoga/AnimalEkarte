@@ -45,9 +45,11 @@ export const transformReservation = (reservation: BackendReservation) => {
   const petSentinelFields: {
     petStatus?: PetStatus;
     petBirthDate?: string;
+    petDeceasedAt?: string;
   } = {
     petStatus: reservation.pet?.status,
     petBirthDate: reservation.pet?.birth_date,
+    petDeceasedAt: reservation.pet?.deceased_at,
   };
 
   return {

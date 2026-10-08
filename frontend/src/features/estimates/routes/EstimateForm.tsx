@@ -14,6 +14,7 @@ import { usePermission } from "@/hooks/use-permission";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, ICON } from "@/lib/design-tokens";
 import { isNonDisclosureReadStatus, resolveEntityReadResult } from "@/lib/entity-read-result";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { ResourceEstimates } from "@/types/generated/models";
 
 import { useGetEstimate } from "../api/get-estimate";
@@ -64,7 +65,10 @@ function EstimateFormContent({ id }: { id?: string }) {
   // 選択 UI と同様、生存が明示されるまでブロックする（pending / error / 不明 status も含む）。
   const hasPetIdFromQuery = Boolean(petIdFromQuery);
   const isNewEstimatePetDeceased = Boolean(
-    !isEdit && hasPetIdFromQuery && petQuerySuccess && petFromQuery?.status === "死亡",
+    !isEdit &&
+    hasPetIdFromQuery &&
+    petQuerySuccess &&
+    isPetDeceasedForClinicalWrite(petFromQuery ?? {}),
   );
   const blocksNewEstimatePet = Boolean(
     !isEdit &&

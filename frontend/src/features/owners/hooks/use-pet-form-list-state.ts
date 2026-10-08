@@ -4,6 +4,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import {
   transformCreatePetRequest,
   transformUpdatePetRequest,
+  isPetDeceasedForClinicalWrite,
   PET_STATUS_REVERSE_MAP,
 } from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
@@ -105,7 +106,10 @@ export function usePetFormListState({
 
   const handleDeletePet = (petId: string) => {
     const target = petsRef.current.find((p) => p.id === petId);
-    if (target?.status === "死亡" || permissionsRef.current.canDelete !== true) {
+    if (
+      (target ? isPetDeceasedForClinicalWrite(target) : false) ||
+      permissionsRef.current.canDelete !== true
+    ) {
       return;
     }
     if (target?.isPending) {
@@ -168,7 +172,7 @@ export function usePetFormListState({
         remarks: petData.remarks,
       });
 
-      if (permissionsRef.current.canEdit !== true || currentPet.status === "死亡") {
+      if (permissionsRef.current.canEdit !== true || isPetDeceasedForClinicalWrite(currentPet)) {
         return;
       }
       // BUG-415: 生死ステータスの変更は監査付きの死亡登録/取消エンドポイント

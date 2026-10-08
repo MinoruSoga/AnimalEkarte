@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
-import { C } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { Button } from "@/components/ui/button";
 import {
@@ -66,6 +66,8 @@ export function CreditCorrectionDialog({
   // EMR-319: toast に加えて必須項目の赤枠+エラー文を表示するための表示用状態。
   // 判定ロジック（!reason.trim()）と文案は既存のまま変更しない。
   const [reasonError, setReasonError] = useState(false);
+  // EMR-319: 金額も理由と同様に赤枠+エラー文を出す。判定（1円以上）と文案は既存のまま。
+  const [amountError, setAmountError] = useState(false);
   const queryClient = useQueryClient();
 
   const [, formAction] = useActionState<null, FormData>(
@@ -82,9 +84,11 @@ export function CreditCorrectionDialog({
       }
       setReasonError(false);
       if (!Number.isFinite(amountNum) || amountNum <= 0) {
+        setAmountError(true);
         toast.error("金額は1円以上で入力してください");
         return null;
       }
+      setAmountError(false);
       try {
         await correctCreditPayment(accounting.id, accounting.clinicId, {
           method,
@@ -133,6 +137,7 @@ export function CreditCorrectionDialog({
       setReason("");
       setMemo("");
       setReasonError(false);
+      setAmountError(false);
     }
     setOpen(next);
   };
@@ -189,10 +194,20 @@ export function CreditCorrectionDialog({
             <NumberInput
               id="cc-amount"
               value={amount}
-              onChange={setAmount}
+              onChange={(v) => {
+                setAmount(v);
+                if (v.trim() !== "" && Number(v) > 0) setAmountError(false);
+              }}
               min={1}
               suffix="円"
               align="right"
+              aria-invalid={amountError || undefined}
+              aria-describedby={amountError ? "cc-amount-error" : undefined}
+              className={amountError ? STYLE.formInputError : undefined}
+            />
+            <FormFieldError
+              id="cc-amount-error"
+              message={amountError ? "金額は1円以上で入力してください" : undefined}
             />
           </div>
           <div className="space-y-1">

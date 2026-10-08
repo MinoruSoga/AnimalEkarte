@@ -180,17 +180,54 @@ describe("LstepTagConfigSection — B: POST 追加", () => {
     });
 
     // EMR-319: 必須未入力なら両入力に aria-invalid+赤枠、エラー文が表示される
+    // エラー文はペア必須の共有 ID（fieldA__fieldB-error）を両 input が参照する。
     await waitFor(() => {
-      expect(document.getElementById("amp-prefix-error")).toHaveTextContent(
+      expect(document.getElementById("amp-prefix__amp-category-error")).toHaveTextContent(
         "プレフィックスとカテゴリは必須です",
       );
     });
     const prefixInput = document.getElementById("amp-prefix");
     const categoryInput = document.getElementById("amp-category");
     expect(prefixInput).toHaveAttribute("aria-invalid", "true");
-    expect(prefixInput).toHaveAttribute("aria-describedby", "amp-prefix-error");
+    expect(prefixInput).toHaveAttribute("aria-describedby", "amp-prefix__amp-category-error");
     expect(categoryInput).toHaveAttribute("aria-invalid", "true");
-    expect(categoryInput).toHaveAttribute("aria-describedby", "amp-prefix-error");
+    expect(categoryInput).toHaveAttribute("aria-describedby", "amp-prefix__amp-category-error");
+  });
+
+  // EMR-319: ペア必須は missingFields で個別判定する。片側のみ未入力なら
+  // そのフィールドだけが invalid になり、入力済み側は invalid にならない。
+  it.each([
+    ["プレフィックスのみ未入力", "", "C2"],
+    ["カテゴリのみ未入力", "vaccine_", ""],
+  ])("%sでは未入力側だけが aria-invalid になる", async (_label, prefix, category) => {
+    const user = userEvent.setup();
+    render(<LstepTagConfigSection />, { wrapper: createWrapper() });
+
+    const prefixInput = await screen.findByPlaceholderText("例: vaccine_");
+    const categoryInput = await screen.findByPlaceholderText("例: C2");
+    if (prefix) {
+      await user.type(prefixInput, prefix);
+    }
+    if (category) {
+      await user.type(categoryInput, category);
+    }
+    const addButtons = screen.getAllByRole("button", { name: "追加" });
+    await user.click(addButtons[0]);
+
+    await waitFor(() => {
+      expect(document.getElementById("amp-prefix__amp-category-error")).toHaveTextContent(
+        "プレフィックスとカテゴリは必須です",
+      );
+    });
+    const prefixEl = document.getElementById("amp-prefix");
+    const categoryEl = document.getElementById("amp-category");
+    if (!prefix) {
+      expect(prefixEl).toHaveAttribute("aria-invalid", "true");
+      expect(categoryEl).not.toHaveAttribute("aria-invalid");
+    } else {
+      expect(prefixEl).not.toHaveAttribute("aria-invalid");
+      expect(categoryEl).toHaveAttribute("aria-invalid", "true");
+    }
   });
 });
 

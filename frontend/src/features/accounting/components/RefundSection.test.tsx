@@ -22,18 +22,14 @@ const handlers = [http.get("/api/v1/accountings/:id/refunds", () => HttpResponse
 // 会計の支払方法内訳（混在: カード + 現金）
 const splits = [
   {
-    id: 1,
-    clinicId: "1",
-    billingId: "1",
+    id: "1",
     method: "credit_card" as const,
     amount: 3000,
     receivedAmount: 3000,
     changeAmount: 0,
   },
   {
-    id: 2,
-    clinicId: "1",
-    billingId: "1",
+    id: "2",
     method: "cash" as const,
     amount: 2000,
     receivedAmount: 2000,
@@ -52,9 +48,7 @@ describe("RefundSection — 移行負額", () => {
         totalAmount={-3000}
         paymentSplits={[
           {
-            id: 1,
-            clinicId: "1",
-            billingId: "1",
+            id: "1",
             method: "cash",
             amount: -3000,
             receivedAmount: 0,
@@ -160,8 +154,11 @@ describe("RefundSection — 支払方法別返金 (#60)", () => {
     expect(screen.getByPlaceholderText("0")).toBeInTheDocument();
 
     // EMR-319: toast に加えて返金金額入力にも aria-invalid+エラー文を出す
+    await waitFor(() => {
+      const refundAmountInput = document.getElementById("refund-amount");
+      expect(refundAmountInput).toHaveAttribute("aria-invalid", "true");
+    });
     const refundAmountInput = document.getElementById("refund-amount");
-    expect(refundAmountInput).toHaveAttribute("aria-invalid", "true");
     expect(refundAmountInput).toHaveAttribute("aria-describedby", "refund-amount-error");
     expect(document.getElementById("refund-amount-error")).toHaveTextContent(
       /返金額は残額 ¥10,000 以下で入力してください/,
@@ -188,4 +185,56 @@ describe("RefundSection — 支払方法別返金 (#60)", () => {
     await screen.findByPlaceholderText("0");
     expect(screen.queryByTestId("refund-payment-method-trigger")).not.toBeInTheDocument();
   }, 15000);
+
+  // EMR-319: 非正値はボタンを無効化せず action 側のフィールドエラーで表示する
+  // （以前は disabled が非正値を含み、エラー経路に到達できなかった）。
+  it.each([
+    ["0円", "0"],
+    ["負数", "-100"],
+    ["空欄", ""],
+  ])(
+    "返金額が%sのとき登録ボタンは押せ、onRefund を呼ばずフィールドエラーを表示する",
+    async (_label, value) => {
+      server.use(...handlers);
+      const onRefund = vi.fn();
+      const user = userEvent.setup({ delay: null });
+
+      render(
+        <RefundSection
+          accountingId="1"
+          totalAmount={10000}
+          paymentSplits={splits}
+          isRefunding={false}
+          onRefund={onRefund}
+          canEdit={true}
+        />,
+        { wrapper: createWrapper() },
+      );
+
+      await user.click(screen.getByRole("button", { name: /返金を登録/ }));
+
+      const amountInput = await screen.findByPlaceholderText("0");
+      if (value) {
+        fireEvent.change(amountInput, { target: { value } });
+      }
+
+      const submitButton = screen.getByRole("button", { name: "登録する" });
+      expect(submitButton).toBeEnabled();
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        const refundAmountInput = document.getElementById("refund-amount");
+        expect(refundAmountInput).toHaveAttribute("aria-invalid", "true");
+      });
+      const refundAmountInput = document.getElementById("refund-amount");
+      expect(refundAmountInput).toHaveAttribute("aria-describedby", "refund-amount-error");
+      expect(document.getElementById("refund-amount-error")).toHaveTextContent(
+        "返金額は1円以上で入力してください",
+      );
+      expect(onRefund).not.toHaveBeenCalled();
+      // バリデーション失敗時はダイアログが開いたまま
+      expect(screen.getByPlaceholderText("0")).toBeInTheDocument();
+    },
+    15000,
+  );
 });

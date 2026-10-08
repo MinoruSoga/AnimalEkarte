@@ -189,6 +189,47 @@ describe("CreditCorrectionDialog 送信 (#189)", () => {
     });
     expect(posted).toBe(false);
   });
+
+  // EMR-319: 金額フィールドのエラー表示（aria-invalid + エラー文）を固定する。
+  it.each([
+    ["0円", "0"],
+    ["空欄", ""],
+  ])(
+    "金額が%sのとき金額フィールドに aria-invalid とエラー文を表示し POST しない",
+    async (_label, value) => {
+      let posted = false;
+      server.use(
+        http.post("*/v1/accountings/10/credit-correction", () => {
+          posted = true;
+          return HttpResponse.json({
+            id: 10,
+            clinic_id: 1,
+            status: "completed",
+            payment_splits: [],
+            payments: [],
+          });
+        }),
+      );
+
+      const user = userEvent.setup();
+      renderDialog(makeAccounting({}));
+      await user.click(screen.getByRole("button", { name: "クレジット訂正" }));
+      const amount = await screen.findByLabelText("訂正後の金額");
+      await user.clear(amount);
+      if (value) {
+        await user.type(amount, value);
+      }
+      await user.type(await screen.findByLabelText("訂正理由（必須）"), "理由あり");
+      await user.click(screen.getByRole("button", { name: "訂正を保存" }));
+
+      await waitFor(() => {
+        expect(amount).toHaveAttribute("aria-invalid", "true");
+      });
+      expect(amount).toHaveAttribute("aria-describedby", "cc-amount-error");
+      expect(screen.getByText("金額は1円以上で入力してください")).toBeInTheDocument();
+      expect(posted).toBe(false);
+    },
+  );
 });
 
 describe("CreditCorrectionDialog 権限再チェック (FE-RC-110)", () => {

@@ -54,7 +54,7 @@ const basePet = {
   ownerName: "山田 太郎",
   name: "ポチ",
   status: "生存",
-} satisfies { ownerName: string; name: string };
+} satisfies NonNullable<Parameters<typeof HospitalizationFormFields>[0]["selectedPet"]>;
 
 function renderFields(selectedPet: Parameters<typeof HospitalizationFormFields>[0]["selectedPet"]) {
   render(

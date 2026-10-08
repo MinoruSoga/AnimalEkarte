@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDate } from "@/lib/format/date";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import type { PetSelectionResultPage } from "@/hooks/use-pet-selection-page";
 import type { Pet } from "@/types";
 
@@ -118,7 +119,7 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
           </TableHeader>
           <TableBody>
             {items.map((pet, index) => {
-              const isDeceased = pet.status === "死亡";
+              const isDeceased = isPetDeceasedForClinicalWrite(pet);
               // EMR-177: 死亡個体も選択可能。新規作成可否は遷移先機能の死亡ゲートが担う。
               // 「不明」等の既知外 status は fail-closed で選択不可のまま。
               const isSelectable =

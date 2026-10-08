@@ -121,7 +121,32 @@ describe("ItemListCard merchandise selection", () => {
     });
   });
 
-  it("手動入力ではカテゴリ未選択のまま追加できない", async () => {
+  // EMR-319: 必須未入力でもボタンは押せ、フィールドエラーで案内する
+  // （以前は disabled が必須条件を含み、エラー経路に到達できなかった）。
+  it("手動入力で品目名が空のまま追加を押すと品目名のエラーが出る", async () => {
+    const user = userEvent.setup();
+    const onAddItem = vi.fn();
+    renderEditableItemListCard(onAddItem);
+
+    await user.click(screen.getByRole("button", { name: "手動入力" }));
+    await user.type(screen.getByLabelText(/単価/), "500");
+    await user.click(screen.getByRole("combobox", { name: "カテゴリ" }));
+    await user.click(screen.getByRole("option", { name: "検査" }));
+
+    const addButton = screen.getByRole("button", { name: "追加する" });
+    expect(addButton).toBeEnabled();
+    await user.click(addButton);
+
+    expect(onAddItem).not.toHaveBeenCalled();
+    const nameInput = document.getElementById("manual-name");
+    expect(nameInput).toHaveAttribute("aria-invalid", "true");
+    expect(nameInput).toHaveAttribute("aria-describedby", "manual-name-error");
+    expect(document.getElementById("manual-name-error")).toHaveTextContent(
+      "品目名を入力してください",
+    );
+  });
+
+  it("手動入力ではカテゴリ未選択のまま追加を押すとカテゴリのエラーが出る", async () => {
     const user = userEvent.setup();
     const onAddItem = vi.fn();
     renderEditableItemListCard(onAddItem);
@@ -130,9 +155,16 @@ describe("ItemListCard merchandise selection", () => {
     await user.type(screen.getByLabelText(/品目名/), "カテゴリ未選択商品");
     await user.type(screen.getByLabelText(/単価/), "500");
 
-    expect(screen.getByRole("button", { name: "追加する" })).toBeDisabled();
-    await user.click(screen.getByRole("button", { name: "追加する" }));
+    const addButton = screen.getByRole("button", { name: "追加する" });
+    expect(addButton).toBeEnabled();
+    await user.click(addButton);
+
     expect(onAddItem).not.toHaveBeenCalled();
+    const categoryTrigger = document.getElementById("manual-category");
+    expect(categoryTrigger).toHaveAttribute("aria-invalid", "true");
+    expect(document.getElementById("manual-category-error")).toHaveTextContent(
+      "カテゴリを選択してください",
+    );
   });
 
   it("手動入力ではother選択時だけ理由を必須にしてpayloadへ渡す", async () => {
@@ -146,11 +178,18 @@ describe("ItemListCard merchandise selection", () => {
     expect(screen.queryByLabelText(/その他理由/)).not.toBeInTheDocument();
     await user.click(screen.getByRole("combobox", { name: "カテゴリ" }));
     await user.click(screen.getByRole("option", { name: "その他" }));
-    expect(screen.getByRole("button", { name: "追加する" })).toBeDisabled();
+    const addButton = screen.getByRole("button", { name: "追加する" });
+    expect(addButton).toBeEnabled();
     const otherReasonInput = screen.getByLabelText(/その他理由/);
     expect(otherReasonInput).toHaveAttribute("maxlength", "500");
     await user.type(otherReasonInput, "   ");
-    expect(screen.getByRole("button", { name: "追加する" })).toBeDisabled();
+    // 空白のみの理由で追加を押すと理由欄のエラーになる（ボタンは disabled にしない）
+    await user.click(addButton);
+    expect(onAddItem).not.toHaveBeenCalled();
+    expect(otherReasonInput).toHaveAttribute("aria-invalid", "true");
+    expect(document.getElementById("manual-other-reason-error")).toHaveTextContent(
+      "その他理由を入力してください",
+    );
     await user.type(otherReasonInput, "締め時に確認する分類  ");
     await user.click(screen.getByRole("button", { name: "追加する" }));
 

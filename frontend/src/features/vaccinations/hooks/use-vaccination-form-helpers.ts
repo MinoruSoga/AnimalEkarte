@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { paths } from "@/config/paths";
 import type { Pet } from "@/types";
 import type { EntityReadResult } from "@/lib/entity-read-result";
@@ -284,7 +285,7 @@ export async function runVaccinationSave(deps: VaccinationSaveDeps): Promise<{
         toast.error("ペット情報の読み込みが完了してから保存してください");
         return { success: false, timestamp: Date.now() };
       }
-      if (deps.editPetRef.current.status === "死亡") {
+      if (isPetDeceasedForClinicalWrite(deps.editPetRef.current)) {
         toast.error("死亡したペットの予防接種記録は保存できません");
         return { success: false, timestamp: Date.now() };
       }
@@ -306,7 +307,7 @@ export async function runVaccinationSave(deps: VaccinationSaveDeps): Promise<{
         toast.error("この操作を行う権限がありません");
         return { success: false, timestamp: Date.now() };
       }
-      if (pet.status === "死亡") {
+      if (isPetDeceasedForClinicalWrite(pet)) {
         toast.error("死亡したペットの予防接種記録は保存できません");
         return { success: false, timestamp: Date.now() };
       }

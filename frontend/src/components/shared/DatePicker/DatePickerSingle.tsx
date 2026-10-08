@@ -4,7 +4,7 @@ import { ja } from "date-fns/locale";
 
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { cn } from "@/lib/utils";
 import {
   CalendarNav,
@@ -138,7 +138,7 @@ export function SinglePicker({
           className={cn(
             TRIGGER_BASE,
             !value && !focused && C.text40,
-            ariaInvalid && `${C.borderDanger} ring-2 ring-[#C0392B]/30`,
+            ariaInvalid && STYLE.formInputError,
             className,
           )}
         >
