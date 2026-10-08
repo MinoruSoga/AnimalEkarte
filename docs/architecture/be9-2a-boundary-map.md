@@ -295,9 +295,9 @@ fan-out: 0(依存先を持たない純粋リーフ)。route: N/A(自身はルー
 
 ### 4.4 model/ package(85 file)のドメインタグ付け(ファイル移動なし、参考情報)
 
-85 fileはBE-refactor.mdの明示方針により**一括`現状維持`**(GORM associationのcycleを実測せずに分割しない)。概念的な帰属先ドメインは以下の通り(曖昧なもの7件は§3の各ドメインエージェント結果で解消済み — 括弧内に解消結果を記載):
+85 fileはBE-refactor.mdの明示方針により**一括`現状維持`**(GORM associationのcycleを実測せずに分割しない)。概念的な帰属先ドメインは以下の通り(曖昧なもの7件は§3の各ドメインエージェント結果で解消済み — 括弧内に解消結果を記載)（2026-10-09 訂正: `prescription` は EMR-236〈`014_drop_prescriptions.sql`、2026-10-01〉で model file ごと除去済みのため medicalrecord 行から削除。冒頭の「85 file」は監査時点のファイル数であり、現行は増加〈2026-10-09 時点で非テスト `.go` 96 file〉）:
 
-- **medicalrecord**: checkup_field/record/type、chief_complaint_type、clinical_plan、consultation、cpm_v1/v2_thresholds、diagnosis、dormant_thresholds、examination_record/type、health_prevention_thresholds、hospitalization(+plan)、inquiry(+template)、lab_import/report、medical_record(+addendum/image)、medicine(+dose_param)、prescription、procedure、treatment、vaccination_record、vaccine、vital、cage(§3.7で確定)
+- **medicalrecord**: checkup_field/record/type、chief_complaint_type、clinical_plan、consultation、cpm_v1/v2_thresholds、diagnosis、dormant_thresholds、examination_record/type、health_prevention_thresholds、hospitalization(+plan)、inquiry(+template)、lab_import/report、medical_record(+addendum/image)、medicine(+dose_param)、procedure、treatment、vaccination_record、vaccine、vital、cage(§3.7で確定)
 - **billing**: accounting、billing_confirmation、billing_refund、cash_register_close、estimate、insurance(§3.8で確定)、payment_method_master、campaign(§3.8で確定)
 - **lstep**: line_customer/link_token/send_log、lstep_*(11 file)、shared_file(§3.10で確定、doc comment "LINE個別送信用"根拠)
 - **reservation**: reservation(+type/type_group)、line_reservation_setting（2026-07-20の論点#4でreservation帰属に確定。概念タグのみで、model file自体は`現状維持`）。
