@@ -248,7 +248,7 @@ s18() {
 # ゲートと同思想）。重みは 2026-10-07 実測で LPT バランス済み（各 ~145s）。
 BACKEND_TEST_SHARD_1="internal/auth internal/trimming internal/csvimport internal/support internal/testdb internal/scheduler internal/seedbundle internal/authjwt internal/clinicale2e internal/logger"
 BACKEND_TEST_SHARD_2="internal/medicalrecord internal/lintscan internal/pet internal/owner internal/audit internal/model internal/dbconn internal/infra internal/labdeviceagent internal/labdevicecap internal/infra/crypto internal/infra/httpx internal/infra/line internal/infra/lstep internal/infra/smtp"
-BACKEND_TEST_SHARD_3="internal/staff internal/lstep internal/clinic internal/inventory internal/persistence internal/textsearch internal/config internal/httpapi internal/sharedkernel internal/apperrors"
+BACKEND_TEST_SHARD_3="internal/staff internal/lstep internal/clinic internal/inventory internal/persistence internal/textsearch internal/config internal/httpapi internal/sharedkernel internal/apperrors internal/imageupload"
 BACKEND_TEST_SHARD_4="internal/seedlogin internal/billing internal/reservation internal/identitylink internal/apicontract internal/manualarticle internal/middleware internal/timeutil cmd/api cmd/auth-d5-dualprocess cmd/clinical-e2e-fixture cmd/coverage-ratchet cmd/csv-import cmd/csv-import-failure-rehearsal cmd/csv-import-stg-uat cmd/lab-device-agent cmd/lstep-migrate cmd/migrate cmd/seed-export cmd/staff-provision cmd/stg-uat-skeleton cmd/stg-uat-staff-attach cmd/synthetic-closing-fixture"
 
 s19() {
@@ -278,20 +278,24 @@ s19() {
   # （staff.account.deactivate のグローバル件数検証が残存行で破綻する実例あり）。
   # *_test サフィックスは必須 — testdb/truncate.go の isDedicatedTestDatabaseName
   # ガードが _test 終端以外のDBでの TRUNCATE を拒否する）
+  # シャードDBは作成時点の ekarte_db / ekarte_db_test スキーマの凍結複製であり、
+  # 列追加・削除系の migration が載ると必ず古いスキーマのまま残って
+  # schema_drift_test（本体DB側）や TRUNCATE CASCADE 前提のテスト（_test 側）を
+  # 壊す。存在確認キャッシュはせず毎回 drop & schema-only clone で再構築する。
   local s
   for s in 1 2 3 4; do
     compose exec -T db sh -c "set -e; \
-      psql -U \"\$POSTGRES_USER\" -d postgres -tAc \
-        \"SELECT 1 FROM pg_database WHERE datname='\${POSTGRES_DB}_s${s}'\" | grep -q 1 || { \
-        psql -U \"\$POSTGRES_USER\" -d postgres -c \"CREATE DATABASE \\\"\${POSTGRES_DB}_s${s}\\\"\" && \
-        pg_dump -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" --schema-only | \
-          psql -q -U \"\$POSTGRES_USER\" -d \"\${POSTGRES_DB}_s${s}\"; }; \
-      psql -U \"\$POSTGRES_USER\" -d postgres -tAc \
-        \"SELECT 1 FROM pg_database WHERE datname='\${POSTGRES_DB}_s${s}_test'\" | grep -q 1 || { \
-        psql -U \"\$POSTGRES_USER\" -d postgres -c \"CREATE DATABASE \\\"\${POSTGRES_DB}_s${s}_test\\\"\" && \
-        { pg_dump -U \"\$POSTGRES_USER\" -d \"\${POSTGRES_DB}_test\" --schema-only 2>/dev/null || \
-          pg_dump -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" --schema-only; } | \
-          psql -q -U \"\$POSTGRES_USER\" -d \"\${POSTGRES_DB}_s${s}_test\"; }"
+      psql -U \"\$POSTGRES_USER\" -d postgres -c \
+        \"DROP DATABASE IF EXISTS \\\"\${POSTGRES_DB}_s${s}\\\" WITH (FORCE)\"; \
+      psql -U \"\$POSTGRES_USER\" -d postgres -c \"CREATE DATABASE \\\"\${POSTGRES_DB}_s${s}\\\"\"; \
+      pg_dump -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" --schema-only | \
+        psql -q -U \"\$POSTGRES_USER\" -d \"\${POSTGRES_DB}_s${s}\"; \
+      psql -U \"\$POSTGRES_USER\" -d postgres -c \
+        \"DROP DATABASE IF EXISTS \\\"\${POSTGRES_DB}_s${s}_test\\\" WITH (FORCE)\"; \
+      psql -U \"\$POSTGRES_USER\" -d postgres -c \"CREATE DATABASE \\\"\${POSTGRES_DB}_s${s}_test\\\"\"; \
+      { pg_dump -U \"\$POSTGRES_USER\" -d \"\${POSTGRES_DB}_test\" --schema-only 2>/dev/null || \
+        pg_dump -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" --schema-only; } | \
+        psql -q -U \"\$POSTGRES_USER\" -d \"\${POSTGRES_DB}_s${s}_test\""
   done
 
   # covdata 出力先を初期化（前回実行の残骸を除去）

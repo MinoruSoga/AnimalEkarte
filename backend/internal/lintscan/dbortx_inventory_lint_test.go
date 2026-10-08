@@ -579,6 +579,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/cage_repository.go|cageRepositoryImpl.LockCageGroupForUpdate": {},
 	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountMergedMembers":     {},
 	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountOccupiedCages":     {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.ListOccupiedCageIDs":    {},
 	// refund (R1-1 TOCTOU)
 	"billing/refund_repository.go|refundRepository.Create":                         {}, // BE8-4 batch8: moved from refund_repository.go
 	"billing/refund_repository.go|refundRepository.SumByBillingID":                 {}, // BE8-4 batch8: moved from refund_repository.go

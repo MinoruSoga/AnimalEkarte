@@ -3,9 +3,10 @@ package medicalrecord
 // cage_repository_tx_atomicity_test.go — EMR-306
 //
 // ケージ一時連結で追加された repository メソッド（SetMergedInto/ClearMergedInto/
-// LockCagesForUpdate/LockCageGroupForUpdate/CountMergedMembers/CountOccupiedCages）の
-// DBOrTx 参加を実証する。writer は ambient WithTx の sentinel rollback で永続化されず、
-// reader は同一 tx の未コミット write を見て、rollback 後は元の状態に戻る。
+// LockCagesForUpdate/LockCageGroupForUpdate/CountMergedMembers/CountOccupiedCages/
+// ListOccupiedCageIDs）の DBOrTx 参加を実証する。writer は ambient WithTx の
+// sentinel rollback で永続化されず、reader は同一 tx の未コミット write を見て、
+// rollback 後は元の状態に戻る。
 
 import (
 	"context"
@@ -147,4 +148,42 @@ func TestCageRepository_CountOccupiedCages_SeesUncommittedWritesThenRollback(t *
 	counts, err := repo.CountOccupiedCages(ctx, clinicID, []uint64{cage.ID})
 	require.NoError(t, err)
 	assert.EqualValues(t, 0, counts[cage.ID])
+}
+
+func TestCageRepository_ListOccupiedCageIDs_SeesUncommittedWritesThenRollback(t *testing.T) {
+	db := setupCageRepositoryTestDB(t)
+	repo := newCageMergeRepository(t, db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	owner := makeTestOwner(t, db, clinicID, "飼主 tx occupied-ids")
+	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "ハナ")
+	cage := makeCageMaster(t, db, clinicID, "occupied-ids-tx")
+
+	txErr := (testTransactor{db: db}).WithTx(ctx, func(txCtx context.Context) error {
+		// tx 内で入院を直接 INSERT し、reader が未コミット占有を見ることを実証する。
+		now := time.Now().UTC().Truncate(24 * time.Hour)
+		h := &model.Hospitalization{
+			ClinicID:            clinicID,
+			OwnerID:             owner.ID,
+			PetID:               pet.ID,
+			HospitalizationType: model.HospitalizationTypeInpatient,
+			StartDate:           now,
+			EndDate:             now.AddDate(0, 0, 3),
+			Status:              model.HospitalizationStatusAdmitted,
+			CageID:              &cage.ID,
+		}
+		require.NoError(t, persistence.DBOrTx(txCtx, db).Create(h).Error)
+
+		ids, err := repo.ListOccupiedCageIDs(txCtx, clinicID)
+		require.NoError(t, err)
+		assert.Contains(t, ids, cage.ID)
+
+		return errCageRepoTxSentinel
+	})
+	require.ErrorIs(t, txErr, errCageRepoTxSentinel)
+
+	ids, err := repo.ListOccupiedCageIDs(ctx, clinicID)
+	require.NoError(t, err)
+	assert.NotContains(t, ids, cage.ID)
 }

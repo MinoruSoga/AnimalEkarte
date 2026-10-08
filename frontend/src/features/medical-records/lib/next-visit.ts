@@ -5,10 +5,7 @@ import type { Reservation } from "@/lib/transforms/reservation";
 // EMR-308: 意図日ルール（過去日 NG・上限2年）は共有 NextVisitResetDialog も使うため
 // components/shared/ReservationFormModal/next-visit-intent-date.ts が正本。
 // ここは feature 内既存 import を壊さない re-export。
-export {
-  addYearsIso,
-  validateNextVisitIntentDate,
-} from "@/components/shared/ReservationFormModal/next-visit-intent-date";
+export { validateNextVisitIntentDate } from "@/components/shared/ReservationFormModal/next-visit-intent-date";
 
 /**
  * EMR-308: 'tentative' は generated ReservationStatus union に永遠に入らない
@@ -16,7 +13,7 @@ export {
  * tygo が union に含めない設計）。したがってこのローカル拡張 union は暫定措置
  * ではなく恒久型として維持する。
  */
-export type NextVisitReservationStatus = Reservation["status"] | "tentative";
+type NextVisitReservationStatus = Reservation["status"] | "tentative";
 
 /**
  * 次回予定表示の導出に必要な最小形状。

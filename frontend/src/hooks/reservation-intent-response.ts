@@ -10,7 +10,7 @@ import { transformReservation } from "@/lib/transforms/reservation";
  * 共有 transform の入力型は Parameters<typeof transformReservation>[0] で導出し、
  * @/types/generated/models の新規 import（TASK-444-S1 禁止）を避ける。
  */
-export interface ReservationIntentResponseFields {
+interface ReservationIntentResponseFields {
   intended_date?: string | null;
   had_intended_date?: boolean;
   source_medical_record_id?: number | null;

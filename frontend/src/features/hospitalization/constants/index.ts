@@ -44,13 +44,6 @@ export const HOSPITALIZATION_LIST_DEFAULT_PAGE = 1;
 export const HOSPITALIZATION_LIST_DEFAULT_LIMIT = 20;
 
 /**
- * EMR-306: 連結モードの占有判定は表示タブ/ページに依存させない（Grok review MEDIUM-2）。
- * admitted/reserved を別クエリで全件取得する際の limit — BE ParsePagination の
- * 上限（DefaultMaxPaginationLimit=100）に合わせる。advisory 用途で最終判定は BE。
- */
-export const HOSPITALIZATION_OCCUPANCY_LIMIT = 100;
-
-/**
  * 臨床安全境界1（frontend/CLAUDE.md）: 死亡ペットは render 側でも操作要素自体を出さない。
  * callback 側の拒否（二重防壁）と併せて使用し、非表示にした理由をユーザーに提示する。
  */

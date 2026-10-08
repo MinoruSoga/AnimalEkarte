@@ -11,7 +11,7 @@ export { isCageRepresentativeShared as isCageRepresentative };
  * merge-mode drag source id は `merge-cage-<id>` — patient drag の id
  * （hospitalization id）や drop target の `cage-<id>` と衝突しない。
  */
-export const MERGE_CAGE_DRAG_PREFIX = "merge-cage-";
+const MERGE_CAGE_DRAG_PREFIX = "merge-cage-";
 
 export function mergeCageDragId(cageId: string): string {
   return `${MERGE_CAGE_DRAG_PREFIX}${cageId}`;

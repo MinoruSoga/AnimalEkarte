@@ -33,6 +33,11 @@ vi.mock("@/hooks/use-cage-merge", () => ({
   useUnmergeCages: () => mutationStub(vi.fn()),
 }));
 
+// EMR-306: CageSettings の占有クエリ hook も同じ理由で stub 化する。
+vi.mock("@/hooks/use-cage-occupancy", () => ({
+  useCageOccupancy: () => ({ occupiedCageIds: undefined }),
+}));
+
 vi.mock("@/hooks/use-sortable-list", () => ({
   useSortableList: ({
     items,
