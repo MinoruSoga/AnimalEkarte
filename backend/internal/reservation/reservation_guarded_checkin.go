@@ -70,13 +70,22 @@ func (s *reservationService) guardedCheckIn(ctx context.Context, clinicID, id ui
 // owner and alive state from that one locked pet, without changing the generic
 // historical-reservation deceased guard's established contract.
 func (s *reservationService) validateGuardedCheckInPatient(ctx context.Context, clinicID uint64, current *model.Reservation) error {
+	return validateGuardedReceptionPatient(ctx, s.repo, clinicID, current)
+}
+
+type guardedReceptionPatientReader interface {
+	AssertOwnerInClinic(context.Context, uint64, uint64) error
+	FindPetByIDInClinic(context.Context, uint64, uint64) (*model.Pet, error)
+}
+
+func validateGuardedReceptionPatient(ctx context.Context, repo guardedReceptionPatientReader, clinicID uint64, current *model.Reservation) error {
 	if current.OwnerID == nil || *current.OwnerID == 0 || current.PetID == nil || *current.PetID == 0 {
 		return apperrors.WrapInvalidInput("受付する前に飼主とペットの紐付けが必要です")
 	}
-	if err := s.repo.AssertOwnerInClinic(ctx, clinicID, *current.OwnerID); err != nil {
+	if err := repo.AssertOwnerInClinic(ctx, clinicID, *current.OwnerID); err != nil {
 		return apperrors.Wrap(err, "failed to verify check-in owner")
 	}
-	pet, err := s.repo.FindPetByIDInClinic(ctx, clinicID, *current.PetID)
+	pet, err := repo.FindPetByIDInClinic(ctx, clinicID, *current.PetID)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to verify check-in pet")
 	}

@@ -11851,7 +11851,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ReservationAppointment'
+              allOf:
+                - $ref: '#/components/schemas/ReservationAppointment'
+                - type: object
+                  properties:
+                    prevent_duplicate_reception:
+                      type: boolean
+                      default: false
+                      description: 当日の reception/checked_in 作成専用。同一医院・ペットの当日進行中予約をトランザクション内で再確認し、存在時は409。完了・キャンセル・無断キャンセルは再来院を妨げない。飼主と生存ペットの正のIDが必要。
       responses:
         '201':
           description: 作成成功
@@ -11873,7 +11880,11 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '409':
-          $ref: '#/components/responses/Conflict'
+          description: 当日の進行中予約または受付が存在する場合は再読み込みし、既存を再利用してください。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           $ref: '#/components/responses/InternalError'
   /reservations/batch:
@@ -11900,6 +11911,10 @@ paths:
                 source: { type: string, enum: [manual, line] }
                 # EMR-308: record_intent は次回予定専用 provenance —— 作成時指定不可（runtime binding も拒否）。
                 reservation_route: { type: string, enum: [line, phone, reception, exam_room, record_shortcut] }
+                prevent_duplicate_reception:
+                  type: boolean
+                  default: false
+                  description: 当日の reception/checked_in 専用。各ペットの進行中予約をロック後再確認し、いずれか存在時は全体409。レスポンスは入力ペット順を保持。
                 pets:
                   type: array
                   minItems: 2
@@ -11920,7 +11935,12 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
-        '409': { $ref: '#/components/responses/Conflict' }
+        '409':
+          description: いずれかのペットの当日進行中予約が存在する場合は全体をロールバック。再読み込みして既存を再利用してください。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500': { $ref: '#/components/responses/InternalError' }
   /reservations/available-times:
     get:

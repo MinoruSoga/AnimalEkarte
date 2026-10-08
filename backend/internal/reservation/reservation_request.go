@@ -137,18 +137,19 @@ func (q reservationAvailableTimesQuery) toServiceFilters() (reservationAvailable
 
 // createReservationRequest は予約作成のバインド struct
 type createReservationRequest struct {
-	StartTime         time.Time `json:"start_time"      binding:"required"`
-	EndTime           time.Time `json:"end_time"        binding:"required"`
-	OwnerID           *uint64   `json:"owner_id"`
-	PetID             *uint64   `json:"pet_id"`
-	VisitType         string    `json:"visit_type"          binding:"omitempty,oneof=first revisit"`
-	ReservationTypeID uint64    `json:"reservation_type_id" binding:"required"`
-	DoctorID          *uint64   `json:"doctor_id"`
-	IsDesignated      bool      `json:"is_designated"`
-	Status            string    `json:"status"              binding:"omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting completed"`
-	Notes             string    `json:"notes"`
-	Source            string    `json:"source"              binding:"omitempty,oneof=manual line"`
-	ReservationRoute  string    `json:"reservation_route"   binding:"omitempty,oneof=line phone reception exam_room record_shortcut"`
+	PreventDuplicateReception bool      `json:"prevent_duplicate_reception"`
+	StartTime                 time.Time `json:"start_time"      binding:"required"`
+	EndTime                   time.Time `json:"end_time"        binding:"required"`
+	OwnerID                   *uint64   `json:"owner_id"`
+	PetID                     *uint64   `json:"pet_id"`
+	VisitType                 string    `json:"visit_type"          binding:"omitempty,oneof=first revisit"`
+	ReservationTypeID         uint64    `json:"reservation_type_id" binding:"required"`
+	DoctorID                  *uint64   `json:"doctor_id"`
+	IsDesignated              bool      `json:"is_designated"`
+	Status                    string    `json:"status"              binding:"omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting completed"`
+	Notes                     string    `json:"notes"`
+	Source                    string    `json:"source"              binding:"omitempty,oneof=manual line"`
+	ReservationRoute          string    `json:"reservation_route"   binding:"omitempty,oneof=line phone reception exam_room record_shortcut"`
 }
 
 func (r *createReservationRequest) toServiceInput(clinicID, staffID uint64) (*CreateManualReservationInput, error) {
@@ -158,17 +159,18 @@ func (r *createReservationRequest) toServiceInput(clinicID, staffID uint64) (*Cr
 	}
 
 	input := &CreateManualReservationInput{
-		ClinicID:          clinicID,
-		StartTime:         r.StartTime,
-		EndTime:           r.EndTime,
-		OwnerID:           r.OwnerID,
-		PetID:             r.PetID,
-		ReservationTypeID: r.ReservationTypeID,
-		DoctorID:          r.DoctorID,
-		IsDesignated:      r.IsDesignated,
-		Notes:             r.Notes,
-		Source:            source,
-		CreatedBy:         &staffID,
+		PreventDuplicateReception: r.PreventDuplicateReception,
+		ClinicID:                  clinicID,
+		StartTime:                 r.StartTime,
+		EndTime:                   r.EndTime,
+		OwnerID:                   r.OwnerID,
+		PetID:                     r.PetID,
+		ReservationTypeID:         r.ReservationTypeID,
+		DoctorID:                  r.DoctorID,
+		IsDesignated:              r.IsDesignated,
+		Notes:                     r.Notes,
+		Source:                    source,
+		CreatedBy:                 &staffID,
 	}
 	if r.ReservationRoute != "" {
 		input.ReservationRoute = &r.ReservationRoute
@@ -198,6 +200,9 @@ func (r *createReservationRequest) toServiceInput(clinicID, staffID uint64) (*Cr
 		}
 		input.Status = status
 	}
+	if err := validateReceptionCreationGuard(input); err != nil {
+		return nil, err
+	}
 	return input, nil
 }
 
@@ -207,21 +212,22 @@ type createReservationBatchPetRequest struct {
 }
 
 type createReservationBatchRequest struct {
-	StartTime         time.Time                          `json:"start_time" binding:"required"`
-	EndTime           time.Time                          `json:"end_time" binding:"required"`
-	ReservationTypeID uint64                             `json:"reservation_type_id" binding:"required"`
-	VisitType         string                             `json:"visit_type" binding:"required"`
-	DoctorID          *uint64                            `json:"doctor_id"`
-	IsDesignated      bool                               `json:"is_designated"`
-	Status            string                             `json:"status" binding:"omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting completed"`
-	Notes             string                             `json:"notes"`
-	Source            string                             `json:"source" binding:"omitempty,oneof=manual line"`
-	ReservationRoute  string                             `json:"reservation_route" binding:"omitempty,oneof=line phone reception exam_room record_shortcut"`
-	Pets              []createReservationBatchPetRequest `json:"pets" binding:"required,min=2"`
+	PreventDuplicateReception bool                               `json:"prevent_duplicate_reception"`
+	StartTime                 time.Time                          `json:"start_time" binding:"required"`
+	EndTime                   time.Time                          `json:"end_time" binding:"required"`
+	ReservationTypeID         uint64                             `json:"reservation_type_id" binding:"required"`
+	VisitType                 string                             `json:"visit_type" binding:"required"`
+	DoctorID                  *uint64                            `json:"doctor_id"`
+	IsDesignated              bool                               `json:"is_designated"`
+	Status                    string                             `json:"status" binding:"omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting completed"`
+	Notes                     string                             `json:"notes"`
+	Source                    string                             `json:"source" binding:"omitempty,oneof=manual line"`
+	ReservationRoute          string                             `json:"reservation_route" binding:"omitempty,oneof=line phone reception exam_room record_shortcut"`
+	Pets                      []createReservationBatchPetRequest `json:"pets" binding:"required,min=2"`
 }
 
 func (r *createReservationBatchRequest) toServiceInput(clinicID, staffID uint64) (*CreateManualReservationInput, []ReservationBatchPet, error) {
-	input, err := (&createReservationRequest{StartTime: r.StartTime, EndTime: r.EndTime, ReservationTypeID: r.ReservationTypeID, VisitType: r.VisitType, DoctorID: r.DoctorID, IsDesignated: r.IsDesignated, Status: r.Status, Notes: r.Notes, Source: r.Source, ReservationRoute: r.ReservationRoute}).toServiceInput(clinicID, staffID)
+	input, err := (&createReservationRequest{PreventDuplicateReception: r.PreventDuplicateReception, StartTime: r.StartTime, EndTime: r.EndTime, ReservationTypeID: r.ReservationTypeID, VisitType: r.VisitType, DoctorID: r.DoctorID, IsDesignated: r.IsDesignated, Status: r.Status, Notes: r.Notes, Source: r.Source, ReservationRoute: r.ReservationRoute}).toServiceInput(clinicID, staffID)
 	if err != nil {
 		return nil, nil, err
 	}
