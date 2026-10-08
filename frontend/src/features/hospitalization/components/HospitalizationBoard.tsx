@@ -69,7 +69,7 @@ interface CageCardProps {
   occupant?: Hospitalization;
   /** member cage の場合の代表ケージ名（board 側で解決済み） */
   mergedRepresentativeName?: string;
-  hasVisibleOccupant: (cageId: string) => boolean;
+  isOccupied: (cageId: string) => boolean;
   onNavigateToForm: (id?: string) => void;
   onRequestUnmerge?: (representativeId: string) => void;
   canCreate: boolean;
@@ -83,7 +83,7 @@ const CageCard = memo(function CageCard({
   cages,
   occupant,
   mergedRepresentativeName,
-  hasVisibleOccupant,
+  isOccupied,
   onNavigateToForm,
   onRequestUnmerge,
   canCreate,
@@ -118,6 +118,7 @@ const CageCard = memo(function CageCard({
     mergeDraggable,
     mergeTargetEligible,
     mergeStaticMuted,
+    mergeIdleEligible,
     mergeDragHighlighted,
     mergeDragMuted,
   } = cageMergeCardState({
@@ -127,9 +128,9 @@ const CageCard = memo(function CageCard({
     canMerge,
     // カード単位の占有も同一ルックアップを使う — 他タブ/別ページの占有のみ持つ
     // ケージが merge source として draggable に見えないよう整合させる。
-    hasOccupant: hasVisibleOccupant(String(cage.id)),
+    hasOccupant: isOccupied(String(cage.id)),
     activeMergeCageId,
-    hasVisibleOccupant,
+    isOccupied,
   });
   const dragEnabled = mergeMode ? mergeDraggable : canDrag;
 
@@ -172,6 +173,7 @@ const CageCard = memo(function CageCard({
                   ${isOver ? `ring-2 ${C.ringMedicalBlue} ring-offset-2 ${C.bgMedicalBlue5}` : ""}
                   ${dragEnabled ? "cursor-grab active:cursor-grabbing" : "cursor-default"}
                   ${mergeDragHighlighted ? `ring-2 ${C.ringMedicalBlue} ring-offset-2` : ""}
+                  ${mergeIdleEligible ? `ring-1 ${C.ringMedicalBlue} ring-offset-1` : ""}
                   ${mergeStaticMuted || mergeDragMuted ? "opacity-50" : ""}
                 `}
       >
@@ -345,7 +347,7 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({
 
   // EMR-306: merge-mode の占有判定は hasMergeOccupant（admitted/reserved 全件・
   // 表示タブ/ページ非依存）を優先し、未提供時は表示中データへフォールバックする。
-  const hasVisibleOccupant = useCallback(
+  const isCageOccupied = useCallback(
     (cageId: string) => hasMergeOccupant?.(cageId) ?? occupantByCageId.has(cageId),
     [hasMergeOccupant, occupantByCageId],
   );
@@ -367,7 +369,7 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({
           cages,
           draggedCageId,
           targetCageId,
-          hasVisibleOccupant,
+          isOccupied: isCageOccupied,
         });
         if (!eligible) return;
         onRequestMerge(draggedCageId, targetCageId);
@@ -389,7 +391,7 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({
       if (targetCage != null && targetCage.mergedIntoCageId != null) return;
       onMovePet(hospitalizationId, targetCageId);
     },
-    [canEdit, canMerge, mergeMode, cages, hasVisibleOccupant, onMovePet, onRequestMerge],
+    [canEdit, canMerge, mergeMode, cages, isCageOccupied, onMovePet, onRequestMerge],
   );
 
   // Group cages by category (Area)
@@ -428,7 +430,7 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({
                     cages={cages}
                     occupant={occupant}
                     mergedRepresentativeName={mergedRepName}
-                    hasVisibleOccupant={hasVisibleOccupant}
+                    isOccupied={isCageOccupied}
                     onNavigateToForm={onNavigateToForm}
                     onRequestUnmerge={onRequestUnmerge}
                     canCreate={canCreate}

@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { C, STYLE } from "@/lib/design-tokens";
 import { resolveCageNameById } from "@/lib/cage-name";
+import { cageMembersByRepresentative } from "@/lib/cage-merge";
 
 import type { Cage } from "../api/cages";
 import { CAGE_SIZE_LABELS, CAGE_TYPE_LABELS, formatCagePrice } from "../lib/cage-side-panel-model";
@@ -68,11 +69,9 @@ export function CageSortableTable({
     [items, activeId],
   );
 
-  // EMR-306: 連結グループの代表 cage id 集合（= 誰かの mergedIntoCageId になっている id）
-  const representativeIds = useMemo(
-    () => new Set(items.map((c) => c.mergedIntoCageId).filter((id): id is string => id != null)),
-    [items],
-  );
+  // EMR-306: 代表 cageId → 構成メンバー索引（shared predicate に委譲）。
+  // キーが存在する = そのケージは連結グループの代表。
+  const membersByRepId = useMemo(() => cageMembersByRepresentative(items), [items]);
 
   return (
     <div className={STYLE.tableContainer}>
@@ -115,7 +114,8 @@ export function CageSortableTable({
                       ? resolveCageNameById(items, item.mergedIntoCageId)
                       : null;
                   const isMergedMember = item.mergedIntoCageId != null;
-                  const isMergedRepresentative = representativeIds.has(item.id);
+                  const mergedMembers = membersByRepId.get(item.id);
+                  const isMergedRepresentative = mergedMembers != null;
                   const isMerged = isMergedMember || isMergedRepresentative;
                   const unmergeRepId = item.mergedIntoCageId ?? item.id;
                   return (
@@ -144,7 +144,9 @@ export function CageSortableTable({
                           {isMergedMember ? (
                             <Badge variant="secondary">{`連結中: ${mergedRepName}`}</Badge>
                           ) : isMergedRepresentative ? (
-                            <Badge variant="secondary">連結中（代表）</Badge>
+                            <Badge variant="secondary">
+                              {`連結中（代表）: ${mergedMembers.map((m) => m.name).join(" + ")}`}
+                            </Badge>
                           ) : null}
                         </div>
                       </TableCell>

@@ -229,15 +229,18 @@ func (s *cageService) Delete(ctx context.Context, clinicID, id uint64) error {
 		if cage.MergedIntoCageID != nil {
 			return apperrors.WrapConflict("連結中のケージは削除できません")
 		}
-		// 代表判定は merge 面が配線されている場合のみ（未配線モックテスト互換）。
-		if mergeRepo := s.mergeRepo(); mergeRepo != nil {
-			memberCounts, err := mergeRepo.CountMergedMembers(txCtx, clinicID, []uint64{id})
-			if err != nil {
-				return apperrors.Wrap(err, "failed to count merged members")
-			}
-			if memberCounts[id] > 0 {
-				return apperrors.WrapConflict("連結グループの代表ケージは削除できません")
-			}
+		// 代表判定は merge 面を必須とする fail-closed（Merge/Unmerge/入院割当ガードと同一姿勢。
+		// 面なし注入で代表判定が素通りすると、連結中の代表を削除できてしまうため）。
+		mergeRepo := s.mergeRepo()
+		if mergeRepo == nil {
+			return apperrors.WrapInternalServerError("cage merge repository dependency is required")
+		}
+		memberCounts, err := mergeRepo.CountMergedMembers(txCtx, clinicID, []uint64{id})
+		if err != nil {
+			return apperrors.Wrap(err, "failed to count merged members")
+		}
+		if memberCounts[id] > 0 {
+			return apperrors.WrapConflict("連結グループの代表ケージは削除できません")
 		}
 		count, err := s.repo.CountUsageByCageID(txCtx, clinicID, id)
 		if err != nil {
@@ -274,9 +277,9 @@ func (s *cageService) Reorder(ctx context.Context, clinicID uint64, ids []uint64
 // ---- cage merge (EMR-306) ----
 
 // mergeRepo は任意の連結データアクセス面を解決する。CageRepository のみを実装する
-// 非所有モックでは nil を返す。Merge/Unmerge は nil を fail-closed（500）とし、
-// Update/Delete の連結ガードは代表判定のみスキップする（構成判定はモデルフィールド
-// で常に実行できるため無条件）。
+// 非所有モックでは nil を返す。全呼び出し側（Merge/Unmerge・Delete/deactivateCage の
+// 連結ガード・入院割当ガード）は nil を fail-closed（500）とする — 面なし注入で
+// 代表判定が素通りすると連結中の代表を削除/無効化できてしまうため。
 func (s *cageService) mergeRepo() CageMergeRepository {
 	mergeRepo, _ := s.repo.(CageMergeRepository)
 	return mergeRepo
@@ -446,15 +449,17 @@ func (s *cageService) deactivateCage(ctx context.Context, clinicID, id uint64, i
 		if locked.MergedIntoCageID != nil {
 			return apperrors.WrapConflict("連結中のケージは無効化できません")
 		}
-		// 代表判定は merge 面が配線されている場合のみ（未配線モックテスト互換）。
-		if mergeRepo := s.mergeRepo(); mergeRepo != nil {
-			memberCounts, err := mergeRepo.CountMergedMembers(txCtx, clinicID, []uint64{id})
-			if err != nil {
-				return apperrors.Wrap(err, "failed to count merged members")
-			}
-			if memberCounts[id] > 0 {
-				return apperrors.WrapConflict("連結グループの代表ケージは無効化できません")
-			}
+		// 代表判定は merge 面を必須とする fail-closed（Delete と同一姿勢）。
+		mergeRepo := s.mergeRepo()
+		if mergeRepo == nil {
+			return apperrors.WrapInternalServerError("cage merge repository dependency is required")
+		}
+		memberCounts, err := mergeRepo.CountMergedMembers(txCtx, clinicID, []uint64{id})
+		if err != nil {
+			return apperrors.Wrap(err, "failed to count merged members")
+		}
+		if memberCounts[id] > 0 {
+			return apperrors.WrapConflict("連結グループの代表ケージは無効化できません")
 		}
 		updated, err := s.repo.Update(txCtx, clinicID, id, *input)
 		if err != nil {

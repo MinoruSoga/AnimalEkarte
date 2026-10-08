@@ -23,7 +23,10 @@ func (s *hospitalizationService) createHospitalizationInTx(
 	}
 	// EMR-306 step3: 連結ケージ割当ガード — FindByID(FOR SHARE) より先に
 	// LockCageGroupForUpdate(FOR UPDATE) を取るため所有権検証より前に置く。
-	if err := s.validateCageAssignmentGuard(txCtx, clinicID, input.CageID); err != nil {
+	// 結果ステータスが非占有（discharged バックフィル等）の作成は、構成ケージの
+	// 構造的禁止のみ適用しグループ占有検査は行わない。
+	if err := s.validateCageAssignmentGuard(txCtx, clinicID, input.CageID,
+		isOccupyingHospitalizationStatus(input.Status), nil); err != nil {
 		return err
 	}
 	if err := validateOwnedMasterFK(txCtx, "cage", clinicID, input.CageID,

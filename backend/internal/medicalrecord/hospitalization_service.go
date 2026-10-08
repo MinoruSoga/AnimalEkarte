@@ -265,7 +265,15 @@ func isOccupyingHospitalizationStatus(status model.HospitalizationStatus) bool {
 // UPDATE 済み行への後続 SHARE は待機しないので、所有権検証は呼び出し位置のまま残す。
 // LockCageGroupForUpdate 自体が医院スコープで、存在しない/他医院 id には NotFound を
 // 返すため、クロステナント拒否セマンティクスはここでも同等に保証される。
-func (s *hospitalizationService) validateCageAssignmentGuard(txCtx context.Context, clinicID uint64, cageID *uint64) error {
+//
+// occupies は「この書込みの結果レコードがケージを占有するか」（結果ステータスが
+// admitted/reserved）。false（discharged 履歴のバックフィル等）では構成ケージの
+// 構造的禁止（422）は維持しつつ、グループ占有検査（409）はスキップする —
+// 非占有の履歴行は物理的にケージを占有しないため。
+// selfOccupiesCageID は更新経路で「この更新対象の入院が現在占有しているケージ」
+// を渡す（create 経路は nil）。占有集計から自身を除外しないと、構成ケージ上の
+// 既存入院を代表ケージへ移す唯一妥当なグループ内移動が自己衝突で 409 になる。
+func (s *hospitalizationService) validateCageAssignmentGuard(txCtx context.Context, clinicID uint64, cageID *uint64, occupies bool, selfOccupiesCageID *uint64) error {
 	if cageID == nil {
 		return nil
 	}
@@ -295,8 +303,9 @@ func (s *hospitalizationService) validateCageAssignmentGuard(txCtx context.Conte
 	if target.MergedIntoCageID != nil {
 		return apperrors.WrapUnprocessable("連結中の構成ケージには割り当てできません")
 	}
-	if len(group) <= 1 {
+	if len(group) <= 1 || !occupies {
 		// 未連結ケージには占有チェックを追加しない（従来挙動を維持）。
+		// 非占有ステータス（discharged 等）の結果レコードも占有検査をスキップする。
 		return nil
 	}
 	// 代表ケージ: グループ内（代表+構成）の未削除 admitted/reserved 入院を占有とみなす。
@@ -307,6 +316,15 @@ func (s *hospitalizationService) validateCageAssignmentGuard(txCtx context.Conte
 	occupied, err := mergeRepo.CountOccupiedCages(txCtx, clinicID, groupIDs)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to count cage group occupancy")
+	}
+	// 更新対象自身の占有を除外 — 構成ケージ→代表ケージのグループ内移動が
+	// 自分自身の入院で 409 になるのを防ぐ（selfOccupiesCageID は占有中のみ非 nil）。
+	if selfOccupiesCageID != nil {
+		if n := occupied[*selfOccupiesCageID]; n > 1 {
+			occupied[*selfOccupiesCageID] = n - 1
+		} else {
+			delete(occupied, *selfOccupiesCageID)
+		}
 	}
 	if len(occupied) > 0 {
 		return apperrors.WrapConflict("連結グループ内のケージが使用中のため割り当てできません")
@@ -458,7 +476,14 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 			if targetCage == nil {
 				targetCage = existing.CageID
 			}
-			if err := s.validateCageAssignmentGuard(txCtx, clinicID, targetCage); err != nil {
+			// 結果ステータスが占有なら占有検査を行い、更新対象自身の占有は
+			// 集計から除外する（メンバー→代表のグループ内移動を許可するため）。
+			var selfOccupiesCageID *uint64
+			if isOccupyingHospitalizationStatus(existing.Status) {
+				selfOccupiesCageID = existing.CageID
+			}
+			if err := s.validateCageAssignmentGuard(txCtx, clinicID, targetCage,
+				isOccupyingHospitalizationStatus(finalStatus), selfOccupiesCageID); err != nil {
 				return err
 			}
 		}

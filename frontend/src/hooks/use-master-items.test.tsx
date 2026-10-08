@@ -59,8 +59,9 @@ describe("useGetMasterItems transformGenericMasterItem (EMR-306)", () => {
 
     await waitFor(() => expect(result.current.data).toHaveLength(3));
     expect(result.current.data[0].mergedIntoCageId).toBe("5");
-    expect(result.current.data[1].mergedIntoCageId).toBeUndefined();
-    expect(result.current.data[2].mergedIntoCageId).toBeUndefined();
+    // 欠落・null は transformCage と同じ null sentinel に正規化される（EMR-306 統一）
+    expect(result.current.data[1].mergedIntoCageId).toBeNull();
+    expect(result.current.data[2].mergedIntoCageId).toBeNull();
     // 既存フィールドの transform が壊れていないこと
     expect(result.current.data[0].id).toBe("1");
     expect(result.current.data[0].status).toBe("active");

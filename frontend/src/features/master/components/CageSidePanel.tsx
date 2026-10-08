@@ -18,6 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { LAYOUT, STYLE } from "@/lib/design-tokens";
+import { cageMembersByRepresentative } from "@/lib/cage-merge";
 
 import type { Cage, CageSize, CageType } from "../api/cages";
 import { useMasterSidePanelForm } from "../hooks/use-master-side-panel-form";
@@ -116,8 +117,13 @@ export const CageSidePanel = memo(function CageSidePanel({
     onClose();
   }, [onClose, setIsDirty]);
 
-  // EMR-306: 連結メンバーの場合、代表ケージ名をサイドパネルに表示する（readOnly 含む）。
+  // EMR-306: 連結メンバーの場合は代表ケージ名を、代表ケージの場合は構成メンバー
+  // 一覧をサイドパネルに表示する（readOnly 含む）。
   const mergedRepresentative = findCageRepresentative(cages, item);
+  const mergedMembers =
+    item != null && mergedRepresentative === null
+      ? cageMembersByRepresentative(cages).get(item.id)
+      : undefined;
 
   return (
     <MasterSidePanel
@@ -140,6 +146,18 @@ export const CageSidePanel = memo(function CageSidePanel({
           description="このケージは代表ケージに一時連結されています。連結中は無効化・削除できず、解除（unmerge）してから行います。"
         >
           <Badge variant="secondary">{`連結中: ${mergedRepresentative.name}`}</Badge>
+        </PropertyRow>
+      ) : mergedMembers != null && mergedMembers.length > 0 ? (
+        <PropertyRow
+          label="連結状態"
+          description="このケージは連結グループの代表ケージです。構成ケージへの入院割当はできず、連結中は無効化・削除できません（解除してから行います）。"
+        >
+          <div className="flex flex-wrap items-center gap-1">
+            <Badge variant="secondary">連結中（代表）</Badge>
+            {mergedMembers.map((member) => (
+              <Badge key={member.id} variant="outline">{`構成: ${member.name}`}</Badge>
+            ))}
+          </div>
         </PropertyRow>
       ) : null}
       <PropertyRow

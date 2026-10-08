@@ -300,10 +300,10 @@ describe("CageSettings ケージ連結 (EMR-306)", () => {
     renderPage();
     await screen.findByText("1番ケージ");
 
-    // メンバー行には代表名入りバッジ、代表行にも連結中表示が出る（EMR-306 レビュー対応）
+    // メンバー行には代表名入りバッジ、代表行には構成名入りの連結中表示が出る（EMR-306 レビュー対応）
     const badge = await screen.findByText("連結中: 1番ケージ");
     expect(badge).toBeInTheDocument();
-    expect(screen.getByText("連結中（代表）")).toBeInTheDocument();
+    expect(screen.getByText("連結中（代表）: 2番ケージ")).toBeInTheDocument();
     // 連結済み（メンバー・代表）行は merge 対象に選べない
     expect(
       screen.getByRole("checkbox", { name: "連結選択: ケージ 1番ケージ (ID 1)" }),
@@ -372,6 +372,26 @@ describe("CageSettings ケージ連結 (EMR-306)", () => {
     expect(await screen.findByText("連結状態")).toBeInTheDocument();
     // 「連結中: <代表名>」は行バッジとパネルバッジの2箇所に出る
     expect(await screen.findAllByText("連結中: 1番ケージ")).toHaveLength(2);
+  });
+
+  it("代表ケージのサイドパネルには構成メンバー名入りの連結状態行が表示される", async () => {
+    stubCages([
+      makeCage(1, "1番ケージ"),
+      makeCage(2, "2番ケージ", { merged_into_cage_id: 1 }),
+      makeCage(3, "3番ケージ", { merged_into_cage_id: 1 }),
+    ]);
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "詳細: ケージ 1番ケージ (ID 1)" }));
+
+    expect(await screen.findByText("連結状態")).toBeInTheDocument();
+    // パネル側の「連結中（代表）」バッジ + 各構成メンバーのバッジ
+    // （行側バッジは「連結中（代表）: <構成名>」で完全一致しないためここでは1件のみ）
+    expect(await screen.findAllByText("連結中（代表）")).toHaveLength(1);
+    expect(screen.getByText("構成: 2番ケージ")).toBeInTheDocument();
+    expect(screen.getByText("構成: 3番ケージ")).toBeInTheDocument();
   });
 
   it("edit 権限がない場合は選択チェックボックスが無効で連結ボタンは出ない", async () => {

@@ -15831,6 +15831,7 @@ paths:
                 member_cage_ids:
                   type: array
                   minItems: 1
+                  maxItems: 32
                   items:
                     type: integer
                     format: int64

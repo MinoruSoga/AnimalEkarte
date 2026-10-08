@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -778,4 +779,51 @@ func TestBuildCageUpdate(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+// cageRepoNoMergeFace は CageRepository のみを実装する最小スタブ（CageMergeRepository
+// 面なし）。EMR-306 review follow-up: Delete/deactivateCage が mergeRepo nil を
+// fail-closed（500）とする契約の検証用。mockCageRepository は merge 面を持つため
+// faceless 経路は別型で表現する。
+type cageRepoNoMergeFace struct{}
+
+func (cageRepoNoMergeFace) FindAll(context.Context, uint64, *string) ([]model.Cage, error) {
+	return nil, nil
+}
+func (cageRepoNoMergeFace) FindByID(_ context.Context, _, id uint64) (*model.Cage, error) {
+	return &model.Cage{ID: id}, nil
+}
+func (cageRepoNoMergeFace) LockByIDForUpdate(_ context.Context, _, id uint64) (*model.Cage, error) {
+	return &model.Cage{ID: id}, nil
+}
+func (cageRepoNoMergeFace) CountUsageByCageID(context.Context, uint64, uint64) (int64, error) {
+	return 0, nil
+}
+func (cageRepoNoMergeFace) Create(context.Context, *model.Cage) error { return nil }
+func (cageRepoNoMergeFace) Update(_ context.Context, _, id uint64, _ UpdateCageInput) (*model.Cage, error) {
+	return &model.Cage{ID: id}, nil
+}
+func (cageRepoNoMergeFace) Delete(context.Context, uint64, uint64) error    { return nil }
+func (cageRepoNoMergeFace) Reorder(context.Context, uint64, []uint64) error { return nil }
+
+func TestCageService_FacelessRepoFailsClosed(t *testing.T) {
+	newSvc := func() CageService {
+		return NewCageService(cageRepoNoMergeFace{}, &mockTransactor{})
+	}
+
+	t.Run("delete fails closed without the merge face", func(t *testing.T) {
+		err := newSvc().Delete(context.Background(), 1, 10)
+		assert.Error(t, err, "merge 面なし注入は fail-closed（500）")
+		status, _, _ := httpapi.ResolveErrorResponse(err)
+		assert.Equal(t, http.StatusInternalServerError, status)
+	})
+
+	t.Run("deactivate fails closed without the merge face", func(t *testing.T) {
+		inactive := false
+		got, err := newSvc().Update(context.Background(), 1, 10, &UpdateCageInput{IsActive: &inactive})
+		assert.Error(t, err, "merge 面なし注入は fail-closed（500）")
+		assert.Nil(t, got)
+		status, _, _ := httpapi.ResolveErrorResponse(err)
+		assert.Equal(t, http.StatusInternalServerError, status)
+	})
 }

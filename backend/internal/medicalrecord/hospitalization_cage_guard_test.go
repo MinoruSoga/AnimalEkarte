@@ -414,3 +414,90 @@ func TestHospitalizationCageGuard_FacelessRepoFailsClosed(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, status)
 	})
 }
+
+// EMR-306 review follow-up: 自己占有除外（spec c1）と非占有スキップ（spec c2）の契約。
+// 構成ケージ上の既存入院を代表ケージへ移すグループ内移動は、自分自身の占有で
+// 409 になってはならない（そうでないと連結前のレガシー割当を是正する経路が塞がれる）。
+func TestHospitalizationCageGuard_Update_MemberToRepresentativeMoveAllowed(t *testing.T) {
+	db := setupHospitalizationRepoTestDB(t)
+	svc := newCageGuardHospitalizationService(t, db)
+	_, merger := newCageMergeService(t, db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	owner := makeTestOwner(t, db, clinicID, "guard飼主 intra-move")
+	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "guardペット intra-move")
+
+	rep := makeCageMaster(t, db, clinicID, "代表 intra-move")
+	member := makeCageMaster(t, db, clinicID, "構成 intra-move")
+	require.NoError(t, mustMerge(t, merger, ctx, clinicID, rep.ID, []uint64{member.ID}))
+	// 連結以前に構成ケージへ直接紐付いた占有中入院（makeCageHospitalization は
+	// ガード経路を通らない直接 INSERT のため構築可能）。
+	hosp := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &member.ID, model.HospitalizationStatusAdmitted)
+
+	got, err := svc.Update(ctx, clinicID, hosp.ID, &UpdateHospitalizationInput{CageID: &rep.ID})
+	require.NoError(t, err, "自身の占有だけのグループ内移動（構成→代表）は許可する")
+	require.NotNil(t, got)
+	require.NotNil(t, got.CageID)
+	assert.Equal(t, rep.ID, *got.CageID)
+}
+
+// 別の占有入院がいる場合は、自身の占有を除外しても依然 409 で拒否する。
+func TestHospitalizationCageGuard_Update_IntraGroupMoveBlockedByOtherOccupant(t *testing.T) {
+	db := setupHospitalizationRepoTestDB(t)
+	svc := newCageGuardHospitalizationService(t, db)
+	_, merger := newCageMergeService(t, db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	owner := makeTestOwner(t, db, clinicID, "guard飼主 intra-occ")
+	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "guardペット intra-occ")
+
+	rep := makeCageMaster(t, db, clinicID, "代表 intra-occ")
+	member := makeCageMaster(t, db, clinicID, "構成 intra-occ")
+	require.NoError(t, mustMerge(t, merger, ctx, clinicID, rep.ID, []uint64{member.ID}))
+	// 移動対象は構成ケージ上の入院。代表には別の占有入院がいる → 移動は 409。
+	hosp := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &member.ID, model.HospitalizationStatusAdmitted)
+	makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &rep.ID, model.HospitalizationStatusReserved)
+
+	got, err := svc.Update(ctx, clinicID, hosp.ID, &UpdateHospitalizationInput{CageID: &rep.ID})
+	require.Error(t, err)
+	assert.Nil(t, got)
+	assert.True(t, apperrors.IsConflict(err), "他者の占有があるグループ内移動は Conflict: %v", err)
+}
+
+// discharged 結果の更新・作成は非占有であり、グループ占有検査をスキップする
+// （構成ケージへの構造的 422 は維持 — 履歴投入を阻害しない範囲で占有のみ緩和）。
+func TestHospitalizationCageGuard_NonOccupyingResultSkipsOccupancy(t *testing.T) {
+	db := setupHospitalizationRepoTestDB(t)
+	svc := newCageGuardHospitalizationService(t, db)
+	_, merger := newCageMergeService(t, db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	owner := makeTestOwner(t, db, clinicID, "guard飼主 backfill")
+	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "guardペット backfill")
+
+	rep := makeCageMaster(t, db, clinicID, "代表 backfill")
+	member := makeCageMaster(t, db, clinicID, "構成 backfill")
+	require.NoError(t, mustMerge(t, merger, ctx, clinicID, rep.ID, []uint64{member.ID}))
+	// グループは占有中（構成ケージに admitted）。
+	makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &member.ID, model.HospitalizationStatusAdmitted)
+
+	t.Run("create discharged onto occupied representative is allowed", func(t *testing.T) {
+		got, err := svc.Create(ctx, clinicID, cageGuardCreateInput(owner.ID, pet.ID, rep.ID, model.HospitalizationStatusDischarged))
+		require.NoError(t, err, "非占有結果の作成は占有検査をスキップする")
+		require.NotNil(t, got)
+	})
+
+	t.Run("update cage change with discharged result is allowed", func(t *testing.T) {
+		standalone := makeCageMaster(t, db, clinicID, "独立 backfill")
+		hosp := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &standalone.ID, model.HospitalizationStatusDischarged)
+
+		got, err := svc.Update(ctx, clinicID, hosp.ID, &UpdateHospitalizationInput{CageID: &rep.ID})
+		require.NoError(t, err, "非占有結果のケージ変更は占有検査をスキップする")
+		require.NotNil(t, got)
+		require.NotNil(t, got.CageID)
+		assert.Equal(t, rep.ID, *got.CageID)
+	})
+}

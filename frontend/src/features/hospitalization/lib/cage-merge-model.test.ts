@@ -43,11 +43,11 @@ describe("cage-merge-model (EMR-306)", () => {
   });
 
   it("isMergeDragSource: member・代表・占有・無効ケージは source 不可", () => {
-    expect(isMergeDragSource({ cages, cage: source, hasVisibleOccupant: false })).toBe(true);
-    expect(isMergeDragSource({ cages, cage: member, hasVisibleOccupant: false })).toBe(false);
-    expect(isMergeDragSource({ cages, cage: rep, hasVisibleOccupant: false })).toBe(false);
-    expect(isMergeDragSource({ cages, cage: inactive, hasVisibleOccupant: false })).toBe(false);
-    expect(isMergeDragSource({ cages, cage: source, hasVisibleOccupant: true })).toBe(false);
+    expect(isMergeDragSource({ cages, cage: source, hasOccupant: false })).toBe(true);
+    expect(isMergeDragSource({ cages, cage: member, hasOccupant: false })).toBe(false);
+    expect(isMergeDragSource({ cages, cage: rep, hasOccupant: false })).toBe(false);
+    expect(isMergeDragSource({ cages, cage: inactive, hasOccupant: false })).toBe(false);
+    expect(isMergeDragSource({ cages, cage: source, hasOccupant: true })).toBe(false);
   });
 
   it("isMergeEligibleTarget: self/member/代表/占有/inactive は不可、standalone→standalone は可", () => {
@@ -58,7 +58,7 @@ describe("cage-merge-model (EMR-306)", () => {
         cages: [...cages, standalone2],
         draggedCageId: "11",
         targetCageId: "15",
-        hasVisibleOccupant: noOccupant,
+        isOccupied: noOccupant,
       }),
     ).toBe(true);
     // 代表 target（10）は不可: BE は既存グループへの member 追加を 409 拒否
@@ -67,7 +67,7 @@ describe("cage-merge-model (EMR-306)", () => {
         cages,
         draggedCageId: "11",
         targetCageId: "10",
-        hasVisibleOccupant: noOccupant,
+        isOccupied: noOccupant,
       }),
     ).toBe(false);
     // self
@@ -76,7 +76,7 @@ describe("cage-merge-model (EMR-306)", () => {
         cages,
         draggedCageId: "11",
         targetCageId: "11",
-        hasVisibleOccupant: noOccupant,
+        isOccupied: noOccupant,
       }),
     ).toBe(false);
     // member target（12 は member）
@@ -85,7 +85,7 @@ describe("cage-merge-model (EMR-306)", () => {
         cages,
         draggedCageId: "11",
         targetCageId: "12",
-        hasVisibleOccupant: noOccupant,
+        isOccupied: noOccupant,
       }),
     ).toBe(false);
     // occupied target（10 に occupant がいる）
@@ -94,7 +94,7 @@ describe("cage-merge-model (EMR-306)", () => {
         cages,
         draggedCageId: "11",
         targetCageId: "10",
-        hasVisibleOccupant: (id) => id === "10",
+        isOccupied: (id) => id === "10",
       }),
     ).toBe(false);
     // occupied dragged
@@ -103,7 +103,7 @@ describe("cage-merge-model (EMR-306)", () => {
         cages,
         draggedCageId: "11",
         targetCageId: "10",
-        hasVisibleOccupant: (id) => id === "11",
+        isOccupied: (id) => id === "11",
       }),
     ).toBe(false);
     // dragged が member（source 不適格）
@@ -112,7 +112,7 @@ describe("cage-merge-model (EMR-306)", () => {
         cages,
         draggedCageId: "12",
         targetCageId: "11",
-        hasVisibleOccupant: noOccupant,
+        isOccupied: noOccupant,
       }),
     ).toBe(false);
     // inactive target
@@ -121,7 +121,7 @@ describe("cage-merge-model (EMR-306)", () => {
         cages,
         draggedCageId: "11",
         targetCageId: "14",
-        hasVisibleOccupant: noOccupant,
+        isOccupied: noOccupant,
       }),
     ).toBe(false);
     // 一覧外 id
@@ -130,7 +130,7 @@ describe("cage-merge-model (EMR-306)", () => {
         cages,
         draggedCageId: "11",
         targetCageId: "999",
-        hasVisibleOccupant: noOccupant,
+        isOccupied: noOccupant,
       }),
     ).toBe(false);
   });

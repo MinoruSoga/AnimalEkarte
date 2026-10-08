@@ -14,6 +14,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { NextScheduleField, calculateNextDate } from "@/components/shared/NextScheduleField";
+import { cageMembersByRepresentative } from "@/lib/cage-merge";
 
 // Relative
 import { H_STYLES } from "../lib/styles";
@@ -52,18 +53,9 @@ function buildCageSelectOptions(
   cageItems: MasterItem[],
   currentCageId: string,
 ): CageSelectOption[] {
-  // 代表 cageId → メンバー一覧（cageItems 順）。mergedIntoCageId と id は
-  // transform 後ともに string だが、id は union 型なので String() で揃えて比較する。
-  const membersByRepId = new Map<string, MasterItem[]>();
-  for (const cage of cageItems) {
-    if (cage.mergedIntoCageId == null) continue;
-    const members = membersByRepId.get(cage.mergedIntoCageId);
-    if (members) {
-      members.push(cage);
-    } else {
-      membersByRepId.set(cage.mergedIntoCageId, [cage]);
-    }
-  }
+  // 代表 cageId → メンバー一覧（cageItems 順）。索引構築は shared predicate
+  // （src/lib/cage-merge.ts）に委譲する。
+  const membersByRepId = cageMembersByRepresentative(cageItems);
 
   return cageItems
     .filter((cage) => cage.mergedIntoCageId == null || String(cage.id) === currentCageId)
