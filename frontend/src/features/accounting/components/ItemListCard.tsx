@@ -184,20 +184,17 @@ export const ItemListCard = memo(function ItemListCard({
     const categoryError = !manualCategory ? "カテゴリを選択してください" : "";
     const otherReasonError =
       manualCategory === "other" && !otherReason ? "その他理由を入力してください" : "";
+    // EMR-319: 必須エラーは全フィールド同時に表示する。単価も必須なので
+    // 名称等の early return より先に評価しないと初回クリックで未表示のままになる。
+    const priceError = getManualPriceError(manualPrice) ?? "";
     setManualNameError(nameError);
     setManualCategoryError(categoryError);
     setManualOtherReasonError(otherReasonError);
-    if (nameError || categoryError || otherReasonError) {
+    setManualPriceError(priceError);
+    if (nameError || categoryError || otherReasonError || priceError !== "") {
       return;
     }
 
-    const priceError = getManualPriceError(manualPrice);
-    if (priceError !== null) {
-      setManualPriceError(priceError);
-      return;
-    }
-
-    setManualPriceError("");
     onAddItem({
       name,
       price: manualPrice,

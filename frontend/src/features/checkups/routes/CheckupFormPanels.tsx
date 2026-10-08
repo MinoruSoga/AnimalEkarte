@@ -61,9 +61,10 @@ export function CheckupFieldsPanel({
             value={form.date}
             onChange={onDateChange}
             ariaInvalid={Boolean(fieldErrors.date)}
+            ariaDescribedBy={fieldErrors.date ? "checkup-date-error" : undefined}
             disabledDays={{ after: toJSTWallDate(new Date()) }}
           />
-          <FormFieldError message={fieldErrors.date} />
+          <FormFieldError id="checkup-date-error" message={fieldErrors.date} />
         </div>
 
         <div className="space-y-2">

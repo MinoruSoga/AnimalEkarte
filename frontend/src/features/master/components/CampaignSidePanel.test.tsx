@@ -68,4 +68,50 @@ describe("CampaignSidePanel", () => {
       expect(input).toHaveAttribute("aria-describedby", "campaign-period-error");
     }
   });
+
+  // PR#614 指摘: 片側欠落では入力済み側を invalid にしない（per-field 契約）。
+  it("開始日のみ未入力で保存すると開始日だけが invalid になる", async () => {
+    const user = userEvent.setup();
+    render(<CampaignSidePanel item={null} onClose={() => {}} onSave={() => {}} />);
+
+    await user.type(screen.getByLabelText("名称"), "テストキャンペーン");
+    await user.type(screen.getByLabelText("終了日"), "2026-01-31");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("開始日・終了日を入力してください");
+    expect(screen.getByLabelText("開始日")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("終了日")).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("終了日のみ未入力で保存すると終了日だけが invalid になり、入力で解除される", async () => {
+    const user = userEvent.setup();
+    render(<CampaignSidePanel item={null} onClose={() => {}} onSave={() => {}} />);
+
+    await user.type(screen.getByLabelText("名称"), "テストキャンペーン");
+    await user.type(screen.getByLabelText("開始日"), "2026-01-01");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("開始日・終了日を入力してください");
+    expect(screen.getByLabelText("終了日")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("開始日")).not.toHaveAttribute("aria-invalid");
+
+    await user.type(screen.getByLabelText("終了日"), "2026-01-31");
+    expect(screen.getByLabelText("終了日")).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("終了日 < 開始日 のペア課題では両欄が invalid になる", async () => {
+    const user = userEvent.setup();
+    render(<CampaignSidePanel item={null} onClose={() => {}} onSave={() => {}} />);
+
+    await user.type(screen.getByLabelText("名称"), "テストキャンペーン");
+    await user.type(screen.getByLabelText("開始日"), "2026-01-31");
+    await user.type(screen.getByLabelText("終了日"), "2026-01-01");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("終了日は開始日以降にしてください");
+    expect(screen.getByLabelText("開始日")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("終了日")).toHaveAttribute("aria-invalid", "true");
+  });
 });

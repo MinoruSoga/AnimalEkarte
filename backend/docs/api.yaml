@@ -109,6 +109,16 @@ components:
         breed:
           type: string
           description: "犬種等（#231: トリミング一覧の犬種列向け。空文字は未設定）"
+        birth_date:
+          type: string
+          format: date
+          nullable: true
+          description: "EMR-301: 誕生月バッジ判定用（petSummaryResponse の omitempty additive）"
+        deceased_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: "死亡OR契約 sentinel（status=deceased または非null。omitempty additive）"
         animal_species:
           $ref: '#/components/schemas/AnimalSpeciesSummary'
           nullable: true
@@ -1175,6 +1185,7 @@ components:
         - animal_species
         - gender
         - birth_date
+        - deceased_at
         - color
         - weight
         - environment
@@ -1206,6 +1217,11 @@ components:
           type: string
           format: date
           nullable: true
+        deceased_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: "EMR-301: 死亡OR契約 sentinel（常時シリアライズ、未死亡は null）"
         color:
           type: string
         weight:

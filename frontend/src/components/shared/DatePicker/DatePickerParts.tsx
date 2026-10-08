@@ -19,6 +19,11 @@ export interface SingleDatePickerProps {
    * トリガー外枠に destructive の赤枠+薄いリングが出る（STYLE.formInputError 準拠）。
    */
   ariaInvalid?: boolean;
+  /**
+   * EMR-319: エラー要素（FormFieldError 等）の id。内部 input の aria-describedby に
+   * 転送し、スクリーンリーダーがエラー文を拾えるようにする（NumberInput と同じ契約）。
+   */
+  ariaDescribedBy?: string;
 }
 
 export interface RangeDatePickerProps {

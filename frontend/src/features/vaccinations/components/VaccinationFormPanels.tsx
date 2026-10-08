@@ -93,6 +93,7 @@ export function VaccinationFieldsPanel({
                 onDateChange(value);
               }}
               ariaInvalid={Boolean(fieldErrors.date)}
+              ariaDescribedBy={fieldErrors.date ? "vaccine-date-error" : undefined}
               disabledDays={{ after: toJSTWallDate(new Date()) }}
             />
             <FormFieldError id="vaccine-date-error" message={fieldErrors.date} />

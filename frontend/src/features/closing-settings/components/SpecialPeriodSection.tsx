@@ -47,6 +47,8 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
   const [deleteTarget, setDeleteTarget] = useState<ClosingSpecialPeriod | null>(null);
   // EMR-319: ネイティブ required のブラウザバブルの代わりにアプリ側の赤枠+エラー文を表示する。
   // 必須判定自体は required 属性（ブラウザ）と backend のまま変更しない。
+  // 本パネルは MasterSidePanel の <form noValidate> 配下なので invalid イベントは来ず、
+  // 実効パスは formAction 側の必須チェック（下記 REQUIRED_FIELDS）になる。
   const [invalidFields, setInvalidFields] = useState<ReadonlySet<string>>(new Set());
   const createMutation = useCreateSpecialPeriod();
   const deleteMutation = useDeleteSpecialPeriod();
@@ -86,9 +88,19 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
     });
   }, []);
 
+  // EMR-319: MasterSidePanel は action 経路を <form noValidate> で包むため、
+  // required の invalid イベント（markInvalid）は発火しない。必須判定は
+  // action 側でも FormData の空欄を同じ対象・同じ表示へ接続する（ルール自体は不変）。
+  const REQUIRED_FIELDS = ["start_date", "end_date", "am_pm_boundary", "pm_end"] as const;
+
   const [, formAction] = useActionState(async (_prev: null, formData: FormData) => {
     if (canCreateRef.current !== true) {
       toast.error(PERMISSION_DENIED_MESSAGE);
+      return null;
+    }
+    const missing = REQUIRED_FIELDS.filter((f) => getFormString(formData, f) === "");
+    if (missing.length > 0) {
+      setInvalidFields(new Set(missing));
       return null;
     }
     try {

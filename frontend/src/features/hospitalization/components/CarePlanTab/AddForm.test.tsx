@@ -344,4 +344,56 @@ describe("AddForm — 必須エラー表示 (EMR-319)", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("参照するマスタを選択してください");
     expect(screen.getByLabelText("ref-select-stub")).toHaveAttribute("aria-invalid", "true");
   });
+
+  it("手入力で単価が負数のまま実クリックしても名称必須エラーが出る（native validation に遮られない）", async () => {
+    const user = userEvent.setup();
+    render(<AddForm onSubmit={vi.fn()} />);
+
+    await selectType(user, "持ち物");
+    await user.click(screen.getByRole("checkbox", { name: /手入力/ }));
+    // type=number は 1 文字ずつの入力だと "-" が正規化で捨てられるため change で直接値を入れる
+    fireEvent.change(screen.getByLabelText("手入力の単価"), { target: { value: "-1" } });
+
+    // 実クリック経路: noValidate が無いと min=0 違反でブラウザが送信を止め、
+    // 下のアプリ側エラーが一切出ない回帰を防ぐ（PR#614 レビュー指摘）。
+    await user.click(screen.getByRole("button", { name: /追加/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("名称は必須です");
+    expect(screen.getByLabelText("ケアプラン項目名")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("手入力で単価が小数のまま実クリックしても理由必須エラーが出る", async () => {
+    const user = userEvent.setup();
+    render(<AddForm onSubmit={vi.fn()} />);
+
+    await selectType(user, "持ち物");
+    await user.click(screen.getByRole("checkbox", { name: /手入力/ }));
+    await user.type(screen.getByPlaceholderText("名称を入力"), "持ち込み品");
+    fireEvent.change(screen.getByLabelText("手入力の単価"), { target: { value: "1.5" } });
+
+    await user.click(screen.getByRole("button", { name: /追加/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("その他の理由を入力してください");
+    expect(screen.getByLabelText("その他理由")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("手入力で名称・理由が揃っていても単価が負数なら単価エラーが出る（実クリック）", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<AddForm onSubmit={onSubmit} />);
+
+    await selectType(user, "持ち物");
+    await user.click(screen.getByRole("checkbox", { name: /手入力/ }));
+    await user.type(screen.getByPlaceholderText("名称を入力"), "持ち込み品");
+    await user.type(screen.getByLabelText("その他理由"), "持ち込み品のため");
+    fireEvent.change(screen.getByLabelText("手入力の単価"), { target: { value: "-1" } });
+
+    await user.click(screen.getByRole("button", { name: /追加/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "単価は0以上の整数で入力してください",
+    );
+    expect(screen.getByLabelText("手入力の単価")).toHaveAttribute("aria-invalid", "true");
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
 });

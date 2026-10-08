@@ -32,6 +32,7 @@ export function SinglePicker({
   name,
   disabledDays,
   ariaInvalid = false,
+  ariaDescribedBy,
 }: SingleDatePickerProps) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"calendar" | "monthGrid">("calendar");
@@ -156,6 +157,7 @@ export function SinglePicker({
             name={name}
             type="text"
             aria-invalid={ariaInvalid || undefined}
+            aria-describedby={ariaDescribedBy}
             value={displayText}
             onChange={(e) => setInputText(e.target.value)}
             onFocus={handleFocus}

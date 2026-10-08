@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { C } from "@/lib/design-tokens";
+import { isBirthMonthJST } from "@/lib/jst-date";
 import { getReservationTypeColor, getReservationTypeName } from "@/lib/status-helpers";
 import { DISPLAY_TIME_FORMAT } from "@/lib/format/date";
 import type { Reservation } from "@/types";
@@ -83,6 +84,12 @@ export const AppointmentCard = memo(function AppointmentCard({
   const isFirstVisit = appointment.visitType === "first";
   // EMR-301: 死亡ペットには誕生月バッジを出さない（既存 death sentinel と整合）。
   const isDeceasedPet = appointment.petStatus === "deceased" || appointment.petDeceasedAt != null;
+  // カード内のバッジは pointer-events-none 配下の静的変種のため、ホバー・フォーカス・
+  // スクリーンリーダーから生年月日に届かない。親ボタンの title/aria-label に含める。
+  const birthdayLabel =
+    !isDeceasedPet && isBirthMonthJST(appointment.petBirthDate)
+      ? `今月誕生日（生年月日: ${appointment.petBirthDate}）`
+      : "";
   const typeName = getReservationTypeName(appointment.type);
   const typeLabel =
     dynamicColorMap?.get(appointment.type)?.isInactive === true ? `${typeName}（無効）` : typeName;
@@ -97,10 +104,11 @@ export const AppointmentCard = memo(function AppointmentCard({
         appointment.ownerName,
         appointment.doctor,
         typeLabel,
+        birthdayLabel,
       ]
         .filter(Boolean)
         .join(" / "),
-    [appointment, typeLabel, isTentative],
+    [appointment, typeLabel, isTentative, birthdayLabel],
   );
 
   const tentativeBadge = (
@@ -125,8 +133,8 @@ export const AppointmentCard = memo(function AppointmentCard({
       `}
       aria-label={
         isTentative
-          ? `${TENTATIVE_APPOINTMENT_LABEL} ${appointment.petName} ${appointment.ownerName} ${typeLabel}`
-          : `${format(appointment.start, DISPLAY_TIME_FORMAT)}〜${format(appointment.end, DISPLAY_TIME_FORMAT)} ${appointment.petName} ${appointment.ownerName} ${typeLabel}`
+          ? `${TENTATIVE_APPOINTMENT_LABEL} ${appointment.petName} ${appointment.ownerName} ${typeLabel}${birthdayLabel ? ` ${birthdayLabel}` : ""}`
+          : `${format(appointment.start, DISPLAY_TIME_FORMAT)}〜${format(appointment.end, DISPLAY_TIME_FORMAT)} ${appointment.petName} ${appointment.ownerName} ${typeLabel}${birthdayLabel ? ` ${birthdayLabel}` : ""}`
       }
       title={tooltipText}
       style={{

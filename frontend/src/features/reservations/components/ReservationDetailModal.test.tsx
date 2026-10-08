@@ -10,6 +10,15 @@ vi.mock("@/hooks/use-owner-line-tags", () => ({
   useGetOwnerLineTags: () => ({ data: undefined }),
 }));
 
+// PR#614 指摘: modal はクリック時 snapshot を GET /reservations/:id の最新応答で
+// 上書き追従する。既定は未取得（snapshot のまま表示）。
+const { mockGetReservation } = vi.hoisted(() => ({
+  mockGetReservation: { current: { data: undefined as unknown } },
+}));
+vi.mock("@/hooks/use-get-reservation", () => ({
+  useGetReservation: () => mockGetReservation.current,
+}));
+
 // EMR-227/EMR-301: 死亡区分は wire 予約サマリの petStatus/petDeceasedAt で判定する
 //（/pets/:id 取得は owners:view 権限依存のため廃止）。
 const getColorMock = vi.fn((): ReservationTypeColor => ({
@@ -66,6 +75,7 @@ describe("ReservationDetailModal", () => {
   });
 
   beforeEach(() => {
+    mockGetReservation.current = { data: undefined };
     getColorMock.mockReset();
     getColorMock.mockReturnValue({
       style: { backgroundColor: "rgb(0, 0, 0)" },
@@ -169,6 +179,38 @@ describe("ReservationDetailModal", () => {
     const typeRow = screen.getByText("予約区分").parentElement;
     expect(typeRow?.textContent).toContain("一般診察");
     expect(typeRow?.textContent).not.toContain("（無効）");
+  });
+
+  // PR#614 指摘: reservation prop はクリック時 snapshot で、死亡登録後も生存時の
+  // sentinel を保持する。detail 取得の最新応答が返ったら表示・導線をそちらに追従させる。
+  it("snapshot が生存でも detail 応答が死亡ならカルテ作成を隠す", () => {
+    mockGetReservation.current = {
+      data: { ...baseReservation, petStatus: "deceased" },
+    };
+    render(
+      <ReservationDetailModal
+        isOpen={true}
+        onClose={vi.fn()}
+        reservation={{ ...baseReservation, petBirthDate: "2018-05-10" }}
+        onCreateRecord={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /カルテ作成/ })).not.toBeInTheDocument();
+  });
+
+  it("detail 応答が未着なら snapshot のまま表示する（fail しない）", () => {
+    mockGetReservation.current = { data: undefined };
+    render(
+      <ReservationDetailModal
+        isOpen={true}
+        onClose={vi.fn()}
+        reservation={baseReservation}
+        onCreateRecord={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /カルテ作成/ })).toBeInTheDocument();
   });
 });
 

@@ -118,6 +118,23 @@ describe("DatePicker — 44px touch targets", () => {
 
     expect(screen.getByPlaceholderText("日付を選択…")).not.toHaveAttribute("aria-invalid");
   });
+
+  // EMR-319: エラー要素 id を内部 input の aria-describedby へ転送する
+  // （FormFieldError とセットで使う NumberInput と同じ契約）。
+  it("single modeでariaDescribedByを渡すと内部 input に aria-describedby が付く", () => {
+    render(<DatePicker value="" onChange={() => {}} ariaDescribedBy="some-date-error" />);
+
+    expect(screen.getByPlaceholderText("日付を選択…")).toHaveAttribute(
+      "aria-describedby",
+      "some-date-error",
+    );
+  });
+
+  it("single modeでariaDescribedBy未指定ならaria-describedbyは付かない", () => {
+    render(<DatePicker value="" onChange={() => {}} />);
+
+    expect(screen.getByPlaceholderText("日付を選択…")).not.toHaveAttribute("aria-describedby");
+  });
 });
 
 /**

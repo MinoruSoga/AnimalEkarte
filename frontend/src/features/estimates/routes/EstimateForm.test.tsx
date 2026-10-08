@@ -7,26 +7,35 @@ import type { Estimate } from "../types";
 import { CREATE_STATUS_OPTIONS, EDIT_STATUS_OPTIONS } from "../constants/estimate-status-options";
 import { EstimateForm } from "./EstimateForm";
 
-const { mockEstimate, mockGetState, mockNavigate, mockToast, mockFormState } = vi.hoisted(() => ({
-  mockEstimate: { current: null as Estimate | null },
-  mockGetState: {
-    current: {
-      isLoading: false,
-      isError: false,
-      error: null as unknown,
-      refetch: vi.fn(),
+const { mockEstimate, mockGetState, mockNavigate, mockToast, mockFormState, mockPetQuery } =
+  vi.hoisted(() => ({
+    mockEstimate: { current: null as Estimate | null },
+    mockGetState: {
+      current: {
+        isLoading: false,
+        isError: false,
+        error: null as unknown,
+        refetch: vi.fn(),
+      },
     },
-  },
-  mockNavigate: vi.fn(),
-  mockToast: { info: vi.fn(), success: vi.fn(), error: vi.fn() },
-  mockFormState: {
-    current: {
-      success: false,
-      timestamp: 0,
-      fieldErrors: undefined as Record<string, string> | undefined,
+    mockPetQuery: {
+      current: null as {
+        data: { status?: string; deceasedAt?: string | null } | null;
+        isPending: boolean;
+        isSuccess: boolean;
+        isError: boolean;
+      } | null,
     },
-  },
-}));
+    mockNavigate: vi.fn(),
+    mockToast: { info: vi.fn(), success: vi.fn(), error: vi.fn() },
+    mockFormState: {
+      current: {
+        success: false,
+        timestamp: 0,
+        fieldErrors: undefined as Record<string, string> | undefined,
+      },
+    },
+  }));
 
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
@@ -48,6 +57,11 @@ vi.mock("react-router", async () => {
 });
 
 vi.mock("sonner", () => ({ toast: mockToast }));
+
+vi.mock("@/hooks/use-pet", () => ({
+  useGetPet: (id: string) =>
+    mockPetQuery.current ?? { data: null, isPending: !id, isSuccess: false, isError: false },
+}));
 
 vi.mock("../api/get-estimate", () => ({
   useGetEstimate: () => ({
@@ -130,6 +144,19 @@ function renderCreateForm() {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={["/estimates/new"]}>
+        <Routes>
+          <Route path="/estimates/new" element={<EstimateForm />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+function renderCreateFormWithPet(entry = "/estimates/new?petId=p1") {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[entry]}>
         <Routes>
           <Route path="/estimates/new" element={<EstimateForm />} />
         </Routes>
@@ -347,5 +374,42 @@ describe("EstimateForm BUG-019 not-found / network gate", () => {
       expect(screen.getByText("見積書編集")).toBeInTheDocument();
     });
     expect(screen.queryByText("見積書が見つかりません")).not.toBeInTheDocument();
+  });
+});
+
+// PR#614 指摘: render gate が status のみを見て deceasedAt を無視していたため、
+// status=生存 + deceasedAt 非 null の個体はメッセージは出るがフォームが有効のままだった。
+describe("EstimateForm deceased pet gate (deceasedAt)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPetQuery.current = null;
+    mockFormState.current = { success: false, timestamp: 0, fieldErrors: undefined };
+  });
+
+  it("status=生存 でも deceasedAt があればメッセージ表示かつ fieldset を disabled にする", () => {
+    mockPetQuery.current = {
+      data: { status: "生存", deceasedAt: "2026-01-10T00:00:00Z" },
+      isPending: false,
+      isSuccess: true,
+      isError: false,
+    };
+    const { container } = renderCreateFormWithPet();
+
+    expect(screen.getByText("死亡したペットの見積書は作成できません")).toBeInTheDocument();
+    expect(container.querySelector("fieldset")).toHaveProperty("disabled", true);
+    expect(screen.getByPlaceholderText("見積書タイトルを入力")).toBeDisabled();
+  });
+
+  it("status=生存 かつ deceasedAt=null なら通常どおりフォームが有効", () => {
+    mockPetQuery.current = {
+      data: { status: "生存", deceasedAt: null },
+      isPending: false,
+      isSuccess: true,
+      isError: false,
+    };
+    const { container } = renderCreateFormWithPet();
+
+    expect(screen.queryByText("死亡したペットの見積書は作成できません")).not.toBeInTheDocument();
+    expect(container.querySelector("fieldset")).toHaveProperty("disabled", false);
   });
 });

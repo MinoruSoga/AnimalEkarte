@@ -16,6 +16,15 @@ export function useRevokePetDeath() {
     onSuccess: (_, petId) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.pets.detail(petId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.pets.list() });
+      // use-record-pet-death と同じ sentinel 埋め込みキャッシュを更新する
+      // （解除後も stale deceased 表示が残ると復活した個体を死亡扱いし続ける）。
+      queryClient.invalidateQueries({ queryKey: queryKeys.reservations.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reservations.detailAll() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reception.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.hospitalizations.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.hospitalizations.detailAll() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ownerSharedPets.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ownerReportPetsAll() });
       toast.success("死亡記録を解除しました");
     },
     onError: (error) => {

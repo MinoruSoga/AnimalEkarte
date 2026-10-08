@@ -60,6 +60,21 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
 }: CampaignSidePanelProps) {
   const [nameError, setNameError] = useState("");
   const [periodError, setPeriodError] = useState("");
+  // EMR-319: 必須未入力は片側だけを invalid にする。日付前後エラーはペア課題のため
+  // missing を空にして両欄 invalid のまま残す（LSTEP と同じ per-field 契約）。
+  const [periodMissing, setPeriodMissing] = useState<ReadonlySet<"start" | "end">>(new Set());
+  // 全欠落が解消した時点の periodError は必ず missing 由来（order エラーは
+  // missing 空でのみ成立）なので、最後の欠落解除でメッセージも消す。
+  const clearPeriodMissing = useCallback(
+    (key: "start" | "end") => {
+      if (!periodMissing.has(key)) return;
+      const next = new Set(periodMissing);
+      next.delete(key);
+      setPeriodMissing(next);
+      if (next.size === 0) setPeriodError("");
+    },
+    [periodMissing],
+  );
 
   const {
     formData,
@@ -78,17 +93,23 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
         return false;
       }
       if (!data.startDate || !data.endDate) {
+        const missing = new Set<"start" | "end">();
+        if (!data.startDate) missing.add("start");
+        if (!data.endDate) missing.add("end");
+        setPeriodMissing(missing);
         setPeriodError("開始日・終了日を入力してください");
         toast.error("開始日・終了日を入力してください");
         return false;
       }
       if (data.endDate < data.startDate) {
+        setPeriodMissing(new Set());
         setPeriodError("終了日は開始日以降にしてください");
         toast.error("終了日は開始日以降にしてください");
         return false;
       }
       setNameError("");
       setPeriodError("");
+      setPeriodMissing(new Set());
       return true;
     },
   });
@@ -136,6 +157,11 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
     return result;
   }, [merchandiseItems, merchandiseSearch]);
 
+  // 日付前後エラー（missing 空・periodError 有）はペア課題として両欄 invalid。
+  const periodOrderError = periodError !== "" && periodMissing.size === 0;
+  const startDateInvalid = periodMissing.has("start") || periodOrderError;
+  const endDateInvalid = periodMissing.has("end") || periodOrderError;
+
   const handleClose = useCallback(() => {
     setIsDirty(false);
     onClose();
@@ -166,9 +192,12 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
           aria-label="開始日"
           value={formData.startDate}
           disabled={readOnly}
-          onChange={(e) => setFormDataDirty((prev) => ({ ...prev, startDate: e.target.value }))}
-          aria-invalid={Boolean(periodError)}
-          aria-describedby={periodError ? "campaign-period-error" : undefined}
+          onChange={(e) => {
+            setFormDataDirty((prev) => ({ ...prev, startDate: e.target.value }));
+            clearPeriodMissing("start");
+          }}
+          aria-invalid={startDateInvalid || undefined}
+          aria-describedby={startDateInvalid ? "campaign-period-error" : undefined}
         />
       </PropertyRow>
       <PropertyRow
@@ -180,9 +209,12 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
           aria-label="終了日"
           value={formData.endDate}
           disabled={readOnly}
-          onChange={(e) => setFormDataDirty((prev) => ({ ...prev, endDate: e.target.value }))}
-          aria-invalid={Boolean(periodError)}
-          aria-describedby={periodError ? "campaign-period-error" : undefined}
+          onChange={(e) => {
+            setFormDataDirty((prev) => ({ ...prev, endDate: e.target.value }));
+            clearPeriodMissing("end");
+          }}
+          aria-invalid={endDateInvalid || undefined}
+          aria-describedby={endDateInvalid ? "campaign-period-error" : undefined}
         />
       </PropertyRow>
       <FormFieldError id="campaign-period-error" message={periodError} />

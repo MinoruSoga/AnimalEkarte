@@ -69,4 +69,24 @@ describe("MonthView 誕生月バッジ (EMR-301)", () => {
 
     expect(screen.queryByRole("img", { name: "今月誕生日" })).not.toBeInTheDocument();
   });
+
+  // PR#614 指摘: static バッジは pointer-events-none 配下で title に届かないため、
+  // 誕生日情報はチップ（親 button）の title / accessible name に含める。
+  it("誕生月ペットの予約チップは title と aria-label に誕生日・生年月日を含む", () => {
+    renderMonthView([reservationOf({ petBirthDate: "2018-10-05" })]);
+
+    const chip = screen.getByRole("button", { name: /再診 マメラ/ });
+    expect(chip).toHaveAttribute("title", expect.stringContaining("今月誕生日"));
+    expect(chip).toHaveAttribute("title", expect.stringContaining("2018-10-05"));
+    expect(chip.getAttribute("aria-label")).toContain("今月誕生日");
+    expect(chip.getAttribute("aria-label")).toContain("2018-10-05");
+  });
+
+  it("誕生月でないペットの予約チップは title・aria-label に誕生日情報を含まない", () => {
+    renderMonthView([reservationOf({ petBirthDate: "2018-09-05" })]);
+
+    const chip = screen.getByRole("button", { name: /再診 マメラ/ });
+    expect(chip.getAttribute("title") ?? "").not.toContain("今月誕生日");
+    expect(chip.getAttribute("aria-label") ?? "").not.toContain("今月誕生日");
+  });
 });

@@ -274,4 +274,36 @@ describe("WeekView AppointmentCard 誕生月バッジ (EMR-301)", () => {
 
     expect(screen.queryByRole("img", { name: "今月誕生日" })).not.toBeInTheDocument();
   });
+
+  // PR#614 指摘: static バッジは pointer-events-none 配下で title に届かないため、
+  // 誕生日情報は親ボタンの title / accessible name に含める必要がある。
+  it("誕生月ペットのカードは親ボタンの title と aria-label に誕生日・生年月日を含む", () => {
+    render(
+      <AppointmentCard
+        appointment={cardOf(15, { petBirthDate: "2018-10-05" })}
+        layoutStyle={{ left: "0%", width: "100%" }}
+        onClick={vi.fn()}
+      />,
+    );
+
+    const card = screen.getByRole("button");
+    expect(card).toHaveAttribute("title", expect.stringContaining("今月誕生日"));
+    expect(card).toHaveAttribute("title", expect.stringContaining("2018-10-05"));
+    expect(card.getAttribute("aria-label")).toContain("今月誕生日");
+    expect(card.getAttribute("aria-label")).toContain("2018-10-05");
+  });
+
+  it("誕生月でないペットのカードは title・aria-label に誕生日情報を含まない", () => {
+    render(
+      <AppointmentCard
+        appointment={cardOf(15, { petBirthDate: "2018-09-05" })}
+        layoutStyle={{ left: "0%", width: "100%" }}
+        onClick={vi.fn()}
+      />,
+    );
+
+    const card = screen.getByRole("button");
+    expect(card.getAttribute("title") ?? "").not.toContain("今月誕生日");
+    expect(card.getAttribute("aria-label") ?? "").not.toContain("今月誕生日");
+  });
 });

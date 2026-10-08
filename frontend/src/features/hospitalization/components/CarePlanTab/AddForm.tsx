@@ -139,7 +139,7 @@ export function AddForm({ onSubmit }: AddFormProps) {
   );
 
   return (
-    <form action={formAction} className={`border-t ${C.borderLight} pt-3 mt-2`}>
+    <form action={formAction} noValidate className={`border-t ${C.borderLight} pt-3 mt-2`}>
       <p className={`text-xs font-medium ${C.text60} mb-2`}>新しいケアプラン項目を追加</p>
       <div className="flex flex-col gap-2">
         {state.error ? (

@@ -18,6 +18,7 @@ import {
   CalendarCheck,
 } from "lucide-react";
 import { useGetOwnerLineTags } from "@/hooks/use-owner-line-tags";
+import { useGetReservation } from "@/hooks/use-get-reservation";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -137,23 +138,29 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
   const { data: lineData } = useGetOwnerLineTags(reservation?.ownerId ?? "");
   // EMR-227/EMR-301: 共有 transform (src/lib/transforms/reservation.ts) が petStatus /
   // petDeceasedAt を additive 伝播する。wire ペットサマリの死亡OR契約
-  // （status=deceased または deceased_at 非null）で判定する。/pets/:id は owners:view
-  // 権限が別途必要なため detail フェッチは行わない。
-  const isDeceasedPet = reservation?.petStatus === "deceased" || reservation?.petDeceasedAt != null;
+  // （status=deceased または deceased_at 非null）で判定する。
+  // レビュー指摘: reservation prop はカードクリック時の snapshot で、死亡登録等の
+  // mutation 後も古い sentinel を保持する。GET /reservations/:id（modal 表示に
+  // 必要な reservations:view と同一権限）の最新応答を優先して snapshot を追従させる。
+  // owners:view 依存の /pets/:id フェッチは再導入しない。
+  const { data: freshReservation } = useGetReservation(reservation?.id ?? "");
 
   if (!reservation) return null;
 
+  const effective = freshReservation ?? reservation;
+  const isDeceasedPet = effective.petStatus === "deceased" || effective.petDeceasedAt != null;
+
   // EMR-308: tentative（次回予定・未予約）は実時間を持たない。status セレクトや通常編集ではなく
   // 「予約を確定」（confirm-tentative API）で昇格させるため専用 UI に切り替える。
-  const isTentative = isTentativeReservation(reservation);
-  const isExpiredTentative = isExpiredTentativeReservation(reservation);
-  const actionConfig = getActionConfig(reservation);
-  const visitAccent = getVisitTypeColor(reservation.visitType);
-  const currentStatus = getReservationStatusColor(reservation.status);
-  const typeColor = getColor(reservation.type);
+  const isTentative = isTentativeReservation(effective);
+  const isExpiredTentative = isExpiredTentativeReservation(effective);
+  const actionConfig = getActionConfig(effective);
+  const visitAccent = getVisitTypeColor(effective.visitType);
+  const currentStatus = getReservationStatusColor(effective.status);
+  const typeColor = getColor(effective.type);
   const typeLabel = typeColor.isInactive
-    ? `${getReservationTypeName(reservation.type)}（無効）`
-    : getReservationTypeName(reservation.type);
+    ? `${getReservationTypeName(effective.type)}（無効）`
+    : getReservationTypeName(effective.type);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -169,7 +176,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
               className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm ${visitAccent.bg} ${visitAccent.text} ${visitAccent.border} border`}
             >
               <span className={`${ICON.dotSm} rounded-full ${visitAccent.dot}`} />
-              {reservation.visitType === "first" ? "初診" : "再診"}
+              {effective.visitType === "first" ? "初診" : "再診"}
             </div>
             <DialogTitle className={`text-sm ${C.text}`}>{typeLabel}</DialogTitle>
             {/* EMR-308: tentative は色だけでなく明示テキストで識別する */}
@@ -207,12 +214,12 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
               <div className="flex items-center gap-2 text-sm">
                 {/* BUG-323: Status Dot Icon Token 使用統一 */}
                 <span className={`${ICON.dot} rounded-full ${currentStatus.dot}`} />
-                <span>{getReservationStatusLabel(reservation.status)}</span>
+                <span>{getReservationStatusLabel(effective.status)}</span>
               </div>
               <Select
-                value={reservation.status}
+                value={effective.status}
                 onValueChange={typedSetter(
-                  (val: ReservationStatus) => onStatusChange(reservation, val),
+                  (val: ReservationStatus) => onStatusChange(effective, val),
                   [...RESERVATION_STATUS_VALUES],
                 )}
               >
@@ -236,14 +243,14 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
               </div>
               <div className="flex-1">
                 <div className={`text-sm ${C.text}`}>
-                  {format(reservation.start, "yyyy年 M月 d日 (E)", { locale: ja })}
+                  {format(effective.start, "yyyy年 M月 d日 (E)", { locale: ja })}
                 </div>
                 <div className={`flex items-center gap-1.5 text-sm ${C.text60} mt-0.5`}>
                   <Clock className={ICON.xs} />
                   {/* tentative の start/end は意図日 00:00–00:15 の sentinel。実時刻ではないため明示表示 */}
                   {isTentative
                     ? "時刻未設定（予定日のみ）"
-                    : `${format(reservation.start, DISPLAY_TIME_FORMAT)} – ${format(reservation.end, DISPLAY_TIME_FORMAT)}`}
+                    : `${format(effective.start, DISPLAY_TIME_FORMAT)} – ${format(effective.end, DISPLAY_TIME_FORMAT)}`}
                 </div>
               </div>
             </div>
@@ -258,12 +265,12 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
             <div className={`divide-y ${C.divideDividerFaint}`}>
               <InfoRow label="ペット名">
                 <span className="font-medium inline-flex items-center gap-1.5">
-                  {reservation.petName}
+                  {effective.petName}
                   {/* EMR-301: 誕生月 Cake バッジ（死亡ペット抑制） */}
                   {!isDeceasedPet ? (
                     <BirthdayBadge
-                      birthDate={reservation.petBirthDate}
-                      subjectName={reservation.petName}
+                      birthDate={effective.petBirthDate}
+                      subjectName={effective.petName}
                     />
                   ) : null}
                   {isDeceasedPet ? (
@@ -273,15 +280,15 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
                       【死亡】
                     </span>
                   ) : null}
-                  {reservation.petType ? (
-                    <span className={`ml-1.5 text-xs ${C.text50}`}>({reservation.petType})</span>
+                  {effective.petType ? (
+                    <span className={`ml-1.5 text-xs ${C.text50}`}>({effective.petType})</span>
                   ) : null}
                 </span>
               </InfoRow>
-              <InfoRow label="飼主名">{reservation.ownerName}</InfoRow>
-              {reservation.petId ? (
+              <InfoRow label="飼主名">{effective.ownerName}</InfoRow>
+              {effective.petId ? (
                 <InfoRow label="カルテNo.">
-                  <span className={`font-mono ${C.text70}`}>{reservation.petId}</span>
+                  <span className={`font-mono ${C.text70}`}>{effective.petId}</span>
                 </InfoRow>
               ) : null}
             </div>
@@ -296,8 +303,8 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
             <div className={`divide-y ${C.divideDividerFaint}`}>
               <InfoRow label="担当医">
                 <div className="flex items-center gap-1.5">
-                  {reservation.doctor}
-                  {reservation.isDesignated ? (
+                  {effective.doctor}
+                  {effective.isDesignated ? (
                     <Badge variant="outline" className={`text-2xs h-5 px-1.5 ${BADGE.yellow}`}>
                       指名
                     </Badge>
@@ -319,14 +326,14 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
           </div>
 
           {/* Notes */}
-          {reservation.notes ? (
+          {effective.notes ? (
             <div className={`rounded-lg border ${C.borderLight} ${C.bgPage} p-3`}>
               <div className={`flex items-center gap-1.5 text-sm ${C.text60} mb-1.5`}>
                 <FileText className={`${ICON.xs}`} />
                 <span>予約内容</span>
               </div>
               <p className={`text-sm ${C.text80} whitespace-pre-wrap leading-relaxed`}>
-                {reservation.notes}
+                {effective.notes}
               </p>
             </div>
           ) : null}
@@ -339,7 +346,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
             {/* tentative 行の終了は DELETE next-visit-intent（期限超過パネル「終了」）経路のみ。
                 通常 DELETE で sentinel 行を消す導線は出さない */}
             {onDelete && !isTentative ? (
-              <DeleteIconButton onClick={() => onDelete(reservation)} />
+              <DeleteIconButton onClick={() => onDelete(effective)} />
             ) : null}
           </div>
           <div className="flex gap-2">
@@ -349,7 +356,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
               onConfirmTentative && !isDeceasedPet ? (
                 <Button
                   size="sm"
-                  onClick={() => onConfirmTentative(reservation)}
+                  onClick={() => onConfirmTentative(effective)}
                   className={`h-9 text-sm gap-1.5 ${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid}`}
                 >
                   <CalendarCheck className={ICON.xs} />
@@ -360,7 +367,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onEdit(reservation)}
+                onClick={() => onEdit(effective)}
                 className={`h-9 text-sm gap-1.5 ${C.borderMedium} ${C.bgWhite} ${C.text} ${C.hoverBgPage}`}
               >
                 <Pencil className={`${ICON.xs}`} />
@@ -375,7 +382,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
               <Button
                 size="sm"
                 className={`${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} h-9 text-sm gap-1.5 rounded-full shadow-none`}
-                onClick={() => onCreateRecord(reservation)}
+                onClick={() => onCreateRecord(effective)}
               >
                 <actionConfig.Icon className={ICON.action} />
                 {actionConfig.label}

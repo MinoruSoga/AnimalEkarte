@@ -230,6 +230,30 @@ describe("ItemListCard merchandise selection", () => {
     expect(document.getElementById("manual-price-error")).toBeNull();
   });
 
+  // PR#614 指摘: 以前は名称等の early return が単価評価より先で、複数項目が未入力の
+  // 初回クリックで単価だけ未エラー表示のままだった。全フィールド同時表示を固定する。
+  it("品目名も単価も未入力のまま初回クリックすると両方のエラーが同時に出る", async () => {
+    const user = userEvent.setup();
+    const onAddItem = vi.fn();
+    renderEditableItemListCard(onAddItem);
+
+    await user.click(screen.getByRole("button", { name: "手動入力" }));
+    await user.click(screen.getByRole("button", { name: "追加する" }));
+
+    expect(onAddItem).not.toHaveBeenCalled();
+    expect(document.getElementById("manual-name-error")).toHaveTextContent(
+      "品目名を入力してください",
+    );
+    expect(document.getElementById("manual-category-error")).toHaveTextContent(
+      "カテゴリを選択してください",
+    );
+    const priceInput = document.getElementById("manual-price");
+    expect(priceInput).toHaveAttribute("aria-invalid", "true");
+    expect(document.getElementById("manual-price-error")).toHaveTextContent(
+      "単価は0以上の整数で入力してください",
+    );
+  });
+
   it("手動入力でotherから別カテゴリへ戻すと理由欄とpayloadを消す", async () => {
     const user = userEvent.setup();
     const onAddItem = vi.fn();

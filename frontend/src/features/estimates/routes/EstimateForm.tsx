@@ -77,7 +77,8 @@ function EstimateFormContent({ id }: { id?: string }) {
       petQueryError ||
       !petQuerySuccess ||
       !petFromQuery ||
-      petFromQuery.status !== "生存"),
+      petFromQuery.status !== "生存" ||
+      isNewEstimatePetDeceased),
   );
   // 表示メッセージは settle 後のみ（pending 中は fieldset disabled のみ）。
   const deceasedPetBlockMessage = (() => {

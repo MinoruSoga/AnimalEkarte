@@ -282,3 +282,31 @@ PR #614 レビュー（HEAD `1d76912e2` 時点）で指摘された是正漏れ�
 - BE: `go test -short ./internal/pet ./internal/reservation ./internal/medicalrecord` ＋ 変更ファイル gofmt
 - FE: 変更ファイル scoped vitest / eslint / prettier
 - 回帰テスト追加: CreditCorrection 金額（0/空）、Refund 非正値（0/負/空、実クリック）、LstepTag per-field、ItemListCard 必須3種（実クリック）、AddForm 実クリック、BE serializer（reservation・medicalrecord・pet・shared_pets）
+
+---
+
+## レビュー是正（PR #614 ラウンド3・再レビュー指摘対応）
+
+PR #614 再レビュー（HEAD `3690bd6a3` 時点）の新規4指摘＋未解決 Codex 指摘6件への対応。本節が最新の正本。検証ルール（必須判定・文案・zod schema）はラウンド3でも一切変更していない。
+
+### ラウンド3 是正項目
+
+| 指摘 | 是正 | 検証ルール不変の根拠 |
+|---|---|---|
+| AddForm の `min=0`/`step=1` ネイティブ制約が action 未到達で必須エラーを抑止 | `<form noValidate>` 追加。負数単価×名称空・小数単価×理由空・負数単価のみの実クリック回帰テスト3件追加 | 判定（負数/非整数/空）と文案は既存 action 内ロジックのまま |
+| SpecialPeriodSection が MasterSidePanel の `form noValidate` 配下で `onInvalid` 不発 | formAction 内で `REQUIRED_FIELDS`（start_date/end_date/am_pm_boundary/pm_end）の FormData 空欄チェックを追加し、既存 `invalidFields` 表示経路へ接続。実保存クリック経路の回帰テスト2件追加 | 必須対象・文案・`required` 属性は不変。StandardClosingTime/Holiday は独自 `<form action>` で noValidate なしのため既存 `onInvalid` 経路で到達可能（対象外） |
+| 死亡登録/取消 mutation が `pets.*` のみ invalidate で、REALTIME staleTime(2分)内の予約詳細が生存時 sentinel を保持 | 両 hook の onSuccess で `reservations.all/detailAll`・`reception.all`・`hospitalizations.all/detailAll`・`ownerSharedPets.all`・`ownerReportPetsAll` を追加 invalidate（新 prefix factory を queryKeys に追加）。`ReservationDetailModal` は `useGetReservation`（`reservations:view` 同一権限）で最新応答をクリック時 snapshot へ優先適用（`effective`） | キャッシュ鮮度のみ。API・権限・payload 不変。use-pet-death.test.tsx 3件追加 |
+| api.yaml が `petSummaryResponse`/`SharedPet` の additive `birth_date`/`deceased_at` を未記述（wire/generated ずれ） | `PetSummary` に `birth_date`(format:date)/`deceased_at`(format:date-time) を追加、`OwnerSharedPet` に `deceased_at` を required 追加（serializer 非omitempty=常時送出と一致）。drift ゲートの良性衝突3サイトを `knownDateFormatDrifts` へ追記（PatchPetDeathRequest format:date との json名衝突、wire は date-time で schema と一致） | OpenAPI 正本の additive 同期のみ。`make codegen` はユーザー実行専用のため未実行 |
+| CampaignSidePanel 片側欠落で両欄 invalid（Codex） | `requiredInvalid` → `periodMissing`(ReadonlySet) per-field 化。入力で当該欠落のみ解除（全欠落解消時は periodError もクリア）。ペア日付逆転は従来どおり両欄 invalid | 必須判定（両方必須）・日付逆転判定・文案は不変 |
+| EstimateForm が deceased_at のみの半死亡ペットで新規作成を許容 | `isNewEstimatePetDeceased`（`isPetDeceasedForClinicalWrite`）をブロックゲートへ追加。deceased_at-only・生存 null の回帰テスト追加 | 既存「非生存ブロック」に OR 契約 sentinel を合流。判定追加ではなく契約準拠 |
+| ItemListCard の価格エラーが名称/カテゴリ early return の後に評価され初回未表示 | 価格評価を early return 前へ移動し全必須エラーを同一送信パスで表示 | 判定・文案・送信条件は不変。評価順序のみ |
+| DatePickerSingle に aria-describedby 未接続（Codex） | `ariaDescribedBy?: string` prop を追加し内部 input へ転送。Checkup/Vaccination（medical-records・vaccinations）3箇所の FormFieldError id と接続 | 属性配線のみ |
+| WeekView/MonthView の誕生日情報が静的バッジ title 内に留まり到達不能（Codex） | 親チップの `title`/`aria-label` に `今月誕生日（生年月日: …）` を合流（tentative ラベルと併記）。死亡OR契約で抑止 | バッジ表示条件・JST 判定は不変。アクセシビリティ経路のみ |
+
+### ラウンド3 検証
+
+- scoped `verify-agent-task.py --paths <変更27+1ファイル>`（Docker ephemeral offline、backend image Go1.26 `animalekarte-backend:latest`、frontend image + `ekarte-frontend-node-modules`/`ekarte-go-mod-cache`）
+- BE: `go test -short ./internal/apicontract` 33 テスト PASS・変更 Go ファイル gofmt PASS
+- FE: `vitest related` 134 file / 988 test — 133 file PASS・唯一の失敗は `reservation-management.filter.test.ts`（EMR-308 既知 TZ flake、verifier が env -i で TZ を剥がすため UTC 実行になる条件でのみ発生。**ベース worktree で同一コマンドを実行し同一2件失敗を再現済み＝本差分非起因**）
+- FE: 変更26ファイル scoped eslint `--max-warnings 0` 相当 / prettier / scoped tsc — 全 PASS（queryKeys リテラル直書き指摘は prefix factory 追加で是正済み）
+- 回帰テスト追加: AddForm 実クリック3件、SpecialPeriod action経路2件、CampaignSidePanel per-field 3件、EstimateForm deceased 2件、ItemListCard 価格含む一括表示1件、DatePicker describedby 2件、MonthView/WeekView aria-label、use-pet-death invalidation 3件
