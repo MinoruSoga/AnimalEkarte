@@ -145,11 +145,13 @@ describe("useTrimmingFormChrome", () => {
       appendedAnchors.length = 0;
     });
 
-    it("コピーしたフィールドの先頭アンカーへ smooth/center でスクロールし通知する", () => {
-      const courseAnchor = appendAnchor("courseId");
-      const courseScroll = vi.fn();
-      courseAnchor.scrollIntoView = courseScroll;
-      appendAnchor("staffId");
+    it("コピーしたフィールドのうち DOM 最上段のアンカーへ smooth/center でスクロールし通知する", () => {
+      // 実フォームの DOM 順（TrimmingFormColumns.tsx）: 担当 PatientInfoCard が最上段、
+      // その下にコース〜備考の左カラム。staffId を先に append して実配置を再現する。
+      const staffAnchor = appendAnchor("staffId");
+      const staffScroll = vi.fn();
+      staffAnchor.scrollIntoView = staffScroll;
+      appendAnchor("courseId");
       appendAnchor("trimming-style-request");
       appendAnchor("trimming-used-shampoo");
       appendAnchor("trimming-used-ribbon");
@@ -170,24 +172,28 @@ describe("useTrimmingFormChrome", () => {
       });
 
       expect(setFormData).toHaveBeenCalledWith(updates);
-      expect(courseScroll).toHaveBeenCalledTimes(1);
-      expect(courseScroll).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
+      // 履歴コピーは courseId と staffName を同時に更新するが、DOM 上では
+      // 担当欄（staffId）がコースより上にあるため、先頭反映項目は担当欄。
+      expect(staffScroll).toHaveBeenCalledTimes(1);
+      expect(staffScroll).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
       expect(otherElementScroll).not.toHaveBeenCalled();
       expect(toast.success).toHaveBeenCalledWith("前回の内容を反映しました");
     });
 
-    it("courseId が無いコピーでは次に解決できるアンカーへスクロールする", () => {
-      const remarksAnchor = appendAnchor("trimming-remarks");
-      const remarksScroll = vi.fn();
-      remarksAnchor.scrollIntoView = remarksScroll;
+    it("DOM 上で上にあるアンカーが解決できなければ次に解決できるものへスクロールする", () => {
+      // staffId アンカーが存在しない DOM では courseId（配列先頭ではなく DOM で
+      // 次に上にある解決可能アンカー）へスクロールする。
+      const courseAnchor = appendAnchor("courseId");
+      const courseScroll = vi.fn();
+      courseAnchor.scrollIntoView = courseScroll;
       const { result } = renderChrome();
 
       act(() => {
-        result.current.handleHistoryClick({ remarks: "前回メモ", staffName: "佐藤" });
+        result.current.handleHistoryClick({ courseId: "3", staffName: "佐藤" });
       });
 
-      expect(remarksScroll).toHaveBeenCalledTimes(1);
-      expect(remarksScroll).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
+      expect(courseScroll).toHaveBeenCalledTimes(1);
+      expect(courseScroll).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
       expect(otherElementScroll).not.toHaveBeenCalled();
       expect(toast.success).toHaveBeenCalledWith("前回の内容を反映しました");
     });

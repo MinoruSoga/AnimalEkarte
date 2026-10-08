@@ -15,9 +15,10 @@ import type { TrimmingFormData } from "@/types/trimming";
 
 const HISTORY_COPY_TOAST_MESSAGE = "前回の内容を反映しました";
 
-// EMR-282: 履歴コピー対象フィールド → 反映先フォーム要素の DOM id（フォーム内の DOM 順、
-// courseId が最上段）。optionIds のチェックボックスは option-<id> の動的 id のため
-// 先頭の選択肢をアンカーにする。
+// EMR-282: 履歴コピー対象フィールド → 反映先フォーム要素の DOM id。スクロール先は
+// この配列順ではなく DOM 上の実際の並び（compareDocumentPosition）で決めるため、
+// フォーム側のセクション順変更に追従できる。optionIds のチェックボックスは
+// option-<id> の動的 id のため先頭の選択肢をアンカーにする。
 const HISTORY_COPY_FIELD_ANCHORS: ReadonlyArray<{
   field: keyof TrimmingFormData;
   resolveAnchorId: (updates: Partial<TrimmingFormData>) => string | undefined;
@@ -38,18 +39,25 @@ const HISTORY_COPY_FIELD_ANCHORS: ReadonlyArray<{
 ];
 
 // バリデーションエラー時のスクロール（上の useEffect）と同じ smooth/center 規約で、
-// コピーされたフィールドのうち最初に DOM 上で解決できたアンカーへスクロールする。
+// コピーされたフィールドのうち DOM 上で最も上にある解決可能アンカーへスクロールする
+// （履歴コピーは courseId と staffName を同時に更新し、実 DOM では担当欄が
+// コースより上にあるため、配列順ではなく document order で先頭を選ぶ）。
 function scrollCopiedFieldIntoView(updates: Partial<TrimmingFormData>): void {
+  let topmost: HTMLElement | undefined;
   for (const { field, resolveAnchorId } of HISTORY_COPY_FIELD_ANCHORS) {
     if (updates[field] === undefined) continue;
     const anchorId = resolveAnchorId(updates);
     if (anchorId === undefined) continue;
     const element = document.getElementById(anchorId);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "center" });
-      return;
+    if (!element) continue;
+    if (
+      topmost === undefined ||
+      (topmost.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_PRECEDING) !== 0
+    ) {
+      topmost = element;
     }
   }
+  topmost?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 export function useTrimmingFormChrome(input: {
