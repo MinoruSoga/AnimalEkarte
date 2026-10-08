@@ -128,12 +128,10 @@ beforeEach(() => {
   dndHarness.useDroppable.mockClear();
   dndHarness.active = null;
   perm.masterCanEdit = true;
-  // EMR-306: merge-mode ON で走る占有クエリ（admitted/reserved 全件取得）の既定
+  // EMR-306: merge-mode ON で走る占有クエリ（GET /masters/cages/occupancy）の既定
   // ハンドラ。個別テストの server.use が上書きする。
   server.use(
-    http.get("*/v1/hospitalizations", () =>
-      HttpResponse.json({ data: [], total: 0, page: 1, limit: 100 }),
-    ),
+    http.get("*/v1/masters/cages/occupancy", () => HttpResponse.json({ occupied_cage_ids: [] })),
   );
 });
 
@@ -234,13 +232,8 @@ describe("HospitalizationListPanels EMR-306 merge mode toggle", () => {
 
   it("占有クエリが cage 占有を返すと merge-mode で該当ケージは merge source 不可", async () => {
     server.use(
-      http.get("*/v1/hospitalizations", () =>
-        HttpResponse.json({
-          data: [{ id: 1, cage_id: 11, status: "admitted" }],
-          total: 1,
-          page: 1,
-          limit: 100,
-        }),
+      http.get("*/v1/masters/cages/occupancy", () =>
+        HttpResponse.json({ occupied_cage_ids: [11] }),
       ),
     );
 
@@ -248,7 +241,7 @@ describe("HospitalizationListPanels EMR-306 merge mode toggle", () => {
     renderPageView();
     await user.click(screen.getByRole("button", { name: "ケージ連結モード" }));
 
-    // 占有ルックアップ（admitted/reserved 全件）で cage 11 は occupied → disabled
+    // 占有ルックアップで cage 11 は occupied → disabled
     await waitFor(() => {
       const calls = dndHarness.useDraggable.mock.calls.filter(
         (c) => (c[0] as { id?: string }).id === "merge-cage-11",
@@ -263,14 +256,10 @@ describe("HospitalizationListPanels EMR-306 merge mode toggle", () => {
     );
   });
 
-  it("占有クエリが total 打ち切り（limit 超過）でも空室扱いせず表示データへフォールバック", async () => {
-    // Grok MEDIUM-2: 先頭ページ（limit=100）で打ち切られた結果を「全件空室」と
-    // 誤判定しない — hasMergeOccupant=undefined → 表示中 occupantByCageId へフォールバック。
-    server.use(
-      http.get("*/v1/hospitalizations", () =>
-        HttpResponse.json({ data: [], total: 150, page: 1, limit: 100 }),
-      ),
-    );
+  it("占有クエリが契約外応答（occupied_cage_ids 欠落）でも空室扱いせず表示データへフォールバック", async () => {
+    // fail-closed: 契約フィールドを欠く応答は「全件空室」と誤判定しない —
+    // hasMergeOccupant=undefined → 表示中 occupantByCageId へフォールバック。
+    server.use(http.get("*/v1/masters/cages/occupancy", () => HttpResponse.json({})));
     const visibleOccupant = {
       id: "h-visible-11",
       cageId: "11",
@@ -295,7 +284,9 @@ describe("HospitalizationListPanels EMR-306 merge mode toggle", () => {
   });
 
   it("占有クエリ失敗（500）でも空室扱いせず表示データへフォールバック", async () => {
-    server.use(http.get("*/v1/hospitalizations", () => new HttpResponse(null, { status: 500 })));
+    server.use(
+      http.get("*/v1/masters/cages/occupancy", () => new HttpResponse(null, { status: 500 })),
+    );
     const visibleOccupant = {
       id: "h-visible-11",
       cageId: "11",

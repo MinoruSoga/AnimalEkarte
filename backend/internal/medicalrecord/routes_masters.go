@@ -104,6 +104,9 @@ func (h *Handler) registerLateMasterRoutes(masters *gin.RouterGroup, perm medica
 	masters.GET("/cages", perm(model.ResourceMasterHospitalization, "view"), h.cage.ListCages)
 	masters.POST("/cages", perm(model.ResourceMasterHospitalization, "create"), h.cage.CreateCage)
 	masters.PATCH("/cages/reorder", perm(model.ResourceMasterHospitalization, "edit"), h.cage.ReorderCages)
+	// EMR-306 review: 連結ピッカーの占有判定専用。merge と同じ edit 権限で公開し
+	// （hospitalization:view を要求しない）、:id パラメータより前の静的セグメントに置く。
+	masters.GET("/cages/occupancy", perm(model.ResourceMasterHospitalization, "edit"), h.cage.OccupiedCageIDs)
 	masters.GET("/cages/:id", perm(model.ResourceMasterHospitalization, "view"), h.cage.GetCage)
 	masters.PATCH("/cages/:id", perm(model.ResourceMasterHospitalization, "edit"), h.cage.UpdateCage)
 	masters.DELETE("/cages/:id", perm(model.ResourceMasterHospitalization, "delete"), h.cage.DeleteCage)

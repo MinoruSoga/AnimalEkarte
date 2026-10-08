@@ -8,6 +8,12 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// cageOccupancyResponse は GET /masters/cages/occupancy の応答。
+// 連結ピッカーが必要とする最小限の占有ケージ id 集合のみ返す。
+type cageOccupancyResponse struct {
+	OccupiedCageIDs []uint64 `json:"occupied_cage_ids"`
+}
+
 type cageResponse struct {
 	ID          uint64         `json:"id"`
 	ClinicID    uint64         `json:"clinic_id"`

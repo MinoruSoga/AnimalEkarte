@@ -92,6 +92,15 @@ type CageMerger interface {
 	Unmerge(ctx context.Context, clinicID, representativeID uint64) error
 }
 
+// CageOccupancyReader は連結ピッカーの占有読み取り面（EMR-306 review）。
+// *cageService が実装し、ハンドラーは service.(CageOccupancyReader) の
+// 型アサーションで取得する。GET /hospitalizations（hospitalization:view）を
+// 経由せず master-hospitalization:edit 権限で占有集合を返すための面。
+type CageOccupancyReader interface {
+	// OccupiedCageIDs は未削除の admitted/reserved 入院が乗っているケージ id を返す。
+	OccupiedCageIDs(ctx context.Context, clinicID uint64) ([]uint64, error)
+}
+
 type cageService struct {
 	repo       CageRepository
 	transactor Transactor
@@ -286,6 +295,21 @@ func (s *cageService) mergeRepo() CageMergeRepository {
 }
 
 var _ CageMerger = (*cageService)(nil)
+var _ CageOccupancyReader = (*cageService)(nil)
+
+// OccupiedCageIDs は連結ピッカー向けの占有ケージ id 集合を返す。
+// mergeRepo 面がない注入では 500 fail-closed（他の連結ガードと同一姿勢）。
+func (s *cageService) OccupiedCageIDs(ctx context.Context, clinicID uint64) ([]uint64, error) {
+	mergeRepo := s.mergeRepo()
+	if mergeRepo == nil {
+		return nil, apperrors.WrapInternalServerError("cage merge repository dependency is required")
+	}
+	ids, err := mergeRepo.ListOccupiedCageIDs(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list occupied cages")
+	}
+	return ids, nil
+}
 
 // maxCageMergeMembers は1回の連結で指定できる構成ケージ数の上限。
 // mergeCageRequest の binding max と同一値を保つ（gin tag はリテラル必須）。

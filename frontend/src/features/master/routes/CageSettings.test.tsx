@@ -54,21 +54,13 @@ function makeCage(
   };
 }
 
-// EMR-306 (Codex review P2): 連結ピッカーは GET /v1/hospitalizations の占有状況で
+// EMR-306 (Codex review P2): 連結ピッカーは GET /v1/masters/cages/occupancy の占有状況で
 // fail-closed に絞るため、未シードだと全チェックボックスが disabled になる。
-// 既定で「占有なし」をキャッシュにシードし、占有シナリオは server.use + invalidate で差し替える。
-const EMPTY_OCCUPANCY_PAGE = { data: [] as { cage_id: number | null }[], total: 0 };
-
+// 既定で「占有なし」（空 Set — useCageOccupancy のキャッシュ格納形）をシードし、
+// 占有シナリオは server.use + invalidate で差し替える。
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  queryClient.setQueryData(
-    queryKeys.hospitalizations.cageOccupancy("admitted"),
-    EMPTY_OCCUPANCY_PAGE,
-  );
-  queryClient.setQueryData(
-    queryKeys.hospitalizations.cageOccupancy("reserved"),
-    EMPTY_OCCUPANCY_PAGE,
-  );
+  queryClient.setQueryData(queryKeys.hospitalizations.cageOccupancy(), new Set<string>());
   let refreshPermissions = () => undefined;
   function PermissionHarness() {
     const [, setPermissionVersion] = useState(0);
@@ -438,9 +430,7 @@ describe("CageSettings ケージ連結 (EMR-306)", () => {
 
     // cage 1 に入院中の占有が載ったレスポンスに差し替えて再取得
     server.use(
-      http.get("*/v1/hospitalizations", () =>
-        HttpResponse.json({ data: [{ cage_id: 1 }], total: 1 }),
-      ),
+      http.get("*/v1/masters/cages/occupancy", () => HttpResponse.json({ occupied_cage_ids: [1] })),
     );
     await act(async () => {
       await queryClient.invalidateQueries();
@@ -460,7 +450,9 @@ describe("CageSettings ケージ連結 (EMR-306)", () => {
     const cage2 = screen.getByRole("checkbox", { name: "連結選択: ケージ 2番ケージ (ID 2)" });
     expect(cage1).toBeEnabled();
 
-    server.use(http.get("*/v1/hospitalizations", () => new HttpResponse(null, { status: 500 })));
+    server.use(
+      http.get("*/v1/masters/cages/occupancy", () => new HttpResponse(null, { status: 500 })),
+    );
     await act(async () => {
       await queryClient.invalidateQueries();
     });
@@ -471,7 +463,7 @@ describe("CageSettings ケージ連結 (EMR-306)", () => {
     });
   });
 
-  it("占有クエリが先頭ページ打ち切り（total が取得数超過）のとき選択が無効になる", async () => {
+  it("占有クエリが契約外応答（occupied_cage_ids 欠落）のとき選択が無効になる", async () => {
     stubCages([makeCage(1, "1番ケージ")]);
 
     const { queryClient } = renderPage();
@@ -480,11 +472,7 @@ describe("CageSettings ケージ連結 (EMR-306)", () => {
     });
     expect(cage1).toBeEnabled();
 
-    server.use(
-      http.get("*/v1/hospitalizations", () =>
-        HttpResponse.json({ data: [{ cage_id: null }], total: 101 }),
-      ),
-    );
+    server.use(http.get("*/v1/masters/cages/occupancy", () => HttpResponse.json({})));
     await act(async () => {
       await queryClient.invalidateQueries();
     });
@@ -508,9 +496,7 @@ describe("CageSettings ケージ連結 (EMR-306)", () => {
 
     // 別画面での入院登録等で cage 1 が占有と判明
     server.use(
-      http.get("*/v1/hospitalizations", () =>
-        HttpResponse.json({ data: [{ cage_id: 1 }], total: 1 }),
-      ),
+      http.get("*/v1/masters/cages/occupancy", () => HttpResponse.json({ occupied_cage_ids: [1] })),
     );
     await act(async () => {
       await queryClient.invalidateQueries();

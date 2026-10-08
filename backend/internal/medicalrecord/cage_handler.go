@@ -18,12 +18,15 @@ type CageHandler struct {
 	// merger は EMR-306 連結書込み面。配線サービスが CageMerger を実装しない
 	// 場合（未配線モック含む）は nil で、merge/unmerge は 500 fail-closed。
 	merger CageMerger
+	// occupancy は EMR-306 連結ピッカーの占有読み取り面。同上に nil fail-closed。
+	occupancy CageOccupancyReader
 }
 
 // NewCageHandler initializes a CageHandler.
 func NewCageHandler(service CageService) *CageHandler {
 	merger, _ := service.(CageMerger)
-	return &CageHandler{service: service, merger: merger}
+	occupancy, _ := service.(CageOccupancyReader)
+	return &CageHandler{service: service, merger: merger, occupancy: occupancy}
 }
 
 // ---- Cage ----
@@ -145,6 +148,31 @@ func (h *CageHandler) DeleteCage(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// OccupiedCageIDs godoc — EMR-306 review: 連結ピッカー占有判定専用の読み取り。
+// GET /hospitalizations は hospitalization:view を要求するため、
+// master-hospitalization:edit のみを持つケージ編集者が占有状況を取得できず
+// fail-closed 側の全ケージ選択不可に陥る。本エンドポイントは merge 権限と同じ
+// master-hospitalization:edit 配下で最小限の id 集合のみを返す（ページングなし）。
+func (h *CageHandler) OccupiedCageIDs(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
+	if h.occupancy == nil {
+		httpapi.RespondError(c, apperrors.WrapInternalServerError("cage occupancy service is not configured"))
+		return
+	}
+	ids, err := h.occupancy.OccupiedCageIDs(c.Request.Context(), clinicID)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	if ids == nil {
+		ids = []uint64{}
+	}
+	c.JSON(http.StatusOK, cageOccupancyResponse{OccupiedCageIDs: ids})
 }
 
 // MergeCage godoc — EMR-306: 代表ケージ :id のもとに member_cage_ids を一時連結する。

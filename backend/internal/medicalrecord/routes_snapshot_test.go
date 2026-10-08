@@ -129,6 +129,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/v1/lab-reports/jobs/:job_id/summaries GetLabJobReportSummaries\n" +
 		"GET /api/v1/masters/cages ListCages\n" +
 		"GET /api/v1/masters/cages/:id GetCage\n" +
+		"GET /api/v1/masters/cages/occupancy OccupiedCageIDs\n" +
 		"GET /api/v1/masters/checkup-types ListCheckupTypes\n" +
 		"GET /api/v1/masters/checkup-types/:id GetCheckupType\n" +
 		"GET /api/v1/masters/checkup-types/:id/fields ListCheckupTypeFields\n" +
@@ -218,6 +219,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/hospitalizations/:id/daily-records/:date/vitals AddVitalRecord\n" +
 		"POST /api/v1/hospitalizations/:id/discharge-with-billing DischargeWithBilling\n" +
 		"POST /api/v1/hospitalizations/:id/treatment-plans CreateTreatmentPlanForHospitalization\n" +
+		"POST /api/v1/hospitalizations/cage-swap SwapCages\n" +
 		"POST /api/v1/lab-device-item-masters/ensure EnsureLabDeviceItemMasters\n" +
 		"POST /api/v1/lab-device/frames ReceiveLabDeviceFrames\n" +
 		"POST /api/v1/lab-device/mapping-drafts CreateLabMappingDraft\n" +
@@ -415,8 +417,18 @@ func TestRegisterRoutes_CageMergePermissions(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 	}
 
+	{
+		// EMR-306 review: 占有読み取りも merge と同一の master-hospitalization:edit —
+		// hospitalization:view を持たないケージ編集者が 403 で占有不明に陥らないよう保証する。
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/masters/cages/occupancy", http.NoBody)
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+	}
+
 	// Assert resource AND action — action-only would pass if another resource's edit were swapped in.
 	assert.Equal(t, []string{
+		"master-hospitalization:edit",
 		"master-hospitalization:edit",
 		"master-hospitalization:edit",
 	}, observed)

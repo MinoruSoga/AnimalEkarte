@@ -5,44 +5,40 @@ import { queryKeys } from "@/lib/query-keys";
 import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from "@/lib/react-query";
 
 /**
- * EMR-306: ケージ占有状況の共有フック（master 連結 picker と入院 board の
+ * EMR-306: ケージ占有状況の共有フック（master 連結ピッカーと入院 board の
  * merge-mode が共用）。
  *
  * src/hooks 配置の理由: 層逆転ルール（src/hooks から @/features への import 禁止）
- * により features/hospitalization/api/get-hospitalizations.ts を再利用できないため、
- * wire 型はローカル定義とし axios を直接呼ぶ（先例: use-cage-merge.ts）。
+ * により features/hospitalization/api を再利用できないため、wire 型はローカル定義とし
+ * axios を直接呼ぶ（先例: use-cage-merge.ts）。
+ *
+ * Codex review 対応: GET /v1/hospitalizations は hospitalization:view を要求するため、
+ * master-hospitalization:edit のみ持つケージ編集者は占有状況を取得できず fail-closed で
+ * 全ケージ選択不可に陥る。占有判定は専用エンドポイント GET /v1/masters/cages/occupancy
+ * （merge と同権限・ページングなしの全件返却）を使う。
  * クエリキーは queryKeys.hospitalizations.cageOccupancy で ["hospitalizations"] prefix
- * 配下 — all() による invalidate に含まれる。
+ * 配下 — 入院の作成/退院による all() invalidate で占有状況も追従する。
  */
 
-// BE ParsePagination の上限（DefaultMaxPaginationLimit=100）に合わせる。
-// features/hospitalization/constants の HOSPITALIZATION_OCCUPANCY_LIMIT と同値だが、
-// 層ルール上 feature 定数は import できないためローカル定数とする。
-const CAGE_OCCUPANCY_PAGE_LIMIT = 100;
-
-/** GET /v1/hospitalizations の占有判定に必要な最小 wire 形（cage_id のみ使用）。 */
-interface CageOccupancyWireRow {
-  cage_id?: number | null;
+/** GET /v1/masters/cages/occupancy の wire 形。 */
+interface CageOccupancyResponse {
+  occupied_cage_ids?: number[];
 }
 
-interface CageOccupancyWirePage {
-  data?: CageOccupancyWireRow[];
-  total?: number;
-}
-
-type OccupyingWireStatus = "admitted" | "reserved";
-
-const fetchOccupancyPage = async (status: OccupyingWireStatus): Promise<CageOccupancyWirePage> => {
-  const { data } = await axios.get<CageOccupancyWirePage>("/v1/hospitalizations", {
-    params: { page: 1, limit: CAGE_OCCUPANCY_PAGE_LIMIT, status },
-  });
-  return data;
+const fetchOccupiedCageIds = async (): Promise<ReadonlySet<string>> => {
+  const { data } = await axios.get<CageOccupancyResponse>("/v1/masters/cages/occupancy");
+  // fail-closed: 契約フィールドを欠く応答は信頼しない（空室と断定しない）。
+  // React Query v5 は queryFn の undefined 返却を禁止するため明示的に throw する。
+  if (!Array.isArray(data?.occupied_cage_ids)) {
+    throw new Error("cage occupancy response missing occupied_cage_ids");
+  }
+  return new Set(data.occupied_cage_ids.map(String));
 };
 
 export interface UseCageOccupancyResult {
   /**
    * admitted/reserved 入院が載っているケージ ID の集合。
-   * undefined = 占有状況が不明（読込中・エラー・先頭ページ打ち切り・disabled）。
+   * undefined = 占有状況が不明（読込中・エラー・契約外応答・disabled）。
    * 呼び出し側は fail-closed に倒すこと（占有不明のケージを「空き」と断定しない）。
    */
   occupiedCageIds: ReadonlySet<string> | undefined;
@@ -50,54 +46,19 @@ export interface UseCageOccupancyResult {
 
 export function useCageOccupancy(options?: { enabled?: boolean }): UseCageOccupancyResult {
   const enabled = options?.enabled ?? true;
-  const queryOpts = {
+
+  const query = useQuery({
+    queryKey: queryKeys.hospitalizations.cageOccupancy(),
+    queryFn: fetchOccupiedCageIds,
     enabled,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,
-  };
-
-  const admittedQuery = useQuery({
-    queryKey: queryKeys.hospitalizations.cageOccupancy("admitted"),
-    queryFn: () => fetchOccupancyPage("admitted"),
-    ...queryOpts,
-  });
-  const reservedQuery = useQuery({
-    queryKey: queryKeys.hospitalizations.cageOccupancy("reserved"),
-    queryFn: () => fetchOccupancyPage("reserved"),
-    ...queryOpts,
   });
 
   const occupiedCageIds = useMemo(() => {
-    // fail-closed: 読込中（disabled 含む）・エラー・total が先頭ページを超える
-    // 打ち切りでは「空室」を断定できないため undefined を返す。
-    if (admittedQuery.isPending || reservedQuery.isPending) return undefined;
-    if (admittedQuery.isError || reservedQuery.isError) return undefined;
-    const admitted = admittedQuery.data;
-    const reserved = reservedQuery.data;
-    if (admitted === undefined || reserved === undefined) return undefined;
-    // total が無い/取得数を超える応答は先頭ページ打ち切りの可能性 — fail-closed。
-    if (
-      typeof admitted.total !== "number" ||
-      typeof reserved.total !== "number" ||
-      admitted.total > (admitted.data?.length ?? 0) ||
-      reserved.total > (reserved.data?.length ?? 0)
-    ) {
-      return undefined;
-    }
-    const rows = [...(admitted.data ?? []), ...(reserved.data ?? [])];
-    const set = new Set<string>();
-    for (const row of rows) {
-      if (row.cage_id != null) set.add(String(row.cage_id));
-    }
-    return set;
-  }, [
-    admittedQuery.data,
-    admittedQuery.isPending,
-    admittedQuery.isError,
-    reservedQuery.data,
-    reservedQuery.isPending,
-    reservedQuery.isError,
-  ]);
+    if (query.isPending || query.isError) return undefined;
+    return query.data;
+  }, [query.data, query.isPending, query.isError]);
 
   return { occupiedCageIds };
 }

@@ -15788,6 +15788,36 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
+  /masters/cages/occupancy:
+    get:
+      operationId: getCageOccupancy
+      summary: 占有中ケージID一覧（連結ピッカー専用）
+      description: >-
+        未削除の admitted/reserved 入院が1件以上あるケージの ID を全件返す。
+        ケージ一時連結の選択肢判定専用の最小限データ — GET /hospitalizations は
+        hospitalization:view を要求するが、本エンドポイントは連結操作と同じ
+        master-hospitalization:edit 権限で提供される（ページングなし）。
+      tags: [Masters]
+      responses:
+        '200':
+          description: 占有中ケージID一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [occupied_cage_ids]
+                properties:
+                  occupied_cage_ids:
+                    type: array
+                    items:
+                      type: integer
+                      format: int64
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/cages/{id}:
     get:
       operationId: getCage

@@ -105,7 +105,7 @@ function HospitalizationListContent({
   // 余分な API 呼び出しを発生させない。
   const { occupiedCageIds } = useCageOccupancy({ enabled: boardMergeMode });
   const hasMergeOccupant = useMemo(() => {
-    // 非 merge-mode・占有クエリ不明（読込中/エラー/打ち切り）は undefined —
+    // 非 merge-mode・占有クエリ不明（読込中/エラー/契約外応答）は undefined —
     // board 側は表示中データの占有判定へフォールバックする（advisory であり、
     // 最終可否は BE が持つ）。
     if (!boardMergeMode || occupiedCageIds === undefined) return undefined;

@@ -485,3 +485,44 @@ func TestCageService_Delete_MergedConflict(t *testing.T) {
 		require.NoError(t, svc.Delete(ctx, clinicID, rep.ID))
 	})
 }
+
+// TestCageService_OccupiedCageIDs は連結ピッカー占有エンドポイントの読み取り面を
+// 実 DB で検証する（EMR-306 Codex review: hospitalization:view 非依存の
+// master 権限エンドポイント。admitted/reserved のみ・医院隔離・退院/未割当を除外）。
+func TestCageService_OccupiedCageIDs(t *testing.T) {
+	db := setupCageRepositoryTestDB(t)
+	svc, _ := newCageMergeService(t, db)
+	occupancy, ok := svc.(CageOccupancyReader)
+	require.True(t, ok, "cage service must implement CageOccupancyReader")
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	owner := makeTestOwner(t, db, clinicID, "飼主 occupancy-list")
+	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "ハク")
+	otherClinicOwner := makeTestOwner(t, db, 2, "他院飼主")
+	otherClinicPet := makeSpeciesAndPet(t, db, 2, otherClinicOwner.ID, "他院ペット")
+
+	admittedCage := makeCageMaster(t, db, clinicID, "占有-入院中")
+	reservedCage := makeCageMaster(t, db, clinicID, "占有-予約")
+	dischargedCage := makeCageMaster(t, db, clinicID, "退院履歴のみ")
+	unassignedOnly := makeCageMaster(t, db, clinicID, "ケージ未割当入院のみ")
+	emptyCage := makeCageMaster(t, db, clinicID, "空ケージ")
+	otherClinicCage := makeCageMaster(t, db, 2, "他院占有ケージ")
+
+	makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &admittedCage.ID, model.HospitalizationStatusAdmitted)
+	makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &reservedCage.ID, model.HospitalizationStatusReserved)
+	makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &dischargedCage.ID, model.HospitalizationStatusDischarged)
+	makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, nil, model.HospitalizationStatusAdmitted)
+	makeCageHospitalization(t, db, 2, otherClinicOwner.ID, otherClinicPet.ID, &otherClinicCage.ID, model.HospitalizationStatusAdmitted)
+
+	got, err := occupancy.OccupiedCageIDs(ctx, clinicID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []uint64{admittedCage.ID, reservedCage.ID}, got,
+		"admitted/reserved の占有ケージのみ（退院・未割当・他医院・空は除外）")
+
+	// 非占有ケージが混ざらないことの明示的な確認
+	assert.NotContains(t, got, dischargedCage.ID)
+	assert.NotContains(t, got, unassignedOnly.ID)
+	assert.NotContains(t, got, emptyCage.ID)
+	assert.NotContains(t, got, otherClinicCage.ID)
+}

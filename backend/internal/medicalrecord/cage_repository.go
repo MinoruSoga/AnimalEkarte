@@ -170,6 +170,9 @@ type CageMergeRepository interface {
 	// CountOccupiedCages は未削除の admitted/reserved 入院をケージ id ごとに集計する。
 	// CountUsageByCageID（退院済みも数える）とは別の、連結可否専用の占有判定。
 	CountOccupiedCages(ctx context.Context, clinicID uint64, cageIDs []uint64) (map[uint64]int64, error)
+	// ListOccupiedCageIDs は未削除の admitted/reserved 入院が1件以上乗っている
+	// ケージ id を全件返す（連結ピッカーの占有表示専用。ページングなし）。
+	ListOccupiedCageIDs(ctx context.Context, clinicID uint64) ([]uint64, error)
 	// SetMergedInto は memberIDs の merged_into_cage_id に representativeID を設定する。
 	SetMergedInto(ctx context.Context, clinicID, representativeID uint64, memberIDs []uint64) error
 	// ClearMergedInto は representativeID を代表とする全構成ケージの
@@ -288,6 +291,23 @@ func (r *cageRepositoryImpl) CountOccupiedCages(ctx context.Context, clinicID ui
 		counts[row.CageID] = row.N
 	}
 	return counts, nil
+}
+
+func (r *cageRepositoryImpl) ListOccupiedCageIDs(ctx context.Context, clinicID uint64) ([]uint64, error) {
+	var ids []uint64
+	if err := persistence.DBOrTx(ctx, r.db).Model(&model.Hospitalization{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Distinct().
+		Where("cage_id IS NOT NULL").
+		Where("deleted_at IS NULL").
+		Where("status IN ?", []string{
+			string(model.HospitalizationStatusAdmitted),
+			string(model.HospitalizationStatusReserved),
+		}).
+		Pluck("cage_id", &ids).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "hospitalization", "")
+	}
+	return ids, nil
 }
 
 func (r *cageRepositoryImpl) SetMergedInto(ctx context.Context, clinicID, representativeID uint64, memberIDs []uint64) error {

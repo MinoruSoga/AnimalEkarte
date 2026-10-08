@@ -305,3 +305,81 @@ func TestMergeCageRequest_Binding(t *testing.T) {
 		})
 	}
 }
+
+// stubCageOccupancyService は CageService（埋込・未使用メソッドは nil）と
+// CageOccupancyReader の両方を満たすテストダブル。
+type stubCageOccupancyService struct {
+	CageService
+	occupiedCageIDsFn func(ctx context.Context, clinicID uint64) ([]uint64, error)
+}
+
+func (s *stubCageOccupancyService) OccupiedCageIDs(ctx context.Context, clinicID uint64) ([]uint64, error) {
+	return s.occupiedCageIDsFn(ctx, clinicID)
+}
+
+// CageService のみで CageOccupancyReader を実装しないテストダブル（fail-closed 検証用）。
+type stubCageServiceNoOccupancy struct {
+	CageService
+}
+
+func TestOccupiedCageIDsHandler(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("returns occupied cage id set", func(t *testing.T) {
+		svc := &stubCageOccupancyService{
+			occupiedCageIDsFn: func(_ context.Context, clinicID uint64) ([]uint64, error) {
+				assert.Equal(t, uint64(1), clinicID)
+				return []uint64{3, 7}, nil
+			},
+		}
+		h := newHandlerWithCageSvc(svc)
+		w, c := newMergeCageContext(http.MethodGet, "", nil)
+		setClinicID(c)
+
+		h.OccupiedCageIDs(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.JSONEq(t, `{"occupied_cage_ids":[3,7]}`, w.Body.String())
+	})
+
+	t.Run("empty result returns empty array not null", func(t *testing.T) {
+		svc := &stubCageOccupancyService{
+			occupiedCageIDsFn: func(_ context.Context, _ uint64) ([]uint64, error) {
+				return nil, nil
+			},
+		}
+		h := newHandlerWithCageSvc(svc)
+		w, c := newMergeCageContext(http.MethodGet, "", nil)
+		setClinicID(c)
+
+		h.OccupiedCageIDs(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.JSONEq(t, `{"occupied_cage_ids":[]}`, w.Body.String())
+	})
+
+	t.Run("service error propagates status", func(t *testing.T) {
+		svc := &stubCageOccupancyService{
+			occupiedCageIDsFn: func(_ context.Context, _ uint64) ([]uint64, error) {
+				return nil, apperrors.WrapInternalServerError("db down")
+			},
+		}
+		h := newHandlerWithCageSvc(svc)
+		w, c := newMergeCageContext(http.MethodGet, "", nil)
+		setClinicID(c)
+
+		h.OccupiedCageIDs(c)
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
+	t.Run("missing occupancy face is fail-closed 500", func(t *testing.T) {
+		h := newHandlerWithCageSvc(&stubCageServiceNoOccupancy{})
+		w, c := newMergeCageContext(http.MethodGet, "", nil)
+		setClinicID(c)
+
+		h.OccupiedCageIDs(c)
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+}

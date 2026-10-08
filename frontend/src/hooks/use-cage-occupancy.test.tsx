@@ -7,6 +7,8 @@ import { server } from "@/testing/mocks/node";
 import { queryKeys } from "@/lib/query-keys";
 import { useCageOccupancy } from "./use-cage-occupancy";
 
+const OCCUPANCY_URL = "*/v1/masters/cages/occupancy";
+
 function createWrapper(queryClient: QueryClient) {
   return ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
@@ -21,25 +23,16 @@ function renderOccupancy(options?: { enabled?: boolean }) {
   return { ...view, queryClient };
 }
 
-const occupancyState = (queryClient: QueryClient, status: "admitted" | "reserved") =>
-  queryClient.getQueryState(queryKeys.hospitalizations.cageOccupancy(status));
+const occupancyState = (queryClient: QueryClient) =>
+  queryClient.getQueryState(queryKeys.hospitalizations.cageOccupancy());
 
 describe("useCageOccupancy (EMR-306)", () => {
   afterEach(() => {
     server.resetHandlers();
   });
 
-  it("admitted/reserved 両ステータスの cage_id を和集合で返す", async () => {
-    server.use(
-      http.get("*/v1/hospitalizations", ({ request }) => {
-        const status = new URL(request.url).searchParams.get("status");
-        const rows =
-          status === "admitted"
-            ? [{ cage_id: 1 }, { cage_id: 2 }]
-            : [{ cage_id: 2 }, { cage_id: 7 }];
-        return HttpResponse.json({ data: rows, total: rows.length });
-      }),
-    );
+  it("GET /v1/masters/cages/occupancy の occupied_cage_ids を Set で返す", async () => {
+    server.use(http.get(OCCUPANCY_URL, () => HttpResponse.json({ occupied_cage_ids: [1, 2, 7] })));
 
     const { result } = renderOccupancy();
 
@@ -47,51 +40,40 @@ describe("useCageOccupancy (EMR-306)", () => {
     expect([...(result.current.occupiedCageIds ?? [])].sort()).toEqual(["1", "2", "7"]);
   });
 
+  it("空の occupied_cage_ids は空 Set（未定義ではない）を返す", async () => {
+    server.use(http.get(OCCUPANCY_URL, () => HttpResponse.json({ occupied_cage_ids: [] })));
+
+    const { result } = renderOccupancy();
+
+    await waitFor(() => expect(result.current.occupiedCageIds).toBeDefined());
+    expect(result.current.occupiedCageIds?.size).toBe(0);
+  });
+
   it("クエリがエラーのときは undefined を返す（fail-closed）", async () => {
-    server.use(http.get("*/v1/hospitalizations", () => new HttpResponse(null, { status: 500 })));
+    server.use(http.get(OCCUPANCY_URL, () => new HttpResponse(null, { status: 500 })));
 
     const { result, queryClient } = renderOccupancy();
 
-    await waitFor(() => expect(occupancyState(queryClient, "admitted")?.status).toBe("error"));
-    await waitFor(() => expect(occupancyState(queryClient, "reserved")?.status).toBe("error"));
+    await waitFor(() => expect(occupancyState(queryClient)?.status).toBe("error"));
     expect(result.current.occupiedCageIds).toBeUndefined();
   });
 
-  it("total が先頭ページ取得数を超える応答は打ち切りと見なし undefined を返す", async () => {
-    server.use(
-      http.get("*/v1/hospitalizations", ({ request }) => {
-        const status = new URL(request.url).searchParams.get("status");
-        if (status === "admitted") {
-          return HttpResponse.json({ data: [{ cage_id: 1 }], total: 101 });
-        }
-        return HttpResponse.json({ data: [], total: 0 });
-      }),
-    );
+  it("occupied_cage_ids を欠く応答は契約外として undefined を返す（fail-closed）", async () => {
+    server.use(http.get(OCCUPANCY_URL, () => HttpResponse.json({})));
 
     const { result, queryClient } = renderOccupancy();
 
-    await waitFor(() => expect(occupancyState(queryClient, "admitted")?.status).toBe("success"));
-    await waitFor(() => expect(occupancyState(queryClient, "reserved")?.status).toBe("success"));
-    expect(result.current.occupiedCageIds).toBeUndefined();
-  });
-
-  it("total を欠く応答は信頼できないため undefined を返す", async () => {
-    server.use(
-      http.get("*/v1/hospitalizations", () => HttpResponse.json({ data: [{ cage_id: 1 }] })),
-    );
-
-    const { result, queryClient } = renderOccupancy();
-
-    await waitFor(() => expect(occupancyState(queryClient, "admitted")?.status).toBe("success"));
+    // queryFn が throw → query は error になり occupiedCageIds は undefined
+    await waitFor(() => expect(occupancyState(queryClient)?.status).toBe("error"));
     expect(result.current.occupiedCageIds).toBeUndefined();
   });
 
   it("enabled: false のときはクエリを発行せず undefined を返す", async () => {
     let calls = 0;
     server.use(
-      http.get("*/v1/hospitalizations", () => {
+      http.get(OCCUPANCY_URL, () => {
         calls += 1;
-        return HttpResponse.json({ data: [], total: 0 });
+        return HttpResponse.json({ occupied_cage_ids: [] });
       }),
     );
 
