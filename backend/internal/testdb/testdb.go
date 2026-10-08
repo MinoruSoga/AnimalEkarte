@@ -371,7 +371,7 @@ var SharedTestSchemaEnumTypes = []EnumType{
 	{"campaign_discount_type", "CREATE TYPE campaign_discount_type AS ENUM ('rate', 'amount')"},
 	// 予約・会計・入院関連
 	{"visit_type", "CREATE TYPE visit_type AS ENUM ('first', 'revisit')"},
-	// EMR-308: 'tentative' is appended by 025_appointments_tentative_status.sql
+	// EMR-308: 'tentative' is appended by 028_appointments_tentative_status.sql
 	// (ALTER TYPE ... ADD VALUE) — the parity extractor folds it into this definition.
 	{"reservation_status", "CREATE TYPE reservation_status AS ENUM ('confirmed', 'pending', 'cancelled', 'checked_in', 'in_consultation', 'accounting', 'completed', 'no_show', 'tentative')"},
 	{"staff_type", "CREATE TYPE staff_type AS ENUM ('doctor', 'nurse', 'trimmer', 'resource')"},

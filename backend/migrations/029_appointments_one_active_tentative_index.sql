@@ -3,7 +3,7 @@
 -- per (clinic_id, pet_id). Rows whose status is not 'tentative', rows with
 -- deleted_at set, and rows with a NULL pet_id never conflict.
 --
--- Requires 025_appointments_tentative_status.sql to have committed the
+-- Requires 028_appointments_tentative_status.sql to have committed the
 -- 'tentative' enum value first: a new enum value cannot be referenced within
 -- the transaction that added it, and cmd/migrate runs one transaction per file
 -- (007/008 precedent). Do not write BEGIN;/COMMIT; inside this file.

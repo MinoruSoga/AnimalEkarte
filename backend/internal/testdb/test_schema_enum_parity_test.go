@@ -48,7 +48,7 @@ import (
 var createTypeRe = regexp.MustCompile(`(?s)CREATE TYPE\s+(\w+)\s+AS ENUM\s*\((.*?)\)\s*;`)
 
 // alterTypeAddValueRe extracts "ALTER TYPE <name> ADD VALUE [IF NOT EXISTS] '<value>'"
-// statements (EMR-308: 025_appointments_tentative_status.sql adds 'tentative' to
+// statements (EMR-308: 028_appointments_tentative_status.sql adds 'tentative' to
 // reservation_status this way because an enum value cannot be referenced in the same
 // transaction that declares it). PostgreSQL appends the value at the end of the type's
 // ordered list, so the fold below appends it to the canonical CREATE TYPE definition.
