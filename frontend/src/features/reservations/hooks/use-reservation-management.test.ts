@@ -49,7 +49,7 @@ vi.mock("@/hooks/use-confirm-tentative", () => ({
 }));
 
 vi.mock("@/hooks/use-next-visit-intent", () => ({
-  useSetNextVisitIntent: () => ({ mutateAsync: setIntentMutateAsync }),
+  useSetNextVisitIntent: () => ({ mutateAsync: setIntentMutateAsync, isPending: false }),
   useClearNextVisitIntent: () => ({ mutateAsync: clearIntentMutateAsync, isPending: false }),
 }));
 
@@ -284,6 +284,9 @@ describe("useReservationManagement — tentative ハンドラ (EMR-308)", () => 
       intendedDate: "2027-01-15",
       medicalRecordId: "99",
     });
+    // 再設定ダイアログの送信中フラグは setIntentMutation.isPending をそのまま露出する
+    // （手動 useState ではなく React Query の mutation 状態が正本）。
+    expect(result.current.isResetNextVisitSubmitting).toBe(false);
   });
 
   it("handleEndTentativeRequest: canEdit なしは fail-closed", () => {

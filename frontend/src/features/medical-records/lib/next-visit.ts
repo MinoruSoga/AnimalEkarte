@@ -21,14 +21,17 @@ export type NextVisitReservationStatus = Reservation["status"] | "tentative";
 /**
  * 次回予定表示の導出に必要な最小形状。
  * transformReservation の結果（Reservation[]）はキャストなしで代入できる。
- * tentative 行の start は intended_date の JST 00:00 sentinel なので、
- * formatJSTWallDate(start) がそのまま意図日になる。
+ * tentative 行の意図日は intendedDate を優先する（reservations feature の
+ * tentativeIntendedDate と同一規約）。欠落時のみ sentinel start の
+ * JST 暦日にフォールバックする。
  */
 export interface NextVisitSourceReservation {
   /** 確定モーダル（POST confirm-tentative）の対象行識別子 */
   id: string;
   status: NextVisitReservationStatus;
   start: Date;
+  /** BE 応答の intended_date（YYYY-MM-DD）。載っていれば sentinel 導出より優先。 */
+  intendedDate?: string;
 }
 
 export interface NextVisitState {
@@ -71,7 +74,9 @@ export function deriveNextVisitState(
     }
   }
 
-  const intentDate = tentative ? formatJSTWallDate(tentative.start) : "";
+  const intentDate = tentative
+    ? (tentative.intendedDate ?? formatJSTWallDate(tentative.start))
+    : "";
   const tentativeId = tentative?.id ?? null;
 
   if (nextAppointment) {

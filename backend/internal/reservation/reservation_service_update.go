@@ -100,6 +100,22 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	if current == nil {
 		return nil, apperrors.WrapNotFound("reservation", strconv.FormatUint(id, 10))
 	}
+	// EMR-308: tentative（次回予定）は sentinel 時刻（JST 00:00-00:15）を持つ日付のみの
+	// 意図行で、booking 検証（時間枠・容量・休診日）を前提としない。汎用 PATCH で
+	// pending/confirmed 等へ昇格させるとその検証を通らず sentinel のまま実予約へ混入する
+	// ため、許可する遷移は checked_in（当日受付。sentinel は実受付時刻へ置換）と
+	// cancelled（終了）のみ。確定は POST confirm-tentative 専用経路が担当し、status 以外
+	// のフィールド更新も tentative 行には適用しない。
+	if current.Status == model.ReservationStatusTentative {
+		if input.Status == nil {
+			return nil, apperrors.WrapInvalidInput("仮予約（次回予定）の内容変更はできません。次回予定の設定・確定・終了の操作を使用してください")
+		}
+		switch *input.Status {
+		case model.ReservationStatusCheckedIn, model.ReservationStatusCancelled:
+		default:
+			return nil, apperrors.WrapInvalidInput("仮予約（次回予定）は予約確定操作でのみ本予約へ変更できます")
+		}
+	}
 	if err := validateLineReservationCheckedInLink(current, input); err != nil {
 		return nil, err
 	}
@@ -261,13 +277,22 @@ func (s *reservationService) applyReservationUpdate(
 	}
 }
 func (s *reservationService) UpdateReservationRoute(ctx context.Context, clinicID, id uint64, input UpdateReservationRouteInput) (*model.Reservation, error) {
+	// EMR-308: record_intent は tentative（次回予定）の provenance 専用値で、経路更新 API
+	// からの設定も除去も許可しない（provenance を越境させない）。
+	if input.Route == nextVisitIntentRoute {
+		return nil, apperrors.WrapInvalidInput("record_intent は次回予定専用の予約経路のため指定できません")
+	}
 	if input.Route != "" {
 		if _, ok := AllowedReservationRoutes[input.Route]; !ok {
 			return nil, apperrors.WrapInvalidInput(AllowedReservationRoutesMessage)
 		}
 	}
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+	current, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to find reservation")
+	}
+	if current != nil && current.ReservationRoute != nil && *current.ReservationRoute == nextVisitIntentRoute {
+		return nil, apperrors.WrapInvalidInput("次回予定由来の予約経路（record_intent）は変更できません")
 	}
 	var routeValue any
 	if input.Route == "" {

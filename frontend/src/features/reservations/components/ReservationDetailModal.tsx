@@ -338,7 +338,9 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
           </div>
           <div className="flex gap-2">
             {isTentative ? (
-              onConfirmTentative ? (
+              // EMR-308: 確定は実予約化なので死亡ペットは出さない
+              // （EMR-177 positive-match ゲートと同一契約 — pet 未取得時は BE に委譲）。
+              onConfirmTentative && !isDeceasedPet ? (
                 <Button
                   size="sm"
                   onClick={() => onConfirmTentative(reservation)}

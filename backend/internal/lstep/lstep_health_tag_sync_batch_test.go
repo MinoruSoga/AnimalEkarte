@@ -229,10 +229,6 @@ func (m *bulkMedRecordRepo) FindOwnerVisitSummary(_ context.Context, _, _ uint64
 	return &medicalrecord.OwnerVisitSummary{}, nil
 }
 
-func (m *bulkMedRecordRepo) FindLatestByOwner(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-	return nil, nil
-}
-
 func (m *bulkMedRecordRepo) FindOwnerVisitSummariesByOwnerIDs(_ context.Context, _ uint64, ownerIDs []uint64) (map[uint64]*medicalrecord.OwnerVisitSummary, error) {
 	atomic.AddInt64(&m.findVisitSummariesCalls, 1)
 	m.lastBulkSize = len(ownerIDs)

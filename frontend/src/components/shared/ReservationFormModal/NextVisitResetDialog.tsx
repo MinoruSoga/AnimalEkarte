@@ -1,4 +1,5 @@
 import { useState } from "react";
+
 import { CalendarClock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,11 @@ interface NextVisitResetDialogProps {
    */
   onSubmit: (date: string) => Promise<void>;
   onClose: () => void;
+  /**
+   * 送信中フラグ。呼び出し側で setIntentMutation.isPending を渡す
+   * （手動 useState ではなく React Query の mutation 状態を使う規約）。
+   */
+  isPending?: boolean;
 }
 
 /**
@@ -47,10 +53,10 @@ export function NextVisitResetDialog({
   initialDate = "",
   onSubmit,
   onClose,
+  isPending = false,
 }: NextVisitResetDialogProps) {
   const [date, setDate] = useState(initialDate);
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   // open 遷移でフォームをリセット（render 中の派生 state リセットパターン）
   const [prevOpen, setPrevOpen] = useState(open);
   if (open !== prevOpen) {
@@ -58,7 +64,6 @@ export function NextVisitResetDialog({
     if (open) {
       setDate(initialDate);
       setError(null);
-      setIsSubmitting(false);
     }
   }
 
@@ -68,7 +73,6 @@ export function NextVisitResetDialog({
       setError(message);
       return;
     }
-    setIsSubmitting(true);
     try {
       await onSubmit(date);
       onClose();
@@ -76,8 +80,6 @@ export function NextVisitResetDialog({
       // mutation 側の onError(handleApiError) が toast 済み。ダイアログは開いたまま
       // インラインでも失敗を示す（「取り消しは成功したが再設定は失敗」を混同させない）。
       setError("次回予定の再設定に失敗しました。日付を確認して再度お試しください。");
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -112,7 +114,7 @@ export function NextVisitResetDialog({
               setDate(e.target.value);
               setError(null);
             }}
-            disabled={isSubmitting}
+            disabled={isPending}
             className="h-11"
           />
           <FormFieldError message={error ?? undefined} />
@@ -123,7 +125,7 @@ export function NextVisitResetDialog({
             type="button"
             variant="outline"
             onClick={onClose}
-            disabled={isSubmitting}
+            disabled={isPending}
             className="h-11 text-sm"
           >
             設定しない
@@ -131,10 +133,10 @@ export function NextVisitResetDialog({
           <Button
             type="button"
             onClick={() => void handleSubmit()}
-            disabled={isSubmitting}
+            disabled={isPending}
             className={`h-11 text-sm ${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid}`}
           >
-            {isSubmitting ? "設定中..." : "設定する"}
+            {isPending ? "設定中..." : "設定する"}
           </Button>
         </DialogFooter>
       </DialogContent>

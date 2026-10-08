@@ -828,7 +828,10 @@ func (r *reservationRepository) SetNextVisitIntent(
 	return r.FindByID(ctx, clinicID, appointment.ID)
 }
 
-// ClearNextVisitIntent はペットの active tentative を論理削除する。
+// ClearNextVisitIntent はペットの active tentative を終了させる。
+// 「終了」は通常キャンセル経路（Update isCancel）と同じ終端 semantics を取り、
+// status=cancelled を記録してから論理削除する（sentinel status のまま消すと
+// 履歴上「途中で消えた」状態になりキャンセル経路と不整合になる）。
 // 他ステータスの予約には触れず、未存在時は冪等に成功する（found=false）。
 func (r *reservationRepository) ClearNextVisitIntent(ctx context.Context, clinicID, petID uint64) (bool, error) {
 	if err := requireNextVisitIntentAmbientTransaction(ctx); err != nil {
@@ -844,9 +847,20 @@ func (r *reservationRepository) ClearNextVisitIntent(ctx context.Context, clinic
 	if existing == nil {
 		return false, nil
 	}
-	result := persistence.DBOrTx(ctx, r.db).
+	cancelled := persistence.DBOrTx(ctx, r.db).
+		Model(&model.Reservation{}).
 		Where("clinic_id = ? AND id = ? AND status = ? AND deleted_at IS NULL",
 			clinicID, existing.ID, model.ReservationStatusTentative).
+		Update("status", model.ReservationStatusCancelled)
+	if cancelled.Error != nil {
+		return false, apperrors.FromGORM(cancelled.Error, "reservation", fmt.Sprintf("%d", existing.ID))
+	}
+	if cancelled.RowsAffected == 0 {
+		return false, apperrors.WrapConflict("次回予定が同時に更新されました。再読み込みしてください")
+	}
+	// 行ロック保持中のため status は cancelled のまま変わらない。deleted_at 述語のみで確定する。
+	result := persistence.DBOrTx(ctx, r.db).
+		Where("clinic_id = ? AND id = ? AND deleted_at IS NULL", clinicID, existing.ID).
 		Delete(&model.Reservation{})
 	if result.Error != nil {
 		return false, apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("%d", existing.ID))

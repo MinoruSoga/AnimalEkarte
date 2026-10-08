@@ -143,6 +143,11 @@ func (s *reservationService) ConfirmTentative(
 		if current.Status != model.ReservationStatusTentative {
 			return apperrors.WrapConflict("対象の予約は仮予約（次回予定）ではありません")
 		}
+		// EMR-308: tentative 行は死亡後も残るため、実予約化の境界でも他の予約書込経路と
+		// 同じ死亡ペット拒否を適用する（行ロック取得後・booking 書込前）。
+		if err := ValidateReservationPetNotDeceased(ctx, s.repo, clinicID, current.PetID); err != nil {
+			return err
+		}
 		resolvedTypeID := current.ReservationTypeID
 		if input.ReservationTypeID != nil {
 			resolvedTypeID = *input.ReservationTypeID

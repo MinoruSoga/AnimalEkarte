@@ -237,6 +237,7 @@ export function Reception() {
         previousIntendedDate={nextVisitResetTarget?.intendedDate}
         onSubmit={submitNextVisitReset}
         onClose={() => setNextVisitResetTarget(null)}
+        isPending={setNextVisitIntent.isPending}
       />
     </>
   );

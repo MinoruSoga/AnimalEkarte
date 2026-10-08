@@ -11,8 +11,12 @@ vi.mock("@/hooks/use-owner-line-tags", () => ({
 
 // EMR-227: detail modal は petId から pet.status を引いて死亡区分を表示層へ渡す。
 // このテストは QueryClientProvider なしで描画するためフックを固定する。
+const getPetResult = vi.hoisted(() => ({
+  current: { data: undefined as { status?: string; deceasedAt?: string | null } | undefined },
+}));
+
 vi.mock("@/hooks/use-pet", () => ({
-  useGetPet: () => ({ data: undefined }),
+  useGetPet: () => getPetResult.current,
 }));
 
 const getColorMock = vi.fn(() => ({
@@ -51,6 +55,7 @@ const baseReservation: Reservation = {
 
 describe("ReservationDetailModal", () => {
   beforeEach(() => {
+    getPetResult.current = { data: undefined };
     getColorMock.mockReset();
     getColorMock.mockReturnValue({
       style: { backgroundColor: "rgb(0, 0, 0)" },
@@ -251,6 +256,35 @@ describe("ReservationDetailModal — tentative (EMR-308)", () => {
     );
 
     expect(screen.queryByRole("button", { name: "予約を確定" })).not.toBeInTheDocument();
+  });
+
+  it("死亡ペットの tentative では確定ボタンを出さない（EMR-177 positive-match ゲート）", () => {
+    // 確定は実予約化する臨床 write — BE 側 ConfirmTentative も死亡ガード済み。
+    getPetResult.current = { data: { status: "死亡" } };
+    render(
+      <ReservationDetailModal
+        isOpen={true}
+        onClose={vi.fn()}
+        reservation={tentativeReservation}
+        onConfirmTentative={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "予約を確定" })).not.toBeInTheDocument();
+  });
+
+  it("pet 未取得（不明）の tentative では確定ボタンを出す（BE が最終ゲート）", () => {
+    getPetResult.current = { data: undefined };
+    render(
+      <ReservationDetailModal
+        isOpen={true}
+        onClose={vi.fn()}
+        reservation={tentativeReservation}
+        onConfirmTentative={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "予約を確定" })).toBeInTheDocument();
   });
 
   it("昇格済み（hadIntendedDate のみ残る）行は通常予約として扱う", () => {

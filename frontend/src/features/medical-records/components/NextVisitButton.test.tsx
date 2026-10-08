@@ -183,8 +183,8 @@ describe("NextVisitButton — Popover での tentative 操作（EMR-308 A2）", 
 });
 
 describe("NextVisitButton — ガード", () => {
-  it("reservations:create 権限が無いとボタンは無効で mutation も発行しない", async () => {
-    mockPermission(false);
+  it("reservations:create/edit ともに無いとボタンは無効で mutation も発行しない", async () => {
+    mockPermission(false, false);
     const user = userEvent.setup();
     render(<NextVisitButton petId="10" medicalRecordId="99" />);
 
@@ -200,6 +200,43 @@ describe("NextVisitButton — ガード", () => {
     render(<NextVisitButton petId="10" medicalRecordId="99" isPetDeceased={true} />);
 
     expect(screen.getByRole("button", { name: "次回予定を追加" })).toBeDisabled();
+  });
+});
+
+describe("NextVisitButton — 権限分割（PUT=create / DELETE=edit）", () => {
+  it("create のみ（edit 無し）: tentative のクリアは DELETE を発行しない", async () => {
+    mockPermission(true, false);
+    const user = userEvent.setup();
+    mockReservations([reservationOf("tentative", wallDateInDays(45, 0, 0))]);
+    await act(async () => {
+      render(<NextVisitButton petId="10" medicalRecordId="99" />);
+    });
+
+    await user.click(screen.getByRole("button", { name: "次回予定を変更" }));
+    await user.click(screen.getByRole("button", { name: "クリア" }));
+
+    expect(clearMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("edit のみ（create 無し）: クリアは DELETE を発行するが日付設定は PUT を発行しない", async () => {
+    mockPermission(false, true);
+    const user = userEvent.setup();
+    mockReservations([reservationOf("tentative", wallDateInDays(45, 0, 0))]);
+    await act(async () => {
+      render(<NextVisitButton petId="10" medicalRecordId="99" />);
+    });
+
+    // クリア（DELETE = reservations:edit）は許可される
+    await user.click(screen.getByRole("button", { name: "次回予定を変更" }));
+    await user.click(screen.getByRole("button", { name: "クリア" }));
+    expect(clearMutateAsync).toHaveBeenCalledWith("10");
+
+    // 日付設定（PUT = reservations:create）は発行しない
+    const input = screen.getByLabelText("次回来院推奨日");
+    const d = new Date();
+    d.setMonth(d.getMonth() + 2);
+    fireEvent.change(input, { target: { value: formatJSTWallDate(d) } });
+    expect(setMutateAsync).not.toHaveBeenCalled();
   });
 });
 

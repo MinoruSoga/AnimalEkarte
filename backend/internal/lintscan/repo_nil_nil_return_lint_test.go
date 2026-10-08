@@ -101,10 +101,6 @@ var repoNilNilAllowlist = []repoNilNilSiteException{
 		reason: "optional active record for appointment: create/link flows treat nil as 'no record yet'. Packet: NILCONTRACT-SOFT-MISS-OPTIONAL-ENTITY",
 	},
 	{
-		file: "medicalrecord/medical_record_owner_visit_repository.go", fn: "FindLatestByOwner", occurrences: 1,
-		reason: "optional latest visit: absence of any medical record is common for new owners; callers check nil. Packet: NILCONTRACT-SOFT-MISS-OPTIONAL-ENTITY",
-	},
-	{
 		file: "clinic/closing_special_period_repository.go", fn: "FindByDate", occurrences: 1,
 		reason: "optional special closing period for a calendar date; schedule resolution treats absence as normal day. Packet: NILCONTRACT-SOFT-MISS-OPTIONAL-ENTITY",
 	},

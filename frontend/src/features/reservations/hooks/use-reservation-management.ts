@@ -360,6 +360,7 @@ export function useReservationManagement({
     handleResetNextVisitRequest: openResetNextVisit,
     handleResetNextVisitSubmit,
     handleResetNextVisitClose,
+    isResetNextVisitSubmitting: setIntentMutation.isPending,
 
     // EMR-308 A3: 期限超過 tentative の終了確認
     endTentativeTarget,

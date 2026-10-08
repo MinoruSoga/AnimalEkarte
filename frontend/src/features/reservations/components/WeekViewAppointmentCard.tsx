@@ -120,7 +120,11 @@ export const AppointmentCard = memo(function AppointmentCard({
         ${isDimmed ? "opacity-60" : "opacity-100"}
         ${isCancelled ? `line-through ${C.decorationDanger50}` : ""}
       `}
-      aria-label={`${isTentative ? `${TENTATIVE_APPOINTMENT_LABEL} ` : ""}${format(appointment.start, DISPLAY_TIME_FORMAT)}〜${format(appointment.end, DISPLAY_TIME_FORMAT)} ${appointment.petName} ${appointment.ownerName} ${typeLabel}`}
+      aria-label={
+        isTentative
+          ? `${TENTATIVE_APPOINTMENT_LABEL} ${appointment.petName} ${appointment.ownerName} ${typeLabel}`
+          : `${format(appointment.start, DISPLAY_TIME_FORMAT)}〜${format(appointment.end, DISPLAY_TIME_FORMAT)} ${appointment.petName} ${appointment.ownerName} ${typeLabel}`
+      }
       title={tooltipText}
       style={{
         top: `${top}px`,

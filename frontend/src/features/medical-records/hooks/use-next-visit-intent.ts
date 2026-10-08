@@ -41,11 +41,14 @@ export function useNextVisitIntent({
 }: UseNextVisitIntentParams) {
   // TASK-444-S1: generated/models 直 import 禁止のためリソースは文字列リテラルで渡す
   const { canCreate, canEdit } = usePermission("reservations");
-  const canMutate = canCreate && !isPetDeceased;
-  const canMutateRef = useRef(canMutate);
+  // PUT intent は reservations:create、DELETE intent は reservations:edit（routes.go）。
+  // 方向別に権限を分ける — create のみのスタッフが既存 intent を消せないよう fail-closed。
+  const canSetIntent = canCreate && !isPetDeceased;
+  const canClearIntent = canEdit && !isPetDeceased;
+  const intentCapsRef = useRef({ set: canSetIntent, clear: canClearIntent });
   useLayoutEffect(() => {
-    canMutateRef.current = canMutate;
-  }, [canMutate]);
+    intentCapsRef.current = { set: canSetIntent, clear: canClearIntent };
+  }, [canSetIntent, canClearIntent]);
 
   const { data: reservations } = useGetReservations({
     petId,
@@ -109,11 +112,12 @@ export function useNextVisitIntent({
   const handleIntentDateChange = useCallback(
     (newDate: string) => {
       setIntentDraft(newDate);
-      if (!canMutateRef.current) return;
       if (newDate === "") {
+        if (!intentCapsRef.current.clear) return;
         void runClearIntent();
         return;
       }
+      if (!intentCapsRef.current.set) return;
       if (validateNextVisitIntentDate(newDate) !== null) return;
       void runSetIntent(newDate);
     },
@@ -125,7 +129,7 @@ export function useNextVisitIntent({
     intentFieldValue: intentDraft ?? nextVisit.intentDate,
     handleIntentDateChange,
     resetIntentDraft,
-    canMutateIntent: canMutate,
+    canMutateIntent: canSetIntent || canClearIntent,
     /** EMR-308 A1: 確定導線。kind==="tentative" のときのみ true（reservations:edit 必要）。 */
     canConfirmTentative,
     /** 確定モーダルの対象 tentative 行。なければ null。 */

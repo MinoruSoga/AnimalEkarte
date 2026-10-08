@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -602,6 +603,156 @@ func TestReservationService_Update_TentativeCheckinFillsActualTime(t *testing.T)
 	endVal, ok := captured["end_time"].(time.Time)
 	require.True(t, ok)
 	assert.Equal(t, nextVisitIntentDurationMinutes*time.Minute, endVal.Sub(startVal))
+}
+
+// ---------------------------------------------------------------------------
+// EMR-308 review fix: 汎用 PATCH は tentative の booking 昇格・内容変更を拒否する
+// （確定は POST confirm-tentative 専用経路が slot/capacity/休診日を検証して行う）
+// ---------------------------------------------------------------------------
+
+func TestReservationService_Update_TentativeRejectsNonTerminalTransitions(t *testing.T) {
+	sentinelStart := time.Date(2030, 1, 5, 0, 0, 0, 0, config.JST)
+	sentinelEnd := sentinelStart.Add(nextVisitIntentDurationMinutes * time.Minute)
+	petID := uint64(22)
+
+	newRepo := func(t *testing.T) *mockReservationRepository {
+		return &mockReservationRepository{
+			findByIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.Reservation, error) {
+				return &model.Reservation{
+					ID:                42,
+					ClinicID:          1,
+					PetID:             &petID,
+					Status:            model.ReservationStatusTentative,
+					StartTime:         sentinelStart,
+					EndTime:           sentinelEnd,
+					ReservationTypeID: 7,
+					Source:            model.ReservationSourceManual,
+				}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+				t.Fatal("tentative 行の汎用 PATCH は書込パスへ到達してはならない")
+				return nil, nil
+			},
+		}
+	}
+
+	pending := model.ReservationStatusPending
+	confirmed := model.ReservationStatusConfirmed
+	inConsultation := model.ReservationStatusInConsultation
+	accounting := model.ReservationStatusAccounting
+	completed := model.ReservationStatusCompleted
+	notes := "memo"
+	newStart := sentinelStart.Add(2 * time.Hour)
+
+	cases := []struct {
+		name  string
+		input *UpdateReservationInput
+	}{
+		{"status=pending は booking 検証なしの昇格になるため拒否", &UpdateReservationInput{Status: &pending}},
+		{"status=confirmed は confirm-tentative 専用", &UpdateReservationInput{Status: &confirmed}},
+		{"status=in_consultation も拒否", &UpdateReservationInput{Status: &inConsultation}},
+		{"status=accounting も拒否", &UpdateReservationInput{Status: &accounting}},
+		{"status=completed も拒否", &UpdateReservationInput{Status: &completed}},
+		{"status 以外の更新（notes のみ）も tentative には適用しない", &UpdateReservationInput{Notes: &notes}},
+		{"start_time のみの更新も拒否（sentinel 時刻を実枠へすり替えない）", &UpdateReservationInput{StartTime: &newStart}},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := NewReservationServiceWithClinicHolidays(newRepo(t), nil, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, &mockClinicHolidayFinder{})
+			got, err := svc.Update(context.Background(), 1, 42, tt.input)
+			require.Error(t, err)
+			assert.True(t, apperrors.IsInvalidInput(err), "期待: InvalidInput, 実際: %v", err)
+			assert.Nil(t, got)
+		})
+	}
+}
+
+func TestReservationService_Update_TentativeCancelSetsCancelledAndSoftDeletes(t *testing.T) {
+	// tentative + cancelled は許可された終了遷移: status=cancelled を記録してから soft delete。
+	sentinelStart := time.Date(2030, 1, 5, 0, 0, 0, 0, config.JST)
+	petID := uint64(22)
+	tentative := &model.Reservation{
+		ID:                42,
+		ClinicID:          1,
+		PetID:             &petID,
+		Status:            model.ReservationStatusTentative,
+		StartTime:         sentinelStart,
+		EndTime:           sentinelStart.Add(nextVisitIntentDurationMinutes * time.Minute),
+		ReservationTypeID: 7,
+		Source:            model.ReservationSourceManual,
+	}
+
+	var captured map[string]any
+	deleteCalled := false
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.Reservation, error) {
+			return tentative, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
+			captured = fields
+			return tentative, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			deleteCalled = true
+			return nil
+		},
+	}
+	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, &mockClinicHolidayFinder{})
+
+	cancelled := model.ReservationStatusCancelled
+	_, err := svc.Update(context.Background(), 1, 42, &UpdateReservationInput{Status: &cancelled})
+	require.NoError(t, err)
+	require.NotNil(t, captured)
+	assert.Equal(t, model.ReservationStatusCancelled, captured["status"], "終了は cancelled を記録してから削除する")
+	assert.True(t, deleteCalled, "cancel は soft delete を伴う")
+}
+
+func TestReservationService_UpdateReservationRoute_RecordIntentGuard(t *testing.T) {
+	recordIntent := nextVisitIntentRoute
+	t.Run("record_intent への設定は拒否", func(t *testing.T) {
+		repo := &mockReservationRepository{
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+				t.Fatal("record_intent への書換は書込に到達してはならない")
+				return nil, nil
+			},
+		}
+		svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, nil, nil)
+		_, err := svc.UpdateReservationRoute(context.Background(), 1, 1, UpdateReservationRouteInput{Route: recordIntent})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
+	t.Run("record_intent 由来行の経路変更は拒否", func(t *testing.T) {
+		repo := &mockReservationRepository{
+			findByIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.Reservation, error) {
+				return &model.Reservation{ID: 1, ClinicID: 1, ReservationRoute: &recordIntent}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+				t.Fatal("record_intent provenance の消去・変更は書込に到達してはならない")
+				return nil, nil
+			},
+		}
+		svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, nil, nil)
+		_, err := svc.UpdateReservationRoute(context.Background(), 1, 1, UpdateReservationRouteInput{Route: "phone"})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
+	t.Run("record_intent 由来行の経路クリアも拒否", func(t *testing.T) {
+		repo := &mockReservationRepository{
+			findByIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.Reservation, error) {
+				return &model.Reservation{ID: 1, ClinicID: 1, ReservationRoute: &recordIntent}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+				t.Fatal("record_intent provenance の消去は書込に到達してはならない")
+				return nil, nil
+			},
+		}
+		svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, nil, nil)
+		_, err := svc.UpdateReservationRoute(context.Background(), 1, 1, UpdateReservationRouteInput{Route: ""})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
 }
 
 func TestReservationService_Update_NonTentativeCheckinKeepsSchedule(t *testing.T) {

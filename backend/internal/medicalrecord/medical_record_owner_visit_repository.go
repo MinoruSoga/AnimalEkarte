@@ -27,40 +27,6 @@ type DormantOwnerEntry struct {
 	DaysSince int
 }
 
-// FindLatestByOwner は飼い主の最新カルテ（created_at DESC）を返す。
-// EMR-308: BE-006 次回来院推奨日タグ同期（本メソッドの唯一の呼び出し元）は
-// appointment/tentative ベースへ移行済みで退役。現在は interface/test
-// 互換性のために残置しており、本体削除は follow-up に積み残す。
-// カルテが存在しない場合は nil, nil を返す。
-func (r *medicalRecordRepository) FindLatestByOwner(ctx context.Context, clinicID, ownerID uint64) (*model.MedicalRecord, error) {
-	var record model.MedicalRecord
-	err := r.db.WithContext(ctx).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Where(`
-			EXISTS (
-				SELECT 1
-				FROM pets current_owner_pet
-				JOIN owners current_owner
-				  ON current_owner.id = current_owner_pet.owner_id
-				 AND current_owner.clinic_id = current_owner_pet.clinic_id
-				WHERE current_owner_pet.id = medical_records.pet_id
-				  AND current_owner_pet.clinic_id = medical_records.clinic_id
-				  AND current_owner.id = ?
-			)
-		`, ownerID).
-		Order("created_at DESC").
-		First(&record).Error
-	if err != nil {
-		// #236 BUG#4: IsNotFound は生 gorm.ErrRecordNotFound では常に false。FromGORM でラップしてから判定する。
-		wrapped := apperrors.FromGORM(err, "medical_record", fmt.Sprintf("owner=%d", ownerID))
-		if apperrors.IsNotFound(wrapped) {
-			return nil, nil
-		}
-		return nil, wrapped
-	}
-	return &record, nil
-}
-
 // FindOwnerVisitSummary は飼い主の診療集計（初回/最終日・合計数・年間数）を返す（Lステップタグ同期用）。
 func (r *medicalRecordRepository) FindOwnerVisitSummary(ctx context.Context, clinicID, ownerID uint64) (*OwnerVisitSummary, error) {
 	type row struct {

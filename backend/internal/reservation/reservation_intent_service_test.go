@@ -259,6 +259,30 @@ func TestReservationService_ConfirmTentative(t *testing.T) {
 		assert.Nil(t, confirmed.DoctorID)
 	})
 
+	t.Run("rejects confirming a deceased pet's tentative", func(t *testing.T) {
+		svc := newNextVisitIntentService(t, db, nil)
+		_, pet, _ := makeNextVisitIntentFixture(t, db, clinicA, "SVCCFMDEC")
+		tentative, err := svc.SetNextVisitIntent(ctx, clinicA, pet.ID, SetNextVisitIntentInput{IntendedDate: intendedDate})
+		require.NoError(t, err)
+
+		// 登録後に死亡したケース: status ラベルと deceased_at の両方を立てる
+		// （BE の死亡契約は OR 判定）。
+		deceasedAt := time.Now().UTC()
+		require.NoError(t, db.Model(&model.Pet{}).Where("id = ?", pet.ID).Updates(map[string]any{
+			"status":      model.PetStatusDeceased,
+			"deceased_at": deceasedAt,
+		}).Error)
+
+		got, err := svc.ConfirmTentative(ctx, clinicA, tentative.ID, &ConfirmTentativeInput{
+			StartTime: newStart,
+			EndTime:   newEnd,
+		})
+		require.Error(t, err)
+		assert.Nil(t, got)
+		assert.Equal(t, model.ReservationStatusTentative, reloadReservationIntentStatus(t, db, tentative.ID),
+			"死亡ペットの tentative は実予約化されず残る")
+	})
+
 	t.Run("rejects a non-tentative appointment", func(t *testing.T) {
 		svc := newNextVisitIntentService(t, db, nil)
 		normal := makeReservationForReservationRepoTest(

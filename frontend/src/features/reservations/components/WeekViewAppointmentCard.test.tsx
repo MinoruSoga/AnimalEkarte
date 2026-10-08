@@ -101,6 +101,22 @@ describe("WeekView AppointmentCard tentative (EMR-308)", () => {
     expect(card).toHaveAttribute("title", expect.stringContaining("次回予定・未予約"));
   });
 
+  it("aria-label は sentinel 時刻を読み上げない（次回予定・未予約 + 患者情報のみ）", () => {
+    // EMR-308 review fix: tentative の 00:00〜00:30 は sentinel であり実時刻ではない。
+    // スクリーンリーダーに実在しない時刻を読ませない（spec: UI・通知・帳票は時刻なし）。
+    render(
+      <AppointmentCard
+        appointment={tentativeAppointment}
+        layoutStyle={{ left: "0%", width: "100%" }}
+        onClick={vi.fn()}
+      />,
+    );
+
+    const card = screen.getByRole("button", { name: /次回予定・未予約/ });
+    expect(card).toHaveAccessibleName(expect.not.stringMatching(/\d{2}:\d{2}/));
+    expect(card).toHaveAccessibleName(expect.stringContaining("マメラ"));
+  });
+
   it("tentative はドラッグ用カーソルではなく通常カーソルにする", () => {
     render(
       <AppointmentCard

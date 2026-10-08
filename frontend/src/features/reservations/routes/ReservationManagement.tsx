@@ -141,6 +141,7 @@ export function ReservationManagement({ createMutations }: ReservationManagement
     handleResetNextVisitRequest,
     handleResetNextVisitSubmit,
     handleResetNextVisitClose,
+    isResetNextVisitSubmitting,
     endTentativeTarget,
     handleEndTentativeRequest,
     executeEndTentative,
@@ -316,6 +317,7 @@ export function ReservationManagement({ createMutations }: ReservationManagement
         previousIntendedDate={resetNextVisitTarget?.previousIntendedDate}
         onSubmit={handleResetNextVisitSubmit}
         onClose={handleResetNextVisitClose}
+        isPending={isResetNextVisitSubmitting}
       />
 
       {/* EMR-308 A3: 期限超過 tentative の終了確認（DELETE next-visit-intent） */}

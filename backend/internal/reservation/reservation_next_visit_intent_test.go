@@ -303,6 +303,11 @@ func TestReservationRepository_ClearNextVisitIntent(t *testing.T) {
 		var row model.Reservation
 		require.NoError(t, db.Unscoped().First(&row, created.ID).Error)
 		assert.NotNil(t, row.DeletedAt)
+		// 終了はキャンセル経路と同じ終端 semantics: sentinel status のまま消すのではなく
+		// status=cancelled を記録してから論理削除する（provenance は行に残る）。
+		assert.Equal(t, model.ReservationStatusCancelled, row.Status)
+		require.NotNil(t, row.IntendedDate)
+		assert.Equal(t, intendedDate.Format("2006-01-02"), row.IntendedDate.Format("2006-01-02"))
 
 		found, err = clearNextVisitIntentInTx(ctx, db, repo, clinicA, pet.ID)
 		require.NoError(t, err)

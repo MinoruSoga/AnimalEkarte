@@ -113,12 +113,6 @@ func TestMedicalRecordRepository_OwnerVisitReads_CurrentOwnerAfterTransfer(t *te
 		visitDate,
 	)
 
-	latest, err := repo.FindLatestByOwner(ctx, clinicID, fixture.CurrentOwner.ID)
-	require.NoError(t, err)
-	require.NotNil(t, latest)
-	require.NotNil(t, latest.OwnerID)
-	assert.Equal(t, fixture.PreviousOwner.ID, *latest.OwnerID, "returned owner_id remains the historical snapshot")
-
 	summary, err := repo.FindOwnerVisitSummary(ctx, clinicID, fixture.CurrentOwner.ID)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), summary.TotalCount)
@@ -265,7 +259,7 @@ func TestMedicalRecordRepository_FindDormantOwnerEntries_RequiresActiveOwnerInSa
 }
 
 // ---------------------------------------------------------------------------
-// 以下、FindLatestByOwner / FindOwnerVisitSummary / FindOwnersByFirstVisitDate /
+// 以下、FindOwnerVisitSummary / FindOwnersByFirstVisitDate /
 // FindOwnersByLastVisitDays / FindDormantOwnerEntries のテスト（#212 カバレッジ向上）。
 // ---------------------------------------------------------------------------
 
@@ -303,63 +297,6 @@ func makeVisitRecordForOwnerVisitTest(t *testing.T, db *gorm.DB, rec *model.Medi
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(rec).Error)
 	return rec
-}
-
-func TestMedicalRecordRepository_FindLatestByOwner(t *testing.T) {
-	db := testdb.SetupTestDB(t)
-	repo := NewMedicalRecordRepository(db)
-	ctx := context.Background()
-	const clinicA, clinicB = uint64(1), uint64(2)
-
-	t.Run("正常系: created_at DESC で最新カルテを返す", func(t *testing.T) {
-		owner := makeTestOwner(t, db, clinicA, "最新カルテ飼主")
-		ownerID := owner.ID
-
-		older := makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
-			ClinicID:  clinicA,
-			OwnerID:   &ownerID,
-			Date:      time.Now().In(time.Local).AddDate(0, 0, -30),
-			CreatedAt: time.Now().In(time.Local).AddDate(0, 0, -30),
-		})
-		newer := makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
-			ClinicID:  clinicA,
-			OwnerID:   &ownerID,
-			Date:      time.Now().In(time.Local),
-			CreatedAt: time.Now().In(time.Local),
-		})
-
-		got, err := repo.FindLatestByOwner(ctx, clinicA, ownerID)
-		require.NoError(t, err)
-		require.NotNil(t, got)
-		assert.Equal(t, newer.ID, got.ID)
-		assert.NotEqual(t, older.ID, got.ID)
-	})
-
-	// #236 BUG#4 (2026-07-13): FindLatestByOwner は修正済み。
-	// apperrors.FromGORM(err, "medical_record", ...) で先にラップしてから
-	// apperrors.IsNotFound(wrapped) を判定するため、「該当なし」「他院のみ存在」の
-	// いずれのケースでも正しく nil, nil を返す。
-	t.Run("clinic_id隔離: 別医院のカルテは対象外", func(t *testing.T) {
-		owner := makeTestOwner(t, db, clinicA, "隔離飼主")
-		ownerID := owner.ID
-		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
-			ClinicID: clinicA,
-			OwnerID:  &ownerID,
-			Date:     time.Now().In(time.Local),
-		})
-
-		got, err := repo.FindLatestByOwner(ctx, clinicB, ownerID)
-		require.NoError(t, err)
-		assert.Nil(t, got, "別医院からは nil を返す")
-	})
-
-	t.Run("該当なし: カルテが存在しない飼主は nil, nil", func(t *testing.T) {
-		owner := makeTestOwner(t, db, clinicA, "カルテなし飼主")
-
-		got, err := repo.FindLatestByOwner(ctx, clinicA, owner.ID)
-		require.NoError(t, err)
-		assert.Nil(t, got)
-	})
 }
 
 func TestMedicalRecordRepository_FindOwnerVisitSummary(t *testing.T) {

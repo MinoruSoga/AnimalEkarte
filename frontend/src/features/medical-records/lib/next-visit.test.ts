@@ -88,6 +88,38 @@ describe("deriveNextVisitState (EMR-308)", () => {
     expect(state.intentDate).toBe("2026-10-20");
   });
 
+  it("tentative は intendedDate を sentinel start より優先する", () => {
+    // intendedDate がある行は sentinel 導出より正本を使う
+    // （reservations feature の tentativeIntendedDate と同一規約）。
+    const state = deriveNextVisitState(
+      [
+        {
+          id: "t-1",
+          status: "tentative",
+          start: new Date(2026, 9, 20, 0, 0),
+          intendedDate: "2026-11-15",
+        },
+      ],
+      NOW,
+    );
+
+    expect(state).toEqual({
+      kind: "tentative",
+      label: "2026-11-15",
+      intentDate: "2026-11-15",
+      tentativeId: "t-1",
+    });
+  });
+
+  it("tentative で intendedDate 欠落時は sentinel start の JST 暦日にフォールバックする", () => {
+    const state = deriveNextVisitState(
+      [{ id: "t-1", status: "tentative", start: new Date(2026, 9, 20, 0, 0) }],
+      NOW,
+    );
+
+    expect(state.intentDate).toBe("2026-10-20");
+  });
+
   it("予約が無ければ unset", () => {
     expect(deriveNextVisitState([], NOW)).toEqual({
       kind: "unset",

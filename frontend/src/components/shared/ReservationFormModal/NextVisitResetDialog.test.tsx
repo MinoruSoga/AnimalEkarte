@@ -86,4 +86,12 @@ describe("NextVisitResetDialog (EMR-308)", () => {
     expect(onSubmit).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it("isPending 中は入力・両ボタンを無効化しラベルを「設定中...」にする（mutation.isPending 由来）", () => {
+    renderDialog({ isPending: true });
+
+    expect(screen.getByLabelText("予定日")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "設定しない" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "設定中..." })).toBeDisabled();
+  });
 });

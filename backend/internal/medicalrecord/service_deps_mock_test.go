@@ -30,9 +30,8 @@ type mockMedicalRecordRepository struct {
 	findOwnerVisitSummaryFn           func(ctx context.Context, clinicID, ownerID uint64) (*OwnerVisitSummary, error)
 	countByOwnerIDFn                  func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 	countByOwnerIDCallCount           int
-	// 以下4フィールドは F-3 統合で追加（旧 mockMedRecordRepoForDelivery / mockMedRecordRepoForLstepVisit
+	// 以下2フィールドは F-3 統合で追加（旧 mockMedRecordRepoForDelivery / mockMedRecordRepoForLstepVisit
 	// が個別に持っていたフック）。未設定時は旧共有モックと同じ nil,nil を返す（挙動不変）。
-	findLatestByOwnerFn         func(ctx context.Context, clinicID, ownerID uint64) (*model.MedicalRecord, error)
 	findOwnersByFirstVisitFn    func(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
 	findOwnersByLastVisitDaysFn func(ctx context.Context, clinicID uint64, exactDays int, asOf time.Time) ([]uint64, error)
 
@@ -108,13 +107,6 @@ func (m *mockMedicalRecordRepository) FindOwnerVisitSummary(ctx context.Context,
 		return m.findOwnerVisitSummaryFn(ctx, clinicID, ownerID)
 	}
 	return &OwnerVisitSummary{}, nil
-}
-
-func (m *mockMedicalRecordRepository) FindLatestByOwner(ctx context.Context, clinicID, ownerID uint64) (*model.MedicalRecord, error) {
-	if m.findLatestByOwnerFn != nil {
-		return m.findLatestByOwnerFn(ctx, clinicID, ownerID)
-	}
-	return nil, nil
 }
 
 func (m *mockMedicalRecordRepository) FindDormantOwnerEntries(_ context.Context, _ uint64, _ int) ([]DormantOwnerEntry, error) {
