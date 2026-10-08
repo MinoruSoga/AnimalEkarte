@@ -28,10 +28,12 @@ func TestAllTriggerTypes(t *testing.T) {
 		TriggerTypeFoodRefillReminder,
 		TriggerTypeFirstVisitWelcome,
 		TriggerTypeCheckupFollowUp,
+		TriggerTypeNextVisitTentativeReminder3d,
+		TriggerTypeNextVisitTentativeReminder0d,
 	}
 
 	assert.Equal(t, want, got)
-	assert.Len(t, got, 15)
+	assert.Len(t, got, 17)
 
 	// no duplicates
 	seen := map[string]bool{}

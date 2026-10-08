@@ -196,7 +196,6 @@ beforeEach(() => {
           chiefComplaint: "健康診断",
           doctor: "佐藤",
           visitType: "再診",
-          nextVisitRecommendedDate: "",
         },
         {
           id: "mr1",
@@ -204,7 +203,6 @@ beforeEach(() => {
           chiefComplaint: "外耳炎",
           doctor: "田中",
           visitType: "再診",
-          nextVisitRecommendedDate: "2026-04-01",
         },
       ],
       total: 2,

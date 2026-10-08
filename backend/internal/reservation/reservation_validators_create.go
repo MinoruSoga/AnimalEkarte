@@ -97,9 +97,13 @@ func (v *reservationValidators) createLineReservationInTx(
 		return nil, apperrors.Wrap(err, "failed to generate confirmation number")
 	}
 	appt := buildLineReservation(input, startDT, endDT, confirmationNumber)
-	if err := v.repo.Create(ctx, appt); err != nil {
+	// EMR-308: LINE 予約でもペットの active tentative を同一行昇格する。
+	// pet 未解決（未リンク顧客）のときは repo 側が通常 INSERT にフォールバックする。
+	promoted, err := createOrPromoteTentative(ctx, v.repo, appt)
+	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to create reservation")
 	}
+	appt = promoted
 	if reservationType.Category == model.ReservationTypeCategoryTrimming && hasLineTrimmingDetailInput(input) {
 		if v.trimmingDetailRepo == nil {
 			return nil, apperrors.WrapInternalServerError("trimming detail repository is required for a LINE trimming reservation")

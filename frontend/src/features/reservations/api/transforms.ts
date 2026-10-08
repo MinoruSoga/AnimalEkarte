@@ -1,11 +1,16 @@
 import { jstWallDateToISOString } from "@/lib/jst-date";
-import { transformReservation } from "@/lib/transforms/reservation";
-import type { Reservation } from "@/lib/transforms/reservation";
+// EMR-308: 正本の transform 出力に tentative フィールドを付与した
+// transformReservationWithIntent / 拡張 Reservation を src/hooks から供給する
+// （src/lib/transforms は本ユニット所有パス外のため未変更）。
+import {
+  transformReservationWithIntent,
+  type Reservation,
+} from "@/hooks/reservation-intent-response";
 import type { CreateReservationRequest } from "./types";
 
 // R-F2-S12: transformReservation / Reservation は lib/transforms/reservation.ts へ移設。
 // ここは feature 内既存 import (`./transforms`) を壊さないための re-export。
-export { transformReservation };
+export { transformReservationWithIntent as transformReservation };
 export type { Reservation };
 
 /** Create-only: empty/"0" omit; positive decimal IDs kept; invalid strings fail closed. */

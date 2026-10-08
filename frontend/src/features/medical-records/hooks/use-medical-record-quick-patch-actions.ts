@@ -12,8 +12,6 @@ interface UseMedicalRecordQuickPatchActionsArgs {
   existingRecordVersion?: number;
   visitType: string;
   setVisitType: (visitType: string) => void;
-  nextVisitDate: string;
-  setNextVisitDate: (date: string) => void;
   queryClient: QueryClient;
   updateMutation: {
     mutateAsync: (variables: { id: string; req: UpdateMedicalRecordRequest }) => Promise<unknown>;
@@ -27,8 +25,6 @@ export function useMedicalRecordQuickPatchActions({
   existingRecordVersion,
   visitType,
   setVisitType,
-  nextVisitDate,
-  setNextVisitDate,
   queryClient,
   updateMutation,
   canEdit: canEditOverride,
@@ -119,48 +115,6 @@ export function useMedicalRecordQuickPatchActions({
     ],
   );
 
-  // 次回予定変更ハンドラ（ヘッダー NextVisitButton 用・即時PATCH）
-  // existingRecordVersion のみ参照するため object 全体を dep に含めない (OCC versioning)
-  const handleNextVisitDatePatch = useCallback(
-    (newDate: string) => {
-      if (!isMutationAllowed()) return;
-      const prev = nextVisitDate;
-      setNextVisitDate(newDate);
-      if (!recordId) return; // 新規作成時はローカルstateのみ
-      startSaveTransition(async () => {
-        if (!isMutationAllowed()) return;
-        try {
-          await mutateAsync({
-            id: recordId,
-            req: {
-              next_visit_recommended_date: newDate, // "" = クリア
-              version: existingRecordVersion,
-            } as UpdateMedicalRecordRequest,
-          });
-          await queryClient.invalidateQueries({
-            queryKey: queryKeys.medicalRecords.detail(recordId),
-          });
-          toast.success(
-            newDate ? `次回予定を ${newDate} に設定しました` : "次回予定をクリアしました",
-          );
-        } catch (error) {
-          setNextVisitDate(prev); // rollback
-          handleApiError(error, "次回予定変更");
-        }
-      });
-    },
-    [
-      nextVisitDate,
-      setNextVisitDate,
-      recordId,
-      existingRecordVersion,
-      mutateAsync,
-      queryClient,
-      startSaveTransition,
-      isMutationAllowed,
-    ],
-  );
-
   // 診察日変更ハンドラ
   // existingRecordVersion のみ参照するため object 全体を dep に含めない (OCC versioning)
   const handleChangeDate = useCallback(
@@ -233,7 +187,6 @@ export function useMedicalRecordQuickPatchActions({
     startSaveTransition,
     handleChangeDoctor,
     handleVisitTypeChange,
-    handleNextVisitDatePatch,
     handleChangeDate,
     handleFinalize,
   };

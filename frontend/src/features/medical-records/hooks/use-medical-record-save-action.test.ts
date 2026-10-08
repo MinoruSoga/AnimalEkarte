@@ -39,7 +39,6 @@ function buildSaveArgs(overrides: Record<string, unknown> = {}) {
     canEdit: true,
     isSelectedPetDeceased: false,
     isFinalized: false,
-    isNextVisitDateValid: true,
     diagnosis1CategoryId: null as number | null,
     diagnosis1NameId: null as number | null,
     diagnosis2CategoryId: null as number | null,
@@ -54,14 +53,14 @@ function buildSaveArgs(overrides: Record<string, unknown> = {}) {
     treatmentPolicy: "",
     treatmentPolicyDefault: "",
     treatmentPolicyBaseline: "",
-    nextVisitDate: "",
     existingRecordVersion: 1,
     existingClinicalPlanVersion: 1,
     setManualErrors: vi.fn(),
     queryClient,
     updateInquiryMutation: { mutateAsync: vi.fn() },
     updateTreatmentPlanMutation: { mutateAsync: vi.fn().mockResolvedValue(undefined) },
-    updateMutation: { mutateAsync: vi.fn().mockResolvedValue(undefined) },
+    // EMR-308: updateMutation（カルテ PATCH）は廃止。次回予定は tentative appointment 経路。
+    // overrides で updateMutation を渡すテストは「保存がカルテ PATCH を発行しない」ことを検証する。
     ...overrides,
   };
 }
@@ -99,8 +98,8 @@ describe("useMedicalRecordSaveAction BUG-010 clinical plan payload", () => {
       diagnosis_2_name_id: null,
       version: 1,
     });
-    // next-visit は別責務のため clinical-plan PATCH 回数に含めない
-    expect(updateRecord).toHaveBeenCalledOnce();
+    // EMR-308: 次回予定は tentative appointment 経路に移行したためカルテ PATCH は発行しない
+    expect(updateRecord).not.toHaveBeenCalled();
   });
 
   it("空文字の明示クリアを physical_exam / diagnosis_details / treatment_policy に含めて送信する", async () => {
@@ -390,49 +389,28 @@ describe("useMedicalRecordSaveAction permission boundary", () => {
     expect(result.current.formState.error).toBe("死亡したペットのカルテは保存できません");
   });
 
-  it("治療プラン更新待機中に選択ペットが死亡へ変わると後続のカルテ更新を発行しない", async () => {
-    let resolveTreatmentPlan!: (value: undefined) => void;
-    const updateTreatmentPlan = vi.fn().mockReturnValue(
-      new Promise<undefined>((resolve) => {
-        resolveTreatmentPlan = resolve;
-      }),
-    );
+  // EMR-308: 旧仕様は「clinical-plan 保存後に次回来院推奨日をカルテ PATCH する」第2書き込みが
+  // あったが撤廃。診察/治療プラン保存は clinical-plan PATCH のみでカルテ PATCH を発行しない。
+  it("診察/治療プラン保存は clinical-plan PATCH のみ発行しカルテ PATCH は行わない", async () => {
+    const updateTreatmentPlan = vi.fn().mockResolvedValue(undefined);
     const updateRecord = vi.fn().mockResolvedValue(undefined);
-    const queryClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false },
-        mutations: { retry: false },
-      },
-    });
-    const { result, rerender } = renderHook(
-      ({ isSelectedPetDeceased }: { isSelectedPetDeceased: boolean }) =>
-        useMedicalRecordSaveAction(
-          buildSaveArgs({
-            isSelectedPetDeceased,
-            plan: "経過観察",
-            queryClient,
-            updateTreatmentPlanMutation: { mutateAsync: updateTreatmentPlan },
-            updateMutation: { mutateAsync: updateRecord },
-          }),
-        ),
-      { initialProps: { isSelectedPetDeceased: false } },
+    const { result } = renderHook(() =>
+      useMedicalRecordSaveAction(
+        buildSaveArgs({
+          plan: "経過観察",
+          updateTreatmentPlanMutation: { mutateAsync: updateTreatmentPlan },
+          updateMutation: { mutateAsync: updateRecord },
+        }),
+      ),
     );
 
     act(() => {
       startTransition(() => result.current.formAction(new FormData()));
     });
-    await waitFor(() => expect(updateTreatmentPlan).toHaveBeenCalledOnce());
 
-    rerender({ isSelectedPetDeceased: true });
-    await act(async () => {
-      resolveTreatmentPlan(undefined);
-      await Promise.resolve();
-    });
-
-    await waitFor(() => expect(result.current.formState.timestamp).not.toBe(0));
+    await waitFor(() => expect(result.current.formState.success).toBe(true));
+    expect(updateTreatmentPlan).toHaveBeenCalledOnce();
     expect(updateRecord).not.toHaveBeenCalled();
-    expect(result.current.formState.success).toBe(false);
-    expect(result.current.formState.error).toBe("死亡したペットのカルテは保存できません");
   });
 });
 

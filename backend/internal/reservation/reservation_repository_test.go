@@ -38,6 +38,9 @@ func setupReservationRepoTestDB(t *testing.T) *gorm.DB {
 	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.ReservationType{}, &model.Reservation{},
 		&model.Staff{}, &model.ShiftEntry{}, &model.LineCustomer{},
+		// appointments doctor_id スコープ EXISTS と assertStaffAssignedToClinic が参照する
+		// （EMR-308 intent ops; staffs CASCADE TRUNCATE もこのテーブル前提）。
+		&model.StaffClinicAssignment{},
 		// Validators that assert no partial side-effects also count audit_logs.
 		&model.AuditLog{},
 	))

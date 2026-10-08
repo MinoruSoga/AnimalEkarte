@@ -506,6 +506,26 @@ func (m *mockLiffReservationRepository) AssertLineCustomerInClinic(_ context.Con
 	return nil
 }
 
+func (m *mockLiffReservationRepository) SetNextVisitIntent(_ context.Context, _, _ uint64, _ SetNextVisitIntentInput) (*model.Reservation, error) {
+	return nil, nil
+}
+
+func (m *mockLiffReservationRepository) ClearNextVisitIntent(_ context.Context, _, _ uint64) (bool, error) {
+	return false, nil
+}
+
+func (m *mockLiffReservationRepository) ConfirmTentative(_ context.Context, _, _ uint64, _ ConfirmTentativeUpdate) (*model.Reservation, error) {
+	return nil, nil
+}
+
+func (m *mockLiffReservationRepository) AbsorbTentativeOnBooking(_ context.Context, booking *model.Reservation) (*model.Reservation, error) {
+	return booking, nil
+}
+
+func (m *mockLiffReservationRepository) PromoteTentativeOnCheckin(_ context.Context, booking *model.Reservation) (*model.Reservation, error) {
+	return booking, nil
+}
+
 // --- mockLiffValidators ---
 
 type mockLiffValidators struct {

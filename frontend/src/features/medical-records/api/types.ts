@@ -48,6 +48,5 @@ export interface UpdateMedicalRecordRequest {
   status?: string;
   /** 楽観的ロック用 CAS トークン。GET 応答の version をそのまま返す。 */
   version?: number;
-  next_visit_recommended_date?: string | null;
   visit_type?: string;
 }

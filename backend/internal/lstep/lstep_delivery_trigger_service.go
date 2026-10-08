@@ -19,8 +19,12 @@ type LstepDeliveryTriggerService interface {
 	TriggerFirstVisitFollowUp3D(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
 	// TriggerFirstVisitFollowUp7D は初診から7日後フォローアップ配信をトリガーする。
 	TriggerFirstVisitFollowUp7D(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
-	// TriggerNextVisitReminder は次回来院推奨日当日のリマインダー配信をトリガーする。
-	TriggerNextVisitReminder(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
+	// TriggerNextVisitTentativeReminder3D は tentative 予約の intended_date 3日前
+	// リマインダー配信をトリガーする（EMR-308。stage は trigger_type 文字列が担う）。
+	TriggerNextVisitTentativeReminder3D(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
+	// TriggerNextVisitTentativeReminder0D は tentative 予約の intended_date 当日
+	// リマインダー配信をトリガーする（EMR-308）。
+	TriggerNextVisitTentativeReminder0D(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
 	// TriggerVaccineDeadline60 はワクチン期限60日前リマインダー配信をトリガーする。
 	TriggerVaccineDeadline60(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
 	// TriggerVaccineDeadline30 はワクチン期限30日前リマインダー配信をトリガーする。
@@ -56,10 +60,13 @@ type lstepDeliveryTriggerService struct {
 	triggerLogRepo  LstepDeliveryTriggerLogRepository
 	settingsSvc     LstepSettingsService
 	prioritySvc     LstepTriggerPriorityService                                      // nil → suppression skip (Q23)
+	appointmentRepo deliveryAppointmentRepository                                    // EMR-308: tentative reminder の source of truth。nil → tentative stages no-op
 	clientBuilderFn func(ctx context.Context, clinicID uint64) (lstep.Client, error) // overridden in tests
 }
 
 // NewLstepDeliveryTriggerService は LstepDeliveryTriggerService を初期化して返す。
+// EMR-308: appointmentRepo は tentative リマインダーの candidate 抽出と
+// 送信直前再検証に使う appointment 参照（reservation store を composition で注入）。
 func NewLstepDeliveryTriggerService(
 	ownerRepo deliveryOwnerRepository,
 	medRecordRepo deliveryMedicalRecordRepository,
@@ -69,6 +76,7 @@ func NewLstepDeliveryTriggerService(
 	triggerLogRepo LstepDeliveryTriggerLogRepository,
 	settingsSvc LstepSettingsService,
 	prioritySvc LstepTriggerPriorityService,
+	appointmentRepo deliveryAppointmentRepository,
 ) LstepDeliveryTriggerService {
 	return &lstepDeliveryTriggerService{
 		ownerRepo:       ownerRepo,
@@ -79,5 +87,6 @@ func NewLstepDeliveryTriggerService(
 		triggerLogRepo:  triggerLogRepo,
 		settingsSvc:     settingsSvc,
 		prioritySvc:     prioritySvc,
+		appointmentRepo: appointmentRepo,
 	}
 }

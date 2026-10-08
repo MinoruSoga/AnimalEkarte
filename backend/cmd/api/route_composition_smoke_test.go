@@ -128,7 +128,11 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	//   GET    /api/v1/support/chat/rooms
 	// 534 — deb0795e2 で JSON による画像登録を廃止（upload 経路のみ残す）:
 	//   POST   /api/v1/medical-records/:id/images
-	require.Len(t, routes, 539)
+	// 542 — EMR-308 次回予定（tentative appointment）の staff surface:
+	//   PUT    /api/v1/reservations/pets/:petId/next-visit-intent
+	//   DELETE /api/v1/reservations/pets/:petId/next-visit-intent
+	//   POST   /api/v1/reservations/:id/confirm-tentative
+	require.Len(t, routes, 542)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /health/db",

@@ -15,6 +15,7 @@ import {
   WHILE_DRAG_REDUCED,
   type ReservationTypeColor,
 } from "../lib/week-view-grid-constants";
+import { isTentativeReservation, TENTATIVE_APPOINTMENT_LABEL } from "../lib/tentative";
 
 interface AppointmentCardProps {
   appointment: Reservation;
@@ -66,6 +67,10 @@ export const AppointmentCard = memo(function AppointmentCard({
 
   const isDimmed = appointment.status === "completed" || appointment.status === "cancelled";
   const isCancelled = appointment.status === "cancelled";
+  // EMR-308: tentative（次回予定・未予約）は実時間を持たない sentinel（意図日 00:00 JST）。
+  // 時刻表示は意味を持たないため明示テキストに置き換え、ドラッグ移動も無効化する
+  // （確定は「予約を確定」モーダル経由のみ — use-reservation-actions 側でも fail-closed ガード済み）。
+  const isTentative = isTentativeReservation(appointment);
   const isCompact = height <= 44;
   const isNarrow = !isCompact && height <= 85;
   const dotInfo = STATUS_DOT_STYLE[appointment.status];
@@ -82,7 +87,9 @@ export const AppointmentCard = memo(function AppointmentCard({
   const tooltipText = useMemo(
     () =>
       [
-        `${format(appointment.start, DISPLAY_TIME_FORMAT)}–${format(appointment.end, DISPLAY_TIME_FORMAT)}`,
+        isTentative
+          ? TENTATIVE_APPOINTMENT_LABEL
+          : `${format(appointment.start, DISPLAY_TIME_FORMAT)}–${format(appointment.end, DISPLAY_TIME_FORMAT)}`,
         appointment.petName,
         appointment.ownerName,
         appointment.doctor,
@@ -90,19 +97,30 @@ export const AppointmentCard = memo(function AppointmentCard({
       ]
         .filter(Boolean)
         .join(" / "),
-    [appointment, typeLabel],
+    [appointment, typeLabel, isTentative],
+  );
+
+  const tentativeBadge = (
+    <span
+      className={`${C.bgWarning50} ${C.textWarning} border ${C.borderWarning20} ${
+        isCompact ? "px-0.5 text-2xs" : "px-1 text-xs"
+      } rounded flex-shrink-0 whitespace-nowrap font-semibold`}
+    >
+      {TENTATIVE_APPOINTMENT_LABEL}
+    </span>
   );
 
   return (
     <motion.button
       type="button"
-      className={`absolute min-h-11 rounded border hover:ring-1 ${C.ringPrimary20} transition-all cursor-grab active:cursor-grabbing z-10 overflow-hidden group touch-none
+      className={`absolute min-h-11 rounded border hover:ring-1 ${C.ringPrimary20} transition-all z-10 overflow-hidden group touch-none
+        ${isTentative ? "cursor-pointer border-dashed" : "cursor-grab active:cursor-grabbing"}
         ${isCompact ? "py-px px-1" : isNarrow ? "px-1 py-0.5" : "p-1"}
         ${isClassNameColor ? colorStyle : ""}
         ${isDimmed ? "opacity-60" : "opacity-100"}
         ${isCancelled ? `line-through ${C.decorationDanger50}` : ""}
       `}
-      aria-label={`${format(appointment.start, DISPLAY_TIME_FORMAT)}〜${format(appointment.end, DISPLAY_TIME_FORMAT)} ${appointment.petName} ${appointment.ownerName} ${typeLabel}`}
+      aria-label={`${isTentative ? `${TENTATIVE_APPOINTMENT_LABEL} ` : ""}${format(appointment.start, DISPLAY_TIME_FORMAT)}〜${format(appointment.end, DISPLAY_TIME_FORMAT)} ${appointment.petName} ${appointment.ownerName} ${typeLabel}`}
       title={tooltipText}
       style={{
         top: `${top}px`,
@@ -118,11 +136,11 @@ export const AppointmentCard = memo(function AppointmentCard({
         }
         isDragging.current = false;
       }}
-      drag="y"
+      drag={isTentative ? false : "y"}
       dragMomentum={false}
       dragElastic={0}
       dragConstraints={dragConstraints}
-      dragSnapToOrigin={!onUpdate}
+      dragSnapToOrigin={isTentative || !onUpdate}
       onDrag={() => {
         isDragging.current = true;
       }}
@@ -148,9 +166,13 @@ export const AppointmentCard = memo(function AppointmentCard({
 
       {isCompact ? (
         <div className="flex items-center gap-1 h-full pointer-events-none relative z-10 pr-2">
-          <span className="font-semibold text-xs whitespace-nowrap leading-none">
-            {format(appointment.start, DISPLAY_TIME_FORMAT)}
-          </span>
+          {isTentative ? (
+            tentativeBadge
+          ) : (
+            <span className="font-semibold text-xs whitespace-nowrap leading-none">
+              {format(appointment.start, DISPLAY_TIME_FORMAT)}
+            </span>
+          )}
           <FirstVisitBadge show={isFirstVisit} compact />
           <span className="truncate text-xs font-medium leading-none">{appointment.petName}</span>
         </div>
@@ -159,9 +181,13 @@ export const AppointmentCard = memo(function AppointmentCard({
       {isNarrow ? (
         <div className="flex flex-col h-full pointer-events-none relative z-10">
           <div className="flex items-center gap-1 pr-3 leading-none">
-            <span className="font-semibold text-xs whitespace-nowrap">
-              {format(appointment.start, DISPLAY_TIME_FORMAT)}
-            </span>
+            {isTentative ? (
+              tentativeBadge
+            ) : (
+              <span className="font-semibold text-xs whitespace-nowrap">
+                {format(appointment.start, DISPLAY_TIME_FORMAT)}
+              </span>
+            )}
             <FirstVisitBadge show={isFirstVisit} compact />
           </div>
           <div className="font-medium truncate text-xs leading-none mt-0.5">
@@ -176,7 +202,11 @@ export const AppointmentCard = memo(function AppointmentCard({
       {!isCompact && !isNarrow ? (
         <div className="flex flex-col h-full pointer-events-none relative z-10">
           <div className="flex items-center gap-1 font-semibold text-sm leading-none mb-1 pr-3">
-            <span className="truncate">{format(appointment.start, DISPLAY_TIME_FORMAT)}</span>
+            {isTentative ? (
+              tentativeBadge
+            ) : (
+              <span className="truncate">{format(appointment.start, DISPLAY_TIME_FORMAT)}</span>
+            )}
             <FirstVisitBadge show={isFirstVisit} />
           </div>
           <div className="font-medium truncate text-sm leading-none">{appointment.petName}</div>

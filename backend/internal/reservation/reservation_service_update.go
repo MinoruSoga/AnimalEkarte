@@ -123,6 +123,22 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	if input.Status != nil && *input.Status == model.ReservationStatusCheckedIn && current.Status != model.ReservationStatusCheckedIn {
 		fields["checked_in_at"] = time.Now()
 	}
+	// EMR-308: tentative（record_intent）行の当日受付は sentinel 時刻（JST 00:00-00:15）を
+	// 実受付時刻に置き換え、同じ行を checked_in へ昇格する。general placeholder 区分・
+	// intended_date・source_medical_record_id の provenance は維持し新規行は作らない。
+	// status-only PATCH では schedule 不変扱いのため枠競合・休診日チェックは発火しない。
+	// sentinel をそのまま echo してくる全量 PATCH（input の値が現在値と一致）も
+	// 実受付時刻へ置き換える。sentinel と異なる時刻を明示した場合はその意図を尊重する。
+	if input.Status != nil && *input.Status == model.ReservationStatusCheckedIn &&
+		current.Status == model.ReservationStatusTentative {
+		now := time.Now()
+		if input.StartTime == nil || input.StartTime.Equal(current.StartTime) {
+			fields["start_time"] = now
+		}
+		if input.EndTime == nil || input.EndTime.Equal(current.EndTime) {
+			fields["end_time"] = now.Add(nextVisitIntentDurationMinutes * time.Minute)
+		}
+	}
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -160,6 +176,9 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 		}); err != nil {
 			return nil, apperrors.Wrap(err, "failed to cancel reservation")
 		}
+		// EMR-308: cancel（status 更新+soft delete）で次回来院が消えるため新旧 owner 双方を
+		// post-commit 再同期する（所有者付け替え時は旧側のタグも取り残さない）。
+		syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, current.OwnerID, updated.OwnerID)
 		slog.InfoContext(ctx, "reservation updated",
 			slog.Uint64("reservation_id", id),
 			slog.Uint64("clinic_id", clinicID))
@@ -171,6 +190,9 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 		return nil, apperrors.Wrap(err, "failed to update reservation")
 	}
 
+	// EMR-308: 日時・ステータス・所有者変更で次回来院が変わり得るため post-commit で
+	// 新旧 owner を再同期する（同一 owner は helper 内で重複排除される）。
+	syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, current.OwnerID, updated.OwnerID)
 	slog.InfoContext(ctx, "reservation updated",
 		slog.Uint64("reservation_id", id),
 		slog.Uint64("clinic_id", clinicID))
@@ -265,7 +287,10 @@ func (s *reservationService) UpdateReservationRoute(ctx context.Context, clinicI
 }
 
 func (s *reservationService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+	// EMR-308: 削除後は owner を引けないため、post-commit の next_visit タグ除去
+	// 同期のために削除前の予約（owner_id）を保持しておく。
+	existing, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
 		return apperrors.Wrap(err, "failed to find reservation")
 	}
 	count, err := s.repo.CountMedicalRecordsByReservationID(ctx, clinicID, id)
@@ -277,6 +302,9 @@ func (s *reservationService) Delete(ctx context.Context, clinicID, id uint64) er
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete reservation")
+	}
+	if existing != nil {
+		syncNextVisitTagBestEffort(ctx, s.nextVisitTagSync, clinicID, existing.OwnerID)
 	}
 	slog.InfoContext(ctx, "reservation deleted",
 		slog.Uint64("reservation_id", id),

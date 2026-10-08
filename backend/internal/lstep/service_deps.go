@@ -100,7 +100,19 @@ type tagSyncVaccinationRepo interface {
 
 type tagSyncMedicalRecordRepo interface {
 	FindOwnerVisitSummary(ctx context.Context, clinicID, ownerID uint64) (*medicalrecord.OwnerVisitSummary, error)
-	FindLatestByOwner(ctx context.Context, clinicID, ownerID uint64) (*model.MedicalRecord, error)
+}
+
+// tagSyncNextVisitAppointmentRepo は next_visit_* タグ同期が必要とする
+// 次回 appointment 参照の最小view（EMR-308）。source of truth はカルテの
+// 旧推奨日カラムではなく予約（tentative は intended_date、
+// それ以外は start_time）に移る。具象は reservation domain の store で、
+// composition root が注入する（lstep は最下流で reservation を import できない
+// ため consumer-side interface で受け取る）。nil 許容。
+type tagSyncNextVisitAppointmentRepo interface {
+	// FindNextAppointmentForOwner は飼い主の次回来院に相当する active appointment
+	// を返す。該当なしは (nil, nil)。tentative の意味上の日付は IntendedDate、
+	// それ以外は StartTime。
+	FindNextAppointmentForOwner(ctx context.Context, clinicID, ownerID uint64) (*model.Reservation, error)
 }
 
 type tagSyncAccountingRepo interface {

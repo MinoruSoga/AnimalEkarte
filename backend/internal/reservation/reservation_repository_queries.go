@@ -23,7 +23,7 @@ func requireReservationRowLockTransaction(ctx context.Context) error {
 func (r *reservationRepository) CountByTypeAndStartTime(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error) {
 	var count int64
 	q := persistence.DBOrTx(ctx, r.db).Model(&model.Reservation{}).
-		Where("clinic_id = ? AND reservation_type_id = ? AND start_time = ? AND status NOT IN ('cancelled') AND deleted_at IS NULL",
+		Where("clinic_id = ? AND reservation_type_id = ? AND start_time = ? AND status NOT IN ('cancelled', 'tentative') AND deleted_at IS NULL",
 			clinicID, reservationTypeID, startTime)
 	if excludeID != nil {
 		q = q.Where("id != ?", *excludeID)
@@ -49,7 +49,7 @@ func (r *reservationRepository) CountByTypeAndStartTimes(ctx context.Context, cl
 	var rows []countByTypeAndStartTimeRow
 	q := persistence.DBOrTx(ctx, r.db).Model(&model.Reservation{}).
 		Select("start_time, COUNT(*) AS count").
-		Where("clinic_id = ? AND reservation_type_id = ? AND start_time IN ? AND status NOT IN ('cancelled') AND deleted_at IS NULL",
+		Where("clinic_id = ? AND reservation_type_id = ? AND start_time IN ? AND status NOT IN ('cancelled', 'tentative') AND deleted_at IS NULL",
 			clinicID, reservationTypeID, startTimes).
 		Group("start_time")
 	if excludeID != nil {
@@ -70,7 +70,7 @@ func (r *reservationRepository) CountByCustomerAndDateRange(ctx context.Context,
 	var count int64
 	err := persistence.DBOrTx(ctx, r.db).Model(&model.Reservation{}).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("line_customer_id = ? AND status NOT IN ('cancelled') AND start_time >= ? AND start_time < ? AND deleted_at IS NULL",
+		Where("line_customer_id = ? AND status NOT IN ('cancelled', 'tentative') AND start_time >= ? AND start_time < ? AND deleted_at IS NULL",
 			customerID, start, end,
 		).Count(&count).Error
 	if err != nil {

@@ -744,13 +744,7 @@ func TestAutoCreateFromReservation_ExistingAppointmentRepairsSubrecordsWithoutCr
 		},
 	}
 	auditSvc := &mockAuditService{}
-	nextVisitSyncs := 0
-	tagSyncSvc := &mockLstepTagSyncService{
-		syncNextVisitTagFn: func(_ context.Context, _, _ uint64) error {
-			nextVisitSyncs++
-			return nil
-		},
-	}
+	tagSyncSvc := &mockLstepTagSyncService{}
 	svc := NewMedicalRecordServiceWithTxAudit(
 		repo, nil, clinicalPlanRepo, nil, nil, nil, nil, reservationRepo, nil, auditSvc, nil, &mockTransactor{}, tagSyncSvc)
 
@@ -758,7 +752,6 @@ func TestAutoCreateFromReservation_ExistingAppointmentRepairsSubrecordsWithoutCr
 
 	assert.Equal(t, 1, subrecordLookups, "existing appointment record must still receive best-effort subrecord repair")
 	assert.Empty(t, auditSvc.calls, "existing appointment record must not emit another create audit")
-	assert.Equal(t, 0, nextVisitSyncs, "existing appointment record must not repeat create tag side effects")
 }
 
 func TestAutoCreateFromReservation_RollsBackCreateWhenOuterTransactionFails(t *testing.T) {

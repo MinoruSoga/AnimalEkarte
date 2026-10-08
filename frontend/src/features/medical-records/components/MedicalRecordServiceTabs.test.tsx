@@ -52,7 +52,6 @@ const baseProps: MedicalRecordTabsAreaProps & { isFinalized: boolean } = {
   diagnosis2CategoryId: null,
   diagnosis2NameId: null,
   ownerDiscountRate: 0,
-  nextVisitDate: "",
   hasLineIntegration: false,
   recommendationReason: null,
   lstepStatus: undefined,
@@ -70,8 +69,6 @@ const baseProps: MedicalRecordTabsAreaProps & { isFinalized: boolean } = {
   onDiagnosis1NameIdChange: () => {},
   onDiagnosis2CategoryIdChange: () => {},
   onDiagnosis2NameIdChange: () => {},
-  onNextVisitDateChange: () => {},
-  onNextVisitDateValidChange: () => {},
   onRecommendationReasonChange: () => {},
   onRegisterEstimateSave: () => {},
 };

@@ -94,7 +94,45 @@ func TestSyncNextVisitTag(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("returns wrapped error when latest medical record lookup fails", func(t *testing.T) {
+	t.Run("returns error without touching tags when appointment repo is not configured", func(t *testing.T) {
+		// EMR-308 fail-closed: 誤配線（cmd/lstep-migrate 等）で既存 next_visit_* が
+		// 黙って剥奪されることを防ぐため、repo 未注入はエラーで返しタグに触れない。
+		var addedTags, removedTags []string
+		tagCacheLoaded := false
+		client := &mockLstepAPIClient{
+			addTagFn: func(_ context.Context, _, tagName string) error {
+				addedTags = append(addedTags, tagName)
+				return nil
+			},
+			removeTagFn: func(_ context.Context, _, tagName string) error {
+				removedTags = append(removedTags, tagName)
+				return nil
+			},
+		}
+		svc := &lstepTagSyncService{
+			settingsSvc: &mockLstepSettingsService{},
+			ownerRepo: &mockOwnerRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+					return &model.Owner{ID: 2, LineUserID: &lineUID}, nil
+				},
+			},
+			buildClientFn:            func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
+			nextVisitAppointmentRepo: nil,
+			tagCacheRepo: &mockLstepTagCacheRepository{
+				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
+					tagCacheLoaded = true
+					return []*model.LstepTagCache{{TagName: "next_visit_2025-01-01"}}, nil
+				},
+			},
+		}
+		err := svc.SyncNextVisitTag(context.Background(), 1, 2)
+		assert.Error(t, err)
+		assert.False(t, tagCacheLoaded, "tag cache must not be read when the appointment repo is missing")
+		assert.Empty(t, addedTags)
+		assert.Empty(t, removedTags)
+	})
+
+	t.Run("returns wrapped error when next appointment lookup fails", func(t *testing.T) {
 		svc := &lstepTagSyncService{
 			settingsSvc: &mockLstepSettingsService{},
 			ownerRepo: &mockOwnerRepository{
@@ -105,9 +143,9 @@ func TestSyncNextVisitTag(t *testing.T) {
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) {
 				return &mockLstepAPIClient{}, nil
 			},
-			medRecordRepo: &mockMedicalRecordRepository{
-				findLatestByOwnerFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-					return nil, errors.New("medical record db error")
+			nextVisitAppointmentRepo: &mockNextVisitAppointmentRepo{
+				findNextAppointmentForOwnerFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+					return nil, errors.New("appointment db error")
 				},
 			},
 		}
@@ -126,7 +164,7 @@ func TestSyncNextVisitTag(t *testing.T) {
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) {
 				return &mockLstepAPIClient{}, nil
 			},
-			medRecordRepo: &mockMedicalRecordRepository{},
+			nextVisitAppointmentRepo: &mockNextVisitAppointmentRepo{},
 			tagCacheRepo: &mockLstepTagCacheRepository{
 				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
 					return nil, errors.New("cache db error")
@@ -137,7 +175,7 @@ func TestSyncNextVisitTag(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("no latest record: removes stale next_visit tags and adds nothing", func(t *testing.T) {
+	t.Run("no next appointment: removes stale next_visit tags and adds nothing", func(t *testing.T) {
 		var addedTags, removedTags []string
 		client := &mockLstepAPIClient{
 			addTagFn: func(_ context.Context, _, tagName string) error {
@@ -156,8 +194,8 @@ func TestSyncNextVisitTag(t *testing.T) {
 					return &model.Owner{ID: 2, LineUserID: &lineUID}, nil
 				},
 			},
-			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
-			medRecordRepo: &mockMedicalRecordRepository{},
+			buildClientFn:            func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
+			nextVisitAppointmentRepo: &mockNextVisitAppointmentRepo{},
 			tagCacheRepo: &mockLstepTagCacheRepository{
 				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
 					return []*model.LstepTagCache{
@@ -174,7 +212,7 @@ func TestSyncNextVisitTag(t *testing.T) {
 		assert.Empty(t, addedTags)
 	})
 
-	t.Run("latest record with no recommended date: removes stale tags, adds nothing", func(t *testing.T) {
+	t.Run("tentative appointment without intended_date: removes stale tags, adds nothing", func(t *testing.T) {
 		var addedTags []string
 		client := &mockLstepAPIClient{
 			addTagFn: func(_ context.Context, _, tagName string) error {
@@ -190,9 +228,9 @@ func TestSyncNextVisitTag(t *testing.T) {
 				},
 			},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
-			medRecordRepo: &mockMedicalRecordRepository{
-				findLatestByOwnerFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-					return &model.MedicalRecord{ID: 5, NextVisitRecommendedDate: nil}, nil
+			nextVisitAppointmentRepo: &mockNextVisitAppointmentRepo{
+				findNextAppointmentForOwnerFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+					return &model.Reservation{ID: 5, Status: model.ReservationStatusTentative, IntendedDate: nil}, nil
 				},
 			},
 			tagCacheRepo: &mockLstepTagCacheRepository{},
@@ -202,7 +240,7 @@ func TestSyncNextVisitTag(t *testing.T) {
 		assert.Empty(t, addedTags)
 	})
 
-	t.Run("success: adds new next_visit tag from latest recommended date", func(t *testing.T) {
+	t.Run("success: adds new next_visit tag from confirmed appointment start_time", func(t *testing.T) {
 		var addedTags []string
 		client := &mockLstepAPIClient{
 			addTagFn: func(_ context.Context, _, tagName string) error {
@@ -210,7 +248,6 @@ func TestSyncNextVisitTag(t *testing.T) {
 				return nil
 			},
 		}
-		next := time.Date(2026, 9, 15, 0, 0, 0, 0, time.UTC)
 		svc := &lstepTagSyncService{
 			settingsSvc: &mockLstepSettingsService{},
 			ownerRepo: &mockOwnerRepository{
@@ -219,9 +256,13 @@ func TestSyncNextVisitTag(t *testing.T) {
 				},
 			},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
-			medRecordRepo: &mockMedicalRecordRepository{
-				findLatestByOwnerFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-					return &model.MedicalRecord{ID: 5, NextVisitRecommendedDate: &next}, nil
+			nextVisitAppointmentRepo: &mockNextVisitAppointmentRepo{
+				findNextAppointmentForOwnerFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+					return &model.Reservation{
+						ID:        5,
+						Status:    model.ReservationStatusConfirmed,
+						StartTime: time.Date(2026, 9, 15, 10, 30, 0, 0, time.UTC),
+					}, nil
 				},
 			},
 			tagCacheRepo: &mockLstepTagCacheRepository{},
@@ -229,6 +270,35 @@ func TestSyncNextVisitTag(t *testing.T) {
 		err := svc.SyncNextVisitTag(context.Background(), 1, 2)
 		assert.NoError(t, err)
 		assert.Contains(t, addedTags, "next_visit_2026-09-15")
+	})
+
+	t.Run("success: adds new next_visit tag from tentative appointment intended_date", func(t *testing.T) {
+		var addedTags []string
+		client := &mockLstepAPIClient{
+			addTagFn: func(_ context.Context, _, tagName string) error {
+				addedTags = append(addedTags, tagName)
+				return nil
+			},
+		}
+		intended := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+		svc := &lstepTagSyncService{
+			settingsSvc: &mockLstepSettingsService{},
+			ownerRepo: &mockOwnerRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+					return &model.Owner{ID: 2, LineUserID: &lineUID}, nil
+				},
+			},
+			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
+			nextVisitAppointmentRepo: &mockNextVisitAppointmentRepo{
+				findNextAppointmentForOwnerFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+					return &model.Reservation{ID: 6, Status: model.ReservationStatusTentative, IntendedDate: &intended}, nil
+				},
+			},
+			tagCacheRepo: &mockLstepTagCacheRepository{},
+		}
+		err := svc.SyncNextVisitTag(context.Background(), 1, 2)
+		assert.NoError(t, err)
+		assert.Contains(t, addedTags, "next_visit_2026-10-01")
 	})
 
 	t.Run("removing a stale next_visit tag fails: recorded as api failure but continues", func(t *testing.T) {
@@ -243,8 +313,8 @@ func TestSyncNextVisitTag(t *testing.T) {
 					return &model.Owner{ID: 2, LineUserID: &lineUID}, nil
 				},
 			},
-			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
-			medRecordRepo: &mockMedicalRecordRepository{},
+			buildClientFn:            func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
+			nextVisitAppointmentRepo: &mockNextVisitAppointmentRepo{},
 			tagCacheRepo: &mockLstepTagCacheRepository{
 				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
 					return []*model.LstepTagCache{{TagName: "next_visit_2025-01-01"}}, nil
@@ -266,7 +336,6 @@ func TestSyncNextVisitTag(t *testing.T) {
 		client := &mockLstepAPIClient{
 			addTagFn: func(_ context.Context, _, _ string) error { return errors.New("add failed") },
 		}
-		next := time.Date(2026, 9, 15, 0, 0, 0, 0, time.UTC)
 		svc := &lstepTagSyncService{
 			settingsSvc: &mockLstepSettingsService{},
 			ownerRepo: &mockOwnerRepository{
@@ -275,9 +344,13 @@ func TestSyncNextVisitTag(t *testing.T) {
 				},
 			},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
-			medRecordRepo: &mockMedicalRecordRepository{
-				findLatestByOwnerFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-					return &model.MedicalRecord{ID: 5, NextVisitRecommendedDate: &next}, nil
+			nextVisitAppointmentRepo: &mockNextVisitAppointmentRepo{
+				findNextAppointmentForOwnerFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+					return &model.Reservation{
+						ID:        5,
+						Status:    model.ReservationStatusConfirmed,
+						StartTime: time.Date(2026, 9, 15, 10, 0, 0, 0, time.UTC),
+					}, nil
 				},
 			},
 			tagCacheRepo: &mockLstepTagCacheRepository{},

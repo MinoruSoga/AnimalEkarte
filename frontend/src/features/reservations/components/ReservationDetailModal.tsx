@@ -15,6 +15,7 @@ import {
   PawPrint,
   Tag,
   AlertTriangle,
+  CalendarCheck,
 } from "lucide-react";
 import { useGetOwnerLineTags } from "@/hooks/use-owner-line-tags";
 import { useGetPet } from "@/hooks/use-pet";
@@ -48,6 +49,12 @@ import {
   getReservationStatusColor,
   getVisitTypeColor,
 } from "@/constants/status-colors";
+import {
+  EXPIRED_TENTATIVE_LABEL,
+  isExpiredTentativeReservation,
+  isTentativeReservation,
+  TENTATIVE_APPOINTMENT_LABEL,
+} from "../lib/tentative";
 
 interface ReservationDetailModalProps {
   isOpen: boolean;
@@ -56,6 +63,11 @@ interface ReservationDetailModalProps {
   onDelete?: (reservation: Reservation) => void;
   onCreateRecord?: (reservation: Reservation) => void;
   onStatusChange?: (reservation: Reservation, status: ReservationStatus) => void;
+  /**
+   * EMR-308: tentative（次回予定・未予約）行を「予約を確定」モーダルで開く。
+   * 省略時は tentative 行に確定ボタンを出さない（fail-closed）。
+   */
+  onConfirmTentative?: (reservation: Reservation) => void;
   reservation: Reservation | null;
 }
 
@@ -119,6 +131,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
   onDelete,
   onCreateRecord,
   onStatusChange,
+  onConfirmTentative,
   reservation,
 }: ReservationDetailModalProps) {
   const { getColor } = useReservationTypeColorMap();
@@ -131,6 +144,10 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
 
   if (!reservation) return null;
 
+  // EMR-308: tentative（次回予定・未予約）は実時間を持たない。status セレクトや通常編集ではなく
+  // 「予約を確定」（confirm-tentative API）で昇格させるため専用 UI に切り替える。
+  const isTentative = isTentativeReservation(reservation);
+  const isExpiredTentative = isExpiredTentativeReservation(reservation);
   const actionConfig = getActionConfig(reservation);
   const visitAccent = getVisitTypeColor(reservation.visitType);
   const currentStatus = getReservationStatusColor(reservation.status);
@@ -156,6 +173,14 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
               {reservation.visitType === "first" ? "初診" : "再診"}
             </div>
             <DialogTitle className={`text-sm ${C.text}`}>{typeLabel}</DialogTitle>
+            {/* EMR-308: tentative は色だけでなく明示テキストで識別する */}
+            {isTentative ? (
+              <span
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold ${C.bgWarning50} ${C.textWarning} ${C.borderWarning20} border`}
+              >
+                {isExpiredTentative ? EXPIRED_TENTATIVE_LABEL : TENTATIVE_APPOINTMENT_LABEL}
+              </span>
+            ) : null}
           </div>
           <DialogDescription className="sr-only">予約の詳細情報</DialogDescription>
         </DialogHeader>
@@ -175,8 +200,8 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
             </div>
           ) : null}
 
-          {/* Status Selector */}
-          {onStatusChange ? (
+          {/* Status Selector — tentative 行は通常 PATCH で状態を変えず confirm-tentative で昇格する */}
+          {onStatusChange && !isTentative ? (
             <div
               className={`flex items-center justify-between rounded-lg border px-3 py-2 ${currentStatus.bg} ${currentStatus.text} border-transparent`}
             >
@@ -216,8 +241,10 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
                 </div>
                 <div className={`flex items-center gap-1.5 text-sm ${C.text60} mt-0.5`}>
                   <Clock className={ICON.xs} />
-                  {format(reservation.start, DISPLAY_TIME_FORMAT)} –{" "}
-                  {format(reservation.end, DISPLAY_TIME_FORMAT)}
+                  {/* tentative の start/end は意図日 00:00–00:15 の sentinel。実時刻ではないため明示表示 */}
+                  {isTentative
+                    ? "時刻未設定（予定日のみ）"
+                    : `${format(reservation.start, DISPLAY_TIME_FORMAT)} – ${format(reservation.end, DISPLAY_TIME_FORMAT)}`}
                 </div>
               </div>
             </div>
@@ -303,10 +330,25 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
           className={`px-6 py-3 ${C.bgSubtle} flex flex-row items-center border-t ${C.borderDivider}`}
         >
           <div className="flex-1">
-            {onDelete ? <DeleteIconButton onClick={() => onDelete(reservation)} /> : null}
+            {/* tentative 行の終了は DELETE next-visit-intent（期限超過パネル「終了」）経路のみ。
+                通常 DELETE で sentinel 行を消す導線は出さない */}
+            {onDelete && !isTentative ? (
+              <DeleteIconButton onClick={() => onDelete(reservation)} />
+            ) : null}
           </div>
           <div className="flex gap-2">
-            {onEdit ? (
+            {isTentative ? (
+              onConfirmTentative ? (
+                <Button
+                  size="sm"
+                  onClick={() => onConfirmTentative(reservation)}
+                  className={`h-9 text-sm gap-1.5 ${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid}`}
+                >
+                  <CalendarCheck className={ICON.xs} />
+                  予約を確定
+                </Button>
+              ) : null
+            ) : onEdit ? (
               <Button
                 variant="outline"
                 size="sm"
@@ -317,8 +359,11 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
                 編集
               </Button>
             ) : null}
-            {/* 死亡ペットは新規カルテ作成不可 (EMR-177 positive-match ゲート) */}
-            {onCreateRecord && !isDeceasedPet ? (
+            {/* 死亡ペットは新規カルテ作成不可 (EMR-177 positive-match ゲート)。
+                EMR-308: tentative 行も出さない — appointmentId 付き遷移は sentinel 行に
+                直接紐づき昇格しない。当日 tentative の昇格は「予約を確定」または
+                カルテ新規作成（record_shortcut → BE 同一行昇格）経路で行う。 */}
+            {onCreateRecord && !isDeceasedPet && !isTentative ? (
               <Button
                 size="sm"
                 className={`${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} h-9 text-sm gap-1.5 rounded-full shadow-none`}

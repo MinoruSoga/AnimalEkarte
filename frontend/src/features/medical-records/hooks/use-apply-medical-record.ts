@@ -10,7 +10,6 @@ interface UseApplyMedicalRecordArgs {
   setPlan: (value: string) => void;
   setAssessment: (value: string) => void;
   setVisitType?: (value: string) => void;
-  setNextVisitDate?: (value: string) => void;
   // BUG-410: 未配線だと保存済みの構造化診断(diagnosis1/2)が編集保存で無言クリアされる。
   setDiagnosis1CategoryId?: (id: number | null) => void;
   setDiagnosis1NameId?: (id: number | null) => void;
@@ -26,7 +25,6 @@ export function useApplyMedicalRecord({
   setPlan,
   setAssessment,
   setVisitType,
-  setNextVisitDate,
   setDiagnosis1CategoryId,
   setDiagnosis1NameId,
   setDiagnosis2CategoryId,
@@ -52,7 +50,6 @@ export function useApplyMedicalRecord({
     if (existingRecord.assessment) setAssessment(existingRecord.assessment);
     if (existingRecord.notes) setTreatmentPolicy(existingRecord.notes);
     if (existingRecord.visitType && setVisitType) setVisitType(existingRecord.visitType);
-    if (setNextVisitDate) setNextVisitDate(existingRecord.nextVisitRecommendedDate);
     if (existingRecord.diagnosis1CategoryId != null && setDiagnosis1CategoryId) {
       setDiagnosis1CategoryId(existingRecord.diagnosis1CategoryId);
     }

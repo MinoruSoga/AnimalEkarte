@@ -73,6 +73,65 @@ describe("WeekView AppointmentCard touch target", () => {
   });
 });
 
+describe("WeekView AppointmentCard tentative (EMR-308)", () => {
+  // tentative（次回予定・未予約）は意図日 00:00 JST の sentinel 時刻を持つ。
+  // 時刻表示ではなく明示テキストで識別し、ドラッグも無効化する。
+  const tentativeAppointment: Reservation = {
+    ...appointment,
+    id: "tentative-1",
+    start: new Date("2026-07-21T00:00:00"),
+    end: new Date("2026-07-21T00:30:00"),
+    isTentative: true,
+    intendedDate: "2026-07-21",
+  };
+
+  it("次回予定・未予約 の明示テキストを表示し、aria-label にも含める", () => {
+    render(
+      <AppointmentCard
+        appointment={tentativeAppointment}
+        layoutStyle={{ left: "0%", width: "100%" }}
+        onClick={vi.fn()}
+      />,
+    );
+
+    const card = screen.getByRole("button", { name: /次回予定・未予約/ });
+    expect(card).toBeInTheDocument();
+    // 色だけに頼らない識別子: 破線スタイル + title でも識別できる
+    expect(card).toHaveClass("border-dashed");
+    expect(card).toHaveAttribute("title", expect.stringContaining("次回予定・未予約"));
+  });
+
+  it("tentative はドラッグ用カーソルではなく通常カーソルにする", () => {
+    render(
+      <AppointmentCard
+        appointment={tentativeAppointment}
+        layoutStyle={{ left: "0%", width: "100%" }}
+        onClick={vi.fn()}
+        onUpdate={vi.fn()}
+      />,
+    );
+
+    const card = screen.getByRole("button", { name: /次回予定・未予約/ });
+    expect(card).toHaveClass("cursor-pointer");
+    expect(card).not.toHaveClass("cursor-grab");
+  });
+
+  it("通常予約は従来どおり時刻表示で tentative バッジを出さない", () => {
+    render(
+      <AppointmentCard
+        appointment={appointment}
+        layoutStyle={{ left: "0%", width: "100%" }}
+        onClick={vi.fn()}
+      />,
+    );
+
+    const card = screen.getByRole("button", { name: /00:23〜00:38/ });
+    expect(card).not.toHaveClass("border-dashed");
+    expect(card).toHaveClass("cursor-grab");
+    expect(screen.queryByText("次回予定・未予約")).not.toBeInTheDocument();
+  });
+});
+
 describe("WeekView AppointmentCard inactive type label (BUG-016)", () => {
   it("appends （無効） to accessible name and title when dynamicColorMap marks type inactive", () => {
     const dynamicColorMap = new Map<string, ReservationTypeColor>([

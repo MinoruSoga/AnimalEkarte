@@ -88,6 +88,11 @@ type CreateReservationInput struct {
 	TrimmingCourseID     *uint64  // BE-120: トリミングコース（category=trimming 時）
 	TrimmingOptionIDs    []uint64 // BE-120: トリミングオプション
 	TrimmingStyleRequest string   // BE-120: スタイルリクエスト
+	// EMR-308: 作成前に解決済みの紐付け先 owner/pet。設定時は予約行に直接載せ、
+	// 同ペットの active tentative があれば新規行ではなく同一行を昇格する。
+	// 未設定（未リンク顧客）のときは従来どおり nil のまま作成する。
+	OwnerID *uint64
+	PetID   *uint64
 }
 
 type reservationValidators struct {
@@ -269,6 +274,8 @@ func buildLineReservation(input *CreateReservationInput, startDT, endDT time.Tim
 		Status:            model.ReservationStatusConfirmed,
 		Source:            model.ReservationSourceLine,
 		LineCustomerID:    &input.CustomerID,
+		OwnerID:           input.OwnerID,
+		PetID:             input.PetID,
 		IsStaffDelegated:  input.StaffID == 0,
 		CustomerFields:    customerFields,
 		Notes:             notes,

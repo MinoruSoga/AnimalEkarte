@@ -251,13 +251,10 @@ export function MedicalRecordFormReadyPanels({
             tabs={MEDICAL_RECORD_TAB_ITEMS}
             recordDate={form.recordDate}
             recordStatus={ready.currentRecord?.status}
-            nextVisitDate={form.nextVisitDate}
             onVisitTypeChange={form.handleVisitTypeChange}
             onStaffClick={ready.modals.handleOpenStaffModal}
             onOwnerClick={ready.modals.handleOpenOwnerSearch}
             onDateChange={form.handleChangeDate}
-            onNextVisitDatePatch={form.handleNextVisitDatePatch}
-            onNextVisitDateValidChange={form.handleNextVisitDateValidChange}
             hasLineIntegration={ready.hasLineIntegration}
             medicalRecordId={recordId}
             recordClinicId={ready.recordClinicId}
@@ -296,7 +293,6 @@ export function MedicalRecordFormReadyPanels({
               diagnosis2CategoryId={form.diagnosis2CategoryId}
               diagnosis2NameId={form.diagnosis2NameId}
               ownerDiscountRate={form.ownerDiscountRate ?? 0}
-              nextVisitDate={form.nextVisitDate}
               hasLineIntegration={ready.hasLineIntegration}
               recommendationReason={form.recommendationReason}
               lstepStatus={ready.lstepStatus}
@@ -313,8 +309,6 @@ export function MedicalRecordFormReadyPanels({
               onDiagnosis1NameIdChange={ready.dirtyFields.handleSetDiagnosis1NameId}
               onDiagnosis2CategoryIdChange={ready.dirtyFields.handleSetDiagnosis2CategoryId}
               onDiagnosis2NameIdChange={ready.dirtyFields.handleSetDiagnosis2NameId}
-              onNextVisitDateChange={form.handleNextVisitDateChange}
-              onNextVisitDateValidChange={form.handleNextVisitDateValidChange}
               onRecommendationReasonChange={form.setRecommendationReason}
               onRegisterEstimateSave={ready.handleRegisterEstimateSave}
               onCopyRecordTreatments={ready.copyTreatmentsFromRecord}

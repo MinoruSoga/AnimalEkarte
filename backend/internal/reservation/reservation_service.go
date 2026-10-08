@@ -11,12 +11,13 @@ import (
 )
 
 // AllowedReservationRoutes は予約経路の許可値ホワイトリスト（FEAT-381-2 Commit 3）。
+// EMR-308: record_intent は次回予定（tentative）専用の経路。
 var AllowedReservationRoutes = map[string]struct{}{
-	"line": {}, "phone": {}, "reception": {}, "exam_room": {}, "record_shortcut": {},
+	"line": {}, "phone": {}, "reception": {}, "exam_room": {}, "record_shortcut": {}, "record_intent": {},
 }
 
 const colReservationRoute = "reservation_route"
-const AllowedReservationRoutesMessage = "reservation_route must be one of: line, phone, reception, exam_room, record_shortcut"
+const AllowedReservationRoutesMessage = "reservation_route must be one of: line, phone, reception, exam_room, record_shortcut, record_intent"
 
 // UpdateReservationRouteInput は予約経路更新の入力DTO（FEAT-381-2 Commit 3）。
 type UpdateReservationRouteInput struct{ Route string }
@@ -116,6 +117,12 @@ type ReservationService interface {
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationInput) (*model.Reservation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	UpdateReservationRoute(ctx context.Context, clinicID, id uint64, input UpdateReservationRouteInput) (*model.Reservation, error)
+	// SetNextVisitIntent はペットの次回予定（tentative）を作成/更新する（EMR-308）。
+	SetNextVisitIntent(ctx context.Context, clinicID, petID uint64, input SetNextVisitIntentInput) (*model.Reservation, error)
+	// ClearNextVisitIntent はペットの active tentative を除去する（EMR-308）。
+	ClearNextVisitIntent(ctx context.Context, clinicID, petID uint64) error
+	// ConfirmTentative は tentative 予約を本予約へ確定する（EMR-308）。
+	ConfirmTentative(ctx context.Context, clinicID, id uint64, input *ConfirmTentativeInput) (*model.Reservation, error)
 }
 
 type reservationService struct {
@@ -127,6 +134,7 @@ type reservationService struct {
 	availableSlotRepo    ReservationTypeAvailableSlotRepository
 	settingFinder        lineReservationSettingFinder
 	holidayFinder        clinicHolidayFinder
+	nextVisitTagSync     NextVisitTagSyncer
 }
 
 func NewReservationServiceWithAvailabilityAndType(repo ReservationRepository, typeRepo reservationTypeFinder, tx Transactor, reservationStaffRepo ReservationStaffWriteGuard, unavailableTimeRepo ReservationTypeUnavailableTimeRepository, availableSlotRepo ...ReservationTypeAvailableSlotRepository) ReservationService {
@@ -134,7 +142,7 @@ func NewReservationServiceWithAvailabilityAndType(repo ReservationRepository, ty
 	if len(availableSlotRepo) > 0 {
 		slotRepo = availableSlotRepo[0]
 	}
-	return newReservationService(repo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, slotRepo, nil, nil)
+	return newReservationService(repo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, slotRepo, nil, nil, nil)
 }
 
 // NewReservationServiceWithLineSettings is the backward-compatible constructor
@@ -151,10 +159,12 @@ func NewReservationServiceWithLineSettings(
 	availableSlotRepo ReservationTypeAvailableSlotRepository,
 	settingFinder lineReservationSettingFinder,
 ) ReservationService {
-	return newReservationService(repo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, availableSlotRepo, settingFinder, nil)
+	return newReservationService(repo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, availableSlotRepo, settingFinder, nil, nil)
 }
 
 // NewReservationServiceWithClinicHolidays injects LINE settings and clinic_holidays.
+// EMR-308: nextVisitTagSyncs は省略可の post-commit next-visit タグ同期 hook
+// （composition root が LSTEP TagSync を注入する。未注入時は best-effort no-op）。
 func NewReservationServiceWithClinicHolidays(
 	repo ReservationRepository,
 	typeRepo reservationTypeFinder,
@@ -164,8 +174,13 @@ func NewReservationServiceWithClinicHolidays(
 	availableSlotRepo ReservationTypeAvailableSlotRepository,
 	settingFinder lineReservationSettingFinder,
 	holidayFinder clinicHolidayFinder,
+	nextVisitTagSyncs ...NextVisitTagSyncer,
 ) ReservationService {
-	return newReservationService(repo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, availableSlotRepo, settingFinder, holidayFinder)
+	var nextVisitTagSync NextVisitTagSyncer
+	if len(nextVisitTagSyncs) > 0 {
+		nextVisitTagSync = nextVisitTagSyncs[0]
+	}
+	return newReservationService(repo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, availableSlotRepo, settingFinder, holidayFinder, nextVisitTagSync)
 }
 
 func newReservationService(
@@ -177,6 +192,7 @@ func newReservationService(
 	availableSlotRepo ReservationTypeAvailableSlotRepository,
 	settingFinder lineReservationSettingFinder,
 	holidayFinder clinicHolidayFinder,
+	nextVisitTagSync NextVisitTagSyncer,
 ) *reservationService {
 	return &reservationService{
 		repo:                 repo,
@@ -187,6 +203,7 @@ func newReservationService(
 		availableSlotRepo:    availableSlotRepo,
 		settingFinder:        settingFinder,
 		holidayFinder:        holidayFinder,
+		nextVisitTagSync:     nextVisitTagSync,
 	}
 }
 
@@ -242,6 +259,20 @@ func ValidateReservationPetNotDeceased(ctx context.Context, repo petByIDInClinic
 		return nil
 	}
 	return sharedkernel.ValidatePetNotDeceased(ctx, petByIDAdapter{repo: repo}, clinicID, *petID, reservationDeceasedPetMessage)
+}
+
+// createOrPromoteTentative は全実予約作成経路（内部 Create・CreateBatch・admin/walk-in
+// Create・LIFF）で共有する EMR-308 absorb 入口。booking.PetID の active tentative があれば
+// 新規行を作らず同じ id の行を実予約へ昇格し、なければ通常 INSERT する。
+// status=checked_in の当日受付作成は PromoteTentativeOnCheckin 経路（区分は tentative 行の
+// general placeholder を維持し checked_in_at に実受付時刻）、それ以外は
+// AbsorbTentativeOnBooking 経路でパス固有の pending/confirmed 等へ昇格する。
+// repo op が ambient tx を必須とするため、呼び出し側は WithTx 内で呼ぶこと。
+func createOrPromoteTentative(ctx context.Context, repo ReservationRepository, booking *model.Reservation) (*model.Reservation, error) {
+	if booking.Status == model.ReservationStatusCheckedIn {
+		return repo.PromoteTentativeOnCheckin(ctx, booking)
+	}
+	return repo.AbsorbTentativeOnBooking(ctx, booking)
 }
 
 func (s *reservationService) List(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
@@ -349,11 +380,20 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 				return err
 			}
 		}
-		return s.repo.Create(ctx, reservation)
+		// EMR-308: 同ペットの active tentative があれば新規行ではなく同一行を昇格する。
+		created, err := createOrPromoteTentative(ctx, s.repo, reservation)
+		if err != nil {
+			return err
+		}
+		reservation = created
+		return nil
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create reservation")
 	}
 
+	// EMR-308: 実予約作成（tentative 昇格含む）で飼い主の次回来院が変わり得るため
+	// post-commit で next_visit タグを再同期する（best-effort・未注入は no-op）。
+	syncNextVisitTagBestEffort(ctx, s.nextVisitTagSync, reservation.ClinicID, reservation.OwnerID)
 	slog.InfoContext(ctx, "reservation created",
 		slog.Uint64("reservation_id", reservation.ID),
 		slog.Uint64("clinic_id", reservation.ClinicID))
@@ -429,15 +469,23 @@ func (s *reservationService) CreateBatch(ctx context.Context, input *CreateManua
 				return err
 			}
 			reservation := model.Reservation{ClinicID: input.ClinicID, StartTime: input.StartTime, EndTime: input.EndTime, OwnerID: &ownerID, PetID: &petID, VisitType: input.VisitType, ReservationTypeID: input.ReservationTypeID, DoctorID: doctorID, IsDesignated: input.IsDesignated, Status: input.Status, Notes: input.Notes, Source: input.Source, CreatedBy: input.CreatedBy, ReservationRoute: input.ReservationRoute}
-			if err := s.repo.Create(ctx, &reservation); err != nil {
+			// EMR-308: ペットごとに active tentative を同一行昇格（なければ通常 INSERT）。
+			promoted, err := createOrPromoteTentative(ctx, s.repo, &reservation)
+			if err != nil {
 				return err
 			}
-			created = append(created, reservation)
+			created = append(created, *promoted)
 		}
 		return nil
 	})
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to create reservation batch")
 	}
+	// EMR-308: バッチ内の各飼い主の次回来院を post-commit で再同期する（重複排除）。
+	ownerIDs := make([]*uint64, 0, len(created))
+	for i := range created {
+		ownerIDs = append(ownerIDs, created[i].OwnerID)
+	}
+	syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, input.ClinicID, ownerIDs...)
 	return created, nil
 }

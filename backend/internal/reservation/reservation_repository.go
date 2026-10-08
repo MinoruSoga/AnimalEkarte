@@ -34,9 +34,34 @@ type ReservationCRUDRepository interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
+// ReservationNextVisitIntentRepository は EMR-308 次回予定（tentative appointment）の
+// typed write operation。すべて ambient transaction 必須・clinic スコープ・fail-closed。
+type ReservationNextVisitIntentRepository interface {
+	// SetNextVisitIntent はペットの active tentative を作成または更新する（upsert）。
+	SetNextVisitIntent(ctx context.Context, clinicID, petID uint64, input SetNextVisitIntentInput) (*model.Reservation, error)
+	// ClearNextVisitIntent はペットの active tentative を論理削除する。未存在は冪等成功。
+	ClearNextVisitIntent(ctx context.Context, clinicID, petID uint64) (bool, error)
+	// ConfirmTentative は tentative 予約を pending/confirmed へ遷移する。
+	ConfirmTentative(ctx context.Context, clinicID, id uint64, input ConfirmTentativeUpdate) (*model.Reservation, error)
+}
+
+// ReservationTentativeLifecycleRepository は EMR-308 の tentative → 実予約/当日受付への
+// 同一行昇格（lifecycle absorb）を提供する owner package 内だけの write operation。
+// ReservationIntentRepository には載せず、package 外 consumer には公開しない。
+// すべて ambient transaction 必須・(clinic, pet) スコープ・fail-closed。
+type ReservationTentativeLifecycleRepository interface {
+	// AbsorbTentativeOnBooking は実予約の作成時にペットの active tentative を同一行昇格する。
+	// tentative 未存在時は通常 INSERT にフォールバックし、呼び出し側は Create との分岐を持たない。
+	AbsorbTentativeOnBooking(ctx context.Context, booking *model.Reservation) (*model.Reservation, error)
+	// PromoteTentativeOnCheckin は当日受付（checked_in 作成）でペットの active tentative を
+	// 同一行昇格する。tentative 未存在時は通常 INSERT にフォールバックする。
+	PromoteTentativeOnCheckin(ctx context.Context, booking *model.Reservation) (*model.Reservation, error)
+}
+
 // ReservationIntentRepository は reservation 外の consumer が使う appointment write operation。
 // 各 consumer はこのinterface全体ではなく、必要なメソッドだけをローカルinterfaceへ宣言する。
 type ReservationIntentRepository interface {
+	ReservationNextVisitIntentRepository
 	CompleteForAccounting(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
 	AssertMedicalRecordDoctorInClinic(ctx context.Context, clinicID, doctorID uint64) error
 	BackfillForMedicalRecord(ctx context.Context, clinicID, id uint64, ownerID, petID, doctorID *uint64) error
@@ -139,12 +164,33 @@ type StaffAssignmentUsageRepository interface {
 	FindClinicIDsByStaffID(ctx context.Context, clinicIDs []uint64, staffID uint64) ([]uint64, error)
 }
 
-// ReservationRepository は owner package 内の3つのrepository capabilityを合成する。
+// ReservationNextVisitQueryRepository は EMR-308 の次回来院参照（read-only）。
+// LSTEP のタグ同期・配信トリガーが composition root 経由で消費する最小view。
+// tentative の予定日は intended_date、実予約は start_time が意味上の日付となる。
+// 「active」は終端ステータス（cancelled/no_show/completed）と削除済みを除く集合。
+type ReservationNextVisitQueryRepository interface {
+	// FindNextAppointmentForOwner は飼い主の次回来院に相当する active appointment を
+	// 意味上の日付（tentative=intended_date、それ以外=start_time、いずれも JST 暦日が
+	// 本日以降のものに限る）の早い順で1件返す。未存在は (nil, nil)。
+	FindNextAppointmentForOwner(ctx context.Context, clinicID, ownerID uint64) (*model.Reservation, error)
+	// FindOwnerIDsWithTentativeIntendedDate は intended_date が JST 暦日で
+	// targetDate に一致する active tentative を持つ飼い主 ID を重複なく返す。
+	FindOwnerIDsWithTentativeIntendedDate(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
+	// FindTentativeByOwnerAndIntendedDate は飼い主の active tentative のうち
+	// intended_date が JST 暦日で targetDate に一致する1件を返す。未存在は (nil, nil)
+	// （配信直前の stale candidate 再検証用）。
+	FindTentativeByOwnerAndIntendedDate(ctx context.Context, clinicID, ownerID uint64, targetDate time.Time) (*model.Reservation, error)
+}
+
+// ReservationRepository は owner package 内のrepository capabilityを合成する。
 // 汎用 update は非公開のため、package外consumerは実装も呼び出しもできない。
+// EMR-308: next-visit intent の typed write も含む（service が orchestrate する）。
 type ReservationRepository interface {
 	ReservationCRUDRepository
 	ReservationSlotRepository
 	ReservationQueryRepository
+	ReservationNextVisitIntentRepository
+	ReservationTentativeLifecycleRepository
 }
 
 // ReservationStore は composition root が保持する具象実装の公開method set。
@@ -154,6 +200,7 @@ type ReservationStore interface {
 	ReservationRepository
 	ReservationIntentRepository
 	StaffAssignmentUsageRepository
+	ReservationNextVisitQueryRepository
 }
 
 type reservationRepository struct {

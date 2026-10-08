@@ -113,6 +113,18 @@ var repoNilNilAllowlist = []repoNilNilSiteException{
 		reason: "upsert lock helper: (nil,nil) means no row yet so caller inserts; NotFound would invert the insert path. Packet: NILCONTRACT-SOFT-MISS-OPTIONAL-ENTITY",
 	},
 	{
+		file: "reservation/reservation_intent_repository.go", fn: "findActiveTentativeForUpdate", occurrences: 1,
+		reason: "EMR-308 tentative upsert lock probe: (nil,nil) means no active tentative yet so SetNextVisitIntent creates the row and ClearNextVisitIntent returns idempotent success; NotFound would invert both branches. Packet: NILCONTRACT-SOFT-MISS-OPTIONAL-ENTITY",
+	},
+	{
+		file: "reservation/reservation_next_visit_query.go", fn: "FindNextAppointmentForOwner", occurrences: 1,
+		reason: "EMR-308 optional next-visit appointment: 'no active appointment' is the normal state that drives next_visit_* tag removal; SyncNextVisitTag branches on appointment != nil so NotFound would invert the removal path. Packet: NILCONTRACT-SOFT-MISS-OPTIONAL-ENTITY",
+	},
+	{
+		file: "reservation/reservation_next_visit_query.go", fn: "FindTentativeByOwnerAndIntendedDate", occurrences: 1,
+		reason: "EMR-308 stale-candidate probe: (nil,nil) means the tentative was cancelled/promoted/moved/deleted after candidate extraction, which the pre-send revalidation maps to excluded (no delivery); NotFound would turn a routine stale check into a per-owner error. Packet: NILCONTRACT-SOFT-MISS-OPTIONAL-ENTITY",
+	},
+	{
 		file: "identitylink/repository.go", fn: "FindActiveOwnerMembership", occurrences: 1,
 		reason: "optional identity-group membership: unlinked owners are normal; service maps nil to NotFound only when required. Packet: NILCONTRACT-SOFT-MISS-OPTIONAL-ENTITY",
 	},

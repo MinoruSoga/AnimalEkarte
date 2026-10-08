@@ -23,15 +23,19 @@ type LstepStatus = "synced" | "not-linked" | "opt-out" | undefined;
 
 interface ReservationModalHeaderProps {
   isEditMode: boolean;
+  /** EMR-308: tentative（次回予定・未予約）行の確定モード */
+  isConfirmTentative?: boolean;
   mobilePanel: MobilePanel;
   onMobilePanelChange: (panel: MobilePanel) => void;
 }
 
 export function ReservationModalHeader({
   isEditMode,
+  isConfirmTentative = false,
   mobilePanel,
   onMobilePanelChange,
 }: ReservationModalHeaderProps) {
+  const title = isConfirmTentative ? "次回予定の確定" : isEditMode ? "予約編集" : "新規予約作成";
   return (
     <DialogHeader className="p-4 border-b shrink-0 h-auto flex flex-col gap-3 space-y-0">
       <div className="flex items-center justify-between">
@@ -41,13 +45,13 @@ export function ReservationModalHeader({
           ) : (
             <Calendar className={`${ICON.page} ${C.textActionPrimary}`} />
           )}
-          <DialogTitle className={`text-sm font-bold ${C.text}`}>
-            {isEditMode ? "予約編集" : "新規予約作成"}
-          </DialogTitle>
+          <DialogTitle className={`text-sm font-bold ${C.text}`}>{title}</DialogTitle>
         </div>
         {/* Let Radix assign context.descriptionId; a custom id breaks DescriptionWarning lookup. */}
         <DialogDescription className="sr-only">
-          左側のリストからペットを選択し、右側のフォームで予約情報を入力してください
+          {isConfirmTentative
+            ? "この次回予定の対象患者は固定です。右側のフォームで予約情報を入力して確定してください"
+            : "左側のリストからペットを選択し、右側のフォームで予約情報を入力してください"}
         </DialogDescription>
       </div>
       <div className="flex items-center gap-6">
@@ -103,6 +107,8 @@ const StepIndicator = memo(function StepIndicator({
 
 interface ReservationPatientPanelProps {
   isEditMode: boolean;
+  /** EMR-308: tentative 確定モード — tentative 行に紐づく患者を固定し、検索・飼主切替を隠す */
+  patientLocked?: boolean;
   ownerMode: OwnerMode;
   mobilePanel: MobilePanel;
   selectedPets: Pet[];
@@ -115,6 +121,7 @@ interface ReservationPatientPanelProps {
 
 export function ReservationPatientPanel({
   isEditMode,
+  patientLocked = false,
   ownerMode,
   mobilePanel,
   selectedPets,
@@ -131,7 +138,7 @@ export function ReservationPatientPanel({
         mobilePanel !== "search" && "hidden lg:flex",
       )}
     >
-      {!isEditMode ? (
+      {!isEditMode && !patientLocked ? (
         <div className="flex rounded-lg border overflow-hidden mb-3 shrink-0">
           <button
             type="button"
@@ -154,7 +161,9 @@ export function ReservationPatientPanel({
         </div>
       ) : null}
 
-      {ownerMode === "existing" ? (
+      {patientLocked ? (
+        <LockedPatientNotice pet={selectedPets[0]} />
+      ) : ownerMode === "existing" ? (
         <>
           <div className="mb-3 flex items-center gap-2 shrink-0">
             <Search className={`${ICON.action} ${C.text60}`} />
@@ -175,6 +184,42 @@ export function ReservationPatientPanel({
   );
 }
 
+/** tentative 確定モード: tentative 行に紐づく患者を読み取り専用で表示する */
+function LockedPatientNotice({ pet }: { pet: Pet | undefined }) {
+  return (
+    <div className="flex flex-col">
+      <div className="mb-3 flex items-center gap-2 shrink-0">
+        <PawPrint className={`${ICON.action} ${C.text60}`} />
+        <Label className={`text-sm font-bold ${C.text}`}>対象患者</Label>
+      </div>
+      <div
+        className={`flex items-center gap-2 ${C.bgWhite} p-3 rounded-lg border ${C.borderMediumLight}`}
+      >
+        <PawPrint className={`${ICON.action} ${C.text60} flex-shrink-0`} />
+        {pet ? (
+          <>
+            <span className={`text-sm font-bold ${C.text}`}>{pet.name}</span>
+            <Badge
+              variant="outline"
+              className={`text-2xs font-normal ${C.text60} ${C.bgPage} ${C.borderMediumLight} h-5`}
+            >
+              {pet.species}
+            </Badge>
+            <span className={`text-2xs ${C.text60} ml-auto`}>
+              No. {pet.ownerId} {pet.ownerName}
+            </span>
+          </>
+        ) : (
+          <span className={`text-xs ${C.text60}`}>患者情報を読み込み中…</span>
+        )}
+      </div>
+      <p className={`text-2xs ${C.text60} mt-2`}>
+        この次回予定に紐づく患者です。変更はできません。
+      </p>
+    </div>
+  );
+}
+
 interface ReservationDetailsPanelProps {
   mobilePanel: MobilePanel;
   selectedPets: Pet[];
@@ -183,6 +228,8 @@ interface ReservationDetailsPanelProps {
   validationErrors: Record<string, string>;
   holidayDates: Set<string>;
   isEditMode: boolean;
+  /** EMR-308: tentative 確定モード — 選択中ペットの解除を不可にする */
+  patientLocked?: boolean;
   reservationId?: string;
   canEdit: boolean;
   onSelectedPetsChange: (updater: (prev: Pet[]) => Pet[]) => void;
@@ -200,6 +247,7 @@ export function ReservationDetailsPanel({
   validationErrors,
   holidayDates,
   isEditMode,
+  patientLocked = false,
   reservationId,
   canEdit,
   onSelectedPetsChange,
@@ -220,6 +268,7 @@ export function ReservationDetailsPanel({
           selectedPets={selectedPets}
           validationError={validationErrors.patient}
           onSelectedPetsChange={onSelectedPetsChange}
+          locked={patientLocked}
         />
 
         <LineStatusNotice status={lstepStatus} />
@@ -252,10 +301,13 @@ function SelectedPatientSummary({
   selectedPets,
   validationError,
   onSelectedPetsChange,
+  locked = false,
 }: {
   selectedPets: Pet[];
   validationError?: string;
   onSelectedPetsChange: (updater: (prev: Pet[]) => Pet[]) => void;
+  /** tentative 確定モード: 選択解除ボタンを隠す */
+  locked?: boolean;
 }) {
   const handleRemovePet = useCallback(
     (petId: string) => {
@@ -278,7 +330,11 @@ function SelectedPatientSummary({
       {selectedPets.length > 0 ? (
         <div className="flex flex-col gap-2">
           {selectedPets.map((pet) => (
-            <SelectedPetChip key={pet.id} pet={pet} onRemove={handleRemovePet} />
+            <SelectedPetChip
+              key={pet.id}
+              pet={pet}
+              onRemove={locked ? undefined : handleRemovePet}
+            />
           ))}
         </div>
       ) : (
@@ -297,7 +353,8 @@ const SelectedPetChip = memo(function SelectedPetChip({
   onRemove,
 }: {
   pet: Pet;
-  onRemove: (petId: string) => void;
+  /** 省略時は解除ボタンを表示しない（tentative 確定モードの患者固定） */
+  onRemove?: (petId: string) => void;
 }) {
   return (
     <div
@@ -314,14 +371,16 @@ const SelectedPetChip = memo(function SelectedPetChip({
       <span className={`text-2xs ${C.text60} ml-auto`}>
         No. {pet.ownerId} {pet.ownerName}
       </span>
-      <button
-        type="button"
-        onClick={() => onRemove(pet.id)}
-        aria-label={`${pet.name}を選択から外す`}
-        className={`-m-3 p-3 ${C.hoverBgDanger5} rounded transition-colors`}
-      >
-        <X className={`${ICON.action} ${C.danger} ${C.hoverTextDanger}`} />
-      </button>
+      {onRemove ? (
+        <button
+          type="button"
+          onClick={() => onRemove(pet.id)}
+          aria-label={`${pet.name}を選択から外す`}
+          className={`-m-3 p-3 ${C.hoverBgDanger5} rounded transition-colors`}
+        >
+          <X className={`${ICON.action} ${C.danger} ${C.hoverTextDanger}`} />
+        </button>
+      ) : null}
     </div>
   );
 });

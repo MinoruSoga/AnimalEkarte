@@ -1822,12 +1822,26 @@ components:
             - in_consultation
             - accounting
             - completed
+            - no_show
+            - tentative
         notes:
           type: string
         checked_in_at:
           type: string
           format: date-time
           nullable: true
+        intended_date:
+          type: string
+          format: date
+          nullable: true
+          readOnly: true
+          description: EMR-308 次回予定（tentative）行の予定日。JST 暦日。非 tentative では null。
+        source_medical_record_id:
+          type: integer
+          format: int64
+          nullable: true
+          readOnly: true
+          description: EMR-308 tentative 行の登録元カルテID（provenance）。非 tentative では null。
         source:
           type: string
           enum:
@@ -1848,6 +1862,13 @@ components:
         reservation_route:
           type: string
           nullable: true
+          enum:
+            - line
+            - phone
+            - reception
+            - exam_room
+            - record_shortcut
+            - record_intent
         actual_reservation_at:
           type: string
           format: date-time
@@ -1923,10 +1944,6 @@ components:
           format: int64
           readOnly: true
           description: 同一飼主・ペットの累計来院回数（呼び出し元で算出）
-        next_visit_recommended_date:
-          type: string
-          format: date
-          nullable: true
         recommendation_reason:
           type: string
           nullable: true
@@ -9953,7 +9970,60 @@ components:
         route:
           type: string
           maxLength: 20
-          enum: [line, phone, reception, exam_room, record_shortcut]
+          enum: [line, phone, reception, exam_room, record_shortcut, record_intent]
+    # ─── EMR-308 次回予定（tentative appointment） ─────────────────────────────
+    SetNextVisitIntentRequest:
+      type: object
+      required: [intended_date]
+      description: |
+        ペットの次回予定（tentative appointment）を作成または更新する。
+        intended_date は JST 暦日（YYYY-MM-DD）。同一医院・同一ペットの active
+        tentative は1件のみ（upsert）。予約枠容量・時間枠競合・通知の対象外。
+      properties:
+        intended_date:
+          type: string
+          format: date
+          description: 次回予定日（JST 暦日、本日以降〜約2年先まで）
+        source_medical_record_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 登録元カルテID（provenance）。同一医院・同一ペットのカルテのみ可
+    ConfirmTentativeReservationRequest:
+      type: object
+      required: [start_time, end_time]
+      description: |
+        tentative（次回予定）予約を本予約へ確定する。確定時に通常の booking 検証
+        （休診日・時間帯不可・時間枠競合・区分容量・担当医 capability）が適用される。
+        reservation_type_id 省略時は tentative 行の区分を維持する。
+      properties:
+        start_time:
+          type: string
+          format: date-time
+          description: 確定後の開始日時（必須）
+        end_time:
+          type: string
+          format: date-time
+          description: 確定後の終了日時（必須）
+        reservation_type_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 確定後の診療区分（省略時は tentative の区分を維持）
+        doctor_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 担当医（0 または省略で未指定）
+        is_designated:
+          type: boolean
+          description: 担当医指名フラグ
+        status:
+          type: string
+          enum: [pending, confirmed]
+          description: 確定後ステータス（省略時 confirmed）
+        notes:
+          type: string
     # ─── MedicineDoseParam (#201 B-2c 投与量計算パラメータ) ────────────────────
     MedicineDoseParam:
       type: object
@@ -11795,7 +11865,7 @@ paths:
                 status: { type: string, enum: [confirmed, pending, cancelled, checked_in, in_consultation, accounting, completed] }
                 notes: { type: string }
                 source: { type: string, enum: [manual, line] }
-                reservation_route: { type: string, enum: [line, phone, reception, exam_room, record_shortcut] }
+                reservation_route: { type: string, enum: [line, phone, reception, exam_room, record_shortcut, record_intent] }
                 pets:
                   type: array
                   minItems: 2
@@ -11976,6 +12046,112 @@ paths:
                 $ref: '#/components/schemas/ReservationAppointment'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /reservations/{id}/confirm-tentative:
+    post:
+      operationId: confirmTentativeReservation
+      summary: 次回予定（tentative）を本予約へ確定
+      description: |
+        EMR-308。tentative ステータスの予約のみ確定できる（他ステータスは 409）。
+        確定後は通常予約と同じ挙動になり、予約枠容量・時間枠競合の対象になる。
+      tags: [Reservations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmTentativeReservationRequest'
+      responses:
+        '200':
+          description: 確定した予約
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationAppointment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /reservations/pets/{petId}/next-visit-intent:
+    put:
+      operationId: setNextVisitIntent
+      summary: ペットの次回予定を登録/更新
+      description: |
+        EMR-308。ペットの次回予定（tentative appointment）を作成または更新する。
+        同一医院・同一ペットの active tentative は1件のみで、既存行があれば更新する。
+        tentative は予約枠容量・時間枠競合・通知の対象外。
+      tags: [Reservations]
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetNextVisitIntentRequest'
+      responses:
+        '200':
+          description: 作成または更新した tentative 予約
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationAppointment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: clearNextVisitIntent
+      summary: ペットの次回予定を除去
+      description: |
+        EMR-308。ペットの active tentative を論理削除する。
+        対象が存在しない場合も冪等に 204 を返す。他ステータスの予約には触れない。
+      tags: [Reservations]
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 除去成功（対象不在時も冪等）
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

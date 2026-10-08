@@ -266,8 +266,7 @@ func TestMedicalRecordRepository_FindDormantOwnerEntries_RequiresActiveOwnerInSa
 
 // ---------------------------------------------------------------------------
 // 以下、FindLatestByOwner / FindOwnerVisitSummary / FindOwnersByFirstVisitDate /
-// FindOwnersByLastVisitDays / FindOwnersByNextVisitRecommended /
-// FindDormantOwnerEntries のテスト（#212 カバレッジ向上）。
+// FindOwnersByLastVisitDays / FindDormantOwnerEntries のテスト（#212 カバレッジ向上）。
 // ---------------------------------------------------------------------------
 
 var ownerVisitRecordSeq int64
@@ -547,87 +546,6 @@ func TestMedicalRecordRepository_FindOwnersByLastVisitDays(t *testing.T) {
 		})
 
 		got, err := repo.FindOwnersByLastVisitDays(ctx, clinicA, exactDays, asOf)
-		require.NoError(t, err)
-		assert.NotContains(t, got, ownerID)
-	})
-}
-
-// TestMedicalRecordRepository_FindOwnersByNextVisitRecommended は Raw SQL による
-// clinic_id 二重指定（横テナント漏洩防止・削除禁止コメント対象）が実際に機能することを検証する。
-func TestMedicalRecordRepository_FindOwnersByNextVisitRecommended(t *testing.T) {
-	db := testdb.SetupTestDB(t)
-	repo := NewMedicalRecordRepository(db)
-	ctx := context.Background()
-	const clinicA, clinicB = uint64(1), uint64(2)
-	target := time.Date(2026, 8, 20, 0, 0, 0, 0, time.Local)
-
-	t.Run("正常系: 最新カルテの次回来院推奨日が targetDate の飼主を返す", func(t *testing.T) {
-		owner := makeTestOwner(t, db, clinicA, "推奨日飼主")
-		ownerID := owner.ID
-		otherDate := target.AddDate(0, 0, 5)
-		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
-			ClinicID: clinicA, OwnerID: &ownerID, Date: time.Now().In(time.Local).AddDate(0, 0, -10),
-			NextVisitRecommendedDate: &otherDate,
-		})
-		// 最新カルテ（後から作成 = 大きい id）に target を設定
-		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
-			ClinicID: clinicA, OwnerID: &ownerID, Date: time.Now().In(time.Local),
-			NextVisitRecommendedDate: &target,
-		})
-
-		got, err := repo.FindOwnersByNextVisitRecommended(ctx, clinicA, target)
-		require.NoError(t, err)
-		assert.Contains(t, got, ownerID)
-	})
-
-	t.Run("clinic_id隔離(二重指定WHERE): 同一targetDateでも別医院の飼主は混入しない", func(t *testing.T) {
-		ownerA := makeTestOwner(t, db, clinicA, "推奨日隔離A")
-		ownerAID := ownerA.ID
-		ownerB := makeTestOwner(t, db, clinicB, "推奨日隔離B")
-		ownerBID := ownerB.ID
-		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
-			ClinicID: clinicA, OwnerID: &ownerAID, Date: time.Now().In(time.Local),
-			NextVisitRecommendedDate: &target,
-		})
-		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
-			ClinicID: clinicB, OwnerID: &ownerBID, Date: time.Now().In(time.Local),
-			NextVisitRecommendedDate: &target,
-		})
-
-		gotA, err := repo.FindOwnersByNextVisitRecommended(ctx, clinicA, target)
-		require.NoError(t, err)
-		assert.Contains(t, gotA, ownerAID)
-		assert.NotContains(t, gotA, ownerBID, "clinic_id 二重WHERE が機能し他医院の飼主が混入しない")
-
-		gotB, err := repo.FindOwnersByNextVisitRecommended(ctx, clinicB, target)
-		require.NoError(t, err)
-		assert.Contains(t, gotB, ownerBID)
-		assert.NotContains(t, gotB, ownerAID)
-	})
-
-	t.Run("clinic_id隔離: 医院Aのカルテが医院Bの飼主を誤参照しても混入しない", func(t *testing.T) {
-		ownerB := makeTestOwner(t, db, clinicB, "不整合推奨日B")
-		ownerBID := ownerB.ID
-		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
-			ClinicID: clinicA, OwnerID: &ownerBID, Date: time.Now().In(time.Local),
-			NextVisitRecommendedDate: &target,
-		})
-
-		got, err := repo.FindOwnersByNextVisitRecommended(ctx, clinicA, target)
-		require.NoError(t, err)
-		assert.NotContains(t, got, ownerBID)
-	})
-
-	t.Run("該当なし: targetDate に一致する最新カルテが無ければ空配列", func(t *testing.T) {
-		owner := makeTestOwner(t, db, clinicA, "推奨日不一致飼主")
-		ownerID := owner.ID
-		otherDate := target.AddDate(0, 0, 1)
-		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
-			ClinicID: clinicA, OwnerID: &ownerID, Date: time.Now().In(time.Local),
-			NextVisitRecommendedDate: &otherDate,
-		})
-
-		got, err := repo.FindOwnersByNextVisitRecommended(ctx, clinicA, target)
 		require.NoError(t, err)
 		assert.NotContains(t, got, ownerID)
 	})

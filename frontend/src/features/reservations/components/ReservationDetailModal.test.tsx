@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Reservation } from "../types";
@@ -153,5 +154,126 @@ describe("ReservationDetailModal", () => {
     const typeRow = screen.getByText("予約区分").parentElement;
     expect(typeRow?.textContent).toContain("一般診察");
     expect(typeRow?.textContent).not.toContain("（無効）");
+  });
+});
+
+describe("ReservationDetailModal — tentative (EMR-308)", () => {
+  // tentative は start/end が意図日 00:00–00:15 JST の sentinel。実時刻ではないので
+  // 時刻表示・ステータスセレクト・カルテ作成・編集の各導線を出さず、
+  // 「予約を確定」（confirm-tentative 経路）のみを出す。
+  // 意図日は未来に固定する — 過去日だと isExpiredTentativeReservation が真になり
+  // ラベルが 期限超過・未対応 に変わるため。
+  const tentativeReservation: Reservation = {
+    ...baseReservation,
+    id: "tentative-1",
+    start: new Date("2999-06-29T00:00:00.000Z"),
+    end: new Date("2999-06-29T00:15:00.000Z"),
+    status: "tentative" as Reservation["status"],
+    isTentative: true,
+    intendedDate: "2999-06-29",
+  };
+
+  it("次回予定・未予約 ラベルと 時刻未設定 を表示する", () => {
+    render(
+      <ReservationDetailModal
+        isOpen={true}
+        onClose={vi.fn()}
+        reservation={tentativeReservation}
+        onCreateRecord={vi.fn()}
+        onStatusChange={vi.fn()}
+        onEdit={vi.fn()}
+        onConfirmTentative={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("次回予定・未予約")).toBeInTheDocument();
+    expect(screen.getByText("時刻未設定（予定日のみ）")).toBeInTheDocument();
+  });
+
+  it("tentative 行ではカルテ作成・編集・ステータス変更・削除を出さない", () => {
+    render(
+      <ReservationDetailModal
+        isOpen={true}
+        onClose={vi.fn()}
+        reservation={tentativeReservation}
+        onCreateRecord={vi.fn()}
+        onStatusChange={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onConfirmTentative={vi.fn()}
+      />,
+    );
+
+    // カルテ作成は appointmentId 付き遷移で sentinel 行に直接紐づき昇格しないため出さない
+    expect(screen.queryByRole("button", { name: /カルテ作成/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /編集/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  });
+
+  it("意図日が過去の tentative は 期限超過・未対応 ラベルになる", () => {
+    render(
+      <ReservationDetailModal
+        isOpen={true}
+        onClose={vi.fn()}
+        reservation={{
+          ...tentativeReservation,
+          start: new Date("2000-01-01T00:00:00.000Z"),
+          end: new Date("2000-01-01T00:15:00.000Z"),
+          intendedDate: "2000-01-01",
+        }}
+        onConfirmTentative={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("期限超過・未対応")).toBeInTheDocument();
+    expect(screen.queryByText("次回予定・未予約")).not.toBeInTheDocument();
+  });
+
+  it("onConfirmTentative 指定時は予約を確定ボタンで予約を渡す", async () => {
+    const user = userEvent.setup();
+    const onConfirmTentative = vi.fn();
+    render(
+      <ReservationDetailModal
+        isOpen={true}
+        onClose={vi.fn()}
+        reservation={tentativeReservation}
+        onConfirmTentative={onConfirmTentative}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "予約を確定" }));
+    expect(onConfirmTentative).toHaveBeenCalledWith(tentativeReservation);
+  });
+
+  it("onConfirmTentative 省略時は確定ボタンを出さない（fail-closed）", () => {
+    render(
+      <ReservationDetailModal isOpen={true} onClose={vi.fn()} reservation={tentativeReservation} />,
+    );
+
+    expect(screen.queryByRole("button", { name: "予約を確定" })).not.toBeInTheDocument();
+  });
+
+  it("昇格済み（hadIntendedDate のみ残る）行は通常予約として扱う", () => {
+    render(
+      <ReservationDetailModal
+        isOpen={true}
+        onClose={vi.fn()}
+        reservation={{
+          ...baseReservation,
+          hadIntendedDate: true,
+          intendedDate: "2026-05-29",
+        }}
+        onCreateRecord={vi.fn()}
+        onEdit={vi.fn()}
+        onStatusChange={vi.fn()}
+        onConfirmTentative={vi.fn()}
+      />,
+    );
+
+    // isTentative=false のため tentative ラベルも確定ボタンも出ず、カルテ作成は出る
+    expect(screen.queryByText("次回予定・未予約")).not.toBeInTheDocument();
+    expect(screen.queryByText("期限超過・未対応")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "予約を確定" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /カルテ作成/ })).toBeInTheDocument();
   });
 });

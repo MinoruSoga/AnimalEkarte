@@ -3,8 +3,7 @@ import { axios } from "@/lib/axios";
 import { DAY_VIEW_FETCH_LIMIT } from "@/config/fetch-limits";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import { transformReservation } from "@/lib/transforms/reservation";
-import type { Reservation } from "@/lib/transforms/reservation";
+import { transformReservationWithIntent, type Reservation } from "./reservation-intent-response";
 import type { Reservation as BackendReservation } from "@/types/generated/models";
 
 interface ReservationsListResponse {
@@ -52,7 +51,7 @@ const getReservations = async (filters?: ReservationFilters): Promise<Reservatio
   const { data } = await axios.get<ReservationsListResponse>("/v1/reservations", {
     params: buildReservationParams(filters),
   });
-  return data.data.map(transformReservation);
+  return data.data.map(transformReservationWithIntent);
 };
 
 /**

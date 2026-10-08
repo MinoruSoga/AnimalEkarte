@@ -70,12 +70,9 @@ function renderHeader({
         canEdit={true}
         isNewRecord={isNewRecord}
         tabs={[{ value: "問診", label: "問診" }]}
-        nextVisitDate=""
         onVisitTypeChange={vi.fn()}
         onStaffClick={vi.fn()}
         onOwnerClick={vi.fn()}
-        onNextVisitDatePatch={vi.fn()}
-        onNextVisitDateValidChange={vi.fn()}
       />
     </MemoryRouter>,
   );

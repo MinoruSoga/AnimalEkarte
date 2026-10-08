@@ -159,8 +159,9 @@ type LstepTagSyncService interface {
 	SyncPetBasicInfoTags(ctx context.Context, clinicID, ownerID uint64) error
 	// SyncCPMStageTag は CPM ステージタグを同期する（BE-011）。
 	SyncCPMStageTag(ctx context.Context, clinicID, ownerID uint64) error
-	// SyncNextVisitTag は次回来院推奨日タグ（next_visit_YYYY-MM-DD）を同期する（BE-006）。
-	// 最新カルテの next_visit_recommended_date を参照し、古い next_visit_* タグを差し替える。
+	// SyncNextVisitTag は次回来院タグ（next_visit_YYYY-MM-DD）を同期する（BE-006 / EMR-308）。
+	// 飼い主の次回 active appointment に基づき古い next_visit_* タグを差し替える。
+	// tentative は intended_date、それ以外は start_time の JST 暦日を使う。
 	SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error
 	// SyncCheckupTag は健診記録の作成・更新時に checkup_done_{typeID}_{YYYY-MM}/next_checkup_* タグを同期する（BE-008）。
 	// 同一健診種別の古い checkup_done タグを解除してから新タグを付与する。next_checkup_* は最新1件のみ。
@@ -204,6 +205,8 @@ type lstepTagSyncService struct {
 	petRepo          tagSyncPetRepo
 	checkupRepo      tagSyncCheckupRepo
 	errorCounterRepo LstepSyncErrorCounterRepository
+	// EMR-308: 次回来院 appointment 参照（next_visit_* タグの source of truth）。nil 許容。
+	nextVisitAppointmentRepo tagSyncNextVisitAppointmentRepo
 	// FEAT-379
 	tagCodeRepo     LstepTagCodeMappingRepository
 	billingItemRepo tagSyncBillingItemRepo
@@ -215,6 +218,10 @@ type lstepTagSyncService struct {
 
 // NewLstepTagSyncService は LstepTagSyncService を初期化して返す。
 // tagConfigRepo が nil の場合は動的プレフィックス/条件マッピングを使用しない。
+// EMR-308: nextVisitAppointmentRepos は省略可の次回来院 appointment 参照
+// （composition root が reservation store を注入。未注入時 SyncNextVisitTag は
+// タグ除去へフォールバックせず fail-closed でエラーを返す — 誤配線による
+// next_visit_* の黙った剥奪を防ぐ）。
 func NewLstepTagSyncService(
 	settingsSvc LstepSettingsService,
 	ownerRepo tagSyncOwnerRepo,
@@ -228,20 +235,26 @@ func NewLstepTagSyncService(
 	tagCodeRepo LstepTagCodeMappingRepository,
 	billingItemRepo tagSyncBillingItemRepo,
 	tagConfigRepo LstepTagConfigRepository,
+	nextVisitAppointmentRepos ...tagSyncNextVisitAppointmentRepo,
 ) LstepTagSyncService {
+	var nextVisitAppointmentRepo tagSyncNextVisitAppointmentRepo
+	if len(nextVisitAppointmentRepos) > 0 {
+		nextVisitAppointmentRepo = nextVisitAppointmentRepos[0]
+	}
 	return &lstepTagSyncService{
-		settingsSvc:      settingsSvc,
-		ownerRepo:        ownerRepo,
-		vacRepo:          vacRepo,
-		medRecordRepo:    medRecordRepo,
-		accountRepo:      accountRepo,
-		tagCacheRepo:     tagCacheRepo,
-		petRepo:          petRepo,
-		checkupRepo:      checkupRepo,
-		errorCounterRepo: errorCounterRepo,
-		tagCodeRepo:      tagCodeRepo,
-		billingItemRepo:  billingItemRepo,
-		tagConfigRepo:    tagConfigRepo,
+		settingsSvc:              settingsSvc,
+		ownerRepo:                ownerRepo,
+		vacRepo:                  vacRepo,
+		medRecordRepo:            medRecordRepo,
+		accountRepo:              accountRepo,
+		tagCacheRepo:             tagCacheRepo,
+		petRepo:                  petRepo,
+		checkupRepo:              checkupRepo,
+		errorCounterRepo:         errorCounterRepo,
+		nextVisitAppointmentRepo: nextVisitAppointmentRepo,
+		tagCodeRepo:              tagCodeRepo,
+		billingItemRepo:          billingItemRepo,
+		tagConfigRepo:            tagConfigRepo,
 	}
 }
 

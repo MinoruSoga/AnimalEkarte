@@ -76,6 +76,10 @@ type reservationServiceDependencies struct {
 	Vaccinations    medicalrecord.VaccinationRepository
 	MedicalRecords  reservationMedicalRecords
 
+	// NextVisitTagSync は EMR-308 の予約変更容易点 post-commit hook（lstep TagSync
+	// を composition root が注入）。nil 許容・best-effort。
+	NextVisitTagSync reservation.NextVisitTagSyncer
+
 	NotificationConfig *reservation.ReservationNotificationConfig
 	EncryptCredential  func(value string) (string, error)
 	DecryptCredential  func(ctx context.Context, value string) string
@@ -203,6 +207,7 @@ func newReservationService(
 		r.AvailableSlots,
 		r.LineReservationSettings,
 		r.ClinicHolidays,
+		d.NextVisitTagSync,
 	)
 }
 
@@ -220,6 +225,7 @@ func newReservationAdminService(
 		r.AvailableSlots,
 		d.MedicalRecords,
 		r.ClinicHolidays,
+		d.NextVisitTagSync,
 	)
 }
 
@@ -248,6 +254,7 @@ func newReservationLiffService(
 		d.TrimmingDetails,
 		d.Vaccinations,
 		r.ClinicHolidays,
+		d.NextVisitTagSync,
 		d.MedicalRecords,
 	)
 }

@@ -32,6 +32,11 @@ type mockReservationRepository struct {
 	findPetByIDInClinicFn              func(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
 	assertLineCustomerInClinicFn       func(ctx context.Context, clinicID, lineCustomerID uint64) error
 	acquireBookingLockFn               func(ctx context.Context, clinicID uint64) error
+	setNextVisitIntentFn               func(ctx context.Context, clinicID, petID uint64, input SetNextVisitIntentInput) (*model.Reservation, error)
+	clearNextVisitIntentFn             func(ctx context.Context, clinicID, petID uint64) (bool, error)
+	confirmTentativeFn                 func(ctx context.Context, clinicID, id uint64, input ConfirmTentativeUpdate) (*model.Reservation, error)
+	absorbTentativeOnBookingFn         func(ctx context.Context, booking *model.Reservation) (*model.Reservation, error)
+	promoteTentativeOnCheckinFn        func(ctx context.Context, booking *model.Reservation) (*model.Reservation, error)
 }
 
 func (m *mockReservationRepository) FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
@@ -188,6 +193,49 @@ func (m *mockReservationRepository) UpdateForTrimming(_ context.Context, clinicI
 
 func (m *mockReservationRepository) DeleteForTrimming(_ context.Context, _, _ uint64) error {
 	return nil
+}
+
+func (m *mockReservationRepository) SetNextVisitIntent(ctx context.Context, clinicID, petID uint64, input SetNextVisitIntentInput) (*model.Reservation, error) {
+	if m.setNextVisitIntentFn != nil {
+		return m.setNextVisitIntentFn(ctx, clinicID, petID, input)
+	}
+	return nil, nil
+}
+
+func (m *mockReservationRepository) ClearNextVisitIntent(ctx context.Context, clinicID, petID uint64) (bool, error) {
+	if m.clearNextVisitIntentFn != nil {
+		return m.clearNextVisitIntentFn(ctx, clinicID, petID)
+	}
+	return false, nil
+}
+
+func (m *mockReservationRepository) ConfirmTentative(ctx context.Context, clinicID, id uint64, input ConfirmTentativeUpdate) (*model.Reservation, error) {
+	if m.confirmTentativeFn != nil {
+		return m.confirmTentativeFn(ctx, clinicID, id, input)
+	}
+	return nil, nil
+}
+
+func (m *mockReservationRepository) AbsorbTentativeOnBooking(ctx context.Context, booking *model.Reservation) (*model.Reservation, error) {
+	if m.absorbTentativeOnBookingFn != nil {
+		return m.absorbTentativeOnBookingFn(ctx, booking)
+	}
+	// デフォルトは tentative 不在の INSERT 経路を再現する。
+	if err := m.Create(ctx, booking); err != nil {
+		return nil, err
+	}
+	return booking, nil
+}
+
+func (m *mockReservationRepository) PromoteTentativeOnCheckin(ctx context.Context, booking *model.Reservation) (*model.Reservation, error) {
+	if m.promoteTentativeOnCheckinFn != nil {
+		return m.promoteTentativeOnCheckinFn(ctx, booking)
+	}
+	// デフォルトは tentative 不在の INSERT 経路を再現する。
+	if err := m.Create(ctx, booking); err != nil {
+		return nil, err
+	}
+	return booking, nil
 }
 
 func ptrTime(t time.Time) *time.Time { return &t }

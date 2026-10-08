@@ -14,10 +14,28 @@ import { toJSTWallDate } from "@/lib/jst-date";
 import { getReservationStatusLabel } from "@/lib/status-helpers";
 import type { ReservationCreateMutations } from "@/types/reservation-create-mutations";
 import type { CalendarView, Reservation } from "../types";
+import {
+  isExpiredTentativeReservation,
+  isTentativeReservation,
+  tentativeIntendedDate,
+} from "../lib/tentative";
+import { ExpiredTentativePanel } from "../components/ExpiredTentativePanel";
+import { NextVisitResetDialog } from "@/components/shared/ReservationFormModal/NextVisitResetDialog";
+import { buildTentativeConfirmInitialData } from "@/components/shared/ReservationFormModal/confirm-tentative";
 
-/** #116: キャンセル済み予約をカレンダーから非表示にする */
+/**
+ * #116: キャンセル済み予約をカレンダーから非表示にする。
+ * EMR-308: tentative（次回予定・未予約）は明示ブランチで扱う —
+ * 当日・未来の tentative は「次回予定・未予約」マーク付きでグリッドに出し、
+ * 意図日切れの tentative は ExpiredTentativePanel（期限超過・未対応）側で扱うため
+ * カレンダーには出さない（二重管理・過去日の幻影を防ぐ）。
+ */
 export function filterCalendarAppointments(appointments: Reservation[]): Reservation[] {
-  return appointments.filter((a) => a.status !== "cancelled");
+  return appointments.filter((a) => {
+    if (a.status === "cancelled") return false;
+    if (isTentativeReservation(a)) return !isExpiredTentativeReservation(a);
+    return true;
+  });
 }
 
 const ReservationFormModal = lazy(() =>
@@ -114,6 +132,20 @@ export function ReservationManagement({ createMutations }: ReservationManagement
     petSelectConfirmOpen,
     setPetSelectConfirmOpen,
     handlePetSelectConfirm,
+    expiredTentativeAppointments,
+    confirmTentativeTarget,
+    handleOpenConfirmTentative,
+    handleCloseConfirmTentative,
+    handleConfirmTentative,
+    resetNextVisitTarget,
+    handleResetNextVisitRequest,
+    handleResetNextVisitSubmit,
+    handleResetNextVisitClose,
+    endTentativeTarget,
+    handleEndTentativeRequest,
+    executeEndTentative,
+    handleEndTentativeClose,
+    isEndTentativeSubmitting,
   } = useReservationManagement({
     currentDate,
     view,
@@ -177,6 +209,16 @@ export function ReservationManagement({ createMutations }: ReservationManagement
     setView("week");
   }, []);
 
+  // EMR-308: tentative 確定モーダルの初期値。毎レンダー新オブジェクトを作ると
+  // モーダルの初期化 effect が再走するため target 変更時のみ再計算する。
+  const confirmTentativeInitialData = useMemo(
+    () =>
+      confirmTentativeTarget?.petId
+        ? buildTentativeConfirmInitialData(confirmTentativeTarget, confirmTentativeTarget.petId)
+        : null,
+    [confirmTentativeTarget],
+  );
+
   return (
     <div className={`flex-1 flex flex-col h-full ${C.bgPage} min-w-0 w-full`}>
       <FormHeader
@@ -194,6 +236,17 @@ export function ReservationManagement({ createMutations }: ReservationManagement
             ) : null}
           </div>
         }
+      />
+
+      {/* EMR-308 A3: 意図日切れ tentative の actionable list（グリッドには出さずここで処置する） */}
+      <ExpiredTentativePanel
+        appointments={expiredTentativeAppointments}
+        canConfirm={canEdit}
+        canReset={canCreate}
+        canEnd={canEdit}
+        onConfirm={handleOpenConfirmTentative}
+        onReset={handleResetNextVisitRequest}
+        onEnd={handleEndTentativeRequest}
       />
 
       <ReservationManagementCalendar
@@ -241,8 +294,47 @@ export function ReservationManagement({ createMutations }: ReservationManagement
           onDelete={canDelete ? handleDelete : undefined}
           onCreateRecord={handleCreateRecord}
           onStatusChange={canEdit ? handleStatusChange : undefined}
+          onConfirmTentative={canEdit ? handleOpenConfirmTentative : undefined}
+        />
+
+        {/* EMR-308 A2: tentative 確定モーダル（同一行を POST confirm-tentative で昇格） */}
+        <ReservationFormModal
+          isOpen={confirmTentativeTarget !== null}
+          onClose={handleCloseConfirmTentative}
+          tentativeConfirmId={confirmTentativeTarget?.id ?? ""}
+          onConfirmTentative={handleConfirmTentative}
+          initialData={confirmTentativeInitialData}
+          canCreate={canCreate}
+          canEdit={canEdit}
         />
       </Suspense>
+
+      {/* EMR-308 A3/A4: 次回予定の再設定（任意。自動再作成はしない） */}
+      <NextVisitResetDialog
+        open={resetNextVisitTarget !== null}
+        petName={resetNextVisitTarget?.petName}
+        previousIntendedDate={resetNextVisitTarget?.previousIntendedDate}
+        onSubmit={handleResetNextVisitSubmit}
+        onClose={handleResetNextVisitClose}
+      />
+
+      {/* EMR-308 A3: 期限超過 tentative の終了確認（DELETE next-visit-intent） */}
+      <ConfirmDialog
+        open={endTentativeTarget !== null}
+        onClose={handleEndTentativeClose}
+        onConfirm={executeEndTentative}
+        title="次回予定を終了しますか？"
+        description={
+          endTentativeTarget
+            ? `${endTentativeTarget.petName || ""}${
+                endTentativeTarget.ownerName ? `（${endTentativeTarget.ownerName}）` : ""
+              } の次回予定（予定日: ${tentativeIntendedDate(endTentativeTarget)}）を終了します。`
+            : ""
+        }
+        confirmLabel="終了する"
+        variant="destructive"
+        isPending={isEndTentativeSubmitting}
+      />
 
       {/* Delete Confirm Dialog */}
       <ConfirmDialog

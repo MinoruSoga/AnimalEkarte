@@ -164,21 +164,24 @@ func newRuntimeLstepApplication(
 	auditKernel audit.Kernel,
 ) *lstep.Application {
 	return lstep.NewApplication(&lstep.Dependencies{
-		DB:                    dependencies.DB,
-		Cipher:                dependencies.IntegrationCipher,
-		SharedFileStorage:     dependencies.SharedStorage,
-		Owners:                repositories.ownerPet.Owner,
-		OwnerLifecycle:        ownerLifecycleWriterAdapter{inner: repositories.ownerPet.Owner},
-		Pets:                  repositories.ownerPet.Pet,
-		PetLifecycle:          petLifecycleWriterAdapter{inner: repositories.ownerPet.Pet},
-		Vaccinations:          repositories.medicalRecord.vaccinations,
-		MedicalRecords:        repositories.medicalRecord.medicalRecords,
-		Accounting:            repositories.billing.accounting,
-		Checkups:              repositories.medicalRecord.checkups,
-		BillingItems:          repositories.billing.billingItems,
-		ClinicSettings:        repositories.clinic.Settings,
-		ReservationSettings:   repositories.reservation.LineReservationSettings,
-		Reservations:          repositories.reservation.Reservations,
+		DB:                  dependencies.DB,
+		Cipher:              dependencies.IntegrationCipher,
+		SharedFileStorage:   dependencies.SharedStorage,
+		Owners:              repositories.ownerPet.Owner,
+		OwnerLifecycle:      ownerLifecycleWriterAdapter{inner: repositories.ownerPet.Owner},
+		Pets:                repositories.ownerPet.Pet,
+		PetLifecycle:        petLifecycleWriterAdapter{inner: repositories.ownerPet.Pet},
+		Vaccinations:        repositories.medicalRecord.vaccinations,
+		MedicalRecords:      repositories.medicalRecord.medicalRecords,
+		Accounting:          repositories.billing.accounting,
+		Checkups:            repositories.medicalRecord.checkups,
+		BillingItems:        repositories.billing.billingItems,
+		ClinicSettings:      repositories.clinic.Settings,
+		ReservationSettings: repositories.reservation.LineReservationSettings,
+		Reservations:        repositories.reservation.Reservations,
+		// EMR-308: next_visit_* タグ同期と tentative リマインダー配信の appointment 参照
+		// （candidate 抽出・送信直前再検証）。同一 ReservationStore を共有する。
+		Appointments:          repositories.reservation.Reservations,
 		Clinics:               repositories.clinic.Clinics,
 		Staff:                 repositories.reservation.ReservationStaff,
 		Audit:                 auditKernel,
@@ -376,6 +379,9 @@ func newRuntimeReservationComposition(
 			TrimmingDetails: repositories.trimmingDetails,
 			Vaccinations:    repositories.medicalRecord.vaccinations,
 			MedicalRecords:  medicalRecordComposition.MedicalRecords,
+			// EMR-308: 予約変更容易点の post-commit next_visit タグ再同期 hook。
+			// lstep 側で未設定・同期失敗でも予約操作は失敗しない（best-effort）。
+			NextVisitTagSync: lstepApplication.TagSync,
 
 			NotificationConfig: reservationNotificationConfig(
 				dependencies.Config,
