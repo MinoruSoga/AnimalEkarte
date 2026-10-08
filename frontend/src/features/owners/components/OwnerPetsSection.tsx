@@ -2,6 +2,7 @@ import { memo, useLayoutEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import {
   Bed,
+  ClipboardPlus,
   Calendar,
   CreditCard,
   Edit,
@@ -34,6 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { usePermission } from "@/hooks/use-permission";
 import { paths } from "@/config/paths";
 import { isPersistedPetId } from "@/lib/pet-id";
 import { getPetStatusColor } from "@/lib/status-helpers";
@@ -50,6 +52,7 @@ interface PetTableRowProps {
   canEdit: boolean;
   canCreate: boolean;
   canDelete: boolean;
+  canCreateReception: boolean;
   onEdit: (pet: PetFormData) => void;
   onDeleteRequest: (id: string, name: string) => void;
 }
@@ -60,12 +63,15 @@ const PetTableRow = memo(function PetTableRow({
   canEdit,
   canCreate,
   canDelete,
+  canCreateReception,
   onEdit,
   onDeleteRequest,
 }: PetTableRowProps) {
   const navigate = useNavigate();
   const actionBoundaryRef = useRef({
     status: pet.status,
+    deceasedAt: pet.deceasedAt,
+    canCreateReception,
     canEdit,
     canCreate,
     canDelete,
@@ -73,11 +79,13 @@ const PetTableRow = memo(function PetTableRow({
   useLayoutEffect(() => {
     actionBoundaryRef.current = {
       status: pet.status,
+      deceasedAt: pet.deceasedAt,
+      canCreateReception,
       canEdit,
       canCreate,
       canDelete,
     };
-  }, [canCreate, canDelete, canEdit, pet.status]);
+  }, [canCreate, canDelete, canEdit, canCreateReception, pet.status, pet.deceasedAt]);
   const backFrom = ownerId ? paths.owners.detail.getHref(ownerId) : paths.owners.getHref();
   const isDeceased = pet.status === "死亡";
 
@@ -126,6 +134,34 @@ const PetTableRow = memo(function PetTableRow({
       <TableCell className={`${STYLE.tableCell} truncate max-w-[200px]`}>{pet.remarks}</TableCell>
       <TableCell>
         <div className="flex gap-1 justify-end">
+          {pet.status === "生存" &&
+          !pet.deceasedAt &&
+          canCreateReception &&
+          isPersistedPetId(pet.id) &&
+          pet.isPending !== true ? (
+            <Button
+              type="button"
+              size="sm"
+              aria-label={`受付: ${pet.petName}`}
+              className={STYLE.tableActionBtn}
+              onClick={() => {
+                const current = actionBoundaryRef.current;
+                if (
+                  current.status !== "生存" ||
+                  current.deceasedAt ||
+                  current.canCreateReception !== true
+                )
+                  return;
+                navigate(
+                  `${paths.reservations.getHref()}?reception=1&petId=${encodeURIComponent(pet.id)}`,
+                  { state: { from: paths.home.getHref() } },
+                );
+              }}
+            >
+              <ClipboardPlus className={ICON.action} />
+              受付
+            </Button>
+          ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger
               className={`inline-flex items-center justify-center rounded-xs cursor-pointer ${STYLE.tableActionBtn} ${C.hoverBgLight}`}
@@ -315,6 +351,7 @@ export function OwnerPetsSection({
   onEditPet,
   onDeleteRequest,
 }: OwnerPetsSectionProps) {
+  const { canCreate: canCreateReception } = usePermission("reservations");
   const {
     data: sharedPetsResponse,
     isError: isSharedPetsError,
@@ -371,6 +408,7 @@ export function OwnerPetsSection({
                     canEdit={canEdit}
                     canCreate={canCreate}
                     canDelete={canDelete}
+                    canCreateReception={canCreateReception}
                     onEdit={onEditPet}
                     onDeleteRequest={onDeleteRequest}
                   />

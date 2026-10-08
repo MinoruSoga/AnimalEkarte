@@ -3,6 +3,8 @@ import type { RefObject } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { formatJSTWallDate, todayJSTISO } from "@/lib/jst-date";
+import { getReceptionCandidates } from "../api/get-reception-candidates";
 import { extractApiErrorMessage } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 import type { ReservationCreateMutations } from "@/types/reservation-create-mutations";
@@ -72,6 +74,7 @@ export function useReservationSaveActions({
   const { mutateAsync: createBatchReservationAsync } = createBatchMutation;
   const { mutate: updateReservationFn } = updateMutation;
   const [, startUpdateTransition] = useTransition();
+  const savingReceptionRef = useRef(false);
   const createdPetIdsRef = useRef(new Set<string>());
   const createdReservationIdsRef = useRef(new Set<string>());
   const newOwnerProgressRef = useRef<{ key: string; ownerID?: string; petID?: string } | null>(
@@ -217,6 +220,70 @@ export function useReservationSaveActions({
     ],
   );
 
+  const saveReception = useCallback(
+    async (
+      data: ReservationFormData,
+      selectedPets: Pick<Pet, "id" | "ownerId" | "name">[],
+      targetDoctor: string,
+    ): Promise<string | null> => {
+      if (savingReceptionRef.current) return "受付を処理中です";
+      const receptionDate = todayJSTISO();
+      if (!data.start || formatJSTWallDate(data.start) !== receptionDate)
+        return "受付日は当日を指定してください";
+      savingReceptionRef.current = true;
+      try {
+        const candidates = await Promise.all(
+          selectedPets.map((pet) => getReceptionCandidates(receptionDate, pet.id, pet.ownerId)),
+        );
+        if (todayJSTISO() !== receptionDate) return "受付日が変わりました。再読み込みしてください";
+        if (!isMutationAllowed("canCreate")) return PERMISSION_DENIED_MESSAGE;
+        if (candidates.some((rows) => rows.length > 1))
+          return "当日の予約が複数あります。受付画面で対象の予約を選択してください";
+        const existing = candidates.flat();
+        if (selectedPets.length > 1 && existing.length > 0)
+          return "当日の既存予約があります。受付画面でペットごとに受付してください";
+        const reservation = existing[0];
+        if (!reservation)
+          return await saveExistingPetsReservation(data, selectedPets, targetDoctor);
+        if (
+          !["confirmed", "checked_in", "in_consultation", "accounting"].includes(reservation.status)
+        )
+          return "予約の状態を受付画面で確認してください";
+        if (reservation.status === "confirmed") {
+          if (!isMutationAllowed("canEdit")) return PERMISSION_DENIED_MESSAGE;
+          const error = await new Promise<string | null>((resolve) => {
+            startUpdateTransition(() =>
+              updateReservationFn(
+                { id: String(reservation.id), req: { status: "checked_in" } },
+                {
+                  onSuccess: () => resolve(null),
+                  onError: (cause: unknown) => resolve(extractApiErrorMessage(cause, "受付")),
+                },
+              ),
+            );
+          });
+          if (error) return error;
+        }
+        // Already checked-in or later: do not stamp checked_in_at again or alter the schedule.
+        toast.success("当日の予約を受付画面で確認できます");
+        handleCloseCreateForm();
+        navigateBackIfNeeded();
+        return null;
+      } catch (error) {
+        return extractApiErrorMessage(error, "受付");
+      } finally {
+        savingReceptionRef.current = false;
+      }
+    },
+    [
+      handleCloseCreateForm,
+      isMutationAllowed,
+      navigateBackIfNeeded,
+      saveExistingPetsReservation,
+      updateReservationFn,
+    ],
+  );
+
   const handleSave = useCallback(
     async (
       data: ReservationFormData,
@@ -238,6 +305,14 @@ export function useReservationSaveActions({
       }
 
       const targetDoctor = data.doctor || currentEditing?.doctor || "";
+      if (
+        !currentEditing?.id &&
+        !newOwnerData &&
+        data.reservationRoute === "reception" &&
+        data.status === "checked_in"
+      ) {
+        return saveReception(data, selectedPets, targetDoctor);
+      }
       const hasOverlap = checkOverlap(
         data.start,
         data.end,
@@ -267,6 +342,7 @@ export function useReservationSaveActions({
       editingAppointmentRef,
       isMutationAllowed,
       saveExistingPetsReservation,
+      saveReception,
       saveNewOwnerReservation,
       saveUpdateReservation,
     ],

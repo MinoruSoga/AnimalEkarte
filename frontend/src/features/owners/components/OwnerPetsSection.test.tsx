@@ -7,9 +7,20 @@ import { useGetOwnerSharedPets } from "../api/get-owner-shared-pets";
 import type { PetFormData } from "../types";
 import { OwnerPetsSection } from "./OwnerPetsSection";
 
+const navigateMock = vi.fn();
+vi.mock("react-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-router")>()),
+  useNavigate: () => navigateMock,
+}));
+
 vi.mock("../api/get-owner-shared-pets", () => ({
   useGetOwnerSharedPets: vi.fn(),
 }));
+
+vi.mock("@/hooks/use-permission", () => ({
+  usePermission: () => ({ canCreate: reservationPermission }),
+}));
+let reservationPermission = false;
 
 const mockedUseGetOwnerSharedPets = vi.mocked(useGetOwnerSharedPets);
 
@@ -68,6 +79,7 @@ function renderSection({
 
 describe("OwnerPetsSection row actions", () => {
   beforeEach(() => {
+    reservationPermission = false;
     mockedUseGetOwnerSharedPets.mockReset();
     mockedUseGetOwnerSharedPets.mockReturnValue({
       data: { shared_pets: [] },
@@ -170,6 +182,7 @@ describe("OwnerPetsSection row actions", () => {
 // EMR-174: ペット名クリックで飼主詳細のペットモーダル deep link (?pet=) へ遷移する。
 describe("OwnerPetsSection pet detail link (EMR-174)", () => {
   beforeEach(() => {
+    reservationPermission = false;
     mockedUseGetOwnerSharedPets.mockReset();
     mockedUseGetOwnerSharedPets.mockReturnValue({
       data: { shared_pets: [] },
@@ -212,6 +225,7 @@ describe("OwnerPetsSection pet detail link (EMR-174)", () => {
 
 describe("OwnerPetsSection shared pets", () => {
   beforeEach(() => {
+    reservationPermission = false;
     mockedUseGetOwnerSharedPets.mockReset();
     mockedUseGetOwnerSharedPets.mockReturnValue({
       data: { shared_pets: [] },
@@ -389,5 +403,38 @@ describe("OwnerPetsSection shared pets", () => {
     expect(
       screen.queryByText("ペット情報がありません。「ペット追加」ボタンから追加してください。"),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("EMR-318 reception entry", () => {
+  beforeEach(() => {
+    reservationPermission = false;
+    navigateMock.mockReset();
+  });
+  it("owner create alone does not expose reception", () => {
+    renderSection({ pet: { ...PET, id: "10" }, canCreate: true });
+    expect(screen.queryByRole("button", { name: "受付: ポチ" })).not.toBeInTheDocument();
+  });
+  it("reservation create exposes reception independently from owner create", () => {
+    reservationPermission = true;
+    renderSection({ pet: { ...PET, id: "10" }, canCreate: false });
+    expect(screen.getByRole("button", { name: "受付: ポチ" })).toBeInTheDocument();
+  });
+  it("opens the prefilled reception flow and returns to today's board", async () => {
+    reservationPermission = true;
+    renderSection({ pet: { ...PET, id: "10" }, canCreate: false });
+    await userEvent.click(screen.getByRole("button", { name: "受付: ポチ" }));
+    expect(navigateMock).toHaveBeenCalledWith("/reservations?reception=1&petId=10", {
+      state: { from: "/" },
+    });
+  });
+  it.each([
+    { ...PET, id: "10", status: "死亡" },
+    { ...PET, id: "10", deceasedAt: "2026-10-08T00:00:00+09:00" },
+    { ...PET, id: "temp-1", isPending: true },
+  ])("blocks deceased, inconsistent and unsaved pets", (pet) => {
+    reservationPermission = true;
+    renderSection({ pet });
+    expect(screen.queryByRole("button", { name: "受付: ポチ" })).not.toBeInTheDocument();
   });
 });
