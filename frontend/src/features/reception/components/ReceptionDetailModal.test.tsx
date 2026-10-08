@@ -183,7 +183,9 @@ describe("ReceptionDetailModal", () => {
       appointment: { ...baseAppointment, ownerId: "20", petId: "10" },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /^ポチ$/ }));
+    const petButton = screen.getByRole("button", { name: /^ポチ$/ });
+    expect(petButton).toHaveClass("min-h-11", "min-w-11");
+    fireEvent.click(petButton);
 
     expect(paths.owners.detail.pet.getHref("20", "10")).toBe("/owners/20?pet=10");
     expect(navigateMock).toHaveBeenCalledTimes(1);

@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, Link, MemoryRouter, RouterProvider, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { C } from "@/lib/design-tokens";
+import { useBackNavigation } from "@/hooks/use-back-navigation";
 import { useGetPet } from "@/hooks/use-pet";
 import type { VaccinationRecord } from "../api/transforms";
 import { VaccinationList } from "./VaccinationList";
@@ -70,6 +71,21 @@ const vaccination: VaccinationRecord = {
 function LocationProbe() {
   const { pathname, search } = useLocation();
   return <output data-testid="location">{`${pathname}${search}`}</output>;
+}
+
+function DetailReturnHarness() {
+  const location = useLocation();
+  const back = useBackNavigation("/vaccinations");
+  return (
+    <>
+      <VaccinationList />
+      <output data-testid="location">{`${location.pathname}${location.search}`}</output>
+      <output data-testid="nav-state">{JSON.stringify(location.state)}</output>
+      <button type="button" onClick={back}>
+        詳細から戻る
+      </button>
+    </>
+  );
 }
 
 function DeleteRevocationHarness({ confirmAfterRender }: { confirmAfterRender: boolean }) {
@@ -430,5 +446,109 @@ describe("VaccinationList URL page 同期（FE-RC-028: useUrlPageSync）", () =>
     await waitFor(() => {
       expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations$/);
     });
+  });
+
+  it("ページのクランプ後も受付の戻り先を残す", async () => {
+    render(
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: "/vaccinations",
+            search: "?petId=10&page=99",
+            state: { from: "/?date=2026-05-29" },
+          },
+        ]}
+      >
+        <DetailReturnHarness />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations\?petId=10$/);
+    });
+    expect(screen.getByTestId("nav-state")).toHaveTextContent("/?date=2026-05-29");
+  });
+});
+
+describe("VaccinationList detail return", () => {
+  it("ペット名から開いた詳細は一覧URLへ戻り、受付の戻り先を一覧へ戻す", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: "/vaccinations",
+            search: "?petId=10",
+            state: { from: "/?date=2026-05-29" },
+          },
+        ]}
+      >
+        <DetailReturnHarness />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole("link", { name: /ポチ/ }));
+
+    expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations\/vac-1$/);
+    expect(screen.getByTestId("nav-state")).toHaveTextContent('"/vaccinations?petId=10"');
+    expect(screen.getByTestId("nav-state")).toHaveTextContent("/?date=2026-05-29");
+
+    await user.click(screen.getByRole("button", { name: "詳細から戻る" }));
+
+    expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations\?petId=10$/);
+    expect(screen.getByTestId("nav-state")).toHaveTextContent('{"from":"/?date=2026-05-29"}');
+  });
+
+  it("カルテ付きの編集も同じ一覧URLを戻り先にする", async () => {
+    const user = userEvent.setup();
+    mockUseFilterVaccinations.mockReturnValue({
+      data: [{ ...vaccination, medicalRecordId: "mr-9" }],
+      allVaccinations: [{ ...vaccination, medicalRecordId: "mr-9" }],
+      isLoading: false,
+      error: null,
+    });
+    render(
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: "/vaccinations",
+            search: "?petId=10",
+            state: { from: "/?date=2026-05-29" },
+          },
+        ]}
+      >
+        <DetailReturnHarness />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole("button", { name: /vac-1/ }));
+    await user.click(screen.getByRole("menuitem", { name: "編集" }));
+
+    expect(screen.getByTestId("location")).toHaveTextContent("/medical-records/mr-9");
+    expect(screen.getByTestId("nav-state")).toHaveTextContent('"/vaccinations?petId=10"');
+    expect(screen.getByTestId("nav-state")).toHaveTextContent("/?date=2026-05-29");
+  });
+
+  it("検索でpageを外しても受付の戻り先を残す", () => {
+    render(
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: "/vaccinations",
+            search: "?petId=10&page=2",
+            state: { from: "/?date=2026-05-29" },
+          },
+        ]}
+      >
+        <DetailReturnHarness />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText("飼主名、ペット名、予防接種名..."), {
+      target: { value: "混合" },
+    });
+
+    expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations\?petId=10$/);
+    expect(screen.getByTestId("nav-state")).toHaveTextContent("/?date=2026-05-29");
   });
 });

@@ -581,6 +581,79 @@ describe("sidebar item purpose descriptions", () => {
     }
   });
 
+  it("下端に近い説明は画面内へ上げる", () => {
+    const originalHeight = window.innerHeight;
+    const scrollDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollHeight");
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 200 });
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        return 120;
+      },
+    });
+    try {
+      const item = requireMenuItem("当日の受付", paths.home.getHref());
+      renderSidebarItem(item, true);
+      const link = screen.getByRole("link", { name: "当日の受付" });
+      const row = link.closest("[data-sidebar-row]");
+      if (!(row instanceof HTMLElement)) throw new Error("sidebar row missing");
+      row.getBoundingClientRect = () =>
+        ({
+          x: 0,
+          y: 160,
+          top: 160,
+          left: 0,
+          right: 64,
+          bottom: 208,
+          width: 64,
+          height: 48,
+          toJSON: () => ({}),
+        }) as DOMRect;
+      focusVisible(link);
+      const tooltip = screen.getByRole("tooltip");
+      expect(tooltip.style.top).toBe("72px");
+      expect(tooltip.style.maxHeight).toBe("184px");
+    } finally {
+      Object.defineProperty(window, "innerHeight", { configurable: true, value: originalHeight });
+      if (scrollDescriptor) {
+        Object.defineProperty(HTMLElement.prototype, "scrollHeight", scrollDescriptor);
+      }
+    }
+  });
+
+  it("Escapeで説明を閉じ、フォーカスはメニューに残す", () => {
+    const item = requireMenuItem("当日の受付", paths.home.getHref());
+    renderSidebarItem(item, true);
+    const link = screen.getByRole("link", { name: "当日の受付" });
+    focusVisible(link);
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    expect(link).toHaveFocus();
+    fireEvent.mouseEnter(link);
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("ポインタを説明へ移しても説明は開いたまま", async () => {
+    const item = requireMenuItem("当日の受付", paths.home.getHref());
+    renderSidebarItem(item, true);
+    const link = screen.getByRole("link", { name: "当日の受付" });
+    fireEvent.mouseEnter(link);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const tooltip = screen.getByRole("tooltip");
+    fireEvent.mouseLeave(link, { relatedTarget: tooltip });
+    fireEvent.mouseEnter(tooltip);
+
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+
+    fireEvent.mouseLeave(tooltip, { relatedTarget: document.body });
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
   it("画面の目的がある項目だけその文を受け取り、無い5件は説明を持たない", () => {
     for (const row of DESCRIBED_MENU) {
       const item = requireMenuItem(row.label, row.path);

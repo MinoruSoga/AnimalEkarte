@@ -1,7 +1,16 @@
 import { C, ICON, STYLE, Z } from "@/lib/design-tokens";
 import type { MenuItem } from "@/types";
 import { ChevronDown } from "lucide-react";
-import { memo, useEffect, useId, useRef, useState, type FocusEvent, type MouseEvent } from "react";
+import {
+  memo,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FocusEvent,
+  type MouseEvent,
+} from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth } from "@/hooks/use-auth";
@@ -18,6 +27,7 @@ interface SidebarItemProps {
 }
 
 const TOOLTIP_GAP_PX = 8;
+const VIEWPORT_EDGE_PX = 8;
 
 function tooltipBox(
   anchorRight: number,
@@ -26,6 +36,17 @@ function tooltipBox(
   const left = anchorRight + TOOLTIP_GAP_PX;
   const remaining = Math.max(0, viewportWidth - left - TOOLTIP_GAP_PX);
   return { left, maxWidth: `min(28rem, ${remaining}px)` };
+}
+
+function tooltipTop(anchorTop: number, contentHeight: number, viewportHeight: number): number {
+  const available = Math.max(0, viewportHeight - VIEWPORT_EDGE_PX * 2);
+  const height = Math.min(Math.max(contentHeight, 0), available);
+  const maxTop = VIEWPORT_EDGE_PX + Math.max(0, available - height);
+  return Math.min(Math.max(anchorTop, VIEWPORT_EDGE_PX), maxTop);
+}
+
+function targetInPurposeTooltip(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest("[data-purpose-tooltip]") !== null;
 }
 
 function checkAnyChildActive(items: MenuItem[], pathname: string): boolean {
@@ -73,30 +94,73 @@ function PurposeTooltip({
   text,
   exposure,
   anchor,
+  onPointerEnter,
+  onPointerLeave,
 }: {
   id: string;
   text: string;
   exposure: string;
   anchor: HTMLElement | null;
+  onPointerEnter: () => void;
+  onPointerLeave: (next: EventTarget | null) => void;
 }) {
-  const rect = anchor?.getBoundingClientRect();
+  const rect = anchor?.getBoundingClientRect() ?? null;
   const box = tooltipBox(rect?.right ?? 0, window.innerWidth);
+  const [node, setNode] = useState<HTMLDivElement | null>(null);
+  const [contentHeight, setContentHeight] = useState(0);
+  useLayoutEffect(() => {
+    if (!node) return;
+    const next = node.scrollHeight;
+    if (next !== contentHeight) {
+      // Height is known only after layout, and the position must update before paint.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- measure tooltip before paint
+      setContentHeight(next);
+    }
+  }, [contentHeight, node, text, box.maxWidth]);
+  const available = Math.max(0, window.innerHeight - VIEWPORT_EDGE_PX * 2);
+  const top = tooltipTop(rect?.top ?? 0, contentHeight, window.innerHeight);
+  const bridgeHeight = Math.max(rect?.height ?? 0, contentHeight, 1);
+  const leave = (event: MouseEvent<HTMLDivElement>) => {
+    onPointerLeave(event.relatedTarget);
+  };
   return createPortal(
-    <div
-      id={id}
-      role="tooltip"
-      data-exposure={exposure}
-      style={{
-        position: "fixed",
-        top: rect?.top ?? 0,
-        left: box.left,
-        zIndex: Z.overlay,
-        maxWidth: box.maxWidth,
-      }}
-      className={`pointer-events-none w-max rounded ${C.bgTooltip} px-2.5 py-1.5 text-xs leading-relaxed ${C.textWhite}`}
-    >
-      {text}
-    </div>,
+    <>
+      <div
+        data-purpose-tooltip=""
+        aria-hidden="true"
+        onMouseEnter={onPointerEnter}
+        onMouseLeave={leave}
+        style={{
+          position: "fixed",
+          top,
+          left: rect?.right ?? 0,
+          width: TOOLTIP_GAP_PX,
+          height: bridgeHeight,
+          zIndex: Z.overlay,
+        }}
+      />
+      <div
+        ref={setNode}
+        id={id}
+        role="tooltip"
+        data-purpose-tooltip=""
+        data-exposure={exposure}
+        onMouseEnter={onPointerEnter}
+        onMouseLeave={leave}
+        style={{
+          position: "fixed",
+          top,
+          left: box.left,
+          zIndex: Z.overlay,
+          maxWidth: box.maxWidth,
+          maxHeight: `${available}px`,
+          overflow: "auto",
+        }}
+        className={`w-max rounded ${C.bgTooltip} px-2.5 py-1.5 text-xs leading-relaxed ${C.textWhite}`}
+      >
+        {text}
+      </div>
+    </>,
     document.body,
   );
 }
@@ -126,9 +190,12 @@ const SidebarItem = memo(function SidebarItem({
   const descriptionId = useId();
   const [rowElement, setRowElement] = useState<HTMLDivElement | null>(null);
   const keyboardIntent = useRef(false);
+  const hoverRef = useRef(false);
+  const focusRef = useRef(false);
   const [hovered, setHovered] = useState(false);
   const [keyboardFocused, setKeyboardFocused] = useState(false);
-  const descriptionOpen = description !== undefined && (hovered || keyboardFocused);
+  const [dismissed, setDismissed] = useState(false);
+  const descriptionOpen = description !== undefined && !dismissed && (hovered || keyboardFocused);
   const exposure = [hovered ? "hover" : "", keyboardFocused ? "focus-visible" : ""]
     .filter((part) => part !== "")
     .join(" ");
@@ -142,24 +209,37 @@ const SidebarItem = memo(function SidebarItem({
     let ignorePairedLeave = false;
     const enter = () => {
       ignorePairedLeave = true;
+      hoverRef.current = true;
       setHovered(true);
       queueMicrotask(() => {
         ignorePairedLeave = false;
       });
     };
-    const leave = () => {
+    const leave = (event: Event) => {
       if (ignorePairedLeave) return;
+      const next =
+        "relatedTarget" in event
+          ? (event as Event & { relatedTarget: EventTarget | null }).relatedTarget
+          : null;
+      if (targetInPurposeTooltip(next) || eventTargetInRow(next, row)) return;
+      hoverRef.current = false;
       setHovered(false);
+      if (!focusRef.current) setDismissed(false);
     };
     const onFocus = (event: Event) => {
       const target = event.target;
       if (!(target instanceof Element) || owningSidebarRow(target) !== row) return;
-      if (target.matches(":focus-visible") || keyboardIntent.current) setKeyboardFocused(true);
+      if (target.matches(":focus-visible") || keyboardIntent.current) {
+        focusRef.current = true;
+        setKeyboardFocused(true);
+      }
     };
     const onBlur = (event: Event) => {
       const next = event instanceof FocusEvent ? event.relatedTarget : null;
       if (eventTargetInRow(next, row)) return;
+      focusRef.current = false;
       setKeyboardFocused(false);
+      if (!hoverRef.current) setDismissed(false);
     };
     for (const control of controls) {
       control.addEventListener("mouseenter", enter);
@@ -179,6 +259,9 @@ const SidebarItem = memo(function SidebarItem({
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Tab") keyboardIntent.current = true;
+      if (event.key !== "Escape" || !descriptionOpen) return;
+      event.preventDefault();
+      setDismissed(true);
     };
     const onPointer = () => {
       keyboardIntent.current = false;
@@ -189,7 +272,7 @@ const SidebarItem = memo(function SidebarItem({
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("pointerdown", onPointer);
     };
-  }, []);
+  }, [descriptionOpen]);
   const showKeyboardFocus = (event: FocusEvent<HTMLElement>) => {
     const target = event.target;
     if (!(target instanceof Element) || description === undefined) return;
@@ -198,7 +281,10 @@ const SidebarItem = memo(function SidebarItem({
       : event.currentTarget.closest("[data-sidebar-row]");
     if (row === null || owningSidebarRow(target) !== row) return;
     const focusVisibleTarget = target.matches(":focus-visible") || keyboardIntent.current;
-    if (focusVisibleTarget) setKeyboardFocused(true);
+    if (focusVisibleTarget) {
+      focusRef.current = true;
+      setKeyboardFocused(true);
+    }
   };
 
   const handleClick = (event: MouseEvent) => {
@@ -311,6 +397,16 @@ const SidebarItem = memo(function SidebarItem({
           text={description}
           exposure={exposure}
           anchor={rowElement}
+          onPointerEnter={() => {
+            hoverRef.current = true;
+            setHovered(true);
+          }}
+          onPointerLeave={(next) => {
+            if (rowElement && eventTargetInRow(next, rowElement)) return;
+            hoverRef.current = false;
+            setHovered(false);
+            if (!focusRef.current) setDismissed(false);
+          }}
         />
       ) : null}
     </div>

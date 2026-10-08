@@ -7,7 +7,7 @@ import {
   useRef,
   useTransition,
 } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { Plus, Syringe } from "lucide-react";
 import { toast } from "sonner";
 
@@ -33,6 +33,7 @@ import {
   orderVaccinationListRows,
   vaccinationDateRange,
   vaccinationListDetailHref,
+  vaccinationListDetailState,
 } from "./vaccinations-list-model";
 
 import type { VaccinationRecord } from "@/types";
@@ -40,6 +41,7 @@ import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 
 export function VaccinationList() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit, canDelete } = usePermission("vaccinations");
   const [searchTerm, setSearchTerm] = useState("");
@@ -103,22 +105,45 @@ export function VaccinationList() {
   }, [currentPage, goToPage, isLoading, totalPages, urlPage]);
 
   // FE-RC-028: totalPages を超える URL page をクランプして書き戻す（フィルタ変更等で母集団が縮んだ場合の空ページ対策）。
-  useUrlPageSync({ urlPage, totalPages, isLoading, setSearchParams });
+  useUrlPageSync({
+    urlPage,
+    totalPages,
+    isLoading,
+    setSearchParams,
+    preserveNavigationState: true,
+    navigationState: location.state,
+  });
 
   const handleSearchChange = useCallback(
     (value: string) => {
       setSearchTerm(value);
-      setSearchParams((prev) => nextListSearchParamsWithPage(prev, 1), { replace: true });
+      setSearchParams((prev) => nextListSearchParamsWithPage(prev, 1), {
+        replace: true,
+        state: location.state,
+      });
     },
-    [setSearchParams],
+    [location.state, setSearchParams],
   );
 
   const handlePageChange = useCallback(
     (page: number) => {
       goToPage(page);
-      setSearchParams((prev) => nextListSearchParamsWithPage(prev, page), { replace: true });
+      setSearchParams((prev) => nextListSearchParamsWithPage(prev, page), {
+        replace: true,
+        state: location.state,
+      });
     },
-    [goToPage, setSearchParams],
+    [goToPage, location.state, setSearchParams],
+  );
+
+  const detailState = useMemo(
+    () =>
+      vaccinationListDetailState({
+        pathname: location.pathname,
+        search: location.search,
+        locationState: location.state,
+      }),
+    [location.pathname, location.search, location.state],
   );
 
   const handleCreate = useCallback(() => {
@@ -132,9 +157,10 @@ export function VaccinationList() {
           id: record.id,
           medicalRecordId: record.medicalRecordId,
         }),
+        { state: detailState },
       );
     },
-    [navigate],
+    [detailState, navigate],
   );
 
   const handleDeleteConfirm = useCallback(() => {
@@ -192,6 +218,7 @@ export function VaccinationList() {
           onEdit={handleEdit}
           onDelete={setPendingDeleteId}
           onPageChange={handlePageChange}
+          detailState={detailState}
         />
       </PageLayout>
       <VaccinationListDeleteDialog

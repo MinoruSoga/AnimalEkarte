@@ -194,7 +194,7 @@ export function ReceptionDialogBody({
                 <button
                   type="button"
                   onClick={onOpenPetDetail}
-                  className={`underline underline-offset-2 ${C.textActionPrimary}`}
+                  className={`inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-2 ${C.textActionPrimary}`}
                 >
                   {appointment.petName}
                 </button>

@@ -312,12 +312,17 @@ export function toMedicalRecordFormResult(input: {
 
 export function createMedicalRecordBackHandler(input: {
   from: unknown;
+  listReturnState?: unknown;
   recordId?: string;
-  navigate: (to: string) => void;
+  navigate: (to: string, options?: { state?: unknown }) => void;
 }): () => void {
   return () => {
     const from = parseInternalPath(input.from);
     if (from) {
+      if (input.listReturnState !== undefined) {
+        input.navigate(from, { state: input.listReturnState });
+        return;
+      }
       input.navigate(from);
       return;
     }
