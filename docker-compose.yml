@@ -25,7 +25,9 @@ services:
         "shared_buffers=256MB",
       ]
     ports:
-      - "5434:5432"
+      # worktree 並行起動用に ${VAR:-default} 化（.claude/rules/worktree-runtime.md）。
+      # main repo は既定値のまま、worktree は .env.local でオフセットする。
+      - "${DB_HOST_PORT:-5434}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:
@@ -50,7 +52,7 @@ services:
         condition: service_healthy
     ports:
       # LIFF_MOCK=true と未認証 /uploads を開発機の LAN 側へ露出させないため loopback 限定
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:${BACKEND_HOST_PORT:-8080}:8080"
     volumes:
       - ./backend:/app
       - ./Makefile:/Makefile:ro
@@ -98,9 +100,9 @@ services:
     networks:
       - ekarte-network
     ports:
-      - "3003:3000"
+      - "${FRONTEND_HOST_PORT:-3003}:3000"
       # Storybook dev server (FE-DS1 コンポーネントカタログ)
-      - "6006:6006"
+      - "${STORYBOOK_HOST_PORT:-6006}:6006"
     environment:
       - TZ=Asia/Tokyo
       - VITE_API_URL=/api
@@ -147,7 +149,7 @@ services:
     profiles: [docs]
     image: swaggerapi/swagger-ui:v5.32.8
     ports:
-      - "8081:8080"
+      - "${SWAGGER_HOST_PORT:-8081}:8080"
     environment:
       SWAGGER_JSON: /docs/api.yaml
       SWAGGER_JSON_URL: http://localhost:8080/api/swagger.json
@@ -166,7 +168,7 @@ services:
     profiles: [docs]
     image: redocly/redoc:v2.5.3
     ports:
-      - "8082:80"
+      - "${REDOC_HOST_PORT:-8082}:80"
     environment:
       SPEC_URL: /docs/api.yaml
     volumes:
@@ -206,10 +208,15 @@ services:
     restart: "no"
 
 volumes:
+  # postgres_data / frontend_node_modules は ${VAR:-default} で worktree ごとに
+  # 分離できるようにする（未設定=既定値=main と共有 → worktree-runtime.md 必読）。
+  # DB を共有すると 2 つ目の postgres が PGDATA lock で落ちる、または worktree が
+  # main の DB をそのまま使う。node_modules 共有は worktree 間の依存差異で壊れる。
   postgres_data:
-    name: ekarte-postgres-data
+    name: ${POSTGRES_DATA_VOLUME:-ekarte-postgres-data}
   frontend_node_modules:
-    name: ekarte-frontend-node-modules
+    name: ${FRONTEND_NODE_MODULES_VOLUME:-ekarte-frontend-node-modules}
+  # キャッシュ系は content-addressed なので固定名の共有を維持する（全 worktree で使い回し）。
   go_mod_cache:
     name: ekarte-go-mod-cache
   go_build_cache:

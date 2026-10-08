@@ -25,14 +25,16 @@ trap 'rm -rf "$TMP_ROOT"' EXIT
 
 failures=0
 
+# 実 docker-compose.yml と同じ ${VAR:-default} 形式にし、resolve_volume_name の
+# default フォールバック経路を全ケースで実地に通す。
 GOOD_COMPOSE='services:
   db:
     image: postgres:18-alpine
 volumes:
   postgres_data:
-    name: ekarte-postgres-data
+    name: ${POSTGRES_DATA_VOLUME:-ekarte-postgres-data}
   frontend_node_modules:
-    name: ekarte-frontend-node-modules
+    name: ${FRONTEND_NODE_MODULES_VOLUME:-ekarte-frontend-node-modules}
   go_mod_cache:
     name: ekarte-go-mod-cache
   go_build_cache:
@@ -493,6 +495,14 @@ volumes:
   go_build_cache:
     name: ekarte-go-build-cache
 " \
+  -- --contract-only
+
+# 4.5 worktree .env.local が volume 名を隔離 → expected list から外れ refuse
+#     (worktree での誤 reset を fail-closed で防ぐ。worktree-runtime.md 参照)
+run_case "bad-worktree-volume-override" 1 \
+  "ENVFILE=APP_ENV=development
+POSTGRES_DATA_VOLUME=ekarte-postgres-data-wt300
+FRONTEND_NODE_MODULES_VOLUME=ekarte-frontend-node-modules-wt300" \
   -- --contract-only
 
 # 5. Wrong expected project (staging-like) → non-zero on execute

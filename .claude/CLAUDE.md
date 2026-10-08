@@ -30,6 +30,7 @@
 - **Agent Migration Authority**: Agents must not auto-apply migrations. Surface `make migrate` for the user to run manually when the post-pull rule applies.
 - **Git Safety**: Never `git reset --hard`, `git clean -fd(x)`, discard-all `checkout`/`restore .`, or force-push. See [.claude/rules/git-worktree-safety.md](rules/git-worktree-safety.md). Claude Code has `permissions.deny` and `.claude/hooks/pre-bash-block-dangerous.js`; Codex enforcement must be verified in its effective user settings and loaded Hooks. Instructions alone do not prove enforcement.
 - **Parallel Agents**: Concurrent Grok/Claude/Codex tasks **must** use separate `git worktree`s (or harness worktree isolation). One shared working tree = one active editor agent only.
+- **Worktree Runtime**: A worktree that runs the local Docker stack must generate `.env.local` via `scripts/tools/worktree-env.sh <offset>` before `make up` (ports/project/volumes collide with main otherwise) and run `docker compose down` before worktree removal. Details: [.claude/rules/worktree-runtime.md](rules/worktree-runtime.md).
 
 ## Commands
 
