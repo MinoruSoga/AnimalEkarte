@@ -17,7 +17,7 @@ class SkillMirrorTest(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
-        for folder in (".claude/skills/demo/references", ".claude/commands", ".claude/rules", "scripts"):
+        for folder in (".claude/skills/demo/references", ".claude/commands", ".claude/rules", "scripts/checks"):
             (self.root / folder).mkdir(parents=True)
         (self.root / ".claude/skills/demo/SKILL.md").write_text("canonical skill\n")
         (self.root / ".claude/skills/demo/references/example.md").write_bytes(b"reference\r\n")
