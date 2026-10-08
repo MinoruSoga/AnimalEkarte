@@ -7,7 +7,7 @@
 -- be referenced inside the same transaction, and cmd/migrate wraps each file in
 -- one transaction. Following the 007/008 precedent, the value lands here while
 -- the value-referencing DDL ships in the next file:
---   026_appointments_one_active_tentative_index.sql creates
+--   029_appointments_one_active_tentative_index.sql creates
 --     UNIQUE INDEX uq_appointments_one_active_tentative
 --     ON appointments (clinic_id, pet_id)
 --     WHERE status = 'tentative' AND deleted_at IS NULL
