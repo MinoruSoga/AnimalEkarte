@@ -1,0 +1,46 @@
+name: Plane state on merge
+
+# main へのマージで [EMR-N] を Review に、staging へのマージで
+# そのリリースに含まれる main マージ済み PR の [EMR-N] を UAT にする。
+# 括弧付きの [EMR-N] だけが対象。マージせずクローズした PR と production は動かさない。
+# Done / Cancelled / Duplicate / Needs Human / Blocked / Phase2 は動かさない。
+# staging で UAT にするのは、現在 Review の票だけ。
+#
+# Secret: PLANE_GITHUB_AUTOMATION_KEY
+#   Plane API key。アプリのサポート起票用キーとは別。
+#   scopes: projects.work_items:read, projects.work_items:write,
+#           projects.work_items.comments:write
+# 未設定ならこの job は失敗する。値はログに出さない。
+# Plane 公式 GitHub 連携の「マージ成功」state 割り当ては空のままにする。
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main, staging]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: plane-merge-state-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Move Plane work items
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PLANE_GITHUB_AUTOMATION_KEY: ${{ secrets.PLANE_GITHUB_AUTOMATION_KEY }}
+        run: bash scripts/tools/plane-merge-state.sh
