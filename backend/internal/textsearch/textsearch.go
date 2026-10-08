@@ -2,7 +2,10 @@
 // PostgreSQL-backed human-name searches.
 package textsearch
 
-import "strings"
+import (
+	"strings"
+	"unicode"
+)
 
 // KanaSourceChars and KanaTargetChars map the katakana range used by
 // PostgreSQL translate() to its hiragana equivalent.
@@ -42,6 +45,22 @@ const SpaceStripRegexp = "[[:space:]　]+"
 func NormalizeQuerySpaces(value string) string {
 	value = strings.ReplaceAll(value, "\u3000", " ")
 	return strings.Join(strings.Fields(strings.TrimSpace(value)), " ")
+}
+
+// CompactSearchText removes every Unicode space while preserving character order.
+// Query-side companion of regexp_replace(FoldedExpr(column), SpaceStripRegexp, '', 'g').
+// Callers still kana-normalize and EscapeLike the result. Do not put the strip
+// charset in a SQL bind parameter.
+func CompactSearchText(value string) string {
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if unicode.IsSpace(r) {
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 // NormalizeKana converts katakana to hiragana while preserving every other

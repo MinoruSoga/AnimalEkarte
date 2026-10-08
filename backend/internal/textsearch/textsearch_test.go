@@ -35,6 +35,15 @@ func TestNormalizeQuerySpaces(t *testing.T) {
 	assert.Equal(t, "", NormalizeQuerySpaces("　　"))
 }
 
+func TestCompactSearchText(t *testing.T) {
+	assert.Equal(t, "山田花子", CompactSearchText("山田 花子"))
+	assert.Equal(t, "山田花子", CompactSearchText("山田　花子"))
+	assert.Equal(t, "山田花子", CompactSearchText("  山田\t花子　"))
+	assert.Equal(t, "山田花子", CompactSearchText("山田 　花子"))
+	assert.Equal(t, "", CompactSearchText(" \t　"))
+	assert.Equal(t, "やまだはなこ", CompactSearchText("やまだはなこ"))
+}
+
 func TestEscapeLike(t *testing.T) {
 	tests := []struct {
 		name  string
