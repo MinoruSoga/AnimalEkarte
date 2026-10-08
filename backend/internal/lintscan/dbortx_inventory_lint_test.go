@@ -744,8 +744,11 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// trimming detail (uniform dbOrTx)
 	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.Create":              {},
 	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.FindByAppointmentID": {},
-	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.SetOptions":          {},
-	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.Update":              {},
+	// EMR-300: image-key reference probe must observe the caller's ambient tx —
+	// a cleanup delete issued post-commit inside a tx must see uncommitted writes.
+	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.ImageKeyInUse": {},
+	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.SetOptions":    {},
+	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.Update":        {},
 	// vital (X-11 Appendix-A finalize-child-write-race fix — same FK-deadlock rationale as examination)
 	// BE9-2D sub-batch④a: moved to internal/medicalrecord (facade kept in internal/repository).
 	// FindByMedicalRecordID: BE9-2D ④b — treatmentService の dose 体重解決が保存 tx 内から読む

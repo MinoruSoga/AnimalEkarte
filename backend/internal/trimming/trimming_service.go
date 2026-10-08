@@ -99,9 +99,10 @@ type Service interface {
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error)
 	Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error
 	// ImageKeyInUse は trimming 詳細レコードによる画像キー参照の有無を返す。
-	// DELETE /trimmings/images が未永続化オブジェクトのみを消せるようにする
-	// fail-closed ガード — 参照中キーの削除要求は 409 で拒否される。
-	ImageKeyInUse(ctx context.Context, clinicID uint64, key string) (bool, error)
+	// DELETE /trimmings/images（exceptAppointmentID=0: どの参照でも拒否）と
+	// superseded 削除（exceptAppointmentID=対象レコード: 他レコード共有時のみ保留）
+	// の fail-closed ガード — 参照中キーの削除要求は 409 で拒否される。
+	ImageKeyInUse(ctx context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error)
 }
 
 type trimmingService struct {
@@ -210,8 +211,8 @@ func (s *trimmingService) GetByID(ctx context.Context, clinicID, id uint64) (*mo
 	return appt, nil
 }
 
-func (s *trimmingService) ImageKeyInUse(ctx context.Context, clinicID uint64, key string) (bool, error) {
-	return s.trimmingDetail.ImageKeyInUse(ctx, clinicID, key)
+func (s *trimmingService) ImageKeyInUse(ctx context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error) {
+	return s.trimmingDetail.ImageKeyInUse(ctx, clinicID, key, exceptAppointmentID)
 }
 
 func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error) {

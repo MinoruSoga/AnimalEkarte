@@ -671,6 +671,66 @@ func TestUpdateTrimming_DeletesReplacedImageKey(t *testing.T) {
 		"only the superseded key must be deleted")
 }
 
+// 他レコードが同じキーを参照している場合、update/delete の superseded 削除は
+// そのオブジェクトを保持しなければならない（create/update は医院 prefix のみ
+// 検査するため同一キー共有は起こり得る — P1: retain referenced objects）。
+func TestUpdateTrimming_RetainsImageKeySharedWithOtherRecord(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	uploader := &fakeTrimmingImageUploader{}
+	svc := &mockService{
+		getByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
+			return trimmingDetailReservation("trimming-images/1/shared.jpg", "trimming-images/1/done.png"), nil
+		},
+		updateFn: func(_ context.Context, _, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error) {
+			return trimmingDetailReservation(*input.StyleImage, "trimming-images/1/done.png"), nil
+		},
+		imageKeyInUseFn: func(_ context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, "trimming-images/1/shared.jpg", key)
+			assert.Equal(t, uint64(7), exceptAppointmentID, "the updated record's own row is excluded")
+			return true, nil // another record still references the key
+		},
+	}
+	h := newImageHandler(svc, uploader, &fakeImageUploadQuotaStore{})
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/trimmings/7",
+		strings.NewReader(`{"style_image":"trimming-images/1/new-style.jpg"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	c := newTrimmingHandlerContext(w, req)
+	c.Params = gin.Params{{Key: "id", Value: "7"}}
+	h.UpdateTrimming(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Empty(t, uploader.deletes,
+		"an object referenced by another record must be retained")
+}
+
+func TestDeleteTrimming_RetainsImageKeySharedWithOtherRecord(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	uploader := &fakeTrimmingImageUploader{}
+	svc := &mockService{
+		getByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
+			return trimmingDetailReservation("trimming-images/1/shared.jpg", ""), nil
+		},
+		imageKeyInUseFn: func(_ context.Context, _ uint64, key string, exceptAppointmentID uint64) (bool, error) {
+			assert.Equal(t, uint64(7), exceptAppointmentID, "the deleted record's own row is excluded")
+			return key == "trimming-images/1/shared.jpg", nil
+		},
+	}
+	h := newImageHandler(svc, uploader, &fakeImageUploadQuotaStore{})
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/trimmings/7", nil)
+	w := httptest.NewRecorder()
+	c := newTrimmingHandlerContext(w, req)
+	c.Params = gin.Params{{Key: "id", Value: "7"}}
+	h.DeleteTrimming(c)
+
+	assert.Equal(t, http.StatusNoContent, c.Writer.Status())
+	assert.Empty(t, uploader.deletes,
+		"an object referenced by another record must survive record deletion")
+}
+
 func TestUpdateTrimming_DeletesClearedImageKey(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	uploader := &fakeTrimmingImageUploader{}
@@ -872,9 +932,10 @@ func TestDeleteTrimmingImage_ReferencedKeyRejected(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	uploader := &fakeTrimmingImageUploader{}
 	svc := &mockService{
-		imageKeyInUseFn: func(_ context.Context, clinicID uint64, key string) (bool, error) {
+		imageKeyInUseFn: func(_ context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error) {
 			assert.Equal(t, uint64(1), clinicID)
 			assert.Equal(t, "trimming-images/1/style.jpg", key)
+			assert.Zero(t, exceptAppointmentID, "cleanup endpoint must reject on any reference")
 			return true, nil
 		},
 	}
@@ -892,7 +953,7 @@ func TestDeleteTrimmingImage_ReferenceCheckErrorFailsClosed(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	uploader := &fakeTrimmingImageUploader{}
 	svc := &mockService{
-		imageKeyInUseFn: func(context.Context, uint64, string) (bool, error) {
+		imageKeyInUseFn: func(context.Context, uint64, string, uint64) (bool, error) {
 			return false, errors.New("db down")
 		},
 	}

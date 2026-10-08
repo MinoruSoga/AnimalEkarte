@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { TrimmingImageUploadField } from "./TrimmingImageUploadField";
 
-const CAPTURE_IMAGE_ACCEPT = "image/jpeg,image/png,image/gif";
+const TRIMMING_IMAGE_ACCEPT = "image/jpeg,image/png,image/gif";
 
 function renderField(
   overrides: Partial<{
@@ -54,22 +54,23 @@ function expectAtLeast44px(element: Element) {
 }
 
 describe("TrimmingImageUploadField", () => {
-  it("撮影は別の hidden input で、ファイル選択の accept と capture なしは維持する", () => {
+  it("撮影は別の hidden input で、両 input の accept は BE 受理形式に揃える", () => {
     renderField();
 
     const picker = pickerInput();
     const camera = captureInput();
     expect(fileInputs()).toHaveLength(2);
     expect(picker).not.toBe(camera);
-    expect(picker).toHaveAttribute("accept", "image/*");
+    expect(picker).toHaveAttribute("accept", TRIMMING_IMAGE_ACCEPT);
     expect(picker).not.toHaveAttribute("capture");
     expect(picker.multiple).toBe(false);
     expect(picker.className).toContain("sr-only");
 
     expect(camera).toHaveAttribute("capture", "environment");
-    expect(camera).toHaveAttribute("accept", CAPTURE_IMAGE_ACCEPT);
+    expect(camera).toHaveAttribute("accept", TRIMMING_IMAGE_ACCEPT);
     expect(camera.accept).not.toContain("pdf");
     expect(camera.accept).not.toContain("image/*");
+    expect(picker.accept).not.toContain("image/*");
     expect(camera.multiple).toBe(false);
     expect(camera.className).toContain("hidden");
     expect(camera).toHaveAttribute("hidden");
@@ -149,7 +150,7 @@ describe("TrimmingImageUploadField", () => {
     const captureButton = screen.getByRole("button", { name: /^撮影$/ });
     expectAtLeast44px(captureButton);
     const camera = captureInput();
-    expect(camera).toHaveAttribute("accept", CAPTURE_IMAGE_ACCEPT);
+    expect(camera).toHaveAttribute("accept", TRIMMING_IMAGE_ACCEPT);
     const file = new File(["img"], "done.jpg", { type: "image/jpeg" });
     await user.upload(camera, file);
     expect(onImageChange).toHaveBeenCalledTimes(1);

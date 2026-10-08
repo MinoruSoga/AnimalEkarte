@@ -240,7 +240,7 @@ func (h *Handler) DeleteTrimmingImage(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "trimming image reference check is not configured"})
 		return
 	}
-	inUse, err := h.svc.Trimming.ImageKeyInUse(c.Request.Context(), clinicID, key)
+	inUse, err := h.svc.Trimming.ImageKeyInUse(c.Request.Context(), clinicID, key, 0)
 	if err != nil {
 		httpapi.RespondError(c, apperrors.Wrap(err, "failed to check trimming image reference"))
 		return

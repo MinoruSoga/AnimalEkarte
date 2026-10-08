@@ -65,11 +65,9 @@ func (h *Handler) signStoredTrimmingImageURL(ctx context.Context, clinicID uint6
 		return stored, nil
 	}
 	if !trimmingImageKeyBelongsToClinic(key, clinicID) {
-		// Foreign http(s) values echo unsigned directly; bare foreign keys error
-		// here but the caller degrades to echo — either way they are never signed.
-		if trimmingImageHasHTTPScheme(stored) {
-			return stored, nil
-		}
+		// Bare foreign-clinic keys error here; the caller degrades to echo —
+		// either way they are never signed. (http(s) values never resolve to
+		// keys, so they cannot reach this check.)
 		return "", errTrimmingImageStorageKeyUnresolved
 	}
 	if h.imageUploader == nil {
@@ -139,8 +137,9 @@ func assignNormalizedTrimmingImage(clinicID uint64, value *string) error {
 }
 
 // normalizeTrimmingImageForPersist returns the value that may be stored.
-// Owned object keys, including those embedded in an http(s) or /uploads/ URL,
-// become the canonical key. Bare http(s) values and stray /uploads/ values are rejected.
+// Owned object keys — canonical form, or a local /uploads/-wrapped reference —
+// become the canonical key. http(s) values never resolve (no trusted origin to
+// verify the host against) and are rejected along with stray /uploads/ values.
 func normalizeTrimmingImageForPersist(clinicID uint64, stored string) (string, error) {
 	trimmed := strings.TrimSpace(stored)
 	if trimmed == "" {

@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { C, ICON } from "@/lib/design-tokens";
 
+// BE の受理形式（jpeg/png/gif）と一致させ、WebP/HEIC 等は picker 段階で選べなくする。
 // capture は picker と別 input。同じ input だとファイル選択のヒントを上書きし得る。
-const CAPTURE_IMAGE_ACCEPT = "image/jpeg,image/png,image/gif";
+const TRIMMING_IMAGE_ACCEPT = "image/jpeg,image/png,image/gif";
 
 interface TrimmingImageUploadFieldProps {
   label: string;
@@ -63,7 +64,7 @@ export function TrimmingImageUploadField({
           <input
             id={inputId}
             type="file"
-            accept="image/*"
+            accept={TRIMMING_IMAGE_ACCEPT}
             onChange={onImageChange}
             className="sr-only"
           />
@@ -72,7 +73,7 @@ export function TrimmingImageUploadField({
       <input
         ref={captureInputRef}
         type="file"
-        accept={CAPTURE_IMAGE_ACCEPT}
+        accept={TRIMMING_IMAGE_ACCEPT}
         capture="environment"
         onChange={onImageChange}
         // hidden 属性は Tailwind 未適用時もタブ順と a11y tree から外す

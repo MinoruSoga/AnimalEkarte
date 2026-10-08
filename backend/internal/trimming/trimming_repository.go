@@ -17,7 +17,7 @@ type AppointmentTrimmingDetailRepository interface {
 	Create(ctx context.Context, detail *model.AppointmentTrimmingDetail) error
 	Update(ctx context.Context, detail *model.AppointmentTrimmingDetail) error
 	SetOptions(ctx context.Context, clinicID, appointmentID uint64, optionIDs []uint64) error
-	ImageKeyInUse(ctx context.Context, clinicID uint64, key string) (bool, error)
+	ImageKeyInUse(ctx context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error)
 }
 
 type appointmentTrimmingDetailRepository struct {
@@ -84,21 +84,37 @@ func (r *appointmentTrimmingDetailRepository) Update(ctx context.Context, detail
 }
 
 // ImageKeyInUse はいずれかの trimming 詳細レコードが key を画像として参照して
-// いるかを返す（DELETE /trimmings/images の fail-closed 参照チェック用）。
-// 書き込みは必ず canonical key に正規化されるため完全一致で十分（旧世代の
-// ラップ形式は trimming-images/ プレフィックスを持たず、そもそも本 prefix 配下の
-// オブジェクトを指さない）。論理削除済み appointment の detail 行もカウント対象 —
-// 参照残りを消さない方向への過剰保持は許容する。
-func (r *appointmentTrimmingDetailRepository) ImageKeyInUse(ctx context.Context, clinicID uint64, key string) (bool, error) {
-	var count int64
-	err := persistence.DBOrTx(ctx, r.db).
+// いるかを返す（DELETE /trimmings/images と superseded 削除の fail-closed 参照
+// チェック用）。exceptAppointmentID != 0 のとき、その appointment の detail 行を
+// 除外する（レコード削除時の自レコード参照を無視するため）。
+//
+// 保存値は canonical key に正規化されるが、旧世代の `/uploads/` ラップ形式など
+// resolveTrimmingImageStorageKey が同一 key と解決する値も参照として数えるため、
+// 候補を SQL で絞り込み（trimming-images/ 部分文字列）→ Go 側で厳密に解決して
+// 比較する。論理削除済み appointment の detail 行もカウント対象 — 参照残りを
+// 消さない方向への過剰保持は許容する。
+func (r *appointmentTrimmingDetailRepository) ImageKeyInUse(ctx context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error) {
+	var rows []model.AppointmentTrimmingDetail
+	query := persistence.DBOrTx(ctx, r.db).
 		Model(&model.AppointmentTrimmingDetail{}).
-		Where("clinic_id = ? AND (style_image = ? OR completed_image = ?)", clinicID, key, key).
-		Count(&count).Error
-	if err != nil {
+		Select("style_image", "completed_image").
+		Where("clinic_id = ? AND (style_image LIKE ? OR completed_image LIKE ?)",
+			clinicID, "%"+trimmingImageStorageKeyPrefix+"%", "%"+trimmingImageStorageKeyPrefix+"%")
+	if exceptAppointmentID != 0 {
+		query = query.Where("appointment_id <> ?", exceptAppointmentID)
+	}
+	if err := query.Find(&rows).Error; err != nil {
 		return false, apperrors.Wrap(err, "failed to check trimming image reference")
 	}
-	return count > 0, nil
+	for i := range rows {
+		for _, stored := range []string{rows[i].StyleImage, rows[i].CompletedImage} {
+			resolved, isObject, err := resolveTrimmingImageStorageKey(stored)
+			if err == nil && isObject && resolved == key {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
 
 // SetOptions は appointment に紐づく trimming オプションを全置換する。

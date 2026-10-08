@@ -2,7 +2,6 @@ package trimming
 
 import (
 	"errors"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -46,24 +45,13 @@ func resolveTrimmingImageStorageKey(stored string) (key string, isStorageObject 
 		return "", false, nil
 	}
 
+	// http(s) values never resolve to an object key: no configured origin is
+	// available to verify the host against, so host-agnostic path extraction
+	// would let a foreign URL alias any same-named internal object (and let
+	// cleanup delete it). Echoed unsigned on read, rejected on write —
+	// only canonical keys and the local /uploads/ wrap are trusted references.
 	if trimmingImageHasHTTPScheme(stored) {
-		parsed, parseErr := url.Parse(stored)
-		if parseErr != nil || parsed.Host == "" {
-			return "", false, errTrimmingImageStorageKeyUnresolved
-		}
-		// Host is intentionally not checked: only the path's
-		// trimming-images/<clinic>/... segment is extracted, then re-validated
-		// against the caller's clinic and signed by OUR uploader only. A foreign
-		// host can therefore reference nothing more than the caller's own keys —
-		// equivalent to submitting the key directly.
-		extracted, ok := trimmingImageKeyFromURLPath(parsed.Path)
-		if !ok {
-			return "", false, nil
-		}
-		if !trimmingImageObjectKeyHasName(extracted) {
-			return "", false, errTrimmingImageStorageKeyUnresolved
-		}
-		return extracted, true, nil
+		return "", false, nil
 	}
 
 	if strings.HasPrefix(stored, trimmingImageStorageKeyPrefix) {
@@ -93,15 +81,6 @@ func resolveTrimmingImageStorageKey(stored string) (key string, isStorageObject 
 	}
 
 	return "", false, nil
-}
-
-func trimmingImageKeyFromURLPath(path string) (string, bool) {
-	marker := "/" + trimmingImageStorageKeyPrefix
-	idx := strings.Index(path, marker)
-	if idx < 0 {
-		return "", false
-	}
-	return path[idx+1:], true
 }
 
 // trimmingImageKeyBelongsToClinic reports whether key has the exact shape

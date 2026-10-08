@@ -233,7 +233,7 @@ func (m *mockTrimmingDetailRepository) SetOptions(ctx context.Context, clinicID,
 	return nil
 }
 
-func (m *mockTrimmingDetailRepository) ImageKeyInUse(_ context.Context, _ uint64, _ string) (bool, error) {
+func (m *mockTrimmingDetailRepository) ImageKeyInUse(_ context.Context, _ uint64, _ string, _ uint64) (bool, error) {
 	return false, nil
 }
 

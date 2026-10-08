@@ -32,9 +32,9 @@ func TestResolveTrimmingImageStorageKey(t *testing.T) {
 		{name: "uploads wrapper non-trimming with query echoes", stored: "/uploads/other/1/abc.jpg?v=1", wantObj: false},
 		{name: "uploads wrapper empty rest", stored: "/uploads/", wantErr: true},
 		{name: "uploads wrapper non-trimming", stored: "/uploads/other/1/abc.jpg", wantObj: false},
-		{name: "http url with own path", stored: "https://cdn.example/bucket/trimming-images/1/abc.jpg", wantKey: "trimming-images/1/abc.jpg", wantObj: true},
+		{name: "http url never resolves even with own path", stored: "https://cdn.example/bucket/trimming-images/1/abc.jpg", wantObj: false},
 		{name: "http url without own path echoes", stored: "https://cdn.example/legacy.jpg", wantObj: false},
-		{name: "http url malformed", stored: "http://%zz", wantErr: true},
+		{name: "http url malformed echoes", stored: "http://%zz", wantObj: false},
 		{name: "data url echoes", stored: "data:image/png;base64,AAAA", wantObj: false},
 		{name: "relative legacy path echoes", stored: "images/style.jpg", wantObj: false},
 	}
@@ -93,7 +93,7 @@ func TestNormalizeTrimmingImageForPersist(t *testing.T) {
 	}{
 		{name: "empty clears", stored: "  ", want: ""},
 		{name: "own key stays", stored: "trimming-images/1/abc.jpg", want: "trimming-images/1/abc.jpg"},
-		{name: "signed url collapses to key", stored: "https://cdn.example/bucket/trimming-images/1/abc.jpg?X-Amz-Signature=secret", want: "trimming-images/1/abc.jpg"},
+		{name: "signed url no longer collapses to key", stored: "https://cdn.example/bucket/trimming-images/1/abc.jpg?X-Amz-Signature=secret", wantErr: true},
 		{name: "uploads wrapper collapses", stored: "/uploads/trimming-images/1/abc.jpg", want: "trimming-images/1/abc.jpg"},
 		{name: "legacy relative passes through", stored: "before.jpg", want: "before.jpg"},
 		{name: "data uri passes through", stored: "data:image/png;base64,AAAA", want: "data:image/png;base64,AAAA"},

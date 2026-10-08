@@ -180,6 +180,7 @@ func (h *Handler) DeleteTrimming(c *gin.Context) {
 		h.deleteSupersededTrimmingImages(
 			c.Request.Context(),
 			trimmingRecordClinicID(existing, clinicID),
+			id,
 			style, completed, "", "",
 		)
 	}
