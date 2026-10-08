@@ -114,3 +114,4 @@
 - AUTHZ-1: role 差（一般 vs 執行）での write 権限越え、`masters` 系の clinic 分離
 - OBJECT-1: 診療画像 signed URL の clinic scope（clinic A トークンで clinic B 画像 key 要求）
 - AUTHN: refresh rotation・reuse detection の実測
+- **回帰観察（ラウンド1 観察節からの引き継ぎ・2026-10-09 追記）**: `GET /medical-records/:id/treatments`（T11）と `GET /pets/:id/treatment-history`（T5）は親/対象解決なしで clinic 述語クエリのみの 200 空配列応答。現時点で存在漏えいなし（存在しない ID と同一形状）だが、**これらのエンドポイントの応答仕様が「存在しない→404」へ変わった場合 cross-tenant 存在オラクル化する**ため、ラウンド2 以降の再攻撃時に必ず再実測する
