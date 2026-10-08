@@ -65,14 +65,26 @@ func (r *medicalRecordAddendumRepository) FindByMedicalRecordID(ctx context.Cont
 // 解決するバッチ preload（行ごとのクエリは発行しない）。一覧の全追記は親カルテと同じ
 // clinic_id を持つため、引数 clinicID がそのまま親カルテの医院を表す。
 //   - staffs.id = medical_record_addenda.author_user_id（foreignKey 既定）
-//   - staffs.clinic_id = 親カルテの clinic_id かつ staffs.deleted_at IS NULL
+//   - staffs.deleted_at IS NULL
+//   - 有効な staff_clinic_assignments 行が親カルテの clinic_id に存在する
 //
-// 削除・他院異動・クロス医院の追記者は解決されず AuthorStaff=nil → 応答側で
-// author_user_id フォールバック（他医院スタッフ名は絶対に漏らさない）。
+// 医院所属の正本は staff_clinic_assignments（認証側の current_access_staff_reader と
+// scopedBillingStaffPreload と同じ所属相関 predicate）。主医院が他院でも兼務所属が
+// あれば著者として解決され、削除・異動（所属解除）・他医院のみの追記者は解決されず
+// AuthorStaff=nil → 応答側で author_user_id フォールバック（他医院スタッフ名は
+// 絶対に漏らさない）。
 // is_active は掛けない: 退職後も監査上の帰属名は残す（scopedBillingStaffPreload と同じ
 // 判断。clinic 非スコープの medicalRecordEnteredByStaffPreload は真似しない）。
 func medicalRecordAddendumAuthorStaffPreload(clinicID uint64) func(*gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
-		return db.Where("staffs.deleted_at IS NULL AND staffs.clinic_id = ?", clinicID)
+		return db.
+			Where("staffs.deleted_at IS NULL").
+			Where(`EXISTS (
+				SELECT 1
+				FROM staff_clinic_assignments AS addendum_author_assignment
+				WHERE addendum_author_assignment.staff_id = staffs.id
+				  AND addendum_author_assignment.clinic_id = ?
+				  AND addendum_author_assignment.deleted_at IS NULL
+			)`, clinicID)
 	}
 }

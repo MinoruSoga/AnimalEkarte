@@ -11,13 +11,17 @@ import type { RecommendationReason } from "../constants/recommendation-reason";
 export type BackendMedicalRecord = MedicalRecordResponse;
 
 // ── MedicalRecordAddendum + author_name (EMR-326) ──
-// BE は追記応答に author_name（親カルテの医院スコープで解決した追記者氏名）を
-// additive に追加したが、生成型は codegen 手動実行のため未反映。
-// `make codegen` で medicalrecord-responses.ts が再生成されたら本拡張は削除し、
-// generated の MedicalRecordAddendumResponse を直接使うこと。
+// generated の MedicalRecordAddendumResponse.author_name は `?: string`。
+// wire 上は omitempty により「キー省略 or 文字列」のみが来るが、非生成経路
+// （旧キャッシュ・他クライアント応答）で null が来ても UI フォールバックが潰れないよう
+// `| null` に広げて受ける。Omit 必須: 通常の交差型だと string | null が string に
+// 潰れて null を表せない。
 // author_name: 未解決（削除・異動・他医院）時はキー省略または null →
 // UI は author_user_id へフォールバック表示する。
-export type MedicalRecordAddendumWithAuthorName = MedicalRecordAddendumResponse & {
+export type MedicalRecordAddendumWithAuthorName = Omit<
+  MedicalRecordAddendumResponse,
+  "author_name"
+> & {
   author_name?: string | null;
 };
 

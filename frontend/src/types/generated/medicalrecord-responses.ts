@@ -10,6 +10,7 @@ export interface MedicalRecordAddendumResponse {
   medical_record_id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   author_user_id: number /* uint64 */;
+  author_name?: string;
   before_text: string;
   after_text: string;
   reason: string;
