@@ -138,6 +138,7 @@ type HospitalizationService interface {
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	DischargeWithBilling(ctx context.Context, clinicID, id uint64, input DischargeWithBillingInput) (*DischargeWithBillingResult, error)
+	SwapCages(ctx context.Context, clinicID, idA, idB uint64) (*model.Hospitalization, *model.Hospitalization, error)
 }
 
 type hospitalizationService struct {
@@ -244,6 +245,90 @@ func (s *hospitalizationService) validateDoctor(ctx context.Context, clinicID ui
 	}
 	if err := s.doctorVerifier.AssertMedicalRecordDoctorInClinic(ctx, clinicID, *doctorID); err != nil {
 		return apperrors.Wrap(err, "failed to verify hospitalization doctor ownership")
+	}
+	return nil
+}
+
+// isOccupyingHospitalizationStatus はケージを占有する入院ステータスかを返す
+// （CountOccupiedCages と同じ admitted/reserved 判定）。
+func isOccupyingHospitalizationStatus(status model.HospitalizationStatus) bool {
+	return status == model.HospitalizationStatusAdmitted || status == model.HospitalizationStatusReserved
+}
+
+// validateCageAssignmentGuard はケージ割当の連結ガード（EMR-306 Phase1 step3）。
+// s.cageRepo が CageMergeRepository 面を持たない場合は 500 fail-closed（Grok review
+// LOW-4: fail-open だと cageFinder だけのラッパー差し替えで構成ケージへの割当が
+// 素通りするため、Merge/Unmerge と同じく依存不足は内部エラーにする）。
+//
+// ambient tx 内で validateOwnedMasterFK より前に呼ぶこと: cageRepo.FindByID は
+// tx 中に FOR SHARE を取るため、先に LockCageGroupForUpdate (FOR UPDATE) で
+// 同一行をロックしないと並行割当同士がデッドロックし得る（reviewer D1）。
+// UPDATE 済み行への後続 SHARE は待機しないので、所有権検証は呼び出し位置のまま残す。
+// LockCageGroupForUpdate 自体が医院スコープで、存在しない/他医院 id には NotFound を
+// 返すため、クロステナント拒否セマンティクスはここでも同等に保証される。
+//
+// occupies は「この書込みの結果レコードがケージを占有するか」（結果ステータスが
+// admitted/reserved）。false（discharged 履歴のバックフィル等）では構成ケージの
+// 構造的禁止（422）は維持しつつ、グループ占有検査（409）はスキップする —
+// 非占有の履歴行は物理的にケージを占有しないため。
+// selfOccupiesCageID は更新経路で「この更新対象の入院が現在占有しているケージ」
+// を渡す（create 経路は nil）。占有集計から自身を除外しないと、構成ケージ上の
+// 既存入院を代表ケージへ移す唯一妥当なグループ内移動が自己衝突で 409 になる。
+func (s *hospitalizationService) validateCageAssignmentGuard(txCtx context.Context, clinicID uint64, cageID *uint64, occupies bool, selfOccupiesCageID *uint64) error {
+	if cageID == nil {
+		return nil
+	}
+	mergeRepo, ok := s.cageRepo.(CageMergeRepository)
+	if !ok {
+		return apperrors.WrapInternalServerError("cage merge repository dependency is required")
+	}
+	// 代表+構成ケージを id 昇順の1文で FOR UPDATE（占有確認と同一 tx・同一行集合。
+	// ロック順は merge/unmerge と同一の昇順でデッドロックを避ける）。
+	group, err := mergeRepo.LockCageGroupForUpdate(txCtx, clinicID, *cageID)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to lock cage group")
+	}
+	// ORDER BY id ASC なので group[0] は対象とは限らない — ID で走査する（reviewer D3）。
+	var target *model.Cage
+	for i := range group {
+		if group[i].ID == *cageID {
+			target = &group[i]
+			break
+		}
+	}
+	if target == nil {
+		// LockCageGroupForUpdate は対象行の存在を保証するため理論上到達しない防御分岐。
+		return apperrors.WrapNotFound("cage", strconv.FormatUint(*cageID, 10))
+	}
+	// 構成ケージは構造的に割当不可 (422)。代表/グループ判定より先に評価する。
+	if target.MergedIntoCageID != nil {
+		return apperrors.WrapUnprocessable("連結中の構成ケージには割り当てできません")
+	}
+	if len(group) <= 1 || !occupies {
+		// 未連結ケージには占有チェックを追加しない（従来挙動を維持）。
+		// 非占有ステータス（discharged 等）の結果レコードも占有検査をスキップする。
+		return nil
+	}
+	// 代表ケージ: グループ内（代表+構成）の未削除 admitted/reserved 入院を占有とみなす。
+	groupIDs := make([]uint64, 0, len(group))
+	for i := range group {
+		groupIDs = append(groupIDs, group[i].ID)
+	}
+	occupied, err := mergeRepo.CountOccupiedCages(txCtx, clinicID, groupIDs)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to count cage group occupancy")
+	}
+	// 更新対象自身の占有を除外 — 構成ケージ→代表ケージのグループ内移動が
+	// 自分自身の入院で 409 になるのを防ぐ（selfOccupiesCageID は占有中のみ非 nil）。
+	if selfOccupiesCageID != nil {
+		if n := occupied[*selfOccupiesCageID]; n > 1 {
+			occupied[*selfOccupiesCageID] = n - 1
+		} else {
+			delete(occupied, *selfOccupiesCageID)
+		}
+	}
+	if len(occupied) > 0 {
+		return apperrors.WrapConflict("連結グループ内のケージが使用中のため割り当てできません")
 	}
 	return nil
 }
@@ -373,6 +458,33 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 		}
 		if input.PetID != nil {
 			if err := validatePetNotDeceased(txCtx, s.petRepo, clinicID, *input.PetID, "死亡したペットは入院登録できません"); err != nil {
+				return err
+			}
+		}
+		// EMR-306 step3: ケージ割当ガード。ケージ変更または非占有→占有ステータス遷移でのみ
+		// 発火する（reviewer D2）。FindByID(FOR SHARE) より先に FOR UPDATE を取るため、
+		// validateOwnedMasterFK より前に置く（reviewer D1）。
+		cageChanged := input.CageID != nil &&
+			(existing.CageID == nil || *input.CageID != *existing.CageID)
+		finalStatus := existing.Status
+		if input.Status != nil {
+			finalStatus = *input.Status
+		}
+		transitioningIn := !isOccupyingHospitalizationStatus(existing.Status) &&
+			isOccupyingHospitalizationStatus(finalStatus)
+		if cageChanged || transitioningIn {
+			targetCage := input.CageID
+			if targetCage == nil {
+				targetCage = existing.CageID
+			}
+			// 結果ステータスが占有なら占有検査を行い、更新対象自身の占有は
+			// 集計から除外する（メンバー→代表のグループ内移動を許可するため）。
+			var selfOccupiesCageID *uint64
+			if isOccupyingHospitalizationStatus(existing.Status) {
+				selfOccupiesCageID = existing.CageID
+			}
+			if err := s.validateCageAssignmentGuard(txCtx, clinicID, targetCage,
+				isOccupyingHospitalizationStatus(finalStatus), selfOccupiesCageID); err != nil {
 				return err
 			}
 		}

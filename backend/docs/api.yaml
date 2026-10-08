@@ -2667,6 +2667,12 @@ components:
             - large
         sort_order:
           type: integer
+        merged_into_cage_id:
+          type: integer
+          format: int64
+          nullable: true
+          readOnly: true
+          description: 連結中の構成ケージが参照する代表ケージID（EMR-306 ケージ一時連結）。NULL = 独立ケージまたは代表ケージ自身
         created_at:
           type: string
           format: date-time
@@ -10123,6 +10129,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+    UnprocessableEntity:
+      description: "処理不能（業務ルール違反。例: 連結中の構成ケージへの入院割当）"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
     TooManyRequests:
       description: レート制限を超過
       content:
@@ -12360,6 +12372,64 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /hospitalizations/cage-swap:
+    post:
+      operationId: swapHospitalizationCages
+      summary: 入院ケージの入れ替え（単一トランザクション）
+      description: >-
+        2件の入院の cage_id を原子性を持って交換する。ボード DnD の入れ替え専用 —
+        2本の独立 PATCH では片方のみ commit され得るため本エンドポイントを使う。
+        連結ケージが絡む場合は通常の割当ガードが各移動に適用され、構成ケージ宛は 422、
+        占有グループ宛は 409 で両方ロールバックする。
+      tags: [Hospitalizations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hospitalization_ids]
+              properties:
+                hospitalization_ids:
+                  type: array
+                  minItems: 2
+                  maxItems: 2
+                  items:
+                    type: integer
+                    format: int64
+                    minimum: 1
+                  description: ケージを交換する入院IDのペア（順序は問わない）
+      responses:
+        '200':
+          description: 交換成功（交換後の2件を入力順で返す）
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [hospitalizations]
+                properties:
+                  hospitalizations:
+                    type: array
+                    minItems: 2
+                    maxItems: 2
+                    items:
+                      $ref: '#/components/schemas/Hospitalization'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
         '500':
           $ref: '#/components/responses/InternalError'
   /hospitalizations/{id}:
@@ -12421,6 +12491,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
@@ -15714,6 +15788,36 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
+  /masters/cages/occupancy:
+    get:
+      operationId: getCageOccupancy
+      summary: 占有中ケージID一覧（連結ピッカー専用）
+      description: >-
+        未削除の admitted/reserved 入院が1件以上あるケージの ID を全件返す。
+        ケージ一時連結の選択肢判定専用の最小限データ — GET /hospitalizations は
+        hospitalization:view を要求するが、本エンドポイントは連結操作と同じ
+        master-hospitalization:edit 権限で提供される（ページングなし）。
+      tags: [Masters]
+      responses:
+        '200':
+          description: 占有中ケージID一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [occupied_cage_ids]
+                properties:
+                  occupied_cage_ids:
+                    type: array
+                    items:
+                      type: integer
+                      format: int64
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/cages/{id}:
     get:
       operationId: getCage
@@ -15795,6 +15899,90 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/cages/{id}/merge:
+    post:
+      operationId: mergeCage
+      summary: ケージ一時連結
+      description: |
+        代表ケージ `id` のもとに `member_cage_ids` で指定したケージを一時連結する。
+        グループは代表+構成の単一階層のみ（ネスト不可）。代表および全構成ケージが
+        同一医院・有効・未連結で、`admitted`/`reserved` の入院を持たない場合のみ連結できる。
+        連結中のケージは無効化・削除できず、解除（unmerge）してから行う。
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [member_cage_ids]
+              properties:
+                member_cage_ids:
+                  type: array
+                  minItems: 1
+                  maxItems: 32
+                  items:
+                    type: integer
+                    format: int64
+            example:
+              member_cage_ids: [12, 13]
+      responses:
+        '200':
+          description: 連結成功（代表ケージ）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/cages/{id}/unmerge:
+    post:
+      operationId: unmergeCage
+      summary: ケージ一時連結解除
+      description: |
+        代表ケージ `id` が率いる連結グループを解除し、全構成ケージの
+        `merged_into_cage_id` をクリアする。グループ内のいずれかのケージに
+        `admitted`/`reserved` の入院がある場合は解除できない（退院済み履歴のみは可）。
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 解除成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/medicines:

@@ -345,6 +345,35 @@ describe("extractApiErrorMessage 400/403/404 Japanese guard (BUG-006)", () => {
   });
 });
 
+describe("extractApiErrorMessage 422 (EMR-306)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("422 Japanese serverMessage is passed through, not shown as network error", () => {
+    const ja = "連結ケージのメンバーケージには入院を割り当てできません";
+    const message = extractApiErrorMessage(axiosError(422, { error: ja }), "入院登録");
+    expect(message).toBe(ja);
+    expect(message).not.toMatch(/ネットワーク/);
+    handleApiError(axiosError(422, { error: ja }), "入院登録");
+    expect(toast.error).toHaveBeenCalledWith(ja);
+  });
+
+  it("422 English serverMessage falls back to Japanese input-check message", () => {
+    const english = "unprocessable entity";
+    const message = extractApiErrorMessage(axiosError(422, { error: english }), "保存");
+    expect(message).toBe("保存に失敗しました。入力内容を確認してください。");
+    expect(message).not.toContain(english);
+    expect(message).not.toMatch(/ネットワーク/);
+  });
+
+  it("422 without serverMessage falls back to Japanese input-check message", () => {
+    expect(extractApiErrorMessage(axiosError(422, {}), "更新")).toBe(
+      "更新に失敗しました。入力内容を確認してください。",
+    );
+  });
+});
+
 describe("extractApiErrorMessage 非Axios エラー (FE-RC-075)", () => {
   beforeEach(() => {
     vi.clearAllMocks();

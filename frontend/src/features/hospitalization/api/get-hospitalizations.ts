@@ -69,10 +69,14 @@ const getHospitalizations = async (
   };
 };
 
-export const useGetHospitalizations = (filters?: HospitalizationFilters) => {
+export const useGetHospitalizations = (
+  filters?: HospitalizationFilters,
+  options?: { enabled?: boolean },
+) => {
   return useQuery({
     queryKey: queryKeys.hospitalizations.list(filters),
     queryFn: () => getHospitalizations(filters),
+    enabled: options?.enabled ?? true,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,
   });
