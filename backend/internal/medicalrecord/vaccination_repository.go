@@ -77,6 +77,8 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 				return q
 			}
 			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(qSearch)) + "%"
+			// compactPattern は末尾の追加 bind。pet / owner name / vaccine の順は変えない。
+			compactPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(textsearch.CompactSearchText(search))) + "%"
 			// 検索時の pets/owners INNER JOIN は「同一 clinic の有効な pet+owner が
 			// 存在する」ことを全腕の前提にしていた。その存在ゲートを先頭のペア IN で
 			// 保持しつつ、各一致腕も (fk, clinic_id) のペア IN にして内側を
@@ -107,10 +109,18 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 					` OR (vaccinations.vaccine_id, vaccinations.clinic_id) IN (`+
 					`SELECT searched_vaccine.id, searched_vaccine.clinic_id FROM vaccines searched_vaccine`+
 					` WHERE searched_vaccine.deleted_at IS NULL`+
-					` AND `+textsearch.FoldedExpr("searched_vaccine.name")+` ILIKE ? ESCAPE '\'))`,
+					` AND `+textsearch.FoldedExpr("searched_vaccine.name")+` ILIKE ? ESCAPE '\')`+
+					` OR (vaccinations.pet_id, vaccinations.clinic_id) IN (`+
+					`SELECT searched_pet.id, searched_pet.clinic_id FROM pets searched_pet`+
+					` WHERE searched_pet.deleted_at IS NULL`+
+					` AND (searched_pet.owner_id, searched_pet.clinic_id) IN (`+
+					`SELECT searched_owner.id, searched_owner.clinic_id FROM owners searched_owner`+
+					` WHERE searched_owner.deleted_at IS NULL`+
+					` AND regexp_replace(`+textsearch.FoldedExpr("searched_owner.name")+`, '`+textsearch.SpaceStripRegexp+`', '', 'g') ILIKE ? ESCAPE '\')))`,
 				normalizedPattern,
 				normalizedPattern,
 				normalizedPattern,
+				compactPattern,
 			)
 		}
 		return q

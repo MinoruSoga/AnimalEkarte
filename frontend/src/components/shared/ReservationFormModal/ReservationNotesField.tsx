@@ -21,11 +21,12 @@ export function ReservationNotesField({ formData, onChange }: ReservationNotesFi
   return (
     <>
       <div className="space-y-1.5">
-        <FieldLabel>メモ</FieldLabel>
+        <FieldLabel>予約内容</FieldLabel>
         <Textarea
+          aria-label="予約内容"
           value={formData.notes || ""}
           onChange={(e) => onChange({ ...formData, notes: e.target.value })}
-          placeholder="詳細や備考を入力..."
+          placeholder="予約内容を入力..."
           className={`min-h-[80px] text-sm resize-none bg-white ${C.borderMedium} ${C.text} ${C.textPlaceholder} ${C.focusRingMedium}`}
         />
       </div>

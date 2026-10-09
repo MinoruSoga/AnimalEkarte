@@ -5552,6 +5552,10 @@ components:
         author_user_id:
           type: integer
           format: int64
+        author_name:
+          type: string
+          nullable: true
+          description: 追記者スタッフ氏名（解決できる場合はスタッフの現行名を返す。改名後は旧名ではなく現行名が表示される）。親カルテの医院スコープで解決できる場合のみ返る（スタッフ削除・異動・他医院・未解決は null または省略）。UI は author_user_id へフォールバック表示する。
         before_text:
           type: string
         after_text:
@@ -11851,7 +11855,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ReservationAppointment'
+              allOf:
+                - $ref: '#/components/schemas/ReservationAppointment'
+                - type: object
+                  properties:
+                    prevent_duplicate_reception:
+                      type: boolean
+                      default: false
+                      description: 当日の reception/checked_in 作成専用。同一医院・ペットの当日進行中予約をトランザクション内で再確認し、存在時は409。完了・キャンセル・無断キャンセルは再来院を妨げない。飼主と生存ペットの正のIDが必要。
       responses:
         '201':
           description: 作成成功
@@ -11873,7 +11884,11 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '409':
-          $ref: '#/components/responses/Conflict'
+          description: 当日の進行中予約または受付が存在する場合は再読み込みし、既存を再利用してください。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           $ref: '#/components/responses/InternalError'
   /reservations/batch:
@@ -11900,6 +11915,10 @@ paths:
                 source: { type: string, enum: [manual, line] }
                 # EMR-308: record_intent は次回予定専用 provenance —— 作成時指定不可（runtime binding も拒否）。
                 reservation_route: { type: string, enum: [line, phone, reception, exam_room, record_shortcut] }
+                prevent_duplicate_reception:
+                  type: boolean
+                  default: false
+                  description: 当日の reception/checked_in 専用。各ペットの進行中予約をロック後再確認し、いずれか存在時は全体409。レスポンスは入力ペット順を保持。
                 pets:
                   type: array
                   minItems: 2
@@ -11920,7 +11939,12 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
-        '409': { $ref: '#/components/responses/Conflict' }
+        '409':
+          description: いずれかのペットの当日進行中予約が存在する場合は全体をロールバック。再読み込みして既存を再利用してください。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500': { $ref: '#/components/responses/InternalError' }
   /reservations/available-times:
     get:
@@ -11999,6 +12023,11 @@ paths:
     patch:
       operationId: updateReservation
       summary: 予約更新
+      description: |
+        飼主詳細からの当日受付では expected_updated_at に取得した updated_at をそのまま指定する。
+        指定時の変更は status=checked_in のみ許可。同じ医院・当日・confirmed・同じ更新時刻の
+        予約だけを原子的に受付し、並行する状態・日付・飼主・ペット等の変更は409で拒否する。
+        省略した通常更新・再受付の既存挙動は維持する。
       tags: [Reservations]
       parameters:
         - name: id
@@ -12012,7 +12041,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ReservationAppointment'
+              allOf:
+                - $ref: '#/components/schemas/ReservationAppointment'
+                - type: object
+                  properties:
+                    expected_updated_at:
+                      type: string
+                      format: date-time
+                      description: 当日 confirmed 予約を受付する際、取得した updated_at をそのまま指定する。status=checked_in のみ変更可能。
       responses:
         '200':
           description: 更新成功
@@ -12028,6 +12064,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: 予約の状態・更新時刻・当日日付が受付条件に一致しません。再読み込みしてください。
         '500':
           $ref: '#/components/responses/InternalError'
     delete:

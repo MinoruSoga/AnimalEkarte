@@ -134,7 +134,7 @@ export function ReservationPatientPanel({
   return (
     <div
       className={cn(
-        `w-full lg:w-7/12 border-b lg:border-b-0 lg:border-r ${C.bgSubtle} p-4 flex flex-col overflow-hidden min-h-72 lg:min-h-auto flex-1`,
+        `w-full lg:w-7/12 border-b lg:border-b-0 lg:border-r ${C.bgSubtle} p-4 flex flex-col overflow-hidden min-h-72 lg:min-h-0 flex-1`,
         mobilePanel !== "search" && "hidden lg:flex",
       )}
     >
@@ -225,6 +225,7 @@ interface ReservationDetailsPanelProps {
   selectedPets: Pet[];
   lstepStatus: LstepStatus;
   formData: Partial<Reservation>;
+  lockedVisitType?: Reservation["visitType"];
   validationErrors: Record<string, string>;
   holidayDates: Set<string>;
   isEditMode: boolean;
@@ -244,6 +245,7 @@ export function ReservationDetailsPanel({
   selectedPets,
   lstepStatus,
   formData,
+  lockedVisitType,
   validationErrors,
   holidayDates,
   isEditMode,
@@ -259,7 +261,7 @@ export function ReservationDetailsPanel({
   return (
     <div
       className={cn(
-        `w-full lg:w-5/12 ${C.bgWhite} flex flex-col overflow-hidden min-h-72 lg:min-h-auto flex-1`,
+        `w-full lg:w-5/12 ${C.bgWhite} flex flex-col overflow-hidden min-h-72 lg:min-h-0 flex-1`,
         mobilePanel !== "form" && "hidden lg:flex",
       )}
     >
@@ -277,6 +279,7 @@ export function ReservationDetailsPanel({
           <Label className={`text-sm font-bold ${C.text}`}>予約詳細</Label>
           <ReservationFormFields
             formData={formData}
+            lockedVisitType={lockedVisitType}
             onChange={onFormChange}
             validationErrors={validationErrors}
             onClearError={onClearError}

@@ -364,3 +364,101 @@ describe("ReservationFormModal — available-times unset contract (BUG-RES-AVAIL
     expect(screen.getByRole("option", { name: "10:00" })).toBeInTheDocument();
   }, 20000);
 });
+
+describe("ReservationFormModal — EMR-270 編集開始時刻の再選択", () => {
+  it.each(["", "8"])(
+    "担当者 %s: 空き枠へ繰り返し変更し終了時刻を連動する",
+    async (doctor) => {
+      localStorage.setItem("auth_current_clinic:v1", "1");
+      const requestedStaffIds: Array<string | null> = [];
+      server.use(
+        http.get("/api/v1/clinic-holidays", () => HttpResponse.json([])),
+        http.get("/api/v1/pets", () => HttpResponse.json({ data: [] })),
+        http.get("/api/v1/masters/animal-species", () => HttpResponse.json([])),
+        http.get("/api/v1/reservations/42", () =>
+          HttpResponse.json({ id: 42, reservation_route: null }),
+        ),
+        http.get("/api/v1/masters/staffs", () =>
+          HttpResponse.json([{ id: 8, name: "担当医", is_active: true }]),
+        ),
+        http.get("/api/v1/shifts/on-duty-staffs", () =>
+          HttpResponse.json([{ id: 8, name: "担当医", is_active: true }]),
+        ),
+        http.get("/api/v1/clinics/1/reservation-staffs", () =>
+          HttpResponse.json([
+            {
+              id: 8,
+              name: "担当医",
+              is_active: true,
+              capable_courses: [{ id: 5, name: "一般診療" }],
+            },
+          ]),
+        ),
+        http.get("/api/v1/masters/reservation-types/5/unavailable-times", () =>
+          HttpResponse.json({ data: [] }),
+        ),
+        http.get("/api/v1/masters/reservation-types", () =>
+          HttpResponse.json([
+            {
+              id: 5,
+              name: "一般診療",
+              is_active: true,
+              duration_minutes: 30,
+              category: "general",
+              group_id: null,
+            },
+          ]),
+        ),
+        http.get("/api/v1/reservations/available-times", ({ request }) => {
+          const params = new URL(request.url).searchParams;
+          requestedStaffIds.push(params.get("staff_id"));
+          expect(params.get("include_unavailable")).toBe("true");
+          return HttpResponse.json([
+            { start_time: "0945", end_time: "1015", status: "full", remaining: 0 },
+            { start_time: "1100", end_time: "1130", status: "available", remaining: 2 },
+            { start_time: "1230", end_time: "1300", status: "low", remaining: 1 },
+          ]);
+        }),
+      );
+      const user = userEvent.setup({ delay: null });
+      render(
+        <ReservationFormModal
+          isOpen={true}
+          onClose={noop}
+          onSave={noop}
+          initialData={{
+            id: "42",
+            type: "5",
+            doctor,
+            start: new Date(2026, 5, 1, 9, 45),
+            end: new Date(2026, 5, 1, 10, 15),
+            visitType: "revisit",
+            status: "confirmed",
+            isDesignated: false,
+          }}
+          canEdit={true}
+        />,
+        { wrapper: createWrapper() },
+      );
+      await waitFor(() => expect(requestedStaffIds).toContain(doctor || null));
+      for (const [start, end] of [
+        ["11:00", "11:30"],
+        ["12:30", "13:00"],
+        ["11:00", "11:30"],
+      ]) {
+        await user.click(screen.getByTestId("res-start-time-trigger"));
+        const option = await screen.findByRole("option", { name: new RegExp(`^${start}`) });
+        expect(option).not.toHaveAttribute("data-disabled");
+        await user.click(option);
+        expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+        expect(screen.getByTestId("res-start-time-trigger")).toHaveAttribute(
+          "aria-expanded",
+          "false",
+        );
+        expect(screen.getByTestId("res-start-time-trigger")).toHaveTextContent(start);
+        expect(screen.getByTestId("res-end-time-trigger")).toHaveTextContent(end);
+      }
+    },
+    15000,
+  );
+});

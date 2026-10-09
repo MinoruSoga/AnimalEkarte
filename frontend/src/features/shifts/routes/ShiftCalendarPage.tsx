@@ -124,11 +124,14 @@ export function ShiftCalendarPage() {
     );
   }
 
+  // min-h-0: コンテンツを伸ばして PageLayout の overflow-y-auto を縦スクロールにしない。
+  // 日付ヘッダーの sticky は内側の overflow-auto に対してだけ効く。
   return (
     <PageLayout
       title="シフト管理"
       resource={ResourceShifts}
       maxWidth={LAYOUT.pageContentMaxWidth.full}
+      contentClassName="min-h-0"
     >
       <ShiftCalendarGrid
         yearMonth={yearMonth}

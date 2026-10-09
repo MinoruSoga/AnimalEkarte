@@ -113,7 +113,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
   canCreate = false,
   canEdit = false,
 }: ReservationFormModalProps) {
-  const [formData, setFormData] = useState<Partial<Reservation>>({});
+  const [storedFormData, setFormData] = useState<Partial<Reservation>>({});
   const [pendingPetId, setPendingPetId] = useState<string | null>(null);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("search");
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -209,6 +209,21 @@ export const ReservationFormModal = memo(function ReservationFormModal({
   const isEditMode = Boolean(initialData?.id) && !isConfirmTentativeMode;
   // tentative 確定は BE 上「予約の更新」扱い（POST confirm-tentative は reservations:edit 相当）のため canEdit で fail-closed
   const canSave = isEditMode || isConfirmTentativeMode ? canEdit : canCreate;
+
+  // EMR-274: creation-only input assistance, never a medical-history classification.
+  // Derive once for both rendering and submission so no effect can leave stale values.
+  const lockedVisitType =
+    isEditMode || isConfirmTentativeMode
+      ? undefined
+      : ownerMode === "new"
+        ? "first"
+        : selectedPets.length > 0
+          ? "revisit"
+          : undefined;
+  const formData = useMemo<Partial<Reservation>>(
+    () => (lockedVisitType ? { ...storedFormData, visitType: lockedVisitType } : storedFormData),
+    [storedFormData, lockedVisitType],
+  );
 
   const handleNewOwnerChange = useCallback((data: NewOwnerFormData) => {
     setNewOwnerData(data);
@@ -395,7 +410,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
           </div>
         ) : null}
 
-        <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
+        <div className="flex flex-col lg:flex-row flex-1 min-h-0 overflow-hidden">
           <ReservationPatientPanel
             isEditMode={isEditMode}
             patientLocked={isConfirmTentativeMode}
@@ -414,6 +429,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
             selectedPets={selectedPets}
             lstepStatus={lstepStatus}
             formData={formData}
+            lockedVisitType={lockedVisitType}
             validationErrors={validationErrors}
             holidayDates={holidayDates}
             isEditMode={isEditMode}

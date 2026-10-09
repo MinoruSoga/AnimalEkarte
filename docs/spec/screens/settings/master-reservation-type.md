@@ -35,11 +35,13 @@
 | お手入れ | `general` | 15 分 | 2 | 非公開 | `#10B981` |
 | ワクチン | `general` | 15 分 | 3 | 非公開 | `#8B5CF6` |
 | 健診 | `general` | 15 分 | 4 | 非公開 | `#F97316` |
+| ホテル | `general` | 15 分 | 5 | 非公開 | `#06B6D4` |
 
 - 既存のトリミング区分（`sort_order=9`、`category=trimming`）より前に並ぶ。
 - **投入経路**: `backend/migrations/seeds/live_insert_standard_reservation_types.sql` を承認済み runbook から `psql` で手動適用する。`cmd/migrate` の自動適用対象ではなく、CSV bundle（`002_master`）の immutable 制約により CSV 直接編集も行わない。
-- **冪等性**: `(clinic_id, name)` の有効行が既にある医院では INSERT をスキップし、手動作成済みの同名区分を上書きしない。
+- **冪等性**: `(clinic_id, name)` の未削除行が既にある医院では INSERT をスキップし、手動作成済みの同名区分を上書きしない。
 - **`reservation_visible=false`（非公開）が既定**: 院内予約フォームは `is_active` のみで絞るため院内では即選択可能だが、LIFF の飼主向け選択肢には出ない。LINE 予約へ公開する場合は本画面で区分ごとに有効化する。
+- **ホテル（EMR-321、2026-10-08 ユーザー決定）**: 15 分はチェックイン時の来院枠で、預かり日数ではない。予約詳細の「入院・ホテル登録」へ進める。既存同名行は属性を維持し、無効行があると投入全体が rollback される。削除済み行も事前確認し、[手動投入・ケージ確認手順](../../../ops/deploy/EMR-321_HOTEL_RESERVATION.md)に従う。手動 SQL のみでは fresh DB 用 CSV は更新されない。
 
 ```mermaid
 flowchart LR

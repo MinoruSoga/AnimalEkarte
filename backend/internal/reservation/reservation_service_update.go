@@ -93,6 +93,12 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
+	if err := validateGuardedCheckInInput(input); err != nil {
+		return nil, err
+	}
+	if input.ExpectedUpdatedAt != nil {
+		return s.guardedCheckIn(ctx, clinicID, id, *input.ExpectedUpdatedAt)
+	}
 	current, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to find reservation")

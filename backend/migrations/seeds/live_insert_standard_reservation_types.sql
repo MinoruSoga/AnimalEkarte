@@ -1,7 +1,7 @@
 -- One-shot standard reservation-type master insert for every clinic.
 -- EMR-193 (スプシNo.50 八王子テスト報告): 新規予約作成で予約区分が
 -- トリミングしか選べなかったため、標準区分「診察・お手入れ・ワクチン・
--- 健診」を全医院へ投入する。
+-- 健診」を全医院へ投入する。EMR-321 は「ホテル」を追加する。
 --
 -- 位置づけ:
 --   seeds/002_master の CSV bundle は適用後 immutable で、内容変更の正規
@@ -24,14 +24,16 @@
 --     設定画面で区分ごとに有効化する（PO 判断を委ねる）。
 --   - color: グループ未所属の区分はカレンダーで自身の color が使われる
 --     （useReservationTypeColorMap）。識別用に区分ごとに異なる色を付与。
---   - sort_order=1-4: 既存トリミング(9)より前に標準区分を並べる。
+--   - sort_order=1-5: 既存トリミング(9)より前に標準区分を並べる。
+--   - ホテル: 2026-10-08 のユーザー決定。15分はチェックインの来院枠で、
+--     預かり日数ではない。general / #06B6D4 / 順序5 / LIFF非公開。
 --
 -- 冪等性・fail-closed:
 --   (clinic_id, name) の live 行（deleted_at IS NULL）が既に存在する医院
 --   では INSERT をスキップする。idx_reservation_types_clinic_name は
 --   deleted_at IS NULL 限定の一意のため既存行との衝突は起きない。
 --   既存行（手動作成の「診察」等）は属性を一切上書きしない。
---   事後条件として全医院に 4 区分の live かつ is_active=true の行が揃う
+--   事後条件として全医院に 5 区分の live かつ is_active=true の行が揃う
 --   ことを検証し、未達なら例外で transaction 全体を rollback する
 --   （EMR-220）。同名の inactive live 行が残っている場合は INSERT skip
 --   の対象のまま post-condition を満たさず fail する。inactive 行を
@@ -55,7 +57,8 @@ INSERT INTO desired_reservation_types (name, short_name, duration_minutes, color
   ('診察', '診察', 15, '#3B82F6', 1),
   ('お手入れ', 'お手入れ', 15, '#10B981', 2),
   ('ワクチン', 'ワクチン', 15, '#8B5CF6', 3),
-  ('健診', '健診', 15, '#F97316', 4);
+  ('健診', '健診', 15, '#F97316', 4),
+  ('ホテル', 'ホテル', 15, '#06B6D4', 5);
 
 DO $$
 BEGIN

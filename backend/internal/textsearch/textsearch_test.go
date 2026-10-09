@@ -35,6 +35,23 @@ func TestNormalizeQuerySpaces(t *testing.T) {
 	assert.Equal(t, "", NormalizeQuerySpaces("　　"))
 }
 
+func TestCompactSearchText(t *testing.T) {
+	assert.Equal(t, "山田花子", CompactSearchText("山田 花子"))
+	assert.Equal(t, "山田花子", CompactSearchText("山田　花子"))
+	assert.Equal(t, "山田花子", CompactSearchText("  山田\t花子　"))
+	assert.Equal(t, "山田花子", CompactSearchText("山田 　花子"))
+	assert.Equal(t, "", CompactSearchText(" \t　"))
+	assert.Equal(t, "やまだはなこ", CompactSearchText("やまだはなこ"))
+	// POSIX [[:space:]] on postgres:18-alpine en_US.utf8 strips these.
+	assert.Equal(t, "山田花子", CompactSearchText("山田\u2000花子"))
+	assert.Equal(t, "山田花子", CompactSearchText("山田\u0085花子"))
+	// These stay. [[:space:]　] does not remove them, so the query must not either.
+	assert.Equal(t, "山田\u00A0花子", CompactSearchText("山田\u00A0花子"))
+	assert.Equal(t, "山田\u1680花子", CompactSearchText("山田\u1680花子"))
+	assert.Equal(t, "山田\u2007花子", CompactSearchText("山田\u2007花子"))
+	assert.Equal(t, "山田\u202F花子", CompactSearchText("山田\u202F花子"))
+}
+
 func TestEscapeLike(t *testing.T) {
 	tests := []struct {
 		name  string

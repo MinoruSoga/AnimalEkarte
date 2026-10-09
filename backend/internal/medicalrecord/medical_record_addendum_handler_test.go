@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -107,6 +108,56 @@ func TestListMedicalRecordAddenda(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})
 	}
+}
+
+// ---- ListMedicalRecordAddenda author_name wire contract ----
+
+// TestListMedicalRecordAddenda_ResponseIncludesAuthorName は一覧応答 JSON に
+// author_name が載る契約を検証する: 解決済みの追記者は氏名、未解決はキー省略
+// （FE の author_user_id フォールバック前提）。
+func TestListMedicalRecordAddenda_ResponseIncludesAuthorName(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &mockMedicalRecordAddendumService{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) ([]*model.MedicalRecordAddendum, error) {
+			return []*model.MedicalRecordAddendum{
+				{
+					ID:              1,
+					MedicalRecordID: 1,
+					AuthorUserID:    5,
+					AfterText:       "text",
+					Reason:          "reason",
+					CreatedAt:       time.Now(),
+					AuthorStaff:     &model.Staff{ID: 5, ClinicID: 1, Name: "田中 太郎"},
+				},
+				{
+					ID:              2,
+					MedicalRecordID: 1,
+					AuthorUserID:    9,
+					AfterText:       "text2",
+					Reason:          "reason2",
+					CreatedAt:       time.Now(),
+				},
+			}, nil
+		},
+	}
+
+	h := newHandlerWithAddendumSvc(svc)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	c.Params = gin.Params{{Key: "id", Value: "1"}}
+	setClinicID(c)
+	h.ListMedicalRecordAddenda(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var body []map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	require.Len(t, body, 2)
+	assert.Equal(t, "田中 太郎", body[0]["author_name"])
+	_, ok := body[1]["author_name"]
+	assert.False(t, ok, "unresolved author must omit author_name so FE falls back to author_user_id")
+	assert.Equal(t, float64(9), body[1]["author_user_id"])
 }
 
 // ---- CreateMedicalRecordAddendum ----
