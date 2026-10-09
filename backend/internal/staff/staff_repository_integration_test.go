@@ -39,7 +39,11 @@ func setupStaffRepositoryTestDB(t *testing.T) *gorm.DB {
 		// row inside the deactivation transaction; the shared schema lacks it.
 		&model.AuditLog{},
 	))
-	require.NoError(t, db.Exec("TRUNCATE TABLE staff_clinic_assignments, staffs, occupations, accounts, shift_entries CASCADE").Error)
+	// audit_logs は actor_id→staffs の実FK経由の CASCADE 掃除に依存しない — 共有
+	// テストスキーマは AutoMigrate 由来で FK を持たず、グローバル件数検証
+	// （staff.account.deactivate 等）が残存行で破綻する。provisioning 側と同じく
+	// 明示 TRUNCATE で掃除する。
+	require.NoError(t, db.Exec("TRUNCATE TABLE staff_clinic_assignments, staffs, occupations, accounts, shift_entries, audit_logs CASCADE").Error)
 	return db
 }
 

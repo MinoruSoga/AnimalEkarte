@@ -319,6 +319,10 @@ describe("useMedicalRecordForm — 新規作成 auto-create effect (新規予約
   });
 
   it("visitDate 指定の一覧新規作成では appointment も同じ日付で作成する", async () => {
+    // 実時刻依存 flake 対策: 実行時刻が JST 23:45 以降だと duration 加算で
+    // end_time が翌日にずれて /^2026-06-01T/ を外すため、JST 正午に固定する
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-01T03:00:00Z"));
     mockSearchParams = new URLSearchParams({ petId: "5", visitDate: "2026-06-01" });
     vi.mocked(useGetPet).mockReturnValue({
       data: mockPet,

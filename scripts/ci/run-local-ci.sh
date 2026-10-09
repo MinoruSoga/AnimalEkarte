@@ -282,6 +282,17 @@ s19() {
   # 列追加・削除系の migration が載ると必ず古いスキーマのまま残って
   # schema_drift_test（本体DB側）や TRUNCATE CASCADE 前提のテスト（_test 側）を
   # 壊す。存在確認キャッシュはせず毎回 drop & schema-only clone で再構築する。
+  #
+  # _test 側の clone 元は ekarte_db_test（AutoMigrate 蓄積スキーマ）限定。
+  # ekarte_db（migration スキーマ）から複製すると、単一カラム UNIQUE 制約が
+  # GORM MigrateColumnUnique の推測名 DROP CONSTRAINT uni_* で 42704 になり、
+  # かつモデル未宣言の実 FK（manual_articles→staffs 等）が fixture を壊す。
+  # ekarte_db_test が不在の場合（DB ボリューム reset 直後等）は、先に
+  # SetupTestDB 経由で一度だけ生成・AutoMigrate 蓄積させてから clone する。
+  if ! compose exec -T db sh -c "psql -U \"\$POSTGRES_USER\" -d postgres -tAc \
+      \"SELECT 1 FROM pg_database WHERE datname='\${POSTGRES_DB}_test'\" | grep -q 1"; then
+    compose exec -T backend go test ./internal/testdb -count=1
+  fi
   local s
   for s in 1 2 3 4; do
     compose exec -T db sh -c "set -e; \
@@ -293,8 +304,7 @@ s19() {
       psql -U \"\$POSTGRES_USER\" -d postgres -c \
         \"DROP DATABASE IF EXISTS \\\"\${POSTGRES_DB}_s${s}_test\\\" WITH (FORCE)\"; \
       psql -U \"\$POSTGRES_USER\" -d postgres -c \"CREATE DATABASE \\\"\${POSTGRES_DB}_s${s}_test\\\"\"; \
-      { pg_dump -U \"\$POSTGRES_USER\" -d \"\${POSTGRES_DB}_test\" --schema-only 2>/dev/null || \
-        pg_dump -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" --schema-only; } | \
+      pg_dump -U \"\$POSTGRES_USER\" -d \"\${POSTGRES_DB}_test\" --schema-only | \
         psql -q -U \"\$POSTGRES_USER\" -d \"\${POSTGRES_DB}_s${s}_test\""
   done
 
