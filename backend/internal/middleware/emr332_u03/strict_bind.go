@@ -31,13 +31,19 @@ const DefaultStrictBindMaxBytes int64 = 1 << 20 // 1 MiB
 // unset). Unknown/disallowed fields are silently dropped on every JSON write
 // path that uses them.
 //
-// This helper keeps the same boundary contract as the existing per-package
+// This helper shares the core boundary contract of the existing per-package
 // bind helpers — bounded read to EOF, exactly one JSON value, `binding` tag
 // validation via Gin's validator engine, sanitized error messages via
 // httpapi.ParseBindError — and additionally rejects unknown fields. It decodes
 // into dst directly from the bounded buffer so the strict decoder applies;
 // `binding` tags are still enforced afterwards through binding.Validator, so
 // ParseBindError produces messages identical to the ShouldBindJSON path.
+//
+// Contract difference: unlike bindStaffJSON / bindAuthJSON it does NOT run
+// per-type byte-length checks (validateStaffJSONByteLengths /
+// validateAuthJSONByteLengths — e.g. email <=254 bytes, password <=72 bytes,
+// reset token <=128 bytes). Callers migrating from those wrappers must keep
+// or port the equivalent checks; this helper is not a drop-in equivalent.
 //
 // Wiring it into handlers is intentionally NOT done in this unit — in-place
 // handler edits live outside the U03 owned paths and are recorded as a
