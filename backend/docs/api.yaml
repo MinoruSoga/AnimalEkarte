@@ -5552,6 +5552,10 @@ components:
         author_user_id:
           type: integer
           format: int64
+        author_name:
+          type: string
+          nullable: true
+          description: 追記者スタッフ氏名（解決できる場合はスタッフの現行名を返す。改名後は旧名ではなく現行名が表示される）。親カルテの医院スコープで解決できる場合のみ返る（スタッフ削除・異動・他医院・未解決は null または省略）。UI は author_user_id へフォールバック表示する。
         before_text:
           type: string
         after_text:

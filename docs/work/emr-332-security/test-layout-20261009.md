@@ -111,3 +111,7 @@ Go、TypeScript、security reviewerがそれぞれ専用worktreeで読み取り�
 改善プラン: 過去UATで必要なケースは使い捨てfixtureの通常specへ移植し、承認済み対象環境・合成アカウント・隔離医院・固定ID不使用・失敗時も完了するcleanupを確認してから別途実測する。archiveの拡張子復帰や独自configでの直接実行はしない。過去の24/24等の実測とFAILを保持し、今回の一覧確認をUAT成功と扱わない。命名・配置変更でC05/C09や他のUNKNOWN/BLOCKEDを引き上げない。
 
 追加監査の候補20ファイル（改名5件を含む）は、別々の登録済みworktreeでGo・TypeScript・security reviewerが読み取り独立レビューし、全員APPROVE・actionable findings 0。JSONケース集合、改名ファイル、archive本文の保持を独自比較した。独立した試験再実行は行っていない。所有ファイルのGitleaksはexit 0 / no leaks、staged diff checkはPASS。
+
+PR競合解消: 追加監査commit `3cd192c43` の公開後、origin/main `d40a0b0d1525955ba26012a04415fee788f0652f` をtask branchへmergeした。共有main自体は編集していない。競合はarchitecture索引のRadix 1行のみで、新しい意味名を維持し、main側の「影響フォーム棚卸しは2026-10-02時点スナップショット」という訂正を保持した。Radix本文へmain側が追加した位置づけ注記も保全した。前掲のbyte同一比較はmerge前の改名時点の証明であり、main注記の追加を除去するものではない。main側の他の変更はmerge parentの成果として保持し、本配置修復の独自実装と数えない。migration変更なし。
+
+merge後もDocker network noneでauth14ケース、frontend5ファイル55ケース、security7 package、C10 handler12ケース（関数イベント含む13 PASS）を限定再実行しPASS。索引の競合解消はTypeScript reviewerがmainとの内容保持を独自比較しAPPROVE・指摘0。変更した競合解消2文書のdiff checkはPASS。既存mainの空白と保全rawログのCRLFは変更しない。

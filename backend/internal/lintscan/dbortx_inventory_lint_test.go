@@ -631,6 +631,9 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// AbsorbTentativeOnBooking/PromoteTentativeOnCheckin delegate through this shared
 	// implementation (same unregistered-shape rule as SetNextVisitIntent).
 	"reservation/reservation_intent_repository.go|reservationRepository.promoteOrCreateFromTentative": {}, // EMR-308 tentative 同一行昇格 (booking/check-in absorb)
+	// Guarded check-in CAS write is fail-closed TxFromContext (no DBOrTx fallback) — see
+	// ambientTxParticipationExpectations; runtime proof: TestGuardedCheckInRepositoryCAS.
+	"reservation/reservation_guarded_checkin.go|reservationRepository.checkInConfirmed": {},
 	// EMR-308 next-visit appointment read surface (LSTEP tag sync + tentative reminder
 	// candidate/revalidation). Read-only finders; ambient-tx participation via DBOrTx.
 	"reservation/reservation_next_visit_query.go|reservationRepository.FindNextAppointmentForOwner":           {},
@@ -1077,6 +1080,11 @@ var ambientTxParticipationExpectations = map[string]ambientTxParticipationExpect
 		shape: ambientTxRequired,
 	},
 	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.UpsertSpeciesSpec": {
+		shape: ambientTxRequired,
+	},
+	// Guarded check-in CAS write is fail-closed: TxFromContext only, never DBOrTx fallback.
+	// Runtime proof: TestGuardedCheckInRepositoryCAS (CAS + rollback under ambient tx).
+	"reservation/reservation_guarded_checkin.go|reservationRepository.checkInConfirmed": {
 		shape: ambientTxRequired,
 	},
 }

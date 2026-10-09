@@ -208,6 +208,21 @@ $ docker compose exec frontend pnpm lint && docker compose exec frontend pnpm te
 Lint エラー・型エラー・テスト失敗・規約違反があれば修正して再レビュー。
 **3回修正しても解決しない場合はユーザーに報告して判断を仰ぐ。**
 
+### 4.6 レビュー結果スコアボード（2026-10-09 統合: source-command-harness より）
+
+各イテレーションのレビュー結果は、変更種別ごとに PASS / FAIL / UNKNOWN で集計する:
+
+```
+ITERATION N RESULT:
+  Go:   PASS / FAIL / UNKNOWN（違反: X件。未実行なら UNKNOWN）
+  TS:   PASS / FAIL / UNKNOWN
+  DB:   PASS / FAIL / UNKNOWN
+  総合: PASS / FAIL / UNKNOWN
+```
+
+- 未実行の reviewer・テスト・coverage を PASS と表示しない（5.4 完了報告と同じ原則）。
+- カバレッジ数値は実際に測定した場合だけ書く。
+
 ---
 
 ## Phase 5: クローズ処理

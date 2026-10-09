@@ -36,6 +36,14 @@ printf '%s\n' 'Pre-push: selected outgoing checks finished; see evidence above.'
 else
   echo 'Pre-push: scoped verification skipped (default off; PREPUSH_VERIFY=1 to enable).' >&2
 fi
-if command -v git-lfs >/dev/null 2>&1; then
-  git lfs pre-push "$@" < "$REFS_FILE"
-fi
+# Artifacts is Git smart HTTP only. Its host has no /info/lfs batch endpoint,
+# so running Git LFS there rejects the push. GitHub remotes still upload LFS.
+remote_url=${2-}
+case "$remote_url" in
+  *://*.artifacts.cloudflare.net/*|*://artifacts.cloudflare.net/*) ;;
+  *)
+    if command -v git-lfs >/dev/null 2>&1; then
+      git lfs pre-push "$@" < "$REFS_FILE"
+    fi
+    ;;
+esac
