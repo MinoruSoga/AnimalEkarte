@@ -1,6 +1,11 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"runtime"
+	"testing"
+)
 
 func TestRefuseUnsafeDSN(t *testing.T) {
 	t.Parallel()
@@ -30,5 +35,22 @@ func TestRefuseUnsafeDSN(t *testing.T) {
 				t.Fatalf("unexpected refuse: %v", err)
 			}
 		})
+	}
+}
+
+// Validate the launcher's checked-in target without starting the DB harness.
+func TestHarnessScriptPathResolvesCheckedInRunner(t *testing.T) {
+	_, source, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("cannot locate this test's repository")
+	}
+	root := filepath.Clean(filepath.Join(filepath.Dir(source), "..", "..", ".."))
+	script := harnessScriptPath(root)
+	info, err := os.Stat(script)
+	if err != nil {
+		t.Fatalf("launcher target does not exist: %v", err)
+	}
+	if !info.Mode().IsRegular() || info.Mode().Perm()&0o111 == 0 {
+		t.Fatal("launcher target must be a regular executable file")
 	}
 }

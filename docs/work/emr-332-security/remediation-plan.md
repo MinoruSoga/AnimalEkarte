@@ -24,7 +24,7 @@ AC4 適用規則: 本計画は (a) **証跡で確認されたギャップ** (防
 | 担当 | 実装評価: Codex (引き継ぎ済み)。API契約・受入責任者: 未指定 |
 | 優先順位 | 未評価 — 工程番号由来のP0を重大度として撤回。影響と互換契約の評価後に決定 |
 | 再検証条件 | 合意した対象の実handlerで保護項目が更新されないこと、受理項目・byte-length・trailing契約を維持すること、拒否時後段呼出0を確認 |
-| 証跡参照 | `u03/c05-input-validation.md`; `repair-20261009.md` |
+| 証跡参照 | `input-output/c05-input-validation.md`; `repair-20261009.md` |
 
 ### GAP-2: C09 — operator-config境界の強化候補 (SSRF impact UNKNOWN)
 
@@ -36,7 +36,7 @@ AC4 適用規則: 本計画は (a) **証跡で確認されたギャップ** (防
 | 担当 | 評価訂正: Codex。運用宛先policy責任者: 未指定 |
 | 優先順位 | 未評価 — SSRF重大度は未証明。release HTTPS候補は資格情報送信policyと実enablementを確認して決定 |
 | 再検証条件 | callerの権限と宛先ソース、redirect/DNS境界、正規relay契約を記録する。通信試験は指定staging/tenant等の安全前提成立後に限定 |
-| 証跡参照 | `u05/c09-ssrf-egress.md`; `repair-20261009.md` |
+| 証跡参照 | `egress/c09-ssrf-egress.md`; `repair-20261009.md` |
 
 ### GAP-3: C10 — 共有ファイル保存前の内容形式照合 (適用済み)
 
@@ -48,7 +48,7 @@ AC4 適用規則: 本計画は (a) **証跡で確認されたギャップ** (防
 | 担当 | 修復・メモリ検証: Codex。人間受入責任者: 未指定 |
 | 優先順位 | 内容検証欠落の最小修復を今回実施。悪用可能性/CVSSは未評価 |
 | 再検証条件 | 実handlerのメモリ試験: 正常5ケースで201/Upload1/内容完全保持、内容不一致・空7ケースで400/Upload0/Locationなし。既存auth/bind/extension/service-errorを維持 |
-| 証跡参照 | `u05/c10-upload-validation.md`; `backend/internal/lstep/shared_file_content_test.go`; `repair-20261009.md` |
+| 証跡参照 | `uploads/c10-upload-validation.md`; `backend/internal/lstep/shared_file_content_test.go`; `repair-20261009.md` |
 
 ---
 
@@ -56,17 +56,17 @@ AC4 適用規則: 本計画は (a) **証跡で確認されたギャップ** (防
 
 | ID | ケース | 候補内容 | 根拠 (code/config) | 担当 | 優先順位 | 再検証条件 | 証跡参照 |
 |----|--------|----------|---------------------|------|----------|------------|----------|
-| CAND-C14-RC1 | C14 | first-party actions の tag pin → SHA pin 化 (`actions/*`, `pnpm/action-setup`, `gitleaks-action`) | `.github/workflows/*` tag pin 一覧 (u05 Section B) | 未指定 | P2 (ticket 工程5) | C14 で pin 方式の static 再確認 | `u05/c14-supply-chain.md` Section D |
-| CAND-C14-RC2 | C14 | `permissions:` 未宣言 workflow (`e2e.yml`, `performance-tests.yml`, `stg-migrate-direct.yml`, `stg-smoke.yml`, `actionlint.yml`) への最小権限明示 | 同上 | 未指定 | P2 | C14 で宣言有無の static 再確認 | `u05/c14-supply-chain.md` Section D |
-| CAND-C14-RC3 | C14 | `go vuln`/`pnpm audit`/Dependabot の定期実行組込み (脆弱性状態 NOT ASSESSED の解消) | u05 Section C | 未指定 | P2 | scanner 実行証跡を残した上で C14 vulnerability 欄を評価 | `u05/c14-supply-chain.md` Section C/D |
-| CAND-C14-RC4 | C14 | `performance-tests.yml` の `github-script` comment step — dead config の削除または trigger 追加 | 同上 | 未指定 | P2 | C14 static 再確認 | `u05/c14-supply-chain.md` Section D |
-| CAND-U04-1 | C11/C12 | edge 即応答 preflight (`backend/worker/index.ts` `buildCorsPreflightResponse` :404-427) への最小 security header 付与 (例 `X-Content-Type-Options: nosniff`) — 204 no-body で実害リスク低 | u04 c11/c12 修復案欄の観察所見 (backend/worker/ は read-only 層) | 未指定 | 未割当 (観察候補 — 人間受入時確定) | C11/C12 で edge preflight 応答ヘッダを再評価 | `u04/c11-transport-headers.md` 修復案欄; `u04/c12-cors.md` 修復案欄 |
-| CAND-U04-2 | C12 | edge/Gin preflight 複製実装の値 drift を防ぐ機械的 contract テスト | worker/index.ts:376-427 と cors.go:12-46 の手動同期契約 | 未指定 | 未割当 (同上) | C12 で両実装の値一致を機械ゲート化後に再確認 | `u04/c12-cors.md` 修復案欄 |
-| CAND-U04-3 | C13 | `frontend/public/_headers` `/*` への明示的 `Cache-Control` (例 `no-cache`) — SPA HTML は platform 既定依存 | u04 c13 修復案欄 (read-only 層) | 未指定 | 未割当 (同上) | C13 で frontend HTML cache 挙動を再評価 | `u04/c13-cache-minimization.md` 修復案欄 |
-| CAND-C06-1 | C06 | `Raw(fmt.Sprintf(...))` 禁止 lint rule / `textsearch.EscapeLike` 使用強制 (guardrail) | u03 c06 修復案欄 (unsafe site 0 件のため FAIL ではない) | 未指定 | 未割当 (同上) | C06 static 棚卸しで新規 unsafe site 0 を再確認 | `u03/c06-sql-inventory.md` field 11 |
-| CAND-C07-1 | C07 | server-supplied URL 3 系 (`img.src`/`plane_issue_url`/`tel:`) の client 側 scheme allowlist (defense-in-depth) | u03 c07 修復案欄 (sink 0 件のため FAIL ではない) | 未指定 | 未割当 (同上) | C07 render leg BLOCKED 解除後に併せて評価 | `u03/c07-xss-render.md` field 11 |
-| CAND-C18-1 | C18 | イベント名 `auth_staff_validation_fail_open` / メッセージ "auth staff validation failed open" の rename (実際は fail-closed で 503 拒否 — 名前が逆の誤ラベル) | `backend/cmd/api/composition_auth_routes.go:82-83` (u06 c18 観察欄; owned path 外のため観察として記録) | 未指定 | 低 (ログクエリ互換の確認が前提) | rename 適用後に C18 logging 検証を再実行し marker 相関を再確認 | `u06/c18-logging-audit.md` fields 10–11 |
-| CAND-C16-1 | C16 | 本番複数インスタンス環境での集約 store (Redis 等) 検討 — process-local `RateLimitStore` の集約制限は UNKNOWN | `rate_limit.go:29-33` (in-memory map); deploy 実態未確認のため証拠不足で候補止まり | 未指定 | 未割当 (deploy topology 確定が前提) | multi-instance deployment topology 確定後に C16 で再評価 | `u06/c16-rate-limit.md` field 11 |
+| CAND-C14-RC1 | C14 | first-party actions の tag pin → SHA pin 化 (`actions/*`, `pnpm/action-setup`, `gitleaks-action`) | `.github/workflows/*` tag pin 一覧 (u05 Section B) | 未指定 | P2 (ticket 工程5) | C14 で pin 方式の static 再確認 | `dependencies/c14-supply-chain.md` Section D |
+| CAND-C14-RC2 | C14 | `permissions:` 未宣言 workflow (`e2e.yml`, `performance-tests.yml`, `stg-migrate-direct.yml`, `stg-smoke.yml`, `actionlint.yml`) への最小権限明示 | 同上 | 未指定 | P2 | C14 で宣言有無の static 再確認 | `dependencies/c14-supply-chain.md` Section D |
+| CAND-C14-RC3 | C14 | `go vuln`/`pnpm audit`/Dependabot の定期実行組込み (脆弱性状態 NOT ASSESSED の解消) | u05 Section C | 未指定 | P2 | scanner 実行証跡を残した上で C14 vulnerability 欄を評価 | `dependencies/c14-supply-chain.md` Section C/D |
+| CAND-C14-RC4 | C14 | `performance-tests.yml` の `github-script` comment step — dead config の削除または trigger 追加 | 同上 | 未指定 | P2 | C14 static 再確認 | `dependencies/c14-supply-chain.md` Section D |
+| CAND-U04-1 | C11/C12 | edge 即応答 preflight (`backend/worker/index.ts` `buildCorsPreflightResponse` :404-427) への最小 security header 付与 (例 `X-Content-Type-Options: nosniff`) — 204 no-body で実害リスク低 | u04 c11/c12 修復案欄の観察所見 (backend/worker/ は read-only 層) | 未指定 | 未割当 (観察候補 — 人間受入時確定) | C11/C12 で edge preflight 応答ヘッダを再評価 | `browser/c11-transport-headers.md` 修復案欄; `browser/c12-cors.md` 修復案欄 |
+| CAND-U04-2 | C12 | edge/Gin preflight 複製実装の値 drift を防ぐ機械的 contract テスト | worker/index.ts:376-427 と cors.go:12-46 の手動同期契約 | 未指定 | 未割当 (同上) | C12 で両実装の値一致を機械ゲート化後に再確認 | `browser/c12-cors.md` 修復案欄 |
+| CAND-U04-3 | C13 | `frontend/public/_headers` `/*` への明示的 `Cache-Control` (例 `no-cache`) — SPA HTML は platform 既定依存 | u04 c13 修復案欄 (read-only 層) | 未指定 | 未割当 (同上) | C13 で frontend HTML cache 挙動を再評価 | `browser/c13-cache-minimization.md` 修復案欄 |
+| CAND-C06-1 | C06 | `Raw(fmt.Sprintf(...))` 禁止 lint rule / `textsearch.EscapeLike` 使用強制 (guardrail) | u03 c06 修復案欄 (unsafe site 0 件のため FAIL ではない) | 未指定 | 未割当 (同上) | C06 static 棚卸しで新規 unsafe site 0 を再確認 | `input-output/c06-sql-inventory.md` field 11 |
+| CAND-C07-1 | C07 | server-supplied URL 3 系 (`img.src`/`plane_issue_url`/`tel:`) の client 側 scheme allowlist (defense-in-depth) | u03 c07 修復案欄 (sink 0 件のため FAIL ではない) | 未指定 | 未割当 (同上) | C07 render leg BLOCKED 解除後に併せて評価 | `input-output/c07-xss-render.md` field 11 |
+| CAND-C18-1 | C18 | イベント名 `auth_staff_validation_fail_open` / メッセージ "auth staff validation failed open" の rename (実際は fail-closed で 503 拒否 — 名前が逆の誤ラベル) | `backend/cmd/api/composition_auth_routes.go:82-83` (u06 c18 観察欄; owned path 外のため観察として記録) | 未指定 | 低 (ログクエリ互換の確認が前提) | rename 適用後に C18 logging 検証を再実行し marker 相関を再確認 | `workflow-audit/c18-logging-audit.md` fields 10–11 |
+| CAND-C16-1 | C16 | 本番複数インスタンス環境での集約 store (Redis 等) 検討 — process-local `RateLimitStore` の集約制限は UNKNOWN | `rate_limit.go:29-33` (in-memory map); deploy 実態未確認のため証拠不足で候補止まり | 未指定 | 未割当 (deploy topology 確定が前提) | multi-instance deployment topology 確定後に C16 で再評価 | `workflow-audit/c16-rate-limit.md` field 11 |
 
 ## 適用済み変更の棚卸し (初回campaign履歴と後続修復)
 

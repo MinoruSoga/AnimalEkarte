@@ -1,5 +1,5 @@
 // Package audit — EMR-332 C18 evidence tests
-// (docs/work/emr-332-security/u06/c18-logging-audit.md).
+// (docs/work/emr-332-security/workflow-audit/c18-logging-audit.md).
 //
 // Scope: deterministic, single-threaded, in-memory verification of the audit
 // package service layer. The persistence boundary (audit.Repository) is a

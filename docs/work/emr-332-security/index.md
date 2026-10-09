@@ -1,4 +1,4 @@
-# EMR-332 Security Defense — Campaign Index (U07 consolidation)
+# 非破壊セキュリティ検証・修復の記録（EMR-332）
 
 Campaign: emr-332-security-defense / Unit: U07-REVERIFY-CONSOLIDATE / Attempt: att-u07-1
 Recorded by: receiver-emr332-u07-01 / Recorded at: 2026-10-09
@@ -11,15 +11,17 @@ Consolidated ticket revision: **EMR-332 @ 2026-10-08T17:54:31Z** (Plane `baritec
 
 検証専用コードの現行配置は `backend/tests/security/`。内容別の7 packageへ整理し、比較decoderも `_test.go` に変更した。移動対応表・現行コマンド・同一試験の確認結果は [test-layout-20261009.md](test-layout-20261009.md) を参照。通常の共有ファイルhandler回帰試験は `backend/internal/lstep/shared_file_content_test.go` に置く。
 
+docsも内容別の `baseline`、`identity-access`、`input-output`、`browser`、`egress`、`uploads`、`dependencies`、`workflow-audit`、`assessment` へ整理した。U01–U07のUnit/Attempt/Receiver表記は初回作業の履歴識別子であり、現行ファイル配置には使用しない。過去のコマンドと生ログの本文は保持する。追加の全体配置調査と修復は [test-layout-20261009.md](test-layout-20261009.md) の後続記録を参照。
+
 ## Deliverables (U07 acceptance artifacts)
 
 | Doc | 内容 |
 |-----|------|
 | `docs/work/emr-332-security/verdict-matrix.md` | C01–C18 全 18 行の判定マトリクス (ASVS/Top10/STRIDE, revision, method, normal/refusal, **defense/detection 別列**, side-effect calls, evidence ref, unverified scope) |
 | `docs/work/emr-332-security/remediation-plan.md` | AC4 改善計画 — C05要件差分・C09強化候補・C10適用修復 + 記録済み候補 (R1–R4, RC-1, RC-1..4, U04/U06 観察) |
-| `docs/work/emr-332-security/u07/reverification.md` | 初回適用修復ゼロの履歴 + C05比較decoderの初回証跡（現行は `tests/security/inputvalidation/strict_bind_helper_test.go`） |
-| `docs/work/emr-332-security/u07/residual-known-issues.md` | 残件・既知問題の一覧 (record-only) |
-| `docs/work/emr-332-security/u01..u06/` | 各ユニットの per-case verdict docs + 証跡 (本 index の一次証拠; read-only で参照) |
+| `docs/work/emr-332-security/assessment/reverification.md` | 初回適用修復ゼロの履歴 + C05比較decoderの初回証跡（現行は `tests/security/inputvalidation/strict_bind_helper_test.go`） |
+| `docs/work/emr-332-security/assessment/residual-known-issues.md` | 残件・既知問題の一覧 (record-only) |
+| 内容別フォルダ（上記の現行配置） | ケース別の判定記録と証跡。baselineおよび各検証内容のフォルダを参照 |
 
 ## Assurance boundary — 4 状態の分離 (AC6)
 
@@ -29,16 +31,16 @@ Consolidated ticket revision: **EMR-332 @ 2026-10-08T17:54:31Z** (Plane `baritec
 |------|------|----------------------|
 | **文書完成** (documented) | 検証計画・境界・判定レコードが文書として完成 | **達成** — U01 safety baseline + U02–U06 全 18 ケースの判定レコード + 本 U07 統合成果物 |
 | **模擬合格** (simulated pass) | メモリ・模擬・httptest・静的レビューの範囲で期待防御/検出を観測 | **部分的に達成** — 防御 PASS 16 (限定) / FAIL 1 (C05要件差分) / UNKNOWN 1 (C09) の記録は static+simulated の範囲のもの (各 case doc 参照) |
-| **ステージング実測** (staging-observed) | 所有 staging origin への境界内実送信による観測 | **ゼロ — 実測セットは空 (empty)**。live 送信 **0/20 requests**。理由: (a) staging 稼働リビジョン照合が undetermined (u01-safety-record §2; repo 内に deploy 記録/Worker version stamp/既知差分証跡なし — `u04/c08-csrf.md` 補足の照合試行記録); (b) 専用テストアカウント未払出 (§7); (c) 許可テナント識別子未プロビジョン (§3) |
+| **ステージング実測** (staging-observed) | 所有 staging origin への境界内実送信による観測 | **ゼロ — 実測セットは空 (empty)**。live 送信 **0/20 requests**。理由: (a) staging 稼働リビジョン照合が undetermined (baseline/safety-record §2; repo 内に deploy 記録/Worker version stamp/既知差分証跡なし — `browser/c08-csrf.md` 補足の照合試行記録); (b) 専用テストアカウント未払出 (§7); (c) 許可テナント識別子未プロビジョン (§3) |
 | **本番受入** (release acceptance) | 人間受入による本番相当の承認 | **未着手 — 対象外**。Done 遷移は人間受入または明示指示がある場合のみ (AC7/EMR332-X3)。キャンペーンの目標状態は Review まで |
 
 **この index と配下の全 verdict は「模擬合格」までの記録であり、ステージング実測・本番受入の証明ではない。**
 
 ## Staging 稼働リビジョンの状態
 
-- **undetermined** — staging が serve する revision と task branch 内容の照合は未達成。照合の 3 経路 (deploy 記録 / Worker バージョン識別 / 既知差分証跡) すべてで repo 内証拠なし (`u04/c08-csrf.md` 「稼働リビジョン照合の試行記録」)。
+- **undetermined** — staging が serve する revision と task branch 内容の照合は未達成。照合の 3 経路 (deploy 記録 / Worker バージョン識別 / 既知差分証跡) すべてで repo 内証拠なし (`browser/c08-csrf.md` 「稼働リビジョン照合の試行記録」)。
 - チケット記載のローカル参照 HEAD `40384aa3bb92eaa3ea950d56a9a0bf604ff08f2c` と staging 稼働 revision の一致も起票時点で未確認。
-- したがって staging-observed legs は全ケース **BLOCKED** (u01-safety-record §2 規則)。
+- したがって staging-observed legs は全ケース **BLOCKED** (baseline/safety-record §2 規則)。
 
 ## Residual items (残件 — verbatim 列挙)
 
@@ -48,7 +50,7 @@ Consolidated ticket revision: **EMR-332 @ 2026-10-08T17:54:31Z** (Plane `baritec
 4. **C16 multi-instance 集約制限 UNKNOWN** — `RateLimitStore` は process-local map (`rate_limit.go:29-33`); 複数プロセス/インスタンス間の集約制限は deploy 形態依存で未検証。
 5. **C18 通知経路到達性 UNKNOWN** — `ReservationNotifier` 実装の配送確認証跡なし (send 呼出のみ確認)。
 6. **C14 脆弱性状態 NOT ASSESSED** — `go vuln`/`pnpm audit`/Dependabot/OSV 照合未実行 (network/data 依存)。pinning/lockfile/provenance の構成判定 PASS と既知 CVE 露出は別事項。
-7. **u01/source-inventory.md:46 stale cite** — `repository_db_test.go:33-36` と記載されているが `u01-test-classification.md` §1 では `:31-34`。**record-only — 当該ファイルは U01 の owned file であり本ユニット (U07) では編集しない**。
+7. **baseline/source-inventory.md:46 stale cite** — `repository_db_test.go:33-36` と記載されているが `baseline/test-classification.md` §1 では `:31-34`。**record-only — 当該ファイルは U01 の owned file であり本ユニット (U07) では編集しない**。
 8. **後続修復と候補** — C10 RC-1は適用・メモリ検証済み。C05は対象API/互換性/impact評価待ちで全体strict化は未採用。C09 R1–R4, C14 RC-1..4, U04 edge-preflight/headers observations (edge preflight への最小 security header、edge/Gin 複製 drift contract test、frontend `_headers` `/*` の明示 Cache-Control), U06 `auth_staff_validation_fail_open` mislabel rename 候補。詳細は `remediation-plan.md`。
 
 ## Unverified scope (未検証範囲の集約)
@@ -68,7 +70,7 @@ Consolidated ticket revision: **EMR-332 @ 2026-10-08T17:54:31Z** (Plane `baritec
 
 | # | 必要な人間操作 | 解除する残件 |
 |---|----------------|--------------|
-| 1 | **専用テストアカウントの払い出し** (検証専用 staff/LIFF アカウント — 共有デモパスワードは不使用) | 認証済み live チェック全般 (u01-safety-record §7) |
+| 1 | **専用テストアカウントの払い出し** (検証専用 staff/LIFF アカウント — 共有デモパスワードは不使用) | 認証済み live チェック全般 (baseline/safety-record §7) |
 | 2 | **単一の許可テナント識別子のプロビジョン** (検証専用 staging clinic ID の記録) | 認証テナントスコープ live チェック (§3) |
 | 3 | **test-DB 環境の供給** (本安全条件で実行可能な DB 経路 — Compose `db` または隔離 test DB の明示許可) | real-DB legs (TestRealDB_*, CAS/advisory-lock, audit repo) |
 | 4 | **isolated frontend container の供給** (node_modules を持つ task-isolated な render test 環境) | C07 render leg BLOCKED |
@@ -82,4 +84,4 @@ Consolidated ticket revision: **EMR-332 @ 2026-10-08T17:54:31Z** (Plane `baritec
 - 後続修復の検証はネットワーク無効Docker・メモリmockのみ。実サービス/DB/storage/LINEへ接続せず、本番・実ユーザー・PII・実テナントへの試験は行っていない。初回unitの副作用列はstatic/mockの範囲であり、実環境全体の副作用ゼロを証明しない。
 - live 送信: **0/20 requests** (上限内で実送信ゼロ)。
 - 証跡内に secrets/tokens/PII/実ペイロードなし — マーカーは `SECCHK20261009*` 形の英数字 sentinel のみが各 case doc で引用される。
-- 文書訂正の lineage: u03 docs における att-u03-1→att-u03-2 訂正履歴は `u03/c05-input-validation.md`・`u03/c06-sql-inventory.md` 末尾の訂正履歴表に記録 (verdict 不変)。
+- 文書訂正の lineage: u03 docs における att-u03-1→att-u03-2 訂正履歴は `input-output/c05-input-validation.md`・`input-output/c06-sql-inventory.md` 末尾の訂正履歴表に記録 (verdict 不変)。

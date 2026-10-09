@@ -1,5 +1,5 @@
 // Package medicalrecord — EMR-332 C15 evidence tests
-// (docs/work/emr-332-security/u06/c15-order-idempotency.md).
+// (docs/work/emr-332-security/workflow-audit/c15-order-idempotency.md).
 //
 // Scope: deterministic, single-threaded, in-memory verification of
 // MedicalRecordService.AutoCreateFromReservation order + idempotency guards.
