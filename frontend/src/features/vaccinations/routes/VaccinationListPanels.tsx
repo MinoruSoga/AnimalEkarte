@@ -19,7 +19,11 @@ import { useGetPet } from "@/hooks/use-pet";
 import { isPastJSTDate } from "@/lib/jst-date";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { VaccinationRecord } from "@/types";
-import { VACCINATION_SORT_PROPERTIES, vaccinationListDetailHref } from "./vaccinations-list-model";
+import {
+  VACCINATION_SORT_PROPERTIES,
+  vaccinationListDetailHref,
+  type VaccinationListDetailState,
+} from "./vaccinations-list-model";
 
 interface VaccinationRowActionsProps {
   record: VaccinationRecord;
@@ -71,6 +75,7 @@ interface VaccinationListRowProps {
   record: VaccinationRecord;
   canEdit: boolean;
   canDelete: boolean;
+  detailState: VaccinationListDetailState;
   onEdit: (record: VaccinationRecord) => void;
   onDelete: (id: string) => void;
 }
@@ -79,6 +84,7 @@ function VaccinationListRow({
   record,
   canEdit,
   canDelete,
+  detailState,
   onEdit,
   onDelete,
 }: VaccinationListRowProps) {
@@ -90,6 +96,7 @@ function VaccinationListRow({
       <TableCell className={C.text}>
         <DataTableRowLink
           to={vaccinationListDetailHref({ id: record.id, medicalRecordId: record.medicalRecordId })}
+          state={detailState}
           aria-label={`予防接種詳細: ${record.petName} ${record.date} ID ${record.id}`}
         >
           {record.petName}
@@ -151,6 +158,7 @@ interface VaccinationListContentProps {
   onEdit: (record: VaccinationRecord) => void;
   onDelete: (id: string) => void;
   onPageChange: (page: number) => void;
+  detailState: VaccinationListDetailState;
 }
 
 export function VaccinationListContent({
@@ -171,6 +179,7 @@ export function VaccinationListContent({
   onEdit,
   onDelete,
   onPageChange,
+  detailState,
 }: VaccinationListContentProps) {
   const columns = useMemo(
     () => [
@@ -232,11 +241,12 @@ export function VaccinationListContent({
         record={r}
         canEdit={canEdit}
         canDelete={canDelete}
+        detailState={detailState}
         onEdit={onEdit}
         onDelete={onDelete}
       />
     ),
-    [canEdit, canDelete, onEdit, onDelete],
+    [canEdit, canDelete, detailState, onEdit, onDelete],
   );
 
   return (

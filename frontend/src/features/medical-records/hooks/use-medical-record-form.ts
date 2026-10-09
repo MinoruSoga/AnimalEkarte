@@ -100,6 +100,7 @@ export function useMedicalRecordForm(recordId?: string) {
   const handleBack = useCallback(() => {
     createMedicalRecordBackHandler({
       from: location.state?.from,
+      listReturnState: location.state?.listReturnState,
       recordId,
       navigate,
     })();

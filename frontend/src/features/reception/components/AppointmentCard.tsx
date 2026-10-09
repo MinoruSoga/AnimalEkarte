@@ -84,6 +84,7 @@ export const AppointmentCard = memo(function AppointmentCard({
   const isTrimming = appointment.reservationCategory === "trimming";
   const isHospitalization = isHospitalizationService(appointment.reservationType);
   const isMedical = !isTrimming && !isHospitalization;
+  const notes = appointment.notes?.trim() ? appointment.notes : undefined;
   const visitColor = getVisitTypeColor(appointment.visitType);
   const canOpenRecordFromCard = isTrimming
     ? columnTitle === "受付済"
@@ -237,6 +238,12 @@ export const AppointmentCard = memo(function AppointmentCard({
               </Badge>
             ) : null}
           </div>
+
+          {notes ? (
+            <p className={`truncate text-sm leading-tight ${C.text60}`} title={notes}>
+              <span className="font-medium">予約内容</span> {notes}
+            </p>
+          ) : null}
 
           {/* ミニアクションボタン */}
           {isDeceased ? null : (

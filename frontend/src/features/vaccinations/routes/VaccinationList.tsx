@@ -7,7 +7,7 @@ import {
   useRef,
   useTransition,
 } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { Plus, Syringe } from "lucide-react";
 import { toast } from "sonner";
 
@@ -33,6 +33,7 @@ import {
   orderVaccinationListRows,
   vaccinationDateRange,
   vaccinationListDetailHref,
+  vaccinationListDetailState,
 } from "./vaccinations-list-model";
 
 import type { VaccinationRecord } from "@/types";
@@ -40,6 +41,7 @@ import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 
 export function VaccinationList() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit, canDelete } = usePermission("vaccinations");
   const [searchTerm, setSearchTerm] = useState("");
@@ -54,12 +56,15 @@ export function VaccinationList() {
   const deferredSearchTerm = useDeferredValue(searchTerm);
   const isFiltering = searchTerm !== deferredSearchTerm;
 
+  const petId = searchParams.get("petId")?.trim() ?? "";
   const filters = useMemo(() => {
-    return buildVaccinationListQueryOptions({
+    const options = buildVaccinationListQueryOptions({
       dateRange: vaccinationDateRange(activeFilters),
       search: deferredSearchTerm,
     });
-  }, [activeFilters, deferredSearchTerm]);
+    if (petId === "") return options;
+    return { ...options, petId };
+  }, [activeFilters, deferredSearchTerm, petId]);
 
   const {
     data: filteredRecords,
@@ -88,23 +93,62 @@ export function VaccinationList() {
     resetKey: deferredSearchTerm,
   });
 
-  const urlPage = Number(searchParams.get("page") ?? 1);
-  const { totalPages, goToPage } = pagination;
+  const rawUrlPage = Number(searchParams.get("page") ?? 1);
+  const urlPage = Number.isFinite(rawUrlPage) && rawUrlPage >= 1 ? Math.floor(rawUrlPage) : 1;
+  const { currentPage, totalPages, goToPage } = pagination;
+
+  // URL の page が正本。戻る・直接アクセスの有効な page を内部ページへ合わせ、範囲外はクランプする。
+  useLayoutEffect(() => {
+    if (isLoading) return;
+    const clamped = Math.min(urlPage, Math.max(totalPages, 1));
+    if (currentPage !== clamped) goToPage(clamped);
+  }, [currentPage, goToPage, isLoading, totalPages, urlPage]);
 
   // FE-RC-028: totalPages を超える URL page をクランプして書き戻す（フィルタ変更等で母集団が縮んだ場合の空ページ対策）。
-  useUrlPageSync({ urlPage, totalPages, isLoading, setSearchParams });
+  useUrlPageSync({
+    urlPage,
+    totalPages,
+    isLoading,
+    setSearchParams,
+    preserveNavigationState: true,
+    navigationState: location.state,
+  });
+
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchTerm(value);
+      setSearchParams((prev) => nextListSearchParamsWithPage(prev, 1), {
+        replace: true,
+        state: location.state,
+      });
+    },
+    [location.state, setSearchParams],
+  );
 
   const handlePageChange = useCallback(
     (page: number) => {
       goToPage(page);
-      setSearchParams((prev) => nextListSearchParamsWithPage(prev, page), { replace: true });
+      setSearchParams((prev) => nextListSearchParamsWithPage(prev, page), {
+        replace: true,
+        state: location.state,
+      });
     },
-    [goToPage, setSearchParams],
+    [goToPage, location.state, setSearchParams],
+  );
+
+  const detailState = useMemo(
+    () =>
+      vaccinationListDetailState({
+        pathname: location.pathname,
+        search: location.search,
+        locationState: location.state,
+      }),
+    [location.pathname, location.search, location.state],
   );
 
   const handleCreate = useCallback(() => {
-    navigate(paths.vaccinations.selectPet.getHref());
-  }, [navigate]);
+    navigate(paths.vaccinations.selectPet.getHref(), { state: detailState });
+  }, [detailState, navigate]);
 
   const handleEdit = useCallback(
     (record: VaccinationRecord) => {
@@ -113,9 +157,10 @@ export function VaccinationList() {
           id: record.id,
           medicalRecordId: record.medicalRecordId,
         }),
+        { state: detailState },
       );
     },
-    [navigate],
+    [detailState, navigate],
   );
 
   const handleDeleteConfirm = useCallback(() => {
@@ -160,7 +205,7 @@ export function VaccinationList() {
           activeFilters={activeFilters}
           onFilterChange={setActiveFilters}
           searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
+          onSearchChange={handleSearchChange}
           count={filteredRecords.length}
           activeSorts={activeSorts}
           onSortChange={setActiveSorts}
@@ -173,6 +218,7 @@ export function VaccinationList() {
           onEdit={handleEdit}
           onDelete={setPendingDeleteId}
           onPageChange={handlePageChange}
+          detailState={detailState}
         />
       </PageLayout>
       <VaccinationListDeleteDialog

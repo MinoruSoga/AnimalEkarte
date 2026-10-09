@@ -15,6 +15,8 @@ import {
   ResourceMedicalRecords,
   ResourceAccounting,
   ResourceHospitalization,
+  ResourceVaccinations,
+  ResourceOwners,
 } from "@/types/generated/models";
 import { usePermission } from "@/hooks/use-permission";
 import { useSetNextVisitIntent } from "@/hooks/use-next-visit-intent";
@@ -62,6 +64,8 @@ export function Reception() {
   const { canCreate: canCreateMedicalRecord } = usePermission(ResourceMedicalRecords);
   const { canCreate: canCreateAccounting } = usePermission(ResourceAccounting);
   const { canCreate: canCreateHospitalization } = usePermission(ResourceHospitalization);
+  const { canView: canViewVaccinations } = usePermission(ResourceVaccinations);
+  const { canView: canViewOwners } = usePermission(ResourceOwners);
   // EMR-308: tentative 由来の予約をキャンセルし終えた後に開く任意の再設定ダイアログ。
   // 対象は transform 済み Reservation（petId / intendedDate / sourceMedicalRecordId を持つ）。
   const [nextVisitResetTarget, setNextVisitResetTarget] = useState<Reservation | null>(null);
@@ -216,6 +220,8 @@ export function Reception() {
         canCreateMedicalRecord={canCreateMedicalRecord}
         canCreateAccounting={canCreateAccounting}
         canCreateHospitalization={canCreateHospitalization}
+        canViewVaccinations={canViewVaccinations === true}
+        canViewOwners={canViewOwners === true}
         isEditModalOpen={isEditModalOpen}
         onCloseEditModal={closeEditModal}
         onEditSave={handleEditSave}

@@ -8,7 +8,7 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { useNavigate, useParams, useLoaderData, useSearchParams } from "react-router";
+import { useNavigate, useParams, useLoaderData, useSearchParams, useLocation } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { User, Receipt } from "lucide-react";
 import { toast } from "sonner";
@@ -123,6 +123,7 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
   // EMR-174: /owners/:id?pet=:petId の deep link で対象ペットの詳細モーダルを直接開く。
   // 閲覧は canEdit 不要（handleEditPet 側でゲートしない）。開けたら param を除去し、
   // モーダルを閉じた後に同じペット名リンクから再度開けるようにする。
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const deepLinkPetId = searchParams.get("pet");
   const handledPetParamRef = useRef<string | null>(null);
@@ -135,6 +136,10 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
     }
     if (handledPetParamRef.current === deepLinkPetId) return;
     const target = pets.find((pet) => String(pet.id) === deepLinkPetId);
+    // replace は location.state を渡さないと受付日付の from を消す。
+    const replaceParams = (nextParams: URLSearchParams) => {
+      setSearchParams(nextParams, { replace: true, state: location.state });
+    };
     if (!target) {
       // 存在しないIDは pets 確定後（非空）に消費して打ち切り、URL の ?pet= も除去する。
       // 空配列中はロード待ちで再試行を許す。
@@ -142,7 +147,7 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
         handledPetParamRef.current = deepLinkPetId;
         const nextParams = new URLSearchParams(searchParams);
         nextParams.delete("pet");
-        setSearchParams(nextParams, { replace: true });
+        replaceParams(nextParams);
       }
       return;
     }
@@ -150,8 +155,8 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
     handleEditPet(target);
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete("pet");
-    setSearchParams(nextParams, { replace: true });
-  }, [deepLinkPetId, pets, handleEditPet, searchParams, setSearchParams]);
+    replaceParams(nextParams);
+  }, [deepLinkPetId, pets, handleEditPet, searchParams, setSearchParams, location.state]);
 
   const canSubmit = isEdit ? canEdit : canCreate;
 

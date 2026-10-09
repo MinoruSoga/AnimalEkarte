@@ -530,6 +530,20 @@ describe("useMedicalRecordForm", () => {
       expect(mockNavigate).toHaveBeenCalledWith("/reception");
     });
 
+    it("listReturnState がある場合、一覧URLへそのstateを渡す", () => {
+      mockLocationState = {
+        from: "/vaccinations?petId=10&page=2",
+        listReturnState: { from: "/?date=2026-05-29" },
+      };
+      const { result } = renderHook(() => useMedicalRecordForm("10"));
+      act(() => {
+        result.current.handleBack();
+      });
+      expect(mockNavigate).toHaveBeenCalledWith("/vaccinations?petId=10&page=2", {
+        state: { from: "/?date=2026-05-29" },
+      });
+    });
+
     it("recordId なし・location.state なし → ペット選択ページにナビゲート", () => {
       mockLocationState = null;
       const { result } = renderHook(() => useMedicalRecordForm());
