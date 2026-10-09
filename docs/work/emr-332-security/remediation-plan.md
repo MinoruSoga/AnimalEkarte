@@ -1,5 +1,7 @@
 # U07 — Remediation Plan (改善計画 — AC4)
 
+> 配置追記（2026-10-09）: 現行テストは `backend/tests/security/`。旧package名を含む実行コマンド・出力は当時の履歴として保持。移動対応と現行検証は [配置整理記録](test-layout-20261009.md) を参照。
+
 Campaign: emr-332-security-defense / Unit: U07-REVERIFY-CONSOLIDATE / Attempt: att-u07-1
 Recorded by: receiver-emr332-u07-01 / Recorded at: 2026-10-09
 Ticket revision (consolidated): EMR-332 @ 2026-10-08T17:54:31Z

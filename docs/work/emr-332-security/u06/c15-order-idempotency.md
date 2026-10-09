@@ -1,5 +1,7 @@
 # U06 — C15 判定レコード: 業務フロー順序 / 冪等性 (order & idempotency)
 
+> 配置追記（2026-10-09）: 現行テストは `backend/tests/security/`。旧package名を含む実行コマンド・出力は当時の履歴として保持。移動対応と現行検証は [配置整理記録](../test-layout-20261009.md) を参照。
+
 Campaign: emr-332-security-defense / Unit: U06-DETECT-BUSINESS-AVAIL / Attempt: att-u06-1 / Receiver: receiver-emr332-u06-01
 Base doc: docs/work/emr-332-security/u01-case-verdict-template.md (12-field fixed format)
 
@@ -11,7 +13,7 @@ Base doc: docs/work/emr-332-security/u01-case-verdict-template.md (12-field fixe
 
 3. **実施方式 (method)**:
    - `static` — 予約 create/update/check-in/no-show/tentative 遷移・medical-record auto-create のソースレビュー (行番号は下記証跡参照)。
-   - `simulated` — `internal/reservation/emr332_u06` / `internal/medicalrecord/emr332_u06` の in-memory 単一スレッド test (httptest 不使用・DB 不使用)。`pg_try_advisory_xact_lock` busy は「即時スキップ (acquired=false → return)」としてモデル化 — serialize-and-wait ではない (medical_record_auto_create.go:103-116 と整合)。
+   - `simulated` — `tests/security/reservation` / `tests/security/medicalrecord` の in-memory 単一スレッド test (httptest 不使用・DB 不使用)。`pg_try_advisory_xact_lock` busy は「即時スキップ (acquired=false → return)」としてモデル化 — serialize-and-wait ではない (medical_record_auto_create.go:103-116 と整合)。
 
 4. **正常条件**:
    - 期待: 有効な一般予約 (owner+pet 整合・生存 pet・競合なし・capacity 内) は create を許可し、active tentative があれば新規行ではなく昇格 (reservation_service.go:274-279 `createOrPromoteTentative`)。medical-record auto-create は lock 取得→同日重複なし→文脈検証→appointment 行 lock→INSERT→create 監査→subrecord 確保の順で 1 回だけ作成する。
@@ -36,7 +38,7 @@ Base doc: docs/work/emr-332-security/u01-case-verdict-template.md (12-field fixe
 8. **検出判定 (detection verdict)**: `PASS` — slog buffer キャプチャで `auto-create lock is busy` / `same-day record already exists` / `auto-create transaction failed` / `failed to acquire auto-create lock` イベントを観測 (medical_record_auto_create.go:105-130, 70-74)。auto-create 成功は `medical record created` + create 監査。lock busy が「スキップ=静寂」ではなく InfoContext で記録されることを確認。
 
 9. **安全な証跡参照 (safe evidence ref)**:
-   - Tests: `backend/internal/reservation/emr332_u06/order_idempotency_test.go` (TestC15_* 6 tests / 40 subcases), `backend/internal/medicalrecord/emr332_u06/auto_create_idempotency_test.go` (TestC15_* 8 tests / 20 subcases)。
+   - Tests: `backend/tests/security/reservation/order_idempotency_test.go` (TestC15_* 6 tests / 40 subcases), `backend/tests/security/medicalrecord/auto_create_idempotency_test.go` (TestC15_* 8 tests / 20 subcases)。
    - Static anchors: `internal/reservation/reservation_service.go:274-279,358-390,450-484`, `reservation_service_validate.go:72,158-163,223-228`, `reservation_intent_repository.go:469-495,279-304`, `reservation_guarded_checkin.go:20-26`, `internal/medicalrecord/medical_record_auto_create.go:28-95,103-131`, `medical_record_appointment_context.go:14-70,91-133`, `medical_record_crud.go:76-140`, `internal/sharedkernel/pet_not_deceased.go:20-39`, `owner_pet_link.go:21-37`。
    - 実行出力 (verbatim、isolated docker、network none):
      ```text

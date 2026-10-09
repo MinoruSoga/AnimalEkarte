@@ -1,10 +1,10 @@
-// Package emr332_u04 holds EMR-332 U04 (browser/edge defense) memory-only
+// Package browser holds EMR-332 U04 (browser/edge defense) memory-only
 // verification tests for cases C08 (CSRF custom-header), C11 (transport
 // headers), C12 (CORS origin judgment), and C13 (cache prevention).
 // Every test exercises the real middleware through httptest only — no DB,
 // no network, no persistence. Downstream handler reach is proven with a
 // spy counter (precedent: cors_test.go:44-46).
-package emr332_u04
+package browser
 
 import (
 	"net/http"
@@ -12,9 +12,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/animal-ekarte/backend/internal/middleware"
 )
 
 // stagingConfiguredOrigins mirrors backend/wrangler.jsonc vars

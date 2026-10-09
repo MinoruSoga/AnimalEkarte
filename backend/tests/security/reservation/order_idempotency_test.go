@@ -1,4 +1,4 @@
-// Package emr332_u06 — EMR-332 C15 evidence tests
+// Package reservation — EMR-332 C15 evidence tests
 // (docs/work/emr-332-security/u06/c15-order-idempotency.md).
 //
 // Scope: deterministic, single-threaded, in-memory verification of the
@@ -9,7 +9,7 @@
 // the number of calls recorded on those fakes (asserted per test).
 //
 // Marker convention: SECCHK20261009-style alphanumeric sentinels only.
-package emr332_u06
+package reservation
 
 import (
 	"context"

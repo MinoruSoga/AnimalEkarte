@@ -1,5 +1,7 @@
 # U05 — C10 multipart アップロード検証 判定レコード
 
+> 配置追記（2026-10-09）: 現行テストは `backend/tests/security/`。旧package名を含む実行コマンド・出力は当時の履歴として保持。移動対応と現行検証は [配置整理記録](../test-layout-20261009.md) を参照。
+
 Campaign: emr-332-security-defense / Unit: U05-FILES-SSRF-SUPPLY / Attempt: att-u05-1
 Format: `docs/work/emr-332-security/u01-case-verdict-template.md` (12 fields)
 
@@ -39,7 +41,7 @@ Format: `docs/work/emr-332-security/u01-case-verdict-template.md` (12 fields)
 
 ## Section C — メモリ専用検証と拒否副作用
 
-- `backend/internal/imageupload/emr332_u05/sniff_contract_test.go` — 5 テスト: PNG 受諾 / HTML-as-PNG 拒否 / rewind 確認 / oversize+非許可 ext+ext↔MIME mismatch+`.exe` 拒否 / `NewStoredName` の MIME 由来 ext と traversal 文字不在。全 PASS (exit 0)。
+- `backend/tests/security/uploads/sniff_contract_test.go` — 5 テスト: PNG 受諾 / HTML-as-PNG 拒否 / rewind 確認 / oversize+非許可 ext+ext↔MIME mismatch+`.exe` 拒否 / `NewStoredName` の MIME 由来 ext と traversal 文字不在。全 PASS (exit 0)。
 - 実行環境: `docker run --rm --pull never --network none -v <w05>/backend:/app:ro -v ekarte-go-mod-cache:/go/pkg/mod -v ekarte-go-build-cache:/root/.cache/go-build -w /app golang:1.26-alpine go test -count=1 -v ./internal/imageupload/emr332_u05/`。
 - fixture は不活性マジックバイト (PNG/JPEG 先頭 16B) とプレーンテキスト HTML のみ — 実行可能 payload・oversized・decompression bomb・polyglot・持続化は不使用。
 - 拒否副作用: 共有ファイルの内容不一致は実handlerのメモリmockでUpload0回。その他familyの旧static所見は実storage/DB副作用の実測ではない。CSV監査行も未実行。

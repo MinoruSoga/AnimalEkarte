@@ -1,5 +1,7 @@
 # U07 — Re-verification Records (修復後再検証 — AC5 / 工程6)
 
+> 配置追記（2026-10-09）: この記録のパスとコマンドは移動前の実行時点のものです。現行配置と移動後の検証は [テスト配置整理記録](../test-layout-20261009.md) を参照してください。
+
 Campaign: emr-332-security-defense / Unit: U07-REVERIFY-CONSOLIDATE / Attempt: att-u07-1
 Recorded by: receiver-emr332-u07-01 / Recorded at: 2026-10-09
 Ticket revision (consolidated): EMR-332 @ 2026-10-08T17:54:31Z

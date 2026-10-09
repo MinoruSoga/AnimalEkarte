@@ -1,5 +1,7 @@
 # C05 — 境界入力バリデーション (boundary input validation)
 
+> 配置追記（2026-10-09）: 現行テストは `backend/tests/security/`。旧package名を含む実行コマンド・出力は当時の履歴として保持。移動対応と現行検証は [配置整理記録](../test-layout-20261009.md) を参照。
+
 Campaign: emr-332-security-defense / Unit: U03-INPUT-OUTPUT / Attempt: att-u03-2 (att-u03-1 証跡訂正 — verdict 維持)
 Template: `docs/work/emr-332-security/u01-case-verdict-template.md` (12 fields)
 
@@ -15,7 +17,7 @@ Template: `docs/work/emr-332-security/u01-case-verdict-template.md` (12 fields)
 | 6 | 防御判定 | **FAIL (試験要件との差分)** — 代表bind試験で未知キーが破棄される。226 call sitesは棚卸し件数であり、全endpointの到達・認可・保護フィールド更新・悪用可能性の証明ではない。脆弱性重大度は未評価。 |
 | 7 | 副作用呼出回数 | **0 (bind専用試験)** — 実service/saveを接続していない。`TestC05ZeroSideEffectInvocations`のsentinelもhandlerに配線されておらず、実handlerの保存抑止を証明しない。 |
 | 8 | 検出判定 | **UNKNOWN** — 未知キーの検出は未観測。検出経路が見つからないことをN/Aの理由にしない。400のrequest logも本ケースの実HTTPスタックでは未確認。 |
-| 9 | 安全な証跡参照 | テスト: `backend/internal/middleware/emr332_u03/bind_boundary_test.go` (6 テスト関数), `strict_bind_test.go` (7 テスト関数)。実測出力: 本ファイル末尾「実測コマンド出力」 (att-u03-2 で再取得した真の verbatim)。静的根拠: `internal/staff/http_binding.go:25-52` (bindStaffJSON — 上限+trailing 検査 + `validateStaffJSONByteLengths` :64-78、DisallowUnknownFields なし), `internal/auth/http_binding.go:25-61` (同様 + `validateAuthJSONByteLengths` :63-91), `gin.EnableDecoderDisallowUnknownFields` 設定箇所 0 件 (rg 全走査), `internal/owner/http_request.go:119-256` (required/max/oneof タグ例), `internal/reservation/liff_request.go:89-101` |
+| 9 | 安全な証跡参照 | テスト: `backend/tests/security/inputvalidation/bind_boundary_test.go` (6 テスト関数), `strict_bind_test.go` (7 テスト関数)。実測出力: 本ファイル末尾「実測コマンド出力」 (att-u03-2 で再取得した真の verbatim)。静的根拠: `internal/staff/http_binding.go:25-52` (bindStaffJSON — 上限+trailing 検査 + `validateStaffJSONByteLengths` :64-78、DisallowUnknownFields なし), `internal/auth/http_binding.go:25-61` (同様 + `validateAuthJSONByteLengths` :63-91), `gin.EnableDecoderDisallowUnknownFields` 設定箇所 0 件 (rg 全走査), `internal/owner/http_request.go:119-256` (required/max/oneof タグ例), `internal/reservation/liff_request.go:89-101` |
 | 10 | 制約・未検証範囲 | 226 call sitesの個別実測、実handlerの保護項目更新・副作用、query/form/path、業務影響は未確認。Gin共通decoderの挙動は代表structで確認しただけ。`reservation/line_reservation_setting_request.go:38-41`は旧キー黙殺を意図した互換契約。RawMessage内部もstrict decodeだけでは検証できない。 |
 | 11 | 修復案 | 未配線helperは検証用artifactのまま。対象APIの受理・禁止項目、互換性、実害を確認してendpoint単位の最小修復を決める。全226置換やグローバルstrict化は行わない。staff/auth固有byte-length検証を維持する。 |
 | 12 | 再検証結果 | 実施済み — scoped isolated Docker `go test ./internal/middleware/emr332_u03/` **13 テスト関数全 PASS** (bind_boundary_test.go 6 関数 + strict_bind_test.go 7 関数; subtest 延べ 20)。出力末尾は att-u03-2 で新規取得した真の verbatim。helper は unknown field / trailing value / oversized body / 宣言 Content-Length / required / oneof / range / 型違反を全て拒否。回帰: `go test ./internal/middleware/` PASS (sanitize_null_bytes 既存テスト含む)。`go vet` exit 0 |

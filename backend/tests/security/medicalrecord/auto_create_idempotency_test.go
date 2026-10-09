@@ -1,4 +1,4 @@
-// Package emr332_u06 — EMR-332 C15 evidence tests
+// Package medicalrecord — EMR-332 C15 evidence tests
 // (docs/work/emr-332-security/u06/c15-order-idempotency.md).
 //
 // Scope: deterministic, single-threaded, in-memory verification of
@@ -11,7 +11,7 @@
 // Advisory-lock contract under test (medical_record_auto_create.go):
 // pg_try_advisory_xact_lock busy => acquired=false => immediate skip with no
 // count, no create, no audit — NOT serialize-and-wait.
-package emr332_u06
+package medicalrecord
 
 import (
 	"bytes"

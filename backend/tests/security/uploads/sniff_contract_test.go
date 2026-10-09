@@ -1,8 +1,8 @@
-// Package emr332_u05 holds memory-only validation helpers for EMR-332 C10
+// Package uploads holds memory-only validation helpers for EMR-332 C10
 // (upload validation chain). Fixtures are tiny inert magic-byte buffers only:
 // no executable payloads, no oversized/decompression-bomb samples, no network,
 // no DB, no filesystem persistence.
-package emr332_u05
+package uploads
 
 import (
 	"bytes"

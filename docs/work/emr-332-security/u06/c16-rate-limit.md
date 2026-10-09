@@ -1,5 +1,7 @@
 # U06 — C16 判定レコード: レート制限 / タイムアウト / サイズ上限 (rate limit, timeout, size caps)
 
+> 配置追記（2026-10-09）: 現行テストは `backend/tests/security/`。旧package名を含む実行コマンド・出力は当時の履歴として保持。移動対応と現行検証は [配置整理記録](../test-layout-20261009.md) を参照。
+
 Campaign: emr-332-security-defense / Unit: U06-DETECT-BUSINESS-AVAIL / Attempt: att-u06-1 / Receiver: receiver-emr332-u06-01
 Base doc: docs/work/emr-332-security/u01-case-verdict-template.md (12-field fixed format)
 
@@ -10,7 +12,7 @@ Base doc: docs/work/emr-332-security/u01-case-verdict-template.md (12-field fixe
 2. **対象リビジョン**: worktree `AnimalEkarte-emr-332-security-defense-w06` branch `feat/emr-332-security-defense-w06`, HEAD `fc6acc6b8d267eb51050a4848069e1a1b569e7df` + 本ユニットで追加した test-only ファイル (production code 差分なし)。
 
 3. **実施方式 (method)**:
-   - `simulated` — `internal/middleware/emr332_u06` の httptest/in-memory test (ネットワーク listen なし・負荷なし・逐次 request)。rps は `rate.Every(time.Hour)` に固定し refill が test 中に発火しないよう排除 → 429 は全て deterministic。
+   - `simulated` — `tests/security/middleware` の httptest/in-memory test (ネットワーク listen なし・負荷なし・逐次 request)。rps は `rate.Every(time.Hour)` に固定し refill が test 中に発火しないよう排除 → 429 は全て deterministic。
    - `static` — `cmd/api/main.go` http.Server timeout / `cmd/api/composition_runtime.go` middleware wiring / `sanitize_null_bytes.go` body ceiling のレビュー。
 
 4. **正常条件**:
@@ -29,7 +31,7 @@ Base doc: docs/work/emr-332-security/u01-case-verdict-template.md (12-field fixe
 8. **検出判定 (detection verdict)**: `PASS` (限定的) — 429 拒否は RequestLoggingMiddleware を通すと marker request_id 付き WARN `client error` として in-memory slog に記録されることを `TestC18_MarkerTaggedRefusalEventCaptured` (logging_requestid_test.go) で確認。c16 自体の limiter は専用イベントを出力しない設計 (429 応答のみ) — これは成立している観測経路として記録。
 
 9. **安全な証跡参照 (safe evidence ref)**:
-   - Tests: `backend/internal/middleware/emr332_u06/rate_limit_test.go` (TestC16_* 8 tests)。
+   - Tests: `backend/tests/security/middleware/rate_limit_test.go` (TestC16_* 8 tests)。
    - Static anchors: `internal/middleware/rate_limit.go:23-32 (bucketID×IP key), :84-100 (getLimiter), :105-122 (Retry-After+429), :128-141 (RateLimit), :149-165 (FailureRateLimit), :170-202 (FailureLimiter), :206-208 (LiffRateLimit)`, `internal/middleware/response.go:16-25 (AbortWithStatusJSON)`, `internal/middleware/sanitize_null_bytes.go:20,82-104,110-141`, `cmd/api/main.go:19-27,219-223`, `cmd/api/composition_runtime.go:533,573,607,674,682-687`, `cmd/api/composition_auth_routes.go:44-72`。
    - 実行出力 (verbatim、isolated docker、network none):
      ```text

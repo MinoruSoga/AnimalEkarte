@@ -1,4 +1,4 @@
-// Package emr332_u06 — EMR-332 C16 evidence tests
+// Package middleware — EMR-332 C16 evidence tests
 // (docs/work/emr-332-security/u06/c16-rate-limit.md).
 //
 // Scope: deterministic, single-threaded, in-memory verification of
@@ -11,7 +11,7 @@
 // Side-effect accounting: the only "effect" of a rejected request is the
 // recorded 429 write on the httptest.ResponseRecorder — downstream handler
 // invocation counters prove refusal paths never reach the handler.
-package emr332_u06
+package middleware
 
 import (
 	"context"

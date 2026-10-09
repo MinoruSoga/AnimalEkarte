@@ -1,4 +1,4 @@
-// Package emr332_u06 — EMR-332 C18 evidence tests
+// Package audit — EMR-332 C18 evidence tests
 // (docs/work/emr-332-security/u06/c18-logging-audit.md).
 //
 // Scope: deterministic, single-threaded, in-memory verification of the audit
@@ -8,7 +8,7 @@
 // any gorm.DB interaction, proving the fail-closed ambient-tx contract.
 //
 // All payload values are synthetic markers (SECCHK20261009*) — no PII.
-package emr332_u06
+package audit
 
 import (
 	"context"

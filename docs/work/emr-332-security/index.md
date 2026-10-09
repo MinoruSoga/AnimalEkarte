@@ -9,13 +9,15 @@ Consolidated ticket revision: **EMR-332 @ 2026-10-08T17:54:31Z** (Plane `baritec
 
 [repair-20261009.md](repair-20261009.md)が後続修復と限定検証の記録。C10の実handlerへ内容形式検証を配線し、C05/C09の過剰な影響・重大度主張を訂正した。元campaign COMPLETE/G2/G3は初回監査の履歴であり、この追加diffの検証・受入を証明しない。staging実測は引き続き0。
 
+検証専用コードの現行配置は `backend/tests/security/`。内容別の7 packageへ整理し、比較decoderも `_test.go` に変更した。移動対応表・現行コマンド・同一試験の確認結果は [test-layout-20261009.md](test-layout-20261009.md) を参照。通常の共有ファイルhandler回帰試験は `backend/internal/lstep/shared_file_content_test.go` に置く。
+
 ## Deliverables (U07 acceptance artifacts)
 
 | Doc | 内容 |
 |-----|------|
 | `docs/work/emr-332-security/verdict-matrix.md` | C01–C18 全 18 行の判定マトリクス (ASVS/Top10/STRIDE, revision, method, normal/refusal, **defense/detection 別列**, side-effect calls, evidence ref, unverified scope) |
 | `docs/work/emr-332-security/remediation-plan.md` | AC4 改善計画 — C05要件差分・C09強化候補・C10適用修復 + 記録済み候補 (R1–R4, RC-1, RC-1..4, U04/U06 観察) |
-| `docs/work/emr-332-security/u07/reverification.md` | 初回適用修復ゼロの履歴 + C05 unwired scaffold `strict_bind.go` の同ケース ID 再検証証跡参照 |
+| `docs/work/emr-332-security/u07/reverification.md` | 初回適用修復ゼロの履歴 + C05比較decoderの初回証跡（現行は `tests/security/inputvalidation/strict_bind_helper_test.go`） |
 | `docs/work/emr-332-security/u07/residual-known-issues.md` | 残件・既知問題の一覧 (record-only) |
 | `docs/work/emr-332-security/u01..u06/` | 各ユニットの per-case verdict docs + 証跡 (本 index の一次証拠; read-only で参照) |
 

@@ -1,5 +1,7 @@
 # U06 — C18 判定レコード: ログ / 監査カバレッジ + シークレット・PII 除外 (logging & audit)
 
+> 配置追記（2026-10-09）: 現行テストは `backend/tests/security/`。旧package名を含む実行コマンド・出力は当時の履歴として保持。移動対応と現行検証は [配置整理記録](../test-layout-20261009.md) を参照。
+
 Campaign: emr-332-security-defense / Unit: U06-DETECT-BUSINESS-AVAIL / Attempt: att-u06-1 / Receiver: receiver-emr332-u06-01
 Base doc: docs/work/emr-332-security/u01-case-verdict-template.md (12-field fixed format)
 
@@ -10,7 +12,7 @@ Base doc: docs/work/emr-332-security/u01-case-verdict-template.md (12-field fixe
 2. **対象リビジョン**: worktree `AnimalEkarte-emr-332-security-defense-w06` branch `feat/emr-332-security-defense-w06`, HEAD `fc6acc6b8d267eb51050a4848069e1a1b569e7df` + 本ユニットで追加した test-only ファイル (production code 差分なし)。
 
 3. **実施方式 (method)**:
-   - `simulated` — `internal/middleware/emr332_u06/logging_requestid_test.go` (slog JSON → bytes.Buffer、httptest、SECCHK20261009* marker) と `internal/audit/emr332_u06/audit_validate_test.go` (counting fake repo — audit row は永続化されない)。全てメモリ内・単一スレッド・決定的。
+   - `simulated` — `tests/security/middleware/logging_requestid_test.go` (slog JSON → bytes.Buffer、httptest、SECCHK20261009* marker) と `tests/security/audit/audit_validate_test.go` (counting fake repo — audit row は永続化されない)。全てメモリ内・単一スレッド・決定的。
    - `static` — logging.go / auth.go / audit service+repository / composition_auth_routes.go / appointment_notification_service.go のレビュー。
 
 4. **正常条件**:
@@ -30,7 +32,7 @@ Base doc: docs/work/emr-332-security/u01-case-verdict-template.md (12-field fixe
 8. **検出判定 (detection verdict)**: `PASS` (限定的) — 拒否イベントは marker request_id 付きで request log に残ることを `TestC18_MarkerTaggedRefusalEventCaptured` で確認 (WARN/client error/status=429/request_id=SECCHK20261009REFUSAL)。audit write 失敗は `audit_write_failed` として観測可能 (service.go:150-156、test で ERROR 行を確認)。**通知経路の到達性は `UNKNOWN`** — `ReservationNotifier` 実装の配送確認証跡は本レビュー範囲で見つからず (appointment_notification_service.go:20,96,147 は send 呼出のみ、配信成否の既存証跡なし)。本事実を推測で PASS にしない。
 
 9. **安全な証跡参照 (safe evidence ref)**:
-   - Tests: `backend/internal/middleware/emr332_u06/logging_requestid_test.go` (TestC18_* 4 tests / 13+ subcases), `backend/internal/audit/emr332_u06/audit_validate_test.go` (TestC18_* 8 tests / 20 subcases)。
+   - Tests: `backend/tests/security/middleware/logging_requestid_test.go` (TestC18_* 4 tests / 13+ subcases), `backend/tests/security/audit/audit_validate_test.go` (TestC18_* 8 tests / 20 subcases)。
    - Static anchors: `internal/middleware/logging.go:13-99`, `internal/middleware/rate_limit.go:118-122`, `internal/middleware/auth.go:26,47,76,97,127,206,224,247`, `internal/audit/service.go:14,17-53,67-96,105-115,117-134,143-201`, `internal/audit/repository.go:18-52`, `cmd/api/composition_auth_routes.go:82-83`, `internal/reservation/appointment_notification_service.go:18-21,96-147`。
    - 実行出力 (verbatim、isolated docker、network none):
      ```text

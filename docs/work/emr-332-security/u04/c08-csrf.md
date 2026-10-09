@@ -1,5 +1,7 @@
 # U04 — Case Verdict Record: C08 (CSRF custom-header enforcement)
 
+> 配置追記（2026-10-09）: 現行テストは `backend/tests/security/`。旧package名を含む実行コマンド・出力は当時の履歴として保持。移動対応と現行検証は [配置整理記録](../test-layout-20261009.md) を参照。
+
 Campaign: emr-332-security-defense / Unit: U04-BROWSER-EDGE / Attempt: att-u04-1
 Template: ../u01-case-verdict-template.md (12 fields)
 
@@ -13,7 +15,7 @@ Template: ../u01-case-verdict-template.md (12 fields)
 | 6 | 防御判定 | **PASS** (simulated 範囲: 適用経路上での middleware 実動作)。staging-observed 判定は BLOCKED — 稼働リビジョン照合未確定のため未送信。 |
 | 7 | 副作用呼出回数 | 0 — 拒否経路で downstream handler の呼出回数実測 0 (全 4 non-safe method)。正常経路の handler 呼出は制御群として計測 (1 回)。session/監査/DB 等の副作用は本模擬内に存在しない。 |
 | 8 | 検出判定 | **UNKNOWN** — CSRF 拒否のログ捕捉証跡なし。`logging.go` は U06 所有 (read-only) であり、marker-capture による検出証拠は本ユニットでは取得していない。403 応答自体の送出は確認済みだが観測・検出の成立を意味しない。 |
-| 9 | 安全な証跡参照 | `backend/internal/middleware/csrf.go:11-25` (実装); `backend/internal/middleware/emr332_u04/browser_edge_test.go` `TestEMR332C08_CSRFBlocksStateChangingRequestsWithoutHeader`; `docs/work/emr-332-security/u04/evidence-t01-middleware-tests.txt` (verbatim go test 出力); 適用範囲 `backend/internal/auth/http_routes.go:53-93`, `u01-route-middleware-map.md` §3-5。 |
+| 9 | 安全な証跡参照 | `backend/internal/middleware/csrf.go:11-25` (実装); `backend/tests/security/browser/browser_edge_test.go` `TestEMR332C08_CSRFBlocksStateChangingRequestsWithoutHeader`; `docs/work/emr-332-security/u04/evidence-t01-middleware-tests.txt` (verbatim go test 出力); 適用範囲 `backend/internal/auth/http_routes.go:53-93`, `u01-route-middleware-map.md` §3-5。 |
 | 10 | 制約・未検証範囲 | **適用範囲 (u01-route-middleware-map §3-5 より)**: CSRF は保護グループ全体 (`protected.Use(Authenticate)` → `protected.Use(CSRF)` — 認証が先に走る) と公開 auth 4 経路 (`login`/`logout`/`auth/refresh`/`auth/refresh/logout`, http_routes.go:53-76) に適用。**未適用は別防御を持つ経路**: `forgot-password`/`reset-password` (:77-86 — rate limit のみ、token 所持前提で ambient cookie 非依存), LIFF 面 (LiffAuth = LINE ID token), `/api/line/webhook` (HMAC-SHA256 署名), UAT (env+Host+Bearer, 404 fail-closed), health, `/_internal/*` (edge 404)。**組合せ評価**: release では cookie が `SameSite=None; Secure` (http_types.go:88-93) で cross-site 送信可能 — ゆえに non-simple ヘッダ `X-Requested-With` 必須化が実効 CSRF 防御。cross-origin での当該ヘッダ送信は preflight 許可が前提で、許可は設定 origin のみ (cors.go:18-29 + edge 複製 worker/index.ts:388-427)。non-browser クライアントはヘッダを常に付けられるため本防御は browser-forgery 対策であり認可境界ではない (protected 群では Authenticate が先行)。**未検証**: staging-observed (BLOCKED)、各 cookie 属性の live 観測 (login 禁止により恒久的に static-only)。 |
 | 11 | 修復案 | **適用なし (none applied)** — owned_paths 内に gap 証拠を確認できず。csrf.go の方式は既定方針どおりの動作を実測で確認。設計上の注記 (修復ではない): `forgot-password`/`reset-password` は CSRF 未適用だが匿名経路で cookie 認証に依存しないため ambient-auth 偽造の対象外 — 現状は整合的。token-mode 再設計は本ケースの評価範囲外で要求もしない。 |
 | 12 | 再検証結果 | 修復なしのため再検証不要。初回検証自体が scoped Docker で PASS: `go test -count=1 ./internal/middleware/...` → `ok internal/middleware 0.069s` + `ok internal/middleware/emr332_u04 0.008s` (evidence-t01 verbatim)。 |

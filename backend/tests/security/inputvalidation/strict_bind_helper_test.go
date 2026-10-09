@@ -1,6 +1,6 @@
-// Package emr332_u03 holds the U03-INPUT-OUTPUT scoped defensive helpers and
-// their memory-only verification (EMR-332 security-defense campaign).
-package emr332_u03
+// Package inputvalidation verifies request binding with memory-only tests.
+// This helper is a test-only comparison decoder; no handler uses it.
+package inputvalidation
 
 import (
 	"bytes"
@@ -21,8 +21,8 @@ import (
 // middleware.DefaultJSONBodyMaxBytes ceiling for non-binary write traffic.
 const DefaultStrictBindMaxBytes int64 = 1 << 20 // 1 MiB
 
-// BindStrictJSON is the strict-decoding variant of c.ShouldBindJSON for JSON
-// write endpoints.
+// BindStrictJSON is a test-only comparison to c.ShouldBindJSON.
+// It demonstrates strict decoding without changing any write endpoint.
 //
 // U03/C05 evidence (docs/work/emr-332-security/u03/c05-input-validation.md):
 // neither ShouldBindJSON nor the per-package bindStaffJSON / bindAuthJSON
@@ -45,9 +45,8 @@ const DefaultStrictBindMaxBytes int64 = 1 << 20 // 1 MiB
 // reset token <=128 bytes). Callers migrating from those wrappers must keep
 // or port the equivalent checks; this helper is not a drop-in equivalent.
 //
-// Wiring it into handlers is intentionally NOT done in this unit — in-place
-// handler edits live outside the U03 owned paths and are recorded as a
-// remediation candidate in the C05 verdict record.
+// This helper is compiled only during tests. Any production adoption requires
+// a separate endpoint compatibility decision and the per-type checks above.
 func BindStrictJSON(c *gin.Context, dst any, maxBytes int64) error {
 	if maxBytes <= 0 {
 		maxBytes = DefaultStrictBindMaxBytes
