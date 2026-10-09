@@ -5,7 +5,11 @@ Recorded by: receiver-emr332-u07-01 / Recorded at: 2026-10-09
 Ticket revision (consolidated): EMR-332 @ 2026-10-08T17:54:31Z
 本ユニットは docs-only consolidation — 新たなテスト実行・コード変更は実施していない。以下の記録は U01–U06 attempt が残した scoped 証跡の引用 (path + test name のみ; 出力本文の転記なし)。
 
-## 1. 適用修復の棚卸し (applied product-code fixes)
+## 現在の後続修復
+
+2026-10-09 CodexがC10の保存前形式照合を実handlerへ配線。正常5ケース・拒否7ケースをメモリmockで確認した。C05は要件差分FAIL、C09は影響UNKNOWN。詳細とコマンドは [repair-20261009.md](../repair-20261009.md)。以下のU07記録は初回campaign履歴であり、現在の修復件数や追加diffのレビューを示さない。
+
+## 1. 初回campaignの適用修復の棚卸し (applied product-code fixes)
 
 **適用された product-code 修復: 0 件 (ZERO)。**
 

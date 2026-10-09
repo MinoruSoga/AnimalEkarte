@@ -3,15 +3,19 @@
 Campaign: emr-332-security-defense / Unit: U07-REVERIFY-CONSOLIDATE / Attempt: att-u07-1
 Recorded by: receiver-emr332-u07-01 / Recorded at: 2026-10-09
 Consolidated ticket revision: **EMR-332 @ 2026-10-08T17:54:31Z** (Plane `baritechllc`/EMR, work item `a6f8d3c9-4b34-4bda-8cdf-82ee9ec359b6` — campaign `sources/emr-332-ticket-body.txt`)
-Campaign base revision: `de28e9765a29091339a872a85f1875a947e07e5b` (origin/main at campaign start; per-case worktree HEADs は `verdict-matrix.md` の target revision 列参照)
+初回Campaign base revision: `de28e9765a29091339a872a85f1875a947e07e5b` (origin/main at campaign start; per-case worktree HEADs は `verdict-matrix.md` の target revision 列参照)
+
+## 現在状態 (Codex follow-up)
+
+[repair-20261009.md](repair-20261009.md)が後続修復と限定検証の記録。C10の実handlerへ内容形式検証を配線し、C05/C09の過剰な影響・重大度主張を訂正した。元campaign COMPLETE/G2/G3は初回監査の履歴であり、この追加diffの検証・受入を証明しない。staging実測は引き続き0。
 
 ## Deliverables (U07 acceptance artifacts)
 
 | Doc | 内容 |
 |-----|------|
 | `docs/work/emr-332-security/verdict-matrix.md` | C01–C18 全 18 行の判定マトリクス (ASVS/Top10/STRIDE, revision, method, normal/refusal, **defense/detection 別列**, side-effect calls, evidence ref, unverified scope) |
-| `docs/work/emr-332-security/remediation-plan.md` | AC4 改善計画 — 証跡確認済みギャップ 3 件 (C05/C09-scoped/C10-scoped) + 記録済み候補 (R1–R4, RC-1, RC-1..4, U04/U06 観察) |
-| `docs/work/emr-332-security/u07/reverification.md` | 適用修復ゼロの記録 + C05 unwired scaffold `strict_bind.go` の同ケース ID 再検証証跡参照 |
+| `docs/work/emr-332-security/remediation-plan.md` | AC4 改善計画 — C05要件差分・C09強化候補・C10適用修復 + 記録済み候補 (R1–R4, RC-1, RC-1..4, U04/U06 観察) |
+| `docs/work/emr-332-security/u07/reverification.md` | 初回適用修復ゼロの履歴 + C05 unwired scaffold `strict_bind.go` の同ケース ID 再検証証跡参照 |
 | `docs/work/emr-332-security/u07/residual-known-issues.md` | 残件・既知問題の一覧 (record-only) |
 | `docs/work/emr-332-security/u01..u06/` | 各ユニットの per-case verdict docs + 証跡 (本 index の一次証拠; read-only で参照) |
 
@@ -22,7 +26,7 @@ Campaign base revision: `de28e9765a29091339a872a85f1875a947e07e5b` (origin/main 
 | 状態 | 意味 | 本キャンペーンでの到達 |
 |------|------|----------------------|
 | **文書完成** (documented) | 検証計画・境界・判定レコードが文書として完成 | **達成** — U01 safety baseline + U02–U06 全 18 ケースの判定レコード + 本 U07 統合成果物 |
-| **模擬合格** (simulated pass) | メモリ・模擬・httptest・静的レビューの範囲で期待防御/検出を観測 | **部分的に達成** — 防御 PASS 15 / FAIL 3 (scoped) の記録は static+simulated の範囲のもの (各 case doc 参照) |
+| **模擬合格** (simulated pass) | メモリ・模擬・httptest・静的レビューの範囲で期待防御/検出を観測 | **部分的に達成** — 防御 PASS 16 (限定) / FAIL 1 (C05要件差分) / UNKNOWN 1 (C09) の記録は static+simulated の範囲のもの (各 case doc 参照) |
 | **ステージング実測** (staging-observed) | 所有 staging origin への境界内実送信による観測 | **ゼロ — 実測セットは空 (empty)**。live 送信 **0/20 requests**。理由: (a) staging 稼働リビジョン照合が undetermined (u01-safety-record §2; repo 内に deploy 記録/Worker version stamp/既知差分証跡なし — `u04/c08-csrf.md` 補足の照合試行記録); (b) 専用テストアカウント未払出 (§7); (c) 許可テナント識別子未プロビジョン (§3) |
 | **本番受入** (release acceptance) | 人間受入による本番相当の承認 | **未着手 — 対象外**。Done 遷移は人間受入または明示指示がある場合のみ (AC7/EMR332-X3)。キャンペーンの目標状態は Review まで |
 
@@ -43,7 +47,7 @@ Campaign base revision: `de28e9765a29091339a872a85f1875a947e07e5b` (origin/main 
 5. **C18 通知経路到達性 UNKNOWN** — `ReservationNotifier` 実装の配送確認証跡なし (send 呼出のみ確認)。
 6. **C14 脆弱性状態 NOT ASSESSED** — `go vuln`/`pnpm audit`/Dependabot/OSV 照合未実行 (network/data 依存)。pinning/lockfile/provenance の構成判定 PASS と既知 CVE 露出は別事項。
 7. **u01/source-inventory.md:46 stale cite** — `repository_db_test.go:33-36` と記載されているが `u01-test-classification.md` §1 では `:31-34`。**record-only — 当該ファイルは U01 の owned file であり本ユニット (U07) では編集しない**。
-8. **Remediation candidates (全て未適用・候補)** — C05 wiring options (handler への `BindStrictJSON` 配線 または `EnableDecoderDisallowUnknownFields` グローバル化 + byte-length 検査移植), C09 R1–R4, C10 RC-1, C14 RC-1..4, U04 edge-preflight/headers observations (edge preflight への最小 security header、edge/Gin 複製 drift contract test、frontend `_headers` `/*` の明示 Cache-Control), U06 `auth_staff_validation_fail_open` mislabel rename 候補。詳細は `remediation-plan.md`。
+8. **後続修復と候補** — C10 RC-1は適用・メモリ検証済み。C05は対象API/互換性/impact評価待ちで全体strict化は未採用。C09 R1–R4, C14 RC-1..4, U04 edge-preflight/headers observations (edge preflight への最小 security header、edge/Gin 複製 drift contract test、frontend `_headers` `/*` の明示 Cache-Control), U06 `auth_staff_validation_fail_open` mislabel rename 候補。詳細は `remediation-plan.md`。
 
 ## Unverified scope (未検証範囲の集約)
 
@@ -73,7 +77,7 @@ Campaign base revision: `de28e9765a29091339a872a85f1875a947e07e5b` (origin/main 
 
 ## 安全・逸脱の記録
 
-- キャンペーン全体で本番・他テナント・実ユーザー・PII へのアクセス、破壊、永続化、DoS、横展開: **0 件** (各ユニットの副作用呼出回数列参照 — 拒否経路は全て 0)。
+- 後続修復の検証はネットワーク無効Docker・メモリmockのみ。実サービス/DB/storage/LINEへ接続せず、本番・実ユーザー・PII・実テナントへの試験は行っていない。初回unitの副作用列はstatic/mockの範囲であり、実環境全体の副作用ゼロを証明しない。
 - live 送信: **0/20 requests** (上限内で実送信ゼロ)。
 - 証跡内に secrets/tokens/PII/実ペイロードなし — マーカーは `SECCHK20261009*` 形の英数字 sentinel のみが各 case doc で引用される。
 - 文書訂正の lineage: u03 docs における att-u03-1→att-u03-2 訂正履歴は `u03/c05-input-validation.md`・`u03/c06-sql-inventory.md` 末尾の訂正履歴表に記録 (verdict 不変)。

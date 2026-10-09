@@ -10,43 +10,43 @@ AC4 適用規則: 本計画は (a) **証跡で確認されたギャップ** (防
 
 ---
 
-## Section 1 — 証跡確認済みギャップ (defense verdict FAIL)
+## Section 1 — 要件差分・強化候補・適用修復
 
-### GAP-1: C05 — unknown/disallowed field silent-accept on all JSON bind paths
-
-| AC4 field | 記録 |
-|-----------|------|
-| ケース ID | C05 (防御判定 FAIL — `verdict-matrix.md` / `u03/c05-input-validation.md`) |
-| コード/設定根拠 | `gin.EnableDecoderDisallowUnknownFields` 設定箇所 0 件 (rg 全走査)。JSON bind 入口 **226 経路** (direct `ShouldBindJSON` 202 + `bindStaffJSON` 16 + `bindAuthJSON` 8) のいずれも unknown field を黙殺受理。`internal/staff/http_binding.go:25-52`, `internal/auth/http_binding.go:25-61` は上限+trailing+byte-length のみで DisallowUnknownFields なし。trailing 第 2 JSON value も `ShouldBindJSON` 単独経路では未読黙殺 |
-| 最小変更 (適用状況) | **helper 適用済み・handler 配線は未適用 (candidate)** — `backend/internal/middleware/emr332_u03/strict_bind.go` に `BindStrictJSON(c, dst, maxBytes)` を新設 (bounded read → `DisallowUnknownFields` decode → trailing 値拒否 → `binding.Validator` 再検証 → `ParseBindError` で既存応答形状)。**この helper は unwired scaffold であり、226 経路のいずれにも配線されていない — よって C05 は FAIL のまま**。配線候補 (owned_paths 外のため U03/U07 では非適用): (a) 各 handler の `ShouldBindJSON`/`bindStaffJSON`/`bindAuthJSON` を `BindStrictJSON` へ置換 (`validateStaffJSONByteLengths`/`validateAuthJSONByteLengths` 相当の per-type byte-length 検査の移植を伴う — helper doc comment に明記済み); (b) `gin.EnableDecoderDisallowUnknownFields = true` グローバル設定 + 既存 wrapper の trailing 検査維持 |
-| 担当 | 未指定 |
-| 優先順位 | P0 (ticket 改善プラン工程2 の対象ケース C01–C05/C13/C17 に属する) |
-| 再検証条件 | 同一ケース ID `C05` で: (1) 配線後の代表 bind 経路で unknown-field JSON が 400 拒否されることを simulated で確認; (2) `go test ./internal/middleware/emr332_u03/` 全 PASS の継続 + 配線済み handler の scoped test; (3) trailing 第 2 JSON value 拒否の確認; (4) byte-length 検査の移植確認 (bindStaffJSON/bindAuthJSON 移行時); (5) 副作用呼出 0 の再確認 |
-| 証跡参照 | `docs/work/emr-332-security/u03/c05-input-validation.md`; `backend/internal/middleware/emr332_u03/strict_bind.go`; `backend/internal/middleware/emr332_u03/bind_boundary_test.go` (6 tests); `backend/internal/middleware/emr332_u03/strict_bind_test.go` (7 tests) |
-
-### GAP-2: C09 — env-driven egress providers lack destination guards (scoped FAIL)
+### GAP-1: C05 — 未知キー拒否要件との差分 (影響未評価)
 
 | AC4 field | 記録 |
 |-----------|------|
-| ケース ID | C09 (防御判定 `FAIL (scoped)` — `u05/c09-ssrf-egress.md`) |
-| コード/設定根拠 | LSTEP/LINE 定数宛先経路は allowlist+hardened dial+redirect 抑止で PASS (static)。**env 駆動プロバイダ行は host allowlist・dial 層 private-IP guard・redirect 抑止を欠く**: `support/discord.go:44-50,126-132`, `support/plane.go:91-113,189-201`, `support/llm.go:79-141`, `medicalrecord/lab_device_mapping_llm.go:76-90,132-139` (release HTTPS 検証すら未経由), `infra/smtp/sender.go:62-69,211-245` (private-IP dial guard なし)。宛先は operator-config 境界であり request-driven SSRF ではない点は記録済み |
-| 最小変更 (適用状況) | **candidate (未適用)** — U05 は audit_review 単位で修復しない。候補 R1–R4: R1 `middleware/liff_auth.go:163` に `CheckRedirect: ErrUseLastResponse` (兄弟 `line_link_service.go:572` と整合); R2 env 駆動 HTTP client へ LSTEP `hardenedDialContext` 相当 (resolve→IP 検査→pinned dial) + redirect 抑止の共通 transport 抽出; R3 `OPENAI_BASE_URL` を `config.go` `validateOptionalReleaseHTTPSURL` 経由化; R4 `infra/smtp/sender.go:69` dial 前 resolved-IP private 判定 |
-| 担当 | 未指定 |
-| 優先順位 | P1 (ticket 工程3 C05–C13) — R3 は兄弟 env URL より弱い検証のため同 P1 内で先行候補 |
-| 再検証条件 | 同一ケース ID `C09` で: 修復適用後に egress サイト表 (Section B) を再評価し、対象行が allowlist/dial-guard/redirect 抑止を持つことを static で確認; runtime outbound 実測は staging 安全条件の確定後に限定実施 |
-| 証跡参照 | `docs/work/emr-332-security/u05/c09-ssrf-egress.md` (Section B per-site verdict 表 + Section C R1–R4) |
+| ケース ID | C05: FAIL (試験要件との差分)、脆弱性重大度は未評価 |
+| コード/設定根拠 | 代表DTOで未知キーが破棄される。226はbind call-site棚卸しで全endpointの実測・保護フィールド更新の証明ではない。`reservation/line_reservation_setting_request.go:38-41`は旧キー黙殺を意図する契約。 |
+| 最小変更 (適用状況) | 製品経路の変更なし。未配線strict helperはartifactのまま。対象APIの受理/禁止項目、互換性、実害を確認しendpoint単位で決める。全226置換・グローバルstrict化は今回行わない。 |
+| 担当 | 実装評価: Codex (引き継ぎ済み)。API契約・受入責任者: 未指定 |
+| 優先順位 | 未評価 — 工程番号由来のP0を重大度として撤回。影響と互換契約の評価後に決定 |
+| 再検証条件 | 合意した対象の実handlerで保護項目が更新されないこと、受理項目・byte-length・trailing契約を維持すること、拒否時後段呼出0を確認 |
+| 証跡参照 | `u03/c05-input-validation.md`; `repair-20261009.md` |
 
-### GAP-3: C10 — shared-file upload lacks content sniffing (scoped FAIL)
+### GAP-2: C09 — operator-config境界の強化候補 (SSRF impact UNKNOWN)
 
 | AC4 field | 記録 |
 |-----------|------|
-| ケース ID | C10 (防御判定 `FAIL (scoped)` — `u05/c10-upload-validation.md`) |
-| コード/設定根拠 | shared-file family は ext allowlist (`model.AllowedFileExtensions` {.pdf,.jpg,.jpeg,.png}) のみで content sniffing 不在 (`lstep/shared_file_request.go:28-41`, `shared_file_handler.go:39-83`)。残り 5 family は PASS。「拡張子だけ一致・内容が別物」のファイルが LINE Messaging 経由の外部送信経路に至る (`shared_file.go:42-44`) |
-| 最小変更 (適用状況) | **candidate RC-1 (未適用)** — `newSharedFileUploadMeta` 後に `imageupload.VerifySniffedContent` 相当を追加し、`ext` 由来 MIME (`AllowedFileExtensions[ext]`) と先頭 512B sniff を照合する候補。`lstep/` は U05 owned_paths 外のため非適用 |
-| 担当 | 未指定 |
-| 優先順位 | P1 (ticket 工程3 C05–C13) |
-| 再検証条件 | 同一ケース ID `C10` で: shared-file に対し (a) HTML-as-PNG 等の内容不一致 fixture が拒否されること (simulated)、(b) 拒否時 `sharedFile.Upload` 呼出 0、(c) 許可型は受諾、を確認 |
-| 証跡参照 | `docs/work/emr-332-security/u05/c10-upload-validation.md` (Section A 行列 family 4 行 + Section B RC-1); `backend/internal/imageupload/emr332_u05/sniff_contract_test.go` |
+| ケース ID | C09: 全体UNKNOWN。LSTEP/probe既存guardはstatic PASS |
+| コード/設定根拠 | Discord/Plane/LLM/S3/SMTPの宛先は運用設定、LINEは定数。通常callerの宛先制御・redirect/DNS越境は未証明。OPENAI_BASE_URLのrelease HTTPS検証不在は独立した設定境界候補。 |
+| 最小変更 (適用状況) | 製品変更なし。R1–R4は許可宛先・設定権限・信頼境界を確認してからproviderごとに決める。正規private SMTP relayを壊す一律IP禁止は未採用。 |
+| 担当 | 評価訂正: Codex。運用宛先policy責任者: 未指定 |
+| 優先順位 | 未評価 — SSRF重大度は未証明。release HTTPS候補は資格情報送信policyと実enablementを確認して決定 |
+| 再検証条件 | callerの権限と宛先ソース、redirect/DNS境界、正規relay契約を記録する。通信試験は指定staging/tenant等の安全前提成立後に限定 |
+| 証跡参照 | `u05/c09-ssrf-egress.md`; `repair-20261009.md` |
+
+### GAP-3: C10 — 共有ファイル保存前の内容形式照合 (適用済み)
+
+| AC4 field | 記録 |
+|-----------|------|
+| ケース ID | C10: PASS (scoped static/simulated)、実保存・配送・stagingは未検証 |
+| コード/設定根拠 | 修復前は`shared_file_request.go:28-41`の拡張子のみ。配送は別操作でowner/opt-out/credentials確認後に署名URLをLINEへ渡す (`line_send_service.go:139-158`, `shared_file_service.go:132-145`, `infra/line/push.go:36-67,94-120`)。uploadだけで自動送信しない。 |
+| 最小変更 (適用状況) | RC-1適用: handlerで用途/フォーム検証後、Upload前に既存`imageupload.VerifySniffedContent(file, meta.contentType)`を配線。既存auth/size/MIME由来契約維持。 |
+| 担当 | 修復・メモリ検証: Codex。人間受入責任者: 未指定 |
+| 優先順位 | 内容検証欠落の最小修復を今回実施。悪用可能性/CVSSは未評価 |
+| 再検証条件 | 実handlerのメモリ試験: 正常5ケースで201/Upload1/内容完全保持、内容不一致・空7ケースで400/Upload0/Locationなし。既存auth/bind/extension/service-errorを維持 |
+| 証跡参照 | `u05/c10-upload-validation.md`; `backend/internal/lstep/shared_file_content_test.go`; `repair-20261009.md` |
 
 ---
 
@@ -66,7 +66,7 @@ AC4 適用規則: 本計画は (a) **証跡で確認されたギャップ** (防
 | CAND-C18-1 | C18 | イベント名 `auth_staff_validation_fail_open` / メッセージ "auth staff validation failed open" の rename (実際は fail-closed で 503 拒否 — 名前が逆の誤ラベル) | `backend/cmd/api/composition_auth_routes.go:82-83` (u06 c18 観察欄; owned path 外のため観察として記録) | 未指定 | 低 (ログクエリ互換の確認が前提) | rename 適用後に C18 logging 検証を再実行し marker 相関を再確認 | `u06/c18-logging-audit.md` fields 10–11 |
 | CAND-C16-1 | C16 | 本番複数インスタンス環境での集約 store (Redis 等) 検討 — process-local `RateLimitStore` の集約制限は UNKNOWN | `rate_limit.go:29-33` (in-memory map); deploy 実態未確認のため証拠不足で候補止まり | 未指定 | 未割当 (deploy topology 確定が前提) | multi-instance deployment topology 確定後に C16 で再評価 | `u06/c16-rate-limit.md` field 11 |
 
-## 適用済み変更の棚卸し (本キャンペーン全体 — ZERO product fixes)
+## 適用済み変更の棚卸し (初回campaign履歴と後続修復)
 
-- **U01–U06 で適用された product-code 修復: 0 件**。追加されたコード物は `backend/internal/middleware/emr332_u03/strict_bind.go` (+ 同 package の `bind_boundary_test.go`/`strict_bind_test.go`) と各ユニットの `emr332_uNN` scoped test files のみ — いずれも **handler/本番経路へ配線されていない検証用 artifact** であり、GAP-1 の修復完了を意味しない。
-- よって未修復 FAIL は **C05, C09 (scoped), C10 (scoped)** の 3 件が未完了のまま残る (AC5)。
+- **初回U01–U06で適用された product-code 修復: 0 件 (履歴)**。追加されたコード物は `backend/internal/middleware/emr332_u03/strict_bind.go` (+ 同 package の `bind_boundary_test.go`/`strict_bind_test.go`) と各ユニットの `emr332_uNN` scoped test files のみ — いずれも **handler/本番経路へ配線されていない検証用 artifact** であり、GAP-1 の修復完了を意味しない。
+- **後続Codex修復: C10の保存前sniff配線1件**。現在C05は要件差分FAIL、C09は影響/宛先policy UNKNOWN。C10は修復対象のstatic/simulated PASSであり、実保存・配送・staging未確認 (AC5)。

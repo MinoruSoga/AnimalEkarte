@@ -5,13 +5,13 @@ Recorded by: receiver-emr332-u07-01 / Recorded at: 2026-10-09
 Ticket revision (consolidated): EMR-332 @ 2026-10-08T17:54:31Z
 本ファイルは U01–U06 の verdict docs に記録された残件・既知問題の統合一覧 (record-only — ここでの記載は問題の解消・修復の実施を意味しない)。発見元の一次記録は各 case doc。
 
-## 1. 未修復 FAIL (未完了として残す — AC5)
+## 1. 現在の残件と修復境界 (Codex follow-up)
 
 | ケース | ギャップ | 一次記録 |
 |--------|----------|----------|
-| C05 | unknown/disallowed field が全 226 bind 経路で黙殺受理; trailing 第 2 JSON value 未読黙殺。`strict_bind.go` は unwired scaffold で配線なし | `u03/c05-input-validation.md` |
-| C09 (scoped) | env 駆動 egress プロバイダ (Discord/Plane/LLM/OPENAI_BASE_URL/SMTP) に host allowlist・dial 層 private-IP guard・redirect 抑止なし | `u05/c09-ssrf-egress.md` |
-| C10 (scoped) | shared-file upload family が content sniffing を欠く (ext allowlist のみ) | `u05/c10-upload-validation.md` |
+| C05 | 要件差分FAIL。代表bindでは未知キー破棄、226は棚卸しのみ。影響/重大度と互換契約は未評価。helper未配線 | `u03/c05-input-validation.md` |
+| C09 | 全体UNKNOWN。operator-config先の強化候補とSSRF成立を区別。許可宛先・redirect/DNS・private SMTP契約未確認 | `u05/c09-ssrf-egress.md` |
+| C10 | 保存前sniff修復・実handlerメモリ試験PASS。完全なファイル安全性/実保存/配送/stagingは未検証 | `u05/c10-upload-validation.md`; `repair-20261009.md` |
 
 ## 2. BLOCKED / UNKNOWN / NOT ASSESSED の残件
 
@@ -33,9 +33,9 @@ Ticket revision (consolidated): EMR-332 @ 2026-10-08T17:54:31Z
 | `attempts/att-u02-1.report.md` miscount | evidence-t06 に「568 checks」と記録 — 実際の再計測は **567** test-case entries (`=== RUN`/`--- PASS:` 各 567 行; PASS/0-FAIL verdict は正確) | **record-only — receiver report は履歴記録のため編集しない** (U07 docs 側は訂正済み — verdict-matrix.md・u07/reverification.md 訂正履歴) |
 | `u06/c15-order-idempotency.md` field 9 miscount | 「TestC15_* 6 tests / 40 subcases」「8 tests / 20 subcases」と記録 — 実際の `func TestC15_*` 宣言数は **7** (`order_idempotency_test.go`) と **9** (`auto_create_idempotency_test.go`); subcase counts は独立再検証なし | **record-only — u06 owned file のため U07 では編集しない** (U07 docs 側は訂正済み — verdict-matrix.md・u07/reverification.md 訂正履歴) |
 
-## 4. Remediation candidates (全て未適用・候補のみ)
+## 4. Remediation candidates (C10適用修復以外は未適用)
 
-`remediation-plan.md` Section 2 が正本。一覧: C05 wiring options (GAP-1 内), C09 R1–R4, C10 RC-1, C14 RC-1..4, U04 edge-preflight/headers observations (3 件), C06 lint guardrail, C07 client-side scheme allowlist, C18 `auth_staff_validation_fail_open` mislabel rename, C16 集約 store 検討。
+`remediation-plan.md` Section 2 が正本。一覧: C05対象API/impact/互換性評価 (GAP-1), C09 R1–R4, C10 RC-1のstaging/実保存の未検証leg, C14 RC-1..4, U04 edge-preflight/headers observations (3 件), C06 lint guardrail, C07 client-side scheme allowlist, C18 `auth_staff_validation_fail_open` mislabel rename, C16 集約 store 検討。
 
 ## 5. 観察のみ記録 (verdict に影響しない設計注記)
 

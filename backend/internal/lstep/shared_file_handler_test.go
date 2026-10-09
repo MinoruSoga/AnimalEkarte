@@ -243,7 +243,7 @@ func TestUploadSharedFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			h := newHandlerWithSharedFileSvc(tt.svc)
-			body, contentType := buildSharedFileMultipart(t, tt.includeFile, tt.fileName, []byte("dummy"), tt.formFields)
+			body, contentType := buildSharedFileMultipart(t, tt.includeFile, tt.fileName, []byte("%PDF-1.4\n% SECCHK20261009C10\n%%EOF\n"), tt.formFields)
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
 			c.Request = httptest.NewRequest(http.MethodPost, "/shared-files?clinic_id=999&uploaded_by=999", body)

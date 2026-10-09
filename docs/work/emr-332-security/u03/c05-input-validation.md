@@ -12,12 +12,12 @@ Template: `docs/work/emr-332-security/u01-case-verdict-template.md` (12 fields)
 | 3 | 実施方式 (method) | `static` (bind 呼出し経路・struct タグの棚卸し) + `simulated` (httptest + gin.CreateTestContext によるメモリ内 bind 実測)。staging-observed なし |
 | 4 | 正常条件 | 期待: 必須・型・範囲・enum 適合の JSON は bind 成功 / 観測: `{"name":"SECCHK20261009C05R05","status":"alive","age":7}` → bind 成功。実ハンドラ struct `medicalrecord.CreateMedicalRecordAddendumRequest` (`after_text`/`reason` required,max) の有効本文も成功 — `TestC05RealHandlerStruct/normal:_valid_addendum` PASS |
 | 5 | 拒否条件 | 期待: 型不一致・必須欠落・max 超過・oneof 違反・数値範囲外・未知(disallowed)フィールドの拒否 / 観測: 型不一致(`age:"SECCHK20261009C05R07"`)・必須欠落・`max=255` 超過・oneof 違反 (`status="SECCHK20261009C05R06"`)・`min=0`/`max=200` 違反は **全て bind error で拒否** (`ParseBindError` が sanitized 日本語 message を返す。`internal/httpapi/bind_errors.go:15-34`)。**未知フィールド `secchk20261009c05r08` はエラーなく受理され黙って破棄される — FAIL**。実 struct でも同結果 (`TestC05RealHandlerStruct/gap:_unknown_field_silently_accepted`)。trailing 第 2 JSON value も `ShouldBindJSON` 単独経路では未読のまま黙殺 (`TestC05ShouldBindJSON_TrailingValueUnread`) |
-| 6 | 防御判定 | **FAIL** — type/range/required の拒否は成立するが、disallowed-field (unknown field) 拒否クラスが全 `ShouldBindJSON`/`bindStaffJSON`/`bindAuthJSON` 経路で不成立。証拠はテスト実測 + 設定不在の静的確認 |
-| 7 | 副作用呼出回数 | **0** — メモリ内 bind のみ。emr332_u03 package は service/repository/session/audit/cache/queue/file/mail/telemetry を一切 import せず、save-path sentinel の呼出しは `TestC05ZeroSideEffectInvocations` で機械的に 0 を確認 |
-| 8 | 検出判定 | **N/A** — bind 層に unknown-field 受理を検出する経路は存在しない (silent drop が性質)。拒否側 (400) は `RequestLoggingMiddleware` の構造化ログ経路が静的に存在するが、本ユニットは HTTP スタック越しの検出実測は行わない (method=simulated は bind 呼出しまで) |
+| 6 | 防御判定 | **FAIL (試験要件との差分)** — 代表bind試験で未知キーが破棄される。226 call sitesは棚卸し件数であり、全endpointの到達・認可・保護フィールド更新・悪用可能性の証明ではない。脆弱性重大度は未評価。 |
+| 7 | 副作用呼出回数 | **0 (bind専用試験)** — 実service/saveを接続していない。`TestC05ZeroSideEffectInvocations`のsentinelもhandlerに配線されておらず、実handlerの保存抑止を証明しない。 |
+| 8 | 検出判定 | **UNKNOWN** — 未知キーの検出は未観測。検出経路が見つからないことをN/Aの理由にしない。400のrequest logも本ケースの実HTTPスタックでは未確認。 |
 | 9 | 安全な証跡参照 | テスト: `backend/internal/middleware/emr332_u03/bind_boundary_test.go` (6 テスト関数), `strict_bind_test.go` (7 テスト関数)。実測出力: 本ファイル末尾「実測コマンド出力」 (att-u03-2 で再取得した真の verbatim)。静的根拠: `internal/staff/http_binding.go:25-52` (bindStaffJSON — 上限+trailing 検査 + `validateStaffJSONByteLengths` :64-78、DisallowUnknownFields なし), `internal/auth/http_binding.go:25-61` (同様 + `validateAuthJSONByteLengths` :63-91), `gin.EnableDecoderDisallowUnknownFields` 設定箇所 0 件 (rg 全走査), `internal/owner/http_request.go:119-256` (required/max/oneof タグ例), `internal/reservation/liff_request.go:89-101` |
-| 10 | 制約・未検証範囲 | 未検証: (a) 全 226 bind 入口経路 (`.ShouldBindJSON(` 直接 202 + `bindStaffJSON` 16 + `bindAuthJSON` 8 — 集計方法は下表) を個別には実測していない — 代表 mirror struct (`binding:"required,max=..."`/`oneof`/`min/max` 系) + 実 exported struct 1 種で binding engine の共通契約を実測した。gin v1.12.0 の decoder は全経路共通のため拡張妥当。(b) クエリ文字列・フォーム・パスパラメータの bind (ShouldBindQuery 等) は未検証。(c) unknown field が「黙殺」されることの業務影響 (typo した有効 field の黙殺等) は本ケースの防御判定とは別。(d) handler への実配線は未実施 (owned_paths 外のため)。(e) `BindStrictJSON` は wrapper 各社の per-type byte-length 検査 (email/password/token 等) を複製しない — doc comment に明記済み、wire-in 時は同等検査の移植が必要 |
-| 11 | 修復案 | **適用済み (owned path 内)**: `BindStrictJSON(c, dst, maxBytes)` — `backend/internal/middleware/emr332_u03/strict_bind.go`。bounded read→`DisallowUnknownFields` decode→trailing 値拒否→`binding.Validator.ValidateStruct` で `binding` タグを再検証。error は `apperrors.WrapInvalidInput(httpapi.ParseBindError(err))` で既存応答形状と同一。**候補 (owned_paths 外のため未適用)**: 各 handler の `c.ShouldBindJSON`/`bindStaffJSON`/`bindAuthJSON` を `BindStrictJSON` へ置換 (byte-length 検査の移植を伴う)、または `gin.EnableDecoderDisallowUnknownFields = true` のグローバル設定 + 既存 wrapper への trailing 検査維持。in-place な handler 変更は本ユニットでは行わない (scope 規約) |
+| 10 | 制約・未検証範囲 | 226 call sitesの個別実測、実handlerの保護項目更新・副作用、query/form/path、業務影響は未確認。Gin共通decoderの挙動は代表structで確認しただけ。`reservation/line_reservation_setting_request.go:38-41`は旧キー黙殺を意図した互換契約。RawMessage内部もstrict decodeだけでは検証できない。 |
+| 11 | 修復案 | 未配線helperは検証用artifactのまま。対象APIの受理・禁止項目、互換性、実害を確認してendpoint単位の最小修復を決める。全226置換やグローバルstrict化は行わない。staff/auth固有byte-length検証を維持する。 |
 | 12 | 再検証結果 | 実施済み — scoped isolated Docker `go test ./internal/middleware/emr332_u03/` **13 テスト関数全 PASS** (bind_boundary_test.go 6 関数 + strict_bind_test.go 7 関数; subtest 延べ 20)。出力末尾は att-u03-2 で新規取得した真の verbatim。helper は unknown field / trailing value / oversized body / 宣言 Content-Length / required / oneof / range / 型違反を全て拒否。回帰: `go test ./internal/middleware/` PASS (sanitize_null_bytes 既存テスト含む)。`go vet` exit 0 |
 
 ## 補足: 棚卸し結果
@@ -47,7 +47,7 @@ Template: `docs/work/emr-332-security/u01-case-verdict-template.md` (12 fields)
 | `internal/csvimport/cutover_contract_validate.go:108` | csvimport contract file |
 | `cmd/stg-uat-staff-attach/validate.go:21` | CLI 検証ツール (non-HTTP) |
 
-→ 主要 JSON API 書込み経路 (owner/pet/medicalrecord/reservation/staff/lstep/trimming/billing 等の `ShouldBindJSON` 系) には unknown-field 拒否が**皆無**。strict なのは manifest/ファイル/特定内部経路のみ。
+→ このcall-site集計は全APIの脆弱性数ではない。上表のHTTP strict decoder経路も存在する。未知キーがDTOに割り当てられないことと、許可済みフィールドの不正更新は区別する。
 
 ## 実測コマンド出力 (verbatim — att-u03-2 で worktree `feat/emr-332-security-defense-w03` から新規取得)
 
@@ -153,3 +153,7 @@ att-u03-1 の記録証跡に対する G2 IMPL_DEFECT 指摘への訂正。**判�
 | hygiene pass (att-u03-2 G2 residual F-1..F-7) | c05 該当は F-3 のみ — `bindAuthJSON` cite の :26-61 と「:25 は空行」の偽正当化 (直上の行参照) | :25-61 へ復元済み。判定 (FAIL)・集計 (226 経路 / 13 テスト関数 PASS) は不変 |
 
 *Marker 文字列は `SECCHK20261009C05Rnn` 形の英数字 sentinel のみ。実行可能な攻撃構文・実ペイロード・資格情報・PII は本ファイルに含まない (A5)。*
+
+## Codex follow-up — 2026-10-09
+
+上記の現在判定は要件差分FAIL、検出UNKNOWN。旧att-u03-2の実行ログ・訂正履歴は履歴として保持する。工程番号に由来するP0を重大度根拠として採用しない。詳細は [Codex follow-up](../repair-20261009.md)。

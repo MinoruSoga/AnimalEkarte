@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/imageupload"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -70,6 +71,10 @@ func (h *Handler) UploadSharedFile(c *gin.Context) {
 
 	input, err := req.toServiceInput(file, meta)
 	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	if err := imageupload.VerifySniffedContent(file, meta.contentType); err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
