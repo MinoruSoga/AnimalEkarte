@@ -191,7 +191,7 @@ const LINE_PURPOSE =
 const LSTEP_PURPOSE =
   "Lステップ（LINE公式アカウント拡張ツール）との高度な連携設定、自動配信タグの管理、およびマーケティング施策の効果分析。";
 
-const DESCRIBED_MENU: ReadonlyArray<{ label: string; path: string; purpose: string }> = [
+const DESCRIBED_MENU: ReadonlyArray<{ label: string; path?: string; purpose: string }> = [
   {
     label: "当日の受付",
     path: paths.home.getHref(),

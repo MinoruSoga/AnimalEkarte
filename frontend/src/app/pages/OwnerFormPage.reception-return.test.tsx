@@ -186,7 +186,7 @@ describe("受付詳細からペット詳細へ進んで戻る", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /^ポチ$/ }));
 
-    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "山田のペット情報編集" })).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByTestId("here")).toHaveTextContent("/owners/20");
       expect(screen.getByTestId("here")).not.toHaveTextContent("pet=");
