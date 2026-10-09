@@ -90,3 +90,24 @@ LSTEPの共有補助は別packageの `_test.go` からimportされるため、in
 - CI package一覧は66件で既存shard表と完全一致、重複0。新package追加／CI除外の追加なし。
 
 Go、TypeScript、security reviewerがそれぞれ専用worktreeで読み取り独立レビューし、全体APPROVE。Critical/High/Mediumなし、security/docのLow2件（入口の存在しないrange参照・抽出helperの旧引用）は修正しreadback確認済み、残指摘0。提供ログを確認し、コード／既存試験／raw証跡の同一性を独自に突合した。reviewerによる試験の独立再実行なし。所有ファイルのGitleaksはexit 0 / no leaks。frontendの型・import・試験本体は同一であり、今回typecheck結果は提示していない。full CI、実DB、staging、通知配送、frontend E2Eは未実行で、元のセキュリティ残件と受入状態は変わらない。ロールバックが必要なら通常のレビュー付きGit revertを使い、データ・監査ログの削除は行わない。
+
+
+## 追加監査: 作業段階名と試験専用API、過去UATの発見境界
+
+候補HEAD `e5b1cce805d19fe7ca8e4ad794606aa5f03afecc` の追跡済みbackend、frontend、scripts、docsを再調査した。frontendの静的監査は2,363パス、非テストコード1,374ファイル。backendでは他のunit/ticketフォルダと同内容Goファイル重複も確認した。共有main `d40a0b0d1525955ba26012a04415fee788f0652f` の他者コミットを取り込まず、task worktreeだけで変更する。
+
+| 追加発見 | 対応 | 検証 |
+|---|---|---|
+| 認可テストの `permission_group_service_mutate_d2_test.go` / `permission_group_service_rules_d2_test.go` | 同じauth packageの `permission_group_service_update_with_rules_tx_test.go` / `permission_group_service_update_rules_tx_test.go` へ改名。auth設計の現行参照も更新 | 内容byte同一、Dockerで改名前後とも14ケースPASS・同じ集合。D2が入る過去の識別子は保持。実DB原子性の証明ではない |
+| 継続して使うRadix reset設計がチケット名、frontend規則からの参照が移動前の不存在パス | `docs/architecture/radix-controlled-form-reset.md` へ内容同一で改名、索引とfrontend規則の相対リンクを更新 | 3つの改名ファイルはbyte同一、変更対象設計文書・規則のローカルリンク26件に欠落0 |
+| `query-keys.ts` に `_test.fe516Fail/fe516Silent` が混在 | 専用キーは唯一のconsumer `react-query.test.ts` のreadonlyローカル定数へ移動。製品registryから削除 | Vitest改修前後2ケースPASS、同じキー値／ケース。ESLint・Prettier PASS |
+| `clinic-selection-recovery.ts` に同義の `resetClinicSelectionRecoveryForTests()` | wrapperを削除し、4つの試験で既存 `clearClinicSelectionRecovery()` を直接使用 | 4ファイルのVitest改修前後53ケースPASS・同じ集合。既存clearの処理、abort・世代管理・spy観測区間は変更なし。ESLint・Prettier PASS |
+| seed医院ID固定の過去UAT 2本が通常 `*.spec.ts` として発見される | `frontend/e2e/_archive/seeded-clinic-master-forms.archived.ts` / `seeded-clinic-uat-residuals.archived.ts` へ保全。相対importと停止注記だけ補正し、Playwrightも `_archive` を除外。現在の再実行案内を停止へ訂正 | Playwright `--list` のみ: 整理前31ケースを発見、整理後archiveは0（No tests foundの期待どおりexit 1）、通常V04は44ケース発見・exit 0。ブラウザ／DB／live要求0 |
+
+過去UAT本文は停止注記と相対import以外は同一。`.archived.ts` によりPlaywright、page-consumerの列挙、agent検証の `rglob('*.spec.ts')` から自然に外れる。settings master pageには通常のsettings-crudとV04のconsumerが残る。既存 `--v04` のallowlist、fixture、workflowは変更しない。archiveはE2E用tsconfigの型検査対象からも外れるため、型検査済みとは主張しない。
+
+ページconsumer契約23ケースPASS、実settings master pageのactive consumerも確認した。agent検証のE2E関連契約15ケースは限定実行でPASS。active spec列挙は40ファイル、archive 0。初回に当該Pythonファイル全81ケースを試した際は、Docker imageにgitが無くgit fixtureの2ケースがERRORとなった。今回の変更に関連するE2E契約へ絞って再確認し、未確認のgit fixture検証はPASSへ置き換えない。Prettier初回のquery-keys空行指摘は削除して再検証PASS。新規の攻撃ペイロード、live probe、DB変更、migration、E2E実行は行っていない。
+
+改善プラン: 過去UATで必要なケースは使い捨てfixtureの通常specへ移植し、承認済み対象環境・合成アカウント・隔離医院・固定ID不使用・失敗時も完了するcleanupを確認してから別途実測する。archiveの拡張子復帰や独自configでの直接実行はしない。過去の24/24等の実測とFAILを保持し、今回の一覧確認をUAT成功と扱わない。命名・配置変更でC05/C09や他のUNKNOWN/BLOCKEDを引き上げない。
+
+追加監査の候補20ファイル（改名5件を含む）は、別々の登録済みworktreeでGo・TypeScript・security reviewerが読み取り独立レビューし、全員APPROVE・actionable findings 0。JSONケース集合、改名ファイル、archive本文の保持を独自比較した。独立した試験再実行は行っていない。所有ファイルのGitleaksはexit 0 / no leaks、staged diff checkはPASS。

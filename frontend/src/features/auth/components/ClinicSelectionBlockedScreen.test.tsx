@@ -6,7 +6,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ClinicSelectionBlockedScreen } from "./ClinicSelectionBlockedScreen";
 import {
   pauseClinicWrites,
-  resetClinicSelectionRecoveryForTests,
   recoverClinicSelectionOnce,
   clearClinicSelectionRecovery,
   CLINIC_SELECTION_UNAVAILABLE,
@@ -23,7 +22,7 @@ vi.mock("@/lib/react-query", () => ({
 describe("ClinicSelectionBlockedScreen", () => {
   afterEach(() => {
     cleanup();
-    resetClinicSelectionRecoveryForTests();
+    clearClinicSelectionRecovery();
     vi.unstubAllGlobals();
   });
 

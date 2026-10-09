@@ -59,7 +59,7 @@ flowchart TB
 非システム管理者が自分の所属グループを変更・無効化・自己割当解除するとき、**変更後の選択医院における実効権限**で `master-permission:view` と `master-permission:edit` の両方を維持できなければ 403 で拒否する。別の有効グループからの OR 付与が残る場合は許可する。他の管理担当者が残ることだけでは例外にしない。
 
 - 最終判定は mutation 後の `guardActorKeepsPermissionAdministration`（`permission_group_service_self_lockout.go`）。`UpdateRules` と `Update`（Rules 付き / Update-with-Rules）の両方は、所属グループ単体の事前拒否（旧 `validateNotSelfReference`）に依存しない。別の有効グループからの OR 付与が残れば許可し、最終の view/edit 喪失・lookup/audit 失敗は拒否して rollback する。
-- lookup 失敗・監査書き込み失敗は成功扱いせず、ルール変更と成功監査を rollback する。service 単体では staged/committed TX double（`permission_group_service_rules_d2_test.go` / `permission_group_service_mutate_d2_test.go`）で同一 `WithTx` 参加と失敗時の committed 不変を観測する（実 DB 原子性の証明ではない）。
+- lookup 失敗・監査書き込み失敗は成功扱いせず、ルール変更と成功監査を rollback する。service 単体では staged/committed TX double（`permission_group_service_update_rules_tx_test.go` / `permission_group_service_update_with_rules_tx_test.go`）で同一 `WithTx` 参加と失敗時の committed 不変を観測する（実 DB 原子性の証明ではない）。
 - システム管理者はこの自己喪失判定を免除する。システム管理者アカウント自体の削除・無効化保護は別契約。
 - 医院単位の permission policy lock（`pg_advisory_xact_lock`）で並行変更を直列化する。並行 DB テストコードは holder/contender の `pg_locks` 待機関係と worker 終了を観測するが、実行は承認済み隔離 Postgres が必要。
 

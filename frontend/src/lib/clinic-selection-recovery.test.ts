@@ -7,7 +7,6 @@ import {
   retryClinicSelectionRecovery,
   rearmAutomaticClinicSelectionRecoveryAttempt,
   clearClinicSelectionRecovery,
-  resetClinicSelectionRecoveryForTests,
   areClinicWritesPaused,
   getClinicSelectionBlockReason,
   cancelPendingClinicSelectionRecovery,
@@ -32,7 +31,7 @@ vi.mock("@/lib/react-query", () => ({
 
 describe("clinic-selection-recovery", () => {
   afterEach(() => {
-    resetClinicSelectionRecoveryForTests();
+    clearClinicSelectionRecovery();
     vi.unstubAllGlobals();
     vi.clearAllMocks();
   });

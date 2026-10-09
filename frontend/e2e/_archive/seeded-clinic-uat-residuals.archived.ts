@@ -1,5 +1,6 @@
+// Historical seed-clinic UAT source; execution is suspended. See README.md.
 import { expect, test } from "@playwright/test";
-import { loginAsDemoAdmin } from "./helpers/auth";
+import { loginAsDemoAdmin } from "../helpers/auth";
 
 // UAT re-verification for merged fixes (2026-09-24). Covers Plane items in the
 // UAT state: EMR-64, EMR-76, EMR-205, EMR-206, EMR-207, EMR-208, EMR-209.

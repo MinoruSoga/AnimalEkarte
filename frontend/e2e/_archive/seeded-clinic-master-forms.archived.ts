@@ -1,7 +1,8 @@
+// Historical seed-clinic UAT source; execution is suspended. See README.md.
 import { test, expect } from "@playwright/test";
 import type { APIRequestContext, BrowserContext, Page } from "@playwright/test";
-import { createAuthedContext } from "./helpers/context";
-import { SettingsMasterPage } from "./pages/settings-master-page";
+import { createAuthedContext } from "../helpers/context";
+import { SettingsMasterPage } from "../pages/settings-master-page";
 
 /**
  * EMR-127 V04 UAT retest — form × C1/C2/C3 browser coverage on clinic 2

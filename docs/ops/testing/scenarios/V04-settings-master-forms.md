@@ -233,7 +233,7 @@ Lステップ設定、タグ設定、コードマッピング、配信優先順�
 
 凡例:
 
-- **R** = `frontend/e2e/v04-settings-master-forms-retest.spec.ts`（2026-09-23・clinic 2 の seed account と一時権限変更に依存するため CI では動かない。report は `reports/uat-2026-09-23/v04-retest/README.md`、gitignore 対象）。番号は test 名の先頭番号。
+- **R** = [seed医院に依存する過去のUATソース](../../../../frontend/e2e/_archive/seeded-clinic-master-forms.archived.ts)（当時のパス: `frontend/e2e/v04-settings-master-forms-retest.spec.ts`）。2026-09-23 のclinic 2のseed accountと一時権限変更に依存するため、2026-10-09に通常のE2E発見対象から外し、実行を停止した。使い捨てfixtureへの移植とcleanup保証を確認するまで再実行しない。reportは `reports/uat-2026-09-23/v04-retest/README.md`（gitignore対象）、番号は当時のtest名の先頭番号。
 - **S** = `frontend/e2e/v04-settings-master-forms.spec.ts`（`run-e2e.sh --v04` の disposable clinic で実行予定・CI 配線は EMR-128）。**S-view** は同 spec の「view のみ account」describe（`E2E_CLINICAL_FIXTURE.v04` の account と `V04-e2e-` 行を使う）。
 - **M** = 9月13日の証拠（`reports/uat-2026-09-13/all-pages/crud-*.json`、gitignore 対象）。clinic 2 への API 直叩きの作成・更新・削除だけで、UI フォーム・C1・C3 は含まない。
 - **API** = UI 欠陥または同一パネルのため API だけで収録。UI 経路は未収録。
