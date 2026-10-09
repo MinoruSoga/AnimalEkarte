@@ -94,7 +94,7 @@ Method note: 本ケースは **実行しないことが目的のケース** (inj
 | internal/staff/synthetic_closing_staff.go:58 | bound | `DELETE FROM shift_entries WHERE clinic_id = ?` |
 | internal/testdb/clinic_grant_fixture.go:188 | bound+static-list | `Sprintf` — `table` は :179-183 の switch で `companies`/`clinics`/`staffs` のみ許可 (それ以外は `t.Fatalf`) |
 | internal/testdb/testdb.go:169,219,235 | DDL-const | CREATE TABLE IF NOT EXISTS 等の静的 DDL (test DB schema 構築) |
-| internal/testdb/testdb.go:435,447,454,457 | DDL-const | enum create/reconcile — `name`/`v`/`create` は `SharedTestSchemaEnumTypes` (001_init.sql 由来のコード定数) のみ。**[att-u03-2 訂正: :435 を Raw 表から移動 — `db.Exec(create)`]** |
+| internal/testdb/testdb.go:435,447,454,457 | DDL-const | enum create/reconcile — `name`/`v`/`create` は `SharedTestSchemaEnumTypes` (001_init.sql 由来のコード定数) に限定。**[att-u03-2 訂正: :435 を Raw 表から移動 — `db.Exec(create)`]** |
 | internal/testdb/testdb.go:631,635 | bound | advisory lock/unlock (`hashtext(?)`) |
 | internal/testdb/testdb.go:646 | ident-quoted | `CREATE DATABASE "+quotePostgresIdentifier(name)` — `"`→`""` escape (:655-657) |
 

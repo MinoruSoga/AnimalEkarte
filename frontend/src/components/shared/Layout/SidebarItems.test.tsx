@@ -428,7 +428,7 @@ const DESCRIBED_MENU: ReadonlyArray<{ label: string; path?: string; purpose: str
   {
     label: "検査受信",
     path: paths.labDevice.getHref(),
-    purpose: "医院に設定された検査機器の受信を1画面で見て、本日診療中のカルテへ紐付ける。",
+    purpose: "医院に設定された検査機器の受信を同一画面で見て、本日診療中のカルテへ紐付ける。",
   },
   {
     label: "検査機器マスタ",

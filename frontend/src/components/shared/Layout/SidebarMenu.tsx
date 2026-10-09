@@ -471,7 +471,7 @@ export const sidebarItemDescriptions: Readonly<Record<string, string>> = {
   [paths.examinations.getHref()]:
     "院内および院外（外部委託）で実施される全検査のオーダー状況および、測定結果ステータスの一元管理。",
   [paths.labDevice.getHref()]:
-    "医院に設定された検査機器の受信を1画面で見て、本日診療中のカルテへ紐付ける。",
+    "医院に設定された検査機器の受信を同一画面で見て、本日診療中のカルテへ紐付ける。",
   [paths.trimming.getHref()]: "院内で実施されるトリミング施術の予約・実績・進捗管理。",
   [paths.vaccinations.getHref()]:
     "院内で行われた全予防接種（混合ワクチン、狂犬病ワクチン、フィラリア・ノミダニ予防等）の実績管理。",
