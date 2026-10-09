@@ -48,6 +48,21 @@ func (s *hospitalizationService) SwapCages(ctx context.Context, clinicID, idA, i
 		if second == nil {
 			return apperrors.WrapNotFound("hospitalization", strconv.FormatUint(secondID, 10))
 		}
+
+		// Codex PR606 #26: 臨床状態は行ロック下で再検証する。
+		// ボード表示時の禁止判定から PATCH 到達までの間に退院・死亡へ変わり得る
+		// （TOCTOU）ため、両方ともここで止める。退院済み行の cage_id は退院時点の
+		// 履歴として残し、この経路では変更しない（spec 確認済み: discharged は swap 不可）。
+		for _, h := range []*model.Hospitalization{first, second} {
+			if !isOccupyingHospitalizationStatus(h.Status) {
+				return apperrors.WrapInvalidInput("退院済みの入院はケージを入れ替えできません")
+			}
+			if err := validatePetNotDeceased(txCtx, s.petRepo, clinicID, h.PetID,
+				"死亡したペットの入院はケージを入れ替えできません"); err != nil {
+				return err
+			}
+		}
+
 		if first.CageID == nil || second.CageID == nil {
 			return apperrors.WrapInvalidInput("ケージ未割当の入院は入れ替えできません")
 		}

@@ -10,7 +10,7 @@ import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 
 // Relative
 import { useHospitalizationList } from "../hooks/use-hospitalization-list";
-import { useGetHospitalizations } from "../api/get-hospitalizations";
+import { useGetAllHospitalizations, useGetHospitalizations } from "../api/get-hospitalizations";
 import {
   HOSPITALIZATION_LIST_DEFAULT_LIMIT,
   HOSPITALIZATION_LIST_DEFAULT_PAGE,
@@ -22,6 +22,7 @@ import type { ActiveFilter, ActiveSort } from "@/components/shared/PropertyFilte
 import { HospitalizationListPageView } from "./HospitalizationListPanels";
 import {
   applyHospitalizationClientFilters,
+  buildHospitalizationBoardQueryFilters,
   buildHospitalizationFilterProperties,
   buildHospitalizationListQueryFilters,
   buildServerPagePagination,
@@ -70,6 +71,18 @@ export function HospitalizationList() {
   );
   const serverTotal = hospitalizationsPage?.total ?? 0;
 
+  // Codex PR606 #2: board view は cage 配置図のため「ページ外の行」を落とせない。
+  // list の server page とは別に、同一絞り込みの全行を取得する（board 表示中のみ有効化）。
+  const boardFilters = useMemo(
+    () => buildHospitalizationBoardQueryFilters(activeFilters, statusFilter),
+    [activeFilters, statusFilter],
+  );
+  const {
+    data: boardAllHospitalizations,
+    isLoading: boardLoading,
+    isError: boardError,
+  } = useGetAllHospitalizations(boardFilters, { enabled: viewMode === "board" });
+
   const filterProperties = useMemo(
     () => buildHospitalizationFilterProperties(allHospitalizations),
     [allHospitalizations],
@@ -82,6 +95,17 @@ export function HospitalizationList() {
   const typeFilteredHospitalizations = useMemo(
     () => applyHospitalizationClientFilters(allHospitalizations, deferredSearchTerm, activeFilters),
     [allHospitalizations, deferredSearchTerm, activeFilters],
+  );
+
+  // board は全件ソースに同じ client フィルタを適用する（検索・入院区分・種）。
+  const boardFilteredHospitalizations = useMemo(
+    () =>
+      applyHospitalizationClientFilters(
+        boardAllHospitalizations ?? [],
+        deferredSearchTerm,
+        activeFilters,
+      ),
+    [boardAllHospitalizations, deferredSearchTerm, activeFilters],
   );
 
   const sortedHospitalizations = useMemo(
@@ -159,7 +183,9 @@ export function HospitalizationList() {
       viewMode={viewMode}
       onViewModeChange={setViewMode}
       cages={cages}
-      boardHospitalizations={typeFilteredHospitalizations}
+      boardHospitalizations={boardFilteredHospitalizations}
+      boardLoading={viewMode === "board" ? boardLoading : false}
+      boardError={boardError}
       onNavigateToForm={handleNavigateToForm}
       onMovePet={movePet}
       canCreate={canCreate}

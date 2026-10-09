@@ -50,18 +50,23 @@ describe("buildConfirmTentativeBody (EMR-308)", () => {
     expect(buildConfirmTentativeBody({ start, end })?.status).toBe("confirmed");
   });
 
-  it("数値化できない type/doctor は送らず、空 notes も送らない", () => {
+  it("数値化できない type/doctor は送らない", () => {
     const body = buildConfirmTentativeBody({
       start,
       end,
       type: "一般診察",
       doctor: "",
-      notes: "",
     });
 
     expect(body?.reservation_type_id).toBeUndefined();
     expect(body?.doctor_id).toBeUndefined();
     expect(body?.notes).toBeUndefined();
+  });
+
+  it("notes 未指定は省略し、空文字は明示送信する（BE の既存メモを消せるように）", () => {
+    expect(buildConfirmTentativeBody({ start, end })?.notes).toBeUndefined();
+    expect(buildConfirmTentativeBody({ start, end, notes: "" })?.notes).toBe("");
+    expect(buildConfirmTentativeBody({ start, end, notes: "  " })?.notes).toBe("  ");
   });
 });
 

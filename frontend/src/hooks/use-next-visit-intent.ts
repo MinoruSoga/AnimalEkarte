@@ -25,6 +25,11 @@ export interface SetNextVisitIntentVariables {
   intendedDate: string;
   /** 保存済みカルテがあればその id（source_medical_record_id として送信） */
   medicalRecordId?: string;
+  /**
+   * Codex PR606 #5: 拠点横断表示の行からの mutation は「行の clinicId」で送る。
+   * hook 引数の clinicId より優先する（行自身の医院が正本）。
+   */
+  clinicId?: string;
 }
 
 // EMR-308/Codex: 拠点横断で開いたカルテ（record.clinicId）上の次回予定操作は、
@@ -57,10 +62,22 @@ const setNextVisitIntent = async (
  * ペットのアクティブな次回予定を除去する（冪等）。BE 権限は reservations:edit。
  * active tentative はペットごとに1件（部分ユニーク索引）なので petId で一意に終わらせられる。
  */
-const clearNextVisitIntent = async (petId: string, clinicId?: string): Promise<void> => {
+/**
+ * Codex PR606 #5: 呼び出し側が「行の clinicId」を渡せるよう object 形も受ける。
+ * 既存の petId string 呼び出し（medical-records / reception）はそのまま使える。
+ */
+export interface ClearNextVisitIntentVariables {
+  petId: string;
+  clinicId?: string;
+}
+
+const clearNextVisitIntent = async (
+  variables: ClearNextVisitIntentVariables,
+  clinicId?: string,
+): Promise<void> => {
   await axios.delete(
-    `/v1/reservations/pets/${petId}/next-visit-intent`,
-    intentClinicConfig(clinicId),
+    `/v1/reservations/pets/${variables.petId}/next-visit-intent`,
+    intentClinicConfig(variables.clinicId ?? clinicId),
   );
 };
 
@@ -68,7 +85,8 @@ export const useSetNextVisitIntent = (clinicId?: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (variables: SetNextVisitIntentVariables) => setNextVisitIntent(variables, clinicId),
+    mutationFn: (variables: SetNextVisitIntentVariables) =>
+      setNextVisitIntent(variables, variables.clinicId ?? clinicId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.reservations.all() });
     },
@@ -80,7 +98,11 @@ export const useClearNextVisitIntent = (clinicId?: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (petId: string) => clearNextVisitIntent(petId, clinicId),
+    mutationFn: (variables: string | ClearNextVisitIntentVariables) =>
+      clearNextVisitIntent(
+        typeof variables === "string" ? { petId: variables } : variables,
+        clinicId,
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.reservations.all() });
     },

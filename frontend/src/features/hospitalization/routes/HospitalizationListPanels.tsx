@@ -14,6 +14,7 @@ import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { resolveCageNameById } from "@/lib/cage-name";
 import type { Hospitalization, MasterItem } from "@/types";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { Plus } from "lucide-react";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
@@ -47,6 +48,9 @@ interface HospitalizationListContentProps {
   onViewModeChange: (mode: ViewMode) => void;
   cages: MasterItem[];
   boardHospitalizations: Hospitalization[];
+  /** Codex PR606 #2: board の全件フェッチ状態（ページングと独立）。 */
+  boardLoading: boolean;
+  boardError: boolean;
   onNavigateToForm: (id?: string) => void;
   onMovePet: (hospitalizationId: string, targetCageId: string) => void;
   canCreate: boolean;
@@ -70,6 +74,8 @@ function HospitalizationListContent({
   onViewModeChange,
   cages,
   boardHospitalizations,
+  boardLoading,
+  boardError,
   onNavigateToForm,
   onMovePet,
   canCreate,
@@ -217,19 +223,27 @@ function HospitalizationListContent({
         </div>
 
         {viewMode === "board" ? (
-          <HospitalizationBoard
-            cages={cages}
-            hospitalizations={boardHospitalizations}
-            onNavigateToForm={onNavigateToForm}
-            onMovePet={onMovePet}
-            canCreate={canCreate}
-            canEdit={canEdit}
-            mergeMode={boardMergeMode}
-            canMerge={canMergeCages === true}
-            hasMergeOccupant={hasMergeOccupant}
-            onRequestMerge={handleRequestMerge}
-            onRequestUnmerge={handleRequestUnmerge}
-          />
+          // Codex PR606 #2: board は全件フェッチ中の部分ページを描画しない。
+          // ケージ占有・未割当の欠落が臨床配置図で見えなくなるのを防ぐ。
+          boardLoading ? (
+            <LoadingFallback />
+          ) : boardError ? (
+            <ErrorFallback />
+          ) : (
+            <HospitalizationBoard
+              cages={cages}
+              hospitalizations={boardHospitalizations}
+              onNavigateToForm={onNavigateToForm}
+              onMovePet={onMovePet}
+              canCreate={canCreate}
+              canEdit={canEdit}
+              mergeMode={boardMergeMode}
+              canMerge={canMergeCages === true}
+              hasMergeOccupant={hasMergeOccupant}
+              onRequestMerge={handleRequestMerge}
+              onRequestUnmerge={handleRequestUnmerge}
+            />
+          )
         ) : (
           <>
             <HospitalizationListView

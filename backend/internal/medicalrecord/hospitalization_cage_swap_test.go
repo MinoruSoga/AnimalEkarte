@@ -147,8 +147,10 @@ func TestHospitalizationSwapCages_MemberTargetRejectedAndRolledBack(t *testing.T
 
 	standalone := makeCageMaster(t, db, clinicID, "独立 swap-member")
 	hospA := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &standalone.ID, model.HospitalizationStatusAdmitted)
-	// 構成ケージ上の退院済み入院（連結前の旧割当を想定 — ガード経路を通らない直接 INSERT）。
-	hospB := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &member.ID, model.HospitalizationStatusDischarged)
+	// 構成ケージ上の入院（連結前の旧割当を想定 — ガード経路を通らない直接 INSERT）。
+	// Codex PR606 #26: discharged は臨床状態再検証で 400 になるため、
+	// 422 構成ケージガードに到達する行は occupying status（admitted）で作る。
+	hospB := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &member.ID, model.HospitalizationStatusAdmitted)
 
 	gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID)
 	require.Error(t, err, "構成ケージへの移動を含む交換は拒否")
@@ -184,8 +186,9 @@ func TestHospitalizationSwapCages_OccupiedGroupRejectedAndRolledBack(t *testing.
 	makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &member.ID, model.HospitalizationStatusAdmitted)
 	standalone := makeCageMaster(t, db, clinicID, "独立 swap-occ")
 	hospA := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &standalone.ID, model.HospitalizationStatusAdmitted)
-	// 代表上の退院済み入院（非占有なので占有カウントを増やさない）。
-	hospB := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &rep.ID, model.HospitalizationStatusDischarged)
+	// 代表上の入院（admitted — #26 で discharged は先に 400 拒否されるため、
+	// 409 占有グループガードの検証には occupying status を使う）。
+	hospB := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &rep.ID, model.HospitalizationStatusAdmitted)
 
 	gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID)
 	require.Error(t, err, "占有グループ代表への移動を含む交換は拒否")
@@ -233,9 +236,10 @@ func TestHospitalizationSwapCages_CrossClinicRejected(t *testing.T) {
 	assert.Equal(t, cage1.ID, *reloaded.CageID)
 }
 
-// 非占有ステータスの入院を含む交換は許可する（discharged 履歴の再配置）。
-// 構成ケージへの構造的 422 は変わらず発火する点は MemberTarget テストが担保。
-func TestHospitalizationSwapCages_NonOccupyingSideAllowed(t *testing.T) {
+// Codex PR606 #26 (EMR-306 spec 確認済み): discharged を含む交換は拒否する。
+// 退院済み行の cage_id は退院時点の履歴であり、この経路では変更しない。
+// ロック下再検証により、表示→PATCH 間で退院したケースも両側ロールバックで止める。
+func TestHospitalizationSwapCages_DischargedSideRejected(t *testing.T) {
 	db := setupHospitalizationRepoTestDB(t)
 	svc := newCageGuardHospitalizationService(t, db)
 	ctx := context.Background()
@@ -249,7 +253,48 @@ func TestHospitalizationSwapCages_NonOccupyingSideAllowed(t *testing.T) {
 	hospB := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &cage2.ID, model.HospitalizationStatusDischarged)
 
 	gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID)
-	require.NoError(t, err)
-	assert.Equal(t, cage2.ID, *gotA.CageID)
-	assert.Equal(t, cage1.ID, *gotB.CageID)
+	require.Error(t, err, "退院済み入院を含む交換は拒否")
+	assert.Nil(t, gotA)
+	assert.Nil(t, gotB)
+	assert.True(t, errors.Is(err, apperrors.ErrInvalidInput), "discharged は INVALID_INPUT: %v", err)
+	status, _, _ := httpapi.ResolveErrorResponse(err)
+	assert.Equal(t, http.StatusBadRequest, status)
+
+	// 拒否後も両行の cage_id は変わらない（半スワップを残さない）。
+	var reloadedA, reloadedB model.Hospitalization
+	require.NoError(t, db.First(&reloadedA, hospA.ID).Error)
+	assert.Equal(t, cage1.ID, *reloadedA.CageID)
+	require.NoError(t, db.First(&reloadedB, hospB.ID).Error)
+	assert.Equal(t, cage2.ID, *reloadedB.CageID)
+}
+
+// Codex PR606 #26: 死亡ペットを含む交換もロック下の死亡検証で拒否する。
+// 死亡契約は status=deceased OR deceased_at != nil（sharedkernel.IsPetDeceased）。
+func TestHospitalizationSwapCages_DeceasedPetRejected(t *testing.T) {
+	db := setupHospitalizationRepoTestDB(t)
+	svc := newCageGuardHospitalizationService(t, db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	owner := makeTestOwner(t, db, clinicID, "swap飼主 dead")
+	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "swapペット dead")
+	cage1 := makeCageMaster(t, db, clinicID, "スワップ元 dead1")
+	cage2 := makeCageMaster(t, db, clinicID, "スワップ元 dead2")
+	hospA := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &cage1.ID, model.HospitalizationStatusAdmitted)
+	hospB := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &cage2.ID, model.HospitalizationStatusAdmitted)
+
+	// 入院作成後に死亡へ遷移（表示→PATCH 間の状態変化を模す）。
+	require.NoError(t, db.Model(pet).Update("status", model.PetStatusDeceased).Error)
+
+	gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID)
+	require.Error(t, err, "死亡ペットを含む交換は拒否")
+	assert.Nil(t, gotA)
+	assert.Nil(t, gotB)
+	assert.True(t, errors.Is(err, apperrors.ErrInvalidInput), "deceased pet は INVALID_INPUT: %v", err)
+
+	var reloadedA, reloadedB model.Hospitalization
+	require.NoError(t, db.First(&reloadedA, hospA.ID).Error)
+	assert.Equal(t, cage1.ID, *reloadedA.CageID)
+	require.NoError(t, db.First(&reloadedB, hospB.ID).Error)
+	assert.Equal(t, cage2.ID, *reloadedB.CageID)
 }

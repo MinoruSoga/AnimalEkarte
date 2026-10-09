@@ -62,7 +62,10 @@ export function buildConfirmTentativeBody(
   // BE 契約は "pending" | "confirmed" のみ。他の status は送らない。
   body.status = data.status === "pending" ? "pending" : "confirmed";
 
-  if (data.notes !== undefined && data.notes !== "") {
+  // Codex PR606 #17: 空文字は「メモを消去」の意味で明示送信する。
+  // 省略（undefined）は「未入力=既存値を維持」、空文字は「既存メモの消去」。
+  // 空を送らないと BE が既存 notes を保持し、確定後に古いメモが残る。
+  if (data.notes !== undefined) {
     body.notes = data.notes;
   }
 

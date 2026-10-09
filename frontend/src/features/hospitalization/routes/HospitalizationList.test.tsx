@@ -11,6 +11,7 @@ import { HospitalizationList } from "./HospitalizationList";
 
 vi.mock("../api/get-hospitalizations", () => ({
   useGetHospitalizations: vi.fn(),
+  useGetAllHospitalizations: vi.fn(),
 }));
 
 vi.mock("@/hooks/use-permission", () => ({
@@ -27,7 +28,7 @@ vi.mock("@/hooks/use-master-items", () => ({
   })),
 }));
 
-import { useGetHospitalizations } from "../api/get-hospitalizations";
+import { useGetAllHospitalizations, useGetHospitalizations } from "../api/get-hospitalizations";
 
 // ---- helpers ----
 
@@ -102,9 +103,21 @@ function mockHospitalizationsPage(items: ReturnType<typeof makeHosp>[], total = 
   } as ReturnType<typeof useGetHospitalizations>);
 }
 
+function mockAllHospitalizations(
+  items: ReturnType<typeof makeHosp>[],
+  state: { isLoading?: boolean; isError?: boolean } = {},
+) {
+  vi.mocked(useGetAllHospitalizations).mockReturnValue({
+    data: items,
+    isLoading: state.isLoading ?? false,
+    isError: state.isError ?? false,
+  } as ReturnType<typeof useGetAllHospitalizations>);
+}
+
 beforeEach(() => {
   localStorage.setItem("auth_current_clinic:v1", "clinic-1");
   mockHospitalizationsPage([]);
+  mockAllHospitalizations([]);
 });
 
 describe("HospitalizationList — view切替の操作領域", () => {
@@ -212,8 +225,61 @@ describe("HospitalizationList — BUG-009 status tab → server filter", () => {
     expect(screen.getByText("H-R1")).toBeInTheDocument();
   });
 
+  it("board は全件クエリを使い、list page に無い行（未割当・後続ページ）も表示する", async () => {
+    // Codex PR606 #2: list page は 1件のみ返すが board ソースには
+    // ページ外の caged 行と未割当（cageId なし）行が含まれる。
+    mockHospitalizationsPage(
+      [makeHosp({ id: "p1", petName: "ページ1のみ", status: "入院中", cageId: "cage-1" })],
+      42,
+    );
+    mockAllHospitalizations([
+      makeHosp({ id: "p1", petName: "ページ1のみ", status: "入院中", cageId: "cage-1" }),
+      makeHosp({ id: "p2", petName: "後続ページケージ", status: "入院中", cageId: "cage-1" }),
+      makeHosp({
+        id: "u1",
+        petName: "未割当タロ",
+        status: "入院中",
+        cageId: undefined as unknown as string,
+      }),
+    ]);
+
+    render(<HospitalizationList />, { wrapper: createWrapper() });
+
+    // 既定 viewMode=board: 全件ソースの両方が描画される
+    expect(await screen.findByText(/後続ページケージ/)).toBeInTheDocument();
+    expect(await screen.findByText(/未割当タロ/)).toBeInTheDocument();
+  });
+
+  it("board 全件フェッチ中は部分データを描画せず loading を出す", async () => {
+    mockHospitalizationsPage([makeHosp({ id: "1", petName: "ページ1行", status: "入院中" })], 42);
+    mockAllHospitalizations([], { isLoading: true });
+
+    render(<HospitalizationList />, { wrapper: createWrapper() });
+
+    // board 行はまだ出ない（部分ページの描画をしない）
+    expect(screen.queryByText("ページ1行")).not.toBeInTheDocument();
+  });
+
+  it("board 全件フェッチがエラーならエラー表示に倒す", async () => {
+    mockHospitalizationsPage([makeHosp({ id: "1", petName: "ページ1行", status: "入院中" })], 42);
+    mockAllHospitalizations([], { isError: true });
+
+    render(<HospitalizationList />, { wrapper: createWrapper() });
+
+    expect(screen.queryByText("ページ1行")).not.toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("データの取得に失敗しました");
+  });
+
   it("board と list が同一 data source を参照する", async () => {
     mockHospitalizationsPage([
+      makeHosp({
+        id: "1",
+        petName: "ボード兼リスト",
+        status: "入院中",
+        cageId: "cage-1",
+      }),
+    ]);
+    mockAllHospitalizations([
       makeHosp({
         id: "1",
         petName: "ボード兼リスト",

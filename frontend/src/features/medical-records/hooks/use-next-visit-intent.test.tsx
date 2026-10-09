@@ -206,6 +206,64 @@ describe("useNextVisitIntent — tentative mutation（EMR-308 A2）", () => {
 });
 
 describe("useNextVisitIntent — ガード", () => {
+  it("実予約 + tentative 同居: create のみ（edit なし）では上書き set を送らない", async () => {
+    // Codex PR606 #8: kind==="appointment" でも tentative が同居していれば
+    // PUT は既存 intent の上書き（BE: reservations:edit）になる。
+    // create-only ユーザーに送らせない — fail-closed。
+    vi.mocked(usePermission).mockReturnValue({
+      canView: true,
+      canCreate: true,
+      canEdit: false,
+      canDelete: false,
+    });
+    mockReservations([
+      {
+        id: "t-1",
+        status: "tentative",
+        start: wallDateInDays(45, 0, 0),
+      } as unknown as Reservation,
+      reservationOf("confirmed", wallDateInDays(30, 14, 30)),
+    ]);
+    const { result, setIntentMutation, clearIntentMutation } = renderIntent();
+
+    await act(async () => {
+      result.current.handleIntentDateChange(validFutureDate());
+    });
+
+    expect(setIntentMutation.mutateAsync).not.toHaveBeenCalled();
+    expect(result.current.canMutateIntent).toBe(false);
+    // edit なしなので clear も送らない
+    await act(async () => {
+      result.current.handleIntentDateChange("");
+    });
+    expect(clearIntentMutation.mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("実予約 + tentative 同居: edit のみ（create なし）でも上書き set を送れる", async () => {
+    // #8: 既存 tentative 上書きの BE 権限は reservations:edit（create は不要）。
+    vi.mocked(usePermission).mockReturnValue({
+      canView: true,
+      canCreate: false,
+      canEdit: true,
+      canDelete: false,
+    });
+    mockReservations([
+      {
+        id: "t-1",
+        status: "tentative",
+        start: wallDateInDays(45, 0, 0),
+      } as unknown as Reservation,
+      reservationOf("confirmed", wallDateInDays(30, 14, 30)),
+    ]);
+    const { result, setIntentMutation } = renderIntent();
+
+    await act(async () => {
+      result.current.handleIntentDateChange(validFutureDate());
+    });
+
+    expect(setIntentMutation.mutateAsync).toHaveBeenCalled();
+  });
+
   it("create なし・edit のみ: set（PUT）は送らず clear（DELETE）は送る", async () => {
     // PUT intent は reservations:create、DELETE intent は reservations:edit の
     // 方向別契約（routes.go）。canEdit だけでも intentFieldValue の消去は動く。
@@ -302,5 +360,72 @@ describe("useNextVisitIntent — ガード", () => {
     });
 
     await waitFor(() => expect(result.current.intentFieldValue).toBe(formatJSTWallDate(tentative)));
+  });
+});
+
+describe("useNextVisitIntent — mutation 直列化（Codex PR606 #11）", () => {
+  it("set 実行中に clear を要求すると、set 完了まで clear は発行されない", async () => {
+    let resolveSet!: () => void;
+    const setIntentMutation = {
+      mutateAsync: vi.fn().mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveSet = resolve;
+          }),
+      ),
+    };
+    const clearIntentMutation = { mutateAsync: vi.fn().mockResolvedValue(undefined) };
+    const { result } = renderHook(() =>
+      useNextVisitIntent({
+        petId: "10",
+        isPetDeceased: false,
+        setIntentMutation,
+        clearIntentMutation,
+      }),
+    );
+
+    await act(async () => {
+      result.current.handleIntentDateChange(validFutureDate());
+    });
+    // set が in-flight の間に clear を要求
+    await act(async () => {
+      result.current.handleIntentDateChange("");
+    });
+    // FIFO: set が未解決なので clear はまだ発行されない
+    expect(clearIntentMutation.mutateAsync).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveSet();
+    });
+    await waitFor(() => expect(clearIntentMutation.mutateAsync).toHaveBeenCalledWith("10"));
+    // 発行順序: set → clear（逆順完了による stale intentDate 復活を防ぐ）
+    const setOrder = setIntentMutation.mutateAsync.mock.invocationCallOrder[0];
+    const clearOrder = clearIntentMutation.mutateAsync.mock.invocationCallOrder[0];
+    expect(setOrder).toBeLessThan(clearOrder);
+  });
+
+  it("先の set が失敗しても後続要求の draft は消さない（generation guard）", async () => {
+    const date1 = formatJSTWallDate(wallDateInDays(60, 0, 0));
+    const date2 = formatJSTWallDate(wallDateInDays(75, 0, 0));
+    const setIntentMutation = {
+      mutateAsync: vi.fn().mockRejectedValueOnce(new Error("500")).mockResolvedValueOnce({}),
+    };
+    const { result } = renderHook(() =>
+      useNextVisitIntent({
+        petId: "10",
+        isPetDeceased: false,
+        setIntentMutation,
+        clearIntentMutation: { mutateAsync: vi.fn().mockResolvedValue(undefined) },
+      }),
+    );
+
+    await act(async () => {
+      result.current.handleIntentDateChange(date1); // 失敗する
+      result.current.handleIntentDateChange(date2); // 直列化されて後で成功
+    });
+
+    await waitFor(() => expect(setIntentMutation.mutateAsync).toHaveBeenCalledTimes(2));
+    // 先の失敗が最新 draft（date2）を巻き戻さない
+    expect(result.current.intentFieldValue).toBe(date2);
   });
 });

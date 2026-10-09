@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { getStoredClinicId } from "@/lib/current-clinic";
+import { useCurrentClinicId } from "@/hooks/use-current-clinic-id";
 import { DAY_VIEW_FETCH_LIMIT } from "@/config/fetch-limits";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
@@ -52,9 +54,13 @@ function buildReservationParams(filters?: ReservationFilters): Record<string, st
 
 const getReservations = async (filters?: ReservationFilters): Promise<Reservation[]> => {
   const params = buildReservationParams(filters);
+  // Codex PR606 #10: 複数ページにまたがる fetch は固定 clinic で発行する。
+  // 発行時点の stored clinic をピン留めしないと、切替中に page2 以降が
+  // 別クリニックへ飛んで混在データを返す（interceptor は発行毎に読む）。
+  const pinnedClinicId = filters?.clinicId ?? getStoredClinicId();
   const requestConfig = {
     params,
-    ...(filters?.clinicId ? { headers: { "X-Clinic-ID": filters.clinicId } } : {}),
+    ...(pinnedClinicId ? { headers: { "X-Clinic-ID": pinnedClinicId } } : {}),
   };
   const { data: first } = await axios.get<ReservationsListResponse>(
     "/v1/reservations",
@@ -83,8 +89,12 @@ const getReservations = async (filters?: ReservationFilters): Promise<Reservatio
  * queryKey prefix は reservations feature 側と同一を維持する。
  */
 export const useGetReservations = (filters?: ReservationFilters) => {
+  const currentClinicId = useCurrentClinicId();
+  // Codex PR606 #10: in-flight 結果が別クリニックの key に書き込まれないよう
+  // query key に clinic scope を含める（clinicIds 横断取得は行の clinicId で区別済み）。
+  const scopeClinicId = filters?.clinicId ?? currentClinicId;
   return useQuery({
-    queryKey: queryKeys.reservations.list(filters),
+    queryKey: queryKeys.reservations.list({ ...filters, scopeClinicId }),
     queryFn: () => getReservations(filters),
     enabled: filters?.enabled ?? true,
     staleTime: QUERY_STALE_TIMES.REALTIME, // 予約一覧は高頻度変更

@@ -6,6 +6,7 @@ import { C } from "@/lib/design-tokens";
 import type { Reservation } from "@/types";
 
 import { DayColumn } from "./WeekViewDayColumn";
+import { TENTATIVE_APPOINTMENT_LABEL } from "../lib/tentative";
 import {
   HOUR_HEIGHT,
   HOURS,
@@ -20,6 +21,8 @@ export type { ReservationTypeColor } from "../lib/week-view-grid-constants";
 interface WeekViewGridProps {
   startDate: Date;
   appointmentsByDay: Map<string, Reservation[]>;
+  /** Codex PR606 #9: 日付別の tentative（次回予定・未予約）。sticky 帯に常時表示する。 */
+  tentativeByDay: Map<string, Reservation[]>;
   onAppointmentClick: (reservation: Reservation) => void;
   onTimeSlotClick?: (date: Date) => void;
   onAppointmentUpdate?: (reservation: Reservation, newStart: Date, newEnd: Date) => void;
@@ -30,6 +33,7 @@ interface WeekViewGridProps {
 export function WeekViewGrid({
   startDate,
   appointmentsByDay,
+  tentativeByDay,
   onAppointmentClick,
   onTimeSlotClick,
   onAppointmentUpdate,
@@ -50,14 +54,25 @@ export function WeekViewGrid({
       className={`flex-1 border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-auto relative`}
     >
       <div style={{ minWidth: "100%" }}>
-        <div className={`flex border-b ${C.borderMedium} sticky top-0 z-30 ${C.bgWhite}`}>
-          <div
-            className={`w-12 flex-shrink-0 ${C.bgPage} border-r border-b ${C.borderMedium} sticky left-0 z-40`}
-          />
-          <WeekHeader
+        {/* Codex PR606 #9: ヘッダー行と tentative 帯を同一 sticky ブロックに置き、
+            縦スクロールしても tentative が常に表示されるようにする */}
+        <div className={`sticky top-0 z-30 ${C.bgWhite}`}>
+          <div className={`flex border-b ${C.borderMedium}`}>
+            <div
+              className={`w-12 flex-shrink-0 ${C.bgPage} border-r border-b ${C.borderMedium} sticky left-0 z-40`}
+            />
+            <WeekHeader
+              startDate={startDate}
+              appointmentsByDay={appointmentsByDay}
+              tentativeByDay={tentativeByDay}
+              columnWidth={columnWidth}
+            />
+          </div>
+          <WeekTentativeRow
             startDate={startDate}
-            appointmentsByDay={appointmentsByDay}
+            tentativeByDay={tentativeByDay}
             columnWidth={columnWidth}
+            onAppointmentClick={onAppointmentClick}
           />
         </div>
 
@@ -92,16 +107,25 @@ export function WeekViewGrid({
 interface WeekHeaderProps {
   startDate: Date;
   appointmentsByDay: Map<string, Reservation[]>;
+  tentativeByDay: Map<string, Reservation[]>;
   columnWidth: string;
 }
 
-function WeekHeader({ startDate, appointmentsByDay, columnWidth }: WeekHeaderProps) {
+function WeekHeader({
+  startDate,
+  appointmentsByDay,
+  tentativeByDay,
+  columnWidth,
+}: WeekHeaderProps) {
   const headerDays = useMemo(
     () =>
       WEEK_DAYS.map((offset) => {
         const day = addDays(startDate, offset);
         const isToday = isSameDay(day, new Date());
-        const count = appointmentsByDay.get(format(day, "yyyy-MM-dd"))?.length ?? 0;
+        const dayKey = format(day, "yyyy-MM-dd");
+        // #9: tentative は帯側に出すが件数には含める（その日の予定として数える）
+        const count =
+          (appointmentsByDay.get(dayKey)?.length ?? 0) + (tentativeByDay.get(dayKey)?.length ?? 0);
         const dow = day.getDay();
         return (
           <div
@@ -134,10 +158,92 @@ function WeekHeader({ startDate, appointmentsByDay, columnWidth }: WeekHeaderPro
           </div>
         );
       }),
-    [appointmentsByDay, columnWidth, startDate],
+    [appointmentsByDay, tentativeByDay, columnWidth, startDate],
   );
 
   return <div className="flex flex-1">{headerDays}</div>;
+}
+
+/**
+ * Codex PR606 #9: tentative（次回予定・未予約）の常時表示帯。
+ * sentinel 00:00 のタイムグリッド位置に依存せず、sticky ヘッダー直下の
+ * 日付セルに chip で出す。ドラッグ不可・クリックで詳細を開く。
+ * 1日あたりの表示は最大2行分で内部スクロール（帯が viewport を占有しないよう制限）。
+ */
+interface WeekTentativeRowProps {
+  startDate: Date;
+  tentativeByDay: Map<string, Reservation[]>;
+  columnWidth: string;
+  onAppointmentClick: (reservation: Reservation) => void;
+}
+
+function WeekTentativeRow({
+  startDate,
+  tentativeByDay,
+  columnWidth,
+  onAppointmentClick,
+}: WeekTentativeRowProps) {
+  const hasAny = useMemo(
+    () => [...tentativeByDay.values()].some((list) => list.length > 0),
+    [tentativeByDay],
+  );
+  if (!hasAny) return null;
+  return (
+    <div className={`flex border-b ${C.borderMedium}`} data-testid="week-tentative-row">
+      <div
+        className={`w-12 flex-shrink-0 ${C.bgPage} border-r ${C.borderMedium} sticky left-0 z-40 flex items-center justify-center`}
+      >
+        <span className={`text-2xs ${C.text60} leading-tight`}>次回予定</span>
+      </div>
+      <div className="flex flex-1">
+        {WEEK_DAYS.map((offset) => {
+          const day = addDays(startDate, offset);
+          const dayTentatives = tentativeByDay.get(format(day, "yyyy-MM-dd")) ?? [];
+          return (
+            <div
+              key={offset}
+              className={`flex-1 flex-shrink-0 border-r ${C.borderMedium} p-1 flex flex-col gap-1 max-h-18 overflow-y-auto`}
+              style={{ minWidth: columnWidth }}
+            >
+              {dayTentatives.map((reservation) => (
+                <TentativeChip
+                  key={reservation.id}
+                  reservation={reservation}
+                  onClick={onAppointmentClick}
+                />
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+interface TentativeChipProps {
+  reservation: Reservation;
+  onClick: (reservation: Reservation) => void;
+}
+
+function TentativeChip({ reservation, onClick }: TentativeChipProps) {
+  const label = `${TENTATIVE_APPOINTMENT_LABEL} ${reservation.petName} ${reservation.ownerName}`;
+  return (
+    <button
+      type="button"
+      className={`flex items-center gap-1 min-h-7 w-full rounded border border-dashed px-1 py-0.5 text-left cursor-pointer ${C.bgWarning50} ${C.borderWarning20} ${C.textWarning}`}
+      aria-label={label}
+      title={label}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick(reservation);
+      }}
+    >
+      <span className="font-semibold whitespace-nowrap text-2xs flex-shrink-0">
+        {TENTATIVE_APPOINTMENT_LABEL}
+      </span>
+      <span className="truncate text-xs font-medium">{reservation.petName}</span>
+    </button>
+  );
 }
 
 const TimeSidebar = memo(function TimeSidebar() {
