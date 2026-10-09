@@ -1,7 +1,7 @@
 import { DndContext } from "@dnd-kit/core";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   DangerLevelHigh,
@@ -47,6 +47,7 @@ const baseAppointment: ReceptionAppointment = {
   status: "checked_in",
   notes: undefined,
   source: "manual",
+  checkedInAt: undefined,
   petStatus: PetStatusAlive,
   petDangerLevel: DangerLevelLow,
 };
@@ -257,7 +258,7 @@ describe("AppointmentCard", () => {
 
   it("死亡した一般診療の badge を表示し、card click・drag・カルテ・会計を抑止する", () => {
     const onCardClick = vi.fn();
-    const deceasedAppointment = {
+    const deceasedAppointment: ReceptionAppointment = {
       ...baseAppointment,
       petStatus: PetStatusDeceased,
     };

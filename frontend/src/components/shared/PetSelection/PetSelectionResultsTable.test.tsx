@@ -15,16 +15,46 @@ vi.mock("@/hooks/use-animal-species", () => ({
   }),
 }));
 
+// Pet は transformBackendPetToFrontend の ReturnType（wire 正本は PetResponse）。
+// 未記録を表すキーは transform の出力と同じく undefined で揃える。
 const PET = {
   id: "pet-1",
+  clinicId: undefined,
   ownerId: "owner-1",
   ownerNumber: 1,
   ownerName: "山田 太郎",
+  ownerNameKana: undefined,
+  address: undefined,
   phone: "",
+  petNumber: "",
   name: "ポチ",
+  petNameKana: undefined,
   species: "犬",
+  animalSpeciesId: undefined,
+  breed: "",
+  color: "",
+  bloodType: undefined,
+  microchipNumber: undefined,
   gender: "雄",
   status: "生存",
+  birthDate: undefined,
+  neuteredDate: undefined,
+  neuteredStatus: undefined,
+  weight: undefined,
+  food: "",
+  environment: "",
+  acquisitionType: undefined,
+  dangerLevel: undefined,
+  dangerReason: undefined,
+  lastVisit: undefined,
+  insuranceId: undefined,
+  insuranceName: undefined,
+  insuranceDetails: undefined,
+  remarks: "",
+  nameOrigin: undefined,
+  meetingStory: undefined,
+  deceasedAt: undefined,
+  deceasedReason: undefined,
 } satisfies Pet;
 
 const DANGER_REASON = "診察時に咬傷歴あり";
@@ -552,7 +582,7 @@ describe("PetSelectionResultsTable row actions", () => {
   it("生死不明の個体もfail-closedで選択不可になる", () => {
     render(
       <PetSelectionResultsTable
-        pets={createResults([{ ...PET, status: undefined }])}
+        pets={createResults([{ ...PET, status: "不明" }])}
         onSelect={vi.fn()}
       />,
     );

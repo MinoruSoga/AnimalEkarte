@@ -1,9 +1,10 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createTestWrapper } from "@/testing/TestUtils";
 import { useGetOwnerSharedPets } from "../api/get-owner-shared-pets";
+import type { OwnerSharedPetsResponse } from "../api/get-owner-shared-pets";
 import type { PetFormData } from "../types";
 import { OwnerPetsSection } from "./OwnerPetsSection";
 
@@ -23,6 +24,10 @@ vi.mock("@/hooks/use-permission", () => ({
 let reservationPermission = false;
 
 const mockedUseGetOwnerSharedPets = vi.mocked(useGetOwnerSharedPets);
+
+// useGetOwnerSharedPets の戻り値は UseQueryResult<OwnerSharedPetsResponse, Error>。
+// data は実レスポンス型で揃える（空の shared_pets も OwnerSharedPetApiResponse[] として型付け）。
+const EMPTY_SHARED_PETS: OwnerSharedPetsResponse = { shared_pets: [] };
 
 const PET = {
   id: "pet-1",
@@ -82,7 +87,7 @@ describe("OwnerPetsSection row actions", () => {
     reservationPermission = false;
     mockedUseGetOwnerSharedPets.mockReset();
     mockedUseGetOwnerSharedPets.mockReturnValue({
-      data: { shared_pets: [] },
+      data: EMPTY_SHARED_PETS,
       isError: false,
       isLoading: false,
     } as ReturnType<typeof useGetOwnerSharedPets>);
@@ -185,7 +190,7 @@ describe("OwnerPetsSection pet detail link (EMR-174)", () => {
     reservationPermission = false;
     mockedUseGetOwnerSharedPets.mockReset();
     mockedUseGetOwnerSharedPets.mockReturnValue({
-      data: { shared_pets: [] },
+      data: EMPTY_SHARED_PETS,
       isError: false,
       isLoading: false,
     } as ReturnType<typeof useGetOwnerSharedPets>);
@@ -228,7 +233,7 @@ describe("OwnerPetsSection shared pets", () => {
     reservationPermission = false;
     mockedUseGetOwnerSharedPets.mockReset();
     mockedUseGetOwnerSharedPets.mockReturnValue({
-      data: { shared_pets: [] },
+      data: EMPTY_SHARED_PETS,
       isError: false,
       isLoading: false,
     } as ReturnType<typeof useGetOwnerSharedPets>);
@@ -445,7 +450,7 @@ describe("OwnerPetsSection 誕生月バッジ (EMR-301)", () => {
     vi.setSystemTime(new Date("2026-10-10T00:00:00+09:00"));
     mockedUseGetOwnerSharedPets.mockReset();
     mockedUseGetOwnerSharedPets.mockReturnValue({
-      data: { shared_pets: [] },
+      data: EMPTY_SHARED_PETS,
       isError: false,
       isLoading: false,
     } as ReturnType<typeof useGetOwnerSharedPets>);

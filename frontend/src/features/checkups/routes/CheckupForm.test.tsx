@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 
 import { usePermission } from "@/hooks/use-permission";
+import type { Pet } from "@/types";
 import { ResourceMedicalRecords } from "@/types/generated/models";
 import { CheckupForm } from "./CheckupForm";
 import { useCheckupForm } from "../hooks/use-checkup-form";
@@ -37,19 +38,54 @@ function renderForm() {
   );
 }
 
+// useCheckupForm の pet は実 Pet 型（transformBackendPetToFrontend の ReturnType）。
+// 未記録を表すキーは transform の出力と同じく undefined で揃える。
+const PET: Pet = {
+  id: "pet-1",
+  clinicId: undefined,
+  ownerId: "owner-1",
+  ownerNumber: 1,
+  ownerName: "山田 太郎",
+  ownerNameKana: undefined,
+  address: undefined,
+  phone: "",
+  petNumber: "0001",
+  name: "ポチ",
+  petNameKana: undefined,
+  species: "",
+  animalSpeciesId: undefined,
+  breed: "",
+  color: "",
+  bloodType: undefined,
+  microchipNumber: undefined,
+  gender: undefined,
+  status: "生存",
+  birthDate: undefined,
+  neuteredDate: undefined,
+  neuteredStatus: undefined,
+  weight: "5.0kg",
+  food: "",
+  environment: "",
+  acquisitionType: undefined,
+  dangerLevel: undefined,
+  dangerReason: undefined,
+  lastVisit: undefined,
+  insuranceId: undefined,
+  insuranceName: undefined,
+  insuranceDetails: undefined,
+  remarks: "",
+  nameOrigin: undefined,
+  meetingStory: undefined,
+  deceasedAt: undefined,
+  deceasedReason: undefined,
+};
+
 const formActionMock = vi.fn();
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(useCheckupForm).mockReturnValue({
-    pet: {
-      id: "pet-1",
-      ownerId: "owner-1",
-      ownerName: "山田 太郎",
-      name: "ポチ",
-      petNumber: "0001",
-      weight: "5.0kg",
-    },
+    pet: PET,
     isPetLoading: false,
     form: {
       checkupTypeId: "",
@@ -163,15 +199,7 @@ describe("CheckupForm 死亡ペット render側二重防壁 (FE-RC-004)", () => 
 
   it("死亡ペットでは SubmitButton を非表示にし、理由を表示する（callback ガードとの二重防壁）", () => {
     vi.mocked(useCheckupForm).mockReturnValue({
-      pet: {
-        id: "pet-1",
-        ownerId: "owner-1",
-        ownerName: "山田 太郎",
-        name: "ポチ",
-        petNumber: "0001",
-        weight: "5.0kg",
-        status: "死亡",
-      },
+      pet: { ...PET, status: "死亡" },
       isPetLoading: false,
       form: {
         checkupTypeId: "",
@@ -219,17 +247,9 @@ describe("CheckupForm 死亡ペット render側二重防壁 (FE-RC-004)", () => 
 });
 
 describe("CheckupForm 誕生月バッジ (EMR-301)", () => {
-  function renderWithPet(petOverrides: Record<string, unknown>) {
+  function renderWithPet(petOverrides: Partial<Pet>) {
     vi.mocked(useCheckupForm).mockReturnValue({
-      pet: {
-        id: "pet-1",
-        ownerId: "owner-1",
-        ownerName: "山田 太郎",
-        name: "ポチ",
-        petNumber: "0001",
-        weight: "5.0kg",
-        ...petOverrides,
-      },
+      pet: Object.assign({ ...PET }, petOverrides),
       isPetLoading: false,
       form: {
         checkupTypeId: "",
@@ -303,14 +323,7 @@ describe("CheckupForm 必須エラー表示 (EMR-319)", () => {
       canDelete: false,
     });
     vi.mocked(useCheckupForm).mockReturnValue({
-      pet: {
-        id: "pet-1",
-        ownerId: "owner-1",
-        ownerName: "山田 太郎",
-        name: "ポチ",
-        petNumber: "0001",
-        weight: "5.0kg",
-      },
+      pet: PET,
       isPetLoading: false,
       form: {
         checkupTypeId: "",

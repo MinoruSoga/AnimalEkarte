@@ -100,6 +100,7 @@ export interface PetSummaryResponse {
   breed?: string;
   gender?: string;
   birth_date?: string;
+  deceased_at?: string;
   neutered_date?: string;
   neutered_status?: string;
   animal_species?: AnimalSpeciesSummaryResponse;

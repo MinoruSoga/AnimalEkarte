@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ReceptionDialogBody, ReceptionDialogFooter } from "./ReceptionDetailModalParts";
 import type { ReceptionAppointment } from "../api/types";
 
@@ -24,6 +24,7 @@ const trimmingAppointment: ReceptionAppointment = {
   status: "checked_in",
   notes: undefined,
   source: "manual",
+  checkedInAt: undefined,
 };
 
 describe("ReceptionDialogFooter", () => {

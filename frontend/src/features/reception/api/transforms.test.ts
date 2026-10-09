@@ -8,6 +8,7 @@ import {
 import {
   DangerLevelHigh,
   PetGenderMale,
+  PetNeuteredStatusUnknown,
   PetStatusDeceased,
   ReservationSourceManual,
   type Reservation as BackendReservation,
@@ -171,11 +172,13 @@ describe("transformReservationToReceptionAppointment", () => {
         status: PetStatusDeceased,
         breed: "",
         color: "",
+        neutered_status: PetNeuteredStatusUnknown,
         danger_level: DangerLevelHigh,
         food: "",
         environment: "",
         phone: "",
         remarks: "",
+        version: 1,
         created_at: "2026-03-25T00:00:00Z",
         updated_at: "2026-03-25T00:00:00Z",
       } satisfies NonNullable<BackendReservation["pet"]>,
@@ -198,12 +201,14 @@ describe("transformReservationToReceptionAppointment", () => {
       status: PetStatusDeceased,
       breed: "",
       color: "",
+      neutered_status: PetNeuteredStatusUnknown,
       danger_level: DangerLevelHigh,
       danger_reason: "保定時に噛む",
       food: "",
       environment: "",
       phone: "",
       remarks: "",
+      version: 1,
       created_at: "2026-03-25T00:00:00Z",
       updated_at: "2026-03-25T00:00:00Z",
     } satisfies BackendPetWithDangerReason;
@@ -232,10 +237,13 @@ describe("transformReservationToReceptionAppointment", () => {
         birth_date: "2018-10-05",
         breed: "",
         color: "",
+        neutered_status: PetNeuteredStatusUnknown,
+        danger_level: DangerLevelHigh,
         food: "",
         environment: "",
         phone: "",
         remarks: "",
+        version: 1,
         created_at: "2026-03-25T00:00:00Z",
         updated_at: "2026-03-25T00:00:00Z",
       } satisfies NonNullable<BackendReservation["pet"]>,
@@ -300,11 +308,16 @@ describe("transformReservationToReceptionAppointment", () => {
   });
 
   it("pet_id / owner_id が null の場合も空文字にする", () => {
-    const result = transformReservationToReceptionAppointment({
-      ...minimal,
-      pet_id: null,
-      owner_id: null,
-    } as BackendReservation);
+    // generated 型の `pet_id?: number` は omitempty 宣言だが、Go の nullable
+    // フィールドは実際の JSON で null を返しうる。optionalID が
+    // number|null|undefined を防御処理する契約なので null を注入する。
+    // Object.assign の交差型（BackendReservation & { pet_id: null; owner_id: null }）
+    // で型チェックを維持したまま契約外の値を作る（型緩和・assertion 不使用）。
+    const nullIdReservation: BackendReservation = Object.assign(
+      { ...minimal },
+      { pet_id: null, owner_id: null },
+    );
+    const result = transformReservationToReceptionAppointment(nullIdReservation);
 
     expect(result.petId).toBe("");
     expect(result.ownerId).toBe("");
@@ -397,11 +410,14 @@ describe("transformReservationsToReceptionColumns", () => {
   // EMR-308: tentative（次回予定・未予約）は実受付ではない sentinel 行。
   // STATUS_TO_COLUMN_ID 未登録 → 受付予約列に落ちるのを防ぐため transform で除外する。
   it("tentative の予約はカンバンに含まれない", () => {
-    const tentative = {
-      ...minimal,
-      id: 9,
-      status: "tentative",
-    } as unknown as BackendReservation;
+    // generated の ReservationStatus union に "tentative" は無いが wire には
+    // 存在する（transforms.ts が String(r.status) 比較で回避している経路と同じ）。
+    // Object.assign の交差型（BackendReservation & { status: string }）で
+    // 型チェックを維持したまま union 外の値を作る（型緩和・assertion 不使用）。
+    const tentative: BackendReservation = Object.assign(
+      { ...minimal, id: 9 },
+      { status: "tentative" },
+    );
     const columns = transformReservationsToReceptionColumns([
       { ...minimal, id: 1, status: "confirmed" },
       tentative,
