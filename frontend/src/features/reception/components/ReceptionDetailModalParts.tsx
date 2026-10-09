@@ -13,6 +13,7 @@ import User from "lucide-react/dist/esm/icons/user";
 
 import { Badge } from "@/components/ui/badge";
 import { DangerBadge } from "@/components/shared/DangerBadge";
+import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { C, ICON } from "@/lib/design-tokens";
 import {
@@ -207,6 +208,13 @@ export function ReceptionDialogBody({
                 subjectName={appointment.petName}
                 reason={appointment.petDangerReason}
               />
+              {/* EMR-301: 誕生月バッジ。死亡ペットは suppress。 */}
+              {appointment.petStatus !== "deceased" && appointment.petDeceasedAt == null ? (
+                <BirthdayBadge
+                  birthDate={appointment.petBirthDate}
+                  subjectName={appointment.petName}
+                />
+              ) : null}
             </div>
             <div className={`text-sm ${C.text60}`}>{appointment.petType}</div>
           </div>

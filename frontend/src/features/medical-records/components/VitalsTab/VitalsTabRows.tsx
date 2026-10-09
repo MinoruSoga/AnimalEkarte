@@ -147,7 +147,8 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           value={form.recorded_at}
           onChange={(e) => handleChange("recorded_at", e.target.value)}
           aria-label="記録日時"
-          className={EDIT_INPUT_CLASS}
+          aria-invalid={Boolean(editFormErrors.recorded_at)}
+          className={`${EDIT_INPUT_CLASS}${editFormErrors.recorded_at ? ` ${STYLE.formInputError}` : ""}`}
         />
         <FormFieldError message={editFormErrors.recorded_at} />
       </TableCell>
@@ -159,7 +160,8 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           onChange={(e) => handleChange("temperature", e.target.value)}
           placeholder="-"
           aria-label={`体温 (${formatRecordedAt(vital.recorded_at)})`}
-          className={EDIT_INPUT_CLASS}
+          aria-invalid={Boolean(editFormErrors.temperature)}
+          className={`${EDIT_INPUT_CLASS}${editFormErrors.temperature ? ` ${STYLE.formInputError}` : ""}`}
         />
         <FormFieldError message={editFormErrors.temperature} />
       </TableCell>
@@ -277,7 +279,8 @@ export function VitalsAddRow({
           value={addForm.recorded_at}
           onChange={(e) => onChange({ recorded_at: e.target.value })}
           aria-label="記録日時"
-          className={`${ADD_INPUT_CLASS} w-40`}
+          aria-invalid={Boolean(errors.recorded_at)}
+          className={`${ADD_INPUT_CLASS} w-40${errors.recorded_at ? ` ${STYLE.formInputError}` : ""}`}
         />
         <FormFieldError message={errors.recorded_at} />
       </div>
@@ -289,7 +292,8 @@ export function VitalsAddRow({
           onChange={(e) => onChange({ temperature: e.target.value })}
           placeholder="体温"
           aria-label="体温"
-          className={`${ADD_INPUT_CLASS} w-20`}
+          aria-invalid={Boolean(errors.temperature)}
+          className={`${ADD_INPUT_CLASS} w-20${errors.temperature ? ` ${STYLE.formInputError}` : ""}`}
         />
         <FormFieldError message={errors.temperature} />
       </div>

@@ -32,6 +32,25 @@ export function isPastJSTDate(date: string): boolean {
   return date < todayJSTISO();
 }
 
+/**
+ * EMR-301: birthDate（YYYY-MM-DD）の月が現在の JST 月と一致するか。
+ * 誕生月は毎年巡るため、月部分のみを比較する（年は問わない・同日強調なし）。
+ * 形式不正・暦上無効（例: 02-30、非閏年の 02-29）・欠損は false（fail-closed）。
+ */
+export function isBirthMonthJST(birthDate: string | null | undefined): boolean {
+  if (!birthDate || !/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return false;
+  const [year, month, day] = birthDate.split("-").map(Number);
+  const candidate = new Date(Date.UTC(year, month - 1, day));
+  if (
+    candidate.getUTCFullYear() !== year ||
+    candidate.getUTCMonth() !== month - 1 ||
+    candidate.getUTCDate() !== day
+  ) {
+    return false;
+  }
+  return birthDate.slice(5, 7) === currentJSTYearMonth().slice(5);
+}
+
 export function toJSTWallDate(value: Date | string): Date {
   const jstDate = toJSTParts(value);
   return new Date(

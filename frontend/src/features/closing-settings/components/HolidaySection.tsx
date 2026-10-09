@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { C, STYLE } from "@/lib/design-tokens";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { FieldHelp } from "@/components/shared/FieldHelp";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { EmptyState } from "@/components/shared/DataStates";
 import { getFormString } from "@/lib/form-data";
@@ -25,6 +26,8 @@ export const HolidaySection = memo(function HolidaySection({
 }: HolidaySectionProps) {
   const [showForm, setShowForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  // EMR-319: ネイティブ required のブラウザバブルの代わりにアプリ側の赤枠+エラー文を表示する。
+  const [dateInvalid, setDateInvalid] = useState(false);
   const createMutation = useCreateHoliday();
   const { mutateAsync: deleteHoliday } = useDeleteHoliday();
   // backend は POST→create / DELETE→delete を要求するため、各アクションのガードも対応する権限で判定する。
@@ -77,7 +80,10 @@ export const HolidaySection = memo(function HolidaySection({
   }, [deleteTarget, handleDelete]);
   const handleCloseDeleteDialog = useCallback(() => setDeleteTarget(null), []);
 
-  const handleShowForm = useCallback(() => setShowForm(true), []);
+  const handleShowForm = useCallback(() => {
+    setDateInvalid(false);
+    setShowForm(true);
+  }, []);
   const handleHideForm = useCallback(() => setShowForm(false), []);
 
   return (
@@ -114,8 +120,19 @@ export const HolidaySection = memo(function HolidaySection({
                 id="holiday_date"
                 name="date"
                 type="date"
-                className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
+                className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3${dateInvalid ? ` ${STYLE.formInputError}` : ""}`}
                 required
+                aria-invalid={dateInvalid || undefined}
+                aria-describedby={dateInvalid ? "holiday-date-error" : undefined}
+                onInvalid={(e) => {
+                  e.preventDefault();
+                  setDateInvalid(true);
+                }}
+                onChange={() => setDateInvalid(false)}
+              />
+              <FormFieldError
+                id="holiday-date-error"
+                message={dateInvalid ? "日付を入力してください" : undefined}
               />
             </div>
             <div>

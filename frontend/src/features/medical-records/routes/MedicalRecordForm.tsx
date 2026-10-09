@@ -6,6 +6,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { toast } from "sonner";
 import { usePermission } from "@/hooks/use-permission";
 import { useTitle } from "@/hooks/use-title";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { useMedicalRecordForm } from "../hooks/use-medical-record-form";
 import { useGetMedicalRecord } from "../api/get-medical-record";
 import { useDeleteMedicalRecord } from "../api/delete-medical-record";
@@ -22,21 +23,24 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const { canEdit, canCreate, canDelete } = usePermission("medical-records");
   const canSubmit = form.isNewRecord ? canCreate : canEdit;
   const canDeleteRef = useRef(canDelete);
-  const selectedPetStatusRef = useRef(form.selectedPet?.status);
+  const selectedPetIsDeceasedRef = useRef(
+    form.selectedPet ? isPetDeceasedForClinicalWrite(form.selectedPet) : false,
+  );
   useLayoutEffect(() => {
     canDeleteRef.current = canDelete;
   }, [canDelete]);
   useLayoutEffect(() => {
-    selectedPetStatusRef.current = form.selectedPet?.status;
-  }, [form.selectedPet?.status]);
+    selectedPetIsDeceasedRef.current = form.selectedPet
+      ? isPetDeceasedForClinicalWrite(form.selectedPet)
+      : false;
+  }, [form.selectedPet]);
 
   const { data: currentRecord } = useGetMedicalRecord(recordId ?? "");
   const recordClinicId = currentRecord?.clinicId;
   const { mutate: deleteRecord, isPending: isDeleting } = useDeleteMedicalRecord(recordClinicId);
 
   const handleDeleteConfirm = useCallback(() => {
-    if (!recordId || canDeleteRef.current !== true || selectedPetStatusRef.current === "死亡")
-      return;
+    if (!recordId || canDeleteRef.current !== true || selectedPetIsDeceasedRef.current) return;
     deleteRecord(recordId, {
       onSuccess: () => {
         toast.success("カルテを削除しました");
@@ -72,7 +76,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   if (!selectedPet) return null;
 
   // BUG-002: 死亡ペットへの /medical-records/new?petId=… 直叩きは編集フォームを出さない。
-  if (form.isNewRecord && selectedPet.status === "死亡") {
+  if (form.isNewRecord && isPetDeceasedForClinicalWrite(selectedPet)) {
     return <MedicalRecordFormStatusView gate={{ kind: "deceased-new" }} onBack={form.handleBack} />;
   }
 

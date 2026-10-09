@@ -42,6 +42,12 @@ interface ExamItemsTableProps {
   onRemoveItem?: (key: string) => void;
   onChangeName?: (key: string, value: string) => void;
   disabled?: boolean;
+  /**
+   * EMR-319: fieldErrors.examItems の表示用文字列（エラー文自体は親が描画）。
+   * 手動行で「結果値あり・項目名なし」の行（use-examination-form-model の条件と一致）の
+   * 項目名 input に aria-invalid + describedby を付与する。
+   */
+  itemsError?: string;
 }
 
 /**
@@ -59,6 +65,7 @@ export const ExamItemsTable = memo(function ExamItemsTable({
   onRemoveItem,
   onChangeName,
   disabled = false,
+  itemsError,
 }: ExamItemsTableProps) {
   const tableId = useId();
   const addButtonRef = useRef<HTMLButtonElement>(null);
@@ -173,6 +180,18 @@ export const ExamItemsTable = memo(function ExamItemsTable({
                     placeholder="項目名"
                     className={`h-11 min-w-11 text-sm ${C.bgWhite} ${C.borderMedium}`}
                     aria-label={`${item.name.trim() || `検査項目${idx + 1}`}の項目名`}
+                    aria-invalid={
+                      Boolean(itemsError) &&
+                      item.name.trim() === "" &&
+                      item.inspectionValue.trim() !== ""
+                        ? true
+                        : undefined
+                    }
+                    aria-describedby={
+                      itemsError && item.name.trim() === "" && item.inspectionValue.trim() !== ""
+                        ? "examItems"
+                        : undefined
+                    }
                   />
                 ) : (
                   item.name

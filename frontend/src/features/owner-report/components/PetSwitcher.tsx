@@ -1,4 +1,5 @@
 import { C } from "@/lib/design-tokens";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
 
 interface PetSwitcherProps {
@@ -31,7 +32,7 @@ export function PetSwitcher({ pets, selectedPetId, onSelect }: PetSwitcherProps)
           <option key={pet.id} value={pet.id}>
             {pet.name || "-"}
             {pet.species ? `（${pet.species}）` : ""}
-            {pet.status === "死亡" ? "（死亡）" : ""}
+            {isPetDeceasedForClinicalWrite(pet) ? "（死亡）" : ""}
           </option>
         ))}
       </select>

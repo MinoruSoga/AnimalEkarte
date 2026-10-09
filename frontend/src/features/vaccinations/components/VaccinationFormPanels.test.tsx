@@ -277,3 +277,35 @@ describe("VaccinationHistoryPanel", () => {
     expect(screen.getByText("履歴がありません")).toBeInTheDocument();
   });
 });
+
+describe("VaccinationFieldsPanel — 必須エラー表示 (EMR-319)", () => {
+  it("接種日エラーで DatePicker が aria-invalid になりエラー文が出る", () => {
+    renderPanel([], { fieldErrors: { date: "接種日を入力してください" } });
+
+    const dateInput = document.querySelector("[aria-invalid='true']");
+    expect(dateInput).not.toBeNull();
+    expect(document.getElementById("vaccine-date-error")).toHaveTextContent(
+      "接種日を入力してください",
+    );
+  });
+
+  it("ワクチン未選択エラーで SelectTrigger が aria-invalid+describedby になりエラー文が出る", () => {
+    renderPanel([], { fieldErrors: { vaccineId: "ワクチンを選択してください" } });
+
+    const trigger = document.getElementById("vaccine-select");
+    expect(trigger).toHaveAttribute("aria-invalid", "true");
+    expect(trigger).toHaveAttribute("aria-describedby", "vaccine-id-error");
+    expect(document.getElementById("vaccine-id-error")).toHaveTextContent(
+      "ワクチンを選択してください",
+    );
+  });
+
+  it("次回予定日エラーで NextScheduleField 内の DatePicker が aria-invalid になる", () => {
+    renderPanel([], { fieldErrors: { nextDate: "次回予定日を入力してください" } });
+
+    // NextScheduleField は error prop を内部 DatePicker の ariaInvalid に伝播する。
+    const nextDateInput = document.getElementById("vaccination-next-date");
+    expect(nextDateInput).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText("次回予定日を入力してください")).toBeInTheDocument();
+  });
+});

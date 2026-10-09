@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { C } from "@/lib/design-tokens";
 import type { Pet } from "@/types";
@@ -15,16 +15,46 @@ vi.mock("@/hooks/use-animal-species", () => ({
   }),
 }));
 
+// Pet は transformBackendPetToFrontend の ReturnType（wire 正本は PetResponse）。
+// 未記録を表すキーは transform の出力と同じく undefined で揃える。
 const PET = {
   id: "pet-1",
+  clinicId: undefined,
   ownerId: "owner-1",
   ownerNumber: 1,
   ownerName: "山田 太郎",
+  ownerNameKana: undefined,
+  address: undefined,
   phone: "",
+  petNumber: "",
   name: "ポチ",
+  petNameKana: undefined,
   species: "犬",
+  animalSpeciesId: undefined,
+  breed: "",
+  color: "",
+  bloodType: undefined,
+  microchipNumber: undefined,
   gender: "雄",
   status: "生存",
+  birthDate: undefined,
+  neuteredDate: undefined,
+  neuteredStatus: undefined,
+  weight: undefined,
+  food: "",
+  environment: "",
+  acquisitionType: undefined,
+  dangerLevel: undefined,
+  dangerReason: undefined,
+  lastVisit: undefined,
+  insuranceId: undefined,
+  insuranceName: undefined,
+  insuranceDetails: undefined,
+  remarks: "",
+  nameOrigin: undefined,
+  meetingStory: undefined,
+  deceasedAt: undefined,
+  deceasedReason: undefined,
 } satisfies Pet;
 
 const DANGER_REASON = "診察時に咬傷歴あり";
@@ -552,7 +582,7 @@ describe("PetSelectionResultsTable row actions", () => {
   it("生死不明の個体もfail-closedで選択不可になる", () => {
     render(
       <PetSelectionResultsTable
-        pets={createResults([{ ...PET, status: undefined }])}
+        pets={createResults([{ ...PET, status: "不明" }])}
         onSelect={vi.fn()}
       />,
     );
@@ -562,5 +592,49 @@ describe("PetSelectionResultsTable row actions", () => {
         name: "状態不明・選択不可: ポチ (ID pet-1)",
       }),
     ).toBeDisabled();
+  });
+});
+
+describe("PetSelectionResultsTable 誕生月バッジ (EMR-301)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-10T00:00:00+09:00"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("今月(JST)誕生月のペット行のペット名横に Cake バッジを表示する", () => {
+    render(
+      <PetSelectionResultsTable
+        pets={createResults([{ ...PET, birthDate: "2018-10-05" }])}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "今月誕生日" })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["誕生月でない", "2018-09-05"],
+    ["birth_date 未登録", undefined],
+  ])("%s のペットには Cake バッジを表示しない", (_label, birthDate) => {
+    render(
+      <PetSelectionResultsTable pets={createResults([{ ...PET, birthDate }])} onSelect={vi.fn()} />,
+    );
+
+    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
+  });
+
+  it("死亡ペット（status=死亡）には誕生月でも Cake バッジを表示しない", () => {
+    render(
+      <PetSelectionResultsTable
+        pets={createResults([{ ...PET, status: "死亡", birthDate: "2018-10-05" }])}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
   });
 });

@@ -3,6 +3,7 @@ import { Check } from "lucide-react";
 import { toast } from "sonner";
 import { C, STYLE } from "@/lib/design-tokens";
 import { FieldHelp } from "@/components/shared/FieldHelp";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { TableCell, TableHead } from "@/components/ui/table";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -43,6 +44,8 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
     toTimeInputValue(settings.closing_weekday_end),
   );
   const [sundayEnd, setSundayEnd] = useState(() => toTimeInputValue(settings.closing_sunday_end));
+  // EMR-319: ネイティブ required のブラウザバブルの代わりにアプリ側の赤枠+エラー文を表示する。
+  const [invalidFields, setInvalidFields] = useState<ReadonlySet<string>>(new Set());
   const canEditRef = useRef(canEdit);
   useLayoutEffect(() => {
     canEditRef.current = canEdit;
@@ -72,6 +75,21 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
     }
     return null;
   }, null);
+
+  // EMR-319: onInvalid でバブルを抑制し、該当 input に aria-invalid + 赤枠を付ける。
+  const markInvalid = (e: React.InvalidEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const { name } = e.currentTarget;
+    setInvalidFields((prev) => new Set(prev).add(name));
+  };
+  const clearInvalid = (name: string) => {
+    setInvalidFields((prev) => {
+      if (!prev.has(name)) return prev;
+      const next = new Set(prev);
+      next.delete(name);
+      return next;
+    });
+  };
 
   // 派生値は描画時に計算する（useEffect で同期しない）。AM は am_start と境界に依存し
   // 平日・日曜で共通。PM/EMG は各曜日の終了時刻に追従する（EMG は翌 am_start までの越日 #215）。
@@ -103,9 +121,27 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
                 name="closing_am_pm_boundary"
                 type="time"
                 value={amPmBoundary}
-                onChange={(event) => setAmPmBoundary(event.target.value)}
-                className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
+                onChange={(event) => {
+                  setAmPmBoundary(event.target.value);
+                  clearInvalid("closing_am_pm_boundary");
+                }}
+                className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3${invalidFields.has("closing_am_pm_boundary") ? ` ${STYLE.formInputError}` : ""}`}
                 required
+                aria-invalid={invalidFields.has("closing_am_pm_boundary") || undefined}
+                aria-describedby={
+                  invalidFields.has("closing_am_pm_boundary")
+                    ? "closing-am-pm-boundary-error"
+                    : undefined
+                }
+                onInvalid={markInvalid}
+              />
+              <FormFieldError
+                id="closing-am-pm-boundary-error"
+                message={
+                  invalidFields.has("closing_am_pm_boundary")
+                    ? "午前・午後 区切り時間を入力してください"
+                    : undefined
+                }
               />
             </div>
             <div>
@@ -123,9 +159,25 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
                 name="closing_weekday_end"
                 type="time"
                 value={weekdayEnd}
-                onChange={(event) => setWeekdayEnd(event.target.value)}
-                className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
+                onChange={(event) => {
+                  setWeekdayEnd(event.target.value);
+                  clearInvalid("closing_weekday_end");
+                }}
+                className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3${invalidFields.has("closing_weekday_end") ? ` ${STYLE.formInputError}` : ""}`}
                 required
+                aria-invalid={invalidFields.has("closing_weekday_end") || undefined}
+                aria-describedby={
+                  invalidFields.has("closing_weekday_end") ? "closing-weekday-end-error" : undefined
+                }
+                onInvalid={markInvalid}
+              />
+              <FormFieldError
+                id="closing-weekday-end-error"
+                message={
+                  invalidFields.has("closing_weekday_end")
+                    ? "平日 終了時間を入力してください"
+                    : undefined
+                }
               />
             </div>
             <div>
@@ -143,9 +195,25 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
                 name="closing_sunday_end"
                 type="time"
                 value={sundayEnd}
-                onChange={(event) => setSundayEnd(event.target.value)}
-                className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
+                onChange={(event) => {
+                  setSundayEnd(event.target.value);
+                  clearInvalid("closing_sunday_end");
+                }}
+                className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3${invalidFields.has("closing_sunday_end") ? ` ${STYLE.formInputError}` : ""}`}
                 required
+                aria-invalid={invalidFields.has("closing_sunday_end") || undefined}
+                aria-describedby={
+                  invalidFields.has("closing_sunday_end") ? "closing-sunday-end-error" : undefined
+                }
+                onInvalid={markInvalid}
+              />
+              <FormFieldError
+                id="closing-sunday-end-error"
+                message={
+                  invalidFields.has("closing_sunday_end")
+                    ? "日曜 終了時間を入力してください"
+                    : undefined
+                }
               />
             </div>
           </div>

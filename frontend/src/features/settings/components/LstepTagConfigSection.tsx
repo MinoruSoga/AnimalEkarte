@@ -105,7 +105,12 @@ interface TagPairField {
   monospace?: boolean;
 }
 
-type TagPairFormState = { error?: string } | null;
+type TagPairFormState = {
+  error?: string;
+  /** EMR-319: 必須未入力となったフィールド名の一覧（API エラーは赤枠対象外）。
+   *  片側のみ未入力の場合、その入力だけを invalid にするためフィールド単位で保持する。 */
+  missingFields?: string[];
+} | null;
 
 interface TagPairSectionProps<TItem> {
   title: string;
@@ -149,7 +154,11 @@ function TagPairSection<TItem>({
       const valueB = getFormString(formData, fieldB.name).trim();
       if (!valueA || !valueB) {
         // FE-RC-073: バリデーションエラーは fieldError（下記 FormFieldError）で表示する。toast は使わない。
-        return { error: requiredMessage };
+        const missingFields = [
+          ...(!valueA ? [fieldA.name] : []),
+          ...(!valueB ? [fieldB.name] : []),
+        ];
+        return { error: requiredMessage, missingFields };
       }
       try {
         await onAdd(valueA, valueB);
@@ -163,6 +172,13 @@ function TagPairSection<TItem>({
     },
     null,
   );
+
+  const fieldAInvalid = state?.missingFields?.includes(fieldA.name) ?? false;
+  const fieldBInvalid = state?.missingFields?.includes(fieldB.name) ?? false;
+  const hasRequiredError = state != null && state.missingFields != null && state.error != null;
+  // EMR-319: ペア必須エラーは単一要素を両フィールドから参照するため、
+  // fieldA 名に依存しない共有 ID を使う（fieldB が fieldA の ID を参照する誤りの是正）。
+  const pairErrorId = `${fieldA.name}__${fieldB.name}-error`;
 
   return (
     <div>
@@ -206,7 +222,9 @@ function TagPairSection<TItem>({
             type="text"
             required
             placeholder={fieldA.placeholder}
-            className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none focus-visible:ring-2 ${C.focusRingAccent40} ${fieldA.widthClassName}`}
+            aria-invalid={fieldAInvalid || undefined}
+            aria-describedby={fieldAInvalid && state?.error ? pairErrorId : undefined}
+            className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none focus-visible:ring-2 ${C.focusRingAccent40} ${fieldA.widthClassName}${fieldAInvalid ? ` ${STYLE.formInputError}` : ""}`}
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -219,7 +237,9 @@ function TagPairSection<TItem>({
             type="text"
             required
             placeholder={fieldB.placeholder}
-            className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none focus-visible:ring-2 ${C.focusRingAccent40} ${fieldB.widthClassName}`}
+            aria-invalid={fieldBInvalid || undefined}
+            aria-describedby={fieldBInvalid && state?.error ? pairErrorId : undefined}
+            className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none focus-visible:ring-2 ${C.focusRingAccent40} ${fieldB.widthClassName}${fieldBInvalid ? ` ${STYLE.formInputError}` : ""}`}
           />
         </div>
         <SubmitButton
@@ -231,7 +251,7 @@ function TagPairSection<TItem>({
         >
           追加
         </SubmitButton>
-        <FormFieldError message={state?.error} />
+        <FormFieldError id={hasRequiredError ? pairErrorId : undefined} message={state?.error} />
       </form>
     </div>
   );

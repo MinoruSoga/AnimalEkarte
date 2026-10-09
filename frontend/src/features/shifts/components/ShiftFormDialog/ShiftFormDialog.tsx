@@ -330,6 +330,8 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
                     type="time"
                     value={startTime}
                     onChange={handleStartTimeChange}
+                    aria-invalid={state.timeError ? true : undefined}
+                    aria-describedby={state.timeError ? "shift-time-error" : undefined}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -340,10 +342,14 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
                     type="time"
                     value={endTime}
                     onChange={handleEndTimeChange}
+                    aria-invalid={state.timeError ? true : undefined}
+                    aria-describedby={state.timeError ? "shift-time-error" : undefined}
                   />
                 </div>
               </div>
-              {state.timeError ? <FormFieldError message={state.timeError} /> : null}
+              {state.timeError ? (
+                <FormFieldError id="shift-time-error" message={state.timeError} />
+              ) : null}
             </div>
 
             <div className="space-y-1.5">

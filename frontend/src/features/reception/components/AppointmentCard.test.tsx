@@ -1,7 +1,7 @@
 import { DndContext } from "@dnd-kit/core";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   DangerLevelHigh,
@@ -47,6 +47,7 @@ const baseAppointment: ReceptionAppointment = {
   status: "checked_in",
   notes: undefined,
   source: "manual",
+  checkedInAt: undefined,
   petStatus: PetStatusAlive,
   petDangerLevel: DangerLevelLow,
 };
@@ -257,7 +258,7 @@ describe("AppointmentCard", () => {
 
   it("死亡した一般診療の badge を表示し、card click・drag・カルテ・会計を抑止する", () => {
     const onCardClick = vi.fn();
-    const deceasedAppointment = {
+    const deceasedAppointment: ReceptionAppointment = {
       ...baseAppointment,
       petStatus: PetStatusDeceased,
     };
@@ -495,5 +496,53 @@ describe("AppointmentCard", () => {
       expect(screen.queryByText("予約内容")).not.toBeInTheDocument();
       expect(screen.getByText("山田")).toBeInTheDocument();
     }
+  });
+  describe("誕生月バッジ (EMR-301)", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      // JST 2026-10-15（当月 = 10月）
+      vi.setSystemTime(new Date("2026-10-15T01:00:00Z"));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("birth_date の月が当月のペットに Cake バッジを表示し、card click を阻害しない", () => {
+      // fake timers 下は userEvent が凍結するため fireEvent で同期駆動する
+      const onCardClick = vi.fn();
+      renderCard(
+        { ...baseAppointment, petBirthDate: "2018-10-05" },
+        "受付済",
+        vi.fn(),
+        onCardClick,
+      );
+
+      const trigger = screen.getByRole("button", { name: "今月誕生日" });
+      fireEvent.click(trigger);
+      expect(screen.getByText("生年月日: 2018-10-05")).toBeInTheDocument();
+      expect(onCardClick).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["誕生月でない", "2018-09-05"],
+      ["birth_date 未登録", undefined],
+      ["形式不正", "2018/10/05"],
+    ])("%s のペットには Cake バッジを表示しない", (_label, petBirthDate) => {
+      renderCard({ ...baseAppointment, petBirthDate });
+
+      expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
+    });
+
+    it("死亡ペットには誕生月でも Cake バッジを表示しない", () => {
+      renderCard({
+        ...baseAppointment,
+        petStatus: PetStatusDeceased,
+        petBirthDate: "2018-10-05",
+      });
+
+      expect(screen.getByText("【死亡】")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
+    });
   });
 });

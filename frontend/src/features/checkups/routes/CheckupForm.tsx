@@ -10,6 +10,7 @@ import { FormHeaderActions } from "@/components/shared/Form/FormHeaderActions";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { paths } from "@/config/paths";
 import { useBackNavigation } from "@/hooks/use-back-navigation";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { formatDate } from "@/lib/format/date";
 import { useGetAllCheckupTypes } from "@/hooks/use-treatment-master";
 import { useGetStaffs } from "@/hooks/use-staffs";
@@ -43,7 +44,7 @@ export function CheckupForm() {
   } = useCheckupForm({ canCreate, canEdit });
 
   // FE-RC-004: 死亡ペットは render 側でも SubmitButton を非表示にする（callback 側の拒否と二重防壁）。
-  const isPetDeceased = pet?.status === "死亡";
+  const isPetDeceased = pet != null && isPetDeceasedForClinicalWrite(pet);
   const canSubmit = canCreate && canEdit && !isPetDeceased;
 
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
@@ -113,6 +114,7 @@ export function CheckupForm() {
             staffName={doctorName}
             nextVisitDate={form.nextDate ? formatDate(form.nextDate) : undefined}
             status={isPetDeceased ? "deceased" : "alive"}
+            birthDate={pet.birthDate}
           />
         ) : null}
         {isPetDeceased ? (

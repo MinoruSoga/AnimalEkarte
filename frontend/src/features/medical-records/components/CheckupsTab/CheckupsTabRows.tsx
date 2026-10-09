@@ -241,10 +241,12 @@ export function CheckupAddRow({
               const calculated = calculateNextDate(value, addForm.next_schedule_type);
               if (calculated) onChange("next_date", calculated);
             }}
+            ariaInvalid={Boolean(errors.date)}
+            ariaDescribedBy={errors.date ? "checkup-tab-date-error" : undefined}
             placeholder="日付"
             className="w-full min-w-[10rem]"
           />
-          <FormFieldError message={errors.date} />
+          <FormFieldError id="checkup-tab-date-error" message={errors.date} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="checkup-tab-type">健診種別</Label>
@@ -254,6 +256,7 @@ export function CheckupAddRow({
             checkupTypes={checkupTypes}
             emptyLabel="選択"
             onChange={(value) => onChange("checkup_type_id", value)}
+            ariaInvalid={Boolean(errors.checkup_type_id)}
             className="h-11"
           />
           <FormFieldError message={errors.checkup_type_id} />
@@ -345,6 +348,7 @@ function CheckupTypeSelect({
   className,
   id,
   ariaLabel,
+  ariaInvalid = false,
 }: {
   value: string | number;
   checkupTypes: CheckupTypeItem[];
@@ -353,13 +357,20 @@ function CheckupTypeSelect({
   className: string;
   id?: string;
   ariaLabel?: string;
+  /** EMR-319: エラー状態。SelectTrigger の aria-invalid: 系クラスが赤枠を出す */
+  ariaInvalid?: boolean;
 }) {
   return (
     <Select
       value={value ? String(value) : SELECT_EMPTY_VALUE}
       onValueChange={(next) => onChange(next === SELECT_EMPTY_VALUE ? "" : next)}
     >
-      <SelectTrigger id={id} aria-label={ariaLabel} className={`${className} w-32`}>
+      <SelectTrigger
+        id={id}
+        aria-label={ariaLabel}
+        aria-invalid={ariaInvalid || undefined}
+        className={`${className} w-32`}
+      >
         <SelectValue placeholder={emptyLabel} />
       </SelectTrigger>
       <SelectContent>

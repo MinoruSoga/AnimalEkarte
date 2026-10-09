@@ -63,6 +63,7 @@ export function ExaminationFormHeader({
           petDangerLevel={selectedPet.dangerLevel}
           petDangerReason={selectedPet.dangerReason}
           status={isPetDeceased ? "deceased" : "alive"}
+          birthDate={selectedPet.birthDate}
         />
       ) : null}
       {selectedPet ? <LabDeviceUnlinkedBanner petId={selectedPet.id} /> : null}

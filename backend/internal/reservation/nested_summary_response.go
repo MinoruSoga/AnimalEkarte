@@ -1,6 +1,9 @@
 package reservation
 
 import (
+	"time"
+
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -54,14 +57,16 @@ type animalSpeciesSummaryResponse struct {
 // petSummaryResponse is the staff-facing reservation pet summary. DangerLevel intentionally
 // exists only in this domain copy to support the Reception clinical-safety badge.
 type petSummaryResponse struct {
-	ID           uint64   `json:"id"`
-	Name         string   `json:"name"`
-	PetNumber    string   `json:"pet_number"`
-	Weight       *float64 `json:"weight,omitempty"`
-	Status       string   `json:"status,omitempty"`
-	DangerLevel  string   `json:"danger_level,omitempty"`
-	DangerReason *string  `json:"danger_reason,omitempty"`
-	Breed        string   `json:"breed,omitempty"`
+	ID           uint64     `json:"id"`
+	Name         string     `json:"name"`
+	PetNumber    string     `json:"pet_number"`
+	Weight       *float64   `json:"weight,omitempty"`
+	Status       string     `json:"status,omitempty"`
+	BirthDate    *string    `json:"birth_date,omitempty"`
+	DeceasedAt   *time.Time `json:"deceased_at,omitempty"`
+	DangerLevel  string     `json:"danger_level,omitempty"`
+	DangerReason *string    `json:"danger_reason,omitempty"`
+	Breed        string     `json:"breed,omitempty"`
 
 	AnimalSpecies *animalSpeciesSummaryResponse `json:"animal_species,omitempty"`
 	Owner         *ownerSummaryResponse         `json:"owner,omitempty"`
@@ -78,10 +83,15 @@ func toPetSummary(p *model.Pet) *petSummaryResponse {
 		PetNumber:    p.PetNumber,
 		Weight:       p.Weight,
 		Status:       string(p.Status),
+		DeceasedAt:   httpapi.LocalTimePtr(p.DeceasedAt),
 		DangerLevel:  string(p.DangerLevel),
 		DangerReason: p.DangerReason,
 		Breed:        p.Breed,
 		Owner:        toOwnerSummary(p.Owner),
+	}
+	if p.BirthDate != nil {
+		d := p.BirthDate.Format(time.DateOnly)
+		resp.BirthDate = &d
 	}
 	if p.AnimalSpecies != nil {
 		resp.AnimalSpecies = &animalSpeciesSummaryResponse{

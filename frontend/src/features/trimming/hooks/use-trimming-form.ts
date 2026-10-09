@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useActionState, useLayoutEffect, useRef
 import { useLocation, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetPet } from "@/hooks/use-pet";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
@@ -130,9 +131,9 @@ export function useTrimmingForm(
     [],
   );
   const hasExplicitlyDeceasedPet =
-    selectedPets[0]?.status === "死亡" ||
-    petFromQuery?.status === "死亡" ||
-    petFromEdit?.status === "死亡";
+    (selectedPets[0] ? isPetDeceasedForClinicalWrite(selectedPets[0]) : false) ||
+    (petFromQuery ? isPetDeceasedForClinicalWrite(petFromQuery) : false) ||
+    (petFromEdit ? isPetDeceasedForClinicalWrite(petFromEdit) : false);
   const hasExplicitlyDeceasedPetRef = useRef(hasExplicitlyDeceasedPet);
   useLayoutEffect(() => {
     hasExplicitlyDeceasedPetRef.current = hasExplicitlyDeceasedPet;
@@ -213,7 +214,7 @@ export function useTrimmingForm(
           if (!pet) {
             return refuseTrimmingMutation("ペットを選択してください");
           }
-          if (pet.status === "死亡") {
+          if (isPetDeceasedForClinicalWrite(pet)) {
             return refuseTrimmingMutation(DECEASED_TRIMMING_SAVE_MESSAGE);
           }
           const validation = validate(currentFormData, defaultTrimmingReservationTypeId);

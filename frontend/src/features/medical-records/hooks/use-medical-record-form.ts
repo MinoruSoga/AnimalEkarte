@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePermission } from "@/hooks/use-permission";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { useCreateReservation } from "@/hooks/use-create-reservation";
 import { useCreateMedicalRecord } from "../api/create-medical-record";
 import { useUpdateMedicalRecord } from "../api/update-medical-record";
@@ -55,7 +56,9 @@ export function useMedicalRecordForm(recordId?: string) {
     recordId,
     activeTab: ui.activeTab,
     canEdit,
-    isSelectedPetDeceased: read.selectedPet?.status === "死亡",
+    isSelectedPetDeceased: read.selectedPet
+      ? isPetDeceasedForClinicalWrite(read.selectedPet)
+      : false,
     isFinalized: read.isFinalized,
     diagnosis1CategoryId: diagnosis.diagnosis1CategoryId,
     diagnosis1NameId: diagnosis.diagnosis1NameId,
@@ -94,7 +97,9 @@ export function useMedicalRecordForm(recordId?: string) {
     setVisitType: ui.setVisitType,
     queryClient,
     updateMutation,
-    isSelectedPetDeceased: read.selectedPet?.status === "死亡",
+    isSelectedPetDeceased: read.selectedPet
+      ? isPetDeceasedForClinicalWrite(read.selectedPet)
+      : false,
   });
 
   const handleBack = useCallback(() => {
@@ -112,7 +117,9 @@ export function useMedicalRecordForm(recordId?: string) {
     existingRecord: read.existingRecord,
     updateMutation,
     startSaveTransition,
-    isSelectedPetDeceased: read.selectedPet?.status === "死亡",
+    isSelectedPetDeceased: read.selectedPet
+      ? isPetDeceasedForClinicalWrite(read.selectedPet)
+      : false,
   });
 
   const autoCreate = useMedicalRecordAutoCreate({

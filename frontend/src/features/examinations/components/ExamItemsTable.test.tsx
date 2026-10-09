@@ -601,4 +601,73 @@ describe("ExamItemsTable", () => {
       expect(screen.getByRole("button", { name: "検査項目を追加" })).toHaveFocus();
     });
   });
+
+  // EMR-319: fieldErrors.examItems 連動で「結果値あり・項目名なし」の手動行
+  // 項目名 input に aria-invalid + describedby("examItems") が付く。
+  describe("itemsError — 必須エラー表示 (EMR-319)", () => {
+    it("itemsError ありで項目名空・結果値ありの手動行 input に aria-invalid が付く", () => {
+      render(
+        <ExamItemsTable
+          items={[
+            makeItem({
+              key: "manual-1",
+              examTypeFieldId: undefined,
+              name: "",
+              inspectionValue: "120",
+            }),
+          ]}
+          onChangeInspectionValue={vi.fn()}
+          onChangeName={vi.fn()}
+          itemsError="結果値を入力した手動項目には項目名が必要です"
+        />,
+      );
+
+      const nameInput = screen.getByRole("textbox", { name: "検査項目1の項目名" });
+      expect(nameInput).toHaveAttribute("aria-invalid", "true");
+      expect(nameInput).toHaveAttribute("aria-describedby", "examItems");
+    });
+
+    it("項目名あり・結果値なしの行は itemsError があっても aria-invalid にならない", () => {
+      render(
+        <ExamItemsTable
+          items={[
+            makeItem({
+              key: "manual-1",
+              examTypeFieldId: undefined,
+              name: "GLU",
+              inspectionValue: "",
+            }),
+          ]}
+          onChangeInspectionValue={vi.fn()}
+          onChangeName={vi.fn()}
+          itemsError="結果値を入力した手動項目には項目名が必要です"
+        />,
+      );
+
+      expect(screen.getByRole("textbox", { name: "GLUの項目名" })).not.toHaveAttribute(
+        "aria-invalid",
+      );
+    });
+
+    it("itemsError なしなら項目名空・結果値ありでも aria-invalid にならない", () => {
+      render(
+        <ExamItemsTable
+          items={[
+            makeItem({
+              key: "manual-1",
+              examTypeFieldId: undefined,
+              name: "",
+              inspectionValue: "120",
+            }),
+          ]}
+          onChangeInspectionValue={vi.fn()}
+          onChangeName={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByRole("textbox", { name: "検査項目1の項目名" })).not.toHaveAttribute(
+        "aria-invalid",
+      );
+    });
+  });
 });

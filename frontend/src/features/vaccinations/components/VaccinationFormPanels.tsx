@@ -92,9 +92,11 @@ export function VaccinationFieldsPanel({
                 onMarkDirty();
                 onDateChange(value);
               }}
+              ariaInvalid={Boolean(fieldErrors.date)}
+              ariaDescribedBy={fieldErrors.date ? "vaccine-date-error" : undefined}
               disabledDays={{ after: toJSTWallDate(new Date()) }}
             />
-            <FormFieldError message={fieldErrors.date} />
+            <FormFieldError id="vaccine-date-error" message={fieldErrors.date} />
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -111,7 +113,11 @@ export function VaccinationFieldsPanel({
                 onVaccineIdChange(value);
               }}
             >
-              <SelectTrigger id="vaccine-select">
+              <SelectTrigger
+                id="vaccine-select"
+                aria-invalid={Boolean(fieldErrors.vaccineId)}
+                aria-describedby={fieldErrors.vaccineId ? "vaccine-id-error" : undefined}
+              >
                 <SelectValue placeholder="選択してください" />
               </SelectTrigger>
               <SelectContent>
@@ -122,7 +128,7 @@ export function VaccinationFieldsPanel({
                 ))}
               </SelectContent>
             </Select>
-            <FormFieldError message={fieldErrors.vaccineId} />
+            <FormFieldError id="vaccine-id-error" message={fieldErrors.vaccineId} />
           </div>
         </div>
 

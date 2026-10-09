@@ -238,8 +238,9 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
             onBreakChange={handleBreakChange}
             onAddBreak={handleAddBreak}
             onRemoveBreak={handleRemoveBreak}
+            timeError={timeError}
           />
-          <FormFieldError message={timeError} />
+          <FormFieldError id="shift-template-time-error" message={timeError} />
         </div>
       </div>
 

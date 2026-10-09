@@ -230,6 +230,27 @@ describe("transformReservation", () => {
     expect(result.notes).toBeUndefined();
   });
 
+  it("pet.birth_date / pet.status を petBirthDate / petStatus へ伝播する (EMR-301)", () => {
+    const result = transformReservation({
+      ...minimalBackend,
+      pet: {
+        id: 1,
+        clinic_id: 1,
+        name: "ポチ",
+        status: "deceased",
+        birth_date: "2018-10-05",
+      } as BackendReservation["pet"],
+    });
+    expect(result.petBirthDate).toBe("2018-10-05");
+    expect(result.petStatus).toBe("deceased");
+  });
+
+  it("pet が未紐付けの場合 petBirthDate / petStatus は undefined", () => {
+    const result = transformReservation({ ...minimalBackend, pet: undefined });
+    expect(result.petBirthDate).toBeUndefined();
+    expect(result.petStatus).toBeUndefined();
+  });
+
   it("pet_id を string に変換して petId にマップする", () => {
     const result = transformReservation({ ...minimalBackend, pet_id: 5 });
     expect(result.petId).toBe("5");

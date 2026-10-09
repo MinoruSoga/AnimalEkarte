@@ -305,4 +305,109 @@ describe("SpecialPeriodSection", () => {
     expect(mockDeleteMutateAsync).not.toHaveBeenCalled();
     expect(mockToastSuccess).not.toHaveBeenCalled();
   });
+
+  // EMR-319: 必須未入力で送信時、native bubble の代わりにアプリ側の赤枠+エラー文が出る。
+  // jsdom の interactive validation は環境依存のため invalid イベントを直接発火して検証する。
+  describe("必須エラー表示 (EMR-319)", () => {
+    it("全必須項目が空のまま invalid になると各 input に aria-invalid とエラー文が出る", () => {
+      renderSection(<SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />);
+      fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
+
+      const cases = [
+        { label: "開始日", errorId: "sp-start-date-error", message: "開始日を入力してください" },
+        { label: "終了日", errorId: "sp-end-date-error", message: "終了日を入力してください" },
+        {
+          label: "午前・午後 区切り時間",
+          errorId: "sp-boundary-error",
+          message: "午前・午後 区切り時間を入力してください",
+        },
+        {
+          label: "午後 終了時間",
+          errorId: "sp-pm-end-error",
+          message: "午後 終了時間を入力してください",
+        },
+      ];
+
+      for (const { label } of cases) {
+        fireEvent.invalid(screen.getByLabelText(label));
+      }
+
+      for (const { label, errorId, message } of cases) {
+        const input = screen.getByLabelText(label);
+        expect(input).toHaveAttribute("aria-invalid", "true");
+        expect(input).toHaveAttribute("aria-describedby", errorId);
+        expect(input.className).toContain("ring-2");
+        expect(document.getElementById(errorId)).toHaveTextContent(message);
+      }
+    });
+
+    it("開始日だけ invalid なら他項目は通常表示のまま、入力で解除される", () => {
+      renderSection(<SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />);
+      fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
+
+      fireEvent.invalid(screen.getByLabelText("開始日"));
+
+      expect(screen.getByLabelText("開始日")).toHaveAttribute("aria-invalid", "true");
+      expect(screen.getByLabelText("終了日")).not.toHaveAttribute("aria-invalid");
+      expect(screen.getByLabelText("午前・午後 区切り時間")).not.toHaveAttribute("aria-invalid");
+      expect(screen.getByLabelText("午後 終了時間")).not.toHaveAttribute("aria-invalid");
+
+      fireEvent.change(screen.getByLabelText("開始日"), { target: { value: "2026-12-29" } });
+
+      expect(screen.getByLabelText("開始日")).not.toHaveAttribute("aria-invalid");
+      expect(document.getElementById("sp-start-date-error")).toBeNull();
+    });
+
+    // 実 action 経路: MasterSidePanel の <form noValidate> 配下では invalid イベントが
+    // 発火しないため、formAction 側の FormData 必須チェックが実効パスになる（PR#614 指摘）。
+    it("全必須項目が空のまま保存をクリックすると action 経路で全項目が invalid になり mutate されない", async () => {
+      renderSection(<SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />);
+      fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
+
+      fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+      const cases = [
+        { label: "開始日", errorId: "sp-start-date-error", message: "開始日を入力してください" },
+        { label: "終了日", errorId: "sp-end-date-error", message: "終了日を入力してください" },
+        {
+          label: "午前・午後 区切り時間",
+          errorId: "sp-boundary-error",
+          message: "午前・午後 区切り時間を入力してください",
+        },
+        {
+          label: "午後 終了時間",
+          errorId: "sp-pm-end-error",
+          message: "午後 終了時間を入力してください",
+        },
+      ];
+      await waitFor(() => {
+        for (const { label, errorId, message } of cases) {
+          const input = screen.getByLabelText(label);
+          expect(input).toHaveAttribute("aria-invalid", "true");
+          expect(input).toHaveAttribute("aria-describedby", errorId);
+          expect(document.getElementById(errorId)).toHaveTextContent(message);
+        }
+      });
+      expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("開始日のみ入力して保存すると残り3項目だけが invalid になる", async () => {
+      renderSection(<SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />);
+      fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
+      fireEvent.change(screen.getByLabelText("開始日"), { target: { value: "2026-12-29" } });
+
+      fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+      await waitFor(() => {
+        expect(screen.getByLabelText("開始日")).not.toHaveAttribute("aria-invalid");
+        expect(screen.getByLabelText("終了日")).toHaveAttribute("aria-invalid", "true");
+        expect(screen.getByLabelText("午前・午後 区切り時間")).toHaveAttribute(
+          "aria-invalid",
+          "true",
+        );
+        expect(screen.getByLabelText("午後 終了時間")).toHaveAttribute("aria-invalid", "true");
+      });
+      expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    });
+  });
 });

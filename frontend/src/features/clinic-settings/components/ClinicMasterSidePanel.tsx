@@ -79,7 +79,7 @@ export function ClinicMasterSidePanel({
                 <div className="flex items-center gap-1">
                   <input
                     type="text"
-                    className={`flex-1 min-w-0 bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0 focus-visible:ring-2 ${C.focusRingAccent40}`}
+                    className={`flex-1 min-w-0 bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0 focus-visible:ring-2 ${C.focusRingAccent40}${nameError ? ` ${STYLE.formInputError}` : ""}`}
                     style={{
                       fontSize: LAYOUT.pageTitle.fontSize,
                       fontWeight: LAYOUT.pageTitle.fontWeight,
@@ -90,13 +90,15 @@ export function ClinicMasterSidePanel({
                     onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                     placeholder="無題"
                     aria-label="無題"
+                    aria-invalid={nameError ? true : undefined}
+                    aria-describedby={nameError ? "clinic-name-error" : undefined}
                   />
                   <FieldHelp
                     label="医院名"
                     content="医院名です。領収書の医院情報ヘッダーや各種画面の表示名として使われます。"
                   />
                 </div>
-                <FormFieldError message={nameError} />
+                <FormFieldError id="clinic-name-error" message={nameError} />
               </div>
 
               <div className={`${STYLE.sectionDivider} mb-1`} />

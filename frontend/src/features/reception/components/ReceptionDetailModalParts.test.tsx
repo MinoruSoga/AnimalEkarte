@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ReceptionDialogBody, ReceptionDialogFooter } from "./ReceptionDetailModalParts";
 import type { ReceptionAppointment } from "../api/types";
 
@@ -24,6 +24,7 @@ const trimmingAppointment: ReceptionAppointment = {
   status: "checked_in",
   notes: undefined,
   source: "manual",
+  checkedInAt: undefined,
 };
 
 describe("ReceptionDialogFooter", () => {
@@ -299,5 +300,67 @@ describe("ReceptionDialogBody 予防接種", () => {
     expect(onOpenVaccinations).toHaveBeenCalledOnce();
     expect(onCreateMedicalRecord).not.toHaveBeenCalled();
     expect(screen.getByRole("heading", { name: "予約内容" })).toBeInTheDocument();
+  });
+});
+describe("ReceptionDialogBody 誕生月バッジ (EMR-301)", () => {
+  const relatedPageProps = {
+    isTrimming: false,
+    onCreateMedicalRecord: vi.fn(),
+    onCreateTrimming: vi.fn(),
+    onCreateAccounting: vi.fn(),
+    onCreateHospitalization: vi.fn(),
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    // JST 2026-10-15（当月 = 10月）
+    vi.setSystemTime(new Date("2026-10-15T01:00:00Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("birth_date の月が当月のペット名横に Cake バッジを出し、生年月日を開示できる", () => {
+    // fake timers 下は userEvent が凍結するため fireEvent で同期駆動する
+    render(
+      <ReceptionDialogBody
+        appointment={{ ...trimmingAppointment, petBirthDate: "2018-10-05" }}
+        {...relatedPageProps}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "今月誕生日" });
+    fireEvent.click(trigger);
+    expect(screen.getByText("生年月日: 2018-10-05")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["誕生月でない", "2018-09-05"],
+    ["birth_date 未登録", undefined],
+  ])("%s のペットには Cake バッジを出さない", (_label, petBirthDate) => {
+    render(
+      <ReceptionDialogBody
+        appointment={{ ...trimmingAppointment, petBirthDate }}
+        {...relatedPageProps}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
+  });
+
+  it("死亡ペットには誕生月でも Cake バッジを出さない", () => {
+    render(
+      <ReceptionDialogBody
+        appointment={{
+          ...trimmingAppointment,
+          petStatus: "deceased",
+          petBirthDate: "2018-10-05",
+        }}
+        {...relatedPageProps}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
   });
 });

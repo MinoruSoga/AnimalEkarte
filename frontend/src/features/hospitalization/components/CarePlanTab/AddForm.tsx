@@ -31,9 +31,14 @@ const OTHER_REASON_MAX_LENGTH = 500;
 
 interface AddFormState {
   error: string | null;
+  /**
+   * EMR-319: どのフィールドのエラーかを識別する表示用タグ。
+   * エラー文・判定条件は従来どおりで、aria-invalid の付与先を決めるだけの additive 情報。
+   */
+  field: "name" | "otherReason" | "manualUnitPrice" | "ref" | null;
 }
 
-const INITIAL_STATE: AddFormState = { error: null };
+const INITIAL_STATE: AddFormState = { error: null, field: null };
 
 interface AddFormProps {
   onSubmit: (input: CreateCarePlanItemInput) => Promise<void>;
@@ -83,16 +88,18 @@ export function AddForm({ onSubmit }: AddFormProps) {
   const [state, formAction] = useActionState(
     async (_prevState: AddFormState, _formData: FormData): Promise<AddFormState> => {
       const trimmedName = name.trim();
-      if (!trimmedName) return { error: "名称は必須です" };
+      if (!trimmedName) return { error: "名称は必須です", field: "name" };
       if (isManualItem) {
         const trimmedReason = otherReason.trim();
-        if (!trimmedReason) return { error: "その他の理由を入力してください" };
+        if (!trimmedReason) {
+          return { error: "その他の理由を入力してください", field: "otherReason" };
+        }
         if ([...trimmedReason].length > OTHER_REASON_MAX_LENGTH) {
-          return { error: "理由は500文字以内で入力してください" };
+          return { error: "理由は500文字以内で入力してください", field: "otherReason" };
         }
         const price = manualUnitPrice.trim() === "" ? NaN : Number(manualUnitPrice);
         if (!Number.isInteger(price) || price < 0) {
-          return { error: "単価は0以上の整数で入力してください" };
+          return { error: "単価は0以上の整数で入力してください", field: "manualUnitPrice" };
         }
         await onSubmit({
           type,
@@ -104,7 +111,9 @@ export function AddForm({ onSubmit }: AddFormProps) {
           ...buildRefFields(type, null),
         });
       } else {
-        if (needsRef && !refId) return { error: "参照するマスタを選択してください" };
+        if (needsRef && !refId) {
+          return { error: "参照するマスタを選択してください", field: "ref" };
+        }
 
         await onSubmit({
           type,
@@ -124,17 +133,13 @@ export function AddForm({ onSubmit }: AddFormProps) {
       setManual(false);
       setOtherReason("");
       setManualUnitPrice("");
-      return { error: null };
+      return { error: null, field: null };
     },
     INITIAL_STATE,
   );
 
-  const canSubmit =
-    !!name.trim() &&
-    (isManualItem ? !!otherReason.trim() && manualUnitPrice.trim() !== "" : !needsRef || !!refId);
-
   return (
-    <form action={formAction} className={`border-t ${C.borderLight} pt-3 mt-2`}>
+    <form action={formAction} noValidate className={`border-t ${C.borderLight} pt-3 mt-2`}>
       <p className={`text-xs font-medium ${C.text60} mb-2`}>新しいケアプラン項目を追加</p>
       <div className="flex flex-col gap-2">
         {state.error ? (
@@ -153,6 +158,7 @@ export function AddForm({ onSubmit }: AddFormProps) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             aria-label="ケアプラン項目名"
+            aria-invalid={state.field === "name" || undefined}
             className="h-11 text-sm flex-1"
             placeholder="名称を入力"
           />
@@ -183,6 +189,7 @@ export function AddForm({ onSubmit }: AddFormProps) {
               min={0}
               step={1}
               aria-label="手入力の単価"
+              aria-invalid={state.field === "manualUnitPrice" || undefined}
               className="h-11 text-sm"
               placeholder="単価（円）を入力"
             />
@@ -191,6 +198,7 @@ export function AddForm({ onSubmit }: AddFormProps) {
               onChange={(e) => setOtherReason(e.target.value)}
               maxLength={OTHER_REASON_MAX_LENGTH}
               aria-label="その他理由"
+              aria-invalid={state.field === "otherReason" || undefined}
               className="h-11 text-sm"
               placeholder="理由を入力（必須・500文字以内）"
             />
@@ -202,6 +210,7 @@ export function AddForm({ onSubmit }: AddFormProps) {
             value={refId}
             onChange={setRefId}
             onUnitPriceChange={setRefUnitPrice}
+            ariaInvalid={state.field === "ref"}
           />
         ) : null}
         <div className="flex items-center justify-between">
@@ -227,11 +236,7 @@ export function AddForm({ onSubmit }: AddFormProps) {
               ))}
             </div>
           </div>
-          <SubmitButton
-            disabled={!canSubmit}
-            aria-label="ケアプラン項目を追加"
-            className="text-xs gap-1"
-          >
+          <SubmitButton aria-label="ケアプラン項目を追加" className="text-xs gap-1">
             <Plus className={ICON.action} />
             追加
           </SubmitButton>

@@ -1,3 +1,4 @@
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { MedicalRecordDiagnosisPlan } from "./MedicalRecordDiagnosisPlan";
 import { MedicalRecordInterview } from "./MedicalRecordInterview";
 import { MedicalRecordTreatment } from "./MedicalRecordTreatment";
@@ -91,7 +92,7 @@ export function MedicalRecordClinicalTabs({
           ownerDiscountRate={ownerDiscountRate}
           diagnosis1NameIdError={diagnosis1NameIdError}
           recordClinicId={recordClinicId}
-          isPetDeceased={selectedPet.status === "死亡"}
+          isPetDeceased={isPetDeceasedForClinicalWrite(selectedPet)}
         />
         <div className="px-4 pb-4 mt-4 flex flex-col gap-6">
           {recordId ? (
@@ -122,7 +123,7 @@ export function MedicalRecordClinicalTabs({
           isNewRecord={isNewRecord}
           petSpecies={selectedPet.species}
           recordClinicId={recordClinicId}
-          isPetDeceased={selectedPet.status === "死亡"}
+          isPetDeceased={isPetDeceasedForClinicalWrite(selectedPet)}
         />
       </MedicalRecordMountedTab>
     </>

@@ -1,9 +1,10 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createTestWrapper } from "@/testing/TestUtils";
 import { useGetOwnerSharedPets } from "../api/get-owner-shared-pets";
+import type { OwnerSharedPetsResponse } from "../api/get-owner-shared-pets";
 import type { PetFormData } from "../types";
 import { OwnerPetsSection } from "./OwnerPetsSection";
 
@@ -23,6 +24,10 @@ vi.mock("@/hooks/use-permission", () => ({
 let reservationPermission = false;
 
 const mockedUseGetOwnerSharedPets = vi.mocked(useGetOwnerSharedPets);
+
+// useGetOwnerSharedPets の戻り値は UseQueryResult<OwnerSharedPetsResponse, Error>。
+// data は実レスポンス型で揃える（空の shared_pets も OwnerSharedPetApiResponse[] として型付け）。
+const EMPTY_SHARED_PETS: OwnerSharedPetsResponse = { shared_pets: [] };
 
 const PET = {
   id: "pet-1",
@@ -82,7 +87,7 @@ describe("OwnerPetsSection row actions", () => {
     reservationPermission = false;
     mockedUseGetOwnerSharedPets.mockReset();
     mockedUseGetOwnerSharedPets.mockReturnValue({
-      data: { shared_pets: [] },
+      data: EMPTY_SHARED_PETS,
       isError: false,
       isLoading: false,
     } as ReturnType<typeof useGetOwnerSharedPets>);
@@ -185,7 +190,7 @@ describe("OwnerPetsSection pet detail link (EMR-174)", () => {
     reservationPermission = false;
     mockedUseGetOwnerSharedPets.mockReset();
     mockedUseGetOwnerSharedPets.mockReturnValue({
-      data: { shared_pets: [] },
+      data: EMPTY_SHARED_PETS,
       isError: false,
       isLoading: false,
     } as ReturnType<typeof useGetOwnerSharedPets>);
@@ -228,7 +233,7 @@ describe("OwnerPetsSection shared pets", () => {
     reservationPermission = false;
     mockedUseGetOwnerSharedPets.mockReset();
     mockedUseGetOwnerSharedPets.mockReturnValue({
-      data: { shared_pets: [] },
+      data: EMPTY_SHARED_PETS,
       isError: false,
       isLoading: false,
     } as ReturnType<typeof useGetOwnerSharedPets>);
@@ -436,5 +441,90 @@ describe("EMR-318 reception entry", () => {
     reservationPermission = true;
     renderSection({ pet });
     expect(screen.queryByRole("button", { name: "受付: ポチ" })).not.toBeInTheDocument();
+  });
+});
+
+describe("OwnerPetsSection 誕生月バッジ (EMR-301)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-10T00:00:00+09:00"));
+    mockedUseGetOwnerSharedPets.mockReset();
+    mockedUseGetOwnerSharedPets.mockReturnValue({
+      data: EMPTY_SHARED_PETS,
+      isError: false,
+      isLoading: false,
+    } as ReturnType<typeof useGetOwnerSharedPets>);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("今月(JST)誕生月のペット行はペット名セルに Cake バッジを表示する", () => {
+    renderSection({ pet: { ...PET, birthDate: "2020-10-05" } });
+
+    expect(screen.getByRole("button", { name: "今月誕生日" })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["誕生月でない", "2020-09-05"],
+    ["birthDate 未登録", ""],
+  ])("%s のペットには Cake バッジを表示しない", (_label, birthDate) => {
+    renderSection({ pet: { ...PET, birthDate } });
+
+    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
+  });
+
+  it("死亡ペット（status=死亡）には誕生月でも Cake バッジを表示しない", () => {
+    renderSection({ pet: { ...PET, status: "死亡", birthDate: "2020-10-05" } });
+
+    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
+  });
+
+  it("副飼主ペット行にも誕生月なら Cake バッジを表示する（死亡は抑制）", () => {
+    mockedUseGetOwnerSharedPets.mockReturnValue({
+      data: {
+        shared_pets: [
+          {
+            id: 2,
+            pet_number: "P002",
+            name: "ハナ",
+            status: "alive",
+            gender: "female",
+            animal_species: { name: "犬" },
+            birth_date: "2021-10-03",
+            color: "白",
+            weight: 8.5,
+            environment: "室内",
+            remarks: "",
+            relationship: "妻",
+          },
+          {
+            id: 3,
+            pet_number: "P003",
+            name: "ミケ",
+            status: "deceased",
+            gender: "other",
+            animal_species: { name: "猫" },
+            birth_date: "2020-10-11",
+            color: "三毛",
+            weight: null,
+            environment: "室内",
+            remarks: "",
+            relationship: "",
+          },
+        ],
+      },
+      isError: false,
+      isLoading: false,
+    } as ReturnType<typeof useGetOwnerSharedPets>);
+
+    renderSection({ pets: [] });
+
+    const hanaRow = screen.getByText("ハナ").closest("tr");
+    const mikeRow = screen.getByText("ミケ").closest("tr");
+    if (!hanaRow || !mikeRow) throw new Error("expected shared pet rows");
+    expect(within(hanaRow).getByRole("button", { name: "今月誕生日" })).toBeInTheDocument();
+    expect(within(mikeRow).queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
   });
 });

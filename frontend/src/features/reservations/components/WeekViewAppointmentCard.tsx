@@ -3,7 +3,9 @@ import { format } from "date-fns";
 import { motion } from "motion/react";
 
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
+import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { C } from "@/lib/design-tokens";
+import { isBirthMonthJST } from "@/lib/jst-date";
 import { getReservationTypeColor, getReservationTypeName } from "@/lib/status-helpers";
 import { DISPLAY_TIME_FORMAT } from "@/lib/format/date";
 import type { Reservation } from "@/types";
@@ -80,6 +82,14 @@ export const AppointmentCard = memo(function AppointmentCard({
   const colorStyle = getReservationTypeColor(appointment.type, dynamicColorMap);
   const isClassNameColor = typeof colorStyle === "string";
   const isFirstVisit = appointment.visitType === "first";
+  // EMR-301: 死亡ペットには誕生月バッジを出さない（既存 death sentinel と整合）。
+  const isDeceasedPet = appointment.petStatus === "deceased" || appointment.petDeceasedAt != null;
+  // カード内のバッジは pointer-events-none 配下の静的変種のため、ホバー・フォーカス・
+  // スクリーンリーダーから生年月日に届かない。親ボタンの title/aria-label に含める。
+  const birthdayLabel =
+    !isDeceasedPet && isBirthMonthJST(appointment.petBirthDate)
+      ? `今月誕生日（生年月日: ${appointment.petBirthDate}）`
+      : "";
   const typeName = getReservationTypeName(appointment.type);
   const typeLabel =
     dynamicColorMap?.get(appointment.type)?.isInactive === true ? `${typeName}（無効）` : typeName;
@@ -94,10 +104,11 @@ export const AppointmentCard = memo(function AppointmentCard({
         appointment.ownerName,
         appointment.doctor,
         typeLabel,
+        birthdayLabel,
       ]
         .filter(Boolean)
         .join(" / "),
-    [appointment, typeLabel, isTentative],
+    [appointment, typeLabel, isTentative, birthdayLabel],
   );
 
   const tentativeBadge = (
@@ -122,8 +133,8 @@ export const AppointmentCard = memo(function AppointmentCard({
       `}
       aria-label={
         isTentative
-          ? `${TENTATIVE_APPOINTMENT_LABEL} ${appointment.petName} ${appointment.ownerName} ${typeLabel}`
-          : `${format(appointment.start, DISPLAY_TIME_FORMAT)}〜${format(appointment.end, DISPLAY_TIME_FORMAT)} ${appointment.petName} ${appointment.ownerName} ${typeLabel}`
+          ? `${TENTATIVE_APPOINTMENT_LABEL} ${appointment.petName} ${appointment.ownerName} ${typeLabel}${birthdayLabel ? ` ${birthdayLabel}` : ""}`
+          : `${format(appointment.start, DISPLAY_TIME_FORMAT)}〜${format(appointment.end, DISPLAY_TIME_FORMAT)} ${appointment.petName} ${appointment.ownerName} ${typeLabel}${birthdayLabel ? ` ${birthdayLabel}` : ""}`
       }
       title={tooltipText}
       style={{
@@ -179,6 +190,14 @@ export const AppointmentCard = memo(function AppointmentCard({
           )}
           <FirstVisitBadge show={isFirstVisit} compact />
           <span className="truncate text-xs font-medium leading-none">{appointment.petName}</span>
+          {/* EMR-301: 誕生月バッジ（カード自体が button のため static 変種でアイコンのみ） */}
+          {!isDeceasedPet ? (
+            <BirthdayBadge
+              birthDate={appointment.petBirthDate}
+              subjectName={appointment.petName}
+              variant="static"
+            />
+          ) : null}
         </div>
       ) : null}
 
@@ -195,7 +214,16 @@ export const AppointmentCard = memo(function AppointmentCard({
             <FirstVisitBadge show={isFirstVisit} compact />
           </div>
           <div className="font-medium truncate text-xs leading-none mt-0.5">
-            {appointment.petName}
+            <span className="inline-flex items-center gap-1">
+              {appointment.petName}
+              {!isDeceasedPet ? (
+                <BirthdayBadge
+                  birthDate={appointment.petBirthDate}
+                  subjectName={appointment.petName}
+                  variant="static"
+                />
+              ) : null}
+            </span>
           </div>
           <div className="truncate text-xs opacity-70 leading-none mt-0.5">
             {appointment.ownerName}
@@ -213,7 +241,18 @@ export const AppointmentCard = memo(function AppointmentCard({
             )}
             <FirstVisitBadge show={isFirstVisit} />
           </div>
-          <div className="font-medium truncate text-sm leading-none">{appointment.petName}</div>
+          <div className="font-medium truncate text-sm leading-none">
+            <span className="inline-flex items-center gap-1">
+              {appointment.petName}
+              {!isDeceasedPet ? (
+                <BirthdayBadge
+                  birthDate={appointment.petBirthDate}
+                  subjectName={appointment.petName}
+                  variant="static"
+                />
+              ) : null}
+            </span>
+          </div>
           {height > 36 ? (
             <div className="truncate text-sm opacity-70 leading-none mt-0.5">
               {appointment.ownerName}

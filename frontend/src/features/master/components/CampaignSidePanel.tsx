@@ -3,6 +3,7 @@ import { Tag } from "lucide-react";
 import { toast } from "sonner";
 
 import { MasterSidePanel, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -59,6 +60,21 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
 }: CampaignSidePanelProps) {
   const [nameError, setNameError] = useState("");
   const [periodError, setPeriodError] = useState("");
+  // EMR-319: 必須未入力は片側だけを invalid にする。日付前後エラーはペア課題のため
+  // missing を空にして両欄 invalid のまま残す（LSTEP と同じ per-field 契約）。
+  const [periodMissing, setPeriodMissing] = useState<ReadonlySet<"start" | "end">>(new Set());
+  // 全欠落が解消した時点の periodError は必ず missing 由来（order エラーは
+  // missing 空でのみ成立）なので、最後の欠落解除でメッセージも消す。
+  const clearPeriodMissing = useCallback(
+    (key: "start" | "end") => {
+      if (!periodMissing.has(key)) return;
+      const next = new Set(periodMissing);
+      next.delete(key);
+      setPeriodMissing(next);
+      if (next.size === 0) setPeriodError("");
+    },
+    [periodMissing],
+  );
 
   const {
     formData,
@@ -71,24 +87,35 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
     onSave,
     onDirtyChange,
     validate: (data) => {
+      // PR#614 R2-3/R3-P2: 名称と期間は独立した必須群。同一パスで全て評価し、
+      // 一方の失敗が他方の正常解除（エラークリア）をスキップしないよう、
+      // 各群のエラー状態を独立に更新してから全体の成否を返す。
+      let valid = true;
       if (!data.name.trim()) {
         setNameError("名称を入力してください");
         toast.error("名称を入力してください");
-        return false;
+        valid = false;
+      } else {
+        setNameError("");
       }
       if (!data.startDate || !data.endDate) {
+        const missing = new Set<"start" | "end">();
+        if (!data.startDate) missing.add("start");
+        if (!data.endDate) missing.add("end");
+        setPeriodMissing(missing);
         setPeriodError("開始日・終了日を入力してください");
         toast.error("開始日・終了日を入力してください");
-        return false;
-      }
-      if (data.endDate < data.startDate) {
+        valid = false;
+      } else if (data.endDate < data.startDate) {
+        setPeriodMissing(new Set());
         setPeriodError("終了日は開始日以降にしてください");
         toast.error("終了日は開始日以降にしてください");
-        return false;
+        valid = false;
+      } else {
+        setPeriodError("");
+        setPeriodMissing(new Set());
       }
-      setNameError("");
-      setPeriodError("");
-      return true;
+      return valid;
     },
   });
 
@@ -135,6 +162,11 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
     return result;
   }, [merchandiseItems, merchandiseSearch]);
 
+  // 日付前後エラー（missing 空・periodError 有）はペア課題として両欄 invalid。
+  const periodOrderError = periodError !== "" && periodMissing.size === 0;
+  const startDateInvalid = periodMissing.has("start") || periodOrderError;
+  const endDateInvalid = periodMissing.has("end") || periodOrderError;
+
   const handleClose = useCallback(() => {
     setIsDirty(false);
     onClose();
@@ -165,7 +197,12 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
           aria-label="開始日"
           value={formData.startDate}
           disabled={readOnly}
-          onChange={(e) => setFormDataDirty((prev) => ({ ...prev, startDate: e.target.value }))}
+          onChange={(e) => {
+            setFormDataDirty((prev) => ({ ...prev, startDate: e.target.value }));
+            clearPeriodMissing("start");
+          }}
+          aria-invalid={startDateInvalid || undefined}
+          aria-describedby={startDateInvalid ? "campaign-period-error" : undefined}
         />
       </PropertyRow>
       <PropertyRow
@@ -177,10 +214,15 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
           aria-label="終了日"
           value={formData.endDate}
           disabled={readOnly}
-          onChange={(e) => setFormDataDirty((prev) => ({ ...prev, endDate: e.target.value }))}
+          onChange={(e) => {
+            setFormDataDirty((prev) => ({ ...prev, endDate: e.target.value }));
+            clearPeriodMissing("end");
+          }}
+          aria-invalid={endDateInvalid || undefined}
+          aria-describedby={endDateInvalid ? "campaign-period-error" : undefined}
         />
       </PropertyRow>
-      {periodError ? <p className={`text-xs ${C.danger}`}>{periodError}</p> : null}
+      <FormFieldError id="campaign-period-error" message={periodError} />
       <PropertyRow
         label="割引種別"
         description="割引の指定方法です。「割引率(%)」は対象価格からの割合、「割引額(円)」は固定金額を割り引きます。"

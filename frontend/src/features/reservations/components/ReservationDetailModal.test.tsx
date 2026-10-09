@@ -1,25 +1,27 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Reservation } from "../types";
+import type { ReservationTypeColor } from "@/hooks/use-reservation-type-color-map";
 import { ReservationDetailModal } from "./ReservationDetailModal";
 
+// PR#614 指摘: modal はクリック時 snapshot を GET /reservations/:id の最新応答で
+// 上書き追従する。既定は未取得（snapshot のまま表示）。
+const { mockGetReservation, mockGetOwnerLineTags } = vi.hoisted(() => ({
+  mockGetReservation: { current: { data: undefined as unknown } },
+  mockGetOwnerLineTags: vi.fn((_ownerId: string) => ({ data: undefined as unknown })),
+}));
+vi.mock("@/hooks/use-get-reservation", () => ({
+  useGetReservation: () => mockGetReservation.current,
+}));
 vi.mock("@/hooks/use-owner-line-tags", () => ({
-  useGetOwnerLineTags: () => ({ data: undefined }),
+  useGetOwnerLineTags: mockGetOwnerLineTags,
 }));
 
-// EMR-227: detail modal は petId から pet.status を引いて死亡区分を表示層へ渡す。
-// このテストは QueryClientProvider なしで描画するためフックを固定する。
-const getPetResult = vi.hoisted(() => ({
-  current: { data: undefined as { status?: string; deceasedAt?: string | null } | undefined },
-}));
-
-vi.mock("@/hooks/use-pet", () => ({
-  useGetPet: () => getPetResult.current,
-}));
-
-const getColorMock = vi.fn(() => ({
+// EMR-227/EMR-301: 死亡区分は wire 予約サマリの petStatus/petDeceasedAt で判定する
+//（/pets/:id 取得は owners:view 権限依存のため廃止）。
+const getColorMock = vi.fn((): ReservationTypeColor => ({
   style: { backgroundColor: "rgb(0, 0, 0)" },
   dotStyle: { backgroundColor: "rgb(0, 0, 0)" },
   hex: "#000000",
@@ -51,6 +53,11 @@ const baseReservation: Reservation = {
   ownerId: "20",
   source: "manual",
   reservationRoute: "reception",
+  clinicId: "1",
+  isTentative: false,
+  intendedDate: undefined,
+  hadIntendedDate: false,
+  sourceMedicalRecordId: undefined,
 };
 
 describe("ReservationDetailModal", () => {
@@ -68,7 +75,8 @@ describe("ReservationDetailModal", () => {
   });
 
   beforeEach(() => {
-    getPetResult.current = { data: undefined };
+    mockGetReservation.current = { data: undefined };
+    mockGetOwnerLineTags.mockClear();
     getColorMock.mockReset();
     getColorMock.mockReturnValue({
       style: { backgroundColor: "rgb(0, 0, 0)" },
@@ -173,6 +181,77 @@ describe("ReservationDetailModal", () => {
     expect(typeRow?.textContent).toContain("一般診察");
     expect(typeRow?.textContent).not.toContain("（無効）");
   });
+
+  // PR#614 指摘: reservation prop はクリック時 snapshot で、死亡登録後も生存時の
+  // sentinel を保持する。detail 取得の最新応答が返ったら表示・導線をそちらに追従させる。
+  it("snapshot が生存でも detail 応答が死亡ならカルテ作成を隠す", () => {
+    mockGetReservation.current = {
+      data: { ...baseReservation, petStatus: "deceased" },
+    };
+    render(
+      <ReservationDetailModal
+        isOpen={true}
+        onClose={vi.fn()}
+        reservation={{ ...baseReservation, petBirthDate: "2018-05-10" }}
+        onCreateRecord={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /カルテ作成/ })).not.toBeInTheDocument();
+  });
+
+  it("detail 応答が未着なら snapshot のまま表示する（fail しない）", () => {
+    mockGetReservation.current = { data: undefined };
+    render(
+      <ReservationDetailModal
+        isOpen={true}
+        onClose={vi.fn()}
+        reservation={baseReservation}
+        onCreateRecord={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /カルテ作成/ })).toBeInTheDocument();
+  });
+
+  // PR#614 再レビュー指摘2: LINE タグは表示・操作対象と同一 owner を見るため、
+  // snapshot ではなく effective 予約（fresh GET 優先・fallback snapshot）の
+  // ownerId で引く。別 owner を引くと警告が誤った飼主を指す。
+  it("detail 応答の ownerId が snapshot と異なる場合 LINE タグは detail 側 ownerId で引く", () => {
+    mockGetReservation.current = {
+      data: { ...baseReservation, ownerId: "owner-b", ownerName: "佐藤一郎" },
+    };
+    render(
+      <ReservationDetailModal
+        isOpen={true}
+        onClose={vi.fn()}
+        reservation={{ ...baseReservation, ownerId: "owner-a" }}
+        onCreateRecord={vi.fn()}
+      />,
+    );
+
+    expect(mockGetOwnerLineTags).toHaveBeenLastCalledWith("owner-b");
+  });
+
+  it("detail 応答が未着なら snapshot の ownerId で LINE タグを引く（fallback）", () => {
+    mockGetReservation.current = { data: undefined };
+    render(
+      <ReservationDetailModal
+        isOpen={true}
+        onClose={vi.fn()}
+        reservation={{ ...baseReservation, ownerId: "owner-a" }}
+        onCreateRecord={vi.fn()}
+      />,
+    );
+
+    expect(mockGetOwnerLineTags).toHaveBeenLastCalledWith("owner-a");
+  });
+
+  it("reservation 未確定では ownerId 空を渡して LINE タグ query を無効化する", () => {
+    render(<ReservationDetailModal isOpen={true} onClose={vi.fn()} reservation={null} />);
+
+    expect(mockGetOwnerLineTags).toHaveBeenLastCalledWith("");
+  });
 });
 
 describe("ReservationDetailModal — tentative (EMR-308)", () => {
@@ -273,12 +352,11 @@ describe("ReservationDetailModal — tentative (EMR-308)", () => {
 
   it("死亡ペットの tentative では確定ボタンを出さない（EMR-177 positive-match ゲート）", () => {
     // 確定は実予約化する臨床 write — BE 側 ConfirmTentative も死亡ガード済み。
-    getPetResult.current = { data: { status: "死亡" } };
     render(
       <ReservationDetailModal
         isOpen={true}
         onClose={vi.fn()}
-        reservation={tentativeReservation}
+        reservation={{ ...tentativeReservation, petStatus: "deceased" }}
         onConfirmTentative={vi.fn()}
       />,
     );
@@ -286,8 +364,20 @@ describe("ReservationDetailModal — tentative (EMR-308)", () => {
     expect(screen.queryByRole("button", { name: "予約を確定" })).not.toBeInTheDocument();
   });
 
-  it("pet 未取得（不明）の tentative では確定ボタンを出す（BE が最終ゲート）", () => {
-    getPetResult.current = { data: undefined };
+  it("deceased_at のみの半死亡ペットでも確定ボタンを出さない（死亡OR契約）", () => {
+    render(
+      <ReservationDetailModal
+        isOpen={true}
+        onClose={vi.fn()}
+        reservation={{ ...tentativeReservation, petDeceasedAt: "2026-07-10T12:00:00+09:00" }}
+        onConfirmTentative={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "予約を確定" })).not.toBeInTheDocument();
+  });
+
+  it("pet サマリ未取得（不明）の tentative では確定ボタンを出す（BE が最終ゲート）", () => {
     render(
       <ReservationDetailModal
         isOpen={true}
@@ -322,5 +412,56 @@ describe("ReservationDetailModal — tentative (EMR-308)", () => {
     expect(screen.queryByText("期限超過・未対応")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "予約を確定" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /カルテ作成/ })).toBeInTheDocument();
+  });
+});
+
+describe("ReservationDetailModal 誕生月バッジ (EMR-301)", () => {
+  beforeEach(() => {
+    // 現在JST月を 2026-10 に固定して決定的にする
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-10T00:00:00+09:00"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function renderModal(reservation: Reservation) {
+    render(<ReservationDetailModal isOpen={true} onClose={vi.fn()} reservation={reservation} />);
+  }
+
+  it("今月(JST)誕生月のペットはペット名行に Cake バッジを表示する", () => {
+    renderModal({ ...baseReservation, petBirthDate: "2018-10-05" });
+
+    expect(screen.getByRole("button", { name: "今月誕生日" })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["誕生月でない", "2018-09-05"],
+    ["birth_date 未登録", undefined],
+  ])("%s のペットには Cake バッジを表示しない", (_label, petBirthDate) => {
+    renderModal({ ...baseReservation, petBirthDate });
+
+    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
+  });
+
+  it("petStatus=deceased（ワイヤ sentinel）のペットには誕生月でも表示しない", () => {
+    renderModal({
+      ...baseReservation,
+      petBirthDate: "2018-10-05",
+      petStatus: "deceased",
+    });
+
+    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
+  });
+
+  it("petDeceasedAt のみの半死亡ペットには誕生月でも表示しない（死亡OR契約）", () => {
+    renderModal({
+      ...baseReservation,
+      petBirthDate: "2018-10-05",
+      petDeceasedAt: "2026-07-10T12:00:00+09:00",
+    });
+
+    expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
   });
 });

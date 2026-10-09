@@ -26,6 +26,7 @@ export function toPet(pet: OwnerReportPet, ownerId: string): Pet {
     gender: pet.gender,
     status: pet.status === "生存" || pet.status === "死亡" ? pet.status : "不明",
     birthDate: pet.birthDate,
+    deceasedAt: pet.deceasedAt,
     neuteredDate: pet.neuteredDate,
     neuteredStatus: pet.neuteredStatus,
     weight: pet.weight,
@@ -41,7 +42,6 @@ export function toPet(pet: OwnerReportPet, ownerId: string): Pet {
     // EMR-174: owner-report wire は name_origin / meeting_story を返さない → undefined
     nameOrigin: undefined,
     meetingStory: undefined,
-    deceasedAt: undefined,
     deceasedReason: undefined,
   };
 }

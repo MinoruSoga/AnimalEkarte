@@ -31,6 +31,7 @@ type SharedPet struct {
 	AnimalSpeciesName string
 	Gender            model.PetGender
 	BirthDate         *time.Time
+	DeceasedAt        *time.Time
 	Color             string
 	Weight            *float64
 	Environment       string
@@ -74,7 +75,7 @@ func (r *petOwnerRepository) FindSharedPetsByOwnerID(
 		Select(
 			"pets.id, pets.pet_number, pets.name, pets.status, "+
 				"animal_species.name AS animal_species_name, pets.gender, "+
-				"pets.birth_date, pets.color, pets.weight, pets.environment, "+
+				"pets.birth_date, pets.deceased_at, pets.color, pets.weight, pets.environment, "+
 				"pets.remarks, pet_owners.relationship",
 		).
 		Joins("JOIN pet_owners ON pet_owners.pet_id = pets.id AND pet_owners.clinic_id = pets.clinic_id").

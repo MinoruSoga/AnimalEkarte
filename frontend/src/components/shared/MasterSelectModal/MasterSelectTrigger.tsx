@@ -1,5 +1,5 @@
 import { memo, type ReactNode } from "react";
-import { ICON, C } from "@/lib/design-tokens";
+import { ICON, C, STYLE } from "@/lib/design-tokens";
 import { ChevronRight } from "lucide-react";
 import { formatCurrency } from "@/lib/format/number";
 
@@ -18,7 +18,12 @@ interface MasterSelectTriggerProps {
    * "block"  — taller dashed-border card-style trigger (used by TrimmingForm)
    */
   variant?: "inline" | "block";
+  /** EMR-319: true でトリガーに aria-invalid + 赤枠を付与する */
+  ariaInvalid?: boolean;
 }
+
+/** EMR-319: エラー表示用の追加クラス */
+const INVALID_CLASSES = STYLE.formInputError;
 
 export const MasterSelectTrigger = memo(function MasterSelectTrigger({
   id,
@@ -27,6 +32,7 @@ export const MasterSelectTrigger = memo(function MasterSelectTrigger({
   icon,
   onClick,
   variant = "inline",
+  ariaInvalid = false,
 }: MasterSelectTriggerProps) {
   if (selectedItem) {
     // --- Selected state ---
@@ -36,7 +42,8 @@ export const MasterSelectTrigger = memo(function MasterSelectTrigger({
           id={id}
           type="button"
           onClick={onClick}
-          className={`w-full p-3 border ${C.borderPrimary} ${C.bgPage} rounded-md cursor-pointer ${C.hoverBgPage} transition-colors text-left`}
+          aria-invalid={ariaInvalid || undefined}
+          className={`w-full p-3 border ${ariaInvalid ? INVALID_CLASSES : C.borderPrimary} ${C.bgPage} rounded-md cursor-pointer ${C.hoverBgPage} transition-colors text-left`}
         >
           <div className="flex items-center justify-between">
             <div>
@@ -62,7 +69,8 @@ export const MasterSelectTrigger = memo(function MasterSelectTrigger({
         id={id}
         type="button"
         onClick={onClick}
-        className={`w-full h-11 px-3 border ${C.borderPrimary} ${C.bgPage} rounded-md cursor-pointer ${C.hoverBgPage} transition-colors flex items-center justify-between text-left`}
+        aria-invalid={ariaInvalid || undefined}
+        className={`w-full h-11 px-3 border ${ariaInvalid ? INVALID_CLASSES : C.borderPrimary} ${C.bgPage} rounded-md cursor-pointer ${C.hoverBgPage} transition-colors flex items-center justify-between text-left`}
       >
         <div className="flex items-center gap-2 min-w-0">
           <span className={`text-sm ${C.text} truncate`}>{selectedItem.name}</span>
@@ -87,7 +95,8 @@ export const MasterSelectTrigger = memo(function MasterSelectTrigger({
         id={id}
         type="button"
         onClick={onClick}
-        className={`w-full p-3 border-2 border-dashed ${C.borderMedium} rounded-md ${C.bgPage} ${C.hoverBgMedium} transition-colors text-center cursor-pointer`}
+        aria-invalid={ariaInvalid || undefined}
+        className={`w-full p-3 border-2 border-dashed ${ariaInvalid ? INVALID_CLASSES : C.borderMedium} rounded-md ${C.bgPage} ${C.hoverBgMedium} transition-colors text-center cursor-pointer`}
       >
         <div className="flex flex-col items-center">
           <span className={`${C.text30} mb-1`}>{icon}</span>
@@ -103,7 +112,8 @@ export const MasterSelectTrigger = memo(function MasterSelectTrigger({
       id={id}
       type="button"
       onClick={onClick}
-      className={`w-full h-11 px-3 border ${C.borderMedium} rounded-md bg-white ${C.hoverBgPageHalf} transition-colors text-left cursor-pointer flex items-center gap-2`}
+      aria-invalid={ariaInvalid || undefined}
+      className={`w-full h-11 px-3 border ${ariaInvalid ? INVALID_CLASSES : C.borderMedium} rounded-md bg-white ${C.hoverBgPageHalf} transition-colors text-left cursor-pointer flex items-center gap-2`}
     >
       <span className={C.text30}>{icon}</span>
       <span className={`text-sm ${C.text40}`}>{placeholder}</span>

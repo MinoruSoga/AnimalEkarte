@@ -65,8 +65,10 @@ export const BasicInfoSection = memo(function BasicInfoSection({
           onChange={(e) => onChange("title", e.target.value)}
           placeholder="見積書タイトルを入力"
           className="h-11 text-sm"
+          aria-invalid={titleError ? true : undefined}
+          aria-describedby={titleError ? "title-error" : undefined}
         />
-        <FormFieldError message={titleError} />
+        <FormFieldError id="title-error" message={titleError} />
       </div>
 
       {/* ステータス */}
@@ -78,6 +80,7 @@ export const BasicInfoSection = memo(function BasicInfoSection({
           <SelectTrigger
             id="status"
             className="h-11 text-sm w-full sm:w-[200px]"
+            aria-invalid={statusError ? true : undefined}
             aria-describedby={statusError ? "status-error" : undefined}
           >
             <SelectValue />

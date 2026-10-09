@@ -1,6 +1,7 @@
 import { useState, useTransition, useRef, useMemo } from "react";
 import type { Location } from "react-router";
 import { useGetPet, useGetPets } from "@/hooks/use-pet";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { useGetOwner } from "@/hooks/use-owner";
 import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
 import { useGetReservations } from "@/hooks/use-get-reservations";
@@ -37,7 +38,9 @@ import { paths } from "@/config/paths";
 export function selectCohabitingPets(pets: Pet[], selectedPet: Pet): Pet[] {
   return pets.filter(
     (pet) =>
-      pet.ownerId === selectedPet.ownerId && pet.id !== selectedPet.id && pet.status !== "死亡",
+      pet.ownerId === selectedPet.ownerId &&
+      pet.id !== selectedPet.id &&
+      !isPetDeceasedForClinicalWrite(pet),
   );
 }
 

@@ -69,6 +69,36 @@ func TestToReservationResponseIncludesNestedReservationType(t *testing.T) {
 	}
 }
 
+// EMR-301/EMR-319 レビュー対応: reservation の nested pet summary は
+// birth_date（誕生月バッジ）と deceased_at（死亡OR契約）を wire へ含める。
+func TestToPetSummarySerializesBirthDateAndDeceasedAt(t *testing.T) {
+	birthDate := time.Date(2019, time.October, 2, 0, 0, 0, 0, time.UTC)
+	deceasedAt := time.Date(2026, time.July, 10, 12, 0, 0, 0, time.UTC)
+
+	resp := toPetSummary(&model.Pet{
+		ID:         20,
+		Name:       "ポチ",
+		Status:     model.PetStatusAlive,
+		BirthDate:  &birthDate,
+		DeceasedAt: &deceasedAt,
+	})
+
+	body, err := json.Marshal(resp)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if payload["birth_date"] != "2019-10-02" {
+		t.Fatalf("birth_date = %v, want %q", payload["birth_date"], "2019-10-02")
+	}
+	if payload["deceased_at"] == nil {
+		t.Fatal("deceased_at is missing; deceasedAt-only pets must propagate to the wire")
+	}
+}
+
 func TestToReservationResponseIncludesPetDangerLevel(t *testing.T) {
 	resp := toReservationResponse(&model.Reservation{
 		ID:       1,

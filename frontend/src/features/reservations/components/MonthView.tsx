@@ -16,7 +16,9 @@ import {
 import { ja } from "date-fns/locale";
 
 // Internal
+import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { C } from "@/lib/design-tokens";
+import { isBirthMonthJST } from "@/lib/jst-date";
 import { toJSTWallDate } from "@/lib/jst-date";
 import { getReservationTypeColor } from "@/lib/status-helpers";
 import { DAY_OF_WEEK_LABEL_LIST } from "@/constants/day-of-week";
@@ -118,13 +120,37 @@ export const MonthView = memo(function MonthView({
                 const isClassNameColor = typeof colorStyle === "string";
                 // EMR-308: tentative（次回予定・未予約）は色だけでなく明示テキストで識別する
                 const isTentative = isTentativeReservation(app);
+                // EMR-301: static 変種バッジの title はチップのボタン title/aria-label に
+                // 上書きされて到達不能。生年月日は親の tooltip/accessible name に含める。
+                const isDeceasedPet = app.petStatus === "deceased" || app.petDeceasedAt != null;
+                const birthdayLabel =
+                  !isDeceasedPet && isBirthMonthJST(app.petBirthDate)
+                    ? `今月誕生日（生年月日: ${app.petBirthDate}）`
+                    : "";
+                const chipTitle = [isTentative ? TENTATIVE_APPOINTMENT_LABEL : "", birthdayLabel]
+                  .filter(Boolean)
+                  .join(" / ");
+                // PR#614 再レビュー: 子テキストで見える意味情報（tentative・飼主名・
+                // 非空の担当医）を accessible name から隠さない。WeekViewAppointmentCard
+                // と同方針で全情報を合成する（MonthView では担当医も含める）。
+                const accessibleLabel = [
+                  isTentative ? TENTATIVE_APPOINTMENT_LABEL : "",
+                  app.visitType === "first" ? "初診" : "再診",
+                  app.petName,
+                  app.ownerName,
+                  app.doctor,
+                  birthdayLabel,
+                ]
+                  .filter(Boolean)
+                  .join(" ");
                 return (
                   <button
                     key={app.id}
                     type="button"
                     className={`block w-full min-h-11 text-left text-sm px-2 py-1.5 rounded border cursor-pointer hover:opacity-80 leading-tight ${isClassNameColor ? colorStyle : ""} ${isTentative ? "border-dashed" : ""}`}
                     style={isClassNameColor ? undefined : (colorStyle as React.CSSProperties)}
-                    title={isTentative ? TENTATIVE_APPOINTMENT_LABEL : undefined}
+                    title={chipTitle || undefined}
+                    aria-label={accessibleLabel}
                     onClick={(e) => {
                       e.stopPropagation();
                       onAppointmentClick(app);
@@ -145,6 +171,14 @@ export const MonthView = memo(function MonthView({
                         </span>
                       )}
                       <span className="truncate text-xs font-medium">{app.petName}</span>
+                      {/* EMR-301: 誕生月 Cake 小アイコン（チップ自体が button のため static 変種） */}
+                      {!isDeceasedPet ? (
+                        <BirthdayBadge
+                          birthDate={app.petBirthDate}
+                          subjectName={app.petName}
+                          variant="static"
+                        />
+                      ) : null}
                     </div>
                     {isTentative ? (
                       <div className={`text-2xs font-semibold ${C.textWarning} truncate mt-0.5`}>

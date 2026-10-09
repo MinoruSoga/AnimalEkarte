@@ -7,26 +7,35 @@ import type { Estimate } from "../types";
 import { CREATE_STATUS_OPTIONS, EDIT_STATUS_OPTIONS } from "../constants/estimate-status-options";
 import { EstimateForm } from "./EstimateForm";
 
-const { mockEstimate, mockGetState, mockNavigate, mockToast, mockFormState } = vi.hoisted(() => ({
-  mockEstimate: { current: null as Estimate | null },
-  mockGetState: {
-    current: {
-      isLoading: false,
-      isError: false,
-      error: null as unknown,
-      refetch: vi.fn(),
+const { mockEstimate, mockGetState, mockNavigate, mockToast, mockFormState, mockPetQuery } =
+  vi.hoisted(() => ({
+    mockEstimate: { current: null as Estimate | null },
+    mockGetState: {
+      current: {
+        isLoading: false,
+        isError: false,
+        error: null as unknown,
+        refetch: vi.fn(),
+      },
     },
-  },
-  mockNavigate: vi.fn(),
-  mockToast: { info: vi.fn(), success: vi.fn(), error: vi.fn() },
-  mockFormState: {
-    current: {
-      success: false,
-      timestamp: 0,
-      fieldErrors: undefined as Record<string, string> | undefined,
+    mockPetQuery: {
+      current: null as {
+        data: { status?: string; deceasedAt?: string | null } | null;
+        isPending: boolean;
+        isSuccess: boolean;
+        isError: boolean;
+      } | null,
     },
-  },
-}));
+    mockNavigate: vi.fn(),
+    mockToast: { info: vi.fn(), success: vi.fn(), error: vi.fn() },
+    mockFormState: {
+      current: {
+        success: false,
+        timestamp: 0,
+        fieldErrors: undefined as Record<string, string> | undefined,
+      },
+    },
+  }));
 
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
@@ -48,6 +57,11 @@ vi.mock("react-router", async () => {
 });
 
 vi.mock("sonner", () => ({ toast: mockToast }));
+
+vi.mock("@/hooks/use-pet", () => ({
+  useGetPet: (id: string) =>
+    mockPetQuery.current ?? { data: null, isPending: !id, isSuccess: false, isError: false },
+}));
 
 vi.mock("../api/get-estimate", () => ({
   useGetEstimate: () => ({
@@ -138,6 +152,19 @@ function renderCreateForm() {
   );
 }
 
+function renderCreateFormWithPet(entry = "/estimates/new?petId=p1") {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[entry]}>
+        <Routes>
+          <Route path="/estimates/new" element={<EstimateForm />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
 describe("EstimateForm status options re-export", () => {
   it("Create 用選択肢は draft / sent のみ（utils 単一ソース）", () => {
     expect(CREATE_STATUS_OPTIONS.map((o) => o.value)).toEqual(["draft", "sent"]);
@@ -170,6 +197,8 @@ describe("EstimateForm statusError aria-describedby", () => {
 
     const trigger = screen.getByRole("combobox");
     expect(trigger).toHaveAttribute("aria-describedby", "status-error");
+    // EMR-319: ステータス必須エラーで SelectTrigger が aria-invalid を持つ
+    expect(trigger).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByRole("alert")).toHaveAttribute("id", "status-error");
     expect(screen.getByRole("alert")).toHaveTextContent(
       "作成時は下書きまたは送付済みのみ選択できます",
@@ -181,7 +210,23 @@ describe("EstimateForm statusError aria-describedby", () => {
 
     const trigger = screen.getByRole("combobox");
     expect(trigger).not.toHaveAttribute("aria-describedby");
+    expect(trigger).not.toHaveAttribute("aria-invalid");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  // EMR-319: タイトル必須エラーで Input が aria-invalid+describedby を持ちエラー文が出る。
+  it("titleError があるときタイトル Input に aria-invalid と title-error 参照を接続する", () => {
+    mockFormState.current = {
+      success: false,
+      timestamp: Date.now(),
+      fieldErrors: { title: "タイトルを入力してください" },
+    };
+    renderCreateForm();
+
+    const titleInput = screen.getByRole("textbox", { name: /タイトル/ });
+    expect(titleInput).toHaveAttribute("aria-invalid", "true");
+    expect(titleInput).toHaveAttribute("aria-describedby", "title-error");
+    expect(document.getElementById("title-error")).toHaveTextContent("タイトルを入力してください");
   });
 });
 
@@ -329,5 +374,42 @@ describe("EstimateForm BUG-019 not-found / network gate", () => {
       expect(screen.getByText("見積書編集")).toBeInTheDocument();
     });
     expect(screen.queryByText("見積書が見つかりません")).not.toBeInTheDocument();
+  });
+});
+
+// PR#614 指摘: render gate が status のみを見て deceasedAt を無視していたため、
+// status=生存 + deceasedAt 非 null の個体はメッセージは出るがフォームが有効のままだった。
+describe("EstimateForm deceased pet gate (deceasedAt)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPetQuery.current = null;
+    mockFormState.current = { success: false, timestamp: 0, fieldErrors: undefined };
+  });
+
+  it("status=生存 でも deceasedAt があればメッセージ表示かつ fieldset を disabled にする", () => {
+    mockPetQuery.current = {
+      data: { status: "生存", deceasedAt: "2026-01-10T00:00:00Z" },
+      isPending: false,
+      isSuccess: true,
+      isError: false,
+    };
+    const { container } = renderCreateFormWithPet();
+
+    expect(screen.getByText("死亡したペットの見積書は作成できません")).toBeInTheDocument();
+    expect(container.querySelector("fieldset")).toHaveProperty("disabled", true);
+    expect(screen.getByPlaceholderText("見積書タイトルを入力")).toBeDisabled();
+  });
+
+  it("status=生存 かつ deceasedAt=null なら通常どおりフォームが有効", () => {
+    mockPetQuery.current = {
+      data: { status: "生存", deceasedAt: null },
+      isPending: false,
+      isSuccess: true,
+      isError: false,
+    };
+    const { container } = renderCreateFormWithPet();
+
+    expect(screen.queryByText("死亡したペットの見積書は作成できません")).not.toBeInTheDocument();
+    expect(container.querySelector("fieldset")).toHaveProperty("disabled", false);
   });
 });

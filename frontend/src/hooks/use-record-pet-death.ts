@@ -25,6 +25,16 @@ export function useRecordPetDeath() {
     onSuccess: (_, { petId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.pets.detail(petId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.pets.list() });
+      // EMR-301/レビュー指摘: wire ペットサマリの死亡 sentinel（petStatus/petDeceasedAt）を
+      // 埋め込むキャッシュも更新する。staleTime(REALTIME=2分)内の stale 応答が
+      // 誕生月バッジ/カルテ作成導線を残す回帰を防ぐ。owners:view には依存しない。
+      queryClient.invalidateQueries({ queryKey: queryKeys.reservations.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reservations.detailAll() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reception.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.hospitalizations.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.hospitalizations.detailAll() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ownerSharedPets.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ownerReportPetsAll() });
       toast.success("死亡を記録しました");
     },
     onError: (error) => {

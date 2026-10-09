@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState, ErrorFallback } from "@/components/shared/DataStates";
+import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { C, ICON } from "@/lib/design-tokens";
 import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
@@ -80,7 +81,11 @@ function PatientSelectionRow({ pet, isBusy, isSelected, onSelect }: PatientSelec
       <TableCell className={`text-sm font-mono ${C.text}`}>{pet.ownerId}</TableCell>
       <TableCell className={`text-sm font-medium ${C.text}`}>{pet.ownerName}</TableCell>
       <TableCell className={`text-sm ${C.text}`}>
-        <span className="font-bold">{pet.name}</span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="font-bold">{pet.name}</span>
+          {/* EMR-301: 誕生月 Cake バッジ（死亡ペット抑制） */}
+          {!isDeceased ? <BirthdayBadge birthDate={pet.birthDate} subjectName={pet.name} /> : null}
+        </span>
       </TableCell>
       <TableCell className={`text-sm ${C.text}`}>{pet.species}</TableCell>
       <TableCell className={`text-sm ${C.text}`}>{pet.gender || "-"}</TableCell>
