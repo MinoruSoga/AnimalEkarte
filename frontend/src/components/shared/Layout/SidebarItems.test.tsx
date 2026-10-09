@@ -675,6 +675,72 @@ describe("sidebar item purpose descriptions", () => {
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 
+  it("親のボタンと矢印の隙間から外へ出ると説明を閉じる", async () => {
+    const item = requireMenuItem("Lステップ連携", paths.lstep.settings.getHref());
+    renderSidebarItem(item);
+    const main = screen.getByRole("button", { name: "Lステップ連携" });
+    const chevron = screen.getByRole("button", { name: "Lステップ連携を展開" });
+    const row = main.closest("[data-sidebar-row]");
+    const gap = main.parentElement;
+    if (!(row instanceof HTMLElement) || !(gap instanceof HTMLElement) || gap === row) {
+      throw new Error("sidebar row gap missing");
+    }
+
+    fireEvent.mouseEnter(main);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByRole("tooltip")).toHaveTextContent(LSTEP_PURPOSE);
+
+    fireEvent.mouseLeave(main, { relatedTarget: gap });
+    expect(screen.getByRole("tooltip")).toHaveTextContent(LSTEP_PURPOSE);
+
+    fireEvent.mouseLeave(row, { relatedTarget: document.body });
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+
+    fireEvent.mouseEnter(main);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    fireEvent.mouseLeave(main, { relatedTarget: chevron });
+    expect(screen.getByRole("tooltip")).toHaveTextContent(LSTEP_PURPOSE);
+
+    const tooltip = screen.getByRole("tooltip");
+    fireEvent.mouseLeave(chevron, { relatedTarget: tooltip });
+    fireEvent.mouseEnter(tooltip);
+    fireEvent.mouseLeave(tooltip, { relatedTarget: gap });
+    expect(screen.getByRole("tooltip")).toHaveTextContent(LSTEP_PURPOSE);
+    fireEvent.mouseLeave(row, { relatedTarget: document.body });
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("親の隙間から子の項目へ移ると親の説明を閉じる", async () => {
+    const item = requireMenuItem("Lステップ連携", paths.lstep.settings.getHref());
+    renderSidebarItem(item);
+    fireEvent.click(screen.getByRole("button", { name: "Lステップ連携を展開" }));
+    const main = screen.getByRole("button", { name: "Lステップ連携" });
+    const gap = main.parentElement;
+    const child = screen.getByRole("link", { name: "配信監視" });
+    if (!(gap instanceof HTMLElement)) {
+      throw new Error("sidebar row gap missing");
+    }
+
+    fireEvent.mouseEnter(main);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    fireEvent.mouseLeave(main, { relatedTarget: gap });
+    expect(screen.getByRole("tooltip")).toHaveTextContent(LSTEP_PURPOSE);
+
+    fireEvent.mouseOver(child);
+    fireEvent.mouseEnter(child);
+
+    const tips = screen.getAllByRole("tooltip");
+    expect(tips).toHaveLength(1);
+    expect(tips[0]).toHaveTextContent("配信トリガー");
+    expect(tips[0]).not.toHaveTextContent(LSTEP_PURPOSE);
+  });
+
   it("左メニューの全項目が画面の目的を受け取る", () => {
     for (const row of DESCRIBED_MENU) {
       const item = requireMenuItem(row.label, row.path);

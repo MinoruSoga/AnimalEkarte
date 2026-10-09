@@ -207,6 +207,17 @@ const SidebarItem = memo(function SidebarItem({
     const controls = controlsOwnedByRow(row);
     // jsdom fires mouseleave in the same turn as mouseenter. Ignore only that pair.
     let ignorePairedLeave = false;
+    const relatedTargetOf = (event: Event): EventTarget | null =>
+      "relatedTarget" in event
+        ? (event as Event & { relatedTarget: EventTarget | null }).relatedTarget
+        : null;
+    const endHover = () => {
+      hoverRef.current = false;
+      setHovered(false);
+      if (!focusRef.current) setDismissed(false);
+    };
+    const pointerStillOnRow = (next: EventTarget | null) =>
+      targetInPurposeTooltip(next) || eventTargetInRow(next, row);
     const enter = () => {
       ignorePairedLeave = true;
       hoverRef.current = true;
@@ -215,16 +226,18 @@ const SidebarItem = memo(function SidebarItem({
         ignorePairedLeave = false;
       });
     };
-    const leave = (event: Event) => {
+    const leaveUnlessStillHere = (event: Event) => {
       if (ignorePairedLeave) return;
-      const next =
-        "relatedTarget" in event
-          ? (event as Event & { relatedTarget: EventTarget | null }).relatedTarget
-          : null;
-      if (targetInPurposeTooltip(next) || eventTargetInRow(next, row)) return;
-      hoverRef.current = false;
-      setHovered(false);
-      if (!focusRef.current) setDismissed(false);
+      if (pointerStillOnRow(relatedTargetOf(event))) return;
+      endHover();
+    };
+    // Gaps in the row are not controls. Leaving the row, or entering a nested row, ends hover.
+    const leaveForNestedRow = (event: Event) => {
+      if (ignorePairedLeave || !hoverRef.current) return;
+      const raw = event.target;
+      const target = raw instanceof Element ? raw : raw instanceof Node ? raw.parentElement : null;
+      if (target === null || owningSidebarRow(target) === row) return;
+      endHover();
     };
     const onFocus = (event: Event) => {
       const target = event.target;
@@ -243,17 +256,21 @@ const SidebarItem = memo(function SidebarItem({
     };
     for (const control of controls) {
       control.addEventListener("mouseenter", enter);
-      control.addEventListener("mouseleave", leave);
+      control.addEventListener("mouseleave", leaveUnlessStillHere);
       control.addEventListener("focus", onFocus);
       control.addEventListener("blur", onBlur);
     }
+    row.addEventListener("mouseleave", leaveUnlessStillHere);
+    row.addEventListener("mouseover", leaveForNestedRow);
     return () => {
       for (const control of controls) {
         control.removeEventListener("mouseenter", enter);
-        control.removeEventListener("mouseleave", leave);
+        control.removeEventListener("mouseleave", leaveUnlessStillHere);
         control.removeEventListener("focus", onFocus);
         control.removeEventListener("blur", onBlur);
       }
+      row.removeEventListener("mouseleave", leaveUnlessStillHere);
+      row.removeEventListener("mouseover", leaveForNestedRow);
     };
   }, [description, collapsed, isExpanded, hasSubItems, rowElement]);
   useEffect(() => {
