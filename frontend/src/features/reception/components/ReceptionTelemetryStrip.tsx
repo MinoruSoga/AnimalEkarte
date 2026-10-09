@@ -28,9 +28,9 @@ export const ReceptionTelemetryStrip = memo(function ReceptionTelemetryStrip({
 }: ReceptionTelemetryStripProps) {
   return (
     <div
-      className={`flex items-center gap-3 px-4 py-2 text-base border-b ${C.borderLight} ${C.bgWhite}`}
+      className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-base border-b ${C.borderLight} ${C.bgWhite}`}
     >
-      <span>
+      <span className="whitespace-nowrap shrink-0">
         <span className={C.text60}>{isToday ? "本日受付" : "対象日の受付"}</span>{" "}
         <span className={`font-semibold tabular-nums ${C.text}`}>{totalCount}</span>
         <span className={C.text60}>件</span>
@@ -38,20 +38,20 @@ export const ReceptionTelemetryStrip = memo(function ReceptionTelemetryStrip({
 
       {isToday && waitStats ? (
         <>
-          <span className={C.text30} aria-hidden="true">
+          <span className={`${C.text30} shrink-0`} aria-hidden="true">
             ・
           </span>
-          <span>
+          <span className="whitespace-nowrap shrink-0">
             <span className={C.text60}>平均待ち</span>{" "}
             <span className={`font-semibold tabular-nums ${C.text}`}>
               {waitStats.averageMinutes === null ? "—" : `${waitStats.averageMinutes}分`}
             </span>
           </span>
 
-          <span className={C.text30} aria-hidden="true">
+          <span className={`${C.text30} shrink-0`} aria-hidden="true">
             ・
           </span>
-          <span>
+          <span className="whitespace-nowrap shrink-0">
             <span className={C.text60}>最長待ち</span>{" "}
             {waitStats.longest === null ? (
               <span className={`font-semibold tabular-nums ${C.text}`}>—</span>

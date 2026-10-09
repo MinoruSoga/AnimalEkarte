@@ -23,9 +23,10 @@ export function OwnerAddressFields({
 
   return (
     <>
+      {/* 会社住所グループ */}
       <div className="space-y-1.5">
         <Label htmlFor="postalCode" className={`text-sm ${C.text60}`}>
-          郵便番号
+          郵便番号（会社）
         </Label>
         <div className="flex gap-1.5">
           <Input
@@ -67,8 +68,22 @@ export function OwnerAddressFields({
       </div>
 
       <div className="space-y-1.5">
+        <Label htmlFor="address2" className={`text-sm ${C.text60}`}>
+          住所2（会社）
+        </Label>
+        <Input
+          id="address2"
+          value={ownerData.address2}
+          onChange={(event) => onChange("address2", event.target.value)}
+          maxLength={200}
+          className={STYLE.formInput}
+        />
+      </div>
+
+      {/* 自宅住所グループ */}
+      <div className="space-y-1.5">
         <Label htmlFor="homePostalCode" className={`text-sm ${C.text60}`}>
-          郵便番号(自宅)
+          郵便番号（自宅）
         </Label>
         <div className="flex gap-1.5">
           <Input
@@ -97,21 +112,8 @@ export function OwnerAddressFields({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="address2" className={`text-sm ${C.text60}`}>
-          住所2（会社）
-        </Label>
-        <Input
-          id="address2"
-          value={ownerData.address2}
-          onChange={(event) => onChange("address2", event.target.value)}
-          maxLength={200}
-          className={STYLE.formInput}
-        />
-      </div>
-
-      <div className="space-y-1.5">
         <Label htmlFor="homeAddress1" className={`text-sm ${C.text60}`}>
-          住所1(自宅)
+          住所1（自宅）
         </Label>
         <Input
           id="homeAddress1"
@@ -122,6 +124,20 @@ export function OwnerAddressFields({
         />
       </div>
 
+      <div className="space-y-1.5">
+        <Label htmlFor="homeAddress2" className={`text-sm ${C.text60}`}>
+          住所2（自宅）
+        </Label>
+        <Input
+          id="homeAddress2"
+          value={ownerData.homeAddress2}
+          onChange={(event) => onChange("homeAddress2", event.target.value)}
+          maxLength={200}
+          className={STYLE.formInput}
+        />
+      </div>
+
+      {/* 生年月日 */}
       <div className="space-y-1.5">
         <Label htmlFor="birthDate" className={`text-sm ${C.text60}`}>
           飼主生年月日
@@ -150,19 +166,6 @@ export function OwnerAddressFields({
             )}
           </span>
         </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="homeAddress2" className={`text-sm ${C.text60}`}>
-          住所2(自宅)
-        </Label>
-        <Input
-          id="homeAddress2"
-          value={ownerData.homeAddress2}
-          onChange={(event) => onChange("homeAddress2", event.target.value)}
-          maxLength={200}
-          className={STYLE.formInput}
-        />
       </div>
     </>
   );
