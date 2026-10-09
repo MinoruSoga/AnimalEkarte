@@ -479,10 +479,24 @@ describe("CheckupAddRow 必須エラー表示 (EMR-319)", () => {
     );
   });
 
+  // PR#614 P3: 追加行の実施日 DatePicker がエラー文を aria-describedby で参照する
+  it("errors.date で実施日 input がエラー要素を aria-describedby で参照する", () => {
+    renderAddRow({ date: "日付は必須です" });
+
+    const dateInput = screen.getByLabelText("実施日");
+    expect(dateInput).toHaveAttribute("aria-invalid", "true");
+    expect(dateInput).toHaveAttribute("aria-describedby", "checkup-tab-date-error");
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveAttribute("id", "checkup-tab-date-error");
+    expect(alert).toHaveTextContent("日付は必須です");
+  });
+
   it("errors が空なら実施日・健診種別に aria-invalid は付かない", () => {
     renderAddRow({});
 
     expect(screen.getByLabelText("実施日")).not.toHaveAttribute("aria-invalid");
+    expect(screen.getByLabelText("実施日")).not.toHaveAttribute("aria-describedby");
     expect(screen.getByLabelText("健診種別")).not.toHaveAttribute("aria-invalid");
     expect(screen.queryByRole("alert")).toBeNull();
   });

@@ -242,10 +242,11 @@ export function CheckupAddRow({
               if (calculated) onChange("next_date", calculated);
             }}
             ariaInvalid={Boolean(errors.date)}
+            ariaDescribedBy={errors.date ? "checkup-tab-date-error" : undefined}
             placeholder="日付"
             className="w-full min-w-[10rem]"
           />
-          <FormFieldError message={errors.date} />
+          <FormFieldError id="checkup-tab-date-error" message={errors.date} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="checkup-tab-type">健診種別</Label>

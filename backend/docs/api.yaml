@@ -1393,6 +1393,7 @@ components:
         - gender
         - status
         - birth_date
+        - deceased_at
         - breed
         - color
         - blood_type
@@ -1426,6 +1427,11 @@ components:
           type: string
           format: date-time
           nullable: true
+        deceased_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: "死亡OR契約 sentinel（常時シリアライズ、未死亡は null）"
         breed:
           type: string
         color:

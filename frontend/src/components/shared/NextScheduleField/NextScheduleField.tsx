@@ -60,11 +60,12 @@ export function NextScheduleField({
           value={nextDate}
           onChange={onNextDateChange}
           ariaInvalid={Boolean(error)}
+          ariaDescribedBy={error ? `${dateId}-error` : undefined}
           className="min-w-[160px] flex-1"
         />
       </div>
       {error ? (
-        <p role="alert" className={`text-sm ${C.danger}`}>
+        <p id={`${dateId}-error`} role="alert" className={`text-sm ${C.danger}`}>
           {error}
         </p>
       ) : null}

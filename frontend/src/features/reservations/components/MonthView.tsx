@@ -130,6 +130,19 @@ export const MonthView = memo(function MonthView({
                 const chipTitle = [isTentative ? TENTATIVE_APPOINTMENT_LABEL : "", birthdayLabel]
                   .filter(Boolean)
                   .join(" / ");
+                // PR#614 再レビュー: 子テキストで見える意味情報（tentative・飼主名・
+                // 非空の担当医）を accessible name から隠さない。WeekViewAppointmentCard
+                // と同方針で全情報を合成する（MonthView では担当医も含める）。
+                const accessibleLabel = [
+                  isTentative ? TENTATIVE_APPOINTMENT_LABEL : "",
+                  app.visitType === "first" ? "初診" : "再診",
+                  app.petName,
+                  app.ownerName,
+                  app.doctor,
+                  birthdayLabel,
+                ]
+                  .filter(Boolean)
+                  .join(" ");
                 return (
                   <button
                     key={app.id}
@@ -137,7 +150,7 @@ export const MonthView = memo(function MonthView({
                     className={`block w-full min-h-11 text-left text-sm px-2 py-1.5 rounded border cursor-pointer hover:opacity-80 leading-tight ${isClassNameColor ? colorStyle : ""} ${isTentative ? "border-dashed" : ""}`}
                     style={isClassNameColor ? undefined : (colorStyle as React.CSSProperties)}
                     title={chipTitle || undefined}
-                    aria-label={`${app.visitType === "first" ? "初診" : "再診"} ${app.petName}${birthdayLabel ? ` ${birthdayLabel}` : ""}`}
+                    aria-label={accessibleLabel}
                     onClick={(e) => {
                       e.stopPropagation();
                       onAppointmentClick(app);

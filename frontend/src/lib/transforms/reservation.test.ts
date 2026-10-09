@@ -39,10 +39,13 @@ const pet = {
   birth_date: "2018-10-05",
   breed: "",
   color: "",
+  neutered_status: "not_done",
+  danger_level: "low",
   food: "",
   environment: "",
   phone: "",
   remarks: "",
+  version: 1,
   created_at: "2026-03-25T00:00:00Z",
   updated_at: "2026-03-25T00:00:00Z",
 } satisfies NonNullable<BackendReservation["pet"]>;

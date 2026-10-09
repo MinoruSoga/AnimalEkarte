@@ -135,7 +135,6 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
   reservation,
 }: ReservationDetailModalProps) {
   const { getColor } = useReservationTypeColorMap();
-  const { data: lineData } = useGetOwnerLineTags(reservation?.ownerId ?? "");
   // EMR-227/EMR-301: 共有 transform (src/lib/transforms/reservation.ts) が petStatus /
   // petDeceasedAt を additive 伝播する。wire ペットサマリの死亡OR契約
   // （status=deceased または deceased_at 非null）で判定する。
@@ -144,10 +143,14 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
   // 必要な reservations:view と同一権限）の最新応答を優先して snapshot を追従させる。
   // owners:view 依存の /pets/:id フェッチは再導入しない。
   const { data: freshReservation } = useGetReservation(reservation?.id ?? "");
-
-  if (!reservation) return null;
-
   const effective = freshReservation ?? reservation;
+  // PR#614 再レビュー指摘2: LINE タグも表示・操作対象と同一 owner を見るため、
+  // snapshot ではなく effective 予約の ownerId で引く。rules-of-hooks により
+  // 早期 return より前で導出し、未確定時は ""（hook 側 enabled=false）。
+  const { data: lineData } = useGetOwnerLineTags(effective?.ownerId ?? "");
+
+  if (!effective) return null;
+
   const isDeceasedPet = effective.petStatus === "deceased" || effective.petDeceasedAt != null;
 
   // EMR-308: tentative（次回予定・未予約）は実時間を持たない。status セレクトや通常編集ではなく

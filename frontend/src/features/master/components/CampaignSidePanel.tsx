@@ -87,10 +87,13 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
     onSave,
     onDirtyChange,
     validate: (data) => {
+      // PR#614 R2-3: 名称と期間は独立した必須群。同一パスで全て評価し、
+      // 一方の失敗で早期 return して他方の invalid 表示をスキップしない。
+      let valid = true;
       if (!data.name.trim()) {
         setNameError("名称を入力してください");
         toast.error("名称を入力してください");
-        return false;
+        valid = false;
       }
       if (!data.startDate || !data.endDate) {
         const missing = new Set<"start" | "end">();
@@ -99,14 +102,14 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
         setPeriodMissing(missing);
         setPeriodError("開始日・終了日を入力してください");
         toast.error("開始日・終了日を入力してください");
-        return false;
-      }
-      if (data.endDate < data.startDate) {
+        valid = false;
+      } else if (data.endDate < data.startDate) {
         setPeriodMissing(new Set());
         setPeriodError("終了日は開始日以降にしてください");
         toast.error("終了日は開始日以降にしてください");
-        return false;
+        valid = false;
       }
+      if (!valid) return false;
       setNameError("");
       setPeriodError("");
       setPeriodMissing(new Set());

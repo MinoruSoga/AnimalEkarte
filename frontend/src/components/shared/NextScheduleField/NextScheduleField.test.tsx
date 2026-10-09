@@ -70,8 +70,13 @@ describe("NextScheduleField", () => {
       />,
     );
 
-    expect(screen.getByLabelText("次回接種予定日")).toHaveAttribute("aria-invalid", "true");
-    expect(screen.getByRole("alert")).toHaveTextContent("次回予定日を入力してください");
+    const dateInput = screen.getByLabelText("次回接種予定日");
+    expect(dateInput).toHaveAttribute("aria-invalid", "true");
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("次回予定日を入力してください");
+    // PR#614 P3: 入力とエラー文を aria-describedby + 安定 id で関連付ける
+    expect(alert).toHaveAttribute("id", "next-date-error");
+    expect(dateInput).toHaveAttribute("aria-describedby", "next-date-error");
   });
 
   it("error なしなら日付入力に aria-invalid は付かずエラー文も出ない", () => {
@@ -88,6 +93,7 @@ describe("NextScheduleField", () => {
     );
 
     expect(screen.getByLabelText("次回接種予定日")).not.toHaveAttribute("aria-invalid");
+    expect(screen.getByLabelText("次回接種予定日")).not.toHaveAttribute("aria-describedby");
     expect(screen.queryByRole("alert")).toBeNull();
   });
 });

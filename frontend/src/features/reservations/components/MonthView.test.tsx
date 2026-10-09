@@ -11,13 +11,24 @@ function reservationOf(overrides: Partial<Reservation> = {}): Reservation {
     end: new Date("2026-10-15T10:15:00"),
     ownerName: "宇野 いづみ",
     petName: "マメラ",
-    visitType: "return",
+    visitType: "revisit",
     type: "general_revisit",
+    category: "general",
     doctor: "",
+    doctorId: undefined,
     isDesignated: false,
+    isTentative: false,
+    intendedDate: undefined,
+    hadIntendedDate: false,
+    sourceMedicalRecordId: undefined,
     status: "confirmed",
     notes: "",
     petId: "pet-1",
+    petType: undefined,
+    ownerId: undefined,
+    reservationTypeId: undefined,
+    reservationRoute: null,
+    clinicId: undefined,
     source: "manual",
     ...overrides,
   };
@@ -89,4 +100,59 @@ describe("MonthView 誕生月バッジ (EMR-301)", () => {
     expect(chip.getAttribute("title") ?? "").not.toContain("今月誕生日");
     expect(chip.getAttribute("aria-label") ?? "").not.toContain("今月誕生日");
   });
+});
+
+describe("MonthView 予約チップの accessible name (PR#614 再レビュー指摘1)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-10T00:00:00+09:00"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // 子テキストで表示される意味情報（初診/再診・ペット名・飼主名・担当医・誕生月）は
+  // 全て親 button の accessible name に合成する（WeekViewAppointmentCard と同方針
+  // + MonthView では担当医も含める）。
+  it("accessible name は 再診・ペット名・飼主名・担当医・誕生月情報を全て含む", () => {
+    renderMonthView([reservationOf({ doctor: "田中 一郎", petBirthDate: "2018-10-05" })]);
+
+    expect(
+      screen.getByRole("button", {
+        name: "再診 マメラ 宇野 いづみ 田中 一郎 今月誕生日（生年月日: 2018-10-05）",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("担当医が空のとき accessible name に担当医を含めない", () => {
+    renderMonthView([reservationOf({ doctor: "" })]);
+
+    expect(screen.getByRole("button", { name: "再診 マメラ 宇野 いづみ" })).toBeInTheDocument();
+  });
+
+  it("tentative 予約の accessible name は 次回予定・未予約 ラベルを含む", () => {
+    renderMonthView([reservationOf({ isTentative: true })]);
+
+    const chip = screen.getByRole("button", {
+      name: "次回予定・未予約 再診 マメラ 宇野 いづみ",
+    });
+    expect(chip).toBeInTheDocument();
+    expect(chip).toHaveTextContent("次回予定・未予約");
+  });
+
+  it.each([
+    ["petStatus=deceased", { petStatus: "deceased" as const }],
+    ["petDeceasedAt 非null", { petDeceasedAt: "2026-09-01" }],
+  ])(
+    "死亡ペット（%s）はバッジ非描画かつ accessible name に誕生月情報を含まない",
+    (_label, overrides) => {
+      renderMonthView([reservationOf({ petBirthDate: "2018-10-05", ...overrides })]);
+
+      expect(screen.queryByRole("img", { name: "今月誕生日" })).not.toBeInTheDocument();
+      const chip = screen.getByRole("button", { name: /再診 マメラ/ });
+      expect(chip).toHaveAccessibleName(expect.not.stringContaining("今月誕生日"));
+      expect(chip).toHaveAccessibleName(expect.not.stringContaining("2018-10-05"));
+    },
+  );
 });
