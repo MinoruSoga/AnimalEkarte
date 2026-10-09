@@ -5,6 +5,8 @@ description: backend/migrations/ と seed バンドルを触るときの安全�
 
 # Migration / Seed Safety
 
+> **吸収（2026-10-09）**: 旧 `analyzing-schema`・`database-indexing`（repo 側スキル）を廃止。schema 分析は `postgres-patterns`（indexing/EXPLAIN 含む）が、migration/seed の安全ガードは本スキルが担う。
+
 このプロジェクトのmigration/seed関連インシデントは全て**同じ根本原因**を持つ:「静的な見た目は正しいが、既存DBへの実適用で壊れる」変更。
 
 過去のインシデント:

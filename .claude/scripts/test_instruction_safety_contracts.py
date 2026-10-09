@@ -90,8 +90,8 @@ class InstructionSafetyContractsTest(unittest.TestCase):
 
         source_refactor = read(".claude/commands/refactor.md")
         self.assertEqual(source_refactor, read(".codex/commands/refactor.md"))
-        self.assertEqual(read(".claude/commands/harness.md"), read(".codex/commands/harness.md"))
-        self.assertEqual(read(".claude/commands/implement.md"), read(".codex/commands/implement.md"))
+        # 2026-10-09: harness.md / implement.md は廃止（source-command-harness は implement-issue §4.6 へ統合、
+        # /implement は implement-issue が単一オーナー）。上記スキル棚卸し（承認済み）により削除済み。
 
         source_body = source_refactor.split("---\n", 2)[2]
         wrapper = read(".agents/skills/source-command-refactor/SKILL.md")
