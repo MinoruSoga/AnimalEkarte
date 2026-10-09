@@ -574,3 +574,16 @@ func (s *accountingService) syncCPMStageTag(ctx context.Context, clinicID uint64
 		slog.ErrorContext(ctx, "failed to sync CPM stage tag", "error", err, "clinic_id", clinicID, "owner_id", ownerID, "billing_id", billing.ID)
 	}
 }
+
+// syncNextVisitTag は accounting 完了で accounting→completed 遷移した予約が
+// next_visit 対象集合から外れるため、post-commit で next_visit_* タグを
+// 再同期する（Codex #23 / EMR-308、best-effort）。
+func (s *accountingService) syncNextVisitTag(ctx context.Context, clinicID uint64, billing *model.Billing) {
+	if s.tagSyncSvc == nil || billing == nil || billing.OwnerID == nil {
+		return
+	}
+	ownerID := *billing.OwnerID
+	if err := s.tagSyncSvc.SyncNextVisitTag(ctx, clinicID, ownerID); err != nil {
+		slog.ErrorContext(ctx, "failed to sync next visit tag", "error", err, "clinic_id", clinicID, "owner_id", ownerID, "billing_id", billing.ID)
+	}
+}

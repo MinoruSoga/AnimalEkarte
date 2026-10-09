@@ -504,6 +504,76 @@ func TestLstepLifecycleService_HandlePetRevival_LivingPetConflictNoSideEffects(t
 	)
 }
 
+// ---------------------------------------------------------------------------
+// Codex #24: 死亡/復活で next_visit_* タグを再同期する（best-effort）。
+// 死亡ペットの tentative は次回来院の対象外、復活で対象に復帰し得るため。
+// ---------------------------------------------------------------------------
+
+func TestLstepLifecycleService_HandlePetDeath_SyncsNextVisitTag(t *testing.T) {
+	var nextVisitCalls []uint64
+	petRepo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			return &model.Pet{ID: 1, OwnerID: 10}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			return nil
+		},
+		findLivingByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Pet, error) {
+			return []model.Pet{{ID: 2, OwnerID: 10}}, nil // 生存ペットあり経路
+		},
+	}
+	syncSvc := &mockLstepTagSyncService{
+		syncNextVisitTagFn: func(_ context.Context, _, ownerID uint64) error {
+			nextVisitCalls = append(nextVisitCalls, ownerID)
+			return nil
+		},
+	}
+	svc := newLstepLifecycleSvc(
+		defaultLstepSettingsSvc(),
+		&mockOwnerRepository{},
+		petRepo,
+		&mockLstepTagCacheRepository{},
+		syncSvc,
+	)
+
+	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "老衰", nil)
+
+	assert.NoError(t, err)
+	assert.Equal(t, []uint64{10}, nextVisitCalls,
+		"Codex #24: 生存ペット経路の死亡記録は owner の next_visit_* を再同期する")
+}
+
+func TestLstepLifecycleService_HandlePetRevival_SyncsNextVisitTag(t *testing.T) {
+	var nextVisitCalls []uint64
+	petRepo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			return &model.Pet{ID: 1, OwnerID: 10, Status: model.PetStatusDeceased}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			return nil
+		},
+	}
+	syncSvc := &mockLstepTagSyncService{
+		syncNextVisitTagFn: func(_ context.Context, _, ownerID uint64) error {
+			nextVisitCalls = append(nextVisitCalls, ownerID)
+			return nil
+		},
+	}
+	svc := newLstepLifecycleSvc(
+		defaultLstepSettingsSvc(),
+		&mockOwnerRepository{},
+		petRepo,
+		&mockLstepTagCacheRepository{},
+		syncSvc,
+	)
+
+	err := svc.HandlePetRevival(context.Background(), 1, 1, nil)
+
+	assert.NoError(t, err)
+	assert.Equal(t, []uint64{10}, nextVisitCalls,
+		"Codex #24: 復活は pet の飼い主の next_visit_* を再同期する")
+}
+
 // ---- テスト: HandleOwnerOptOut ----
 
 func TestLstepLifecycleService_HandleOwnerOptOut(t *testing.T) {

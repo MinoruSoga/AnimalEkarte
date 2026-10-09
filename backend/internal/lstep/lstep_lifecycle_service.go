@@ -152,6 +152,11 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 	if syncErr := s.syncSvc.SyncCPMStageTag(ctx, clinicID, ownerID); syncErr != nil {
 		slog.ErrorContext(ctx, "failed to sync CPM tag after pet death", "error", syncErr)
 	}
+	// Codex #24: 死亡ペットの tentative は次回来院の対象外になるため
+	// next_visit_* タグを再同期する（best-effort、既存タグ同期と同じ契約）。
+	if syncErr := s.syncSvc.SyncNextVisitTag(ctx, clinicID, ownerID); syncErr != nil {
+		slog.ErrorContext(ctx, "failed to sync next visit tag after pet death", "error", syncErr)
+	}
 
 	// 死亡ペット由来のワクチン・健診タグを解除する（best-effort）
 	if cleanupOwner, findErr := s.ownerRepo.FindByID(ctx, clinicID, ownerID); findErr == nil &&
@@ -227,6 +232,11 @@ func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, 
 	}
 	if syncErr := s.syncSvc.SyncCPMStageTag(ctx, clinicID, pet.OwnerID); syncErr != nil {
 		slog.ErrorContext(ctx, "failed to sync CPM tag after pet revival", "error", syncErr)
+	}
+	// Codex #24: 復活でペットの tentative が再び次回来院の対象になり得るため
+	// next_visit_* タグを再同期する（best-effort、既存タグ同期と同じ契約）。
+	if syncErr := s.syncSvc.SyncNextVisitTag(ctx, clinicID, pet.OwnerID); syncErr != nil {
+		slog.ErrorContext(ctx, "failed to sync next visit tag after pet revival", "error", syncErr)
 	}
 
 	// 監査ログ（best-effort）

@@ -133,10 +133,26 @@ func (s *reservationService) ConfirmTentative(
 		return nil, apperrors.WrapInternalServerError("reservation transaction dependency is required")
 	}
 	var confirmed *model.Reservation
+	var prevOwnerID *uint64
 	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		// 競合チェック→INSERT/UPDATE を直列化する clinic 単位 advisory lock（X-9 と同じ順序）。
 		if err := s.repo.AcquireBookingLock(ctx, clinicID); err != nil {
 			return err
+		}
+		// Codex #4: tentative mutation の lock 順序は intent advisory lock → 行ロック。
+		// 非ロック read で pet を解決し（pet_id は不変列）、行ロック先取りによる
+		// SetNextVisitIntent/ClearNextVisitIntent との AB-BA デッドロックを防ぐ。
+		// Codex #16: pre-read は関連行ガードを通さない FindPetIDForIntentLock を使う。
+		// 譲渡直後は行の owner_id が pet.owner_id と不整合で FindByID が行を除外するが、
+		// ここで見失うと repo 側の owner 追従に辿り着かず not found で確定できない。
+		petID, err := s.repo.FindPetIDForIntentLock(ctx, clinicID, id)
+		if err != nil {
+			return err
+		}
+		if petID != nil {
+			if err := s.repo.AcquireNextVisitIntentLock(ctx, clinicID, *petID); err != nil {
+				return err
+			}
 		}
 		current, err := s.repo.LockAndFindByID(ctx, clinicID, id)
 		if err != nil {
@@ -145,6 +161,9 @@ func (s *reservationService) ConfirmTentative(
 		if current.Status != model.ReservationStatusTentative {
 			return apperrors.WrapConflict("対象の予約は仮予約（次回予定）ではありません")
 		}
+		// Codex #16: post-commit の新旧 owner 双方をタグ再同期するため、昇格前の
+		// 飼い主を保持する（repo 側がロック保持中に現飼い主へ owner_id を追従する）。
+		prevOwnerID = current.OwnerID
 		// EMR-308: tentative 行は死亡後も残るため、実予約化の境界でも他の予約書込経路と
 		// 同じ死亡ペット拒否を適用する（行ロック取得後・booking 書込前）。
 		if err := ValidateReservationPetNotDeceased(ctx, s.repo, clinicID, current.PetID); err != nil {
@@ -155,8 +174,18 @@ func (s *reservationService) ConfirmTentative(
 			resolvedTypeID = *input.ReservationTypeID
 		}
 		if s.typeRepo != nil {
-			if _, err := s.typeRepo.FindByID(ctx, clinicID, resolvedTypeID); err != nil {
+			reservationType, err := s.typeRepo.FindByID(ctx, clinicID, resolvedTypeID)
+			if err != nil {
 				return apperrors.Wrap(err, "failed to verify reservation type ownership")
+			}
+			// Codex #15: 無効化された予約区分では確定できない。
+			if !reservationType.IsActive {
+				return apperrors.WrapInvalidInput("無効化された予約区分は利用できません")
+			}
+			// Codex #6: migration fallback が general 以外の placeholder を残し得るため、
+			// 区分未指定（= placeholder 維持）は stored 区分が general の場合のみ許可する。
+			if input.ReservationTypeID == nil && reservationType.Category != model.ReservationTypeCategoryGeneral {
+				return apperrors.WrapInvalidInput("次回予定のプレースホルダ区分では確定できません。予約区分を指定してください")
 			}
 		}
 		doctorID := normalizeCreateDoctorID(input.DoctorID)
@@ -196,8 +225,9 @@ func (s *reservationService) ConfirmTentative(
 		return nil, err
 	}
 	// EMR-308: tentative → 実予約確定で飼い主の次回来院の意味上の日付が変わるため
-	// post-commit で next_visit タグを再同期する。
-	syncNextVisitTagBestEffort(ctx, s.nextVisitTagSync, clinicID, confirmed.OwnerID)
+	// post-commit で next_visit タグを再同期する。Codex #16: repo が昇格時に owner を
+	// 現飼い主へ追従するため、譲渡があった場合は旧飼い主側の stale タグも除去する。
+	syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, confirmed.OwnerID, prevOwnerID)
 	slog.InfoContext(ctx, "tentative appointment confirmed",
 		slog.Uint64("reservation_id", confirmed.ID),
 		slog.Uint64("clinic_id", clinicID))

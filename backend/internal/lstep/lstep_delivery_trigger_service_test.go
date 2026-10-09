@@ -318,8 +318,8 @@ func (m *mockPetRepoForDelivery) CountLivingByOwnerIDs(_ context.Context, _ uint
 
 type mockDeliveryAppointmentRepository struct {
 	findOwnerIDsWithTentativeFn func(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
-	findTentativeByOwnerFn      func(ctx context.Context, clinicID, ownerID uint64, targetDate time.Time) (*model.Reservation, error)
-	withReminderSerializationFn func(ctx context.Context, clinicID, petID uint64, fn func(txCtx context.Context) error) error
+	findTentativesByOwnerFn     func(ctx context.Context, clinicID, ownerID uint64, targetDate time.Time) ([]model.Reservation, error)
+	withReminderSerializationFn func(ctx context.Context, clinicID uint64, petIDs []uint64, fn func(txCtx context.Context) error) error
 }
 
 func (m *mockDeliveryAppointmentRepository) FindOwnerIDsWithTentativeIntendedDate(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
@@ -329,19 +329,19 @@ func (m *mockDeliveryAppointmentRepository) FindOwnerIDsWithTentativeIntendedDat
 	return nil, nil
 }
 
-func (m *mockDeliveryAppointmentRepository) FindTentativeByOwnerAndIntendedDate(ctx context.Context, clinicID, ownerID uint64, targetDate time.Time) (*model.Reservation, error) {
-	if m.findTentativeByOwnerFn != nil {
-		return m.findTentativeByOwnerFn(ctx, clinicID, ownerID, targetDate)
+func (m *mockDeliveryAppointmentRepository) FindTentativesByOwnerAndIntendedDate(ctx context.Context, clinicID, ownerID uint64, targetDate time.Time) ([]model.Reservation, error) {
+	if m.findTentativesByOwnerFn != nil {
+		return m.findTentativesByOwnerFn(ctx, clinicID, ownerID, targetDate)
 	}
 	// デフォルトは active tentative 生存＝再検証通過（再検証ケース以外のセットアップを簡潔にする）。
 	// PetID は直列化ロックのキー解決に必須のためスタブ値を付ける。
 	petID := uint64(9001)
-	return &model.Reservation{OwnerID: &ownerID, PetID: &petID, Status: model.ReservationStatusTentative}, nil
+	return []model.Reservation{{OwnerID: &ownerID, PetID: &petID, Status: model.ReservationStatusTentative}}, nil
 }
 
-func (m *mockDeliveryAppointmentRepository) WithTentativeReminderSerialization(ctx context.Context, clinicID, petID uint64, fn func(txCtx context.Context) error) error {
+func (m *mockDeliveryAppointmentRepository) WithTentativeReminderSerialization(ctx context.Context, clinicID uint64, petIDs []uint64, fn func(txCtx context.Context) error) error {
 	if m.withReminderSerializationFn != nil {
-		return m.withReminderSerializationFn(ctx, clinicID, petID, fn)
+		return m.withReminderSerializationFn(ctx, clinicID, petIDs, fn)
 	}
 	// デフォルトはロックなし pass-through —— 実装側の直列化は repo 統合テストで担保し、
 	// ここでは hook 呼出の有無だけを検証可能にする。
@@ -679,7 +679,7 @@ func TestLstepDeliveryTriggerService_TentativeReminderStages(t *testing.T) {
 				return []uint64{30}, nil
 			},
 			// candidate 抽出後に tentative が消えた（取消・昇格・削除）ケース: 再検証 nil。
-			findTentativeByOwnerFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.Reservation, error) {
+			findTentativesByOwnerFn: func(_ context.Context, _, _ uint64, _ time.Time) ([]model.Reservation, error) {
 				return nil, nil
 			},
 		}
@@ -719,7 +719,7 @@ func TestLstepDeliveryTriggerService_TentativeReminderStages(t *testing.T) {
 			findOwnerIDsWithTentativeFn: func(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
 				return []uint64{30}, nil
 			},
-			findTentativeByOwnerFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.Reservation, error) {
+			findTentativesByOwnerFn: func(_ context.Context, _, _ uint64, _ time.Time) ([]model.Reservation, error) {
 				return nil, errors.New("revalidation db error")
 			},
 		}
@@ -748,6 +748,107 @@ func TestLstepDeliveryTriggerService_TentativeReminderStages(t *testing.T) {
 		count, errs := svc.TriggerNextVisitTentativeReminder3D(context.Background(), 1, asOf)
 		assert.Equal(t, 0, count)
 		assert.Len(t, errs, 1)
+	})
+
+	t.Run("locks every candidate pet and revalidates under all locks (Codex #22)", func(t *testing.T) {
+		// 同一 owner の対象日 tentative が複数ペットに跨るケース。1ペットだけを
+		// ロックして owner+date で再検索すると、ロック外ペットの intent で
+		// 再検証を通過し得るため、全 candidate pet をロック対象にする。
+		petA, petB := uint64(9001), uint64(9002)
+		ownerID := uint64(30)
+		ownerScoped := func(_ context.Context, _, oid uint64, _ time.Time) ([]model.Reservation, error) {
+			if oid != ownerID {
+				return nil, nil
+			}
+			return []model.Reservation{
+				{ID: 501, OwnerID: &ownerID, PetID: &petA, Status: model.ReservationStatusTentative},
+				{ID: 502, OwnerID: &ownerID, PetID: &petB, Status: model.ReservationStatusTentative},
+			}, nil
+		}
+		var capturedPetIDs []uint64
+		var revalidateUnderLock bool
+		var addTagCalls int
+		apptRepo := &mockDeliveryAppointmentRepository{
+			findOwnerIDsWithTentativeFn: func(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
+				return []uint64{ownerID}, nil
+			},
+			findTentativesByOwnerFn: ownerScoped,
+			withReminderSerializationFn: func(ctx context.Context, _ uint64, petIDs []uint64, fn func(txCtx context.Context) error) error {
+				capturedPetIDs = append([]uint64(nil), petIDs...)
+				// fn 内で呼ばれる再検証は全ロック保持中に走る —— フラグで検証する。
+				revalidateUnderLock = true
+				defer func() { revalidateUnderLock = false }()
+				return fn(ctx)
+			},
+		}
+		ownerRepo := &mockOwnerRepoForDelivery{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+				return defaultOwnerWithLine(id), nil
+			},
+		}
+		svc := buildDeliverySvc(ownerRepo, nil, nil, nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings(), apptRepo)
+		injectTestClient(svc, &mockLstepClientForDelivery{
+			addTagFn: func(_ context.Context, _, _ string) error {
+				addTagCalls++
+				return nil
+			},
+		})
+
+		count, errs := svc.TriggerNextVisitTentativeReminder3D(context.Background(), 1, asOf)
+
+		assert.Equal(t, 1, count)
+		assert.Empty(t, errs)
+		assert.ElementsMatch(t, []uint64{petA, petB}, capturedPetIDs,
+			"Codex #22: 送信根拠の tentative を持つ全 candidate pet がロック対象")
+		assert.False(t, revalidateUnderLock, "serialization fn は正常に return している")
+		assert.Equal(t, 1, addTagCalls)
+	})
+
+	t.Run("serialization ctx revalidation sees lock-scoped data (Codex #22)", func(t *testing.T) {
+		// ロック取得後の再検証が txCtx（tx スコープ）で行われることを検証する。
+		// ここでは「ロック内再検証が走ること」「再検証が空なら送信しない」を固定する。
+		ownerID := uint64(30)
+		petID := uint64(9001)
+		var firstCallDone bool
+		var lockHeldDuringRequery bool
+		var addTagCalls int
+		apptRepo := &mockDeliveryAppointmentRepository{
+			findOwnerIDsWithTentativeFn: func(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
+				return []uint64{ownerID}, nil
+			},
+			findTentativesByOwnerFn: func(_ context.Context, _, _ uint64, _ time.Time) ([]model.Reservation, error) {
+				if !firstCallDone {
+					firstCallDone = true
+					return []model.Reservation{{ID: 501, OwnerID: &ownerID, PetID: &petID, Status: model.ReservationStatusTentative}}, nil
+				}
+				// ロック保持中の再検証 —— lockHeldDuringRequery が true のはず。
+				assert.True(t, lockHeldDuringRequery, "再検証は serialization lock のスコープ内で実行される")
+				return nil, nil // ロック中に確認すると tentative は消えている（昇格済み）
+			},
+			withReminderSerializationFn: func(ctx context.Context, _ uint64, _ []uint64, fn func(txCtx context.Context) error) error {
+				lockHeldDuringRequery = true
+				defer func() { lockHeldDuringRequery = false }()
+				return fn(ctx)
+			},
+		}
+		ownerRepo := &mockOwnerRepoForDelivery{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+				return defaultOwnerWithLine(id), nil
+			},
+		}
+		svc := buildDeliverySvc(ownerRepo, nil, nil, nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings(), apptRepo)
+		injectTestClient(svc, &mockLstepClientForDelivery{
+			addTagFn: func(_ context.Context, _, _ string) error {
+				addTagCalls++
+				return nil
+			},
+		})
+
+		count, errs := svc.TriggerNextVisitTentativeReminder3D(context.Background(), 1, asOf)
+
+		assert.Equal(t, 0, count, "ロック中の再検証で tentative が消えていれば送信しない")
+		assert.Empty(t, errs)
+		assert.Equal(t, 0, addTagCalls)
 	})
 
 	t.Run("nil appointment repo fails closed", func(t *testing.T) {

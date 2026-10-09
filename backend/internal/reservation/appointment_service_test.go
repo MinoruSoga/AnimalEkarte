@@ -21,7 +21,7 @@ type mockReservationRepository struct {
 	lockAndFindByIDFn                  func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	createFn                           func(ctx context.Context, reservation *model.Reservation) error
 	updateFieldsFn                     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
-	updateTentativeStatusFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
+	updateTentativeStatusFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any, validate tentativeTransitionValidator) (*model.Reservation, error)
 	deleteFn                           func(ctx context.Context, clinicID, id uint64) error
 	countMedicalRecordsByReservationID func(ctx context.Context, reservationID uint64) (int64, error)
 	hasDoctorConflictFn                func(ctx context.Context, clinicID, doctorID uint64, start, end time.Time, excludeID *uint64) (bool, error)
@@ -33,6 +33,8 @@ type mockReservationRepository struct {
 	findPetByIDInClinicFn              func(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
 	assertLineCustomerInClinicFn       func(ctx context.Context, clinicID, lineCustomerID uint64) error
 	acquireBookingLockFn               func(ctx context.Context, clinicID uint64) error
+	acquireNextVisitIntentLockFn       func(ctx context.Context, clinicID, petID uint64) error
+	findPetIDForIntentLockFn           func(ctx context.Context, clinicID, id uint64) (*uint64, error)
 	setNextVisitIntentFn               func(ctx context.Context, clinicID, petID uint64, input SetNextVisitIntentInput) (*model.Reservation, *uint64, error)
 	clearNextVisitIntentFn             func(ctx context.Context, clinicID, petID uint64) (bool, error)
 	confirmTentativeFn                 func(ctx context.Context, clinicID, id uint64, input ConfirmTentativeUpdate) (*model.Reservation, error)
@@ -63,8 +65,8 @@ func (m *mockReservationRepository) update(ctx context.Context, clinicID, id uin
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
-func (m *mockReservationRepository) updateTentativeStatus(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
-	return m.updateTentativeStatusFn(ctx, clinicID, id, fields)
+func (m *mockReservationRepository) updateTentativeStatus(ctx context.Context, clinicID, id uint64, fields map[string]any, validate tentativeTransitionValidator) (*model.Reservation, error) {
+	return m.updateTentativeStatusFn(ctx, clinicID, id, fields, validate)
 }
 
 func (m *mockReservationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -243,8 +245,22 @@ func (m *mockReservationRepository) PromoteTentativeOnCheckin(ctx context.Contex
 	return booking, nil
 }
 
-func (m *mockReservationRepository) WithTentativeReminderSerialization(ctx context.Context, _ uint64, _ uint64, fn func(txCtx context.Context) error) error {
+func (m *mockReservationRepository) WithTentativeReminderSerialization(ctx context.Context, _ uint64, _ []uint64, fn func(txCtx context.Context) error) error {
 	return fn(ctx)
+}
+
+func (m *mockReservationRepository) AcquireNextVisitIntentLock(ctx context.Context, clinicID, petID uint64) error {
+	if m.acquireNextVisitIntentLockFn != nil {
+		return m.acquireNextVisitIntentLockFn(ctx, clinicID, petID)
+	}
+	return nil
+}
+
+func (m *mockReservationRepository) FindPetIDForIntentLock(ctx context.Context, clinicID, id uint64) (*uint64, error) {
+	if m.findPetIDForIntentLockFn != nil {
+		return m.findPetIDForIntentLockFn(ctx, clinicID, id)
+	}
+	return nil, nil
 }
 
 func ptrTime(t time.Time) *time.Time { return &t }

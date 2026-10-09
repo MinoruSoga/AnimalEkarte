@@ -409,6 +409,14 @@ func runSQLMigrations(db *sql.DB, logger *slog.Logger) error {
 		}
 	}
 
+	// Codex #1/#6 (PR #606): destructive DDL の前に fail-closed のデータ検査を行う
+	// migration 固有 preflight。committed migration ファイルは不変のため、
+	// データ損失防止のガードは runner 側に置く。ガードが失敗した場合は migration
+	// 全体を中断し（return error）、030 の DROP COLUMN には到達しない。
+	migrationPreflightGuards := map[string]func(db *sql.DB) error{
+		"030_next_visit_recommended_date_to_tentative.sql": preflightNextVisitIntentBackfill,
+	}
+
 	if len(migrationFiles) == 0 {
 		logger.Warn("No migration files found")
 		return nil
@@ -439,6 +447,13 @@ func runSQLMigrations(db *sql.DB, logger *slog.Logger) error {
 			logger.Info("⏭ Skipping (already applied)", slog.String("file", filename))
 			skipped++
 			continue
+		}
+
+		// 適用前の fail-closed preflight（030 データ損失ガード等）。
+		if guard, ok := migrationPreflightGuards[filename]; ok {
+			if err := guard(db); err != nil {
+				return err
+			}
 		}
 
 		// トランザクション内で実行 + 記録
@@ -472,6 +487,80 @@ func runSQLMigrations(db *sql.DB, logger *slog.Logger) error {
 		slog.Int("skipped", skipped),
 		slog.Int("total", len(migrationFiles)))
 
+	return nil
+}
+
+// preflightNextVisitIntentBackfill は 030_next_visit_recommended_date_to_tentative.sql
+// 適用前の fail-closed ガード（Codex #1/#6, PR #606）。committed migration は不変の
+// ため runner 側で検査する。
+//
+// 030 は medical_records.next_visit_recommended_date の未来日を tentative
+// appointments へ backfill してから列を DROP するが、placeholder reservation_type
+// を LATERAL で解決できない行（clinic に非削除の区分が0件）は WARNING のみで
+// スキップし、DROP でその未来日は失われる（#1: データ損失）。
+//
+// さらに placeholder 解決は `(category='general') DESC, is_active DESC` 順のため、
+// general が無い clinic では任意の非 general 区分・inactive 区分が割り当てられ得る
+// （#6: placeholder 誤昇格）。
+//
+// 本ガードは「変換対象 intent を持つ clinic が active かつ非削除の general 区分を
+// 持つこと」を全件要求する。active general が1件でも存在すれば 030 の ORDER BY が
+// 必ずそれを選ぶため placeholder は必ず general になり、type 未解決によるスキップ
+// も起きない。違反があれば migrate 全体を中断し、operator が区分を追加してから
+// 再実行する。クエリの SELECT 部は 030 の latest/candidates 契約を踏襲する。
+func preflightNextVisitIntentBackfill(db *sql.DB) error {
+	const query = `
+		WITH latest AS (
+			SELECT DISTINCT ON (mr.clinic_id, mr.pet_id)
+				mr.clinic_id,
+				mr.pet_id,
+				mr.next_visit_recommended_date AS intended_date
+			FROM medical_records AS mr
+			WHERE mr.deleted_at IS NULL
+			  AND mr.pet_id IS NOT NULL
+			ORDER BY mr.clinic_id, mr.pet_id, mr.id DESC
+		)
+		SELECT COUNT(*)
+		FROM latest AS l
+		JOIN pets AS p
+		  ON p.id = l.pet_id
+		 AND p.clinic_id = l.clinic_id
+		 AND p.deleted_at IS NULL
+		 AND p.status <> 'deceased'
+		 AND p.deceased_at IS NULL
+		JOIN owners AS o
+		  ON o.id = p.owner_id
+		 AND o.clinic_id = l.clinic_id
+		 AND o.deleted_at IS NULL
+		WHERE l.intended_date IS NOT NULL
+		  AND l.intended_date >= (now() AT TIME ZONE 'Asia/Tokyo')::date
+		  AND NOT EXISTS (
+			SELECT 1
+			FROM appointments AS a
+			WHERE a.clinic_id = l.clinic_id
+			  AND a.pet_id = l.pet_id
+			  AND a.status = 'tentative'
+			  AND a.deleted_at IS NULL
+		  )
+		  AND NOT EXISTS (
+			SELECT 1
+			FROM reservation_types AS rt
+			WHERE rt.clinic_id = l.clinic_id
+			  AND rt.deleted_at IS NULL
+			  AND rt.category = 'general'
+			  AND rt.is_active
+		  )
+	`
+	var unconvertible int
+	if err := db.QueryRow(query).Scan(&unconvertible); err != nil {
+		return fmt.Errorf("preflight for 030_next_visit_recommended_date_to_tentative.sql failed: %w", err)
+	}
+	if unconvertible > 0 {
+		return fmt.Errorf(
+			"migration 030_next_visit_recommended_date_to_tentative.sql aborted (Codex #1/#6): %d pet(s) keep a future next_visit_recommended_date whose clinic has no active general reservation type — the column drop would lose those dates. Add an active general reservation type to each affected clinic, then re-run migrate",
+			unconvertible,
+		)
+	}
 	return nil
 }
 

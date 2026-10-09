@@ -295,6 +295,9 @@ func (s *accountingService) Complete(ctx context.Context, input *CompleteAccount
 
 	if result != nil && result.Created && result.Accounting != nil {
 		s.syncCPMStageTag(ctx, input.ClinicID, result.Accounting)
+		// Codex #23: accounting→completed 遷移した予約が next_visit 対象集合から
+		// 外れるため next_visit_* タグも post-commit で再同期する（best-effort）。
+		s.syncNextVisitTag(ctx, input.ClinicID, result.Accounting)
 		slog.InfoContext(ctx, "accounting completed atomically",
 			slog.Uint64("billing_id", result.Accounting.ID),
 			slog.Uint64("clinic_id", input.ClinicID))

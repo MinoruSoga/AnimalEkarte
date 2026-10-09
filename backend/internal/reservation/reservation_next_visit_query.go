@@ -150,3 +150,25 @@ func (r *reservationRepository) FindTentativeByOwnerAndIntendedDate(
 	}
 	return &appointment, nil
 }
+
+// FindTentativesByOwnerAndIntendedDate は同条件の active tentative を全件 id 昇順で返す。
+// Codex #22: 同一 owner の同日 tentative が複数ペットに跨る場合、送信直前の再検証は
+// candidate 抽出時点の全ペットを直列化ロック対象として列挙する必要がある。
+func (r *reservationRepository) FindTentativesByOwnerAndIntendedDate(
+	ctx context.Context,
+	clinicID, ownerID uint64,
+	targetDate time.Time,
+) ([]model.Reservation, error) {
+	_, dateOnly := jstCalendarDate(targetDate)
+	appointments := make([]model.Reservation, 0)
+	err := persistence.DBOrTx(ctx, r.db).
+		Where("clinic_id = ? AND owner_id = ? AND status = ? AND deleted_at IS NULL AND intended_date = ?::date",
+			clinicID, ownerID, model.ReservationStatusTentative, dateOnly).
+		Where(nextVisitLivingPetClause).
+		Order("id ASC").
+		Find(&appointments).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "reservation", fmt.Sprintf("clinic=%d owner=%d tentatives intended=%s", clinicID, ownerID, dateOnly))
+	}
+	return appointments, nil
+}
