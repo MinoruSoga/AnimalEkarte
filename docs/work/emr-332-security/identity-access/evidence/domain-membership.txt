@@ -1,0 +1,78 @@
+=== RUN   TestListMedicalRecords_MembershipABGrantsAB
+=== RUN   TestListMedicalRecords_MembershipABGrantsAB/clinic_ids=1,2_は両医院をスコープに渡し横断カルテを返す
+=== RUN   TestListMedicalRecords_MembershipABGrantsAB/clinic_ids_未指定は従来どおり選択医院のみにスコープする
+--- PASS: TestListMedicalRecords_MembershipABGrantsAB (0.00s)
+    --- PASS: TestListMedicalRecords_MembershipABGrantsAB/clinic_ids=1,2_は両医院をスコープに渡し横断カルテを返す (0.00s)
+    --- PASS: TestListMedicalRecords_MembershipABGrantsAB/clinic_ids_未指定は従来どおり選択医院のみにスコープする (0.00s)
+=== RUN   TestGetMedicalRecord_MembershipABGrantsAB
+=== RUN   TestGetMedicalRecord_MembershipABGrantsAB/選択医院Aのまま所属医院Bのカルテ詳細を閲覧できる
+--- PASS: TestGetMedicalRecord_MembershipABGrantsAB (0.00s)
+    --- PASS: TestGetMedicalRecord_MembershipABGrantsAB/選択医院Aのまま所属医院Bのカルテ詳細を閲覧できる (0.00s)
+=== RUN   TestListMedicalRecords_MembershipABGrantASelectedB
+=== RUN   TestListMedicalRecords_MembershipABGrantASelectedB/defaults_to_selected_clinic_and_rejects_B_without_grant
+=== RUN   TestListMedicalRecords_MembershipABGrantASelectedB/filters_mixed_clinic_ids_to_A_and_returns_an_empty_A_list_as_200
+--- PASS: TestListMedicalRecords_MembershipABGrantASelectedB (0.00s)
+    --- PASS: TestListMedicalRecords_MembershipABGrantASelectedB/defaults_to_selected_clinic_and_rejects_B_without_grant (0.00s)
+    --- PASS: TestListMedicalRecords_MembershipABGrantASelectedB/filters_mixed_clinic_ids_to_A_and_returns_an_empty_A_list_as_200 (0.00s)
+=== RUN   TestGetMedicalRecord_MembershipABGrantASelectedB
+--- PASS: TestGetMedicalRecord_MembershipABGrantASelectedB (0.00s)
+PASS
+ok  	github.com/animal-ekarte/backend/internal/medicalrecord	0.009s
+=== RUN   TestGetLineReservationSetting_MembershipABGrantASelectedB
+=== RUN   TestGetLineReservationSetting_MembershipABGrantASelectedB/rejects_path_clinic_B_without_hospital-settings:view
+=== RUN   TestGetLineReservationSetting_MembershipABGrantASelectedB/allows_path_clinic_A
+--- PASS: TestGetLineReservationSetting_MembershipABGrantASelectedB (0.00s)
+    --- PASS: TestGetLineReservationSetting_MembershipABGrantASelectedB/rejects_path_clinic_B_without_hospital-settings:view (0.00s)
+    --- PASS: TestGetLineReservationSetting_MembershipABGrantASelectedB/allows_path_clinic_A (0.00s)
+=== RUN   TestListReservations_MembershipABGrantASelectedB
+=== RUN   TestListReservations_MembershipABGrantASelectedB/defaults_to_selected_clinic_and_rejects_B_without_grant
+=== RUN   TestListReservations_MembershipABGrantASelectedB/filters_mixed_clinic_ids_to_A_and_returns_an_empty_A_list_as_200
+--- PASS: TestListReservations_MembershipABGrantASelectedB (0.00s)
+    --- PASS: TestListReservations_MembershipABGrantASelectedB/defaults_to_selected_clinic_and_rejects_B_without_grant (0.00s)
+    --- PASS: TestListReservations_MembershipABGrantASelectedB/filters_mixed_clinic_ids_to_A_and_returns_an_empty_A_list_as_200 (0.00s)
+=== RUN   TestGetReservation_MembershipABGrantASelectedB
+--- PASS: TestGetReservation_MembershipABGrantASelectedB (0.00s)
+PASS
+ok  	github.com/animal-ekarte/backend/internal/reservation	0.009s
+=== RUN   TestListStaffs_MembershipABGrantASelectedB
+--- PASS: TestListStaffs_MembershipABGrantASelectedB (0.00s)
+=== RUN   TestGetStaff_MembershipABGrantASelectedB
+--- PASS: TestGetStaff_MembershipABGrantASelectedB (0.00s)
+=== RUN   TestGetStaffPermissionGroups_MembershipABGrantASelectedB
+--- PASS: TestGetStaffPermissionGroups_MembershipABGrantASelectedB (0.00s)
+=== RUN   TestListStaffs_MembershipABGrantBSelectedB
+--- PASS: TestListStaffs_MembershipABGrantBSelectedB (0.00s)
+=== RUN   TestGetStaff_MembershipABGrantBSelectedB
+--- PASS: TestGetStaff_MembershipABGrantBSelectedB (0.00s)
+=== RUN   TestGetStaffPermissionGroups_MembershipABGrantBSelectedB
+--- PASS: TestGetStaffPermissionGroups_MembershipABGrantBSelectedB (0.00s)
+PASS
+ok  	github.com/animal-ekarte/backend/internal/staff	0.009s
+=== RUN   TestListClinics_MembershipABGrantASelectedB
+--- PASS: TestListClinics_MembershipABGrantASelectedB (0.00s)
+PASS
+ok  	github.com/animal-ekarte/backend/internal/clinic	0.008s
+=== RUN   TestListOwners_MembershipABGrantASelectedB
+=== RUN   TestListOwners_MembershipABGrantASelectedB/defaults_to_selected_clinic_and_rejects_B_without_grant
+=== RUN   TestListOwners_MembershipABGrantASelectedB/filters_mixed_clinic_ids_to_A_and_returns_an_empty_A_list_as_200
+=== RUN   TestListOwners_MembershipABGrantASelectedB/rejects_explicit_B_clinic_ids
+--- PASS: TestListOwners_MembershipABGrantASelectedB (0.00s)
+    --- PASS: TestListOwners_MembershipABGrantASelectedB/defaults_to_selected_clinic_and_rejects_B_without_grant (0.00s)
+    --- PASS: TestListOwners_MembershipABGrantASelectedB/filters_mixed_clinic_ids_to_A_and_returns_an_empty_A_list_as_200 (0.00s)
+    --- PASS: TestListOwners_MembershipABGrantASelectedB/rejects_explicit_B_clinic_ids (0.00s)
+=== RUN   TestGetOwner_MembershipABGrantASelectedB
+--- PASS: TestGetOwner_MembershipABGrantASelectedB (0.00s)
+PASS
+ok  	github.com/animal-ekarte/backend/internal/owner	0.004s
+=== RUN   TestListPets_MembershipABGrantASelectedB
+=== RUN   TestListPets_MembershipABGrantASelectedB/defaults_to_selected_clinic_and_rejects_B_without_grant
+=== RUN   TestListPets_MembershipABGrantASelectedB/filters_mixed_clinic_ids_to_A_and_returns_an_empty_A_list_as_200
+--- PASS: TestListPets_MembershipABGrantASelectedB (0.00s)
+    --- PASS: TestListPets_MembershipABGrantASelectedB/defaults_to_selected_clinic_and_rejects_B_without_grant (0.00s)
+    --- PASS: TestListPets_MembershipABGrantASelectedB/filters_mixed_clinic_ids_to_A_and_returns_an_empty_A_list_as_200 (0.00s)
+=== RUN   TestGetPet_MembershipABGrantASelectedB
+--- PASS: TestGetPet_MembershipABGrantASelectedB (0.00s)
+=== RUN   TestListOwnerReportPets_MembershipABGrantASelectedB
+--- PASS: TestListOwnerReportPets_MembershipABGrantASelectedB (0.00s)
+PASS
+ok  	github.com/animal-ekarte/backend/internal/pet	0.007s

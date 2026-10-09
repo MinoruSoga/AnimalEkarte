@@ -27,7 +27,7 @@ func main() {
 		os.Exit(1)
 	}
 	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", ".."))
-	script := filepath.Join(root, "scripts", "auth-d5-dualprocess.sh")
+	script := harnessScriptPath(root)
 	if filepath.Base(script) != "auth-d5-dualprocess.sh" {
 		fmt.Fprintln(os.Stderr, "unexpected harness script path")
 		os.Exit(1)
@@ -46,6 +46,10 @@ func main() {
 		fmt.Fprintf(os.Stderr, "harness failed: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func harnessScriptPath(root string) string {
+	return filepath.Join(root, "scripts", "tools", "auth-d5-dualprocess.sh")
 }
 
 func envOr(key, fallback string) string {

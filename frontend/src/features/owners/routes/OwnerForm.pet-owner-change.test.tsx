@@ -1,5 +1,6 @@
 /**
- * BUG-373: OwnerForm.handlePetChangeOwner — 飼主変更 条件付き確認ダイアログ
+ * OwnerForm — ペットの飼主変更・確認ダイアログと安全な拒否
+ * 経緯: BUG-373の回帰試験を含む。
  *
  * discount_rate / membership_type が旧/新 owner で異なる場合のみ ConfirmDialog を表示し、
  * 同じ場合は即時 updatePetMutate を呼ぶことを検証する。
@@ -247,7 +248,7 @@ function renderOwnerFormWithRevocablePermission(mutations: PetMutations) {
 
 // ---------- tests ----------
 
-describe("BUG-373: OwnerForm.handlePetChangeOwner — 飼主変更 条件付き確認", () => {
+describe("OwnerForm — ペットの飼主変更", () => {
   beforeEach(() => {
     vi.mocked(useOwnerForm).mockReturnValue(makeOwnerFormReturn() as never);
   });

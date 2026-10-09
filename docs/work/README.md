@@ -49,6 +49,7 @@ flowchart TB
 | [emr-221-import-contract-design/DESIGN.md](./emr-221-import-contract-design/DESIGN.md) | EMR-221 八王子取込契約の設計案（レビュー用提案・実装未着手。実行 SoT ではない） |
 | [emr-257-payment-design-20261002.md](./emr-257-payment-design-20261002.md) | EMR-257 入院会計の前金・複数入金（預り金充当）の設計提案（実装未着手。実行 SoT ではない） |
 | [security-triage-2026-10-03.md](./security-triage-2026-10-03.md) | codex-security 累積 findings のトリアージ記録（2026-10-03）。実行 SoT ではない |
+| [emr-332-security/index.md](./emr-332-security/index.md) | EMR-332 非破壊セキュリティ検証・修復の記録。内容別配置、限定検証と未検証範囲。実行状態の正本はPlane |
 | [stg-chat-history-missing-2026-10-05.md](./stg-chat-history-missing-2026-10-05.md) | STG チャット履歴未保存事象の調査記録（2026-10-05）。実行 SoT ではない |
 | [infra-cf-rename-task-coverage-review-20261006.md](./infra-cf-rename-task-coverage-review-20261006.md) | 2026-10-06 棚卸し実測に対する CF 移管・改名タスクの網羅性レビュー（rereview で更新済み）。実行 SoT ではない |
 | [line-cost-analysis-roi-draft-20261007.md](./line-cost-analysis-roi-draft-20261007.md) | cost-analysis.md から 2026-10-07 移設した作業ノート（配信ボリューム試算シミュレーション・計画中 ROI 指標 draft・料金 worksheet）。試算・draft であり仕様の正本ではない |

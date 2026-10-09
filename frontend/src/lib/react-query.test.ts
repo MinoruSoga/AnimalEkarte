@@ -6,7 +6,9 @@ vi.mock("@/lib/handle-api-error", () => ({
 
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryClient } from "./react-query";
-import { queryKeys } from "./query-keys";
+
+const FAILED_QUERY_KEY = ["fe5-16-fail"] as const;
+const SILENT_QUERY_KEY = ["fe5-16-silent"] as const;
 
 describe("QueryCache onError（FE5-16: グローバルエラー可視化）", () => {
   beforeEach(() => {
@@ -16,7 +18,7 @@ describe("QueryCache onError（FE5-16: グローバルエラー可視化）", ()
   it("QueryCache onError: query 失敗時に handleApiError が呼ばれる", async () => {
     await queryClient
       .fetchQuery({
-        queryKey: queryKeys._test.fe516Fail(),
+        queryKey: FAILED_QUERY_KEY,
         queryFn: () => Promise.reject(new Error("boom")),
         retry: 0,
       })
@@ -28,7 +30,7 @@ describe("QueryCache onError（FE5-16: グローバルエラー可視化）", ()
   it("QueryCache onError: meta.silentError 指定時は呼ばれない", async () => {
     await queryClient
       .fetchQuery({
-        queryKey: queryKeys._test.fe516Silent(),
+        queryKey: SILENT_QUERY_KEY,
         queryFn: () => Promise.reject(new Error("boom")),
         retry: 0,
         meta: { silentError: true },

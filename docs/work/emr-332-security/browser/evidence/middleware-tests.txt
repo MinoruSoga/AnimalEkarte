@@ -1,0 +1,61 @@
+EMR-332 / U04-BROWSER-EDGE / att-u04-1 — scoped memory-only middleware test evidence
+Runner: isolated Docker (golang:1.26-alpine, --network none, RO source mount, named caches).
+Worktree: /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-emr-332-security-defense-w04
+(ledger verification_plan cites the canonical-root mount variant; same tree content scope)
+
+$ docker run --rm --pull never --network none \
+  -v /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-emr-332-security-defense-w04/backend:/app:ro \
+  -v ekarte-go-mod-cache:/go/pkg/mod \
+  -v ekarte-go-build-cache:/root/.cache/go-build \
+  -w /app golang:1.26-alpine \
+  go test -count=1 ./internal/middleware/...
+
+ok  	github.com/animal-ekarte/backend/internal/middleware	0.069s
+ok  	github.com/animal-ekarte/backend/internal/middleware/emr332_u04	0.008s
+
+
+$ docker run --rm --pull never --network none \
+  -v /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-emr-332-security-defense-w04/backend:/app:ro \
+  -v ekarte-go-mod-cache:/go/pkg/mod \
+  -v ekarte-go-build-cache:/root/.cache/go-build \
+  -w /app golang:1.26-alpine \
+  go test -count=1 -v ./internal/middleware/emr332_u04/
+
+=== RUN   TestEMR332C08_CSRFBlocksStateChangingRequestsWithoutHeader
+=== RUN   TestEMR332C08_CSRFBlocksStateChangingRequestsWithoutHeader/POST_without_X-Requested-With_is_rejected_before_handler
+=== RUN   TestEMR332C08_CSRFBlocksStateChangingRequestsWithoutHeader/PUT_without_X-Requested-With_is_rejected_before_handler
+=== RUN   TestEMR332C08_CSRFBlocksStateChangingRequestsWithoutHeader/PATCH_without_X-Requested-With_is_rejected_before_handler
+=== RUN   TestEMR332C08_CSRFBlocksStateChangingRequestsWithoutHeader/DELETE_without_X-Requested-With_is_rejected_before_handler
+=== RUN   TestEMR332C08_CSRFBlocksStateChangingRequestsWithoutHeader/GET_without_X-Requested-With_passes_through
+=== RUN   TestEMR332C08_CSRFBlocksStateChangingRequestsWithoutHeader/HEAD_without_X-Requested-With_passes_through
+=== RUN   TestEMR332C08_CSRFBlocksStateChangingRequestsWithoutHeader/OPTIONS_without_X-Requested-With_passes_through
+=== RUN   TestEMR332C08_CSRFBlocksStateChangingRequestsWithoutHeader/POST_with_X-Requested-With_passes_through
+--- PASS: TestEMR332C08_CSRFBlocksStateChangingRequestsWithoutHeader (0.00s)
+    --- PASS: TestEMR332C08_CSRFBlocksStateChangingRequestsWithoutHeader/POST_without_X-Requested-With_is_rejected_before_handler (0.00s)
+    --- PASS: TestEMR332C08_CSRFBlocksStateChangingRequestsWithoutHeader/PUT_without_X-Requested-With_is_rejected_before_handler (0.00s)
+    --- PASS: TestEMR332C08_CSRFBlocksStateChangingRequestsWithoutHeader/PATCH_without_X-Requested-With_is_rejected_before_handler (0.00s)
+    --- PASS: TestEMR332C08_CSRFBlocksStateChangingRequestsWithoutHeader/DELETE_without_X-Requested-With_is_rejected_before_handler (0.00s)
+    --- PASS: TestEMR332C08_CSRFBlocksStateChangingRequestsWithoutHeader/GET_without_X-Requested-With_passes_through (0.00s)
+    --- PASS: TestEMR332C08_CSRFBlocksStateChangingRequestsWithoutHeader/HEAD_without_X-Requested-With_passes_through (0.00s)
+    --- PASS: TestEMR332C08_CSRFBlocksStateChangingRequestsWithoutHeader/OPTIONS_without_X-Requested-With_passes_through (0.00s)
+    --- PASS: TestEMR332C08_CSRFBlocksStateChangingRequestsWithoutHeader/POST_with_X-Requested-With_passes_through (0.00s)
+=== RUN   TestEMR332C12_CORSOriginJudgment
+=== RUN   TestEMR332C12_CORSOriginJudgment/disallowed_Origin_preflight_is_not_granted
+=== RUN   TestEMR332C12_CORSOriginJudgment/configured_Origin_https://stg.noah-karte.com_preflight_gets_ACAO_and_Vary
+=== RUN   TestEMR332C12_CORSOriginJudgment/configured_Origin_https://api.stg.noah-karte.com_preflight_gets_ACAO_and_Vary
+=== RUN   TestEMR332C12_CORSOriginJudgment/disallowed_Origin_on_actual_request_gets_no_ACAO_grant
+--- PASS: TestEMR332C12_CORSOriginJudgment (0.00s)
+    --- PASS: TestEMR332C12_CORSOriginJudgment/disallowed_Origin_preflight_is_not_granted (0.00s)
+    --- PASS: TestEMR332C12_CORSOriginJudgment/configured_Origin_https://stg.noah-karte.com_preflight_gets_ACAO_and_Vary (0.00s)
+    --- PASS: TestEMR332C12_CORSOriginJudgment/configured_Origin_https://api.stg.noah-karte.com_preflight_gets_ACAO_and_Vary (0.00s)
+    --- PASS: TestEMR332C12_CORSOriginJudgment/disallowed_Origin_on_actual_request_gets_no_ACAO_grant (0.00s)
+=== RUN   TestEMR332C11C13_SecurityHeaderChain
+=== RUN   TestEMR332C11C13_SecurityHeaderChain/GET_response_carries_transport_and_cache-prevention_headers
+=== RUN   TestEMR332C11C13_SecurityHeaderChain/CSRF-rejected_POST_still_carries_security_and_cache_headers
+--- PASS: TestEMR332C11C13_SecurityHeaderChain (0.00s)
+    --- PASS: TestEMR332C11C13_SecurityHeaderChain/GET_response_carries_transport_and_cache-prevention_headers (0.00s)
+    --- PASS: TestEMR332C11C13_SecurityHeaderChain/CSRF-rejected_POST_still_carries_security_and_cache_headers (0.00s)
+PASS
+ok  	github.com/animal-ekarte/backend/internal/middleware/emr332_u04	0.007s
+
+Exit code: 0

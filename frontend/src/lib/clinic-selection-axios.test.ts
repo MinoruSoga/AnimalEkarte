@@ -19,7 +19,7 @@ import {
   CLINIC_SELECTION_UNAVAILABLE,
   areClinicWritesPaused,
   pauseClinicWrites,
-  resetClinicSelectionRecoveryForTests,
+  clearClinicSelectionRecovery,
 } from "./clinic-selection-recovery";
 
 function configuredAbsoluteUrl(endpoint: string, query = ""): string {
@@ -54,7 +54,7 @@ function okAdapter(onCall: () => void): AxiosAdapter {
 describe("clinic selection axios guards", () => {
   afterEach(() => {
     recoveryMocks.recover.mockReset().mockResolvedValue(undefined);
-    resetClinicSelectionRecoveryForTests();
+    clearClinicSelectionRecovery();
   });
 
   it("does not replay a failed write after clinic selection recovery", async () => {
