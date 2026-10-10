@@ -208,7 +208,7 @@ func TestReservationValidators_ValidateAndCreate_AbsorbedOwnerResult(t *testing.
 				}
 				return nil
 			}}
-			repo := &mockReservationRepository{previousAbsorbedOwnerID: uint64Ptr(6), countOnDutyDoctorsFn: func(context.Context, uint64, time.Time) (int64, error) { return 1, nil }, countConflictsFn: func(context.Context, uint64, time.Time, time.Time, *uint64) (int64, error) { return 0, nil }, absorbTentativeOnBookingFn: func(_ context.Context, b *model.Reservation) (*model.Reservation, error) { b.ID = 99; return b, nil }}
+			repo := &mockReservationRepository{findPetOwnerInClinicFn: func(context.Context, uint64, uint64) (uint64, error) { return 7, nil }, previousAbsorbedOwnerID: uint64Ptr(6), countOnDutyDoctorsFn: func(context.Context, uint64, time.Time) (int64, error) { return 1, nil }, countConflictsFn: func(context.Context, uint64, time.Time, time.Time, *uint64) (int64, error) { return 0, nil }, absorbTentativeOnBookingFn: func(_ context.Context, b *model.Reservation) (*model.Reservation, error) { b.ID = 99; return b, nil }}
 			typeRepo := mockReservationTypeFinder{findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.ReservationType, error) {
 				return &model.ReservationType{ID: id, ClinicID: clinicID, IsActive: true, ReservationVisible: true, Category: model.ReservationTypeCategoryGeneral}, nil
 			}}

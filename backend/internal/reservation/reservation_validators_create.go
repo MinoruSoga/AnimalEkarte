@@ -97,6 +97,11 @@ func (v *reservationValidators) createLineReservationInTx(
 		return nil, nil, apperrors.Wrap(err, "failed to generate confirmation number")
 	}
 	appt := buildLineReservation(input, startDT, endDT, confirmationNumber)
+	// Pre-resolved identity can change before this transaction starts. Retain
+	// the owner/pet locks through insertion and reject a transferred patient.
+	if err := ValidateReservationOwnerPetLinksWithRepo(ctx, v.repo, input.ClinicID, appt.OwnerID, appt.PetID); err != nil {
+		return nil, nil, err
+	}
 	// EMR-308: LINE 予約でもペットの active tentative を同一行昇格する。
 	// pet 未解決（未リンク顧客）のときは repo 側が通常 INSERT にフォールバックする。
 	// Codex 指摘: 事前解決時の死亡チェック（resolveReservationOwnerPet）はロックを
