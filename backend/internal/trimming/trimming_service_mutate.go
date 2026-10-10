@@ -25,7 +25,7 @@ func (s *trimmingService) createDetailForExistingAppointment(
 		return nil, apperrors.WrapInvalidInput("appointment is not a trimming reservation")
 	}
 	var result *model.Reservation
-	var previousOwnerID *uint64
+	var tagChange *trimmingNextVisitTagChange
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.reservation.AcquireBookingLock(txCtx, clinicID); err != nil {
 			return apperrors.Wrap(err, "failed to acquire trimming booking lock")
@@ -34,18 +34,19 @@ func (s *trimmingService) createDetailForExistingAppointment(
 		if err != nil {
 			return apperrors.Wrap(err, "failed to lock existing trimming appointment")
 		}
+		before := trimmingNextVisitFactsFor(locked)
 		created, err := s.createTrimmingDetailForExistingInTx(txCtx, clinicID, appointmentID, input, bwUnit, status, locked)
 		if err != nil {
 			return err
 		}
 		result = created
-		previousOwnerID = locked.OwnerID
+		tagChange = trimmingNextVisitChange(before, created)
 		return nil
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create trimming detail for existing appointment")
 	}
 
-	s.syncNextVisitTagsBestEffort(ctx, clinicID, previousOwnerID, result.OwnerID)
+	s.syncNextVisitTagChange(ctx, clinicID, tagChange)
 	return result, nil
 }
 
@@ -88,17 +89,20 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 	// を判定するため、tx 内で trimming_detail を取得した直後・フィールド上書き前に行う。
 	var result *model.Reservation
 	var replaced *TrimmingReplacedImages
+	var tagChange *trimmingNextVisitTagChange
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		updated, rep, err := s.updateTrimmingInTx(txCtx, clinicID, id, input, optionIDs, appointmentUpdate)
+		updated, rep, change, err := s.updateTrimmingInTx(txCtx, clinicID, id, input, optionIDs, appointmentUpdate)
 		if err != nil {
 			return err
 		}
 		result = updated
 		replaced = rep
+		tagChange = change
 		return nil
 	}); err != nil {
 		return nil, nil, apperrors.Wrap(err, "failed to update trimming appointment")
 	}
+	s.syncNextVisitTagChange(ctx, clinicID, tagChange)
 
 	slog.InfoContext(ctx, "trimming appointment updated",
 		slog.Uint64("clinic_id", clinicID),
@@ -114,6 +118,7 @@ func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64, actor
 	if err := s.requireAuditTx(); err != nil {
 		return err
 	}
+	var ownerID uint64
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.reservation.AcquireBookingLock(txCtx, clinicID); err != nil {
 			return apperrors.Wrap(err, "failed to acquire trimming booking lock")
@@ -122,6 +127,7 @@ func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64, actor
 		if err != nil {
 			return apperrors.Wrap(err, "failed to lock trimming appointment for delete")
 		}
+		ownerID = trimmingNextVisitFactsFor(locked).ownerID
 		var detail *model.AppointmentTrimmingDetail
 		detail, err = s.trimmingDetail.FindByAppointmentID(txCtx, clinicID, id)
 		if err != nil && !apperrors.IsNotFound(err) {
@@ -144,6 +150,7 @@ func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64, actor
 	}); err != nil {
 		return apperrors.Wrap(err, "failed to delete trimming appointment")
 	}
+	s.syncNextVisitTagsBestEffort(ctx, clinicID, &ownerID)
 	slog.InfoContext(ctx, "trimming appointment deleted",
 		slog.Uint64("appointment_id", id),
 		slog.Uint64("clinic_id", clinicID))

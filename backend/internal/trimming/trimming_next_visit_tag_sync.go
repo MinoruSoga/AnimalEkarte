@@ -3,7 +3,51 @@ package trimming
 import (
 	"context"
 	"log/slog"
+	"time"
+
+	"github.com/animal-ekarte/backend/internal/model"
 )
+
+// Capture values while holding the appointment lock, before any writer can mutate
+// its returned model. Detail, end time and doctor do not affect next-visit queries.
+type trimmingNextVisitFacts struct {
+	ownerID, petID          uint64
+	status                  model.ReservationStatus
+	startTime, intendedDate time.Time
+}
+
+func trimmingNextVisitFactsFor(appointment *model.Reservation) trimmingNextVisitFacts {
+	facts := trimmingNextVisitFacts{status: appointment.Status, startTime: appointment.StartTime}
+	if appointment.OwnerID != nil {
+		facts.ownerID = *appointment.OwnerID
+	}
+	if appointment.PetID != nil {
+		facts.petID = *appointment.PetID
+	}
+	if appointment.IntendedDate != nil {
+		facts.intendedDate = *appointment.IntendedDate
+	}
+	return facts
+}
+
+type trimmingNextVisitTagChange struct {
+	previousOwnerID, ownerID uint64
+}
+
+func trimmingNextVisitChange(before trimmingNextVisitFacts, result *model.Reservation) *trimmingNextVisitTagChange {
+	after := trimmingNextVisitFactsFor(result)
+	if before.ownerID == after.ownerID && before.petID == after.petID && before.status == after.status &&
+		before.startTime.Equal(after.startTime) && before.intendedDate.Equal(after.intendedDate) {
+		return nil
+	}
+	return &trimmingNextVisitTagChange{previousOwnerID: before.ownerID, ownerID: after.ownerID}
+}
+
+func (s *trimmingService) syncNextVisitTagChange(ctx context.Context, clinicID uint64, change *trimmingNextVisitTagChange) {
+	if change != nil {
+		s.syncNextVisitTagsBestEffort(ctx, clinicID, &change.previousOwnerID, &change.ownerID)
+	}
+}
 
 // Sync only after the outer appointment/detail/audit transaction commits. External
 // failures are best-effort and must neither reverse the write nor skip other owners.
