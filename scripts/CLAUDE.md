@@ -86,6 +86,7 @@ CI 契約チェック・DB リセット/移行ツール・セキュリティ/ポ
 |------|------|
 | `generate-agent-doc-sections.sh` | `.claude/CLAUDE.md` の `AUTO:*` セクション再生成 |
 | `manual-sync.py` | manual コンテンツ同期 |
+| `generate-erd-detail.py` (+`erd_schema.py` / `erd_render.py` / `test_erd_schema.py` / `test_generate_erd_detail.py`) | migrationから全カラム・FKの詳細ERDを生成・差分検査（DB操作なし。local CI docs gateで検査） |
 | `verify_research_html.py` | research HTML 成果物の数値突合検証 |
 | `export-codex-security-latest.sh` | Codex セキュリティレポート出力（既定 archive） |
 | `validate-k6-summary.mjs` (+`.test.mjs`) | k6 負荷試験サマリ検証 |

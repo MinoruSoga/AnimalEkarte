@@ -4,6 +4,8 @@
 > **読者**: 全開発者。
 > **タイミング**: スキーマ変更・DB設計判断時。
 
+> **詳細**: [全カラム・全外部キーの詳細ERD](erd-detail/index.md) はマイグレーションから静的に生成する。型・NULL可否・複合FKの列順・削除動作・部分uniqueの述語をテーブル別に記録し、`python3 -B scripts/tools/generate-erd-detail.py --check` で更新漏れを確認できる。
+
 <!-- ERD:TABLE_COUNT=134 -->
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル

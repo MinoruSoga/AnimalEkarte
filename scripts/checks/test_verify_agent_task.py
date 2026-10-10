@@ -135,6 +135,24 @@ class VerificationTests(unittest.TestCase):
             jobs,
         )
 
+    def test_erd_detail_tools_map_to_parser_and_drift_checks(self):
+        jobs, blocked = verify.plan([
+            'scripts/tools/erd_schema.py',
+            'scripts/tools/erd_render.py',
+            'scripts/tools/generate-erd-detail.py',
+            'scripts/tools/test_erd_schema.py',
+            'scripts/tools/test_generate_erd_detail.py',
+        ])
+        self.assertFalse(blocked)
+        self.assertEqual(
+            jobs,
+            [
+                {'service': 'host', 'command': ['python3', '-B', 'scripts/tools/test_erd_schema.py']},
+                {'service': 'host', 'command': ['python3', '-B', 'scripts/tools/test_generate_erd_detail.py']},
+                {'service': 'host', 'command': ['python3', '-B', 'scripts/tools/generate-erd-detail.py', '--check']},
+            ],
+        )
+
     def test_reject_path_escape(self):
         for path in ('../secret', '/tmp/x', '-option', 'frontend/../../x'):
             with self.assertRaises(ValueError):

@@ -148,6 +148,9 @@ s09() {
   begin_step "Docs symbol drift guardrail"
   bash scripts/checks/check-docs-symbol-drift.sh
   bash scripts/checks/check-docs-symbol-drift.test.sh
+  python3 -B scripts/tools/test_erd_schema.py
+  python3 -B scripts/tools/test_generate_erd_detail.py
+  python3 -B scripts/tools/generate-erd-detail.py --check
 }
 
 s10() {

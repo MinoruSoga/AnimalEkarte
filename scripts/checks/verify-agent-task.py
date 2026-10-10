@@ -74,6 +74,14 @@ ACCOUNT_LAYOUT_PATHS = {
     'backend/migrations/seeds/002_master/accounts/permission_groups.csv',
 }
 
+ERD_DETAIL_TOOL_PATHS = {
+    'scripts/tools/erd_schema.py',
+    'scripts/tools/erd_render.py',
+    'scripts/tools/generate-erd-detail.py',
+    'scripts/tools/test_erd_schema.py',
+    'scripts/tools/test_generate_erd_detail.py',
+}
+
 # Extra go test flags for packages whose default suite needs files outside the
 # backend-only offline mount (repo-root Makefile, frontend, docs, scripts).
 OFFLINE_GO_PACKAGE_FLAGS = {
@@ -645,6 +653,15 @@ def plan(paths):
         elif path == 'scripts/tools/manual-sync.py':
             # Ops CLI は stdlib-only。pure 関数の --self-test が scoped 契約。
             jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/tools/manual-sync.py', '--self-test']})
+        elif path in ERD_DETAIL_TOOL_PATHS:
+            for command in (
+                ['python3', '-B', 'scripts/tools/test_erd_schema.py'],
+                ['python3', '-B', 'scripts/tools/test_generate_erd_detail.py'],
+                ['python3', '-B', 'scripts/tools/generate-erd-detail.py', '--check'],
+            ):
+                job = {'service': 'host', 'command': command}
+                if job not in jobs:
+                    jobs.append(job)
         elif path in (
             'scripts/old-db/link-old-db-cross-clinic-staff-accounts.py',
             'scripts/old-db/sql/link-old-db-cross-clinic-staff-accounts.sql',
