@@ -44,7 +44,8 @@ func TestLiffCreate_VerifiesLockedCustomerOwnerLink(t *testing.T) {
 		{name: "relinked after resolution", resolved: uint64Ptr(7), current: uint64Ptr(8), wantErr: true},
 		{name: "unlinked after resolution", resolved: uint64Ptr(7), wantErr: true},
 		{name: "unchanged linked owner", resolved: uint64Ptr(7), current: uint64Ptr(7)},
-		{name: "unresolved customer keeps post-create attach path", current: uint64Ptr(8)},
+		{name: "linked after unresolved snapshot", current: uint64Ptr(8), wantErr: true},
+		{name: "unlinked customer keeps post-create attach path"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			inTx, wrote := false, false

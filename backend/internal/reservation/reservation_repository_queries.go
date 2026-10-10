@@ -274,7 +274,7 @@ func (r *reservationRepository) AssertLineCustomerInClinic(ctx context.Context, 
 }
 
 // Keep the authenticated customer's current link locked through LIFF insertion.
-// An unresolved owner remains eligible for the existing post-create attach path.
+// An unlinked customer remains eligible for the existing post-create attach path.
 func (r *reservationRepository) assertLineCustomerReservationOwner(ctx context.Context, clinicID, customerID uint64, resolvedOwnerID *uint64) error {
 	if persistence.TxFromContext(ctx) == nil {
 		return apperrors.WrapInternalServerError("LINE customer owner verification requires an ambient transaction")
@@ -291,7 +291,8 @@ func (r *reservationRepository) assertLineCustomerReservationOwner(ctx context.C
 }
 
 func validateLineReservationCustomerOwner(resolvedOwnerID, currentOwnerID *uint64) error {
-	if resolvedOwnerID != nil && (currentOwnerID == nil || *currentOwnerID != *resolvedOwnerID) {
+	if (resolvedOwnerID == nil) != (currentOwnerID == nil) ||
+		(resolvedOwnerID != nil && currentOwnerID != nil && *currentOwnerID != *resolvedOwnerID) {
 		return apperrors.WrapConflict("LINE顧客の飼い主紐付けが変更されました。再読み込みしてください")
 	}
 	return nil
