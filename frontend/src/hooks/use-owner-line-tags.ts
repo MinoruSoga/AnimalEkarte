@@ -13,8 +13,11 @@ export interface OwnerLineStatus {
 }
 
 async function getOwnerLineTags(clinicId: string, ownerId: string): Promise<OwnerLineStatus> {
+  // Codex PR606 再々指摘: path だけでなく X-Clinic-ID も対象行の医院に揃える
+  // （未指定だと interceptor が選択中医院を補完し、backend が header で scope する）。
   const { data } = await axios.get<OwnerLineStatus>(
     `/v1/clinics/${clinicId}/owners/${ownerId}/lstep/tags`,
+    { headers: { "X-Clinic-ID": clinicId } },
   );
   return data;
 }

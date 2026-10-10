@@ -55,13 +55,23 @@ const crossClinicHandlers = [
     "/api/v1/masters/reservation-types/:typeId/unavailable-times",
     captureHeader("unavailable-times"),
   ),
-  http.get("/api/v1/clinics/:clinicId/reservation-staffs", ({ params }) => {
+  // path 埋め込み系も backend 同様に header で scope する:
+  // X-Clinic-ID と :clinicId が不一致なら 403（interceptor 補完ミスを潰す）。
+  http.get("/api/v1/clinics/:clinicId/reservation-staffs", ({ params, request }) => {
     seenPathClinicIds.set("reservation-staffs", String(params.clinicId));
+    seenHeaders.set("reservation-staffs", request.headers.get("x-clinic-id"));
+    if (request.headers.get("x-clinic-id") !== String(params.clinicId)) {
+      return HttpResponse.json({ error: "clinic scope mismatch" }, { status: 403 });
+    }
     return HttpResponse.json([]);
   }),
   http.get("/api/v1/pets/:id", captureHeader("pet-detail", PET_WIRE)),
-  http.get("/api/v1/clinics/:clinicId/owners/:ownerId/lstep/tags", ({ params }) => {
+  http.get("/api/v1/clinics/:clinicId/owners/:ownerId/lstep/tags", ({ params, request }) => {
     seenPathClinicIds.set("owner-line-tags", String(params.clinicId));
+    seenHeaders.set("owner-line-tags", request.headers.get("x-clinic-id"));
+    if (request.headers.get("x-clinic-id") !== String(params.clinicId)) {
+      return HttpResponse.json({ error: "clinic scope mismatch" }, { status: 403 });
+    }
     return HttpResponse.json({
       line_user_id: null,
       is_linked: false,
@@ -116,6 +126,10 @@ describe("ReservationFormModal — 拠点横断 clinicId スコープ（Codex �
     // 患者取得 → owner tag 取得まで連鎖するのを待つ
     await waitFor(() => expect(seenHeaders.get("pet-detail")).toBe(TARGET_CLINIC));
     await waitFor(() => expect(seenPathClinicIds.get("owner-line-tags")).toBe(TARGET_CLINIC));
+
+    // path 埋め込み系は header も対象行の医院と一致する（backend は header で scope）
+    expect(seenHeaders.get("reservation-staffs")).toBe(TARGET_CLINIC);
+    expect(seenHeaders.get("owner-line-tags")).toBe(TARGET_CLINIC);
 
     // ヘッダ系エンドポイント（master/availability）は全て対象行の医院
     expect(seenHeaders.get("clinic-holidays")).toBe(TARGET_CLINIC);

@@ -104,8 +104,12 @@ export const getCurrentClinicId = (): string | null => {
 };
 
 const fetchReservationStaffs = async (clinicId: string): Promise<ReservationStaff[]> => {
+  // Codex PR606 再々指摘: path 埋め込みだけでは interceptor が選択中医院を
+  // X-Clinic-ID に補完してしまう。backend の実スコープは header 由来なので
+  // URL・query key・header の3つを同じ clinicId で揃える。
   const { data } = await axios.get<ReservationStaffWire[]>(
     `/v1/clinics/${clinicId}/reservation-staffs`,
+    { headers: { "X-Clinic-ID": clinicId } },
   );
   // Project only the positive contract so legacy wire fields cannot propagate.
   // Missing capabilities stay fail-closed rather than meaning "all capable".
