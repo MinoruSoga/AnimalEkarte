@@ -19,9 +19,10 @@ vi.mock("../api/get-owner-shared-pets", () => ({
 }));
 
 vi.mock("@/hooks/use-permission", () => ({
-  usePermission: () => ({ canCreate: reservationPermission }),
+  usePermission: () => ({ canCreate: reservationPermission, canView: reservationViewPermission }),
 }));
 let reservationPermission = false;
+let reservationViewPermission = true;
 
 const mockedUseGetOwnerSharedPets = vi.mocked(useGetOwnerSharedPets);
 
@@ -414,16 +415,25 @@ describe("OwnerPetsSection shared pets", () => {
 describe("EMR-318 reception entry", () => {
   beforeEach(() => {
     reservationPermission = false;
+    reservationViewPermission = true;
     navigateMock.mockReset();
   });
   it("owner create alone does not expose reception", () => {
     renderSection({ pet: { ...PET, id: "10" }, canCreate: true });
     expect(screen.queryByRole("button", { name: "受付: ポチ" })).not.toBeInTheDocument();
   });
-  it("reservation create exposes reception independently from owner create", () => {
+  it("reservation create and view expose reception independently from owner create", () => {
     reservationPermission = true;
     renderSection({ pet: { ...PET, id: "10" }, canCreate: false });
     expect(screen.getByRole("button", { name: "受付: ポチ" })).toBeInTheDocument();
+  });
+  it("reservation create without view does not expose an inaccessible reception flow", () => {
+    reservationPermission = true;
+    reservationViewPermission = false;
+    renderSection({ pet: { ...PET, id: "10" }, canCreate: false });
+
+    expect(screen.queryByRole("button", { name: "受付: ポチ" })).not.toBeInTheDocument();
+    expect(navigateMock).not.toHaveBeenCalled();
   });
   it("opens the prefilled reception flow and returns to today's board", async () => {
     reservationPermission = true;

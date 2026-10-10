@@ -1,8 +1,9 @@
 import { render, screen } from "@testing-library/react";
+import { StrictMode, type ReactNode } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { RouteErrorBoundary } from "./RouteErrorBoundary";
+import { RootErrorBoundary, RouteErrorBoundary } from "./RouteErrorBoundary";
 import { reloadForStaleChunk, shouldRecoverByReload } from "@/lib/stale-chunk-recovery";
 
 vi.mock("@/lib/stale-chunk-recovery", () => ({
@@ -13,22 +14,31 @@ vi.mock("@/lib/stale-chunk-recovery", () => ({
 const mockedShouldRecover = vi.mocked(shouldRecoverByReload);
 const mockedReload = vi.mocked(reloadForStaleChunk);
 
-function renderFailingRoute(error: unknown) {
+function renderFailingRoute(error: unknown, boundary: ReactNode = <RouteErrorBoundary />) {
   const router = createMemoryRouter(
     [
       {
         path: "/",
-        errorElement: <RouteErrorBoundary />,
+        errorElement: boundary,
         children: [{ index: true, lazy: () => Promise.reject(error) }],
       },
     ],
     { initialEntries: ["/"] },
   );
-  render(<RouterProvider router={router} />);
+  render(
+    <StrictMode>
+      <RouterProvider router={router} />
+    </StrictMode>,
+  );
 }
 
+beforeEach(() => {
+  mockedShouldRecover.mockReset().mockReturnValue(false);
+  mockedReload.mockReset().mockReturnValue(true);
+});
+
 afterEach(() => {
-  vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
 
 describe("RouteErrorBoundary stale-chunk recovery (EMR-271)", () => {
@@ -60,4 +70,29 @@ describe("RouteErrorBoundary stale-chunk recovery (EMR-271)", () => {
     expect(await screen.findByText("エラーが発生しました")).toBeInTheDocument();
     expect(mockedReload).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["route", RouteErrorBoundary, "link", "ダッシュボードへ戻る"],
+    ["root", RootErrorBoundary, "button", "再読み込み"],
+  ] as const)(
+    "%s: マーカー書込み失敗時は通常の復帰操作へ戻る",
+    async (_name, Boundary, role, label) => {
+      const actual = await vi.importActual<typeof import("@/lib/stale-chunk-recovery")>(
+        "@/lib/stale-chunk-recovery",
+      );
+      sessionStorage.clear();
+      vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
+      vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+        throw new DOMException("quota exceeded", "QuotaExceededError");
+      });
+      mockedShouldRecover.mockImplementation(actual.shouldRecoverByReload);
+      mockedReload.mockImplementation(actual.reloadForStaleChunk);
+
+      renderFailingRoute(new TypeError("Importing a module script failed."), <Boundary />);
+
+      expect(await screen.findByRole(role, { name: label })).toBeInTheDocument();
+      expect(screen.queryByText("画面を再読み込みしています")).not.toBeInTheDocument();
+      expect(mockedReload).toHaveBeenCalledTimes(1);
+    },
+  );
 });

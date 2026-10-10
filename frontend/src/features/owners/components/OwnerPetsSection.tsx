@@ -364,7 +364,10 @@ export function OwnerPetsSection({
   onEditPet,
   onDeleteRequest,
 }: OwnerPetsSectionProps) {
-  const { canCreate: canCreateReception } = usePermission("reservations");
+  const { canCreate: canCreateReservation, canView: canViewReservation } =
+    usePermission("reservations");
+  // The prefilled reception flow opens the reservation page, which requires view.
+  const canCreateReception = canCreateReservation && canViewReservation;
   const {
     data: sharedPetsResponse,
     isError: isSharedPetsError,
