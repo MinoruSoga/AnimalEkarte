@@ -23,6 +23,7 @@ export function useHospitalizationFormHydration(input: {
   treatmentPlanWire: readonly TreatmentPlanResponse[] | undefined;
   isTreatmentPlansSuccess: boolean;
   selectedPetRef: { current: Pet | undefined };
+  initialCageIdRef: { current: string };
   setFormData: (updater: (prev: HospitalizationFormData) => HospitalizationFormData) => void;
   setSelectedPets: (pets: Pet[]) => void;
   setTreatmentPlans: (plans: HospitalizationTreatmentPlan[]) => void;
@@ -37,6 +38,7 @@ export function useHospitalizationFormHydration(input: {
     treatmentPlanWire,
     isTreatmentPlansSuccess,
     selectedPetRef,
+    initialCageIdRef,
     setFormData,
     setSelectedPets,
     setTreatmentPlans,
@@ -49,13 +51,14 @@ export function useHospitalizationFormHydration(input: {
     const record = entityRead.data;
     if (hydratedHospitalizationId.current === record.id) return;
     hydratedHospitalizationId.current = record.id;
+    initialCageIdRef.current = record.cage_id ? String(record.cage_id) : "";
     setFormData((prev) => buildHospitalizationFormDataFromRecord(prev, record));
     const selectedPet = buildSelectedPetFromHospitalization(record);
     if (selectedPet) {
       selectedPetRef.current = selectedPet;
       setSelectedPets([selectedPet]);
     }
-  }, [entityRead, setSelectedPets, selectedPetRef, setFormData]);
+  }, [entityRead, setSelectedPets, selectedPetRef, initialCageIdRef, setFormData]);
 
   const hydratedTreatmentPlansForId = useRef<string | undefined>(undefined);
   useEffect(() => {

@@ -55,6 +55,7 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
     setFormData((prev) => ({ ...prev, ...updates }));
   }, []);
   const [treatmentPlans, setTreatmentPlans] = useState<HospitalizationTreatmentPlan[]>([]);
+  const initialCageIdRef = useRef("");
 
   const selectedPetRef = useRef(selectedPets[0]);
   useLayoutEffect(() => {
@@ -112,7 +113,11 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
             return { success: false, timestamp: Date.now() };
           }
           if (!isMutationAllowed()) return { success: false, timestamp: Date.now() };
-          await updateHospitalization(id, buildUpdateHospitalizationRequest(latestFormData));
+          await updateHospitalization(
+            id,
+            buildUpdateHospitalizationRequest(latestFormData, initialCageIdRef.current),
+          );
+          initialCageIdRef.current = latestFormData.cageId;
           toast.success("入院情報を更新しました");
         } else {
           if (!isMutationAllowed()) return { success: false, timestamp: Date.now() };
@@ -144,6 +149,7 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
     treatmentPlanWire,
     isTreatmentPlansSuccess,
     selectedPetRef,
+    initialCageIdRef,
     setFormData,
     setSelectedPets,
     setTreatmentPlans,

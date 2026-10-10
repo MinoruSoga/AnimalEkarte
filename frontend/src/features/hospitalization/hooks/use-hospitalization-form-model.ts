@@ -64,6 +64,7 @@ function toInsuranceNumber(formData: HospitalizationFormData) {
 
 export function buildUpdateHospitalizationRequest(
   formData: HospitalizationFormData,
+  initialCageId: string,
 ): UpdateHospitalizationRequest {
   return {
     hospitalization_type: toHospitalizationType(formData.hospitalizationType),
@@ -71,8 +72,12 @@ export function buildUpdateHospitalizationRequest(
     staff_notes: formData.staffNotes,
     memo: formData.memo,
     ...(formData.doctorId ? { doctor_id: formData.doctorId } : {}),
-    // EMR-316: 「選択なし」は cage_id を省略するだけでは BE が変更なしと解釈するため、明示的に NULL 化を指示する。
-    ...(formData.cageId ? { cage_id: formData.cageId } : { clear_cage_id: true }),
+    // 未操作の欄は PATCH から除外し、他のスタッフによる割当を上書きしない。
+    ...(formData.cageId === initialCageId
+      ? {}
+      : formData.cageId
+        ? { cage_id: formData.cageId }
+        : { clear_cage_id: true }),
     is_insurance: formData.isInsurance,
     insurance_company_name: toInsuranceCompanyName(formData),
     insurance_number: toInsuranceNumber(formData),
