@@ -47,6 +47,7 @@ flowchart TB
 | [EMR-245-list-filter-column-inventory.md](./EMR-245-list-filter-column-inventory.md) | EMR-245 一覧フィルタと表示列の対応棚卸し（チケット作業メモ。docs/ops/ から移動） |
 | [arch-a4-trigger-ledger.md](./arch-a4-trigger-ledger.md) | ARCH-A4 当時の測定・landed slice 台帳（docs/architecture/ から移動。再測定前に古い測定を go/no-go に流用しない） |
 | [emr-221-import-contract-design/DESIGN.md](./emr-221-import-contract-design/DESIGN.md) | EMR-221 八王子取込契約の設計案（レビュー用提案・実装未着手。実行 SoT ではない） |
+| [emr-342-medicines-contract-design/DESIGN.md](./emr-342-medicines-contract-design/DESIGN.md) | EMR-342 取込契約に薬剤マスタの表を足す設計案（レビュー用提案・実装未着手。実行 SoT ではない） |
 | [emr-257-payment-design-20261002.md](./emr-257-payment-design-20261002.md) | EMR-257 入院会計の前金・複数入金（預り金充当）の設計提案（実装未着手。実行 SoT ではない） |
 | [security-triage-2026-10-03.md](./security-triage-2026-10-03.md) | codex-security 累積 findings のトリアージ記録（2026-10-03）。実行 SoT ではない |
 | [emr-332-security/index.md](./emr-332-security/index.md) | EMR-332 非破壊セキュリティ検証・修復の記録。内容別配置、限定検証と未検証範囲。実行状態の正本はPlane |
