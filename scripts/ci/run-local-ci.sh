@@ -24,6 +24,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
+source "$ROOT/scripts/ci/ci-python.sh"
 
 GOLANGCI_LINT_VERSION="${GOLANGCI_LINT_VERSION:-v2.11.4}"
 NODE_WORKER_IMAGE="${NODE_WORKER_IMAGE:-node:24-bookworm}"
@@ -94,11 +95,12 @@ trap on_make_ci_failure ERR
 
 s01() {
   begin_step "Agent instruction and scoped verification contracts"
-  python3 -B .claude/scripts/sync-codex-mirror.py "$ROOT"
-  python3 -B .claude/scripts/sync-agents-skills.py "$ROOT"
-  python3 -B .claude/scripts/test_instruction_safety_contracts.py
-  python3 -B scripts/checks/test_verify_agent_task.py
-  python3 -B scripts/checks/test_agent_scope_contracts.py
+  ci_py -B .claude/scripts/sync-codex-mirror.py "$ROOT"
+  ci_py -B .claude/scripts/sync-agents-skills.py "$ROOT"
+  ci_py -B .claude/scripts/test_instruction_safety_contracts.py
+  ci_py -B scripts/checks/test_verify_agent_task.py
+  ci_py -B scripts/checks/test_agent_scope_contracts.py
+  bash scripts/ci/ci-python.test.sh
 }
 
 s02() {
@@ -135,22 +137,22 @@ s06() {
 
 s07() {
   begin_step "Go coverage shard merge contract"
-  python3 scripts/ci/merge_go_coverprofiles_test.py
+  ci_py scripts/ci/merge_go_coverprofiles_test.py
 }
 
 # 旧 remote job の「Verify seed invariants」相当（CSV seed 不変条件・DB 不要）。
 s08() {
   begin_step "Seed invariants (verify_seed)"
-  python3 scripts/old-db/verify_seed.py
+  ci_py scripts/old-db/verify_seed.py
 }
 
 s09() {
   begin_step "Docs symbol drift guardrail"
   bash scripts/checks/check-docs-symbol-drift.sh
   bash scripts/checks/check-docs-symbol-drift.test.sh
-  python3 -B scripts/tools/test_erd_schema.py
-  python3 -B scripts/tools/test_generate_erd_detail.py
-  python3 -B scripts/tools/generate-erd-detail.py --check
+  ci_py -B scripts/tools/test_erd_schema.py
+  ci_py -B scripts/tools/test_generate_erd_detail.py
+  ci_py -B scripts/tools/generate-erd-detail.py --check
 }
 
 s10() {
