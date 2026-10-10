@@ -64,6 +64,7 @@ flowchart TB
 | 8 | 監視・通知の有効化 | #253 ／ [production/runbook.md](../ops/infra/production/runbook.md) §5 ／ `infra/cloudflare/notifications.tf` | ゾーン 5xx 通知が有効・送信先メール検証済み（PROD 専用ポリシーは二重通知のため追加しない） | （確定待ち: 通知先供給・アドレス事前検証） |
 | 9 | 切り戻し体制・authority / support / rollback owner の合意 | 本書 §4・冒頭「新 window 記入欄」 ／ [production/runbook.md](../ops/infra/production/runbook.md) §3 | 判断者・判断基準・連絡経路が先方と合意済み。**ECS 切り戻しは選択肢に含めない**（#99） | （確定待ち） |
 | 10 | 全院の締め時間設定 | [#252](https://github.com/MinoruSoga/AnimalEkarte/issues/252) ／ [締め時間設定](../spec/screens/settings/closing-time-settings.md) | AM 開始 09:00 を確認、AM/PM 境界 12:00・平日/日曜終了 18:30 を全院投入。プレビュー・EMG 日跨ぎ・過去締め非再計算の非機密 receipt | （確定待ち: 投入完了証跡なし） |
+| 11 | 初期マスタ（標準予約区分）の適用と、医院が登録するマスタの案内 | EMR-341 ／ [production/setup.md](../ops/infra/production/setup.md) §4.1–4.2 ／ [EMR-321 手順](../ops/deploy/EMR-321_HOTEL_RESERVATION.md) | 全院に標準予約区分 5 件（診察・お手入れ・ワクチン・健診・ホテル）が有効で存在する（EMR-321 の事後確認クエリが 0 行）。テスト環境で医院が登録したマスタは本番に引き継がれないため、各院が予約区分・トリミングコースの控えを保持している（案内は EMR-338 の一覧）。適用は人手のみで、最初の本番 migrate の後に行う | （確定待ち: 適用証跡なし） |
 
 ---
 
