@@ -311,7 +311,7 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicIDs []uint64,
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
 	if err := reservationListPreloads(q, clinicIDs, false).
-		Scopes(persistence.Paginate(page, limit)).Order("start_time ASC").Find(&reservations).Error; err != nil {
+		Scopes(persistence.Paginate(page, limit)).Order("start_time ASC").Order("id ASC").Find(&reservations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
 	return reservations, total, nil
