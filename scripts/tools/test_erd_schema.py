@@ -224,8 +224,12 @@ class SchemaTests(unittest.TestCase):
 
     def test_repository_final_schema(self):
         schema = load_schema(Path(__file__).resolve().parents[2] / 'backend/migrations')
-        self.assertEqual(len(schema.tables), 134)
-        self.assertEqual(len(schema.migrations), 29)
+        self.assertEqual(len(schema.tables), 135)
+        self.assertEqual(len(schema.migrations), 30)
+        deletions = schema.tables['trimming_image_deletions']
+        self.assertEqual({c.name for c in deletions.columns}, {'clinic_id', 'object_key', 'actor_staff_id', 'created_at'})
+        self.assertTrue(all(not c.nullable for c in deletions.columns))
+        self.assertEqual(next(c for c in deletions.constraints if c.kind == 'primary').columns, ('clinic_id', 'object_key'))
         self.assertNotIn('prescriptions', schema.tables)
         self.assertNotIn('next_visit_recommended_date', {c.name for c in schema.tables['medical_records'].columns})
         for table_name, suffix, column_name, delete_action in [

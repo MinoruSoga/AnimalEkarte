@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "8a64bbc12c786193e466227d15dda7bf18412fc736dae3cc5aaa6e0b7bbbdba0",
+  "source_digest": "133e2aefd7213b4852a019b7e498f13f935fcfd5fd268029448d0e932ec9c127",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -17,9 +17,9 @@
     }
   ],
   "counts": {
-    "tables": 134,
-    "columns": 1628,
-    "foreign_keys": 320
+    "tables": 135,
+    "columns": 1632,
+    "foreign_keys": 321
   },
   "migrations": [
     {
@@ -137,6 +137,10 @@
     {
       "name": "031_appointments_source_medical_record_clinic_fk.sql",
       "sha256": "9efb120dd59f96455d076dde6f3e2d127787c240bbb2c83c004f32bcebed8fba"
+    },
+    {
+      "name": "032_trimming_image_deletions.sql",
+      "sha256": "932a005007410d5884baa070399f53a06ce485ce9256e53c06ab1c8d9010c2ba"
     }
   ],
   "reviewed_do_blocks": [
@@ -286,6 +290,7 @@
     "treatments.md",
     "trimming_course_types.md",
     "trimming_courses.md",
+    "trimming_image_deletions.md",
     "trimming_options.md",
     "vaccinations.md",
     "vaccines.md",

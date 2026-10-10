@@ -3,7 +3,7 @@
 
 [概要ERD](../erd.md)
 
-マイグレーション **29ファイル** から **134テーブル・1628カラム・320外部キー** を静的に導出しています。
+マイグレーション **30ファイル** から **135テーブル・1632カラム・321外部キー** を静的に導出しています。
 
 DDLは `backend/migrations/` 直下の `.sql` をファイル名順に読み、CREATE/ALTER/DROPとレビュー済みDOブロックの変更を反映します。seed、`schema_migrations`（migrate runnerの管理テーブル）、関数・trigger・RLS・実データはこの一覧の対象外です。
 
@@ -160,6 +160,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [treatments](treatments.md) | 28 | 10 |
 | [trimming_course_types](trimming_course_types.md) | 8 | 1 |
 | [trimming_courses](trimming_courses.md) | 13 | 2 |
+| [trimming_image_deletions](trimming_image_deletions.md) | 4 | 1 |
 | [trimming_options](trimming_options.md) | 12 | 1 |
 | [vaccinations](vaccinations.md) | 19 | 7 |
 | [vaccines](vaccines.md) | 14 | 3 |
@@ -167,7 +168,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 
 ## 入力の照合情報
 
-入力digest（SHA-256）: `8a64bbc12c786193e466227d15dda7bf18412fc736dae3cc5aaa6e0b7bbbdba0`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
+入力digest（SHA-256）: `133e2aefd7213b4852a019b7e498f13f935fcfd5fd268029448d0e932ec9c127`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
 
 | migration | SHA-256 |
 |:---|:---|
@@ -200,6 +201,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [029_appointments_one_active_tentative_index.sql](../../../backend/migrations/029_appointments_one_active_tentative_index.sql) | `37a81bcb5e3ec2bfad61d2e735cf2eb094af01baebd242b4f0b4ab9f229f136f` |
 | [030_next_visit_recommended_date_to_tentative.sql](../../../backend/migrations/030_next_visit_recommended_date_to_tentative.sql) | `1fcba7b937432b1531343595f84803f1a54e0afa384c2cb892a1f89daed9b075` |
 | [031_appointments_source_medical_record_clinic_fk.sql](../../../backend/migrations/031_appointments_source_medical_record_clinic_fk.sql) | `9efb120dd59f96455d076dde6f3e2d127787c240bbb2c83c004f32bcebed8fba` |
+| [032_trimming_image_deletions.sql](../../../backend/migrations/032_trimming_image_deletions.sql) | `932a005007410d5884baa070399f53a06ce485ce9256e53c06ab1c8d9010c2ba` |
 
 レビュー済みDOブロック（本文変更・新規追加は再レビューが必要）:
 
