@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -157,12 +158,8 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	// intended_date・source_medical_record_id の provenance は維持し新規行は作らない。
 	// tentative PATCH は status-only に制限済み（上記ゲート）のため input の時刻は常に nil。
 	// status-only PATCH では schedule 不変扱いのため枠競合・休診日チェックは発火しない。
-	if input.Status != nil && *input.Status == model.ReservationStatusCheckedIn &&
-		current.Status == model.ReservationStatusTentative {
-		now := time.Now()
-		fields["start_time"] = now
-		fields["end_time"] = now.Add(nextVisitIntentDurationMinutes * time.Minute)
-	}
+	// Codex #19 同型: sentinel 置換の実受付時刻は intent lock 取得後にスタンプする
+	// （updateTentativeStatusTransition の validator が post-lock で返す）。
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -245,10 +242,33 @@ func (s *reservationService) updateTentativeStatusTransition(
 	fields map[string]any,
 ) (*model.Reservation, error) {
 	if *input.Status == model.ReservationStatusCheckedIn {
-		if err := ValidateReservationPetNotDeceased(ctx, s.repo, clinicID, current.PetID); err != nil {
-			return nil, err
+		// Codex #3/#14/#19: 死亡チェック・未来日拒否・実受付スタンプは intent
+		// advisory lock 取得後・同一 tx 内で行う必要があるため、post-lock で
+		// 再読み込みした行へ適用される validator として CAS 経路へ渡す。
+		// 事前の FindByID ベース検証はロック待ち中の並行 commit（死亡記録・
+		// intended_date 変更・並行昇格）を取り逃がす。
+		validator := func(ctx context.Context, locked *model.Reservation) (map[string]any, error) {
+			if err := ValidateReservationPetNotDeceased(ctx, s.repo, clinicID, locked.PetID); err != nil {
+				return nil, err
+			}
+			if locked.IntendedDate != nil {
+				intendedJST := locked.IntendedDate.In(config.JST)
+				intendedDay := time.Date(intendedJST.Year(), intendedJST.Month(), intendedJST.Day(), 0, 0, 0, 0, config.JST)
+				nowJST := time.Now().In(config.JST)
+				today := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 0, 0, 0, 0, config.JST)
+				if intendedDay.After(today) {
+					return nil, apperrors.WrapInvalidInput("未来日の次回予定は受付できません。先に予約を確定してください")
+				}
+			}
+			// 実受付時刻は post-lock の現在時刻でスタンプする。
+			now := time.Now()
+			return map[string]any{
+				"start_time":    now,
+				"end_time":      now.Add(nextVisitIntentDurationMinutes * time.Minute),
+				"checked_in_at": now,
+			}, nil
 		}
-		updated, err := s.repo.updateTentativeStatus(ctx, clinicID, id, fields)
+		updated, err := s.repo.updateTentativeStatus(ctx, clinicID, id, fields, validator)
 		if err != nil {
 			return nil, apperrors.Wrap(err, "failed to check in tentative reservation")
 		}
@@ -261,7 +281,7 @@ func (s *reservationService) updateTentativeStatusTransition(
 	}
 	var updated *model.Reservation
 	if err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
-		u, err := s.repo.updateTentativeStatus(txCtx, clinicID, id, fields)
+		u, err := s.repo.updateTentativeStatus(txCtx, clinicID, id, fields, nil)
 		if err != nil {
 			return err
 		}
@@ -397,7 +417,7 @@ func (s *reservationService) Delete(ctx context.Context, clinicID, id uint64) er
 		if err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
 			if _, err := s.repo.updateTentativeStatus(txCtx, clinicID, id, map[string]any{
 				"status": model.ReservationStatusCancelled,
-			}); err != nil {
+			}, nil); err != nil {
 				return err
 			}
 			return s.repo.Delete(txCtx, clinicID, id)

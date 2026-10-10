@@ -288,7 +288,7 @@ func TestLstepBatchService_DetectNoShowReservations_ResyncsNextVisitTagPostCommi
 			return []model.Reservation{{ID: 5, OwnerID: &ownerID}}, nil
 		},
 		markNoShowFn: func(_ context.Context, _ uint64, _ uint64) (reservation.NoShowTransition, error) {
-			return reservation.NoShowTransition{Changed: true, PreviousStatus: model.ReservationStatusConfirmed}, nil
+			return reservation.NoShowTransition{Changed: true, PreviousStatus: model.ReservationStatusConfirmed, OwnerID: ownerID}, nil
 		},
 	}
 	type resyncCall struct {
@@ -309,6 +309,41 @@ func TestLstepBatchService_DetectNoShowReservations_ResyncsNextVisitTagPostCommi
 	assert.Empty(t, errs)
 	assert.Equal(t, []resyncCall{{clinicID: 7, ownerID: ownerID}}, calls,
 		"a changed no-show transition must resync the appointment's owner tag exactly once")
+}
+
+func TestLstepBatchService_DetectNoShowReservations_SyncsTransitionedRowOwnerAfterTransfer(t *testing.T) {
+	// Codex #25: candidate 抽出〜CAS 行ロック確定の間に飼い主譲渡が割り込み得る。
+	// 同期対象は stale な candidate.OwnerID ではなく MarkNoShowAt がロックした行の
+	// owner_id（transition.OwnerID）。
+	staleOwnerID := uint64(42)
+	currentOwnerID := uint64(77)
+	reservationRepo := &noShowMockReservationRepository{
+		findNoShowCandidatesFn: func(_ context.Context, _ uint64) ([]model.Reservation, error) {
+			return []model.Reservation{{ID: 5, OwnerID: &staleOwnerID}}, nil
+		},
+		markNoShowFn: func(_ context.Context, _ uint64, _ uint64) (reservation.NoShowTransition, error) {
+			return reservation.NoShowTransition{
+				Changed:        true,
+				PreviousStatus: model.ReservationStatusConfirmed,
+				OwnerID:        currentOwnerID,
+			}, nil
+		},
+	}
+	var synced []uint64
+	svc := newNoShowBatchService(reservationRepo, &dormantMockClinicRepository{}, &mockAuditService{}, &mockLstepSettingsService{})
+	svc.tagSyncSvc = &batchMockTagSyncSvc{
+		syncNextVisitTagFn: func(_ context.Context, _, oid uint64) error {
+			synced = append(synced, oid)
+			return nil
+		},
+	}
+
+	count, errs := svc.detectNoShowReservations(context.Background(), 7)
+
+	assert.Equal(t, 1, count)
+	assert.Empty(t, errs)
+	assert.Equal(t, []uint64{currentOwnerID}, synced,
+		"Codex #25: CAS で確定した行の owner を同期する（candidate の stale owner ではない）")
 }
 
 func TestLstepBatchService_DetectNoShowReservations_NoResyncForNilOwnerOrUnchanged(t *testing.T) {

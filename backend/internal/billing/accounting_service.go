@@ -199,7 +199,7 @@ type accountingService struct {
 	medicalRecordRepo billingMedicalRecordLocker
 	hospRepo          billingHospitalizationFinder
 	reservationRepo   accountingReservationRepository
-	tagSyncSvc        cpmTagSyncer
+	tagSyncSvc        billingTagSyncer
 	transactor        Transactor
 	auditTx           billingAuditTxLogger
 	payMethodRepo     PaymentMethodMasterRepository
@@ -269,7 +269,7 @@ func NewAccountingService(
 	medicalRecordRepo billingMedicalRecordLocker,
 	hospRepo billingHospitalizationFinder,
 	reservationRepo accountingReservationRepository,
-	tagSyncSvc cpmTagSyncer,
+	tagSyncSvc billingTagSyncer,
 	transactor Transactor,
 	auditTx billingAuditTxLogger,
 	payMethodRepo PaymentMethodMasterRepository,

@@ -409,6 +409,32 @@ func runSQLMigrations(db *sql.DB, logger *slog.Logger) error {
 		}
 	}
 
+	// Codex #1/#6 (PR #606): destructive DDL の前に fail-closed のデータ検査を行う
+	// migration 固有 preflight。committed migration ファイルは不変のため、
+	// データ損失防止のガードは runner 側に置く。ガードが失敗した場合は migration
+	// 全体を中断し（return error）、030 の DROP COLUMN には到達しない。
+	//
+	// Codex 再指摘（PR #621 review #1）: ガードを migration とは別接続
+	// （非 tx）で評価すると「guard 通過 → 直前の区分 deactivation / 新規
+	// 未来日カルテ commit → 030 実行」の割り込みでサイレントなデータ損失が残る。
+	// READ COMMITTED で同一 tx に移すだけでは guard 評価と backfill が別
+	// スナップショットを読むため不十分 —— ガード対象 migration は専用 tx を
+	// 先に開き、判定が依存するテーブルへの書込を凍結するテーブルロックを取得してから
+	// guard・適用・記録を同一 tx で実行する。
+	migrationGuardedApplies := map[string]migrationGuardSpec{
+		"030_next_visit_recommended_date_to_tentative.sql": {
+			// guard/backfill が読む全テーブルを列挙する —— どれかが guard 通過と
+			// 030 実行の間に変わると判定が崩れる。
+			//   reservation_types: 区分の deactivation / category 変更 / 削除
+			//   medical_records:    新規・更新された未来日 next_visit_recommended_date
+			//   pets / owners:      復活（deleted_at クリア）や status 変更で
+			//                       join 対象セットが変わる
+			//   appointments:       tentative の追加・削除で NOT EXISTS の評価が変わる
+			lockTables: "reservation_types, medical_records, pets, owners, appointments",
+			guard:      preflightNextVisitIntentBackfill,
+		},
+	}
+
 	if len(migrationFiles) == 0 {
 		logger.Warn("No migration files found")
 		return nil
@@ -438,6 +464,18 @@ func runSQLMigrations(db *sql.DB, logger *slog.Logger) error {
 		if alreadyApplied {
 			logger.Info("⏭ Skipping (already applied)", slog.String("file", filename))
 			skipped++
+			continue
+		}
+
+		// ガード対象 migration: テーブルロック取得 → guard → 適用 → 記録を
+		// 同一 tx で不可分にする（lock は commit まで保持される）。
+		if spec, ok := migrationGuardedApplies[filename]; ok {
+			logger.Info("Executing migration", slog.String("file", filename))
+			if err := applyGuardedSQLMigration(db, filename, content, checksum, spec); err != nil {
+				return err
+			}
+			logger.Info("✓ Migration completed", slog.String("file", filename))
+			applied++
 			continue
 		}
 
@@ -472,6 +510,134 @@ func runSQLMigrations(db *sql.DB, logger *slog.Logger) error {
 		slog.Int("skipped", skipped),
 		slog.Int("total", len(migrationFiles)))
 
+	return nil
+}
+
+// migrationGuardSpec はガード付き migration の適用規約。
+// lockTables は guard 評価〜migration 適用〜記録の全期間で WRITE を凍結する
+// テーブル集合（SHARE ROW EXCLUSIVE: SELECT は通し、INSERT/UPDATE/DELETE/TRUNCATE
+// が持つ ROW EXCLUSIVE と衝突してブロックする）。guard は同一 tx 内で評価するため、
+// 評価したスナップショットが migration の書込みまで保全される。
+type migrationGuardSpec struct {
+	lockTables string
+	guard      func(tx *sql.Tx) error
+}
+
+// migrationGuardedPostLockHook はテスト用の観測点 —— テーブルロック取得直後
+// （guard 評価前）に呼ばれる。本番では nil のまま。並行接続からの書込が
+// ブロックされることを検証する barrier として使う。
+var migrationGuardedPostLockHook func(tx *sql.Tx)
+
+// applyGuardedSQLMigration はガード付き migration を不可分に適用する。
+// 先に tx を開き SHARE ROW EXCLUSIVE で対象テーブルへの書込を凍結してから
+// guard・migration 本体・schema_migrations 記録をこの tx で実行する。
+// 凍結により「guard 通過後・適用前に別接続の commit が割り込む」race を排除する
+// （Codex PR #621 review #1: guard と適用を同じロック境界で守る）。
+// 中断時は tx ごとロールバックされるため、列もデータも変化しない。
+func applyGuardedSQLMigration(db *sql.DB, filename string, content []byte, checksum string, spec migrationGuardSpec) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction for %s: %w", filename, err)
+	}
+	// LOCK TABLE 名はコード固定の静的文字列（ユーザー入力ではない）。
+	if _, err := tx.Exec("LOCK TABLE " + spec.lockTables + " IN SHARE ROW EXCLUSIVE MODE"); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("failed to acquire guard locks for %s: %w", filename, err)
+	}
+	if migrationGuardedPostLockHook != nil {
+		migrationGuardedPostLockHook(tx)
+	}
+	if err := spec.guard(tx); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	if _, err := tx.Exec(string(content)); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("failed to execute migration %s: %w", filename, err)
+	}
+	if err := recordMigration(tx, filename, checksum); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("failed to record migration %s: %w", filename, err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit migration %s: %w", filename, err)
+	}
+	return nil
+}
+
+// preflightNextVisitIntentBackfill は 030_next_visit_recommended_date_to_tentative.sql
+// 適用前の fail-closed ガード（Codex #1/#6, PR #606）。committed migration は不変の
+// ため runner 側で検査する。呼び出し側（applyGuardedSQLMigration）が同一 tx 内で
+// guard/backfill が読むテーブルへの書込を凍結済み —— ここで読む集合は 030 実行
+// まで変化しない。
+//
+// 030 は medical_records.next_visit_recommended_date の未来日を tentative
+// appointments へ backfill してから列を DROP するが、placeholder reservation_type
+// を LATERAL で解決できない行（clinic に非削除の区分が0件）は WARNING のみで
+// スキップし、DROP でその未来日は失われる（#1: データ損失）。
+//
+// さらに placeholder 解決は `(category='general') DESC, is_active DESC` 順のため、
+// general が無い clinic では任意の非 general 区分・inactive 区分が割り当てられ得る
+// （#6: placeholder 誤昇格）。
+//
+// 本ガードは「変換対象 intent を持つ clinic が active かつ非削除の general 区分を
+// 持つこと」を全件要求する。active general が1件でも存在すれば 030 の ORDER BY が
+// 必ずそれを選ぶため placeholder は必ず general になり、type 未解決によるスキップ
+// も起きない。違反があれば migrate 全体を中断し、operator が区分を追加してから
+// 再実行する。クエリの SELECT 部は 030 の latest/candidates 契約を踏襲する。
+func preflightNextVisitIntentBackfill(tx *sql.Tx) error {
+	const query = `
+		WITH latest AS (
+			SELECT DISTINCT ON (mr.clinic_id, mr.pet_id)
+				mr.clinic_id,
+				mr.pet_id,
+				mr.next_visit_recommended_date AS intended_date
+			FROM medical_records AS mr
+			WHERE mr.deleted_at IS NULL
+			  AND mr.pet_id IS NOT NULL
+			ORDER BY mr.clinic_id, mr.pet_id, mr.id DESC
+		)
+		SELECT COUNT(*)
+		FROM latest AS l
+		JOIN pets AS p
+		  ON p.id = l.pet_id
+		 AND p.clinic_id = l.clinic_id
+		 AND p.deleted_at IS NULL
+		 AND p.status <> 'deceased'
+		 AND p.deceased_at IS NULL
+		JOIN owners AS o
+		  ON o.id = p.owner_id
+		 AND o.clinic_id = l.clinic_id
+		 AND o.deleted_at IS NULL
+		WHERE l.intended_date IS NOT NULL
+		  AND l.intended_date >= (now() AT TIME ZONE 'Asia/Tokyo')::date
+		  AND NOT EXISTS (
+			SELECT 1
+			FROM appointments AS a
+			WHERE a.clinic_id = l.clinic_id
+			  AND a.pet_id = l.pet_id
+			  AND a.status = 'tentative'
+			  AND a.deleted_at IS NULL
+		  )
+		  AND NOT EXISTS (
+			SELECT 1
+			FROM reservation_types AS rt
+			WHERE rt.clinic_id = l.clinic_id
+			  AND rt.deleted_at IS NULL
+			  AND rt.category = 'general'
+			  AND rt.is_active
+		  )
+	`
+	var unconvertible int
+	if err := tx.QueryRow(query).Scan(&unconvertible); err != nil {
+		return fmt.Errorf("preflight for 030_next_visit_recommended_date_to_tentative.sql failed: %w", err)
+	}
+	if unconvertible > 0 {
+		return fmt.Errorf(
+			"migration 030_next_visit_recommended_date_to_tentative.sql aborted (Codex #1/#6): %d pet(s) keep a future next_visit_recommended_date whose clinic has no active general reservation type — the column drop would lose those dates. Add an active general reservation type to each affected clinic, then re-run migrate",
+			unconvertible,
+		)
+	}
 	return nil
 }
 

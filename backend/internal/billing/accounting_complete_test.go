@@ -241,6 +241,102 @@ func TestAccountingService_CompleteAccounting_OpenPeriodAtomicSuccess(t *testing
 	assert.Len(t, savedSplits, 1)
 }
 
+// TestAccountingService_CompleteAccounting_SyncsNextVisitTagPostCommit は Codex #23:
+// accounting→completed 遷移で予約が next_visit 対象集合から外れるため、commit 成功後に
+// next_visit_* タグを best-effort 再同期することを固定する。
+func TestAccountingService_CompleteAccounting_SyncsNextVisitTagPostCommit(t *testing.T) {
+	key := uuid.NewString()
+	ownerID := uint64(10)
+	repo := &mockAccountingRepository{
+		findByCompletionRequestIDFn: func(_ context.Context, _ uint64, _ string) (*model.Billing, error) {
+			return nil, nil
+		},
+		createFn: func(_ context.Context, clinicID uint64, b *model.Billing) error {
+			b.ID = 42
+			b.ClinicID = clinicID
+			return nil
+		},
+		updateFieldsFn: func(_ context.Context, _, id uint64, _ AccountingUpdate) (*model.Billing, error) {
+			return &model.Billing{ID: id, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
+		},
+		savePaymentFn: func(_ context.Context, _ *model.Payment) error { return nil },
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Billing, error) {
+			return &model.Billing{
+				ID: id, ClinicID: 1, OwnerID: &ownerID, Status: model.BillingStatusCompleted,
+				CompletionRequestID:   &key,
+				CompletionRequestHash: strPtr(mustDigest(validCompleteInput(key))),
+			}, nil
+		},
+	}
+	var nextVisitCalls []uint64
+	tagSync := &mockLstepTagSyncService{
+		syncNextVisitTagFn: func(_ context.Context, _, oid uint64) error {
+			nextVisitCalls = append(nextVisitCalls, oid)
+			return nil
+		},
+	}
+	items := &mockCompleteItemWriter{}
+	totals := &mockCompleteTotalsWriter{subtotal: 1000, taxTotal: 100, total: 1100}
+	svc := NewAccountingService(
+		repo, nil, nil, matchingReservationRepo(), tagSync,
+		&mockTransactor{}, &mockAuditService{}, seededPayMethodMock(),
+		WithCompleteItemWriter(items), WithCompleteTotalsWriter(totals),
+	)
+
+	result, err := svc.Complete(context.Background(), validCompleteInput(key))
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.True(t, result.Created)
+	assert.Equal(t, []uint64{ownerID}, nextVisitCalls,
+		"Codex #23: 会計完了で billing の owner の next_visit_* タグを post-commit 再同期する")
+}
+
+// TestAccountingService_CompleteAccounting_NextVisitSyncErrorIsBestEffort は Codex #23:
+// next_visit タグ再同期の失敗は会計完了の成否に影響しないことを固定する。
+func TestAccountingService_CompleteAccounting_NextVisitSyncErrorIsBestEffort(t *testing.T) {
+	key := uuid.NewString()
+	ownerID := uint64(10)
+	repo := &mockAccountingRepository{
+		findByCompletionRequestIDFn: func(_ context.Context, _ uint64, _ string) (*model.Billing, error) {
+			return nil, nil
+		},
+		createFn: func(_ context.Context, clinicID uint64, b *model.Billing) error {
+			b.ID = 42
+			b.ClinicID = clinicID
+			return nil
+		},
+		updateFieldsFn: func(_ context.Context, _, id uint64, _ AccountingUpdate) (*model.Billing, error) {
+			return &model.Billing{ID: id, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
+		},
+		savePaymentFn: func(_ context.Context, _ *model.Payment) error { return nil },
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Billing, error) {
+			return &model.Billing{
+				ID: id, ClinicID: 1, OwnerID: &ownerID, Status: model.BillingStatusCompleted,
+				CompletionRequestID:   &key,
+				CompletionRequestHash: strPtr(mustDigest(validCompleteInput(key))),
+			}, nil
+		},
+	}
+	tagSync := &mockLstepTagSyncService{
+		syncNextVisitTagFn: func(_ context.Context, _, _ uint64) error {
+			return errors.New("lstep unreachable")
+		},
+	}
+	svc := NewAccountingService(
+		repo, nil, nil, matchingReservationRepo(), tagSync,
+		&mockTransactor{}, &mockAuditService{}, seededPayMethodMock(),
+		WithCompleteItemWriter(&mockCompleteItemWriter{}),
+		WithCompleteTotalsWriter(&mockCompleteTotalsWriter{subtotal: 1000, taxTotal: 100, total: 1100}),
+	)
+
+	result, err := svc.Complete(context.Background(), validCompleteInput(key))
+
+	require.NoError(t, err, "tag sync 失敗は best-effort —— 会計完了を失敗にしない")
+	require.NotNil(t, result)
+	assert.True(t, result.Created)
+}
+
 // TestAccountingService_CompleteAccounting_NormalizesNegativeInsuranceAmount は EMR-62:
 // 旧クライアントが負値で送る insurance_amount を絶対値に正規化し、
 // 請求額 = 合計 − |保険| − 割引 で確定することを固定する。

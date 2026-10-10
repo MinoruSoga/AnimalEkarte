@@ -478,14 +478,22 @@ func (m *mockHospitalizationRepository) FindByID(ctx context.Context, clinicID, 
 	return &model.Hospitalization{ID: id, ClinicID: clinicID}, nil
 }
 
-// mockLstepTagSyncService — cpmTagSyncer view の最小モック（best-effort CPM同期）。
+// mockLstepTagSyncService — billingTagSyncer view の最小モック（best-effort タグ同期）。
 type mockLstepTagSyncService struct {
-	syncCPMStageTagFn func(ctx context.Context, clinicID, ownerID uint64) error
+	syncCPMStageTagFn  func(ctx context.Context, clinicID, ownerID uint64) error
+	syncNextVisitTagFn func(ctx context.Context, clinicID, ownerID uint64) error
 }
 
 func (m *mockLstepTagSyncService) SyncCPMStageTag(ctx context.Context, clinicID, ownerID uint64) error {
 	if m.syncCPMStageTagFn != nil {
 		return m.syncCPMStageTagFn(ctx, clinicID, ownerID)
+	}
+	return nil
+}
+
+func (m *mockLstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error {
+	if m.syncNextVisitTagFn != nil {
+		return m.syncNextVisitTagFn(ctx, clinicID, ownerID)
 	}
 	return nil
 }
