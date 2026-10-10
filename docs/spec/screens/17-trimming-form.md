@@ -32,6 +32,8 @@
 - **アップロード中の保存ブロック**: いずれかの画像アップロードが in-flight の間は保存ボタンを無効化し「画像アップロード中...」と表示する。保存リクエスト送信中も画像操作を含むフォーム操作を無効化する（送信済みペイロードとフォーム状態の乖離を防ぐ）。画像の選択・削除は未保存変更として dirty に記録され、離脱ガード（§2.3）の対象になる。
 - **保存**: `buildCreateTrimmingRequest` / `buildUpdateTrimmingRequest` は、画像を変更したときだけ `style_image` / `completed_image` に object key を載せる。未変更の再保存ではそのフィールドを省く。明示的な削除は空文字を送る。署名 URL は保存しない。アップロード失敗は toast を出し、直前の key とプレビューは残す。
 - **未保存アップロードの掃除**: 選択の置き換え・削除・遅延解決・フォーム放棄でレコードに永続化されなくなったアップロード済みオブジェクトは `DELETE /api/v1/trimmings/images` で best-effort 削除する（失敗時は孤立オブジェクトが残るのみで通知しない）。レコード参照が残るキーは 409 で拒否される。保存リクエストに含めたキーは送信時点でサーバー側の所有物とみなし、クライアントは以後削除しない（commit 済みレコードの参照を壊さないため）。永続化済みフィールドの削除は PATCH/DELETE の superseded 処理が担う。
+- **保存と削除の競合保護**: 保存 transaction は booking/appointment lock の後に、最終画像 key の advisory lock を昇順で取得し、削除台帳にないことを確認して commit まで保持する。掃除は画像 key lock のみを使い、最新の全参照を確認して `trimming_image_deletions` に永久 tombstone を commit した後、DB transaction の外で storage を削除する。PATCH の掃除では自レコードも参照対象とし、DELETE は削除 transaction 内で取得した最新画像を対象にする。共有 key は参照が残る間保持する。削除が先行した key の保存は 409 とし、再アップロードが必要。
+- **削除失敗と記録**: storage 削除に失敗しても tombstone は保持し、新規参照を拒否する。同じ key の画像 DELETE で storage 削除を再試行できる。既存レコードの clinical 変更は `audit_logs`、画像の削除予約は専用 sink `trimming_image_deletions`（clinic/key/最初の staff/時刻）が正本で、tombstone に削除期限・soft-delete は設けない。storage 失敗は構造化 warning として記録する。診療画像の削除台帳は別契約のため流用しない。
 
 画像選択から保存までの扱い：
 

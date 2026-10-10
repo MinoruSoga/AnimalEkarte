@@ -37,6 +37,7 @@ type signCall struct {
 }
 
 type fakeTrimmingImageUploader struct {
+	uploadFn     func(context.Context)
 	uploads      []uploadCall
 	deletes      []string
 	signCalls    []signCall
@@ -47,6 +48,9 @@ type fakeTrimmingImageUploader struct {
 }
 
 func (f *fakeTrimmingImageUploader) Upload(ctx context.Context, key string, body io.Reader, contentType string) (string, error) {
+	if f.uploadFn != nil {
+		f.uploadFn(ctx)
+	}
 	if f.uploadErr != nil {
 		return "", f.uploadErr
 	}
@@ -82,6 +86,7 @@ type quotaAcquireRecord struct {
 }
 
 type fakeImageUploadQuotaStore struct {
+	releaseFn  func(context.Context)
 	acquireErr error
 	acquires   []quotaAcquireRecord
 	releases   int
@@ -100,7 +105,12 @@ func (f *fakeImageUploadQuotaStore) Acquire(
 		staffID:       staffID,
 		declaredBytes: declaredBytes,
 	})
-	return func(context.Context) { f.releases++ }, nil
+	return func(ctx context.Context) {
+		f.releases++
+		if f.releaseFn != nil {
+			f.releaseFn(ctx)
+		}
+	}, nil
 }
 
 // ---- helpers ----
@@ -683,7 +693,7 @@ func TestUpdateTrimming_RetainsImageKeySharedWithOtherRecord(t *testing.T) {
 		imageKeyInUseFn: func(_ context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error) {
 			assert.Equal(t, uint64(1), clinicID)
 			assert.Equal(t, "trimming-images/1/shared.jpg", key)
-			assert.Equal(t, uint64(7), exceptAppointmentID, "the updated record's own row is excluded")
+			assert.Equal(t, uint64(0), exceptAppointmentID, "PATCH includes the current record to protect restored keys")
 			return true, nil // another record still references the key
 		},
 	}

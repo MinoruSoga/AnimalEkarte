@@ -126,12 +126,7 @@ func (h *Handler) UploadTrimmingImage(c *gin.Context) {
 	// Release must not inherit a canceled request context (lease would stick
 	// until stale TTL); bound it so a stalled quota store cannot hold the
 	// upload response open past the detached-cleanup deadline.
-	releaseCtx, releaseCancel := context.WithTimeout(
-		context.WithoutCancel(c.Request.Context()), supersededImageCleanupTimeout)
-	defer func() {
-		defer releaseCancel()
-		release(releaseCtx)
-	}()
+	defer releaseTrimmingImageQuota(c.Request.Context(), release)
 
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, trimmingImageMaxRequestSize)
 	file, fileHeader, err := c.Request.FormFile("file")
@@ -170,17 +165,20 @@ func (h *Handler) UploadTrimmingImage(c *gin.Context) {
 
 	signedURL, err := h.imageUploader.GetSignedURL(c.Request.Context(), key, trimmingImageSignedURLTTL)
 	if err != nil {
-		deleteCtx, cancel := context.WithTimeout(
-			context.WithoutCancel(c.Request.Context()), supersededImageCleanupTimeout)
-		defer cancel()
-		if delErr := h.imageUploader.Delete(deleteCtx, key); delErr != nil {
-			slog.WarnContext(deleteCtx, "failed to delete uploaded trimming image on sign failure (best-effort)", "error", delErr, "key", key)
-		}
+		h.bestEffortDeleteTrimmingImageKeys(c.Request.Context(), clinicID, 0, staffID, key)
 		httpapi.RespondError(c, apperrors.Wrap(err, "failed to sign trimming image url"))
 		return
 	}
 
 	c.JSON(http.StatusCreated, trimmingImageUploadResponse{Key: key, SignedURL: signedURL})
+}
+
+// The deadline starts when cleanup runs, after slow body/storage work finishes.
+// Starting it at Acquire would expire the release lease during a valid upload.
+func releaseTrimmingImageQuota(ctx context.Context, release func(context.Context)) {
+	releaseCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), supersededImageCleanupTimeout)
+	defer cancel()
+	release(releaseCtx)
 }
 
 // respondTrimmingImageUploadQuotaError maps quota errors to stable HTTP 429
@@ -249,12 +247,12 @@ func (h *Handler) DeleteTrimmingImage(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "trimming image reference check is not configured"})
 		return
 	}
-	inUse, err := h.svc.Trimming.ImageKeyInUse(c.Request.Context(), clinicID, key, 0)
+	reserved, err := h.svc.Trimming.ReserveImageDeletion(c.Request.Context(), clinicID, key, 0, staffID)
 	if err != nil {
-		httpapi.RespondError(c, apperrors.Wrap(err, "failed to check trimming image reference"))
+		httpapi.RespondError(c, apperrors.Wrap(err, "failed to reserve trimming image deletion"))
 		return
 	}
-	if inUse {
+	if !reserved {
 		c.AbortWithStatusJSON(http.StatusConflict, gin.H{"error": "trimming image is referenced by a record"})
 		return
 	}

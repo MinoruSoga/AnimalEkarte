@@ -127,6 +127,9 @@ func (s *trimmingService) updateTrimmingInTx(
 		return nil, nil, nil, err
 	}
 	applyTrimmingDetailFields(detail, input)
+	if err := s.lockImageReferencesInTx(txCtx, clinicID, detail.StyleImage, detail.CompletedImage); err != nil {
+		return nil, nil, nil, err
+	}
 	if err := s.trimmingDetail.Update(txCtx, detail); err != nil {
 		return nil, nil, nil, apperrors.Wrap(err, "failed to update trimming detail")
 	}

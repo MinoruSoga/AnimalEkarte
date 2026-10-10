@@ -54,6 +54,9 @@ func (s *trimmingService) createTrimmingAppointmentInTx(
 		return nil, nil, err
 	}
 	detail := newTrimmingDetailFromCreateInput(clinicID, appt.ID, input, bwUnit)
+	if err := s.lockImageReferencesInTx(txCtx, clinicID, detail.StyleImage, detail.CompletedImage); err != nil {
+		return nil, nil, err
+	}
 	if err := s.trimmingDetail.Create(txCtx, detail); err != nil {
 		return nil, nil, apperrors.Wrap(err, "failed to create trimming detail")
 	}
@@ -166,6 +169,9 @@ func (s *trimmingService) createTrimmingDetailForExistingInTx(
 	}
 
 	detail := newTrimmingDetailFromCreateInput(clinicID, appointmentID, input, bwUnit)
+	if err := s.lockImageReferencesInTx(txCtx, clinicID, detail.StyleImage, detail.CompletedImage); err != nil {
+		return nil, err
+	}
 	if err := s.trimmingDetail.Create(txCtx, detail); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create trimming detail")
 	}

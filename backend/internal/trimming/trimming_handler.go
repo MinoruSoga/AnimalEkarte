@@ -143,7 +143,7 @@ func (h *Handler) UpdateTrimming(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	h.deleteReplacedTrimmingImages(c.Request.Context(), clinicID, replaced, appt)
+	h.deleteReplacedTrimmingImages(c.Request.Context(), clinicID, actorID, replaced, appt)
 	// 署名失敗は unsigned echo に degrade（commit 済みレコードを 500 にしない）。
 	resp := h.signTrimmingResponse(c.Request.Context(), clinicID, appt)
 	c.JSON(http.StatusOK, resp)
@@ -163,21 +163,15 @@ func (h *Handler) DeleteTrimming(c *gin.Context) {
 	if !ok {
 		return
 	}
-	existing, err := h.svc.Trimming.GetByID(c.Request.Context(), clinicID, id)
+	images, err := h.svc.Trimming.DeleteWithImages(c.Request.Context(), clinicID, id, &actorID)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
-	if err := h.svc.Trimming.Delete(c.Request.Context(), clinicID, id, &actorID); err != nil {
-		httpapi.RespondError(c, err)
-		return
-	}
-	if style, completed, ok := trimmingStoredImages(existing); ok {
+	if images != nil {
 		h.deleteSupersededTrimmingImages(
-			c.Request.Context(),
-			trimmingRecordClinicID(existing, clinicID),
-			id,
-			style, completed, "", "",
+			c.Request.Context(), clinicID, id, actorID,
+			images.Style, images.Completed, "", "",
 		)
 	}
 	c.Status(http.StatusNoContent)

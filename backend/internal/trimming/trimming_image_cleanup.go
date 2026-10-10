@@ -13,7 +13,7 @@ import (
 // スナップショットより正確で、同時 PATCH が互いの新値を掃除候補から漏らさない。
 func (h *Handler) deleteReplacedTrimmingImages(
 	ctx context.Context,
-	fallbackClinicID uint64,
+	fallbackClinicID, actorID uint64,
 	replaced *TrimmingReplacedImages,
 	updated *model.Reservation,
 ) {
@@ -25,7 +25,7 @@ func (h *Handler) deleteReplacedTrimmingImages(
 		return
 	}
 	clinicID := trimmingRecordClinicID(updated, fallbackClinicID)
-	h.deleteSupersededTrimmingImages(ctx, clinicID, updated.ID, replaced.Style, replaced.Completed, newStyle, newCompleted)
+	h.deleteSupersededTrimmingImages(ctx, clinicID, 0, actorID, replaced.Style, replaced.Completed, newStyle, newCompleted)
 }
 
 func trimmingImageObjectKey(stored string, clinicID uint64) (string, bool) {
@@ -65,10 +65,10 @@ func supersededTrimmingImageKeys(clinicID uint64, oldStyle, oldCompleted, newSty
 
 func (h *Handler) deleteSupersededTrimmingImages(
 	ctx context.Context,
-	clinicID, exceptAppointmentID uint64,
+	clinicID, exceptAppointmentID, actorID uint64,
 	oldStyle, oldCompleted, newStyle, newCompleted string,
 ) {
-	h.bestEffortDeleteTrimmingImageKeys(ctx, clinicID, exceptAppointmentID, supersededTrimmingImageKeys(
+	h.bestEffortDeleteTrimmingImageKeys(ctx, clinicID, exceptAppointmentID, actorID, supersededTrimmingImageKeys(
 		clinicID, oldStyle, oldCompleted, newStyle, newCompleted,
 	)...)
 }
@@ -78,7 +78,7 @@ func (h *Handler) deleteSupersededTrimmingImages(
 // while the record is already committed). 削除失敗は warn のみで孤立扱い。
 const supersededImageCleanupTimeout = 10 * time.Second
 
-func (h *Handler) bestEffortDeleteTrimmingImageKeys(ctx context.Context, clinicID, exceptAppointmentID uint64, keys ...string) {
+func (h *Handler) bestEffortDeleteTrimmingImageKeys(ctx context.Context, clinicID, exceptAppointmentID, actorID uint64, keys ...string) {
 	if len(keys) == 0 {
 		return
 	}
@@ -92,10 +92,10 @@ func (h *Handler) bestEffortDeleteTrimmingImageKeys(ctx context.Context, clinicI
 		if key == "" {
 			continue
 		}
-		// 他レコードが同一キーを共有していれば保持する（create/update は医院
-		// prefix のみ検査するため、同一キー参照は起こり得る）。確認できない
-		// 場合も消さず warn — 参照中オブジェクトの損失より孤立の方が安全。
-		if !h.imageKeyFreeToDelete(deleteCtx, clinicID, key, exceptAppointmentID) {
+		// Reference check + durable tombstone commit precede the external delete.
+		// PATCH includes the current record, so a later X→Y→X is protected.
+		// DELETE excludes only its already-deleted appointment; shared keys stay.
+		if !h.reserveTrimmingImageDeletion(deleteCtx, clinicID, key, exceptAppointmentID, actorID) {
 			continue
 		}
 		if err := h.imageUploader.Delete(deleteCtx, key); err != nil {
@@ -106,26 +106,17 @@ func (h *Handler) bestEffortDeleteTrimmingImageKeys(ctx context.Context, clinicI
 	}
 }
 
-// imageKeyFreeToDelete は key が exceptAppointmentID 以外のどのレコードからも
-// 参照されていない場合のみ true を返す。参照確認の経路が無い/失敗した場合は
-// false（保持側 fail-closed）。
-func (h *Handler) imageKeyFreeToDelete(ctx context.Context, clinicID uint64, key string, exceptAppointmentID uint64) bool {
+// reserveTrimmingImageDeletion commits a key tombstone under the same locks as
+// reference writes. A failed reservation retains the object (fail-closed).
+func (h *Handler) reserveTrimmingImageDeletion(ctx context.Context, clinicID uint64, key string, exceptAppointmentID, actorID uint64) bool {
 	if h.svc == nil || h.svc.Trimming == nil {
-		slog.WarnContext(ctx, "skipped superseded trimming image delete; reference check is not configured",
-			slog.String("key", key))
+		slog.WarnContext(ctx, "skipped trimming image delete; lifecycle is not configured")
 		return false
 	}
-	inUse, err := h.svc.Trimming.ImageKeyInUse(ctx, clinicID, key, exceptAppointmentID)
+	reserved, err := h.svc.Trimming.ReserveImageDeletion(ctx, clinicID, key, exceptAppointmentID, actorID)
 	if err != nil {
-		slog.WarnContext(ctx, "skipped superseded trimming image delete; reference check failed",
-			slog.String("error", err.Error()),
-			slog.String("key", key))
+		slog.WarnContext(ctx, "skipped trimming image delete; reservation failed", slog.String("error", err.Error()))
 		return false
 	}
-	if inUse {
-		slog.InfoContext(ctx, "retained trimming image object; still referenced by another record",
-			slog.String("key", key))
-		return false
-	}
-	return true
+	return reserved
 }

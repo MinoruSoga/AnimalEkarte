@@ -60,6 +60,9 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 	if err := s.requireAuditTx(); err != nil {
 		return nil, nil, err
 	}
+	if err := normalizeUpdateTrimmingImages(clinicID, input); err != nil {
+		return nil, nil, err
+	}
 	var optionIDs []uint64
 	if input.OptionIDs != nil {
 		optionIDs = *input.OptionIDs
@@ -112,13 +115,19 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 }
 
 func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error {
+	_, err := s.DeleteWithImages(ctx, clinicID, id, actorID)
+	return err
+}
+
+func (s *trimmingService) DeleteWithImages(ctx context.Context, clinicID, id uint64, actorID *uint64) (*TrimmingDeletedImages, error) {
 	if err := requireTrimmingStaffAuditActor(actorID); err != nil {
-		return err
+		return nil, err
 	}
 	if err := s.requireAuditTx(); err != nil {
-		return err
+		return nil, err
 	}
 	var ownerID uint64
+	var images *TrimmingDeletedImages
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.reservation.AcquireBookingLock(txCtx, clinicID); err != nil {
 			return apperrors.Wrap(err, "failed to acquire trimming booking lock")
@@ -132,6 +141,9 @@ func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64, actor
 		detail, err = s.trimmingDetail.FindByAppointmentID(txCtx, clinicID, id)
 		if err != nil && !apperrors.IsNotFound(err) {
 			return apperrors.Wrap(err, "failed to get trimming detail for delete")
+		}
+		if detail != nil {
+			images = &TrimmingDeletedImages{Style: detail.StyleImage, Completed: detail.CompletedImage}
 		}
 		oldValue := trimmingAuditValue(locked, detail)
 		if err := s.reservation.DeleteForTrimming(txCtx, clinicID, id); err != nil {
@@ -148,11 +160,11 @@ func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64, actor
 			nil,
 		)
 	}); err != nil {
-		return apperrors.Wrap(err, "failed to delete trimming appointment")
+		return nil, apperrors.Wrap(err, "failed to delete trimming appointment")
 	}
 	s.syncNextVisitTagsBestEffort(ctx, clinicID, &ownerID)
 	slog.InfoContext(ctx, "trimming appointment deleted",
 		slog.Uint64("appointment_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	return nil
+	return images, nil
 }

@@ -21,12 +21,14 @@ import (
 // ---- mock Service ----
 
 type mockService struct {
-	listFn          func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
-	getByIDFn       func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
-	createFn        func(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error)
-	updateFn        func(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, *TrimmingReplacedImages, error)
-	deleteFn        func(ctx context.Context, clinicID, id uint64, actorID *uint64) error
-	imageKeyInUseFn func(ctx context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error)
+	listFn                 func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
+	getByIDFn              func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	createFn               func(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error)
+	updateFn               func(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, *TrimmingReplacedImages, error)
+	deleteFn               func(ctx context.Context, clinicID, id uint64, actorID *uint64) error
+	deleteWithImagesFn     func(ctx context.Context, clinicID, id uint64, actorID *uint64) (*TrimmingDeletedImages, error)
+	reserveImageDeletionFn func(ctx context.Context, clinicID uint64, key string, exceptAppointmentID, actorID uint64) (bool, error)
+	imageKeyInUseFn        func(ctx context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error)
 }
 
 func (m *mockService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error) {
@@ -62,6 +64,33 @@ func (m *mockService) Delete(ctx context.Context, clinicID, id uint64, actorID *
 		return m.deleteFn(ctx, clinicID, id, actorID)
 	}
 	return nil
+}
+
+func (m *mockService) DeleteWithImages(ctx context.Context, clinicID, id uint64, actorID *uint64) (*TrimmingDeletedImages, error) {
+	if m.deleteWithImagesFn != nil {
+		return m.deleteWithImagesFn(ctx, clinicID, id, actorID)
+	}
+	if err := m.Delete(ctx, clinicID, id, actorID); err != nil {
+		return nil, err
+	}
+	if m.getByIDFn != nil {
+		appt, err := m.getByIDFn(ctx, clinicID, id)
+		if err != nil {
+			return nil, err
+		}
+		if style, completed, ok := trimmingStoredImages(appt); ok {
+			return &TrimmingDeletedImages{Style: style, Completed: completed}, nil
+		}
+	}
+	return nil, nil
+}
+
+func (m *mockService) ReserveImageDeletion(ctx context.Context, clinicID uint64, key string, exceptAppointmentID, actorID uint64) (bool, error) {
+	if m.reserveImageDeletionFn != nil {
+		return m.reserveImageDeletionFn(ctx, clinicID, key, exceptAppointmentID, actorID)
+	}
+	inUse, err := m.ImageKeyInUse(ctx, clinicID, key, exceptAppointmentID)
+	return !inUse, err
 }
 
 func (m *mockService) ImageKeyInUse(ctx context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error) {

@@ -85,8 +85,8 @@ func (r *appointmentTrimmingDetailRepository) Update(ctx context.Context, detail
 
 // ImageKeyInUse はいずれかの trimming 詳細レコードが key を画像として参照して
 // いるかを返す（DELETE /trimmings/images と superseded 削除の fail-closed 参照
-// チェック用）。exceptAppointmentID != 0 のとき、その appointment の detail 行を
-// 除外する（レコード削除時の自レコード参照を無視するため）。
+// チェック用）。exceptAppointmentID != 0 のとき、その appointment が同じ医院で
+// 論理削除済みの場合だけ detail 行を除外する（生きている参照は除外しない）。
 //
 // 保存値は canonical key に正規化されるが、旧世代の `/uploads/` ラップ形式など
 // resolveTrimmingImageStorageKey が同一 key と解決する値も参照として数えるため、
@@ -101,7 +101,12 @@ func (r *appointmentTrimmingDetailRepository) ImageKeyInUse(ctx context.Context,
 		Where("clinic_id = ? AND (style_image LIKE ? OR completed_image LIKE ?)",
 			clinicID, "%"+trimmingImageStorageKeyPrefix+"%", "%"+trimmingImageStorageKeyPrefix+"%")
 	if exceptAppointmentID != 0 {
-		query = query.Where("appointment_id <> ?", exceptAppointmentID)
+		query = query.Where(`(appointment_id <> ? OR NOT EXISTS (
+			SELECT 1 FROM appointments deleted_image_owner
+			WHERE deleted_image_owner.id = appointment_trimming_details.appointment_id
+			  AND deleted_image_owner.clinic_id = appointment_trimming_details.clinic_id
+			  AND deleted_image_owner.deleted_at IS NOT NULL
+		))`, exceptAppointmentID)
 	}
 	if err := query.Find(&rows).Error; err != nil {
 		return false, apperrors.Wrap(err, "failed to check trimming image reference")
