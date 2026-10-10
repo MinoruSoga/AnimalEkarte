@@ -9,6 +9,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinicID, id uint64, fields map[string]any, input *UpdateReservationInput, lockedPreviousOwnerID **uint64) (*model.Reservation, error) {
@@ -16,7 +17,7 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 		return nil, apperrors.WrapInternalServerError("reservation transaction dependency is required")
 	}
 	var result *model.Reservation
-	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
+	if err := s.withReservationUpdateTx(ctx, func(ctx context.Context) error {
 		// BE-refactor.md X-9: 空き枠への同時更新（別予約への時刻変更等）もファントムの対象
 		// のため、competing な Create と同じ advisory lock で直列化する。
 		if err := s.repo.AcquireBookingLock(ctx, clinicID); err != nil {
@@ -333,7 +334,7 @@ func (s *reservationService) applyReservationUpdate(
 			return nil, apperrors.WrapInternalServerError("reservation transaction dependency is required")
 		}
 		var result *model.Reservation
-		if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
+		if err := s.withReservationUpdateTx(ctx, func(ctx context.Context) error {
 			locked, err := s.repo.LockAndFindByID(ctx, clinicID, id)
 			if err != nil {
 				return err
@@ -477,4 +478,16 @@ func resolveTentativePetOwner(ctx context.Context, repo ReservationRepository, c
 		return nil, err
 	}
 	return &ownerID, nil
+}
+
+// Internal update branches join Cancel's transaction instead of committing a
+// second base-DB transaction before the outer soft-delete can succeed.
+func (s *reservationService) withReservationUpdateTx(ctx context.Context, fn func(context.Context) error) error {
+	if persistence.TxFromContext(ctx) != nil {
+		return fn(ctx)
+	}
+	if s.tx == nil {
+		return apperrors.WrapInternalServerError("reservation transaction dependency is required")
+	}
+	return s.tx.WithTx(ctx, fn)
 }
