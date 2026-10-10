@@ -569,6 +569,22 @@ def plan(paths):
                 jobs.append(job)
             if (ROOT / path).is_file():
                 jobs.append({'service': 'backend', 'command': ['gofmt', '-l', path.removeprefix('backend/')], 'require_empty_stdout': True})
+        elif path in (
+            'scripts/tools/plane-merge-state.sh',
+            'scripts/tools/plane-merge-state.test.sh',
+            'scripts/tools/worktree-env.sh',
+            'scripts/tools/worktree-env.test.sh',
+        ):
+            # Both suites replace external state with local synthetic fixtures.
+            # The production entrypoints themselves must never be run here.
+            test_path = path if path.endswith('.test.sh') else path.removesuffix('.sh') + '.test.sh'
+            if not (ROOT / path).is_file() or not (ROOT / test_path).is_file():
+                blocked.append(path)
+                continue
+            jobs.append({'service': 'host', 'command': ['bash', '-n', path]})
+            job = {'service': 'host', 'command': ['bash', test_path]}
+            if job not in jobs:
+                jobs.append(job)
         elif path == 'scripts/tools/auth-d5-dualprocess.sh':
             if not (ROOT / path).is_file():
                 blocked.append(path)
@@ -609,7 +625,7 @@ def plan(paths):
         ):
             if not any(job['service'] == 'host' and job['command'][-1].endswith('test_verify_agent_task.py') for job in jobs):
                 jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/checks/test_verify_agent_task.py']})
-            if path.startswith('scripts/ci_scope_plan') and not any(
+            if path.startswith('scripts/ci/ci_scope_plan') and not any(
                 job['service'] == 'host' and job['command'][-1].endswith('ci_scope_plan_test.py') for job in jobs
             ):
                 jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/ci/ci_scope_plan_test.py']})

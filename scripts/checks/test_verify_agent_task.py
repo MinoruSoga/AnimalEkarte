@@ -16,6 +16,28 @@ SPEC.loader.exec_module(verify)
 
 
 class VerificationTests(unittest.TestCase):
+    def test_offline_runtime_tool_contracts_run_only_the_fixture_suites(self):
+        for name in ('plane-merge-state', 'worktree-env'):
+            source = f'scripts/tools/{name}.sh'
+            test = f'scripts/tools/{name}.test.sh'
+            with self.subTest(name=name):
+                jobs, blocked = verify.plan([source, test])
+                self.assertFalse(blocked)
+                commands = [job['command'] for job in jobs]
+                self.assertEqual(commands.count(['bash', test]), 1)
+                self.assertNotIn(['bash', source], commands)
+                self.assertIn(['bash', '-n', source], commands)
+
+    def test_relocated_scope_planner_selects_its_regression_suite(self):
+        for path in ('scripts/ci/ci_scope_plan.py', 'scripts/ci/ci_scope_plan_test.py'):
+            with self.subTest(path=path):
+                jobs, blocked = verify.plan([path])
+                self.assertFalse(blocked)
+                commands = [job['command'] for job in jobs]
+                self.assertIn(['python3', '-B', 'scripts/ci/ci_scope_plan_test.py'], commands)
+                self.assertIn(['python3', '-B', 'scripts/checks/test_verify_agent_task.py'], commands)
+
+
     def test_unknown_backend_is_blocked(self):
         jobs, blocked = verify.plan(['backend/internal/repository/pet.go'])
         self.assertFalse(jobs)
