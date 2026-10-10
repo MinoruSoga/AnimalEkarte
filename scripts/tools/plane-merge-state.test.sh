@@ -153,6 +153,88 @@ assert_eq "comment escapes markup" \
   '<p>main へのマージに合わせて Review に移動しました。</p><p>PR: <a href="https://example.com/a?b=&amp;c=&lt;d&gt;">https://example.com/a?b=&amp;c=&lt;d&gt;</a></p>' \
   "$(build_comment_html main Review 'https://example.com/a?b=&c=<d>')"
 
+# Exercise the real orchestration with a file-backed HTTP fake. State writes
+# survive command-substitution subshells; no network or credentials are used.
+API_FIXTURE_ROOT="$(mktemp -d)"
+trap 'rm -f "$FIXTURE"; rm -rf "$API_FIXTURE_ROOT"' EXIT
+plane_http() {
+  local method="$1" url="$2" payload="$3" dest="$4"
+  printf '%s\n' "$method" >> "$CASE_DIR/calls"
+  case "$method:$url" in
+    GET:*/work-items/EMR-999/\?expand=state)
+      jq -n --arg state "$(cat "$CASE_DIR/state")" --arg project "$PLANE_PROJECT_ID" \
+        '{identifier:"EMR-999", id:"fixture-item", project_id:$project, state:{name:$state}}' > "$dest"
+      printf '200'
+      ;;
+    PATCH:*/work-items/fixture-item/)
+      jq -r '.state' <<< "$payload" > "$CASE_DIR/state"
+      printf '{}' > "$dest"
+      printf '200'
+      ;;
+    GET:*/comments/\?*)
+      cat "$CASE_DIR/comments" > "$dest"
+      printf '%s' "$(cat "$CASE_DIR/comment_lookup_status")"
+      ;;
+    POST:*/comments/)
+      if [[ "$(cat "$CASE_DIR/fail_once")" == "1" ]]; then
+        printf '0' > "$CASE_DIR/fail_once"
+        printf '{"detail":"fixture transient failure"}' > "$dest"
+        printf '503'
+      else
+        jq -n --argjson comment "$payload" '[$comment]' > "$CASE_DIR/comments"
+        printf '{}' > "$dest"
+        printf '201'
+      fi
+      ;;
+    *)
+      printf '{}' > "$dest"
+      printf '500'
+      ;;
+  esac
+}
+
+for base in main staging; do
+  CASE_DIR="$API_FIXTURE_ROOT/$base"
+  mkdir -p "$CASE_DIR"
+  initial=Running
+  target=Review
+  [[ "$base" == "staging" ]] && { initial=Review; target=UAT; }
+  printf '%s' "$initial" > "$CASE_DIR/state"
+  printf '[]' > "$CASE_DIR/comments"
+  printf '1' > "$CASE_DIR/fail_once"
+  printf '200' > "$CASE_DIR/comment_lookup_status"
+  : > "$CASE_DIR/calls"
+  if sync_one_ticket EMR-999 "$base" 606 'https://github.com/example/repo/pull/606' >/dev/null; then
+    ng "$base partial comment failure is reported"
+  else
+    ok "$base partial comment failure is reported"
+  fi
+  assert_eq "$base state PATCH succeeded before comment failure" "$target" "$(cat "$CASE_DIR/state")"
+  if sync_one_ticket EMR-999 "$base" 606 'https://github.com/example/repo/pull/606' >/dev/null; then
+    ok "$base rerun recovers missing comment"
+  else
+    ng "$base rerun recovers missing comment"
+  fi
+  assert_eq "$base recovery does not repeat PATCH" '1' "$(grep -c '^PATCH$' "$CASE_DIR/calls")"
+  assert_eq "$base recovery posts the intended comment identity" "gh-merge:606:$base:$target" \
+    "$(jq -r '.[0].external_id' "$CASE_DIR/comments")"
+  if sync_one_ticket EMR-999 "$base" 606 'https://github.com/example/repo/pull/606' >/dev/null; then
+    ok "$base completed reconciliation is idempotent"
+  else
+    ng "$base completed reconciliation is idempotent"
+  fi
+  assert_eq "$base completed rerun does not repeat POST" '2' "$(grep -c '^POST$' "$CASE_DIR/calls")"
+
+  # A failed comment lookup must not be treated as evidence of absence.
+  printf '503' > "$CASE_DIR/comment_lookup_status"
+  if sync_one_ticket EMR-999 "$base" 606 'https://github.com/example/repo/pull/606' >/dev/null; then
+    ng "$base comment lookup failure is reported"
+  else
+    ok "$base comment lookup failure is reported"
+  fi
+  assert_eq "$base lookup failure does not risk duplicate POST" '2' "$(grep -c '^POST$' "$CASE_DIR/calls")"
+done
+
 echo "----"
 echo "PASS ${PASS_COUNT}  FAIL ${FAIL_COUNT}"
 if [[ "$FAIL_COUNT" -ne 0 ]]; then
