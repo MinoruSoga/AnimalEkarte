@@ -5,7 +5,7 @@ import { usePermission } from "@/hooks/use-permission";
 import type { UseMasterCRUDReturn } from "../hooks/use-master-crud";
 import type { FilterProperty, SortProperty } from "@/components/shared/PropertyFilter/types";
 import type { Resource } from "@/types/generated/models";
-import { STYLE } from "@/lib/design-tokens";
+import { LAYOUT, STYLE } from "@/lib/design-tokens";
 
 // ─────────────────────────────────────────────────
 // Types
@@ -71,6 +71,9 @@ interface MasterCRUDPageProps<T extends MasterEntity, TForm = Record<string, unk
 
   /** PropertyFilter sort properties */
   sortProperties?: SortProperty[];
+
+  /** PageLayout の maxWidth を明示指定（未指定時は columns.length <= 5 のとき tableNarrow(max-w-5xl)、それ以外は full(max-w-full)） */
+  maxWidth?: string;
 }
 
 // ─────────────────────────────────────────────────
@@ -97,6 +100,7 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<
   filterProperties,
   sortProperties,
   resource,
+  maxWidth,
 }: MasterCRUDPageProps<T, TForm>) {
   // BUG-158: action-specific 権限で保存・削除ボタンの表示を制御
   // FE6-2: resource は任意。フック呼び出し順序維持のための sentinel（"" は未定義扱い）。
@@ -106,11 +110,18 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<
     ? String((crud.pendingDelete as Record<string, unknown>)[deleteNameField] ?? "")
     : "";
 
+  const effectiveMaxWidth =
+    maxWidth ??
+    (columns.length <= 5
+      ? LAYOUT.pageContentMaxWidth.tableNarrow
+      : LAYOUT.pageContentMaxWidth.full);
+
   return (
     <MasterListPage
       title={title}
       icon={icon}
       resource={resource}
+      maxWidth={effectiveMaxWidth}
       searchTerm={crud.searchTerm}
       onSearchChange={crud.setSearchTerm}
       searchPlaceholder={searchPlaceholder}
