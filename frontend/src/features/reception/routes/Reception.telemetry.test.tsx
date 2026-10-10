@@ -108,7 +108,8 @@ describe("Reception — テレメトリ配線（Phase 2 常時有効）", () => 
     expect(screen.getByText("平均待ち")).toBeInTheDocument();
     expect(screen.getByText("最長待ち")).toBeInTheDocument();
     expect(screen.getByText("32分")).toBeInTheDocument();
-    expect(screen.getByText("32分 — ミルク")).toBeInTheDocument();
+    expect(screen.getByText("32分 —")).toBeInTheDocument();
+    expect(screen.getByText("ミルク")).toBeInTheDocument();
   });
 
   it("受付カンバンは mobile で単一列、sm 以上で複数列にする", () => {

@@ -16,8 +16,12 @@ vi.mock("@/hooks/use-permission", () => ({
   usePermission: () => mocks,
 }));
 
+const masterListPagePropsSpy = vi.fn();
 vi.mock("./MasterListPage", () => ({
-  MasterListPage: ({ sidePanel }: { sidePanel: ReactNode }) => <>{sidePanel}</>,
+  MasterListPage: (props: { sidePanel: ReactNode; maxWidth?: string }) => {
+    masterListPagePropsSpy(props);
+    return <>{props.sidePanel}</>;
+  },
 }));
 
 interface TestEntity {
@@ -97,4 +101,91 @@ describe("MasterCRUDPage permission-specific panel mode", () => {
       expect(screen.getByText(expected)).toBeInTheDocument();
     },
   );
+});
+
+describe("MasterCRUDPage maxWidth auto-assignment (EMR-333)", () => {
+  it("列数が5列以下のときは tableNarrow (max-w-5xl) を MasterListPage に渡す", () => {
+    masterListPagePropsSpy.mockClear();
+    render(
+      <MasterCRUDPage
+        title="職種マスタ"
+        icon={<span aria-hidden="true" />}
+        entityLabel="職種"
+        searchPlaceholder="検索"
+        emptyMessage="空"
+        crud={buildCrud("new")}
+        handleSave={vi.fn()}
+        columns={[
+          { header: "名称" },
+          { header: "説明" },
+          { header: "ステータス" },
+          { header: "操作" },
+        ]}
+        renderRow={() => null}
+        renderSidePanel={() => null}
+      />,
+    );
+
+    expect(masterListPagePropsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        maxWidth: "max-w-5xl",
+      }),
+    );
+  });
+
+  it("列数が6列以上のときは full (max-w-full) を MasterListPage に渡す", () => {
+    masterListPagePropsSpy.mockClear();
+    render(
+      <MasterCRUDPage
+        title="多列マスタ"
+        icon={<span aria-hidden="true" />}
+        entityLabel="マスタ"
+        searchPlaceholder="検索"
+        emptyMessage="空"
+        crud={buildCrud("new")}
+        handleSave={vi.fn()}
+        columns={[
+          { header: "1" },
+          { header: "2" },
+          { header: "3" },
+          { header: "4" },
+          { header: "5" },
+          { header: "6" },
+        ]}
+        renderRow={() => null}
+        renderSidePanel={() => null}
+      />,
+    );
+
+    expect(masterListPagePropsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        maxWidth: "max-w-full",
+      }),
+    );
+  });
+
+  it("maxWidth が明示指定されたときは列数に関わらずその値が優先される", () => {
+    masterListPagePropsSpy.mockClear();
+    render(
+      <MasterCRUDPage
+        title="カスタム幅マスタ"
+        icon={<span aria-hidden="true" />}
+        entityLabel="マスタ"
+        searchPlaceholder="検索"
+        emptyMessage="空"
+        crud={buildCrud("new")}
+        handleSave={vi.fn()}
+        maxWidth="max-w-3xl"
+        columns={[{ header: "1" }]}
+        renderRow={() => null}
+        renderSidePanel={() => null}
+      />,
+    );
+
+    expect(masterListPagePropsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        maxWidth: "max-w-3xl",
+      }),
+    );
+  });
 });

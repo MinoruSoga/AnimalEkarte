@@ -22,6 +22,9 @@ interface MasterTabPageProps {
   /** Delete confirmation dialog(s) — route composes its own multi-entity dialogs here */
   deleteDialogs: ReactNode;
 
+  /** PageLayout maxWidth への転送（EMR-333: 少列マスタ画面の横幅制限等に適用） */
+  maxWidth?: string;
+
   /** Tab content — route renders <UnifiedTabs>...</UnifiedTabs> here */
   children: ReactNode;
 }
@@ -52,6 +55,7 @@ export const MasterTabPage = memo(function MasterTabPage({
   onNew,
   sidePanel,
   deleteDialogs,
+  maxWidth,
   children,
 }: MasterTabPageProps) {
   return (
@@ -62,6 +66,7 @@ export const MasterTabPage = memo(function MasterTabPage({
         resource={resource}
         onNew={onNew}
         sidePanel={sidePanel}
+        maxWidth={maxWidth}
         // タブバーはページ内ナビとして sticky ヘッダに接続するため、コンテンツ上余白（py-6 の pt 分）を
         // 除去する。先頭要素が PropertyFilter 等のコンテンツである MasterListPage には適用しない。
         contentClassName="pt-0"

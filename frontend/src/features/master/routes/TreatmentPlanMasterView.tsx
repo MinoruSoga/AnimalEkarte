@@ -1,7 +1,7 @@
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { MasterTabPage } from "../components/MasterTabPage";
 import { TreatmentPlanDeleteDialog } from "../components/TreatmentPlanDeleteDialog";
 import { TreatmentPlanSidePanelHost } from "../components/TreatmentPlanSidePanelHost";
@@ -69,6 +69,7 @@ export function TreatmentPlanMasterView({
         title="診療項目"
         icon={<Stethoscope className={`${ICON.page} ${C.text}`} />}
         resource={activeResource}
+        maxWidth={LAYOUT.pageContentMaxWidth.tableNarrow}
         onNew={onNew}
         sidePanel={
           <TreatmentPlanSidePanelHost

@@ -151,4 +151,54 @@ describe("OwnerInfoSection", () => {
     expect(screen.getByRole("status")).toBe(status);
     expect(status).toHaveTextContent("サイグラム分類なし");
   });
+
+  it("自宅住所と会社住所がそれぞれ独立した全幅グリッド（col-span-full）に包まれ分離されている", () => {
+    renderOwnerInfo();
+
+    const homeGroup = screen.getByTestId("owner-home-address-group");
+    const companyGroup = screen.getByTestId("owner-company-address-group");
+
+    expect(homeGroup).toHaveClass("col-span-full", "grid");
+    expect(companyGroup).toHaveClass("col-span-full", "grid");
+
+    // 自宅住所グループ内に自宅の入力欄が含まれ、会社住所の入力欄は含まれない
+    expect(homeGroup).toContainElement(screen.getByLabelText("郵便番号（自宅）"));
+    expect(homeGroup).toContainElement(screen.getByLabelText("住所1（自宅）"));
+    expect(homeGroup).toContainElement(screen.getByLabelText("住所2（自宅）"));
+    expect(homeGroup).not.toContainElement(screen.getByLabelText("郵便番号（会社）"));
+
+    // 会社住所グループ内に会社の入力欄が含まれ、自宅住所の入力欄は含まれない
+    expect(companyGroup).toContainElement(screen.getByLabelText("郵便番号（会社）"));
+    expect(companyGroup).toContainElement(screen.getByLabelText("住所1（会社）"));
+    expect(companyGroup).toContainElement(screen.getByLabelText("住所2（会社）"));
+    expect(companyGroup).not.toContainElement(screen.getByLabelText("郵便番号（自宅）"));
+  });
+
+  it("医院選択の有無に関わらず住所グループが独立した全幅行として分離される", () => {
+    const onChange = vi.fn();
+    render(
+      <OwnerInfoSection
+        ownerData={baseOwner}
+        fieldErrors={{}}
+        isEdit={false}
+        clinicOptions={[
+          { clinicId: "c1", clinicName: "本院", role: "admin" },
+          { clinicId: "c2", clinicName: "分院", role: "staff" },
+        ]}
+        currentClinicId="c1"
+        canEditDiscount
+        onChange={onChange}
+        onClearError={() => {}}
+        onMembershipChange={() => {}}
+        onPostalCodeLookup={() => {}}
+      />,
+    );
+
+    const homeGroup = screen.getByTestId("owner-home-address-group");
+    const companyGroup = screen.getByTestId("owner-company-address-group");
+
+    expect(homeGroup).toHaveClass("col-span-full");
+    expect(companyGroup).toHaveClass("col-span-full");
+    expect(homeGroup.parentElement).toBe(companyGroup.parentElement);
+  });
 });
