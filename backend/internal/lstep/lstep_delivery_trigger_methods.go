@@ -9,6 +9,11 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// maxTentativeReminderLockAttempts は tentative リマインダー直列化で
+// candidate 集合が拡大し続けた場合の再ロック試行上限（Codex #22 再指摘）。
+// tentative の新規追加が収束しない異常 churn は送信しないで表面化する。
+const maxTentativeReminderLockAttempts = 4
+
 func (s *lstepDeliveryTriggerService) TriggerFirstVisitFollowUp3D(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {
 	target := asOf.AddDate(0, 0, -3)
 	ownerIDs, err := s.medRecordRepo.FindOwnersByFirstVisitDate(ctx, clinicID, target)
@@ -78,47 +83,78 @@ func (s *lstepDeliveryTriggerService) runTentativeReminderBatch(
 	// candidate 集合の全 pet をロックする（1件だけロックして owner+date で再検索
 	// すると、ロック外の別 pet の intent で再検証を通過し得る）。再検証も
 	// ロック中の全 candidate pet を対象に行う。
+	// Codex #22 再指摘（PR #621 review #4）: 初回候補の列挙〜ロック取得の間に
+	// 新しい pet の tentative が commit されると、ロック済み集合外の intent が
+	// 再検索に混ざり送信根拠に化け得る。再検索がロック済み集合を超える pet を
+	// 返した場合は送信せず、拡大後の集合でロックを取り直して再検証する
+	// （attempt 上限で churn には fail-closed）。
 	revalidate := func(ctx context.Context, ownerID uint64, send func(context.Context) error) (bool, string, error) {
-		candidates, err := s.appointmentRepo.FindTentativesByOwnerAndIntendedDate(ctx, clinicID, ownerID, target)
-		if err != nil {
-			return false, "", apperrors.Wrap(err, "failed to revalidate tentative appointment")
-		}
-		petIDs := make([]uint64, 0, len(candidates))
-		for _, c := range candidates {
-			if c.PetID != nil {
-				petIDs = append(petIDs, *c.PetID)
-			}
-		}
-		if len(petIDs) == 0 {
-			return false, "stale_tentative_appointment", nil
-		}
-		stillValid := false
-		serErr := s.appointmentRepo.WithTentativeReminderSerialization(ctx, clinicID, petIDs, func(txCtx context.Context) error {
-			// ロック取得時点のコミット済み状態で再検証 —— 同時実行中の mutation は
-			// ここで待機し、コミット済みなら再読み込みに反映される。同一 owner+date
-			// の active tentative が1件でも残っていれば owner 宛て送信は正当。
-			current, err := s.appointmentRepo.FindTentativesByOwnerAndIntendedDate(txCtx, clinicID, ownerID, target)
+		for attempt := 0; ; attempt++ {
+			candidates, err := s.appointmentRepo.FindTentativesByOwnerAndIntendedDate(ctx, clinicID, ownerID, target)
 			if err != nil {
-				return apperrors.Wrap(err, "failed to revalidate tentative appointment")
+				return false, "", apperrors.Wrap(err, "failed to revalidate tentative appointment")
 			}
-			if len(current) == 0 {
-				return nil // stale: send せず tx のみ commit
+			petIDs := make([]uint64, 0, len(candidates))
+			for _, c := range candidates {
+				if c.PetID != nil {
+					petIDs = append(petIDs, *c.PetID)
+				}
 			}
-			// 外部送信・ログ書込は元 ctx（tx 外）で実行 —— 送信自体はロック保持中の
-			// 直列化境界内にあり、送信後のログ更新が tx ロールバックで巻き戻るのを防ぐ。
-			if err := send(ctx); err != nil {
-				return err
+			if len(petIDs) == 0 {
+				return false, "stale_tentative_appointment", nil
 			}
-			stillValid = true
-			return nil
-		})
-		if serErr != nil {
-			return false, "", serErr
+			locked := make(map[uint64]struct{}, len(petIDs))
+			for _, petID := range petIDs {
+				locked[petID] = struct{}{}
+			}
+			stillValid := false
+			setGrewBeyondLock := false
+			serErr := s.appointmentRepo.WithTentativeReminderSerialization(ctx, clinicID, petIDs, func(txCtx context.Context) error {
+				// ロック取得時点のコミット済み状態で再検証 —— 同時実行中の mutation は
+				// ここで待機し、コミット済みなら再読み込みに反映される。同一 owner+date
+				// の active tentative が1件でも残っていれば owner 宛て送信は正当。
+				current, err := s.appointmentRepo.FindTentativesByOwnerAndIntendedDate(txCtx, clinicID, ownerID, target)
+				if err != nil {
+					return apperrors.Wrap(err, "failed to revalidate tentative appointment")
+				}
+				// 再検索がロック済み集合外の pet を含む場合、その pet の mutation は
+				// 直列化されていないため送信根拠に採用しない。ロックを取り直す。
+				for _, c := range current {
+					if c.PetID == nil {
+						setGrewBeyondLock = true // pet 未解決行は直列化不能
+						continue
+					}
+					if _, ok := locked[*c.PetID]; !ok {
+						setGrewBeyondLock = true
+					}
+				}
+				if setGrewBeyondLock || len(current) == 0 {
+					return nil // 送信せず tx のみ commit（stale または再ロックへ）
+				}
+				// 外部送信・ログ書込は元 ctx（tx 外）で実行 —— 送信自体はロック保持中の
+				// 直列化境界内にあり、送信後のログ更新が tx ロールバックで巻き戻るのを防ぐ。
+				if err := send(ctx); err != nil {
+					return err
+				}
+				stillValid = true
+				return nil
+			})
+			if serErr != nil {
+				return false, "", serErr
+			}
+			if setGrewBeyondLock {
+				if attempt+1 >= maxTentativeReminderLockAttempts {
+					// 集合が拡大し続ける異常 churn —— 未送信のままエラーで表面化する。
+					return false, "", apperrors.WrapInternalServerError(
+						"tentative reminder candidate set kept growing during serialization")
+				}
+				continue
+			}
+			if !stillValid {
+				return false, "stale_tentative_appointment", nil
+			}
+			return true, "", nil
 		}
-		if !stillValid {
-			return false, "stale_tentative_appointment", nil
-		}
-		return true, "", nil
 	}
 	return s.runBatch(ctx, clinicID, ownerIDs, triggerType, triggerType, asOf, revalidate)
 }

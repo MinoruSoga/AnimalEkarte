@@ -17,6 +17,7 @@ package main
 // DB 環境変数なしでは skip する。
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"io"
@@ -32,17 +33,27 @@ import (
 
 const migration030Filename = "030_next_visit_recommended_date_to_tentative.sql"
 
-// requireMigrateScratchEnv は本テストの前提（コンテナ内 DB 接続・/app/migrations
-// マウント）を満たさない場合に skip する。ホスト側 `go test ./cmd/migrate` で
-// DB が無い環境でも既存の env-gated テスト群と同じく no-op にする。
+// requireMigrateScratchEnv は本テストの前提（明示 opt-in・コンテナ内 DB 接続・
+// /app/migrations マウント）を満たさない場合に skip する。
+// 本テストは接続先へ CREATE DATABASE / DROP DATABASE ... WITH (FORCE) を行うため、
+// sql_migrations_integration_test.go と同じく「明示 opt-in 環境変数 +
+// local/container 接続 + sslmode=disable」を全て要求する —— STG/PROD/共有
+// cluster の接続設定を持つ環境で通常の `go test ./cmd/migrate` が走っても
+// 受理しない（Codex PR #621 review #2）。
 func requireMigrateScratchEnv(t *testing.T) dbconn.ConnParams {
 	t.Helper()
 	if testing.Short() {
 		t.Skip("scratch database tests are skipped in -short / offline verification")
 	}
+	if os.Getenv("MIGRATE_SCRATCH_INTEGRATION") != "1" {
+		t.Skip("set MIGRATE_SCRATCH_INTEGRATION=1 to run scratch-database migration tests")
+	}
 	conn, err := dbconn.FromEnv()
 	if err != nil {
 		t.Skipf("DB env vars not configured; skipping migration integration test: %v", err)
+	}
+	if !dbconn.IsLocalHost(conn.Host) || conn.SSLMode != "disable" {
+		t.Fatalf("scratch database tests only accept a local/container database with SSL disabled (host=%q sslmode=%q)", conn.Host, conn.SSLMode)
 	}
 	if _, err := os.Stat(migrationsDir); os.IsNotExist(err) {
 		t.Skipf("migrations directory %q not mounted (host run); skipping", migrationsDir)
@@ -50,9 +61,10 @@ func requireMigrateScratchEnv(t *testing.T) dbconn.ConnParams {
 	return conn
 }
 
-// newScratchMigrateDatabase は一時データベースを作成して接続を返す。
+// newScratchMigrateDatabase は一時データベースを作成して接続と DB 名を返す。
+// DB 名は別接続（競合書込の再現等）を開くテストが使う。
 // テスト終了時に DROP DATABASE ... WITH (FORCE) で破棄する。
-func newScratchMigrateDatabase(t *testing.T, conn dbconn.ConnParams, label string) *sql.DB {
+func newScratchMigrateDatabase(t *testing.T, conn dbconn.ConnParams, label string) (*sql.DB, string) {
 	t.Helper()
 	// 識別子はテスト生成の安全文字のみ（[a-z0-9_]）。
 	name := fmt.Sprintf("preflight_%s_%d", label, time.Now().UnixNano())
@@ -86,7 +98,7 @@ func newScratchMigrateDatabase(t *testing.T, conn dbconn.ConnParams, label strin
 	if err := db.Ping(); err != nil {
 		t.Fatalf("ping scratch database %s: %v", name, err)
 	}
-	return db
+	return db, name
 }
 
 // applyMigrationsBefore は stopBefore に指定したファイル名より前の top-level DDL
@@ -182,7 +194,7 @@ func seedReservationType(t *testing.T, db *sql.DB, id, clinicID int64, name, cat
 // 3 医院パターン（general なし / general inactive / 区分なし）を同一 DB で検証する。
 func TestMigration030PreflightAbortsWithoutActiveGeneralType(t *testing.T) {
 	conn := requireMigrateScratchEnv(t)
-	db := newScratchMigrateDatabase(t, conn, "abort")
+	db, _ := newScratchMigrateDatabase(t, conn, "abort")
 	applyMigrationsBefore(t, db, migration030Filename)
 
 	seedPreflightOrg(t, db)
@@ -253,7 +265,7 @@ func TestMigration030PreflightAbortsWithoutActiveGeneralType(t *testing.T) {
 // tentative へ変換され、031 の複合 FK が医院越境 provenance を拒否することを固定する。
 func TestMigration030BackfillAndCompositeFK(t *testing.T) {
 	conn := requireMigrateScratchEnv(t)
-	db := newScratchMigrateDatabase(t, conn, "apply")
+	db, _ := newScratchMigrateDatabase(t, conn, "apply")
 	applyMigrationsBefore(t, db, migration030Filename)
 
 	seedPreflightOrg(t, db)
@@ -411,5 +423,90 @@ func TestMigration030BackfillAndCompositeFK(t *testing.T) {
 	}
 	if !cleared {
 		t.Fatal("ON DELETE SET NULL must clear only source_medical_record_id, keeping the tentative row")
+	}
+}
+
+// TestMigration030GuardedApplySerializesTypeDeactivation は Codex PR #621
+// review #1 の回帰テスト: guard 評価〜030 適用〜記録を同一 tx に閉じたうえで、
+// guard が依存するテーブルへの並行書込がロックでブロックされることを
+// 2 接続 + barrier で検証する。
+//
+// シナリオ: migrate がテーブルロックを握った時点（hook）で、別接続から
+// 「最後の general 区分の deactivation」を試行する。旧実装（guard を非 tx の
+// db で評価）ではこの割り込みが guard 通過後に commit し得た。新実装では
+// 割り込みは migrate commit までブロックされ、受理される serial 順序は
+// 「migrate による変換 → 区分 deactivate」となる。
+func TestMigration030GuardedApplySerializesTypeDeactivation(t *testing.T) {
+	conn := requireMigrateScratchEnv(t)
+	db, name := newScratchMigrateDatabase(t, conn, "race")
+	applyMigrationsBefore(t, db, migration030Filename)
+
+	seedPreflightOrg(t, db)
+	seedReservationType(t, db, 9320, 900, "general race", "general", true)
+	seedFutureRecommendation(t, db, 900, 20, false) // pet 9120 / mr 9220 が変換対象
+
+	// migrate tx がテーブルロックを取得した直後（guard 評価前）で barrier。
+	lockHeld := make(chan struct{})
+	releaseGuard := make(chan struct{})
+	prevHook := migrationGuardedPostLockHook
+	migrationGuardedPostLockHook = func(*sql.Tx) {
+		close(lockHeld)
+		<-releaseGuard
+	}
+	t.Cleanup(func() { migrationGuardedPostLockHook = prevHook })
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	migrateErr := make(chan error, 1)
+	go func() { migrateErr <- runSQLMigrations(db, logger) }()
+
+	select {
+	case <-lockHeld:
+	case <-time.After(15 * time.Second):
+		t.Fatal("migrate did not reach the guarded lock point")
+	}
+
+	// 別接続から区分 deactivation を試行 —— migrate の SHARE ROW EXCLUSIVE が
+	// UPDATE の ROW EXCLUSIVE と衝突し、lock_timeout で失敗するはず。
+	conn2, err := sql.Open("postgres", conn.DSN(name))
+	if err != nil {
+		t.Fatalf("open contender connection: %v", err)
+	}
+	defer conn2.Close()
+	c2, err := conn2.Conn(context.Background())
+	if err != nil {
+		t.Fatalf("pin contender session: %v", err)
+	}
+	defer c2.Close()
+	if _, err := c2.ExecContext(context.Background(), "SET lock_timeout = '400ms'"); err != nil {
+		t.Fatalf("set lock_timeout: %v", err)
+	}
+	_, err = c2.ExecContext(context.Background(),
+		"UPDATE reservation_types SET is_active = FALSE WHERE id = 9320")
+	if err == nil {
+		t.Fatal("concurrent type deactivation bypassed the guarded-apply table lock")
+	}
+	if !strings.Contains(err.Error(), "lock timeout") {
+		t.Fatalf("contender write must fail with lock timeout, got: %v", err)
+	}
+	close(releaseGuard)
+
+	if err := <-migrateErr; err != nil {
+		t.Fatalf("runSQLMigrations: %v", err)
+	}
+	// 受理された serial 順序は「migrate → deactivate」: backfill はロック保持
+	// 時点で active だった general 区分へ変換される。
+	var typeID int64
+	if err := db.QueryRow(
+		`SELECT reservation_type_id FROM appointments WHERE status = 'tentative' AND pet_id = 9120`,
+	).Scan(&typeID); err != nil {
+		t.Fatalf("read backfilled tentative: %v", err)
+	}
+	if typeID != 9320 {
+		t.Fatalf("backfilled tentative must use the general type active at guard time, got %d", typeID)
+	}
+	// migrate commit 後は deactivation が通常通り通る。
+	if _, err := c2.ExecContext(context.Background(),
+		"UPDATE reservation_types SET is_active = FALSE WHERE id = 9320"); err != nil {
+		t.Fatalf("post-commit type deactivation must proceed: %v", err)
 	}
 }

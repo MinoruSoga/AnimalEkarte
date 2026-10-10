@@ -874,7 +874,7 @@ func (r *reservationRepository) SetNextVisitIntent(
 	// Codex #19: 事前検証〜ロック取得の待機中に JST 暦日境界を跨ぐと「本日以降」
 	// 判定が stale になるため、intent lock 保持中の時点で日付窓を再検証する。
 	// 上限側は待機で悪化し得ないため実害は past 境界のみだが、同一規則で再評価する。
-	if err := validateNextVisitIntentDate(input.IntendedDate, time.Now()); err != nil {
+	if err := validateNextVisitIntentDate(input.IntendedDate, r.now()); err != nil {
 		return nil, nil, err
 	}
 	ownerID, err := r.FindPetOwnerInClinic(ctx, clinicID, petID)
@@ -896,6 +896,12 @@ func (r *reservationRepository) SetNextVisitIntent(
 	if existing != nil {
 		if !input.CanUpdateExisting {
 			return nil, nil, apperrors.WrapForbidden("既存の次回予定を更新するには予約の編集権限が必要です")
+		}
+		// Codex #19 再指摘（PR #621 review #3）: 上の再検証後にも参照カルテ
+		// FOR SHARE・既存行 FOR UPDATE のロック待ちで暦日を跨ぎ得るため、
+		// 行ロック確保後・UPDATE 書込み直前に時計を取り直して再検証する。
+		if err := validateNextVisitIntentDate(input.IntendedDate, r.now()); err != nil {
+			return nil, nil, err
 		}
 		fields := map[string]any{
 			"intended_date": intended,
@@ -921,6 +927,11 @@ func (r *reservationRepository) SetNextVisitIntent(
 
 	reservationTypeID, err := r.findGeneralReservationTypeID(ctx, clinicID)
 	if err != nil {
+		return nil, nil, err
+	}
+	// Codex #19 再指摘（PR #621 review #3）: UPDATE 経路と同じく、区分 FOR
+	// SHARE 等の待機で暦日を跨ぎ得るため CREATE 直前にも時計を取り直す。
+	if err := validateNextVisitIntentDate(input.IntendedDate, r.now()); err != nil {
 		return nil, nil, err
 	}
 	route := nextVisitIntentRoute

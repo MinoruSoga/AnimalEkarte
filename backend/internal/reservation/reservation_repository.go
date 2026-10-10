@@ -250,11 +250,24 @@ type ReservationStore interface {
 
 type reservationRepository struct {
 	db *gorm.DB
+	// nowFn は次回予定日の JST 暦日窓検証（Codex #19）で使う時計。
+	// テストがロック待ち中の日跨ぎを再現できるよう注入可能にする
+	// （lstep_batch_service.go の nowFn と同じパターン）。
+	nowFn func() time.Time
 }
 
 // NewReservationRepository は owner内repositoryとcross-domain intentを実装するstoreを返す。
 func NewReservationRepository(db *gorm.DB) ReservationStore {
-	return &reservationRepository{db: db}
+	return &reservationRepository{db: db, nowFn: time.Now}
+}
+
+// now は検証用の現在時刻を返す。日付窓チェック専用で、checked_in_at 等の
+// 実時刻スタンプは time.Now() を直接使う（記録時刻と検証時計の混同を避ける）。
+func (r *reservationRepository) now() time.Time {
+	if r.nowFn != nil {
+		return r.nowFn()
+	}
+	return time.Now()
 }
 
 func (r *reservationRepository) FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
