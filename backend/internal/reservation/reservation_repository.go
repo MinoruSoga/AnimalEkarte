@@ -237,6 +237,7 @@ type ReservationNextVisitQueryRepository interface {
 // 汎用 update は非公開のため、package外consumerは実装も呼び出しもできない。
 // EMR-308: next-visit intent の typed write も含む（service が orchestrate する）。
 type ReservationRepository interface {
+	assertLineCustomerReservationOwner(ctx context.Context, clinicID, customerID uint64, resolvedOwnerID *uint64) error
 	// clearNextVisitIntentWithOwner returns the stored owner from the locked deleted row.
 	clearNextVisitIntentWithOwner(ctx context.Context, clinicID, petID uint64) (bool, *uint64, error)
 	ReservationCRUDRepository

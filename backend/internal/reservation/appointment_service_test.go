@@ -16,6 +16,8 @@ import (
 
 // mockReservationRepository は ReservationRepository のテスト用モック実装
 type mockReservationRepository struct {
+	assertLineCustomerReservationOwnerFn func(context.Context, uint64, uint64, *uint64) error
+
 	previousAbsorbedOwnerID            *uint64
 	findAllFn                          func(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
 	findByIDFn                         func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
@@ -187,6 +189,13 @@ func (m *mockReservationRepository) FindPetByIDInClinic(ctx context.Context, cli
 		return m.findPetByIDInClinicFn(ctx, clinicID, petID)
 	}
 	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
+}
+
+func (m *mockReservationRepository) assertLineCustomerReservationOwner(ctx context.Context, clinicID, customerID uint64, ownerID *uint64) error {
+	if m.assertLineCustomerReservationOwnerFn != nil {
+		return m.assertLineCustomerReservationOwnerFn(ctx, clinicID, customerID, ownerID)
+	}
+	return m.AssertLineCustomerInClinic(ctx, clinicID, customerID)
 }
 
 func (m *mockReservationRepository) AssertLineCustomerInClinic(ctx context.Context, clinicID, lineCustomerID uint64) error {

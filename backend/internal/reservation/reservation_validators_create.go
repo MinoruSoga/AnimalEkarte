@@ -17,7 +17,7 @@ func (v *reservationValidators) createLineReservationInTx(
 	if err := v.repo.AcquireBookingLock(ctx, input.ClinicID); err != nil {
 		return nil, nil, err
 	}
-	if err := v.repo.AssertLineCustomerInClinic(ctx, input.ClinicID, input.CustomerID); err != nil {
+	if err := v.repo.assertLineCustomerReservationOwner(ctx, input.ClinicID, input.CustomerID, input.OwnerID); err != nil {
 		return nil, nil, apperrors.Wrap(err, "failed to verify LINE customer ownership")
 	}
 	reservationType, err := v.validateReservationMasterOwnership(ctx, input)
