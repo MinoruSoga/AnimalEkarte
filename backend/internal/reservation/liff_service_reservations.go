@@ -31,7 +31,7 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 	// attach に委ねる。
 	s.resolveReservationOwnerPet(ctx, clinicID, customerID, input)
 
-	appt, err := s.validators.ValidateAndCreate(ctx, input)
+	appt, previousOwnerID, err := s.validators.ValidateAndCreate(ctx, input)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate and create appointment")
 	}
@@ -49,7 +49,7 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 
 	// EMR-308: tentative 昇格・最終 owner 反映を含む作成完了後に next_visit タグを
 	// 再同期する（best-effort・未注入は no-op。owner 未解決なら helper 側で skip）。
-	syncNextVisitTagBestEffort(ctx, s.nextVisitTagSync, clinicID, appt.OwnerID)
+	syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, previousOwnerID, appt.OwnerID)
 
 	// Phase 6: 予約確定通知（LINE + メール）fire-and-forget
 	if s.notifier != nil {

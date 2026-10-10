@@ -25,6 +25,7 @@ func (s *trimmingService) createDetailForExistingAppointment(
 		return nil, apperrors.WrapInvalidInput("appointment is not a trimming reservation")
 	}
 	var result *model.Reservation
+	var previousOwnerID *uint64
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.reservation.AcquireBookingLock(txCtx, clinicID); err != nil {
 			return apperrors.Wrap(err, "failed to acquire trimming booking lock")
@@ -38,11 +39,13 @@ func (s *trimmingService) createDetailForExistingAppointment(
 			return err
 		}
 		result = created
+		previousOwnerID = locked.OwnerID
 		return nil
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create trimming detail for existing appointment")
 	}
 
+	s.syncNextVisitTagsBestEffort(ctx, clinicID, previousOwnerID, result.OwnerID)
 	return result, nil
 }
 

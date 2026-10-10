@@ -62,7 +62,7 @@ func createForTrimmingInReservationRepoTest(
 	var created *model.Reservation
 	err := testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
 		var err error
-		created, err = repo.CreateForTrimming(txCtx, clinicID, input)
+		created, _, err = repo.CreateForTrimming(txCtx, clinicID, input)
 		return err
 	})
 	return created, err
@@ -660,7 +660,7 @@ func TestReservationRepository_CreateForTrimming_PersistsOwnerForAccountingCompl
 	var created *model.Reservation
 	require.NoError(t, testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
 		var err error
-		created, err = repo.CreateForTrimming(txCtx, clinicID, CreateTrimmingReservationInput{
+		created, _, err = repo.CreateForTrimming(txCtx, clinicID, CreateTrimmingReservationInput{
 			ReservationTypeID: reservationType.ID,
 			StartTime:         start,
 			EndTime:           start.Add(time.Hour),
@@ -720,7 +720,7 @@ func TestReservationRepository_TrimmingWriteIntentsRequireAmbientTransaction(t *
 		assert.Equal(t, "INTERNAL", appErr.Code)
 	}
 
-	_, err := repo.CreateForTrimming(ctx, clinicID, CreateTrimmingReservationInput{
+	_, _, err := repo.CreateForTrimming(ctx, clinicID, CreateTrimmingReservationInput{
 		ReservationTypeID: reservationType.ID,
 		StartTime:         appointment.StartTime.Add(time.Hour),
 		EndTime:           appointment.EndTime.Add(time.Hour),
@@ -771,7 +771,7 @@ func TestReservationRepository_TrimmingReservationTypeShareLocksSerializeMasterM
 	go func() {
 		createDone <- testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
 			start := time.Now().UTC().Add(time.Hour)
-			if _, err := repo.CreateForTrimming(txCtx, clinicID, CreateTrimmingReservationInput{
+			if _, _, err := repo.CreateForTrimming(txCtx, clinicID, CreateTrimmingReservationInput{
 				ReservationTypeID: reservationType.ID,
 				StartTime:         start,
 				EndTime:           start.Add(time.Hour),
@@ -942,7 +942,7 @@ func TestReservationRepository_CreateForTrimming_SerializesStaffAssignmentMutati
 	go func() {
 		createDone <- testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
 			start := time.Now().UTC().Add(time.Hour)
-			if _, err := repo.CreateForTrimming(txCtx, clinicID, CreateTrimmingReservationInput{
+			if _, _, err := repo.CreateForTrimming(txCtx, clinicID, CreateTrimmingReservationInput{
 				ReservationTypeID: reservationType.ID,
 				StartTime:         start,
 				EndTime:           start.Add(time.Hour),

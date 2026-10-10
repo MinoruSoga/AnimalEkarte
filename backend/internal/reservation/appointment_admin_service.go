@@ -157,6 +157,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 
 	doctorID := normalizeCreateDoctorID(input.DoctorID)
 	var result *model.Reservation
+	var previousOwnerID *uint64
 	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		// RSV-02: clinic-scoped advisory lock before FOR UPDATE capacity/conflict checks
 		// (same order as reservationService.Create / ValidateAndCreate).
@@ -205,11 +206,12 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 			CustomerFields:    customerFields,
 		}
 		// EMR-308: walk-in/管理作成でもペットの active tentative を同一行昇格する。
-		created, err := createOrPromoteTentative(ctx, s.resRepo, ra)
+		created, previous, err := createOrPromoteTentative(ctx, s.resRepo, ra)
 		if err != nil {
 			return apperrors.Wrap(err, "create reservation appointment")
 		}
 		result = created
+		previousOwnerID = previous
 		return nil
 	})
 	if err != nil {
@@ -218,7 +220,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 
 	// EMR-308: 管理/walk-in 作成（tentative 昇格含む）で飼い主の次回来院が変わり得るため
 	// post-commit で next_visit タグを再同期する（best-effort・未注入は no-op）。
-	syncNextVisitTagBestEffort(ctx, s.nextVisitTagSync, clinicID, result.OwnerID)
+	syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, previousOwnerID, result.OwnerID)
 	slog.InfoContext(ctx, "admin reservation created",
 		slog.Uint64("reservation_id", result.ID),
 		slog.Uint64("clinic_id", clinicID))

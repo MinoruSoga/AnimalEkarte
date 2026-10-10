@@ -400,6 +400,7 @@ func (m *mockLiffOwnerRepository) FindByIDs(_ context.Context, _ uint64, _ []uin
 // --- mockLiffReservationRepository ---
 
 type mockLiffReservationRepository struct {
+	previousAbsorbedOwnerID   *uint64
 	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
 	updateTentativeStatusFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any, validate tentativeTransitionValidator) (*model.Reservation, error)
 	countByTypeAndStartTimeFn func(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
@@ -526,12 +527,12 @@ func (m *mockLiffReservationRepository) ConfirmTentative(_ context.Context, _, _
 	return nil, nil
 }
 
-func (m *mockLiffReservationRepository) AbsorbTentativeOnBooking(_ context.Context, booking *model.Reservation) (*model.Reservation, error) {
-	return booking, nil
+func (m *mockLiffReservationRepository) AbsorbTentativeOnBooking(_ context.Context, booking *model.Reservation) (*model.Reservation, *uint64, error) {
+	return booking, m.previousAbsorbedOwnerID, nil
 }
 
-func (m *mockLiffReservationRepository) PromoteTentativeOnCheckin(_ context.Context, booking *model.Reservation) (*model.Reservation, error) {
-	return booking, nil
+func (m *mockLiffReservationRepository) PromoteTentativeOnCheckin(_ context.Context, booking *model.Reservation) (*model.Reservation, *uint64, error) {
+	return booking, m.previousAbsorbedOwnerID, nil
 }
 
 func (m *mockLiffReservationRepository) WithTentativeReminderSerialization(ctx context.Context, _ uint64, _ []uint64, fn func(txCtx context.Context) error) error {
@@ -549,14 +550,16 @@ func (m *mockLiffReservationRepository) FindPetIDForIntentLock(_ context.Context
 // --- mockLiffValidators ---
 
 type mockLiffValidators struct {
-	validateAndCreateFn func(ctx context.Context, input *CreateReservationInput) (*model.Reservation, error)
+	previousAbsorbedOwnerID *uint64
+	validateAndCreateFn     func(ctx context.Context, input *CreateReservationInput) (*model.Reservation, error)
 }
 
-func (m *mockLiffValidators) ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.Reservation, error) {
+func (m *mockLiffValidators) ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.Reservation, *uint64, error) {
 	if m.validateAndCreateFn != nil {
-		return m.validateAndCreateFn(ctx, input)
+		created, err := m.validateAndCreateFn(ctx, input)
+		return created, m.previousAbsorbedOwnerID, err
 	}
-	return &model.Reservation{ID: 1, ClinicID: input.ClinicID}, nil
+	return &model.Reservation{ID: 1, ClinicID: input.ClinicID}, nil, nil
 }
 
 // --- mockLiffNotifier ---

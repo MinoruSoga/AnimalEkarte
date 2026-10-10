@@ -55,7 +55,7 @@ func TestReservationValidators_ValidateAndCreate_RejectsCrossClinicReservationTy
 	t.Run("rejects cross-clinic reservation_type_id and does not persist", func(t *testing.T) {
 		created := false
 		validators := newSvc(&created)
-		out, err := validators.ValidateAndCreate(context.Background(), baseInput(foreignTypeID))
+		out, _, err := validators.ValidateAndCreate(context.Background(), baseInput(foreignTypeID))
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, created, "reservation must NOT be persisted referencing another clinic's reservation type")
@@ -64,7 +64,7 @@ func TestReservationValidators_ValidateAndCreate_RejectsCrossClinicReservationTy
 	t.Run("accepts same-clinic reservation_type_id (no false-reject)", func(t *testing.T) {
 		created := false
 		validators := newSvc(&created)
-		out, err := validators.ValidateAndCreate(context.Background(), baseInput(ownedTypeID))
+		out, _, err := validators.ValidateAndCreate(context.Background(), baseInput(ownedTypeID))
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, created)
@@ -119,7 +119,7 @@ func TestReservationValidators_ValidateAndCreate_RejectsCrossClinicTrimmingFK(t 
 		foreign := foreignCourseID
 		input := baseInput()
 		input.TrimmingCourseID = &foreign
-		out, err := validators.ValidateAndCreate(context.Background(), input)
+		out, _, err := validators.ValidateAndCreate(context.Background(), input)
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, created, "reservation must NOT be persisted referencing another clinic's trimming course")
@@ -130,7 +130,7 @@ func TestReservationValidators_ValidateAndCreate_RejectsCrossClinicTrimmingFK(t 
 		validators := newSvc(&created, okTrimmingCourseRepo(), rejectTrimmingOptionRepo(ownedOptionID))
 		input := baseInput()
 		input.TrimmingOptionIDs = []uint64{ownedOptionID, foreignOptionID}
-		out, err := validators.ValidateAndCreate(context.Background(), input)
+		out, _, err := validators.ValidateAndCreate(context.Background(), input)
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, created, "reservation must NOT be persisted referencing another clinic's trimming option")
@@ -143,7 +143,7 @@ func TestReservationValidators_ValidateAndCreate_RejectsCrossClinicTrimmingFK(t 
 		input := baseInput()
 		input.TrimmingCourseID = &owned
 		input.TrimmingOptionIDs = []uint64{ownedOptionID}
-		out, err := validators.ValidateAndCreate(context.Background(), input)
+		out, _, err := validators.ValidateAndCreate(context.Background(), input)
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, created)
@@ -196,7 +196,7 @@ func TestReservationValidators_ValidateAndCreate_ValidatesPublicStaffInsideTrans
 			openDayHolidayFinder(),
 		)
 
-		out, err := validators.ValidateAndCreate(context.Background(), baseInput())
+		out, _, err := validators.ValidateAndCreate(context.Background(), baseInput())
 
 		assert.Error(t, err)
 		assert.Nil(t, out)
@@ -225,7 +225,7 @@ func TestReservationValidators_ValidateAndCreate_ValidatesPublicStaffInsideTrans
 			openDayHolidayFinder(),
 		)
 
-		out, err := validators.ValidateAndCreate(context.Background(), baseInput())
+		out, _, err := validators.ValidateAndCreate(context.Background(), baseInput())
 
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
@@ -280,7 +280,7 @@ func TestReservationValidators_ValidateAndCreate_TrimmingWritesAreAtomicAndActiv
 			openDayHolidayFinder(),
 		)
 
-		out, err := validators.ValidateAndCreate(context.Background(), baseInput())
+		out, _, err := validators.ValidateAndCreate(context.Background(), baseInput())
 
 		assert.Error(t, err)
 		assert.Nil(t, out)
@@ -310,7 +310,7 @@ func TestReservationValidators_ValidateAndCreate_TrimmingWritesAreAtomicAndActiv
 			openDayHolidayFinder(),
 		)
 
-		out, err := validators.ValidateAndCreate(context.Background(), baseInput())
+		out, _, err := validators.ValidateAndCreate(context.Background(), baseInput())
 
 		assert.ErrorIs(t, err, detailErr)
 		assert.Nil(t, out)

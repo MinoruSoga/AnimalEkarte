@@ -54,15 +54,15 @@ func (r *blockingAssignmentRaceReservationRepository) Create(
 func (r *blockingAssignmentRaceReservationRepository) AbsorbTentativeOnBooking(
 	ctx context.Context,
 	booking *model.Reservation,
-) (*model.Reservation, error) {
-	created, err := r.ReservationRepository.AbsorbTentativeOnBooking(ctx, booking)
+) (*model.Reservation, *uint64, error) {
+	created, previousOwnerID, err := r.ReservationRepository.AbsorbTentativeOnBooking(ctx, booking)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := r.signalCreatedAndWait(ctx); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return created, nil
+	return created, previousOwnerID, nil
 }
 
 type observedAssignmentRaceStaffUpdateLocker struct {
