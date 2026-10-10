@@ -79,6 +79,24 @@ export function buildHospitalizationListQueryFilters(
   };
 }
 
+/**
+ * Codex PR606 #2: board view は cage 配置図であり、ページングで行を落とすと
+ * ケージ占有・未割当の両方が silently 消える。list と同じ絞り込みを
+ * page/limit なしで渡し、呼び出し側で全ページ取得する。
+ */
+export function buildHospitalizationBoardQueryFilters(
+  activeFilters: ActiveFilter[],
+  statusFilter: HospitalizationFilterStatus,
+): Omit<HospitalizationFilters, "page" | "limit"> {
+  const dateFilter = activeFilters.find((f) => f.key === "startDate")?.value as
+    { from?: string; to?: string } | undefined;
+  return {
+    startDate: dateFilter?.from,
+    endDate: dateFilter?.to,
+    statusFilter,
+  };
+}
+
 export function buildHospitalizationFilterProperties(
   hospitalizations: Hospitalization[],
 ): FilterProperty[] {

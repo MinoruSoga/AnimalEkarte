@@ -168,6 +168,9 @@ export function NextVisitButton({
             // POST confirm-tentative は reservations:edit 権限。死亡ペットは canConfirmTentative
             // で既に弾いているが、モーダル側にも fail-closed で渡す。
             canEdit={canConfirmTentative}
+            // Codex PR606 再指摘: 拠点横断カルテでは tentative 行の医院で
+            // マスタ/空き枠/休診日を引く（mutation 側は hook 引数で同値済み）
+            clinicId={tentativeReservation.clinicId ?? clinicId}
           />
         </Suspense>
       ) : null}

@@ -26,6 +26,8 @@ export interface ConfirmTentativeVariables {
   reservationId: string;
   /** 確定フォームの入力値（Partial<Reservation>）。buildConfirmTentativeBody で body 化。 */
   formData: Partial<Reservation>;
+  /** Codex PR606 #5: 拠点横断表示の行からの確定は「行の clinicId」で送る。 */
+  clinicId?: string;
 }
 
 /**
@@ -59,7 +61,8 @@ export const useConfirmTentative = (clinicId?: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (variables: ConfirmTentativeVariables) => confirmTentative(variables, clinicId),
+    mutationFn: (variables: ConfirmTentativeVariables) =>
+      confirmTentative(variables, variables.clinicId ?? clinicId),
     onSuccess: (reservation) => {
       // useUpdateReservation と同等の invalidation（一覧 + 受付 + detail）
       queryClient.invalidateQueries({ queryKey: queryKeys.reservations.all() });

@@ -6,7 +6,7 @@ import {
   HOSPITALIZATION_LIST_DEFAULT_PAGE,
   toHospitalizationWireStatus,
 } from "../constants";
-import { getHospitalizations } from "./get-hospitalizations";
+import { getAllHospitalizations, getHospitalizations } from "./get-hospitalizations";
 
 vi.mock("@/lib/axios", () => ({
   axios: {
@@ -145,5 +145,62 @@ describe("getHospitalizations request params (BUG-009)", () => {
         end_date: "2026-01-31",
       },
     });
+  });
+});
+
+describe("getAllHospitalizations (Codex PR606 #2/#10)", () => {
+  beforeEach(() => {
+    mockedGet.mockReset();
+    localStorage.clear();
+  });
+
+  const items = (from: number, count: number, status = "admitted") =>
+    Array.from({ length: count }, (_, i) => ({ id: from + i, status }));
+
+  it("total を超える行を 200/page の複数ページで全件取得する", async () => {
+    mockPage(items(1, 200), 250);
+    mockPage(items(201, 50), 250);
+
+    const result = await getAllHospitalizations({
+      statusFilter: HOSPITALIZATION_FILTER_STATUS.ACTIVE,
+    });
+
+    expect(result).toHaveLength(250);
+    expect(mockedGet).toHaveBeenCalledTimes(2);
+    expect(mockedGet.mock.calls[0]?.[1]?.params).toMatchObject({ page: 1, limit: 200 });
+    expect(mockedGet.mock.calls[1]?.[1]?.params).toMatchObject({ page: 2, limit: 200 });
+  });
+
+  it("total が 1 ページに収まるなら 1 回だけ発行する", async () => {
+    mockPage(items(1, 3), 3);
+    const result = await getAllHospitalizations({
+      statusFilter: HOSPITALIZATION_FILTER_STATUS.ALL,
+    });
+    expect(result).toHaveLength(3);
+    expect(mockedGet).toHaveBeenCalledTimes(1);
+  });
+
+  it("空ページが返れば total 未到達でも早期打切りする", async () => {
+    mockPage(items(1, 200), 999);
+    mockPage([], 999);
+
+    const result = await getAllHospitalizations({
+      statusFilter: HOSPITALIZATION_FILTER_STATUS.ALL,
+    });
+
+    expect(result).toHaveLength(200);
+    expect(mockedGet).toHaveBeenCalledTimes(2);
+  });
+
+  it("全ページに X-Clinic-ID をピン留めする（発行中のクリニック切替混入防止）", async () => {
+    localStorage.setItem("auth_current_clinic:v1", "clinic-9");
+    mockPage(items(1, 200), 201);
+    mockPage(items(201, 1), 201);
+
+    await getAllHospitalizations({ statusFilter: HOSPITALIZATION_FILTER_STATUS.ALL });
+
+    for (const call of mockedGet.mock.calls) {
+      expect(call[1]?.headers).toEqual({ "X-Clinic-ID": "clinic-9" });
+    }
   });
 });

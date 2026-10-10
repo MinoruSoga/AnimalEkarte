@@ -13,6 +13,7 @@ import {
 } from "date-fns";
 import { ja } from "date-fns/locale";
 import { formatJSTWallDate, toJSTWallDate } from "@/lib/jst-date";
+import { useTodayJst } from "@/hooks/use-today-jst";
 import { useConfirmTentative } from "@/hooks/use-confirm-tentative";
 import { useSetNextVisitIntent, useClearNextVisitIntent } from "@/hooks/use-next-visit-intent";
 import type { CalendarView, Reservation, ReservationFormData, NavigationState } from "../types";
@@ -41,6 +42,11 @@ export interface ResetNextVisitTarget {
   previousIntendedDate?: string;
   /** tentative の作成元カルテ id（source_medical_record_id として引き継ぐ） */
   sourceMedicalRecordId?: string;
+  /**
+   * Codex PR606 #5: 拠点横断表示では行の clinicId を保持し、
+   * PUT intent をその医院へ送る（グローバル選択医院への誤送信を防ぐ）。
+   */
+  clinicId?: string;
 }
 
 interface UseReservationManagementParams {
@@ -90,9 +96,14 @@ export function useReservationManagement({
   // BE の end_date は当日を含むため「昨日」指定で意図日 < 今日 に限定する。
   // （start_time sentinel は意図日の JST 00:00。当日 tentative は範囲外＝期限超過ではない。）
   // status=tentative は BE の素の等値フィルタ（reservation_repository.go FindAll）で有効。
+  // Codex PR606 #13: マウント中に JST 暦日を跨ぐと expiredRangeEndDate が古いまま残り、
+  // 当日に期限超過化した行がクエリ範囲・client 判定の両方から漏れる。
+  // useTodayJst で暦日 tick を監視し、境界と再判定の両方を当日へ追従させる。
+  const todayJst = useTodayJst();
   const expiredRangeEndDate = useMemo(
-    () => formatJSTWallDate(subDays(toJSTWallDate(new Date()), 1)),
-    [],
+    // "+09:00" 付きで parse して JST 暦日をローカル TZ 非依存に固定する（jst-date 規約）。
+    () => formatJSTWallDate(subDays(toJSTWallDate(`${todayJst}T00:00:00+09:00`), 1)),
+    [todayJst],
   );
   const { data: tentativeRangeAppointments = EMPTY_RESERVATIONS } = useGetReservations({
     status: "tentative",
@@ -100,10 +111,11 @@ export function useReservationManagement({
     endDate: expiredRangeEndDate,
     clinicIds,
   });
-  // サーバー側フィルタに加えて意図日の JST 暦日で厳密に再判定する（fail-safe）
+  // サーバー側フィルタに加えて意図日の JST 暦日で厳密に再判定する（fail-safe）。
+  // todayJst を渡して暦日跨ぎでも判定境界が更新されるようにする（#13）。
   const expiredTentativeAppointments = useMemo(
-    () => tentativeRangeAppointments.filter((r) => isExpiredTentativeReservation(r)),
-    [tentativeRangeAppointments],
+    () => tentativeRangeAppointments.filter((r) => isExpiredTentativeReservation(r, todayJst)),
+    [tentativeRangeAppointments, todayJst],
   );
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -159,6 +171,8 @@ export function useReservationManagement({
         await confirmTentativeMutation.mutateAsync({
           reservationId: tentativeId,
           formData: data,
+          // Codex PR606 #5: 拠点横断表示の行は行の clinicId で確定する
+          clinicId: confirmTentativeTarget?.clinicId,
         });
       } catch {
         // onError(handleApiError) が toast 済み。モーダル内にインライン表示して開いたまま。
@@ -168,14 +182,22 @@ export function useReservationManagement({
       setConfirmTentativeTarget(null);
       return null;
     },
-    [confirmTentativeMutation],
+    [confirmTentativeMutation, confirmTentativeTarget],
   );
 
   // 「次回予定を再設定」ダイアログを開く（A4 キャンセル後 / A3 期限超過パネルの共通入口）。
-  // PUT next-visit-intent は reservations:create 相当のため canCreate で fail-closed。
+  // Codex PR606 #18: PUT intent の BE 権限は「既存 active tentative の上書き =
+  // ルート reservations:create + repo CanUpdateExisting（reservations:edit）の両方」
+  // 「新規 intent = reservations:create」。対象行が active tentative なら既存行の
+  // 更新なので canCreate && canEdit を要求し、キャンセル済み行からの再作成のみ
+  // canCreate で通す（#18 再指摘: edit 単独では BE が 403 を返す）。
   const openResetNextVisit = useCallback(
     (reservation: Reservation) => {
-      if (permissions?.canCreate !== true) {
+      const overwritesActiveTentative = isTentativeReservation(reservation);
+      const allowed = overwritesActiveTentative
+        ? permissions?.canEdit === true && permissions?.canCreate === true
+        : permissions?.canCreate === true;
+      if (!allowed) {
         toast.error("次回予定を再設定する権限がありません");
         return;
       }
@@ -188,6 +210,7 @@ export function useReservationManagement({
         petName: reservation.petName,
         previousIntendedDate: reservation.intendedDate,
         sourceMedicalRecordId: reservation.sourceMedicalRecordId,
+        clinicId: reservation.clinicId,
       });
     },
     [permissions],
@@ -201,6 +224,8 @@ export function useReservationManagement({
         petId: target.petId,
         intendedDate: date,
         medicalRecordId: target.sourceMedicalRecordId,
+        // Codex PR606 #5: 行の clinicId で送る（拠点横断の誤医院送信を防ぐ）
+        clinicId: target.clinicId,
       });
       toast.success(`次回予定を ${date} に再設定しました`);
     },
@@ -227,7 +252,8 @@ export function useReservationManagement({
     const target = endTentativeTarget;
     if (!target?.petId) return;
     try {
-      await clearIntentMutation.mutateAsync(target.petId);
+      // Codex PR606 #5: 行の clinicId で DELETE する（拠点横断の誤医院送信を防ぐ）
+      await clearIntentMutation.mutateAsync({ petId: target.petId, clinicId: target.clinicId });
       toast.success("次回予定を終了しました", {
         description: `${target.petName}（${target.ownerName}様）`,
       });
