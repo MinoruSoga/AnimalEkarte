@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { LayoutGrid, List, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import type {
@@ -110,16 +110,22 @@ function HospitalizationListContent({
   // （advisory。最終可否は BE）。boardMergeMode 中のみ有効化し、それ以外では
   // 余分な API 呼び出しを発生させない。
   const { occupiedCageIds } = useCageOccupancy({ enabled: boardMergeMode });
-  const hasMergeOccupant = useMemo(() => {
-    // 非 merge-mode・占有クエリ不明（読込中/エラー/契約外応答）は undefined —
-    // board 側は表示中データの占有判定へフォールバックする（advisory であり、
-    // 最終可否は BE が持つ）。
-    if (!boardMergeMode || occupiedCageIds === undefined) return undefined;
-    const occupied = occupiedCageIds;
-    return (cageId: string) => occupied.has(cageId);
-  }, [boardMergeMode, occupiedCageIds]);
+  const canRequestMerge = boardMergeMode && occupiedCageIds !== undefined;
+  const canOperateCages = canMergeCages === true && (!boardMergeMode || canRequestMerge);
+  const canRequestMergeRef = useRef(canRequestMerge);
+  useLayoutEffect(() => {
+    canRequestMergeRef.current = canRequestMerge;
+  }, [canRequestMerge]);
+  const hasMergeOccupant = useCallback(
+    (cageId: string) => {
+      // 表示中の患者は絞り込まれているため、占有情報が不明なら連結を許可しない。
+      return occupiedCageIds?.has(cageId) ?? true;
+    },
+    [occupiedCageIds],
+  );
 
   const handleRequestMerge = useCallback((draggedCageId: string, targetCageId: string) => {
+    if (!canRequestMergeRef.current) return;
     setPendingMerge({ draggedCageId, targetCageId });
   }, []);
 
@@ -130,7 +136,7 @@ function HospitalizationListContent({
   const cageNameById = useCallback((id: string) => resolveCageNameById(cages, id), [cages]);
 
   const handleMergeConfirm = useCallback(() => {
-    if (canMergeRef.current !== true || pendingMerge === null) return;
+    if (!canRequestMergeRef.current || pendingMerge === null) return;
     const memberCageId = Number(pendingMerge.draggedCageId);
     if (!Number.isFinite(memberCageId)) return;
     // 連結は「drop 先の target cage が代表」「drop された cage が member」になる。
@@ -222,6 +228,9 @@ function HospitalizationListContent({
           </div>
         </div>
 
+        {boardMergeMode && occupiedCageIds === undefined ? (
+          <p role="status">ケージ占有状況を確認できるまで連結できません</p>
+        ) : null}
         {viewMode === "board" ? (
           // Codex PR606 #2: board は全件フェッチ中の部分ページを描画しない。
           // ケージ占有・未割当の欠落が臨床配置図で見えなくなるのを防ぐ。
@@ -238,8 +247,8 @@ function HospitalizationListContent({
               canCreate={canCreate}
               canEdit={canEdit}
               mergeMode={boardMergeMode}
-              canMerge={canMergeCages === true}
-              hasMergeOccupant={hasMergeOccupant}
+              canMerge={canOperateCages}
+              hasMergeOccupant={boardMergeMode ? hasMergeOccupant : undefined}
               onRequestMerge={handleRequestMerge}
               onRequestUnmerge={handleRequestUnmerge}
             />
