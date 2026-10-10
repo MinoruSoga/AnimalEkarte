@@ -25,15 +25,19 @@ git 操作の安全性は [git-worktree-safety.md](git-worktree-safety.md) を�
    - `.env.local` が既存なら managed block 以外の行は保持される。手編集で managed block を書かない
 3. `make up` はユーザーの手で起動する（自動実行禁止ルールに従う）
 
-## 割り当て式（offset = N）
+## 割り当て式（offset = N、1–9256）
+
+`B = 10000 + (N - 1) * 6` をworktreeのポートblock先頭とする。
+mainの既定値は変更しない。異なるNでは6サービスすべてのポートが重ならない。
+既存worktreeはスクリプト再実行でmanaged blockを更新し、更新後の起動はユーザーが行う。
 
 | 資源 | 値 |
 |------|-----|
 | compose project | `animalekarte-wt<N>`（コンテナ名 `animalekarte-wt<N>-db-1` 等） |
-| DB port | `5434 + N`（host → container 5432） |
-| backend port | `8080 + N` |
-| frontend port | `3003 + N`（`CORS_ALLOWED_ORIGIN` も自動追随） |
-| storybook / swagger / redoc | `6006 + N` / `8081 + N` / `8082 + N`（profile `docs`） |
+| DB port | `B`（host → container 5432） |
+| backend port | `B + 1` |
+| frontend port | `B + 2`（`CORS_ALLOWED_ORIGIN` も自動追随） |
+| storybook / swagger / redoc | `B + 3` / `B + 4` / `B + 5`（profile `docs`） |
 | postgres_data volume | `ekarte-postgres-data-<slug>` |
 | frontend_node_modules volume | `ekarte-frontend-node-modules-<slug>` |
 

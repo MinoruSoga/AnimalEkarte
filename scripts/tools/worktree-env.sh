@@ -9,8 +9,8 @@
 # Usage:
 #   scripts/tools/worktree-env.sh <offset> [slug]
 #
-#   <offset>  1-57000 の整数。既定ホストポートへ加算する。
-#             チケット番号を使うと一意になりやすい（EMR-300 → 300 → db 5734 等）。
+#   <offset>  1-9256 の整数。worktree ごとの6ポートの独立blockを選ぶ。
+#             チケット番号を使うと一意になりやすい（EMR-300 → 300 → db 11794 等）。
 #   [slug]    compose project / volume 名の接尾辞（default: wt<offset>）。
 #             [a-z0-9_-] のみ使用可。
 #
@@ -35,14 +35,11 @@ ENV_FILE="${WORKTREE_ENV_FILE:-$ROOT/.env.local}"
 BLOCK_BEGIN="# >>> worktree-runtime managed (scripts/tools/worktree-env.sh) >>>"
 BLOCK_END="# <<< worktree-runtime managed <<<"
 
-# 既定ホストポート（docker-compose.yml の ${VAR:-default} 側）。変えるときは
-# compose の既定値と必ず同時に更新すること。
-DEFAULT_DB_PORT=5434
-DEFAULT_BACKEND_PORT=8080
-DEFAULT_FRONTEND_PORT=3003
-DEFAULT_STORYBOOK_PORT=6006
-DEFAULT_SWAGGER_PORT=8081
-DEFAULT_REDOC_PORT=8082
+# main の既定ポート（最大8082）を避け、10000から6個ずつ独立blockを使う。
+# offset=9256 の末尾は65535。別offset間でサービスの種類が違っても重ならない。
+WORKTREE_PORT_BASE=10000
+WORKTREE_PORT_COUNT=6
+MAX_WORKTREE_OFFSET=9256
 
 die() {
   echo "FAIL  $*" >&2
@@ -72,7 +69,7 @@ main() {
     exit 0
   fi
   [[ "$offset" =~ ^[0-9]+$ ]] || die "offset must be an integer: $offset"
-  (( offset >= 1 && offset <= 57000 )) || die "offset out of range (1-57000): $offset"
+  (( offset >= 1 && offset <= MAX_WORKTREE_OFFSET )) || die "offset out of range (1-$MAX_WORKTREE_OFFSET): $offset"
 
   if [[ -z "$slug" ]]; then
     slug="wt${offset}"
@@ -81,12 +78,13 @@ main() {
   [[ "$slug" =~ ^[a-z0-9][a-z0-9_-]*$ ]] \
     || die "slug must match ^[a-z0-9][a-z0-9_-]*$: $slug"
 
-  local db_port=$((DEFAULT_DB_PORT + offset))
-  local backend_port=$((DEFAULT_BACKEND_PORT + offset))
-  local frontend_port=$((DEFAULT_FRONTEND_PORT + offset))
-  local storybook_port=$((DEFAULT_STORYBOOK_PORT + offset))
-  local swagger_port=$((DEFAULT_SWAGGER_PORT + offset))
-  local redoc_port=$((DEFAULT_REDOC_PORT + offset))
+  local block_start=$((WORKTREE_PORT_BASE + (offset - 1) * WORKTREE_PORT_COUNT))
+  local db_port=$block_start
+  local backend_port=$((block_start + 1))
+  local frontend_port=$((block_start + 2))
+  local storybook_port=$((block_start + 3))
+  local swagger_port=$((block_start + 4))
+  local redoc_port=$((block_start + 5))
   local project="animalekarte-${slug}"
 
   [[ -f "$EXAMPLE" ]] || die "template not found: $EXAMPLE"
