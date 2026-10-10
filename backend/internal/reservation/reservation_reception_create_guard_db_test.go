@@ -43,7 +43,7 @@ func TestReceptionCreationGuardConcurrentTransactions(t *testing.T) {
 					}
 					input := receptionCreateInput()
 					booking := &model.Reservation{ClinicID: 1, OwnerID: &owner.ID, PetID: &pet.ID, ReservationTypeID: typ.ID, StartTime: input.StartTime, EndTime: input.EndTime, ReservationRoute: input.ReservationRoute, Status: model.ReservationStatusCheckedIn, Source: model.ReservationSourceManual, VisitType: model.VisitTypeRevisit}
-					got, err := repo.createGuardedReception(persistence.WithTxValue(ctx, tx), booking)
+					got, _, err := repo.createGuardedReception(persistence.WithTxValue(ctx, tx), booking)
 					if got != nil {
 						id = got.ID
 					}
@@ -99,7 +99,7 @@ func TestReceptionCreationGuardRepositoryBoundaries(t *testing.T) {
 			var got *model.Reservation
 			err := testNewTransactor(db).WithTx(context.Background(), func(ctx context.Context) error {
 				var err error
-				got, err = repo.createGuardedReception(ctx, booking)
+				got, _, err = repo.createGuardedReception(ctx, booking)
 				return err
 			})
 			if status == model.ReservationStatusCompleted || status == model.ReservationStatusCancelled || status == model.ReservationStatusNoShow {
@@ -121,10 +121,11 @@ func TestReceptionCreationGuardRepositoryBoundaries(t *testing.T) {
 		booking.Status = model.ReservationStatusCheckedIn
 		booking.ReservationRoute = input.ReservationRoute
 		var got *model.Reservation
+		var previousOwnerID *uint64
 		call := func() error {
 			return testNewTransactor(db).WithTx(context.Background(), func(ctx context.Context) error {
 				var err error
-				got, err = repo.createGuardedReception(ctx, booking)
+				got, previousOwnerID, err = repo.createGuardedReception(ctx, booking)
 				return err
 			})
 		}
@@ -136,6 +137,8 @@ func TestReceptionCreationGuardRepositoryBoundaries(t *testing.T) {
 		require.NoError(t, db.Model(&model.Pet{}).Where("id = ? AND clinic_id = ?", pet.ID, 2).Update("status", model.PetStatusAlive).Error)
 		require.NoError(t, call())
 		require.Equal(t, tentative.ID, got.ID)
+		require.NotNil(t, previousOwnerID)
+		require.Equal(t, owner.ID, *previousOwnerID)
 		require.Equal(t, model.ReservationStatusCheckedIn, got.Status)
 	})
 }
@@ -163,7 +166,7 @@ func TestReceptionCreationGuardIgnoresOtherDayClinicAndDeleted(t *testing.T) {
 			booking := makeAbsorbBooking(owner.ID, pet.ID, typ.ID, input.StartTime, input.EndTime)
 			booking.Status = model.ReservationStatusCheckedIn
 			booking.ReservationRoute = input.ReservationRoute
-			err := testNewTransactor(db).WithTx(context.Background(), func(ctx context.Context) error { _, err := repo.createGuardedReception(ctx, booking); return err })
+			err := testNewTransactor(db).WithTx(context.Background(), func(ctx context.Context) error { _, _, err := repo.createGuardedReception(ctx, booking); return err })
 			require.NoError(t, err)
 		})
 	}

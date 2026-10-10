@@ -17,6 +17,8 @@ import (
 // --- mock: trimming が消費する reservation read + intent operation ---
 
 type mockTrimmingReservationRepository struct {
+	previousAbsorbedOwnerID *uint64
+
 	findAllByCategoryFn  func(ctx context.Context, clinicID uint64, category model.ReservationTypeCategory, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
 	findByIDFn           func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	acquireBookingLockFn func(ctx context.Context, clinicID uint64) error
@@ -47,7 +49,7 @@ func (m *mockTrimmingReservationRepository) FindTrimmingByID(ctx context.Context
 	return m.FindByID(ctx, clinicID, id)
 }
 
-func (m *mockTrimmingReservationRepository) CreateForTrimming(ctx context.Context, clinicID uint64, input reservation.CreateTrimmingReservationInput) (*model.Reservation, error) {
+func (m *mockTrimmingReservationRepository) CreateForTrimming(ctx context.Context, clinicID uint64, input reservation.CreateTrimmingReservationInput) (*model.Reservation, *uint64, error) {
 	appt := &model.Reservation{
 		ClinicID:          clinicID,
 		ReservationTypeID: input.ReservationTypeID,
@@ -61,10 +63,10 @@ func (m *mockTrimmingReservationRepository) CreateForTrimming(ctx context.Contex
 	}
 	if m.createFn != nil {
 		if err := m.createFn(ctx, appt); err != nil {
-			return nil, err
+			return nil, m.previousAbsorbedOwnerID, err
 		}
 	}
-	return appt, nil
+	return appt, m.previousAbsorbedOwnerID, nil
 }
 
 func (m *mockTrimmingReservationRepository) UpdateForTrimming(ctx context.Context, clinicID, id uint64, input reservation.UpdateTrimmingReservationInput) (*model.Reservation, error) {

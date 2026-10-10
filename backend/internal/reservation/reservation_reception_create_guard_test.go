@@ -28,8 +28,9 @@ type receptionCreateFake struct {
 	guardedFn func(context.Context, *model.Reservation) (*model.Reservation, error)
 }
 
-func (f *receptionCreateFake) createGuardedReception(ctx context.Context, b *model.Reservation) (*model.Reservation, error) {
-	return f.guardedFn(ctx, b)
+func (f *receptionCreateFake) createGuardedReception(ctx context.Context, b *model.Reservation) (*model.Reservation, *uint64, error) {
+	created, err := f.guardedFn(ctx, b)
+	return created, f.previousAbsorbedOwnerID, err
 }
 
 func receptionCreateInput() *CreateManualReservationInput {
@@ -56,7 +57,7 @@ func TestReceptionCreationGuardInputAndDependency(t *testing.T) {
 	var app *apperrors.AppError
 	require.True(t, errors.As(err, &app))
 	require.Equal(t, "INTERNAL", app.Code)
-	_, err = (&reservationRepository{}).createGuardedReception(context.Background(), nil)
+	_, _, err = (&reservationRepository{}).createGuardedReception(context.Background(), nil)
 	require.Error(t, err)
 }
 
@@ -135,7 +136,7 @@ func TestReceptionCreationBatchRequestPropagatesGuard(t *testing.T) {
 
 func TestReceptionCreationGuardRejectsNilSuccess(t *testing.T) {
 	repo := &receptionCreateFake{mockReservationRepository: &mockReservationRepository{}, guardedFn: func(context.Context, *model.Reservation) (*model.Reservation, error) { return nil, nil }}
-	got, err := createOrPromoteTentativeWithGuard(context.Background(), repo, &model.Reservation{}, true)
+	got, _, err := createOrPromoteTentativeWithGuard(context.Background(), repo, &model.Reservation{}, true)
 	require.Nil(t, got)
 	var app *apperrors.AppError
 	require.True(t, errors.As(err, &app))

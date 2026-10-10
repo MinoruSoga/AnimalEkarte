@@ -343,23 +343,23 @@ func (r *reservationRepository) CreateForTrimming(
 	ctx context.Context,
 	clinicID uint64,
 	input CreateTrimmingReservationInput,
-) (*model.Reservation, error) {
+) (*model.Reservation, *uint64, error) {
 	if err := requireTrimmingAmbientTransaction(ctx); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := validateTrimmingCreateStatus(input.Status); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := r.assertActiveTrimmingReservationType(ctx, clinicID, input.ReservationTypeID); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	ownerID, err := r.resolveTrimmingOwnerForPet(ctx, clinicID, nil, input.PetID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if input.DoctorID != nil {
 		if err := r.assertStaffAssignedToClinic(ctx, clinicID, *input.DoctorID); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	appointment := &model.Reservation{
@@ -378,7 +378,7 @@ func (r *reservationRepository) CreateForTrimming(
 	// ペットに active tentative があれば新規行ではなく同一行を要求区分で昇格し、
 	// なければ通常 INSERT にフォールバックする。死亡ペットは tx 内で拒否する。
 	if err := ValidateReservationPetNotDeceased(ctx, r, clinicID, input.PetID); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	return createOrPromoteTentative(ctx, r, appointment)
 }
@@ -1196,7 +1196,7 @@ func (r *reservationRepository) updateTentativeStatus(
 func (r *reservationRepository) AbsorbTentativeOnBooking(
 	ctx context.Context,
 	booking *model.Reservation,
-) (*model.Reservation, error) {
+) (*model.Reservation, *uint64, error) {
 	return r.promoteOrCreateFromTentative(ctx, booking, false)
 }
 
@@ -1206,7 +1206,7 @@ func (r *reservationRepository) AbsorbTentativeOnBooking(
 func (r *reservationRepository) PromoteTentativeOnCheckin(
 	ctx context.Context,
 	booking *model.Reservation,
-) (*model.Reservation, error) {
+) (*model.Reservation, *uint64, error) {
 	return r.promoteOrCreateFromTentative(ctx, booking, true)
 }
 
@@ -1218,12 +1218,12 @@ func (r *reservationRepository) promoteOrCreateFromTentative(
 	ctx context.Context,
 	booking *model.Reservation,
 	toCheckin bool,
-) (*model.Reservation, error) {
+) (*model.Reservation, *uint64, error) {
 	if err := requireNextVisitIntentAmbientTransaction(ctx); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if booking == nil {
-		return nil, apperrors.WrapInvalidInput("booking is required")
+		return nil, nil, apperrors.WrapInvalidInput("booking is required")
 	}
 	// 当日受付作成（toCheckin）は tentative 昇格・通常 INSERT のどちらでも実受付時刻を
 	// checked_in_at にスタンプする（A2: actual check-in time）。
@@ -1235,22 +1235,22 @@ func (r *reservationRepository) promoteOrCreateFromTentative(
 	// （LIFF の未リンク顧客等、pet を持たない予約は tentative を持ち得ない）。
 	if booking.PetID == nil || *booking.PetID == 0 {
 		if err := r.Create(ctx, booking); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		return booking, nil
+		return booking, nil, nil
 	}
 	if err := r.acquireNextVisitIntentLock(ctx, booking.ClinicID, *booking.PetID); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	existing, err := r.findActiveTentativeForUpdate(ctx, booking.ClinicID, *booking.PetID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if existing == nil {
 		if err := r.Create(ctx, booking); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		return booking, nil
+		return booking, nil, nil
 	}
 	// Codex #14: 未来日の tentative は当日受付へ昇格しない。別日の来院意図行を
 	// 受付行へ上書きすると intent が失われるため、未到来の tentative は温存して
@@ -1262,14 +1262,14 @@ func (r *reservationRepository) promoteOrCreateFromTentative(
 		visitDay := time.Date(visitJST.Year(), visitJST.Month(), visitJST.Day(), 0, 0, 0, 0, config.JST)
 		if intendedDay.After(visitDay) {
 			if err := r.Create(ctx, booking); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
-			return booking, nil
+			return booking, nil, nil
 		}
 	}
 	if booking.DoctorID != nil && *booking.DoctorID != 0 {
 		if err := r.assertStaffAssignedToClinic(ctx, booking.ClinicID, *booking.DoctorID); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	fields := tentativeAbsorbFields(booking, toCheckin, time.Now())
@@ -1281,14 +1281,19 @@ func (r *reservationRepository) promoteOrCreateFromTentative(
 	if result.Error != nil {
 		// EMR-76: 昇格時の時刻変更も excl_appointments_doctor_timerange に抵触しうる。
 		if conflict := asReservationTimeConflict(result.Error); conflict != nil {
-			return nil, conflict
+			return nil, nil, conflict
 		}
-		return nil, apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("%d", existing.ID))
+		return nil, nil, apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("%d", existing.ID))
 	}
 	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapConflict("次回予定が同時に更新されました。再読み込みしてください")
+		return nil, nil, apperrors.WrapConflict("次回予定が同時に更新されました。再読み込みしてください")
 	}
-	return r.FindByID(ctx, booking.ClinicID, existing.ID)
+	promoted, err := r.FindByID(ctx, booking.ClinicID, existing.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	// existing was read under the same intent and row locks as this promotion.
+	return promoted, existing.OwnerID, nil
 }
 
 // tentativeAbsorbFields は tentative 行へ実予約の値を上書きする列セットを組み立てる。

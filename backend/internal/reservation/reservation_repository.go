@@ -66,13 +66,15 @@ type tentativeTransitionValidator func(ctx context.Context, locked *model.Reserv
 // 同一行昇格（lifecycle absorb）を提供する owner package 内だけの write operation。
 // ReservationIntentRepository には載せず、package 外 consumer には公開しない。
 // すべて ambient transaction 必須・(clinic, pet) スコープ・fail-closed。
+// 第2戻り値は実際に昇格した行の更新前 owner（同じ intent/行ロック内で取得）。
+// 新規 INSERT と未来日の tentative を温存する受付では nil。commit 後のタグ同期に用いる。
 type ReservationTentativeLifecycleRepository interface {
 	// AbsorbTentativeOnBooking は実予約の作成時にペットの active tentative を同一行昇格する。
 	// tentative 未存在時は通常 INSERT にフォールバックし、呼び出し側は Create との分岐を持たない。
-	AbsorbTentativeOnBooking(ctx context.Context, booking *model.Reservation) (*model.Reservation, error)
+	AbsorbTentativeOnBooking(ctx context.Context, booking *model.Reservation) (*model.Reservation, *uint64, error)
 	// PromoteTentativeOnCheckin は当日受付（checked_in 作成）でペットの active tentative を
 	// 同一行昇格する。tentative 未存在時は通常 INSERT にフォールバックする。
-	PromoteTentativeOnCheckin(ctx context.Context, booking *model.Reservation) (*model.Reservation, error)
+	PromoteTentativeOnCheckin(ctx context.Context, booking *model.Reservation) (*model.Reservation, *uint64, error)
 	// WithTentativeReminderSerialization は tentative mutation と同じ (clinic,pet)
 	// intent advisory lock を保持する tx 内で fn を実行する（LSTEP リマインダーの
 	// 再検証〜外部送信 race 対策）。petIDs は candidate 抽出で観測した全ペット —
@@ -93,7 +95,8 @@ type ReservationIntentRepository interface {
 	MarkNoShow(ctx context.Context, clinicID, id uint64) (NoShowTransition, error)
 	FindTrimmingByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	LockTrimmingByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
-	CreateForTrimming(ctx context.Context, clinicID uint64, input CreateTrimmingReservationInput) (*model.Reservation, error)
+	// CreateForTrimming returns the previous owner only when an intent is actually absorbed.
+	CreateForTrimming(ctx context.Context, clinicID uint64, input CreateTrimmingReservationInput) (*model.Reservation, *uint64, error)
 	UpdateForTrimming(ctx context.Context, clinicID, id uint64, input UpdateTrimmingReservationInput) (*model.Reservation, error)
 	DeleteForTrimming(ctx context.Context, clinicID, id uint64) error
 }

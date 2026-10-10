@@ -115,6 +115,7 @@ type TrimmingReplacedImages struct {
 }
 
 type trimmingService struct {
+	nextVisitTagSync   reservation.NextVisitTagSyncer
 	reservation        TrimmingReservationRepository
 	reservationType    ReservationTypeRepository
 	reservationStaff   ReservationStaffRepository
@@ -140,7 +141,7 @@ type TrimmingReservationRepository interface {
 	CountOnDutyDoctors(ctx context.Context, clinicID uint64, date time.Time) (int64, error)
 	CountConflicts(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error)
 	CountByTypeAndStartTime(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
-	CreateForTrimming(ctx context.Context, clinicID uint64, input reservation.CreateTrimmingReservationInput) (*model.Reservation, error)
+	CreateForTrimming(ctx context.Context, clinicID uint64, input reservation.CreateTrimmingReservationInput) (*model.Reservation, *uint64, error)
 	UpdateForTrimming(ctx context.Context, clinicID, id uint64, input reservation.UpdateTrimmingReservationInput) (*model.Reservation, error)
 	DeleteForTrimming(ctx context.Context, clinicID, id uint64) error
 }
@@ -180,8 +181,14 @@ func NewServiceWithAudit(
 	trimmingOptionRepo TrimmingOptionRepository,
 	transactor Transactor,
 	auditTx AuditTxLogger,
+	nextVisitTagSyncs ...reservation.NextVisitTagSyncer,
 ) Service {
+	var nextVisitTagSync reservation.NextVisitTagSyncer
+	if len(nextVisitTagSyncs) > 0 {
+		nextVisitTagSync = nextVisitTagSyncs[0]
+	}
 	return &trimmingService{
+		nextVisitTagSync:   nextVisitTagSync,
 		reservation:        reservationRepo,
 		reservationType:    reservationType,
 		reservationStaff:   reservationStaff,
@@ -278,18 +285,21 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 	}
 	var apptID uint64
 	var result *model.Reservation
+	var previousOwnerID *uint64
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		created, err := s.createTrimmingAppointmentInTx(txCtx, clinicID, input, bwUnit, status, enforceBookingConstraints)
+		created, previous, err := s.createTrimmingAppointmentInTx(txCtx, clinicID, input, bwUnit, status, enforceBookingConstraints)
 		if err != nil {
 			return err
 		}
 		result = created
+		previousOwnerID = previous
 		apptID = created.ID
 		return nil
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create trimming appointment")
 	}
 
+	s.syncNextVisitTagsBestEffort(ctx, clinicID, previousOwnerID, result.OwnerID)
 	slog.InfoContext(ctx, "trimming appointment created",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("appointment_id", apptID))

@@ -16,6 +16,7 @@ import (
 
 // mockReservationRepository は ReservationRepository のテスト用モック実装
 type mockReservationRepository struct {
+	previousAbsorbedOwnerID            *uint64
 	findAllFn                          func(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
 	findByIDFn                         func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	lockAndFindByIDFn                  func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
@@ -190,8 +191,8 @@ func (m *mockReservationRepository) MarkNoShow(_ context.Context, _, _ uint64) (
 	return NoShowTransition{}, nil
 }
 
-func (m *mockReservationRepository) CreateForTrimming(_ context.Context, clinicID uint64, input CreateTrimmingReservationInput) (*model.Reservation, error) {
-	return &model.Reservation{ClinicID: clinicID, ReservationTypeID: input.ReservationTypeID}, nil
+func (m *mockReservationRepository) CreateForTrimming(_ context.Context, clinicID uint64, input CreateTrimmingReservationInput) (*model.Reservation, *uint64, error) {
+	return &model.Reservation{ClinicID: clinicID, ReservationTypeID: input.ReservationTypeID}, nil, nil
 }
 
 func (m *mockReservationRepository) UpdateForTrimming(_ context.Context, clinicID, id uint64, _ UpdateTrimmingReservationInput) (*model.Reservation, error) {
@@ -223,26 +224,28 @@ func (m *mockReservationRepository) ConfirmTentative(ctx context.Context, clinic
 	return nil, nil
 }
 
-func (m *mockReservationRepository) AbsorbTentativeOnBooking(ctx context.Context, booking *model.Reservation) (*model.Reservation, error) {
+func (m *mockReservationRepository) AbsorbTentativeOnBooking(ctx context.Context, booking *model.Reservation) (*model.Reservation, *uint64, error) {
 	if m.absorbTentativeOnBookingFn != nil {
-		return m.absorbTentativeOnBookingFn(ctx, booking)
+		created, err := m.absorbTentativeOnBookingFn(ctx, booking)
+		return created, m.previousAbsorbedOwnerID, err
 	}
 	// デフォルトは tentative 不在の INSERT 経路を再現する。
 	if err := m.Create(ctx, booking); err != nil {
-		return nil, err
+		return nil, m.previousAbsorbedOwnerID, err
 	}
-	return booking, nil
+	return booking, m.previousAbsorbedOwnerID, nil
 }
 
-func (m *mockReservationRepository) PromoteTentativeOnCheckin(ctx context.Context, booking *model.Reservation) (*model.Reservation, error) {
+func (m *mockReservationRepository) PromoteTentativeOnCheckin(ctx context.Context, booking *model.Reservation) (*model.Reservation, *uint64, error) {
 	if m.promoteTentativeOnCheckinFn != nil {
-		return m.promoteTentativeOnCheckinFn(ctx, booking)
+		created, err := m.promoteTentativeOnCheckinFn(ctx, booking)
+		return created, m.previousAbsorbedOwnerID, err
 	}
 	// デフォルトは tentative 不在の INSERT 経路を再現する。
 	if err := m.Create(ctx, booking); err != nil {
-		return nil, err
+		return nil, m.previousAbsorbedOwnerID, err
 	}
-	return booking, nil
+	return booking, m.previousAbsorbedOwnerID, nil
 }
 
 func (m *mockReservationRepository) WithTentativeReminderSerialization(ctx context.Context, _ uint64, _ []uint64, fn func(txCtx context.Context) error) error {

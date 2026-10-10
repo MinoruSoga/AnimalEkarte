@@ -13,6 +13,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // ---------------------------------------------------------------------------
@@ -28,7 +29,7 @@ func absorbTentativeOnBookingInTx(
 	var got *model.Reservation
 	err := testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
 		var err error
-		got, err = repo.AbsorbTentativeOnBooking(txCtx, booking)
+		got, _, err = repo.AbsorbTentativeOnBooking(txCtx, booking)
 		return err
 	})
 	return got, err
@@ -43,7 +44,7 @@ func promoteTentativeOnCheckinInTx(
 	var got *model.Reservation
 	err := testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
 		var err error
-		got, err = repo.PromoteTentativeOnCheckin(txCtx, booking)
+		got, _, err = repo.PromoteTentativeOnCheckin(txCtx, booking)
 		return err
 	})
 	return got, err
@@ -87,7 +88,7 @@ func TestReservationRepository_AbsorbTentativeOnBooking(t *testing.T) {
 
 	t.Run("requires an ambient transaction", func(t *testing.T) {
 		booking := makeAbsorbBooking(ownerA.ID, petA.ID, typeA.ID, slotStart, slotEnd)
-		got, err := repo.AbsorbTentativeOnBooking(ctx, booking)
+		got, _, err := repo.AbsorbTentativeOnBooking(ctx, booking)
 		require.Error(t, err)
 		assert.Nil(t, got)
 	})
@@ -102,6 +103,28 @@ func TestReservationRepository_AbsorbTentativeOnBooking(t *testing.T) {
 		assert.True(t, got.StartTime.Equal(slotStart))
 		assert.Nil(t, got.IntendedDate)
 		assert.Equal(t, int64(1), countNonDeletedForPet(t, db, clinicA, petA.ID))
+	})
+
+	t.Run("returns the previous owner when absorbing after pet transfer", func(t *testing.T) {
+		pet := makePetForReservationIntentTest(t, db, clinicA, ownerA.ID, "吸収譲渡ペット")
+		tentative, err := setNextVisitIntentInTx(ctx, db, repo, clinicA, pet.ID, SetNextVisitIntentInput{IntendedDate: futureIntentDateJST(30)})
+		require.NoError(t, err)
+		newOwner, _, _ := makeNextVisitIntentFixture(t, db, clinicA, "AB-TRANSFER")
+		require.NoError(t, db.Model(&model.Pet{}).Where("clinic_id = ? AND id = ?", clinicA, pet.ID).Update("owner_id", newOwner.ID).Error)
+		booking := makeAbsorbBooking(newOwner.ID, pet.ID, typeA.ID, slotStart, slotEnd)
+		var got *model.Reservation
+		var previousOwnerID *uint64
+		require.NoError(t, db.Transaction(func(tx *gorm.DB) error {
+			var err error
+			got, previousOwnerID, err = repo.AbsorbTentativeOnBooking(persistence.WithTxValue(ctx, tx), booking)
+			return err
+		}))
+		require.NotNil(t, got)
+		require.NotNil(t, previousOwnerID)
+		assert.Equal(t, ownerA.ID, *previousOwnerID)
+		assert.Equal(t, tentative.ID, got.ID)
+		require.NotNil(t, got.OwnerID)
+		assert.Equal(t, newOwner.ID, *got.OwnerID)
 	})
 
 	t.Run("promotes the tentative row in place and preserves provenance", func(t *testing.T) {
@@ -238,7 +261,7 @@ func TestReservationRepository_AbsorbTentativeOnBooking(t *testing.T) {
 		sentinel := errors.New("abort after absorb")
 		txErr := testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
 			booking := makeAbsorbBooking(ownerA.ID, pet6.ID, typeA.ID, slotStart, slotEnd)
-			if _, err := repo.AbsorbTentativeOnBooking(txCtx, booking); err != nil {
+			if _, _, err := repo.AbsorbTentativeOnBooking(txCtx, booking); err != nil {
 				return err
 			}
 			return sentinel
@@ -262,7 +285,7 @@ func TestReservationRepository_PromoteTentativeOnCheckin(t *testing.T) {
 	ownerA, petA, typeA := makeNextVisitIntentFixture(t, db, clinicA, "CI")
 
 	t.Run("requires an ambient transaction", func(t *testing.T) {
-		got, err := repo.PromoteTentativeOnCheckin(ctx, &model.Reservation{ClinicID: clinicA, PetID: &petA.ID})
+		got, _, err := repo.PromoteTentativeOnCheckin(ctx, &model.Reservation{ClinicID: clinicA, PetID: &petA.ID})
 		require.Error(t, err)
 		assert.Nil(t, got)
 	})
@@ -335,9 +358,16 @@ func TestReservationRepository_PromoteTentativeOnCheckin(t *testing.T) {
 			Source:            model.ReservationSourceManual,
 			VisitType:         model.VisitTypeRevisit,
 		}
-		got, err := promoteTentativeOnCheckinInTx(ctx, db, repo, booking)
+		var got *model.Reservation
+		var previousOwnerID *uint64
+		err = db.Transaction(func(tx *gorm.DB) error {
+			var err error
+			got, previousOwnerID, err = repo.PromoteTentativeOnCheckin(persistence.WithTxValue(ctx, tx), booking)
+			return err
+		})
 		require.NoError(t, err)
 		require.NotNil(t, got)
+		assert.Nil(t, previousOwnerID, "preserved tentative owner must not be reported as changed")
 
 		assert.NotEqual(t, tentative.ID, got.ID,
 			"未来日 tentative は当日受付へ昇格しない — 別行が作られる")
