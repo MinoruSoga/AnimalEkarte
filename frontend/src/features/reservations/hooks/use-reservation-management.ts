@@ -186,14 +186,16 @@ export function useReservationManagement({
   );
 
   // 「次回予定を再設定」ダイアログを開く（A4 キャンセル後 / A3 期限超過パネルの共通入口）。
-  // Codex PR606 #18: PUT intent の BE 権限は「既存 active tentative の上書き = reservations:edit」
-  // 「新規 intent = reservations:create」。対象行が active tentative なら既存行の更新なので
-  // canEdit を要求し、キャンセル済み行からの再作成のみ canCreate で通す。
+  // Codex PR606 #18: PUT intent の BE 権限は「既存 active tentative の上書き =
+  // ルート reservations:create + repo CanUpdateExisting（reservations:edit）の両方」
+  // 「新規 intent = reservations:create」。対象行が active tentative なら既存行の
+  // 更新なので canCreate && canEdit を要求し、キャンセル済み行からの再作成のみ
+  // canCreate で通す（#18 再指摘: edit 単独では BE が 403 を返す）。
   const openResetNextVisit = useCallback(
     (reservation: Reservation) => {
       const overwritesActiveTentative = isTentativeReservation(reservation);
       const allowed = overwritesActiveTentative
-        ? permissions?.canEdit === true
+        ? permissions?.canEdit === true && permissions?.canCreate === true
         : permissions?.canCreate === true;
       if (!allowed) {
         toast.error("次回予定を再設定する権限がありません");

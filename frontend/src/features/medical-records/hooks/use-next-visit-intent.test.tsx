@@ -239,8 +239,10 @@ describe("useNextVisitIntent — ガード", () => {
     expect(clearIntentMutation.mutateAsync).not.toHaveBeenCalled();
   });
 
-  it("実予約 + tentative 同居: edit のみ（create なし）でも上書き set を送れる", async () => {
-    // #8: 既存 tentative 上書きの BE 権限は reservations:edit（create は不要）。
+  it("実予約 + tentative 同居: edit のみ（create なし）では上書き set を送らない", async () => {
+    // Codex PR606 #8 再指摘: 既存 tentative 上書き PUT はルート reservations:create
+    // + repo reservations:edit の両方を要求する。edit 単独では BE が 403 を返すため
+    // 送信させない — fail-closed。
     vi.mocked(usePermission).mockReturnValue({
       canView: true,
       canCreate: false,
@@ -255,13 +257,18 @@ describe("useNextVisitIntent — ガード", () => {
       } as unknown as Reservation,
       reservationOf("confirmed", wallDateInDays(30, 14, 30)),
     ]);
-    const { result, setIntentMutation } = renderIntent();
+    const { result, setIntentMutation, clearIntentMutation } = renderIntent();
 
     await act(async () => {
       result.current.handleIntentDateChange(validFutureDate());
     });
 
-    expect(setIntentMutation.mutateAsync).toHaveBeenCalled();
+    expect(setIntentMutation.mutateAsync).not.toHaveBeenCalled();
+    // DELETE intent（reservations:edit 単独で可）は引き続き送れる
+    await act(async () => {
+      result.current.handleIntentDateChange("");
+    });
+    expect(clearIntentMutation.mutateAsync).toHaveBeenCalledWith("10");
   });
 
   it("create なし・edit のみ: set（PUT）は送らず clear（DELETE）は送る", async () => {
@@ -427,5 +434,69 @@ describe("useNextVisitIntent — mutation 直列化（Codex PR606 #11）", () =>
     await waitFor(() => expect(setIntentMutation.mutateAsync).toHaveBeenCalledTimes(2));
     // 先の失敗が最新 draft（date2）を巻き戻さない
     expect(result.current.intentFieldValue).toBe(date2);
+  });
+
+  it("先行 mutation の成功 refetch は後続の入力 draft を消さない（pending 中は draft リセット抑制）", async () => {
+    // Codex PR606 #11 再指摘: PUT#1 が成功して起こした refetch が date1（先行値）を
+    // 返しても、キュー待ちの PUT#2 に対応する手入力 draft（date2）を保持する。
+    const date1 = formatJSTWallDate(wallDateInDays(60, 0, 0));
+    const date2 = formatJSTWallDate(wallDateInDays(75, 0, 0));
+
+    const resolvers: Array<() => void> = [];
+    const setIntentMutation = {
+      mutateAsync: vi.fn().mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            resolvers.push(resolve);
+          }),
+      ),
+    };
+    const { result, rerender } = renderHook(() =>
+      useNextVisitIntent({
+        petId: "10",
+        isPetDeceased: false,
+        setIntentMutation,
+        clearIntentMutation: { mutateAsync: vi.fn().mockResolvedValue(undefined) },
+      }),
+    );
+
+    // PUT#1（date1）発行 → in-flight のままユーザーが date2 を入力
+    await act(async () => {
+      result.current.handleIntentDateChange(date1);
+      result.current.handleIntentDateChange(date2);
+    });
+    expect(result.current.intentFieldValue).toBe(date2);
+
+    // PUT#1 が成功 → 直列化で PUT#2 発行。その成功に伴う refetch が
+    // 「date1 の tentative」を返す（PUT#2 未反映のサーバー値）。
+    await act(async () => {
+      resolvers[0]();
+    });
+    await waitFor(() => expect(setIntentMutation.mutateAsync).toHaveBeenCalledTimes(2));
+
+    mockReservations([reservationOf("tentative", wallDateInDays(60, 0, 0))]);
+    act(() => {
+      rerender();
+    });
+
+    // pending の PUT#2 がある限り、先行 refetch の古い値で draft を消さない
+    expect(result.current.intentFieldValue).toBe(date2);
+
+    // PUT#2 完了 → 後続 refetch が date2 を返し、draft は通常どおり同期される
+    await act(async () => {
+      resolvers[1]();
+    });
+    mockReservations([reservationOf("tentative", wallDateInDays(75, 0, 0))]);
+    act(() => {
+      rerender();
+    });
+    expect(result.current.intentFieldValue).toBe(date2);
+
+    // pending 解消後は抑制が残らず、サーバー値の変化で通常どおりリセットされる
+    mockReservations([]);
+    act(() => {
+      rerender();
+    });
+    expect(result.current.intentFieldValue).toBe("");
   });
 });

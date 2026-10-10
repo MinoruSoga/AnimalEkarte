@@ -242,6 +242,8 @@ interface ReservationDetailsPanelProps {
   onClearError: (field: string) => void;
   onMonthChange: (yearMonth: string) => void;
   onStaffSelectionStateChange?: (state: StaffSelectionState) => void;
+  /** Codex PR606 再指摘: 拠点横断フォームの対象行 clinicId（マスタ/空き枠スコープ） */
+  clinicId?: string;
 }
 
 export function ReservationDetailsPanel({
@@ -261,6 +263,7 @@ export function ReservationDetailsPanel({
   onClearError,
   onMonthChange,
   onStaffSelectionStateChange,
+  clinicId,
 }: ReservationDetailsPanelProps) {
   return (
     <div
@@ -290,6 +293,7 @@ export function ReservationDetailsPanel({
             holidayDates={holidayDates}
             onMonthChange={onMonthChange}
             onStaffSelectionStateChange={onStaffSelectionStateChange}
+            clinicId={clinicId}
           />
           {isEditMode && reservationId ? (
             // Codex PR606 #12: record_intent は BE が書く provenance 値であり

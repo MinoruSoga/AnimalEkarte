@@ -257,8 +257,8 @@ describe("useReservationManagement — tentative ハンドラ (EMR-308)", () => 
   });
 
   it("handleResetNextVisitRequest: active tentative は canEdit なしで fail-closed（Codex #18）", () => {
-    // 既存 tentative 行の再設定は PUT 上書き（BE: reservations:edit）。
-    // canCreate ではなく canEdit が fail-closed の判定になる。
+    // 既存 tentative 行の再設定は PUT 上書き（BE: ルート reservations:create +
+    // repo reservations:edit の両方を要求）。canEdit 側が fail-closed の判定。
     const { result } = renderManagement({ ...ALL_PERMISSIONS, canEdit: false });
 
     act(() => result.current.handleResetNextVisitRequest(tentative()));
@@ -267,13 +267,15 @@ describe("useReservationManagement — tentative ハンドラ (EMR-308)", () => 
     expect(toastErrorMock).toHaveBeenCalledWith("次回予定を再設定する権限がありません");
   });
 
-  it("handleResetNextVisitRequest: active tentative は canEdit だけで開く（canCreate 不要）", () => {
+  it("handleResetNextVisitRequest: active tentative は canCreate なしでも fail-closed（Codex #18 再指摘）", () => {
+    // 上書き PUT はルートの reservations:create も通るため、edit 単独では
+    // BE が 403 を返す。片方欠けたらダイアログを開かせない。
     const { result } = renderManagement({ ...ALL_PERMISSIONS, canCreate: false });
 
     act(() => result.current.handleResetNextVisitRequest(tentative()));
 
-    expect(result.current.resetNextVisitTarget).not.toBeNull();
-    expect(toastErrorMock).not.toHaveBeenCalled();
+    expect(result.current.resetNextVisitTarget).toBeNull();
+    expect(toastErrorMock).toHaveBeenCalledWith("次回予定を再設定する権限がありません");
   });
 
   it("handleResetNextVisitRequest: 非 tentative 行（キャンセル後再作成）は canCreate で判定", () => {

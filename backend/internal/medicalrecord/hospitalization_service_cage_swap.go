@@ -14,7 +14,16 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
+
+// petRowLockFinder は SwapCages が死亡判定を同一 tx の行ロック下で行うための最小面。
+// petdomain.RowLockingRepository（CompleteRepository にのみ載せる narrow capability）と
+// 構造的に互換で、注入された petRepo が面を持たなければ 500 fail-closed にする
+// （doctorVerifier / CageMergeRepository の型アサーション拡張と同じ先例）。
+type petRowLockFinder interface {
+	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
+}
 
 // SwapCages は2件の入院の cage_id を単一トランザクションで交換する。
 // 連結ケージが絡む場合でも通常の割当ガードが各移動に適用され、構成ケージ宛は 422、
@@ -25,6 +34,13 @@ func (s *hospitalizationService) SwapCages(ctx context.Context, clinicID, idA, i
 	}
 	if s.transactor == nil {
 		return nil, nil, apperrors.WrapInternalServerError("hospitalization write transaction dependency is required")
+	}
+	petLocker, ok := s.petRepo.(petRowLockFinder)
+	if !ok {
+		// Codex PR606 #26 再指摘: 死亡判定はペット行ロック必須。面を持たない
+		// 注入 repo（テスト用の FindByID だけのモック等）では tx 直列化を
+		// 保証できないため、黙って通常 read には退避せず fail-closed にする。
+		return nil, nil, apperrors.WrapInternalServerError("cage swap requires a pet repository with row locking")
 	}
 	var outA, outB *model.Hospitalization
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
@@ -57,9 +73,30 @@ func (s *hospitalizationService) SwapCages(ctx context.Context, clinicID, idA, i
 			if !isOccupyingHospitalizationStatus(h.Status) {
 				return apperrors.WrapInvalidInput("退院済みの入院はケージを入れ替えできません")
 			}
-			if err := validatePetNotDeceased(txCtx, s.petRepo, clinicID, h.PetID,
-				"死亡したペットの入院はケージを入れ替えできません"); err != nil {
-				return err
+		}
+
+		// Codex PR606 #26 再指摘: 死亡判定も同じ tx で行う。通常 FindByID だと
+		// 「判定 → 別セッションの RecordDeath commit → 本 tx commit」の直列化が
+		// 成立せず、死亡直後のペットを入れ替え得る。ペット行は pet_id 昇順・重複排除で
+		// FOR UPDATE してから契約判定する（入院行の id 昇順ロックと同じ規約で
+		// ロック順を揃え、デッドロックを防ぐ）。
+		petIDs := []uint64{first.PetID}
+		if second.PetID != first.PetID {
+			petIDs = append(petIDs, second.PetID)
+			if petIDs[0] > petIDs[1] {
+				petIDs[0], petIDs[1] = petIDs[1], petIDs[0]
+			}
+		}
+		for _, petID := range petIDs {
+			pet, err := petLocker.LockByIDForUpdate(txCtx, clinicID, petID)
+			if err != nil {
+				return apperrors.Wrap(err, "failed to verify pet status")
+			}
+			if pet == nil {
+				return apperrors.WrapNotFound("pet", "status")
+			}
+			if sharedkernel.IsPetDeceased(pet) {
+				return apperrors.WrapInvalidInput("死亡したペットの入院はケージを入れ替えできません")
 			}
 		}
 

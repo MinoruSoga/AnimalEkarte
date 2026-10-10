@@ -23,17 +23,20 @@ async function getOwnerLineTags(clinicId: string, ownerId: string): Promise<Owne
  * Shared hook for fetching owner LINE/LSTEP tag status.
  * Uses the same query key as features/owners to share React Query cache.
  */
-export function useGetOwnerLineTags(ownerId: string) {
-  const clinicId = getStoredClinicId();
+export function useGetOwnerLineTags(ownerId: string, clinicId?: string) {
+  // Codex PR606 再指摘: 拠点横断フォームは行の clinicId で URL path を組み立てる
+  const effectiveClinicId = clinicId ?? getStoredClinicId();
   return useQuery({
-    queryKey: queryKeys.ownerLineTags(ownerId),
+    queryKey: clinicId
+      ? [...queryKeys.ownerLineTags(ownerId), clinicId]
+      : queryKeys.ownerLineTags(ownerId),
     queryFn: () => {
-      if (clinicId === null) {
+      if (effectiveClinicId === null) {
         return Promise.reject(new Error("clinic_id is not selected"));
       }
-      return getOwnerLineTags(clinicId, ownerId);
+      return getOwnerLineTags(effectiveClinicId, ownerId);
     },
-    enabled: !!ownerId && clinicId !== null,
+    enabled: !!ownerId && effectiveClinicId !== null,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,
   });

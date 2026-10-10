@@ -101,6 +101,12 @@ type ReservationFormModalProps = {
   initialData: Partial<Reservation> | null;
   canCreate?: boolean;
   canEdit?: boolean;
+  /**
+   * Codex PR606 再指摘: 拠点横断 tentative 確定・編集フォームは「対象行の
+   * clinicId」で clinic-scoped query（休診日・マスタ・空き枠・ペット・行取得）
+   * を発行する。省略時は従来どおりグローバル選択中医院にフォールバック。
+   */
+  clinicId?: string;
 } & ReservationFormModalSaveMode;
 
 export const ReservationFormModal = memo(function ReservationFormModal({
@@ -112,6 +118,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
   initialData,
   canCreate = false,
   canEdit = false,
+  clinicId,
 }: ReservationFormModalProps) {
   const [storedFormData, setFormData] = useState<Partial<Reservation>>({});
   const [pendingPetId, setPendingPetId] = useState<string | null>(null);
@@ -131,7 +138,8 @@ export const ReservationFormModal = memo(function ReservationFormModal({
   });
 
   // BUG-343: 定休日を取得して Calendar で disabled にする
-  const { data: clinicHolidays = [] } = useGetClinicHolidays(calendarMonth);
+  // Codex PR606 再指摘: 拠点横断フォームは対象行の clinicId で休診日を引く
+  const { data: clinicHolidays = [] } = useGetClinicHolidays(calendarMonth, clinicId);
 
   const holidayDates = useMemo(() => new Set(clinicHolidays.map((h) => h.date)), [clinicHolidays]);
   const handleCalendarMonthChange = useCallback((yearMonth: string) => {
@@ -143,7 +151,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
     "multiple-same-owner",
   );
 
-  const { data: ownerLineData } = useGetOwnerLineTags(selectedPets[0]?.ownerId ?? "");
+  const { data: ownerLineData } = useGetOwnerLineTags(selectedPets[0]?.ownerId ?? "", clinicId);
   const lstepStatus =
     selectedPets.length === 0 || ownerLineData === undefined
       ? undefined
@@ -153,7 +161,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
           ? ("synced" as const)
           : ("not-linked" as const);
 
-  const { data: loadedPet } = useGetPet(pendingPetId ?? "");
+  const { data: loadedPet } = useGetPet(pendingPetId ?? "", clinicId);
 
   /* eslint-disable react-hooks/set-state-in-effect -- pending petId を選択状態へ同期 */
   useEffect(() => {
@@ -272,7 +280,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
 
   // edit mode: subscribe to single-reservation query and sync reservationRoute into formData
   const reservationQueryId = isEditMode ? String(initialData?.id) : "";
-  const { data: latestReservation } = useGetReservation(reservationQueryId);
+  const { data: latestReservation } = useGetReservation(reservationQueryId, clinicId);
   /* eslint-disable react-hooks/set-state-in-effect -- 編集中の予約ルートを query 結果へ同期 */
   useEffect(() => {
     if (!latestReservation) return;
@@ -441,6 +449,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
             onClearError={handleClearError}
             onMonthChange={handleCalendarMonthChange}
             onStaffSelectionStateChange={handleStaffSelectionStateChange}
+            clinicId={clinicId}
           />
         </div>
 

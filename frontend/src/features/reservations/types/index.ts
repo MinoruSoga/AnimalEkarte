@@ -25,6 +25,8 @@ export interface ReservationFormData {
   petId?: string;
   source?: "manual" | "line";
   reservationRoute?: ReservationRoute | null;
+  /** Codex PR606 再指摘: 拠点横断行の編集フォームが対象行の医院で clinic-scoped query を引く */
+  clinicId?: string;
 }
 
 // FE6-17: 正本は src/types/reservation-form.ts へ移動。ここは re-export のみ。
