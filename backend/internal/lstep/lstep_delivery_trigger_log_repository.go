@@ -115,7 +115,12 @@ func (r *lstepDeliveryTriggerLogRepository) CreateIfAbsentToday(ctx context.Cont
 				result := tx.Model(&model.LstepDeliveryTriggerLog{}).
 					Where("id = ? AND clinic_id = ?", existing.ID, log.ClinicID).
 					Where("NOT (" + blockingDeliveryClaimPredicate + ")").
-					Updates(map[string]any{"status": model.TriggerStatusScheduled, "excluded_reason": nil})
+					Updates(map[string]any{
+						"status":                 model.TriggerStatusScheduled,
+						"excluded_reason":        nil,
+						"suppressed_by_priority": log.SuppressedByPriority,
+						"suppression_reason":     log.SuppressionReason,
+					})
 				if result.Error != nil {
 					return apperrors.FromGORM(result.Error, "lstep_delivery_trigger_log", "reclaim_unsent")
 				}

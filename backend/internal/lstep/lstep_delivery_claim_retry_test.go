@@ -236,3 +236,54 @@ func TestTentativeReminder_RevalidationFailureCanRetrySameDay(t *testing.T) {
 	assert.Empty(t, errs)
 	assert.Equal(t, 1, sent)
 }
+
+func TestDeliveryClaimRepository_ReclaimPreservesSuppressionDecision(t *testing.T) {
+	db := setupLstepDeliveryTriggerLogTestDB(t)
+	ensureDailyUniqueIndex(t, db)
+	repo := NewLstepDeliveryTriggerLogRepository(db)
+	ctx := context.Background()
+	asOf := time.Now()
+	for i, suppressed := range []bool{true, false} {
+		t.Run(map[bool]string{true: "suppressed", false: "active"}[suppressed], func(t *testing.T) {
+			ownerID := uint64(200 + i)
+			claim := makeDeliveryTriggerLog(t, db, 1, ownerID, model.TriggerTypeNextVisitTentativeReminder0d, model.TriggerStatusFailed, asOf)
+			require.NoError(t, repo.UpdateStatus(ctx, 1, claim.ID, model.TriggerStatusFailed, nil, strPtr(preSendRevalidationFailure)))
+			// A stale reason must also be cleared when the new decision is active.
+			require.NoError(t, db.Model(claim).Update("suppression_reason", "previous decision").Error)
+			var reason *string
+			if suppressed {
+				reason = strPtr("higher priority trigger already fired")
+			}
+			next := &model.LstepDeliveryTriggerLog{
+				ClinicID: 1, OwnerID: ownerID, TriggerType: claim.TriggerType,
+				Status: model.TriggerStatusScheduled, ScheduledAt: asOf,
+				SuppressedByPriority: suppressed, SuppressionReason: reason,
+			}
+			created, err := repo.CreateIfAbsentToday(ctx, next)
+			require.NoError(t, err)
+			require.True(t, created)
+			assert.Equal(t, claim.ID, next.ID)
+			var stored model.LstepDeliveryTriggerLog
+			require.NoError(t, db.First(&stored, claim.ID).Error)
+			assert.Equal(t, model.TriggerStatusScheduled, stored.Status)
+			assert.Nil(t, stored.ExcludedReason)
+			assert.Equal(t, suppressed, stored.SuppressedByPriority)
+			assert.Equal(t, reason, stored.SuppressionReason)
+			blocked, err := repo.ExistsTodayByOwnerAndType(ctx, 1, ownerID, claim.TriggerType, asOf)
+			require.NoError(t, err)
+			assert.True(t, blocked, "both decisions consume the reclaimed day slot")
+
+			priorityCalls := 0
+			svc := &lstepDeliveryTriggerService{triggerLogRepo: repo, prioritySvc: &mockLstepTriggerPriorityServiceForBatch{
+				getPriorityForFn: func(context.Context, uint64, string) (int, error) { priorityCalls++; return 1, nil },
+			}}
+			_, err = svc.applySuppression(ctx, 1, ownerID, "another_trigger", asOf)
+			require.NoError(t, err)
+			if suppressed {
+				assert.Zero(t, priorityCalls, "the reclaimed suppressed log must not occupy an active priority slot")
+			} else {
+				assert.Equal(t, 2, priorityCalls)
+			}
+		})
+	}
+}
