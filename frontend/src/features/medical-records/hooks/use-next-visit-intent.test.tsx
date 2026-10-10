@@ -232,6 +232,7 @@ describe("useNextVisitIntent — ガード", () => {
 
     expect(setIntentMutation.mutateAsync).not.toHaveBeenCalled();
     expect(result.current.canMutateIntent).toBe(false);
+    expect(result.current.intentFieldValue).not.toBe(validFutureDate());
     // edit なしなので clear も送らない
     await act(async () => {
       result.current.handleIntentDateChange("");
@@ -258,12 +259,14 @@ describe("useNextVisitIntent — ガード", () => {
       reservationOf("confirmed", wallDateInDays(30, 14, 30)),
     ]);
     const { result, setIntentMutation, clearIntentMutation } = renderIntent();
+    const initialValue = result.current.intentFieldValue;
 
     await act(async () => {
       result.current.handleIntentDateChange(validFutureDate());
     });
 
     expect(setIntentMutation.mutateAsync).not.toHaveBeenCalled();
+    expect(result.current.intentFieldValue).toBe(initialValue);
     // DELETE intent（reservations:edit 単独で可）は引き続き送れる
     await act(async () => {
       result.current.handleIntentDateChange("");
@@ -286,6 +289,9 @@ describe("useNextVisitIntent — ガード", () => {
       result.current.handleIntentDateChange(validFutureDate());
     });
     expect(setIntentMutation.mutateAsync).not.toHaveBeenCalled();
+    expect(result.current.intentFieldValue).toBe("");
+    expect(result.current.canSetIntent).toBe(false);
+    expect(result.current.canClearIntent).toBe(true);
 
     await act(async () => {
       result.current.handleIntentDateChange("");
@@ -308,11 +314,13 @@ describe("useNextVisitIntent — ガード", () => {
     });
     expect(result.current.canMutateIntent).toBe(true);
     expect(setIntentMutation.mutateAsync).toHaveBeenCalled();
+    expect(result.current.intentFieldValue).toBe(validFutureDate());
 
     await act(async () => {
       result.current.handleIntentDateChange("");
     });
     expect(clearIntentMutation.mutateAsync).not.toHaveBeenCalled();
+    expect(result.current.intentFieldValue).toBe(validFutureDate());
   });
 
   it("create/edit 両方無い場合 canMutateIntent=false で mutation しない", async () => {

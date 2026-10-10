@@ -48,6 +48,8 @@ interface NextVisitDateFieldProps {
   onChange: (date: string) => void;
   hasLineIntegration?: boolean;
   disabled?: boolean;
+  setDisabled?: boolean;
+  clearDisabled?: boolean;
 }
 
 // ─────────────────────────────────────────────────
@@ -59,6 +61,8 @@ export function NextVisitDateField({
   onChange,
   hasLineIntegration = false,
   disabled = false,
+  setDisabled = disabled,
+  clearDisabled = disabled,
 }: NextVisitDateFieldProps) {
   const inputId = useId();
   const errorMessage = validateNextVisitIntentDate(value);
@@ -99,7 +103,7 @@ export function NextVisitDateField({
         value={value}
         min={today()}
         onChange={(e) => handleChange(e.target.value)}
-        disabled={disabled}
+        disabled={setDisabled}
         aria-invalid={isInputInvalid}
         aria-describedby={showError ? `${inputId}-error` : undefined}
         className={`${STYLE.formInput} rounded-xs border px-3 w-full max-w-[220px] focus-visible:ring-offset-1 ${
@@ -113,7 +117,7 @@ export function NextVisitDateField({
           <button
             key={opt.label}
             type="button"
-            disabled={disabled}
+            disabled={setDisabled}
             onClick={() => handleQuickSelect(opt.getValue)}
             className={`inline-flex items-center min-h-11 text-sm px-3 py-1 rounded-xs border ${C.borderMedium} ${C.text60} ${C.hoverBgLight} ${C.hoverText} transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}
           >
@@ -123,7 +127,7 @@ export function NextVisitDateField({
         {value !== "" ? (
           <button
             type="button"
-            disabled={disabled}
+            disabled={clearDisabled}
             onClick={() => handleChange("")}
             className={`inline-flex items-center min-h-11 text-sm px-3 py-1 rounded-xs ${C.text60} ${C.hoverText} ${C.hoverBgLight} transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}
           >

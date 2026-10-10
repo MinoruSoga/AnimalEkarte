@@ -160,13 +160,14 @@ export function useNextVisitIntent({
   // "" はクリア（DELETE）、有効日は upsert（PUT）、無効日は入力表示だけ残し mutation しない。
   const handleIntentDateChange = useCallback(
     (newDate: string) => {
-      setIntentDraft(newDate);
       if (newDate === "") {
         if (!intentCapsRef.current.clear) return;
+        setIntentDraft(newDate);
         void runClearIntent();
         return;
       }
       if (!intentCapsRef.current.set) return;
+      setIntentDraft(newDate);
       if (validateNextVisitIntentDate(newDate) !== null) return;
       void runSetIntent(newDate);
     },
@@ -179,6 +180,8 @@ export function useNextVisitIntent({
     handleIntentDateChange,
     resetIntentDraft,
     canMutateIntent: canSetIntent || canClearIntent,
+    canSetIntent,
+    canClearIntent,
     /** EMR-308 A1: 確定導線。kind==="tentative" のときのみ true（reservations:edit 必要）。 */
     canConfirmTentative,
     /** 確定モーダルの対象 tentative 行。なければ null。 */

@@ -51,6 +51,8 @@ export function NextVisitButton({
     handleIntentDateChange,
     resetIntentDraft,
     canMutateIntent,
+    canSetIntent,
+    canClearIntent,
     canConfirmTentative,
     tentativeReservation,
   } = useNextVisitIntent({
@@ -133,7 +135,8 @@ export function NextVisitButton({
               value={intentFieldValue}
               onChange={handleIntentDateChange}
               hasLineIntegration={hasLineIntegration}
-              disabled={!canMutateIntent}
+              setDisabled={!canSetIntent}
+              clearDisabled={!canClearIntent}
             />
           </PopoverContent>
         </Popover>
