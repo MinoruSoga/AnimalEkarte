@@ -60,6 +60,9 @@ func (s *reservationService) SetNextVisitIntent(
 	var appointment *model.Reservation
 	var prevOwnerID *uint64
 	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
+		if err := s.repo.AcquireNextVisitIntentLock(ctx, clinicID, petID); err != nil {
+			return err
+		}
 		if err := ValidateReservationPetNotDeceased(ctx, s.repo, clinicID, &petID); err != nil {
 			return err
 		}
@@ -89,20 +92,24 @@ func (s *reservationService) ClearNextVisitIntent(ctx context.Context, clinicID,
 	// EMR-308: tentative は削除後に owner を引けないため、削除前に飼い主を解決しておく
 	// （post-commit の next_visit タグ除去同期に使う）。
 	var ownerID uint64
+	var storedOwnerID *uint64
 	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
+		if err := s.repo.AcquireNextVisitIntentLock(ctx, clinicID, petID); err != nil {
+			return err
+		}
 		// pet の clinic ownership を確認し、cross-clinic 呼び出しは存在しない扱いにする。
 		resolved, err := s.repo.FindPetOwnerInClinic(ctx, clinicID, petID)
 		if err != nil {
 			return err
 		}
 		ownerID = resolved
-		_, err = s.repo.ClearNextVisitIntent(ctx, clinicID, petID)
+		_, storedOwnerID, err = s.repo.clearNextVisitIntentWithOwner(ctx, clinicID, petID)
 		return err
 	})
 	if err != nil {
 		return err
 	}
-	syncNextVisitTagBestEffort(ctx, s.nextVisitTagSync, clinicID, &ownerID)
+	syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, storedOwnerID, &ownerID)
 	return nil
 }
 

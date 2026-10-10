@@ -228,16 +228,25 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 }
 
 func (s *reservationAdminService) Delete(ctx context.Context, clinicID, id uint64) error {
-	// EMR-308: 削除後は owner を引けないため、post-commit の next_visit タグ除去
-	// 同期のために削除前の予約（owner_id）を保持しておく。
-	existing, err := s.resRepo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to find reservation appointment")
+	if s.tx == nil {
+		return apperrors.WrapInternalServerError("reservation transaction dependency is required")
 	}
-	if err := s.repo.SoftDelete(ctx, clinicID, id); err != nil {
+	var previousOwnerID, currentPetOwnerID *uint64
+	if err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
+		locked, err := s.resRepo.LockAndFindByID(txCtx, clinicID, id)
+		if err != nil {
+			return err
+		}
+		previousOwnerID = locked.OwnerID
+		currentPetOwnerID, err = resolveTentativePetOwner(txCtx, s.resRepo, clinicID, locked)
+		if err != nil {
+			return err
+		}
+		return s.repo.SoftDelete(txCtx, clinicID, id)
+	}); err != nil {
 		return apperrors.Wrap(err, "failed to delete reservation appointment")
 	}
-	syncNextVisitTagBestEffort(ctx, s.nextVisitTagSync, clinicID, existing.OwnerID)
+	syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, previousOwnerID, currentPetOwnerID)
 	if s.medicalRecord != nil {
 		s.medicalRecord.DeleteDraftFromReservation(ctx, clinicID, id)
 	}

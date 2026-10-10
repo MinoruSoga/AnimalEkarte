@@ -31,6 +31,8 @@ type ReservationCRUDRepository interface {
 	// update は owner package 内だけで使う汎用 persistence primitive。
 	// package 外には ReservationIntentRepository の intent-specific operation だけを公開する。
 	update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
+	updateWithPreviousOwner(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, *uint64, error)
+	deleteWithPreviousOwner(ctx context.Context, clinicID, id uint64) (*uint64, error)
 	// updateTentativeStatus は tentative 行限定の CAS 更新 primitive。
 	// 汎用 update は WHERE に status 述語を持たないため、lock なし FindByID 後の
 	// tentative 遷移（当日受付/終了）が並行 ConfirmTentative の昇格を上書きし得る。
@@ -89,6 +91,7 @@ type ReservationTentativeLifecycleRepository interface {
 type ReservationIntentRepository interface {
 	ReservationNextVisitIntentRepository
 	CompleteForAccounting(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
+	CompleteForAccountingWithOwners(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, []uint64, error)
 	AssertMedicalRecordDoctorInClinic(ctx context.Context, clinicID, doctorID uint64) error
 	BackfillForMedicalRecord(ctx context.Context, clinicID, id uint64, ownerID, petID, doctorID *uint64) error
 	PrepareForMedicalRecordFinalization(ctx context.Context, clinicID, id uint64) error
@@ -234,6 +237,8 @@ type ReservationNextVisitQueryRepository interface {
 // 汎用 update は非公開のため、package外consumerは実装も呼び出しもできない。
 // EMR-308: next-visit intent の typed write も含む（service が orchestrate する）。
 type ReservationRepository interface {
+	// clearNextVisitIntentWithOwner returns the stored owner from the locked deleted row.
+	clearNextVisitIntentWithOwner(ctx context.Context, clinicID, petID uint64) (bool, *uint64, error)
 	ReservationCRUDRepository
 	ReservationSlotRepository
 	ReservationQueryRepository
@@ -399,6 +404,37 @@ func (r *reservationRepository) update(ctx context.Context, clinicID, id uint64,
 		return nil, err
 	}
 	return loaded, nil
+}
+
+// Mutation metadata is captured from the same row lock as the write.
+func (r *reservationRepository) updateWithPreviousOwner(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, *uint64, error) {
+	var result *model.Reservation
+	var previousOwner *uint64
+	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		locked, err := r.LockAndFindByID(txCtx, clinicID, id)
+		if err != nil {
+			return err
+		}
+		previousOwner = locked.OwnerID
+		result, err = r.update(txCtx, clinicID, id, fields)
+		return err
+	})
+	return result, previousOwner, err
+}
+
+func (r *reservationRepository) deleteWithPreviousOwner(ctx context.Context, clinicID, id uint64) (*uint64, error) {
+	var previousOwner *uint64
+	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		locked, err := r.LockAndFindByID(txCtx, clinicID, id)
+		if err != nil {
+			return err
+		}
+		previousOwner = locked.OwnerID
+		return r.Delete(txCtx, clinicID, id)
+	})
+	return previousOwner, err
 }
 
 func (r *reservationRepository) Delete(ctx context.Context, clinicID, id uint64) error {

@@ -130,10 +130,11 @@ func (noopTransactor) WithTx(ctx context.Context, fn func(ctx context.Context) e
 
 // mockReservationRepository は billing が消費する owner/pet verifier と会計完了intentだけを実装する。
 type mockReservationRepository struct {
-	assertOwnerInClinicFn   func(ctx context.Context, clinicID, ownerID uint64) error
-	findPetOwnerInClinicFn  func(ctx context.Context, clinicID, petID uint64) (uint64, error)
-	findPetByIDInClinicFn   func(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
-	completeForAccountingFn func(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
+	assertOwnerInClinicFn             func(ctx context.Context, clinicID, ownerID uint64) error
+	findPetOwnerInClinicFn            func(ctx context.Context, clinicID, petID uint64) (uint64, error)
+	findPetByIDInClinicFn             func(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
+	completeForAccountingWithOwnersFn func(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, []uint64, error)
+	completeForAccountingFn           func(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
 }
 
 func (m *mockReservationRepository) AssertOwnerInClinic(ctx context.Context, clinicID, ownerID uint64) error {
@@ -163,6 +164,14 @@ func (m *mockReservationRepository) CompleteForAccounting(ctx context.Context, c
 		return m.completeForAccountingFn(ctx, clinicID, medicalRecordID, ownerID, petID, scheduledDate)
 	}
 	return 0, nil
+}
+
+func (m *mockReservationRepository) CompleteForAccountingWithOwners(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, []uint64, error) {
+	if m.completeForAccountingWithOwnersFn != nil {
+		return m.completeForAccountingWithOwnersFn(ctx, clinicID, medicalRecordID, ownerID, petID, scheduledDate)
+	}
+	count, err := m.CompleteForAccounting(ctx, clinicID, medicalRecordID, ownerID, petID, scheduledDate)
+	return count, nil, err
 }
 
 type mockAccountingRepository struct {

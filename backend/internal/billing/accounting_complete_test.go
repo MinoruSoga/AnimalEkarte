@@ -1491,3 +1491,45 @@ func mustDigest(input *CompleteAccountingInput) string {
 }
 
 func strPtr(s string) *string { return &s }
+
+func TestAccountingComplete_SyncsActualAppointmentOwnersWithNilBillingOwner(t *testing.T) {
+	key := uuid.NewString()
+	committed := false
+	repo := &mockAccountingRepository{
+		findByCompletionRequestIDFn: func(context.Context, uint64, string) (*model.Billing, error) { return nil, nil },
+		createFn: func(_ context.Context, clinicID uint64, b *model.Billing) error {
+			b.ID = 42
+			b.ClinicID = clinicID
+			return nil
+		},
+		updateFieldsFn: func(context.Context, uint64, uint64, AccountingUpdate) (*model.Billing, error) {
+			return &model.Billing{ID: 42, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
+		},
+		findByIDFn: func(context.Context, uint64, uint64) (*model.Billing, error) {
+			return &model.Billing{ID: 42, ClinicID: 1, Status: model.BillingStatusCompleted, CompletionRequestID: &key, CompletionRequestHash: strPtr(mustDigest(validCompleteInput(key)))}, nil
+		},
+	}
+	appointments := matchingReservationRepo()
+	appointments.completeForAccountingWithOwnersFn = func(context.Context, uint64, *uint64, *uint64, *uint64, time.Time) (int64, []uint64, error) {
+		assert.False(t, committed)
+		return 3, []uint64{7, 8, 7}, nil
+	}
+	tx := &mockTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+		if err := fn(ctx); err != nil {
+			return err
+		}
+		committed = true
+		return nil
+	}}
+	var synced []uint64
+	tags := &mockLstepTagSyncService{syncNextVisitTagFn: func(_ context.Context, _ uint64, ownerID uint64) error {
+		assert.True(t, committed)
+		synced = append(synced, ownerID)
+		return nil
+	}}
+	svc := NewAccountingService(repo, nil, nil, appointments, tags, tx, &mockAuditService{}, seededPayMethodMock(), WithCompleteItemWriter(&mockCompleteItemWriter{}), WithCompleteTotalsWriter(&mockCompleteTotalsWriter{subtotal: 1000, taxTotal: 100, total: 1100}))
+	got, err := svc.Complete(context.Background(), validCompleteInput(key))
+	require.NoError(t, err)
+	assert.Nil(t, got.Accounting.OwnerID)
+	assert.Equal(t, []uint64{7, 8}, synced)
+}

@@ -11,7 +11,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinicID, id uint64, fields map[string]any, input *UpdateReservationInput) (*model.Reservation, error) {
+func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinicID, id uint64, fields map[string]any, input *UpdateReservationInput, lockedPreviousOwnerID **uint64) (*model.Reservation, error) {
 	if s.tx == nil {
 		return nil, apperrors.WrapInternalServerError("reservation transaction dependency is required")
 	}
@@ -27,6 +27,7 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 		if err != nil {
 			return err
 		}
+		*lockedPreviousOwnerID = current.OwnerID
 		finalOwnerID, finalPetID := resolveFinalOwnerPet(current, input)
 		if err := ValidateReservationOwnerPetLinksWithRepo(ctx, s.repo, clinicID, finalOwnerID, finalPetID); err != nil {
 			return err
@@ -169,7 +170,7 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	// 書くと、並行 ConfirmTentative が先に pending/confirmed + 実枠時刻で commit
 	// した行を checked_in/cancelled+論理削除で上書きし得る（TOCTOU）。
 	if current.Status == model.ReservationStatusTentative {
-		return s.updateTentativeStatusTransition(ctx, clinicID, id, current, input, fields)
+		return s.updateTentativeStatusTransition(ctx, clinicID, id, input, fields)
 	}
 
 	needsLinkValidation := input.OwnerID != nil || input.PetID != nil
@@ -187,13 +188,14 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	// RSV-06 / X-06: cancel = status update + soft delete as one business graph.
 	// Q7: soft-delete after status=cancelled so FindByID (deleted_at IS NULL) can still return
 	// the cancelled row from the update path before Delete; both must share one transaction.
+	var previousOwnerID *uint64
 	if isCancel {
 		if s.tx == nil {
 			return nil, apperrors.WrapInternalServerError("reservation transaction dependency is required")
 		}
 		var updated *model.Reservation
 		if err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
-			u, err := s.applyReservationUpdate(txCtx, clinicID, id, fields, input, needsConflictCheck, needsLinkValidation, needsCapabilityCheck, needsKarteCheck)
+			u, err := s.applyReservationUpdate(txCtx, clinicID, id, fields, input, needsConflictCheck, needsLinkValidation, needsCapabilityCheck, needsKarteCheck, &previousOwnerID)
 			if err != nil {
 				return err
 			}
@@ -207,21 +209,21 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 		}
 		// EMR-308: cancel（status 更新+soft delete）で次回来院が消えるため新旧 owner 双方を
 		// post-commit 再同期する（所有者付け替え時は旧側のタグも取り残さない）。
-		syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, current.OwnerID, updated.OwnerID)
+		syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, previousOwnerID, updated.OwnerID)
 		slog.InfoContext(ctx, "reservation updated",
 			slog.Uint64("reservation_id", id),
 			slog.Uint64("clinic_id", clinicID))
 		return updated, nil
 	}
 
-	updated, err := s.applyReservationUpdate(ctx, clinicID, id, fields, input, needsConflictCheck, needsLinkValidation, needsCapabilityCheck, needsKarteCheck)
+	updated, err := s.applyReservationUpdate(ctx, clinicID, id, fields, input, needsConflictCheck, needsLinkValidation, needsCapabilityCheck, needsKarteCheck, &previousOwnerID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update reservation")
 	}
 
 	// EMR-308: 日時・ステータス・所有者変更で次回来院が変わり得るため post-commit で
 	// 新旧 owner を再同期する（同一 owner は helper 内で重複排除される）。
-	syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, current.OwnerID, updated.OwnerID)
+	syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, previousOwnerID, updated.OwnerID)
 	slog.InfoContext(ctx, "reservation updated",
 		slog.Uint64("reservation_id", id),
 		slog.Uint64("clinic_id", clinicID))
@@ -237,10 +239,10 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 func (s *reservationService) updateTentativeStatusTransition(
 	ctx context.Context,
 	clinicID, id uint64,
-	current *model.Reservation,
 	input *UpdateReservationInput,
 	fields map[string]any,
 ) (*model.Reservation, error) {
+	var previousOwnerID, currentPetOwnerID *uint64
 	if *input.Status == model.ReservationStatusCheckedIn {
 		// Codex #3/#14/#19: 死亡チェック・未来日拒否・実受付スタンプは intent
 		// advisory lock 取得後・同一 tx 内で行う必要があるため、post-lock で
@@ -248,6 +250,12 @@ func (s *reservationService) updateTentativeStatusTransition(
 		// 事前の FindByID ベース検証はロック待ち中の並行 commit（死亡記録・
 		// intended_date 変更・並行昇格）を取り逃がす。
 		validator := func(ctx context.Context, locked *model.Reservation) (map[string]any, error) {
+			previousOwnerID = locked.OwnerID
+			var err error
+			currentPetOwnerID, err = resolveTentativePetOwner(ctx, s.repo, clinicID, locked)
+			if err != nil {
+				return nil, err
+			}
 			if err := ValidateReservationPetNotDeceased(ctx, s.repo, clinicID, locked.PetID); err != nil {
 				return nil, err
 			}
@@ -272,7 +280,7 @@ func (s *reservationService) updateTentativeStatusTransition(
 		if err != nil {
 			return nil, apperrors.Wrap(err, "failed to check in tentative reservation")
 		}
-		syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, current.OwnerID, updated.OwnerID)
+		syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, previousOwnerID, currentPetOwnerID, updated.OwnerID)
 		return updated, nil
 	}
 	// cancelled: status=cancelled を刻んでから論理削除（RSV-06/Q7 と同じ graph）。
@@ -281,7 +289,12 @@ func (s *reservationService) updateTentativeStatusTransition(
 	}
 	var updated *model.Reservation
 	if err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
-		u, err := s.repo.updateTentativeStatus(txCtx, clinicID, id, fields, nil)
+		u, err := s.repo.updateTentativeStatus(txCtx, clinicID, id, fields, func(lockCtx context.Context, locked *model.Reservation) (map[string]any, error) {
+			previousOwnerID = locked.OwnerID
+			var err error
+			currentPetOwnerID, err = resolveTentativePetOwner(lockCtx, s.repo, clinicID, locked)
+			return nil, err
+		})
 		if err != nil {
 			return err
 		}
@@ -293,7 +306,7 @@ func (s *reservationService) updateTentativeStatusTransition(
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to cancel tentative reservation")
 	}
-	syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, current.OwnerID, updated.OwnerID)
+	syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, previousOwnerID, currentPetOwnerID, updated.OwnerID)
 	return updated, nil
 }
 
@@ -305,12 +318,13 @@ func (s *reservationService) applyReservationUpdate(
 	fields map[string]any,
 	input *UpdateReservationInput,
 	needsConflictCheck, needsLinkValidation, needsCapabilityCheck, needsKarteCheck bool,
+	lockedPreviousOwnerID **uint64,
 ) (*model.Reservation, error) {
 	switch {
 	case needsConflictCheck:
 		// 時刻・医師変更あり: SELECT FOR UPDATE + トランザクションで競合を防止（リンク検証も tx 内）
 		// Capability already runs inside updateWithConflictCheck; do not divert this path.
-		return s.updateWithConflictCheck(ctx, clinicID, id, fields, input)
+		return s.updateWithConflictCheck(ctx, clinicID, id, fields, input, lockedPreviousOwnerID)
 	case needsLinkValidation || needsCapabilityCheck || needsKarteCheck:
 		// Owner/Pet・担当者/区分・in_consultation カルテ確認: 行ロック後に検証し同一 tx で書く。
 		// Capability SHARE locks must be held through commit (ReservationStaffWriteGuard).
@@ -324,6 +338,7 @@ func (s *reservationService) applyReservationUpdate(
 			if err != nil {
 				return err
 			}
+			*lockedPreviousOwnerID = locked.OwnerID
 			if needsLinkValidation {
 				finalOwnerID, finalPetID := resolveFinalOwnerPet(locked, input)
 				if err := ValidateReservationOwnerPetLinksWithRepo(ctx, s.repo, clinicID, finalOwnerID, finalPetID); err != nil {
@@ -355,7 +370,9 @@ func (s *reservationService) applyReservationUpdate(
 		}
 		return result, nil
 	default:
-		return s.repo.update(ctx, clinicID, id, fields)
+		updated, previous, err := s.repo.updateWithPreviousOwner(ctx, clinicID, id, fields)
+		*lockedPreviousOwnerID = previous
+		return updated, err
 	}
 }
 func (s *reservationService) UpdateReservationRoute(ctx context.Context, clinicID, id uint64, input UpdateReservationRouteInput) (*model.Reservation, error) {
@@ -410,6 +427,7 @@ func (s *reservationService) Delete(ctx context.Context, clinicID, id uint64) er
 	// EMR-308: tentative の直接削除も終了 semantics を揃える — cancelled を刻んでから
 	// 論理削除（ClearNextVisitIntent/汎用 cancel と同一の終端）。status CAS で
 	// 並行昇格（confirm-tentative）を fail-closed に弾く。
+	var previousOwnerID, currentPetOwnerID *uint64
 	if existing != nil && existing.Status == model.ReservationStatusTentative {
 		if s.tx == nil {
 			return apperrors.WrapInternalServerError("reservation transaction dependency is required")
@@ -417,27 +435,46 @@ func (s *reservationService) Delete(ctx context.Context, clinicID, id uint64) er
 		if err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
 			if _, err := s.repo.updateTentativeStatus(txCtx, clinicID, id, map[string]any{
 				"status": model.ReservationStatusCancelled,
-			}, nil); err != nil {
+			}, func(lockCtx context.Context, locked *model.Reservation) (map[string]any, error) {
+				previousOwnerID = locked.OwnerID
+				var err error
+				currentPetOwnerID, err = resolveTentativePetOwner(lockCtx, s.repo, clinicID, locked)
+				return nil, err
+			}); err != nil {
 				return err
 			}
 			return s.repo.Delete(txCtx, clinicID, id)
 		}); err != nil {
 			return apperrors.Wrap(err, "failed to delete tentative reservation")
 		}
-		syncNextVisitTagBestEffort(ctx, s.nextVisitTagSync, clinicID, existing.OwnerID)
+		syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, previousOwnerID, currentPetOwnerID)
 		slog.InfoContext(ctx, "tentative reservation deleted",
 			slog.Uint64("reservation_id", id),
 			slog.Uint64("clinic_id", clinicID))
 		return nil
 	}
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+	previousOwnerID, err = s.repo.deleteWithPreviousOwner(ctx, clinicID, id)
+	if err != nil {
 		return apperrors.Wrap(err, "failed to delete reservation")
 	}
 	if existing != nil {
-		syncNextVisitTagBestEffort(ctx, s.nextVisitTagSync, clinicID, existing.OwnerID)
+		syncNextVisitTagBestEffort(ctx, s.nextVisitTagSync, clinicID, previousOwnerID)
 	}
 	slog.InfoContext(ctx, "reservation deleted",
 		slog.Uint64("reservation_id", id),
 		slog.Uint64("clinic_id", clinicID))
 	return nil
+}
+
+// Tentative queries follow a transferred pet's current owner, while real bookings
+// retain their stored owner. Capture both before terminating the tentative row.
+func resolveTentativePetOwner(ctx context.Context, repo ReservationRepository, clinicID uint64, locked *model.Reservation) (*uint64, error) {
+	if locked.Status != model.ReservationStatusTentative || locked.PetID == nil {
+		return nil, nil
+	}
+	ownerID, err := repo.FindPetOwnerInClinic(ctx, clinicID, *locked.PetID)
+	if err != nil {
+		return nil, err
+	}
+	return &ownerID, nil
 }

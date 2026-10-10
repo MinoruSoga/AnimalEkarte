@@ -49,33 +49,60 @@ func (r *reservationRepository) CompleteForAccounting(
 	medicalRecordID, ownerID, petID *uint64,
 	scheduledDate time.Time,
 ) (int64, error) {
+	count, _, err := r.CompleteForAccountingWithOwners(ctx, clinicID, medicalRecordID, ownerID, petID, scheduledDate)
+	return count, err
+}
+
+// CompleteForAccountingWithOwners reports the owners of rows actually changed by
+// the atomic UPDATE, including medical-record appointments with ownerless billing.
+func (r *reservationRepository) CompleteForAccountingWithOwners(
+	ctx context.Context,
+	clinicID uint64,
+	medicalRecordID, ownerID, petID *uint64,
+	scheduledDate time.Time,
+) (int64, []uint64, error) {
 	if persistence.TxFromContext(ctx) == nil {
-		return 0, apperrors.WrapInternalServerError("accounting appointment completion requires an ambient transaction")
+		return 0, nil, apperrors.WrapInternalServerError("accounting appointment completion requires an ambient transaction")
 	}
 	db := persistence.DBOrTx(ctx, r.db)
 	var totalAffected int64
+	var owners []uint64
+	seen := make(map[uint64]struct{})
+	collect := func(rows []model.Reservation) {
+		for _, row := range rows {
+			if row.OwnerID != nil && *row.OwnerID != 0 {
+				if _, ok := seen[*row.OwnerID]; !ok {
+					owners = append(owners, *row.OwnerID)
+					seen[*row.OwnerID] = struct{}{}
+				}
+			}
+		}
+	}
 
 	// (1) 同日同一ペットの会計待ち予約を完了化する。
 	if ownerID != nil && petID != nil && !scheduledDate.IsZero() {
-		result := db.Model(&model.Reservation{}).
+		var completed []model.Reservation
+		result := db.Model(&completed).Clauses(clause.Returning{Columns: []clause.Column{{Name: "owner_id"}}}).
 			Where("clinic_id = ? AND owner_id = ? AND pet_id = ? AND status = ? AND deleted_at IS NULL",
 				clinicID, *ownerID, *petID, model.ReservationStatusAccounting).
 			Where("DATE(start_time AT TIME ZONE 'Asia/Tokyo') = DATE(? AT TIME ZONE 'Asia/Tokyo')", scheduledDate).
 			Update("status", model.ReservationStatusCompleted)
 		if result.Error != nil {
-			return totalAffected, apperrors.FromGORM(
+			return totalAffected, nil, apperrors.FromGORM(
 				result.Error,
 				"reservation",
 				fmt.Sprintf("clinic=%d owner=%d pet=%d scheduled_date=%s", clinicID, *ownerID, *petID, scheduledDate.Format(time.DateOnly)),
 			)
 		}
 		totalAffected += result.RowsAffected
+		collect(completed)
 	}
 
 	// (2) billing.medical_record_id が指す診察 appointment を完了化する。
 	// terminal status は上書きせず、medical_record と appointment の双方を clinic scope する。
 	if medicalRecordID != nil {
-		result := db.Model(&model.Reservation{}).
+		var completed []model.Reservation
+		result := db.Model(&completed).Clauses(clause.Returning{Columns: []clause.Column{{Name: "owner_id"}}}).
 			Where("clinic_id = ? AND deleted_at IS NULL", clinicID).
 			Where("status NOT IN ?", []model.ReservationStatus{
 				model.ReservationStatusCompleted,
@@ -88,16 +115,17 @@ func (r *reservationRepository) CompleteForAccounting(
 					Where("id = ? AND clinic_id = ? AND appointment_id IS NOT NULL AND deleted_at IS NULL", *medicalRecordID, clinicID)).
 			Update("status", model.ReservationStatusCompleted)
 		if result.Error != nil {
-			return totalAffected, apperrors.FromGORM(
+			return totalAffected, nil, apperrors.FromGORM(
 				result.Error,
 				"reservation",
 				fmt.Sprintf("clinic=%d medical_record=%d", clinicID, *medicalRecordID),
 			)
 		}
 		totalAffected += result.RowsAffected
+		collect(completed)
 	}
 
-	return totalAffected, nil
+	return totalAffected, owners, nil
 }
 
 // BackfillForMedicalRecord は medical record 作成時に appointment の欠損 context だけを補完する。
@@ -994,18 +1022,23 @@ func (r *reservationRepository) SetNextVisitIntent(
 // 履歴上「途中で消えた」状態になりキャンセル経路と不整合になる）。
 // 他ステータスの予約には触れず、未存在時は冪等に成功する（found=false）。
 func (r *reservationRepository) ClearNextVisitIntent(ctx context.Context, clinicID, petID uint64) (bool, error) {
+	found, _, err := r.clearNextVisitIntentWithOwner(ctx, clinicID, petID)
+	return found, err
+}
+
+func (r *reservationRepository) clearNextVisitIntentWithOwner(ctx context.Context, clinicID, petID uint64) (bool, *uint64, error) {
 	if err := requireNextVisitIntentAmbientTransaction(ctx); err != nil {
-		return false, err
+		return false, nil, err
 	}
 	if err := r.acquireNextVisitIntentLock(ctx, clinicID, petID); err != nil {
-		return false, err
+		return false, nil, err
 	}
 	existing, err := r.findActiveTentativeForUpdate(ctx, clinicID, petID)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 	if existing == nil {
-		return false, nil
+		return false, nil, nil
 	}
 	cancelled := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Reservation{}).
@@ -1013,22 +1046,22 @@ func (r *reservationRepository) ClearNextVisitIntent(ctx context.Context, clinic
 			clinicID, existing.ID, model.ReservationStatusTentative).
 		Update("status", model.ReservationStatusCancelled)
 	if cancelled.Error != nil {
-		return false, apperrors.FromGORM(cancelled.Error, "reservation", fmt.Sprintf("%d", existing.ID))
+		return false, nil, apperrors.FromGORM(cancelled.Error, "reservation", fmt.Sprintf("%d", existing.ID))
 	}
 	if cancelled.RowsAffected == 0 {
-		return false, apperrors.WrapConflict("次回予定が同時に更新されました。再読み込みしてください")
+		return false, nil, apperrors.WrapConflict("次回予定が同時に更新されました。再読み込みしてください")
 	}
 	// 行ロック保持中のため status は cancelled のまま変わらない。deleted_at 述語のみで確定する。
 	result := persistence.DBOrTx(ctx, r.db).
 		Where("clinic_id = ? AND id = ? AND deleted_at IS NULL", clinicID, existing.ID).
 		Delete(&model.Reservation{})
 	if result.Error != nil {
-		return false, apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("%d", existing.ID))
+		return false, nil, apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("%d", existing.ID))
 	}
 	if result.RowsAffected == 0 {
-		return false, apperrors.WrapConflict("次回予定が同時に更新されました。再読み込みしてください")
+		return false, nil, apperrors.WrapConflict("次回予定が同時に更新されました。再読み込みしてください")
 	}
-	return true, nil
+	return true, existing.OwnerID, nil
 }
 
 // ConfirmTentative は tentative 予約を本予約（pending/confirmed）へ遷移する。

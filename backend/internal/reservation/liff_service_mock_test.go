@@ -430,6 +430,30 @@ func (m *mockLiffReservationRepository) update(ctx context.Context, clinicID, id
 	return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 }
 
+func (m *mockLiffReservationRepository) updateWithPreviousOwner(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, *uint64, error) {
+	locked, err := m.LockAndFindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, nil, err
+	}
+	var owner *uint64
+	if locked != nil {
+		owner = locked.OwnerID
+	}
+	result, err := m.update(ctx, clinicID, id, fields)
+	return result, owner, err
+}
+func (m *mockLiffReservationRepository) deleteWithPreviousOwner(ctx context.Context, clinicID, id uint64) (*uint64, error) {
+	locked, err := m.LockAndFindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, err
+	}
+	var owner *uint64
+	if locked != nil {
+		owner = locked.OwnerID
+	}
+	return owner, m.Delete(ctx, clinicID, id)
+}
+
 func (m *mockLiffReservationRepository) updateTentativeStatus(ctx context.Context, clinicID, id uint64, fields map[string]any, validate tentativeTransitionValidator) (*model.Reservation, error) {
 	if m.updateTentativeStatusFn != nil {
 		return m.updateTentativeStatusFn(ctx, clinicID, id, fields, validate)
@@ -521,6 +545,10 @@ func (m *mockLiffReservationRepository) SetNextVisitIntent(_ context.Context, _,
 
 func (m *mockLiffReservationRepository) ClearNextVisitIntent(_ context.Context, _, _ uint64) (bool, error) {
 	return false, nil
+}
+
+func (m *mockLiffReservationRepository) clearNextVisitIntentWithOwner(_ context.Context, _, _ uint64) (bool, *uint64, error) {
+	return false, nil, nil
 }
 
 func (m *mockLiffReservationRepository) ConfirmTentative(_ context.Context, _, _ uint64, _ ConfirmTentativeUpdate) (*model.Reservation, error) {

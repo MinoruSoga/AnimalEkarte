@@ -121,7 +121,8 @@ func (s *accountingService) completeInTx(
 		return nil, apperrors.Wrap(err, "failed to recalculate complete totals")
 	}
 
-	if err := s.persistCompletePayments(txCtx, input, billing, systemKeyToID, subtotal, taxTotal, totalAmount); err != nil {
+	completedOwners, err := s.persistCompletePayments(txCtx, input, billing, systemKeyToID, subtotal, taxTotal, totalAmount)
+	if err != nil {
 		return nil, err
 	}
 
@@ -134,7 +135,7 @@ func (s *accountingService) completeInTx(
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to reload accounting after complete")
 	}
-	return &CompleteAccountingResult{Accounting: reloaded, Created: true}, nil
+	return &CompleteAccountingResult{Accounting: reloaded, Created: true, completedAppointmentOwnerIDs: completedOwners}, nil
 }
 
 func (s *accountingService) replayCompleteIfExisting(
@@ -251,7 +252,7 @@ func (s *accountingService) persistCompletePayments(
 	billing *model.Billing,
 	systemKeyToID map[string]uint64,
 	subtotal, taxTotal, totalAmount int64,
-) error {
+) ([]uint64, error) {
 	insuranceAmount := int64(0)
 	if input.InsuranceAmount != nil {
 		insuranceAmount = *input.InsuranceAmount
@@ -263,26 +264,26 @@ func (s *accountingService) persistCompletePayments(
 	}
 	// 保険なし会計に保険負担額が非ゼロは矛盾レコードのため拒否する。
 	if !input.HasInsurance && insuranceAmount != 0 {
-		return apperrors.WrapInvalidInput("保険なし会計に保険負担額は設定できません")
+		return nil, apperrors.WrapInvalidInput("保険なし会計に保険負担額は設定できません")
 	}
 	discountAmount := int64(0)
 	if input.DiscountAmount != nil {
 		discountAmount = *input.DiscountAmount
 	}
 	if discountAmount < 0 {
-		return apperrors.WrapInvalidInput("割引額は0円以上で指定してください")
+		return nil, apperrors.WrapInvalidInput("割引額は0円以上で指定してください")
 	}
 	billingAmount := totalAmount - insuranceAmount - discountAmount
 	if billingAmount < 0 {
-		return apperrors.WrapInvalidInput("請求金額が負になります（保険・割引の指定を確認してください）")
+		return nil, apperrors.WrapInvalidInput("請求金額が負になります（保険・割引の指定を確認してください）")
 	}
 	// BUG-006: 請求額が正なのに内訳未指定だと buildPaymentSplits が全額1行を合成し、
 	// 部分入金が 201 で黙って上書きされる。UI は remaining!==0 で到達不可だが API 契約は 400。
 	if billingAmount > 0 && len(input.PaymentSplits) == 0 {
-		return apperrors.WrapInvalidInput("支払い内訳は必須です")
+		return nil, apperrors.WrapInvalidInput("支払い内訳は必須です")
 	}
 	if err := validatePaymentSplits(input.PaymentSplits, &billingAmount); err != nil {
-		return err
+		return nil, err
 	}
 
 	updateInput := &UpdateAccountingInput{
@@ -309,7 +310,7 @@ func (s *accountingService) persistCompletePayments(
 	if payment.Method != "" {
 		pid, err := resolvePaymentMethodMasterID(payment.Method, payment.PaymentMethodID, systemKeyToID)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		payment.PaymentMethodID = pid
 	}
@@ -317,15 +318,15 @@ func (s *accountingService) persistCompletePayments(
 	for i := range splits {
 		pid, err := resolvePaymentMethodMasterID(splits[i].Method, splits[i].PaymentMethodID, systemKeyToID)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		splits[i].PaymentMethodID = pid
 	}
 	if err := s.repo.SavePayment(txCtx, payment); err != nil {
-		return apperrors.Wrap(err, "failed to save payment for complete")
+		return nil, apperrors.Wrap(err, "failed to save payment for complete")
 	}
 	if err := s.repo.SavePaymentSplits(txCtx, splits); err != nil {
-		return apperrors.Wrap(err, "failed to save payment splits for complete")
+		return nil, apperrors.Wrap(err, "failed to save payment splits for complete")
 	}
 
 	now := time.Now()
@@ -338,12 +339,13 @@ func (s *accountingService) persistCompletePayments(
 		TotalAmount: &totalAmount,
 	})
 	if err != nil {
-		return apperrors.Wrap(err, "failed to mark accounting completed")
+		return nil, apperrors.Wrap(err, "failed to mark accounting completed")
 	}
-	if err := s.completeAccountingAppointments(txCtx, input.ClinicID, updated); err != nil {
-		return apperrors.Wrap(err, "failed to complete accounting appointments during complete")
+	owners, err := s.completeAccountingAppointments(txCtx, input.ClinicID, updated)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to complete accounting appointments during complete")
 	}
-	return nil
+	return owners, nil
 }
 
 func (s *accountingService) writeCompletePostCloseIfNeeded(
