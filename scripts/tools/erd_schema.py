@@ -462,6 +462,7 @@ _REVIEWED_DO = {
     '1ef0b2b7e415cda4a466684aa33120d6c7c70eafea515ce7ef28350349241322': 'checksum',
     '5fa63dccad7cd9c60ceebee5735eed2c41e828f0c5668ba107e5b15d18420afd': 'checksum',
     'f6382ad0b0e4c1b49a7ad03cc005aecaa0180cbaab1a9580c23bbf0aa4948942': 'data_warning',
+    'a2a0d54165c328b2ce6e41ba40d202cad9168941086cc888bccaadda1d27cedb': 'data_assertion',
 }
 
 

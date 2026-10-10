@@ -83,6 +83,7 @@ erDiagram
     }
     medical_records {
         BIGSERIAL id PK,UK
+        bigint clinic_id FK,UK
     }
     owners {
         BIGSERIAL id PK,UK
@@ -107,7 +108,7 @@ erDiagram
     line_customers o|..o{ appointments : "line_customer_id, clinic_id"
     staffs o|..o{ appointments : "created_by"
     staffs o|..o{ appointments : "doctor_id"
-    medical_records o|..o{ appointments : "source_medical_record_id"
+    medical_records o|..o{ appointments : "source_medical_record_id, clinic_id"
 ```
 
 ## 外部キー（全件）
@@ -122,7 +123,7 @@ erDiagram
 | `fk_appointments_line_customer_clinic` | `line_customer_id, clinic_id` | [line_customers](line_customers.md) | `id, clinic_id` | `ON DELETE SET NULL (line_customer_id)` | [001_init.sql:5761](../../../backend/migrations/001_init.sql#L5761) |
 | `fk_appointments_created_by` | `created_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [003_appointments_created_by_staff_fk.sql:11](../../../backend/migrations/003_appointments_created_by_staff_fk.sql#L11) |
 | `fk_appointments_doctor` | `doctor_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [017_multiclinic_staff_fk_fix.sql:16](../../../backend/migrations/017_multiclinic_staff_fk_fix.sql#L16) |
-| `appointments_source_medical_record_id_fkey` | `source_medical_record_id` | [medical_records](medical_records.md) | `id` | `ON DELETE SET NULL` | [028_appointments_tentative_status.sql:23](../../../backend/migrations/028_appointments_tentative_status.sql#L23) |
+| `fk_appointments_source_medical_record_clinic` | `source_medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE SET NULL (source_medical_record_id)` | [031_appointments_source_medical_record_clinic_fk.sql:35](../../../backend/migrations/031_appointments_source_medical_record_clinic_fk.sql#L35) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -134,7 +135,7 @@ erDiagram
 - `fk_appointments_line_customer_clinic`: `CONSTRAINT fk_appointments_line_customer_clinic     FOREIGN KEY (line_customer_id, clinic_id)     REFERENCES line_customers (id, clinic_id)     ON DELETE SET NULL (line_customer_id)`
 - `fk_appointments_created_by`: `CONSTRAINT fk_appointments_created_by         FOREIGN KEY (created_by) REFERENCES staffs (id) ON DELETE RESTRICT`
 - `fk_appointments_doctor`: `CONSTRAINT fk_appointments_doctor         FOREIGN KEY (doctor_id) REFERENCES staffs (id) ON DELETE SET NULL`
-- `appointments_source_medical_record_id_fkey`: `REFERENCES medical_records(id) ON DELETE SET NULL`
+- `fk_appointments_source_medical_record_clinic`: `CONSTRAINT fk_appointments_source_medical_record_clinic         FOREIGN KEY (source_medical_record_id, clinic_id)         REFERENCES medical_records (id, clinic_id)         ON DELETE SET NULL (source_medical_record_id)`
 
 ## その他の制約
 

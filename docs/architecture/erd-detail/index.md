@@ -3,7 +3,7 @@
 
 [概要ERD](../erd.md)
 
-マイグレーション **28ファイル** から **134テーブル・1628カラム・320外部キー** を静的に導出しています。
+マイグレーション **29ファイル** から **134テーブル・1628カラム・320外部キー** を静的に導出しています。
 
 DDLは `backend/migrations/` 直下の `.sql` をファイル名順に読み、CREATE/ALTER/DROPとレビュー済みDOブロックの変更を反映します。seed、`schema_migrations`（migrate runnerの管理テーブル）、関数・trigger・RLS・実データはこの一覧の対象外です。
 
@@ -167,7 +167,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 
 ## 入力の照合情報
 
-入力digest（SHA-256）: `f40302d07d6d113a40433bc295dff8d9e370642d30606f3d71223d1a72d47a02`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
+入力digest（SHA-256）: `8a64bbc12c786193e466227d15dda7bf18412fc736dae3cc5aaa6e0b7bbbdba0`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
 
 | migration | SHA-256 |
 |:---|:---|
@@ -199,6 +199,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [028_appointments_tentative_status.sql](../../../backend/migrations/028_appointments_tentative_status.sql) | `9dc685a628a6b610b40dad5f952da0c227d8196c50875ca5e17525e0fca422b1` |
 | [029_appointments_one_active_tentative_index.sql](../../../backend/migrations/029_appointments_one_active_tentative_index.sql) | `37a81bcb5e3ec2bfad61d2e735cf2eb094af01baebd242b4f0b4ab9f229f136f` |
 | [030_next_visit_recommended_date_to_tentative.sql](../../../backend/migrations/030_next_visit_recommended_date_to_tentative.sql) | `1fcba7b937432b1531343595f84803f1a54e0afa384c2cb892a1f89daed9b075` |
+| [031_appointments_source_medical_record_clinic_fk.sql](../../../backend/migrations/031_appointments_source_medical_record_clinic_fk.sql) | `9efb120dd59f96455d076dde6f3e2d127787c240bbb2c83c004f32bcebed8fba` |
 
 レビュー済みDOブロック（本文変更・新規追加は再レビューが必要）:
 
@@ -214,3 +215,4 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 - 010_grant_lab_import_create_to_default_groups.sql:73 sha256=1ef0b2b7e415cda4a466684aa33120d6c7c70eafea515ce7ef28350349241322 checksum
 - 020_reconcile_002_master_seed_checksum.sql:40 sha256=5fa63dccad7cd9c60ceebee5735eed2c41e828f0c5668ba107e5b15d18420afd checksum
 - 030_next_visit_recommended_date_to_tentative.sql:147 sha256=f6382ad0b0e4c1b49a7ad03cc005aecaa0180cbaab1a9580c23bbf0aa4948942 data_warning
+- 031_appointments_source_medical_record_clinic_fk.sql:18 sha256=a2a0d54165c328b2ce6e41ba40d202cad9168941086cc888bccaadda1d27cedb data_assertion

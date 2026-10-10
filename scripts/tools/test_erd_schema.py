@@ -158,6 +158,46 @@ class SchemaTests(unittest.TestCase):
             with self.subTest(body=body[:50]), self.assertRaisesRegex(SchemaError, 'unreviewed DO'):
                 self.schema(body.replace("rel.relname = 'checkup_types'", "rel.relname = 'other_table'") + ';')
 
+    def test_reviewed_appointment_provenance_assertion_preserves_schema(self) -> None:
+        migration = Path(__file__).resolve().parents[2] / 'backend/migrations/031_appointments_source_medical_record_clinic_fk.sql'
+        body = _sql(next(t for t in statements(migration.read_text()) if t[0].upper == 'DO'))
+        ddl = 'CREATE TABLE medical_records(id bigint PRIMARY KEY, clinic_id bigint NOT NULL, UNIQUE(id, clinic_id)); CREATE TABLE appointments(id bigint PRIMARY KEY, clinic_id bigint NOT NULL, source_medical_record_id bigint REFERENCES medical_records(id));'
+        before = self.schema(ddl)
+        after = self.schema(ddl, body + ';')
+        self.assertEqual(after.tables, before.tables)
+        self.assertEqual(after.reviewed_do_blocks, (
+            '001.sql:1 sha256=a2a0d54165c328b2ce6e41ba40d202cad9168941086cc888bccaadda1d27cedb data_assertion',
+        ))
+
+    def test_appointment_provenance_clinic_fk_replaces_single_column_fk(self) -> None:
+        migration = Path(__file__).resolve().parents[2] / 'backend/migrations/031_appointments_source_medical_record_clinic_fk.sql'
+        ddl = 'CREATE TABLE medical_records(id bigint PRIMARY KEY, clinic_id bigint NOT NULL, UNIQUE(id, clinic_id)); CREATE TABLE appointments(id bigint PRIMARY KEY, clinic_id bigint NOT NULL, source_medical_record_id bigint REFERENCES medical_records(id));'
+        schema = self.schema(ddl, migration.read_text())
+        table = schema.tables['appointments']
+        provenance = [c for c in table.constraints if c.kind == 'foreign' and 'source_medical_record_id' in c.columns]
+        self.assertEqual(len(provenance), 1)
+        fk = provenance[0]
+        self.assertEqual(fk.name, 'fk_appointments_source_medical_record_clinic')
+        self.assertEqual(fk.columns, ('source_medical_record_id', 'clinic_id'))
+        self.assertEqual(fk.target_table, 'medical_records')
+        self.assertEqual(fk.target_columns, ('id', 'clinic_id'))
+        self.assertEqual(fk.on_delete, 'SET NULL (source_medical_record_id)')
+        self.assertEqual(fk.source, '001.sql:35')
+        self.assertNotIn('appointments_source_medical_record_id_fkey', {c.name for c in table.constraints})
+        columns = {c.name: c for c in table.columns}
+        self.assertTrue(columns['source_medical_record_id'].nullable)
+        self.assertFalse(columns['clinic_id'].nullable)
+
+    def test_changed_appointment_provenance_do_requires_review(self) -> None:
+        migration = Path(__file__).resolve().parents[2] / 'backend/migrations/031_appointments_source_medical_record_clinic_fk.sql'
+        body = _sql(next(t for t in statements(migration.read_text()) if t[0].upper == 'DO'))
+        for changed in (
+            body.replace('mr.clinic_id <> a.clinic_id', 'mr.clinic_id = a.clinic_id'),
+            body.replace('END $$', 'CREATE TABLE hidden(id integer);\nEND $$'),
+        ):
+            with self.subTest(body=changed), self.assertRaisesRegex(SchemaError, 'unreviewed DO'):
+                self.schema(changed + ';')
+
     def test_duplicate_objects_and_conditional_creation(self):
         schema = self.schema('CREATE TABLE t(x int); CREATE TABLE IF NOT EXISTS t(x int); ALTER TABLE t ADD COLUMN IF NOT EXISTS x text; CREATE INDEX idx ON t(x); CREATE INDEX IF NOT EXISTS idx ON t(x); DROP INDEX IF EXISTS absent; ALTER TABLE t DROP CONSTRAINT IF EXISTS absent;')
         self.assertEqual(schema.tables['t'].columns[0].type_sql, 'int')
@@ -185,7 +225,7 @@ class SchemaTests(unittest.TestCase):
     def test_repository_final_schema(self):
         schema = load_schema(Path(__file__).resolve().parents[2] / 'backend/migrations')
         self.assertEqual(len(schema.tables), 134)
-        self.assertEqual(len(schema.migrations), 28)
+        self.assertEqual(len(schema.migrations), 29)
         self.assertNotIn('prescriptions', schema.tables)
         self.assertNotIn('next_visit_recommended_date', {c.name for c in schema.tables['medical_records'].columns})
         for table_name, suffix, column_name, delete_action in [
@@ -211,11 +251,18 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(draft.columns, ('clinic_id', 'draft_id'))
         appointment_columns = {c.name for c in schema.tables['appointments'].columns}
         self.assertTrue({'intended_date', 'source_medical_record_id'} <= appointment_columns)
+        provenance = next(c for c in schema.tables['appointments'].constraints if c.name == 'fk_appointments_source_medical_record_clinic')
+        self.assertEqual(provenance.columns, ('source_medical_record_id', 'clinic_id'))
+        self.assertEqual(provenance.target_table, 'medical_records')
+        self.assertEqual(provenance.target_columns, ('id', 'clinic_id'))
+        self.assertEqual(provenance.on_delete, 'SET NULL (source_medical_record_id)')
+        self.assertEqual(provenance.source, '031_appointments_source_medical_record_clinic_fk.sql:35')
+        self.assertNotIn('appointments_source_medical_record_id_fkey', {c.name for c in schema.tables['appointments'].constraints})
         parent = [c for c in schema.tables['checkup_types'].constraints if c.kind == 'foreign' and 'parent_id' in c.columns]
         self.assertEqual(len(parent), 1)
         self.assertEqual(parent[0].columns, ('parent_id', 'clinic_id'))
         self.assertIn('SET NULL (parent_id)', parent[0].on_delete)
-        self.assertEqual(len(schema.reviewed_do_blocks), 12)
+        self.assertEqual(len(schema.reviewed_do_blocks), 13)
         expected_names = {
             'owner_identity_group_members': 'owner_identity_group_members_group_created_clinic_id_group_fkey',
             'pet_identity_group_members': 'pet_identity_group_members_group_created_clinic_id_group_i_fkey',

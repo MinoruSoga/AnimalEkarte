@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "f40302d07d6d113a40433bc295dff8d9e370642d30606f3d71223d1a72d47a02",
+  "source_digest": "8a64bbc12c786193e466227d15dda7bf18412fc736dae3cc5aaa6e0b7bbbdba0",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -9,7 +9,7 @@
     },
     {
       "name": "erd_schema.py",
-      "sha256": "f0872fa646763e2690b9353ceacebe602c476d8553cf3607f05c6676b5b32f6c"
+      "sha256": "abc808c67ec413b936a14d3c2910d55070a4506f4bd30cc153fd33ac45bee8ce"
     },
     {
       "name": "generate-erd-detail.py",
@@ -133,6 +133,10 @@
     {
       "name": "030_next_visit_recommended_date_to_tentative.sql",
       "sha256": "1fcba7b937432b1531343595f84803f1a54e0afa384c2cb892a1f89daed9b075"
+    },
+    {
+      "name": "031_appointments_source_medical_record_clinic_fk.sql",
+      "sha256": "9efb120dd59f96455d076dde6f3e2d127787c240bbb2c83c004f32bcebed8fba"
     }
   ],
   "reviewed_do_blocks": [
@@ -147,7 +151,8 @@
     "010_grant_lab_import_create_to_default_groups.sql:55 sha256=bb8145f87b85e4e433021540faa2cdc794b0a57b0cbebc937c6e396f80f3ba04 data_assertion",
     "010_grant_lab_import_create_to_default_groups.sql:73 sha256=1ef0b2b7e415cda4a466684aa33120d6c7c70eafea515ce7ef28350349241322 checksum",
     "020_reconcile_002_master_seed_checksum.sql:40 sha256=5fa63dccad7cd9c60ceebee5735eed2c41e828f0c5668ba107e5b15d18420afd checksum",
-    "030_next_visit_recommended_date_to_tentative.sql:147 sha256=f6382ad0b0e4c1b49a7ad03cc005aecaa0180cbaab1a9580c23bbf0aa4948942 data_warning"
+    "030_next_visit_recommended_date_to_tentative.sql:147 sha256=f6382ad0b0e4c1b49a7ad03cc005aecaa0180cbaab1a9580c23bbf0aa4948942 data_warning",
+    "031_appointments_source_medical_record_clinic_fk.sql:18 sha256=a2a0d54165c328b2ce6e41ba40d202cad9168941086cc888bccaadda1d27cedb data_assertion"
   ],
   "files": [
     "accounts.md",
