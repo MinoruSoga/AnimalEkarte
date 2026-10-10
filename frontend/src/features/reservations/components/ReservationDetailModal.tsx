@@ -142,12 +142,15 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
   // mutation 後も古い sentinel を保持する。GET /reservations/:id（modal 表示に
   // 必要な reservations:view と同一権限）の最新応答を優先して snapshot を追従させる。
   // owners:view 依存の /pets/:id フェッチは再導入しない。
-  const { data: freshReservation } = useGetReservation(reservation?.id ?? "");
+  const { data: freshReservation } = useGetReservation(
+    reservation?.id ?? "",
+    reservation?.clinicId,
+  );
   const effective = freshReservation ?? reservation;
   // PR#614 再レビュー指摘2: LINE タグも表示・操作対象と同一 owner を見るため、
   // snapshot ではなく effective 予約の ownerId で引く。rules-of-hooks により
   // 早期 return より前で導出し、未確定時は ""（hook 側 enabled=false）。
-  const { data: lineData } = useGetOwnerLineTags(effective?.ownerId ?? "");
+  const { data: lineData } = useGetOwnerLineTags(effective?.ownerId ?? "", effective?.clinicId);
 
   if (!effective) return null;
 

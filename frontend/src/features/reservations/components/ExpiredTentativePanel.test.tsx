@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Reservation } from "../types";
 import { ExpiredTentativePanel } from "./ExpiredTentativePanel";
+import { useGetPet } from "@/hooks/use-pet";
 
 // EMR-308: 行単位で useGetPet → isPetDeceasedForClinicalWrite の死亡ゲートを行う。
 // QueryClientProvider なしで描画するためフックを固定し、テストごとに差し替える。
@@ -12,7 +13,7 @@ const getPetResult = vi.hoisted(() => ({
 }));
 
 vi.mock("@/hooks/use-pet", () => ({
-  useGetPet: () => getPetResult.current,
+  useGetPet: vi.fn(() => getPetResult.current),
 }));
 
 /**
@@ -53,7 +54,27 @@ function makeExpiredTentative(overrides: Partial<Reservation> & { id: string }):
 
 describe("ExpiredTentativePanel (EMR-308 A3)", () => {
   beforeEach(() => {
+    vi.mocked(useGetPet).mockClear();
     getPetResult.current = { data: undefined };
+  });
+
+  it("別医院の行はその医院で死亡判定し、確定と再設定を隠す", () => {
+    getPetResult.current = { data: { status: "死亡" } };
+    render(
+      <ExpiredTentativePanel
+        appointments={[makeExpiredTentative({ id: "t2", clinicId: "2" })]}
+        canConfirm
+        canReset
+        canEnd
+        onConfirm={vi.fn()}
+        onReset={vi.fn()}
+        onEnd={vi.fn()}
+      />,
+    );
+    expect(useGetPet).toHaveBeenCalledWith("10", "2");
+    expect(screen.queryByRole("button", { name: /次回予定を確定/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /次回予定を再設定/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /次回予定を終了/ })).toBeInTheDocument();
   });
 
   it("対象が0件なら何も描画しない", () => {
