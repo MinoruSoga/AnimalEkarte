@@ -314,7 +314,9 @@ func (r *reservationRepository) MarkNoShowAt(
 	var previousStatus model.ReservationStatus
 	// Codex #25: candidate 抽出〜行ロックの間に飼い主譲渡が割り込み得るため、
 	// CAS でロック確定した行の owner_id を同時に返す（NULL は 0 に潰す）。
-	var ownerID sql.NullInt64
+	// sql.Null[uint64] で直接スキャンして int64→uint64 変換を排除する（G115）—
+	// 負値は driver の変換境界で scan error として fail-closed に表面化する。
+	var ownerID sql.Null[uint64]
 	err := persistence.DBOrTx(ctx, r.db).
 		Raw(
 			query,
@@ -334,7 +336,7 @@ func (r *reservationRepository) MarkNoShowAt(
 	if err != nil {
 		return NoShowTransition{}, apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", id))
 	}
-	return NoShowTransition{Changed: true, PreviousStatus: previousStatus, OwnerID: uint64(ownerID.Int64)}, nil
+	return NoShowTransition{Changed: true, PreviousStatus: previousStatus, OwnerID: ownerID.V}, nil
 }
 
 func (r *reservationRepository) CreateForTrimming(
@@ -929,8 +931,15 @@ func (r *reservationRepository) SetNextVisitIntent(
 	if err != nil {
 		return nil, nil, err
 	}
-	// Codex #19 再指摘（PR #621 review #3）: UPDATE 経路と同じく、区分 FOR
-	// SHARE 等の待機で暦日を跨ぎ得るため CREATE 直前にも時計を取り直す。
+	// Codex #19 再々指摘（PR #621 rereview）: Create は内部で actor の権限・所属を
+	// FOR SHARE 検証する。それが最終日付検証より後に待機すると、ロック待ち中の
+	// JST 暦日跨ぎで前日付の intended_date を INSERT し得る。ここで先に actor
+	// 検証とロックを取得しておく（Create 内の再検証は既保持ロックで待機しない）。
+	if err := assertReservationCreatedBy(ctx, r.db, clinicID, input.CreatedBy); err != nil {
+		return nil, nil, err
+	}
+	// 最終検証 —— これ以降 INSERT までに他 transaction の commit を待つロック
+	// 取得は残らない（Codex #19: UPDATE 経路と同じく書込直前に時計を取り直す）。
 	if err := validateNextVisitIntentDate(input.IntendedDate, r.now()); err != nil {
 		return nil, nil, err
 	}

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/infra/lstep"
@@ -863,6 +864,175 @@ func TestLstepDeliveryTriggerService_TentativeReminderStages(t *testing.T) {
 		assert.Equal(t, 0, count0d)
 		assert.Len(t, errs3d, 1)
 		assert.Len(t, errs0d, 1)
+	})
+
+	t.Run("re-locks the expanded pet set when the locked re-fetch grows (Codex #22 rereview)", func(t *testing.T) {
+		// 初回候補の列挙〜ロック取得の間に別 pet の tentative が commit されたケース。
+		// ロック中の再検索がロック済み集合外の pet を返したら送信せず、拡大後の
+		// 集合でロックを取り直して収束すれば送信する。
+		ownerID := uint64(30)
+		petA, petB := uint64(9001), uint64(9002)
+		bothPets := []model.Reservation{
+			{ID: 501, OwnerID: &ownerID, PetID: &petA, Status: model.ReservationStatusTentative},
+			{ID: 502, OwnerID: &ownerID, PetID: &petB, Status: model.ReservationStatusTentative},
+		}
+		inLock := false
+		var lockSets [][]uint64
+		var addTagCalls int
+		apptRepo := &mockDeliveryAppointmentRepository{
+			findOwnerIDsWithTentativeFn: func(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
+				return []uint64{ownerID}, nil
+			},
+			findTentativesByOwnerFn: func(_ context.Context, _, _ uint64, _ time.Time) ([]model.Reservation, error) {
+				if !inLock && len(lockSets) == 0 {
+					// 1回目の候補列挙は petA のみ（petB はこの後に commit される想定）。
+					return bothPets[:1], nil
+				}
+				// ロック中の再検索・2回目以降の列挙は petA+petB を返す。
+				return bothPets, nil
+			},
+			withReminderSerializationFn: func(ctx context.Context, _ uint64, petIDs []uint64, fn func(txCtx context.Context) error) error {
+				lockSets = append(lockSets, append([]uint64(nil), petIDs...))
+				inLock = true
+				defer func() { inLock = false }()
+				return fn(ctx)
+			},
+		}
+		ownerRepo := &mockOwnerRepoForDelivery{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+				return defaultOwnerWithLine(id), nil
+			},
+		}
+		svc := buildDeliverySvc(ownerRepo, nil, nil, nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings(), apptRepo)
+		injectTestClient(svc, &mockLstepClientForDelivery{
+			addTagFn: func(_ context.Context, _, _ string) error {
+				addTagCalls++
+				return nil
+			},
+		})
+
+		count, errs := svc.TriggerNextVisitTentativeReminder3D(context.Background(), 1, asOf)
+
+		assert.Equal(t, 1, count)
+		assert.Empty(t, errs)
+		require.Len(t, lockSets, 2, "集合拡大を検出してロックを取り直す")
+		assert.ElementsMatch(t, []uint64{petA}, lockSets[0], "1回目のロックは列挙時点の集合")
+		assert.ElementsMatch(t, []uint64{petA, petB}, lockSets[1], "2回目は拡大後の集合で再ロック")
+		assert.Equal(t, 1, addTagCalls, "収束後の送信は1回だけ")
+	})
+
+	t.Run("re-locks when the locked re-fetch returns a row without pet id (Codex #22 rereview)", func(t *testing.T) {
+		// ロック中の再検索が pet 未解決行（pet_id NULL）を含む場合、その行の mutation は
+		// (clinic,pet) advisory lock で直列化できないため送信根拠にしない。行が収束した
+		// 2回目の attempt で送信する。
+		ownerID := uint64(30)
+		petA := uint64(9001)
+		inLock := false
+		var lockCalls int
+		var addTagCalls int
+		apptRepo := &mockDeliveryAppointmentRepository{
+			findOwnerIDsWithTentativeFn: func(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
+				return []uint64{ownerID}, nil
+			},
+			findTentativesByOwnerFn: func(_ context.Context, _, _ uint64, _ time.Time) ([]model.Reservation, error) {
+				if inLock && lockCalls == 1 {
+					// 1回目のロック中再検索だけ pet 未解決行が混ざる。
+					return []model.Reservation{
+						{ID: 501, OwnerID: &ownerID, PetID: &petA, Status: model.ReservationStatusTentative},
+						{ID: 599, OwnerID: &ownerID, PetID: nil, Status: model.ReservationStatusTentative},
+					}, nil
+				}
+				return []model.Reservation{
+					{ID: 501, OwnerID: &ownerID, PetID: &petA, Status: model.ReservationStatusTentative},
+				}, nil
+			},
+			withReminderSerializationFn: func(ctx context.Context, _ uint64, _ []uint64, fn func(txCtx context.Context) error) error {
+				lockCalls++
+				inLock = true
+				defer func() { inLock = false }()
+				return fn(ctx)
+			},
+		}
+		ownerRepo := &mockOwnerRepoForDelivery{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+				return defaultOwnerWithLine(id), nil
+			},
+		}
+		svc := buildDeliverySvc(ownerRepo, nil, nil, nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings(), apptRepo)
+		injectTestClient(svc, &mockLstepClientForDelivery{
+			addTagFn: func(_ context.Context, _, _ string) error {
+				addTagCalls++
+				return nil
+			},
+		})
+
+		count, errs := svc.TriggerNextVisitTentativeReminder3D(context.Background(), 1, asOf)
+
+		assert.Equal(t, 1, count)
+		assert.Empty(t, errs)
+		assert.Equal(t, 2, lockCalls, "pet 未解決行を検出してロックを取り直す")
+		assert.Equal(t, 1, addTagCalls)
+	})
+
+	t.Run("fails closed after max lock attempts under non-converging candidate churn", func(t *testing.T) {
+		// candidate 集合が拡大し続ける異常 churn: 上限まで再ロックを試み、収束しない
+		// 場合は未送信のまま per-owner error で表面化し claim 済みスロットを failed にする。
+		ownerID := uint64(30)
+		petA, petB := uint64(9001), uint64(9002)
+		inLock := false
+		var lockCalls int
+		var addTagCalls int
+		var capturedStatus string
+		apptRepo := &mockDeliveryAppointmentRepository{
+			findOwnerIDsWithTentativeFn: func(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
+				return []uint64{ownerID}, nil
+			},
+			findTentativesByOwnerFn: func(_ context.Context, _, _ uint64, _ time.Time) ([]model.Reservation, error) {
+				if !inLock {
+					// ロック前の列挙は常に petA のみ → ロック集合は収束しない。
+					return []model.Reservation{
+						{ID: 501, OwnerID: &ownerID, PetID: &petA, Status: model.ReservationStatusTentative},
+					}, nil
+				}
+				// ロック中の再検索は毎回ロック外の petB を返し続ける。
+				return []model.Reservation{
+					{ID: 501, OwnerID: &ownerID, PetID: &petA, Status: model.ReservationStatusTentative},
+					{ID: 502, OwnerID: &ownerID, PetID: &petB, Status: model.ReservationStatusTentative},
+				}, nil
+			},
+			withReminderSerializationFn: func(ctx context.Context, _ uint64, _ []uint64, fn func(txCtx context.Context) error) error {
+				lockCalls++
+				inLock = true
+				defer func() { inLock = false }()
+				return fn(ctx)
+			},
+		}
+		ownerRepo := &mockOwnerRepoForDelivery{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+				return defaultOwnerWithLine(id), nil
+			},
+		}
+		logRepo := &mockDeliveryTriggerLogRepository{
+			updateStatusFn: func(_ context.Context, _ uint64, status string, _ *time.Time, _ *string) error {
+				capturedStatus = status
+				return nil
+			},
+		}
+		svc := buildDeliverySvc(ownerRepo, nil, nil, nil, &mockTagCacheRepoForDelivery{}, logRepo, enabledSettings(), apptRepo)
+		injectTestClient(svc, &mockLstepClientForDelivery{
+			addTagFn: func(_ context.Context, _, _ string) error {
+				addTagCalls++
+				return nil
+			},
+		})
+
+		count, errs := svc.TriggerNextVisitTentativeReminder3D(context.Background(), 1, asOf)
+
+		assert.Equal(t, 0, count)
+		assert.Len(t, errs, 1, "非収束 churn は per-owner error で表面化")
+		assert.Equal(t, maxTentativeReminderLockAttempts, lockCalls, "上限回数だけ再ロックを試みる")
+		assert.Equal(t, 0, addTagCalls, "未送信")
+		assert.Equal(t, model.TriggerStatusFailed, capturedStatus, "claim 済みスロットを failed で解放")
 	})
 }
 

@@ -337,6 +337,81 @@ func TestReservationRepository_SetNextVisitIntent(t *testing.T) {
 		require.Error(t, createErr)
 		assert.True(t, persistence.IsUniqueConstraintErr(createErr))
 	})
+
+	t.Run("revalidates the date after an actor FOR SHARE wait crosses a JST boundary", func(t *testing.T) {
+		// Codex #19 rereview: CreatedBy 付きの新規 intent は Create 内部で staff/
+		// assignment の FOR SHARE を取る。最終日付検証より後の actor ロック待ちで
+		// JST 暦日を跨ぐと前日付の intended_date を INSERT し得た。actor 検証を
+		// 最終検証より前へ移した経路を2接続 barrier で固定する。
+		_, pet, _ := makeNextVisitIntentFixture(t, db, clinicA, "BARRIER")
+		actor := makeDoctor(t, db, clinicA, "次回予定actor待機獣医")
+		require.NoError(t, db.Create(&model.StaffClinicAssignment{StaffID: actor.ID, ClinicID: clinicA, IsMain: true}).Error)
+
+		// 検証は注入時計の JST 暦日を見る。fake day D で開始し、actor FOR SHARE の
+		// 待機中に D+1 へ進める（実時計ではなく注入時計だけを跨がせる）。
+		var clockMu sync.Mutex
+		fakeNow := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC) // = 21:00 JST on day D
+		repoImpl := &reservationRepository{db: db}
+		repoImpl.nowFn = func() time.Time {
+			clockMu.Lock()
+			defer clockMu.Unlock()
+			return fakeNow
+		}
+		intendedDate := time.Date(2026, 6, 15, 0, 0, 0, 0, config.JST) // 注入時計の「今日」
+
+		// blocker 接続が staffs 行を FOR UPDATE で保持し、actor 検証の FOR SHARE を待機させる。
+		blocker := db.Begin()
+		require.NoError(t, blocker.Error)
+		t.Cleanup(func() { _ = blocker.Rollback() })
+		require.NoError(t, blocker.Exec("SELECT id FROM staffs WHERE id = ? FOR UPDATE", actor.ID).Error)
+
+		writeDone := make(chan error, 1)
+		go func() {
+			writeDone <- testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
+				_, _, err := repoImpl.SetNextVisitIntent(txCtx, clinicA, pet.ID, SetNextVisitIntentInput{
+					IntendedDate:      intendedDate,
+					CreatedBy:         &actor.ID,
+					CanUpdateExisting: true,
+				})
+				return err
+			})
+		}()
+
+		// 対象 goroutine が staffs FOR SHARE で Lock 待機するまでポーリングする。
+		deadline := time.After(15 * time.Second)
+		ticker := time.NewTicker(10 * time.Millisecond)
+		defer ticker.Stop()
+		for locked := false; !locked; {
+			select {
+			case err := <-writeDone:
+				t.Fatalf("set intent finished before reaching the actor lock wait: %v", err)
+			case <-deadline:
+				t.Fatal("set intent did not reach the staff FOR SHARE wait")
+			case <-ticker.C:
+				var waiters int64
+				require.NoError(t, db.Raw(`
+					SELECT count(*) FROM pg_stat_activity
+					WHERE datname = current_database()
+					  AND wait_event_type = 'Lock'
+					  AND query LIKE '%"staffs"%FOR SHARE%'
+				`).Scan(&waiters).Error)
+				locked = waiters > 0
+			}
+		}
+
+		// ロック待機中に JST 暦日を跨がせてから blocker を解放する。
+		clockMu.Lock()
+		fakeNow = fakeNow.AddDate(0, 0, 1)
+		clockMu.Unlock()
+		require.NoError(t, blocker.Commit().Error)
+
+		err := <-writeDone
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err),
+			"actor ロック待ちで日跨ぎした intent は InvalidInput、実際: %v", err)
+		assert.Equal(t, int64(0), countTentativeForPet(t, db, clinicA, pet.ID),
+			"日跨ぎ後の INSERT は行われない")
+	})
 }
 
 func TestReservationRepository_ClearNextVisitIntent(t *testing.T) {
