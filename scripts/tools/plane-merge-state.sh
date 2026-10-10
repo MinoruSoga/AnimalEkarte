@@ -243,6 +243,16 @@ plane_detail() {
   jq -r '.detail // .message // empty' "$body_file" 2>/dev/null | head -n 1
 }
 
+valid_comment_collection() {
+  jq -e '
+    if type == "array" then .
+    elif type == "object" and (.data | type) == "array" then .data
+    elif type == "object" and (.results | type) == "array" then .results
+    else error("unsupported comment collection") end
+    | all(.[]; type == "object")
+  ' "$1" >/dev/null 2>&1
+}
+
 comment_already_posted() {
   local body_file="$1"
   local external_id="$2"
@@ -347,6 +357,11 @@ sync_one_ticket() {
   http_code="$(plane_http GET "$list_url" "" "$comment_body")"
   if [[ "$http_code" != "200" ]]; then
     log_line "FAIL  ${ticket_id}  comment lookup HTTP ${http_code} $(plane_detail "$comment_body")"
+    rm -f "$item_body" "$patch_body" "$comment_body"
+    return 1
+  fi
+  if ! valid_comment_collection "$comment_body"; then
+    log_line "FAIL  ${ticket_id}  comment lookup returned an invalid collection"
     rm -f "$item_body" "$patch_body" "$comment_body"
     return 1
   fi

@@ -233,6 +233,16 @@ for base in main staging; do
     ok "$base comment lookup failure is reported"
   fi
   assert_eq "$base lookup failure does not risk duplicate POST" '2' "$(grep -c '^POST$' "$CASE_DIR/calls")"
+  printf '200' > "$CASE_DIR/comment_lookup_status"
+  for body in '{"unexpected":"not a collection"}' '<html>fixture error</html>' '["invalid comment"]'; do
+    printf '%s' "$body" > "$CASE_DIR/comments"
+    if sync_one_ticket EMR-999 "$base" 606 'https://github.com/example/repo/pull/606' >/dev/null; then
+      ng "$base invalid collection is rejected"
+    else
+      ok "$base invalid collection is rejected"
+    fi
+    assert_eq "$base invalid collection does not risk duplicate POST" '2' "$(grep -c '^POST$' "$CASE_DIR/calls")"
+  done
 done
 
 echo "----"
