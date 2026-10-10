@@ -470,8 +470,16 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 		// EMR-306 step3: ケージ割当ガード。ケージ変更または非占有→占有ステータス遷移でのみ
 		// 発火する（reviewer D2）。FindByID(FOR SHARE) より先に FOR UPDATE を取るため、
 		// validateOwnedMasterFK より前に置く（reviewer D1）。
-		cageChanged := input.CageID != nil &&
-			(existing.CageID == nil || *input.CageID != *existing.CageID)
+		// PATCH の最終値を検証する。明示解除と再開が同時の場合、旧ケージは
+		// 割当先ではないため、連結状態や占有を検査してはならない。
+		finalCageID := existing.CageID
+		if input.ClearCageID {
+			finalCageID = nil
+		} else if input.CageID != nil {
+			finalCageID = input.CageID
+		}
+		cageChanged := finalCageID != nil &&
+			(existing.CageID == nil || *finalCageID != *existing.CageID)
 		finalStatus := existing.Status
 		if input.Status != nil {
 			finalStatus = *input.Status
@@ -479,17 +487,13 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 		transitioningIn := !isOccupyingHospitalizationStatus(existing.Status) &&
 			isOccupyingHospitalizationStatus(finalStatus)
 		if cageChanged || transitioningIn {
-			targetCage := input.CageID
-			if targetCage == nil {
-				targetCage = existing.CageID
-			}
 			// 結果ステータスが占有なら占有検査を行い、更新対象自身の占有は
 			// 集計から除外する（メンバー→代表のグループ内移動を許可するため）。
 			var selfOccupiesCageID *uint64
 			if isOccupyingHospitalizationStatus(existing.Status) {
 				selfOccupiesCageID = existing.CageID
 			}
-			if err := s.validateCageAssignmentGuard(txCtx, clinicID, targetCage,
+			if err := s.validateCageAssignmentGuard(txCtx, clinicID, finalCageID,
 				isOccupyingHospitalizationStatus(finalStatus), selfOccupiesCageID); err != nil {
 				return err
 			}

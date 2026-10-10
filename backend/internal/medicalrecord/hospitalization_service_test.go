@@ -994,6 +994,69 @@ func TestHospitalizationService_Update_RejectsClearAndSetCageID(t *testing.T) {
 	assert.True(t, apperrors.IsInvalidInput(err))
 }
 
+func TestHospitalizationService_Update_ClearCageOnReactivation(t *testing.T) {
+	tests := []struct {
+		name      string
+		oldMember bool
+		status    string
+	}{
+		{"former member admitted", true, "admitted"},
+		{"former member reserved", true, "reserved"},
+		{"occupied representative admitted", false, "admitted"},
+		{"occupied representative reserved", false, "reserved"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			oldCageID, otherCageID := uint64(10), uint64(20)
+			now := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
+			existing := &model.Hospitalization{
+				ID: 1, ClinicID: 1, Status: model.HospitalizationStatusDischarged,
+				CageID: &oldCageID, StartDate: now, EndDate: now.AddDate(0, 0, 1),
+			}
+			cageReads := 0
+			cageRepo := &mockCageRepository{
+				lockCageGroupForUpdateFn: func(_ context.Context, _, _ uint64) ([]model.Cage, error) {
+					cageReads++
+					if tt.oldMember {
+						return []model.Cage{{ID: oldCageID, MergedIntoCageID: &otherCageID}}, nil
+					}
+					return []model.Cage{{ID: oldCageID}, {ID: otherCageID, MergedIntoCageID: &oldCageID}}, nil
+				},
+				countOccupiedCagesFn: func(_ context.Context, _ uint64, _ []uint64) (map[uint64]int64, error) {
+					return map[uint64]int64{oldCageID: 1}, nil
+				},
+			}
+			updated := false
+			hospRepo := &mockHospitalizationRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) { return existing, nil },
+				updateFieldsFn: func(_ context.Context, _, _ uint64, cmd UpdateHospitalizationInput) (*model.Hospitalization, error) {
+					updated = true
+					fields := buildHospitalizationUpdate(&cmd)
+					value, present := fields["cage_id"]
+					require.True(t, present)
+					require.Nil(t, value)
+					require.NotNil(t, cmd.Status)
+					result := *existing
+					result.CageID, result.Status = nil, *cmd.Status
+					return &result, nil
+				},
+			}
+			svc := NewHospitalizationService(hospRepo, nil, nil, cageRepo, nil, nil, nil, &mockTransactor{})
+			input, err := (&updateHospitalizationRequest{Status: &tt.status, ClearCageID: true}).toServiceInput()
+			require.NoError(t, err)
+
+			got, err := svc.Update(context.Background(), 1, 1, &input)
+
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			assert.True(t, updated)
+			assert.Nil(t, got.CageID)
+			assert.Equal(t, model.HospitalizationStatus(tt.status), got.Status)
+			assert.Zero(t, cageReads, "the cleared former cage is not an assignment target")
+		})
+	}
+}
+
 // ---- DischargeWithBilling ----
 
 // dischargeTestDeps は BE9-2D ⑤ Phase1 の個別注入コンストラクタ向け discharge テスト共通配線。
