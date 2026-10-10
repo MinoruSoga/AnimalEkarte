@@ -60,6 +60,30 @@ flowchart LR
     CSV["CSV seed bundle"] -->|"every environment"| MAS["master only<br/>independent of the login gate"]
 ```
 
+### 4.1 Initial masters on a fresh production database
+
+Decided in EMR-341 (2026-10-11). What a clinic sees right after the first production `cmd/migrate`, and who fills the rest:
+
+| Master | State after the first migrate | Who fills it |
+|---|---|---|
+| Clinics, company, clinic settings, animal species, exam types, payment methods, permission groups and rules, L-step tag prefixes/mappings | Present — loaded from `002_master` | — |
+| Reservation types | Only the trimming type, one row per clinic. The five standard types (診察・お手入れ・ワクチン・健診・ホテル) are **not** in the bundle | Apply the one-shot SQL in §4.2 |
+| Trimming course types / courses / options | Empty — no seed CSV | The clinic registers them from its own record (see below) |
+| Procedures, merchandise, vaccines | Empty — not in `002_master` | The cutover import fills them (what is imported is decided in MIG-25 / EMR-338); anything left over is registered by the clinic |
+| Medicines | Empty — not in `002_master` and not in the 21 cutover tables | Open decision of EMR-338 (import from the old procedure master, or the clinic registers) |
+| Anything a clinic registered on STG | **Not carried over** — STG and production are separate databases | The clinic registers it again in production |
+
+Staff screens and the master screens become usable only after the first system administrator is issued ([FIRST_SYSTEM_ADMIN.md](../../deploy/FIRST_SYSTEM_ADMIN.md)). Before that day, ask each clinic to keep a record of what it registered on STG — name, duration, price and LINE-publication setting of its reservation types and trimming courses; a screenshot is enough — because this is the only source for re-registration. The request goes to the clinic through the list maintained in EMR-338.
+
+### 4.2 Standard reservation types
+
+Decided in EMR-341 (Q1 = apply): the five standard reservation types are part of the first-build procedure. Background: on STG a clinic could pick only the trimming type when creating a reservation (EMR-193).
+
+- The SQL is `backend/migrations/seeds/live_insert_standard_reservation_types.sql`. It is **not** part of `cmd/migrate` and the repository or CI never runs it. A human runs it from an approved runbook, once per environment, **after** the first migrate has loaded the clinics (on a database without clinics it fails by design).
+- The pre-check, the apply command, the post-check query and the failure handling are in [EMR-321_HOTEL_RESERVATION.md](../../deploy/EMR-321_HOTEL_RESERVATION.md). Follow that document as written; do not copy the SQL into this file.
+- Applying the SQL does not update `002_master/reservation_types.csv` ([EMR-321_HOTEL_RESERVATION.md](../../deploy/EMR-321_HOTEL_RESERVATION.md) 「fresh DB と失敗時の扱い」). Do not edit the CSV or the manifest by hand.
+- Record the target environment, operator, time, per-clinic result and the post-check result as non-secret evidence in the EMR-321 comment thread.
+
 ## 5. IaC and resource verification
 
 Terraform plan must be reviewed by a human before apply. It currently covers only the checked-in resources; Hyperdrive/notification tombstones are not active resources. Apply/destroy, database creation, credential changes, shared environment writes, billing, and DNS changes are human-only external operations.
@@ -95,6 +119,7 @@ Store both only as `Production` Environment secrets, never repository-level. The
 - verify `/health`, then DB-backed behavior separately because `/health` does not query the DB;
 - verify frontend production API target from deployed output, not from branch name;
 - use only explicitly provisioned synthetic credentials with lifecycle ownership for CRUD smoke;
+- verify that every clinic has the five standard reservation types (§4.2): the post-check query in [EMR-321_HOTEL_RESERVATION.md](../../deploy/EMR-321_HOTEL_RESERVATION.md) returns 0 rows;
 - record non-secret evidence and rollback owner.
 
 ## 8. Remaining provider / human work (not done by the repository)
@@ -109,6 +134,8 @@ Store both only as `Production` Environment secrets, never repository-level. The
 - [ ] `TRUSTED_PROXY_CIDR` post-deploy measurement and confirmation;
 - [ ] backup acquisition and isolated restore rehearsal with measured timings ([runbook §4](runbook.md));
 - [ ] PR CI `actionlint` green;
+- [ ] standard reservation types applied and verified per §4.2 (human-run SQL, after the first migrate);
+- [ ] each clinic has kept a record of the masters it registered on STG (§4.1), requested through EMR-338;
 - [ ] go-live date and delivery state confirmed in Plane.
 
 All checkboxes are requirements, not claims of current external state.
