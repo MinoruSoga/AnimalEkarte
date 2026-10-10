@@ -784,6 +784,21 @@ func (r *reservationRepository) WithTentativeReminderSerialization(
 				return err
 			}
 		}
+		// Hold pet state/ownership through revalidation and external delivery.
+		// NOWAIT avoids a lock cycle with existing writers that already hold a
+		// pet SHARE lock before waiting for the intent lock. A conflicting death,
+		// deletion or transfer is a known-unsent error that the caller can retry.
+		var pets []model.Pet
+		if len(sorted) > 0 {
+			if err := tx.Model(&model.Pet{}).
+				Select("id").
+				Where("clinic_id = ? AND id IN ?", clinicID, sorted).
+				Order("id ASC").
+				Clauses(clause.Locking{Strength: "SHARE", Options: "NOWAIT"}).
+				Find(&pets).Error; err != nil {
+				return apperrors.Wrap(err, "failed to lock reminder pet state")
+			}
+		}
 		return fn(txCtx)
 	})
 }

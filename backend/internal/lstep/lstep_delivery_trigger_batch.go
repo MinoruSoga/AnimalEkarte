@@ -256,7 +256,7 @@ func (c *deliveryBatchTriggerLogCache) ExistsTodayByOwnerAndType(
 ) (bool, error) {
 	if c.loaded {
 		for i := range c.dayLogsByOwner[ownerID] {
-			if c.dayLogsByOwner[ownerID][i].TriggerType == triggerType {
+			if c.dayLogsByOwner[ownerID][i].TriggerType == triggerType && !retryablePreSendClaim(&c.dayLogsByOwner[ownerID][i]) {
 				return true, nil
 			}
 		}
@@ -440,16 +440,23 @@ func (s *lstepDeliveryTriggerService) processSingleOwner(
 	// claim 済みスロットを excluded に記録して外部送信を抑止する。
 	// Codex: 再検証〜送信は tentative mutation と同じ advisory lock 内で行う —
 	// send コールバックを hook へ渡し、hook の直列化境界内で送信させる。
+	sendStarted := false
 	send := func(callCtx context.Context) error {
+		sendStarted = true
 		return s.applyTagAndLog(callCtx, clinicID, client, *owner.LineUserID, tagName, logID)
 	}
 	if revalidate != nil {
 		stillValid, staleReason, revalidateErr := revalidate(ctx, ownerID, send)
 		if revalidateErr != nil {
 			slog.ErrorContext(ctx, "delivery trigger: revalidation error", "owner_id", ownerID, "trigger", triggerType, "error", revalidateErr)
-			// Codex: claim 済みスロットを scheduled のまま stranded にしない。
-			// 再検証自体が失敗した candidate は failed に記録して解放する。
-			failReason := fmt.Sprintf("revalidation_error: %s", triggerType)
+			if sendStarted {
+				// Preserve the result recorded by applyTagAndLog, including fired
+				// when only the serialization transaction's commit failed.
+				return false, revalidateErr
+			}
+			// Only definitely-unsent failures release the day slot for atomic
+			// reclaim; an API attempt must never become automatically retryable.
+			failReason := preSendRevalidationFailure
 			if updateErr := s.triggerLogRepo.UpdateStatus(ctx, clinicID, logID, model.TriggerStatusFailed, nil, &failReason); updateErr != nil {
 				slog.ErrorContext(ctx, "failed to record trigger log failed status", "log_id", logID, "error", updateErr)
 				return false, errors.Join(revalidateErr, apperrors.Wrap(updateErr, "failed to update trigger log status to failed"))

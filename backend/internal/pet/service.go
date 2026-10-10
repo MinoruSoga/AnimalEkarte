@@ -405,7 +405,22 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 		dangerReason: input.DangerReason,
 	}
 	var pet *model.Pet
+	var previousOwnerID uint64
 	updateAndVerify := func(updateCtx context.Context) error {
+		if ownerUpdateRequested {
+			locker, ok := s.repo.(RowLockingRepository)
+			if !ok {
+				return apperrors.WrapInternalServerError("pet owner change requires row locking")
+			}
+			previous, lockErr := locker.LockByIDForUpdate(updateCtx, clinicID, id)
+			if lockErr != nil {
+				return lockErr
+			}
+			if previous == nil {
+				return apperrors.WrapInternalServerError("pet lock returned no result")
+			}
+			previousOwnerID = previous.OwnerID
+		}
 		var updateErr error
 		pet, updateErr = s.repo.UpdateAndFind(updateCtx, clinicID, id, update)
 		if updateErr != nil {
@@ -437,6 +452,9 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 		slog.Uint64("clinic_id", clinicID))
 
 	s.syncLstepTags(ctx, clinicID, pet.OwnerID)
+	if previousOwnerID != 0 && previousOwnerID != pet.OwnerID {
+		s.syncLstepTags(ctx, clinicID, previousOwnerID)
+	}
 	return pet, nil
 }
 
@@ -449,6 +467,9 @@ func (s *petService) syncLstepTags(ctx context.Context, clinicID, ownerID uint64
 	}
 	if err := s.tagSyncSvc.SyncPetBasicInfoTags(ctx, clinicID, ownerID); err != nil {
 		slog.ErrorContext(ctx, "failed to sync pet basic info tags after pet change", "error", err, "owner_id", ownerID, "clinic_id", clinicID)
+	}
+	if err := s.tagSyncSvc.SyncNextVisitTag(ctx, clinicID, ownerID); err != nil {
+		slog.ErrorContext(ctx, "failed to sync next visit tag after pet change", "error", err, "owner_id", ownerID, "clinic_id", clinicID)
 	}
 }
 

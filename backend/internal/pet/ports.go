@@ -29,6 +29,7 @@ type MedicalRecordReader interface {
 type PetTagSynchronizer interface {
 	SyncOwnerAnimalClassificationTags(ctx context.Context, clinicID, ownerID uint64) error
 	SyncPetBasicInfoTags(ctx context.Context, clinicID, ownerID uint64) error
+	SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error
 }
 
 // ChronicConditionTagSynchronizer is the best-effort LSTEP capability used after
