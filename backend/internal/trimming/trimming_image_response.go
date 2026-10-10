@@ -2,6 +2,7 @@ package trimming
 
 import (
 	"errors"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -85,12 +86,14 @@ func resolveTrimmingImageStorageKey(stored string) (key string, isStorageObject 
 
 // trimmingImageKeyBelongsToClinic reports whether key has the exact shape
 // trimming-images/<clinic_id>/<name> for the given clinic. Foreign clinics,
-// traversal segments, and malformed shapes are fail-closed. The name segment
-// deliberately allows characters like '?' or '/' — object keys are not
-// filesystem paths and may legally contain them (the local uploader still
-// keeps them inside the clinic directory); '..' is rejected because a
-// local-storage backend could traverse out of it.
+// traversal segments, filesystem aliases, and malformed shapes are fail-closed.
+// Nested names are allowed, but every accepted key must already be canonical:
+// local storage cleans paths, so ./, repeated /, and trailing / must not acquire
+// independent reference locks or deletion tombstones for the same local file.
 func trimmingImageKeyBelongsToClinic(key string, clinicID uint64) bool {
+	if path.Clean(key) != key || strings.Contains(key, "\\") {
+		return false
+	}
 	rest, ok := strings.CutPrefix(key, trimmingImageStorageKeyPrefix)
 	if !ok {
 		return false
@@ -99,6 +102,14 @@ func trimmingImageKeyBelongsToClinic(key string, clinicID uint64) bool {
 	if !ok || name == "" || strings.Contains(name, "..") {
 		return false
 	}
-	parsed, err := strconv.ParseUint(idSeg, 10, 64)
-	return err == nil && parsed == clinicID
+	return idSeg == strconv.FormatUint(clinicID, 10)
+}
+
+// Previously accepted local path aliases may remain in stored records. Count
+// them conservatively during reference checks, but never rewrite a storage
+// deletion target: on R2 an alias can be a distinct object. New writes/deletes
+// reject aliases through trimmingImageKeyBelongsToClinic.
+func trimmingImageStoredReferenceMatchesKey(stored, key string) bool {
+	resolved, isObject, err := resolveTrimmingImageStorageKey(stored)
+	return err == nil && isObject && (resolved == key || path.Clean(resolved) == key)
 }

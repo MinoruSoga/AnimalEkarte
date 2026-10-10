@@ -73,6 +73,13 @@ func TestTrimmingImageKeyBelongsToClinic(t *testing.T) {
 		{name: "non-numeric clinic segment", key: "trimming-images/x/abc.jpg", clinicID: 1, want: false},
 		{name: "wrong prefix", key: "medical-records/1/abc.jpg", clinicID: 1, want: false},
 		{name: "nested name allowed", key: "trimming-images/1/a/b/c.jpg", clinicID: 1, want: true},
+		{name: "dot path alias rejected", key: "trimming-images/1/./abc.jpg", clinicID: 1},
+		{name: "repeated slash alias rejected", key: "trimming-images/1//abc.jpg", clinicID: 1},
+		{name: "nested dot alias rejected", key: "trimming-images/1/a/./abc.jpg", clinicID: 1},
+		{name: "trailing slash alias rejected", key: "trimming-images/1/abc.jpg/", clinicID: 1},
+		{name: "trailing dot alias rejected", key: "trimming-images/1/abc.jpg/.", clinicID: 1},
+		{name: "clinic leading zero rejected", key: "trimming-images/01/abc.jpg", clinicID: 1},
+		{name: "backslash rejected", key: "trimming-images/1/a\\abc.jpg", clinicID: 1},
 	}
 
 	for _, tc := range cases {
@@ -101,6 +108,9 @@ func TestNormalizeTrimmingImageForPersist(t *testing.T) {
 		{name: "stray uploads rejected", stored: "/uploads/other/1/abc.jpg", wantErr: true},
 		{name: "foreign key rejected", stored: "trimming-images/2/abc.jpg", wantErr: true},
 		{name: "malformed prefix rejected", stored: "trimming-images/", wantErr: true},
+		{name: "dot alias rejected", stored: "trimming-images/1/./abc.jpg", wantErr: true},
+		{name: "repeated slash rejected", stored: "trimming-images/1//abc.jpg", wantErr: true},
+		{name: "wrapped alias rejected", stored: "/uploads/trimming-images/1/./abc.jpg?v=1", wantErr: true},
 	}
 
 	for _, tc := range cases {
@@ -114,4 +124,18 @@ func TestNormalizeTrimmingImageForPersist(t *testing.T) {
 			assert.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func TestTrimmingImageStoredReferenceMatchesKey_LocalAliasesRetained(t *testing.T) {
+	const key = "trimming-images/1/abc.jpg"
+	for _, stored := range []string{
+		key, "trimming-images/1/./abc.jpg", "trimming-images/1//abc.jpg",
+		"trimming-images/1/abc.jpg/.", "/uploads/trimming-images/1/./abc.jpg?v=1",
+	} {
+		t.Run(stored, func(t *testing.T) {
+			assert.True(t, trimmingImageStoredReferenceMatchesKey(stored, key))
+		})
+	}
+	assert.False(t, trimmingImageStoredReferenceMatchesKey("trimming-images/2/abc.jpg", key))
+	assert.False(t, trimmingImageStoredReferenceMatchesKey("https://foreign.example/"+key, key))
 }

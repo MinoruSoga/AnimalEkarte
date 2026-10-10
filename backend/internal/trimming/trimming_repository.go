@@ -113,8 +113,7 @@ func (r *appointmentTrimmingDetailRepository) ImageKeyInUse(ctx context.Context,
 	}
 	for i := range rows {
 		for _, stored := range []string{rows[i].StyleImage, rows[i].CompletedImage} {
-			resolved, isObject, err := resolveTrimmingImageStorageKey(stored)
-			if err == nil && isObject && resolved == key {
+			if trimmingImageStoredReferenceMatchesKey(stored, key) {
 				return true, nil
 			}
 		}
