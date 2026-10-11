@@ -1,6 +1,6 @@
 ---
 name: test-strategist
-description: テスト戦略設計・テストコード生成。実行はtdd-guideまたは担当実装者へ引き継ぐ。Codexのread-only役割では設計とpatch案を報告する。
+description: テスト戦略設計・テストコード生成。実行はtdd-guideまたは担当実装者へ引き継ぐ。
 tools: ["Read", "Edit", "Write", "Grep", "Glob"]
 model: sonnet
 ---
