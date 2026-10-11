@@ -54,14 +54,27 @@ func (s *lstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ow
 		return apperrors.WrapInternalServerError("next visit owner lock is not configured")
 	}
 	apiFailed := false
+	attempted := false
 	err = locker.WithNextVisitOwnerLock(ctx, clinicID, ownerID, func(syncCtx context.Context) error {
+		// The fast gate may precede a queued opt-out/link/settings commit.
+		// Re-read under the sync-owned transaction; both repositories use
+		// DBOrTx, so this does not borrow a second connection from the pool.
+		target, ready, targetErr := s.resolveSyncTarget(syncCtx, clinicID, ownerID, "next visit")
+		if targetErr != nil {
+			return targetErr
+		}
+		if !ready {
+			return nil
+		}
+		lineUserID = target
+		attempted = true
 		return s.reconcileNextVisitTag(syncCtx, client, clinicID, ownerID, lineUserID, &apiFailed)
 	})
 	// Counter persistence must happen after the lock transaction releases its
 	// connection: otherwise rollback loses accounting, and a pool of one deadlocks.
 	if apiFailed {
 		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-	} else if err == nil {
+	} else if err == nil && attempted {
 		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
 	}
 	return err

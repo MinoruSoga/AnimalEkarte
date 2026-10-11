@@ -46,9 +46,12 @@ func (s *lstepLifecycleService) clearTagsWithOwnerLock(ctx context.Context, clie
 		// Cache writes can fail after a provider Add succeeds. Include only our
 		// derived next_visit tags from the provider; other remote categories keep
 		// the existing cache-based cleanup policy.
+		var failures []error
 		remote, err := client.GetUserTags(ctx, lineUserID)
 		if err != nil {
-			return apperrors.Wrap(err, "failed to read next visit tags before cleanup")
+			// A discovery failure must not block best-effort removal of known
+			// cache tags. Retain the error so the transaction keeps retry state.
+			failures = append(failures, apperrors.Wrap(err, "failed to read next visit tags before cleanup"))
 		}
 		tagSet := make(map[string]struct{}, len(tags))
 		for _, tag := range tags {
@@ -64,7 +67,6 @@ func (s *lstepLifecycleService) clearTagsWithOwnerLock(ctx context.Context, clie
 			names = append(names, tag)
 		}
 		sort.Strings(names)
-		var failures []error
 		for _, tag := range names {
 			if err := client.RemoveTag(ctx, lineUserID, tag); err != nil {
 				failures = append(failures, apperrors.Wrap(err, "failed to remove tag on cleanup"))

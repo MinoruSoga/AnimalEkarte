@@ -392,3 +392,122 @@ func TestNextVisitReconcile_RemoteAddSurvivesPersistenceFailure(t *testing.T) {
 		})
 	}
 }
+
+func TestNextVisitReconcile_CleanupGetFailureKeepsKnownCacheBestEffort(t *testing.T) {
+	readFailure := errors.New("provider tag read failed")
+	known := []string{"cpm_core", "next_visit_2026-12-20"}
+	remote := map[string]bool{known[0]: true, known[1]: true, "manual_remote_only": true}
+	var removed, deleted []string
+	cache := &mockLstepTagCacheRepository{findByOwnerFn: func(context.Context, uint64, uint64) ([]*model.LstepTagCache, error) {
+		return []*model.LstepTagCache{{TagName: known[0]}, {TagName: known[1]}}, nil
+	}, deleteTagFn: func(_ context.Context, _, _ uint64, tag string) error { deleted = append(deleted, tag); return nil }}
+	client := &mockLstepAPIClient{getUserTagsFn: func(context.Context, string) ([]string, error) { return nil, readFailure }, removeTagFn: func(_ context.Context, _, tag string) error {
+		removed = append(removed, tag)
+		delete(remote, tag)
+		return nil
+	}}
+	svc := &lstepLifecycleService{tagCacheRepo: cache}
+	assert.ErrorIs(t, svc.clearTagsWithOwnerLock(context.Background(), client, 1, 2, "mock-only"), readFailure, "incomplete provider discovery remains observable")
+	assert.ElementsMatch(t, known, removed, "known cache cleanup must continue when remote discovery fails")
+	assert.ElementsMatch(t, known, deleted)
+	assert.False(t, remote[known[0]])
+	assert.False(t, remote[known[1]])
+	assert.True(t, remote["manual_remote_only"], "unknown remote categories are untouched")
+}
+
+func TestNextVisitReconcile_RevalidatesTargetAfterOwnerLock(t *testing.T) {
+	for _, mode := range []string{"opted out", "unlinked", "line changed", "sync disabled", "latest target failure counter"} {
+		t.Run(mode, func(t *testing.T) {
+			locked := false
+			sourceReads := 0
+			tagReads := 0
+			nextAdds := 0
+			counterReads := 0
+			counterAdds := 0
+			counterIncrements := 0
+			oldUID, newUID := "old-mock-only", "new-mock-only"
+			tx := &gorm.DB{}
+			readFailure := errors.New("tag read failed")
+			cache := &mockLstepTagCacheRepository{withNextVisitOwnerLockFn: func(ctx context.Context, _, _ uint64, fn func(context.Context) error) error {
+				locked = true // model an opt-out/link/settings commit and cleanup before this waiting sync acquires the lock.
+				defer func() { locked = false }()
+				return fn(persistence.WithTxValue(ctx, tx))
+			}}
+			date := time.Date(2026, 12, 20, 0, 0, 0, 0, time.UTC)
+			client := &mockLstepAPIClient{getUserTagsFn: func(_ context.Context, uid string) ([]string, error) {
+				tagReads++
+				assert.Equal(t, newUID, uid)
+				if mode == "latest target failure counter" {
+					return nil, readFailure
+				}
+				return nil, nil
+			}, addTagFn: func(_ context.Context, uid, tag string) error {
+				assert.Equal(t, newUID, uid)
+				if tag == lstepErrorTag {
+					counterAdds++
+				} else {
+					nextAdds++
+				}
+				return nil
+			}}
+			svc := nextVisitReconcileService(cache, client, &mockNextVisitAppointmentRepo{findNextAppointmentForOwnerFn: func(ctx context.Context, _, _ uint64) (*model.Reservation, error) {
+				sourceReads++
+				assert.Same(t, tx, persistence.TxFromContext(ctx))
+				return &model.Reservation{Status: model.ReservationStatusTentative, IntendedDate: &date}, nil
+			}})
+			svc.settingsSvc = &mockLstepSettingsService{isSyncEnabledFn: func(ctx context.Context, _ uint64) (bool, error) {
+				if locked {
+					assert.Same(t, tx, persistence.TxFromContext(ctx))
+					if mode == "sync disabled" {
+						return false, nil
+					}
+				}
+				return true, nil
+			}}
+			svc.ownerRepo = &mockOwnerRepository{findByIDFn: func(ctx context.Context, _, _ uint64) (*model.Owner, error) {
+				if !locked {
+					return &model.Owner{ID: 2, LineUserID: &oldUID}, nil
+				}
+				assert.Same(t, tx, persistence.TxFromContext(ctx))
+				if mode == "opted out" {
+					return &model.Owner{ID: 2, LstepOptOut: true, LineUserID: &newUID}, nil
+				}
+				if mode == "unlinked" {
+					return &model.Owner{ID: 2}, nil
+				}
+				return &model.Owner{ID: 2, LineUserID: &newUID}, nil
+			}}
+			svc.errorCounterRepo = &mockErrorCounterRepo{findFn: func(ctx context.Context, _, _ uint64) (*model.LstepSyncErrorCounter, error) {
+				counterReads++
+				assert.False(t, locked)
+				assert.Nil(t, persistence.TxFromContext(ctx))
+				return &model.LstepSyncErrorCounter{}, nil
+			}, incrementFn: func(ctx context.Context, _, _ uint64) (int, error) {
+				counterIncrements++
+				assert.False(t, locked)
+				assert.Nil(t, persistence.TxFromContext(ctx))
+				return lstepSyncErrorThreshold, nil
+			}}
+			err := svc.SyncNextVisitTag(context.Background(), 1, 2)
+			if mode == "latest target failure counter" {
+				assert.ErrorIs(t, err, readFailure)
+				assert.Equal(t, 1, counterIncrements)
+				assert.Equal(t, 1, counterAdds)
+				assert.Zero(t, nextAdds)
+				return
+			}
+			require.NoError(t, err)
+			if mode == "line changed" {
+				assert.Equal(t, 1, sourceReads)
+				assert.Equal(t, 1, tagReads)
+				assert.Equal(t, 1, nextAdds)
+				assert.Equal(t, 1, counterReads)
+			} else {
+				assert.Zero(t, sourceReads)
+				assert.Zero(t, tagReads)
+				assert.Zero(t, nextAdds)
+				assert.Zero(t, counterReads)
+			}
+		})
+	}
+}
