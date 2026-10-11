@@ -24,6 +24,7 @@ type LabDeviceReceiveRepository interface {
 	CreateJobWithItems(ctx context.Context, job *model.LabImportJob, items []model.LabImportJobItem) error
 	AttachJobPetID(ctx context.Context, clinicID uint64, jobID uuid.UUID, petID uint64) (*model.LabImportJob, error)
 	UpdateJobPetID(ctx context.Context, clinicID uint64, jobID uuid.UUID, petID *uint64) (*model.LabImportJob, error)
+	UpdateJobMappingCounts(ctx context.Context, clinicID uint64, jobID uuid.UUID, unmappedCount int) error
 	SaveJobItems(ctx context.Context, items []model.LabImportJobItem) error
 	ListJobItems(ctx context.Context, clinicID uint64, jobIDs []uuid.UUID) (map[uuid.UUID][]model.LabImportJobItem, error)
 	ListUnlinkedJobs(ctx context.Context, clinicID uint64, limit int) ([]model.LabImportJob, error)
@@ -170,6 +171,35 @@ func (r *labDeviceReceiveRepository) UpdateJobPetID(
 		return nil, apperrors.WrapNotFound("lab_import_job", jobID.String())
 	}
 	return r.FindJobByID(ctx, clinicID, jobID)
+}
+
+func (r *labDeviceReceiveRepository) UpdateJobMappingCounts(
+	ctx context.Context,
+	clinicID uint64,
+	jobID uuid.UUID,
+	unmappedCount int,
+) error {
+	if persistence.TxFromContext(ctx) == nil {
+		return apperrors.WrapInternalServerError("lab device job mapping counts require an ambient transaction")
+	}
+	if unmappedCount < 0 {
+		return apperrors.WrapInvalidInput("unmapped_count is invalid")
+	}
+	res := r.q(ctx).
+		Model(&model.LabImportJob{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", jobID).
+		Updates(map[string]any{
+			"unmapped_item_count": unmappedCount,
+			"needs_review_count":  unmappedCount,
+		})
+	if res.Error != nil {
+		return apperrors.Wrap(res.Error, "update lab device job mapping counts")
+	}
+	if res.RowsAffected == 0 {
+		return apperrors.WrapNotFound("lab_import_job", jobID.String())
+	}
+	return nil
 }
 
 func (r *labDeviceReceiveRepository) SaveJobItems(ctx context.Context, items []model.LabImportJobItem) error {
