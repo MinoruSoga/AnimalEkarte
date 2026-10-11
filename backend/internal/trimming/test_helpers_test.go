@@ -15,6 +15,16 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	// forked-self サブプロセス oracle: 親テストが os.Executable で同じ test binary を
+	// env ゲート付きで spawn し、子プロセスは independently initialized な状態で
+	// claim を試みる。in-process のガード状態は子には引き継がれないため、
+	// durable marker（オブジェクト存在）にのみ依存する判定になる。
+	if os.Getenv("TRIMMING_IMAGE_LIFECYCLE_HELPER") == "conflict-claim" {
+		os.Exit(runTrimmingImageConflictOracleHelper())
+	}
+	if os.Getenv("TRIMMING_IMAGE_LIFECYCLE_HELPER") != "" {
+		os.Exit(runTrimmingImageLifecycleHelper())
+	}
 	code := m.Run()
 	testdb.CloseSharedTestDB()
 	os.Exit(code)
@@ -101,7 +111,7 @@ func (s *trimmingServiceWithTestActor) Delete(
 	ctx context.Context,
 	clinicID, id uint64,
 	actorID *uint64,
-) error {
+) (*TrimmingReplacedImages, error) {
 	if actorID == nil {
 		actorID = ptrUint64(42)
 	}

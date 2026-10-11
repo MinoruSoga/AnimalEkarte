@@ -58,3 +58,15 @@ func (u *LocalUploader) Delete(_ context.Context, key string) error {
 	}
 	return nil
 }
+
+// Exists は key のファイルが存在するかを返す。NotExist 以外の stat エラーは
+// 存在を確認できないため error を返す（呼び出し元は fail-closed に保持する）。
+func (u *LocalUploader) Exists(_ context.Context, key string) (bool, error) {
+	if _, err := os.Stat(filepath.Join(u.baseDir, key)); err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to stat file: %w", err)
+	}
+	return true, nil
+}

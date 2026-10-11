@@ -97,12 +97,19 @@ type Service interface {
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, *TrimmingReplacedImages, error)
-	Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error
-	// ImageKeyInUse は trimming 詳細レコードによる画像キー参照の有無を返す。
-	// DELETE /trimmings/images（exceptAppointmentID=0: どの参照でも拒否）と
-	// superseded 削除（exceptAppointmentID=対象レコード: 他レコード共有時のみ保留）
-	// の fail-closed ガード — 参照中キーの削除要求は 409 で拒否される。
-	ImageKeyInUse(ctx context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error)
+	// Delete は予約の削除を行い、delete トランザクションの行ロック下で捕捉した
+	// 直前画像値を返す。post-commit クリーンアップはこの locked-time キー集合
+	// のみを使う — tx 前に読んだスナップショットでは、その間にコミットされた
+	// Update の新キーを掃除対象から漏らす。
+	Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) (*TrimmingReplacedImages, error)
+	// DeleteUnreferencedImageObject はキーが live 行から参照されていないことを
+	// pinned connection 上のセッションスコープ advisory lock 下で再確認し、
+	// 参照不在なら deleteObject でオブジェクトを削除する。durable tombstone は
+	// 「オブジェクト自体の不在」— writer 側 claim が同じロック + Exists で
+	// 直列化される。DELETE /trimmings/images と superseded クリーンアップの
+	// fail-closed ガード。true = 削除実行、false = 参照あり/削除無効、
+	// 確認不能は error（呼び出し元はオブジェクトを保持）。
+	DeleteUnreferencedImageObject(ctx context.Context, clinicID uint64, key string, deleteObject ImageObjectDeleteFunc) (bool, error)
 }
 
 // TrimmingReplacedImages は Update が commit 時に置き換えた画像値。
@@ -218,10 +225,6 @@ func (s *trimmingService) GetByID(ctx context.Context, clinicID, id uint64) (*mo
 		return nil, apperrors.Wrap(detailErr, "failed to get trimming detail")
 	}
 	return appt, nil
-}
-
-func (s *trimmingService) ImageKeyInUse(ctx context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error) {
-	return s.trimmingDetail.ImageKeyInUse(ctx, clinicID, key, exceptAppointmentID)
 }
 
 func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error) {

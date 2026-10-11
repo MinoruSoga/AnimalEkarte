@@ -22,6 +22,10 @@ import (
 type FileUploader interface {
 	Upload(ctx context.Context, key string, body io.Reader, contentType string) (string, error)
 	Delete(ctx context.Context, key string) error
+	// Exists は durable tombstone 判定に使うオブジェクト存在確認。存在しない
+	// オブジェクトは (false, nil)、確認不能なインフラエラーは error
+	// （writer 側 claim は fail-closed で格納を拒否する）。
+	Exists(ctx context.Context, key string) (bool, error)
 	GetSignedURL(ctx context.Context, key string, ttl time.Duration) (string, error)
 }
 
@@ -59,6 +63,14 @@ type ImageDependencies struct {
 func (h *Handler) WithImageSupport(deps ImageDependencies) *Handler {
 	h.imageUploader = deps.Uploader
 	h.imageQuota = deps.Quota
+	// writer 側 claim（repo Create/Update の Exists 確認）へ durable ストアを
+	// 配線する。binder は公開 interface に載せない内部契約 — 未配線の repo は
+	// キー付き書き込みを fail-closed で拒否する。
+	if deps.Uploader != nil && h.svc != nil && h.svc.Trimming != nil {
+		if b, ok := h.svc.Trimming.(imageObjectStoreBinder); ok {
+			b.bindImageObjectStore(deps.Uploader)
+		}
+	}
 	if deps.RequireAnyPermission != nil {
 		h.imageWritePermission = deps.RequireAnyPermission(
 			PermissionRequirement{Resource: string(model.ResourceTrimming), Action: "create"},
@@ -244,22 +256,23 @@ func (h *Handler) DeleteTrimmingImage(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput("invalid trimming image key"))
 		return
 	}
-	// 参照チェックを fail-closed で行う — 参照状況を確認できない限り消さない。
+	// post-commit クリーンアップと同じセッションロック・プロトコル:
+	// pinned conn 上で「参照再確認→オブジェクト削除→unlock」を不可分にする。
+	// 確認不能・参照中・削除無効は消さない（fail-closed）。writer 側の
+	// claimImageKeysForStore が同じロック + Exists で直列化されるため、
+	// チェック〜オブジェクト削除の間の再参照競合も安全になる。
 	if h.svc == nil || h.svc.Trimming == nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "trimming image reference check is not configured"})
 		return
 	}
-	inUse, err := h.svc.Trimming.ImageKeyInUse(c.Request.Context(), clinicID, key, 0)
+	deleted, err := h.svc.Trimming.DeleteUnreferencedImageObject(
+		c.Request.Context(), clinicID, key, h.imageUploader.Delete)
 	if err != nil {
-		httpapi.RespondError(c, apperrors.Wrap(err, "failed to check trimming image reference"))
-		return
-	}
-	if inUse {
-		c.AbortWithStatusJSON(http.StatusConflict, gin.H{"error": "trimming image is referenced by a record"})
-		return
-	}
-	if err := h.imageUploader.Delete(c.Request.Context(), key); err != nil {
 		httpapi.RespondError(c, apperrors.Wrap(err, "failed to delete trimming image"))
+		return
+	}
+	if !deleted {
+		c.AbortWithStatusJSON(http.StatusConflict, gin.H{"error": "trimming image is referenced by a record"})
 		return
 	}
 	slog.InfoContext(c.Request.Context(), "trimming image object deleted",

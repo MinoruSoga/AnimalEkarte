@@ -75,28 +75,50 @@ func TestImageKeyInUse_CountsEveryResolvableReferenceForm(t *testing.T) {
 			// 参照チェックのスコープ。値の医院 prefix は resolver 側で検証済み）。
 			clinicID := uint64(1000 + i)
 			insertTrimmingDetailWithImages(t, db, clinicID, tc.style, tc.completed)
-			got, err := repo.ImageKeyInUse(ctx, clinicID, key, 0)
+			got, err := repo.ImageKeyInUse(ctx, clinicID, key)
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, got)
 		})
 	}
 }
 
-// TestImageKeyInUse_ExclusionOnlySkipsThatAppointment は除外が指定 appointment の
-// 行だけに効き、別レコードの同一キー参照は依然として守られることを検証する。
-func TestImageKeyInUse_ExclusionOnlySkipsThatAppointment(t *testing.T) {
+// TestImageKeyInUse_CountsSameAppointmentReference は参照契約が自レコードを
+// 除外しないことを検証する — 同一 appointment の参照もカウントする
+// （exceptAppointmentID を廃止した新契約: update 直後に同じキーへ戻した
+// 再参照をクリーンアップが見落とさないため）。
+func TestImageKeyInUse_CountsSameAppointmentReference(t *testing.T) {
 	db := setupImageReferenceTestDB(t)
 	repo := NewAppointmentTrimmingDetailRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
-	const key = "trimming-images/1/shared.jpg"
+	const key = "trimming-images/1/self-ref.jpg"
 
-	selfID := insertTrimmingDetailWithImages(t, db, clinicID, key, "")
-	insertTrimmingDetailWithImages(t, db, clinicID, "", key)
+	insertTrimmingDetailWithImages(t, db, clinicID, key, "")
 
-	got, err := repo.ImageKeyInUse(ctx, clinicID, key, selfID)
+	got, err := repo.ImageKeyInUse(ctx, clinicID, key)
 	require.NoError(t, err)
-	assert.True(t, got, "other record's reference must still count")
+	assert.True(t, got, "the referencing record's own row must count")
+}
+
+// TestImageKeyInUse_SoftDeletedParentReferenceExcluded は soft-delete 済み
+// appointment 配下の detail 参照を live 参照として数えない primary/live-parent
+// 契約を検証する（A3 primary: versioned source の write-path 列挙で
+// appointments.deleted_at を NULL に戻す restore 経路が無いと立証済み —
+// evidence/appointments-no-restore-r9.json。将来 restore path が追加された
+// 場合は保持側契約へ戻す）。
+func TestImageKeyInUse_SoftDeletedParentReferenceExcluded(t *testing.T) {
+	db := setupImageReferenceTestDB(t)
+	repo := NewAppointmentTrimmingDetailRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	const key = "trimming-images/1/parent-deleted.jpg"
+
+	appointmentID := insertTrimmingDetailWithImages(t, db, clinicID, key, "")
+	require.NoError(t, db.Where("id = ?", appointmentID).Delete(&model.Reservation{}).Error)
+
+	got, err := repo.ImageKeyInUse(ctx, clinicID, key)
+	require.NoError(t, err)
+	assert.False(t, got, "primary 契約: soft-deleted 親配下の参照は live 参照として数えない")
 }
 
 // TestImageKeyInUse_ObservesAmbientTx は repository が DBOrTx 経由で呼び出し側の
@@ -118,7 +140,7 @@ func TestImageKeyInUse_ObservesAmbientTx(t *testing.T) {
 			StyleImage:    key,
 			BWUnit:        model.BodyWeightUnitKg,
 		}).Error)
-		inUse, err := repo.ImageKeyInUse(txCtx, clinicID, key, 0)
+		inUse, err := repo.ImageKeyInUse(txCtx, clinicID, key)
 		require.NoError(t, err)
 		assert.True(t, inUse, "probe must see the caller's uncommitted write")
 		return sentinel
@@ -126,7 +148,7 @@ func TestImageKeyInUse_ObservesAmbientTx(t *testing.T) {
 	require.Error(t, err)
 	assert.ErrorIs(t, err, sentinel)
 
-	inUse, err := repo.ImageKeyInUse(ctx, clinicID, key, 0)
+	inUse, err := repo.ImageKeyInUse(ctx, clinicID, key)
 	require.NoError(t, err)
 	assert.False(t, inUse, "rolled-back rows must not count as references")
 }

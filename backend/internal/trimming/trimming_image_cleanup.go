@@ -25,7 +25,7 @@ func (h *Handler) deleteReplacedTrimmingImages(
 		return
 	}
 	clinicID := trimmingRecordClinicID(updated, fallbackClinicID)
-	h.deleteSupersededTrimmingImages(ctx, clinicID, updated.ID, replaced.Style, replaced.Completed, newStyle, newCompleted)
+	h.deleteSupersededTrimmingImages(ctx, clinicID, replaced.Style, replaced.Completed, newStyle, newCompleted)
 }
 
 func trimmingImageObjectKey(stored string, clinicID uint64) (string, bool) {
@@ -65,10 +65,10 @@ func supersededTrimmingImageKeys(clinicID uint64, oldStyle, oldCompleted, newSty
 
 func (h *Handler) deleteSupersededTrimmingImages(
 	ctx context.Context,
-	clinicID, exceptAppointmentID uint64,
+	clinicID uint64,
 	oldStyle, oldCompleted, newStyle, newCompleted string,
 ) {
-	h.bestEffortDeleteTrimmingImageKeys(ctx, clinicID, exceptAppointmentID, supersededTrimmingImageKeys(
+	h.bestEffortDeleteTrimmingImageKeys(ctx, clinicID, supersededTrimmingImageKeys(
 		clinicID, oldStyle, oldCompleted, newStyle, newCompleted,
 	)...)
 }
@@ -78,12 +78,16 @@ func (h *Handler) deleteSupersededTrimmingImages(
 // while the record is already committed). 削除失敗は warn のみで孤立扱い。
 const supersededImageCleanupTimeout = 10 * time.Second
 
-func (h *Handler) bestEffortDeleteTrimmingImageKeys(ctx context.Context, clinicID, exceptAppointmentID uint64, keys ...string) {
+func (h *Handler) bestEffortDeleteTrimmingImageKeys(ctx context.Context, clinicID uint64, keys ...string) {
 	if len(keys) == 0 {
 		return
 	}
 	if h == nil || h.imageUploader == nil {
 		slog.WarnContext(ctx, "skipped superseded trimming image delete; uploader is not configured")
+		return
+	}
+	if h.svc == nil || h.svc.Trimming == nil {
+		slog.WarnContext(ctx, "skipped superseded trimming image delete; reference check is not configured")
 		return
 	}
 	deleteCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), supersededImageCleanupTimeout)
@@ -92,40 +96,23 @@ func (h *Handler) bestEffortDeleteTrimmingImageKeys(ctx context.Context, clinicI
 		if key == "" {
 			continue
 		}
-		// 他レコードが同一キーを共有していれば保持する（create/update は医院
-		// prefix のみ検査するため、同一キー参照は起こり得る）。確認できない
-		// 場合も消さず warn — 参照中オブジェクトの損失より孤立の方が安全。
-		if !h.imageKeyFreeToDelete(deleteCtx, clinicID, key, exceptAppointmentID) {
+		// セッションスコープ advisory lock 下で「参照再確認→オブジェクト削除
+		// →unlock」を不可分に実行する。durable tombstone はオブジェクト自体
+		// の不在 — ロック解放後に進んだ writer は Exists=false を見て拒否
+		// される。確認不能・参照あり・削除無効（rollout gate）はすべて保持側
+		// fail-closed — 参照中オブジェクトの損失より孤立の方が安全。
+		deleted, err := h.svc.Trimming.DeleteUnreferencedImageObject(
+			deleteCtx, clinicID, key, h.imageUploader.Delete)
+		if err != nil {
+			slog.WarnContext(deleteCtx, "skipped superseded trimming image delete; lifecycle guard failed",
+				slog.String("error", err.Error()),
+				slog.String("key", key))
 			continue
 		}
-		if err := h.imageUploader.Delete(deleteCtx, key); err != nil {
-			slog.WarnContext(deleteCtx, "failed to delete superseded trimming image",
-				slog.String("error", err.Error()),
+		if !deleted {
+			slog.InfoContext(deleteCtx,
+				"retained trimming image object; still referenced or deletion not enabled",
 				slog.String("key", key))
 		}
 	}
-}
-
-// imageKeyFreeToDelete は key が exceptAppointmentID 以外のどのレコードからも
-// 参照されていない場合のみ true を返す。参照確認の経路が無い/失敗した場合は
-// false（保持側 fail-closed）。
-func (h *Handler) imageKeyFreeToDelete(ctx context.Context, clinicID uint64, key string, exceptAppointmentID uint64) bool {
-	if h.svc == nil || h.svc.Trimming == nil {
-		slog.WarnContext(ctx, "skipped superseded trimming image delete; reference check is not configured",
-			slog.String("key", key))
-		return false
-	}
-	inUse, err := h.svc.Trimming.ImageKeyInUse(ctx, clinicID, key, exceptAppointmentID)
-	if err != nil {
-		slog.WarnContext(ctx, "skipped superseded trimming image delete; reference check failed",
-			slog.String("error", err.Error()),
-			slog.String("key", key))
-		return false
-	}
-	if inUse {
-		slog.InfoContext(ctx, "retained trimming image object; still referenced by another record",
-			slog.String("key", key))
-		return false
-	}
-	return true
 }

@@ -63,7 +63,7 @@ func TestService_DeleteAuditFailureRollsBackDatabase(t *testing.T) {
 		&trimmingAuditRecorder{err: sentinel},
 	)
 
-	err := svc.Delete(context.Background(), clinicID, appointment.ID, ptrUint64(actorID))
+	_, err := svc.Delete(context.Background(), clinicID, appointment.ID, ptrUint64(actorID))
 
 	require.Error(t, err)
 	assert.ErrorIs(t, err, sentinel)

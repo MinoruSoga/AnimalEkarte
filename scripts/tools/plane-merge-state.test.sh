@@ -58,12 +58,12 @@ assert_eq "squash and merge-commit PR numbers" \
 assert_eq "bare hash is not a PR reference" "" "$(prs_of 'see #602')"
 
 assert_eq "main running becomes Review" "Review" "$(decide_transition main Running)"
-assert_eq "main UAT returns to Review" "Review" "$(decide_transition main UAT)"
+assert_eq "main UAT never regresses" "SKIP uat-or-later" "$(decide_transition main UAT)"
 assert_eq "main Backlog becomes Review" "Review" "$(decide_transition main Backlog)"
 assert_eq "main Ready becomes Review" "Review" "$(decide_transition main Ready)"
 assert_eq "main Research becomes Review" "Review" "$(decide_transition main Research)"
 assert_eq "main cutover state becomes Review" "Review" "$(decide_transition main '本番切替対応')"
-assert_eq "main already Review skips" "SKIP already" "$(decide_transition main Review)"
+assert_eq "main already Review settles" "SETTLED Review" "$(decide_transition main Review)"
 assert_eq "main Done stays" "SKIP protected" "$(decide_transition main Done)"
 assert_eq "main Cancelled stays" "SKIP protected" "$(decide_transition main Cancelled)"
 assert_eq "main Duplicate stays" "SKIP protected" "$(decide_transition main Duplicate)"
@@ -74,11 +74,13 @@ assert_eq "main protected state is case-insensitive" "SKIP protected" "$(decide_
 assert_eq "main unknown state is not moved" "SKIP unknown" "$(decide_transition main Mystery)"
 assert_eq "main unreadable state is not moved" "SKIP unknown" "$(decide_transition main '')"
 
-assert_eq "staging Review becomes UAT" "UAT" "$(decide_transition staging Review)"
-assert_eq "staging UAT stays" "SKIP not-review" "$(decide_transition staging UAT)"
-assert_eq "staging Running stays" "SKIP not-review" "$(decide_transition staging Running)"
-assert_eq "staging Done stays protected" "SKIP protected" "$(decide_transition staging Done)"
-assert_eq "staging unknown state is not moved" "SKIP unknown" "$(decide_transition staging Mystery)"
+assert_eq "staging Review becomes UAT when head is main" "UAT" "$(decide_transition staging Review main)"
+assert_eq "staging UAT settles when head is main" "SETTLED UAT" "$(decide_transition staging UAT main)"
+assert_eq "staging Running stays" "SKIP not-review" "$(decide_transition staging Running main)"
+assert_eq "staging Done stays protected" "SKIP protected" "$(decide_transition staging Done main)"
+assert_eq "staging unknown state is not moved" "SKIP unknown" "$(decide_transition staging Mystery main)"
+assert_eq "staging feature-head does not move to UAT" "SKIP head-not-main" "$(decide_transition staging Review feature-x)"
+assert_eq "staging feature-head unknown state still fails closed" "SKIP unknown" "$(decide_transition staging Mystery feature-x)"
 assert_eq "production is unsupported" "SKIP unsupported-base" "$(decide_transition production Review)"
 
 assert_eq "merged main PR qualifies" "yes" "$(pr_qualifies_for_staging_tickets main true 600 700)"
@@ -152,6 +154,134 @@ assert_eq "main page uses commit messages only" \
 assert_eq "comment escapes markup" \
   '<p>main へのマージに合わせて Review に移動しました。</p><p>PR: <a href="https://example.com/a?b=&amp;c=&lt;d&gt;">https://example.com/a?b=&amp;c=&lt;d&gt;</a></p>' \
   "$(build_comment_html main Review 'https://example.com/a?b=&c=<d>')"
+
+MOCK_LOG="$(mktemp)"
+MOCK_TICKET="EMR-1"
+
+plane_http() {
+  local method="$1" url="$2" payload="$3" body_file="$4"
+  printf '%s %s\n' "$method" "$url" >>"$MOCK_LOG"
+  case "$method $url" in
+    "GET "*comments/*)
+      if [[ "$MOCK_CGET_HAS" == "yes" ]]; then
+        printf '[{"external_id":"%s"}]\n' "$MOCK_COMMENT_ID" >"$body_file"
+      else
+        printf '[]\n' >"$body_file"
+      fi
+      printf '%s\n' "$MOCK_CGET_CODE"
+      ;;
+    "POST "*comments/*)
+      printf '{}\n' >"$body_file"
+      printf '%s\n' "$MOCK_CPOST_CODE"
+      ;;
+    "PATCH "*)
+      printf '{}\n' >"$body_file"
+      printf '%s\n' "$MOCK_PATCH_CODE"
+      ;;
+    "GET "*work-items/*)
+      printf '%s\n' "$MOCK_ITEM_BODY" >"$body_file"
+      printf '%s\n' "$MOCK_ITEM_CODE"
+      ;;
+    *)
+      printf 'unexpected plane_http call: %s %s\n' "$method" "$url" >&2
+      printf '000\n'
+      ;;
+  esac
+}
+
+mock_state() {
+  MOCK_ITEM_CODE=200
+  MOCK_PATCH_CODE=200
+  MOCK_CGET_CODE=200
+  MOCK_CGET_HAS=no
+  MOCK_CPOST_CODE=201
+  MOCK_COMMENT_ID=""
+  : >"$MOCK_LOG"
+  MOCK_ITEM_BODY="{\"identifier\":\"${MOCK_TICKET}\",\"project_id\":\"${PLANE_PROJECT_ID}\",\"id\":\"uuid-1\",\"state\":{\"name\":\"$1\"}}"
+}
+
+call_count() {
+  awk -v m="$1" '$1 == m' "$MOCK_LOG" | wc -l | tr -d ' '
+}
+
+comment_get_count() {
+  grep -c 'comments/' "$MOCK_LOG" || true
+}
+
+run_sync() {
+  local rc=0
+  sync_one_ticket "$@" || rc=$?
+  printf '%s' "$rc"
+}
+
+mock_state Review
+assert_eq "feature-head staging skip is clean" "0" \
+  "$(run_sync "$MOCK_TICKET" staging 600 https://example.test/pr/600 feature-x)"
+assert_eq "feature-head staging sends no PATCH" "0" "$(call_count PATCH)"
+assert_eq "feature-head staging sends no comment POST" "0" "$(call_count POST)"
+assert_eq "feature-head staging does not reconcile comments" "0" "$(comment_get_count)"
+
+mock_state Review
+assert_eq "main-head staging Review moves to UAT" "0" \
+  "$(run_sync "$MOCK_TICKET" staging 600 https://example.test/pr/600 main)"
+assert_eq "main-head staging sends one PATCH" "1" "$(call_count PATCH)"
+assert_eq "main-head staging posts one audit comment" "1" "$(call_count POST)"
+
+mock_state UAT
+assert_eq "main event on UAT does not regress" "0" \
+  "$(run_sync "$MOCK_TICKET" main 600 https://example.test/pr/600 main)"
+assert_eq "main event on UAT sends no PATCH" "0" "$(call_count PATCH)"
+assert_eq "main event on UAT posts no comment" "0" "$(call_count POST)"
+
+mock_state Mystery
+assert_eq "unknown state fails closed" "1" \
+  "$(run_sync "$MOCK_TICKET" main 600 https://example.test/pr/600 main)"
+assert_eq "unknown state sends no PATCH" "0" "$(call_count PATCH)"
+
+mock_state Running
+MOCK_CGET_CODE=500
+assert_eq "PATCH ok + comment lookup failure is a truthful failure" "1" \
+  "$(run_sync "$MOCK_TICKET" main 600 https://example.test/pr/600 main)"
+assert_eq "comment lookup failure still PATCHed state" "1" "$(call_count PATCH)"
+assert_eq "comment lookup failure does not blind-POST" "0" "$(call_count POST)"
+
+mock_state Running
+MOCK_CPOST_CODE=500
+assert_eq "PATCH ok + comment create failure is a truthful failure" "1" \
+  "$(run_sync "$MOCK_TICKET" main 600 https://example.test/pr/600 main)"
+assert_eq "comment create failure attempted one POST" "1" "$(call_count POST)"
+
+mock_state UAT
+assert_eq "rerun backfills missing comment on advanced state" "0" \
+  "$(run_sync "$MOCK_TICKET" staging 600 https://example.test/pr/600 main)"
+assert_eq "rerun on advanced state sends no PATCH" "0" "$(call_count PATCH)"
+assert_eq "rerun on advanced state posts exactly one comment" "1" "$(call_count POST)"
+
+mock_state UAT
+MOCK_CGET_CODE=500
+assert_eq "comment lookup failure on advanced state is a truthful failure" "1" \
+  "$(run_sync "$MOCK_TICKET" staging 600 https://example.test/pr/600 main)"
+
+mock_state UAT
+MOCK_CGET_HAS=yes
+MOCK_COMMENT_ID="gh-merge:600:staging:UAT"
+assert_eq "existing comment marker is a clean no-op on rerun" "0" \
+  "$(run_sync "$MOCK_TICKET" staging 600 https://example.test/pr/600 main)"
+assert_eq "existing comment marker sends no PATCH" "0" "$(call_count PATCH)"
+assert_eq "existing comment marker posts no duplicate" "0" "$(call_count POST)"
+
+mock_state Review
+MOCK_CGET_HAS=yes
+MOCK_COMMENT_ID="gh-merge:600:main:Review"
+assert_eq "main rerun with existing comment is a clean no-op" "0" \
+  "$(run_sync "$MOCK_TICKET" main 600 https://example.test/pr/600 main)"
+assert_eq "main rerun posts no duplicate comment" "0" "$(call_count POST)"
+
+mock_state Review
+assert_eq "main rerun backfills missing comment without PATCH" "0" \
+  "$(run_sync "$MOCK_TICKET" main 600 https://example.test/pr/600 main)"
+assert_eq "main rerun sends no PATCH when already Review" "0" "$(call_count PATCH)"
+assert_eq "main rerun posts exactly one comment" "1" "$(call_count POST)"
 
 echo "----"
 echo "PASS ${PASS_COUNT}  FAIL ${FAIL_COUNT}"

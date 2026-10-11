@@ -104,13 +104,14 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 	return result, replaced, nil
 }
 
-func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error {
+func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) (*TrimmingReplacedImages, error) {
 	if err := requireTrimmingStaffAuditActor(actorID); err != nil {
-		return err
+		return nil, err
 	}
 	if err := s.requireAuditTx(); err != nil {
-		return err
+		return nil, err
 	}
+	var removed *TrimmingReplacedImages
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.reservation.AcquireBookingLock(txCtx, clinicID); err != nil {
 			return apperrors.Wrap(err, "failed to acquire trimming booking lock")
@@ -123,6 +124,15 @@ func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64, actor
 		detail, err = s.trimmingDetail.FindByAppointmentID(txCtx, clinicID, id)
 		if err != nil && !apperrors.IsNotFound(err) {
 			return apperrors.Wrap(err, "failed to get trimming detail for delete")
+		}
+		// 行ロック下でコミット済みの最新画像値を捕捉する — ここで見たキー集合
+		// だけが post-commit クリーンアップの対象になる（tx 前の pre-read は
+		// 同時 Update がコミットした新キーを漏らす）。
+		if detail != nil {
+			removed = &TrimmingReplacedImages{
+				Style:     detail.StyleImage,
+				Completed: detail.CompletedImage,
+			}
 		}
 		oldValue := trimmingAuditValue(locked, detail)
 		if err := s.reservation.DeleteForTrimming(txCtx, clinicID, id); err != nil {
@@ -139,10 +149,10 @@ func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64, actor
 			nil,
 		)
 	}); err != nil {
-		return apperrors.Wrap(err, "failed to delete trimming appointment")
+		return nil, apperrors.Wrap(err, "failed to delete trimming appointment")
 	}
 	slog.InfoContext(ctx, "trimming appointment deleted",
 		slog.Uint64("appointment_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	return nil
+	return removed, nil
 }

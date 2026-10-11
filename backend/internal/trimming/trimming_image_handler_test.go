@@ -40,9 +40,11 @@ type fakeTrimmingImageUploader struct {
 	uploads      []uploadCall
 	deletes      []string
 	signCalls    []signCall
+	missing      map[string]bool
 	uploadErr    error
 	deleteErr    error
 	signErr      error
+	existsErr    error
 	signedPrefix string
 }
 
@@ -55,12 +57,26 @@ func (f *fakeTrimmingImageUploader) Upload(ctx context.Context, key string, body
 		return "", err
 	}
 	f.uploads = append(f.uploads, uploadCall{key: key, contentType: contentType, bodyBytes: n})
+	delete(f.missing, key)
 	return key, nil
 }
 
 func (f *fakeTrimmingImageUploader) Delete(_ context.Context, key string) error {
 	f.deletes = append(f.deletes, key)
+	if f.missing == nil {
+		f.missing = map[string]bool{}
+	}
+	f.missing[key] = true
 	return f.deleteErr
+}
+
+// Exists は durable な object-existence tombstone を模倣する: Delete 済みキーは
+// 以後 missing=true を返し、同じ uploader を共有する全 writer から見える。
+func (f *fakeTrimmingImageUploader) Exists(_ context.Context, key string) (bool, error) {
+	if f.existsErr != nil {
+		return false, f.existsErr
+	}
+	return !f.missing[key], nil
 }
 
 func (f *fakeTrimmingImageUploader) GetSignedURL(_ context.Context, key string, ttl time.Duration) (string, error) {
@@ -680,11 +696,10 @@ func TestUpdateTrimming_RetainsImageKeySharedWithOtherRecord(t *testing.T) {
 			replaced := &TrimmingReplacedImages{Style: "trimming-images/1/shared.jpg", Completed: "trimming-images/1/done.png"}
 			return trimmingDetailReservation(*input.StyleImage, "trimming-images/1/done.png"), replaced, nil
 		},
-		imageKeyInUseFn: func(_ context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error) {
+		deleteUnreferencedImageObjectFn: func(_ context.Context, clinicID uint64, key string, _ ImageObjectDeleteFunc) (bool, error) {
 			assert.Equal(t, uint64(1), clinicID)
 			assert.Equal(t, "trimming-images/1/shared.jpg", key)
-			assert.Equal(t, uint64(7), exceptAppointmentID, "the updated record's own row is excluded")
-			return true, nil // another record still references the key
+			return false, nil // another record still references the key — retained
 		},
 	}
 	h := newImageHandler(svc, uploader, &fakeImageUploadQuotaStore{})
@@ -706,12 +721,11 @@ func TestDeleteTrimming_RetainsImageKeySharedWithOtherRecord(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	uploader := &fakeTrimmingImageUploader{}
 	svc := &mockService{
-		getByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
-			return trimmingDetailReservation("trimming-images/1/shared.jpg", ""), nil
+		deleteFn: func(_ context.Context, _, _ uint64, _ *uint64) (*TrimmingReplacedImages, error) {
+			return &TrimmingReplacedImages{Style: "trimming-images/1/shared.jpg"}, nil
 		},
-		imageKeyInUseFn: func(_ context.Context, _ uint64, key string, exceptAppointmentID uint64) (bool, error) {
-			assert.Equal(t, uint64(7), exceptAppointmentID, "the deleted record's own row is excluded")
-			return key == "trimming-images/1/shared.jpg", nil
+		deleteUnreferencedImageObjectFn: func(_ context.Context, _ uint64, key string, _ ImageObjectDeleteFunc) (bool, error) {
+			return key != "trimming-images/1/shared.jpg", nil
 		},
 	}
 	h := newImageHandler(svc, uploader, &fakeImageUploadQuotaStore{})
@@ -805,8 +819,11 @@ func TestDeleteTrimming_DeletesOwnedImageKeys(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	uploader := &fakeTrimmingImageUploader{}
 	svc := &mockService{
-		getByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
-			return trimmingDetailReservation("trimming-images/1/style.jpg", "trimming-images/1/done.png"), nil
+		deleteFn: func(_ context.Context, _, _ uint64, _ *uint64) (*TrimmingReplacedImages, error) {
+			return &TrimmingReplacedImages{
+				Style:     "trimming-images/1/style.jpg",
+				Completed: "trimming-images/1/done.png",
+			}, nil
 		},
 	}
 	h := newImageHandler(svc, uploader, &fakeImageUploadQuotaStore{})
@@ -827,8 +844,11 @@ func TestDeleteTrimming_SkipsForeignAndLegacyValues(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	uploader := &fakeTrimmingImageUploader{}
 	svc := &mockService{
-		getByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
-			return trimmingDetailReservation("trimming-images/2/foreign.jpg", "https://cdn.example/legacy.jpg"), nil
+		deleteFn: func(_ context.Context, _, _ uint64, _ *uint64) (*TrimmingReplacedImages, error) {
+			return &TrimmingReplacedImages{
+				Style:     "trimming-images/2/foreign.jpg",
+				Completed: "https://cdn.example/legacy.jpg",
+			}, nil
 		},
 	}
 	h := newImageHandler(svc, uploader, &fakeImageUploadQuotaStore{})
@@ -922,11 +942,10 @@ func TestDeleteTrimmingImage_ReferencedKeyRejected(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	uploader := &fakeTrimmingImageUploader{}
 	svc := &mockService{
-		imageKeyInUseFn: func(_ context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error) {
+		deleteUnreferencedImageObjectFn: func(_ context.Context, clinicID uint64, key string, _ ImageObjectDeleteFunc) (bool, error) {
 			assert.Equal(t, uint64(1), clinicID)
 			assert.Equal(t, "trimming-images/1/style.jpg", key)
-			assert.Zero(t, exceptAppointmentID, "cleanup endpoint must reject on any reference")
-			return true, nil
+			return false, nil // still referenced — retained
 		},
 	}
 	h := newImageHandler(svc, uploader, &fakeImageUploadQuotaStore{})
@@ -943,7 +962,7 @@ func TestDeleteTrimmingImage_ReferenceCheckErrorFailsClosed(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	uploader := &fakeTrimmingImageUploader{}
 	svc := &mockService{
-		imageKeyInUseFn: func(context.Context, uint64, string, uint64) (bool, error) {
+		deleteUnreferencedImageObjectFn: func(context.Context, uint64, string, ImageObjectDeleteFunc) (bool, error) {
 			return false, errors.New("db down")
 		},
 	}

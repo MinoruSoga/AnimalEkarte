@@ -163,21 +163,19 @@ func (h *Handler) DeleteTrimming(c *gin.Context) {
 	if !ok {
 		return
 	}
-	existing, err := h.svc.Trimming.GetByID(c.Request.Context(), clinicID, id)
+	removed, err := h.svc.Trimming.Delete(c.Request.Context(), clinicID, id, &actorID)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
-	if err := h.svc.Trimming.Delete(c.Request.Context(), clinicID, id, &actorID); err != nil {
-		httpapi.RespondError(c, err)
-		return
-	}
-	if style, completed, ok := trimmingStoredImages(existing); ok {
+	// cleanup は delete tx の行ロック下で捕捉した locked-time キー集合のみを
+	// 使う。tx 前に読んだスナップショットでは、その間にコミットされた
+	// Update の新キーを掃除対象から漏らす。
+	if removed != nil {
 		h.deleteSupersededTrimmingImages(
 			c.Request.Context(),
-			trimmingRecordClinicID(existing, clinicID),
-			id,
-			style, completed, "", "",
+			clinicID,
+			removed.Style, removed.Completed, "", "",
 		)
 	}
 	c.Status(http.StatusNoContent)

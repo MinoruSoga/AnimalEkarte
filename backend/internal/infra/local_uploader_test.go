@@ -74,3 +74,28 @@ func TestLocalUploader_DeleteByKey(t *testing.T) {
 		t.Fatalf("stat after Delete: %v, want not exist", err)
 	}
 }
+
+func TestLocalUploader_Exists(t *testing.T) {
+	baseDir := t.TempDir()
+	u := NewLocalUploader(baseDir, "/uploads")
+	key := "medical-records/5/photo.png"
+
+	exists, err := u.Exists(context.Background(), key)
+	if err != nil || exists {
+		t.Fatalf("Exists before upload = (%v, %v), want (false, nil)", exists, err)
+	}
+	if _, err := u.Upload(context.Background(), key, strings.NewReader("payload"), "image/png"); err != nil {
+		t.Fatalf("Upload: %v", err)
+	}
+	exists, err = u.Exists(context.Background(), key)
+	if err != nil || !exists {
+		t.Fatalf("Exists after upload = (%v, %v), want (true, nil)", exists, err)
+	}
+	if err := u.Delete(context.Background(), key); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	exists, err = u.Exists(context.Background(), key)
+	if err != nil || exists {
+		t.Fatalf("Exists after delete = (%v, %v), want (false, nil)", exists, err)
+	}
+}

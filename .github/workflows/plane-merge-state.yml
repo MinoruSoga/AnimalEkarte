@@ -31,7 +31,9 @@ jobs:
   sync:
     if: >-
       github.event.pull_request.merged == true &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.pull_request.base.ref != 'staging' ||
+        github.event.pull_request.head.ref == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

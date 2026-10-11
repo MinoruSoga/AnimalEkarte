@@ -14,6 +14,11 @@ type FileUploader interface {
 	Upload(ctx context.Context, key string, body io.Reader, contentType string) (string, error)
 	// Delete はストレージからファイルを削除する。
 	Delete(ctx context.Context, key string) error
+	// Exists は key のオブジェクトが存在するかを返す。
+	// 存在しないオブジェクトは (false, nil)。存在を確認できないインフラ
+	// エラー（ネットワーク・権限等）は error を返し、呼び出し元は
+	// 存在不明として fail-closed に扱う。
+	Exists(ctx context.Context, key string) (bool, error)
 	// GetSignedURL は指定 TTL で有効な取得用 URL を生成する。
 	GetSignedURL(ctx context.Context, key string, ttl time.Duration) (string, error)
 }
