@@ -597,6 +597,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_repository_queries.go|reservationRepository.FindPetOwnerInClinic":                     {}, // AUD-001
 	"reservation/reservation_repository_queries.go|reservationRepository.CountByCustomerAndDateRange":              {},
 	"reservation/reservation_repository_queries.go|reservationRepository.CountByDateAndSource":                     {},
+	"reservation/reservation_repository_queries.go|reservationRepository.assertLineCustomerReservationOwner":       {},
 	"reservation/reservation_repository_queries.go|reservationRepository.CountByTypeAndStartTime":                  {},
 	"reservation/reservation_repository_queries.go|reservationRepository.CountByTypeAndStartTimes":                 {},
 	"reservation/reservation_repository_slots.go|reservationRepository.CountConflicts":                             {},
@@ -604,6 +605,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_repository_slots.go|reservationRepository.CountOnDutyDoctors":                         {},
 	"reservation/reservation_repository.go|reservationRepository.Create":                                           {},
 	"reservation/reservation_repository.go|reservationRepository.Delete":                                           {},
+	"reservation/reservation_repository.go|reservationRepository.deleteWithPreviousOwner":                          {},
 	"reservation/reservation_repository_slots.go|reservationRepository.ExistsByReservationTypeID":                  {},
 	"reservation/reservation_repository_slots.go|reservationRepository.ExistsByStaffID":                            {},
 	"reservation/reservation_repository.go|reservationRepository.FindAll":                                          {},
@@ -613,7 +615,8 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_repository_slots.go|reservationRepository.HasDoctorConflict":                          {},
 	"reservation/reservation_repository_slots.go|reservationRepository.LockAndFindByID":                            {},
 	"reservation/reservation_repository.go|reservationRepository.update":                                           {},
-	"reservation/reservation_intent_repository.go|reservationRepository.CompleteForAccounting":                     {}, // BE9-2E-0 write owner
+	"reservation/reservation_repository.go|reservationRepository.updateWithPreviousOwner":                          {},
+	"reservation/reservation_intent_repository.go|reservationRepository.CompleteForAccountingWithOwners":           {}, // BE9-2E-0 write owner
 	"reservation/reservation_intent_repository.go|reservationRepository.DeleteForTrimming":                         {}, // BE9-2E-0 typed delete + ambient-tx rollback test
 	"reservation/reservation_intent_repository.go|reservationRepository.AssertMedicalRecordDoctorInClinic":         {}, // BE9-2E-0 doctor guard; TestVaccinationService_DoctorAssignmentDeletionWaitsForValidationTransaction
 	"reservation/reservation_intent_repository.go|reservationRepository.MarkNoShowAt":                              {}, // durable scheduler no-show transition at an explicit slot
@@ -626,7 +629,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// EMR-308 next-visit intent (tentative) write surface. SetNextVisitIntent itself carries no
 	// literal DBOrTx (it delegates through these helpers + r.Create/r.update) — same registration
 	// shape as BackfillForMedicalRecord/CreateForTrimming which are likewise unregistered.
-	"reservation/reservation_intent_repository.go|reservationRepository.ClearNextVisitIntent":               {}, // EMR-308 idempotent tentative soft-delete
+	"reservation/reservation_intent_repository.go|reservationRepository.clearNextVisitIntentWithOwner":      {}, // EMR-308 idempotent tentative soft-delete
 	"reservation/reservation_intent_repository.go|reservationRepository.ConfirmTentative":                   {}, // EMR-308 tentative → pending/confirmed transition
 	"reservation/reservation_intent_repository.go|reservationRepository.updateTentativeStatus":              {}, // EMR-308 tentative-limited CAS update (WHERE status=tentative)
 	"reservation/reservation_intent_repository.go|reservationRepository.WithTentativeReminderSerialization": {}, // EMR-308 LSTEP revalidate→send serialization via (clinic,pet) advisory lock
@@ -652,24 +655,27 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_type_unavailable_time_repository.go|reservationTypeUnavailableTimeRepository.FindAll": {},
 	// trimming master reads join the service-owned transaction and hold SHARE locks through
 	// appointment/detail/junction writes. Runtime proof: TestTrimmingMasterFindByID_HoldsShareLockForAmbientTransaction.
-	"trimming/trimming_course_repository.go|trimmingCourseRepository.CountUsageByTrimmingCourseID":      {},
-	"trimming/trimming_course_repository.go|trimmingCourseRepository.Create":                            {},
-	"trimming/trimming_course_repository.go|trimmingCourseRepository.Delete":                            {},
-	"trimming/trimming_course_repository.go|trimmingCourseRepository.FindAll":                           {},
-	"trimming/trimming_course_repository.go|trimmingCourseRepository.FindByID":                          {},
-	"trimming/trimming_course_repository.go|trimmingCourseRepository.update":                            {},
-	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.CountUsageByCourseTypeID": {},
-	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.Create":                   {},
-	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.Delete":                   {},
-	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.FindAll":                  {},
-	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.FindByID":                 {},
-	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.update":                   {},
-	"trimming/trimming_option_repository.go|trimmingOptionRepository.CountUsageByTrimmingOptionID":      {},
-	"trimming/trimming_option_repository.go|trimmingOptionRepository.Create":                            {},
-	"trimming/trimming_option_repository.go|trimmingOptionRepository.Delete":                            {},
-	"trimming/trimming_option_repository.go|trimmingOptionRepository.FindAll":                           {},
-	"trimming/trimming_option_repository.go|trimmingOptionRepository.FindByID":                          {},
-	"trimming/trimming_option_repository.go|trimmingOptionRepository.update":                            {},
+	"trimming/trimming_course_repository.go|trimmingCourseRepository.CountUsageByTrimmingCourseID":            {},
+	"trimming/trimming_course_repository.go|trimmingCourseRepository.Create":                                  {},
+	"trimming/trimming_course_repository.go|trimmingCourseRepository.Delete":                                  {},
+	"trimming/trimming_course_repository.go|trimmingCourseRepository.FindAll":                                 {},
+	"trimming/trimming_course_repository.go|trimmingCourseRepository.FindByID":                                {},
+	"trimming/trimming_course_repository.go|trimmingCourseRepository.update":                                  {},
+	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.CountUsageByCourseTypeID":       {},
+	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.Create":                         {},
+	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.Delete":                         {},
+	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.FindAll":                        {},
+	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.FindByID":                       {},
+	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.update":                         {},
+	"trimming/trimming_image_lifecycle_repository.go|appointmentTrimmingDetailRepository.ImageKeyDeleted":     {},
+	"trimming/trimming_image_lifecycle_repository.go|appointmentTrimmingDetailRepository.LockImageKeys":       {},
+	"trimming/trimming_image_lifecycle_repository.go|appointmentTrimmingDetailRepository.MarkImageKeyDeleted": {},
+	"trimming/trimming_option_repository.go|trimmingOptionRepository.CountUsageByTrimmingOptionID":            {},
+	"trimming/trimming_option_repository.go|trimmingOptionRepository.Create":                                  {},
+	"trimming/trimming_option_repository.go|trimmingOptionRepository.Delete":                                  {},
+	"trimming/trimming_option_repository.go|trimmingOptionRepository.FindAll":                                 {},
+	"trimming/trimming_option_repository.go|trimmingOptionRepository.FindByID":                                {},
+	"trimming/trimming_option_repository.go|trimmingOptionRepository.update":                                  {},
 	// reservationtype domain package (methods that previously used dbOrTx).
 	"reservation/reservation_type_repository.go|reservationTypeRepository.CountChildrenByParentID":       {},
 	"reservation/reservation_type_repository.go|reservationTypeRepository.CountUsageByReservationTypeID": {},

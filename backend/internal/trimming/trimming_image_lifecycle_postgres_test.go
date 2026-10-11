@@ -42,6 +42,9 @@ func TestImageLifecycle_PostgresRollbackLocksAndScope(t *testing.T) {
 	require.ErrorIs(t, transactor.WithTx(context.Background(), func(ctx context.Context) error {
 		require.NoError(t, repo.LockImageKeys(ctx, []ImageKey{key}))
 		require.NoError(t, repo.MarkImageKeyDeleted(ctx, key, 42))
+		deleted, err := repo.ImageKeyDeleted(ctx, key)
+		require.NoError(t, err)
+		assert.True(t, deleted)
 		return rollback
 	}), rollback)
 	require.NoError(t, transactor.WithTx(context.Background(), func(ctx context.Context) error {
