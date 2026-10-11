@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -10,6 +11,39 @@ import "./actionlint-queue-compat.test.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const PNPM_VERSION = "10.15.0";
+
+test("AgentShield executes a pinned trusted checkout instead of PR code", () => {
+  const workflow = read(".github/workflows/security-scan.yml");
+  const job = workflowJob(workflow, "agentshield");
+  const checkout = namedStep(job, "Checkout trusted AgentShield");
+  assert.match(checkout, /repository: MinoruSoga\/AnimalEkarte/);
+  assert.match(checkout, /ref: 50922e8e65db6248d435ec8b76d4ec752c8b6c96/);
+  assert.match(checkout, /persist-credentials: false/);
+  assert.match(checkout, /path: \.ci-agentshield/);
+  assert.match(checkout, /sparse-checkout: \.github\/actions\/agentshield/);
+  assert.doesNotMatch(checkout, /\$\{\{/);
+  const execution = namedStep(job, "Run AgentShield");
+  assert.match(execution, /uses: \.\/\.ci-agentshield\/\.github\/actions\/agentshield/);
+  assert.match(workflow, /permissions:\n  contents: read/);
+  assert.doesNotMatch(workflow, /pull_request_target|secrets\.|contents: write|id-token: write/);
+  assert.ok(job.indexOf("Verify trusted AgentShield bundle") < job.indexOf("Run AgentShield"));
+});
+
+test("AgentShield vendored bundle and source patch match reviewed provenance", () => {
+  const provenance = JSON.parse(read(".github/actions/agentshield/provenance.json"));
+  const sha256 = value => createHash("sha256").update(value).digest("hex");
+  assert.equal(sha256(read(".github/actions/agentshield/dist/action.js")), provenance.bundle_sha256);
+  assert.equal(sha256(read(".github/actions/agentshield/upstream.patch")), provenance.patch_sha256);
+  assert.equal(provenance.bundle_sha256, "d30ac2e68ee9266c4da7cfaa109f02fee22e3ca9880264c21d75050cabcecb9c");
+  assert.equal(provenance.upstream_commit, "b0891303bdcd6037376a94263d45cfd2ff3dfb98");
+  const job = workflowJob(read(".github/workflows/security-scan.yml"), "agentshield");
+  assert.ok(namedStep(job, "Verify trusted AgentShield bundle").includes(provenance.bundle_sha256));
+  const action = read(".github/actions/agentshield/action.yml");
+  assert.match(action, /using: "node24"/);
+  assert.match(action, /main: "dist\/action.js"/);
+  assert.doesNotMatch(action, /pre:|post:/);
+  assert.match(read(".github/actions/agentshield/LICENSE"), /Copyright \(c\) 2026 Affaan M/);
+});
 
 function read(relativePath) {
   return readFileSync(join(ROOT, relativePath), "utf8");

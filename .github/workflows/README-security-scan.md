@@ -2,10 +2,25 @@
 
 This repository uses `security-scan.yml` with AgentShield to run security checks.
 
-`affaan-m/agentshield` is pinned to a full commit SHA, not a mutable version tag.
-When upgrading AgentShield, resolve the target tag to its commit SHA with
-`git ls-remote https://github.com/affaan-m/agentshield.git refs/tags/<tag>^{}` and
-update the workflow intentionally.
+The maintained action is vendored under `.github/actions/agentshield`, based on
+`affaan-m/agentshield` v1.6.0 commit `b0891303bdcd6037376a94263d45cfd2ff3dfb98`.
+It corrects Prime schema applicability and quoted-prohibition classification;
+all other checks, input defaults and failure gates are retained.
+
+Execution uses a separate checkout of the reviewed full repository commit
+`50922e8e65db6248d435ec8b76d4ec752c8b6c96` and validates the bundle SHA-256.
+The PR checkout is scanned as data; its scanner implementation is not executed.
+The new checkout does not persist credentials, the job keeps `contents: read`,
+and no secret, write permission, dependency install or privileged event is added.
+See the action's README, MIT LICENSE, provenance.json and upstream.patch for
+reproduction and maintenance. Updating the scanner requires review, regression
+checks, rebuilding, refreshing provenance/hash, then an intentional commit-pin
+change. Never select execution code from a PR head or mutable ref.
+
+At PR606 head `1bb9c08`, local medium-threshold reproduction changes32→29
+(High11/Medium18); fail-on-findings still fails. Capabilities26, backend settings2
+and device1 remain unresolved. Runtime controls or capability reductions are
+not included, and quoted prohibitions are not proof of runtime enforcement.
 
 - **Triggers**
   - `push` on `main`, `staging`
@@ -20,7 +35,7 @@ update the workflow intentionally.
 - **Failure behavior (2026-08-30 root fix)**
   - AgentShield **always runs** (report visible on the check).
   - **Fails the job only when**:
-    1. PR targets `main`, **and** agent-config paths changed
+    1. PR targets `main` or `staging`, **and** agent-config paths changed
        (`.claude/**`, `.codex/**`, `.agents/**`, root `CLAUDE.md`,
        `**/AGENTS.md`, `**/.mcp.json`). Nested `docs/**/CLAUDE.md` is
        directory guidance, not the fail-gated agent-config surface, **or**

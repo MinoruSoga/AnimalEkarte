@@ -85,14 +85,23 @@ jobs:
           echo "agent_config_changed=${{ needs.changes.outputs.agent_config }}" >> "$GITHUB_OUTPUT"
           echo "Resolved fail_on_findings=${FAIL} (agent_config_changed=${{ needs.changes.outputs.agent_config }})"
 
+      # Execute only the reviewed scanner commit, never code from the PR checkout.
+      - name: Checkout trusted AgentShield
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: MinoruSoga/AnimalEkarte
+          ref: 50922e8e65db6248d435ec8b76d4ec752c8b6c96
+          path: .ci-agentshield
+          sparse-checkout: .github/actions/agentshield
+          persist-credentials: false
+
+      - name: Verify trusted AgentShield bundle
+        run: |
+          echo 'd30ac2e68ee9266c4da7cfaa109f02fee22e3ca9880264c21d75050cabcecb9c  .ci-agentshield/.github/actions/agentshield/dist/action.js' | sha256sum --check --strict
+
       - name: Run AgentShield
-        # Pinned to v1.6.0 (b0891303, "chore: release v1.6.0 (#145)").
-        # Use the self-contained dist/action.js bundle for CI reproduction;
-        # dist/index.js requires external dependencies and is not equivalent.
-        # Before upgrading, confirm the action bundle runs without dependency installation.
-        # Resolve tag -> commit:
-        #   git ls-remote https://github.com/affaan-m/agentshield.git refs/tags/<tag>^{}
-        uses: affaan-m/agentshield@b0891303bdcd6037376a94263d45cfd2ff3dfb98
+        # v1.6.0 plus reviewed schema/prohibition corrections; see provenance.json.
+        uses: ./.ci-agentshield/.github/actions/agentshield
         with:
           path: "."
           min-severity: "${{ github.event.inputs.min_severity || 'medium' }}"
