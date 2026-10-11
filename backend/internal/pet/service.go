@@ -218,7 +218,8 @@ type petService struct {
 	petOwnerTx        PetOwnerTransactor
 }
 
-// NewService constructs the pet use-case service.
+// NewService constructs the pet use-case service without transaction-dependent
+// owner changes or deletion. Production uses NewServiceWithPetOwnerReader.
 func NewService(
 	repo ServiceRepository,
 	ownerRepo OwnerFinder,
@@ -230,7 +231,7 @@ func NewService(
 }
 
 // NewServiceWithPetOwnerReader constructs the pet service with the secondary-owner
-// guard required by production owner changes.
+// guard and transaction required by production owner changes and deletion.
 func NewServiceWithPetOwnerReader(
 	repo ServiceRepository,
 	ownerRepo OwnerFinder,
@@ -474,20 +475,38 @@ func (s *petService) syncLstepTags(ctx context.Context, clinicID, ownerID uint64
 }
 
 func (s *petService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to find pet")
+	locker, ok := s.repo.(RowLockingRepository)
+	if !ok || s.petOwnerTx == nil {
+		return apperrors.WrapInternalServerError("pet deletion requires row locking and a transaction")
 	}
-	// FK依存チェック: カルテが紐付いている場合は削除を拒否
-	recordCount, err := s.medicalRecordRepo.CountByPetID(ctx, clinicID, id)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to check medical record dependencies")
-	}
-	if recordCount > 0 {
-		return apperrors.WrapConflict("カルテが紐付いているため削除できません。先にカルテを削除またはこのペットを変更してください")
-	}
-
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+	var ownerID uint64
+	if err := s.petOwnerTx.WithTx(ctx, func(txCtx context.Context) error {
+		pet, err := locker.LockByIDForUpdate(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to lock pet")
+		}
+		if pet == nil {
+			return apperrors.WrapInternalServerError("pet lock returned no result")
+		}
+		ownerID = pet.OwnerID
+		// FK依存チェック: カルテが紐付いている場合は削除を拒否
+		recordCount, err := s.medicalRecordRepo.CountByPetID(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to check medical record dependencies")
+		}
+		if recordCount > 0 {
+			return apperrors.WrapConflict("カルテが紐付いているため削除できません。先にカルテを削除またはこのペットを変更してください")
+		}
+		return s.repo.Delete(txCtx, clinicID, id)
+	}); err != nil {
 		return apperrors.Wrap(err, "failed to delete pet")
+	}
+	// Deleted pets no longer contribute tentative next visits. Sync only after
+	// commit, using the owner fixed by the same row lock as owner transfers.
+	if s.tagSyncSvc != nil {
+		if err := s.tagSyncSvc.SyncNextVisitTag(ctx, clinicID, ownerID); err != nil {
+			slog.ErrorContext(ctx, "failed to sync next visit tag after pet deletion", "error", err, "owner_id", ownerID, "clinic_id", clinicID)
+		}
 	}
 	slog.InfoContext(ctx, "pet deleted",
 		slog.Uint64("pet_id", id),

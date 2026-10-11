@@ -41,6 +41,10 @@ func (p *petLifecyclePorts) FindByID(ctx context.Context, clinicID, petID uint64
 	return p.reader.FindByID(ctx, clinicID, petID)
 }
 
+func (p *petLifecyclePorts) LockByIDForUpdate(ctx context.Context, clinicID, petID uint64) (*model.Pet, error) {
+	return p.reader.LockByIDForUpdate(ctx, clinicID, petID)
+}
+
 func (p *petLifecyclePorts) FindLivingByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Pet, error) {
 	return p.reader.FindLivingByOwner(ctx, clinicID, ownerID)
 }
