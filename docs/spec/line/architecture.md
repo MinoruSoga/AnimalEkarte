@@ -112,3 +112,9 @@ LSTEP 周辺の「best-effort」は一語で混同しない。経路ごとに契
 - **流量**: Messaging API / Lステップ API のレート制限はクライアント実装の固定方針と運用監視で扱う。**バッチとリアルタイムを動的に切り替える rate adjustment は持たない**（未実装の動的流量調整を前提にしない）。
 
 ---
+
+### 次回来院タグの再試行
+
+`SyncNextVisitTag` は外部タグ操作前に、医院・飼主単位の `lstep_next_visit_sync_retries` を独立 commit する。owner lock 内で現在の予約・LINE連携先・同意を読み直し、全タグ操作とcache更新が成功した場合だけ、自身が enqueue した revision をcacheと同じtransactionで削除する。cache保存・commit・取消・外部操作の失敗は再試行記録を保持し、別の同期が追加した新しいrevisionは消さない。日次 tentative reconciliation は期限切れcacheと再試行記録をUNIONし、医院ごとに重複排除したowner IDのkeyset paginationで処理する。以前のcacheがない飼主も対象となる。
+
+連携解除・opt-out・同期停止中は既存の再試行記録を保持し、再開時に現在のsourceと連携先を再評価する。記録は過去のタグやLINE IDのsnapshotを持たないため、LINE ID変更前の旧アカウントに残ったタグの除去は保証しない。新規migration `033` は通常のmigration手順で適用してからこの同期コードを稼働させる。臨床記録ではない再試行用の技術テーブルだけを成功時にhard deleteする。

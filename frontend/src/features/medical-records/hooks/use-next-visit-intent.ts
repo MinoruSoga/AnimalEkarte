@@ -6,6 +6,7 @@ import { useGetReservations } from "@/hooks/use-get-reservations";
 import { useTimeBoundary, useTodayJst } from "@/hooks/use-today-jst";
 import { toJSTWallDate } from "@/lib/jst-date";
 
+import type { ClearNextVisitIntentVariables } from "@/hooks/use-next-visit-intent";
 import type { SetNextVisitIntentVariables } from "../api/next-visit-intent";
 import {
   deriveNextVisitState,
@@ -50,7 +51,7 @@ interface UseNextVisitIntentParams {
   clinicId?: string;
   isPetDeceased: boolean;
   setIntentMutation: AsyncMutation<SetNextVisitIntentVariables, unknown>;
-  clearIntentMutation: AsyncMutation<string | { petId: string; clinicId: string }, unknown>;
+  clearIntentMutation: AsyncMutation<ClearNextVisitIntentVariables, unknown>;
 }
 
 /**
@@ -223,9 +224,22 @@ export function useNextVisitIntent({
   );
 
   const runClearIntent = useCallback(() => {
+    // Capture the displayed row before queuing. Never adopt a newer revision at
+    // execution time, and never fall back to an unguarded pet-only DELETE.
+    if (!tentativeReservation?.id || !tentativeReservation.updatedAt) {
+      resetIntentDraft();
+      return;
+    }
+    const expectedReservationId = tentativeReservation.id;
+    const expectedUpdatedAt = tentativeReservation.updatedAt;
     const gen = enqueueIntentMutation(async () => {
       try {
-        await clearIntentMutation.mutateAsync(clinicId !== undefined ? { petId, clinicId } : petId);
+        await clearIntentMutation.mutateAsync({
+          petId,
+          ...(clinicId !== undefined ? { clinicId } : {}),
+          expectedReservationId,
+          expectedUpdatedAt,
+        });
         if (isCurrentScope()) toast.success("次回予定をクリアしました");
       } catch {
         if (isCurrentScope() && gen === mutationQueueRef.current?.queue.generation)
@@ -236,6 +250,7 @@ export function useNextVisitIntent({
     enqueueIntentMutation,
     petId,
     clinicId,
+    tentativeReservation,
     clearIntentMutation,
     isCurrentScope,
     resetIntentDraft,

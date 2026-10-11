@@ -53,6 +53,16 @@ func (s *lstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ow
 	if !ok {
 		return apperrors.WrapInternalServerError("next visit owner lock is not configured")
 	}
+	retries, ok := s.tagCacheRepo.(nextVisitSyncRetryQueue)
+	if !ok {
+		return apperrors.WrapInternalServerError("next visit retry queue is not configured")
+	}
+	// Durable before provider side effects; a failed/ambiguous cache commit must
+	// remain discoverable even when this owner has never had a cached tag.
+	revision, err := retries.EnqueueNextVisitSync(ctx, clinicID, ownerID)
+	if err != nil {
+		return err
+	}
 	apiFailed := false
 	attempted := false
 	err = locker.WithNextVisitOwnerLock(ctx, clinicID, ownerID, func(syncCtx context.Context) error {
@@ -68,7 +78,10 @@ func (s *lstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ow
 		}
 		lineUserID = target
 		attempted = true
-		return s.reconcileNextVisitTag(syncCtx, client, clinicID, ownerID, lineUserID, &apiFailed)
+		if syncErr := s.reconcileNextVisitTag(syncCtx, client, clinicID, ownerID, lineUserID, &apiFailed); syncErr != nil {
+			return syncErr
+		}
+		return retries.AcknowledgeNextVisitSync(syncCtx, clinicID, ownerID, revision)
 	})
 	// Counter persistence must happen after the lock transaction releases its
 	// connection: otherwise rollback loses accounting, and a pool of one deadlocks.

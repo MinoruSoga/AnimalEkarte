@@ -10,12 +10,28 @@ import (
 )
 
 type mockLstepTagCacheRepository struct {
-	withNextVisitOwnerLockFn func(context.Context, uint64, uint64, func(context.Context) error) error
-	upsertTagFn              func(ctx context.Context, clinicID, ownerID uint64, tagName, category, reason string) error
-	deleteTagFn              func(ctx context.Context, clinicID, ownerID uint64, tagName string) error
-	deleteAllByOwnerFn       func(ctx context.Context, clinicID, ownerID uint64) error
-	findByOwnerFn            func(ctx context.Context, clinicID, ownerID uint64) ([]*model.LstepTagCache, error)
-	findByOwnersFn           func(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64][]*model.LstepTagCache, error)
+	enqueueNextVisitSyncFn     func(context.Context, uint64, uint64) (uint64, error)
+	acknowledgeNextVisitSyncFn func(context.Context, uint64, uint64, uint64) error
+	withNextVisitOwnerLockFn   func(context.Context, uint64, uint64, func(context.Context) error) error
+	upsertTagFn                func(ctx context.Context, clinicID, ownerID uint64, tagName, category, reason string) error
+	deleteTagFn                func(ctx context.Context, clinicID, ownerID uint64, tagName string) error
+	deleteAllByOwnerFn         func(ctx context.Context, clinicID, ownerID uint64) error
+	findByOwnerFn              func(ctx context.Context, clinicID, ownerID uint64) ([]*model.LstepTagCache, error)
+	findByOwnersFn             func(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64][]*model.LstepTagCache, error)
+}
+
+func (m *mockLstepTagCacheRepository) EnqueueNextVisitSync(ctx context.Context, clinicID, ownerID uint64) (uint64, error) {
+	if m.enqueueNextVisitSyncFn != nil {
+		return m.enqueueNextVisitSyncFn(ctx, clinicID, ownerID)
+	}
+	return 1, nil
+}
+
+func (m *mockLstepTagCacheRepository) AcknowledgeNextVisitSync(ctx context.Context, clinicID, ownerID, revision uint64) error {
+	if m.acknowledgeNextVisitSyncFn != nil {
+		return m.acknowledgeNextVisitSyncFn(ctx, clinicID, ownerID, revision)
+	}
+	return nil
 }
 
 func (m *mockLstepTagCacheRepository) UpsertTag(ctx context.Context, clinicID, ownerID uint64, tagName, category, reason string) error {

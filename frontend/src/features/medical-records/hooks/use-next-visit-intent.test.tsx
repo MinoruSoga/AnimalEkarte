@@ -34,9 +34,14 @@ function validFutureDate(): string {
   return formatJSTWallDate(d);
 }
 
-/** テスト用の最小予約。deriveNextVisitState が読む status/start のみを持つ。 */
+/** 表示した予約の CAS token を含む最小予約。 */
 function reservationOf(status: string, start: Date): Reservation {
-  return { status, start } as unknown as Reservation;
+  return {
+    id: "42",
+    updatedAt: "2026-10-11T00:00:00.123456789Z",
+    status,
+    start,
+  } as unknown as Reservation;
 }
 
 function mockReservations(items: Reservation[]) {
@@ -174,7 +179,11 @@ describe("useNextVisitIntent — tentative mutation（EMR-308 A2）", () => {
       result.current.handleIntentDateChange("");
     });
 
-    expect(clearIntentMutation.mutateAsync).toHaveBeenCalledWith("10");
+    expect(clearIntentMutation.mutateAsync).toHaveBeenCalledWith({
+      petId: "10",
+      expectedReservationId: "42",
+      expectedUpdatedAt: "2026-10-11T00:00:00.123456789Z",
+    });
     expect(setIntentMutation.mutateAsync).not.toHaveBeenCalled();
   });
 
@@ -218,7 +227,8 @@ describe("useNextVisitIntent — ガード", () => {
     });
     mockReservations([
       {
-        id: "t-1",
+        id: "42",
+        updatedAt: "2026-10-11T00:00:00.123456789Z",
         status: "tentative",
         start: wallDateInDays(45, 0, 0),
       } as unknown as Reservation,
@@ -252,7 +262,8 @@ describe("useNextVisitIntent — ガード", () => {
     });
     mockReservations([
       {
-        id: "t-1",
+        id: "42",
+        updatedAt: "2026-10-11T00:00:00.123456789Z",
         status: "tentative",
         start: wallDateInDays(45, 0, 0),
       } as unknown as Reservation,
@@ -271,10 +282,16 @@ describe("useNextVisitIntent — ガード", () => {
     await act(async () => {
       result.current.handleIntentDateChange("");
     });
-    expect(clearIntentMutation.mutateAsync).toHaveBeenCalledWith("10");
+    expect(clearIntentMutation.mutateAsync).toHaveBeenCalledWith({
+      petId: "10",
+      expectedReservationId: "42",
+      expectedUpdatedAt: "2026-10-11T00:00:00.123456789Z",
+    });
   });
 
   it("create なし・edit のみ: set（PUT）は送らず clear（DELETE）は送る", async () => {
+    const start = wallDateInDays(45, 0, 0);
+    mockReservations([reservationOf("tentative", start)]);
     // PUT intent は reservations:create、DELETE intent は reservations:edit の
     // 方向別契約（routes.go）。canEdit だけでも intentFieldValue の消去は動く。
     vi.mocked(usePermission).mockReturnValue({
@@ -289,7 +306,7 @@ describe("useNextVisitIntent — ガード", () => {
       result.current.handleIntentDateChange(validFutureDate());
     });
     expect(setIntentMutation.mutateAsync).not.toHaveBeenCalled();
-    expect(result.current.intentFieldValue).toBe("");
+    expect(result.current.intentFieldValue).toBe(formatJSTWallDate(start));
     expect(result.current.canSetIntent).toBe(false);
     expect(result.current.canClearIntent).toBe(true);
 
@@ -297,7 +314,11 @@ describe("useNextVisitIntent — ガード", () => {
       result.current.handleIntentDateChange("");
     });
     expect(result.current.canMutateIntent).toBe(true);
-    expect(clearIntentMutation.mutateAsync).toHaveBeenCalledWith("10");
+    expect(clearIntentMutation.mutateAsync).toHaveBeenCalledWith({
+      petId: "10",
+      expectedReservationId: "42",
+      expectedUpdatedAt: "2026-10-11T00:00:00.123456789Z",
+    });
   });
 
   it("edit なし・create のみ: set（PUT）は送り clear（DELETE）は送らない", async () => {
@@ -380,6 +401,7 @@ describe("useNextVisitIntent — ガード", () => {
 
 describe("useNextVisitIntent — mutation 直列化（Codex PR606 #11）", () => {
   it("set 実行中に clear を要求すると、set 完了まで clear は発行されない", async () => {
+    mockReservations([reservationOf("tentative", wallDateInDays(45, 0, 0))]);
     let resolveSet!: () => void;
     const setIntentMutation = {
       mutateAsync: vi.fn().mockImplementation(
@@ -412,7 +434,13 @@ describe("useNextVisitIntent — mutation 直列化（Codex PR606 #11）", () =>
     await act(async () => {
       resolveSet();
     });
-    await waitFor(() => expect(clearIntentMutation.mutateAsync).toHaveBeenCalledWith("10"));
+    await waitFor(() =>
+      expect(clearIntentMutation.mutateAsync).toHaveBeenCalledWith({
+        petId: "10",
+        expectedReservationId: "42",
+        expectedUpdatedAt: "2026-10-11T00:00:00.123456789Z",
+      }),
+    );
     // 発行順序: set → clear（逆順完了による stale intentDate 復活を防ぐ）
     const setOrder = setIntentMutation.mutateAsync.mock.invocationCallOrder[0];
     const clearOrder = clearIntentMutation.mutateAsync.mock.invocationCallOrder[0];

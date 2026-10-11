@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -434,6 +435,68 @@ func TestLstepBatchService_DetectNoShowReservations_AuditFailureFailsClosed(t *t
 type noShowCancelOnCommitTransactor struct {
 	cancel context.CancelFunc
 	calls  int
+}
+
+// Model a successful commit whose acknowledgement reaches the caller as the
+// primary deadline expires. No database is used by this boundary fixture.
+type noShowDeadlineOnCommitTransactor struct {
+	calls int
+}
+
+func (m *noShowDeadlineOnCommitTransactor) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	m.calls++
+	if err := fn(ctx); err != nil {
+		return err
+	}
+	<-ctx.Done()
+	return nil
+}
+
+func TestLstepBatchService_DetectNoShowReservations_BoundsSyncAfterPrimaryDeadline(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		startedAt := time.Now()
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
+		ownerID := uint64(42)
+		var marked []uint64
+		repo := &noShowMockReservationRepository{
+			findNoShowCandidatesFn: func(context.Context, uint64) ([]model.Reservation, error) {
+				return []model.Reservation{{ID: 5, OwnerID: &ownerID}, {ID: 6, OwnerID: &ownerID}}, nil
+			},
+			markNoShowFn: func(c context.Context, _ uint64, id uint64) (reservation.NoShowTransition, error) {
+				require.NoError(t, c.Err(), "primary writes must precede the deadline")
+				marked = append(marked, id)
+				return reservation.NoShowTransition{Changed: true, PreviousStatus: model.ReservationStatusConfirmed, OwnerID: ownerID}, nil
+			},
+		}
+		svc := newNoShowBatchService(repo, &dormantMockClinicRepository{}, &mockAuditService{}, &mockLstepSettingsService{})
+		tx := &noShowDeadlineOnCommitTransactor{}
+		svc.transactor = tx
+		var syncCalls int
+		svc.tagSyncSvc = &batchMockTagSyncSvc{
+			syncNextVisitTagFn: func(c context.Context, _, _ uint64) error {
+				syncCalls++
+				require.ErrorIs(t, ctx.Err(), context.DeadlineExceeded)
+				require.NoError(t, c.Err(), "the committed item retains its detached sync budget")
+				require.Nil(t, persistence.TxFromContext(c))
+				deadline, ok := c.Deadline()
+				require.True(t, ok)
+				require.Equal(t, startedAt.Add(110*time.Second), deadline)
+				<-c.Done()
+				return c.Err()
+			},
+		}
+
+		count, errs := svc.detectNoShowReservations(ctx, 7)
+
+		require.Equal(t, 1, count, "sync timeout must not undo a committed no-show")
+		require.Equal(t, 1, tx.calls)
+		require.Equal(t, 1, syncCalls)
+		require.Equal(t, []uint64{5}, marked, "no second primary write after the deadline")
+		require.Len(t, errs, 1)
+		require.ErrorIs(t, errs[0], context.DeadlineExceeded)
+		require.Equal(t, 110*time.Second, time.Since(startedAt), "the tail is finite, with no wall-clock wait")
+	})
 }
 
 func (m *noShowCancelOnCommitTransactor) WithTx(ctx context.Context, fn func(context.Context) error) error {

@@ -3,6 +3,8 @@ import {
   SCHEDULED_JOB_FETCH_TIMEOUT_MS,
   SCHEDULED_JOB_GO_TIMEOUT_MS,
   SCHEDULED_JOB_LEASE_MS,
+  SCHEDULED_JOB_NO_SHOW_FETCH_TIMEOUT_MS,
+  SCHEDULED_JOB_POST_COMMIT_TIMEOUT_MS,
   SCHEDULER_NAME,
   jobsForCron,
   isScheduledJobsInternalPath,
@@ -31,10 +33,17 @@ describe("scheduled job constants", () => {
   it("keeps the approved stable coordinator name and timeout hierarchy", () => {
     expect(SCHEDULER_NAME).toBe("animalekarte-scheduler-v1");
     expect(SCHEDULED_JOB_GO_TIMEOUT_MS).toBe(100_000);
+    expect(SCHEDULED_JOB_POST_COMMIT_TIMEOUT_MS).toBe(10_000);
     expect(SCHEDULED_JOB_FETCH_TIMEOUT_MS).toBe(110_000);
+    expect(SCHEDULED_JOB_NO_SHOW_FETCH_TIMEOUT_MS).toBe(120_000);
     expect(SCHEDULED_JOB_LEASE_MS).toBe(150_000);
-    expect(SCHEDULED_JOB_GO_TIMEOUT_MS).toBeLessThan(SCHEDULED_JOB_FETCH_TIMEOUT_MS);
+    expect(
+      SCHEDULED_JOB_NO_SHOW_FETCH_TIMEOUT_MS -
+        SCHEDULED_JOB_GO_TIMEOUT_MS -
+        SCHEDULED_JOB_POST_COMMIT_TIMEOUT_MS,
+    ).toBe(10_000);
     expect(SCHEDULED_JOB_FETCH_TIMEOUT_MS).toBeLessThan(SCHEDULED_JOB_LEASE_MS);
+    expect(SCHEDULED_JOB_NO_SHOW_FETCH_TIMEOUT_MS).toBeLessThan(SCHEDULED_JOB_LEASE_MS);
   });
 });
 
@@ -185,10 +194,7 @@ describe("runScheduledJobRequest", () => {
 
   it("rejects an HTTP error that falsely claims success", async () => {
     const fetcher = vi.fn(async () =>
-      Response.json(
-        { outcome: "success", processed: 0, succeeded: 0, failed: 0 },
-        { status: 500 },
-      ),
+      Response.json({ outcome: "success", processed: 0, succeeded: 0, failed: 0 }, { status: 500 }),
     );
 
     await expect(runScheduledJobRequest(fetcher, requestFor("dormant"))).rejects.toThrowError(
@@ -215,6 +221,48 @@ describe("runScheduledJobRequest", () => {
     );
   });
 
+  it("accepts a no-show response after the full Go deadline and post-commit tail", async () => {
+    vi.useFakeTimers();
+    try {
+      let signal: AbortSignal | undefined;
+      const fetcher = vi.fn(
+        (request: Request) =>
+          new Promise<Response>((resolve) => {
+            signal = request.signal;
+            setTimeout(
+              () =>
+                resolve(
+                  Response.json({
+                    outcome: "success",
+                    processed: 1,
+                    succeeded: 1,
+                    failed: 0,
+                  }),
+                ),
+              SCHEDULED_JOB_GO_TIMEOUT_MS + SCHEDULED_JOB_POST_COMMIT_TIMEOUT_MS,
+            );
+          }),
+      );
+      const result = runScheduledJobRequest(fetcher, requestFor("no_show"));
+      const success = expect(result).resolves.toEqual({
+        outcome: "success",
+        processed: 1,
+        succeeded: 1,
+        failed: 0,
+      });
+
+      await vi.advanceTimersByTimeAsync(
+        SCHEDULED_JOB_GO_TIMEOUT_MS + SCHEDULED_JOB_POST_COMMIT_TIMEOUT_MS,
+      );
+      await success;
+      expect(signal?.aborted).toBe(false);
+      expect(fetcher).toHaveBeenCalledTimes(1);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("aborts containerFetch at the Worker timeout", async () => {
     vi.useFakeTimers();
     const fetcher = vi.fn(
@@ -226,21 +274,26 @@ describe("runScheduledJobRequest", () => {
 
     const result = runScheduledJobRequest(fetcher, requestFor("no_show"));
     const rejection = expect(result).rejects.toThrowError(/timed out/i);
-    await vi.advanceTimersByTimeAsync(SCHEDULED_JOB_FETCH_TIMEOUT_MS);
+    await vi.advanceTimersByTimeAsync(SCHEDULED_JOB_NO_SHOW_FETCH_TIMEOUT_MS);
 
     await rejection;
     vi.useRealTimers();
   });
 
-  it("rejects at the Worker timeout even when containerFetch ignores AbortSignal", async () => {
-    vi.useFakeTimers();
-    const fetcher = vi.fn(() => new Promise<Response>(() => undefined));
+  it.each(["no_show", "delivery"] as const)(
+    "rejects %s at its timeout even when containerFetch ignores AbortSignal",
+    async (job) => {
+      vi.useFakeTimers();
+      const fetcher = vi.fn(() => new Promise<Response>(() => undefined));
 
-    const result = runScheduledJobRequest(fetcher, requestFor("delivery"));
-    const rejection = expect(result).rejects.toThrowError(/timed out/i);
-    await vi.advanceTimersByTimeAsync(SCHEDULED_JOB_FETCH_TIMEOUT_MS);
+      const result = runScheduledJobRequest(fetcher, requestFor(job));
+      const rejection = expect(result).rejects.toThrowError(/timed out/i);
+      await vi.advanceTimersByTimeAsync(
+        job === "no_show" ? SCHEDULED_JOB_NO_SHOW_FETCH_TIMEOUT_MS : SCHEDULED_JOB_FETCH_TIMEOUT_MS,
+      );
 
-    await rejection;
-    vi.useRealTimers();
-  });
+      await rejection;
+      vi.useRealTimers();
+    },
+  );
 });

@@ -13,16 +13,35 @@ import (
 // FindOwnerIDsWithExpiredTentativeTagCursor returns owners directly from past
 // next_visit tag cache entries, including former owners and deleted pets. All past dates are considered so
 // a paused daily job catches up. Successful cache removal removes the candidate;
-// failed removal leaves it available on the next run. Appointment state is unchanged.
+// failed removal leaves it available on the next run. Durable sync retries are
+// also candidates, even without any cache row. Appointment state is unchanged.
 func (r *reservationRepository) FindOwnerIDsWithExpiredTentativeTagCursor(
 	ctx context.Context, clinicID uint64, asOf time.Time, afterOwnerID uint64, limit int,
 ) ([]uint64, error) {
 	ownerIDs := make([]uint64, 0)
-	err := r.expiredTentativeTagOwnersQuery(ctx, clinicID, asOf, afterOwnerID, limit).Find(&ownerIDs).Error
+	err := r.nextVisitTagRepairOwnersQuery(ctx, clinicID, asOf, afterOwnerID, limit).Find(&ownerIDs).Error
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to find expired tentative tag owners")
 	}
 	return ownerIDs, nil
+}
+
+func (r *reservationRepository) nextVisitTagRepairOwnersQuery(
+	ctx context.Context, clinicID uint64, asOf time.Time, afterOwnerID uint64, limit int,
+) *gorm.DB {
+	if limit <= 0 || limit > 200 {
+		limit = 200
+	}
+	expired := r.expiredTentativeTagOwnersQuery(ctx, clinicID, asOf, afterOwnerID, limit)
+	pending := persistence.DBOrTx(ctx, r.db).Table("lstep_next_visit_sync_retries AS retry").
+		Select("retry.owner_id AS owner_id").
+		Joins("JOIN owners owner ON owner.id = retry.owner_id AND owner.clinic_id = retry.clinic_id AND owner.deleted_at IS NULL").
+		Where("retry.clinic_id = ? AND retry.owner_id > ?", clinicID, afterOwnerID).
+		Order("owner_id ASC").Limit(limit)
+	// Each source and the merged page are bounded. UNION deduplicates owners
+	// appearing in both sources before the shared keyset cursor advances.
+	return persistence.DBOrTx(ctx, r.db).Table("((?) UNION (?)) AS candidates", expired, pending).
+		Select("owner_id").Order("owner_id ASC").Limit(limit)
 }
 
 func (r *reservationRepository) expiredTentativeTagOwnersQuery(

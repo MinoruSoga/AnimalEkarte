@@ -63,6 +63,7 @@ func TestExpiredTentativeTagCursor_QueryBoundaries(t *testing.T) {
 func TestExpiredTentativeTagCursor_DBStateAndCatchUp(t *testing.T) {
 	db := setupReservationRepoTestDB(t)
 	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.LstepTagCache{}))
+	setupEmptyNextVisitRetryQueueFixture(t, db)
 	repo := NewReservationRepository(db)
 	const clinicA, clinicB = uint64(1), uint64(2)
 	ownerA := testdb.MakeTestOwner(t, db, clinicA, "期限超過A")
@@ -115,6 +116,7 @@ func TestExpiredTentativeTagCursor_FormerOwnersAreCacheCandidates(t *testing.T) 
 func TestExpiredTentativeTagCursor_DBTransferSoftDeleteAndMalformedDates(t *testing.T) {
 	db := setupReservationRepoTestDB(t)
 	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.LstepTagCache{}))
+	setupEmptyNextVisitRetryQueueFixture(t, db)
 	repo := NewReservationRepository(db)
 	a := testdb.MakeTestOwner(t, db, 1, "retry former A")
 	b := testdb.MakeTestOwner(t, db, 1, "retry former B")
