@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
+import { CURRENT_CLINIC_STORAGE_KEY, setStoredClinicId } from "@/lib/current-clinic";
 
 import type { MasterItem } from "@/types";
 import { HospitalizationListPageView } from "./HospitalizationListPanels";
@@ -126,6 +127,7 @@ function renderPageView(
 }
 
 beforeEach(() => {
+  expect(setStoredClinicId("1")).toBe(true);
   dndHarness.useDraggable.mockClear();
   dndHarness.useDroppable.mockClear();
   dndHarness.active = null;
@@ -139,6 +141,7 @@ beforeEach(() => {
 
 afterEach(() => {
   server.resetHandlers();
+  localStorage.removeItem(CURRENT_CLINIC_STORAGE_KEY);
 });
 
 describe("HospitalizationListPanels EMR-306 merge mode toggle", () => {
@@ -352,4 +355,48 @@ describe("HospitalizationListPanels EMR-306 merge mode toggle", () => {
       expect(screen.queryByText("ケージの連結を解除しますか？")).not.toBeInTheDocument(),
     );
   });
+
+  it.each([
+    { label: "clinic 未選択", storedClinicId: null },
+    { label: "clinic が空白文字", storedClinicId: "   " },
+  ])(
+    "$label では連結モード ON でも占有クエリも merge POST も発行せず連結できない",
+    async ({ storedClinicId }) => {
+      if (storedClinicId === null) {
+        localStorage.removeItem(CURRENT_CLINIC_STORAGE_KEY);
+      } else {
+        localStorage.setItem(CURRENT_CLINIC_STORAGE_KEY, storedClinicId);
+      }
+      let occupancyRequests = 0;
+      let mergeRequests = 0;
+      server.use(
+        http.get("*/v1/masters/cages/occupancy", () => {
+          occupancyRequests += 1;
+          return HttpResponse.json({ occupied_cage_ids: [] });
+        }),
+        http.post("*/v1/masters/cages/:id/merge", () => {
+          mergeRequests += 1;
+          return HttpResponse.json({ id: 13 });
+        }),
+      );
+
+      const user = userEvent.setup();
+      renderPageView({ boardHospitalizations: [] });
+      const toggle = screen.getByRole("button", { name: "ケージ連結モード" });
+      await user.click(toggle);
+      expect(toggle).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("status")).toHaveTextContent("連結できません");
+
+      act(() => {
+        dndHarness.onDragEnd?.({
+          active: { data: { current: { mergeCageId: "11" } } },
+          over: { id: "cage-13" },
+        });
+      });
+
+      expect(screen.queryByText("ケージを連結しますか？")).not.toBeInTheDocument();
+      expect(occupancyRequests).toBe(0);
+      expect(mergeRequests).toBe(0);
+    },
+  );
 });
