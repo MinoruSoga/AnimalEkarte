@@ -74,17 +74,58 @@ UI動作、フォーム、ルーティング、アクセシビリティに変更
 
 Claudeのarchitectとsilent-failure-hunterはRead/Grep/Globで分析し、shell実行は担当者へ渡す。
 test-strategistは既存Write/Editを保持してテストを生成し、実行対象・期待結果を
-tdd-guideまたは担当実装者へ引き継ぐ。他の役割のBashは維持する。
+tdd-guideまたは担当実装者へ引き継ぐ。reviewer / formatter / database-reviewerも
+Bashを持たず、呼び出し側が固定base/headのscoped diff・staged diff・診断結果を
+供給する契約とする。残る12運用役割のBashは監査・修正のため維持する。
 Codexのanimalekarte-test-strategistは既存read-onlyのまま設計・patch案を報告し、
 適用と実行を担当実装者へ渡す。引き継ぎはDBや外部サービスの許可を追加しない。
 生成・静的検証は実runtimeのtool制限やsandbox適用の証明にはしない。
+
+## 役割ツール範囲インベントリ
+
+各役割のソースは `.claude/agents/<role>.md` のフロントマター `tools:`。プロジェクトソース `.claude/settings.json` に Bash の包括許可はないが、ユーザー/マネージド/CLIの親設定による最終合成は未検証（UNKNOWN）。
+
+| 役割 | 入力 | format/edit | build | scoped test/lint | TDD | Bash |
+|------|------|-------------|-------|------------------|-----|------|
+| code-simplifier | 呼出/diff | edits + posthooks | 修復なし | 等価性のscoped回帰 | 全サイクルなし | 保有 |
+| debugger | 再現手順/diff/ログ | 最小Edit + posthooks | root cause関連のみ | 再現/回帰 | 失敗再現→修正 | 保有 |
+| implementer | diff | Edit/Write + posthooks | タスク範囲 | scoped package/spec lint/test | 必要時RED/GREEN | 保有 |
+| build-error-resolver | 診断/diff | 最小Edit/Write + posthooks | FE修復（全体コマンドはユーザー実行、root禁止リスト準拠） | 変更ファイルeslint/spec、全体type/build証拠はユーザー | 機能サイクルなし | 保有 |
+| go-build-resolver | 診断/diff | 最小Edit/Write + posthooks | Go修復 | scoped vet/lint/package回帰 | 失敗build→成功 | 保有 |
+| refactor-cleaner | diff/履歴/参照グラフ | edits + posthooks | 機能build修復なし | 検出+影響回帰（codegenはユーザー実行） | テスト保持しつつrefactor | 保有 |
+| tdd-guide | diff | テスト+実装Edit/Write + posthooks | 関連のみ | scoped package/spec/race/coverage | RED/GREEN/REFACTOR | 保有 |
+| clinic-isolation-auditor | Go/SQL diff | なし | なし | TestPreloadClinicScope/TestMasterFKWriteInventory + 許可された隔離テスト | 証拠レビュー | 保有 |
+| go-reviewer | Go diff | なし | なし | scoped vet/test/race | 証拠レビュー | 保有 |
+| react-reviewer | TS/TSX diff | なし | なし | 変更ファイルeslint/spec | 証拠レビュー | 保有 |
+| typescript-reviewer | TS/TSX diff | なし | なし | 変更ファイルeslint/specとtype出力 | 証拠レビュー | 保有 |
+| security-analyst | 監査範囲/diff | なし | なし | gosec/依存監査は許可されたrunner/network+外部承認が必要、host pnpmなし（gosec導入有無は未確立・プロジェクトskillは未導入と記載。記述は権限条件でありツール利用可否の証明ではない） | なし | 保有 |
+| reviewer | 呼出の固定base/head scoped diff | なし | なし | 供給済み結果を読む | なし | 非保有 |
+| formatter | 呼出のstaged diff | Read/Edit整形 + posthooks | なし | 呼出/実装者が実行可能なformat/検証 | なし | 非保有 |
+| database-reviewer | 呼出diff+コード/スキーマ | なし | なし | 診断は別途承認されたユーザー/実行者 | なし | 非保有 |
+
+横断的事実: Codexマニフェストのread-only役割には今回対象のclinic/database/go/react/security/typescriptの他、animalekarte-planner/healthcare-reviewer/silent-failure-hunter/animalekarte-test-strategistも含まれる（6役割の列挙は網羅ではなく今回対象）。debugger/formatter/reviewerはマニフェスト不在。非read-only役割は親設定を継承し、read-only sandboxはshell/egress非保有の証明ではない。hookフィクスチャが証明するのはexit 2のJSON出力のみで、ホスト側の実効拒否ではない。PostEdit Go hookは`CLAUDE_PROJECT_DIR`/現在cwdからdocker composeでgofmtを起動し`/app`マウントを仮定、TS hookは現在cwdからdockerを起動しfrontendマウントを仮定するが、マウント/ソケット/資格情報/実行時権限はUNKNOWN。設定保護hookはexit 0の警告のみでセキュリティ設定変更は強制境界ではない。Bash必要役割が残る限りscanner債務は解消しない。ランタイム受入の責任はプロジェクト運用者/メンテナ（リポジトリオーナー）に残り、署名済みリスク受容を意味しない。
 
 ## Claude backend 起動入口
 
 backend作業も既存worktreeのrootをprimary cwdとして開始する。入口は
 `python3 scripts/tools/claude-backend.py`（backend内からは
 `python3 ../scripts/tools/claude-backend.py`）。
-入口はrootの共有設定の存在を確認してrootへ移動し、backendの
+入口はexec前にroot共有設定とbackend local設定のJSON形状を検証する
+（object root、`permissions`の`allow`/`deny`/`ask`文字列配列、`hooks`の
+イベント→配列マッピング、`disabledMcpjsonServers`文字列配列）。不正JSON・
+不正形状は入力値を含まない汎用メッセージで起動を拒否する。既知のhook無効化・
+権限bypassオプション（`--settings`、`--setting-sources`、`--bare`、`--safe-mode`、
+`--restricted`、`--dangerously-skip-permissions`、`--allow-dangerously-skip-permissions`、
+`--permission-mode bypassPermissions`。分離形・`=`形とも）と
+`CLAUDE_CODE_SIMPLE` / `CLAUDE_CODE_SAFE_MODE` のtruthy（`1`/`true`）環境設定も
+拒否する。スキャンは`--`以前の全トークンを既知拒否フラグと照合する保守的なもので、
+他オプションの値スキップは行わない（`--model --bare` のような値位置のフラグ語も
+拒否される。値として使いたい場合は `--opt=value` 形式にするか `--` 以降に書く）。
+`--`以降はprompt文として検査対象外で、未知オプションは保証範囲外
+（包括的なbypass防止ではなく、既知フラグの保守的検証）。この形状検証は
+リポジトリで使用される選択的な構造のみを対象とし、完全なClaudeスキーマ検証や
+ランタイム検証ではない。環境やユーザー設定は変更しない。
+検証後にrootへ移動し、backendの
 `disabledMcpjsonServers`を保持するため、そのローカル設定だけを
 `--settings <absolute-path>`で追加する。モデル等のユーザー設定を複製しない。
 backendを対象とするprompt/ファイルパスとDockerのscoped検証を使う。
@@ -95,8 +136,9 @@ backendを対象とするprompt/ファイルパスとDockerのscoped検証を使
 開始後は/statusでsetting sourcesを確認する。秘密値やuser/managed設定本文は報告しない。
 
 この入口はmanaged policyではなく、利用者のopt-in起動規約である。
-直起動、/cdによるprimary cwd移動、settings sources除外、bare/safe mode、
-hooks無効化、bypass flags、user/managed設定との実際の合成を防止したとは扱わない。
+入口経由の既知bypass引数・環境toggleは拒否するが、直起動、/cdによる
+primary cwd移動、親プロセスやuser/managed設定からのsettings sources除外・
+hooks無効化を防いだとは扱わない。実際の設定合成は未検証。
 入口テストはstubのcwd/argvだけを証明し、実Claudeの設定ロードを証明しない。
 backend設定へのpermissions/hooksの空追加、根拠なしscanner抑制は行わない。
 
@@ -111,9 +153,27 @@ literal sh/bash/zsh/dash -cを補助的に扱う。対象pathのread/realpathや
 /dev/null、通常のファイル出力、読み取り、通常git操作は追加ガードで拒否しない。
 このhook判定はDB/実デバイスへのアクセスを許可するものではない。
 
+入力エンベロープ面はfail-closed化済み: 1MiB byte上限超過・空/空白・不正UTF-8・
+不正/切断JSON・非object root・不正container形状・空/非文字列/競合する
+commandやイベント名エイリアスは一律汎用拒否（exit 2、reasonに入力値を含めない）。
+成功時は無出力exit 0。ただしfail-closedが保証するのはparser入力形状のみ。
 変数展開・alias/symlink・FD/proc alias・任意プログラムのopen/write、
-複雑なwrapperやshell構文、heredoc、hook未ロード/無効化、malformed JSONの
-既存fail-openは未解決。部分tokenizerによる複雑なshell構文の誤拒否もあり得る。
+複雑なwrapperやshell構文、heredoc、hook未ロード/無効化/タイムアウト時挙動は
+未解決（UNKNOWN）。部分tokenizerによる複雑なshell構文の誤拒否もあり得る。
 実デバイス書込不能を保証するには、agent実行ユーザー/隔離runtimeがraw deviceに
 write権限を持たず、device mountとprivileged accessを持たないことの別確認が必要。
 この補助ガードだけで包括的なdevice denyを宣言せず、残存する能力findingの安全性も認定しない。
+
+## 運用者ランタイムチェックリスト
+
+以下は本変更では未検証（全行UNKNOWNでありPASSではない）。運用者/メンテナが受入前に実環境で確認する。
+
+- [ ] ルートlauncher（`claude` 直接起動）で `.claude/settings.json` が実効ソースとして読み込まれること
+- [ ] `scripts/tools/claude-backend.py` 経由起動で backend overlay（`disabledMcpjsonServers` 6名）が実効設定に反映されること
+- [ ] `backend/` からの直接 `claude` 起動で期待外の設定探索にならないこと（または運用で禁止）
+- [ ] 実効設定ソース一覧（project/local/user/managed/CLI）とprecedenceの確認
+- [ ] 実効deny / PreToolUse hook がtool呼出で実際に拒否を返すこと（fixtureのexit 2 JSONだけでなくホスト側拒否）
+- [ ] 空白を含むパス・worktree cwdでのlauncher動作
+- [ ] CLI引数によるソース除外・親overrideによるhook無効化が成立しないこと
+- [ ] hookタイムアウト・起動失敗・依存読み込み失敗時の挙動
+- [ ] 全agent実行ユーザー・runner・hook context（PostEdit含む）がraw device mount・privileged・write権限を持たないこと

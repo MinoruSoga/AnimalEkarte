@@ -59,6 +59,8 @@ find frontend/src backend/internal -name "*.ts" -o -name "*.tsx" -o -name "*.go"
 
 ## このプロジェクト固有の確認事項
 
+`make codegen` は自動実行禁止（CLAUDE.md）のためユーザー実行例として記載する。この role が codegen を自動実行する権限はない。
+
 ```bash
 # Feature の index.ts (Public API) を確認してから削除
 grep -rn "from '@/features/xxx'" frontend/src/
@@ -66,7 +68,7 @@ grep -rn "from '@/features/xxx'" frontend/src/
 # Go interface が本当に未使用かを確認
 grep -rn "XxxInterface" backend/
 
-# GORM モデルが models.ts の codegen に使われていないか
+# GORM モデルが models.ts の codegen に使われていないか（codegen はユーザー実行例）
 make codegen 2>&1 | grep -i error
 ```
 

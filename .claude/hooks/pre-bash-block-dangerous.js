@@ -10,35 +10,101 @@
  * Protocol:
  * - Exit 2 = block (Claude Code / Grok)
  * - On deny, emit {"decision":"deny","reason":"..."} for Grok PreToolUse
- * - Fail-open only on parse errors (hook must stay available)
+ * - Fail-closed on oversized, malformed or conflicting input; deny reasons
+ *   never echo command text or raw stdin
  */
 'use strict';
 const { literalDeviceWrite } = require('./literal-device-write.js');
 
 const MAX_STDIN = 1024 * 1024;
-let data = '';
-process.stdin.setEncoding('utf8');
-
-process.stdin.on('data', (chunk) => {
-  if (data.length < MAX_STDIN) {
-    data += chunk.substring(0, MAX_STDIN - data.length);
-  }
-});
+const chunks = [];
+let size = 0;
 
 /**
- * Extract the shell command from Claude / Grok / Cursor-shaped payloads.
- * @param {Record<string, unknown>} input
- * @returns {string}
+ * @param {string} reason
+ * @returns {void}
  */
-function extractCommand(input) {
-  const toolInput = input.tool_input || input.toolInput || input.parameters || {};
-  if (typeof toolInput === 'object' && toolInput !== null) {
-    if (typeof toolInput.command === 'string') return toolInput.command;
-    if (typeof toolInput.cmd === 'string') return toolInput.cmd;
-  }
-  if (typeof input.command === 'string') return input.command;
-  return '';
+function deny(reason) {
+  process.stderr.write(`[Hook] BLOCKED: ${reason}\n`);
+  // Grok PreToolUse decision envelope (also harmless for Claude Code)
+  process.stdout.write(
+    JSON.stringify({
+      decision: 'deny',
+      reason,
+      permissionDecision: 'deny',
+      permissionDecisionReason: reason,
+    })
+  );
+  process.exit(2);
 }
+
+process.stdin.on('data', (chunk) => {
+  size += chunk.length;
+  if (size > MAX_STDIN) {
+    deny('Blocked oversized hook input.');
+    return;
+  }
+  chunks.push(chunk);
+});
+
+process.stdin.on('error', () => {
+  deny('Blocked unreadable hook input.');
+});
+
+function plainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * Extract the shell command and tool name from Claude / Grok / Cursor-shaped payloads.
+ * @param {Record<string, unknown>} input
+ * @returns {{ command: string, toolName: string|null, hasContainer: boolean, error: string|null }}
+ */
+function inspectEnvelope(input) {
+  const containers = [];
+  for (const key of ['tool_input', 'toolInput', 'parameters']) {
+    if (key in input) {
+      if (!plainObject(input[key])) {
+        return { command: '', toolName: null, hasContainer: false, error: 'Blocked malformed hook input.' };
+      }
+      containers.push(input[key]);
+    }
+  }
+  const commands = [];
+  for (const container of containers) {
+    for (const key of ['command', 'cmd']) {
+      if (key in container) commands.push(container[key]);
+    }
+  }
+  if ('command' in input) commands.push(input.command);
+  for (const value of commands) {
+    if (typeof value !== 'string' || !value.trim()) {
+      return { command: '', toolName: null, hasContainer: containers.length > 0, error: 'Blocked malformed hook input.' };
+    }
+  }
+  for (let i = 1; i < commands.length; i++) {
+    if (commands[i] !== commands[0]) {
+      return { command: '', toolName: null, hasContainer: containers.length > 0, error: 'Blocked conflicting hook input.' };
+    }
+  }
+  const names = [];
+  for (const key of ['tool_name', 'toolName']) {
+    if (key in input) names.push(input[key]);
+  }
+  for (const value of names) {
+    if (typeof value !== 'string' || !value.trim()) {
+      return { command: '', toolName: null, hasContainer: containers.length > 0, error: 'Blocked malformed hook input.' };
+    }
+  }
+  for (let i = 1; i < names.length; i++) {
+    if (names[i] !== names[0]) {
+      return { command: '', toolName: null, hasContainer: containers.length > 0, error: 'Blocked conflicting hook input.' };
+    }
+  }
+  return { command: commands[0] || '', toolName: names[0] || null, hasContainer: containers.length > 0, error: null };
+}
+
+const TARGET_TOOLS = new Set(['Bash', 'bash', 'Shell', 'shell', 'run_terminal_command']);
 
 /**
  * Patterns that permanently discard uncommitted work or rewrite shared history.
@@ -100,41 +166,49 @@ function matchDestructive(command) {
   return null;
 }
 
-/**
- * @param {string} reason
- * @param {string} command
- */
-function deny(reason, command) {
-  const preview = command.length > 200 ? `${command.slice(0, 200)}…` : command;
-  const message = `[Hook] BLOCKED: ${reason}\nCommand: ${preview}\n`;
-  process.stderr.write(message);
-  // Grok PreToolUse decision envelope (also harmless for Claude Code)
-  process.stdout.write(
-    JSON.stringify({
-      decision: 'deny',
-      reason,
-      permissionDecision: 'deny',
-      permissionDecisionReason: reason,
-    })
-  );
-  process.exit(2);
-}
-
 process.stdin.on('end', () => {
+  let text;
   try {
-    const input = JSON.parse(data);
-    const command = extractCommand(input);
-    if (command) {
-      const reason = matchDestructive(command);
-      if (reason) {
-        deny(reason, command);
-        return;
-      }
-    }
+    text = new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks));
   } catch {
-    // Parse error — fail-open (pass through)
+    deny('Blocked malformed hook input.');
+    return;
   }
-
-  process.stdout.write(data);
+  if (!text.trim()) {
+    deny('Blocked malformed hook input.');
+    return;
+  }
+  let input;
+  try {
+    input = JSON.parse(text);
+  } catch {
+    deny('Blocked malformed hook input.');
+    return;
+  }
+  if (!plainObject(input)) {
+    deny('Blocked malformed hook input.');
+    return;
+  }
+  const { command, toolName, hasContainer, error } = inspectEnvelope(input);
+  if (error) {
+    deny(error);
+    return;
+  }
+  if (!command) {
+    if (toolName && !TARGET_TOOLS.has(toolName)) {
+      if (hasContainer) {
+        process.exit(0);
+      }
+      deny('Blocked malformed hook input.');
+      return;
+    }
+    deny('Blocked shell event without a command.');
+    return;
+  }
+  const reason = matchDestructive(command);
+  if (reason) {
+    deny(reason);
+    return;
+  }
   process.exit(0);
 });

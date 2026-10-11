@@ -10,10 +10,12 @@ model: sonnet
 TypeScript/React のビルドエラー・型エラーを**最小差分**で解決する。リファクタリング・アーキテクチャ変更は行わない。
 
 > **起動条件**: 本エージェントはユーザーがビルド修復を依頼した文脈（`/fe-build` 等）でのみ起動する。
-> その依頼には全体 tsc/lint/build の実行が内包されるため、以下の診断コマンドを実行してよい。
-> ビルド修復以外の文脈で自発的に全体ビルドを実行しないこと（CLAUDE.md の自動実行禁止リスト）。
+> 全体 tsc/lint/build の実行はユーザー側の責務で、この role は提供された診断出力と
+> 変更ファイルスコープの確認のみ行う（CLAUDE.md の自動実行禁止リスト）。
 
-## 診断コマンド（Docker 経由）
+## 診断コマンド（ユーザー実行例）
+
+以下はユーザーが実行して結果を提供するコマンド例。この role は全体コマンドを自動実行しない。
 
 ```bash
 docker compose exec frontend npx tsc --noEmit
@@ -24,11 +26,11 @@ docker compose exec frontend pnpm build
 ## 解決フロー
 
 ```
-1. docker compose exec frontend npx tsc --noEmit  → 全エラー収集
-2. 該当ファイルを読む                              → コンテキスト理解
-3. 最小限の修正を適用                              → 必要な変更のみ
-4. docker compose exec frontend npx tsc --noEmit  → 修正確認
-5. docker compose exec frontend pnpm lint          → lint チェック
+1. ユーザー提供の全体 tsc/lint 出力  → 全エラー収集
+2. 該当ファイルを読む                → コンテキスト理解
+3. 最小限の修正を適用                → 必要な変更のみ
+4. 変更ファイルスコープの検証のみ実行  → scoped 診断
+5. 全体 tsc/lint/build の再確認       → ユーザーへ依頼
 ```
 
 ## よくあるエラーと修正

@@ -27,13 +27,46 @@ class AgentScopeContracts(unittest.TestCase):
 
     def test_operational_roles_keep_shell_access(self):
         for name in ('build-error-resolver', 'clinic-isolation-auditor',
-                     'code-simplifier', 'database-reviewer', 'debugger',
-                     'formatter', 'go-build-resolver', 'go-reviewer',
-                     'implementer', 'react-reviewer', 'refactor-cleaner',
-                     'reviewer', 'security-analyst', 'tdd-guide',
+                     'code-simplifier', 'debugger', 'go-build-resolver',
+                     'go-reviewer', 'implementer', 'react-reviewer',
+                     'refactor-cleaner', 'security-analyst', 'tdd-guide',
                      'typescript-reviewer'):
             with self.subTest(role=name):
                 self.assertIn('Bash', self.role_tools(name))
+
+    def test_shell_removed_roles_keep_read_tools(self):
+        expected = {
+            'reviewer': ('Read', 'Grep', 'Glob'),
+            'formatter': ('Read', 'Edit'),
+            'database-reviewer': ('Read', 'Grep', 'Glob'),
+        }
+        for name, tools in expected.items():
+            with self.subTest(role=name):
+                actual = self.role_tools(name)
+                self.assertNotIn('Bash', actual)
+                for tool in tools:
+                    self.assertIn(tool, actual)
+
+    def test_edit_roles_keep_write_or_edit(self):
+        for name in ('build-error-resolver', 'code-simplifier', 'debugger',
+                     'formatter', 'go-build-resolver', 'implementer',
+                     'refactor-cleaner', 'tdd-guide', 'test-strategist'):
+            with self.subTest(role=name):
+                self.assertTrue({'Edit', 'Write'} & set(self.role_tools(name)))
+
+    def test_role_prohibition_prose_present(self):
+        expected = {
+            'reviewer': ('BLOCKED',),
+            'formatter': ('BLOCKED',),
+            'database-reviewer': ('BLOCKED', 'ユーザー実行例'),
+            'build-error-resolver': ('ユーザー実行例', '変更ファイルスコープ'),
+            'refactor-cleaner': ('make codegen', 'ユーザー実行'),
+        }
+        for name, markers in expected.items():
+            with self.subTest(role=name):
+                body = (ROOT / '.claude/agents' / f'{name}.md').read_text(encoding='utf-8')
+                for marker in markers:
+                    self.assertIn(marker, body)
 
     def test_codex_test_strategy_does_not_expand_write_scope(self):
         manifest = json.loads((ROOT / '.claude/codex-agent-manifest.json').read_text())

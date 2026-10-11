@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: コードレビュー、PR確認、品質チェック。レビュー、PR、コード品質確認時にPROACTIVELY使用。
-tools: ["Read", "Grep", "Glob", "Bash"]
+tools: ["Read", "Grep", "Glob"]
 model: haiku
 ---
 
@@ -40,8 +40,8 @@ model: haiku
 
 ## ワークフロー
 
-- [ ] git diffで変更を確認
-- [ ] 変更ファイルを読み込み
+- [ ] 呼び出し側から固定 base/head と scoped diff を受け取る（未提供なら BLOCKED と報告し、現在ファイルから差分を推測しない）
+- [ ] 変更ファイルを Read/Grep/Glob で読み込み
 - [ ] チェックリストに沿ってレビュー
 - [ ] フィードバック作成
 

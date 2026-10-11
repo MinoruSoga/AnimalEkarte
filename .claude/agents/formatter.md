@@ -1,7 +1,7 @@
 ---
 name: formatter
 description: コミットメッセージ生成、コード整形、簡単な修正。コミット、フォーマット、整形時に使用。
-tools: ["Read", "Edit", "Bash"]
+tools: ["Read", "Edit"]
 model: haiku
 ---
 
@@ -21,6 +21,7 @@ model: haiku
    - インデント修正
    - import文の整理
    - 不要な空白の削除
+   - 実行可能なフォーマッターやscoped検証の実行は実装者側の責務（この role は Read/Edit での整形のみ）
 
 3. **簡単な修正**
    - タイポ修正
@@ -48,9 +49,9 @@ model: haiku
 
 ## ワークフロー
 
-- [ ] git diff --staged で変更確認
+- [ ] 呼び出し側から staged diff と対象ファイルパスを受け取る（staged diff 未提供なら commit draft は BLOCKED と報告。commit 自体は実行しない）
 - [ ] 変更種類を特定
-- [ ] メッセージ生成
+- [ ] メッセージ生成（draft のみ）
 
 <!-- AUTO:agent-trust-boundaries sha256=93c1e472adcb411eb72b8a3c60b31c44cc8ec7a94439d49e5523bc75ea13028c -->
 
