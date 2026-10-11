@@ -17,7 +17,7 @@
 | [E2E_TESTING_GUIDE.md](E2E_TESTING_GUIDE.md) | 実装済み Playwright coverage と runner | L3 回帰 |
 | [liff-verification.md](liff-verification.md) | LIFF の mock/実 LINE と秘密管理境界 | LIFF/LINE 検証 |
 | [SECTION_14_MANUAL_TEST_GUIDE.md](SECTION_14_MANUAL_TEST_GUIDE.md) | L5 の focused exploratory supplement | 補完確認 |
-| [UAT-DOMAIN-STATUS.md](UAT-DOMAIN-STATUS.md) | ドメイン別受け入れステータス（最新 UAT 集約） | 納品前・進捗確認 |
+| [UAT-DOMAIN-STATUS.md](UAT-DOMAIN-STATUS.md) | ドメイン別受け入れステータス（日付付き実行結果の記録。現在の受入・リリース状態は Plane。最新の release signoff ではない） | 納品前・進捗確認 |
 | [CLINICAL-E2E-DESIGN.md](CLINICAL-E2E-DESIGN.md) | `--clinical` fixture/allowlist と未実施境界 | clinical 自動回帰の準備 |
 | [S09-FIXTURE-DESIGN.md](S09-FIXTURE-DESIGN.md) | 完了時刻 fixture の package 実装と未実装の UAT 接続 | S09 BLOCKED の解消設計 |
 | [PERFORMANCE_PROFILING.md](PERFORMANCE_PROFILING.md) | Lighthouse、k6、SQL 分析、現行 profiler の制約 | 性能調査 |

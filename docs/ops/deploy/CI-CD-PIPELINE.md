@@ -7,11 +7,11 @@
 
 | 経路 | トリガー・設定 | 承認境界 |
 |---|---|---|
-| STG backend | `staging` push の `backend/**`、backend workflow、root package/lockfile 変更。または manual dispatch | staging job（`deploy`）の deploy 経路は EMR-148 でも不変（GitHub Environment binding なし。job-level `if:` で `target=production` dispatch では起動しない）。共有環境への dispatch / branch 更新は承認済み operator が行う |
-| STG frontend | `staging` push の `frontend/**` または frontend workflow 変更。または preview dispatch | job は `staging` Environment に bind（frontend-deploy.yml の `environment:` 式は production 以外を `staging` へ解決）。外部 protection の現在値は別途確認 |
+| STG backend | `staging` push の `backend/**`、backend workflow、root `package.json`/`pnpm-lock.yaml` 変更。または manual dispatch | staging job（`deploy`）は **`staging` Environment に bind** し、checkout は承認済み commit（`github.sha`）に固定。`refs/heads/production` からの STG deploy は job 内 guard が拒否し、job-level `if:` で `target=production` dispatch では起動しない。共有環境への dispatch / branch 更新は承認済み operator が行う |
+| STG frontend | `staging` push の `frontend/**`、frontend workflow、root `package.json`/`pnpm-lock.yaml` 変更。または preview dispatch | job は `staging` Environment に bind（frontend-deploy.yml の `environment:` 式は production 以外を `staging` へ解決）。外部 protection の現在値は別途確認 |
 | Production backend | `production` push（同じ path filter）または `target=production` dispatch で `deploy-production` job が起動。先頭 step が `refs/heads/production` 以外を拒否。`PROD_*` Environment secret、`npx wrangler deploy -c wrangler.production.jsonc`、`api.noah-karte.com` | job は **`Production`** Environment に bind。Environment reviewers / secrets / provider は人間前提。設定・検証が済むまで実行不可 |
 | Production frontend | `production` push の対象 path 変更。または `environment=production` dispatch | job は **`Production`** Environment に bind。production dispatch は `refs/heads/production` 以外を拒否。Required reviewers と branch protection の現在値は外部確認が必要 |
-| main push | CI。STG deploy workflow の直接 trigger ではない | review 済み `main -> staging` PR で昇格する |
+| main push | `ci.yml` は `pull_request` 対象のみで push trigger を持たず、deploy trigger もない。一方 `security-scan.yml`（AgentShield）は main/staging push で **report-only** 実行される（[ci-policy.md](../ci-policy.md)）。昇格は review 済み `main -> staging` PR で行い、その PR 上で remote check と `make ci` status が検証される | 日常開発 `main` と昇格 `main -> staging` のプロジェクト規約を使う |
 
 正本は `.github/workflows/backend-deploy.yml` と `frontend-deploy.yml`。
 [#253](https://github.com/MinoruSoga/AnimalEkarte/issues/253) 本文の「main push → STG」は delivery 方針であり、現行の直接 trigger は `staging`。日常開発 `main` と昇格 `main -> staging` のプロジェクト規約を使う。
@@ -24,8 +24,9 @@
 
 ```mermaid
 flowchart TB
-  M[main push] -->|CI のみ| CI[CI]
-  M -.->|review 済みの main から staging への PR で昇格| S[staging push]
+  M[main push] -->|review 済みの main から staging への PR で昇格| PR["main → staging PR"]
+  PR -->|"remote check: Workflow Contracts / Gitleaks / AgentShield + make ci status（actionlint のみ workflow 変更 PR）"| CI[CI]
+  PR -->|merge| S[staging push]
   S -->|backend / workflow / lockfile の変更、manual dispatch| BE[backend-deploy.yml]
   BE --> STGB[STG backend]
   S -->|frontend / workflow の変更、preview dispatch| FEP[frontend-deploy.yml]
@@ -45,7 +46,7 @@ flowchart TB
 5. `/health` が HTTP 200 / `status: ok` になるまで最大12回、30秒間隔で確認。
 6. `STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD` がある場合だけ `cf-crud-smoke.sh`。**continue-on-error の optional step** なので workflow green だけでは CRUD PASS を証明しない。
 
-順序は **deploy → migrate → health → optional smoke**。新 binary が旧 schema に到達し得る deploy 完了〜migration 完了（`MIGRATE_TIMEOUT=150s`）の区間は workflow コメントに記録された既知の制約。schema compatibility を release 前に確認する。
+順序は **deploy → migrate → health → optional smoke**。新 binary が旧 schema に到達し得る deploy 完了〜migration 完了の区間は既知の制約。`cf-run-migrate.sh` の `MIGRATE_TIMEOUT=270` は curl attempt 毎の値（default 最大 5 attempts・backoff 20s）で、Worker の migrate exec 上限は 240s — いずれも deploy/migration 合計時間の保証値ではない。schema compatibility を release 前に確認する。
 
 CSV seed は全環境で `002_master` のみ。STG は `APP_ENV=staging` を Worker/Container/migrate に渡し、フェーズ3で合成ログインを upsert する。詳細は [seed operations](SEED_MIGRATION_OPERATIONS.md)。health は process liveness であり DB access の証明ではない。
 
@@ -88,4 +89,4 @@ dispatch 後も run の `headSha == REVIEWED_SHA` を確認する。不一致、
 
 #253 は latest main required CI、STG deploy/health/failure notification、production reviewers、rollback時間、隔離 restore の実証を要求する。2026-07 の billing failure や 2026-08-20 の reviewers 空という記録は履歴であり、現在の failure と断定しない。
 
-実行時に Actions run URL/ID・headSha・required jobs、billing、Environment protection、secret scope、backup/restore を確認する。未確認は **UNKNOWN / HOLD**。本書の静的同期は課金復旧、release acceptance、Issue close を意味しない。
+実行時に Actions run URL/ID・headSha・required jobs、billing、Environment protection、secret scope、backup/restore を確認する。production の required checks 不整合（2026-10-11 観測）は [ci-policy.md](../ci-policy.md) を正本とし、merge 可否は head の check/status と保護設定の照合で判断する。不整合は release 前に人間が GitHub 側で解消する。未確認は **UNKNOWN / HOLD**。本書の静的同期は課金復旧、release acceptance、Issue close を意味しない。

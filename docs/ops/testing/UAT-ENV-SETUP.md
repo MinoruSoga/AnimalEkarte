@@ -7,7 +7,7 @@
 
 - `profile=local`: disposable local DB。CSV seed は `002_master`、別 phase の合成 login seed は下記 §3.2。
 - `profile=stg`: 承認済み dedicated UAT tenant。shared clinic や production は禁止。
-- `browser=cdp`: Chrome remote debugging `:9222` と project Chrome DevTools MCP。
+- `browser=cdp`: Chrome remote debugging `:9222` と Chrome DevTools MCP。ブラウザ MCP はユーザースコープの設定を使い、プロジェクトに共有設定を追加しない（repo の `.mcp.json` の `mcpServers` は空）。loopback CDP 接続は対象 URL の明示承認がある場合だけ利用する。
 - `browser=playwright`: supported Docker runner `frontend/scripts/run-e2e.sh`。host `frontend/node_modules/playwright` は prerequisite ではない。
 
 選択した一組について全項目が確認できない場合は **BLOCKED**。別 browser の INFO や frontend/backend HTTP 200 だけで ready としない。
@@ -19,7 +19,7 @@
 | 項目 | 合格条件 |
 |:--|:--|
 | target boundary | local disposable DB または承認済み専用 UAT tenant。対象 clinic ID と fixture owner を report に記録 |
-| stack | frontend `:3003`、backend `:8080/health`、DB/container health が OK |
+| stack | frontend `:3003`、backend `:8080/health`（main worktree の既定値。non-main worktree は `scripts/tools/worktree-env.sh` の unique offset を使う）、DB/container health が OK |
 | migration | backend が migrate 後に healthy。migration 変更を pull した場合はユーザー実行の `make migrate` も完了 |
 | seed | CSV `002_master` と別 phase `003_login` を区別する。臨床 row の存在をこれら seed の効果とみなさない |
 | account | 明示 provisioning 済みの UAT identity が login 可能で、必要 permission group/capability を持つ |
@@ -62,7 +62,7 @@ Backend startup 自体も migrate を先に実行する。ただし migration �
 
 - CSV loader が読むのは `002_master` の医院骨格・参照 master だけ。臨床 demo は含まない。
 - migrate は続いて `backend/cmd/migrate/login_seed.go` から `seedlogin` を実行する。`APP_ENV=development/local/dev/test/staging` では catalog の合成 account/staff/医院所属と権限グループ（医院ごとに執行1・一般9。林 文明は catalog 4医院すべてに執行所属）を upsert し、`003_login` の履歴を記録する。production・空・未知の環境では skip する。これは CSV bundle でも、任意の UAT 操作が可能な専用 account でもない。
-- login seed は再実行時も upsert する。catalog account の変更を恒久的な provisioning とせず、受入の許可 clinic・capability・cleanup は専用 fixture の receipt で確認する。
+- login seed は catalog と demo-password fingerprint の checksum が `schema_migrations` に一致する限り再実行を skip し、checksum 欠落・変更時だけ再 upsert する（毎実行 upsert ではない）。catalog account の変更を恒久的な provisioning とせず、受入の許可 clinic・capability・cleanup は専用 fixture の receipt で確認する。
 - local clinical data は [OLD_DB_HANDOFF_LOCAL.md](../deploy/OLD_DB_HANDOFF_LOCAL.md) と approved import contract に従う。データをこの文書へコピーしない。
 - account/staff/permission は [STAFF_ACCOUNT_PROVISIONING.md](../deploy/STAFF_ACCOUNT_PROVISIONING.md) に従い、人間承認の receipt を確認する。
 - destructive `make reset` は user-only。UAT agent が実行しない。
@@ -79,7 +79,7 @@ python3 -c 'import json,os,sys; json.dump({"email":os.environ["E2E_LOGIN_EMAIL"]
 
 ### 3.4 browser readiness
 
-For `browser=cdp`, Chrome `:9222` must listen and the project MCP must be connected. Use a UAT-only profile directory.
+For `browser=cdp`, Chrome `:9222` must listen and a user-scope Chrome DevTools MCP must be connected (repo `.mcp.json` のサーバー一覧は空。プロジェクトへ共有設定を追加しない). Use a UAT-only profile directory.
 
 ```bash
 /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome   --remote-debugging-port=9222   --user-data-dir=/tmp/chrome-debug-uat   --no-first-run about:blank

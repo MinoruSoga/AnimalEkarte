@@ -28,7 +28,7 @@ EMR-255 で frontend 配信を Vercel から Cloudflare Workers Static Assets �
 `frontend/vercel.json` の rewrite/header 規則は `frontend/worker/index.ts` と
 `frontend/public/_headers` が引き継ぐ。`/api/*` は同一オリジンの service binding
 経路になり、`api.stg.noah-karte.com` への外部 rewrite は不要になった
-(同ホスト名の backend Worker route は引き続き稼働)。`frontend/vercel.json` は
+(同ホスト名の backend Worker route は checked-in config 上は残置。稼働は runtime receipt が必要)。`frontend/vercel.json` は
 移行期のロールバック経路として残置し、CF 側の安定稼働確認後に削除する。
 
 Hyperdrive は Containers から利用できず、credential を Terraform state に載せるため再導入しない。
@@ -49,16 +49,16 @@ Hyperdrive は Containers から利用できず、credential を Terraform state
 
 “STG 稼働中”“PROD 未構築”、DB の存在や内容は runtime observation であり、repo config から断定しない。現行 migrate の seed bundle は全環境で `002_master` のみ。既存 STG データは別途確認する。
 
-## CLI ツール分担（2026-09-30）
+## CLI ツール分担（2026-09-30 時点の評価 — 歴史的観測）
 
-Cloudflare の新 CLI `cf`（v1.0.0-beta）を導入済み。分担は次のとおり。
+Cloudflare の新 CLI `cf`（v1.0.0-beta）を導入した。分担は次のとおり（当時の観測。`cf` の最新バージョン・機能・vendor support policy は実行時に再確認する）。
 
 | 用途 | ツール |
 |---|---|
 | deploy / migrate / `secret bulk` | `wrangler`（正本。`package.json` の `cf:*` scripts と `backend-deploy.yml` が使用） |
-| Cloudflare リソースの調査・ops（3000+ API ops、JSON 出力、`cf cli search`） | `cf`（グローバルインストール・`cf auth login` で OAuth 済み） |
+| Cloudflare リソースの調査・ops（3000+ API ops、JSON 出力、`cf cli search`） | `cf`（グローバルインストール・`cf auth login` で OAuth 済み — 2026-09-30 時点の当該環境の認証状態であり、現在の認証を保証しない） |
 
-`cf migrate --dry-run` の結果、この backend の **Containers と Durable Objects は cf beta 未対応**（containers は未移行・手動レビュー必須、DO migrations は `exports.durableObject()` への手書換えが必要）。deploy 経路を cf へ移すのは cf が containers/DO をサポートしてから再評価する。Wrangler は cf beta 終了後も18ヶ月保守される。
+`cf migrate --dry-run` の結果、この backend の **Containers と Durable Objects は cf beta 未対応**（containers は未移行・手動レビュー必須、DO migrations は `exports.durableObject()` への手書換えが必要）。deploy 経路を cf へ移すのは cf が containers/DO をサポートしてから再評価する。Wrangler は cf beta 終了後も18ヶ月保守される（2026-09-30 時点の Cloudflare 発表。最新の support policy は公式で再確認）。
 
 ## Historical observations, not current guarantees
 

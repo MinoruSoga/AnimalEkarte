@@ -52,6 +52,7 @@
 
 - **ステータス**: 詳細モーダルは 仮予約 / 予約確定 / 受付済 / 診療中 / 会計待ち / 完了 / キャンセル / 未来院 を扱う。来院後の主経路は `予約確定` → `受付済` → `診療中` → `会計待ち` → `完了`。
 - **tentative（EMR-308）**: `status='tentative'` の appointment は「次回予定・未予約」— 日付のみ確定（`intended_date`）で時間・枠・担当医は未定。カレンダー（`MonthView`/`WeekViewAppointmentCard`）は色ではなく明示テキスト「次回予定・未予約」（`TENTATIVE_APPOINTMENT_LABEL`）で識別し、空き枠・定員を消費しない。カルテヘッダーの「次回予定」ボタン（`PUT/DELETE /v1/reservations/pets/:petId/next-visit-intent`）で作成・取消され、詳細モーダルではステータス変更でなく「予約を確定」で実予約へ昇格する。当日受付への昇格は [reservation-to-record-flow.md](../reservation-to-record-flow.md) を参照。
+- **期限超過の次回予定一覧（EMR-308）**: `use-reservation-management` が `GET /v1/reservations` に `status=tentative` の等値フィルタを付けて tentative を取得し、`ExpiredTentativePanel` が `intended_date` が JST 当日より前の行を actionable list として表示する。各行の「確定」は `POST /v1/reservations/:id/confirm-tentative`（`reservations:edit`）で実予約へ昇格し、死亡ペットでは確定ボタンを出さない。次回予定の管理面は LINE reminder ではなくこの院内 API/画面が担う。
 - **受付への反映**: プッシュではない。受付側の 30 秒ポーリングとフォーカス再取得。
 - **レコード作成**: 予約詳細からワンクリックで「カルテ作成」「入院・ホテル登録」「トリミング記録作成」を開始可能。
 
@@ -90,11 +91,14 @@ stateDiagram-v2
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
-| GET | `/api/v1/reservations` | カレンダー期間内の予約一括取得 | `reservations` | `view` |
+| GET | `/api/v1/reservations` | カレンダー期間内の予約一括取得（`status=tentative` で次回予定の一覧取得にも利用、EMR-308） | `reservations` | `view` |
 | POST | `/api/v1/reservations` | 新規予約の作成（重複チェック含む） | `reservations` | `create` |
 | PATCH | `/api/v1/reservations/:id` | 時間変更・ステータス更新 | `reservations` | `edit` |
 | PATCH | `/api/v1/reservations/:id/reservation-route` | 予約経路の更新 | `reservations` | `edit` |
 | DELETE | `/api/v1/reservations/:id` | 予約のキャンセル・削除 | `reservations` | `delete` |
 | GET | `/api/v1/reservations/available-times` | 予約可能時間枠＋空き状況（`include_unavailable=true` で満員枠も返却、EMR-170） | `reservations` | `view` |
+| PUT | `/api/v1/reservations/pets/:petId/next-visit-intent` | ペットの次回予定（tentative）登録/更新（EMR-308。権限は操作別 — [reservation-to-record-flow.md](../reservation-to-record-flow.md) §2.3） | `reservations` | 新規=`create`・既存 tentative 上書き=`create`+`edit` |
+| DELETE | `/api/v1/reservations/pets/:petId/next-visit-intent` | 次回予定の取消（対象不在でも冪等204、EMR-308） | `reservations` | `edit` |
+| POST | `/api/v1/reservations/:id/confirm-tentative` | 次回予定（tentative）の実予約確定（EMR-308） | `reservations` | `edit` |
 
 ---

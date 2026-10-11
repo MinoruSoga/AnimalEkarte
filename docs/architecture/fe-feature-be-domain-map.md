@@ -85,7 +85,7 @@ RBAC strings match `model.Resource*` / generated FE constants (kebab-case values
 | `lstep` | `lstep` (+ clinic/owner reads) | `lstep-csv-import`, `lstep-analytics`, `hospital-settings`, `owners` | Staff LSTEP ops |
 | `manual` | `manualarticle` | `manual-edit` | |
 | `identity-links` | `identitylink` | `identity-links` | No FE assumption of owner/pet package coupling |
-| `support` | `support` | なし（認証済みスタッフ全員）。バグ報告は権限・医院絞りなしの全医院共有ボード（2026-10 の意図的な製品判断）。chat 履歴のみ `clinic_id`×`staff_id` スコープ | サポートウィジェット（バグ報告 + LLMヘルプチャット）。`POST /support/chat` は LLM コストのため rate limit。FE `features/support` |
+| `support` | `support` | なし（認証済みスタッフ全員）。共有 READ — バグ報告一覧・チャット ROOM ボード・`chat/exchanges` ペアは全医院共有（2026-10 の意図的な製品判断）。個人の `GET`/`DELETE /api/v1/support/chat/history` だけが認証コンテキストの clinic×staff スコープ（全 chat 履歴が個人限定という意味ではない）。バグ報告の status PATCH・Plane 連携・DELETE は報告医院のみで他医院は 404 — backend が最終強制（この hospital スコープはバグ報告 mutation のみで、個人 history DELETE や chat POST には適用しない） | サポートウィジェット（バグ報告 + LLMヘルプチャット）。`POST /support/chat` は LLM コストのため rate limit。画面契約の詳細は [settings README §バグ報告一覧](../spec/screens/settings/README.md#バグ報告一覧)・[§チャット履歴](../spec/screens/settings/README.md#チャット履歴)。FE `features/support` |
 | `lab-device` | `medicalrecord` | `lab-import` | `/lab-device` board · ADR-007 · routes under medicalrecord lab-device APIs; FE `features/lab-device` |
 | `aggregation` | `lstep` / reporting reads | (feature-specific; often analytics-adjacent) | Keep reads fail-closed to clinic |
 | `owner-report` | multi clinical read | `examinations`, `vaccinations`, `checkups`, `trimming`, `reservations`, … | Composite read UI; permission per section |

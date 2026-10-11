@@ -107,7 +107,7 @@ flowchart TB
 - **実行記録はシナリオファイルに書かない**。証跡は gitignore の `reports/uat-YYYY-MM-DD/`（results は `formId.fieldKey.Fx` 推奨）。
 - **製品 FAIL は `todo.md#product-bugs` 必須**（確認済みのみ · 見出し重複禁止 · env/権限 BLOCKED は書かない）。PARTIAL は todo.md#product-bugs にしない。Plane item 化は後続レーン（2026-09-29 訂正: Linear Issue 化 → Plane item 化。Linear は 2026-09-16 に閉鎖済みで実行 SoT は Plane `baritechllc`/`EMR`）。
 - **S シリーズは core 受入**: local では S01→S40 を実施し FINAL を書く。V シリーズは項目単位の別軸（inventory 全 fieldKey）。「全て実施」は少なくとも core S の実行完了を指し、FAIL/PARTIAL/BLOCKED が残る場合は「全て PASS」と言わない。S14〜S40 は各ファイル冒頭の前提条件（fixture・権限・ゲート）を満たした環境でのみ実行する。
-- **AI 実行**: browser-test + Chrome DevTools MCP、または Playwright MCP / 再現スクリプト。
+- **AI 実行**: browser-test + Chrome DevTools MCP（harness 側で明示設定されている場合。repo の `.mcp.json` は未設定）、または Playwright MCP / 再現スクリプト。
 - **【要実測】**: 観測結果を実装/テスト/承認済み仕様と照合する。観測だけで期待結果へ昇格せず、仕様判断が残る場合は PARTIAL/BLOCKED。
 - **クレデンシャル禁止**: パスワード・トークンを本ディレクトリに書かない。アカウントはロール名。認証は `E2E_LOGIN_*`。
 - **機械チェック**: 文書整合（索引 ↔ ファイル・テンプレート・実行記録混入・リンク）と inventory × reports の F 結果差分は `../scripts/check-scenarios-coverage.sh` で確認する。スクリプト PASS は列挙済み項目の記録整合のみを意味し、実行完了・全フォーム網羅・製品品質を証明しない。

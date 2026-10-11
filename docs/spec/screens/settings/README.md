@@ -1,6 +1,6 @@
-# マスタ設定 仕様書 インデックス (Master Settings Index)
+# 設定画面 仕様書インデックス (Settings Index)
 
-本ディレクトリには、Animal Ekarte の核となる各マスタデータの詳細定義、および管理画面での操作仕様が格納されています。
+本ディレクトリには、Animal Ekarte の各マスタデータの詳細定義・管理画面の操作仕様に加え、設定配下のサポート画面（バグ報告・チャット履歴）の画面契約を格納します。`/settings/*` 全 path と primary 仕様の対応表は [../../ui-design-compliance.md §2](../../ui-design-compliance.md) が正本。
 
 ---
 
@@ -53,6 +53,29 @@
 | **割引キャンペーン** | [master-campaigns.md](./master-campaigns.md) | 会計割引ルールの期間・対象カテゴリ/商品設定。 |
 | **販売商品** | [master-merchandise.md](./master-merchandise.md) | 療法食、ケア用品等の販売品。 |
 | **LINE ページ** | [28-line-reservation.md §2](../28-line-reservation.md) | 飼主向け予約画面の案内文言カスタマイズ（LINE 予約設定仕様書へ統合）。 |
+
+---
+
+## サポート画面（2026-10-11 補完・番号付き仕様書は増やさない）
+
+`/settings/bug-reports` と `/settings/chat-history` の画面契約の正本は本節（schema 複製ではない）。実装参照は FE/BE source（`frontend/src/features/support/`・`backend/internal/support/` の handler.go / service.go）、wire 契約の正本は [`backend/docs/api.yaml`](../../../../backend/docs/api.yaml) — fact 範囲が別である。runtime/UAT の観測主張は行わない。
+
+### バグ報告一覧
+
+- **URL / 実装**: `/settings/bug-reports`（`BugReportsPage`）。RBAC の resource ゲートなし — 認証済みスタッフ全員が閲覧できる意図的な製品判断。
+- **一覧（共有 READ）**: `GET /api/v1/support/bug-reports` の全医院共有一覧。列は日時・医院・報告者・タイトル・発生 route・status・Plane。タイトルはネイティブの詳細ボタンで、モーダルに詳細と任意スクリーンショット（alt/プレースホルダー付き）を表示する。Loading / Error / Empty を明示する。
+- **mutation は報告医院のみ**: status `PATCH /api/v1/support/bug-reports/:id/status`・Plane 起票 `POST .../plane-ticket`・`DELETE .../:id` は、現在医院が報告医院と一致する行にだけ表示（`isOwnClinic`）。backend が報告医院を強制し、他医院への操作は 404。削除は明示確認付きで、実行中は対象の mutation 実行ボタンを disable にする（modal 全体の無効化ではなく、詳細の Close などは有効のまま）。最終権限は backend。
+- **新規作成は別経路**: 作成はグローバル support-widget の POST 経路であり、本一覧ページのフォームではない。UI トグルは open/resolved のみ。
+- **外部連携の失敗表示**: Plane 未設定は 501、作成失敗は 502 をそのまま返す（retry 成功を約束しない）。
+- **臨床境界**: 共有表示は臨床 write 権限の回避ではなく、通常の医院制限 READ に対する意図的例外。スクリーンショットは診療情報・資格情報を含み得るため、docs に実例・秘密値を記録しない。
+
+### チャット履歴
+
+- **URL / 実装**: `/settings/chat-history`（`ChatHistoryPage`）。RBAC resource ゲートなし — 認証済みスタッフ全員が閲覧できる閲覧専用画面。
+- **一覧（共有 ROOM ボード）**: `GET /api/v1/support/chat/rooms` の全医院・全スタッフ共有 ROOM ボード。md 以上で2ペイン（ROOM 選択リスト＋ターン表示）。選択 ID が無い・存在しない場合は先頭 ROOM にフォールバック。リストは医院・スタッフ・時刻・ターン数を表示し、選択中は `aria-current` とラベル付き nav / conversation 領域を持つ。Loading / Error / Empty を明示する。
+- **ROOM グルーピング**: 同一 clinic×staff の会話を 30 分超の空白で区切った表示単位（永続化された chat session id モデルではない）。最新 ROOM 順。
+- **別経路との区別**: 個人の `GET`/`DELETE /api/v1/support/chat/history`（認証コンテキストの clinic×staff スコープ）は widget 側の経路。`GET /chat/exchanges` は質問+回答ペアの共有 endpoint で本画面のソースではない。本画面に POST/DELETE/reset はなく、質問送信の `POST /chat` は rate limit 付きの別 widget 経路。
+- **表示境界**: 表示は text/整形済みのみで臨床 write 操作はない。
 
 ---
 

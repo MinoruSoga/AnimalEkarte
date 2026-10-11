@@ -19,7 +19,7 @@
 | :-- | :----------------------------------- | :------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | L0  | 正しい仕様                           | `docs/spec/`、product philosophy、ADR              | review                                                                                                                                                                            |
 | L1  | 関数・component                      | code 隣の `*test.go` / `*.test.ts`                 | scoped test、CI                                                                                                                                                                   |
-| L2  | HTTP、DB、認可、FK、clinic isolation | domain HTTP tests、inventory/guardrail             | path-filtered backend build/test shards + aggregate coverage ratchet。local `make ci` は inventory/guardrail checks                                                               |
+| L2  | HTTP、DB、認可、FK、clinic isolation | domain HTTP tests、inventory/guardrail             | local `make ci` の backend build・4 DB test shards・aggregate coverage ratchet と inventory/guardrail checks。remote `ci.yml` は最小構成で build/test/coverage を実行しない（[ci-policy.md](../ci-policy.md)）。scoped verification はこの全量と等価ではない |
 | L3  | 実装済み画面回帰                     | `frontend/e2e/`、[E2E guide](E2E_TESTING_GUIDE.md) | local `make e2e` / `frontend/scripts/run-e2e.sh`（`--auth-smoke` / `--clinical` / `--v04` / spec path）。manual GitHub workflow `e2e.yml` は non-gating のままだが、2026-09-28 に `inputs.suite`（auth-smoke / clinical / v04）振り分けが配線済み（EMR-128。Actions 実行証跡は未）。`--clinical` は 2026-09-23 にローカル 1 回実行済み（33 PASS / 7 FAIL = spec 側 drift。green 未達）。auth smoke 成功を full suite coverage と扱わない |
 | L4  | 業務・フォーム受入                   | [scenarios/](scenarios/README.md)                  | Chrome DevTools、scripted browser、人手                                                                                                                                           |
 | L5  | focused exploratory / post-deploy    | [SECTION_14](SECTION_14_MANUAL_TEST_GUIDE.md)      | AI または人手                                                                                                                                                                     |
@@ -48,7 +48,9 @@ S01–S40 と V01–V05 が宣言済み受入範囲である（2026-09-29 訂正
 
 ## 4. 実行経路と安全境界
 
-1. Project-configured Chrome DevTools MCP (`http://127.0.0.1:9222`)
+ブラウザ MCP はユーザースコープの設定を使い、プロジェクトに共有設定を追加しない。現在のツール一覧と専用テストプロファイルを確認する。Chrome DevTools の loopback CDP 接続は対象 URL の明示承認がある場合だけ利用し、ブラウザ操作の経路は現在のハーネスの承認済みツールに従う。既存 Playwright は Docker runner による再現テストとして区別する。
+
+1. ブラウザ実行: 上記の承認済みツール経路
 2. `reports/uat-*/` に置く再現 script
 3. Playwright MCP は user/global で明示設定されている場合だけ利用可能
 4. 人手（実 LINE、承認が必要な操作、最終合否）

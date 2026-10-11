@@ -5,7 +5,7 @@
 > **タイミング**: デプロイ運用開始時。
 
 > **Animal Ekarte**: ステージング・本番環境へのデプロイと安定稼働のためのガイド
-> **最新更新**: 2026-08-31 | **checked-in config**: STG workflow/configあり。backend production job は checked-in（EMR-148）。Environment reviewers・secret・provider は未設定/UNKNOWNで未実行。FrontendはProduction Environment binding実装済み（外部reviewersは要検証）。**live provider状態はUNKNOWNで、実行前にdated receiptが必要**
+> **最新更新**: 2026-10-11（Production Environment binding・ci-policy 観測反映） | **checked-in config**: STG workflow/configあり。backend production job は checked-in（EMR-148）。Environment reviewers・secret・provider の設定・実行・稼働は未確認（UNKNOWN）。実行前に dated receipt を確認する。FrontendはProduction Environment binding実装済み（外部reviewersは要検証）。**live provider状態はUNKNOWNで、実行前にdated receiptが必要**
 
 ---
 
@@ -14,7 +14,7 @@
 | 環境 | Frontend URL | API Base URL | インフラ管理 |
 |:---|:---|:---|:---|
 | **Staging（設定値）** | [stg.noah-karte.com](https://stg.noah-karte.com) | [api.stg.noah-karte.com/api](https://api.stg.noah-karte.com/api) | checked-in target。稼働状態は実行時確認 |
-| **Production（draft設定）** | noah-karte.com（予定） | api.noah-karte.com/api（予定） | backend production job は checked-in（EMR-148）。Environment reviewers・secret・provider は未設定/UNKNOWNで未実行。frontendはEnvironment bindingあり。provider実体はUNKNOWN（#253・[`../infra/production/runbook.md`](../infra/production/runbook.md)） |
+| **Production（draft設定）** | noah-karte.com（予定） | api.noah-karte.com/api（予定） | backend production job は checked-in（EMR-148）。Environment reviewers・secret・provider の設定・実行・稼働は未確認（UNKNOWN）。実行前に dated receipt を確認する。frontendはEnvironment bindingあり（#253・[`../infra/production/runbook.md`](../infra/production/runbook.md)）。`production` branch protection の required checks 不整合は [ci-policy.md](../ci-policy.md)（2026-10-11 観測）参照 |
 
 ---
 

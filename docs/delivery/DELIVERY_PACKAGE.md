@@ -6,7 +6,7 @@
 > **読者**: 先方の管理者（院長・システム担当者）
 > **目的**: 納品後に先方側で日常の運用・管理（スタッフ追加・権限変更・マスタ更新・障害時の一次対応）が自走できる状態にする。
 > **検証境界**: 以下の環境・契約・疎通状態は、明記した日付の **repo 内最終記録**であり、現在の provider 状態を保証しない。Go-live 判断には provider / GitHub の実行時 receipt が必要。
-> **前提（repo 内最終記録: 2026-08-20）**: **Production（本番）は未構築**。Staging の稼働記録のみがある。最終承認・本番値の確定は #253 および末尾の **USER 入力待ち（U1–U12）** 表に依存する（#258 は本 slice だけでは close しない）。**U13（操作説明会の日程・形式・参加者・実施 receipt）は #256 / [OPERATION_MANUAL.md](OPERATION_MANUAL.md) 所有であり、#258 close 条件に含めない**（DEC-62）。
+> **前提（repo 内最終記録: 2026-08-20）**: **Production（本番）は未構築**。Staging の稼働記録のみがある。最終承認・本番値の確定は #253 および末尾の **USER 入力待ち（U1–U12）** 表に依存する（#258 は本 slice だけでは close しない）。**U13（操作説明会）は 2026-10-04 の決定（Plane `EMR-151`）で開催せず本マニュアルで代替。実施証跡の記入は適用外。所有は #256 / [OPERATION_MANUAL.md](OPERATION_MANUAL.md) であり、#258 close 条件に含めない**（DEC-62）。
 
 ### 文書構成（#258 受け入れの 3 領域）
 
@@ -53,10 +53,10 @@ flowchart TB
 | IaC | Terraform: [`infra/cloudflare/`](../../infra/cloudflare/README.md)／Workers: `backend/wrangler*.jsonc` | [infra/README](../ops/infra/README.md) |
 
 - **STG デプロイ**: `staging`ブランチpushでbackend workflowの対象pathが変わった場合 → GitHub Actions `backend-deploy.yml`（deploy → migrate → post-migrate `/health` → optional smoke）。手動は `gh workflow run backend-deploy.yml --ref staging`（[staging/runbook.md](../ops/infra/staging/runbook.md)）。
-- **Production デプロイ**: `deploy-production` job は checked-in（EMR-148）だが、GitHub `Production` Environment・`PROD_` secrets・provider 設定が未投入で**未実行**（#253・[production/setup.md](../ops/infra/production/setup.md)）。証跡は **USER 入力待ち（U12）**。
+- **Production デプロイ**: `deploy-production` job は checked-in（EMR-148）。Environment reviewers・secret・provider の設定・実行・稼働は未確認（UNKNOWN）で、実行前に dated receipt を確認する（#253・[production/setup.md](../ops/infra/production/setup.md)）。証跡は **USER 入力待ち（U12）**。
 - **シークレット**: GitHub Encrypted Secrets および `wrangler secret` / `worker-secret-sync.yml` で管理。**本ドキュメントには秘密値を記載しない**。
 
-> **復旧上の注意**: AWS ECS/RDS は 2026-07-20 に廃止済みで、切り戻し先やホットスタンバイはない。障害初動は [STG 運用 Runbook](../ops/infra/staging/runbook.md) に従い、Cloudflare 側の修正・再デプロイ、またはスナップショットと現行 IaC からの再建で復旧する。本番稼働後の手順は [production/runbook.md](../ops/infra/production/runbook.md)（プレースホルダ）へ整備予定。
+> **復旧上の注意**: AWS ECS/RDS は 2026-07-20 に廃止済みで、切り戻し先やホットスタンバイはない。障害初動は [STG 運用 Runbook](../ops/infra/staging/runbook.md) に従い、Cloudflare 側の修正・再デプロイ、またはスナップショットと現行 IaC からの再建で復旧する。本番稼働後の手順は [production/runbook.md](../ops/infra/production/runbook.md)（整備済みの運用契約。setup 完了・検証前は実行不可）。
 
 ### 1.2 利用サービスと契約の一覧
 
@@ -173,7 +173,7 @@ flowchart TB
 
 ## 3. 運用手順
 
-本番固有の数値・窓口・バックアップ実測は、backend production job は checked-in（EMR-148）だが Environment reviewers・secret・provider は未設定/UNKNOWNで未実行のため未確定。STG の運用正本は [staging/runbook.md](../ops/infra/staging/runbook.md) および [deploy/README.md](../ops/deploy/README.md)。本番構築後は [production/runbook.md](../ops/infra/production/runbook.md) を整備する。
+本番固有の数値・窓口・バックアップ実測は未確定。backend production job は checked-in（EMR-148）だが、Environment reviewers・secret・provider の設定・実行・稼働は未確認（UNKNOWN）で、実行前に dated receipt を確認する。STG の運用正本は [staging/runbook.md](../ops/infra/staging/runbook.md) および [deploy/README.md](../ops/deploy/README.md)。本番構築後は [production/runbook.md](../ops/infra/production/runbook.md) を整備する。
 
 ### 3.1 バックアップ方針
 
@@ -224,7 +224,7 @@ flowchart TB
 
 ## USER 入力待ち（委任外・repo では確定不能）
 
-本表は repo 由来の SSOT だけでは埋められない項目を集約する。2026-09-06 の GitHub 取得でも [#258](https://github.com/MinoruSoga/AnimalEkarte/issues/258#issuecomment-5352951236) は OPEN、最新コメントは U1–U8/10/11 の契約記入と #253 後の U9/U12 を残件とする。Linear の現在値・契約台帳・provider の新しい証跡は今回取得していない（2026-09-29 訂正: 「Linear の現在値」→ Linear は 2026-09-16 に閉鎖済み。実行状態の正本は Plane `EMR-39`・U1–U12 入力待ち `EMR-150`。2026-09-27 時点の repo 内照合でも全行未記入=keep_needs_human）。**値・秘密・契約内容・本番証跡は発明しない。** **U1–U12** の供給後に #258 最終承認・本ドキュメント追記を行う。U13（操作説明会）は #256 / OPERATION_MANUAL の残差であり、**#258 close 条件ではない**。
+本表は repo 由来の SSOT だけでは埋められない項目を集約する。2026-09-06 の GitHub 取得でも [#258](https://github.com/MinoruSoga/AnimalEkarte/issues/258#issuecomment-5352951236) は OPEN、最新コメントは U1–U8/10/11 の契約記入と #253 後の U9/U12 を残件とする。Linear の現在値・契約台帳・provider の新しい証跡は今回取得していない（2026-09-29 訂正: 「Linear の現在値」→ Linear は 2026-09-16 に閉鎖済み。実行状態の正本は Plane `EMR-39`・U1–U12 入力待ち `EMR-150`。2026-09-27 時点の repo 内照合でも全行未記入=keep_needs_human）。**値・秘密・契約内容・本番証跡は発明しない。** **U1–U12** の供給後に #258 最終承認・本ドキュメント追記を行う。U13（操作説明会）は 2026-10-04 決定で代替解消（#256 / OPERATION_MANUAL §10）であり、**#258 close 条件ではない**。
 
 **記入ルール（2026-08-20 棚卸し）**: 「repo 確定」列はリポジトリ内の非機密事実だけを書く。「契約記入」列に名義・請求先・秘密・本番証跡が無い行は **未記入** のまま残す。推測で埋めない。
 
@@ -243,7 +243,7 @@ flowchart TB
 | U11 | 監査ログ保存期間の最終合意 | 先方 | 保持年数・廃棄方針 | §3.3 | 業務監査は DB の `audit_logs` に永続（§3.3 / specification §2.1）。期間ポリシーの合意記録は repo に無い | **未記入**（保持年数・廃棄方針） |
 | U12 | Production 構築完了証跡 | 開発（#253） | setup.md 実施結果・URL 疎通 | §1.3 / production/runbook | repo 内最終記録（2026-08-20）では Production **未構築**。手順書は [production/setup.md](../ops/infra/production/setup.md) | **未記入**（実施結果・URL 疎通） |
 
-> **U13（操作説明会の日程・形式・参加者・実施 receipt）** は #256 所有。正本: [OPERATION_MANUAL.md §10](OPERATION_MANUAL.md) / §11。#258 の最終承認条件・本書の document completion input には含めない。
+> **U13（操作説明会）** は #256 所有。2026-10-04 決定（Plane `EMR-151`）で開催せず本マニュアルで代替。実施証跡の記入は適用外。正本: [OPERATION_MANUAL.md §10](OPERATION_MANUAL.md) / §11。#258 の最終承認条件・本書の document completion input には含めない。
 
 ### 本 slice で完了した repo 由来作業
 

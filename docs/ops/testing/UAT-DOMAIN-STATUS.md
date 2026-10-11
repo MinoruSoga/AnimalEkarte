@@ -1,6 +1,7 @@
 # UAT ドメイン別ステータス
 
 > **目的**: 受け入れ結果をシナリオ ID だけでなく業務ドメイン単位で俯瞰する。
+> **本書は日付付き実行結果の記録。現在の開発・受入状態は Plane。過去のPASS/FAIL件数を現在の状態へ流用しない。**
 > **正本リンク**: [scenarios/README.md](./scenarios/README.md) · [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md)
 > **更新日**: 2026-10-01
 > **照合**: `QA-UAT-EVIDENCE-SYNC`。2026-09-10 は repo の対象仕様を照合したが、runtime は再実行していない。`reports/` は gitignore。コミット済み正本は本ファイルと [`todo.md#product-bugs`](../../../todo.md#product-bugs)。Linear は未照会（UNKNOWN）。※2026-09-29 訂正: Linear は 2026-09-16 に閉鎖済みで照会先として存在しない。実行状態の正本は Plane（workspace `baritechllc` / Project `EMR`）であり、本書の "Linear で追跡" 等の記述はすべて Plane と読み替える。Plane 側の最新状態は本更新では未照会（UNKNOWN）。
@@ -10,11 +11,11 @@
 | Status | Count | 内訳 |
 |:---|---:|:---|
 | PASS | 15 | S02 S03 S04 S05 S06 S07 S08 S10 S11 S12 S13 · V01 V02 V03 V05 |
-| FAIL | 1 | V04（最終実行時。主訴 DELETE。下記「現行」を見よ） |
+| FAIL | 1 | V04（最終実行時。主訴 DELETE。下記「当時の整理」を見よ） |
 | PARTIAL | 1 | S01 |
 | BLOCKED | 1 | S09 |
 
-現行（2026-09-10 repo 照合。再実行していない判定は推定で動かさない）:
+当時の整理（2026-09-10 repo 照合。再実行していない判定は推定で動かさない）:
 
 | 項目 | 値 |
 |:---|:---|
