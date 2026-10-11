@@ -101,9 +101,9 @@ func (s *liffService) GetMyReservations(ctx context.Context, clinicID, customerI
 
 // CancelReservation は予約をキャンセルする。
 func (s *liffService) CancelReservation(ctx context.Context, clinicID, customerID, reservationID uint64) error {
-	// Phase 6: キャンセル通知・EMR-308 next_visit タグ除去同期のために事前にアポを取得する
+	// Phase 6: キャンセル通知に必要な関連情報を取得する。
 	var apptForNotify *model.Reservation
-	if s.notifier != nil || s.nextVisitTagSync != nil {
+	if s.notifier != nil {
 		var err error
 		apptForNotify, err = s.adminRepo.FindByIDForNotify(ctx, clinicID, reservationID)
 		if err != nil {
@@ -111,14 +111,14 @@ func (s *liffService) CancelReservation(ctx context.Context, clinicID, customerI
 		}
 	}
 
-	if err := s.adminRepo.CancelByID(ctx, clinicID, customerID, reservationID); err != nil {
+	cancelledOwnerID, err := s.adminRepo.CancelByID(ctx, clinicID, customerID, reservationID)
+	if err != nil {
 		return apperrors.Wrap(err, "failed to cancel reservation")
 	}
 
-	// EMR-308: キャンセルで active な次回来院が消えるため飼い主のタグを再同期する。
-	if apptForNotify != nil {
-		syncNextVisitTagBestEffort(ctx, s.nextVisitTagSync, clinicID, apptForNotify.OwnerID)
-	}
+	// EMR-308: 通常の LIFF handler では取消 UPDATE の commit 後に同期する。
+	// 通知用の古い snapshot ではなく、実際に取り消した行の飼主を使用する。
+	syncNextVisitTagBestEffort(ctx, s.nextVisitTagSync, clinicID, cancelledOwnerID)
 
 	if s.medicalRecord != nil {
 		s.medicalRecord.DeleteDraftFromReservation(ctx, clinicID, reservationID)

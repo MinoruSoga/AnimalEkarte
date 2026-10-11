@@ -102,8 +102,8 @@ func (m *delegateMockReservationAdminRepository) SoftDelete(_ context.Context, _
 func (m *delegateMockReservationAdminRepository) FindAllByCustomerID(_ context.Context, _, _ uint64) ([]model.Reservation, error) {
 	return nil, nil
 }
-func (m *delegateMockReservationAdminRepository) CancelByID(_ context.Context, _, _, _ uint64) error {
-	return nil
+func (m *delegateMockReservationAdminRepository) CancelByID(_ context.Context, _, _, _ uint64) (*uint64, error) {
+	return nil, nil
 }
 func (m *delegateMockReservationAdminRepository) FindByIDForNotify(_ context.Context, _, _ uint64) (*model.Reservation, error) {
 	return nil, nil

@@ -223,7 +223,7 @@ func (m *mockLiffScheduleRepository) Delete(_ context.Context, _, _ uint64, _ ti
 type mockLiffAdminRepository struct {
 	findByDayFn                 func(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error)
 	findByCustomerIDFn          func(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error)
-	cancelByIDFn                func(ctx context.Context, clinicID, customerID, id uint64) error
+	cancelByIDFn                func(ctx context.Context, clinicID, customerID, id uint64) (*uint64, error)
 	findByIDForNotifyFn         func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	findTimeRangesByDateRangeFn func(ctx context.Context, clinicID uint64, from, to time.Time) ([]model.Reservation, error)
 }
@@ -259,11 +259,11 @@ func (m *mockLiffAdminRepository) FindAllByCustomerID(ctx context.Context, clini
 	return nil, nil
 }
 
-func (m *mockLiffAdminRepository) CancelByID(ctx context.Context, clinicID, customerID, id uint64) error {
+func (m *mockLiffAdminRepository) CancelByID(ctx context.Context, clinicID, customerID, id uint64) (*uint64, error) {
 	if m.cancelByIDFn != nil {
 		return m.cancelByIDFn(ctx, clinicID, customerID, id)
 	}
-	return nil
+	return nil, nil
 }
 
 func (m *mockLiffAdminRepository) FindByIDForNotify(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
