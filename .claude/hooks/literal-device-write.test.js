@@ -28,6 +28,10 @@ const blocked = [
   "bash -lc 'dd if=fixture.txt of=/dev/nvme0n1'",
   'printf fixture | env tee /dev/disk0',
   'printf fixture | env FIXTURE=1 /usr/bin/tee /dev/disk0',
+  '< /tmp/fixture.txt tee /dev/disk0', '> /tmp/fixture.log tee /dev/disk0',
+  '3< /tmp/fixture.txt tee /dev/disk0', '2> /tmp/fixture.log tee /dev/disk0',
+  'tee 0< /tmp/fixture.txt /dev/disk0', 'dd 2> /tmp/fixture.log of=/dev/disk0',
+  '2>&1 tee /dev/disk0', 'printf fixture >& /dev/disk0',
 ];
 for (const command of blocked) test('deny literal device write: ' + command, () => assert.equal(exit(command), 2));
 const normal = [
@@ -38,6 +42,11 @@ const normal = [
   'cat < /dev/nvme0n1', 'git diff --stat', 'git commit -m fixture',
   'git push origin HEAD', 'printf "%s" "example > /dev/disk0"',
   'printf "%s" "tee /dev/disk0"', 'printf fixture > ./device-report.txt',
+  'tee /dev/null < /dev/disk0', 'tee /tmp/fixture.log < /dev/disk0',
+  'tee /dev/null 0< /dev/disk0', '0< /dev/disk0 tee /dev/null',
+  'dd if=fixture.txt of=fixture.copy < /dev/disk0',
+  'tee /dev/null 2>&1', 'tee /dev/null <<< /dev/disk0',
+  'tee "2"> /tmp/fixture.log', 'tee 2 > /tmp/fixture.log',
 ];
 for (const command of normal) test('preserve normal/read-only operation: ' + command, () => assert.equal(exit(command), 0));
 const limitations = [

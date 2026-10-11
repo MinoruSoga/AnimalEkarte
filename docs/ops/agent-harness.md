@@ -95,7 +95,7 @@ backend設定へのpermissions/hooksの空追加、根拠なしscanner抑制は�
 
 `literal-device-write.js`は、直接指定されたmacOS disk/rdisk、Linux sd/hd/vd/xvd、
 NVMe、mmcblk、loop、dm/md、BSD ada/da/nvd、/dev/disk/by-*、/dev/mapperへの
-redirect（>、>>、>|、&>、&>>、<>）、tee、dd of=を拒否する。
+redirect（>、>>、>|、&>、&>>、<>、>&）、tee、dd of=を拒否する。
 引用・連結されたliteral pathとdot成分を扱う。単純なenv、command、exec、
 literal sh/bash/zsh/dash -cを補助的に扱う。対象pathのread/realpathやcommand実行は行わない。
 既存destructive Git/systemチェックとsudo/chmod denyを維持する。

@@ -5,8 +5,11 @@ const { posix } = require('node:path');
 // Never execute command text, resolve device aliases, or read target paths.
 function words(command) {
   const tokens = [];
-  let value = '', active = false, quote = '';
-  const flush = () => { if (active) tokens.push({ word: value }); value = ''; active = false; };
+  let value = '', active = false, quote = '', plain = true;
+  const flush = (ioNumber = false) => {
+    if (active) tokens.push({ word: value, ioNumber });
+    value = ''; active = false; plain = true;
+  };
   for (let i = 0; i < command.length; i++) {
     const char = command[i];
     if (quote) {
@@ -16,17 +19,17 @@ function words(command) {
       }
       value += char; continue;
     }
-    if (char === "'" || char === '"') { quote = char; active = true; continue; }
-    if (char === '\\' && i + 1 < command.length) { active = true; value += command[++i]; continue; }
+    if (char === "'" || char === '"') { quote = char; active = true; plain = false; continue; }
+    if (char === '\\' && i + 1 < command.length) { active = true; plain = false; value += command[++i]; continue; }
     if (char === '#' && !active) {
       while (i < command.length && command[i] !== '\n') i++;
       flush(); tokens.push({ op: ';' }); continue;
     }
     if (char === '\n' || /[;&|()<>\s]/.test(char)) {
-      flush();
+      flush(/[<>]/.test(char) && plain && /^\d+$/.test(value));
       if (char === '\n') tokens.push({ op: ';' });
       else if (!/\s/.test(char)) {
-        const match = command.slice(i).match(/^(?:&>>|&>|>>|>\||<>|<<|&&|\|\||[;&|()<>])/);
+        const match = command.slice(i).match(/^(?:&>>|&>|>>|>\||<>|<<<|<<-|<<|<&|>&|&&|\|\||[;&|()<>])/);
         if (match) { tokens.push({ op: match[0] }); i += match[0].length - 1; }
       }
       continue;
@@ -51,17 +54,30 @@ function commandName(tokens) {
   }
   return { name: posix.basename(tokens[i]?.word || ''), index: i };
 }
+function commandWords(tokens) {
+  const result = [];
+  for (let i = 0; i < tokens.length; i++) {
+    if (tokens[i].ioNumber) continue;
+    if (['>', '>>', '>|', '&>', '&>>', '<>', '<', '<<', '<<-', '<<<', '<&', '>&'].includes(tokens[i].op)) {
+      if (tokens[i + 1]?.word !== undefined) i++;
+      continue;
+    }
+    if (tokens[i].word !== undefined) result.push(tokens[i]);
+  }
+  return result;
+}
 function literalDeviceWrite(command, depth = 0) {
   if (depth > 3) return false;
   const tokens = words(command);
   for (let i = 0; i < tokens.length; i++) {
-    if (['>', '>>', '>|', '&>', '&>>', '<>'].includes(tokens[i].op) &&
+    if (['>', '>>', '>|', '&>', '&>>', '<>', '>&'].includes(tokens[i].op) &&
         tokens[i + 1]?.word && rawDevice(tokens[i + 1].word)) return true;
   }
   let segment = [];
   const check = () => {
-    const { name, index } = commandName(segment);
-    const args = segment.slice(index + 1).filter(t => t.word !== undefined).map(t => t.word);
+    const positional = commandWords(segment);
+    const { name, index } = commandName(positional);
+    const args = positional.slice(index + 1).map(t => t.word);
     if (name === 'tee' && args.some(rawDevice)) return true;
     if (name === 'dd' && args.some(arg => arg.startsWith('of=') && rawDevice(arg.slice(3)))) return true;
     if (['sh', 'bash', 'zsh', 'dash'].includes(name)) {
