@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // Capture values while holding the appointment lock, before any writer can mutate
@@ -49,12 +50,19 @@ func (s *trimmingService) syncNextVisitTagChange(ctx context.Context, clinicID u
 	}
 }
 
+// Bound the entire post-commit batch, including every owner and warning log.
+const trimmingNextVisitTagSyncTimeout = 30 * time.Second
+
 // Sync only after the outer appointment/detail/audit transaction commits. External
 // failures are best-effort and must neither reverse the write nor skip other owners.
 func (s *trimmingService) syncNextVisitTagsBestEffort(ctx context.Context, clinicID uint64, ownerIDs ...*uint64) {
 	if s.nextVisitTagSync == nil {
 		return
 	}
+	// Keep trace values, but do not reuse request cancellation or a completed tx.
+	syncCtx, cancel := context.WithTimeout(persistence.DetachTx(ctx), trimmingNextVisitTagSyncTimeout)
+	defer cancel()
+
 	seen := make(map[uint64]struct{}, len(ownerIDs))
 	for _, id := range ownerIDs {
 		if id == nil || *id == 0 {
@@ -64,8 +72,8 @@ func (s *trimmingService) syncNextVisitTagsBestEffort(ctx context.Context, clini
 			continue
 		}
 		seen[*id] = struct{}{}
-		if err := s.nextVisitTagSync.SyncNextVisitTag(ctx, clinicID, *id); err != nil {
-			slog.WarnContext(ctx, "next visit tag sync failed (best-effort)", slog.Uint64("clinic_id", clinicID), slog.Uint64("owner_id", *id), slog.Any("error", err))
+		if err := s.nextVisitTagSync.SyncNextVisitTag(syncCtx, clinicID, *id); err != nil {
+			slog.WarnContext(syncCtx, "next visit tag sync failed (best-effort)", slog.Uint64("clinic_id", clinicID), slog.Uint64("owner_id", *id), slog.Any("error", err))
 		}
 	}
 }

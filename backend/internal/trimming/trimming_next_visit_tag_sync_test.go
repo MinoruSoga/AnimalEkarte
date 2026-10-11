@@ -21,6 +21,7 @@ func TestService_Create_NextVisitTagSync(t *testing.T) {
 		existing                                bool
 		commitErr, auditErr, detailErr, syncErr error
 		want                                    []uint64
+		cancelAfterCommit                       bool
 	}{
 		{name: "new appointment", want: []uint64{7}},
 		{name: "absorbed transferred pet", previous: ptrUint64(6), want: []uint64{6, 7}},
@@ -34,8 +35,12 @@ func TestService_Create_NextVisitTagSync(t *testing.T) {
 		{name: "existing detail owner repaired", existing: true, want: []uint64{7}},
 		{name: "existing detail commit failure", existing: true, commitErr: errors.New("commit failed")},
 		{name: "existing detail audit failure", existing: true, auditErr: errors.New("audit failed")},
+		{name: "new appointment request canceled after commit", previous: ptrUint64(6), cancelAfterCommit: true, want: []uint64{6, 7}},
+		{name: "existing detail request canceled after commit", existing: true, previous: ptrUint64(7), cancelAfterCommit: true, want: []uint64{7}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancelRequest := context.WithCancel(context.Background())
+			defer cancelRequest()
 			committed := false
 			start := time.Date(2030, 1, 10, 10, 0, 0, 0, time.UTC)
 			locked := &model.Reservation{ID: 99, ClinicID: 3, ReservationTypeID: 9, Status: model.ReservationStatusPending, OwnerID: tt.previous, StartTime: start.Add(-24 * time.Hour), EndTime: start.Add(-23 * time.Hour), ReservationType: &model.ReservationType{ID: 9, ClinicID: 3, Category: model.ReservationTypeCategoryTrimming}}
@@ -62,15 +67,19 @@ func TestService_Create_NextVisitTagSync(t *testing.T) {
 					return tt.commitErr
 				}
 				committed = true
+				if tt.cancelAfterCommit {
+					cancelRequest()
+				}
 				return nil
 			}}
 			syncer := &trimmingCommitAwareTagSyncer{t: t, committed: &committed, err: tt.syncErr}
+			syncer.checkContext = func(syncCtx context.Context) { assert.NoError(t, syncCtx.Err()) }
 			svc := NewServiceWithAudit(repo, &mockTrimmingReservationTypeRepository{}, newAcceptingTrimmingStaffRepository(), &mockTrimmingUnavailableTimeRepository{}, detail, nil, nil, tx, &trimmingAuditRecorder{err: tt.auditErr}, syncer)
 			input := &CreateTrimmingInput{ActorID: ptrUint64(1), ReservationTypeID: 9, StartTime: start, EndTime: start.Add(time.Hour)}
 			if tt.existing {
 				input.AppointmentID = ptrUint64(99)
 			}
-			got, err := svc.Create(context.Background(), 3, input)
+			got, err := svc.Create(ctx, 3, input)
 			if tt.commitErr != nil || tt.auditErr != nil || tt.detailErr != nil {
 				require.Error(t, err)
 				assert.Nil(t, got)
@@ -84,14 +93,18 @@ func TestService_Create_NextVisitTagSync(t *testing.T) {
 }
 
 type trimmingCommitAwareTagSyncer struct {
-	t         *testing.T
-	committed *bool
-	calls     []uint64
-	err       error
+	t            *testing.T
+	committed    *bool
+	calls        []uint64
+	err          error
+	checkContext func(context.Context)
 }
 
-func (s *trimmingCommitAwareTagSyncer) SyncNextVisitTag(_ context.Context, clinicID, ownerID uint64) error {
+func (s *trimmingCommitAwareTagSyncer) SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error {
 	assert.True(s.t, *s.committed, "sync must run after outer commit")
+	if s.checkContext != nil {
+		s.checkContext(ctx)
+	}
 	assert.Equal(s.t, uint64(3), clinicID)
 	s.calls = append(s.calls, ownerID)
 	return s.err
@@ -269,6 +282,7 @@ type trimmingTagMutationFixture struct {
 	committed, inTx, mutateLocked bool
 	preserveStart                 bool
 	syncer                        *trimmingCommitAwareTagSyncer
+	afterCommit                   func()
 }
 
 func newTrimmingTagMutationFixture(t *testing.T) *trimmingTagMutationFixture {
@@ -365,6 +379,9 @@ func (f *trimmingTagMutationFixture) service(hasDetail bool) Service {
 			return err
 		}
 		f.committed = true
+		if f.afterCommit != nil {
+			f.afterCommit()
+		}
 		return nil
 	}}
 	return NewServiceWithAudit(repo, &mockTrimmingReservationTypeRepository{}, newAcceptingTrimmingStaffRepository(), &mockTrimmingUnavailableTimeRepository{}, detail, newActiveTrimmingCourseRepository(), newActiveTrimmingOptionRepository(), tx, &trimmingAuditRecorder{err: f.err("audit")}, f.syncer)
