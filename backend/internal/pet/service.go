@@ -7,6 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // --- Pet DB column constants ---
@@ -452,25 +453,38 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 		slog.Uint64("pet_id", id),
 		slog.Uint64("clinic_id", clinicID))
 
-	s.syncLstepTags(ctx, clinicID, pet.OwnerID)
-	if previousOwnerID != 0 && previousOwnerID != pet.OwnerID {
-		s.syncLstepTags(ctx, clinicID, previousOwnerID)
-	}
+	s.syncLstepTags(ctx, clinicID, pet.OwnerID, previousOwnerID)
 	return pet, nil
 }
 
-func (s *petService) syncLstepTags(ctx context.Context, clinicID, ownerID uint64) {
+const petTagSyncTimeout = 30 * time.Second
+
+func (s *petService) syncLstepTags(ctx context.Context, clinicID uint64, ownerIDs ...uint64) {
 	if s.tagSyncSvc == nil {
 		return
 	}
-	if err := s.tagSyncSvc.SyncOwnerAnimalClassificationTags(ctx, clinicID, ownerID); err != nil {
-		slog.ErrorContext(ctx, "failed to sync animal classification tags after pet change", "error", err, "owner_id", ownerID, "clinic_id", clinicID)
-	}
-	if err := s.tagSyncSvc.SyncPetBasicInfoTags(ctx, clinicID, ownerID); err != nil {
-		slog.ErrorContext(ctx, "failed to sync pet basic info tags after pet change", "error", err, "owner_id", ownerID, "clinic_id", clinicID)
-	}
-	if err := s.tagSyncSvc.SyncNextVisitTag(ctx, clinicID, ownerID); err != nil {
-		slog.ErrorContext(ctx, "failed to sync next visit tag after pet change", "error", err, "owner_id", ownerID, "clinic_id", clinicID)
+	// Keep trace values, but not request cancellation or a completed transaction.
+	// Every tag kind and both transfer owners share one post-commit budget.
+	ctx, cancel := context.WithTimeout(persistence.DetachTx(ctx), petTagSyncTimeout)
+	defer cancel()
+	seen := make(map[uint64]struct{}, len(ownerIDs))
+	for _, ownerID := range ownerIDs {
+		if ownerID == 0 {
+			continue
+		}
+		if _, duplicate := seen[ownerID]; duplicate {
+			continue
+		}
+		seen[ownerID] = struct{}{}
+		if err := s.tagSyncSvc.SyncOwnerAnimalClassificationTags(ctx, clinicID, ownerID); err != nil {
+			slog.ErrorContext(ctx, "failed to sync animal classification tags after pet change", "error", err, "owner_id", ownerID, "clinic_id", clinicID)
+		}
+		if err := s.tagSyncSvc.SyncPetBasicInfoTags(ctx, clinicID, ownerID); err != nil {
+			slog.ErrorContext(ctx, "failed to sync pet basic info tags after pet change", "error", err, "owner_id", ownerID, "clinic_id", clinicID)
+		}
+		if err := s.tagSyncSvc.SyncNextVisitTag(ctx, clinicID, ownerID); err != nil {
+			slog.ErrorContext(ctx, "failed to sync next visit tag after pet change", "error", err, "owner_id", ownerID, "clinic_id", clinicID)
+		}
 	}
 }
 

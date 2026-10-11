@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/infra/lstep"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
@@ -87,6 +88,9 @@ func (s *lstepLifecycleService) buildClient(ctx context.Context, clinicID uint64
 	return lstep.NewClient(apiKey, baseURL), nil
 }
 
+// One budget includes post-commit reads, all tag operations and secondary audit.
+const petLifecycleTagSyncTimeout = 30 * time.Second
+
 // HandlePetDeath はペット死亡を記録し、オーナーのタグを再同期する。
 // 全ペットが死亡した場合は Lステップ全タグを解除する（配信停止）。
 func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string, actorID *uint64) error {
@@ -132,6 +136,8 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 	}); err != nil {
 		return apperrors.Wrap(err, "failed to record pet death in transaction")
 	}
+	ctx, cancel := context.WithTimeout(persistence.DetachTx(ctx), petLifecycleTagSyncTimeout)
+	defer cancel()
 
 	// 生存ペットを確認 — 全滅時は配信停止としてタグを全解除
 	// LSB-03 / X-01: death は既に commit 済み。後段 read 失敗で応答を失敗へ反転しない。
@@ -231,6 +237,8 @@ func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, 
 	}); err != nil {
 		return apperrors.Wrap(err, "failed to record pet revival in transaction")
 	}
+	ctx, cancel := context.WithTimeout(persistence.DetachTx(ctx), petLifecycleTagSyncTimeout)
+	defer cancel()
 
 	if syncErr := s.syncSvc.SyncOwnerAnimalClassificationTags(ctx, clinicID, ownerID); syncErr != nil {
 		slog.ErrorContext(ctx, "failed to sync animal classification tags after pet revival", "error", syncErr)

@@ -140,7 +140,7 @@ func (h *CRUDHandler) ConfirmTentativeAppointment(c *gin.Context) {
 	}
 	// 確定後は通常予約と同じ挙動: confirmed 時のカルテ自動作成（best-effort）を共有する。
 	if shouldAutoCreateMedicalRecordForReservation(reservation) && h.medicalRecord != nil {
-		h.medicalRecord.AutoCreateFromReservation(ctx, clinicID, reservation)
+		h.autoCreateMedicalRecordAfterConfirm(ctx, clinicID, reservation)
 	}
 	c.JSON(http.StatusOK, toReservationResponse(reservation))
 }
