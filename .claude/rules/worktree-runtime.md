@@ -21,7 +21,8 @@ git 操作の安全性は [git-worktree-safety.md](git-worktree-safety.md) を�
    - 配置は main の sibling `../AnimalEkarte-<task>` を推奨。`/tmp` 等も可だが git 登録は必須
 2. `scripts/tools/worktree-env.sh <offset> [slug]` を実行し `.env.local` を生成する
    - `<offset>` にはチケット番号を使うと一意になりやすい（EMR-300 → `300`）
-   - `[slug]` 省略時は `wt<offset>`。container/project/volume 名に使われる
+   - `[slug]` 省略時は10進数へ正規化した `wt<offset>`（`8` / `08` / `0008` はすべて `wt8`）。container/project/volume 名に使われる
+   - 旧スクリプトで `wt08` / `wt0008` を使っていた既存環境は、再生成で名前が変わる。共有・既存volumeは自動改名/削除せず、所有者が停止・移行方法を確認する。名前を維持する場合は既存slugを明示する。
    - `.env.local` が既存なら managed block 以外の行は保持される。手編集で managed block を書かない
 3. `make up` はユーザーの手で起動する（自動実行禁止ルールに従う）
 

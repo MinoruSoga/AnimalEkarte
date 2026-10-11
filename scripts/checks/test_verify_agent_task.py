@@ -16,6 +16,18 @@ SPEC.loader.exec_module(verify)
 
 
 class VerificationTests(unittest.TestCase):
+    def test_no_verify_hook_selects_syntax_and_behavioral_regressions(self):
+        hook = '.claude/hooks/pre-bash-block-no-verify.js'
+        suite = '.claude/scripts/test_no_verify_hook.py'
+        for paths in ([hook], [suite], [hook, suite]):
+            with self.subTest(paths=paths):
+                jobs, blocked = verify.plan(paths)
+                self.assertFalse(blocked)
+                commands = [job['command'] for job in jobs]
+                self.assertEqual(commands.count(['python3', '-B', suite]), 1)
+                if hook in paths:
+                    self.assertIn(['node', '--check', hook], commands)
+
     def test_instruction_changes_select_canonical_safety_regressions(self):
         for path in ('AGENTS.md', 'backend/CLAUDE.md', '.claude/agents/implementer.md',
                      '.claude/rules/agent-trust-boundaries.md',

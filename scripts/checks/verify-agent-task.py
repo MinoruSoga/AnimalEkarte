@@ -539,6 +539,8 @@ def plan(paths):
             test_path = path if path.endswith('.test.js') else path.removesuffix('.js') + '.test.js'
             if (ROOT / path).is_file():
                 jobs.append({'service': 'host', 'command': ['node', '--check', path]})
+            if path == '.claude/hooks/pre-bash-block-no-verify.js':
+                jobs.append({'service': 'host', 'command': ['python3', '-B', '.claude/scripts/test_no_verify_hook.py']})
             if (ROOT / test_path).is_file():
                 job = {'service': 'host', 'command': ['node', '--test', test_path]}
                 if job not in jobs:
@@ -649,7 +651,7 @@ def plan(paths):
             jobs.append({'service': 'host', 'command': ['python3', '-B', '.claude/scripts/test_sync_agents_skills.py']})
         elif path in ('.claude/scripts/sync-agent-trust-boundaries.py', '.claude/scripts/test_agent_trust_boundaries.py'):
             jobs.append({'service': 'host', 'command': ['python3', '-B', '.claude/scripts/test_agent_trust_boundaries.py']})
-        elif path in ('.claude/hooks/pre-bash-block-no-verify.js', '.claude/scripts/test_no_verify_hook.py'):
+        elif path == '.claude/scripts/test_no_verify_hook.py':
             jobs.append({'service': 'host', 'command': ['python3', '-B', '.claude/scripts/test_no_verify_hook.py']})
         elif path == '.claude/scripts/mirror_safety.py':
             for test in ('test_sync_codex_mirror.py', 'test_sync_agents_skills.py'):
@@ -724,7 +726,10 @@ def plan(paths):
                 jobs.append({'service': 'host', 'command': ['bash', '-n', path]})
         elif path in (
             'scripts/ci/check-workflow-contracts.test.mjs',
+            'scripts/ci/actionlint-queue-compat.mjs',
+            'scripts/ci/actionlint-queue-compat.test.mjs',
             '.github/workflows/security-scan.yml',
+            '.github/workflows/actionlint.yml',
             '.github/workflows/README-security-scan.md',
             '.github/workflows/ci.yml',
             '.github/workflows/e2e.yml',

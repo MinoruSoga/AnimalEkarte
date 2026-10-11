@@ -33,6 +33,9 @@ flowchart TB
 - workflow contracts は workflow 定義自身の整合検査であり自己参照のため remote に残す（`make ci` でも同一テストを実行する二重配線）。
 - gitleaks は PR 差分スキャンとして remote にも残す。`make ci` 側は履歴全体を対象にする上位互換。
 - scoped verification（`scripts/ci/ci_scope_plan.py`）は remote ではなく `PREPUSH_VERIFY=1` / `verify-agent-task.py` 経由のローカル利用に限定される。
+- 信頼境界の正本と43命令文書の同期は `make ci` の必須 `s01` でread-only検査する。正本更新後の未再生成やblock欠落は失敗し、CIで自動修復しない。
+- Plane merge workflowはmain/staging・異なるPRを同じrepository-wide concurrency groupで直列化する。`queue: max` と `cancel-in-progress: false` で最大100件の待機を保持する。queue超過・取消・失敗runは人間が確認し再実行する。この保護は同workflow間の更新が対象で、実Planeや他のwriterとの原子的更新を証明しない。
+- 固定actionlint 1.7.12はGitHubの `queue: max` を未認識のため、`actionlint-queue-compat.mjs` がその1項目と非取消設定を厳格に検証する。不正値・欠落・重複は失敗する。検証済みの1行をlint入力でコメント化し、行番号・他のYAML・式・shellを保持して全workflowへactionlintを実行する。ignore設定や失敗の無視は追加しない。
 - `main`、`staging`、`production` 向け PR でこの2 check が走る。required check は staging の branch protection が定義する。
 
 ## Actions ピン方針

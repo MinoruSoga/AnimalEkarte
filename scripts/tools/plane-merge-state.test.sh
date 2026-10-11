@@ -155,6 +155,11 @@ assert_eq "comment escapes markup" \
   '<p>main へのマージに合わせて Review に移動しました。</p><p>PR: <a href="https://example.com/a?b=&amp;c=&lt;d&gt;">https://example.com/a?b=&amp;c=&lt;d&gt;</a></p>' \
   "$(build_comment_html main Review 'https://example.com/a?b=&c=<d>')"
 
+assert_eq "escape all attribute delimiters without backslashes" \
+  'a&amp;b&lt;c&gt;&quot;d' "$(html_escape 'a&b<c>"d')"
+assert_eq "escape repeated delimiters and preserve backslashes" \
+  '\&amp;&amp;&lt;&lt;&gt;&gt;&quot;&quot;' "$(html_escape '\&&<<>>""')"
+
 # Exercise the real orchestration with a file-backed HTTP fake. State writes
 # survive command-substitution subshells; no network or credentials are used.
 API_FIXTURE_ROOT="$(mktemp -d)"
@@ -338,6 +343,30 @@ assert_eq "main UAT POST failure logs audit reconciliation wording" '1' \
   "$(printf '%s' "$out" | grep -c 'audit reconciliation current=UAT target=Review state=unchanged comment HTTP 503')"
 assert_eq "main UAT POST failure logs no moved wording" '0' "$(printf '%s' "$out" | grep -c 'moved')"
 assert_eq "main UAT POST failure leaves state unchanged" 'UAT' "$(cat "$CASE_DIR/state")"
+
+# The workflow uses one repository-wide queue. Exercise the real HTTP fake
+# for distinct PRs sharing a ticket in each serialized main/staging order.
+for order in main-first staging-first; do
+  CASE_DIR="$API_FIXTURE_ROOT/serialized-$order"
+  mkdir -p "$CASE_DIR"
+  initial=Running
+  [[ "$order" == staging-first ]] && initial=Review
+  printf '%s' "$initial" > "$CASE_DIR/state"
+  printf '[]' > "$CASE_DIR/comments"
+  printf '0' > "$CASE_DIR/fail_once"
+  printf '200' > "$CASE_DIR/comment_lookup_status"
+  : > "$CASE_DIR/calls"
+  if [[ "$order" == main-first ]]; then
+    sync_one_ticket EMR-999 main 607 'https://example.test/pr/607' feature-a >/dev/null
+  fi
+  sync_one_ticket EMR-999 staging 608 'https://example.test/pr/608' main >/dev/null
+  sync_one_ticket EMR-999 main 609 'https://example.test/pr/609' feature-b >/dev/null
+  assert_eq "$order serialized merges keep UAT" UAT "$(cat "$CASE_DIR/state")"
+  expected_patches=2
+  [[ "$order" == staging-first ]] && expected_patches=1
+  assert_eq "$order later main event performs no regressive PATCH" "$expected_patches" \
+    "$(grep -c '^PATCH$' "$CASE_DIR/calls")"
+done
 
 echo "----"
 echo "PASS ${PASS_COUNT}  FAIL ${FAIL_COUNT}"

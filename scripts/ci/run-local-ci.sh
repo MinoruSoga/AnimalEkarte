@@ -94,6 +94,7 @@ on_make_ci_failure() {
 
 s01() {
   begin_step "Agent instruction and scoped verification contracts"
+  ci_py -B .claude/scripts/test_agent_trust_boundaries.py
   ci_py -B .claude/scripts/sync-codex-mirror.py "$ROOT"
   ci_py -B .claude/scripts/sync-agents-skills.py "$ROOT"
   ci_py -B .claude/scripts/test_instruction_safety_contracts.py

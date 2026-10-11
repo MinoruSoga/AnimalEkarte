@@ -84,7 +84,7 @@ main() {
   esac
 
   if [[ -z "$slug" ]]; then
-    slug="wt${raw_offset}"
+    slug="wt${offset}"
   fi
   slug="$(printf '%s' "$slug" | tr '[:upper:]' '[:lower:]')"
   [[ "$slug" =~ ^[a-z0-9][a-z0-9_-]*$ ]] \

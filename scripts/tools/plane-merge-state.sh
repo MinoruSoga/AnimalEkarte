@@ -148,12 +148,21 @@ pr_qualifies_for_staging_tickets() {
 }
 
 html_escape() {
-  local value="$1"
-  value="${value//&/\&amp;}"
-  value="${value//</\&lt;}"
-  value="${value//>/\&gt;}"
-  value="${value//\"/\&quot;}"
-  printf '%s' "$value"
+  # Avoid the incompatible replacement quoting and patsub_replacement rules
+  # between macOS Bash 3.2 and Linux Bash 5. Preserve every other character.
+  local value="$1" escaped='' character
+  while [[ -n "$value" ]]; do
+    character="${value:0:1}"
+    value="${value:1}"
+    case "$character" in
+      '&') escaped+='&amp;' ;;
+      '<') escaped+='&lt;' ;;
+      '>') escaped+='&gt;' ;;
+      '"') escaped+='&quot;' ;;
+      *) escaped+="$character" ;;
+    esac
+  done
+  printf '%s' "$escaped"
 }
 
 build_comment_html() {

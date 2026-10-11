@@ -155,14 +155,24 @@ WORKTREE_ENV_ROOT="$case9" WORKTREE_ENV_EXAMPLE="$case9/fixture.template" \
   WORKTREE_ENV_FILE="$case9/fixture.runtime" "$TARGET" 08 >/dev/null 2>&1 || true
 assert_contains "$case9/fixture.runtime" "DB_HOST_PORT=10042" "case9: 08 parses as decimal offset 8"
 assert_contains "$case9/fixture.runtime" "REDOC_HOST_PORT=10047" "case9: 08 block end"
-assert_contains "$case9/fixture.runtime" "COMPOSE_PROJECT_NAME=animalekarte-wt08" "case9: raw 08 kept in default slug"
-assert_contains "$case9/fixture.runtime" "ekarte-postgres-data-wt08" "case9: raw 08 kept in volume"
+assert_contains "$case9/fixture.runtime" "COMPOSE_PROJECT_NAME=animalekarte-wt8" "case9: 08 uses normalized default slug"
+assert_contains "$case9/fixture.runtime" "ekarte-postgres-data-wt8" "case9: 08 uses normalized volume"
 
 case9b="$(new_case case9b)"
 WORKTREE_ENV_ROOT="$case9b" WORKTREE_ENV_EXAMPLE="$case9b/fixture.template" \
   WORKTREE_ENV_FILE="$case9b/fixture.runtime" "$TARGET" 0008 >/dev/null 2>&1 || true
 assert_contains "$case9b/fixture.runtime" "DB_HOST_PORT=10042" "case9b: 0008 parses as decimal offset 8"
-assert_contains "$case9b/fixture.runtime" "COMPOSE_PROJECT_NAME=animalekarte-wt0008" "case9b: raw 0008 kept in default slug"
+assert_contains "$case9b/fixture.runtime" "COMPOSE_PROJECT_NAME=animalekarte-wt8" "case9b: 0008 uses normalized default slug"
+case9plain="$(new_case case9plain)"
+WORKTREE_ENV_ROOT="$case9plain" WORKTREE_ENV_EXAMPLE="$case9plain/fixture.template" \
+  WORKTREE_ENV_FILE="$case9plain/fixture.runtime" "$TARGET" 8 >/dev/null 2>&1
+for alternate in "$case9" "$case9b"; do
+  if cmp -s "$case9plain/fixture.runtime" "$alternate/fixture.runtime"; then
+    ok "case9: equivalent decimal spelling produces identical runtime identity"
+  else
+    ng "case9: equivalent decimal spelling changes runtime identity"
+  fi
+done
 
 case9c="$(new_case case9c)"
 WORKTREE_ENV_ROOT="$case9c" WORKTREE_ENV_EXAMPLE="$case9c/fixture.template" \

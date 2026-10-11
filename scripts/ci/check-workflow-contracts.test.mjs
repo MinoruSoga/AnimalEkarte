@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import "./actionlint-queue-compat.test.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const PNPM_VERSION = "10.15.0";
@@ -294,6 +295,32 @@ test("make ci wires the gates retired from remote CI", () => {
     /-coverprofile=coverage\.out|go tool covdata/,
     "run-local-ci.sh must wire coverage.out generation (coverprofile or covdata merge)",
   );
+});
+
+test("mandatory instruction step rejects trust-boundary drift before generating mirrors", () => {
+  const script = read("scripts/ci/run-local-ci.sh");
+  const step = script.match(/^s01\(\) \{([\s\S]*?)^\}/m)?.[1];
+  assert.ok(step, "missing mandatory instruction step");
+  const check = "ci_py -B .claude/scripts/test_agent_trust_boundaries.py";
+  assert.ok(step.includes(check), "s01 must run the read-only repository drift assertion");
+  assert.ok(step.indexOf(check) < step.indexOf("sync-codex-mirror.py"));
+  assert.doesNotMatch(step, /ci_py[^\n]*sync-agent-trust-boundaries\.py(?![^\n]*--check)/);
+});
+
+test("Plane merge workflows serialize across PRs without replacing pending merges", () => {
+  const workflow = read(".github/workflows/plane-merge-state.yml");
+  const concurrency = yamlBlock(workflow, "concurrency", 0);
+  assert.match(concurrency, /^  group: plane-merge-state-\$\{\{ github\.repository \}\}$/m);
+  assert.match(concurrency, /^  cancel-in-progress: false$/m);
+  assert.match(concurrency, /^  queue: max$/m);
+  assert.doesNotMatch(concurrency, /pull_request|base_ref|head_ref|run_id|github\.ref/);
+});
+
+test("actionlint runs the validated queue compatibility path without ignore rules", () => {
+  const workflow = read(".github/workflows/actionlint.yml");
+  assert.match(namedStep(workflowJob(workflow, "actionlint"), "Run actionlint"),
+    /run: node scripts\/ci\/actionlint-queue-compat\.mjs \.\/actionlint/);
+  assert.doesNotMatch(read("scripts/ci/actionlint-queue-compat.mjs"), /--ignore|continue-on-error/);
 });
 
 test("make ci reports a commit status required by staging protection", () => {
