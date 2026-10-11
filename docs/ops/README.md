@@ -33,8 +33,33 @@ docs/ops/
 | [coverage-policy.md](coverage-policy.md) | テストカバレッジ ratchet 方式の運用ポリシー | カバレッジゲート調整時 |
 | [backlog-spreadsheet.md](backlog-spreadsheet.md) | Q&A バックログスプレッドシートの運用ルール | クライアント Q&A シート操作前 |
 | [plane-ticket-conventions.md](plane-ticket-conventions.md) | Plane チケット起票規約（タイトル・ラベル・本文テンプレート・UUID 対応表） | Plane work item 作成・更新前 |
-| [infra/architecture.md](infra/architecture.md) | インフラ構成図・ネットワーク・セキュリティ設計（`../architecture/overview.md` のレイヤード構造とは別物） | インフラ構成の調査・変更前 |
+| [infra/architecture.md](infra/architecture.md) | インフラ構成図・ネットワーク・セキュリティ設計（`../architecture/overview.md` の domain/capability-first 構成とは別物） | インフラ構成の調査・変更前 |
 | [infra/](infra/README.md) | Cloudflare 基盤の現行リポジトリ契約と、AWS 廃止履歴への正本ポインタ | インフラ変更・履歴調査前 |
+
+## GitHub Actions workflow → 文書オーナー
+
+実装された操作・trigger・条件の正本は各 `.github/workflows/*.yml` 自体であり、右列はその workflow の evidence/policy オーナー（runner 契約の詳細は YAML 側に残り、リンク先文書が runner 詳細を複製するわけではない）。下表は既存ポリシー・runbook への navigation であり、実行・稼働・合格の主張ではない（2026-10-11 棚卸し・静的対応のみ）。
+
+| workflow | 文書オーナー（policy / evidence） |
+|:---|:---|
+| [actionlint.yml](../../.github/workflows/actionlint.yml) | [ci-policy.md](ci-policy.md) |
+| [backend-deploy.yml](../../.github/workflows/backend-deploy.yml) | [deploy/CI-CD-PIPELINE.md](deploy/CI-CD-PIPELINE.md) |
+| [chromatic.yml](../../.github/workflows/chromatic.yml) | [testing/TEST_ARCHITECTURE.md](testing/TEST_ARCHITECTURE.md) |
+| [ci.yml](../../.github/workflows/ci.yml) | [ci-policy.md](ci-policy.md) |
+| [e2e.yml](../../.github/workflows/e2e.yml) | [testing/E2E_TESTING_GUIDE.md](testing/E2E_TESTING_GUIDE.md) |
+| [frontend-deploy.yml](../../.github/workflows/frontend-deploy.yml) | [deploy/CI-CD-PIPELINE.md](deploy/CI-CD-PIPELINE.md) |
+| [performance-tests.yml](../../.github/workflows/performance-tests.yml) | [testing/INTEGRATION_TEST_PLAN.md](testing/INTEGRATION_TEST_PLAN.md) |
+| [plane-merge-state.yml](../../.github/workflows/plane-merge-state.yml) | [plane-ticket-conventions.md](plane-ticket-conventions.md) |
+| [security-scan.yml](../../.github/workflows/security-scan.yml) | [ci-policy.md](ci-policy.md) |
+| [stg-migrate-direct.yml](../../.github/workflows/stg-migrate-direct.yml) | [deploy/STG_PLANETSCALE_SEED_RUNBOOK.md](deploy/STG_PLANETSCALE_SEED_RUNBOOK.md) |
+| [stg-smoke.yml](../../.github/workflows/stg-smoke.yml) | [deploy/CRUD-SMOKE-TEST.md](deploy/CRUD-SMOKE-TEST.md) |
+| [storybook.yml](../../.github/workflows/storybook.yml) | [testing/TEST_ARCHITECTURE.md](testing/TEST_ARCHITECTURE.md) |
+| [worker-secret-sync.yml](../../.github/workflows/worker-secret-sync.yml) | [infra/cloudflare-account-separation.md](infra/cloudflare-account-separation.md) |
+
+補足（静的確認 2026-10-11、実装詳細は YAML 参照）:
+
+- `chromatic.yml` — Storybook・ビジュアルテストの publish 用。token 未設定時は SKIP となり PASS 扱いではない（本 docs では設定有無は UNKNOWN）。
+- `storybook.yml` — component catalog を gh-pages へ build/publish するもので、application deploy でも UAT 証明でもない。
 
 ## AI エージェント向け注記
 

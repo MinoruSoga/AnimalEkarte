@@ -1,8 +1,10 @@
 # docs-perfection — Astra 調査パッケージ（文書保守）
 
+> **2026-09-07 の調査記録**。以下の件数・GOAL・受入状態は当時の記録。現行の実行状態・claim 方針は [work/README](../README.md) と root [AGENTS.md](../../../AGENTS.md) を参照。
+>
 > **目的**: Codex (GPT-6 Astra) が実施した `docs/` 棚卸し・矛盾候補・修復キューを、チャット外のリポジトリ正本として置く。  
 > **読者**: docs 保守を続けるエージェント / 人間。  
-> **製品の実行 SoT ではない**: 状態・担当・Done は Linear（[BRT-4](https://linear.app/baritechllc/issue/BRT-4)）。本ディレクトリは **文書ドリフト調査と修復計画** 専用。
+> **製品の実行 SoT ではない**: 状態・担当・Done は Plane workspace `baritechllc` / Project `EMR`（hub `EMR-1`）。本ディレクトリは **文書ドリフト調査と修復計画** 専用。（2026-10-11 訂正: 旧記述「Linear BRT-4」→ Linear は 2026-09-16 に閉鎖済み。`BRT-4` は履歴別名として Plane 側に継承）
 
 ## 読む順序
 
@@ -55,10 +57,10 @@ flowchart LR
 | [PROGRESS.md](PROGRESS.md) | History | checkpoint |
 | [EVIDENCE/](EVIDENCE/) | History / 証拠 | 生ログ・検証スクリプト |
 
-## 現在の状態と残件
+## 2026-09-07 の調査・受入記録
 
-最新の全件照合は [Issue照合レポート（2026-09-07）](ISSUE-RECONCILIATION.md)。既存199 MarkdownとGOAL.yamlを確認し、35件の証跡・補助ファイルは履歴として保存する。GitHub Issue本文・コメントとコードを照合し、外部実行状態は別に扱う。
+当時の全件照合は [Issue照合レポート（2026-09-07）](ISSUE-RECONCILIATION.md)。既存199 MarkdownとGOAL.yamlを確認し、35件の証跡・補助ファイルは履歴として保存する。GitHub Issue本文・コメントとコードを照合し、外部実行状態は別に扱う。
 
-先行 `DOCS-PERFECT-ASTRA-LOOP` の独立レビューと検証は [LEDGER](LEDGER.md#docs-perfect-astra-loop) と [当時の最終検証ログ](EVIDENCE/astra-loop-checks-final.txt) に保存する。現在のGOAL.yamlの `status: completed` は今回の開始時点からある先行状態で、今回の人間受入を表さない。今回の受入状態は `issue_refresh.acceptance_state: awaiting-human-verification`。
+先行 `DOCS-PERFECT-ASTRA-LOOP` の独立レビューと検証は [LEDGER](LEDGER.md#docs-perfect-astra-loop) と [当時の最終検証ログ](EVIDENCE/astra-loop-checks-final.txt) に保存する。GOAL.yaml の `status: completed` は 2026-09-07 調査の開始時点からある先行状態で、当時の人間受入を表さない。2026-09-07 調査の受入状態は `issue_refresh.acceptance_state: awaiting-human-verification`。
 
-RQ-002は修復差分あり。D-254のFAQ・スクリーンショット最終同期、Linear現在値、外部証跡・UAT・STG/PROD稼働は未確認のまま残す。claimは統合または明示的放棄後にUSERが解放する。
+RQ-002は修復差分あり。D-254のFAQ・スクリーンショット最終同期、実行 SoT の現在値（2026-10-11 訂正: 「Linear現在値」→ Linear は 2026-09-16 閉鎖済み。現在値の正本は Plane）、外部証跡・UAT・STG/PROD稼働は未確認のまま残す。claim の解放は root [AGENTS.md](../../../AGENTS.md) の packet claim protocol（作成者別規則）に従う。

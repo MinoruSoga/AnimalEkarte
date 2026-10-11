@@ -5,7 +5,7 @@
 > **タイミング**: システム概要を把握したい時。
 
 > **Animal Ekarte**: 動物病院向け統合カルテ・経営管理システム
-> **最新更新**: 2026-09-06 | **照合範囲**: repo 実装と GitHub Issue の仕様・決裁履歴。production 稼働・受入を意味しない。release gate の作業入口は Linear [BRT-4](https://linear.app/baritechllc/issue/BRT-4) / [todo.md](../../todo.md)。（2026-09-29 訂正: Linear は 2026-09-16 に閉鎖済み。実行 SoT は Plane workspace `baritechllc` の project `EMR`、hub `EMR-1`、case `BRT-4`。BRT-4 URL は履歴参照用エイリアスとして残す）
+> **最新更新**: 2026-10-11（実行 SoT の表記を Plane へ整理） | **照合範囲**: repo 実装と GitHub Issue の仕様・決裁履歴（2026-09-06 時点の静的照合が基準。production 稼働・受入を意味しない）。release gate の作業入口・実行 SoT は Plane workspace `baritechllc` / project `EMR`（hub `EMR-1`。case_id `BRT-4` を継承。`BRT-n`・`LINMIG-n` は Linear 閉鎖前の履歴別名）/ [todo.md](../../todo.md)。
 
 ---
 
@@ -27,7 +27,7 @@
 
 ### 2.3 経営の可視化 (Business Intelligence)
 - **リアルタイム集計**: 医院ごとの営業時間に合わせた正確な日次・月次売上、客単価、来院頻度の自動分析。
-- **データ駆動型 CRM**: 臨床ステータスと連動した **15 種類**の自動配信トリガーを定義する。Write API と cron の再開は [#259](https://github.com/MinoruSoga/AnimalEkarte/issues/259) の未完了条件であり、コード上のトリガー定義は配信稼働の証明ではない。
+- **データ駆動型 CRM**: 臨床ステータスと連動した自動配信トリガーをコード上 **17 種類** 定義する（退役済み `next_visit_reminder` を含む定義数であり、稼働中・受理済みを意味しない。定義の正本は [LINE / Lステップ仕様](line/README.md)）。Write API と cron の再開は [#259](https://github.com/MinoruSoga/AnimalEkarte/issues/259) の未完了条件であり、コード上のトリガー定義は配信稼働の証明ではない。
 
 ---
 
@@ -59,7 +59,7 @@ flowchart LR
 ## 4. 技術スタックと信頼性
 
 - **フロントエンド**: React 19 / Tailwind 4 / shadcn/ui による高速な SPA。
-- **バックエンド**: Go 1.26 / Gin / GORM による API（スキーマは **135 テーブル**（2026-09-29 訂正: 128 → 130、EMR-236 の `prescriptions` DROP で 130 → 129。2026-10-05 訂正: `021_medical_record_image_deletions.sql` の新設で 129 → 130。2026-10-07 訂正: `023_lab_device_mapping_drafts.sql` で対応下書き4件の新設により 130 → 134。2026-10-10: `032_trimming_image_deletions.sql` のトリミング画像削除予約台帳新設により 134 → 135。`ls backend/migrations/*.sql` 直下の `CREATE TABLE` から `DROP TABLE` を除いた実測に追随。[check-docs-symbol-drift](../../scripts/checks/check-docs-symbol-drift.sh) のゲート値）。[ADR-006](../architecture/adr/006-backend-domain-package-boundaries.md) により domain/capability-first の modular monolith へ cutover 済み。production 実装は `internal/<domain>` および命名済み cross-cutting package に置き、旧 layer-first 集約（`internal/handler` / `internal/service` / `internal/repository`）は削除済み。ADR-006 の Implemented は code/package 境界の完了であり、release ready ではない）。
+- **バックエンド**: Go 1.26 / Gin / GORM による API（スキーマは **135 テーブル**。`backend/migrations/` の `CREATE TABLE` から `DROP TABLE` を除いた実測が正本（[erd.md](../architecture/erd.md)・[check-docs-symbol-drift](../../scripts/checks/check-docs-symbol-drift.sh) のゲート値）。過去の訂正履歴は git 履歴を参照）。[ADR-006](../architecture/adr/006-backend-domain-package-boundaries.md) により domain/capability-first の modular monolith へ cutover 済み。production 実装は `internal/<domain>` および命名済み cross-cutting package に置き、旧 layer-first 集約（`internal/handler` / `internal/service` / `internal/repository`）は削除済み。ADR-006 の Implemented は code/package 境界の完了であり、release ready ではない。
 - **認可・セキュリティ**: **36 種類のリソース**に対する RBAC 制御と、共有テーブル上の論理テナント隔離（`clinic_id` scope + ownership / authorization checks）。
 - **品質保証**: クリティカルな domain には unit / integration test と write-owner 等の静的 gate を置く。Playwright E2E は表示・主要導線の任意検証であり、全クリティカルパス網羅や全 handler 結合テスト完備を主張しない（方針: [docs/ops/ci-policy.md](../ops/ci-policy.md)、[docs/ops/testing/](../ops/testing/README.md)）。
 

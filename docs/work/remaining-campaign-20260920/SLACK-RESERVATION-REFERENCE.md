@@ -215,7 +215,7 @@ func assertReservationCreatedBy(ctx context.Context, db *gorm.DB, clinicID uint6
 
 ## 9月13日報告との関係（現行 PASS にしない）
 
-[bug.md](../../../bug.md) `BUG-RES-DOCTOR-ID-ZERO`（L53–100）は次を **当時の記録**として残している。本票はそれを現行受入にしない。
+`bug.md` `BUG-RES-DOCTOR-ID-ZERO`（L53–100）は次を **当時の記録**として残している（`bug.md` は 2026-09-27 の台帳整理で 0 バイト残存。内容は git 履歴）。本票はそれを現行受入にしない。
 
 | 当時の切り分け | 当時の主張 | 本セッション |
 | --- | --- | --- |

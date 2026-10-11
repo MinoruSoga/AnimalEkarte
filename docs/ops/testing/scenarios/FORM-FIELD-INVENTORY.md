@@ -1017,5 +1017,5 @@ api.yaml の write endpoint のうち FE 実装が無いもの。実装 PR で�
 - [ ] 新規永続フォーム → 本ファイルに formId + fieldKey 追加 + 該当 V に § 追加
 - [ ] 既存フォームに項目追加 → fieldKey 行追加
 - [ ] 必須/境界変更 → R/O と F 重点を更新
-- [ ] route inventory は 87 product leaves（2026-09-29 に `/settings/bug-reports` 追加）。page 数と unique persistent form 数を混同しない
+- [ ] route inventory は 88 product leaves（正本: `route-inventory.test.tsx`。2026-09-29 に `/settings/bug-reports` 追加、後に `/settings/chat-history` 追加）。page 数と unique persistent form 数を混同しない
 - [ ] wildcard / UI 全項目 / 動的 placeholder が残る間は inventory incomplete とし、全フォーム完了や総数を主張しない

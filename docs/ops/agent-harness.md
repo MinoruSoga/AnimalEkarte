@@ -26,7 +26,7 @@ CLI・ホストアプリ・APIセッションの機能は別々に確認する�
 2. ledger/packet ID がある場合は [claim規約](../../AGENTS.md#packet-claim-protocol-mandatory)を守る。並列編集は別worktree。調査・レビューはread-onlyで並列化できる。
 3. 受入条件の失敗ケースを先に確認し、範囲内の実装と関連テストを行う。docs-onlyや低影響の可逆編集に不要な製品テストを増やさない。
 4. 変更した成果物を検証する。独立レビューで見つかった範囲内の不具合を修正し、影響する検証を再実行する。上限・環境障害を成功に変換せず、未完了項目として報告する。
-5. 完了報告には動作変更、対象worktree/diff、検証コマンド・終了結果・対象件数、未実行理由、外部状態、残作業を書く。claim解除は [AGENTS.md](../../AGENTS.md) packet claim protocol の作成者別規則に従い、main統合はユーザー操作のまま維持する。
+5. 完了報告には動作変更、対象worktree/diff、検証コマンド・終了結果・対象件数、未実行理由、外部状態、残作業を書く。claim解除は [AGENTS.md](../../AGENTS.md) packet claim protocol の作成者別規則に従い、main統合はユーザー操作のまま維持する。main または staging にマージ済みの PR head とクリーンな worktree は、AGENTS.md の Merged PR cleanup に従って整理する。claim/*、未統合成果、作成者や使用状況が不明な通常ブランチは同じ扱いにしない。
 
 ## 変更範囲の検証
 
@@ -56,7 +56,7 @@ flowchart LR
 
 ## ブラウザ受入
 
-UI動作、フォーム、ルーティング、アクセシビリティに変更があれば、関連する [受入シナリオ](testing/scenarios/README.md)を実操作で確認する。専用テストプロファイル、対象URL、合成データと許可された操作範囲を確認する。認証済み個人ブラウザ・実患者データを流用しない。Playwrightは再現テスト、DevToolsは調査、Computer Useは必要な操作に使う。現在呼べるtoolを確認する。
+UI動作、フォーム、ルーティング、アクセシビリティに変更があれば、関連する [受入シナリオ](testing/scenarios/README.md)を実操作で確認する。専用テストプロファイル、対象URL、合成データと許可された操作範囲を確認する。認証済み個人ブラウザ・実患者データを流用しない。ブラウザ MCP はユーザースコープの設定を使い、プロジェクトに共有設定を追加しない（repo の `.mcp.json` の `mcpServers` は空）。Chrome DevTools の loopback CDP 接続は対象 URL の明示承認がある場合だけ利用する。Playwrightは Docker runner による再現テスト、DevToolsは調査、Computer Useは必要な操作に使う。現在呼べるtoolを確認する。
 
 ローカル操作成功はSTG/UAT/PRODの証明ではない。スクリーンショットやネットワーク証跡は患者・飼主・資格情報を除外する。未実施をN/AやPASSへ置き換えない。
 

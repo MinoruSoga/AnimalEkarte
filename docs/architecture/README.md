@@ -26,8 +26,9 @@ flowchart LR
 | [fe-feature-be-domain-map.md](fe-feature-be-domain-map.md) | FE `features/*` ↔ BE domain / RBAC resource 対応と共有昇格ルール（ARCH-A7） | 新規画面配置・FE 共有化・LIFF 境界の設計・レビュー時 |
 | [be9-2a-boundary-map.md](be9-2a-boundary-map.md) | BE9-2A historical domain boundary map・分類 inventory（ADR-006 の measurement-data annex。現行 allowlist は `internal/lintscan` が正本） | domain 分類・package 境界の根拠確認時 |
 | [be9-2a-classification-manifest.csv](be9-2a-classification-manifest.csv) | BE9-2A 分類マニフェスト（全 761 production Go source row の immutable snapshot。ADR-006・boundary map §1 が引用。未分類 0 件） | 分類 provenance の照合時。現行 tree の物理 file 数との突合には使わない（2026-10-07 追記: 索引へ登録漏れだったため追加） |
-| [arch-a4-trigger-ledger.md](../work/arch-a4-trigger-ledger.md) | ARCH-A4 着手トリガー実測と landed スライス記録。**2026-10-07 追記: 本フォルダから docs/work/arch-a4-trigger-ledger.md へ移設済み**（行は移設案内として残す） | domain 内 file 分割を始める前の go/no-go（移設先を参照） |
+| [arch-a4-trigger-ledger.md](../work/arch-a4-trigger-ledger.md) | ARCH-A4 着手トリガー実測と landed スライス記録（`docs/work/` 配下の日付付き調査。現行 inventory ではない） | domain 内 file 分割を始める前の go/no-go |
 | [erd.md](erd.md) | データベース設計（全テーブル inventory・主要リレーション。テーブル数の正本） | スキーマ調査・migration 作成前 |
+| [erd-detail/index.md](erd-detail/index.md) | 全カラム・全外部キーの詳細 ERD（**生成物**。正本は `backend/migrations/`。検査は `python3 -B scripts/tools/generate-erd-detail.py --check`、再生成は `--write`。手編集しない） | カラム単位の型・FK・NULL 可否の照合時 |
 | [auth.md](auth.md) | RBAC 権限モデル・マルチテナント（clinic_id）隔離 | 認可・権限・テナント境界の実装前 |
 | [data-flow.md](data-flow.md) | リクエスト追跡（Request ID）と非同期同期の仕組み | ログ調査・非同期処理の実装前 |
 | [delete-soft-delete-patterns.md](delete-soft-delete-patterns.md) | Hard Delete / Soft Delete の使い分けと FK 制約 | 削除系機能・FK 設計の実装前 |

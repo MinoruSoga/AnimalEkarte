@@ -44,13 +44,13 @@ flowchart TB
 
 ## 1. Pre-window 前提チェックリスト（切替日前に全項目 ✅ であること）
 
-**研修順序の未解決な正本間差異**: [#256](https://github.com/MinoruSoga/AnimalEkarte/issues/256) は操作説明会を納品後とする一方、旧 `todo.md`（2026-09-26 台帳統合前）は P7（U13 研修）を P8（Go-live）の前提に含めていた（2026-09-29 訂正: 「現行 todo.md は P7→P8 を前提に含める・USER が Linear 上で確定」→ 現行 `todo.md` は P 番号構造を持たず、研修は Plane `EMR-151`・Go-live は Plane `EMR-134` で管理。Linear は 2026-09-16 閉鎖）。切替前に USER が Plane 上で採用する順序を確定する。本書の同期では既存ゲートを解除せず、U13 を完了扱いにしない。
-
-（2026-10-07 追記 — **本差異は解消済み**: 2026-10-04 の PO/曽我氏決定（Plane `EMR-151` answer コメント）で操作説明会は開催せず操作マニュアルで代替するため、研修の順序問題自体が消滅した。U13 は「完了」ではなく「実施不要（代替決定）」として扱う — `OPERATION_MANUAL.md` §10–11 を同決定へ整合済み。本ゲートの残対象はマニュアル自体の本番対象版カバレッジであり、PR #552 の監査で補強済み）
+**研修・操作説明会（現行）**: 2026-10-04 の PO/曽我氏決定（Plane `EMR-151` answer コメント）で操作説明会は開催せず操作マニュアルで代替する。U13 は「完了」ではなく「実施不要（代替決定）」であり、実施証跡の記入は適用外。旧記録（#256 の納品後説明会方針・旧 `todo.md` の P7→P8 前提）は git 履歴。本ゲートの残対象はマニュアル自体の本番対象版カバレッジ（PR #552 の監査で補強済み）で、代替決定を受入ゲートの免除とはしない。
 
 **UAT の延期不可条件**: 臨床安全・会計金額・clinic / owner / pet / staff 分離・認証権限・データ消失の FAIL は Go-live 前に解消する。下表の「納品後対応合意」はその他の FAIL に限り、受入チケット（Plane `EMR-131`、旧 `P4` / #254 AUTHENTICATED-UAT）の受容条件と USER の明示受容を必要とする（2026-09-29 訂正: 「Linear の受容条件（`todo.md` P4）」→ todo.md は 2026-09-26 統合で P 番号構造を廃止、受容条件の正本は Plane）。
 
 未完了・未確定の項目が 1 つでも残る間は **Go 判定不可（HOLD）**。
+
+**production branch / workflow の存在 ≠ 本番構築・CI 整合**: checked-in workflow/config の存在は provider 構築や required check 整合の証明ではない。`production` の required checks 不整合（2026-10-11 観測）は [ci-policy.md](../ops/ci-policy.md) を正本とし、merge 可否は head の check/status と保護設定の照合で判断、release 前に人間が GitHub 側で解消する。
 
 | # | 前提 | 対応 Issue / 正本 | 完了条件 | 状態 |
 |---|---|---|---|---|

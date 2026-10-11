@@ -46,7 +46,7 @@ flowchart TB
 
 1. `cd backend && npx wrangler containers list` で app・version・state を確認する。
 2. `npx wrangler containers instances <container-id>` で稼働 instance の配置コード（例 `maa01`）を確認し、`npx wrangler containers info <container-id>` で `scheduling_policy`・`constraints`・instance 状態を照合する。
-3. 期待との乖離を記録する。ingress は KIX 系、DB は PlanetScale `ap-northeast-2` のため、`maa01`/`bom09`/`sin14` 系への着地は `container_fetch` を悪化させる。2026-09-23 の観測では `container_fetch` 866–3848ms が client 遅延の支配成分だった（[証拠](../../../../reports/perf-e5-residual-20260923/cf-events/README.md)）。
+3. 期待との乖離を記録する。ingress は KIX 系、DB は PlanetScale `ap-northeast-2` のため、`maa01`/`bom09`/`sin14` 系への着地は `container_fetch` を悪化させる。2026-09-23 の観測では `container_fetch` 866–3848ms が client 遅延の支配成分だった（証拠は `reports/perf-e5-residual-20260923/cf-events/`。gitignore 非配布証跡のため clone 環境には存在しない。再利用は保管者に所在と取得方法を確認）。
 4. 配置が不利で再抽選すると判断した場合は、`backend/Dockerfile.production` の `LABEL rollout="N"`（:38、再ビルド強制用ダミーラベル）をインクリメントして deploy する。新 image digest → 新 version → instance 入替で再抽選が起き、コード差分は不要。再抽選は任意で、実施しない場合も記録だけ残して運用を続行してよい。
 
 ### 運用ルール（発動条件・上限・記録）
@@ -59,7 +59,7 @@ flowchart TB
 
 ### 確定した仕様・ケイパビリティ上限（2026-09-23 切り分け・2026-09-28 EMR-202 で確定）
 
-- `constraints.regions: ["APAC"]`（wrangler.jsonc:150-151）は下限であって保証ではない。APAC 内のどの metro に着地するかは scheduler 次第で、KIX ingress・ap-northeast-2 DB の構成で `maa01`/`sin14`/`bom09`/`sin07` へ着地した実績がある（v72 の `maa01`/`bom09` は [2026-09-24 再観測](../../../../reports/perf-lane-all-20260924/placement/README.md)、`sin07` は EMR-213 復旧後の性能台帳 E8）。これらの着地は許容する。
+- `constraints.regions: ["APAC"]`（wrangler.jsonc:150-151）は下限であって保証ではない。APAC 内のどの metro に着地するかは scheduler 次第で、KIX ingress・ap-northeast-2 DB の構成で `maa01`/`sin14`/`bom09`/`sin07` へ着地した実績がある（v72 の `maa01`/`bom09` は 2026-09-24 再観測 — `reports/perf-lane-all-20260924/placement/`。gitignore 非配布証跡。再利用は保管者に所在と取得方法を確認 — 、`sin07` は EMR-213 復旧後の性能台帳 E8）。これらの着地は許容する。
 - `constraints.cities`（metro ピン留め）はアカウントに `CITIES_CONSTRAINT` ケイパビリティが無く、deploy が `VALIDATE_INPUT` で失敗する（run 35749806541）。選択肢は regions 粒度まで。
 - `scheduling_policy` は **`default` 固定**（wrangler.jsonc:141）。`regional` はこのアカウントでは非対応で、EMR-213 の application 再作成時に create が `VALIDATE_INPUT` で拒否されることを確認済み（許可値は `default`/`fill_metals` のみ）。以前の config=`regional` / deployed=`default` の乖離は、EMR-213 で config を `default` に揃えたことで解消済み。
   - 経緯（2026-09-23 切り分け）: `regional` を宣言していた当時、wrangler は deploy 毎に `PATCH /accounts/{account}/containers/applications/{id}` へ `scheduling_policy: "regional"` を送信し、CI log（run 35765616070・35817156409・35821335301）は `default → regional` の差分と `SUCCESS Modified application` を示したが、`containers info`（GET）は `default` を返し続けた（v69/70/71/72 で再現）。既存 application への PATCH は受理されるだけで永続化されない。

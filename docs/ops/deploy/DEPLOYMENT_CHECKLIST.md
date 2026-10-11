@@ -5,7 +5,7 @@
 > **タイミング**: デプロイ実行前。
 
 > **Animal Ekarte**: ステージングおよび本番環境への安全な移行手順
-> **最新更新**: 2026-08-31 | **checked-in config**: STG target/workflowあり、backend production job は checked-in（EMR-148）。Environment reviewers・secret・provider は未設定/UNKNOWNで未実行。live provider状態はUNKNOWNで実行時receiptが必要
+> **最新更新**: 2026-10-11 | **checked-in config**: STG target/workflowあり、backend production job は checked-in（EMR-148）。Environment reviewers・secret・provider の設定・実行・稼働は未確認（UNKNOWN）。実行前に dated receipt を確認する。live provider状態はUNKNOWNで実行時receiptが必要
 
 ---
 
@@ -23,7 +23,7 @@ flowchart TB
 
 ## 1. 事前検証（開発環境・CI）
 
-デプロイを開始する前に、ローカルおよび CI 環境で以下の品質基準を全て満たしていることを確認します。
+デプロイを開始する前に、ローカルで以下の品質基準を全て満たしていることを確認します。remote CI は最小構成（[../ci-policy.md](../ci-policy.md)）であり、以下は `make ci` または各 make target のローカル実行が正本です。
 
 - [ ] **コード品質の完遂**
   - [ ] `make lint`: バックエンド静的解析（golangci-lint）で指摘ゼロ。

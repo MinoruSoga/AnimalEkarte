@@ -8,7 +8,7 @@ Task details and live status belong in Plane. Root [todo.md](../../../../todo.md
 
 ## 1. Release gate and order
 
-A human release owner verifies the reviewed ref, exact GitHub Environment name/protection, production secret scope, backup evidence, frontend API target, and rollback candidate. Then the activated workflow contract must run:
+A human release owner verifies the reviewed ref, exact GitHub Environment name/protection, production secret scope, backup evidence, frontend API target, and rollback candidate. `production` の required checks 不整合（2026-10-11 観測）は [../../ci-policy.md](../../ci-policy.md) を正本とし、merge 可否は head の check/status と保護設定の照合で判断する。未解消の不整合は release 前に人間が GitHub 側で解消する。Then the activated workflow contract must run:
 
 **deploy → migrate → `/health` → optional smoke**
 

@@ -31,11 +31,12 @@
 ## 主要なユーザーアクション
 
 - **新規登録**: ヘッダーの「新規入院登録」ボタンより、ペット選択を経て登録フォームへ遷移（`hospitalization:create`）。
-- **ケージ移動 (DnD)**: ボードビューでカードを別ケージへドラッグし収容ケージを変更（移動先使用中はスワップ）。**`hospitalization:edit`（`canEdit`）必須**。死亡ペットはドラッグ不可。view のみでは DnD 無効。
-  - スワップは、2件の入院IDと同じ順序の表示時ケージID（`expected_cage_ids`）を送信する。BEは両入院の行ロック後に現在の割当と照合し、どちらかが移動・割当解除済みなら409で両方の書込みを拒否する。最新のボードを確認して再操作する。
-  - 連結グループの代表・構成ケージを含むスワップは現行仕様では不可。FEは送信前に拒否し、BEの構成ケージ422・占有グループ409の割当ガードも維持する。
+- **ケージ移動 (DnD)**: ボードビューでカードを別ケージへドラッグし収容ケージを変更（空きケージへの移動は `PATCH`、移動先使用中は `POST /api/v1/hospitalizations/cage-swap` で単一トランザクションのスワップ）。**`hospitalization:edit`（`canEdit`）必須**。死亡ペットはドラッグ不可。view のみでは DnD 無効。
+  - スワップは、2件の入院ID（`hospitalization_ids`）と同じ順序の表示時ケージID（`expected_cage_ids`）を送信する（いずれも正数2件・同位置対応）。BE は両入院の行をソート順でロックした後、現在の割当と照合し、どちらかが移動・割当解除済みなら 409 で両方の書込みを拒否する。最新のボードを確認して再操作する。
+  - 連結グループの代表・構成ケージを含むスワップは現行仕様では不可。FE は送信前に拒否し、BE の構成ケージ 422・占有グループ 409 の割当ガードも維持する。連結を含まない移動の最終判定も backend が担う。
 - **ケージ未割当欄（EMR-316）**: `cage_id` が未設定の入院（登録時に「選択なし」を選んだもの）は、ボードビュー末尾の「ケージ未割当」欄にカードで表示する。ケージカードの「空き」数には影響しない。表示と詳細遷移のみで、ドラッグによるケージ割当は不可（詳細遷移は在室かつ非死亡かつ **`canEdit`** の場合のみ）。未設定の入院が無ければ欄自体を出さない。
 - **ボードカードから詳細へ**: 在室かつ非死亡かつ **`canEdit`** のときのみカード click で詳細へ遷移（`HospitalizationBoard` の `canOpenCard`）。view のみではカード open 不可。
+- **ケージ連結モード（EMR-306）**: `master-hospitalization:edit` 権限があるとき切替できる merge モード。有効中はペット移動 DnD を止め、ケージ同士のドラッグ&ドロップで「1つの入院スペース」へ連結し、代表ケージ行から解除（unmerge）を要求する。連結ピッカーの占有判定は `GET /api/v1/masters/cages/occupancy`（同じく `master-hospitalization:edit`）。連結メンバー行は代表ケージを指す表示となり、連結ルール（同一 clinic・有効・未連結・非占有。メンバー宛割当は 422、占有グループ宛は 409）の正本は [settings/master-cage.md](./settings/master-cage.md)。
 - **リストから詳細へ**: 入院 No の行内リンクは **view** で詳細へ（死亡時はリンクなし）。操作列ボタンは **`canEdit`** 時のみ。全行クリックで遷移する UI ではない。
 
 ---
@@ -58,12 +59,17 @@ flowchart TB
 
 ### パフォーマンスと体験
 - **非同期計算の最適化**: `useDeferredValue` により、大規模な入院データに対するフィルタリング時もUIの応答性を確保。
+- **リスト/ボードの取得粒度**: リストビューはサーバーページングで現在ページのみ表示する。ボードビューは対象医院の同じフィルタ条件を 200 件/ページで全ページ走査する。走査中の `X-Clinic-ID` は開始時の医院に固定し、キャッシュキーも医院ごとに分離する。取得中・失敗時はボードの空き状態を確定表示しない。`start_date`/`id` で同値時の順序を安定させるが、走査中の同時更新まで同一スナップショットになる保証ではない。
+- **占有判定と連結の拒否**: 連結ピッカーの占有ケージ集合（`GET /api/v1/masters/cages/occupancy`）が unknown / 読込中 / 取得失敗のときは連結操作を拒否する（占有不明のまま代表選択を許可しない）。占有判定は対象医院の admitted/reserved 全件に基づき、画面上でフィルタ表示されている患者とは独立している。最終判定は backend が担い、FE の除外は補助である。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
 | GET | `/api/v1/hospitalizations` | 期間・条件に応じた入院データの一括取得 | `hospitalization` | `view` |
 | PATCH | `/api/v1/hospitalizations/:id` | 空きケージへの移動（DnD）による収容ケージの更新。FE も board open/DnD を edit でゲート | `hospitalization` | `edit` |
-| POST | `/api/v1/hospitalizations/cage-swap` | 使用中ケージとの原子的な入れ替え。`hospitalization_ids`と`expected_cage_ids`は正数2件・同位置対応。不一致409で書込みなし | `hospitalization` | `edit` |
+| POST | `/api/v1/hospitalizations/cage-swap` | 使用中ケージとの原子的な入れ替え。`hospitalization_ids` と `expected_cage_ids` は正数2件・同位置対応。割当不一致は 409 で書込みなし（構成ケージ宛は 422、占有グループ宛は 409、EMR-306） | `hospitalization` | `edit` |
+| GET | `/api/v1/masters/cages/occupancy` | 連結ピッカーの占有ケージ判定（EMR-306） | `master-hospitalization` | `edit` |
+| POST | `/api/v1/masters/cages/:id/merge` | ケージの一時連結（EMR-306） | `master-hospitalization` | `edit` |
+| POST | `/api/v1/masters/cages/:id/unmerge` | ケージ連結の解除（EMR-306） | `master-hospitalization` | `edit` |
 
 ---

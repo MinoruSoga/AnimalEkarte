@@ -9,8 +9,7 @@
 - Backend: Go table-driven tests。必要に応じて testify を使い、`internal/<domain>` と `cmd/api` に colocate する。固定 Service/Repository layer を前提にしない。
 - Frontend: Vitest + React Testing Library。
 - Coverage: [coverage policy](../coverage-policy.md) の ratchet。
-- CI: PostgreSQL 18 と全 migration を使う path-filtered `backend_build`、4 backend test shards、aggregate backend coverage ratchet。
-- local `make ci`: inventory/guardrail family を含む。full project command の agent 自動実行は禁止されているため scoped check を選ぶ。
+- local `make ci`: PostgreSQL 18 と全 migration を使う backend build、4 backend test DB shards、aggregate backend coverage ratchet、inventory/guardrail family を含む。remote `ci.yml` は最小構成で backend build/test/coverage を実行しない（[ci-policy.md](../ci-policy.md)）。full project command の agent 自動実行は禁止されているため scoped check を選ぶが、scoped check はこの全量と等価ではない。
 
 Scoped backend example:
 

@@ -128,7 +128,7 @@ Store both only as `Production` Environment secrets, never repository-level. The
 - [ ] Cloudflare account/zone, DNS `api.noah-karte.com`, and certificate;
 - [ ] PlanetScale production database and role;
 - [ ] R2 bucket, S3 credentials, and `S3_PUBLIC_BASE_URL`;
-- [ ] `production` branch creation and branch protection — apply the same protection as `staging` immediately after creation (spec: [docs/ops/ci-policy.md](../../ci-policy.md) 「ブランチ保護」). An unprotected window allows a direct push to trigger production deploy with no CI;
+- [ ] `production` branch protection の required checks 整合 — 2026-10-11 観測の不整合は [docs/ops/ci-policy.md](../../ci-policy.md)「ブランチ保護」を正本とする。merge 可否は head の check/status と保護設定の照合で判断し、release 前に人間が GitHub 側で現行 check 名へ整合させる（docs からの設定変更・回避はしない）;
 - [ ] GitHub Environment `Production`: required reviewers, a deployment-branch rule limited to `production`, and the two §6.1 secrets;
 - [ ] Worker secrets from §2 set via `wrangler secret put ... -c wrangler.production.jsonc`;
 - [ ] `TRUSTED_PROXY_CIDR` post-deploy measurement and confirmation;

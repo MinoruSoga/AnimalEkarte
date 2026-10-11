@@ -140,6 +140,14 @@ Win7 の `Drimke.tbl` は機器ラベル → 内部コード（`IRBC`→910、`I
 | ラベル＋`value_raw`＋単位 | 910 などの内部コードを persist。本体へ ASTM / `nc` |
 | 保存 raw または Drワン確立直後の再生でデコード | 患者検体を常時接続試験に使う |
 
+### 現行 IDEXX デコーダの文法（2026-10-11）
+
+PR #629 のデコーダは、空白で区切られた `CODE VALUE [UNIT]` と `CODE = VALUE [UNIT]` を扱う。`FeLV` は混在大小文字の例外として認識し、`FeLV = NEG` / `FIV = POS` の定性値や `<1.00` の不等式を `value_raw` に保持する。未知項目は捨てず `needs_review` とする。
+
+`WBC =`・繰り返しの `=` は結果値として採用しない。欠損値の後が別の `CODE = VALUE` ならその項目の読取りを継続する。一体の `FeLV=NEG` など空白のない形式や、任意の混在文法の欠損回復を保証する仕様ではない。I/s の PIMS 問い合わせは測定にしない。
+
+正本は [`backend/internal/medicalrecord/lab_device_idexx.go`](../../../backend/internal/medicalrecord/lab_device_idexx.go)、合成回帰テストは [`lab_device_idexx_grammar_test.go`](../../../backend/internal/medicalrecord/lab_device_idexx_grammar_test.go)。実機・保存キャプチャによる忠実度、医院ケーブルでの常時運用、PIMS の運用承認は未確認のままであり、この文法対応をもって承認済みとしない。
+
 ---
 
 ## 手入力
@@ -169,5 +177,6 @@ Drワン `mdconM` に総蛋白・黄疸指数・フィラリア・FIV/FeLV・PCV
 | 2026-08-19 | `/lab-device` の旧 browser direct-serial 経路。AE-LAB-0〜4 |
 | 2026-08-20 | 城東 `mdcon` 確定。IDEXX PIMS シリアルと Drワン内部コード帯を追記。MDB は入力にしない |
 | 2026-08-31 | LaunchAgent がシリアルを所有し、browser は loopback HTTP 接続のみと明記。4 source type、VetLab decoder / persist / 既定slot実装済み、医院常時運用は未承認 |
+| 2026-10-11 | PR #629 の現行 IDEXX デコーダ文法を追記（実機・キャプチャ・常時運用・PIMS 運用承認は未確認のまま） |
 
 *患者データ・認証情報・機器識別子の生値は記入しない。*
