@@ -120,7 +120,9 @@ func (s *lstepBatchService) runDeliveryTriggerBatchAllClinicsWithResult(
 		"batch_delivery_trigger",
 		metadata,
 		func(ctx context.Context, clinicID uint64) (int, []error) {
-			return s.runDeliveryTriggersForClinicAt(ctx, clinicID, asOf)
+			repaired, repairErrs := s.reconcileExpiredTentativeTags(ctx, clinicID, asOf)
+			fired, triggerErrs := s.runDeliveryTriggersForClinicAt(ctx, clinicID, asOf)
+			return repaired + fired, append(repairErrs, triggerErrs...)
 		},
 	)
 }

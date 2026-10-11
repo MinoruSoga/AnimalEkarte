@@ -58,6 +58,11 @@ type Transactor interface {
 	WithTx(ctx context.Context, fn func(context.Context) error) error
 }
 
+type batchApplicationReservationRepository interface {
+	lstepBatchReservationRepository
+	expiredTentativeTagOwnerReader
+}
+
 // Dependencies are cross-domain capabilities required to construct the LSTEP application.
 // LSTEP-owned repositories are created from DB inside NewApplication.
 type Dependencies struct {
@@ -75,7 +80,7 @@ type Dependencies struct {
 	BillingItems          tagSyncBillingItemRepo
 	ClinicSettings        lstepClinicSettingsRepo
 	ReservationSettings   lstepLineSettingReader
-	Reservations          lstepBatchReservationRepository
+	Reservations          batchApplicationReservationRepository
 	Appointments          AppointmentRepository // EMR-308: next-visit tag sync + tentative reminder read 面
 	Clinics               lstepBatchClinicRepository
 	Staff                 csvImportStaffRepository
