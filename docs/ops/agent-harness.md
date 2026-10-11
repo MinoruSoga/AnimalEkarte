@@ -116,4 +116,4 @@ literal sh/bash/zsh/dash -cを補助的に扱う。対象pathのread/realpathや
 既存fail-openは未解決。部分tokenizerによる複雑なshell構文の誤拒否もあり得る。
 実デバイス書込不能を保証するには、agent実行ユーザー/隔離runtimeがraw deviceに
 write権限を持たず、device mountとprivileged accessを持たないことの別確認が必要。
-この補助ガードだけで包括的なdevice denyを宣言せず、能力26件の安全性も認定しない。
+この補助ガードだけで包括的なdevice denyを宣言せず、残存する能力findingの安全性も認定しない。
