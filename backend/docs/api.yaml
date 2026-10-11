@@ -11815,7 +11815,22 @@ paths:
       operationId: listReservations
       summary: 予約一覧
       tags: [Reservations]
+      description: snapshot=true は指定範囲の全予約と関連情報を同一の読み取り専用 REPEATABLE READ transaction で返す。最大10000件・DB処理10秒。日付、両端の日付範囲、ペット、飼主のいずれかを必須とし、超過時は400（部分応答なし）。省略・false時は従来のページ応答。
       parameters:
+        - name: snapshot
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: true時はpage/limitを適用せず一括snapshot（応答page=1、limit=10000、snapshot=true）
+        - name: start_date
+          in: query
+          description: 範囲の開始日（end_dateと併用）
+          schema: { type: string, format: date }
+        - name: end_date
+          in: query
+          description: 範囲の最終日（当日を含む、start_dateと併用）
+          schema: { type: string, format: date }
         - name: page
           in: query
           schema:
@@ -11858,10 +11873,15 @@ paths:
                   - $ref: '#/components/schemas/PaginatedResponse'
                   - type: object
                     properties:
+                      snapshot:
+                        type: boolean
+                        description: snapshot=true要求が同一DB snapshotで完了した場合のみtrue。従来ページ応答では省略。
                       data:
                         type: array
                         items:
                           $ref: '#/components/schemas/ReservationAppointment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

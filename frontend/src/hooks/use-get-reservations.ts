@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { getStoredClinicId } from "@/lib/current-clinic";
 import { useCurrentClinicId } from "@/hooks/use-current-clinic-id";
-import { DAY_VIEW_FETCH_LIMIT } from "@/config/fetch-limits";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformReservationWithIntent, type Reservation } from "./reservation-intent-response";
@@ -11,8 +10,7 @@ import type { Reservation as BackendReservation } from "@/types/generated/models
 interface ReservationsListResponse {
   data: BackendReservation[];
   total: number;
-  page: number;
-  limit: number;
+  snapshot: boolean;
 }
 
 export interface ReservationFilters {
@@ -33,15 +31,14 @@ export interface ReservationFilters {
   clinicId?: string;
 }
 
-function buildReservationParams(filters?: ReservationFilters): Record<string, string | number> {
-  const params: Record<string, string | number> = { page: 1, limit: DAY_VIEW_FETCH_LIMIT };
+function buildReservationParams(
+  filters?: ReservationFilters,
+): Record<string, string | number | boolean> {
+  const params: Record<string, string | number | boolean> = { snapshot: true };
   if (filters?.date) params.date = filters.date;
-  // 期間レンジ指定時は表示期間の全予約を取得するため limit を引き上げる。
-  // (BUG #82: limit=100 + start_time ASC で当日の予約が古い予約に押し出され予約管理に出ない問題の修正)
   if (filters?.startDate && filters?.endDate) {
     params.start_date = filters.startDate;
     params.end_date = filters.endDate;
-    params.limit = 1000;
   }
   if (filters?.status) params.status = filters.status;
   if (filters?.source) params.source = filters.source;
@@ -54,9 +51,7 @@ function buildReservationParams(filters?: ReservationFilters): Record<string, st
 
 const getReservations = async (filters?: ReservationFilters): Promise<Reservation[]> => {
   const params = buildReservationParams(filters);
-  // Codex PR606 #10: 複数ページにまたがる fetch は固定 clinic で発行する。
-  // 発行時点の stored clinic をピン留めしないと、切替中に page2 以降が
-  // 別クリニックへ飛んで混在データを返す（interceptor は発行毎に読む）。
+  // 発行時点の医院を固定し、同じ query key の医院スコープを維持する。
   const pinnedClinicId = filters?.clinicId ?? getStoredClinicId();
   const requestConfig = {
     params,
@@ -66,20 +61,18 @@ const getReservations = async (filters?: ReservationFilters): Promise<Reservatio
     "/v1/reservations",
     requestConfig,
   );
-  let rows = first.data;
-  // EMR-308/Codex: レンジ取得は limit=1000 で打ち切られ、期限超過 tentative の
-  // actionable list が total を超えると黙って欠落する。total まで全ページを取得する。
-  let page = 1;
-  while (rows.length < first.total) {
-    page += 1;
-    const { data: next } = await axios.get<ReservationsListResponse>("/v1/reservations", {
-      ...requestConfig,
-      params: { ...params, page },
-    });
-    if (next.data.length === 0) break; // total 不整合・並行削除への防御
-    rows = rows.concat(next.data);
+  // A paginated/partial response cannot safely represent the current calendar:
+  // offset pages may observe inserts, deletes or rescheduling between requests.
+  if (
+    first.snapshot !== true ||
+    !Number.isSafeInteger(first.total) ||
+    first.total < 0 ||
+    !Array.isArray(first.data) ||
+    first.total !== first.data.length
+  ) {
+    throw new Error("予約一覧を完全に取得できませんでした。再読み込みしてください");
   }
-  return rows.map(transformReservationWithIntent);
+  return first.data.map(transformReservationWithIntent);
 };
 
 /**

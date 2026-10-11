@@ -289,31 +289,10 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicIDs []uint64,
 		return reservations, 0, nil
 	}
 
-	q := persistence.DBOrTx(ctx, r.db).
-		Model(&model.Reservation{}).
-		Scopes(persistence.ClinicScopeIn(clinicIDs), reservationRelationsMatchParentClinic)
-	switch {
-	case date != nil:
-		// 単日フィルタ（当日受付など）
-		start := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
-		end := start.Add(24 * time.Hour)
-		q = q.Where("start_time >= ? AND start_time < ?", start, end)
-	case startDate != nil && endDate != nil:
-		// 期間レンジフィルタ（予約管理カレンダーの表示中の週/月）。endDate は排他的上限
-		q = q.Where("start_time >= ? AND start_time < ?", *startDate, *endDate)
-	}
-	if status != nil {
-		q = q.Where("status = ?", *status)
-	}
-	if source != nil {
-		q = q.Where("source = ?", *source)
-	}
-	if petID != nil {
-		q = q.Where("pet_id = ?", *petID)
-	}
-	if ownerID != nil {
-		q = q.Scopes(reservationOwnerFilter(*ownerID))
-	}
+	q := reservationListQuery(persistence.DBOrTx(ctx, r.db), clinicIDs, listReservationFilters{
+		Date: date, StartDate: startDate, EndDate: endDate, Status: status,
+		Source: source, PetID: petID, OwnerID: ownerID,
+	})
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
@@ -322,6 +301,36 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicIDs []uint64,
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
 	return reservations, total, nil
+}
+
+// reservationListQuery keeps pagination and snapshots on the same clinic and relation filters.
+func reservationListQuery(db *gorm.DB, clinicIDs []uint64, filters listReservationFilters) *gorm.DB {
+	q := db.
+		Model(&model.Reservation{}).
+		Scopes(persistence.ClinicScopeIn(clinicIDs), reservationRelationsMatchParentClinic)
+	switch {
+	case filters.Date != nil:
+		// 単日フィルタ（当日受付など）
+		start := time.Date(filters.Date.Year(), filters.Date.Month(), filters.Date.Day(), 0, 0, 0, 0, filters.Date.Location())
+		end := start.Add(24 * time.Hour)
+		q = q.Where("start_time >= ? AND start_time < ?", start, end)
+	case filters.StartDate != nil && filters.EndDate != nil:
+		// 期間レンジフィルタ（予約管理カレンダーの表示中の週/月）。endDate は排他的上限
+		q = q.Where("start_time >= ? AND start_time < ?", *filters.StartDate, *filters.EndDate)
+	}
+	if filters.Status != nil {
+		q = q.Where("status = ?", *filters.Status)
+	}
+	if filters.Source != nil {
+		q = q.Where("source = ?", *filters.Source)
+	}
+	if filters.PetID != nil {
+		q = q.Where("pet_id = ?", *filters.PetID)
+	}
+	if filters.OwnerID != nil {
+		q = q.Scopes(reservationOwnerFilter(*filters.OwnerID))
+	}
+	return q
 }
 
 func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
