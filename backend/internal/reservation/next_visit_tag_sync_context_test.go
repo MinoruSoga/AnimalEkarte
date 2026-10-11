@@ -3,6 +3,7 @@ package reservation
 import (
 	"context"
 	"errors"
+	"log"
 	"log/slog"
 	"testing"
 	"time"
@@ -171,7 +172,12 @@ func TestNextVisitTagSync_FailureLogKeepsPostCommitScope(t *testing.T) {
 	defer cancel()
 	cancel()
 	original := slog.Default()
-	t.Cleanup(func() { slog.SetDefault(original) })
+	originalOutput, originalFlags := log.Writer(), log.Flags()
+	t.Cleanup(func() {
+		slog.SetDefault(original)
+		log.SetOutput(originalOutput)
+		log.SetFlags(originalFlags)
+	})
 	logged := false
 	slog.SetDefault(slog.New(&nextVisitSyncLogHandler{handleFn: func(ctx context.Context, record slog.Record) error {
 		assert.NoError(t, ctx.Err())
