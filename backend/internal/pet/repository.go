@@ -78,12 +78,25 @@ type LifecycleWriter interface {
 	ClearDeath(ctx context.Context, clinicID, petID uint64) error
 }
 
+// RowLockingRepository は同一トランザクション内の臨床状態検証を直列化するための
+// FOR UPDATE 読取面（Codex PR606 #26 再指摘: cage swap の死亡判定）。
+// Repository（広い読取面）には含めず、必要な消費者だけが型アサーションで取り出す
+// narrow capability として CompleteRepository にだけ載せる。
+type RowLockingRepository interface {
+	// LockByIDForUpdate は FOR UPDATE でペットを行ロック取得する。
+	// ambient tx（persistence.TxFromContext）必須 — autocommit ではロックが
+	// SELECT 終了と同時に解放され直列化にならないため fail-closed（MRB-02 先例:
+	// hospitalizationRepository.LockByIDForUpdate と同じ契約）。
+	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
+}
+
 // CompleteRepository is the concrete composition surface returned by NewRepository.
 // The legacy repository facade intentionally narrows this to Repository until central
 // composition cuts over to the typed lifecycle capability.
 type CompleteRepository interface {
 	ServiceRepository
 	LifecycleWriter
+	RowLockingRepository
 }
 
 type repository struct {
@@ -283,6 +296,27 @@ func (r *repository) FindByID(ctx context.Context, clinicID, id uint64) (*model.
 
 func (r *repository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error) {
 	return r.findPetByID(ctx, clinicIDs, id)
+}
+
+// LockByIDForUpdate は FOR UPDATE でペットを行ロック取得する（RowLockingRepository）。
+// Owner/Insurance の Preload は載せない — 呼び出し側が必要とするのは行スナップショット
+// （Status/DeceasedAt 等のスカラー）だけであり、リレーション読込はロックを広げるだけ。
+func (r *repository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
+	// MRB-02: FOR UPDATE is meaningless outside an ambient transaction (autocommit releases
+	// the row lock at statement end). Match hospitalizationRepository.LockByIDForUpdate fail-closed.
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("pet lock requires an ambient transaction")
+	}
+	var pet model.Pet
+	err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ?", id).
+		First(&pet).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", id))
+	}
+	return &pet, nil
 }
 
 // findPetByID は認可済みクリニック集合を受け取りペットを1件取得する共通実装。

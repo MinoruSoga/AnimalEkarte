@@ -80,7 +80,7 @@ decide_transition() {
 
   if [[ "$base" == "main" ]]; then
     if [[ "$kind" == "review" ]]; then
-      printf '%s\n' "SETTLED Review"
+      printf '%s\n' "SKIP already"
       return 0
     fi
     if [[ "$kind" == "uat" ]]; then
@@ -93,10 +93,6 @@ decide_transition() {
 
   if [[ "$kind" == "review" ]]; then
     printf '%s\n' "UAT"
-    return 0
-  fi
-  if [[ "$kind" == "uat" ]]; then
-    printf '%s\n' "SETTLED UAT"
     return 0
   fi
   printf '%s\n' "SKIP not-review"
@@ -260,6 +256,16 @@ plane_detail() {
   jq -r '.detail // .message // empty' "$body_file" 2>/dev/null | head -n 1
 }
 
+valid_comment_collection() {
+  jq -e '
+    if type == "array" then .
+    elif type == "object" and (.data | type) == "array" then .data
+    elif type == "object" and (.results | type) == "array" then .results
+    else error("unsupported comment collection") end
+    | all(.[]; type == "object")
+  ' "$1" >/dev/null 2>&1
+}
+
 comment_already_posted() {
   local body_file="$1"
   local external_id="$2"
@@ -282,7 +288,7 @@ sync_one_ticket() {
   local item_body patch_body comment_body
   local http_code identifier project_id item_uuid current_state decision
   local external_id comment_html list_url patch_url comment_url payload
-  local needs_patch target
+  local reconcile_only=0
 
   item_body="$(mktemp)"
   patch_body="$(mktemp)"
@@ -313,6 +319,18 @@ sync_one_ticket() {
   fi
 
   decision="$(decide_transition "$base" "$current_state" "$head")"
+  # A previous run may have committed the state PATCH but failed to post its
+  # comment. Reconcile the comment at the target without another state write.
+  if [[ "$base" == "main" && "$decision" == "SKIP already" ]]; then
+    decision=Review
+    reconcile_only=1
+  elif [[ "$base" == "main" && "$decision" == "SKIP uat-or-later" ]]; then
+    decision=Review
+    reconcile_only=1
+  elif [[ "$base" == "staging" && "$head" == "main" && "$(fold_state "$current_state")" == "uat" ]]; then
+    decision=UAT
+    reconcile_only=1
+  fi
   case "$decision" in
     SKIP\ *)
       log_line "SKIP  ${ticket_id}  ${decision#SKIP }  current=${current_state:-unreadable}"
@@ -322,14 +340,7 @@ sync_one_ticket() {
       fi
       return 0
       ;;
-    Review|UAT)
-      needs_patch=1
-      target="$decision"
-      ;;
-    SETTLED\ *)
-      needs_patch=0
-      target="${decision#SETTLED }"
-      ;;
+    Review|UAT) ;;
     *)
       log_line "FAIL  ${ticket_id}  unexpected decision"
       rm -f "$item_body" "$patch_body" "$comment_body"
@@ -338,17 +349,13 @@ sync_one_ticket() {
   esac
 
   if [[ "${PLANE_MERGE_STATE_DRY_RUN:-}" == "1" ]]; then
-    if [[ "$needs_patch" == "1" ]]; then
-      log_line "DRY   ${ticket_id}  ${current_state} -> ${target}"
-    else
-      log_line "DRY   ${ticket_id}  ${current_state} already ${target}"
-    fi
+    log_line "DRY   ${ticket_id}  ${current_state} -> ${decision}"
     rm -f "$item_body" "$patch_body" "$comment_body"
     return 0
   fi
 
-  if [[ "$needs_patch" == "1" ]]; then
-    payload="$(jq -n --arg state "$target" '{state:$state}')"
+  if [[ "$reconcile_only" == "0" ]]; then
+    payload="$(jq -n --arg state "$decision" '{state:$state}')"
     patch_url="${PLANE_API_ORIGIN}/api/v2/workspaces/${PLANE_WORKSPACE_SLUG}/projects/${PLANE_PROJECT_ID}/work-items/${item_uuid}/"
     http_code="$(plane_http PATCH "$patch_url" "$payload" "$patch_body")"
     if [[ "$http_code" != "200" ]]; then
@@ -358,8 +365,11 @@ sync_one_ticket() {
     fi
   fi
 
-  external_id="gh-merge:${pr_number}:${base}:${target}"
-  comment_html="$(build_comment_html "$base" "$target" "$pr_url")"
+  external_id="gh-merge:${pr_number}:${base}:${decision}"
+  comment_html="$(build_comment_html "$base" "$decision" "$pr_url")"
+  if [[ "$reconcile_only" == "1" ]]; then
+    comment_html="<p>$(html_escape "$base") へのマージ後、現在の $(html_escape "$current_state") 状態を確認し、状態変更なしでこのPRの監査コメントを補完しました。</p><p>PR: <a href=\"$(html_escape "$pr_url")\">$(html_escape "$pr_url")</a></p>"
+  fi
   list_url="${PLANE_API_ORIGIN}/api/v2/workspaces/${PLANE_WORKSPACE_SLUG}/projects/${PLANE_PROJECT_ID}/work-items/${item_uuid}/comments/?external_source=github&external_id=$(jq -nr --arg v "$external_id" '$v|@uri')"
   http_code="$(plane_http GET "$list_url" "" "$comment_body")"
   if [[ "$http_code" != "200" ]]; then
@@ -367,8 +377,13 @@ sync_one_ticket() {
     rm -f "$item_body" "$patch_body" "$comment_body"
     return 1
   fi
+  if ! valid_comment_collection "$comment_body"; then
+    log_line "FAIL  ${ticket_id}  comment lookup returned an invalid collection"
+    rm -f "$item_body" "$patch_body" "$comment_body"
+    return 1
+  fi
   if comment_already_posted "$comment_body" "$external_id"; then
-    log_line "MOVE  ${ticket_id}  ${current_state} -> ${target}  comment=already"
+    log_line "MOVE  ${ticket_id}  ${current_state} -> ${decision}  comment=already"
     rm -f "$item_body" "$patch_body" "$comment_body"
     return 0
   fi
@@ -380,16 +395,12 @@ sync_one_ticket() {
   comment_url="${PLANE_API_ORIGIN}/api/v2/workspaces/${PLANE_WORKSPACE_SLUG}/projects/${PLANE_PROJECT_ID}/work-items/${item_uuid}/comments/"
   http_code="$(plane_http POST "$comment_url" "$payload" "$comment_body")"
   if [[ "$http_code" != "200" && "$http_code" != "201" ]]; then
-    log_line "FAIL  ${ticket_id}  ${current_state} -> ${target} but comment HTTP ${http_code} $(plane_detail "$comment_body")"
+    log_line "FAIL  ${ticket_id}  moved to ${decision} but comment HTTP ${http_code} $(plane_detail "$comment_body")"
     rm -f "$item_body" "$patch_body" "$comment_body"
     return 1
   fi
 
-  if [[ "$needs_patch" == "1" ]]; then
-    log_line "MOVE  ${ticket_id}  ${current_state} -> ${target}"
-  else
-    log_line "MOVE  ${ticket_id}  ${current_state} -> ${target}  comment=backfilled"
-  fi
+  log_line "MOVE  ${ticket_id}  ${current_state} -> ${decision}"
   rm -f "$item_body" "$patch_body" "$comment_body"
   return 0
 }

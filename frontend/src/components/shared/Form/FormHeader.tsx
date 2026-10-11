@@ -19,9 +19,9 @@ export const FormHeader = memo(function FormHeader({
   action,
 }: FormHeaderProps) {
   return (
-    // flex-wrap + min-w-0: narrow viewports stack title/action instead of clipping (BUG-458).
+    // flex-wrap + min-w-0: narrow viewports stack title/action instead of clipping (BUG-458, EMR-333).
     <div className={`${STYLE.formHeader} flex-wrap min-w-0`}>
-      <div className="flex min-w-0 flex-1 items-center gap-2">
+      <div className="flex min-w-0 flex-1 basis-full sm:basis-auto items-center gap-2">
         {onBack ? (
           <Button
             variant="ghost"
@@ -44,7 +44,9 @@ export const FormHeader = memo(function FormHeader({
         </div>
       </div>
       {action ? (
-        <div className="flex min-w-0 flex-wrap items-center gap-2 shrink-0">{action}</div>
+        <div className="flex min-w-0 flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto justify-start sm:justify-end">
+          {action}
+        </div>
       ) : null}
     </div>
   );

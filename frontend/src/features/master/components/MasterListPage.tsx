@@ -60,6 +60,9 @@ interface MasterListPageProps {
   onDeleteConfirm: () => void;
   onDeleteCancel: () => void;
 
+  /** PageLayout maxWidth への転送（EMR-333: 少列マスタ画面の横幅制限等に適用） */
+  maxWidth?: string;
+
   /** Table content */
   children: ReactNode;
 }
@@ -84,6 +87,7 @@ export const MasterListPage = memo(function MasterListPage({
   activeSorts,
   onSortChange,
   sidePanel,
+  maxWidth,
   deleteOpen,
   deleteTitle,
   deleteDescription,
@@ -99,6 +103,7 @@ export const MasterListPage = memo(function MasterListPage({
         resource={resource}
         onNew={onNew}
         sidePanel={sidePanel}
+        maxWidth={maxWidth}
       >
         <div className="flex flex-col gap-4">
           <PropertyFilter

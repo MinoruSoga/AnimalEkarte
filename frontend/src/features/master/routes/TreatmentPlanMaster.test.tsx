@@ -8,7 +8,7 @@ import { ResourceCheckups, ResourceMasterMedical } from "@/types/generated/model
 import { TreatmentPlanMaster } from "./TreatmentPlanMaster";
 
 const mocks = vi.hoisted(() => ({
-  masterTabPageProps: [] as Array<{ resource?: string }>,
+  masterTabPageProps: [] as Array<{ resource?: string; maxWidth?: string }>,
   sidePanelProps: [] as Array<{
     canEdit: boolean;
     canDelete: boolean;
@@ -56,14 +56,16 @@ vi.mock("../hooks/use-master-save", () => ({
 vi.mock("../components/MasterTabPage", () => ({
   MasterTabPage: ({
     resource,
+    maxWidth,
     sidePanel,
     children,
   }: {
     resource?: string;
+    maxWidth?: string;
     sidePanel: ReactNode;
     children: ReactNode;
   }) => {
-    mocks.masterTabPageProps.push({ resource });
+    mocks.masterTabPageProps.push({ resource, maxWidth });
     return (
       <>
         {sidePanel}
@@ -213,6 +215,7 @@ describe("TreatmentPlanMaster resource-specific permissions", () => {
     renderRoute("/settings/treatment-items?tab=checkup");
 
     expect(mocks.masterTabPageProps.at(-1)?.resource).toBe(ResourceCheckups);
+    expect(mocks.masterTabPageProps.at(-1)?.maxWidth).toBe("max-w-5xl");
     expect(mocks.sidePanelProps.at(-1)).toEqual({
       canEdit: mocks.checkupPermissions.canEdit,
       canDelete: mocks.checkupPermissions.canDelete,

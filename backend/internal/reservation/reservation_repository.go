@@ -31,11 +31,16 @@ type ReservationCRUDRepository interface {
 	// update は owner package 内だけで使う汎用 persistence primitive。
 	// package 外には ReservationIntentRepository の intent-specific operation だけを公開する。
 	update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
+	updateWithPreviousOwner(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, *uint64, error)
+	deleteWithPreviousOwner(ctx context.Context, clinicID, id uint64) (*uint64, error)
 	// updateTentativeStatus は tentative 行限定の CAS 更新 primitive。
 	// 汎用 update は WHERE に status 述語を持たないため、lock なし FindByID 後の
 	// tentative 遷移（当日受付/終了）が並行 ConfirmTentative の昇格を上書きし得る。
 	// tentative 行への書込は必ずこの述語付き経路を通す。
-	updateTentativeStatus(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
+	// validate は intent advisory lock 取得後・CAS 書込前に post-lock 再読み込み済みの
+	// 行へ適用される検証フック（Codex #3/#14/#19: ロック待ち中に commit され得る
+	// 死亡・日付変更・昇格の前提をここで再検証する）。nil = 追加検証なし。
+	updateTentativeStatus(ctx context.Context, clinicID, id uint64, fields map[string]any, validate tentativeTransitionValidator) (*model.Reservation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -51,21 +56,34 @@ type ReservationNextVisitIntentRepository interface {
 	ConfirmTentative(ctx context.Context, clinicID, id uint64, input ConfirmTentativeUpdate) (*model.Reservation, error)
 }
 
+// tentativeTransitionValidator は updateTentativeStatus が (clinic,pet) intent
+// advisory lock 取得後・CAS 書込前に、post-lock で再読み込みした行へ適用する
+// 検証フック（Codex #3/#14/#19/#16 系）。ロック待ち中に commit され得る
+// 死亡・日付変更・昇格・譲渡といった前提をここで再検証し、追加書込フィールド
+// （実受付時刻スタンプ・現飼い主への owner 追従等）を返す（nil 可）。
+// 非 nil error で tx 全体をロールバックする。
+type tentativeTransitionValidator func(ctx context.Context, locked *model.Reservation) (map[string]any, error)
+
 // ReservationTentativeLifecycleRepository は EMR-308 の tentative → 実予約/当日受付への
 // 同一行昇格（lifecycle absorb）を提供する owner package 内だけの write operation。
 // ReservationIntentRepository には載せず、package 外 consumer には公開しない。
 // すべて ambient transaction 必須・(clinic, pet) スコープ・fail-closed。
+// 第2戻り値は実際に昇格した行の更新前 owner（同じ intent/行ロック内で取得）。
+// 新規 INSERT と未来日の tentative を温存する受付では nil。commit 後のタグ同期に用いる。
 type ReservationTentativeLifecycleRepository interface {
 	// AbsorbTentativeOnBooking は実予約の作成時にペットの active tentative を同一行昇格する。
 	// tentative 未存在時は通常 INSERT にフォールバックし、呼び出し側は Create との分岐を持たない。
-	AbsorbTentativeOnBooking(ctx context.Context, booking *model.Reservation) (*model.Reservation, error)
+	AbsorbTentativeOnBooking(ctx context.Context, booking *model.Reservation) (*model.Reservation, *uint64, error)
 	// PromoteTentativeOnCheckin は当日受付（checked_in 作成）でペットの active tentative を
 	// 同一行昇格する。tentative 未存在時は通常 INSERT にフォールバックする。
-	PromoteTentativeOnCheckin(ctx context.Context, booking *model.Reservation) (*model.Reservation, error)
+	PromoteTentativeOnCheckin(ctx context.Context, booking *model.Reservation) (*model.Reservation, *uint64, error)
 	// WithTentativeReminderSerialization は tentative mutation と同じ (clinic,pet)
 	// intent advisory lock を保持する tx 内で fn を実行する（LSTEP リマインダーの
-	// 再検証〜外部送信 race 対策）。
-	WithTentativeReminderSerialization(ctx context.Context, clinicID, petID uint64, fn func(txCtx context.Context) error) error
+	// 再検証〜外部送信 race 対策）。petIDs は candidate 抽出で観測した全ペット —
+	// Codex #22: 同一飼い主に別ペットの同日 tentative が残ると、単一 pet のロック
+	// だけでは「ロックした intent ≠ 送信根拠の intent」になり得るため、全対象を
+	// 昇順にロックする。
+	WithTentativeReminderSerialization(ctx context.Context, clinicID uint64, petIDs []uint64, fn func(txCtx context.Context) error) error
 }
 
 // ReservationIntentRepository は reservation 外の consumer が使う appointment write operation。
@@ -73,22 +91,28 @@ type ReservationTentativeLifecycleRepository interface {
 type ReservationIntentRepository interface {
 	ReservationNextVisitIntentRepository
 	CompleteForAccounting(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
+	CompleteForAccountingWithOwners(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, []uint64, error)
 	AssertMedicalRecordDoctorInClinic(ctx context.Context, clinicID, doctorID uint64) error
 	BackfillForMedicalRecord(ctx context.Context, clinicID, id uint64, ownerID, petID, doctorID *uint64) error
 	PrepareForMedicalRecordFinalization(ctx context.Context, clinicID, id uint64) error
 	MarkNoShow(ctx context.Context, clinicID, id uint64) (NoShowTransition, error)
 	FindTrimmingByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	LockTrimmingByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
-	CreateForTrimming(ctx context.Context, clinicID uint64, input CreateTrimmingReservationInput) (*model.Reservation, error)
+	// CreateForTrimming returns the previous owner only when an intent is actually absorbed.
+	CreateForTrimming(ctx context.Context, clinicID uint64, input CreateTrimmingReservationInput) (*model.Reservation, *uint64, error)
 	UpdateForTrimming(ctx context.Context, clinicID, id uint64, input UpdateTrimmingReservationInput) (*model.Reservation, error)
 	DeleteForTrimming(ctx context.Context, clinicID, id uint64) error
 }
 
 // NoShowTransition reports whether MarkNoShow performed the compare-and-set and, when it did,
 // the exact previous status needed for a transaction-local audit record.
+// OwnerID は遷移時点の行が保持する飼い主。Codex #25: LSTEP タグ同期はロックした
+// candidate の owner_id ではなく、post-transition で再読み込みした現飼い主を使う
+// （譲渡直後の stale owner への誤同期を防ぐ）。Changed=false の場合は 0。
 type NoShowTransition struct {
 	Changed        bool
 	PreviousStatus model.ReservationStatus
+	OwnerID        uint64
 }
 
 // ReservationNoShowAtRepository is the narrow durable-scheduler capability.
@@ -135,6 +159,19 @@ type ReservationSlotRepository interface {
 	CountConflicts(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error)
 	// CountByTypeAndStartTime は同一予約区分・同一開始時刻の予約件数を返す。
 	CountByTypeAndStartTime(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
+	// AcquireNextVisitIntentLock はこの ambient transaction 上で (clinic, pet) 紐付く
+	// tentative mutation 用 advisory lock を取得する。トランザクション内で呼び出すこと。
+	// Codex #4: tentative 遷移（updateTentativeStatus/ConfirmTentative/promote/absorb/
+	// リマインダー直列化）と同じ「intent lock → 行 lock / 書込」順序を service 層に
+	// 公開し、行ロック先取りによる逆順取得を防ぐ。
+	AcquireNextVisitIntentLock(ctx context.Context, clinicID, petID uint64) error
+	// FindPetIDForIntentLock は AcquireNextVisitIntentLock の引数となる pet_id を
+	// 非ロック read で解決する。clinic_id + id + deleted_at のみで絞り、
+	// reservationRelationsMatchParentClinic（関連行の clinic/owner 整合ガード）は
+	// 適用しない — Codex #16 のペット譲渡直後など「行の owner_id が pet.owner_id と
+	// 一時不整合」な tentative 行もロック対象として見つける必要があるため。
+	// 戻り値は pet_id（appointments.pet_id が NULL なら nil）。
+	FindPetIDForIntentLock(ctx context.Context, clinicID, id uint64) (*uint64, error)
 }
 
 // ReservationQueryRepository はクロスフィーチャーのクエリ・依存チェック（10 メソッド）。
@@ -190,12 +227,19 @@ type ReservationNextVisitQueryRepository interface {
 	// intended_date が JST 暦日で targetDate に一致する1件を返す。未存在は (nil, nil)
 	// （配信直前の stale candidate 再検証用）。
 	FindTentativeByOwnerAndIntendedDate(ctx context.Context, clinicID, ownerID uint64, targetDate time.Time) (*model.Reservation, error)
+	// FindTentativesByOwnerAndIntendedDate は同条件の全 active tentative を
+	// id 昇順で返す（Codex #22: 同一 owner の同日 tentative が複数ペットに跨る
+	// 場合に、candidate 抽出時点の全ペットを直列化ロックの対象として列挙する）。
+	FindTentativesByOwnerAndIntendedDate(ctx context.Context, clinicID, ownerID uint64, targetDate time.Time) ([]model.Reservation, error)
 }
 
 // ReservationRepository は owner package 内のrepository capabilityを合成する。
 // 汎用 update は非公開のため、package外consumerは実装も呼び出しもできない。
 // EMR-308: next-visit intent の typed write も含む（service が orchestrate する）。
 type ReservationRepository interface {
+	assertLineCustomerReservationOwner(ctx context.Context, clinicID, customerID uint64, resolvedOwnerID *uint64) error
+	// clearNextVisitIntentWithOwner returns the stored owner from the locked deleted row.
+	clearNextVisitIntentWithOwner(ctx context.Context, clinicID, petID uint64) (bool, *uint64, error)
 	ReservationCRUDRepository
 	ReservationSlotRepository
 	ReservationQueryRepository
@@ -215,11 +259,24 @@ type ReservationStore interface {
 
 type reservationRepository struct {
 	db *gorm.DB
+	// nowFn は次回予定日の JST 暦日窓検証（Codex #19）で使う時計。
+	// テストがロック待ち中の日跨ぎを再現できるよう注入可能にする
+	// （lstep_batch_service.go の nowFn と同じパターン）。
+	nowFn func() time.Time
 }
 
 // NewReservationRepository は owner内repositoryとcross-domain intentを実装するstoreを返す。
 func NewReservationRepository(db *gorm.DB) ReservationStore {
-	return &reservationRepository{db: db}
+	return &reservationRepository{db: db, nowFn: time.Now}
+}
+
+// now は検証用の現在時刻を返す。日付窓チェック専用で、checked_in_at 等の
+// 実時刻スタンプは time.Now() を直接使う（記録時刻と検証時計の混同を避ける）。
+func (r *reservationRepository) now() time.Time {
+	if r.nowFn != nil {
+		return r.nowFn()
+	}
+	return time.Now()
 }
 
 func (r *reservationRepository) FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
@@ -260,7 +317,7 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicIDs []uint64,
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
 	if err := reservationListPreloads(q, clinicIDs, false).
-		Scopes(persistence.Paginate(page, limit)).Order("start_time ASC").Find(&reservations).Error; err != nil {
+		Scopes(persistence.Paginate(page, limit)).Order("start_time ASC").Order("id ASC").Find(&reservations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
 	return reservations, total, nil
@@ -348,6 +405,37 @@ func (r *reservationRepository) update(ctx context.Context, clinicID, id uint64,
 		return nil, err
 	}
 	return loaded, nil
+}
+
+// Mutation metadata is captured from the same row lock as the write.
+func (r *reservationRepository) updateWithPreviousOwner(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, *uint64, error) {
+	var result *model.Reservation
+	var previousOwner *uint64
+	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		locked, err := r.LockAndFindByID(txCtx, clinicID, id)
+		if err != nil {
+			return err
+		}
+		previousOwner = locked.OwnerID
+		result, err = r.update(txCtx, clinicID, id, fields)
+		return err
+	})
+	return result, previousOwner, err
+}
+
+func (r *reservationRepository) deleteWithPreviousOwner(ctx context.Context, clinicID, id uint64) (*uint64, error) {
+	var previousOwner *uint64
+	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		locked, err := r.LockAndFindByID(txCtx, clinicID, id)
+		if err != nil {
+			return err
+		}
+		previousOwner = locked.OwnerID
+		return r.Delete(txCtx, clinicID, id)
+	})
+	return previousOwner, err
 }
 
 func (r *reservationRepository) Delete(ctx context.Context, clinicID, id uint64) error {

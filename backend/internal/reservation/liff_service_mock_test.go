@@ -400,8 +400,9 @@ func (m *mockLiffOwnerRepository) FindByIDs(_ context.Context, _ uint64, _ []uin
 // --- mockLiffReservationRepository ---
 
 type mockLiffReservationRepository struct {
+	previousAbsorbedOwnerID   *uint64
 	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
-	updateTentativeStatusFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
+	updateTentativeStatusFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any, validate tentativeTransitionValidator) (*model.Reservation, error)
 	countByTypeAndStartTimeFn func(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
 	findPetByIDInClinicFn     func(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
 }
@@ -429,9 +430,33 @@ func (m *mockLiffReservationRepository) update(ctx context.Context, clinicID, id
 	return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 }
 
-func (m *mockLiffReservationRepository) updateTentativeStatus(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
+func (m *mockLiffReservationRepository) updateWithPreviousOwner(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, *uint64, error) {
+	locked, err := m.LockAndFindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, nil, err
+	}
+	var owner *uint64
+	if locked != nil {
+		owner = locked.OwnerID
+	}
+	result, err := m.update(ctx, clinicID, id, fields)
+	return result, owner, err
+}
+func (m *mockLiffReservationRepository) deleteWithPreviousOwner(ctx context.Context, clinicID, id uint64) (*uint64, error) {
+	locked, err := m.LockAndFindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, err
+	}
+	var owner *uint64
+	if locked != nil {
+		owner = locked.OwnerID
+	}
+	return owner, m.Delete(ctx, clinicID, id)
+}
+
+func (m *mockLiffReservationRepository) updateTentativeStatus(ctx context.Context, clinicID, id uint64, fields map[string]any, validate tentativeTransitionValidator) (*model.Reservation, error) {
 	if m.updateTentativeStatusFn != nil {
-		return m.updateTentativeStatusFn(ctx, clinicID, id, fields)
+		return m.updateTentativeStatusFn(ctx, clinicID, id, fields, validate)
 	}
 	return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 }
@@ -510,6 +535,10 @@ func (m *mockLiffReservationRepository) FindPetByIDInClinic(ctx context.Context,
 	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
 }
 
+func (m *mockLiffReservationRepository) assertLineCustomerReservationOwner(ctx context.Context, clinicID, customerID uint64, _ *uint64) error {
+	return m.AssertLineCustomerInClinic(ctx, clinicID, customerID)
+}
+
 func (m *mockLiffReservationRepository) AssertLineCustomerInClinic(_ context.Context, _, _ uint64) error {
 	return nil
 }
@@ -522,33 +551,47 @@ func (m *mockLiffReservationRepository) ClearNextVisitIntent(_ context.Context, 
 	return false, nil
 }
 
+func (m *mockLiffReservationRepository) clearNextVisitIntentWithOwner(_ context.Context, _, _ uint64) (bool, *uint64, error) {
+	return false, nil, nil
+}
+
 func (m *mockLiffReservationRepository) ConfirmTentative(_ context.Context, _, _ uint64, _ ConfirmTentativeUpdate) (*model.Reservation, error) {
 	return nil, nil
 }
 
-func (m *mockLiffReservationRepository) AbsorbTentativeOnBooking(_ context.Context, booking *model.Reservation) (*model.Reservation, error) {
-	return booking, nil
+func (m *mockLiffReservationRepository) AbsorbTentativeOnBooking(_ context.Context, booking *model.Reservation) (*model.Reservation, *uint64, error) {
+	return booking, m.previousAbsorbedOwnerID, nil
 }
 
-func (m *mockLiffReservationRepository) PromoteTentativeOnCheckin(_ context.Context, booking *model.Reservation) (*model.Reservation, error) {
-	return booking, nil
+func (m *mockLiffReservationRepository) PromoteTentativeOnCheckin(_ context.Context, booking *model.Reservation) (*model.Reservation, *uint64, error) {
+	return booking, m.previousAbsorbedOwnerID, nil
 }
 
-func (m *mockLiffReservationRepository) WithTentativeReminderSerialization(ctx context.Context, _ uint64, _ uint64, fn func(txCtx context.Context) error) error {
+func (m *mockLiffReservationRepository) WithTentativeReminderSerialization(ctx context.Context, _ uint64, _ []uint64, fn func(txCtx context.Context) error) error {
 	return fn(ctx)
+}
+
+func (m *mockLiffReservationRepository) AcquireNextVisitIntentLock(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLiffReservationRepository) FindPetIDForIntentLock(_ context.Context, _, _ uint64) (*uint64, error) {
+	return nil, nil
 }
 
 // --- mockLiffValidators ---
 
 type mockLiffValidators struct {
-	validateAndCreateFn func(ctx context.Context, input *CreateReservationInput) (*model.Reservation, error)
+	previousAbsorbedOwnerID *uint64
+	validateAndCreateFn     func(ctx context.Context, input *CreateReservationInput) (*model.Reservation, error)
 }
 
-func (m *mockLiffValidators) ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.Reservation, error) {
+func (m *mockLiffValidators) ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.Reservation, *uint64, error) {
 	if m.validateAndCreateFn != nil {
-		return m.validateAndCreateFn(ctx, input)
+		created, err := m.validateAndCreateFn(ctx, input)
+		return created, m.previousAbsorbedOwnerID, err
 	}
-	return &model.Reservation{ID: 1, ClinicID: input.ClinicID}, nil
+	return &model.Reservation{ID: 1, ClinicID: input.ClinicID}, nil, nil
 }
 
 // --- mockLiffNotifier ---

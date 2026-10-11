@@ -24,10 +24,11 @@ func (s *lstepDeliveryTriggerService) applySuppression(
 	if err != nil {
 		return false, apperrors.Wrap(err, "failed to find existing trigger logs")
 	}
-	// SuppressedByPriority=true は既に抑制済みなので除外
+	// Already suppressed or definitely-unsent attempts have no active tag
+	// to arbitrate and must not consume another trigger's priority slot.
 	active := make([]model.LstepDeliveryTriggerLog, 0, len(existing))
 	for i := range existing {
-		if !existing[i].SuppressedByPriority {
+		if !existing[i].SuppressedByPriority && !retryablePreSendClaim(&existing[i]) {
 			active = append(active, existing[i])
 		}
 	}

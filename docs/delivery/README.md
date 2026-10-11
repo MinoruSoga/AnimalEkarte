@@ -26,6 +26,7 @@ flowchart LR
 | [DELIVERY_PACKAGE.md](DELIVERY_PACKAGE.md) | #258 | 先方管理者 | システム構成概要・管理者向け初期設定・運用手順 | U1–U12（契約・本番実測・窓口等） |
 | [OPERATION_MANUAL.md](OPERATION_MANUAL.md) | #256 | 現場スタッフ | 画面操作へのナビゲーション（詳細はシステム内マニュアルが正本） | U13 操作説明会・#254 FAQ/スクショ |
 | [GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md) | #257 | 切替実施者 | 本番切替の前提チェック・当日タイムライン・切り戻し基準 | 切替前提・当日の承認と証跡 |
+| [MIGRATION_SCOPE.md](MIGRATION_SCOPE.md) | EMR-338 | 先方管理者・医院責任者 | 旧カルテからの移行範囲（移行される・されない・医院が登録するもの） | MIG-25 の確定後に「確定待ち」の行を更新 |
 | — | EMR-168 | 現場スタッフ | トリミング「前回カルテのコピー」操作説明。**正本はシステム内マニュアル** `frontend/src/features/manual/content/screens/10-trimming.md`（「前回のカルテをコピーする（過去履歴の引用）」節）。（追記（2026-10-07 監査）: 掲載済みの凍結スナップショット `trimming-history-copy-manual-text.md` を本フォルダから削除。内容は git 履歴参照。凍結スナップショット禁止 — PRODUCT_PHILOSOPHY ②） | — |
 
 ## 関連する受入条件

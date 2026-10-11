@@ -78,7 +78,7 @@ func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64
 		return nil, 0, apperrors.FromGORM(err, "hospitalization", "")
 	}
 	if err := q.Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Pet.AnimalSpecies").Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Cage", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Doctor", "deleted_at IS NULL").
-		Scopes(paginate(page, limit)).Order("start_date DESC, created_at DESC").
+		Scopes(paginate(page, limit)).Order("start_date DESC, created_at DESC, id DESC").
 		Find(&hospitalizations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "hospitalization", "")
 	}

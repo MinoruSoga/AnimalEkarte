@@ -48,7 +48,7 @@ function ExpiredTentativeRow({
   onReset,
   onEnd,
 }: ExpiredTentativeRowProps) {
-  const { data: pet } = useGetPet(reservation.petId ?? "");
+  const { data: pet } = useGetPet(reservation.petId ?? "", reservation.clinicId);
   const isDeceasedPet = pet ? isPetDeceasedForClinicalWrite(pet) : false;
 
   return (

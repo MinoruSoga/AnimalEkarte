@@ -161,7 +161,7 @@ export const PropertyFilter = memo(function PropertyFilter({
 
       {/* Search bar（常時表示） */}
       {onSearchChange ? (
-        <div className="relative max-w-md">
+        <div className="relative w-full max-w-lg">
           <Search className={STYLE.searchIcon} />
           <input
             type="text"

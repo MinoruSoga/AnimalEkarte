@@ -2,7 +2,6 @@ package infra
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -10,8 +9,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"github.com/aws/smithy-go"
 )
 
 // S3Uploader は AWS S3 にファイルをアップロードする FileUploader 実装。
@@ -89,42 +86,4 @@ func (u *S3Uploader) Delete(ctx context.Context, key string) error {
 		return fmt.Errorf("s3 delete failed: %w", err)
 	}
 	return nil
-}
-
-// Exists は HeadObject で key のオブジェクト存在を返す。
-// 明示的な NoSuchKey、および HeadObject の曖昧な NotFound（HEAD のエラー応答は
-// body を持たず key/bucket 不在を区別できない）について HeadBucket で bucket
-// 存在を確認できた場合のみ (false, nil)。NoSuchBucket・認証/資格情報エラー・
-// transport エラー・HeadBucket の失敗・未知のエラーは存在を確認できないため
-// error を返す（呼び出し元は fail-closed に保持する）。
-func (u *S3Uploader) Exists(ctx context.Context, key string) (bool, error) {
-	if u.client == nil {
-		return false, fmt.Errorf("s3 client is not configured")
-	}
-	_, err := u.client.HeadObject(ctx, &s3.HeadObjectInput{
-		Bucket: aws.String(u.bucket),
-		Key:    aws.String(key),
-	})
-	if err == nil {
-		return true, nil
-	}
-	var noSuchKey *types.NoSuchKey
-	if errors.As(err, &noSuchKey) {
-		return false, nil
-	}
-	var apiErr smithy.APIError
-	isAPIErr := errors.As(err, &apiErr)
-	if isAPIErr && apiErr.ErrorCode() == "NoSuchKey" {
-		return false, nil
-	}
-	var notFound *types.NotFound
-	if errors.As(err, &notFound) || (isAPIErr && apiErr.ErrorCode() == "NotFound") {
-		if _, berr := u.client.HeadBucket(ctx, &s3.HeadBucketInput{
-			Bucket: aws.String(u.bucket),
-		}); berr != nil {
-			return false, fmt.Errorf("s3 head failed: %w", berr)
-		}
-		return false, nil
-	}
-	return false, fmt.Errorf("s3 head failed: %w", err)
 }

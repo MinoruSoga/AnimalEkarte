@@ -1,0 +1,66 @@
+<!-- GENERATED: scripts/tools/generate-erd-detail.py; do not edit -->
+# `staff_permission_groups`
+
+[詳細ERD一覧](index.md) · [概要ERD](../erd.md)
+
+このページは、マイグレーションをファイル名順に静的解析した最終定義です。稼働DBの状態は未確認です。
+
+## カラム
+
+型・DEFAULTはDDLの宣言表記です。`bigserial` は採番宣言であり、DBカタログ上の型名ではありません。
+
+| カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
+|:---|:---|:---|:---|:---|:---|
+| `staff_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:1236](../../../backend/migrations/001_init.sql#L1236) |
+| `group_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:1237](../../../backend/migrations/001_init.sql#L1237) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1238](../../../backend/migrations/001_init.sql#L1238) |
+
+PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
+
+## ERD
+
+このテーブルの全カラムと、すべての参照先を表示します。参照先はFKの対象列だけを表示し、全カラムは各テーブルのページに置きます。
+
+親側の任意参照はFK列のNULL可否、子側の最大1件は無条件のPK/UNIQUEから導出します。部分uniqueによる条件付きの最大件数は図に反映せず、index一覧に記録します。実線はFK全列が子のPKに含まれる識別関係、破線はそれ以外です。
+
+```mermaid
+erDiagram
+    staff_permission_groups {
+        bigint staff_id PK,FK
+        bigint group_id PK,FK
+        timestamptz created_at
+    }
+    permission_groups {
+        BIGSERIAL id PK
+    }
+    staffs {
+        BIGSERIAL id PK,UK
+    }
+    staffs ||--o{ staff_permission_groups : "staff_id"
+    permission_groups ||--o{ staff_permission_groups : "group_id"
+```
+
+## 外部キー（全件）
+
+| 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
+|:---|:---|:---|:---|:---|:---|
+| `staff_permission_groups_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1236](../../../backend/migrations/001_init.sql#L1236) |
+| `staff_permission_groups_group_id_fkey` | `group_id` | [permission_groups](permission_groups.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1237](../../../backend/migrations/001_init.sql#L1237) |
+
+正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
+
+- `staff_permission_groups_staff_id_fkey`: `REFERENCES staffs(id) ON DELETE CASCADE`
+- `staff_permission_groups_group_id_fkey`: `REFERENCES permission_groups(id) ON DELETE CASCADE`
+
+## その他の制約
+
+| 制約 | 種別 | DDL | 定義元 |
+|:---|:---|:---|:---|
+| `staff_permission_groups_pkey` | primary | `PRIMARY KEY (staff_id, group_id)` | [001_init.sql:1239](../../../backend/migrations/001_init.sql#L1239) |
+
+## インデックス
+
+| 名前 | UNIQUE | 述語 | DDL | 定義元 |
+|:---|:---|:---|:---|:---|
+| `idx_staff_permission_groups_staff` | NO | — | `CREATE INDEX idx_staff_permission_groups_staff ON staff_permission_groups(staff_id)` | [001_init.sql:1242](../../../backend/migrations/001_init.sql#L1242) |
+| `idx_staff_permission_groups_group` | NO | — | `CREATE INDEX idx_staff_permission_groups_group ON staff_permission_groups(group_id)` | [001_init.sql:1243](../../../backend/migrations/001_init.sql#L1243) |

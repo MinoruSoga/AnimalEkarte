@@ -58,12 +58,16 @@ function transformBackendPetListToFrontend(pet: BackendPetList): Pet {
  * Shared hook for fetching a single pet by ID.
  * Uses the same query key as features/pets to share React Query cache.
  */
-export function useGetPet(petId: string) {
+export function useGetPet(petId: string, clinicId?: string) {
   // BUG-022: ローカル pending の temp-* ID で GET /v1/pets/:id を打たない
   return useQuery({
-    queryKey: queryKeys.pets.detail(petId),
+    // Codex PR606 再指摘: 拠点横断フォームは行の clinicId を末尾に付けて分離
+    queryKey: clinicId ? [...queryKeys.pets.detail(petId), clinicId] : queryKeys.pets.detail(petId),
     queryFn: async (): Promise<Pet> => {
-      const { data } = await axios.get<PetResponse>(`/v1/pets/${petId}`);
+      const { data } = await axios.get<PetResponse>(
+        `/v1/pets/${petId}`,
+        clinicId ? { headers: { "X-Clinic-ID": clinicId } } : undefined,
+      );
       return transformBackendPetToFrontend(data);
     },
     enabled: isPersistedPetId(petId),

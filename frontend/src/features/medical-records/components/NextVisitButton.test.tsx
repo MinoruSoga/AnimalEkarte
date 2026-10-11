@@ -143,11 +143,15 @@ describe("NextVisitButton — Popover での tentative 操作（EMR-308 A2）", 
     const date = formatJSTWallDate(d);
     fireEvent.change(input, { target: { value: date } });
 
-    expect(setMutateAsync).toHaveBeenCalledWith({
-      petId: "10",
-      intendedDate: date,
-      medicalRecordId: "99",
-    });
+    // Codex PR606 #11: mutation は FIFO chain 上の microtask で発行されるため
+    // 同期 expect ではなく waitFor で待つ
+    await waitFor(() =>
+      expect(setMutateAsync).toHaveBeenCalledWith({
+        petId: "10",
+        intendedDate: date,
+        medicalRecordId: "99",
+      }),
+    );
   });
 
   it("クリアは DELETE 経路を呼び PUT は呼ばない", async () => {

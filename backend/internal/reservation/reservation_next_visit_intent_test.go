@@ -116,6 +116,14 @@ func makeMedicalRecordForNextVisitIntentTest(t *testing.T, db *gorm.DB, clinicID
 	return record
 }
 
+// futureIntentDateJST は JST 暦日で daysAhead 日後の 00:00 を返す。
+// repo 層が intent lock 内で日付窓（過去・2年上限）を再検証する（Codex #19）
+// ため、固定の遠未来日は使わず実行日基準で生成する。
+func futureIntentDateJST(daysAhead int) time.Time {
+	nowJST := time.Now().In(config.JST)
+	return time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 0, 0, 0, 0, config.JST).AddDate(0, 0, daysAhead)
+}
+
 func countTentativeForPet(t *testing.T, db *gorm.DB, clinicID, petID uint64) int64 {
 	t.Helper()
 	var count int64
@@ -133,7 +141,7 @@ func TestReservationRepository_SetNextVisitIntent(t *testing.T) {
 	const clinicA, clinicB = uint64(1), uint64(2)
 
 	ownerA, petA, typeA := makeNextVisitIntentFixture(t, db, clinicA, "A")
-	intendedDate := time.Date(2030, 3, 10, 0, 0, 0, 0, config.JST)
+	intendedDate := futureIntentDateJST(30)
 
 	t.Run("requires an ambient transaction", func(t *testing.T) {
 		got, _, err := repo.SetNextVisitIntent(ctx, clinicA, petA.ID, SetNextVisitIntentInput{IntendedDate: intendedDate})
@@ -162,27 +170,27 @@ func TestReservationRepository_SetNextVisitIntent(t *testing.T) {
 		require.NotNil(t, got.ReservationRoute)
 		assert.Equal(t, "record_intent", *got.ReservationRoute)
 		require.NotNil(t, got.IntendedDate)
-		assert.Equal(t, "2030-03-10", got.IntendedDate.In(config.JST).Format(time.DateOnly))
+		assert.Equal(t, intendedDate.Format(time.DateOnly), got.IntendedDate.In(config.JST).Format(time.DateOnly))
 		require.NotNil(t, got.SourceMedicalRecordID)
 		assert.Equal(t, record.ID, *got.SourceMedicalRecordID)
 
 		// Sentinel: JST 00:00–00:15 of the intended date.
 		startJST := got.StartTime.In(config.JST)
 		endJST := got.EndTime.In(config.JST)
-		assert.Equal(t, "2030-03-10 00:00", startJST.Format("2006-01-02 15:04"))
-		assert.Equal(t, "2030-03-10 00:15", endJST.Format("2006-01-02 15:04"))
+		assert.Equal(t, intendedDate.Format("2006-01-02 15:04"), startJST.Format("2006-01-02 15:04"))
+		assert.Equal(t, intendedDate.Add(15*time.Minute).Format("2006-01-02 15:04"), endJST.Format("2006-01-02 15:04"))
 	})
 
 	t.Run("updates the existing tentative instead of creating a second row", func(t *testing.T) {
 		existing, err := setNextVisitIntentInTx(ctx, db, repo, clinicA, petA.ID, SetNextVisitIntentInput{IntendedDate: intendedDate})
 		require.NoError(t, err)
 
-		newDate := time.Date(2030, 4, 1, 0, 0, 0, 0, config.JST)
+		newDate := futureIntentDateJST(45)
 		updated, err := setNextVisitIntentInTx(ctx, db, repo, clinicA, petA.ID, SetNextVisitIntentInput{IntendedDate: newDate})
 		require.NoError(t, err)
 		assert.Equal(t, existing.ID, updated.ID)
 		require.NotNil(t, updated.IntendedDate)
-		assert.Equal(t, "2030-04-01", updated.IntendedDate.In(config.JST).Format(time.DateOnly))
+		assert.Equal(t, newDate.Format(time.DateOnly), updated.IntendedDate.In(config.JST).Format(time.DateOnly))
 		assert.Equal(t, int64(1), countTentativeForPet(t, db, clinicA, petA.ID))
 	})
 
@@ -206,7 +214,7 @@ func TestReservationRepository_SetNextVisitIntent(t *testing.T) {
 		var reloaded model.Reservation
 		require.NoError(t, db.First(&reloaded, created.ID).Error)
 		require.NotNil(t, reloaded.IntendedDate)
-		assert.Equal(t, "2030-03-10",
+		assert.Equal(t, intendedDate.Format("2006-01-02"),
 			reloaded.IntendedDate.In(config.JST).Format(time.DateOnly),
 			"拒否された上書きは intended_date を変更しない")
 	})
@@ -329,6 +337,81 @@ func TestReservationRepository_SetNextVisitIntent(t *testing.T) {
 		require.Error(t, createErr)
 		assert.True(t, persistence.IsUniqueConstraintErr(createErr))
 	})
+
+	t.Run("revalidates the date after an actor FOR SHARE wait crosses a JST boundary", func(t *testing.T) {
+		// Codex #19 rereview: CreatedBy 付きの新規 intent は Create 内部で staff/
+		// assignment の FOR SHARE を取る。最終日付検証より後の actor ロック待ちで
+		// JST 暦日を跨ぐと前日付の intended_date を INSERT し得た。actor 検証を
+		// 最終検証より前へ移した経路を2接続 barrier で固定する。
+		_, pet, _ := makeNextVisitIntentFixture(t, db, clinicA, "BARRIER")
+		actor := makeDoctor(t, db, clinicA, "次回予定actor待機獣医")
+		require.NoError(t, db.Create(&model.StaffClinicAssignment{StaffID: actor.ID, ClinicID: clinicA, IsMain: true}).Error)
+
+		// 検証は注入時計の JST 暦日を見る。fake day D で開始し、actor FOR SHARE の
+		// 待機中に D+1 へ進める（実時計ではなく注入時計だけを跨がせる）。
+		var clockMu sync.Mutex
+		fakeNow := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC) // = 21:00 JST on day D
+		repoImpl := &reservationRepository{db: db}
+		repoImpl.nowFn = func() time.Time {
+			clockMu.Lock()
+			defer clockMu.Unlock()
+			return fakeNow
+		}
+		intendedDate := time.Date(2026, 6, 15, 0, 0, 0, 0, config.JST) // 注入時計の「今日」
+
+		// blocker 接続が staffs 行を FOR UPDATE で保持し、actor 検証の FOR SHARE を待機させる。
+		blocker := db.Begin()
+		require.NoError(t, blocker.Error)
+		t.Cleanup(func() { _ = blocker.Rollback() })
+		require.NoError(t, blocker.Exec("SELECT id FROM staffs WHERE id = ? FOR UPDATE", actor.ID).Error)
+
+		writeDone := make(chan error, 1)
+		go func() {
+			writeDone <- testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
+				_, _, err := repoImpl.SetNextVisitIntent(txCtx, clinicA, pet.ID, SetNextVisitIntentInput{
+					IntendedDate:      intendedDate,
+					CreatedBy:         &actor.ID,
+					CanUpdateExisting: true,
+				})
+				return err
+			})
+		}()
+
+		// 対象 goroutine が staffs FOR SHARE で Lock 待機するまでポーリングする。
+		deadline := time.After(15 * time.Second)
+		ticker := time.NewTicker(10 * time.Millisecond)
+		defer ticker.Stop()
+		for locked := false; !locked; {
+			select {
+			case err := <-writeDone:
+				t.Fatalf("set intent finished before reaching the actor lock wait: %v", err)
+			case <-deadline:
+				t.Fatal("set intent did not reach the staff FOR SHARE wait")
+			case <-ticker.C:
+				var waiters int64
+				require.NoError(t, db.Raw(`
+					SELECT count(*) FROM pg_stat_activity
+					WHERE datname = current_database()
+					  AND wait_event_type = 'Lock'
+					  AND query LIKE '%"staffs"%FOR SHARE%'
+				`).Scan(&waiters).Error)
+				locked = waiters > 0
+			}
+		}
+
+		// ロック待機中に JST 暦日を跨がせてから blocker を解放する。
+		clockMu.Lock()
+		fakeNow = fakeNow.AddDate(0, 0, 1)
+		clockMu.Unlock()
+		require.NoError(t, blocker.Commit().Error)
+
+		err := <-writeDone
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err),
+			"actor ロック待ちで日跨ぎした intent は InvalidInput、実際: %v", err)
+		assert.Equal(t, int64(0), countTentativeForPet(t, db, clinicA, pet.ID),
+			"日跨ぎ後の INSERT は行われない")
+	})
 }
 
 func TestReservationRepository_ClearNextVisitIntent(t *testing.T) {
@@ -336,7 +419,7 @@ func TestReservationRepository_ClearNextVisitIntent(t *testing.T) {
 	repo := NewReservationRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
-	intendedDate := time.Date(2030, 5, 20, 0, 0, 0, 0, config.JST)
+	intendedDate := futureIntentDateJST(30)
 
 	t.Run("requires an ambient transaction", func(t *testing.T) {
 		_, petA, _ := makeNextVisitIntentFixture(t, db, clinicA, "CLR")
@@ -408,7 +491,7 @@ func TestReservationRepository_UpdateTentativeStatus(t *testing.T) {
 	repo := NewReservationRepository(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
-	intendedDate := time.Date(2030, 5, 20, 0, 0, 0, 0, config.JST)
+	intendedDate := futureIntentDateJST(30)
 
 	t.Run("writes on a tentative row and reloads", func(t *testing.T) {
 		_, pet, _ := makeNextVisitIntentFixture(t, db, clinicA, "UTS1")
@@ -419,7 +502,7 @@ func TestReservationRepository_UpdateTentativeStatus(t *testing.T) {
 		updated, err := repo.updateTentativeStatus(ctx, clinicA, tentative.ID, map[string]any{
 			"status":        model.ReservationStatusCheckedIn,
 			"checked_in_at": now,
-		})
+		}, nil)
 		require.NoError(t, err)
 		assert.Equal(t, model.ReservationStatusCheckedIn, updated.Status)
 	})
@@ -440,7 +523,7 @@ func TestReservationRepository_UpdateTentativeStatus(t *testing.T) {
 
 		got, err := repo.updateTentativeStatus(ctx, clinicA, tentative.ID, map[string]any{
 			"status": model.ReservationStatusCancelled,
-		})
+		}, nil)
 		require.Error(t, err)
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsConflict(err), "昇格済み行への tentative CAS は 409")
@@ -455,12 +538,61 @@ func TestReservationRepository_UpdateTentativeStatus(t *testing.T) {
 
 		got, err := repo.updateTentativeStatus(ctx, uint64(2), tentative.ID, map[string]any{
 			"status": model.ReservationStatusCheckedIn,
-		})
+		}, nil)
 		require.Error(t, err)
 		assert.Nil(t, got)
 		// lock 用の tx 内 FindByID が先に走るため跨医院行は 404（ConfirmTentative と同契約）。
 		assert.True(t, apperrors.IsNotFound(err))
 		assert.Equal(t, model.ReservationStatusTentative, reloadReservationIntentStatus(t, db, tentative.ID))
+	})
+
+	t.Run("invokes the post-lock validator on the reloaded row and merges its fields", func(t *testing.T) {
+		// Codex #3/#19: validator は intent lock 取得後・CAS 前に再読み込みした行へ
+		// 適用される（ロック待ち中にコミットされた mutation を反映する）。
+		// validator が返す追加フィールドは CAS の fields へマージされて書き込まれる。
+		_, pet, _ := makeNextVisitIntentFixture(t, db, clinicA, "UTS4")
+		tentative, err := setNextVisitIntentInTx(ctx, db, repo, clinicA, pet.ID, SetNextVisitIntentInput{IntendedDate: intendedDate})
+		require.NoError(t, err)
+
+		var sawLocked *model.Reservation
+		checkinStamp := time.Now()
+		updated, err := repo.updateTentativeStatus(ctx, clinicA, tentative.ID, map[string]any{
+			"status": model.ReservationStatusCheckedIn,
+		}, func(_ context.Context, locked *model.Reservation) (map[string]any, error) {
+			sawLocked = locked
+			return map[string]any{
+				"checked_in_at": checkinStamp,
+				"start_time":    checkinStamp,
+			}, nil
+		})
+		require.NoError(t, err)
+		require.NotNil(t, sawLocked, "validator が post-lock で再読み込みした行を受け取る")
+		assert.Equal(t, tentative.ID, sawLocked.ID)
+		assert.Equal(t, model.ReservationStatusCheckedIn, updated.Status)
+		require.NotNil(t, updated.CheckedInAt)
+		assert.True(t, updated.CheckedInAt.Equal(checkinStamp) || updated.CheckedInAt.After(checkinStamp.Add(-time.Second)),
+			"validator 由来の checked_in_at が CAS へマージされる")
+		assert.True(t, updated.StartTime.Equal(checkinStamp) || updated.StartTime.After(checkinStamp.Add(-time.Second)))
+	})
+
+	t.Run("validator error aborts the CAS write and leaves the row tentative", func(t *testing.T) {
+		// Codex #14: 未来日拒否等の validator エラーは tx ごとロールバックし、
+		// tentative 行を消費しない。
+		_, pet, _ := makeNextVisitIntentFixture(t, db, clinicA, "UTS5")
+		tentative, err := setNextVisitIntentInTx(ctx, db, repo, clinicA, pet.ID, SetNextVisitIntentInput{IntendedDate: intendedDate})
+		require.NoError(t, err)
+
+		wantErr := apperrors.WrapInvalidInput("未来日の次回予定は受付できません")
+		got, err := repo.updateTentativeStatus(ctx, clinicA, tentative.ID, map[string]any{
+			"status": model.ReservationStatusCheckedIn,
+		}, func(_ context.Context, _ *model.Reservation) (map[string]any, error) {
+			return nil, wantErr
+		})
+		require.Error(t, err)
+		assert.Nil(t, got)
+		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.Equal(t, model.ReservationStatusTentative, reloadReservationIntentStatus(t, db, tentative.ID),
+			"validator 拒否時は行が tentative のまま残る")
 	})
 }
 
@@ -469,11 +601,12 @@ func TestReservationRepository_ConfirmTentative(t *testing.T) {
 	repo := NewReservationRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
-	intendedDate := time.Date(2030, 6, 15, 0, 0, 0, 0, config.JST)
+	intendedDate := futureIntentDateJST(30)
 
 	_, petA, typeA := makeNextVisitIntentFixture(t, db, clinicA, "CFM")
 
-	newStart := time.Date(2030, 6, 15, 1, 0, 0, 0, time.UTC)
+	// 確定日時は intended_date と同じ JST 暦日の日中に置く。
+	newStart := intendedDate.Add(10 * time.Hour)
 	newEnd := newStart.Add(30 * time.Minute)
 
 	t.Run("requires an ambient transaction", func(t *testing.T) {
@@ -512,7 +645,7 @@ func TestReservationRepository_ConfirmTentative(t *testing.T) {
 		assert.Equal(t, doctor.ID, *confirmed.DoctorID)
 		// provenance columns survive the transition.
 		require.NotNil(t, confirmed.IntendedDate)
-		assert.Equal(t, "2030-06-15", confirmed.IntendedDate.In(config.JST).Format(time.DateOnly))
+		assert.Equal(t, intendedDate.Format(time.DateOnly), confirmed.IntendedDate.In(config.JST).Format(time.DateOnly))
 		require.NotNil(t, confirmed.ReservationRoute)
 		assert.Equal(t, "record_intent", *confirmed.ReservationRoute)
 	})
@@ -609,5 +742,35 @@ func TestReservationRepository_ConfirmTentative(t *testing.T) {
 		})
 		require.ErrorIs(t, err, sentinel)
 		assert.Equal(t, model.ReservationStatusTentative, reloadReservationIntentStatus(t, db, tentative.ID))
+	})
+
+	t.Run("follows the pet's current owner after transfer", func(t *testing.T) {
+		// Codex #16: tentative 作成後に pet が譲渡されると行の owner_id は旧飼い主の
+		// まま残る。confirm は intent lock + 行ロック保持中に pet から現飼い主を解決し
+		// owner_id を書き換える（確定済み予約が旧飼い主宛に紐付き続けるのを防ぐ）。
+		oldOwner := testdb.MakeTestOwner(t, db, clinicA, "次回予定譲渡元飼主")
+		newOwner := testdb.MakeTestOwner(t, db, clinicA, "次回予定譲渡先飼主")
+		pet := makePetForReservationIntentTest(t, db, clinicA, oldOwner.ID, "次回予定譲渡ペット")
+		tentative, err := setNextVisitIntentInTx(ctx, db, repo, clinicA, pet.ID, SetNextVisitIntentInput{IntendedDate: intendedDate})
+		require.NoError(t, err)
+		require.NotNil(t, tentative.OwnerID)
+		assert.Equal(t, oldOwner.ID, *tentative.OwnerID, "intent 作成時点では旧飼い主")
+
+		// tentative 作成後の譲渡を再現する。
+		require.NoError(t, db.Model(&model.Pet{}).
+			Where("clinic_id = ? AND id = ?", clinicA, pet.ID).
+			Update("owner_id", newOwner.ID).Error)
+
+		confirmed, err := confirmTentativeInTx(ctx, db, repo, clinicA, tentative.ID, ConfirmTentativeUpdate{
+			StartTime:         newStart,
+			EndTime:           newEnd,
+			ReservationTypeID: typeA.ID,
+			Status:            model.ReservationStatusConfirmed,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, confirmed)
+		require.NotNil(t, confirmed.OwnerID)
+		assert.Equal(t, newOwner.ID, *confirmed.OwnerID,
+			"Codex #16: 確定後の owner_id はロック保持中に解決した現飼い主")
 	})
 }

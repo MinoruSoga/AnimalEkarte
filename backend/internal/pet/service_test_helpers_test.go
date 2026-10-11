@@ -15,6 +15,7 @@ func ptrString(value string) *string {
 type mockPetRepository struct {
 	findAllFn                     func(ctx context.Context, clinicIDs []uint64, filters PetListFilters, page, limit int) ([]model.Pet, int64, error)
 	findByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
+	lockByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
 	findByIDForClinicsFn          func(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error)
 	countByOwnerFn                func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 	countLivingByOwnerFn          func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
@@ -40,6 +41,13 @@ func (m *mockPetRepository) FindByID(ctx context.Context, clinicID, id uint64) (
 		return nil, nil
 	}
 	return m.findByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockPetRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
+	if m.lockByIDFn != nil {
+		return m.lockByIDFn(ctx, clinicID, id)
+	}
+	return m.FindByID(ctx, clinicID, id)
 }
 
 func (m *mockPetRepository) FindByIDForClinics(
@@ -215,7 +223,15 @@ func (m *mockMedicalRecordRepository) CountByPetID(
 type mockLstepTagSyncService struct {
 	syncOwnerAnimalClassificationTagFn func(ctx context.Context, clinicID, ownerID uint64) error
 	syncPetBasicInfoTagsFn             func(ctx context.Context, clinicID, ownerID uint64) error
+	syncNextVisitTagFn                 func(ctx context.Context, clinicID, ownerID uint64) error
 	syncChronicConditionTagsFn         func(ctx context.Context, clinicID, ownerID uint64, codes []string) error
+}
+
+func (m *mockLstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error {
+	if m.syncNextVisitTagFn == nil {
+		return nil
+	}
+	return m.syncNextVisitTagFn(ctx, clinicID, ownerID)
 }
 
 func (m *mockLstepTagSyncService) SyncOwnerAnimalClassificationTags(

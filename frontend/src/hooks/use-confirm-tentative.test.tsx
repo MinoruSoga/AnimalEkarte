@@ -157,6 +157,34 @@ describe("useConfirmTentative (EMR-308)", () => {
     expect(mockedPost).not.toHaveBeenCalled();
   });
 
+  it("variables.clinicId が hook 引数より優先して X-Clinic-ID に載る（Codex #5）", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { mutations: { retry: false } },
+    });
+    const { result } = renderHook(() => useConfirmTentative("hook-clinic"), {
+      wrapper: createWrapper(queryClient),
+    });
+    const form = { start: new Date(2026, 9, 5, 10, 0), end: new Date(2026, 9, 5, 11, 0) };
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        reservationId: "42",
+        formData: form,
+        clinicId: "row-clinic",
+      });
+    });
+    expect(mockedPost.mock.calls[0]?.[2]).toEqual({
+      headers: { "X-Clinic-ID": "row-clinic" },
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({ reservationId: "42", formData: form });
+    });
+    expect(mockedPost.mock.calls[1]?.[2]).toEqual({
+      headers: { "X-Clinic-ID": "hook-clinic" },
+    });
+  });
+
   it("API 失敗時は handleApiError へ委譲する", async () => {
     const error = new Error("boom");
     mockedPost.mockRejectedValueOnce(error);

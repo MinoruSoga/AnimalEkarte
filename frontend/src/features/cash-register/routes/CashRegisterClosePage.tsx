@@ -152,6 +152,24 @@ export function CashRegisterClosePage() {
           </div>
         ) : null}
 
+        {preview === undefined && !previewLoading ? (
+          <div
+            className={`flex flex-col items-center justify-center py-16 border rounded-lg border-dashed ${C.borderLight} ${C.bgWhite} text-center space-y-3`}
+          >
+            <div className={`p-3 rounded-full ${C.bgPage}`}>
+              <Calculator className={`${ICON.xl} ${C.text40}`} />
+            </div>
+            <div className="space-y-1">
+              <p className={`text-base font-medium ${C.text}`}>
+                対象日時を選択して「プレビュー」を押してください
+              </p>
+              <p className={`text-sm ${C.text50}`}>
+                指定した日時の売上集計・レジ現金データがここに表示されます
+              </p>
+            </div>
+          </div>
+        ) : null}
+
         {preview !== undefined && !previewLoading ? (
           <CashRegisterClosePreview
             preview={preview}

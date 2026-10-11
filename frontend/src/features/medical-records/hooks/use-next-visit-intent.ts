@@ -57,10 +57,16 @@ export function useNextVisitIntent({
   const nextVisit = deriveNextVisitState(reservations ?? [], toJSTWallDate(new Date()));
 
   // PUT intent は upsert: 新規は reservations:create、既存 intent の上書きは
-  // reservations:edit を要する（BE が repo ロック内で 403 を返す）。DELETE intent は
-  // reservations:edit。方向別に権限を分ける — fail-closed。
-  const hasExistingIntent = nextVisit.kind === "tentative";
-  const canSetIntent = canCreate && !isPetDeceased && (!hasExistingIntent || canEdit);
+  // ルートの create + repo の CanUpdateExisting（reservations:edit）を両方要する
+  // （BE が repo ロック内で 403 を返す）。DELETE intent は reservations:edit。
+  // 方向別に権限を分ける — fail-closed。
+  // Codex PR606 #8: 既存 intent の有無は tentativeId の存在で判定する。
+  // kind==="tentative" では実予約と tentative が同居するケース（kind==="appointment"）
+  // を見落とし、create-only ユーザーが上書き PUT を発行してしまう。
+  // Codex PR606 #8 再指摘: 既存 tentative の上書き PUT は canCreate && canEdit の
+  // 両方を要求する（canEdit 単独では BE が 403 を返し fail-closed を破る）。
+  const hasExistingIntent = nextVisit.tentativeId !== null;
+  const canSetIntent = !isPetDeceased && (hasExistingIntent ? canCreate && canEdit : canCreate);
   const canClearIntent = canEdit && !isPetDeceased;
   const intentCapsRef = useRef({ set: canSetIntent, clear: canClearIntent });
   useLayoutEffect(() => {
@@ -79,6 +85,17 @@ export function useNextVisitIntent({
   const canConfirmTentative =
     canEdit && !isPetDeceased && nextVisit.kind === "tentative" && tentativeReservation !== null;
 
+  // Codex PR606 #11: 同一ペットの intent mutation を FIFO 直列化する。
+  // 連続入力で PUT→DELETE が逆順完了すると stale な intentDate が復活するため、
+  // hook インスタンス（=1ペット）単位の promise chain に乗せる。
+  // generation counter で「最新の要求だけが失敗時に draft を戻す」を保証する。
+  // Codex PR606 #11 再指摘: pending 数でも先行 mutation の refetch による
+  // draft リセットを抑制する。render 中に読むため ref ではなく state で持つ
+  // （react-hooks/refs: render 中の ref アクセス禁止）。
+  const mutationQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  const mutationGenRef = useRef(0);
+  const [pendingMutations, setPendingMutations] = useState(0);
+
   // Popover 入力のドラフト。通常はサーバー値（tentative の意図日）に従い、
   // 入力中はタイプした値を保持してバリデーション表示を可能にする。
   // サーバー値が変わったらドラフトを破棄する（レンダー中の派生状態リセット、
@@ -87,45 +104,70 @@ export function useNextVisitIntent({
   const [prevIntentDate, setPrevIntentDate] = useState(nextVisit.intentDate);
   if (prevIntentDate !== nextVisit.intentDate) {
     setPrevIntentDate(nextVisit.intentDate);
-    setIntentDraft(null);
+    // Codex PR606 #11 再指摘: 先行 mutation の成功が起こした refetch で
+    // intentDate が一つ前の要求値に戻って見える間は、後続の手入力 draft を
+    // 破棄しない。pending が残っている限りサーバー値同期による draft リセットを
+    // 抑制し、全 mutation 完了後の refetch で通常どおり同期する。
+    if (pendingMutations === 0) setIntentDraft(null);
   }
 
   const resetIntentDraft = useCallback(() => setIntentDraft(null), []);
 
-  const runSetIntent = useCallback(
-    async (date: string) => {
+  const enqueueIntentMutation = useCallback((task: () => Promise<void>): number => {
+    const gen = ++mutationGenRef.current;
+    setPendingMutations((c) => c + 1);
+    // task 内で例外を握り潰す前提 — chain が rejected のまま残らないよう
+    // 呼び出し側（runSetIntent/runClearIntent）は必ず try/catch する。
+    mutationQueueRef.current = mutationQueueRef.current.then(async () => {
       try {
-        await setIntentMutation.mutateAsync({ petId, intendedDate: date, medicalRecordId });
-        toast.success(`次回予定を ${date} に設定しました`);
-      } catch {
-        // エラー表示は api hook の onError(handleApiError) 側に集約。
-        // 失敗時は入力表示をサーバー値へ戻す。
-        setIntentDraft(null);
+        await task();
+      } finally {
+        setPendingMutations((c) => c - 1);
       }
+    });
+    return gen;
+  }, []);
+
+  const runSetIntent = useCallback(
+    (date: string) => {
+      const gen = enqueueIntentMutation(async () => {
+        try {
+          await setIntentMutation.mutateAsync({ petId, intendedDate: date, medicalRecordId });
+          toast.success(`次回予定を ${date} に設定しました`);
+        } catch {
+          // エラー表示は api hook の onError(handleApiError) 側に集約。
+          // 失敗時は入力表示をサーバー値へ戻す — ただし後続の要求が
+          // 積まれている場合はそちらの draft を上書きしない（#11）。
+          if (gen === mutationGenRef.current) setIntentDraft(null);
+        }
+      });
     },
-    [petId, medicalRecordId, setIntentMutation],
+    [enqueueIntentMutation, petId, medicalRecordId, setIntentMutation],
   );
 
-  const runClearIntent = useCallback(async () => {
-    try {
-      await clearIntentMutation.mutateAsync(petId);
-      toast.success("次回予定をクリアしました");
-    } catch {
-      setIntentDraft(null);
-    }
-  }, [petId, clearIntentMutation]);
+  const runClearIntent = useCallback(() => {
+    const gen = enqueueIntentMutation(async () => {
+      try {
+        await clearIntentMutation.mutateAsync(petId);
+        toast.success("次回予定をクリアしました");
+      } catch {
+        if (gen === mutationGenRef.current) setIntentDraft(null);
+      }
+    });
+  }, [enqueueIntentMutation, petId, clearIntentMutation]);
 
   // NextVisitDateField の onChange にそのまま渡す。
   // "" はクリア（DELETE）、有効日は upsert（PUT）、無効日は入力表示だけ残し mutation しない。
   const handleIntentDateChange = useCallback(
     (newDate: string) => {
-      setIntentDraft(newDate);
       if (newDate === "") {
         if (!intentCapsRef.current.clear) return;
+        setIntentDraft(newDate);
         void runClearIntent();
         return;
       }
       if (!intentCapsRef.current.set) return;
+      setIntentDraft(newDate);
       if (validateNextVisitIntentDate(newDate) !== null) return;
       void runSetIntent(newDate);
     },
@@ -138,6 +180,8 @@ export function useNextVisitIntent({
     handleIntentDateChange,
     resetIntentDraft,
     canMutateIntent: canSetIntent || canClearIntent,
+    canSetIntent,
+    canClearIntent,
     /** EMR-308 A1: 確定導線。kind==="tentative" のときのみ true（reservations:edit 必要）。 */
     canConfirmTentative,
     /** 確定モーダルの対象 tentative 行。なければ null。 */

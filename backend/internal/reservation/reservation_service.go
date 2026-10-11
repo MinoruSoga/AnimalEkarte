@@ -271,7 +271,7 @@ func ValidateReservationPetNotDeceased(ctx context.Context, repo petByIDInClinic
 // reservation_type_id を書込み checked_in_at に実受付時刻）、それ以外は
 // AbsorbTentativeOnBooking 経路でパス固有の pending/confirmed 等へ昇格する。
 // repo op が ambient tx を必須とするため、呼び出し側は WithTx 内で呼ぶこと。
-func createOrPromoteTentative(ctx context.Context, repo ReservationRepository, booking *model.Reservation) (*model.Reservation, error) {
+func createOrPromoteTentative(ctx context.Context, repo ReservationRepository, booking *model.Reservation) (*model.Reservation, *uint64, error) {
 	if booking.Status == model.ReservationStatusCheckedIn {
 		return repo.PromoteTentativeOnCheckin(ctx, booking)
 	}
@@ -359,6 +359,7 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 	if s.tx == nil {
 		return nil, apperrors.WrapInternalServerError("reservation transaction dependency is required")
 	}
+	var previousOwnerID *uint64
 	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		if err := ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, reservation.ClinicID, reservation.DoctorID, reservation.ReservationTypeID); err != nil {
 			return err
@@ -387,11 +388,12 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 			}
 		}
 		// EMR-308: 同ペットの active tentative があれば新規行ではなく同一行を昇格する。
-		created, err := createOrPromoteTentativeWithGuard(ctx, s.repo, reservation, input.PreventDuplicateReception)
+		created, previous, err := createOrPromoteTentativeWithGuard(ctx, s.repo, reservation, input.PreventDuplicateReception)
 		if err != nil {
 			return err
 		}
 		reservation = created
+		previousOwnerID = previous
 		return nil
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create reservation")
@@ -399,7 +401,7 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 
 	// EMR-308: 実予約作成（tentative 昇格含む）で飼い主の次回来院が変わり得るため
 	// post-commit で next_visit タグを再同期する（best-effort・未注入は no-op）。
-	syncNextVisitTagBestEffort(ctx, s.nextVisitTagSync, reservation.ClinicID, reservation.OwnerID)
+	syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, reservation.ClinicID, previousOwnerID, reservation.OwnerID)
 	slog.InfoContext(ctx, "reservation created",
 		slog.Uint64("reservation_id", reservation.ID),
 		slog.Uint64("clinic_id", reservation.ClinicID))
@@ -442,6 +444,7 @@ func (s *reservationService) CreateBatch(ctx context.Context, input *CreateManua
 	orderedPets := append([]ReservationBatchPet(nil), pets...)
 	sort.Slice(orderedPets, func(i, j int) bool { return orderedPets[i].PetID < orderedPets[j].PetID })
 	created := make([]model.Reservation, 0, len(pets))
+	ownerIDs := make([]*uint64, 0, len(pets)*2)
 	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		if err := ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, input.ClinicID, doctorID, input.ReservationTypeID); err != nil {
 			return err
@@ -481,11 +484,12 @@ func (s *reservationService) CreateBatch(ctx context.Context, input *CreateManua
 			}
 			reservation := model.Reservation{ClinicID: input.ClinicID, StartTime: input.StartTime, EndTime: input.EndTime, OwnerID: &ownerID, PetID: &petID, VisitType: input.VisitType, ReservationTypeID: input.ReservationTypeID, DoctorID: doctorID, IsDesignated: input.IsDesignated, Status: input.Status, Notes: input.Notes, Source: input.Source, CreatedBy: input.CreatedBy, ReservationRoute: input.ReservationRoute}
 			// EMR-308: ペットごとに active tentative を同一行昇格（なければ通常 INSERT）。
-			promoted, err := createOrPromoteTentativeWithGuard(ctx, s.repo, &reservation, input.PreventDuplicateReception)
+			promoted, previousOwnerID, err := createOrPromoteTentativeWithGuard(ctx, s.repo, &reservation, input.PreventDuplicateReception)
 			if err != nil {
 				return err
 			}
 			created = append(created, *promoted)
+			ownerIDs = append(ownerIDs, previousOwnerID, promoted.OwnerID)
 		}
 		return nil
 	})
@@ -500,10 +504,6 @@ func (s *reservationService) CreateBatch(ctx context.Context, input *CreateManua
 		created[i] = byPet[pet.PetID]
 	}
 	// EMR-308: バッチ内の各飼い主の次回来院を post-commit で再同期する（重複排除）。
-	ownerIDs := make([]*uint64, 0, len(created))
-	for i := range created {
-		ownerIDs = append(ownerIDs, created[i].OwnerID)
-	}
 	syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, input.ClinicID, ownerIDs...)
 	return created, nil
 }

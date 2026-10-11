@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Reservation } from "../types";
 import type { ReservationTypeColor } from "@/hooks/use-reservation-type-color-map";
 import { ReservationDetailModal } from "./ReservationDetailModal";
+import { useGetReservation } from "@/hooks/use-get-reservation";
 
 // PR#614 指摘: modal はクリック時 snapshot を GET /reservations/:id の最新応答で
 // 上書き追従する。既定は未取得（snapshot のまま表示）。
@@ -13,7 +14,7 @@ const { mockGetReservation, mockGetOwnerLineTags } = vi.hoisted(() => ({
   mockGetOwnerLineTags: vi.fn((_ownerId: string) => ({ data: undefined as unknown })),
 }));
 vi.mock("@/hooks/use-get-reservation", () => ({
-  useGetReservation: () => mockGetReservation.current,
+  useGetReservation: vi.fn(() => mockGetReservation.current),
 }));
 vi.mock("@/hooks/use-owner-line-tags", () => ({
   useGetOwnerLineTags: mockGetOwnerLineTags,
@@ -75,6 +76,7 @@ describe("ReservationDetailModal", () => {
   });
 
   beforeEach(() => {
+    vi.mocked(useGetReservation).mockClear();
     mockGetReservation.current = { data: undefined };
     mockGetOwnerLineTags.mockClear();
     getColorMock.mockReset();
@@ -96,6 +98,23 @@ describe("ReservationDetailModal", () => {
     );
 
     expect(screen.getByRole("button", { name: /カルテ作成/ })).toBeInTheDocument();
+  });
+
+  it("別医院の予約詳細とLINEタグを行の医院で取得し、最新死亡状態に追従する", () => {
+    mockGetReservation.current = {
+      data: { ...baseReservation, clinicId: "2", petStatus: "deceased" },
+    };
+    render(
+      <ReservationDetailModal
+        isOpen
+        onClose={vi.fn()}
+        reservation={{ ...baseReservation, clinicId: "2" }}
+        onCreateRecord={vi.fn()}
+      />,
+    );
+    expect(useGetReservation).toHaveBeenCalledWith("88", "2");
+    expect(mockGetOwnerLineTags).toHaveBeenLastCalledWith("20", "2");
+    expect(screen.queryByRole("button", { name: /カルテ作成/ })).not.toBeInTheDocument();
   });
 
   it("トリミングカテゴリの予約では区分名に依存せずトリミング記録作成ボタンを表示する", () => {
@@ -230,7 +249,7 @@ describe("ReservationDetailModal", () => {
       />,
     );
 
-    expect(mockGetOwnerLineTags).toHaveBeenLastCalledWith("owner-b");
+    expect(mockGetOwnerLineTags).toHaveBeenLastCalledWith("owner-b", "1");
   });
 
   it("detail 応答が未着なら snapshot の ownerId で LINE タグを引く（fallback）", () => {
@@ -244,13 +263,13 @@ describe("ReservationDetailModal", () => {
       />,
     );
 
-    expect(mockGetOwnerLineTags).toHaveBeenLastCalledWith("owner-a");
+    expect(mockGetOwnerLineTags).toHaveBeenLastCalledWith("owner-a", "1");
   });
 
   it("reservation 未確定では ownerId 空を渡して LINE タグ query を無効化する", () => {
     render(<ReservationDetailModal isOpen={true} onClose={vi.fn()} reservation={null} />);
 
-    expect(mockGetOwnerLineTags).toHaveBeenLastCalledWith("");
+    expect(mockGetOwnerLineTags).toHaveBeenLastCalledWith("", undefined);
   });
 });
 

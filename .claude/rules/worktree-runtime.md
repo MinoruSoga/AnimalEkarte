@@ -25,15 +25,38 @@ git 操作の安全性は [git-worktree-safety.md](git-worktree-safety.md) を�
    - `.env.local` が既存なら managed block 以外の行は保持される。手編集で managed block を書かない
 3. `make up` はユーザーの手で起動する（自動実行禁止ルールに従う）
 
-## 割り当て式（offset = N）
+## 割り当て式（offset = N、1–9256、14/181 は予約）
+
+`B = 10000 + (N - 1) * 6` をworktreeのポートblock先頭とする。
+mainの既定値は変更しない。異なるNでは6サービスすべてのポートが重ならない。
+既存worktreeはスクリプト再実行でmanaged blockを更新し、更新後の起動はユーザーが行う。
+
+### 予約 offset: 14 と 181
+
+既知の旧割当（v1 世代の offset 1000/2000/3000 系 worktree）は新帯域の
+`10080–10082`（block 14）と `11080–11082`（block 181）に食い込むため、
+この2 offset は**新規生成を拒否**する（スクリプトが fail-closed で弾く）。
+帯域外の旧ポート（`6434/9080/4003/7006/9081/9082`、`7434/5003/8006`、
+`8434/6003/9006` 等）は新 block と数学的に衝突しない。
+
+- **既存 `.env.local` は自動書換えしない**。offset 14/181 を現在所有している
+  worktree の移行は owner-led: 所有者が自分のスタックを `down` し、
+  別の一意な offset を選んでから `worktree-env.sh` を再実行する
+  （volume 名の黙った改名もしない — volume は slug に従う）。
+  他者の `.env.local`・sibling worktree・Compose を代わりに編集しない。
+- **任意リスナーは証明外**。disjointness の保証は main 既定値と上記の
+  列挙済み known-legacy セットに限る。スクリプトの LISTEN 警告は
+  best-effort であり、任意プロセスの占有までは証明しない。
+- **未知の legacy offset も証明外**。棚卸し（下記コマンド）で実際の
+  コンテナ/ポート占有を目視確認する。共有 registry は発明しない。
 
 | 資源 | 値 |
 |------|-----|
 | compose project | `animalekarte-wt<N>`（コンテナ名 `animalekarte-wt<N>-db-1` 等） |
-| DB port | `5434 + N`（host → container 5432） |
-| backend port | `8080 + N` |
-| frontend port | `3003 + N`（`CORS_ALLOWED_ORIGIN` も自動追随） |
-| storybook / swagger / redoc | `6006 + N` / `8081 + N` / `8082 + N`（profile `docs`） |
+| DB port | `B`（host → container 5432） |
+| backend port | `B + 1` |
+| frontend port | `B + 2`（`CORS_ALLOWED_ORIGIN` も自動追随） |
+| storybook / swagger / redoc | `B + 3` / `B + 4` / `B + 5`（profile `docs`） |
 | postgres_data volume | `ekarte-postgres-data-<slug>` |
 | frontend_node_modules volume | `ekarte-frontend-node-modules-<slug>` |
 

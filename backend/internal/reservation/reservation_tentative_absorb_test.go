@@ -13,6 +13,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // ---------------------------------------------------------------------------
@@ -28,7 +29,7 @@ func absorbTentativeOnBookingInTx(
 	var got *model.Reservation
 	err := testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
 		var err error
-		got, err = repo.AbsorbTentativeOnBooking(txCtx, booking)
+		got, _, err = repo.AbsorbTentativeOnBooking(txCtx, booking)
 		return err
 	})
 	return got, err
@@ -43,7 +44,7 @@ func promoteTentativeOnCheckinInTx(
 	var got *model.Reservation
 	err := testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
 		var err error
-		got, err = repo.PromoteTentativeOnCheckin(txCtx, booking)
+		got, _, err = repo.PromoteTentativeOnCheckin(txCtx, booking)
 		return err
 	})
 	return got, err
@@ -87,7 +88,7 @@ func TestReservationRepository_AbsorbTentativeOnBooking(t *testing.T) {
 
 	t.Run("requires an ambient transaction", func(t *testing.T) {
 		booking := makeAbsorbBooking(ownerA.ID, petA.ID, typeA.ID, slotStart, slotEnd)
-		got, err := repo.AbsorbTentativeOnBooking(ctx, booking)
+		got, _, err := repo.AbsorbTentativeOnBooking(ctx, booking)
 		require.Error(t, err)
 		assert.Nil(t, got)
 	})
@@ -104,10 +105,32 @@ func TestReservationRepository_AbsorbTentativeOnBooking(t *testing.T) {
 		assert.Equal(t, int64(1), countNonDeletedForPet(t, db, clinicA, petA.ID))
 	})
 
+	t.Run("returns the previous owner when absorbing after pet transfer", func(t *testing.T) {
+		pet := makePetForReservationIntentTest(t, db, clinicA, ownerA.ID, "吸収譲渡ペット")
+		tentative, err := setNextVisitIntentInTx(ctx, db, repo, clinicA, pet.ID, SetNextVisitIntentInput{IntendedDate: futureIntentDateJST(30)})
+		require.NoError(t, err)
+		newOwner, _, _ := makeNextVisitIntentFixture(t, db, clinicA, "AB-TRANSFER")
+		require.NoError(t, db.Model(&model.Pet{}).Where("clinic_id = ? AND id = ?", clinicA, pet.ID).Update("owner_id", newOwner.ID).Error)
+		booking := makeAbsorbBooking(newOwner.ID, pet.ID, typeA.ID, slotStart, slotEnd)
+		var got *model.Reservation
+		var previousOwnerID *uint64
+		require.NoError(t, db.Transaction(func(tx *gorm.DB) error {
+			var err error
+			got, previousOwnerID, err = repo.AbsorbTentativeOnBooking(persistence.WithTxValue(ctx, tx), booking)
+			return err
+		}))
+		require.NotNil(t, got)
+		require.NotNil(t, previousOwnerID)
+		assert.Equal(t, ownerA.ID, *previousOwnerID)
+		assert.Equal(t, tentative.ID, got.ID)
+		require.NotNil(t, got.OwnerID)
+		assert.Equal(t, newOwner.ID, *got.OwnerID)
+	})
+
 	t.Run("promotes the tentative row in place and preserves provenance", func(t *testing.T) {
 		pet := makePetForReservationIntentTest(t, db, clinicA, ownerA.ID, "吸収ペット1")
 		record := makeMedicalRecordForNextVisitIntentTest(t, db, clinicA, ownerA.ID, pet.ID, "ABSRC")
-		intended := time.Date(2030, 4, 5, 0, 0, 0, 0, config.JST)
+		intended := futureIntentDateJST(30)
 		tentative, err := setNextVisitIntentInTx(ctx, db, repo, clinicA, pet.ID, SetNextVisitIntentInput{
 			IntendedDate:          intended,
 			SourceMedicalRecordID: &record.ID,
@@ -145,7 +168,7 @@ func TestReservationRepository_AbsorbTentativeOnBooking(t *testing.T) {
 
 		// provenance 維持
 		require.NotNil(t, got.IntendedDate)
-		assert.Equal(t, "2030-04-05", got.IntendedDate.In(config.JST).Format(time.DateOnly))
+		assert.Equal(t, intended.Format(time.DateOnly), got.IntendedDate.In(config.JST).Format(time.DateOnly))
 		require.NotNil(t, got.SourceMedicalRecordID)
 		assert.Equal(t, record.ID, *got.SourceMedicalRecordID)
 		require.NotNil(t, got.ReservationRoute)
@@ -155,7 +178,7 @@ func TestReservationRepository_AbsorbTentativeOnBooking(t *testing.T) {
 	t.Run("normalizes empty status to pending", func(t *testing.T) {
 		pet2 := makePetForReservationIntentTest(t, db, clinicA, ownerA.ID, "吸収ペット2")
 		_, err := setNextVisitIntentInTx(ctx, db, repo, clinicA, pet2.ID, SetNextVisitIntentInput{
-			IntendedDate: time.Date(2030, 5, 1, 0, 0, 0, 0, config.JST),
+			IntendedDate: futureIntentDateJST(30),
 		})
 		require.NoError(t, err)
 
@@ -185,11 +208,11 @@ func TestReservationRepository_AbsorbTentativeOnBooking(t *testing.T) {
 	t.Run("does not touch tentative rows of other pets or clinics", func(t *testing.T) {
 		pet3 := makePetForReservationIntentTest(t, db, clinicA, ownerA.ID, "吸収ペット3")
 		otherTentative, err := setNextVisitIntentInTx(ctx, db, repo, clinicA, pet3.ID, SetNextVisitIntentInput{
-			IntendedDate: time.Date(2030, 6, 1, 0, 0, 0, 0, config.JST),
+			IntendedDate: futureIntentDateJST(30),
 		})
 		require.NoError(t, err)
 		tentativeB, err := setNextVisitIntentInTx(ctx, db, repo, clinicB, petB.ID, SetNextVisitIntentInput{
-			IntendedDate: time.Date(2030, 6, 2, 0, 0, 0, 0, config.JST),
+			IntendedDate: futureIntentDateJST(31),
 		})
 		require.NoError(t, err)
 
@@ -207,7 +230,7 @@ func TestReservationRepository_AbsorbTentativeOnBooking(t *testing.T) {
 	t.Run("does not revive a cancelled (soft-deleted) tentative-origin row", func(t *testing.T) {
 		pet5 := makePetForReservationIntentTest(t, db, clinicA, ownerA.ID, "吸収ペット5")
 		tentative, err := setNextVisitIntentInTx(ctx, db, repo, clinicA, pet5.ID, SetNextVisitIntentInput{
-			IntendedDate: time.Date(2030, 7, 1, 0, 0, 0, 0, config.JST),
+			IntendedDate: futureIntentDateJST(30),
 		})
 		require.NoError(t, err)
 		// cancel semantics: status=cancelled + soft delete（Update isCancel 経路と同じ形）
@@ -231,14 +254,14 @@ func TestReservationRepository_AbsorbTentativeOnBooking(t *testing.T) {
 	t.Run("rolls back the promotion when the ambient transaction fails", func(t *testing.T) {
 		pet6 := makePetForReservationIntentTest(t, db, clinicA, ownerA.ID, "吸収ペット6")
 		tentative, err := setNextVisitIntentInTx(ctx, db, repo, clinicA, pet6.ID, SetNextVisitIntentInput{
-			IntendedDate: time.Date(2030, 8, 1, 0, 0, 0, 0, config.JST),
+			IntendedDate: futureIntentDateJST(30),
 		})
 		require.NoError(t, err)
 
 		sentinel := errors.New("abort after absorb")
 		txErr := testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
 			booking := makeAbsorbBooking(ownerA.ID, pet6.ID, typeA.ID, slotStart, slotEnd)
-			if _, err := repo.AbsorbTentativeOnBooking(txCtx, booking); err != nil {
+			if _, _, err := repo.AbsorbTentativeOnBooking(txCtx, booking); err != nil {
 				return err
 			}
 			return sentinel
@@ -262,7 +285,7 @@ func TestReservationRepository_PromoteTentativeOnCheckin(t *testing.T) {
 	ownerA, petA, typeA := makeNextVisitIntentFixture(t, db, clinicA, "CI")
 
 	t.Run("requires an ambient transaction", func(t *testing.T) {
-		got, err := repo.PromoteTentativeOnCheckin(ctx, &model.Reservation{ClinicID: clinicA, PetID: &petA.ID})
+		got, _, err := repo.PromoteTentativeOnCheckin(ctx, &model.Reservation{ClinicID: clinicA, PetID: &petA.ID})
 		require.Error(t, err)
 		assert.Nil(t, got)
 	})
@@ -270,14 +293,14 @@ func TestReservationRepository_PromoteTentativeOnCheckin(t *testing.T) {
 	t.Run("promotes tentative to checked_in applying requested type and preserving provenance", func(t *testing.T) {
 		pet := makePetForReservationIntentTest(t, db, clinicA, ownerA.ID, "受付ペット1")
 		record := makeMedicalRecordForNextVisitIntentTest(t, db, clinicA, ownerA.ID, pet.ID, "CISRC")
-		intended := time.Date(2030, 9, 9, 0, 0, 0, 0, config.JST)
+		intended := futureIntentDateJST(30)
 		tentative, err := setNextVisitIntentInTx(ctx, db, repo, clinicA, pet.ID, SetNextVisitIntentInput{
 			IntendedDate:          intended,
 			SourceMedicalRecordID: &record.ID,
 		})
 		require.NoError(t, err)
 
-		checkinStart := time.Date(2030, 9, 9, 11, 30, 0, 0, config.JST)
+		checkinStart := intended.Add(11*time.Hour + 30*time.Minute)
 		checkinEnd := checkinStart.Add(15 * time.Minute)
 		// Codex 指摘: 受付作成でも要求区分を書き込む — general placeholder 維持だと
 		// trimming 受付が診療ワークフローへ誤振分けされる。
@@ -307,10 +330,52 @@ func TestReservationRepository_PromoteTentativeOnCheckin(t *testing.T) {
 		assert.True(t, got.StartTime.Equal(checkinStart))
 		assert.True(t, got.EndTime.Equal(checkinEnd))
 		require.NotNil(t, got.IntendedDate)
-		assert.Equal(t, "2030-09-09", got.IntendedDate.In(config.JST).Format(time.DateOnly))
+		assert.Equal(t, intended.Format(time.DateOnly), got.IntendedDate.In(config.JST).Format(time.DateOnly))
 		require.NotNil(t, got.SourceMedicalRecordID)
 		assert.Equal(t, record.ID, *got.SourceMedicalRecordID)
 		assert.Equal(t, int64(1), countNonDeletedForPet(t, db, clinicA, pet.ID))
+	})
+
+	t.Run("preserves a future-dated tentative instead of consuming it for today's check-in", func(t *testing.T) {
+		// Codex #14: intended_date が受付日より未来の tentative は別日の来院意図。
+		// 当日受付へ昇格してしまうと intent が失われるため、未来日 tentative は温存して
+		// 別行の checked_in 予約として INSERT する。
+		pet := makePetForReservationIntentTest(t, db, clinicA, ownerA.ID, "受付未来日ペット")
+		nowJST := time.Now().In(config.JST)
+		today := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 0, 0, 0, 0, config.JST)
+		tomorrow := today.AddDate(0, 0, 1)
+		tentative, err := setNextVisitIntentInTx(ctx, db, repo, clinicA, pet.ID, SetNextVisitIntentInput{IntendedDate: tomorrow})
+		require.NoError(t, err)
+
+		booking := &model.Reservation{
+			ClinicID:          clinicA,
+			StartTime:         today.Add(11 * time.Hour),
+			EndTime:           today.Add(11*time.Hour + 15*time.Minute),
+			OwnerID:           &ownerA.ID,
+			PetID:             &pet.ID,
+			ReservationTypeID: typeA.ID,
+			Status:            model.ReservationStatusCheckedIn,
+			Source:            model.ReservationSourceManual,
+			VisitType:         model.VisitTypeRevisit,
+		}
+		var got *model.Reservation
+		var previousOwnerID *uint64
+		err = db.Transaction(func(tx *gorm.DB) error {
+			var err error
+			got, previousOwnerID, err = repo.PromoteTentativeOnCheckin(persistence.WithTxValue(ctx, tx), booking)
+			return err
+		})
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Nil(t, previousOwnerID, "preserved tentative owner must not be reported as changed")
+
+		assert.NotEqual(t, tentative.ID, got.ID,
+			"未来日 tentative は当日受付へ昇格しない — 別行が作られる")
+		assert.Equal(t, model.ReservationStatusCheckedIn, got.Status)
+		assert.Equal(t, model.ReservationStatusTentative,
+			reloadReservationIntentStatus(t, db, tentative.ID),
+			"未来日の intent 行は tentative のまま残る")
+		assert.Equal(t, int64(2), countNonDeletedForPet(t, db, clinicA, pet.ID))
 	})
 
 	t.Run("inserts a checked_in row when no tentative exists", func(t *testing.T) {
@@ -583,7 +648,17 @@ func TestReservationService_Update_TentativeCheckinFillsActualTime(t *testing.T)
 		lockAndFindByIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.Reservation, error) {
 			return tentative, nil
 		},
-		updateTentativeStatusFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
+		updateTentativeStatusFn: func(ctx context.Context, _, _ uint64, fields map[string]any, validate tentativeTransitionValidator) (*model.Reservation, error) {
+			// Codex #3/#14/#19: tentative→checked_in の sentinel 置換・死亡・未来日
+			// 検証は repo が intent lock 内で呼ぶ post-lock validator が担う。
+			// モック側も同じ契約（validator 呼出→追加フィールドの fields マージ）を
+			// 再現し、書込境界の挙動を実装に揃える。
+			require.NotNil(t, validate)
+			extra, err := validate(ctx, tentative)
+			require.NoError(t, err)
+			for k, v := range extra {
+				fields[k] = v
+			}
 			captured = fields
 			return tentative, nil
 		},
@@ -604,6 +679,106 @@ func TestReservationService_Update_TentativeCheckinFillsActualTime(t *testing.T)
 	endVal, ok := captured["end_time"].(time.Time)
 	require.True(t, ok)
 	assert.Equal(t, nextVisitIntentDurationMinutes*time.Minute, endVal.Sub(startVal))
+}
+
+// ---------------------------------------------------------------------------
+// Codex #14/#19: tentative → checked_in の未来日拒否は intent lock 取得後の
+// validator が JST 暦日で判定する（ロック待ちで日跨ぎしても stale 判定しない）
+// ---------------------------------------------------------------------------
+
+func TestReservationService_Update_TentativeCheckinRejectsFutureIntendedDate(t *testing.T) {
+	petID := uint64(22)
+	sentinelStart := time.Date(2030, 1, 5, 0, 0, 0, 0, config.JST)
+
+	nowJST := time.Now().In(config.JST)
+	todayJST := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 0, 0, 0, 0, config.JST)
+	tomorrowJST := todayJST.AddDate(0, 0, 1)
+	yesterdayJST := todayJST.AddDate(0, 0, -1)
+
+	newRepo := func(t *testing.T, intended time.Time, onWrite func()) *mockReservationRepository {
+		tentative := &model.Reservation{
+			ID:                42,
+			ClinicID:          1,
+			PetID:             &petID,
+			Status:            model.ReservationStatusTentative,
+			StartTime:         sentinelStart,
+			EndTime:           sentinelStart.Add(nextVisitIntentDurationMinutes * time.Minute),
+			IntendedDate:      &intended,
+			ReservationTypeID: 7,
+			Source:            model.ReservationSourceManual,
+		}
+		return &mockReservationRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+				return tentative, nil
+			},
+			findPetByIDInClinicFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+				return &model.Pet{ID: petID, OwnerID: 10}, nil
+			},
+			updateTentativeStatusFn: func(ctx context.Context, _, _ uint64, fields map[string]any, validate tentativeTransitionValidator) (*model.Reservation, error) {
+				require.NotNil(t, validate)
+				extra, err := validate(ctx, tentative)
+				if err != nil {
+					return nil, err
+				}
+				for k, v := range extra {
+					fields[k] = v
+				}
+				if onWrite != nil {
+					onWrite()
+				}
+				return tentative, nil
+			},
+		}
+	}
+
+	checkedIn := model.ReservationStatusCheckedIn
+
+	t.Run("rejects a tentative intended for tomorrow", func(t *testing.T) {
+		repo := newRepo(t, tomorrowJST, func() {
+			t.Fatal("未来日 tentative の受付は書込へ到達してはならない")
+		})
+		svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, &mockClinicHolidayFinder{})
+
+		got, err := svc.Update(context.Background(), 1, 42, &UpdateReservationInput{Status: &checkedIn})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err), "Codex #14: 未来日の受付は InvalidInput, 実際: %v", err)
+		assert.Nil(t, got)
+	})
+
+	t.Run("JST boundary: a UTC-today instant landing tomorrow in JST is rejected", func(t *testing.T) {
+		// Codex #19: 比較は JST 暦日。UTC で今日でも JST で明日に落ちる intended は拒否。
+		utcTodayAfternoon := tomorrowJST.Add(30 * time.Minute).UTC() // 明日00:30 JST = 今日15:30 UTC
+		repo := newRepo(t, utcTodayAfternoon, func() {
+			t.Fatal("JST で未来日に落ちる tentative の受付は書込へ到達してはならない")
+		})
+		svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, &mockClinicHolidayFinder{})
+
+		got, err := svc.Update(context.Background(), 1, 42, &UpdateReservationInput{Status: &checkedIn})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err), "JST で明日の intended は拒否, 実際: %v", err)
+		assert.Nil(t, got)
+	})
+
+	t.Run("accepts a tentative intended for today or earlier", func(t *testing.T) {
+		for _, tc := range []struct {
+			name     string
+			intended time.Time
+		}{
+			{"today JST", todayJST},
+			{"yesterday JST", yesterdayJST},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				wrote := false
+				repo := newRepo(t, tc.intended, func() { wrote = true })
+				svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, &mockClinicHolidayFinder{})
+
+				got, err := svc.Update(context.Background(), 1, 42, &UpdateReservationInput{Status: &checkedIn})
+				require.NoError(t, err)
+				assert.NotNil(t, got)
+				assert.True(t, wrote, "当日・過去日の tentative 受付は CAS 書込へ到達する")
+			})
+		}
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -689,7 +864,7 @@ func TestReservationService_Update_TentativeCancelSetsCancelledAndSoftDeletes(t 
 		findByIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.Reservation, error) {
 			return tentative, nil
 		},
-		updateTentativeStatusFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
+		updateTentativeStatusFn: func(_ context.Context, _, _ uint64, fields map[string]any, _ tentativeTransitionValidator) (*model.Reservation, error) {
 			captured = fields
 			return tentative, nil
 		},
@@ -734,7 +909,14 @@ func TestReservationService_Update_TentativeCheckinRejectsDeceasedPet(t *testing
 			deceasedAt := time.Now().UTC()
 			return &model.Pet{ID: petID, Status: model.PetStatusDeceased, DeceasedAt: &deceasedAt}, nil
 		},
-		updateTentativeStatusFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+		// Codex #3: 死亡拒否は repo CAS 前の post-lock validator へ移った。モックは
+		// validator を呼び出してその拒否をそのまま伝播させる（実装と同じく
+		// validator 失敗で書込しない）。
+		updateTentativeStatusFn: func(ctx context.Context, _, _ uint64, _ map[string]any, validate tentativeTransitionValidator) (*model.Reservation, error) {
+			require.NotNil(t, validate, "checked_in 遷移は post-lock validator を必須とする")
+			if _, err := validate(ctx, &model.Reservation{ID: 42, ClinicID: 1, PetID: &petID, Status: model.ReservationStatusTentative}); err != nil {
+				return nil, err
+			}
 			t.Fatal("死亡ペットの tentative checkin は書込に到達してはならない")
 			return nil, nil
 		},
@@ -781,7 +963,7 @@ func TestReservationService_Update_TentativeCheckinRejectsExtraFields(t *testing
 						Source:            model.ReservationSourceManual,
 					}, nil
 				},
-				updateTentativeStatusFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+				updateTentativeStatusFn: func(_ context.Context, _, _ uint64, _ map[string]any, _ tentativeTransitionValidator) (*model.Reservation, error) {
 					t.Fatal("status 以外のフィールドを伴う tentative 遷移は書込に到達してはならない")
 					return nil, nil
 				},
@@ -821,7 +1003,7 @@ func TestReservationService_Update_TentativeCheckinCasConflictPropagates(t *test
 			t.Fatal("tentative 遷移は status 述語なしの汎用 update へ落ちてはならない")
 			return nil, nil
 		},
-		updateTentativeStatusFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+		updateTentativeStatusFn: func(_ context.Context, _, _ uint64, _ map[string]any, _ tentativeTransitionValidator) (*model.Reservation, error) {
 			return nil, apperrors.WrapConflict("次回予定が同時に更新されました。再読み込みしてください")
 		},
 	}
@@ -859,7 +1041,7 @@ func TestReservationService_Delete_TentativeSetsCancelledBeforeSoftDelete(t *tes
 		countMedicalRecordsByReservationID: func(_ context.Context, _ uint64) (int64, error) {
 			return 0, nil
 		},
-		updateTentativeStatusFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
+		updateTentativeStatusFn: func(_ context.Context, _, _ uint64, fields map[string]any, _ tentativeTransitionValidator) (*model.Reservation, error) {
 			callOrder = append(callOrder, "updateTentativeStatus")
 			assert.Equal(t, model.ReservationStatusCancelled, fields["status"])
 			return tentative, nil

@@ -50,6 +50,11 @@ interface ReservationFormFieldsProps {
   onMonthChange?: (yearMonth: string) => void;
   /** Notify modal submit guard when type/date filters confirm an options-orphan doctor. */
   onStaffSelectionStateChange?: (state: StaffSelectionState) => void;
+  /**
+   * Codex PR606 再指摘: 拠点横断 tentative 確定・編集フォームが対象行の
+   * clinicId でマスタ/空き枠を引くためのスコープ上書き。省略時は選択中医院。
+   */
+  clinicId?: string;
 }
 
 export const ReservationFormFields = memo(function ReservationFormFields({
@@ -61,14 +66,17 @@ export const ReservationFormFields = memo(function ReservationFormFields({
   holidayDates,
   onMonthChange,
   onStaffSelectionStateChange,
+  clinicId,
 }: ReservationFormFieldsProps) {
   // BUG-344: 選択日に出勤しているスタッフのみに絞り込む
   const selectedDateStr = formData.start ? format(formData.start, "yyyy-MM-dd") : null;
   const selectedReservationTypeId = formData.type ? String(formData.type) : null;
 
   // BUG-341/BUG-015: グループ情報付き取得。編集中の無効区分 ID のみ表示用に残す
-  const { data: groupedReservationTypes = [] } =
-    useGetReservationTypesGrouped(selectedReservationTypeId);
+  const { data: groupedReservationTypes = [] } = useGetReservationTypesGrouped(
+    selectedReservationTypeId,
+    clinicId,
+  );
 
   const handleMonthChange = useCallback(
     (month: Date) => {
@@ -86,7 +94,11 @@ export const ReservationFormFields = memo(function ReservationFormFields({
     [holidayDates],
   );
 
-  const { data: staffItems, isLoading: isStaffMasterLoading } = useGetMasterItems("staff");
+  const { data: staffItems, isLoading: isStaffMasterLoading } = useGetMasterItems(
+    "staff",
+    undefined,
+    clinicId,
+  );
   // useMemo で参照を安定化（staffOptions の deps が毎レンダー新参照を受け取るのを防ぐ）
   const activeStaff = useMemo(() => staffItems.filter((s) => s.status === "active"), [staffItems]);
 
@@ -94,12 +106,12 @@ export const ReservationFormFields = memo(function ReservationFormFields({
     data: onDutyStaffs,
     isError: isOnDutyError,
     isFetching: isOnDutyFetching,
-  } = useGetOnDutyStaffs(selectedDateStr);
+  } = useGetOnDutyStaffs(selectedDateStr, clinicId);
   const {
     data: reservationStaffs,
     isError: isReservationStaffError,
     isFetching: isReservationStaffFetching,
-  } = useGetReservationStaffs();
+  } = useGetReservationStaffs(clinicId);
   const {
     data: availableTimeSlots,
     isError: isAvailableTimesError,
@@ -108,11 +120,13 @@ export const ReservationFormFields = memo(function ReservationFormFields({
     selectedReservationTypeId,
     selectedDateStr,
     formData.doctor || null,
+    clinicId,
   );
   const isSettingsUnset = isLineReservationSettingsUnsetError(availableTimesError);
-  const currentClinicId = getCurrentClinicId();
+  // Codex PR606 再指摘: clinicId 上書きがあればそちら、なければ選択中医院
+  const effectiveClinicId = clinicId ?? getCurrentClinicId();
   const { data: unavailableTimes = [] } = useGetUnavailableTimes(
-    currentClinicId,
+    effectiveClinicId,
     selectedReservationTypeId ?? "",
   );
   const applicableUnavailableTimes = useMemo(

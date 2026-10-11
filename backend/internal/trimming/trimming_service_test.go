@@ -17,6 +17,8 @@ import (
 // --- mock: trimming が消費する reservation read + intent operation ---
 
 type mockTrimmingReservationRepository struct {
+	previousAbsorbedOwnerID *uint64
+
 	findAllByCategoryFn  func(ctx context.Context, clinicID uint64, category model.ReservationTypeCategory, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
 	findByIDFn           func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	acquireBookingLockFn func(ctx context.Context, clinicID uint64) error
@@ -47,7 +49,7 @@ func (m *mockTrimmingReservationRepository) FindTrimmingByID(ctx context.Context
 	return m.FindByID(ctx, clinicID, id)
 }
 
-func (m *mockTrimmingReservationRepository) CreateForTrimming(ctx context.Context, clinicID uint64, input reservation.CreateTrimmingReservationInput) (*model.Reservation, error) {
+func (m *mockTrimmingReservationRepository) CreateForTrimming(ctx context.Context, clinicID uint64, input reservation.CreateTrimmingReservationInput) (*model.Reservation, *uint64, error) {
 	appt := &model.Reservation{
 		ClinicID:          clinicID,
 		ReservationTypeID: input.ReservationTypeID,
@@ -61,10 +63,10 @@ func (m *mockTrimmingReservationRepository) CreateForTrimming(ctx context.Contex
 	}
 	if m.createFn != nil {
 		if err := m.createFn(ctx, appt); err != nil {
-			return nil, err
+			return nil, m.previousAbsorbedOwnerID, err
 		}
 	}
-	return appt, nil
+	return appt, m.previousAbsorbedOwnerID, nil
 }
 
 func (m *mockTrimmingReservationRepository) UpdateForTrimming(ctx context.Context, clinicID, id uint64, input reservation.UpdateTrimmingReservationInput) (*model.Reservation, error) {
@@ -203,7 +205,6 @@ type mockTrimmingDetailRepository struct {
 	createFn              func(ctx context.Context, detail *model.AppointmentTrimmingDetail) error
 	updateFn              func(ctx context.Context, detail *model.AppointmentTrimmingDetail) error
 	setOptionsFn          func(ctx context.Context, clinicID, appointmentID uint64, optionIDs []uint64) error
-	imageKeyInUseFn       func(ctx context.Context, clinicID uint64, key string) (bool, error)
 }
 
 func (m *mockTrimmingDetailRepository) FindByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) (*model.AppointmentTrimmingDetail, error) {
@@ -234,10 +235,7 @@ func (m *mockTrimmingDetailRepository) SetOptions(ctx context.Context, clinicID,
 	return nil
 }
 
-func (m *mockTrimmingDetailRepository) ImageKeyInUse(ctx context.Context, clinicID uint64, key string) (bool, error) {
-	if m.imageKeyInUseFn != nil {
-		return m.imageKeyInUseFn(ctx, clinicID, key)
-	}
+func (m *mockTrimmingDetailRepository) ImageKeyInUse(_ context.Context, _ uint64, _ string, _ uint64) (bool, error) {
 	return false, nil
 }
 
@@ -1889,7 +1887,7 @@ func TestService_Delete(t *testing.T) {
 			}
 			svc := newTrimmingTestService(reserv, &mockTrimmingDetailRepository{})
 
-			_, err := svc.Delete(context.Background(), tt.clinicID, tt.id, ptrUint64(42))
+			err := svc.Delete(context.Background(), tt.clinicID, tt.id, ptrUint64(42))
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -1916,7 +1914,7 @@ func TestService_Delete_RepositoryFailureAfterFindSucceeds(t *testing.T) {
 	}
 	svc := newTrimmingTestService(reserv, &mockTrimmingDetailRepository{})
 
-	_, err := svc.Delete(context.Background(), 1, 10, ptrUint64(42))
+	err := svc.Delete(context.Background(), 1, 10, ptrUint64(42))
 
 	assert.Error(t, err)
 	assert.False(t, apperrors.IsNotFound(err))
@@ -1965,7 +1963,7 @@ func TestService_Delete_RunsTypedDeleteInsideTransaction(t *testing.T) {
 		noopTrimmingAuditTxLogger{},
 	))
 
-	_, err := svc.Delete(context.Background(), 3, 27, ptrUint64(42))
+	err := svc.Delete(context.Background(), 3, 27, ptrUint64(42))
 
 	assert.NoError(t, err)
 	assert.True(t, lockCalled)

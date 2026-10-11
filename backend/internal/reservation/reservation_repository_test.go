@@ -564,3 +564,26 @@ func TestReservationRepository_Delete_RejectsWhenMedicalRecordReferencesAppointm
 		assert.False(t, still.DeletedAt.Valid)
 	})
 }
+
+func TestReservationRepository_FindAll_TiedStartTimesHaveStablePages(t *testing.T) {
+	db := setupReservationRepoTestDB(t)
+	repo := NewReservationRepository(db)
+	typ := makeReservationType(t, db, 1)
+	start := time.Date(2030, 1, 10, 10, 0, 0, 0, time.UTC)
+	// Insert IDs out of order so physical insertion order cannot satisfy the contract.
+	want := []uint64{101, 102, 103, 104, 105}
+	for _, id := range []uint64{104, 102, 105, 101, 103} {
+		row := &model.Reservation{ID: id, ClinicID: 1, ReservationTypeID: typ.ID, StartTime: start, EndTime: start.Add(30 * time.Minute), Status: model.ReservationStatusPending, Source: model.ReservationSourceManual, VisitType: model.VisitTypeRevisit, CustomerFields: json.RawMessage(`{}`)}
+		require.NoError(t, db.Create(row).Error)
+	}
+	var got []uint64
+	for page := 1; page <= 3; page++ {
+		rows, total, err := repo.FindAll(context.Background(), []uint64{1}, page, 2, nil, nil, nil, nil, nil, nil, nil)
+		require.NoError(t, err)
+		assert.EqualValues(t, 5, total)
+		for _, row := range rows {
+			got = append(got, row.ID)
+		}
+	}
+	assert.Equal(t, want, got)
+}

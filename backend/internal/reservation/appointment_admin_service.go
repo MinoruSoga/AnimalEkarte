@@ -157,6 +157,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 
 	doctorID := normalizeCreateDoctorID(input.DoctorID)
 	var result *model.Reservation
+	var previousOwnerID *uint64
 	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		// RSV-02: clinic-scoped advisory lock before FOR UPDATE capacity/conflict checks
 		// (same order as reservationService.Create / ValidateAndCreate).
@@ -205,11 +206,12 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 			CustomerFields:    customerFields,
 		}
 		// EMR-308: walk-in/管理作成でもペットの active tentative を同一行昇格する。
-		created, err := createOrPromoteTentative(ctx, s.resRepo, ra)
+		created, previous, err := createOrPromoteTentative(ctx, s.resRepo, ra)
 		if err != nil {
 			return apperrors.Wrap(err, "create reservation appointment")
 		}
 		result = created
+		previousOwnerID = previous
 		return nil
 	})
 	if err != nil {
@@ -218,7 +220,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 
 	// EMR-308: 管理/walk-in 作成（tentative 昇格含む）で飼い主の次回来院が変わり得るため
 	// post-commit で next_visit タグを再同期する（best-effort・未注入は no-op）。
-	syncNextVisitTagBestEffort(ctx, s.nextVisitTagSync, clinicID, result.OwnerID)
+	syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, previousOwnerID, result.OwnerID)
 	slog.InfoContext(ctx, "admin reservation created",
 		slog.Uint64("reservation_id", result.ID),
 		slog.Uint64("clinic_id", clinicID))
@@ -226,16 +228,25 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 }
 
 func (s *reservationAdminService) Delete(ctx context.Context, clinicID, id uint64) error {
-	// EMR-308: 削除後は owner を引けないため、post-commit の next_visit タグ除去
-	// 同期のために削除前の予約（owner_id）を保持しておく。
-	existing, err := s.resRepo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to find reservation appointment")
+	if s.tx == nil {
+		return apperrors.WrapInternalServerError("reservation transaction dependency is required")
 	}
-	if err := s.repo.SoftDelete(ctx, clinicID, id); err != nil {
+	var previousOwnerID, currentPetOwnerID *uint64
+	if err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
+		locked, err := s.resRepo.LockAndFindByID(txCtx, clinicID, id)
+		if err != nil {
+			return err
+		}
+		previousOwnerID = locked.OwnerID
+		currentPetOwnerID, err = resolveTentativePetOwner(txCtx, s.resRepo, clinicID, locked)
+		if err != nil {
+			return err
+		}
+		return s.repo.SoftDelete(txCtx, clinicID, id)
+	}); err != nil {
 		return apperrors.Wrap(err, "failed to delete reservation appointment")
 	}
-	syncNextVisitTagBestEffort(ctx, s.nextVisitTagSync, clinicID, existing.OwnerID)
+	syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, previousOwnerID, currentPetOwnerID)
 	if s.medicalRecord != nil {
 		s.medicalRecord.DeleteDraftFromReservation(ctx, clinicID, id)
 	}

@@ -311,6 +311,52 @@ func TestHospitalizationCageGuard_Update_ReactivationAllowedWhenGroupUnoccupied(
 	assert.Equal(t, model.HospitalizationStatusAdmitted, got.Status)
 }
 
+func TestHospitalizationCageGuard_Update_ClearCageOnReactivation(t *testing.T) {
+	tests := []struct {
+		name      string
+		oldMember bool
+		status    string
+	}{
+		{"former member", true, "admitted"},
+		{"occupied representative", false, "reserved"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db := setupHospitalizationRepoTestDB(t)
+			svc := newCageGuardHospitalizationService(t, db)
+			_, merger := newCageMergeService(t, db)
+			ctx := context.Background()
+			const clinicID = uint64(1)
+			owner := makeTestOwner(t, db, clinicID, "clear再開飼主")
+			pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "clear再開ペット")
+			oldCage := makeCageMaster(t, db, clinicID, "退院時のケージ")
+			otherCage := makeCageMaster(t, db, clinicID, "連結相手のケージ")
+			hosp := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &oldCage.ID, model.HospitalizationStatusDischarged)
+			if tt.oldMember {
+				require.NoError(t, mustMerge(t, merger, ctx, clinicID, otherCage.ID, []uint64{oldCage.ID}))
+			} else {
+				require.NoError(t, mustMerge(t, merger, ctx, clinicID, oldCage.ID, []uint64{otherCage.ID}))
+				occupantPet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "現在の占有ペット")
+				_, err := svc.Create(ctx, clinicID, cageGuardCreateInput(owner.ID, occupantPet.ID, oldCage.ID, model.HospitalizationStatusAdmitted))
+				require.NoError(t, err)
+			}
+			input, err := (&updateHospitalizationRequest{Status: &tt.status, ClearCageID: true}).toServiceInput()
+			require.NoError(t, err)
+
+			got, err := svc.Update(ctx, clinicID, hosp.ID, &input)
+
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			assert.Nil(t, got.CageID)
+			assert.Equal(t, model.HospitalizationStatus(tt.status), got.Status)
+			var persisted model.Hospitalization
+			require.NoError(t, db.First(&persisted, hosp.ID).Error)
+			assert.Nil(t, persisted.CageID)
+			assert.Equal(t, got.Status, persisted.Status)
+		})
+	}
+}
+
 func TestHospitalizationCageGuard_Update_ReactivationGroupOccupiedConflict(t *testing.T) {
 	db := setupHospitalizationRepoTestDB(t)
 	svc := newCageGuardHospitalizationService(t, db)

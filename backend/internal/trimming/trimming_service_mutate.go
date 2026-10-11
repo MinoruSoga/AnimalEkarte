@@ -25,6 +25,7 @@ func (s *trimmingService) createDetailForExistingAppointment(
 		return nil, apperrors.WrapInvalidInput("appointment is not a trimming reservation")
 	}
 	var result *model.Reservation
+	var tagChange *trimmingNextVisitTagChange
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.reservation.AcquireBookingLock(txCtx, clinicID); err != nil {
 			return apperrors.Wrap(err, "failed to acquire trimming booking lock")
@@ -33,16 +34,19 @@ func (s *trimmingService) createDetailForExistingAppointment(
 		if err != nil {
 			return apperrors.Wrap(err, "failed to lock existing trimming appointment")
 		}
+		before := trimmingNextVisitFactsFor(locked)
 		created, err := s.createTrimmingDetailForExistingInTx(txCtx, clinicID, appointmentID, input, bwUnit, status, locked)
 		if err != nil {
 			return err
 		}
 		result = created
+		tagChange = trimmingNextVisitChange(before, created)
 		return nil
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create trimming detail for existing appointment")
 	}
 
+	s.syncNextVisitTagChange(ctx, clinicID, tagChange)
 	return result, nil
 }
 
@@ -54,6 +58,9 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 		return nil, nil, err
 	}
 	if err := s.requireAuditTx(); err != nil {
+		return nil, nil, err
+	}
+	if err := normalizeUpdateTrimmingImages(clinicID, input); err != nil {
 		return nil, nil, err
 	}
 	var optionIDs []uint64
@@ -85,17 +92,20 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 	// を判定するため、tx 内で trimming_detail を取得した直後・フィールド上書き前に行う。
 	var result *model.Reservation
 	var replaced *TrimmingReplacedImages
+	var tagChange *trimmingNextVisitTagChange
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		updated, rep, err := s.updateTrimmingInTx(txCtx, clinicID, id, input, optionIDs, appointmentUpdate)
+		updated, rep, change, err := s.updateTrimmingInTx(txCtx, clinicID, id, input, optionIDs, appointmentUpdate)
 		if err != nil {
 			return err
 		}
 		result = updated
 		replaced = rep
+		tagChange = change
 		return nil
 	}); err != nil {
 		return nil, nil, apperrors.Wrap(err, "failed to update trimming appointment")
 	}
+	s.syncNextVisitTagChange(ctx, clinicID, tagChange)
 
 	slog.InfoContext(ctx, "trimming appointment updated",
 		slog.Uint64("clinic_id", clinicID),
@@ -104,14 +114,20 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 	return result, replaced, nil
 }
 
-func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) (*TrimmingReplacedImages, error) {
+func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error {
+	_, err := s.DeleteWithImages(ctx, clinicID, id, actorID)
+	return err
+}
+
+func (s *trimmingService) DeleteWithImages(ctx context.Context, clinicID, id uint64, actorID *uint64) (*TrimmingDeletedImages, error) {
 	if err := requireTrimmingStaffAuditActor(actorID); err != nil {
 		return nil, err
 	}
 	if err := s.requireAuditTx(); err != nil {
 		return nil, err
 	}
-	var removed *TrimmingReplacedImages
+	var ownerID uint64
+	var images *TrimmingDeletedImages
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.reservation.AcquireBookingLock(txCtx, clinicID); err != nil {
 			return apperrors.Wrap(err, "failed to acquire trimming booking lock")
@@ -120,19 +136,14 @@ func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64, actor
 		if err != nil {
 			return apperrors.Wrap(err, "failed to lock trimming appointment for delete")
 		}
+		ownerID = trimmingNextVisitFactsFor(locked).ownerID
 		var detail *model.AppointmentTrimmingDetail
 		detail, err = s.trimmingDetail.FindByAppointmentID(txCtx, clinicID, id)
 		if err != nil && !apperrors.IsNotFound(err) {
 			return apperrors.Wrap(err, "failed to get trimming detail for delete")
 		}
-		// 行ロック下でコミット済みの最新画像値を捕捉する — ここで見たキー集合
-		// だけが post-commit クリーンアップの対象になる（tx 前の pre-read は
-		// 同時 Update がコミットした新キーを漏らす）。
 		if detail != nil {
-			removed = &TrimmingReplacedImages{
-				Style:     detail.StyleImage,
-				Completed: detail.CompletedImage,
-			}
+			images = &TrimmingDeletedImages{Style: detail.StyleImage, Completed: detail.CompletedImage}
 		}
 		oldValue := trimmingAuditValue(locked, detail)
 		if err := s.reservation.DeleteForTrimming(txCtx, clinicID, id); err != nil {
@@ -151,8 +162,9 @@ func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64, actor
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to delete trimming appointment")
 	}
+	s.syncNextVisitTagsBestEffort(ctx, clinicID, &ownerID)
 	slog.InfoContext(ctx, "trimming appointment deleted",
 		slog.Uint64("appointment_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	return removed, nil
+	return images, nil
 }

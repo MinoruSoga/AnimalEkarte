@@ -22,10 +22,6 @@ import (
 type FileUploader interface {
 	Upload(ctx context.Context, key string, body io.Reader, contentType string) (string, error)
 	Delete(ctx context.Context, key string) error
-	// Exists は durable tombstone 判定に使うオブジェクト存在確認。存在しない
-	// オブジェクトは (false, nil)、確認不能なインフラエラーは error
-	// （writer 側 claim は fail-closed で格納を拒否する）。
-	Exists(ctx context.Context, key string) (bool, error)
 	GetSignedURL(ctx context.Context, key string, ttl time.Duration) (string, error)
 }
 
@@ -63,14 +59,6 @@ type ImageDependencies struct {
 func (h *Handler) WithImageSupport(deps ImageDependencies) *Handler {
 	h.imageUploader = deps.Uploader
 	h.imageQuota = deps.Quota
-	// writer 側 claim（repo Create/Update の Exists 確認）へ durable ストアを
-	// 配線する。binder は公開 interface に載せない内部契約 — 未配線の repo は
-	// キー付き書き込みを fail-closed で拒否する。
-	if deps.Uploader != nil && h.svc != nil && h.svc.Trimming != nil {
-		if b, ok := h.svc.Trimming.(imageObjectStoreBinder); ok {
-			b.bindImageObjectStore(deps.Uploader)
-		}
-	}
 	if deps.RequireAnyPermission != nil {
 		h.imageWritePermission = deps.RequireAnyPermission(
 			PermissionRequirement{Resource: string(model.ResourceTrimming), Action: "create"},
@@ -138,12 +126,7 @@ func (h *Handler) UploadTrimmingImage(c *gin.Context) {
 	// Release must not inherit a canceled request context (lease would stick
 	// until stale TTL); bound it so a stalled quota store cannot hold the
 	// upload response open past the detached-cleanup deadline.
-	releaseCtx, releaseCancel := context.WithTimeout(
-		context.WithoutCancel(c.Request.Context()), supersededImageCleanupTimeout)
-	defer func() {
-		defer releaseCancel()
-		release(releaseCtx)
-	}()
+	defer releaseTrimmingImageQuota(c.Request.Context(), release)
 
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, trimmingImageMaxRequestSize)
 	file, fileHeader, err := c.Request.FormFile("file")
@@ -182,17 +165,20 @@ func (h *Handler) UploadTrimmingImage(c *gin.Context) {
 
 	signedURL, err := h.imageUploader.GetSignedURL(c.Request.Context(), key, trimmingImageSignedURLTTL)
 	if err != nil {
-		deleteCtx, cancel := context.WithTimeout(
-			context.WithoutCancel(c.Request.Context()), supersededImageCleanupTimeout)
-		defer cancel()
-		if delErr := h.imageUploader.Delete(deleteCtx, key); delErr != nil {
-			slog.WarnContext(deleteCtx, "failed to delete uploaded trimming image on sign failure (best-effort)", "error", delErr, "key", key)
-		}
+		h.bestEffortDeleteTrimmingImageKeys(c.Request.Context(), clinicID, 0, staffID, key)
 		httpapi.RespondError(c, apperrors.Wrap(err, "failed to sign trimming image url"))
 		return
 	}
 
 	c.JSON(http.StatusCreated, trimmingImageUploadResponse{Key: key, SignedURL: signedURL})
+}
+
+// The deadline starts when cleanup runs, after slow body/storage work finishes.
+// Starting it at Acquire would expire the release lease during a valid upload.
+func releaseTrimmingImageQuota(ctx context.Context, release func(context.Context)) {
+	releaseCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), supersededImageCleanupTimeout)
+	defer cancel()
+	release(releaseCtx)
 }
 
 // respondTrimmingImageUploadQuotaError maps quota errors to stable HTTP 429
@@ -256,23 +242,22 @@ func (h *Handler) DeleteTrimmingImage(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput("invalid trimming image key"))
 		return
 	}
-	// post-commit クリーンアップと同じセッションロック・プロトコル:
-	// pinned conn 上で「参照再確認→オブジェクト削除→unlock」を不可分にする。
-	// 確認不能・参照中・削除無効は消さない（fail-closed）。writer 側の
-	// claimImageKeysForStore が同じロック + Exists で直列化されるため、
-	// チェック〜オブジェクト削除の間の再参照競合も安全になる。
+	// 参照チェックを fail-closed で行う — 参照状況を確認できない限り消さない。
 	if h.svc == nil || h.svc.Trimming == nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "trimming image reference check is not configured"})
 		return
 	}
-	deleted, err := h.svc.Trimming.DeleteUnreferencedImageObject(
-		c.Request.Context(), clinicID, key, h.imageUploader.Delete)
+	reserved, err := h.svc.Trimming.ReserveImageDeletion(c.Request.Context(), clinicID, key, 0, staffID)
 	if err != nil {
-		httpapi.RespondError(c, apperrors.Wrap(err, "failed to delete trimming image"))
+		httpapi.RespondError(c, apperrors.Wrap(err, "failed to reserve trimming image deletion"))
 		return
 	}
-	if !deleted {
+	if !reserved {
 		c.AbortWithStatusJSON(http.StatusConflict, gin.H{"error": "trimming image is referenced by a record"})
+		return
+	}
+	if err := h.imageUploader.Delete(c.Request.Context(), key); err != nil {
+		httpapi.RespondError(c, apperrors.Wrap(err, "failed to delete trimming image"))
 		return
 	}
 	slog.InfoContext(c.Request.Context(), "trimming image object deleted",

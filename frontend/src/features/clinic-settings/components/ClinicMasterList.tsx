@@ -68,7 +68,7 @@ export function ClinicMasterList({
           </PrimaryButton>
         ) : null
       }
-      maxWidth={LAYOUT.pageContentMaxWidth.full}
+      maxWidth={LAYOUT.pageContentMaxWidth.tableNarrow}
     >
       <div className="flex flex-col gap-4">
         {topSection}

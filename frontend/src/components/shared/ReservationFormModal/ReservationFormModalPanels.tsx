@@ -10,6 +10,10 @@ import { ReservationRouteSelect } from "@/components/shared/ReservationRouteSele
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import type { NewOwnerFormData } from "@/types/reservation-form";
 import type { ReservationRoute } from "@/types/reservation-route";
+import {
+  RESERVATION_ROUTE_RECORD_INTENT,
+  RESERVATION_ROUTE_RECORD_INTENT_LABEL,
+} from "@/types/reservation-route";
 import { BADGE, C, ICON, PALETTE, STYLE } from "@/lib/design-tokens";
 import { cn } from "@/lib/utils";
 import type { Pet, Reservation } from "@/types";
@@ -238,6 +242,8 @@ interface ReservationDetailsPanelProps {
   onClearError: (field: string) => void;
   onMonthChange: (yearMonth: string) => void;
   onStaffSelectionStateChange?: (state: StaffSelectionState) => void;
+  /** Codex PR606 再指摘: 拠点横断フォームの対象行 clinicId（マスタ/空き枠スコープ） */
+  clinicId?: string;
 }
 
 export function ReservationDetailsPanel({
@@ -257,6 +263,7 @@ export function ReservationDetailsPanel({
   onClearError,
   onMonthChange,
   onStaffSelectionStateChange,
+  clinicId,
 }: ReservationDetailsPanelProps) {
   return (
     <div
@@ -286,13 +293,27 @@ export function ReservationDetailsPanel({
             holidayDates={holidayDates}
             onMonthChange={onMonthChange}
             onStaffSelectionStateChange={onStaffSelectionStateChange}
+            clinicId={clinicId}
           />
           {isEditMode && reservationId ? (
-            <ReservationRouteSelect
-              reservationId={reservationId}
-              value={(formData.reservationRoute as ReservationRoute | undefined) ?? null}
-              disabled={!canEdit}
-            />
+            // Codex PR606 #12: record_intent は BE が書く provenance 値であり
+            // ユーザー選択肢ではない。編集可能なセレクタに出すと immutable な
+            // 経路を上書きできてしまうため、読み取り専用ラベルで表示する。
+            (formData.reservationRoute as string | null | undefined) ===
+            RESERVATION_ROUTE_RECORD_INTENT ? (
+              <div className="flex flex-col gap-2">
+                <Label className={STYLE.formLabel}>予約経路</Label>
+                <p className={`text-sm ${C.text}`} data-testid="reservation-route-readonly">
+                  {RESERVATION_ROUTE_RECORD_INTENT_LABEL}
+                </p>
+              </div>
+            ) : (
+              <ReservationRouteSelect
+                reservationId={reservationId}
+                value={(formData.reservationRoute as ReservationRoute | undefined) ?? null}
+                disabled={!canEdit}
+              />
+            )
           ) : null}
         </div>
       </div>

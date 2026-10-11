@@ -8,6 +8,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { STYLE } from "@/lib/design-tokens";
+import { SUPPORT_WIDGET_LAYOUT } from "@/constants/support-widget-layout";
 
 interface DataTableProps<T> {
   columns: {
@@ -73,8 +74,11 @@ export const DataTable = memo(function DataTable<T>({
   return (
     <div className={`${STYLE.tableContainer} ${className}`}>
       {/* min-w-0 + overflow-auto: narrow viewports scroll instead of clipping (BUG-458).
-          Avoid fixed min-w-[640px] which forced off-screen status/action columns. */}
-      <div className="relative min-w-0 flex-1 overflow-auto">
+          Avoid fixed min-w-[640px] which forced off-screen status/action columns.
+          scrollBottomClearance: prevent fixed FAB from covering bottom row actions. */}
+      <div
+        className={`relative min-w-0 flex-1 overflow-auto ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}
+      >
         <Table className="w-full min-w-0">
           <TableHeader className="sticky top-0 z-10">
             <TableRow className={headerRowClassName ?? STYLE.tableHeaderRow}>

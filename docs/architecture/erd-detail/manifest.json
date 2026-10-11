@@ -1,0 +1,299 @@
+{
+  "format_version": 1,
+  "generator": "scripts/tools/generate-erd-detail.py",
+  "source_digest": "133e2aefd7213b4852a019b7e498f13f935fcfd5fd268029448d0e932ec9c127",
+  "generator_sources": [
+    {
+      "name": "erd_render.py",
+      "sha256": "33e9b7af808fe3a3248e37be264a283b1e34136f80ae268f9bba005ca9d07fc1"
+    },
+    {
+      "name": "erd_schema.py",
+      "sha256": "abc808c67ec413b936a14d3c2910d55070a4506f4bd30cc153fd33ac45bee8ce"
+    },
+    {
+      "name": "generate-erd-detail.py",
+      "sha256": "92700103aaef9e272bad4eb19b468817cdb67b3cedb5c367ab5986207e50f2ae"
+    }
+  ],
+  "counts": {
+    "tables": 135,
+    "columns": 1632,
+    "foreign_keys": 321
+  },
+  "migrations": [
+    {
+      "name": "001_init.sql",
+      "sha256": "d792bca4f4d985f1b2acdc7cd9ac0c9af80fe28aa3135712ec70896086c8ba2d"
+    },
+    {
+      "name": "002_medical_records_entered_by_staff_fk.sql",
+      "sha256": "231060f40e288776dc7768f24e2f81fab8c5226a3f1045633398442c3ed62a95"
+    },
+    {
+      "name": "003_appointments_created_by_staff_fk.sql",
+      "sha256": "97254617a6254eb2f26b1e6c9f018ce7c376c7b0a46648ef4efd458d64af955d"
+    },
+    {
+      "name": "004_billing_items_treatment_lifetime_unique.sql",
+      "sha256": "b1259855989346dd33351f92f731c53a43997b007eb9c0c2b0c6d974ae72e937"
+    },
+    {
+      "name": "005_child_records_version.sql",
+      "sha256": "9e188500b5c439793db86b4293b9c6184ae781e3b9e7c8f298e0034e7809abdd"
+    },
+    {
+      "name": "006_accounts_rls_ops_bypass.sql",
+      "sha256": "394051c95126ca113f7f77d86601b78b21bc1d4cddfad6b1f13fcabab77efaa1"
+    },
+    {
+      "name": "007_billings_clinic_owner_scheduled_index.sql",
+      "sha256": "447358dbd89473c3e00981c7a648d50e2ba3144629ff00c6a3eead8f6eb3488d"
+    },
+    {
+      "name": "009_reconcile_002_master_seed_checksum.sql",
+      "sha256": "f6aeb8c91f869826fd40cff75a8e12c2f310b5aa941003db1026d28d24340906"
+    },
+    {
+      "name": "010_grant_lab_import_create_to_default_groups.sql",
+      "sha256": "1f6e701a214002cc3b845f926e7a92f62df304e879bbd83330ef610f3107667f"
+    },
+    {
+      "name": "011_care_plan_items_manual_other.sql",
+      "sha256": "fb18358ec0a1bebc27df08cc9b3d854d5743bd5d85bd91b8d5cb63e4d7c10a65"
+    },
+    {
+      "name": "011_support_bug_reports.sql",
+      "sha256": "172d9a893bcdef398836f680e4a5e950f3def91d107463e64789f88b7fe31442"
+    },
+    {
+      "name": "012_pets_name_origin_meeting_story.sql",
+      "sha256": "13eda3b9ea12da06dfc2ca0df17a578ee9ef859d08ce5793b13413160e49a2fc"
+    },
+    {
+      "name": "013_support_chat_messages.sql",
+      "sha256": "ec7c75eb33629161239b69180ce448da3ca6b36424dabb737767a0a709760015"
+    },
+    {
+      "name": "014_drop_prescriptions.sql",
+      "sha256": "8e8f8a5242d47fc98e5e340725c04f3a6e4a120b72d4f6fb50506df198b66bec"
+    },
+    {
+      "name": "015_search_fold_indexes.sql",
+      "sha256": "dcd28dc335221b1640a20a072ad67ea2d64d6892f06f29cce3ebb44aaa09300b"
+    },
+    {
+      "name": "016_support_bug_reports_plane.sql",
+      "sha256": "788adfeb1781da6b2bd1abbd81cac1622c7e84a924b2313edbd779c10d272276"
+    },
+    {
+      "name": "017_multiclinic_staff_fk_fix.sql",
+      "sha256": "08cd7ce63eb398849e5cc29217c580a042061a71ee0ef0d4124efe366f1ae174"
+    },
+    {
+      "name": "018_pet_neutered_status.sql",
+      "sha256": "0b854dd15ab39c820d537cf16fa1609d000680d50b45d64a70562546ebebcd0e"
+    },
+    {
+      "name": "019_drop_checkup_package_import_permission.sql",
+      "sha256": "4376b00cdedd123c5c379c5645d82d71bb0e761cfe29eb0f06feaaefe3d506fa"
+    },
+    {
+      "name": "020_reconcile_002_master_seed_checksum.sql",
+      "sha256": "7c2e346b5c2cb7c6335ae5758fb86b21c916cefa623b13bd16804dd2c9a0c57a"
+    },
+    {
+      "name": "021_medical_record_image_deletions.sql",
+      "sha256": "1fb99ccbfed5dea9f7754a98556365e80d642e44fbe3918d899295af9759ee61"
+    },
+    {
+      "name": "022_staff_clinic_assignments_capability_configured_at.sql",
+      "sha256": "9816da61ce3366b30193d0cc72119ee81676a982ced2469c28c98f67d002bb44"
+    },
+    {
+      "name": "023_lab_device_mapping_drafts.sql",
+      "sha256": "85a499173bdd75206fb7e72f073ea0af74f09a8aab8189b6cd9635717118067b"
+    },
+    {
+      "name": "024_lab_device_mapping_drafts_clinic_unique.sql",
+      "sha256": "9912a1bbe728e0742efadbee60fa9a6cb861210f3ebcdef17b0e71f44184a706"
+    },
+    {
+      "name": "025_cages_merged_into_cage_id.sql",
+      "sha256": "59c37ee264645c366ecd97af29e3b53b74a160294b06c350c13c4603aed173ba"
+    },
+    {
+      "name": "028_appointments_tentative_status.sql",
+      "sha256": "9dc685a628a6b610b40dad5f952da0c227d8196c50875ca5e17525e0fca422b1"
+    },
+    {
+      "name": "029_appointments_one_active_tentative_index.sql",
+      "sha256": "37a81bcb5e3ec2bfad61d2e735cf2eb094af01baebd242b4f0b4ab9f229f136f"
+    },
+    {
+      "name": "030_next_visit_recommended_date_to_tentative.sql",
+      "sha256": "1fcba7b937432b1531343595f84803f1a54e0afa384c2cb892a1f89daed9b075"
+    },
+    {
+      "name": "031_appointments_source_medical_record_clinic_fk.sql",
+      "sha256": "9efb120dd59f96455d076dde6f3e2d127787c240bbb2c83c004f32bcebed8fba"
+    },
+    {
+      "name": "032_trimming_image_deletions.sql",
+      "sha256": "932a005007410d5884baa070399f53a06ce485ce9256e53c06ab1c8d9010c2ba"
+    }
+  ],
+  "reviewed_do_blocks": [
+    "001_init.sql:3020 sha256=1f2d68c8a027d0a56679a58d695bb875d8916a8349b50fd5495ccea35839b2e8 rls_policy",
+    "001_init.sql:3842 sha256=7b22dfd85b61582c63f7b7c69eaffe5d6f6c60e4f33be57395476e479c0e335e data_assertion",
+    "001_init.sql:3914 sha256=2d7574c417ab8910cc806bddfdecaca8d3a7386db3a356a50276c028f9885af4 data_assertion",
+    "001_init.sql:4859 sha256=45920ac83a22c2ad218f09b590835f888ffcc40130aac19753b9d217a42e1edd data_cleanup",
+    "001_init.sql:5227 sha256=75ddac964c4f3c96c68336d52d31f6d0716f7ed89f4a3fc8bb9ac232fd2aba17 drop_checkup_parent",
+    "001_init.sql:5245 sha256=229b993c292b1849d80bf76664311627d4e1743c830260813d5af110ab32462f add_checkup_parent",
+    "001_init.sql:5331 sha256=aa8a1ace3fb3ecfa46c6d0ca4c961cf1072501c0f01fde5bfe69a0eed3b26f09 data_assertion",
+    "009_reconcile_002_master_seed_checksum.sql:47 sha256=0d8177b1a72683892e1e2ee88f6f3ae2e147ecd10a7e72ce0afc5ac80600ca50 checksum",
+    "010_grant_lab_import_create_to_default_groups.sql:55 sha256=bb8145f87b85e4e433021540faa2cdc794b0a57b0cbebc937c6e396f80f3ba04 data_assertion",
+    "010_grant_lab_import_create_to_default_groups.sql:73 sha256=1ef0b2b7e415cda4a466684aa33120d6c7c70eafea515ce7ef28350349241322 checksum",
+    "020_reconcile_002_master_seed_checksum.sql:40 sha256=5fa63dccad7cd9c60ceebee5735eed2c41e828f0c5668ba107e5b15d18420afd checksum",
+    "030_next_visit_recommended_date_to_tentative.sql:147 sha256=f6382ad0b0e4c1b49a7ad03cc005aecaa0180cbaab1a9580c23bbf0aa4948942 data_warning",
+    "031_appointments_source_medical_record_clinic_fk.sql:18 sha256=a2a0d54165c328b2ce6e41ba40d202cad9168941086cc888bccaadda1d27cedb data_assertion"
+  ],
+  "files": [
+    "accounts.md",
+    "animal_species.md",
+    "appointment_trimming_details.md",
+    "appointment_trimming_options.md",
+    "appointments.md",
+    "audit_logs.md",
+    "billing_confirmations.md",
+    "billing_items.md",
+    "billing_refunds.md",
+    "billings.md",
+    "cages.md",
+    "campaign_target_categories.md",
+    "campaign_target_items.md",
+    "campaigns.md",
+    "care_logs.md",
+    "care_plan_items.md",
+    "cash_register_close_adjustments.md",
+    "cash_register_closes.md",
+    "checkup_field_results.md",
+    "checkup_package_import_receipts.md",
+    "checkup_type_fields.md",
+    "checkup_types.md",
+    "checkups.md",
+    "chief_complaint_types.md",
+    "clinic_holidays.md",
+    "clinic_integrations.md",
+    "clinic_settings.md",
+    "clinical_plans.md",
+    "clinics.md",
+    "closing_special_periods.md",
+    "companies.md",
+    "consultations.md",
+    "daily_records.md",
+    "diagnosis_names.md",
+    "diagnosis_types.md",
+    "estimate_items.md",
+    "estimates.md",
+    "exam_reference_ranges.md",
+    "exam_results.md",
+    "exam_type_fields.md",
+    "exam_types.md",
+    "examination_revision_items.md",
+    "examination_revisions.md",
+    "exams.md",
+    "hospitalization_plans.md",
+    "hospitalizations.md",
+    "index.md",
+    "inquiries.md",
+    "inquiry_templates.md",
+    "insurances.md",
+    "inventory_items.md",
+    "lab_device_item_masters.md",
+    "lab_device_mapping_draft_items.md",
+    "lab_device_mapping_drafts.md",
+    "lab_device_mapping_generation.md",
+    "lab_device_mapping_specs.md",
+    "lab_device_station_settings.md",
+    "lab_device_waits.md",
+    "lab_devices.md",
+    "lab_import_events.md",
+    "lab_import_exam_retraction_items.md",
+    "lab_import_exam_retractions.md",
+    "lab_import_job_items.md",
+    "lab_import_jobs.md",
+    "lab_import_revert_receipts.md",
+    "lab_import_usage_receipts.md",
+    "line_customers.md",
+    "line_link_tokens.md",
+    "line_reservation_settings.md",
+    "line_send_logs.md",
+    "lstep_auto_managed_prefixes.md",
+    "lstep_condition_tag_mappings.md",
+    "lstep_csv_imports.md",
+    "lstep_delivery_trigger_log.md",
+    "lstep_friend_attribute_snapshots.md",
+    "lstep_migration_progress.md",
+    "lstep_send_purpose_tag_prefixes.md",
+    "lstep_settings.md",
+    "lstep_sync_error_counters.md",
+    "lstep_tag_cache.md",
+    "lstep_tag_code_mappings.md",
+    "lstep_trigger_priorities.md",
+    "manual_article_versions.md",
+    "manual_articles.md",
+    "medical_record_addenda.md",
+    "medical_record_image_deletions.md",
+    "medical_record_image_upload_quota.md",
+    "medical_record_images.md",
+    "medical_records.md",
+    "medicine_dose_params.md",
+    "medicines.md",
+    "merchandise_items.md",
+    "occupations.md",
+    "owner_identity_group_members.md",
+    "owner_identity_groups.md",
+    "owners.md",
+    "password_reset_tokens.md",
+    "payment_methods.md",
+    "payment_splits.md",
+    "payments.md",
+    "permission_group_rules.md",
+    "permission_groups.md",
+    "pet_chronic_conditions.md",
+    "pet_identity_group_members.md",
+    "pet_identity_groups.md",
+    "pet_owners.md",
+    "pets.md",
+    "procedures.md",
+    "reservation_type_available_slots.md",
+    "reservation_type_groups.md",
+    "reservation_type_occupations.md",
+    "reservation_type_unavailable_times.md",
+    "reservation_types.md",
+    "shared_files.md",
+    "shift_entries.md",
+    "shift_entry_breaks.md",
+    "shift_template_breaks.md",
+    "shift_templates.md",
+    "staff_clinic_assignments.md",
+    "staff_notes.md",
+    "staff_permission_groups.md",
+    "staff_reservation_capabilities.md",
+    "staff_reservation_exclusions.md",
+    "staffs.md",
+    "support_bug_reports.md",
+    "support_chat_messages.md",
+    "token_blacklist.md",
+    "treatment_plans.md",
+    "treatments.md",
+    "trimming_course_types.md",
+    "trimming_courses.md",
+    "trimming_image_deletions.md",
+    "trimming_options.md",
+    "vaccinations.md",
+    "vaccines.md",
+    "vital_records.md"
+  ]
+}

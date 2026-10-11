@@ -13,7 +13,7 @@ import (
 // スナップショットより正確で、同時 PATCH が互いの新値を掃除候補から漏らさない。
 func (h *Handler) deleteReplacedTrimmingImages(
 	ctx context.Context,
-	fallbackClinicID uint64,
+	fallbackClinicID, actorID uint64,
 	replaced *TrimmingReplacedImages,
 	updated *model.Reservation,
 ) {
@@ -25,7 +25,7 @@ func (h *Handler) deleteReplacedTrimmingImages(
 		return
 	}
 	clinicID := trimmingRecordClinicID(updated, fallbackClinicID)
-	h.deleteSupersededTrimmingImages(ctx, clinicID, replaced.Style, replaced.Completed, newStyle, newCompleted)
+	h.deleteSupersededTrimmingImages(ctx, clinicID, 0, actorID, replaced.Style, replaced.Completed, newStyle, newCompleted)
 }
 
 func trimmingImageObjectKey(stored string, clinicID uint64) (string, bool) {
@@ -65,10 +65,10 @@ func supersededTrimmingImageKeys(clinicID uint64, oldStyle, oldCompleted, newSty
 
 func (h *Handler) deleteSupersededTrimmingImages(
 	ctx context.Context,
-	clinicID uint64,
+	clinicID, exceptAppointmentID, actorID uint64,
 	oldStyle, oldCompleted, newStyle, newCompleted string,
 ) {
-	h.bestEffortDeleteTrimmingImageKeys(ctx, clinicID, supersededTrimmingImageKeys(
+	h.bestEffortDeleteTrimmingImageKeys(ctx, clinicID, exceptAppointmentID, actorID, supersededTrimmingImageKeys(
 		clinicID, oldStyle, oldCompleted, newStyle, newCompleted,
 	)...)
 }
@@ -78,16 +78,12 @@ func (h *Handler) deleteSupersededTrimmingImages(
 // while the record is already committed). 削除失敗は warn のみで孤立扱い。
 const supersededImageCleanupTimeout = 10 * time.Second
 
-func (h *Handler) bestEffortDeleteTrimmingImageKeys(ctx context.Context, clinicID uint64, keys ...string) {
+func (h *Handler) bestEffortDeleteTrimmingImageKeys(ctx context.Context, clinicID, exceptAppointmentID, actorID uint64, keys ...string) {
 	if len(keys) == 0 {
 		return
 	}
 	if h == nil || h.imageUploader == nil {
 		slog.WarnContext(ctx, "skipped superseded trimming image delete; uploader is not configured")
-		return
-	}
-	if h.svc == nil || h.svc.Trimming == nil {
-		slog.WarnContext(ctx, "skipped superseded trimming image delete; reference check is not configured")
 		return
 	}
 	deleteCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), supersededImageCleanupTimeout)
@@ -96,23 +92,31 @@ func (h *Handler) bestEffortDeleteTrimmingImageKeys(ctx context.Context, clinicI
 		if key == "" {
 			continue
 		}
-		// セッションスコープ advisory lock 下で「参照再確認→オブジェクト削除
-		// →unlock」を不可分に実行する。durable tombstone はオブジェクト自体
-		// の不在 — ロック解放後に進んだ writer は Exists=false を見て拒否
-		// される。確認不能・参照あり・削除無効（rollout gate）はすべて保持側
-		// fail-closed — 参照中オブジェクトの損失より孤立の方が安全。
-		deleted, err := h.svc.Trimming.DeleteUnreferencedImageObject(
-			deleteCtx, clinicID, key, h.imageUploader.Delete)
-		if err != nil {
-			slog.WarnContext(deleteCtx, "skipped superseded trimming image delete; lifecycle guard failed",
-				slog.String("error", err.Error()),
-				slog.String("key", key))
+		// Reference check + durable tombstone commit precede the external delete.
+		// PATCH includes the current record, so a later X→Y→X is protected.
+		// DELETE excludes only its already-deleted appointment; shared keys stay.
+		if !h.reserveTrimmingImageDeletion(deleteCtx, clinicID, key, exceptAppointmentID, actorID) {
 			continue
 		}
-		if !deleted {
-			slog.InfoContext(deleteCtx,
-				"retained trimming image object; still referenced or deletion not enabled",
+		if err := h.imageUploader.Delete(deleteCtx, key); err != nil {
+			slog.WarnContext(deleteCtx, "failed to delete superseded trimming image",
+				slog.String("error", err.Error()),
 				slog.String("key", key))
 		}
 	}
+}
+
+// reserveTrimmingImageDeletion commits a key tombstone under the same locks as
+// reference writes. A failed reservation retains the object (fail-closed).
+func (h *Handler) reserveTrimmingImageDeletion(ctx context.Context, clinicID uint64, key string, exceptAppointmentID, actorID uint64) bool {
+	if h.svc == nil || h.svc.Trimming == nil {
+		slog.WarnContext(ctx, "skipped trimming image delete; lifecycle is not configured")
+		return false
+	}
+	reserved, err := h.svc.Trimming.ReserveImageDeletion(ctx, clinicID, key, exceptAppointmentID, actorID)
+	if err != nil {
+		slog.WarnContext(ctx, "skipped trimming image delete; reservation failed", slog.String("error", err.Error()))
+		return false
+	}
+	return reserved
 }

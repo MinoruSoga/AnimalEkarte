@@ -15,30 +15,30 @@ func (s *trimmingService) createTrimmingAppointmentInTx(
 	bwUnit model.BodyWeightUnit,
 	status model.ReservationStatus,
 	enforceBookingConstraints bool,
-) (*model.Reservation, error) {
+) (*model.Reservation, *uint64, error) {
 	if enforceBookingConstraints {
 		if err := s.reservation.AcquireBookingLock(txCtx, clinicID); err != nil {
-			return nil, apperrors.Wrap(err, "failed to acquire trimming booking lock")
+			return nil, nil, apperrors.Wrap(err, "failed to acquire trimming booking lock")
 		}
 	}
 	if err := reservation.ValidateReservationOwnerPetLinksWithRepo(txCtx, s.reservation, clinicID, nil, input.PetID); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := reservation.ValidateReservationPetNotDeceased(txCtx, s.reservation, clinicID, input.PetID); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := reservation.ValidateReservationStaffCapability(txCtx, s.reservationStaff, clinicID, input.StaffID, input.ReservationTypeID); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if enforceBookingConstraints {
 		if err := reservation.CheckSlotConflict(txCtx, s.reservation, clinicID, input.StaffID, input.StartTime, input.EndTime, nil); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if err := reservation.CheckReservationTypeCapacity(txCtx, s.reservation, s.reservationType, clinicID, input.ReservationTypeID, input.StartTime, nil); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
-	appt, err := s.reservation.CreateForTrimming(txCtx, clinicID, reservation.CreateTrimmingReservationInput{
+	appt, previousOwnerID, err := s.reservation.CreateForTrimming(txCtx, clinicID, reservation.CreateTrimmingReservationInput{
 		ReservationTypeID: input.ReservationTypeID,
 		StartTime:         input.StartTime,
 		EndTime:           input.EndTime,
@@ -48,23 +48,26 @@ func (s *trimmingService) createTrimmingAppointmentInTx(
 		ReservationRoute:  input.ReservationRoute,
 	})
 	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to create trimming appointment")
+		return nil, nil, apperrors.Wrap(err, "failed to create trimming appointment")
 	}
 	if err := s.validateTrimmingCourseAndOptions(txCtx, clinicID, input.CourseID, input.OptionIDs, nil, nil); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	detail := newTrimmingDetailFromCreateInput(clinicID, appt.ID, input, bwUnit)
+	if err := s.lockImageReferencesInTx(txCtx, clinicID, detail.StyleImage, detail.CompletedImage); err != nil {
+		return nil, nil, err
+	}
 	if err := s.trimmingDetail.Create(txCtx, detail); err != nil {
-		return nil, apperrors.Wrap(err, "failed to create trimming detail")
+		return nil, nil, apperrors.Wrap(err, "failed to create trimming detail")
 	}
 	if len(input.OptionIDs) > 0 {
 		if err := s.trimmingDetail.SetOptions(txCtx, clinicID, appt.ID, input.OptionIDs); err != nil {
-			return nil, apperrors.Wrap(err, "failed to set trimming options")
+			return nil, nil, apperrors.Wrap(err, "failed to set trimming options")
 		}
 	}
 	result, err := s.GetByID(txCtx, clinicID, appt.ID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := s.logTrimmingAuditTx(
 		txCtx,
@@ -76,9 +79,9 @@ func (s *trimmingService) createTrimmingAppointmentInTx(
 		nil,
 		trimmingAuditValue(result, result.TrimmingDetail),
 	); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return result, nil
+	return result, previousOwnerID, nil
 }
 
 func (s *trimmingService) createTrimmingDetailForExistingInTx(
@@ -166,6 +169,9 @@ func (s *trimmingService) createTrimmingDetailForExistingInTx(
 	}
 
 	detail := newTrimmingDetailFromCreateInput(clinicID, appointmentID, input, bwUnit)
+	if err := s.lockImageReferencesInTx(txCtx, clinicID, detail.StyleImage, detail.CompletedImage); err != nil {
+		return nil, err
+	}
 	if err := s.trimmingDetail.Create(txCtx, detail); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create trimming detail")
 	}

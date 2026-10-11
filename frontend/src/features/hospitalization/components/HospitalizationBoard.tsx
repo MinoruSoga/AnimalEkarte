@@ -162,7 +162,7 @@ const CageCard = memo(function CageCard({
         {...(dragEnabled ? attributes : {})}
         {...(dragEnabled ? listeners : {})}
         {...(mergeDraggable ? { "aria-label": mergeDragLabel } : {})}
-        className={`relative flex flex-col h-40 transition-all border touch-none
+        className={`relative flex flex-col min-h-40 h-auto transition-all border touch-none
                   ${
                     occupant
                       ? isDeceased
@@ -205,7 +205,7 @@ const CageCard = memo(function CageCard({
           ) : null}
         </CardHeader>
         <CardContent
-          className={`${H_STYLES.padding.card} flex-1 flex flex-col justify-center items-start text-left`}
+          className={`${H_STYLES.padding.card} pb-3 flex-1 flex flex-col justify-between items-start text-left`}
         >
           {mergedMember ? (
             <div className="mb-1 flex w-full flex-col items-start gap-1">

@@ -52,7 +52,7 @@ export function LabDeviceItemMasterSettings() {
             icon={<FlaskConical className={`${ICON.page} ${C.text}`} />}
             resource={ResourceLabImport}
             onBack={() => navigate(paths.settings.getHref())}
-            maxWidth={LAYOUT.pageContentMaxWidth.full}
+            maxWidth={LAYOUT.pageContentMaxWidth.tableNarrow}
             headerAction={
               <LabDeviceItemMasterHeaderActions
                 canEdit={s.canEdit}

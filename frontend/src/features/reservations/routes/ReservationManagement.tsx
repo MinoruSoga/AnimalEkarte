@@ -10,7 +10,8 @@ import { PermissionBadges } from "@/components/shared/PermissionBadges/Permissio
 import { ResourceReservations } from "@/types/generated/models";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { toJSTWallDate } from "@/lib/jst-date";
+import { toJSTWallDate, todayJSTISO } from "@/lib/jst-date";
+import { useTodayJst } from "@/hooks/use-today-jst";
 import { getReservationStatusLabel } from "@/lib/status-helpers";
 import type { ReservationCreateMutations } from "@/types/reservation-create-mutations";
 import type { CalendarView, Reservation } from "../types";
@@ -30,10 +31,13 @@ import { buildTentativeConfirmInitialData } from "@/components/shared/Reservatio
  * 意図日切れの tentative は ExpiredTentativePanel（期限超過・未対応）側で扱うため
  * カレンダーには出さない（二重管理・過去日の幻影を防ぐ）。
  */
-export function filterCalendarAppointments(appointments: Reservation[]): Reservation[] {
+export function filterCalendarAppointments(
+  appointments: Reservation[],
+  today: string = todayJSTISO(),
+): Reservation[] {
   return appointments.filter((a) => {
     if (a.status === "cancelled") return false;
-    if (isTentativeReservation(a)) return !isExpiredTentativeReservation(a);
+    if (isTentativeReservation(a)) return !isExpiredTentativeReservation(a, today);
     return true;
   });
 }
@@ -173,6 +177,8 @@ export function ReservationManagement({ createMutations }: ReservationManagement
         status: reservation.status,
         notes: reservation.notes,
         petId: reservation.petId,
+        // Codex PR606 再指摘: 編集フォームの clinic scope は行の医院
+        clinicId: reservation.clinicId,
       });
     },
     [handleOpenForm],
@@ -183,8 +189,18 @@ export function ReservationManagement({ createMutations }: ReservationManagement
     [appointments],
   );
 
+  // Codex PR606 #18 再指摘: ExpiredTentativePanel の全行は active tentative。
+  // 再設定は既存 intent の PUT 上書き（BE はルート reservations:create + repo
+  // reservations:edit の両方を要求）なので両権限が揃う時だけ出す。
+  // （JSX prop に直接 && 式を置くと react/jsx-no-leaked-render に触れるため変数化）
+  const canResetTentative = canEdit && canCreate;
+
+  // Codex PR606 #13: 暦日を跨いでも expired 判定の境界が当日へ追従するよう
+  // JST today を tick で保持し、グリッド側フィルタにも同じ境界を渡す。
+  const todayJst = useTodayJst();
+
   const filteredAppointments = useMemo(() => {
-    let result = filterCalendarAppointments(appointments);
+    let result = filterCalendarAppointments(appointments, todayJst);
     if (doctorFilter !== "all") {
       result = result.filter((a) => a.doctor === doctorFilter);
     }
@@ -192,7 +208,7 @@ export function ReservationManagement({ createMutations }: ReservationManagement
       result = result.filter((a) => a.source === sourceFilter);
     }
     return result;
-  }, [appointments, doctorFilter, sourceFilter]);
+  }, [appointments, doctorFilter, sourceFilter, todayJst]);
 
   const navigateToday = useCallback(() => setCurrentDate(toJSTWallDate(new Date())), []);
   const navigatePrevious = useCallback(
@@ -243,7 +259,10 @@ export function ReservationManagement({ createMutations }: ReservationManagement
       <ExpiredTentativePanel
         appointments={expiredTentativeAppointments}
         canConfirm={canEdit}
-        canReset={canCreate}
+        // Codex PR606 #18: パネルの行は全て active tentative。再設定は既存 intent の
+        // PUT 上書き（BE はルート reservations:create + repo reservations:edit の
+        // 両方を要求）なので canCreate && canEdit で出す（#18 再指摘）。
+        canReset={canResetTentative}
         canEnd={canEdit}
         onConfirm={handleOpenConfirmTentative}
         onReset={handleResetNextVisitRequest}
@@ -284,6 +303,8 @@ export function ReservationManagement({ createMutations }: ReservationManagement
           initialData={editingAppointment}
           canCreate={canCreate}
           canEdit={canEdit}
+          // Codex PR606 再指摘: 拠点横断行の編集は行の医院でマスタ/空き枠を引く
+          clinicId={editingAppointment?.clinicId}
         />
 
         {/* Detail Modal */}
@@ -307,6 +328,9 @@ export function ReservationManagement({ createMutations }: ReservationManagement
           initialData={confirmTentativeInitialData}
           canCreate={canCreate}
           canEdit={canEdit}
+          // Codex PR606 再指摘: 確定フォームは tentative 行の医院で
+          // 休診日/マスタ/空き枠/ペットを引く（mutation 側は既に行の clinicId）
+          clinicId={confirmTentativeTarget?.clinicId}
         />
       </Suspense>
 

@@ -59,6 +59,16 @@ const nextVisitLivingPetClause = `NOT EXISTS (
 	)
 )`
 
+// A pet's current owner is authoritative for its tentative intent, including
+// intents created before a transfer. Real/owner-only appointments retain their
+// stored owner; this read capability does not rewrite booking history.
+const nextVisitOwnerExpression = `CASE WHEN appointments.status <> 'tentative' OR appointments.pet_id IS NULL THEN appointments.owner_id ELSE (
+	SELECT current_pet.owner_id FROM pets current_pet
+	WHERE current_pet.id = appointments.pet_id
+	  AND current_pet.clinic_id = appointments.clinic_id
+	  AND current_pet.deleted_at IS NULL
+) END`
+
 // jstCalendarDate は t を含む JST 暦日の開始時刻と YYYY-MM-DD 文字列を返す。
 // intended_date（date 列）との比較は暦日文字列経由で行い、セッション TZ の
 // 影響を排除する。
@@ -78,7 +88,8 @@ func (r *reservationRepository) FindNextAppointmentForOwner(
 	todayStart, todayDate := jstCalendarDate(time.Now())
 	var appointment model.Reservation
 	err := persistence.DBOrTx(ctx, r.db).
-		Where("clinic_id = ? AND owner_id = ? AND deleted_at IS NULL", clinicID, ownerID).
+		Where("clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Where("("+nextVisitOwnerExpression+") = ?", ownerID).
 		Where("status IN ?", nextVisitActiveStatuses).
 		Where(nextVisitLivingPetClause).
 		Where(
@@ -115,11 +126,12 @@ func (r *reservationRepository) FindOwnerIDsWithTentativeIntendedDate(
 	ownerIDs := make([]uint64, 0)
 	err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Reservation{}).
-		Distinct().
-		Where("clinic_id = ? AND owner_id IS NOT NULL AND status = ? AND deleted_at IS NULL", clinicID, model.ReservationStatusTentative).
+		Select("DISTINCT "+nextVisitOwnerExpression+" AS owner_id").
+		Where("clinic_id = ? AND status = ? AND deleted_at IS NULL", clinicID, model.ReservationStatusTentative).
+		Where("("+nextVisitOwnerExpression+") IS NOT NULL").
 		Where("intended_date = ?::date", dateOnly).
 		Where(nextVisitLivingPetClause).
-		Pluck("owner_id", &ownerIDs).Error
+		Scan(&ownerIDs).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation", fmt.Sprintf("clinic=%d tentative intended=%s", clinicID, dateOnly))
 	}
@@ -137,8 +149,9 @@ func (r *reservationRepository) FindTentativeByOwnerAndIntendedDate(
 	_, dateOnly := jstCalendarDate(targetDate)
 	var appointment model.Reservation
 	err := persistence.DBOrTx(ctx, r.db).
-		Where("clinic_id = ? AND owner_id = ? AND status = ? AND deleted_at IS NULL AND intended_date = ?::date",
-			clinicID, ownerID, model.ReservationStatusTentative, dateOnly).
+		Where("clinic_id = ? AND status = ? AND deleted_at IS NULL AND intended_date = ?::date",
+			clinicID, model.ReservationStatusTentative, dateOnly).
+		Where("("+nextVisitOwnerExpression+") = ?", ownerID).
 		Where(nextVisitLivingPetClause).
 		Order("id DESC").
 		Take(&appointment).Error
@@ -149,4 +162,27 @@ func (r *reservationRepository) FindTentativeByOwnerAndIntendedDate(
 		return nil, apperrors.FromGORM(err, "reservation", fmt.Sprintf("clinic=%d owner=%d tentative intended=%s", clinicID, ownerID, dateOnly))
 	}
 	return &appointment, nil
+}
+
+// FindTentativesByOwnerAndIntendedDate は同条件の active tentative を全件 id 昇順で返す。
+// Codex #22: 同一 owner の同日 tentative が複数ペットに跨る場合、送信直前の再検証は
+// candidate 抽出時点の全ペットを直列化ロック対象として列挙する必要がある。
+func (r *reservationRepository) FindTentativesByOwnerAndIntendedDate(
+	ctx context.Context,
+	clinicID, ownerID uint64,
+	targetDate time.Time,
+) ([]model.Reservation, error) {
+	_, dateOnly := jstCalendarDate(targetDate)
+	appointments := make([]model.Reservation, 0)
+	err := persistence.DBOrTx(ctx, r.db).
+		Where("clinic_id = ? AND status = ? AND deleted_at IS NULL AND intended_date = ?::date",
+			clinicID, model.ReservationStatusTentative, dateOnly).
+		Where("("+nextVisitOwnerExpression+") = ?", ownerID).
+		Where(nextVisitLivingPetClause).
+		Order("id ASC").
+		Find(&appointments).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "reservation", fmt.Sprintf("clinic=%d owner=%d tentatives intended=%s", clinicID, ownerID, dateOnly))
+	}
+	return appointments, nil
 }

@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router";
 import ClipboardList from "lucide-react/dist/esm/icons/clipboard-list";
 import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { ResourceMasterMedical } from "@/types/generated/models";
 import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
 import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
@@ -132,6 +132,7 @@ export function DiagnosisSettings() {
         title="診断マスタ"
         icon={<ClipboardList className={`${ICON.page} ${C.text}`} />}
         resource={ResourceMasterMedical}
+        maxWidth={LAYOUT.pageContentMaxWidth.tableNarrow}
         onNew={handleNew}
         sidePanel={
           <DiagnosisSettingsSidePanels

@@ -257,6 +257,7 @@ func newRuntimeDomainCompositions(
 			repositories,
 			transactor,
 			auditKernel,
+			lstepApplication.TagSync,
 		),
 		lstep: lstepApplication,
 		supportChat: support.NewChatCompleter(
@@ -476,6 +477,7 @@ func newRuntimeTrimming(
 	repositories runtimeRepositories,
 	transactor persistence.Transactor,
 	auditKernel audit.Kernel,
+	nextVisitTagSync reservation.NextVisitTagSyncer,
 ) trimmingRuntime {
 	return trimmingRuntime{
 		trimming: trimming.NewServiceWithAudit(
@@ -488,6 +490,7 @@ func newRuntimeTrimming(
 			repositories.trimmingOptions,
 			transactor,
 			trimmingAuditTxAdapter{inner: auditKernel},
+			nextVisitTagSync,
 		),
 		courses: trimming.NewTrimmingCourseService(
 			repositories.trimmingCourses,

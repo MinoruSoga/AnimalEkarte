@@ -52,6 +52,42 @@ func setupHospitalizationRepoTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
+func TestHospitalizationRepository_FindAll_TiedRowsHaveStablePages(t *testing.T) {
+	db := setupHospitalizationRepoTestDB(t)
+	repo := NewHospitalizationRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	owner := makeTestOwner(t, db, clinicID, "ページング飼主")
+	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "ページングペット")
+	tiedDate := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
+	var ids []uint64
+	for i := 0; i < 4; i++ {
+		hosp := makeHospitalizationFixture(t, db, clinicID, owner.ID, pet.ID, func(h *model.Hospitalization) {
+			h.StartDate = tiedDate
+			h.EndDate = tiedDate.AddDate(0, 0, 1)
+			h.CreatedAt = tiedDate
+		})
+		ids = append(ids, hosp.ID)
+	}
+	tests := []struct {
+		name string
+		page int
+		want []uint64
+	}{
+		{"first page", 1, []uint64{ids[3], ids[2]}},
+		{"second page", 2, []uint64{ids[1], ids[0]}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rows, total, err := repo.FindAll(ctx, clinicID, nil, nil, nil, nil, nil, tt.page, 2)
+			require.NoError(t, err)
+			assert.Equal(t, int64(4), total)
+			require.Len(t, rows, 2)
+			assert.Equal(t, tt.want, []uint64{rows[0].ID, rows[1].ID})
+		})
+	}
+}
+
 // makeHospitalizationFixture は status/日付/cage/doctor を柔軟に設定できる Hospitalization を作成する。
 func makeHospitalizationFixture(t *testing.T, db *gorm.DB, clinicID, ownerID, petID uint64, opts func(*model.Hospitalization)) *model.Hospitalization {
 	t.Helper()

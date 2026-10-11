@@ -7,7 +7,7 @@ import { MemoryRouter } from "react-router";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
 
-import type { Hospitalization, MasterItem } from "@/types";
+import type { MasterItem } from "@/types";
 import { HospitalizationListPageView } from "./HospitalizationListPanels";
 
 // ---- dnd-kit mock（HospitalizationBoard.test.tsx と同型） ----
@@ -104,6 +104,8 @@ function renderPageView(
       onViewModeChange={vi.fn()}
       cages={mergeCages}
       boardHospitalizations={[]}
+      boardLoading={false}
+      boardError={false}
       onNavigateToForm={vi.fn()}
       onMovePet={vi.fn()}
       canCreate
@@ -193,6 +195,11 @@ describe("HospitalizationListPanels EMR-306 merge mode toggle", () => {
     renderPageView();
     await user.click(screen.getByRole("button", { name: "ケージ連結モード" }));
 
+    await waitFor(() =>
+      expect(dndHarness.useDraggable).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "merge-cage-11", disabled: false }),
+      ),
+    );
     // cage 11 を drag → cage 13（standalone）へ drop
     // （代表 cage への追加連結は BE が単一階層制約で 409 拒否するため target 不適格）
     act(() => {
@@ -256,59 +263,69 @@ describe("HospitalizationListPanels EMR-306 merge mode toggle", () => {
     );
   });
 
-  it("占有クエリが契約外応答（occupied_cage_ids 欠落）でも空室扱いせず表示データへフォールバック", async () => {
-    // fail-closed: 契約フィールドを欠く応答は「全件空室」と誤判定しない —
-    // hasMergeOccupant=undefined → 表示中 occupantByCageId へフォールバック。
-    server.use(http.get("*/v1/masters/cages/occupancy", () => HttpResponse.json({})));
-    const visibleOccupant = {
-      id: "h-visible-11",
-      cageId: "11",
-      petName: "ポチ",
-      ownerName: "飼主",
-      species: "犬",
-      hospitalizationType: "入院",
-      petIsDeceased: false,
-    } as Hospitalization;
-
-    const user = userEvent.setup();
-    renderPageView({ boardHospitalizations: [visibleOccupant] });
-    await user.click(screen.getByRole("button", { name: "ケージ連結モード" }));
-
-    await waitFor(() => {
-      const calls = dndHarness.useDraggable.mock.calls.filter(
-        (c) => (c[0] as { id?: string }).id === "merge-cage-11",
-      );
-      expect(calls.length).toBeGreaterThan(0);
-      expect((calls.at(-1)?.[0] as { disabled?: boolean }).disabled).toBe(true);
+  it("占有情報の取得中は連結を拒否し、全件取得後に許可する", async () => {
+    let release = () => {};
+    const ready = new Promise<void>((resolve) => {
+      release = resolve;
     });
-  });
-
-  it("占有クエリ失敗（500）でも空室扱いせず表示データへフォールバック", async () => {
     server.use(
-      http.get("*/v1/masters/cages/occupancy", () => new HttpResponse(null, { status: 500 })),
+      http.get("*/v1/masters/cages/occupancy", async () => {
+        await ready;
+        return HttpResponse.json({ occupied_cage_ids: [] });
+      }),
     );
-    const visibleOccupant = {
-      id: "h-visible-11",
-      cageId: "11",
-      petName: "ポチ",
-      ownerName: "飼主",
-      species: "犬",
-      hospitalizationType: "入院",
-      petIsDeceased: false,
-    } as Hospitalization;
-
     const user = userEvent.setup();
-    renderPageView({ boardHospitalizations: [visibleOccupant] });
+    renderPageView();
     await user.click(screen.getByRole("button", { name: "ケージ連結モード" }));
-
-    await waitFor(() => {
-      const calls = dndHarness.useDraggable.mock.calls.filter(
-        (c) => (c[0] as { id?: string }).id === "merge-cage-11",
-      );
-      expect(calls.length).toBeGreaterThan(0);
-      expect((calls.at(-1)?.[0] as { disabled?: boolean }).disabled).toBe(true);
+    expect(screen.getByRole("status")).toHaveTextContent("連結できません");
+    act(() => {
+      dndHarness.onDragEnd?.({
+        active: { data: { current: { mergeCageId: "11" } } },
+        over: { id: "cage-13" },
+      });
     });
+    expect(screen.queryByText("ケージを連結しますか？")).not.toBeInTheDocument();
+    release();
+    await waitFor(() =>
+      expect(dndHarness.useDraggable).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "merge-cage-11", disabled: false }),
+      ),
+    );
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
+
+  it.each(["malformed", "error"])(
+    "占有クエリ %s 時は表示中の患者がゼロでも連結を許可しない",
+    async (response) => {
+      let requested = false;
+      server.use(
+        http.get("*/v1/masters/cages/occupancy", () => {
+          requested = true;
+          return response === "error"
+            ? new HttpResponse(null, { status: 500 })
+            : HttpResponse.json({});
+        }),
+      );
+      const user = userEvent.setup();
+      renderPageView({ boardHospitalizations: [] });
+      await user.click(screen.getByRole("button", { name: "ケージ連結モード" }));
+      await waitFor(() => expect(requested).toBe(true));
+      expect(screen.getByRole("status")).toHaveTextContent("連結できません");
+      for (const id of ["11", "13"]) {
+        const calls = dndHarness.useDraggable.mock.calls.filter(
+          (c) => (c[0] as { id?: string }).id === `merge-cage-${id}`,
+        );
+        expect((calls.at(-1)?.[0] as { disabled?: boolean }).disabled).toBe(true);
+      }
+      act(() => {
+        dndHarness.onDragEnd?.({
+          active: { data: { current: { mergeCageId: "11" } } },
+          over: { id: "cage-13" },
+        });
+      });
+      expect(screen.queryByText("ケージを連結しますか？")).not.toBeInTheDocument();
+    },
+  );
 
   it("member card の 連結解除 → 確認ダイアログ → 解除 で POST /v1/masters/cages/:rep/unmerge", async () => {
     let capturedId: string | undefined;

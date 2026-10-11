@@ -89,6 +89,8 @@ export function Reception() {
         petId: target.petId,
         intendedDate,
         medicalRecordId: target.sourceMedicalRecordId,
+        // Codex PR606 #5: 行の clinicId で送る（拠点横断表示の誤医院送信を防ぐ）
+        clinicId: target.clinicId,
       });
     },
     [nextVisitResetTarget, setNextVisitIntent],

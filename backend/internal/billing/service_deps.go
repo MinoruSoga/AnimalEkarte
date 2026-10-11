@@ -96,9 +96,12 @@ type billingHospitalizationFinder interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
 }
 
-// cpmTagSyncer は CPM ステージタグ同期（lstep=topo下流・import不可）の最小view（best-effort）。
-type cpmTagSyncer interface {
+// billingTagSyncer は会計完了後の LSTEP タグ同期（lstep=topo下流・import不可）の
+// 最小view（best-effort）。Codex #23: accounting 完了で tentative/予約の
+// next_visit 対象集合が変わり得るため SyncNextVisitTag も要求する。
+type billingTagSyncer interface {
 	SyncCPMStageTag(ctx context.Context, clinicID, ownerID uint64) error
+	SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error
 }
 
 // billingClinicReader / billingHolidayReader は clinic domain（未移行）のレポート用最小view。

@@ -726,3 +726,31 @@ test("merged pull requests move Plane work items by base branch", () => {
   assert.match(script, /"Review"/);
   assert.match(script, /"UAT"/);
 });
+
+test("Chromatic install does not receive the project token", () => {
+  const workflow = read(".github/workflows/chromatic.yml");
+  const job = workflowJob(workflow, "chromatic");
+  assert.doesNotMatch(job, /^ {4}env:\s*$/m);
+
+  const probe = namedStep(job, "Record whether the Chromatic token is configured");
+  assert.match(probe, /CHROMATIC_PROJECT_TOKEN: \$\{\{ secrets\.CHROMATIC_PROJECT_TOKEN \}\}/);
+  assert.match(probe, /configured=true/);
+  assert.doesNotMatch(probe, /echo[^\\n]*CHROMATIC_PROJECT_TOKEN/);
+
+  const install = namedStep(job, "Install dependencies");
+  assert.match(install, /steps\.token\.outputs\.configured == 'true'/);
+  assert.match(install, /pnpm install --frozen-lockfile/);
+  assert.doesNotMatch(install, /CHROMATIC_PROJECT_TOKEN/);
+  assert.doesNotMatch(install, /secrets\./);
+
+  const checkout = namedStep(job, "Checkout");
+  assert.match(checkout, /persist-credentials:\s*false/);
+  assert.match(checkout, /steps\.token\.outputs\.configured == 'true'/);
+
+  const chromatic = namedStep(job, "Run Chromatic");
+  assert.match(
+    chromatic,
+    /projectToken:\s*\$\{\{ secrets\.CHROMATIC_PROJECT_TOKEN \}\}/,
+  );
+  assert.doesNotMatch(chromatic, /^ {8}env:\s*$/m);
+});

@@ -1,4 +1,4 @@
-import { useLayoutEffect } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useRouteError, isRouteErrorResponse, Link } from "react-router";
 import { AlertCircle, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,10 +12,19 @@ import { shouldRecoverByReload, reloadForStaleChunk } from "@/lib/stale-chunk-re
  * リロード不可(オフライン/連続失敗)のときだけ既存のエラー表示へ落とす。
  */
 function useStaleChunkRecovery(error: unknown): boolean {
-  const recovering = shouldRecoverByReload(error);
+  const attemptedErrorRef = useRef<unknown>(undefined);
+  const [failedRecovery, setFailedRecovery] = useState<{ error: unknown } | null>(null);
+  const recovering = failedRecovery?.error !== error && shouldRecoverByReload(error);
   useLayoutEffect(() => {
-    if (recovering) reloadForStaleChunk();
-  }, [recovering]);
+    if (!recovering || attemptedErrorRef.current === error) return;
+    attemptedErrorRef.current = error;
+    if (!reloadForStaleChunk()) {
+      // Storage reads can succeed while writes fail. Stop the waiting view when
+      // no reload started, and attempt each error only once (including StrictMode).
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reflect the reload attempt result before paint
+      setFailedRecovery({ error });
+    }
+  }, [error, recovering]);
   return recovering;
 }
 

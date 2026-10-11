@@ -674,6 +674,8 @@ export const LAYOUT = {
   pageContentMaxWidth: {
     full:       "max-w-full",
     default:    "max-w-[1440px]",
+    /** 列数が5列以下の設定テーブル画面（スタッフ・職種等、EMR-333） */
+    tableNarrow: "max-w-5xl",
     /** 広い編集フォーム（飼主・入院・トリミング等） */
     form:       "max-w-[1400px]",
     /** 中規模編集フォーム（検査・ワクチン等） */

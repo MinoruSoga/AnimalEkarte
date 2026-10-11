@@ -2,6 +2,7 @@ package lstep
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -102,14 +103,33 @@ func (r *lstepDeliveryTriggerLogRepository) CreateIfAbsentToday(ctx context.Cont
 		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", lockKey).Error; err != nil {
 			return apperrors.Wrap(err, "failed to acquire delivery trigger day lock")
 		}
-		var count int64
+		var existing model.LstepDeliveryTriggerLog
 		if err := tx.Model(&model.LstepDeliveryTriggerLog{}).
 			Where("clinic_id = ? AND owner_id = ? AND trigger_type = ? AND scheduled_at >= ? AND scheduled_at < ?",
 				log.ClinicID, log.OwnerID, log.TriggerType, dayStart, dayEnd).
-			Count(&count).Error; err != nil {
+			Take(&existing).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			return apperrors.FromGORM(err, "lstep_delivery_trigger_log", "exists_today_locked")
 		}
-		if count > 0 {
+		if existing.ID != 0 {
+			if retryablePreSendClaim(&existing) {
+				result := tx.Model(&model.LstepDeliveryTriggerLog{}).
+					Where("id = ? AND clinic_id = ?", existing.ID, log.ClinicID).
+					Where("NOT (" + blockingDeliveryClaimPredicate + ")").
+					Updates(map[string]any{
+						"status":                 model.TriggerStatusScheduled,
+						"excluded_reason":        nil,
+						"suppressed_by_priority": log.SuppressedByPriority,
+						"suppression_reason":     log.SuppressionReason,
+					})
+				if result.Error != nil {
+					return apperrors.FromGORM(result.Error, "lstep_delivery_trigger_log", "reclaim_unsent")
+				}
+				created = result.RowsAffected == 1
+				if created {
+					log.ID = existing.ID
+				}
+				return nil
+			}
 			created = false
 			return nil
 		}
@@ -131,6 +151,7 @@ func (r *lstepDeliveryTriggerLogRepository) ExistsTodayByOwnerAndType(ctx contex
 	err := r.db.WithContext(ctx).Model(&model.LstepDeliveryTriggerLog{}).
 		Where("clinic_id = ? AND owner_id = ? AND trigger_type = ? AND scheduled_at >= ? AND scheduled_at < ?",
 			clinicID, ownerID, triggerType, dayStart, dayEnd).
+		Where(blockingDeliveryClaimPredicate).
 		Count(&count).Error
 	if err != nil {
 		return false, apperrors.FromGORM(err, "lstep_delivery_trigger_log", "exists_today")

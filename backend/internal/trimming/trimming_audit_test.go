@@ -335,7 +335,7 @@ func TestService_AuditContract_Delete(t *testing.T) {
 	}
 	svc := newTrimmingAuditTestService(reservationRepo, detailRepo, transactor, recorder)
 
-	_, err := svc.Delete(context.Background(), clinicID, appointmentID, ptrUint64(actorID))
+	err := svc.Delete(context.Background(), clinicID, appointmentID, ptrUint64(actorID))
 
 	require.NoError(t, err)
 	assert.True(t, deleted)
@@ -481,8 +481,7 @@ func TestService_AuditFailureRollsBackEachWritePath(t *testing.T) {
 					},
 				}
 				svc := newTrimmingAuditTestService(reservationRepo, detailRepo, tx, audit)
-				_, err := svc.Delete(context.Background(), 7, appointment.ID, ptrUint64(42))
-				return err
+				return svc.Delete(context.Background(), 7, appointment.ID, ptrUint64(42))
 			},
 		},
 	}
@@ -547,8 +546,7 @@ func TestService_MissingAuditDependencyFailsBeforeEachWritePath(t *testing.T) {
 		{
 			name: "delete",
 			run: func(svc Service) error {
-				_, err := svc.Delete(context.Background(), 7, appointmentID, &actorID)
-				return err
+				return svc.Delete(context.Background(), 7, appointmentID, &actorID)
 			},
 		},
 	}
@@ -620,8 +618,7 @@ func TestService_MissingOrZeroActorFailsBeforeEachWritePath(t *testing.T) {
 		{
 			name: "delete",
 			run: func(svc Service, actorID *uint64) error {
-				_, err := svc.Delete(context.Background(), 7, appointmentID, actorID)
-				return err
+				return svc.Delete(context.Background(), 7, appointmentID, actorID)
 			},
 		},
 	}

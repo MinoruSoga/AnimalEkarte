@@ -256,13 +256,47 @@ describe("useReservationManagement — tentative ハンドラ (EMR-308)", () => 
     expect(result.current.confirmTentativeTarget?.id).toBe("t-1");
   });
 
-  it("handleResetNextVisitRequest: canCreate なしは fail-closed", () => {
+  it("handleResetNextVisitRequest: active tentative は canEdit なしで fail-closed（Codex #18）", () => {
+    // 既存 tentative 行の再設定は PUT 上書き（BE: ルート reservations:create +
+    // repo reservations:edit の両方を要求）。canEdit 側が fail-closed の判定。
+    const { result } = renderManagement({ ...ALL_PERMISSIONS, canEdit: false });
+
+    act(() => result.current.handleResetNextVisitRequest(tentative()));
+
+    expect(result.current.resetNextVisitTarget).toBeNull();
+    expect(toastErrorMock).toHaveBeenCalledWith("次回予定を再設定する権限がありません");
+  });
+
+  it("handleResetNextVisitRequest: active tentative は canCreate なしでも fail-closed（Codex #18 再指摘）", () => {
+    // 上書き PUT はルートの reservations:create も通るため、edit 単独では
+    // BE が 403 を返す。片方欠けたらダイアログを開かせない。
     const { result } = renderManagement({ ...ALL_PERMISSIONS, canCreate: false });
 
     act(() => result.current.handleResetNextVisitRequest(tentative()));
 
     expect(result.current.resetNextVisitTarget).toBeNull();
     expect(toastErrorMock).toHaveBeenCalledWith("次回予定を再設定する権限がありません");
+  });
+
+  it("handleResetNextVisitRequest: 非 tentative 行（キャンセル後再作成）は canCreate で判定", () => {
+    // status=cancelled の行は isTentative=false → 新規 intent 扱い（BE: reservations:create）。
+    const cancelled = makeReservation({
+      id: "cancelled-1",
+      status: "cancelled",
+      hadIntendedDate: true,
+      intendedDate: "2026-06-20",
+    });
+
+    const { result: denied } = renderManagement({ ...ALL_PERMISSIONS, canCreate: false });
+    act(() => denied.current.handleResetNextVisitRequest(cancelled));
+    expect(denied.current.resetNextVisitTarget).toBeNull();
+    expect(toastErrorMock).toHaveBeenCalledWith("次回予定を再設定する権限がありません");
+
+    toastErrorMock.mockClear();
+    const { result: allowed } = renderManagement({ ...ALL_PERMISSIONS, canEdit: false });
+    act(() => allowed.current.handleResetNextVisitRequest(cancelled));
+    expect(allowed.current.resetNextVisitTarget).not.toBeNull();
+    expect(toastErrorMock).not.toHaveBeenCalled();
   });
 
   it("handleResetNextVisitRequest → submit で PUT intent（source カルテ id 引継ぎ）", async () => {
@@ -289,6 +323,45 @@ describe("useReservationManagement — tentative ハンドラ (EMR-308)", () => 
     expect(result.current.isResetNextVisitSubmitting).toBe(false);
   });
 
+  it("拠点横断行は行の clinicId で tentative mutation を送る（Codex #5）", async () => {
+    const { result } = renderManagement();
+    const crossClinicTentative = makeReservation({
+      id: "t-x",
+      isTentative: true,
+      intendedDate: "2999-12-31",
+      sourceMedicalRecordId: "99",
+      clinicId: "clinic-77",
+    });
+
+    // 再設定 submit → PUT intent は行の clinicId
+    act(() => result.current.handleResetNextVisitRequest(crossClinicTentative));
+    await act(async () => {
+      await result.current.handleResetNextVisitSubmit("2027-01-15");
+    });
+    expect(setIntentMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ petId: "10", clinicId: "clinic-77" }),
+    );
+
+    // 終了 → DELETE intent も行の clinicId
+    act(() => result.current.handleEndTentativeRequest(crossClinicTentative));
+    await act(async () => {
+      await result.current.executeEndTentative();
+    });
+    expect(clearIntentMutateAsync).toHaveBeenCalledWith({ petId: "10", clinicId: "clinic-77" });
+
+    // 確定 → confirm-tentative も行の clinicId
+    act(() => result.current.handleOpenConfirmTentative(crossClinicTentative));
+    await act(async () => {
+      await result.current.handleConfirmTentative("t-x", {
+        start: new Date(2999, 11, 31, 10, 0),
+        end: new Date(2999, 11, 31, 11, 0),
+      });
+    });
+    expect(confirmMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ reservationId: "t-x", clinicId: "clinic-77" }),
+    );
+  });
+
   it("handleEndTentativeRequest: canEdit なしは fail-closed", () => {
     const { result } = renderManagement({ ...ALL_PERMISSIONS, canEdit: false });
 
@@ -307,7 +380,8 @@ describe("useReservationManagement — tentative ハンドラ (EMR-308)", () => 
     await act(async () => {
       await result.current.executeEndTentative();
     });
-    expect(clearIntentMutateAsync).toHaveBeenCalledWith("10");
+    // Codex PR606 #5: DELETE も行の clinicId を含む variables 形で送る
+    expect(clearIntentMutateAsync).toHaveBeenCalledWith({ petId: "10", clinicId: undefined });
     expect(result.current.endTentativeTarget).toBeNull();
   });
 

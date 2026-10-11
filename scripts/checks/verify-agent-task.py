@@ -74,6 +74,14 @@ ACCOUNT_LAYOUT_PATHS = {
     'backend/migrations/seeds/002_master/accounts/permission_groups.csv',
 }
 
+ERD_DETAIL_TOOL_PATHS = {
+    'scripts/tools/erd_schema.py',
+    'scripts/tools/erd_render.py',
+    'scripts/tools/generate-erd-detail.py',
+    'scripts/tools/test_erd_schema.py',
+    'scripts/tools/test_generate_erd_detail.py',
+}
+
 # Extra go test flags for packages whose default suite needs files outside the
 # backend-only offline mount (repo-root Makefile, frontend, docs, scripts).
 OFFLINE_GO_PACKAGE_FLAGS = {
@@ -561,6 +569,22 @@ def plan(paths):
                 jobs.append(job)
             if (ROOT / path).is_file():
                 jobs.append({'service': 'backend', 'command': ['gofmt', '-l', path.removeprefix('backend/')], 'require_empty_stdout': True})
+        elif path in (
+            'scripts/tools/plane-merge-state.sh',
+            'scripts/tools/plane-merge-state.test.sh',
+            'scripts/tools/worktree-env.sh',
+            'scripts/tools/worktree-env.test.sh',
+        ):
+            # Both suites replace external state with local synthetic fixtures.
+            # The production entrypoints themselves must never be run here.
+            test_path = path if path.endswith('.test.sh') else path.removesuffix('.sh') + '.test.sh'
+            if not (ROOT / path).is_file() or not (ROOT / test_path).is_file():
+                blocked.append(path)
+                continue
+            jobs.append({'service': 'host', 'command': ['bash', '-n', path]})
+            job = {'service': 'host', 'command': ['bash', test_path]}
+            if job not in jobs:
+                jobs.append(job)
         elif path == 'scripts/tools/auth-d5-dualprocess.sh':
             if not (ROOT / path).is_file():
                 blocked.append(path)
@@ -598,13 +622,23 @@ def plan(paths):
             '.githooks/lib/check-secrets.sh',
             '.githooks/lib/check-file-sizes.sh',
             'scripts/ci/run-local-ci.sh',
+            'scripts/ci/check-ci-step-order.sh',
+            'scripts/ci/check-ci-step-order.test.sh',
         ):
             if not any(job['service'] == 'host' and job['command'][-1].endswith('test_verify_agent_task.py') for job in jobs):
                 jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/checks/test_verify_agent_task.py']})
-            if path.startswith('scripts/ci_scope_plan') and not any(
+            if path.startswith('scripts/ci/ci_scope_plan') and not any(
                 job['service'] == 'host' and job['command'][-1].endswith('ci_scope_plan_test.py') for job in jobs
             ):
                 jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/ci/ci_scope_plan_test.py']})
+            if path in (
+                'scripts/ci/run-local-ci.sh',
+                'scripts/ci/check-ci-step-order.sh',
+                'scripts/ci/check-ci-step-order.test.sh',
+            ):
+                job = {'service': 'host', 'command': ['bash', 'scripts/ci/check-ci-step-order.test.sh']}
+                if job not in jobs:
+                    jobs.append(job)
         elif path in ('scripts/checks/test_agent_scope_contracts.py', '.gitignore', 'frontend/.gitignore', '.mcp.json', '.claude/settings.json', '.claude/codex-agent-manifest.json', 'backend/wrangler.jsonc', 'frontend/chromatic.config.json'):
             jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/checks/test_agent_scope_contracts.py']})
         elif path == 'backend/Dockerfile.production':
@@ -645,6 +679,15 @@ def plan(paths):
         elif path == 'scripts/tools/manual-sync.py':
             # Ops CLI は stdlib-only。pure 関数の --self-test が scoped 契約。
             jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/tools/manual-sync.py', '--self-test']})
+        elif path in ERD_DETAIL_TOOL_PATHS:
+            for command in (
+                ['python3', '-B', 'scripts/tools/test_erd_schema.py'],
+                ['python3', '-B', 'scripts/tools/test_generate_erd_detail.py'],
+                ['python3', '-B', 'scripts/tools/generate-erd-detail.py', '--check'],
+            ):
+                job = {'service': 'host', 'command': command}
+                if job not in jobs:
+                    jobs.append(job)
         elif path in (
             'scripts/old-db/link-old-db-cross-clinic-staff-accounts.py',
             'scripts/old-db/sql/link-old-db-cross-clinic-staff-accounts.sql',
@@ -684,6 +727,7 @@ def plan(paths):
             '.github/workflows/backend-deploy.yml',
             '.github/workflows/storybook.yml',
             '.github/workflows/chromatic.yml',
+            '.github/workflows/plane-merge-state.yml',
             'infra/scripts/cf-run-migrate.sh',
         ):
             jobs.append({'service': 'host', 'command': ['node', '--test', 'scripts/ci/check-workflow-contracts.test.mjs']})
@@ -785,7 +829,7 @@ def plan(paths):
         else:
             blocked.append(path)
     for path in paths:
-        if path in ('.githooks/pre-commit', '.githooks/pre-push', '.githooks/lib/check-secrets.sh', 'scripts/ci/run-local-ci.sh', '.claude/scripts/sync-codex-mirror.sh', '.claude/scripts/sync-agents-skills.sh'):
+        if path in ('.githooks/pre-commit', '.githooks/pre-push', '.githooks/lib/check-secrets.sh', 'scripts/ci/run-local-ci.sh', 'scripts/ci/check-ci-step-order.sh', 'scripts/ci/check-ci-step-order.test.sh', '.claude/scripts/sync-codex-mirror.sh', '.claude/scripts/sync-agents-skills.sh'):
             jobs.append({'service': 'host', 'command': ['bash' if path.endswith('.sh') else 'sh', '-n', path]})
     if frontend:
         scope = _plan_scope(paths)

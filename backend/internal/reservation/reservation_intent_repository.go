@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"gorm.io/gorm"
@@ -48,33 +49,60 @@ func (r *reservationRepository) CompleteForAccounting(
 	medicalRecordID, ownerID, petID *uint64,
 	scheduledDate time.Time,
 ) (int64, error) {
+	count, _, err := r.CompleteForAccountingWithOwners(ctx, clinicID, medicalRecordID, ownerID, petID, scheduledDate)
+	return count, err
+}
+
+// CompleteForAccountingWithOwners reports the owners of rows actually changed by
+// the atomic UPDATE, including medical-record appointments with ownerless billing.
+func (r *reservationRepository) CompleteForAccountingWithOwners(
+	ctx context.Context,
+	clinicID uint64,
+	medicalRecordID, ownerID, petID *uint64,
+	scheduledDate time.Time,
+) (int64, []uint64, error) {
 	if persistence.TxFromContext(ctx) == nil {
-		return 0, apperrors.WrapInternalServerError("accounting appointment completion requires an ambient transaction")
+		return 0, nil, apperrors.WrapInternalServerError("accounting appointment completion requires an ambient transaction")
 	}
 	db := persistence.DBOrTx(ctx, r.db)
 	var totalAffected int64
+	var owners []uint64
+	seen := make(map[uint64]struct{})
+	collect := func(rows []model.Reservation) {
+		for _, row := range rows {
+			if row.OwnerID != nil && *row.OwnerID != 0 {
+				if _, ok := seen[*row.OwnerID]; !ok {
+					owners = append(owners, *row.OwnerID)
+					seen[*row.OwnerID] = struct{}{}
+				}
+			}
+		}
+	}
 
 	// (1) 同日同一ペットの会計待ち予約を完了化する。
 	if ownerID != nil && petID != nil && !scheduledDate.IsZero() {
-		result := db.Model(&model.Reservation{}).
+		var completed []model.Reservation
+		result := db.Model(&completed).Clauses(clause.Returning{Columns: []clause.Column{{Name: "owner_id"}}}).
 			Where("clinic_id = ? AND owner_id = ? AND pet_id = ? AND status = ? AND deleted_at IS NULL",
 				clinicID, *ownerID, *petID, model.ReservationStatusAccounting).
 			Where("DATE(start_time AT TIME ZONE 'Asia/Tokyo') = DATE(? AT TIME ZONE 'Asia/Tokyo')", scheduledDate).
 			Update("status", model.ReservationStatusCompleted)
 		if result.Error != nil {
-			return totalAffected, apperrors.FromGORM(
+			return totalAffected, nil, apperrors.FromGORM(
 				result.Error,
 				"reservation",
 				fmt.Sprintf("clinic=%d owner=%d pet=%d scheduled_date=%s", clinicID, *ownerID, *petID, scheduledDate.Format(time.DateOnly)),
 			)
 		}
 		totalAffected += result.RowsAffected
+		collect(completed)
 	}
 
 	// (2) billing.medical_record_id が指す診察 appointment を完了化する。
 	// terminal status は上書きせず、medical_record と appointment の双方を clinic scope する。
 	if medicalRecordID != nil {
-		result := db.Model(&model.Reservation{}).
+		var completed []model.Reservation
+		result := db.Model(&completed).Clauses(clause.Returning{Columns: []clause.Column{{Name: "owner_id"}}}).
 			Where("clinic_id = ? AND deleted_at IS NULL", clinicID).
 			Where("status NOT IN ?", []model.ReservationStatus{
 				model.ReservationStatusCompleted,
@@ -87,16 +115,17 @@ func (r *reservationRepository) CompleteForAccounting(
 					Where("id = ? AND clinic_id = ? AND appointment_id IS NOT NULL AND deleted_at IS NULL", *medicalRecordID, clinicID)).
 			Update("status", model.ReservationStatusCompleted)
 		if result.Error != nil {
-			return totalAffected, apperrors.FromGORM(
+			return totalAffected, nil, apperrors.FromGORM(
 				result.Error,
 				"reservation",
 				fmt.Sprintf("clinic=%d medical_record=%d", clinicID, *medicalRecordID),
 			)
 		}
 		totalAffected += result.RowsAffected
+		collect(completed)
 	}
 
-	return totalAffected, nil
+	return totalAffected, owners, nil
 }
 
 // BackfillForMedicalRecord は medical record 作成時に appointment の欠損 context だけを補完する。
@@ -287,7 +316,7 @@ func (r *reservationRepository) MarkNoShowAt(
 	}
 	const query = `
 		WITH candidate AS (
-			SELECT a.id, a.status
+			SELECT a.id, a.status, a.owner_id
 			FROM appointments a
 			WHERE a.clinic_id = ?
 			  AND a.id = ?
@@ -307,10 +336,15 @@ func (r *reservationRepository) MarkNoShowAt(
 		SET status = ?, updated_at = NOW()
 		FROM candidate
 		WHERE a.id = candidate.id
-		RETURNING candidate.status
+		RETURNING candidate.status, candidate.owner_id
 	`
 
 	var previousStatus model.ReservationStatus
+	// Codex #25: candidate 抽出〜行ロックの間に飼い主譲渡が割り込み得るため、
+	// CAS でロック確定した行の owner_id を同時に返す（NULL は 0 に潰す）。
+	// sql.Null[uint64] で直接スキャンして int64→uint64 変換を排除する（G115）—
+	// 負値は driver の変換境界で scan error として fail-closed に表面化する。
+	var ownerID sql.Null[uint64]
 	err := persistence.DBOrTx(ctx, r.db).
 		Raw(
 			query,
@@ -323,37 +357,37 @@ func (r *reservationRepository) MarkNoShowAt(
 			model.ReservationStatusNoShow,
 		).
 		Row().
-		Scan(&previousStatus)
+		Scan(&previousStatus, &ownerID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return NoShowTransition{}, nil
 	}
 	if err != nil {
 		return NoShowTransition{}, apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", id))
 	}
-	return NoShowTransition{Changed: true, PreviousStatus: previousStatus}, nil
+	return NoShowTransition{Changed: true, PreviousStatus: previousStatus, OwnerID: ownerID.V}, nil
 }
 
 func (r *reservationRepository) CreateForTrimming(
 	ctx context.Context,
 	clinicID uint64,
 	input CreateTrimmingReservationInput,
-) (*model.Reservation, error) {
+) (*model.Reservation, *uint64, error) {
 	if err := requireTrimmingAmbientTransaction(ctx); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := validateTrimmingCreateStatus(input.Status); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := r.assertActiveTrimmingReservationType(ctx, clinicID, input.ReservationTypeID); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	ownerID, err := r.resolveTrimmingOwnerForPet(ctx, clinicID, nil, input.PetID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if input.DoctorID != nil {
 		if err := r.assertStaffAssignedToClinic(ctx, clinicID, *input.DoctorID); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	appointment := &model.Reservation{
@@ -372,7 +406,7 @@ func (r *reservationRepository) CreateForTrimming(
 	// ペットに active tentative があれば新規行ではなく同一行を要求区分で昇格し、
 	// なければ通常 INSERT にフォールバックする。死亡ペットは tx 内で拒否する。
 	if err := ValidateReservationPetNotDeceased(ctx, r, clinicID, input.PetID); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	return createOrPromoteTentative(ctx, r, appointment)
 }
@@ -698,6 +732,9 @@ func requireNextVisitIntentAmbientTransaction(ctx context.Context) error {
 // acquireNextVisitIntentLock は (clinic, pet) 単位の advisory lock を ambient tx に
 // 紐づけて取得し、set/clear/confirm の create→update 判定を直列化する。
 func (r *reservationRepository) acquireNextVisitIntentLock(ctx context.Context, clinicID, petID uint64) error {
+	if persistence.TxFromContext(ctx) == nil {
+		return apperrors.WrapInternalServerError("next visit intent lock requires an ambient transaction")
+	}
 	lockKey := fmt.Sprintf("next-visit-intent:%d:%d", clinicID, petID)
 	if err := persistence.DBOrTx(ctx, r.db).
 		Exec("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", lockKey).
@@ -707,22 +744,88 @@ func (r *reservationRepository) acquireNextVisitIntentLock(ctx context.Context, 
 	return nil
 }
 
+// AcquireNextVisitIntentLock は (clinic,pet) intent advisory lock を ambient tx 上で
+// 取得する公開口（ReservationSlotRepository 経由）。Codex #4: tentative 関連遷移の
+// lock 順序を「intent lock → 行 lock」に統一するため service 層から先取りできる。
+// pg advisory lock は同一 tx 内で再入可能なため、repo 側の再取得は no-op となる。
+func (r *reservationRepository) AcquireNextVisitIntentLock(ctx context.Context, clinicID, petID uint64) error {
+	return r.acquireNextVisitIntentLock(ctx, clinicID, petID)
+}
+
+// FindPetIDForIntentLock は intent advisory lock の引数となる pet_id を非ロック read で
+// 解決する。reservationRelationsMatchParentClinic は意図的に適用しない — Codex #16 の
+// ペット譲渡直後のように「行の owner_id ≠ pet.owner_id」の一時不整合行を、ロック取得と
+// その後の owner 追従の対象から外すと confirm/遷移が not found で失敗し不整合を
+// 自己修復できない。clinic_id スコープは維持するため、別 clinic の行には到達しない。
+func (r *reservationRepository) FindPetIDForIntentLock(ctx context.Context, clinicID, id uint64) (*uint64, error) {
+	var row struct {
+		ID    uint64
+		PetID *uint64
+	}
+	if err := persistence.DBOrTx(ctx, r.db).Raw(
+		`SELECT id, pet_id FROM appointments WHERE clinic_id = ? AND id = ? AND deleted_at IS NULL`,
+		clinicID, id,
+	).Scan(&row).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", id))
+	}
+	if row.ID == 0 {
+		return nil, apperrors.WrapNotFound("reservation", fmt.Sprintf("%d", id))
+	}
+	return row.PetID, nil
+}
+
 // WithTentativeReminderSerialization は tentative mutation（set/clear/confirm/
 // absorb/checkin）と同じ (clinic,pet) intent advisory lock を保持する tx 内で
 // fn を実行する（EMR-308/Codex: LSTEP リマインダーの再検証〜外部送信 race 対策）。
-// ロック取得時点でコミット済みの mutation は fn 内の再読み込みに反映され、
-// ロック保持中に到着した mutation は tx 完了まで待機するため、stale な tentative
-// に基づく外部送信を防げる。fn に渡す ctx が tx スコープの再検証に使うもので、
+// petIDs は送信根拠となり得る全 candidate ペット —— Codex #22: 同一 owner の
+// 同日 tentative が複数ペットに跨る場合、一部だけをロックすると「ロックした
+// intent ≠ 送信根拠の intent」になり得るため、全対象を昇順に取得して直列化する
+// （昇順は複数ロックのデッドロック回避のための固定順序）。ロック取得時点で
+// コミット済みの mutation は fn 内の再読み込みに反映され、ロック保持中に
+// 到着した mutation は tx 完了まで待機するため、stale な tentative に基づく
+// 外部送信を防げる。fn に渡す ctx が tx スコープの再検証に使うもので、
 // 外部送信や別リポジトリへの書込は呼び出し側が元の ctx で行ってよい。
 func (r *reservationRepository) WithTentativeReminderSerialization(
 	ctx context.Context,
-	clinicID, petID uint64,
+	clinicID uint64,
+	petIDs []uint64,
 	fn func(txCtx context.Context) error,
 ) error {
+	// 重複除去 + 昇順固定: 複数 (clinic,pet) ロックの取得順を一意に定める。
+	sorted := make([]uint64, 0, len(petIDs))
+	seen := make(map[uint64]struct{}, len(petIDs))
+	for _, petID := range petIDs {
+		if petID == 0 {
+			continue
+		}
+		if _, dup := seen[petID]; dup {
+			continue
+		}
+		seen[petID] = struct{}{}
+		sorted = append(sorted, petID)
+	}
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
 	return persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := persistence.WithTxValue(ctx, tx)
-		if err := r.acquireNextVisitIntentLock(txCtx, clinicID, petID); err != nil {
-			return err
+		for _, petID := range sorted {
+			if err := r.acquireNextVisitIntentLock(txCtx, clinicID, petID); err != nil {
+				return err
+			}
+		}
+		// Hold pet state/ownership through revalidation and external delivery.
+		// NOWAIT avoids a lock cycle with existing writers that already hold a
+		// pet SHARE lock before waiting for the intent lock. A conflicting death,
+		// deletion or transfer is a known-unsent error that the caller can retry.
+		var pets []model.Pet
+		if len(sorted) > 0 {
+			if err := tx.Model(&model.Pet{}).
+				Select("id").
+				Where("clinic_id = ? AND id IN ?", clinicID, sorted).
+				Order("id ASC").
+				Clauses(clause.Locking{Strength: "SHARE", Options: "NOWAIT"}).
+				Find(&pets).Error; err != nil {
+				return apperrors.Wrap(err, "failed to lock reminder pet state")
+			}
 		}
 		return fn(txCtx)
 	})
@@ -747,14 +850,16 @@ func (r *reservationRepository) findActiveTentativeForUpdate(ctx context.Context
 }
 
 // findGeneralReservationTypeID は tentative placeholder 用に医院の general 診療区分を解決する。
-// active を優先し、未存在なら InvalidInput で fail-closed にする（列は NOT NULL）。
+// Codex #15: 無効化区分は新しい intent の placeholder に使えない — is_active を
+// ORDER BY の優先度ではなく必須述語にし、active な general 区分の未存在は
+// InvalidInput で fail-closed にする（列は NOT NULL）。
 func (r *reservationRepository) findGeneralReservationTypeID(ctx context.Context, clinicID uint64) (uint64, error) {
 	var reservationType model.ReservationType
 	err := persistence.DBOrTx(ctx, r.db).
 		Clauses(clause.Locking{Strength: "SHARE"}).
 		Select("reservation_types.id").
-		Where("clinic_id = ? AND category = ? AND deleted_at IS NULL", clinicID, model.ReservationTypeCategoryGeneral).
-		Order("is_active DESC, id ASC").
+		Where("clinic_id = ? AND category = ? AND is_active = TRUE AND deleted_at IS NULL", clinicID, model.ReservationTypeCategoryGeneral).
+		Order("id ASC").
 		Take(&reservationType).Error
 	if err != nil {
 		mapped := apperrors.FromGORM(err, "reservation_type", fmt.Sprintf("clinic=%d general", clinicID))
@@ -811,6 +916,12 @@ func (r *reservationRepository) SetNextVisitIntent(
 	if err := r.acquireNextVisitIntentLock(ctx, clinicID, petID); err != nil {
 		return nil, nil, err
 	}
+	// Codex #19: 事前検証〜ロック取得の待機中に JST 暦日境界を跨ぐと「本日以降」
+	// 判定が stale になるため、intent lock 保持中の時点で日付窓を再検証する。
+	// 上限側は待機で悪化し得ないため実害は past 境界のみだが、同一規則で再評価する。
+	if err := validateNextVisitIntentDate(input.IntendedDate, r.now()); err != nil {
+		return nil, nil, err
+	}
 	ownerID, err := r.FindPetOwnerInClinic(ctx, clinicID, petID)
 	if err != nil {
 		return nil, nil, err
@@ -830,6 +941,12 @@ func (r *reservationRepository) SetNextVisitIntent(
 	if existing != nil {
 		if !input.CanUpdateExisting {
 			return nil, nil, apperrors.WrapForbidden("既存の次回予定を更新するには予約の編集権限が必要です")
+		}
+		// Codex #19 再指摘（PR #621 review #3）: 上の再検証後にも参照カルテ
+		// FOR SHARE・既存行 FOR UPDATE のロック待ちで暦日を跨ぎ得るため、
+		// 行ロック確保後・UPDATE 書込み直前に時計を取り直して再検証する。
+		if err := validateNextVisitIntentDate(input.IntendedDate, r.now()); err != nil {
+			return nil, nil, err
 		}
 		fields := map[string]any{
 			"intended_date": intended,
@@ -855,6 +972,18 @@ func (r *reservationRepository) SetNextVisitIntent(
 
 	reservationTypeID, err := r.findGeneralReservationTypeID(ctx, clinicID)
 	if err != nil {
+		return nil, nil, err
+	}
+	// Codex #19 再々指摘（PR #621 rereview）: Create は内部で actor の権限・所属を
+	// FOR SHARE 検証する。それが最終日付検証より後に待機すると、ロック待ち中の
+	// JST 暦日跨ぎで前日付の intended_date を INSERT し得る。ここで先に actor
+	// 検証とロックを取得しておく（Create 内の再検証は既保持ロックで待機しない）。
+	if err := assertReservationCreatedBy(ctx, r.db, clinicID, input.CreatedBy); err != nil {
+		return nil, nil, err
+	}
+	// 最終検証 —— これ以降 INSERT までに他 transaction の commit を待つロック
+	// 取得は残らない（Codex #19: UPDATE 経路と同じく書込直前に時計を取り直す）。
+	if err := validateNextVisitIntentDate(input.IntendedDate, r.now()); err != nil {
 		return nil, nil, err
 	}
 	route := nextVisitIntentRoute
@@ -893,18 +1022,23 @@ func (r *reservationRepository) SetNextVisitIntent(
 // 履歴上「途中で消えた」状態になりキャンセル経路と不整合になる）。
 // 他ステータスの予約には触れず、未存在時は冪等に成功する（found=false）。
 func (r *reservationRepository) ClearNextVisitIntent(ctx context.Context, clinicID, petID uint64) (bool, error) {
+	found, _, err := r.clearNextVisitIntentWithOwner(ctx, clinicID, petID)
+	return found, err
+}
+
+func (r *reservationRepository) clearNextVisitIntentWithOwner(ctx context.Context, clinicID, petID uint64) (bool, *uint64, error) {
 	if err := requireNextVisitIntentAmbientTransaction(ctx); err != nil {
-		return false, err
+		return false, nil, err
 	}
 	if err := r.acquireNextVisitIntentLock(ctx, clinicID, petID); err != nil {
-		return false, err
+		return false, nil, err
 	}
 	existing, err := r.findActiveTentativeForUpdate(ctx, clinicID, petID)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 	if existing == nil {
-		return false, nil
+		return false, nil, nil
 	}
 	cancelled := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Reservation{}).
@@ -912,22 +1046,22 @@ func (r *reservationRepository) ClearNextVisitIntent(ctx context.Context, clinic
 			clinicID, existing.ID, model.ReservationStatusTentative).
 		Update("status", model.ReservationStatusCancelled)
 	if cancelled.Error != nil {
-		return false, apperrors.FromGORM(cancelled.Error, "reservation", fmt.Sprintf("%d", existing.ID))
+		return false, nil, apperrors.FromGORM(cancelled.Error, "reservation", fmt.Sprintf("%d", existing.ID))
 	}
 	if cancelled.RowsAffected == 0 {
-		return false, apperrors.WrapConflict("次回予定が同時に更新されました。再読み込みしてください")
+		return false, nil, apperrors.WrapConflict("次回予定が同時に更新されました。再読み込みしてください")
 	}
 	// 行ロック保持中のため status は cancelled のまま変わらない。deleted_at 述語のみで確定する。
 	result := persistence.DBOrTx(ctx, r.db).
 		Where("clinic_id = ? AND id = ? AND deleted_at IS NULL", clinicID, existing.ID).
 		Delete(&model.Reservation{})
 	if result.Error != nil {
-		return false, apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("%d", existing.ID))
+		return false, nil, apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("%d", existing.ID))
 	}
 	if result.RowsAffected == 0 {
-		return false, apperrors.WrapConflict("次回予定が同時に更新されました。再読み込みしてください")
+		return false, nil, apperrors.WrapConflict("次回予定が同時に更新されました。再読み込みしてください")
 	}
-	return true, nil
+	return true, existing.OwnerID, nil
 }
 
 // ConfirmTentative は tentative 予約を本予約（pending/confirmed）へ遷移する。
@@ -944,13 +1078,14 @@ func (r *reservationRepository) ConfirmTentative(
 	// Codex: LSTEP リマインダー送信との直列化のため、tentative mutation はすべて
 	// (clinic,pet) intent advisory lock を通る必要がある。行ロック前にロックなし
 	// read で pet を解決し intent lock → row lock の順序で取得する（absorb 経路と
-	// 同一順序でデッドロックを回避）。
-	pre, err := r.FindByID(ctx, clinicID, id)
+	// 同一順序でデッドロックを回避）。Codex #16: pre-read は関連行ガードを通さない
+	// FindPetIDForIntentLock を使う — 譲渡直後の stale owner 行を見失わないため。
+	petID, err := r.FindPetIDForIntentLock(ctx, clinicID, id)
 	if err != nil {
 		return nil, err
 	}
-	if pre.PetID != nil {
-		if err := r.acquireNextVisitIntentLock(ctx, clinicID, *pre.PetID); err != nil {
+	if petID != nil {
+		if err := r.acquireNextVisitIntentLock(ctx, clinicID, *petID); err != nil {
 			return nil, err
 		}
 	}
@@ -979,6 +1114,16 @@ func (r *reservationRepository) ConfirmTentative(
 		"start_time":          input.StartTime,
 		"end_time":            input.EndTime,
 		"reservation_type_id": input.ReservationTypeID,
+	}
+	// Codex #16: tentative 作成後にペットが譲渡されると行の owner_id は旧飼い主の
+	// まま残る。intent lock + 行ロック保持中に pet を SHARE ロックして現飼い主へ
+	// 追従させ、確定済み予約が旧飼い主宛に紐付き続けるのを防ぐ。
+	if current.PetID != nil {
+		currentOwnerID, err := r.FindPetOwnerInClinic(ctx, clinicID, *current.PetID)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to resolve current pet owner")
+		}
+		fields["owner_id"] = currentOwnerID
 	}
 	if input.DoctorID != nil {
 		if *input.DoctorID == 0 {
@@ -1024,6 +1169,7 @@ func (r *reservationRepository) updateTentativeStatus(
 	ctx context.Context,
 	clinicID, id uint64,
 	fields map[string]any,
+	validate tentativeTransitionValidator,
 ) (*model.Reservation, error) {
 	var loaded *model.Reservation
 	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
@@ -1031,13 +1177,30 @@ func (r *reservationRepository) updateTentativeStatus(
 		// Codex: LSTEP リマインダー送信との直列化のため tentative mutation は
 		// (clinic,pet) intent advisory lock を通す。CAS 前に tx 内 read で pet を
 		// 解決し intent lock を取得する（lock 順序は intent → row で統一）。
-		current, findErr := r.FindByID(txCtx, clinicID, id)
+		petID, findErr := r.FindPetIDForIntentLock(txCtx, clinicID, id)
 		if findErr != nil {
 			return findErr
 		}
-		if current.PetID != nil {
-			if lockErr := r.acquireNextVisitIntentLock(txCtx, clinicID, *current.PetID); lockErr != nil {
+		if petID != nil {
+			if lockErr := r.acquireNextVisitIntentLock(txCtx, clinicID, *petID); lockErr != nil {
 				return lockErr
+			}
+		}
+		if validate != nil {
+			// Codex #3/#14/#19: ロック待ち中に commit され得る mutation（死亡・
+			// intended_date 変更・並行昇格）を検出するため、post-lock で行を
+			// 再読み込みして validator を適用する。validator が返す追加フィールド
+			// （実受付時刻スタンプ等）は CAS 書込へマージする。
+			locked, lockedErr := r.FindByID(txCtx, clinicID, id)
+			if lockedErr != nil {
+				return lockedErr
+			}
+			extra, validateErr := validate(txCtx, locked)
+			if validateErr != nil {
+				return validateErr
+			}
+			for k, v := range extra {
+				fields[k] = v
 			}
 		}
 		result := tx.Model(&model.Reservation{}).
@@ -1081,7 +1244,7 @@ func (r *reservationRepository) updateTentativeStatus(
 func (r *reservationRepository) AbsorbTentativeOnBooking(
 	ctx context.Context,
 	booking *model.Reservation,
-) (*model.Reservation, error) {
+) (*model.Reservation, *uint64, error) {
 	return r.promoteOrCreateFromTentative(ctx, booking, false)
 }
 
@@ -1091,7 +1254,7 @@ func (r *reservationRepository) AbsorbTentativeOnBooking(
 func (r *reservationRepository) PromoteTentativeOnCheckin(
 	ctx context.Context,
 	booking *model.Reservation,
-) (*model.Reservation, error) {
+) (*model.Reservation, *uint64, error) {
 	return r.promoteOrCreateFromTentative(ctx, booking, true)
 }
 
@@ -1103,12 +1266,12 @@ func (r *reservationRepository) promoteOrCreateFromTentative(
 	ctx context.Context,
 	booking *model.Reservation,
 	toCheckin bool,
-) (*model.Reservation, error) {
+) (*model.Reservation, *uint64, error) {
 	if err := requireNextVisitIntentAmbientTransaction(ctx); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if booking == nil {
-		return nil, apperrors.WrapInvalidInput("booking is required")
+		return nil, nil, apperrors.WrapInvalidInput("booking is required")
 	}
 	// 当日受付作成（toCheckin）は tentative 昇格・通常 INSERT のどちらでも実受付時刻を
 	// checked_in_at にスタンプする（A2: actual check-in time）。
@@ -1120,26 +1283,41 @@ func (r *reservationRepository) promoteOrCreateFromTentative(
 	// （LIFF の未リンク顧客等、pet を持たない予約は tentative を持ち得ない）。
 	if booking.PetID == nil || *booking.PetID == 0 {
 		if err := r.Create(ctx, booking); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		return booking, nil
+		return booking, nil, nil
 	}
 	if err := r.acquireNextVisitIntentLock(ctx, booking.ClinicID, *booking.PetID); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	existing, err := r.findActiveTentativeForUpdate(ctx, booking.ClinicID, *booking.PetID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if existing == nil {
 		if err := r.Create(ctx, booking); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		return booking, nil
+		return booking, nil, nil
+	}
+	// Codex #14: 未来日の tentative は当日受付へ昇格しない。別日の来院意図行を
+	// 受付行へ上書きすると intent が失われるため、未到来の tentative は温存して
+	// 通常 INSERT にフォールバックする（intended_date は JST 暦日で比較）。
+	if toCheckin && existing.IntendedDate != nil {
+		intendedJST := existing.IntendedDate.In(config.JST)
+		intendedDay := time.Date(intendedJST.Year(), intendedJST.Month(), intendedJST.Day(), 0, 0, 0, 0, config.JST)
+		visitJST := booking.StartTime.In(config.JST)
+		visitDay := time.Date(visitJST.Year(), visitJST.Month(), visitJST.Day(), 0, 0, 0, 0, config.JST)
+		if intendedDay.After(visitDay) {
+			if err := r.Create(ctx, booking); err != nil {
+				return nil, nil, err
+			}
+			return booking, nil, nil
+		}
 	}
 	if booking.DoctorID != nil && *booking.DoctorID != 0 {
 		if err := r.assertStaffAssignedToClinic(ctx, booking.ClinicID, *booking.DoctorID); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	fields := tentativeAbsorbFields(booking, toCheckin, time.Now())
@@ -1151,14 +1329,19 @@ func (r *reservationRepository) promoteOrCreateFromTentative(
 	if result.Error != nil {
 		// EMR-76: 昇格時の時刻変更も excl_appointments_doctor_timerange に抵触しうる。
 		if conflict := asReservationTimeConflict(result.Error); conflict != nil {
-			return nil, conflict
+			return nil, nil, conflict
 		}
-		return nil, apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("%d", existing.ID))
+		return nil, nil, apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("%d", existing.ID))
 	}
 	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapConflict("次回予定が同時に更新されました。再読み込みしてください")
+		return nil, nil, apperrors.WrapConflict("次回予定が同時に更新されました。再読み込みしてください")
 	}
-	return r.FindByID(ctx, booking.ClinicID, existing.ID)
+	promoted, err := r.FindByID(ctx, booking.ClinicID, existing.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	// existing was read under the same intent and row locks as this promotion.
+	return promoted, existing.OwnerID, nil
 }
 
 // tentativeAbsorbFields は tentative 行へ実予約の値を上書きする列セットを組み立てる。

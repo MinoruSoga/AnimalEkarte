@@ -38,7 +38,8 @@ describe("ReceptionTelemetryStrip", () => {
     );
 
     expect(screen.getByText("14分")).toBeInTheDocument();
-    expect(screen.getByText("32分 — ミルク")).toBeInTheDocument();
+    expect(screen.getByText("32分 —")).toBeInTheDocument();
+    expect(screen.getByText("ミルク")).toBeInTheDocument();
   });
 
   it("最長待ちの強調はテキスト色のみで、primary/brand identity の構造クラスを使わない", () => {
@@ -49,11 +50,31 @@ describe("ReceptionTelemetryStrip", () => {
       />,
     );
 
-    const longest = screen.getByText("32分 — ミルク");
+    const longest = screen.getByText("32分 —").parentElement;
+    expect(longest).toHaveClass(C.textDiscount);
     expect(longest).not.toHaveClass(C.textActionPrimary);
     expect(longest).not.toHaveClass(C.bgActionPrimary);
     expect(longest).not.toHaveClass(C.textBrandIdentity);
     expect(longest).not.toHaveClass(C.bgBrandIdentity);
+  });
+
+  it("長いペット名（最大100文字）でもラベル・時間は改行禁止を保ち、ペット名は幅制約・省略表示・title付きで表示される", () => {
+    const longPetName =
+      "アレクサンダー・フォン・フンボルト三世・ロイヤルプリンス・ド・リュミエール・マキシミリアン";
+    render(
+      <ReceptionTelemetryStrip
+        totalCount={32}
+        waitStats={{ averageMinutes: 14, longest: { minutes: 45, petName: longPetName } }}
+      />,
+    );
+
+    expect(screen.getByText("最長待ち")).toHaveClass("whitespace-nowrap", "shrink-0");
+    expect(screen.getByText("45分 —")).toHaveClass("whitespace-nowrap", "shrink-0");
+
+    const petNameElement = screen.getByTitle(longPetName);
+    expect(petNameElement).toBeInTheDocument();
+    expect(petNameElement).toHaveTextContent(longPetName);
+    expect(petNameElement).toHaveClass("truncate", "max-w-[120px]", "sm:max-w-[200px]");
   });
 
   it("コンポーネントソースに raw hex カラーリテラルを直書きしない(design-tokens 経由のみ)", () => {

@@ -512,6 +512,12 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// 更新と一次監査ログ書込を Transactor.WithTx で束ね fail-closed 化。BE9-2Eで
 	// internal/pet へ移動。runtime proof は internal/pet/repository_tx_atomicity_test.go)
 	"pet/repository.go|repository.update": {},
+	// PR606 cage swap: pet status/deceased_at is checked under a clinic-scoped FOR UPDATE
+	// lock retained by the swap's ambient transaction; no-tx reads fail closed. Regressions:
+	// TestPetRepository_LockByIDForUpdate (internal/pet/repository_row_lock_test.go) /
+	// TestHospitalizationSwapCages_PetDeathCheckSerializesConcurrentDeath
+	// (internal/medicalrecord/hospitalization_cage_swap_test.go).
+	"pet/repository.go|repository.LockByIDForUpdate": {},
 	// 死亡登録/復活の条件付き UPDATE（CAS）。期待 status を述語に含め RowsAffected==0 を 409 へ写像する
 	// ため、呼び出し元の ambient transaction に参加して同一 snapshot 上で判定する必要がある。Runtime:
 	// TestPetRepository_RecordDeath_ConcurrentRequestsPreserveWinner /
@@ -625,6 +631,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_intent_repository.go|reservationRepository.updateTentativeStatus":              {}, // EMR-308 tentative-limited CAS update (WHERE status=tentative)
 	"reservation/reservation_intent_repository.go|reservationRepository.WithTentativeReminderSerialization": {}, // EMR-308 LSTEP revalidate→send serialization via (clinic,pet) advisory lock
 	"reservation/reservation_intent_repository.go|reservationRepository.acquireNextVisitIntentLock":         {}, // EMR-308 (clinic,pet) advisory lock; ambient-tx bound
+	"reservation/reservation_intent_repository.go|reservationRepository.FindPetIDForIntentLock":             {}, // Codex #16 guard-free pet resolution for lock ordering (stale-owner rows)
 	"reservation/reservation_intent_repository.go|reservationRepository.findActiveTentativeForUpdate":       {}, // EMR-308 single-active-tentative lookup under row lock
 	"reservation/reservation_intent_repository.go|reservationRepository.findGeneralReservationTypeID":       {}, // EMR-308 general placeholder type resolution
 	"reservation/reservation_intent_repository.go|reservationRepository.assertSourceMedicalRecordForPet":    {}, // EMR-308 provenance guard (same clinic + same pet)
@@ -639,6 +646,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_next_visit_query.go|reservationRepository.FindNextAppointmentForOwner":           {},
 	"reservation/reservation_next_visit_query.go|reservationRepository.FindOwnerIDsWithTentativeIntendedDate": {},
 	"reservation/reservation_next_visit_query.go|reservationRepository.FindTentativeByOwnerAndIntendedDate":   {},
+	"reservation/reservation_next_visit_query.go|reservationRepository.FindTentativesByOwnerAndIntendedDate":  {}, // Codex #22 all-candidate enumeration for multi-pet reminder serialization
 	"reservation/appointment_admin_repository.go|reservationAdminRepository.Create":                           {}, // AUD-001
 	// BUG-424: unavailable-time reads participate in the booking transaction.
 	"reservation/reservation_type_unavailable_time_repository.go|reservationTypeUnavailableTimeRepository.FindAll": {},

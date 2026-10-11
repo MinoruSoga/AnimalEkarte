@@ -21,12 +21,14 @@ import (
 // ---- mock Service ----
 
 type mockService struct {
-	listFn                          func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
-	getByIDFn                       func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
-	createFn                        func(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error)
-	updateFn                        func(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, *TrimmingReplacedImages, error)
-	deleteFn                        func(ctx context.Context, clinicID, id uint64, actorID *uint64) (*TrimmingReplacedImages, error)
-	deleteUnreferencedImageObjectFn func(ctx context.Context, clinicID uint64, key string, deleteObject ImageObjectDeleteFunc) (bool, error)
+	listFn                 func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
+	getByIDFn              func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	createFn               func(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error)
+	updateFn               func(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, *TrimmingReplacedImages, error)
+	deleteFn               func(ctx context.Context, clinicID, id uint64, actorID *uint64) error
+	deleteWithImagesFn     func(ctx context.Context, clinicID, id uint64, actorID *uint64) (*TrimmingDeletedImages, error)
+	reserveImageDeletionFn func(ctx context.Context, clinicID uint64, key string, exceptAppointmentID, actorID uint64) (bool, error)
+	imageKeyInUseFn        func(ctx context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error)
 }
 
 func (m *mockService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error) {
@@ -57,24 +59,45 @@ func (m *mockService) Update(ctx context.Context, clinicID, id uint64, input *Up
 	return &model.Reservation{ID: id}, nil, nil
 }
 
-func (m *mockService) Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) (*TrimmingReplacedImages, error) {
+func (m *mockService) Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error {
 	if m.deleteFn != nil {
 		return m.deleteFn(ctx, clinicID, id, actorID)
+	}
+	return nil
+}
+
+func (m *mockService) DeleteWithImages(ctx context.Context, clinicID, id uint64, actorID *uint64) (*TrimmingDeletedImages, error) {
+	if m.deleteWithImagesFn != nil {
+		return m.deleteWithImagesFn(ctx, clinicID, id, actorID)
+	}
+	if err := m.Delete(ctx, clinicID, id, actorID); err != nil {
+		return nil, err
+	}
+	if m.getByIDFn != nil {
+		appt, err := m.getByIDFn(ctx, clinicID, id)
+		if err != nil {
+			return nil, err
+		}
+		if style, completed, ok := trimmingStoredImages(appt); ok {
+			return &TrimmingDeletedImages{Style: style, Completed: completed}, nil
+		}
 	}
 	return nil, nil
 }
 
-// DeleteUnreferencedImageObject の mock 既定値は「参照なし・削除成功」を
-// 返す（旧 ImageKeyInUse の既定 false＝未参照と同義）ので、fn 未設定でも
-// superseded 削除は従来どおりオブジェクトを消す。
-func (m *mockService) DeleteUnreferencedImageObject(ctx context.Context, clinicID uint64, key string, deleteObject ImageObjectDeleteFunc) (bool, error) {
-	if m.deleteUnreferencedImageObjectFn != nil {
-		return m.deleteUnreferencedImageObjectFn(ctx, clinicID, key, deleteObject)
+func (m *mockService) ReserveImageDeletion(ctx context.Context, clinicID uint64, key string, exceptAppointmentID, actorID uint64) (bool, error) {
+	if m.reserveImageDeletionFn != nil {
+		return m.reserveImageDeletionFn(ctx, clinicID, key, exceptAppointmentID, actorID)
 	}
-	if err := deleteObject(ctx, key); err != nil {
-		return false, err
+	inUse, err := m.ImageKeyInUse(ctx, clinicID, key, exceptAppointmentID)
+	return !inUse, err
+}
+
+func (m *mockService) ImageKeyInUse(ctx context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error) {
+	if m.imageKeyInUseFn != nil {
+		return m.imageKeyInUseFn(ctx, clinicID, key, exceptAppointmentID)
 	}
-	return true, nil
+	return false, nil
 }
 
 // ---- helper ----
@@ -437,12 +460,12 @@ func TestDeleteTrimming(t *testing.T) {
 			name:    "deletes trimming successfully",
 			paramID: "1",
 			svc: &mockService{
-				deleteFn: func(_ context.Context, clinicID, id uint64, actorID *uint64) (*TrimmingReplacedImages, error) {
+				deleteFn: func(_ context.Context, clinicID, id uint64, actorID *uint64) error {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(1), id)
 					require.NotNil(t, actorID)
 					assert.Equal(t, uint64(42), *actorID)
-					return nil, nil
+					return nil
 				},
 			},
 			wantStatus: http.StatusNoContent,
@@ -457,8 +480,8 @@ func TestDeleteTrimming(t *testing.T) {
 			name:    "returns 404 when not found",
 			paramID: "999",
 			svc: &mockService{
-				deleteFn: func(_ context.Context, _, _ uint64, _ *uint64) (*TrimmingReplacedImages, error) {
-					return nil, apperrors.WrapNotFound("trimming", "999")
+				deleteFn: func(_ context.Context, _, _ uint64, _ *uint64) error {
+					return apperrors.WrapNotFound("trimming", "999")
 				},
 			},
 			wantStatus: http.StatusNotFound,
@@ -487,9 +510,9 @@ func TestDeleteTrimming(t *testing.T) {
 
 	t.Run("returns 401 when staff actor missing", func(t *testing.T) {
 		h := newHandlerWithTrimmingSvc(&mockService{
-			deleteFn: func(_ context.Context, _, _ uint64, _ *uint64) (*TrimmingReplacedImages, error) {
+			deleteFn: func(_ context.Context, _, _ uint64, _ *uint64) error {
 				t.Fatal("service must not be called without an authenticated staff actor")
-				return nil, nil
+				return nil
 			},
 		})
 		w := httptest.NewRecorder()
