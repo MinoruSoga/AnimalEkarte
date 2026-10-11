@@ -767,7 +767,7 @@ func (r *repository) ClearDeath(ctx context.Context, clinicID, petID uint64) err
 }
 
 func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).Delete(&model.Pet{})
+	result := persistence.DBOrTx(ctx, r.db).Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).Delete(&model.Pet{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "pet", fmt.Sprintf("%d", id))
 	}

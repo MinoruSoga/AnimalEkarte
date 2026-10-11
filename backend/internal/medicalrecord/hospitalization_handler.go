@@ -195,6 +195,7 @@ func (h *HospitalizationHandler) DischargeWithBilling(c *gin.Context) {
 // POST /hospitalizations/cage-swap
 // EMR-306 review: 2本の独立 PATCH による半スワップ（片側のみ commit）を防ぐため、
 // 2件の入院のケージ交換を単一トランザクションで実行する。
+// expected_cage_ids は hospitalization_ids と同じ位置の表示時ケージID。
 func (h *HospitalizationHandler) SwapCages(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
@@ -206,7 +207,8 @@ func (h *HospitalizationHandler) SwapCages(c *gin.Context) {
 		return
 	}
 	first, second, err := h.service.SwapCages(
-		c.Request.Context(), clinicID, req.HospitalizationIDs[0], req.HospitalizationIDs[1])
+		c.Request.Context(), clinicID, req.HospitalizationIDs[0], req.HospitalizationIDs[1],
+		[2]uint64{req.ExpectedCageIDs[0], req.ExpectedCageIDs[1]})
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return

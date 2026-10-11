@@ -216,6 +216,7 @@ type StaffAssignmentUsageRepository interface {
 // tentative の予定日は intended_date、実予約は start_time が意味上の日付となる。
 // 「active」は終端ステータス（cancelled/no_show/completed）と削除済みを除く集合。
 type ReservationNextVisitQueryRepository interface {
+	FindOwnerIDsWithExpiredTentativeTagCursor(ctx context.Context, clinicID uint64, asOf time.Time, afterOwnerID uint64, limit int) ([]uint64, error)
 	// FindNextAppointmentForOwner は飼い主の次回来院に相当する active appointment を
 	// 意味上の日付（tentative=intended_date、それ以外=start_time、いずれも JST 暦日が
 	// 本日以降のものに限る）の早い順で1件返す。未存在は (nil, nil)。

@@ -12641,6 +12641,8 @@ paths:
       description: >-
         2件の入院の cage_id を原子性を持って交換する。ボード DnD の入れ替え専用 —
         2本の独立 PATCH では片方のみ commit され得るため本エンドポイントを使う。
+        expected_cage_ids は hospitalization_ids と同じ位置の入院の表示時 cage_id を指定する。
+        両入院の行ロック後に現在値と比較し、移動・割当解除による不一致は 409 で書込み前に拒否する。
         連結ケージが絡む場合は通常の割当ガードが各移動に適用され、構成ケージ宛は 422、
         占有グループ宛は 409 で両方ロールバックする。
       tags: [Hospitalizations]
@@ -12650,7 +12652,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [hospitalization_ids]
+              required: [hospitalization_ids, expected_cage_ids]
               properties:
                 hospitalization_ids:
                   type: array
@@ -12660,7 +12662,16 @@ paths:
                     type: integer
                     format: int64
                     minimum: 1
-                  description: ケージを交換する入院IDのペア（順序は問わない）
+                  description: ケージを交換する入院IDのペア（expected_cage_idsと同位置対応）
+                expected_cage_ids:
+                  type: array
+                  minItems: 2
+                  maxItems: 2
+                  items:
+                    type: integer
+                    format: int64
+                    minimum: 1
+                  description: hospitalization_idsと同じ順序の表示時ケージID。不一致は409。
       responses:
         '200':
           description: 交換成功（交換後の2件を入力順で返す）

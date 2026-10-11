@@ -7,6 +7,7 @@ import { useState } from "react";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
 import { queryKeys } from "@/lib/query-keys";
+import { CURRENT_CLINIC_STORAGE_KEY, setStoredClinicId } from "@/lib/current-clinic";
 import type { Cage as ModelCage } from "@/types/generated/models";
 import { CageSettings } from "./CageSettings";
 
@@ -59,9 +60,10 @@ function makeCage(
 // 既定で「占有なし」（空 Set — useCageOccupancy のキャッシュ格納形）をシードし、
 // 占有シナリオは server.use + invalidate で差し替える。
 function renderPage() {
+  setStoredClinicId("1");
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  queryClient.setQueryData(queryKeys.hospitalizations.cageOccupancy(), new Set<string>());
-  let refreshPermissions = () => undefined;
+  queryClient.setQueryData(queryKeys.hospitalizations.cageOccupancy("1"), new Set<string>());
+  let refreshPermissions: () => void = () => undefined;
   function PermissionHarness() {
     const [, setPermissionVersion] = useState(0);
     refreshPermissions = () => setPermissionVersion((version) => version + 1);
@@ -89,6 +91,7 @@ const stubCages = (cages: ModelCage[]) => {
 };
 
 afterEach(() => {
+  localStorage.removeItem(CURRENT_CLINIC_STORAGE_KEY);
   permissionMock.current = {
     view: true,
     create: true,

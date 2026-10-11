@@ -306,7 +306,9 @@ func TestReservationAdminRepository_CancelByID(t *testing.T) {
 		customer := makeLineCustomerForAdmin(t, db, clinicA, "U-cancel-001")
 		res := makeAdminReservationAt(t, db, clinicA, time.Now().UTC(), nil, nil, nil, &customer.ID)
 
-		require.NoError(t, repo.CancelByID(ctx, clinicA, customer.ID, res.ID))
+		cancelledOwnerID, err := repo.CancelByID(ctx, clinicA, customer.ID, res.ID)
+		require.NoError(t, err)
+		assert.Nil(t, cancelledOwnerID)
 
 		var cancelled model.Reservation
 		require.NoError(t, db.First(&cancelled, res.ID).Error, "通常クエリで履歴として見えるべき")
@@ -323,7 +325,8 @@ func TestReservationAdminRepository_CancelByID(t *testing.T) {
 
 	t.Run("存在しない予約IDはNotFoundを返す", func(t *testing.T) {
 		customer := makeLineCustomerForAdmin(t, db, clinicA, "U-cancel-002")
-		err := repo.CancelByID(ctx, clinicA, customer.ID, uint64(9999999))
+		ownerID, err := repo.CancelByID(ctx, clinicA, customer.ID, uint64(9999999))
+		assert.Nil(t, ownerID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
@@ -331,9 +334,12 @@ func TestReservationAdminRepository_CancelByID(t *testing.T) {
 	t.Run("既にキャンセル済みの予約は再キャンセルできない", func(t *testing.T) {
 		customer := makeLineCustomerForAdmin(t, db, clinicA, "U-cancel-003")
 		res := makeAdminReservationAt(t, db, clinicA, time.Now().UTC(), nil, nil, nil, &customer.ID)
-		require.NoError(t, repo.CancelByID(ctx, clinicA, customer.ID, res.ID))
+		cancelledOwnerID, err := repo.CancelByID(ctx, clinicA, customer.ID, res.ID)
+		require.NoError(t, err)
+		assert.Nil(t, cancelledOwnerID)
 
-		err := repo.CancelByID(ctx, clinicA, customer.ID, res.ID)
+		ownerID, err := repo.CancelByID(ctx, clinicA, customer.ID, res.ID)
+		assert.Nil(t, ownerID)
 		require.Error(t, err, "status != cancelled 条件のため2回目はNotFoundになるべき")
 		assert.True(t, apperrors.IsNotFound(err))
 	})
@@ -342,7 +348,8 @@ func TestReservationAdminRepository_CancelByID(t *testing.T) {
 		customer := makeLineCustomerForAdmin(t, db, clinicA, "U-cancel-004")
 		res := makeAdminReservationAt(t, db, clinicA, time.Now().UTC(), nil, nil, nil, &customer.ID)
 
-		err := repo.CancelByID(ctx, clinicB, customer.ID, res.ID)
+		ownerID, err := repo.CancelByID(ctx, clinicB, customer.ID, res.ID)
+		assert.Nil(t, ownerID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 
@@ -391,6 +398,74 @@ func TestReservationAdminRepository_FindByIDForNotify(t *testing.T) {
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+}
+
+func TestReservationAdminRepository_CancelByID_ReturnsUpdatedOwner(t *testing.T) {
+	db := setupReservationAdminTestDB(t)
+	repo := NewReservationAdminRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	oldOwner := testdb.MakeTestOwner(t, db, clinicID, "取消前の飼主")
+	newOwner := testdb.MakeTestOwner(t, db, clinicID, "取消時の飼主")
+	customer := makeLineCustomerForAdmin(t, db, clinicID, "U-cancel-owner")
+	otherCustomer := makeLineCustomerForAdmin(t, db, clinicID, "U-cancel-other")
+	res := makeAdminReservationAt(t, db, clinicID, time.Now().UTC(), &oldOwner.ID, nil, nil, &customer.ID)
+
+	snapshot, err := repo.FindByIDForNotify(ctx, clinicID, res.ID)
+	require.NoError(t, err)
+	require.Equal(t, &oldOwner.ID, snapshot.OwnerID)
+	// Model the committed staff change between the notification read and cancel.
+	require.NoError(t, db.Model(&model.Reservation{}).
+		Where("clinic_id = ? AND id = ?", clinicID, res.ID).
+		Update("owner_id", newOwner.ID).Error)
+
+	ownerID, err := repo.CancelByID(ctx, clinicID, otherCustomer.ID, res.ID)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+	assert.Nil(t, ownerID, "an unauthorized cancellation must not expose the owner")
+	var unchanged model.Reservation
+	require.NoError(t, db.First(&unchanged, res.ID).Error)
+	assert.Equal(t, model.ReservationStatusPending, unchanged.Status)
+
+	ownerID, err = repo.CancelByID(ctx, clinicID, customer.ID, res.ID)
+	require.NoError(t, err)
+	require.NotNil(t, ownerID)
+	assert.Equal(t, newOwner.ID, *ownerID, "RETURNING must read the cancelled row, not the earlier snapshot")
+}
+
+func TestReservationAdminRepository_CancelByID_JoinsAmbientTransaction(t *testing.T) {
+	db := setupReservationAdminTestDB(t)
+	repo := NewReservationAdminRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	oldOwner := testdb.MakeTestOwner(t, db, clinicID, "元の飼主")
+	newOwner := testdb.MakeTestOwner(t, db, clinicID, "未commitの飼主")
+	customer := makeLineCustomerForAdmin(t, db, clinicID, "U-cancel-ambient")
+	res := makeAdminReservationAt(t, db, clinicID, time.Now().UTC(), &oldOwner.ID, nil, nil, &customer.ID)
+	rollback := errors.New("rollback after cancellation")
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+		require.NoError(t, tx.Model(&model.Reservation{}).
+			Where("clinic_id = ? AND id = ?", clinicID, res.ID).
+			Update("owner_id", newOwner.ID).Error)
+		// If CancelByID accidentally uses the root DB, this also fails fast
+		// rather than waiting forever for the ambient transaction's row lock.
+		cancelCtx, cancel := context.WithTimeout(persistence.WithTxValue(ctx, tx), 2*time.Second)
+		defer cancel()
+		ownerID, err := repo.CancelByID(cancelCtx, clinicID, customer.ID, res.ID)
+		require.NoError(t, err)
+		require.NotNil(t, ownerID)
+		assert.Equal(t, newOwner.ID, *ownerID)
+		var cancelled model.Reservation
+		require.NoError(t, tx.First(&cancelled, res.ID).Error)
+		assert.Equal(t, model.ReservationStatusCancelled, cancelled.Status)
+		return rollback
+	})
+	require.ErrorIs(t, err, rollback)
+	var restored model.Reservation
+	require.NoError(t, db.First(&restored, res.ID).Error)
+	assert.Equal(t, model.ReservationStatusPending, restored.Status)
+	assert.Equal(t, &oldOwner.ID, restored.OwnerID)
 }
 
 func TestReservationAdminRepository_DoctorPreload_MultiClinicStaffIsolation(t *testing.T) {

@@ -73,12 +73,20 @@ func (m *mockOwnerRepository) FindAllWithLineUserIDCursor(ctx context.Context, c
 }
 
 type mockPetRepository struct {
+	lockByIDFn              func(context.Context, uint64, uint64) (*model.Pet, error)
 	findByIDFn              func(context.Context, uint64, uint64) (*model.Pet, error)
 	updateFn                func(context.Context, uint64, uint64, map[string]any) error
 	findLivingByOwnerFn     func(context.Context, uint64, uint64) ([]model.Pet, error)
 	countByOwnerFn          func(context.Context, uint64, uint64) (int64, error)
 	countLivingByOwnerFn    func(context.Context, uint64, uint64) (int64, error)
 	countLivingByOwnerIDsFn func(context.Context, uint64, []uint64) (map[uint64]int64, error)
+}
+
+func (m *mockPetRepository) LockByIDForUpdate(ctx context.Context, clinicID, petID uint64) (*model.Pet, error) {
+	if m.lockByIDFn != nil {
+		return m.lockByIDFn(ctx, clinicID, petID)
+	}
+	return m.FindByID(ctx, clinicID, petID)
 }
 
 func (m *mockPetRepository) FindByID(ctx context.Context, clinicID, petID uint64) (*model.Pet, error) {

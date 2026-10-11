@@ -646,6 +646,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_guarded_checkin.go|reservationRepository.checkInConfirmed": {},
 	// EMR-308 next-visit appointment read surface (LSTEP tag sync + tentative reminder
 	// candidate/revalidation). Read-only finders; ambient-tx participation via DBOrTx.
+	"reservation/reservation_tentative_expiry_query.go|reservationRepository.expiredTentativeTagOwnersQuery":  {}, // expiry catch-up read joins ambient transaction
 	"reservation/reservation_next_visit_query.go|reservationRepository.FindNextAppointmentForOwner":           {},
 	"reservation/reservation_next_visit_query.go|reservationRepository.FindOwnerIDsWithTentativeIntendedDate": {},
 	"reservation/reservation_next_visit_query.go|reservationRepository.FindTentativeByOwnerAndIntendedDate":   {},

@@ -2,6 +2,7 @@ package lstep
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strings"
 	"time"
@@ -49,38 +50,44 @@ func (s *lstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ow
 	}
 	nextVisitDate := nextVisitDateFromAppointment(next)
 
-	// 既存の next_visit_* タグをキャッシュから取得して削除
+	// 既存の next_visit_* タグを取得し、現在のタグ追加後に古いものを削除
 	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load tag cache for next visit tag sync", "error", err)
 		return apperrors.Wrap(err, "failed to load tag cache")
 	}
-	apiFailed := false
+	// Add the current tag before retiring old ones. If this fails, the stale
+	// cache remains a candidate for the expiry batch's next retry.
+	newTag := ""
+	if nextVisitDate != nil {
+		newTag = tagPrefixNextVisit + nextVisitDate.In(config.JST).Format(time.DateOnly)
+		alreadyCached := false
+		for _, c := range cached {
+			if c.TagName == newTag {
+				alreadyCached = true
+				break
+			}
+		}
+		if !alreadyCached {
+			if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, newTag, "next visit", "", true); err != nil {
+				return err
+			}
+		}
+	}
+	var removalErrs []error
 	for _, c := range cached {
-		if !strings.HasPrefix(c.TagName, tagPrefixNextVisit) {
+		if !strings.HasPrefix(c.TagName, tagPrefixNextVisit) || c.TagName == newTag {
 			continue
 		}
 		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, c.TagName, "next visit", "", false); err != nil {
-			apiFailed = true
-			continue
+			removalErrs = append(removalErrs, err)
 		}
 	}
-
-	// 新しい next_visit_YYYY-MM-DD タグを付与（次回来院が確定している場合のみ）
-	if nextVisitDate == nil {
-		if !apiFailed {
-			s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
-		}
-		return nil
-	}
-	newTag := tagPrefixNextVisit + nextVisitDate.In(config.JST).Format(time.DateOnly)
-	if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, newTag, "next visit", "", true); err != nil {
-		return err
-	}
-	if !apiFailed {
+	if len(removalErrs) == 0 {
 		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
 	}
-	return nil
+	return errors.Join(removalErrs...)
+
 }
 
 // nextVisitDateFromAppointment は appointment からタグ用の意味上の予定日を返す。

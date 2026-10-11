@@ -301,7 +301,7 @@ func TestSyncNextVisitTag(t *testing.T) {
 		assert.Contains(t, addedTags, "next_visit_2026-10-01")
 	})
 
-	t.Run("removing a stale next_visit tag fails: recorded as api failure but continues", func(t *testing.T) {
+	t.Run("removing a stale next_visit tag fails: reported for batch retry", func(t *testing.T) {
 		incrementCalls := 0
 		client := &mockLstepAPIClient{
 			removeTagFn: func(_ context.Context, _, _ string) error { return errors.New("remove failed") },
@@ -328,7 +328,7 @@ func TestSyncNextVisitTag(t *testing.T) {
 			},
 		}
 		err := svc.SyncNextVisitTag(context.Background(), 1, 2)
-		assert.NoError(t, err)
+		assert.Error(t, err)
 		assert.Positive(t, incrementCalls)
 	})
 

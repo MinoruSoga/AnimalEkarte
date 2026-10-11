@@ -848,7 +848,7 @@ func TestPetService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := newPetSvc(repo, defaultOwnerRepo(), defaultInsuranceRepo(tt.clinicID), medicalRecordRepo)
+			svc := NewServiceWithPetOwnerReader(repo, defaultOwnerRepo(), defaultInsuranceRepo(tt.clinicID), medicalRecordRepo, nil, nil, petOwnerServiceTransactorDouble{})
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 

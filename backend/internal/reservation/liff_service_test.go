@@ -883,7 +883,7 @@ func TestLiffService_CancelReservation(t *testing.T) {
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{
-				cancelByIDFn: func(_ context.Context, _, _, _ uint64) error { return nil },
+				cancelByIDFn: func(_ context.Context, _, _, _ uint64) (*uint64, error) { return nil, nil },
 			},
 			&mockLiffCustomerRepository{},
 			&mockLiffValidators{},
@@ -910,8 +910,8 @@ func TestLiffService_CancelReservation(t *testing.T) {
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{
-				cancelByIDFn: func(_ context.Context, _, _, _ uint64) error {
-					return errors.New("cancel failed")
+				cancelByIDFn: func(_ context.Context, _, _, _ uint64) (*uint64, error) {
+					return nil, errors.New("cancel failed")
 				},
 			},
 			&mockLiffCustomerRepository{},
@@ -937,12 +937,12 @@ func TestLiffService_CancelReservation(t *testing.T) {
 				findByIDForNotifyFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
 					return &model.Reservation{ID: 10, ClinicID: 3}, nil
 				},
-				cancelByIDFn: func(_ context.Context, clinicID, customerID, id uint64) error {
+				cancelByIDFn: func(_ context.Context, clinicID, customerID, id uint64) (*uint64, error) {
 					cancelCalled = true
 					assert.Equal(t, uint64(3), clinicID)
 					assert.Equal(t, uint64(1), customerID)
 					assert.Equal(t, uint64(10), id)
-					return nil
+					return nil, nil
 				},
 			},
 			&mockLiffCustomerRepository{
@@ -971,8 +971,8 @@ func TestLiffService_CancelReservation(t *testing.T) {
 				findByIDForNotifyFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
 					return nil, apperrors.ErrNotFound
 				},
-				cancelByIDFn: func(_ context.Context, _, _, _ uint64) error {
-					return apperrors.ErrNotFound
+				cancelByIDFn: func(_ context.Context, _, _, _ uint64) (*uint64, error) {
+					return nil, apperrors.ErrNotFound
 				},
 			},
 			&mockLiffCustomerRepository{},
@@ -996,7 +996,7 @@ func TestLiffService_CancelReservation(t *testing.T) {
 				findByIDForNotifyFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
 					return &model.Reservation{ID: 10}, nil
 				},
-				cancelByIDFn: func(_ context.Context, _, _, _ uint64) error { return nil },
+				cancelByIDFn: func(_ context.Context, _, _, _ uint64) (*uint64, error) { return nil, nil },
 			},
 			&mockLiffCustomerRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {

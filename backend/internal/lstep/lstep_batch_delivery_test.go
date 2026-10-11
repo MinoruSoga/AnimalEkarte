@@ -160,6 +160,8 @@ func TestRunDeliveryTriggerBatchAllClinics_SkipsOutsideFireHour(t *testing.T) {
 		},
 	}
 	svc := &lstepBatchService{
+		reservationRepo:      &expiryBatchRepository{},
+		tagSyncSvc:           &batchMockTagSyncSvc{},
 		clinicRepo:           clinicRepo,
 		lstepDeliveryTrigger: trigger,
 		auditSvc:             &batchMockAuditService{},
@@ -181,6 +183,8 @@ func TestRunDeliveryTriggerBatchAllClinics_SettingsSvcNilFailsClosed(t *testing.
 		},
 	}
 	svc := &lstepBatchService{
+		reservationRepo:      &expiryBatchRepository{},
+		tagSyncSvc:           &batchMockTagSyncSvc{},
 		clinicRepo:           clinicRepo,
 		lstepDeliveryTrigger: trigger,
 		auditSvc:             &batchMockAuditService{},
@@ -208,6 +212,8 @@ func TestRunDeliveryTriggerBatchAllClinics_SkipsWhenSyncCheckErrors(t *testing.T
 		},
 	}
 	svc := &lstepBatchService{
+		reservationRepo:      &expiryBatchRepository{},
+		tagSyncSvc:           &batchMockTagSyncSvc{},
 		clinicRepo:           clinicRepo,
 		lstepDeliveryTrigger: trigger,
 		auditSvc:             &batchMockAuditService{},
@@ -235,6 +241,8 @@ func TestRunDeliveryTriggerBatchAllClinics_SkipsWhenSyncDisabled(t *testing.T) {
 		},
 	}
 	svc := &lstepBatchService{
+		reservationRepo:      &expiryBatchRepository{},
+		tagSyncSvc:           &batchMockTagSyncSvc{},
 		clinicRepo:           clinicRepo,
 		lstepDeliveryTrigger: trigger,
 		auditSvc:             &batchMockAuditService{},
@@ -261,6 +269,8 @@ func TestRunDeliveryTriggerBatchAllClinics_LogsAuditWhenCountPositive(t *testing
 		isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil },
 	}
 	svc := &lstepBatchService{
+		reservationRepo:      &expiryBatchRepository{},
+		tagSyncSvc:           &batchMockTagSyncSvc{},
 		clinicRepo:           clinicRepo,
 		lstepDeliveryTrigger: trigger,
 		auditSvc:             audit,
@@ -294,6 +304,8 @@ func TestRunDeliveryTriggerBatchAllClinics_NoAuditWhenCountZero(t *testing.T) {
 		isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil },
 	}
 	svc := &lstepBatchService{
+		reservationRepo:      &expiryBatchRepository{},
+		tagSyncSvc:           &batchMockTagSyncSvc{},
 		clinicRepo:           clinicRepo,
 		lstepDeliveryTrigger: trigger,
 		auditSvc:             audit,
@@ -331,6 +343,8 @@ func TestRunDeliveryTriggerBatchAllClinics_AuditLogFailureIsBestEffort(t *testin
 		isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil },
 	}
 	svc := &lstepBatchService{
+		reservationRepo:      &expiryBatchRepository{},
+		tagSyncSvc:           &batchMockTagSyncSvc{},
 		clinicRepo:           clinicRepo,
 		lstepDeliveryTrigger: trigger,
 		auditSvc:             audit,

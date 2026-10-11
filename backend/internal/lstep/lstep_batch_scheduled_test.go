@@ -190,6 +190,8 @@ func TestRunDeliveryTriggerBatchAllClinicsAt_UsesScheduledTimeForEveryTrigger(t 
 		},
 	}
 	service := &lstepBatchService{
+		reservationRepo: &expiryBatchRepository{},
+		tagSyncSvc:      &batchMockTagSyncSvc{},
 		clinicRepo: &mockClinicRepository{
 			findAllFn: func(context.Context) ([]model.Clinic, error) {
 				return []model.Clinic{{ID: 9}}, nil

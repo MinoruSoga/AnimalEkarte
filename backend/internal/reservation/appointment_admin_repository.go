@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -23,7 +24,8 @@ type ReservationAdminRepository interface {
 	SoftDelete(ctx context.Context, clinicID, id uint64) error
 	// LIFF用
 	FindAllByCustomerID(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error)
-	CancelByID(ctx context.Context, clinicID, customerID, id uint64) error
+	// CancelByID returns the owner of the row actually cancelled under the UPDATE lock.
+	CancelByID(ctx context.Context, clinicID, customerID, id uint64) (*uint64, error)
 	// 通知用（キャンセル前に関連エンティティを含めて取得）
 	FindByIDForNotify(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 }
@@ -146,11 +148,15 @@ func (r *reservationAdminRepository) FindByIDForNotify(ctx context.Context, clin
 	return &appt, nil
 }
 
-func (r *reservationAdminRepository) CancelByID(ctx context.Context, clinicID, customerID, id uint64) error {
+func (r *reservationAdminRepository) CancelByID(ctx context.Context, clinicID, customerID, id uint64) (*uint64, error) {
 	// BUG-029: LIFF cancel must keep the row visible as status=cancelled
 	// (my-reservations + staff calendar). Do not set deleted_at.
-	result := r.db.WithContext(ctx).
-		Model(&model.Reservation{}).
+	// RETURNING obtains owner_id from the same UPDATE that locks and cancels the
+	// row, including a staff owner change committed while that UPDATE waited.
+	var cancelled model.Reservation
+	result := persistence.DBOrTx(ctx, r.db).
+		Model(&cancelled).
+		Clauses(clause.Returning{Columns: []clause.Column{{Name: "owner_id"}}}).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ? AND line_customer_id = ? AND status != ? AND deleted_at IS NULL",
 			id, customerID, model.ReservationStatusCancelled).
@@ -158,10 +164,10 @@ func (r *reservationAdminRepository) CancelByID(ctx context.Context, clinicID, c
 			"status": model.ReservationStatusCancelled,
 		})
 	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "appointment", fmt.Sprintf("%d", id))
+		return nil, apperrors.FromGORM(result.Error, "appointment", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("appointment", fmt.Sprintf("%d", id))
+		return nil, apperrors.WrapNotFound("appointment", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return cancelled.OwnerID, nil
 }

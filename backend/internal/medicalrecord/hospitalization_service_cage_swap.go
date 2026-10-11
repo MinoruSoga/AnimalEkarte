@@ -26,11 +26,15 @@ type petRowLockFinder interface {
 }
 
 // SwapCages は2件の入院の cage_id を単一トランザクションで交換する。
+// expectedCageIDs は (idA, idB) と同順の表示時割当で、不一致は409で拒否する。
 // 連結ケージが絡む場合でも通常の割当ガードが各移動に適用され、構成ケージ宛は 422、
 // 占有グループ宛は 409 で両方ロールバックする（半スワップ状態を残さない）。
-func (s *hospitalizationService) SwapCages(ctx context.Context, clinicID, idA, idB uint64) (*model.Hospitalization, *model.Hospitalization, error) {
+func (s *hospitalizationService) SwapCages(ctx context.Context, clinicID, idA, idB uint64, expectedCageIDs [2]uint64) (*model.Hospitalization, *model.Hospitalization, error) {
 	if idA == idB {
 		return nil, nil, apperrors.WrapInvalidInput("同一の入院は入れ替えできません")
+	}
+	if expectedCageIDs[0] == 0 || expectedCageIDs[1] == 0 {
+		return nil, nil, apperrors.WrapInvalidInput("表示時のケージIDを2件指定してください")
 	}
 	if s.transactor == nil {
 		return nil, nil, apperrors.WrapInternalServerError("hospitalization write transaction dependency is required")
@@ -63,6 +67,18 @@ func (s *hospitalizationService) SwapCages(ctx context.Context, clinicID, idA, i
 		}
 		if second == nil {
 			return apperrors.WrapNotFound("hospitalization", strconv.FormatUint(secondID, 10))
+		}
+
+		// 表示時の割当と、両行ロック後の現在値を元の入力順で照合する。
+		// ID昇順のロック取得は expectedCageIDs と入院IDの対応を変更しない。
+		inputOrder := [2]*model.Hospitalization{first, second}
+		if first.ID != idA {
+			inputOrder[0], inputOrder[1] = second, first
+		}
+		for i, hospitalization := range inputOrder {
+			if hospitalization.CageID == nil || *hospitalization.CageID != expectedCageIDs[i] {
+				return apperrors.WrapConflict("ケージの割当が変更されています。最新の入院ボードを確認してください")
+			}
 		}
 
 		// Codex PR606 #26: 臨床状態は行ロック下で再検証する。

@@ -13,6 +13,9 @@
       "Edit(docs/**)"
     ],
     "deny": [
+      "Bash(sudo:*)",
+      "Bash(chmod 777:*)",
+      "Bash(chmod -R 777:*)",
       "Bash(npm:*)",
       "Bash(pnpm:*)",
       "Bash(yarn:*)",

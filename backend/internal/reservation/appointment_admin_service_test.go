@@ -25,7 +25,7 @@ type mockReservationAdminRepository struct {
 	createFn                    func(ctx context.Context, r *model.Reservation) error
 	softDeleteFn                func(ctx context.Context, clinicID, id uint64) error
 	findByCustomerIDFn          func(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error)
-	cancelByIDFn                func(ctx context.Context, clinicID, customerID, id uint64) error
+	cancelByIDFn                func(ctx context.Context, clinicID, customerID, id uint64) (*uint64, error)
 	findByIDForNotify           func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	findTimeRangesByDateRangeFn func(ctx context.Context, clinicID uint64, from, to time.Time) ([]model.Reservation, error)
 }
@@ -57,11 +57,11 @@ func (m *mockReservationAdminRepository) FindAllByCustomerID(ctx context.Context
 	}
 	return nil, nil
 }
-func (m *mockReservationAdminRepository) CancelByID(ctx context.Context, clinicID, customerID, id uint64) error {
+func (m *mockReservationAdminRepository) CancelByID(ctx context.Context, clinicID, customerID, id uint64) (*uint64, error) {
 	if m.cancelByIDFn != nil {
 		return m.cancelByIDFn(ctx, clinicID, customerID, id)
 	}
-	return nil
+	return nil, nil
 }
 func (m *mockReservationAdminRepository) FindByIDForNotify(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
 	if m.findByIDForNotify != nil {

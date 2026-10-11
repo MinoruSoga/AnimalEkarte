@@ -24,6 +24,8 @@ type lifecycleOwnerDependency interface {
 
 type lifecyclePetRepository interface {
 	FindByID(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
+	// LockByIDForUpdate fixes lifecycle facts and the current owner until the transaction commits.
+	LockByIDForUpdate(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
 	FindLivingByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Pet, error)
 }
 

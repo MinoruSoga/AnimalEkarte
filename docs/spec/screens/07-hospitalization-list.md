@@ -32,6 +32,8 @@
 
 - **新規登録**: ヘッダーの「新規入院登録」ボタンより、ペット選択を経て登録フォームへ遷移（`hospitalization:create`）。
 - **ケージ移動 (DnD)**: ボードビューでカードを別ケージへドラッグし収容ケージを変更（移動先使用中はスワップ）。**`hospitalization:edit`（`canEdit`）必須**。死亡ペットはドラッグ不可。view のみでは DnD 無効。
+  - スワップは、2件の入院IDと同じ順序の表示時ケージID（`expected_cage_ids`）を送信する。BEは両入院の行ロック後に現在の割当と照合し、どちらかが移動・割当解除済みなら409で両方の書込みを拒否する。最新のボードを確認して再操作する。
+  - 連結グループの代表・構成ケージを含むスワップは現行仕様では不可。FEは送信前に拒否し、BEの構成ケージ422・占有グループ409の割当ガードも維持する。
 - **ケージ未割当欄（EMR-316）**: `cage_id` が未設定の入院（登録時に「選択なし」を選んだもの）は、ボードビュー末尾の「ケージ未割当」欄にカードで表示する。ケージカードの「空き」数には影響しない。表示と詳細遷移のみで、ドラッグによるケージ割当は不可（詳細遷移は在室かつ非死亡かつ **`canEdit`** の場合のみ）。未設定の入院が無ければ欄自体を出さない。
 - **ボードカードから詳細へ**: 在室かつ非死亡かつ **`canEdit`** のときのみカード click で詳細へ遷移（`HospitalizationBoard` の `canOpenCard`）。view のみではカード open 不可。
 - **リストから詳細へ**: 入院 No の行内リンクは **view** で詳細へ（死亡時はリンクなし）。操作列ボタンは **`canEdit`** 時のみ。全行クリックで遷移する UI ではない。
@@ -61,6 +63,7 @@ flowchart TB
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
 | GET | `/api/v1/hospitalizations` | 期間・条件に応じた入院データの一括取得 | `hospitalization` | `view` |
-| PATCH | `/api/v1/hospitalizations/:id` | ケージ移動（DnD）による収容ケージの更新（移動先が使用中の場合はスワップで2件更新）。FE も board open/DnD を edit でゲート | `hospitalization` | `edit` |
+| PATCH | `/api/v1/hospitalizations/:id` | 空きケージへの移動（DnD）による収容ケージの更新。FE も board open/DnD を edit でゲート | `hospitalization` | `edit` |
+| POST | `/api/v1/hospitalizations/cage-swap` | 使用中ケージとの原子的な入れ替え。`hospitalization_ids`と`expected_cage_ids`は正数2件・同位置対応。不一致409で書込みなし | `hospitalization` | `edit` |
 
 ---
