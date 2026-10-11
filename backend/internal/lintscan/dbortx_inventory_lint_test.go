@@ -485,6 +485,11 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"lstep/lstep_tag_code_mapping_repository.go|lstepTagCodeMappingRepository.Create":                         {},
 	"lstep/lstep_tag_code_mapping_repository.go|lstepTagCodeMappingRepository.SoftDelete":                     {},
 	"lstep/lstep_tag_code_mapping_repository.go|lstepTagCodeMappingRepository.SoftDeleteByClinicIDAndTagName": {},
+	// Next-visit reconciliation source/cache share the advisory-lock transaction.
+	// Runtime: lstep_tag_cache_repository_test.go TestNextVisitOwnerLock_DBPoolOneAndRollback.
+	"lstep/lstep_tag_cache_repository.go|lstepTagCacheRepository.UpsertTag":   {},
+	"lstep/lstep_tag_cache_repository.go|lstepTagCacheRepository.DeleteTag":   {},
+	"lstep/lstep_tag_cache_repository.go|lstepTagCacheRepository.FindByOwner": {},
 	// Public LINE account linking: token lock/CAS, owner row lock/update, and
 	// fail-closed audit must all remain on the service-owned ambient transaction.
 	// Runtime: line_link_token_repository_test.go,

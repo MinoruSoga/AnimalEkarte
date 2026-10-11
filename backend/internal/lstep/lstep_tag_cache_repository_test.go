@@ -355,6 +355,20 @@ func TestNextVisitOwnerLock_DBPoolOneAndRollback(t *testing.T) {
 	rows, err := repo.FindByOwner(ctx, 1, 100)
 	require.NoError(t, err)
 	assert.Empty(t, rows)
+	// Seed before the delete/rollback phase; a missing seed would vacuously pass.
+	require.NoError(t, repo.UpsertTag(ctx, 1, 100, "next_visit_2026-12-20", "auto", ""))
+	err = repo.WithNextVisitOwnerLock(ctx, 1, 100, func(txCtx context.Context) error {
+		require.NoError(t, repo.DeleteTag(txCtx, 1, 100, "next_visit_2026-12-20"))
+		rows, readErr := repo.FindByOwner(txCtx, 1, 100)
+		require.NoError(t, readErr)
+		assert.Empty(t, rows)
+		return rollback
+	})
+	require.ErrorIs(t, err, rollback)
+	rows, err = repo.FindByOwner(ctx, 1, 100)
+	require.NoError(t, err)
+	assert.Len(t, rows, 1, "DeleteTag must join the same transaction and roll back")
+
 }
 
 func TestNextVisitOwnerLock_DBIndependentRepositoriesAndScope(t *testing.T) {
