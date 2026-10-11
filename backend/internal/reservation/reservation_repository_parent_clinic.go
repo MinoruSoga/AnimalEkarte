@@ -5,7 +5,8 @@ import "gorm.io/gorm"
 // reservationRelationsMatchParentClinicSQL は、各 appointment 自身の clinic_id と関連行の
 // clinic_id を相関させる。soft-delete 済みの同一 clinic 関連と過去の staff assignment は予約履歴の
 // 親行/countを維持するため許容し、現在の関連を応答へ表示するかは Preload 側の条件に委ねる。
-// cross-clinic FK と Owner/Pet 不一致だけは、一覧/単件のどちらでも親行ごと fail-closed にする。
+// cross-clinic FK と通常予約の Owner/Pet 不一致は、一覧/単件とも親行ごと fail-closed にする。
+// tentative はペットに属する意図のため、同医院での飼主移管後も現在の pet owner に基づき表示する。
 // created_by は登録時に認可済みの履歴であり、現在の所属で親予約を非表示にしない。
 const reservationRelationsMatchParentClinicSQL = `
 		EXISTS (
@@ -41,6 +42,7 @@ const reservationRelationsMatchParentClinicSQL = `
 				  AND scoped_pet.clinic_id = appointments.clinic_id
 				  AND (
 					appointments.owner_id IS NULL
+					OR appointments.status = 'tentative'
 					OR scoped_pet.owner_id = appointments.owner_id
 				  )
 				  AND EXISTS (
@@ -75,4 +77,23 @@ const reservationRelationsMatchParentClinicSQL = `
 
 func reservationRelationsMatchParentClinic(q *gorm.DB) *gorm.DB {
 	return q.Where(reservationRelationsMatchParentClinicSQL)
+}
+
+// A tentative belongs to the pet's current owner; real bookings retain their
+// stored owner filter. Correlate both the pet and current owner to the row clinic.
+func reservationOwnerFilter(ownerID uint64) func(*gorm.DB) *gorm.DB {
+	return func(q *gorm.DB) *gorm.DB {
+		return q.Where(`
+			(appointments.status <> 'tentative' AND appointments.owner_id = ?)
+			OR (appointments.status = 'tentative' AND EXISTS (
+				SELECT 1 FROM pets intent_pet
+				JOIN owners intent_owner ON intent_owner.id = intent_pet.owner_id
+				  AND intent_owner.clinic_id = appointments.clinic_id
+				  AND intent_owner.deleted_at IS NULL
+				WHERE intent_pet.id = appointments.pet_id
+				  AND intent_pet.clinic_id = appointments.clinic_id
+				  AND intent_pet.deleted_at IS NULL
+				  AND intent_pet.owner_id = ?
+			))`, ownerID, ownerID)
+	}
 }

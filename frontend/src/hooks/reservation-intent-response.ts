@@ -33,6 +33,8 @@ export type ReservationApiResponse = Parameters<typeof transformReservation>[0] 
  */
 export const transformReservationWithIntent = (reservation: ReservationApiResponse) => ({
   ...transformReservation(reservation),
+  /** Preserve the server revision verbatim; Date would truncate sub-millisecond precision. */
+  ...(reservation.updated_at ? { updatedAt: reservation.updated_at } : {}),
   /** EMR-308: tentative（次回予定・未予約）行かどうか */
   isTentative: String(reservation.status) === "tentative",
   /** 次回予定の意図日（YYYY-MM-DD、JST 暦日）。tentative 由来の行のみ */

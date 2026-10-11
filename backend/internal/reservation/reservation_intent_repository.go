@@ -1026,7 +1026,10 @@ func (r *reservationRepository) ClearNextVisitIntent(ctx context.Context, clinic
 	return found, err
 }
 
-func (r *reservationRepository) clearNextVisitIntentWithOwner(ctx context.Context, clinicID, petID uint64) (bool, *uint64, error) {
+func (r *reservationRepository) clearNextVisitIntentWithOwner(ctx context.Context, clinicID, petID uint64, expectations ...*ClearNextVisitIntentExpectation) (bool, *uint64, error) {
+	if len(expectations) > 1 {
+		return false, nil, apperrors.WrapInvalidInput("only one intent expectation is allowed")
+	}
 	if err := requireNextVisitIntentAmbientTransaction(ctx); err != nil {
 		return false, nil, err
 	}
@@ -1036,6 +1039,11 @@ func (r *reservationRepository) clearNextVisitIntentWithOwner(ctx context.Contex
 	existing, err := r.findActiveTentativeForUpdate(ctx, clinicID, petID)
 	if err != nil {
 		return false, nil, err
+	}
+	if len(expectations) == 1 {
+		if err := checkClearNextVisitIntentExpectation(existing, expectations[0]); err != nil {
+			return false, nil, err
+		}
 	}
 	if existing == nil {
 		return false, nil, nil

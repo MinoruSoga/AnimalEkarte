@@ -69,16 +69,25 @@ const setNextVisitIntent = async (
 export interface ClearNextVisitIntentVariables {
   petId: string;
   clinicId?: string;
+  expectedReservationId?: string;
+  expectedUpdatedAt?: string;
 }
 
 const clearNextVisitIntent = async (
   variables: ClearNextVisitIntentVariables,
   clinicId?: string,
 ): Promise<void> => {
-  await axios.delete(
-    `/v1/reservations/pets/${variables.petId}/next-visit-intent`,
-    intentClinicConfig(variables.clinicId ?? clinicId),
-  );
+  await axios.delete(`/v1/reservations/pets/${variables.petId}/next-visit-intent`, {
+    ...intentClinicConfig(variables.clinicId ?? clinicId),
+    ...(variables.expectedReservationId !== undefined || variables.expectedUpdatedAt !== undefined
+      ? {
+          params: {
+            expected_reservation_id: variables.expectedReservationId,
+            expected_updated_at: variables.expectedUpdatedAt,
+          },
+        }
+      : {}),
+  });
 };
 
 export const useSetNextVisitIntent = (clinicId?: string) => {

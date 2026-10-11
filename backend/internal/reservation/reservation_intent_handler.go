@@ -108,7 +108,22 @@ func (h *CRUDHandler) ClearNextVisitIntent(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := h.svc.ClearNextVisitIntent(c.Request.Context(), clinicID, petID); err != nil {
+	expected, err := parseClearNextVisitIntentExpectation(c)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	if expected != nil {
+		guarded, ok := h.svc.(guardedNextVisitIntentClearer)
+		if !ok {
+			respondError(c, apperrors.WrapInternalServerError("guarded intent clear dependency is required"))
+			return
+		}
+		err = guarded.ClearNextVisitIntentIfMatches(c.Request.Context(), clinicID, petID, *expected)
+	} else {
+		err = h.svc.ClearNextVisitIntent(c.Request.Context(), clinicID, petID)
+	}
+	if err != nil {
 		respondError(c, err)
 		return
 	}

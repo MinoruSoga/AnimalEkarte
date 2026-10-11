@@ -61,13 +61,22 @@ func toReservationResponse(r *model.Reservation) reservationResponse {
 		rt := ToReservationTypeResponse(r.ReservationType)
 		reservationType = &rt
 	}
+	ownerID, owner := r.OwnerID, r.Owner
+	// Tentative intent follows the current pet owner; real bookings keep history.
+	if r.Status == model.ReservationStatusTentative && r.Pet != nil && r.Pet.ClinicID == r.ClinicID {
+		ownerID = &r.Pet.OwnerID
+		owner = r.Pet.Owner
+		if owner != nil && (owner.ID != r.Pet.OwnerID || owner.ClinicID != r.ClinicID) {
+			owner = nil
+		}
+	}
 
 	return reservationResponse{
 		ID:                    r.ID,
 		ClinicID:              r.ClinicID,
 		StartTime:             httpapi.LocalTime(r.StartTime),
 		EndTime:               httpapi.LocalTime(r.EndTime),
-		OwnerID:               r.OwnerID,
+		OwnerID:               ownerID,
 		PetID:                 r.PetID,
 		VisitType:             string(r.VisitType),
 		ReservationTypeID:     r.ReservationTypeID,
@@ -86,7 +95,7 @@ func toReservationResponse(r *model.Reservation) reservationResponse {
 		IntendedDate:          intendedDateString(r.IntendedDate),
 		SourceMedicalRecordID: r.SourceMedicalRecordID,
 		HadIntendedDate:       r.IntendedDate != nil,
-		Owner:                 toOwnerSummary(r.Owner),
+		Owner:                 toOwnerSummary(owner),
 		Pet:                   toPetSummary(r.Pet),
 		ReservationType:       reservationType,
 		Doctor:                toStaffSummary(r.Doctor),

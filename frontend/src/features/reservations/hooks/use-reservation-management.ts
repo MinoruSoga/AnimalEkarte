@@ -251,9 +251,18 @@ export function useReservationManagement({
   const executeEndTentative = useCallback(async () => {
     const target = endTentativeTarget;
     if (!target?.petId) return;
+    if (!target.updatedAt) {
+      toast.error("次回予定の版が取得できません。再読み込みしてください");
+      return;
+    }
     try {
       // Codex PR606 #5: 行の clinicId で DELETE する（拠点横断の誤医院送信を防ぐ）
-      await clearIntentMutation.mutateAsync({ petId: target.petId, clinicId: target.clinicId });
+      await clearIntentMutation.mutateAsync({
+        petId: target.petId,
+        clinicId: target.clinicId,
+        expectedReservationId: target.id,
+        expectedUpdatedAt: target.updatedAt,
+      });
       toast.success("次回予定を終了しました", {
         description: `${target.petName}（${target.ownerName}様）`,
       });

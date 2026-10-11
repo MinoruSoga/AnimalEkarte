@@ -59,6 +59,10 @@ LINE 予約の owner/pet 事前解決は best-effort だが、予約書込み tr
 
 EMR-308: `tentative`（次回予定・未予約）はカルテヘッダーの「次回予定」（`PUT/DELETE /v1/reservations/pets/:petId/next-visit-intent`）で書かれる sentinel 行で、実時刻を持たず（`start_time`/`end_time` は `intended_date` の JST 00:00–00:15 sentinel）カンバン・空き枠・定員計算に参加しない。実予約への遷移は2経路ある。(a) 予約詳細の「予約を確定」（`POST /v1/reservations/:id/confirm-tentative`）で明示時刻・担当を付けて `pending`/`confirmed` へ昇格、(b) 同一ペットへの実予約・当日受付・walk-in 作成経路（内部 Create・CreateBatch・admin/walk-in・LIFF）が `createOrPromoteTentative` で active tentative を同一行昇格し、受付時に sentinel 時刻を実時刻へ置き換える。`DELETE next-visit-intent` は tentative を論理削除する。通常予約の完了通知の対象外であり、別途 Lステップの3日前・当日リマインダー定義がある。
 
+予約管理の終了確認では、表示行の `id` と `updated_at`（小数秒を保持）を `expected_reservation_id` / `expected_updated_at` として送る。サーバーは intent / row lock 下で両方を照合し、更新・削除・再作成済みなら409で終了を拒否する。両方省略した従来のペット単位取消は冪等性を維持する。
+
+`tentative` は同一医院のペットに属する意図であり、飼主移管後も現在のペット飼主として管理画面から操作できる。旧飼主・現在飼主・ペットの医院境界は維持し、通常予約の所有者整合条件は変更しない。昇格後の実予約を別ペットへ付け替える場合は、元ペット由来の `intended_date` と `source_medical_record_id` を同じロック下の更新で除去し、誤ったペットへの意図再設定を提示しない。
+
 次回予定の権限は操作別である。新規設定の PUT は `reservations:create`、既存 tentative の上書きは `create` と `edit` の両方、取消 DELETE と実予約への確定 POST は `edit` を要する。実予約の表示が優先されていても、既存 tentative があれば上書き権限を省略しない。
 
 拠点横断のカルテ・予約行からの操作は、そのレコードの `clinic_id` を `X-Clinic-ID` に指定し、グローバルの選択医院へ取り違えない。カルテ側の連続した設定・取消は hook インスタンス単位の FIFO で処理し、先行保存の再取得が後続の入力ドラフトを巻き戻さないよう pending と最新要求を管理する。別タブ間や任意のネットワーク障害まで直列化する保証ではない。

@@ -240,7 +240,7 @@ type ReservationNextVisitQueryRepository interface {
 type ReservationRepository interface {
 	assertLineCustomerReservationOwner(ctx context.Context, clinicID, customerID uint64, resolvedOwnerID *uint64) error
 	// clearNextVisitIntentWithOwner returns the stored owner from the locked deleted row.
-	clearNextVisitIntentWithOwner(ctx context.Context, clinicID, petID uint64) (bool, *uint64, error)
+	clearNextVisitIntentWithOwner(ctx context.Context, clinicID, petID uint64, expected ...*ClearNextVisitIntentExpectation) (bool, *uint64, error)
 	ReservationCRUDRepository
 	ReservationSlotRepository
 	ReservationQueryRepository
@@ -312,7 +312,7 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicIDs []uint64,
 		q = q.Where("pet_id = ?", *petID)
 	}
 	if ownerID != nil {
-		q = q.Where("owner_id = ?", *ownerID)
+		q = q.Scopes(reservationOwnerFilter(*ownerID))
 	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")

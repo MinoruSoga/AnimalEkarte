@@ -29,6 +29,7 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 			return err
 		}
 		*lockedPreviousOwnerID = current.OwnerID
+		invalidateIntentProvenanceOnPetRebind(current, input, fields)
 		finalOwnerID, finalPetID := resolveFinalOwnerPet(current, input)
 		if err := ValidateReservationOwnerPetLinksWithRepo(ctx, s.repo, clinicID, finalOwnerID, finalPetID); err != nil {
 			return err
@@ -340,6 +341,7 @@ func (s *reservationService) applyReservationUpdate(
 				return err
 			}
 			*lockedPreviousOwnerID = locked.OwnerID
+			invalidateIntentProvenanceOnPetRebind(locked, input, fields)
 			if needsLinkValidation {
 				finalOwnerID, finalPetID := resolveFinalOwnerPet(locked, input)
 				if err := ValidateReservationOwnerPetLinksWithRepo(ctx, s.repo, clinicID, finalOwnerID, finalPetID); err != nil {
@@ -375,6 +377,23 @@ func (s *reservationService) applyReservationUpdate(
 		*lockedPreviousOwnerID = previous
 		return updated, err
 	}
+}
+
+// An intent's date and source record belong to its originating pet. Reassigning a
+// real booking must invalidate the reset capability in the same locked write.
+func invalidateIntentProvenanceOnPetRebind(current *model.Reservation, input *UpdateReservationInput, fields map[string]any) {
+	if input.PetID == nil {
+		return
+	}
+	currentPetID := uint64(0)
+	if current.PetID != nil {
+		currentPetID = *current.PetID
+	}
+	if currentPetID == *input.PetID {
+		return
+	}
+	fields["intended_date"] = nil
+	fields["source_medical_record_id"] = nil
 }
 func (s *reservationService) UpdateReservationRoute(ctx context.Context, clinicID, id uint64, input UpdateReservationRouteInput) (*model.Reservation, error) {
 	// EMR-308: record_intent は tentative（次回予定）の provenance 専用値で、経路更新 API

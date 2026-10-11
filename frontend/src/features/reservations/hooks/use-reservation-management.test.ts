@@ -95,7 +95,6 @@ function makeReservation(
   overrides: { id: string } & Partial<Omit<Reservation, "id">>,
 ): Reservation {
   return {
-    id: overrides.id,
     start: new Date("2026-06-15T09:00:00"),
     end: new Date("2026-06-15T10:00:00"),
     ownerName: "山田",
@@ -119,6 +118,7 @@ function makeReservation(
     intendedDate: undefined,
     hadIntendedDate: false,
     sourceMedicalRecordId: undefined,
+    updatedAt: "2026-10-11T00:00:00.123456Z",
     ...overrides,
   };
 }
@@ -131,7 +131,10 @@ function renderManagement(permissions: typeof ALL_PERMISSIONS | undefined = ALL_
       currentDate: new Date(2026, 5, 15),
       view: "week",
       days: 7,
-      createMutations: {},
+      createMutations: {
+        createOwnerFn: vi.fn().mockRejectedValue(new Error("unexpected owner creation")),
+        createPetFn: vi.fn().mockRejectedValue(new Error("unexpected pet creation")),
+      },
       permissions,
     }),
   );
@@ -347,7 +350,12 @@ describe("useReservationManagement — tentative ハンドラ (EMR-308)", () => 
     await act(async () => {
       await result.current.executeEndTentative();
     });
-    expect(clearIntentMutateAsync).toHaveBeenCalledWith({ petId: "10", clinicId: "clinic-77" });
+    expect(clearIntentMutateAsync).toHaveBeenCalledWith({
+      petId: "10",
+      clinicId: "clinic-77",
+      expectedReservationId: "t-x",
+      expectedUpdatedAt: "2026-10-11T00:00:00.123456Z",
+    });
 
     // 確定 → confirm-tentative も行の clinicId
     act(() => result.current.handleOpenConfirmTentative(crossClinicTentative));
@@ -381,7 +389,12 @@ describe("useReservationManagement — tentative ハンドラ (EMR-308)", () => 
       await result.current.executeEndTentative();
     });
     // Codex PR606 #5: DELETE も行の clinicId を含む variables 形で送る
-    expect(clearIntentMutateAsync).toHaveBeenCalledWith({ petId: "10", clinicId: undefined });
+    expect(clearIntentMutateAsync).toHaveBeenCalledWith({
+      petId: "10",
+      clinicId: undefined,
+      expectedReservationId: "t-1",
+      expectedUpdatedAt: "2026-10-11T00:00:00.123456Z",
+    });
     expect(result.current.endTentativeTarget).toBeNull();
   });
 
@@ -411,5 +424,39 @@ describe("useReservationManagement — tentative ハンドラ (EMR-308)", () => 
       sourceMedicalRecordId: "99",
     });
     expect(setIntentMutateAsync).not.toHaveBeenCalled();
+  });
+});
+
+// PR606: a confirmation must identify exactly the intent displayed to the user.
+describe("guarded intent termination", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getReservationsMock.mockReturnValue({ data: [] });
+    clearIntentMutateAsync.mockResolvedValue(undefined);
+  });
+  it("sends displayed ID and original nanosecond timestamp", async () => {
+    const { result } = renderManagement();
+    const intent = {
+      ...makeReservation({ id: "123", isTentative: true, clinicId: "1" }),
+      updatedAt: "2026-10-11T00:00:00.123456789Z",
+    };
+    act(() => result.current.handleEndTentativeRequest(intent));
+    await act(async () => result.current.executeEndTentative());
+    expect(clearIntentMutateAsync).toHaveBeenCalledWith({
+      petId: "10",
+      clinicId: "1",
+      expectedReservationId: "123",
+      expectedUpdatedAt: "2026-10-11T00:00:00.123456789Z",
+    });
+  });
+  it("does not clear when the read response lacks a version", async () => {
+    const { result } = renderManagement();
+    act(() =>
+      result.current.handleEndTentativeRequest(
+        makeReservation({ id: "123", isTentative: true, updatedAt: undefined }),
+      ),
+    );
+    await act(async () => result.current.executeEndTentative());
+    expect(clearIntentMutateAsync).not.toHaveBeenCalled();
   });
 });

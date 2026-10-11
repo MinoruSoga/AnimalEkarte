@@ -12234,7 +12234,9 @@ paths:
       summary: ペットの次回予定を除去
       description: |
         EMR-308。ペットの active tentative を論理削除する。
-        対象が存在しない場合も冪等に 204 を返す。他ステータスの予約には触れない。
+        他ステータスの予約には触れない。管理画面の終了確認は表示した行IDと更新時刻を対で送る。
+        ロック取得後の active tentative が一致しない（削除・再作成・更新済みを含む）場合は409。
+        両方省略した従来の呼出しは対象不在でも冪等に204を返す。
       tags: [Reservations]
       parameters:
         - name: petId
@@ -12243,7 +12245,24 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: expected_reservation_id
+          in: query
+          description: 終了確認に表示した予約ID。expected_updated_atと必ず対で指定する。
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+        - name: expected_updated_at
+          in: query
+          description: 表示行のupdated_atを小数秒精度を保持して送る（RFC3339Nano）。
+          schema:
+            type: string
+            format: date-time
       responses:
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '204':
           description: 除去成功（対象不在時も冪等）
         '401':

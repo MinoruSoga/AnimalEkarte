@@ -40,6 +40,7 @@ type mockReservationRepository struct {
 	findPetIDForIntentLockFn           func(ctx context.Context, clinicID, id uint64) (*uint64, error)
 	setNextVisitIntentFn               func(ctx context.Context, clinicID, petID uint64, input SetNextVisitIntentInput) (*model.Reservation, *uint64, error)
 	clearNextVisitIntentWithOwnerFn    func(ctx context.Context, clinicID, petID uint64) (bool, *uint64, error)
+	clearNextVisitIntentGuardedFn      func(ctx context.Context, clinicID, petID uint64, expected *ClearNextVisitIntentExpectation) (bool, *uint64, error)
 	clearNextVisitIntentFn             func(ctx context.Context, clinicID, petID uint64) (bool, error)
 	confirmTentativeFn                 func(ctx context.Context, clinicID, id uint64, input ConfirmTentativeUpdate) (*model.Reservation, error)
 	absorbTentativeOnBookingFn         func(ctx context.Context, booking *model.Reservation) (*model.Reservation, error)
@@ -255,7 +256,13 @@ func (m *mockReservationRepository) ClearNextVisitIntent(ctx context.Context, cl
 	return false, nil
 }
 
-func (m *mockReservationRepository) clearNextVisitIntentWithOwner(ctx context.Context, clinicID, petID uint64) (bool, *uint64, error) {
+func (m *mockReservationRepository) clearNextVisitIntentWithOwner(ctx context.Context, clinicID, petID uint64, expected ...*ClearNextVisitIntentExpectation) (bool, *uint64, error) {
+	if len(expected) == 1 && expected[0] != nil {
+		if m.clearNextVisitIntentGuardedFn == nil {
+			panic("guarded clear mock must not silently ignore expectation")
+		}
+		return m.clearNextVisitIntentGuardedFn(ctx, clinicID, petID, expected[0])
+	}
 	if m.clearNextVisitIntentWithOwnerFn != nil {
 		return m.clearNextVisitIntentWithOwnerFn(ctx, clinicID, petID)
 	}

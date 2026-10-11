@@ -86,6 +86,17 @@ func (s *reservationService) SetNextVisitIntent(
 // ClearNextVisitIntent はペットの active tentative を除去する。他ステータスの予約や
 // 他医院のデータには触れない。対象が存在しない場合も冪等に成功する。
 func (s *reservationService) ClearNextVisitIntent(ctx context.Context, clinicID, petID uint64) error {
+	return s.clearNextVisitIntent(ctx, clinicID, petID, nil)
+}
+
+func (s *reservationService) ClearNextVisitIntentIfMatches(ctx context.Context, clinicID, petID uint64, expected ClearNextVisitIntentExpectation) error {
+	if expected.ReservationID == 0 || expected.UpdatedAt.IsZero() {
+		return apperrors.WrapInvalidInput("intent identity and revision are required")
+	}
+	return s.clearNextVisitIntent(ctx, clinicID, petID, &expected)
+}
+
+func (s *reservationService) clearNextVisitIntent(ctx context.Context, clinicID, petID uint64, expected *ClearNextVisitIntentExpectation) error {
 	if s.tx == nil {
 		return apperrors.WrapInternalServerError("reservation transaction dependency is required")
 	}
@@ -103,7 +114,7 @@ func (s *reservationService) ClearNextVisitIntent(ctx context.Context, clinicID,
 			return err
 		}
 		ownerID = resolved
-		_, storedOwnerID, err = s.repo.clearNextVisitIntentWithOwner(ctx, clinicID, petID)
+		_, storedOwnerID, err = s.repo.clearNextVisitIntentWithOwner(ctx, clinicID, petID, expected)
 		return err
 	})
 	if err != nil {

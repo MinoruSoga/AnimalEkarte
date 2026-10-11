@@ -551,7 +551,7 @@ func (m *mockLiffReservationRepository) ClearNextVisitIntent(_ context.Context, 
 	return false, nil
 }
 
-func (m *mockLiffReservationRepository) clearNextVisitIntentWithOwner(_ context.Context, _, _ uint64) (bool, *uint64, error) {
+func (m *mockLiffReservationRepository) clearNextVisitIntentWithOwner(_ context.Context, _, _ uint64, _ ...*ClearNextVisitIntentExpectation) (bool, *uint64, error) {
 	return false, nil, nil
 }
 
