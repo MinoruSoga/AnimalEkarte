@@ -232,6 +232,13 @@ func (h *Handler) UpdatePet(c *gin.Context) {
 	}
 
 	input := req.toServiceInput()
+	if input.OwnerID != nil {
+		staffID, ok := httpapi.ExtractStaffID(c)
+		if !ok {
+			return
+		}
+		input.ActorID = &staffID
+	}
 	pet, err := h.pets.Update(c.Request.Context(), clinicID, id, input)
 	if err != nil {
 		httpapi.RespondError(c, err)

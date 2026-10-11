@@ -668,6 +668,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/appointment_admin_repository.go|reservationAdminRepository.CancelByID": {},
 	// BUG-424: unavailable-time reads participate in the booking transaction.
 	"reservation/reservation_type_unavailable_time_repository.go|reservationTypeUnavailableTimeRepository.FindAll": {},
+	"reservation/pet_owner_transfer.go|PetOwnerTransfer.TransferUpcomingPetReservations":                           {},
 	// trimming master reads join the service-owned transaction and hold SHARE locks through
 	// appointment/detail/junction writes. Runtime proof: TestTrimmingMasterFindByID_HoldsShareLockForAmbientTransaction.
 	"trimming/trimming_course_repository.go|trimmingCourseRepository.CountUsageByTrimmingCourseID":            {},

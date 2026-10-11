@@ -114,6 +114,7 @@ const (
 	AuditActionClinicalPlanDelete = "clinical_plan.delete"
 
 	AuditActionPetOwnerReplace                     = "pet_owner.replace"
+	AuditActionPetOwnerTransfer                    = "pet.owner.transfer"
 	AuditActionHospitalizationDischargeWithBilling = "hospitalization.discharge_with_billing"
 
 	// #239 identity link 手動 link/unlink（PHI を載せない ID のみ）

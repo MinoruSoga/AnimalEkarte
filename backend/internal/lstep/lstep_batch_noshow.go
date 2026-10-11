@@ -8,10 +8,14 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
-const noShowRuleVersion = "end-time-plus-4h-v1"
+const (
+	noShowRuleVersion    = "end-time-plus-4h-v1"
+	noShowTagSyncTimeout = 10 * time.Second
+)
 
 func (s *lstepBatchService) detectNoShowReservations(ctx context.Context, clinicID uint64) (int, []error) {
 	evaluatedAt := time.Now().UTC()
@@ -88,6 +92,10 @@ func (s *lstepBatchService) applyNoShowCandidates(
 	var errs []error
 	count := 0
 	for i := range candidates {
+		if err := ctx.Err(); err != nil {
+			errs = append(errs, err)
+			break
+		}
 		r := candidates[i]
 		var transition reservation.NoShowTransition
 		txErr := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
@@ -125,9 +133,12 @@ func (s *lstepBatchService) applyNoShowCandidates(
 			// stale な candidate の owner ではなく CAS でロック確定した行の
 			// owner_id（transition.OwnerID）を同期対象に使う。0 は owner 未設定。
 			if s.tagSyncSvc != nil && transition.OwnerID != 0 {
-				if err := s.tagSyncSvc.SyncNextVisitTag(ctx, clinicID, transition.OwnerID); err != nil {
+				syncCtx, cancel := context.WithTimeout(persistence.DetachTx(ctx), noShowTagSyncTimeout)
+				syncErr := s.tagSyncSvc.SyncNextVisitTag(syncCtx, clinicID, transition.OwnerID)
+				cancel()
+				if syncErr != nil {
 					slog.ErrorContext(ctx, "no-show batch: next visit tag resync failed (best-effort)",
-						"clinic_id", clinicID, "reservation_id", r.ID, "owner_id", transition.OwnerID, "error", err)
+						"clinic_id", clinicID, "reservation_id", r.ID, "owner_id", transition.OwnerID, "error", syncErr)
 				}
 			}
 		}

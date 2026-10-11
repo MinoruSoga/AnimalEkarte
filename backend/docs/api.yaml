@@ -2066,6 +2066,16 @@ components:
           type: integer
           format: int64
           nullable: true
+        clear_cage_id:
+          type: boolean
+          writeOnly: true
+          description: PATCHでtrueを送るとcage_idをNULL（未割当）に戻す。cage_idとの同時指定は400。expected_cage_id必須。
+        expected_cage_id:
+          type: integer
+          format: int64
+          nullable: true
+          writeOnly: true
+          description: clear_cage_id=true時に必須。表示時点のcage_id。ロック行と不一致なら409。
         doctor_id:
           type: integer
           format: int64
@@ -12590,7 +12600,14 @@ paths:
       operationId: listHospitalizations
       summary: 入院一覧
       tags: [Hospitalizations]
+      description: snapshot=true はフィルタに一致する全入院と関連情報を同一の読み取り専用 REPEATABLE READ transaction で返す。最大10000件・DB処理10秒。省略・false時は従来のページ応答。
       parameters:
+        - name: snapshot
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: true時はpage/limitを適用せず一括snapshot（応答snapshot=true、data全件・total=件数）
         - name: page
           in: query
           schema:
@@ -12627,10 +12644,15 @@ paths:
                   - $ref: '#/components/schemas/PaginatedResponse'
                   - type: object
                     properties:
+                      snapshot:
+                        type: boolean
+                        description: snapshot=true要求が同一DB snapshotで完了した場合のみtrue。従来ページ応答では省略。
                       data:
                         type: array
                         items:
                           $ref: '#/components/schemas/Hospitalization'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { C, STYLE } from "@/lib/design-tokens";
 import { resolveCageNameById } from "@/lib/cage-name";
-import { cageMembersByRepresentative } from "@/lib/cage-merge";
+import { cageMembersByRepresentative, isCageMergeEligible } from "@/lib/cage-merge";
 
 import type { Cage } from "../api/cages";
 import { CAGE_SIZE_LABELS, CAGE_TYPE_LABELS, formatCagePrice } from "../lib/cage-side-panel-model";
@@ -127,7 +127,6 @@ export function CageSortableTable({
                   const unmergeRepId = item.mergedIntoCageId ?? item.id;
                   // EMR-306 spec: 選択できるのは未連結・有効・占有中でないケージのみ。
                   // 占有状況が不明（undefined）な間も選択不可とする fail-closed。
-                  const isOccupied = occupiedCageIds === undefined || occupiedCageIds.has(item.id);
                   return (
                     <SortableDataTableRow
                       key={item.id}
@@ -139,7 +138,9 @@ export function CageSortableTable({
                         <Checkbox
                           aria-label={`連結選択: ケージ ${item.name} (ID ${item.id})`}
                           checked={selectedIds.has(item.id)}
-                          disabled={!canEdit || isMerged || !item.isActive || isOccupied}
+                          disabled={
+                            !canEdit || !isCageMergeEligible(item, occupiedCageIds, membersByRepId)
+                          }
                           onCheckedChange={(checked) => onToggleSelect(item.id, checked === true)}
                         />
                       </TableCell>

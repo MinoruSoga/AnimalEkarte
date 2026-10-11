@@ -77,7 +77,7 @@ export function buildUpdateHospitalizationRequest(
       ? {}
       : formData.cageId
         ? { cage_id: formData.cageId }
-        : { clear_cage_id: true }),
+        : { clear_cage_id: true, expected_cage_id: initialCageId }),
     is_insurance: formData.isInsurance,
     insurance_company_name: toInsuranceCompanyName(formData),
     insurance_number: toInsuranceNumber(formData),

@@ -16,24 +16,28 @@ vi.mock("@/lib/axios", () => ({
 
 const mockedGet = vi.mocked(axios.get);
 
+function toBackendRow(item: { id: number; status: string }) {
+  return {
+    id: item.id,
+    clinic_id: 1,
+    pet_id: 10,
+    owner_id: 20,
+    start_date: "2026-03-25T00:00:00Z",
+    end_date: "",
+    status: item.status,
+    hospitalization_type: "hospitalization",
+    memo: "",
+    owner_request: "",
+    staff_notes: "",
+    created_at: "2026-03-25T00:00:00Z",
+    updated_at: "2026-03-25T00:00:00Z",
+  };
+}
+
 function mockPage(items: Array<{ id: number; status: string }>, total = items.length) {
   mockedGet.mockResolvedValueOnce({
     data: {
-      data: items.map((item) => ({
-        id: item.id,
-        clinic_id: 1,
-        pet_id: 10,
-        owner_id: 20,
-        start_date: "2026-03-25T00:00:00Z",
-        end_date: "",
-        status: item.status,
-        hospitalization_type: "hospitalization",
-        memo: "",
-        owner_request: "",
-        staff_notes: "",
-        created_at: "2026-03-25T00:00:00Z",
-        updated_at: "2026-03-25T00:00:00Z",
-      })),
+      data: items.map(toBackendRow),
       total,
       page: HOSPITALIZATION_LIST_DEFAULT_PAGE,
       limit: HOSPITALIZATION_LIST_DEFAULT_LIMIT,
@@ -148,7 +152,7 @@ describe("getHospitalizations request params (BUG-009)", () => {
   });
 });
 
-describe("getAllHospitalizations (Codex PR606 #2/#10)", () => {
+describe("getAllHospitalizations (Codex PR606 #2/#10 snapshot)", () => {
   beforeEach(() => {
     mockedGet.mockReset();
     localStorage.clear();
@@ -157,50 +161,102 @@ describe("getAllHospitalizations (Codex PR606 #2/#10)", () => {
   const items = (from: number, count: number, status = "admitted") =>
     Array.from({ length: count }, (_, i) => ({ id: from + i, status }));
 
-  it("total を超える行を 200/page の複数ページで全件取得する", async () => {
-    mockPage(items(1, 200), 250);
-    mockPage(items(201, 50), 250);
+  function mockSnapshot(
+    rows: Array<{ id: number; status: string }>,
+    overrides?: Record<string, unknown>,
+  ) {
+    mockedGet.mockResolvedValueOnce({
+      data: {
+        data: rows.map(toBackendRow),
+        total: rows.length,
+        snapshot: true,
+        ...overrides,
+      },
+    });
+  }
+
+  it("200 件超を snapshot=true の単一応答で全件取得する", async () => {
+    mockSnapshot(items(1, 450));
 
     const result = await getAllHospitalizations({
       statusFilter: HOSPITALIZATION_FILTER_STATUS.ACTIVE,
     });
 
-    expect(result).toHaveLength(250);
-    expect(mockedGet).toHaveBeenCalledTimes(2);
-    expect(mockedGet.mock.calls[0]?.[1]?.params).toMatchObject({ page: 1, limit: 200 });
-    expect(mockedGet.mock.calls[1]?.[1]?.params).toMatchObject({ page: 2, limit: 200 });
-  });
-
-  it("total が 1 ページに収まるなら 1 回だけ発行する", async () => {
-    mockPage(items(1, 3), 3);
-    const result = await getAllHospitalizations({
-      statusFilter: HOSPITALIZATION_FILTER_STATUS.ALL,
-    });
-    expect(result).toHaveLength(3);
+    expect(result).toHaveLength(450);
     expect(mockedGet).toHaveBeenCalledTimes(1);
+    const params = mockedGet.mock.calls[0]?.[1]?.params as Record<string, unknown>;
+    expect(params).toEqual({ snapshot: true, status: "admitted" });
+    expect(params).not.toHaveProperty("page");
+    expect(params).not.toHaveProperty("limit");
   });
 
-  it("空ページが返れば total 未到達でも早期打切りする", async () => {
-    mockPage(items(1, 200), 999);
-    mockPage([], 999);
+  it("filter を forward しつつ page/limit は送らない", async () => {
+    mockSnapshot(items(1, 2));
 
-    const result = await getAllHospitalizations({
-      statusFilter: HOSPITALIZATION_FILTER_STATUS.ALL,
+    await getAllHospitalizations({ petId: "42", startDate: "2026-01-01", endDate: "2026-01-31" });
+
+    const params = mockedGet.mock.calls[0]?.[1]?.params as Record<string, unknown>;
+    expect(params).toEqual({
+      snapshot: true,
+      pet_id: "42",
+      start_date: "2026-01-01",
+      end_date: "2026-01-31",
     });
-
-    expect(result).toHaveLength(200);
-    expect(mockedGet).toHaveBeenCalledTimes(2);
   });
 
-  it("全ページに X-Clinic-ID をピン留めする（発行中のクリニック切替混入防止）", async () => {
+  it("X-Clinic-ID を発行時点の clinic でピン留めする", async () => {
     localStorage.setItem("auth_current_clinic:v1", "clinic-9");
-    mockPage(items(1, 200), 201);
-    mockPage(items(201, 1), 201);
+    mockSnapshot(items(1, 3));
 
     await getAllHospitalizations({ statusFilter: HOSPITALIZATION_FILTER_STATUS.ALL });
 
-    for (const call of mockedGet.mock.calls) {
-      expect(call[1]?.headers).toEqual({ "X-Clinic-ID": "clinic-9" });
-    }
+    expect(mockedGet).toHaveBeenCalledTimes(1);
+    expect(mockedGet.mock.calls[0]?.[1]?.headers).toEqual({ "X-Clinic-ID": "clinic-9" });
+  });
+
+  it("snapshot marker が無い応答は拒否する（offset fallback しない）", async () => {
+    mockSnapshot(items(1, 2), { snapshot: false });
+
+    await expect(
+      getAllHospitalizations({ statusFilter: HOSPITALIZATION_FILTER_STATUS.ALL }),
+    ).rejects.toThrow();
+    expect(mockedGet).toHaveBeenCalledTimes(1);
+  });
+
+  it("total と行数が不一致なら不完全応答として拒否する", async () => {
+    mockSnapshot(items(1, 2), { total: 5 });
+
+    await expect(
+      getAllHospitalizations({ statusFilter: HOSPITALIZATION_FILTER_STATUS.ALL }),
+    ).rejects.toThrow();
+  });
+
+  it("重複 ID を含む応答は拒否する", async () => {
+    mockSnapshot([
+      { id: 1, status: "admitted" },
+      { id: 1, status: "admitted" },
+    ]);
+
+    await expect(
+      getAllHospitalizations({ statusFilter: HOSPITALIZATION_FILTER_STATUS.ALL }),
+    ).rejects.toThrow();
+  });
+
+  it("行数上限を超える total は拒否する", async () => {
+    mockSnapshot(items(1, 2), { total: 10001 });
+
+    await expect(
+      getAllHospitalizations({ statusFilter: HOSPITALIZATION_FILTER_STATUS.ALL }),
+    ).rejects.toThrow();
+  });
+
+  it("data が配列でない応答は拒否する", async () => {
+    mockedGet.mockResolvedValueOnce({
+      data: { data: null, total: 0, snapshot: true },
+    });
+
+    await expect(
+      getAllHospitalizations({ statusFilter: HOSPITALIZATION_FILTER_STATUS.ALL }),
+    ).rejects.toThrow();
   });
 });

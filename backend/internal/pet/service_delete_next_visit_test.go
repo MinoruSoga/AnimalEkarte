@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 type petCommitObserver struct {
@@ -111,6 +114,34 @@ func TestPetDelete_FailuresDoNotSync(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPetDelete_SyncContextIsDetachedWithFiniteDeadline(t *testing.T) {
+	tx := &petCommitObserver{}
+	repo := &mockPetRepository{
+		lockByIDFn: func(context.Context, uint64, uint64) (*model.Pet, error) {
+			return &model.Pet{ID: 2, OwnerID: 20}, nil
+		},
+		deleteFn: func(context.Context, uint64, uint64) error { return nil },
+	}
+	type traceKey struct{}
+	var captured context.Context
+	tags := &mockLstepTagSyncService{syncNextVisitTagFn: func(ctx context.Context, _, _ uint64) error {
+		captured = ctx
+		assert.NoError(t, ctx.Err())
+		assert.Nil(t, persistence.TxFromContext(ctx))
+		deadline, ok := ctx.Deadline()
+		require.True(t, ok)
+		assert.InDelta(t, petTagSyncTimeout.Seconds(), time.Until(deadline).Seconds(), 5)
+		assert.Equal(t, "trace-9", ctx.Value(traceKey{}))
+		return nil
+	}}
+	svc := NewServiceWithPetOwnerReader(repo, defaultOwnerRepo(), nil, defaultMedicalRecordRepo(), tags, nil, tx)
+	parent := context.WithValue(context.Background(), traceKey{}, "trace-9")
+	parent = persistence.WithTxValue(parent, &gorm.DB{})
+	require.NoError(t, svc.Delete(parent, 1, 2))
+	require.NotNil(t, captured)
+	require.ErrorIs(t, captured.Err(), context.Canceled)
 }
 
 func TestPetDelete_TagFailureDoesNotInvertCommittedDelete(t *testing.T) {

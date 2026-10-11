@@ -17,9 +17,17 @@ export const useUpdatePet = () => {
 
   return useMutation({
     mutationFn: ({ id, req }: { id: string; req: UpdatePetRequest }) => updatePet(id, req),
-    onSuccess: (_, { id }) => {
+    onSuccess: (_, { id, req }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.pets.list() });
       queryClient.invalidateQueries({ queryKey: queryKeys.pets.detail(id) });
+      if (req.owner_id !== undefined) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.reservations.all() });
+        queryClient.invalidateQueries({ queryKey: queryKeys.reservations.detailAll() });
+        queryClient.invalidateQueries({ queryKey: queryKeys.reception.all() });
+        queryClient.invalidateQueries({ queryKey: queryKeys.owners.all() });
+        queryClient.invalidateQueries({ queryKey: queryKeys.ownerReportPetsAll() });
+        queryClient.invalidateQueries({ queryKey: queryKeys.ownerSharedPets.all() });
+      }
     },
     onError: (error) => handleApiError(error, "ペット更新"),
   });

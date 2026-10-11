@@ -266,17 +266,34 @@ func TestCreateHospitalizationRequest_ToServiceInput_CageIDOptional(t *testing.T
 
 func TestUpdateHospitalizationRequest_ToServiceInput_ClearCageID(t *testing.T) {
 	t.Run("clear_cage_id is forwarded", func(t *testing.T) {
-		input, err := (&updateHospitalizationRequest{ClearCageID: true}).toServiceInput()
+		expected := uint64(10)
+		input, err := (&updateHospitalizationRequest{ClearCageID: true, ExpectedCageID: &expected}).toServiceInput()
 		if err != nil {
 			t.Fatalf("toServiceInput() error = %v", err)
 		}
 		if !input.ClearCageID || input.CageID != nil {
 			t.Fatalf("ClearCageID=%v CageID=%v, want true/nil", input.ClearCageID, input.CageID)
 		}
+		if input.ExpectedCageID == nil || *input.ExpectedCageID != expected {
+			t.Fatalf("ExpectedCageID=%v, want %d", input.ExpectedCageID, expected)
+		}
+	})
+	t.Run("clear_cage_id without expected_cage_id is rejected", func(t *testing.T) {
+		_, err := (&updateHospitalizationRequest{ClearCageID: true}).toServiceInput()
+		if err == nil {
+			t.Fatal("toServiceInput() error = nil, want missing expected_cage_id error")
+		}
+	})
+	t.Run("clear_cage_id with zero expected_cage_id is rejected", func(t *testing.T) {
+		zero := uint64(0)
+		_, err := (&updateHospitalizationRequest{ClearCageID: true, ExpectedCageID: &zero}).toServiceInput()
+		if err == nil {
+			t.Fatal("toServiceInput() error = nil, want zero expected_cage_id error")
+		}
 	})
 	t.Run("clear_cage_id with cage_id is rejected", func(t *testing.T) {
 		id := uint64(10)
-		_, err := (&updateHospitalizationRequest{ClearCageID: true, CageID: &id}).toServiceInput()
+		_, err := (&updateHospitalizationRequest{ClearCageID: true, CageID: &id, ExpectedCageID: &id}).toServiceInput()
 		if err == nil {
 			t.Fatal("toServiceInput() error = nil, want conflict error")
 		}

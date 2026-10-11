@@ -36,7 +36,11 @@ func TestPetTransfer_NextVisitSyncUsesLockedPreviousOwner(t *testing.T) {
 		return nil
 	}}
 	svc := NewServiceWithPetOwnerReader(repo, defaultOwnerRepo(), nil, defaultMedicalRecordRepo(), tags,
-		&petOwnerServiceRepositoryDouble{}, petOwnerServiceTransactorDouble{})
+		&petOwnerServiceRepositoryDouble{}, petOwnerServiceTransactorDouble{},
+		PetOwnerTransferDependencies{
+			Reservations: &petOwnerTransferSpy{ids: []uint64{41, 42}},
+			Audit:        &petOwnerServiceAuditDouble{},
+		})
 	updated, err := svc.Update(context.Background(), clinicID, petID, &UpdatePetInput{OwnerID: &newOwnerID})
 	require.NoError(t, err)
 	assert.Equal(t, newOwnerID, updated.OwnerID)
@@ -64,11 +68,14 @@ func TestPetTransfer_SameOwnerSyncsOnceAfterCommit(t *testing.T) {
 		synced++
 		return nil
 	}}
+	transfer := &petOwnerTransferSpy{}
 	svc := NewServiceWithPetOwnerReader(repo, defaultOwnerRepo(), nil, defaultMedicalRecordRepo(), tags,
-		&petOwnerServiceRepositoryDouble{}, tx)
+		&petOwnerServiceRepositoryDouble{}, tx,
+		PetOwnerTransferDependencies{Reservations: transfer, Audit: &petOwnerServiceAuditDouble{}})
 	_, err := svc.Update(context.Background(), 1, 2, &UpdatePetInput{OwnerID: &ownerID})
 	require.NoError(t, err)
 	assert.Equal(t, 1, synced)
+	assert.Empty(t, transfer.calls, "same-owner update must not call the reservation transfer")
 }
 
 func TestPetTransfer_FailedWriteDoesNotSync(t *testing.T) {
@@ -92,7 +99,8 @@ func TestPetTransfer_FailedWriteDoesNotSync(t *testing.T) {
 		return nil
 	}}
 	svc := NewServiceWithPetOwnerReader(repo, defaultOwnerRepo(), nil, defaultMedicalRecordRepo(), tags,
-		&petOwnerServiceRepositoryDouble{}, tx)
+		&petOwnerServiceRepositoryDouble{}, tx,
+		PetOwnerTransferDependencies{Reservations: &petOwnerTransferSpy{}, Audit: &petOwnerServiceAuditDouble{}})
 	_, err := svc.Update(context.Background(), 1, 2, &UpdatePetInput{OwnerID: &newOwnerID})
 	require.Error(t, err)
 	assert.False(t, tx.committed)

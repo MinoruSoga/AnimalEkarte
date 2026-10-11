@@ -106,7 +106,8 @@ func TestPetTransfer_PostCommitContext(t *testing.T) {
 				},
 			}
 			svc := NewServiceWithPetOwnerReader(repo, defaultOwnerRepo(), nil, defaultMedicalRecordRepo(), tags,
-				&petOwnerServiceRepositoryDouble{}, tx)
+				&petOwnerServiceRepositoryDouble{}, tx,
+				PetOwnerTransferDependencies{Reservations: &petOwnerTransferSpy{}, Audit: &petOwnerServiceAuditDouble{}})
 			got, err := svc.Update(ctx, 1, 2, &UpdatePetInput{OwnerID: &newOwnerID})
 			if tt.writeErr != nil || tt.commitErr != nil || tt.cancelBefore {
 				require.Error(t, err)

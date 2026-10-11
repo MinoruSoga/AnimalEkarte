@@ -7,8 +7,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
@@ -386,12 +388,14 @@ func TestLstepBatchService_DetectNoShowReservations_ResyncFailureDoesNotFailItem
 			return []model.Reservation{{ID: 5, OwnerID: &ownerID}}, nil
 		},
 		markNoShowFn: func(_ context.Context, _ uint64, _ uint64) (reservation.NoShowTransition, error) {
-			return reservation.NoShowTransition{Changed: true, PreviousStatus: model.ReservationStatusPending}, nil
+			return reservation.NoShowTransition{Changed: true, PreviousStatus: model.ReservationStatusPending, OwnerID: ownerID}, nil
 		},
 	}
 	svc := newNoShowBatchService(reservationRepo, &dormantMockClinicRepository{}, &mockAuditService{}, &mockLstepSettingsService{})
+	synced := 0
 	svc.tagSyncSvc = &batchMockTagSyncSvc{
 		syncNextVisitTagFn: func(_ context.Context, _, _ uint64) error {
+			synced++
 			return errors.New("tag sync down")
 		},
 	}
@@ -399,6 +403,7 @@ func TestLstepBatchService_DetectNoShowReservations_ResyncFailureDoesNotFailItem
 	count, errs := svc.detectNoShowReservations(context.Background(), 7)
 
 	assert.Equal(t, 1, count, "tag resync failure must not fail the no-show batch item")
+	assert.Equal(t, 1, synced)
 	assert.Empty(t, errs)
 }
 
@@ -424,4 +429,57 @@ func TestLstepBatchService_DetectNoShowReservations_AuditFailureFailsClosed(t *t
 	assert.Zero(t, count)
 	assert.Len(t, errs, 1)
 	assert.True(t, tx.rolledBack, "audit failure must escape the transaction callback")
+}
+
+type noShowCancelOnCommitTransactor struct {
+	cancel context.CancelFunc
+	calls  int
+}
+
+func (m *noShowCancelOnCommitTransactor) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	m.calls++
+	err := fn(ctx)
+	if err == nil && m.calls == 1 {
+		m.cancel()
+	}
+	return err
+}
+
+func TestLstepBatchService_DetectNoShowReservations_StopsAfterCommitCancellation(t *testing.T) {
+	ownerID := uint64(42)
+	var marked []uint64
+	reservationRepo := &noShowMockReservationRepository{
+		findNoShowCandidatesFn: func(_ context.Context, _ uint64) ([]model.Reservation, error) {
+			return []model.Reservation{{ID: 5, OwnerID: &ownerID}, {ID: 6, OwnerID: &ownerID}}, nil
+		},
+		markNoShowFn: func(_ context.Context, _ uint64, id uint64) (reservation.NoShowTransition, error) {
+			marked = append(marked, id)
+			return reservation.NoShowTransition{Changed: true, PreviousStatus: model.ReservationStatusConfirmed, OwnerID: ownerID}, nil
+		},
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	svc := newNoShowBatchService(reservationRepo, &dormantMockClinicRepository{}, &mockAuditService{}, &mockLstepSettingsService{})
+	svc.transactor = &noShowCancelOnCommitTransactor{cancel: cancel}
+	var syncCtx context.Context
+	svc.tagSyncSvc = &batchMockTagSyncSvc{
+		syncNextVisitTagFn: func(c context.Context, _, _ uint64) error {
+			syncCtx = c
+			assert.NoError(t, c.Err())
+			assert.Nil(t, persistence.TxFromContext(c))
+			deadline, ok := c.Deadline()
+			require.True(t, ok)
+			assert.InDelta(t, noShowTagSyncTimeout.Seconds(), time.Until(deadline).Seconds(), 5)
+			return nil
+		},
+	}
+
+	count, errs := svc.detectNoShowReservations(ctx, 7)
+
+	assert.Equal(t, 1, count)
+	assert.Equal(t, []uint64{5}, marked, "the second candidate must not be marked after cancellation")
+	require.NotEmpty(t, errs)
+	assert.ErrorIs(t, errs[len(errs)-1], context.Canceled)
+	require.NotNil(t, syncCtx, "the committed item must still resync on the detached context")
+	require.ErrorIs(t, syncCtx.Err(), context.Canceled)
 }

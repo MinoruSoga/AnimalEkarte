@@ -6,8 +6,11 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/audit"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // --- Pet DB column constants ---
@@ -96,6 +99,7 @@ type UpdatePetInput struct {
 	// EMR-174: DangerReason と同型 tri-state（nil=未指定 / &nil=NULLクリア / &&value=更新対象）。
 	NameOrigin   **string
 	MeetingStory **string
+	ActorID      *uint64
 }
 
 // PetUpdate is the typed atomic update command owned by the pet package.
@@ -210,13 +214,15 @@ type Service interface {
 // --- Implementation ---
 
 type petService struct {
-	repo              ServiceRepository
-	ownerRepo         OwnerFinder
-	insuranceRepo     InsuranceFinder
-	medicalRecordRepo MedicalRecordReader
-	tagSyncSvc        PetTagSynchronizer
-	petOwnerRepo      PetOwnerReader
-	petOwnerTx        PetOwnerTransactor
+	repo                ServiceRepository
+	ownerRepo           OwnerFinder
+	insuranceRepo       InsuranceFinder
+	medicalRecordRepo   MedicalRecordReader
+	tagSyncSvc          PetTagSynchronizer
+	petOwnerRepo        PetOwnerReader
+	petOwnerTx          PetOwnerTransactor
+	reservationTransfer UpcomingReservationOwnerTransfer
+	transferAudit       PetOwnerAuditLogger
 }
 
 // NewService constructs the pet use-case service without transaction-dependent
@@ -241,8 +247,14 @@ func NewServiceWithPetOwnerReader(
 	tagSyncSvc PetTagSynchronizer,
 	petOwnerRepo PetOwnerReader,
 	petOwnerTx PetOwnerTransactor,
+	dependencies ...PetOwnerTransferDependencies,
 ) Service {
-	return newService(repo, ownerRepo, insuranceRepo, medicalRecordRepo, tagSyncSvc, petOwnerRepo, petOwnerTx)
+	svc := newService(repo, ownerRepo, insuranceRepo, medicalRecordRepo, tagSyncSvc, petOwnerRepo, petOwnerTx)
+	if len(dependencies) > 0 {
+		svc.reservationTransfer = dependencies[0].Reservations
+		svc.transferAudit = dependencies[0].Audit
+	}
+	return svc
 }
 
 func newService(
@@ -253,7 +265,7 @@ func newService(
 	tagSyncSvc PetTagSynchronizer,
 	petOwnerRepo PetOwnerReader,
 	petOwnerTx PetOwnerTransactor,
-) Service {
+) *petService {
 	return &petService{
 		repo:              repo,
 		ownerRepo:         ownerRepo,
@@ -438,7 +450,10 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 		if containsPetOwner(links, *input.OwnerID) {
 			return apperrors.WrapConflict("副飼主を主飼主へ変更する前に副飼主の紐付けを解除してください")
 		}
-		return nil
+		if previousOwnerID == *input.OwnerID {
+			return nil
+		}
+		return s.transferUpcomingReservations(updateCtx, clinicID, id, previousOwnerID, *input.OwnerID, input.ActorID)
 	}
 	if ownerUpdateRequested {
 		err = s.petOwnerTx.WithTx(ctx, updateAndVerify)
@@ -455,6 +470,41 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 
 	s.syncLstepTags(ctx, clinicID, pet.OwnerID, previousOwnerID)
 	return pet, nil
+}
+
+func (s *petService) transferUpcomingReservations(
+	ctx context.Context,
+	clinicID, petID, previousOwnerID, newOwnerID uint64,
+	actorID *uint64,
+) error {
+	if s.reservationTransfer == nil || s.transferAudit == nil {
+		return apperrors.WrapInternalServerError("pet owner transfer dependencies are unavailable")
+	}
+	now := time.Now().In(config.JST)
+	from := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, config.JST)
+	transferredIDs, err := s.reservationTransfer.TransferUpcomingPetReservations(
+		ctx, clinicID, petID, previousOwnerID, newOwnerID, from)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to transfer upcoming reservations")
+	}
+	entry := &audit.Entry{
+		ClinicID:   &clinicID,
+		ActorID:    actorID,
+		ActorType:  sharedkernel.AuditActorTypeFor(actorID),
+		Action:     model.AuditActionPetOwnerTransfer,
+		Resource:   "pet",
+		ResourceID: &petID,
+		OldValue:   map[string]any{"owner_id": previousOwnerID},
+		NewValue:   map[string]any{"owner_id": newOwnerID},
+		Metadata: map[string]any{
+			"appointment_ids": transferredIDs,
+			"from_date":       from.Format("2006-01-02"),
+		},
+	}
+	if err := s.transferAudit.LogEntryTx(ctx, entry); err != nil {
+		return apperrors.Wrap(err, "failed to audit pet owner transfer")
+	}
+	return nil
 }
 
 const petTagSyncTimeout = 30 * time.Second
@@ -518,7 +568,10 @@ func (s *petService) Delete(ctx context.Context, clinicID, id uint64) error {
 	// Deleted pets no longer contribute tentative next visits. Sync only after
 	// commit, using the owner fixed by the same row lock as owner transfers.
 	if s.tagSyncSvc != nil {
-		if err := s.tagSyncSvc.SyncNextVisitTag(ctx, clinicID, ownerID); err != nil {
+		syncCtx, cancel := context.WithTimeout(persistence.DetachTx(ctx), petTagSyncTimeout)
+		err := s.tagSyncSvc.SyncNextVisitTag(syncCtx, clinicID, ownerID)
+		cancel()
+		if err != nil {
 			slog.ErrorContext(ctx, "failed to sync next visit tag after pet deletion", "error", err, "owner_id", ownerID, "clinic_id", clinicID)
 		}
 	}

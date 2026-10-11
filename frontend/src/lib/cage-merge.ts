@@ -41,3 +41,22 @@ export function cageMembersByRepresentative<T extends CageMergeItem>(
   }
   return membersByRep;
 }
+
+export interface CageMergeSelectableItem extends CageMergeItem {
+  isActive: boolean;
+}
+
+export function isCageMergeEligible(
+  cage: CageMergeSelectableItem,
+  occupiedCageIds: ReadonlySet<string> | undefined,
+  membersByRepresentativeId: ReadonlyMap<string, readonly unknown[]>,
+): boolean {
+  const id = String(cage.id);
+  return (
+    occupiedCageIds !== undefined &&
+    cage.isActive === true &&
+    cage.mergedIntoCageId == null &&
+    !membersByRepresentativeId.has(id) &&
+    !occupiedCageIds.has(id)
+  );
+}

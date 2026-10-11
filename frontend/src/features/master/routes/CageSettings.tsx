@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { C, ICON } from "@/lib/design-tokens";
 import { resolveCageNameById } from "@/lib/cage-name";
+import { cageMembersByRepresentative, isCageMergeEligible } from "@/lib/cage-merge";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
@@ -41,6 +42,8 @@ import { buildCageCreateRequest, buildCageUpdateRequest } from "./cage-settings-
 import { ResourceMasterHospitalization } from "@/types/generated/models";
 import { usePermission } from "@/hooks/use-permission";
 
+const EMPTY_CAGE_ID_SET: ReadonlySet<string> = new Set();
+
 // ─── EMR-306: 連結代表ケージ選択ダイアログ ───
 // ConfirmDialog は description に string しか受けられずフォーム部品を載せられない
 // ため、代表ケージ選択を持つこの確認ダイアログは ui/alert-dialog + ui/radio-group
@@ -52,6 +55,7 @@ interface CageMergeDialogProps {
   representativeId: string | null;
   onRepresentativeChange: (id: string) => void;
   isPending: boolean;
+  confirmReady: boolean;
   onClose: () => void;
   onConfirm: () => void;
 }
@@ -62,6 +66,7 @@ function CageMergeDialog({
   representativeId,
   onRepresentativeChange,
   isPending,
+  confirmReady,
   onClose,
   onConfirm,
 }: CageMergeDialogProps) {
@@ -95,7 +100,10 @@ function CageMergeDialog({
         </RadioGroup>
         <AlertDialogFooter>
           <AlertDialogCancel>キャンセル</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm} disabled={!representativeId || isPending}>
+          <AlertDialogAction
+            onClick={onConfirm}
+            disabled={!representativeId || !confirmReady || isPending}
+          >
             連結する
           </AlertDialogAction>
         </AlertDialogFooter>
@@ -177,19 +185,37 @@ export function CageSettings() {
     permissions: { canCreate, canEdit },
   });
 
+  const membersByRepId = useMemo(() => cageMembersByRepresentative(data ?? []), [data]);
+
   // 選択後に占有と判明したケージ（入院登録との競合）は表示・送信から除外する —
   // チェックボックスの disabled と合わせて二重に防ぐ。effect による state 書き戻しは
   // react-hooks/set-state-in-effect 禁止のため、レンダー中の派生集合で表現する。
   const effectiveSelectedCageIds = useMemo(() => {
-    if (occupiedCageIds === undefined) return selectedCageIds;
-    if ([...selectedCageIds].every((id) => !occupiedCageIds.has(id))) {
-      return selectedCageIds;
-    }
-    return new Set([...selectedCageIds].filter((id) => !occupiedCageIds.has(id)));
-  }, [selectedCageIds, occupiedCageIds]);
+    if (occupiedCageIds === undefined) return EMPTY_CAGE_ID_SET;
+    const byId = new Map((data ?? []).map((cage) => [cage.id, cage]));
+    const eligible = [...selectedCageIds].filter((id) => {
+      const cage = byId.get(id);
+      return cage !== undefined && isCageMergeEligible(cage, occupiedCageIds, membersByRepId);
+    });
+    return eligible.length === selectedCageIds.size ? selectedCageIds : new Set(eligible);
+  }, [selectedCageIds, occupiedCageIds, data, membersByRepId]);
+
+  const mergeEligibilityRef = useRef<(id: string) => boolean>(() => false);
+  useLayoutEffect(() => {
+    const byId = new Map((data ?? []).map((cage) => [cage.id, cage]));
+    mergeEligibilityRef.current = (id: string) => {
+      const cage = byId.get(id);
+      return (
+        canEdit === true &&
+        cage !== undefined &&
+        isCageMergeEligible(cage, occupiedCageIds, membersByRepId)
+      );
+    };
+  }, [canEdit, data, occupiedCageIds, membersByRepId]);
 
   const handleToggleCageSelect = useCallback((id: string, checked: boolean) => {
     setSelectedCageIds((prev) => {
+      if (checked && !mergeEligibilityRef.current(id)) return prev;
       const next = new Set(prev);
       if (checked) {
         next.add(id);
@@ -205,14 +231,54 @@ export function CageSettings() {
     [data, effectiveSelectedCageIds],
   );
 
+  const mergeReady = canEdit === true && effectiveSelectedCageIds.size >= 2;
+  const representativeCage = selectedCages.find((cage) => cage.id === representativeId);
+  const mergeConfirmReady =
+    mergeReady &&
+    representativeCage !== undefined &&
+    isCageMergeEligible(representativeCage, occupiedCageIds, membersByRepId);
+  const mergeReadinessRef = useRef({
+    openable: false,
+    confirmable: false,
+    selectedIds: EMPTY_CAGE_ID_SET as ReadonlySet<string>,
+    representativeId: null as string | null,
+  });
+  useLayoutEffect(() => {
+    mergeReadinessRef.current = {
+      openable: mergeReady,
+      confirmable: mergeConfirmReady,
+      selectedIds: effectiveSelectedCageIds,
+      representativeId,
+    };
+  }, [mergeReady, mergeConfirmReady, effectiveSelectedCageIds, representativeId]);
+
+  const capturedSelectionIsCurrent = useCallback((captured: readonly Cage[]) => {
+    const latest = mergeReadinessRef.current;
+    if (captured.length !== latest.selectedIds.size) return false;
+    for (const cage of captured) {
+      if (!latest.selectedIds.has(cage.id)) return false;
+    }
+    return true;
+  }, []);
+
   const handleOpenMergeDialog = useCallback(() => {
+    if (!mergeReadinessRef.current.openable) return;
+    if (!capturedSelectionIsCurrent(selectedCages)) return;
     setRepresentativeId(selectedCages[0]?.id ?? null);
     setMergeDialogOpen(true);
-  }, [selectedCages]);
+  }, [selectedCages, capturedSelectionIsCurrent]);
 
   const handleMergeConfirm = useCallback(() => {
-    if (canEditRef.current !== true) return;
-    if (representativeId === null) return;
+    if (canEditRef.current !== true || !mergeReadinessRef.current.confirmable) return;
+    if (
+      representativeId === null ||
+      representativeId !== mergeReadinessRef.current.representativeId
+    )
+      return;
+    if (!capturedSelectionIsCurrent(selectedCages)) return;
+    for (const cage of selectedCages) {
+      if (!mergeEligibilityRef.current(cage.id)) return;
+    }
     const memberCageIds = selectedCages
       .filter((cage) => cage.id !== representativeId)
       .map((cage) => Number(cage.id));
@@ -227,7 +293,7 @@ export function CageSettings() {
         },
       },
     );
-  }, [representativeId, selectedCages, mergeMutation]);
+  }, [representativeId, selectedCages, mergeMutation, capturedSelectionIsCurrent]);
 
   const handleRequestUnmerge = useCallback((repId: string) => {
     setUnmergeRepresentativeId(repId);
@@ -319,6 +385,7 @@ export function CageSettings() {
         representativeId={representativeId}
         onRepresentativeChange={setRepresentativeId}
         isPending={mergeMutation.isPending}
+        confirmReady={mergeConfirmReady}
         onClose={() => setMergeDialogOpen(false)}
         onConfirm={handleMergeConfirm}
       />

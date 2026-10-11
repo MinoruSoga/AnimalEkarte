@@ -340,7 +340,7 @@ func TestHospitalizationCageGuard_Update_ClearCageOnReactivation(t *testing.T) {
 				_, err := svc.Create(ctx, clinicID, cageGuardCreateInput(owner.ID, occupantPet.ID, oldCage.ID, model.HospitalizationStatusAdmitted))
 				require.NoError(t, err)
 			}
-			input, err := (&updateHospitalizationRequest{Status: &tt.status, ClearCageID: true}).toServiceInput()
+			input, err := (&updateHospitalizationRequest{Status: &tt.status, ClearCageID: true, ExpectedCageID: &oldCage.ID}).toServiceInput()
 			require.NoError(t, err)
 
 			got, err := svc.Update(ctx, clinicID, hosp.ID, &input)

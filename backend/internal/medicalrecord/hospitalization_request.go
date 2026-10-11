@@ -187,6 +187,7 @@ type updateHospitalizationRequest struct {
 	Status               *string    `json:"status"                 binding:"omitempty,oneof=admitted discharged reserved"`
 	CageID               *uint64    `json:"cage_id"`
 	ClearCageID          bool       `json:"clear_cage_id"`
+	ExpectedCageID       *uint64    `json:"expected_cage_id"`
 	DoctorID             *uint64    `json:"doctor_id"`
 	Memo                 *string    `json:"memo"`
 	OwnerRequest         *string    `json:"owner_request"`
@@ -200,6 +201,9 @@ func (r *updateHospitalizationRequest) toServiceInput() (UpdateHospitalizationIn
 	if r.ClearCageID && r.CageID != nil {
 		return UpdateHospitalizationInput{}, apperrors.WrapInvalidInput(errMsgCageIDClearConflict)
 	}
+	if r.ClearCageID && (r.ExpectedCageID == nil || *r.ExpectedCageID == 0) {
+		return UpdateHospitalizationInput{}, apperrors.WrapInvalidInput(errMsgCageClearMissingExpected)
+	}
 	input := UpdateHospitalizationInput{
 		OwnerID:              r.OwnerID,
 		PetID:                r.PetID,
@@ -207,6 +211,7 @@ func (r *updateHospitalizationRequest) toServiceInput() (UpdateHospitalizationIn
 		EndDate:              r.EndDate,
 		CageID:               r.CageID,
 		ClearCageID:          r.ClearCageID,
+		ExpectedCageID:       r.ExpectedCageID,
 		DoctorID:             r.DoctorID,
 		Memo:                 r.Memo,
 		OwnerRequest:         r.OwnerRequest,

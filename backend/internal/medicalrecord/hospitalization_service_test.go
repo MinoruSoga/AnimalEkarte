@@ -994,6 +994,68 @@ func TestHospitalizationService_Update_RejectsClearAndSetCageID(t *testing.T) {
 	assert.True(t, apperrors.IsInvalidInput(err))
 }
 
+func TestHospitalizationService_Update_ClearCageRequiresExpectedCageID(t *testing.T) {
+	svc := NewHospitalizationService(&mockHospitalizationRepository{}, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+
+	hosp, err := svc.Update(context.Background(), 1, 1, &UpdateHospitalizationInput{ClearCageID: true})
+	assert.Nil(t, hosp)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+
+	zero := uint64(0)
+	hosp, err = svc.Update(context.Background(), 1, 1, &UpdateHospitalizationInput{ClearCageID: true, ExpectedCageID: &zero})
+	assert.Nil(t, hosp)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
+func TestHospitalizationService_Update_ClearCageStaleExpectationConflicts(t *testing.T) {
+	expected := uint64(10)
+	tests := []struct {
+		name        string
+		lockedCage  *uint64
+		wantUpdated bool
+	}{
+		{name: "locked cage reassigned since the form was displayed", lockedCage: ptrUint64(11)},
+		{name: "locked cage already cleared", lockedCage: nil},
+		{name: "locked cage matches the displayed cage", lockedCage: ptrUint64(10), wantUpdated: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			now := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
+			existing := &model.Hospitalization{
+				ID: 1, ClinicID: 1, Status: model.HospitalizationStatusAdmitted,
+				CageID: tt.lockedCage, StartDate: now, EndDate: now.AddDate(0, 0, 1),
+			}
+			updated := false
+			hospRepo := &mockHospitalizationRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) { return existing, nil },
+				updateFieldsFn: func(_ context.Context, _, _ uint64, cmd UpdateHospitalizationInput) (*model.Hospitalization, error) {
+					updated = true
+					result := *existing
+					result.CageID = nil
+					return &result, nil
+				},
+			}
+			svc := NewHospitalizationService(hospRepo, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+
+			got, err := svc.Update(context.Background(), 1, 1, &UpdateHospitalizationInput{ClearCageID: true, ExpectedCageID: &expected})
+
+			if tt.wantUpdated {
+				require.NoError(t, err)
+				require.NotNil(t, got)
+				assert.True(t, updated)
+				assert.Nil(t, got.CageID)
+			} else {
+				require.Error(t, err)
+				assert.Nil(t, got)
+				assert.True(t, apperrors.IsConflict(err), "stale expected_cage_id must be a conflict: %v", err)
+				assert.False(t, updated, "conflict must not write")
+			}
+		})
+	}
+}
+
 func TestHospitalizationService_Update_ClearCageOnReactivation(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -1042,7 +1104,7 @@ func TestHospitalizationService_Update_ClearCageOnReactivation(t *testing.T) {
 				},
 			}
 			svc := NewHospitalizationService(hospRepo, nil, nil, cageRepo, nil, nil, nil, &mockTransactor{})
-			input, err := (&updateHospitalizationRequest{Status: &tt.status, ClearCageID: true}).toServiceInput()
+			input, err := (&updateHospitalizationRequest{Status: &tt.status, ClearCageID: true, ExpectedCageID: &oldCageID}).toServiceInput()
 			require.NoError(t, err)
 
 			got, err := svc.Update(context.Background(), 1, 1, &input)

@@ -565,24 +565,47 @@ func TestUpdateHospitalization(t *testing.T) {
 			// EMR-316: 編集画面で「選択なし」に戻す操作は clear_cage_id: true で cage_id を NULL にする。
 			name:     "forwards clear_cage_id to the service (EMR-316)",
 			paramID:  "1",
-			body:     map[string]any{"clear_cage_id": true},
+			body:     map[string]any{"clear_cage_id": true, "expected_cage_id": 10},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockHospitalizationService{
-				updateFn: func(_ context.Context, _, _ uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error) {
+				updateFn: func(_ context.Context, clinicID, _ uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error) {
+					assert.Equal(t, uint64(1), clinicID)
 					assert.True(t, input.ClearCageID)
 					assert.Nil(t, input.CageID)
+					require.NotNil(t, input.ExpectedCageID)
+					assert.Equal(t, uint64(10), *input.ExpectedCageID)
 					return &model.Hospitalization{ID: 1}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:       "returns 400 when clear_cage_id and cage_id are both set (EMR-316)",
+			name:       "returns 400 when clear_cage_id has no expected_cage_id",
 			paramID:    "1",
-			body:       map[string]any{"clear_cage_id": true, "cage_id": 10},
+			body:       map[string]any{"clear_cage_id": true},
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockHospitalizationService{},
 			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when clear_cage_id and cage_id are both set (EMR-316)",
+			paramID:    "1",
+			body:       map[string]any{"clear_cage_id": true, "cage_id": 10, "expected_cage_id": 10},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 409 when the locked cage no longer matches expected_cage_id",
+			paramID:  "1",
+			body:     map[string]any{"clear_cage_id": true, "expected_cage_id": 10},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockHospitalizationService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateHospitalizationInput) (*model.Hospitalization, error) {
+					return nil, apperrors.WrapConflict(errMsgCageClearStale)
+				},
+			},
+			wantStatus: http.StatusConflict,
 		},
 		{
 			name:       "returns 401 when clinic_id is missing",

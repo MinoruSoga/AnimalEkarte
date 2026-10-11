@@ -40,18 +40,15 @@ func NewHospitalizationRepository(db *gorm.DB) HospitalizationRepository {
 	return &hospitalizationRepository{db: db}
 }
 
-func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error) {
-	hospitalizations := make([]model.Hospitalization, 0)
-	var total int64
-
-	q := r.db.WithContext(ctx).
+func hospitalizationListQuery(db *gorm.DB, clinicID uint64, filters listHospitalizationFilters) *gorm.DB {
+	q := db.
 		Model(&model.Hospitalization{}).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("EXISTS (SELECT 1 FROM pets p WHERE p.id = hospitalizations.pet_id AND p.clinic_id = hospitalizations.clinic_id)")
-	if petID != nil {
-		q = q.Where("pet_id = ?", *petID)
+	if filters.PetID != nil {
+		q = q.Where("pet_id = ?", *filters.PetID)
 	}
-	if ownerID != nil {
+	if filters.OwnerID != nil {
 		q = q.Where(`
 			EXISTS (
 				SELECT 1
@@ -63,21 +60,41 @@ func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64
 				  AND current_owner_pet.clinic_id = hospitalizations.clinic_id
 				  AND current_owner.id = ?
 			)
-		`, *ownerID)
+		`, *filters.OwnerID)
 	}
-	if status != nil {
-		q = q.Where("status = ?", *status)
+	if filters.Status != nil {
+		q = q.Where("status = ?", *filters.Status)
 	}
-	if startDate != nil {
-		q = q.Where("hospitalizations.start_date >= ?", *startDate)
+	if filters.StartDate != nil {
+		q = q.Where("hospitalizations.start_date >= ?", *filters.StartDate)
 	}
-	if endDate != nil {
-		q = q.Where("hospitalizations.start_date <= ?", *endDate)
+	if filters.EndDate != nil {
+		q = q.Where("hospitalizations.start_date <= ?", *filters.EndDate)
 	}
+	return q
+}
+
+func hospitalizationListPreloads(q *gorm.DB, clinicID uint64) *gorm.DB {
+	return q.
+		Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Pet.AnimalSpecies").
+		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Cage", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Doctor", "deleted_at IS NULL")
+}
+
+func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error) {
+	hospitalizations := make([]model.Hospitalization, 0)
+	var total int64
+
+	filters := listHospitalizationFilters{
+		PetID: petID, OwnerID: ownerID, Status: status, StartDate: startDate, EndDate: endDate,
+	}
+	q := hospitalizationListQuery(r.db.WithContext(ctx), clinicID, filters)
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "hospitalization", "")
 	}
-	if err := q.Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Pet.AnimalSpecies").Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Cage", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Doctor", "deleted_at IS NULL").
+	if err := hospitalizationListPreloads(q, clinicID).
 		Scopes(paginate(page, limit)).Order("start_date DESC, created_at DESC, id DESC").
 		Find(&hospitalizations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "hospitalization", "")

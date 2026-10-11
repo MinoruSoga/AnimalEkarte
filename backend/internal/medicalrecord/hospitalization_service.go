@@ -43,6 +43,7 @@ type UpdateHospitalizationInput struct {
 	Status               *model.HospitalizationStatus
 	CageID               *uint64
 	ClearCageID          bool
+	ExpectedCageID       *uint64
 	DoctorID             *uint64
 	Memo                 *string
 	OwnerRequest         *string
@@ -429,6 +430,9 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 	if input.ClearCageID && input.CageID != nil {
 		return nil, apperrors.WrapInvalidInput(errMsgCageIDClearConflict)
 	}
+	if input.ClearCageID && (input.ExpectedCageID == nil || *input.ExpectedCageID == 0) {
+		return nil, apperrors.WrapInvalidInput(errMsgCageClearMissingExpected)
+	}
 	fields := buildHospitalizationUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
@@ -444,6 +448,9 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 		}
 		if existing == nil {
 			return apperrors.WrapNotFound("hospitalization", strconv.FormatUint(id, 10))
+		}
+		if input.ClearCageID && (existing.CageID == nil || *existing.CageID != *input.ExpectedCageID) {
+			return apperrors.WrapConflict(errMsgCageClearStale)
 		}
 		// MRB-06: merge patch dates with locked row and reject inverted ranges.
 		finalStart, finalEnd := existing.StartDate, existing.EndDate
@@ -551,9 +558,11 @@ const (
 
 // EMR-316: cage_id（NULL 許容 FK）の列名とエラー文言。request / service で共有する。
 const (
-	colHospitalizationCageID  = "cage_id"
-	errMsgCageIDInvalid       = "cage_id must be a positive id"
-	errMsgCageIDClearConflict = "clear_cage_id and cage_id cannot be set together"
+	colHospitalizationCageID       = "cage_id"
+	errMsgCageIDInvalid            = "cage_id must be a positive id"
+	errMsgCageIDClearConflict      = "clear_cage_id and cage_id cannot be set together"
+	errMsgCageClearMissingExpected = "expected_cage_id is required when clear_cage_id is true"
+	errMsgCageClearStale           = "the cage assignment has changed"
 )
 
 func hospitalizationAuditValue(h *model.Hospitalization) map[string]any {

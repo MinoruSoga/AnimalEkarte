@@ -63,6 +63,8 @@ EMR-308: `tentative`（次回予定・未予約）はカルテヘッダーの「
 
 `tentative` は同一医院のペットに属する意図であり、飼主移管後も現在のペット飼主として管理画面から操作できる。旧飼主・現在飼主・ペットの医院境界は維持し、通常予約の所有者整合条件は変更しない。昇格後の実予約を別ペットへ付け替える場合は、元ペット由来の `intended_date` と `source_medical_record_id` を同じロック下の更新で除去し、誤ったペットへの意図再設定を提示しない。
 
+ペットの主飼主変更（`PATCH /v1/pets/:id` の `owner_id` 更新）は、同一 transaction でそのペットの未来予約も新飼主へ移管する。対象は JST 当日以降の `pending` / `confirmed` のみで、過去日付・`checked_in` / `in_consultation` / `accounting` / `completed` / `cancelled` / `no_show` / `tentative` は変更しない。移管対象に有効なカルテ（`medical_records.appointment_id`）が既に存在する場合は 409 で拒否し、カルテ自体は書き換えない。更新はペット行 `FOR UPDATE` と対象予約行 `FOR UPDATE NOWAIT` の下で行い、各行の書込は clinic・予約ID・ペット・旧飼主・status・日付境界で再検証する。LINE 予約（`line_customer_id` あり）は旧飼主の LINE 連携を必ず切り、新飼主の confirmed LINE identity が同一 clinic の `line_customers` に一意一致する場合だけ新 customer へ付け替える。一意でなければ `line_customer_id = NULL` かつ `customer_fields` をクリアする。manual 予約（`line_customer_id` なし）は NULL と既存 `customer_fields` を維持する。`source`・staff・schedule/status・provenance は保全し、監査 `pet.owner.transfer`（before/after の owner_id・移管 appointment_ids・from_date のみ、氏名・LINE identity は載せない）を同一 transaction に fail-closed で記録する。
+
 次回予定の権限は操作別である。新規設定の PUT は `reservations:create`、既存 tentative の上書きは `create` と `edit` の両方、取消 DELETE と実予約への確定 POST は `edit` を要する。実予約の表示が優先されていても、既存 tentative があれば上書き権限を省略しない。
 
 拠点横断のカルテ・予約行からの操作は、そのレコードの `clinic_id` を `X-Clinic-ID` に指定し、グローバルの選択医院へ取り違えない。カルテ側の連続した設定・取消は hook インスタンス単位の FIFO で処理し、先行保存の再取得が後続の入力ドラフトを巻き戻さないよう pending と最新要求を管理する。別タブ間や任意のネットワーク障害まで直列化する保証ではない。

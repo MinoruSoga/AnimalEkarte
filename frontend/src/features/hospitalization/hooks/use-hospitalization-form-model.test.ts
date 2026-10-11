@@ -200,6 +200,7 @@ describe("hospitalization form model", () => {
   it("編集payload: 割当済みケージを解除した場合のみ clear_cage_id を送る", () => {
     const cleared = buildUpdateHospitalizationRequest({ ...formData, cageId: "" }, "990019");
     expect(cleared.clear_cage_id).toBe(true);
+    expect(cleared.expected_cage_id).toBe("990019");
     expect(cleared.cage_id).toBeUndefined();
 
     const selected = buildUpdateHospitalizationRequest(formData, "");
@@ -211,6 +212,7 @@ describe("hospitalization form model", () => {
     const request = buildUpdateHospitalizationRequest({ ...formData, cageId }, cageId);
     expect(request).not.toHaveProperty("cage_id");
     expect(request).not.toHaveProperty("clear_cage_id");
+    expect(request).not.toHaveProperty("expected_cage_id");
   });
 
   it("新規payload: ケージ未選択は cage_id も clear_cage_id も送らない（ケージ未割当で登録）", () => {

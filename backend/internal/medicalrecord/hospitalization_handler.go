@@ -34,14 +34,18 @@ func (h *HospitalizationHandler) ListHospitalizations(c *gin.Context) {
 	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceHospitalization), "view") {
 		return
 	}
-	page, limit, err := httpapi.ParsePagination(c)
+	q := newListHospitalizationQuery(c.Request.URL.Query())
+	filters, err := q.toServiceFilters()
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
 
-	q := newListHospitalizationQuery(c.Request.URL.Query())
-	filters, err := q.toServiceFilters()
+	if h.maybeListHospitalizationSnapshot(c, clinicID, filters) {
+		return
+	}
+
+	page, limit, err := httpapi.ParsePagination(c)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return

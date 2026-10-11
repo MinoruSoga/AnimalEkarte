@@ -22,6 +22,12 @@ interface HospitalizationPaginatedResponse {
   limit: number;
 }
 
+interface HospitalizationSnapshotResponse {
+  data: BackendHospitalization[];
+  total: number;
+  snapshot: boolean;
+}
+
 export interface HospitalizationFilters {
   petId?: string;
   startDate?: string; // YYYY-MM-DD（入院開始日の範囲）
@@ -44,14 +50,12 @@ export interface HospitalizationsResult {
  * Board view の全件フェッチは list limit(20) ではなく 200/page で回す。
  * ケージ occupancy の正確な集計のため全行が必要（PR606 #2）。
  */
-const HOSPITALIZATION_ALL_PAGE_LIMIT = 200;
+const HOSPITALIZATION_SNAPSHOT_MAX_ROWS = 10000;
 
-const buildHospitalizationParams = (
+const buildHospitalizationFilterParams = (
   filters: HospitalizationFilters | undefined,
-  page: number,
-  limit: number,
 ): Record<string, string | number> => {
-  const params: Record<string, string | number> = { page, limit };
+  const params: Record<string, string | number> = {};
 
   if (filters?.petId) params.pet_id = filters.petId;
   if (filters?.startDate) params.start_date = filters.startDate;
@@ -67,6 +71,16 @@ const buildHospitalizationParams = (
   }
   return params;
 };
+
+const buildHospitalizationParams = (
+  filters: HospitalizationFilters | undefined,
+  page: number,
+  limit: number,
+): Record<string, string | number> => ({
+  page,
+  limit,
+  ...buildHospitalizationFilterParams(filters),
+});
 
 /**
  * Codex PR606 #10: 複数ページをまたぐ fetch は固定 clinic で発行する。
@@ -112,20 +126,34 @@ const getAllHospitalizations = async (
   filters?: Omit<HospitalizationFilters, "page" | "limit">,
 ): Promise<Hospitalization[]> => {
   const headers = clinicScopeHeaders();
-  const base = buildHospitalizationParams(filters, 0, HOSPITALIZATION_ALL_PAGE_LIMIT);
-
-  const first = await fetchHospitalizationPage({ ...base, page: 1 }, headers);
-  let rows = (first.data ?? []).map(transformHospitalization);
-
   // total 超過分を全ページ取得（getReservations と同契約）。空ページで早期打切り。
-  let page = 1;
-  while (rows.length < first.total) {
-    page += 1;
-    const next = await fetchHospitalizationPage({ ...base, page }, headers);
-    if (!next.data || next.data.length === 0) break;
-    rows = rows.concat(next.data.map(transformHospitalization));
+  const { data } = await axios.get<HospitalizationSnapshotResponse>("/v1/hospitalizations", {
+    params: { ...buildHospitalizationFilterParams(filters), snapshot: true },
+    ...(headers ? { headers } : {}),
+  });
+  if (data?.snapshot !== true) {
+    throw new Error("hospitalization snapshot response is missing the snapshot marker");
   }
-  return rows;
+  if (!Number.isSafeInteger(data.total) || data.total < 0) {
+    throw new Error("hospitalization snapshot total is invalid");
+  }
+  if (!Array.isArray(data.data)) {
+    throw new Error("hospitalization snapshot rows are invalid");
+  }
+  if (data.data.length !== data.total) {
+    throw new Error("hospitalization snapshot row count mismatch");
+  }
+  if (data.total > HOSPITALIZATION_SNAPSHOT_MAX_ROWS) {
+    throw new Error("hospitalization snapshot exceeds the maximum row count");
+  }
+  const ids = new Set<number>();
+  for (const row of data.data) {
+    if (ids.has(row.id)) {
+      throw new Error("hospitalization snapshot contains duplicate rows");
+    }
+    ids.add(row.id);
+  }
+  return data.data.map(transformHospitalization);
 };
 
 export const useGetHospitalizations = (

@@ -4,7 +4,8 @@ import { useGetReservations } from "@/hooks/use-get-reservations";
 import { usePermission } from "@/hooks/use-permission";
 import { useGetPetVaccinations } from "@/hooks/use-pet-vaccinations";
 import { useGetPetCheckupResults } from "./use-pet-checkup-results";
-import { formatJSTDate, todayJSTISO } from "@/lib/jst-date";
+import { formatJSTDate } from "@/lib/jst-date";
+import { useTodayJst } from "@/hooks/use-today-jst";
 import {
   ResourceCheckups,
   ResourceExaminations,
@@ -108,7 +109,7 @@ function useClinicalQueries(
 
 export function useOwnerClinicalBriefingData(petId: string) {
   const permissions = useClinicalPermissions();
-  const today = todayJSTISO();
+  const today = useTodayJst();
   const queries = useClinicalQueries(petId, today, permissions);
 
   return {

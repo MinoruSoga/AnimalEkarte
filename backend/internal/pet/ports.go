@@ -59,6 +59,15 @@ type PetOwnerAuditLogger interface {
 	LogEntryTx(ctx context.Context, input *audit.Entry) error
 }
 
+type UpcomingReservationOwnerTransfer interface {
+	TransferUpcomingPetReservations(ctx context.Context, clinicID, petID, previousOwnerID, newOwnerID uint64, from time.Time) ([]uint64, error)
+}
+
+type PetOwnerTransferDependencies struct {
+	Reservations UpcomingReservationOwnerTransfer
+	Audit        PetOwnerAuditLogger
+}
+
 // AnimalSpeciesUsageCounter protects deletion of a species that is still referenced.
 type AnimalSpeciesUsageCounter interface {
 	CountUsageByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error)

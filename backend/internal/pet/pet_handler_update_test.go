@@ -80,6 +80,42 @@ func TestUpdatePet(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
+			name:     "owner_id update carries the authenticated staff actor",
+			paramID:  "1",
+			body:     map[string]any{"owner_id": 30},
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c, 7) },
+			svc: &mockPetServiceHandler{
+				updateFn: func(_ context.Context, _, _ uint64, input *UpdatePetInput) (*model.Pet, error) {
+					require.NotNil(t, input.OwnerID)
+					require.NotNil(t, input.ActorID)
+					assert.Equal(t, uint64(7), *input.ActorID)
+					return &model.Pet{ID: 1, OwnerID: 30}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "owner_id update without staff context is unauthorized",
+			paramID:    "1",
+			body:       map[string]any{"owner_id": 30},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockPetServiceHandler{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:     "non-owner update does not require staff context",
+			paramID:  "1",
+			body:     map[string]any{"name": "タマ"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockPetServiceHandler{
+				updateFn: func(_ context.Context, _, _ uint64, input *UpdatePetInput) (*model.Pet, error) {
+					assert.Nil(t, input.ActorID)
+					return &model.Pet{ID: 1, Name: *input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
 			name:     "returns 404 when pet not found",
 			paramID:  "999",
 			body:     map[string]any{"name": "タマ"},
