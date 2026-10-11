@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { queryKeys } from "@/lib/query-keys";
+import { handleApiError } from "@/lib/handle-api-error";
 import type { Hospitalization, MasterItem } from "@/types";
 
 import { updateHospitalization } from "../api/update-hospitalization";
@@ -41,6 +42,7 @@ function makeHospitalization(overrides: Partial<Hospitalization> = {}): Hospital
     id: "hospitalization-1",
     hospitalizationNo: "H-001",
     ownerName: "飼主",
+    ownerId: undefined,
     petName: "ポチ",
     species: "犬",
     hospitalizationType: "入院",
@@ -48,7 +50,14 @@ function makeHospitalization(overrides: Partial<Hospitalization> = {}): Hospital
     endDate: "",
     status: "入院中",
     cageId: "cage-1",
+    petId: undefined,
+    doctorId: undefined,
+    doctorName: undefined,
     petIsDeceased: false,
+    petBirthDate: undefined,
+    memo: undefined,
+    ownerRequest: undefined,
+    staffNotes: undefined,
     ...overrides,
   };
 }
@@ -157,6 +166,55 @@ describe("useHospitalizationList — cage move mutation boundary", () => {
     expect(swapHospitalizationCages).not.toHaveBeenCalled();
   });
 
+  it("交換元の表示時ケージが未割当ならスワップを送信しない", async () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(queryKeys.hospitalizations.list({ statusFilter: "active" }), {
+      data: [
+        makeHospitalization({ cageId: undefined }),
+        makeHospitalization({ id: "hospitalization-2", cageId: "cage-2" }),
+      ],
+      total: 2,
+      page: 1,
+      limit: 20,
+    });
+    const { result } = renderHook(() => useHospitalizationList(true), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await result.current.movePet("hospitalization-1", "cage-2");
+    });
+
+    expect(swapHospitalizationCages).not.toHaveBeenCalled();
+    expect(updateHospitalization).not.toHaveBeenCalled();
+  });
+
+  it("スワップの409を通知し個別PATCHへフォールバックしない", async () => {
+    const error = { response: { status: 409 } };
+    vi.mocked(swapHospitalizationCages).mockRejectedValueOnce(error);
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(queryKeys.hospitalizations.list({ statusFilter: "active" }), {
+      data: [
+        makeHospitalization(),
+        makeHospitalization({ id: "hospitalization-2", cageId: "cage-2" }),
+      ],
+      total: 2,
+      page: 1,
+      limit: 20,
+    });
+    const { result } = renderHook(() => useHospitalizationList(true), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await result.current.movePet("hospitalization-1", "cage-2");
+    });
+
+    expect(handleApiError).toHaveBeenCalledWith(error, "移動");
+    expect(swapHospitalizationCages).toHaveBeenCalledTimes(1);
+    expect(updateHospitalization).not.toHaveBeenCalled();
+  });
+
   // EMR-306 (Grok review HIGH-1): 連結グループが絡むスワップは 2 本の独立 PATCH が
   // 片方だけ成功し得るため、送信前に丸ごと拒否する回帰テスト。
   it("連結代表ケージが絡むスワップは PATCH を1本も送らず toast で拒否する", async () => {
@@ -245,7 +303,11 @@ describe("useHospitalizationList — cage move mutation boundary", () => {
     });
 
     expect(swapHospitalizationCages).toHaveBeenCalledTimes(1);
-    expect(swapHospitalizationCages).toHaveBeenCalledWith("hospitalization-1", "hospitalization-2");
+    expect(swapHospitalizationCages).toHaveBeenCalledWith(
+      "hospitalization-1",
+      "hospitalization-2",
+      ["cage-1", "cage-2"],
+    );
     expect(updateHospitalization).not.toHaveBeenCalled();
     expect(toast.error).not.toHaveBeenCalled();
   });

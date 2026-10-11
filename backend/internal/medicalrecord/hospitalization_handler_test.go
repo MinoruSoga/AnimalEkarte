@@ -37,7 +37,7 @@ type mockHospitalizationService struct {
 	updateFn               func(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error)
 	deleteFn               func(ctx context.Context, clinicID, id uint64) error
 	dischargeWithBillingFn func(ctx context.Context, clinicID, id uint64, input DischargeWithBillingInput) (*DischargeWithBillingResult, error)
-	swapCagesFn            func(ctx context.Context, clinicID, idA, idB uint64) (*model.Hospitalization, *model.Hospitalization, error)
+	swapCagesFn            func(ctx context.Context, clinicID, idA, idB uint64, expectedCageIDs [2]uint64) (*model.Hospitalization, *model.Hospitalization, error)
 }
 
 func (m *mockHospitalizationService) List(
@@ -77,9 +77,9 @@ func (m *mockHospitalizationService) DischargeWithBilling(
 }
 
 func (m *mockHospitalizationService) SwapCages(
-	ctx context.Context, clinicID, idA, idB uint64,
+	ctx context.Context, clinicID, idA, idB uint64, expectedCageIDs [2]uint64,
 ) (*model.Hospitalization, *model.Hospitalization, error) {
-	return m.swapCagesFn(ctx, clinicID, idA, idB)
+	return m.swapCagesFn(ctx, clinicID, idA, idB, expectedCageIDs)
 }
 
 func newHandlerWithHospitalizationSvc(svc HospitalizationService) *HospitalizationHandler {
@@ -848,13 +848,14 @@ func TestSwapCages(t *testing.T) {
 	}{
 		{
 			name:     "swaps cages successfully and returns pair in input order",
-			body:     map[string]any{"hospitalization_ids": []uint64{7, 3}},
+			body:     map[string]any{"hospitalization_ids": []uint64{7, 3}, "expected_cage_ids": []uint64{17, 13}},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockHospitalizationService{
-				swapCagesFn: func(_ context.Context, clinicID, idA, idB uint64) (*model.Hospitalization, *model.Hospitalization, error) {
+				swapCagesFn: func(_ context.Context, clinicID, idA, idB uint64, expectedCageIDs [2]uint64) (*model.Hospitalization, *model.Hospitalization, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(7), idA)
 					assert.Equal(t, uint64(3), idB)
+					assert.Equal(t, [2]uint64{17, 13}, expectedCageIDs)
 					return &model.Hospitalization{ID: 7}, &model.Hospitalization{ID: 3}, nil
 				},
 			},
@@ -863,7 +864,7 @@ func TestSwapCages(t *testing.T) {
 		},
 		{
 			name:       "returns 401 when clinic_id is missing",
-			body:       map[string]any{"hospitalization_ids": []uint64{1, 2}},
+			body:       map[string]any{"hospitalization_ids": []uint64{1, 2}, "expected_cage_ids": []uint64{11, 12}},
 			setupCtx:   func(_ *gin.Context) {},
 			svc:        &mockHospitalizationService{},
 			wantStatus: http.StatusUnauthorized,
@@ -897,6 +898,48 @@ func TestSwapCages(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
+			name:       "returns 400 when expected_cage_ids is missing",
+			body:       map[string]any{"hospitalization_ids": []uint64{1, 2}},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when fewer than two expected cages",
+			body:       map[string]any{"hospitalization_ids": []uint64{1, 2}, "expected_cage_ids": []uint64{11}},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when more than two expected cages",
+			body:       map[string]any{"hospitalization_ids": []uint64{1, 2}, "expected_cage_ids": []uint64{11, 12, 13}},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when an expected cage is zero",
+			body:       map[string]any{"hospitalization_ids": []uint64{1, 2}, "expected_cage_ids": []uint64{11, 0}},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when an expected cage is null",
+			body:       map[string]any{"hospitalization_ids": []uint64{1, 2}, "expected_cage_ids": []*uint64{nil, nil}},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when an expected cage is negative",
+			body:       map[string]any{"hospitalization_ids": []uint64{1, 2}, "expected_cage_ids": []int{11, -1}},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
 			name:       "returns 400 for malformed JSON",
 			body:       "not-json",
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
@@ -905,10 +948,10 @@ func TestSwapCages(t *testing.T) {
 		},
 		{
 			name:     "maps service conflict to 409",
-			body:     map[string]any{"hospitalization_ids": []uint64{1, 2}},
+			body:     map[string]any{"hospitalization_ids": []uint64{1, 2}, "expected_cage_ids": []uint64{11, 12}},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockHospitalizationService{
-				swapCagesFn: func(_ context.Context, _, _, _ uint64) (*model.Hospitalization, *model.Hospitalization, error) {
+				swapCagesFn: func(_ context.Context, _, _, _ uint64, _ [2]uint64) (*model.Hospitalization, *model.Hospitalization, error) {
 					return nil, nil, apperrors.WrapConflict("連結グループ内のケージが使用中のため割り当てできません")
 				},
 			},
@@ -916,10 +959,10 @@ func TestSwapCages(t *testing.T) {
 		},
 		{
 			name:     "maps service unprocessable to 422",
-			body:     map[string]any{"hospitalization_ids": []uint64{1, 2}},
+			body:     map[string]any{"hospitalization_ids": []uint64{1, 2}, "expected_cage_ids": []uint64{11, 12}},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockHospitalizationService{
-				swapCagesFn: func(_ context.Context, _, _, _ uint64) (*model.Hospitalization, *model.Hospitalization, error) {
+				swapCagesFn: func(_ context.Context, _, _, _ uint64, _ [2]uint64) (*model.Hospitalization, *model.Hospitalization, error) {
 					return nil, nil, apperrors.WrapUnprocessable("連結中の構成ケージには割り当てできません")
 				},
 			},
@@ -927,10 +970,10 @@ func TestSwapCages(t *testing.T) {
 		},
 		{
 			name:     "returns 500 on service error",
-			body:     map[string]any{"hospitalization_ids": []uint64{1, 2}},
+			body:     map[string]any{"hospitalization_ids": []uint64{1, 2}, "expected_cage_ids": []uint64{11, 12}},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockHospitalizationService{
-				swapCagesFn: func(_ context.Context, _, _, _ uint64) (*model.Hospitalization, *model.Hospitalization, error) {
+				swapCagesFn: func(_ context.Context, _, _, _ uint64, _ [2]uint64) (*model.Hospitalization, *model.Hospitalization, error) {
 					return nil, nil, fmt.Errorf("db failure")
 				},
 			},

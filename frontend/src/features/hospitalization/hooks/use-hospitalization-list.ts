@@ -90,7 +90,11 @@ export const useHospitalizationList = (canEdit = false) => {
             toast.error("連結中のケージを含む入れ替えはできません");
             return;
           }
-          await swapHospitalizationCages(sourceHosp.id, targetHosp.id);
+          if (!sourceHosp.cageId || !targetHosp.cageId) return;
+          await swapHospitalizationCages(sourceHosp.id, targetHosp.id, [
+            sourceHosp.cageId,
+            targetHosp.cageId,
+          ]);
         } else {
           await updateHospitalization(sourceHosp.id, { cage_id: targetCageId });
         }

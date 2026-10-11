@@ -4,7 +4,7 @@ package medicalrecord
 // 単一トランザクションで行う SwapCages の実 DB 統合テスト。
 // - 正常系: 2件の cage_id が交換され、レスポンスは入力順で返る（id 昇順ロックの内部
 //   正規化は wire の順序を変えない）
-// - バリデーション: 同一 id・ケージ未割当・同一ケージは 400
+// - バリデーション: 同一 id・同一ケージは 400、表示時の割当と不一致は 409
 // - ガード: 構成ケージ宛は 422、占有グループ宛は 409 — どちらも「片側だけ残る」
 //   半スワップ状態を作らない（両行が元の cage_id のまま）
 // - テナント: 他医院の入院は NotFound
@@ -42,7 +42,7 @@ func TestHospitalizationSwapCages_SwapsTwoHospitalizations(t *testing.T) {
 	hospA := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &cage1.ID, model.HospitalizationStatusAdmitted)
 	hospB := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &cage2.ID, model.HospitalizationStatusAdmitted)
 
-	gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID)
+	gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID, [2]uint64{*hospA.CageID, *hospB.CageID})
 	require.NoError(t, err)
 	require.NotNil(t, gotA)
 	require.NotNil(t, gotB)
@@ -78,7 +78,7 @@ func TestHospitalizationSwapCages_ReversedInputOrder(t *testing.T) {
 	require.Greater(t, hospB.ID, hospA.ID)
 
 	// idA > idB の順で呼んでも入れ替えと応答順は変わらない。
-	gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospB.ID, hospA.ID)
+	gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospB.ID, hospA.ID, [2]uint64{*hospB.CageID, *hospA.CageID})
 	require.NoError(t, err)
 	require.NotNil(t, gotA)
 	require.NotNil(t, gotB)
@@ -103,7 +103,7 @@ func TestHospitalizationSwapCages_InvalidInputRejected(t *testing.T) {
 	hospNoCage := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, nil, model.HospitalizationStatusAdmitted)
 
 	t.Run("same hospitalization id", func(t *testing.T) {
-		gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospA.ID)
+		gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospA.ID, [2]uint64{cage1.ID, cage1.ID})
 		require.Error(t, err)
 		assert.Nil(t, gotA)
 		assert.Nil(t, gotB)
@@ -111,16 +111,16 @@ func TestHospitalizationSwapCages_InvalidInputRejected(t *testing.T) {
 	})
 
 	t.Run("hospitalization without cage", func(t *testing.T) {
-		gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospNoCage.ID)
+		gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospNoCage.ID, [2]uint64{cage1.ID, cage2.ID})
 		require.Error(t, err)
 		assert.Nil(t, gotA)
 		assert.Nil(t, gotB)
-		assert.True(t, errors.Is(err, apperrors.ErrInvalidInput), "ケージ未割当は INVALID_INPUT: %v", err)
+		assert.True(t, apperrors.IsConflict(err), "表示時の割当からNULLへ変わった場合は CONFLICT: %v", err)
 	})
 
 	t.Run("both on same cage", func(t *testing.T) {
 		hospC := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &cage1.ID, model.HospitalizationStatusAdmitted)
-		gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospC.ID)
+		gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospC.ID, [2]uint64{*hospA.CageID, *hospC.CageID})
 		require.Error(t, err)
 		assert.Nil(t, gotA)
 		assert.Nil(t, gotB)
@@ -157,7 +157,7 @@ func TestHospitalizationSwapCages_MemberTargetRejectedAndRolledBack(t *testing.T
 	// 422 構成ケージガードに到達する行は occupying status（admitted）で作る。
 	hospB := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &member.ID, model.HospitalizationStatusAdmitted)
 
-	gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID)
+	gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID, [2]uint64{*hospA.CageID, *hospB.CageID})
 	require.Error(t, err, "構成ケージへの移動を含む交換は拒否")
 	assert.Nil(t, gotA)
 	assert.Nil(t, gotB)
@@ -195,7 +195,7 @@ func TestHospitalizationSwapCages_OccupiedGroupRejectedAndRolledBack(t *testing.
 	// 409 占有グループガードの検証には occupying status を使う）。
 	hospB := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &rep.ID, model.HospitalizationStatusAdmitted)
 
-	gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID)
+	gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID, [2]uint64{*hospA.CageID, *hospB.CageID})
 	require.Error(t, err, "占有グループ代表への移動を含む交換は拒否")
 	assert.Nil(t, gotA)
 	assert.Nil(t, gotB)
@@ -228,7 +228,7 @@ func TestHospitalizationSwapCages_CrossClinicRejected(t *testing.T) {
 	otherCage := makeCageMaster(t, db, otherClinicID, "スワップ元 other")
 	hospOther := makeCageHospitalization(t, db, otherClinicID, otherOwner.ID, otherPet.ID, &otherCage.ID, model.HospitalizationStatusAdmitted)
 
-	gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospOther.ID)
+	gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospOther.ID, [2]uint64{*hospA.CageID, *hospOther.CageID})
 	require.Error(t, err, "他医院の入院を含む交換は拒否")
 	assert.Nil(t, gotA)
 	assert.Nil(t, gotB)
@@ -257,7 +257,7 @@ func TestHospitalizationSwapCages_DischargedSideRejected(t *testing.T) {
 	hospA := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &cage1.ID, model.HospitalizationStatusAdmitted)
 	hospB := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &cage2.ID, model.HospitalizationStatusDischarged)
 
-	gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID)
+	gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID, [2]uint64{*hospA.CageID, *hospB.CageID})
 	require.Error(t, err, "退院済み入院を含む交換は拒否")
 	assert.Nil(t, gotA)
 	assert.Nil(t, gotB)
@@ -291,7 +291,7 @@ func TestHospitalizationSwapCages_DeceasedPetRejected(t *testing.T) {
 	// 入院作成後に死亡へ遷移（表示→PATCH 間の状態変化を模す）。
 	require.NoError(t, db.Model(pet).Update("status", model.PetStatusDeceased).Error)
 
-	gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID)
+	gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID, [2]uint64{*hospA.CageID, *hospB.CageID})
 	require.Error(t, err, "死亡ペットを含む交換は拒否")
 	assert.Nil(t, gotA)
 	assert.Nil(t, gotB)
@@ -323,7 +323,7 @@ func TestHospitalizationSwapCages_HalfDeadPetRejected(t *testing.T) {
 	deceasedAt := time.Now().UTC()
 	require.NoError(t, db.Model(pet).Update("deceased_at", deceasedAt).Error)
 
-	gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID)
+	gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID, [2]uint64{*hospA.CageID, *hospB.CageID})
 	require.Error(t, err, "deceased_at のみの半死亡ペットを含む交換は拒否")
 	assert.Nil(t, gotA)
 	assert.Nil(t, gotB)
@@ -346,7 +346,7 @@ func TestHospitalizationSwapCages_PetRepoWithoutRowLockFailsClosed(t *testing.T)
 		&mockTransactor{},
 	)
 
-	gotA, gotB, err := svc.SwapCages(context.Background(), 1, 1, 2)
+	gotA, gotB, err := svc.SwapCages(context.Background(), 1, 1, 2, [2]uint64{1, 2})
 	require.Error(t, err, "行ロック面を持たない petRepo では拒否")
 	assert.Nil(t, gotA)
 	assert.Nil(t, gotB)
@@ -405,7 +405,7 @@ func TestHospitalizationSwapCages_PetDeathCheckSerializesConcurrentDeath(t *test
 
 	swapDone := make(chan error, 1)
 	go func() {
-		_, _, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID)
+		_, _, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID, [2]uint64{*hospA.CageID, *hospB.CageID})
 		swapDone <- err
 	}()
 
