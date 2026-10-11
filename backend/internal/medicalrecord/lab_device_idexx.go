@@ -103,16 +103,26 @@ func parseIDEXXTokens(tokens []string) []LabDeviceItem {
 		if !isIDEXXAnalyteCode(code) {
 			continue
 		}
-		if i+1 >= len(tokens) {
+		valueAt := i + 1
+		if valueAt >= len(tokens) {
 			break
 		}
-		value := tokens[i+1]
+		if tokens[valueAt] == "=" {
+			valueAt++
+		}
+		if valueAt >= len(tokens) {
+			break
+		}
+		value := tokens[valueAt]
+		if value == "=" || (isIDEXXAnalyteCode(value) && valueAt+1 < len(tokens) && tokens[valueAt+1] == "=") {
+			continue
+		}
 		unit := ""
-		if i+2 < len(tokens) && isIDEXXUnit(tokens[i+2]) {
-			unit = tokens[i+2]
-			i += 2
+		if valueAt+1 < len(tokens) && isIDEXXUnit(tokens[valueAt+1]) {
+			unit = tokens[valueAt+1]
+			i = valueAt + 1
 		} else {
-			i++
+			i = valueAt
 		}
 		items = append(items, LabDeviceItem{
 			Code:     code,
@@ -125,6 +135,9 @@ func parseIDEXXTokens(tokens []string) []LabDeviceItem {
 
 func isIDEXXAnalyteCode(token string) bool {
 	if _, known := knownIDEXXCodes[token]; known {
+		return true
+	}
+	if token == "FeLV" {
 		return true
 	}
 	if token == "" || strings.ToUpper(token) != token {
