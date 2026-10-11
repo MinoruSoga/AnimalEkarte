@@ -435,8 +435,11 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// clinic/pet/JST-day duplicate count and INSERT. Runtime proofs:
 	// TestMedicalRecordRepository_AcquireAutoCreateLock_IsNonBlockingWhenContended and
 	// TestMedicalRecordRepository_CountByPetAndDate_IsScopedAndJoinsAmbientTransaction.
-	"medicalrecord/medical_record_repository.go|medicalRecordRepository.AcquireAutoCreateLock":           {},
-	"medicalrecord/medical_record_repository.go|medicalRecordRepository.CountByPetAndDate":               {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.AcquireAutoCreateLock": {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.CountByPetAndDate":     {},
+	// Dependency count must observe uncommitted records and retain clinic isolation.
+	// Runtime: TestMedicalRecordRepository_CountByPetIDUsesAmbientTransaction.
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.CountByPetID":                    {},
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.CountEstimatesByMedicalRecordID": {}, // delete/estimate creation serialization under the medical-record row lock
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Create":                          {},
 	// BUG2-MR-ENTERED-BY-CLINIC: entered_by actor guard joins create ambient tx (SHARE lock).
@@ -512,6 +515,9 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// 更新と一次監査ログ書込を Transactor.WithTx で束ね fail-closed 化。BE9-2Eで
 	// internal/pet へ移動。runtime proof は internal/pet/repository_tx_atomicity_test.go)
 	"pet/repository.go|repository.update": {},
+	// Soft delete joins the caller's transaction so later failures restore the active pet.
+	// Runtime: TestPetRepository_DeleteParticipatesInAmbientTransaction / TestPetRepository_Delete_ClinicIsolation.
+	"pet/repository.go|repository.Delete": {},
 	// PR606 cage swap: pet status/deceased_at is checked under a clinic-scoped FOR UPDATE
 	// lock retained by the swap's ambient transaction; no-tx reads fail closed. Regressions:
 	// TestPetRepository_LockByIDForUpdate (internal/pet/repository_row_lock_test.go) /
@@ -652,6 +658,9 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_next_visit_query.go|reservationRepository.FindTentativeByOwnerAndIntendedDate":   {},
 	"reservation/reservation_next_visit_query.go|reservationRepository.FindTentativesByOwnerAndIntendedDate":  {}, // Codex #22 all-candidate enumeration for multi-pet reminder serialization
 	"reservation/appointment_admin_repository.go|reservationAdminRepository.Create":                           {}, // AUD-001
+	// Cancellation and its returned owner must share the caller's transaction.
+	// Runtime: TestReservationAdminRepository_CancelByID_JoinsAmbientTransaction / TestReservationAdminRepository_CancelByID.
+	"reservation/appointment_admin_repository.go|reservationAdminRepository.CancelByID": {},
 	// BUG-424: unavailable-time reads participate in the booking transaction.
 	"reservation/reservation_type_unavailable_time_repository.go|reservationTypeUnavailableTimeRepository.FindAll": {},
 	// trimming master reads join the service-owned transaction and hold SHARE locks through
