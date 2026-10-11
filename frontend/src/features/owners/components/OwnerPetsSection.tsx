@@ -146,7 +146,7 @@ const PetTableRow = memo(function PetTableRow({
       <TableCell>
         <div className="flex gap-1 justify-end">
           {pet.status === "生存" &&
-          !pet.deceasedAt &&
+          !isDeceased &&
           canCreateReception &&
           isPersistedPetId(pet.id) &&
           pet.isPending !== true ? (
@@ -159,7 +159,7 @@ const PetTableRow = memo(function PetTableRow({
                 const current = actionBoundaryRef.current;
                 if (
                   current.status !== "生存" ||
-                  current.deceasedAt ||
+                  isPetDeceasedForClinicalWrite(current) ||
                   current.canCreateReception !== true
                 )
                   return;
@@ -193,12 +193,17 @@ const PetTableRow = memo(function PetTableRow({
                   詳細・編集
                 </DropdownMenuItem>
               ) : null}
-              {pet.status === "生存" && canCreate ? (
+              {pet.status === "生存" && !isDeceased && canCreate ? (
                 <>
                   <DropdownMenuItem
                     onClick={() => {
                       const current = actionBoundaryRef.current;
-                      if (current.status !== "生存" || current.canCreate !== true) return;
+                      if (
+                        current.status !== "生存" ||
+                        isPetDeceasedForClinicalWrite(current) ||
+                        current.canCreate !== true
+                      )
+                        return;
                       navigate(`${paths.reservations.getHref()}?petId=${pet.id}`, {
                         state: { from: backFrom },
                       });
@@ -210,7 +215,12 @@ const PetTableRow = memo(function PetTableRow({
                   <DropdownMenuItem
                     onClick={() => {
                       const current = actionBoundaryRef.current;
-                      if (current.status !== "生存" || current.canCreate !== true) return;
+                      if (
+                        current.status !== "生存" ||
+                        isPetDeceasedForClinicalWrite(current) ||
+                        current.canCreate !== true
+                      )
+                        return;
                       navigate(`${paths.medicalRecords.new.getHref()}?petId=${pet.id}`, {
                         state: { from: backFrom },
                       });
@@ -222,7 +232,12 @@ const PetTableRow = memo(function PetTableRow({
                   <DropdownMenuItem
                     onClick={() => {
                       const current = actionBoundaryRef.current;
-                      if (current.status !== "生存" || current.canCreate !== true) return;
+                      if (
+                        current.status !== "生存" ||
+                        isPetDeceasedForClinicalWrite(current) ||
+                        current.canCreate !== true
+                      )
+                        return;
                       navigate(`${paths.trimming.new.getHref()}?petId=${pet.id}`, {
                         state: { from: backFrom },
                       });
@@ -234,7 +249,12 @@ const PetTableRow = memo(function PetTableRow({
                   <DropdownMenuItem
                     onClick={() => {
                       const current = actionBoundaryRef.current;
-                      if (current.status !== "生存" || current.canCreate !== true) return;
+                      if (
+                        current.status !== "生存" ||
+                        isPetDeceasedForClinicalWrite(current) ||
+                        current.canCreate !== true
+                      )
+                        return;
                       navigate(`${paths.hospitalization.new.getHref()}?petId=${pet.id}`, {
                         state: { from: backFrom },
                       });
@@ -246,7 +266,12 @@ const PetTableRow = memo(function PetTableRow({
                   <DropdownMenuItem
                     onClick={() => {
                       const current = actionBoundaryRef.current;
-                      if (current.status !== "生存" || current.canCreate !== true) return;
+                      if (
+                        current.status !== "生存" ||
+                        isPetDeceasedForClinicalWrite(current) ||
+                        current.canCreate !== true
+                      )
+                        return;
                       navigate(`${paths.accounting.new.getHref()}?petId=${pet.id}`, {
                         state: { from: backFrom },
                       });
@@ -257,13 +282,18 @@ const PetTableRow = memo(function PetTableRow({
                   </DropdownMenuItem>
                 </>
               ) : null}
-              {pet.status === "生存" && canDelete ? (
+              {pet.status === "生存" && !isDeceased && canDelete ? (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => {
                       const current = actionBoundaryRef.current;
-                      if (current.status !== "生存" || current.canDelete !== true) return;
+                      if (
+                        current.status !== "生存" ||
+                        isPetDeceasedForClinicalWrite(current) ||
+                        current.canDelete !== true
+                      )
+                        return;
                       onDeleteRequest(pet.id, pet.petName);
                     }}
                     className={`${C.danger} ${C.focusDanger} ${C.focusBgLight}`}
