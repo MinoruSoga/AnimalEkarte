@@ -1,4 +1,9 @@
-import { formatJSTWallDate, formatJSTWallTime, todayJSTISO } from "@/lib/jst-date";
+import {
+  formatJSTWallDate,
+  formatJSTWallTime,
+  jstWallDateToISOString,
+  todayJSTISO,
+} from "@/lib/jst-date";
 import { addYearsIso } from "@/components/shared/ReservationFormModal/next-visit-intent-date";
 import type { Reservation } from "@/lib/transforms/reservation";
 
@@ -43,6 +48,24 @@ export interface NextVisitState {
 }
 
 const REAL_APPOINTMENT_STATUSES: readonly NextVisitReservationStatus[] = ["pending", "confirmed"];
+
+/** The next actual start that changes the display priority; tentative dates do not expire. */
+export function nextVisitRefreshAt(
+  reservations: readonly NextVisitSourceReservation[],
+  now: Date,
+): number | null {
+  let next: Date | null = null;
+  for (const reservation of reservations) {
+    if (
+      REAL_APPOINTMENT_STATUSES.includes(reservation.status) &&
+      reservation.start.getTime() > now.getTime() &&
+      (next === null || reservation.start.getTime() < next.getTime())
+    ) {
+      next = reservation.start;
+    }
+  }
+  return next === null ? null : Date.parse(jstWallDateToISOString(next));
+}
 
 /**
  * ヘッダー「次回予定」の表示優先度（EMR-308）:
@@ -94,6 +117,6 @@ export function deriveNextVisitState(
  * ヘッダーがフェッチする予約レンジの上限日（YYYY-MM-DD）。
  * 意図日の上限（今日から2年）と揃える。startDate は呼び出し側で todayJSTISO() を使う。
  */
-export function nextVisitFetchEndDate(): string {
-  return addYearsIso(todayJSTISO(), 2);
+export function nextVisitFetchEndDate(todayJst = todayJSTISO()): string {
+  return addYearsIso(todayJst, 2);
 }

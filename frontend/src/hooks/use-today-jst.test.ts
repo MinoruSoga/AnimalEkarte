@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { todayJSTISO } from "@/lib/jst-date";
 
-import { useTodayJst } from "./use-today-jst";
+import { useTimeBoundary, useTodayJst } from "./use-today-jst";
 
 /**
  * Codex PR606 #13: 期限超過 tentative の JST 暦日境界は、ページが開かれたまま
@@ -88,6 +88,59 @@ describe("shared reactive JST clock", () => {
     first.unmount();
     expect(vi.getTimerCount()).toBe(1);
     second.unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+  it("shares appointment deadlines without re-rendering date-only consumers within a day", () => {
+    vi.setSystemTime(new Date("2026-10-31T02:00:00Z"));
+    let dateRenders = 0;
+    const date = renderHook(() => {
+      dateRenders += 1;
+      return useTodayJst();
+    });
+    const rendersBefore = dateRenders;
+    const firstBoundary = Date.now() + 30_000;
+    const first = renderHook(() => useTimeBoundary(firstBoundary));
+    const second = renderHook(() => useTimeBoundary(firstBoundary + 30_000));
+    expect(vi.getTimerCount()).toBe(1);
+    act(() => vi.advanceTimersByTime(30_000));
+    expect(date.result.current).toBe("2026-10-31");
+    expect(dateRenders).toBe(rendersBefore);
+    first.unmount();
+    act(() => vi.advanceTimersByTime(30_000));
+    expect(dateRenders).toBe(rendersBefore);
+    expect(vi.getTimerCount()).toBe(1);
+    second.unmount();
+    date.unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+  it("rearms the single timer when a consumer changes or removes its deadline", () => {
+    const start = Date.now();
+    let renders = 0;
+    const initialProps: { boundary: number | null } = { boundary: start + 10_000 };
+    const hook = renderHook(
+      ({ boundary }: { boundary: number | null }) => {
+        renders += 1;
+        useTimeBoundary(boundary);
+      },
+      { initialProps },
+    );
+    hook.rerender({ boundary: start + 20_000 });
+    const before = renders;
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(renders).toBe(before);
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(renders).toBeGreaterThan(before);
+    hook.rerender({ boundary: null });
+    expect(vi.getTimerCount()).toBe(1);
+    hook.unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+  it("does not overflow a timeout for a distant deadline", () => {
+    const deadline = Date.now() + 400 * 24 * 60 * 60 * 1000;
+    const { unmount } = renderHook(() => useTimeBoundary(deadline));
+    act(() => vi.advanceTimersByTime(30_000));
+    expect(vi.getTimerCount()).toBe(1);
+    unmount();
     expect(vi.getTimerCount()).toBe(0);
   });
   it.each(["focus", "pageshow"])(

@@ -3,12 +3,14 @@ import { toast } from "sonner";
 
 import { usePermission } from "@/hooks/use-permission";
 import { useGetReservations } from "@/hooks/use-get-reservations";
-import { todayJSTISO, toJSTWallDate } from "@/lib/jst-date";
+import { useTimeBoundary, useTodayJst } from "@/hooks/use-today-jst";
+import { toJSTWallDate } from "@/lib/jst-date";
 
 import type { SetNextVisitIntentVariables } from "../api/next-visit-intent";
 import {
   deriveNextVisitState,
   nextVisitFetchEndDate,
+  nextVisitRefreshAt,
   validateNextVisitIntentDate,
 } from "../lib/next-visit";
 
@@ -68,16 +70,19 @@ export function useNextVisitIntent({
 }: UseNextVisitIntentParams) {
   // TASK-444-S1: generated/models 直 import 禁止のためリソースは文字列リテラルで渡す
   const { canCreate, canEdit } = usePermission("reservations");
+  const todayJst = useTodayJst();
 
   const { data: reservations } = useGetReservations({
     petId,
-    startDate: todayJSTISO(),
-    endDate: nextVisitFetchEndDate(),
+    startDate: todayJst,
+    endDate: nextVisitFetchEndDate(todayJst),
     enabled: petId !== "",
     clinicId,
   });
 
-  const nextVisit = deriveNextVisitState(reservations ?? [], toJSTWallDate(new Date()));
+  const now = toJSTWallDate(new Date());
+  useTimeBoundary(nextVisitRefreshAt(reservations ?? [], now));
+  const nextVisit = deriveNextVisitState(reservations ?? [], now);
 
   // PUT intent は upsert: 新規は reservations:create、既存 intent の上書きは
   // ルートの create + repo の CanUpdateExisting（reservations:edit）を両方要する
