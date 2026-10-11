@@ -36,7 +36,7 @@ process.stdin.on('end', () => {
       { pattern: /--no-verify/, label: '--no-verify' },
       { pattern: /--no-gpg-sign/, label: '--no-gpg-sign' },
       // -n is --no-verify for git commit only (NOT git push, where -n is --dry-run)
-      { pattern: /\bgit\s+commit\b.*\s-[a-zA-Z]*n\b/, label: '-n flag on git commit (--no-verify shorthand)' },
+      { pattern: /\bgit\s+commit\b.*\s-[a-zA-Z]*n\b/, label: 'blocked -n alias for --no-verify on git commit' },
     ];
 
     for (const { pattern, label } of BLOCKED_FLAGS) {

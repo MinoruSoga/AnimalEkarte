@@ -16,6 +16,17 @@ SPEC.loader.exec_module(verify)
 
 
 class VerificationTests(unittest.TestCase):
+    def test_instruction_changes_select_canonical_safety_regressions(self):
+        for path in ('AGENTS.md', 'backend/CLAUDE.md', '.claude/agents/implementer.md',
+                     '.claude/rules/agent-trust-boundaries.md',
+                     '.claude/scripts/sync-agent-trust-boundaries.py',
+                     '.claude/scripts/test_agent_trust_boundaries.py'):
+            with self.subTest(path=path):
+                jobs, blocked = verify.plan([path])
+                self.assertFalse(blocked)
+                self.assertIn(['python3', '-B', '.claude/scripts/test_agent_trust_boundaries.py'],
+                              [job['command'] for job in jobs])
+
     def test_offline_runtime_tool_contracts_run_only_the_fixture_suites(self):
         for name in ('plane-merge-state', 'worktree-env'):
             source = f'scripts/tools/{name}.sh'

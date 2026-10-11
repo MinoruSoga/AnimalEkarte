@@ -647,6 +647,10 @@ def plan(paths):
             jobs.append({'service': 'host', 'command': ['python3', '-B', '.claude/scripts/test_sync_codex_mirror.py']})
         elif path in ('.claude/scripts/sync-agents-skills.py', '.claude/scripts/test_sync_agents_skills.py', '.claude/scripts/sync-agents-skills.sh'):
             jobs.append({'service': 'host', 'command': ['python3', '-B', '.claude/scripts/test_sync_agents_skills.py']})
+        elif path in ('.claude/scripts/sync-agent-trust-boundaries.py', '.claude/scripts/test_agent_trust_boundaries.py'):
+            jobs.append({'service': 'host', 'command': ['python3', '-B', '.claude/scripts/test_agent_trust_boundaries.py']})
+        elif path in ('.claude/hooks/pre-bash-block-no-verify.js', '.claude/scripts/test_no_verify_hook.py'):
+            jobs.append({'service': 'host', 'command': ['python3', '-B', '.claude/scripts/test_no_verify_hook.py']})
         elif path == '.claude/scripts/mirror_safety.py':
             for test in ('test_sync_codex_mirror.py', 'test_sync_agents_skills.py'):
                 jobs.append({'service': 'host', 'command': ['python3', '-B', '.claude/scripts/' + test]})
@@ -829,6 +833,14 @@ def plan(paths):
         else:
             blocked.append(path)
     for path in paths:
+        if (path.startswith(('.claude/agents/', '.claude/rules/')) and path.endswith('.md')
+                or pathlib.PurePosixPath(path).name in ('CLAUDE.md', 'AGENTS.md')):
+            for job in (
+                {'service': 'host', 'command': ['python3', '-B', '.claude/scripts/test_agent_trust_boundaries.py']},
+                {'service': 'host', 'command': ['python3', '-B', '.claude/scripts/test_instruction_safety_contracts.py'], 'requires_mirrors': True},
+            ):
+                if job not in jobs:
+                    jobs.append(job)
         if path in ('.githooks/pre-commit', '.githooks/pre-push', '.githooks/lib/check-secrets.sh', 'scripts/ci/run-local-ci.sh', 'scripts/ci/check-ci-step-order.sh', 'scripts/ci/check-ci-step-order.test.sh', '.claude/scripts/sync-codex-mirror.sh', '.claude/scripts/sync-agents-skills.sh'):
             jobs.append({'service': 'host', 'command': ['bash' if path.endswith('.sh') else 'sh', '-n', path]})
     if frontend:
