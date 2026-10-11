@@ -35,6 +35,13 @@ func TestDeliveryBatch_RepairsExpiredTentativeTags(t *testing.T) {
 			tags := map[string]bool{}
 			lineID := "mock-only"
 			client := &mockLstepAPIClient{
+				getUserTagsFn: func(context.Context, string) ([]string, error) {
+					var out []string
+					for tag := range tags {
+						out = append(out, tag)
+					}
+					return out, nil
+				},
 				addTagFn:    func(_ context.Context, _, tag string) error { tags[tag] = true; return nil },
 				removeTagFn: func(_ context.Context, _, tag string) error { delete(tags, tag); return nil },
 			}

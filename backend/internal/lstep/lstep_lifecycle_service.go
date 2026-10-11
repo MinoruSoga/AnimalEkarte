@@ -342,46 +342,6 @@ func (s *lstepLifecycleService) HandleOwnerDeletion(ctx context.Context, clinicI
 	return nil
 }
 
-// removeAllTagsFromLstep はキャッシュを参照して Lステップからタグを解除する（LSB-02 / DEC-35）。
-// リモート解除に成功したタグだけローカル cache から DeleteTag する。
-// client==nil または RemoveTag 失敗時は cache を残し、再試行可能な根拠を保持する。
-func (s *lstepLifecycleService) removeAllTagsFromLstep(ctx context.Context, clinicID, ownerID uint64, lineUserID string) error {
-	client, err := s.buildClient(ctx, clinicID)
-	if err != nil {
-		return err
-	}
-
-	tags, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to find tag cache")
-	}
-
-	if client == nil {
-		// 同期無効・APIキー未設定: リモート解除不能なのに cache を消さない（LSB-02）
-		slog.WarnContext(ctx, "lstep client unavailable; keeping tag cache for retry", "owner_id", ownerID, "tag_count", len(tags))
-		return nil
-	}
-
-	var failed int
-	for _, t := range tags {
-		if removeErr := client.RemoveTag(ctx, lineUserID, t.TagName); removeErr != nil {
-			failed++
-			slog.ErrorContext(ctx, "failed to remove tag on cleanup", "error", removeErr, "tag", t.TagName)
-			continue
-		}
-		if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, t.TagName); delErr != nil {
-			failed++
-			slog.ErrorContext(ctx, "failed to delete tag cache after remote remove", "error", delErr, "tag", t.TagName)
-		}
-	}
-	if failed > 0 {
-		slog.WarnContext(ctx, "partial lstep tag cleanup; residual cache retained for retry",
-			"owner_id", ownerID, "failed", failed, "total", len(tags))
-	}
-
-	return nil
-}
-
 // removePetDerivedTagsFromLstep は死亡ペット由来のタグ（ワクチン・健診カテゴリ）を
 // Lステップおよびキャッシュから解除する（best-effort）。
 // DB に登録されたプレフィックス（C2 カテゴリ: vaccine_/checkup_ 等）を使用し、

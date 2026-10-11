@@ -10,11 +10,12 @@ import (
 )
 
 type mockLstepTagCacheRepository struct {
-	upsertTagFn        func(ctx context.Context, clinicID, ownerID uint64, tagName, category, reason string) error
-	deleteTagFn        func(ctx context.Context, clinicID, ownerID uint64, tagName string) error
-	deleteAllByOwnerFn func(ctx context.Context, clinicID, ownerID uint64) error
-	findByOwnerFn      func(ctx context.Context, clinicID, ownerID uint64) ([]*model.LstepTagCache, error)
-	findByOwnersFn     func(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64][]*model.LstepTagCache, error)
+	withNextVisitOwnerLockFn func(context.Context, uint64, uint64, func(context.Context) error) error
+	upsertTagFn              func(ctx context.Context, clinicID, ownerID uint64, tagName, category, reason string) error
+	deleteTagFn              func(ctx context.Context, clinicID, ownerID uint64, tagName string) error
+	deleteAllByOwnerFn       func(ctx context.Context, clinicID, ownerID uint64) error
+	findByOwnerFn            func(ctx context.Context, clinicID, ownerID uint64) ([]*model.LstepTagCache, error)
+	findByOwnersFn           func(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64][]*model.LstepTagCache, error)
 }
 
 func (m *mockLstepTagCacheRepository) UpsertTag(ctx context.Context, clinicID, ownerID uint64, tagName, category, reason string) error {
@@ -66,4 +67,11 @@ func (m *mockLstepTagCacheRepository) BulkReplaceOwnerTags(ctx context.Context, 
 
 func (m *mockLstepTagCacheRepository) FindOwnerIDsByTag(_ context.Context, _ uint64, _ string) ([]uint64, error) {
 	return nil, nil
+}
+
+func (m *mockLstepTagCacheRepository) WithNextVisitOwnerLock(ctx context.Context, clinicID, ownerID uint64, fn func(context.Context) error) error {
+	if m.withNextVisitOwnerLockFn != nil {
+		return m.withNextVisitOwnerLockFn(ctx, clinicID, ownerID, fn)
+	}
+	return fn(ctx)
 }

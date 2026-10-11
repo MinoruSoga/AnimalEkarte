@@ -78,7 +78,7 @@ func (r *lstepTagCacheRepository) UpsertTag(ctx context.Context, clinicID, owner
 		Reason:   reasonPtr,
 		SyncedAt: time.Now(),
 	}
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "clinic_id"}, {Name: "owner_id"}, {Name: "tag_name"}},
@@ -92,7 +92,7 @@ func (r *lstepTagCacheRepository) UpsertTag(ctx context.Context, clinicID, owner
 }
 
 func (r *lstepTagCacheRepository) DeleteTag(ctx context.Context, clinicID, ownerID uint64, tagName string) error {
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("owner_id = ? AND tag_name = ?", ownerID, tagName).
 		Delete(&model.LstepTagCache{}).Error
@@ -115,7 +115,7 @@ func (r *lstepTagCacheRepository) DeleteAllByOwner(ctx context.Context, clinicID
 
 func (r *lstepTagCacheRepository) FindByOwner(ctx context.Context, clinicID, ownerID uint64) ([]*model.LstepTagCache, error) {
 	var records []*model.LstepTagCache
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("owner_id = ?", ownerID).
 		Find(&records).Error
@@ -248,4 +248,26 @@ func (r *lstepTagCacheRepository) FindOwnerIDsByTag(ctx context.Context, clinicI
 		ids[i] = r.OwnerID
 	}
 	return ids, nil
+}
+
+// WithNextVisitOwnerLock starts an independent sync transaction. The caller
+// removes its business transaction before entering; all source/cache operations
+// use DBOrTx with this connection, including with MaxOpenConns=1.
+func (r *lstepTagCacheRepository) WithNextVisitOwnerLock(ctx context.Context, clinicID, ownerID uint64, fn func(context.Context) error) error {
+	if clinicID == 0 || ownerID == 0 || r.db == nil {
+		return apperrors.WrapInternalServerError("next visit lock requires database and scoped owner")
+	}
+	ctx = persistence.WithTxValue(ctx, nil)
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Hash collisions only over-serialize unrelated owners; they never weaken the lock.
+		key := fmt.Sprintf("lstep-next-visit:%d:%d", clinicID, ownerID)
+		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", key).Error; err != nil {
+			return apperrors.Wrap(err, "failed to lock next visit owner")
+		}
+		return fn(persistence.WithTxValue(ctx, tx))
+	})
+	if err != nil {
+		return apperrors.Wrap(err, "next visit sync transaction failed")
+	}
+	return nil
 }

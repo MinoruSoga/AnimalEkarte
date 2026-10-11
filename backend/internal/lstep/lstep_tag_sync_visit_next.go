@@ -3,14 +3,22 @@ package lstep
 import (
 	"context"
 	"errors"
-	"log/slog"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
+	lstepapi "github.com/animal-ekarte/backend/internal/infra/lstep"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
+
+// nextVisitOwnerLocker owns a short transaction shared by source/cache reads
+// and cache writes. Its advisory lock serializes HTTP and batch syncs across processes.
+type nextVisitOwnerLocker interface {
+	WithNextVisitOwnerLock(context.Context, uint64, uint64, func(context.Context) error) error
+}
 
 // SyncNextVisitTag は次回来院タグを同期する（BE-006 / EMR-308）。
 // 飼い主の次回 active appointment を参照し、古い next_visit_* タグを差し替える。
@@ -20,6 +28,10 @@ import (
 // 誤配線の呼び出し元（cmd/lstep-migrate 等）が既存タグを黙って剥奪するため、
 // タグに触れずエラーを返す（fail-closed）。
 func (s *lstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error {
+	// Remove only the caller's transaction: cancellation and any shorter batch
+	// deadline survive. Post-commit callers own request cancellation detachment.
+	ctx, cancel := context.WithTimeout(persistence.WithTxValue(ctx, nil), 30*time.Second)
+	defer cancel()
 	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, "next visit")
 	if err != nil {
 		return err
@@ -27,67 +39,99 @@ func (s *lstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ow
 	if !ok {
 		return nil
 	}
-
 	client, err := s.buildClient(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to build lstep client for next visit tag sync", "error", err)
 		return apperrors.Wrap(err, "failed to build lstep client")
 	}
 	if client == nil {
 		return nil
 	}
-
-	// EMR-308: source of truth はカルテの旧推奨日カラムではなく
-	// 次回 appointment（tentative は intended_date、実予約は start_time）に移った。
 	if s.nextVisitAppointmentRepo == nil {
-		slog.ErrorContext(ctx, "next visit appointment repository is not configured", "clinic_id", clinicID, "owner_id", ownerID)
 		return apperrors.WrapInternalServerError("next visit appointment repository is not configured")
 	}
-	next, err := s.nextVisitAppointmentRepo.FindNextAppointmentForOwner(ctx, clinicID, ownerID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find next appointment for next visit tag", "error", err)
-		return apperrors.Wrap(err, "failed to find next appointment")
+	locker, ok := s.tagCacheRepo.(nextVisitOwnerLocker)
+	if !ok {
+		return apperrors.WrapInternalServerError("next visit owner lock is not configured")
 	}
-	nextVisitDate := nextVisitDateFromAppointment(next)
-
-	// 既存の next_visit_* タグを取得し、現在のタグ追加後に古いものを削除
-	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to load tag cache for next visit tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to load tag cache")
-	}
-	// Add the current tag before retiring old ones. If this fails, the stale
-	// cache remains a candidate for the expiry batch's next retry.
-	newTag := ""
-	if nextVisitDate != nil {
-		newTag = tagPrefixNextVisit + nextVisitDate.In(config.JST).Format(time.DateOnly)
-		alreadyCached := false
-		for _, c := range cached {
-			if c.TagName == newTag {
-				alreadyCached = true
-				break
-			}
-		}
-		if !alreadyCached {
-			if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, newTag, "next visit", "", true); err != nil {
-				return err
-			}
-		}
-	}
-	var removalErrs []error
-	for _, c := range cached {
-		if !strings.HasPrefix(c.TagName, tagPrefixNextVisit) || c.TagName == newTag {
-			continue
-		}
-		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, c.TagName, "next visit", "", false); err != nil {
-			removalErrs = append(removalErrs, err)
-		}
-	}
-	if len(removalErrs) == 0 {
+	apiFailed := false
+	err = locker.WithNextVisitOwnerLock(ctx, clinicID, ownerID, func(syncCtx context.Context) error {
+		return s.reconcileNextVisitTag(syncCtx, client, clinicID, ownerID, lineUserID, &apiFailed)
+	})
+	// Counter persistence must happen after the lock transaction releases its
+	// connection: otherwise rollback loses accounting, and a pool of one deadlocks.
+	if apiFailed {
+		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+	} else if err == nil {
 		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
 	}
-	return errors.Join(removalErrs...)
+	return err
+}
 
+func (s *lstepTagSyncService) reconcileNextVisitTag(ctx context.Context, client lstepapi.Client, clinicID, ownerID uint64, lineUserID string, apiFailed *bool) error {
+	next, err := s.nextVisitAppointmentRepo.FindNextAppointmentForOwner(ctx, clinicID, ownerID)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to find next appointment")
+	}
+	cached, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to load tag cache")
+	}
+	remote, err := client.GetUserTags(ctx, lineUserID)
+	if err != nil {
+		*apiFailed = true
+		return apperrors.Wrap(err, "failed to read next visit tags")
+	}
+	remoteTags := make(map[string]struct{}, len(remote))
+	staleTags := make(map[string]struct{})
+	for _, tag := range remote {
+		remoteTags[tag] = struct{}{}
+		if strings.HasPrefix(tag, tagPrefixNextVisit) {
+			staleTags[tag] = struct{}{}
+		}
+	}
+	for _, tag := range cached {
+		if strings.HasPrefix(tag.TagName, tagPrefixNextVisit) {
+			staleTags[tag.TagName] = struct{}{}
+		}
+	}
+	newTag := ""
+	if date := nextVisitDateFromAppointment(next); date != nil {
+		newTag = tagPrefixNextVisit + date.In(config.JST).Format(time.DateOnly)
+		// Cache presence is never proof of provider presence. A remote success
+		// followed by a cache/commit failure converges on the next provider read.
+		if _, present := remoteTags[newTag]; !present {
+			if err := client.AddTag(ctx, lineUserID, newTag); err != nil {
+				*apiFailed = true
+				return apperrors.Wrap(err, "failed to add next visit tag")
+			}
+		}
+		if err := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto", ""); err != nil {
+			return apperrors.Wrap(err, "failed to persist next visit tag")
+		}
+	}
+	// Add the current tag before retiring old tags; retain failed cache entries
+	// for the bounded daily retry. Other tag categories are untouched.
+	tags := make([]string, 0, len(staleTags))
+	for tag := range staleTags {
+		if tag != newTag {
+			tags = append(tags, tag)
+		}
+	}
+	sort.Strings(tags)
+	var removalErrs []error
+	for _, tag := range tags {
+		if _, present := remoteTags[tag]; present {
+			if err := client.RemoveTag(ctx, lineUserID, tag); err != nil {
+				*apiFailed = true
+				removalErrs = append(removalErrs, apperrors.Wrap(err, "failed to remove next visit tag"))
+				continue
+			}
+		}
+		if err := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, tag); err != nil {
+			removalErrs = append(removalErrs, apperrors.Wrap(err, "failed to delete next visit tag cache"))
+		}
+	}
+	return errors.Join(removalErrs...)
 }
 
 // nextVisitDateFromAppointment は appointment からタグ用の意味上の予定日を返す。

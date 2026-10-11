@@ -18,16 +18,25 @@ func TestNextVisitExpiryRepair_TagFailuresKeepRetryCandidate(t *testing.T) {
 		t.Run(failure, func(t *testing.T) {
 			oldTag, newTag := "next_visit_2026-10-11", "next_visit_2026-10-13"
 			cache := map[string]bool{oldTag: true}
+			remote := map[string]bool{oldTag: true}
 			fail := true
 			var events []string
 			lineID := "mock-only"
 			apiErr := errors.New("mock tag failure")
 			client := &mockLstepAPIClient{
+				getUserTagsFn: func(context.Context, string) ([]string, error) {
+					var out []string
+					for tag := range remote {
+						out = append(out, tag)
+					}
+					return out, nil
+				},
 				addTagFn: func(_ context.Context, _, tag string) error {
 					events = append(events, "add:"+tag)
 					if fail && failure == "add" {
 						return apiErr
 					}
+					remote[tag] = true
 					return nil
 				},
 				removeTagFn: func(_ context.Context, _, tag string) error {
@@ -36,6 +45,7 @@ func TestNextVisitExpiryRepair_TagFailuresKeepRetryCandidate(t *testing.T) {
 					if fail && failure == "remove" {
 						return apiErr
 					}
+					delete(remote, tag)
 					return nil
 				},
 			}
@@ -73,7 +83,7 @@ func TestNextVisitExpiryRepair_TagFailuresKeepRetryCandidate(t *testing.T) {
 			}
 			events = nil
 			require.NoError(t, svc.SyncNextVisitTag(context.Background(), 1, 2))
-			assert.Empty(t, events, "already correct cache causes no redundant tag mutations")
+			assert.Empty(t, events, "already correct remote causes no redundant tag mutations")
 		})
 	}
 }

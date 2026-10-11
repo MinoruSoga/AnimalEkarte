@@ -13,7 +13,9 @@ package lstep
 
 import (
 	"context"
+	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -329,4 +331,67 @@ func TestLstepTagCacheRepository_FindOwnerIDsByTag(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, ids)
 	})
+}
+
+func TestNextVisitOwnerLock_DBPoolOneAndRollback(t *testing.T) {
+	db := setupLstepTagCacheTestDB(t)
+	pool, err := db.DB()
+	require.NoError(t, err)
+	oldLimit := pool.Stats().MaxOpenConnections
+	pool.SetMaxOpenConns(1)
+	defer pool.SetMaxOpenConns(oldLimit)
+	repo := &lstepTagCacheRepository{db: db}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	rollback := errors.New("rollback fixture")
+	err = repo.WithNextVisitOwnerLock(ctx, 1, 100, func(txCtx context.Context) error {
+		require.NoError(t, repo.UpsertTag(txCtx, 1, 100, "next_visit_2026-12-20", "auto", ""))
+		rows, readErr := repo.FindByOwner(txCtx, 1, 100)
+		require.NoError(t, readErr)
+		require.Len(t, rows, 1)
+		return rollback
+	})
+	require.ErrorIs(t, err, rollback)
+	rows, err := repo.FindByOwner(ctx, 1, 100)
+	require.NoError(t, err)
+	assert.Empty(t, rows)
+}
+
+func TestNextVisitOwnerLock_DBIndependentRepositoriesAndScope(t *testing.T) {
+	db := setupLstepTagCacheTestDB(t)
+	pool, err := db.DB()
+	require.NoError(t, err)
+	oldLimit := pool.Stats().MaxOpenConnections
+	pool.SetMaxOpenConns(4)
+	defer pool.SetMaxOpenConns(oldLimit)
+	first, second := &lstepTagCacheRepository{db: db}, &lstepTagCacheRepository{db: db}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	done := make(chan error, 1)
+	go func() {
+		done <- first.WithNextVisitOwnerLock(ctx, 1, 100, func(context.Context) error {
+			close(entered)
+			select {
+			case <-release:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		})
+	}()
+	select {
+	case <-entered:
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	wait, stop := context.WithTimeout(ctx, 50*time.Millisecond)
+	require.ErrorIs(t, second.WithNextVisitOwnerLock(wait, 1, 100, func(context.Context) error { t.Error("same key must not enter while first holds lock"); return nil }), context.DeadlineExceeded)
+	stop()
+	for _, scope := range []struct{ clinic, owner uint64 }{{2, 100}, {1, 101}} {
+		require.NoError(t, second.WithNextVisitOwnerLock(ctx, scope.clinic, scope.owner, func(context.Context) error { return nil }))
+	}
+	close(release)
+	require.NoError(t, <-done)
 }

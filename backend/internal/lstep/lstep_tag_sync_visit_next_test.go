@@ -178,6 +178,7 @@ func TestSyncNextVisitTag(t *testing.T) {
 	t.Run("no next appointment: removes stale next_visit tags and adds nothing", func(t *testing.T) {
 		var addedTags, removedTags []string
 		client := &mockLstepAPIClient{
+			getUserTagsFn: func(context.Context, string) ([]string, error) { return []string{"next_visit_2025-01-01"}, nil },
 			addTagFn: func(_ context.Context, _, tagName string) error {
 				addedTags = append(addedTags, tagName)
 				return nil
@@ -304,7 +305,8 @@ func TestSyncNextVisitTag(t *testing.T) {
 	t.Run("removing a stale next_visit tag fails: reported for batch retry", func(t *testing.T) {
 		incrementCalls := 0
 		client := &mockLstepAPIClient{
-			removeTagFn: func(_ context.Context, _, _ string) error { return errors.New("remove failed") },
+			getUserTagsFn: func(context.Context, string) ([]string, error) { return []string{"next_visit_2025-01-01"}, nil },
+			removeTagFn:   func(_ context.Context, _, _ string) error { return errors.New("remove failed") },
 		}
 		svc := &lstepTagSyncService{
 			settingsSvc: &mockLstepSettingsService{},
