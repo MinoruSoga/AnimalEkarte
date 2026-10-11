@@ -1,0 +1,10 @@
+{
+  "upstream_repository": "https://github.com/affaan-m/agentshield",
+  "upstream_commit": "b0891303bdcd6037376a94263d45cfd2ff3dfb98",
+  "upstream_version": "v1.6.0",
+  "bundle_sha256": "d30ac2e68ee9266c4da7cfaa109f02fee22e3ca9880264c21d75050cabcecb9c",
+  "patch_sha256": "9a23ef4d927da391c549773f8b1b4ec58483d5fa3c9b6634773aaf28e890b523",
+  "node_runtime": "node24",
+  "regression_tests": 31,
+  "verified_tests": 1069
+}
