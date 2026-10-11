@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // This needs an explicitly approved isolated PostgreSQL test database. -short skips it.
