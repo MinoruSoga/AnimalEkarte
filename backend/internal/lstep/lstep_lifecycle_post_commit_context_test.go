@@ -72,6 +72,7 @@ func TestPetLifecycle_PostCommitContext(t *testing.T) {
 				return nil
 			}}
 			var done <-chan struct{}
+			var observedDone []<-chan struct{}
 			var deadline time.Time
 			postCalls, syncCalls, cleanupReads := 0, 0, 0
 			check := func(postCtx context.Context) {
@@ -86,8 +87,10 @@ func TestPetLifecycle_PostCommitContext(t *testing.T) {
 					assert.WithinDuration(t, time.Now().Add(30*time.Second), deadline, time.Second)
 				} else {
 					assert.Equal(t, deadline, got)
-					assert.Equal(t, done, postCtx.Done())
 				}
+				// Derived contexts may have their own Done channel, but every
+				// operation must retain the shared deadline and release its timer.
+				observedDone = append(observedDone, postCtx.Done())
 				postCalls++
 			}
 			status := model.PetStatusAlive
@@ -173,6 +176,13 @@ func TestPetLifecycle_PostCommitContext(t *testing.T) {
 			case <-done:
 			default:
 				t.Fatal("post-commit timer must be cleaned up")
+			}
+			for _, childDone := range observedDone {
+				select {
+				case <-childDone:
+				default:
+					t.Fatal("every derived post-commit context must be cleaned up")
+				}
 			}
 		})
 	}
