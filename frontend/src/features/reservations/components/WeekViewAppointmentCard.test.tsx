@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Reservation } from "@/types";
@@ -11,7 +11,18 @@ const appointment: Reservation = {
   end: new Date("2026-07-21T00:38:00"),
   ownerName: "宇野 いづみ",
   petName: "マメラ",
-  visitType: "return",
+  isTentative: false,
+  intendedDate: undefined,
+  hadIntendedDate: false,
+  sourceMedicalRecordId: undefined,
+  visitType: "revisit",
+  category: "general",
+  doctorId: undefined,
+  petType: undefined,
+  ownerId: undefined,
+  reservationTypeId: undefined,
+  reservationRoute: null,
+  clinicId: undefined,
   type: "general_revisit",
   doctor: "",
   isDesignated: false,
@@ -227,6 +238,7 @@ describe("WeekView AppointmentCard 誕生月バッジ (EMR-301)", () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.useRealTimers();
   });
 
@@ -306,4 +318,41 @@ describe("WeekView AppointmentCard 誕生月バッジ (EMR-301)", () => {
     expect(card.getAttribute("title") ?? "").not.toContain("今月誕生日");
     expect(card.getAttribute("aria-label") ?? "").not.toContain("今月誕生日");
   });
+});
+
+describe("JST month boundary accessible name", () => {
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
+  it.each(["2018-10-05", "2018-11-05"])(
+    "updates month badges and parent tooltip/name without props changing: %s",
+    (birthDate) => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-10-31T14:59:30Z"));
+      render(
+        <AppointmentCard
+          appointment={{ ...appointment, petBirthDate: birthDate }}
+          layoutStyle={{ left: "0%", width: "100%" }}
+          onClick={vi.fn()}
+        />,
+      );
+      const chip = screen.getByRole("button", { name: /マメラ/ });
+      if (birthDate.includes("-10-")) {
+        expect(chip).toHaveAccessibleName(expect.stringContaining("今月誕生日"));
+      } else {
+        expect(chip).toHaveAccessibleName(expect.not.stringContaining("今月誕生日"));
+      }
+      act(() => vi.advanceTimersByTime(30_000));
+      if (birthDate.includes("-11-")) {
+        expect(screen.getByRole("img", { name: "今月誕生日" })).toBeInTheDocument();
+        expect(chip).toHaveAccessibleName(expect.stringContaining("今月誕生日"));
+        expect(chip.getAttribute("title")).toContain("今月誕生日");
+      } else {
+        expect(screen.queryByRole("img", { name: "今月誕生日" })).not.toBeInTheDocument();
+        expect(chip).toHaveAccessibleName(expect.not.stringContaining("今月誕生日"));
+        expect(chip.getAttribute("title") ?? "").not.toContain("今月誕生日");
+      }
+    },
+  );
 });

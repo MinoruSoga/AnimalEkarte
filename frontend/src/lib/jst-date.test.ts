@@ -161,3 +161,9 @@ describe("jst-date", () => {
     });
   });
 });
+
+it("birthday predicate consumes the reactive JST date independently of the wall clock", () => {
+  expect(isBirthMonthJST("2020-11-05", "2026-11-01")).toBe(true);
+  expect(isBirthMonthJST("2020-10-05", "2026-11-01")).toBe(false);
+  expect(isBirthMonthJST("2011-02-29", "2026-02-01")).toBe(false);
+});

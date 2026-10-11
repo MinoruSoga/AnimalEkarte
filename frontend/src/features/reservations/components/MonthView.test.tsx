@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Reservation } from "@/types";
@@ -52,6 +52,7 @@ describe("MonthView 誕生月バッジ (EMR-301)", () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.useRealTimers();
   });
 
@@ -109,6 +110,7 @@ describe("MonthView 予約チップの accessible name (PR#614 再レビュー�
   });
 
   afterEach(() => {
+    cleanup();
     vi.useRealTimers();
   });
 
@@ -153,6 +155,37 @@ describe("MonthView 予約チップの accessible name (PR#614 再レビュー�
       const chip = screen.getByRole("button", { name: /再診 マメラ/ });
       expect(chip).toHaveAccessibleName(expect.not.stringContaining("今月誕生日"));
       expect(chip).toHaveAccessibleName(expect.not.stringContaining("2018-10-05"));
+    },
+  );
+});
+
+describe("JST month boundary accessible name", () => {
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
+  it.each(["2018-10-05", "2018-11-05"])(
+    "updates month badges and parent tooltip/name without props changing: %s",
+    (birthDate) => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-10-31T14:59:30Z"));
+      renderMonthView([reservationOf({ petBirthDate: birthDate })]);
+      const chip = screen.getByRole("button", { name: /マメラ/ });
+      if (birthDate.includes("-10-")) {
+        expect(chip).toHaveAccessibleName(expect.stringContaining("今月誕生日"));
+      } else {
+        expect(chip).toHaveAccessibleName(expect.not.stringContaining("今月誕生日"));
+      }
+      act(() => vi.advanceTimersByTime(30_000));
+      if (birthDate.includes("-11-")) {
+        expect(screen.getByRole("img", { name: "今月誕生日" })).toBeInTheDocument();
+        expect(chip).toHaveAccessibleName(expect.stringContaining("今月誕生日"));
+        expect(chip.getAttribute("title")).toContain("今月誕生日");
+      } else {
+        expect(screen.queryByRole("img", { name: "今月誕生日" })).not.toBeInTheDocument();
+        expect(chip).toHaveAccessibleName(expect.not.stringContaining("今月誕生日"));
+        expect(chip.getAttribute("title") ?? "").not.toContain("今月誕生日");
+      }
     },
   );
 });

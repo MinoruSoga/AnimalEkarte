@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BirthdayBadge } from "./BirthdayBadge";
@@ -13,6 +13,7 @@ describe("BirthdayBadge (EMR-301)", () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.useRealTimers();
   });
 
@@ -100,5 +101,62 @@ describe("BirthdayBadge (EMR-301)", () => {
   it("variant=static でも誕生月でなければ描画しない", () => {
     render(<BirthdayBadge birthDate="2020-09-05" subjectName="モカ" variant="static" />);
     expect(screen.queryByRole("img", { name: "今月誕生日" })).not.toBeInTheDocument();
+  });
+});
+
+describe("BirthdayBadge JST month changes", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-31T14:59:30Z"));
+  });
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+  it.each(["popover", "static"] as const)(
+    "changes old/new month badges without unrelated rendering (%s)",
+    (variant) => {
+      render(
+        <>
+          <div data-testid="old">
+            <BirthdayBadge birthDate="2020-10-05" subjectName="Old" variant={variant} />
+          </div>
+          <div data-testid="new">
+            <BirthdayBadge birthDate="2020-11-05" subjectName="New" variant={variant} />
+          </div>
+        </>,
+      );
+      const role = variant === "static" ? "img" : "button";
+      expect(
+        within(screen.getByTestId("old")).getByRole(role, { name: "今月誕生日" }),
+      ).toBeInTheDocument();
+      expect(
+        within(screen.getByTestId("new")).queryByRole(role, { name: "今月誕生日" }),
+      ).not.toBeInTheDocument();
+      act(() => vi.advanceTimersByTime(30_000));
+      expect(
+        within(screen.getByTestId("old")).queryByRole(role, { name: "今月誕生日" }),
+      ).not.toBeInTheDocument();
+      expect(
+        within(screen.getByTestId("new")).getByRole(role, { name: "今月誕生日" }),
+      ).toBeInTheDocument();
+    },
+  );
+  it("catches up after hidden-tab month rollover", () => {
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    render(<BirthdayBadge birthDate="2020-11-05" subjectName="New" variant="static" />);
+    act(() => {
+      vi.setSystemTime(new Date("2026-11-03T00:00:00Z"));
+      visibility.mockReturnValue("visible");
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(screen.getByRole("img", { name: "今月誕生日" })).toBeInTheDocument();
+  });
+  it("does not change the JST month at the UTC midnight boundary", () => {
+    vi.setSystemTime(new Date("2026-10-31T23:59:30Z"));
+    render(<BirthdayBadge birthDate="2020-11-05" subjectName="New" variant="static" />);
+    act(() => vi.advanceTimersByTime(30_000));
+    expect(screen.getByRole("img", { name: "今月誕生日" })).toBeInTheDocument();
   });
 });

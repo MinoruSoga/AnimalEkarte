@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { C } from "@/lib/design-tokens";
+import { useTodayJst } from "@/hooks/use-today-jst";
 import { isBirthMonthJST } from "@/lib/jst-date";
 import { getReservationTypeColor, getReservationTypeName } from "@/lib/status-helpers";
 import { DISPLAY_TIME_FORMAT } from "@/lib/format/date";
@@ -67,6 +68,7 @@ export const AppointmentCard = memo(function AppointmentCard({
     [height, top],
   );
 
+  const todayJst = useTodayJst();
   const isDimmed = appointment.status === "completed" || appointment.status === "cancelled";
   const isCancelled = appointment.status === "cancelled";
   // EMR-308: tentative（次回予定・未予約）は実時間を持たない sentinel（意図日 00:00 JST）。
@@ -87,7 +89,7 @@ export const AppointmentCard = memo(function AppointmentCard({
   // カード内のバッジは pointer-events-none 配下の静的変種のため、ホバー・フォーカス・
   // スクリーンリーダーから生年月日に届かない。親ボタンの title/aria-label に含める。
   const birthdayLabel =
-    !isDeceasedPet && isBirthMonthJST(appointment.petBirthDate)
+    !isDeceasedPet && isBirthMonthJST(appointment.petBirthDate, todayJst)
       ? `今月誕生日（生年月日: ${appointment.petBirthDate}）`
       : "";
   const typeName = getReservationTypeName(appointment.type);

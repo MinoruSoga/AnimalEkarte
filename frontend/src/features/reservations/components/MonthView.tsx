@@ -18,6 +18,7 @@ import { ja } from "date-fns/locale";
 // Internal
 import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { C } from "@/lib/design-tokens";
+import { useTodayJst } from "@/hooks/use-today-jst";
 import { isBirthMonthJST } from "@/lib/jst-date";
 import { toJSTWallDate } from "@/lib/jst-date";
 import { getReservationTypeColor } from "@/lib/status-helpers";
@@ -67,6 +68,7 @@ export const MonthView = memo(function MonthView({
   dynamicColorMap,
   holidayDates,
 }: MonthViewProps) {
+  const todayJst = useTodayJst();
   const rows = useMemo(() => {
     const today = toJSTWallDate(new Date());
     const monthStart = startOfMonth(currentDate);
@@ -124,7 +126,7 @@ export const MonthView = memo(function MonthView({
                 // 上書きされて到達不能。生年月日は親の tooltip/accessible name に含める。
                 const isDeceasedPet = app.petStatus === "deceased" || app.petDeceasedAt != null;
                 const birthdayLabel =
-                  !isDeceasedPet && isBirthMonthJST(app.petBirthDate)
+                  !isDeceasedPet && isBirthMonthJST(app.petBirthDate, todayJst)
                     ? `今月誕生日（生年月日: ${app.petBirthDate}）`
                     : "";
                 const chipTitle = [isTentative ? TENTATIVE_APPOINTMENT_LABEL : "", birthdayLabel]
@@ -211,7 +213,15 @@ export const MonthView = memo(function MonthView({
     }
 
     return result;
-  }, [currentDate, appointments, dynamicColorMap, onAppointmentClick, onDateClick, holidayDates]);
+  }, [
+    currentDate,
+    appointments,
+    dynamicColorMap,
+    onAppointmentClick,
+    onDateClick,
+    holidayDates,
+    todayJst,
+  ]);
 
   return (
     <div

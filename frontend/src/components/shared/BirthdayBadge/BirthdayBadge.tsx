@@ -2,6 +2,7 @@ import Cake from "lucide-react/dist/esm/icons/cake";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { BADGE, C, ICON } from "@/lib/design-tokens";
+import { useTodayJst } from "@/hooks/use-today-jst";
 import { isBirthMonthJST } from "@/lib/jst-date";
 
 interface BirthdayBadgeProps {
@@ -38,6 +39,7 @@ export function BirthdayBadge({
   stopPropagation,
   variant = "popover",
 }: BirthdayBadgeProps) {
+  const todayJst = useTodayJst();
   const propagationGuard =
     stopPropagation && variant !== "static"
       ? {
@@ -46,7 +48,7 @@ export function BirthdayBadge({
         }
       : {};
 
-  if (!isBirthMonthJST(birthDate)) return null;
+  if (!isBirthMonthJST(birthDate, todayJst)) return null;
 
   if (variant === "static") {
     return (
