@@ -183,9 +183,11 @@ export const queryKeys = {
      * transform 前の wire 形のため list(filters) とキーを分ける
      * （同一キーで別 shape を書き込むと後勝ちで型が崩れる）。["hospitalizations"]
      * prefix 配下に置くのは、入院の作成/退院 mutation の all() invalidate で
-     * 占有状況も追従させるため。
+     * 占有状況も追従させるため。医院 ID で分離し、医院切替前の cache / 応答が
+     * 切替後の占有判定に混ざらないようにする。
      */
-    cageOccupancy: () => ["hospitalizations", "cage-occupancy"] as const,
+    cageOccupancy: (clinicId: string | null) =>
+      ["hospitalizations", "cage-occupancy", clinicId] as const,
     /**
      * FE-RC-081: 単数形 "hospitalization" が第一要素のため all()/list() の
      * ["hospitalizations", ...] prefix match には含まれない。detail/detailRaw

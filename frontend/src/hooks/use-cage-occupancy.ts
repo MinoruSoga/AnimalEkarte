@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useCurrentClinicId } from "@/hooks/use-current-clinic-id";
 import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from "@/lib/react-query";
@@ -25,8 +26,11 @@ interface CageOccupancyResponse {
   occupied_cage_ids?: number[];
 }
 
-const fetchOccupiedCageIds = async (): Promise<ReadonlySet<string>> => {
-  const { data } = await axios.get<CageOccupancyResponse>("/v1/masters/cages/occupancy");
+const fetchOccupiedCageIds = async (clinicId: string | null): Promise<ReadonlySet<string>> => {
+  if (!clinicId) throw new Error("医院が選択されていません。");
+  const { data } = await axios.get<CageOccupancyResponse>("/v1/masters/cages/occupancy", {
+    headers: { "X-Clinic-ID": clinicId },
+  });
   // fail-closed: 契約フィールドを欠く応答は信頼しない（空室と断定しない）。
   // React Query v5 は queryFn の undefined 返却を禁止するため明示的に throw する。
   if (!Array.isArray(data?.occupied_cage_ids)) {
@@ -45,20 +49,22 @@ export interface UseCageOccupancyResult {
 }
 
 export function useCageOccupancy(options?: { enabled?: boolean }): UseCageOccupancyResult {
-  const enabled = options?.enabled ?? true;
+  const clinicId = useCurrentClinicId();
+  const enabled = (options?.enabled ?? true) && !!clinicId;
 
   const query = useQuery({
-    queryKey: queryKeys.hospitalizations.cageOccupancy(),
-    queryFn: fetchOccupiedCageIds,
+    queryKey: queryKeys.hospitalizations.cageOccupancy(clinicId),
+    // Capture the same clinic for the key and request, including deferred Axios retries.
+    queryFn: () => fetchOccupiedCageIds(clinicId),
     enabled,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,
   });
 
   const occupiedCageIds = useMemo(() => {
-    if (query.isPending || query.isError) return undefined;
+    if (!enabled || query.isPending || query.isError) return undefined;
     return query.data;
-  }, [query.data, query.isPending, query.isError]);
+  }, [enabled, query.data, query.isPending, query.isError]);
 
   return { occupiedCageIds };
 }
