@@ -63,7 +63,7 @@ function renderPage() {
   setStoredClinicId("1");
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   queryClient.setQueryData(queryKeys.hospitalizations.cageOccupancy("1"), new Set<string>());
-  let refreshPermissions = () => undefined;
+  let refreshPermissions: () => void = () => undefined;
   function PermissionHarness() {
     const [, setPermissionVersion] = useState(0);
     refreshPermissions = () => setPermissionVersion((version) => version + 1);
