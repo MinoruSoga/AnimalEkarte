@@ -437,6 +437,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// TestMedicalRecordRepository_CountByPetAndDate_IsScopedAndJoinsAmbientTransaction.
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.AcquireAutoCreateLock":           {},
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.CountByPetAndDate":               {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.CountByPetID":                    {},
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.CountEstimatesByMedicalRecordID": {}, // delete/estimate creation serialization under the medical-record row lock
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Create":                          {},
 	// BUG2-MR-ENTERED-BY-CLINIC: entered_by actor guard joins create ambient tx (SHARE lock).
@@ -518,6 +519,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// TestHospitalizationSwapCages_PetDeathCheckSerializesConcurrentDeath
 	// (internal/medicalrecord/hospitalization_cage_swap_test.go).
 	"pet/repository.go|repository.LockByIDForUpdate": {},
+	"pet/repository.go|repository.Delete":            {},
 	// 死亡登録/復活の条件付き UPDATE（CAS）。期待 status を述語に含め RowsAffected==0 を 409 へ写像する
 	// ため、呼び出し元の ambient transaction に参加して同一 snapshot 上で判定する必要がある。Runtime:
 	// TestPetRepository_RecordDeath_ConcurrentRequestsPreserveWinner /
@@ -651,6 +653,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_next_visit_query.go|reservationRepository.FindOwnerIDsWithTentativeIntendedDate": {},
 	"reservation/reservation_next_visit_query.go|reservationRepository.FindTentativeByOwnerAndIntendedDate":   {},
 	"reservation/reservation_next_visit_query.go|reservationRepository.FindTentativesByOwnerAndIntendedDate":  {}, // Codex #22 all-candidate enumeration for multi-pet reminder serialization
+	"reservation/appointment_admin_repository.go|reservationAdminRepository.CancelByID":                       {},
 	"reservation/appointment_admin_repository.go|reservationAdminRepository.Create":                           {}, // AUD-001
 	// BUG-424: unavailable-time reads participate in the booking transaction.
 	"reservation/reservation_type_unavailable_time_repository.go|reservationTypeUnavailableTimeRepository.FindAll": {},
