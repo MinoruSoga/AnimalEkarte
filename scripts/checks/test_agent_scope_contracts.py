@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Repository scope regression checks; no user configuration or services read."""
 import json
+import re
 from pathlib import Path
 import tomllib
 import unittest
@@ -9,6 +10,37 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class AgentScopeContracts(unittest.TestCase):
+    def role_tools(self, name):
+        text = (ROOT / '.claude/agents' / (name + '.md')).read_text()
+        frontmatter = text.split('---\n', 2)[1]
+        return json.loads(re.search(r'^tools: (.+)$', frontmatter, re.MULTILINE)[1])
+
+    def test_analysis_roles_do_not_have_shell_access(self):
+        for name in ('architect', 'silent-failure-hunter', 'test-strategist'):
+            with self.subTest(role=name):
+                self.assertNotIn('Bash', self.role_tools(name))
+
+    def test_test_generation_keeps_claude_edit_tools(self):
+        tools = self.role_tools('test-strategist')
+        for tool in ('Read', 'Edit', 'Write', 'Grep', 'Glob'):
+            self.assertIn(tool, tools)
+
+    def test_operational_roles_keep_shell_access(self):
+        for name in ('build-error-resolver', 'clinic-isolation-auditor',
+                     'code-simplifier', 'database-reviewer', 'debugger',
+                     'formatter', 'go-build-resolver', 'go-reviewer',
+                     'implementer', 'react-reviewer', 'refactor-cleaner',
+                     'reviewer', 'security-analyst', 'tdd-guide',
+                     'typescript-reviewer'):
+            with self.subTest(role=name):
+                self.assertIn('Bash', self.role_tools(name))
+
+    def test_codex_test_strategy_does_not_expand_write_scope(self):
+        manifest = json.loads((ROOT / '.claude/codex-agent-manifest.json').read_text())
+        role = next(role for role in manifest['roles']
+                    if role['name'] == 'animalekarte-test-strategist')
+        self.assertEqual(role['sandbox_mode'], 'read-only')
+
     def test_codex_inherits_generic_user_settings(self):
         path = ROOT / '.codex/config.toml'
         config = tomllib.loads(path.read_text()) if path.exists() else {}

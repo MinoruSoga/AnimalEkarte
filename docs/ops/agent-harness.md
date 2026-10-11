@@ -70,6 +70,15 @@ UI動作、フォーム、ルーティング、アクセシビリティに変更
 
 命令・Skillを変更したら `python3 -B .claude/scripts/test_instruction_safety_contracts.py`、関連するharness regression tests、生成一致と再生成の冪等性を確認する。欠落Hook、誤mount、テスト不在、秘密出力、他者WIP、禁止migration、外部接続不明を回帰ケースにする。製品runtimeの成功とは分けて報告する。
 
+## 分析・テスト設計役の能力境界
+
+Claudeのarchitectとsilent-failure-hunterはRead/Grep/Globで分析し、shell実行は担当者へ渡す。
+test-strategistは既存Write/Editを保持してテストを生成し、実行対象・期待結果を
+tdd-guideまたは担当実装者へ引き継ぐ。他の役割のBashは維持する。
+Codexのanimalekarte-test-strategistは既存read-onlyのまま設計・patch案を報告し、
+適用と実行を担当実装者へ渡す。引き継ぎはDBや外部サービスの許可を追加しない。
+生成・静的検証は実runtimeのtool制限やsandbox適用の証明にはしない。
+
 ## Claude backend 起動入口
 
 backend作業も既存worktreeのrootをprimary cwdとして開始する。入口は
