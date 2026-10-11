@@ -103,6 +103,9 @@ func (s *labDeviceExamPersister) persistLinkedJob(
 	}
 	job.UnmappedItemCount = len(resolution.UnmappedCodes)
 	job.NeedsReviewCount = len(resolution.UnmappedCodes)
+	if err := s.jobs.UpdateJobMappingCounts(ctx, clinicID, jobID, job.UnmappedItemCount); err != nil {
+		return err
+	}
 	counts := TransitionCounts{
 		RowCount:         job.RowCount,
 		NeedsReviewCount: job.NeedsReviewCount,
