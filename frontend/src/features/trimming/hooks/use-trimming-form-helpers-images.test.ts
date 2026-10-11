@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
-import { useState, type ChangeEvent } from "react";
+import { useState, StrictMode, createElement, type ChangeEvent } from "react";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { AxiosError } from "axios";
 import type { TrimmingFormData } from "@/types/trimming";
@@ -442,5 +442,88 @@ describe("useTrimmingFormImages", () => {
     expect(result.current.styleImagePreview).toBe(BLOB_URL);
     expect(result.current.formData.styleImage).toBe(STYLE_KEY);
     expect(URL.revokeObjectURL).not.toHaveBeenCalledWith(BLOB_URL);
+  });
+  it("unmount後の確定4xx復元は未保存画像を削除し繰り返し復元でも重複削除しない", async () => {
+    mockUploadTrimmingImage.mockResolvedValue({ key: STYLE_KEY, signed_url: STYLE_SIGNED });
+    const hook = renderHook(() => useImageHarness());
+    await act(async () => {
+      await hook.result.current.handleStyleImageChange(imageChange("style.jpg"));
+    });
+    const submitted = hook.result.current.markSubmittedKeys();
+    const restore = hook.result.current.restoreSubmittedKeys;
+    hook.unmount();
+    expect(mockDeleteTrimmingImage).not.toHaveBeenCalled();
+    act(() => {
+      restore(submitted);
+      restore(submitted);
+    });
+    expect(mockDeleteTrimmingImage).toHaveBeenCalledExactlyOnceWith(STYLE_KEY);
+  });
+
+  it("2slot同keyのunmount後4xx復元は削除を1回にまとめる", async () => {
+    mockUploadTrimmingImage.mockResolvedValue({ key: STYLE_KEY, signed_url: STYLE_SIGNED });
+    const hook = renderHook(() => useImageHarness());
+    await act(async () => {
+      await hook.result.current.handleStyleImageChange(imageChange("style.jpg"));
+      await hook.result.current.handleCompletedImageChange(imageChange("done.jpg"));
+    });
+    const submitted = hook.result.current.markSubmittedKeys();
+    const restore = hook.result.current.restoreSubmittedKeys;
+    hook.unmount();
+    act(() => {
+      restore(submitted);
+    });
+    expect(mockDeleteTrimmingImage).toHaveBeenCalledExactlyOnceWith(STYLE_KEY);
+  });
+
+  it("StrictModeのeffect再開後は生存中4xxを復元し最後のunmountで掃除する", async () => {
+    mockUploadTrimmingImage.mockResolvedValue({ key: STYLE_KEY, signed_url: STYLE_SIGNED });
+    const hook = renderHook(() => useImageHarness(), {
+      wrapper: ({ children }) => createElement(StrictMode, null, children),
+    });
+    await act(async () => {
+      await hook.result.current.handleStyleImageChange(imageChange("style.jpg"));
+    });
+    const submitted = hook.result.current.markSubmittedKeys();
+    act(() => {
+      hook.result.current.restoreSubmittedKeys(submitted);
+    });
+    expect(mockDeleteTrimmingImage).not.toHaveBeenCalled();
+    hook.unmount();
+    expect(mockDeleteTrimmingImage).toHaveBeenCalledExactlyOnceWith(STYLE_KEY);
+  });
+
+  it("既存レコードの画像はunmount後4xx復元でもcleanup対象にしない", async () => {
+    const hook = renderHook(() =>
+      useImageHarness({ styleImage: STYLE_SIGNED, completedImage: COMPLETED_SIGNED }, true),
+    );
+    await waitFor(() => {
+      expect(hook.result.current.styleImagePreview).toBe(STYLE_SIGNED);
+    });
+    const submitted = hook.result.current.markSubmittedKeys();
+    const restore = hook.result.current.restoreSubmittedKeys;
+    hook.unmount();
+    act(() => {
+      restore(submitted);
+    });
+    expect(mockDeleteTrimmingImage).not.toHaveBeenCalled();
+  });
+
+  it("shared画像のcleanupが参照409で拒否されても失敗を無視し二重削除しない", async () => {
+    mockUploadTrimmingImage.mockResolvedValue({ key: STYLE_KEY, signed_url: STYLE_SIGNED });
+    mockDeleteTrimmingImage.mockRejectedValue({ response: { status: 409 } });
+    const hook = renderHook(() => useImageHarness());
+    await act(async () => {
+      await hook.result.current.handleStyleImageChange(imageChange("style.jpg"));
+    });
+    const submitted = hook.result.current.markSubmittedKeys();
+    const restore = hook.result.current.restoreSubmittedKeys;
+    hook.unmount();
+    await act(async () => {
+      restore(submitted);
+      restore(submitted);
+    });
+    expect(mockDeleteTrimmingImage).toHaveBeenCalledExactlyOnceWith(STYLE_KEY);
+    expect(mockToast.error).not.toHaveBeenCalled();
   });
 });

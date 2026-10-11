@@ -31,7 +31,9 @@ function useTrimmingImageField(
   field: TrimmingImageField,
   setLocalOverrides: TrimmingImageOverrides,
   markDirty: () => void,
+  discardSessionKey: (key: string) => void,
 ) {
+  const mountedRef = useRef(true);
   const requestIdRef = useRef(0);
   const [preview, setPreview] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
@@ -57,17 +59,19 @@ function useTrimmingImageField(
 
   // アンマウント時: in-flight を無効化し、blob URL と未保存アップロードを解放する。
   // 送信済みキー（markSubmitted 済み）はレコード参照の可能性があるため捨てない。
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    // StrictMode replays setup after its probe cleanup.
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
       requestIdRef.current += 1;
       releaseAllBlobs();
       if (sessionKeyRef.current) {
-        discardUploadedKey(sessionKeyRef.current);
+        discardSessionKey(sessionKeyRef.current);
         sessionKeyRef.current = null;
       }
-    },
-    [releaseAllBlobs],
-  );
+    };
+  }, [discardSessionKey, releaseAllBlobs]);
 
   const handleChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -87,7 +91,7 @@ function useTrimmingImageField(
             // stale: このキーは sessionKeyRef に入ったことがない（=未送信確定）
             // ので安全に捨てられる。blob も表示中でないため即解放。
             releaseBlob(blobUrl);
-            discardUploadedKey(uploaded.key);
+            discardSessionKey(uploaded.key);
             return;
           }
           const replacedSessionKey = sessionKeyRef.current;
@@ -111,7 +115,7 @@ function useTrimmingImageField(
           }
           // 未保存で置き換わった先行アップロードは到達不能 → 掃除
           if (replacedSessionKey && replacedSessionKey !== uploaded.key) {
-            discardUploadedKey(replacedSessionKey);
+            discardSessionKey(replacedSessionKey);
           }
         })
         .catch((error) => {
@@ -124,7 +128,7 @@ function useTrimmingImageField(
           setPendingCount((count) => count - 1);
         });
     },
-    [field, setLocalOverrides, markDirty, releaseBlob],
+    [field, setLocalOverrides, markDirty, releaseBlob, discardSessionKey],
   );
 
   const remove = useCallback(() => {
@@ -136,10 +140,10 @@ function useTrimmingImageField(
     const sessionKey = sessionKeyRef.current;
     sessionKeyRef.current = null;
     if (sessionKey) {
-      discardUploadedKey(sessionKey); // 未送信セッションキーのみ
+      discardSessionKey(sessionKey); // 未送信セッションキーのみ
     }
     releaseAllBlobs();
-  }, [field, setLocalOverrides, markDirty, releaseAllBlobs]);
+  }, [field, setLocalOverrides, markDirty, releaseAllBlobs, discardSessionKey]);
 
   // 保存リクエスト送信時に呼ぶ。ペイロードへ含めたキーは送信以後サーバー側の
   // 所有物として扱い、手放したキー（session 管理だったもの。無ければ null）を返す。
@@ -152,11 +156,21 @@ function useTrimmingImageField(
     return key;
   }, []);
 
-  const restoreSubmitted = useCallback((key: string | null) => {
-    // 別キーへ既に所有権が動いていたら上書きしない（起こり得ないが安全側）。
-    if (key === null || sessionKeyRef.current !== null) return;
-    sessionKeyRef.current = key;
-  }, []);
+  const restoreSubmitted = useCallback(
+    (key: string | null) => {
+      if (key === null) return;
+      // A definite pre-commit failure can arrive after navigation/unmount. There
+      // is no future effect cleanup then, so reclaim the released key now.
+      if (!mountedRef.current) {
+        discardSessionKey(key);
+        return;
+      }
+      // 別キーへ既に所有権が動いていたら上書きしない（起こり得ないが安全側）。
+      if (sessionKeyRef.current !== null) return;
+      sessionKeyRef.current = key;
+    },
+    [discardSessionKey],
+  );
 
   // hydration 等で確定済みプレビューを外部から設定する（record の署名URL）。
   const setCommittedPreview = useCallback((value: string | null) => {
@@ -298,8 +312,26 @@ export function useTrimmingFormImages(
   setLocalOverrides: TrimmingImageOverrides,
   markDirty: () => void,
 ) {
-  const styleImage = useTrimmingImageField("styleImage", setLocalOverrides, markDirty);
-  const completedImage = useTrimmingImageField("completedImage", setLocalOverrides, markDirty);
+  const discardedKeysRef = useRef(new Set<string>());
+  const discardSessionKey = useCallback((key: string) => {
+    // Both slots and late/repeated failure callbacks can own the same key.
+    // The backend's reference check still protects keys shared with records.
+    if (discardedKeysRef.current.has(key)) return;
+    discardedKeysRef.current.add(key);
+    discardUploadedKey(key);
+  }, []);
+  const styleImage = useTrimmingImageField(
+    "styleImage",
+    setLocalOverrides,
+    markDirty,
+    discardSessionKey,
+  );
+  const completedImage = useTrimmingImageField(
+    "completedImage",
+    setLocalOverrides,
+    markDirty,
+    discardSessionKey,
+  );
   const markStyleSubmitted = styleImage.markSubmitted;
   const markCompletedSubmitted = completedImage.markSubmitted;
   const restoreStyleSubmitted = styleImage.restoreSubmitted;
