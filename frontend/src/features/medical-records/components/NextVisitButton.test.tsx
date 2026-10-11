@@ -54,9 +54,14 @@ function wallDateInDays(days: number, hour = 10, minute = 0): Date {
   return d;
 }
 
-/** テスト用の最小予約。deriveNextVisitState が読む status/start/id を持つ。 */
+/** 表示対象の status/start/id と clear の更新revisionを持つ最小予約。 */
 function reservationOf(status: string, start: Date, id = "r-1"): Reservation {
-  return { id, status, start } as unknown as Reservation;
+  return {
+    id,
+    status,
+    start,
+    updatedAt: "2026-10-11T00:00:00.123456789Z",
+  } as unknown as Reservation;
 }
 
 function mockReservations(items: Reservation[]) {
@@ -164,7 +169,11 @@ describe("NextVisitButton — Popover での tentative 操作（EMR-308 A2）", 
     await user.click(screen.getByRole("button", { name: "次回予定を変更" }));
     await user.click(screen.getByRole("button", { name: "クリア" }));
 
-    expect(clearMutateAsync).toHaveBeenCalledWith("10");
+    expect(clearMutateAsync).toHaveBeenCalledWith({
+      petId: "10",
+      expectedReservationId: "r-1",
+      expectedUpdatedAt: "2026-10-11T00:00:00.123456789Z",
+    });
     expect(setMutateAsync).not.toHaveBeenCalled();
   });
 
@@ -237,7 +246,11 @@ describe("NextVisitButton — 権限分割（PUT=create / DELETE=edit）", () =>
     // クリア（DELETE = reservations:edit）は許可される
     await user.click(screen.getByRole("button", { name: "次回予定を変更" }));
     await user.click(screen.getByRole("button", { name: "クリア" }));
-    expect(clearMutateAsync).toHaveBeenCalledWith("10");
+    expect(clearMutateAsync).toHaveBeenCalledWith({
+      petId: "10",
+      expectedReservationId: "r-1",
+      expectedUpdatedAt: "2026-10-11T00:00:00.123456789Z",
+    });
 
     // 日付設定（PUT = reservations:create）は発行しない
     const input = screen.getByLabelText("次回来院推奨日");

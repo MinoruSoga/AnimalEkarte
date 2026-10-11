@@ -29,6 +29,7 @@ function futureDate(days: number) {
 function tentative(date: string): Reservation {
   return {
     id: `intent-${date}`,
+    updatedAt: "2026-10-11T00:00:00.123456789Z",
     status: "tentative",
     intendedDate: date,
     start: new Date(`${date}T00:00:00`),
@@ -175,6 +176,8 @@ describe("useNextVisitIntent — pet/clinic scope isolation", () => {
   );
 
   it.each(["success", "failure"])("旧scopeのclear%sでも新scopeのsetを妨げない", async (outcome) => {
+    const displayedDate = futureDate(30);
+    rows.set(scopeKey("10", "1"), [tentative(displayedDate)]);
     const old = deferred();
     const current = deferred();
     const draft = futureDate(60);
@@ -184,7 +187,12 @@ describe("useNextVisitIntent — pet/clinic scope isolation", () => {
     await act(async () => result.current.handleIntentDateChange(""));
     rerender({ petId: "20", clinicId: "2" });
     await act(async () => result.current.handleIntentDateChange(draft));
-    expect(clearMutation.mutateAsync).toHaveBeenCalledWith({ petId: "10", clinicId: "1" });
+    expect(clearMutation.mutateAsync).toHaveBeenCalledWith({
+      petId: "10",
+      clinicId: "1",
+      expectedReservationId: `intent-${displayedDate}`,
+      expectedUpdatedAt: "2026-10-11T00:00:00.123456789Z",
+    });
     expect(setMutation.mutateAsync).toHaveBeenCalledWith({
       petId: "20",
       clinicId: "2",
@@ -249,6 +257,7 @@ describe("useNextVisitIntent — pet/clinic scope isolation", () => {
       const pending = deferred();
       const date = futureDate(30);
       const nextDate = futureDate(60);
+      rows.set(scopeKey("10", "1"), [tentative(date)]);
       const response = {
         data: { id: 1, start_time: `${date}T00:00:00+09:00`, end_time: `${date}T00:00:00+09:00` },
       };
@@ -304,6 +313,10 @@ describe("useNextVisitIntent — pet/clinic scope isolation", () => {
         await waitFor(() => expect(axios.delete).toHaveBeenCalledTimes(1));
         expect(axios.delete).toHaveBeenCalledWith("/v1/reservations/pets/10/next-visit-intent", {
           headers: { "X-Clinic-ID": "1" },
+          params: {
+            expected_reservation_id: `intent-${date}`,
+            expected_updated_at: "2026-10-11T00:00:00.123456789Z",
+          },
         });
       }
       unmount();

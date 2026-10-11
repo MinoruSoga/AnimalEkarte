@@ -1,15 +1,15 @@
 # データベース設計書 (Entity Relationship Diagram)
 
-> **目的**: 全135テーブルの inventory と主要リレーションを記録し、テーブル数等の統計値の正本とする。DDL は列・制約の正本。
+> **目的**: 全136テーブルの inventory と主要リレーションを記録し、テーブル数等の統計値の正本とする。DDL は列・制約の正本。
 > **読者**: 全開発者。
 > **タイミング**: スキーマ変更・DB設計判断時。
 
 > **詳細**: [全カラム・全外部キーの詳細ERD](erd-detail/index.md) はマイグレーションから静的に生成する。型・NULL可否・複合FKの列順・削除動作・部分uniqueの述語をテーブル別に記録し、`python3 -B scripts/tools/generate-erd-detail.py --check` で更新漏れを確認できる。
 
-<!-- ERD:TABLE_COUNT=135 -->
+<!-- ERD:TABLE_COUNT=136 -->
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **最終照合**: 2026-10-10 | **対象**: `backend/migrations/` 直下の `001`〜`032`（135テーブル。`008`・`026`・`027` は欠番、`011` は2ファイル）。記録者FKの置換と治療明細の生涯一意制約を含む、順次適用後のスキーマを記録する。`011_support_bug_reports.sql` の `support_bug_reports` と `013_support_chat_messages.sql` の `support_chat_messages` を含み、`014_drop_prescriptions.sql` で `prescriptions`（EMR-236）は除去済み。`021_medical_record_image_deletions.sql` が `medical_record_image_deletions`（カルテ画像削除台帳）を新設し 130 へ。`016`/`017`〜`020`/`022` はカラム追加・FK 置換・権限行削除・checksum reconcile でテーブル数は不変。2026-10-05 に削除した capability backfill 用の `023` は現行ファイルではない。現行の `023_lab_device_mapping_drafts.sql` が検査項目の対応下書き 4 テーブルを新設し 134 へ。`024`〜`030` は drafts 複合キーの列順張り直し、`cages.merged_into_cage_id`（EMR-306 連結ケージ）、EMR-308 の tentative 予約基盤（`reservation_status` に `'tentative'` 追加 + `appointments.intended_date` / `source_medical_record_id` + `uq_appointments_one_active_tentative` 部分unique）と `medical_records.next_visit_recommended_date` の退役・列DROPで、テーブル数は不変。`031` は次回予定の元カルテ参照を医院複合FKへ置換し、`032_trimming_image_deletions.sql` がトリミング画像の削除予約台帳を新設して 135 へ。現行在庫は `ls backend/migrations/*.sql` を参照。
+> **最終照合**: 2026-10-11 | **対象**: `backend/migrations/` 直下の `001`〜`033`（136テーブル。`008`・`026`・`027` は欠番、`011` は2ファイル）。記録者FKの置換と治療明細の生涯一意制約を含む、順次適用後のスキーマを記録する。`011_support_bug_reports.sql` の `support_bug_reports` と `013_support_chat_messages.sql` の `support_chat_messages` を含み、`014_drop_prescriptions.sql` で `prescriptions`（EMR-236）は除去済み。`021_medical_record_image_deletions.sql` が `medical_record_image_deletions`（カルテ画像削除台帳）を新設し 130 へ。`016`/`017`〜`020`/`022` はカラム追加・FK 置換・権限行削除・checksum reconcile でテーブル数は不変。2026-10-05 に削除した capability backfill 用の `023` は現行ファイルではない。現行の `023_lab_device_mapping_drafts.sql` が検査項目の対応下書き 4 テーブルを新設し 134 へ。`024`〜`030` は drafts 複合キーの列順張り直し、`cages.merged_into_cage_id`（EMR-306 連結ケージ）、EMR-308 の tentative 予約基盤（`reservation_status` に `'tentative'` 追加 + `appointments.intended_date` / `source_medical_record_id` + `uq_appointments_one_active_tentative` 部分unique）と `medical_records.next_visit_recommended_date` の退役・列DROPで、テーブル数は不変。`031` は次回予定の元カルテ参照を医院複合FKへ置換し、`032_trimming_image_deletions.sql` がトリミング画像の削除予約台帳を新設して 135 へ。`033_lstep_next_visit_sync_retries.sql` が次回来院タグの再試行記録を新設して 136 へ。現行在庫は `ls backend/migrations/*.sql` を参照。
 >
 > **確認範囲**: repo内DDL・関連コードとの静的照合。稼働DBのmigration適用状態・実データ・STG/本番受入は未確認。DDLの存在をDB適用済みとは扱わない。後続変更は [migration方針](../../backend/migrations/README.md) に従い、適用済みSQLを編集・再統合しない。
 
@@ -31,7 +31,7 @@
 | **会計・経営 (16)** | `billings`, `billing_items`, `payments`, `payment_splits`, `billing_refunds`, `billing_confirmations`, `cash_register_closes`, `cash_register_close_adjustments`, `payment_methods`, `merchandise_items`, `estimate_items`, `estimates`, `insurances`, `campaigns`, `campaign_target_categories`, `campaign_target_items` |
 | **トリミング (4)** | `trimming_course_types`, `trimming_courses`, `trimming_options`, `trimming_image_deletions` |
 | **在庫 (1)** | `inventory_items` |
-| **LINE/CRM (19)** | `line_customers`, `line_link_tokens`, `line_send_logs`, `line_reservation_settings`, `lstep_settings`, `lstep_trigger_priorities`, `lstep_delivery_trigger_log`, `lstep_csv_imports`, `lstep_tag_cache`, `lstep_tag_code_mappings`, `lstep_auto_managed_prefixes`, `lstep_condition_tag_mappings`, `lstep_send_purpose_tag_prefixes`, `lstep_friend_attribute_snapshots`, `lstep_sync_error_counters`, `clinic_integrations`, `manual_articles`, `manual_article_versions`, `lstep_migration_progress` |
+| **LINE/CRM (20)** | `line_customers`, `line_link_tokens`, `line_send_logs`, `line_reservation_settings`, `lstep_settings`, `lstep_trigger_priorities`, `lstep_delivery_trigger_log`, `lstep_csv_imports`, `lstep_tag_cache`, `lstep_next_visit_sync_retries`, `lstep_tag_code_mappings`, `lstep_auto_managed_prefixes`, `lstep_condition_tag_mappings`, `lstep_send_purpose_tag_prefixes`, `lstep_friend_attribute_snapshots`, `lstep_sync_error_counters`, `clinic_integrations`, `manual_articles`, `manual_article_versions`, `lstep_migration_progress` |
 | **横断・identity links (4)** | `owner_identity_groups`, `owner_identity_group_members`, `pet_identity_groups`, `pet_identity_group_members`（`001_init.sql` セクション10・旧 `004_add_identity_links.sql` 原文・医院横断の owner/pet 明示リンク） |
 
 > 追記（2026-10-07 監査）: 「臨床・診察」ラベルを (25) → (24) へ訂正（`prescriptions` は `014_drop_prescriptions.sql` / EMR-236 で除去済みだがラベルが減算されていなかった）。当時の 10 区分の合計は 134 で `ERD:TABLE_COUNT` ゲート pin（`backend/internal/lintscan/erd_table_count_drift_test.go`）と一致した。2026-10-10 の `032` 追加後は、トリミング区分を (4) とし合計 135 へ更新した。

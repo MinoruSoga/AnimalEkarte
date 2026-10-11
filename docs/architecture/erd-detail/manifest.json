@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "133e2aefd7213b4852a019b7e498f13f935fcfd5fd268029448d0e932ec9c127",
+  "source_digest": "4ee3603929f49c3c30c39d119c8b97fc7d57733b9226e33f238825e24c623d75",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -17,9 +17,9 @@
     }
   ],
   "counts": {
-    "tables": 135,
-    "columns": 1632,
-    "foreign_keys": 321
+    "tables": 136,
+    "columns": 1637,
+    "foreign_keys": 323
   },
   "migrations": [
     {
@@ -141,6 +141,10 @@
     {
       "name": "032_trimming_image_deletions.sql",
       "sha256": "932a005007410d5884baa070399f53a06ce485ce9256e53c06ab1c8d9010c2ba"
+    },
+    {
+      "name": "033_lstep_next_visit_sync_retries.sql",
+      "sha256": "eef5732c5499d286de58ec386841042f1f9720486d22b7afc5641d4ff0079e61"
     }
   ],
   "reviewed_do_blocks": [
@@ -235,6 +239,7 @@
     "lstep_delivery_trigger_log.md",
     "lstep_friend_attribute_snapshots.md",
     "lstep_migration_progress.md",
+    "lstep_next_visit_sync_retries.md",
     "lstep_send_purpose_tag_prefixes.md",
     "lstep_settings.md",
     "lstep_sync_error_counters.md",

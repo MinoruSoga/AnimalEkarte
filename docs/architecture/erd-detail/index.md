@@ -3,7 +3,7 @@
 
 [概要ERD](../erd.md)
 
-マイグレーション **30ファイル** から **135テーブル・1632カラム・321外部キー** を静的に導出しています。
+マイグレーション **31ファイル** から **136テーブル・1637カラム・323外部キー** を静的に導出しています。
 
 DDLは `backend/migrations/` 直下の `.sql` をファイル名順に読み、CREATE/ALTER/DROPとレビュー済みDOブロックの変更を反映します。seed、`schema_migrations`（migrate runnerの管理テーブル）、関数・trigger・RLS・実データはこの一覧の対象外です。
 
@@ -105,6 +105,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [lstep_delivery_trigger_log](lstep_delivery_trigger_log.md) | 12 | 2 |
 | [lstep_friend_attribute_snapshots](lstep_friend_attribute_snapshots.md) | 14 | 2 |
 | [lstep_migration_progress](lstep_migration_progress.md) | 9 | 2 |
+| [lstep_next_visit_sync_retries](lstep_next_visit_sync_retries.md) | 5 | 2 |
 | [lstep_send_purpose_tag_prefixes](lstep_send_purpose_tag_prefixes.md) | 6 | 0 |
 | [lstep_settings](lstep_settings.md) | 6 | 1 |
 | [lstep_sync_error_counters](lstep_sync_error_counters.md) | 6 | 2 |
@@ -168,7 +169,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 
 ## 入力の照合情報
 
-入力digest（SHA-256）: `133e2aefd7213b4852a019b7e498f13f935fcfd5fd268029448d0e932ec9c127`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
+入力digest（SHA-256）: `4ee3603929f49c3c30c39d119c8b97fc7d57733b9226e33f238825e24c623d75`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
 
 | migration | SHA-256 |
 |:---|:---|
@@ -202,6 +203,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [030_next_visit_recommended_date_to_tentative.sql](../../../backend/migrations/030_next_visit_recommended_date_to_tentative.sql) | `1fcba7b937432b1531343595f84803f1a54e0afa384c2cb892a1f89daed9b075` |
 | [031_appointments_source_medical_record_clinic_fk.sql](../../../backend/migrations/031_appointments_source_medical_record_clinic_fk.sql) | `9efb120dd59f96455d076dde6f3e2d127787c240bbb2c83c004f32bcebed8fba` |
 | [032_trimming_image_deletions.sql](../../../backend/migrations/032_trimming_image_deletions.sql) | `932a005007410d5884baa070399f53a06ce485ce9256e53c06ab1c8d9010c2ba` |
+| [033_lstep_next_visit_sync_retries.sql](../../../backend/migrations/033_lstep_next_visit_sync_retries.sql) | `eef5732c5499d286de58ec386841042f1f9720486d22b7afc5641d4ff0079e61` |
 
 レビュー済みDOブロック（本文変更・新規追加は再レビューが必要）:
 
