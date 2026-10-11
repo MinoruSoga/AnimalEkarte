@@ -31,7 +31,7 @@ jobs:
   # AgentShield scans Claude/Codex agent configs. Baseline debt (score ~40) already
   # exists on main; push-to-main does not fail. Root cause of docs/product PRs being
   # blocked: fail-on-findings was true for ALL main PRs regardless of changed paths.
-  # Fix: only fail when agent-config surfaces change (or manual force).
+  # Fail on main/staging PRs when agent-config surfaces change (or manual force).
   changes:
     name: Detect agent-config changes
     runs-on: ubuntu-latest
@@ -73,12 +73,12 @@ jobs:
         id: gate
         run: |
           set -euo pipefail
-          # Default: report-only. Fail only for main-bound PRs that touch agent configs,
+          # Default: report-only. Fail for main/staging PRs that touch agent configs,
           # or when workflow_dispatch forces it.
           FAIL=false
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.force_fail_on_findings }}" == "true" ]]; then
             FAIL=true
-          elif [[ "${{ github.event_name }}" == "pull_request" && "${{ github.base_ref }}" == "main" && "${{ needs.changes.outputs.agent_config }}" == "true" ]]; then
+          elif [[ "${{ github.event_name }}" == "pull_request" && ( "${{ github.base_ref }}" == "main" || "${{ github.base_ref }}" == "staging" ) && "${{ needs.changes.outputs.agent_config }}" == "true" ]]; then
             FAIL=true
           fi
           echo "fail_on_findings=${FAIL}" >> "$GITHUB_OUTPUT"

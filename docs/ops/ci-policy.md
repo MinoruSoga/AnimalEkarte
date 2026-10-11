@@ -7,7 +7,7 @@
 | 区分 | 契約 | 実装の正本 |
 |---|---|---|
 | Remote | **最小構成**: workflow contract 静的検査と gitleaks secret scan のみ。build / test / coverage / migration / worker / codegen / audit はすべてローカル側へ集約した | `.github/workflows/ci.yml` |
-| AgentShield | main 向け PR で agent config が変わった場合、または manual dispatch で `force_fail_on_findings` を有効にした場合だけ findings を fail 扱い。他の branch/trigger は report-only | `.github/workflows/security-scan.yml` |
+| AgentShield | main / staging 向け PR で agent config が変わった場合、または manual dispatch で `force_fail_on_findings` を有効にした場合だけ findings を fail 扱い。agent config 変更のない PR、production 向け PR、push は report-only | `.github/workflows/security-scan.yml` |
 | Local process policy | push/PR 前に `make ci` を実行する。build/test/coverage ratchet/lint/migration verify/worker/codegen/audit/gitleaks 全ゲートを含む。GitHub はこのローカル実行を強制も証明もしない | `scripts/ci/run-local-ci.sh` |
 | E2E | `workflow_dispatch` のみ。自動 push/PR gate ではない | `.github/workflows/e2e.yml` |
 | Performance | schedule と manual dispatch。push trigger はない | `.github/workflows/performance-tests.yml` |
@@ -19,7 +19,7 @@ flowchart TB
     Push["PR"] --> Remote["Remote CI（最小構成）"]
     Remote --> WC["Workflow Contracts<br/>node --test 契約検査"]
     Remote --> GL["Gitleaks Secret Scan<br/>PR 差分スキャン"]
-    Push -.->|"main 向け PR で agent config 変更<br/>または manual dispatch で有効化"| AS["AgentShield が findings を fail 扱い<br/>他は report-only"]
+    Push -.->|"main / staging 向け PR で agent config 変更<br/>または manual dispatch で有効化"| AS["AgentShield が findings を fail 扱い<br/>他は report-only"]
     subgraph NonAuto["自動 push/PR ゲートではない区分"]
         L["Local: push/PR 前に make ci<br/>build/test/coverage/lint/migration/worker<br/>codegen/audit/gitleaks 全ゲート<br/>GitHub は強制も証明もしない"]
         E["E2E: workflow_dispatch のみ"]

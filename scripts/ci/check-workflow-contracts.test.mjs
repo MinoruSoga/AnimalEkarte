@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -75,6 +77,65 @@ test("AgentShield fail gate does not treat nested docs CLAUDE.md as agent config
   const workflow = read(".github/workflows/security-scan.yml");
   assert.match(workflow, /^\s+- ['"]CLAUDE\.md['"]\s*$/m);
   assert.doesNotMatch(workflow, /^\s+- ['"]\*\*\/CLAUDE\.md['"]\s*$/m);
+});
+
+test("AgentShield fails findings for changed agent configs in main and staging PRs", async (t) => {
+  const workflow = read(".github/workflows/security-scan.yml");
+  const job = workflowJob(workflow, "agentshield");
+  const step = namedStep(job, "Resolve fail-on-findings");
+  const script = step.split("        run: |\n")[1];
+  assert.ok(script, "gate must use a runnable block scalar");
+  assert.match(yamlBlock(workflow, "on", 0), /branches: \[main, staging, production\]/);
+  assert.match(yamlBlock(workflow, "on", 0), /branches: \[main, staging\]/);
+  assert.match(job, /fail-on-findings: \$\{\{ steps\.gate\.outputs\.fail_on_findings \}\}/);
+
+  const cases = [];
+  for (const base of ["main", "staging", "production"]) {
+    for (const changed of ["true", "false"]) {
+      for (const force of ["true", "false"]) {
+        cases.push({ event: "pull_request", base, changed, force,
+          expected: base !== "production" && changed === "true" });
+      }
+    }
+  }
+  // Push events have an empty base_ref; also keep nonempty values report-only.
+  for (const base of ["", "main", "staging"]) {
+    for (const changed of ["true", "false"]) {
+      for (const force of ["true", "false"]) {
+        cases.push({ event: "push", base, changed, force, expected: false });
+      }
+    }
+  }
+  for (const changed of ["true", "false"]) {
+    for (const force of ["true", "false", ""]) {
+      cases.push({ event: "workflow_dispatch", base: "", changed, force,
+        expected: force === "true" });
+    }
+  }
+
+  for (const { event, base, changed, force, expected } of cases) {
+    await t.test(`${event} base=${base} agent_config=${changed} force=${force}`, () => {
+      // Execute the workflow's actual gate with synthetic context, not a copied predicate.
+      const resolved = script
+        .replaceAll("${{ github.event_name }}", event)
+        .replaceAll("${{ github.base_ref }}", base)
+        .replaceAll("${{ needs.changes.outputs.agent_config }}", changed)
+        .replaceAll("${{ github.event.inputs.force_fail_on_findings }}", force);
+      assert.doesNotMatch(resolved, /\$\{\{/);
+      const directory = mkdtempSync(join(tmpdir(), "agentshield-gate-"));
+      try {
+        const outputPath = join(directory, "output");
+        const result = spawnSync("bash", ["-c", resolved], {
+          env: { ...process.env, GITHUB_OUTPUT: outputPath }, encoding: "utf8",
+        });
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(readFileSync(outputPath, "utf8"),
+          `fail_on_findings=${expected}\nagent_config_changed=${changed}\n`);
+      } finally {
+        rmSync(directory, { recursive: true, force: true });
+      }
+    });
+  }
 });
 
 test("Docker, packageManager declarations, and CI use pnpm 10.15.0", () => {
