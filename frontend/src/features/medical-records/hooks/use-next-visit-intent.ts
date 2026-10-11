@@ -16,6 +16,29 @@ interface AsyncMutation<TVariables, TData> {
   mutateAsync: (variables: TVariables) => Promise<TData>;
 }
 
+interface IntentState {
+  petId: string;
+  clinicId: string | undefined;
+  token: object;
+  draft: string | null;
+  serverDate: string;
+  pending: number;
+  deferredReset: boolean;
+}
+
+function createIntentState(
+  petId: string,
+  clinicId: string | undefined,
+  serverDate: string,
+): IntentState {
+  return { petId, clinicId, token: {}, draft: null, serverDate, pending: 0, deferredReset: false };
+}
+
+interface IntentMutationQueue {
+  promise: Promise<void>;
+  generation: number;
+}
+
 interface UseNextVisitIntentParams {
   petId: string;
   /** 保存済みカルテがあればその id。PUT 時に source_medical_record_id として送る。 */
@@ -25,7 +48,7 @@ interface UseNextVisitIntentParams {
   clinicId?: string;
   isPetDeceased: boolean;
   setIntentMutation: AsyncMutation<SetNextVisitIntentVariables, unknown>;
-  clearIntentMutation: AsyncMutation<string, unknown>;
+  clearIntentMutation: AsyncMutation<string | { petId: string; clinicId: string }, unknown>;
 }
 
 /**
@@ -87,96 +110,154 @@ export function useNextVisitIntent({
 
   // Codex PR606 #11: 同一ペットの intent mutation を FIFO 直列化する。
   // 連続入力で PUT→DELETE が逆順完了すると stale な intentDate が復活するため、
-  // hook インスタンス（=1ペット）単位の promise chain に乗せる。
+  // pet 単位の promise chain に乗せる（active intent はpetごとに1件）。
   // generation counter で「最新の要求だけが失敗時に draft を戻す」を保証する。
   // Codex PR606 #11 再指摘: pending 数でも先行 mutation の refetch による
   // draft リセットを抑制する。render 中に読むため ref ではなく state で持つ
   // （react-hooks/refs: render 中の ref アクセス禁止）。
-  const mutationQueueRef = useRef<Promise<unknown>>(Promise.resolve());
-  const mutationGenRef = useRef(0);
-  const [pendingMutations, setPendingMutations] = useState(0);
+  const [intentState, setIntentState] = useState(() =>
+    createIntentState(petId, clinicId, nextVisit.intentDate),
+  );
+  const mutationQueuesRef = useRef(new Map<string, IntentMutationQueue>());
+  const mutationQueueRef = useRef<{ token: object; queue: IntentMutationQueue } | null>(null);
 
-  // Popover 入力のドラフト。通常はサーバー値（tentative の意図日）に従い、
-  // 入力中はタイプした値を保持してバリデーション表示を可能にする。
-  // サーバー値が変わったらドラフトを破棄する（レンダー中の派生状態リセット、
-  // MedicalRecordFormReadyPanels の prev-record-name パターンと同型）。
-  const [intentDraft, setIntentDraft] = useState<string | null>(null);
-  const [prevIntentDate, setPrevIntentDate] = useState(nextVisit.intentDate);
-  if (prevIntentDate !== nextVisit.intentDate) {
-    setPrevIntentDate(nextVisit.intentDate);
-    // Codex PR606 #11 再指摘: 先行 mutation の成功が起こした refetch で
-    // intentDate が一つ前の要求値に戻って見える間は、後続の手入力 draft を
-    // 破棄しない。pending が残っている限りサーバー値同期による draft リセットを
-    // 抑制し、全 mutation 完了後の refetch で通常どおり同期する。
-    if (pendingMutations === 0) setIntentDraft(null);
+  // 同じサーバー日付でも、別ペット/医院のdraft・pendingは引き継がない。
+  // tokenはA→B→Aでも作り直し、最初のAの完了を再訪後のAへ適用しない。
+  if (intentState.petId !== petId || intentState.clinicId !== clinicId) {
+    setIntentState(createIntentState(petId, clinicId, nextVisit.intentDate));
+  } else if (
+    intentState.serverDate !== nextVisit.intentDate ||
+    (intentState.pending === 0 && intentState.deferredReset)
+  ) {
+    // 同一scopeの先行refetchは後続draftを保持し、pending解消後に再同期する。
+    setIntentState({
+      ...intentState,
+      serverDate: nextVisit.intentDate,
+      draft: intentState.pending === 0 ? null : intentState.draft,
+      deferredReset: intentState.pending > 0,
+    });
   }
 
-  const resetIntentDraft = useCallback(() => setIntentDraft(null), []);
+  const token = intentState.token;
+  useLayoutEffect(() => {
+    let queue = mutationQueuesRef.current.get(petId);
+    if (!queue) {
+      queue = { promise: Promise.resolve(), generation: 0 };
+      mutationQueuesRef.current.set(petId, queue);
+    }
+    // UIはscope再訪でもfreshにするが、同一petへの既要求writeのFIFOは保つ。
+    mutationQueueRef.current = { token, queue };
+    return () => {
+      mutationQueueRef.current = null;
+    };
+  }, [petId, token]);
 
-  const enqueueIntentMutation = useCallback((task: () => Promise<void>): number => {
-    const gen = ++mutationGenRef.current;
-    setPendingMutations((c) => c + 1);
-    // task 内で例外を握り潰す前提 — chain が rejected のまま残らないよう
-    // 呼び出し側（runSetIntent/runClearIntent）は必ず try/catch する。
-    mutationQueueRef.current = mutationQueueRef.current.then(async () => {
-      try {
-        await task();
-      } finally {
-        setPendingMutations((c) => c - 1);
-      }
-    });
-    return gen;
-  }, []);
+  const isCurrentScope = useCallback(() => mutationQueueRef.current?.token === token, [token]);
+  const updateIntentState = useCallback(
+    (update: (state: IntentState) => IntentState) => {
+      if (!isCurrentScope()) return;
+      setIntentState((state) => (state.token === token ? update(state) : state));
+    },
+    [isCurrentScope, token],
+  );
+  const resetIntentDraft = useCallback(
+    () => updateIntentState((state) => ({ ...state, draft: null })),
+    [updateIntentState],
+  );
+
+  const enqueueIntentMutation = useCallback(
+    (task: () => Promise<void>): number | null => {
+      const active = mutationQueueRef.current;
+      if (active?.token !== token) return null;
+      const queue = active.queue;
+      const gen = ++queue.generation;
+      updateIntentState((state) => ({ ...state, pending: state.pending + 1 }));
+      // task 内で例外を握り潰す前提 — chain が rejected のまま残らないよう
+      // 呼び出し側（runSetIntent/runClearIntent）は必ず try/catch する。
+      queue.promise = queue.promise.then(async () => {
+        try {
+          await task();
+        } finally {
+          updateIntentState((state) => ({ ...state, pending: state.pending - 1 }));
+        }
+      });
+      return gen;
+    },
+    [token, updateIntentState],
+  );
 
   const runSetIntent = useCallback(
     (date: string) => {
       const gen = enqueueIntentMutation(async () => {
         try {
-          await setIntentMutation.mutateAsync({ petId, intendedDate: date, medicalRecordId });
-          toast.success(`次回予定を ${date} に設定しました`);
+          await setIntentMutation.mutateAsync({
+            petId,
+            intendedDate: date,
+            medicalRecordId,
+            ...(clinicId !== undefined ? { clinicId } : {}),
+          });
+          if (isCurrentScope()) toast.success(`次回予定を ${date} に設定しました`);
         } catch {
           // エラー表示は api hook の onError(handleApiError) 側に集約。
           // 失敗時は入力表示をサーバー値へ戻す — ただし後続の要求が
           // 積まれている場合はそちらの draft を上書きしない（#11）。
-          if (gen === mutationGenRef.current) setIntentDraft(null);
+          if (isCurrentScope() && gen === mutationQueueRef.current?.queue.generation)
+            resetIntentDraft();
         }
       });
     },
-    [enqueueIntentMutation, petId, medicalRecordId, setIntentMutation],
+    [
+      enqueueIntentMutation,
+      petId,
+      medicalRecordId,
+      clinicId,
+      setIntentMutation,
+      isCurrentScope,
+      resetIntentDraft,
+    ],
   );
 
   const runClearIntent = useCallback(() => {
     const gen = enqueueIntentMutation(async () => {
       try {
-        await clearIntentMutation.mutateAsync(petId);
-        toast.success("次回予定をクリアしました");
+        await clearIntentMutation.mutateAsync(clinicId !== undefined ? { petId, clinicId } : petId);
+        if (isCurrentScope()) toast.success("次回予定をクリアしました");
       } catch {
-        if (gen === mutationGenRef.current) setIntentDraft(null);
+        if (isCurrentScope() && gen === mutationQueueRef.current?.queue.generation)
+          resetIntentDraft();
       }
     });
-  }, [enqueueIntentMutation, petId, clearIntentMutation]);
+  }, [
+    enqueueIntentMutation,
+    petId,
+    clinicId,
+    clearIntentMutation,
+    isCurrentScope,
+    resetIntentDraft,
+  ]);
 
   // NextVisitDateField の onChange にそのまま渡す。
   // "" はクリア（DELETE）、有効日は upsert（PUT）、無効日は入力表示だけ残し mutation しない。
   const handleIntentDateChange = useCallback(
     (newDate: string) => {
+      if (!isCurrentScope()) return;
       if (newDate === "") {
         if (!intentCapsRef.current.clear) return;
-        setIntentDraft(newDate);
+        updateIntentState((state) => ({ ...state, draft: newDate }));
         void runClearIntent();
         return;
       }
       if (!intentCapsRef.current.set) return;
-      setIntentDraft(newDate);
+      updateIntentState((state) => ({ ...state, draft: newDate }));
       if (validateNextVisitIntentDate(newDate) !== null) return;
       void runSetIntent(newDate);
     },
-    [runClearIntent, runSetIntent],
+    [runClearIntent, runSetIntent, isCurrentScope, updateIntentState],
   );
 
   return {
     nextVisitLabel: nextVisit.label,
-    intentFieldValue: intentDraft ?? nextVisit.intentDate,
+    intentFieldValue: intentState.draft ?? nextVisit.intentDate,
     handleIntentDateChange,
     resetIntentDraft,
     canMutateIntent: canSetIntent || canClearIntent,
