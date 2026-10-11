@@ -1,7 +1,7 @@
 ---
 name: database-reviewer
 description: PostgreSQL 18 データベース専門家。クエリ最適化、スキーマ設計、マルチテナント(clinic_id)パターン、インデックス戦略、GORM連携を審査。SQL/マイグレーション変更時に PROACTIVELY 使用。
-tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
+tools: ["Read", "Bash", "Grep", "Glob"]
 model: sonnet
 ---
 
