@@ -373,7 +373,11 @@ sync_one_ticket() {
   list_url="${PLANE_API_ORIGIN}/api/v2/workspaces/${PLANE_WORKSPACE_SLUG}/projects/${PLANE_PROJECT_ID}/work-items/${item_uuid}/comments/?external_source=github&external_id=$(jq -nr --arg v "$external_id" '$v|@uri')"
   http_code="$(plane_http GET "$list_url" "" "$comment_body")"
   if [[ "$http_code" != "200" ]]; then
-    log_line "FAIL  ${ticket_id}  comment lookup HTTP ${http_code} $(plane_detail "$comment_body")"
+    if [[ "$reconcile_only" == "1" ]]; then
+      log_line "FAIL  ${ticket_id}  audit reconciliation current=${current_state} target=${decision} state=unchanged comment HTTP ${http_code} $(plane_detail "$comment_body")"
+    else
+      log_line "FAIL  ${ticket_id}  comment lookup HTTP ${http_code} $(plane_detail "$comment_body")"
+    fi
     rm -f "$item_body" "$patch_body" "$comment_body"
     return 1
   fi
@@ -383,7 +387,11 @@ sync_one_ticket() {
     return 1
   fi
   if comment_already_posted "$comment_body" "$external_id"; then
-    log_line "MOVE  ${ticket_id}  ${current_state} -> ${decision}  comment=already"
+    if [[ "$reconcile_only" == "1" ]]; then
+      log_line "AUDIT  ${ticket_id}  current=${current_state} target=${decision} state=unchanged comment=already"
+    else
+      log_line "MOVE  ${ticket_id}  ${current_state} -> ${decision}  comment=already"
+    fi
     rm -f "$item_body" "$patch_body" "$comment_body"
     return 0
   fi
@@ -395,12 +403,20 @@ sync_one_ticket() {
   comment_url="${PLANE_API_ORIGIN}/api/v2/workspaces/${PLANE_WORKSPACE_SLUG}/projects/${PLANE_PROJECT_ID}/work-items/${item_uuid}/comments/"
   http_code="$(plane_http POST "$comment_url" "$payload" "$comment_body")"
   if [[ "$http_code" != "200" && "$http_code" != "201" ]]; then
-    log_line "FAIL  ${ticket_id}  moved to ${decision} but comment HTTP ${http_code} $(plane_detail "$comment_body")"
+    if [[ "$reconcile_only" == "1" ]]; then
+      log_line "FAIL  ${ticket_id}  audit reconciliation current=${current_state} target=${decision} state=unchanged comment HTTP ${http_code} $(plane_detail "$comment_body")"
+    else
+      log_line "FAIL  ${ticket_id}  moved to ${decision} but comment HTTP ${http_code} $(plane_detail "$comment_body")"
+    fi
     rm -f "$item_body" "$patch_body" "$comment_body"
     return 1
   fi
 
-  log_line "MOVE  ${ticket_id}  ${current_state} -> ${decision}"
+  if [[ "$reconcile_only" == "1" ]]; then
+    log_line "AUDIT  ${ticket_id}  current=${current_state} target=${decision} state=unchanged comment=backfilled"
+  else
+    log_line "MOVE  ${ticket_id}  ${current_state} -> ${decision}"
+  fi
   rm -f "$item_body" "$patch_body" "$comment_body"
   return 0
 }

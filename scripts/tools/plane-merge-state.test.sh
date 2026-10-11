@@ -269,7 +269,7 @@ printf '[]' > "$CASE_DIR/comments"
 printf '0' > "$CASE_DIR/fail_once"
 printf '200' > "$CASE_DIR/comment_lookup_status"
 : > "$CASE_DIR/calls"
-if sync_one_ticket EMR-999 staging 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
+if out="$(sync_one_ticket EMR-999 staging 606 'https://github.com/example/repo/pull/606' main 2>&1 >/dev/null)"; then
   ok "staging UAT head=main backfills missing comment"
 else
   ng "staging UAT head=main backfills missing comment"
@@ -278,6 +278,9 @@ assert_eq "staging UAT head=main sends no PATCH" '0' "$(grep -c '^PATCH$' "$CASE
 assert_eq "staging UAT head=main posts one audit comment" '1' "$(grep -c '^POST$' "$CASE_DIR/calls")"
 assert_eq "staging UAT reconcile keeps UAT comment identity" "gh-merge:606:staging:UAT" \
   "$(jq -r '.[0].external_id' "$CASE_DIR/comments")"
+assert_eq "staging UAT reconcile logs AUDIT state=unchanged" \
+  "AUDIT  EMR-999  current=UAT target=UAT state=unchanged comment=backfilled" "$out"
+assert_eq "staging UAT reconcile logs no MOVE line" '0' "$(printf '%s' "$out" | grep -c 'MOVE')"
 
 CASE_DIR="$API_FIXTURE_ROOT/main-uat"
 mkdir -p "$CASE_DIR"
@@ -286,7 +289,7 @@ printf '[]' > "$CASE_DIR/comments"
 printf '0' > "$CASE_DIR/fail_once"
 printf '200' > "$CASE_DIR/comment_lookup_status"
 : > "$CASE_DIR/calls"
-if sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
+if out="$(sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main 2>&1 >/dev/null)"; then
   ok "main UAT backfills missing comment"
 else
   ng "main UAT backfills missing comment"
@@ -295,16 +298,46 @@ assert_eq "main UAT sends no PATCH" '0' "$(grep -c '^PATCH$' "$CASE_DIR/calls")"
 assert_eq "main UAT posts one audit comment" '1' "$(grep -c '^POST$' "$CASE_DIR/calls")"
 assert_eq "main UAT keeps Review comment identity" "gh-merge:606:main:Review" \
   "$(jq -r '.[0].external_id' "$CASE_DIR/comments")"
+assert_eq "main UAT reconcile logs AUDIT state=unchanged" \
+  "AUDIT  EMR-999  current=UAT target=Review state=unchanged comment=backfilled" "$out"
+assert_eq "main UAT reconcile logs no MOVE line" '0' "$(printf '%s' "$out" | grep -c 'MOVE')"
 assert_eq "main UAT audit comment names the actual state" '1' \
   "$(jq -r '.[0].comment_html' "$CASE_DIR/comments" | grep -c '現在の UAT')"
 assert_eq "main UAT audit comment states no state write" '1' \
   "$(jq -r '.[0].comment_html' "$CASE_DIR/comments" | grep -c '状態変更なし')"
-if sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
+if out="$(sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main 2>&1 >/dev/null)"; then
   ok "main UAT rerun is a clean no-op"
 else
   ng "main UAT rerun is a clean no-op"
 fi
 assert_eq "main UAT rerun posts no duplicate comment" '1' "$(grep -c '^POST$' "$CASE_DIR/calls")"
+assert_eq "main UAT rerun logs AUDIT comment=already" \
+  "AUDIT  EMR-999  current=UAT target=Review state=unchanged comment=already" "$out"
+assert_eq "main UAT rerun logs no MOVE line" '0' "$(printf '%s' "$out" | grep -c 'MOVE')"
+
+printf '503' > "$CASE_DIR/comment_lookup_status"
+if out="$(sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main 2>&1 >/dev/null)"; then
+  ng "main UAT comment lookup failure is reported"
+else
+  ok "main UAT comment lookup failure is reported"
+fi
+assert_eq "main UAT lookup failure logs audit reconciliation wording" '1' \
+  "$(printf '%s' "$out" | grep -c 'audit reconciliation current=UAT target=Review state=unchanged comment HTTP 503')"
+assert_eq "main UAT lookup failure logs no moved wording" '0' "$(printf '%s' "$out" | grep -c 'moved')"
+assert_eq "main UAT lookup failure leaves state unchanged" 'UAT' "$(cat "$CASE_DIR/state")"
+printf '200' > "$CASE_DIR/comment_lookup_status"
+
+printf '1' > "$CASE_DIR/fail_once"
+printf '[]' > "$CASE_DIR/comments"
+if out="$(sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main 2>&1 >/dev/null)"; then
+  ng "main UAT comment POST failure is reported"
+else
+  ok "main UAT comment POST failure is reported"
+fi
+assert_eq "main UAT POST failure logs audit reconciliation wording" '1' \
+  "$(printf '%s' "$out" | grep -c 'audit reconciliation current=UAT target=Review state=unchanged comment HTTP 503')"
+assert_eq "main UAT POST failure logs no moved wording" '0' "$(printf '%s' "$out" | grep -c 'moved')"
+assert_eq "main UAT POST failure leaves state unchanged" 'UAT' "$(cat "$CASE_DIR/state")"
 
 echo "----"
 echo "PASS ${PASS_COUNT}  FAIL ${FAIL_COUNT}"

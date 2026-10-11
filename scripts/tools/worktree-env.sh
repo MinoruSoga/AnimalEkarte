@@ -105,6 +105,7 @@ main() {
     info "created $ENV_FILE from ${EXAMPLE##*/}"
   fi
 
+  # 既存 managed block と未管理 CORS 行を除去してから最新 block を追記する。
   local tmp_env
   tmp_env="$(mktemp)"
   awk '
