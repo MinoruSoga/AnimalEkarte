@@ -14,7 +14,9 @@ Cloudflare cronはUTCで解釈される。Workerは次の3式以外をfail-close
 | `0 6,11 * * *` | 15:00 / 20:00 | `no_show` |
 | `0 17 * * *` | 翌02:00 | `dormant` |
 
-`no_show`は予約no-show処理、`delivery`は配信trigger、`dormant`は休眠判定を、Go Containerの内部endpointからdomain use caseとして実行する。1 jobの期限はGo 100秒、Worker fetch 110秒、coordinator lease 150秒である。leaseはWorker側ledgerの二重確定を防ぐが、開始済みのGo side effectを取り消さないため、domain側のidempotency/CASも安全境界に含まれる。
+`no_show`は予約no-show処理、`delivery`は配信trigger、`dormant`は休眠判定を、Go Containerの内部endpointからdomain use caseとして実行する。Goの主処理期限は100秒である。例外は`no_show`のcommit済み1件のタグ再同期だけで、request取消・主処理期限から分離した最大10秒の有限期限を持つ。次候補の状態変更には元のcontextを使い、取消後は開始しない。副次同期の失敗はログに記録し、commit済みの成功を取り消さない。
+
+Worker fetchは`no_show`だけ120秒とし、Go主処理100秒＋最大10秒のpost-commit同期に加えて、通信・応答処理の余裕10秒を確保する。他jobのWorker fetchは従来どおり110秒、coordinator leaseは全jobで150秒である。これらは協調的なcontext/AbortSignalの期限であり、応答しない外部処理を強制終了した保証ではない。WorkerはAbortSignalを無視するfetchでもjob別の期限で待機を終了する。leaseはWorker側ledgerの二重確定を防ぐが、開始済みのGo side effectを取り消さないため、domain側のidempotency/CASも安全境界に含まれる。
 
 （2026-09-29 訂正・追記: 上記3式は scheduler job の allowlist（`jobsForCron`）であり、Wrangler の cron trigger 総数とは別物。STG の `backend/wrangler.jsonc` は第4の trigger `*/4 0-9 * * *`（UTC）も bind する。これは EMR-213 の API container keep-alive で、`backend/worker/index.ts` の `API_KEEPALIVE_CRON` が scheduled handler 先頭で個別に処理して `/health/db` を暖めるだけであり、scheduler job ではない。`wrangler.production.jsonc` には含まれず production は3式のみ。job 運用・pause/resume・catch-up の対象はあくまで上記3式）
 

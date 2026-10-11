@@ -2,6 +2,11 @@ export const SCHEDULER_NAME = "animalekarte-scheduler-v1" as const;
 
 export const SCHEDULED_JOB_GO_TIMEOUT_MS = 100_000;
 export const SCHEDULED_JOB_FETCH_TIMEOUT_MS = 110_000;
+// no_show may finish one committed item's bounded tag sync after the Go deadline.
+export const SCHEDULED_JOB_POST_COMMIT_TIMEOUT_MS = 10_000;
+// Preserve ten seconds for transport and response handling after that tail.
+export const SCHEDULED_JOB_NO_SHOW_FETCH_TIMEOUT_MS =
+  SCHEDULED_JOB_GO_TIMEOUT_MS + SCHEDULED_JOB_POST_COMMIT_TIMEOUT_MS + 10_000;
 export const SCHEDULED_JOB_LEASE_MS = 150_000;
 
 export const SCHEDULED_JOBS_INTERNAL_PREFIX = "/_internal/scheduled-jobs";
@@ -141,16 +146,11 @@ export const SCHEDULER_INTERNAL_TOKEN_HEADER = "X-Scheduler-Token" as const;
  * Worker sends -- all-hospital scheduled jobs stop until the secret is put and the Container
  * restarts. The deploy is the cutover event; the secret must already be in place.
  */
-export function buildScheduledJobHeaders(
-  schedulerInternalToken?: string,
-): Record<string, string> {
+export function buildScheduledJobHeaders(schedulerInternalToken?: string): Record<string, string> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  if (
-    typeof schedulerInternalToken === "string" &&
-    schedulerInternalToken.length > 0
-  ) {
+  if (typeof schedulerInternalToken === "string" && schedulerInternalToken.length > 0) {
     headers[SCHEDULER_INTERNAL_TOKEN_HEADER] = schedulerInternalToken;
   }
   return headers;
@@ -162,15 +162,17 @@ export async function runScheduledJobRequest(
   schedulerInternalToken?: string,
 ): Promise<ScheduledJobOutcome> {
   const abort = new AbortController();
+  const fetchTimeoutMs =
+    request.job === "no_show"
+      ? SCHEDULED_JOB_NO_SHOW_FETCH_TIMEOUT_MS
+      : SCHEDULED_JOB_FETCH_TIMEOUT_MS;
   let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
-  const timeoutError = new Error(
-    `scheduled job request timed out after ${SCHEDULED_JOB_FETCH_TIMEOUT_MS}ms`,
-  );
+  const timeoutError = new Error(`scheduled job request timed out after ${fetchTimeoutMs}ms`);
   const timeout = new Promise<never>((_resolve, reject) => {
     timeoutHandle = setTimeout(() => {
       abort.abort(timeoutError);
       reject(timeoutError);
-    }, SCHEDULED_JOB_FETCH_TIMEOUT_MS);
+    }, fetchTimeoutMs);
   });
 
   try {
