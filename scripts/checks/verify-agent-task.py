@@ -641,6 +641,10 @@ def plan(paths):
                 job = {'service': 'host', 'command': ['bash', 'scripts/ci/check-ci-step-order.test.sh']}
                 if job not in jobs:
                     jobs.append(job)
+        elif path in ('scripts/tools/claude-backend.py', 'scripts/checks/test_claude_backend_launch.py'):
+            job = {'service': 'host', 'command': ['python3', '-B', 'scripts/checks/test_claude_backend_launch.py']}
+            if job not in jobs:
+                jobs.append(job)
         elif path in ('scripts/checks/test_agent_scope_contracts.py', '.gitignore', 'frontend/.gitignore', '.mcp.json', '.claude/settings.json', '.claude/codex-agent-manifest.json', 'backend/wrangler.jsonc', 'frontend/chromatic.config.json'):
             jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/checks/test_agent_scope_contracts.py']})
         elif path == 'backend/Dockerfile.production':

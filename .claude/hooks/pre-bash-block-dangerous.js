@@ -13,6 +13,7 @@
  * - Fail-open only on parse errors (hook must stay available)
  */
 'use strict';
+const { literalDeviceWrite } = require('./literal-device-write.js');
 
 const MAX_STDIN = 1024 * 1024;
 let data = '';
@@ -80,6 +81,7 @@ const SYSTEM_DESTRUCTIVE_PATTERNS = [
  * @returns {string|null} reason if blocked
  */
 function matchDestructive(command) {
+  if (literalDeviceWrite(command)) return 'Blocked literal raw-device write (redirect, tee or dd).';
   for (const pattern of DESTRUCTIVE_GIT_PATTERNS) {
     if (pattern.test(command)) {
       return (

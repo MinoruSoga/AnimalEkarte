@@ -69,3 +69,42 @@ UI動作、フォーム、ルーティング、アクセシビリティに変更
 再発する失敗は最も近い一つの正本に戻す。業務仕様はdocs、操作手順はSkill、機械判定できる禁止はHook、再現可能な不具合はTest。個人memoryはユーザーの明示依頼がある場合だけ更新する。
 
 命令・Skillを変更したら `python3 -B .claude/scripts/test_instruction_safety_contracts.py`、関連するharness regression tests、生成一致と再生成の冪等性を確認する。欠落Hook、誤mount、テスト不在、秘密出力、他者WIP、禁止migration、外部接続不明を回帰ケースにする。製品runtimeの成功とは分けて報告する。
+
+## Claude backend 起動入口
+
+backend作業も既存worktreeのrootをprimary cwdとして開始する。入口は
+`python3 scripts/tools/claude-backend.py`（backend内からは
+`python3 ../scripts/tools/claude-backend.py`）。
+入口はrootの共有設定の存在を確認してrootへ移動し、backendの
+`disabledMcpjsonServers`を保持するため、そのローカル設定だけを
+`--settings <absolute-path>`で追加する。モデル等のユーザー設定を複製しない。
+backendを対象とするprompt/ファイルパスとDockerのscoped検証を使う。
+
+根拠: [設定の読み込みと優先順位](https://code.claude.com/docs/en/settings)、
+[CLI --settings](https://code.claude.com/docs/en/cli-reference)。
+共有設定はprimary cwdから読む。Git rootへのlocal設定の移動と共有設定の継承は別契約。
+開始後は/statusでsetting sourcesを確認する。秘密値やuser/managed設定本文は報告しない。
+
+この入口はmanaged policyではなく、利用者のopt-in起動規約である。
+直起動、/cdによるprimary cwd移動、settings sources除外、bare/safe mode、
+hooks無効化、bypass flags、user/managed設定との実際の合成を防止したとは扱わない。
+入口テストはstubのcwd/argvだけを証明し、実Claudeの設定ロードを証明しない。
+backend設定へのpermissions/hooksの空追加、根拠なしscanner抑制は行わない。
+
+## device書込の補助ガード
+
+`literal-device-write.js`は、直接指定されたmacOS disk/rdisk、Linux sd/hd/vd/xvd、
+NVMe、mmcblk、loop、dm/md、BSD ada/da/nvd、/dev/disk/by-*、/dev/mapperへの
+redirect（>、>>、>|、&>、&>>、<>）、tee、dd of=を拒否する。
+引用・連結されたliteral pathとdot成分を扱う。単純なenv、command、exec、
+literal sh/bash/zsh/dash -cを補助的に扱う。対象pathのread/realpathやcommand実行は行わない。
+既存destructive Git/systemチェックとsudo/chmod denyを維持する。
+/dev/null、通常のファイル出力、読み取り、通常git操作は追加ガードで拒否しない。
+このhook判定はDB/実デバイスへのアクセスを許可するものではない。
+
+変数展開・alias/symlink・FD/proc alias・任意プログラムのopen/write、
+複雑なwrapperやshell構文、heredoc、hook未ロード/無効化、malformed JSONの
+既存fail-openは未解決。部分tokenizerによる複雑なshell構文の誤拒否もあり得る。
+実デバイス書込不能を保証するには、agent実行ユーザー/隔離runtimeがraw deviceに
+write権限を持たず、device mountとprivileged accessを持たないことの別確認が必要。
+この補助ガードだけで包括的なdevice denyを宣言せず、能力26件の安全性も認定しない。

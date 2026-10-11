@@ -456,6 +456,16 @@ class VerificationTests(unittest.TestCase):
         self.assertFalse(blocked)
         self.assertEqual([job['command'] for job in jobs], [['node', '--check', '.claude/hooks/post-edit-file-size-warn.js']])
 
+    def test_backend_launcher_runs_mock_regression_once(self):
+        jobs, blocked = verify.plan([
+            'scripts/tools/claude-backend.py',
+            'scripts/checks/test_claude_backend_launch.py',
+        ])
+        self.assertFalse(blocked)
+        self.assertEqual(jobs, [{'service': 'host', 'command': [
+            'python3', '-B', 'scripts/checks/test_claude_backend_launch.py',
+        ]}])
+
     def test_generated_models_allowlist_runs_boundary_test(self):
         jobs, blocked = verify.plan(['frontend/generated-models-import-allowlist.json'])
         self.assertFalse(blocked)
