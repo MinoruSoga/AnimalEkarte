@@ -86,11 +86,11 @@ jobs:
           echo "Resolved fail_on_findings=${FAIL} (agent_config_changed=${{ needs.changes.outputs.agent_config }})"
 
       - name: Run AgentShield
-        # Pinned to v1.3.0 (commit 0b5e1bc9 — also where the upstream `v1` tag points).
-        # Do NOT use v1.4.0 (9bbc007c): its dist/action.js added an unbundled
-        # `import YAML from "yaml"` that crashes with ERR_MODULE_NOT_FOUND on the runner.
-        # v1.3.0's bundle is self-contained (only Node builtins). Upgrade past v1.3.0 only
-        # after confirming the new release re-bundles its dependencies. Resolve tag -> commit:
+        # Pinned to v1.6.0 (b0891303, "chore: release v1.6.0 (#145)").
+        # Use the self-contained dist/action.js bundle for CI reproduction;
+        # dist/index.js requires external dependencies and is not equivalent.
+        # Before upgrading, confirm the action bundle runs without dependency installation.
+        # Resolve tag -> commit:
         #   git ls-remote https://github.com/affaan-m/agentshield.git refs/tags/<tag>^{}
         uses: affaan-m/agentshield@b0891303bdcd6037376a94263d45cfd2ff3dfb98
         with:
