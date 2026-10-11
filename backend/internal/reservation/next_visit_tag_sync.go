@@ -3,6 +3,9 @@ package reservation
 import (
 	"context"
 	"log/slog"
+	"time"
+
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // ---------------------------------------------------------------------------
@@ -14,18 +17,14 @@ import (
 // 未注入・同期失敗は予約変更容易点の成否へ影響させない（best-effort）。
 // ---------------------------------------------------------------------------
 
+// nextVisitTagSyncTimeout bounds the entire post-commit owner batch, including
+// DB reads and external calls. A later owner does not receive a fresh budget.
+const nextVisitTagSyncTimeout = 30 * time.Second
+
 // syncNextVisitTagBestEffort は飼い主1件の next-visit タグ同期を呼び出す。
 // syncer 未注入・owner 未確定のときは何もしない。失敗は warn ログのみ。
 func syncNextVisitTagBestEffort(ctx context.Context, syncer NextVisitTagSyncer, clinicID uint64, ownerID *uint64) {
-	if syncer == nil || ownerID == nil || *ownerID == 0 {
-		return
-	}
-	if err := syncer.SyncNextVisitTag(ctx, clinicID, *ownerID); err != nil {
-		slog.WarnContext(ctx, "next visit tag sync failed (best-effort)",
-			slog.Uint64("clinic_id", clinicID),
-			slog.Uint64("owner_id", *ownerID),
-			slog.Any("error", err))
-	}
+	syncNextVisitTagsBestEffort(ctx, syncer, clinicID, ownerID)
 }
 
 // syncNextVisitTagsBestEffort は複数飼い主候補（例: 更新前後の新旧 owner、
@@ -34,6 +33,11 @@ func syncNextVisitTagsBestEffort(ctx context.Context, syncer NextVisitTagSyncer,
 	if syncer == nil {
 		return
 	}
+	// Commit済みの同期はrequest取消に依存させない。trace等の値は保持し、
+	// 終了済みtransactionは外す。同期処理と警告ログには同じ期限付きcontextを使う。
+	syncCtx, cancel := context.WithTimeout(persistence.DetachTx(ctx), nextVisitTagSyncTimeout)
+	defer cancel()
+
 	seen := make(map[uint64]struct{}, len(ownerIDs))
 	for _, ownerID := range ownerIDs {
 		if ownerID == nil || *ownerID == 0 {
@@ -43,6 +47,11 @@ func syncNextVisitTagsBestEffort(ctx context.Context, syncer NextVisitTagSyncer,
 			continue
 		}
 		seen[*ownerID] = struct{}{}
-		syncNextVisitTagBestEffort(ctx, syncer, clinicID, ownerID)
+		if err := syncer.SyncNextVisitTag(syncCtx, clinicID, *ownerID); err != nil {
+			slog.WarnContext(syncCtx, "next visit tag sync failed (best-effort)",
+				slog.Uint64("clinic_id", clinicID),
+				slog.Uint64("owner_id", *ownerID),
+				slog.Any("error", err))
+		}
 	}
 }
