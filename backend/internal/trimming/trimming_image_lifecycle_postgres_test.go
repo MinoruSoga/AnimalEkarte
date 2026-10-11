@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -52,24 +53,47 @@ func TestImageLifecycle_PostgresRollbackLocksAndScope(t *testing.T) {
 
 	locked, release := make(chan struct{}), make(chan struct{})
 	committed := make(chan error, 1)
+	workerDone := make(chan struct{})
+	workerCtx, cancelWorker := context.WithTimeout(context.Background(), 10*time.Second)
+	var releaseOnce sync.Once
+	t.Cleanup(func() {
+		releaseOnce.Do(func() { close(release) })
+		cancelWorker()
+		select {
+		case <-workerDone:
+		case <-time.After(10 * time.Second):
+			t.Error("image lifecycle worker did not stop within 10s")
+		}
+	})
 	go func() {
-		committed <- transactor.WithTx(context.Background(), func(ctx context.Context) error {
+		defer close(workerDone)
+		committed <- transactor.WithTx(workerCtx, func(ctx context.Context) error {
 			if err := repo.LockImageKeys(ctx, []ImageKey{key}); err != nil {
 				return err
 			}
 			close(locked)
-			<-release
+			select {
+			case <-release:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
 			return repo.MarkImageKeyDeleted(ctx, key, 42)
 		})
 	}()
-	<-locked
+	select {
+	case <-locked:
+	case err := <-committed:
+		t.Fatalf("image lifecycle worker exited before acquiring the lock: %v", err)
+	case <-workerCtx.Done():
+		t.Fatalf("image lifecycle worker did not acquire the lock before deadline: %v", workerCtx.Err())
+	}
 	// A competing transaction cannot pass the same key lock before commit.
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	err := transactor.WithTx(ctx, func(txCtx context.Context) error {
 		return repo.LockImageKeys(txCtx, []ImageKey{key})
 	})
 	cancel()
-	close(release)
+	releaseOnce.Do(func() { close(release) })
 	require.Error(t, err)
 	require.NoError(t, <-committed)
 	require.NoError(t, transactor.WithTx(context.Background(), func(ctx context.Context) error {

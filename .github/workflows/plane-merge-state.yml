@@ -24,14 +24,19 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: plane-merge-state-${{ github.event.pull_request.number }}
+  # Different PRs can carry the same EMR ticket. Serialize main and staging
+  # together, and retain pending merges instead of replacing the previous one.
+  group: plane-merge-state-${{ github.repository }}
   cancel-in-progress: false
+  queue: max
 
 jobs:
   sync:
     if: >-
       github.event.pull_request.merged == true &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.pull_request.base.ref != 'staging' ||
+        github.event.pull_request.head.ref == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

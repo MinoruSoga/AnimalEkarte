@@ -89,12 +89,12 @@ post_ci_status() {
 on_make_ci_failure() {
   post_ci_status failure "make ci failed at: ${CURRENT_STEP:-unknown}" || true
 }
-trap on_make_ci_failure ERR
 
 # ── step 定義（s01–s30。追加時は sXX 関数と total を同時更新）──────────
 
 s01() {
   begin_step "Agent instruction and scoped verification contracts"
+  ci_py -B .claude/scripts/test_agent_trust_boundaries.py
   ci_py -B .claude/scripts/sync-codex-mirror.py "$ROOT"
   ci_py -B .claude/scripts/sync-agents-skills.py "$ROOT"
   ci_py -B .claude/scripts/test_instruction_safety_contracts.py
@@ -456,31 +456,12 @@ s30() {
     bash -lc 'set -euo pipefail; corepack enable; corepack prepare pnpm@'"$WORKER_PNPM_VERSION"' --activate; pnpm config set store-dir /pnpm-store; pnpm install --frozen-lockfile; pnpm run typecheck:worker; pnpm exec vitest run --config backend/worker/vitest.config.mts backend/worker'
 }
 
-# ── --from / CI_FROM / 位置引数で開始 step を指定できる ────────────────
-FROM="${CI_FROM:-1}"
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --from=*) FROM="${1#--from=}" ;;
-    --from) shift; FROM="${1:?--from requires a step number}" ;;
-    *[!0-9]*|'') echo "usage: $0 [N|--from N]  (N: 1..${total})" >&2; exit 2 ;;
-    *) FROM="$1" ;;
-  esac
-  shift
-done
-if ! [[ "$FROM" =~ ^[0-9]+$ ]] || (( FROM < 1 || FROM > total )); then
-  echo "ERROR: --from は 1..${total} の数値で指定してください（got: ${FROM}）" >&2
-  exit 2
-fi
-if (( FROM > 1 )); then
-  echo "make ci: --from ${FROM}（step 1..$((FROM - 1)) はスキップ — スキップ分の検証は未実施です）"
-fi
-
 # ── 実行フェーズ ──────────────────────────────────────────────────────
 # フェーズ1（メタゲート・3 lane 並列）: step 1-16 の安い契約検査。
 #   lane 内で並列に回すが、ここで落ちたら重いフェーズ2は起動しない（fail-fast）。
-# フェーズ2（重い step・5 lane 並列）: step 17-30。相互に状態依存しないため
-#   lane 別にバックグラウンド実行する。frontend は「lint/typecheck/knip/audit」
-#   と「build+test+ratchet」で互いの成果物に依存しないため2 lane に分割。
+# フェーズ2（重い step・4 lane 並列）: step 17-30。frontend lane は
+#   backend の s23（codegen 生成物）完了まで起動を遅延し、他 lane は
+#   相互に状態依存しないため並列にバックグラウンド実行する。
 #
 # 出力は "[lane] " プレフィックス付きでライブ表示。各 step 完了時に
 # "── done in Ns ──" を出す（所要時間の可視化）。失敗 lane があっても
@@ -508,9 +489,6 @@ pending_steps() {
   done
 }
 
-LANE_DIR="$(mktemp -d)"
-trap 'rm -rf "$LANE_DIR"' EXIT
-
 # lane 本隊。step は通常コンテキストで裸実行する — `if !` 等の条件
 # コンテキストで呼ぶと -e が step 関数内部まで無効化され、途中コマンドの
 # 失敗が握り潰される（失敗捕捉は lane subshell 側の ERR trap が担う）。
@@ -530,6 +508,18 @@ run_lane() {
   done
 }
 
+_launch_ci_lane() {
+  local tag=$1
+  shift
+  (
+    set -E
+    trap 'printf "%s: step %s failed: %s\n" "'"$tag"'" "${step:-?}" "${CURRENT_STEP:-?}" >>"'"$LANE_DIR"'/failures"' ERR
+    run_lane "$tag" "$@"
+  ) > >(while IFS= read -r l || [[ -n $l ]]; do
+        if [[ -n $l ]]; then printf '[%s] %s\n' "$tag" "$l"; else printf '\n'; fi
+      done) 2>&1 &
+}
+
 # lane spec（"tag:step step ..."）を受け取り並列実行する。
 # 各 lane は subshell 内で ERR trap + errtrace を持ち、step 失敗時に
 # lane/step 名を failures へ記録して非0終了する。失敗 lane があっても
@@ -538,22 +528,42 @@ run_lane() {
 run_lanes() {
   local phase_label=$1
   shift
-  local spec tag i pid failed=0
-  local pids=()
+  local spec tag i pid producer_pid="" failed=0
+  local pids=() deferred=()
   for spec in "$@"; do
     tag="${spec%%:*}"
     local lane_steps=()
     while IFS= read -r i; do lane_steps+=("$i"); done < <(pending_steps "${spec#*:}")
     ((${#lane_steps[@]})) || continue
-    (
-      set -E
-      trap 'printf "%s: step %s failed: %s\n" "'"$tag"'" "${step:-?}" "${CURRENT_STEP:-?}" >>"'"$LANE_DIR"'/failures"' ERR
-      run_lane "$tag" "${lane_steps[@]}"
-    ) > >(while IFS= read -r l || [[ -n $l ]]; do
-          if [[ -n $l ]]; then printf '[%s] %s\n' "$tag" "$l"; else printf '\n'; fi
-        done) 2>&1 &
-    pids+=($!)
+    if (( FROM <= 23 )) && [[ "$tag" == frontend* ]]; then
+      deferred+=("$spec")
+      continue
+    fi
+    _launch_ci_lane "$tag" "${lane_steps[@]}"
+    pid=$!
+    pids+=("$pid")
+    if [[ "$tag" == "backend" ]]; then
+      for i in "${lane_steps[@]}"; do
+        [[ "$i" == "23" ]] && producer_pid=$pid
+      done
+    fi
   done
+  if ((${#deferred[@]})); then
+    if [[ -z "$producer_pid" ]]; then
+      printf '%s\n' 'backend: scheduled codegen producer is missing' >>"$LANE_DIR/failures"
+      failed=1
+    elif wait "$producer_pid"; then
+      for spec in "${deferred[@]}"; do
+        tag="${spec%%:*}"
+        local lane_steps=()
+        while IFS= read -r i; do lane_steps+=("$i"); done < <(pending_steps "${spec#*:}")
+        _launch_ci_lane "$tag" "${lane_steps[@]}"
+        pids+=("$!")
+      done
+    else
+      failed=1
+    fi
+  fi
   # bash 3.2 では空配列の "${pids[@]}" 展開が set -u で unbound になるためガード
   if ((${#pids[@]})); then
     for pid in "${pids[@]}"; do
@@ -570,33 +580,63 @@ run_lanes() {
   fi
 }
 
-CI_T0=$SECONDS
+main() {
+  trap on_make_ci_failure ERR
 
-# フェーズ1: メタゲート並列（失敗時はフェーズ2を起動しない）
-echo "── phase 1: meta gates (${#META_LANES[@]} lanes) ──"
-run_lanes "meta gate failure" "${META_LANES[@]}"
+  # ── --from / CI_FROM / 位置引数で開始 step を指定できる ────────────────
+  FROM="${CI_FROM:-1}"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --from=*) FROM="${1#--from=}" ;;
+      --from) shift; FROM="${1:?--from requires a step number}" ;;
+      *[!0-9]*|'') echo "usage: $0 [N|--from N]  (N: 1..${total})" >&2; exit 2 ;;
+      *) FROM="$1" ;;
+    esac
+    shift
+  done
+  if ! [[ "$FROM" =~ ^[0-9]+$ ]] || (( FROM < 1 || FROM > total )); then
+    echo "ERROR: --from は 1..${total} の数値で指定してください（got: ${FROM}）" >&2
+    exit 2
+  fi
+  if (( FROM > 1 )); then
+    echo "make ci: --from ${FROM}（step 1..$((FROM - 1)) はスキップ — スキップ分の検証は未実施です）"
+  fi
 
-# フェーズ2: 重い step の並列 lanes
-echo "── phase 2: heavy lanes (${#LANES[@]} lanes) ──"
-run_lanes "parallel lane failure" "${LANES[@]}"
+  LANE_DIR="$(mktemp -d)"
+  trap 'rm -rf "$LANE_DIR"' EXIT
 
-echo "── total elapsed: $((SECONDS - CI_T0))s ──"
+  CI_T0=$SECONDS
 
-# required check（context `make ci`）の success はフル実行のみ投稿する。
-# 部分実行で success を出すと required check を回避できるため、FROM>1 では
-# 投稿しない（失敗時の failure 投稿は実施済みのためここでは扱わない）。
-if (( FROM == 1 )); then
-  post_ci_status success "all ${total} steps passed"
-else
-  echo "note: --from ${FROM} の部分実行のため commit status は投稿しません（success 投稿はフル実行のみ）"
+  # フェーズ1: メタゲート並列（失敗時はフェーズ2を起動しない）
+  echo "── phase 1: meta gates (${#META_LANES[@]} lanes) ──"
+  run_lanes "meta gate failure" "${META_LANES[@]}"
+
+  # フェーズ2: 重い step の並列 lanes
+  echo "── phase 2: heavy lanes (${#LANES[@]} lanes) ──"
+  run_lanes "parallel lane failure" "${LANES[@]}"
+
+  echo "── total elapsed: $((SECONDS - CI_T0))s ──"
+
+  # required check（context `make ci`）の success はフル実行のみ投稿する。
+  # 部分実行で success を出すと required check を回避できるため、FROM>1 では
+  # 投稿しない（失敗時の failure 投稿は実施済みのためここでは扱わない）。
+  if (( FROM == 1 )); then
+    post_ci_status success "all ${total} steps passed"
+  else
+    echo "note: --from ${FROM} の部分実行のため commit status は投稿しません（success 投稿はフル実行のみ）"
+  fi
+
+  echo ""
+  echo "✓ make ci passed"
+  echo "  covered locally: inventory / guardrails / shellcheck / golangci / ESLint / type-check / knip / design audits"
+  echo "  covered locally: backend build+test+coverage ratchet / schema / codegen / migration verify / seed invariants"
+  echo "  covered locally: frontend audit+build+test+coverage ratchet / worker typecheck+tests / gitleaks"
+  echo "  remote CI (minimal): Workflow Contracts / Gitleaks Secret Scan / AgentShield (separate workflow)"
+  echo "  resume: make ci <step#> (e.g. make ci 9)"
+  echo "  E2E is local-only: make e2e (not in automatic PR CI)"
+  echo "  see docs/ops/ci-policy.md"
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
 fi
-
-echo ""
-echo "✓ make ci passed"
-echo "  covered locally: inventory / guardrails / shellcheck / golangci / ESLint / type-check / knip / design audits"
-echo "  covered locally: backend build+test+coverage ratchet / schema / codegen / migration verify / seed invariants"
-echo "  covered locally: frontend audit+build+test+coverage ratchet / worker typecheck+tests / gitleaks"
-echo "  remote CI (minimal): Workflow Contracts / Gitleaks Secret Scan / AgentShield (separate workflow)"
-echo "  resume: make ci <step#> (e.g. make ci 9)"
-echo "  E2E is local-only: make e2e (not in automatic PR CI)"
-echo "  see docs/ops/ci-policy.md"

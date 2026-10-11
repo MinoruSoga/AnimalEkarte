@@ -60,6 +60,10 @@ UI動作、フォーム、ルーティング、アクセシビリティに変更
 
 ローカル操作成功はSTG/UAT/PRODの証明ではない。スクリーンショットやネットワーク証跡は患者・飼主・資格情報を除外する。未実施をN/AやPASSへ置き換えない。
 
+## 命令文書の信頼境界
+
+正本は `.claude/rules/agent-trust-boundaries.md`。文書単独で読み込まれる場合にも外部入力・秘密・命令優先順位の制約を届けるため、CLAUDE.md / AGENTS.md / agent・rule本文へ同じ管理blockを生成する。正本を変更したら `python3 -B .claude/scripts/sync-agent-trust-boundaries.py` を実行する。`--check` は読み取り専用のdrift確認で、ownerが編集したblockや不完全なmarkerは上書きせず停止する。新しい命令ファイルはGitへ追加してから生成する。既存本文・frontmatter・tool権限は保持する。
+
 ## 失敗を仕組みに戻す
 
 再発する失敗は最も近い一つの正本に戻す。業務仕様はdocs、操作手順はSkill、機械判定できる禁止はHook、再現可能な不具合はTest。個人memoryはユーザーの明示依頼がある場合だけ更新する。

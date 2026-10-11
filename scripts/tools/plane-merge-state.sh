@@ -34,7 +34,10 @@ state_kind() {
     review)
       printf '%s\n' review
       ;;
-    backlog|ready|research|running|uat|本番切替対応)
+    uat)
+      printf '%s\n' uat
+      ;;
+    backlog|ready|research|running|本番切替対応)
       printf '%s\n' main-source
       ;;
     *)
@@ -47,6 +50,7 @@ state_kind() {
 decide_transition() {
   local base="$1"
   local current="$2"
+  local head="${3:-}"
   local kind
   kind="$(state_kind "$current")"
 
@@ -69,9 +73,18 @@ decide_transition() {
       ;;
   esac
 
+  if [[ "$base" == "staging" && "$head" != "main" ]]; then
+    printf '%s\n' "SKIP head-not-main"
+    return 0
+  fi
+
   if [[ "$base" == "main" ]]; then
     if [[ "$kind" == "review" ]]; then
       printf '%s\n' "SKIP already"
+      return 0
+    fi
+    if [[ "$kind" == "uat" ]]; then
+      printf '%s\n' "SKIP uat-or-later"
       return 0
     fi
     printf '%s\n' "Review"
@@ -135,12 +148,21 @@ pr_qualifies_for_staging_tickets() {
 }
 
 html_escape() {
-  local value="$1"
-  value="${value//&/&amp;}"
-  value="${value//</&lt;}"
-  value="${value//>/&gt;}"
-  value="${value//\"/&quot;}"
-  printf '%s' "$value"
+  # Avoid the incompatible replacement quoting and patsub_replacement rules
+  # between macOS Bash 3.2 and Linux Bash 5. Preserve every other character.
+  local value="$1" escaped='' character
+  while [[ -n "$value" ]]; do
+    character="${value:0:1}"
+    value="${value:1}"
+    case "$character" in
+      '&') escaped+='&amp;' ;;
+      '<') escaped+='&lt;' ;;
+      '>') escaped+='&gt;' ;;
+      '"') escaped+='&quot;' ;;
+      *) escaped+="$character" ;;
+    esac
+  done
+  printf '%s' "$escaped"
 }
 
 build_comment_html() {
@@ -271,6 +293,7 @@ sync_one_ticket() {
   local base="$2"
   local pr_number="$3"
   local pr_url="$4"
+  local head="${5:-}"
   local item_body patch_body comment_body
   local http_code identifier project_id item_uuid current_state decision
   local external_id comment_html list_url patch_url comment_url payload
@@ -304,13 +327,16 @@ sync_one_ticket() {
     return 1
   fi
 
-  decision="$(decide_transition "$base" "$current_state")"
+  decision="$(decide_transition "$base" "$current_state" "$head")"
   # A previous run may have committed the state PATCH but failed to post its
   # comment. Reconcile the comment at the target without another state write.
   if [[ "$base" == "main" && "$decision" == "SKIP already" ]]; then
     decision=Review
     reconcile_only=1
-  elif [[ "$base" == "staging" && "$(fold_state "$current_state")" == "uat" ]]; then
+  elif [[ "$base" == "main" && "$decision" == "SKIP uat-or-later" ]]; then
+    decision=Review
+    reconcile_only=1
+  elif [[ "$base" == "staging" && "$head" == "main" && "$(fold_state "$current_state")" == "uat" ]]; then
     decision=UAT
     reconcile_only=1
   fi
@@ -351,12 +377,16 @@ sync_one_ticket() {
   external_id="gh-merge:${pr_number}:${base}:${decision}"
   comment_html="$(build_comment_html "$base" "$decision" "$pr_url")"
   if [[ "$reconcile_only" == "1" ]]; then
-    comment_html="<p>$(html_escape "$base") へのマージ後、現在の $(html_escape "$decision") 状態を確認し、このPRの監査コメントを補完しました。</p><p>PR: <a href=\"$(html_escape "$pr_url")\">$(html_escape "$pr_url")</a></p>"
+    comment_html="<p>$(html_escape "$base") へのマージ後、現在の $(html_escape "$current_state") 状態を確認し、状態変更なしでこのPRの監査コメントを補完しました。</p><p>PR: <a href=\"$(html_escape "$pr_url")\">$(html_escape "$pr_url")</a></p>"
   fi
   list_url="${PLANE_API_ORIGIN}/api/v2/workspaces/${PLANE_WORKSPACE_SLUG}/projects/${PLANE_PROJECT_ID}/work-items/${item_uuid}/comments/?external_source=github&external_id=$(jq -nr --arg v "$external_id" '$v|@uri')"
   http_code="$(plane_http GET "$list_url" "" "$comment_body")"
   if [[ "$http_code" != "200" ]]; then
-    log_line "FAIL  ${ticket_id}  comment lookup HTTP ${http_code} $(plane_detail "$comment_body")"
+    if [[ "$reconcile_only" == "1" ]]; then
+      log_line "FAIL  ${ticket_id}  audit reconciliation current=${current_state} target=${decision} state=unchanged comment HTTP ${http_code} $(plane_detail "$comment_body")"
+    else
+      log_line "FAIL  ${ticket_id}  comment lookup HTTP ${http_code} $(plane_detail "$comment_body")"
+    fi
     rm -f "$item_body" "$patch_body" "$comment_body"
     return 1
   fi
@@ -366,7 +396,11 @@ sync_one_ticket() {
     return 1
   fi
   if comment_already_posted "$comment_body" "$external_id"; then
-    log_line "MOVE  ${ticket_id}  ${current_state} -> ${decision}  comment=already"
+    if [[ "$reconcile_only" == "1" ]]; then
+      log_line "AUDIT  ${ticket_id}  current=${current_state} target=${decision} state=unchanged comment=already"
+    else
+      log_line "MOVE  ${ticket_id}  ${current_state} -> ${decision}  comment=already"
+    fi
     rm -f "$item_body" "$patch_body" "$comment_body"
     return 0
   fi
@@ -378,12 +412,20 @@ sync_one_ticket() {
   comment_url="${PLANE_API_ORIGIN}/api/v2/workspaces/${PLANE_WORKSPACE_SLUG}/projects/${PLANE_PROJECT_ID}/work-items/${item_uuid}/comments/"
   http_code="$(plane_http POST "$comment_url" "$payload" "$comment_body")"
   if [[ "$http_code" != "200" && "$http_code" != "201" ]]; then
-    log_line "FAIL  ${ticket_id}  moved to ${decision} but comment HTTP ${http_code} $(plane_detail "$comment_body")"
+    if [[ "$reconcile_only" == "1" ]]; then
+      log_line "FAIL  ${ticket_id}  audit reconciliation current=${current_state} target=${decision} state=unchanged comment HTTP ${http_code} $(plane_detail "$comment_body")"
+    else
+      log_line "FAIL  ${ticket_id}  moved to ${decision} but comment HTTP ${http_code} $(plane_detail "$comment_body")"
+    fi
     rm -f "$item_body" "$patch_body" "$comment_body"
     return 1
   fi
 
-  log_line "MOVE  ${ticket_id}  ${current_state} -> ${decision}"
+  if [[ "$reconcile_only" == "1" ]]; then
+    log_line "AUDIT  ${ticket_id}  current=${current_state} target=${decision} state=unchanged comment=backfilled"
+  else
+    log_line "MOVE  ${ticket_id}  ${current_state} -> ${decision}"
+  fi
   rm -f "$item_body" "$patch_body" "$comment_body"
   return 0
 }
@@ -552,7 +594,7 @@ collect_source_text() {
 main() {
   local event_path="${GITHUB_EVENT_PATH:-}"
   local repository="${GITHUB_REPOSITORY:-}"
-  local merged base number title body pr_url owner name
+  local merged base head number title body pr_url owner name
   local sources tickets_file ticket_id failures=0 rc
 
   require_command jq
@@ -578,6 +620,7 @@ main() {
 
   merged="$(jq -r '.pull_request.merged // false' "$event_path")"
   base="$(jq -r '.pull_request.base.ref // empty' "$event_path")"
+  head="$(jq -r '.pull_request.head.ref // empty' "$event_path")"
   number="$(jq -r '.pull_request.number // empty' "$event_path")"
   title="$(jq -r '.pull_request.title // ""' "$event_path")"
   body="$(jq -r '.pull_request.body // ""' "$event_path")"
@@ -591,6 +634,10 @@ main() {
   fi
   if [[ "$base" != "main" && "$base" != "staging" ]]; then
     log_line "SKIP  base ${base:-unknown} is not main or staging"
+    exit 0
+  fi
+  if [[ "$base" == "staging" && "$head" != "main" ]]; then
+    log_line "SKIP  base staging head.ref ${head:-unknown} is not main"
     exit 0
   fi
   if [[ -z "$number" || -z "$pr_url" ]]; then
@@ -616,7 +663,7 @@ main() {
     set +e
     (
       set -euo pipefail
-      sync_one_ticket "$ticket_id" "$base" "$number" "$pr_url"
+      sync_one_ticket "$ticket_id" "$base" "$number" "$pr_url" "$head"
     )
     rc=$?
     set -e

@@ -58,7 +58,7 @@ assert_eq "squash and merge-commit PR numbers" \
 assert_eq "bare hash is not a PR reference" "" "$(prs_of 'see #602')"
 
 assert_eq "main running becomes Review" "Review" "$(decide_transition main Running)"
-assert_eq "main UAT returns to Review" "Review" "$(decide_transition main UAT)"
+assert_eq "main UAT never regresses" "SKIP uat-or-later" "$(decide_transition main UAT)"
 assert_eq "main Backlog becomes Review" "Review" "$(decide_transition main Backlog)"
 assert_eq "main Ready becomes Review" "Review" "$(decide_transition main Ready)"
 assert_eq "main Research becomes Review" "Review" "$(decide_transition main Research)"
@@ -74,11 +74,13 @@ assert_eq "main protected state is case-insensitive" "SKIP protected" "$(decide_
 assert_eq "main unknown state is not moved" "SKIP unknown" "$(decide_transition main Mystery)"
 assert_eq "main unreadable state is not moved" "SKIP unknown" "$(decide_transition main '')"
 
-assert_eq "staging Review becomes UAT" "UAT" "$(decide_transition staging Review)"
-assert_eq "staging UAT stays" "SKIP not-review" "$(decide_transition staging UAT)"
-assert_eq "staging Running stays" "SKIP not-review" "$(decide_transition staging Running)"
-assert_eq "staging Done stays protected" "SKIP protected" "$(decide_transition staging Done)"
-assert_eq "staging unknown state is not moved" "SKIP unknown" "$(decide_transition staging Mystery)"
+assert_eq "staging Review becomes UAT when head is main" "UAT" "$(decide_transition staging Review main)"
+assert_eq "staging UAT stays when head is main" "SKIP not-review" "$(decide_transition staging UAT main)"
+assert_eq "staging Running stays" "SKIP not-review" "$(decide_transition staging Running main)"
+assert_eq "staging Done stays protected" "SKIP protected" "$(decide_transition staging Done main)"
+assert_eq "staging unknown state is not moved" "SKIP unknown" "$(decide_transition staging Mystery main)"
+assert_eq "staging feature-head does not move to UAT" "SKIP head-not-main" "$(decide_transition staging Review feature-x)"
+assert_eq "staging feature-head unknown state still fails closed" "SKIP unknown" "$(decide_transition staging Mystery feature-x)"
 assert_eq "production is unsupported" "SKIP unsupported-base" "$(decide_transition production Review)"
 
 assert_eq "merged main PR qualifies" "yes" "$(pr_qualifies_for_staging_tickets main true 600 700)"
@@ -153,6 +155,11 @@ assert_eq "comment escapes markup" \
   '<p>main へのマージに合わせて Review に移動しました。</p><p>PR: <a href="https://example.com/a?b=&amp;c=&lt;d&gt;">https://example.com/a?b=&amp;c=&lt;d&gt;</a></p>' \
   "$(build_comment_html main Review 'https://example.com/a?b=&c=<d>')"
 
+assert_eq "escape all attribute delimiters without backslashes" \
+  'a&amp;b&lt;c&gt;&quot;d' "$(html_escape 'a&b<c>"d')"
+assert_eq "escape repeated delimiters and preserve backslashes" \
+  '\&amp;&amp;&lt;&lt;&gt;&gt;&quot;&quot;' "$(html_escape '\&&<<>>""')"
+
 # Exercise the real orchestration with a file-backed HTTP fake. State writes
 # survive command-substitution subshells; no network or credentials are used.
 API_FIXTURE_ROOT="$(mktemp -d)"
@@ -204,13 +211,13 @@ for base in main staging; do
   printf '1' > "$CASE_DIR/fail_once"
   printf '200' > "$CASE_DIR/comment_lookup_status"
   : > "$CASE_DIR/calls"
-  if sync_one_ticket EMR-999 "$base" 606 'https://github.com/example/repo/pull/606' >/dev/null; then
+  if sync_one_ticket EMR-999 "$base" 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
     ng "$base partial comment failure is reported"
   else
     ok "$base partial comment failure is reported"
   fi
   assert_eq "$base state PATCH succeeded before comment failure" "$target" "$(cat "$CASE_DIR/state")"
-  if sync_one_ticket EMR-999 "$base" 606 'https://github.com/example/repo/pull/606' >/dev/null; then
+  if sync_one_ticket EMR-999 "$base" 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
     ok "$base rerun recovers missing comment"
   else
     ng "$base rerun recovers missing comment"
@@ -218,7 +225,7 @@ for base in main staging; do
   assert_eq "$base recovery does not repeat PATCH" '1' "$(grep -c '^PATCH$' "$CASE_DIR/calls")"
   assert_eq "$base recovery posts the intended comment identity" "gh-merge:606:$base:$target" \
     "$(jq -r '.[0].external_id' "$CASE_DIR/comments")"
-  if sync_one_ticket EMR-999 "$base" 606 'https://github.com/example/repo/pull/606' >/dev/null; then
+  if sync_one_ticket EMR-999 "$base" 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
     ok "$base completed reconciliation is idempotent"
   else
     ng "$base completed reconciliation is idempotent"
@@ -227,7 +234,7 @@ for base in main staging; do
 
   # A failed comment lookup must not be treated as evidence of absence.
   printf '503' > "$CASE_DIR/comment_lookup_status"
-  if sync_one_ticket EMR-999 "$base" 606 'https://github.com/example/repo/pull/606' >/dev/null; then
+  if sync_one_ticket EMR-999 "$base" 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
     ng "$base comment lookup failure is reported"
   else
     ok "$base comment lookup failure is reported"
@@ -236,13 +243,129 @@ for base in main staging; do
   printf '200' > "$CASE_DIR/comment_lookup_status"
   for body in '{"unexpected":"not a collection"}' '<html>fixture error</html>' '["invalid comment"]'; do
     printf '%s' "$body" > "$CASE_DIR/comments"
-    if sync_one_ticket EMR-999 "$base" 606 'https://github.com/example/repo/pull/606' >/dev/null; then
+    if sync_one_ticket EMR-999 "$base" 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
       ng "$base invalid collection is rejected"
     else
       ok "$base invalid collection is rejected"
     fi
     assert_eq "$base invalid collection does not risk duplicate POST" '2' "$(grep -c '^POST$' "$CASE_DIR/calls")"
   done
+done
+
+CASE_DIR="$API_FIXTURE_ROOT/staging-feature-head"
+mkdir -p "$CASE_DIR"
+printf 'UAT' > "$CASE_DIR/state"
+printf '[]' > "$CASE_DIR/comments"
+printf '0' > "$CASE_DIR/fail_once"
+printf '200' > "$CASE_DIR/comment_lookup_status"
+: > "$CASE_DIR/calls"
+if sync_one_ticket EMR-999 staging 606 'https://github.com/example/repo/pull/606' feature-x >/dev/null; then
+  ok "staging feature-head UAT skips cleanly"
+else
+  ng "staging feature-head UAT skips cleanly"
+fi
+assert_eq "staging feature-head UAT sends no PATCH" '0' "$(grep -c '^PATCH$' "$CASE_DIR/calls")"
+assert_eq "staging feature-head UAT sends no POST" '0' "$(grep -c '^POST$' "$CASE_DIR/calls")"
+
+CASE_DIR="$API_FIXTURE_ROOT/staging-uat"
+mkdir -p "$CASE_DIR"
+printf 'UAT' > "$CASE_DIR/state"
+printf '[]' > "$CASE_DIR/comments"
+printf '0' > "$CASE_DIR/fail_once"
+printf '200' > "$CASE_DIR/comment_lookup_status"
+: > "$CASE_DIR/calls"
+if out="$(sync_one_ticket EMR-999 staging 606 'https://github.com/example/repo/pull/606' main 2>&1 >/dev/null)"; then
+  ok "staging UAT head=main backfills missing comment"
+else
+  ng "staging UAT head=main backfills missing comment"
+fi
+assert_eq "staging UAT head=main sends no PATCH" '0' "$(grep -c '^PATCH$' "$CASE_DIR/calls")"
+assert_eq "staging UAT head=main posts one audit comment" '1' "$(grep -c '^POST$' "$CASE_DIR/calls")"
+assert_eq "staging UAT reconcile keeps UAT comment identity" "gh-merge:606:staging:UAT" \
+  "$(jq -r '.[0].external_id' "$CASE_DIR/comments")"
+assert_eq "staging UAT reconcile logs AUDIT state=unchanged" \
+  "AUDIT  EMR-999  current=UAT target=UAT state=unchanged comment=backfilled" "$out"
+assert_eq "staging UAT reconcile logs no MOVE line" '0' "$(printf '%s' "$out" | grep -c 'MOVE')"
+
+CASE_DIR="$API_FIXTURE_ROOT/main-uat"
+mkdir -p "$CASE_DIR"
+printf 'UAT' > "$CASE_DIR/state"
+printf '[]' > "$CASE_DIR/comments"
+printf '0' > "$CASE_DIR/fail_once"
+printf '200' > "$CASE_DIR/comment_lookup_status"
+: > "$CASE_DIR/calls"
+if out="$(sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main 2>&1 >/dev/null)"; then
+  ok "main UAT backfills missing comment"
+else
+  ng "main UAT backfills missing comment"
+fi
+assert_eq "main UAT sends no PATCH" '0' "$(grep -c '^PATCH$' "$CASE_DIR/calls")"
+assert_eq "main UAT posts one audit comment" '1' "$(grep -c '^POST$' "$CASE_DIR/calls")"
+assert_eq "main UAT keeps Review comment identity" "gh-merge:606:main:Review" \
+  "$(jq -r '.[0].external_id' "$CASE_DIR/comments")"
+assert_eq "main UAT reconcile logs AUDIT state=unchanged" \
+  "AUDIT  EMR-999  current=UAT target=Review state=unchanged comment=backfilled" "$out"
+assert_eq "main UAT reconcile logs no MOVE line" '0' "$(printf '%s' "$out" | grep -c 'MOVE')"
+assert_eq "main UAT audit comment names the actual state" '1' \
+  "$(jq -r '.[0].comment_html' "$CASE_DIR/comments" | grep -c '現在の UAT')"
+assert_eq "main UAT audit comment states no state write" '1' \
+  "$(jq -r '.[0].comment_html' "$CASE_DIR/comments" | grep -c '状態変更なし')"
+if out="$(sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main 2>&1 >/dev/null)"; then
+  ok "main UAT rerun is a clean no-op"
+else
+  ng "main UAT rerun is a clean no-op"
+fi
+assert_eq "main UAT rerun posts no duplicate comment" '1' "$(grep -c '^POST$' "$CASE_DIR/calls")"
+assert_eq "main UAT rerun logs AUDIT comment=already" \
+  "AUDIT  EMR-999  current=UAT target=Review state=unchanged comment=already" "$out"
+assert_eq "main UAT rerun logs no MOVE line" '0' "$(printf '%s' "$out" | grep -c 'MOVE')"
+
+printf '503' > "$CASE_DIR/comment_lookup_status"
+if out="$(sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main 2>&1 >/dev/null)"; then
+  ng "main UAT comment lookup failure is reported"
+else
+  ok "main UAT comment lookup failure is reported"
+fi
+assert_eq "main UAT lookup failure logs audit reconciliation wording" '1' \
+  "$(printf '%s' "$out" | grep -c 'audit reconciliation current=UAT target=Review state=unchanged comment HTTP 503')"
+assert_eq "main UAT lookup failure logs no moved wording" '0' "$(printf '%s' "$out" | grep -c 'moved')"
+assert_eq "main UAT lookup failure leaves state unchanged" 'UAT' "$(cat "$CASE_DIR/state")"
+printf '200' > "$CASE_DIR/comment_lookup_status"
+
+printf '1' > "$CASE_DIR/fail_once"
+printf '[]' > "$CASE_DIR/comments"
+if out="$(sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main 2>&1 >/dev/null)"; then
+  ng "main UAT comment POST failure is reported"
+else
+  ok "main UAT comment POST failure is reported"
+fi
+assert_eq "main UAT POST failure logs audit reconciliation wording" '1' \
+  "$(printf '%s' "$out" | grep -c 'audit reconciliation current=UAT target=Review state=unchanged comment HTTP 503')"
+assert_eq "main UAT POST failure logs no moved wording" '0' "$(printf '%s' "$out" | grep -c 'moved')"
+assert_eq "main UAT POST failure leaves state unchanged" 'UAT' "$(cat "$CASE_DIR/state")"
+
+# The workflow uses one repository-wide queue. Exercise the real HTTP fake
+# for distinct PRs sharing a ticket in each serialized main/staging order.
+for order in main-first staging-first; do
+  CASE_DIR="$API_FIXTURE_ROOT/serialized-$order"
+  mkdir -p "$CASE_DIR"
+  initial=Running
+  [[ "$order" == staging-first ]] && initial=Review
+  printf '%s' "$initial" > "$CASE_DIR/state"
+  printf '[]' > "$CASE_DIR/comments"
+  printf '0' > "$CASE_DIR/fail_once"
+  printf '200' > "$CASE_DIR/comment_lookup_status"
+  : > "$CASE_DIR/calls"
+  if [[ "$order" == main-first ]]; then
+    sync_one_ticket EMR-999 main 607 'https://example.test/pr/607' feature-a >/dev/null
+  fi
+  sync_one_ticket EMR-999 staging 608 'https://example.test/pr/608' main >/dev/null
+  sync_one_ticket EMR-999 main 609 'https://example.test/pr/609' feature-b >/dev/null
+  assert_eq "$order serialized merges keep UAT" UAT "$(cat "$CASE_DIR/state")"
+  expected_patches=2
+  [[ "$order" == staging-first ]] && expected_patches=1
+  assert_eq "$order later main event performs no regressive PATCH" "$expected_patches" \
+    "$(grep -c '^PATCH$' "$CASE_DIR/calls")"
 done
 
 echo "----"

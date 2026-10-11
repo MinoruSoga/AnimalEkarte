@@ -9,8 +9,8 @@
 # Usage:
 #   scripts/tools/worktree-env.sh <offset> [slug]
 #
-#   <offset>  1-9256 の整数。worktree ごとの6ポートの独立blockを選ぶ。
-#             チケット番号を使うと一意になりやすい（EMR-300 → 300 → db 11794 等）。
+#   <offset>  1-9256 の整数（14/181 は旧割当衝突で予約・拒否。先頭ゼロは10進数解釈）。
+#             worktree ごとの6ポートの独立block。チケット番号を使うと一意になりやすい（EMR-300 → 300 → db 11794 等）。
 #   [slug]    compose project / volume 名の接尾辞（default: wt<offset>）。
 #             [a-z0-9_-] のみ使用可。
 #
@@ -60,16 +60,28 @@ sed_inplace() {
 }
 
 main() {
-  local offset="${1:-}"
-  local slug="${2:-}"
+  local raw_offset="${1:-}"
+  local offset slug="${2:-}"
 
-  if [[ -z "$offset" || "$offset" == "-h" || "$offset" == "--help" ]]; then
+  if [[ -z "$raw_offset" || "$raw_offset" == "-h" || "$raw_offset" == "--help" ]]; then
     usage
-    [[ -z "$offset" ]] && die "offset is required"
+    [[ -z "$raw_offset" ]] && die "offset is required"
     exit 0
   fi
-  [[ "$offset" =~ ^[0-9]+$ ]] || die "offset must be an integer: $offset"
-  (( offset >= 1 && offset <= MAX_WORKTREE_OFFSET )) || die "offset out of range (1-$MAX_WORKTREE_OFFSET): $offset"
+  [[ "$raw_offset" =~ ^[0-9]+$ ]] || die "offset must be an integer: $raw_offset"
+
+  local normalized="${raw_offset#"${raw_offset%%[!0]*}"}"
+  [[ -n "$normalized" ]] || die "offset out of range (1-$MAX_WORKTREE_OFFSET): $raw_offset"
+  (( ${#normalized} <= ${#MAX_WORKTREE_OFFSET} )) \
+    || die "offset out of range (1-$MAX_WORKTREE_OFFSET): $raw_offset"
+  offset=$((10#$normalized))
+  (( offset >= 1 && offset <= MAX_WORKTREE_OFFSET )) \
+    || die "offset out of range (1-$MAX_WORKTREE_OFFSET): $raw_offset"
+  case "$offset" in
+    14|181)
+      die "offset $offset is reserved: 既知の旧 worktree 割当と port block が衝突します。別の offset を選んでください"
+      ;;
+  esac
 
   if [[ -z "$slug" ]]; then
     slug="wt${offset}"
@@ -94,7 +106,22 @@ main() {
   fi
 
   # 既存 managed block と未管理 CORS 行を除去してから最新 block を追記する。
-  sed_inplace "/^# >>> worktree-runtime managed/,/^# <<< worktree-runtime managed <<<$/d" "$ENV_FILE"
+  local tmp_env
+  tmp_env="$(mktemp)"
+  awk '
+    NR == FNR {
+      if ($0 == "# >>> worktree-runtime managed (scripts/tools/worktree-env.sh) >>>") b = FNR
+      if ($0 == "# <<< worktree-runtime managed <<<") e = FNR
+      next
+    }
+    {
+      if (b && FNR == b - 1 && $0 == "") next
+      if (b && FNR >= b && (!e || FNR <= e)) next
+      print
+    }
+  ' "$ENV_FILE" "$ENV_FILE" > "$tmp_env"
+  cat "$tmp_env" > "$ENV_FILE"
+  rm -f "$tmp_env"
   sed_inplace '/^CORS_ALLOWED_ORIGIN=/d' "$ENV_FILE"
 
   cat >>"$ENV_FILE" <<EOF

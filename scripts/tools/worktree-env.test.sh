@@ -150,6 +150,126 @@ WORKTREE_ENV_ROOT="$case8" WORKTREE_ENV_EXAMPLE="$case8/fixture.template" \
   WORKTREE_ENV_FILE="$case8/fixture.runtime" "$TARGET" 9256 >/dev/null 2>&1
 assert_contains "$case8/fixture.runtime" "REDOC_HOST_PORT=65535" "case8: last supported port is 65535"
 
+case9="$(new_case case9)"
+WORKTREE_ENV_ROOT="$case9" WORKTREE_ENV_EXAMPLE="$case9/fixture.template" \
+  WORKTREE_ENV_FILE="$case9/fixture.runtime" "$TARGET" 08 >/dev/null 2>&1 || true
+assert_contains "$case9/fixture.runtime" "DB_HOST_PORT=10042" "case9: 08 parses as decimal offset 8"
+assert_contains "$case9/fixture.runtime" "REDOC_HOST_PORT=10047" "case9: 08 block end"
+assert_contains "$case9/fixture.runtime" "COMPOSE_PROJECT_NAME=animalekarte-wt8" "case9: 08 uses normalized default slug"
+assert_contains "$case9/fixture.runtime" "ekarte-postgres-data-wt8" "case9: 08 uses normalized volume"
+
+case9b="$(new_case case9b)"
+WORKTREE_ENV_ROOT="$case9b" WORKTREE_ENV_EXAMPLE="$case9b/fixture.template" \
+  WORKTREE_ENV_FILE="$case9b/fixture.runtime" "$TARGET" 0008 >/dev/null 2>&1 || true
+assert_contains "$case9b/fixture.runtime" "DB_HOST_PORT=10042" "case9b: 0008 parses as decimal offset 8"
+assert_contains "$case9b/fixture.runtime" "COMPOSE_PROJECT_NAME=animalekarte-wt8" "case9b: 0008 uses normalized default slug"
+case9plain="$(new_case case9plain)"
+WORKTREE_ENV_ROOT="$case9plain" WORKTREE_ENV_EXAMPLE="$case9plain/fixture.template" \
+  WORKTREE_ENV_FILE="$case9plain/fixture.runtime" "$TARGET" 8 >/dev/null 2>&1
+for alternate in "$case9" "$case9b"; do
+  if cmp -s "$case9plain/fixture.runtime" "$alternate/fixture.runtime"; then
+    ok "case9: equivalent decimal spelling produces identical runtime identity"
+  else
+    ng "case9: equivalent decimal spelling changes runtime identity"
+  fi
+done
+
+case9c="$(new_case case9c)"
+WORKTREE_ENV_ROOT="$case9c" WORKTREE_ENV_EXAMPLE="$case9c/fixture.template" \
+  WORKTREE_ENV_FILE="$case9c/fixture.runtime" "$TARGET" 08 custom-slug >/dev/null 2>&1 || true
+assert_contains "$case9c/fixture.runtime" "DB_HOST_PORT=10042" "case9c: 08 + custom slug keeps offset-8 ports"
+assert_contains "$case9c/fixture.runtime" "ekarte-postgres-data-custom-slug" "case9c: explicit slug volume unchanged"
+
+case10="$(new_case case10)"
+for spec in "1:10000:10005" "2:10006:10011" "7:10036:10041" "8:10042:10047" \
+            "42:10246:10251" "300:11794:11799" "1000:15994:15999" \
+            "2000:21994:21999" "3000:27994:27999" "9256:65530:65535"; do
+  vec_off=${spec%%:*}; vec_rest=${spec#*:}
+  vec_first=${vec_rest%%:*}; vec_last=${vec_rest##*:}
+  WORKTREE_ENV_ROOT="$case10" WORKTREE_ENV_EXAMPLE="$case10/fixture.template" \
+    WORKTREE_ENV_FILE="$case10/fixture.runtime" "$TARGET" "$vec_off" >/dev/null 2>&1 || true
+  assert_contains "$case10/fixture.runtime" "DB_HOST_PORT=$vec_first" "case10: offset $vec_off block start $vec_first"
+  assert_contains "$case10/fixture.runtime" "REDOC_HOST_PORT=$vec_last" "case10: offset $vec_off block end $vec_last"
+done
+
+case11="$(new_case case11)"
+printf 'PRESERVED=pre-existing\nCORS_ALLOWED_ORIGIN=http://localhost:9999\n' > "$case11/fixture.runtime"
+cp "$case11/fixture.runtime" "$case11/before.bytes"
+for bad in "0" "0000" "9257" "-1" "abc" "14" "014" "181" "0181" \
+           "999999999999999999999999999999999999999999"; do
+  if WORKTREE_ENV_ROOT="$case11" WORKTREE_ENV_EXAMPLE="$case11/fixture.template" \
+      WORKTREE_ENV_FILE="$case11/fixture.runtime" "$TARGET" "$bad" >/dev/null 2>&1; then
+    ng "case11: offset $bad accepted (want reject)"
+  elif cmp -s "$case11/before.bytes" "$case11/fixture.runtime"; then
+    ok "case11: offset $bad rejected, file bytes unchanged"
+  else
+    ng "case11: offset $bad rejected but file bytes changed"
+  fi
+done
+
+case12="$(new_case case12)"
+WORKTREE_ENV_ROOT="$case12" WORKTREE_ENV_EXAMPLE="$case12/fixture.template" \
+  WORKTREE_ENV_FILE="$case12/fixture.runtime" "$TARGET" 300 >/dev/null 2>&1 || true
+cp "$case12/fixture.runtime" "$case12/first.bytes"
+WORKTREE_ENV_ROOT="$case12" WORKTREE_ENV_EXAMPLE="$case12/fixture.template" \
+  WORKTREE_ENV_FILE="$case12/fixture.runtime" "$TARGET" 300 >/dev/null 2>&1 || true
+if cmp -s "$case12/first.bytes" "$case12/fixture.runtime"; then
+  ok "case12: repeated regeneration byte-identical"
+else
+  ng "case12: regenerated file differs (blank-line accumulation?)"
+fi
+blank_runs="$(grep -c '^$' "$case12/fixture.runtime" || true)"
+if [[ "$blank_runs" == "1" ]]; then
+  ok "case12: exactly one separator blank line"
+else
+  ng "case12: separator blank line count = $blank_runs (want 1)"
+fi
+
+actual_ports=""
+for spec in "1:10000:10005" "2:10006:10011" "7:10036:10041" "8:10042:10047" \
+            "42:10246:10251" "300:11794:11799" "1000:15994:15999" \
+            "2000:21994:21999" "3000:27994:27999" "9256:65530:65535"; do
+  vec_off=${spec%%:*}; vec_rest=${spec#*:}
+  vec_first=${vec_rest%%:*}; vec_last=${vec_rest##*:}
+  vec_dir="$(new_case "case13-$vec_off")"
+  WORKTREE_ENV_ROOT="$vec_dir" WORKTREE_ENV_EXAMPLE="$vec_dir/fixture.template" \
+    WORKTREE_ENV_FILE="$vec_dir/fixture.runtime" "$TARGET" "$vec_off" >/dev/null 2>&1 \
+    || { ng "case13: offset $vec_off generation failed"; continue; }
+  vec_ports="$(sed -n 's/^[A-Z_]*HOST_PORT=//p' "$vec_dir/fixture.runtime")"
+  vec_count="$(printf '%s\n' "$vec_ports" | wc -l | tr -d ' ')"
+  vec_uniq="$(printf '%s\n' "$vec_ports" | sort -un | wc -l | tr -d ' ')"
+  if [[ "$vec_count" == "6" && "$vec_uniq" == "6" ]]; then
+    ok "case13: offset $vec_off emits six unique host ports"
+  else
+    ng "case13: offset $vec_off host ports = $vec_count lines / $vec_uniq unique (want 6/6)"
+  fi
+  vec_min="$(printf '%s\n' "$vec_ports" | sort -n | head -1)"
+  vec_max="$(printf '%s\n' "$vec_ports" | sort -n | tail -1)"
+  if [[ "$vec_min" == "$vec_first" && "$vec_max" == "$vec_last" ]]; then
+    ok "case13: offset $vec_off block bounds $vec_first..$vec_last"
+  else
+    ng "case13: offset $vec_off actual bounds $vec_min..$vec_max (want $vec_first..$vec_last)"
+  fi
+  actual_ports="$(printf '%s\n%s\n' "$actual_ports" "$vec_ports")"
+done
+main_defaults="$(printf '%s\n' 5434 8080 3003 6006 8081 8082)"
+known_legacy="$(printf '%s\n' 6434 9080 4003 7006 9081 9082 \
+  7434 10080 5003 8006 10081 10082 8434 11080 6003 9006 11081 11082)"
+all_known="$(printf '%s\n%s\n%s\n' "$actual_ports" "$main_defaults" "$known_legacy" | sed '/^$/d')"
+if [[ "$(printf '%s\n' "$all_known" | sort -u | wc -l | tr -d ' ')" == \
+      "$(printf '%s\n' "$all_known" | wc -l | tr -d ' ')" ]]; then
+  ok "case13: generated blocks disjoint from main defaults and all known legacy ports"
+else
+  ng "case13: port collision among generated/main/known-legacy sets"
+fi
+legacy_in_band="$(printf '%s\n' "$known_legacy" | awk '$1 >= 10000 { print }' | sort -nu)"
+band_blocks="$(printf '%s\n' "$legacy_in_band" | awk '{ print 1 + int(($1 - 10000) / 6) }' | sort -nu | tr '\n' ' ' | sed 's/ $//')"
+if [[ "$band_blocks" == "14 181" ]]; then
+  ok "case13: reserved offsets cover exactly the legacy band blocks (14 181)"
+else
+  ng "case13: legacy band blocks = '$band_blocks' (want '14 181')"
+fi
+
 # ── Summary ─────────────────────────────────────────────────────────────────
 echo
 echo "worktree-env.test.sh: $PASS_COUNT passed, $FAIL_COUNT failed"

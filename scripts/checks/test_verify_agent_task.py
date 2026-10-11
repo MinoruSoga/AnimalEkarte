@@ -16,6 +16,29 @@ SPEC.loader.exec_module(verify)
 
 
 class VerificationTests(unittest.TestCase):
+    def test_no_verify_hook_selects_syntax_and_behavioral_regressions(self):
+        hook = '.claude/hooks/pre-bash-block-no-verify.js'
+        suite = '.claude/scripts/test_no_verify_hook.py'
+        for paths in ([hook], [suite], [hook, suite]):
+            with self.subTest(paths=paths):
+                jobs, blocked = verify.plan(paths)
+                self.assertFalse(blocked)
+                commands = [job['command'] for job in jobs]
+                self.assertEqual(commands.count(['python3', '-B', suite]), 1)
+                if hook in paths:
+                    self.assertIn(['node', '--check', hook], commands)
+
+    def test_instruction_changes_select_canonical_safety_regressions(self):
+        for path in ('AGENTS.md', 'backend/CLAUDE.md', '.claude/agents/implementer.md',
+                     '.claude/rules/agent-trust-boundaries.md',
+                     '.claude/scripts/sync-agent-trust-boundaries.py',
+                     '.claude/scripts/test_agent_trust_boundaries.py'):
+            with self.subTest(path=path):
+                jobs, blocked = verify.plan([path])
+                self.assertFalse(blocked)
+                self.assertIn(['python3', '-B', '.claude/scripts/test_agent_trust_boundaries.py'],
+                              [job['command'] for job in jobs])
+
     def test_offline_runtime_tool_contracts_run_only_the_fixture_suites(self):
         for name in ('plane-merge-state', 'worktree-env'):
             source = f'scripts/tools/{name}.sh'
@@ -28,14 +51,58 @@ class VerificationTests(unittest.TestCase):
                 self.assertNotIn(['bash', source], commands)
                 self.assertIn(['bash', '-n', source], commands)
 
-    def test_relocated_scope_planner_selects_its_regression_suite(self):
-        for path in ('scripts/ci/ci_scope_plan.py', 'scripts/ci/ci_scope_plan_test.py'):
+    def test_relocated_scope_planner_selects_exactly_its_regression_suite(self):
+        for paths in (
+            ['scripts/ci/ci_scope_plan.py'],
+            ['scripts/ci/ci_scope_plan_test.py'],
+            ['scripts/ci/ci_scope_plan.py', 'scripts/ci/ci_scope_plan_test.py'],
+        ):
+            with self.subTest(paths=paths):
+                jobs, blocked = verify.plan(paths)
+                self.assertFalse(blocked)
+                commands = [job['command'] for job in jobs]
+                self.assertEqual(
+                    commands.count(['python3', '-B', 'scripts/ci/ci_scope_plan_test.py']), 1,
+                )
+                self.assertEqual(
+                    commands.count(['python3', '-B', 'scripts/checks/test_verify_agent_task.py']), 1,
+                )
+
+    def test_verifier_source_and_test_select_exactly_own_suite(self):
+        for paths in (
+            ['scripts/checks/verify-agent-task.py'],
+            ['scripts/checks/test_verify_agent_task.py'],
+            ['scripts/checks/verify-agent-task.py', 'scripts/checks/test_verify_agent_task.py'],
+        ):
+            with self.subTest(paths=paths):
+                jobs, blocked = verify.plan(paths)
+                self.assertFalse(blocked)
+                commands = [job['command'] for job in jobs]
+                self.assertEqual(
+                    commands.count(['python3', '-B', 'scripts/checks/test_verify_agent_task.py']), 1,
+                )
+                self.assertNotIn(['python3', '-B', 'scripts/ci/ci_scope_plan_test.py'], commands)
+
+    def test_plane_workflow_maps_to_workflow_contracts_job(self):
+        jobs, blocked = verify.plan(['.github/workflows/plane-merge-state.yml'])
+        self.assertFalse(blocked)
+        self.assertEqual(
+            jobs,
+            [{'service': 'host', 'command': ['node', '--test', 'scripts/ci/check-workflow-contracts.test.mjs']}],
+        )
+
+    def test_ci_order_pairing_selects_paired_regression(self):
+        for path in (
+            'scripts/ci/run-local-ci.sh',
+            'scripts/ci/check-ci-step-order.sh',
+            'scripts/ci/check-ci-step-order.test.sh',
+        ):
             with self.subTest(path=path):
                 jobs, blocked = verify.plan([path])
                 self.assertFalse(blocked)
                 commands = [job['command'] for job in jobs]
-                self.assertIn(['python3', '-B', 'scripts/ci/ci_scope_plan_test.py'], commands)
-                self.assertIn(['python3', '-B', 'scripts/checks/test_verify_agent_task.py'], commands)
+                self.assertIn(['bash', 'scripts/ci/check-ci-step-order.test.sh'], commands)
+                self.assertIn(['bash', '-n', path], commands)
 
 
     def test_unknown_backend_is_blocked(self):

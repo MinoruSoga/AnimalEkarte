@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import "./actionlint-queue-compat.test.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const PNPM_VERSION = "10.15.0";
@@ -75,6 +78,65 @@ test("AgentShield fail gate does not treat nested docs CLAUDE.md as agent config
   const workflow = read(".github/workflows/security-scan.yml");
   assert.match(workflow, /^\s+- ['"]CLAUDE\.md['"]\s*$/m);
   assert.doesNotMatch(workflow, /^\s+- ['"]\*\*\/CLAUDE\.md['"]\s*$/m);
+});
+
+test("AgentShield fails findings for changed agent configs in main and staging PRs", async (t) => {
+  const workflow = read(".github/workflows/security-scan.yml");
+  const job = workflowJob(workflow, "agentshield");
+  const step = namedStep(job, "Resolve fail-on-findings");
+  const script = step.split("        run: |\n")[1];
+  assert.ok(script, "gate must use a runnable block scalar");
+  assert.match(yamlBlock(workflow, "on", 0), /branches: \[main, staging, production\]/);
+  assert.match(yamlBlock(workflow, "on", 0), /branches: \[main, staging\]/);
+  assert.match(job, /fail-on-findings: \$\{\{ steps\.gate\.outputs\.fail_on_findings \}\}/);
+
+  const cases = [];
+  for (const base of ["main", "staging", "production"]) {
+    for (const changed of ["true", "false"]) {
+      for (const force of ["true", "false"]) {
+        cases.push({ event: "pull_request", base, changed, force,
+          expected: base !== "production" && changed === "true" });
+      }
+    }
+  }
+  // Push events have an empty base_ref; also keep nonempty values report-only.
+  for (const base of ["", "main", "staging"]) {
+    for (const changed of ["true", "false"]) {
+      for (const force of ["true", "false"]) {
+        cases.push({ event: "push", base, changed, force, expected: false });
+      }
+    }
+  }
+  for (const changed of ["true", "false"]) {
+    for (const force of ["true", "false", ""]) {
+      cases.push({ event: "workflow_dispatch", base: "", changed, force,
+        expected: force === "true" });
+    }
+  }
+
+  for (const { event, base, changed, force, expected } of cases) {
+    await t.test(`${event} base=${base} agent_config=${changed} force=${force}`, () => {
+      // Execute the workflow's actual gate with synthetic context, not a copied predicate.
+      const resolved = script
+        .replaceAll("${{ github.event_name }}", event)
+        .replaceAll("${{ github.base_ref }}", base)
+        .replaceAll("${{ needs.changes.outputs.agent_config }}", changed)
+        .replaceAll("${{ github.event.inputs.force_fail_on_findings }}", force);
+      assert.doesNotMatch(resolved, /\$\{\{/);
+      const directory = mkdtempSync(join(tmpdir(), "agentshield-gate-"));
+      try {
+        const outputPath = join(directory, "output");
+        const result = spawnSync("bash", ["-c", resolved], {
+          env: { ...process.env, GITHUB_OUTPUT: outputPath }, encoding: "utf8",
+        });
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(readFileSync(outputPath, "utf8"),
+          `fail_on_findings=${expected}\nagent_config_changed=${changed}\n`);
+      } finally {
+        rmSync(directory, { recursive: true, force: true });
+      }
+    });
+  }
 });
 
 test("Docker, packageManager declarations, and CI use pnpm 10.15.0", () => {
@@ -233,6 +295,32 @@ test("make ci wires the gates retired from remote CI", () => {
     /-coverprofile=coverage\.out|go tool covdata/,
     "run-local-ci.sh must wire coverage.out generation (coverprofile or covdata merge)",
   );
+});
+
+test("mandatory instruction step rejects trust-boundary drift before generating mirrors", () => {
+  const script = read("scripts/ci/run-local-ci.sh");
+  const step = script.match(/^s01\(\) \{([\s\S]*?)^\}/m)?.[1];
+  assert.ok(step, "missing mandatory instruction step");
+  const check = "ci_py -B .claude/scripts/test_agent_trust_boundaries.py";
+  assert.ok(step.includes(check), "s01 must run the read-only repository drift assertion");
+  assert.ok(step.indexOf(check) < step.indexOf("sync-codex-mirror.py"));
+  assert.doesNotMatch(step, /ci_py[^\n]*sync-agent-trust-boundaries\.py(?![^\n]*--check)/);
+});
+
+test("Plane merge workflows serialize across PRs without replacing pending merges", () => {
+  const workflow = read(".github/workflows/plane-merge-state.yml");
+  const concurrency = yamlBlock(workflow, "concurrency", 0);
+  assert.match(concurrency, /^  group: plane-merge-state-\$\{\{ github\.repository \}\}$/m);
+  assert.match(concurrency, /^  cancel-in-progress: false$/m);
+  assert.match(concurrency, /^  queue: max$/m);
+  assert.doesNotMatch(concurrency, /pull_request|base_ref|head_ref|run_id|github\.ref/);
+});
+
+test("actionlint runs the validated queue compatibility path without ignore rules", () => {
+  const workflow = read(".github/workflows/actionlint.yml");
+  assert.match(namedStep(workflowJob(workflow, "actionlint"), "Run actionlint"),
+    /run: node scripts\/ci\/actionlint-queue-compat\.mjs \.\/actionlint/);
+  assert.doesNotMatch(read("scripts/ci/actionlint-queue-compat.mjs"), /--ignore|continue-on-error/);
 });
 
 test("make ci reports a commit status required by staging protection", () => {

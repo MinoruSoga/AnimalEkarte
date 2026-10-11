@@ -539,6 +539,8 @@ def plan(paths):
             test_path = path if path.endswith('.test.js') else path.removesuffix('.js') + '.test.js'
             if (ROOT / path).is_file():
                 jobs.append({'service': 'host', 'command': ['node', '--check', path]})
+            if path == '.claude/hooks/pre-bash-block-no-verify.js':
+                jobs.append({'service': 'host', 'command': ['python3', '-B', '.claude/scripts/test_no_verify_hook.py']})
             if (ROOT / test_path).is_file():
                 job = {'service': 'host', 'command': ['node', '--test', test_path]}
                 if job not in jobs:
@@ -622,6 +624,8 @@ def plan(paths):
             '.githooks/lib/check-secrets.sh',
             '.githooks/lib/check-file-sizes.sh',
             'scripts/ci/run-local-ci.sh',
+            'scripts/ci/check-ci-step-order.sh',
+            'scripts/ci/check-ci-step-order.test.sh',
         ):
             if not any(job['service'] == 'host' and job['command'][-1].endswith('test_verify_agent_task.py') for job in jobs):
                 jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/checks/test_verify_agent_task.py']})
@@ -629,6 +633,14 @@ def plan(paths):
                 job['service'] == 'host' and job['command'][-1].endswith('ci_scope_plan_test.py') for job in jobs
             ):
                 jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/ci/ci_scope_plan_test.py']})
+            if path in (
+                'scripts/ci/run-local-ci.sh',
+                'scripts/ci/check-ci-step-order.sh',
+                'scripts/ci/check-ci-step-order.test.sh',
+            ):
+                job = {'service': 'host', 'command': ['bash', 'scripts/ci/check-ci-step-order.test.sh']}
+                if job not in jobs:
+                    jobs.append(job)
         elif path in ('scripts/checks/test_agent_scope_contracts.py', '.gitignore', 'frontend/.gitignore', '.mcp.json', '.claude/settings.json', '.claude/codex-agent-manifest.json', 'backend/wrangler.jsonc', 'frontend/chromatic.config.json'):
             jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/checks/test_agent_scope_contracts.py']})
         elif path == 'backend/Dockerfile.production':
@@ -637,6 +649,10 @@ def plan(paths):
             jobs.append({'service': 'host', 'command': ['python3', '-B', '.claude/scripts/test_sync_codex_mirror.py']})
         elif path in ('.claude/scripts/sync-agents-skills.py', '.claude/scripts/test_sync_agents_skills.py', '.claude/scripts/sync-agents-skills.sh'):
             jobs.append({'service': 'host', 'command': ['python3', '-B', '.claude/scripts/test_sync_agents_skills.py']})
+        elif path in ('.claude/scripts/sync-agent-trust-boundaries.py', '.claude/scripts/test_agent_trust_boundaries.py'):
+            jobs.append({'service': 'host', 'command': ['python3', '-B', '.claude/scripts/test_agent_trust_boundaries.py']})
+        elif path == '.claude/scripts/test_no_verify_hook.py':
+            jobs.append({'service': 'host', 'command': ['python3', '-B', '.claude/scripts/test_no_verify_hook.py']})
         elif path == '.claude/scripts/mirror_safety.py':
             for test in ('test_sync_codex_mirror.py', 'test_sync_agents_skills.py'):
                 jobs.append({'service': 'host', 'command': ['python3', '-B', '.claude/scripts/' + test]})
@@ -710,13 +726,17 @@ def plan(paths):
                 jobs.append({'service': 'host', 'command': ['bash', '-n', path]})
         elif path in (
             'scripts/ci/check-workflow-contracts.test.mjs',
+            'scripts/ci/actionlint-queue-compat.mjs',
+            'scripts/ci/actionlint-queue-compat.test.mjs',
             '.github/workflows/security-scan.yml',
+            '.github/workflows/actionlint.yml',
             '.github/workflows/README-security-scan.md',
             '.github/workflows/ci.yml',
             '.github/workflows/e2e.yml',
             '.github/workflows/backend-deploy.yml',
             '.github/workflows/storybook.yml',
             '.github/workflows/chromatic.yml',
+            '.github/workflows/plane-merge-state.yml',
             'infra/scripts/cf-run-migrate.sh',
         ):
             jobs.append({'service': 'host', 'command': ['node', '--test', 'scripts/ci/check-workflow-contracts.test.mjs']})
@@ -818,7 +838,15 @@ def plan(paths):
         else:
             blocked.append(path)
     for path in paths:
-        if path in ('.githooks/pre-commit', '.githooks/pre-push', '.githooks/lib/check-secrets.sh', 'scripts/ci/run-local-ci.sh', '.claude/scripts/sync-codex-mirror.sh', '.claude/scripts/sync-agents-skills.sh'):
+        if (path.startswith(('.claude/agents/', '.claude/rules/')) and path.endswith('.md')
+                or pathlib.PurePosixPath(path).name in ('CLAUDE.md', 'AGENTS.md')):
+            for job in (
+                {'service': 'host', 'command': ['python3', '-B', '.claude/scripts/test_agent_trust_boundaries.py']},
+                {'service': 'host', 'command': ['python3', '-B', '.claude/scripts/test_instruction_safety_contracts.py'], 'requires_mirrors': True},
+            ):
+                if job not in jobs:
+                    jobs.append(job)
+        if path in ('.githooks/pre-commit', '.githooks/pre-push', '.githooks/lib/check-secrets.sh', 'scripts/ci/run-local-ci.sh', 'scripts/ci/check-ci-step-order.sh', 'scripts/ci/check-ci-step-order.test.sh', '.claude/scripts/sync-codex-mirror.sh', '.claude/scripts/sync-agents-skills.sh'):
             jobs.append({'service': 'host', 'command': ['bash' if path.endswith('.sh') else 'sh', '-n', path]})
     if frontend:
         scope = _plan_scope(paths)

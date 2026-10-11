@@ -7,7 +7,7 @@
 | 区分 | 契約 | 実装の正本 |
 |---|---|---|
 | Remote | **最小構成**: workflow contract 静的検査と gitleaks secret scan のみ。build / test / coverage / migration / worker / codegen / audit はすべてローカル側へ集約した | `.github/workflows/ci.yml` |
-| AgentShield | main 向け PR で agent config が変わった場合、または manual dispatch で `force_fail_on_findings` を有効にした場合だけ findings を fail 扱い。他の branch/trigger は report-only | `.github/workflows/security-scan.yml` |
+| AgentShield | main / staging 向け PR で agent config が変わった場合、または manual dispatch で `force_fail_on_findings` を有効にした場合だけ findings を fail 扱い。agent config 変更のない PR、production 向け PR、push は report-only | `.github/workflows/security-scan.yml` |
 | Local process policy | push/PR 前に `make ci` を実行する。build/test/coverage ratchet/lint/migration verify/worker/codegen/audit/gitleaks 全ゲートを含む。GitHub はこのローカル実行を強制も証明もしない | `scripts/ci/run-local-ci.sh` |
 | E2E | `workflow_dispatch` のみ。自動 push/PR gate ではない | `.github/workflows/e2e.yml` |
 | Performance | schedule と manual dispatch。push trigger はない | `.github/workflows/performance-tests.yml` |
@@ -19,7 +19,7 @@ flowchart TB
     Push["PR"] --> Remote["Remote CI（最小構成）"]
     Remote --> WC["Workflow Contracts<br/>node --test 契約検査"]
     Remote --> GL["Gitleaks Secret Scan<br/>PR 差分スキャン"]
-    Push -.->|"main 向け PR で agent config 変更<br/>または manual dispatch で有効化"| AS["AgentShield が findings を fail 扱い<br/>他は report-only"]
+    Push -.->|"main / staging 向け PR で agent config 変更<br/>または manual dispatch で有効化"| AS["AgentShield が findings を fail 扱い<br/>他は report-only"]
     subgraph NonAuto["自動 push/PR ゲートではない区分"]
         L["Local: push/PR 前に make ci<br/>build/test/coverage/lint/migration/worker<br/>codegen/audit/gitleaks 全ゲート<br/>GitHub は強制も証明もしない"]
         E["E2E: workflow_dispatch のみ"]
@@ -33,6 +33,9 @@ flowchart TB
 - workflow contracts は workflow 定義自身の整合検査であり自己参照のため remote に残す（`make ci` でも同一テストを実行する二重配線）。
 - gitleaks は PR 差分スキャンとして remote にも残す。`make ci` 側は履歴全体を対象にする上位互換。
 - scoped verification（`scripts/ci/ci_scope_plan.py`）は remote ではなく `PREPUSH_VERIFY=1` / `verify-agent-task.py` 経由のローカル利用に限定される。
+- 信頼境界の正本と43命令文書の同期は `make ci` の必須 `s01` でread-only検査する。正本更新後の未再生成やblock欠落は失敗し、CIで自動修復しない。
+- Plane merge workflowはmain/staging・異なるPRを同じrepository-wide concurrency groupで直列化する。`queue: max` と `cancel-in-progress: false` で最大100件の待機を保持する。queue超過・取消・失敗runは人間が確認し再実行する。この保護は同workflow間の更新が対象で、実Planeや他のwriterとの原子的更新を証明しない。
+- 固定actionlint 1.7.12はGitHubの `queue: max` を未認識のため、`actionlint-queue-compat.mjs` がその1項目と非取消設定を厳格に検証する。不正値・欠落・重複は失敗する。検証済みの1行をlint入力でコメント化し、行番号・他のYAML・式・shellを保持して全workflowへactionlintを実行する。ignore設定や失敗の無視は追加しない。
 - `main`、`staging`、`production` 向け PR でこの2 check が走る。required check は staging の branch protection が定義する。
 
 ## Actions ピン方針
