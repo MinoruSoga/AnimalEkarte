@@ -26797,7 +26797,13 @@ paths:
       description: |
         認証済みスタッフ全員が利用可能。multipart/form-data で件名・詳細・画面文脈
         (page_url/route_path/user_agent/viewport/app_version)と任意 file "screenshot"
-        (PNG/JPEG/WebP)を受け付ける。全体 8MiB 上限。
+        (PNG/JPEG/WebP)を受け付ける。全体 8MiB 上限。保存成功後に Plane 連携が
+        設定済みなら best-effort でワークアイテムを自動起票する。上流エラー時は
+        plane_sync_error への記録を試みる(応答には sanitize 済み理由を含む)。
+        起票結果・失敗理由の DB 書き込み自体の失敗は best-effort のログのみで、
+        行が未リンク/理由未記録のまま残りうる。いずれの場合も作成自体は 201 で
+        成功し、連携未設定ならローカル保存のみで同期エラーは付かない。
+        手動起票・再送は POST /support/bug-reports/{id}/plane-ticket。
       tags: [Support]
       requestBody:
         required: true
@@ -26864,9 +26870,9 @@ paths:
       summary: バグ報告を Plane ワークアイテムとして起票(手動再送を兼ねる)
       description: |
         操作は報告元医院スコープ(他医院の報告は共有ボードで閲覧のみ、対象指定は404)。
-        外部へのチケットエクスポートはこの
-        明示操作に限定され、報告作成時の自動送信は行わない(レビュー可能な
-        エクスポート境界)。既に起票済み(plane_issue_url あり)なら
+        報告作成時に Plane 連携が設定済みなら自動起票を試行済みであり、
+        この明示操作は未起票・起票失敗時の手動起票・再送に使う。既に起票済み
+        (plane_issue_id あり)なら
         現在の状態をそのまま返す冪等操作。external_source+external_id で報告と
         Plane 側を対応付ける。PLANE_API_KEY 未設定の環境では 501。Plane 側エラーは
         502 で返し、失敗理由は plane_sync_error に記録される。

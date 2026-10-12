@@ -37,7 +37,7 @@
 
 | 系統 | 付け方 |
 |:---|:---|
-| `source:*`（**必須1つ**） | 手動・エージェント起票 = `source:manual`、Slack転記 = `source:slack`、スプシ = `source:client-sheet`、社内docs移行 = `source:internal-docs`、チャットボット = `source:chatbot`（明示的な reviewable export のみ。自動起票は禁止 — SEC-N3 裁定）。表にない出典（UAT での発見・GitHub Issue 起点・エージェントが調査/実装中に発見した事案）は `source:manual` とし、出典はタイトルアンカーと本文の【出典】節で保持する |
+| `source:*`（**必須1つ**） | 手動・エージェント起票 = `source:manual`、Slack転記 = `source:slack`、スプシ = `source:client-sheet`、社内docs移行 = `source:internal-docs`、チャットボット = `source:chatbot`（明示的な reviewable export のみ。chat 本文の自動起票は禁止 — SEC-N3 裁定）。※bug-report は別経路: Plane 連携設定時は保存成功後の自動起票と手動再送を許可（2026-10-11 owner 指示、EMR-340。chat 本文は含まない）。表にない出典（UAT での発見・GitHub Issue 起点・エージェントが調査/実装中に発見した事案）は `source:manual` とし、出典はタイトルアンカーと本文の【出典】節で保持する |
 | `lane:*`（1つ） | `lane:dev`（実装）、`lane:ops`（運用）、`lane:perf`（性能）、`lane:finance`、`lane:strategy`。複数に跨る場合は**作業の主対象**で1つ選ぶ（性能改善の実装 → `lane:perf`、会計・料金系の実装 → `lane:finance`、いずれでもない機能実装 → `lane:dev`）。ドキュメント・CI・開発ツールの整備は `lane:dev`、外部サービス・運用手順は `lane:ops` |
 | `agent:*` / `role:*` | 担当レーンを示すとき。`role:human` = 人間作業、`agent:dev-engineer` = 実装委譲候補、など |
 | `bug` | 製品欠陥（UAT・実運用で確認済みの FAIL）。要望・改善には付けない |
@@ -191,7 +191,7 @@
 
 ## 外部ソース連携
 
-- `external_source` / `external_id` を出典追跡に使う。既存慣行: `source:slack` → `SLACK-*`、`source:client-sheet` → `row:N`、`source:internal-docs` → `animalekarte-markdown-migration-*`、`source:linear-migration` → external_source=`linear` + external_id=旧 Linear UUID、`source:manual` → 空（`source:chatbot` は自動起票禁止のため形式未確立）。表にない新しい出典（GitHub Issue 起点等）は最初の起票時に形式を決め、この行を更新する
+- `external_source` / `external_id` を出典追跡に使う。既存慣行: `source:slack` → `SLACK-*`、`source:client-sheet` → `row:N`、`source:internal-docs` → `animalekarte-markdown-migration-*`、`source:linear-migration` → external_source=`linear` + external_id=旧 Linear UUID、`source:manual` → 空、bug-report 起票（作成時自動 + 手動再送）→ external_source=`animalekarte-bug-report` + external_id=保存済み報告 ID（2026-10-11 owner 指示で自動起票を許可。既存報告の backfill は行わない）（`source:chatbot` は chat 本文 export 禁止のため形式未確立）。表にない新しい出典（GitHub Issue 起点等）は最初の起票時に形式を決め、この行を更新する
 - スプシ・Slack 原文は本文に `【クライアント原文】` 節として転記する（後で出典を遡れるようにする）。秘密・実データを含む場合は転記しない（下記禁止事項）
 
 ## BE/FE 分割
@@ -214,7 +214,7 @@
 
 ## 禁止事項
 
-- **秘密・認証情報・患者/飼主の実データを本文・コメントに書かない**（Plane 移行時に credential パターンを redaction した前例あり。SEC-N3 裁定によりチャットボット経路の自動起票も禁止済み）
+- **秘密・認証情報・患者/飼主の実データを本文・コメントに書かない**（Plane 移行時に credential パターンを redaction した前例あり。SEC-N3 裁定のうち chat 本文の自動起票禁止は継続 — bug-report の自動起票は 2026-10-11 owner 指示で許可済み）
 - **推測で書かない**: 根拠節は起票前にコード・画面・API を確認して `path:line` で書く。確認できていない主張は「未確認」と書く
 - **solution-first で起票しない**: 問題（現状とあるべき姿のギャップ）を定義せず解決策から書き始めた票は差し戻し対象
 - **受入条件を曖昧にしない**: 「〜が動く」ではなく「〜で〜を入力し〜が表示される」
