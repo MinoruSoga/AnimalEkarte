@@ -26,7 +26,8 @@ flowchart LR
 | [DELIVERY_PACKAGE.md](DELIVERY_PACKAGE.md) | #258 | 先方管理者 | システム構成概要・管理者向け初期設定・運用手順 | U1–U12（契約・本番実測・窓口等） |
 | [OPERATION_MANUAL.md](OPERATION_MANUAL.md) | #256 | 現場スタッフ | 画面操作へのナビゲーション（詳細はシステム内マニュアルが正本） | U13 解消（2026-10-04 マニュアル代替決定・実施証跡記入は適用外）・#254 FAQ/スクショ |
 | [GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md) | #257 | 切替実施者 | 本番切替の前提チェック・当日タイムライン・切り戻し基準 | 切替前提・当日の承認と証跡 |
-| [MIGRATION_SCOPE.md](MIGRATION_SCOPE.md) | EMR-338 | 先方管理者・医院責任者 | 旧カルテからの移行範囲（移行される・されない・医院が登録するもの）。第1版 2026-10-11 採用の現行文書 | MIG-25 の確定後に「確定待ち」の行を更新 |
+| [MIGRATION_SCOPE.md](MIGRATION_SCOPE.md) | EMR-338 | 先方管理者・医院責任者 | 旧カルテからの移行範囲（移行される・されない・医院が登録するもの）。第2版 2026-10-13 は作業途中の中間版で「確定待ち」の行が残る（件数・金額は記載しない方針） | MIG-41 の同一 candidate 再生成 receipt と EMR-349 の取込前検査・受領の後に「確定待ち」を更新して最終版にする |
+| [MIGRATION_SLACK_REPLY_DRAFT.md](MIGRATION_SLACK_REPLY_DRAFT.md) | EMR-347 | 社内（送信担当者） | Slack の質問3点への返信ドラフト（未送信・未添付・Backlog 未変更）。医院向け本文と運用側チェックリストを分離 | 人間による送信・添付版の選択・Backlog 表記変更の証跡記録 |
 | — | EMR-168 | 現場スタッフ | トリミング「前回カルテのコピー」操作説明。**正本はシステム内マニュアル** `frontend/src/features/manual/content/screens/10-trimming.md`（「前回のカルテをコピーする（過去履歴の引用）」節）。（追記（2026-10-07 監査）: 掲載済みの凍結スナップショット `trimming-history-copy-manual-text.md` を本フォルダから削除。内容は git 履歴参照。凍結スナップショット禁止 — PRODUCT_PHILOSOPHY ②） | — |
 
 ## 関連する受入条件
