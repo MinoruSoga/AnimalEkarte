@@ -73,12 +73,20 @@ func (m *mockOwnerRepository) FindAllWithLineUserIDCursor(ctx context.Context, c
 }
 
 type mockPetRepository struct {
+	lockByIDFn              func(context.Context, uint64, uint64) (*model.Pet, error)
 	findByIDFn              func(context.Context, uint64, uint64) (*model.Pet, error)
 	updateFn                func(context.Context, uint64, uint64, map[string]any) error
 	findLivingByOwnerFn     func(context.Context, uint64, uint64) ([]model.Pet, error)
 	countByOwnerFn          func(context.Context, uint64, uint64) (int64, error)
 	countLivingByOwnerFn    func(context.Context, uint64, uint64) (int64, error)
 	countLivingByOwnerIDsFn func(context.Context, uint64, []uint64) (map[uint64]int64, error)
+}
+
+func (m *mockPetRepository) LockByIDForUpdate(ctx context.Context, clinicID, petID uint64) (*model.Pet, error) {
+	if m.lockByIDFn != nil {
+		return m.lockByIDFn(ctx, clinicID, petID)
+	}
+	return m.FindByID(ctx, clinicID, petID)
 }
 
 func (m *mockPetRepository) FindByID(ctx context.Context, clinicID, petID uint64) (*model.Pet, error) {
@@ -141,10 +149,8 @@ func (m *mockPetRepository) CountLivingByOwner(ctx context.Context, clinicID, ow
 
 type mockMedicalRecordRepository struct {
 	findOwnerVisitSummaryFn     func(context.Context, uint64, uint64) (*medicalrecord.OwnerVisitSummary, error)
-	findLatestByOwnerFn         func(context.Context, uint64, uint64) (*model.MedicalRecord, error)
 	findOwnersByFirstVisitFn    func(context.Context, uint64, time.Time) ([]uint64, error)
 	findOwnersByLastVisitDaysFn func(context.Context, uint64, int, time.Time) ([]uint64, error)
-	findOwnersByNextVisitRecFn  func(context.Context, uint64, time.Time) ([]uint64, error)
 }
 
 func (m *mockMedicalRecordRepository) FindOwnersByFirstVisitDate(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
@@ -161,13 +167,6 @@ func (m *mockMedicalRecordRepository) FindOwnersByLastVisitDays(ctx context.Cont
 	return nil, nil
 }
 
-func (m *mockMedicalRecordRepository) FindOwnersByNextVisitRecommended(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
-	if m.findOwnersByNextVisitRecFn != nil {
-		return m.findOwnersByNextVisitRecFn(ctx, clinicID, targetDate)
-	}
-	return nil, nil
-}
-
 func (m *mockMedicalRecordRepository) FindOwnerVisitSummary(ctx context.Context, clinicID, ownerID uint64) (*medicalrecord.OwnerVisitSummary, error) {
 	if m.findOwnerVisitSummaryFn != nil {
 		return m.findOwnerVisitSummaryFn(ctx, clinicID, ownerID)
@@ -175,9 +174,15 @@ func (m *mockMedicalRecordRepository) FindOwnerVisitSummary(ctx context.Context,
 	return &medicalrecord.OwnerVisitSummary{}, nil
 }
 
-func (m *mockMedicalRecordRepository) FindLatestByOwner(ctx context.Context, clinicID, ownerID uint64) (*model.MedicalRecord, error) {
-	if m.findLatestByOwnerFn != nil {
-		return m.findLatestByOwnerFn(ctx, clinicID, ownerID)
+// mockNextVisitAppointmentRepo は EMR-308 の next_visit_* タグ同期が参照する
+// 次回 appointment finder のモック（tagSyncNextVisitAppointmentRepo 実装）。
+type mockNextVisitAppointmentRepo struct {
+	findNextAppointmentForOwnerFn func(ctx context.Context, clinicID, ownerID uint64) (*model.Reservation, error)
+}
+
+func (m *mockNextVisitAppointmentRepo) FindNextAppointmentForOwner(ctx context.Context, clinicID, ownerID uint64) (*model.Reservation, error) {
+	if m.findNextAppointmentForOwnerFn != nil {
+		return m.findNextAppointmentForOwnerFn(ctx, clinicID, ownerID)
 	}
 	return nil, nil
 }

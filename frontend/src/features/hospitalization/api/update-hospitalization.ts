@@ -7,9 +7,13 @@ import type { Hospitalization } from "./transforms";
 import type { BackendHospitalization, UpdateHospitalizationRequest } from "./types";
 
 // バックエンドに送る実際のペイロード型（cage_id / doctor_id は uint64 互換の number）
-type UpdateHospitalizationPayload = Omit<UpdateHospitalizationRequest, "cage_id" | "doctor_id"> & {
+type UpdateHospitalizationPayload = Omit<
+  UpdateHospitalizationRequest,
+  "cage_id" | "doctor_id" | "expected_cage_id"
+> & {
   cage_id?: number;
   doctor_id?: number;
+  expected_cage_id?: number;
 };
 
 export const updateHospitalization = async (
@@ -17,11 +21,15 @@ export const updateHospitalization = async (
   req: UpdateHospitalizationRequest,
 ): Promise<Hospitalization> => {
   // cage_id / doctor_id は string として受け取るが、バックエンドは uint64（number）を期待するため変換する。
-  // 空文字列はフィールドを省略する（ケージなし更新はバックエンドが未サポートのため送信しない）。
-  const { cage_id, doctor_id, ...rest } = req;
+  // 空文字列は cage_id を省略する。ケージを外す（選択なし）更新は clear_cage_id: true で表し、
+  // `rest` にそのまま含まれて BE へ渡る（EMR-316）。
+  const { cage_id, doctor_id, expected_cage_id, ...rest } = req;
   const payload: UpdateHospitalizationPayload = { ...rest };
   if (cage_id !== undefined && cage_id !== "") {
     payload.cage_id = Number(cage_id);
+  }
+  if (expected_cage_id !== undefined && expected_cage_id !== "") {
+    payload.expected_cage_id = Number(expected_cage_id);
   }
   if (doctor_id !== undefined && doctor_id !== "") {
     const parsed = Number(doctor_id);

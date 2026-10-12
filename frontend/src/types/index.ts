@@ -27,6 +27,8 @@ export interface MenuItem {
   icon?: ReactNode;
   label: string;
   path?: string;
+  /** path を持たないグループが sidebarItemDescriptions を引くキー。 */
+  purposeKey?: string;
   resource?: Resource; // 型安全な Resource 文字列を使用
   subItems?: MenuItem[];
 }
@@ -117,4 +119,6 @@ export interface MasterItem {
   duration?: number | null;
   /** トリミングコース種別マスタ ID（#73・trimmingCourse 固有） */
   courseTypeId?: string;
+  /** EMR-306: 連結メンバーケージが指す代表ケージ ID（未連結は null。Cage.mergedIntoCageId と sentinel を統一） */
+  mergedIntoCageId?: string | null;
 }

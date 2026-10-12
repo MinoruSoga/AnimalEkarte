@@ -16,6 +16,7 @@
 | 予約種別 | `reservation_types.category` | `general` / `trimming` で遷移先を決める |
 | スタッフ対応可能種別 | `staff_reservation_capabilities` | staff 可否判定と write 検証の肯定形 SoT |
 | 予約経路 | `appointments.reservation_route` | `line`、`reception`、`record_shortcut` 等の業務入口 |
+| 次回予定（EMR-308） | `appointments`（`status='tentative'`） | 日付のみ確定の未予約意図。`intended_date` が正本で `reservation_route='record_intent'`・`source_medical_record_id` に由来カルテを保持。枠・容量・時間枠競合・通常予約の完了通知の対象外。別途 Lステップの3日前・当日リマインダー定義がある |
 
 通常診療とトリミングを同日に行う場合は appointment を 2 件作る。会計は appointment 単位に固定せず、同日・同一 owner/pet の未会計項目をまとめられる。
 
@@ -29,6 +30,8 @@
 - LINE customer が既存 owner に紐付く場合、`owner_id` / `pet_id` を best-effort で補完する。氏名+電話だけで自動リンクしない。
 - owner/pet が未確定なら、カルテ作成前に同一 clinic の実体へ確定する。
 - 当日 appointment は受付カンバンへ表示する。
+
+LINE 予約の owner/pet 事前解決は best-effort だが、予約書込み transaction では `line_customers.owner_id` の取得時状態（未紐付けを含む）との一致、同一医院の owner/pet 関係、死亡状態を row lock 下で再検証する。紐付け変更や譲渡で古くなった入力は挿入・tentative 昇格の前に拒否する。氏名・電話による自動リンクを行う契約ではない。
 
 ### 2.2 院内予約管理
 
@@ -52,14 +55,31 @@
 | 会計待ち | `accounting` |
 | 会計済 | `completed` |
 
-`cancelled` / `no_show` は通常の進行列には表示しない。
+`cancelled` / `no_show` / `tentative` は通常の進行列には表示しない。
+
+EMR-308: `tentative`（次回予定・未予約）はカルテヘッダーの「次回予定」（`PUT/DELETE /v1/reservations/pets/:petId/next-visit-intent`）で書かれる sentinel 行で、実時刻を持たず（`start_time`/`end_time` は `intended_date` の JST 00:00–00:15 sentinel）カンバン・空き枠・定員計算に参加しない。実予約への遷移は2経路ある。(a) 予約詳細の「予約を確定」（`POST /v1/reservations/:id/confirm-tentative`）で明示時刻・担当を付けて `pending`/`confirmed` へ昇格、(b) 同一ペットへの実予約・当日受付・walk-in 作成経路（内部 Create・CreateBatch・admin/walk-in・LIFF）が `createOrPromoteTentative` で active tentative を同一行昇格し、受付時に sentinel 時刻を実時刻へ置き換える。`DELETE next-visit-intent` は tentative を論理削除する。通常予約の完了通知の対象外であり、別途 Lステップの3日前・当日リマインダー定義がある。
+
+予約管理の終了確認では、表示行の `id` と `updated_at`（小数秒を保持）を `expected_reservation_id` / `expected_updated_at` として送る。サーバーは intent / row lock 下で両方を照合し、更新・削除・再作成済みなら409で終了を拒否する。両方省略した従来のペット単位取消は冪等性を維持する。
+
+`tentative` は同一医院のペットに属する意図であり、飼主移管後も現在のペット飼主として管理画面から操作できる。旧飼主・現在飼主・ペットの医院境界は維持し、通常予約の所有者整合条件は変更しない。昇格後の実予約を別ペットへ付け替える場合は、元ペット由来の `intended_date` と `source_medical_record_id` を同じロック下の更新で除去し、誤ったペットへの意図再設定を提示しない。
+
+ペットの主飼主変更（`PATCH /v1/pets/:id` の `owner_id` 更新）は、同一 transaction でそのペットの未来予約も新飼主へ移管する。対象は JST 当日以降の `pending` / `confirmed` のみで、過去日付・`checked_in` / `in_consultation` / `accounting` / `completed` / `cancelled` / `no_show` / `tentative` は変更しない。移管対象に有効なカルテ（`medical_records.appointment_id`）が既に存在する場合は 409 で拒否し、カルテ自体は書き換えない。更新はペット行 `FOR UPDATE` と対象予約行 `FOR UPDATE NOWAIT` の下で行い、各行の書込は clinic・予約ID・ペット・旧飼主・status・日付境界で再検証する。LINE 予約（`line_customer_id` あり）は旧飼主の LINE 連携を必ず切り、新飼主の confirmed LINE identity が同一 clinic の `line_customers` に一意一致する場合だけ新 customer へ付け替える。一意でなければ `line_customer_id = NULL` かつ `customer_fields` をクリアする。manual 予約（`line_customer_id` なし）は NULL と既存 `customer_fields` を維持する。`source`・staff・schedule/status・provenance は保全し、監査 `pet.owner.transfer`（before/after の owner_id・移管 appointment_ids・from_date のみ、氏名・LINE identity は載せない）を同一 transaction に fail-closed で記録する。
+
+次回予定の権限は操作別である。新規設定の PUT は `reservations:create`、既存 tentative の上書きは `create` と `edit` の両方、取消 DELETE と実予約への確定 POST は `edit` を要する。実予約の表示が優先されていても、既存 tentative があれば上書き権限を省略しない。
+
+拠点横断のカルテ・予約行からの操作は、そのレコードの `clinic_id` を `X-Clinic-ID` に指定し、グローバルの選択医院へ取り違えない。カルテ側の連続した設定・取消は hook インスタンス単位の FIFO で処理し、先行保存の再取得が後続の入力ドラフトを巻き戻さないよう pending と最新要求を管理する。別タブ間や任意のネットワーク障害まで直列化する保証ではない。
 
 ```mermaid
 stateDiagram-v2
     [*] --> pending : 予約 (LINE / 院内)
+    [*] --> tentative : 次回予定の設定 (route=record_intent)
     pending --> confirmed
     pending --> checked_in : 来院受付
     confirmed --> checked_in : 来院受付
+    tentative --> pending : 予約を確定 (confirm-tentative)
+    tentative --> confirmed : 実予約作成時の同一行昇格
+    tentative --> checked_in : 当日受付/walk-in 昇格
+    tentative --> [*] : next-visit-intent 取消 (論理削除)
     [*] --> checked_in : 予約なし来院 (route=reception)
     [*] --> in_consultation : direct consultation / record_shortcut
     checked_in --> in_consultation : 診療/トリミング開始
@@ -112,7 +132,7 @@ clinic-owned relation は tenant boundary を明示する。主要 column は次
 
 | テーブル | 主要 column |
 |---|---|
-| `appointments` | `id`, `clinic_id`, `start_time`, `end_time`, `owner_id`, `pet_id`, `reservation_type_id`, `doctor_id`, `status`, `source`, `reservation_route`, `actual_reservation_at`, `line_customer_id`, `customer_fields` |
+| `appointments` | `id`, `clinic_id`, `start_time`, `end_time`, `owner_id`, `pet_id`, `reservation_type_id`, `doctor_id`, `status`, `source`, `reservation_route`, `actual_reservation_at`, `line_customer_id`, `customer_fields`, `intended_date`, `source_medical_record_id` |
 | `reservation_types` | `id`, `clinic_id`, `name`, `duration_minutes`, `category`, `reservation_visible`, `reservation_day_option`, `is_internal`, `group_id` |
 | `reservation_type_occupations` | `clinic_id`, `reservation_type_id`, `occupation_id` |
 | `staffs` | `id`, `clinic_id`, `name`, `is_active`, `staff_type`, `reservation_visible` |
@@ -144,6 +164,7 @@ clinic-owned relation は tenant boundary を明示する。主要 column は次
 | 画面 | 現行契約 |
 |---|---|
 | 予約フォーム | 空き枠API slotを表示し、frontendがshift + capabilityでstaffを絞る。internal writeはclinic/capability/conflict、LIFFは追加でactive/publicを再検証するが、明示staffの選択時刻shift再検証は未実装 |
+| 予約管理（次回予定） | `status='tentative'` の appointment は `GET /v1/reservations` の素の等値フィルタで一覧でき、`ExpiredTentativePanel` が `intended_date` 経過分を actionable 表示する。確定は `POST /v1/reservations/:id/confirm-tentative`、設定・取消は `next-visit-intent`。LINE reminder は別トリガーであり、管理面はこの画面契約が担う |
 | 受付カンバン | 当日 `appointments` の status を表示し、category で通常/トリミング遷移を分ける |
 | 通常カルテ一覧 | appointment を解決/作成し、JST 日付と予約文脈を保持する |
 | トリミング一覧 | appointment + detail を transaction で作成/再利用し、受付 query を再取得する |

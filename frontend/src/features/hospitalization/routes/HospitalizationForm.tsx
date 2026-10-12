@@ -7,6 +7,7 @@ import { useHospitalizationFormChrome } from "../hooks/use-hospitalization-form-
 import { useDeleteHospitalization } from "../api/delete-hospitalization";
 import { paths } from "@/config/paths";
 import { parseInternalPath } from "@/lib/internal-navigation";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { resolveHospitalizationFormGate } from "./hospitalization-form-model";
 import {
   HospitalizationFormBody,
@@ -29,7 +30,7 @@ export function HospitalizationForm() {
 
   const form = useHospitalizationForm(hospitalizationId, canSubmit === true);
   const selectedPet = form.petSelection.selectedPets[0];
-  const petIsDeceased = selectedPet?.status === "死亡";
+  const petIsDeceased = selectedPet != null && isPetDeceasedForClinicalWrite(selectedPet);
   const petIsDeceasedRef = useRef(petIsDeceased);
   useLayoutEffect(() => {
     canDeleteRef.current = canDelete;

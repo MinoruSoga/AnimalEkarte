@@ -12,18 +12,36 @@
 ### セクション別マスタ一覧
 管理対象を 8 つの論理的なセクションに分類し、直感的なアクセスを実現しています。
 
-| セクション名 | 管理対象（リンク） |
+> 追記（2026-10-07 監査）: 各マスタの詳細仕様インデックス（doc-index）の正本は [settings/README.md](./settings/README.md)。本節は `/settings` ポータル画面のセクション構成（画面カードの UI composition）の記録に限定し、マスタ単位の文書リンクの二重管理をやめた（screens/CLAUDE.md 二重管理禁止）。下表のリンクはマスタ名の平文表記に置き換え、固有の画面経路・権限の記載のみ保持する。
+
+| セクション名 | 管理対象（画面カード構成） |
 |:---|:---|
-| **基本設定** | [医院情報](./19-clinic-settings.md)、[動物種類マスタ](./settings/master-animal-species.md) |
-| **カルテ** | [診療項目](./settings/master-treatment.md)、[検査マスタ](./settings/master-examinations.md)（診療項目の検査タブ。サイドバー「マスタ設定」→「カルテ関連」→「検査マスタ」。`/settings/treatment-items?tab=examination`）、[診断マスタ](./settings/master-diagnosis.md)、[問診テンプレート](./settings/master-interview.md)、[主訴種別](./settings/master-chief-complaint.md)、[薬剤マスタ](./settings/master-medicine.md)、検査機器マスタ（サイドバー「マスタ設定」→「カルテ関連」→「検査機器マスタ」。`/settings/lab-device-item-masters`。機器名と検査種別は `lab_devices`。登録は `lab-import:create`、編集は `lab-import:edit`。日常の送信画面には出さない） |
-| **予約管理マスタ** | [予約区分マスタ](./settings/master-reservation-type.md) |
-| **入院・ケージ管理** | [入院プラン](./settings/master-hospitalization-plan.md)、[ケージマスタ](./settings/master-cage.md) |
-| **トリミング関連** | [トリミングマスタ](./settings/master-trimming.md)、[トリミングコース種別](./settings/master-trimming-course-type.md) |
-| **会計・商品** | [商品マスタ](./settings/master-merchandise.md)、[保険マスタ](./settings/master-insurance.md)、[支払方法](./settings/payment-methods.md)、[割引キャンペーン](./settings/master-campaigns.md)、[締め時間設定](./settings/closing-time-settings.md) |
-| **スタッフ・権限** | [スタッフ管理](./settings/master-staff.md)、[職種マスタ](./settings/master-occupation.md)、[権限グループ設定](./settings/master-permission-group.md) |
-| **シフト管理** | [シフトパターン](./settings/master-shift-template.md) |
+| **基本設定** | 医院情報（詳細: [19-clinic-settings.md](./19-clinic-settings.md)）、動物種類マスタ |
+| **カルテ** | 診療項目、検査マスタ（診療項目の検査タブ。サイドバー「マスタ設定」→「カルテ関連」→「検査マスタ」。`/settings/treatment-items?tab=examination`）、診断マスタ、問診テンプレート、主訴種別、薬剤マスタ、検査機器マスタ（サイドバー「マスタ設定」→「カルテ関連」→「検査機器マスタ」。`/settings/lab-device-item-masters`。機器名と検査種別は `lab_devices`。登録は `lab-import:create`、編集は `lab-import:edit`。日常の送信画面には出さない） |
+| **予約管理マスタ** | 予約区分マスタ |
+| **入院・ケージ管理** | 入院プラン、ケージマスタ |
+| **トリミング関連** | トリミングマスタ、トリミングコース種別 |
+| **会計・商品** | 商品マスタ、保険マスタ、支払方法、割引キャンペーン、締め時間設定 |
+| **スタッフ・権限** | スタッフ管理、職種マスタ、権限グループ設定 |
+| **シフト管理** | シフトパターン |
 
 > 補足: [LINE予約設定](./28-line-reservation.md)（`/line-reservation`）と [Lステップ連携設定](./31-lstep-integration.md) はサイドバーの別セクションから遷移する。
+
+### 検査機器マスタ
+
+- **画面の目的**: 検査機器の項目コードと検査フィールドの対応を定義する。日常の受信操作はここでは行わない。
+- **URL**: `/settings/lab-device-item-masters`
+
+### path を持たないサイドバーグループ
+
+ポータルのセクションを開く項目である。臨床の同名画面の目的は使わない。
+
+- **カルテ関連**
+  - **画面の目的**: カルテで使う診療項目、診断、問診、主訴、薬剤、検査、検査機器の定義をまとめて開く。
+- **入院・ケージ**
+  - **画面の目的**: 入院プランと院内ケージの定義をまとめて開く。
+- **トリミング**（マスタ設定。施術一覧 `/trimming` とは別）
+  - **画面の目的**: トリミングの基本コース、追加オプション、コース種別の定義をまとめて開く。
 
 ---
 

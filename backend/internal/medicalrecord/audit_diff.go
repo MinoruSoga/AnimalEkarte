@@ -1,8 +1,6 @@
 package medicalrecord
 
 import (
-	"time"
-
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -20,7 +18,6 @@ func extractMedicalRecordImportantFields(r *model.MedicalRecord) map[string]any 
 		"pet_id":    r.PetID,
 	}
 	m["appointment_id"] = r.AppointmentID
-	m["next_visit_recommended_date"] = r.NextVisitRecommendedDate
 	m["recommendation_reason"] = r.RecommendationReason
 	return m
 }
@@ -63,7 +60,6 @@ func diffMedicalRecordImportantFields(oldRec, newRec *model.MedicalRecord) (oldD
 		{key: "owner_id", oldVal: oldRec.OwnerID, newVal: newRec.OwnerID, equal: ptrUint64Equal(oldRec.OwnerID, newRec.OwnerID)},
 		{key: "pet_id", oldVal: oldRec.PetID, newVal: newRec.PetID, equal: ptrUint64Equal(oldRec.PetID, newRec.PetID)},
 		{key: "appointment_id", oldVal: oldRec.AppointmentID, newVal: newRec.AppointmentID, equal: ptrUint64Equal(oldRec.AppointmentID, newRec.AppointmentID)},
-		{key: "next_visit_recommended_date", oldVal: oldRec.NextVisitRecommendedDate, newVal: newRec.NextVisitRecommendedDate, equal: ptrTimeEqual(oldRec.NextVisitRecommendedDate, newRec.NextVisitRecommendedDate)},
 		{key: "recommendation_reason", oldVal: oldRec.RecommendationReason, newVal: newRec.RecommendationReason, equal: ptrStringEqual(oldRec.RecommendationReason, newRec.RecommendationReason)},
 	}
 
@@ -171,14 +167,4 @@ func ptrStringEqual(a, b *string) bool {
 		return false
 	}
 	return *a == *b
-}
-
-func ptrTimeEqual(a, b *time.Time) bool {
-	if a == nil && b == nil {
-		return true
-	}
-	if a == nil || b == nil {
-		return false
-	}
-	return a.Equal(*b)
 }

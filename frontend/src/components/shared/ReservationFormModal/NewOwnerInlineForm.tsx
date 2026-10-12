@@ -43,8 +43,10 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
           onChange={(e) => onChange({ ...value, ownerName: e.target.value })}
           placeholder="例: 山田 太郎"
           className="text-sm"
+          aria-invalid={errors.ownerName ? true : undefined}
+          aria-describedby={errors.ownerName ? "new-owner-name-error" : undefined}
         />
-        <FormFieldError message={errors.ownerName} />
+        <FormFieldError id="new-owner-name-error" message={errors.ownerName} />
       </div>
 
       <div className="flex flex-col gap-1">
@@ -82,8 +84,10 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
           onChange={(e) => onChange({ ...value, petName: e.target.value })}
           placeholder="例: ポチ"
           className="text-sm"
+          aria-invalid={errors.petName ? true : undefined}
+          aria-describedby={errors.petName ? "new-owner-pet-name-error" : undefined}
         />
-        <FormFieldError message={errors.petName} />
+        <FormFieldError id="new-owner-pet-name-error" message={errors.petName} />
       </div>
 
       <div className="flex flex-col gap-1">
@@ -102,6 +106,8 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
           placeholder={isLoadingSpecies ? "読み込み中..." : "選択してください"}
           searchPlaceholder="動物種を検索..."
           triggerTestId="new-owner-species"
+          ariaInvalid={Boolean(errors.animalSpeciesId)}
+          ariaDescribedBy={errors.animalSpeciesId ? "new-owner-species-error" : undefined}
         />
         {isSpeciesError ? (
           <p role="alert" aria-atomic="true" className={`text-xs ${C.danger}`}>
@@ -116,7 +122,7 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
             動物種類が登録されていません。
           </p>
         ) : null}
-        <FormFieldError message={errors.animalSpeciesId} />
+        <FormFieldError id="new-owner-species-error" message={errors.animalSpeciesId} />
       </div>
 
       <div className="flex flex-col gap-1">
@@ -134,8 +140,10 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
           placeholder="例: 食欲不振、元気がない"
           className="text-sm resize-none"
           rows={3}
+          aria-invalid={errors.chiefComplaint ? true : undefined}
+          aria-describedby={errors.chiefComplaint ? "new-owner-chief-complaint-error" : undefined}
         />
-        <FormFieldError message={errors.chiefComplaint} />
+        <FormFieldError id="new-owner-chief-complaint-error" message={errors.chiefComplaint} />
       </div>
     </div>
   );

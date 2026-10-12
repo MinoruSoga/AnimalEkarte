@@ -69,6 +69,22 @@ export function nextListSearchParamsWithPage(prev: URLSearchParams, page: number
 const VACCINATION_LIST_CHART_TAB = "予防接種";
 const VACCINATION_LIST_ID_PARAM = "vaccinationId";
 
+export interface VaccinationListDetailState {
+  from: string;
+  listReturnState?: unknown;
+}
+
+/** Detail back target is the current list URL. listReturnState restores the list's own return path. */
+export function vaccinationListDetailState(input: {
+  pathname: string;
+  search: string;
+  locationState: unknown;
+}): VaccinationListDetailState {
+  const from = `${input.pathname}${input.search}`;
+  if (input.locationState == null) return { from };
+  return { from, listReturnState: input.locationState };
+}
+
 export function vaccinationListDetailHref(input: { id: string; medicalRecordId?: string }): string {
   if (input.medicalRecordId) {
     const params = new URLSearchParams({

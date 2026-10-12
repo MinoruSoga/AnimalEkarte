@@ -1,10 +1,15 @@
 # 画面詳細仕様書 インデックス (Screen Specifications Index)
 
-> **目的**: 全41画面の仕様書インデックスを提供する。
+> **目的**: 画面仕様書と画面ナビゲーションのインデックスを提供する。
 > **読者**: 新規参加エンジニア・PdM。
 > **タイミング**: 画面インデックス参照・全体像把握時。
+> **編集時のルール**: [CLAUDE.md](CLAUDE.md) を参照。
 
-本ディレクトリ直下の番号付き仕様（`[0-9]*.md`）は **41 ファイル**（フロー文書 `99-medical-record-flow` を含む）。製品ルートの product leaf 数（`route-inventory` の 87）とは数え方が異なる。各ファイルに画面の機能、レイアウト、API 連携の詳細を定義する。（2026-09-29 訂正: product leaf は 86 → 87。`/settings/bug-reports`（`BugReportsPage`、2026-09-26 コミット `48ec94c7` で追加）がルート在庫に加わった。同画面の番号付き仕様書は未作成のため、本索引の 41 ファイル数は変わらない）
+本ディレクトリ直下の番号付き仕様（`[0-9]*.md`）は **41 ファイル**（フロー文書 `99-medical-record-flow` を含むため「41 画面」ではない）。製品ルートの product leaf 数（`route-inventory.test.tsx` が pin する **88**）とは数え方が異なり、88 leaf と番号付き仕様は many-to-one の文書グルーピングである。**route path → primary 仕様の一意な対応表は [ui-design-compliance.md §2](../ui-design-compliance.md) が正本**であり、本索引は文書単位の閲覧入口。redirect 専用 route は route code であって新しい画面ではない。
+
+LIFF の別エントリーポイントアプリは leaf 集計の対象外: LIFF 健康・連携アプリ `frontend/liff/src/App.tsx` は画面 38 の仕様に、公開予約・状態機械 `frontend/line-reserve/src/App.tsx` は画面 37 の仕様に含まれる（別アプリであって main app の leaf route ではなく、画面数として「88 に 2 を加算」という数え方もしない）。
+
+> 追記（2026-10-11 補完）: 番号付き仕様のない設定画面 2 つ — `/settings/bug-reports`（2026-09-26 コミット `48ec94c7`）と `/settings/chat-history`（2026-10-02 コミット `e9574b28a`）— の画面契約を [settings/README.md §バグ報告一覧](./settings/README.md#バグ報告一覧)・[§チャット履歴](./settings/README.md#チャット履歴) へ補完した（所有記録は上記コミットハッシュのまま。新しい番号付き仕様ファイルは作らず、本索引の 41 ファイル数は変わらない）。
 
 画面の実装参照は `frontend/src/app/routes/` と各 feature、API の契約参照は `backend/docs/api.yaml` と各 domain の route 登録。GitHub Issue は本文に加えて後続の仕様訂正・集約先を確認する。Closed だけでは臨床承認・UAT・本番稼働の証明にならない。実行状態と残ゲートは [作業入口](../../work/README.md) を参照する。
 
@@ -31,13 +36,19 @@ flowchart LR
 | 06 | **カルテ詳細・入力** | [06-medical-records-form.md](./06-medical-records-form.md) | SOAPS 形式の診療録作成（9 タブ構成）。 |
 | 12 | **検査一覧** | [12-examinations-list.md](./12-examinations-list.md) | 検査オーダー状況と結果の進捗管理。 |
 | 13 | **検査登録・結果** | [13-examinations-form.md](./13-examinations-form.md) | 数値検査の入力と基準値判定。未紐付け受信は1クリックで後付け。 |
-| — | **検査受信** | `/lab-device`（`LabDeviceBoard`）／契約 [ADR-007](../../architecture/adr/007-lab-device-receive-and-commit.md) | 医院に設定された検査機器の単一掲示板。機器カードで受信状況をリアルタイム表示。本日診療中カルテをカード選択。日別の受信一覧。未紐付け・［取り消す］。医院セットアップで機器接続を1回許可。詳細契約は ADR、運用は ops/deploy。 |
+| — | **検査受信** | `/lab-device`（`LabDeviceBoard`）／契約 [ADR-007](../../architecture/adr/007-lab-device-receive-and-commit.md)・ローカル受信 agent [ADR-008](../../architecture/adr/008-local-lab-device-agent.md) | 医院に設定された検査機器の単一掲示板。機器カードで受信状況をリアルタイム表示。本日診療中カルテをカード選択。日別の受信一覧。未紐付け・［取り消す］。医院セットアップで機器接続を1回許可。詳細契約は ADR、運用は ops/deploy。 |
 | 14 | **予防接種一覧** | [14-vaccinations-list.md](./14-vaccinations-list.md) | 接種実績と次回予定の時系列リスト。 |
 | 15 | **予防接種登録** | [15-vaccinations-form.md](./15-vaccinations-form.md) | ワクチン履歴記録と次回予定自動計算。 |
 | 16 | **トリミング一覧** | [16-trimming-list.md](./16-trimming-list.md) | 施術予約と完了ステータスの管理。 |
-| 17 | **トリミング登録** | [17-trimming-form.md](./17-trimming-form.md) | 施術内容の記録。画像はプレビューまでで、選択ファイルの保存は未配線。 |
+| 17 | **トリミング登録** | [17-trimming-form.md](./17-trimming-form.md) | 施術内容の記録。画像は選択時にアップロードされ、object key で永続化（EMR-300）。 |
 | 25 | **定期健診一覧** | [25-checkups-list.md](./25-checkups-list.md) | 健診履歴の参照と当日カルテ自動生成。 |
 | 39 | **飼主カルテレポート** | [39-owner-report.md](./39-owner-report.md) | 同居ペットを選択し、1頭分の診療前確認・来院・履歴を別ウィンドウで俯瞰。 |
+
+### 検査受信
+
+索引行の契約は ADR-007。サイドバーの説明に使う文は次のとおり。
+
+- **画面の目的**: 医院に設定された検査機器の受信を同一画面で見て、本日診療中のカルテへ紐付ける。
 
 ---
 
@@ -88,6 +99,8 @@ flowchart LR
 | 40 | **同一飼主・ペット連携** | [40-identity-links.md](./40-identity-links.md) | 所属医院内の飼主・ペット手動 identity link と最小連携履歴。 |
 | 21 | **ログイン** | [21-login.md](./21-login.md) | 認証プロセスとパスワード再設定。 |
 | 19 | **医院マスタ設定** | [19-clinic-settings.md](./19-clinic-settings.md) | 医院基本情報と税務設定。 |
+| — | **バグ報告一覧** | [settings/README.md §バグ報告一覧](./settings/README.md#バグ報告一覧) | 全医院共有のバグ報告ボード（サポート画面。`/settings/bug-reports`）。 |
+| — | **チャット履歴** | [settings/README.md §チャット履歴](./settings/README.md#チャット履歴) | 全医院共有の LLM チャット ROOM ボード（サポート画面。`/settings/chat-history`）。 |
 
 ---
 
@@ -100,4 +113,4 @@ flowchart LR
 
 ---
 
-**静的照合**: 2026-09-06、基準コード `7c6592f9f`。本索引と配下仕様をコード・GitHub Issue の本文／コメントへ照合した。稼働環境・実機・UAT の再実行は含まない。release state は Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4)、作業入口は [docs/work/README.md](../../work/README.md) を参照。（2026-09-29 訂正: Linear は 2026-09-16 に閉鎖済み。release / 実行状態の SoT は Plane workspace `baritechllc` の project `EMR`、hub `EMR-1`。BRT-4 URL は履歴参照用エイリアス）
+**静的照合**: 2026-09-06、基準コード `7c6592f9f`。本索引と配下仕様をコード・GitHub Issue の本文／コメントへ照合した日付付き記録であり、稼働環境・実機・UAT の再実行は含まない。実行状態の SoT は Plane workspace `baritechllc` / project `EMR`（hub `EMR-1`。`BRT-4` は履歴別名）、作業入口は [docs/work/README.md](../../work/README.md) を参照する。

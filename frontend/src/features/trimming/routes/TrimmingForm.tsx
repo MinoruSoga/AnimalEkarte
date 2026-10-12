@@ -3,6 +3,7 @@ import { useParams, useLocation, useSearchParams } from "react-router";
 import { usePermission } from "@/hooks/use-permission";
 import { parseInternalPath } from "@/lib/internal-navigation";
 import { PartnerRecordLink } from "@/components/shared/PartnerRecordLink/PartnerRecordLink";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { useTrimmingForm } from "../hooks/use-trimming-form";
 import { useTrimmingFormChrome } from "../hooks/use-trimming-form-chrome";
 import { resolveTrimmingFormGate } from "./trimming-form-model";
@@ -30,17 +31,19 @@ export function TrimmingForm() {
     formState,
     handleDelete,
     isSaving,
+    isImageUploading,
     isDeleting,
     fieldErrors,
     isLoading,
     isEditPetReady,
+    unsaved,
     notFound,
     hasExistingAppointment,
     recordDate,
   } = useTrimmingForm(id, { canCreate, canEdit, canDelete });
 
   const selectedPet = petSelection.selectedPets[0];
-  const isPetDeceased = selectedPet?.status === "死亡";
+  const isPetDeceased = selectedPet != null && isPetDeceasedForClinicalWrite(selectedPet);
   const canSubmit = (mode === "edit" ? canEdit && isEditPetReady : canCreate) && !isPetDeceased;
   const allowDelete = canDelete === true && isEditPetReady && !isPetDeceased;
   const fromPath = parseInternalPath(location.state?.from) ?? undefined;
@@ -53,6 +56,7 @@ export function TrimmingForm() {
     redirectPath,
     fromPath,
     handleDelete,
+    unsaved,
   });
 
   const gate = resolveTrimmingFormGate({
@@ -72,6 +76,7 @@ export function TrimmingForm() {
       canSubmit={canSubmit === true}
       canDelete={allowDelete}
       isSaving={isSaving}
+      isImageUploading={isImageUploading}
       isDeleting={isDeleting}
       isDirty={chrome.isDirty}
       hasExistingAppointment={hasExistingAppointment}

@@ -81,16 +81,51 @@ func (h *CRUDHandler) ListReservations(c *gin.Context) {
 	if !ok {
 		return
 	}
-	page, limit, err := httpapi.ParsePaginationWithMax(c, reservationListMaxLimit)
-	if err != nil {
-		respondError(c, err)
-		return
-	}
-
 	q := newListReservationQuery(c.Request.URL.Query())
 	filters, err := q.toServiceFilters()
 	if err != nil {
 		respondError(c, passthroughOrInvalidDateTime(err))
+		return
+	}
+
+	if values, present := c.Request.URL.Query()["snapshot"]; present {
+		raw := c.Query("snapshot")
+		if len(values) != 1 {
+			respondError(c, apperrors.WrapInvalidInput("snapshot は1つだけ指定してください"))
+			return
+		}
+		if raw != "true" && raw != "false" {
+			respondError(c, apperrors.WrapInvalidInput("snapshot は true または false を指定してください"))
+			return
+		}
+		if raw == "true" {
+			if err := validateReservationSnapshotScope(filters); err != nil {
+				respondError(c, err)
+				return
+			}
+			lister, ok := h.svc.(reservationSnapshotLister)
+			if !ok {
+				respondError(c, apperrors.WrapNotImplemented("予約一覧の一括取得は未設定です"))
+				return
+			}
+			rows, err := lister.listSnapshot(c.Request.Context(), clinicIDs, filters)
+			if err != nil {
+				respondError(c, err)
+				return
+			}
+			c.JSON(http.StatusOK, struct {
+				Data     []reservationResponse `json:"data"`
+				Total    int                   `json:"total"`
+				Page     int                   `json:"page"`
+				Limit    int                   `json:"limit"`
+				Snapshot bool                  `json:"snapshot"`
+			}{httpapi.MapSlice(rows, toReservationResponse), len(rows), 1, reservationSnapshotMaxRows, true})
+			return
+		}
+	}
+	page, limit, err := httpapi.ParsePaginationWithMax(c, reservationListMaxLimit)
+	if err != nil {
+		respondError(c, err)
 		return
 	}
 

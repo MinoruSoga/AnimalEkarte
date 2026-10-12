@@ -11,6 +11,7 @@ import type { NavigateFunction } from "react-router";
 
 import { paths } from "@/config/paths";
 import { handleApiError } from "@/lib/handle-api-error";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import type { MedicalRecord, Pet } from "@/types";
 
 import type { CreateMedicalRecordRequest } from "../api/types";
@@ -107,7 +108,9 @@ export function useMedicalRecordAutoCreate({
   tab,
 }: UseMedicalRecordAutoCreateParams) {
   const canCreateRef = useRef(canCreate);
-  const selectedPetStatusRef = useRef(selectedPet?.status);
+  const selectedPetIsDeceasedRef = useRef(
+    selectedPet ? isPetDeceasedForClinicalWrite(selectedPet) : false,
+  );
   const isCreateInFlightRef = useRef(false);
   const [failure, setFailure] = useState<MedicalRecordAutoCreateFailure | null>(null);
 
@@ -115,8 +118,10 @@ export function useMedicalRecordAutoCreate({
     canCreateRef.current = canCreate;
   }, [canCreate]);
   useLayoutEffect(() => {
-    selectedPetStatusRef.current = selectedPet?.status;
-  }, [selectedPet?.status]);
+    selectedPetIsDeceasedRef.current = selectedPet
+      ? isPetDeceasedForClinicalWrite(selectedPet)
+      : false;
+  }, [selectedPet]);
 
   const markAppointmentPrerequisiteFailure = useCallback(() => {
     // BUG-MR-DRAFT-AUTOPOST-FAILED: master 欠落は API 失敗と区別する。
@@ -131,7 +136,7 @@ export function useMedicalRecordAutoCreate({
         !isNewRecord ||
         !selectedPet ||
         canCreateRef.current !== true ||
-        selectedPetStatusRef.current === "死亡"
+        selectedPetIsDeceasedRef.current
       )
         return;
 
@@ -152,7 +157,7 @@ export function useMedicalRecordAutoCreate({
         let appointmentId = availableAppointmentId;
         try {
           if (!appointmentId) {
-            if (canCreateRef.current !== true || selectedPetStatusRef.current === "死亡") return;
+            if (canCreateRef.current !== true || selectedPetIsDeceasedRef.current) return;
 
             // create 直前にも general が消えた場合は silent にせず failure
             if (!generalReservationType) {
@@ -180,7 +185,7 @@ export function useMedicalRecordAutoCreate({
             appointmentId = appointment.id;
           }
 
-          if (canCreateRef.current !== true || selectedPetStatusRef.current === "死亡") return;
+          if (canCreateRef.current !== true || selectedPetIsDeceasedRef.current) return;
 
           const today = visitDateFromState ?? formatJSTDate(new Date());
           const record = await createMutation.mutateAsync({
@@ -229,7 +234,7 @@ export function useMedicalRecordAutoCreate({
 
   useEffect(() => {
     if (!isNewRecord || !selectedPet || hasAutoCreatedRef.current) return;
-    if (selectedPet.status === "死亡" || canCreate !== true) return;
+    if (isPetDeceasedForClinicalWrite(selectedPet) || canCreate !== true) return;
     if (!appointmentIdFromState && isReusableAppointmentLoading) return;
 
     const needsNewAppointment = !appointmentIdFromState && !reusableAppointment?.id;

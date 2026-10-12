@@ -78,11 +78,13 @@ flowchart TB
 
 ### 参照正本（コード）
 
+> 2026-10-06 注記: 下表の処方行リンク（`prescription_service.go` / `prescription_repository.go`）は歴史参照。処方（prescriptions）テーブル・経路は `backend/migrations/014_drop_prescriptions.sql` で廃止されており、該当ファイルは現行ツリーに存在しない（参照先は 014 適用前の git 履歴）。
+
 | 経路 | Service Update | Repository Update | 子行ロック | 親 draft 直列化 |
 | --- | --- | --- | --- | --- |
 | 治療 | [treatment_service_tx.go](../../../backend/internal/medicalrecord/treatment_service_tx.go) `updateTreatmentInTx` | [treatment_repository.go](../../../backend/internal/medicalrecord/treatment_repository.go) `Update`（version 述語なし） | `LockByIDForUpdate`（ambient tx 必須・SEC-CS-F09） | `lockDraftMedicalRecord` |
 | バイタル | [vital_service_update.go](../../../backend/internal/medicalrecord/vital_service_update.go) `updateVitalInTx` | [vital_repository.go](../../../backend/internal/medicalrecord/vital_repository.go) `Update`（version 述語なし） | **なし**（子行は Updates のみ） | `lockDraftParent` → 親 `LockByIDForUpdate` + finalized Conflict |
-| 処方 | [prescription_service.go](../../../backend/internal/medicalrecord/prescription_service.go) `Update` | [prescription_repository.go](../../../backend/internal/medicalrecord/prescription_repository.go) `Update`（version 述語なし） | **なし** | `lockDraftMedicalRecord` |
+| 処方 | `prescription_service.go` `Update`（014 以前の git 履歴） | `prescription_repository.go` `Update`（version 述語なし。014 以前の git 履歴） | **なし** | `lockDraftMedicalRecord` |
 | 接種 | [vaccination_service.go](../../../backend/internal/medicalrecord/vaccination_service.go) `Update` | [vaccination_repository.go](../../../backend/internal/medicalrecord/vaccination_repository.go) `Update`（version 述語なし） | `LockByIDForUpdate`（ambient tx 必須） | MR がある場合のみ `medicalRecords.LockByIDForUpdate`（**draft/finalized 判定は Update 経路に無し**） |
 
 Schema / model: `clinical_plans.version` のみ。[treatments](../../../backend/migrations/001_init.sql) / `vital_records` / `prescriptions` / `vaccinations` と対応 model（`Treatment` / `VitalRecord` / `Prescription` / `Vaccination`）に **version 列は無い**。request/input にも `expectedVersion` は無い。

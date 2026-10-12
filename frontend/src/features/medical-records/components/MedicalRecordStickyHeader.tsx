@@ -13,6 +13,7 @@ import { usePermission } from "@/hooks/use-permission";
 import { getMedicalRecordStatusColor } from "@/lib/status-helpers";
 import { ResourceMedicalRecords } from "@/types/generated/models";
 import { todayJSTISO } from "@/lib/jst-date";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
 import { NextVisitButton } from "./NextVisitButton";
 import { VisitTypeSelect } from "./VisitTypeSelect";
@@ -31,13 +32,10 @@ interface MedicalRecordStickyHeaderProps {
   tabs: { value: string; label: string }[];
   recordDate?: string;
   recordStatus?: string;
-  nextVisitDate: string;
   onVisitTypeChange: (value: string) => void;
   onStaffClick: () => void;
   onOwnerClick: () => void;
   onDateChange?: (date: string) => void;
-  onNextVisitDatePatch: (date: string) => void;
-  onNextVisitDateValidChange: (valid: boolean) => void;
   hasLineIntegration?: boolean;
   medicalRecordId?: string;
   recordClinicId?: string;
@@ -88,13 +86,10 @@ export function MedicalRecordStickyHeader({
   tabs,
   recordDate,
   recordStatus,
-  nextVisitDate,
   onVisitTypeChange,
   onStaffClick,
   onOwnerClick,
   onDateChange,
-  onNextVisitDatePatch,
-  onNextVisitDateValidChange,
   hasLineIntegration,
   medicalRecordId,
   recordClinicId,
@@ -169,14 +164,17 @@ export function MedicalRecordStickyHeader({
         </div>
       )}
 
-      {/* 次回予定 */}
+      {/* 次回予定（EMR-308）: 実予約 > tentative > 未設定を表示し、Popover は
+          tentative appointment を upsert/除去する。カルテ確定状態・medical-records
+          編集権限では無効化しない（tentative はペット属性）。reservations:create
+          権限と死亡ペットガードはコントロール内部で判定する。 */}
       {!isNewRecord ? (
         <NextVisitButton
-          value={nextVisitDate}
-          onChange={onNextVisitDatePatch}
-          onValidationChange={onNextVisitDateValidChange}
+          petId={selectedPet.id}
+          medicalRecordId={medicalRecordId}
+          clinicId={recordClinicId}
+          isPetDeceased={isPetDeceasedForClinicalWrite(selectedPet)}
           hasLineIntegration={hasLineIntegration}
-          disabled={!canEdit || isFinalized}
         />
       ) : null}
 
@@ -204,7 +202,7 @@ export function MedicalRecordStickyHeader({
         petName={selectedPet.name}
         petNumber={selectedPet.petNumber || selectedPet.id}
         weight={selectedPet.weight ?? undefined}
-        status={selectedPet.status === "死亡" ? "deceased" : "alive"}
+        status={isPetDeceasedForClinicalWrite(selectedPet) ? "deceased" : "alive"}
         birthDate={selectedPet.birthDate ?? undefined}
         species={selectedPet.species}
         gender={selectedPet.gender}

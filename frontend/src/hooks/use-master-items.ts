@@ -66,6 +66,9 @@ function transformGenericMasterItem(data: GenericMasterBackendItem): MasterItem 
     duration: data.duration != null ? Number(data.duration) : null,
     // TrimmingCourse-specific field (#73)
     courseTypeId: data.course_type_id != null ? String(data.course_type_id) : undefined,
+    // EMR-306: ケージ一時連結の代表ケージ ID。欠落・null は transformCage と
+    // 同じ null sentinel に正規化する。
+    mergedIntoCageId: data.merged_into_cage_id != null ? String(data.merged_into_cage_id) : null,
   };
 }
 
@@ -73,8 +76,14 @@ function transformGenericMasterItem(data: GenericMasterBackendItem): MasterItem 
 // API function
 // ─────────────────────────────────────────────────
 
-const getMasterItemsByEndpoint = async (endpoint: string): Promise<MasterItem[]> => {
-  const { data } = await axios.get<GenericMasterBackendItem[]>(endpoint);
+const getMasterItemsByEndpoint = async (
+  endpoint: string,
+  clinicId?: string,
+): Promise<MasterItem[]> => {
+  const { data } = await axios.get<GenericMasterBackendItem[]>(
+    endpoint,
+    clinicId ? { headers: { "X-Clinic-ID": clinicId } } : undefined,
+  );
   return data.map(transformGenericMasterItem);
 };
 
@@ -86,11 +95,15 @@ const getMasterItemsByEndpoint = async (endpoint: string): Promise<MasterItem[]>
  * Read-only hook to fetch master items by category key.
  * The source of truth for generic master item fetching across all features.
  */
-function useGetMasterItemsByCategory(category: string) {
+function useGetMasterItemsByCategory(category: string, clinicId?: string) {
   const endpoint = MASTER_CATEGORY_ENDPOINT[category];
   return useQuery({
-    queryKey: queryKeys.masters.category(category),
-    queryFn: () => getMasterItemsByEndpoint(endpoint),
+    // Codex PR606 再指摘: 拠点横断フォームは行の clinicId を末尾に付けて
+    // 他院のマスタキャッシュと分離する（prefix invalidate は維持）。
+    queryKey: clinicId
+      ? [...queryKeys.masters.category(category), clinicId]
+      : queryKeys.masters.category(category),
+    queryFn: () => getMasterItemsByEndpoint(endpoint, clinicId),
     enabled: !!endpoint,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -98,9 +111,12 @@ function useGetMasterItemsByCategory(category: string) {
 }
 
 /** Read-only master data hook for cross-feature consumption. Returns filtered items by category. */
-export function useGetMasterItems(category?: string, searchTerm?: string) {
+export function useGetMasterItems(category?: string, searchTerm?: string, clinicId?: string) {
   const resolvedCategory = category && category !== "all" ? category : "";
-  const { data: categoryItems = [], isLoading } = useGetMasterItemsByCategory(resolvedCategory);
+  const { data: categoryItems = [], isLoading } = useGetMasterItemsByCategory(
+    resolvedCategory,
+    clinicId,
+  );
 
   const filteredItems = useMemo(() => {
     if (!searchTerm) return categoryItems;

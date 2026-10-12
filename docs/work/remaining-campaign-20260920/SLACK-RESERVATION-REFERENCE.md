@@ -1,6 +1,7 @@
 # SLACK-RESERVATION-REFERENCE: 予約「参照先が存在しません」の現行参照チェック対応表
 
 > 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-114`。本文の「READY」「UNKNOWN」「未実行」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+> 再検証記録（2026-10-06 監査）: 現行 build での再現・検証は [emr-114-reservation-reference-20261002.md](../emr-114-reservation-reference-20261002.md)（2026-10-02）で実行済み。標準経路の保存は成功し、総称 23503 を出す残存経路は兼務スタッフ担当医に特定 — `017_multiclinic_staff_fk_fix.sql` で修正済み（各環境の `make migrate` 適用後に close 可能）。下記の「再現 未実行」は当時の状態。
 
 状態: **コード照合 READY／現行 STG 配信 identity UNKNOWN／再現 未実行**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-RESERVATION-REFERENCE`（L294–298、索引 L402）。保持する現場条件:
 
@@ -214,7 +215,7 @@ func assertReservationCreatedBy(ctx context.Context, db *gorm.DB, clinicID uint6
 
 ## 9月13日報告との関係（現行 PASS にしない）
 
-[bug.md](../../../bug.md) `BUG-RES-DOCTOR-ID-ZERO`（L53–100）は次を **当時の記録**として残している。本票はそれを現行受入にしない。
+`bug.md` `BUG-RES-DOCTOR-ID-ZERO`（L53–100）は次を **当時の記録**として残している（`bug.md` は 2026-09-27 の台帳整理で 0 バイト残存。内容は git 履歴）。本票はそれを現行受入にしない。
 
 | 当時の切り分け | 当時の主張 | 本セッション |
 | --- | --- | --- |

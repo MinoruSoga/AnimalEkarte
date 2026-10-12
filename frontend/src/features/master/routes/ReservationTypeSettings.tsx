@@ -23,7 +23,7 @@ export function ReservationTypeSettings() {
             icon={<Activity className={`${ICON.page} ${C.text}`} />}
             resource={ResourceMasterReservationType}
             onBack={() => navigate(paths.settings.getHref())}
-            maxWidth={LAYOUT.pageContentMaxWidth.full}
+            maxWidth={LAYOUT.pageContentMaxWidth.tableNarrow}
             headerAction={
               s.canCreate ? (
                 <PrimaryButton onClick={() => s.handleCategoryAddInGroup(undefined)}>

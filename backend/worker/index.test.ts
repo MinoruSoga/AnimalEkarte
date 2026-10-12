@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { env as workerEnv } from "cloudflare:workers";
 
 import worker, {
+  buildContainerEnvVars,
   API_KEEPALIVE_CRON,
   buildCorsPreflightResponse,
   buildProxyObservation,
@@ -531,5 +533,46 @@ describe("worker fetch /_internal/migrate", () => {
     expect(response.status).toBe(400);
     expect(binding.get).not.toHaveBeenCalled();
     expect(runMigrate).not.toHaveBeenCalled();
+  });
+});
+
+describe("container envVars TRIMMING_IMAGE_CLEANUP_ENABLED forwarding", () => {
+  function envVarsWithCleanup(value: string | undefined) {
+    if (value === undefined) {
+      delete workerEnv.TRIMMING_IMAGE_CLEANUP_ENABLED;
+    } else {
+      workerEnv.TRIMMING_IMAGE_CLEANUP_ENABLED = value;
+    }
+    return buildContainerEnvVars(workerEnv);
+  }
+
+  afterEach(() => {
+    delete workerEnv.TRIMMING_IMAGE_CLEANUP_ENABLED;
+  });
+
+  it("forwards an explicit true so the Go startup gate can enable the worker", () => {
+    expect(
+      envVarsWithCleanup("true").TRIMMING_IMAGE_CLEANUP_ENABLED,
+    ).toBe("true");
+  });
+
+  it("forwards an explicit false unchanged", () => {
+    expect(
+      envVarsWithCleanup("false").TRIMMING_IMAGE_CLEANUP_ENABLED,
+    ).toBe("false");
+  });
+
+  it("defaults to false when the var is unset so deploys stay OFF", () => {
+    expect(
+      envVarsWithCleanup(undefined).TRIMMING_IMAGE_CLEANUP_ENABLED,
+    ).toBe("false");
+  });
+
+  it("preserves non-boolean values verbatim for the Go fail-closed parse", () => {
+    for (const value of ["1", "TRUE", "yes"]) {
+      expect(envVarsWithCleanup(value).TRIMMING_IMAGE_CLEANUP_ENABLED).toBe(
+        value,
+      );
+    }
   });
 });

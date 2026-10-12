@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -20,6 +21,7 @@ type ownerSharedPetResponse struct {
 	AnimalSpecies ownerSharedPetAnimalSpeciesResponse `json:"animal_species"`
 	Gender        string                              `json:"gender"`
 	BirthDate     *string                             `json:"birth_date"`
+	DeceasedAt    *time.Time                          `json:"deceased_at"`
 	Color         string                              `json:"color"`
 	Weight        *float64                            `json:"weight"`
 	Environment   string                              `json:"environment"`
@@ -49,6 +51,7 @@ func newOwnerSharedPetsResponse(sharedPets []SharedPet) ownerSharedPetsResponse 
 			},
 			Gender:       string(sharedPet.Gender),
 			BirthDate:    birthDate,
+			DeceasedAt:   httpapi.LocalTimePtr(sharedPet.DeceasedAt),
 			Color:        sharedPet.Color,
 			Weight:       sharedPet.Weight,
 			Environment:  sharedPet.Environment,

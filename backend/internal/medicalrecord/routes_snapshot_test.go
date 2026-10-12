@@ -129,6 +129,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/v1/lab-reports/jobs/:job_id/summaries GetLabJobReportSummaries\n" +
 		"GET /api/v1/masters/cages ListCages\n" +
 		"GET /api/v1/masters/cages/:id GetCage\n" +
+		"GET /api/v1/masters/cages/occupancy OccupiedCageIDs\n" +
 		"GET /api/v1/masters/checkup-types ListCheckupTypes\n" +
 		"GET /api/v1/masters/checkup-types/:id GetCheckupType\n" +
 		"GET /api/v1/masters/checkup-types/:id/fields ListCheckupTypeFields\n" +
@@ -218,6 +219,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/hospitalizations/:id/daily-records/:date/vitals AddVitalRecord\n" +
 		"POST /api/v1/hospitalizations/:id/discharge-with-billing DischargeWithBilling\n" +
 		"POST /api/v1/hospitalizations/:id/treatment-plans CreateTreatmentPlanForHospitalization\n" +
+		"POST /api/v1/hospitalizations/cage-swap SwapCages\n" +
 		"POST /api/v1/lab-device-item-masters/ensure EnsureLabDeviceItemMasters\n" +
 		"POST /api/v1/lab-device/frames ReceiveLabDeviceFrames\n" +
 		"POST /api/v1/lab-device/mapping-drafts CreateLabMappingDraft\n" +
@@ -229,6 +231,8 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/lab-imports/:job_id/revert RevertLabImport\n" +
 		"POST /api/v1/lab-imports/preview PreviewLabImport\n" +
 		"POST /api/v1/masters/cages CreateCage\n" +
+		"POST /api/v1/masters/cages/:id/merge MergeCage\n" +
+		"POST /api/v1/masters/cages/:id/unmerge UnmergeCage\n" +
 		"POST /api/v1/masters/checkup-types CreateCheckupType\n" +
 		"POST /api/v1/masters/chief-complaint-types CreateChiefComplaint\n" +
 		"POST /api/v1/masters/consultations CreateConsultation\n" +
@@ -343,6 +347,90 @@ func TestRegisterRoutes_HospitalizationDischargeAndExaminationUnconfirmPermissio
 		"hospitalization:edit",
 		"hospitalization:edit",
 		"examination-unconfirm:edit",
+	}, observed)
+}
+
+// TestRegisterRoutes_CageMergePermissions locks EMR-306: cage merge/unmerge are
+// master-hospitalization:edit operations (same resource as the rest of the cage
+// master block, registered unconditionally so NewCageHandler(nil) routers resolve).
+// Same HTTP-driven spy pattern as
+// TestRegisterRoutes_HospitalizationDischargeAndExaminationUnconfirmPermissions:
+// the perm middleware aborts before the nil-backed terminal handler runs.
+func TestRegisterRoutes_CageMergePermissions(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var observed []string
+	permSpy := func(resource, action string) gin.HandlerFunc {
+		return func(c *gin.Context) {
+			observed = append(observed, resource+":"+action)
+			c.AbortWithStatus(http.StatusOK)
+		}
+	}
+
+	h := NewHandler(
+		NewDiagnosisHandler(nil, nil),
+		NewExamTypeHandler(nil),
+		NewChiefComplaintHandler(nil),
+		NewCheckupHandler(nil, nil),
+		NewCheckupTypeHandler(nil),
+		NewVaccineHandler(nil),
+		NewVaccinationHandler(nil),
+		NewInquiryHandler(nil),
+		NewInquiryTemplateHandler(nil),
+		NewLabImportHandler(nil, nil, nil),
+		NewLabReportHandler(nil),
+		NewVitalHandler(nil, nil),
+		NewClinicalPlanHandler(nil),
+		NewMedicalRecordImageHandler(nil, nil, nil),
+		NewTreatmentHandler(nil, nil),
+		NewHospitalizationHandler(nil, nil),
+		NewHospitalizationPlanHandler(nil),
+		NewDailyRecordHandler(nil),
+		NewCarePlanItemHandler(nil),
+		NewConsultationHandler(nil),
+		NewProcedureHandler(nil),
+		NewMedicineHandler(nil),
+		NewMedicineDoseParamHandler(nil),
+		NewCageHandler(nil),
+		NewTreatmentPlanHandler(nil, nil, nil, nil),
+		NewMedicalRecordHandler(nil),
+		NewMedicalRecordAddendumHandler(nil),
+		NewExaminationHandler(nil),
+		permSpy,
+	)
+
+	r := gin.New()
+	api := r.Group("/api/v1")
+	h.RegisterRoutes(api)
+
+	{
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/masters/cages/1/merge", http.NoBody)
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+	}
+
+	{
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/masters/cages/1/unmerge", http.NoBody)
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+	}
+
+	{
+		// EMR-306 review: 占有読み取りも merge と同一の master-hospitalization:edit —
+		// hospitalization:view を持たないケージ編集者が 403 で占有不明に陥らないよう保証する。
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/masters/cages/occupancy", http.NoBody)
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+	}
+
+	// Assert resource AND action — action-only would pass if another resource's edit were swapped in.
+	assert.Equal(t, []string{
+		"master-hospitalization:edit",
+		"master-hospitalization:edit",
+		"master-hospitalization:edit",
 	}, observed)
 }
 

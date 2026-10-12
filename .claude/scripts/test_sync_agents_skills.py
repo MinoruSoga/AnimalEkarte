@@ -17,14 +17,14 @@ class SkillMirrorTest(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
-        for folder in (".claude/skills/demo/references", ".claude/commands", ".claude/rules", "scripts"):
+        for folder in (".claude/skills/demo/references", ".claude/commands", ".claude/rules", "scripts/checks"):
             (self.root / folder).mkdir(parents=True)
         (self.root / ".claude/skills/demo/SKILL.md").write_text("canonical skill\n")
         (self.root / ".claude/skills/demo/references/example.md").write_bytes(b"reference\r\n")
         (self.root / ".claude/rules/safety.md").write_text("safe rule\n")
         self.command = self.root / ".claude/commands/demo.md"
         self.command.write_text('---\ndescription: "Quote \\"value\\" and backslash \\\\ with 日本語"\n---\n\nBody\n---\nend\n')
-        shutil.copyfile(PROJECT / "scripts/yaml-frontmatter-description.mjs", self.root / "scripts/yaml-frontmatter-description.mjs")
+        shutil.copyfile(PROJECT / "scripts/checks/yaml-frontmatter-description.mjs", self.root / "scripts/checks/yaml-frontmatter-description.mjs")
 
     def run_sync(self, success=True):
         result = subprocess.run([sys.executable, "-B", str(SCRIPT), str(self.root)], capture_output=True, text=True)

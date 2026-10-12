@@ -50,3 +50,14 @@ export function cageToFormData(item: Cage | null): CageFormData {
 export function formatCagePrice(price: number | null | undefined) {
   return formatCurrency(price);
 }
+
+/**
+ * EMR-306: 連結メンバーケージの代表ケージを一覧から解決する。
+ * cage が未連結（mergedIntoCageId=null）か、代表ケージが一覧に存在しない
+ * 場合は null。代表ケージ自身（他行が自分を指す）ではなく、あくまで
+ * 「この cage が所属するグループの代表」を返す。
+ */
+export function findCageRepresentative(cages: readonly Cage[], cage: Cage | null): Cage | null {
+  if (cage == null || cage.mergedIntoCageId == null) return null;
+  return cages.find((c) => c.id === cage.mergedIntoCageId) ?? null;
+}

@@ -90,7 +90,7 @@ AWS 時代の SSM 登録、ECS task definition、`db_reset` workflow dispatch �
 `performance-tests.yml` の endpoint/spike k6 は CI の独立 local Docker stack（`BASE_URL=http://localhost:8080`、`APP_ENV=test`）を対象にし、**`LOAD_TEST_LOGIN_EMAIL` / `LOAD_TEST_LOGIN_PASSWORD`** を job env から渡す。アカウントは `internal/seedlogin` の公開 synthetic catalog であり、STG secret の登録はこの経路の前提ではない。
 
 - `k6-api-endpoints.js` / `k6-spike-test.js` は両変数必須、fallback 無し。login 非200・cookie 欠落・protected 非200 は失敗。
-- 両 k6 step は required。aggregate は `scripts/validate-k6-summary.mjs` が `http_reqs` / `iterations` / `checks` / `successful_logins` を fail-closed で検証する。
+- 両 k6 step は required。aggregate は `scripts/tools/validate-k6-summary.mjs` が `http_reqs` / `iterations` / `checks` / `successful_logins` を fail-closed で検証する。
 - 実 STG 用 `k6-cf-stg-sustained.js` と backend deploy の optional CRUD smoke は引き続き `STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD` を使う。CI-local の変数と混ぜない。実 STG 負荷試験・secret 登録は承認済みの別運用。
 - E2E workflow は `APP_ENV=test` と `E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD` を使う別契約。
 

@@ -5,6 +5,8 @@ description: backend/migrations/ と seed バンドルを触るときの安全�
 
 # Migration / Seed Safety
 
+> **吸収（2026-10-09）**: 旧 `analyzing-schema`・`database-indexing`（repo 側スキル）を廃止。schema 分析は `postgres-patterns`（indexing/EXPLAIN 含む）が、migration/seed の安全ガードは本スキルが担う。
+
 このプロジェクトのmigration/seed関連インシデントは全て**同じ根本原因**を持つ:「静的な見た目は正しいが、既存DBへの実適用で壊れる」変更。
 
 過去のインシデント:
@@ -32,7 +34,7 @@ description: backend/migrations/ と seed バンドルを触るときの安全�
 1. **クロステナントID衝突**: seedの主キー/外部キーを採番し直す場合、他クリニックのIDレンジと衝突しないか確認する。「静的検証がパスした」は安全の証明にならない——過去に静的検証を通過した後、実DBへの適用で初めてクロステナント破綻が発覚した実例がある
 2. **UNIQUE制約**: seed内で重複しうる値（email、コード値等）が無いか事前に確認する。起動時seed投入でUNIQUE違反が起きるとコンテナがクラッシュループする
 3. **fresh DB apply（条件付き）**: seed/migration または起動依存を変更した場合は、静的確認だけで完了とせず、**disposable な隔離 DB/environment への fresh apply**で検証する。既存・共有 DB への追記、drop、reset を検証手段にしない。DB を使わない docs-only 変更にはこの gate は不要
-4. **DB非依存の最低検証**: `python3 scripts/verify_seed.py` を実行する（DB起動不要）
+4. **DB非依存の最低検証**: `python3 scripts/old-db/verify_seed.py` を実行する（DB起動不要）
 5. **実DB適用はユーザー承認必須**: `make db` / `docker compose exec db psql ...` は自動実行禁止コマンド（`.claude/CLAUDE.md`）。隔離 DB の作成・migration 適用・破棄も、対象・データ消失影響・隔離性を確認したユーザーの明示承認後にだけ実施する。既存・共有 DB の reset は指示しない
 6. **テーブル定義外の CREATE UNIQUE INDEX との突合**: seed 差し替え時、PK/FK/CHECK/NOT NULL だけでなく 001_init.sql 末尾の `CREATE UNIQUE INDEX`（例: idx_procedures_clinic_name (clinic_id, name) WHERE deleted_at IS NULL）に対する重複も検証する。過去 revert（PR#78）の唯一の原因はこの見逃し（(1,'輸血') / (1,'お手入れ') の同名2ペア）
    （出典: memory seed_lowid_remap_xtenant_regression / seed_master_update_startup_crash_revert）
@@ -52,7 +54,7 @@ description: backend/migrations/ と seed バンドルを触るときの安全�
 ## 診断コマンド
 
 ```bash
-python3 scripts/verify_seed.py
+python3 scripts/old-db/verify_seed.py
 ls backend/migrations/*.sql   # 番号の重複・欠番を目視確認
 ```
 

@@ -31,6 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/DataStates";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { BADGE, C, ICON } from "@/lib/design-tokens";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
@@ -64,6 +65,9 @@ export const RefundSection = memo(function RefundSection({
   const [refundAmount, setRefundAmount] = useState("");
   const [refundReason, setRefundReason] = useState("");
   const [refundPaymentMethod, setRefundPaymentMethod] = useState(NO_PAYMENT_METHOD);
+  // EMR-319: toast に加えて返金金額フィールドの赤枠+エラー文を表示するための表示用状態。
+  // 判定ロジック・文案（toast.error の文字列）は既存のまま変更しない。
+  const [amountError, setAmountError] = useState<string | null>(null);
   const { data: refunds = [] } = useGetRefunds(accountingId);
 
   // この会計で使われた支払方法（ENUM）のユニーク一覧。返金の選択肢にする。
@@ -82,11 +86,18 @@ export const RefundSection = memo(function RefundSection({
   const [, formAction] = useActionState<null, FormData>(
     async (_prev: null, _formData: FormData) => {
       const amount = parseInt(refundAmount, 10);
-      if (!amount || amount <= 0) return null;
-      if (amount > refundableAmount) {
-        toast.error(`返金額は残額 ${formatCurrency(refundableAmount)} 以下で入力してください`);
+      if (!amount || amount <= 0) {
+        // EMR-319: noValidate フォームのため非正値もフィールドエラーで表示する。
+        setAmountError("返金額は1円以上で入力してください");
         return null;
       }
+      if (amount > refundableAmount) {
+        const message = `返金額は残額 ${formatCurrency(refundableAmount)} 以下で入力してください`;
+        setAmountError(message);
+        toast.error(message);
+        return null;
+      }
+      setAmountError(null);
       const paymentMethod =
         refundPaymentMethod !== NO_PAYMENT_METHOD
           ? (refundPaymentMethod as PaymentMethod)
@@ -120,7 +131,13 @@ export const RefundSection = memo(function RefundSection({
             ) : null}
           </CardTitle>
           {canEdit ? (
-            <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
+            <Dialog
+              open={refundDialogOpen}
+              onOpenChange={(next) => {
+                if (next) setAmountError(null);
+                setRefundDialogOpen(next);
+              }}
+            >
               <DialogTrigger asChild>
                 <Button
                   type="button"
@@ -150,9 +167,15 @@ export const RefundSection = memo(function RefundSection({
                         step={1}
                         min={1}
                         value={refundAmount}
-                        onChange={(e) => setRefundAmount(e.target.value)}
+                        onChange={(e) => {
+                          setRefundAmount(e.target.value);
+                          setAmountError(null);
+                        }}
                         placeholder="0"
+                        aria-invalid={amountError ? true : undefined}
+                        aria-describedby={amountError ? "refund-amount-error" : undefined}
                       />
+                      <FormFieldError id="refund-amount-error" message={amountError ?? undefined} />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="refund-reason">返金理由（任意）</Label>
@@ -193,9 +216,7 @@ export const RefundSection = memo(function RefundSection({
                     >
                       キャンセル
                     </Button>
-                    <SubmitButton
-                      disabled={!refundAmount || parseInt(refundAmount, 10) <= 0 || isRefunding}
-                    >
+                    <SubmitButton disabled={isRefunding}>
                       {isRefunding ? "処理中..." : "登録する"}
                     </SubmitButton>
                   </DialogFooter>

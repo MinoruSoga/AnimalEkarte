@@ -2,7 +2,8 @@ import type { ComponentProps } from "react";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MedicalRecordInterview } from "./MedicalRecordInterview";
 import {
@@ -18,6 +19,20 @@ vi.mock("@/hooks/use-permission", () => ({
 vi.mock("../api/get-chief-complaint-types", () => ({
   useGetChiefComplaintTypes: () => ({ data: [], isLoading: false }),
 }));
+
+vi.mock("sonner", () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
+
+// EMR-325: 明細複写の価格注意（チケット最新コメントの訂正文）。
+// 確認ダイアログ説明文と全コピー経路の toast で同一文が使われる。
+const COPY_PRICE_CAUTION =
+  "対応するマスタが見つかる明細は取得済みのマスタ価格で追加されます。その他・対応マスタが見つからない明細は元の単価を引き継ぎます。コピー後に単価をご確認ください。";
 
 type InterviewProps = ComponentProps<typeof MedicalRecordInterview>;
 
@@ -106,7 +121,11 @@ describe("MedicalRecordInterview — 編集ロック（BUG-035）", () => {
 });
 
 describe("MedicalRecordInterview — 前回複写（コピー）", () => {
-  it("未編集の既定値では コピー が確認なしで3項目へ即時適用される", async () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("未編集の既定値では コピー が確認なしで3項目へ即時適用され、価格注意を通知する", async () => {
     const user = userEvent.setup();
     const props = renderInterview();
 
@@ -116,22 +135,29 @@ describe("MedicalRecordInterview — 前回複写（コピー）", () => {
     expect(props.setTreatmentPolicy).toHaveBeenCalledWith("前回の治療方針");
     expect(props.setChiefComplaintTypeId).toHaveBeenCalledWith(7);
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    // EMR-325: ダイアログを通らない即時適用経路でも同一の価格注意を出す
+    expect(toast.warning).toHaveBeenCalledTimes(1);
+    expect(toast.warning).toHaveBeenCalledWith(COPY_PRICE_CAUTION);
   });
 
-  it("主訴詳細が編集済みなら ConfirmDialog の確定で適用される", async () => {
+  it("主訴詳細が編集済みなら ConfirmDialog の確定で適用され、価格注意を通知する", async () => {
     const user = userEvent.setup();
     const props = renderInterview({ chiefComplaint: "編集済みの主訴" });
 
     await user.click(screen.getByRole("button", { name: "コピー" }));
     const dialog = await screen.findByRole("alertdialog");
+    // EMR-325: ダイアログを開いただけでは通知せず、確定（実際の適用）でのみ通知する
+    expect(toast.warning).not.toHaveBeenCalled();
     await user.click(within(dialog).getByRole("button", { name: "コピー" }));
 
     expect(props.setChiefComplaint).toHaveBeenCalledWith("前回の主訴詳細");
     expect(props.setTreatmentPolicy).toHaveBeenCalledWith("前回の治療方針");
     expect(props.setChiefComplaintTypeId).toHaveBeenCalledWith(7);
+    expect(toast.warning).toHaveBeenCalledTimes(1);
+    expect(toast.warning).toHaveBeenCalledWith(COPY_PRICE_CAUTION);
   });
 
-  it("治療方針が編集済みでも ConfirmDialog のキャンセルは現在値を保持する", async () => {
+  it("治療方針が編集済みでも ConfirmDialog のキャンセルは現在値を保持し価格注意も出さない", async () => {
     const user = userEvent.setup();
     const props = renderInterview({ treatmentPolicy: "独自の治療方針" });
 
@@ -142,6 +168,7 @@ describe("MedicalRecordInterview — 前回複写（コピー）", () => {
     expect(props.setChiefComplaint).not.toHaveBeenCalled();
     expect(props.setTreatmentPolicy).not.toHaveBeenCalled();
     expect(props.setChiefComplaintTypeId).not.toHaveBeenCalled();
+    expect(toast.warning).not.toHaveBeenCalled();
     await waitFor(() => {
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     });
@@ -197,6 +224,15 @@ describe("MedicalRecordInterview — 前回複写（コピー）", () => {
     const dialog = await screen.findByRole("alertdialog");
     // EMR-219: 治療明細も追加される旨をダイアログ説明文で告知する
     expect(dialog).toHaveTextContent("前回の治療明細も追加されます");
+    // EMR-325: 価格解決の両分岐（マスタ一致→取得済みマスタ価格 / 不一致・その他→元単価
+    // 引継ぎ）とコピー後の単価確認を説明文で正確に告知する（「すべて現行マスタ価格に更新」
+    // は言い過ぎのため使わない）
+    expect(dialog).toHaveTextContent(
+      "対応するマスタが見つかる明細は取得済みのマスタ価格で追加されます",
+    );
+    expect(dialog).toHaveTextContent("対応マスタが見つからない明細は元の単価を引き継ぎます");
+    expect(dialog).toHaveTextContent("コピー後に単価をご確認ください");
+    expect(dialog).not.toHaveTextContent("すべて現行マスタ価格");
     await user.click(within(dialog).getByRole("button", { name: "コピー" }));
 
     expect(onCopyRecordTreatments).toHaveBeenCalledTimes(1);
@@ -234,5 +270,8 @@ describe("MedicalRecordInterview — 前回複写（コピー）", () => {
 
     expect(props.setChiefComplaint).toHaveBeenCalledWith("部分的な主訴");
     expect(onCopyRecordTreatments).not.toHaveBeenCalled();
+    // EMR-325: recordId 無しの問診のみ複写でも価格注意は applyCopySource から通知される
+    expect(toast.warning).toHaveBeenCalledTimes(1);
+    expect(toast.warning).toHaveBeenCalledWith(COPY_PRICE_CAUTION);
   });
 });

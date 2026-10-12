@@ -1,6 +1,7 @@
 # UAT ドメイン別ステータス
 
 > **目的**: 受け入れ結果をシナリオ ID だけでなく業務ドメイン単位で俯瞰する。
+> **本書は日付付き実行結果の記録。現在の開発・受入状態は Plane。過去のPASS/FAIL件数を現在の状態へ流用しない。**
 > **正本リンク**: [scenarios/README.md](./scenarios/README.md) · [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md)
 > **更新日**: 2026-10-01
 > **照合**: `QA-UAT-EVIDENCE-SYNC`。2026-09-10 は repo の対象仕様を照合したが、runtime は再実行していない。`reports/` は gitignore。コミット済み正本は本ファイルと [`todo.md#product-bugs`](../../../todo.md#product-bugs)。Linear は未照会（UNKNOWN）。※2026-09-29 訂正: Linear は 2026-09-16 に閉鎖済みで照会先として存在しない。実行状態の正本は Plane（workspace `baritechllc` / Project `EMR`）であり、本書の "Linear で追跡" 等の記述はすべて Plane と読み替える。Plane 側の最新状態は本更新では未照会（UNKNOWN）。
@@ -10,11 +11,11 @@
 | Status | Count | 内訳 |
 |:---|---:|:---|
 | PASS | 15 | S02 S03 S04 S05 S06 S07 S08 S10 S11 S12 S13 · V01 V02 V03 V05 |
-| FAIL | 1 | V04（最終実行時。主訴 DELETE。下記「現行」を見よ） |
+| FAIL | 1 | V04（最終実行時。主訴 DELETE。下記「当時の整理」を見よ） |
 | PARTIAL | 1 | S01 |
 | BLOCKED | 1 | S09 |
 
-現行（2026-09-10 repo 照合。再実行していない判定は推定で動かさない）:
+当時の整理（2026-09-10 repo 照合。再実行していない判定は推定で動かさない）:
 
 | 項目 | 値 |
 |:---|:---|
@@ -173,7 +174,7 @@
 
 | シナリオ | status |
 |:---|:---|
-| V04 | **FAIL**（`e2e/v04-settings-master-forms-retest.spec.ts` 24/24 PASS・form×C1/C2/C3 実測済み。§5 予約可能枠 UI 経路と §4 職種紐付け表示で欠陥2件を確認し API 迂回で証跡取得 — 全体 PASS ではない） |
+| V04 | **FAIL**（当時の `e2e/v04-settings-master-forms-retest.spec.ts`（[保全先](../../../frontend/e2e/_archive/seeded-clinic-master-forms.archived.ts)、実行停止）24/24 PASS・form×C1/C2/C3 実測済み。§5 予約可能枠 UI 経路と §4 職種紐付け表示で欠陥2件を確認し API 迂回で証跡取得 — 全体 PASS ではない） |
 | closing-settings（S09 前提） | PASS（r6 GET/PATCH roundtrip + V04 §6 締め時間3フォーム再実施済み） |
 
 - **未解消ギャップ**: 診療項目5タブのうち UI 直接実施は診察のみ（他4タブは同一パネル・API レベルで作成/重複409/削除を確認）。投与量パラメータは API レベル実測。L4 受入の代替にはしない。
@@ -243,7 +244,7 @@
 2. 製品 FAIL のみルート `todo.md#product-bugs` へ（PARTIAL/BLOCKED は書かない）。
 3. 証跡は `reports/uat-YYYY-MM-DD(-postfix|-rN)/` に置き、シナリオ md は編集しない。
 4. S09 解除時は承認済み helper マージ後に #2–#6 を再実行し、本ファイルの会計ドメインとサマリを更新する。
-5. V04 は 2026-09-23 に disposable clinic 2 で browser retest 済み（FAIL・欠陥2件）。欠陥修正後に `e2e/v04-settings-master-forms-retest.spec.ts` を再実行してから FAIL を外す。コード修正だけで PASS にしない。
+5. V04 は 2026-09-23 にclinic 2のseed accountでbrowser retest済み（FAIL・欠陥2件）。当時の `e2e/v04-settings-master-forms-retest.spec.ts` は [履歴ソース](../../../frontend/e2e/_archive/seeded-clinic-master-forms.archived.ts)へ移し、実行を停止した（2026-10-09）。再検証には、欠陥修正後のケースを使い捨てfixtureへ移植し、対象環境・合成アカウント・隔離医院・cleanup保証を確認する。再検証の実測前にFAILを外さない。コード修正やアーカイブだけでPASSにしない。
 
 ```mermaid
 flowchart LR

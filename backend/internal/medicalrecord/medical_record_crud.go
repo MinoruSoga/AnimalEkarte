@@ -184,8 +184,6 @@ func (s *medicalRecordService) runMedicalRecordCreatePostCommit(ctx context.Cont
 			slog.WarnContext(ctx, "first visit welcome trigger failed (non-fatal)", "owner_id", *record.OwnerID, "error", err)
 		}
 	}
-
-	s.syncNextVisitTag(ctx, record.ClinicID, record)
 }
 
 func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, input UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
@@ -264,7 +262,6 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 	if isBecomingFinalized {
 		s.syncVisitCompletionTags(ctx, clinicID, record)
 	}
-	s.syncNextVisitTag(ctx, clinicID, record)
 
 	return record, nil
 }
@@ -323,7 +320,6 @@ func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) 
 		}
 	}
 	s.syncVisitCompletionTags(ctx, clinicID, existing)
-	s.syncNextVisitTag(ctx, clinicID, existing)
 	return nil
 }
 

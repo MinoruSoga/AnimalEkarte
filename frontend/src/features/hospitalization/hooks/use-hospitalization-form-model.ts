@@ -5,6 +5,7 @@ import {
   toJSTWallDate,
 } from "@/lib/jst-date";
 import { calculateBillingTotals } from "@/lib/calculations";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import type { Pet, HospitalizationTreatmentPlan } from "@/types";
 import type { TreatmentPlanResponse } from "@/types/generated/hospitalization-responses";
 
@@ -63,6 +64,7 @@ function toInsuranceNumber(formData: HospitalizationFormData) {
 
 export function buildUpdateHospitalizationRequest(
   formData: HospitalizationFormData,
+  initialCageId: string,
 ): UpdateHospitalizationRequest {
   return {
     hospitalization_type: toHospitalizationType(formData.hospitalizationType),
@@ -70,7 +72,15 @@ export function buildUpdateHospitalizationRequest(
     staff_notes: formData.staffNotes,
     memo: formData.memo,
     ...(formData.doctorId ? { doctor_id: formData.doctorId } : {}),
-    ...(formData.cageId ? { cage_id: formData.cageId } : {}),
+    // 未操作の欄は PATCH から除外し、他のスタッフによる割当を上書きしない。
+    ...(formData.cageId === initialCageId
+      ? {}
+      : {
+          ...(formData.cageId ? { cage_id: formData.cageId } : { clear_cage_id: true }),
+          ...(initialCageId
+            ? { expected_cage_id: initialCageId }
+            : { expected_cage_is_null: true }),
+        }),
     is_insurance: formData.isInsurance,
     insurance_company_name: toInsuranceCompanyName(formData),
     insurance_number: toInsuranceNumber(formData),
@@ -142,6 +152,9 @@ export function buildSelectedPetFromHospitalization(
       : hospitalization.pet.gender === "female"
         ? "雌"
         : "不明";
+  // BE wire は deceased_at を含む（medicalrecord PetSummaryResponse 共有）。
+  // generated 型は tygo 再生成まで未追従のため structural 拡張で読む（transforms.ts と同じ扱い）。
+  const petWire = hospitalization.pet as { deceased_at?: string | null };
   return {
     id: String(hospitalization.pet_id),
     ownerId: String(hospitalization.owner_id),
@@ -150,6 +163,7 @@ export function buildSelectedPetFromHospitalization(
     species: hospitalization.pet.animal_species?.name ?? "",
     breed: hospitalization.pet.breed,
     status: hospitalization.pet.status === "deceased" ? "死亡" : "生存",
+    deceasedAt: petWire.deceased_at,
     gender,
     birthDate: hospitalization.pet.birth_date ?? "",
     neuteredDate: hospitalization.pet.neutered_date ?? "",
@@ -275,23 +289,20 @@ export function updateTreatmentPlanField(
   return updated;
 }
 
+// EMR-316: ケージ・個室は任意（「選択なし」可）。BUG-037 の必須検証は撤回した。
 export function hospitalizationSubmitFieldErrors(
   pet: Pet | undefined,
   isEdit: boolean,
-  cageId: string | undefined,
 ): Record<string, string> | null {
   if (!pet) {
     return { pet: "ペットを選択してください" };
   }
-  if (pet.status === "死亡") {
+  if (isPetDeceasedForClinicalWrite(pet)) {
     return {
       pet: isEdit
         ? "死亡したペットは入院情報を更新できません"
         : "死亡したペットは入院登録できません",
     };
-  }
-  if (!(cageId?.trim() ?? "")) {
-    return { cage_id: "ケージ・個室を選択してください" };
   }
   return null;
 }
@@ -307,7 +318,6 @@ export function calculateHospitalizationBillingTotals(
   return {
     subtotalBeforeDiscount: result.subtotal,
     discountAmount: result.globalDiscountAmount,
-    subtotalAfterDiscount: result.taxableAmount,
     consumptionTax: result.tax,
     total: result.total,
   };

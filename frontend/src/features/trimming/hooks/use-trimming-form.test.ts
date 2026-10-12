@@ -1,6 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { startTransition } from "react";
+import { QueryClient, QueryObserver } from "@tanstack/react-query";
+import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
+import type { ChangeEvent } from "react";
 import { useTrimmingForm } from "./use-trimming-form";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
@@ -17,7 +21,11 @@ const {
   mockLocationStateHolder,
   mockSearchParamsHolder,
   mockExistingTrimmingHolder,
+  mockUploadImage,
+  mockDiscardImage,
 } = vi.hoisted(() => ({
+  mockUploadImage: vi.fn(),
+  mockDiscardImage: vi.fn(),
   mockNavigate: vi.fn(),
   mockToast: { info: vi.fn(), success: vi.fn(), error: vi.fn() },
   mockSelectedPets: [] as Array<{ id: string; ownerId: string; name: string; status?: string }>,
@@ -98,22 +106,43 @@ vi.mock("../api/delete-trimming", () => ({
   })),
 }));
 
-vi.mock("@/config/paths", () => ({
-  paths: {
-    trimming: {
-      selectPet: { getHref: () => "/trimming/select-pet" },
+vi.mock("../api/upload-trimming-image", () => ({ uploadTrimmingImage: mockUploadImage }));
+vi.mock("../api/delete-trimming-image", () => ({ deleteTrimmingImage: mockDiscardImage }));
+
+vi.mock("@/config/paths", async () => {
+  const actual = await vi.importActual<typeof import("@/config/paths")>("@/config/paths");
+  return {
+    ...actual,
+    paths: {
+      ...actual.paths,
+      trimming: {
+        ...actual.paths.trimming,
+        selectPet: { getHref: () => "/trimming/select-pet" },
+      },
     },
-  },
-}));
+  };
+});
 
 async function submitFormAction(action: (payload: FormData) => void | Promise<unknown>) {
   await act(async () => {
     await new Promise<void>((resolve, reject) => {
       startTransition(() => {
-        Promise.resolve(action(new FormData())).then(resolve).catch(reject);
+        Promise.resolve(action(new FormData()))
+          .then(() => resolve())
+          .catch(reject);
       });
     });
   });
+}
+
+function emptyTrimmingsQuery(): ReturnType<typeof useGetTrimmings> {
+  // A complete result without subscriptions or network requests.
+  return new QueryObserver(new QueryClient(), {
+    queryKey: queryKeys.trimmings.list(undefined),
+    queryFn: async () => [],
+    initialData: [],
+    gcTime: Infinity,
+  }).getCurrentResult();
 }
 
 const ALLOW_ALL_PERMISSIONS = {
@@ -169,9 +198,7 @@ describe("useTrimmingForm", () => {
     mockSelectedPets.length = 0;
     mockCreateMutateAsync.mockResolvedValue({});
     mockUpdateMutateAsync.mockResolvedValue({});
-    vi.mocked(useGetTrimmings).mockReturnValue({ data: [], isLoading: false } as ReturnType<
-      typeof useGetTrimmings
-    >);
+    vi.mocked(useGetTrimmings).mockReturnValue(emptyTrimmingsQuery());
     vi.mocked(useGetReservationTypesGrouped).mockReturnValue({
       data: [
         {
@@ -603,9 +630,7 @@ describe("useTrimmingForm permissions (FE-RC-101 fail-closed)", () => {
     mockSelectedPets.length = 0;
     mockCreateMutateAsync.mockResolvedValue({});
     mockUpdateMutateAsync.mockResolvedValue({});
-    vi.mocked(useGetTrimmings).mockReturnValue({ data: [], isLoading: false } as ReturnType<
-      typeof useGetTrimmings
-    >);
+    vi.mocked(useGetTrimmings).mockReturnValue(emptyTrimmingsQuery());
     vi.mocked(useGetReservationTypesGrouped).mockReturnValue({
       data: [
         {
@@ -777,9 +802,7 @@ describe("useTrimmingForm deceased pet (FE-RC-102 dual-gate)", () => {
     mockSelectedPets.length = 0;
     mockCreateMutateAsync.mockResolvedValue({});
     mockUpdateMutateAsync.mockResolvedValue({});
-    vi.mocked(useGetTrimmings).mockReturnValue({ data: [], isLoading: false } as ReturnType<
-      typeof useGetTrimmings
-    >);
+    vi.mocked(useGetTrimmings).mockReturnValue(emptyTrimmingsQuery());
     vi.mocked(useGetReservationTypesGrouped).mockReturnValue({
       data: [
         {
@@ -882,4 +905,126 @@ describe("useTrimmingForm deceased pet (FE-RC-102 dual-gate)", () => {
     expect(mockDeleteMutate).not.toHaveBeenCalled();
     expect(mockToast.error).toHaveBeenCalledWith(DECEASED_DELETE_MESSAGE);
   });
+});
+
+describe("useTrimmingForm 保存pending中の画像cleanup所有権", () => {
+  const imageKey = "trimming-images/1/pending-save.jpg";
+  beforeAll(() => {
+    URL.createObjectURL = vi.fn(() => "blob:pending-save");
+    URL.revokeObjectURL = vi.fn();
+  });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockLocationStateHolder.value = null;
+    mockSearchParamsHolder.value = new URLSearchParams();
+    mockExistingTrimmingHolder.value = undefined;
+    mockSelectedPets.length = 0;
+    mockCreateMutateAsync.mockResolvedValue({});
+    mockUpdateMutateAsync.mockResolvedValue({});
+    vi.mocked(useGetPet).mockReturnValue({ data: undefined, isLoading: false } as ReturnType<
+      typeof useGetPet
+    >);
+    mockUploadImage.mockResolvedValue({
+      key: imageKey,
+      signed_url: "https://signed.example/image",
+    });
+    mockDiscardImage.mockResolvedValue(undefined);
+  });
+
+  for (const mode of ["create", "update"] as const) {
+    it.each([
+      { name: "確定400", error: { response: { status: 400 } }, deleteCount: 1 },
+      { name: "確定403", error: { response: { status: 403 } }, deleteCount: 1 },
+      { name: "5xx", error: { response: { status: 500 } }, deleteCount: 0 },
+      { name: "応答不明", error: new Error("response unavailable"), deleteCount: 0 },
+    ])(
+      `${mode}: unmount後の$nameは必要な未保存画像だけを掃除する`,
+      async ({ error, deleteCount }) => {
+        if (mode === "update") mockLivingEditPet();
+        else mockSelectedPets.push(LIVING_EDIT_PET);
+        let rejectSave: (error: unknown) => void = () => {};
+        const mutation = mode === "create" ? mockCreateMutateAsync : mockUpdateMutateAsync;
+        mutation.mockImplementationOnce(
+          () =>
+            new Promise((_resolve, reject) => {
+              rejectSave = reject;
+            }),
+        );
+        const hook = renderTrimmingForm(mode === "update" ? "15" : undefined);
+        act(() => {
+          hook.result.current.setFormData({ staffId: "3", courseId: "4" });
+        });
+        const input = document.createElement("input");
+        Object.defineProperty(input, "files", {
+          value: [new File(["img"], "style.jpg", { type: "image/jpeg" })],
+        });
+        await act(async () => {
+          await hook.result.current.handleStyleImageChange({
+            target: input,
+          } as ChangeEvent<HTMLInputElement>);
+        });
+        act(() => {
+          startTransition(() => {
+            hook.result.current.formAction(new FormData());
+          });
+        });
+        await waitFor(() => {
+          expect(mutation).toHaveBeenCalledTimes(1);
+          expect(hook.result.current.isSaving).toBe(true);
+        });
+        hook.unmount();
+        expect(mockDiscardImage).not.toHaveBeenCalled();
+        await act(async () => {
+          rejectSave(error);
+        });
+        await waitFor(() => {
+          expect(handleApiError).toHaveBeenCalledWith(error, "保存");
+        });
+        expect(mockDiscardImage).toHaveBeenCalledTimes(deleteCount);
+        if (deleteCount > 0) expect(mockDiscardImage).toHaveBeenCalledWith(imageKey);
+      },
+    );
+
+    it(`${mode}: unmount後の保存成功は送信済み画像を削除しない`, async () => {
+      if (mode === "update") mockLivingEditPet();
+      else mockSelectedPets.push(LIVING_EDIT_PET);
+      let resolveSave: (value: unknown) => void = () => {};
+      const mutation = mode === "create" ? mockCreateMutateAsync : mockUpdateMutateAsync;
+      mutation.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveSave = resolve;
+          }),
+      );
+      const hook = renderTrimmingForm(mode === "update" ? "15" : undefined);
+      act(() => {
+        hook.result.current.setFormData({ staffId: "3", courseId: "4" });
+      });
+      const input = document.createElement("input");
+      Object.defineProperty(input, "files", {
+        value: [new File(["img"], "style.jpg", { type: "image/jpeg" })],
+      });
+      await act(async () => {
+        await hook.result.current.handleStyleImageChange({
+          target: input,
+        } as ChangeEvent<HTMLInputElement>);
+      });
+      act(() => {
+        startTransition(() => {
+          hook.result.current.formAction(new FormData());
+        });
+      });
+      await waitFor(() => {
+        expect(mutation).toHaveBeenCalledTimes(1);
+      });
+      hook.unmount();
+      await act(async () => {
+        resolveSave({});
+      });
+      await waitFor(() => {
+        expect(mockToast.success).toHaveBeenCalled();
+      });
+      expect(mockDiscardImage).not.toHaveBeenCalled();
+    });
+  }
 });

@@ -371,7 +371,9 @@ var SharedTestSchemaEnumTypes = []EnumType{
 	{"campaign_discount_type", "CREATE TYPE campaign_discount_type AS ENUM ('rate', 'amount')"},
 	// 予約・会計・入院関連
 	{"visit_type", "CREATE TYPE visit_type AS ENUM ('first', 'revisit')"},
-	{"reservation_status", "CREATE TYPE reservation_status AS ENUM ('confirmed', 'pending', 'cancelled', 'checked_in', 'in_consultation', 'accounting', 'completed', 'no_show')"},
+	// EMR-308: 'tentative' is appended by 028_appointments_tentative_status.sql
+	// (ALTER TYPE ... ADD VALUE) — the parity extractor folds it into this definition.
+	{"reservation_status", "CREATE TYPE reservation_status AS ENUM ('confirmed', 'pending', 'cancelled', 'checked_in', 'in_consultation', 'accounting', 'completed', 'no_show', 'tentative')"},
 	{"staff_type", "CREATE TYPE staff_type AS ENUM ('doctor', 'nurse', 'trimmer', 'resource')"},
 	{"reservation_source", "CREATE TYPE reservation_source AS ENUM ('manual', 'line')"},
 	{"billing_status", "CREATE TYPE billing_status AS ENUM ('waiting', 'completed', 'cancelled', 'pending')"},
@@ -487,9 +489,43 @@ func enumAppendedValues(existing, expectedQuoted []string) (appended []string, o
 	return expectedQuoted[len(existing):], true
 }
 
+// normalizeSingleColumnUniqueConstraints は migration 由来スキーマを clone した *_test DB に残る
+// 単一カラム UNIQUE 制約を、同名の standalone unique index に置き換える。
+// 001_init.sql の `email text UNIQUE` 等は pg_constraint 行（accounts_email_key）になるが、
+// model 側は uniqueIndex 宣言（field.Unique=false）なので、GORM v1.31 の MigrateColumnUnique が
+// 推測名 uni_<table>_<col> で DROP CONSTRAINT を発行し、実名と異なり 42704 で失敗する。
+// standalone unique index は一意性を保ったまま information_schema.table_constraints に
+// 現れないため、誤 drop を回避できる。複合 UNIQUE（uk_staff_clinic, uq_*_id_clinic）は
+// array_length(conkey,1)=1 で対象外。AutoMigrate 構築 DB では単純に no-op。
+func normalizeSingleColumnUniqueConstraints(db *gorm.DB) error {
+	return db.Exec(`
+DO $$
+DECLARE
+	r record;
+	idxdef text;
+BEGIN
+	FOR r IN
+		SELECT con.conrelid::regclass::text AS tbl,
+		       con.conname,
+		       pg_get_indexdef(con.conindid) AS idxdef
+		FROM pg_constraint con
+		WHERE con.contype = 'u'
+		  AND con.connamespace = 'public'::regnamespace
+		  AND array_length(con.conkey, 1) = 1
+	LOOP
+		idxdef := replace(r.idxdef, ' INDEX ', ' INDEX IF NOT EXISTS ');
+		EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', r.tbl, r.conname);
+		EXECUTE idxdef;
+	END LOOP;
+END $$`).Error
+}
+
 // setupSharedTestSchema は PostgreSQL カスタム ENUM 型の作成とベースモデルの AutoMigrate を行います。
 // SetupTestDB から sharedTestSchemaOnce 経由でプロセス全体につき一度だけ呼ばれます。
 func setupSharedTestSchema(db *gorm.DB) error {
+	if err := normalizeSingleColumnUniqueConstraints(db); err != nil {
+		return err
+	}
 	// AutoMigrate の前に、PostgreSQL カスタム ENUM 型を作成する（SharedTestSchemaEnumTypes 参照）。
 	for _, et := range SharedTestSchemaEnumTypes {
 		if err := reconcileEnumTypeDefinition(db, et.Name, et.Create); err != nil {

@@ -122,6 +122,18 @@ func TestParseSeedCSVTableColumns(t *testing.T) {
 				"treatments": {"id", "dose_weight_kg", "dose_weight_source", "dose_amount_mg"},
 			},
 		},
+		{
+			name: "DROP COLUMN removes the column and DROP IF EXISTS tolerates absence",
+			sql: `
+				CREATE TABLE medical_records (id bigint, next_visit date, note text);
+				ALTER TABLE medical_records DROP CONSTRAINT IF EXISTS medical_records_chk;
+				ALTER TABLE medical_records DROP COLUMN next_visit;
+				ALTER TABLE medical_records DROP COLUMN IF EXISTS missing_column;
+			`,
+			want: map[string][]string{
+				"medical_records": {"id", "note"},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -269,8 +281,13 @@ func TestSeedCSVSchemaDrift_RejectsUnsupportedColumnOrderDDL(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "DROP COLUMN fails explicitly",
+			name:    "DROP COLUMN of an untracked column fails explicitly",
 			alter:   "ALTER TABLE pets DROP COLUMN legacy_code;",
+			wantErr: "drops unknown column legacy_code",
+		},
+		{
+			name:    "DROP of a non-column object fails explicitly",
+			alter:   "ALTER TABLE pets DROP pets_legacy_index;",
 			wantErr: "unsupported ALTER TABLE pets",
 		},
 		{
@@ -631,21 +648,53 @@ func parseSeedCSVTableColumns(sql string) (map[string][]string, error) {
 						err,
 					)
 				}
-				if !isAddColumn {
+				if isAddColumn {
+					if containsString(columns, column) {
+						if ifNotExists {
+							continue
+						}
+						return nil, fmt.Errorf(
+							"ALTER TABLE %s adds duplicate column %s at statement %d",
+							tableName,
+							column,
+							statementIndex+1,
+						)
+					}
+					columns = append(columns, column)
 					continue
 				}
-				if containsString(columns, column) {
-					if ifNotExists {
+				droppedColumn, dropIfExists, isDropColumn, err := parseDropColumnClause(clause)
+				if err != nil {
+					return nil, fmt.Errorf(
+						"parse ALTER TABLE %s clause %d at statement %d: %w",
+						tableName,
+						clauseIndex+1,
+						statementIndex+1,
+						err,
+					)
+				}
+				if !isDropColumn {
+					continue
+				}
+				dropIndex := -1
+				for columnIndex, existing := range columns {
+					if existing == droppedColumn {
+						dropIndex = columnIndex
+						break
+					}
+				}
+				if dropIndex < 0 {
+					if dropIfExists {
 						continue
 					}
 					return nil, fmt.Errorf(
-						"ALTER TABLE %s adds duplicate column %s at statement %d",
+						"ALTER TABLE %s drops unknown column %s at statement %d",
 						tableName,
-						column,
+						droppedColumn,
 						statementIndex+1,
 					)
 				}
-				columns = append(columns, column)
+				columns = append(columns[:dropIndex], columns[dropIndex+1:]...)
 			}
 			tableColumns[tableName] = columns
 		}
@@ -663,6 +712,11 @@ func seedCSVValidateAlterTableClause(clause string) error {
 
 	if rest, ok := consumeSQLKeyword(clause, "DROP"); ok {
 		if _, isConstraint := consumeSQLKeyword(rest, "CONSTRAINT"); isConstraint {
+			return nil
+		}
+		// DROP COLUMN is applied to the tracked column set by the caller
+		// (EMR-308: 027 drops the legacy medical-records recommended-date column).
+		if _, isColumn := consumeSQLKeyword(rest, "COLUMN"); isColumn {
 			return nil
 		}
 		return fmt.Errorf("DROP operation can change the expected column set or order")
@@ -809,6 +863,38 @@ func parseAddColumnClause(clause string) (string, bool, bool, error) {
 		return "", false, false, nil
 	}
 	return identifier, ifNotExists, true, nil
+}
+
+// parseDropColumnClause extracts the target of a DROP COLUMN clause.
+// DROP CONSTRAINT is a no-op for the column set and returns isDropColumn=false.
+func parseDropColumnClause(clause string) (string, bool, bool, error) {
+	rest, ok := consumeSQLKeyword(clause, "DROP")
+	if !ok {
+		return "", false, false, nil
+	}
+	rest, ok = consumeSQLKeyword(rest, "COLUMN")
+	if !ok {
+		return "", false, false, nil
+	}
+
+	ifExists := false
+	if next, hasIf := consumeSQLKeyword(rest, "IF"); hasIf {
+		next, hasExists := consumeSQLKeyword(next, "EXISTS")
+		if !hasExists {
+			return "", false, false, fmt.Errorf("DROP COLUMN IF is not followed by EXISTS")
+		}
+		ifExists = true
+		rest = next
+	}
+
+	identifier, _, ok, err := parseLeadingSQLIdentifier(rest)
+	if err != nil {
+		return "", false, false, fmt.Errorf("parse DROP COLUMN target: %w", err)
+	}
+	if !ok {
+		return "", false, false, fmt.Errorf("DROP COLUMN clause has no target identifier")
+	}
+	return identifier, ifExists, true, nil
 }
 
 func consumeSQLKeyword(input, keyword string) (string, bool) {

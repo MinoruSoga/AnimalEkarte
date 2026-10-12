@@ -1,0 +1,74 @@
+=== RUN   TestCurrentAccessResolver_UsesCurrentAccountAndActiveAssignments
+--- PASS: TestCurrentAccessResolver_UsesCurrentAccountAndActiveAssignments (0.00s)
+=== RUN   TestCurrentAccessResolver_RegularStaffUsesScopedActiveIDsWithoutListClinics
+--- PASS: TestCurrentAccessResolver_RegularStaffUsesScopedActiveIDsWithoutListClinics (0.00s)
+=== RUN   TestCurrentAccessResolver_GraphPathRegularStaffUsesJoinedClinicActivity
+--- PASS: TestCurrentAccessResolver_GraphPathRegularStaffUsesJoinedClinicActivity (0.00s)
+=== RUN   TestCurrentAccessResolver_GraphPathSystemAdminStillListsClinics
+--- PASS: TestCurrentAccessResolver_GraphPathSystemAdminStillListsClinics (0.00s)
+=== RUN   TestCurrentAccessResolver_GraphPathStaffWithoutAssignmentsFailsClosed
+--- PASS: TestCurrentAccessResolver_GraphPathStaffWithoutAssignmentsFailsClosed (0.00s)
+=== RUN   TestCurrentAccessResolver_GraphPathFailsClosedWithoutClinicAuthority
+--- PASS: TestCurrentAccessResolver_GraphPathFailsClosedWithoutClinicAuthority (0.00s)
+=== RUN   TestCurrentAccessResolver_RegularStaffUsesOnlyActiveClinicInventory
+--- PASS: TestCurrentAccessResolver_RegularStaffUsesOnlyActiveClinicInventory (0.00s)
+=== RUN   TestCurrentAccessResolver_RegularStaffInactiveOnlyIsForbidden
+--- PASS: TestCurrentAccessResolver_RegularStaffInactiveOnlyIsForbidden (0.00s)
+=== RUN   TestCurrentAccessResolver_RegularStaffClinicAuthorityFailsClosed
+=== RUN   TestCurrentAccessResolver_RegularStaffClinicAuthorityFailsClosed/missing_clinic_dependency
+=== RUN   TestCurrentAccessResolver_RegularStaffClinicAuthorityFailsClosed/clinic_lookup_failure
+--- PASS: TestCurrentAccessResolver_RegularStaffClinicAuthorityFailsClosed (0.00s)
+    --- PASS: TestCurrentAccessResolver_RegularStaffClinicAuthorityFailsClosed/missing_clinic_dependency (0.00s)
+    --- PASS: TestCurrentAccessResolver_RegularStaffClinicAuthorityFailsClosed/clinic_lookup_failure (0.00s)
+=== RUN   TestCurrentAccessResolver_SystemAdminClinicAuthorityFailsClosed
+=== RUN   TestCurrentAccessResolver_SystemAdminClinicAuthorityFailsClosed/missing_clinic_dependency
+=== RUN   TestCurrentAccessResolver_SystemAdminClinicAuthorityFailsClosed/clinic_lookup_failure
+=== RUN   TestCurrentAccessResolver_SystemAdminClinicAuthorityFailsClosed/no_active_nonzero_clinic
+--- PASS: TestCurrentAccessResolver_SystemAdminClinicAuthorityFailsClosed (0.00s)
+    --- PASS: TestCurrentAccessResolver_SystemAdminClinicAuthorityFailsClosed/missing_clinic_dependency (0.00s)
+    --- PASS: TestCurrentAccessResolver_SystemAdminClinicAuthorityFailsClosed/clinic_lookup_failure (0.00s)
+    --- PASS: TestCurrentAccessResolver_SystemAdminClinicAuthorityFailsClosed/no_active_nonzero_clinic (0.00s)
+=== RUN   TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies
+=== RUN   TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/staff_lookup_error_remains_stage_typed
+=== RUN   TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/nil_staff
+=== RUN   TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/mismatched_staff_identity
+=== RUN   TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/inactive_staff
+=== RUN   TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/deleted_staff
+=== RUN   TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/unlinked_staff
+=== RUN   TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/missing_account_dependency
+=== RUN   TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/missing_assignment_dependency
+=== RUN   TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/account_lookup_error
+=== RUN   TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/account_not_found
+=== RUN   TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/nil_account
+=== RUN   TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/mismatched_account_identity
+=== RUN   TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/inactive_account
+=== RUN   TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/deleted_account
+=== RUN   TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/invalid_account_epoch
+=== RUN   TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/assignment_lookup_error
+=== RUN   TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/zero_clinic_assignment
+=== RUN   TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/mismatched_assignment_staff
+--- PASS: TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies (0.00s)
+    --- PASS: TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/staff_lookup_error_remains_stage_typed (0.00s)
+    --- PASS: TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/nil_staff (0.00s)
+    --- PASS: TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/mismatched_staff_identity (0.00s)
+    --- PASS: TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/inactive_staff (0.00s)
+    --- PASS: TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/deleted_staff (0.00s)
+    --- PASS: TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/unlinked_staff (0.00s)
+    --- PASS: TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/missing_account_dependency (0.00s)
+    --- PASS: TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/missing_assignment_dependency (0.00s)
+    --- PASS: TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/account_lookup_error (0.00s)
+    --- PASS: TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/account_not_found (0.00s)
+    --- PASS: TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/nil_account (0.00s)
+    --- PASS: TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/mismatched_account_identity (0.00s)
+    --- PASS: TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/inactive_account (0.00s)
+    --- PASS: TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/deleted_account (0.00s)
+    --- PASS: TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/invalid_account_epoch (0.00s)
+    --- PASS: TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/assignment_lookup_error (0.00s)
+    --- PASS: TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/zero_clinic_assignment (0.00s)
+    --- PASS: TestCurrentAccessResolver_FailsClosedForInvalidIdentityAndDependencies/mismatched_assignment_staff (0.00s)
+=== RUN   TestCurrentAccessStaffReader_FailsClosedWithoutDatabase
+--- PASS: TestCurrentAccessStaffReader_FailsClosedWithoutDatabase (0.00s)
+=== RUN   TestStaffLookupError_PreservesCause
+--- PASS: TestStaffLookupError_PreservesCause (0.00s)
+PASS
+ok  	github.com/animal-ekarte/backend/internal/auth	0.016s

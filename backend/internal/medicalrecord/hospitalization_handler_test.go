@@ -37,6 +37,7 @@ type mockHospitalizationService struct {
 	updateFn               func(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error)
 	deleteFn               func(ctx context.Context, clinicID, id uint64) error
 	dischargeWithBillingFn func(ctx context.Context, clinicID, id uint64, input DischargeWithBillingInput) (*DischargeWithBillingResult, error)
+	swapCagesFn            func(ctx context.Context, clinicID, idA, idB uint64, expectedCageIDs [2]uint64) (*model.Hospitalization, *model.Hospitalization, error)
 }
 
 func (m *mockHospitalizationService) List(
@@ -73,6 +74,12 @@ func (m *mockHospitalizationService) DischargeWithBilling(
 	ctx context.Context, clinicID, id uint64, input DischargeWithBillingInput,
 ) (*DischargeWithBillingResult, error) {
 	return m.dischargeWithBillingFn(ctx, clinicID, id, input)
+}
+
+func (m *mockHospitalizationService) SwapCages(
+	ctx context.Context, clinicID, idA, idB uint64, expectedCageIDs [2]uint64,
+) (*model.Hospitalization, *model.Hospitalization, error) {
+	return m.swapCagesFn(ctx, clinicID, idA, idB, expectedCageIDs)
 }
 
 func newHandlerWithHospitalizationSvc(svc HospitalizationService) *HospitalizationHandler {
@@ -344,7 +351,8 @@ func TestCreateHospitalization(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name: "returns 400 when cage_id is missing (BUG-037)",
+			// EMR-316: BUG-037 の必須化を撤回。cage_id 省略は「ケージ未割当」として受理する。
+			name: "creates cageless hospitalization when cage_id is omitted (EMR-316)",
 			body: map[string]any{
 				"owner_id":             1,
 				"pet_id":               2,
@@ -353,10 +361,54 @@ func TestCreateHospitalization(t *testing.T) {
 				"end_date":             "2026-05-30T00:00:00Z",
 				"status":               "admitted",
 			},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockHospitalizationService{
+				createFn: func(_ context.Context, clinicID uint64, input *CreateHospitalizationInput) (*model.Hospitalization, error) {
+					assert.Nil(t, input.CageID, "cage_id omitted must reach the service as nil")
+					return &model.Hospitalization{ID: 11, ClinicID: clinicID, OwnerID: input.OwnerID, PetID: input.PetID}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `"id":11`,
+			wantHeader: true,
+		},
+		{
+			name: "creates cageless hospitalization when cage_id is null (EMR-316)",
+			body: map[string]any{
+				"owner_id":             1,
+				"pet_id":               2,
+				"hospitalization_type": "hospitalization",
+				"start_date":           "2026-05-28T00:00:00Z",
+				"end_date":             "2026-05-30T00:00:00Z",
+				"status":               "admitted",
+				"cage_id":              nil,
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockHospitalizationService{
+				createFn: func(_ context.Context, clinicID uint64, input *CreateHospitalizationInput) (*model.Hospitalization, error) {
+					assert.Nil(t, input.CageID)
+					return &model.Hospitalization{ID: 12, ClinicID: clinicID, OwnerID: input.OwnerID, PetID: input.PetID}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `"id":12`,
+			wantHeader: true,
+		},
+		{
+			name: "returns 400 when cage_id is 0 (EMR-316)",
+			body: map[string]any{
+				"owner_id":             1,
+				"pet_id":               2,
+				"hospitalization_type": "hospitalization",
+				"start_date":           "2026-05-28T00:00:00Z",
+				"end_date":             "2026-05-30T00:00:00Z",
+				"status":               "admitted",
+				"cage_id":              0,
+			},
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockHospitalizationService{},
 			wantStatus: http.StatusBadRequest,
-			wantBody:   `"error":"cage_id is required"`,
+			wantBody:   `"error":"cage_id must be a positive id"`,
 		},
 		{
 			name: "returns 400 for inverted date range without wrapping AppError",
@@ -508,6 +560,100 @@ func TestUpdateHospitalization(t *testing.T) {
 				},
 			},
 			wantStatus: http.StatusOK,
+		},
+		{
+			// EMR-316: 編集画面で「選択なし」に戻す操作は clear_cage_id: true で cage_id を NULL にする。
+			name:     "forwards clear_cage_id to the service (EMR-316)",
+			paramID:  "1",
+			body:     map[string]any{"clear_cage_id": true, "expected_cage_id": 10},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockHospitalizationService{
+				updateFn: func(_ context.Context, clinicID, _ uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.True(t, input.ClearCageID)
+					assert.Nil(t, input.CageID)
+					require.NotNil(t, input.ExpectedCageID)
+					assert.Equal(t, uint64(10), *input.ExpectedCageID)
+					return &model.Hospitalization{ID: 1}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 400 when clear_cage_id has no expected_cage_id",
+			paramID:    "1",
+			body:       map[string]any{"clear_cage_id": true},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when clear_cage_id and cage_id are both set (EMR-316)",
+			paramID:    "1",
+			body:       map[string]any{"clear_cage_id": true, "cage_id": 10, "expected_cage_id": 10},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 409 when the locked cage no longer matches expected_cage_id",
+			paramID:  "1",
+			body:     map[string]any{"clear_cage_id": true, "expected_cage_id": 10},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockHospitalizationService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateHospitalizationInput) (*model.Hospitalization, error) {
+					return nil, apperrors.WrapConflict(errMsgCageClearStale)
+				},
+			},
+			wantStatus: http.StatusConflict,
+		},
+		{
+			name:     "forwards cage_id with expected_cage_is_null to the service",
+			paramID:  "1",
+			body:     map[string]any{"cage_id": 12, "expected_cage_is_null": true},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockHospitalizationService{
+				updateFn: func(_ context.Context, _, _ uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error) {
+					require.NotNil(t, input.CageID)
+					assert.Equal(t, uint64(12), *input.CageID)
+					assert.True(t, input.ExpectedCageIsNull)
+					assert.Nil(t, input.ExpectedCageID)
+					return &model.Hospitalization{ID: 1}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 400 when cage_id has no expected guard",
+			paramID:    "1",
+			body:       map[string]any{"cage_id": 12},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when expected_cage_id has no cage operation",
+			paramID:    "1",
+			body:       map[string]any{"expected_cage_id": 10},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when expected_cage_is_null has no cage operation",
+			paramID:    "1",
+			body:       map[string]any{"expected_cage_is_null": true},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when both expected guards are set",
+			paramID:    "1",
+			body:       map[string]any{"cage_id": 12, "expected_cage_id": 10, "expected_cage_is_null": true},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "returns 401 when clinic_id is missing",
@@ -749,6 +895,177 @@ func TestDischargeWithBilling(t *testing.T) {
 			tt.setupCtx(c)
 
 			h.DischargeWithBilling(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- SwapCages ----
+
+func TestSwapCages(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockHospitalizationService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "swaps cages successfully and returns pair in input order",
+			body:     map[string]any{"hospitalization_ids": []uint64{7, 3}, "expected_cage_ids": []uint64{17, 13}},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockHospitalizationService{
+				swapCagesFn: func(_ context.Context, clinicID, idA, idB uint64, expectedCageIDs [2]uint64) (*model.Hospitalization, *model.Hospitalization, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(7), idA)
+					assert.Equal(t, uint64(3), idB)
+					assert.Equal(t, [2]uint64{17, 13}, expectedCageIDs)
+					return &model.Hospitalization{ID: 7}, &model.Hospitalization{ID: 3}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"hospitalizations"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			body:       map[string]any{"hospitalization_ids": []uint64{1, 2}, "expected_cage_ids": []uint64{11, 12}},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when hospitalization_ids is missing",
+			body:       map[string]any{},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when fewer than two ids",
+			body:       map[string]any{"hospitalization_ids": []uint64{1}},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when more than two ids",
+			body:       map[string]any{"hospitalization_ids": []uint64{1, 2, 3}},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when an id is not positive",
+			body:       map[string]any{"hospitalization_ids": []uint64{1, 0}},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when expected_cage_ids is missing",
+			body:       map[string]any{"hospitalization_ids": []uint64{1, 2}},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when fewer than two expected cages",
+			body:       map[string]any{"hospitalization_ids": []uint64{1, 2}, "expected_cage_ids": []uint64{11}},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when more than two expected cages",
+			body:       map[string]any{"hospitalization_ids": []uint64{1, 2}, "expected_cage_ids": []uint64{11, 12, 13}},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when an expected cage is zero",
+			body:       map[string]any{"hospitalization_ids": []uint64{1, 2}, "expected_cage_ids": []uint64{11, 0}},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when an expected cage is null",
+			body:       map[string]any{"hospitalization_ids": []uint64{1, 2}, "expected_cage_ids": []*uint64{nil, nil}},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when an expected cage is negative",
+			body:       map[string]any{"hospitalization_ids": []uint64{1, 2}, "expected_cage_ids": []int{11, -1}},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for malformed JSON",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "maps service conflict to 409",
+			body:     map[string]any{"hospitalization_ids": []uint64{1, 2}, "expected_cage_ids": []uint64{11, 12}},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockHospitalizationService{
+				swapCagesFn: func(_ context.Context, _, _, _ uint64, _ [2]uint64) (*model.Hospitalization, *model.Hospitalization, error) {
+					return nil, nil, apperrors.WrapConflict("連結グループ内のケージが使用中のため割り当てできません")
+				},
+			},
+			wantStatus: http.StatusConflict,
+		},
+		{
+			name:     "maps service unprocessable to 422",
+			body:     map[string]any{"hospitalization_ids": []uint64{1, 2}, "expected_cage_ids": []uint64{11, 12}},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockHospitalizationService{
+				swapCagesFn: func(_ context.Context, _, _, _ uint64, _ [2]uint64) (*model.Hospitalization, *model.Hospitalization, error) {
+					return nil, nil, apperrors.WrapUnprocessable("連結中の構成ケージには割り当てできません")
+				},
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name:     "returns 500 on service error",
+			body:     map[string]any{"hospitalization_ids": []uint64{1, 2}, "expected_cage_ids": []uint64{11, 12}},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockHospitalizationService{
+				swapCagesFn: func(_ context.Context, _, _, _ uint64, _ [2]uint64) (*model.Hospitalization, *model.Hospitalization, error) {
+					return nil, nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithHospitalizationSvc(tt.svc)
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/hospitalizations/cage-swap", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			tt.setupCtx(c)
+
+			h.SwapCages(c)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
 			if tt.wantBody != "" {

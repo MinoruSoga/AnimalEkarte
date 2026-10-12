@@ -73,6 +73,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"DELETE /api/v1/masters/reservation-types/:id/occupations/:occupation_id UnlinkReservationTypeOccupation\n" +
 		"DELETE /api/v1/masters/reservation-types/:id/unavailable-times/:unavailable_time_id DeleteUnavailableTime\n" +
 		"DELETE /api/v1/reservations/:id DeleteReservation\n" +
+		"DELETE /api/v1/reservations/pets/:petId/next-visit-intent ClearNextVisitIntent\n" +
 		"GET /api/liff/:clinicId/available-dates GetLiffAvailableDates\n" +
 		"GET /api/liff/:clinicId/available-times GetLiffAvailableTimes\n" +
 		"GET /api/liff/:clinicId/courses GetLiffTypes\n" +
@@ -121,11 +122,13 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/masters/reservation-types/:id/occupations LinkReservationTypeOccupation\n" +
 		"POST /api/v1/masters/reservation-types/:id/unavailable-times CreateUnavailableTime\n" +
 		"POST /api/v1/reservations CreateReservation\n" +
+		"POST /api/v1/reservations/:id/confirm-tentative ConfirmTentativeAppointment\n" +
 		"POST /api/v1/reservations/batch CreateReservationBatch\n" +
 		"PUT /api/v1/clinics/:clinic_id/line-reservation-settings SaveLineReservationSetting\n" +
 		"PUT /api/v1/clinics/:clinic_id/reservation-staffs/:staffId UpdateReservationStaff\n" +
 		"PUT /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules/:date UpsertReservationSchedule\n" +
-		"PUT /api/v1/clinics/:clinic_id/reservation-types/:id UpdateReservationTypeLiff\n"
+		"PUT /api/v1/clinics/:clinic_id/reservation-types/:id UpdateReservationTypeLiff\n" +
+		"PUT /api/v1/reservations/pets/:petId/next-visit-intent SetNextVisitIntent\n"
 
 	assert.Equal(t, want, got)
 }

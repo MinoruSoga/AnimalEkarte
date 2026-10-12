@@ -213,4 +213,25 @@ describe("HolidaySection", () => {
     expect(mockDeleteMutateAsync).not.toHaveBeenCalled();
     expect(mockToastSuccess).not.toHaveBeenCalled();
   });
+
+  // EMR-319: 日付必須が空で invalid になると赤枠+エラー文+aria-invalid が出る。
+  it("日付が空のまま invalid になると aria-invalid とエラー文が出て、入力で解除される", () => {
+    render(<HolidaySection holidays={[]} canCreate={true} canDelete={true} />);
+    fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
+
+    const dateInput = screen.getByLabelText("日付");
+    fireEvent.invalid(dateInput);
+
+    expect(dateInput).toHaveAttribute("aria-invalid", "true");
+    expect(dateInput).toHaveAttribute("aria-describedby", "holiday-date-error");
+    expect(dateInput.className).toContain("ring-2");
+    expect(document.getElementById("holiday-date-error")).toHaveTextContent(
+      "日付を入力してください",
+    );
+
+    fireEvent.change(dateInput, { target: { value: "2026-10-10" } });
+
+    expect(dateInput).not.toHaveAttribute("aria-invalid");
+    expect(document.getElementById("holiday-date-error")).toBeNull();
+  });
 });

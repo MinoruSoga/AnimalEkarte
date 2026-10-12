@@ -125,6 +125,8 @@ func TestListOwnerReportPets_ReturnsOnlyCuratedFields(t *testing.T) {
 		"gender",
 		"status",
 		"birth_date",
+		// 死亡OR契約（status=deceased または deceased_at 非null）を FE 側で判定するために含める。
+		"deceased_at",
 		"breed",
 		"color",
 		"blood_type",

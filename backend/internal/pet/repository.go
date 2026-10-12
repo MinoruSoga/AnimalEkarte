@@ -78,12 +78,25 @@ type LifecycleWriter interface {
 	ClearDeath(ctx context.Context, clinicID, petID uint64) error
 }
 
+// RowLockingRepository は同一トランザクション内の臨床状態検証を直列化するための
+// FOR UPDATE 読取面（Codex PR606 #26 再指摘: cage swap の死亡判定）。
+// Repository（広い読取面）には含めず、必要な消費者だけが型アサーションで取り出す
+// narrow capability として CompleteRepository にだけ載せる。
+type RowLockingRepository interface {
+	// LockByIDForUpdate は FOR UPDATE でペットを行ロック取得する。
+	// ambient tx（persistence.TxFromContext）必須 — autocommit ではロックが
+	// SELECT 終了と同時に解放され直列化にならないため fail-closed（MRB-02 先例:
+	// hospitalizationRepository.LockByIDForUpdate と同じ契約）。
+	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
+}
+
 // CompleteRepository is the concrete composition surface returned by NewRepository.
 // The legacy repository facade intentionally narrows this to Repository until central
 // composition cuts over to the typed lifecycle capability.
 type CompleteRepository interface {
 	ServiceRepository
 	LifecycleWriter
+	RowLockingRepository
 }
 
 type repository struct {
@@ -285,6 +298,27 @@ func (r *repository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64,
 	return r.findPetByID(ctx, clinicIDs, id)
 }
 
+// LockByIDForUpdate は FOR UPDATE でペットを行ロック取得する（RowLockingRepository）。
+// Owner/Insurance の Preload は載せない — 呼び出し側が必要とするのは行スナップショット
+// （Status/DeceasedAt 等のスカラー）だけであり、リレーション読込はロックを広げるだけ。
+func (r *repository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
+	// MRB-02: FOR UPDATE is meaningless outside an ambient transaction (autocommit releases
+	// the row lock at statement end). Match hospitalizationRepository.LockByIDForUpdate fail-closed.
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("pet lock requires an ambient transaction")
+	}
+	var pet model.Pet
+	err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ?", id).
+		First(&pet).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", id))
+	}
+	return &pet, nil
+}
+
 // findPetByID は認可済みクリニック集合を受け取りペットを1件取得する共通実装。
 // Preload する飼主と保険マスタも同じ集合で clinic 隔離する
 // （破損した owner_id / insurance_id から別クリニックのデータが混入するのを防止）。
@@ -440,48 +474,66 @@ func (r *repository) update(ctx context.Context, clinicID, id uint64, fields map
 		}
 	}
 	db := persistence.DBOrTx(ctx, r.db)
-	if expectedStatus, conflictMessage, ok := legacyLifecycleTransition(fields); ok {
-		return updateLegacyLifecycleFieldsWithDB(db, clinicID, id, expectedStatus, fields, conflictMessage)
+	if deathRecord, conflictMessage, ok := legacyLifecycleTransition(fields); ok {
+		return updateLegacyLifecycleFieldsWithDB(db, clinicID, id, deathRecord, fields, conflictMessage)
 	}
 	return updatePetFieldsWithDB(db, clinicID, id, fields)
 }
 
-func legacyLifecycleTransition(fields map[string]any) (model.PetStatus, string, bool) {
+// legacyLifecycleTransition は旧ライフサイクル更新フォーム（deceased_at/deceased_reason/status
+// の3フィールド同時更新）の遷移方向を返す。deathRecord=true は死亡記録、false は死亡取り消し。
+// EMR-328: 前置条件は status 単独ではなく OR 契約（deceased = status='deceased' OR
+// deceased_at IS NOT NULL）と整合させるため方向を返す。
+func legacyLifecycleTransition(fields map[string]any) (deathRecord bool, conflictMessage string, ok bool) {
 	if len(fields) != 3 {
-		return "", "", false
+		return false, "", false
 	}
 	if _, ok := fields["deceased_at"]; !ok {
-		return "", "", false
+		return false, "", false
 	}
 	if _, ok := fields["deceased_reason"]; !ok {
-		return "", "", false
+		return false, "", false
 	}
 	status, ok := fields["status"]
 	if !ok {
-		return "", "", false
+		return false, "", false
 	}
 
 	switch status {
 	case model.PetStatusDeceased:
-		return model.PetStatusAlive, "死亡記録は既に登録されています", true
+		return true, "死亡記録は既に登録されています", true
 	case model.PetStatusAlive:
-		return model.PetStatusDeceased, "死亡記録が登録されていないため解除できません", true
+		return false, "死亡記録が登録されていないため解除できません", true
 	default:
-		return "", "", false
+		return false, "", false
 	}
+}
+
+func legacyLifecycleExpectedStatus(deathRecord bool) model.PetStatus {
+	if deathRecord {
+		return model.PetStatusAlive
+	}
+	return model.PetStatusDeceased
 }
 
 func updateLegacyLifecycleFieldsWithDB(
 	db *gorm.DB,
 	clinicID, petID uint64,
-	expectedStatus model.PetStatus,
+	deathRecord bool,
 	fields map[string]any,
 	conflictMessage string,
 ) error {
+	// 死亡記録側は status='alive' かつ deceased_at IS NULL のみ通す（半死亡行の二重死亡を拒否）。
+	// 取り消し側は status='deceased' または deceased_at≠NULL（半死亡行の復活を許可）。
+	precondition := "status = ? AND deceased_at IS NULL"
+	if !deathRecord {
+		precondition = "(status = ? OR deceased_at IS NOT NULL)"
+	}
 	result := db.
 		Model(&model.Pet{}).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ? AND status = ?", petID, expectedStatus).
+		Where("id = ?", petID).
+		Where(precondition, legacyLifecycleExpectedStatus(deathRecord)).
 		Select("deceased_at", "deceased_reason", "status").
 		Updates(fields)
 	if result.Error != nil {
@@ -682,7 +734,7 @@ func (r *repository) RecordDeath(ctx context.Context, clinicID, petID uint64, de
 	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Pet{}).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ? AND status = ?", petID, model.PetStatusAlive).
+		Where("id = ? AND status = ? AND deceased_at IS NULL", petID, model.PetStatusAlive).
 		Select("deceased_at", "deceased_reason", "status").
 		Updates(&model.Pet{
 			DeceasedAt:     &deceasedAt,
@@ -702,7 +754,7 @@ func (r *repository) ClearDeath(ctx context.Context, clinicID, petID uint64) err
 	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Pet{}).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ? AND status = ?", petID, model.PetStatusDeceased).
+		Where("id = ? AND (status = ? OR deceased_at IS NOT NULL)", petID, model.PetStatusDeceased).
 		Select("deceased_at", "deceased_reason", "status").
 		Updates(&model.Pet{Status: model.PetStatusAlive})
 	if result.Error != nil {
@@ -715,7 +767,7 @@ func (r *repository) ClearDeath(ctx context.Context, clinicID, petID uint64) err
 }
 
 func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).Delete(&model.Pet{})
+	result := persistence.DBOrTx(ctx, r.db).Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).Delete(&model.Pet{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "pet", fmt.Sprintf("%d", id))
 	}

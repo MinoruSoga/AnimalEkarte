@@ -28,7 +28,7 @@ flowchart TB
 | SC3: Severity×Impactの修復キュー | AC3 | 点数順、証拠パス・行番号、推奨actionの存在を検査。矛盾の両側を読み直す |
 | SC4: 最低6カテゴリ子goal | AC4 | ファイル名・必須キー・個別done_conditionとverification・DAG非循環を検査 |
 | SC5: activeとcoordinator-complete | AC5 | YAML状態・checkpointと本書を照合。親completedを禁止 |
-| SC6: drift実行の記録 | AC6 | bash scripts/check-docs-symbol-drift.sh のexitと出力を保存。緑であることは本ユニットの条件ではない |
+| SC6: drift実行の記録 | AC6 | bash scripts/checks/check-docs-symbol-drift.sh のexitと出力を保存。緑であることは本ユニットの条件ではない |
 | SC7: allowlist限定 | AC7, AC8 | baselineの既存docs hashと現在を比較、tracked/staged/untrackedを確認。カテゴリ本文の差分なし |
 | SC8: 完了監査 | AC1–AC9 | LEDGERに全ACの期待・実際・判定・直接証拠を記録。弱い証拠はPASSにしない |
 | 独立Review | AC9 | 同一入力・同一rubricの独立2レビュー。CRITICAL/HIGHを修正し両方再レビュー |

@@ -132,6 +132,8 @@ func prepareRuntimeExecution(
 		syscall.SIGINT,
 		syscall.SIGTERM,
 	)
+	drainers := runtimeDrainers(components.composition)
+	drainers = append(drainers, startTrimmingImageDeletionWorker(appCtx, cfg, db, components.uploader))
 	return runtimeExecution{
 		runner: serverRunner{
 			server:           server,
@@ -139,7 +141,7 @@ func prepareRuntimeExecution(
 			backgroundCtx:    appCtx,
 			cancelBackground: appCancel,
 			shutdownTimeout:  130 * time.Second,
-			drainers:         runtimeDrainers(components.composition),
+			drainers:         drainers,
 			resources:        []resourceCloser{sqlDB},
 		},
 		signalCtx:   signalCtx,

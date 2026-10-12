@@ -135,13 +135,17 @@ export const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
         description="この病名が属する診断カテゴリです。診断名一覧でのグループ分けに使われます。"
       >
         <Select value={formData.diagnosisTypeId} onValueChange={handleCategoryChange}>
-          <SelectTrigger className={STYLE.selectCompact}>
+          <SelectTrigger
+            className={STYLE.selectCompact}
+            aria-invalid={Boolean(categoryError)}
+            aria-describedby={categoryError ? "diagnosis-category-error" : undefined}
+          >
             <SelectValue placeholder="カテゴリを選択" />
           </SelectTrigger>
           <SelectContent>{categorySelectItems}</SelectContent>
         </Select>
       </PropertyRow>
-      <FormFieldError message={categoryError} />
+      <FormFieldError id="diagnosis-category-error" message={categoryError} />
       <PropertyRow label="備考" description={FIELD_DESCRIPTIONS.note}>
         <PropertyInput
           value={formData.description}

@@ -59,8 +59,8 @@ const {
 } = vi.hoisted(() => ({
   mockNavigate: vi.fn(),
   mockToast: { error: vi.fn(), success: vi.fn() },
-  mockSelectedPets: [] as unknown[],
-  mockSelectedPetsSnapshot: { current: undefined as unknown[] | undefined },
+  mockSelectedPets: [] as Record<string, unknown>[],
+  mockSelectedPetsSnapshot: { current: undefined as Record<string, unknown>[] | undefined },
   mockSetSelectedPets: vi.fn(),
   mockSearchParams: new URLSearchParams(),
   mockPetFromQuery: { current: undefined as unknown },
@@ -154,7 +154,7 @@ describe("useHospitalizationForm", () => {
     // デフォルト: ペット未選択
     mockSelectedPets.length = 0;
     mockSelectedPetsSnapshot.current = undefined;
-    mockSetSelectedPets.mockImplementation((pets: unknown[]) => {
+    mockSetSelectedPets.mockImplementation((pets: Record<string, unknown>[]) => {
       mockSelectedPets.splice(0, mockSelectedPets.length, ...pets);
     });
     mockSearchParams.delete("petId");
@@ -251,14 +251,18 @@ describe("useHospitalizationForm", () => {
       });
     }
 
-    it("ケージ未選択 → create せず fieldErrors.cage_id（BUG-037）", async () => {
+    // EMR-316: BUG-037 の必須化を撤回。「選択なし」のまま登録でき、cage_id は送らない（NULL で保存）。
+    it("ケージ未選択（選択なし）でも create され、cage_id を送らない（EMR-316）", async () => {
       const { result } = renderHospitalizationForm();
 
       await submitForm(result.current.formAction);
 
-      expect(mockCreateHospitalization).not.toHaveBeenCalled();
-      expect(result.current.formState.success).toBe(false);
-      expect(result.current.formState.fieldErrors?.cage_id).toBe("ケージ・個室を選択してください");
+      expect(mockCreateHospitalization).toHaveBeenCalledTimes(1);
+      const request = mockCreateHospitalization.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(request).not.toHaveProperty("cage_id");
+      expect(request).not.toHaveProperty("clear_cage_id");
+      expect(result.current.formState.success).toBe(true);
+      expect(result.current.formState.fieldErrors?.cage_id).toBeUndefined();
     });
 
     it("selectedPets がある & id なし → createHospitalization が呼ばれる", async () => {
@@ -460,13 +464,79 @@ describe("useHospitalizationForm", () => {
       });
     }
 
-    it("ケージ未選択 → update せず fieldErrors.cage_id（BUG-037）", async () => {
-      const { result } = renderHospitalizationForm("42");
+    // EMR-316: 編集で「選択なし」にして保存すると clear_cage_id: true を送り、cage_id は送らない。
+    it("未割当で開いた後に別スタッフが割り当ててもメモ保存でケージを解除しない", async () => {
+      const { result, rerender } = renderHospitalizationForm("42");
+      const query = vi.mocked(useGetHospitalizationRaw)("42");
+      vi.mocked(useGetHospitalizationRaw).mockReturnValue({
+        ...query,
+        data: { ...query.data!, cage_id: 10 },
+      } as ReturnType<typeof useGetHospitalizationRaw>);
+      rerender();
+      await act(async () => result.current.handleFormDataChange({ memo: "updated" }));
 
       await submitForm(result.current.formAction);
 
-      expect(mockUpdateHospitalization).not.toHaveBeenCalled();
-      expect(result.current.formState.fieldErrors?.cage_id).toBe("ケージ・個室を選択してください");
+      expect(mockUpdateHospitalization).toHaveBeenCalledTimes(1);
+      const [, request] = mockUpdateHospitalization.mock.calls[0] as [
+        string,
+        Record<string, unknown>,
+      ];
+      expect(request.memo).toBe("updated");
+      expect(request).not.toHaveProperty("clear_cage_id");
+      expect(request).not.toHaveProperty("cage_id");
+      expect(result.current.formState.fieldErrors?.cage_id).toBeUndefined();
+    });
+
+    it("割当済みケージを明示的に選択なしへ変更すると解除指示を送る", async () => {
+      const query = vi.mocked(useGetHospitalizationRaw)("42");
+      vi.mocked(useGetHospitalizationRaw).mockReturnValue({
+        ...query,
+        data: { ...query.data!, cage_id: 10 },
+      } as ReturnType<typeof useGetHospitalizationRaw>);
+      const { result } = renderHospitalizationForm("42");
+      await act(async () => result.current.handleFormDataChange({ cageId: "" }));
+      await submitForm(result.current.formAction);
+      expect(mockUpdateHospitalization).toHaveBeenCalledWith(
+        "42",
+        expect.objectContaining({ clear_cage_id: true, expected_cage_id: "10" }),
+      );
+    });
+
+    it("ケージ選択あり → update は cage_id のみ送り clear_cage_id は送らない（EMR-316）", async () => {
+      const { result } = renderHospitalizationForm("42");
+      await selectCage(result);
+
+      await submitForm(result.current.formAction);
+
+      const [, request] = mockUpdateHospitalization.mock.calls[0] as [
+        string,
+        Record<string, unknown>,
+      ];
+      expect(request.cage_id).toBe("10");
+      expect(request).not.toHaveProperty("clear_cage_id");
+      expect(request.expected_cage_is_null).toBe(true);
+    });
+
+    it("refetch でケージが変わっても表示時点の expected_cage_id を保持する", async () => {
+      const query = vi.mocked(useGetHospitalizationRaw)("42");
+      vi.mocked(useGetHospitalizationRaw).mockReturnValue({
+        ...query,
+        data: { ...query.data!, cage_id: 10 },
+      } as ReturnType<typeof useGetHospitalizationRaw>);
+      const { result, rerender } = renderHospitalizationForm("42");
+      const hydrated = vi.mocked(useGetHospitalizationRaw).mock.results.at(-1)?.value;
+      vi.mocked(useGetHospitalizationRaw).mockReturnValue({
+        ...hydrated,
+        data: { ...hydrated.data, cage_id: 20 },
+      } as ReturnType<typeof useGetHospitalizationRaw>);
+      rerender();
+      await act(async () => result.current.handleFormDataChange({ cageId: "30" }));
+      await submitForm(result.current.formAction);
+      expect(mockUpdateHospitalization).toHaveBeenCalledWith(
+        "42",
+        expect.objectContaining({ cage_id: "30", expected_cage_id: "10" }),
+      );
     });
 
     it("selectedPets がある & id あり → updateHospitalization が呼ばれる", async () => {

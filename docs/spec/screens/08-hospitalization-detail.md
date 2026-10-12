@@ -80,7 +80,7 @@ stateDiagram-v2
 | POST | `/api/v1/hospitalizations/:id/care-plan-items` | ケアプランアイテムの追加 | `hospitalization` | `create` |
 | PATCH | `/api/v1/hospitalizations/:id/care-plan-items/:itemId` | ケアプランアイテムの更新 | `hospitalization` | `edit` |
 | DELETE | `/api/v1/hospitalizations/:id/care-plan-items/:itemId` | ケアプランアイテムの削除 | `hospitalization` | `delete` |
-| PATCH | `/api/v1/hospitalizations/:id` | 入院情報（ケージ等）の更新。チェックイン（`status: admitted`）および会計連携なしの退院（ステータス・退院日更新）にも使用 | `hospitalization` | `edit` |
+| PATCH | `/api/v1/hospitalizations/:id` | 入院情報（ケージ等）の更新。チェックイン（`status: admitted`）および会計連携なしの退院（ステータス・退院日更新）にも使用。連結中ケージ（EMR-306）への割当は代表ケージ宛のみで、構成メンバー宛は 422。ケージ間の入れ替えは `POST /api/v1/hospitalizations/cage-swap` 専用経路 | `hospitalization` | `edit` |
 | POST | `/api/v1/hospitalizations/:id/discharge-with-billing` | 退院処理（会計連携含む） | `hospitalization` | `edit` |
 
 ---

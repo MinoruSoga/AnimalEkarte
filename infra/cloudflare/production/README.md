@@ -10,9 +10,13 @@
 - **ゾーンは新規作成しない**。`noah-karte.com` は STG 側(`infra/cloudflare/zone.tf`)が
   既に管理しているため、本ディレクトリでは `data "cloudflare_zone"` で参照するのみ
   (`zone.tf` 参照)。
-- **通知ポリシーは新規作成しない**。ゾーンレベルの5xxアラートはSTG側の既存ポリシーが
-  同一ゾーンを既にカバーするため、production専用ポリシーを追加すると二重通知になる
-  (`notifications.tf` 参照)。
+- **通知ポリシーは新規作成しない**。production側に同じゾーンレベル5xxポリシーを追加しても
+  同一ゾーン・同一指標の二重定義になるため、コードで重複定義しない設計とした
+  (`notifications.tf` 参照)。ただしこの設計が有効なのは、STG側ポリシーが実際に apply 済みで
+  同一ゾーンをカバーしていることが**外部検証で確認できた場合に限る**。対象アカウント/ゾーン、
+  送信先、apply、配送実績は本リポジトリの記述だけでは証明できない。production が専用
+  アカウント(EMR-302移行先)で構築される前提条件では、共有アカウント側のポリシーが
+  同一ゾーンをカバーするか自体も要検証。本ディレクトリはドラフト(setup.md 参照)。
 - **tfstate は分離**。このディレクトリで `terraform init` すると、STGとは別の
   local tfstate(`infra/cloudflare/production/terraform.tfstate`)が作られる。
 - **R2バケット・PlanetScale DB はすべて新規**(STGと共有しない)。Hyperdrive は

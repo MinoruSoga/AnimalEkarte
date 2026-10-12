@@ -206,6 +206,11 @@ type OwnerDeleteLocker interface {
 	LockForDelete(ctx context.Context, clinicID, ownerID uint64) (*model.Owner, error)
 }
 
+type OwnerDeleteTagCleanup interface {
+	EnqueueNextVisitCleanup(context.Context, uint64, uint64, string) error
+	SyncNextVisitTag(context.Context, uint64, uint64) error
+}
+
 // OwnerDeleteTransactor owns the owner deletion transaction boundary.
 type OwnerDeleteTransactor interface {
 	WithTx(ctx context.Context, fn func(context.Context) error) error

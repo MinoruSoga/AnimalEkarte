@@ -99,7 +99,6 @@ function makeMedicalRecord(overrides: Partial<MedicalRecord> = {}): MedicalRecor
     chiefComplaintTypeId: null,
     doctor: "佐藤医師",
     visitType: undefined,
-    nextVisitRecommendedDate: "",
     subjective: undefined,
     objective: undefined,
     assessment: undefined,

@@ -219,3 +219,50 @@ describe("VitalsAddRow weight unit toggle (BUG-015)", () => {
     });
   });
 });
+
+describe("VitalsAddRow 必須エラー表示 (EMR-319)", () => {
+  const emptyAddForm: VitalsAddFormState = {
+    recorded_at: "",
+    temperature: "",
+    heart_rate: "",
+    respiration_rate: "",
+    weight: "",
+    weight_unit: "Kg",
+    notes: "",
+  };
+
+  it("errors.recorded_at で記録日時入力が aria-invalid+赤枠、エラー文が role=alert で出る", () => {
+    render(
+      <VitalsAddRow
+        addForm={emptyAddForm}
+        errors={{ recorded_at: "記録日時は必須です" }}
+        isPending={false}
+        onChange={vi.fn()}
+        formAction={() => undefined}
+        onCancel={() => undefined}
+      />,
+    );
+
+    const input = screen.getByLabelText("記録日時");
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(input.className).toContain("ring-2");
+    expect(screen.getByRole("alert")).toHaveTextContent("記録日時は必須です");
+  });
+
+  it("errors.temperature で体温入力が aria-invalid になる", () => {
+    render(
+      <VitalsAddRow
+        addForm={emptyAddForm}
+        errors={{ temperature: "体温は30〜45℃の範囲で入力してください" }}
+        isPending={false}
+        onChange={vi.fn()}
+        formAction={() => undefined}
+        onCancel={() => undefined}
+      />,
+    );
+
+    expect(screen.getByLabelText("体温")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("alert")).toHaveTextContent("体温は30〜45℃の範囲で入力してください");
+    expect(screen.getByLabelText("記録日時")).toHaveAttribute("aria-invalid", "false");
+  });
+});

@@ -26,6 +26,8 @@
 | **会計待ち** | 診療が終了し、レジでの精算・処方待ちの状態。 | `accounting` |
 | **会計済** | 精算が完了し、帰宅または入院へ移行した状態。 | `completed` |
 
+EMR-308: `status='tentative'`（次回予定・未予約）の appointment は sentinel 行でありカンバンのどのカラムにも載らない（`reception/api/transforms.ts` が除外）。当該ペットが当日来院して実予約・受付が作られると、バックエンドの `createOrPromoteTentative` が active tentative を同一行で実予約へ昇格し、受付時に sentinel 時刻（JST 00:00–00:15）を実時刻へ置き換える。tentative 由来予約をキャンセルすると `had_intended_date` 応答を起点に「次回予定の再設定」導線（`onTentativeCancelled`）が開く（自動再設定はしない）。
+
 **カラム遷移イメージ:**
 
 ```mermaid

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 type labDeviceTodayVisitFinder struct {
@@ -43,7 +44,7 @@ func (f labDeviceTodayVisitFinder) ListTodayDraft(
 		}
 		if record.Pet != nil {
 			visit.PetName = record.Pet.Name
-			visit.PetIsDeceased = record.Pet.Status == model.PetStatusDeceased
+			visit.PetIsDeceased = sharedkernel.IsPetDeceased(record.Pet)
 			if record.Pet.AnimalSpecies != nil {
 				visit.Species = record.Pet.AnimalSpecies.Name
 			}

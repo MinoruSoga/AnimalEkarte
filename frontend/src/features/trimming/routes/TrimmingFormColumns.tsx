@@ -2,6 +2,7 @@
 import type { ChangeEvent } from "react";
 import { PatientInfoCard, formatPatientPetDetails } from "@/components/shared/PatientInfoCard";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { formatDate } from "@/lib/format/date";
 import { paths } from "@/config/paths";
 import type { SortOrder } from "@/types";
@@ -29,6 +30,8 @@ export interface TrimmingPatient {
   insuranceName?: string;
   insuranceDetails?: string;
   status?: string;
+  /** 死亡OR契約の deceased_at 側。Pet transform が供給する。 */
+  deceasedAt?: string | null;
   /** スタッフ向け飼主特記マーク (EMR-173/231)。Pet transform が供給する。 */
   ownerIsDangerous?: boolean;
   /** ペット特記レベル (表示値 "高"/"中"/"低")。高/中のみ Popover バッジ。 */
@@ -111,6 +114,7 @@ export function TrimmingFormColumns({
         staffName={formData.staffName}
         staffLabel="担当"
         staffButtonId="staffId"
+        staffInvalid={Boolean(fieldErrors.staffId)}
         reservationType="トリミング"
         petDetails={formatPatientPetDetails({
           species: selectedPet.species,
@@ -123,7 +127,8 @@ export function TrimmingFormColumns({
         ownerIsDangerous={selectedPet.ownerIsDangerous}
         petDangerLevel={selectedPet.dangerLevel}
         petDangerReason={selectedPet.dangerReason}
-        status={selectedPet.status === "死亡" ? "deceased" : "alive"}
+        status={isPetDeceasedForClinicalWrite(selectedPet) ? "deceased" : "alive"}
+        birthDate={selectedPet.birthDate}
         nextVisitDate={formData.nextDate ? formatDate(formData.nextDate) : undefined}
         onStaffClick={onOpenStaffModal}
       />

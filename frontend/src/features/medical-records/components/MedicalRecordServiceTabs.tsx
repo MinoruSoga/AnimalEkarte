@@ -1,3 +1,4 @@
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { CheckupsTab } from "./CheckupsTab/CheckupsTab";
 import { MedicalRecordBillCheck } from "./MedicalRecordBillCheck";
 import { MedicalRecordEstimate } from "./MedicalRecordEstimate";
@@ -50,7 +51,7 @@ export function MedicalRecordServiceTabs({
             medicalRecordId={recordId ?? ""}
             lstepStatus={lstepStatus}
             isFinalized={isFinalized}
-            isPetDeceased={selectedPet.status === "死亡"}
+            isPetDeceased={isPetDeceasedForClinicalWrite(selectedPet)}
           />
         </MedicalRecordSaveRequired>
       </MedicalRecordMountedTab>
@@ -76,7 +77,7 @@ export function MedicalRecordServiceTabs({
           isNewRecord={isNewRecord}
           medicalRecordId={recordId}
           recordClinicId={recordClinicId}
-          isPetDeceased={selectedPet.status === "死亡"}
+          isPetDeceased={isPetDeceasedForClinicalWrite(selectedPet)}
           isLocked={isLocked}
         />
       </MedicalRecordMountedTab>
@@ -105,7 +106,7 @@ export function MedicalRecordServiceTabs({
           petId={selectedPet.id}
           ownerDiscountRate={ownerDiscountRate}
           recordClinicId={recordClinicId}
-          isPetDeceased={selectedPet.status === "死亡"}
+          isPetDeceased={isPetDeceasedForClinicalWrite(selectedPet)}
         />
       </MedicalRecordMountedTab>
     </>

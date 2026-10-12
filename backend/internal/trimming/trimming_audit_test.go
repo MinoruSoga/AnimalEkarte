@@ -281,7 +281,7 @@ func TestService_AuditContract_Update(t *testing.T) {
 	styleRequest := "変更後"
 	optionIDs := []uint64{21, 3}
 
-	result, err := svc.Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{
+	result, _, err := svc.Update(context.Background(), clinicID, appointmentID, &UpdateTrimmingInput{
 		ActorID:      ptrUint64(actorID),
 		StyleRequest: &styleRequest,
 		OptionIDs:    &optionIDs,
@@ -455,7 +455,7 @@ func TestService_AuditFailureRollsBackEachWritePath(t *testing.T) {
 				}
 				styleRequest := "rollback"
 				svc := newTrimmingAuditTestService(reservationRepo, detailRepo, tx, audit)
-				_, err := svc.Update(context.Background(), 7, appointment.ID, &UpdateTrimmingInput{
+				_, _, err := svc.Update(context.Background(), 7, appointment.ID, &UpdateTrimmingInput{
 					ActorID:      ptrUint64(42),
 					StyleRequest: &styleRequest,
 				})
@@ -537,7 +537,7 @@ func TestService_MissingAuditDependencyFailsBeforeEachWritePath(t *testing.T) {
 		{
 			name: "update",
 			run: func(svc Service) error {
-				_, err := svc.Update(context.Background(), 7, appointmentID, &UpdateTrimmingInput{
+				_, _, err := svc.Update(context.Background(), 7, appointmentID, &UpdateTrimmingInput{
 					ActorID: &actorID,
 				})
 				return err
@@ -609,7 +609,7 @@ func TestService_MissingOrZeroActorFailsBeforeEachWritePath(t *testing.T) {
 		{
 			name: "update",
 			run: func(svc Service, actorID *uint64) error {
-				_, err := svc.Update(context.Background(), 7, appointmentID, &UpdateTrimmingInput{
+				_, _, err := svc.Update(context.Background(), 7, appointmentID, &UpdateTrimmingInput{
 					ActorID: actorID,
 				})
 				return err

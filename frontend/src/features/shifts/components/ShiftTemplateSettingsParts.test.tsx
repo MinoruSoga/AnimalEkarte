@@ -133,6 +133,16 @@ describe("ShiftTemplateSidePanel EMR-241 time fields", () => {
       await screen.findByText("勤務種別では開始時刻と終了時刻を入力してください"),
     ).toBeInTheDocument();
     expect(onSave).not.toHaveBeenCalled();
+
+    // EMR-319: エラー文は id=shift-template-time-error で、両時刻入力が aria-invalid で参照する
+    expect(document.getElementById("shift-template-time-error")).toHaveTextContent(
+      "勤務種別では開始時刻と終了時刻を入力してください",
+    );
+    for (const label of ["開始時刻", "終了時刻"]) {
+      const input = screen.getByLabelText(label);
+      expect(input).toHaveAttribute("aria-invalid", "true");
+      expect(input).toHaveAttribute("aria-describedby", "shift-template-time-error");
+    }
   });
 
   it("off で片方だけの時刻入力は拒否される", async () => {

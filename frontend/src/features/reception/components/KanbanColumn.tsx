@@ -75,7 +75,15 @@ export const KanbanColumn = memo(function KanbanColumn({
         <div
           className={`flex flex-col gap-2 flex-1 overflow-y-auto relative min-h-[100px] lg:min-h-[50px] ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}
         >
-          {appointmentItems}
+          {data.appointments.length === 0 ? (
+            <div
+              className={`flex flex-col items-center justify-center py-8 text-center ${colors.text60} select-none`}
+            >
+              <span className="text-xs">受付はありません</span>
+            </div>
+          ) : (
+            appointmentItems
+          )}
           {/* Spacer for drop target at end of column */}
           <div className="flex-1 min-h-[2rem]" />
         </div>

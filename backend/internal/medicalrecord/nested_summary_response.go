@@ -1,6 +1,9 @@
 package medicalrecord
 
 import (
+	"time"
+
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -59,6 +62,7 @@ type PetSummaryResponse struct {
 
 	Gender         string                        `json:"gender,omitempty"`
 	BirthDate      *string                       `json:"birth_date,omitempty"`
+	DeceasedAt     *time.Time                    `json:"deceased_at,omitempty"`
 	NeuteredDate   *string                       `json:"neutered_date,omitempty"`
 	NeuteredStatus string                        `json:"neutered_status,omitempty"`
 	AnimalSpecies  *AnimalSpeciesSummaryResponse `json:"animal_species,omitempty"`
@@ -84,6 +88,7 @@ func toPetSummary(p *model.Pet) *PetSummaryResponse {
 		d := p.BirthDate.Format("2006-01-02")
 		resp.BirthDate = &d
 	}
+	resp.DeceasedAt = httpapi.LocalTimePtr(p.DeceasedAt)
 	if p.NeuteredDate != nil {
 		d := p.NeuteredDate.Format("2006-01-02")
 		resp.NeuteredDate = &d

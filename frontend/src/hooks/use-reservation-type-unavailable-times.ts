@@ -44,10 +44,14 @@ export const unavailableTimesKey = (clinicId: string | null, reservationTypeId: 
 
 async function getUnavailableTimes(
   reservationTypeId: string,
+  clinicId?: string,
 ): Promise<ReservationTypeUnavailableTime[]> {
   const { data } = await axios.get<
     ReservationTypeUnavailableTimeRaw[] | { data: ReservationTypeUnavailableTimeRaw[] }
-  >(`/v1/masters/reservation-types/${reservationTypeId}/unavailable-times`);
+  >(
+    `/v1/masters/reservation-types/${reservationTypeId}/unavailable-times`,
+    clinicId ? { headers: { "X-Clinic-ID": clinicId } } : undefined,
+  );
   const items = Array.isArray(data) ? data : data.data;
   return items.map(transformUnavailableTime);
 }
@@ -59,7 +63,9 @@ async function getUnavailableTimes(
 export function useGetUnavailableTimes(clinicId: string | null, reservationTypeId: string) {
   return useQuery({
     queryKey: unavailableTimesKey(clinicId, reservationTypeId),
-    queryFn: () => getUnavailableTimes(reservationTypeId),
+    // Codex PR606 再指摘: 引数の clinicId は key だけでなく X-Clinic-ID にも載せ、
+    // 拠点横断フォームが行の医院の予約不可時間を引く。
+    queryFn: () => getUnavailableTimes(reservationTypeId, clinicId ?? undefined),
     enabled: clinicId !== null && reservationTypeId !== "",
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,

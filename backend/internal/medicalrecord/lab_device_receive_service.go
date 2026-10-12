@@ -572,7 +572,7 @@ func (s *labDeviceReceiveService) requireAlivePet(ctx context.Context, clinicID,
 	if pet == nil || pet.ClinicID != clinicID {
 		return nil, apperrors.WrapInvalidInput("pet_id is not in this clinic")
 	}
-	if pet.DeletedAt.Valid || pet.Status != model.PetStatusAlive {
+	if pet.DeletedAt.Valid || pet.Status != model.PetStatusAlive || pet.DeceasedAt != nil {
 		return nil, apperrors.WrapInvalidInput("pet is not alive")
 	}
 	return pet, nil

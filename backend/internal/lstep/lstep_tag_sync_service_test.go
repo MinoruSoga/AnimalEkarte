@@ -434,8 +434,9 @@ func TestConditionTagMap(t *testing.T) {
 
 // mockLstepAPIClient は lstep.Client の最小モック実装。
 type mockLstepAPIClient struct {
-	addTagFn    func(ctx context.Context, lineUserID, tagName string) error
-	removeTagFn func(ctx context.Context, lineUserID, tagName string) error
+	getUserTagsFn func(context.Context, string) ([]string, error)
+	addTagFn      func(ctx context.Context, lineUserID, tagName string) error
+	removeTagFn   func(ctx context.Context, lineUserID, tagName string) error
 }
 
 func (m *mockLstepAPIClient) AddTag(ctx context.Context, lineUserID, tagName string) error {
@@ -450,7 +451,10 @@ func (m *mockLstepAPIClient) RemoveTag(ctx context.Context, lineUserID, tagName 
 	}
 	return nil
 }
-func (m *mockLstepAPIClient) GetUserTags(_ context.Context, _ string) ([]string, error) {
+func (m *mockLstepAPIClient) GetUserTags(ctx context.Context, uid string) ([]string, error) {
+	if m.getUserTagsFn != nil {
+		return m.getUserTagsFn(ctx, uid)
+	}
 	return nil, nil
 }
 func (m *mockLstepAPIClient) AddTagBulk(_ context.Context, _ []string, _ string) error { return nil }

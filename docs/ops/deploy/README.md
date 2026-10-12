@@ -5,7 +5,7 @@
 > **タイミング**: デプロイ運用開始時。
 
 > **Animal Ekarte**: ステージング・本番環境へのデプロイと安定稼働のためのガイド
-> **最新更新**: 2026-08-31 | **checked-in config**: STG workflow/configあり。backend production job は checked-in（EMR-148）。Environment reviewers・secret・provider は未設定/UNKNOWNで未実行。FrontendはProduction Environment binding実装済み（外部reviewersは要検証）。**live provider状態はUNKNOWNで、実行前にdated receiptが必要**
+> **最新更新**: 2026-10-11（Production Environment binding・ci-policy 観測反映） | **checked-in config**: STG workflow/configあり。backend production job は checked-in（EMR-148）。Environment reviewers・secret・provider の設定・実行・稼働は未確認（UNKNOWN）。実行前に dated receipt を確認する。FrontendはProduction Environment binding実装済み（外部reviewersは要検証）。**live provider状態はUNKNOWNで、実行前にdated receiptが必要**
 
 ---
 
@@ -14,7 +14,7 @@
 | 環境 | Frontend URL | API Base URL | インフラ管理 |
 |:---|:---|:---|:---|
 | **Staging（設定値）** | [stg.noah-karte.com](https://stg.noah-karte.com) | [api.stg.noah-karte.com/api](https://api.stg.noah-karte.com/api) | checked-in target。稼働状態は実行時確認 |
-| **Production（draft設定）** | noah-karte.com（予定） | api.noah-karte.com/api（予定） | backend production job は checked-in（EMR-148）。Environment reviewers・secret・provider は未設定/UNKNOWNで未実行。frontendはEnvironment bindingあり。provider実体はUNKNOWN（#253・[`../infra/production/runbook.md`](../infra/production/runbook.md)） |
+| **Production（draft設定）** | noah-karte.com（予定） | api.noah-karte.com/api（予定） | backend production job は checked-in（EMR-148）。Environment reviewers・secret・provider の設定・実行・稼働は未確認（UNKNOWN）。実行前に dated receipt を確認する。frontendはEnvironment bindingあり（#253・[`../infra/production/runbook.md`](../infra/production/runbook.md)）。`production` branch protection の required checks 不整合は [ci-policy.md](../ci-policy.md)（2026-10-11 観測）参照 |
 
 ---
 
@@ -32,6 +32,7 @@
 - **[STG デモデータライフサイクル (STG-DEMO-DATA-LIFECYCLE.md)](./STG-DEMO-DATA-LIFECYCLE.md)**: Seed/Demo/Smoke テストデータの分類、作成元、Cleanup 方針、明示承認が必要な DB 再作成境界。
 - **[STG 継続運用チェックリスト (STG-CONTINUOUS-OPERATIONS.md)](./STG-CONTINUOUS-OPERATIONS.md)**: 日次/週次/月次の STG 環境監視・検査・メンテナンス。
 - **[Durable Scheduler運用 (runbooks/SCHEDULER_OPERATIONS.md)](./runbooks/SCHEDULER_OPERATIONS.md)**: 定期jobのstatus、pause/resume、missing-slot catch-up、通知、障害復旧。BE9のcode/configは実装済みだが、今回versionの実環境deploy/rehearsalはrelease gateとして未実施。
+- **[定期バッチ一覧と有効化判断 (runbooks/SCHEDULER_BATCHES.md)](./runbooks/SCHEDULER_BATCHES.md)**: バッチ別仕様（no_show / delivery / dormant / plane_sync）と本番 go-live 有効化判断。
 - **[旧] Vercel フロントエンド検証手順 (VERCEL-FRONTEND-STAGING-TEST.md)](./VERCEL-FRONTEND-STAGING-TEST.md)**: Vercel 時代の検証手順。EMR-255 で frontend は Cloudflare Workers Static Assets へ移行済み — rollback 期間中の参照専用（現行確認手順は frontend Worker の smoke/tail）。
 - **[休憩時間データ形状監査 (BREAK-HOURS-SHAPE-AUDIT.md)](./BREAK-HOURS-SHAPE-AUDIT.md)**: R1-3 デプロイ前の STG/本番 break_hours 形状監査手順。
 - **[本番 Cloudflare 基盤 事前構築手順 (../infra/production/setup.md)](./../infra/production/setup.md)**: 本番環境（noah-karte.com）を CF Workers + Containers + PlanetScale で新設する実施手順（billing recovery と production approval gate の実装・検証後に USER が日程を決定）。
@@ -103,17 +104,12 @@ gh workflow run stg-smoke.yml
 
 ### 4.1 ヘルスチェック手順
 
-デプロイ完了直後、以下の順序でシステム稼働状態を確認してください。
+デプロイ完了直後、以下を確認する（実行コマンドは §3.1）。経路切り分け・復旧の正本は [`../infra/staging/runbook.md`](../infra/staging/runbook.md) の Incident triage — 本書はチェックリスト層のみを扱う。
 
-1.  **実 URL の API ヘルスチェック**:
-    ```bash
-    curl -s https://api.stg.noah-karte.com/health | jq '.status'
-    # 期待: "ok"
-    ```
-2.  **経路の切り分け**: 実 URL が失敗した場合は workers.dev の `/health` も確認する。片方だけ失敗する場合は DNS / route、両方失敗する場合は Worker / Container / DB を疑う。
-3.  **デプロイ run の確認**: `backend-deploy.yml` の deploy / migrate / post-migrate health のどこで失敗したかを GitHub Actions の step 単位で確認する。
-4.  **ローリング更新待ち**: イメージ更新を伴う場合、旧イメージが残りうるため 15 分静置後に再確認する。
-5.  **ログ確認**: Cloudflare Dashboard の Workers Logs / Containers を確認し、全断 + DB 接続エラーなら `DB_MAX_OPEN_CONNS` と PlanetScale 接続枯渇を確認する。
+- [ ] 実 URL の `/health` が `200` / `"ok"`（失敗時は workers.dev の `/health` と比較し、runbook の Incident triage で DNS / route と Worker / Container / DB を切り分け）
+- [ ] `backend-deploy.yml` の deploy / migrate / post-migrate health を Actions の step 単位で確認
+- [ ] イメージ更新を伴う場合は 15 分静置後に再確認
+- [ ] Workers Logs / Containers に ERROR/FATAL なし（全断 + DB 接続エラーなら `DB_MAX_OPEN_CONNS` と PlanetScale 接続枯渇を確認）
 
 ---
 
@@ -130,25 +126,7 @@ gh workflow run stg-smoke.yml
 | 5 | FK 保護が 409 ではなく想定外の 4xx/5xx | DELETE 試行時 status |
 | 6 | データ破損・想定外削除・テナント隔離破綻 | smoke 後の手動確認 |
 
-**復旧フロー**:
-
-1. 影響範囲と開始時刻をチームへ通知する。
-2. [`../infra/staging/runbook.md`](../infra/staging/runbook.md) に従って Cloudflare / rolling update / PlanetScale を切り分ける。
-3. Cloudflare 側の修正・再デプロイを行う。基盤喪失時はスナップショットと現行 IaC から再建する。
-4. health と smoke を再確認し、インシデント記録へ原因・復旧内容・再発防止を残す。
-
-**障害判定から復旧までの流れ**:
-
-```mermaid
-flowchart TB
-  H{実 URL の health} -->|status ok| OK[§4.3 の成功条件判定へ]
-  H -->|失敗| W{workers.dev の health}
-  W -->|こちらは応答| DNS[DNS / route を疑う]
-  W -->|両方失敗| SYS[Worker / Container / DB を疑う]
-  STEP[Actions で deploy / migrate / post-migrate health の失敗 step を確認] --> REC
-  DNS --> REC[復旧: 通知 → runbook で切り分け → 修正・再デプロイ → health / smoke 再確認 → インシデント記録]
-  SYS --> REC
-```
+**復旧フロー**: 切り分け・復旧手順の正本は [`../infra/staging/runbook.md`](../infra/staging/runbook.md) の Incident triage。復旧開始時に影響範囲と開始時刻をチームへ通知し、runbook に従って Cloudflare / rolling update / PlanetScale を切り分けて修正・再デプロイする（基盤喪失時はスナップショットと現行 IaC から再建。AWS 切り戻し先はない）。health と smoke を再確認した後、インシデント記録へ原因・復旧内容・再発防止を残す。
 
 ---
 

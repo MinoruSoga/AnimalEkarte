@@ -34,6 +34,7 @@ func newApplicationCore(deps *Dependencies, repos *applicationRepositories) appl
 		settings, deps.Owners, deps.Vaccinations, deps.MedicalRecords, deps.Accounting,
 		repos.tagCache, deps.Pets, deps.Checkups,
 		repos.syncErrorCounter, repos.tagCodeMapping, deps.BillingItems, repos.tagConfig,
+		deps.Appointments,
 	)
 	return applicationCore{
 		settings:        settings,

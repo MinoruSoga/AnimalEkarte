@@ -1,5 +1,6 @@
 import { useState, useLayoutEffect, useCallback, useMemo, useActionState, useRef } from "react";
 import { useGetPet } from "@/hooks/use-pet";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { useGetAllVaccinesMaster } from "@/hooks/use-treatment-master";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import {
@@ -147,7 +148,8 @@ export function useVaccinationForm(
         id,
         isMutationAllowed,
         isEditPetReady: () => Boolean(editPetRef.current),
-        isEditPetDeceased: () => editPetRef.current?.status === "死亡",
+        isEditPetDeceased: () =>
+          editPetRef.current ? isPetDeceasedForClinicalWrite(editPetRef.current) : false,
         deleteVaccination: deleteVaccinationFn,
       })(onSuccess);
     },

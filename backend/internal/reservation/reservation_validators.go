@@ -70,7 +70,8 @@ func IsLineReservationSettingsUnset(err error) bool {
 
 // ReservationValidators は予約制限チェックのインターフェース。
 type ReservationValidators interface {
-	ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.Reservation, error)
+	// ValidateAndCreate returns an absorbed intent owner for post-commit synchronization.
+	ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.Reservation, *uint64, error)
 }
 
 // CreateReservationInput は予約作成の入力。
@@ -88,6 +89,11 @@ type CreateReservationInput struct {
 	TrimmingCourseID     *uint64  // BE-120: トリミングコース（category=trimming 時）
 	TrimmingOptionIDs    []uint64 // BE-120: トリミングオプション
 	TrimmingStyleRequest string   // BE-120: スタイルリクエスト
+	// EMR-308: 作成前に解決済みの紐付け先 owner/pet。設定時は予約行に直接載せ、
+	// 同ペットの active tentative があれば新規行ではなく同一行を昇格する。
+	// 未設定（未リンク顧客）のときは従来どおり nil のまま作成する。
+	OwnerID *uint64
+	PetID   *uint64
 }
 
 type reservationValidators struct {
@@ -124,24 +130,24 @@ func NewReservationValidators(
 	}
 }
 
-func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.Reservation, error) {
+func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.Reservation, *uint64, error) {
 	if input == nil {
-		return nil, apperrors.WrapInvalidInput("reservation input is required")
+		return nil, nil, apperrors.WrapInvalidInput("reservation input is required")
 	}
 	if input.Settings == nil {
-		return nil, apperrors.WrapInternalServerError("LINE reservation settings are required")
+		return nil, nil, apperrors.WrapInternalServerError("LINE reservation settings are required")
 	}
 	if v.tx == nil {
-		return nil, apperrors.WrapInternalServerError("LINE reservation transactor is required")
+		return nil, nil, apperrors.WrapInternalServerError("LINE reservation transactor is required")
 	}
 	if v.repo == nil {
-		return nil, apperrors.WrapInternalServerError("LINE reservation repository is required")
+		return nil, nil, apperrors.WrapInternalServerError("LINE reservation repository is required")
 	}
 	settings := input.Settings
 
 	// 稼働状態チェック
 	if settings.Status != "running" {
-		return nil, &ReservationLimitError{
+		return nil, nil, &ReservationLimitError{
 			Code:    "MAINTENANCE",
 			Message: "只今、メンテナンス中です。暫くお待ちください。",
 		}
@@ -151,21 +157,23 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 	// GET /available-times は正しく除外しているが、POST /reservations は素通りしていた。
 	// 直接 API を叩かれても無効な予約を受け付けないようにする。
 	if err := validateBusinessRules(ctx, settings, input.Date, input.StartTime, input.EndTime); err != nil {
-		return nil, apperrors.Wrap(err, "failed to validate business rules")
+		return nil, nil, apperrors.Wrap(err, "failed to validate business rules")
 	}
 
 	var result *model.Reservation
+	var previousOwnerID *uint64
 	if err := v.tx.WithTx(ctx, func(ctx context.Context) error {
-		created, err := v.createLineReservationInTx(ctx, input, settings)
+		created, previous, err := v.createLineReservationInTx(ctx, input, settings)
 		if err != nil {
 			return err
 		}
 		result = created
+		previousOwnerID = previous
 		return nil
 	}); err != nil {
-		return nil, apperrors.Wrap(err, "failed to create line reservation")
+		return nil, nil, apperrors.Wrap(err, "failed to create line reservation")
 	}
-	return result, nil
+	return result, previousOwnerID, nil
 }
 
 // validateReservationMasterOwnership は master-FK（ReservationTypeID/TrimmingCourseID/
@@ -269,6 +277,8 @@ func buildLineReservation(input *CreateReservationInput, startDT, endDT time.Tim
 		Status:            model.ReservationStatusConfirmed,
 		Source:            model.ReservationSourceLine,
 		LineCustomerID:    &input.CustomerID,
+		OwnerID:           input.OwnerID,
+		PetID:             input.PetID,
 		IsStaffDelegated:  input.StaffID == 0,
 		CustomerFields:    customerFields,
 		Notes:             notes,

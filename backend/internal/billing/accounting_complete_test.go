@@ -10,9 +10,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
@@ -239,6 +241,240 @@ func TestAccountingService_CompleteAccounting_OpenPeriodAtomicSuccess(t *testing
 	require.NotNil(t, savedPayment)
 	assert.Equal(t, int64(1100), savedPayment.TotalAmount, "server total, not client")
 	assert.Len(t, savedSplits, 1)
+}
+
+// TestAccountingService_CompleteAccounting_SyncsNextVisitTagPostCommit は Codex #23:
+// accounting→completed 遷移で予約が next_visit 対象集合から外れるため、commit 成功後に
+// next_visit_* タグを best-effort 再同期することを固定する。
+func TestAccountingService_CompleteAccounting_SyncsNextVisitTagPostCommit(t *testing.T) {
+	key := uuid.NewString()
+	ownerID := uint64(10)
+	repo := &mockAccountingRepository{
+		findByCompletionRequestIDFn: func(_ context.Context, _ uint64, _ string) (*model.Billing, error) {
+			return nil, nil
+		},
+		createFn: func(_ context.Context, clinicID uint64, b *model.Billing) error {
+			b.ID = 42
+			b.ClinicID = clinicID
+			return nil
+		},
+		updateFieldsFn: func(_ context.Context, _, id uint64, _ AccountingUpdate) (*model.Billing, error) {
+			return &model.Billing{ID: id, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
+		},
+		savePaymentFn: func(_ context.Context, _ *model.Payment) error { return nil },
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Billing, error) {
+			return &model.Billing{
+				ID: id, ClinicID: 1, OwnerID: &ownerID, Status: model.BillingStatusCompleted,
+				CompletionRequestID:   &key,
+				CompletionRequestHash: strPtr(mustDigest(validCompleteInput(key))),
+			}, nil
+		},
+	}
+	var nextVisitCalls []uint64
+	tagSync := &mockLstepTagSyncService{
+		syncNextVisitTagFn: func(_ context.Context, _, oid uint64) error {
+			nextVisitCalls = append(nextVisitCalls, oid)
+			return nil
+		},
+	}
+	items := &mockCompleteItemWriter{}
+	totals := &mockCompleteTotalsWriter{subtotal: 1000, taxTotal: 100, total: 1100}
+	svc := NewAccountingService(
+		repo, nil, nil, matchingReservationRepo(), tagSync,
+		&mockTransactor{}, &mockAuditService{}, seededPayMethodMock(),
+		WithCompleteItemWriter(items), WithCompleteTotalsWriter(totals),
+	)
+
+	result, err := svc.Complete(context.Background(), validCompleteInput(key))
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.True(t, result.Created)
+	assert.Equal(t, []uint64{ownerID}, nextVisitCalls,
+		"Codex #23: 会計完了で billing の owner の next_visit_* タグを post-commit 再同期する")
+}
+
+// TestAccountingService_CompleteAccounting_NextVisitSyncErrorIsBestEffort は Codex #23:
+// next_visit タグ再同期の失敗は会計完了の成否に影響しないことを固定する。
+func TestAccountingService_CompleteAccounting_NextVisitSyncErrorIsBestEffort(t *testing.T) {
+	key := uuid.NewString()
+	ownerID := uint64(10)
+	repo := &mockAccountingRepository{
+		findByCompletionRequestIDFn: func(_ context.Context, _ uint64, _ string) (*model.Billing, error) {
+			return nil, nil
+		},
+		createFn: func(_ context.Context, clinicID uint64, b *model.Billing) error {
+			b.ID = 42
+			b.ClinicID = clinicID
+			return nil
+		},
+		updateFieldsFn: func(_ context.Context, _, id uint64, _ AccountingUpdate) (*model.Billing, error) {
+			return &model.Billing{ID: id, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
+		},
+		savePaymentFn: func(_ context.Context, _ *model.Payment) error { return nil },
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Billing, error) {
+			return &model.Billing{
+				ID: id, ClinicID: 1, OwnerID: &ownerID, Status: model.BillingStatusCompleted,
+				CompletionRequestID:   &key,
+				CompletionRequestHash: strPtr(mustDigest(validCompleteInput(key))),
+			}, nil
+		},
+	}
+	tagSync := &mockLstepTagSyncService{
+		syncNextVisitTagFn: func(_ context.Context, _, _ uint64) error {
+			return errors.New("lstep unreachable")
+		},
+	}
+	svc := NewAccountingService(
+		repo, nil, nil, matchingReservationRepo(), tagSync,
+		&mockTransactor{}, &mockAuditService{}, seededPayMethodMock(),
+		WithCompleteItemWriter(&mockCompleteItemWriter{}),
+		WithCompleteTotalsWriter(&mockCompleteTotalsWriter{subtotal: 1000, taxTotal: 100, total: 1100}),
+	)
+
+	result, err := svc.Complete(context.Background(), validCompleteInput(key))
+
+	require.NoError(t, err, "tag sync 失敗は best-effort —— 会計完了を失敗にしない")
+	require.NotNil(t, result)
+	assert.True(t, result.Created)
+}
+
+func TestAccountingService_CompleteAccounting_NextVisitSyncDetachedSharedDeadline(t *testing.T) {
+	key := uuid.NewString()
+	ownerID := uint64(10)
+	repo := &mockAccountingRepository{
+		findByCompletionRequestIDFn: func(_ context.Context, _ uint64, _ string) (*model.Billing, error) {
+			return nil, nil
+		},
+		createFn: func(_ context.Context, clinicID uint64, b *model.Billing) error {
+			b.ID = 42
+			b.ClinicID = clinicID
+			return nil
+		},
+		updateFieldsFn: func(_ context.Context, _, id uint64, _ AccountingUpdate) (*model.Billing, error) {
+			return &model.Billing{ID: id, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
+		},
+		savePaymentFn: func(_ context.Context, _ *model.Payment) error { return nil },
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Billing, error) {
+			return &model.Billing{
+				ID: id, ClinicID: 1, OwnerID: &ownerID, Status: model.BillingStatusCompleted,
+				CompletionRequestID:   &key,
+				CompletionRequestHash: strPtr(mustDigest(validCompleteInput(key))),
+			}, nil
+		},
+	}
+	type traceKeyT struct{}
+	type observedCall struct {
+		ownerID     uint64
+		err         error
+		deadline    time.Time
+		hasDeadline bool
+		ambientTx   bool
+		trace       any
+	}
+	var calls []observedCall
+	tagSync := &mockLstepTagSyncService{
+		syncNextVisitTagFn: func(ctx context.Context, _, oid uint64) error {
+			deadline, hasDeadline := ctx.Deadline()
+			calls = append(calls, observedCall{
+				ownerID: oid, err: ctx.Err(), deadline: deadline, hasDeadline: hasDeadline,
+				ambientTx: persistence.TxFromContext(ctx) != nil,
+				trace:     ctx.Value(traceKeyT{}),
+			})
+			return nil
+		},
+	}
+	reservations := matchingReservationRepo()
+	reservations.completeForAccountingWithOwnersFn = func(_ context.Context, _ uint64, _, _, _ *uint64, _ time.Time) (int64, []uint64, error) {
+		return 2, []uint64{11, 12, 10}, nil
+	}
+	outer, cancelOuter := context.WithCancel(
+		persistence.WithTxValue(context.WithValue(context.Background(), traceKeyT{}, "trace-1"), &gorm.DB{}))
+	tx := &mockTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+		err := fn(ctx)
+		cancelOuter()
+		return err
+	}}
+	svc := NewAccountingService(
+		repo, nil, nil, reservations, tagSync,
+		tx, &mockAuditService{}, seededPayMethodMock(),
+		WithCompleteItemWriter(&mockCompleteItemWriter{}),
+		WithCompleteTotalsWriter(&mockCompleteTotalsWriter{subtotal: 1000, taxTotal: 100, total: 1100}),
+	)
+
+	result, err := svc.Complete(outer, validCompleteInput(key))
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.True(t, result.Created)
+	require.Len(t, calls, 3, "completed owners 11,12 と billing owner 10 の重複を除去して3件")
+	assert.Equal(t, []uint64{11, 12, 10}, []uint64{calls[0].ownerID, calls[1].ownerID, calls[2].ownerID})
+	for i, call := range calls {
+		assert.NoError(t, call.err, "call %d must not observe caller cancellation", i)
+		assert.True(t, call.hasDeadline, "call %d must carry the shared timeout", i)
+		assert.LessOrEqual(t, time.Until(call.deadline), 30*time.Second, "call %d deadline beyond 30s", i)
+		assert.Greater(t, time.Until(call.deadline), 0*time.Second, "call %d deadline already expired", i)
+		assert.False(t, call.ambientTx, "call %d must not see the ambient tx", i)
+		assert.Equal(t, "trace-1", call.trace, "call %d must retain trace values", i)
+	}
+	assert.True(t, calls[0].deadline.Equal(calls[1].deadline) && calls[1].deadline.Equal(calls[2].deadline),
+		"all owners share one detached deadline")
+}
+
+func TestAccountingService_CompleteAccounting_RollbackSkipsNextVisitSync(t *testing.T) {
+	key := uuid.NewString()
+	ownerID := uint64(10)
+	repo := &mockAccountingRepository{
+		findByCompletionRequestIDFn: func(_ context.Context, _ uint64, _ string) (*model.Billing, error) {
+			return nil, nil
+		},
+		createFn: func(_ context.Context, clinicID uint64, b *model.Billing) error {
+			b.ID = 42
+			b.ClinicID = clinicID
+			return nil
+		},
+		updateFieldsFn: func(_ context.Context, _, id uint64, _ AccountingUpdate) (*model.Billing, error) {
+			return &model.Billing{ID: id, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
+		},
+		savePaymentFn: func(_ context.Context, _ *model.Payment) error { return nil },
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Billing, error) {
+			return &model.Billing{
+				ID: id, ClinicID: 1, OwnerID: &ownerID, Status: model.BillingStatusCompleted,
+				CompletionRequestID:   &key,
+				CompletionRequestHash: strPtr(mustDigest(validCompleteInput(key))),
+			}, nil
+		},
+	}
+	syncCalls := 0
+	tagSync := &mockLstepTagSyncService{
+		syncNextVisitTagFn: func(_ context.Context, _, _ uint64) error {
+			syncCalls++
+			return nil
+		},
+	}
+	reservations := matchingReservationRepo()
+	reservations.completeForAccountingWithOwnersFn = func(_ context.Context, _ uint64, _, _, _ *uint64, _ time.Time) (int64, []uint64, error) {
+		return 1, []uint64{10}, nil
+	}
+	commitErr := errors.New("commit failed")
+	tx := &mockTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+		if err := fn(ctx); err != nil {
+			return err
+		}
+		return commitErr
+	}}
+	svc := NewAccountingService(
+		repo, nil, nil, reservations, tagSync,
+		tx, &mockAuditService{}, seededPayMethodMock(),
+		WithCompleteItemWriter(&mockCompleteItemWriter{}),
+		WithCompleteTotalsWriter(&mockCompleteTotalsWriter{subtotal: 1000, taxTotal: 100, total: 1100}),
+	)
+
+	result, err := svc.Complete(context.Background(), validCompleteInput(key))
+
+	require.ErrorIs(t, err, commitErr)
+	assert.Nil(t, result)
+	assert.Zero(t, syncCalls, "rollback must not trigger post-commit tag sync")
 }
 
 // TestAccountingService_CompleteAccounting_NormalizesNegativeInsuranceAmount は EMR-62:
@@ -1395,3 +1631,45 @@ func mustDigest(input *CompleteAccountingInput) string {
 }
 
 func strPtr(s string) *string { return &s }
+
+func TestAccountingComplete_SyncsActualAppointmentOwnersWithNilBillingOwner(t *testing.T) {
+	key := uuid.NewString()
+	committed := false
+	repo := &mockAccountingRepository{
+		findByCompletionRequestIDFn: func(context.Context, uint64, string) (*model.Billing, error) { return nil, nil },
+		createFn: func(_ context.Context, clinicID uint64, b *model.Billing) error {
+			b.ID = 42
+			b.ClinicID = clinicID
+			return nil
+		},
+		updateFieldsFn: func(context.Context, uint64, uint64, AccountingUpdate) (*model.Billing, error) {
+			return &model.Billing{ID: 42, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
+		},
+		findByIDFn: func(context.Context, uint64, uint64) (*model.Billing, error) {
+			return &model.Billing{ID: 42, ClinicID: 1, Status: model.BillingStatusCompleted, CompletionRequestID: &key, CompletionRequestHash: strPtr(mustDigest(validCompleteInput(key)))}, nil
+		},
+	}
+	appointments := matchingReservationRepo()
+	appointments.completeForAccountingWithOwnersFn = func(context.Context, uint64, *uint64, *uint64, *uint64, time.Time) (int64, []uint64, error) {
+		assert.False(t, committed)
+		return 3, []uint64{7, 8, 7}, nil
+	}
+	tx := &mockTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+		if err := fn(ctx); err != nil {
+			return err
+		}
+		committed = true
+		return nil
+	}}
+	var synced []uint64
+	tags := &mockLstepTagSyncService{syncNextVisitTagFn: func(_ context.Context, _ uint64, ownerID uint64) error {
+		assert.True(t, committed)
+		synced = append(synced, ownerID)
+		return nil
+	}}
+	svc := NewAccountingService(repo, nil, nil, appointments, tags, tx, &mockAuditService{}, seededPayMethodMock(), WithCompleteItemWriter(&mockCompleteItemWriter{}), WithCompleteTotalsWriter(&mockCompleteTotalsWriter{subtotal: 1000, taxTotal: 100, total: 1100}))
+	got, err := svc.Complete(context.Background(), validCompleteInput(key))
+	require.NoError(t, err)
+	assert.Nil(t, got.Accounting.OwnerID)
+	assert.Equal(t, []uint64{7, 8}, synced)
+}

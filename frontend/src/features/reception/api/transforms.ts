@@ -95,10 +95,16 @@ export function transformReservationToReceptionAppointment(
     petStatus?: PetStatus;
     petDangerLevel?: DangerLevel;
     petDangerReason?: string;
+    petBirthDate?: string;
+    petDeceasedAt?: string;
   } = {
     petStatus: pet?.status,
     petDangerLevel: pet?.danger_level,
     petDangerReason: pet?.danger_reason,
+    // EMR-301: 誕生月バッジ判定用。YYYY-MM-DD wire 値をそのまま伝播する。
+    petBirthDate: pet?.birth_date,
+    // 死亡OR契約（status=deceased または deceased_at 非null）用に伝播する。
+    petDeceasedAt: pet?.deceased_at,
   };
   const ownerName = reservation.owner?.name ?? cf.owner_name ?? cf.customer_name ?? "";
   // スタッフ向け飼主危険マーク (EMR-173)。reservation.owner は owner サマリで
@@ -146,7 +152,13 @@ export function transformReservationsToReceptionColumns(
   reservations: BackendReceptionReservation[],
 ): ReceptionColumn[] {
   const activeReservations = reservations.filter(
-    (r) => r.status !== "cancelled" && r.status !== "no_show",
+    (r) =>
+      r.status !== "cancelled" &&
+      r.status !== "no_show" &&
+      // EMR-308: tentative（次回予定・未予約）は実受付ではない sentinel 行。
+      // STATUS_TO_COLUMN_ID 未登録 → 受付予約列に落ちて誤ドラッグされるのを防ぐため除外。
+      // generated 型に "tentative" が無いため String 比較で回避する。
+      String(r.status) !== "tentative",
   );
   const appointments = activeReservations.map(transformReservationToReceptionAppointment);
 

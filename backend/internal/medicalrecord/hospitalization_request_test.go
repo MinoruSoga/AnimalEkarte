@@ -221,7 +221,8 @@ func TestCreateHospitalizationRequest_ToServiceInput_EmptyStatus(t *testing.T) {
 	}
 }
 
-func TestCreateHospitalizationRequest_ToServiceInput_RequiresCageID(t *testing.T) {
+// EMR-316: BUG-037 の必須化を撤回。cage_id 省略は「ケージ未割当」、0 のみ不正値として拒否する。
+func TestCreateHospitalizationRequest_ToServiceInput_CageIDOptional(t *testing.T) {
 	startDate := time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2026, 5, 30, 0, 0, 0, 0, time.UTC)
 	base := createHospitalizationRequest{
@@ -231,21 +232,117 @@ func TestCreateHospitalizationRequest_ToServiceInput_RequiresCageID(t *testing.T
 		StartDate:           startDate,
 		EndDate:             endDate,
 	}
-	t.Run("nil cage_id", func(t *testing.T) {
-		_, err := base.toServiceInput()
-		if err == nil {
-			t.Fatal("toServiceInput() error = nil, want cage_id required")
+	t.Run("nil cage_id is accepted as cageless", func(t *testing.T) {
+		input, err := base.toServiceInput()
+		if err != nil {
+			t.Fatalf("toServiceInput() error = %v, want nil for cageless create", err)
+		}
+		if input.CageID != nil {
+			t.Fatalf("CageID = %v, want nil", *input.CageID)
 		}
 	})
-	t.Run("zero cage_id", func(t *testing.T) {
+	t.Run("zero cage_id is rejected", func(t *testing.T) {
 		zero := uint64(0)
 		req := base
 		req.CageID = &zero
 		_, err := req.toServiceInput()
 		if err == nil {
-			t.Fatal("toServiceInput() error = nil, want cage_id required")
+			t.Fatal("toServiceInput() error = nil, want cage_id invalid")
 		}
 	})
+	t.Run("positive cage_id is preserved", func(t *testing.T) {
+		id := uint64(10)
+		req := base
+		req.CageID = &id
+		input, err := req.toServiceInput()
+		if err != nil {
+			t.Fatalf("toServiceInput() error = %v", err)
+		}
+		if input.CageID != &id {
+			t.Fatal("CageID pointer was not preserved")
+		}
+	})
+}
+
+func TestUpdateHospitalizationRequest_ToServiceInput_ClearCageID(t *testing.T) {
+	t.Run("clear_cage_id is forwarded", func(t *testing.T) {
+		expected := uint64(10)
+		input, err := (&updateHospitalizationRequest{ClearCageID: true, ExpectedCageID: &expected}).toServiceInput()
+		if err != nil {
+			t.Fatalf("toServiceInput() error = %v", err)
+		}
+		if !input.ClearCageID || input.CageID != nil {
+			t.Fatalf("ClearCageID=%v CageID=%v, want true/nil", input.ClearCageID, input.CageID)
+		}
+		if input.ExpectedCageID == nil || *input.ExpectedCageID != expected {
+			t.Fatalf("ExpectedCageID=%v, want %d", input.ExpectedCageID, expected)
+		}
+	})
+	t.Run("clear_cage_id without expected_cage_id is rejected", func(t *testing.T) {
+		_, err := (&updateHospitalizationRequest{ClearCageID: true}).toServiceInput()
+		if err == nil {
+			t.Fatal("toServiceInput() error = nil, want missing expected_cage_id error")
+		}
+	})
+	t.Run("clear_cage_id with zero expected_cage_id is rejected", func(t *testing.T) {
+		zero := uint64(0)
+		_, err := (&updateHospitalizationRequest{ClearCageID: true, ExpectedCageID: &zero}).toServiceInput()
+		if err == nil {
+			t.Fatal("toServiceInput() error = nil, want zero expected_cage_id error")
+		}
+	})
+	t.Run("clear_cage_id with cage_id is rejected", func(t *testing.T) {
+		id := uint64(10)
+		_, err := (&updateHospitalizationRequest{ClearCageID: true, CageID: &id, ExpectedCageID: &id}).toServiceInput()
+		if err == nil {
+			t.Fatal("toServiceInput() error = nil, want conflict error")
+		}
+	})
+	t.Run("clear_cage_id with expected_cage_is_null is forwarded", func(t *testing.T) {
+		input, err := (&updateHospitalizationRequest{ClearCageID: true, ExpectedCageIsNull: true}).toServiceInput()
+		if err != nil {
+			t.Fatalf("toServiceInput() error = %v", err)
+		}
+		if !input.ClearCageID || !input.ExpectedCageIsNull {
+			t.Fatalf("ClearCageID=%v ExpectedCageIsNull=%v, want true/true", input.ClearCageID, input.ExpectedCageIsNull)
+		}
+	})
+}
+
+func TestUpdateHospitalizationRequest_ToServiceInput_CageSetGuards(t *testing.T) {
+	id := uint64(10)
+	zero := uint64(0)
+	tests := []struct {
+		name    string
+		req     updateHospitalizationRequest
+		wantErr bool
+	}{
+		{name: "cage_id with expected_cage_id is accepted", req: updateHospitalizationRequest{CageID: &id, ExpectedCageID: &id}},
+		{name: "cage_id with expected_cage_is_null is accepted", req: updateHospitalizationRequest{CageID: &id, ExpectedCageIsNull: true}},
+		{name: "cage_id without expected is rejected", req: updateHospitalizationRequest{CageID: &id}, wantErr: true},
+		{name: "cage_id with zero expected_cage_id is rejected", req: updateHospitalizationRequest{CageID: &id, ExpectedCageID: &zero}, wantErr: true},
+		{name: "cage_id with both expected guards is rejected", req: updateHospitalizationRequest{CageID: &id, ExpectedCageID: &id, ExpectedCageIsNull: true}, wantErr: true},
+		{name: "zero cage_id is rejected", req: updateHospitalizationRequest{CageID: &zero, ExpectedCageID: &id}, wantErr: true},
+		{name: "expected_cage_id without cage operation is rejected", req: updateHospitalizationRequest{ExpectedCageID: &id}, wantErr: true},
+		{name: "expected_cage_is_null without cage operation is rejected", req: updateHospitalizationRequest{ExpectedCageIsNull: true}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input, err := tt.req.toServiceInput()
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("toServiceInput() error = nil, want error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("toServiceInput() error = %v", err)
+			}
+			if input.CageID != &id {
+				t.Fatal("CageID pointer was not preserved")
+			}
+		})
+	}
 }
 
 func TestCreateHospitalizationRequest_ToServiceInput_InvalidHospitalizationType(t *testing.T) {
@@ -279,6 +376,7 @@ func TestUpdateHospitalizationRequest_ToServiceInput(t *testing.T) {
 	endDate := time.Date(2026, 5, 30, 0, 0, 0, 0, time.UTC)
 	status := string(model.HospitalizationStatusAdmitted)
 	cageID := uint64(10)
+	expectedCageID := uint64(9)
 	doctorID := uint64(20)
 	memo := "memo"
 	ownerRequest := "request"
@@ -295,6 +393,7 @@ func TestUpdateHospitalizationRequest_ToServiceInput(t *testing.T) {
 		EndDate:              &endDate,
 		Status:               &status,
 		CageID:               &cageID,
+		ExpectedCageID:       &expectedCageID,
 		DoctorID:             &doctorID,
 		Memo:                 &memo,
 		OwnerRequest:         &ownerRequest,
@@ -309,6 +408,9 @@ func TestUpdateHospitalizationRequest_ToServiceInput(t *testing.T) {
 
 	if input.OwnerID != &ownerID {
 		t.Fatalf("OwnerID pointer was not preserved")
+	}
+	if input.ExpectedCageID != &expectedCageID {
+		t.Fatalf("ExpectedCageID pointer was not preserved")
 	}
 	if input.HospitalizationType == nil || *input.HospitalizationType != model.HospitalizationTypeInpatient {
 		t.Fatalf("HospitalizationType = %v, want %s", input.HospitalizationType, model.HospitalizationTypeInpatient)

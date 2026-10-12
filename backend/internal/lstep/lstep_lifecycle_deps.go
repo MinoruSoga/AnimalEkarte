@@ -24,6 +24,8 @@ type lifecycleOwnerDependency interface {
 
 type lifecyclePetRepository interface {
 	FindByID(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
+	// LockByIDForUpdate fixes lifecycle facts and the current owner until the transaction commits.
+	LockByIDForUpdate(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
 	FindLivingByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Pet, error)
 }
 
@@ -50,6 +52,10 @@ type lifecycleTagSyncer interface {
 	SyncOwnerAnimalClassificationTags(ctx context.Context, clinicID, ownerID uint64) error
 	SyncPetBasicInfoTags(ctx context.Context, clinicID, ownerID uint64) error
 	SyncCPMStageTag(ctx context.Context, clinicID, ownerID uint64) error
+	// SyncNextVisitTag は飼い主の next_visit_* タグを再同期する（EMR-308）。
+	// Codex #24: 死亡で死亡ペットの tentative が対象外になり、復活で再度対象に
+	// なるため、death/revival 双方の post-commit で呼び出す。
+	SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error
 }
 
 type lifecycleOperationAuditor interface {

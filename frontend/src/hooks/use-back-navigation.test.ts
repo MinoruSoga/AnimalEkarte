@@ -17,6 +17,20 @@ describe("useBackNavigation", () => {
     locationState = null;
   });
 
+  it("listReturnState を一覧の戻り先として渡す", () => {
+    locationState = {
+      from: "/vaccinations?petId=10&page=2",
+      listReturnState: { from: "/?date=2026-05-29" },
+    };
+    const { result } = renderHook(() => useBackNavigation("/vaccinations"));
+
+    result.current();
+
+    expect(navigate).toHaveBeenCalledWith("/vaccinations?petId=10&page=2", {
+      state: { from: "/?date=2026-05-29" },
+    });
+  });
+
   it("state.from の内部パスへ戻る", () => {
     locationState = { from: "/?date=2026-06-05" };
     const { result } = renderHook(() => useBackNavigation("/owners"));

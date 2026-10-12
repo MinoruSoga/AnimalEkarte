@@ -46,6 +46,7 @@ type reservationAdminService struct {
 	availableSlotRepo    ReservationTypeAvailableSlotRepository
 	medicalRecord        medicalRecordAutoCreator
 	holidayFinder        clinicHolidayFinder
+	nextVisitTagSync     NextVisitTagSyncer
 }
 
 func NewReservationAdminServiceWithAvailabilityAndType(repo ReservationAdminRepository, resRepo ReservationRepository, typeRepo reservationTypeFinder, tx Transactor, reservationStaffRepo ReservationStaffWriteGuard, unavailableTimeRepo ReservationTypeUnavailableTimeRepository, availableSlotRepo ...ReservationTypeAvailableSlotRepository) ReservationAdminService {
@@ -53,9 +54,12 @@ func NewReservationAdminServiceWithAvailabilityAndType(repo ReservationAdminRepo
 	if len(availableSlotRepo) > 0 {
 		slotRepo = availableSlotRepo[0]
 	}
-	return newReservationAdminService(repo, resRepo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, slotRepo, nil, nil)
+	return newReservationAdminService(repo, resRepo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, slotRepo, nil, nil, nil)
 }
 
+// NewReservationAdminServiceWithMedicalRecord は医療記録自動作成連携込みのコンストラクタ。
+// EMR-308: nextVisitTagSyncs は省略可の post-commit next-visit タグ同期 hook
+// （composition root が LSTEP TagSync を注入する。未注入時は best-effort no-op）。
 func NewReservationAdminServiceWithMedicalRecord(
 	repo ReservationAdminRepository,
 	resRepo ReservationRepository,
@@ -66,8 +70,13 @@ func NewReservationAdminServiceWithMedicalRecord(
 	availableSlotRepo ReservationTypeAvailableSlotRepository,
 	medicalRecord medicalRecordAutoCreator,
 	holidayFinder clinicHolidayFinder,
+	nextVisitTagSyncs ...NextVisitTagSyncer,
 ) ReservationAdminService {
-	return newReservationAdminService(repo, resRepo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, availableSlotRepo, medicalRecord, holidayFinder)
+	var nextVisitTagSync NextVisitTagSyncer
+	if len(nextVisitTagSyncs) > 0 {
+		nextVisitTagSync = nextVisitTagSyncs[0]
+	}
+	return newReservationAdminService(repo, resRepo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, availableSlotRepo, medicalRecord, holidayFinder, nextVisitTagSync)
 }
 
 func NewReservationAdminServiceWithClinicHolidays(
@@ -80,7 +89,7 @@ func NewReservationAdminServiceWithClinicHolidays(
 	availableSlotRepo ReservationTypeAvailableSlotRepository,
 	holidayFinder clinicHolidayFinder,
 ) ReservationAdminService {
-	return newReservationAdminService(repo, resRepo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, availableSlotRepo, nil, holidayFinder)
+	return newReservationAdminService(repo, resRepo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, availableSlotRepo, nil, holidayFinder, nil)
 }
 
 func newReservationAdminService(
@@ -93,6 +102,7 @@ func newReservationAdminService(
 	availableSlotRepo ReservationTypeAvailableSlotRepository,
 	medicalRecord medicalRecordAutoCreator,
 	holidayFinder clinicHolidayFinder,
+	nextVisitTagSync NextVisitTagSyncer,
 ) *reservationAdminService {
 	return &reservationAdminService{
 		repo:                 repo,
@@ -104,6 +114,7 @@ func newReservationAdminService(
 		availableSlotRepo:    availableSlotRepo,
 		medicalRecord:        medicalRecord,
 		holidayFinder:        holidayFinder,
+		nextVisitTagSync:     nextVisitTagSync,
 	}
 }
 
@@ -146,6 +157,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 
 	doctorID := normalizeCreateDoctorID(input.DoctorID)
 	var result *model.Reservation
+	var previousOwnerID *uint64
 	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		// RSV-02: clinic-scoped advisory lock before FOR UPDATE capacity/conflict checks
 		// (same order as reservationService.Create / ValidateAndCreate).
@@ -193,16 +205,22 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 			IsStaffDelegated:  input.IsStaffDelegated,
 			CustomerFields:    customerFields,
 		}
-		if err := s.resRepo.Create(ctx, ra); err != nil {
+		// EMR-308: walk-in/管理作成でもペットの active tentative を同一行昇格する。
+		created, previous, err := createOrPromoteTentative(ctx, s.resRepo, ra)
+		if err != nil {
 			return apperrors.Wrap(err, "create reservation appointment")
 		}
-		result = ra
+		result = created
+		previousOwnerID = previous
 		return nil
 	})
 	if err != nil {
 		return nil, apperrors.Wrap(err, "create reservation appointment (transaction)")
 	}
 
+	// EMR-308: 管理/walk-in 作成（tentative 昇格含む）で飼い主の次回来院が変わり得るため
+	// post-commit で next_visit タグを再同期する（best-effort・未注入は no-op）。
+	syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, previousOwnerID, result.OwnerID)
 	slog.InfoContext(ctx, "admin reservation created",
 		slog.Uint64("reservation_id", result.ID),
 		slog.Uint64("clinic_id", clinicID))
@@ -210,12 +228,25 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 }
 
 func (s *reservationAdminService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.resRepo.FindByID(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to find reservation appointment")
+	if s.tx == nil {
+		return apperrors.WrapInternalServerError("reservation transaction dependency is required")
 	}
-	if err := s.repo.SoftDelete(ctx, clinicID, id); err != nil {
+	var previousOwnerID, currentPetOwnerID *uint64
+	if err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
+		locked, err := s.resRepo.LockAndFindByID(txCtx, clinicID, id)
+		if err != nil {
+			return err
+		}
+		previousOwnerID = locked.OwnerID
+		currentPetOwnerID, err = resolveTentativePetOwner(txCtx, s.resRepo, clinicID, locked)
+		if err != nil {
+			return err
+		}
+		return s.repo.SoftDelete(txCtx, clinicID, id)
+	}); err != nil {
 		return apperrors.Wrap(err, "failed to delete reservation appointment")
 	}
+	syncNextVisitTagsBestEffort(ctx, s.nextVisitTagSync, clinicID, previousOwnerID, currentPetOwnerID)
 	if s.medicalRecord != nil {
 		s.medicalRecord.DeleteDraftFromReservation(ctx, clinicID, id)
 	}

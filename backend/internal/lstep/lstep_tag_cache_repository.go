@@ -66,56 +66,85 @@ func NewLstepTagCacheRepository(db *gorm.DB) LstepTagCacheRepository {
 }
 
 func (r *lstepTagCacheRepository) UpsertTag(ctx context.Context, clinicID, ownerID uint64, tagName, category, reason string) error {
-	var reasonPtr *string
-	if reason != "" {
-		reasonPtr = &reason
+	write := func(writeCtx context.Context) error {
+		var reasonPtr *string
+		if reason != "" {
+			reasonPtr = &reason
+		}
+		record := &model.LstepTagCache{
+			ClinicID: clinicID,
+			OwnerID:  ownerID,
+			TagName:  tagName,
+			Category: category,
+			Reason:   reasonPtr,
+			SyncedAt: time.Now(),
+		}
+		err := persistence.DBOrTx(writeCtx, r.db).
+			Scopes(persistence.ClinicScope(clinicID)).
+			Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "clinic_id"}, {Name: "owner_id"}, {Name: "tag_name"}},
+				DoUpdates: clause.AssignmentColumns([]string{"category", "reason", "synced_at"}),
+			}).
+			Create(record).Error
+		if err != nil {
+			return apperrors.FromGORM(err, "lstep_tag_cache", fmt.Sprintf("owner=%d tag=%s", ownerID, tagName))
+		}
+		return nil
 	}
-	record := &model.LstepTagCache{
-		ClinicID: clinicID,
-		OwnerID:  ownerID,
-		TagName:  tagName,
-		Category: category,
-		Reason:   reasonPtr,
-		SyncedAt: time.Now(),
+	if tagName != exclTagDeliveryStop {
+		return write(ctx)
 	}
-	err := r.db.WithContext(ctx).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "clinic_id"}, {Name: "owner_id"}, {Name: "tag_name"}},
-			DoUpdates: clause.AssignmentColumns([]string{"category", "reason", "synced_at"}),
-		}).
-		Create(record).Error
-	if err != nil {
-		return apperrors.FromGORM(err, "lstep_tag_cache", fmt.Sprintf("owner=%d tag=%s", ownerID, tagName))
-	}
-	return nil
+	return r.withOwnerRowLock(ctx, clinicID, ownerID, write)
 }
 
 func (r *lstepTagCacheRepository) DeleteTag(ctx context.Context, clinicID, ownerID uint64, tagName string) error {
-	err := r.db.WithContext(ctx).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Where("owner_id = ? AND tag_name = ?", ownerID, tagName).
-		Delete(&model.LstepTagCache{}).Error
-	if err != nil {
-		return apperrors.FromGORM(err, "lstep_tag_cache", fmt.Sprintf("owner=%d tag=%s", ownerID, tagName))
+	write := func(writeCtx context.Context) error {
+		err := persistence.DBOrTx(writeCtx, r.db).
+			Scopes(persistence.ClinicScope(clinicID)).
+			Where("owner_id = ? AND tag_name = ?", ownerID, tagName).
+			Delete(&model.LstepTagCache{}).Error
+		if err != nil {
+			return apperrors.FromGORM(err, "lstep_tag_cache", fmt.Sprintf("owner=%d tag=%s", ownerID, tagName))
+		}
+		return nil
 	}
-	return nil
+	if tagName != exclTagDeliveryStop {
+		return write(ctx)
+	}
+	return r.withOwnerRowLock(ctx, clinicID, ownerID, write)
 }
 
 func (r *lstepTagCacheRepository) DeleteAllByOwner(ctx context.Context, clinicID, ownerID uint64) error {
-	err := r.db.WithContext(ctx).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Where("owner_id = ?", ownerID).
-		Delete(&model.LstepTagCache{}).Error
-	if err != nil {
-		return apperrors.FromGORM(err, "lstep_tag_cache", fmt.Sprintf("owner=%d", ownerID))
-	}
-	return nil
+	return r.withOwnerRowLock(ctx, clinicID, ownerID, func(writeCtx context.Context) error {
+		err := persistence.DBOrTx(writeCtx, r.db).
+			Scopes(persistence.ClinicScope(clinicID)).
+			Where("owner_id = ?", ownerID).
+			Delete(&model.LstepTagCache{}).Error
+		if err != nil {
+			return apperrors.FromGORM(err, "lstep_tag_cache", fmt.Sprintf("owner=%d", ownerID))
+		}
+		return nil
+	})
+}
+
+// withOwnerRowLock は owner 行を UPDATE ロックしてから fn を実行する。
+// ambient tx があれば savepoint で参加し、なければ lock〜write を同一 tx で
+// 完結させる —— EXCL_配信停止 系の書込みを配信の owner 直列化境界と整合させる。
+func (r *lstepTagCacheRepository) withOwnerRowLock(ctx context.Context, clinicID, ownerID uint64, fn func(context.Context) error) error {
+	return persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		var lockedID uint64
+		if err := tx.Raw("SELECT id FROM owners WHERE clinic_id = ? AND id = ? FOR UPDATE", clinicID, ownerID).
+			Scan(&lockedID).Error; err != nil {
+			return apperrors.Wrap(err, "failed to lock owner for tag cache write")
+		}
+		return fn(txCtx)
+	})
 }
 
 func (r *lstepTagCacheRepository) FindByOwner(ctx context.Context, clinicID, ownerID uint64) ([]*model.LstepTagCache, error) {
 	var records []*model.LstepTagCache
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("owner_id = ?", ownerID).
 		Find(&records).Error
@@ -248,4 +277,83 @@ func (r *lstepTagCacheRepository) FindOwnerIDsByTag(ctx context.Context, clinicI
 		ids[i] = r.OwnerID
 	}
 	return ids, nil
+}
+
+// WithNextVisitOwnerLock starts an independent sync transaction. The caller
+// removes its business transaction before entering; all source/cache operations
+// use DBOrTx with this connection, including with MaxOpenConns=1.
+func (r *lstepTagCacheRepository) WithNextVisitOwnerLock(ctx context.Context, clinicID, ownerID uint64, fn func(context.Context) error) error {
+	if clinicID == 0 || ownerID == 0 || r.db == nil {
+		return apperrors.WrapInternalServerError("next visit lock requires database and scoped owner")
+	}
+	ctx = persistence.WithTxValue(ctx, nil)
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Hash collisions only over-serialize unrelated owners; they never weaken the lock.
+		key := fmt.Sprintf("lstep-next-visit:%d:%d", clinicID, ownerID)
+		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", key).Error; err != nil {
+			return apperrors.Wrap(err, "failed to lock next visit owner")
+		}
+		var lockedOwner model.Owner
+		if err := tx.
+			Unscoped().
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Select("id", "line_user_id").
+			Where("clinic_id = ? AND id = ?", clinicID, ownerID).
+			First(&lockedOwner).Error; err != nil {
+			return apperrors.FromGORM(err, "owner", fmt.Sprint(ownerID))
+		}
+		if lockedOwner.LineUserID != nil && *lockedOwner.LineUserID != "" {
+			if err := persistence.AcquireLineRecipientLock(persistence.WithTxValue(ctx, tx), clinicID, *lockedOwner.LineUserID); err != nil {
+				return err
+			}
+		}
+		return fn(persistence.WithTxValue(ctx, tx))
+	})
+	if err != nil {
+		return apperrors.Wrap(err, "next visit sync transaction failed")
+	}
+	return nil
+}
+
+// WithDeliveryOwnerLock starts an independent sync transaction holding the
+// canonical delivery lock order — owner advisory, owner row UPDATE, recipient
+// advisory, lstep_settings row SHARE — across fn (fresh re-validation through
+// provider return). Owner/LINE mutations and settings OFF writes serialize
+// against the provider call. Ambient transactions are cleared so the boundary
+// owns exactly one connection, including with MaxOpenConns=1.
+func (r *lstepTagCacheRepository) WithDeliveryOwnerLock(ctx context.Context, clinicID, ownerID uint64, fn func(context.Context) error) error {
+	if clinicID == 0 || ownerID == 0 || r.db == nil {
+		return apperrors.WrapInternalServerError("delivery owner lock requires database and scoped owner")
+	}
+	ctx = persistence.WithTxValue(ctx, nil)
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		key := fmt.Sprintf("lstep-next-visit:%d:%d", clinicID, ownerID)
+		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", key).Error; err != nil {
+			return apperrors.Wrap(err, "failed to lock delivery owner")
+		}
+		var lockedOwner model.Owner
+		if err := tx.
+			Unscoped().
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Select("id", "line_user_id").
+			Where("clinic_id = ? AND id = ?", clinicID, ownerID).
+			First(&lockedOwner).Error; err != nil {
+			return apperrors.FromGORM(err, "owner", fmt.Sprint(ownerID))
+		}
+		if lockedOwner.LineUserID != nil && *lockedOwner.LineUserID != "" {
+			if err := persistence.AcquireLineRecipientLock(persistence.WithTxValue(ctx, tx), clinicID, *lockedOwner.LineUserID); err != nil {
+				return err
+			}
+		}
+		var lockedSettingsID uint64
+		if err := tx.Raw("SELECT id FROM lstep_settings WHERE clinic_id = ? FOR SHARE", clinicID).
+			Scan(&lockedSettingsID).Error; err != nil {
+			return apperrors.Wrap(err, "failed to lock lstep settings")
+		}
+		return fn(persistence.WithTxValue(ctx, tx))
+	})
+	if err != nil {
+		return apperrors.Wrap(err, "delivery owner lock transaction failed")
+	}
+	return nil
 }

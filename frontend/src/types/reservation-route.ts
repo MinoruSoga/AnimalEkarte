@@ -17,3 +17,11 @@ export const RESERVATION_ROUTE_LABELS: Record<ReservationRoute, string> = {
   exam_room: "診察室",
   record_shortcut: "記録入力",
 };
+
+/**
+ * EMR-308: BE がカルテ由来 tentative（次回予定）の確定時に書く provenance 値。
+ * ユーザーが選択する値ではなく経路の由来を示すため選択肢には含めず、
+ * 編集モーダルでは読み取り専用ラベルとして表示する（Codex PR606 #12）。
+ */
+export const RESERVATION_ROUTE_RECORD_INTENT = "record_intent";
+export const RESERVATION_ROUTE_RECORD_INTENT_LABEL = "次回予定（カルテ由来）";

@@ -6,6 +6,7 @@ package medicalrecord
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -145,4 +146,195 @@ func (r *cageRepositoryImpl) CountUsageByCageID(ctx context.Context, clinicID, i
 
 func (r *cageRepositoryImpl) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	return persistence.ReorderByClinicID(ctx, r.db, &model.Cage{}, "cage", clinicID, ids, "sort_order")
+}
+
+// ---- cage merge (EMR-306) ----
+
+// CageMergeRepository はケージ一時連結が必要とするロック・占有・リンク操作の面。
+// CageRepository にはメソッドを追加しない（INTERFACE STABILITY: 非所有モックが
+// CageRepository を実装しているため）。*cageRepositoryImpl が実装し、サービスは
+// repo.(CageMergeRepository) の型アサーションで取得する。
+type CageMergeRepository interface {
+	// LockCagesForUpdate は ambient tx 内で医院スコープのケージ行を id 昇順
+	// （デッドロック回避の決定的順序）に FOR UPDATE でロックして返す。
+	// 存在しない・他医院の id が含まれる場合は NotFound。
+	LockCagesForUpdate(ctx context.Context, clinicID uint64, ids []uint64) ([]model.Cage, error)
+	// LockCageGroupForUpdate は代表ケージとそれを merged_into_cage_id で指す
+	// 全構成ケージを1文の id 昇順 FOR UPDATE で原子的にロックして返す。
+	// 構成集合の発見とロックを同一文で行うため、読み取りとロックの間に
+	// メンバーが増減する競合窓がない。代表行が存在しない場合は NotFound。
+	LockCageGroupForUpdate(ctx context.Context, clinicID, representativeID uint64) ([]model.Cage, error)
+	// CountMergedMembers は merged_into_cage_id が representativeIDs に含まれる
+	// ケージ数を代表 id ごとに集計して返す（代表がグループを率いているかの判定）。
+	CountMergedMembers(ctx context.Context, clinicID uint64, representativeIDs []uint64) (map[uint64]int64, error)
+	// CountOccupiedCages は未削除の admitted/reserved 入院をケージ id ごとに集計する。
+	// CountUsageByCageID（退院済みも数える）とは別の、連結可否専用の占有判定。
+	CountOccupiedCages(ctx context.Context, clinicID uint64, cageIDs []uint64) (map[uint64]int64, error)
+	// ListOccupiedCageIDs は未削除の admitted/reserved 入院が1件以上乗っている
+	// ケージ id を全件返す（連結ピッカーの占有表示専用。ページングなし）。
+	ListOccupiedCageIDs(ctx context.Context, clinicID uint64) ([]uint64, error)
+	// SetMergedInto は memberIDs の merged_into_cage_id に representativeID を設定する。
+	SetMergedInto(ctx context.Context, clinicID, representativeID uint64, memberIDs []uint64) error
+	// ClearMergedInto は representativeID を代表とする全構成ケージの
+	// merged_into_cage_id を NULL に戻す。
+	ClearMergedInto(ctx context.Context, clinicID, representativeID uint64) error
+}
+
+var _ CageMergeRepository = (*cageRepositoryImpl)(nil)
+
+func (r *cageRepositoryImpl) LockCagesForUpdate(ctx context.Context, clinicID uint64, ids []uint64) ([]model.Cage, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("cage lock requires ambient transaction")
+	}
+	sortedIDs := slices.Clone(ids)
+	slices.Sort(sortedIDs)
+	sortedIDs = slices.Compact(sortedIDs)
+	cages := make([]model.Cage, 0, len(sortedIDs))
+	if len(sortedIDs) > 0 {
+		// ORDER BY id ASC + FOR UPDATE: 行を取り出す順にロックされるため、
+		// 全パスで同一の昇順ロック順序を保証する（デッドロック回避）。
+		if err := persistence.DBOrTx(ctx, r.db).
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Scopes(persistence.ClinicScope(clinicID)).
+			Where("id IN ?", sortedIDs).
+			Order("id ASC").
+			Find(&cages).Error; err != nil {
+			return nil, apperrors.FromGORM(err, "cage", "")
+		}
+	}
+	if len(cages) != len(sortedIDs) {
+		present := make(map[uint64]struct{}, len(cages))
+		for _, cage := range cages {
+			present[cage.ID] = struct{}{}
+		}
+		for _, id := range sortedIDs {
+			if _, ok := present[id]; !ok {
+				return nil, apperrors.WrapNotFound("cage", fmt.Sprintf("%d", id))
+			}
+		}
+	}
+	return cages, nil
+}
+
+func (r *cageRepositoryImpl) CountMergedMembers(ctx context.Context, clinicID uint64, representativeIDs []uint64) (map[uint64]int64, error) {
+	counts := make(map[uint64]int64, len(representativeIDs))
+	if len(representativeIDs) == 0 {
+		return counts, nil
+	}
+	var rows []struct {
+		RepresentativeID uint64 `gorm:"column:representative_id"`
+		Members          int64  `gorm:"column:members"`
+	}
+	if err := persistence.DBOrTx(ctx, r.db).Model(&model.Cage{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Select("merged_into_cage_id AS representative_id, COUNT(*) AS members").
+		Where("merged_into_cage_id IN ?", representativeIDs).
+		Group("merged_into_cage_id").
+		Scan(&rows).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "cage", "")
+	}
+	for _, row := range rows {
+		counts[row.RepresentativeID] = row.Members
+	}
+	return counts, nil
+}
+
+func (r *cageRepositoryImpl) LockCageGroupForUpdate(ctx context.Context, clinicID, representativeID uint64) ([]model.Cage, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("cage lock requires ambient transaction")
+	}
+	cages := make([]model.Cage, 0)
+	if err := persistence.DBOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ? OR merged_into_cage_id = ?", representativeID, representativeID).
+		Order("id ASC").
+		Find(&cages).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "cage", fmt.Sprintf("%d", representativeID))
+	}
+	found := false
+	for i := range cages {
+		if cages[i].ID == representativeID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, apperrors.WrapNotFound("cage", fmt.Sprintf("%d", representativeID))
+	}
+	return cages, nil
+}
+
+func (r *cageRepositoryImpl) CountOccupiedCages(ctx context.Context, clinicID uint64, cageIDs []uint64) (map[uint64]int64, error) {
+	counts := make(map[uint64]int64, len(cageIDs))
+	if len(cageIDs) == 0 {
+		return counts, nil
+	}
+	var rows []struct {
+		CageID uint64 `gorm:"column:cage_id"`
+		N      int64  `gorm:"column:n"`
+	}
+	if err := persistence.DBOrTx(ctx, r.db).Model(&model.Hospitalization{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Select("cage_id, COUNT(*) AS n").
+		Where("cage_id IN ?", cageIDs).
+		Where("deleted_at IS NULL").
+		Where("status IN ?", []string{
+			string(model.HospitalizationStatusAdmitted),
+			string(model.HospitalizationStatusReserved),
+		}).
+		Group("cage_id").
+		Scan(&rows).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "hospitalization", "")
+	}
+	for _, row := range rows {
+		counts[row.CageID] = row.N
+	}
+	return counts, nil
+}
+
+func (r *cageRepositoryImpl) ListOccupiedCageIDs(ctx context.Context, clinicID uint64) ([]uint64, error) {
+	var ids []uint64
+	if err := persistence.DBOrTx(ctx, r.db).Model(&model.Hospitalization{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Distinct().
+		Where("cage_id IS NOT NULL").
+		Where("deleted_at IS NULL").
+		Where("status IN ?", []string{
+			string(model.HospitalizationStatusAdmitted),
+			string(model.HospitalizationStatusReserved),
+		}).
+		Pluck("cage_id", &ids).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "hospitalization", "")
+	}
+	return ids, nil
+}
+
+func (r *cageRepositoryImpl) SetMergedInto(ctx context.Context, clinicID, representativeID uint64, memberIDs []uint64) error {
+	if len(memberIDs) == 0 {
+		return nil
+	}
+	// 行ロック済みだが、書込み側でも IS NULL 条件で再チェックしておく（二重防御）。
+	result := persistence.DBOrTx(ctx, r.db).Model(&model.Cage{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id IN ? AND merged_into_cage_id IS NULL", memberIDs).
+		Update("merged_into_cage_id", representativeID)
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "cage", fmt.Sprintf("%d", representativeID))
+	}
+	if result.RowsAffected != int64(len(memberIDs)) {
+		return apperrors.WrapConflict("ケージの連結状態が変化したため連結できません")
+	}
+	return nil
+}
+
+func (r *cageRepositoryImpl) ClearMergedInto(ctx context.Context, clinicID, representativeID uint64) error {
+	result := persistence.DBOrTx(ctx, r.db).Model(&model.Cage{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("merged_into_cage_id = ?", representativeID).
+		Update("merged_into_cage_id", nil)
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "cage", fmt.Sprintf("%d", representativeID))
+	}
+	return nil
 }

@@ -1,12 +1,16 @@
 import { C } from "@/lib/design-tokens";
 import { formatDate } from "@/lib/format/date";
-import { formatJSTWallDate, formatJSTWallTime } from "@/lib/jst-date";
+import { formatJSTDate, formatJSTWallDate, formatJSTWallTime } from "@/lib/jst-date";
 import type { Reservation } from "@/lib/transforms/reservation";
 import type { Pet } from "@/types";
 import { RESERVATION_STATUS_LABELS } from "@/types";
 
 import type { OwnerClinicalBriefingData } from "../hooks/use-owner-clinical-briefing-data";
-import { normalizeClinicalDate, selectAppointmentBriefing } from "../lib/clinical-briefing";
+import {
+  normalizeClinicalDate,
+  selectAppointmentBriefing,
+  selectTentativeBriefing,
+} from "../lib/clinical-briefing";
 import {
   countLatestExaminationAbnormalResults,
   selectLatestOverdueVaccination,
@@ -181,11 +185,15 @@ function nextReservationValue(data: OwnerClinicalBriefingData): string {
     : "予約なし";
 }
 
-function recommendedVisitValue(data: OwnerClinicalBriefingData): string {
-  if (data.medicalRecordsQuery.isLoading) return "読み込み中...";
-  if (data.medicalRecordsQuery.isError) return "取得失敗";
-  const recommendedDate = data.medicalRecordsQuery.data?.data[0]?.nextVisitRecommendedDate;
-  return recommendedDate ? formatDate(recommendedDate) : "記録なし";
+// EMR-308: 次回予定は tentative appointment が正本（旧カルテ由来の来院推奨日フィールドは撤廃）。
+// tentative は「日付のみ決まった来院意思」なので intended_date を日付表示し、時刻未定（未確定）であることを併記する。
+function nextVisitPlanValue(data: OwnerClinicalBriefingData): string {
+  if (!data.permissions.reservation.canView) return "閲覧権限なし";
+  if (data.reservationsQuery.isLoading) return "読み込み中...";
+  if (data.reservationsQuery.isError) return "取得失敗";
+  const tentative = selectTentativeBriefing(data.reservationsQuery.data ?? [], data.today);
+  if (!tentative) return "予定なし";
+  return `${formatDate(tentative.intendedDate ?? formatJSTDate(tentative.start))}（未確定）`;
 }
 
 function vaccinationPlanValue(data: OwnerClinicalBriefingData): string {
@@ -210,9 +218,9 @@ export function NextActionPanel({ data }: DataPanelProps) {
       <div className="grid grid-cols-3 gap-1 max-[680px]:grid-cols-1">
         <BriefingField label="次回予約" value={nextReservationValue(data)} />
         <BriefingField
-          label="来院推奨"
-          value={recommendedVisitValue(data)}
-          alert={data.medicalRecordsQuery.isError}
+          label="次回予定"
+          value={nextVisitPlanValue(data)}
+          alert={data.reservationsQuery.isError}
         />
         <BriefingField
           label="予防予定"

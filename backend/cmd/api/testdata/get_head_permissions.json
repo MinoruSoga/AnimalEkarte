@@ -1665,6 +1665,22 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/masters/cages/occupancy",
+    "handler": "github.com/animal-ekarte/backend/internal/medicalrecord.(*CageHandler).OccupiedCageIDs-fm",
+    "class": "clinic-fixed",
+    "resource": "master-hospitalization",
+    "action": "edit",
+    "source": "internal/medicalrecord/routes_masters.go",
+    "routeExpression": "masters.GET(\"/cages/occupancy\", perm(model.ResourceMasterHospitalization, \"edit\"), h.cage.OccupiedCageIDs)",
+    "handlerSource": "internal/medicalrecord/cage_handler.go",
+    "marker": "ExtractClinicID",
+    "authorization": "assigned grant in composition; selected grant in handler",
+    "scope": "selected-clinic",
+    "regression": "internal/medicalrecord/cage_merge_handler_test.go#TestOccupiedCageIDsHandler",
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed; realdb-return-data:internal/medicalrecord/realdb_cage_occupancy_isolation_test.go#TestRealDB_CageOccupancySelectedClinicBIsolation"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/masters/campaigns",
     "handler": "github.com/animal-ekarte/backend/internal/billing.(*CampaignHandler).ListCampaigns-fm",
     "class": "clinic-fixed",

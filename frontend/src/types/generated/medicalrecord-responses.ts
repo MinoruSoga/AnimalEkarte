@@ -10,6 +10,12 @@ export interface MedicalRecordAddendumResponse {
   medical_record_id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   author_user_id: number /* uint64 */;
+  /**
+   * AuthorName は親カルテの clinic スコープで解決できた追記者氏名。
+   * 未解決（削除・異動・他医院）または空氏名のときは nil → omitempty でキー省略し、
+   * FE は author_user_id へフォールバック表示する（EMR-326）。
+   */
+  author_name?: string;
   before_text: string;
   after_text: string;
   reason: string;
@@ -37,7 +43,6 @@ export interface MedicalRecordResponse {
   version: number /* int */;
   accounting_id?: number /* uint64 */;
   visit_count: number /* int64 */;
-  next_visit_recommended_date?: string;
   recommendation_reason?: string;
   created_at: string;
   updated_at: string;
@@ -95,6 +100,7 @@ export interface PetSummaryResponse {
   breed?: string;
   gender?: string;
   birth_date?: string;
+  deceased_at?: string;
   neutered_date?: string;
   neutered_status?: string;
   animal_species?: AnimalSpeciesSummaryResponse;

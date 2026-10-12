@@ -19,6 +19,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/owner"
 	"github.com/animal-ekarte/backend/internal/pet"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 func main() {
@@ -85,6 +86,9 @@ func run() int {
 		lstep.NewLstepTagCodeMappingRepository(db),
 		billing.NewBillingItemRepository(db),
 		lstep.NewLstepTagConfigRepository(db),
+		// EMR-308/Codex: next_visit_* タグ同期の source of truth は appointment。
+		// 未注入だと SyncNextVisitTag が fail-closed でエラーになるため配線する。
+		reservation.NewReservationRepository(db),
 	)
 
 	migCfg := Config{

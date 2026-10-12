@@ -55,6 +55,8 @@ type liffService struct {
 	trimmingDetailRepo  liffTrimmingDetailRepo              // BE-120
 	vaccinationRepo     liffVaccinationRepo
 	medicalRecord       medicalRecordAutoCreator
+	// EMR-308: LIFF 予約作成/キャンセル後の next_visit タグ再同期 hook（nil 許容・best-effort）。
+	nextVisitTagSync NextVisitTagSyncer
 }
 
 func NewLiffServiceWithType(
@@ -77,6 +79,7 @@ func NewLiffServiceWithType(
 	trimmingDetailRepo liffTrimmingDetailRepo,
 	vaccinationRepo liffVaccinationRepo,
 	holidayFinder clinicHolidayFinder,
+	nextVisitTagSync NextVisitTagSyncer,
 	medicalRecords ...medicalRecordAutoCreator,
 ) LiffService {
 	var medicalRecord medicalRecordAutoCreator
@@ -103,5 +106,6 @@ func NewLiffServiceWithType(
 		trimmingDetailRepo:  trimmingDetailRepo,
 		vaccinationRepo:     vaccinationRepo,
 		medicalRecord:       medicalRecord,
+		nextVisitTagSync:    nextVisitTagSync,
 	}
 }

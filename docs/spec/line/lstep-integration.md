@@ -1,6 +1,6 @@
 # Lステップ連携 戦略仕様書 (L-Step CRM Integration)
 
-> **目的**: CPM判定・全15種配信トリガーのLステップ戦略を定義する。
+> **目的**: CPM判定・全17種配信トリガーのLステップ戦略を定義する。
 > **読者**: マーケ担当・実装者。
 > **タイミング**: CPM判定・配信トリガー仕様の確認時。
 
@@ -9,7 +9,9 @@
 
 ---
 
-> **注記 (2026-07-10 / 更新 2026-07-31)**: Lステップへの Write API（タグ付与・タグ解除・プロパティ更新）は **`LSTEP_WRITE_API_ENABLED`（既定 OFF）+ clinic `is_sync_enabled` の二重 gate** で抑止。gate OFF 時は外部 HTTP 0 + `ErrWriteDisabled`（silent noop 成功ではない）。その後のローカル DB / cache / audit / logging は呼び出し元ごとの失敗契約に従い、一律には継続しない。詳細: [`docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)
+> **注記 (2026-07-10 / 更新 2026-07-31)**: Lステップへの Write API（タグ付与・タグ解除・プロパティ更新）は **`LSTEP_WRITE_API_ENABLED`（既定 OFF）+ clinic `is_sync_enabled` の二重 gate** で抑止される。運用手順正本: [`docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)。
+>
+> 追記（2026-10-07 監査）: 二重 gate の契約本文（`ErrWriteDisabled` とクライアント未構築の意図的スキップ `nil, nil` の区別、gate OFF 後のローカル DB / cache / audit / logging の扱い）は [architecture.md](./architecture.md) 冒頭注記・§4 に一元化した。本書では重複掲載しない。
 
 ---
 
@@ -64,9 +66,11 @@ stateDiagram-v2
 
 ---
 
-## 3. 自動配信トリガーの一覧 (全 15 種)
+## 3. 自動配信トリガーの一覧 (全 17 種)
 
-カルテ上のイベントに基づき、Lステップ側のシナリオが発火します。これらは**「衝突回避優先順位」**（数値が小さいほど優先）に従って制御されます。
+カルテ上のイベントに基づき、Lステップ側のシナリオが発火します。これらは**「衝突回避優先順位」**（数値が小さいほど優先）に従って制御されます。「全 17 種」はコード定義上の種別数（退役済み `next_visit_reminder` を含む）であり、実稼働中の種別数は未検証である。
+
+次回予定タグの同期は設定・解除・昇格・owner変更後に post-commit で行われる best-effort である（失敗契約は [architecture.md](./architecture.md) §4 — request-local nonfatal）。次回予定リマインダー候補は active tentative の `intended_date` を読取り、送信前に再検証する別経路であり、タグ同期の成否は候補選定を規定しない。
 
 | 優先度 | トリガーコード | 内容 |
 |:---:|:---|:---|
@@ -78,7 +82,8 @@ stateDiagram-v2
 | **7** | `dormant_prevention_180d` | 休眠防止ステップ（180日経過）。 |
 | **8** | `vaccine_deadline_60d` / `vaccine_deadline_30d` | ワクチン期限の 60日/30日前通知。 |
 | **10** | `food_refill_reminder` | 療法食の購入から約 30日後の案内。 |
-| **11** | `next_visit_reminder` | カルテ指定の「次回来院推奨日」の当日。 |
+| **11** | `next_visit_reminder` | EMR-308 で退役: カルテ推奨日カラム撤廃に伴い実行スケジュールから除外。履歴ログ・優先度互換のため登録は維持するが発火しない。 |
+| **11** | `next_visit_tentative_reminder_3d` / `next_visit_tentative_reminder_0d` | EMR-308 で `next_visit_reminder` の後継。ペットの active tentative appointment（次回予定・未予約）の `intended_date` 3 日前と当日の 2 ステージ。tentative 昇格・取消で対象は自動追従。 |
 | **12** | `birthday_message` | ペットの誕生日の当日祝い。 |
 | **13** | `first_visit_followup_3d` / `first_visit_followup_7d` | 初診の 3日後、7日後の調子伺い。 |
 | **14** | `first_visit_welcome` | 初回 medical record 作成後（post-commit）の挨拶。会計完了起点ではない。 |
@@ -97,28 +102,25 @@ stateDiagram-v2
 
 ## 5. 失敗契約（経路別・混同禁止）
 
-LSTEP の失敗時挙動は経路ごとに 1 契約だけを持つ。詳細アーキテクチャは [architecture.md](./architecture.md) §4。
+LSTEP の失敗時挙動は経路ごとに 1 契約だけを持つ。
 
-| 経路 | 契約 | 要点 |
-|:---|:---|:---|
-| 定時バッチ（配信トリガー・休眠・LTV・健診予防など multi-clinic / multi-owner） | **scheduled multi-resource best effort** | 1 件失敗後も続行。`BatchRunResult`（`Processed = Succeeded + Failed`）と `processed_count`/`error_count` 監査で **durable な部分結果計上を必須**。必須 dependency 欠落は fail-closed。silent swallow は新規禁止 |
-| 1 飼主分のタグ同期本体（バッチ内 1 owner 処理を含む） | **single-owner propagation** | 望ましいタグ Add/Remove 失敗は呼び出し元へ伝播し、上位の Failed 計上に載せる |
-| 会計確定後の CPM 同期、手動 LINE 送信後の purpose タグなど副次処理 | **request-local nonfatal secondary notification** | 本処理（会計・送信本体）は成功のまま。副次失敗はログ必須で本処理を反転させない。**`lstep_delivery_trigger_log` は使わない** |
+> 追記（2026-10-07 監査）: 失敗契約の三分法（scheduled multi-resource best effort / single-owner propagation / request-local nonfatal secondary notification）の契約表・失敗時の振る舞い・耐久計上の正本は [architecture.md](./architecture.md) §4。本書では契約表の重複掲載をやめ、経路ごとの詳細は同節を参照すること。
 
 ### 5.1 書き込み停止と運用停止
 
-- **Write dual-gate**: タグ付与・解除・プロパティ更新の外部 HTTP は deploy/clinic gate で抑止され `ErrWriteDisabled` が返る。その後のローカル DB / cache / audit / logging は呼び出し元ごとの失敗契約に従い、一律には継続しない。[`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)
-- **clinic 停止**: `is_sync_enabled=false` の医院は再有効化後もサービス層で同期対象外。
+> 追記（2026-10-07 監査）: Write dual-gate（gate OFF 時は外部 HTTP を送らず `ErrWriteDisabled`。後続のローカル処理は呼び出し元ごとの失敗契約に従う）と clinic 停止（`is_sync_enabled=false` は再有効化後もサービス層で同期対象外）の契約本文の正本は [architecture.md](./architecture.md) 冒頭注記・§4.3。本節では重複掲載しない。運用手順正本: [`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)
 
 ### 5.2 定時 delivery バッチの読み取り要件
 
-通常経路は clinic スコープの bulk-read を使う。ただし production には bulk failure 後の per-owner day-log / owner / tag-cache read fallback があり、owner 数線形となる既知の degraded-mode gap がある。実行上限・metrics を備えた bounded fallback にするか、source fallback を除去するまで unconditional な no-N+1 invariant は主張しない。opt-out・suppression・daily-claim の意味論と bounded memory は維持する。
+> 追記（2026-10-09 再監査）: 読み取り要件の契約本文（bulk-read 通常経路・bulk failure 時の per-owner fallback と bounded fallback への是正・opt-out / suppression / daily-claim 意味論・bounded memory）の正本は [architecture.md](./architecture.md) §4.1。本節は実装側の現況のみを記す。
+
+実装の現況として、production には bulk failure 後の per-owner day-log / owner / tag-cache read fallback が残り、owner 数線形の既知 degraded-mode gap である。bounded fallback への整理または source fallback の除去まで、unconditional な no-N+1 invariant は主張しない。
 
 ---
 
 ## 6. 運用と効果測定
 
-外部 write 再開の承認・受入は [#259 の再開条件](README.md#3-再開条件259) を参照。全 15 種は実装契約であり、先方 API 有効化や本番配信完了の証拠ではない。scheduler 配線の正本と実環境証跡の区別は [architecture.md §4.2](architecture.md#42-checked-in-scheduler-と運用証跡) に示す。
+外部 write 再開の承認・受入は [#259 の再開条件](README.md#3-再開条件259) を参照。全 17 種は実装契約であり、先方 API 有効化や本番配信完了の証拠ではない。scheduler 配線の正本と実環境証跡の区別は [architecture.md §4.2](architecture.md#42-checked-in-scheduler-と運用証跡) に示す。
 
 - **配信監視 (`/lstep/delivery-monitor`)**: **自動配信トリガー**の実行ログ、除外理由、API 失敗を監視（ordinary タグ同期の request-local 経路は対象外）。
 - **来院転換分析**: メッセージ配信から 30 日以内の来院率を自動集計。

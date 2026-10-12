@@ -67,6 +67,67 @@ describe("SearchableSelect", () => {
     );
     expect(screen.getByRole("combobox", { name: "担当者" })).toHaveTextContent("選択してください");
   });
+
+  // EMR-316: clearable の項目ラベルを呼び出し側で「選択なし」に差し替えられる（既定は「選択をクリア」）。
+  it("clearLabel 指定時は選択中のみその名前のクリア項目を出し、選ぶと空文字を返す", async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    render(
+      <SearchableSelect
+        value="2"
+        onValueChange={onValueChange}
+        options={[
+          { value: "1", label: "A-1" },
+          { value: "2", label: "A-2" },
+        ]}
+        placeholder="選択なし"
+        ariaLabel="ケージ"
+        clearable
+        clearLabel="選択なし"
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "ケージ" }));
+
+    expect(screen.queryByRole("option", { name: "選択をクリア" })).toBeNull();
+    await user.click(screen.getByRole("option", { name: "選択なし" }));
+    expect(onValueChange).toHaveBeenCalledWith("");
+  });
+
+  it("clearLabel 未指定の clearable は従来どおり「選択をクリア」を出す", async () => {
+    const user = userEvent.setup();
+    render(
+      <SearchableSelect
+        value="2"
+        onValueChange={vi.fn()}
+        options={[{ value: "2", label: "A-2" }]}
+        ariaLabel="ケージ"
+        clearable
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "ケージ" }));
+
+    expect(screen.getByRole("option", { name: "選択をクリア" })).toBeInTheDocument();
+  });
+
+  it("値が空のときは clearable でもクリア項目を出さない", async () => {
+    const user = userEvent.setup();
+    render(
+      <SearchableSelect
+        value=""
+        onValueChange={vi.fn()}
+        options={[{ value: "2", label: "A-2" }]}
+        ariaLabel="ケージ"
+        clearable
+        clearLabel="選択なし"
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "ケージ" }));
+
+    expect(screen.queryByRole("option", { name: "選択なし" })).toBeNull();
+  });
 });
 
 describe("Dialog × portaled Popover (担当者セレクト)", () => {

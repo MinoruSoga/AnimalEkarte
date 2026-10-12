@@ -39,4 +39,4 @@
 
 - 状態表は design-states.md §1 のマトリクスの行順に揃える。実装がない状態は `✕` とし「既知のギャップ」にも記載する。
 - 「使用箇所」は `rg -l "@/components/ui/<name>"` の実測値を書く（概数可）。
-- Story の有無をヘッダに書く。ui/* プリミティブは Story を持つのが目標（監査提案 C20）。
+- Story の有無をヘッダに書く。ui/* プリミティブは Story を持つのが目標（design-audit C21。旧監査提案番号は C20 だったが採番時に C21 へ変更 — design-token-layers.md §6）。

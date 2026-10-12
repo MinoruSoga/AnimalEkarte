@@ -1,0 +1,62 @@
+=== RUN   TestUploadSharedFile_ContentValidation
+=== RUN   TestUploadSharedFile_ContentValidation/PNG
+=== RUN   TestUploadSharedFile_ContentValidation/JPEG_jpg
+=== RUN   TestUploadSharedFile_ContentValidation/JPEG_jpeg
+=== RUN   TestUploadSharedFile_ContentValidation/uppercase_extension
+=== RUN   TestUploadSharedFile_ContentValidation/PDF_signature
+=== RUN   TestUploadSharedFile_ContentValidation/text_as_PNG
+=== RUN   TestUploadSharedFile_ContentValidation/text_as_JPG
+=== RUN   TestUploadSharedFile_ContentValidation/text_as_JPEG
+=== RUN   TestUploadSharedFile_ContentValidation/text_as_PDF
+=== RUN   TestUploadSharedFile_ContentValidation/JPEG_as_PNG
+=== RUN   TestUploadSharedFile_ContentValidation/PNG_as_PDF
+=== RUN   TestUploadSharedFile_ContentValidation/empty_PNG
+--- PASS: TestUploadSharedFile_ContentValidation (0.00s)
+    --- PASS: TestUploadSharedFile_ContentValidation/PNG (0.00s)
+    --- PASS: TestUploadSharedFile_ContentValidation/JPEG_jpg (0.00s)
+    --- PASS: TestUploadSharedFile_ContentValidation/JPEG_jpeg (0.00s)
+    --- PASS: TestUploadSharedFile_ContentValidation/uppercase_extension (0.00s)
+    --- PASS: TestUploadSharedFile_ContentValidation/PDF_signature (0.00s)
+    --- PASS: TestUploadSharedFile_ContentValidation/text_as_PNG (0.00s)
+    --- PASS: TestUploadSharedFile_ContentValidation/text_as_JPG (0.00s)
+    --- PASS: TestUploadSharedFile_ContentValidation/text_as_JPEG (0.00s)
+    --- PASS: TestUploadSharedFile_ContentValidation/text_as_PDF (0.00s)
+    --- PASS: TestUploadSharedFile_ContentValidation/JPEG_as_PNG (0.00s)
+    --- PASS: TestUploadSharedFile_ContentValidation/PNG_as_PDF (0.00s)
+    --- PASS: TestUploadSharedFile_ContentValidation/empty_PNG (0.00s)
+=== RUN   TestUploadSharedFile
+=== RUN   TestUploadSharedFile/returns_201_with_Location_header
+=== RUN   TestUploadSharedFile/returns_401_when_clinic_id_is_missing
+=== RUN   TestUploadSharedFile/returns_401_when_staff_id_is_missing
+=== RUN   TestUploadSharedFile/returns_400_when_file_field_is_missing
+=== RUN   TestUploadSharedFile/returns_400_when_purpose_is_not_an_allowed_enum
+=== RUN   TestUploadSharedFile/returns_400_when_file_extension_is_not_allowed
+=== RUN   TestUploadSharedFile/returns_400_on_request_bind_error
+=== RUN   TestUploadSharedFile/returns_500_on_service_error
+--- PASS: TestUploadSharedFile (0.00s)
+    --- PASS: TestUploadSharedFile/returns_201_with_Location_header (0.00s)
+    --- PASS: TestUploadSharedFile/returns_401_when_clinic_id_is_missing (0.00s)
+    --- PASS: TestUploadSharedFile/returns_401_when_staff_id_is_missing (0.00s)
+    --- PASS: TestUploadSharedFile/returns_400_when_file_field_is_missing (0.00s)
+    --- PASS: TestUploadSharedFile/returns_400_when_purpose_is_not_an_allowed_enum (0.00s)
+    --- PASS: TestUploadSharedFile/returns_400_when_file_extension_is_not_allowed (0.00s)
+    --- PASS: TestUploadSharedFile/returns_400_on_request_bind_error (0.00s)
+    --- PASS: TestUploadSharedFile/returns_500_on_service_error (0.00s)
+=== RUN   TestRegisterSharedFileRoutes_RBACTuples
+--- PASS: TestRegisterSharedFileRoutes_RBACTuples (0.00s)
+PASS
+coverage: 0.9% of statements
+ok  	github.com/animal-ekarte/backend/internal/lstep	0.010s	coverage: 0.9% of statements
+=== RUN   TestVerifySniffedContentAcceptsPNG
+--- PASS: TestVerifySniffedContentAcceptsPNG (0.00s)
+=== RUN   TestVerifySniffedContentRejectsHTMLDisguisedAsPNG
+--- PASS: TestVerifySniffedContentRejectsHTMLDisguisedAsPNG (0.00s)
+=== RUN   TestVerifySniffedContentRewinds
+--- PASS: TestVerifySniffedContentRewinds (0.00s)
+=== RUN   TestValidateFileHeaderRejections
+--- PASS: TestValidateFileHeaderRejections (0.00s)
+=== RUN   TestStoredNameDerivesExtFromMIME
+--- PASS: TestStoredNameDerivesExtFromMIME (0.00s)
+PASS
+coverage: [no statements]
+ok  	github.com/animal-ekarte/backend/internal/imageupload/emr332_u05	0.002s	coverage: [no statements]

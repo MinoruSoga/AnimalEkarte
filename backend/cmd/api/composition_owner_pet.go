@@ -6,6 +6,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/owner"
 	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/pet"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 type ownerPetAuditLogger interface {
@@ -34,6 +35,7 @@ type ownerPetRepositories struct {
 	Transactor        pet.PetOwnerTransactor
 	AnimalSpecies     pet.AnimalSpeciesRepository
 	ChronicConditions pet.ChronicConditionRepository
+	PetTransfer       pet.UpcomingReservationOwnerTransfer
 }
 
 type ownerPetComposition struct {
@@ -64,6 +66,7 @@ func newOwnerPetRepositories(db *gorm.DB) ownerPetRepositories {
 		Transactor:        persistence.NewTransactor(db),
 		AnimalSpecies:     pet.NewAnimalSpeciesRepository(db),
 		ChronicConditions: pet.NewChronicConditionRepository(db),
+		PetTransfer:       reservation.NewPetOwnerTransfer(db),
 	}
 }
 
@@ -88,6 +91,10 @@ func newOwnerPetComposition(
 		dependencies.PetTags,
 		repositories.PetOwners,
 		repositories.Transactor,
+		pet.PetOwnerTransferDependencies{
+			Reservations: repositories.PetTransfer,
+			Audit:        dependencies.Audit,
+		},
 	)
 	petOwnerService := pet.NewPetOwnerService(
 		repositories.Pet,

@@ -82,15 +82,19 @@ interface ReservationStaffWire {
 }
 
 // GET /v1/masters/reservation-types
-const fetchReservationTypesRaw = async (): Promise<ReservationTypeRaw[]> => {
-  const { data } = await axios.get<ReservationTypeRaw[]>("/v1/masters/reservation-types");
+const fetchReservationTypesRaw = async (clinicId?: string): Promise<ReservationTypeRaw[]> => {
+  const { data } = await axios.get<ReservationTypeRaw[]>(
+    "/v1/masters/reservation-types",
+    clinicId ? { headers: { "X-Clinic-ID": clinicId } } : undefined,
+  );
   return data;
 };
 
 // GET /v1/shifts/on-duty-staffs?date=YYYY-MM-DD
-const fetchOnDutyStaffs = async (date: string): Promise<OnDutyStaff[]> => {
+const fetchOnDutyStaffs = async (date: string, clinicId?: string): Promise<OnDutyStaff[]> => {
   const { data } = await axios.get<OnDutyStaff[]>("/v1/shifts/on-duty-staffs", {
     params: { date },
+    ...(clinicId ? { headers: { "X-Clinic-ID": clinicId } } : {}),
   });
   return data;
 };
@@ -100,8 +104,12 @@ export const getCurrentClinicId = (): string | null => {
 };
 
 const fetchReservationStaffs = async (clinicId: string): Promise<ReservationStaff[]> => {
+  // Codex PR606 再々指摘: path 埋め込みだけでは interceptor が選択中医院を
+  // X-Clinic-ID に補完してしまう。backend の実スコープは header 由来なので
+  // URL・query key・header の3つを同じ clinicId で揃える。
   const { data } = await axios.get<ReservationStaffWire[]>(
     `/v1/clinics/${clinicId}/reservation-staffs`,
+    { headers: { "X-Clinic-ID": clinicId } },
   );
   // Project only the positive contract so legacy wire fields cannot propagate.
   // Missing capabilities stay fail-closed rather than meaning "all capable".
@@ -117,6 +125,7 @@ const fetchReservationAvailableTimes = async (
   reservationTypeId: string,
   date: string,
   staffId: string | null,
+  clinicId?: string,
 ): Promise<ReservationAvailableTimeSlot[]> => {
   const { data } = await axios.get<ReservationAvailableTimeSlot[]>(
     "/v1/reservations/available-times",
@@ -128,6 +137,7 @@ const fetchReservationAvailableTimes = async (
         // EMR-170: 満員枠も返してもらい〇△✕表示に使う
         include_unavailable: "true",
       },
+      ...(clinicId ? { headers: { "X-Clinic-ID": clinicId } } : {}),
     },
   );
   return data;
@@ -138,15 +148,22 @@ const fetchReservationAvailableTimes = async (
  * features/reservations と同一 query key を使用し React Query キャッシュを共有。
  * selectedTypeId を渡すと、その ID の無効区分だけを表示用に残す（BUG-015）。
  */
-export function useGetReservationTypesGrouped(selectedTypeId?: string | number | null) {
+export function useGetReservationTypesGrouped(
+  selectedTypeId?: string | number | null,
+  clinicId?: string,
+) {
   const selectedId =
     selectedTypeId === null || selectedTypeId === undefined || selectedTypeId === ""
       ? null
       : String(selectedTypeId);
 
   return useQuery({
-    queryKey: queryKeys.masters.reservationTypesGrouped(),
-    queryFn: fetchReservationTypesRaw,
+    // Codex PR606 再指摘: 拠点横断 tentative 確定フォームは行の clinicId を
+    // 末尾に付けて他院キャッシュと分離する（prefix invalidate は維持）。
+    queryKey: clinicId
+      ? [...queryKeys.masters.reservationTypesGrouped(), clinicId]
+      : queryKeys.masters.reservationTypesGrouped(),
+    queryFn: () => fetchReservationTypesRaw(clinicId),
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
     select: (data) => {
@@ -171,10 +188,12 @@ export function useGetReservationTypesGrouped(selectedTypeId?: string | number |
  * 指定日に出勤しているスタッフ一覧を取得する（共有フック）。
  * features/reservations と同一 query key を使用し React Query キャッシュを共有。
  */
-export function useGetOnDutyStaffs(date: string | null) {
+export function useGetOnDutyStaffs(date: string | null, clinicId?: string) {
   return useQuery({
-    queryKey: queryKeys.shifts.onDutyStaffs(date!),
-    queryFn: () => fetchOnDutyStaffs(date!),
+    queryKey: clinicId
+      ? [...queryKeys.shifts.onDutyStaffs(date!), clinicId]
+      : queryKeys.shifts.onDutyStaffs(date!),
+    queryFn: () => fetchOnDutyStaffs(date!, clinicId),
     enabled: date !== null,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.SHORT,
@@ -186,17 +205,18 @@ export function useGetOnDutyStaffs(date: string | null) {
  * capable_courses は院内予約フォームの担当者候補を肯定形で絞り込む（TASK-021 Stage B）。
  * 欠落・未取得時は fail-closed（候補に載せない）。
  */
-export function useGetReservationStaffs() {
-  const clinicId = getCurrentClinicId();
+export function useGetReservationStaffs(clinicId?: string) {
+  // Codex PR606 再指摘: 拠点横断フォームは行の clinicId で URL path を組み立てる
+  const effectiveClinicId = clinicId ?? getCurrentClinicId();
   return useQuery({
-    queryKey: queryKeys.clinics.reservationStaffs(clinicId!),
+    queryKey: queryKeys.clinics.reservationStaffs(effectiveClinicId!),
     queryFn: () => {
-      if (clinicId === null) {
+      if (effectiveClinicId === null) {
         return Promise.reject(new Error("clinic_id is required"));
       }
-      return fetchReservationStaffs(clinicId);
+      return fetchReservationStaffs(effectiveClinicId);
     },
-    enabled: clinicId !== null,
+    enabled: effectiveClinicId !== null,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });
@@ -211,14 +231,17 @@ export function useGetReservationAvailableTimes(
   reservationTypeId: string | null,
   date: string | null,
   staffId: string | null,
+  clinicId?: string,
 ) {
-  const clinicId = getCurrentClinicId();
+  // Codex PR606 再指摘: 拠点横断フォームは行の clinicId で枠を取る。
+  // queryKey の既存 clinic スロットはそのまま effective 値を使う。
+  const effectiveClinicId = clinicId ?? getCurrentClinicId();
   return useQuery({
     queryKey: [
       ...queryKeys.reservations.availableTimes(reservationTypeId!, date!, staffId ?? undefined),
-      clinicId ?? "no-clinic",
+      effectiveClinicId ?? "no-clinic",
     ] as const,
-    queryFn: () => fetchReservationAvailableTimes(reservationTypeId!, date!, staffId),
+    queryFn: () => fetchReservationAvailableTimes(reservationTypeId!, date!, staffId, clinicId),
     enabled: reservationTypeId !== null && date !== null,
     staleTime: QUERY_STALE_TIMES.REALTIME,
     gcTime: QUERY_GC_TIMES.SHORT,

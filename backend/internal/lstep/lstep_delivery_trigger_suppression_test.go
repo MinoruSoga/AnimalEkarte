@@ -61,6 +61,9 @@ func (m *suppressionMockTriggerLogRepository) FindByOwnerAndDate(ctx context.Con
 	}
 	return nil, nil
 }
+func (m *suppressionMockTriggerLogRepository) MarkKnownUnsent(_ context.Context, _, _ uint64, _ string) error {
+	return nil
+}
 func (m *suppressionMockTriggerLogRepository) UpdateSuppressed(ctx context.Context, clinicID, logID uint64, reason string) error {
 	if m.updateSuppressedFn != nil {
 		return m.updateSuppressedFn(ctx, clinicID, logID, reason)

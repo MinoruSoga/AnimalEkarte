@@ -1,0 +1,878 @@
+#!/usr/bin/env node
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import test from "node:test";
+import "./actionlint-queue-compat.test.mjs";
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const PNPM_VERSION = "10.15.0";
+
+test("AgentShield executes a pinned trusted checkout instead of PR code", () => {
+  const workflow = read(".github/workflows/security-scan.yml");
+  const job = workflowJob(workflow, "agentshield");
+  const checkout = namedStep(job, "Checkout trusted AgentShield");
+  assert.match(checkout, /repository: MinoruSoga\/AnimalEkarte/);
+  assert.match(checkout, /ref: 50922e8e65db6248d435ec8b76d4ec752c8b6c96/);
+  assert.match(checkout, /persist-credentials: false/);
+  assert.match(checkout, /path: \.ci-agentshield/);
+  assert.match(checkout, /sparse-checkout: \.github\/actions\/agentshield/);
+  assert.doesNotMatch(checkout, /\$\{\{/);
+  const execution = namedStep(job, "Run AgentShield");
+  assert.match(execution, /uses: \.\/\.ci-agentshield\/\.github\/actions\/agentshield/);
+  assert.match(workflow, /permissions:\n  contents: read/);
+  assert.doesNotMatch(workflow, /pull_request_target|secrets\.|contents: write|id-token: write/);
+  assert.ok(job.indexOf("Verify trusted AgentShield bundle") < job.indexOf("Run AgentShield"));
+});
+
+test("AgentShield vendored bundle and source patch match reviewed provenance", () => {
+  const provenance = JSON.parse(read(".github/actions/agentshield/provenance.json"));
+  const sha256 = value => createHash("sha256").update(value).digest("hex");
+  assert.equal(sha256(read(".github/actions/agentshield/dist/action.js")), provenance.bundle_sha256);
+  assert.equal(sha256(read(".github/actions/agentshield/upstream.patch")), provenance.patch_sha256);
+  assert.equal(provenance.bundle_sha256, "d30ac2e68ee9266c4da7cfaa109f02fee22e3ca9880264c21d75050cabcecb9c");
+  assert.equal(provenance.upstream_commit, "b0891303bdcd6037376a94263d45cfd2ff3dfb98");
+  const job = workflowJob(read(".github/workflows/security-scan.yml"), "agentshield");
+  assert.ok(namedStep(job, "Verify trusted AgentShield bundle").includes(provenance.bundle_sha256));
+  const action = read(".github/actions/agentshield/action.yml");
+  assert.match(action, /using: "node24"/);
+  assert.match(action, /main: "dist\/action.js"/);
+  assert.doesNotMatch(action, /pre:|post:/);
+  assert.match(read(".github/actions/agentshield/LICENSE"), /Copyright \(c\) 2026 Affaan M/);
+});
+
+function read(relativePath) {
+  return readFileSync(join(ROOT, relativePath), "utf8");
+}
+
+function setupPnpmBlocks(workflow) {
+  const lines = workflow.split("\n");
+  const blocks = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    if (!lines[index].includes("uses: pnpm/action-setup@")) continue;
+    const indent = lines[index].search(/\S/);
+    const block = [lines[index]];
+    for (let next = index + 1; next < lines.length; next += 1) {
+      const nextIndent = lines[next].search(/\S/);
+      if (nextIndent !== -1 && nextIndent < indent) break;
+      block.push(lines[next]);
+    }
+    blocks.push(block.join("\n"));
+  }
+  return blocks;
+}
+
+function yamlBlock(source, key, indent) {
+  const lines = source.split("\n");
+  const start = lines.findIndex(
+    (line) => line === `${" ".repeat(indent)}${key}:`,
+  );
+  assert.notEqual(start, -1, `missing ${key} block`);
+
+  const block = [lines[start]];
+  for (let index = start + 1; index < lines.length; index += 1) {
+    const line = lines[index];
+    const contentIndent = line.search(/\S/);
+    if (contentIndent !== -1 && contentIndent <= indent) break;
+    block.push(line);
+  }
+  return block.join("\n");
+}
+
+function workflowJob(workflow, name) {
+  const jobs = yamlBlock(workflow, "jobs", 0);
+  return yamlBlock(jobs, name, 2);
+}
+
+function namedStep(job, name) {
+  const lines = job.split("\n");
+  const start = lines.findIndex((line) => line === `      - name: ${name}`);
+  assert.notEqual(start, -1, `missing ${name} step`);
+
+  const block = [lines[start]];
+  for (let index = start + 1; index < lines.length; index += 1) {
+    const line = lines[index];
+    const indent = line.search(/\S/);
+    if (indent === 6 && line.startsWith("      - ")) break;
+    block.push(line);
+  }
+  return block.join("\n");
+}
+
+test("AgentShield fail gate treats every AGENTS.md as agent configuration", () => {
+  const workflow = read(".github/workflows/security-scan.yml");
+  assert.match(workflow, /^\s+- ['"]\*\*\/AGENTS\.md['"]\s*$/m);
+});
+
+test("AgentShield fail gate does not treat nested docs CLAUDE.md as agent configuration", () => {
+  const workflow = read(".github/workflows/security-scan.yml");
+  assert.match(workflow, /^\s+- ['"]CLAUDE\.md['"]\s*$/m);
+  assert.doesNotMatch(workflow, /^\s+- ['"]\*\*\/CLAUDE\.md['"]\s*$/m);
+});
+
+test("AgentShield fails findings for changed agent configs in main and staging PRs", async (t) => {
+  const workflow = read(".github/workflows/security-scan.yml");
+  const job = workflowJob(workflow, "agentshield");
+  const step = namedStep(job, "Resolve fail-on-findings");
+  const script = step.split("        run: |\n")[1];
+  assert.ok(script, "gate must use a runnable block scalar");
+  assert.match(yamlBlock(workflow, "on", 0), /branches: \[main, staging, production\]/);
+  assert.match(yamlBlock(workflow, "on", 0), /branches: \[main, staging\]/);
+  assert.match(job, /fail-on-findings: \$\{\{ steps\.gate\.outputs\.fail_on_findings \}\}/);
+
+  const cases = [];
+  for (const base of ["main", "staging", "production"]) {
+    for (const changed of ["true", "false"]) {
+      for (const force of ["true", "false"]) {
+        cases.push({ event: "pull_request", base, changed, force,
+          expected: base !== "production" && changed === "true" });
+      }
+    }
+  }
+  // Push events have an empty base_ref; also keep nonempty values report-only.
+  for (const base of ["", "main", "staging"]) {
+    for (const changed of ["true", "false"]) {
+      for (const force of ["true", "false"]) {
+        cases.push({ event: "push", base, changed, force, expected: false });
+      }
+    }
+  }
+  for (const changed of ["true", "false"]) {
+    for (const force of ["true", "false", ""]) {
+      cases.push({ event: "workflow_dispatch", base: "", changed, force,
+        expected: force === "true" });
+    }
+  }
+
+  for (const { event, base, changed, force, expected } of cases) {
+    await t.test(`${event} base=${base} agent_config=${changed} force=${force}`, () => {
+      // Execute the workflow's actual gate with synthetic context, not a copied predicate.
+      const resolved = script
+        .replaceAll("${{ github.event_name }}", event)
+        .replaceAll("${{ github.base_ref }}", base)
+        .replaceAll("${{ needs.changes.outputs.agent_config }}", changed)
+        .replaceAll("${{ github.event.inputs.force_fail_on_findings }}", force);
+      assert.doesNotMatch(resolved, /\$\{\{/);
+      const directory = mkdtempSync(join(tmpdir(), "agentshield-gate-"));
+      try {
+        const outputPath = join(directory, "output");
+        const result = spawnSync("bash", ["-c", resolved], {
+          env: { ...process.env, GITHUB_OUTPUT: outputPath }, encoding: "utf8",
+        });
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(readFileSync(outputPath, "utf8"),
+          `fail_on_findings=${expected}\nagent_config_changed=${changed}\n`);
+      } finally {
+        rmSync(directory, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
+test("Docker, packageManager declarations, and CI use pnpm 10.15.0", () => {
+  assert.match(
+    read("frontend/Dockerfile.dev"),
+    new RegExp(
+      `npm install -g pnpm@${PNPM_VERSION.replaceAll(".", "\\.")}(?:\\s|$)`,
+    ),
+  );
+
+  for (const packageJson of ["package.json", "frontend/package.json"]) {
+    const manifest = JSON.parse(read(packageJson));
+    assert.equal(manifest.packageManager, `pnpm@${PNPM_VERSION}`, packageJson);
+  }
+
+  const workflowPaths = [
+    ".github/workflows/backend-deploy.yml",
+    ".github/workflows/ci.yml",
+    ".github/workflows/frontend-deploy.yml",
+    ".github/workflows/performance-tests.yml",
+  ];
+  let setupCount = 0;
+  for (const workflowPath of workflowPaths) {
+    const blocks = setupPnpmBlocks(read(workflowPath));
+    setupCount += blocks.length;
+    for (const block of blocks) {
+      assert.match(block, /^\s+version: 10\.15\.0\s*$/m, workflowPath);
+    }
+  }
+  assert.equal(
+    setupCount,
+    4,
+    "expected every pnpm/action-setup use to be covered",
+  );
+});
+
+test("backend deploy keeps the STG path and adds a Production-gated path", () => {
+  const wf = read(".github/workflows/backend-deploy.yml");
+  const on = yamlBlock(wf, "on", 0);
+  assert.match(on, /^\s+- staging\s*$/m);
+  assert.match(on, /^\s+- production\s*$/m);
+
+  const staging = workflowJob(wf, "deploy");
+  assert.match(staging, /^\s+environment: staging\s*$/m);
+  assert.match(staging, /ref: \$\{\{ github\.sha \}\}/);
+  assert.match(staging, /github\.ref == 'refs\/heads\/staging'/);
+  // workflow_dispatch --ref production -f target=staging は STG 側で fail-closed される。
+  const stgGuard = namedStep(
+    staging,
+    "Guard against deploying the production branch to staging",
+  );
+  assert.match(stgGuard, /if: github\.ref == 'refs\/heads\/production'/);
+  assert.match(stgGuard, /exit 1/);
+  const stgDeploy = namedStep(staging, "Deploy Worker and Container");
+  assert.match(stgDeploy, /^\s+run: npx wrangler deploy\s*$/m);
+  assert.doesNotMatch(stgDeploy, /wrangler\.production\.jsonc/);
+  assert.doesNotMatch(staging, /PROD_/);
+
+  const prod = workflowJob(wf, "deploy-production");
+  assert.match(prod, /^\s+environment: Production\s*$/m);
+  const firstStep = prod
+    .split("\n")
+    .find((line) => line.startsWith("      - name: "));
+  assert.equal(
+    firstStep,
+    "      - name: Reject production deploy from a non-production ref",
+  );
+  const reject = namedStep(
+    prod,
+    "Reject production deploy from a non-production ref",
+  );
+  assert.match(
+    reject,
+    /if: \$\{\{ github\.ref != 'refs\/heads\/production' \}\}/,
+  );
+  assert.match(reject, /exit 1/);
+  const prodDeploy = namedStep(prod, "Deploy Worker and Container");
+  assert.match(prodDeploy, /npx wrangler deploy -c wrangler\.production\.jsonc/);
+  assert.match(prod, /WORKER_URL: https:\/\/api\.noah-karte\.com/);
+  assert.doesNotMatch(prod, /workers\.dev/);
+  assert.doesNotMatch(prod, /STG_DEMO/);
+  assert.doesNotMatch(prod, /secrets\.CLOUDFLARE_API_TOKEN/);
+  assert.doesNotMatch(prod, /secrets\.MIGRATE_RUN_SECRET/);
+  const verify = namedStep(prod, "Verify production credentials");
+  assert.match(verify, /secrets\.PROD_CLOUDFLARE_API_TOKEN/);
+  assert.match(verify, /secrets\.PROD_MIGRATE_RUN_SECRET/);
+
+  const order = [
+    "Verify production credentials",
+    "Deploy Worker and Container",
+    "Run database migration",
+    "Wait for /health (post-migrate)",
+  ].map((name) => prod.indexOf(`      - name: ${name}`));
+  for (const index of order) assert.notEqual(index, -1);
+  assert.deepEqual(
+    [...order].sort((a, b) => a - b),
+    order,
+    "production step order must be verify -> deploy -> migrate -> health",
+  );
+});
+
+test("frontend deploy builds the Vite bundle and deploys via wrangler", () => {
+  const workflow = read(".github/workflows/frontend-deploy.yml");
+  // EMR-255: Vercel CLI 経路を撤去し、APP_ENV 固定の vite build +
+  // wrangler deploy(frontend/wrangler{,.production}.jsonc)へ移行した。
+  assert.match(workflow, /APP_ENV="\$ENV" pnpm --dir frontend build/);
+  assert.match(workflow, /npx wrangler deploy -c "\$CONFIG"/);
+  assert.match(workflow, /CONFIG="wrangler\.production\.jsonc"/);
+  assert.match(workflow, /if \[ "\$ENV" = "production" \]/);
+  assert.match(workflow, /secrets\.CLOUDFLARE_API_TOKEN/);
+  assert.match(workflow, /secrets\.PROD_CLOUDFLARE_API_TOKEN/);
+  assert.match(workflow, /\|\| 'staging' \}\}/);
+  assert.doesNotMatch(workflow, /\|\| 'Preview' \}\}/);
+  assert.match(workflow, /ref: \$\{\{ github\.sha \}\}/);
+  assert.doesNotMatch(workflow, /vercel (deploy|alias|pull)/);
+});
+
+test("CI stays minimal: only workflow contracts and gitleaks run remotely", () => {
+  const workflow = read(".github/workflows/ci.yml");
+  const jobs = yamlBlock(workflow, "jobs", 0);
+  const jobIds = [...jobs.matchAll(/^ {2}([a-z0-9_-]+):$/gim)]
+    .map((match) => match[1])
+    .sort();
+  assert.deepEqual(jobIds, ["secret-scan", "workflow-contracts"]);
+  assert.match(workflow, /gitleaks\/gitleaks-action@v3/);
+  // build/test/coverage/migration/worker/codegen は scripts/ci/run-local-ci.sh 側へ
+  // 集約済み。remote job を再導入する場合は docs/ops/ci-policy.md の分担表と
+  // staging required checks も同じ変更で更新すること。
+  assert.doesNotMatch(
+    workflow,
+    /postgres|ci_scope_plan|coverage_ratchet|pnpm\/action-setup|setup-go|go test|vitest/,
+  );
+});
+
+test("make ci wires the gates retired from remote CI", () => {
+  const script = read("scripts/ci/run-local-ci.sh");
+  for (const needle of [
+    "check-workflow-contracts.test.mjs",
+    "check-actions-version-drift.sh",
+    "check-test-worker-makefile.test.sh",
+    "verify_seed.py",
+    "ci-migration-verify.sh",
+    "gitleaks",
+    "typecheck:worker",
+    "cmd/coverage-ratchet",
+    "coverage-ratchet.mjs",
+    "pnpm audit",
+  ]) {
+    assert.ok(script.includes(needle), `run-local-ci.sh must wire: ${needle}`);
+  }
+  // coverage.out の生成経路はどちらでもよい（s20 ratchet の入力契約のみ固定）:
+  // (a) 単一 `go test -coverprofile=coverage.out`、または
+  // (b) シャード並列 + GOCOVERDIR → `go tool covdata merge`/`textfmt` で coverage.out。
+  assert.match(
+    script,
+    /-coverprofile=coverage\.out|go tool covdata/,
+    "run-local-ci.sh must wire coverage.out generation (coverprofile or covdata merge)",
+  );
+});
+
+test("mandatory instruction step rejects trust-boundary drift before generating mirrors", () => {
+  const script = read("scripts/ci/run-local-ci.sh");
+  const step = script.match(/^s01\(\) \{([\s\S]*?)^\}/m)?.[1];
+  assert.ok(step, "missing mandatory instruction step");
+  const check = "ci_py -B .claude/scripts/test_agent_trust_boundaries.py";
+  assert.ok(step.includes(check), "s01 must run the read-only repository drift assertion");
+  assert.ok(step.indexOf(check) < step.indexOf("sync-codex-mirror.py"));
+  assert.doesNotMatch(step, /ci_py[^\n]*sync-agent-trust-boundaries\.py(?![^\n]*--check)/);
+});
+
+test("Plane merge workflows serialize across PRs without replacing pending merges", () => {
+  const workflow = read(".github/workflows/plane-merge-state.yml");
+  const concurrency = yamlBlock(workflow, "concurrency", 0);
+  assert.match(concurrency, /^  group: plane-merge-state-\$\{\{ github\.repository \}\}$/m);
+  assert.match(concurrency, /^  cancel-in-progress: false$/m);
+  assert.match(concurrency, /^  queue: max$/m);
+  assert.doesNotMatch(concurrency, /pull_request|base_ref|head_ref|run_id|github\.ref/);
+});
+
+test("actionlint runs the validated queue compatibility path without ignore rules", () => {
+  const workflow = read(".github/workflows/actionlint.yml");
+  assert.match(namedStep(workflowJob(workflow, "actionlint"), "Run actionlint"),
+    /run: node scripts\/ci\/actionlint-queue-compat\.mjs \.\/actionlint/);
+  assert.doesNotMatch(read("scripts/ci/actionlint-queue-compat.mjs"), /--ignore|continue-on-error/);
+});
+
+test("make ci reports a commit status required by staging protection", () => {
+  // release PR の強制経路: make ci 成功が HEAD の commit status `make ci` として
+  // 投稿され、staging protection の required contexts に含まれることで
+  // 「status 無し = Pending = merge 不可」が成立する。
+  const script = read("scripts/ci/run-local-ci.sh");
+  for (const needle of [
+    "MAKE_CI_CONTEXT=",
+    "statuses/",
+    "post_ci_status success",
+    "on_make_ci_failure",
+    "MAKE_CI_STATUS",
+  ]) {
+    assert.ok(script.includes(needle), `run-local-ci.sh must wire: ${needle}`);
+  }
+  const policy = read("docs/ops/ci-policy.md");
+  assert.match(policy, /required checks:[^\n]*`make ci`/);
+});
+
+test("make ci --from resume cannot post the required success status", () => {
+  // 部分実行が required check の success を投稿すると「一部だけ走った head が
+  // merge 可能」になる迂回経路になる。success 投稿は FROM=1 のフル実行に
+  // 限定されていることを pin する。
+  const script = read("scripts/ci/run-local-ci.sh");
+  assert.match(script, /--from/);
+  assert.match(script, /if \(\( FROM == 1 \)\); then\n\s+post_ci_status success/);
+});
+
+test("run-local-ci step total equals the begin_step call count", () => {
+  const script = read("scripts/ci/run-local-ci.sh");
+  const calls = script.match(/^ *begin_step "/gm)?.length ?? 0;
+  const total = script.match(/^total=(\d+)$/m);
+  assert.ok(total, "missing total= pin");
+  assert.equal(
+    calls,
+    Number(total[1]),
+    "total= must equal the number of begin_step calls inside step functions",
+  );
+});
+
+test("ci_scope_plan unit coverage stays wired for host verify", () => {
+  const planner = read("scripts/ci/ci_scope_plan.py");
+  assert.match(planner, /BACKEND_DOMAINS/);
+  assert.match(planner, /coverage_ratchet/);
+  assert.match(planner, /mode = 'partial'/);
+  const verify = read("scripts/checks/verify-agent-task.py");
+  assert.match(verify, /ci_scope_plan/);
+  assert.match(verify, /src\/features\//);
+});
+
+test("STG migrate timeouts leave margin for login seed", () => {
+  assert.match(read("infra/scripts/cf-run-migrate.sh"), /^MIGRATE_TIMEOUT=270$/m);
+  assert.match(
+    read("backend/worker/index.ts"),
+    /MIGRATE_TIMEOUT_MS = 240_000/,
+  );
+  assert.match(read("infra/scripts/cf-run-migrate.sh"), /MAX_ATTEMPTS/);
+  assert.match(read("infra/scripts/cf-run-migrate.sh"), /Transient migrate failure/);
+});
+
+test("frontend audit treats registry audit endpoint timeouts as unavailable", () => {
+  // pnpm audit は remote Frontend Build job から make ci 側へ移設済み。
+  // endpoint 障害を脆弱性 fail と誤認しないフォールバックは同スクリプトが正本。
+  const script = read("scripts/ci/run-local-ci.sh");
+  assert.match(script, /ERR_PNPM_AUDIT_BAD_RESPONSE\|ERR_SOCKET_TIMEOUT/);
+});
+
+test("frontend pnpm install policy remains explicit", () => {
+  const manifest = JSON.parse(read("frontend/package.json"));
+  assert.deepEqual(manifest.pnpm?.onlyBuiltDependencies, [
+    "@swc/core",
+    "esbuild",
+    "msw",
+  ]);
+});
+
+test("backend Compose receives APP_ENV with the development default", () => {
+  const backend = yamlBlock(read("docker-compose.yml"), "backend", 2);
+  assert.match(backend, /^\s+APP_ENV: \$\{APP_ENV:-development\}\s*$/m);
+});
+
+test("E2E job stays manual-only, keeps the synthetic login, and routes suites to run-e2e.sh modes", () => {
+  const workflow = read(".github/workflows/e2e.yml");
+  const on = yamlBlock(workflow, "on", 0);
+  assert.match(on, /^\s+workflow_dispatch:\s*$/m);
+  assert.doesNotMatch(
+    on,
+    /^\s+(?:push|pull_request|pull_request_target|schedule|workflow_run):/m,
+  );
+  assert.match(on, /^\s+type: choice\s*$/m);
+  assert.match(on, /^\s+default: auth-smoke\s*$/m);
+  assert.match(on, /^\s+- auth-smoke\s*$/m);
+  assert.match(on, /^\s+- clinical\s*$/m);
+  assert.match(on, /^\s+- v04\s*$/m);
+
+  const e2e = workflowJob(workflow, "e2e");
+  assert.match(e2e, /^\s+APP_ENV: test\s*$/m);
+  assert.match(
+    e2e,
+    /^\s+E2E_LOGIN_EMAIL: stg-staff-10000021@example\.test\s*$/m,
+  );
+  assert.match(e2e, /^\s+E2E_LOGIN_PASSWORD: password\s*$/m);
+  assert.doesNotMatch(
+    e2e,
+    /(?:echo|printf).*E2E_LOGIN|E2E_LOGIN.*(?:echo|printf)/,
+  );
+
+  const run = namedStep(e2e, "Run Playwright E2E (${{ inputs.suite }})");
+  assert.match(run, /^\s+E2E_SUITE: \$\{\{ inputs\.suite \}\}\s*$/m);
+  // auth-smoke は --auth-smoke フラグ経由で呼ぶ（run-e2e.sh のフラグ分岐自体をCIで通す）。
+  assert.match(
+    run,
+    /auth-smoke\)\s*\n\s+\.\/scripts\/run-e2e\.sh --auth-smoke\s*$/m,
+  );
+  assert.match(run, /clinical\|v04\)/);
+  assert.match(run, /\.\/scripts\/run-e2e\.sh "--\$E2E_SUITE"/);
+  // 未知 suite は catch-all で fail-closed（exit 1）されることを pin する。
+  assert.match(run, /\*\)\s*\n\s+echo "unknown suite: \$E2E_SUITE" >&2\s*\n\s+exit 1\s*$/m);
+  const script = run.split("run: |")[1];
+  assert.ok(script, "run step must use a block scalar");
+  assert.doesNotMatch(script, /\$\{\{/);
+
+  // 結果収集先は job env に集約し、step env / upload path で同じ参照を共有する。
+  // job env では runner context が使えないため github.workspace 固定。
+  assert.match(e2e, /^\s+E2E_RESULTS_DIR: \$\{\{ github\.workspace \}\}\/e2e-results\s*$/m);
+
+  const upload = namedStep(e2e, "Upload Playwright test results (clinical / v04)");
+  assert.match(
+    upload,
+    /^\s+if: always\(\) && inputs\.suite != 'auth-smoke'\s*$/m,
+  );
+  assert.match(
+    upload,
+    /^\s+path: \$\{\{ env\.E2E_RESULTS_DIR \}\}\/\s*$/m,
+  );
+});
+
+test("run-e2e.sh --v04 reuses the clinical fixture gates and targets only the v04 spec", () => {
+  const script = read("frontend/scripts/run-e2e.sh");
+  assert.match(
+    script,
+    /^V04_SPECS="e2e\/v04-settings-master-forms\.spec\.ts"$/m,
+  );
+  assert.match(script, /^\s+--v04\)\s*$/m);
+  const gate = 'if [ "$MODE" = "clinical" ] || [ "$MODE" = "v04" ]; then';
+  assert.equal(script.split(gate).length - 1, 2);
+  assert.match(script, /set -- \$V04_SPECS "\$@"/);
+});
+
+test("auth smoke keeps the successful-login response and authenticated-home assertions", () => {
+  const authSpec = read("frontend/e2e/auth-flows.spec.ts");
+  assert.match(authSpec, /test\("\/login — 有効な認証情報でログインできる"/);
+  assert.match(authSpec, /expect\(loginResponse\.status\(\)\)\.toBe\(200\)/);
+  assert.match(authSpec, /expect\(loginPage\.homeHeading\(\)\)\.toBeVisible/);
+});
+
+test("local load job and both k6 scripts use the dedicated fail-closed login variables", () => {
+  const loadJob = workflowJob(
+    read(".github/workflows/performance-tests.yml"),
+    "load-test",
+  );
+  assert.match(loadJob, /^\s+APP_ENV: test\s*$/m);
+  assert.doesNotMatch(loadJob, /STG_DEMO/);
+
+  for (const stepName of [
+    "Run k6 API endpoints load test",
+    "Run k6 spike test",
+  ]) {
+    const step = namedStep(loadJob, stepName);
+    assert.match(step, /^\s+LOAD_TEST_LOGIN_EMAIL:/m, stepName);
+    assert.match(step, /^\s+LOAD_TEST_LOGIN_PASSWORD:/m, stepName);
+  }
+
+  for (const scriptPath of [
+    "load-tests/k6-api-endpoints.js",
+    "load-tests/k6-spike-test.js",
+  ]) {
+    const script = read(scriptPath);
+    assert.match(script, /__ENV\.LOAD_TEST_LOGIN_EMAIL/);
+    assert.match(script, /__ENV\.LOAD_TEST_LOGIN_PASSWORD/);
+    assert.match(
+      script,
+      /if \(!LOAD_TEST_LOGIN_EMAIL \|\| !LOAD_TEST_LOGIN_PASSWORD\)/,
+    );
+    assert.doesNotMatch(script, /STG_DEMO/);
+    assert.match(script, /loginRes\.status !== 200/);
+    assert.match(script, /Set-Cookie/);
+    assert.match(script, /handleSummary/);
+  }
+});
+
+test("both k6 scripts use the canonical reservations route", () => {
+  for (const scriptPath of [
+    "load-tests/k6-api-endpoints.js",
+    "load-tests/k6-spike-test.js",
+  ]) {
+    const script = read(scriptPath);
+    assert.match(
+      script,
+      /http\.get\(\s*`\$\{BASE_URL\}\/api\/v1\/reservations`,\s*params,?\s*\)/,
+    );
+    assert.doesNotMatch(script, /\/api\/v1\/appointments/);
+  }
+});
+
+test("k6 errorRate samples success and failure for each check result", () => {
+  const cases = [
+    {
+      scriptPath: "load-tests/k6-api-endpoints.js",
+      checkVars: ["appointmentOk", "medicalOk", "speciesOk"],
+    },
+    {
+      scriptPath: "load-tests/k6-spike-test.js",
+      checkVars: ["ok"],
+    },
+    {
+      scriptPath: "load-tests/k6-cf-stg-sustained.js",
+      checkVars: ["healthOk", "clinicsOk"],
+    },
+  ];
+
+  for (const { scriptPath, checkVars } of cases) {
+    const script = read(scriptPath);
+    for (const checkVar of checkVars) {
+      assert.match(
+        script,
+        new RegExp(
+          `errorRate\\.add\\(\\s*${checkVar}\\s*\\?\\s*0\\s*:\\s*1\\s*\\)`,
+        ),
+        `${scriptPath}: ${checkVar} must sample errorRate.add(${checkVar} ? 0 : 1)`,
+      );
+      assert.doesNotMatch(
+        script,
+        new RegExp(
+          `if\\s*\\(\\s*!${checkVar}\\s*\\)\\s*\\{\\s*errorRate\\.add\\(\\s*1\\s*\\)`,
+        ),
+        `${scriptPath}: ${checkVar} must not use failure-branch-only errorRate.add(1)`,
+      );
+    }
+  }
+});
+
+test("API endpoint k6 load script binds Animal Species authorization for 一般", () => {
+  const script = read("load-tests/k6-api-endpoints.js");
+  const readme = read("load-tests/README.md");
+  const catalog = read("backend/internal/seedlogin/catalog.go");
+  const groupsCsv = read(
+    "backend/migrations/seeds/002_master/accounts/permission_groups.csv",
+  );
+  const rulesCsv = read(
+    "backend/migrations/seeds/002_master/accounts/permission_group_rules.csv",
+  );
+  const petRoutes = read("backend/internal/pet/routes.go");
+
+  assert.match(catalog, /PermissionGroupGeneral\s*=\s*"一般"/);
+
+  assert.match(
+    groupsCsv,
+    /^2,1,一般,一般スタッフ権限,#10B981,t,2,2026-07-06 14:59:40\.511971\+09,2026-07-06 14:59:40\.511971\+09,$/m,
+  );
+  assert.match(
+    rulesCsv,
+    /^39,2,master-animal-species,t,f,f,f,2026-07-06 14:59:40\.511971\+09,2026-07-06 14:59:40\.511971\+09,$/m,
+  );
+  assert.match(
+    rulesCsv,
+    /^44,2,master-permission,f,f,f,f,2026-07-06 14:59:40\.511971\+09,2026-07-06 14:59:40\.511971\+09,$/m,
+  );
+
+  assert.match(
+    petRoutes,
+    /masters\.GET\("\/animal-species",\s*h\.requirePermission\(string\(model\.ResourceMasterAnimalSpecies\),\s*"view"\)/,
+  );
+
+  assert.match(script, /new Trend\("animal_species_duration"\)/);
+  assert.match(script, /group\("Animal Species"/);
+  assert.match(
+    script,
+    /http\.get\(\s*`\$\{BASE_URL\}\/api\/v1\/masters\/animal-species`,\s*params,\s*\)/,
+  );
+  assert.match(script, /"animal species status 200"/);
+  assert.match(script, /"animal species response time < 1000ms"/);
+  assert.doesNotMatch(script, /\/api\/v1\/animal-species/);
+  assert.doesNotMatch(script, /permission_group_duration/);
+  assert.doesNotMatch(script, /group\("Permission Groups"/);
+  assert.doesNotMatch(script, /masters\/permission-groups/);
+  assert.doesNotMatch(script, /"permission groups status 200"/);
+
+  assert.match(
+    readme,
+    /GET `\/api\/v1\/masters\/animal-species` — 動物種類（status 200 必須）/,
+  );
+  assert.doesNotMatch(readme, /masters\/permission-groups/);
+  assert.doesNotMatch(readme, /権限グループ（status 200 必須）/);
+});
+
+test("E2E and local load jobs each own always-run volume cleanup", () => {
+  const e2e = workflowJob(read(".github/workflows/e2e.yml"), "e2e");
+  const performanceWorkflow = read(".github/workflows/performance-tests.yml");
+  const loadJob = workflowJob(performanceWorkflow, "load-test");
+  const summaryJob = workflowJob(performanceWorkflow, "summary");
+
+  for (const job of [e2e, loadJob]) {
+    const cleanup = namedStep(job, "Stop app stack");
+    assert.match(cleanup, /^\s+if: always\(\)\s*$/m);
+    assert.match(cleanup, /^\s+run: docker compose down -v\s*$/m);
+  }
+
+  assert.doesNotMatch(summaryJob, /docker compose down -v/);
+});
+
+test("k6 aggregate validator reads flat and nested summary-export schemas", () => {
+  const performanceWorkflow = read(".github/workflows/performance-tests.yml");
+  const loadJob = workflowJob(performanceWorkflow, "load-test");
+  const validate = namedStep(loadJob, "Validate k6 summary aggregates");
+
+  assert.match(validate, /^\s+if: always\(\)\s*$/m);
+  assert.match(
+    validate,
+    /node scripts\/tools\/validate-k6-summary\.mjs/,
+    "validator must live in a testable script, not an inline values-only reader",
+  );
+  assert.match(validate, /load-tests\/results-endpoints-summary\.json/);
+  assert.match(validate, /load-tests\/results-spike-summary\.json/);
+  assert.doesNotMatch(
+    validate,
+    /if \(!metric \|\| !metric\.values\) return 0;/,
+    "do not keep the values-only inline reader that zeroed flat k6 artifacts",
+  );
+});
+
+test("clinical-plan inventory matches the bounded current PATCH contract", () => {
+  const inventory = read("docs/ops/testing/scenarios/FORM-FIELD-INVENTORY.md");
+  const heading =
+    "### medical-record-clinical-plan PATCH — `/api/v1/medical-records/:id/clinical-plan`";
+  const start = inventory.indexOf(heading);
+  assert.notEqual(start, -1, "missing bounded clinical-plan inventory heading");
+  const nextHeading = inventory.indexOf("\n### ", start + heading.length);
+  const section = inventory.slice(
+    start,
+    nextHeading === -1 ? undefined : nextHeading,
+  );
+
+  const saveAction = read(
+    "frontend/src/features/medical-records/hooks/use-medical-record-save-action.ts",
+  );
+  const clinicalPlanApi = read(
+    "frontend/src/features/medical-records/api/clinical-plan.ts",
+  );
+  const clinicalPlanRequest = read(
+    "backend/internal/medicalrecord/clinical_plan_request.go",
+  );
+  const routes = read("backend/internal/medicalrecord/routes_records.go");
+  const treatmentPlanPayload = saveAction.match(
+    /const treatmentPlanPayload = \{[\s\S]*?\n\s*\};/,
+  );
+  assert.notEqual(treatmentPlanPayload, null, "missing treatmentPlanPayload");
+
+  const mappings = [
+    [
+      "physicalExam",
+      "physical_exam",
+      /physical_exam:\s*snapshot\.physicalExam/,
+    ],
+    [
+      "diagnosis1CategoryId",
+      "diagnosis_type_id",
+      /diagnosis_type_id:\s*snapshot\.diagnosis1CategoryId \?\? undefined/,
+    ],
+    [
+      "diagnosis1NameId",
+      "diagnosis_name_id",
+      /diagnosis_name_id:\s*snapshot\.diagnosis1NameId \?\? undefined/,
+    ],
+    [
+      "diagnosis2CategoryId",
+      "diagnosis_2_type_id",
+      /diagnosis_2_type_id:\s*snapshot\.diagnosis2CategoryId/,
+    ],
+    [
+      "diagnosis2NameId",
+      "diagnosis_2_name_id",
+      /diagnosis_2_name_id:\s*snapshot\.diagnosis2NameId/,
+    ],
+    [
+      "assessment",
+      "diagnosis_details",
+      /diagnosis_details:\s*snapshot\.assessment/,
+    ],
+    ["plan", "treatment_policy", /treatment_policy:\s*snapshot\.plan/],
+    [
+      "existingClinicalPlanVersion",
+      "version",
+      /version:\s*snapshot\.existingClinicalPlanVersion/,
+    ],
+  ];
+
+  for (const [uiState, wireKey, savePayload] of mappings) {
+    const inventoryRow = new RegExp(
+      `\\|\\s*${uiState}\\s*\\|\\s*${wireKey}\\s*\\|`,
+    );
+    assert.match(section, inventoryRow, `${uiState} inventory mapping`);
+    assert.match(
+      treatmentPlanPayload[0],
+      savePayload,
+      `${uiState} save payload mapping`,
+    );
+    assert.match(
+      clinicalPlanApi,
+      new RegExp(`\\b${wireKey}\\?:`),
+      `${wireKey} frontend API input`,
+    );
+    assert.match(
+      clinicalPlanRequest,
+      new RegExp(`json:"${wireKey}"`),
+      `${wireKey} Go request tag`,
+    );
+  }
+
+  assert.match(section, /version.*S.*CAS.*user-entered/i);
+  assert.match(section, /Owner: clinical_plan PATCH child resource\./);
+  for (const staleKey of [
+    "soap_s",
+    "soap_o",
+    "soap_a",
+    "soap_p",
+    "diagnosis3_type",
+    "diagnosis3_name",
+  ]) {
+    assert.doesNotMatch(section, new RegExp(`\\b${staleKey}\\b`));
+  }
+
+  assert.match(
+    clinicalPlanApi,
+    /\.patch[\s\S]*`\/v1\/medical-records\/\$\{medicalRecordId\}\/clinical-plan`/,
+  );
+  assert.match(
+    routes,
+    /records\.PATCH\("\/:id\/clinical-plan",[^\n]*h\.clinicalPlan\.UpdateClinicalPlan\)/,
+  );
+  assert.match(
+    saveAction,
+    /updateTreatmentPlanMutation\.mutateAsync\(treatmentPlanPayload\)/,
+  );
+});
+
+test("one-off staging SQL workflows and the ghost worker delete are absent", () => {
+  for (const name of [
+    ".github/workflows/stg-sql-probe-brt71.yml",
+    ".github/workflows/stg-ensure-pet-owners-brt71.yml",
+  ]) {
+    assert.throws(() => read(name), { code: "ENOENT" }, name);
+  }
+
+  const sync = read(".github/workflows/worker-secret-sync.yml");
+  assert.doesNotMatch(sync, /delete_ghost/);
+  assert.doesNotMatch(sync, /nimal-karte/);
+  assert.doesNotMatch(sync, /workers\/scripts/);
+  assert.match(sync, /wrangler secret put DB_USER --name animalekarte-stg-api/);
+  assert.match(sync, /wrangler secret put DB_PASSWORD --name animalekarte-stg-api/);
+  assert.match(sync, /^\s+environment: staging\s*$/m);
+  assert.match(sync, /ref: \$\{\{ github\.sha \}\}/);
+
+  const migrate = read(".github/workflows/stg-migrate-direct.yml");
+  assert.match(migrate, /^\s+environment: staging\s*$/m);
+  assert.match(migrate, /ref: \$\{\{ github\.sha \}\}/);
+  assert.doesNotMatch(migrate, /inputs\.confirm/);
+  assert.doesNotMatch(migrate, /confirm=migrate/);
+});
+
+test("merged pull requests move Plane work items by base branch", () => {
+  const workflow = read(".github/workflows/plane-merge-state.yml");
+  const script = read("scripts/tools/plane-merge-state.sh");
+
+  assert.match(workflow, /types:\s*\[closed\]/);
+  assert.match(workflow, /branches:\s*\[main,\s*staging\]/);
+  assert.doesNotMatch(workflow, /branches:\s*\[[^\]]*production/);
+  assert.match(workflow, /github\.event\.pull_request\.merged == true/);
+  assert.match(workflow, /secrets\.PLANE_GITHUB_AUTOMATION_KEY/);
+  assert.doesNotMatch(workflow, /secrets\.PLANE_API_KEY/);
+  assert.match(workflow, /actions\/checkout@v7\.0\.1/);
+  assert.match(workflow, /bash scripts\/tools\/plane-merge-state\.sh/);
+  assert.match(workflow, /contents:\s*read/);
+  assert.match(workflow, /pull-requests:\s*read/);
+  assert.doesNotMatch(workflow, /contents:\s*write/);
+
+  assert.match(script, /PLANE_GITHUB_AUTOMATION_KEY/);
+  assert.match(script, /EMR-\[1-9\]\[0-9\]\*\(\/\[1-9\]\[0-9\]\*\)\*/);
+  assert.match(script, /SKIP protected/);
+  assert.match(script, /"Review"/);
+  assert.match(script, /"UAT"/);
+});
+
+test("Chromatic install does not receive the project token", () => {
+  const workflow = read(".github/workflows/chromatic.yml");
+  const job = workflowJob(workflow, "chromatic");
+  assert.doesNotMatch(job, /^ {4}env:\s*$/m);
+
+  const probe = namedStep(job, "Record whether the Chromatic token is configured");
+  assert.match(probe, /CHROMATIC_PROJECT_TOKEN: \$\{\{ secrets\.CHROMATIC_PROJECT_TOKEN \}\}/);
+  assert.match(probe, /configured=true/);
+  assert.doesNotMatch(probe, /echo[^\\n]*CHROMATIC_PROJECT_TOKEN/);
+
+  const install = namedStep(job, "Install dependencies");
+  assert.match(install, /steps\.token\.outputs\.configured == 'true'/);
+  assert.match(install, /pnpm install --frozen-lockfile/);
+  assert.doesNotMatch(install, /CHROMATIC_PROJECT_TOKEN/);
+  assert.doesNotMatch(install, /secrets\./);
+
+  const checkout = namedStep(job, "Checkout");
+  assert.match(checkout, /persist-credentials:\s*false/);
+  assert.match(checkout, /steps\.token\.outputs\.configured == 'true'/);
+
+  const chromatic = namedStep(job, "Run Chromatic");
+  assert.match(
+    chromatic,
+    /projectToken:\s*\$\{\{ secrets\.CHROMATIC_PROJECT_TOKEN \}\}/,
+  );
+  assert.doesNotMatch(chromatic, /^ {8}env:\s*$/m);
+});

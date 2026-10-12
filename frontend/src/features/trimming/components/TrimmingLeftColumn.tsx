@@ -81,6 +81,7 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
           icon={<Scissors className={ICON.action} />}
           onClick={onCourseModalOpen}
           variant="block"
+          ariaInvalid={Boolean(courseError)}
         />
         <FormFieldError message={courseError} />
       </div>
@@ -158,7 +159,7 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
       <TrimmingImageUploadField
         label="希望スタイル画像"
         preview={styleImagePreview}
-        previewAlt="Style preview"
+        previewAlt="希望スタイル画像のプレビュー"
         onImageChange={onStyleImageChange}
         onRemoveImage={onRemoveStyleImage}
       />

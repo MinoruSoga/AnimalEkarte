@@ -2,6 +2,7 @@ package lstep
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -28,6 +29,15 @@ type deliveryBatchTagOwnersLoader interface {
 // preloading clinic-day trigger logs for already-fired / suppression checks.
 const deliveryBatchDayLogPageSize = 500
 
+// deliveryRevalidationHook は送信直前の candidate 再検証フック（EMR-308）。
+// valid=true で送信する場合、hook が send コールバックを直列化境界（tentative
+// mutation と同じ advisory lock）の内側で呼ぶ責務を持つ — 再検証〜送信の間の
+// stale 化を防ぐため send は hook が制御する（Codex 指摘対応）。
+// 戻り値 (valid, reason, err): valid=false のとき reason を excluded_reason として
+// ログを excluded に更新し送信しない（send 未呼出）。valid=true は send 完了済みを
+// 意味する。nil hook で再検証なし（呼び出し側が send を直接実行）。
+type deliveryRevalidationHook func(ctx context.Context, ownerID uint64, send func(context.Context) error) (valid bool, reason string, err error)
+
 func (s *lstepDeliveryTriggerService) runBatch(
 	ctx context.Context,
 	clinicID uint64,
@@ -35,6 +45,7 @@ func (s *lstepDeliveryTriggerService) runBatch(
 	triggerType string,
 	tagName string,
 	asOf time.Time,
+	revalidate deliveryRevalidationHook,
 ) (int, []error) {
 	client, err := s.buildClient(ctx, clinicID)
 	if err != nil {
@@ -70,7 +81,7 @@ func (s *lstepDeliveryTriggerService) runBatch(
 
 		restore := s.installDeliveryBatchCaches(ctx, clinicID, page, dayLogsByOwner, dayLogsLoaded)
 		for _, ownerID := range page {
-			fired, loopErr := s.processSingleOwner(ctx, client, clinicID, ownerID, triggerType, tagName, asOf)
+			fired, loopErr := s.processSingleOwner(ctx, client, clinicID, ownerID, triggerType, tagName, asOf, revalidate)
 			if loopErr != nil {
 				errs = append(errs, loopErr)
 				continue
@@ -245,7 +256,7 @@ func (c *deliveryBatchTriggerLogCache) ExistsTodayByOwnerAndType(
 ) (bool, error) {
 	if c.loaded {
 		for i := range c.dayLogsByOwner[ownerID] {
-			if c.dayLogsByOwner[ownerID][i].TriggerType == triggerType {
+			if c.dayLogsByOwner[ownerID][i].TriggerType == triggerType && !retryablePreSendClaim(&c.dayLogsByOwner[ownerID][i]) {
 				return true, nil
 			}
 		}
@@ -340,13 +351,20 @@ func (c *deliveryBatchTriggerLogCache) UpdateSuppressed(ctx context.Context, cli
 	return c.inner.UpdateSuppressed(ctx, clinicID, logID, reason)
 }
 
+func (c *deliveryBatchTriggerLogCache) MarkKnownUnsent(ctx context.Context, clinicID, id uint64, reason string) error {
+	return c.inner.MarkKnownUnsent(ctx, clinicID, id, reason)
+}
+
 // processSingleOwner は1飼い主分のトリガー処理を行い、配信実行されたか否かを返す。
+// revalidate != nil の場合、日次スロット claim 後・LSTEP 送信直前に candidate の
+// 有効性を再検証し、stale な candidate は excluded として記録して送信しない（EMR-308）。
 func (s *lstepDeliveryTriggerService) processSingleOwner(
 	ctx context.Context,
 	client lstep.Client,
 	clinicID, ownerID uint64,
 	triggerType, tagName string,
 	asOf time.Time,
+	revalidate deliveryRevalidationHook,
 ) (bool, error) {
 	owner, err := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
 	if err != nil {
@@ -421,10 +439,99 @@ func (s *lstepDeliveryTriggerService) processSingleOwner(
 		return false, nil
 	}
 
-	if err := s.applyTagAndLog(ctx, clinicID, client, *owner.LineUserID, tagName, logID); err != nil {
-		return false, err
+	// EMR-308: 送信直前の candidate 再検証。tentative リマインダーは candidate 抽出と
+	// 送信の間に appointment が取消・完了・削除・昇格・日付変更され得るため、
+	// claim 済みスロットを excluded に記録して外部送信を抑止する。
+	// Codex: 再検証〜送信は tentative mutation と同じ advisory lock 内で行う —
+	// send コールバックを hook へ渡し、hook の直列化境界内で送信させる。
+	locker := deliveryOwnerLockerOf(s.tagCacheRepo)
+	if locker == nil {
+		markErr := markDeliveryKnownUnsent(ctx, s.triggerLogRepo, clinicID, logID)
+		return false, errors.Join(errDeliveryOwnerLockUnavailable, markErr)
 	}
-	return true, nil
+	freshOwnerRepo := unwrapDeliveryOwnerRepo(s.ownerRepo)
+	freshTagRepo := unwrapDeliveryTagRepo(s.tagCacheRepo)
+
+	sendStarted := false
+	var sendErr error
+	lockExcluded := false
+	lockExcludedReason := ""
+	send := func(callCtx context.Context, lineUserID string) error {
+		sendStarted = true
+		sendErr = s.addDeliveryTag(callCtx, client, lineUserID, tagName)
+		return sendErr
+	}
+	lockErr := locker.WithDeliveryOwnerLock(ctx, clinicID, ownerID, func(syncCtx context.Context) error {
+		freshOwner, err := freshOwnerRepo.FindByID(syncCtx, clinicID, ownerID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to re-read owner under delivery lock")
+		}
+		if freshOwner == nil {
+			return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", ownerID))
+		}
+		if s.settingsSvc != nil {
+			enabled, err := s.settingsSvc.IsSyncEnabled(syncCtx, clinicID)
+			if err != nil {
+				return apperrors.Wrap(err, "failed to re-check lstep sync under delivery lock")
+			}
+			if !enabled {
+				lockExcluded = true
+				lockExcludedReason = "lstep_sync_disabled"
+				return nil
+			}
+		}
+		lockExcludedNow, reason, err := s.checkExclusionWithTags(syncCtx, freshTagRepo, clinicID, ownerID, freshOwner)
+		if err != nil {
+			return err
+		}
+		if lockExcludedNow {
+			lockExcluded = true
+			lockExcludedReason = reason
+			return nil
+		}
+		if revalidate != nil {
+			stillValid, staleReason, revalidateErr := revalidate(syncCtx, ownerID, func(callCtx context.Context) error {
+				return send(callCtx, *freshOwner.LineUserID)
+			})
+			if revalidateErr != nil {
+				return revalidateErr
+			}
+			if !stillValid {
+				lockExcluded = true
+				lockExcludedReason = staleReason
+				return nil
+			}
+			if !sendStarted {
+				return apperrors.WrapInternalServerError("revalidation hook returned valid without invoking send")
+			}
+			return sendErr
+		}
+		return send(syncCtx, *freshOwner.LineUserID)
+	})
+
+	if sendStarted {
+		outCtx, cancel := detachedDeliveryOutcomeContext(ctx)
+		outcomeErr := s.recordDeliveryOutcome(outCtx, clinicID, logID, tagName, sendErr)
+		cancel()
+		if sendErr != nil || lockErr != nil || outcomeErr != nil {
+			return false, errors.Join(lockErr, outcomeErr)
+		}
+		return true, nil
+	}
+	if lockExcluded {
+		outCtx, cancel := detachedDeliveryOutcomeContext(ctx)
+		updateErr := s.triggerLogRepo.UpdateStatus(outCtx, clinicID, logID, model.TriggerStatusExcluded, nil, &lockExcludedReason)
+		cancel()
+		if updateErr != nil {
+			slog.ErrorContext(ctx, "failed to record trigger log excluded status", "log_id", logID, "error", updateErr)
+		}
+		return false, errors.Join(lockErr, updateErr)
+	}
+	markErr := markDeliveryKnownUnsent(ctx, s.triggerLogRepo, clinicID, logID)
+	if markErr != nil {
+		slog.ErrorContext(ctx, "failed to record trigger log known-unsent status", "log_id", logID, "error", markErr)
+	}
+	return false, errors.Join(lockErr, markErr)
 }
 
 func ownersByID(owners []*model.Owner) map[uint64]*model.Owner {

@@ -65,6 +65,9 @@ func (m *mockLstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID
 	}
 	return nil
 }
+func (m *mockLstepTagSyncService) EnqueueNextVisitCleanup(_ context.Context, _, _ uint64, _ string) error {
+	return nil
+}
 func (m *mockLstepTagSyncService) SyncCheckupTag(ctx context.Context, clinicID, ownerID, checkupTypeID uint64, checkupDate time.Time, nextDate *time.Time) error {
 	if m.syncCheckupTagFn != nil {
 		return m.syncCheckupTagFn(ctx, clinicID, ownerID, checkupTypeID, checkupDate, nextDate)
@@ -504,6 +507,76 @@ func TestLstepLifecycleService_HandlePetRevival_LivingPetConflictNoSideEffects(t
 	)
 }
 
+// ---------------------------------------------------------------------------
+// Codex #24: 死亡/復活で next_visit_* タグを再同期する（best-effort）。
+// 死亡ペットの tentative は次回来院の対象外、復活で対象に復帰し得るため。
+// ---------------------------------------------------------------------------
+
+func TestLstepLifecycleService_HandlePetDeath_SyncsNextVisitTag(t *testing.T) {
+	var nextVisitCalls []uint64
+	petRepo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			return &model.Pet{ID: 1, OwnerID: 10}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			return nil
+		},
+		findLivingByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Pet, error) {
+			return []model.Pet{{ID: 2, OwnerID: 10}}, nil // 生存ペットあり経路
+		},
+	}
+	syncSvc := &mockLstepTagSyncService{
+		syncNextVisitTagFn: func(_ context.Context, _, ownerID uint64) error {
+			nextVisitCalls = append(nextVisitCalls, ownerID)
+			return nil
+		},
+	}
+	svc := newLstepLifecycleSvc(
+		defaultLstepSettingsSvc(),
+		&mockOwnerRepository{},
+		petRepo,
+		&mockLstepTagCacheRepository{},
+		syncSvc,
+	)
+
+	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "老衰", nil)
+
+	assert.NoError(t, err)
+	assert.Equal(t, []uint64{10}, nextVisitCalls,
+		"Codex #24: 生存ペット経路の死亡記録は owner の next_visit_* を再同期する")
+}
+
+func TestLstepLifecycleService_HandlePetRevival_SyncsNextVisitTag(t *testing.T) {
+	var nextVisitCalls []uint64
+	petRepo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			return &model.Pet{ID: 1, OwnerID: 10, Status: model.PetStatusDeceased}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			return nil
+		},
+	}
+	syncSvc := &mockLstepTagSyncService{
+		syncNextVisitTagFn: func(_ context.Context, _, ownerID uint64) error {
+			nextVisitCalls = append(nextVisitCalls, ownerID)
+			return nil
+		},
+	}
+	svc := newLstepLifecycleSvc(
+		defaultLstepSettingsSvc(),
+		&mockOwnerRepository{},
+		petRepo,
+		&mockLstepTagCacheRepository{},
+		syncSvc,
+	)
+
+	err := svc.HandlePetRevival(context.Background(), 1, 1, nil)
+
+	assert.NoError(t, err)
+	assert.Equal(t, []uint64{10}, nextVisitCalls,
+		"Codex #24: 復活は pet の飼い主の next_visit_* を再同期する")
+}
+
 // ---- テスト: HandleOwnerOptOut ----
 
 func TestLstepLifecycleService_HandleOwnerOptOut(t *testing.T) {
@@ -922,7 +995,11 @@ func TestLstepLifecycleService_RemoveAllTagsFromLstep(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := &lstepLifecycleService{
-				settingsSvc:  tt.settingsSvc,
+				settingsSvc: tt.settingsSvc,
+				ownerRepo: &mockOwnerRepository{findByIDFn: func(context.Context, uint64, uint64) (*model.Owner, error) {
+					uid := "Uabc123"
+					return &model.Owner{LineUserID: &uid}, nil
+				}},
 				tagCacheRepo: tt.tagCacheRepo,
 			}
 
@@ -1487,4 +1564,75 @@ func TestLstepLifecycleService_HandleOwnerDeletion_RemoveTagsErrorIsBestEffort(t
 	err := svc.HandleOwnerDeletion(context.Background(), 1, 10)
 
 	assert.NoError(t, err)
+}
+
+// ---- EMR-328: 半死亡行（status=alive + deceased_at≠NULL）の OR 契約 ----
+
+// HandlePetDeath は半死亡行を既に死亡として conflict し、RecordDeath/監査/タグ同期を実行しない。
+func TestLstepLifecycleService_HandlePetDeath_HalfDeadRowConflict(t *testing.T) {
+	deceasedAt := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	pet := &model.Pet{
+		ID:         1,
+		OwnerID:    10,
+		Status:     model.PetStatusAlive,
+		DeceasedAt: &deceasedAt,
+	}
+	var updateCalls int
+	petRepo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			return pet, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateCalls++
+			return nil
+		},
+	}
+	svc := newLstepLifecycleSvc(
+		defaultLstepSettingsSvc(),
+		&mockOwnerRepository{},
+		petRepo,
+		&mockLstepTagCacheRepository{},
+		&mockLstepTagSyncService{},
+	)
+
+	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気", nil)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err))
+	assert.Equal(t, 0, updateCalls, "RecordDeath must not run for an already-deceased (half-dead) row")
+}
+
+// HandlePetRevival は半死亡行を死亡扱いして ClearDeath へ進める（従来は status≠deceased で復活不能だった）。
+func TestLstepLifecycleService_HandlePetRevival_HalfDeadRowSucceeds(t *testing.T) {
+	deceasedAt := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	pet := &model.Pet{
+		ID:         1,
+		OwnerID:    10,
+		Status:     model.PetStatusAlive,
+		DeceasedAt: &deceasedAt,
+	}
+	var updateCalls int
+	petRepo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			return pet, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, fields map[string]any) error {
+			updateCalls++
+			assert.Equal(t, model.PetStatusAlive, fields["status"])
+			return nil
+		},
+		findLivingByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Pet, error) {
+			return []model.Pet{{ID: 2, OwnerID: 10, Status: model.PetStatusAlive}}, nil
+		},
+	}
+	svc := newLstepLifecycleSvc(
+		defaultLstepSettingsSvc(),
+		&mockOwnerRepository{},
+		petRepo,
+		&mockLstepTagCacheRepository{},
+		&mockLstepTagSyncService{},
+	)
+
+	err := svc.HandlePetRevival(context.Background(), 1, 1, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 1, updateCalls, "ClearDeath must run for a half-dead row")
 }

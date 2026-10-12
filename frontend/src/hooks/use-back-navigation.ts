@@ -2,6 +2,32 @@ import { useCallback } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { parseInternalPath } from "@/lib/internal-navigation";
 
+interface BackNavigate {
+  (to: string, options?: { state?: unknown }): void;
+}
+
+function listReturnState(locationState: unknown): unknown {
+  if (locationState === null || typeof locationState !== "object") return undefined;
+  if (!("listReturnState" in locationState)) return undefined;
+  return (locationState as { listReturnState?: unknown }).listReturnState;
+}
+
+/** 詳細の戻る・保存が、一覧 URL と一覧が持っていた戻り先を復元する。 */
+export function performBackNavigation(
+  navigate: BackNavigate,
+  fallbackPath: string,
+  locationState: unknown,
+): void {
+  const from = (locationState as { from?: unknown } | null)?.from;
+  const to = parseInternalPath(from) ?? fallbackPath;
+  const restored = listReturnState(locationState);
+  if (restored !== undefined) {
+    navigate(to, { state: restored });
+    return;
+  }
+  navigate(to);
+}
+
 /**
  * 画面遷移元が `location.state.from` に渡した復帰先パスを返す。
  * `from` が無い・内部パスでない場合は `fallbackPath`（通常は機能の一覧ページ）を返す。
@@ -22,9 +48,9 @@ export function useBackPath(fallbackPath: string): string {
  */
 export function useBackNavigation(fallbackPath: string): () => void {
   const navigate = useNavigate();
-  const backPath = useBackPath(fallbackPath);
+  const location = useLocation();
 
   return useCallback(() => {
-    navigate(backPath);
-  }, [navigate, backPath]);
+    performBackNavigation(navigate, fallbackPath, location.state);
+  }, [navigate, fallbackPath, location.state]);
 }

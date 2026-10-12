@@ -1,12 +1,13 @@
 import { memo, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 
 import { paths } from "@/config/paths";
-import { useBackNavigation, useBackPath } from "@/hooks/use-back-navigation";
+import { performBackNavigation, useBackNavigation } from "@/hooks/use-back-navigation";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useGetVaccinations } from "../api/get-vaccinations";
 import { useVaccinationForm } from "../hooks/use-vaccination-form";
 import { usePermission } from "@/hooks/use-permission";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import {
   VACCINATION_FIELD_ID_MAP,
   VACCINATION_PRIORITY_FIELDS,
@@ -17,6 +18,7 @@ import { VaccinationFormBody, VaccinationFormStatusView } from "./VaccinationFor
 
 export const VaccinationForm = memo(function VaccinationForm() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
   const { canEdit, canCreate, canDelete } = usePermission("vaccinations");
 
@@ -55,18 +57,16 @@ export const VaccinationForm = memo(function VaccinationForm() {
     }
   }, [formState.fieldErrors, formState.timestamp]);
 
-  const backPath = useBackPath(paths.vaccinations.getHref());
-
   useEffect(() => {
     if (formState.success) {
       markClean();
-      navigate(backPath);
+      performBackNavigation(navigate, paths.vaccinations.getHref(), location.state);
     }
-  }, [formState.success, formState.timestamp, navigate, markClean, backPath]);
+  }, [formState.success, formState.timestamp, navigate, markClean, location.state]);
 
   const { selectedPets } = petSelection;
   const selectedPet = selectedPets[0];
-  const isPetDeceased = selectedPet?.status === "死亡";
+  const isPetDeceased = selectedPet != null && isPetDeceasedForClinicalWrite(selectedPet);
   const canSubmit = (id ? canEdit && isEditPetReady : canCreate) && !isPetDeceased;
   const allowDelete = canDelete === true && isEditPetReady;
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -135,7 +135,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
       onConfirmDelete={() => {
         handleDelete(() => {
           markClean();
-          navigate(paths.vaccinations.getHref());
+          performBackNavigation(navigate, paths.vaccinations.getHref(), location.state);
         });
       }}
     />

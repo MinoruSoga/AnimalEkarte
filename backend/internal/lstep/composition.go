@@ -37,6 +37,15 @@ type VaccinationRepository interface {
 	deliveryVaccinationRepository
 }
 
+// AppointmentRepository is the union of appointment reads consumed by LSTEP
+// (EMR-308). Source of truth for next_visit_* タグ同期と tentative リマインダー
+// 配信の candidate 抽出・送信直前再検証。具象は reservation domain の store で、
+// composition root（cmd/api）が注入する。
+type AppointmentRepository interface {
+	tagSyncNextVisitAppointmentRepo
+	deliveryAppointmentRepository
+}
+
 // AuditLogger is the shared audit kernel view consumed by LSTEP.
 type AuditLogger interface {
 	lstepAuditLogger
@@ -47,6 +56,11 @@ type AuditLogger interface {
 // Transactor preserves the ambient transaction across LSTEP write operations.
 type Transactor interface {
 	WithTx(ctx context.Context, fn func(context.Context) error) error
+}
+
+type batchApplicationReservationRepository interface {
+	lstepBatchReservationRepository
+	expiredTentativeTagOwnerReader
 }
 
 // Dependencies are cross-domain capabilities required to construct the LSTEP application.
@@ -66,7 +80,8 @@ type Dependencies struct {
 	BillingItems          tagSyncBillingItemRepo
 	ClinicSettings        lstepClinicSettingsRepo
 	ReservationSettings   lstepLineSettingReader
-	Reservations          lstepBatchReservationRepository
+	Reservations          batchApplicationReservationRepository
+	Appointments          AppointmentRepository // EMR-308: next-visit tag sync + tentative reminder read 面
 	Clinics               lstepBatchClinicRepository
 	Staff                 csvImportStaffRepository
 	Audit                 AuditLogger
@@ -107,6 +122,7 @@ func newApplication(deps *Dependencies, repos *applicationRepositories) *Applica
 	delivery := NewLstepDeliveryTriggerService(
 		deps.Owners, deps.MedicalRecords, deps.Vaccinations, deps.Pets,
 		repos.tagCache, repos.deliveryTriggerLog, core.settings, core.triggerPriority,
+		deps.Appointments,
 	)
 	batch := NewLstepBatchService(
 		deps.Reservations, core.tagSync, deps.Clinics, deps.MedicalRecords, deps.Audit,

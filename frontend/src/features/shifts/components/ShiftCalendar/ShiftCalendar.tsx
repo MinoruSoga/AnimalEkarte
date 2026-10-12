@@ -32,7 +32,7 @@ function dateHeaderColorClass(isHoliday: boolean, isSun: boolean, isSat: boolean
 // ─── ヘッダー列（静的 JSX）: rendering-hoist-jsx ───────────────────────
 const STAFF_HEADER = (
   <div
-    className={`sticky left-0 z-20 ${C.bgWhite} px-3 py-2 text-xs font-semibold ${C.text60} border-r border-b ${C.borderLight} w-[120px] min-w-[120px] shrink-0`}
+    className={`sticky left-0 z-30 ${C.bgWhite} px-3 py-2 text-xs font-semibold ${C.text60} border-r border-b ${C.borderLight} w-[120px] min-w-[120px] shrink-0`}
   >
     スタッフ
   </div>
@@ -182,7 +182,7 @@ export const ShiftCalendar = memo(function ShiftCalendar({
   const displayLabel = `${displayYear}年${Number(displayMonth)}月`;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex min-h-0 flex-1 flex-col h-full">
       {/* ツールバー */}
       <div
         className={`flex items-center justify-between px-4 py-3 border-b ${C.borderLight} ${C.bgWhite} shrink-0`}
@@ -224,11 +224,12 @@ export const ShiftCalendar = memo(function ShiftCalendar({
         </div>
       </div>
 
-      {/* カレンダーグリッド */}
-      <div className="flex-1 overflow-auto">
+      {/* カレンダーグリッド。min-h-0 で高さを親に合わせ、祖先の overflow-y-auto ではなく
+          この要素だけを縦横のスクロールポートにする。ヘッダー z-20 はスタッフ列 z-10 より上。 */}
+      <div className="min-h-0 flex-1 overflow-auto">
         <div className="inline-block min-w-full">
           {/* ヘッダー行（日付） */}
-          <div className={`flex sticky top-0 z-10 ${C.bgWhite} border-b ${C.borderLight}`}>
+          <div className={`flex sticky top-0 z-20 ${C.bgWhite} border-b ${C.borderLight}`}>
             {STAFF_HEADER}
             {days.map(({ day, dateStr, dayOfWeek }) => {
               const isSun = dayOfWeek === 0;

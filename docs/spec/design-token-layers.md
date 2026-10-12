@@ -36,8 +36,8 @@ Tailwind v4 は任意値クラス（`text-[#31302E]` 等）を**ソースを走�
 
 したがって **L2 は L1 の値をテキストとして重複して保持する**のが構造上の正しい形であり、これは欠陥ではない。層の一致は以下で担保する:
 
-- 色の値一致 = design-system.md §2.6 マッピング表（PALETTE ↔ C ↔ :root）
-- 機械検証 = `pnpm design-audit`（C1–C19。新規 hex 直書き C3 / rgba 直値 C6b / 非仕様値 C11–C16 が L1 外への値混入を検出）
+- 色の値一致 = design-system.md §2.7 マッピング表（PALETTE ↔ C ↔ :root。2026-10-07 監査で design-system.md §2 の採番崩れ修正に伴い §2.6 → §2.7 へ更新）
+- 機械検証 = `pnpm design-audit`（C1–C24。新規 hex 直書き C3 / rgba 直値 C6b / 非仕様値 C11–C16 が L1 外への値混入を検出）
 
 > Sparkle の CSS 変数 4 層は `--color-*` が変数参照で層を串刺しにする方式。本プロジェクトは Tailwind 静的走査制約により TS 側では「値の重複 + 監査による一致保証」を採る。両者は等価な層モデルの異なる実装である。
 

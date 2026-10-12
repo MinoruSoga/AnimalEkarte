@@ -1,25 +1,26 @@
 # CI ポリシー — ゲート分担と Actions ピン記法
 
-> `.github/workflows/*.yml` と `scripts/run-local-ci.sh` が実装の正本。この文書は契約を要約し、手作業の action/step inventory は持たない。
+> `.github/workflows/*.yml` と `scripts/ci/run-local-ci.sh` が実装の正本。この文書は契約を要約し、手作業の action/step inventory は持たない。
 
 ## リモートとローカルの分担
 
 | 区分 | 契約 | 実装の正本 |
 |---|---|---|
-| Remote | **最小構成**: workflow contract 静的検査と gitleaks secret scan のみ。build / test / coverage / migration / worker / codegen / audit はすべてローカル側へ集約した | `.github/workflows/ci.yml` |
-| AgentShield | main 向け PR で agent config が変わった場合、または manual dispatch で `force_fail_on_findings` を有効にした場合だけ findings を fail 扱い。他の branch/trigger は report-only | `.github/workflows/security-scan.yml` |
-| Local process policy | push/PR 前に `make ci` を実行する。build/test/coverage ratchet/lint/migration verify/worker/codegen/audit/gitleaks 全ゲートを含む。GitHub はこのローカル実行を強制も証明もしない | `scripts/run-local-ci.sh` |
+| Remote | **最小構成**: `ci.yml` 内は workflow contract 静的検査と gitleaks secret scan の2 job のみ（actionlint.yml / security-scan.yml は別 workflow — 下記）。build / test / coverage / migration / worker / codegen / audit はすべてローカル側へ集約した | `.github/workflows/ci.yml` |
+| AgentShield | main / staging 向け PR で agent config が変わった場合、または manual dispatch で `force_fail_on_findings` を有効にした場合だけ findings を fail 扱い。agent config 変更のない PR、production 向け PR、push は report-only | `.github/workflows/security-scan.yml` |
+| Local process policy | push/PR 前に利用者がローカルで `make ci` をフル実行する。build/test/coverage ratchet/lint/migration verify/worker/codegen/audit/gitleaks 全ゲートを含む。scoped check（verify-agent-task 等の部分検査）はフル `make ci` と同等ではない。GitHub はこのローカル実行を強制も証明もしない | `scripts/ci/run-local-ci.sh` |
 | E2E | `workflow_dispatch` のみ。自動 push/PR gate ではない | `.github/workflows/e2e.yml` |
 | Performance | schedule と manual dispatch。push trigger はない | `.github/workflows/performance-tests.yml` |
 
-`make ci` の正確な gate 一覧と順序は `scripts/run-local-ci.sh` の `begin_step` 呼び出しを参照する。現在は inventory/guardrail、STG UAT handoff wrapper、A4 rehearsal isolation、design-system audit、lint/type/codegen、backend/frontend build/test などを含む。件数や列挙をこの文書へ複製しない。
+`make ci` の正確な gate 一覧と順序は `scripts/ci/run-local-ci.sh` の `begin_step` 呼び出しを参照する。現在は inventory/guardrail、STG UAT handoff wrapper、A4 rehearsal isolation、design-system audit、lint/type/codegen、backend/frontend build/test などを含む。件数や列挙をこの文書へ複製しない。
 
 ```mermaid
 flowchart TB
     Push["PR"] --> Remote["Remote CI（最小構成）"]
     Remote --> WC["Workflow Contracts<br/>node --test 契約検査"]
     Remote --> GL["Gitleaks Secret Scan<br/>PR 差分スキャン"]
-    Push -.->|"main 向け PR で agent config 変更<br/>または manual dispatch で有効化"| AS["AgentShield が findings を fail 扱い<br/>他は report-only"]
+    Push -.->|".github/workflows/** 変更の PR のみ"| AL["Validate workflow YAML<br/>actionlint + actions drift（別 workflow）"]
+    Push -.->|"main / staging 向け PR で agent config 変更<br/>または manual dispatch で有効化"| AS["AgentShield が findings を fail 扱い<br/>他は report-only"]
     subgraph NonAuto["自動 push/PR ゲートではない区分"]
         L["Local: push/PR 前に make ci<br/>build/test/coverage/lint/migration/worker<br/>codegen/audit/gitleaks 全ゲート<br/>GitHub は強制も証明もしない"]
         E["E2E: workflow_dispatch のみ"]
@@ -29,11 +30,14 @@ flowchart TB
 
 ## Remote CI の要点
 
-- **最小構成**（2026-10 縮小）: remote は `Workflow Contracts` と `Gitleaks Secret Scan` の2 job のみ。build/test/coverage/lint/migration/worker/codegen/audit の実行ゲートはすべて `make ci` 側にある。
+- **最小構成**（2026-10 縮小）: remote の `CI` workflow（`.github/workflows/ci.yml`）は `Workflow Contracts` と `Gitleaks Secret Scan` の2 job のみ。build/test/coverage/lint/migration/worker/codegen/audit の実行ゲートはすべて `make ci` 側にある。なお別 workflow の `.github/workflows/actionlint.yml`（job 名 `Validate workflow YAML`）は **`.github/workflows/**` が変更された PR のみ** で actionlint と actions version drift を検査する — 「remote = 2 job」は `ci.yml` 内の話であり、workflow 変更 PR ではこれも走る。
 - workflow contracts は workflow 定義自身の整合検査であり自己参照のため remote に残す（`make ci` でも同一テストを実行する二重配線）。
-- gitleaks は PR 差分スキャンとして remote にも残す。`make ci` 側は履歴全体を対象にする上位互換。
-- scoped verification（`scripts/ci_scope_plan.py`）は remote ではなく `PREPUSH_VERIFY=1` / `verify-agent-task.py` 経由のローカル利用に限定される。
-- `main`、`staging`、`production` 向け PR でこの2 check が走る。required check は staging の branch protection が定義する。
+- gitleaks は PR 差分スキャンとして remote にも残す。`make ci` 側も履歴全体ではなく `origin/staging..HEAD`（fallback `origin/main..HEAD`、さらに fallback 直近 50 commit）の新規 commit 範囲を走査する（`run-local-ci.sh` s16）。
+- scoped verification（`scripts/ci/ci_scope_plan.py`）は remote ではなく `PREPUSH_VERIFY=1` / `verify-agent-task.py` 経由のローカル利用に限定される。
+- 信頼境界の正本と43命令文書の同期は `make ci` の必須 `s01` でread-only検査する。正本更新後の未再生成やblock欠落は失敗し、CIで自動修復しない。
+- Plane merge workflowはmain/staging・異なるPRを同じrepository-wide concurrency groupで直列化する。`queue: max` と `cancel-in-progress: false` で最大100件の待機を保持する。queue超過・取消・失敗runは人間が確認し再実行する。この保護は同workflow間の更新が対象で、実Planeや他のwriterとの原子的更新を証明しない。
+- 固定actionlint 1.7.12はGitHubの `queue: max` を未認識のため、`actionlint-queue-compat.mjs` がその1項目と非取消設定を厳格に検証する。不正値・欠落・重複は失敗する。検証済みの1行をlint入力でコメント化し、行番号・他のYAML・式・shellを保持して全workflowへactionlintを実行する。ignore設定や失敗の無視は追加しない。
+- `main`、`staging`、`production` 向け PR で `Workflow Contracts` / `Gitleaks Secret Scan` / `AgentShield` の check が走る。`Validate workflow YAML`（actionlint）は `.github/workflows/**` が変更された PR に限る。required check の実値は staging の branch protection が定義し、GitHub 側設定が正本（docs 側は推定値を required と断定しない）。
 
 ## Actions ピン方針
 
@@ -44,51 +48,32 @@ flowchart TB
 | その他の third-party action | commit SHA pin と version comment |
 | remote script/artifact | pipe-to-shell 禁止。version と SHA-256 を固定 |
 
-実際の action version は workflow の `uses:` が正本。`scripts/check-actions-version-drift.sh` が同一 action の混在を検出する。古い version inventory は保持しない。
+実際の action version は workflow の `uses:` が正本。`scripts/ci/check-actions-version-drift.sh` が同一 action の混在を検出する。古い version inventory は保持しない。
 
 ## ブランチ保護
 
 | ブランチ | 保護 | 意図 |
 |---|---|---|
-| `main` | なし | 直接 push OK・リモート CI は走らない。日々の作業ブランチ |
-| `staging` | PR 必須（承認数 0）+ required checks | 直接 push 拒否。main→staging release PR が唯一の CI 検証点・デプロイ入口 |
-| `production` | **未作成 — 作成時に staging と同一の保護を適用すること** | 直 push を許すと CI なしで本番デプロイが走る |
+| `main` | 未設定（API 404 `Branch not protected`） | 直接 push OK。`ci.yml` は push trigger を持たず、main/staging push 時の remote check は `security-scan.yml`（AgentShield）の report-only 実行のみ。日々の作業ブランチ |
+| `staging` | protected。承認数 0・`strict=false`・`enforce_admins=true`・force push/削除禁止 + required checks | 直接 push 拒否。main→staging release PR が唯一の CI 検証点・デプロイ入口 |
+| `production` | branch 存在・protected（同: 承認数 0・`strict=false`・`enforce_admins=true`・force push/削除禁止）だが required checks が現行 workflow と不一致（下記） | 不整合は release 前に人間が GitHub 側で解消する（docs からの設定変更・回避はしない） |
 
-staging の required checks: `Workflow Contracts` / `Gitleaks Secret Scan` / `AgentShield` / `make ci`（`enforce_admins` 有効・force push/削除禁止・strict=false）。remote CI 最小化（2026-10）で `Backend` / `Frontend` / `Worker Tests` / `Codegen Sync` / `Migration Verify` の各 check は廃止し、同等ゲートは `make ci` 側にある。
+観測メタデータ: 2026-10-11 に `gh api repos/MinoruSoga/AnimalEkarte/branches/<branch>/protection` で取得した read-only 観測値（`main` は 404 `Branch not protected`）。外部設定は変わり得るため release 時点で再確認する。
 
-`make ci` required check の仕組み: `scripts/run-local-ci.sh` は完了時に HEAD SHA へ commit status（context `make ci`、success/failure）を `gh api` で投稿する。status が無い head は Pending となり merge できないため、「staging へマージする head で `make ci` をローカル完走したこと」が機械的に強制される。**これは自己申告制**であり、repo write 権限を持つ者は実走査なしに status を投稿し得る — remote で `make ci` 自体を実行しない限り完全な証明にはならない（最小構成維持とのトレードオフとして採用）。投稿を無効化するには `MAKE_CI_STATUS=0` を使う。
+staging の required checks: `Workflow Contracts` / `Gitleaks Secret Scan` / `AgentShield` / `make ci`（2026-10-11 観測値）。remote CI 最小化（2026-10）で `Backend` / `Frontend` / `Worker Tests` / `Codegen Sync` / `Migration Verify` の各 check は廃止し、同等ゲートは `make ci` 側にある。
 
-途中再開: `make ci 9`（= `bash scripts/run-local-ci.sh 9` / `--from 9` / `CI_FROM=9`）で step 9 以降のみ実行できる。success の status 投稿は**フル実行（FROM=1）のみ**に限定され、部分実行の成功では投稿しない — さもなければ一部 step だけ走った head が required check を通過してしまう迂回経路になる（failure の投稿は部分実行でも行う）。release 前の最終確認はフル実行が必須。
+**production の required checks 不整合（同日観測）**: required として `Workflow Contracts` / `Gitleaks Secret Scan` / `Backend` / `Frontend` / `Worker Tests` / `Codegen Sync` / `AgentShield` が残り、`make ci` は含まれない。2026-10-11 の設定には、現行 ci.yml が生成しない旧 required checks が残る。新しい head に対して現行 CI の実行だけではこれらを充足できず、Pending の原因になる。実際の PR の merge 可否は、その head の check/status と保護設定を照合する。設定の見直しは人間の承認済み作業であり、本 docs 更新では変更・回避しない。
 
-`production` 作成時の適用例:
+`make ci` required check の仕組み: `scripts/ci/run-local-ci.sh` は完了時に HEAD SHA へ commit status（context `make ci`、success/failure）を `gh api` で投稿する。status が無い head は Pending となり merge できないため、「staging へマージする head で `make ci` をローカル完走したこと」が機械的に強制される。**これは自己申告制**であり、repo write 権限を持つ者は実走査なしに status を投稿し得る — remote で `make ci` 自体を実行しない限り完全な証明にはならない（最小構成維持とのトレードオフとして採用）。投稿を無効化するには `MAKE_CI_STATUS=0` を使う。
 
-```bash
-gh api -X PUT repos/MinoruSoga/AnimalEkarte/branches/production/protection --input - <<'JSON'
-{
-  "required_status_checks": {
-    "strict": false,
-    "contexts": ["Workflow Contracts", "Gitleaks Secret Scan", "AgentShield", "make ci"]
-  },
-  "enforce_admins": true,
-  "required_pull_request_reviews": { "required_approving_review_count": 0 },
-  "restrictions": null,
-  "required_linear_history": false,
-  "allow_force_pushes": false,
-  "allow_deletions": false,
-  "block_creations": false,
-  "required_conversation_resolution": false,
-  "lock_branch": false,
-  "allow_fork_syncing": false
-}
-JSON
-```
+途中再開: `make ci 9`（= `bash scripts/ci/run-local-ci.sh 9` / `--from 9` / `CI_FROM=9`）で step 9 以降のみ実行できる。success の status 投稿は**フル実行（FROM=1）のみ**に限定され、部分実行の成功では投稿しない — さもなければ一部 step だけ走った head が required check を通過してしまう迂回経路になる（failure の投稿は部分実行でも行う）。release 前の最終確認はフル実行が必須。
 
 ## 静的チェックの enforcement 状態
 
-- `scripts/check-workflow-remote-exec-policy.sh`
-- `scripts/check-agent-security-policy.sh`
+- `scripts/checks/check-workflow-remote-exec-policy.sh`
+- `scripts/checks/check-agent-security-policy.sh`
 
-上記は HEAD では `make ci` や workflow から呼ばれない **manual checks** である。実行せずに「reject/fail される」とは表現しない。enforced gate にする場合はスクリプトと regression test を `scripts/run-local-ci.sh` または workflow へ接続する。
+上記は HEAD では `make ci` や workflow から呼ばれない **manual checks** である。実行せずに「reject/fail される」とは表現しない。enforced gate にする場合はスクリプトと regression test を `scripts/ci/run-local-ci.sh` または workflow へ接続する。
 
 ## Historical decision record
 

@@ -15,6 +15,7 @@ import BedDouble from "lucide-react/dist/esm/icons/bed-double";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DangerBadge } from "@/components/shared/DangerBadge";
+import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { paths } from "@/config/paths";
 import { C, ICON } from "@/lib/design-tokens";
 import { getVisitTypeColor } from "@/constants/status-colors";
@@ -67,7 +68,8 @@ export const AppointmentCard = memo(function AppointmentCard({
   const navigate = useNavigate();
   // Reception wire exposes petStatus; death OR-contract on create is enforced in sharedkernel.
   // status=deceased (including deceased_at null) must still disable card actions.
-  const isDeceased = appointment.petStatus === PetStatusDeceased;
+  const isDeceased =
+    appointment.petStatus === PetStatusDeceased || appointment.petDeceasedAt != null;
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: appointment.id,
@@ -84,6 +86,7 @@ export const AppointmentCard = memo(function AppointmentCard({
   const isTrimming = appointment.reservationCategory === "trimming";
   const isHospitalization = isHospitalizationService(appointment.reservationType);
   const isMedical = !isTrimming && !isHospitalization;
+  const notes = appointment.notes?.trim() ? appointment.notes : undefined;
   const visitColor = getVisitTypeColor(appointment.visitType);
   const canOpenRecordFromCard = isTrimming
     ? columnTitle === "受付済"
@@ -193,6 +196,14 @@ export const AppointmentCard = memo(function AppointmentCard({
                 reason={appointment.petDangerReason}
                 stopPropagation
               />
+              {/* EMR-301: 誕生月バッジ。死亡ペットは suppress（既存 death sentinel と整合）。 */}
+              {!isDeceased ? (
+                <BirthdayBadge
+                  birthDate={appointment.petBirthDate}
+                  subjectName={appointment.petName}
+                  stopPropagation
+                />
+              ) : null}
             </div>
           </div>
 
@@ -237,6 +248,12 @@ export const AppointmentCard = memo(function AppointmentCard({
               </Badge>
             ) : null}
           </div>
+
+          {notes ? (
+            <p className={`truncate text-sm leading-tight ${C.text60}`} title={notes}>
+              <span className="font-medium">予約内容</span> {notes}
+            </p>
+          ) : null}
 
           {/* ミニアクションボタン */}
           {isDeceased ? null : (

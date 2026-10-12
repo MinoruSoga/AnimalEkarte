@@ -23,7 +23,7 @@
 make reset
 ```
 
-実体は `scripts/local-db-reset-contract.sh` です。次を **1 アクションで fail-closed** に実行します。
+実体は `scripts/old-db/local-db-reset-contract.sh` です。次を **1 アクションで fail-closed** に実行します。
 
 | 段階 | 内容 |
 |------|------|
@@ -39,7 +39,7 @@ make reset
 
 ```mermaid
 flowchart TB
-  R["make reset（USER のみ）<br/>scripts/local-db-reset-contract.sh"] --> S1["1. 環境照合<br/>固定 project / volume 名と APP_ENV を照合"]
+  R["make reset（USER のみ）<br/>scripts/old-db/local-db-reset-contract.sh"] --> S1["1. 環境照合<br/>固定 project / volume 名と APP_ENV を照合"]
   S1 -->|production / staging 系・不一致| X1["拒否（fail-closed）"]
   S1 -->|一致| S2["2. 回復 snapshot<br/>.local-db-backups へ owner-only の pg_dumpall + SHA-256 + manifest"]
   S2 -->|空 dump / 空 digest / 書込み失敗| X2["ここで停止（volume は消さない）"]
@@ -139,8 +139,8 @@ make up
 ## 5. 契約テスト（破壊的操作なし）
 
 ```bash
-bash scripts/local-db-reset-contract.test.sh
-bash scripts/check-reset-wait-services.test.sh
+bash scripts/old-db/local-db-reset-contract.test.sh
+bash scripts/old-db/check-reset-wait-services.test.sh
 ```
 
 実 DB に対する `make reset` は **USER が明示承認したときだけ** 実行する。エージェントの自動実行対象外。

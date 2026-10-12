@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useGetPet } from "@/hooks/use-pet";
 import { calculateBillingTotals } from "@/lib/calculations";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { todayJSTISO } from "@/lib/jst-date";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
@@ -75,7 +76,7 @@ export function useAccountingDetailState({
   // BUG-001: 死亡ペットへの /accounting/new?petId= 直打ちは FE で確定前に拒否する（BE と文言整合）。
   // 選択 UI と同様、生存が明示されるまで fail-closed（pending / error / 不明 status）。
   const isNewAccountingPetDeceased = Boolean(
-    !accountingId && newPetId && newPetSuccess && newPetData?.status === "死亡",
+    !accountingId && newPetId && newPetSuccess && isPetDeceasedForClinicalWrite(newPetData ?? {}),
   );
   const blocksDeceasedOrUnconfirmedPet = Boolean(
     !accountingId &&

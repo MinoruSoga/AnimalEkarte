@@ -1,5 +1,7 @@
 # AnimalEkarte から noah-karte への Cloudflare アカウント移管・改名 — タスク網羅性レビュー
 
+> **後続文書**: [infra-cf-rename-task-coverage-rereview-20261006.md](./infra-cf-rename-task-coverage-rereview-20261006.md)（2026-10-06）が本書の判定を更新済み（抜け 16 件の対応先確定・チケット再構成は移管実行と改名を EMR-302 の 1 枚へ統合）。本書は履歴参照。
+
 > 種別: タスク網羅性レビュー（2026-10-06）。実行 SoT ではない。状態・担当・Done は Plane を正とする。根拠は同日の依頼文に記載された確定事項と棚卸し実測のみで、リポジトリ、Terraform、Plane、Cloudflare は照合していない。
 
 判定日: 2026-10-06。10/20 までは 14 日ある。

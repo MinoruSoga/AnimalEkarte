@@ -8,10 +8,12 @@ import ExternalLink from "lucide-react/dist/esm/icons/external-link";
 import FileText from "lucide-react/dist/esm/icons/file-text";
 import Scissors from "lucide-react/dist/esm/icons/scissors";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
+import Syringe from "lucide-react/dist/esm/icons/syringe";
 import User from "lucide-react/dist/esm/icons/user";
 
 import { Badge } from "@/components/ui/badge";
 import { DangerBadge } from "@/components/shared/DangerBadge";
+import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { C, ICON } from "@/lib/design-tokens";
 import {
@@ -81,6 +83,8 @@ interface RelatedPagesProps {
   canCreateMedicalRecord?: boolean;
   canCreateAccounting?: boolean;
   canCreateHospitalization?: boolean;
+  canViewVaccinations?: boolean;
+  onOpenVaccinations?: () => void;
 }
 
 const RelatedPages = memo(function RelatedPages({
@@ -92,6 +96,8 @@ const RelatedPages = memo(function RelatedPages({
   canCreateMedicalRecord = false,
   canCreateAccounting = false,
   canCreateHospitalization = false,
+  canViewVaccinations = false,
+  onOpenVaccinations,
 }: RelatedPagesProps) {
   return (
     <div className="space-y-2">
@@ -133,6 +139,16 @@ const RelatedPages = memo(function RelatedPages({
             />
           </button>
         ) : null}
+
+        {canViewVaccinations ? (
+          <button type="button" className={RELATED_BTN_HOSPITAL} onClick={onOpenVaccinations}>
+            <Syringe className={ICON.xs} />
+            <span>予防接種</span>
+            <ExternalLink
+              className={`${ICON.xs} opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 transition-opacity`}
+            />
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -140,11 +156,13 @@ const RelatedPages = memo(function RelatedPages({
 
 interface ReceptionDialogBodyProps extends RelatedPagesProps {
   appointment: Appointment;
+  onOpenPetDetail?: () => void;
 }
 
 export function ReceptionDialogBody({
   appointment,
   isTrimming,
+  onOpenPetDetail,
   onCreateMedicalRecord,
   onCreateTrimming,
   onCreateAccounting,
@@ -152,7 +170,11 @@ export function ReceptionDialogBody({
   canCreateMedicalRecord,
   canCreateAccounting,
   canCreateHospitalization,
+  canViewVaccinations,
+  onOpenVaccinations,
 }: ReceptionDialogBodyProps) {
+  const notes = appointment.notes?.trim() ? appointment.notes : undefined;
+
   return (
     <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
       <div className={`flex items-center gap-3 p-3 ${C.bgPage} rounded-lg`}>
@@ -169,13 +191,30 @@ export function ReceptionDialogBody({
           </div>
           <div className="text-right">
             <div className="font-semibold text-base flex items-center justify-end gap-1.5">
-              <span>{appointment.petName}</span>
+              {appointment.ownerId && appointment.petId && onOpenPetDetail ? (
+                <button
+                  type="button"
+                  onClick={onOpenPetDetail}
+                  className={`inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-2 ${C.textActionPrimary}`}
+                >
+                  {appointment.petName}
+                </button>
+              ) : (
+                <span>{appointment.petName}</span>
+              )}
               <DangerBadge
                 variant="pet"
                 level={appointment.petDangerLevel}
                 subjectName={appointment.petName}
                 reason={appointment.petDangerReason}
               />
+              {/* EMR-301: 誕生月バッジ。死亡ペットは suppress。 */}
+              {appointment.petStatus !== "deceased" && appointment.petDeceasedAt == null ? (
+                <BirthdayBadge
+                  birthDate={appointment.petBirthDate}
+                  subjectName={appointment.petName}
+                />
+              ) : null}
             </div>
             <div className={`text-sm ${C.text60}`}>{appointment.petType}</div>
           </div>
@@ -213,6 +252,13 @@ export function ReceptionDialogBody({
         </div>
       </div>
 
+      {notes ? (
+        <div className="space-y-3">
+          <h3 className={SECTION_LABEL}>予約内容</h3>
+          <p className={`text-sm whitespace-pre-wrap break-words ${C.text}`}>{notes}</p>
+        </div>
+      ) : null}
+
       <RelatedPages
         isTrimming={isTrimming}
         onCreateMedicalRecord={onCreateMedicalRecord}
@@ -222,6 +268,8 @@ export function ReceptionDialogBody({
         canCreateMedicalRecord={canCreateMedicalRecord}
         canCreateAccounting={canCreateAccounting}
         canCreateHospitalization={canCreateHospitalization}
+        canViewVaccinations={canViewVaccinations}
+        onOpenVaccinations={onOpenVaccinations}
       />
     </div>
   );

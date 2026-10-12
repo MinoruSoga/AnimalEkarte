@@ -3,7 +3,10 @@ import { format } from "date-fns";
 import { motion } from "motion/react";
 
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
+import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { C } from "@/lib/design-tokens";
+import { useTodayJst } from "@/hooks/use-today-jst";
+import { isBirthMonthJST } from "@/lib/jst-date";
 import { getReservationTypeColor, getReservationTypeName } from "@/lib/status-helpers";
 import { DISPLAY_TIME_FORMAT } from "@/lib/format/date";
 import type { Reservation } from "@/types";
@@ -15,6 +18,7 @@ import {
   WHILE_DRAG_REDUCED,
   type ReservationTypeColor,
 } from "../lib/week-view-grid-constants";
+import { isTentativeReservation, TENTATIVE_APPOINTMENT_LABEL } from "../lib/tentative";
 
 interface AppointmentCardProps {
   appointment: Reservation;
@@ -64,8 +68,13 @@ export const AppointmentCard = memo(function AppointmentCard({
     [height, top],
   );
 
+  const todayJst = useTodayJst();
   const isDimmed = appointment.status === "completed" || appointment.status === "cancelled";
   const isCancelled = appointment.status === "cancelled";
+  // EMR-308: tentative（次回予定・未予約）は実時間を持たない sentinel（意図日 00:00 JST）。
+  // 時刻表示は意味を持たないため明示テキストに置き換え、ドラッグ移動も無効化する
+  // （確定は「予約を確定」モーダル経由のみ — use-reservation-actions 側でも fail-closed ガード済み）。
+  const isTentative = isTentativeReservation(appointment);
   const isCompact = height <= 44;
   const isNarrow = !isCompact && height <= 85;
   const dotInfo = STATUS_DOT_STYLE[appointment.status];
@@ -75,6 +84,14 @@ export const AppointmentCard = memo(function AppointmentCard({
   const colorStyle = getReservationTypeColor(appointment.type, dynamicColorMap);
   const isClassNameColor = typeof colorStyle === "string";
   const isFirstVisit = appointment.visitType === "first";
+  // EMR-301: 死亡ペットには誕生月バッジを出さない（既存 death sentinel と整合）。
+  const isDeceasedPet = appointment.petStatus === "deceased" || appointment.petDeceasedAt != null;
+  // カード内のバッジは pointer-events-none 配下の静的変種のため、ホバー・フォーカス・
+  // スクリーンリーダーから生年月日に届かない。親ボタンの title/aria-label に含める。
+  const birthdayLabel =
+    !isDeceasedPet && isBirthMonthJST(appointment.petBirthDate, todayJst)
+      ? `今月誕生日（生年月日: ${appointment.petBirthDate}）`
+      : "";
   const typeName = getReservationTypeName(appointment.type);
   const typeLabel =
     dynamicColorMap?.get(appointment.type)?.isInactive === true ? `${typeName}（無効）` : typeName;
@@ -82,27 +99,45 @@ export const AppointmentCard = memo(function AppointmentCard({
   const tooltipText = useMemo(
     () =>
       [
-        `${format(appointment.start, DISPLAY_TIME_FORMAT)}–${format(appointment.end, DISPLAY_TIME_FORMAT)}`,
+        isTentative
+          ? TENTATIVE_APPOINTMENT_LABEL
+          : `${format(appointment.start, DISPLAY_TIME_FORMAT)}–${format(appointment.end, DISPLAY_TIME_FORMAT)}`,
         appointment.petName,
         appointment.ownerName,
         appointment.doctor,
         typeLabel,
+        birthdayLabel,
       ]
         .filter(Boolean)
         .join(" / "),
-    [appointment, typeLabel],
+    [appointment, typeLabel, isTentative, birthdayLabel],
+  );
+
+  const tentativeBadge = (
+    <span
+      className={`${C.bgWarning50} ${C.textWarning} border ${C.borderWarning20} ${
+        isCompact ? "px-0.5 text-2xs" : "px-1 text-xs"
+      } rounded flex-shrink-0 whitespace-nowrap font-semibold`}
+    >
+      {TENTATIVE_APPOINTMENT_LABEL}
+    </span>
   );
 
   return (
     <motion.button
       type="button"
-      className={`absolute min-h-11 rounded border hover:ring-1 ${C.ringPrimary20} transition-all cursor-grab active:cursor-grabbing z-10 overflow-hidden group touch-none
+      className={`absolute min-h-11 rounded border hover:ring-1 ${C.ringPrimary20} transition-all z-10 overflow-hidden group touch-none
+        ${isTentative ? "cursor-pointer border-dashed" : "cursor-grab active:cursor-grabbing"}
         ${isCompact ? "py-px px-1" : isNarrow ? "px-1 py-0.5" : "p-1"}
         ${isClassNameColor ? colorStyle : ""}
         ${isDimmed ? "opacity-60" : "opacity-100"}
         ${isCancelled ? `line-through ${C.decorationDanger50}` : ""}
       `}
-      aria-label={`${format(appointment.start, DISPLAY_TIME_FORMAT)}〜${format(appointment.end, DISPLAY_TIME_FORMAT)} ${appointment.petName} ${appointment.ownerName} ${typeLabel}`}
+      aria-label={
+        isTentative
+          ? `${TENTATIVE_APPOINTMENT_LABEL} ${appointment.petName} ${appointment.ownerName} ${typeLabel}${birthdayLabel ? ` ${birthdayLabel}` : ""}`
+          : `${format(appointment.start, DISPLAY_TIME_FORMAT)}〜${format(appointment.end, DISPLAY_TIME_FORMAT)} ${appointment.petName} ${appointment.ownerName} ${typeLabel}${birthdayLabel ? ` ${birthdayLabel}` : ""}`
+      }
       title={tooltipText}
       style={{
         top: `${top}px`,
@@ -118,11 +153,11 @@ export const AppointmentCard = memo(function AppointmentCard({
         }
         isDragging.current = false;
       }}
-      drag="y"
+      drag={isTentative ? false : "y"}
       dragMomentum={false}
       dragElastic={0}
       dragConstraints={dragConstraints}
-      dragSnapToOrigin={!onUpdate}
+      dragSnapToOrigin={isTentative || !onUpdate}
       onDrag={() => {
         isDragging.current = true;
       }}
@@ -148,24 +183,49 @@ export const AppointmentCard = memo(function AppointmentCard({
 
       {isCompact ? (
         <div className="flex items-center gap-1 h-full pointer-events-none relative z-10 pr-2">
-          <span className="font-semibold text-xs whitespace-nowrap leading-none">
-            {format(appointment.start, DISPLAY_TIME_FORMAT)}
-          </span>
+          {isTentative ? (
+            tentativeBadge
+          ) : (
+            <span className="font-semibold text-xs whitespace-nowrap leading-none">
+              {format(appointment.start, DISPLAY_TIME_FORMAT)}
+            </span>
+          )}
           <FirstVisitBadge show={isFirstVisit} compact />
           <span className="truncate text-xs font-medium leading-none">{appointment.petName}</span>
+          {/* EMR-301: 誕生月バッジ（カード自体が button のため static 変種でアイコンのみ） */}
+          {!isDeceasedPet ? (
+            <BirthdayBadge
+              birthDate={appointment.petBirthDate}
+              subjectName={appointment.petName}
+              variant="static"
+            />
+          ) : null}
         </div>
       ) : null}
 
       {isNarrow ? (
         <div className="flex flex-col h-full pointer-events-none relative z-10">
           <div className="flex items-center gap-1 pr-3 leading-none">
-            <span className="font-semibold text-xs whitespace-nowrap">
-              {format(appointment.start, DISPLAY_TIME_FORMAT)}
-            </span>
+            {isTentative ? (
+              tentativeBadge
+            ) : (
+              <span className="font-semibold text-xs whitespace-nowrap">
+                {format(appointment.start, DISPLAY_TIME_FORMAT)}
+              </span>
+            )}
             <FirstVisitBadge show={isFirstVisit} compact />
           </div>
           <div className="font-medium truncate text-xs leading-none mt-0.5">
-            {appointment.petName}
+            <span className="inline-flex items-center gap-1">
+              {appointment.petName}
+              {!isDeceasedPet ? (
+                <BirthdayBadge
+                  birthDate={appointment.petBirthDate}
+                  subjectName={appointment.petName}
+                  variant="static"
+                />
+              ) : null}
+            </span>
           </div>
           <div className="truncate text-xs opacity-70 leading-none mt-0.5">
             {appointment.ownerName}
@@ -176,10 +236,25 @@ export const AppointmentCard = memo(function AppointmentCard({
       {!isCompact && !isNarrow ? (
         <div className="flex flex-col h-full pointer-events-none relative z-10">
           <div className="flex items-center gap-1 font-semibold text-sm leading-none mb-1 pr-3">
-            <span className="truncate">{format(appointment.start, DISPLAY_TIME_FORMAT)}</span>
+            {isTentative ? (
+              tentativeBadge
+            ) : (
+              <span className="truncate">{format(appointment.start, DISPLAY_TIME_FORMAT)}</span>
+            )}
             <FirstVisitBadge show={isFirstVisit} />
           </div>
-          <div className="font-medium truncate text-sm leading-none">{appointment.petName}</div>
+          <div className="font-medium truncate text-sm leading-none">
+            <span className="inline-flex items-center gap-1">
+              {appointment.petName}
+              {!isDeceasedPet ? (
+                <BirthdayBadge
+                  birthDate={appointment.petBirthDate}
+                  subjectName={appointment.petName}
+                  variant="static"
+                />
+              ) : null}
+            </span>
+          </div>
           {height > 36 ? (
             <div className="truncate text-sm opacity-70 leading-none mt-0.5">
               {appointment.ownerName}

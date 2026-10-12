@@ -2,8 +2,10 @@ import { useState, useCallback, useMemo, useActionState, useLayoutEffect, useRef
 import { useLocation, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetPet } from "@/hooks/use-pet";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
 import { useGetTrimming } from "../api/get-trimming";
 import { useGetTrimmings } from "../api/get-trimmings";
@@ -99,7 +101,8 @@ export function useTrimmingForm(
     Number.isFinite(appointmentIdFromState) || Number.isFinite(reusableAppointmentId);
   const { fieldErrors, validate } = useTrimmingFormValidation();
   const [localOverrides, setLocalOverrides] = useState<Partial<TrimmingFormData>>({});
-  const images = useTrimmingFormImages(setLocalOverrides);
+  const unsaved = useUnsavedChanges();
+  const images = useTrimmingFormImages(setLocalOverrides, unsaved.markDirty);
 
   useTrimmingFormHydration({
     isEdit,
@@ -128,9 +131,9 @@ export function useTrimmingForm(
     [],
   );
   const hasExplicitlyDeceasedPet =
-    selectedPets[0]?.status === "死亡" ||
-    petFromQuery?.status === "死亡" ||
-    petFromEdit?.status === "死亡";
+    (selectedPets[0] ? isPetDeceasedForClinicalWrite(selectedPets[0]) : false) ||
+    (petFromQuery ? isPetDeceasedForClinicalWrite(petFromQuery) : false) ||
+    (petFromEdit ? isPetDeceasedForClinicalWrite(petFromEdit) : false);
   const hasExplicitlyDeceasedPetRef = useRef(hasExplicitlyDeceasedPet);
   useLayoutEffect(() => {
     hasExplicitlyDeceasedPetRef.current = hasExplicitlyDeceasedPet;
@@ -149,6 +152,25 @@ export function useTrimmingForm(
     petFromEditRef.current = petFromEdit;
   }, [petFromEdit]);
 
+  const markSubmittedKeys = images.markSubmittedKeys;
+  const restoreSubmittedKeys = images.restoreSubmittedKeys;
+
+  // mutate 直前に画像キーの所有権をサーバーへ移譲する。応答が確定
+  // pre-commit 失敗（4xx = サーバーが commit していない）なら未永続化キーは
+  // session 所有へ戻し remove/離脱クリーンアップで削除可能にする。
+  // 応答無し/5xx は commit 状態不明のため復元しない（orphan 側へ倒す）。
+  const submitTrimmingMutation = async (run: () => Promise<unknown>) => {
+    const submitted = markSubmittedKeys();
+    try {
+      await run();
+    } catch (err) {
+      const status = (err as { response?: { status?: unknown } } | null)?.response?.status;
+      if (typeof status === "number" && status >= 400 && status < 500) {
+        restoreSubmittedKeys(submitted);
+      }
+      throw err;
+    }
+  };
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
       try {
@@ -163,10 +185,12 @@ export function useTrimmingForm(
           if (!petFromEditRef.current) {
             return refuseTrimmingMutation("ペット情報の読み込みが完了してから保存してください");
           }
-          await updateMutation.mutateAsync({
-            id,
-            req: buildUpdateTrimmingRequest(currentFormData),
-          });
+          await submitTrimmingMutation(() =>
+            updateMutation.mutateAsync({
+              id,
+              req: buildUpdateTrimmingRequest(currentFormData),
+            }),
+          );
           toast.success("トリミング情報を更新しました");
         } else if (
           (existingAppointmentHasDetail && existingAppointmentId) ||
@@ -175,10 +199,12 @@ export function useTrimmingForm(
           if (!isMutationAllowed("canCreate")) {
             return refuseTrimmingMutation(TRIMMING_PERMISSION_DENIED_MESSAGE);
           }
-          await updateMutation.mutateAsync({
-            id: existingAppointmentId || reusableTrimming?.id || "",
-            req: buildUpdateTrimmingRequest(currentFormData),
-          });
+          await submitTrimmingMutation(() =>
+            updateMutation.mutateAsync({
+              id: existingAppointmentId || reusableTrimming?.id || "",
+              req: buildUpdateTrimmingRequest(currentFormData),
+            }),
+          );
           toast.success("トリミング情報を更新しました");
         } else {
           if (!isMutationAllowed("canCreate")) {
@@ -188,7 +214,7 @@ export function useTrimmingForm(
           if (!pet) {
             return refuseTrimmingMutation("ペットを選択してください");
           }
-          if (pet.status === "死亡") {
+          if (isPetDeceasedForClinicalWrite(pet)) {
             return refuseTrimmingMutation(DECEASED_TRIMMING_SAVE_MESSAGE);
           }
           const validation = validate(currentFormData, defaultTrimmingReservationTypeId);
@@ -215,7 +241,7 @@ export function useTrimmingForm(
             req.status = currentFormData.initialStatus;
             req.reservation_route = "record_shortcut";
           }
-          await createMutation.mutateAsync(req);
+          await submitTrimmingMutation(() => createMutation.mutateAsync(req));
           toast.success("トリミング情報を登録しました");
         }
         return { success: true, timestamp: Date.now() };
@@ -266,12 +292,14 @@ export function useTrimmingForm(
     formState,
     handleDelete,
     isSaving: isPending,
+    isImageUploading: images.isImageUploading,
     isDeleting: deleteMutation.isPending,
     fieldErrors,
     isLoading: isEdit
       ? isTrimmingLoading || (editPetId !== "" && isEditPetLoading)
       : isPetLoading || isAppointmentLoading || isSameDayTrimmingsLoading,
     isEditPetReady: !isEdit || Boolean(petFromEdit),
+    unsaved,
     notFound: isEdit && !isTrimmingLoading && !existingTrimming && !!id,
     hasExistingAppointment,
     // EMR-168: 相方カルテ解決の基準日（YYYY-MM-DD）。編集は appointment 日付、新規は入力予定日。

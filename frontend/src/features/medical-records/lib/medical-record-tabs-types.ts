@@ -20,7 +20,6 @@ export interface MedicalRecordTabsAreaProps {
   diagnosis2CategoryId: number | null;
   diagnosis2NameId: number | null;
   ownerDiscountRate: number;
-  nextVisitDate: string;
   hasLineIntegration: boolean;
   recommendationReason: RecommendationReason | null;
   lstepStatus: "synced" | "not-linked" | "opt-out" | undefined;
@@ -40,8 +39,6 @@ export interface MedicalRecordTabsAreaProps {
   onDiagnosis1NameIdChange: (id: number | null) => void;
   onDiagnosis2CategoryIdChange: (id: number | null) => void;
   onDiagnosis2NameIdChange: (id: number | null) => void;
-  onNextVisitDateChange: (value: string) => void;
-  onNextVisitDateValidChange: (valid: boolean) => void;
   onRecommendationReasonChange: (value: RecommendationReason | null) => void;
   onRegisterEstimateSave: (fn: () => Promise<void>) => void;
   /** EMR-219: 問診履歴コピー適用時に元カルテの治療明細も複写する（recordId は複写元カルテ id） */

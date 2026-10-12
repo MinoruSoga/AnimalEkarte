@@ -17,6 +17,8 @@ import (
 // --- mock: trimming が消費する reservation read + intent operation ---
 
 type mockTrimmingReservationRepository struct {
+	previousAbsorbedOwnerID *uint64
+
 	findAllByCategoryFn  func(ctx context.Context, clinicID uint64, category model.ReservationTypeCategory, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
 	findByIDFn           func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	acquireBookingLockFn func(ctx context.Context, clinicID uint64) error
@@ -47,7 +49,7 @@ func (m *mockTrimmingReservationRepository) FindTrimmingByID(ctx context.Context
 	return m.FindByID(ctx, clinicID, id)
 }
 
-func (m *mockTrimmingReservationRepository) CreateForTrimming(ctx context.Context, clinicID uint64, input reservation.CreateTrimmingReservationInput) (*model.Reservation, error) {
+func (m *mockTrimmingReservationRepository) CreateForTrimming(ctx context.Context, clinicID uint64, input reservation.CreateTrimmingReservationInput) (*model.Reservation, *uint64, error) {
 	appt := &model.Reservation{
 		ClinicID:          clinicID,
 		ReservationTypeID: input.ReservationTypeID,
@@ -61,10 +63,10 @@ func (m *mockTrimmingReservationRepository) CreateForTrimming(ctx context.Contex
 	}
 	if m.createFn != nil {
 		if err := m.createFn(ctx, appt); err != nil {
-			return nil, err
+			return nil, m.previousAbsorbedOwnerID, err
 		}
 	}
-	return appt, nil
+	return appt, m.previousAbsorbedOwnerID, nil
 }
 
 func (m *mockTrimmingReservationRepository) UpdateForTrimming(ctx context.Context, clinicID, id uint64, input reservation.UpdateTrimmingReservationInput) (*model.Reservation, error) {
@@ -231,6 +233,10 @@ func (m *mockTrimmingDetailRepository) SetOptions(ctx context.Context, clinicID,
 		return m.setOptionsFn(ctx, clinicID, appointmentID, optionIDs)
 	}
 	return nil
+}
+
+func (m *mockTrimmingDetailRepository) ImageKeyInUse(_ context.Context, _ uint64, _ string, _ uint64) (bool, error) {
+	return false, nil
 }
 
 var _ AppointmentTrimmingDetailRepository = (*mockTrimmingDetailRepository)(nil)
@@ -1090,7 +1096,7 @@ func TestService_Update_MissingOptionRepositoryFailsClosed(t *testing.T) {
 		noopTrimmingAuditTxLogger{},
 	))
 
-	got, err := svc.Update(context.Background(), 1, 77, &UpdateTrimmingInput{OptionIDs: &optionIDs})
+	got, _, err := svc.Update(context.Background(), 1, 77, &UpdateTrimmingInput{OptionIDs: &optionIDs})
 
 	require.Error(t, err)
 	assert.Nil(t, got)
@@ -1652,7 +1658,7 @@ func TestService_Update(t *testing.T) {
 			}
 			svc := newTrimmingTestService(reserv, detail)
 
-			appt, err := svc.Update(context.Background(), tt.clinicID, tt.id, &tt.input)
+			appt, _, err := svc.Update(context.Background(), tt.clinicID, tt.id, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -1700,7 +1706,7 @@ func TestService_Update_DetailOnlyBackfillsMissingOwner(t *testing.T) {
 	}
 	svc := newTrimmingTestService(reserv, detail)
 
-	got, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{StyleRequest: &styleRequest})
+	got, _, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{StyleRequest: &styleRequest})
 
 	require.NoError(t, err)
 	require.NotNil(t, got)
@@ -1744,7 +1750,7 @@ func TestService_Update_RejectsTerminalDetailMutation(t *testing.T) {
 			svc := newTrimmingTestService(reserv, detail)
 			style := "must not change"
 
-			appointment, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{
+			appointment, _, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{
 				StyleRequest: &style,
 			})
 
@@ -1768,7 +1774,7 @@ func TestService_Update_FindByIDError(t *testing.T) {
 	}
 	svc := newTrimmingTestService(reserv, &mockTrimmingDetailRepository{})
 
-	appt, err := svc.Update(context.Background(), 1, 999, &UpdateTrimmingInput{StyleRequest: ptrStr("x")})
+	appt, _, err := svc.Update(context.Background(), 1, 999, &UpdateTrimmingInput{StyleRequest: ptrStr("x")})
 
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
@@ -1824,7 +1830,7 @@ func TestService_Update_RejectsSlotConflictBeforeWrite(t *testing.T) {
 		&mockTrimmingUnavailableTimeRepository{},
 	)
 
-	appointment, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{
+	appointment, _, err := svc.Update(context.Background(), 1, appointmentID, &UpdateTrimmingInput{
 		StartTime: &newStart,
 		EndTime:   &newEnd,
 	})

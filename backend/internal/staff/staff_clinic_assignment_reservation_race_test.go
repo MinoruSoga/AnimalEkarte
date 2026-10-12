@@ -26,13 +26,7 @@ type blockingAssignmentRaceReservationRepository struct {
 	createdOnce sync.Once
 }
 
-func (r *blockingAssignmentRaceReservationRepository) Create(
-	ctx context.Context,
-	appointment *model.Reservation,
-) error {
-	if err := r.ReservationRepository.Create(ctx, appointment); err != nil {
-		return err
-	}
+func (r *blockingAssignmentRaceReservationRepository) signalCreatedAndWait(ctx context.Context) error {
 	r.createdOnce.Do(func() {
 		close(r.created)
 	})
@@ -42,6 +36,33 @@ func (r *blockingAssignmentRaceReservationRepository) Create(
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+func (r *blockingAssignmentRaceReservationRepository) Create(
+	ctx context.Context,
+	appointment *model.Reservation,
+) error {
+	if err := r.ReservationRepository.Create(ctx, appointment); err != nil {
+		return err
+	}
+	return r.signalCreatedAndWait(ctx)
+}
+
+// EMR-308: pending 予約の write 経路は Create ではなく createOrPromoteTentative
+// → AbsorbTentativeOnBooking に移った。ブロッキングポイントは実際の write 経路に
+// 追従する必要がある（Create だけを握ると write を素通ししてデッドロックする）。
+func (r *blockingAssignmentRaceReservationRepository) AbsorbTentativeOnBooking(
+	ctx context.Context,
+	booking *model.Reservation,
+) (*model.Reservation, *uint64, error) {
+	created, previousOwnerID, err := r.ReservationRepository.AbsorbTentativeOnBooking(ctx, booking)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := r.signalCreatedAndWait(ctx); err != nil {
+		return nil, nil, err
+	}
+	return created, previousOwnerID, nil
 }
 
 type observedAssignmentRaceStaffUpdateLocker struct {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AddForm } from "./AddForm";
 
@@ -13,14 +13,17 @@ vi.mock("./CarePlanRefSelect", () => ({
     value,
     onChange,
     onUnitPriceChange,
+    ariaInvalid,
   }: {
     type: string;
     value: string | null;
     onChange: (v: string | null) => void;
     onUnitPriceChange?: (price: number | null) => void;
+    ariaInvalid?: boolean;
   }) => (
     <input
       aria-label="ref-select-stub"
+      aria-invalid={ariaInvalid || undefined}
       data-type={type}
       value={value ?? ""}
       onChange={(e) => {
@@ -47,7 +50,9 @@ async function selectType(user: ReturnType<typeof userEvent.setup>, label: strin
 }
 
 describe("AddForm — type連動マスタ参照(BUG-403)", () => {
-  it("type=投薬 選択時、薬剤未選択のままでは追加ボタンが無効", async () => {
+  // EMR-319: ボタンは disabled にせず action のフィールドエラーで案内する
+  // （disabled だとエラー経路に到達できない）。
+  it("type=投薬 選択時、薬剤未選択のまま追加を押すと参照選択のエラーになる", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     render(<AddForm onSubmit={onSubmit} />);
@@ -55,7 +60,12 @@ describe("AddForm — type連動マスタ参照(BUG-403)", () => {
     await selectType(user, "投薬");
     await user.type(screen.getByPlaceholderText("名称を入力"), "抗生剤");
 
-    expect(screen.getByRole("button", { name: /追加/ })).toBeDisabled();
+    const button = screen.getByRole("button", { name: /追加/ });
+    expect(button).toBeEnabled();
+    await user.click(button);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("参照するマスタを選択してください");
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("type=投薬 選択時、薬剤選択後に追加すると medicine_id が payload に含まれる", async () => {
@@ -220,21 +230,24 @@ describe("AddForm — 手入力（その他）明細(EMR-179)", () => {
     );
   });
 
-  it("手入力で理由または単価が空のままでは追加ボタンが無効", async () => {
+  // EMR-319: 必須未入力でもボタンは押せ、action のフィールドエラーで案内する。
+  it("手入力で理由または単価が空のまま追加を押すと対応フィールドのエラーになる", async () => {
     const user = userEvent.setup();
-    render(<AddForm onSubmit={vi.fn()} />);
+    const onSubmit = vi.fn();
+    render(<AddForm onSubmit={onSubmit} />);
 
     await selectType(user, "持ち物");
     await user.click(screen.getByRole("checkbox", { name: /手入力/ }));
     await user.type(screen.getByPlaceholderText("名称を入力"), "持ち込み品");
 
-    expect(screen.getByRole("button", { name: /追加/ })).toBeDisabled();
+    const button = screen.getByRole("button", { name: /追加/ });
+    expect(button).toBeEnabled();
+    await user.click(button);
 
-    await user.type(screen.getByLabelText("手入力の単価"), "800");
-    expect(screen.getByRole("button", { name: /追加/ })).toBeDisabled();
-
-    await user.type(screen.getByLabelText("その他理由"), "   ");
-    expect(screen.getByRole("button", { name: /追加/ })).toBeDisabled();
+    // 理由・単価とも空 → バリデーション順序上 理由エラーが先
+    expect(await screen.findByRole("alert")).toHaveTextContent("その他の理由を入力してください");
+    expect(screen.getByLabelText("その他理由")).toHaveAttribute("aria-invalid", "true");
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("手入力→OFF で理由と単価の入力をクリアして参照選択へ戻る", async () => {
@@ -266,5 +279,121 @@ describe("AddForm — 手入力（その他）明細(EMR-179)", () => {
 
     expect(screen.queryByRole("checkbox", { name: /手入力/ })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("その他理由")).not.toBeInTheDocument();
+  });
+});
+
+describe("AddForm — 必須エラー表示 (EMR-319)", () => {
+  it("名称が空のまま submit すると名称入力に aria-invalid とエラー文が出る", async () => {
+    const user = userEvent.setup();
+    render(<AddForm onSubmit={vi.fn()} />);
+
+    await selectType(user, "食事");
+    const form = screen.getByRole("button", { name: /追加/ }).closest("form");
+    expect(form).not.toBeNull();
+    fireEvent.submit(form as HTMLFormElement);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("名称は必須です");
+    expect(screen.getByLabelText("ケアプラン項目名")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("手入力で理由が空のまま submit すると理由入力に aria-invalid が付く", async () => {
+    const user = userEvent.setup();
+    render(<AddForm onSubmit={vi.fn()} />);
+
+    await selectType(user, "持ち物");
+    await user.click(screen.getByRole("checkbox", { name: /手入力/ }));
+    await user.type(screen.getByPlaceholderText("名称を入力"), "持ち込み品");
+    await user.type(screen.getByLabelText("手入力の単価"), "800");
+
+    const form = screen.getByRole("button", { name: /追加/ }).closest("form");
+    fireEvent.submit(form as HTMLFormElement);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("その他の理由を入力してください");
+    expect(screen.getByLabelText("その他理由")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("手入力の単価")).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("手入力で単価が非整数なら submit 時に単価入力へ aria-invalid が付く", async () => {
+    const user = userEvent.setup();
+    render(<AddForm onSubmit={vi.fn()} />);
+
+    await selectType(user, "持ち物");
+    await user.click(screen.getByRole("checkbox", { name: /手入力/ }));
+    await user.type(screen.getByPlaceholderText("名称を入力"), "持ち込み品");
+    await user.type(screen.getByLabelText("その他理由"), "持ち込み品のため");
+    // type=number では実ブラウザが非数値を空にするため、単価欄を空のままにする
+    const form = screen.getByRole("button", { name: /追加/ }).closest("form");
+    fireEvent.submit(form as HTMLFormElement);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "単価は0以上の整数で入力してください",
+    );
+    expect(screen.getByLabelText("手入力の単価")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("type=投薬 で参照未選択のまま submit すると参照選択に ariaInvalid が伝播する", async () => {
+    const user = userEvent.setup();
+    render(<AddForm onSubmit={vi.fn()} />);
+
+    await selectType(user, "投薬");
+    await user.type(screen.getByPlaceholderText("名称を入力"), "抗生剤");
+
+    const form = screen.getByRole("button", { name: /追加/ }).closest("form");
+    fireEvent.submit(form as HTMLFormElement);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("参照するマスタを選択してください");
+    expect(screen.getByLabelText("ref-select-stub")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("手入力で単価が負数のまま実クリックしても名称必須エラーが出る（native validation に遮られない）", async () => {
+    const user = userEvent.setup();
+    render(<AddForm onSubmit={vi.fn()} />);
+
+    await selectType(user, "持ち物");
+    await user.click(screen.getByRole("checkbox", { name: /手入力/ }));
+    // type=number は 1 文字ずつの入力だと "-" が正規化で捨てられるため change で直接値を入れる
+    fireEvent.change(screen.getByLabelText("手入力の単価"), { target: { value: "-1" } });
+
+    // 実クリック経路: noValidate が無いと min=0 違反でブラウザが送信を止め、
+    // 下のアプリ側エラーが一切出ない回帰を防ぐ（PR#614 レビュー指摘）。
+    await user.click(screen.getByRole("button", { name: /追加/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("名称は必須です");
+    expect(screen.getByLabelText("ケアプラン項目名")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("手入力で単価が小数のまま実クリックしても理由必須エラーが出る", async () => {
+    const user = userEvent.setup();
+    render(<AddForm onSubmit={vi.fn()} />);
+
+    await selectType(user, "持ち物");
+    await user.click(screen.getByRole("checkbox", { name: /手入力/ }));
+    await user.type(screen.getByPlaceholderText("名称を入力"), "持ち込み品");
+    fireEvent.change(screen.getByLabelText("手入力の単価"), { target: { value: "1.5" } });
+
+    await user.click(screen.getByRole("button", { name: /追加/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("その他の理由を入力してください");
+    expect(screen.getByLabelText("その他理由")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("手入力で名称・理由が揃っていても単価が負数なら単価エラーが出る（実クリック）", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<AddForm onSubmit={onSubmit} />);
+
+    await selectType(user, "持ち物");
+    await user.click(screen.getByRole("checkbox", { name: /手入力/ }));
+    await user.type(screen.getByPlaceholderText("名称を入力"), "持ち込み品");
+    await user.type(screen.getByLabelText("その他理由"), "持ち込み品のため");
+    fireEvent.change(screen.getByLabelText("手入力の単価"), { target: { value: "-1" } });
+
+    await user.click(screen.getByRole("button", { name: /追加/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "単価は0以上の整数で入力してください",
+    );
+    expect(screen.getByLabelText("手入力の単価")).toHaveAttribute("aria-invalid", "true");
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 });

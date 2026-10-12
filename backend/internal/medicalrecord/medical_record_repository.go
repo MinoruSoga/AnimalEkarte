@@ -412,7 +412,7 @@ func (r *medicalRecordRepository) Delete(ctx context.Context, clinicID, id uint6
 // CountByPetID は指定されたペットに関連するカルテ数を返す
 func (r *medicalRecordRepository) CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error) {
 	var count int64
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.MedicalRecord{}).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("pet_id = ? AND deleted_at IS NULL", petID).

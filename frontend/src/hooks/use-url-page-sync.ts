@@ -6,6 +6,9 @@ interface UseUrlPageSyncOptions {
   totalPages: number;
   isLoading: boolean;
   setSearchParams: SetURLSearchParams;
+  /** When true, page clamps keep the current location state. */
+  preserveNavigationState?: boolean;
+  navigationState?: unknown;
 }
 
 function nextListSearchParamsWithPage(prev: URLSearchParams, page: number): URLSearchParams {
@@ -27,14 +30,19 @@ export function useUrlPageSync({
   totalPages,
   isLoading,
   setSearchParams,
+  preserveNavigationState = false,
+  navigationState,
 }: UseUrlPageSyncOptions): void {
   useEffect(() => {
     if (isLoading) return;
     const clampedPage = Math.max(1, Math.min(urlPage, Math.max(totalPages, 1)));
     if (clampedPage !== urlPage) {
-      setSearchParams((prev) => nextListSearchParamsWithPage(prev, clampedPage), { replace: true });
+      const options = preserveNavigationState
+        ? { replace: true, state: navigationState }
+        : { replace: true };
+      setSearchParams((prev) => nextListSearchParamsWithPage(prev, clampedPage), options);
     }
     // setSearchParams is a stable router setter; re-run only on page/total/loading.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional FE-144 / FE-RC-028 contract
-  }, [urlPage, totalPages, isLoading]);
+  }, [urlPage, totalPages, isLoading, preserveNavigationState, navigationState]);
 }

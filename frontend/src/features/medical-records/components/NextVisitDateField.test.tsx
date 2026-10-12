@@ -20,15 +20,8 @@ const TWO_YEAR_ERROR = "今日から2年以内の日付を設定してくださ�
 
 function renderField(value: string) {
   const onChange = vi.fn();
-  const onValidationChange = vi.fn();
-  const view = render(
-    <NextVisitDateField
-      value={value}
-      onChange={onChange}
-      onValidationChange={onValidationChange}
-    />,
-  );
-  return { ...view, onChange, onValidationChange };
+  const view = render(<NextVisitDateField value={value} onChange={onChange} />);
+  return { ...view, onChange };
 }
 
 describe("NextVisitDateField", () => {
@@ -39,6 +32,38 @@ describe("NextVisitDateField", () => {
   it("空欄ではエラーを出さない", () => {
     renderField("");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("日付設定不可・解除可では入力と候補を無効化し解除だけを許可する", () => {
+    const onChange = vi.fn();
+    render(
+      <NextVisitDateField
+        value="2026-09-04"
+        onChange={onChange}
+        setDisabled
+        clearDisabled={false}
+      />,
+    );
+    expect(screen.getByLabelText("次回来院推奨日")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "1ヶ月後" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "クリア" }));
+    expect(onChange).toHaveBeenCalledWith("");
+  });
+
+  it("日付設定可・解除不可では解除ボタンを無効化する", () => {
+    const onChange = vi.fn();
+    render(
+      <NextVisitDateField
+        value="2026-09-04"
+        onChange={onChange}
+        setDisabled={false}
+        clearDisabled
+      />,
+    );
+    expect(screen.getByLabelText("次回来院推奨日")).toBeEnabled();
+    expect(screen.getByRole("button", { name: "1ヶ月後" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "クリア" }));
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it("過去日では過去日エラーを表示する", () => {
@@ -66,12 +91,12 @@ describe("NextVisitDateField", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(TWO_YEAR_ERROR);
   });
 
-  it("日付入力の変更で過去日なら onValidationChange(false) を呼ぶ", () => {
-    const { onValidationChange } = renderField("2026-09-03");
+  it("日付入力の変更で過去日でも onChange(newValue) を呼ぶ（バリデーションは表示側で行う）", () => {
+    const { onChange } = renderField("2026-09-03");
     fireEvent.change(screen.getByLabelText("次回来院推奨日"), {
       target: { value: "2026-09-02" },
     });
-    expect(onValidationChange).toHaveBeenCalledWith(false);
+    expect(onChange).toHaveBeenCalledWith("2026-09-02");
   });
 
   it("2月29日起点の2年上限は非閏年2月28日まで（3月1日は上限エラー）", () => {

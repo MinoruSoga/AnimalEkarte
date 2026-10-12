@@ -3,6 +3,7 @@ import { useCallback, useMemo, useRef, useState, useTransition } from "react";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PartnerRecordLink } from "@/components/shared/PartnerRecordLink/PartnerRecordLink";
 import { C, LAYOUT } from "@/lib/design-tokens";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { UnifiedTabsRoot } from "@/components/shared/UnifiedTabs";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useAuth } from "@/hooks/use-auth";
@@ -222,7 +223,7 @@ export function MedicalRecordFormReadyPanels({
             kind="trimming"
             petId={selectedPet.id}
             visitDate={form.partnerVisitDate}
-            isPetDeceased={selectedPet.status === "死亡"}
+            isPetDeceased={isPetDeceasedForClinicalWrite(selectedPet)}
           />
         }
       >
@@ -251,13 +252,10 @@ export function MedicalRecordFormReadyPanels({
             tabs={MEDICAL_RECORD_TAB_ITEMS}
             recordDate={form.recordDate}
             recordStatus={ready.currentRecord?.status}
-            nextVisitDate={form.nextVisitDate}
             onVisitTypeChange={form.handleVisitTypeChange}
             onStaffClick={ready.modals.handleOpenStaffModal}
             onOwnerClick={ready.modals.handleOpenOwnerSearch}
             onDateChange={form.handleChangeDate}
-            onNextVisitDatePatch={form.handleNextVisitDatePatch}
-            onNextVisitDateValidChange={form.handleNextVisitDateValidChange}
             hasLineIntegration={ready.hasLineIntegration}
             medicalRecordId={recordId}
             recordClinicId={ready.recordClinicId}
@@ -296,7 +294,6 @@ export function MedicalRecordFormReadyPanels({
               diagnosis2CategoryId={form.diagnosis2CategoryId}
               diagnosis2NameId={form.diagnosis2NameId}
               ownerDiscountRate={form.ownerDiscountRate ?? 0}
-              nextVisitDate={form.nextVisitDate}
               hasLineIntegration={ready.hasLineIntegration}
               recommendationReason={form.recommendationReason}
               lstepStatus={ready.lstepStatus}
@@ -313,8 +310,6 @@ export function MedicalRecordFormReadyPanels({
               onDiagnosis1NameIdChange={ready.dirtyFields.handleSetDiagnosis1NameId}
               onDiagnosis2CategoryIdChange={ready.dirtyFields.handleSetDiagnosis2CategoryId}
               onDiagnosis2NameIdChange={ready.dirtyFields.handleSetDiagnosis2NameId}
-              onNextVisitDateChange={form.handleNextVisitDateChange}
-              onNextVisitDateValidChange={form.handleNextVisitDateValidChange}
               onRecommendationReasonChange={form.setRecommendationReason}
               onRegisterEstimateSave={ready.handleRegisterEstimateSave}
               onCopyRecordTreatments={ready.copyTreatmentsFromRecord}
@@ -397,7 +392,7 @@ function MedicalRecordFormReadyOverlays({
         onVitalsClick={() => ready.modals.setIsVitalsOpen(true)}
         onPrintClick={ready.modals.handlePrintClick}
         onFinalizeClick={() => ready.modals.setIsFinalizeConfirmOpen(true)}
-        isPetDeceased={selectedPet.status === "死亡"}
+        isPetDeceased={isPetDeceasedForClinicalWrite(selectedPet)}
       />
 
       <MedicalRecordFinalizeDialog
@@ -418,7 +413,7 @@ function MedicalRecordFormReadyOverlays({
         isVitalsOpen={ready.modals.isVitalsOpen}
         onVitalsOpenChange={ready.modals.setIsVitalsOpen}
         recordClinicId={ready.recordClinicId}
-        isPetDeceased={selectedPet.status === "死亡"}
+        isPetDeceased={isPetDeceasedForClinicalWrite(selectedPet)}
         isStaffModalOpen={ready.modals.isStaffModalOpen}
         staffName={ready.staffName}
         onSelectStaff={ready.handleSelectStaff}

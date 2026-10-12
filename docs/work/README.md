@@ -1,4 +1,4 @@
-# 作業台帳（docs/work）
+# 作業記録・提案の索引（docs/work）
 
 ## 入口
 
@@ -27,6 +27,8 @@ flowchart TB
     CV -.->|時点ログ| L
 ```
 
+**本ディレクトリの列挙は日付付きの調査・提案・過去キャンペーンの記録（dated historical / proposal）であり、現在の実行キューではない。** 現在未完了作業は Plane と `todo.md` のキュー節を参照する。
+
 | 補助 | 役割 |
 |------|------|
 | [decisions/](./decisions/README.md) | 採択済み方針の短いポインタ |
@@ -36,17 +38,30 @@ flowchart TB
 | [development-task-decisions.md](./development-task-decisions.md) | 旧10開発候補の採否と具体的な着手範囲の根拠。実行キューはtodo.md |
 | [stg-uat-clinic-feedback-q1-q4.md](./stg-uat-clinic-feedback-q1-q4.md) | STG UAT 医院Q1–Q4の送付用回答と修正タスク。Q1/Q4保険/Q2履歴は STG デプロイ済み（PR #411）。実行 SoT ではない |
 | [linmig-campaign-20260919/](./linmig-campaign-20260919/) | P1–P5/P8・検査機器・実LINE・migrate・件数・フォント・締め時間・bundle のローカル準備票。実行完了ではない |
-| [remaining-campaign-20260920/](./remaining-campaign-20260920/) | P6/P7 と Slack PO/evidence 16件の判断材料・ケース票。PO裁定と実機/STGは未了 |
+| [remaining-campaign-20260920/](./remaining-campaign-20260920/) | P6/P7 と Slack 14件（計16票）の判断材料・ケース票。PO裁定と実機/STGは未了 |
 | [todo-campaign-20260918/](./todo-campaign-20260918/) | UAT-R2 / Q2・Q4 集計 / 処置移行 / 死亡日 / Linear 照合の準備票 |
 | [todo-campaign-20260919-ready17/](./todo-campaign-20260919-ready17/) | Slack READY 13件の設計票 |
 | [todo-ledger-20260922/](./todo-ledger-20260922/) | 2026-09-22 台帳の分類表・実行 receipt・訂正ドラフト（DEV-V-OWNER-DB・UAT-Q3-GENDER-MAP・CSV 契約差分・EXCLUSIVE-LOCK） |
 | [plane-md-migration-20260923-receipt.md](./plane-md-migration-20260923-receipt.md) | 2026-09-23 Markdown→Plane 移行 receipt。旧 ID → `EMR-*` / `MIG-*` の crosswalk 正本 |
 | [plane-ready-triage-20260927/](./plane-ready-triage-20260927/) | 2026-09-27 Plane Needs Human/Blocked 65 件の ready 判定 verdicts（ready=0、verdicts.json あり） |
 | [emr-89-karte-copy-verification.md](./emr-89-karte-copy-verification.md) · [emr-180-note-staff-starttime-rdt-investigation.md](./emr-180-note-staff-starttime-rdt-investigation.md) · [emr-200-note2-coverage/](./emr-200-note2-coverage/) · [emr-211-synthetic-teardown-audit-logs.md](./emr-211-synthetic-teardown-audit-logs.md) | 各 Plane チケットの調査・検証記録（証跡票） |
-| [infra-cf-rename-task-coverage-review-20261006.md](./infra-cf-rename-task-coverage-review-20261006.md) | 2026-10-06 棚卸し実測に対する CF 移管・改名タスクの網羅性レビュー。実行 SoT ではない |
+| [emr-105-vaccine-multi-20261002.md](./emr-105-vaccine-multi-20261002.md) · [emr-114-reservation-reference-20261002.md](./emr-114-reservation-reference-20261002.md) · [emr-116-repro-20261002.md](./emr-116-repro-20261002.md) · [emr-131-local-uat-20261002.md](./emr-131-local-uat-20261002.md) · [emr-164-verification-20261002.md](./emr-164-verification-20261002.md) | emr-*-20261002 証跡・再検証票（EMR-105/114/116/131/164 の 2026-10-02 検証・再現記録。現在の状態は Plane を正とする） |
+| [EMR-245-list-filter-column-inventory.md](./EMR-245-list-filter-column-inventory.md) | EMR-245 一覧フィルタと表示列の対応棚卸し（チケット作業メモ。docs/ops/ から移動） |
+| [arch-a4-trigger-ledger.md](./arch-a4-trigger-ledger.md) | ARCH-A4 当時の測定・landed slice 台帳（docs/architecture/ から移動。再測定前に古い測定を go/no-go に流用しない） |
+| [emr-221-import-contract-design/DESIGN.md](./emr-221-import-contract-design/DESIGN.md) | EMR-221 八王子取込契約の設計案（レビュー用提案・実装未着手。実行 SoT ではない） |
+| [emr-342-medicines-contract-design/DESIGN.md](./emr-342-medicines-contract-design/DESIGN.md) | EMR-342 取込契約に薬剤マスタの表を足す設計案（レビュー用提案・実装未着手。実行 SoT ではない） |
+| [emr-257-payment-design-20261002.md](./emr-257-payment-design-20261002.md) | EMR-257 入院会計の前金・複数入金（預り金充当）の設計提案（実装未着手。実行 SoT ではない） |
+| [security-triage-2026-10-03.md](./security-triage-2026-10-03.md) | codex-security 累積 findings のトリアージ記録（2026-10-03）。実行 SoT ではない |
+| [emr-332-security/index.md](./emr-332-security/index.md) | EMR-332 非破壊セキュリティ検証・修復の記録。内容別配置、限定検証と未検証範囲。実行状態の正本はPlane |
+| [stg-chat-history-missing-2026-10-05.md](./stg-chat-history-missing-2026-10-05.md) | STG チャット履歴未保存事象の調査記録（2026-10-05）。実行 SoT ではない |
+| [infra-cf-rename-task-coverage-review-20261006.md](./infra-cf-rename-task-coverage-review-20261006.md) | 2026-10-06 棚卸し実測に対する CF 移管・改名タスクの網羅性レビュー（rereview で更新済み）。実行 SoT ではない |
+| [line-cost-analysis-roi-draft-20261007.md](./line-cost-analysis-roi-draft-20261007.md) | cost-analysis.md から 2026-10-07 移設した作業ノート（配信ボリューム試算シミュレーション・計画中 ROI 指標 draft・料金 worksheet）。試算・draft であり仕様の正本ではない |
 | [infra-cf-rename-task-coverage-rereview-20261006.md](./infra-cf-rename-task-coverage-rereview-20261006.md) | 同上のチケット再構成後の再レビュー。実行 SoT ではない |
-| [docs-refresh-20260929/](./docs-refresh-20260929/) | 本キャンペーン（docs 全件照合 2026-09-29）の子レポート置き場 |
-| [docs-perfection/README.md](./docs-perfection/README.md) | **Astra 調査パッケージ入口**（棚卸し・RQ・子 goal・証拠）。製品の実行 SoT は上記 Plane |
+| [security-red-blue/](./security-red-blue/) | red-blue-loop スキルのラウンド計画・サマリの正規保存先（スキル規約。証跡画像は Plane 添付のみ）。ラウンド1（2026-10-09・TENANT-1・pet/medicalrecord・STG）: 破れ 0・起票 0。ラウンド2（2026-10-09・TENANT-1・reservation/billing/inventory/hospitalization・ローカル Docker）: 破れ 0・起票 0・観察3件 |
+| [emr-284-search-fields.md](./emr-284-search-fields.md) · [emr-293-deactivation-audit.md](./emr-293-deactivation-audit.md) · [emr-319-required-field-audit.md](./emr-319-required-field-audit.md) | 各 Plane チケットの調査スナップショット（作成日時点。EMR-293 は 2026-10-08 時点の未解消監査、EMR-319 は 2026-10-09 時点＋PR #614 の各ラウンド記録。現在の状態は Plane を正とする） |
+| [emr-reservation-verification-20261008.md](./emr-reservation-verification-20261008.md) | EMR-270/274/275/318/321 の実装・検証記録（2026-10-08 時点の日付付き記録。現在の Done・状態の正本は Plane） |
+| [docs-refresh-20260929/](./docs-refresh-20260929/) | 日付付き完了調査（docs 全件照合 2026-09-29）の子レポート置き場。2026-10-06 確認: 完了・統合済み（commit `c8dc3a792`）、claim/branch/worktree は削除済み。現在の Status 正本ではない |
+| [docs-perfection/README.md](./docs-perfection/README.md) | **Astra 調査パッケージ入口**（棚卸し・RQ・子 goal・証拠。2026-09-07 時点の日付付き調査。現在の Status 正本ではない）。製品の実行 SoT は上記 Plane |
 | [docs-perfection/REPAIR-QUEUE.md](./docs-perfection/REPAIR-QUEUE.md) | 調査時点の優先修復キュー（RQ-001〜） |
 | [docs-perfection/ROLE-MAP.md](./docs-perfection/ROLE-MAP.md) | docs 保守の Living Docs 役割割当 |
 

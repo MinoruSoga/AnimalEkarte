@@ -14,7 +14,6 @@ import {
   getClinicSelectionBlockReason,
   pauseClinicWrites,
   recoverClinicSelectionOnce,
-  resetClinicSelectionRecoveryForTests,
 } from "@/lib/clinic-selection-recovery";
 import * as clinicSelectionRecovery from "@/lib/clinic-selection-recovery";
 import { CURRENT_CLINIC_STORAGE_KEY } from "@/lib/current-clinic";
@@ -1167,7 +1166,7 @@ describe("AuthProvider initial session restoration", () => {
     // Remount onto /login while terminal no-clinic remains: BlockedScreen is correct.
     // For manual-login suppress, clear only the terminal block UI state then keep pause and
     // force a hung restore so the 8s deadline can surface SessionRestoreError → ログイン切替.
-    resetClinicSelectionRecoveryForTests();
+    clearClinicSelectionRecovery();
     pauseClinicWrites();
     vi.useFakeTimers();
     await act(async () => {

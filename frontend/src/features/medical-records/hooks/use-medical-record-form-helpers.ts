@@ -1,6 +1,7 @@
 import { useState, useTransition, useRef, useMemo } from "react";
 import type { Location } from "react-router";
 import { useGetPet, useGetPets } from "@/hooks/use-pet";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { useGetOwner } from "@/hooks/use-owner";
 import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
 import { useGetReservations } from "@/hooks/use-get-reservations";
@@ -26,7 +27,7 @@ import { parseInternalPath } from "@/lib/internal-navigation";
 import type { ActionState } from "@/types/form";
 import type { MedicalRecord } from "../api/transforms";
 import type { Pet } from "@/types";
-import type { Reservation } from "@/lib/transforms/reservation";
+import type { Reservation } from "@/hooks/reservation-intent-response";
 import { isMedicalRecordFinalizedStatus } from "../lib/medical-record-lock";
 import type { useMedicalRecordDiagnosisState } from "./use-medical-record-diagnosis-state";
 import type { useMedicalRecordAutoCreate } from "./use-medical-record-auto-create";
@@ -37,16 +38,25 @@ import { paths } from "@/config/paths";
 export function selectCohabitingPets(pets: Pet[], selectedPet: Pet): Pet[] {
   return pets.filter(
     (pet) =>
-      pet.ownerId === selectedPet.ownerId && pet.id !== selectedPet.id && pet.status !== "死亡",
+      pet.ownerId === selectedPet.ownerId &&
+      pet.id !== selectedPet.id &&
+      !isPetDeceasedForClinicalWrite(pet),
   );
 }
 
-function selectReusableGeneralAppointment(
+// export: 同日 tentative（promotable）の除外契約をユニットテストから直接固定するため。
+export function selectReusableGeneralAppointment(
   appointments: readonly Reservation[],
 ): Reservation | undefined {
   return appointments.find(
     (appointment) =>
       appointment.category === "general" &&
+      // EMR-308: tentative（次回予定・未予約）は「再利用する実予約」ではない。
+      // その id を appointment_id に渡すとカルテが sentinel 行に紐づき status=tentative の
+      // まま残る（BackfillForMedicalRecord は status を触らない）。代わりにここでは外して
+      // record_shortcut 作成経路へ回し、BE createOrPromoteTentative に同一行昇格させる
+      // （＝当日 tentative を promotable として扱う）。
+      !appointment.isTentative &&
       !["completed", "cancelled", "no_show"].includes(String(appointment.status)),
   );
 }
@@ -56,8 +66,6 @@ export function useMedicalRecordFormUiState(tabParam: string | null) {
   const [visitType, setVisitType] = useState("再診");
   const [isCreating, startCreateTransition] = useTransition();
   const { manualErrors, setManualErrors } = useMedicalRecordManualErrors({ setActiveTab });
-  const [nextVisitDate, setNextVisitDate] = useState("");
-  const [isNextVisitDateValid, setIsNextVisitDateValid] = useState(true);
   const hasAutoCreatedRef = useRef(false);
   const [treatmentPlanItems, setTreatmentPlanItems] = useState<TreatmentItem[]>([]);
   const [treatmentCompletedItems, setTreatmentCompletedItems] = useState<TreatmentItem[]>([]);
@@ -71,10 +79,6 @@ export function useMedicalRecordFormUiState(tabParam: string | null) {
     startCreateTransition,
     manualErrors,
     setManualErrors,
-    nextVisitDate,
-    setNextVisitDate,
-    isNextVisitDateValid,
-    setIsNextVisitDateValid,
     hasAutoCreatedRef,
     treatmentPlanItems,
     setTreatmentPlanItems,
@@ -94,7 +98,6 @@ export function useMedicalRecordFormRead(input: {
   searchParams: URLSearchParams;
   diagnosis: DiagnosisState;
   setVisitType: (value: string) => void;
-  setNextVisitDate: (value: string) => void;
 }) {
   const {
     recordId,
@@ -105,7 +108,6 @@ export function useMedicalRecordFormRead(input: {
     searchParams,
     diagnosis,
     setVisitType,
-    setNextVisitDate,
   } = input;
 
   const {
@@ -138,7 +140,6 @@ export function useMedicalRecordFormRead(input: {
     setPlan: diagnosis.setPlan,
     setAssessment: diagnosis.setAssessment,
     setVisitType,
-    setNextVisitDate,
     setDiagnosis1CategoryId: diagnosis.setDiagnosis1CategoryId,
     setDiagnosis1NameId: diagnosis.setDiagnosis1NameId,
     setDiagnosis2CategoryId: diagnosis.setDiagnosis2CategoryId,
@@ -256,9 +257,6 @@ export function toMedicalRecordFormResult(input: {
   handleVisitTypeChange: ReturnType<
     typeof useMedicalRecordQuickPatchActions
   >["handleVisitTypeChange"];
-  handleNextVisitDatePatch: ReturnType<
-    typeof useMedicalRecordQuickPatchActions
-  >["handleNextVisitDatePatch"];
   handleChangeDate: ReturnType<typeof useMedicalRecordQuickPatchActions>["handleChangeDate"];
   handleFinalize: ReturnType<typeof useMedicalRecordQuickPatchActions>["handleFinalize"];
   ownerChange: ReturnType<typeof useMedicalRecordOwnerChange>;
@@ -308,11 +306,6 @@ export function toMedicalRecordFormResult(input: {
     isFinalizeSaving: input.isSavingTransition,
     ...input.ownerChange,
     fieldErrors: input.ui.manualErrors,
-    nextVisitDate: input.ui.nextVisitDate,
-    handleNextVisitDateChange: input.ui.setNextVisitDate,
-    handleNextVisitDatePatch: input.handleNextVisitDatePatch,
-    isNextVisitDateValid: input.ui.isNextVisitDateValid,
-    handleNextVisitDateValidChange: input.ui.setIsNextVisitDateValid,
     recommendationReason: input.recordId
       ? (input.read.existingRecord?.recommendationReason ?? null)
       : input.createRecommendationReason,
@@ -322,12 +315,17 @@ export function toMedicalRecordFormResult(input: {
 
 export function createMedicalRecordBackHandler(input: {
   from: unknown;
+  listReturnState?: unknown;
   recordId?: string;
-  navigate: (to: string) => void;
+  navigate: (to: string, options?: { state?: unknown }) => void;
 }): () => void {
   return () => {
     const from = parseInternalPath(input.from);
     if (from) {
+      if (input.listReturnState !== undefined) {
+        input.navigate(from, { state: input.listReturnState });
+        return;
+      }
       input.navigate(from);
       return;
     }

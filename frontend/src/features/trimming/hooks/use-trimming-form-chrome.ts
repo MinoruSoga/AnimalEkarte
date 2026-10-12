@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
+import { toast } from "sonner";
 
 import { useGetMasterItems } from "@/hooks/use-master-items";
 import { useGetTrimmingCourseTypes } from "@/hooks/use-trimming-course-types";
-import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { paths } from "@/config/paths";
 import { useTrimmingHistory } from "./use-trimming-history";
 import {
@@ -13,6 +13,53 @@ import {
 } from "../routes/trimming-form-model";
 import type { TrimmingFormData } from "@/types/trimming";
 
+const HISTORY_COPY_TOAST_MESSAGE = "前回の内容を反映しました";
+
+// EMR-282: 履歴コピー対象フィールド → 反映先フォーム要素の DOM id。スクロール先は
+// この配列順ではなく DOM 上の実際の並び（compareDocumentPosition）で決めるため、
+// フォーム側のセクション順変更に追従できる。optionIds のチェックボックスは
+// option-<id> の動的 id のため先頭の選択肢をアンカーにする。
+const HISTORY_COPY_FIELD_ANCHORS: ReadonlyArray<{
+  field: keyof TrimmingFormData;
+  resolveAnchorId: (updates: Partial<TrimmingFormData>) => string | undefined;
+}> = [
+  { field: "courseId", resolveAnchorId: () => "courseId" },
+  { field: "staffName", resolveAnchorId: () => "staffId" },
+  { field: "styleRequest", resolveAnchorId: () => "trimming-style-request" },
+  {
+    field: "optionIds",
+    resolveAnchorId: (updates) =>
+      updates.optionIds && updates.optionIds.length > 0
+        ? `option-${updates.optionIds[0]}`
+        : undefined,
+  },
+  { field: "usedShampoo", resolveAnchorId: () => "trimming-used-shampoo" },
+  { field: "usedRibbon", resolveAnchorId: () => "trimming-used-ribbon" },
+  { field: "remarks", resolveAnchorId: () => "trimming-remarks" },
+];
+
+// バリデーションエラー時のスクロール（上の useEffect）と同じ smooth/center 規約で、
+// コピーされたフィールドのうち DOM 上で最も上にある解決可能アンカーへスクロールする
+// （履歴コピーは courseId と staffName を同時に更新し、実 DOM では担当欄が
+// コースより上にあるため、配列順ではなく document order で先頭を選ぶ）。
+function scrollCopiedFieldIntoView(updates: Partial<TrimmingFormData>): void {
+  let topmost: HTMLElement | undefined;
+  for (const { field, resolveAnchorId } of HISTORY_COPY_FIELD_ANCHORS) {
+    if (updates[field] === undefined) continue;
+    const anchorId = resolveAnchorId(updates);
+    if (anchorId === undefined) continue;
+    const element = document.getElementById(anchorId);
+    if (!element) continue;
+    if (
+      topmost === undefined ||
+      (topmost.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_PRECEDING) !== 0
+    ) {
+      topmost = element;
+    }
+  }
+  topmost?.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
 export function useTrimmingFormChrome(input: {
   formData: TrimmingFormData;
   setFormData: (updates: Partial<TrimmingFormData>) => void;
@@ -21,6 +68,8 @@ export function useTrimmingFormChrome(input: {
   redirectPath: string;
   fromPath: string | undefined;
   handleDelete: (onSuccess: () => void) => void;
+  // useTrimmingForm でリフトした dirty 状態。画像フックと共有するため input 経由で受け取る。
+  unsaved: { isDirty: boolean; markDirty: () => void; markClean: () => void };
 }) {
   const navigate = useNavigate();
   const { data: coursesRaw = [] } = useGetMasterItems("trimmingCourse");
@@ -39,7 +88,7 @@ export function useTrimmingFormChrome(input: {
     () => decorateTrimmingOptions(optionsRaw, input.formData.optionIds),
     [optionsRaw, input.formData.optionIds],
   );
-  const { isDirty, markDirty, markClean } = useUnsavedChanges();
+  const { isDirty, markDirty, markClean } = input.unsaved;
 
   useEffect(() => {
     const errorFields = Object.keys(input.formState.fieldErrors || {});
@@ -85,7 +134,10 @@ export function useTrimmingFormChrome(input: {
   }, [input.fromPath, navigate]);
   const handleHistoryClick = useCallback(
     (updates: Partial<TrimmingFormData>) => {
-      handleFormChange(history.handleHistoryClick(updates));
+      const applied = history.handleHistoryClick(updates);
+      handleFormChange(applied);
+      scrollCopiedFieldIntoView(applied);
+      toast.success(HISTORY_COPY_TOAST_MESSAGE);
     },
     [history, handleFormChange],
   );

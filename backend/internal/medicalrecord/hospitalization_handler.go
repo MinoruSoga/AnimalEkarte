@@ -34,14 +34,18 @@ func (h *HospitalizationHandler) ListHospitalizations(c *gin.Context) {
 	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceHospitalization), "view") {
 		return
 	}
-	page, limit, err := httpapi.ParsePagination(c)
+	q := newListHospitalizationQuery(c.Request.URL.Query())
+	filters, err := q.toServiceFilters()
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
 
-	q := newListHospitalizationQuery(c.Request.URL.Query())
-	filters, err := q.toServiceFilters()
+	if h.maybeListHospitalizationSnapshot(c, clinicID, filters) {
+		return
+	}
+
+	page, limit, err := httpapi.ParsePagination(c)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
@@ -189,6 +193,36 @@ func (h *HospitalizationHandler) DischargeWithBilling(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, toDischargeWithBillingResponse(result))
+}
+
+// SwapCages godoc
+// POST /hospitalizations/cage-swap
+// EMR-306 review: 2本の独立 PATCH による半スワップ（片側のみ commit）を防ぐため、
+// 2件の入院のケージ交換を単一トランザクションで実行する。
+// expected_cage_ids は hospitalization_ids と同じ位置の表示時ケージID。
+func (h *HospitalizationHandler) SwapCages(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
+	var req cageSwapRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		return
+	}
+	first, second, err := h.service.SwapCages(
+		c.Request.Context(), clinicID, req.HospitalizationIDs[0], req.HospitalizationIDs[1],
+		[2]uint64{req.ExpectedCageIDs[0], req.ExpectedCageIDs[1]})
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, CageSwapResponse{
+		Hospitalizations: []HospitalizationResponse{
+			toHospitalizationResponse(first),
+			toHospitalizationResponse(second),
+		},
+	})
 }
 
 // DeleteHospitalization godoc

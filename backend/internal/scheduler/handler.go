@@ -20,7 +20,9 @@ import (
 const (
 	// SchedulerName is the protocol identifier shared with the Cloudflare Worker.
 	SchedulerName = "animalekarte-scheduler-v1"
-	// RequestTimeout is shorter than both the Worker fetch timeout and its durable lease.
+	// RequestTimeout bounds primary application work. no_show may finish one
+	// committed item's detached tag sync for up to ten more seconds; the Worker
+	// reserves that tail and transport margin before its fetch timeout and lease.
 	RequestTimeout = 100 * time.Second
 
 	runActionSuffix = ":run"
@@ -164,6 +166,8 @@ func (h *Handler) run(c *gin.Context) {
 
 	// The Worker lease/fence owns ledger finalization only. Application-side work
 	// therefore obeys this deadline and retains domain CAS/idempotency protections.
+	// The sole post-commit exception is no_show's finite ten-second tag sync;
+	// it cannot start another primary write after this context is canceled.
 	ctx, cancel := context.WithTimeout(c.Request.Context(), RequestTimeout)
 	defer cancel()
 	result, err := h.executor.Execute(ctx, Execution{

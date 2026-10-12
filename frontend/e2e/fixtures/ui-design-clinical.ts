@@ -170,6 +170,7 @@ export const SYNTHETIC_PET = {
   name: "合成監査ペット",
   name_kana: "ゴウセイカンサイペット",
   gender: "unknown",
+  neutered_status: "unknown",
   status: "alive",
   breed: "合成品種",
   color: "",
@@ -523,12 +524,11 @@ export const SYNTHETIC_CLINICAL_SCENARIOS = {
         method: "GET",
         pathname: "/api/v1/reservations",
         query: {
-          page: "1",
-          limit: "100",
+          snapshot: "true",
           date: CREATED_AT.slice(0, 10),
           pet_id: String(SYNTHETIC_IDS.pet),
         } satisfies Readonly<Record<string, string>>,
-        response: { data: [], total: 0, page: 1, limit: 100 },
+        response: { data: [], total: 0, page: 1, limit: 10000, snapshot: true },
       },
       {
         method: "POST",

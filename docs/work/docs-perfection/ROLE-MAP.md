@@ -52,7 +52,7 @@ flowchart TB
 |---|---|---|
 | 採択された設計判断と理由 | [architecture/adr/README.md](../../architecture/adr/README.md) → 各ADR | 原則不変。明確な事実訂正には日付・何を・なぜ・根拠のcorrection note。新判断は新ADRでsupersedes。理由の静かな美化は禁止 |
 | BE9分類と当時の測定 | [be9-2a-boundary-map.md](../../architecture/be9-2a-boundary-map.md) | historical input。現行allowlistはlintscanへリンク。古い日付/SHAだけではobsoleteにしない |
-| ARCH-A4当時の着手判定 | [arch-a4-trigger-ledger.md](../../architecture/arch-a4-trigger-ledger.md) | 新しい着手には再測定。過去測定を現在のgo/no-goへ流用しない |
+| ARCH-A4当時の着手判定 | [arch-a4-trigger-ledger.md](../arch-a4-trigger-ledger.md)（2026-10-06 移動: 旧 `docs/architecture/` から `docs/work/` へ） | 新しい着手には再測定。過去測定を現在のgo/no-goへ流用しない |
 | 採択方針への短い参照 | [work/decisions/README.md](../decisions/README.md) | 詳細の会社側記録は既存CorpVaultポインタ。外部本文/状態は未検証 |
 | この保守ユニットの判断・検証履歴 | [PROGRESS.md](PROGRESS.md) | 製品の履歴・runtimeログを再収集しない。日常の変更履歴はGit |
 

@@ -13,7 +13,7 @@ import (
 )
 
 // mockLstepDeliveryTriggerBatch は lstep_batch_delivery.go テスト専用の
-// LstepDeliveryTriggerService モック。全13バッチトリガーの呼び出し回数を記録する。
+// LstepDeliveryTriggerService モック。全14バッチトリガーの呼び出し回数を記録する。
 type mockLstepDeliveryTriggerBatch struct {
 	callCounts map[string]int
 	triggerFn  func(name string, clinicID uint64, asOf time.Time) (int, []error)
@@ -36,8 +36,11 @@ func (m *mockLstepDeliveryTriggerBatch) TriggerFirstVisitFollowUp3D(_ context.Co
 func (m *mockLstepDeliveryTriggerBatch) TriggerFirstVisitFollowUp7D(_ context.Context, clinicID uint64, asOf time.Time) (int, []error) {
 	return m.call("TriggerFirstVisitFollowUp7D", clinicID, asOf)
 }
-func (m *mockLstepDeliveryTriggerBatch) TriggerNextVisitReminder(_ context.Context, clinicID uint64, asOf time.Time) (int, []error) {
-	return m.call("TriggerNextVisitReminder", clinicID, asOf)
+func (m *mockLstepDeliveryTriggerBatch) TriggerNextVisitTentativeReminder3D(_ context.Context, clinicID uint64, asOf time.Time) (int, []error) {
+	return m.call("TriggerNextVisitTentativeReminder3D", clinicID, asOf)
+}
+func (m *mockLstepDeliveryTriggerBatch) TriggerNextVisitTentativeReminder0D(_ context.Context, clinicID uint64, asOf time.Time) (int, []error) {
+	return m.call("TriggerNextVisitTentativeReminder0D", clinicID, asOf)
 }
 func (m *mockLstepDeliveryTriggerBatch) TriggerVaccineDeadline60(_ context.Context, clinicID uint64, asOf time.Time) (int, []error) {
 	return m.call("TriggerVaccineDeadline60", clinicID, asOf)
@@ -121,11 +124,14 @@ func TestRunDeliveryTriggersForClinic_AggregatesCountsAndErrors(t *testing.T) {
 
 	count, errs := svc.runDeliveryTriggersForClinic(context.Background(), 5)
 
-	// 13 個のトリガーのうち 12 個が1件、TriggerFilariaAlert のみ2件 → 合計14件
-	assert.Equal(t, 14, count)
+	// 14 個のトリガーのうち 13 個が1件、TriggerFilariaAlert のみ2件 → 合計15件
+	assert.Equal(t, 15, count)
 	assert.Len(t, errs, 1)
-	assert.Equal(t, 13, trigger.totalCalls(), "全13トリガーがちょうど1回ずつ呼ばれること")
+	assert.Equal(t, 14, trigger.totalCalls(), "全14トリガーがちょうど1回ずつ呼ばれること")
 	assert.Equal(t, 1, trigger.callCounts["TriggerFoodRefillReminder"], "末尾のトリガーも含め全て実行されること")
+	// EMR-308: tentative リマインダーは 3日前・当日の2ステージが独立にスケジュールされる。
+	assert.Equal(t, 1, trigger.callCounts["TriggerNextVisitTentativeReminder3D"])
+	assert.Equal(t, 1, trigger.callCounts["TriggerNextVisitTentativeReminder0D"])
 }
 
 // ================================================================
@@ -154,6 +160,8 @@ func TestRunDeliveryTriggerBatchAllClinics_SkipsOutsideFireHour(t *testing.T) {
 		},
 	}
 	svc := &lstepBatchService{
+		reservationRepo:      &expiryBatchRepository{},
+		tagSyncSvc:           &batchMockTagSyncSvc{},
 		clinicRepo:           clinicRepo,
 		lstepDeliveryTrigger: trigger,
 		auditSvc:             &batchMockAuditService{},
@@ -175,6 +183,8 @@ func TestRunDeliveryTriggerBatchAllClinics_SettingsSvcNilFailsClosed(t *testing.
 		},
 	}
 	svc := &lstepBatchService{
+		reservationRepo:      &expiryBatchRepository{},
+		tagSyncSvc:           &batchMockTagSyncSvc{},
 		clinicRepo:           clinicRepo,
 		lstepDeliveryTrigger: trigger,
 		auditSvc:             &batchMockAuditService{},
@@ -202,6 +212,8 @@ func TestRunDeliveryTriggerBatchAllClinics_SkipsWhenSyncCheckErrors(t *testing.T
 		},
 	}
 	svc := &lstepBatchService{
+		reservationRepo:      &expiryBatchRepository{},
+		tagSyncSvc:           &batchMockTagSyncSvc{},
 		clinicRepo:           clinicRepo,
 		lstepDeliveryTrigger: trigger,
 		auditSvc:             &batchMockAuditService{},
@@ -229,6 +241,8 @@ func TestRunDeliveryTriggerBatchAllClinics_SkipsWhenSyncDisabled(t *testing.T) {
 		},
 	}
 	svc := &lstepBatchService{
+		reservationRepo:      &expiryBatchRepository{},
+		tagSyncSvc:           &batchMockTagSyncSvc{},
 		clinicRepo:           clinicRepo,
 		lstepDeliveryTrigger: trigger,
 		auditSvc:             &batchMockAuditService{},
@@ -255,6 +269,8 @@ func TestRunDeliveryTriggerBatchAllClinics_LogsAuditWhenCountPositive(t *testing
 		isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil },
 	}
 	svc := &lstepBatchService{
+		reservationRepo:      &expiryBatchRepository{},
+		tagSyncSvc:           &batchMockTagSyncSvc{},
 		clinicRepo:           clinicRepo,
 		lstepDeliveryTrigger: trigger,
 		auditSvc:             audit,
@@ -270,7 +286,7 @@ func TestRunDeliveryTriggerBatchAllClinics_LogsAuditWhenCountPositive(t *testing
 	meta, ok := audit.capturedMetadata.(map[string]any)
 	require.True(t, ok, "metadata は map[string]any で渡される")
 	assert.Equal(t, "batch_delivery_trigger", meta["operation"])
-	assert.Equal(t, 13, meta["processed_count"])
+	assert.Equal(t, 14, meta["processed_count"])
 	assert.Equal(t, 0, meta["error_count"])
 }
 
@@ -288,6 +304,8 @@ func TestRunDeliveryTriggerBatchAllClinics_NoAuditWhenCountZero(t *testing.T) {
 		isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil },
 	}
 	svc := &lstepBatchService{
+		reservationRepo:      &expiryBatchRepository{},
+		tagSyncSvc:           &batchMockTagSyncSvc{},
 		clinicRepo:           clinicRepo,
 		lstepDeliveryTrigger: trigger,
 		auditSvc:             audit,
@@ -325,6 +343,8 @@ func TestRunDeliveryTriggerBatchAllClinics_AuditLogFailureIsBestEffort(t *testin
 		isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil },
 	}
 	svc := &lstepBatchService{
+		reservationRepo:      &expiryBatchRepository{},
+		tagSyncSvc:           &batchMockTagSyncSvc{},
 		clinicRepo:           clinicRepo,
 		lstepDeliveryTrigger: trigger,
 		auditSvc:             audit,

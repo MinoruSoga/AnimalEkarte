@@ -12,8 +12,9 @@
    `terraform plan` までを準備し、内容をレビューした上で承認者自身が `apply` するか、
    明示的な apply 承認を得てから実行する。
 2. **`-target` plan は依存切り分けのデバッグ用途のみ。** 承認判断には full plan を使う。
-3. **CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID はコミットしない。** 環境変数、または
-   ローカル専用の `terraform.tfvars`(`.gitignore` 対象)で供給する。
+3. **CLOUDFLARE_API_TOKEN / アカウント ID はコミットしない。** API トークンは
+   `CLOUDFLARE_API_TOKEN` 環境変数のみ、アカウント ID は `TF_VAR_account_id` 環境変数または
+   承認済みの `-var` オプションで供給する。`terraform.tfvars` には書かない。
 4. NS 切替(レジストラ側のネームサーバ変更)は本 Terraform の管理対象外。人手で実施し、
    実施前後の状態を運用記録へ残す。
 
@@ -63,11 +64,14 @@ terraform apply tfplan   # 承認後、承認者自身または明示承認を�
 infra/cloudflare/
 ├── providers.tf      # cloudflare provider(~> 5.21)
 ├── variables.tf      # account_id / zone_name / environment / r2_bucket_name / notification_email
-├── backend.tf        # backend block なし(Terraform 既定の local state)。R2 backend 切替は TODO コメント参照
+├── backend.tf        # backend block なし(Terraform 既定の local state)。R2 backend 切替案はコメント参照
 ├── zone.tf           # P1-1: cloudflare_zone + cloudflare_dns_record(棚卸し済み)
 ├── r2.tf             # P2-1: cloudflare_r2_bucket(apply 済み: animalekarte-stg-images)
 ├── hyperdrive.tf     # SEC-CS2-F03: resource 削除済み(tombstone + USER ops のみ)
-└── notifications.tf  # P6-3: cloudflare_notification_policy(http_alert_edge_error。apply 未実施 — TF_VAR_notification_email 未供給かつ送信先メール事前検証(要確認)のため genuine BLOCKED)
+└── notifications.tf  # P6-3: cloudflare_notification_policy(http_alert_edge_error)リソース定義あり
+                      # (production/notifications.tf はコメントのみでリソース無し)。
+                      # 既存READMEには apply 未実施・TF_VAR_notification_email 未供給の記録がある。
+                      # 現在の apply/送信先検証/配送実績は日付付き運用記録で確認するまで UNKNOWN
 ```
 
 ### Hyperdrive 削除 (SEC-CS2-F03) — USER-only 運用
@@ -84,11 +88,13 @@ Container 非対応のため未使用であり、origin に DB 資格情報を�
 4. Hyperdrive 専用に使った PlanetScale パスワードがあれば `pscale role reset-default` 等でローテーションする。
 5. App 本体の `DB_*` Worker secrets とは別経路。誤って本番アプリ用パスワードを巻き込まないこと。
 
-### P6-3 通知ポリシー apply の前提（`notifications.tf`）
+### P6-3 通知ポリシー（`notifications.tf`）の状態と apply の前提
 
-- 送信先メールアドレスは `TF_VAR_notification_email` で供給する（`terraform.tfvars` に書かない。値未供給時は `terraform plan` が変数未設定エラーで失敗する — 意図した genuine BLOCKED）。
+- 本ディレクトリの `notifications.tf` には `cloudflare_notification_policy` リソースが**定義されている**（対比: `production/notifications.tf` はコメントのみでリソース無し）。
+- 既存READMEには apply 未実施・`TF_VAR_notification_email` 未供給・送信先メール検証未確認の記録があるが、観測日と現在状態は確認できない。**現在の apply 状況・送信先検証・通知の実配送は、承認済み plan/apply 記録と通知受信の証跡を日付付きで確認するまで UNKNOWN**。本書は live 状態を推測しない。
+- 送信先メールアドレスは `TF_VAR_notification_email` で供給する（`terraform.tfvars` に書かない。値未供給時は `terraform plan` が変数未設定エラーで失敗する — 意図した genuine BLOCKED。推測で埋めない）。
 - Cloudflareの通知メール送信先はダッシュボードの Notification Settings で確認リンク経由の事前検証が必要な可能性がある（本リポジトリでは未検証。`terraform plan` はこの制約を検出できないため、`apply` 前に運用担当者が送信先アドレスの検証状態を確認すること）。
-- `http_alert_edge_error` はゾーン全体のエッジ観測5xx率に基づく代替指標であり、Worker/Containers専用のalert_typeはCloudflare通知APIに存在しない。
+- `http_alert_edge_error` はゾーン全体のエッジ観測5xx率に基づく代替指標であり、Worker/Containers専用のalert_typeはCloudflare通知APIに存在しなかった（2026-07-06 スキーマ調査時点の記録。最新状況は要再検証）。
 
 ## CI デプロイ
 

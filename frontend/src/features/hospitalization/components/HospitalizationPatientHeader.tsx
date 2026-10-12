@@ -23,6 +23,10 @@ export function HospitalizationPatientHeader({
   petDangerLevel,
   petDangerReason,
 }: HospitalizationPatientHeaderProps) {
+  // EMR-301: 誕生月・死亡判定は wire HospitalizationResponse の pet サマリを transform
+  // 伝播した値を使う（/pets/:id は owners:view 権限が別途必要で、入院閲覧者には失敗する）。
+  const isDeceased = hospitalization.petIsDeceased;
+
   return (
     <PatientInfoCard
       ownerName={hospitalization.ownerName}
@@ -37,7 +41,8 @@ export function HospitalizationPatientHeader({
           : undefined
       }
       weight={currentWeight || "-"}
-      status={hospitalization.petIsDeceased ? "deceased" : "alive"}
+      status={isDeceased ? "deceased" : "alive"}
+      birthDate={hospitalization.petBirthDate}
       staffName={hospitalization.doctorName ?? "担当医未設定"}
       reservationType={hospitalization.hospitalizationType}
       petDetails={hospitalization.species}

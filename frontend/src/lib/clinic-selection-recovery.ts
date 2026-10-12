@@ -77,10 +77,6 @@ export function rearmAutomaticClinicSelectionRecoveryAttempt(): void {
   automaticRecoveryAttempted = false;
 }
 
-export function resetClinicSelectionRecoveryForTests(): void {
-  clearClinicSelectionRecovery();
-}
-
 export function isClinicSelectionUnavailable(data: unknown): boolean {
   if (data === null || typeof data !== "object") {
     return false;

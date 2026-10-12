@@ -1,6 +1,6 @@
 # ADR-003: 支払方法の安定識別と payment_methods 整合性の設計判断
 
-**Status**: Decided — system_key / TRIGGER（method⇔system_key match）/ payments.clinic_id・複合 FK 実装済（#197・TASK-445・TASK-ADR003）。論点3（representativeMethod）#198 済。論点4（ENUM DROP）WONTFIX 維持。残差: レガシー `payment_method_id IS NULL` 許容・TRIGGER は soft-deleted master を拒否しない・確定後訂正経路は保存済 method/payment_method_id 組合せを再検証しない。
+**Status**: Accepted（2026-10-07 監査 訂正: 旧表記「Decided」→ adr/README 運用ルールの Status 語彙統一に従い「Accepted」へ訂正。以降の qualifier は歴史的記録として保持する） — system_key / TRIGGER（method⇔system_key match）/ payments.clinic_id・複合 FK 実装済（#197・TASK-445・TASK-ADR003）。論点3（representativeMethod）#198 済。論点4（ENUM DROP）WONTFIX 維持。残差: レガシー `payment_method_id IS NULL` 許容・TRIGGER は soft-deleted master を拒否しない・確定後訂正経路は保存済 method/payment_method_id 組合せを再検証しない。
 **Date**: 2026-06-25 / Updated: 2026-07-31
 **Deciders**: Engineering（論点2/3 決裁・論点1 実装反映）。
 **Drafted by**: Engineering（#185 follow-up）

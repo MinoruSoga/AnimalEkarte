@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { Label } from "@/components/ui/label";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import {
@@ -153,9 +153,12 @@ export function ReservationDateTimeFields({
           <PopoverTrigger asChild>
             <button
               type="button"
+              aria-invalid={Boolean(validationErrors?.date) || undefined}
+              aria-describedby={validationErrors?.date ? "res-date-error" : undefined}
               className={cn(
                 `flex h-11 w-full items-center justify-between rounded-xs border px-3 py-1 text-sm transition-colors ${C.borderMediumLight} ${C.text} bg-white ${C.hoverBgSubtle}`,
                 !formData.start && C.textMuted,
+                validationErrors?.date && STYLE.formInputError,
               )}
             >
               <span className="flex items-center">
@@ -250,7 +253,12 @@ export function ReservationDateTimeFields({
               onChange({ ...formData, start: newStart, end: newEnd });
             }}
           >
-            <SelectTrigger data-testid="res-start-time-trigger" className={TRIGGER_CLASS}>
+            <SelectTrigger
+              data-testid="res-start-time-trigger"
+              aria-invalid={Boolean(validationErrors?.time) || undefined}
+              aria-describedby={validationErrors?.time ? "res-time-error" : undefined}
+              className={TRIGGER_CLASS}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="max-h-[200px]">
@@ -290,7 +298,12 @@ export function ReservationDateTimeFields({
               onChange({ ...formData, end: newEnd });
             }}
           >
-            <SelectTrigger data-testid="res-end-time-trigger" className={TRIGGER_CLASS}>
+            <SelectTrigger
+              data-testid="res-end-time-trigger"
+              aria-invalid={Boolean(validationErrors?.time) || undefined}
+              aria-describedby={validationErrors?.time ? "res-time-error" : undefined}
+              className={TRIGGER_CLASS}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="max-h-[200px]">

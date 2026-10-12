@@ -24,6 +24,7 @@ interface SelectedReservationType {
 
 interface ReservationTypeAndStaffFieldsProps {
   formData: Partial<Reservation>;
+  lockedVisitType?: Reservation["visitType"];
   onChange: (data: Partial<Reservation>) => void;
   validationErrors?: Record<string, string>;
   typePickerOpen: boolean;
@@ -38,6 +39,7 @@ interface ReservationTypeAndStaffFieldsProps {
 
 export function ReservationTypeAndStaffFields({
   formData,
+  lockedVisitType,
   onChange,
   validationErrors,
   typePickerOpen,
@@ -108,7 +110,7 @@ export function ReservationTypeAndStaffFields({
           <RadioGroup
             value={formData.visitType || ""}
             onValueChange={(v: string) => {
-              if (isOneOf(v, VISIT_TYPE_VALUES)) {
+              if (!lockedVisitType && isOneOf(v, VISIT_TYPE_VALUES)) {
                 onChange({ ...formData, visitType: v });
               }
             }}
@@ -117,11 +119,16 @@ export function ReservationTypeAndStaffFields({
             <div className="flex-1">
               {/* peer + peer-focus-visible: sr-only の Radix Item(button) にフォーカスが
                   当たった際、装飾ラベルへフォーカスリングを転送する */}
-              <RadioGroupItem value="first" id="first" className="peer sr-only" />
+              <RadioGroupItem
+                value="first"
+                id="first"
+                disabled={lockedVisitType === "revisit"}
+                className="peer sr-only"
+              />
               <Label
                 htmlFor="first"
                 className={cn(
-                  `flex h-11 items-center justify-center rounded-xs border-2 px-3 text-sm font-medium cursor-pointer transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-1 ${C.text}`,
+                  `flex h-11 items-center justify-center rounded-xs border-2 px-3 text-sm font-medium cursor-pointer transition-colors peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-1 ${C.text}`,
                   formData.visitType === "first"
                     ? `${C.borderActionPrimary} ${C.bgActionPrimary8}`
                     : `${C.borderMediumLight} bg-white ${C.hoverBgSubtle}`,
@@ -131,11 +138,16 @@ export function ReservationTypeAndStaffFields({
               </Label>
             </div>
             <div className="flex-1">
-              <RadioGroupItem value="revisit" id="revisit" className="peer sr-only" />
+              <RadioGroupItem
+                value="revisit"
+                id="revisit"
+                disabled={lockedVisitType === "first"}
+                className="peer sr-only"
+              />
               <Label
                 htmlFor="revisit"
                 className={cn(
-                  `flex h-11 items-center justify-center rounded-xs border-2 px-3 text-sm font-medium cursor-pointer transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-1 ${C.text}`,
+                  `flex h-11 items-center justify-center rounded-xs border-2 px-3 text-sm font-medium cursor-pointer transition-colors peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-1 ${C.text}`,
                   formData.visitType === "revisit"
                     ? `${C.borderActionPrimary} ${C.bgActionPrimary8}`
                     : `${C.borderMediumLight} bg-white ${C.hoverBgSubtle}`,

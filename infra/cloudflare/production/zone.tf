@@ -9,11 +9,11 @@
 # noah-karte.com)スコープが必要。production 用トークンの発行時に付与すること
 # (providers.tf のコメント参照)。
 #
-# 【apply の前提条件】本ディレクトリの apply は、critical path 上 STG Phase 7(NS切替)完了後に
-# 行う想定(migration-cloudflare.md「現況サマリ」2026-07-15 決定の含意 #2 参照)。NS切替前に
-# apply しても Terraform 自体は成功するが、ゾーンが Cloudflare 上で active になっていない間は
-# 実トラフィックがこのレコード経由でWorkerへ届かない(STGのnotifications.tf/zone.tfが記録した
-# 「dormant」と同じ状態)。
+# 【apply の前提条件】本ディレクトリはドラフト。apply 前に人間が以下を確認すること:
+# 専用の対象アカウント(variables.tf / docs/ops/infra/cloudflare-account-separation.md)、
+# 対象ゾーンの Cloudflare authoritative 状態、レビュー済みの DNS/Worker route 差分、
+# 承認済みの production 構築手順(docs/ops/infra/production/setup.md)とアカウント分離方針
+# (docs/ops/infra/cloudflare-account-separation.md)。これら未確認の apply は行わない。
 
 data "cloudflare_zone" "noah_karte" {
   filter = {

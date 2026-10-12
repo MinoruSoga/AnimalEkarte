@@ -1,3 +1,5 @@
+> **状態（2026-10-07 監査・判断確定）**: 本監査は**現役の本番デプロイ前ゲート**であり、使い切り削除は未実施。根拠: 本番は未 go-live（GOLIVE_RUNBOOK が gate-driven HOLD・window 未確定 — 2026-10-07 確認）のため本番 DB 監査は未実施。STG は R1-3 ガード（0ee22c180、2026-07-21）稼働後 2.5 か月超の運用と STG UAT（2026-09-25、予約シナリオ含む）を通過し、fail-closed 予約拒否の顕在化記録はない（間接証拠。直接の監査 SQL 実行記録は残存しない）。**本番デプロイ前に本番 DB で監査 SQL を実行し 0 行を確認した時点で、使い切り規約により本書を削除する。** なお STG DB（PlanetScale）は MySQL のため、記載の監査 SQL（PostgreSQL jsonb 方言）はそのまま実行できず、実行時は方言版の作成を要する。
+
 # Runbook: line_reservation_settings.break_hours 形状監査
 
 > **目的**: R1-3デプロイ前のbreak_hoursデータ形状監査手順を定義する。

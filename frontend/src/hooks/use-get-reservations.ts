@@ -1,17 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
-import { DAY_VIEW_FETCH_LIMIT } from "@/config/fetch-limits";
+import { getStoredClinicId } from "@/lib/current-clinic";
+import { useCurrentClinicId } from "@/hooks/use-current-clinic-id";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import { transformReservation } from "@/lib/transforms/reservation";
-import type { Reservation } from "@/lib/transforms/reservation";
+import { transformReservationWithIntent, type Reservation } from "./reservation-intent-response";
 import type { Reservation as BackendReservation } from "@/types/generated/models";
 
 interface ReservationsListResponse {
   data: BackendReservation[];
   total: number;
-  page: number;
-  limit: number;
+  snapshot: boolean;
 }
 
 export interface ReservationFilters {
@@ -27,17 +26,19 @@ export interface ReservationFilters {
   enabled?: boolean;
   /** #86: 拠点横断表示。複数医院IDをカンマ区切りで送信。未指定=現在の医院のみ */
   clinicIds?: string[];
+  /** EMR-308/Codex: 拠点横断カルテ等、レコード自身の医院を操作対象にするときの
+   *  X-Clinic-ID 上書き（P2-15 vitals の clinicHeaderConfig と同じ先例）。 */
+  clinicId?: string;
 }
 
-function buildReservationParams(filters?: ReservationFilters): Record<string, string | number> {
-  const params: Record<string, string | number> = { page: 1, limit: DAY_VIEW_FETCH_LIMIT };
+function buildReservationParams(
+  filters?: ReservationFilters,
+): Record<string, string | number | boolean> {
+  const params: Record<string, string | number | boolean> = { snapshot: true };
   if (filters?.date) params.date = filters.date;
-  // 期間レンジ指定時は表示期間の全予約を取得するため limit を引き上げる。
-  // (BUG #82: limit=100 + start_time ASC で当日の予約が古い予約に押し出され予約管理に出ない問題の修正)
   if (filters?.startDate && filters?.endDate) {
     params.start_date = filters.startDate;
     params.end_date = filters.endDate;
-    params.limit = 1000;
   }
   if (filters?.status) params.status = filters.status;
   if (filters?.source) params.source = filters.source;
@@ -49,10 +50,29 @@ function buildReservationParams(filters?: ReservationFilters): Record<string, st
 }
 
 const getReservations = async (filters?: ReservationFilters): Promise<Reservation[]> => {
-  const { data } = await axios.get<ReservationsListResponse>("/v1/reservations", {
-    params: buildReservationParams(filters),
-  });
-  return data.data.map(transformReservation);
+  const params = buildReservationParams(filters);
+  // 発行時点の医院を固定し、同じ query key の医院スコープを維持する。
+  const pinnedClinicId = filters?.clinicId ?? getStoredClinicId();
+  const requestConfig = {
+    params,
+    ...(pinnedClinicId ? { headers: { "X-Clinic-ID": pinnedClinicId } } : {}),
+  };
+  const { data: first } = await axios.get<ReservationsListResponse>(
+    "/v1/reservations",
+    requestConfig,
+  );
+  // A paginated/partial response cannot safely represent the current calendar:
+  // offset pages may observe inserts, deletes or rescheduling between requests.
+  if (
+    first.snapshot !== true ||
+    !Number.isSafeInteger(first.total) ||
+    first.total < 0 ||
+    !Array.isArray(first.data) ||
+    first.total !== first.data.length
+  ) {
+    throw new Error("予約一覧を完全に取得できませんでした。再読み込みしてください");
+  }
+  return first.data.map(transformReservationWithIntent);
 };
 
 /**
@@ -62,9 +82,13 @@ const getReservations = async (filters?: ReservationFilters): Promise<Reservatio
  * queryKey prefix は reservations feature 側と同一を維持する。
  */
 export const useGetReservations = (filters?: ReservationFilters) => {
+  const currentClinicId = useCurrentClinicId();
+  // Codex PR606 #10: in-flight 結果が別クリニックの key に書き込まれないよう
+  // query key に clinic scope を含める（clinicIds 横断取得は行の clinicId で区別済み）。
+  const scopeClinicId = filters?.clinicId ?? currentClinicId;
   return useQuery({
-    queryKey: queryKeys.reservations.list(filters),
-    queryFn: () => getReservations(filters),
+    queryKey: queryKeys.reservations.list({ ...filters, scopeClinicId }),
+    queryFn: () => getReservations({ ...filters, clinicId: scopeClinicId ?? undefined }),
     enabled: filters?.enabled ?? true,
     staleTime: QUERY_STALE_TIMES.REALTIME, // 予約一覧は高頻度変更
     gcTime: QUERY_GC_TIMES.SHORT,

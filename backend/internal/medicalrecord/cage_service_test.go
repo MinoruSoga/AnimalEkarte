@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,14 +15,21 @@ import (
 
 // mockCageRepository は CageRepository のテスト用モック実装
 type mockCageRepository struct {
-	findAllFn            func(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error)
-	findByIDFn           func(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
-	lockByIDForUpdateFn  func(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
-	countUsageByCageIDFn func(ctx context.Context, clinicID, id uint64) (int64, error)
-	createFn             func(ctx context.Context, cage *model.Cage) error
-	updateFieldsFn       func(ctx context.Context, clinicID, id uint64, cmd UpdateCageInput) (*model.Cage, error)
-	deleteFn             func(ctx context.Context, clinicID, id uint64) error
-	reorderFn            func(ctx context.Context, clinicID uint64, ids []uint64) error
+	findAllFn                func(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error)
+	findByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
+	lockByIDForUpdateFn      func(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
+	countUsageByCageIDFn     func(ctx context.Context, clinicID, id uint64) (int64, error)
+	createFn                 func(ctx context.Context, cage *model.Cage) error
+	updateFieldsFn           func(ctx context.Context, clinicID, id uint64, cmd UpdateCageInput) (*model.Cage, error)
+	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
+	reorderFn                func(ctx context.Context, clinicID uint64, ids []uint64) error
+	lockCagesForUpdateFn     func(ctx context.Context, clinicID uint64, ids []uint64) ([]model.Cage, error)
+	lockCageGroupForUpdateFn func(ctx context.Context, clinicID, representativeID uint64) ([]model.Cage, error)
+	countMergedMembersFn     func(ctx context.Context, clinicID uint64, representativeIDs []uint64) (map[uint64]int64, error)
+	countOccupiedCagesFn     func(ctx context.Context, clinicID uint64, cageIDs []uint64) (map[uint64]int64, error)
+	setMergedIntoFn          func(ctx context.Context, clinicID, representativeID uint64, memberIDs []uint64) error
+	clearMergedIntoFn        func(ctx context.Context, clinicID, representativeID uint64) error
+	listOccupiedCageIDsFn    func(ctx context.Context, clinicID uint64) ([]uint64, error)
 }
 
 func (m *mockCageRepository) FindAll(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error) {
@@ -67,6 +75,64 @@ func (m *mockCageRepository) Reorder(ctx context.Context, clinicID uint64, ids [
 		return m.reorderFn(ctx, clinicID, ids)
 	}
 	return nil
+}
+
+// EMR-306 (Grok review LOW-4): 入院割当ガードが CageMergeRepository 面なしを
+// fail-closed にしたため、本モックは merge 面を pass-through 既定値で実装する。
+// 既定は「未連結の独立ケージ相当」— ガードは len(group)<=1 で no-op となり、
+// 既存モックテストの従来挙動を維持する。
+
+func (m *mockCageRepository) LockCagesForUpdate(ctx context.Context, clinicID uint64, ids []uint64) ([]model.Cage, error) {
+	if m.lockCagesForUpdateFn != nil {
+		return m.lockCagesForUpdateFn(ctx, clinicID, ids)
+	}
+	cages := make([]model.Cage, 0, len(ids))
+	for _, id := range ids {
+		cages = append(cages, model.Cage{ID: id})
+	}
+	return cages, nil
+}
+
+func (m *mockCageRepository) LockCageGroupForUpdate(ctx context.Context, clinicID, representativeID uint64) ([]model.Cage, error) {
+	if m.lockCageGroupForUpdateFn != nil {
+		return m.lockCageGroupForUpdateFn(ctx, clinicID, representativeID)
+	}
+	return []model.Cage{{ID: representativeID}}, nil
+}
+
+func (m *mockCageRepository) CountMergedMembers(ctx context.Context, clinicID uint64, representativeIDs []uint64) (map[uint64]int64, error) {
+	if m.countMergedMembersFn != nil {
+		return m.countMergedMembersFn(ctx, clinicID, representativeIDs)
+	}
+	return map[uint64]int64{}, nil
+}
+
+func (m *mockCageRepository) CountOccupiedCages(ctx context.Context, clinicID uint64, cageIDs []uint64) (map[uint64]int64, error) {
+	if m.countOccupiedCagesFn != nil {
+		return m.countOccupiedCagesFn(ctx, clinicID, cageIDs)
+	}
+	return map[uint64]int64{}, nil
+}
+
+func (m *mockCageRepository) SetMergedInto(ctx context.Context, clinicID, representativeID uint64, memberIDs []uint64) error {
+	if m.setMergedIntoFn != nil {
+		return m.setMergedIntoFn(ctx, clinicID, representativeID, memberIDs)
+	}
+	return nil
+}
+
+func (m *mockCageRepository) ClearMergedInto(ctx context.Context, clinicID, representativeID uint64) error {
+	if m.clearMergedIntoFn != nil {
+		return m.clearMergedIntoFn(ctx, clinicID, representativeID)
+	}
+	return nil
+}
+
+func (m *mockCageRepository) ListOccupiedCageIDs(ctx context.Context, clinicID uint64) ([]uint64, error) {
+	if m.listOccupiedCageIDsFn != nil {
+		return m.listOccupiedCageIDsFn(ctx, clinicID)
+	}
+	return []uint64{}, nil
 }
 
 func newTestCageService(repo *mockCageRepository) CageService {
@@ -721,4 +787,51 @@ func TestBuildCageUpdate(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+// cageRepoNoMergeFace は CageRepository のみを実装する最小スタブ（CageMergeRepository
+// 面なし）。EMR-306 review follow-up: Delete/deactivateCage が mergeRepo nil を
+// fail-closed（500）とする契約の検証用。mockCageRepository は merge 面を持つため
+// faceless 経路は別型で表現する。
+type cageRepoNoMergeFace struct{}
+
+func (cageRepoNoMergeFace) FindAll(context.Context, uint64, *string) ([]model.Cage, error) {
+	return nil, nil
+}
+func (cageRepoNoMergeFace) FindByID(_ context.Context, _, id uint64) (*model.Cage, error) {
+	return &model.Cage{ID: id}, nil
+}
+func (cageRepoNoMergeFace) LockByIDForUpdate(_ context.Context, _, id uint64) (*model.Cage, error) {
+	return &model.Cage{ID: id}, nil
+}
+func (cageRepoNoMergeFace) CountUsageByCageID(context.Context, uint64, uint64) (int64, error) {
+	return 0, nil
+}
+func (cageRepoNoMergeFace) Create(context.Context, *model.Cage) error { return nil }
+func (cageRepoNoMergeFace) Update(_ context.Context, _, id uint64, _ UpdateCageInput) (*model.Cage, error) {
+	return &model.Cage{ID: id}, nil
+}
+func (cageRepoNoMergeFace) Delete(context.Context, uint64, uint64) error    { return nil }
+func (cageRepoNoMergeFace) Reorder(context.Context, uint64, []uint64) error { return nil }
+
+func TestCageService_FacelessRepoFailsClosed(t *testing.T) {
+	newSvc := func() CageService {
+		return NewCageService(cageRepoNoMergeFace{}, &mockTransactor{})
+	}
+
+	t.Run("delete fails closed without the merge face", func(t *testing.T) {
+		err := newSvc().Delete(context.Background(), 1, 10)
+		assert.Error(t, err, "merge 面なし注入は fail-closed（500）")
+		status, _, _ := httpapi.ResolveErrorResponse(err)
+		assert.Equal(t, http.StatusInternalServerError, status)
+	})
+
+	t.Run("deactivate fails closed without the merge face", func(t *testing.T) {
+		inactive := false
+		got, err := newSvc().Update(context.Background(), 1, 10, &UpdateCageInput{IsActive: &inactive})
+		assert.Error(t, err, "merge 面なし注入は fail-closed（500）")
+		assert.Nil(t, got)
+		status, _, _ := httpapi.ResolveErrorResponse(err)
+		assert.Equal(t, http.StatusInternalServerError, status)
+	})
 }

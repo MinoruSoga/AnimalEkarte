@@ -1,4 +1,6 @@
+import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { C } from "@/lib/design-tokens";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
 
 import { formatPetAge } from "../lib/pet-age";
@@ -11,7 +13,7 @@ export function SelectedPetContext({ pet }: SelectedPetContextProps) {
   const age = pet.birthDate ? formatPetAge(pet.birthDate) : null;
   const identity = [pet.species, pet.breed].filter(Boolean).join("・");
   const details = [age, pet.gender, pet.weight ? `${pet.weight} kg` : ""].filter(Boolean);
-  const isDeceased = pet.status === "死亡";
+  const isDeceased = isPetDeceasedForClinicalWrite(pet);
 
   return (
     <div className="flex min-w-0 items-center gap-2" aria-live="polite">
@@ -25,6 +27,10 @@ export function SelectedPetContext({ pet }: SelectedPetContextProps) {
         <p className={`text-2xs font-semibold ${C.textActionPrimaryDark}`}>選択中のペット</p>
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <h2 className={`break-words text-xl font-semibold ${C.text}`}>{pet.name || "-"}</h2>
+          {/* EMR-301: 誕生月 Cake バッジ（死亡ペット抑制） */}
+          {!isDeceased ? (
+            <BirthdayBadge birthDate={pet.birthDate} subjectName={pet.name || "-"} />
+          ) : null}
           {isDeceased ? (
             <span
               className={`shrink-0 rounded-xxs border px-1.5 py-0.5 text-xs font-semibold ${C.borderDanger} ${C.bgDanger10} ${C.danger}`}

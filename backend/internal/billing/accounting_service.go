@@ -199,7 +199,7 @@ type accountingService struct {
 	medicalRecordRepo billingMedicalRecordLocker
 	hospRepo          billingHospitalizationFinder
 	reservationRepo   accountingReservationRepository
-	tagSyncSvc        cpmTagSyncer
+	tagSyncSvc        billingTagSyncer
 	transactor        Transactor
 	auditTx           billingAuditTxLogger
 	payMethodRepo     PaymentMethodMasterRepository
@@ -217,7 +217,7 @@ type accountingReservationRepository interface {
 	sharedkernel.OwnerPetLinkVerifier
 	// FindPetByIDInClinic は BUG-001 死亡ペット write ガード用（DeceasedAt 判定）。
 	FindPetByIDInClinic(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
-	CompleteForAccounting(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
+	CompleteForAccountingWithOwners(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, []uint64, error)
 }
 
 // accountingDeceasedPetMessage は会計 Create/Complete が死亡ペットを拒否するときの安定メッセージ（BUG-001）。
@@ -269,7 +269,7 @@ func NewAccountingService(
 	medicalRecordRepo billingMedicalRecordLocker,
 	hospRepo billingHospitalizationFinder,
 	reservationRepo accountingReservationRepository,
-	tagSyncSvc cpmTagSyncer,
+	tagSyncSvc billingTagSyncer,
 	transactor Transactor,
 	auditTx billingAuditTxLogger,
 	payMethodRepo PaymentMethodMasterRepository,

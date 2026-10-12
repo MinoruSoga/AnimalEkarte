@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -106,6 +107,8 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page,
 		if search != "" {
 			// name / name_kana はカナ+空白を畳んだ translate() 式1腕で検索する
 			// （生値・空白差・カナ差の旧複数腕を包含し、GIN 式インデックスが効く）。
+			// name の空白除去腕は姓名の空白有無を吸収する。式リテラルは
+			// idx_owners_name_compact_fold_trgm と一致させる。
 			// phone と email は従来どおり正規化済み pattern で比較する。
 			// 空白のみは fail-closed で 0 件 (BUG-001)。
 			qSearch := textsearch.NormalizeQuerySpaces(search)
@@ -114,15 +117,18 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page,
 				return q
 			}
 			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(qSearch)) + "%"
+			compactPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(textsearch.CompactSearchText(search))) + "%"
 			q = q.Where(
 				`(`+textsearch.FoldedExpr("name")+` ILIKE ? ESCAPE '\'`+
 					` OR `+textsearch.FoldedExpr("name_kana")+` ILIKE ? ESCAPE '\'`+
 					` OR phone ILIKE ? ESCAPE '\'`+
-					` OR email ILIKE ? ESCAPE '\')`,
+					` OR email ILIKE ? ESCAPE '\'`+
+					` OR regexp_replace(`+textsearch.FoldedExpr("name")+`, '`+textsearch.SpaceStripRegexp+`', '', 'g') ILIKE ? ESCAPE '\')`,
 				normalizedPattern,
 				normalizedPattern,
 				normalizedPattern,
 				normalizedPattern,
+				compactPattern,
 			)
 		}
 		return q
@@ -444,7 +450,7 @@ func (r *ownerRepository) LockForDelete(
 	var owner model.Owner
 	err := persistence.DBOrTx(ctx, r.db).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
-		Select("id").
+		Select("id", "clinic_id", "line_user_id").
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ? AND deleted_at IS NULL", id).
 		First(&owner).Error
@@ -563,18 +569,65 @@ func (r *ownerRepository) LockLineLinkOwner(
 
 // UpdateLineUserID は飼主の LINE User ID を更新する。nil を渡すと連携解除。
 func (r *ownerRepository) UpdateLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string) error {
-	result := persistence.DBOrTx(ctx, r.db).
-		Model(&model.Owner{}).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ? AND deleted_at IS NULL", id).
-		Update("line_user_id", lineUserID)
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "owner", fmt.Sprintf("%d", id))
+	update := func(txCtx context.Context) error {
+		var locked model.Owner
+		lockErr := persistence.DBOrTx(txCtx, r.db).
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Select("id", "line_user_id").
+			Scopes(persistence.ClinicScope(clinicID)).
+			Where("id = ? AND deleted_at IS NULL", id).
+			First(&locked).Error
+		if lockErr != nil {
+			return apperrors.FromGORM(lockErr, "owner", fmt.Sprintf("%d", id))
+		}
+		recipients := make([]string, 0, 2)
+		if locked.LineUserID != nil && *locked.LineUserID != "" {
+			recipients = append(recipients, *locked.LineUserID)
+		}
+		if lineUserID != nil && *lineUserID != "" {
+			recipients = append(recipients, *lineUserID)
+		}
+		sort.Strings(recipients)
+		for i, recipient := range recipients {
+			if i > 0 && recipients[i-1] == recipient {
+				continue
+			}
+			if err := persistence.AcquireLineRecipientLock(txCtx, clinicID, recipient); err != nil {
+				return err
+			}
+		}
+		if lineUserID != nil && *lineUserID != "" {
+			var conflicts int64
+			if err := persistence.DBOrTx(txCtx, r.db).
+				Model(&model.Owner{}).
+				Scopes(persistence.ClinicScope(clinicID)).
+				Where("line_user_id = ? AND deleted_at IS NULL AND id <> ?", *lineUserID, id).
+				Count(&conflicts).Error; err != nil {
+				return apperrors.Wrap(err, "failed to check line user id uniqueness")
+			}
+			if conflicts > 0 {
+				return apperrors.WrapConflict("line user id is already linked to another owner")
+			}
+		}
+		result := persistence.DBOrTx(txCtx, r.db).
+			Model(&model.Owner{}).
+			Scopes(persistence.ClinicScope(clinicID)).
+			Where("id = ? AND deleted_at IS NULL", id).
+			Update("line_user_id", lineUserID)
+		if result.Error != nil {
+			return apperrors.FromGORM(result.Error, "owner", fmt.Sprintf("%d", id))
+		}
+		if result.RowsAffected != 1 {
+			return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", id))
+		}
+		return nil
 	}
-	if result.RowsAffected != 1 {
-		return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", id))
+	if persistence.TxFromContext(ctx) != nil {
+		return update(ctx)
 	}
-	return nil
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return update(persistence.WithTxValue(ctx, tx))
+	})
 }
 
 func (r *ownerRepository) FindByIDs(ctx context.Context, clinicID uint64, ids []uint64) ([]*model.Owner, error) {

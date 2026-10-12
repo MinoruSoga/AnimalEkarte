@@ -110,3 +110,29 @@ func TestToDischargeWithBillingResponse_NilAccountingID(t *testing.T) {
 	assert.Nil(t, resp.AccountingID)
 	assert.Equal(t, "admitted", resp.Status)
 }
+
+// EMR-301/EMR-319 レビュー対応: medicalrecord PetSummaryResponse は
+// HospitalizationResponse.pet 経由で birth_date / deceased_at を wire へ含める
+// （HospitalizationPatientHeader は /pets/:id を再取得せずこの値を使う）。
+func TestToHospitalizationResponse_PetSummaryIncludesBirthDateAndDeceasedAt(t *testing.T) {
+	birthDate := time.Date(2019, time.October, 2, 0, 0, 0, 0, time.UTC)
+	deceasedAt := time.Date(2026, time.July, 10, 12, 0, 0, 0, time.UTC)
+
+	resp := toHospitalizationResponse(&model.Hospitalization{
+		ID:                  1,
+		HospitalizationType: model.HospitalizationTypeInpatient,
+		Status:              model.HospitalizationStatusAdmitted,
+		Pet: &model.Pet{
+			ID:         4,
+			Name:       "ポチ",
+			Status:     model.PetStatusAlive,
+			BirthDate:  &birthDate,
+			DeceasedAt: &deceasedAt,
+		},
+	})
+
+	require.NotNil(t, resp.Pet)
+	require.NotNil(t, resp.Pet.BirthDate)
+	assert.Equal(t, "2019-10-02", *resp.Pet.BirthDate)
+	assert.NotNil(t, resp.Pet.DeceasedAt, "deceasedAt-only の半死亡データも wire へ伝播する")
+}

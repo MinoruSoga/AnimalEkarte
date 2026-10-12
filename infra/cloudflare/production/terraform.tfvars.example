@@ -3,10 +3,7 @@
 # `terraform.tfvars` / `*.tfstate*` / `.terraform/` を除外)がこのサブディレクトリにも
 # 適用されるため、ここに作成しても誤コミットされない(gitignoreはディレクトリ再帰的に有効)。
 #
-# account_id               = "CLOUDFLARE_ACCOUNT_ID と同値(STGと同一アカウント想定)。TF_VAR_account_id で供給推奨"
-# pscale_prod_db_host      = "pscale role reset-default animalekarte-prod main --org noah-animalekarte --force で取得(DB作成手順はdocs/infra/deploy/PRODUCTION_CF_SETUP.md参照)"
-# pscale_prod_db_user      = "同上"
-# pscale_prod_db_password の値 = "同上(都度発行の短命クレデンシャルを推奨。使い終わったら再度 reset-default で失効させる)"
+# account_id               = "本案件専用アカウント(EMR-302 移行先)の Account ID。旧共有アカウントへの本番構築は禁止。TF_VAR_account_id で供給(docs/ops/infra/production/setup.md / docs/ops/infra/cloudflare-account-separation.md 参照)"
 #
 # notification_email は本ディレクトリでは変数化していない(notifications.tf参照。
 # production専用の通知ポリシーを作らない設計のため不要)。

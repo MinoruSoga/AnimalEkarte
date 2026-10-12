@@ -13,13 +13,16 @@ package lstep
 
 import (
 	"context"
+	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
@@ -131,6 +134,31 @@ func TestLstepTagCacheRepository_DeleteAllByOwner(t *testing.T) {
 		require.NoError(t, db.Model(&model.LstepTagCache{}).Where("clinic_id = ? AND owner_id = ?", 1, 301).Count(&count).Error)
 		assert.Equal(t, int64(1), count)
 	})
+}
+
+// DeleteAllByOwner は withOwnerRowLock 経由で ambient tx に savepoint 参加する ——
+// 呼び出し側の rollback が発生すれば削除も巻き戻ることを検証する（D1 直列化面）。
+func TestDeleteAllByOwner_ParticipatesInAmbientTxRollback(t *testing.T) {
+	db := setupLstepTagCacheTestDB(t)
+	repo := NewLstepTagCacheRepository(db)
+	owner := testdb.MakeTestOwner(t, db, 1, "delete-all rollback owner")
+	ctx := context.Background()
+	require.NoError(t, repo.UpsertTag(ctx, 1, owner.ID, "tag-a", "auto", ""))
+
+	rollback := errors.New("rollback fixture")
+	err := persistence.DBOrTx(ctx, db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		require.NoError(t, repo.DeleteAllByOwner(txCtx, 1, owner.ID))
+		rows, readErr := repo.FindByOwner(txCtx, 1, owner.ID)
+		require.NoError(t, readErr)
+		assert.Empty(t, rows, "delete must be visible inside the ambient transaction")
+		return rollback
+	})
+	require.ErrorIs(t, err, rollback)
+
+	rows, findErr := repo.FindByOwner(ctx, 1, owner.ID)
+	require.NoError(t, findErr)
+	assert.Len(t, rows, 1, "DeleteAllByOwner must join the ambient transaction and roll back with it")
 }
 
 func TestLstepTagCacheRepository_FindByOwner(t *testing.T) {
@@ -329,4 +357,85 @@ func TestLstepTagCacheRepository_FindOwnerIDsByTag(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, ids)
 	})
+}
+
+func TestNextVisitOwnerLock_DBPoolOneAndRollback(t *testing.T) {
+	db := setupLstepTagCacheTestDB(t)
+	owner := testdb.MakeTestOwner(t, db, 1, "lock rollback owner")
+	pool, err := db.DB()
+	require.NoError(t, err)
+	oldLimit := pool.Stats().MaxOpenConnections
+	pool.SetMaxOpenConns(1)
+	defer pool.SetMaxOpenConns(oldLimit)
+	repo := &lstepTagCacheRepository{db: db}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	rollback := errors.New("rollback fixture")
+	err = repo.WithNextVisitOwnerLock(ctx, 1, owner.ID, func(txCtx context.Context) error {
+		require.NoError(t, repo.UpsertTag(txCtx, 1, owner.ID, "next_visit_2026-12-20", "auto", ""))
+		rows, readErr := repo.FindByOwner(txCtx, 1, owner.ID)
+		require.NoError(t, readErr)
+		require.Len(t, rows, 1)
+		return rollback
+	})
+	require.ErrorIs(t, err, rollback)
+	rows, err := repo.FindByOwner(ctx, 1, owner.ID)
+	require.NoError(t, err)
+	assert.Empty(t, rows)
+	// Seed before the delete/rollback phase; a missing seed would vacuously pass.
+	require.NoError(t, repo.UpsertTag(ctx, 1, owner.ID, "next_visit_2026-12-20", "auto", ""))
+	err = repo.WithNextVisitOwnerLock(ctx, 1, owner.ID, func(txCtx context.Context) error {
+		require.NoError(t, repo.DeleteTag(txCtx, 1, owner.ID, "next_visit_2026-12-20"))
+		rows, readErr := repo.FindByOwner(txCtx, 1, owner.ID)
+		require.NoError(t, readErr)
+		assert.Empty(t, rows)
+		return rollback
+	})
+	require.ErrorIs(t, err, rollback)
+	rows, err = repo.FindByOwner(ctx, 1, owner.ID)
+	require.NoError(t, err)
+	assert.Len(t, rows, 1, "DeleteTag must join the same transaction and roll back")
+
+}
+
+func TestNextVisitOwnerLock_DBIndependentRepositoriesAndScope(t *testing.T) {
+	db := setupLstepTagCacheTestDB(t)
+	pool, err := db.DB()
+	require.NoError(t, err)
+	oldLimit := pool.Stats().MaxOpenConnections
+	pool.SetMaxOpenConns(4)
+	defer pool.SetMaxOpenConns(oldLimit)
+	first, second := &lstepTagCacheRepository{db: db}, &lstepTagCacheRepository{db: db}
+	held := testdb.MakeTestOwner(t, db, 1, "lock held owner")
+	otherClinic := testdb.MakeTestOwner(t, db, 2, "lock other clinic owner")
+	otherOwner := testdb.MakeTestOwner(t, db, 1, "lock other owner")
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	done := make(chan error, 1)
+	go func() {
+		done <- first.WithNextVisitOwnerLock(ctx, 1, held.ID, func(context.Context) error {
+			close(entered)
+			select {
+			case <-release:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		})
+	}()
+	select {
+	case <-entered:
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	wait, stop := context.WithTimeout(ctx, 50*time.Millisecond)
+	require.ErrorIs(t, second.WithNextVisitOwnerLock(wait, 1, held.ID, func(context.Context) error { t.Error("same key must not enter while first holds lock"); return nil }), context.DeadlineExceeded)
+	stop()
+	for _, scope := range []struct{ clinic, owner uint64 }{{2, otherClinic.ID}, {1, otherOwner.ID}} {
+		require.NoError(t, second.WithNextVisitOwnerLock(ctx, scope.clinic, scope.owner, func(context.Context) error { return nil }))
+	}
+	close(release)
+	require.NoError(t, <-done)
 }

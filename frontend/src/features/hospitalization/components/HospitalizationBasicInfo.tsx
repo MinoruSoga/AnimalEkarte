@@ -1,6 +1,6 @@
 // External
 import { memo } from "react";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { Building2, Calendar, ShieldCheck } from "lucide-react";
 
 // Internal
@@ -12,8 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { FormFieldError } from "@/components/shared/FormFieldError";
 import { NextScheduleField, calculateNextDate } from "@/components/shared/NextScheduleField";
+import { cageMembersByRepresentative } from "@/lib/cage-merge";
 
 // Relative
 import { H_STYLES } from "../lib/styles";
@@ -26,20 +26,55 @@ interface HospitalizationBasicInfoProps {
   formData: HospitalizationFormData;
   onChange: (updates: Partial<HospitalizationFormData>) => void;
   cageItems: MasterItem[];
-  // rerender-memo: 呼び出し側で毎レンダー新規オブジェクトを作らないよう
-  // プリミティブ値で受け取る（`fieldErrors={{ cage_id: ... }}` を廃止）。
-  cageIdError?: string;
+}
+
+interface CageSelectOption {
+  value: string;
+  label: string;
+}
+
+function formatCageOptionLabel(cage: MasterItem): string {
+  return cage.description ? `${cage.name}（${cage.description}）` : cage.name;
+}
+
+/**
+ * EMR-306 ケージ一時連結: 連結メンバーケージ（mergedIntoCageId 設定済み）は
+ * 新規選択肢から除外する（選択しても backend が 422 で拒否するため UX 側で防ぐ）。
+ * 代表ケージのラベルは「代表名 + メンバー名…」（' + ' 連結・cageItems 順）で
+ * メンバー構成を表示し、（description）suffix は非連結ケージのみに付ける。
+ * フォーム現在値がメンバーを指す場合（登録後に連結された）は、保存値の表示を
+ * 維持するため通常ラベルで候補に残す。
+ */
+function buildCageSelectOptions(
+  cageItems: MasterItem[],
+  currentCageId: string,
+): CageSelectOption[] {
+  // 代表 cageId → メンバー一覧（cageItems 順）。索引構築は shared predicate
+  // （src/lib/cage-merge.ts）に委譲する。
+  const membersByRepId = cageMembersByRepresentative(cageItems);
+
+  return cageItems
+    .filter((cage) => cage.mergedIntoCageId == null || String(cage.id) === currentCageId)
+    .map((cage) => {
+      const members =
+        cage.mergedIntoCageId == null ? membersByRepId.get(String(cage.id)) : undefined;
+      const label =
+        members == null
+          ? formatCageOptionLabel(cage)
+          : [cage.name, ...members.map((member) => member.name)].join(" + ");
+      return { value: String(cage.id), label };
+    });
 }
 
 export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
   formData,
   onChange,
   cageItems,
-  cageIdError,
 }: HospitalizationBasicInfoProps) {
+  const cageOptions = buildCageSelectOptions(cageItems, formData.cageId);
   return (
-    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box}`}>
-      <h2 className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 ${C.text}`}>
+    <div className={STYLE.formCard}>
+      <h2 className={`${H_STYLES.form.cardHeading} mb-3 flex items-center gap-2`}>
         <Building2 className={`${ICON.action} ${C.text60}`} />
         基本情報
       </h2>
@@ -117,14 +152,12 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
         </div>
       </div>
 
-      {/* ケージ/個室（BUG-037: 必須） */}
+      {/* ケージ/個室（EMR-316: 任意。BUG-037 の必須化を撤回し「選択なし」で登録可能。
+          ケージ未設定の入院はボードの「ケージ未割当」欄に表示される） */}
       <div className="mb-3">
         <div className="flex items-center justify-between mb-1.5">
           <Label htmlFor="cage_id" className={`${H_STYLES.text.sm} ${C.text60}`}>
             ケージ・個室
-            <span className={`${C.textRequired} ml-0.5`} aria-hidden="true">
-              *
-            </span>
           </Label>
           <MasterLink category="cage" label="編集" className="text-2xs" />
         </div>
@@ -132,15 +165,12 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
           id="cage_id"
           value={formData.cageId}
           onValueChange={(val) => onChange({ cageId: val })}
-          options={cageItems.map((cage) => ({
-            value: String(cage.id),
-            label: cage.description ? `${cage.name}（${cage.description}）` : cage.name,
-          }))}
-          placeholder="選択してください"
+          options={cageOptions}
+          placeholder="選択なし"
           searchPlaceholder="ケージを検索..."
-          ariaInvalid={Boolean(cageIdError)}
+          clearable
+          clearLabel="選択なし"
         />
-        <FormFieldError message={cageIdError} />
       </div>
 
       {/* 保険 */}
@@ -206,6 +236,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
       </div>
 
       <NextScheduleField
+        className="mb-3"
         typeId="hospitalization-next-schedule"
         dateId="hospitalization-next-date"
         scheduleType={formData.nextVisit ? "other" : "4weeks"}
@@ -227,7 +258,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
           value={formData.memo}
           onChange={(e) => onChange({ memo: e.target.value })}
           placeholder="メモを入力..."
-          className={`min-h-[80px] ${H_STYLES.text.base} resize-none ${C.bgWhite} ${C.borderMedium} ${C.focusVisibleRingActionPrimary}`}
+          className={`min-h-20 resize-none ${C.bgWhite} ${C.borderMedium} ${C.focusVisibleRingActionPrimary}`}
         />
       </div>
     </div>

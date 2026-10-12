@@ -2,6 +2,7 @@ import { memo, useLayoutEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import {
   Bed,
+  ClipboardPlus,
   Calendar,
   CreditCard,
   Edit,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
@@ -34,10 +36,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { usePermission } from "@/hooks/use-permission";
 import { paths } from "@/config/paths";
 import { isPersistedPetId } from "@/lib/pet-id";
 import { getPetStatusColor } from "@/lib/status-helpers";
-import { mapPetStatusLabel, PET_GENDER_MAP } from "@/lib/transforms/pet";
+import {
+  isPetDeceasedForClinicalWrite,
+  mapPetStatusLabel,
+  PET_GENDER_MAP,
+} from "@/lib/transforms/pet";
 import {
   useGetOwnerSharedPets,
   type OwnerSharedPetApiResponse,
@@ -50,6 +57,7 @@ interface PetTableRowProps {
   canEdit: boolean;
   canCreate: boolean;
   canDelete: boolean;
+  canCreateReception: boolean;
   onEdit: (pet: PetFormData) => void;
   onDeleteRequest: (id: string, name: string) => void;
 }
@@ -60,12 +68,15 @@ const PetTableRow = memo(function PetTableRow({
   canEdit,
   canCreate,
   canDelete,
+  canCreateReception,
   onEdit,
   onDeleteRequest,
 }: PetTableRowProps) {
   const navigate = useNavigate();
   const actionBoundaryRef = useRef({
     status: pet.status,
+    deceasedAt: pet.deceasedAt,
+    canCreateReception,
     canEdit,
     canCreate,
     canDelete,
@@ -73,13 +84,15 @@ const PetTableRow = memo(function PetTableRow({
   useLayoutEffect(() => {
     actionBoundaryRef.current = {
       status: pet.status,
+      deceasedAt: pet.deceasedAt,
+      canCreateReception,
       canEdit,
       canCreate,
       canDelete,
     };
-  }, [canCreate, canDelete, canEdit, pet.status]);
+  }, [canCreate, canDelete, canEdit, canCreateReception, pet.status, pet.deceasedAt]);
   const backFrom = ownerId ? paths.owners.detail.getHref(ownerId) : paths.owners.getHref();
-  const isDeceased = pet.status === "死亡";
+  const isDeceased = isPetDeceasedForClinicalWrite(pet);
 
   return (
     <TableRow
@@ -87,28 +100,34 @@ const PetTableRow = memo(function PetTableRow({
     >
       <TableCell className={STYLE.tableCell}>{pet.petNumber}</TableCell>
       <TableCell className={STYLE.tableCell}>
-        {ownerId && isPersistedPetId(pet.id) && pet.isPending !== true ? (
-          // EMR-174: 永続化済みペット名は詳細 deep link（閲覧は canEdit 不要）。
-          // pending (temp-*) はサーバに存在しないため従来どおりローカル編集ボタン。
-          <DataTableRowLink
-            to={paths.owners.detail.pet.getHref(ownerId, pet.id)}
-            aria-label={`${isDeceased ? "死亡・" : ""}ペット詳細を開く: ${pet.petName} (ID ${pet.id})`}
-          >
-            {pet.petName}
-          </DataTableRowLink>
-        ) : canEdit ? (
-          <DataTableRowButton
-            aria-label={`詳細・編集: ペット ${pet.petName} (ID ${pet.id})`}
-            onClick={() => {
-              if (actionBoundaryRef.current.canEdit !== true) return;
-              onEdit(pet);
-            }}
-          >
-            {pet.petName}
-          </DataTableRowButton>
-        ) : (
-          pet.petName
-        )}
+        <span className="inline-flex items-center gap-1.5">
+          {ownerId && isPersistedPetId(pet.id) && pet.isPending !== true ? (
+            // EMR-174: 永続化済みペット名は詳細 deep link（閲覧は canEdit 不要）。
+            // pending (temp-*) はサーバに存在しないため従来どおりローカル編集ボタン。
+            <DataTableRowLink
+              to={paths.owners.detail.pet.getHref(ownerId, pet.id)}
+              aria-label={`${isDeceased ? "死亡・" : ""}ペット詳細を開く: ${pet.petName} (ID ${pet.id})`}
+            >
+              {pet.petName}
+            </DataTableRowLink>
+          ) : canEdit ? (
+            <DataTableRowButton
+              aria-label={`詳細・編集: ペット ${pet.petName} (ID ${pet.id})`}
+              onClick={() => {
+                if (actionBoundaryRef.current.canEdit !== true) return;
+                onEdit(pet);
+              }}
+            >
+              {pet.petName}
+            </DataTableRowButton>
+          ) : (
+            pet.petName
+          )}
+          {/* EMR-301: 誕生月 Cake バッジ（死亡ペット抑制） */}
+          {!isDeceased ? (
+            <BirthdayBadge birthDate={pet.birthDate} subjectName={pet.petName} />
+          ) : null}
+        </span>
       </TableCell>
       <TableCell className={STYLE.tableCell}>
         {pet.status ? (
@@ -126,6 +145,34 @@ const PetTableRow = memo(function PetTableRow({
       <TableCell className={`${STYLE.tableCell} truncate max-w-[200px]`}>{pet.remarks}</TableCell>
       <TableCell>
         <div className="flex gap-1 justify-end">
+          {pet.status === "生存" &&
+          !isDeceased &&
+          canCreateReception &&
+          isPersistedPetId(pet.id) &&
+          pet.isPending !== true ? (
+            <Button
+              type="button"
+              size="sm"
+              aria-label={`受付: ${pet.petName}`}
+              className={STYLE.tableActionBtn}
+              onClick={() => {
+                const current = actionBoundaryRef.current;
+                if (
+                  current.status !== "生存" ||
+                  isPetDeceasedForClinicalWrite(current) ||
+                  current.canCreateReception !== true
+                )
+                  return;
+                navigate(
+                  `${paths.reservations.getHref()}?reception=1&petId=${encodeURIComponent(pet.id)}`,
+                  { state: { from: paths.home.getHref() } },
+                );
+              }}
+            >
+              <ClipboardPlus className={ICON.action} />
+              受付
+            </Button>
+          ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger
               className={`inline-flex items-center justify-center rounded-xs cursor-pointer ${STYLE.tableActionBtn} ${C.hoverBgLight}`}
@@ -146,12 +193,17 @@ const PetTableRow = memo(function PetTableRow({
                   詳細・編集
                 </DropdownMenuItem>
               ) : null}
-              {pet.status === "生存" && canCreate ? (
+              {pet.status === "生存" && !isDeceased && canCreate ? (
                 <>
                   <DropdownMenuItem
                     onClick={() => {
                       const current = actionBoundaryRef.current;
-                      if (current.status !== "生存" || current.canCreate !== true) return;
+                      if (
+                        current.status !== "生存" ||
+                        isPetDeceasedForClinicalWrite(current) ||
+                        current.canCreate !== true
+                      )
+                        return;
                       navigate(`${paths.reservations.getHref()}?petId=${pet.id}`, {
                         state: { from: backFrom },
                       });
@@ -163,7 +215,12 @@ const PetTableRow = memo(function PetTableRow({
                   <DropdownMenuItem
                     onClick={() => {
                       const current = actionBoundaryRef.current;
-                      if (current.status !== "生存" || current.canCreate !== true) return;
+                      if (
+                        current.status !== "生存" ||
+                        isPetDeceasedForClinicalWrite(current) ||
+                        current.canCreate !== true
+                      )
+                        return;
                       navigate(`${paths.medicalRecords.new.getHref()}?petId=${pet.id}`, {
                         state: { from: backFrom },
                       });
@@ -175,7 +232,12 @@ const PetTableRow = memo(function PetTableRow({
                   <DropdownMenuItem
                     onClick={() => {
                       const current = actionBoundaryRef.current;
-                      if (current.status !== "生存" || current.canCreate !== true) return;
+                      if (
+                        current.status !== "生存" ||
+                        isPetDeceasedForClinicalWrite(current) ||
+                        current.canCreate !== true
+                      )
+                        return;
                       navigate(`${paths.trimming.new.getHref()}?petId=${pet.id}`, {
                         state: { from: backFrom },
                       });
@@ -187,7 +249,12 @@ const PetTableRow = memo(function PetTableRow({
                   <DropdownMenuItem
                     onClick={() => {
                       const current = actionBoundaryRef.current;
-                      if (current.status !== "生存" || current.canCreate !== true) return;
+                      if (
+                        current.status !== "生存" ||
+                        isPetDeceasedForClinicalWrite(current) ||
+                        current.canCreate !== true
+                      )
+                        return;
                       navigate(`${paths.hospitalization.new.getHref()}?petId=${pet.id}`, {
                         state: { from: backFrom },
                       });
@@ -199,7 +266,12 @@ const PetTableRow = memo(function PetTableRow({
                   <DropdownMenuItem
                     onClick={() => {
                       const current = actionBoundaryRef.current;
-                      if (current.status !== "生存" || current.canCreate !== true) return;
+                      if (
+                        current.status !== "生存" ||
+                        isPetDeceasedForClinicalWrite(current) ||
+                        current.canCreate !== true
+                      )
+                        return;
                       navigate(`${paths.accounting.new.getHref()}?petId=${pet.id}`, {
                         state: { from: backFrom },
                       });
@@ -210,13 +282,18 @@ const PetTableRow = memo(function PetTableRow({
                   </DropdownMenuItem>
                 </>
               ) : null}
-              {pet.status === "生存" && canDelete ? (
+              {pet.status === "生存" && !isDeceased && canDelete ? (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => {
                       const current = actionBoundaryRef.current;
-                      if (current.status !== "生存" || current.canDelete !== true) return;
+                      if (
+                        current.status !== "生存" ||
+                        isPetDeceasedForClinicalWrite(current) ||
+                        current.canDelete !== true
+                      )
+                        return;
                       onDeleteRequest(pet.id, pet.petName);
                     }}
                     className={`${C.danger} ${C.focusDanger} ${C.focusBgLight}`}
@@ -240,7 +317,7 @@ const SharedPetTableRow = memo(function SharedPetTableRow({
   pet: OwnerSharedPetApiResponse;
 }) {
   const statusLabel = mapPetStatusLabel(pet.status);
-  const isDeceased = statusLabel === "死亡";
+  const isDeceased = statusLabel === "死亡" || pet.deceased_at != null;
   return (
     <TableRow
       className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12 ${isDeceased ? "opacity-60 grayscale-[0.5]" : ""}`}
@@ -249,6 +326,8 @@ const SharedPetTableRow = memo(function SharedPetTableRow({
       <TableCell className={STYLE.tableCell}>
         <div className="flex items-center gap-2">
           <span>{pet.name}</span>
+          {/* EMR-301: 誕生月 Cake バッジ（死亡ペット抑制）。副飼主ペットも対象。 */}
+          {!isDeceased ? <BirthdayBadge birthDate={pet.birth_date} subjectName={pet.name} /> : null}
           <Badge variant="outline">副飼主</Badge>
           {pet.relationship !== "" ? <span>{pet.relationship}</span> : null}
         </div>
@@ -315,6 +394,10 @@ export function OwnerPetsSection({
   onEditPet,
   onDeleteRequest,
 }: OwnerPetsSectionProps) {
+  const { canCreate: canCreateReservation, canView: canViewReservation } =
+    usePermission("reservations");
+  // The prefilled reception flow opens the reservation page, which requires view.
+  const canCreateReception = canCreateReservation && canViewReservation;
   const {
     data: sharedPetsResponse,
     isError: isSharedPetsError,
@@ -371,6 +454,7 @@ export function OwnerPetsSection({
                     canEdit={canEdit}
                     canCreate={canCreate}
                     canDelete={canDelete}
+                    canCreateReception={canCreateReception}
                     onEdit={onEditPet}
                     onDeleteRequest={onDeleteRequest}
                   />

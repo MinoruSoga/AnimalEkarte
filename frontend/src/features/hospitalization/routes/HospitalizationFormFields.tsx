@@ -7,6 +7,7 @@ import { PatientInfoCard, formatPatientPetDetails } from "@/components/shared/Pa
 import { PastRecordHistoryPanel } from "@/components/shared/PastRecordHistoryPanel";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { C } from "@/lib/design-tokens";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import type { MasterItem } from "@/types";
 import type { HospitalizationTreatmentPlan } from "@/types";
 import { HospitalizationBasicInfo } from "../components/HospitalizationBasicInfo";
@@ -31,6 +32,8 @@ interface HospitalizationPatient {
   insuranceName?: string;
   insuranceDetails?: string;
   status?: string;
+  /** 死亡OR契約の deceased_at 側。Pet transform が供給する。 */
+  deceasedAt?: string | null;
   /** スタッフ向け飼主特記マーク (EMR-173/231)。Pet transform が供給する。 */
   ownerIsDangerous?: boolean;
   /** ペット特記レベル (表示値 "高"/"中"/"低")。高/中のみ Popover バッジ。 */
@@ -49,7 +52,6 @@ export interface HospitalizationFormFieldsProps {
   treatmentPlans: HospitalizationTreatmentPlan[];
   totals: {
     subtotalBeforeDiscount: number;
-    subtotalAfterDiscount: number;
     consumptionTax: number;
     total: number;
   };
@@ -141,7 +143,8 @@ export function HospitalizationFormFields({
           ownerIsDangerous={selectedPet.ownerIsDangerous}
           petDangerLevel={selectedPet.dangerLevel}
           petDangerReason={selectedPet.dangerReason}
-          status={selectedPet.status === "死亡" ? "deceased" : "alive"}
+          status={isPetDeceasedForClinicalWrite(selectedPet) ? "deceased" : "alive"}
+          birthDate={selectedPet.birthDate}
           nextVisitDate={resolveNextVisitDate(formData)}
           nextVisitContent={resolveNextVisitContent(formData)}
           onStaffClick={canSubmit ? onOpenStaffModal : undefined}
@@ -155,7 +158,6 @@ export function HospitalizationFormFields({
             formData={formData}
             onChange={onFormChange}
             cageItems={cageItems ?? []}
-            cageIdError={fieldErrors?.cage_id}
           />
 
           <HospitalizationNoteCard

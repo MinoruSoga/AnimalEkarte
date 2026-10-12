@@ -37,7 +37,10 @@ func (s *lstepBatchService) runDeliveryTriggersForClinicAt(
 	triggers := []batchEntry{
 		{model.TriggerTypeFirstVisitFollowUp3D, s.lstepDeliveryTrigger.TriggerFirstVisitFollowUp3D},
 		{model.TriggerTypeFirstVisitFollowUp7D, s.lstepDeliveryTrigger.TriggerFirstVisitFollowUp7D},
-		{model.TriggerTypeNextVisitReminder, s.lstepDeliveryTrigger.TriggerNextVisitReminder},
+		// EMR-308: 旧 next_visit_reminder（カルテ推奨日ベース）は履歴型として登録のみ残し、
+		// 実行スケジュールからは tentative 2ステージへ置き換える。
+		{model.TriggerTypeNextVisitTentativeReminder3d, s.lstepDeliveryTrigger.TriggerNextVisitTentativeReminder3D},
+		{model.TriggerTypeNextVisitTentativeReminder0d, s.lstepDeliveryTrigger.TriggerNextVisitTentativeReminder0D},
 		{model.TriggerTypeVaccineDeadline60, s.lstepDeliveryTrigger.TriggerVaccineDeadline60},
 		{model.TriggerTypeVaccineDeadline30, s.lstepDeliveryTrigger.TriggerVaccineDeadline30},
 		{model.TriggerTypeBirthdayMessage, s.lstepDeliveryTrigger.TriggerBirthdayMessage},
@@ -117,7 +120,9 @@ func (s *lstepBatchService) runDeliveryTriggerBatchAllClinicsWithResult(
 		"batch_delivery_trigger",
 		metadata,
 		func(ctx context.Context, clinicID uint64) (int, []error) {
-			return s.runDeliveryTriggersForClinicAt(ctx, clinicID, asOf)
+			repaired, repairErrs := s.reconcileExpiredTentativeTags(ctx, clinicID, asOf)
+			fired, triggerErrs := s.runDeliveryTriggersForClinicAt(ctx, clinicID, asOf)
+			return repaired + fired, append(repairErrs, triggerErrs...)
 		},
 	)
 }

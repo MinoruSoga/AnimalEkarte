@@ -62,28 +62,65 @@ function isReservationStartPastJST(start: Date | undefined): boolean {
   return isPastJSTDate(formatJSTWallDate(start));
 }
 
-interface ReservationFormModalProps {
+type ReservationSave = (
+  data: Partial<Reservation>,
+  selectedPets: Pet[],
+  newOwnerData?: NewOwnerFormData,
+) => void | string | null | Promise<void | string | null>;
+
+/**
+ * EMR-308: tentative（次回予定・未予約）行を同一行のまま実予約へ昇格する確定コールバック。
+ * POST /v1/reservations/:id/confirm-tentative 契約（BE: reservation_intent_handler.go）。
+ * 戻り値は onSave と同じく、文字列を返すとモーダル内にインラインエラー表示し開いたまま。
+ */
+type TentativeConfirmSave = (
+  tentativeId: string,
+  data: Partial<Reservation>,
+) => void | string | null | Promise<void | string | null>;
+
+type ReservationFormModalSaveMode =
+  | {
+      tentativeConfirmId?: undefined;
+      onConfirmTentative?: undefined;
+      /**
+       * Returns an inline error message to keep the modal open; null/void closes via parent on success.
+       * optional: 権限なし等で呼び出し側が onSave を渡せないケースがある（送信側は fail-closed）。
+       */
+      onSave?: ReservationSave;
+    }
+  | {
+      /** tentative 確定モード。対象 tentative 行の id を渡す（initialData.id には含めない）。 */
+      tentativeConfirmId: string;
+      onConfirmTentative: TentativeConfirmSave;
+      onSave?: ReservationSave;
+    };
+
+type ReservationFormModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  /** Returns an inline error message to keep the modal open; null/void closes via parent on success. */
-  onSave: (
-    data: Partial<Reservation>,
-    selectedPets: Pet[],
-    newOwnerData?: NewOwnerFormData,
-  ) => void | string | null | Promise<void | string | null>;
   initialData: Partial<Reservation> | null;
   canCreate?: boolean;
   canEdit?: boolean;
-}
+  /**
+   * Codex PR606 再指摘: 拠点横断 tentative 確定・編集フォームは「対象行の
+   * clinicId」で clinic-scoped query（休診日・マスタ・空き枠・ペット・行取得）
+   * を発行する。省略時は従来どおりグローバル選択中医院にフォールバック。
+   */
+  clinicId?: string;
+} & ReservationFormModalSaveMode;
+
 export const ReservationFormModal = memo(function ReservationFormModal({
   isOpen,
   onClose,
   onSave,
+  tentativeConfirmId,
+  onConfirmTentative,
   initialData,
   canCreate = false,
   canEdit = false,
+  clinicId,
 }: ReservationFormModalProps) {
-  const [formData, setFormData] = useState<Partial<Reservation>>({});
+  const [storedFormData, setFormData] = useState<Partial<Reservation>>({});
   const [pendingPetId, setPendingPetId] = useState<string | null>(null);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("search");
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -101,7 +138,8 @@ export const ReservationFormModal = memo(function ReservationFormModal({
   });
 
   // BUG-343: 定休日を取得して Calendar で disabled にする
-  const { data: clinicHolidays = [] } = useGetClinicHolidays(calendarMonth);
+  // Codex PR606 再指摘: 拠点横断フォームは対象行の clinicId で休診日を引く
+  const { data: clinicHolidays = [] } = useGetClinicHolidays(calendarMonth, clinicId);
 
   const holidayDates = useMemo(() => new Set(clinicHolidays.map((h) => h.date)), [clinicHolidays]);
   const handleCalendarMonthChange = useCallback((yearMonth: string) => {
@@ -113,7 +151,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
     "multiple-same-owner",
   );
 
-  const { data: ownerLineData } = useGetOwnerLineTags(selectedPets[0]?.ownerId ?? "");
+  const { data: ownerLineData } = useGetOwnerLineTags(selectedPets[0]?.ownerId ?? "", clinicId);
   const lstepStatus =
     selectedPets.length === 0 || ownerLineData === undefined
       ? undefined
@@ -123,7 +161,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
           ? ("synced" as const)
           : ("not-linked" as const);
 
-  const { data: loadedPet } = useGetPet(pendingPetId ?? "");
+  const { data: loadedPet } = useGetPet(pendingPetId ?? "", clinicId);
 
   /* eslint-disable react-hooks/set-state-in-effect -- pending petId を選択状態へ同期 */
   useEffect(() => {
@@ -174,8 +212,26 @@ export const ReservationFormModal = memo(function ReservationFormModal({
   }, [isOpen, initialData, setSelectedPets]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const isEditMode = Boolean(initialData?.id);
-  const canSave = isEditMode ? canEdit : canCreate;
+  // tentative 確定モード: initialData.id があっても編集扱いにしない（同一行昇格 API を使う）
+  const isConfirmTentativeMode = tentativeConfirmId !== undefined;
+  const isEditMode = Boolean(initialData?.id) && !isConfirmTentativeMode;
+  // tentative 確定は BE 上「予約の更新」扱い（POST confirm-tentative は reservations:edit 相当）のため canEdit で fail-closed
+  const canSave = isEditMode || isConfirmTentativeMode ? canEdit : canCreate;
+
+  // EMR-274: creation-only input assistance, never a medical-history classification.
+  // Derive once for both rendering and submission so no effect can leave stale values.
+  const lockedVisitType =
+    isEditMode || isConfirmTentativeMode
+      ? undefined
+      : ownerMode === "new"
+        ? "first"
+        : selectedPets.length > 0
+          ? "revisit"
+          : undefined;
+  const formData = useMemo<Partial<Reservation>>(
+    () => (lockedVisitType ? { ...storedFormData, visitType: lockedVisitType } : storedFormData),
+    [storedFormData, lockedVisitType],
+  );
 
   const handleNewOwnerChange = useCallback((data: NewOwnerFormData) => {
     setNewOwnerData(data);
@@ -224,7 +280,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
 
   // edit mode: subscribe to single-reservation query and sync reservationRoute into formData
   const reservationQueryId = isEditMode ? String(initialData?.id) : "";
-  const { data: latestReservation } = useGetReservation(reservationQueryId);
+  const { data: latestReservation } = useGetReservation(reservationQueryId, clinicId);
   /* eslint-disable react-hooks/set-state-in-effect -- 編集中の予約ルートを query 結果へ同期 */
   useEffect(() => {
     if (!latestReservation) return;
@@ -240,7 +296,8 @@ export const ReservationFormModal = memo(function ReservationFormModal({
     const noErrors: Record<string, string> = {};
     setSubmitError(null);
 
-    if (ownerMode === "new") {
+    // tentative 確定モードは既存患者固定（飼主・ペット変更不可）のため新規飼主分岐に入らない
+    if (ownerMode === "new" && !isConfirmTentativeMode) {
       // 新規飼主モードのバリデーション
       const noe: Record<string, string> = {};
       if (!newOwnerData.ownerName.trim()) noe.ownerName = "飼主名を入力してください";
@@ -272,7 +329,9 @@ export const ReservationFormModal = memo(function ReservationFormModal({
       }
       setNewOwnerErrors(noErrors);
       setValidationErrors(noErrors);
-      const result = await onSave(formData, [], newOwnerData);
+      const result = onSave
+        ? await onSave(formData, [], newOwnerData)
+        : "保存処理が設定されていません";
       if (typeof result === "string" && result.trim()) {
         setSubmitError(result);
         return result;
@@ -311,13 +370,32 @@ export const ReservationFormModal = memo(function ReservationFormModal({
     }
 
     setValidationErrors(noErrors);
-    const result = await onSave(formData, selectedPets);
+    // tentative 確定モードは同一行昇格 API（confirm-tentative）を呼ぶ。
+    // tentativeConfirmId は isConfirmTentativeMode で string に絞られるが、空文字は fail-closed。
+    const result = isConfirmTentativeMode
+      ? tentativeConfirmId
+        ? await onConfirmTentative(tentativeConfirmId, formData)
+        : "確定処理が設定されていません"
+      : onSave
+        ? await onSave(formData, selectedPets)
+        : "保存処理が設定されていません";
     if (typeof result === "string" && result.trim()) {
       setSubmitError(result);
       return result;
     }
     return null;
-  }, [formData, selectedPets, onSave, isEditMode, ownerMode, newOwnerData, staffSelectionState]);
+  }, [
+    formData,
+    selectedPets,
+    onSave,
+    isEditMode,
+    isConfirmTentativeMode,
+    tentativeConfirmId,
+    onConfirmTentative,
+    ownerMode,
+    newOwnerData,
+    staffSelectionState,
+  ]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -326,6 +404,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
       >
         <ReservationModalHeader
           isEditMode={isEditMode}
+          isConfirmTentative={isConfirmTentativeMode}
           mobilePanel={mobilePanel}
           onMobilePanelChange={setMobilePanel}
         />
@@ -339,9 +418,10 @@ export const ReservationFormModal = memo(function ReservationFormModal({
           </div>
         ) : null}
 
-        <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
+        <div className="flex flex-col lg:flex-row flex-1 min-h-0 overflow-hidden">
           <ReservationPatientPanel
             isEditMode={isEditMode}
+            patientLocked={isConfirmTentativeMode}
             ownerMode={ownerMode}
             mobilePanel={mobilePanel}
             selectedPets={selectedPets}
@@ -357,9 +437,11 @@ export const ReservationFormModal = memo(function ReservationFormModal({
             selectedPets={selectedPets}
             lstepStatus={lstepStatus}
             formData={formData}
+            lockedVisitType={lockedVisitType}
             validationErrors={validationErrors}
             holidayDates={holidayDates}
             isEditMode={isEditMode}
+            patientLocked={isConfirmTentativeMode}
             reservationId={reservationQueryId || undefined}
             canEdit={canEdit}
             onSelectedPetsChange={setSelectedPets}
@@ -367,6 +449,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
             onClearError={handleClearError}
             onMonthChange={handleCalendarMonthChange}
             onStaffSelectionStateChange={handleStaffSelectionStateChange}
+            clinicId={clinicId}
           />
         </div>
 

@@ -269,7 +269,7 @@ func TestReservationValidators_ValidateAndCreate_MissingTransactorFailsClosed(t 
 		openDayHolidayFinder(),
 	)
 
-	result, err := validators.ValidateAndCreate(context.Background(), &CreateReservationInput{
+	result, _, err := validators.ValidateAndCreate(context.Background(), &CreateReservationInput{
 		ClinicID:          1,
 		CustomerID:        2,
 		ReservationTypeID: 9,
@@ -319,7 +319,7 @@ func TestReservationValidators_ValidateAndCreate_RejectsHiddenStaffDirectPost(t 
 		openDayHolidayFinder(),
 	)
 
-	result, err := validators.ValidateAndCreate(context.Background(), &CreateReservationInput{
+	result, _, err := validators.ValidateAndCreate(context.Background(), &CreateReservationInput{
 		ClinicID:          1,
 		CustomerID:        2,
 		ReservationTypeID: 9,
@@ -369,7 +369,7 @@ func TestReservationValidators_ValidateAndCreate_RejectsInactiveStaffDirectPost(
 		openDayHolidayFinder(),
 	)
 
-	result, err := validators.ValidateAndCreate(context.Background(), &CreateReservationInput{
+	result, _, err := validators.ValidateAndCreate(context.Background(), &CreateReservationInput{
 		ClinicID:          1,
 		CustomerID:        2,
 		ReservationTypeID: 9,
@@ -424,7 +424,7 @@ func TestReservationValidators_ValidateAndCreate_MapsCapacityConflict(t *testing
 	}
 	validators := NewReservationValidators(&mockTransactor{}, repo, typeRepo, &mockReservationStaffRepositoryForCapability{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTrimmingDetailRepository{}, openDayHolidayFinder())
 
-	result, err := validators.ValidateAndCreate(context.Background(), &CreateReservationInput{
+	result, _, err := validators.ValidateAndCreate(context.Background(), &CreateReservationInput{
 		ClinicID:          1,
 		CustomerID:        2,
 		ReservationTypeID: 9,
@@ -479,7 +479,7 @@ func TestReservationValidators_ValidateAndCreate_RejectsClinicHoliday(t *testing
 		holidayFinder,
 	)
 
-	result, err := validators.ValidateAndCreate(context.Background(), &CreateReservationInput{
+	result, _, err := validators.ValidateAndCreate(context.Background(), &CreateReservationInput{
 		ClinicID:          1,
 		CustomerID:        2,
 		ReservationTypeID: 9,

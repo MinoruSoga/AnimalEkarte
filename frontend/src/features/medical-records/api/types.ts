@@ -1,4 +1,7 @@
-import type { MedicalRecordResponse } from "@/types/generated/medicalrecord-responses";
+import type {
+  MedicalRecordResponse,
+  MedicalRecordAddendumResponse,
+} from "@/types/generated/medicalrecord-responses";
 import type { RecommendationReason } from "../constants/recommendation-reason";
 
 /**
@@ -6,6 +9,21 @@ import type { RecommendationReason } from "../constants/recommendation-reason";
  * Source of truth: MedicalRecordResponse (domain-owned DTO / tygo), not models.MedicalRecord.
  */
 export type BackendMedicalRecord = MedicalRecordResponse;
+
+// ── MedicalRecordAddendum + author_name (EMR-326) ──
+// generated の MedicalRecordAddendumResponse.author_name は `?: string`。
+// wire 上は omitempty により「キー省略 or 文字列」のみが来るが、非生成経路
+// （旧キャッシュ・他クライアント応答）で null が来ても UI フォールバックが潰れないよう
+// `| null` に広げて受ける。Omit 必須: 通常の交差型だと string | null が string に
+// 潰れて null を表せない。
+// author_name: 未解決（削除・異動・他医院）時はキー省略または null →
+// UI は author_user_id へフォールバック表示する。
+export type MedicalRecordAddendumWithAuthorName = Omit<
+  MedicalRecordAddendumResponse,
+  "author_name"
+> & {
+  author_name?: string | null;
+};
 
 // ── CreateMedicalRecordRequest ──
 // Backend handler (medical_record_request.go) createMedicalRecordRequest に準拠。
@@ -48,6 +66,5 @@ export interface UpdateMedicalRecordRequest {
   status?: string;
   /** 楽観的ロック用 CAS トークン。GET 応答の version をそのまま返す。 */
   version?: number;
-  next_visit_recommended_date?: string | null;
   visit_type?: string;
 }

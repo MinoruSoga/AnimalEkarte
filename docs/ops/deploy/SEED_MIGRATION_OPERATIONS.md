@@ -12,6 +12,7 @@
 - bundle checksumは`manifest.json`と全CSVから導出される。CSV手編集や適用済みbundleの変更はchecksum mismatchの対象になる。
 - `002_master/manifest.json` がtable inventoryとload orderのSSOT。現在は12 tableだが、runbookはmanifestから導出する。
 - COPY後のsequence advanceも`cmd/migrate`の同じpathに任せる。
+- `035_trimming_image_storage_retry` 適用後、トリミング画像 storage 削除の durable retry worker は `TRIMMING_IMAGE_CLEANUP_ENABLED=true`（完全一致）でのみ起動する。未設定・`false`・その他の値は停止のまま。有効化は migration 適用・env 設定・再起動の順で行い、`false` に戻して再起動すると停止し、アプリコンテキストのキャンセルで drain される。worker が記録する完了列は `storage_deleted_at`、最終試行は `last_attempt_at`、最初の予約は `created_at`。worker の境界は 5分間隔・1 run 120秒・key あたり 10秒・run ごと最大100医院・選択 key 合計100件で、provider 呼び出しは各 key lock 内の独立 transaction で行う（直接 postcommit 削除は DB transaction 外）。worker 停止中・未完了でも手動 `DELETE /api/v1/trimmings/images` で同じ key を冪等に再試行できる（delayed acknowledgement）。
 
 ```mermaid
 flowchart TB
@@ -84,7 +85,7 @@ PHIを含み得るinput/outputはGit、chat、artifactへ出さない。manifest
 
 ## 5. Validation and recovery
 
-1. `python3 scripts/verify_seed.py`でcurrent CSV contractを確認する。
+1. `python3 scripts/old-db/verify_seed.py`でcurrent CSV contractを確認する。
 2. scoped migrate/seed testsをDocker経由で行う。
 3. current DDL keys + `BundleOrderForEnv(APP_ENV)`（+ ログイン seed を適用したなら `seeds/003_login`）についてmigration coverage `missing=0`を確認する。
 4. checksum mismatch、legacy translation後のmaster完全性、rebuild要否をrelease前に記録する。

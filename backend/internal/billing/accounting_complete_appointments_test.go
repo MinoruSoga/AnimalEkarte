@@ -302,3 +302,30 @@ func TestReservationRepository_CompleteForAccounting(t *testing.T) {
 		assert.Equal(t, int64(0), affected)
 	})
 }
+
+func TestCompleteForAccountingWithOwners_OwnerlessBillingReturnsChangedAppointmentOwner(t *testing.T) {
+	db := setupAccountingCompleteAppointmentsTestDB(t)
+	repo := reservation.NewReservationRepository(db)
+	owner := testdb.MakeTestOwner(t, db, 1, "ownerless billing patient")
+	pet := makeSpeciesAndPet(t, db, 1, owner.ID, "patient")
+	appt := makeAccountingAppointment(t, db, 1, &owner.ID, &pet.ID, model.ReservationStatusInConsultation, time.Date(2030, 1, 10, 3, 0, 0, 0, time.UTC))
+	mr := makeMedicalRecordForAppointment(t, db, 1, appt.ID, "MR-OWNER-SYNC")
+	var count int64
+	var owners []uint64
+	require.NoError(t, db.Transaction(func(tx *gorm.DB) error {
+		var err error
+		count, owners, err = repo.CompleteForAccountingWithOwners(persistence.WithTxValue(context.Background(), tx), 1, &mr.ID, nil, nil, time.Time{})
+		return err
+	}))
+	assert.EqualValues(t, 1, count)
+	assert.Equal(t, []uint64{owner.ID}, owners)
+	assert.Equal(t, model.ReservationStatusCompleted, reloadAppointmentStatus(t, db, appt.ID))
+	// Idempotent replay must not return an owner for an unchanged terminal row.
+	require.NoError(t, db.Transaction(func(tx *gorm.DB) error {
+		var err error
+		count, owners, err = repo.CompleteForAccountingWithOwners(persistence.WithTxValue(context.Background(), tx), 1, &mr.ID, nil, nil, time.Time{})
+		return err
+	}))
+	assert.Zero(t, count)
+	assert.Empty(t, owners)
+}

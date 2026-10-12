@@ -3,7 +3,6 @@ import type { QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
-import type { UpdateMedicalRecordRequest } from "../api/types";
 import type { ClinicalPlan } from "../api/clinical-plan";
 import type { ClinicalPlanDraft } from "./use-apply-clinical-plan";
 import type { ActionState } from "@/types/form";
@@ -76,7 +75,6 @@ interface UseMedicalRecordSaveActionArgs {
   canEdit: boolean;
   isSelectedPetDeceased: boolean;
   isFinalized: boolean;
-  isNextVisitDateValid: boolean;
   diagnosis1CategoryId: number | null;
   diagnosis1NameId: number | null;
   diagnosis2CategoryId: number | null;
@@ -94,7 +92,6 @@ interface UseMedicalRecordSaveActionArgs {
   treatmentPolicy: string;
   treatmentPolicyDefault: string;
   treatmentPolicyBaseline: string;
-  nextVisitDate: string;
   existingRecordVersion?: number;
   existingClinicalPlanVersion?: number;
   onClinicalPlanSaved?: (clinicalPlan: ClinicalPlan, submittedDraft: ClinicalPlanDraft) => void;
@@ -119,9 +116,6 @@ interface UseMedicalRecordSaveActionArgs {
       version?: number;
     }) => Promise<unknown>;
   };
-  updateMutation: {
-    mutateAsync: (variables: { id: string; req: UpdateMedicalRecordRequest }) => Promise<unknown>;
-  };
 }
 
 export function useMedicalRecordSaveAction({
@@ -130,7 +124,6 @@ export function useMedicalRecordSaveAction({
   canEdit,
   isSelectedPetDeceased,
   isFinalized,
-  isNextVisitDateValid,
   diagnosis1CategoryId,
   diagnosis1NameId,
   diagnosis2CategoryId,
@@ -145,7 +138,6 @@ export function useMedicalRecordSaveAction({
   treatmentPolicy,
   treatmentPolicyDefault,
   treatmentPolicyBaseline,
-  nextVisitDate,
   existingRecordVersion,
   existingClinicalPlanVersion,
   onClinicalPlanSaved,
@@ -153,7 +145,6 @@ export function useMedicalRecordSaveAction({
   queryClient,
   updateInquiryMutation,
   updateTreatmentPlanMutation,
-  updateMutation,
 }: UseMedicalRecordSaveActionArgs) {
   const canEditRef = useRef(canEdit);
   const isSelectedPetDeceasedRef = useRef(isSelectedPetDeceased);
@@ -173,7 +164,6 @@ export function useMedicalRecordSaveAction({
   const saveSnapshotRef = useRef({
     recordId,
     isFinalized,
-    isNextVisitDateValid,
     diagnosis1CategoryId,
     diagnosis1NameId,
     diagnosis2CategoryId,
@@ -188,7 +178,6 @@ export function useMedicalRecordSaveAction({
     treatmentPolicy,
     treatmentPolicyDefault,
     treatmentPolicyBaseline,
-    nextVisitDate,
     existingRecordVersion,
     existingClinicalPlanVersion,
   });
@@ -196,7 +185,6 @@ export function useMedicalRecordSaveAction({
     saveSnapshotRef.current = {
       recordId,
       isFinalized,
-      isNextVisitDateValid,
       diagnosis1CategoryId,
       diagnosis1NameId,
       diagnosis2CategoryId,
@@ -211,7 +199,6 @@ export function useMedicalRecordSaveAction({
       treatmentPolicy,
       treatmentPolicyDefault,
       treatmentPolicyBaseline,
-      nextVisitDate,
       existingRecordVersion,
       existingClinicalPlanVersion,
     };
@@ -260,9 +247,6 @@ export function useMedicalRecordSaveAction({
             break;
 
           case "診察/治療プラン": {
-            if (!snapshot.isNextVisitDateValid) {
-              return { success: false, timestamp: Date.now() };
-            }
             // BUG-010: clinical-plan GET/hydrate 前の空文字 PATCH は既存所見を無音で消す。
             // version 未確定（undefined）は BE が楽観ロックをスキップするため fail-closed で拒否する。
             if (typeof snapshot.existingClinicalPlanVersion !== "number") {
@@ -314,20 +298,8 @@ export function useMedicalRecordSaveAction({
             if (isClinicalPlan(savedClinicalPlan)) {
               onClinicalPlanSaved?.(savedClinicalPlan, submittedClinicalPlanDraft);
             }
-            // 次回来院推奨日を更新（空欄 = クリア、値あり = 設定）
-            if (isSelectedPetDeceasedRef.current) {
-              return deniedState(DECEASED_SAVE_MESSAGE);
-            }
-            if (canEditRef.current !== true) {
-              return deniedState(PERMISSION_DENIED_MESSAGE);
-            }
-            await updateMutation.mutateAsync({
-              id: snapshot.recordId as string,
-              req: {
-                next_visit_recommended_date: snapshot.nextVisitDate, // "" はBEでNULLクリア
-                version: snapshot.existingRecordVersion,
-              } as UpdateMedicalRecordRequest,
-            });
+            // EMR-308: 次回来院日の意思は tentative appointment（NextVisitButton 経路）が正本。
+            // 旧カルテの来院推奨日カラムは撤廃済みのため、ここではカルテ PATCH を発行しない。
             break;
           }
 

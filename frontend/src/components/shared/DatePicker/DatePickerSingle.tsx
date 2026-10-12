@@ -4,7 +4,7 @@ import { ja } from "date-fns/locale";
 
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { cn } from "@/lib/utils";
 import {
   CalendarNav,
@@ -31,6 +31,8 @@ export function SinglePicker({
   id,
   name,
   disabledDays,
+  ariaInvalid = false,
+  ariaDescribedBy,
 }: SingleDatePickerProps) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"calendar" | "monthGrid">("calendar");
@@ -133,7 +135,14 @@ export function SinglePicker({
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverAnchor asChild>
-        <div className={cn(TRIGGER_BASE, !value && !focused && C.text40, className)}>
+        <div
+          className={cn(
+            TRIGGER_BASE,
+            !value && !focused && C.text40,
+            ariaInvalid && STYLE.formInputError,
+            className,
+          )}
+        >
           <PopoverTrigger asChild>
             <button
               type="button"
@@ -147,6 +156,8 @@ export function SinglePicker({
             id={id}
             name={name}
             type="text"
+            aria-invalid={ariaInvalid || undefined}
+            aria-describedby={ariaDescribedBy}
             value={displayText}
             onChange={(e) => setInputText(e.target.value)}
             onFocus={handleFocus}

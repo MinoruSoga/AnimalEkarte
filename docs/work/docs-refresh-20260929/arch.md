@@ -61,7 +61,7 @@
 
 | 項目 | 状態 | 詳細 |
 |:---|:---|:---|
-| `scripts/check-docs-symbol-drift.sh` の FAIL×3 | **BLOCKED（allowlist 外）** | 原因は `docs/spec/specification.md` 行 22（「全 128 テーブル」）と行 61（「スキーマは 128 テーブル」）。行 22 がスクリプトの検査対象集合に重複して数えられ 3 件と表示される。実測 130 と不一致。`docs/spec/**` は arch partition の allowlist 外のため本 partition では修正不可。`spec` 担当 partition への引き継ぎ要 |
+| `scripts/checks/check-docs-symbol-drift.sh` の FAIL×3 | **BLOCKED（allowlist 外）** | 原因は `docs/spec/specification.md` 行 22（「全 128 テーブル」）と行 61（「スキーマは 128 テーブル」）。行 22 がスクリプトの検査対象集合に重複して数えられ 3 件と表示される。実測 130 と不一致。`docs/spec/**` は arch partition の allowlist 外のため本 partition では修正不可。`spec` 担当 partition への引き継ぎ要 |
 | Plane の実際の実行状態 | **UNKNOWN** | Plane は読み取り専用ルール。本文書では SoT 参照のみを記述し、個別 work item の存在・状態は未検証（例: ARCH-A4 の active issue なし、は ledger の記述どおり「no active issue verified」） |
 | migration の稼働 DB 適用状態 | **UNKNOWN / 外部依存** | repo DDL の静的照合のみ。STG/PROD への適用・checksum 状態は本作業の検証対象外（erd.md の既存注記どおり） |
 | `009`/`010` checksum reconcile の STG 効果 | **外部依存** | migration コメントに経緯のみ確認（2026-09-24 STG crash loop 修復）。実適用結果は未検証 |
@@ -78,7 +78,7 @@
 | コマンド | 終了コード | 結果 |
 |:---|:---:|:---|
 | `git diff --check -- docs/architecture` | 0 | clean（whitespace error なし） |
-| `bash scripts/check-docs-symbol-drift.sh` | **1** | FAIL×3「テーブル数: docs の宣言値 128 が実装の実測値 130 と不一致」— すべて `docs/spec/specification.md`（行 22・61）由来。`docs/architecture` 内の token（605 件検査）は ERD 130 宣言を含め不一致なし。**allowlist 外のため本 partition では未解決** |
+| `bash scripts/checks/check-docs-symbol-drift.sh` | **1** | FAIL×3「テーブル数: docs の宣言値 128 が実装の実測値 130 と不一致」— すべて `docs/spec/specification.md`（行 22・61）由来。`docs/architecture` 内の token（605 件検査）は ERD 130 宣言を含め不一致なし。**allowlist 外のため本 partition では未解決** |
 | `node docs/architecture/model-write-owner-catalog.test.mjs` | 0 | pass |
 | `node docs/architecture/fe-feature-be-domain-map.test.mjs` | 0 | pass |
 | `node docs/architecture/cross-domain-orchestration-catalog.test.mjs` | 0 | pass |

@@ -11,6 +11,7 @@ interface OwnerReportPetWire {
   gender: string;
   status: string;
   birth_date?: string | null;
+  deceased_at?: string | null;
   breed: string;
   color: string;
   blood_type?: string | null;
@@ -43,6 +44,8 @@ export interface OwnerReportPet {
   gender: string;
   status: string;
   birthDate?: string;
+  // 死亡OR契約（status=死亡 または deceasedAt 非null）用に伝播する。
+  deceasedAt?: string;
   breed: string;
   color: string;
   bloodType?: string;
@@ -96,6 +99,7 @@ function mapOwnerReportPet(pet: OwnerReportPetWire): OwnerReportPet {
     gender: GENDER_LABELS[pet.gender] ?? pet.gender,
     status: STATUS_LABELS[pet.status] ?? pet.status,
     birthDate: dateOnly(pet.birth_date),
+    deceasedAt: pet.deceased_at ?? undefined,
     breed: pet.breed,
     color: pet.color,
     bloodType: pet.blood_type ?? undefined,

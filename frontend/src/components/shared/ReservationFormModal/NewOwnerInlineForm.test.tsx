@@ -156,6 +156,63 @@ describe("NewOwnerInlineForm animal species states", () => {
     expect(screen.getByRole("alert")).toHaveAttribute("id", "new-owner-phone-error");
   });
 
+  // EMR-319: 必須項目エラーが赤枠（aria-invalid）+エラー文（role=alert）+describedby で出ること。
+  it("飼主名・ペット名・主訴の必須エラーを各入力へ aria-invalid と describedby で関連付ける", () => {
+    render(
+      <NewOwnerInlineForm
+        value={EMPTY_FORM}
+        onChange={vi.fn()}
+        errors={{
+          ownerName: "飼主名を入力してください",
+          petName: "ペット名を入力してください",
+          chiefComplaint: "主訴を入力してください",
+        }}
+      />,
+    );
+
+    const ownerName = screen.getByRole("textbox", { name: "飼主名" });
+    expect(ownerName).toHaveAttribute("aria-invalid", "true");
+    expect(ownerName).toHaveAttribute("aria-describedby", "new-owner-name-error");
+    expect(document.getElementById("new-owner-name-error")).toHaveTextContent(
+      "飼主名を入力してください",
+    );
+
+    const petName = screen.getByRole("textbox", { name: "ペット名" });
+    expect(petName).toHaveAttribute("aria-invalid", "true");
+    expect(petName).toHaveAttribute("aria-describedby", "new-owner-pet-name-error");
+    expect(document.getElementById("new-owner-pet-name-error")).toHaveTextContent(
+      "ペット名を入力してください",
+    );
+
+    const chiefComplaint = screen.getByRole("textbox", { name: "主訴" });
+    expect(chiefComplaint).toHaveAttribute("aria-invalid", "true");
+    expect(chiefComplaint).toHaveAttribute("aria-describedby", "new-owner-chief-complaint-error");
+    expect(document.getElementById("new-owner-chief-complaint-error")).toHaveTextContent(
+      "主訴を入力してください",
+    );
+  });
+
+  it("動物種の必須エラーを SearchableSelect トリガーへ aria-invalid で関連付ける", () => {
+    mockAnimalSpecies({
+      activeSpecies: [DOG_SPECIES],
+      allSpecies: [DOG_SPECIES],
+    });
+    render(
+      <NewOwnerInlineForm
+        value={EMPTY_FORM}
+        onChange={vi.fn()}
+        errors={{ animalSpeciesId: "動物種を選択してください" }}
+      />,
+    );
+
+    const speciesSelect = screen.getByRole("combobox");
+    expect(speciesSelect).toHaveAttribute("aria-invalid", "true");
+    expect(speciesSelect).toHaveAttribute("aria-describedby", "new-owner-species-error");
+    expect(document.getElementById("new-owner-species-error")).toHaveTextContent(
+      "動物種を選択してください",
+    );
+  });
+
   it("動物種の取得失敗中も動物種以外の入力を利用できる", async () => {
     const user = userEvent.setup();
     mockAnimalSpecies({ isError: true, error: new Error("internal detail") });

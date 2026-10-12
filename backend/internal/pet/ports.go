@@ -29,6 +29,7 @@ type MedicalRecordReader interface {
 type PetTagSynchronizer interface {
 	SyncOwnerAnimalClassificationTags(ctx context.Context, clinicID, ownerID uint64) error
 	SyncPetBasicInfoTags(ctx context.Context, clinicID, ownerID uint64) error
+	SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error
 }
 
 // ChronicConditionTagSynchronizer is the best-effort LSTEP capability used after
@@ -56,6 +57,15 @@ type PetOwnerTransactor interface {
 // PetOwnerAuditLogger writes a fail-closed audit entry through the ambient tx.
 type PetOwnerAuditLogger interface {
 	LogEntryTx(ctx context.Context, input *audit.Entry) error
+}
+
+type UpcomingReservationOwnerTransfer interface {
+	TransferUpcomingPetReservations(ctx context.Context, clinicID, petID, previousOwnerID, newOwnerID uint64, from time.Time) ([]uint64, error)
+}
+
+type PetOwnerTransferDependencies struct {
+	Reservations UpcomingReservationOwnerTransfer
+	Audit        PetOwnerAuditLogger
 }
 
 // AnimalSpeciesUsageCounter protects deletion of a species that is still referenced.

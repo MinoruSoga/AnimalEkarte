@@ -15,7 +15,7 @@ description: commit/push 前のスコープ限定ローカル検証ゲート。�
 
 ## 証跡と対象の一致
 
-まず `python3 -B scripts/verify-agent-task.py --base <BASE_REF> --plan` で変更と検証対象を確認する。実行は対象worktreeをmountしnetwork隔離されたcontainerを明示する（`--frontend-container <ID>` / `--backend-container <ID>`）。起動・依存導入・migrationは行わない。使えるcontainerや対応テストがない場合はBLOCKED。docs-onlyはSKIPでありruntime PASSではない。
+まず `python3 -B scripts/checks/verify-agent-task.py --base <BASE_REF> --plan` で変更と検証対象を確認する。実行は対象worktreeをmountしnetwork隔離されたcontainerを明示する（`--frontend-container <ID>` / `--backend-container <ID>`）。起動・依存導入・migrationは行わない。使えるcontainerや対応テストがない場合はBLOCKED。docs-onlyはSKIPでありruntime PASSではない。
 
 手動のscopedコマンドにも同じ条件を適用する。image、mount、対象diff、コマンド、終了コード、件数を記録し、下記Compose例は対象worktreeを検証できる場合に限る。mainをmountする共有Composeでcandidateを検証しない。`--passWithNoTests`、欠落ツール、SKIPをPASSへ変換しない。詳細は `docs/ops/agent-harness.md`。
 

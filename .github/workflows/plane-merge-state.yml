@@ -1,0 +1,52 @@
+name: Plane state on merge
+
+# main へのマージで EMR-N を Review に、staging へのマージで
+# そのリリースに含まれる main マージ済み PR の EMR-N を UAT にする。
+# EMR-123、[EMR-123]、EMR-282/325/326 を対象にする。括弧は不要。
+# マージせずクローズした PR と production は動かさない。
+# Done / Cancelled / Duplicate / Needs Human / Blocked / Phase2 は動かさない。
+# staging で UAT にするのは、現在 Review の票だけ。
+#
+# Secret: PLANE_GITHUB_AUTOMATION_KEY
+#   Plane API key。アプリのサポート起票用キーとは別。
+#   scopes: projects.work_items:read, projects.work_items:write,
+#           projects.work_items.comments:write
+# 未設定ならこの job は失敗する。値はログに出さない。
+# Plane 公式 GitHub 連携の「マージ成功」state 割り当ては空のままにする。
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main, staging]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  # Different PRs can carry the same EMR ticket. Serialize main and staging
+  # together, and retain pending merges instead of replacing the previous one.
+  group: plane-merge-state-${{ github.repository }}
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  sync:
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.pull_request.base.ref != 'staging' ||
+        github.event.pull_request.head.ref == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Move Plane work items
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PLANE_GITHUB_AUTOMATION_KEY: ${{ secrets.PLANE_GITHUB_AUTOMATION_KEY }}
+        run: bash scripts/tools/plane-merge-state.sh

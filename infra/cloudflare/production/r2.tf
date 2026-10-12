@@ -5,10 +5,10 @@
 # 自動複製だが、読み書きレイテンシ低減のためのヒント)。
 #
 # S3互換の書き込み/読み取り認証情報(Access Key ID / Secret Access Key)は、この Terraform
-# リソースでは発行しない(STGと同じ方針)。R2 の S3 互換 API トークンは Account API Token とは
-# 別体系(R2 token)のため、`cloudflare_api_token`リソース(R2スコープ付き、このバケットに
-# 限定)を別途発行するか、`wrangler r2 bucket create`経路 or ダッシュボードでの発行を検討する
-# (値はTerraform stateに残さない)。手順はdocs/infra/deploy/PRODUCTION_CF_SETUP.md参照。
+# リソースでは発行・管理しない(STGと同じ方針)。R2 の S3 互換 API トークンは Account API Token
+# とは別体系であり、秘密値を Terraform リソース・state に載せない境界を維持するため、
+# 発行・ローテーションは人間が承認済み手順(docs/ops/infra/iac-guidelines.md /
+# docs/ops/infra/production/setup.md)に従い Terraform 外で行う。
 
 resource "cloudflare_r2_bucket" "prod_images" {
   account_id = var.account_id

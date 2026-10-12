@@ -7,6 +7,7 @@ import { FormHeaderActions } from "@/components/shared/Form/FormHeaderActions";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { ICON, C, LAYOUT } from "@/lib/design-tokens";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { ResourceTrimming } from "@/types/generated/models";
 import type { MasterItem, SortOrder } from "@/types";
 import type { TrimmingFormData } from "@/types/trimming";
@@ -68,6 +69,8 @@ interface TrimmingFormBodyProps {
   canSubmit: boolean;
   canDelete: boolean | undefined;
   isSaving: boolean;
+  /** 画像アップロード in-flight。true の間は submit をブロックして画像欠落を防ぐ。 */
+  isImageUploading: boolean;
   isDeleting: boolean;
   isDirty: boolean;
   hasExistingAppointment: boolean;
@@ -116,6 +119,7 @@ export function TrimmingFormBody({
   canSubmit,
   canDelete,
   isSaving,
+  isImageUploading,
   isDeleting,
   isDirty,
   hasExistingAppointment,
@@ -178,8 +182,16 @@ export function TrimmingFormBody({
       headerAction={
         <FormHeaderActions
           onCancel={onBack}
-          submitLabel={canSubmit ? (isSaving ? "保存中..." : "保存") : undefined}
-          submitDisabled={isSaving}
+          submitLabel={
+            canSubmit
+              ? isSaving
+                ? "保存中..."
+                : isImageUploading
+                  ? "画像アップロード中..."
+                  : "保存"
+              : undefined
+          }
+          submitDisabled={isSaving || isImageUploading}
           submitFormId={TRIMMING_FORM_ID}
           extra={
             <>
@@ -203,7 +215,7 @@ export function TrimmingFormBody({
     >
       <NavigationBlocker when={isDirty ? !isSaving : false} />
       <form id={TRIMMING_FORM_ID} action={formAction}>
-        {selectedPet?.status === "死亡" ? (
+        {selectedPet != null && isPetDeceasedForClinicalWrite(selectedPet) ? (
           <div
             role="status"
             aria-label="死亡ペットのため保存不可"
@@ -214,7 +226,9 @@ export function TrimmingFormBody({
             </span>
           </div>
         ) : null}
-        <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
+        {/* 保存中も画像操作を無効化 — 送信済みキーの remove/置換は対象外だが、
+            isSaving 中の入力変更はペイロードに反映されないため一貫して止める。 */}
+        <fieldset disabled={!canSubmit || isSaving} className="border-0 p-0 m-0 min-w-0">
           {selectedPet ? (
             <TrimmingFormColumns
               selectedPet={selectedPet}

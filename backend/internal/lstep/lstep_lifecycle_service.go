@@ -8,7 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/infra/lstep"
-	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
@@ -88,17 +88,13 @@ func (s *lstepLifecycleService) buildClient(ctx context.Context, clinicID uint64
 	return lstep.NewClient(apiKey, baseURL), nil
 }
 
+// One budget includes post-commit reads, all tag operations and secondary audit.
+const petLifecycleTagSyncTimeout = 30 * time.Second
+
 // HandlePetDeath はペット死亡を記録し、オーナーのタグを再同期する。
 // 全ペットが死亡した場合は Lステップ全タグを解除する（配信停止）。
 func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string, actorID *uint64) error {
-	// P1: FindByID before Update
-	pet, err := s.petRepo.FindByID(ctx, clinicID, petID)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to find pet")
-	}
-	if pet.Status == model.PetStatusDeceased {
-		return apperrors.WrapConflict("死亡記録は既に登録されています")
-	}
+	var ownerID uint64
 	// BUG-407: status は deceased_at と独立した二重管理フィールドのため、
 	// 同一 Update で "deceased" へ揃える。分離したままだと、外側フォームの
 	// 生死ラジオが未追従のまま次回の外側「更新」で status="alive" に
@@ -110,6 +106,19 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 	// という設計判断そのものが本 BUG-407 修正の核心。旧実装の best-effort/WarnContext は廃止）。
 	actorType := sharedkernel.AuditActorTypeFor(actorID)
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// Use the same pet row lock as owner transfers, and keep it through the
+		// lifecycle write and audit. A pre-transaction owner can already be stale.
+		pet, err := s.petRepo.LockByIDForUpdate(txCtx, clinicID, petID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to lock pet")
+		}
+		if pet == nil {
+			return apperrors.WrapInternalServerError("pet lock returned no result")
+		}
+		if sharedkernel.IsPetDeceased(pet) {
+			return apperrors.WrapConflict("死亡記録は既に登録されています")
+		}
+		ownerID = pet.OwnerID
 		if err := s.petRepo.RecordDeath(txCtx, clinicID, petID, deceasedAt, reason); err != nil {
 			return apperrors.Wrap(err, "failed to record pet death")
 		}
@@ -127,8 +136,8 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 	}); err != nil {
 		return apperrors.Wrap(err, "failed to record pet death in transaction")
 	}
-
-	ownerID := pet.OwnerID
+	ctx, cancel := context.WithTimeout(persistence.DetachTx(ctx), petLifecycleTagSyncTimeout)
+	defer cancel()
 
 	// 生存ペットを確認 — 全滅時は配信停止としてタグを全解除
 	// LSB-03 / X-01: death は既に commit 済み。後段 read 失敗で応答を失敗へ反転しない。
@@ -152,6 +161,11 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 	}
 	if syncErr := s.syncSvc.SyncCPMStageTag(ctx, clinicID, ownerID); syncErr != nil {
 		slog.ErrorContext(ctx, "failed to sync CPM tag after pet death", "error", syncErr)
+	}
+	// Codex #24: 死亡ペットの tentative は次回来院の対象外になるため
+	// next_visit_* タグを再同期する（best-effort、既存タグ同期と同じ契約）。
+	if syncErr := s.syncSvc.SyncNextVisitTag(ctx, clinicID, ownerID); syncErr != nil {
+		slog.ErrorContext(ctx, "failed to sync next visit tag after pet death", "error", syncErr)
 	}
 
 	// 死亡ペット由来のワクチン・健診タグを解除する（best-effort）
@@ -187,14 +201,7 @@ func (s *lstepLifecycleService) clearAllTagsIfLinked(ctx context.Context, clinic
 
 // HandlePetRevival はペット死亡取り消しを記録し CPM タグを再同期する。
 func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, petID uint64, actorID *uint64) error {
-	// P1: FindByID before Update
-	pet, err := s.petRepo.FindByID(ctx, clinicID, petID)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to find pet")
-	}
-	if pet.Status != model.PetStatusDeceased {
-		return apperrors.WrapConflict("死亡記録が登録されていないため解除できません")
-	}
+	var ownerID uint64
 	// BUG-407: 死亡取り消し時も status を "alive" に戻し、deceased_at/status の
 	// 二重管理不整合を防ぐ（HandlePetDeath と対称）。
 	//
@@ -202,6 +209,17 @@ func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, 
 	// 原子化する。監査書込が失敗したら status 更新もロールバックする（HandlePetDeath と対称）。
 	actorType := sharedkernel.AuditActorTypeFor(actorID)
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		pet, err := s.petRepo.LockByIDForUpdate(txCtx, clinicID, petID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to lock pet")
+		}
+		if pet == nil {
+			return apperrors.WrapInternalServerError("pet lock returned no result")
+		}
+		if !sharedkernel.IsPetDeceased(pet) {
+			return apperrors.WrapConflict("死亡記録が登録されていないため解除できません")
+		}
+		ownerID = pet.OwnerID
 		if err := s.petRepo.ClearDeath(txCtx, clinicID, petID); err != nil {
 			return apperrors.Wrap(err, "failed to record pet revival")
 		}
@@ -219,15 +237,22 @@ func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, 
 	}); err != nil {
 		return apperrors.Wrap(err, "failed to record pet revival in transaction")
 	}
+	ctx, cancel := context.WithTimeout(persistence.DetachTx(ctx), petLifecycleTagSyncTimeout)
+	defer cancel()
 
-	if syncErr := s.syncSvc.SyncOwnerAnimalClassificationTags(ctx, clinicID, pet.OwnerID); syncErr != nil {
+	if syncErr := s.syncSvc.SyncOwnerAnimalClassificationTags(ctx, clinicID, ownerID); syncErr != nil {
 		slog.ErrorContext(ctx, "failed to sync animal classification tags after pet revival", "error", syncErr)
 	}
-	if syncErr := s.syncSvc.SyncPetBasicInfoTags(ctx, clinicID, pet.OwnerID); syncErr != nil {
+	if syncErr := s.syncSvc.SyncPetBasicInfoTags(ctx, clinicID, ownerID); syncErr != nil {
 		slog.ErrorContext(ctx, "failed to sync pet basic info tags after pet revival", "error", syncErr)
 	}
-	if syncErr := s.syncSvc.SyncCPMStageTag(ctx, clinicID, pet.OwnerID); syncErr != nil {
+	if syncErr := s.syncSvc.SyncCPMStageTag(ctx, clinicID, ownerID); syncErr != nil {
 		slog.ErrorContext(ctx, "failed to sync CPM tag after pet revival", "error", syncErr)
+	}
+	// Codex #24: 復活でペットの tentative が再び次回来院の対象になり得るため
+	// next_visit_* タグを再同期する（best-effort、既存タグ同期と同じ契約）。
+	if syncErr := s.syncSvc.SyncNextVisitTag(ctx, clinicID, ownerID); syncErr != nil {
+		slog.ErrorContext(ctx, "failed to sync next visit tag after pet revival", "error", syncErr)
 	}
 
 	// 監査ログ（best-effort）
@@ -312,46 +337,6 @@ func (s *lstepLifecycleService) HandleOwnerDeletion(ctx context.Context, clinicI
 	if removeErr := s.removeAllTagsFromLstep(ctx, clinicID, ownerID, *owner.LineUserID); removeErr != nil {
 		slog.ErrorContext(ctx, "failed to remove lstep tags on owner deletion", "error", removeErr)
 		// タグ解除失敗は削除フローを止めない
-	}
-
-	return nil
-}
-
-// removeAllTagsFromLstep はキャッシュを参照して Lステップからタグを解除する（LSB-02 / DEC-35）。
-// リモート解除に成功したタグだけローカル cache から DeleteTag する。
-// client==nil または RemoveTag 失敗時は cache を残し、再試行可能な根拠を保持する。
-func (s *lstepLifecycleService) removeAllTagsFromLstep(ctx context.Context, clinicID, ownerID uint64, lineUserID string) error {
-	client, err := s.buildClient(ctx, clinicID)
-	if err != nil {
-		return err
-	}
-
-	tags, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to find tag cache")
-	}
-
-	if client == nil {
-		// 同期無効・APIキー未設定: リモート解除不能なのに cache を消さない（LSB-02）
-		slog.WarnContext(ctx, "lstep client unavailable; keeping tag cache for retry", "owner_id", ownerID, "tag_count", len(tags))
-		return nil
-	}
-
-	var failed int
-	for _, t := range tags {
-		if removeErr := client.RemoveTag(ctx, lineUserID, t.TagName); removeErr != nil {
-			failed++
-			slog.ErrorContext(ctx, "failed to remove tag on cleanup", "error", removeErr, "tag", t.TagName)
-			continue
-		}
-		if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, t.TagName); delErr != nil {
-			failed++
-			slog.ErrorContext(ctx, "failed to delete tag cache after remote remove", "error", delErr, "tag", t.TagName)
-		}
-	}
-	if failed > 0 {
-		slog.WarnContext(ctx, "partial lstep tag cleanup; residual cache retained for retry",
-			"owner_id", ownerID, "failed", failed, "total", len(tags))
 	}
 
 	return nil

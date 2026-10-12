@@ -2,6 +2,7 @@ import { useCallback, useState, type RefObject } from "react";
 import { toast } from "sonner";
 
 import { handleApiError } from "@/lib/handle-api-error";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import type { PetMutations } from "@/types/pet";
 import type { PetFormData } from "../types";
 
@@ -36,7 +37,7 @@ export function useOwnerPetChangeConfirm({
       if (
         canEditRef.current !== true ||
         !currentEditingPet?.id ||
-        currentEditingPet.status === "死亡" ||
+        isPetDeceasedForClinicalWrite(currentEditingPet) ||
         !petMutations
       ) {
         return;
@@ -78,7 +79,7 @@ export function useOwnerPetChangeConfirm({
       canEditRef.current !== true ||
       !pendingOwnerChange ||
       !currentEditingPet?.id ||
-      currentEditingPet.status === "死亡" ||
+      isPetDeceasedForClinicalWrite(currentEditingPet) ||
       !petMutations
     ) {
       return;

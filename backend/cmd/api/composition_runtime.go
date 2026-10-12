@@ -18,6 +18,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/inventory"
 	"github.com/animal-ekarte/backend/internal/lstep"
 	"github.com/animal-ekarte/backend/internal/manualarticle"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/owner"
 	"github.com/animal-ekarte/backend/internal/persistence"
@@ -164,21 +165,24 @@ func newRuntimeLstepApplication(
 	auditKernel audit.Kernel,
 ) *lstep.Application {
 	return lstep.NewApplication(&lstep.Dependencies{
-		DB:                    dependencies.DB,
-		Cipher:                dependencies.IntegrationCipher,
-		SharedFileStorage:     dependencies.SharedStorage,
-		Owners:                repositories.ownerPet.Owner,
-		OwnerLifecycle:        ownerLifecycleWriterAdapter{inner: repositories.ownerPet.Owner},
-		Pets:                  repositories.ownerPet.Pet,
-		PetLifecycle:          petLifecycleWriterAdapter{inner: repositories.ownerPet.Pet},
-		Vaccinations:          repositories.medicalRecord.vaccinations,
-		MedicalRecords:        repositories.medicalRecord.medicalRecords,
-		Accounting:            repositories.billing.accounting,
-		Checkups:              repositories.medicalRecord.checkups,
-		BillingItems:          repositories.billing.billingItems,
-		ClinicSettings:        repositories.clinic.Settings,
-		ReservationSettings:   repositories.reservation.LineReservationSettings,
-		Reservations:          repositories.reservation.Reservations,
+		DB:                  dependencies.DB,
+		Cipher:              dependencies.IntegrationCipher,
+		SharedFileStorage:   dependencies.SharedStorage,
+		Owners:              repositories.ownerPet.Owner,
+		OwnerLifecycle:      ownerLifecycleWriterAdapter{inner: repositories.ownerPet.Owner},
+		Pets:                repositories.ownerPet.Pet,
+		PetLifecycle:        petLifecycleWriterAdapter{inner: repositories.ownerPet.Pet},
+		Vaccinations:        repositories.medicalRecord.vaccinations,
+		MedicalRecords:      repositories.medicalRecord.medicalRecords,
+		Accounting:          repositories.billing.accounting,
+		Checkups:            repositories.medicalRecord.checkups,
+		BillingItems:        repositories.billing.billingItems,
+		ClinicSettings:      repositories.clinic.Settings,
+		ReservationSettings: repositories.reservation.LineReservationSettings,
+		Reservations:        repositories.reservation.Reservations,
+		// EMR-308: next_visit_* タグ同期と tentative リマインダー配信の appointment 参照
+		// （candidate 抽出・送信直前再検証）。同一 ReservationStore を共有する。
+		Appointments:          repositories.reservation.Reservations,
 		Clinics:               repositories.clinic.Clinics,
 		Staff:                 repositories.reservation.ReservationStaff,
 		Audit:                 auditKernel,
@@ -253,6 +257,7 @@ func newRuntimeDomainCompositions(
 			repositories,
 			transactor,
 			auditKernel,
+			lstepApplication.TagSync,
 		),
 		lstep: lstepApplication,
 		supportChat: support.NewChatCompleter(
@@ -376,6 +381,9 @@ func newRuntimeReservationComposition(
 			TrimmingDetails: repositories.trimmingDetails,
 			Vaccinations:    repositories.medicalRecord.vaccinations,
 			MedicalRecords:  medicalRecordComposition.MedicalRecords,
+			// EMR-308: 予約変更容易点の post-commit next_visit タグ再同期 hook。
+			// lstep 側で未設定・同期失敗でも予約操作は失敗しない（best-effort）。
+			NextVisitTagSync: lstepApplication.TagSync,
 
 			NotificationConfig: reservationNotificationConfig(
 				dependencies.Config,
@@ -469,6 +477,7 @@ func newRuntimeTrimming(
 	repositories runtimeRepositories,
 	transactor persistence.Transactor,
 	auditKernel audit.Kernel,
+	nextVisitTagSync reservation.NextVisitTagSyncer,
 ) trimmingRuntime {
 	return trimmingRuntime{
 		trimming: trimming.NewServiceWithAudit(
@@ -481,6 +490,7 @@ func newRuntimeTrimming(
 			repositories.trimmingOptions,
 			transactor,
 			trimmingAuditTxAdapter{inner: auditKernel},
+			nextVisitTagSync,
 		),
 		courses: trimming.NewTrimmingCourseService(
 			repositories.trimmingCourses,
@@ -622,7 +632,11 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 		c.trimming.courseTypes,
 		c.trimming.options,
 		c.auth.Handler.RequirePermission,
-	).RegisterRoutes(protected)
+	).WithImageSupport(trimming.ImageDependencies{
+		Uploader:             uploader,
+		Quota:                medicalrecord.NewPostgresMedicalRecordImageUploadQuotaStore(c.db),
+		RequireAnyPermission: adaptTrimmingPermissionAny(c.auth.Handler.RequirePermissionAny),
+	}).RegisterRoutes(protected)
 	c.medicalRecord.newHandler(
 		medicalRecordHTTPDependencies{
 			Uploader:          uploader,
@@ -631,6 +645,21 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 			RequirePermission: c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
 		},
 	).RegisterRoutes(protected)
+}
+
+func adaptTrimmingPermissionAny(
+	require func(...auth.PermissionRequirement) gin.HandlerFunc,
+) trimming.PermissionAnyMiddleware {
+	return func(requirements ...trimming.PermissionRequirement) gin.HandlerFunc {
+		target := make([]auth.PermissionRequirement, len(requirements))
+		for i, requirement := range requirements {
+			target[i] = auth.PermissionRequirement{
+				Resource: requirement.Resource,
+				Action:   requirement.Action,
+			}
+		}
+		return require(target...)
+	}
 }
 
 func (c runtimeComposition) newLstepHandler() *lstep.Handler {

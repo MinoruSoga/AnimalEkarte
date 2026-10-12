@@ -435,8 +435,11 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// clinic/pet/JST-day duplicate count and INSERT. Runtime proofs:
 	// TestMedicalRecordRepository_AcquireAutoCreateLock_IsNonBlockingWhenContended and
 	// TestMedicalRecordRepository_CountByPetAndDate_IsScopedAndJoinsAmbientTransaction.
-	"medicalrecord/medical_record_repository.go|medicalRecordRepository.AcquireAutoCreateLock":           {},
-	"medicalrecord/medical_record_repository.go|medicalRecordRepository.CountByPetAndDate":               {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.AcquireAutoCreateLock": {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.CountByPetAndDate":     {},
+	// Dependency count must observe uncommitted records and retain clinic isolation.
+	// Runtime: TestMedicalRecordRepository_CountByPetIDUsesAmbientTransaction.
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.CountByPetID":                    {},
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.CountEstimatesByMedicalRecordID": {}, // delete/estimate creation serialization under the medical-record row lock
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Create":                          {},
 	// BUG2-MR-ENTERED-BY-CLINIC: entered_by actor guard joins create ambient tx (SHARE lock).
@@ -482,6 +485,22 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"lstep/lstep_tag_code_mapping_repository.go|lstepTagCodeMappingRepository.Create":                         {},
 	"lstep/lstep_tag_code_mapping_repository.go|lstepTagCodeMappingRepository.SoftDelete":                     {},
 	"lstep/lstep_tag_code_mapping_repository.go|lstepTagCodeMappingRepository.SoftDeleteByClinicIDAndTagName": {},
+	// Next-visit reconciliation source/cache share the advisory-lock transaction.
+	// Runtime: lstep_tag_cache_repository_test.go TestNextVisitOwnerLock_DBPoolOneAndRollback.
+	"lstep/lstep_tag_cache_repository.go|lstepTagCacheRepository.UpsertTag":   {},
+	"lstep/lstep_tag_cache_repository.go|lstepTagCacheRepository.DeleteTag":   {},
+	"lstep/lstep_tag_cache_repository.go|lstepTagCacheRepository.FindByOwner": {},
+	// D1 delivery serialization: the owner row lock joins the ambient tx so EXCL
+	// writes and DeleteAllByOwner serialize against provider sends.
+	// Runtime: lstep_delivery_owner_lock_realdb_test.go (EXCL serialization) and
+	// lstep_tag_cache_repository_test.go TestDeleteAllByOwner_ParticipatesInAmbientTxRollback.
+	"lstep/lstep_tag_cache_repository.go|lstepTagCacheRepository.DeleteAllByOwner":                          {},
+	"lstep/lstep_tag_cache_repository.go|lstepTagCacheRepository.withOwnerRowLock":                          {},
+	"lstep/lstep_next_visit_sync_retry_repository.go|lstepTagCacheRepository.AcknowledgeNextVisitSync":      {},
+	"lstep/lstep_next_visit_sync_retry_repository.go|lstepTagCacheRepository.EnqueueNextVisitCleanup":       {},
+	"lstep/lstep_next_visit_sync_retry_repository.go|lstepTagCacheRepository.FindNextVisitCleanupIntent":    {},
+	"lstep/lstep_next_visit_sync_retry_repository.go|lstepTagCacheRepository.FindOwnerForNextVisitCleanup":  {},
+	"lstep/lstep_next_visit_sync_retry_repository.go|lstepTagCacheRepository.CountActiveOwnersWithLineUser": {},
 	// Public LINE account linking: token lock/CAS, owner row lock/update, and
 	// fail-closed audit must all remain on the service-owned ambient transaction.
 	// Runtime: line_link_token_repository_test.go,
@@ -512,6 +531,15 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// 更新と一次監査ログ書込を Transactor.WithTx で束ね fail-closed 化。BE9-2Eで
 	// internal/pet へ移動。runtime proof は internal/pet/repository_tx_atomicity_test.go)
 	"pet/repository.go|repository.update": {},
+	// Soft delete joins the caller's transaction so later failures restore the active pet.
+	// Runtime: TestPetRepository_DeleteParticipatesInAmbientTransaction / TestPetRepository_Delete_ClinicIsolation.
+	"pet/repository.go|repository.Delete": {},
+	// PR606 cage swap: pet status/deceased_at is checked under a clinic-scoped FOR UPDATE
+	// lock retained by the swap's ambient transaction; no-tx reads fail closed. Regressions:
+	// TestPetRepository_LockByIDForUpdate (internal/pet/repository_row_lock_test.go) /
+	// TestHospitalizationSwapCages_PetDeathCheckSerializesConcurrentDeath
+	// (internal/medicalrecord/hospitalization_cage_swap_test.go).
+	"pet/repository.go|repository.LockByIDForUpdate": {},
 	// 死亡登録/復活の条件付き UPDATE（CAS）。期待 status を述語に含め RowsAffected==0 を 409 へ写像する
 	// ため、呼び出し元の ambient transaction に参加して同一 snapshot 上で判定する必要がある。Runtime:
 	// TestPetRepository_RecordDeath_ConcurrentRequestsPreserveWinner /
@@ -571,6 +599,15 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/cage_repository.go|cageRepositoryImpl.update":             {},
 	"medicalrecord/cage_repository.go|cageRepositoryImpl.Delete":             {},
 	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountUsageByCageID": {},
+	// EMR-306 ケージ一時連結: 連結の永続化・解除・グループロック・構成員/占有カウントは
+	// 呼び出し元の ambient transaction に参加する（cage_repository_tx_atomicity_test.go）。
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.SetMergedInto":          {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.ClearMergedInto":        {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.LockCagesForUpdate":     {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.LockCageGroupForUpdate": {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountMergedMembers":     {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountOccupiedCages":     {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.ListOccupiedCageIDs":    {},
 	// refund (R1-1 TOCTOU)
 	"billing/refund_repository.go|refundRepository.Create":                         {}, // BE8-4 batch8: moved from refund_repository.go
 	"billing/refund_repository.go|refundRepository.SumByBillingID":                 {}, // BE8-4 batch8: moved from refund_repository.go
@@ -582,6 +619,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_repository_queries.go|reservationRepository.FindPetOwnerInClinic":                     {}, // AUD-001
 	"reservation/reservation_repository_queries.go|reservationRepository.CountByCustomerAndDateRange":              {},
 	"reservation/reservation_repository_queries.go|reservationRepository.CountByDateAndSource":                     {},
+	"reservation/reservation_repository_queries.go|reservationRepository.assertLineCustomerReservationOwner":       {},
 	"reservation/reservation_repository_queries.go|reservationRepository.CountByTypeAndStartTime":                  {},
 	"reservation/reservation_repository_queries.go|reservationRepository.CountByTypeAndStartTimes":                 {},
 	"reservation/reservation_repository_slots.go|reservationRepository.CountConflicts":                             {},
@@ -589,6 +627,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_repository_slots.go|reservationRepository.CountOnDutyDoctors":                         {},
 	"reservation/reservation_repository.go|reservationRepository.Create":                                           {},
 	"reservation/reservation_repository.go|reservationRepository.Delete":                                           {},
+	"reservation/reservation_repository.go|reservationRepository.deleteWithPreviousOwner":                          {},
 	"reservation/reservation_repository_slots.go|reservationRepository.ExistsByReservationTypeID":                  {},
 	"reservation/reservation_repository_slots.go|reservationRepository.ExistsByStaffID":                            {},
 	"reservation/reservation_repository.go|reservationRepository.FindAll":                                          {},
@@ -598,7 +637,8 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_repository_slots.go|reservationRepository.HasDoctorConflict":                          {},
 	"reservation/reservation_repository_slots.go|reservationRepository.LockAndFindByID":                            {},
 	"reservation/reservation_repository.go|reservationRepository.update":                                           {},
-	"reservation/reservation_intent_repository.go|reservationRepository.CompleteForAccounting":                     {}, // BE9-2E-0 write owner
+	"reservation/reservation_repository.go|reservationRepository.updateWithPreviousOwner":                          {},
+	"reservation/reservation_intent_repository.go|reservationRepository.CompleteForAccountingWithOwners":           {}, // BE9-2E-0 write owner
 	"reservation/reservation_intent_repository.go|reservationRepository.DeleteForTrimming":                         {}, // BE9-2E-0 typed delete + ambient-tx rollback test
 	"reservation/reservation_intent_repository.go|reservationRepository.AssertMedicalRecordDoctorInClinic":         {}, // BE9-2E-0 doctor guard; TestVaccinationService_DoctorAssignmentDeletionWaitsForValidationTransaction
 	"reservation/reservation_intent_repository.go|reservationRepository.MarkNoShowAt":                              {}, // durable scheduler no-show transition at an explicit slot
@@ -608,29 +648,63 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_intent_repository.go|reservationRepository.assertGeneralMedicalRecordReservationType": {}, // BackfillForMedicalRecord category guard under appointment tx
 	"reservation/reservation_intent_repository.go|reservationRepository.assertStaffAssignedToClinic":               {}, // BE9-2E-0 doctor tenant guard
 	"reservation/reservation_intent_repository.go|reservationRepository.assertTrimmingReservationType":             {}, // BE9-2E-0 master-FK tenant guard
-	"reservation/appointment_admin_repository.go|reservationAdminRepository.Create":                                {}, // AUD-001
+	// EMR-308 next-visit intent (tentative) write surface. SetNextVisitIntent itself carries no
+	// literal DBOrTx (it delegates through these helpers + r.Create/r.update) — same registration
+	// shape as BackfillForMedicalRecord/CreateForTrimming which are likewise unregistered.
+	"reservation/reservation_intent_repository.go|reservationRepository.clearNextVisitIntentWithOwner":      {}, // EMR-308 idempotent tentative soft-delete
+	"reservation/reservation_intent_repository.go|reservationRepository.ConfirmTentative":                   {}, // EMR-308 tentative → pending/confirmed transition
+	"reservation/reservation_intent_repository.go|reservationRepository.updateTentativeStatus":              {}, // EMR-308 tentative-limited CAS update (WHERE status=tentative)
+	"reservation/reservation_intent_repository.go|reservationRepository.WithTentativeReminderSerialization": {}, // EMR-308 LSTEP revalidate→send serialization via (clinic,pet) advisory lock
+	"reservation/reservation_intent_repository.go|reservationRepository.acquireNextVisitIntentLock":         {}, // EMR-308 (clinic,pet) advisory lock; ambient-tx bound
+	"reservation/reservation_intent_repository.go|reservationRepository.FindPetIDForIntentLock":             {}, // Codex #16 guard-free pet resolution for lock ordering (stale-owner rows)
+	"reservation/reservation_intent_repository.go|reservationRepository.findActiveTentativeForUpdate":       {}, // EMR-308 single-active-tentative lookup under row lock
+	"reservation/reservation_intent_repository.go|reservationRepository.findGeneralReservationTypeID":       {}, // EMR-308 general placeholder type resolution
+	"reservation/reservation_intent_repository.go|reservationRepository.assertSourceMedicalRecordForPet":    {}, // EMR-308 provenance guard (same clinic + same pet)
+	"reservation/reservation_intent_repository.go|reservationRepository.lockAndFindByIDWithParentClinic":    {}, // PR#606 tentative transition FOR UPDATE re-read + current-owner revalidation under intent lock tx (reservation_tentative_owner_transition_test.go)
+	// AbsorbTentativeOnBooking/PromoteTentativeOnCheckin delegate through this shared
+	// implementation (same unregistered-shape rule as SetNextVisitIntent).
+	"reservation/reservation_intent_repository.go|reservationRepository.promoteOrCreateFromTentative": {}, // EMR-308 tentative 同一行昇格 (booking/check-in absorb)
+	// Guarded check-in CAS write is fail-closed TxFromContext (no DBOrTx fallback) — see
+	// ambientTxParticipationExpectations; runtime proof: TestGuardedCheckInRepositoryCAS.
+	"reservation/reservation_guarded_checkin.go|reservationRepository.checkInConfirmed": {},
+	// EMR-308 next-visit appointment read surface (LSTEP tag sync + tentative reminder
+	// candidate/revalidation). Read-only finders; ambient-tx participation via DBOrTx.
+	"reservation/reservation_tentative_expiry_query.go|reservationRepository.expiredTentativeTagOwnersQuery":  {}, // expiry catch-up read joins ambient transaction
+	"reservation/reservation_tentative_expiry_query.go|reservationRepository.nextVisitTagRepairOwnersQuery":   {},
+	"reservation/reservation_next_visit_query.go|reservationRepository.FindNextAppointmentForOwner":           {},
+	"reservation/reservation_next_visit_query.go|reservationRepository.FindOwnerIDsWithTentativeIntendedDate": {},
+	"reservation/reservation_next_visit_query.go|reservationRepository.FindTentativeByOwnerAndIntendedDate":   {},
+	"reservation/reservation_next_visit_query.go|reservationRepository.FindTentativesByOwnerAndIntendedDate":  {}, // Codex #22 all-candidate enumeration for multi-pet reminder serialization
+	"reservation/appointment_admin_repository.go|reservationAdminRepository.Create":                           {}, // AUD-001
+	// Cancellation and its returned owner must share the caller's transaction.
+	// Runtime: TestReservationAdminRepository_CancelByID_JoinsAmbientTransaction / TestReservationAdminRepository_CancelByID.
+	"reservation/appointment_admin_repository.go|reservationAdminRepository.CancelByID": {},
 	// BUG-424: unavailable-time reads participate in the booking transaction.
 	"reservation/reservation_type_unavailable_time_repository.go|reservationTypeUnavailableTimeRepository.FindAll": {},
+	"reservation/pet_owner_transfer.go|PetOwnerTransfer.TransferUpcomingPetReservations":                           {},
 	// trimming master reads join the service-owned transaction and hold SHARE locks through
 	// appointment/detail/junction writes. Runtime proof: TestTrimmingMasterFindByID_HoldsShareLockForAmbientTransaction.
-	"trimming/trimming_course_repository.go|trimmingCourseRepository.CountUsageByTrimmingCourseID":      {},
-	"trimming/trimming_course_repository.go|trimmingCourseRepository.Create":                            {},
-	"trimming/trimming_course_repository.go|trimmingCourseRepository.Delete":                            {},
-	"trimming/trimming_course_repository.go|trimmingCourseRepository.FindAll":                           {},
-	"trimming/trimming_course_repository.go|trimmingCourseRepository.FindByID":                          {},
-	"trimming/trimming_course_repository.go|trimmingCourseRepository.update":                            {},
-	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.CountUsageByCourseTypeID": {},
-	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.Create":                   {},
-	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.Delete":                   {},
-	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.FindAll":                  {},
-	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.FindByID":                 {},
-	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.update":                   {},
-	"trimming/trimming_option_repository.go|trimmingOptionRepository.CountUsageByTrimmingOptionID":      {},
-	"trimming/trimming_option_repository.go|trimmingOptionRepository.Create":                            {},
-	"trimming/trimming_option_repository.go|trimmingOptionRepository.Delete":                            {},
-	"trimming/trimming_option_repository.go|trimmingOptionRepository.FindAll":                           {},
-	"trimming/trimming_option_repository.go|trimmingOptionRepository.FindByID":                          {},
-	"trimming/trimming_option_repository.go|trimmingOptionRepository.update":                            {},
+	"trimming/trimming_course_repository.go|trimmingCourseRepository.CountUsageByTrimmingCourseID":            {},
+	"trimming/trimming_course_repository.go|trimmingCourseRepository.Create":                                  {},
+	"trimming/trimming_course_repository.go|trimmingCourseRepository.Delete":                                  {},
+	"trimming/trimming_course_repository.go|trimmingCourseRepository.FindAll":                                 {},
+	"trimming/trimming_course_repository.go|trimmingCourseRepository.FindByID":                                {},
+	"trimming/trimming_course_repository.go|trimmingCourseRepository.update":                                  {},
+	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.CountUsageByCourseTypeID":       {},
+	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.Create":                         {},
+	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.Delete":                         {},
+	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.FindAll":                        {},
+	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.FindByID":                       {},
+	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.update":                         {},
+	"trimming/trimming_image_lifecycle_repository.go|appointmentTrimmingDetailRepository.ImageKeyDeleted":     {},
+	"trimming/trimming_image_lifecycle_repository.go|appointmentTrimmingDetailRepository.LockImageKeys":       {},
+	"trimming/trimming_image_lifecycle_repository.go|appointmentTrimmingDetailRepository.MarkImageKeyDeleted": {},
+	"trimming/trimming_option_repository.go|trimmingOptionRepository.CountUsageByTrimmingOptionID":            {},
+	"trimming/trimming_option_repository.go|trimmingOptionRepository.Create":                                  {},
+	"trimming/trimming_option_repository.go|trimmingOptionRepository.Delete":                                  {},
+	"trimming/trimming_option_repository.go|trimmingOptionRepository.FindAll":                                 {},
+	"trimming/trimming_option_repository.go|trimmingOptionRepository.FindByID":                                {},
+	"trimming/trimming_option_repository.go|trimmingOptionRepository.update":                                  {},
 	// reservationtype domain package (methods that previously used dbOrTx).
 	"reservation/reservation_type_repository.go|reservationTypeRepository.CountChildrenByParentID":       {},
 	"reservation/reservation_type_repository.go|reservationTypeRepository.CountUsageByReservationTypeID": {},
@@ -744,8 +818,11 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// trimming detail (uniform dbOrTx)
 	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.Create":              {},
 	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.FindByAppointmentID": {},
-	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.SetOptions":          {},
-	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.Update":              {},
+	// EMR-300: image-key reference probe must observe the caller's ambient tx —
+	// a cleanup delete issued post-commit inside a tx must see uncommitted writes.
+	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.ImageKeyInUse": {},
+	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.SetOptions":    {},
+	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.Update":        {},
 	// vital (X-11 Appendix-A finalize-child-write-race fix — same FK-deadlock rationale as examination)
 	// BE9-2D sub-batch④a: moved to internal/medicalrecord (facade kept in internal/repository).
 	// FindByMedicalRecordID: BE9-2D ④b — treatmentService の dose 体重解決が保存 tx 内から読む
@@ -1046,6 +1123,11 @@ var ambientTxParticipationExpectations = map[string]ambientTxParticipationExpect
 		shape: ambientTxRequired,
 	},
 	"medicalrecord/lab_device_mapping_store.go|labMappingDraftRepository.UpsertSpeciesSpec": {
+		shape: ambientTxRequired,
+	},
+	// Guarded check-in CAS write is fail-closed: TxFromContext only, never DBOrTx fallback.
+	// Runtime proof: TestGuardedCheckInRepositoryCAS (CAS + rollback under ambient tx).
+	"reservation/reservation_guarded_checkin.go|reservationRepository.checkInConfirmed": {
 		shape: ambientTxRequired,
 	},
 }

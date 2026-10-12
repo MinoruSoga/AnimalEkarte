@@ -4,7 +4,8 @@ import { useGetReservations } from "@/hooks/use-get-reservations";
 import { usePermission } from "@/hooks/use-permission";
 import { useGetPetVaccinations } from "@/hooks/use-pet-vaccinations";
 import { useGetPetCheckupResults } from "./use-pet-checkup-results";
-import { formatJSTDate, todayJSTISO } from "@/lib/jst-date";
+import { formatJSTDate } from "@/lib/jst-date";
+import { useTodayJst } from "@/hooks/use-today-jst";
 import {
   ResourceCheckups,
   ResourceExaminations,
@@ -87,7 +88,10 @@ function useClinicalQueries(
   const trimmingQuery = useGetPetTrimmingHistory(permissions.trimming.canView ? petId : undefined);
   const reservationsQuery = useGetReservations({
     startDate: today,
-    endDate: addDaysISO(today, 365),
+    // EMR-308/Codex: intent API は今日+2年までの tentative を許容するため、
+    // 365日だと13〜24ヶ月先の次回予定が「予定なし」表示になる。うるう年を含む
+    // 2年境界をカバーする 731 日で取得する（フィルタなので境界超過は無害）。
+    endDate: addDaysISO(today, 731),
     petId,
     enabled: permissions.reservation.canView,
   });
@@ -105,7 +109,7 @@ function useClinicalQueries(
 
 export function useOwnerClinicalBriefingData(petId: string) {
   const permissions = useClinicalPermissions();
-  const today = todayJSTISO();
+  const today = useTodayJst();
   const queries = useClinicalQueries(petId, today, permissions);
 
   return {

@@ -124,6 +124,8 @@ export const queryKeys = {
      * 明示的に invalidate する必要がある（既存の呼び出し側は対応済み）。
      */
     detail: (id: string) => ["reservation", id] as const,
+    /** 全 detail(id) の prefix 一括 invalidate 用（ペット死亡 sentinel 追従など） */
+    detailAll: () => ["reservation"] as const,
     availableTimes: (reservationTypeId: string, date: string, staffId?: string) =>
       ["reservations", "available-times", reservationTypeId, date, staffId ?? ""] as const,
   },
@@ -176,6 +178,17 @@ export const queryKeys = {
     all: () => ["hospitalizations"] as const,
     list: <F>(filters: F) => ["hospitalizations", filters] as const,
     /**
+     * EMR-306: ケージ占有判定の共有クエリ（GET /masters/cages/occupancy）。
+     * master の連結 picker と入院 board の merge-mode が共用する。返却値は
+     * transform 前の wire 形のため list(filters) とキーを分ける
+     * （同一キーで別 shape を書き込むと後勝ちで型が崩れる）。["hospitalizations"]
+     * prefix 配下に置くのは、入院の作成/退院 mutation の all() invalidate で
+     * 占有状況も追従させるため。医院 ID で分離し、医院切替前の cache / 応答が
+     * 切替後の占有判定に混ざらないようにする。
+     */
+    cageOccupancy: (clinicId: string | null) =>
+      ["hospitalizations", "cage-occupancy", clinicId] as const,
+    /**
      * FE-RC-081: 単数形 "hospitalization" が第一要素のため all()/list() の
      * ["hospitalizations", ...] prefix match には含まれない。detail/detailRaw
      * 更新を伴う mutation（update-hospitalization.ts）は all() だけでなく
@@ -184,6 +197,8 @@ export const queryKeys = {
      */
     detail: (id: string) => ["hospitalization", id] as const,
     detailRaw: (id: string) => ["hospitalization", "raw", id] as const,
+    /** detail/detailRaw 双方を含む全 detail 系の prefix 一括 invalidate 用 */
+    detailAll: () => ["hospitalization"] as const,
     carePlanItems: (hospitalizationId: string) =>
       ["hospitalizations", hospitalizationId, "care-plan-items"] as const,
     treatmentPlans: (hospitalizationId: string) =>
@@ -310,6 +325,7 @@ export const queryKeys = {
       ["owners", { scope: "sub-owner-options", search }] as const,
   },
   ownerSharedPets: {
+    all: () => ["owner-shared-pets"] as const,
     detail: (ownerId: string) => ["owner-shared-pets", ownerId] as const,
   },
   ownerLineTags: (ownerId: string) => ["owner-line-tags", ownerId] as const,
@@ -341,6 +357,8 @@ export const queryKeys = {
 
   // ── owner-report ──────────────────────────────────────────────────
   ownerReportPets: (ownerId: string) => ["owner-report-pets", ownerId] as const,
+  /** 全 ownerId 分の owner-report-pets を prefix 一括 invalidate するための prefix キー */
+  ownerReportPetsAll: () => ["owner-report-pets"] as const,
   petTrimmingHistory: (petId: string) => ["pet-trimmings", "report", petId] as const,
   petTreatmentHistory: <F, O>(petId: string, filter: F, options: O) =>
     ["pet-treatment-history", petId, filter, options] as const,
@@ -410,13 +428,6 @@ export const queryKeys = {
     status: () => ["support-chat", "status"] as const,
     history: () => ["support-chat", "history"] as const,
     rooms: () => ["support-chat", "rooms"] as const,
-  },
-
-  // ── test-only ─────────────────────────────────────────────────────
-  /** react-query.test.ts の QueryCache onError 回帰テスト専用キー。本番コードから参照しないこと */
-  _test: {
-    fe516Fail: () => ["fe5-16-fail"] as const,
-    fe516Silent: () => ["fe5-16-silent"] as const,
   },
 } as const;
 

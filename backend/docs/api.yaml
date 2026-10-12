@@ -109,6 +109,16 @@ components:
         breed:
           type: string
           description: "犬種等（#231: トリミング一覧の犬種列向け。空文字は未設定）"
+        birth_date:
+          type: string
+          format: date
+          nullable: true
+          description: "EMR-301: 誕生月バッジ判定用（petSummaryResponse の omitempty additive）"
+        deceased_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: "死亡OR契約 sentinel（status=deceased または非null。omitempty additive）"
         animal_species:
           $ref: '#/components/schemas/AnimalSpeciesSummary'
           nullable: true
@@ -1175,6 +1185,7 @@ components:
         - animal_species
         - gender
         - birth_date
+        - deceased_at
         - color
         - weight
         - environment
@@ -1206,6 +1217,11 @@ components:
           type: string
           format: date
           nullable: true
+        deceased_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: "EMR-301: 死亡OR契約 sentinel（常時シリアライズ、未死亡は null）"
         color:
           type: string
         weight:
@@ -1377,6 +1393,7 @@ components:
         - gender
         - status
         - birth_date
+        - deceased_at
         - breed
         - color
         - blood_type
@@ -1410,6 +1427,11 @@ components:
           type: string
           format: date-time
           nullable: true
+        deceased_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: "死亡OR契約 sentinel（常時シリアライズ、未死亡は null）"
         breed:
           type: string
         color:
@@ -1822,12 +1844,30 @@ components:
             - in_consultation
             - accounting
             - completed
+            - no_show
+            - tentative
         notes:
           type: string
         checked_in_at:
           type: string
           format: date-time
           nullable: true
+        intended_date:
+          type: string
+          format: date
+          nullable: true
+          readOnly: true
+          description: EMR-308 次回予定（tentative）行の予定日。JST 暦日。非 tentative では null。
+        had_intended_date:
+          type: boolean
+          readOnly: true
+          description: EMR-308 この予約が次回予定意図（intended_date）を持つか。取消・更新レスポンスでは、元 tentative が意図日を持っていたかを示し、FE が意図の再設定を提案できる（自動復活はしない）。
+        source_medical_record_id:
+          type: integer
+          format: int64
+          nullable: true
+          readOnly: true
+          description: EMR-308 tentative 行の登録元カルテID（provenance）。非 tentative では null。
         source:
           type: string
           enum:
@@ -1848,6 +1888,13 @@ components:
         reservation_route:
           type: string
           nullable: true
+          enum:
+            - line
+            - phone
+            - reception
+            - exam_room
+            - record_shortcut
+            - record_intent
         actual_reservation_at:
           type: string
           format: date-time
@@ -1923,10 +1970,6 @@ components:
           format: int64
           readOnly: true
           description: 同一飼主・ペットの累計来院回数（呼び出し元で算出）
-        next_visit_recommended_date:
-          type: string
-          format: date
-          nullable: true
         recommendation_reason:
           type: string
           nullable: true
@@ -2023,6 +2066,20 @@ components:
           type: integer
           format: int64
           nullable: true
+        clear_cage_id:
+          type: boolean
+          writeOnly: true
+          description: PATCHでtrueを送るとcage_idをNULL（未割当）に戻す。cage_idとの同時指定は400。cage_idまたはclear_cage_idを送る場合はexpected_cage_id（正数）またはexpected_cage_is_null=trueのどちらか一方が必須。
+        expected_cage_id:
+          type: integer
+          format: int64
+          nullable: true
+          writeOnly: true
+          description: 表示時点のcage_id。cage_id/clear_cage_id指定時にexpected_cage_is_nullと排他で必須（正数のみ）。ロック行と不一致なら409。ケージ操作を伴わない指定は400。
+        expected_cage_is_null:
+          type: boolean
+          writeOnly: true
+          description: 表示時点でcage_idが未割当だったことを示す期待値。cage_id/clear_cage_id指定時にexpected_cage_idと排他でtrueのみ必須。ロック行が未割当でないなら409。ケージ操作を伴わない指定は400。
         doctor_id:
           type: integer
           format: int64
@@ -2407,6 +2464,21 @@ components:
           type: string
           format: date-time
           readOnly: true
+    TrimmingImageUpload:
+      type: object
+      required: [key, signed_url]
+      description: |
+        トリミング画像アップロード結果。key を style_image または completed_image に保存する。
+        signed_url は 15 分有効の署名付き表示 URL。
+      properties:
+        key:
+          type: string
+          description: 医院スコープのオブジェクトキー（trimming-images/{clinic_id}/...）
+          example: trimming-images/1/1710000000000000000_ab.jpg
+        signed_url:
+          type: string
+          format: uri
+          description: 署名付き表示 URL（TTL 15 分）
     TrimmingRecord:
       type: object
       required: [date, staff_id, course_id]
@@ -2667,6 +2739,12 @@ components:
             - large
         sort_order:
           type: integer
+        merged_into_cage_id:
+          type: integer
+          format: int64
+          nullable: true
+          readOnly: true
+          description: 連結中の構成ケージが参照する代表ケージID（EMR-306 ケージ一時連結）。NULL = 独立ケージまたは代表ケージ自身
         created_at:
           type: string
           format: date-time
@@ -5510,6 +5588,10 @@ components:
         author_user_id:
           type: integer
           format: int64
+        author_name:
+          type: string
+          nullable: true
+          description: 追記者スタッフ氏名（解決できる場合はスタッフの現行名を返す。改名後は旧名ではなく現行名が表示される）。親カルテの医院スコープで解決できる場合のみ返る（スタッフ削除・異動・他医院・未解決は null または省略）。UI は author_user_id へフォールバック表示する。
         before_text:
           type: string
         after_text:
@@ -9953,7 +10035,66 @@ components:
         route:
           type: string
           maxLength: 20
+          # EMR-308: record_intent は次回予定（tentative）専用の provenance で、
+          # 経路更新 API は拒否する（enum から除外）。
           enum: [line, phone, reception, exam_room, record_shortcut]
+    # ─── EMR-308 次回予定（tentative appointment） ─────────────────────────────
+    SetNextVisitIntentRequest:
+      type: object
+      required: [intended_date]
+      description: |
+        ペットの次回予定（tentative appointment）を作成または更新する。
+        intended_date は JST 暦日（YYYY-MM-DD）。同一医院・同一ペットの active
+        tentative は1件のみ（upsert）。予約枠容量・時間枠競合・通知の対象外。
+      properties:
+        intended_date:
+          type: string
+          format: date
+          description: 次回予定日（JST 暦日、本日以降〜約2年先まで）
+        source_medical_record_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 登録元カルテID（provenance）。同一医院・同一ペットのカルテのみ可
+    ConfirmTentativeReservationRequest:
+      type: object
+      required: [start_time, end_time]
+      description: |
+        tentative（次回予定）予約を本予約へ確定する。確定時に通常の booking 検証
+        （休診日・時間帯不可・時間枠競合・区分容量・担当医 capability）が適用される。
+        reservation_type_id 省略時は tentative 行の区分を維持する。
+      properties:
+        start_time:
+          type: string
+          format: date-time
+          description: 確定後の開始日時（必須）
+        end_time:
+          type: string
+          format: date-time
+          description: 確定後の終了日時（必須）
+        reservation_type_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 確定後の診療区分（省略時は tentative の区分を維持）
+        doctor_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 担当医（0 または省略で未指定）
+        is_designated:
+          type: boolean
+          description: 担当医指名フラグ
+        status:
+          type: string
+          enum: [pending, confirmed]
+          description: 確定後ステータス（省略時 confirmed）
+        visit_type:
+          type: string
+          enum: [first, revisit]
+          description: 初診/再診区分（省略時は tentative 行の既存値を維持）
+        notes:
+          type: string
     # ─── MedicineDoseParam (#201 B-2c 投与量計算パラメータ) ────────────────────
     MedicineDoseParam:
       type: object
@@ -10119,6 +10260,12 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     Conflict:
       description: リソースが既に存在する
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnprocessableEntity:
+      description: "処理不能（業務ルール違反。例: 連結中の構成ケージへの入院割当）"
       content:
         application/json:
           schema:
@@ -11686,7 +11833,22 @@ paths:
       operationId: listReservations
       summary: 予約一覧
       tags: [Reservations]
+      description: snapshot=true は指定範囲の全予約と関連情報を同一の読み取り専用 REPEATABLE READ transaction で返す。最大10000件・DB処理10秒。日付、両端の日付範囲、ペット、飼主のいずれかを必須とし、超過時は400（部分応答なし）。省略・false時は従来のページ応答。
       parameters:
+        - name: snapshot
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: true時はpage/limitを適用せず一括snapshot（応答page=1、limit=10000、snapshot=true）
+        - name: start_date
+          in: query
+          description: 範囲の開始日（end_dateと併用）
+          schema: { type: string, format: date }
+        - name: end_date
+          in: query
+          description: 範囲の最終日（当日を含む、start_dateと併用）
+          schema: { type: string, format: date }
         - name: page
           in: query
           schema:
@@ -11729,10 +11891,15 @@ paths:
                   - $ref: '#/components/schemas/PaginatedResponse'
                   - type: object
                     properties:
+                      snapshot:
+                        type: boolean
+                        description: snapshot=true要求が同一DB snapshotで完了した場合のみtrue。従来ページ応答では省略。
                       data:
                         type: array
                         items:
                           $ref: '#/components/schemas/ReservationAppointment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -11748,7 +11915,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ReservationAppointment'
+              allOf:
+                - $ref: '#/components/schemas/ReservationAppointment'
+                - type: object
+                  properties:
+                    prevent_duplicate_reception:
+                      type: boolean
+                      default: false
+                      description: 当日の reception/checked_in 作成専用。同一医院・ペットの当日進行中予約をトランザクション内で再確認し、存在時は409。完了・キャンセル・無断キャンセルは再来院を妨げない。飼主と生存ペットの正のIDが必要。
       responses:
         '201':
           description: 作成成功
@@ -11770,7 +11944,11 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '409':
-          $ref: '#/components/responses/Conflict'
+          description: 当日の進行中予約または受付が存在する場合は再読み込みし、既存を再利用してください。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           $ref: '#/components/responses/InternalError'
   /reservations/batch:
@@ -11795,7 +11973,12 @@ paths:
                 status: { type: string, enum: [confirmed, pending, cancelled, checked_in, in_consultation, accounting, completed] }
                 notes: { type: string }
                 source: { type: string, enum: [manual, line] }
+                # EMR-308: record_intent は次回予定専用 provenance —— 作成時指定不可（runtime binding も拒否）。
                 reservation_route: { type: string, enum: [line, phone, reception, exam_room, record_shortcut] }
+                prevent_duplicate_reception:
+                  type: boolean
+                  default: false
+                  description: 当日の reception/checked_in 専用。各ペットの進行中予約をロック後再確認し、いずれか存在時は全体409。レスポンスは入力ペット順を保持。
                 pets:
                   type: array
                   minItems: 2
@@ -11816,7 +11999,12 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
-        '409': { $ref: '#/components/responses/Conflict' }
+        '409':
+          description: いずれかのペットの当日進行中予約が存在する場合は全体をロールバック。再読み込みして既存を再利用してください。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500': { $ref: '#/components/responses/InternalError' }
   /reservations/available-times:
     get:
@@ -11895,6 +12083,11 @@ paths:
     patch:
       operationId: updateReservation
       summary: 予約更新
+      description: |
+        飼主詳細からの当日受付では expected_updated_at に取得した updated_at をそのまま指定する。
+        指定時の変更は status=checked_in のみ許可。同じ医院・当日・confirmed・同じ更新時刻の
+        予約だけを原子的に受付し、並行する状態・日付・飼主・ペット等の変更は409で拒否する。
+        省略した通常更新・再受付の既存挙動は維持する。
       tags: [Reservations]
       parameters:
         - name: id
@@ -11908,7 +12101,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ReservationAppointment'
+              allOf:
+                - $ref: '#/components/schemas/ReservationAppointment'
+                - type: object
+                  properties:
+                    expected_updated_at:
+                      type: string
+                      format: date-time
+                      description: 当日 confirmed 予約を受付する際、取得した updated_at をそのまま指定する。status=checked_in のみ変更可能。
       responses:
         '200':
           description: 更新成功
@@ -11924,6 +12124,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: 予約の状態・更新時刻・当日日付が受付条件に一致しません。再読み込みしてください。
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
@@ -11976,6 +12178,131 @@ paths:
                 $ref: '#/components/schemas/ReservationAppointment'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /reservations/{id}/confirm-tentative:
+    post:
+      operationId: confirmTentativeReservation
+      summary: 次回予定（tentative）を本予約へ確定
+      description: |
+        EMR-308。tentative ステータスの予約のみ確定できる（他ステータスは 409）。
+        確定後は通常予約と同じ挙動になり、予約枠容量・時間枠競合の対象になる。
+      tags: [Reservations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmTentativeReservationRequest'
+      responses:
+        '200':
+          description: 確定した予約
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationAppointment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /reservations/pets/{petId}/next-visit-intent:
+    put:
+      operationId: setNextVisitIntent
+      summary: ペットの次回予定を登録/更新
+      description: |
+        EMR-308。ペットの次回予定（tentative appointment）を作成または更新する。
+        同一医院・同一ペットの active tentative は1件のみで、既存行があれば更新する。
+        tentative は予約枠容量・時間枠競合・通知の対象外。
+      tags: [Reservations]
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetNextVisitIntentRequest'
+      responses:
+        '200':
+          description: 作成または更新した tentative 予約
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationAppointment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: clearNextVisitIntent
+      summary: ペットの次回予定を除去
+      description: |
+        EMR-308。ペットの active tentative を論理削除する。
+        他ステータスの予約には触れない。管理画面の終了確認は表示した行IDと更新時刻を対で送る。
+        ロック取得後の active tentative が一致しない（削除・再作成・更新済みを含む）場合は409。
+        両方省略した従来の呼出しは対象不在でも冪等に204を返す。
+      tags: [Reservations]
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: expected_reservation_id
+          in: query
+          description: 終了確認に表示した予約ID。expected_updated_atと必ず対で指定する。
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+        - name: expected_updated_at
+          in: query
+          description: 表示行のupdated_atを小数秒精度を保持して送る（RFC3339Nano）。
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '204':
+          description: 除去成功（対象不在時も冪等）
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -12281,7 +12608,14 @@ paths:
       operationId: listHospitalizations
       summary: 入院一覧
       tags: [Hospitalizations]
+      description: snapshot=true はフィルタに一致する全入院と関連情報を同一の読み取り専用 REPEATABLE READ transaction で返す。最大10000件・DB処理10秒。省略・false時は従来のページ応答。
       parameters:
+        - name: snapshot
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: true時はpage/limitを適用せず一括snapshot（応答snapshot=true、data全件・total=件数）
         - name: page
           in: query
           schema:
@@ -12318,10 +12652,15 @@ paths:
                   - $ref: '#/components/schemas/PaginatedResponse'
                   - type: object
                     properties:
+                      snapshot:
+                        type: boolean
+                        description: snapshot=true要求が同一DB snapshotで完了した場合のみtrue。従来ページ応答では省略。
                       data:
                         type: array
                         items:
                           $ref: '#/components/schemas/Hospitalization'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -12360,6 +12699,75 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /hospitalizations/cage-swap:
+    post:
+      operationId: swapHospitalizationCages
+      summary: 入院ケージの入れ替え（単一トランザクション）
+      description: >-
+        2件の入院の cage_id を原子性を持って交換する。ボード DnD の入れ替え専用 —
+        2本の独立 PATCH では片方のみ commit され得るため本エンドポイントを使う。
+        expected_cage_ids は hospitalization_ids と同じ位置の入院の表示時 cage_id を指定する。
+        両入院の行ロック後に現在値と比較し、移動・割当解除による不一致は 409 で書込み前に拒否する。
+        連結ケージが絡む場合は通常の割当ガードが各移動に適用され、構成ケージ宛は 422、
+        占有グループ宛は 409 で両方ロールバックする。
+      tags: [Hospitalizations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hospitalization_ids, expected_cage_ids]
+              properties:
+                hospitalization_ids:
+                  type: array
+                  minItems: 2
+                  maxItems: 2
+                  items:
+                    type: integer
+                    format: int64
+                    minimum: 1
+                  description: ケージを交換する入院IDのペア（expected_cage_idsと同位置対応）
+                expected_cage_ids:
+                  type: array
+                  minItems: 2
+                  maxItems: 2
+                  items:
+                    type: integer
+                    format: int64
+                    minimum: 1
+                  description: hospitalization_idsと同じ順序の表示時ケージID。不一致は409。
+      responses:
+        '200':
+          description: 交換成功（交換後の2件を入力順で返す）
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [hospitalizations]
+                properties:
+                  hospitalizations:
+                    type: array
+                    minItems: 2
+                    maxItems: 2
+                    items:
+                      $ref: '#/components/schemas/Hospitalization'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
         '500':
           $ref: '#/components/responses/InternalError'
   /hospitalizations/{id}:
@@ -12421,6 +12829,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
@@ -14123,6 +14535,83 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
+  /trimmings/images/upload:
+    post:
+      operationId: uploadTrimmingImage
+      summary: トリミング画像アップロード
+      description: |
+        multipart/form-data。フォームフィールド名は `file`。
+        トリミング ID には紐づかない。認証済み医院で trimming の create または edit 権限が必要。
+        ファイル上限 10MiB、リクエスト上限 11MiB。拡張子・MIME・実バイトの content sniff を検証する。
+        共有の医院/スタッフアップロード枠をボディ解析前に確保する。
+        保存先は trimming-images/{clinic_id}/...。応答はオブジェクトキーと署名付き表示 URL（TTL 15 分）。
+      tags: [Trimmings]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: jpeg, png, gif。10MiB 以下。
+      responses:
+        '201':
+          description: アップロード成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrimmingImageUpload'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /trimmings/images:
+    delete:
+      operationId: deleteTrimmingImage
+      summary: トリミング画像オブジェクト削除（未保存アップロードの掃除）
+      description: |
+        フォーム放棄・置換でレコードに永続化されなかったアップロード済みオブジェクトを削除する。
+        ボディの `key` は自医院スコープ `trimming-images/{clinic_id}/...` のオブジェクトキーのみ受理
+        （/uploads/ ラップ形式も可）。レコード参照が残るキーは 409 で拒否する（fail-closed）。
+        永続化済みフィールドの削除は PATCH/DELETE の superseded 処理が担う。
+        trimming の create または edit 権限が必要。
+      tags: [Trimmings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [key]
+              properties:
+                key:
+                  type: string
+                  description: trimming-images/{clinic_id}/... のオブジェクトキー
+      responses:
+        '204':
+          description: 削除成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /trimmings/{id}:
     get:
       operationId: getTrimming
@@ -15714,6 +16203,36 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
+  /masters/cages/occupancy:
+    get:
+      operationId: getCageOccupancy
+      summary: 占有中ケージID一覧（連結ピッカー専用）
+      description: >-
+        未削除の admitted/reserved 入院が1件以上あるケージの ID を全件返す。
+        ケージ一時連結の選択肢判定専用の最小限データ — GET /hospitalizations は
+        hospitalization:view を要求するが、本エンドポイントは連結操作と同じ
+        master-hospitalization:edit 権限で提供される（ページングなし）。
+      tags: [Masters]
+      responses:
+        '200':
+          description: 占有中ケージID一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [occupied_cage_ids]
+                properties:
+                  occupied_cage_ids:
+                    type: array
+                    items:
+                      type: integer
+                      format: int64
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/cages/{id}:
     get:
       operationId: getCage
@@ -15795,6 +16314,90 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/cages/{id}/merge:
+    post:
+      operationId: mergeCage
+      summary: ケージ一時連結
+      description: |
+        代表ケージ `id` のもとに `member_cage_ids` で指定したケージを一時連結する。
+        グループは代表+構成の単一階層のみ（ネスト不可）。代表および全構成ケージが
+        同一医院・有効・未連結で、`admitted`/`reserved` の入院を持たない場合のみ連結できる。
+        連結中のケージは無効化・削除できず、解除（unmerge）してから行う。
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [member_cage_ids]
+              properties:
+                member_cage_ids:
+                  type: array
+                  minItems: 1
+                  maxItems: 32
+                  items:
+                    type: integer
+                    format: int64
+            example:
+              member_cage_ids: [12, 13]
+      responses:
+        '200':
+          description: 連結成功（代表ケージ）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/cages/{id}/unmerge:
+    post:
+      operationId: unmergeCage
+      summary: ケージ一時連結解除
+      description: |
+        代表ケージ `id` が率いる連結グループを解除し、全構成ケージの
+        `merged_into_cage_id` をクリアする。グループ内のいずれかのケージに
+        `admitted`/`reserved` の入院がある場合は解除できない（退院済み履歴のみは可）。
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 解除成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/medicines:

@@ -24,9 +24,10 @@ flowchart LR
 | ファイル | 対象 Issue | 読者 | 内容 | 必要な入力・受入 |
 |:---|:---|:---|:---|:---|
 | [DELIVERY_PACKAGE.md](DELIVERY_PACKAGE.md) | #258 | 先方管理者 | システム構成概要・管理者向け初期設定・運用手順 | U1–U12（契約・本番実測・窓口等） |
-| [OPERATION_MANUAL.md](OPERATION_MANUAL.md) | #256 | 現場スタッフ | 画面操作へのナビゲーション（詳細はシステム内マニュアルが正本） | U13 操作説明会・#254 FAQ/スクショ |
+| [OPERATION_MANUAL.md](OPERATION_MANUAL.md) | #256 | 現場スタッフ | 画面操作へのナビゲーション（詳細はシステム内マニュアルが正本） | U13 解消（2026-10-04 マニュアル代替決定・実施証跡記入は適用外）・#254 FAQ/スクショ |
 | [GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md) | #257 | 切替実施者 | 本番切替の前提チェック・当日タイムライン・切り戻し基準 | 切替前提・当日の承認と証跡 |
-| [trimming-history-copy-manual-text.md](trimming-history-copy-manual-text.md) | EMR-168 | 現場スタッフ | トリミング「前回カルテのコピー」操作説明の掲載用テキスト（システム内マニュアル `10-trimming.md` へ反映済み） | — |
+| [MIGRATION_SCOPE.md](MIGRATION_SCOPE.md) | EMR-338 | 先方管理者・医院責任者 | 旧カルテからの移行範囲（移行される・されない・医院が登録するもの）。第1版 2026-10-11 採用の現行文書 | MIG-25 の確定後に「確定待ち」の行を更新 |
+| — | EMR-168 | 現場スタッフ | トリミング「前回カルテのコピー」操作説明。**正本はシステム内マニュアル** `frontend/src/features/manual/content/screens/10-trimming.md`（「前回のカルテをコピーする（過去履歴の引用）」節）。（追記（2026-10-07 監査）: 掲載済みの凍結スナップショット `trimming-history-copy-manual-text.md` を本フォルダから削除。内容は git 履歴参照。凍結スナップショット禁止 — PRODUCT_PHILOSOPHY ②） | — |
 
 ## 関連する受入条件
 
@@ -45,7 +46,7 @@ Issue の OPEN/CLOSED は受入・本番稼働の証明ではない。未記入�
 | U7–U8 | 障害窓口・監視通知メール | DELIVERY_PACKAGE §3.2 / GOLIVE §5 |
 | U9–U11 | バックアップ実測・R2 方針・監査保持 | DELIVERY_PACKAGE §3.1 / §3.3 |
 | U12 | Production 構築完了証跡 | DELIVERY_PACKAGE §1.3 |
-| U13 | 操作説明会。**2026-08-20 棚卸し: 未完**（日程・receipt・署名は未記入） | OPERATION_MANUAL §10 |
+| U13 | 操作説明会。**実施不要（2026-10-04 マニュアル代替決定、Plane EMR-151）。実施証跡の記入は適用外**（2026-08-20 棚卸し当時は未完。決定前の記録は git 履歴） | OPERATION_MANUAL §10 |
 
 ## 外部証跡が必要な残件
 
@@ -57,5 +58,5 @@ Issue の OPEN/CLOSED は受入・本番稼働の証明ではない。未記入�
 - 現行インフラ構成の正本は [../ops/infra/architecture.md](../ops/infra/architecture.md)。環境 URL・デプロイは [../ops/deploy/README.md](../ops/deploy/README.md)。
 - DELIVERY_PACKAGE の管理者設定 path（`/settings/clinic`・`/settings/staff`・`/settings/permission-groups`・`/settings/closing-time` 等）は `frontend/src/config/paths.ts` と画面仕様書に一致させる。
 - 契約名義・本番バックアップ実測・障害窓口・LINE/Lステップ秘密・通知先メールは repo 外入力（**USER 入力待ち** 表）。秘密値は納品ドキュメントに書かない。
-- ログイン保護の正本は **IP レート制限（5 回 / 1 分）**。「失敗 5 回でアカウントロック」は誤記載（Q&A No.25 / #256）。
+- ログイン保護の正本は**二段レート制限（同一 IP 30 回 / 1 分 + 同一アカウント（メールアドレス）10 回 / 1 分・失敗のみカウント）**。「失敗 5 回でアカウントロック」は誤記載（Q&A No.25 / #256）。（追記（2026-10-07 監査）: 旧表記「IP レート制限（5 回 / 1 分）」を実装値へ訂正。数値の正本は [OPERATION_MANUAL.md §1](OPERATION_MANUAL.md)・`DefaultAuthRateLimitConfig`（`backend/internal/auth/http_types.go`: Login 30/min・LoginPerAccount 10/min））
 - 納品完了後、時点性の強い文書（GOLIVE_RUNBOOK）は役目を終えたら削除して git 履歴に残す（凍結スナップショットを残さない — PRODUCT_PHILOSOPHY ②）。

@@ -2,7 +2,8 @@
 
 > Current task status is tracked in Plane `EMR-200`. This local sheet preserves the route×operation
 > coverage matrix and the evidence pointers. See the [migration receipt](../plane-md-migration-20260923-receipt.md).
-> 索引の正本は [todo-verification.md](../../../todo.md#verification-ledger)、履歴は [bug.md](../../../bug.md#plan-note2-coverage)。
+> 索引の正本は [todo.md#verification-ledger](../../../todo.md#verification-ledger)、履歴は `bug.md#plan-note2-coverage`（履歴参照。リンク化しない）。
+> 2026-10-06 注記: 上記・本文の `bug.md#plan-note2-coverage` リンクは歴史参照。`bug.md` は 2026-09-27 の台帳整理で 0 バイトの残存文件となっており、アンカーは現行では解決しない（内容は git 履歴。docs/work/README.md の「削除済み docs」参照）。
 
 - campaign: `emr-200-note2-coverage` revision 2
 - unit: `NOTE2-SWEEP-COVERAGE`（Plane `EMR-200`）
@@ -12,7 +13,7 @@
 
 ## 目的とスコープ
 
-[bug.md#plan-note2-coverage](../../../bug.md#plan-note2-coverage) の `NOTE2-SWEEP-COVERAGE` を
+`bug.md#plan-note2-coverage`（上記注記の履歴参照）の `NOTE2-SWEEP-COVERAGE` を
 現行 route inventory と突合し、**未確認だった detail・入院・検査・カルテ/健診の route×operation** を
 1 行ずつ「fixture 必須項目 / 操作 / 期待結果 / 証拠 / 判定」で固定する。
 

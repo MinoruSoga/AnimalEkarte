@@ -53,7 +53,6 @@ export const transformMedicalRecord = (record: MedicalRecordResponse) => {
     chiefComplaintTypeId: record.inquiry?.chief_complaint_type_id ?? null,
     doctor: record.doctor?.name ?? String(record.doctor_id ?? ""),
     visitType: toVisitTypeLabel(record.visit_type),
-    nextVisitRecommendedDate: record.next_visit_recommended_date ?? "",
     subjective: undefined as string | undefined,
     objective: undefined as string | undefined,
     assessment: undefined as string | undefined,

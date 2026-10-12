@@ -149,7 +149,7 @@ Owner: clinical_plan PATCH child resource. The parent medical-record and inquiry
 | hospitalization_type   | R   | enum      | 既定「入院」 F0 F4            |
 | start_date             | R   | date      | 既定当日 F1 F4                |
 | end_date               | O   | date      | F4 F5                         |
-| cage_id                | R   | select FK | BUG-037 F1 F4 C3-1            |
+| cage_id                | O   | select FK | EMR-316 選択なし可 F4         |
 | owner_request          | O   | text      | 一覧主訴列 F4 F5              |
 | doctor_id              | O   | select    | F4                            |
 | memo                   | O   | text      | F4 F5                         |
@@ -170,7 +170,7 @@ Owner: clinical_plan PATCH child resource. The parent medical-record and inquiry
 
 ### trimming-form — [V01 §12](V01-clinical-forms.md)
 
-保存 request は `frontend/src/features/trimming/hooks/trimming-form-utils.ts`。`record_shortcut` の時刻は現在時刻の秒・ミリ秒から生成される。画像の UI preview は存在するが、下記 create/update builder に画像キーは含まれないため、画像の永続化経路は coverage gap として別に追跡する。
+保存 request は `frontend/src/features/trimming/hooks/trimming-form-utils.ts`。`record_shortcut` の時刻は現在時刻の秒・ミリ秒から生成される。画像は選択直後に `uploadTrimmingImage`（`POST /api/v1/trimmings/images/upload`）で object key を取得し、create/update builder が `style_image` / `completed_image` として同一 POST/PATCH body に含めて永続化する（下表「画像保存経路」行）。
 
 | fieldKey | R/O | F 重点 |
 |:--|:--|:--|
@@ -191,7 +191,7 @@ Owner: clinical_plan PATCH child resource. The parent medical-record and inquiry
 | used_shampoo | O | 使用シャンプー F4 F5 |
 | used_ribbon | O | 使用リボン F4 F5 |
 | remarks | O | 備考 F4 F5 |
-| （画像保存経路） | — | wire key は `style_image` / `completed_image`（string≤2048・同一 POST/PATCH body）で確定済み。ただし FE は File を preview のみに使い upload 手段が存在せず送信されないため永続化 PASS には数えない（既知 gap、[17-trimming-form.md](../../../spec/screens/17-trimming-form.md)） |
+| （画像保存経路） | `uploadTrimmingImage` → `buildCreateTrimmingRequest` / `buildUpdateTrimmingRequest` | `style_image` / `completed_image`（string≤2048）を同一 POST/PATCH body で永続化する。選択直後に `POST /api/v1/trimmings/images/upload` し、保存するのは object key。署名 URL は表示専用。未変更の再保存ではフィールドを省き、削除は空文字（[17-trimming-form.md](../../../spec/screens/17-trimming-form.md)） |
 
 ---
 
@@ -1017,5 +1017,5 @@ api.yaml の write endpoint のうち FE 実装が無いもの。実装 PR で�
 - [ ] 新規永続フォーム → 本ファイルに formId + fieldKey 追加 + 該当 V に § 追加
 - [ ] 既存フォームに項目追加 → fieldKey 行追加
 - [ ] 必須/境界変更 → R/O と F 重点を更新
-- [ ] route inventory は 87 product leaves（2026-09-29 に `/settings/bug-reports` 追加）。page 数と unique persistent form 数を混同しない
+- [ ] route inventory は 88 product leaves（正本: `route-inventory.test.tsx`。2026-09-29 に `/settings/bug-reports` 追加、後に `/settings/chat-history` 追加）。page 数と unique persistent form 数を混同しない
 - [ ] wildcard / UI 全項目 / 動的 placeholder が残る間は inventory incomplete とし、全フォーム完了や総数を主張しない

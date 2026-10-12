@@ -2,8 +2,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
-import { transformReservation } from "@/lib/transforms/reservation";
-import type { Reservation, ReservationRoute } from "@/lib/transforms/reservation";
+import { transformReservationWithIntent, type Reservation } from "./reservation-intent-response";
+import type { ReservationRoute } from "@/lib/transforms/reservation";
 import type { Reservation as BackendReservation } from "@/types/generated/models";
 
 /**
@@ -11,6 +11,8 @@ import type { Reservation as BackendReservation } from "@/types/generated/models
  * models.ts の Appointment から導出
  */
 export interface CreateReservationRequest {
+  /** Opt in only for the same-day existing-patient reception shortcut. */
+  prevent_duplicate_reception?: boolean;
   pet_id: number;
   owner_id: number;
   doctor_id?: number;
@@ -34,14 +36,14 @@ interface CreateReservationBatchRequest extends Omit<
 
 const createReservation = async (req: CreateReservationRequest): Promise<Reservation> => {
   const { data } = await axios.post<BackendReservation>("/v1/reservations", req);
-  return transformReservation(data);
+  return transformReservationWithIntent(data);
 };
 
 const createReservationBatch = async (
   req: CreateReservationBatchRequest,
 ): Promise<Reservation[]> => {
   const { data } = await axios.post<BackendReservation[]>("/v1/reservations/batch", req);
-  return data.map(transformReservation);
+  return data.map(transformReservationWithIntent);
 };
 
 /**

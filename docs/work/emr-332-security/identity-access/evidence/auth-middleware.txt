@@ -1,0 +1,200 @@
+=== RUN   TestAuth_HealthyRequestUsesOnlyCurrentAccessState
+--- PASS: TestAuth_HealthyRequestUsesOnlyCurrentAccessState (0.00s)
+=== RUN   TestAuth_FailsClosedWhenTokenVerifierReturnsNilClaims
+--- PASS: TestAuth_FailsClosedWhenTokenVerifierReturnsNilClaims (0.00s)
+=== RUN   TestAuth_FailsClosedWhenTokenVerifierIsMissing
+2026/10/08 21:55:35 ERROR access token validation unavailable: token service is not configured
+--- PASS: TestAuth_FailsClosedWhenTokenVerifierIsMissing (0.00s)
+=== RUN   TestAuth_RejectsRemovedDefaultAndHeaderClinicAssignments
+=== RUN   TestAuth_RejectsRemovedDefaultAndHeaderClinicAssignments/removed_signed_default_clinic
+=== RUN   TestAuth_RejectsRemovedDefaultAndHeaderClinicAssignments/removed_header_clinic
+=== RUN   TestAuth_RejectsRemovedDefaultAndHeaderClinicAssignments/regular_staff_has_no_active_assignments
+--- PASS: TestAuth_RejectsRemovedDefaultAndHeaderClinicAssignments (0.00s)
+    --- PASS: TestAuth_RejectsRemovedDefaultAndHeaderClinicAssignments/removed_signed_default_clinic (0.00s)
+    --- PASS: TestAuth_RejectsRemovedDefaultAndHeaderClinicAssignments/removed_header_clinic (0.00s)
+    --- PASS: TestAuth_RejectsRemovedDefaultAndHeaderClinicAssignments/regular_staff_has_no_active_assignments (0.00s)
+=== RUN   TestAuth_RegularStaffRejectsInactiveCurrentClinic
+=== RUN   TestAuth_RegularStaffRejectsInactiveCurrentClinic/stale_signed_default_falls_back_to_live_main_clinic
+=== RUN   TestAuth_RegularStaffRejectsInactiveCurrentClinic/inactive_header_clinic_is_rejected
+=== RUN   TestAuth_RegularStaffRejectsInactiveCurrentClinic/active_header_clinic_is_accepted
+--- PASS: TestAuth_RegularStaffRejectsInactiveCurrentClinic (0.00s)
+    --- PASS: TestAuth_RegularStaffRejectsInactiveCurrentClinic/stale_signed_default_falls_back_to_live_main_clinic (0.00s)
+    --- PASS: TestAuth_RegularStaffRejectsInactiveCurrentClinic/inactive_header_clinic_is_rejected (0.00s)
+    --- PASS: TestAuth_RegularStaffRejectsInactiveCurrentClinic/active_header_clinic_is_accepted (0.00s)
+=== RUN   TestAuth_CurrentAdminStateControlsGlobalBypass
+=== RUN   TestAuth_CurrentAdminStateControlsGlobalBypass/admin_demotion_removes_stale_global_bypass
+=== RUN   TestAuth_CurrentAdminStateControlsGlobalBypass/current_admin_cannot_select_a_clinic_outside_current_active_authority
+=== RUN   TestAuth_CurrentAdminStateControlsGlobalBypass/current_admin_can_select_a_clinic_in_current_active_authority
+=== RUN   TestAuth_CurrentAdminStateControlsGlobalBypass/current_admin_cannot_select_zero_clinic
+--- PASS: TestAuth_CurrentAdminStateControlsGlobalBypass (0.00s)
+    --- PASS: TestAuth_CurrentAdminStateControlsGlobalBypass/admin_demotion_removes_stale_global_bypass (0.00s)
+    --- PASS: TestAuth_CurrentAdminStateControlsGlobalBypass/current_admin_cannot_select_a_clinic_outside_current_active_authority (0.00s)
+    --- PASS: TestAuth_CurrentAdminStateControlsGlobalBypass/current_admin_can_select_a_clinic_in_current_active_authority (0.00s)
+    --- PASS: TestAuth_CurrentAdminStateControlsGlobalBypass/current_admin_cannot_select_zero_clinic (0.00s)
+=== RUN   TestAuth_CurrentSystemAdminClinicIdentityReplacesStaleTokenDefault
+--- PASS: TestAuth_CurrentSystemAdminClinicIdentityReplacesStaleTokenDefault (0.00s)
+=== RUN   TestAuth_FirstSystemAdminClinicOverrideIsAudited
+--- PASS: TestAuth_FirstSystemAdminClinicOverrideIsAudited (0.00s)
+=== RUN   TestAuth_PO005SystemAdminFallbackFailsClosed
+=== RUN   TestAuth_PO005SystemAdminFallbackFailsClosed/denies_signed_active_clinic_scope_on_temporary_staff_lookup
+2026/10/08 21:55:35 WARN failed to verify staff validity; denying request (fail-closed) staff_id=123 error="driver: bad connection"
+=== RUN   TestAuth_PO005SystemAdminFallbackFailsClosed/denies_arbitrary_global_clinic_on_temporary_staff_lookup
+2026/10/08 21:55:35 WARN failed to verify staff validity; denying request (fail-closed) staff_id=123 error="driver: bad connection"
+--- PASS: TestAuth_PO005SystemAdminFallbackFailsClosed (0.00s)
+    --- PASS: TestAuth_PO005SystemAdminFallbackFailsClosed/denies_signed_active_clinic_scope_on_temporary_staff_lookup (0.00s)
+    --- PASS: TestAuth_PO005SystemAdminFallbackFailsClosed/denies_arbitrary_global_clinic_on_temporary_staff_lookup (0.00s)
+=== RUN   TestAuth_RejectsAccountEpochMismatchAndResolverFailure
+=== RUN   TestAuth_RejectsAccountEpochMismatchAndResolverFailure/epoch_mismatch_invalidates_signed_access_token
+=== RUN   TestAuth_RejectsAccountEpochMismatchAndResolverFailure/missing_epoch_without_bounded_legacy_timestamps_is_rejected_before_resolution
+=== RUN   TestAuth_RejectsAccountEpochMismatchAndResolverFailure/bounded_legacy_token_continues_when_account_has_not_changed
+=== RUN   TestAuth_RejectsAccountEpochMismatchAndResolverFailure/bounded_legacy_token_is_rejected_after_account_mutation
+=== RUN   TestAuth_RejectsAccountEpochMismatchAndResolverFailure/account_or_assignment_resolution_error_fails_closed
+2026/10/08 21:55:35 ERROR current access validation failed closed staff_id=123 error="current access unavailable"
+--- PASS: TestAuth_RejectsAccountEpochMismatchAndResolverFailure (0.00s)
+    --- PASS: TestAuth_RejectsAccountEpochMismatchAndResolverFailure/epoch_mismatch_invalidates_signed_access_token (0.00s)
+    --- PASS: TestAuth_RejectsAccountEpochMismatchAndResolverFailure/missing_epoch_without_bounded_legacy_timestamps_is_rejected_before_resolution (0.00s)
+    --- PASS: TestAuth_RejectsAccountEpochMismatchAndResolverFailure/bounded_legacy_token_continues_when_account_has_not_changed (0.00s)
+    --- PASS: TestAuth_RejectsAccountEpochMismatchAndResolverFailure/bounded_legacy_token_is_rejected_after_account_mutation (0.00s)
+    --- PASS: TestAuth_RejectsAccountEpochMismatchAndResolverFailure/account_or_assignment_resolution_error_fails_closed (0.00s)
+=== RUN   TestAuth_AccountAndAssignmentFailuresNeverUsePO005
+=== RUN   TestAuth_AccountAndAssignmentFailuresNeverUsePO005/temporary_account_read_error
+2026/10/08 21:55:35 ERROR current access validation failed closed staff_id=123 error="failed to resolve linked account: driver: bad connection"
+=== RUN   TestAuth_AccountAndAssignmentFailuresNeverUsePO005/temporary_assignment_read_error
+2026/10/08 21:55:35 ERROR current access validation failed closed staff_id=123 error="failed to resolve current clinic assignments: driver: bad connection"
+--- PASS: TestAuth_AccountAndAssignmentFailuresNeverUsePO005 (0.00s)
+    --- PASS: TestAuth_AccountAndAssignmentFailuresNeverUsePO005/temporary_account_read_error (0.00s)
+    --- PASS: TestAuth_AccountAndAssignmentFailuresNeverUsePO005/temporary_assignment_read_error (0.00s)
+=== RUN   TestAuth
+=== RUN   TestAuth/missing_Authorization_header_returns_401
+=== RUN   TestAuth/malformed_header_without_Bearer_scheme_returns_401
+=== RUN   TestAuth/invalid_token_string_returns_401
+=== RUN   TestAuth/expired_token_returns_401
+=== RUN   TestAuth/token_signed_with_HS384_is_rejected
+=== RUN   TestAuth/token_signed_with_wrong_secret_returns_401
+=== RUN   TestAuth/valid_HS256_token_passes_through_with_correct_context_values
+=== RUN   TestAuth/Bearer_scheme_is_case-insensitive
+--- PASS: TestAuth (0.00s)
+    --- PASS: TestAuth/missing_Authorization_header_returns_401 (0.00s)
+    --- PASS: TestAuth/malformed_header_without_Bearer_scheme_returns_401 (0.00s)
+    --- PASS: TestAuth/invalid_token_string_returns_401 (0.00s)
+    --- PASS: TestAuth/expired_token_returns_401 (0.00s)
+    --- PASS: TestAuth/token_signed_with_HS384_is_rejected (0.00s)
+    --- PASS: TestAuth/token_signed_with_wrong_secret_returns_401 (0.00s)
+    --- PASS: TestAuth/valid_HS256_token_passes_through_with_correct_context_values (0.00s)
+    --- PASS: TestAuth/Bearer_scheme_is_case-insensitive (0.00s)
+=== RUN   TestAuth_ClinicSwitch_AuditLog
+=== RUN   TestAuth_ClinicSwitch_AuditLog/logs_clinic_switch_when_prev_cookie_differs_from_header
+=== RUN   TestAuth_ClinicSwitch_AuditLog/skips_audit_when_prev_cookie_matches_header
+=== RUN   TestAuth_ClinicSwitch_AuditLog/skips_audit_on_first_access_(no_prev_cookie),_sets_cookie
+=== RUN   TestAuth_ClinicSwitch_AuditLog/skips_audit_when_no_X-Clinic-ID_header
+=== RUN   TestAuth_ClinicSwitch_AuditLog/continues_request_even_when_audit_fails_(best-effort)
+2026/10/08 21:55:35 ERROR failed to write clinic switch audit (best-effort) error="db down"
+--- PASS: TestAuth_ClinicSwitch_AuditLog (0.00s)
+    --- PASS: TestAuth_ClinicSwitch_AuditLog/logs_clinic_switch_when_prev_cookie_differs_from_header (0.00s)
+    --- PASS: TestAuth_ClinicSwitch_AuditLog/skips_audit_when_prev_cookie_matches_header (0.00s)
+    --- PASS: TestAuth_ClinicSwitch_AuditLog/skips_audit_on_first_access_(no_prev_cookie),_sets_cookie (0.00s)
+    --- PASS: TestAuth_ClinicSwitch_AuditLog/skips_audit_when_no_X-Clinic-ID_header (0.00s)
+    --- PASS: TestAuth_ClinicSwitch_AuditLog/continues_request_even_when_audit_fails_(best-effort) (0.00s)
+=== RUN   TestAuth_AccessTokenCookie
+--- PASS: TestAuth_AccessTokenCookie (0.00s)
+=== RUN   TestAuth_AuthTokenCookieFallback
+--- PASS: TestAuth_AuthTokenCookieFallback (0.00s)
+=== RUN   TestAuth_SigningMethodMismatch
+--- PASS: TestAuth_SigningMethodMismatch (0.00s)
+=== RUN   TestAuth_InvalidClinicIDHeader
+--- PASS: TestAuth_InvalidClinicIDHeader (0.00s)
+=== RUN   TestAuth_NotAssignedClinicIDHeader
+--- PASS: TestAuth_NotAssignedClinicIDHeader (0.00s)
+=== RUN   TestAuth_StaffValidation
+=== RUN   TestAuth_StaffValidation/allows_active_staff_without_notification
+=== RUN   TestAuth_StaffValidation/blocks_inactive_staff_without_notification
+=== RUN   TestAuth_StaffValidation/blocks_missing_staff_without_notification
+=== RUN   TestAuth_StaffValidation/notifies_exactly_once_and_denies_for_bad_database_connection
+2026/10/08 21:55:35 WARN failed to verify staff validity; denying request (fail-closed) staff_id=123 error="driver: bad connection"
+=== RUN   TestAuth_StaffValidation/denies_when_temporary_failure_notification_fails
+2026/10/08 21:55:35 WARN failed to verify staff validity; denying request (fail-closed) staff_id=123 error="driver: bad connection"
+2026/10/08 21:55:35 ERROR failed to notify staff validation failure (non-fatal) staff_id=123 error="notifier unavailable"
+=== RUN   TestAuth_StaffValidation/notifies_and_denies_for_PostgreSQL_cannot-connect-now
+2026/10/08 21:55:35 WARN failed to verify staff validity; denying request (fail-closed) staff_id=123 error=": cannot connect now (SQLSTATE 57P03)"
+=== RUN   TestAuth_StaffValidation/not_found_fails_closed_without_notification
+=== RUN   TestAuth_StaffValidation/generic_repository_error_fails_closed_without_notification
+2026/10/08 21:55:35 ERROR current access validation failed closed staff_id=123 error="failed to resolve current staff: unexpected staff repository error"
+=== RUN   TestAuth_StaffValidation/PostgreSQL_programming_error_fails_closed_without_notification
+2026/10/08 21:55:35 ERROR current access validation failed closed staff_id=123 error="failed to resolve current staff: : syntax error (SQLSTATE 42601)"
+=== RUN   TestAuth_StaffValidation/legacy_Auth_fails_closed_without_a_notifier_for_temporary_storage_error
+2026/10/08 21:55:35 WARN failed to verify staff validity; denying request (fail-closed) staff_id=123 error="driver: bad connection"
+--- PASS: TestAuth_StaffValidation (0.00s)
+    --- PASS: TestAuth_StaffValidation/allows_active_staff_without_notification (0.00s)
+    --- PASS: TestAuth_StaffValidation/blocks_inactive_staff_without_notification (0.00s)
+    --- PASS: TestAuth_StaffValidation/blocks_missing_staff_without_notification (0.00s)
+    --- PASS: TestAuth_StaffValidation/notifies_exactly_once_and_denies_for_bad_database_connection (0.00s)
+    --- PASS: TestAuth_StaffValidation/denies_when_temporary_failure_notification_fails (0.00s)
+    --- PASS: TestAuth_StaffValidation/notifies_and_denies_for_PostgreSQL_cannot-connect-now (0.00s)
+    --- PASS: TestAuth_StaffValidation/not_found_fails_closed_without_notification (0.00s)
+    --- PASS: TestAuth_StaffValidation/generic_repository_error_fails_closed_without_notification (0.00s)
+    --- PASS: TestAuth_StaffValidation/PostgreSQL_programming_error_fails_closed_without_notification (0.00s)
+    --- PASS: TestAuth_StaffValidation/legacy_Auth_fails_closed_without_a_notifier_for_temporary_storage_error (0.00s)
+=== RUN   TestAuth_StaffValidationConfigurationFailsClosed
+=== RUN   TestAuth_StaffValidationConfigurationFailsClosed/nil_staff_validator_is_unavailable
+2026/10/08 21:55:35 ERROR current access validation unavailable: resolver is not configured staff_id=123
+=== RUN   TestAuth_StaffValidationConfigurationFailsClosed/malformed_staff_id_is_unauthorized
+--- PASS: TestAuth_StaffValidationConfigurationFailsClosed (0.00s)
+    --- PASS: TestAuth_StaffValidationConfigurationFailsClosed/nil_staff_validator_is_unavailable (0.00s)
+    --- PASS: TestAuth_StaffValidationConfigurationFailsClosed/malformed_staff_id_is_unauthorized (0.00s)
+=== RUN   TestAuth_RejectsRefreshTokenSubject
+--- PASS: TestAuth_RejectsRefreshTokenSubject (0.00s)
+=== RUN   TestLiffAuth
+=== RUN   TestLiffAuth/Authorizationヘッダなし_→_401
+=== RUN   TestLiffAuth/Bearer形式でないトークン_→_401
+=== RUN   TestLiffAuth/Bearerのみでトークンなし_→_401
+=== RUN   TestLiffAuth/clinicId_が数値でない_→_400
+=== RUN   TestLiffAuth/clinicId_がゼロ_→_400
+=== RUN   TestLiffAuth/設定取得失敗（DBエラー）→_500
+=== RUN   TestLiffAuth/LiffID未設定（LINE予約未構成）→_503
+=== RUN   TestLiffAuth/LINE_API_がエラーを返す_→_401
+2026/10/08 21:55:35 WARN invalid LINE ID token error="line verify error: The ID token is invalid"
+=== RUN   TestLiffAuth/LINE_API_が_Sub_空文字を返す_→_401
+2026/10/08 21:55:35 WARN invalid LINE ID token error="empty line user id from token: invalid input"
+=== RUN   TestLiffAuth/顧客の取得/作成失敗_→_500
+=== RUN   TestLiffAuth/正常系:_コンテキストに顧客情報をセット_→_200
+--- PASS: TestLiffAuth (0.01s)
+    --- PASS: TestLiffAuth/Authorizationヘッダなし_→_401 (0.00s)
+    --- PASS: TestLiffAuth/Bearer形式でないトークン_→_401 (0.00s)
+    --- PASS: TestLiffAuth/Bearerのみでトークンなし_→_401 (0.00s)
+    --- PASS: TestLiffAuth/clinicId_が数値でない_→_400 (0.00s)
+    --- PASS: TestLiffAuth/clinicId_がゼロ_→_400 (0.00s)
+    --- PASS: TestLiffAuth/設定取得失敗（DBエラー）→_500 (0.00s)
+    --- PASS: TestLiffAuth/LiffID未設定（LINE予約未構成）→_503 (0.00s)
+    --- PASS: TestLiffAuth/LINE_API_がエラーを返す_→_401 (0.01s)
+    --- PASS: TestLiffAuth/LINE_API_が_Sub_空文字を返す_→_401 (0.00s)
+    --- PASS: TestLiffAuth/顧客の取得/作成失敗_→_500 (0.00s)
+    --- PASS: TestLiffAuth/正常系:_コンテキストに顧客情報をセット_→_200 (0.00s)
+=== RUN   TestVerifyLiffIDToken
+=== RUN   TestVerifyLiffIDToken/LINE_APIが正常レスポンスを返す
+=== RUN   TestVerifyLiffIDToken/LINE_APIがエラーフィールドを返す
+=== RUN   TestVerifyLiffIDToken/Subフィールドがemptyのとき_InvalidInput
+=== RUN   TestVerifyLiffIDToken/モックサーバーが不正なJSONを返す
+=== RUN   TestVerifyLiffIDToken/サーバーに接続不可のとき_error
+--- PASS: TestVerifyLiffIDToken (0.00s)
+    --- PASS: TestVerifyLiffIDToken/LINE_APIが正常レスポンスを返す (0.00s)
+    --- PASS: TestVerifyLiffIDToken/LINE_APIがエラーフィールドを返す (0.00s)
+    --- PASS: TestVerifyLiffIDToken/Subフィールドがemptyのとき_InvalidInput (0.00s)
+    --- PASS: TestVerifyLiffIDToken/モックサーバーが不正なJSONを返す (0.00s)
+    --- PASS: TestVerifyLiffIDToken/サーバーに接続不可のとき_error (0.00s)
+=== RUN   TestLiffChannelIDExtraction
+--- PASS: TestLiffChannelIDExtraction (0.00s)
+=== RUN   TestExtractLiffCustomerID
+=== RUN   TestExtractLiffCustomerID/存在する場合は取得できる
+=== RUN   TestExtractLiffCustomerID/存在しない場合は_(0,_false)
+--- PASS: TestExtractLiffCustomerID (0.00s)
+    --- PASS: TestExtractLiffCustomerID/存在する場合は取得できる (0.00s)
+    --- PASS: TestExtractLiffCustomerID/存在しない場合は_(0,_false) (0.00s)
+=== RUN   TestLiffAuth_MockModeBypassesWithoutAuthorization
+--- PASS: TestLiffAuth_MockModeBypassesWithoutAuthorization (0.00s)
+=== RUN   TestLiffAuth_MockModeLookupFailureIsFailClosed
+2026/10/08 21:55:35 ERROR LIFF_MOCK customer lookup failed error="db unavailable" clinic_id=3
+--- PASS: TestLiffAuth_MockModeLookupFailureIsFailClosed (0.00s)
+=== RUN   TestLiffAuth_MockModeInvalidClinicID
+--- PASS: TestLiffAuth_MockModeInvalidClinicID (0.00s)
+PASS
+ok  	github.com/animal-ekarte/backend/internal/middleware	0.019s

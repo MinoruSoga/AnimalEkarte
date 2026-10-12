@@ -96,3 +96,12 @@ type liffTrimmingDetailRepo interface {
 type liffVaccinationRepo interface {
 	FindByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Vaccination, error)
 }
+
+// NextVisitTagSyncer は EMR-308 の次回来院タグ（next_visit_YYYY-MM-DD）を
+// appointment 状態から再同期する cross-domain view。reservation は lstep
+// （topo 最下流）を import できないため、composition root が lstep の
+// TagSync 実装を注入する。nil 許容・best-effort: 未注入や同期失敗は
+// 予約変更容易点の成否に影響しない。
+type NextVisitTagSyncer interface {
+	SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error
+}

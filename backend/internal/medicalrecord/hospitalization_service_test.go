@@ -364,9 +364,26 @@ func TestHospitalizationService_Create(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:     "rejects missing cage_id without persisting (BUG-037)",
+			// EMR-316: BUG-037 の必須化を撤回。cage_id 未指定は「ケージ未割当」(NULL) として保存する。
+			name:     "persists cageless hospitalization when cage_id is nil (EMR-316)",
 			clinicID: 1,
 			input: &CreateHospitalizationInput{
+				OwnerID:             2,
+				PetID:               5,
+				HospitalizationType: model.HospitalizationTypeInpatient,
+				StartDate:           now,
+				EndDate:             now.Add(24 * time.Hour),
+				Status:              model.HospitalizationStatusAdmitted,
+			},
+			repoErr:    nil,
+			wantErr:    false,
+			wantStatus: model.HospitalizationStatusAdmitted,
+		},
+		{
+			name:     "rejects cage_id 0 without persisting (EMR-316)",
+			clinicID: 1,
+			input: &CreateHospitalizationInput{
+				CageID:              func() *uint64 { v := uint64(0); return &v }(),
 				OwnerID:             2,
 				PetID:               5,
 				HospitalizationType: model.HospitalizationTypeInpatient,
@@ -405,7 +422,7 @@ func TestHospitalizationService_Create(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, hosp)
-				if tt.name == "rejects missing cage_id without persisting (BUG-037)" {
+				if tt.name == "rejects cage_id 0 without persisting (EMR-316)" {
 					assert.Equal(t, 0, createCalls)
 					assert.True(t, apperrors.IsInvalidInput(err))
 				}
@@ -415,6 +432,10 @@ func TestHospitalizationService_Create(t *testing.T) {
 				require.NotNil(t, created)
 				assert.Equal(t, tt.wantStatus, created.Status)
 				assert.Equal(t, tt.wantStatus, hosp.Status)
+				if tt.name == "persists cageless hospitalization when cage_id is nil (EMR-316)" {
+					assert.Equal(t, 1, createCalls)
+					assert.Nil(t, created.CageID, "cageless create must persist cage_id as NULL")
+				}
 			}
 		})
 	}
@@ -940,6 +961,242 @@ func TestBuildHospitalizationUpdate_BasicFields(t *testing.T) {
 func TestBuildHospitalizationUpdate_EmptyInput(t *testing.T) {
 	fields := buildHospitalizationUpdate(&UpdateHospitalizationInput{})
 	assert.Empty(t, fields)
+}
+
+// EMR-316: 「選択なし」への更新は clear_cage_id で cage_id を NULL にする（省略は変更なし）。
+func TestBuildHospitalizationUpdate_ClearCageID(t *testing.T) {
+	fields := buildHospitalizationUpdate(&UpdateHospitalizationInput{ClearCageID: true})
+
+	val, ok := fields["cage_id"]
+	assert.True(t, ok, "clear_cage_id must put cage_id into the update set")
+	assert.Nil(t, val, "clear_cage_id must set cage_id to NULL")
+}
+
+func TestBuildHospitalizationUpdate_SetCageIDAndOmitKeepsCage(t *testing.T) {
+	cageID := uint64(3)
+
+	set := buildHospitalizationUpdate(&UpdateHospitalizationInput{CageID: &cageID})
+	assert.Equal(t, cageID, set["cage_id"])
+
+	omitted := buildHospitalizationUpdate(&UpdateHospitalizationInput{})
+	_, has := omitted["cage_id"]
+	assert.False(t, has, "omitting cage_id must leave the column untouched")
+}
+
+func TestHospitalizationService_Update_RejectsClearAndSetCageID(t *testing.T) {
+	cageID := uint64(3)
+	svc := NewHospitalizationService(&mockHospitalizationRepository{}, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+
+	hosp, err := svc.Update(context.Background(), 1, 1, &UpdateHospitalizationInput{ClearCageID: true, CageID: &cageID})
+
+	assert.Nil(t, hosp)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
+func TestHospitalizationService_Update_ClearCageRequiresExpectedCageID(t *testing.T) {
+	svc := NewHospitalizationService(&mockHospitalizationRepository{}, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+
+	hosp, err := svc.Update(context.Background(), 1, 1, &UpdateHospitalizationInput{ClearCageID: true})
+	assert.Nil(t, hosp)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+
+	zero := uint64(0)
+	hosp, err = svc.Update(context.Background(), 1, 1, &UpdateHospitalizationInput{ClearCageID: true, ExpectedCageID: &zero})
+	assert.Nil(t, hosp)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
+func TestHospitalizationService_Update_ClearCageStaleExpectationConflicts(t *testing.T) {
+	expected := uint64(10)
+	tests := []struct {
+		name        string
+		lockedCage  *uint64
+		wantUpdated bool
+	}{
+		{name: "locked cage reassigned since the form was displayed", lockedCage: ptrUint64(11)},
+		{name: "locked cage already cleared", lockedCage: nil},
+		{name: "locked cage matches the displayed cage", lockedCage: ptrUint64(10), wantUpdated: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			now := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
+			existing := &model.Hospitalization{
+				ID: 1, ClinicID: 1, Status: model.HospitalizationStatusAdmitted,
+				CageID: tt.lockedCage, StartDate: now, EndDate: now.AddDate(0, 0, 1),
+			}
+			updated := false
+			hospRepo := &mockHospitalizationRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) { return existing, nil },
+				updateFieldsFn: func(_ context.Context, _, _ uint64, cmd UpdateHospitalizationInput) (*model.Hospitalization, error) {
+					updated = true
+					result := *existing
+					result.CageID = nil
+					return &result, nil
+				},
+			}
+			svc := NewHospitalizationService(hospRepo, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+
+			got, err := svc.Update(context.Background(), 1, 1, &UpdateHospitalizationInput{ClearCageID: true, ExpectedCageID: &expected})
+
+			if tt.wantUpdated {
+				require.NoError(t, err)
+				require.NotNil(t, got)
+				assert.True(t, updated)
+				assert.Nil(t, got.CageID)
+			} else {
+				require.Error(t, err)
+				assert.Nil(t, got)
+				assert.True(t, apperrors.IsConflict(err), "stale expected_cage_id must be a conflict: %v", err)
+				assert.False(t, updated, "conflict must not write")
+			}
+		})
+	}
+}
+
+func TestHospitalizationService_Update_CageCompareAndSet(t *testing.T) {
+	cage10, cage11, cage12 := uint64(10), uint64(11), uint64(12)
+	memo := "memo"
+	tests := []struct {
+		name             string
+		lockedCage       *uint64
+		input            *UpdateHospitalizationInput
+		wantUpdated      bool
+		wantConflict     bool
+		wantInvalidInput bool
+	}{
+		{name: "null to cage12 succeeds with expected_null", lockedCage: nil,
+			input: &UpdateHospitalizationInput{CageID: &cage12, ExpectedCageIsNull: true}, wantUpdated: true},
+		{name: "cage10 to cage12 succeeds with matching expected", lockedCage: &cage10,
+			input: &UpdateHospitalizationInput{CageID: &cage12, ExpectedCageID: &cage10}, wantUpdated: true},
+		{name: "stale expected cage10 vs locked cage11 rejects cage12", lockedCage: &cage11,
+			input: &UpdateHospitalizationInput{CageID: &cage12, ExpectedCageID: &cage10}, wantConflict: true},
+		{name: "expected_null against locked cage10 rejects cage12", lockedCage: &cage10,
+			input: &UpdateHospitalizationInput{CageID: &cage12, ExpectedCageIsNull: true}, wantConflict: true},
+		{name: "idempotent null clear succeeds", lockedCage: nil,
+			input: &UpdateHospitalizationInput{ClearCageID: true, ExpectedCageIsNull: true}, wantUpdated: true},
+		{name: "stale clear expected cage10 vs locked nil rejects", lockedCage: nil,
+			input: &UpdateHospitalizationInput{ClearCageID: true, ExpectedCageID: &cage10}, wantConflict: true},
+		{name: "cage change without expected is invalid", lockedCage: nil,
+			input: &UpdateHospitalizationInput{CageID: &cage12}, wantInvalidInput: true},
+		{name: "expected without cage operation is invalid", lockedCage: &cage10,
+			input: &UpdateHospitalizationInput{ExpectedCageID: &cage10}, wantInvalidInput: true},
+		{name: "expected_null without cage operation is invalid", lockedCage: nil,
+			input: &UpdateHospitalizationInput{ExpectedCageIsNull: true}, wantInvalidInput: true},
+		{name: "both expected guards on cage change is invalid", lockedCage: nil,
+			input: &UpdateHospitalizationInput{CageID: &cage12, ExpectedCageID: &cage10, ExpectedCageIsNull: true}, wantInvalidInput: true},
+		{name: "memo only needs no expected", lockedCage: &cage10,
+			input: &UpdateHospitalizationInput{Memo: &memo}, wantUpdated: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			now := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
+			existing := &model.Hospitalization{
+				ID: 1, ClinicID: 1, Status: model.HospitalizationStatusAdmitted,
+				CageID: tt.lockedCage, StartDate: now, EndDate: now.AddDate(0, 0, 1),
+			}
+			updated := false
+			hospRepo := &mockHospitalizationRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) { return existing, nil },
+				updateFieldsFn: func(_ context.Context, _, _ uint64, cmd UpdateHospitalizationInput) (*model.Hospitalization, error) {
+					updated = true
+					result := *existing
+					result.CageID = cmd.CageID
+					return &result, nil
+				},
+			}
+			cageRepo := &mockCageRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Cage, error) {
+					return &model.Cage{ID: id}, nil
+				},
+			}
+			svc := NewHospitalizationService(hospRepo, nil, nil, cageRepo, nil, nil, nil, &mockTransactor{})
+
+			got, err := svc.Update(context.Background(), 1, 1, tt.input)
+
+			switch {
+			case tt.wantInvalidInput:
+				require.Error(t, err)
+				assert.Nil(t, got)
+				assert.True(t, apperrors.IsInvalidInput(err), "want invalid input: %v", err)
+				assert.False(t, updated, "invalid input must not write")
+			case tt.wantConflict:
+				require.Error(t, err)
+				assert.Nil(t, got)
+				assert.True(t, apperrors.IsConflict(err), "want conflict: %v", err)
+				assert.False(t, updated, "conflict must not write")
+			default:
+				require.NoError(t, err)
+				require.NotNil(t, got)
+				assert.True(t, updated)
+			}
+		})
+	}
+}
+
+func TestHospitalizationService_Update_ClearCageOnReactivation(t *testing.T) {
+	tests := []struct {
+		name      string
+		oldMember bool
+		status    string
+	}{
+		{"former member admitted", true, "admitted"},
+		{"former member reserved", true, "reserved"},
+		{"occupied representative admitted", false, "admitted"},
+		{"occupied representative reserved", false, "reserved"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			oldCageID, otherCageID := uint64(10), uint64(20)
+			now := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
+			existing := &model.Hospitalization{
+				ID: 1, ClinicID: 1, Status: model.HospitalizationStatusDischarged,
+				CageID: &oldCageID, StartDate: now, EndDate: now.AddDate(0, 0, 1),
+			}
+			cageReads := 0
+			cageRepo := &mockCageRepository{
+				lockCageGroupForUpdateFn: func(_ context.Context, _, _ uint64) ([]model.Cage, error) {
+					cageReads++
+					if tt.oldMember {
+						return []model.Cage{{ID: oldCageID, MergedIntoCageID: &otherCageID}}, nil
+					}
+					return []model.Cage{{ID: oldCageID}, {ID: otherCageID, MergedIntoCageID: &oldCageID}}, nil
+				},
+				countOccupiedCagesFn: func(_ context.Context, _ uint64, _ []uint64) (map[uint64]int64, error) {
+					return map[uint64]int64{oldCageID: 1}, nil
+				},
+			}
+			updated := false
+			hospRepo := &mockHospitalizationRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) { return existing, nil },
+				updateFieldsFn: func(_ context.Context, _, _ uint64, cmd UpdateHospitalizationInput) (*model.Hospitalization, error) {
+					updated = true
+					fields := buildHospitalizationUpdate(&cmd)
+					value, present := fields["cage_id"]
+					require.True(t, present)
+					require.Nil(t, value)
+					require.NotNil(t, cmd.Status)
+					result := *existing
+					result.CageID, result.Status = nil, *cmd.Status
+					return &result, nil
+				},
+			}
+			svc := NewHospitalizationService(hospRepo, nil, nil, cageRepo, nil, nil, nil, &mockTransactor{})
+			input, err := (&updateHospitalizationRequest{Status: &tt.status, ClearCageID: true, ExpectedCageID: &oldCageID}).toServiceInput()
+			require.NoError(t, err)
+
+			got, err := svc.Update(context.Background(), 1, 1, &input)
+
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			assert.True(t, updated)
+			assert.Nil(t, got.CageID)
+			assert.Equal(t, model.HospitalizationStatus(tt.status), got.Status)
+			assert.Zero(t, cageReads, "the cleared former cage is not an assignment target")
+		})
+	}
 }
 
 // ---- DischargeWithBilling ----

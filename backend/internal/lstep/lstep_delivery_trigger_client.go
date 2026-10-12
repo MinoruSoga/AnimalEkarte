@@ -12,12 +12,18 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func (s *lstepDeliveryTriggerService) applyTagAndLog(ctx context.Context, clinicID uint64, client lstep.Client, lineUserID, tagName string, logID uint64) error {
-	if err := client.AddTag(ctx, lineUserID, tagName); err != nil {
-		slog.ErrorContext(ctx, "delivery trigger: failed to add tag", "tag", tagName, "error", err)
+// addDeliveryTag は provider 呼び出しのみを行う（D1: owner 直列化境界内で実行し、
+// 結果記録は境界解放後の recordDeliveryOutcome に委ねる）。
+func (s *lstepDeliveryTriggerService) addDeliveryTag(ctx context.Context, client lstep.Client, lineUserID, tagName string) error {
+	return client.AddTag(ctx, lineUserID, tagName)
+}
+
+// recordDeliveryOutcome は provider 結果をトリガーログへ永続化する。
+func (s *lstepDeliveryTriggerService) recordDeliveryOutcome(ctx context.Context, clinicID, logID uint64, tagName string, sendErr error) error {
+	if sendErr != nil {
 		reason := fmt.Sprintf("lstep_add_tag_failed: %s", tagName)
 		// LSA-12 / DEC-35: failed status 更新失敗は silent にしない（monitor が scheduled のまま残る）
-		addErr := apperrors.Wrap(err, "failed to add lstep tag")
+		addErr := apperrors.Wrap(sendErr, "failed to add lstep tag")
 		if updateErr := s.triggerLogRepo.UpdateStatus(ctx, clinicID, logID, model.TriggerStatusFailed, nil, &reason); updateErr != nil {
 			slog.ErrorContext(ctx, "failed to record trigger log failed status", "log_id", logID, "error", updateErr)
 			return errors.Join(addErr, apperrors.Wrap(updateErr, "failed to update trigger log status to failed"))

@@ -15,6 +15,8 @@ func TestNewOwnerPetCompositionBuildsRepositoriesServicesAndHandlers(t *testing.
 	repositories := newOwnerPetRepositories(nil)
 	composition := newOwnerPetComposition(repositories, ownerPetCompositionDependencies{})
 
+	require.NotNil(t, repositories.PetTransfer, "reservation owner-transfer capability must be wired for pet owner changes")
+
 	require.Same(t, repositories.Owner, composition.OwnerRepository)
 	require.Same(t, repositories.Pet, composition.PetRepository)
 	require.NotNil(t, composition.OwnerRepository)

@@ -78,6 +78,9 @@ func (m *mockDeliveryMonitorTriggerLogRepo) FindByOwnerAndDate(_ context.Context
 func (m *mockDeliveryMonitorTriggerLogRepo) UpdateSuppressed(_ context.Context, _, _ uint64, _ string) error {
 	return nil
 }
+func (m *mockDeliveryMonitorTriggerLogRepo) MarkKnownUnsent(_ context.Context, _, _ uint64, _ string) error {
+	return nil
+}
 
 func TestLstepDeliveryMonitorService_GetSummary_IncludesSuppressedByPriority(t *testing.T) {
 	repo := &mockDeliveryMonitorTriggerLogRepo{

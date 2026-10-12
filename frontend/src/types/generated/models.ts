@@ -350,6 +350,7 @@ export const AuditActionClinicalPlanUpdate = "clinical_plan.update";
  */
 export const AuditActionClinicalPlanDelete = "clinical_plan.delete";
 export const AuditActionPetOwnerReplace = "pet_owner.replace";
+export const AuditActionPetOwnerTransfer = "pet.owner.transfer";
 export const AuditActionHospitalizationDischargeWithBilling = "hospitalization.discharge_with_billing";
 /**
  * #239 identity link 手動 link/unlink（PHI を載せない ID のみ）
@@ -373,7 +374,7 @@ export const AuditActionMedicalRecordImageDelete = "medical_record_image.delete"
 /**
  * 監査アクション定数
  */
-export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionStaffPermissionGroupsReplace | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionAuthPasswordChange | typeof AuditActionAuthPasswordReset | typeof AuditActionAuthPasswordAdminReplace | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionReservationNoShow | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionTrimmingCreate | typeof AuditActionTrimmingUpdate | typeof AuditActionTrimmingDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionBillingVaccinationClaimRelease | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionLabImportRevertSucceeded | typeof AuditActionLabDeviceMappingConfirm | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionExamResultReplace | typeof AuditActionExaminationCreate | typeof AuditActionExaminationUpdate | typeof AuditActionExaminationConfirm | typeof AuditActionExaminationUnconfirm | typeof AuditActionExaminationDelete | typeof AuditActionClinicalPlanUpdate | typeof AuditActionClinicalPlanDelete | typeof AuditActionPetOwnerReplace | typeof AuditActionHospitalizationDischargeWithBilling | typeof AuditActionOwnerIdentityLinkCreate | typeof AuditActionOwnerIdentityLinkAdd | typeof AuditActionOwnerIdentityLinkUnlink | typeof AuditActionPetIdentityLinkCreate | typeof AuditActionPetIdentityLinkAdd | typeof AuditActionPetIdentityLinkUnlink | typeof AuditActionStaffProvisionCreate | typeof AuditActionStaffProvisionReceipt | typeof AuditActionStaffAccountAttach | typeof AuditActionMedicalRecordImageDelete;
+export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionStaffPermissionGroupsReplace | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionAuthPasswordChange | typeof AuditActionAuthPasswordReset | typeof AuditActionAuthPasswordAdminReplace | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionReservationNoShow | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionTrimmingCreate | typeof AuditActionTrimmingUpdate | typeof AuditActionTrimmingDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionBillingVaccinationClaimRelease | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionLabImportRevertSucceeded | typeof AuditActionLabDeviceMappingConfirm | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionExamResultReplace | typeof AuditActionExaminationCreate | typeof AuditActionExaminationUpdate | typeof AuditActionExaminationConfirm | typeof AuditActionExaminationUnconfirm | typeof AuditActionExaminationDelete | typeof AuditActionClinicalPlanUpdate | typeof AuditActionClinicalPlanDelete | typeof AuditActionPetOwnerReplace | typeof AuditActionPetOwnerTransfer | typeof AuditActionHospitalizationDischargeWithBilling | typeof AuditActionOwnerIdentityLinkCreate | typeof AuditActionOwnerIdentityLinkAdd | typeof AuditActionOwnerIdentityLinkUnlink | typeof AuditActionPetIdentityLinkCreate | typeof AuditActionPetIdentityLinkAdd | typeof AuditActionPetIdentityLinkUnlink | typeof AuditActionStaffProvisionCreate | typeof AuditActionStaffProvisionReceipt | typeof AuditActionStaffAccountAttach | typeof AuditActionMedicalRecordImageDelete;
 export const AuditResourceAccount = "account";
 export const AuditResourceStaff = "staff";
 export const AuditResourceLabImport = "lab_import";
@@ -549,6 +550,11 @@ export interface Cage {
   cage_type: CageType;
   cage_size: CageSize;
   sort_order: number /* int */;
+  /**
+   * MergedIntoCageID は EMR-306 ケージ一時連結の構成ケージが参照する代表ケージID。
+   * NULL = 独立ケージまたは代表ケージ自身（連結なし）。
+   */
+  merged_into_cage_id?: number /* uint64 */;
   created_at: string;
   updated_at: string;
 }
@@ -2402,7 +2408,14 @@ export const TriggerTypeFleaTickAlert = "flea_tick_alert";
 export const TriggerTypeFoodRefillReminder = "food_refill_reminder";
 export const TriggerTypeFirstVisitWelcome = "first_visit_welcome";
 export const TriggerTypeCheckupFollowUp = "checkup_followup";
-export type TriggerType = typeof TriggerTypeFirstVisitFollowUp3D | typeof TriggerTypeFirstVisitFollowUp7D | typeof TriggerTypeNextVisitReminder | typeof TriggerTypeVaccineDeadline60 | typeof TriggerTypeVaccineDeadline30 | typeof TriggerTypeBirthdayMessage | typeof TriggerTypeDormantPrevention180 | typeof TriggerTypeDormantPrevention210 | typeof TriggerTypeDormantPrevention240 | typeof TriggerTypeDormantPrevention365 | typeof TriggerTypeFilariaAlert | typeof TriggerTypeFleaTickAlert | typeof TriggerTypeFoodRefillReminder | typeof TriggerTypeFirstVisitWelcome | typeof TriggerTypeCheckupFollowUp;
+/**
+ * EMR-308: 次回予定（tentative appointment）リマインダーの 2 ステージ。
+ * trigger_type 自体がステージ識別子となり、(owner, date, trigger_type) の
+ * 日次 claim がステージ単位の抑制・冪等性を保証する（stage 列追加なし）。
+ */
+export const TriggerTypeNextVisitTentativeReminder3d = "next_visit_tentative_reminder_3d";
+export const TriggerTypeNextVisitTentativeReminder0d = "next_visit_tentative_reminder_0d";
+export type TriggerType = typeof TriggerTypeFirstVisitFollowUp3D | typeof TriggerTypeFirstVisitFollowUp7D | typeof TriggerTypeNextVisitReminder | typeof TriggerTypeVaccineDeadline60 | typeof TriggerTypeVaccineDeadline30 | typeof TriggerTypeBirthdayMessage | typeof TriggerTypeDormantPrevention180 | typeof TriggerTypeDormantPrevention210 | typeof TriggerTypeDormantPrevention240 | typeof TriggerTypeDormantPrevention365 | typeof TriggerTypeFilariaAlert | typeof TriggerTypeFleaTickAlert | typeof TriggerTypeFoodRefillReminder | typeof TriggerTypeFirstVisitWelcome | typeof TriggerTypeCheckupFollowUp | typeof TriggerTypeNextVisitTentativeReminder3d | typeof TriggerTypeNextVisitTentativeReminder0d;
 export const TriggerStatusScheduled = "scheduled";
 export const TriggerStatusFired = "fired";
 export const TriggerStatusExcluded = "excluded";
@@ -2615,7 +2628,6 @@ export interface MedicalRecord {
   appointment_id?: number /* uint64 */;
   status: MedicalRecordStatus;
   version: number /* int */;
-  next_visit_recommended_date?: string;
   recommendation_reason?: string;
   visit_type?: VisitType;
   entered_by?: number /* uint64 */;
@@ -3242,6 +3254,12 @@ export interface Reservation {
   is_staff_delegated: boolean;
   customer_fields: unknown;
   /**
+   * EMR-308: tentative appointment（次回予定）schema foundation
+   * intended_date = 次回予定の対象日（日付のみ確定）; source_medical_record_id = 起点となったカルテの provenance
+   */
+  intended_date?: string;
+  source_medical_record_id?: number /* uint64 */;
+  /**
    * Relations
    */
   owner?: Owner;
@@ -3251,6 +3269,7 @@ export interface Reservation {
   created_by_staff?: Staff;
   line_customer?: LineCustomer;
   trimming_detail?: AppointmentTrimmingDetail;
+  source_medical_record?: MedicalRecord;
 }
 
 //////////

@@ -23,6 +23,8 @@ interface CarePlanRefSelectProps {
    * クリア・マスタ未検出時は null。0 は有限値としてそのまま渡す。
    */
   onUnitPriceChange?: (price: number | null) => void;
+  /** EMR-319: 参照必須エラー時に内部 SearchableSelect へ aria-invalid を伝播する */
+  ariaInvalid?: boolean;
 }
 
 /**
@@ -37,6 +39,7 @@ export function CarePlanRefSelect({
   value,
   onChange,
   onUnitPriceChange,
+  ariaInvalid = false,
 }: CarePlanRefSelectProps) {
   const { data: medicines, isLoading: isMedicinesLoading } = useGetAllMedicinesMaster();
   const { data: procedures, isLoading: isProceduresLoading } = useGetAllProcedures();
@@ -72,6 +75,7 @@ export function CarePlanRefSelect({
         disabled={isMedicinesLoading}
         placeholder={isMedicinesLoading ? "読み込み中..." : "薬剤を選択"}
         searchPlaceholder="薬剤を検索..."
+        ariaInvalid={ariaInvalid}
       />
     );
   }
@@ -85,6 +89,7 @@ export function CarePlanRefSelect({
         disabled={isProceduresLoading}
         placeholder={isProceduresLoading ? "読み込み中..." : "処置・検査を選択"}
         searchPlaceholder="処置・検査を検索..."
+        ariaInvalid={ariaInvalid}
       />
     );
   }
@@ -98,6 +103,7 @@ export function CarePlanRefSelect({
         disabled={isPlansLoading}
         placeholder={isPlansLoading ? "読み込み中..." : "入院プランを選択"}
         searchPlaceholder="入院プランを検索..."
+        ariaInvalid={ariaInvalid}
       />
     );
   }

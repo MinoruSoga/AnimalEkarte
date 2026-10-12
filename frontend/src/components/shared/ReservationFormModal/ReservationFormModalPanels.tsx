@@ -10,7 +10,11 @@ import { ReservationRouteSelect } from "@/components/shared/ReservationRouteSele
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import type { NewOwnerFormData } from "@/types/reservation-form";
 import type { ReservationRoute } from "@/types/reservation-route";
-import { BADGE, C, ICON, PALETTE } from "@/lib/design-tokens";
+import {
+  RESERVATION_ROUTE_RECORD_INTENT,
+  RESERVATION_ROUTE_RECORD_INTENT_LABEL,
+} from "@/types/reservation-route";
+import { BADGE, C, ICON, PALETTE, STYLE } from "@/lib/design-tokens";
 import { cn } from "@/lib/utils";
 import type { Pet, Reservation } from "@/types";
 import { NewOwnerInlineForm } from "./NewOwnerInlineForm";
@@ -23,15 +27,19 @@ type LstepStatus = "synced" | "not-linked" | "opt-out" | undefined;
 
 interface ReservationModalHeaderProps {
   isEditMode: boolean;
+  /** EMR-308: tentative（次回予定・未予約）行の確定モード */
+  isConfirmTentative?: boolean;
   mobilePanel: MobilePanel;
   onMobilePanelChange: (panel: MobilePanel) => void;
 }
 
 export function ReservationModalHeader({
   isEditMode,
+  isConfirmTentative = false,
   mobilePanel,
   onMobilePanelChange,
 }: ReservationModalHeaderProps) {
+  const title = isConfirmTentative ? "次回予定の確定" : isEditMode ? "予約編集" : "新規予約作成";
   return (
     <DialogHeader className="p-4 border-b shrink-0 h-auto flex flex-col gap-3 space-y-0">
       <div className="flex items-center justify-between">
@@ -41,13 +49,13 @@ export function ReservationModalHeader({
           ) : (
             <Calendar className={`${ICON.page} ${C.textActionPrimary}`} />
           )}
-          <DialogTitle className={`text-sm font-bold ${C.text}`}>
-            {isEditMode ? "予約編集" : "新規予約作成"}
-          </DialogTitle>
+          <DialogTitle className={`text-sm font-bold ${C.text}`}>{title}</DialogTitle>
         </div>
         {/* Let Radix assign context.descriptionId; a custom id breaks DescriptionWarning lookup. */}
         <DialogDescription className="sr-only">
-          左側のリストからペットを選択し、右側のフォームで予約情報を入力してください
+          {isConfirmTentative
+            ? "この次回予定の対象患者は固定です。右側のフォームで予約情報を入力して確定してください"
+            : "左側のリストからペットを選択し、右側のフォームで予約情報を入力してください"}
         </DialogDescription>
       </div>
       <div className="flex items-center gap-6">
@@ -103,6 +111,8 @@ const StepIndicator = memo(function StepIndicator({
 
 interface ReservationPatientPanelProps {
   isEditMode: boolean;
+  /** EMR-308: tentative 確定モード — tentative 行に紐づく患者を固定し、検索・飼主切替を隠す */
+  patientLocked?: boolean;
   ownerMode: OwnerMode;
   mobilePanel: MobilePanel;
   selectedPets: Pet[];
@@ -115,6 +125,7 @@ interface ReservationPatientPanelProps {
 
 export function ReservationPatientPanel({
   isEditMode,
+  patientLocked = false,
   ownerMode,
   mobilePanel,
   selectedPets,
@@ -127,11 +138,11 @@ export function ReservationPatientPanel({
   return (
     <div
       className={cn(
-        `w-full lg:w-7/12 border-b lg:border-b-0 lg:border-r ${C.bgSubtle} p-4 flex flex-col overflow-hidden min-h-72 lg:min-h-auto flex-1`,
+        `w-full lg:w-7/12 border-b lg:border-b-0 lg:border-r ${C.bgSubtle} p-4 flex flex-col overflow-hidden min-h-72 lg:min-h-0 flex-1`,
         mobilePanel !== "search" && "hidden lg:flex",
       )}
     >
-      {!isEditMode ? (
+      {!isEditMode && !patientLocked ? (
         <div className="flex rounded-lg border overflow-hidden mb-3 shrink-0">
           <button
             type="button"
@@ -154,7 +165,9 @@ export function ReservationPatientPanel({
         </div>
       ) : null}
 
-      {ownerMode === "existing" ? (
+      {patientLocked ? (
+        <LockedPatientNotice pet={selectedPets[0]} />
+      ) : ownerMode === "existing" ? (
         <>
           <div className="mb-3 flex items-center gap-2 shrink-0">
             <Search className={`${ICON.action} ${C.text60}`} />
@@ -175,14 +188,53 @@ export function ReservationPatientPanel({
   );
 }
 
+/** tentative 確定モード: tentative 行に紐づく患者を読み取り専用で表示する */
+function LockedPatientNotice({ pet }: { pet: Pet | undefined }) {
+  return (
+    <div className="flex flex-col">
+      <div className="mb-3 flex items-center gap-2 shrink-0">
+        <PawPrint className={`${ICON.action} ${C.text60}`} />
+        <Label className={`text-sm font-bold ${C.text}`}>対象患者</Label>
+      </div>
+      <div
+        className={`flex items-center gap-2 ${C.bgWhite} p-3 rounded-lg border ${C.borderMediumLight}`}
+      >
+        <PawPrint className={`${ICON.action} ${C.text60} flex-shrink-0`} />
+        {pet ? (
+          <>
+            <span className={`text-sm font-bold ${C.text}`}>{pet.name}</span>
+            <Badge
+              variant="outline"
+              className={`text-2xs font-normal ${C.text60} ${C.bgPage} ${C.borderMediumLight} h-5`}
+            >
+              {pet.species}
+            </Badge>
+            <span className={`text-2xs ${C.text60} ml-auto`}>
+              No. {pet.ownerId} {pet.ownerName}
+            </span>
+          </>
+        ) : (
+          <span className={`text-xs ${C.text60}`}>患者情報を読み込み中…</span>
+        )}
+      </div>
+      <p className={`text-2xs ${C.text60} mt-2`}>
+        この次回予定に紐づく患者です。変更はできません。
+      </p>
+    </div>
+  );
+}
+
 interface ReservationDetailsPanelProps {
   mobilePanel: MobilePanel;
   selectedPets: Pet[];
   lstepStatus: LstepStatus;
   formData: Partial<Reservation>;
+  lockedVisitType?: Reservation["visitType"];
   validationErrors: Record<string, string>;
   holidayDates: Set<string>;
   isEditMode: boolean;
+  /** EMR-308: tentative 確定モード — 選択中ペットの解除を不可にする */
+  patientLocked?: boolean;
   reservationId?: string;
   canEdit: boolean;
   onSelectedPetsChange: (updater: (prev: Pet[]) => Pet[]) => void;
@@ -190,6 +242,8 @@ interface ReservationDetailsPanelProps {
   onClearError: (field: string) => void;
   onMonthChange: (yearMonth: string) => void;
   onStaffSelectionStateChange?: (state: StaffSelectionState) => void;
+  /** Codex PR606 再指摘: 拠点横断フォームの対象行 clinicId（マスタ/空き枠スコープ） */
+  clinicId?: string;
 }
 
 export function ReservationDetailsPanel({
@@ -197,9 +251,11 @@ export function ReservationDetailsPanel({
   selectedPets,
   lstepStatus,
   formData,
+  lockedVisitType,
   validationErrors,
   holidayDates,
   isEditMode,
+  patientLocked = false,
   reservationId,
   canEdit,
   onSelectedPetsChange,
@@ -207,11 +263,12 @@ export function ReservationDetailsPanel({
   onClearError,
   onMonthChange,
   onStaffSelectionStateChange,
+  clinicId,
 }: ReservationDetailsPanelProps) {
   return (
     <div
       className={cn(
-        `w-full lg:w-5/12 ${C.bgWhite} flex flex-col overflow-hidden min-h-72 lg:min-h-auto flex-1`,
+        `w-full lg:w-5/12 ${C.bgWhite} flex flex-col overflow-hidden min-h-72 lg:min-h-0 flex-1`,
         mobilePanel !== "form" && "hidden lg:flex",
       )}
     >
@@ -220,6 +277,7 @@ export function ReservationDetailsPanel({
           selectedPets={selectedPets}
           validationError={validationErrors.patient}
           onSelectedPetsChange={onSelectedPetsChange}
+          locked={patientLocked}
         />
 
         <LineStatusNotice status={lstepStatus} />
@@ -228,19 +286,34 @@ export function ReservationDetailsPanel({
           <Label className={`text-sm font-bold ${C.text}`}>予約詳細</Label>
           <ReservationFormFields
             formData={formData}
+            lockedVisitType={lockedVisitType}
             onChange={onFormChange}
             validationErrors={validationErrors}
             onClearError={onClearError}
             holidayDates={holidayDates}
             onMonthChange={onMonthChange}
             onStaffSelectionStateChange={onStaffSelectionStateChange}
+            clinicId={clinicId}
           />
           {isEditMode && reservationId ? (
-            <ReservationRouteSelect
-              reservationId={reservationId}
-              value={(formData.reservationRoute as ReservationRoute | undefined) ?? null}
-              disabled={!canEdit}
-            />
+            // Codex PR606 #12: record_intent は BE が書く provenance 値であり
+            // ユーザー選択肢ではない。編集可能なセレクタに出すと immutable な
+            // 経路を上書きできてしまうため、読み取り専用ラベルで表示する。
+            (formData.reservationRoute as string | null | undefined) ===
+            RESERVATION_ROUTE_RECORD_INTENT ? (
+              <div className="flex flex-col gap-2">
+                <Label className={STYLE.formLabel}>予約経路</Label>
+                <p className={`text-sm ${C.text}`} data-testid="reservation-route-readonly">
+                  {RESERVATION_ROUTE_RECORD_INTENT_LABEL}
+                </p>
+              </div>
+            ) : (
+              <ReservationRouteSelect
+                reservationId={reservationId}
+                value={(formData.reservationRoute as ReservationRoute | undefined) ?? null}
+                disabled={!canEdit}
+              />
+            )
           ) : null}
         </div>
       </div>
@@ -252,10 +325,13 @@ function SelectedPatientSummary({
   selectedPets,
   validationError,
   onSelectedPetsChange,
+  locked = false,
 }: {
   selectedPets: Pet[];
   validationError?: string;
   onSelectedPetsChange: (updater: (prev: Pet[]) => Pet[]) => void;
+  /** tentative 確定モード: 選択解除ボタンを隠す */
+  locked?: boolean;
 }) {
   const handleRemovePet = useCallback(
     (petId: string) => {
@@ -266,7 +342,10 @@ function SelectedPatientSummary({
 
   return (
     <div
-      className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? `${C.bgActionPrimaryLight}/50 ${C.borderActionPrimary}/30` : `${C.bgPage} ${C.borderMediumLight}`}`}
+      role="group"
+      aria-invalid={validationError ? true : undefined}
+      aria-describedby={validationError ? "res-patient-error" : undefined}
+      className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? `${C.bgActionPrimaryLight}/50 ${C.borderActionPrimary}/30` : `${C.bgPage} ${C.borderMediumLight}`} ${validationError ? STYLE.formInputError : ""}`}
     >
       <Label className={`text-2xs ${C.text60} font-semibold uppercase block mb-3`}>
         予約対象（選択中）
@@ -278,7 +357,11 @@ function SelectedPatientSummary({
       {selectedPets.length > 0 ? (
         <div className="flex flex-col gap-2">
           {selectedPets.map((pet) => (
-            <SelectedPetChip key={pet.id} pet={pet} onRemove={handleRemovePet} />
+            <SelectedPetChip
+              key={pet.id}
+              pet={pet}
+              onRemove={locked ? undefined : handleRemovePet}
+            />
           ))}
         </div>
       ) : (
@@ -287,7 +370,9 @@ function SelectedPatientSummary({
           <div className={`text-xs ${C.text60}`}>左側から患者を選択してください</div>
         </div>
       )}
-      {selectedPets.length === 0 ? <FormFieldError message={validationError} /> : null}
+      {selectedPets.length === 0 ? (
+        <FormFieldError id="res-patient-error" message={validationError} />
+      ) : null}
     </div>
   );
 }
@@ -297,7 +382,8 @@ const SelectedPetChip = memo(function SelectedPetChip({
   onRemove,
 }: {
   pet: Pet;
-  onRemove: (petId: string) => void;
+  /** 省略時は解除ボタンを表示しない（tentative 確定モードの患者固定） */
+  onRemove?: (petId: string) => void;
 }) {
   return (
     <div
@@ -314,14 +400,16 @@ const SelectedPetChip = memo(function SelectedPetChip({
       <span className={`text-2xs ${C.text60} ml-auto`}>
         No. {pet.ownerId} {pet.ownerName}
       </span>
-      <button
-        type="button"
-        onClick={() => onRemove(pet.id)}
-        aria-label={`${pet.name}を選択から外す`}
-        className={`-m-3 p-3 ${C.hoverBgDanger5} rounded transition-colors`}
-      >
-        <X className={`${ICON.action} ${C.danger} ${C.hoverTextDanger}`} />
-      </button>
+      {onRemove ? (
+        <button
+          type="button"
+          onClick={() => onRemove(pet.id)}
+          aria-label={`${pet.name}を選択から外す`}
+          className={`-m-3 p-3 ${C.hoverBgDanger5} rounded transition-colors`}
+        >
+          <X className={`${ICON.action} ${C.danger} ${C.hoverTextDanger}`} />
+        </button>
+      ) : null}
     </div>
   );
 });

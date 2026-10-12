@@ -1,7 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { addDays, format, startOfWeek } from "date-fns";
 import { ja } from "date-fns/locale";
+import type { Reservation } from "@/types";
 import { WeekView } from "./WeekView";
 
 const BASE_DATE = new Date("2026-05-20T00:00:00"); // Wednesday
@@ -42,5 +44,57 @@ describe("WeekView — days prop", () => {
     EXPECTED_DATE_LABELS.forEach((label, i) => {
       expect(headers[i]).toHaveTextContent(label);
     });
+  });
+});
+
+describe("WeekView — tentative 常時表示帯（Codex PR606 #9）", () => {
+  /** 意図日の JST 00:00 sentinel start を持つ tentative 行の最小フィクスチャ。 */
+  function tentativeOf(id: string, dayIndex: number, petName: string): Reservation {
+    const day = addDays(WEEK_START, dayIndex);
+    return {
+      id,
+      status: "tentative",
+      isTentative: true,
+      start: new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, 0),
+      end: new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, 15),
+      petName,
+      ownerName: "山田",
+    } as unknown as Reservation;
+  }
+
+  it("tentative はタイムグリッドではなく常時表示帯に出て、クリックで詳細を開く", async () => {
+    const onClick = vi.fn();
+    render(
+      <WeekView
+        currentDate={BASE_DATE}
+        appointments={[
+          tentativeOf("t-1", 1, "ポチ"),
+          {
+            id: "r-1",
+            status: "confirmed",
+            isTentative: false,
+            start: addDays(WEEK_START, 2),
+            end: addDays(WEEK_START, 2),
+            petName: "タマ",
+            ownerName: "佐藤",
+          } as unknown as Reservation,
+        ]}
+        onAppointmentClick={onClick}
+      />,
+    );
+
+    const strip = screen.getByTestId("week-tentative-row");
+    expect(strip).toHaveTextContent("ポチ");
+    // 実予約は帯に出ない
+    expect(strip).not.toHaveTextContent("タマ");
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /ポチ/ }));
+    expect(onClick).toHaveBeenCalledWith(expect.objectContaining({ id: "t-1" }));
+  });
+
+  it("tentative が無ければ帯自体を描画しない", () => {
+    render(<WeekView currentDate={BASE_DATE} appointments={[]} onAppointmentClick={() => {}} />);
+    expect(screen.queryByTestId("week-tentative-row")).not.toBeInTheDocument();
   });
 });

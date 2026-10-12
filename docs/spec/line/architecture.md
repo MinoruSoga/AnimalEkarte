@@ -85,7 +85,7 @@ LSTEP 周辺の「best-effort」は一語で混同しない。経路ごとに契
 |:---|:---|:---|:---|
 | **1. scheduled multi-resource best effort** | 定時バッチ（delivery / dormant / LTV / health-prevention 等）。multi-clinic・multi-owner・multi-trigger | 必須 dependency 欠落・clinic 一覧取得失敗は fail-closed。1 件失敗後も他 resource は続行 | 必須。`(processed, errs)` と durable 向け `BatchRunResult`（`Processed = Succeeded + Failed`）。error ログ、`processed_count`/`error_count` 監査、Partial/Failed 時の手動 fallback・再実行/idempotency |
 | **2. single-owner propagation** | 1 飼主分のタグ同期本体（`SyncCPMStageTag` / VISIT / food 等）。バッチ内の 1 owner 処理も含む | 望ましい Add/Remove の失敗は **呼び出し元へ error 伝播**し、上位の Failed 計上に載せる。stale 除去の部分失敗は desired add を継続しつつ失敗計上を残す | 呼び出し元が batch なら `BatchRunResult`/監査へ。単独呼び出しなら error 返却で観測可能にする（silent `return 0, nil` は新規禁止） |
-| **3. request-local nonfatal secondary notification** | 会計確定後の CPM 同期、LINE 手動送信後の purpose タグ付与など、本処理に付随する副次 side-effect | 本処理は成功のまま。副次失敗はログ必須で本処理を rollback しない | 本処理の成功契約を反転させない。副次失敗の収束/補償を短く明示（次回イベント再同期・失敗カウンタ等）。**trigger log は使わない** |
+| **3. request-local nonfatal secondary notification** | 会計確定後の CPM 同期、LINE 手動送信後の purpose タグ付与、次回予定（tentative intent）の設定・解除・昇格・owner 変更に伴う post-commit の Lステップ同期など、本処理に付随する副次 side-effect | 本処理は成功のまま。副次失敗はログ必須で本処理を rollback しない | 本処理の成功契約を反転させない。副次失敗の収束/補償を短く明示（次回イベント再同期・失敗カウンタ等）。**trigger log は使わない** |
 
 ### 4.1 自動配信トリガーバッチと durable 計上
 
@@ -112,3 +112,9 @@ LSTEP 周辺の「best-effort」は一語で混同しない。経路ごとに契
 - **流量**: Messaging API / Lステップ API のレート制限はクライアント実装の固定方針と運用監視で扱う。**バッチとリアルタイムを動的に切り替える rate adjustment は持たない**（未実装の動的流量調整を前提にしない）。
 
 ---
+
+### 次回来院タグの再試行
+
+`SyncNextVisitTag` は外部タグ操作前に、医院・飼主単位の `lstep_next_visit_sync_retries` を独立 commit する。owner lock 内で現在の予約・LINE連携先・同意を読み直し、全タグ操作とcache更新が成功した場合だけ、自身が enqueue した revision をcacheと同じtransactionで削除する。cache保存・commit・取消・外部操作の失敗は再試行記録を保持し、別の同期が追加した新しいrevisionは消さない。日次 tentative reconciliation は期限切れcacheと再試行記録をUNIONし、医院ごとに重複排除したowner IDのkeyset paginationで処理する。以前のcacheがない飼主も対象となる。
+
+連携解除・opt-out・同期停止中は既存の再試行記録を保持し、再開時に現在のsourceと連携先を再評価する。通常の再試行記録は過去のタグやLINE IDのsnapshotを持たないため、LINE ID変更前の旧アカウントに残ったタグの除去は保証しない。例外は飼主削除で、削除transaction内で確定したLINE宛先が `cleanup_line_user_id` として不変に記録され、削除commit後の `SyncNextVisitTag` は外部操作をremove-onlyの `next_visit_*` 除去に限定する（予約参照・AddTagは行わない）。宛先が別のactive飼主へ再連携済みなら外部操作を行わず記録を保持する。新規migration `033` / `034` は通常のmigration手順で適用してからこの同期コードを稼働させる。臨床記録ではない再試行用の技術テーブルだけを成功時にhard deleteする。

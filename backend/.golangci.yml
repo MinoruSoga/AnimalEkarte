@@ -116,6 +116,11 @@ linters:
         - .ValidateTrimmingAppointmentMutable(
         - .CheckSlotConflict(
         - .CheckReservationTypeCapacity(
+        # imageupload の FileConstraints/VerifySniffedContent は全 error 戻りが
+        # apperrors 済み。呼び出し側での %w は同義の二重ラップになる。
+        - imageupload.FileConstraints).ValidateFileHeader(
+        - imageupload.FileConstraints).NewStoredName(
+        - imageupload.VerifySniffedContent(
       # wrapcheck はインターフェースの短名（Transactor, XxxRepository）にマッチする。
       # Domain 内の repository/transactor は apperrors を返すため、素通し return err
       # に機械 wrap を足すと AppError を二重ラップするだけなので全インターフェースを除外する。

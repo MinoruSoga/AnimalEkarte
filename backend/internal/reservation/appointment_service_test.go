@@ -16,11 +16,15 @@ import (
 
 // mockReservationRepository は ReservationRepository のテスト用モック実装
 type mockReservationRepository struct {
+	assertLineCustomerReservationOwnerFn func(context.Context, uint64, uint64, *uint64) error
+
+	previousAbsorbedOwnerID            *uint64
 	findAllFn                          func(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
 	findByIDFn                         func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	lockAndFindByIDFn                  func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	createFn                           func(ctx context.Context, reservation *model.Reservation) error
 	updateFieldsFn                     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
+	updateTentativeStatusFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any, validate tentativeTransitionValidator) (*model.Reservation, error)
 	deleteFn                           func(ctx context.Context, clinicID, id uint64) error
 	countMedicalRecordsByReservationID func(ctx context.Context, reservationID uint64) (int64, error)
 	hasDoctorConflictFn                func(ctx context.Context, clinicID, doctorID uint64, start, end time.Time, excludeID *uint64) (bool, error)
@@ -32,6 +36,15 @@ type mockReservationRepository struct {
 	findPetByIDInClinicFn              func(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
 	assertLineCustomerInClinicFn       func(ctx context.Context, clinicID, lineCustomerID uint64) error
 	acquireBookingLockFn               func(ctx context.Context, clinicID uint64) error
+	acquireNextVisitIntentLockFn       func(ctx context.Context, clinicID, petID uint64) error
+	findPetIDForIntentLockFn           func(ctx context.Context, clinicID, id uint64) (*uint64, error)
+	setNextVisitIntentFn               func(ctx context.Context, clinicID, petID uint64, input SetNextVisitIntentInput) (*model.Reservation, *uint64, error)
+	clearNextVisitIntentWithOwnerFn    func(ctx context.Context, clinicID, petID uint64) (bool, *uint64, error)
+	clearNextVisitIntentGuardedFn      func(ctx context.Context, clinicID, petID uint64, expected *ClearNextVisitIntentExpectation) (bool, *uint64, error)
+	clearNextVisitIntentFn             func(ctx context.Context, clinicID, petID uint64) (bool, error)
+	confirmTentativeFn                 func(ctx context.Context, clinicID, id uint64, input ConfirmTentativeUpdate) (*model.Reservation, error)
+	absorbTentativeOnBookingFn         func(ctx context.Context, booking *model.Reservation) (*model.Reservation, error)
+	promoteTentativeOnCheckinFn        func(ctx context.Context, booking *model.Reservation) (*model.Reservation, error)
 }
 
 func (m *mockReservationRepository) FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
@@ -55,6 +68,34 @@ func (m *mockReservationRepository) Create(ctx context.Context, reservation *mod
 
 func (m *mockReservationRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
+}
+
+func (m *mockReservationRepository) updateWithPreviousOwner(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, *uint64, error) {
+	locked, err := m.LockAndFindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, nil, err
+	}
+	var owner *uint64
+	if locked != nil {
+		owner = locked.OwnerID
+	}
+	result, err := m.update(ctx, clinicID, id, fields)
+	return result, owner, err
+}
+func (m *mockReservationRepository) deleteWithPreviousOwner(ctx context.Context, clinicID, id uint64) (*uint64, error) {
+	locked, err := m.LockAndFindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, err
+	}
+	var owner *uint64
+	if locked != nil {
+		owner = locked.OwnerID
+	}
+	return owner, m.Delete(ctx, clinicID, id)
+}
+
+func (m *mockReservationRepository) updateTentativeStatus(ctx context.Context, clinicID, id uint64, fields map[string]any, validate tentativeTransitionValidator) (*model.Reservation, error) {
+	return m.updateTentativeStatusFn(ctx, clinicID, id, fields, validate)
 }
 
 func (m *mockReservationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -87,7 +128,7 @@ func (m *mockReservationRepository) LockAndFindByID(ctx context.Context, clinicI
 	if m.lockAndFindByIDFn != nil {
 		return m.lockAndFindByIDFn(ctx, clinicID, id)
 	}
-	return nil, nil
+	return m.FindByID(ctx, clinicID, id)
 }
 
 func (m *mockReservationRepository) HasDoctorConflict(ctx context.Context, clinicID, doctorID uint64, start, end time.Time, excludeID *uint64) (bool, error) {
@@ -151,6 +192,13 @@ func (m *mockReservationRepository) FindPetByIDInClinic(ctx context.Context, cli
 	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
 }
 
+func (m *mockReservationRepository) assertLineCustomerReservationOwner(ctx context.Context, clinicID, customerID uint64, ownerID *uint64) error {
+	if m.assertLineCustomerReservationOwnerFn != nil {
+		return m.assertLineCustomerReservationOwnerFn(ctx, clinicID, customerID, ownerID)
+	}
+	return m.AssertLineCustomerInClinic(ctx, clinicID, customerID)
+}
+
 func (m *mockReservationRepository) AssertLineCustomerInClinic(ctx context.Context, clinicID, lineCustomerID uint64) error {
 	if m.assertLineCustomerInClinicFn != nil {
 		return m.assertLineCustomerInClinicFn(ctx, clinicID, lineCustomerID)
@@ -160,6 +208,10 @@ func (m *mockReservationRepository) AssertLineCustomerInClinic(ctx context.Conte
 
 func (m *mockReservationRepository) FindNoShowCandidates(_ context.Context, _ uint64) ([]model.Reservation, error) {
 	return nil, nil
+}
+
+func (m *mockReservationRepository) CompleteForAccountingWithOwners(_ context.Context, _ uint64, _, _, _ *uint64, _ time.Time) (int64, []uint64, error) {
+	return 0, nil, nil
 }
 
 func (m *mockReservationRepository) CompleteForAccounting(_ context.Context, _ uint64, _, _, _ *uint64, _ time.Time) (int64, error) {
@@ -178,8 +230,8 @@ func (m *mockReservationRepository) MarkNoShow(_ context.Context, _, _ uint64) (
 	return NoShowTransition{}, nil
 }
 
-func (m *mockReservationRepository) CreateForTrimming(_ context.Context, clinicID uint64, input CreateTrimmingReservationInput) (*model.Reservation, error) {
-	return &model.Reservation{ClinicID: clinicID, ReservationTypeID: input.ReservationTypeID}, nil
+func (m *mockReservationRepository) CreateForTrimming(_ context.Context, clinicID uint64, input CreateTrimmingReservationInput) (*model.Reservation, *uint64, error) {
+	return &model.Reservation{ClinicID: clinicID, ReservationTypeID: input.ReservationTypeID}, nil, nil
 }
 
 func (m *mockReservationRepository) UpdateForTrimming(_ context.Context, clinicID, id uint64, _ UpdateTrimmingReservationInput) (*model.Reservation, error) {
@@ -188,6 +240,83 @@ func (m *mockReservationRepository) UpdateForTrimming(_ context.Context, clinicI
 
 func (m *mockReservationRepository) DeleteForTrimming(_ context.Context, _, _ uint64) error {
 	return nil
+}
+
+func (m *mockReservationRepository) SetNextVisitIntent(ctx context.Context, clinicID, petID uint64, input SetNextVisitIntentInput) (*model.Reservation, *uint64, error) {
+	if m.setNextVisitIntentFn != nil {
+		return m.setNextVisitIntentFn(ctx, clinicID, petID, input)
+	}
+	return nil, nil, nil
+}
+
+func (m *mockReservationRepository) ClearNextVisitIntent(ctx context.Context, clinicID, petID uint64) (bool, error) {
+	if m.clearNextVisitIntentFn != nil {
+		return m.clearNextVisitIntentFn(ctx, clinicID, petID)
+	}
+	return false, nil
+}
+
+func (m *mockReservationRepository) clearNextVisitIntentWithOwner(ctx context.Context, clinicID, petID uint64, expected ...*ClearNextVisitIntentExpectation) (bool, *uint64, error) {
+	if len(expected) == 1 && expected[0] != nil {
+		if m.clearNextVisitIntentGuardedFn == nil {
+			panic("guarded clear mock must not silently ignore expectation")
+		}
+		return m.clearNextVisitIntentGuardedFn(ctx, clinicID, petID, expected[0])
+	}
+	if m.clearNextVisitIntentWithOwnerFn != nil {
+		return m.clearNextVisitIntentWithOwnerFn(ctx, clinicID, petID)
+	}
+	found, err := m.ClearNextVisitIntent(ctx, clinicID, petID)
+	return found, nil, err
+}
+
+func (m *mockReservationRepository) ConfirmTentative(ctx context.Context, clinicID, id uint64, input ConfirmTentativeUpdate) (*model.Reservation, error) {
+	if m.confirmTentativeFn != nil {
+		return m.confirmTentativeFn(ctx, clinicID, id, input)
+	}
+	return nil, nil
+}
+
+func (m *mockReservationRepository) AbsorbTentativeOnBooking(ctx context.Context, booking *model.Reservation) (*model.Reservation, *uint64, error) {
+	if m.absorbTentativeOnBookingFn != nil {
+		created, err := m.absorbTentativeOnBookingFn(ctx, booking)
+		return created, m.previousAbsorbedOwnerID, err
+	}
+	// デフォルトは tentative 不在の INSERT 経路を再現する。
+	if err := m.Create(ctx, booking); err != nil {
+		return nil, m.previousAbsorbedOwnerID, err
+	}
+	return booking, m.previousAbsorbedOwnerID, nil
+}
+
+func (m *mockReservationRepository) PromoteTentativeOnCheckin(ctx context.Context, booking *model.Reservation) (*model.Reservation, *uint64, error) {
+	if m.promoteTentativeOnCheckinFn != nil {
+		created, err := m.promoteTentativeOnCheckinFn(ctx, booking)
+		return created, m.previousAbsorbedOwnerID, err
+	}
+	// デフォルトは tentative 不在の INSERT 経路を再現する。
+	if err := m.Create(ctx, booking); err != nil {
+		return nil, m.previousAbsorbedOwnerID, err
+	}
+	return booking, m.previousAbsorbedOwnerID, nil
+}
+
+func (m *mockReservationRepository) WithTentativeReminderSerialization(ctx context.Context, _ uint64, _ []uint64, fn func(txCtx context.Context) error) error {
+	return fn(ctx)
+}
+
+func (m *mockReservationRepository) AcquireNextVisitIntentLock(ctx context.Context, clinicID, petID uint64) error {
+	if m.acquireNextVisitIntentLockFn != nil {
+		return m.acquireNextVisitIntentLockFn(ctx, clinicID, petID)
+	}
+	return nil
+}
+
+func (m *mockReservationRepository) FindPetIDForIntentLock(ctx context.Context, clinicID, id uint64) (*uint64, error) {
+	if m.findPetIDForIntentLockFn != nil {
+		return m.findPetIDForIntentLockFn(ctx, clinicID, id)
+	}
+	return nil, nil
 }
 
 func ptrTime(t time.Time) *time.Time { return &t }
@@ -1406,9 +1535,9 @@ func TestReservationService_Update_SkipsConflictCheckWhenScheduleUnchanged(t *te
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
 			return current(clinicID, id), nil
 		},
-		lockAndFindByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
-			t.Fatal("unchanged schedule must not lock for conflict check")
-			return nil, nil
+		lockAndFindByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			// Row locking captures mutation ownership without re-running booking checks.
+			return current(clinicID, id), nil
 		},
 		hasDoctorConflictFn: func(_ context.Context, _, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
 			t.Fatal("unchanged schedule must not call doctor conflict checker")
@@ -1546,9 +1675,9 @@ func TestReservationService_Update_DoesNotCallClinicHolidayFinderWhenScheduleUnc
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
 			return current(clinicID, id), nil
 		},
-		lockAndFindByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
-			t.Fatal("unchanged schedule must not lock for holiday check")
-			return nil, nil
+		lockAndFindByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			// Row locking captures mutation ownership without re-running booking checks.
+			return current(clinicID, id), nil
 		},
 		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
 			updateCalled = true
@@ -1646,9 +1775,9 @@ func TestReservationService_Update_SkipsConflictCheckWhenAlreadyCheckedIn(t *tes
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
 			return current(clinicID, id), nil
 		},
-		lockAndFindByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
-			t.Fatal("checked_in reservation must not re-run booking conflict lock")
-			return nil, nil
+		lockAndFindByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			// Row locking captures mutation ownership without re-running booking checks.
+			return current(clinicID, id), nil
 		},
 		countOnDutyDoctorsFn: func(_ context.Context, _ uint64, _ time.Time) (int64, error) {
 			t.Fatal("checked_in reservation must not re-run on-duty checker")

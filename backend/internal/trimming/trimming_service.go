@@ -96,11 +96,31 @@ type Service interface {
 	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error)
-	Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, *TrimmingReplacedImages, error)
 	Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error
+	DeleteWithImages(ctx context.Context, clinicID, id uint64, actorID *uint64) (*TrimmingDeletedImages, error)
+	ReserveImageDeletion(ctx context.Context, clinicID uint64, key string, exceptAppointmentID, actorID uint64) (bool, error)
+	ImageKeyInUse(ctx context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error)
+}
+
+// TrimmingReplacedImages は Update が commit 時に置き換えた画像値。
+// update tx 内（booking lock・行ロック下）で捕捉した直前値 — 同時 PATCH は
+// シリアライズされるため各呼び出しは直前の書き込みを正確に見る。tx 前に
+// handler が読んだスナップショットでは並行書き込みの画像を掃除候補から漏らす。
+type TrimmingReplacedImages struct {
+	Style     string
+	Completed string
+}
+
+// TrimmingDeletedImages is the latest detail snapshot captured under delete locks.
+// It is returned only after appointment deletion and audit successfully commit.
+type TrimmingDeletedImages struct {
+	Style     string
+	Completed string
 }
 
 type trimmingService struct {
+	nextVisitTagSync   reservation.NextVisitTagSyncer
 	reservation        TrimmingReservationRepository
 	reservationType    ReservationTypeRepository
 	reservationStaff   ReservationStaffRepository
@@ -126,7 +146,7 @@ type TrimmingReservationRepository interface {
 	CountOnDutyDoctors(ctx context.Context, clinicID uint64, date time.Time) (int64, error)
 	CountConflicts(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error)
 	CountByTypeAndStartTime(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
-	CreateForTrimming(ctx context.Context, clinicID uint64, input reservation.CreateTrimmingReservationInput) (*model.Reservation, error)
+	CreateForTrimming(ctx context.Context, clinicID uint64, input reservation.CreateTrimmingReservationInput) (*model.Reservation, *uint64, error)
 	UpdateForTrimming(ctx context.Context, clinicID, id uint64, input reservation.UpdateTrimmingReservationInput) (*model.Reservation, error)
 	DeleteForTrimming(ctx context.Context, clinicID, id uint64) error
 }
@@ -166,8 +186,14 @@ func NewServiceWithAudit(
 	trimmingOptionRepo TrimmingOptionRepository,
 	transactor Transactor,
 	auditTx AuditTxLogger,
+	nextVisitTagSyncs ...reservation.NextVisitTagSyncer,
 ) Service {
+	var nextVisitTagSync reservation.NextVisitTagSyncer
+	if len(nextVisitTagSyncs) > 0 {
+		nextVisitTagSync = nextVisitTagSyncs[0]
+	}
 	return &trimmingService{
+		nextVisitTagSync:   nextVisitTagSync,
 		reservation:        reservationRepo,
 		reservationType:    reservationType,
 		reservationStaff:   reservationStaff,
@@ -206,6 +232,10 @@ func (s *trimmingService) GetByID(ctx context.Context, clinicID, id uint64) (*mo
 	return appt, nil
 }
 
+func (s *trimmingService) ImageKeyInUse(ctx context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error) {
+	return s.trimmingDetail.ImageKeyInUse(ctx, clinicID, key, exceptAppointmentID)
+}
+
 func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("trimming create input is required")
@@ -214,6 +244,9 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 		return nil, err
 	}
 	if err := s.requireAuditTx(); err != nil {
+		return nil, err
+	}
+	if err := normalizeCreateTrimmingImages(clinicID, input); err != nil {
 		return nil, err
 	}
 	status := model.ReservationStatusPending
@@ -260,18 +293,21 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 	}
 	var apptID uint64
 	var result *model.Reservation
+	var previousOwnerID *uint64
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		created, err := s.createTrimmingAppointmentInTx(txCtx, clinicID, input, bwUnit, status, enforceBookingConstraints)
+		created, previous, err := s.createTrimmingAppointmentInTx(txCtx, clinicID, input, bwUnit, status, enforceBookingConstraints)
 		if err != nil {
 			return err
 		}
 		result = created
+		previousOwnerID = previous
 		apptID = created.ID
 		return nil
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create trimming appointment")
 	}
 
+	s.syncNextVisitTagsBestEffort(ctx, clinicID, previousOwnerID, result.OwnerID)
 	slog.InfoContext(ctx, "trimming appointment created",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("appointment_id", apptID))

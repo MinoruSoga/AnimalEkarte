@@ -1,7 +1,7 @@
 # トリミング登録/編集 仕様書 (Trimming Form)
 
 ## 概要
-- **画面の目的**: トリミング施術の詳細（コース、オプション、カットスタイル、身体状態）の記録。画像欄は現在プレビューまでで、選択ファイルのアップロード保存は未配線。
+- **画面の目的**: トリミング施術の詳細（コース、オプション、カットスタイル、身体状態）の記録。画像欄は選択・撮影直後に `POST /api/v1/trimmings/images/upload` へアップロードされ、返却 object key が `style_image` / `completed_image` として保存 request で永続化される（§1.2）。
 - **URLパターン**: 
   - 新規作成: `/trimming/new?petId=xxx`
   - 編集: `/trimming/:id`
@@ -28,18 +28,26 @@
 - **備考**: 自由入力メモ。
 
 ### 1.2 画像管理
-- **希望スタイル画像・完成画像**: ファイルを選択すると `useTrimmingFormImages` が `FileReader` でローカルプレビューを表示する。既存レコードの画像 URL があれば再表示する。
-- **保存の制限**: `buildCreateTrimmingRequest` / `buildUpdateTrimmingRequest` は画像キーを送信せず、別のファイルアップロード処理も呼ばない。画面で選択・削除した画像は保存ボタンを押しても永続化されない。バックエンドの `style_image` / `completed_image` フィールドの存在を、この画面のアップロード完了と見なさない。
+- **希望スタイル画像・完成画像**: ファイルを選択するか、`TrimmingImageUploadField` の「撮影」で背面カメラを起動する（隠し input の `capture="environment"`）。選択直後にローカルの object URL で即時プレビューし、並行して `useTrimmingFormImages` が `uploadTrimmingImage` で `POST /api/v1/trimmings/images/upload` を呼ぶ。返った object key をフォームへ入れ、プレビューは返った `signed_url`（空ならローカル URL のまま）へ切り替える。既存レコードの署名付き URL があれば再表示する。
+- **アップロード中の保存ブロック**: いずれかの画像アップロードが in-flight の間は保存ボタンを無効化し「画像アップロード中...」と表示する。保存リクエスト送信中も画像操作を含むフォーム操作を無効化する（送信済みペイロードとフォーム状態の乖離を防ぐ）。画像の選択・削除は未保存変更として dirty に記録され、離脱ガード（§2.3）の対象になる。
+- **保存**: `buildCreateTrimmingRequest` / `buildUpdateTrimmingRequest` は、画像を変更したときだけ `style_image` / `completed_image` に object key を載せる。未変更の再保存ではそのフィールドを省く。明示的な削除は空文字を送る。署名 URL は保存しない。アップロード失敗は toast を出し、直前の key とプレビューは残す。
+- **未保存アップロードの掃除**: 選択の置き換え・削除・遅延解決・フォーム放棄でレコードに永続化されなくなったアップロード済みオブジェクトは `DELETE /api/v1/trimmings/images` で best-effort 削除する（失敗時は孤立オブジェクトが残るのみで通知しない）。レコード参照が残るキーは 409 で拒否される。保存リクエストに含めたキーは送信時点でサーバー側の所有物とみなし、クライアントは以後削除しない（commit 済みレコードの参照を壊さないため）。永続化済みフィールドの削除は PATCH/DELETE の superseded 処理が担う。
+- **画像キーと旧値の境界**: 新しい保存・削除は対象医院の正規キー `trimming-images/<clinic_id>/<name>` を要求し、`./`・重複 `/`・末尾 `/`・バックスラッシュ・`..` 等の別名や他医院のキーを拒否する。ローカルの `/uploads/` 包装は正規キーへ解決する。既存の HTTP(S) 値は未変更なら表示互換のため保持するが、ホストを検証できないので内部オブジェクトとみなさず署名・掃除の対象にしない。旧パス別名が参照保護に使われる場合も、ストレージ削除先を正規化して別オブジェクトへ置き換えない。表示用の署名 URL は DB に保存しない。
+- **保存と削除の競合保護**: 保存 transaction は booking/appointment lock の後に、最終画像 key の advisory lock を昇順で取得し、削除台帳にないことを確認して commit まで保持する。掃除は画像 key lock のみを使い、最新の全参照を確認して `trimming_image_deletions` に永久 tombstone を commit した後、DB transaction の外で storage を削除する。PATCH の掃除では自レコードも参照対象とし、DELETE は削除 transaction 内で取得した最新画像を対象にする。共有 key は参照が残る間保持する。削除が先行した key の保存は 409 とし、再アップロードが必要。
+- **削除失敗と記録**: storage 削除に失敗しても tombstone は保持し、新規参照を拒否する。同じ key の画像 DELETE で storage 削除を再試行できる。既存レコードの clinical 変更は `audit_logs`、画像の削除予約は専用 sink `trimming_image_deletions`（clinic/key/最初の staff/時刻）が正本で、tombstone に削除期限・soft-delete は設けない。`035_trimming_image_storage_retry` は同表へ最終試行（`last_attempt_at`）と storage 削除完了（`storage_deleted_at`）を追加し、`TRIMMING_IMAGE_CLEANUP_ENABLED=true` の環境でのみ起動する retry worker が pending 行を画像 key lock 直下で冪等に再削除する（5分間隔で起動・1 run 120秒上限・key あたり 10秒上限・run ごと最大100医院・選択 key 合計100件まで）。worker の provider 呼び出しは key lock 内の独立 transaction で実行し、直接 postcommit の storage 削除は DB transaction の外で行う。worker は既定で停止しており、手動 `DELETE /api/v1/trimmings/images` が fallback として残る。完了記録は worker run に遅延する（delayed acknowledgement）ため、完了前の二重削除呼び出しは冪等に吸収され、完了済み tombstone も引き続き参照を拒否する。storage 失敗は構造化 warning として記録する。診療画像の削除台帳は別契約のため流用しない。
 
 画像選択から保存までの扱い：
 
 ```mermaid
 flowchart TB
-    A["画像ファイルを選択"] --> B["FileReader でローカルプレビュー"]
-    E0["既存レコードの画像 URL"] --> B
-    B --> C["保存ボタン"]
-    C --> D["POST / PATCH リクエスト<br/>画像キーは送信しない"]
-    D --> E["画像は永続化されない<br/>BE の style_image / completed_image はアップロード完了を意味しない"]
+    A["画像を選択または撮影"] --> P["object URL で即時プレビュー"]
+    A --> U["POST /api/v1/trimmings/images/upload"]
+    U --> B["key を保持し signed_url でプレビュー"]
+    E0["既存レコードの署名付き URL"] --> B
+    P --> B
+    B --> C["保存ボタン<br/>アップロード中は無効"]
+    C --> D["POST / PATCH<br/>style_image / completed_image に key"]
+    D --> E["サーバが clinic 配下の key を保存し、読み出し時に署名 URL を返す"]
 ```
 
 ### 1.3 過去履歴の参照と引用 (History Sync)
@@ -60,7 +68,7 @@ flowchart TB
 
 - 新規作成APIを呼ぶ経路ではペット・担当者・コースが必須。トリミング予約区分は選択値または既定値を解決できなければ送信せず、該当欄にエラーを表示する。既存記録を更新する経路では、この新規用バリデーションを再実行しない。
 - 死亡ペットは保存・削除不可。編集時はペット情報の取得が完了するまで保存・削除を無効化し、各操作の権限も確認する。
-- 未保存変更がある状態で画面を離れる際は確認を表示する（保存中を除く）。
+- 未保存変更がある状態で画面を離れる際は確認を表示する（保存中を除く）。画像の選択・削除のみの変更も未保存変更に含む。
 
 ---
 
@@ -70,13 +78,15 @@ flowchart TB
 - **`TrimmingForm`**: 統合フォーム。
 - **`TrimmingLeftColumn`/`TrimmingMiddleColumn`**: コース・オプション・スタイル要望・身体状態等の入力欄。
 - **`TrimmingRightColumn`**: 過去履歴パネル。クリックで過去データを現在のフォームへマージ。
-- **`TrimmingImageUploadField`**: 希望スタイル画像・完成画像の選択とプレビュー UI（保存の制限は §1.2）。
+- **`TrimmingImageUploadField`**: 希望スタイル画像・完成画像のファイル選択、`capture="environment"` の撮影ボタン、プレビューと削除。永続化は §1.2。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
 | GET | `/api/v1/trimmings/:id` | 施術詳細および画像 URL の取得 | `trimming` | `view` |
-| POST | `/api/v1/trimmings` | 新規保存 | `trimming` | `create` |
+| POST | `/api/v1/trimmings/images/upload` | 画像を先にアップロードし object key と署名 URL を返す | `trimming` | `create` または `edit` |
+| DELETE | `/api/v1/trimmings/images` | 未保存のまま残ったアップロード済みオブジェクトの掃除 | `trimming` | `create` または `edit` |
+| POST | `/api/v1/trimmings` | 新規保存。変更した画像は `style_image` / `completed_image` に key を載せる | `trimming` | `create` |
 | PATCH | `/api/v1/trimmings/:id` | 内容の更新 | `trimming` | `edit` |
 | GET | `/api/v1/trimmings` | 過去のカット履歴の取得（クエリパラメータ: `pet_id=xxx`） | `trimming` | `view` |
 | DELETE | `/api/v1/trimmings/:id` | 記録の削除（編集画面のみ、`delete` 権限保有者にヘッダーの削除ボタンを表示） | `trimming` | `delete` |

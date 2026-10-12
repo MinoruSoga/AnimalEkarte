@@ -1,0 +1,78 @@
+=== RUN   TestTokenService_IssueAndVerify
+=== RUN   TestTokenService_IssueAndVerify/roundtrip:_発行した_refresh_token_を検証できる
+=== RUN   TestTokenService_IssueAndVerify/tamper_detect:_改竄した_token_は拒否する
+=== RUN   TestTokenService_IssueAndVerify/blacklist_reject:_失効済み_JTI_の_token_は拒否する
+=== RUN   TestTokenService_IssueAndVerify/missing_JTI:_rotationできない_refresh_token_は拒否する
+=== RUN   TestTokenService_IssueAndVerify/current_refresh_missing_issued-at_is_rejected
+=== RUN   TestTokenService_IssueAndVerify/current_refresh_over_seven-day_lifetime_is_rejected
+=== RUN   TestTokenService_IssueAndVerify/legacy_refresh_without_account_epoch_is_accepted_within_seven-day_window
+=== RUN   TestTokenService_IssueAndVerify/missing_blacklist:_dependency_failure_is_not_mislabeled_as_unauthorized
+=== RUN   TestTokenService_IssueAndVerify/blacklist_read_error:_dependency_cause_is_preserved_for_5xx_mapping
+=== RUN   TestTokenService_IssueAndVerify/invalid_token_type:_access_token_を_refresh_検証に流用すると拒否する
+=== RUN   TestTokenService_IssueAndVerify/alg_reject:_HS384_は拒否する
+--- PASS: TestTokenService_IssueAndVerify (0.00s)
+    --- PASS: TestTokenService_IssueAndVerify/roundtrip:_発行した_refresh_token_を検証できる (0.00s)
+    --- PASS: TestTokenService_IssueAndVerify/tamper_detect:_改竄した_token_は拒否する (0.00s)
+    --- PASS: TestTokenService_IssueAndVerify/blacklist_reject:_失効済み_JTI_の_token_は拒否する (0.00s)
+    --- PASS: TestTokenService_IssueAndVerify/missing_JTI:_rotationできない_refresh_token_は拒否する (0.00s)
+    --- PASS: TestTokenService_IssueAndVerify/current_refresh_missing_issued-at_is_rejected (0.00s)
+    --- PASS: TestTokenService_IssueAndVerify/current_refresh_over_seven-day_lifetime_is_rejected (0.00s)
+    --- PASS: TestTokenService_IssueAndVerify/legacy_refresh_without_account_epoch_is_accepted_within_seven-day_window (0.00s)
+    --- PASS: TestTokenService_IssueAndVerify/missing_blacklist:_dependency_failure_is_not_mislabeled_as_unauthorized (0.00s)
+    --- PASS: TestTokenService_IssueAndVerify/blacklist_read_error:_dependency_cause_is_preserved_for_5xx_mapping (0.00s)
+    --- PASS: TestTokenService_IssueAndVerify/invalid_token_type:_access_token_を_refresh_検証に流用すると拒否する (0.00s)
+    --- PASS: TestTokenService_IssueAndVerify/alg_reject:_HS384_は拒否する (0.00s)
+=== RUN   TestTokenService_IssueFailsClosedWhenJTIEntropyIsUnavailable
+=== RUN   TestTokenService_IssueFailsClosedWhenJTIEntropyIsUnavailable/reader_error
+=== RUN   TestTokenService_IssueFailsClosedWhenJTIEntropyIsUnavailable/short_read
+--- PASS: TestTokenService_IssueFailsClosedWhenJTIEntropyIsUnavailable (0.00s)
+    --- PASS: TestTokenService_IssueFailsClosedWhenJTIEntropyIsUnavailable/reader_error (0.00s)
+    --- PASS: TestTokenService_IssueFailsClosedWhenJTIEntropyIsUnavailable/short_read (0.00s)
+=== RUN   TestTokenService_RejectsJWTInputOverMaximumSize
+--- PASS: TestTokenService_RejectsJWTInputOverMaximumSize (0.00s)
+=== RUN   TestTokenService_VerifyAccessToken
+=== RUN   TestTokenService_VerifyAccessToken/roundtrip:_発行した_access_token_を検証できる
+=== RUN   TestTokenService_VerifyAccessToken/legacy_access_without_account_epoch_is_accepted_within_fifteen-minute_window
+=== RUN   TestTokenService_VerifyAccessToken/current_access_missing_registered_claims_is_rejected
+=== RUN   TestTokenService_VerifyAccessToken/current_access_over_fifteen-minute_lifetime_is_rejected
+=== RUN   TestTokenService_VerifyAccessToken/legacy_access_over_fifteen-minute_window_is_rejected
+=== RUN   TestTokenService_VerifyAccessToken/tamper_detect:_改竄した_token_は拒否する
+=== RUN   TestTokenService_VerifyAccessToken/invalid_token_type:_refresh_token_を_access_検証に流用すると拒否する
+=== RUN   TestTokenService_VerifyAccessToken/blacklist_非呼び出し:_revoked_JTI_でも_access_は通る（BLなし）
+=== RUN   TestTokenService_VerifyAccessToken/non-empty_subject:_任意の非空_Subject_を拒否する
+=== RUN   TestTokenService_VerifyAccessToken/alg_reject:_HS384_は拒否する
+--- PASS: TestTokenService_VerifyAccessToken (0.00s)
+    --- PASS: TestTokenService_VerifyAccessToken/roundtrip:_発行した_access_token_を検証できる (0.00s)
+    --- PASS: TestTokenService_VerifyAccessToken/legacy_access_without_account_epoch_is_accepted_within_fifteen-minute_window (0.00s)
+    --- PASS: TestTokenService_VerifyAccessToken/current_access_missing_registered_claims_is_rejected (0.00s)
+    --- PASS: TestTokenService_VerifyAccessToken/current_access_over_fifteen-minute_lifetime_is_rejected (0.00s)
+    --- PASS: TestTokenService_VerifyAccessToken/legacy_access_over_fifteen-minute_window_is_rejected (0.00s)
+    --- PASS: TestTokenService_VerifyAccessToken/tamper_detect:_改竄した_token_は拒否する (0.00s)
+    --- PASS: TestTokenService_VerifyAccessToken/invalid_token_type:_refresh_token_を_access_検証に流用すると拒否する (0.00s)
+    --- PASS: TestTokenService_VerifyAccessToken/blacklist_非呼び出し:_revoked_JTI_でも_access_は通る（BLなし） (0.00s)
+    --- PASS: TestTokenService_VerifyAccessToken/non-empty_subject:_任意の非空_Subject_を拒否する (0.00s)
+    --- PASS: TestTokenService_VerifyAccessToken/alg_reject:_HS384_は拒否する (0.00s)
+=== RUN   TestLegacyTokenWindowValid_ExactTTLBoundaries
+=== RUN   TestLegacyTokenWindowValid_ExactTTLBoundaries/access_exact_fifteen_minutes
+=== RUN   TestLegacyTokenWindowValid_ExactTTLBoundaries/access_one_second_over
+=== RUN   TestLegacyTokenWindowValid_ExactTTLBoundaries/refresh_exact_seven_days
+=== RUN   TestLegacyTokenWindowValid_ExactTTLBoundaries/refresh_one_second_over
+--- PASS: TestLegacyTokenWindowValid_ExactTTLBoundaries (0.00s)
+    --- PASS: TestLegacyTokenWindowValid_ExactTTLBoundaries/access_exact_fifteen_minutes (0.00s)
+    --- PASS: TestLegacyTokenWindowValid_ExactTTLBoundaries/access_one_second_over (0.00s)
+    --- PASS: TestLegacyTokenWindowValid_ExactTTLBoundaries/refresh_exact_seven_days (0.00s)
+    --- PASS: TestLegacyTokenWindowValid_ExactTTLBoundaries/refresh_one_second_over (0.00s)
+=== RUN   TestTokenMatchesAccountEpoch
+--- PASS: TestTokenMatchesAccountEpoch (0.00s)
+=== RUN   TestTokenService_ParseRefreshTokenClaims
+=== RUN   TestTokenService_ParseRefreshTokenClaims/valid_refresh:_claims_を返しブラックリストを見ない
+=== RUN   TestTokenService_ParseRefreshTokenClaims/access_token:_subject_不一致で拒否
+=== RUN   TestTokenService_ParseRefreshTokenClaims/tampered:_署名不正で拒否
+=== RUN   TestTokenService_ParseRefreshTokenClaims/alg_reject:_HS384_は拒否する
+--- PASS: TestTokenService_ParseRefreshTokenClaims (0.00s)
+    --- PASS: TestTokenService_ParseRefreshTokenClaims/valid_refresh:_claims_を返しブラックリストを見ない (0.00s)
+    --- PASS: TestTokenService_ParseRefreshTokenClaims/access_token:_subject_不一致で拒否 (0.00s)
+    --- PASS: TestTokenService_ParseRefreshTokenClaims/tampered:_署名不正で拒否 (0.00s)
+    --- PASS: TestTokenService_ParseRefreshTokenClaims/alg_reject:_HS384_は拒否する (0.00s)
+PASS
+ok  	github.com/animal-ekarte/backend/internal/auth	0.008s

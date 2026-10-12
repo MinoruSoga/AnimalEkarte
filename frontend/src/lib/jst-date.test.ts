@@ -8,6 +8,7 @@ import {
   formatJSTDate,
   formatJSTDateTimeLocal,
   formatJSTTime,
+  isBirthMonthJST,
   jstDateStartISOString,
   jstDateTimeLocalToISOString,
   jstNowISOString,
@@ -115,4 +116,54 @@ describe("jst-date", () => {
       expect(isPastJSTDate(date)).toBe(expected);
     });
   });
+
+  describe("誕生月判定 (EMR-301)", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      // UTC 2026-10-15 01:00 → JST 2026-10-15 10:00（当月 = 10月）
+      vi.setSystemTime(new Date("2026-10-15T01:00:00Z"));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it.each([
+      ["当月(10月)生まれ・過去年", "1999-10-01", true],
+      ["当月の月末", "2020-10-31", true],
+      ["翌月", "2010-11-15", false],
+      ["前月", "2010-09-15", false],
+      ["同年の別月", "2026-03-10", false],
+      ["未設定(undefined)", undefined, false],
+      ["null", null, false],
+      ["空文字", "", false],
+      ["スラッシュ形式", "2010/10/15", false],
+      ["暦上無効 02-30", "2010-02-30", false],
+      ["非閏年の 02-29", "2011-02-29", false],
+      ["13月", "2010-13-01", false],
+    ])("%s は誕生月判定 %s", (_label, date, expected) => {
+      expect(isBirthMonthJST(date)).toBe(expected);
+    });
+
+    it("閏日生まれは2月に誕生月一致し、暦上無効な閏日は一致しない", () => {
+      // JST 2026-02-10
+      vi.setSystemTime(new Date("2026-02-10T00:00:00Z"));
+      expect(isBirthMonthJST("2012-02-29")).toBe(true);
+      expect(isBirthMonthJST("2011-02-29")).toBe(false);
+      expect(isBirthMonthJST("2012-02-28")).toBe(true);
+    });
+
+    it("JST 月跨ぎ境界では JST の月を使う（UTC 月末 15:00 で JST は翌月1日）", () => {
+      // UTC 2026-10-31 15:00 → JST 2026-11-01 00:00（当月 = 11月）
+      vi.setSystemTime(new Date("2026-10-31T15:00:00Z"));
+      expect(isBirthMonthJST("2010-11-20")).toBe(true);
+      expect(isBirthMonthJST("2010-10-20")).toBe(false);
+    });
+  });
+});
+
+it("birthday predicate consumes the reactive JST date independently of the wall clock", () => {
+  expect(isBirthMonthJST("2020-11-05", "2026-11-01")).toBe(true);
+  expect(isBirthMonthJST("2020-10-05", "2026-11-01")).toBe(false);
+  expect(isBirthMonthJST("2011-02-29", "2026-02-01")).toBe(false);
 });

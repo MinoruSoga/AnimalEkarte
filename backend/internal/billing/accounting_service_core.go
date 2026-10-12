@@ -9,6 +9,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
@@ -548,13 +549,13 @@ func (s *accountingService) loadPaymentMethodSystemKeyToID(ctx context.Context, 
 	return skToID, nil
 }
 
-func (s *accountingService) completeAccountingAppointments(ctx context.Context, clinicID uint64, billing *model.Billing) error {
+func (s *accountingService) completeAccountingAppointments(ctx context.Context, clinicID uint64, billing *model.Billing) ([]uint64, error) {
 	if s.reservationRepo == nil {
-		return apperrors.WrapInternalServerError("reservation repository is not configured")
+		return nil, apperrors.WrapInternalServerError("reservation repository is not configured")
 	}
-	updated, err := s.reservationRepo.CompleteForAccounting(ctx, clinicID, billing.MedicalRecordID, billing.OwnerID, billing.PetID, billing.ScheduledDate)
+	updated, owners, err := s.reservationRepo.CompleteForAccountingWithOwners(ctx, clinicID, billing.MedicalRecordID, billing.OwnerID, billing.PetID, billing.ScheduledDate)
 	if err != nil {
-		return apperrors.Wrap(err, "failed to complete accounting appointments")
+		return nil, apperrors.Wrap(err, "failed to complete accounting appointments")
 	}
 	if updated > 0 {
 		slog.InfoContext(ctx, "accounting appointments completed",
@@ -562,7 +563,7 @@ func (s *accountingService) completeAccountingAppointments(ctx context.Context, 
 			slog.Uint64("billing_id", billing.ID),
 			slog.Int64("updated_count", updated))
 	}
-	return nil
+	return owners, nil
 }
 
 func (s *accountingService) syncCPMStageTag(ctx context.Context, clinicID uint64, billing *model.Billing) {
@@ -572,5 +573,33 @@ func (s *accountingService) syncCPMStageTag(ctx context.Context, clinicID uint64
 	ownerID := *billing.OwnerID
 	if err := s.tagSyncSvc.SyncCPMStageTag(ctx, clinicID, ownerID); err != nil {
 		slog.ErrorContext(ctx, "failed to sync CPM stage tag", "error", err, "clinic_id", clinicID, "owner_id", ownerID, "billing_id", billing.ID)
+	}
+}
+
+// syncNextVisitTag は accounting 完了で accounting→completed 遷移した予約が
+// next_visit 対象集合から外れるため、post-commit で next_visit_* タグを
+// 再同期する（Codex #23 / EMR-308、best-effort）。
+func (s *accountingService) syncNextVisitTag(ctx context.Context, clinicID uint64, billing *model.Billing, completedOwners []uint64) {
+	if s.tagSyncSvc == nil || billing == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(persistence.DetachTx(ctx), 30*time.Second)
+	defer cancel()
+	owners := append([]uint64(nil), completedOwners...)
+	if billing.OwnerID != nil {
+		owners = append(owners, *billing.OwnerID)
+	}
+	seen := make(map[uint64]struct{})
+	for _, ownerID := range owners {
+		if ownerID == 0 {
+			continue
+		}
+		if _, ok := seen[ownerID]; ok {
+			continue
+		}
+		seen[ownerID] = struct{}{}
+		if err := s.tagSyncSvc.SyncNextVisitTag(ctx, clinicID, ownerID); err != nil {
+			slog.ErrorContext(ctx, "failed to sync next visit tag", "error", err, "clinic_id", clinicID, "owner_id", ownerID, "billing_id", billing.ID)
+		}
 	}
 }

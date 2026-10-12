@@ -23,7 +23,7 @@ func requireReservationRowLockTransaction(ctx context.Context) error {
 func (r *reservationRepository) CountByTypeAndStartTime(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error) {
 	var count int64
 	q := persistence.DBOrTx(ctx, r.db).Model(&model.Reservation{}).
-		Where("clinic_id = ? AND reservation_type_id = ? AND start_time = ? AND status NOT IN ('cancelled') AND deleted_at IS NULL",
+		Where("clinic_id = ? AND reservation_type_id = ? AND start_time = ? AND status NOT IN ('cancelled', 'tentative') AND deleted_at IS NULL",
 			clinicID, reservationTypeID, startTime)
 	if excludeID != nil {
 		q = q.Where("id != ?", *excludeID)
@@ -49,7 +49,7 @@ func (r *reservationRepository) CountByTypeAndStartTimes(ctx context.Context, cl
 	var rows []countByTypeAndStartTimeRow
 	q := persistence.DBOrTx(ctx, r.db).Model(&model.Reservation{}).
 		Select("start_time, COUNT(*) AS count").
-		Where("clinic_id = ? AND reservation_type_id = ? AND start_time IN ? AND status NOT IN ('cancelled') AND deleted_at IS NULL",
+		Where("clinic_id = ? AND reservation_type_id = ? AND start_time IN ? AND status NOT IN ('cancelled', 'tentative') AND deleted_at IS NULL",
 			clinicID, reservationTypeID, startTimes).
 		Group("start_time")
 	if excludeID != nil {
@@ -70,7 +70,7 @@ func (r *reservationRepository) CountByCustomerAndDateRange(ctx context.Context,
 	var count int64
 	err := persistence.DBOrTx(ctx, r.db).Model(&model.Reservation{}).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("line_customer_id = ? AND status NOT IN ('cancelled') AND start_time >= ? AND start_time < ? AND deleted_at IS NULL",
+		Where("line_customer_id = ? AND status NOT IN ('cancelled', 'tentative') AND start_time >= ? AND start_time < ? AND deleted_at IS NULL",
 			customerID, start, end,
 		).Count(&count).Error
 	if err != nil {
@@ -246,7 +246,7 @@ func (r *reservationRepository) FindPetByIDInClinic(ctx context.Context, clinicI
 		db = db.Clauses(clause.Locking{Strength: "SHARE"})
 	}
 	err := db.
-		Select("pets.id", "pets.owner_id", "pets.deceased_at", "pets.status").
+		Select("pets.id", "pets.clinic_id", "pets.owner_id", "pets.deceased_at", "pets.status").
 		Where("pets.id = ? AND pets.clinic_id = ? AND pets.deleted_at IS NULL", petID, clinicID).
 		First(&pet).Error
 	if err != nil {
@@ -269,6 +269,31 @@ func (r *reservationRepository) AssertLineCustomerInClinic(ctx context.Context, 
 		Take(&id).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "line_customer", fmt.Sprintf("%d", lineCustomerID))
+	}
+	return nil
+}
+
+// Keep the authenticated customer's current link locked through LIFF insertion.
+// An unlinked customer remains eligible for the existing post-create attach path.
+func (r *reservationRepository) assertLineCustomerReservationOwner(ctx context.Context, clinicID, customerID uint64, resolvedOwnerID *uint64) error {
+	if persistence.TxFromContext(ctx) == nil {
+		return apperrors.WrapInternalServerError("LINE customer owner verification requires an ambient transaction")
+	}
+	var customer model.LineCustomer
+	if err := persistence.DBOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "SHARE"}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Select("id", "owner_id").
+		Where("id = ?", customerID).Take(&customer).Error; err != nil {
+		return apperrors.FromGORM(err, "line_customer", fmt.Sprintf("%d", customerID))
+	}
+	return validateLineReservationCustomerOwner(resolvedOwnerID, customer.OwnerID)
+}
+
+func validateLineReservationCustomerOwner(resolvedOwnerID, currentOwnerID *uint64) error {
+	if (resolvedOwnerID == nil) != (currentOwnerID == nil) ||
+		(resolvedOwnerID != nil && currentOwnerID != nil && *currentOwnerID != *resolvedOwnerID) {
+		return apperrors.WrapConflict("LINE顧客の飼い主紐付けが変更されました。再読み込みしてください")
 	}
 	return nil
 }

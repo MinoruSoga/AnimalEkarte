@@ -41,11 +41,15 @@ const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 /**
  * 終了済み/キャンセルの appointment は「相方なし」扱いにして作成導線を許す。
  * medical-records 側の selectReusableGeneralAppointment と同じ除外集合。
+ * EMR-308: "tentative"（次回予定・未予約）も除外する — 実時間を持たない sentinel 行を
+ * 相方として再利用すると昇格（同一行の実予約化）が起きない。作成経路に回すと
+ * BE createOrPromoteTentative が tentative を同一行昇格する。
  */
 const TERMINAL_APPOINTMENT_STATUSES: ReadonlySet<string> = new Set([
   "completed",
   "cancelled",
   "no_show",
+  "tentative",
 ]);
 
 function buildVisitParams(petId: string | undefined, visitDate: string): URLSearchParams {

@@ -14,6 +14,7 @@ export interface OwnerSharedPetApiResponse {
     name: string;
   };
   birth_date: string | null;
+  deceased_at?: string | null;
   color: string;
   weight: number | null;
   environment: string;

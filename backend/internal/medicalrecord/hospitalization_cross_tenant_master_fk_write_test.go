@@ -258,7 +258,7 @@ func TestHospitalizationService_Update_RejectsCrossClinicCageFK(t *testing.T) {
 		updated := false
 		svc := newSvc(&updated)
 		foreign := foreignCageID
-		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateHospitalizationInput{CageID: &foreign})
+		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateHospitalizationInput{CageID: &foreign, ExpectedCageIsNull: true})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, updated, "hospitalization must NOT be updated to reference another clinic's cage")
@@ -268,7 +268,7 @@ func TestHospitalizationService_Update_RejectsCrossClinicCageFK(t *testing.T) {
 		updated := false
 		svc := newSvc(&updated)
 		owned := ownedCageID
-		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateHospitalizationInput{CageID: &owned})
+		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateHospitalizationInput{CageID: &owned, ExpectedCageIsNull: true})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, updated)

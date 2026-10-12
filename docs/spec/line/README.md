@@ -3,6 +3,7 @@
 > **目的**: LINE/Lステップ連携ドキュメントの索引を提供する。
 > **読者**: 新規参加開発者・非エンジニア(院長等)。
 > **タイミング**: LINE連携機能の全体像を把握したい時。
+> **編集時のルール**: [CLAUDE.md](CLAUDE.md) を参照。
 
 > **Animal Ekarte**: 飼主向け予約体験と CRM 戦略の統合
 > **最新更新**: 2026-09-06（repo `7c6592f9f` / GitHub #259 本文・コメント照合）
@@ -19,8 +20,8 @@
 
 ### 導入・設定
 - **[setup.md](./setup.md)**: LINE Developers Console、Messaging API、および Lステップ管理画面の初期設定手順。
-- **[lstep-integration.md](./lstep-integration.md)**: **【重要】** マーケティング戦略、CPM 判定ロジック、15 種の自動配信トリガー詳細。
-- **[cost-analysis.md](./cost-analysis.md)**: Messaging / Lステップ課金と配信ボリューム試算（docs-only）。
+- **[lstep-integration.md](./lstep-integration.md)**: **【重要】** マーケティング戦略、CPM 判定ロジック、17 種の自動配信トリガー詳細。
+- **[cost-analysis.md](./cost-analysis.md)**: Messaging / Lステップ課金と実装済み効果測定（docs-only）。配信ボリューム試算・ROI draft・料金 worksheet は [作業ノート](../../work/line-cost-analysis-roi-draft-20261007.md)（2026-10-07 監査で移設）。
 
 ### 原本
 - クライアント受領原本の外部 restricted evidence location は CorpVault `evidence/2026-08-20-docs-cleanup/client/`（repository 外であり、この commit の検証対象・開発時の必須依存ではない）。製品側の repository SoT は [lstep-integration.md](./lstep-integration.md)。
@@ -34,7 +35,7 @@
 ### 主要な価値
 - **オペレーションの自動化**: LINE 予約がカルテ受付（カンバン）へ即座に反映され、スタッフの手入力コストを削減。
 - **臨床データに基づく CRM**: 診察結果や最終来院日に基づき、Lステップが「忘れられない病院」として自動で飼主をフォロー。
-- **競合を拒否する空き枠管理**: 作成transaction内で予約種別規則とappointment conflictを再検証する。明示staffはclinic所属・capability・LIFF公開/activeを検査するが、**選択時刻のshift再検証は未実装のsource gap**であり、frontendのshift絞り込みだけを安全根拠にしない。
+- **競合を拒否する空き枠管理**: 作成transaction内で予約種別規則とappointment conflictを再検証する。明示staffはclinic所属・capability・LIFF公開/activeを検査する。追記（2026-10-07 監査）: 明示staffの**選択時刻のshift再検証は未実装**という既知 source gap と扱いの正本は [reservation-to-record-flow.md §7](../reservation-to-record-flow.md)（Deferred / known gaps）。frontendのshift絞り込みだけを安全根拠にしない。
 
 ```mermaid
 flowchart LR

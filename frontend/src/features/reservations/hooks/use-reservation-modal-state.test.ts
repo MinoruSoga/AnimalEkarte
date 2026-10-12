@@ -9,13 +9,14 @@ describe("useReservationModalState", () => {
     vi.setSystemTime(new Date("2026-05-29T01:07:00.000Z"));
 
     const { result } = renderHook(() =>
-      useReservationModalState({ locationSearch: "?reception=1" }),
+      useReservationModalState({ locationSearch: "?reception=1&petId=10" }),
     );
 
     expect(result.current.isFormOpen).toBe(true);
     expect(result.current.editingAppointment).toEqual(
       expect.objectContaining({
         status: "checked_in",
+        petId: "10",
         reservationRoute: "reception",
         source: "manual",
         visitType: "first",

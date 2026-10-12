@@ -93,11 +93,12 @@ jobs:
         # (2026-07-17 発覚)。npx は node_modules を上方探索しつつ CWD=backend を維持する。
         run: npx wrangler deploy
 
-      # PR#186 P2-3: wrangler deploy は Worker/Container を即座に切り替える(段階的ロールアウト機構なし)ため、
-      # 旧ECSフロー(migrateジョブ→exit code検証→失敗ならAPI deployをabort、docs/ops/infra/_archive/migration-cloudflare.md:425が
-      # 本来の意図として明記)の意図を守るには、新バージョンに対する検証系ステップより前に migration を
-      # 通す必要がある。cf-run-migrate.sh の self-test(15s)/本実行(150s)タイムアウトはコンテナのコールド
-      # スタート(最大 ~3s)を吸収できるため、/health ポーリングより前段に置ける。
+      # PR#186 P2-3: wrangler deploy は Worker/Container を即座に切り替える(段階的ロールアウト機構なし)。
+      # 現行の順序は deploy → migrate → post-migrate health。migration の exit code が非0なら後続検証を
+      # 中断する(docs/ops/infra/staging/runbook.md 参照)。この順序は migrate-before-traffic を保証しない。
+      # タイムアウト値は infra/scripts/cf-run-migrate.sh と backend/worker/index.ts が正本。
+      # 以下は2026-07時点の設計・USER受容記録で、当時の150s等は現在のタイムアウト値ではない。
+      # 現在値/現在のprovider supportは再確認が必要、既存承認境界を拡張しない。
       # 既知の残課題: wrangler deploy 完了と同時に実トラフィックは新バージョンへ切り替わる。Cloudflare の
       # 段階的デプロイ(wrangler versions upload/deploy)は Durable Object(本Workerが AnimalEkarteApiContainer
       # を DO として bind)を使うスクリプトには適用できない(Preview URL も DO bind Worker には生成されない。
@@ -128,7 +129,8 @@ jobs:
           fi
           ./infra/scripts/cf-run-migrate.sh
 
-      # 試行12: vars 変更は warm Container に即時反映されない。コールドスタート最大 ~3s + sleepAfter 10m を考慮
+      # vars 変更が warm Container に即時反映されるとは限らない。sleepAfter は backend/worker/index.ts、
+      # /health の待機回数・間隔は以下の step 定義を正本とする。
       - name: Wait for /health (post-migrate)
         run: |
           set -euo pipefail

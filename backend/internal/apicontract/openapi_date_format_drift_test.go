@@ -120,6 +120,14 @@ var knownDateFormatDrifts = map[string]int{
 	// pet_response.go builder; both sites use the same LocalTimePtr path as the reviewed
 	// PetResponse one, so the benign-collision count above doubles by design.
 	"pet/pet_response.go|deceased_at": 2,
+
+	// EMR-301 (PR #614): petSummary / shared_pets の死亡OR契約 sentinel として
+	// deceased_at を追加した3サイトも同じ良性衝突。全て *time.Time を
+	// httpapi.LocalTimePtr で date-time 配信し、対応 schema も format: date-time。
+	// collision 元は上記と同じ PatchPetDeathRequest.deceased_at (request DTO, format: date)。
+	"medicalrecord/nested_summary_response.go|deceased_at": 1,
+	"pet/pet_owner_response.go|deceased_at":                1,
+	"reservation/nested_summary_response.go|deceased_at":   1,
 }
 
 func driftKey(file, jsonName string) string { return file + "|" + jsonName }
