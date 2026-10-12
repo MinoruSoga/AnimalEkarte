@@ -141,7 +141,7 @@ docker compose run --rm --no-deps \
     --confirm-target-host "${STAFF_PROVISION_CONFIRM_HOST}"
 ```
 
-**rollback**: 自動ロールバック（commit 前）と `status=applied` 後の補償手順は [LINMIG-230 §5](../../work/linmig-campaign-20260919/LINMIG-230.md#5-rollback-design-no-cli-do-not-run) に従う（receipt / audit は削除しない。個別 staff を `is_active=false` 等で補償する）。
+**rollback**: 自動ロールバック（commit 前）と `status=applied` 後の補償手順は [LINMIG-230 §5](../../work/campaigns/linmig-campaign-20260919/LINMIG-230.md#5-rollback-design-no-cli-do-not-run) に従う（receipt / audit は削除しない。個別 staff を `is_active=false` 等で補償する）。
 
 成功時 stdout は PII-free JSON（`status` / `batch_id` / `digest` / `staff_count` / `clinic_scope`）。
 

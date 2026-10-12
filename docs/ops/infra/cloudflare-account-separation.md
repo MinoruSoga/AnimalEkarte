@@ -126,9 +126,9 @@ DB/docker の underscore と container 自動 suffix の hyphen、macOS reverse-
 | `load-tests/k6-cf-stg-sustained.js:56` | API 正規 hostname |
 | `SECURITY.md:91` | dated live 記録を保全し、新 hostname の検証日付き記録を追加。値の機械置換で履歴を改ざんしない |
 | `docs/ops/infra/rename-to-noah-karte.md:27` | 旧方針撤回と新 account/正規 hostname の対応を追記する後続タスク |
-| `docs/work/linmig-campaign-20260919/LINMIG-232.md:23` | 履歴 URL は保全し、現行手順への参照注記を後続タスクで追加 |
+| `docs/work/campaigns/linmig-campaign-20260919/LINMIG-232.md:23` | 履歴 URL は保全し、現行手順への参照注記を後続タスクで追加 |
 
-再調査で11件目 `docs/work/infra-cf-rename-task-coverage-review-20261006.md:30` に歴史的記載が見つかった。元の10件とは分けて保全し、新規の実行参照漏れだけを退役ゲートで確認する。secret-sync の Worker 名も更新対象 (`.github/workflows/worker-secret-sync.yml:53`)。LINE/LIFF コンソール、CORS、端末 allowed origin、外部 webhook は repo 外もあるため一覧・担当は UNKNOWN を埋めてから切替する。
+再調査で11件目 `docs/work/infra/infra-cf-rename-task-coverage-review-20261006.md:30` に歴史的記載が見つかった。元の10件とは分けて保全し、新規の実行参照漏れだけを退役ゲートで確認する。secret-sync の Worker 名も更新対象 (`.github/workflows/worker-secret-sync.yml:53`)。LINE/LIFF コンソール、CORS、端末 allowed origin、外部 webhook は repo 外もあるため一覧・担当は UNKNOWN を埋めてから切替する。
 
 ## 3. 移行方式の選択肢
 
@@ -239,7 +239,7 @@ lab device agent は label/plist/install path と build bundle を更新し、�
 
 | リスク / UNKNOWN | 扱い・再開条件 |
 |---|---|
-| 古い NS コメントと authoritative 稼働という依頼文の不一致 | `backend/wrangler.jsonc:10`、レビュー `docs/work/infra-cf-rename-task-coverage-review-20261006.md:28` は live 検証にならない。registrar/NS/DNSSEC/TLS を人が日付付き再照会するまで移管しない |
+| 古い NS コメントと authoritative 稼働という依頼文の不一致 | `backend/wrangler.jsonc:10`、レビュー `docs/work/infra/infra-cf-rename-task-coverage-review-20261006.md:28` は live 検証にならない。registrar/NS/DNSSEC/TLS を人が日付付き再照会するまで移管しない |
 | 旧改名文書との矛盾 | `docs/ops/infra/rename-to-noah-karte.md:27` の組織命名据え置き、`:37` の module 据え置き案は今回の確定方針で撤回。`:56` の hosted DB 改名案は本件では採用せず PlanetScale を移管しない。`:47` の class rename=状態喪失という一般化は公式 rename migration と区別。旧文書は今回編集せず後続で改訂 |
 | state の資格・旧 Hyperdrive | type/name 以外未閲覧。旧 state の安全な保管/廃棄と残存資格の用途調査は人間。設定削除だけで remote 廃止済みとしない |
 | DO 空状態の ledger/lease/fence/pause 喪失 | `backend/worker/index.ts:269`。新 account に跨る lease は無い。停止/drain/単一武装と空起動の再入試験が必要。保存状態のコピー・引継ぎ期待は範囲外 |

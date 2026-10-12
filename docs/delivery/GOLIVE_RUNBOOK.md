@@ -1,6 +1,6 @@
 # Go-live 手順書 — 本番切替（相対 timeline / gate-driven HOLD）
 
-> Current task status is tracked in Plane `EMR-40`. This local document remains supporting execution/evidence material; see the [migration receipt](../work/plane-md-migration-20260923-receipt.md) for the crosswalk.
+> Current task status is tracked in Plane `EMR-40`. This local document remains supporting execution/evidence material; see the [migration receipt](../work/plane/plane-md-migration-20260923-receipt.md) for the crosswalk.
 
 > **仕様照合**: 2026-09-06、repo `7c6592f9f` と [#257 最新コメント](https://github.com/MinoruSoga/AnimalEkarte/issues/257#issuecomment-5353016753)。GitHub は OPEN。外部稼働・Linear の現在値は未取得（2026-09-29 訂正: 「Linear の現在値は未取得」→ Linear は 2026-09-16 に閉鎖済みで現在値を持たない。実行状態の正本は Plane `EMR-40`）。
 > **対象 Issue**: #257 ／ **状態**: ドラフト — **実行 HOLD**（全 **pre-window prerequisite** green かつ USER が新 window を記入するまで fail-closed。day-of gate は当日タイムライン内で別判定）

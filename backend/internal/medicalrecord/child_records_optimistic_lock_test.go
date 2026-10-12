@@ -10,7 +10,7 @@ package medicalrecord
 //
 // 4 経路とも input.Version が repository Update の CAS 述語としてそのまま渡り、
 // repo の Conflict が service の返り値に伝播することを mock で検証する。
-// vaccination には設計票（docs/work/todo-campaign-20260918/UAT-R2-EXCLUSIVE-LOCK.md
+// vaccination には設計票（docs/work/campaigns/todo-campaign-20260918/UAT-R2-EXCLUSIVE-LOCK.md
 // §最小設計）の draft ガード（medical_record_id != nil のとき lockDraftMedicalRecord）を
 // 検証する TestVaccinationService_Update_FinalizedMedicalRecordRejected を併記する。
 //

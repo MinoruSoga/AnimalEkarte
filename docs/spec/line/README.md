@@ -21,7 +21,7 @@
 ### 導入・設定
 - **[setup.md](./setup.md)**: LINE Developers Console、Messaging API、および Lステップ管理画面の初期設定手順。
 - **[lstep-integration.md](./lstep-integration.md)**: **【重要】** マーケティング戦略、CPM 判定ロジック、17 種の自動配信トリガー詳細。
-- **[cost-analysis.md](./cost-analysis.md)**: Messaging / Lステップ課金と実装済み効果測定（docs-only）。配信ボリューム試算・ROI draft・料金 worksheet は [作業ノート](../../work/line-cost-analysis-roi-draft-20261007.md)（2026-10-07 監査で移設）。
+- **[cost-analysis.md](./cost-analysis.md)**: Messaging / Lステップ課金と実装済み効果測定（docs-only）。配信ボリューム試算・ROI draft・料金 worksheet は [作業ノート](../../work/analysis/line-cost-analysis-roi-draft-20261007.md)（2026-10-07 監査で移設）。
 
 ### 原本
 - クライアント受領原本の外部 restricted evidence location は CorpVault `evidence/2026-08-20-docs-cleanup/client/`（repository 外であり、この commit の検証対象・開発時の必須依存ではない）。製品側の repository SoT は [lstep-integration.md](./lstep-integration.md)。

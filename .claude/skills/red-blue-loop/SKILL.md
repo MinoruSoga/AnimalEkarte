@@ -75,7 +75,7 @@ description: 自社アプリ(AnimalEkarte)への許可された攻撃シミュ�
 
 - 実施した試験の全リスト(合格/不合格の両方)、起票した `EMR-N`、再報告禁止リストに当たって除外したもの
 - 実行できなかった試験は PASS にせず BLOCKED/SKIP として理由を書く(「ユーザー手動で」への逃げは `scoped-verification-gates` と同型の chronic 失敗)
-- ラウンド計画とサマリの保存先: hub 票コメント or `docs/work/security-red-blue/round-<N>.md`(証跡画像は Plane 添付のみ)
+- ラウンド計画とサマリの保存先: hub 票コメント or `docs/work/security/red-blue/round-<N>.md`(証跡画像は Plane 添付のみ)
 
 ## 関連 skill
 

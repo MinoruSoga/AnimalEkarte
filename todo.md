@@ -2,20 +2,20 @@
 
 > Task migrated to Plane `EMR-199`. This file remains supporting acceptance/evidence material; use Plane for current status.
 
-最終照合: 2026-09-27（Plane 状態とコード・git履歴を照合し、Done/Cancelled/Duplicate かつ対応コミットまたは受入記録を確認できた項目を削除: EMR-90/92/94/101/102/103、EMR-135/137/138/192）。未完了タスクと状態はPlaneが正本。以下の旧HEAD・コード/UAT照合内容は当時の根拠であり、現在の配備・受入状態を示さない。移行対応は [Plane移行記録](docs/work/plane-md-migration-20260923-receipt.md)。 2026-09-27 追記: Plane 移行済みの項目行・`移行済み` スタブ・対応済みの状態表を本文から削除し、旧 ID アンカーは外部リンク維持のため「旧タスク ID」節へ集約した。同日再照合（2回目）: 全参照 ID の Plane 現行状態を確認し、Done 到達の EMR-84/85/87/120/121/122/123/124/190 をトピック対応表へ反映、EMR-136/204 の Cancelled 終了と EMR-142/143/203 の Ready 遷移を記録した。
+最終照合: 2026-09-27（Plane 状態とコード・git履歴を照合し、Done/Cancelled/Duplicate かつ対応コミットまたは受入記録を確認できた項目を削除: EMR-90/92/94/101/102/103、EMR-135/137/138/192）。未完了タスクと状態はPlaneが正本。以下の旧HEAD・コード/UAT照合内容は当時の根拠であり、現在の配備・受入状態を示さない。移行対応は [Plane移行記録](docs/work/plane/plane-md-migration-20260923-receipt.md)。 2026-09-27 追記: Plane 移行済みの項目行・`移行済み` スタブ・対応済みの状態表を本文から削除し、旧 ID アンカーは外部リンク維持のため「旧タスク ID」節へ集約した。同日再照合（2回目）: 全参照 ID の Plane 現行状態を確認し、Done 到達の EMR-84/85/87/120/121/122/123/124/190 をトピック対応表へ反映、EMR-136/204 の Cancelled 終了と EMR-142/143/203 の Ready 遷移を記録した。
 
 本ファイルは旧 `todo-issue.md`・`todo-verification.md`・`todo-operations.md`・`todo-performance.md` を 2026-09-26 に統合した。節: [Issue 出典・仕様履歴](#issue-ledger) · [検証・受入](#verification-ledger) · [運用・外部実行](#operations-ledger) · [性能](#performance-ledger)。統合前の行番号参照（`L175` 等）は Git の旧ファイルを指す。
 
 ## Plane task tracking
 
-Current unfinished implementation, verification, data, performance, delivery, and human-gated work is tracked in Plane. The local task text from this file and the canonical ledgers was migrated on 2026-09-23; the source-to-Plane crosswalk is [the migration receipt](docs/work/plane-md-migration-20260923-receipt.md). Historical UAT evidence and operator procedures remain in their source documents. Migration preserves each recorded status and does not imply implementation, runtime acceptance, or closure.
+Current unfinished implementation, verification, data, performance, delivery, and human-gated work is tracked in Plane. The local task text from this file and the canonical ledgers was migrated on 2026-09-23; the source-to-Plane crosswalk is [the migration receipt](docs/work/plane/plane-md-migration-20260923-receipt.md). Historical UAT evidence and operator procedures remain in their source documents. Migration preserves each recorded status and does not imply implementation, runtime acceptance, or closure.
 
 <a id="development-tasks"></a>
 <a id="product-bugs"></a>
 
 ## 確認済み製品 FAIL
 
-移行前の一覧は Plane `EMR-199` へ移行済み（[移行記録](docs/work/plane-md-migration-20260923-receipt.md)）。本節には移行後に新規確定した UAT 製品 FAIL だけを記録し、Linear/Plane intake は別途行う。
+移行前の一覧は Plane `EMR-199` へ移行済み（[移行記録](docs/work/plane/plane-md-migration-20260923-receipt.md)）。本節には移行後に新規確定した UAT 製品 FAIL だけを記録し、Linear/Plane intake は別途行う。
 
 ### UAT 2026-09-25 確定分（証拠: `reports/uat-2026-09-25/tickets/EMR-87.md`）
 
@@ -38,7 +38,7 @@ Current unfinished implementation, verification, data, performance, delivery, an
 
 ### codex-security スキャン累積 findings トリアージ（2026-10-03）
 
-累積 56 findings（CLI 表示 51 件・dedupe 後、frontend scan `yxoHGs` + backend scan `Vy74Z7`、スキャン対象 `01fdcef`）を HEAD `fd65d1b2b` で照合。**対応済み 48 / 本日修正実施 6 / 製品判断レーン 4 / 部分対応 2**。全件証跡は [トリアージ報告](docs/work/security-triage-2026-10-03.md)。Plane intake は別途行う。
+累積 56 findings（CLI 表示 51 件・dedupe 後、frontend scan `yxoHGs` + backend scan `Vy74Z7`、スキャン対象 `01fdcef`）を HEAD `fd65d1b2b` で照合。**対応済み 48 / 本日修正実施 6 / 製品判断レーン 4 / 部分対応 2**。全件証跡は [トリアージ報告](docs/work/security/security-triage-2026-10-03.md)。Plane intake は別途行う。
 
 | ID | severity | 領域 | 症状 | 区分 | 対応先 |
 |:---|:---|:---|:---|:---|:---|
@@ -67,14 +67,14 @@ Current unfinished implementation, verification, data, performance, delivery, an
 
 ## PO / 人間レーン
 
-Plane がタスク状態の正本です。人手入力待ち、旧Chrome受入、実環境操作、go-live の個別ゲートは移行先チケットに保持しました。詳細な移行対応は [移行記録](docs/work/plane-md-migration-20260923-receipt.md) を参照してください。
+Plane がタスク状態の正本です。人手入力待ち、旧Chrome受入、実環境操作、go-live の個別ゲートは移行先チケットに保持しました。詳細な移行対応は [移行記録](docs/work/plane/plane-md-migration-20260923-receipt.md) を参照してください。
 
 <a id="refactor-constraints"></a>
 
 ## FE 維持制約
 
 - `design-tokens.ts` / `query-keys.ts` / `paths.ts` の表分割や行数だけを目的とした機械的分割をしない。
-- `utils/` 再作成・generated/models 一括移行をしない。必要性は [裁定記録](docs/work/development-task-decisions.md#task-444) に従って判断する。
+- `utils/` 再作成・generated/models 一括移行をしない。必要性は [裁定記録](docs/work/decisions/development-task-decisions.md#task-444) に従って判断する。
 - `app/pages` の合成と owners `loaders.ts` の例外、権限 ref、死亡 sentinel、`useActionState`、queryKey タプルを維持する。
 - FE12 却下（manual chunk、死亡行グレーアウト、owners 行アクションをペット生死で止める）を維持する。
 
@@ -90,15 +90,15 @@ Plane がタスク状態の正本です。人手入力待ち、旧Chrome受入�
 
 ## Issue出典・仕様履歴（未完了タスク状態はPlane）
 
-最終タスク移行: 2026-09-23。未完了の実装・調査・PO課題の状態はPlaneを正本とし、このファイルはSlack出典と確定仕様の根拠記録として保持する。完了した実装・仕様どおりの報告・回答済みの操作案内は 未対応エリアに戻さず、[Slack 出典対応表](#slack-source-map) に処理区分を残す。検証は [todo-verification.md](#verification-ledger)、外部実行は [todo-operations.md](#operations-ledger) を正本とする。PO/evidence のローカル判断材料は [remaining-campaign-20260920](docs/work/remaining-campaign-20260920/) に作成済み。PO裁定・実機/STGの新しい結果は今回未照合（UNKNOWN）。
+最終タスク移行: 2026-09-23。未完了の実装・調査・PO課題の状態はPlaneを正本とし、このファイルはSlack出典と確定仕様の根拠記録として保持する。完了した実装・仕様どおりの報告・回答済みの操作案内は 未対応エリアに戻さず、[Slack 出典対応表](#slack-source-map) に処理区分を残す。検証は [todo-verification.md](#verification-ledger)、外部実行は [todo-operations.md](#operations-ledger) を正本とする。PO/evidence のローカル判断材料は [remaining-campaign-20260920](docs/work/campaigns/remaining-campaign-20260920/) に作成済み。PO裁定・実機/STGの新しい結果は今回未照合（UNKNOWN）。
 
 Linear/BRT-4に関する以下の文言は過去の運用方針記録。2026-09-23のタスク移行後、現在の未完了タスク状態はPlaneを参照する。
 
-このファイルはSlack出典・仕様確定の履歴を保持する。未完了タスクと現在状態はPlaneにあり、対応は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照する。
+このファイルはSlack出典・仕様確定の履歴を保持する。未完了タスクと現在状態はPlaneにあり、対応は[移行記録](docs/work/plane/plane-md-migration-20260923-receipt.md)を参照する。
 
 ### 旧タスク ID（全件 Plane 移行済み）
 
-この台帳の未完了タスク本文は Plane へ移行しました。現在状態と全 ID の対応（crosswalk・source SHA）は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照してください。docs/work 等からの `todo.md#<id>` リンク維持のため、旧 ID のアンカーのみ残置します（本文なし）。
+この台帳の未完了タスク本文は Plane へ移行しました。現在状態と全 ID の対応（crosswalk・source SHA）は[移行記録](docs/work/plane/plane-md-migration-20260923-receipt.md)を参照してください。docs/work 等からの `todo.md#<id>` リンク維持のため、旧 ID のアンカーのみ残置します（本文なし）。
 
 <a id="open"></a><a id="slack-tasks"></a><a id="slack-全件からの着手プラン2026-09-19"></a><a id="area-ready"></a><a id="area-po"></a><a id="area-evidence"></a><a id="area-deferred"></a><a id="area-resolved"></a>
 <a id="uat-q2-treatments-import"></a><a id="slack-manual-urine"></a><a id="slack-cross-clinic"></a><a id="slack-vaccine-print"></a><a id="slack-deceased"></a><a id="slack-latency"></a><a id="slack-vaccine-multi"></a><a id="uat-q3-gender-map"></a><a id="uat-q2-vaccine-species"></a><a id="uat-q4-unpaid-triage"></a><a id="po-pet-deceased-data-backfill"></a><a id="slack-billing-uat"></a><a id="slack-clinical-uat"></a><a id="slack-access"></a><a id="slack-uat-schedule"></a><a id="slack-hac-import"></a><a id="slack-lab"></a><a id="slack-exam-history"></a><a id="slack-reservation-reference"></a><a id="slack-backlog61"></a><a id="slack-staff-select"></a><a id="slack-intake"></a><a id="slack-ocr"></a><a id="slack-smaregi"></a>
@@ -166,31 +166,31 @@ Linear/BRT-4に関する以下の文言は過去の運用方針記録。2026-09-
 | STAFF-SELECT | 候補状態表示を部分対応・実機再確認待ち → [SLACK-STAFF-SELECT](#slack-staff-select) |
 | CROSS-CLINIC | 権限境界の設計・PO → [SLACK-CROSS-CLINIC](#slack-cross-clinic) |
 | OWNER-HEIGHT | 検索modalコード対応済み・実機受入待ち → [SLACK-OWNER-HEIGHT](#slack-owner-height) |
-| SEARCH-AND | コード対応・実機受入完了（Plane Done・EMR-122） → [UAT-Q1-SEARCH-AND](docs/work/plane-md-migration-20260923-receipt.md) |
-| HISTORY | 導線受入完了（Plane Done・EMR-124） → [UAT-Q2-HISTORY-NAV](docs/work/plane-md-migration-20260923-receipt.md) |
+| SEARCH-AND | コード対応・実機受入完了（Plane Done・EMR-122） → [UAT-Q1-SEARCH-AND](docs/work/plane/plane-md-migration-20260923-receipt.md) |
+| HISTORY | 導線受入完了（Plane Done・EMR-124） → [UAT-Q2-HISTORY-NAV](docs/work/plane/plane-md-migration-20260923-receipt.md) |
 | SPECIES | 既存調査 → [UAT-Q2-VACCINE-SPECIES](#uat-q2-vaccine-species) |
 | GENDER | old_db 統合済み・bundle/実データ受入待ち → [UAT-Q3-GENDER-MAP](#uat-q3-gender-map) |
 | UNPAID | 原因未確定・既存調査 → [UAT-Q4-UNPAID-TRIAGE](#uat-q4-unpaid-triage) |
-| INSURANCE | 受入完了（Plane Done・EMR-123） → [UAT-Q4-INSURANCE-RATES](docs/work/plane-md-migration-20260923-receipt.md) |
-| MASTER | 全経路受入完了（Plane Done・EMR-84） → [UAT-R2-MASTER-PATH](docs/work/plane-md-migration-20260923-receipt.md) |
-| CONCURRENCY | 受入完了（Plane Done・EMR-85） → [UAT-R2-EXCLUSIVE-LOCK](docs/work/plane-md-migration-20260923-receipt.md) |
+| INSURANCE | 受入完了（Plane Done・EMR-123） → [UAT-Q4-INSURANCE-RATES](docs/work/plane/plane-md-migration-20260923-receipt.md) |
+| MASTER | 全経路受入完了（Plane Done・EMR-84） → [UAT-R2-MASTER-PATH](docs/work/plane/plane-md-migration-20260923-receipt.md) |
+| CONCURRENCY | 受入完了（Plane Done・EMR-85） → [UAT-R2-EXCLUSIVE-LOCK](docs/work/plane/plane-md-migration-20260923-receipt.md) |
 | LATENCY | 比較条件設計済み・実環境/実測待ち → [SLACK-LATENCY](#slack-latency) |
-| ENTER | 実機IME受入完了（Plane Done・EMR-120） → [UAT-R2-TREATMENT-COMMIT](docs/work/plane-md-migration-20260923-receipt.md) |
-| MASTER-HEIGHT | 実画面受入完了（Plane Done・EMR-121） → [UAT-R2-MASTER-LIST-HEIGHT](docs/work/plane-md-migration-20260923-receipt.md) |
+| ENTER | 実機IME受入完了（Plane Done・EMR-120） → [UAT-R2-TREATMENT-COMMIT](docs/work/plane/plane-md-migration-20260923-receipt.md) |
+| MASTER-HEIGHT | 実画面受入完了（Plane Done・EMR-121） → [UAT-R2-MASTER-LIST-HEIGHT](docs/work/plane/plane-md-migration-20260923-receipt.md) |
 | CHART-FIT | scroll/高さコード対応済み・全9タブ/実機受入待ち → [UAT-R2-CHART-FIT](#uat-r2-chart-fit) |
 | RESERVATION-EDIT | 回答・謝辞あり → [操作案内の保持](#slack-answered) |
-| COMPLAINT | 修正・受入完了（Plane Done・EMR-87） → [SLACK-COMPLAINT](docs/work/plane-md-migration-20260923-receipt.md) |
-| BACKGROUND | 対象欄の特定・PO → [SLACK-BACKGROUND](docs/work/plane-md-migration-20260923-receipt.md)（Plane で Duplicate 終了・統合先は Plane 参照） |
-| VITALS | ヘッダー表示・臨床受入完了（Plane Done・EMR-190） → [SLACK-VITALS](docs/work/plane-md-migration-20260923-receipt.md) |
+| COMPLAINT | 修正・受入完了（Plane Done・EMR-87） → [SLACK-COMPLAINT](docs/work/plane/plane-md-migration-20260923-receipt.md) |
+| BACKGROUND | 対象欄の特定・PO → [SLACK-BACKGROUND](docs/work/plane/plane-md-migration-20260923-receipt.md)（Plane で Duplicate 終了・統合先は Plane 参照） |
+| VITALS | ヘッダー表示・臨床受入完了（Plane Done・EMR-190） → [SLACK-VITALS](docs/work/plane/plane-md-migration-20260923-receipt.md) |
 | MICROCHIP | ヘッダー表示コード対応済み・受入待ち → [SLACK-MICROCHIP](#slack-microchip) |
-| DANGER | 既存高危険表示の保持・PO → [SLACK-DANGER](docs/work/plane-md-migration-20260923-receipt.md)（Plane で Duplicate 終了・統合先は Plane 参照） |
-| DETAILS | 導線比較済み・PO裁定待ち → [SLACK-DETAILS](docs/work/plane-md-migration-20260923-receipt.md)（Plane で Duplicate 終了・統合先は Plane 参照） |
-| STORY | 記録目的/保存先のPO → [SLACK-STORY](docs/work/plane-md-migration-20260923-receipt.md)（Plane で Duplicate 終了・統合先は Plane 参照） |
+| DANGER | 既存高危険表示の保持・PO → [SLACK-DANGER](docs/work/plane/plane-md-migration-20260923-receipt.md)（Plane で Duplicate 終了・統合先は Plane 参照） |
+| DETAILS | 導線比較済み・PO裁定待ち → [SLACK-DETAILS](docs/work/plane/plane-md-migration-20260923-receipt.md)（Plane で Duplicate 終了・統合先は Plane 参照） |
+| STORY | 記録目的/保存先のPO → [SLACK-STORY](docs/work/plane/plane-md-migration-20260923-receipt.md)（Plane で Duplicate 終了・統合先は Plane 参照） |
 | VACCINE-PRINT | 専用証明書の仕様確認 → [SLACK-VACCINE-PRINT](#slack-vaccine-print) |
 | VACCINE-MULTI | 単件/順次POST回帰追加済み・元症状/実機待ち → [SLACK-VACCINE-MULTI](#slack-vaccine-multi) |
 | DECEASED | 死亡後連絡記録のPO → [SLACK-DECEASED](#slack-deceased) |
-| PLAN-MANUAL | 検索優先回帰追加済み・案内/導線採否のPO待ち → [SLACK-PLAN-MANUAL](docs/work/plane-md-migration-20260923-receipt.md)（Plane で Duplicate 終了・統合先は Plane 参照） |
-| COPY | 安全条件整理済み・PO裁定待ち → [SLACK-COPY](docs/work/plane-md-migration-20260923-receipt.md)（Plane で Duplicate 終了・統合先は Plane 参照） |
+| PLAN-MANUAL | 検索優先回帰追加済み・案内/導線採否のPO待ち → [SLACK-PLAN-MANUAL](docs/work/plane/plane-md-migration-20260923-receipt.md)（Plane で Duplicate 終了・統合先は Plane 参照） |
+| COPY | 安全条件整理済み・PO裁定待ち → [SLACK-COPY](docs/work/plane/plane-md-migration-20260923-receipt.md)（Plane で Duplicate 終了・統合先は Plane 参照） |
 | CAMERA | 撮影入口コード対応済み・実機受入待ち → [SLACK-CAMERA](#slack-camera) |
 | BILLING-UAT | 最優先の実機受入 → [SLACK-BILLING-UAT](#slack-billing-uat) |
 | CLINICAL-UAT | 各院の診療/看護受入 → [SLACK-CLINICAL-UAT](#slack-clinical-uat) |
@@ -292,9 +292,9 @@ ID ごとに状態・次の一手・完了条件・根拠を持つ。主な開�
 
 ## 検証・受入の履歴（現在のタスク状態はPlane）
 
-> Current task state is in Plane. Local task details were migrated 2026-09-23; see [crosswalk](docs/work/plane-md-migration-20260923-receipt.md).
+> Current task state is in Plane. Local task details were migrated 2026-09-23; see [crosswalk](docs/work/plane/plane-md-migration-20260923-receipt.md).
 
-最終タスク移行: 2026-09-23。未完了の検証・受入タスクと状態はPlaneを正本とする。実行記録・検証原則・証拠はローカルで保持する。ローカルケース票の一部は [linmig-campaign-20260919](docs/work/linmig-campaign-20260919/) と [remaining-campaign-20260920](docs/work/remaining-campaign-20260920/) に作成済み。今回 runtime は再実行していない。過去の結果は当時の revision に限定し、追加実装の受入は現在の receipt 未照合として UNKNOWN を維持する。
+最終タスク移行: 2026-09-23。未完了の検証・受入タスクと状態はPlaneを正本とする。実行記録・検証原則・証拠はローカルで保持する。ローカルケース票の一部は [linmig-campaign-20260919](docs/work/campaigns/linmig-campaign-20260919/) と [remaining-campaign-20260920](docs/work/campaigns/remaining-campaign-20260920/) に作成済み。今回 runtime は再実行していない。過去の結果は当時の revision に限定し、追加実装の受入は現在の receipt 未照合として UNKNOWN を維持する。
 
 着手プラン確認: 2026-09-22。前回の [追加実装のキュー](#code-followup-20260921) を維持し、今回8件の追加対応から [残検証・受入](#ready8-followup-20260922) を更新した。既存ケース票を再利用し、追加済みunit/mockと、ローカル未カバー・実DB・実機・医院/POの未確認を分ける。調査票のGREENは当時の記録で、今回の再実行結果ではない。
 
@@ -319,7 +319,7 @@ QA/開発が作るケース票の共通列は `ID / case / revision / 環境・f
 
 ### 直近 UAT の残作業
 
-各項目の受入状態・現在状態は Plane を正本とする（[移行記録](docs/work/plane-md-migration-20260923-receipt.md) 参照）。
+各項目の受入状態・現在状態は Plane を正本とする（[移行記録](docs/work/plane/plane-md-migration-20260923-receipt.md) 参照）。
 
 <a id="code-followup-20260921"></a>
 
@@ -327,7 +327,7 @@ QA/開発が作るケース票の共通列は `ID / case / revision / 環境・f
 
 以下は同じ Issue ID の検証範囲であり、別の開発チケットではない。コード対応済み5件と、部分対応の STAFF / EXCLUSIVE を分ける。各行の実行前に対象 build・端末/環境・合成 fixture・操作者・操作範囲/承認・後処理・証拠保存先を固定する。新たに確認したのはコードとテスト定義の存在までで、テスト実行・配備・実機成功は今回確認していない。
 
-各項目の受入状態・現在状態は Plane を正本とする（[移行記録](docs/work/plane-md-migration-20260923-receipt.md) 参照）。
+各項目の受入状態・現在状態は Plane を正本とする（[移行記録](docs/work/plane/plane-md-migration-20260923-receipt.md) 参照）。
 
 再現した不一致は同じ Issue ID に戻す。元報告の画面・端末や臨床上の期待値が一致しない場合、既存修正の成功から補外せず、未確認ケースと必要な判断を残す。
 
@@ -337,11 +337,11 @@ QA/開発が作るケース票の共通列は `ID / case / revision / 環境・f
 
 基準は `cd2feaa14`。以下は既存IDの残条件で、新規課題や追加済み回帰の再作成ではない。実行前の対象build・専用環境/fixture・操作者・操作範囲/承認・後処理・証拠保存先は上の共通条件に従う。unit/mockは実DB永続化・実端末操作・医院の臨床期待の代替にしない。
 
-各項目の受入状態・現在状態は Plane を正本とする（[移行記録](docs/work/plane-md-migration-20260923-receipt.md) 参照）。
+各項目の受入状態・現在状態は Plane を正本とする（[移行記録](docs/work/plane/plane-md-migration-20260923-receipt.md) 参照）。
 
-Q1 / Q4保険 / Q2履歴の実装は再開しない。根拠は [医院フィードバック](docs/work/stg-uat-clinic-feedback-q1-q4.md) と、9月15日に読取確認した [PR #411](https://github.com/MinoruSoga/AnimalEkarte/pull/411)（merged）、[Backend Deploy](https://github.com/MinoruSoga/AnimalEkarte/actions/runs/34923018516) / [Frontend Deploy](https://github.com/MinoruSoga/AnimalEkarte/actions/runs/34923018544)（ともに success、`d337f016`）。この配備記録はブラウザ確認や本番反映の代替ではない。
+Q1 / Q4保険 / Q2履歴の実装は再開しない。根拠は [医院フィードバック](docs/work/stg/stg-uat-clinic-feedback-q1-q4.md) と、9月15日に読取確認した [PR #411](https://github.com/MinoruSoga/AnimalEkarte/pull/411)（merged）、[Backend Deploy](https://github.com/MinoruSoga/AnimalEkarte/actions/runs/34923018516) / [Frontend Deploy](https://github.com/MinoruSoga/AnimalEkarte/actions/runs/34923018544)（ともに success、`d337f016`）。この配備記録はブラウザ確認や本番反映の代替ではない。
 
-`NOTE2-SWEEP-COVERAGE` の受入条件はPlane `EMR-200` へ移行済み。route×operation カバレッジ表と API/契約レベルの証拠は [docs/work/emr-200-note2-coverage/NOTE2-SWEEP-COVERAGE.md](docs/work/emr-200-note2-coverage/NOTE2-SWEEP-COVERAGE.md) を参照（2026-09-23、revision `923bb99ba`。ブラウザ UAT は未実施 UNKNOWN/BLOCKED）。
+`NOTE2-SWEEP-COVERAGE` の受入条件はPlane `EMR-200` へ移行済み。route×operation カバレッジ表と API/契約レベルの証拠は [docs/work/emr/emr-200-note2-coverage/NOTE2-SWEEP-COVERAGE.md](docs/work/emr/emr-200-note2-coverage/NOTE2-SWEEP-COVERAGE.md) を参照（2026-09-23、revision `923bb99ba`。ブラウザ UAT は未実施 UNKNOWN/BLOCKED）。
 
 ### STG データレーン
 
@@ -394,7 +394,7 @@ Linear 系の残件は全て終了を確認（2026-09-27 照合・Linear MCP 未
 
 ## 運用・外部実行の受入記録（現在のタスク状態はPlane）
 
-> Current task state is in Plane. Local task details were migrated 2026-09-23; see [crosswalk](docs/work/plane-md-migration-20260923-receipt.md).
+> Current task state is in Plane. Local task details were migrated 2026-09-23; see [crosswalk](docs/work/plane/plane-md-migration-20260923-receipt.md).
 
 最終タスク移行: 2026-09-23。未完了の環境・データ・本番・納品作業と現在状態はPlaneを正本とする。下記の実行条件・過去receiptは運用根拠として保持する。
 
@@ -408,7 +408,7 @@ remote・CI・配備・Linear・STG/PROD の DB/秘密/投入 receipt は今回�
 
 次の担当は運用/producer/USER。個人の割当は未確定であり、実行票で確定する。実行票は `ID / 対象環境・医院 / revision・manifest等の入力識別 / 読取・変更する範囲 / 前段証拠 / 操作者・承認者 / 実行枠 / 中止条件 / 復旧 / 証拠保存先` を持つ。秘密・実 roster・患者情報は repo 外の承認済み保管先に置き、台帳には非機密参照だけを残す。既存 receipt が見つかれば同一対象・入力との一致を先に検証し、再実行の要否を決める。
 
-各項目の受入状態・現在状態は Plane を正本とする（[移行記録](docs/work/plane-md-migration-20260923-receipt.md) 参照）。
+各項目の受入状態・現在状態は Plane を正本とする（[移行記録](docs/work/plane/plane-md-migration-20260923-receipt.md) 参照）。
 
 準備は不足票・実行案を同じ ID に残した時点で一区切り。2026-09-21 時点で上表からリンクした準備票は main に統合済み。ただし、旧IDの担当分界や実行枠などの未確定欄まで埋まったことを意味しない。実行条件を満たさない行は BLOCKED/UNKNOWN を維持する。必要な入力を揃える作業と、実環境を変更する作業を同じ「着手済み」にまとめない。
 
@@ -458,7 +458,7 @@ Q1検索・Q4保険・Q2履歴、[追加実装5件と会計等の部分対応](#
 
 #### PO-PET-DECEASED-DATA-BACKFILL
 
-1. [元の修復計画](docs/work/todo-campaign-20260918/PO-PET-DECEASED-DATA-BACKFILL.md)（+ Plane `EMR-108`）に沿って不整合の種類、日付根拠、対象医院と件数を整理する。日付根拠がある行だけを訂正対象とし、根拠がない行は補完対象外として残す。
+1. [元の修復計画](docs/work/campaigns/todo-campaign-20260918/PO-PET-DECEASED-DATA-BACKFILL.md)（+ Plane `EMR-108`）に沿って不整合の種類、日付根拠、対象医院と件数を整理する。日付根拠がある行だけを訂正対象とし、根拠がない行は補完対象外として残す。
 2. 根拠に基づく対象・訂正内容を確定した後、操作者、backup、監査、失敗/通信断時の照合・復旧を含む限定実行案を作る。
 3. 承認後の訂正と前後件数・画面・監査の一致で完了とする。死亡 write ガードを再実装せず、監査や既存履歴を削除しない。
 
@@ -468,7 +468,7 @@ Q1検索・Q4保険・Q2履歴、[追加実装5件と会計等の部分対応](#
 
 ## Performance evidence and history
 
-> Performance work items are tracked in Plane. The migration crosswalk is [here](docs/work/plane-md-migration-20260923-receipt.md); measurements and historical evidence below remain local.
+> Performance work items are tracked in Plane. The migration crosswalk is [here](docs/work/plane/plane-md-migration-20260923-receipt.md); measurements and historical evidence below remain local.
 
 最終照合: 2026-09-22（同日 curl 実測でコールドスタートを直接観測し **E4** として記録。原因区間を確定し改善候補を整理。SLACK-LATENCY計測票差分は別記録を保持）→ 2026-09-27 再照合で Plane 終端を確認（下記「未完了の性能作業」行を参照）。主調査 ID: **PERF-STG-LOGIN**。対象は STG `/login` 初回表示遅延に始まり、ユーザー報告により STG 全域のページ読み込み遅延へ拡大。責任者・依頼者: 曽我 稔。
 
@@ -517,7 +517,7 @@ Containers は稼働時間課金（10ms 単位、Workers Paid $5/月に含む）
 2. Workers Logs の `container_fetch_timing` で実リクエストの `duration_ms` を集計し、温間でも遅い API（二次因 = 実クエリやレスポンスサイズ）があるか切り分ける。未認証 curl では実クエリ時間を測れないため、この確認なしに「温間は全て速い」と断定しない。
 3. 現行の常時ログが必要かを再判定する。必要なら対象と出力を限定し、不要なら撤去を別実装単位にする。
 
-対象・承認・完了条件は [検証 TODO](#perf-stg-login)。旧候補の裁定は [履歴](docs/work/development-task-decisions.md) であり、現在の導入状態は上記を正とする。
+対象・承認・完了条件は [検証 TODO](#perf-stg-login)。旧候補の裁定は [履歴](docs/work/decisions/development-task-decisions.md) であり、現在の導入状態は上記を正とする。
 
 #### 測定準備で決めること
 

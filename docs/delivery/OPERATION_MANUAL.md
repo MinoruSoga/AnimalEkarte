@@ -1,6 +1,6 @@
 # 操作マニュアル（納品版・現場スタッフ向け）
 
-> Current task status is tracked in Plane `EMR-41`. This local document remains supporting execution/evidence material; see the [migration receipt](../work/plane-md-migration-20260923-receipt.md) for the crosswalk.
+> Current task status is tracked in Plane `EMR-41`. This local document remains supporting execution/evidence material; see the [migration receipt](../work/plane/plane-md-migration-20260923-receipt.md) for the crosswalk.
 
 > **対象 Issue**: #256 ／ **リポジトリ由来 slice 同期日**: 2026-09-06（`7c6592f9f`） ／ **状態**: ドラフト（repo 由来ナビ完成・**U13 = 解消 — 2026-10-04 決定で説明会は開催せず本マニュアルで代替。実施証跡の記入は適用外**・#254 依存は未 close）
 > **読者**: 受付・獣医師・看護師・トリマー・経理などの現場スタッフ
@@ -33,7 +33,7 @@
 
 > **残作業（repo 外 / 依存）**: システム内マニュアルのスクリーンショットと文言の最終突合は #254 デモ UAT 結果に依存。紛らわしい操作の FAQ 追記も同依存。操作説明会は **2026-10-04 決定で開催せず本マニュアルで代替**（U13 解消・§10）。
 >
-> **会計フロー（RQ-002）**: システム内マニュアルを実装整合済みです。カルテ確定だけでは会計は自動作成されず、会計画面で作成して未請求明細を pull します（[99-medical-record-flow.md](../spec/screens/99-medical-record-flow.md)）。退院時の会計は `create_accounting` 選択時のみ同時作成。D-254 の FAQ・スクショ最終突合は別依存のままです（[REPAIR-QUEUE](../work/docs-perfection/REPAIR-QUEUE.md)）。
+> **会計フロー（RQ-002）**: システム内マニュアルを実装整合済みです。カルテ確定だけでは会計は自動作成されず、会計画面で作成して未請求明細を pull します（[99-medical-record-flow.md](../spec/screens/99-medical-record-flow.md)）。退院時の会計は `create_accounting` 選択時のみ同時作成。D-254 の FAQ・スクショ最終突合は別依存のままです（[REPAIR-QUEUE](../work/docs-audit/docs-perfection/REPAIR-QUEUE.md)）。
 
 ---
 

@@ -9,7 +9,7 @@
 
 ---
 
-> **注記 (2026-08-01)**: 追記（2026-10-07 監査）— 配信ボリューム試算（旧 §2）は作業ノート [../../work/line-cost-analysis-roi-draft-20261007.md](../../work/line-cost-analysis-roi-draft-20261007.md) へ移設した。試算はフル稼働時の想定シミュレーションであり、稼働前提のモデルであって対象環境の実測ボリュームではない（原本の免責は移設先に保持）。
+> **注記 (2026-08-01)**: 追記（2026-10-07 監査）— 配信ボリューム試算（旧 §2）は作業ノート [../../work/analysis/line-cost-analysis-roi-draft-20261007.md](../../work/analysis/line-cost-analysis-roi-draft-20261007.md) へ移設した。試算はフル稼働時の想定シミュレーションであり、稼働前提のモデルであって対象環境の実測ボリュームではない（原本の免責は移設先に保持）。
 >
 > Deploy gate（`LSTEP_WRITE_API_ENABLED`）/ Clinic gate（`is_sync_enabled` / API キー）の二重 gate 契約本文（`ErrWriteDisabled` とクライアント未構築の意図的スキップ `nil, nil` は別契約）の正本は [architecture.md](./architecture.md) 冒頭注記・§4。運用手順正本: [`docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)（本 doc に手順を複製しない）。
 
@@ -26,7 +26,7 @@
 
 ## 2. 配信ボリュームの予測
 
-> 追記（2026-10-07 監査）: 配信ボリュームの想定シミュレーション（高優先度・必須配信 / 関係構築・CRM / 健診抽出・キャンペーンの 3 カテゴリ試算とチャート）は業務仕様ではなく作業ノートとして [../../work/line-cost-analysis-roi-draft-20261007.md](../../work/line-cost-analysis-roi-draft-20261007.md) へ移設した。本書は課金体系（§1）と実装済みの効果測定（§4）を仕様として保持する。
+> 追記（2026-10-07 監査）: 配信ボリュームの想定シミュレーション（高優先度・必須配信 / 関係構築・CRM / 健診抽出・キャンペーンの 3 カテゴリ試算とチャート）は業務仕様ではなく作業ノートとして [../../work/analysis/line-cost-analysis-roi-draft-20261007.md](../../work/analysis/line-cost-analysis-roi-draft-20261007.md) へ移設した。本書は課金体系（§1）と実装済みの効果測定（§4）を仕様として保持する。
 
 ---
 
@@ -43,8 +43,8 @@
 
 ### 計画中の ROI 指標（未実装）
 
-> 追記（2026-10-07 監査）: revenue attribution・dormant return の acceptance criteria draft と「API、UI、test、計測定義が備わる前に実装済み指標として扱わない」注記は作業ノート [../../work/line-cost-analysis-roi-draft-20261007.md](../../work/line-cost-analysis-roi-draft-20261007.md) へ移設した。実装済みの効果測定の仕様は本節の上記本文のみ。
+> 追記（2026-10-07 監査）: revenue attribution・dormant return の acceptance criteria draft と「API、UI、test、計測定義が備わる前に実装済み指標として扱わない」注記は作業ノート [../../work/analysis/line-cost-analysis-roi-draft-20261007.md](../../work/analysis/line-cost-analysis-roi-draft-20261007.md) へ移設した。実装済みの効果測定の仕様は本節の上記本文のみ。
 
 ## 5. 料金 worksheet
 
-> 追記（2026-10-07 監査）: 料金比較 worksheet の記録方法（公式 pricing URL・確認日・契約地域・通貨・税区分・登録数・月間配信数・超過単価の記録、特定 plan を推奨しない方針、simulation だけでの契約決定禁止）は作業ノート [../../work/line-cost-analysis-roi-draft-20261007.md](../../work/line-cost-analysis-roi-draft-20261007.md) へ移設した。課金体系の仕様（§1）は本書に留まる。
+> 追記（2026-10-07 監査）: 料金比較 worksheet の記録方法（公式 pricing URL・確認日・契約地域・通貨・税区分・登録数・月間配信数・超過単価の記録、特定 plan を推奨しない方針、simulation だけでの契約決定禁止）は作業ノート [../../work/analysis/line-cost-analysis-roi-draft-20261007.md](../../work/analysis/line-cost-analysis-roi-draft-20261007.md) へ移設した。課金体系の仕様（§1）は本書に留まる。
