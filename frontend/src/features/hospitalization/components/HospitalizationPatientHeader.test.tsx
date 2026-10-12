@@ -51,6 +51,28 @@ describe("HospitalizationPatientHeader", () => {
   });
 });
 
+describe("HospitalizationPatientHeader 担当医表示 (EMR-352)", () => {
+  it("doctorName 未設定なら担当医ラベルは1回だけ表示し未設定と識別する", () => {
+    render(<HospitalizationPatientHeader hospitalization={makeHospitalization(false)} />);
+
+    // PatientInfoCard が staffLabel="担当医" を付与するため、呼び出し側の
+    // fallback 値にラベルを含めると「担当医担当医未設定」と二重表示になる。
+    expect(screen.getByText("担当医未設定")).toBeInTheDocument();
+    expect(screen.queryByText(/担当医.*担当医/)).not.toBeInTheDocument();
+  });
+
+  it("doctorName 設定済みなら担当医ラベル1回と氏名を表示する", () => {
+    render(
+      <HospitalizationPatientHeader
+        hospitalization={makeHospitalization(false, { doctorName: "田中 一郎" })}
+      />,
+    );
+
+    expect(screen.getByText("担当医田中 一郎")).toBeInTheDocument();
+    expect(screen.queryByText(/担当医.*担当医/)).not.toBeInTheDocument();
+  });
+});
+
 describe("HospitalizationPatientHeader 誕生月バッジ (EMR-301)", () => {
   beforeEach(() => {
     vi.useFakeTimers();

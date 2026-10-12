@@ -43,7 +43,9 @@ export function HospitalizationPatientHeader({
       weight={currentWeight || "-"}
       status={isDeceased ? "deceased" : "alive"}
       birthDate={hospitalization.petBirthDate}
-      staffName={hospitalization.doctorName ?? "担当医未設定"}
+      // EMR-352: 未設定 fallback は「未設定」のみ。staffLabel="担当医" は
+      // PatientInfoCard 側が付与するため、ここでラベルを含めると二重表示になる。
+      staffName={hospitalization.doctorName ?? "未設定"}
       reservationType={hospitalization.hospitalizationType}
       petDetails={hospitalization.species}
       insuranceName="-"
