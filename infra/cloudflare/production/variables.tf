@@ -1,6 +1,6 @@
 # production 版。STG(../variables.tf)と対をなすが、値は完全に独立させる
 # (同じ変数名でも STG の tfvars/環境変数を production ディレクトリで誤って再利用しないこと。
-# ディレクトリが分かれているため `terraform apply` の cwd を間違えない限り混線しない)。
+# cwdを分けても環境変数は継承される。apply前に対象account/zoneとTF_VAR_*が当該環境の承認済み設定であることを人が確認する)。
 
 variable "account_id" {
   description = "Cloudflare Account ID。【2026-10-06 確定 EMR-298】production は専用アカウント（EMR-302 移行先）を指す。共有アカウントへの本番構築は禁止（docs/ops/infra/cloudflare-account-separation.md）。旧前提「STGと同一アカウント(migration-cloudflare.md の課金・管理の一元化)」は廃止。tfvars に書かず -var か環境変数 TF_VAR_account_id で供給する"

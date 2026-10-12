@@ -1,6 +1,6 @@
 -- P3-2/P3-3: PlanetScale Postgres へのマイグレーション適用後のスキーマ互換検証クエリ集。
--- 2026-07-05 に animalekarte-stg/main に対して実行し、全項目確認済み(migration-cloudflare.md 参照)。
--- psql "$DATABASE_URL" -f infra/scripts/validate-schema.sql で再実行可能。
+-- 2026-07-05 の実施記録(旧 migration-cloudflare.md は git 履歴のみ)。現在のDB互換性を証明しない。
+-- 再実行は承認済み運用手順で人が行う(参照例: psql "$DATABASE_URL" -f infra/scripts/validate-schema.sql)。
 
 \echo '--- 適用済みマイグレーション一覧(backend/migrations/*.sql と件数一致すること) ---'
 SELECT filename, executed_at FROM schema_migrations ORDER BY filename;

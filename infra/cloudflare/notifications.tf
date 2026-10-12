@@ -17,24 +17,28 @@
 # 実装する。ただし以下の制約を明記する:
 #   1. ゾーンレベルの集計であり、`api.stg.noah-karte.com` サブドメインの5xxだけを狙い撃つ
 #      フィルタは無い(zones フィルタのみサポート。hostname単位のフィルタは同スキーマに存在しない)。
-#   2. P1-2(NS切替)が完了し、かつ実トラフィックがCloudflareのエッジを経由するまでは
-#      シグナルが発生しない(現状 zone.tf の全DNSレコードは proxied=false であり、
-#      NS自体もVercel側のまま。wrangler.jsonc の routes[0] が「参考値」であるのと同じ理由)。
-#      apply しても、P1-2 完了までは「待機中(dormant)」のポリシーとなる。
+#   2. シグナルが発生するには、対象ゾーンがCloudflare authoritativeで、実トラフィックが
+#      エッジ(proxied)経由であることが前提。定義上は zone.tf の STG frontend / api.stg
+#      レコードが proxied=true(ACM検証・DomainConnect・CAAはfalseのまま)だが、
+#      実際の観測・通知配送は日付付き運用記録による外部検証が必要であり、本ファイルは
+#      live の配送状態を主張しない。
 #   3. Containers(Durable Object/コンテナインスタンス)のクラッシュ・OOM・再起動を専用に検知する
-#      alert_type は現状のCloudflare通知APIに存在しない。最も近い代替は
+#      alert_type はCloudflare通知APIに存在しなかった(2026-07-06時点のスキーマ調査記録。
+#      最新状況は再検証が必要)。最も近い代替は
 #      `cloudflare_healthcheck`(能動的な/health監視 + health_check_status_notification)だが、
-#      Health Checks はゾーンとは別の課金対象アドオンであり(STG月額試算 ¥4,430 に含まれていない)、
+#      Health Checks はゾーンとは別の課金対象アドオンであり(当時のSTG月額試算には未計上
+#      — 価格は2026-07時点の記録で再検証未実施)、
 #      本来は外部オリジンIP監視を想定した機能でworkers.dev ホスト名への適用実績が確認できないため、
-#      本セッションでは追加しない(P6 follow-up として migration-cloudflare.md に記録)。
-#   4. `billing_usage_alert` という alert_type は実在するが、【2026-07-07 P6-4調査で確定・genuine
-#      BLOCKED】Cloudflare公式ドキュメント確認の結果、これはArgo Smart Routing(トラフィックのバイト数)や
-#      Load Balancing(DNSクエリ数)のような特定の従量課金プロダクト専用の使用量閾値通知であり、
-#      Workers/Containersは対象外。かつCloudflareにはAWS Budget Alert相当の「アカウント全体の
-#      ドル建て月額支出」を監視する機構自体が存在しない。したがってP6-4(Budget Alert)はTerraform/CLI
-#      では実装不可能と結論した(前回の「直接構成できる可能性が高い」はスキーマだけを見た誤った推測
-#      だったため訂正)。代替策(Cloudflare GraphQL Analytics APIによるCPU/メモリ使用量の定期手動確認)
-#      はfollow-upとしてmigration-cloudflare.md「2026-07-07 Phase 6 残件」に記録する。
+#      本構成では追加していない。現在の運用方針は docs/ops/infra/iac-guidelines.md /
+#      docs/ops/infra/staging/runbook.md を参照。
+#   4. `billing_usage_alert` という alert_type は実在するが、【2026-07-07 P6-4調査記録・
+#      当時の結論で再検証未実施】Cloudflare公式ドキュメント確認の結果、これはArgo Smart Routing
+#      (トラフィックのバイト数)やLoad Balancing(DNSクエリ数)のような特定の従量課金プロダクト専用の
+#      使用量閾値通知であり、Workers/Containersは対象外だった。かつ当時Cloudflareには
+#      AWS Budget Alert相当の「アカウント全体のドル建て月額支出」を監視する機構自体が
+#      存在しないと判断されたため、P6-4(Budget Alert)はTerraform/CLIでは実装不可能と記録した。
+#      代替策(Cloudflare GraphQL Analytics APIによる使用量の定期手動確認)の現在の運用方針は
+#      docs/ops/infra/iac-guidelines.md / docs/ops/infra/staging/runbook.md を参照。
 #
 # 送信先メールアドレスは var.notification_email(必須・default無し)。値が無い環境では
 # `terraform plan` がこの変数の未設定エラーで失敗する — これは意図した genuine BLOCKED

@@ -3,13 +3,14 @@
 // 役割は薄いプロキシのみ: 全 HTTP リクエストを Container(Go/Gin API, :8080) へフォワードする。
 // ビジネスロジックは一切持たない（Container内のGoアプリケーション側が担当）。
 //
-// DB接続方針(docs/ops/infra/_archive/migration-cloudflare.md 試行9): Hyperdrive は Container 内非対応
+// DB接続方針(現行参照先: docs/ops/infra/architecture.md / docs/ops/infra/iac-guidelines.md):
+// Hyperdrive は Container 内非対応
 // (https://github.com/cloudflare/containers/issues/97 — Container は通常の Linux プロセスであり
 // Workers runtime 固有の Hyperdrive バインディングを直接利用できない)。そのため Container 内の
 // Go API は PlanetScale へ直結する(DB_HOST 等を envVars で直接注入。
 // sslmode=verify-full + sslrootcert=system)。
-// Worker 側の HYPERDRIVE バインディングは Phase 4 では未使用(将来 Worker 自身が直接 DB を
-// 触るユースケースが増えた場合のために wrangler.jsonc の binding 自体は残す)。
+// Worker 側の HYPERDRIVE バインディングは SEC-CS2-F03 で削除済み。Container 内 Go API が使う
+// DB_* は Worker の secrets/vars から envVars 経由で直接注入する(再導入しない)。
 import { Container, getContainer } from "@cloudflare/containers";
 import { env } from "cloudflare:workers";
 import {
@@ -78,7 +79,7 @@ export function buildContainerEnvVars(env: Env): Record<string, string> {
     SCHEDULER_INTERNAL_TOKEN: env.SCHEDULER_INTERNAL_TOKEN,
 
     // H2: Worker→Container 経路の信頼プロキシ CIDR(rate-limit bypass 防止)。
-    // 値の根拠は docs/ops/infra/_archive/migration-cloudflare.md 試行9(実測ログに基づき決定)参照。
+    // 現在値の正本は backend/wrangler*.jsonc の vars(旧移行記録の実測根拠は git 履歴のみ参照)。
     TRUSTED_PROXY_CIDR: env.TRUSTED_PROXY_CIDR,
 
     CORS_ALLOWED_ORIGIN: env.CORS_ALLOWED_ORIGIN,
@@ -153,11 +154,10 @@ export function buildContainerEnvVars(env: Env): Record<string, string> {
 
 export class AnimalEkarteApiContainer extends Container<Env> {
   defaultPort = 8080;
-  // AC-5: scale-to-zero 検証用。アイドル10分でコンテナを停止する
-  // (docs/ops/infra/_archive/migration-cloudflare.md の想定コスト・「通常操作 10 分間程度」の負荷スモーク方針に合わせる)。
-  // STG の画面遅延対策として 1h に延長(10m ではデモ中の待ち時間毎にコールドスタート
-  // 数秒が発生していた)。稼働時間課金は増えるが basic インスタンスでは小額。
-  // scale-to-zero 検証やコスト抑制が優先になったら "10m" へ戻す。
+  // AC-5: scale-to-zero 検証用。現在の設定は idle 1h(STG の画面遅延対策として旧 10m から
+  // 延長した記録)。現行構成・費用方針は docs/ops/infra/architecture.md と
+  // docs/ops/infra/cloudflare-account-separation.md §7 を参照。変更時は営業時間 keep-alive・
+  // 冷起動・料金影響を承認済み手順で確認する。
   sleepAfter = "1h";
 
   envVars = buildContainerEnvVars(env);

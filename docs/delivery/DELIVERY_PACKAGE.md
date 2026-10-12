@@ -195,7 +195,7 @@ flowchart TB
    - `/health` 確認（workers.dev 直行と実 URL の両方 — [staging/runbook.md](../ops/infra/staging/runbook.md)）
    - デプロイ直後はローリング更新の旧イメージ残留を疑い、必要なら 15 分静置後に再確認
    - 全断 + DB 接続エラーは接続スロット枯渇を疑う（`DB_MAX_OPEN_CONNS` 等 — [architecture.md](../ops/infra/architecture.md)）
-   - 監視通知（5xx 率アラート）の本番送信先は **USER 入力待ち（U8）**（`infra/cloudflare/notifications.tf` の `notification_email`）
+   - 監視通知（5xx 率アラート）は `infra/cloudflare/notifications.tf` にリソース定義（`notification_email`）があるが、定義の存在は適用・送信先検証・実配送を証明しない。本番送信先は **USER 入力待ち（U8）**。通知の運用方針は [cloudflare-account-separation.md §7](../ops/infra/cloudflare-account-separation.md#7-費用と通知の方針)（EMR-303）が正本で、値未決・policy 未適用だけでは移行完了・10/20 切替を止めない
 
 ### 3.3 ログの見方
 
@@ -237,7 +237,7 @@ flowchart TB
 | U5 | 本番 LINE チャネル情報 | 各医院 | チャネル ID 等（**秘密は secret 管理へ。本書に書かない**） | §2 Step 6 | 投入手順は §2 Step 6。値は本書に書かない | **未記入**（チャネル値は secret 管理へ） |
 | U6 | 本番 Lステップ API キー | 各医院 | API キー（**secret 管理へ。本書に書かない**） | §2 Step 6 | 投入手順は §2 Step 6。値は本書に書かない | **未記入**（API キーは secret 管理へ） |
 | U7 | 障害・サポート窓口 | 先方 × 開発 | 宛先チャネル・受付時間・一次対応者 | §3.2 / GOLIVE_RUNBOOK §5 | 連絡フロー骨格は §3.2。連絡手段は Slack（EMR-151 決定）。宛先は repo に無い | **未記入**（宛先チャネル・受付時間・一次対応者） |
-| U8 | 監視通知メール | 開発 / 先方 | 送信先メール（Cloudflare 側事前検証要） | §3.2 / `notifications.tf` | `TF_VAR_notification_email` 未供給のため `notifications.tf` は genuine BLOCKED（[infra/cloudflare/README.md](../../infra/cloudflare/README.md)）。アドレスは tfvars に書かない | **未記入**（送信先メール） |
+| U8 | 監視通知メール | 開発 / 先方 | 送信先メール（Cloudflare 側事前検証要） | §3.2 / `notifications.tf` | STG の通知リソース定義あり、production/notifications.tf はコメントのみ。過去記録ではメール未供給・apply 未実施。現在の対象 account/zone・送信先検証・適用・実配送は日付付き証跡で確認するまで UNKNOWN（[infra/cloudflare/README.md](../../infra/cloudflare/README.md)）。アドレスは tfvars に書かない | **未記入**（送信先メール） |
 | U9 | 本番バックアップ方針の実測 | 開発（#253） | 頻度・保持・リストア手順・所要時間 | §3.1 | repo 内最終記録（2026-08-20）では Production 未構築。リストア実測なし | **未記入**（#253 後） |
 | U10 | R2 バックアップ/バージョニング | 開発 / 先方 | 方針の採否 | §3.1 | STG バケット名 `animalekarte-stg-images`（apac）。PROD 予定名 `animalekarte-prod-images`。IaC（[`r2.tf`](../../infra/cloudflare/r2.tf)）に versioning 設定なし | **未記入**（バックアップ/バージョニング方針の採否） |
 | U11 | 監査ログ保存期間の最終合意 | 先方 | 保持年数・廃棄方針 | §3.3 | 業務監査は DB の `audit_logs` に永続（§3.3 / specification §2.1）。期間ポリシーの合意記録は repo に無い | **未記入**（保持年数・廃棄方針） |
@@ -258,7 +258,7 @@ flowchart TB
 ## 4. 監視・通知（開発側運用・参考）
 
 - ヘルスチェック（repo 内最終記録: 2026-08-20、外部 receipt 未収録）: `https://api.stg.noah-karte.com/health` は HTTP 200 / 正常応答と記録。本番URL `https://api.noah-karte.com/health` の現在状態はUNKNOWNで、dated runtime receiptが必要（**U12**）。
-- 5xx 率の自動通知: Cloudflare 通知ポリシー（`infra/cloudflare/notifications.tf`）。送信先メールの供給・検証と apply は **USER 入力待ち（U8）**（#253）。
+- 5xx 率の自動通知: STG は `infra/cloudflare/notifications.tf` にポリシー定義あり（production/notifications.tf はコメントのみ）。定義の存在は適用・送信先検証・実配送を証明しない。送信先メールの供給・検証と apply は **USER 入力待ち（U8）**（#253）。運用方針の正本は [cloudflare-account-separation.md §7](../ops/infra/cloudflare-account-separation.md#7-費用と通知の方針)（EMR-303）。
 - コスト監視: repo 内の 2026-08-20 時点の provider 制約記録では、アカウント全体の支出アラートを利用できないため使用量確認で代替する方針。実行時に現行 plan / provider 機能を再確認し、receipt を残す。
 - 障害監視・通知体制の完成条件は #253 の受け入れ条件（プロセス死活・5xx 急増・DB 接続断の通知）を正本とする。
 

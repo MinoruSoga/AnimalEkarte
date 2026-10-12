@@ -86,7 +86,7 @@ Decided in EMR-341 (Q1 = apply): the five standard reservation types are part of
 
 ## 5. IaC and resource verification
 
-Terraform plan must be reviewed by a human before apply. It currently covers only the checked-in resources; Hyperdrive/notification tombstones are not active resources. Apply/destroy, database creation, credential changes, shared environment writes, billing, and DNS changes are human-only external operations.
+Terraform plan must be reviewed by a human before apply. It currently covers only the checked-in resources; Hyperdrive is comment/tombstone-only in both environments, `infra/cloudflare/production/notifications.tf` is comment-only (no resource), and the STG notification policy is defined in `infra/cloudflare/notifications.tf` but its apply/delivery state requires external verification. Apply/destroy, database creation, credential changes, shared environment writes, billing, and DNS changes are human-only external operations.
 
 ## 6. Deployment workflow acceptance criteria
 

@@ -2,7 +2,9 @@
 
 > AWS STG は 2026-07-20 に廃止済み（terraform destroy・課金停止）。現行構成は
 > `../docs/ops/infra/architecture.md`。移行実施記録と旧 AWS 文書は git 履歴。
-> 再編計画は `../docs/ops/infra/reorg-plan.md`（Phase Bでenvs/ + modules/構造へ移行予定）。
+> 再編計画 `../docs/ops/infra/reorg-plan.md` は歴史的提案として保管（Phase B の
+> envs/ + modules/ 構造は確定した予定ではない）。現行の state 管理契約は
+> `../docs/ops/infra/iac-guidelines.md` が正本。
 
 ## 構成の2層境界（MANDATORY）
 

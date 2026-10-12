@@ -33,17 +33,21 @@
 #       "現行と異なる値を作らない" の趣旨に反しない)。
 #   - www は個別レコードなし → "*" ワイルドカードでカバーされている(現行動作を維持)。
 #
-# P0-2 決定: サブドメイン委任は Cloudflare Enterprise 限定のため不採用。
-# noah-karte.com ゾーン全体を Cloudflare へフル移管する(NS切替自体は P1-2 で人手作業・本ファイルの管轄外)。
+# P0-2 決定(歴史的記録): サブドメイン委任は Cloudflare Enterprise 限定のため不採用とした。
+# noah-karte.com ゾーン全体を Cloudflare へフル移管する方針だった。後段の EMR-255
+# コメントには NS 切替済みの記録があるが、本修正では live 状態を再検証していない。
+# NS変更は本ファイルの管轄外。現在の運用は現行定義と承認済み runbook
+# (docs/ops/infra/staging/runbook.md) を参照すること。
 #
-# 【P1-2 に向けた追加の重要事実】`noah-karte.com` は registrar も Vercel(Vercel Domains経由で
-# 2026-03-21 取得・自動更新)。一般的な「外部レジストラでNS変更」ではなく、Vercel の
+# 【P1-2 当時の重要事実・歴史記録】`noah-karte.com` は registrar も Vercel(Vercel Domains経由で
+# 2026-03-21 取得・自動更新)だった。一般的な「外部レジストラでNS変更」ではなく、Vercel の
 # ドメイン管理画面(またはAPI)側でカスタムネームサーバー(Cloudflareが割り当てるNS)に
-# 変更する操作になる。レジストラ移管(トランスファー)は不要(ネームサーバー変更のみ)。
-# 実施は P1-2 で人間が行う(本 Terraform の管轄外)。
+# 変更する手順だった(レジストラ移管は不要、本 Terraform の管轄外)。
 #
-# proxied はすべて false(DNS only)で作成する。NS切替後の Full (strict) SSL 検証・動作確認が
-# 済んでから、必要なレコードのみ proxied = true に切替える(切替は別コミットで実施しコメントを更新すること)。
+# 【歴史・初期方針】P1-1 棚卸し時点(2026-07-05)では proxied はすべて false(DNS only)で
+# 作成する方針だった。NS切替後の検証完了後に必要なレコードのみ proxied = true へ切替える
+# 計画で、現在の定義では stg_frontend / api_stg_backend が proxied = true(EMR-255)。
+# ACM検証・DomainConnect・CAA レコードは false のまま。
 
 resource "cloudflare_zone" "noah_karte" {
   account = {

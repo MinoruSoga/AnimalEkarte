@@ -48,7 +48,7 @@ flowchart TB
 
 **UAT の延期不可条件**: 臨床安全・会計金額・clinic / owner / pet / staff 分離・認証権限・データ消失の FAIL は Go-live 前に解消する。下表の「納品後対応合意」はその他の FAIL に限り、受入チケット（Plane `EMR-131`、旧 `P4` / #254 AUTHENTICATED-UAT）の受容条件と USER の明示受容を必要とする（2026-09-29 訂正: 「Linear の受容条件（`todo.md` P4）」→ todo.md は 2026-09-26 統合で P 番号構造を廃止、受容条件の正本は Plane）。
 
-未完了・未確定の項目が 1 つでも残る間は **Go 判定不可（HOLD）**。
+切替必須項目が未完了・未確定の間は **Go 判定不可（HOLD）**。通知 policy の値未決・未適用は下表 #8 の例外方針に従う。
 
 **production branch / workflow の存在 ≠ 本番構築・CI 整合**: checked-in workflow/config の存在は provider 構築や required check 整合の証明ではない。`production` の required checks 不整合（2026-10-11 観測）は [ci-policy.md](../ops/ci-policy.md) を正本とし、merge 可否は head の check/status と保護設定の照合で判断、release 前に人間が GitHub 側で解消する。
 
@@ -61,7 +61,7 @@ flowchart TB
 | 5 | 開発側デモ環境で全業務シナリオ通し確認済み（認証付き。現場 UAT は納品後） | #254 | 全シナリオ PASS、または FAIL 項目が「納品後対応合意済みリスト」に隔離済み。[#254 close checklist](../ops/testing/scenarios/UAT-254-CLOSE-CHECKLIST.md) の実 LINE・token・audit・別 sign-off 等も満たす | （確定待ち） |
 | 6 | スタッフアカウント発行・権限設定済み | #255 | 全スタッフに個人アカウント発行・所属院スコープ・役割別権限設定済み | （確定待ち: 現在版名簿・email/院/役割方針と認可 apply 証跡。過去の受領履歴と区別し、[発行手順 I-ROSTER](../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md#不足入力チェックリスト2026-08-20) を確認） |
 | 7 | フロントエンド CSP の最終確認 | [architecture.md](../ops/infra/architecture.md) | `frontend/index.html` の CSP `connect-src` に本番 API オリジンが含まれている | （確定待ち） |
-| 8 | 監視・通知の有効化 | #253 ／ [production/runbook.md](../ops/infra/production/runbook.md) §5 ／ `infra/cloudflare/notifications.tf` | ゾーン 5xx 通知が有効・送信先メール検証済み（PROD 専用ポリシーは二重通知のため追加しない） | （確定待ち: 通知先供給・アドレス事前検証） |
+| 8 | 監視・通知（切替ブロッカーとは分離） | [cloudflare-account-separation.md §7](../ops/infra/cloudflare-account-separation.md#7-費用と通知の方針) ／ [production/runbook.md](../ops/infra/production/runbook.md) §5 | EMR-303: 対象 account/zone・送信先検証・policy 適用・実受信を人が確認する。値未決・policy 未適用だけでは移行完了・10/20 切替を止めない | 別途確認（UNKNOWN。定義だけで完了扱いしない） |
 | 9 | 切り戻し体制・authority / support / rollback owner の合意 | 本書 §4・冒頭「新 window 記入欄」 ／ [production/runbook.md](../ops/infra/production/runbook.md) §3 | 判断者・判断基準・連絡経路が先方と合意済み。**ECS 切り戻しは選択肢に含めない**（#99） | （確定待ち） |
 | 10 | 全院の締め時間設定 | [#252](https://github.com/MinoruSoga/AnimalEkarte/issues/252) ／ [締め時間設定](../spec/screens/settings/closing-time-settings.md) | AM 開始 09:00 を確認、AM/PM 境界 12:00・平日/日曜終了 18:30 を全院投入。プレビュー・EMG 日跨ぎ・過去締め非再計算の非機密 receipt | （確定待ち: 投入完了証跡なし） |
 | 11 | 初期マスタ（標準予約区分）の適用と、医院が登録するマスタの案内 | EMR-341 ／ [production/setup.md](../ops/infra/production/setup.md) §4.1–4.2 ／ [EMR-321 手順](../ops/deploy/EMR-321_HOTEL_RESERVATION.md) | 全院に標準予約区分 5 件（診察・お手入れ・ワクチン・健診・ホテル）が有効で存在する（EMR-321 の事後確認クエリが 0 行）。テスト環境で医院が登録したマスタは本番に引き継がれないため、各院が予約区分・トリミングコースの控えを保持している（案内は EMR-338 の一覧）。適用は人手のみで、最初の本番 migrate の後に行う | （確定待ち: 適用証跡なし） |
