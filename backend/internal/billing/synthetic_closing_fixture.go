@@ -344,6 +344,7 @@ var syntheticClosingDeleteStatements = []string{
 	"DELETE FROM lstep_delivery_trigger_log WHERE clinic_id = ?",
 	"DELETE FROM lstep_friend_attribute_snapshots WHERE clinic_id = ?",
 	"DELETE FROM lstep_migration_progress WHERE clinic_id = ?",
+	"DELETE FROM lstep_next_visit_sync_retries WHERE clinic_id = ?",
 	"DELETE FROM lstep_settings WHERE clinic_id = ?",
 	"DELETE FROM lstep_sync_error_counters WHERE clinic_id = ?",
 	"DELETE FROM lstep_tag_cache WHERE clinic_id = ?",

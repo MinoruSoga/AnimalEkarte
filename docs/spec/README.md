@@ -36,7 +36,7 @@ route path・API method/path・生成 schema と primary 文書オーナーの�
 
 **画面（88 product leaf → primary 仕様）**: 全 88 leaf の primary 仕様リンクは [ui-design-compliance.md §2](ui-design-compliance.md) の「仕様正本」列が一意の対応表。LIFF の 2 つの別 entrypoint app（`frontend/liff/src/App.tsx` は画面 38、`frontend/line-reserve/src/App.tsx` は画面 37 の仕様に包含）は main app の leaf 集計対象外。redirect 12 件と wildcard 404 は route code であり画面仕様を持たない。
 
-**生成 schema**: `docs/architecture/erd-detail/` の schema 文書は生成物（135 物理テーブル / 137 生成ファイル）で、既存の `scripts/tools/generate-erd-detail.py --check` が migration との整合を検査する。手編集しない。
+**生成 schema**: `docs/architecture/erd-detail/` の schema 文書は生成物（物理テーブル数は生成manifestを参照）で、既存の `scripts/tools/generate-erd-detail.py --check` が migration との整合を検査する。手編集しない。
 
 **API method/path（backend apicontract collector の静的計測）**: 23 の route 登録 root から 546 の実装 GET/POST/PUT/PATCH/DELETE pair を収集し、`backend/docs/api.yaml` の 519 operation と照合。516 が一致、real-only 30 件（alias 23 + clinic パラメータ名差異 3 + 運用系 surface 4）、spec-only 3 件（clinic パラメータ名差異）。既存ゲート `TestOpenAPIRouteDrift_*` は **新規（NEW）・陳腐化（STALE）の violation がともに 0** を検査するもので、差異が 0 という意味ではない。alias・param 差分の例外登録は `backend/internal/apicontract` の drift テスト（`knownMissingFromSpec`/`knownPhantomInSpec` リスト）が正本。collector は StaticFS（dev 条件付き `/uploads` GET+HEAD の 2 route）・一般 HEAD/OPTIONS を列挙せず、schema 全項目の証明でもない（runtime smoke が pin する 548 経路計数は本計測では未実行）。
 
