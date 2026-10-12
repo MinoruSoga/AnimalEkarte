@@ -127,15 +127,19 @@ export interface ActiveScheduledRun {
   fenceToken: number;
   claimedAt: number;
   leaseExpiresAt: number;
+  // Transactional one-time stuck detection marker, not a delivery receipt: a
+  // first webhook failure still surfaces through the existing alert log/throw.
+  stuckLeaseDetectedAt?: number;
 }
 
-export type RunLedgerStatus = "running" | "paused" | "success" | "partial" | "failed";
+export type RunLedgerStatus = "running" | "paused" | "skipped" | "success" | "partial" | "failed";
 export type RunFailureCode =
   | "job_partial"
   | "job_failed"
   | "transport"
   | "stale"
   | "busy"
+  | "stuck_lease"
   | "lease_expired"
   | "fenced";
 
@@ -294,6 +298,17 @@ export function logLeaseExpired(ledger: ScheduledRunLedger): void {
     job: ledger.job,
     scheduled_time: ledger.scheduledTime,
     failure_code: "lease_expired",
+  });
+}
+
+export function logSkippedOverlap(ledger: ScheduledRunLedger): void {
+  console.info("scheduler run overlap skipped", {
+    event: "scheduler_run_overlap_skipped",
+    scheduler: ledger.scheduler,
+    run_id: ledger.runId,
+    job: ledger.job,
+    scheduled_time: ledger.scheduledTime,
+    failure_code: ledger.failureCode ?? "busy",
   });
 }
 

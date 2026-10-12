@@ -616,9 +616,10 @@ describe("SchedulerCoordinator", () => {
     );
     expect(blocked).toMatchObject({
       disposition: "busy",
-      ledger: { status: "failed", failureCode: "busy" },
+      ledger: { status: "skipped", failureCode: "busy" },
     });
     expect(blocked.ledger).not.toHaveProperty("outcome");
+    expect(scheduledRunRequiresCronFailure(blocked)).toBe(false);
 
     releaseFirst(successOutcome());
     await expect(first).resolves.toMatchObject({ ledger: { status: "success" } });
@@ -628,8 +629,9 @@ describe("SchedulerCoordinator", () => {
     );
     expect(blockedDuplicate).toMatchObject({
       disposition: "duplicate",
-      ledger: { status: "failed", failureCode: "busy" },
+      ledger: { status: "skipped", failureCode: "busy" },
     });
+    expect(scheduledRunRequiresCronFailure(blockedDuplicate)).toBe(false);
   });
 
   it("marks an expired active lease failed before granting a newer fence", async () => {
@@ -772,5 +774,291 @@ describe("SchedulerCoordinator", () => {
         key.startsWith("scheduler:run:"),
       ),
     ).toHaveLength(5);
+  });
+
+  it("does not log an overlap as skipped when its transaction rolls back", async () => {
+    const storage = new MemoryStorage();
+    const now = scheduledTime(14);
+    const coordinator = new SchedulerCoordinator(storage, () => now);
+    const infoLog = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    let release: (outcome: ScheduledJobOutcome) => void = () => undefined;
+    const pending = new Promise<ScheduledJobOutcome>((resolve) => {
+      release = resolve;
+    });
+    const first = coordinator.run("no_show", "0 1 * * *", now, async () => pending);
+    await vi.waitFor(async () => {
+      expect((await coordinator.getActive())?.job).toBe("no_show");
+    });
+    const transaction = storage.transaction.bind(storage);
+    const transactionSpy = vi.spyOn(storage, "transaction").mockImplementation((closure) =>
+      transaction(async (tx) => {
+        const result = await closure(tx);
+        const ledger = await tx.get<ScheduledRunLedger>(SchedulerCoordinator.runKey("delivery", now));
+        if (ledger?.status === "skipped") throw new Error("commit rejected");
+        return result;
+      }),
+    );
+    try {
+      await expect(coordinator.run("delivery", "0 1 * * *", now, async () => successOutcome()))
+        .rejects.toThrow("commit rejected");
+      expect(infoLog).not.toHaveBeenCalled();
+      expect(await storage.get(SchedulerCoordinator.runKey("delivery", now))).toBeUndefined();
+    } finally {
+      transactionSpy.mockRestore();
+      release(successOutcome());
+      await first;
+      infoLog.mockRestore();
+    }
+  });
+
+  it("logs one info line per healthy overlap and never logs a failure", async () => {
+    const storage = new MemoryStorage();
+    const now = scheduledTime(15);
+    const coordinator = new SchedulerCoordinator(storage, () => now);
+    const infoLog = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    let release: (outcome: ScheduledJobOutcome) => void = () => undefined;
+    const pending = new Promise<ScheduledJobOutcome>((resolve) => {
+      release = resolve;
+    });
+
+    const first = coordinator.run("no_show", "0 1 * * *", now, async () => pending);
+    await vi.waitFor(async () => {
+      expect((await coordinator.getActive())?.job).toBe("no_show");
+    });
+
+    const skippedExecute = vi.fn(async () => successOutcome());
+    const firstOverlap = await coordinator.run(
+      "delivery",
+      "0 1 * * *",
+      now,
+      skippedExecute,
+    );
+    const secondOverlap = await coordinator.run(
+      "delivery",
+      "0 1 * * *",
+      now + 60_000,
+      skippedExecute,
+    );
+
+    for (const overlap of [firstOverlap, secondOverlap]) {
+      expect(overlap).toMatchObject({
+        disposition: "busy",
+        ledger: { status: "skipped", failureCode: "busy" },
+      });
+      expect(scheduledRunRequiresCronFailure(overlap)).toBe(false);
+    }
+    expect(skippedExecute).not.toHaveBeenCalled();
+    expect(infoLog).toHaveBeenCalledTimes(2);
+    expect(infoLog).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        failure_code: "busy",
+        job: "delivery",
+        run_id: `${SCHEDULER_NAME}:${now}:delivery`,
+      }),
+    );
+    expect(errorLog).not.toHaveBeenCalled();
+
+    release(successOutcome());
+    await expect(first).resolves.toMatchObject({ ledger: { status: "success" } });
+    infoLog.mockRestore();
+    errorLog.mockRestore();
+  });
+
+  it("emits stuck_lease once per active run when the same job's later slot overlaps an unfinished lease", async () => {
+    const storage = new MemoryStorage();
+    const start = scheduledTime(16);
+    let now = start;
+    const coordinator = new SchedulerCoordinator(storage, () => now);
+    let release: (outcome: ScheduledJobOutcome) => void = () => undefined;
+    const pending = new Promise<ScheduledJobOutcome>((resolve) => {
+      release = resolve;
+    });
+
+    const first = coordinator.run("no_show", "0 1 * * *", start, async () => pending);
+    await vi.waitFor(async () => {
+      expect((await coordinator.getActive())?.job).toBe("no_show");
+    });
+
+    // Different job contending for the same slot is healthy contention,
+    // never a stuck lease.
+    const contention = await coordinator.run(
+      "delivery",
+      "0 1 * * *",
+      start,
+      async () => successOutcome(),
+    );
+    expect(contention).toMatchObject({
+      disposition: "busy",
+      ledger: { status: "skipped", failureCode: "busy" },
+    });
+
+    const active = await coordinator.getActive();
+    if (active === undefined) throw new Error("expected active lease");
+    // Simulate the anomalous extended lease needed to cross the real next slot.
+    await storage.put("scheduler:active", {
+      ...active,
+      leaseExpiresAt: start + 11 * 60 * 60 * 1_000,
+    });
+    // Same job reaching a strictly later scheduled slot while its lease is
+    // still valid emits stuck_lease once — even through another cron.
+    now = start + 5 * 60 * 60 * 1_000;
+    const stuck = await coordinator.run(
+      "no_show",
+      "0 6,11 * * *",
+      start + 5 * 60 * 60 * 1_000,
+      async () => successOutcome(),
+    );
+    expect(stuck).toMatchObject({
+      disposition: "busy",
+      ledger: { status: "skipped", failureCode: "stuck_lease" },
+    });
+    expect(scheduledRunRequiresCronFailure(stuck)).toBe(false);
+
+    // A repeated overlap of the same active run stays a plain busy skip.
+    now = start + 10 * 60 * 60 * 1_000;
+    const repeated = await coordinator.run(
+      "no_show",
+      "0 6,11 * * *",
+      start + 10 * 60 * 60 * 1_000,
+      async () => successOutcome(),
+    );
+    expect(repeated).toMatchObject({
+      disposition: "busy",
+      ledger: { status: "skipped", failureCode: "busy" },
+    });
+    expect(scheduledRunRequiresCronFailure(repeated)).toBe(false);
+
+    release(successOutcome());
+    await expect(first).resolves.toMatchObject({
+      disposition: "executed",
+      ledger: { status: "success" },
+    });
+  });
+
+  it("emits stuck_lease again only when a different active run stalls", async () => {
+    const storage = new MemoryStorage();
+    const start = scheduledTime(17);
+    let now = start;
+    const coordinator = new SchedulerCoordinator(storage, () => now);
+    let releaseFirst: (outcome: ScheduledJobOutcome) => void = () => undefined;
+    const firstExecution = new Promise<ScheduledJobOutcome>((resolve) => {
+      releaseFirst = resolve;
+    });
+
+    const first = coordinator.run(
+      "no_show",
+      "0 1 * * *",
+      start,
+      async () => firstExecution,
+    );
+    await vi.waitFor(async () => {
+      expect((await coordinator.getActive())?.runId).toBe(
+        `${SCHEDULER_NAME}:${start}:no_show`,
+      );
+    });
+
+    const firstActive = await coordinator.getActive();
+    if (firstActive === undefined) throw new Error("expected active lease");
+    await storage.put("scheduler:active", {
+      ...firstActive,
+      leaseExpiresAt: start + 6 * 60 * 60 * 1_000,
+    });
+    now = start + 5 * 60 * 60 * 1_000;
+    const firstStuck = await coordinator.run(
+      "no_show",
+      "0 6,11 * * *",
+      start + 5 * 60 * 60 * 1_000,
+      async () => successOutcome(),
+    );
+    expect(firstStuck.ledger?.failureCode).toBe("stuck_lease");
+
+    releaseFirst(successOutcome());
+    await expect(first).resolves.toMatchObject({ ledger: { status: "success" } });
+
+    // A newly claimed run must be able to emit stuck_lease on its own first
+    // cross-slot overlap — the one-time marker follows the active run, not
+    // the job.
+    let releaseSecond: (outcome: ScheduledJobOutcome) => void = () => undefined;
+    const secondExecution = new Promise<ScheduledJobOutcome>((resolve) => {
+      releaseSecond = resolve;
+    });
+    now = start + 10 * 60 * 60 * 1_000;
+    const second = coordinator.run(
+      "no_show",
+      "0 6,11 * * *",
+      start + 10 * 60 * 60 * 1_000,
+      async () => secondExecution,
+    );
+    await vi.waitFor(async () => {
+      expect((await coordinator.getActive())?.runId).toBe(
+        `${SCHEDULER_NAME}:${start + 10 * 60 * 60 * 1_000}:no_show`,
+      );
+    });
+
+    const secondActive = await coordinator.getActive();
+    if (secondActive === undefined) throw new Error("expected active lease");
+    await storage.put("scheduler:active", {
+      ...secondActive,
+      leaseExpiresAt: start + 16 * 60 * 60 * 1_000,
+    });
+    now = start + 15 * 60 * 60 * 1_000;
+    const secondStuck = await coordinator.run(
+      "no_show",
+      "0 6,11 * * *",
+      start + 15 * 60 * 60 * 1_000,
+      async () => successOutcome(),
+    );
+    expect(secondStuck).toMatchObject({
+      disposition: "busy",
+      ledger: { status: "skipped", failureCode: "stuck_lease" },
+    });
+
+    releaseSecond(successOutcome());
+    await expect(second).resolves.toMatchObject({ ledger: { status: "success" } });
+  });
+
+  it("treats a legacy failed/busy overlap replayed as a duplicate as a nonfailure", async () => {
+    const storage = new MemoryStorage();
+    const now = scheduledTime(18);
+    const coordinator = new SchedulerCoordinator(storage, () => now);
+    const legacyBusy: ScheduledRunLedger = {
+      version: 1,
+      scheduler: SCHEDULER_NAME,
+      runId: SchedulerCoordinator.runId("delivery", now),
+      runKey: SchedulerCoordinator.runKey("delivery", now),
+      cron: "0 1 * * *",
+      job: "delivery",
+      scheduledTime: now,
+      fenceToken: 0,
+      status: "failed",
+      startedAt: now,
+      finishedAt: now,
+      failureCode: "busy",
+    };
+    const genuineFailure: ScheduledRunLedger = {
+      ...legacyBusy,
+      runId: SchedulerCoordinator.runId("no_show", now),
+      runKey: SchedulerCoordinator.runKey("no_show", now),
+      job: "no_show",
+      failureCode: "job_failed",
+    };
+    await storage.put(legacyBusy.runKey, legacyBusy);
+    await storage.put(genuineFailure.runKey, genuineFailure);
+
+    const replayed = await coordinator.run("delivery", "0 1 * * *", now, async () =>
+      successOutcome(),
+    );
+    expect(replayed).toMatchObject({
+      disposition: "duplicate",
+      ledger: { status: "failed", failureCode: "busy" },
+    });
+    expect(scheduledRunRequiresCronFailure(replayed)).toBe(false);
+
+    const failedReplay = await coordinator.run("no_show", "0 1 * * *", now, async () =>
+      successOutcome(),
+    );
+    expect(scheduledRunRequiresCronFailure(failedReplay)).toBe(true);
   });
 });

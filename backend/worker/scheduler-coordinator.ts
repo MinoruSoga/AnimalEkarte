@@ -11,6 +11,7 @@ import {
   failureCodeForOutcome,
   internalFailureLedger,
   logLeaseExpired,
+  logSkippedOverlap,
   normalizeControl,
   outcomeLedger,
   reconcilePendingManualOperation,
@@ -486,6 +487,9 @@ export class SchedulerCoordinator {
       manual,
     );
     if (claim.disposition !== "claimed") {
+      if (claim.disposition === "busy" && claim.ledger?.status === "skipped") {
+        logSkippedOverlap(claim.ledger);
+      }
       return claim;
     }
 
@@ -624,7 +628,17 @@ export class SchedulerCoordinator {
           if (manual !== undefined) {
             return { disposition: "busy", active: currentActive };
           }
-          const busyLedger: ScheduledRunLedger = {
+          const stuckDetected =
+            currentActive.job === job &&
+            scheduledTime > currentActive.scheduledTime &&
+            scheduledTime <= now &&
+            currentActive.stuckLeaseDetectedAt === undefined;
+          let blockedActive = currentActive;
+          if (stuckDetected) {
+            blockedActive = { ...currentActive, stuckLeaseDetectedAt: now };
+            await transaction.put(ACTIVE_KEY, blockedActive);
+          }
+          const skippedLedger: ScheduledRunLedger = {
             version: 1,
             scheduler: SCHEDULER_NAME,
             runId,
@@ -633,14 +647,14 @@ export class SchedulerCoordinator {
             job,
             scheduledTime,
             fenceToken: 0,
-            status: "failed",
+            status: "skipped",
             startedAt: now,
             finishedAt: now,
-            failureCode: "busy",
+            failureCode: stuckDetected ? "stuck_lease" : "busy",
           };
-          await transaction.put(runKey, busyLedger);
+          await transaction.put(runKey, skippedLedger);
           await putLatest();
-          return { disposition: "busy", ledger: busyLedger, active: currentActive };
+          return { disposition: "busy", ledger: skippedLedger, active: blockedActive };
         }
         await this.expireActive(transaction, currentActive, now);
       }
@@ -786,7 +800,11 @@ export async function runScheduledPlan(
 }
 
 export function scheduledRunRequiresCronFailure(result: ScheduledRunResult): boolean {
-  if (result.disposition === "paused") {
+  if (
+    result.disposition === "paused" ||
+    result.disposition === "busy" ||
+    result.ledger?.failureCode === "busy"
+  ) {
     return false;
   }
   if (result.disposition === "duplicate") {

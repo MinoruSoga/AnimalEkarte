@@ -425,12 +425,19 @@ function failureAlert(
   if (ledger === undefined) {
     return undefined;
   }
+  // A busy code is only ever written by the single-flight overlap path; treat
+  // it as an intentional skip even when replayed from a pre-skip failed ledger.
+  if (ledger.failureCode === "busy") {
+    return undefined;
+  }
   const isFailure =
     ledger.status === "partial" ||
     ledger.status === "failed" ||
-    result.disposition === "busy" ||
     result.disposition === "stale" ||
-    result.disposition === "fenced";
+    result.disposition === "fenced" ||
+    (result.disposition === "busy" &&
+      ledger.status === "skipped" &&
+      ledger.failureCode === "stuck_lease");
   if (!isFailure) {
     return undefined;
   }
