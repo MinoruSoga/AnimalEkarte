@@ -115,8 +115,8 @@ importers:
         specifier: ^7.5.0
         version: 7.5.0
       html2canvas-pro:
-        specifier: ^2.5.0
-        version: 2.5.0
+        specifier: ^2.5.2
+        version: 2.5.2
       lucide-react:
         specifier: ^1.49.0
         version: 1.49.0(@types/react@19.2.17)(react@19.2.7)
@@ -3715,10 +3715,6 @@ packages:
       bare-abort-controller:
         optional: true
 
-  base64-arraybuffer@1.0.2:
-    resolution: {integrity: sha512-I3yl4r9QB5ZRY3XuJVEPfc2XhZO6YweFPI+UovAzn+8/hb3oJ6lnysaFcjVpkCPfVWFUDvoZ8kmVDP7WyRtYtQ==}
-    engines: {node: '>= 0.6.0'}
-
   baseline-browser-mapping@2.11.20:
     resolution: {integrity: sha512-H0ulySigv6icDJ1F7SjtdCD6PrhTpdYCmP0CactWy1+ekh0AFd0o1Wn5T8b+hnTmdBx19u9yhL6wvCylXMY7zw==}
     engines: {node: '>=6.0.0'}
@@ -3913,9 +3909,6 @@ packages:
 
   csp_evaluator@1.1.8:
     resolution: {integrity: sha512-EwOnfYuNbTytvbMKsLixTrRgnjOa0WZCxGy8A9nnSYAicrdwn+T/epU/yjgymmOxlgKnvH+8wXt+7p/8ak5Feg==}
-
-  css-line-break@2.1.0:
-    resolution: {integrity: sha512-FHcKFCZcAha3LwfVBhCQbW2nCNbkZXn7KVUJcsT5/P8YmfsVja0FMPJr0B903j/E69HUphKiV9iQArX8SDYA4w==}
 
   css-tree@3.2.1:
     resolution: {integrity: sha512-X7sjQzceUhu1u7Y/ylrRZFU2FS6LRiFVp6rKLPg23y3x3c3DOKAwuXGDp+PAGjh6CSnCjYeAul8pcT8bAl+lSA==}
@@ -4555,9 +4548,9 @@ packages:
   html-url-attributes@3.0.1:
     resolution: {integrity: sha512-ol6UPyBWqsrO6EJySPz2O7ZSr856WDrEzM5zMqp+FJJLGMW35cLYmmZnl0vztAZxRUoNZJFTCohfjuIJ8I4QBQ==}
 
-  html2canvas-pro@2.5.0:
-    resolution: {integrity: sha512-+xuLQWcYMGvbXtlIzVOLvNJEXqL/dY7Dbn2T4qYtJvqfPVtJ8BcNr1CrrUp/uCxne9DE/F+eZHsf1khb1dbMyg==}
-    engines: {node: '>=16.0.0'}
+  html2canvas-pro@2.5.2:
+    resolution: {integrity: sha512-uka+0oVG/yB4B7U9M/+aJFF0aKZVmMWZKi4unemkQh537cLu3jXPvZtXakTuPl3taOI+O43RhuV6kn2igk1Z6g==}
+    engines: {node: '>=24.0.0'}
 
   http-errors@1.7.3:
     resolution: {integrity: sha512-ZTTX0MWrsQ2ZAhA1cejAwDLycFsd7I7nVtnkT3Ol0aqodaKW+0CTZDQ1uBv5whptCnc8e8HeRRJxRs0kmm/Qfw==}
@@ -6123,9 +6116,6 @@ packages:
   text-decoder@1.2.7:
     resolution: {integrity: sha512-vlLytXkeP4xvEq2otHeJfSQIRyWxo/oZGEbXrtEEF9Hnmrdly59sUbzZ/QgyWuLYHctCHxFF4tRQZNQ9k60ExQ==}
 
-  text-segmentation@1.0.3:
-    resolution: {integrity: sha512-iOiPUo/BGnZ6+54OsWxZidGCsdU8YbE4PSpdPinp7DeMtUJNJBoJ/ouUSTJjHkh1KntHaltHl/gDs2FC4i5+Nw==}
-
   third-party-web@0.30.0:
     resolution: {integrity: sha512-p+PfyL5U0ediGzvwPzMSdD9MnC8rHW6nWJJVLIQvqN7RsSqfaZ+7n4c9GILqH36EYR0eXB9CzAeCRnKFr/9uJg==}
 
@@ -6375,9 +6365,6 @@ packages:
     resolution: {integrity: sha512-6L+EeigHMQhdaIPNIFUKwfWJSwWFQ8gJbJ2DLOs5sDIegTwR9fRxvnM3uciHKjIZhFz+KAv2emhWMRvDmMcY8A==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
-
-  utrie@1.0.2:
-    resolution: {integrity: sha512-1MLa5ouZiOmQzUbjbu9VmjLzn1QLXBhwpUa7kdLUQK+KQ5KA9I1vk5U4YHe/X2Ch7PYnJfWuWT+VbuxbGwljhw==}
 
   uuid@14.0.1:
     resolution: {integrity: sha512-6ZxzVpzDXDa3bJWaHilVayA+BH/1zmxCJoVgvmqJnid/gPoKHxUrS/aC/T6LGQtNHT+XHG9fXPJB4d+IrU30Ew==}
@@ -10249,8 +10236,6 @@ snapshots:
 
   bare-events@2.9.2: {}
 
-  base64-arraybuffer@1.0.2: {}
-
   baseline-browser-mapping@2.11.20: {}
 
   bidi-js@1.1.0:
@@ -10436,10 +10421,6 @@ snapshots:
       which: 2.0.2
 
   csp_evaluator@1.1.8: {}
-
-  css-line-break@2.1.0:
-    dependencies:
-      utrie: 1.0.2
 
   css-tree@3.2.1:
     dependencies:
@@ -11204,10 +11185,7 @@ snapshots:
 
   html-url-attributes@3.0.1: {}
 
-  html2canvas-pro@2.5.0:
-    dependencies:
-      css-line-break: 2.1.0
-      text-segmentation: 1.0.3
+  html2canvas-pro@2.5.2: {}
 
   http-errors@1.7.3:
     dependencies:
@@ -13223,10 +13201,6 @@ snapshots:
     transitivePeerDependencies:
       - react-native-b4a
 
-  text-segmentation@1.0.3:
-    dependencies:
-      utrie: 1.0.2
-
   third-party-web@0.30.0: {}
 
   throttleit@2.1.0: {}
@@ -13469,10 +13443,6 @@ snapshots:
   use-sync-external-store@1.7.0(react@19.2.7):
     dependencies:
       react: 19.2.7
-
-  utrie@1.0.2:
-    dependencies:
-      base64-arraybuffer: 1.0.2
 
   uuid@14.0.1: {}
 
