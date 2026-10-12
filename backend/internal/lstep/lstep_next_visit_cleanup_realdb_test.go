@@ -25,7 +25,7 @@ import (
 func setupNextVisitCleanupRealDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
-	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.LstepTagCache{}, &model.LstepSyncErrorCounter{}))
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.LstepTagCache{}, &model.LstepSyncErrorCounter{}, &model.PetOwner{}))
 	require.NoError(t, db.Exec(`CREATE TABLE IF NOT EXISTS lstep_next_visit_sync_retries (
 		clinic_id BIGINT NOT NULL,
 		owner_id BIGINT NOT NULL,
@@ -613,7 +613,7 @@ func TestNextVisitCleanup_RealDB_RecipientLockSerializesRelink(t *testing.T) {
 
 		syncDone := make(chan error, 1)
 		relinkDone := make(chan error, 1)
-		syncJoined, relinkJoined := false, false
+		syncJoined, relinkJoined, relinkStarted := false, false, false
 		t.Cleanup(func() {
 			release()
 			if !syncJoined {
@@ -623,7 +623,7 @@ func TestNextVisitCleanup_RealDB_RecipientLockSerializesRelink(t *testing.T) {
 					t.Error("cleanup goroutine did not finish during test cleanup")
 				}
 			}
-			if !relinkJoined {
+			if relinkStarted && !relinkJoined {
 				select {
 				case <-relinkDone:
 				case <-time.After(15 * time.Second):
@@ -644,6 +644,7 @@ func TestNextVisitCleanup_RealDB_RecipientLockSerializesRelink(t *testing.T) {
 			require.Fail(t, "cleanup never reached the provider barrier")
 		}
 
+		relinkStarted = true
 		go func() {
 			relinkDone <- ownerRepo.UpdateLineUserID(ctx, clinicID, receiver.ID, &uid)
 		}()
@@ -693,24 +694,26 @@ func TestNextVisitCleanup_RealDB_RecipientLockSerializesRelink(t *testing.T) {
 		defer cancel()
 		relinkTx := db.Begin()
 		require.NoError(t, relinkTx.Error)
+		t.Cleanup(func() { _ = relinkTx.Rollback().Error })
 		var relinkPID int64
 		require.NoError(t, relinkTx.Raw("SELECT pg_backend_pid()").Scan(&relinkPID).Error)
 		require.NoError(t, ownerRepo.UpdateLineUserID(
 			persistence.WithTxValue(context.Background(), relinkTx), clinicID, receiver.ID, &uid))
 
 		syncDone := make(chan error, 1)
-		syncJoined := false
+		syncJoined, syncStarted := false, false
 		t.Cleanup(func() {
-			_ = relinkTx.Rollback().Error
-			if !syncJoined {
-				select {
-				case <-syncDone:
-				case <-time.After(15 * time.Second):
-					t.Error("cleanup goroutine did not finish during test cleanup")
-				}
+			if !syncStarted || syncJoined {
+				return
+			}
+			select {
+			case <-syncDone:
+			case <-time.After(15 * time.Second):
+				t.Error("cleanup goroutine did not finish during test cleanup")
 			}
 		})
 
+		syncStarted = true
 		go func() {
 			syncDone <- svc.SyncNextVisitTag(ctx, clinicID, deleted.ID)
 		}()
@@ -792,7 +795,7 @@ func TestNextVisitSync_RealDB_DeleteSerializesNormalSync(t *testing.T) {
 	deleteDone := make(chan error, 1)
 	syncDone := make(chan error, 1)
 	syncExited := make(chan struct{})
-	deleteJoined, syncJoined := false, false
+	deleteJoined, syncJoined, syncStarted := false, false, false
 	t.Cleanup(func() {
 		allow()
 		if !deleteJoined {
@@ -802,7 +805,7 @@ func TestNextVisitSync_RealDB_DeleteSerializesNormalSync(t *testing.T) {
 				t.Error("delete goroutine did not finish during test cleanup")
 			}
 		}
-		if !syncJoined {
+		if syncStarted && !syncJoined {
 			select {
 			case <-syncExited:
 			case <-time.After(15 * time.Second):
@@ -826,6 +829,7 @@ func TestNextVisitSync_RealDB_DeleteSerializesNormalSync(t *testing.T) {
 	require.NoError(t, deletePIDErr)
 	require.NotZero(t, deletePID, "the gated deletion backend must identify its own pid")
 
+	syncStarted = true
 	go func() {
 		defer close(syncExited)
 		syncDone <- tagSync.SyncNextVisitTag(ctx, clinicID, owner.ID)
