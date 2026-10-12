@@ -33,6 +33,7 @@ func TestSyncNextVisitTag(t *testing.T) {
 					return nil, errors.New("owner db error")
 				},
 			},
+			tagCacheRepo: &mockLstepTagCacheRepository{},
 		}
 		err := svc.SyncNextVisitTag(context.Background(), 1, 2)
 		assert.Error(t, err)
@@ -46,6 +47,7 @@ func TestSyncNextVisitTag(t *testing.T) {
 					return &model.Owner{ID: 2, LstepOptOut: true}, nil
 				},
 			},
+			tagCacheRepo: &mockLstepTagCacheRepository{},
 		}
 		err := svc.SyncNextVisitTag(context.Background(), 1, 2)
 		assert.NoError(t, err)
@@ -59,6 +61,7 @@ func TestSyncNextVisitTag(t *testing.T) {
 					return &model.Owner{ID: 2}, nil
 				},
 			},
+			tagCacheRepo: &mockLstepTagCacheRepository{},
 		}
 		err := svc.SyncNextVisitTag(context.Background(), 1, 2)
 		assert.NoError(t, err)
@@ -72,6 +75,7 @@ func TestSyncNextVisitTag(t *testing.T) {
 					return &model.Owner{ID: 2, LineUserID: &lineUID}, nil
 				},
 			},
+			tagCacheRepo: &mockLstepTagCacheRepository{},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) {
 				return nil, errors.New("credentials error")
 			},
@@ -88,6 +92,7 @@ func TestSyncNextVisitTag(t *testing.T) {
 					return &model.Owner{ID: 2, LineUserID: &lineUID}, nil
 				},
 			},
+			tagCacheRepo:  &mockLstepTagCacheRepository{},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return nil, nil },
 		}
 		err := svc.SyncNextVisitTag(context.Background(), 1, 2)

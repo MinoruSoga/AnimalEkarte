@@ -35,7 +35,7 @@ func (r *reservationRepository) nextVisitTagRepairOwnersQuery(
 	expired := r.expiredTentativeTagOwnersQuery(ctx, clinicID, asOf, afterOwnerID, limit)
 	pending := persistence.DBOrTx(ctx, r.db).Table("lstep_next_visit_sync_retries AS retry").
 		Select("retry.owner_id AS owner_id").
-		Joins("JOIN owners owner ON owner.id = retry.owner_id AND owner.clinic_id = retry.clinic_id AND owner.deleted_at IS NULL").
+		Joins("JOIN owners owner ON owner.id = retry.owner_id AND owner.clinic_id = retry.clinic_id AND (owner.deleted_at IS NULL OR retry.cleanup_line_user_id IS NOT NULL)").
 		Where("retry.clinic_id = ? AND retry.owner_id > ?", clinicID, afterOwnerID).
 		Order("owner_id ASC").Limit(limit)
 	// Each source and the merged page are bounded. UNION deduplicates owners

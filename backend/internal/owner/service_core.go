@@ -3,10 +3,12 @@ package owner
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 func (s *ownerService) List(ctx context.Context, clinicIDs []uint64, page, limit int, search string) ([]model.Owner, int64, error) {
@@ -206,6 +208,7 @@ func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64) error {
 		return apperrors.WrapInternalServerError("owner delete guard dependencies are not configured")
 	}
 
+	var cleanupNeeded bool
 	err := s.deleteTransactor.WithTx(ctx, func(txCtx context.Context) error {
 		lockedOwner, err := s.deleteLocker.LockForDelete(txCtx, clinicID, id)
 		if err != nil {
@@ -213,6 +216,9 @@ func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64) error {
 		}
 		if lockedOwner == nil {
 			return apperrors.WrapInternalServerError("owner delete lock returned no owner")
+		}
+		if lockedOwner.ClinicID != clinicID {
+			return apperrors.WrapInternalServerError("owner delete lock returned mismatched clinic")
 		}
 
 		petCount, err := s.repo.CountPetsByOwnerID(txCtx, clinicID, id)
@@ -231,6 +237,17 @@ func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64) error {
 			return apperrors.WrapConflict("副飼主として紐付いているため削除できません。先に紐付けを解除してください")
 		}
 
+		if lockedOwner.LineUserID != nil && *lockedOwner.LineUserID != "" {
+			cleanup, ok := s.tagNotifier.(OwnerDeleteTagCleanup)
+			if !ok {
+				return apperrors.WrapInternalServerError("owner delete cleanup dependency is not configured")
+			}
+			if err := cleanup.EnqueueNextVisitCleanup(txCtx, clinicID, id, *lockedOwner.LineUserID); err != nil {
+				return apperrors.Wrap(err, "failed to enqueue next visit cleanup")
+			}
+			cleanupNeeded = true
+		}
+
 		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
 			return apperrors.Wrap(err, "failed to delete owner")
 		}
@@ -242,6 +259,19 @@ func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64) error {
 	slog.InfoContext(ctx, "owner deleted",
 		slog.Uint64("owner_id", id),
 		slog.Uint64("clinic_id", clinicID))
+	if cleanupNeeded {
+		if cleanup, ok := s.tagNotifier.(OwnerDeleteTagCleanup); ok {
+			syncCtx, cancel := context.WithTimeout(
+				persistence.WithTxValue(context.WithoutCancel(ctx), nil), 30*time.Second)
+			defer cancel()
+			if err := cleanup.SyncNextVisitTag(syncCtx, clinicID, id); err != nil {
+				slog.ErrorContext(ctx, "failed to run next visit cleanup after owner delete",
+					"error", err,
+					slog.Uint64("owner_id", id),
+					slog.Uint64("clinic_id", clinicID))
+			}
+		}
+	}
 	return nil
 }
 

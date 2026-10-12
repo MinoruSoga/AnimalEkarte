@@ -264,6 +264,20 @@ func (r *lstepTagCacheRepository) WithNextVisitOwnerLock(ctx context.Context, cl
 		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", key).Error; err != nil {
 			return apperrors.Wrap(err, "failed to lock next visit owner")
 		}
+		var lockedOwner model.Owner
+		if err := tx.
+			Unscoped().
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Select("id", "line_user_id").
+			Where("clinic_id = ? AND id = ?", clinicID, ownerID).
+			First(&lockedOwner).Error; err != nil {
+			return apperrors.FromGORM(err, "owner", fmt.Sprint(ownerID))
+		}
+		if lockedOwner.LineUserID != nil && *lockedOwner.LineUserID != "" {
+			if err := persistence.AcquireLineRecipientLock(persistence.WithTxValue(ctx, tx), clinicID, *lockedOwner.LineUserID); err != nil {
+				return err
+			}
+		}
 		return fn(persistence.WithTxValue(ctx, tx))
 	})
 	if err != nil {

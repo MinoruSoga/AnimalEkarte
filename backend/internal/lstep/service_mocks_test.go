@@ -6,18 +6,23 @@ package lstep
 import (
 	"context"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
 type mockLstepTagCacheRepository struct {
-	enqueueNextVisitSyncFn     func(context.Context, uint64, uint64) (uint64, error)
-	acknowledgeNextVisitSyncFn func(context.Context, uint64, uint64, uint64) error
-	withNextVisitOwnerLockFn   func(context.Context, uint64, uint64, func(context.Context) error) error
-	upsertTagFn                func(ctx context.Context, clinicID, ownerID uint64, tagName, category, reason string) error
-	deleteTagFn                func(ctx context.Context, clinicID, ownerID uint64, tagName string) error
-	deleteAllByOwnerFn         func(ctx context.Context, clinicID, ownerID uint64) error
-	findByOwnerFn              func(ctx context.Context, clinicID, ownerID uint64) ([]*model.LstepTagCache, error)
-	findByOwnersFn             func(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64][]*model.LstepTagCache, error)
+	enqueueNextVisitSyncFn          func(context.Context, uint64, uint64) (uint64, error)
+	acknowledgeNextVisitSyncFn      func(context.Context, uint64, uint64, uint64) error
+	withNextVisitOwnerLockFn        func(context.Context, uint64, uint64, func(context.Context) error) error
+	enqueueNextVisitCleanupFn       func(context.Context, uint64, uint64, string) error
+	findNextVisitCleanupIntentFn    func(context.Context, uint64, uint64) (*NextVisitCleanupIntent, error)
+	findOwnerForNextVisitCleanupFn  func(context.Context, uint64, uint64) (*model.Owner, error)
+	countActiveOwnersWithLineUserFn func(context.Context, uint64, string) (int64, error)
+	upsertTagFn                     func(ctx context.Context, clinicID, ownerID uint64, tagName, category, reason string) error
+	deleteTagFn                     func(ctx context.Context, clinicID, ownerID uint64, tagName string) error
+	deleteAllByOwnerFn              func(ctx context.Context, clinicID, ownerID uint64) error
+	findByOwnerFn                   func(ctx context.Context, clinicID, ownerID uint64) ([]*model.LstepTagCache, error)
+	findByOwnersFn                  func(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64][]*model.LstepTagCache, error)
 }
 
 func (m *mockLstepTagCacheRepository) EnqueueNextVisitSync(ctx context.Context, clinicID, ownerID uint64) (uint64, error) {
@@ -90,4 +95,32 @@ func (m *mockLstepTagCacheRepository) WithNextVisitOwnerLock(ctx context.Context
 		return m.withNextVisitOwnerLockFn(ctx, clinicID, ownerID, fn)
 	}
 	return fn(ctx)
+}
+
+func (m *mockLstepTagCacheRepository) EnqueueNextVisitCleanup(ctx context.Context, clinicID, ownerID uint64, lineUserID string) error {
+	if m.enqueueNextVisitCleanupFn != nil {
+		return m.enqueueNextVisitCleanupFn(ctx, clinicID, ownerID, lineUserID)
+	}
+	return nil
+}
+
+func (m *mockLstepTagCacheRepository) FindNextVisitCleanupIntent(ctx context.Context, clinicID, ownerID uint64) (*NextVisitCleanupIntent, error) {
+	if m.findNextVisitCleanupIntentFn != nil {
+		return m.findNextVisitCleanupIntentFn(ctx, clinicID, ownerID)
+	}
+	return nil, nil
+}
+
+func (m *mockLstepTagCacheRepository) FindOwnerForNextVisitCleanup(ctx context.Context, clinicID, ownerID uint64) (*model.Owner, error) {
+	if m.findOwnerForNextVisitCleanupFn != nil {
+		return m.findOwnerForNextVisitCleanupFn(ctx, clinicID, ownerID)
+	}
+	return nil, apperrors.WrapNotFound("owner", "0")
+}
+
+func (m *mockLstepTagCacheRepository) CountActiveOwnersWithLineUser(ctx context.Context, clinicID uint64, lineUserID string) (int64, error) {
+	if m.countActiveOwnersWithLineUserFn != nil {
+		return m.countActiveOwnersWithLineUserFn(ctx, clinicID, lineUserID)
+	}
+	return 0, nil
 }

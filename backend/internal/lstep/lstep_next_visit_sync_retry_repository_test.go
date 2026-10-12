@@ -32,16 +32,18 @@ type retrySQLCall struct {
 	deadline    time.Time
 }
 type retrySQLFixture struct {
-	calls        []retrySQLCall
-	connections  int
-	marker       uint64
-	cacheDeleted bool
-	noOwner      bool
-	queryErr     error
-	ackErr       error
-	commitErr    error
-	commits      int
-	rollbacks    int
+	calls           []retrySQLCall
+	connections     int
+	marker          uint64
+	cacheDeleted    bool
+	noOwner         bool
+	ownerID         uint64
+	ownerLineUserID *string
+	queryErr        error
+	ackErr          error
+	commitErr       error
+	commits         int
+	rollbacks       int
 }
 type retrySQLConnector struct{ f *retrySQLFixture }
 
@@ -93,6 +95,12 @@ func (c *retrySQLConn) QueryContext(ctx context.Context, query string, args []dr
 	c.record(ctx, query, args)
 	if c.f.queryErr != nil {
 		return nil, c.f.queryErr
+	}
+	if strings.Contains(query, `FROM "owners"`) {
+		if !c.active {
+			return nil, errors.New("owner row lock must run inside the owned transaction")
+		}
+		return &retrySQLOwnerRows{id: c.f.ownerID, lineUserID: c.f.ownerLineUserID}, nil
 	}
 	if !strings.Contains(query, "INSERT INTO lstep_next_visit_sync_retries") || !strings.Contains(query, "RETURNING revision") {
 		return nil, fmt.Errorf("unexpected query: %s", query)
@@ -179,6 +187,28 @@ func (r *retrySQLRows) Next(dest []driver.Value) error {
 	dest[0] = r.revision
 	return nil
 }
+
+type retrySQLOwnerRows struct {
+	id         uint64
+	lineUserID *string
+	read       bool
+}
+
+func (*retrySQLOwnerRows) Columns() []string { return []string{"id", "line_user_id"} }
+func (*retrySQLOwnerRows) Close() error      { return nil }
+func (r *retrySQLOwnerRows) Next(dest []driver.Value) error {
+	if r.read || r.id == 0 {
+		return io.EOF
+	}
+	r.read = true
+	dest[0] = int64(r.id)
+	if r.lineUserID != nil {
+		dest[1] = *r.lineUserID
+	} else {
+		dest[1] = nil
+	}
+	return nil
+}
 func retrySQLRepo(t *testing.T, f *retrySQLFixture, maxConnections int) *lstepTagCacheRepository {
 	t.Helper()
 	db := sql.OpenDB(retrySQLConnector{f: f})
@@ -220,7 +250,8 @@ func TestNextVisitSyncRetryRepository_Enqueue(t *testing.T) {
 		require.False(t, call.ambient)
 		require.Equal(t, deadline, call.deadline)
 		require.Equal(t, []driver.Value{int64(3), int64(9)}, retrySQLValues(call.args))
-		require.Contains(t, call.query, "SELECT clinic_id, id FROM owners WHERE clinic_id = $1 AND id = $2 AND deleted_at IS NULL")
+		require.Contains(t, call.query, "WITH target_owner AS MATERIALIZED")
+		require.Contains(t, call.query, "SELECT clinic_id, id FROM owners WHERE clinic_id = $1 AND id = $2 AND deleted_at IS NULL FOR KEY SHARE")
 		require.Contains(t, call.query, "ON CONFLICT (clinic_id, owner_id) DO UPDATE SET revision = EXCLUDED.revision")
 		require.Contains(t, call.query, "RETURNING revision")
 		require.Equal(t, 2, f.connections, "enqueue uses independent autocommit connection")
@@ -265,7 +296,7 @@ func TestNextVisitSyncRetryRepository_Acknowledge(t *testing.T) {
 	})
 	for _, name := range []string{"commit", "newer revision", "callback rollback", "commit failure", "ack failure"} {
 		t.Run(name, func(t *testing.T) {
-			f := &retrySQLFixture{marker: 40}
+			f := &retrySQLFixture{marker: 40, ownerID: 9}
 			r := retrySQLRepo(t, f, 1)
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
@@ -311,24 +342,29 @@ func TestNextVisitSyncRetryRepository_Acknowledge(t *testing.T) {
 			require.Equal(t, wantMarker, f.marker)
 			require.Equal(t, !failed, f.cacheDeleted, "cache and acknowledgement share commit outcome")
 			require.Equal(t, 1, f.connections, "enqueue before owner lock and callback ACK must not borrow a second connection")
-			calls := f.calls[len(f.calls)-3:]
+			calls := f.calls[len(f.calls)-4:]
 			require.Contains(t, calls[0].query, "pg_advisory_xact_lock")
 			require.Equal(t, []driver.Value{"lstep-next-visit:3:9"}, retrySQLValues(calls[0].args))
 			require.False(t, calls[0].ambient, "owner transaction detaches the caller transaction")
-			require.Contains(t, calls[1].query, `DELETE FROM "lstep_tag_cache"`)
-			require.Contains(t, calls[1].query, "owner_id = $1 AND tag_name = $2")
-			require.Contains(t, calls[1].query, "clinic_id = $3")
-			require.Equal(t, []driver.Value{int64(9), "fixture tag", int64(3)}, retrySQLValues(calls[1].args))
-			require.Equal(t, "DELETE FROM lstep_next_visit_sync_retries WHERE clinic_id = $1 AND owner_id = $2 AND revision = $3", calls[2].query)
-			require.Equal(t, []driver.Value{int64(3), int64(9), int64(revision)}, retrySQLValues(calls[2].args))
+			require.Contains(t, calls[1].query, `FROM "owners"`)
+			require.Contains(t, calls[1].query, "FOR UPDATE")
+			require.Equal(t, int64(3), retrySQLValues(calls[1].args)[0])
+			require.Equal(t, int64(9), retrySQLValues(calls[1].args)[1])
+			require.Contains(t, calls[2].query, `DELETE FROM "lstep_tag_cache"`)
+			require.Contains(t, calls[2].query, "owner_id = $1 AND tag_name = $2")
+			require.Contains(t, calls[2].query, "clinic_id = $3")
+			require.Equal(t, []driver.Value{int64(9), "fixture tag", int64(3)}, retrySQLValues(calls[2].args))
+			require.Equal(t, "DELETE FROM lstep_next_visit_sync_retries WHERE clinic_id = $1 AND owner_id = $2 AND revision = $3", calls[3].query)
+			require.Equal(t, []driver.Value{int64(3), int64(9), int64(revision)}, retrySQLValues(calls[3].args))
 			deadline, _ := ctx.Deadline()
 			for _, call := range calls {
 				require.True(t, call.transaction)
 				require.Equal(t, calls[0].connection, call.connection)
 				require.Equal(t, deadline, call.deadline)
 			}
-			require.True(t, calls[1].ambient)
+			require.False(t, calls[1].ambient, "owner row lock runs on the lock transaction's own statement")
 			require.True(t, calls[2].ambient)
+			require.True(t, calls[3].ambient)
 		})
 	}
 }

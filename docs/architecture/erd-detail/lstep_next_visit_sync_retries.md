@@ -16,6 +16,7 @@
 | `revision` | `BIGSERIAL` | NOT NULL | — | — | [033_lstep_next_visit_sync_retries.sql:9](../../../backend/migrations/033_lstep_next_visit_sync_retries.sql#L9) |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [033_lstep_next_visit_sync_retries.sql:10](../../../backend/migrations/033_lstep_next_visit_sync_retries.sql#L10) |
 | `updated_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [033_lstep_next_visit_sync_retries.sql:11](../../../backend/migrations/033_lstep_next_visit_sync_retries.sql#L11) |
+| `cleanup_line_user_id` | `VARCHAR(64)` | NULL | — | — | [034_lstep_next_visit_cleanup_target.sql:2](../../../backend/migrations/034_lstep_next_visit_cleanup_target.sql#L2) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -33,6 +34,7 @@ erDiagram
         BIGSERIAL revision
         TIMESTAMPTZ created_at
         TIMESTAMPTZ updated_at
+        VARCHAR_64 cleanup_line_user_id
     }
     clinics {
         BIGSERIAL id PK
@@ -62,6 +64,7 @@ erDiagram
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
 | `lstep_next_visit_sync_retries_pkey` | primary | `PRIMARY KEY (clinic_id, owner_id)` | [033_lstep_next_visit_sync_retries.sql:12](../../../backend/migrations/033_lstep_next_visit_sync_retries.sql#L12) |
+| `chk_lstep_next_visit_sync_retries_cleanup_line_user_id` | check | `CONSTRAINT chk_lstep_next_visit_sync_retries_cleanup_line_user_id     CHECK (cleanup_line_user_id IS NULL OR cleanup_line_user_id ~ '^[A-Za-z0-9_-]{1,64}$')` | [034_lstep_next_visit_cleanup_target.sql:5](../../../backend/migrations/034_lstep_next_visit_cleanup_target.sql#L5) |
 
 ## インデックス
 

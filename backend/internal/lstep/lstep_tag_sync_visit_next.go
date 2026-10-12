@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"log/slog"
+
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	lstepapi "github.com/animal-ekarte/backend/internal/infra/lstep"
@@ -18,6 +20,18 @@ import (
 // and cache writes. Its advisory lock serializes HTTP and batch syncs across processes.
 type nextVisitOwnerLocker interface {
 	WithNextVisitOwnerLock(context.Context, uint64, uint64, func(context.Context) error) error
+}
+
+type nextVisitCleanupIntentFinder interface {
+	FindNextVisitCleanupIntent(context.Context, uint64, uint64) (*NextVisitCleanupIntent, error)
+}
+
+type nextVisitCleanupStore interface {
+	nextVisitSyncRetryQueue
+	nextVisitOwnerLocker
+	nextVisitCleanupIntentFinder
+	FindOwnerForNextVisitCleanup(context.Context, uint64, uint64) (*model.Owner, error)
+	CountActiveOwnersWithLineUser(context.Context, uint64, string) (int64, error)
 }
 
 // SyncNextVisitTag は次回来院タグを同期する（BE-006 / EMR-308）。
@@ -32,6 +46,27 @@ func (s *lstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ow
 	// deadline survive. Post-commit callers own request cancellation detachment.
 	ctx, cancel := context.WithTimeout(persistence.WithTxValue(ctx, nil), 30*time.Second)
 	defer cancel()
+	skip, err := s.shouldSkipSync(ctx, clinicID)
+	if err != nil {
+		return err
+	}
+	if skip {
+		return nil
+	}
+	finder, ok := s.tagCacheRepo.(nextVisitCleanupIntentFinder)
+	if !ok {
+		return apperrors.WrapInternalServerError("next visit cleanup intent lookup is not configured")
+	}
+	intent, err := finder.FindNextVisitCleanupIntent(ctx, clinicID, ownerID)
+	if err != nil {
+		if !apperrors.IsNotFound(err) {
+			return err
+		}
+		intent = nil
+	}
+	if intent != nil {
+		return s.syncNextVisitCleanup(ctx, clinicID, ownerID)
+	}
 	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, "next visit")
 	if err != nil {
 		return err
@@ -86,11 +121,109 @@ func (s *lstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ow
 	// Counter persistence must happen after the lock transaction releases its
 	// connection: otherwise rollback loses accounting, and a pool of one deadlocks.
 	if apiFailed {
-		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+		s.notifyNextVisitAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 	} else if err == nil && attempted {
-		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
+		s.notifyNextVisitAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
 	}
 	return err
+}
+
+func (s *lstepTagSyncService) revalidatedNextVisitTarget(syncCtx context.Context, clinicID, ownerID uint64, lineUserID string) (string, error) {
+	target, ready, err := s.resolveSyncTarget(syncCtx, clinicID, ownerID, "next visit")
+	if err != nil {
+		if apperrors.IsNotFound(err) {
+			slog.WarnContext(syncCtx, "next visit notifier skipped: owner missing or deleted", "clinic_id", clinicID, "owner_id", ownerID)
+			return "", nil
+		}
+		return "", err
+	}
+	if !ready || target != lineUserID {
+		return "", nil
+	}
+	return target, nil
+}
+
+func (s *lstepTagSyncService) nextVisitNotifierLock(ctx context.Context, clinicID, ownerID uint64) (nextVisitOwnerLocker, bool) {
+	locker, ok := s.tagCacheRepo.(nextVisitOwnerLocker)
+	if !ok {
+		slog.ErrorContext(ctx, "next visit owner lock is not configured for notifier", "clinic_id", clinicID, "owner_id", ownerID)
+		return nil, false
+	}
+	return locker, true
+}
+
+func (s *lstepTagSyncService) notifyNextVisitAPIFailure(ctx context.Context, client lstepapi.Client, clinicID, ownerID uint64, lineUserID string) {
+	if s.errorCounterRepo == nil {
+		return
+	}
+	newCount, err := s.errorCounterRepo.IncrementFailure(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to increment lstep error counter", "error", err, "clinic_id", clinicID, "owner_id", ownerID)
+		return
+	}
+	if newCount < lstepSyncErrorThreshold {
+		return
+	}
+	locker, ok := s.nextVisitNotifierLock(ctx, clinicID, ownerID)
+	if !ok {
+		return
+	}
+	err = locker.WithNextVisitOwnerLock(ctx, clinicID, ownerID, func(syncCtx context.Context) error {
+		target, err := s.revalidatedNextVisitTarget(syncCtx, clinicID, ownerID, lineUserID)
+		if err != nil || target == "" {
+			return err
+		}
+		if addErr := client.AddTag(syncCtx, target, lstepErrorTag); addErr != nil {
+			return apperrors.Wrap(addErr, "failed to add EXCL error tag")
+		}
+		return s.tagCacheRepo.UpsertTag(syncCtx, clinicID, ownerID, lstepErrorTag, "auto", "")
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "next visit failure notifier transaction failed", "error", err, "clinic_id", clinicID, "owner_id", ownerID)
+	}
+}
+
+func (s *lstepTagSyncService) notifyNextVisitAPISuccess(ctx context.Context, client lstepapi.Client, clinicID, ownerID uint64, lineUserID string) {
+	if s.errorCounterRepo == nil {
+		return
+	}
+	counter, err := s.errorCounterRepo.FindByOwner(ctx, clinicID, ownerID)
+	if err != nil {
+		if apperrors.IsNotFound(err) {
+			return
+		}
+		slog.ErrorContext(ctx, "failed to find lstep error counter", "error", err, "clinic_id", clinicID, "owner_id", ownerID)
+		return
+	}
+	if counter.FailureCount == 0 {
+		return
+	}
+	locker, ok := s.nextVisitNotifierLock(ctx, clinicID, ownerID)
+	if !ok {
+		return
+	}
+	attempted := false
+	err = locker.WithNextVisitOwnerLock(ctx, clinicID, ownerID, func(syncCtx context.Context) error {
+		target, err := s.revalidatedNextVisitTarget(syncCtx, clinicID, ownerID, lineUserID)
+		if err != nil || target == "" {
+			return err
+		}
+		attempted = true
+		if removeErr := client.RemoveTag(syncCtx, target, lstepErrorTag); removeErr != nil {
+			return apperrors.Wrap(removeErr, "failed to remove EXCL error tag")
+		}
+		return s.tagCacheRepo.DeleteTag(syncCtx, clinicID, ownerID, lstepErrorTag)
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "next visit success notifier transaction failed", "error", err, "clinic_id", clinicID, "owner_id", ownerID)
+		return
+	}
+	if !attempted {
+		return
+	}
+	if resetErr := s.errorCounterRepo.ResetFailure(ctx, clinicID, ownerID); resetErr != nil {
+		slog.ErrorContext(ctx, "failed to reset lstep error counter", "error", resetErr, "clinic_id", clinicID, "owner_id", ownerID)
+	}
 }
 
 func (s *lstepTagSyncService) reconcileNextVisitTag(ctx context.Context, client lstepapi.Client, clinicID, ownerID uint64, lineUserID string, apiFailed *bool) error {
@@ -171,4 +304,103 @@ func nextVisitDateFromAppointment(appointment *model.Reservation) *time.Time {
 		return appointment.IntendedDate
 	}
 	return &appointment.StartTime
+}
+
+func (s *lstepTagSyncService) EnqueueNextVisitCleanup(ctx context.Context, clinicID, ownerID uint64, lineUserID string) error {
+	queue, ok := s.tagCacheRepo.(nextVisitCleanupQueue)
+	if !ok {
+		return apperrors.WrapInternalServerError("next visit cleanup queue is not configured")
+	}
+	return queue.EnqueueNextVisitCleanup(ctx, clinicID, ownerID, lineUserID)
+}
+
+func (s *lstepTagSyncService) syncNextVisitCleanup(ctx context.Context, clinicID, ownerID uint64) error {
+	cleanup, ok := s.tagCacheRepo.(nextVisitCleanupStore)
+	if !ok {
+		return apperrors.WrapInternalServerError("next visit cleanup store is not configured")
+	}
+	client, err := s.buildClient(ctx, clinicID)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to build lstep client")
+	}
+	if client == nil {
+		return nil
+	}
+	return cleanup.WithNextVisitOwnerLock(ctx, clinicID, ownerID, func(syncCtx context.Context) error {
+		intent, err := cleanup.FindNextVisitCleanupIntent(syncCtx, clinicID, ownerID)
+		if err != nil {
+			if apperrors.IsNotFound(err) {
+				return nil
+			}
+			return err
+		}
+		if intent == nil {
+			return apperrors.WrapInternalServerError("next visit cleanup intent lookup returned no intent")
+		}
+		owner, err := cleanup.FindOwnerForNextVisitCleanup(syncCtx, clinicID, ownerID)
+		if err != nil {
+			return err
+		}
+		if owner == nil {
+			return apperrors.WrapInternalServerError("next visit cleanup owner lookup returned no owner")
+		}
+		if !owner.DeletedAt.Valid {
+			return apperrors.WrapConflict("next visit cleanup intent requires a deleted owner")
+		}
+		if owner.LineUserID == nil || *owner.LineUserID != intent.LineUserID {
+			return apperrors.WrapConflict("next visit cleanup target does not match the owner recipient")
+		}
+		if owner.LstepOptOut {
+			return nil
+		}
+		relinked, err := cleanup.CountActiveOwnersWithLineUser(syncCtx, clinicID, intent.LineUserID)
+		if err != nil {
+			return err
+		}
+		if relinked > 0 {
+			return apperrors.WrapConflict("next visit cleanup recipient was relinked to an active owner")
+		}
+		remote, err := client.GetUserTags(syncCtx, intent.LineUserID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to read next visit tags")
+		}
+		remoteTags := make(map[string]struct{}, len(remote))
+		staleTags := make(map[string]struct{})
+		for _, tag := range remote {
+			remoteTags[tag] = struct{}{}
+			if strings.HasPrefix(tag, tagPrefixNextVisit) {
+				staleTags[tag] = struct{}{}
+			}
+		}
+		cached, err := s.tagCacheRepo.FindByOwner(syncCtx, clinicID, ownerID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to load tag cache")
+		}
+		for _, tag := range cached {
+			if strings.HasPrefix(tag.TagName, tagPrefixNextVisit) {
+				staleTags[tag.TagName] = struct{}{}
+			}
+		}
+		tags := make([]string, 0, len(staleTags))
+		for tag := range staleTags {
+			tags = append(tags, tag)
+		}
+		sort.Strings(tags)
+		var removalErrs []error
+		for _, tag := range tags {
+			if _, present := remoteTags[tag]; present {
+				if err := client.RemoveTag(syncCtx, intent.LineUserID, tag); err != nil {
+					removalErrs = append(removalErrs, apperrors.Wrap(err, "failed to remove next visit tag"))
+					continue
+				}
+			}
+			if err := s.tagCacheRepo.DeleteTag(syncCtx, clinicID, ownerID, tag); err != nil {
+				removalErrs = append(removalErrs, apperrors.Wrap(err, "failed to delete next visit tag cache"))
+			}
+		}
+		if err := errors.Join(removalErrs...); err != nil {
+			return err
+		}
+		return cleanup.AcknowledgeNextVisitSync(syncCtx, clinicID, ownerID, intent.Revision)
+	})
 }

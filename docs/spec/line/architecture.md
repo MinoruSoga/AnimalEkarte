@@ -117,4 +117,4 @@ LSTEP 周辺の「best-effort」は一語で混同しない。経路ごとに契
 
 `SyncNextVisitTag` は外部タグ操作前に、医院・飼主単位の `lstep_next_visit_sync_retries` を独立 commit する。owner lock 内で現在の予約・LINE連携先・同意を読み直し、全タグ操作とcache更新が成功した場合だけ、自身が enqueue した revision をcacheと同じtransactionで削除する。cache保存・commit・取消・外部操作の失敗は再試行記録を保持し、別の同期が追加した新しいrevisionは消さない。日次 tentative reconciliation は期限切れcacheと再試行記録をUNIONし、医院ごとに重複排除したowner IDのkeyset paginationで処理する。以前のcacheがない飼主も対象となる。
 
-連携解除・opt-out・同期停止中は既存の再試行記録を保持し、再開時に現在のsourceと連携先を再評価する。記録は過去のタグやLINE IDのsnapshotを持たないため、LINE ID変更前の旧アカウントに残ったタグの除去は保証しない。新規migration `033` は通常のmigration手順で適用してからこの同期コードを稼働させる。臨床記録ではない再試行用の技術テーブルだけを成功時にhard deleteする。
+連携解除・opt-out・同期停止中は既存の再試行記録を保持し、再開時に現在のsourceと連携先を再評価する。通常の再試行記録は過去のタグやLINE IDのsnapshotを持たないため、LINE ID変更前の旧アカウントに残ったタグの除去は保証しない。例外は飼主削除で、削除transaction内で確定したLINE宛先が `cleanup_line_user_id` として不変に記録され、削除commit後の `SyncNextVisitTag` は外部操作をremove-onlyの `next_visit_*` 除去に限定する（予約参照・AddTagは行わない）。宛先が別のactive飼主へ再連携済みなら外部操作を行わず記録を保持する。新規migration `033` / `034` は通常のmigration手順で適用してからこの同期コードを稼働させる。臨床記録ではない再試行用の技術テーブルだけを成功時にhard deleteする。

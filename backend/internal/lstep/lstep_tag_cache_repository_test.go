@@ -335,6 +335,7 @@ func TestLstepTagCacheRepository_FindOwnerIDsByTag(t *testing.T) {
 
 func TestNextVisitOwnerLock_DBPoolOneAndRollback(t *testing.T) {
 	db := setupLstepTagCacheTestDB(t)
+	owner := testdb.MakeTestOwner(t, db, 1, "lock rollback owner")
 	pool, err := db.DB()
 	require.NoError(t, err)
 	oldLimit := pool.Stats().MaxOpenConnections
@@ -344,28 +345,28 @@ func TestNextVisitOwnerLock_DBPoolOneAndRollback(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	rollback := errors.New("rollback fixture")
-	err = repo.WithNextVisitOwnerLock(ctx, 1, 100, func(txCtx context.Context) error {
-		require.NoError(t, repo.UpsertTag(txCtx, 1, 100, "next_visit_2026-12-20", "auto", ""))
-		rows, readErr := repo.FindByOwner(txCtx, 1, 100)
+	err = repo.WithNextVisitOwnerLock(ctx, 1, owner.ID, func(txCtx context.Context) error {
+		require.NoError(t, repo.UpsertTag(txCtx, 1, owner.ID, "next_visit_2026-12-20", "auto", ""))
+		rows, readErr := repo.FindByOwner(txCtx, 1, owner.ID)
 		require.NoError(t, readErr)
 		require.Len(t, rows, 1)
 		return rollback
 	})
 	require.ErrorIs(t, err, rollback)
-	rows, err := repo.FindByOwner(ctx, 1, 100)
+	rows, err := repo.FindByOwner(ctx, 1, owner.ID)
 	require.NoError(t, err)
 	assert.Empty(t, rows)
 	// Seed before the delete/rollback phase; a missing seed would vacuously pass.
-	require.NoError(t, repo.UpsertTag(ctx, 1, 100, "next_visit_2026-12-20", "auto", ""))
-	err = repo.WithNextVisitOwnerLock(ctx, 1, 100, func(txCtx context.Context) error {
-		require.NoError(t, repo.DeleteTag(txCtx, 1, 100, "next_visit_2026-12-20"))
-		rows, readErr := repo.FindByOwner(txCtx, 1, 100)
+	require.NoError(t, repo.UpsertTag(ctx, 1, owner.ID, "next_visit_2026-12-20", "auto", ""))
+	err = repo.WithNextVisitOwnerLock(ctx, 1, owner.ID, func(txCtx context.Context) error {
+		require.NoError(t, repo.DeleteTag(txCtx, 1, owner.ID, "next_visit_2026-12-20"))
+		rows, readErr := repo.FindByOwner(txCtx, 1, owner.ID)
 		require.NoError(t, readErr)
 		assert.Empty(t, rows)
 		return rollback
 	})
 	require.ErrorIs(t, err, rollback)
-	rows, err = repo.FindByOwner(ctx, 1, 100)
+	rows, err = repo.FindByOwner(ctx, 1, owner.ID)
 	require.NoError(t, err)
 	assert.Len(t, rows, 1, "DeleteTag must join the same transaction and roll back")
 
@@ -379,13 +380,16 @@ func TestNextVisitOwnerLock_DBIndependentRepositoriesAndScope(t *testing.T) {
 	pool.SetMaxOpenConns(4)
 	defer pool.SetMaxOpenConns(oldLimit)
 	first, second := &lstepTagCacheRepository{db: db}, &lstepTagCacheRepository{db: db}
+	held := testdb.MakeTestOwner(t, db, 1, "lock held owner")
+	otherClinic := testdb.MakeTestOwner(t, db, 2, "lock other clinic owner")
+	otherOwner := testdb.MakeTestOwner(t, db, 1, "lock other owner")
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	entered := make(chan struct{})
 	release := make(chan struct{})
 	done := make(chan error, 1)
 	go func() {
-		done <- first.WithNextVisitOwnerLock(ctx, 1, 100, func(context.Context) error {
+		done <- first.WithNextVisitOwnerLock(ctx, 1, held.ID, func(context.Context) error {
 			close(entered)
 			select {
 			case <-release:
@@ -401,9 +405,9 @@ func TestNextVisitOwnerLock_DBIndependentRepositoriesAndScope(t *testing.T) {
 		t.Fatal(ctx.Err())
 	}
 	wait, stop := context.WithTimeout(ctx, 50*time.Millisecond)
-	require.ErrorIs(t, second.WithNextVisitOwnerLock(wait, 1, 100, func(context.Context) error { t.Error("same key must not enter while first holds lock"); return nil }), context.DeadlineExceeded)
+	require.ErrorIs(t, second.WithNextVisitOwnerLock(wait, 1, held.ID, func(context.Context) error { t.Error("same key must not enter while first holds lock"); return nil }), context.DeadlineExceeded)
 	stop()
-	for _, scope := range []struct{ clinic, owner uint64 }{{2, 100}, {1, 101}} {
+	for _, scope := range []struct{ clinic, owner uint64 }{{2, otherClinic.ID}, {1, otherOwner.ID}} {
 		require.NoError(t, second.WithNextVisitOwnerLock(ctx, scope.clinic, scope.owner, func(context.Context) error { return nil }))
 	}
 	close(release)

@@ -163,6 +163,7 @@ type LstepTagSyncService interface {
 	// 飼い主の次回 active appointment に基づき古い next_visit_* タグを差し替える。
 	// tentative は intended_date、それ以外は start_time の JST 暦日を使う。
 	SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error
+	EnqueueNextVisitCleanup(ctx context.Context, clinicID, ownerID uint64, lineUserID string) error
 	// SyncCheckupTag は健診記録の作成・更新時に checkup_done_{typeID}_{YYYY-MM}/next_checkup_* タグを同期する（BE-008）。
 	// 同一健診種別の古い checkup_done タグを解除してから新タグを付与する。next_checkup_* は最新1件のみ。
 	SyncCheckupTag(ctx context.Context, clinicID, ownerID, checkupTypeID uint64, checkupDate time.Time, nextDate *time.Time) error

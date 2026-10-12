@@ -65,6 +65,9 @@ func (m *mockLstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID
 	}
 	return nil
 }
+func (m *mockLstepTagSyncService) EnqueueNextVisitCleanup(_ context.Context, _, _ uint64, _ string) error {
+	return nil
+}
 func (m *mockLstepTagSyncService) SyncCheckupTag(ctx context.Context, clinicID, ownerID, checkupTypeID uint64, checkupDate time.Time, nextDate *time.Time) error {
 	if m.syncCheckupTagFn != nil {
 		return m.syncCheckupTagFn(ctx, clinicID, ownerID, checkupTypeID, checkupDate, nextDate)

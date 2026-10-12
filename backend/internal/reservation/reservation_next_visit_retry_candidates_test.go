@@ -36,6 +36,7 @@ func setupEmptyNextVisitRetryQueueFixture(t *testing.T, db *gorm.DB) {
 		clinic_id BIGINT NOT NULL,
 		owner_id BIGINT NOT NULL,
 		revision BIGSERIAL NOT NULL,
+		cleanup_line_user_id VARCHAR(64),
 		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 		updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 		PRIMARY KEY (clinic_id, owner_id))`).Error)
@@ -71,7 +72,7 @@ func TestNextVisitTagRepairCandidates_QueryContract(t *testing.T) {
 			assert.Contains(t, sql, "owner.clinic_id = expiry_tag.clinic_id AND owner.deleted_at IS NULL")
 			assert.Contains(t, sql, "retry.clinic_id =")
 			assert.Contains(t, sql, "retry.owner_id >")
-			assert.Contains(t, sql, "owner.clinic_id = retry.clinic_id AND owner.deleted_at IS NULL")
+			assert.Contains(t, sql, "owner.clinic_id = retry.clinic_id AND (owner.deleted_at IS NULL OR retry.cleanup_line_user_id IS NOT NULL)")
 			assert.Regexp(t, `\) UNION \(`, sql, "overlapping cache and retry owners must be deduplicated")
 			assert.NotContains(t, sql, "UNION ALL")
 			assert.Equal(t, 3, strings.Count(sql, "ORDER BY owner_id ASC"), "both source pages and the merged page use the same keyset order")
@@ -128,8 +129,10 @@ func TestNextVisitTagRepairCandidates_DBQueueOnlyDedupAndKeyset(t *testing.T) {
 	shared := testdb.MakeTestOwner(t, db, 1, "repair shared cache and queue")
 	cacheOnly := testdb.MakeTestOwner(t, db, 1, "repair cache only")
 	deleted := testdb.MakeTestOwner(t, db, 1, "repair deleted")
+	deletedCleanup := testdb.MakeTestOwner(t, db, 1, "repair deleted cleanup")
 	foreign := testdb.MakeTestOwner(t, db, 2, "repair foreign")
 	require.NoError(t, db.Delete(deleted).Error)
+	require.NoError(t, db.Delete(deletedCleanup).Error)
 	repo := NewReservationRepository(db)
 	asOf := time.Date(2026, 10, 12, 1, 0, 0, 0, time.UTC)
 	err := db.Transaction(func(tx *gorm.DB) error {
@@ -137,6 +140,7 @@ func TestNextVisitTagRepairCandidates_DBQueueOnlyDedupAndKeyset(t *testing.T) {
 		// migration and isolate it from other tests' cache/retry fixtures.
 		if err := tx.Exec(`CREATE TEMP TABLE lstep_next_visit_sync_retries (
 			clinic_id BIGINT NOT NULL, owner_id BIGINT NOT NULL,
+			cleanup_line_user_id VARCHAR(64),
 			PRIMARY KEY (clinic_id, owner_id)) ON COMMIT DROP`).Error; err != nil {
 			return err
 		}
@@ -145,11 +149,15 @@ func TestNextVisitTagRepairCandidates_DBQueueOnlyDedupAndKeyset(t *testing.T) {
 			tag_name TEXT NOT NULL) ON COMMIT DROP`).Error; err != nil {
 			return err
 		}
-		for _, row := range []struct{ clinicID, ownerID uint64 }{
-			{1, queueOnly.ID}, {1, shared.ID}, {1, deleted.ID},
-			{2, foreign.ID}, {1, foreign.ID},
+		for _, row := range []struct {
+			clinicID, ownerID uint64
+			cleanup           *string
+		}{
+			{1, queueOnly.ID, nil}, {1, shared.ID, nil}, {1, deleted.ID, nil},
+			{2, foreign.ID, nil}, {1, foreign.ID, nil},
+			{1, deletedCleanup.ID, ptrString("Udeleted-cleanup")},
 		} {
-			if err := tx.Exec("INSERT INTO lstep_next_visit_sync_retries (clinic_id, owner_id) VALUES (?, ?)", row.clinicID, row.ownerID).Error; err != nil {
+			if err := tx.Exec("INSERT INTO lstep_next_visit_sync_retries (clinic_id, owner_id, cleanup_line_user_id) VALUES (?, ?, ?)", row.clinicID, row.ownerID, row.cleanup).Error; err != nil {
 				return err
 			}
 		}
@@ -180,9 +188,9 @@ func TestNextVisitTagRepairCandidates_DBQueueOnlyDedupAndKeyset(t *testing.T) {
 			got = append(got, ids[0])
 			cursor = ids[0]
 		}
-		want := []uint64{queueOnly.ID, shared.ID, cacheOnly.ID}
+		want := []uint64{queueOnly.ID, shared.ID, cacheOnly.ID, deletedCleanup.ID}
 		sort.Slice(want, func(i, j int) bool { return want[i] < want[j] })
-		assert.Equal(t, want, got, "discover queue-only owners, deduplicate shared owners, and exclude deleted/foreign owners")
+		assert.Equal(t, want, got, "discover queue-only owners, deduplicate shared owners, include deleted cleanup intents, and exclude plain deleted/foreign owners")
 		return nil
 	})
 	require.NoError(t, err)
