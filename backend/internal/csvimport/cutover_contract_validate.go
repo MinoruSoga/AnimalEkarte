@@ -569,6 +569,8 @@ func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifes
 
 	var rowCount int64
 	seenIDs := make(map[int64]struct{})
+	nameColumn, checkNames := cutoverUniqueNameColumns()[spec.Name]
+	seenNames := make(map[string]struct{})
 	for {
 		row, readErr := reader.Read()
 		if errors.Is(readErr, io.EOF) {
@@ -587,6 +589,13 @@ func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifes
 			return false, fmt.Errorf("table %s column id row %d: duplicate primary ID", spec.Name, rowCount+1)
 		}
 		seenIDs[id] = struct{}{}
+		if checkNames {
+			name := row[columnIndexes[nameColumn]]
+			if _, duplicate := seenNames[name]; duplicate {
+				return false, fmt.Errorf("table %s column %s row %d: duplicate name", spec.Name, nameColumn, rowCount+1)
+			}
+			seenNames[name] = struct{}{}
+		}
 		if err := validateCutoverRow(spec, header, row, columnIndexes, band, rowCount+1); err != nil {
 			return false, err
 		}
@@ -667,6 +676,54 @@ func validateCutoverRow(spec CutoverTableSpec, header []string, row []string, in
 		if id < floor || id >= band.EndExclusive {
 			return fmt.Errorf("table %s column %s row %d: id is outside the clinic band", spec.Name, column, csvLine)
 		}
+	}
+	if column, ok := cutoverMasterPriceColumns()[spec.Name]; ok {
+		if err := validateCutoverNonNegativeInt(spec.Name, column, row[indexes[column]], csvLine); err != nil {
+			return err
+		}
+	}
+	if spec.Name == "medicines" {
+		if err := validateCutoverMedicinesRow(row, indexes, csvLine); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateCutoverNonNegativeInt enforces the master-price contract: empty
+// stays NULL and the cell must be a non-negative int64. Diagnostics name the
+// table, column, and row only — never the cell value.
+func validateCutoverNonNegativeInt(table, column, value string, csvLine int64) error {
+	if value == "" {
+		return nil
+	}
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return fmt.Errorf("table %s column %s row %d: value must be an integer", table, column, csvLine)
+	}
+	if parsed < 0 {
+		return fmt.Errorf("table %s column %s row %d: value must not be negative", table, column, csvLine)
+	}
+	return nil
+}
+
+// cutoverMedicinesDosageForms are the DB dosage_form enum labels exported by
+// the producer. Empty stays NULL.
+var cutoverMedicinesDosageForms = map[string]struct{}{
+	"tablet": {}, "liquid": {}, "injection": {}, "topical": {}, "powder": {},
+}
+
+// validateCutoverMedicinesRow enforces the medicines-only lexical checks:
+// dosage_form is the DB enum and default_quantity is a plain numeric literal
+// (empty stays NULL). Diagnostics name table, column, and row only.
+func validateCutoverMedicinesRow(row []string, indexes map[string]int, csvLine int64) error {
+	if value := row[indexes["dosage_form"]]; value != "" {
+		if _, ok := cutoverMedicinesDosageForms[value]; !ok {
+			return fmt.Errorf("table medicines column dosage_form row %d: value is not a supported dosage form", csvLine)
+		}
+	}
+	if value := row[indexes["default_quantity"]]; value != "" && !cutoverNumericLiteral.MatchString(value) {
+		return fmt.Errorf("table medicines column default_quantity row %d: value must be a numeric quantity", csvLine)
 	}
 	return nil
 }

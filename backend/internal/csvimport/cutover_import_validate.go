@@ -16,7 +16,7 @@ func PreflightCutoverTarget(ctx context.Context, target cutoverQuerier, manifest
 	return err
 }
 
-// ApplyCutover imports all twenty-one CSVs in one transaction. It never deletes
+// ApplyCutover imports all contract CSVs in one transaction. It never deletes
 // existing rows: a non-empty clinic band fails closed, making retries explicit
 // and preventing a cutover from silently replacing unrelated data.
 func ApplyCutover(ctx context.Context, pool *pgxpool.Pool, bundle CutoverBundle, seeds CutoverSeedIDs) (CutoverResult, error) {

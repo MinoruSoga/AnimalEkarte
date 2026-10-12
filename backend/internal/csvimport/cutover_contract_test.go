@@ -25,8 +25,8 @@ func TestPreflightCutoverBundleAcceptsExactContract(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PreflightCutoverBundle() error = %v", err)
 	}
-	if len(bundle.Manifest.Tables) != 21 {
-		t.Fatalf("table count = %d, want 21", len(bundle.Manifest.Tables))
+	if len(bundle.Manifest.Tables) != 22 {
+		t.Fatalf("table count = %d, want 22", len(bundle.Manifest.Tables))
 	}
 	if bundle.Manifest.IDBand.ApplicationIDFloor != 1_000_000_000 {
 		t.Fatalf("application floor = %d", bundle.Manifest.IDBand.ApplicationIDFloor)
@@ -38,9 +38,9 @@ func TestPreflightCutoverBundleAcceptsExactContract(t *testing.T) {
 
 func TestPreflightCutoverBundleAcceptsNegativeRefundAmounts(t *testing.T) {
 	dir, manifestDigest := writeCutoverFixture(t, func(f *fixtureBundle) {
-		billingColumns := CutoverTableSpecs()[11].Columns
-		paymentColumns := CutoverTableSpecs()[13].Columns
-		splitColumns := CutoverTableSpecs()[14].Columns
+		billingColumns := cutoverSpecByName(t, "billings").Columns
+		paymentColumns := cutoverSpecByName(t, "payments").Columns
+		splitColumns := cutoverSpecByName(t, "payment_splits").Columns
 		f.rows["billings"][0][columnIndex(billingColumns, "total_amount")] = "-3000"
 		f.rows["payments"][0][columnIndex(paymentColumns, "subtotal")] = "-3000"
 		f.rows["payments"][0][columnIndex(paymentColumns, "tax_total")] = "0"
@@ -65,13 +65,13 @@ func TestPreflightCutoverBundleAcceptsNegativeRefundAmounts(t *testing.T) {
 
 func TestPreflightCutoverBundleAcceptsWindowZeroCompletedBillingWithoutPayment(t *testing.T) {
 	dir, manifestDigest := writeCutoverFixture(t, func(f *fixtureBundle) {
-		billingColumns := CutoverTableSpecs()[11].Columns
+		billingColumns := cutoverSpecByName(t, "billings").Columns
 		zero := append([]string(nil), f.rows["billings"][0]...)
 		zero[columnIndex(billingColumns, "id")] = "1000002"
 		zero[columnIndex(billingColumns, "total_amount")] = "0"
 		zero[columnIndex(billingColumns, "medical_record_id")] = ""
 		f.rows["billings"] = append(f.rows["billings"], zero)
-		f.manifest.Tables[11].RowCount++
+		f.manifest.Tables[manifestTableIndex(t, f, "billings")].RowCount++
 	})
 
 	if _, err := PreflightCutoverBundle(dir, ExpectedCutoverSource{
@@ -94,13 +94,13 @@ func TestPreflightCutoverBundleAcceptsLocalRehearsalBundle(t *testing.T) {
 		f.manifest.StageMappingSHA256 = strings.Repeat("a", 64)
 		empty := []string{}
 		f.manifest.IncompleteSourceTables = &empty
-		billingColumns := CutoverTableSpecs()[11].Columns
+		billingColumns := cutoverSpecByName(t, "billings").Columns
 		f.rows["billings"][0][columnIndex(billingColumns, "status")] = "pending"
 		f.rows["billings"][0][columnIndex(billingColumns, "completed_at")] = ""
 		f.rows["payments"] = nil
 		f.rows["payment_splits"] = nil
-		f.manifest.Tables[13].RowCount = 0
-		f.manifest.Tables[14].RowCount = 0
+		f.manifest.Tables[manifestTableIndex(t, f, "payments")].RowCount = 0
+		f.manifest.Tables[manifestTableIndex(t, f, "payment_splits")].RowCount = 0
 	})
 
 	bundle, err := PreflightCutoverBundle(dir, ExpectedCutoverSource{
@@ -413,15 +413,15 @@ func TestPreflightCutoverBundleRejectsInvalidProducerProvenance(t *testing.T) {
 
 func TestCutoverTableSpecsMatchPaymentContract(t *testing.T) {
 	specs := CutoverTableSpecs()
-	if len(specs) != 21 {
-		t.Fatalf("table count = %d, want 21", len(specs))
+	if len(specs) != 22 {
+		t.Fatalf("table count = %d, want 22", len(specs))
 	}
 	gotNames := make([]string, 0, len(specs))
 	for _, spec := range specs {
 		gotNames = append(gotNames, spec.Name)
 	}
 	wantNames := []string{
-		"staffs", "procedures", "merchandise_items", "owners", "pets",
+		"staffs", "procedures", "medicines", "merchandise_items", "owners", "pets",
 		"appointments", "appointment_trimming_details", "medical_records",
 		"inquiries", "clinical_plans", "vital_records", "billings",
 		"billing_items", "payments", "payment_splits", "estimates",
@@ -431,14 +431,14 @@ func TestCutoverTableSpecsMatchPaymentContract(t *testing.T) {
 		t.Fatalf("table order = %v, want %v", gotNames, wantNames)
 	}
 
-	billings := specs[11]
+	billings := cutoverSpecByName(t, "billings")
 	if !slices.Equal(billings.Columns, []string{
 		"id", "clinic_id", "medical_record_id", "owner_id", "pet_id",
 		"total_amount", "status", "scheduled_date", "completed_at",
 	}) {
 		t.Fatalf("billings columns = %v", billings.Columns)
 	}
-	billingItems := specs[12]
+	billingItems := cutoverSpecByName(t, "billing_items")
 	if !slices.Equal(billingItems.Columns, []string{
 		"id", "clinic_id", "billing_id", "category", "name", "unit_price", "quantity",
 		"tax_type", "is_insurance_applicable", "sort_order",
@@ -448,7 +448,7 @@ func TestCutoverTableSpecsMatchPaymentContract(t *testing.T) {
 	if !slices.Equal(billingItems.BandColumns, []string{"id", "billing_id"}) {
 		t.Fatalf("billing_items band columns = %v", billingItems.BandColumns)
 	}
-	payments := specs[13]
+	payments := cutoverSpecByName(t, "payments")
 	if !slices.Equal(payments.Columns, []string{
 		"id", "clinic_id", "billing_id", "subtotal", "tax_total", "total_amount",
 		"insurance_name", "insurance_ratio", "insurance_amount", "discount_amount",
@@ -460,7 +460,7 @@ func TestCutoverTableSpecsMatchPaymentContract(t *testing.T) {
 	if !slices.Equal(payments.BandColumns, []string{"id", "billing_id", "paid_by"}) {
 		t.Fatalf("payments band columns = %v", payments.BandColumns)
 	}
-	paymentSplits := specs[14]
+	paymentSplits := cutoverSpecByName(t, "payment_splits")
 	if !slices.Equal(paymentSplits.Columns, []string{
 		"id", "clinic_id", "billing_id", "method", "payment_method_id", "amount",
 		"received_amount", "change_amount", "paid_by", "created_at",
@@ -470,7 +470,7 @@ func TestCutoverTableSpecsMatchPaymentContract(t *testing.T) {
 	if !slices.Equal(paymentSplits.BandColumns, []string{"id", "billing_id", "paid_by"}) {
 		t.Fatalf("payment_splits band columns = %v", paymentSplits.BandColumns)
 	}
-	estimates := specs[15]
+	estimates := cutoverSpecByName(t, "estimates")
 	if !slices.Equal(estimates.Columns, []string{
 		"id", "clinic_id", "estimate_no", "medical_record_id", "title", "owner_id", "pet_id",
 		"status", "subtotal", "tax_total", "total_amount", "insurance_amount",
@@ -486,6 +486,7 @@ func TestCutoverTableSpecsMatchPaymentContract(t *testing.T) {
 		"staffs.clinic_id":            "{{CLINIC_ID}}",
 		"procedures.clinic_id":        "{{CLINIC_ID}}",
 		"merchandise_items.clinic_id": "{{CLINIC_ID}}",
+		"medicines.clinic_id":         "{{CLINIC_ID}}",
 		"owners.clinic_id":            "{{CLINIC_ID}}",
 		"pets.clinic_id":              "{{CLINIC_ID}}",
 		"pets.animal_species_id (fallback only, when unresolved)": "{{FALLBACK_ANIMAL_SPECIES_ID}}",
@@ -517,6 +518,7 @@ func TestCutoverTableSpecsDeclareNonNullableTextColumns(t *testing.T) {
 	expected := map[string][]string{
 		"staffs":                       {"name", "license_number"},
 		"procedures":                   {"name", "description"},
+		"medicines":                    {"name", "description"},
 		"merchandise_items":            {"name"},
 		"owners":                       {"name", "name_kana", "company", "postal_code", "address1", "address2", "home_postal_code", "home_address1", "home_address2", "phone", "company_phone", "email", "remarks"},
 		"pets":                         {"pet_number", "name", "name_kana", "breed", "color", "food", "remarks"},
@@ -546,15 +548,15 @@ func TestCutoverTableSpecsDeclareNonNullableTextColumns(t *testing.T) {
 }
 
 // TestCutoverMappingCoverageCoversAllFormalTables locks the Issue #250
-// source→target inventory: 21 formal tables, isolation mode, non-PHI fields only.
+// source→target inventory: the formal table set, isolation mode, non-PHI fields only.
 func TestCutoverMappingCoverageCoversAllFormalTables(t *testing.T) {
 	specs := CutoverTableSpecs()
 	coverage := CutoverMappingCoverage()
 	if len(coverage) != len(specs) {
 		t.Fatalf("coverage count = %d, want %d", len(coverage), len(specs))
 	}
-	if len(coverage) != 21 {
-		t.Fatalf("formal table count = %d, want 21", len(coverage))
+	if len(coverage) != 22 {
+		t.Fatalf("formal table count = %d, want 22", len(coverage))
 	}
 
 	// Child tables without clinic_id must still declare parent-FK isolation.
@@ -674,7 +676,7 @@ func TestPreflightCutoverBundleFailsClosed(t *testing.T) {
 			name: "duplicate primary ID",
 			mutate: func(f *fixtureBundle) {
 				f.rows["owners"] = append(f.rows["owners"], append([]string(nil), f.rows["owners"][0]...))
-				f.manifest.Tables[3].RowCount = 2
+				f.manifest.Tables[manifestTableIndex(t, f, "owners")].RowCount = 2
 			},
 			wantErr: "duplicate",
 		},
@@ -733,23 +735,23 @@ func TestPreflightCutoverBundleRejectsPaymentContractViolations(t *testing.T) {
 			name: "duplicate payment billing",
 			mutate: func(f *fixtureBundle) {
 				row := append([]string(nil), f.rows["payments"][0]...)
-				row[columnIndex(CutoverTableSpecs()[13].Columns, "id")] = "1000002"
+				row[columnIndex(cutoverSpecByName(t, "payments").Columns, "id")] = "1000002"
 				f.rows["payments"] = append(f.rows["payments"], row)
-				f.manifest.Tables[13].RowCount++
+				f.manifest.Tables[manifestTableIndex(t, f, "payments")].RowCount++
 			},
 			wantErr: "billing_id",
 		},
 		{
 			name: "payment split without payment parent",
 			mutate: func(f *fixtureBundle) {
-				f.rows["payment_splits"][0][columnIndex(CutoverTableSpecs()[14].Columns, "billing_id")] = "1000002"
+				f.rows["payment_splits"][0][columnIndex(cutoverSpecByName(t, "payment_splits").Columns, "billing_id")] = "1000002"
 			},
 			wantErr: "payment parent",
 		},
 		{
 			name: "payment method placeholder disagrees with method",
 			mutate: func(f *fixtureBundle) {
-				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "payment_method_id")] =
+				f.rows["payments"][0][columnIndex(cutoverSpecByName(t, "payments").Columns, "payment_method_id")] =
 					"{{PAYMENT_METHOD_CREDIT_CARD_ID}}"
 			},
 			wantErr: "does not match method",
@@ -757,71 +759,71 @@ func TestPreflightCutoverBundleRejectsPaymentContractViolations(t *testing.T) {
 		{
 			name: "payment clinic is not an explicit placeholder",
 			mutate: func(f *fixtureBundle) {
-				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "clinic_id")] = "1"
+				f.rows["payments"][0][columnIndex(cutoverSpecByName(t, "payments").Columns, "clinic_id")] = "1"
 			},
 			wantErr: "clinic placeholder",
 		},
 		{
 			name: "payment split clinic is not an explicit placeholder",
 			mutate: func(f *fixtureBundle) {
-				f.rows["payment_splits"][0][columnIndex(CutoverTableSpecs()[14].Columns, "clinic_id")] = "1"
+				f.rows["payment_splits"][0][columnIndex(cutoverSpecByName(t, "payment_splits").Columns, "clinic_id")] = "1"
 			},
 			wantErr: "clinic placeholder",
 		},
 		{
 			name: "payment split amount is zero",
 			mutate: func(f *fixtureBundle) {
-				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "billing_amount")] = "0"
-				f.rows["payment_splits"][0][columnIndex(CutoverTableSpecs()[14].Columns, "amount")] = "0"
+				f.rows["payments"][0][columnIndex(cutoverSpecByName(t, "payments").Columns, "billing_amount")] = "0"
+				f.rows["payment_splits"][0][columnIndex(cutoverSpecByName(t, "payment_splits").Columns, "amount")] = "0"
 			},
 			wantErr: "amount must not be zero",
 		},
 		{
 			name: "payment total amount disagrees with billing",
 			mutate: func(f *fixtureBundle) {
-				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "total_amount")] = "999"
+				f.rows["payments"][0][columnIndex(cutoverSpecByName(t, "payments").Columns, "total_amount")] = "999"
 			},
 			wantErr: "payment snapshot",
 		},
 		{
 			name: "insurance ratio is outside contract range",
 			mutate: func(f *fixtureBundle) {
-				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "insurance_ratio")] = "1.01"
+				f.rows["payments"][0][columnIndex(cutoverSpecByName(t, "payments").Columns, "insurance_ratio")] = "1.01"
 			},
 			wantErr: "insurance_ratio",
 		},
 		{
 			name: "insurance amount is negative",
 			mutate: func(f *fixtureBundle) {
-				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "insurance_amount")] = "-1"
+				f.rows["payments"][0][columnIndex(cutoverSpecByName(t, "payments").Columns, "insurance_amount")] = "-1"
 			},
 			wantErr: "insurance_amount",
 		},
 		{
 			name: "payment split amount is zero",
 			mutate: func(f *fixtureBundle) {
-				f.rows["payment_splits"][0][columnIndex(CutoverTableSpecs()[14].Columns, "amount")] = "0"
+				f.rows["payment_splits"][0][columnIndex(cutoverSpecByName(t, "payment_splits").Columns, "amount")] = "0"
 			},
 			wantErr: "must not be zero",
 		},
 		{
 			name: "duplicate non-null billing medical_record_id",
 			mutate: func(f *fixtureBundle) {
-				billingColumns := CutoverTableSpecs()[11].Columns
+				billingColumns := cutoverSpecByName(t, "billings").Columns
 				dup := append([]string(nil), f.rows["billings"][0]...)
 				dup[columnIndex(billingColumns, "id")] = "1000002"
 				dup[columnIndex(billingColumns, "status")] = "waiting"
 				dup[columnIndex(billingColumns, "completed_at")] = ""
 				dup[columnIndex(billingColumns, "total_amount")] = "0"
 				f.rows["billings"] = append(f.rows["billings"], dup)
-				f.manifest.Tables[11].RowCount++
+				f.manifest.Tables[manifestTableIndex(t, f, "billings")].RowCount++
 			},
 			wantErr: "duplicate non-null medical_record_id",
 		},
 		{
 			name: "completed billing timestamp is missing",
 			mutate: func(f *fixtureBundle) {
-				f.rows["billings"][0][columnIndex(CutoverTableSpecs()[11].Columns, "completed_at")] = ""
+				f.rows["billings"][0][columnIndex(cutoverSpecByName(t, "billings").Columns, "completed_at")] = ""
 			},
 			wantErr: "completed_at",
 		},
@@ -830,52 +832,52 @@ func TestPreflightCutoverBundleRejectsPaymentContractViolations(t *testing.T) {
 			mutate: func(f *fixtureBundle) {
 				f.rows["payments"] = nil
 				f.rows["payment_splits"] = nil
-				f.manifest.Tables[13].RowCount = 0
-				f.manifest.Tables[14].RowCount = 0
+				f.manifest.Tables[manifestTableIndex(t, f, "payments")].RowCount = 0
+				f.manifest.Tables[manifestTableIndex(t, f, "payment_splits")].RowCount = 0
 			},
 			wantErr: "must contain formal rows",
 		},
 		{
 			name: "formal handoff cannot omit the entire payment graph",
 			mutate: func(f *fixtureBundle) {
-				f.rows["billings"][0][columnIndex(CutoverTableSpecs()[11].Columns, "status")] = "waiting"
-				f.rows["billings"][0][columnIndex(CutoverTableSpecs()[11].Columns, "completed_at")] = ""
+				f.rows["billings"][0][columnIndex(cutoverSpecByName(t, "billings").Columns, "status")] = "waiting"
+				f.rows["billings"][0][columnIndex(cutoverSpecByName(t, "billings").Columns, "completed_at")] = ""
 				f.rows["payments"] = nil
 				f.rows["payment_splits"] = nil
-				f.manifest.Tables[13].RowCount = 0
-				f.manifest.Tables[14].RowCount = 0
+				f.manifest.Tables[manifestTableIndex(t, f, "payments")].RowCount = 0
+				f.manifest.Tables[manifestTableIndex(t, f, "payment_splits")].RowCount = 0
 			},
 			wantErr: "must contain formal rows",
 		},
 		{
 			name: "payment parent billing is not completed",
 			mutate: func(f *fixtureBundle) {
-				f.rows["billings"][0][columnIndex(CutoverTableSpecs()[11].Columns, "status")] = "waiting"
-				f.rows["billings"][0][columnIndex(CutoverTableSpecs()[11].Columns, "completed_at")] = ""
+				f.rows["billings"][0][columnIndex(cutoverSpecByName(t, "billings").Columns, "status")] = "waiting"
+				f.rows["billings"][0][columnIndex(cutoverSpecByName(t, "billings").Columns, "completed_at")] = ""
 			},
 			wantErr: "billing status",
 		},
 		{
 			name: "empty billing status cannot bypass payment graph",
 			mutate: func(f *fixtureBundle) {
-				f.rows["billings"][0][columnIndex(CutoverTableSpecs()[11].Columns, "status")] = ""
-				f.rows["billings"][0][columnIndex(CutoverTableSpecs()[11].Columns, "completed_at")] = ""
+				f.rows["billings"][0][columnIndex(cutoverSpecByName(t, "billings").Columns, "status")] = ""
+				f.rows["billings"][0][columnIndex(cutoverSpecByName(t, "billings").Columns, "completed_at")] = ""
 			},
 			wantErr: "billing status",
 		},
 		{
 			name: "unknown billing status cannot bypass payment graph",
 			mutate: func(f *fixtureBundle) {
-				f.rows["billings"][0][columnIndex(CutoverTableSpecs()[11].Columns, "status")] = "unknown"
-				f.rows["billings"][0][columnIndex(CutoverTableSpecs()[11].Columns, "completed_at")] = ""
+				f.rows["billings"][0][columnIndex(cutoverSpecByName(t, "billings").Columns, "status")] = "unknown"
+				f.rows["billings"][0][columnIndex(cutoverSpecByName(t, "billings").Columns, "completed_at")] = ""
 			},
 			wantErr: "billing status",
 		},
 		{
 			name: "payment timestamp disagrees with billing completion",
 			mutate: func(f *fixtureBundle) {
-				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "created_at")] = "2026-07-22T00:00:01Z"
-				f.rows["payment_splits"][0][columnIndex(CutoverTableSpecs()[14].Columns, "created_at")] = "2026-07-22T00:00:01Z"
+				f.rows["payments"][0][columnIndex(cutoverSpecByName(t, "payments").Columns, "created_at")] = "2026-07-22T00:00:01Z"
+				f.rows["payment_splits"][0][columnIndex(cutoverSpecByName(t, "payment_splits").Columns, "created_at")] = "2026-07-22T00:00:01Z"
 			},
 			wantErr: "completion timestamp",
 		},
@@ -899,7 +901,7 @@ func TestPreflightCutoverBundleRejectsPaymentContractViolations(t *testing.T) {
 
 func TestPreflightCutoverBundleAllowsHistoricalPaymentSnapshotOnlyForRehearsal(t *testing.T) {
 	mismatchBillingTotal := func(f *fixtureBundle) {
-		billingColumns := CutoverTableSpecs()[11].Columns
+		billingColumns := cutoverSpecByName(t, "billings").Columns
 		f.rows["billings"][0][columnIndex(billingColumns, "total_amount")] = "1"
 	}
 	dir, manifestDigest := writeCutoverFixture(t, mismatchBillingTotal)
@@ -943,7 +945,7 @@ func TestPreflightCutoverBundleAcceptsCreditCardAndMixedPaymentGraphs(t *testing
 		{
 			name: "positive insurance amount",
 			mutate: func(f *fixtureBundle) {
-				paymentColumns := CutoverTableSpecs()[13].Columns
+				paymentColumns := cutoverSpecByName(t, "payments").Columns
 				f.rows["payments"][0][columnIndex(paymentColumns, "insurance_ratio")] = "0.50"
 				f.rows["payments"][0][columnIndex(paymentColumns, "insurance_amount")] = "500"
 			},
@@ -951,8 +953,8 @@ func TestPreflightCutoverBundleAcceptsCreditCardAndMixedPaymentGraphs(t *testing
 		{
 			name: "credit card only",
 			mutate: func(f *fixtureBundle) {
-				paymentColumns := CutoverTableSpecs()[13].Columns
-				splitColumns := CutoverTableSpecs()[14].Columns
+				paymentColumns := cutoverSpecByName(t, "payments").Columns
+				splitColumns := cutoverSpecByName(t, "payment_splits").Columns
 				f.rows["payments"][0][columnIndex(paymentColumns, "method")] = "credit_card"
 				f.rows["payments"][0][columnIndex(paymentColumns, "payment_method_id")] =
 					"{{PAYMENT_METHOD_CREDIT_CARD_ID}}"
@@ -966,8 +968,8 @@ func TestPreflightCutoverBundleAcceptsCreditCardAndMixedPaymentGraphs(t *testing
 		{
 			name: "mixed",
 			mutate: func(f *fixtureBundle) {
-				paymentColumns := CutoverTableSpecs()[13].Columns
-				splitColumns := CutoverTableSpecs()[14].Columns
+				paymentColumns := cutoverSpecByName(t, "payments").Columns
+				splitColumns := cutoverSpecByName(t, "payment_splits").Columns
 				f.rows["payments"][0][columnIndex(paymentColumns, "billing_amount")] = "1500"
 				card := append([]string(nil), f.rows["payment_splits"][0]...)
 				card[columnIndex(splitColumns, "id")] = "1000002"
@@ -977,7 +979,7 @@ func TestPreflightCutoverBundleAcceptsCreditCardAndMixedPaymentGraphs(t *testing
 				card[columnIndex(splitColumns, "amount")] = "500"
 				card[columnIndex(splitColumns, "received_amount")] = "0"
 				f.rows["payment_splits"] = append(f.rows["payment_splits"], card)
-				f.manifest.Tables[14].RowCount++
+				f.manifest.Tables[manifestTableIndex(t, f, "payment_splits")].RowCount++
 			},
 		},
 	}
@@ -1144,6 +1146,10 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle)) (string, str
 				if spec.Name == "billings" {
 					row[i] = "2026-07-22T00:00:00.000000Z"
 				}
+			case "default_quantity":
+				if spec.Name == "medicines" {
+					row[i] = "1.0"
+				}
 			}
 		}
 		for _, column := range spec.BandColumns {
@@ -1151,9 +1157,9 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle)) (string, str
 			if idx < 0 || row[idx] != "" || column == "clinic_id" {
 				continue
 			}
-			// These master tables are not part of the 21-table import. A valid
-			// fixture cannot invent their parents; producer leaves them empty.
-			if spec.Name == "estimate_items" && (column == "consultation_id" || column == "medicine_id") {
+			// consultations are not part of the CSV import. A valid fixture
+			// cannot invent that parent; producer leaves it empty.
+			if spec.Name == "estimate_items" && column == "consultation_id" {
 				continue
 			}
 			// A self-reference filled with the row's own id is a self-loop cycle
@@ -1260,6 +1266,17 @@ func int64Pointer(value int64) *int64 {
 
 func stringSlicePointer(value []string) *[]string {
 	return &value
+}
+
+func manifestTableIndex(t *testing.T, f *fixtureBundle, name string) int {
+	t.Helper()
+	for i, table := range f.manifest.Tables {
+		if table.Table == name {
+			return i
+		}
+	}
+	t.Fatalf("manifest fixture is missing table %s", name)
+	return -1
 }
 
 func columnIndex(columns []string, name string) int {

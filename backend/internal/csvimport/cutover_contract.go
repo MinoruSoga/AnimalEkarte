@@ -20,6 +20,12 @@ const (
 )
 
 var placeholderPattern = regexp.MustCompile(`\{\{[A-Z0-9_]+\}\}`)
+
+// cutoverNumericLiteral matches the plain decimal spellings a CSV cell may
+// hand to a numeric column (sign, digits, at most one decimal point). It
+// rejects non-finite values, hex floats, fractions, and exponents rather than
+// adopting a global decimal shape.
+var cutoverNumericLiteral = regexp.MustCompile(`^[+-]?(\d+(\.\d*)?|\.\d+)$`)
 var clinicCodePattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$`)
 var runIDPattern = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,62}[A-Za-z0-9])?$`)
 var stageBuildIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
@@ -214,6 +220,7 @@ func CutoverPlaceholderColumns() map[string]string {
 		"staffs.clinic_id":            "{{CLINIC_ID}}",
 		"procedures.clinic_id":        "{{CLINIC_ID}}",
 		"merchandise_items.clinic_id": "{{CLINIC_ID}}",
+		"medicines.clinic_id":         "{{CLINIC_ID}}",
 		"owners.clinic_id":            "{{CLINIC_ID}}",
 		"pets.clinic_id":              "{{CLINIC_ID}}",
 		"pets.animal_species_id (fallback only, when unresolved)": "{{FALLBACK_ANIMAL_SPECIES_ID}}",
@@ -238,11 +245,34 @@ func CutoverPlaceholderColumns() map[string]string {
 	}
 }
 
+// cutoverMasterPriceColumns names the single price column on each of the four
+// master tables whose source values must be a non-negative integer. An empty
+// cell stays NULL. billing_items and estimate_items are deliberately absent:
+// historical refunds and discounts legitimately carry negative amounts.
+func cutoverMasterPriceColumns() map[string]string {
+	return map[string]string{
+		"procedures":        "price",
+		"medicines":         "price",
+		"merchandise_items": "unit_price",
+		"vaccines":          "price",
+	}
+}
+
+// cutoverUniqueNameColumns names tables whose source name column must be
+// unique inside the clinic bundle, matching the target unique index
+// (e.g. idx_medicines_clinic_name on medicines(clinic_id, name)).
+func cutoverUniqueNameColumns() map[string]string {
+	return map[string]string{
+		"medicines": "name",
+	}
+}
+
 // CutoverTableSpecs returns the immutable, parent-before-child F6 CSV contract.
 func CutoverTableSpecs() []CutoverTableSpec {
 	specs := []CutoverTableSpec{
 		{"staffs", []string{"id", "clinic_id", "name", "license_number", "is_active", "reservation_visible"}, []string{"id"}, []string{"name", "license_number"}},
 		{"procedures", []string{"id", "clinic_id", "name", "price", "is_active", "description", "duration", "anesthesia", "parent_id", "tax_type", "tax_rate", "sort_order", "is_surgery"}, []string{"id", "parent_id"}, []string{"name", "description"}},
+		{"medicines", []string{"id", "clinic_id", "name", "price", "is_active", "description", "parent_id", "dosage_form", "medicine_unit", "inventory_id", "default_quantity", "tax_type", "tax_rate", "sort_order", "is_non_insurance"}, []string{"id", "parent_id"}, []string{"name", "description"}},
 		{"merchandise_items", []string{"id", "clinic_id", "name", "category", "unit_price", "tax_type", "tax_rate", "is_active", "sort_order"}, []string{"id"}, []string{"name"}},
 		{"owners", []string{"id", "clinic_id", "name", "name_kana", "birth_date", "company", "postal_code", "address1", "address2", "home_postal_code", "home_address1", "home_address2", "phone", "company_phone", "email", "remarks", "is_dangerous", "discount_rate", "membership_type", "dm_preference"}, []string{"id"}, []string{"name", "name_kana", "company", "postal_code", "address1", "address2", "home_postal_code", "home_address1", "home_address2", "phone", "company_phone", "email", "remarks"}},
 		{"pets", []string{"id", "clinic_id", "owner_id", "pet_number", "name", "name_kana", "animal_species_id", "gender", "status", "birth_date", "breed", "color", "weight", "neutered_date", "food", "remarks", "deceased_at"}, []string{"id", "owner_id"}, []string{"pet_number", "name", "name_kana", "breed", "color", "food", "remarks"}},
@@ -307,8 +337,8 @@ type CutoverMappingEntry struct {
 	ConsumerStatus string
 }
 
-// CutoverMappingCoverage returns the immutable 21-table mapping inventory used
-// by Issue #250 acceptance (source CSV → target table, isolation mode).
+// CutoverMappingCoverage returns the immutable mapping inventory used by
+// Issue #250 acceptance (source CSV → target table, isolation mode).
 // Personal business owners remain a USER ops assignment outside this package.
 func CutoverMappingCoverage() []CutoverMappingEntry {
 	specs := CutoverTableSpecs()

@@ -9,7 +9,7 @@ func TestPreflightCutoverBundleZeroNetSignedSplits(t *testing.T) {
 	for _, invalid := range []bool{false, true} {
 		t.Run(map[bool]string{false: "opposite nonzero tenders", true: "zero tenders rejected"}[invalid], func(t *testing.T) {
 			dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
-				pc, sc := CutoverTableSpecs()[13].Columns, CutoverTableSpecs()[14].Columns
+				pc, sc := cutoverSpecByName(t, "payments").Columns, cutoverSpecByName(t, "payment_splits").Columns
 				cash, card := "-100", "100"
 				if invalid {
 					cash, card = "0", "0"
@@ -25,7 +25,7 @@ func TestPreflightCutoverBundleZeroNetSignedSplits(t *testing.T) {
 				row[columnIndex(sc, "amount")] = card
 				row[columnIndex(sc, "received_amount")] = "0"
 				f.rows["payment_splits"] = append(f.rows["payment_splits"], row)
-				f.manifest.Tables[14].RowCount++
+				f.manifest.Tables[manifestTableIndex(t, f, "payment_splits")].RowCount++
 			})
 			_, err := PreflightCutoverBundle(dir, ExpectedCutoverSource{
 				ManifestSHA256: digest, ClinicCode: "hachioji", ClinicOrdinal: 1, RunID: "run-1",

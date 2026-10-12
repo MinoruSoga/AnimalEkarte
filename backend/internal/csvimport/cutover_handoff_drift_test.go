@@ -392,7 +392,7 @@ func TestPreflightRehearsalRejectsManifestTableAnomalies(t *testing.T) {
 			mutate: func(f *fixtureBundle) {
 				f.manifest.Tables = f.manifest.Tables[:len(f.manifest.Tables)-1]
 			},
-			wantErr: "want 21",
+			wantErr: "want 22",
 		},
 	}
 

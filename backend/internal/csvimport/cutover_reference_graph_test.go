@@ -93,7 +93,7 @@ func TestPreflightCutoverBundleAllowsNullableReferences(t *testing.T) {
 func TestPreflightCutoverBundleRejectsNonImportedParents(t *testing.T) {
 	for _, tc := range []struct{ table, column string }{
 		{"estimate_items", "consultation_id"},
-		{"estimate_items", "medicine_id"},
+		{"medicines", "inventory_id"},
 		{"vaccines", "inventory_id"},
 	} {
 		for _, value := range []string{"0", "1000001"} {
@@ -143,13 +143,17 @@ func TestPreflightCutoverBundleAcceptsPinnedSpecies(t *testing.T) {
 func TestPreflightCutoverBundleAcceptsForwardSelfReferences(t *testing.T) {
 	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
 		for i, spec := range CutoverTableSpecs() {
-			if spec.Name != "procedures" && spec.Name != "vaccines" {
+			selfColumn, selfRef := cutoverSelfReferenceColumn(spec.Name)
+			if !selfRef {
 				continue
 			}
-			setReferenceFixtureCell(f, spec.Name, "parent_id", "1000002")
+			setReferenceFixtureCell(f, spec.Name, selfColumn, "1000002")
 			parent := append([]string(nil), f.rows[spec.Name][0]...)
 			parent[columnIndex(spec.Columns, "id")] = "1000002"
-			parent[columnIndex(spec.Columns, "parent_id")] = ""
+			parent[columnIndex(spec.Columns, selfColumn)] = ""
+			if nameColumn, ok := cutoverUniqueNameColumns()[spec.Name]; ok {
+				parent[columnIndex(spec.Columns, nameColumn)] = "parent-name"
+			}
 			f.rows[spec.Name] = append(f.rows[spec.Name], parent)
 			f.manifest.Tables[i].RowCount++
 		}
@@ -160,28 +164,37 @@ func TestPreflightCutoverBundleAcceptsForwardSelfReferences(t *testing.T) {
 }
 
 func TestPreflightCutoverBundleRejectsSelfReferenceCycle(t *testing.T) {
-	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
-		for i, spec := range CutoverTableSpecs() {
-			if spec.Name != "procedures" && spec.Name != "vaccines" {
-				continue
-			}
-			// row 0 (id 1000001) declares parent 1000002; the appended row
-			// (id 1000002) declares parent 1000001 — a 2-cycle no insert order
-			// can satisfy under the non-deferrable self FK.
-			setReferenceFixtureCell(f, spec.Name, "parent_id", "1000002")
-			cycle := append([]string(nil), f.rows[spec.Name][0]...)
-			cycle[columnIndex(spec.Columns, "id")] = "1000002"
-			cycle[columnIndex(spec.Columns, "parent_id")] = "1000001"
-			f.rows[spec.Name] = append(f.rows[spec.Name], cycle)
-			f.manifest.Tables[i].RowCount++
+	for _, spec := range CutoverTableSpecs() {
+		selfColumn, selfRef := cutoverSelfReferenceColumn(spec.Name)
+		if !selfRef {
+			continue
 		}
-	})
-	_, err := PreflightCutoverBundle(dir, referenceFixtureSource(digest))
-	if err == nil || !strings.Contains(err.Error(), "self-reference cycle") {
-		t.Fatalf("PreflightCutoverBundle() error = %v, want self-reference cycle rejection", err)
-	}
-	if strings.Contains(err.Error(), "1000001") || strings.Contains(err.Error(), "1000002") || strings.Contains(err.Error(), dir) {
-		t.Fatal("cycle error exposes identifier values or path")
+		t.Run(spec.Name, func(t *testing.T) {
+			dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+				// row 0 (id 1000001) declares parent 1000002; the appended row
+				// (id 1000002) declares parent 1000001 — a 2-cycle no insert
+				// order can satisfy under the non-deferrable self FK.
+				setReferenceFixtureCell(f, spec.Name, selfColumn, "1000002")
+				cycle := append([]string(nil), f.rows[spec.Name][0]...)
+				cycle[columnIndex(spec.Columns, "id")] = "1000002"
+				cycle[columnIndex(spec.Columns, selfColumn)] = "1000001"
+				if nameColumn, ok := cutoverUniqueNameColumns()[spec.Name]; ok {
+					cycle[columnIndex(spec.Columns, nameColumn)] = "cycle-name"
+				}
+				f.rows[spec.Name] = append(f.rows[spec.Name], cycle)
+				f.manifest.Tables[manifestTableIndex(t, f, spec.Name)].RowCount++
+			})
+			_, err := PreflightCutoverBundle(dir, referenceFixtureSource(digest))
+			if err == nil || !strings.Contains(err.Error(), "self-reference cycle") {
+				t.Fatalf("PreflightCutoverBundle() error = %v, want self-reference cycle rejection", err)
+			}
+			if !strings.Contains(err.Error(), "table "+spec.Name) {
+				t.Fatalf("cycle error = %v, want it to name table %s", err, spec.Name)
+			}
+			if strings.Contains(err.Error(), "1000001") || strings.Contains(err.Error(), "1000002") || strings.Contains(err.Error(), dir) {
+				t.Fatal("cycle error exposes identifier values or path")
+			}
+		})
 	}
 }
 
@@ -199,6 +212,9 @@ func TestPreflightCutoverBundleUsesNumericReferenceIdentity(t *testing.T) {
 					parent := append([]string(nil), f.rows[spec.Name][0]...)
 					parent[columnIndex(spec.Columns, "id")] = "1000002"
 					parent[columnIndex(spec.Columns, ref.column)] = ""
+					if nameColumn, ok := cutoverUniqueNameColumns()[spec.Name]; ok {
+						parent[columnIndex(spec.Columns, nameColumn)] = "parent-name"
+					}
 					f.rows[spec.Name] = append(f.rows[spec.Name], parent)
 					f.manifest.Tables[i].RowCount++
 					setReferenceFixtureCell(f, spec.Name, ref.column, "+001000002")
@@ -222,7 +238,7 @@ func TestPreflightCutoverBundleRejectsNumericDuplicateParents(t *testing.T) {
 		parent := append([]string(nil), f.rows["pets"][0]...)
 		parent[0] = "+001000001"
 		f.rows["pets"] = append(f.rows["pets"], parent)
-		f.manifest.Tables[4].RowCount++
+		f.manifest.Tables[manifestTableIndex(t, f, "pets")].RowCount++
 	})
 	if _, err := PreflightCutoverBundle(dir, referenceFixtureSource(digest)); err == nil || !strings.Contains(err.Error(), "duplicate primary ID") {
 		t.Fatalf("numeric duplicate error = %v", err)
@@ -244,7 +260,7 @@ func cutoverSpecColumns(table string) map[string]bool {
 
 func TestCutoverAppointmentsCreatedByIsSchemaOnlyNotCSV(t *testing.T) {
 	if cutoverSpecColumns("appointments")["created_by"] {
-		t.Fatal("appointments.created_by must stay off the 21-table CSV; COPY leaves it NULL")
+		t.Fatal("appointments.created_by must stay off the contract CSV; COPY leaves it NULL")
 	}
 	found := false
 	for _, target := range cutoverRequiredForeignKeys() {

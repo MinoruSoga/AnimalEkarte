@@ -47,6 +47,12 @@
 
 （2026-09-29 訂正: `billing_items` の clinic 列を `no` / isolation `id_band_and_parent_fk` と記載していた → 現行 contract は `billing_items.clinic_id` を持ち placeholder `{{CLINIC_ID}}` で bind するため `yes` / `clinic_id_column`。正本 `CutoverTableSpecs()`・`CutoverPlaceholderColumns()` と一致）
 
+### 22 表候補（EMR-343/345 — producer pin 未合意のドラフト）
+
+`CutoverTableSpecs()` に `medicines`（15 列、`procedures` と `merchandise_items` の間）を加えた 22 表 consumer 実装候補がある。同候補は `estimate_items.medicine_id` を medicines CSV 親参照として扱い、`procedures.price` / `medicines.price` / `merchandise_items.unit_price` / `vaccines.price` の 4 マスタ価格列のみ負値・非整数を拒否する（空欄・0 は許容。`billing_items` / `estimate_items` の歴史的負値＝返金・値引は変更なし）。
+
+deployed/main の正式 contract は引き続き 21 表のまま: `cutoverCSVContractSHA256` の compiled pin（`9e02897b…`）と producer bundle は本候補では変更していない。producer 側の 21 表 source hash（`8a466c63…`）は compiled pin と一致しておらず、22 表 producer source は存在しない。したがって合成 22 表 fixture（現行 21 表 source pin 使用）は**構造のみ**を証明し、provider 一致・正式採用を証明しない。正式受入れは producer artifacts / source hash / 再生成 bundle / 一致 receipt が揃う MIG-34・MIG-37・MIG-41 調整の完了まで保留である。
+
 - **dry-run**: `make csv-import-preflight` が source digest / 6 seed binding / 空 band / FK catalog を read-only 検証する。apply は別コマンド。
 - **idempotency**: apply 後の再 preflight/apply は `CUTOVER_REF_BAND_OCCUPIED` で拒否（既存行の置換・削除なし）。
 - **verify 再実行**: `make csv-import-verify` は read-only で何度でも可（非空 band をエラーにしない）。

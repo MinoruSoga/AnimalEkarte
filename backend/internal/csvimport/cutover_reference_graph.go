@@ -29,7 +29,7 @@ type cutoverCSVReference struct {
 	kind     cutoverReferenceKind
 }
 
-// cutoverCSVReferences classifies every reference supplied by the 21-table
+// cutoverCSVReferences classifies every reference supplied by the CSV
 // contract, independently of producer eligibility predicates. Empty CSV fields
 // become SQL NULL; they are allowed only for explicitly nullable references.
 // Non-imported masters are either pinned seeds or must stay empty, never guessed.
@@ -37,6 +37,7 @@ func cutoverCSVReferences() map[string][]cutoverCSVReference {
 	return map[string][]cutoverCSVReference{
 		"staffs":                       {{"clinic_id", "clinics", false, cutoverClinicSeed}},
 		"procedures":                   {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"parent_id", "procedures", true, cutoverCSVParent}},
+		"medicines":                    {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"parent_id", "medicines", true, cutoverCSVParent}, {"inventory_id", "inventory_items", true, cutoverUnavailableParent}},
 		"merchandise_items":            {{"clinic_id", "clinics", false, cutoverClinicSeed}},
 		"owners":                       {{"clinic_id", "clinics", false, cutoverClinicSeed}},
 		"pets":                         {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"owner_id", "owners", false, cutoverCSVParent}, {"animal_species_id", "animal_species", false, cutoverSpeciesSeed}},
@@ -51,7 +52,7 @@ func cutoverCSVReferences() map[string][]cutoverCSVReference {
 		"payments":                     {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"billing_id", "billings", false, cutoverCSVParent}, {"payment_method_id", "payment_methods", false, cutoverPlaceholderSeed}, {"paid_by", "staffs", true, cutoverCSVParent}},
 		"payment_splits":               {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"billing_id", "billings", false, cutoverCSVParent}, {"payment_method_id", "payment_methods", false, cutoverPlaceholderSeed}, {"paid_by", "staffs", true, cutoverCSVParent}},
 		"estimates":                    {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"medical_record_id", "medical_records", true, cutoverCSVParent}, {"owner_id", "owners", true, cutoverCSVParent}, {"pet_id", "pets", true, cutoverCSVParent}, {"created_by", "staffs", true, cutoverCSVParent}},
-		"estimate_items":               {{"estimate_id", "estimates", false, cutoverCSVParent}, {"consultation_id", "consultations", true, cutoverUnavailableParent}, {"procedure_id", "procedures", true, cutoverCSVParent}, {"medicine_id", "medicines", true, cutoverUnavailableParent}, {"merchandise_item_id", "merchandise_items", true, cutoverCSVParent}},
+		"estimate_items":               {{"estimate_id", "estimates", false, cutoverCSVParent}, {"consultation_id", "consultations", true, cutoverUnavailableParent}, {"procedure_id", "procedures", true, cutoverCSVParent}, {"medicine_id", "medicines", true, cutoverCSVParent}, {"merchandise_item_id", "merchandise_items", true, cutoverCSVParent}},
 		"exams":                        {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"medical_record_id", "medical_records", true, cutoverCSVParent}, {"pet_id", "pets", true, cutoverCSVParent}, {"exam_type_id", "exam_types", false, cutoverPlaceholderSeed}},
 		"exam_results":                 {{"exam_id", "exams", false, cutoverCSVParent}},
 		"vaccines":                     {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"inventory_id", "inventory_items", true, cutoverUnavailableParent}, {"parent_id", "vaccines", true, cutoverCSVParent}},
