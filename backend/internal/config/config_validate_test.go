@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -825,5 +826,40 @@ func TestConfigValidate_StorageTypeS3RequiresSharedBucket(t *testing.T) {
 	err := cfg.Validate()
 	if err == nil || !strings.Contains(err.Error(), "S3_SHARED_BUCKET is required") {
 		t.Fatalf("expected S3_SHARED_BUCKET error, got %v", err)
+	}
+}
+
+func TestConfigLoad_TrimmingImageCleanupEnabledFailClosed(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		value string
+		set   bool
+		want  bool
+	}{
+		{name: "unset", want: false},
+		{name: "false", value: "false", set: true, want: false},
+		{name: "true", value: "true", set: true, want: true},
+		{name: "unrecognized", value: "yes", set: true, want: false},
+		{name: "empty", value: "", set: true, want: false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.set {
+				t.Setenv("TRIMMING_IMAGE_CLEANUP_ENABLED", tt.value)
+			} else {
+				old, had := os.LookupEnv("TRIMMING_IMAGE_CLEANUP_ENABLED")
+				if err := os.Unsetenv("TRIMMING_IMAGE_CLEANUP_ENABLED"); err != nil {
+					t.Fatalf("unset env: %v", err)
+				}
+				t.Cleanup(func() {
+					if had {
+						_ = os.Setenv("TRIMMING_IMAGE_CLEANUP_ENABLED", old)
+					}
+				})
+			}
+			cfg := Load()
+			if cfg.TrimmingImageCleanupEnabled != tt.want {
+				t.Fatalf("TrimmingImageCleanupEnabled = %v, want %v", cfg.TrimmingImageCleanupEnabled, tt.want)
+			}
+		})
 	}
 }

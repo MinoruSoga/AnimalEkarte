@@ -15,6 +15,8 @@
 | `object_key` | `TEXT` | NOT NULL | — | PK | [032_trimming_image_deletions.sql:10](../../../backend/migrations/032_trimming_image_deletions.sql#L10) |
 | `actor_staff_id` | `BIGINT` | NOT NULL | — | — | [032_trimming_image_deletions.sql:11](../../../backend/migrations/032_trimming_image_deletions.sql#L11) |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [032_trimming_image_deletions.sql:12](../../../backend/migrations/032_trimming_image_deletions.sql#L12) |
+| `storage_deleted_at` | `TIMESTAMPTZ` | NULL | — | — | [035_trimming_image_storage_retry.sql:2](../../../backend/migrations/035_trimming_image_storage_retry.sql#L2) |
+| `last_attempt_at` | `TIMESTAMPTZ` | NULL | — | — | [035_trimming_image_storage_retry.sql:3](../../../backend/migrations/035_trimming_image_storage_retry.sql#L3) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -31,6 +33,8 @@ erDiagram
         TEXT object_key PK
         BIGINT actor_staff_id
         TIMESTAMPTZ created_at
+        TIMESTAMPTZ storage_deleted_at
+        TIMESTAMPTZ last_attempt_at
     }
     clinics {
         BIGSERIAL id PK
@@ -56,4 +60,6 @@ erDiagram
 
 ## インデックス
 
-明示的なCREATE INDEXなし。PK/UNIQUEに付随する暗黙のindexは制約欄を参照してください。
+| 名前 | UNIQUE | 述語 | DDL | 定義元 |
+|:---|:---|:---|:---|:---|
+| `idx_trimming_image_deletions_pending` | NO | `storage_deleted_at IS NULL` | `CREATE INDEX idx_trimming_image_deletions_pending     ON trimming_image_deletions (clinic_id, last_attempt_at, object_key)     WHERE storage_deleted_at IS NULL` | [035_trimming_image_storage_retry.sql:5](../../../backend/migrations/035_trimming_image_storage_retry.sql#L5) |

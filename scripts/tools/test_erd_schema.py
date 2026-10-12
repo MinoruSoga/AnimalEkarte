@@ -225,11 +225,17 @@ class SchemaTests(unittest.TestCase):
     def test_repository_final_schema(self):
         schema = load_schema(Path(__file__).resolve().parents[2] / 'backend/migrations')
         self.assertEqual(len(schema.tables), 136)
-        self.assertEqual(len(schema.migrations), 32)
+        self.assertEqual(len(schema.migrations), 33)
         deletions = schema.tables['trimming_image_deletions']
-        self.assertEqual({c.name for c in deletions.columns}, {'clinic_id', 'object_key', 'actor_staff_id', 'created_at'})
-        self.assertTrue(all(not c.nullable for c in deletions.columns))
+        self.assertEqual({c.name for c in deletions.columns}, {'clinic_id', 'object_key', 'actor_staff_id', 'created_at', 'storage_deleted_at', 'last_attempt_at'})
+        self.assertEqual({c.name for c in deletions.columns if not c.nullable}, {'clinic_id', 'object_key', 'actor_staff_id', 'created_at'})
+        self.assertTrue(next(c for c in deletions.columns if c.name == 'storage_deleted_at').nullable)
+        self.assertTrue(next(c for c in deletions.columns if c.name == 'last_attempt_at').nullable)
         self.assertEqual(next(c for c in deletions.constraints if c.kind == 'primary').columns, ('clinic_id', 'object_key'))
+        pending = next(i for i in deletions.indexes if i.name == 'idx_trimming_image_deletions_pending')
+        self.assertEqual(pending.columns, ('clinic_id', 'last_attempt_at', 'object_key'))
+        self.assertIsNotNone(pending.predicate)
+        self.assertIn('storage_deleted_at IS NULL', pending.predicate)
         self.assertNotIn('prescriptions', schema.tables)
         self.assertNotIn('next_visit_recommended_date', {c.name for c in schema.tables['medical_records'].columns})
         for table_name, suffix, column_name, delete_action in [

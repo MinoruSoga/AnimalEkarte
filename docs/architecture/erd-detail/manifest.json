@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "07acb410525fd70cab29d491a72e284ff79114e9bdc34325a580828d29012562",
+  "source_digest": "0f11be30895d30a7206de82e44c0a75d52ba3b6047333f4f19e2c6060bfbe82a",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -18,7 +18,7 @@
   ],
   "counts": {
     "tables": 136,
-    "columns": 1638,
+    "columns": 1640,
     "foreign_keys": 323
   },
   "migrations": [
@@ -149,6 +149,10 @@
     {
       "name": "034_lstep_next_visit_cleanup_target.sql",
       "sha256": "e5f78083f6de3e720476865d14f54b14fa1a9fed465a9a605b1436cada953567"
+    },
+    {
+      "name": "035_trimming_image_storage_retry.sql",
+      "sha256": "034c8290479a6359fbb5852c241e123cf63554d82a17f5b0d5584f6fe0b48d89"
     }
   ],
   "reviewed_do_blocks": [

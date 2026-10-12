@@ -105,6 +105,8 @@ type Config struct {
 	// CORSAllowedOrigin は CORS 許可オリジン（カンマ区切り）。空文字ならミドルウェア側で開発既定値を適用する。
 	CORSAllowedOrigin string
 
+	TrimmingImageCleanupEnabled bool
+
 	// SchedulerInternalToken protects POST /_internal/scheduled-jobs (DEC-36 / CMD-02).
 	// Callers must send header X-Scheduler-Token. Release mode requires an
 	// explicit value of at least minimumSchedulerInternalTokenBytes (Validate).
@@ -209,6 +211,8 @@ func Load() *Config {
 		LogLevel: os.Getenv("LOG_LEVEL"),
 
 		CORSAllowedOrigin: os.Getenv("CORS_ALLOWED_ORIGIN"),
+
+		TrimmingImageCleanupEnabled: os.Getenv("TRIMMING_IMAGE_CLEANUP_ENABLED") == "true",
 
 		SchedulerInternalToken: os.Getenv("SCHEDULER_INTERNAL_TOKEN"),
 

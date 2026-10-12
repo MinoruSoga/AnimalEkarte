@@ -12,6 +12,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
+
+	"github.com/animal-ekarte/backend/internal/config"
+	"github.com/animal-ekarte/backend/internal/infra"
 )
 
 type lifecycleTestListener struct {
@@ -207,6 +211,94 @@ func TestServerRunner_GracefulShutdownCancelsBackgroundBeforeDrainersAndResource
 	assert.True(t, server.shutdownHasDeadline.Load())
 	assert.False(t, server.closeCalled.Load())
 	assert.True(t, drainCalled.Load())
+	assert.True(t, resource.closed.Load())
+	assert.False(t, resourceClosedTooEarly.Load())
+}
+
+func TestServerRunner_ShutdownDrainsActiveTrimmingKeyBeforeResourceClose(t *testing.T) {
+	imageRunner := &recordingImageDeletionRunner{
+		started:    make(chan context.Context, 1),
+		activeDone: make(chan struct{}),
+	}
+	overrideImageDeletionFactory(t, func(*gorm.DB, infra.FileUploader) imageDeletionRunner {
+		return imageRunner
+	})
+
+	backgroundCtx, cancelBackground := context.WithCancel(context.Background())
+	server := newLifecycleTestServer()
+	listener := newLifecycleTestListener()
+
+	var drainDone atomic.Bool
+	var resourceClosedTooEarly atomic.Bool
+	resource := &lifecycleTestCloser{
+		onClose: func() {
+			if !drainDone.Load() {
+				resourceClosedTooEarly.Store(true)
+			}
+		},
+	}
+
+	workerDrain := startTrimmingImageDeletionWorker(
+		backgroundCtx,
+		&config.Config{TrimmingImageCleanupEnabled: true},
+		&gorm.DB{},
+		&fakeFileUploader{},
+	)
+	select {
+	case startedCtx := <-imageRunner.started:
+		require.Same(t, backgroundCtx, startedCtx,
+			"the configured worker must be started with the runtime background context")
+	case <-time.After(2 * time.Second):
+		t.Fatal("configured worker runner was never started")
+	}
+
+	drainStarted := make(chan struct{})
+	runner := serverRunner{
+		server:           server,
+		address:          ":8080",
+		backgroundCtx:    backgroundCtx,
+		cancelBackground: cancelBackground,
+		listen: func(string, string) (net.Listener, error) {
+			return listener, nil
+		},
+		shutdownTimeout: time.Second,
+		drainers: []func(){
+			func() {
+				close(drainStarted)
+				workerDrain()
+				drainDone.Store(true)
+			},
+		},
+		resources: []resourceCloser{resource},
+	}
+
+	runCtx, cancelRun := context.WithCancel(context.Background())
+	runDone := make(chan error, 1)
+	go func() {
+		runDone <- runner.run(runCtx)
+	}()
+
+	select {
+	case <-server.serveStarted:
+	case <-time.After(30 * time.Second):
+		t.Fatal("server did not start serving")
+	}
+
+	cancelRun()
+	select {
+	case <-drainStarted:
+	case <-time.After(30 * time.Second):
+		t.Fatal("worker drainer was never invoked")
+	}
+	select {
+	case err := <-runDone:
+		t.Fatalf("shutdown completed while an in-flight key still held the drainer: %v", err)
+	case <-time.After(150 * time.Millisecond):
+	}
+	close(imageRunner.activeDone)
+
+	require.NoError(t, waitForLifecycleRun(t, runDone))
+	assert.True(t, drainDone.Load())
 	assert.True(t, resource.closed.Load())
 	assert.False(t, resourceClosedTooEarly.Load())
 }
