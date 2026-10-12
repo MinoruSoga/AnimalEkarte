@@ -63,6 +63,14 @@ describe("buildConfirmTentativeBody (EMR-308)", () => {
     expect(body?.notes).toBeUndefined();
   });
 
+  it("visit_type は data.visitType 指定時のみ送り、未指定は省略する", () => {
+    expect(buildConfirmTentativeBody({ start, end, visitType: "first" })?.visit_type).toBe("first");
+    expect(buildConfirmTentativeBody({ start, end, visitType: "revisit" })?.visit_type).toBe(
+      "revisit",
+    );
+    expect(buildConfirmTentativeBody({ start, end })?.visit_type).toBeUndefined();
+  });
+
   it("notes 未指定は省略し、空文字は明示送信する（BE の既存メモを消せるように）", () => {
     expect(buildConfirmTentativeBody({ start, end })?.notes).toBeUndefined();
     expect(buildConfirmTentativeBody({ start, end, notes: "" })?.notes).toBe("");

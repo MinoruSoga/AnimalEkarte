@@ -718,6 +718,7 @@ type ConfirmTentativeUpdate struct {
 	IsDesignated      *bool
 	Notes             *string
 	Status            model.ReservationStatus // pending または confirmed のみ許可
+	VisitType         *model.VisitType        // nil = 現在値維持、first/revisit のみ許可
 }
 
 // requireNextVisitIntentAmbientTransaction は tentative 書き込みに ambient tx を必須化する。
@@ -1112,6 +1113,13 @@ func (r *reservationRepository) ConfirmTentative(
 	if input.ReservationTypeID == 0 {
 		return nil, apperrors.WrapInvalidInput("reservation_type_id is required to confirm a tentative appointment")
 	}
+	if input.VisitType != nil {
+		switch *input.VisitType {
+		case model.VisitTypeFirst, model.VisitTypeRevisit:
+		default:
+			return nil, apperrors.WrapInvalidInput("invalid visit_type")
+		}
+	}
 	if input.DoctorID != nil && *input.DoctorID != 0 {
 		if err := r.assertStaffAssignedToClinic(ctx, clinicID, *input.DoctorID); err != nil {
 			return nil, err
@@ -1142,6 +1150,9 @@ func (r *reservationRepository) ConfirmTentative(
 	}
 	if input.IsDesignated != nil {
 		fields["is_designated"] = *input.IsDesignated
+	}
+	if input.VisitType != nil {
+		fields["visit_type"] = *input.VisitType
 	}
 	if input.Notes != nil {
 		fields["notes"] = *input.Notes
@@ -1194,15 +1205,19 @@ func (r *reservationRepository) updateTentativeStatus(
 				return lockErr
 			}
 		}
+		// Codex #3/#14/#19: ロック待ち中に commit され得る mutation（死亡・
+		// intended_date 変更・並行昇格）を検出するため、intent lock 後に行を
+		// FOR UPDATE でロックしてから再検証する。行ロック read も FindByID と同じ
+		// 親フィルタを維持する（緩めない）。validator が返す追加フィールド
+		// （実受付時刻スタンプ等）は CAS 書込へマージする。
+		locked, lockedErr := r.lockAndFindByIDWithParentClinic(txCtx, clinicID, id)
+		if lockedErr != nil {
+			return lockedErr
+		}
+		if locked.Status != model.ReservationStatusTentative {
+			return apperrors.WrapConflict("次回予定が同時に更新されました。再読み込みしてください")
+		}
 		if validate != nil {
-			// Codex #3/#14/#19: ロック待ち中に commit され得る mutation（死亡・
-			// intended_date 変更・並行昇格）を検出するため、post-lock で行を
-			// 再読み込みして validator を適用する。validator が返す追加フィールド
-			// （実受付時刻スタンプ等）は CAS 書込へマージする。
-			locked, lockedErr := r.FindByID(txCtx, clinicID, id)
-			if lockedErr != nil {
-				return lockedErr
-			}
 			extra, validateErr := validate(txCtx, locked)
 			if validateErr != nil {
 				return validateErr
@@ -1210,6 +1225,18 @@ func (r *reservationRepository) updateTentativeStatus(
 			for k, v := range extra {
 				fields[k] = v
 			}
+		}
+		// Codex #16: tentative 作成後にペットが譲渡されると行の owner_id は旧飼い主の
+		// まま残る。intent lock + 行ロック保持中に pet を SHARE ロックして現飼い主へ
+		// 追従させる（ConfirmTentative と同じ規則）。終端ステータスへ書き換わった行が
+		// 親フィルタ（非 tentative は pet.owner_id = appointments.owner_id 必須）で
+		// 読めなくなるのを防ぐため、同じ CAS UPDATE へ owner_id を含める。
+		if locked.PetID != nil {
+			currentOwnerID, ownerErr := r.FindPetOwnerInClinic(txCtx, clinicID, *locked.PetID)
+			if ownerErr != nil {
+				return apperrors.Wrap(ownerErr, "failed to resolve current pet owner")
+			}
+			fields["owner_id"] = currentOwnerID
 		}
 		result := tx.Model(&model.Reservation{}).
 			Where("clinic_id = ? AND id = ? AND status = ? AND deleted_at IS NULL",
@@ -1232,6 +1259,25 @@ func (r *reservationRepository) updateTentativeStatus(
 		return nil, err
 	}
 	return loaded, nil
+}
+
+// lockAndFindByIDWithParentClinic は intent lock 取得後の tentative 行を FOR UPDATE で
+// 行ロックして読む。FindByID と同じ preload・親フィルタを維持するため、ロック待ち中に
+// 関連行（pet 譲渡等）が変わっても FindByID と同じ可視性で fail-closed に判定する。
+func (r *reservationRepository) lockAndFindByIDWithParentClinic(
+	ctx context.Context,
+	clinicID, id uint64,
+) (*model.Reservation, error) {
+	var appt model.Reservation
+	err := reservationListPreloads(persistence.DBOrTx(ctx, r.db), []uint64{clinicID}, true).
+		Scopes(persistence.ClinicScopeIn([]uint64{clinicID}), reservationRelationsMatchParentClinic).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ?", id).
+		First(&appt).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", id))
+	}
+	return &appt, nil
 }
 
 // ---------------------------------------------------------------------------

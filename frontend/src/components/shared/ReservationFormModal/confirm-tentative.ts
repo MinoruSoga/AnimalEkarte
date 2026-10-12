@@ -7,7 +7,7 @@ import {
   jstWallDateToISOString,
   todayJSTISO,
 } from "@/lib/jst-date";
-import type { Reservation } from "@/types";
+import type { Reservation, VisitType } from "@/types";
 
 /**
  * EMR-308: POST /v1/reservations/:id/confirm-tentative のリクエスト body。
@@ -27,6 +27,8 @@ export interface ConfirmTentativeRequestBody {
   is_designated?: boolean;
   /** "pending" | "confirmed" のみ許容（BE 契約） */
   status?: "pending" | "confirmed";
+  /** 初診/再診区分。省略時は tentative 行の既存値を維持（BE 契約） */
+  visit_type?: VisitType;
   notes?: string;
 }
 
@@ -61,6 +63,11 @@ export function buildConfirmTentativeBody(
 
   // BE 契約は "pending" | "confirmed" のみ。他の status は送らない。
   body.status = data.status === "pending" ? "pending" : "confirmed";
+
+  // R2: visit_type はフォームが値を持つ時だけ送る。省略は「既存値を維持」。
+  if (data.visitType !== undefined) {
+    body.visit_type = data.visitType;
+  }
 
   // Codex PR606 #17: 空文字は「メモを消去」の意味で明示送信する。
   // 省略（undefined）は「未入力=既存値を維持」、空文字は「既存メモの消去」。

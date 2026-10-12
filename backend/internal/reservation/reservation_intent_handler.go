@@ -39,10 +39,11 @@ type confirmTentativeRequest struct {
 	DoctorID          *uint64   `json:"doctor_id"`
 	IsDesignated      *bool     `json:"is_designated"`
 	Status            *string   `json:"status" binding:"omitempty,oneof=pending confirmed"`
+	VisitType         *string   `json:"visit_type" binding:"omitempty,oneof=first revisit"`
 	Notes             *string   `json:"notes"`
 }
 
-func (r *confirmTentativeRequest) toServiceInput() *ConfirmTentativeInput {
+func (r *confirmTentativeRequest) toServiceInput() (*ConfirmTentativeInput, error) {
 	input := &ConfirmTentativeInput{
 		StartTime:         r.StartTime,
 		EndTime:           r.EndTime,
@@ -55,7 +56,17 @@ func (r *confirmTentativeRequest) toServiceInput() *ConfirmTentativeInput {
 		status := model.ReservationStatus(*r.Status)
 		input.Status = &status
 	}
-	return input
+	if r.VisitType != nil {
+		visitType, err := httpapi.ValidateEnum(*r.VisitType,
+			model.VisitTypeFirst,
+			model.VisitTypeRevisit,
+		)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid visit_type")
+		}
+		input.VisitType = &visitType
+	}
+	return input, nil
 }
 
 // SetNextVisitIntent godoc
@@ -146,7 +157,11 @@ func (h *CRUDHandler) ConfirmTentativeAppointment(c *gin.Context) {
 		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
-	input := req.toServiceInput()
+	input, err := req.toServiceInput()
+	if err != nil {
+		respondError(c, err)
+		return
+	}
 	ctx := c.Request.Context()
 	reservation, err := h.svc.ConfirmTentative(ctx, clinicID, id, input)
 	if err != nil {

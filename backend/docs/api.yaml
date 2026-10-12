@@ -10089,6 +10089,10 @@ components:
           type: string
           enum: [pending, confirmed]
           description: 確定後ステータス（省略時 confirmed）
+        visit_type:
+          type: string
+          enum: [first, revisit]
+          description: 初診/再診区分（省略時は tentative 行の既存値を維持）
         notes:
           type: string
     # ─── MedicineDoseParam (#201 B-2c 投与量計算パラメータ) ────────────────────

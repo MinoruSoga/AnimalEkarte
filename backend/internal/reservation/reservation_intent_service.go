@@ -22,6 +22,7 @@ type ConfirmTentativeInput struct {
 	DoctorID          *uint64   // nil/0 = 担当医未指定のまま
 	IsDesignated      *bool
 	Status            *model.ReservationStatus // nil = confirmed。pending または confirmed のみ許可
+	VisitType         *model.VisitType         // nil = tentative 行の既存値を維持。first/revisit のみ許可
 	Notes             *string
 }
 
@@ -147,6 +148,13 @@ func (s *reservationService) ConfirmTentative(
 			return nil, apperrors.WrapInvalidInput("仮予約は pending または confirmed のみ確定できます")
 		}
 	}
+	if input.VisitType != nil {
+		switch *input.VisitType {
+		case model.VisitTypeFirst, model.VisitTypeRevisit:
+		default:
+			return nil, apperrors.WrapInvalidInput("invalid visit_type")
+		}
+	}
 	if s.tx == nil {
 		return nil, apperrors.WrapInternalServerError("reservation transaction dependency is required")
 	}
@@ -236,6 +244,7 @@ func (s *reservationService) ConfirmTentative(
 			IsDesignated:      input.IsDesignated,
 			Notes:             input.Notes,
 			Status:            targetStatus,
+			VisitType:         input.VisitType,
 		})
 		return confirmErr
 	})
