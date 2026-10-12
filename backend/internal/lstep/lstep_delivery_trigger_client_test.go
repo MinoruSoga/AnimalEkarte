@@ -12,13 +12,10 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// ---- applyTagAndLog ----
+// ---- recordDeliveryOutcome ----
 
-func TestApplyTagAndLog_AddTagSuccessUpdatesFired(t *testing.T) {
+func TestRecordDeliveryOutcome_SendSuccessUpdatesFired(t *testing.T) {
 	var capturedStatus string
-	client := &mockLstepClientForDelivery{
-		addTagFn: func(_ context.Context, _, _ string) error { return nil },
-	}
 	svc := &lstepDeliveryTriggerService{
 		triggerLogRepo: &mockDeliveryTriggerLogRepository{
 			updateStatusFn: func(_ context.Context, _ uint64, status string, _ *time.Time, _ *string) error {
@@ -27,15 +24,12 @@ func TestApplyTagAndLog_AddTagSuccessUpdatesFired(t *testing.T) {
 			},
 		},
 	}
-	err := svc.applyTagAndLog(context.Background(), 1, client, "U1", "tag_x", 10)
+	err := svc.recordDeliveryOutcome(context.Background(), 1, 10, "tag_x", nil)
 	assert.NoError(t, err)
 	assert.Equal(t, model.TriggerStatusFired, capturedStatus)
 }
 
-func TestApplyTagAndLog_AddTagSuccessButUpdateStatusFails(t *testing.T) {
-	client := &mockLstepClientForDelivery{
-		addTagFn: func(_ context.Context, _, _ string) error { return nil },
-	}
+func TestRecordDeliveryOutcome_SendSuccessButUpdateStatusFails(t *testing.T) {
 	svc := &lstepDeliveryTriggerService{
 		triggerLogRepo: &mockDeliveryTriggerLogRepository{
 			updateStatusFn: func(_ context.Context, _ uint64, _ string, _ *time.Time, _ *string) error {
@@ -43,16 +37,13 @@ func TestApplyTagAndLog_AddTagSuccessButUpdateStatusFails(t *testing.T) {
 			},
 		},
 	}
-	err := svc.applyTagAndLog(context.Background(), 1, client, "U1", "tag_x", 10)
+	err := svc.recordDeliveryOutcome(context.Background(), 1, 10, "tag_x", nil)
 	assert.Error(t, err)
 }
 
-func TestApplyTagAndLog_AddTagFailsRecordsFailedStatus(t *testing.T) {
+func TestRecordDeliveryOutcome_SendFailsRecordsFailedStatus(t *testing.T) {
 	var capturedStatus string
 	var capturedReason *string
-	client := &mockLstepClientForDelivery{
-		addTagFn: func(_ context.Context, _, _ string) error { return errors.New("lstep api error") },
-	}
 	svc := &lstepDeliveryTriggerService{
 		triggerLogRepo: &mockDeliveryTriggerLogRepository{
 			updateStatusFn: func(_ context.Context, _ uint64, status string, _ *time.Time, reason *string) error {
@@ -62,7 +53,7 @@ func TestApplyTagAndLog_AddTagFailsRecordsFailedStatus(t *testing.T) {
 			},
 		},
 	}
-	err := svc.applyTagAndLog(context.Background(), 1, client, "U1", "tag_x", 10)
+	err := svc.recordDeliveryOutcome(context.Background(), 1, 10, "tag_x", errors.New("lstep api error"))
 	assert.Error(t, err)
 	assert.Equal(t, model.TriggerStatusFailed, capturedStatus)
 	if assert.NotNil(t, capturedReason) {
@@ -70,11 +61,8 @@ func TestApplyTagAndLog_AddTagFailsRecordsFailedStatus(t *testing.T) {
 	}
 }
 
-func TestApplyTagAndLog_AddTagFailsAndUpdateStatusAlsoFailsIsFatal(t *testing.T) {
+func TestRecordDeliveryOutcome_SendFailsAndUpdateStatusAlsoFailsIsFatal(t *testing.T) {
 	// LSA-12 / DEC-35: failed status update failure must join the AddTag error (not silent).
-	client := &mockLstepClientForDelivery{
-		addTagFn: func(_ context.Context, _, _ string) error { return errors.New("lstep api error") },
-	}
 	svc := &lstepDeliveryTriggerService{
 		triggerLogRepo: &mockDeliveryTriggerLogRepository{
 			updateStatusFn: func(_ context.Context, _ uint64, _ string, _ *time.Time, _ *string) error {
@@ -82,7 +70,7 @@ func TestApplyTagAndLog_AddTagFailsAndUpdateStatusAlsoFailsIsFatal(t *testing.T)
 			},
 		},
 	}
-	err := svc.applyTagAndLog(context.Background(), 1, client, "U1", "tag_x", 10)
+	err := svc.recordDeliveryOutcome(context.Background(), 1, 10, "tag_x", errors.New("lstep api error"))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "add lstep tag")
 	assert.Contains(t, err.Error(), "failed")

@@ -68,6 +68,9 @@ func (m *mockAnalyticsTriggerLogRepo) FindByOwnerAndDate(_ context.Context, _, _
 func (m *mockAnalyticsTriggerLogRepo) UpdateSuppressed(_ context.Context, _, _ uint64, _ string) error {
 	return nil
 }
+func (m *mockAnalyticsTriggerLogRepo) MarkKnownUnsent(_ context.Context, _, _ uint64, _ string) error {
+	return nil
+}
 
 // ---- LstepFriendAttributeSnapshotRepository モック（analytics 用）----
 

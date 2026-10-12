@@ -9,6 +9,13 @@ import (
 )
 
 func (s *lstepDeliveryTriggerService) checkExclusion(ctx context.Context, clinicID, ownerID uint64, owner *model.Owner) (excluded bool, reason string, err error) {
+	return s.checkExclusionWithTags(ctx, s.tagCacheRepo, clinicID, ownerID, owner)
+}
+
+// checkExclusionWithTags は tagRepo を明示して除外判定する。owner 直列化境界内の
+// 再評価はバッチページキャッシュを剥がした実 repository を渡し、直前コミットの
+// EXCL 書込みを必ず観測する（D1）。
+func (s *lstepDeliveryTriggerService) checkExclusionWithTags(ctx context.Context, tagRepo deliveryTagCacheRepository, clinicID, ownerID uint64, owner *model.Owner) (excluded bool, reason string, err error) {
 	// Fail-closed: nil owner is never delivery-eligible. Can reach here when
 	// FindByID returns (nil, nil) (mock or contract violation) after bulk cache
 	// miss/fallback (see processSingleOwner). Do not treat as "not excluded".
@@ -26,7 +33,7 @@ func (s *lstepDeliveryTriggerService) checkExclusion(ctx context.Context, clinic
 	if owner.LineUserID == nil || *owner.LineUserID == "" {
 		return true, "no_line_user_id", nil
 	}
-	tags, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
+	tags, err := tagRepo.FindByOwner(ctx, clinicID, ownerID)
 	if err != nil {
 		return false, "", apperrors.Wrap(err, "failed to find owner tags")
 	}
@@ -66,5 +73,3 @@ func (s *lstepDeliveryTriggerService) recordTrigger(ctx context.Context, clinicI
 	}
 	return log.ID, true, nil
 }
-
-// applyTagAndLog は L ステップへタグを付与しログを fired 状態に更新する。

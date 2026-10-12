@@ -47,6 +47,7 @@ type mockDeliveryTriggerLogRepository struct {
 	existsTodayFn         func(ctx context.Context, clinicID, ownerID uint64, triggerType string, date time.Time) (bool, error)
 	updateStatusFn        func(ctx context.Context, id uint64, status string, firedAt *time.Time, excludedReason *string) error
 	findByClinicAndDateFn func(ctx context.Context, clinicID uint64, date time.Time) ([]model.LstepDeliveryTriggerLog, error)
+	markKnownUnsentFn     func(ctx context.Context, clinicID, id uint64, reason string) error
 }
 
 func (m *mockDeliveryTriggerLogRepository) Create(ctx context.Context, log *model.LstepDeliveryTriggerLog) error {
@@ -108,6 +109,12 @@ func (m *mockDeliveryTriggerLogRepository) FindByOwnerAndDate(_ context.Context,
 }
 func (m *mockDeliveryTriggerLogRepository) UpdateSuppressed(_ context.Context, _, _ uint64, _ string) error {
 	return nil
+}
+func (m *mockDeliveryTriggerLogRepository) MarkKnownUnsent(ctx context.Context, clinicID, id uint64, reason string) error {
+	if m.markKnownUnsentFn != nil {
+		return m.markKnownUnsentFn(ctx, clinicID, id, reason)
+	}
+	return m.UpdateStatus(ctx, clinicID, id, model.TriggerStatusFailed, nil, &reason)
 }
 
 // ---- OwnerRepository モック（delivery trigger 用）----
@@ -195,8 +202,9 @@ func (m *mockOwnerRepoForDelivery) FindByIDs(ctx context.Context, clinicID uint6
 // ---- TagCacheRepository モック（delivery trigger 用）----
 
 type mockTagCacheRepoForDelivery struct {
-	findByOwnerFn       func(ctx context.Context, clinicID, ownerID uint64) ([]*model.LstepTagCache, error)
-	findOwnerIDsByTagFn func(ctx context.Context, clinicID uint64, tagName string) ([]uint64, error)
+	findByOwnerFn           func(ctx context.Context, clinicID, ownerID uint64) ([]*model.LstepTagCache, error)
+	findOwnerIDsByTagFn     func(ctx context.Context, clinicID uint64, tagName string) ([]uint64, error)
+	withDeliveryOwnerLockFn func(ctx context.Context, clinicID, ownerID uint64, fn func(context.Context) error) error
 }
 
 func (m *mockTagCacheRepoForDelivery) FindByOwner(ctx context.Context, clinicID, ownerID uint64) ([]*model.LstepTagCache, error) {
@@ -222,6 +230,13 @@ func (m *mockTagCacheRepoForDelivery) FindByOwners(ctx context.Context, clinicID
 	}
 	return out, nil
 }
+func (m *mockTagCacheRepoForDelivery) WithDeliveryOwnerLock(ctx context.Context, clinicID, ownerID uint64, fn func(context.Context) error) error {
+	if m.withDeliveryOwnerLockFn != nil {
+		return m.withDeliveryOwnerLockFn(ctx, clinicID, ownerID, fn)
+	}
+	return fn(ctx)
+}
+
 func (m *mockTagCacheRepoForDelivery) FindOwnerIDsByTag(ctx context.Context, clinicID uint64, tagName string) ([]uint64, error) {
 	if m.findOwnerIDsByTagFn != nil {
 		return m.findOwnerIDsByTagFn(ctx, clinicID, tagName)
