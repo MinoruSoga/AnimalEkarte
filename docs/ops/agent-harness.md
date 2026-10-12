@@ -73,10 +73,7 @@ UI動作、フォーム、ルーティング、アクセシビリティに変更
 ## 分析・テスト設計役の能力境界
 
 Claudeのarchitectとsilent-failure-hunterはRead/Grep/Globで分析し、shell実行は担当者へ渡す。
-test-strategistは既存Write/Editを保持してテストを生成し、実行対象・期待結果を
-tdd-guideまたは担当実装者へ引き継ぐ。reviewer / formatter / database-reviewerも
-Bashを持たず、呼び出し側が固定base/headのscoped diff・staged diff・診断結果を
-供給する契約とする。残る12運用役割のBashは監査・修正のため維持する。
+test-strategistは既存Write/Editを保持してテストを生成する。全てのClaudeプロジェクトロールはBashを持たず、コマンド実行はユーザーまたは別途許可された親セッションへ引き継ぐ。実行者から固定base/headのscoped diff・診断・RED/GREEN結果を受け取るまで、実行を要する判定はBLOCKEDとする。
 Codexのanimalekarte-test-strategistは既存read-onlyのまま設計・patch案を報告し、
 適用と実行を担当実装者へ渡す。引き継ぎはDBや外部サービスの許可を追加しない。
 生成・静的検証は実runtimeのtool制限やsandbox適用の証明にはしない。
@@ -85,25 +82,27 @@ Codexのanimalekarte-test-strategistは既存read-onlyのまま設計・patch案
 
 各役割のソースは `.claude/agents/<role>.md` のフロントマター `tools:`。プロジェクトソース `.claude/settings.json` に Bash の包括許可はないが、ユーザー/マネージド/CLIの親設定による最終合成は未検証（UNKNOWN）。
 
+表のbuild・scoped test/lint・TDD欄は計画、編集、提供結果の審査を表す。各ロール自身のコマンド実行権限ではない。
+
 | 役割 | 入力 | format/edit | build | scoped test/lint | TDD | Bash |
 |------|------|-------------|-------|------------------|-----|------|
-| code-simplifier | 呼出/diff | edits + posthooks | 修復なし | 等価性のscoped回帰 | 全サイクルなし | 保有 |
-| debugger | 再現手順/diff/ログ | 最小Edit + posthooks | root cause関連のみ | 再現/回帰 | 失敗再現→修正 | 保有 |
-| implementer | diff | Edit/Write + posthooks | タスク範囲 | scoped package/spec lint/test | 必要時RED/GREEN | 保有 |
-| build-error-resolver | 診断/diff | 最小Edit/Write + posthooks | FE修復（全体コマンドはユーザー実行、root禁止リスト準拠） | 変更ファイルeslint/spec、全体type/build証拠はユーザー | 機能サイクルなし | 保有 |
-| go-build-resolver | 診断/diff | 最小Edit/Write + posthooks | Go修復 | scoped vet/lint/package回帰 | 失敗build→成功 | 保有 |
-| refactor-cleaner | diff/履歴/参照グラフ | edits + posthooks | 機能build修復なし | 検出+影響回帰（codegenはユーザー実行） | テスト保持しつつrefactor | 保有 |
-| tdd-guide | diff | テスト+実装Edit/Write + posthooks | 関連のみ | scoped package/spec/race/coverage | RED/GREEN/REFACTOR | 保有 |
-| clinic-isolation-auditor | Go/SQL diff | なし | なし | TestPreloadClinicScope/TestMasterFKWriteInventory + 許可された隔離テスト | 証拠レビュー | 保有 |
-| go-reviewer | Go diff | なし | なし | scoped vet/test/race | 証拠レビュー | 保有 |
-| react-reviewer | TS/TSX diff | なし | なし | 変更ファイルeslint/spec | 証拠レビュー | 保有 |
-| typescript-reviewer | TS/TSX diff | なし | なし | 変更ファイルeslint/specとtype出力 | 証拠レビュー | 保有 |
-| security-analyst | 監査範囲/diff | なし | なし | gosec/依存監査は許可されたrunner/network+外部承認が必要、host pnpmなし（gosec導入有無は未確立・プロジェクトskillは未導入と記載。記述は権限条件でありツール利用可否の証明ではない） | なし | 保有 |
+| code-simplifier | 呼出/diff | edits + posthooks | 修復なし | 等価性のscoped回帰 | 全サイクルなし | 非保有 |
+| debugger | 再現手順/diff/ログ | 最小Edit + posthooks | root cause関連のみ | 再現/回帰 | 失敗再現→修正 | 非保有 |
+| implementer | diff | Edit/Write + posthooks | タスク範囲 | scoped package/spec lint/test | 必要時RED/GREEN | 非保有 |
+| build-error-resolver | 診断/diff | 最小Edit/Write + posthooks | FE修復（全体コマンドはユーザー実行、root禁止リスト準拠） | 変更ファイルeslint/spec、全体type/build証拠はユーザー | 機能サイクルなし | 非保有 |
+| go-build-resolver | 診断/diff | 最小Edit/Write + posthooks | Go修復 | scoped vet/lint/package回帰 | 失敗build→成功 | 非保有 |
+| refactor-cleaner | diff/履歴/参照グラフ | edits + posthooks | 機能build修復なし | 検出+影響回帰（codegenはユーザー実行） | テスト保持しつつrefactor | 非保有 |
+| tdd-guide | diff | テスト+実装Edit/Write + posthooks | 関連のみ | scoped package/spec/race/coverage | RED/GREEN/REFACTOR | 非保有 |
+| clinic-isolation-auditor | Go/SQL diff | なし | なし | TestPreloadClinicScope/TestMasterFKWriteInventory + 許可された隔離テスト | 証拠レビュー | 非保有 |
+| go-reviewer | Go diff | なし | なし | scoped vet/test/race | 証拠レビュー | 非保有 |
+| react-reviewer | TS/TSX diff | なし | なし | 変更ファイルeslint/spec | 証拠レビュー | 非保有 |
+| typescript-reviewer | TS/TSX diff | なし | なし | 変更ファイルeslint/specとtype出力 | 証拠レビュー | 非保有 |
+| security-analyst | 監査範囲/diff | なし | なし | gosec/依存監査は許可されたrunner/network+外部承認が必要、host pnpmなし（gosec導入有無は未確立・プロジェクトskillは未導入と記載。記述は権限条件でありツール利用可否の証明ではない） | なし | 非保有 |
 | reviewer | 呼出の固定base/head scoped diff | なし | なし | 供給済み結果を読む | なし | 非保有 |
 | formatter | 呼出のstaged diff | Read/Edit整形 + posthooks | なし | 呼出/実装者が実行可能なformat/検証 | なし | 非保有 |
 | database-reviewer | 呼出diff+コード/スキーマ | なし | なし | 診断は別途承認されたユーザー/実行者 | なし | 非保有 |
 
-横断的事実: Codexマニフェストのread-only役割には今回対象のclinic/database/go/react/security/typescriptの他、animalekarte-planner/healthcare-reviewer/silent-failure-hunter/animalekarte-test-strategistも含まれる（6役割の列挙は網羅ではなく今回対象）。debugger/formatter/reviewerはマニフェスト不在。非read-only役割は親設定を継承し、read-only sandboxはshell/egress非保有の証明ではない。hookフィクスチャが証明するのはexit 2のJSON出力のみで、ホスト側の実効拒否ではない。PostEdit Go hookは`CLAUDE_PROJECT_DIR`/現在cwdからdocker composeでgofmtを起動し`/app`マウントを仮定、TS hookは現在cwdからdockerを起動しfrontendマウントを仮定するが、マウント/ソケット/資格情報/実行時権限はUNKNOWN。設定保護hookはexit 0の警告のみでセキュリティ設定変更は強制境界ではない。Bash必要役割が残る限りscanner債務は解消しない。ランタイム受入の責任はプロジェクト運用者/メンテナ（リポジトリオーナー）に残り、署名済みリスク受容を意味しない。
+横断的事実: Codexマニフェストのread-only役割には今回対象のclinic/database/go/react/security/typescriptの他、animalekarte-planner/healthcare-reviewer/silent-failure-hunter/animalekarte-test-strategistも含まれる（6役割の列挙は網羅ではなく今回対象）。debugger/formatter/reviewerはマニフェスト不在。非read-only役割は親設定を継承し、read-only sandboxはshell/egress非保有の証明ではない。hookフィクスチャが証明するのはexit 2のJSON出力のみで、ホスト側の実効拒否ではない。PostEdit Go hookは`CLAUDE_PROJECT_DIR`/現在cwdからdocker composeでgofmtを起動し`/app`マウントを仮定、TS hookは現在cwdからdockerを起動しfrontendマウントを仮定するが、マウント/ソケット/資格情報/実行時権限はUNKNOWN。設定保護hookはexit 0の警告のみでセキュリティ設定変更は強制境界ではない。Claudeのtools指定からBashを除いた範囲と、Codexの実効shell制限は別契約である。ランタイム受入の責任はプロジェクト運用者/メンテナ（リポジトリオーナー）に残り、署名済みリスク受容を意味しない。
 
 ## Claude backend 起動入口
 
@@ -140,7 +139,7 @@ backendを対象とするprompt/ファイルパスとDockerのscoped検証を使
 primary cwd移動、親プロセスやuser/managed設定からのsettings sources除外・
 hooks無効化を防いだとは扱わない。実際の設定合成は未検証。
 入口テストはstubのcwd/argvだけを証明し、実Claudeの設定ロードを証明しない。
-backend設定へのpermissions/hooksの空追加、根拠なしscanner抑制は行わない。
+backend local設定はroot共有設定と同じdenyルールを明示し、BashのPreToolUseで実際のdangerous-commandガードを呼ぶ。起動位置がroot/backendのどちらでもgit rootを解決し、解決・Node・hookファイルの欠落やhook非0終了はexit 2で拒否する。denyの重複は既存のscope contractで一致を検査し、空追加やscanner抑制は行わない。
 
 ## device書込の補助ガード
 
@@ -151,6 +150,7 @@ redirect（>、>>、>|、&>、&>>、<>、>&）、tee、dd of=を拒否する。
 literal sh/bash/zsh/dash -cを補助的に扱う。対象pathのread/realpathやcommand実行は行わない。
 既存destructive Git/systemチェックとsudo/chmod denyを維持する。
 /dev/null、通常のファイル出力、読み取り、通常git操作は追加ガードで拒否しない。
+root/backendのpermissions.denyにもraw deviceへの直接redirect（空白あり・なし）を明示する。これは文字列ルールの追加であり、引用・変数展開・任意プログラム・FD aliasを含む全書込経路の証明ではない。
 このhook判定はDB/実デバイスへのアクセスを許可するものではない。
 
 入力エンベロープ面はfail-closed化済み: 1MiB byte上限超過・空/空白・不正UTF-8・

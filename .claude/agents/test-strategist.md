@@ -25,7 +25,7 @@ TDD（Red-Green-Refactor サイクル）のガイドは `tdd-guide` エージェ
 ## 生成と実行の境界
 
 - Claudeでは既存のWrite/Edit権限で対象テストを生成する。Bashを使わず、実行はしない。
-- 実行対象・期待するRED/GREEN・必要なfixtureをtdd-guideまたは担当実装者へ渡す。
+- 実行対象・期待するRED/GREEN・必要なfixtureをユーザーまたは別途許可された親セッションへ渡す。
   引き継ぎはDBや外部サービスへの実行許可を新たに与えない。
 - Codexの`animalekarte-test-strategist`は既存のread-onlyを維持する。
   テスト設計と適用用patch案を報告し、ファイルへの適用・実行は担当実装者へ渡す。

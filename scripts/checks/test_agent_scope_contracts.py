@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Repository scope regression checks; no user configuration or services read."""
 import json
+import os
 import re
+import subprocess
 from pathlib import Path
 import tomllib
 import unittest
@@ -25,14 +27,65 @@ class AgentScopeContracts(unittest.TestCase):
         for tool in ('Read', 'Edit', 'Write', 'Grep', 'Glob'):
             self.assertIn(tool, tools)
 
-    def test_operational_roles_keep_shell_access(self):
-        for name in ('build-error-resolver', 'clinic-isolation-auditor',
-                     'code-simplifier', 'debugger', 'go-build-resolver',
-                     'go-reviewer', 'implementer', 'react-reviewer',
-                     'refactor-cleaner', 'security-analyst', 'tdd-guide',
-                     'typescript-reviewer'):
-            with self.subTest(role=name):
-                self.assertIn('Bash', self.role_tools(name))
+    def test_repository_roles_do_not_have_shell_access(self):
+        roles = sorted((ROOT / '.claude/agents').glob('*.md'))
+        self.assertTrue(roles)
+        for path in roles:
+            with self.subTest(role=path.stem):
+                tools = self.role_tools(path.stem)
+                self.assertTrue(tools)
+                self.assertLessEqual(set(tools), {'Read', 'Edit', 'Write', 'Grep', 'Glob'})
+
+    def test_backend_security_denials_match_shared_settings(self):
+        shared = json.loads((ROOT / '.claude/settings.json').read_text())
+        backend = json.loads((ROOT / 'backend/.claude/settings.local.json').read_text())
+        self.assertTrue(shared['permissions']['deny'])
+        self.assertEqual(backend['permissions']['deny'], shared['permissions']['deny'])
+        self.assertFalse(backend['permissions'].get('allow'))
+        self.assertEqual(backend['disabledMcpjsonServers'],
+                         ['github', 'chrome-devtools', 'context7-mcp', 'postgresql', 'figma', 'notion'])
+
+    def test_raw_device_redirect_denials_cover_direct_spellings(self):
+        shared = json.loads((ROOT / '.claude/settings.json').read_text())
+        deny = shared['permissions']['deny']
+        for family in ('disk*', 'rdisk*', 'sd*', 'hd*', 'vd*', 'xvd*', 'nvme*',
+                       'mmcblk*', 'loop*', 'dm-*', 'md*', 'ada*', 'da*', 'nvd*', 'mapper/*'):
+            with self.subTest(family=family):
+                self.assertIn(f'Bash(*> /dev/{family})', deny)
+                self.assertIn(f'Bash(*>/dev/{family})', deny)
+        self.assertNotIn('Bash(*> /dev/*)', deny)
+        self.assertNotIn('Bash(*>/dev/*)', deny)
+
+    def test_backend_security_hook_runs_from_root_or_backend(self):
+        backend = json.loads((ROOT / 'backend/.claude/settings.local.json').read_text())
+        entries = backend['hooks']['PreToolUse']
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0]['matcher'], 'Bash')
+        hook = entries[0]['hooks'][0]
+        self.assertEqual(hook['type'], 'command')
+        cases = (
+            ('git status --short', 0),
+            ('git reset --hard HEAD', 2),
+            ('dd if=/dev/zero of=/dev/sda', 2),
+            ('echo ok > /dev/null', 0),
+        )
+        for cwd in (ROOT, ROOT / 'backend'):
+            env = {'PATH': os.environ['PATH'], 'CLAUDE_PROJECT_DIR': str(cwd),
+                   'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'safe.directory',
+                   'GIT_CONFIG_VALUE_0': str(ROOT)}
+            for command, expected in cases:
+                with self.subTest(cwd=str(cwd), command=command):
+                    result = subprocess.run(['sh', '-c', hook['command']], cwd=cwd, env=env,
+                                            input=json.dumps({'tool_name': 'Bash', 'tool_input': {'command': command}}),
+                                            capture_output=True, text=True, timeout=15)
+                    self.assertEqual(result.returncode, expected, result.stderr)
+                    if expected == 2:
+                        self.assertEqual(json.loads(result.stdout)['decision'], 'deny')
+                        self.assertNotIn(command, result.stdout + result.stderr)
+            result = subprocess.run(['sh', '-c', hook['command']], cwd=cwd, env=env,
+                                    input='{invalid', capture_output=True, text=True, timeout=15)
+            self.assertEqual(result.returncode, 2)
+            self.assertNotIn('{invalid', result.stdout + result.stderr)
 
     def test_shell_removed_roles_keep_read_tools(self):
         expected = {
