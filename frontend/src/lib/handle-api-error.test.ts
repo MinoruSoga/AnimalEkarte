@@ -127,7 +127,9 @@ describe("handleApiError 409 localization", () => {
       }),
       "保存",
     );
-    expect(toast.error).toHaveBeenCalledWith("権限グループ名『執行』は既に使用されています");
+    expect(toast.error).toHaveBeenCalledWith("権限グループ名『執行』は既に使用されています", {
+      id: "権限グループ名『執行』は既に使用されています",
+    });
     expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining("already exists"));
   });
 
@@ -140,7 +142,9 @@ describe("handleApiError 409 localization", () => {
       }),
       "保存",
     );
-    expect(toast.error).toHaveBeenCalledWith("動物種類『V04動物種類』は既に使用されています");
+    expect(toast.error).toHaveBeenCalledWith("動物種類『V04動物種類』は既に使用されています", {
+      id: "動物種類『V04動物種類』は既に使用されています",
+    });
   });
 
   it("shows Japanese message for shift template name conflict (BUG-026)", () => {
@@ -152,7 +156,9 @@ describe("handleApiError 409 localization", () => {
       }),
       "シフトテンプレートの作成",
     );
-    expect(toast.error).toHaveBeenCalledWith("シフトテンプレート名『早番』は既に使用されています");
+    expect(toast.error).toHaveBeenCalledWith("シフトテンプレート名『早番』は既に使用されています", {
+      id: "シフトテンプレート名『早番』は既に使用されています",
+    });
     expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining("already exists"));
   });
 
@@ -167,6 +173,7 @@ describe("handleApiError 409 localization", () => {
     );
     expect(toast.error).toHaveBeenCalledWith(
       "自動管理プレフィックス『checkup_』は既に使用されています",
+      { id: "自動管理プレフィックス『checkup_』は既に使用されています" },
     );
   });
 
@@ -180,6 +187,7 @@ describe("handleApiError 409 localization", () => {
     );
     expect(toast.error).toHaveBeenCalledWith(
       "この権限グループはスタッフに割り当てられているため削除できません",
+      { id: "この権限グループはスタッフに割り当てられているため削除できません" },
     );
   });
 
@@ -192,7 +200,9 @@ describe("handleApiError 409 localization", () => {
       }),
       "保存",
     );
-    expect(toast.error).toHaveBeenCalledWith("既に登録されています");
+    expect(toast.error).toHaveBeenCalledWith("既に登録されています", {
+      id: "既に登録されています",
+    });
   });
 
   it("localizes English already-exists messages without a domain code (BUG-022)", () => {
@@ -202,7 +212,9 @@ describe("handleApiError 409 localization", () => {
       }),
       "保存",
     );
-    expect(toast.error).toHaveBeenCalledWith("既に登録されています");
+    expect(toast.error).toHaveBeenCalledWith("既に登録されています", {
+      id: "既に登録されています",
+    });
     expect(localizeAlreadyExistsMessage("occupation '' already exists")).toBe(
       "既に登録されています",
     );
@@ -229,7 +241,9 @@ describe("handleApiError 409 localization", () => {
       }),
       "保存",
     );
-    expect(toast.error).toHaveBeenCalledWith("診察『V04診察』は既に使用されています");
+    expect(toast.error).toHaveBeenCalledWith("診察『V04診察』は既に使用されています", {
+      id: "診察『V04診察』は既に使用されています",
+    });
     expect(toast.error).not.toHaveBeenCalledWith("診察は既に使用されています");
   });
 
@@ -242,13 +256,16 @@ describe("handleApiError 409 localization", () => {
       }),
       "保存",
     );
-    expect(toast.error).toHaveBeenCalledWith("ケージ『ICU-1』は既に使用されています");
+    expect(toast.error).toHaveBeenCalledWith("ケージ『ICU-1』は既に使用されています", {
+      id: "ケージ『ICU-1』は既に使用されています",
+    });
   });
 
   it("falls back to generic 409 message when code and serverMessage missing", () => {
     handleApiError(axiosError(409, {}), "保存");
     expect(toast.error).toHaveBeenCalledWith(
       "他のユーザーによって更新されています。一度リロードしてください。",
+      { id: "他のユーザーによって更新されています。一度リロードしてください。" },
     );
   });
 
@@ -271,6 +288,7 @@ describe("handleApiError 409 localization", () => {
     );
     expect(toast.error).toHaveBeenCalledWith(
       "他のユーザーによって更新されています。一度リロードしてください。",
+      { id: "他のユーザーによって更新されています。一度リロードしてください。" },
     );
     expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining("pet owner"));
   });
@@ -311,6 +329,7 @@ describe("extractApiErrorMessage 400/403/404 Japanese guard (BUG-006)", () => {
     handleApiError(axiosError(400, { error: english }), "カルテ作成");
     expect(toast.error).toHaveBeenCalledWith(
       "カルテ作成に失敗しました。入力内容を確認してください。",
+      { id: "カルテ作成に失敗しました。入力内容を確認してください。" },
     );
     expect(toast.error).not.toHaveBeenCalledWith(english);
   });
@@ -356,7 +375,7 @@ describe("extractApiErrorMessage 422 (EMR-306)", () => {
     expect(message).toBe(ja);
     expect(message).not.toMatch(/ネットワーク/);
     handleApiError(axiosError(422, { error: ja }), "入院登録");
-    expect(toast.error).toHaveBeenCalledWith(ja);
+    expect(toast.error).toHaveBeenCalledWith(ja, { id: ja });
   });
 
   it("422 English serverMessage falls back to Japanese input-check message", () => {
@@ -390,7 +409,9 @@ describe("extractApiErrorMessage 非Axios エラー (FE-RC-075)", () => {
 
   it("非Axios エラーでも toast には汎用文言のみが渡る", () => {
     handleApiError(new Error("zod: invalid_type at path.to.field"), "保存");
-    expect(toast.error).toHaveBeenCalledWith("保存中に予期しないエラーが発生しました。");
+    expect(toast.error).toHaveBeenCalledWith("保存中に予期しないエラーが発生しました。", {
+      id: "保存中に予期しないエラーが発生しました。",
+    });
     expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining("zod"));
   });
 
@@ -413,5 +434,53 @@ describe("extractApiErrorMessage 非Axios エラー (FE-RC-075)", () => {
     expect(extractApiErrorMessage(undefined, "削除")).toBe(
       "削除中に予期しないエラーが発生しました。",
     );
+  });
+});
+
+describe("handleApiError stable toast id (EMR-339)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const MSG_500 = "サーバーエラーが発生しました。しばらく経ってから再度お試しください。";
+
+  it("同じ表示文言の連続した Axios500 は同じ toast id で通知される（重複トースト抑止）", () => {
+    handleApiError(axiosError(500, {}), "保存");
+    handleApiError(axiosError(500, {}), "保存");
+
+    expect(toast.error).toHaveBeenCalledTimes(2);
+    expect(toast.error).toHaveBeenNthCalledWith(1, MSG_500, { id: MSG_500 });
+    expect(toast.error).toHaveBeenNthCalledWith(2, MSG_500, { id: MSG_500 });
+  });
+
+  it("表示文言が同じなら context が違っても同じ toast id になる", () => {
+    handleApiError(axiosError(500, {}), "保存");
+    handleApiError(axiosError(500, {}), "削除");
+
+    const [, firstOptions] = vi.mocked(toast.error).mock.calls[0];
+    const [, secondOptions] = vi.mocked(toast.error).mock.calls[1];
+    expect(firstOptions).toEqual({ id: MSG_500 });
+    expect(secondOptions).toEqual(firstOptions);
+  });
+
+  it("表示文言が異なれば toast id も異なる（Axios403 vs Axios500）", () => {
+    const MSG_403 = "削除の権限がありません。";
+    handleApiError(axiosError(500, {}), "保存");
+    handleApiError(axiosError(403, {}), "削除");
+
+    const [firstMessage, firstOptions] = vi.mocked(toast.error).mock.calls[0];
+    const [secondMessage, secondOptions] = vi.mocked(toast.error).mock.calls[1];
+    expect(firstMessage).toBe(MSG_500);
+    expect(secondMessage).toBe(MSG_403);
+    expect(firstOptions).toEqual({ id: firstMessage });
+    expect(secondOptions).toEqual({ id: secondMessage });
+    expect(secondOptions).not.toEqual(firstOptions);
+  });
+
+  it("非Axios例外の汎用文言にも toast id が付く", () => {
+    const message = "保存中に予期しないエラーが発生しました。";
+    handleApiError(new TypeError("Cannot read properties of undefined"), "保存");
+
+    expect(toast.error).toHaveBeenCalledWith(message, { id: message });
   });
 });
