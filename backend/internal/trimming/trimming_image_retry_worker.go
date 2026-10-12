@@ -12,10 +12,14 @@ import (
 
 const (
 	imageDeletionWorkerInterval   = 5 * time.Minute
-	imageDeletionRunTimeout       = 120 * time.Second
-	imageDeletionKeyTimeout       = 10 * time.Second
+	imageDeletionTxGrace          = 5 * time.Second
 	imageDeletionMaxClinicsPerRun = 100
 	imageDeletionMaxKeysPerRun    = 100
+)
+
+var (
+	imageDeletionRunTimeout      = 120 * time.Second
+	imageDeletionProviderTimeout = 10 * time.Second
 )
 
 type ImageDeletionObjectStore interface {
@@ -139,9 +143,7 @@ func (w *ImageDeletionWorker) RunOnce(ctx context.Context) (ImageDeletionRunResu
 				break
 			}
 			selected++
-			keyCtx, keyCancel := context.WithTimeout(runCtx, imageDeletionKeyTimeout)
-			attempted, err := w.store.RetryImageDeletion(keyCtx, clinicID, key, w.objects)
-			keyCancel()
+			attempted, err := w.store.RetryImageDeletion(runCtx, clinicID, key, w.objects)
 			switch {
 			case err != nil:
 				result.Processed++

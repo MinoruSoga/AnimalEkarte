@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 type imageDeletionRetryStore struct {
@@ -75,9 +76,15 @@ func (s *imageDeletionRetryStore) RetryImageDeletion(
 		return false, err
 	}
 	lockName := fmt.Sprintf("trimming-image:%d:%s", clinicID, key.value)
+	providerCtx, providerCancel := context.WithTimeout(ctx, imageDeletionProviderTimeout)
+	defer providerCancel()
+	txCtx, txCancel := context.WithTimeout(
+		persistence.WithTxValue(context.WithoutCancel(ctx), nil),
+		imageDeletionProviderTimeout+imageDeletionTxGrace)
+	defer txCancel()
 	var attempted bool
 	var deleteErr error
-	txErr := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	txErr := s.db.WithContext(txCtx).Transaction(func(tx *gorm.DB) error {
 		var acquired bool
 		if err := tx.Raw(
 			"SELECT pg_try_advisory_xact_lock(hashtextextended(?, 0))", lockName,
@@ -99,8 +106,11 @@ func (s *imageDeletionRetryStore) RetryImageDeletion(
 		if !pending {
 			return nil
 		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		attempted = true
-		if err := objects.Delete(ctx, key.value); err != nil {
+		if err := objects.Delete(providerCtx, key.value); err != nil {
 			deleteErr = err
 			return tx.Exec(`
 				UPDATE trimming_image_deletions SET last_attempt_at = NOW()
@@ -122,6 +132,10 @@ func (s *imageDeletionRetryStore) RetryImageDeletion(
 		}
 		return nil
 	})
+	if txErr != nil && deleteErr != nil {
+		return true, errors.Join(deleteErr,
+			apperrors.Wrap(txErr, "failed to persist trimming image deletion attempt"))
+	}
 	if txErr != nil {
 		return false, apperrors.Wrap(txErr, "failed to retry trimming image deletion")
 	}
