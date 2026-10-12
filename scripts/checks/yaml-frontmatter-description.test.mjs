@@ -9,7 +9,6 @@ import test from "node:test";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const EXTRACT = join(ROOT, "scripts/checks/yaml-frontmatter-description.mjs");
-const SYNC = join(ROOT, ".claude/scripts/sync-agents-skills.sh");
 
 function extract(file) {
   const result = spawnSync(process.execPath, [EXTRACT, file], { encoding: "utf8" });
@@ -48,11 +47,18 @@ test("sync-agents-skills.sh emits parseable frontmatter for quoted command descr
     join(workspace, "scripts/checks/yaml-frontmatter-description.mjs"),
     readFileSync(EXTRACT),
   );
-  writeFileSync(
-    join(workspace, ".claude/scripts/sync-agents-skills.sh"),
-    readFileSync(SYNC),
-    { mode: 0o755 },
-  );
+  for (const name of [
+    "sync-agents-skills.sh",
+    "test_sync_agents_skills.py",
+    "sync-agents-skills.py",
+    "mirror_safety.py",
+  ]) {
+    writeFileSync(
+      join(workspace, ".claude/scripts", name),
+      readFileSync(join(ROOT, ".claude/scripts", name)),
+      { mode: 0o755 },
+    );
+  }
 
   const result = spawnSync("bash", [join(workspace, ".claude/scripts/sync-agents-skills.sh")], {
     encoding: "utf8",

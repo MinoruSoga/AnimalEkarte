@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -151,4 +152,178 @@ func TestNextVisitCleanup_SettingsChangedWhileWaitingRetainsIntent(t *testing.T)
 			assert.Equal(t, []uint64{9}, fx.spy.ackRevisions)
 		})
 	}
+}
+
+func TestOwnerDeletionHTTP_SyncDisabledWhileWaitingSkipsProviderAndCache(t *testing.T) {
+	var providerCalls atomic.Int32
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		providerCalls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, err := w.Write([]byte(`{"tags":[]}`))
+		assert.NoError(t, err)
+	}))
+	defer provider.Close()
+	waiting, release := make(chan struct{}), make(chan struct{})
+	enabled := true
+	uid := "Uold"
+	owners := &mockOwnerRepository{findByIDFn: func(_ context.Context, clinicID, ownerID uint64) (*model.Owner, error) {
+		assert.Equal(t, uint64(1), clinicID)
+		assert.Equal(t, uint64(2), ownerID)
+		return &model.Owner{ID: ownerID, ClinicID: clinicID, LineUserID: &uid}, nil
+	}}
+	cache := &mockLstepTagCacheRepository{withNextVisitOwnerLockFn: func(ctx context.Context, _, _ uint64, fn func(context.Context) error) error {
+		close(waiting)
+		<-release
+		enabled = false
+		return fn(ctx)
+	}, findByOwnerFn: func(context.Context, uint64, uint64) ([]*model.LstepTagCache, error) {
+		t.Error("sync disabled inside the lock must not read the cache")
+		return nil, nil
+	}, deleteTagFn: func(context.Context, uint64, uint64, string) error {
+		t.Error("sync disabled inside the lock must not delete cache")
+		return nil
+	}}
+	lifecycle := &lstepLifecycleService{ownerRepo: owners, tagCacheRepo: cache, auditSvc: &mockAuditService{}, settingsSvc: &mockLstepSettingsService{
+		isSyncEnabledFn: func(context.Context, uint64) (bool, error) { return enabled, nil },
+		getRawCredentialsFn: func(context.Context, uint64) (string, string, string, error) {
+			return "mock-only", provider.URL, "", nil
+		},
+	}}
+	svc := &cleanupDeleteService{}
+	handler := ownerdomain.NewHandler(svc, lifecycle, nil, nil)
+	response := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(response)
+	c.Set("clinic_id", "1")
+	c.Params = gin.Params{{Key: "id", Value: "2"}}
+	c.Request = httptest.NewRequest(http.MethodDelete, "/v1/owners/2", nil)
+	started := make(chan struct{})
+	done := make(chan struct{})
+	var releaseOnce sync.Once
+	t.Cleanup(func() {
+		select {
+		case <-started:
+			releaseOnce.Do(func() { close(release) })
+			select {
+			case <-done:
+			case <-time.After(5 * time.Second):
+				t.Error("delete goroutine did not exit")
+			}
+		default:
+		}
+	})
+	go func() {
+		close(started)
+		handler.DeleteOwner(c)
+		c.Writer.WriteHeaderNow()
+		close(done)
+	}()
+	select {
+	case <-waiting:
+	case <-time.After(time.Second):
+		t.Fatal("cleanup did not wait for lock")
+	}
+	releaseOnce.Do(func() { close(release) })
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("delete did not finish")
+	}
+	assert.Equal(t, http.StatusNoContent, response.Code)
+	assert.True(t, svc.deleted)
+	assert.Zero(t, providerCalls.Load(), "disabled sync must not touch the provider")
+}
+
+func TestOwnerDeletionCleanup_SettingsRecheckInsideLockGatesProviderAndCache(t *testing.T) {
+	settingsErr := errors.New("settings store unavailable")
+	for _, tt := range []struct {
+		name    string
+		enabled bool
+		err     error
+		wantErr error
+	}{
+		{name: "disabled inside lock"},
+		{name: "settings error inside lock", err: settingsErr, wantErr: settingsErr},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var getCalls, removeCalls, deleteCalls atomic.Int32
+			client := &mockLstepAPIClient{
+				getUserTagsFn: func(context.Context, string) ([]string, error) {
+					getCalls.Add(1)
+					return nil, nil
+				},
+				removeTagFn: func(context.Context, string, string) error {
+					removeCalls.Add(1)
+					return nil
+				},
+			}
+			uid := "Uold"
+			lifecycle := &lstepLifecycleService{
+				ownerRepo: &mockOwnerRepository{findByIDFn: func(_ context.Context, _, ownerID uint64) (*model.Owner, error) {
+					return &model.Owner{ID: ownerID, ClinicID: 1, LineUserID: &uid}, nil
+				}},
+				tagCacheRepo: &mockLstepTagCacheRepository{
+					findByOwnerFn: func(context.Context, uint64, uint64) ([]*model.LstepTagCache, error) {
+						t.Error("settings gate must not read the cache")
+						return nil, nil
+					},
+					deleteTagFn: func(context.Context, uint64, uint64, string) error {
+						deleteCalls.Add(1)
+						return nil
+					},
+				},
+				auditSvc: &mockAuditService{},
+				settingsSvc: &mockLstepSettingsService{
+					isSyncEnabledFn: func(context.Context, uint64) (bool, error) { return tt.enabled, tt.err },
+				},
+			}
+
+			err := lifecycle.clearTagsWithOwnerLock(context.Background(), client, 1, 2, "Uold")
+
+			require.ErrorIs(t, err, tt.wantErr)
+			assert.Zero(t, getCalls.Load(), "GetUserTags")
+			assert.Zero(t, removeCalls.Load(), "RemoveTag")
+			assert.Zero(t, deleteCalls.Load(), "DeleteTag")
+		})
+	}
+}
+
+func TestOwnerDeletionCleanup_SyncEnabledStillCleans(t *testing.T) {
+	var providerCalls atomic.Int32
+	client := &mockLstepAPIClient{
+		getUserTagsFn: func(context.Context, string) ([]string, error) {
+			providerCalls.Add(1)
+			return []string{"next_visit_2026-11-01"}, nil
+		},
+		removeTagFn: func(context.Context, string, string) error {
+			providerCalls.Add(1)
+			return nil
+		},
+	}
+	uid := "Uold"
+	var deleted []string
+	lifecycle := &lstepLifecycleService{
+		ownerRepo: &mockOwnerRepository{findByIDFn: func(_ context.Context, _, ownerID uint64) (*model.Owner, error) {
+			return &model.Owner{ID: ownerID, ClinicID: 1, LineUserID: &uid}, nil
+		}},
+		tagCacheRepo: &mockLstepTagCacheRepository{
+			withNextVisitOwnerLockFn: func(ctx context.Context, _, _ uint64, fn func(context.Context) error) error {
+				return fn(ctx)
+			},
+			findByOwnerFn: func(context.Context, uint64, uint64) ([]*model.LstepTagCache, error) {
+				return []*model.LstepTagCache{{TagName: "next_visit_2026-11-01"}}, nil
+			},
+			deleteTagFn: func(_ context.Context, _, _ uint64, tag string) error {
+				deleted = append(deleted, tag)
+				return nil
+			},
+		},
+		auditSvc: &mockAuditService{},
+		settingsSvc: &mockLstepSettingsService{
+			isSyncEnabledFn: func(context.Context, uint64) (bool, error) { return true, nil },
+		},
+	}
+
+	require.NoError(t, lifecycle.clearTagsWithOwnerLock(context.Background(), client, 1, 2, "Uold"))
+	assert.Equal(t, int32(2), providerCalls.Load(), "tag discovery + removal must reach the provider")
+	assert.Equal(t, []string{"next_visit_2026-11-01"}, deleted)
 }

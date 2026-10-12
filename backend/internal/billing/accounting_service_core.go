@@ -9,6 +9,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
@@ -582,6 +583,8 @@ func (s *accountingService) syncNextVisitTag(ctx context.Context, clinicID uint6
 	if s.tagSyncSvc == nil || billing == nil {
 		return
 	}
+	ctx, cancel := context.WithTimeout(persistence.DetachTx(ctx), 30*time.Second)
+	defer cancel()
 	owners := append([]uint64(nil), completedOwners...)
 	if billing.OwnerID != nil {
 		owners = append(owners, *billing.OwnerID)

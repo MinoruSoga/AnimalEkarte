@@ -96,7 +96,12 @@ export const useHospitalizationList = (canEdit = false) => {
             targetHosp.cageId,
           ]);
         } else {
-          await updateHospitalization(sourceHosp.id, { cage_id: targetCageId });
+          await updateHospitalization(sourceHosp.id, {
+            cage_id: targetCageId,
+            ...(sourceHosp.cageId
+              ? { expected_cage_id: sourceHosp.cageId }
+              : { expected_cage_is_null: true }),
+          });
         }
         queryClient.invalidateQueries({ queryKey: queryKeys.hospitalizations.all() });
       } catch (error) {

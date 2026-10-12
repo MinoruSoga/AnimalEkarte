@@ -162,8 +162,33 @@ describe("useHospitalizationList — cage move mutation boundary", () => {
       await result.current.movePet("hospitalization-1", "cage-2");
     });
 
-    expect(updateHospitalization).toHaveBeenCalledWith("hospitalization-1", { cage_id: "cage-2" });
+    expect(updateHospitalization).toHaveBeenCalledWith("hospitalization-1", {
+      cage_id: "cage-2",
+      expected_cage_id: "cage-1",
+    });
     expect(swapHospitalizationCages).not.toHaveBeenCalled();
+  });
+
+  it("交換元の表示時ケージが未割当なら expected_cage_is_null: true を送る", async () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(queryKeys.hospitalizations.list({ statusFilter: "active" }), {
+      data: [makeHospitalization({ cageId: undefined })],
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+    const { result } = renderHook(() => useHospitalizationList(true), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await result.current.movePet("hospitalization-1", "cage-2");
+    });
+
+    expect(updateHospitalization).toHaveBeenCalledWith("hospitalization-1", {
+      cage_id: "cage-2",
+      expected_cage_is_null: true,
+    });
   });
 
   it("交換元の表示時ケージが未割当ならスワップを送信しない", async () => {

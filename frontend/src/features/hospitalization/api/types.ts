@@ -43,6 +43,7 @@ export interface UpdateHospitalizationRequest {
   /** true で cage_id を NULL（ケージ未割当）に戻す。cage_id との同時指定は BE が 400 で拒否する（EMR-316）。 */
   clear_cage_id?: boolean;
   expected_cage_id?: string;
+  expected_cage_is_null?: boolean;
   end_date?: string;
   status?: string;
   owner_request?: string;

@@ -47,6 +47,16 @@ func (s *lstepLifecycleService) clearTagsWithOwnerLock(ctx context.Context, clie
 		if owner.LineUserID == nil || *owner.LineUserID == "" || *owner.LineUserID != lineUserID {
 			return nil
 		}
+		if s.settingsSvc == nil {
+			return apperrors.WrapInternalServerError("lstep settings service is not configured")
+		}
+		enabled, err := s.settingsSvc.IsSyncEnabled(ctx, clinicID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to recheck lstep sync enabled inside owner lock")
+		}
+		if !enabled {
+			return nil
+		}
 		tags, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to find tag cache")

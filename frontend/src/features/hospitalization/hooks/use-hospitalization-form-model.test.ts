@@ -154,6 +154,7 @@ describe("hospitalization form model", () => {
       staff_notes: "合成監査引継ぎ",
       memo: "合成監査メモ",
       cage_id: "990019",
+      expected_cage_is_null: true,
       is_insurance: true,
       insurance_company_name: "合成監査保険",
       insurance_number: "SYN-INS-1",
@@ -202,10 +203,24 @@ describe("hospitalization form model", () => {
     expect(cleared.clear_cage_id).toBe(true);
     expect(cleared.expected_cage_id).toBe("990019");
     expect(cleared.cage_id).toBeUndefined();
+    expect(cleared).not.toHaveProperty("expected_cage_is_null");
 
     const selected = buildUpdateHospitalizationRequest(formData, "");
     expect(selected.cage_id).toBe("990019");
     expect(selected.clear_cage_id).toBeUndefined();
+    expect(selected.expected_cage_is_null).toBe(true);
+  });
+
+  it("編集payload: ケージ変更は表示時点の expected_cage_id を同送し、初期未割当なら expected_cage_is_null を送る", () => {
+    const moved = buildUpdateHospitalizationRequest({ ...formData, cageId: "990020" }, "990019");
+    expect(moved.cage_id).toBe("990020");
+    expect(moved.expected_cage_id).toBe("990019");
+    expect(moved).not.toHaveProperty("expected_cage_is_null");
+
+    const nullToCleared = buildUpdateHospitalizationRequest({ ...formData, cageId: "" }, "");
+    expect(nullToCleared).not.toHaveProperty("clear_cage_id");
+    expect(nullToCleared).not.toHaveProperty("expected_cage_id");
+    expect(nullToCleared).not.toHaveProperty("expected_cage_is_null");
   });
 
   it.each(["", "990019"])("未変更のケージ %s は更新payloadから除外する", (cageId) => {
@@ -213,6 +228,7 @@ describe("hospitalization form model", () => {
     expect(request).not.toHaveProperty("cage_id");
     expect(request).not.toHaveProperty("clear_cage_id");
     expect(request).not.toHaveProperty("expected_cage_id");
+    expect(request).not.toHaveProperty("expected_cage_is_null");
   });
 
   it("新規payload: ケージ未選択は cage_id も clear_cage_id も送らない（ケージ未割当で登録）", () => {

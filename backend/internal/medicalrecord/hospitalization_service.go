@@ -44,6 +44,7 @@ type UpdateHospitalizationInput struct {
 	CageID               *uint64
 	ClearCageID          bool
 	ExpectedCageID       *uint64
+	ExpectedCageIsNull   bool
 	DoctorID             *uint64
 	Memo                 *string
 	OwnerRequest         *string
@@ -427,11 +428,8 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
 	// EMR-316: NULL 化と値設定の同時指定は意図が曖昧なので拒否する（clear が黙って勝たない）。
-	if input.ClearCageID && input.CageID != nil {
-		return nil, apperrors.WrapInvalidInput(errMsgCageIDClearConflict)
-	}
-	if input.ClearCageID && (input.ExpectedCageID == nil || *input.ExpectedCageID == 0) {
-		return nil, apperrors.WrapInvalidInput(errMsgCageClearMissingExpected)
+	if err := validateCageUpdateGuards(input.CageID, input.ClearCageID, input.ExpectedCageID, input.ExpectedCageIsNull); err != nil {
+		return nil, err
 	}
 	fields := buildHospitalizationUpdate(input)
 	if len(fields) == 0 {
@@ -449,8 +447,16 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 		if existing == nil {
 			return apperrors.WrapNotFound("hospitalization", strconv.FormatUint(id, 10))
 		}
-		if input.ClearCageID && (existing.CageID == nil || *existing.CageID != *input.ExpectedCageID) {
-			return apperrors.WrapConflict(errMsgCageClearStale)
+		if input.CageID != nil || input.ClearCageID {
+			var cageStale bool
+			if input.ExpectedCageIsNull {
+				cageStale = existing.CageID != nil
+			} else {
+				cageStale = existing.CageID == nil || *existing.CageID != *input.ExpectedCageID
+			}
+			if cageStale {
+				return apperrors.WrapConflict(errMsgCageClearStale)
+			}
 		}
 		// MRB-06: merge patch dates with locked row and reject inverted ranges.
 		finalStart, finalEnd := existing.StartDate, existing.EndDate
@@ -558,12 +564,37 @@ const (
 
 // EMR-316: cage_id（NULL 許容 FK）の列名とエラー文言。request / service で共有する。
 const (
-	colHospitalizationCageID       = "cage_id"
-	errMsgCageIDInvalid            = "cage_id must be a positive id"
-	errMsgCageIDClearConflict      = "clear_cage_id and cage_id cannot be set together"
-	errMsgCageClearMissingExpected = "expected_cage_id is required when clear_cage_id is true"
-	errMsgCageClearStale           = "the cage assignment has changed"
+	colHospitalizationCageID        = "cage_id"
+	errMsgCageIDInvalid             = "cage_id must be a positive id"
+	errMsgCageIDClearConflict       = "clear_cage_id and cage_id cannot be set together"
+	errMsgCageMissingExpected       = "expected_cage_id or expected_cage_is_null is required for cage changes"
+	errMsgCageExpectedConflict      = "expected_cage_id and expected_cage_is_null cannot be set together"
+	errMsgCageExpectedWithoutChange = "expected_cage_id and expected_cage_is_null require cage_id or clear_cage_id"
+	errMsgCageClearStale            = "the cage assignment has changed"
 )
+
+func validateCageUpdateGuards(cageID *uint64, clearCage bool, expectedCageID *uint64, expectedNull bool) error {
+	if clearCage && cageID != nil {
+		return apperrors.WrapInvalidInput(errMsgCageIDClearConflict)
+	}
+	if cageID != nil && *cageID == 0 {
+		return apperrors.WrapInvalidInput(errMsgCageIDInvalid)
+	}
+	if expectedCageID != nil && *expectedCageID == 0 {
+		return apperrors.WrapInvalidInput(errMsgCageIDInvalid)
+	}
+	if expectedCageID != nil && expectedNull {
+		return apperrors.WrapInvalidInput(errMsgCageExpectedConflict)
+	}
+	hasCageOp := cageID != nil || clearCage
+	if hasCageOp && expectedCageID == nil && !expectedNull {
+		return apperrors.WrapInvalidInput(errMsgCageMissingExpected)
+	}
+	if !hasCageOp && (expectedCageID != nil || expectedNull) {
+		return apperrors.WrapInvalidInput(errMsgCageExpectedWithoutChange)
+	}
+	return nil
+}
 
 func hospitalizationAuditValue(h *model.Hospitalization) map[string]any {
 	if h == nil {

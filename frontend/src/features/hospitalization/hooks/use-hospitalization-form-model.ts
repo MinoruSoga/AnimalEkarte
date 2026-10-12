@@ -75,9 +75,12 @@ export function buildUpdateHospitalizationRequest(
     // 未操作の欄は PATCH から除外し、他のスタッフによる割当を上書きしない。
     ...(formData.cageId === initialCageId
       ? {}
-      : formData.cageId
-        ? { cage_id: formData.cageId }
-        : { clear_cage_id: true, expected_cage_id: initialCageId }),
+      : {
+          ...(formData.cageId ? { cage_id: formData.cageId } : { clear_cage_id: true }),
+          ...(initialCageId
+            ? { expected_cage_id: initialCageId }
+            : { expected_cage_is_null: true }),
+        }),
     is_insurance: formData.isInsurance,
     insurance_company_name: toInsuranceCompanyName(formData),
     insurance_number: toInsuranceNumber(formData),

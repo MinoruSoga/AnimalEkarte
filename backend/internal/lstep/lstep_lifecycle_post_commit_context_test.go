@@ -144,7 +144,7 @@ func TestPetLifecycle_PostCommitContext(t *testing.T) {
 			}}
 			settings := &mockLstepSettingsService{isSyncEnabledFn: func(postCtx context.Context, _ uint64) (bool, error) {
 				check(postCtx)
-				return false, nil // Exercise cleanup reads without constructing an HTTP client.
+				return true, nil // Exercise cleanup reads without constructing an HTTP client.
 			}}
 			cache := &mockLstepTagCacheRepository{findByOwnerFn: func(postCtx context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
 				check(postCtx)

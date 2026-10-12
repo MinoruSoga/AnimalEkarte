@@ -188,6 +188,7 @@ type updateHospitalizationRequest struct {
 	CageID               *uint64    `json:"cage_id"`
 	ClearCageID          bool       `json:"clear_cage_id"`
 	ExpectedCageID       *uint64    `json:"expected_cage_id"`
+	ExpectedCageIsNull   bool       `json:"expected_cage_is_null"`
 	DoctorID             *uint64    `json:"doctor_id"`
 	Memo                 *string    `json:"memo"`
 	OwnerRequest         *string    `json:"owner_request"`
@@ -198,11 +199,8 @@ type updateHospitalizationRequest struct {
 }
 
 func (r *updateHospitalizationRequest) toServiceInput() (UpdateHospitalizationInput, error) {
-	if r.ClearCageID && r.CageID != nil {
-		return UpdateHospitalizationInput{}, apperrors.WrapInvalidInput(errMsgCageIDClearConflict)
-	}
-	if r.ClearCageID && (r.ExpectedCageID == nil || *r.ExpectedCageID == 0) {
-		return UpdateHospitalizationInput{}, apperrors.WrapInvalidInput(errMsgCageClearMissingExpected)
+	if err := validateCageUpdateGuards(r.CageID, r.ClearCageID, r.ExpectedCageID, r.ExpectedCageIsNull); err != nil {
+		return UpdateHospitalizationInput{}, err
 	}
 	input := UpdateHospitalizationInput{
 		OwnerID:              r.OwnerID,
@@ -212,6 +210,7 @@ func (r *updateHospitalizationRequest) toServiceInput() (UpdateHospitalizationIn
 		CageID:               r.CageID,
 		ClearCageID:          r.ClearCageID,
 		ExpectedCageID:       r.ExpectedCageID,
+		ExpectedCageIsNull:   r.ExpectedCageIsNull,
 		DoctorID:             r.DoctorID,
 		Memo:                 r.Memo,
 		OwnerRequest:         r.OwnerRequest,

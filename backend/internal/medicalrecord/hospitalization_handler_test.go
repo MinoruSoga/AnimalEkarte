@@ -608,6 +608,54 @@ func TestUpdateHospitalization(t *testing.T) {
 			wantStatus: http.StatusConflict,
 		},
 		{
+			name:     "forwards cage_id with expected_cage_is_null to the service",
+			paramID:  "1",
+			body:     map[string]any{"cage_id": 12, "expected_cage_is_null": true},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockHospitalizationService{
+				updateFn: func(_ context.Context, _, _ uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error) {
+					require.NotNil(t, input.CageID)
+					assert.Equal(t, uint64(12), *input.CageID)
+					assert.True(t, input.ExpectedCageIsNull)
+					assert.Nil(t, input.ExpectedCageID)
+					return &model.Hospitalization{ID: 1}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 400 when cage_id has no expected guard",
+			paramID:    "1",
+			body:       map[string]any{"cage_id": 12},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when expected_cage_id has no cage operation",
+			paramID:    "1",
+			body:       map[string]any{"expected_cage_id": 10},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when expected_cage_is_null has no cage operation",
+			paramID:    "1",
+			body:       map[string]any{"expected_cage_is_null": true},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when both expected guards are set",
+			paramID:    "1",
+			body:       map[string]any{"cage_id": 12, "expected_cage_id": 10, "expected_cage_is_null": true},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
 			name:       "returns 401 when clinic_id is missing",
 			paramID:    "1",
 			body:       map[string]any{"memo": "テスト"},

@@ -2069,13 +2069,17 @@ components:
         clear_cage_id:
           type: boolean
           writeOnly: true
-          description: PATCHでtrueを送るとcage_idをNULL（未割当）に戻す。cage_idとの同時指定は400。expected_cage_id必須。
+          description: PATCHでtrueを送るとcage_idをNULL（未割当）に戻す。cage_idとの同時指定は400。cage_idまたはclear_cage_idを送る場合はexpected_cage_id（正数）またはexpected_cage_is_null=trueのどちらか一方が必須。
         expected_cage_id:
           type: integer
           format: int64
           nullable: true
           writeOnly: true
-          description: clear_cage_id=true時に必須。表示時点のcage_id。ロック行と不一致なら409。
+          description: 表示時点のcage_id。cage_id/clear_cage_id指定時にexpected_cage_is_nullと排他で必須（正数のみ）。ロック行と不一致なら409。ケージ操作を伴わない指定は400。
+        expected_cage_is_null:
+          type: boolean
+          writeOnly: true
+          description: 表示時点でcage_idが未割当だったことを示す期待値。cage_id/clear_cage_id指定時にexpected_cage_idと排他でtrueのみ必須。ロック行が未割当でないなら409。ケージ操作を伴わない指定は400。
         doctor_id:
           type: integer
           format: int64

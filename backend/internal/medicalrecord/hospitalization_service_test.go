@@ -1056,6 +1056,86 @@ func TestHospitalizationService_Update_ClearCageStaleExpectationConflicts(t *tes
 	}
 }
 
+func TestHospitalizationService_Update_CageCompareAndSet(t *testing.T) {
+	cage10, cage11, cage12 := uint64(10), uint64(11), uint64(12)
+	memo := "memo"
+	tests := []struct {
+		name             string
+		lockedCage       *uint64
+		input            *UpdateHospitalizationInput
+		wantUpdated      bool
+		wantConflict     bool
+		wantInvalidInput bool
+	}{
+		{name: "null to cage12 succeeds with expected_null", lockedCage: nil,
+			input: &UpdateHospitalizationInput{CageID: &cage12, ExpectedCageIsNull: true}, wantUpdated: true},
+		{name: "cage10 to cage12 succeeds with matching expected", lockedCage: &cage10,
+			input: &UpdateHospitalizationInput{CageID: &cage12, ExpectedCageID: &cage10}, wantUpdated: true},
+		{name: "stale expected cage10 vs locked cage11 rejects cage12", lockedCage: &cage11,
+			input: &UpdateHospitalizationInput{CageID: &cage12, ExpectedCageID: &cage10}, wantConflict: true},
+		{name: "expected_null against locked cage10 rejects cage12", lockedCage: &cage10,
+			input: &UpdateHospitalizationInput{CageID: &cage12, ExpectedCageIsNull: true}, wantConflict: true},
+		{name: "idempotent null clear succeeds", lockedCage: nil,
+			input: &UpdateHospitalizationInput{ClearCageID: true, ExpectedCageIsNull: true}, wantUpdated: true},
+		{name: "stale clear expected cage10 vs locked nil rejects", lockedCage: nil,
+			input: &UpdateHospitalizationInput{ClearCageID: true, ExpectedCageID: &cage10}, wantConflict: true},
+		{name: "cage change without expected is invalid", lockedCage: nil,
+			input: &UpdateHospitalizationInput{CageID: &cage12}, wantInvalidInput: true},
+		{name: "expected without cage operation is invalid", lockedCage: &cage10,
+			input: &UpdateHospitalizationInput{ExpectedCageID: &cage10}, wantInvalidInput: true},
+		{name: "expected_null without cage operation is invalid", lockedCage: nil,
+			input: &UpdateHospitalizationInput{ExpectedCageIsNull: true}, wantInvalidInput: true},
+		{name: "both expected guards on cage change is invalid", lockedCage: nil,
+			input: &UpdateHospitalizationInput{CageID: &cage12, ExpectedCageID: &cage10, ExpectedCageIsNull: true}, wantInvalidInput: true},
+		{name: "memo only needs no expected", lockedCage: &cage10,
+			input: &UpdateHospitalizationInput{Memo: &memo}, wantUpdated: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			now := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
+			existing := &model.Hospitalization{
+				ID: 1, ClinicID: 1, Status: model.HospitalizationStatusAdmitted,
+				CageID: tt.lockedCage, StartDate: now, EndDate: now.AddDate(0, 0, 1),
+			}
+			updated := false
+			hospRepo := &mockHospitalizationRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) { return existing, nil },
+				updateFieldsFn: func(_ context.Context, _, _ uint64, cmd UpdateHospitalizationInput) (*model.Hospitalization, error) {
+					updated = true
+					result := *existing
+					result.CageID = cmd.CageID
+					return &result, nil
+				},
+			}
+			cageRepo := &mockCageRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Cage, error) {
+					return &model.Cage{ID: id}, nil
+				},
+			}
+			svc := NewHospitalizationService(hospRepo, nil, nil, cageRepo, nil, nil, nil, &mockTransactor{})
+
+			got, err := svc.Update(context.Background(), 1, 1, tt.input)
+
+			switch {
+			case tt.wantInvalidInput:
+				require.Error(t, err)
+				assert.Nil(t, got)
+				assert.True(t, apperrors.IsInvalidInput(err), "want invalid input: %v", err)
+				assert.False(t, updated, "invalid input must not write")
+			case tt.wantConflict:
+				require.Error(t, err)
+				assert.Nil(t, got)
+				assert.True(t, apperrors.IsConflict(err), "want conflict: %v", err)
+				assert.False(t, updated, "conflict must not write")
+			default:
+				require.NoError(t, err)
+				require.NotNil(t, got)
+				assert.True(t, updated)
+			}
+		})
+	}
+}
+
 func TestHospitalizationService_Update_ClearCageOnReactivation(t *testing.T) {
 	tests := []struct {
 		name      string

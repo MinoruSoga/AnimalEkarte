@@ -271,7 +271,7 @@ func TestNextVisitReconcile_AllTagsCleanupSharesOwnerLock(t *testing.T) {
 		<-releaseFirst
 		return &model.Reservation{Status: model.ReservationStatusTentative, IntendedDate: &date}, nil
 	}})
-	lifecycle := &lstepLifecycleService{tagCacheRepo: cache, ownerRepo: &mockOwnerRepository{findByIDFn: func(context.Context, uint64, uint64) (*model.Owner, error) {
+	lifecycle := &lstepLifecycleService{tagCacheRepo: cache, settingsSvc: &mockLstepSettingsService{}, ownerRepo: &mockOwnerRepository{findByIDFn: func(context.Context, uint64, uint64) (*model.Owner, error) {
 		uid := "mock-only"
 		return &model.Owner{LineUserID: &uid}, nil
 	}}}
@@ -334,7 +334,7 @@ func TestNextVisitReconcile_CleanupRepairsRemoteWithoutCache(t *testing.T) {
 				}
 				return out, nil
 			}, removeTagFn: func(_ context.Context, _, tag string) error { removals++; delete(remote, tag); return nil }}
-			svc := &lstepLifecycleService{tagCacheRepo: cache, ownerRepo: &mockOwnerRepository{findByIDFn: func(context.Context, uint64, uint64) (*model.Owner, error) {
+			svc := &lstepLifecycleService{tagCacheRepo: cache, settingsSvc: &mockLstepSettingsService{}, ownerRepo: &mockOwnerRepository{findByIDFn: func(context.Context, uint64, uint64) (*model.Owner, error) {
 				uid := "mock-only"
 				return &model.Owner{LineUserID: &uid}, nil
 			}}}
@@ -412,7 +412,7 @@ func TestNextVisitReconcile_CleanupGetFailureKeepsKnownCacheBestEffort(t *testin
 		delete(remote, tag)
 		return nil
 	}}
-	svc := &lstepLifecycleService{tagCacheRepo: cache, ownerRepo: &mockOwnerRepository{findByIDFn: func(context.Context, uint64, uint64) (*model.Owner, error) {
+	svc := &lstepLifecycleService{tagCacheRepo: cache, settingsSvc: &mockLstepSettingsService{}, ownerRepo: &mockOwnerRepository{findByIDFn: func(context.Context, uint64, uint64) (*model.Owner, error) {
 		uid := "mock-only"
 		return &model.Owner{LineUserID: &uid}, nil
 	}}}
