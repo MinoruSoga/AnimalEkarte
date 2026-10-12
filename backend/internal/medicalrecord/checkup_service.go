@@ -236,6 +236,13 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 	if s.lstepDeliveryTrigger != nil && created.MedicalRecord != nil && created.MedicalRecord.OwnerID != nil {
 		clinicID := input.ClinicID
 		ownerID := *created.MedicalRecord.OwnerID
+		// EMR-330 R1: 健診イベントの typed ペット ID を渡す。
+		// created.PetID が nil の場合 0 を渡し、受信側のイベントペット再読が
+		// fail-closed（不適格として送信しない）になる。
+		eventPetID := uint64(0)
+		if created.PetID != nil {
+			eventPetID = *created.PetID
+		}
 		svc := s.lstepDeliveryTrigger
 		// persistence.DetachTx: HTTP request の cancel から切離しつつ tracing context を保持。
 		// M-4: fire-and-forget goroutine のため、context.WithTimeout で明示的に制限を設定。
@@ -246,7 +253,7 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 			defer s.wg.Done()
 			trigCtx, cancel := context.WithTimeout(bgCtx, 35*time.Second)
 			defer cancel()
-			if err := svc.TriggerCheckupFollowUp(trigCtx, clinicID, ownerID); err != nil {
+			if err := svc.TriggerCheckupFollowUp(trigCtx, clinicID, ownerID, eventPetID); err != nil {
 				slog.WarnContext(trigCtx, "checkup followup trigger failed (non-fatal)", "error", err, "owner_id", ownerID)
 			}
 		})

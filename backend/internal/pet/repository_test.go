@@ -755,3 +755,101 @@ func TestUpdateAndFind_RejectsMissingOwnerOrInsuranceInWriteTx(t *testing.T) {
 		assert.Nil(t, updated.InsuranceID)
 	})
 }
+
+// TestPetRepository_OwnerHasAlivePetBirthday は誕生日配信の最終再読が
+// FindOwnersByPetBirthday と同じ生存・現飼主・医院境界を owner 単位で
+// 評価することを検証する（EMR-330）。
+func TestPetRepository_OwnerHasAlivePetBirthday(t *testing.T) {
+	db := setupPetRepositoryTestDB(t)
+	repo := NewRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	speciesID := makeSyncSpeciesID(t, db)
+	matchBirthday := time.Date(1990, time.March, 15, 0, 0, 0, 0, time.UTC)
+	deceasedAt := time.Now().Add(-24 * time.Hour)
+
+	ownerAlive := makeTestOwner(t, db, clinicA, "誕生日生存飼主")
+	makePetDetailed(t, db, clinicA, ownerAlive.ID, speciesID, "誕生日生存ペット", &matchBirthday, nil)
+
+	ownerDeceased := makeTestOwner(t, db, clinicA, "誕生日死亡飼主")
+	makePetDetailed(t, db, clinicA, ownerDeceased.ID, speciesID, "誕生日死亡ペット", &matchBirthday, &deceasedAt)
+
+	ownerStatusOnly := makeTestOwner(t, db, clinicA, "誕生日status死亡飼主")
+	makeStatusDeceasedPet(t, db, clinicA, ownerStatusOnly.ID, speciesID, "誕生日status死亡ペット", &matchBirthday)
+
+	ownerTimestampOnly := makeTestOwner(t, db, clinicA, "誕生日半死亡飼主")
+	halfDeadPet := makePetDetailed(t, db, clinicA, ownerTimestampOnly.ID, speciesID, "誕生日半死亡ペット", &matchBirthday, &deceasedAt)
+	assert.Equal(t, model.PetStatusAlive, halfDeadPet.Status)
+
+	ownerClinicB := makeTestOwner(t, db, clinicB, "誕生日別医院飼主")
+	makePetDetailed(t, db, clinicB, ownerClinicB.ID, speciesID, "誕生日別医院ペット", &matchBirthday, nil)
+
+	cases := []struct {
+		name    string
+		ownerID uint64
+		want    bool
+	}{
+		{"生存ペットの誕生日は一致", ownerAlive.ID, true},
+		{"死亡ペットのみなら不一致", ownerDeceased.ID, false},
+		{"status=deceased のみの半死亡なら不一致", ownerStatusOnly.ID, false},
+		{"deceased_at のみ非 NULL の半死亡なら不一致", ownerTimestampOnly.ID, false},
+		{"別医院の飼主は医院Aでは不一致", ownerClinicB.ID, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := repo.OwnerHasAlivePetBirthday(ctx, clinicA, tc.ownerID, int(time.March), 15)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+
+	t.Run("異なる月日は不一致", func(t *testing.T) {
+		got, err := repo.OwnerHasAlivePetBirthday(ctx, clinicA, ownerAlive.ID, int(time.April), 1)
+		require.NoError(t, err)
+		assert.False(t, got)
+	})
+}
+
+// TestPetRepository_CountLivingByOwner_DeceasedAndClinicBoundaries は living-owner
+// 再検証の生存判定が半死亡 sentinel・医院・飼主境界を守ることを検証する（EMR-330）。
+// 基本的な生死カウントは TestPetRepository_CountLivingByOwner が担う。
+func TestPetRepository_CountLivingByOwner_DeceasedAndClinicBoundaries(t *testing.T) {
+	db := setupPetRepositoryTestDB(t)
+	repo := NewRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	speciesID := makeSyncSpeciesID(t, db)
+	birth := time.Date(2020, time.January, 1, 0, 0, 0, 0, time.UTC)
+	deceasedAt := time.Now().Add(-24 * time.Hour)
+
+	ownerMixed := makeTestOwner(t, db, clinicA, "生死混在飼主")
+	makePetDetailed(t, db, clinicA, ownerMixed.ID, speciesID, "生存ペット", &birth, nil)
+	makePetDetailed(t, db, clinicA, ownerMixed.ID, speciesID, "死亡ペット", &birth, &deceasedAt)
+
+	ownerAllDead := makeTestOwner(t, db, clinicA, "全死亡飼主")
+	makeStatusDeceasedPet(t, db, clinicA, ownerAllDead.ID, speciesID, "status死亡ペット", &birth)
+	makeHalfDeadPet(t, db, clinicA, ownerAllDead.ID, speciesID, "半死亡ペット")
+
+	ownerClinicB := makeTestOwner(t, db, clinicB, "別医院生存飼主")
+	makePetDetailed(t, db, clinicB, ownerClinicB.ID, speciesID, "別医院生存ペット", &birth, nil)
+
+	t.Run("生存ペットの数だけ数える", func(t *testing.T) {
+		got, err := repo.CountLivingByOwner(ctx, clinicA, ownerMixed.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), got)
+	})
+
+	t.Run("両 sentinel の死亡ペットは数えない", func(t *testing.T) {
+		got, err := repo.CountLivingByOwner(ctx, clinicA, ownerAllDead.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), got)
+	})
+
+	t.Run("別医院のペットは数えない", func(t *testing.T) {
+		got, err := repo.CountLivingByOwner(ctx, clinicA, ownerClinicB.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), got)
+	})
+}

@@ -131,6 +131,14 @@ func (m *mockMedicalRecordRepository) FindOwnersByLastVisitDays(ctx context.Cont
 	return nil, nil
 }
 
+func (m *mockMedicalRecordRepository) OwnerHasAliveFirstVisitOnDate(_ context.Context, _, _ uint64, _ time.Time) (bool, error) {
+	return false, nil
+}
+
+func (m *mockMedicalRecordRepository) OwnerHasAliveLastVisitOnDate(_ context.Context, _, _ uint64, _ time.Time) (bool, error) {
+	return false, nil
+}
+
 func (m *mockMedicalRecordRepository) CountByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
 	m.countByOwnerIDCallCount++
 	if m.countByOwnerIDFn != nil {

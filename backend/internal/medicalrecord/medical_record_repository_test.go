@@ -995,6 +995,24 @@ func TestMedicalRecordRepository_CountByPetID_CountByOwnerID(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)
 	})
+
+	t.Run("CountByOwnerID は死亡ペット由来の来院も履歴として数える（EMR-330 保存境界）", func(t *testing.T) {
+		deadPet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "亡きCountペット")
+		deceasedAt := time.Now()
+		require.NoError(t, db.Model(&model.Pet{}).Where("id = ?", deadPet.ID).
+			Updates(map[string]any{"status": model.PetStatusDeceased, "deceased_at": deceasedAt}).Error)
+		ownerID := owner.ID
+		makeFullMedicalRecord(t, db, &model.MedicalRecord{
+			ClinicID: clinicA, RecordNo: "CNT-DEAD", Date: time.Now(),
+			OwnerID: &ownerID, PetID: &deadPet.ID,
+		})
+
+		count, err := repo.CountByOwnerID(ctx, clinicA, owner.ID)
+
+		require.NoError(t, err)
+		// 初診判定（welcome 分類）が使う履歴カウントは死亡ペット由来行を含める。
+		assert.Equal(t, int64(3), count)
+	})
 }
 
 func TestMedicalRecordRepository_CountByPetAndDate_IsScopedAndJoinsAmbientTransaction(t *testing.T) {

@@ -55,6 +55,8 @@ type Repository interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 	// FindOwnersByPetBirthday は指定月日と一致する誕生日の生存ペットを持つ飼い主IDリストを返す（FEAT-383）。
 	FindOwnersByPetBirthday(ctx context.Context, clinicID uint64, month, day int) ([]uint64, error)
+	// OwnerHasAlivePetBirthday は指定月日が誕生日の生存ペットを飼い主が持つかを返す（EMR-330 適格性再読）。
+	OwnerHasAlivePetBirthday(ctx context.Context, clinicID, ownerID uint64, month, day int) (bool, error)
 }
 
 // OwnerReportPetRepository is the narrow persistence capability used by the Owner Report route.
@@ -328,7 +330,9 @@ func (r *repository) findPetByID(ctx context.Context, clinicIDs []uint64, id uin
 		return nil, apperrors.WrapNotFound("pet", fmt.Sprintf("%d", id))
 	}
 	var pet model.Pet
-	err := r.db.WithContext(ctx).
+	// ambient tx が存在すれば同一接続で再読する（delivery-owner lock 内の
+	// イベントペット最終適格性チェックは第 2 接続を要求してはならない）。
+	err := persistence.DBOrTx(ctx, r.db).
 		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("AnimalSpecies").
 		Preload("Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
@@ -397,7 +401,9 @@ func (r *repository) CountByOwner(ctx context.Context, clinicID, ownerID uint64)
 // EMR-290: status=deceased でも deceased_at IS NULL の旧データは生存として数えない。
 func (r *repository) CountLivingByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).Model(&model.Pet{}).
+	// ambient tx が存在すれば同一接続で再読する（delivery-owner lock 内の
+	// living-owner 最終適格性チェックは第 2 接続を要求してはならない）。
+	if err := persistence.DBOrTx(ctx, r.db).Model(&model.Pet{}).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("owner_id = ? AND deceased_at IS NULL AND status <> ? AND deleted_at IS NULL", ownerID, model.PetStatusDeceased).
 		Count(&count).Error; err != nil {
@@ -797,4 +803,24 @@ func (r *repository) FindOwnersByPetBirthday(ctx context.Context, clinicID uint6
 		ids[i] = r.OwnerID
 	}
 	return ids, nil
+}
+
+// OwnerHasAlivePetBirthday は指定月日が誕生日の生存ペットを飼い主が持つかを
+// owner 単位で返す。FindOwnersByPetBirthday と同一の生存・論理削除・clinic
+// 契約（EMR-290/330）を維持し、配信トリガーの claim/write 直前にイベント
+// ソースを再読する EMR-330 適格性チェック用の narrow な owner スコープの読み取り。
+func (r *repository) OwnerHasAlivePetBirthday(ctx context.Context, clinicID, ownerID uint64, month, day int) (bool, error) {
+	var count int64
+	// ambient tx が存在すれば同一接続で再読する（delivery-owner lock 内の
+	// 誕生日最終適格性チェックは第 2 接続を要求してはならない）。
+	err := persistence.DBOrTx(ctx, r.db).
+		Table("pets AS p").
+		Joins("JOIN owners AS o ON o.id = p.owner_id AND o.clinic_id = p.clinic_id AND o.deleted_at IS NULL").
+		Where("p.clinic_id = ? AND p.owner_id = ? AND p.deceased_at IS NULL AND p.status <> ? AND p.deleted_at IS NULL", clinicID, ownerID, model.PetStatusDeceased).
+		Where("EXTRACT(month FROM p.birth_date) = ? AND EXTRACT(day FROM p.birth_date) = ?", month, day).
+		Count(&count).Error
+	if err != nil {
+		return false, apperrors.FromGORM(err, "pet", fmt.Sprintf("clinic=%d owner=%d birthday=%02d-%02d", clinicID, ownerID, month, day))
+	}
+	return count > 0, nil
 }
