@@ -9732,6 +9732,15 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/OwnerAggregation'
+        cpm_stage_counts:
+          type: object
+          description: >-
+            CPM 区分別人数 (EMR-334)。cpm_stage 絞り込み・ページネーション前の
+            母集団全体を対象に、全7区分
+            (cpm_encounter/cpm_growing/cpm_core/cpm_spot/cpm_noah/cpm_dormant/cpm_unclassified)
+            のキーを必ず返す。
+          additionalProperties:
+            type: integer
     # ─── ReservationStaff (TASK-RES-012/013 LINE予約スタッフ・スケジュール管理) ─
     ExcludedCourse:
       type: object
@@ -11279,6 +11288,11 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
+        '503':
+          description: >-
+            集計クエリ自身の deadline (20 秒) が失効した場合 (EMR-334)。
+            body の code は aggregation_timeout。依存先の期限切れや
+            クライアント切断は対象外。
   /clinics/{clinic_id}/owners/{id}/lstep/friend-attributes:
     get:
       operationId: getLstepOwnerFriendAttributes

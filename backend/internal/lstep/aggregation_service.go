@@ -2,6 +2,8 @@ package lstep
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -156,6 +158,16 @@ type ListOwnerAggregationResult struct {
 	Page    int
 	PerPage int
 	Items   []OwnerAggregationItem
+	// CPMStageCounts は cpm_stage 絞り込み・ページネーション前の母集団全体の
+	// CPM 区分人数 (EMR-334)。aggregationCPMStageKeys の全 7 キーを常に持つ。
+	CPMStageCounts map[string]int
+}
+
+// aggregationCPMStageKeys は集計レスポンス cpm_stage_counts が必ず返すキー集合 (EMR-334)。
+// 配信対象の allCPMStages (6区分) に、画面チップで辿れる未分類を加えた全7区分。
+var aggregationCPMStageKeys = []CPMStage{
+	CPMStageEncounter, CPMStageGrowing, CPMStageCore, CPMStageSpot,
+	CPMStageNoah, CPMStageDormant, CPMStageUnclassified,
 }
 
 // AggregationService は顧客集計・一括タグ同期の業務ロジックインターフェース（BE-010）。
@@ -166,6 +178,9 @@ type AggregationService interface {
 type aggregationService struct {
 	repo        OwnerAggregationRepository
 	settingsSvc aggregationSettingsService
+	// queryTimeout は集計クエリ自身の deadline (既定 aggregationQueryTimeout)。
+	// テストがタイマー失効を実時間待ちせず再現できるようにするための duration seam。
+	queryTimeout time.Duration
 }
 
 type aggregationSettingsService interface {
@@ -174,15 +189,31 @@ type aggregationSettingsService interface {
 
 // NewAggregationService は AggregationService を初期化して返す。
 func NewAggregationService(repo OwnerAggregationRepository, settingsSvc aggregationSettingsService) AggregationService {
-	return &aggregationService{repo: repo, settingsSvc: settingsSvc}
+	return &aggregationService{repo: repo, settingsSvc: settingsSvc, queryTimeout: aggregationQueryTimeout}
 }
 
 // aggregationQueryTimeout bounds the heavy LTV scan (BUG-012). Client should
 // surface a retryable error instead of infinite "loading".
 const aggregationQueryTimeout = 20 * time.Second
 
+// errAggregationQueryTimeout は集計クエリ自身の deadline (aggregationQueryTimeout) が
+// 失効したことを表す sentinel (EMR-334)。依存先が返す DeadlineExceeded や呼び出し元の
+// 期限切れ・cancel と区別し、ハンドラ側の専用 503 (code=aggregation_timeout) 判定に使う。
+var errAggregationQueryTimeout = errors.New("aggregation query timeout")
+
+// aggregationError は集計クエリ自身のタイマー失効だけを sentinel errAggregationQueryTimeout
+// に包み替え、それ以外は従来どおり apperrors で包む。
+// context.WithTimeoutCause により context.Cause は、自身のタイマー失効時のみ sentinel を返す
+// (親 ctx の期限切れ/cancel では親側の cause がそのまま返る)。
+func aggregationError(ctx context.Context, err error, msg string) error {
+	if errors.Is(context.Cause(ctx), errAggregationQueryTimeout) {
+		return fmt.Errorf("%w: %w", errAggregationQueryTimeout, err)
+	}
+	return apperrors.Wrap(err, msg)
+}
+
 func (s *aggregationService) ListOwnerAggregation(ctx context.Context, clinicID uint64, input *ListOwnerAggregationInput) (*ListOwnerAggregationResult, error) {
-	ctx, cancel := context.WithTimeout(ctx, aggregationQueryTimeout)
+	ctx, cancel := context.WithTimeoutCause(ctx, s.queryTimeout, errAggregationQueryTimeout)
 	defer cancel()
 
 	rows, err := s.repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
@@ -205,7 +236,7 @@ func (s *aggregationService) ListOwnerAggregation(ctx context.Context, clinicID 
 		Order:           input.Order,
 	})
 	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to find owner aggregation")
+		return nil, aggregationError(ctx, err, "failed to find owner aggregation")
 	}
 
 	// CPMStage 絞り込み条件を正規化（"spot" → "cpm_spot" 等）。
@@ -213,13 +244,21 @@ func (s *aggregationService) ListOwnerAggregation(ctx context.Context, clinicID 
 
 	thresholds, err := s.settingsSvc.GetCPMV1Thresholds(ctx, clinicID)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get cpm v1 thresholds")
+		return nil, aggregationError(ctx, err, "failed to get cpm v1 thresholds")
+	}
+
+	// EMR-334: 区分人数は cpm_stage 絞り込み・ページネーション前の母集団全体から数える。
+	// 一覧と同じ LTV スキャン結果を共有し、区分ごとの再走査は行わない。
+	counts := make(map[string]int, len(aggregationCPMStageKeys))
+	for _, stage := range aggregationCPMStageKeys {
+		counts[string(stage)] = 0
 	}
 
 	var items []OwnerAggregationItem
 	for i := range rows {
 		row := &rows[i]
 		stage := computeCPMStageFromLTVRow(row, thresholds)
+		counts[stage]++
 		if cpmStageFilter != "" && stage != cpmStageFilter {
 			continue
 		}
@@ -254,9 +293,10 @@ func (s *aggregationService) ListOwnerAggregation(ctx context.Context, clinicID 
 	}
 
 	return &ListOwnerAggregationResult{
-		Total:   total,
-		Page:    page,
-		PerPage: perPage,
-		Items:   items,
+		Total:          total,
+		Page:           page,
+		PerPage:        perPage,
+		Items:          items,
+		CPMStageCounts: counts,
 	}, nil
 }
