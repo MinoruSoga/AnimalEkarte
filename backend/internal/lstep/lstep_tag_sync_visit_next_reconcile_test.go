@@ -271,7 +271,10 @@ func TestNextVisitReconcile_AllTagsCleanupSharesOwnerLock(t *testing.T) {
 		<-releaseFirst
 		return &model.Reservation{Status: model.ReservationStatusTentative, IntendedDate: &date}, nil
 	}})
-	lifecycle := &lstepLifecycleService{tagCacheRepo: cache}
+	lifecycle := &lstepLifecycleService{tagCacheRepo: cache, ownerRepo: &mockOwnerRepository{findByIDFn: func(context.Context, uint64, uint64) (*model.Owner, error) {
+		uid := "mock-only"
+		return &model.Owner{LineUserID: &uid}, nil
+	}}}
 	go func() { done <- svc.SyncNextVisitTag(context.Background(), 1, 2) }()
 	<-firstRead // old alive snapshot is now paused; death commits before cleanup.
 	go func() { done <- lifecycle.clearTagsWithOwnerLock(context.Background(), client, 1, 2, "mock-only") }()
@@ -331,7 +334,10 @@ func TestNextVisitReconcile_CleanupRepairsRemoteWithoutCache(t *testing.T) {
 				}
 				return out, nil
 			}, removeTagFn: func(_ context.Context, _, tag string) error { removals++; delete(remote, tag); return nil }}
-			svc := &lstepLifecycleService{tagCacheRepo: cache}
+			svc := &lstepLifecycleService{tagCacheRepo: cache, ownerRepo: &mockOwnerRepository{findByIDFn: func(context.Context, uint64, uint64) (*model.Owner, error) {
+				uid := "mock-only"
+				return &model.Owner{LineUserID: &uid}, nil
+			}}}
 			err := svc.clearTagsWithOwnerLock(context.Background(), client, 1, 2, "mock-only")
 			if mode == "remote read failure" {
 				assert.ErrorIs(t, err, failure)
@@ -406,7 +412,10 @@ func TestNextVisitReconcile_CleanupGetFailureKeepsKnownCacheBestEffort(t *testin
 		delete(remote, tag)
 		return nil
 	}}
-	svc := &lstepLifecycleService{tagCacheRepo: cache}
+	svc := &lstepLifecycleService{tagCacheRepo: cache, ownerRepo: &mockOwnerRepository{findByIDFn: func(context.Context, uint64, uint64) (*model.Owner, error) {
+		uid := "mock-only"
+		return &model.Owner{LineUserID: &uid}, nil
+	}}}
 	assert.ErrorIs(t, svc.clearTagsWithOwnerLock(context.Background(), client, 1, 2, "mock-only"), readFailure, "incomplete provider discovery remains observable")
 	assert.ElementsMatch(t, known, removed, "known cache cleanup must continue when remote discovery fails")
 	assert.ElementsMatch(t, known, deleted)

@@ -995,7 +995,11 @@ func TestLstepLifecycleService_RemoveAllTagsFromLstep(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := &lstepLifecycleService{
-				settingsSvc:  tt.settingsSvc,
+				settingsSvc: tt.settingsSvc,
+				ownerRepo: &mockOwnerRepository{findByIDFn: func(context.Context, uint64, uint64) (*model.Owner, error) {
+					uid := "Uabc123"
+					return &model.Owner{LineUserID: &uid}, nil
+				}},
 				tagCacheRepo: tt.tagCacheRepo,
 			}
 

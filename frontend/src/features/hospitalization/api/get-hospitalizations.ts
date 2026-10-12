@@ -87,8 +87,7 @@ const buildHospitalizationParams = (
  * インターセプタは X-Clinic-ID を明示しない限り発行時点の stored clinic を使うため、
  * fetch 中のクリニック切替で page2 以降が別クリニックに混入するのを防ぐ。
  */
-const clinicScopeHeaders = (): Record<string, string> | undefined => {
-  const clinicId = getStoredClinicId();
+const clinicScopeHeaders = (clinicId: string | null): Record<string, string> | undefined => {
   return clinicId ? { "X-Clinic-ID": clinicId } : undefined;
 };
 
@@ -105,10 +104,14 @@ const fetchHospitalizationPage = async (
 
 const getHospitalizations = async (
   filters?: HospitalizationFilters,
+  scopeClinicId: string | null = getStoredClinicId(),
 ): Promise<HospitalizationsResult> => {
   const page = filters?.page ?? HOSPITALIZATION_LIST_DEFAULT_PAGE;
   const limit = filters?.limit ?? HOSPITALIZATION_LIST_DEFAULT_LIMIT;
-  const data = await fetchHospitalizationPage(buildHospitalizationParams(filters, page, limit));
+  const data = await fetchHospitalizationPage(
+    buildHospitalizationParams(filters, page, limit),
+    clinicScopeHeaders(scopeClinicId),
+  );
   return {
     data: (data.data ?? []).map(transformHospitalization),
     total: data.total,
@@ -124,8 +127,9 @@ const getHospitalizations = async (
  */
 const getAllHospitalizations = async (
   filters?: Omit<HospitalizationFilters, "page" | "limit">,
+  scopeClinicId: string | null = getStoredClinicId(),
 ): Promise<Hospitalization[]> => {
-  const headers = clinicScopeHeaders();
+  const headers = clinicScopeHeaders(scopeClinicId);
   // total 超過分を全ページ取得（getReservations と同契約）。空ページで早期打切り。
   const { data } = await axios.get<HospitalizationSnapshotResponse>("/v1/hospitalizations", {
     params: { ...buildHospitalizationFilterParams(filters), snapshot: true },
@@ -165,7 +169,7 @@ export const useGetHospitalizations = (
   const scopeClinicId = useCurrentClinicId();
   return useQuery({
     queryKey: queryKeys.hospitalizations.list({ ...filters, scopeClinicId }),
-    queryFn: () => getHospitalizations(filters),
+    queryFn: () => getHospitalizations(filters, scopeClinicId),
     enabled: options?.enabled ?? true,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,
@@ -180,7 +184,7 @@ export const useGetAllHospitalizations = (
   const scopeClinicId = useCurrentClinicId();
   return useQuery({
     queryKey: queryKeys.hospitalizations.list({ ...filters, allPages: true, scopeClinicId }),
-    queryFn: () => getAllHospitalizations(filters),
+    queryFn: () => getAllHospitalizations(filters, scopeClinicId),
     enabled: options?.enabled ?? true,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,

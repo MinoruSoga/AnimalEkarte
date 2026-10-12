@@ -88,7 +88,7 @@ export const useGetReservations = (filters?: ReservationFilters) => {
   const scopeClinicId = filters?.clinicId ?? currentClinicId;
   return useQuery({
     queryKey: queryKeys.reservations.list({ ...filters, scopeClinicId }),
-    queryFn: () => getReservations(filters),
+    queryFn: () => getReservations({ ...filters, clinicId: scopeClinicId ?? undefined }),
     enabled: filters?.enabled ?? true,
     staleTime: QUERY_STALE_TIMES.REALTIME, // 予約一覧は高頻度変更
     gcTime: QUERY_GC_TIMES.SHORT,

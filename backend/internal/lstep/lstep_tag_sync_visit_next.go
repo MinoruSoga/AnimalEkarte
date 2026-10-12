@@ -327,6 +327,13 @@ func (s *lstepTagSyncService) syncNextVisitCleanup(ctx context.Context, clinicID
 		return nil
 	}
 	return cleanup.WithNextVisitOwnerLock(ctx, clinicID, ownerID, func(syncCtx context.Context) error {
+		// Settings may have changed while waiting for the shared recipient lock.
+		// A stopped clinic retains its intent and revision for a later retry.
+		if skip, err := s.shouldSkipSync(syncCtx, clinicID); err != nil {
+			return err
+		} else if skip {
+			return nil
+		}
 		intent, err := cleanup.FindNextVisitCleanupIntent(syncCtx, clinicID, ownerID)
 		if err != nil {
 			if apperrors.IsNotFound(err) {

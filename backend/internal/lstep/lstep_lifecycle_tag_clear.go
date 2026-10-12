@@ -32,6 +32,21 @@ func (s *lstepLifecycleService) clearTagsWithOwnerLock(ctx context.Context, clie
 		return apperrors.WrapInternalServerError("next visit owner lock is not configured")
 	}
 	return locker.WithNextVisitOwnerLock(ctx, clinicID, ownerID, func(ctx context.Context) error {
+		// The lock fixes the current owner and its current LINE recipient. Never
+		// operate on an earlier snapshot: that recipient may now belong to someone else.
+		if s.ownerRepo == nil {
+			return apperrors.WrapInternalServerError("cleanup owner repository is not configured")
+		}
+		owner, err := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to revalidate cleanup owner")
+		}
+		if owner == nil {
+			return apperrors.WrapInternalServerError("cleanup owner lookup returned no owner")
+		}
+		if owner.LineUserID == nil || *owner.LineUserID == "" || *owner.LineUserID != lineUserID {
+			return nil
+		}
 		tags, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to find tag cache")
