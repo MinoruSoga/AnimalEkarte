@@ -1,5 +1,5 @@
 // React/Framework
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useState, type ReactNode } from "react";
 
 // External
 import { toast } from "sonner";
@@ -32,6 +32,14 @@ interface MedicalRecordInterviewProps {
   isLocked?: boolean;
   /** EMR-219: 前回複写適用時に元カルテの治療明細行も複写する（複写元カルテ id を引く） */
   onCopyRecordTreatments?: (sourceRecordId: string) => void;
+  /**
+   * EMR-356: 体重入力パネル（InterviewWeightPanel）の合成スロット。
+   * isLocked fieldset 内に描画し、確定済み/送信不可では mutation させない。
+   */
+  weightPanel?: ReactNode;
+  /** EMR-356: 履歴クエリの取得中/失敗を InterviewHistory へ伝える。 */
+  historyLoading?: boolean;
+  historyError?: boolean;
 }
 
 // rendering-hoist-jsx: テンプレート一覧は静的なのでモジュール定数に巻き上げ
@@ -69,6 +77,9 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
   isFinalized = false,
   isLocked = false,
   onCopyRecordTreatments,
+  weightPanel,
+  historyLoading = false,
+  historyError = false,
 }: MedicalRecordInterviewProps) {
   const handleInsertTemplate = useCallback(
     (text: string) => {
@@ -146,6 +157,10 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
           setTreatmentPolicy={setTreatmentPolicy}
           isFinalized={isFinalized}
         />
+
+        {/* EMR-356: 体重パネルは編集領域と同じロック境界に入れる（mutation のため）。
+            fieldset.contents のため 12 列グリッドの全幅行として配置できる。 */}
+        {weightPanel}
       </fieldset>
 
       {/* Right Column: カルテ履歴 (Medical History) */}
@@ -153,6 +168,8 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
         className="col-span-1 lg:col-span-5 h-full"
         historyItems={resolvedHistoryItems}
         isLocked={isLocked}
+        isLoading={historyLoading}
+        isError={historyError}
         onCopyItem={handleCopyItem}
       />
 

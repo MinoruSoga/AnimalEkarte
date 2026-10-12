@@ -217,6 +217,17 @@ func medicalRecordVitalsPreload(db *gorm.DB) *gorm.DB {
 	`)
 }
 
+// medicalRecordWeightMeasurementsPreload は EMR-356 履歴一覧の体重投影用 preload。
+// medicalRecordVitalsPreload の親相関（同一 clinic/pet/record・親非削除）をそのまま
+// 継承し、体重記録済み・daily_record（入院/日次）由来でない行のみを
+// recorded_at→id 昇順で1回のバッチクエリとして preload する（行毎の N+1 なし）。
+func medicalRecordWeightMeasurementsPreload(db *gorm.DB) *gorm.DB {
+	return medicalRecordVitalsPreload(db).
+		Where("vital_records.weight IS NOT NULL").
+		Where("vital_records.daily_record_id IS NULL").
+		Order("vital_records.recorded_at ASC, vital_records.id ASC")
+}
+
 // medicalRecordOrderClause は B-1 follow-up の列ソート server 化用 ORDER BY 句を組み立てる。
 // sort が medicalRecordSortColumns の許可キーでない場合は既存デフォルト順を維持する。
 // created_at DESC を常に tie-breaker として付与し、同値時の並び順を安定させる

@@ -184,6 +184,10 @@ vi.mock("../api/get-pet-trimmings", () => ({
   useGetTrimmingsByPetId: () => ({ data: [] }),
 }));
 
+vi.mock("../api/vitals", () => ({
+  useGetVitals: () => ({ data: [] }),
+  useCreateVital: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
 vi.mock("../api/clinical-plan", () => ({
   useGetClinicalPlan: () => ({ data: undefined }),
 }));

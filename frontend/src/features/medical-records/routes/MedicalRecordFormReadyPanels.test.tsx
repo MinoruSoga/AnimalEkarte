@@ -167,6 +167,7 @@ vi.mock("../components/MedicalRecordFormPanels", async (importOriginal) => {
 
 vi.mock("../api/vitals", () => ({
   useGetVitals: () => ({ data: [] }),
+  useCreateVital: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 // contextControls（担当医ボタン等）は実配線のまま描画する。

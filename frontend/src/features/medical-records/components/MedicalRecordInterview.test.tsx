@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
@@ -36,6 +36,9 @@ const COPY_PRICE_CAUTION =
 
 type InterviewProps = ComponentProps<typeof MedicalRecordInterview>;
 
+// EMR-356: weightPanel スロットは未実装のため、現行 Props と拡張案の合成型で fixture を渡す。
+type WeightAwareInterviewProps = InterviewProps & { weightPanel?: ReactNode };
+
 const COPY_HISTORY_ITEMS: InterviewHistoryItem[] = [
   {
     id: "10",
@@ -53,8 +56,8 @@ const COPY_HISTORY_ITEMS: InterviewHistoryItem[] = [
   },
 ];
 
-function renderInterview(overrides: Partial<InterviewProps> = {}) {
-  const props: InterviewProps = {
+function renderInterview(overrides: Partial<WeightAwareInterviewProps> = {}) {
+  const props: WeightAwareInterviewProps = {
     chiefComplaint: DEFAULT_CHIEF_COMPLAINT,
     setChiefComplaint: vi.fn(),
     chiefComplaintTypeId: null,
@@ -273,5 +276,32 @@ describe("MedicalRecordInterview — 前回複写（コピー）", () => {
     // EMR-325: recordId 無しの問診のみ複写でも価格注意は applyCopySource から通知される
     expect(toast.warning).toHaveBeenCalledTimes(1);
     expect(toast.warning).toHaveBeenCalledWith(COPY_PRICE_CAUTION);
+  });
+});
+
+describe("MedicalRecordInterview — 体重パネルスロット（EMR-356）", () => {
+  it("weightPanel を問診画面内に描画する（同じペットの過去体重と今回入力導線）", () => {
+    renderInterview({
+      historyItems: [],
+      weightPanel: <div data-testid="interview-weight-panel">体重パネル</div>,
+    });
+
+    expect(screen.getByTestId("interview-weight-panel")).toBeInTheDocument();
+    expect(screen.getByText("体重パネル")).toBeInTheDocument();
+  });
+
+  it("isLocked 時、体重パネルは disabled fieldset 内で mutation できない", () => {
+    renderInterview({
+      isLocked: true,
+      weightPanel: (
+        <button type="button" data-testid="interview-weight-save">
+          体重を記録
+        </button>
+      ),
+    });
+
+    const control = screen.getByTestId("interview-weight-save");
+    // コピー ボタンと同じく mutation はロック境界内（読み取り専用の履歴検索は外）
+    expect(control.closest("fieldset")).toBeDisabled();
   });
 });

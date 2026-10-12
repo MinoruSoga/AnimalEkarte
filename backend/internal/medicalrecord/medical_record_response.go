@@ -32,6 +32,9 @@ type MedicalRecordResponse struct {
 	Doctor               *StaffSummaryResponse   `json:"doctor,omitempty"`
 	Inquiry              *InquirySummaryResponse `json:"inquiry,omitempty"`
 	VisitType            *string                 `json:"visit_type,omitempty"`
+	// EMR-356: このカルテに相関する体重測定の表示投影（正本は vital_records）。
+	// 常に出力する: []=測定なし、キー欠落=旧 API（投影未提供）として FE が区別する。
+	WeightMeasurements []WeightMeasurementResponse `json:"weight_measurements"`
 }
 
 // InquirySummaryResponse is the inquiry embed on medical-record list/detail wire.
@@ -79,6 +82,7 @@ func toMedicalRecordResponseWithVisitCount(r *model.MedicalRecord, visitCount in
 			ChiefComplaintTypeID: r.Inquiry.ChiefComplaintTypeID,
 		}
 	}
+	resp.WeightMeasurements = projectWeightMeasurements(r)
 	return resp
 }
 
