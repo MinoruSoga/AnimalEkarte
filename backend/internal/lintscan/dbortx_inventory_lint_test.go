@@ -487,9 +487,15 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"lstep/lstep_tag_code_mapping_repository.go|lstepTagCodeMappingRepository.SoftDeleteByClinicIDAndTagName": {},
 	// Next-visit reconciliation source/cache share the advisory-lock transaction.
 	// Runtime: lstep_tag_cache_repository_test.go TestNextVisitOwnerLock_DBPoolOneAndRollback.
-	"lstep/lstep_tag_cache_repository.go|lstepTagCacheRepository.UpsertTag":                                 {},
-	"lstep/lstep_tag_cache_repository.go|lstepTagCacheRepository.DeleteTag":                                 {},
-	"lstep/lstep_tag_cache_repository.go|lstepTagCacheRepository.FindByOwner":                               {},
+	"lstep/lstep_tag_cache_repository.go|lstepTagCacheRepository.UpsertTag":   {},
+	"lstep/lstep_tag_cache_repository.go|lstepTagCacheRepository.DeleteTag":   {},
+	"lstep/lstep_tag_cache_repository.go|lstepTagCacheRepository.FindByOwner": {},
+	// D1 delivery serialization: the owner row lock joins the ambient tx so EXCL
+	// writes and DeleteAllByOwner serialize against provider sends.
+	// Runtime: lstep_delivery_owner_lock_realdb_test.go (EXCL serialization) and
+	// lstep_tag_cache_repository_test.go TestDeleteAllByOwner_ParticipatesInAmbientTxRollback.
+	"lstep/lstep_tag_cache_repository.go|lstepTagCacheRepository.DeleteAllByOwner":                          {},
+	"lstep/lstep_tag_cache_repository.go|lstepTagCacheRepository.withOwnerRowLock":                          {},
 	"lstep/lstep_next_visit_sync_retry_repository.go|lstepTagCacheRepository.AcknowledgeNextVisitSync":      {},
 	"lstep/lstep_next_visit_sync_retry_repository.go|lstepTagCacheRepository.EnqueueNextVisitCleanup":       {},
 	"lstep/lstep_next_visit_sync_retry_repository.go|lstepTagCacheRepository.FindNextVisitCleanupIntent":    {},
@@ -654,6 +660,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_intent_repository.go|reservationRepository.findActiveTentativeForUpdate":       {}, // EMR-308 single-active-tentative lookup under row lock
 	"reservation/reservation_intent_repository.go|reservationRepository.findGeneralReservationTypeID":       {}, // EMR-308 general placeholder type resolution
 	"reservation/reservation_intent_repository.go|reservationRepository.assertSourceMedicalRecordForPet":    {}, // EMR-308 provenance guard (same clinic + same pet)
+	"reservation/reservation_intent_repository.go|reservationRepository.lockAndFindByIDWithParentClinic":    {}, // PR#606 tentative transition FOR UPDATE re-read + current-owner revalidation under intent lock tx (reservation_tentative_owner_transition_test.go)
 	// AbsorbTentativeOnBooking/PromoteTentativeOnCheckin delegate through this shared
 	// implementation (same unregistered-shape rule as SetNextVisitIntent).
 	"reservation/reservation_intent_repository.go|reservationRepository.promoteOrCreateFromTentative": {}, // EMR-308 tentative 同一行昇格 (booking/check-in absorb)

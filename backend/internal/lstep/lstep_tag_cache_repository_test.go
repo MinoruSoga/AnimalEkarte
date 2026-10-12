@@ -22,6 +22,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
@@ -133,6 +134,31 @@ func TestLstepTagCacheRepository_DeleteAllByOwner(t *testing.T) {
 		require.NoError(t, db.Model(&model.LstepTagCache{}).Where("clinic_id = ? AND owner_id = ?", 1, 301).Count(&count).Error)
 		assert.Equal(t, int64(1), count)
 	})
+}
+
+// DeleteAllByOwner は withOwnerRowLock 経由で ambient tx に savepoint 参加する ——
+// 呼び出し側の rollback が発生すれば削除も巻き戻ることを検証する（D1 直列化面）。
+func TestDeleteAllByOwner_ParticipatesInAmbientTxRollback(t *testing.T) {
+	db := setupLstepTagCacheTestDB(t)
+	repo := NewLstepTagCacheRepository(db)
+	owner := testdb.MakeTestOwner(t, db, 1, "delete-all rollback owner")
+	ctx := context.Background()
+	require.NoError(t, repo.UpsertTag(ctx, 1, owner.ID, "tag-a", "auto", ""))
+
+	rollback := errors.New("rollback fixture")
+	err := persistence.DBOrTx(ctx, db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		require.NoError(t, repo.DeleteAllByOwner(txCtx, 1, owner.ID))
+		rows, readErr := repo.FindByOwner(txCtx, 1, owner.ID)
+		require.NoError(t, readErr)
+		assert.Empty(t, rows, "delete must be visible inside the ambient transaction")
+		return rollback
+	})
+	require.ErrorIs(t, err, rollback)
+
+	rows, findErr := repo.FindByOwner(ctx, 1, owner.ID)
+	require.NoError(t, findErr)
+	assert.Len(t, rows, 1, "DeleteAllByOwner must join the ambient transaction and roll back with it")
 }
 
 func TestLstepTagCacheRepository_FindByOwner(t *testing.T) {
