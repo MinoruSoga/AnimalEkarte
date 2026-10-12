@@ -47,6 +47,9 @@ interface Env {
   // unset disables notification (report still saves to DB).
   DISCORD_BUG_REPORT_WEBHOOK_URL?: string;
   DISCORD_WEBHOOK_TIMEOUT_MS?: string;
+  // Optional trimming image cleanup worker toggle. Unset deploys keep the
+  // cleanup OFF; only the literal "true" enables it on the Go side.
+  TRIMMING_IMAGE_CLEANUP_ENABLED?: string;
 }
 
 declare namespace Cloudflare {
@@ -81,6 +84,7 @@ declare namespace Cloudflare {
     PLANE_TIMEOUT_MS?: string;
     DISCORD_BUG_REPORT_WEBHOOK_URL?: string;
     DISCORD_WEBHOOK_TIMEOUT_MS?: string;
+    TRIMMING_IMAGE_CLEANUP_ENABLED?: string;
   }
 }
 

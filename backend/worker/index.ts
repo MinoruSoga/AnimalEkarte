@@ -44,19 +44,11 @@ import {
 } from "./scheduler-ops";
 import { SCHEDULER_NAME, runScheduledJobRequest } from "./scheduled-jobs";
 
-export class AnimalEkarteApiContainer extends Container<Env> {
-  defaultPort = 8080;
-  // AC-5: scale-to-zero 検証用。アイドル10分でコンテナを停止する
-  // (docs/ops/infra/_archive/migration-cloudflare.md の想定コスト・「通常操作 10 分間程度」の負荷スモーク方針に合わせる)。
-  // STG の画面遅延対策として 1h に延長(10m ではデモ中の待ち時間毎にコールドスタート
-  // 数秒が発生していた)。稼働時間課金は増えるが basic インスタンスでは小額。
-  // scale-to-zero 検証やコスト抑制が優先になったら "10m" へ戻す。
-  sleepAfter = "1h";
-
-  // Container 起動時に注入する環境変数。Go 側の config.Load()/main.go が読む
-  // os.Getenv キーと1:1で対応させる(対応表は wrangler.jsonc のコメント参照)。
-  // 値そのものはここに書かず、必ず Worker の vars/secrets(env.*)経由で渡す。
-  envVars = {
+// Container 起動時に注入する環境変数。Go 側の config.Load()/main.go が読む
+// os.Getenv キーと1:1で対応させる(対応表は wrangler.jsonc のコメント参照)。
+// 値そのものはここに書かず、必ず Worker の vars/secrets(env.*)経由で渡す。
+export function buildContainerEnvVars(env: Env): Record<string, string> {
+  return {
     PORT: "8080",
     GIN_MODE: env.GIN_MODE,
     LOG_LEVEL: env.LOG_LEVEL,
@@ -151,7 +143,24 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     // 値は `wrangler secret put DISCORD_BUG_REPORT_WEBHOOK_URL` でのみ投入する。
     DISCORD_BUG_REPORT_WEBHOOK_URL: env.DISCORD_BUG_REPORT_WEBHOOK_URL ?? "",
     DISCORD_WEBHOOK_TIMEOUT_MS: env.DISCORD_WEBHOOK_TIMEOUT_MS ?? "",
+
+    // トリミング画像削除 retry worker の起動トグル。未設定デプロイは OFF を
+    // 保持するため "false" 既定とし、Go 側はリテラル "true" のみで有効化する
+    // (それ以外の値は fail-closed で OFF)。vars/secrets.required には入れない。
+    TRIMMING_IMAGE_CLEANUP_ENABLED: env.TRIMMING_IMAGE_CLEANUP_ENABLED ?? "false",
   };
+}
+
+export class AnimalEkarteApiContainer extends Container<Env> {
+  defaultPort = 8080;
+  // AC-5: scale-to-zero 検証用。アイドル10分でコンテナを停止する
+  // (docs/ops/infra/_archive/migration-cloudflare.md の想定コスト・「通常操作 10 分間程度」の負荷スモーク方針に合わせる)。
+  // STG の画面遅延対策として 1h に延長(10m ではデモ中の待ち時間毎にコールドスタート
+  // 数秒が発生していた)。稼働時間課金は増えるが basic インスタンスでは小額。
+  // scale-to-zero 検証やコスト抑制が優先になったら "10m" へ戻す。
+  sleepAfter = "1h";
+
+  envVars = buildContainerEnvVars(env);
 
   // migrate exec のハングアップ対策(code-reviewer指摘 MEDIUM)。pg_advisory_lock が
   // 別プロセスに握られたまま解放されない等の異常時、exec が無期限に応答を待たないようにする。
