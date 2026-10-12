@@ -186,12 +186,68 @@ describe("HospitalizationBoard empty cage actions", () => {
       });
     });
 
-    expect(onMovePet).toHaveBeenCalledWith(occupied.id, "cage-a-2");
+    // H1: 呼び出しは「表示された source 行のスナップショット + 表示された target occupant」で行う。
+    // 空きケージへの drop は target 未指定。
+    expect(onMovePet).toHaveBeenCalledWith(occupied, "cage-a-2", undefined);
     expect(useSensor).toHaveBeenCalledWith(PointerSensor, expect.anything());
     expect(useSensor).toHaveBeenCalledWith(
       KeyboardSensor,
       expect.objectContaining({ coordinateGetter: expect.any(Function) }),
     );
+  });
+
+  it("H1: 占有ケージへの drop は表示された target occupant も一緒に通知する", () => {
+    const onMovePet = vi.fn();
+    const targetOccupant = {
+      ...occupied,
+      id: "hospitalization-2",
+      cageId: "cage-a-2",
+      petName: "タマ",
+    } as Hospitalization;
+
+    render(
+      <HospitalizationBoard
+        cages={cages}
+        hospitalizations={[occupied, targetOccupant]}
+        onNavigateToForm={vi.fn()}
+        onMovePet={onMovePet}
+        canCreate
+        canEdit
+      />,
+    );
+
+    act(() => {
+      dndHarness.onDragEnd?.({
+        active: { data: { current: { hospitalizationId: occupied.id } } },
+        over: { id: "cage-cage-a-2" },
+      });
+    });
+
+    expect(onMovePet).toHaveBeenCalledWith(occupied, "cage-a-2", targetOccupant);
+  });
+
+  it("H1: 表示中の hospitalizations に存在しない drag id は mutation を通知しない", () => {
+    const onMovePet = vi.fn();
+
+    render(
+      <HospitalizationBoard
+        cages={cages}
+        hospitalizations={[occupied]}
+        onNavigateToForm={vi.fn()}
+        onMovePet={onMovePet}
+        canCreate
+        canEdit
+      />,
+    );
+
+    act(() => {
+      dndHarness.onDragEnd?.({
+        active: { data: { current: { hospitalizationId: "not-displayed" } } },
+        over: { id: "cage-cage-a-2" },
+      });
+    });
+
+    expect(onMovePet).not.toHaveBeenCalled();
   });
 
   // FE-RC-044: Card 自体の onClick は非フォーカス可能・キーボード操作不可のため削除し、

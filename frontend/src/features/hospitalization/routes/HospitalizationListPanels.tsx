@@ -52,7 +52,7 @@ interface HospitalizationListContentProps {
   boardLoading: boolean;
   boardError: boolean;
   onNavigateToForm: (id?: string) => void;
-  onMovePet: (hospitalizationId: string, targetCageId: string) => void;
+  onMovePet: (source: Hospitalization, targetCageId: string, target?: Hospitalization) => void;
   canCreate: boolean;
   canEdit: boolean;
   pagination: ServerPagePagination<Hospitalization>;

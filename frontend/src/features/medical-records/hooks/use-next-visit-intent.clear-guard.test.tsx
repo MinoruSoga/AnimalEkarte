@@ -48,11 +48,11 @@ describe("medical record clear — displayed reservation compare-and-set", () =>
       vi.mocked(useGetReservations).mockImplementation(
         () => ({ data: [displayed] }) as ReturnType<typeof useGetReservations>,
       );
-      let finishSet!: () => void;
+      let finishSet!: (value: Reservation) => void;
       const setMutation = {
         mutateAsync: vi.fn(
           () =>
-            new Promise<void>((resolve) => {
+            new Promise<Reservation>((resolve) => {
               finishSet = resolve;
             }),
         ),
@@ -83,12 +83,16 @@ describe("medical record clear — displayed reservation compare-and-set", () =>
       rerender();
       const conflict = { response: { status: 409 } };
       vi.mocked(axios.delete).mockRejectedValue(conflict);
-      await act(async () => finishSet());
+      // R3: queued clear は先行 PUT のレスポンス guard（id + updatedAt）で DELETE する。
+      // refetch で新しい revision が表示されてもその guard は採用しない。
+      await act(async () =>
+        finishSet({ id: "42", updatedAt: "put-rev-1" } as unknown as Reservation),
+      );
       await waitFor(() => expect(handleApiError).toHaveBeenCalledWith(conflict, "次回予定クリア"));
       expect(axios.delete).toHaveBeenCalledTimes(1);
       expect(axios.delete).toHaveBeenCalledWith("/v1/reservations/pets/10/next-visit-intent", {
         headers: { "X-Clinic-ID": "7" },
-        params: { expected_reservation_id: "42", expected_updated_at: displayedRevision },
+        params: { expected_reservation_id: "42", expected_updated_at: "put-rev-1" },
       });
       expect(result.current.intentFieldValue).toBe(formatJSTWallDate(displayed.start));
       expect(toast.success).toHaveBeenCalledTimes(1); // The preceding PUT succeeded.

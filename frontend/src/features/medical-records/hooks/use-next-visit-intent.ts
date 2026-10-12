@@ -7,6 +7,7 @@ import { useTimeBoundary, useTodayJst } from "@/hooks/use-today-jst";
 import { toJSTWallDate } from "@/lib/jst-date";
 
 import type { ClearNextVisitIntentVariables } from "@/hooks/use-next-visit-intent";
+import type { Reservation } from "@/hooks/reservation-intent-response";
 import type { SetNextVisitIntentVariables } from "../api/next-visit-intent";
 import {
   deriveNextVisitState,
@@ -37,9 +38,18 @@ function createIntentState(
   return { petId, clinicId, token: {}, draft: null, serverDate, pending: 0, deferredReset: false };
 }
 
+interface IntentGuard {
+  reservationId: string;
+  updatedAt: string;
+}
+
 interface IntentMutationQueue {
   promise: Promise<void>;
   generation: number;
+  /** このキューで最後に完了した PUT が返した CAS guard。
+   *  undefined = まだ PUT が完了していない / null = 直近 PUT が失敗・権限不足・
+   *  guard 欠落（後続 clear の削除根拠に使えない）。 */
+  lastSetGuard: IntentGuard | null | undefined;
 }
 
 interface UseNextVisitIntentParams {
@@ -50,7 +60,7 @@ interface UseNextVisitIntentParams {
    *  query の X-Clinic-ID に使い、mutation 側は呼び出し元が同値で構築済みを前提とする。 */
   clinicId?: string;
   isPetDeceased: boolean;
-  setIntentMutation: AsyncMutation<SetNextVisitIntentVariables, unknown>;
+  setIntentMutation: AsyncMutation<SetNextVisitIntentVariables, Reservation>;
   clearIntentMutation: AsyncMutation<ClearNextVisitIntentVariables, unknown>;
 }
 
@@ -145,18 +155,19 @@ export function useNextVisitIntent({
   }
 
   const token = intentState.token;
+  const scopeKey = `${clinicId ?? ""}:${petId}`;
   useLayoutEffect(() => {
-    let queue = mutationQueuesRef.current.get(petId);
+    let queue = mutationQueuesRef.current.get(scopeKey);
     if (!queue) {
-      queue = { promise: Promise.resolve(), generation: 0 };
-      mutationQueuesRef.current.set(petId, queue);
+      queue = { promise: Promise.resolve(), generation: 0, lastSetGuard: undefined };
+      mutationQueuesRef.current.set(scopeKey, queue);
     }
-    // UIはscope再訪でもfreshにするが、同一petへの既要求writeのFIFOは保つ。
+    // UIはscope再訪でもfreshにするが、同一clinic+petへの既要求writeのFIFOは保つ。
     mutationQueueRef.current = { token, queue };
     return () => {
       mutationQueueRef.current = null;
     };
-  }, [petId, token]);
+  }, [scopeKey, token]);
 
   const isCurrentScope = useCallback(() => mutationQueueRef.current?.token === token, [token]);
   const updateIntentState = useCallback(
@@ -172,7 +183,7 @@ export function useNextVisitIntent({
   );
 
   const enqueueIntentMutation = useCallback(
-    (task: () => Promise<void>): number | null => {
+    (task: (queue: IntentMutationQueue) => Promise<void>): number | null => {
       const active = mutationQueueRef.current;
       if (active?.token !== token) return null;
       const queue = active.queue;
@@ -182,7 +193,7 @@ export function useNextVisitIntent({
       // 呼び出し側（runSetIntent/runClearIntent）は必ず try/catch する。
       queue.promise = queue.promise.then(async () => {
         try {
-          await task();
+          await task(queue);
         } finally {
           updateIntentState((state) => ({ ...state, pending: state.pending - 1 }));
         }
@@ -194,16 +205,28 @@ export function useNextVisitIntent({
 
   const runSetIntent = useCallback(
     (date: string) => {
-      const gen = enqueueIntentMutation(async () => {
+      const gen = enqueueIntentMutation(async (queue) => {
+        // R3: enqueue→実行の間に権限剥奪・死亡が起き得るため送信直前に再確認する。
+        // ガードを出さない PUT（skip/失敗/guard欠落）は後続 clear の根拠に使えない
+        // ため null で刻む — 古い成功 guard の流用を防ぐ。
+        if (!intentCapsRef.current.set) {
+          queue.lastSetGuard = null;
+          return;
+        }
         try {
-          await setIntentMutation.mutateAsync({
+          const updated: Reservation | undefined = await setIntentMutation.mutateAsync({
             petId,
             intendedDate: date,
             medicalRecordId,
             ...(clinicId !== undefined ? { clinicId } : {}),
           });
+          queue.lastSetGuard =
+            updated !== undefined && updated.id !== "" && updated.updatedAt !== undefined
+              ? { reservationId: updated.id, updatedAt: updated.updatedAt }
+              : null;
           if (isCurrentScope()) toast.success(`次回予定を ${date} に設定しました`);
         } catch {
+          queue.lastSetGuard = null;
           // エラー表示は api hook の onError(handleApiError) 側に集約。
           // 失敗時は入力表示をサーバー値へ戻す — ただし後続の要求が
           // 積まれている場合はそちらの draft を上書きしない（#11）。
@@ -226,19 +249,29 @@ export function useNextVisitIntent({
   const runClearIntent = useCallback(() => {
     // Capture the displayed row before queuing. Never adopt a newer revision at
     // execution time, and never fall back to an unguarded pet-only DELETE.
-    if (!tentativeReservation?.id || !tentativeReservation.updatedAt) {
-      resetIntentDraft();
-      return;
-    }
-    const expectedReservationId = tentativeReservation.id;
-    const expectedUpdatedAt = tentativeReservation.updatedAt;
-    const gen = enqueueIntentMutation(async () => {
+    // R3: キュー内に自分の PUT が先行する場合は表示行ではなく「その PUT の
+    // レスポンス guard」を使う（upsert で updatedAt が変わるため表示トークンは
+    // 409 になる）。先行 PUT が無い場合のみ表示行をフォールバックに使う。
+    const displayedGuard =
+      tentativeReservation?.id !== undefined &&
+      tentativeReservation.id !== "" &&
+      tentativeReservation.updatedAt !== undefined
+        ? { reservationId: tentativeReservation.id, updatedAt: tentativeReservation.updatedAt }
+        : undefined;
+    const gen = enqueueIntentMutation(async (queue) => {
+      const guard = queue.lastSetGuard !== undefined ? queue.lastSetGuard : displayedGuard;
+      // guard 不在（失敗 PUT 直後・表示行なし）や権限剥奪・死亡では unguarded
+      // DELETE を絶対に送らない。入力表示はサーバー値へ戻す。
+      if (guard === null || guard === undefined || !intentCapsRef.current.clear) {
+        if (isCurrentScope()) resetIntentDraft();
+        return;
+      }
       try {
         await clearIntentMutation.mutateAsync({
           petId,
           ...(clinicId !== undefined ? { clinicId } : {}),
-          expectedReservationId,
-          expectedUpdatedAt,
+          expectedReservationId: guard.reservationId,
+          expectedUpdatedAt: guard.updatedAt,
         });
         if (isCurrentScope()) toast.success("次回予定をクリアしました");
       } catch {

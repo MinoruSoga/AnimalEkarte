@@ -402,11 +402,11 @@ describe("useNextVisitIntent — ガード", () => {
 describe("useNextVisitIntent — mutation 直列化（Codex PR606 #11）", () => {
   it("set 実行中に clear を要求すると、set 完了まで clear は発行されない", async () => {
     mockReservations([reservationOf("tentative", wallDateInDays(45, 0, 0))]);
-    let resolveSet!: () => void;
+    let resolveSet!: (value: Reservation) => void;
     const setIntentMutation = {
       mutateAsync: vi.fn().mockImplementation(
         () =>
-          new Promise<void>((resolve) => {
+          new Promise<Reservation>((resolve) => {
             resolveSet = resolve;
           }),
       ),
@@ -431,14 +431,16 @@ describe("useNextVisitIntent — mutation 直列化（Codex PR606 #11）", () =>
     // FIFO: set が未解決なので clear はまだ発行されない
     expect(clearIntentMutation.mutateAsync).not.toHaveBeenCalled();
 
+    // R3: queued clear は先行 PUT のレスポンス guard で DELETE する
+    // （upsert で updatedAt が変わるため表示トークンは使えない）。
     await act(async () => {
-      resolveSet();
+      resolveSet({ id: "42", updatedAt: "put-rev-1" } as unknown as Reservation);
     });
     await waitFor(() =>
       expect(clearIntentMutation.mutateAsync).toHaveBeenCalledWith({
         petId: "10",
         expectedReservationId: "42",
-        expectedUpdatedAt: "2026-10-11T00:00:00.123456789Z",
+        expectedUpdatedAt: "put-rev-1",
       }),
     );
     // 発行順序: set → clear（逆順完了による stale intentDate 復活を防ぐ）

@@ -209,7 +209,7 @@ describe("useNextVisitIntent — pet/clinic scope isolation", () => {
     expect(toast.success).toHaveBeenCalledTimes(1);
   });
 
-  it("同じpetの医院切替でもdraftはfreshにしwrite順序は維持する", async () => {
+  it("同じpetの医院切替ではqueueが別scopeのため新clinicのwriteは旧writeを待たない", async () => {
     const old = deferred();
     const current = deferred();
     const draft = futureDate(60);
@@ -221,8 +221,8 @@ describe("useNextVisitIntent — pet/clinic scope isolation", () => {
     rerender({ petId: "10", clinicId: "2" });
     expect(result.current.intentFieldValue).toBe("");
     await act(async () => result.current.handleIntentDateChange(draft));
-    expect(setMutation.mutateAsync).toHaveBeenCalledTimes(1);
-    await act(async () => old.resolve());
+    // R3: queue は clinic+pet キー — clinic2 の write は clinic1 の in-flight write を
+    // 待たず独立に実行する（clinic ごとの tentative 行は別物）。
     expect(setMutation.mutateAsync).toHaveBeenCalledTimes(2);
     expect(setMutation.mutateAsync).toHaveBeenLastCalledWith({
       petId: "10",
@@ -230,6 +230,7 @@ describe("useNextVisitIntent — pet/clinic scope isolation", () => {
       intendedDate: draft,
       medicalRecordId: undefined,
     });
+    await act(async () => old.resolve());
     expect(result.current.intentFieldValue).toBe(draft);
     expect(toast.success).not.toHaveBeenCalled();
     await act(async () => current.resolve());
@@ -259,7 +260,12 @@ describe("useNextVisitIntent — pet/clinic scope isolation", () => {
       const nextDate = futureDate(60);
       rows.set(scopeKey("10", "1"), [tentative(date)]);
       const response = {
-        data: { id: 1, start_time: `${date}T00:00:00+09:00`, end_time: `${date}T00:00:00+09:00` },
+        data: {
+          id: 1,
+          start_time: `${date}T00:00:00+09:00`,
+          end_time: `${date}T00:00:00+09:00`,
+          updated_at: "2026-10-11T00:00:01.000000000Z",
+        },
       };
       vi.mocked(axios.put)
         .mockImplementationOnce(async () => {
@@ -311,11 +317,12 @@ describe("useNextVisitIntent — pet/clinic scope isolation", () => {
         );
       } else {
         await waitFor(() => expect(axios.delete).toHaveBeenCalledTimes(1));
+        // R3: 先行 PUT のレスポンス guard（id=1 + 返却 updated_at）で DELETE する。
         expect(axios.delete).toHaveBeenCalledWith("/v1/reservations/pets/10/next-visit-intent", {
           headers: { "X-Clinic-ID": "1" },
           params: {
-            expected_reservation_id: `intent-${date}`,
-            expected_updated_at: "2026-10-11T00:00:00.123456789Z",
+            expected_reservation_id: "1",
+            expected_updated_at: "2026-10-11T00:00:01.000000000Z",
           },
         });
       }

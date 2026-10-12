@@ -44,7 +44,12 @@ interface HospitalizationBoardProps {
   cages: MasterItem[];
   hospitalizations: Hospitalization[];
   onNavigateToForm: (id?: string) => void;
-  onMovePet: (hospitalizationId: string, targetCageId: string) => void;
+  /**
+   * H1: ケージ移動要求。source は表示中の dragged 行、target は drop 先ケージに
+   * 表示されている occupant（空きなら未指定）。呼び出し元は表示スナップショットを
+   * そのまま expected_cage_id / swap 判定の根拠に使う（any-cache scan 禁止）。
+   */
+  onMovePet: (source: Hospitalization, targetCageId: string, target?: Hospitalization) => void;
   canCreate: boolean;
   canEdit: boolean;
   /** EMR-306: true のとき pet-move DnD を止め、ケージ連結 DnD に切り替える */
@@ -400,9 +405,23 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({
       // EMR-306: 連結メンバーケージへの pet-move drop を拒否する（droppable disabled の二重ガード）。
       const targetCage = cages.find((c) => String(c.id) === targetCageId);
       if (targetCage != null && targetCage.mergedIntoCageId != null) return;
-      onMovePet(hospitalizationId, targetCageId);
+      // H1: source/target は表示中の行（hospitalizations / occupantByCageId）から
+      // 解決する。表示に無い行の drag id は通知しない。
+      const source = hospitalizations.find((h) => h.id === hospitalizationId);
+      if (!source) return;
+      onMovePet(source, targetCageId, occupantByCageId.get(targetCageId));
     },
-    [canEdit, canMerge, mergeMode, cages, isCageOccupied, onMovePet, onRequestMerge],
+    [
+      canEdit,
+      canMerge,
+      mergeMode,
+      cages,
+      hospitalizations,
+      occupantByCageId,
+      isCageOccupied,
+      onMovePet,
+      onRequestMerge,
+    ],
   );
 
   // Group cages by category (Area)
