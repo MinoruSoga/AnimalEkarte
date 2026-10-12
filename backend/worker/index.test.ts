@@ -576,3 +576,36 @@ describe("container envVars TRIMMING_IMAGE_CLEANUP_ENABLED forwarding", () => {
     }
   });
 });
+
+describe("container envVars LAB_DEVICE_AGENT_CONSUMER_TOKEN forwarding (EMR-335)", () => {
+  // The optional Env declaration lands in runtime-augmentations.d.ts with the
+  // implementation. Until then Env lacks the key, so write through a mutable
+  // view to keep this file's own typecheck valid in both phases.
+  const mutableEnv = workerEnv as unknown as Record<string, string | undefined>;
+
+  function envVarsWithConsumerToken(value: string | undefined) {
+    if (value === undefined) {
+      delete mutableEnv.LAB_DEVICE_AGENT_CONSUMER_TOKEN;
+    } else {
+      mutableEnv.LAB_DEVICE_AGENT_CONSUMER_TOKEN = value;
+    }
+    return buildContainerEnvVars(workerEnv);
+  }
+
+  afterEach(() => {
+    delete mutableEnv.LAB_DEVICE_AGENT_CONSUMER_TOKEN;
+  });
+
+  it("forwards the configured worker secret to the Go container env", () => {
+    // Dummy fixture only — 実シークレット値はリポジトリに書かない。
+    expect(
+      envVarsWithConsumerToken("emr335-dummy").LAB_DEVICE_AGENT_CONSUMER_TOKEN,
+    ).toBe("emr335-dummy");
+  });
+
+  it("forwards an empty string when unset so the Go handler stays fail-closed at 503", () => {
+    expect(
+      envVarsWithConsumerToken(undefined).LAB_DEVICE_AGENT_CONSUMER_TOKEN,
+    ).toBe("");
+  });
+});

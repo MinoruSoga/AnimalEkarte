@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Axios from "axios";
 
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -201,12 +202,25 @@ async function fetchBoard(): Promise<LabDeviceBoard> {
 // backend labdevicecap.TTL(5min) より短い間隔で capability を再取得する
 const LAB_DEVICE_AGENT_CAPABILITY_REFRESH_MS = 4 * 60 * 1000;
 
-async function fetchLabDeviceAgentConsumerToken(): Promise<string> {
-  const { data } = await axios.get<LabDeviceAgentConsumerResponse>("/v1/lab-device/agent-consumer");
-  if (typeof data.agent_consumer_token !== "string" || data.agent_consumer_token === "") {
-    throw new Error("invalid lab device agent consumer response");
+// EMR-335: 秘密未設定の 503 は「未設定」という期待状態のため null を返し、
+// route(LabDeviceBoard)が「検査機器エージェントが未設定です」を表示する。
+// 汎用の handle-api-error 5xx トーストにはしない。503 以外の失敗は
+// 従来どおり reject し、グローバル QueryCache のエラーハンドラへ渡す。
+async function fetchLabDeviceAgentConsumerToken(): Promise<string | null> {
+  try {
+    const { data } = await axios.get<LabDeviceAgentConsumerResponse>(
+      "/v1/lab-device/agent-consumer",
+    );
+    if (typeof data.agent_consumer_token !== "string" || data.agent_consumer_token === "") {
+      throw new Error("invalid lab device agent consumer response");
+    }
+    return data.agent_consumer_token;
+  } catch (error) {
+    if (Axios.isAxiosError(error) && error.response?.status === 503) {
+      return null;
+    }
+    throw error;
   }
-  return data.agent_consumer_token;
 }
 
 export function useGetLabDeviceBoard(enabled = true) {

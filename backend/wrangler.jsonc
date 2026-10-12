@@ -219,6 +219,16 @@
       "SMTP_HOST",
       "SMTP_USER",
       "SMTP_PASS",
+      // EMR-335: 検査機器エージェント agent-consumer の capability 署名鍵。
+      // Worker envVars(buildContainerEnvVars)経由で Container の Go 側へ届く。
+      // 値は人間が `wrangler secret put LAB_DEVICE_AGENT_CONSUMER_TOKEN` のみで
+      // 投入する(本ファイルに値を書かない)。required に列挙した secret が未投入の
+      // ままだと pinned Wrangler 4.114.0 は deploy / versions upload を拒否するため、
+      // 人間が承認済みの新規 STG デプロイの「前」に投入する。Env 型宣言上の
+      // optional はこの required-secret デプロイゲートを緩めない。既存デプロイや
+      // env 未設定の local backend では /v1/lab-device/agent-consumer は 503 を
+      // 返し続け、画面は「未設定」表示になる(fail-closed)。
+      "LAB_DEVICE_AGENT_CONSUMER_TOKEN",
       // SEEDLOGIN_OPERATOR_EMAIL/NAME/PASSWORD は STG/local の任意 bootstrap。
       // required に入れない（未設定のままデプロイでき、Go はオペレータ upsert をスキップする）。
       // 値は `wrangler secret put` のみ。git / LoginForm / CSV には置かない。
