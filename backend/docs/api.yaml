@@ -2056,6 +2056,15 @@ components:
         end_date:
           type: string
           format: date
+        next_visit:
+          type: string
+          format: date
+          nullable: true
+          description: 次回予定日（YYYY-MM-DD）。CREATE/PATCHで省略は変更なし、PATCHでclear_next_visit=trueを送るとNULLに戻す。空文字・不正日付・RFC3339等は400。
+        clear_next_visit:
+          type: boolean
+          writeOnly: true
+          description: PATCHでtrueを送るとnext_visitをNULLに戻す。next_visitとの同時指定は400。
         status:
           type: string
           enum:

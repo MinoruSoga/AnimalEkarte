@@ -19,6 +19,7 @@ type HospitalizationResponse struct {
 	HospitalizationType  string    `json:"hospitalization_type"`
 	StartDate            time.Time `json:"start_date"`
 	EndDate              time.Time `json:"end_date"`
+	NextVisit            *string   `json:"next_visit,omitempty"`
 	Status               string    `json:"status"`
 	CageID               *uint64   `json:"cage_id,omitempty"`
 	DoctorID             *uint64   `json:"doctor_id,omitempty"`
@@ -41,6 +42,13 @@ type CageSwapResponse struct {
 }
 
 func toHospitalizationResponse(h *model.Hospitalization) HospitalizationResponse {
+	// EMR-353: DATE 列のカレンダー日をそのまま date-only で返す（TZ 変換で日がずれないよう
+	// 格納値の年月日を Format する）。
+	var nextVisit *string
+	if h.NextVisit != nil {
+		s := h.NextVisit.Format(time.DateOnly)
+		nextVisit = &s
+	}
 	return HospitalizationResponse{
 		ID:                   h.ID,
 		ClinicID:             h.ClinicID,
@@ -49,6 +57,7 @@ func toHospitalizationResponse(h *model.Hospitalization) HospitalizationResponse
 		HospitalizationType:  string(h.HospitalizationType),
 		StartDate:            httpapi.LocalTime(h.StartDate),
 		EndDate:              httpapi.LocalTime(h.EndDate),
+		NextVisit:            nextVisit,
 		Status:               string(h.Status),
 		CageID:               h.CageID,
 		DoctorID:             h.DoctorID,

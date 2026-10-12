@@ -344,7 +344,8 @@ describe("hospitalization form model", () => {
     ).toMatchObject({
       hospitalizationType: "入院",
       cageId: "990019",
-      displayDate: hospitalization.start_date,
+      // EMR-353: timestamp 形式の wire 値は共有日付計算が扱えるよう date-only に正規化する。
+      displayDate: "2026-07-23",
       endDate: "2026-07-30",
       memo: hospitalization.memo,
       ownerRequest: hospitalization.owner_request,
@@ -352,6 +353,79 @@ describe("hospitalization form model", () => {
       isInsurance: true,
       insuranceCompanyName: "合成監査保険",
       insuranceNumber: "SYN-INS-1",
+    });
+  });
+
+  // EMR-353: 次回予定日の wire 往復。create は入力日を送り、PATCH は保存値からの
+  // 差分だけを送る（未変更は省略、消去は clear_next_visit）。
+  it("新規payload: nextVisit があるとき next_visit を送り、空なら送らない", () => {
+    const pet = buildSelectedPetFromHospitalization(hospitalizationWithPet);
+    expect(pet).not.toBeNull();
+    if (!pet) return;
+
+    const withDate = buildCreateHospitalizationRequest(
+      { ...formData, nextVisit: "2026-11-20" },
+      pet,
+    );
+    expect(withDate.next_visit).toBe("2026-11-20");
+
+    const withoutDate = buildCreateHospitalizationRequest({ ...formData, nextVisit: "" }, pet);
+    expect(withoutDate).not.toHaveProperty("next_visit");
+  });
+
+  it("編集payload: nextVisit が保存値と同じなら next_visit も clear_next_visit も送らない", () => {
+    const request = buildUpdateHospitalizationRequest(
+      { ...formData, nextVisit: "2026-11-20" },
+      "",
+      "2026-11-20",
+    );
+    expect(request).not.toHaveProperty("next_visit");
+    expect(request).not.toHaveProperty("clear_next_visit");
+  });
+
+  it("編集payload: 保存値から日付を変更したとき next_visit を送る", () => {
+    const request = buildUpdateHospitalizationRequest(
+      { ...formData, nextVisit: "2026-12-01" },
+      "",
+      "2026-11-20",
+    );
+    expect(request.next_visit).toBe("2026-12-01");
+    expect(request).not.toHaveProperty("clear_next_visit");
+  });
+
+  it("編集payload: 保存済みの日付を消去したとき clear_next_visit: true を送る", () => {
+    const request = buildUpdateHospitalizationRequest(
+      { ...formData, nextVisit: "" },
+      "",
+      "2026-11-20",
+    );
+    expect(request.clear_next_visit).toBe(true);
+    expect(request).not.toHaveProperty("next_visit");
+  });
+
+  it("編集payload: 未設定のままなら next_visit も clear_next_visit も送らない", () => {
+    const request = buildUpdateHospitalizationRequest({ ...formData, nextVisit: "" }, "", "");
+    expect(request).not.toHaveProperty("next_visit");
+    expect(request).not.toHaveProperty("clear_next_visit");
+  });
+
+  it("編集recordの next_visit を form の nextVisit へ date-only 正規化し nextScheduleType は other にする", () => {
+    expect(
+      buildHospitalizationFormDataFromRecord(formData, {
+        ...hospitalization,
+        next_visit: "2026-08-15",
+      }),
+    ).toMatchObject({
+      nextVisit: "2026-08-15",
+      nextScheduleType: "other",
+      displayDate: "2026-07-23",
+    });
+  });
+
+  it("next_visit が無い record は nextVisit 空・nextScheduleType other で復元する", () => {
+    expect(buildHospitalizationFormDataFromRecord(formData, hospitalization)).toMatchObject({
+      nextVisit: "",
+      nextScheduleType: "other",
     });
   });
 

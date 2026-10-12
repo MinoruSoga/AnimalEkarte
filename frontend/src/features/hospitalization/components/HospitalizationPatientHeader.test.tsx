@@ -33,6 +33,7 @@ function makeHospitalization(
     memo: undefined,
     ownerRequest: undefined,
     staffNotes: undefined,
+    nextVisit: undefined,
   };
   return { ...base, ...overrides };
 }
@@ -115,5 +116,29 @@ describe("HospitalizationPatientHeader 誕生月バッジ (EMR-301)", () => {
 
     expect(screen.getByText("【死亡】")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
+  });
+});
+
+// EMR-353: 保存済み next_visit がある詳細ヘッダは「次回予定」ラベルでその日付を表示し、
+// 無い場合は従来どおり「退院予定」+ endDate のままにする。
+describe("HospitalizationPatientHeader 次回予定表示 (EMR-353)", () => {
+  it("保存済み nextVisit があるとき「次回予定」ラベルとその日付を表示する", () => {
+    render(
+      <HospitalizationPatientHeader
+        hospitalization={makeHospitalization(false, { nextVisit: "2026-11-20" })}
+      />,
+    );
+
+    expect(screen.getByText("次回予定")).toBeInTheDocument();
+    expect(screen.getByText(/2026\/11\/20/)).toBeInTheDocument();
+    expect(screen.queryByText("退院予定")).not.toBeInTheDocument();
+  });
+
+  it("nextVisit が無いとき従来どおり「退院予定」ラベルと endDate を表示する", () => {
+    render(<HospitalizationPatientHeader hospitalization={makeHospitalization(false)} />);
+
+    expect(screen.getByText("退院予定")).toBeInTheDocument();
+    expect(screen.getByText(/2026\/07\/25/)).toBeInTheDocument();
+    expect(screen.queryByText("次回予定")).not.toBeInTheDocument();
   });
 });

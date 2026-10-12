@@ -99,6 +99,20 @@ describe("transformHospitalization (HospitalizationResponse wire)", () => {
     expect(transformHospitalization(minimal).id).toBe("1");
   });
 
+  it("next_visit を nextVisit へ date-only でマップする (EMR-353)", () => {
+    expect(transformHospitalization({ ...minimal, next_visit: "2026-11-20" }).nextVisit).toBe(
+      "2026-11-20",
+    );
+    // timestamp 形式で返ってきても日付部分だけを使う（共有日付表示の入力正規化）。
+    expect(
+      transformHospitalization({ ...minimal, next_visit: "2026-11-20T00:00:00+09:00" }).nextVisit,
+    ).toBe("2026-11-20");
+  });
+
+  it("next_visit が無い wire は nextVisit を undefined にする", () => {
+    expect(transformHospitalization(minimal).nextVisit).toBeUndefined();
+  });
+
   it("insurance_company_name / insurance_number は wire 上 optional で保持される", () => {
     const withIns: BackendHospitalization = {
       ...minimal,

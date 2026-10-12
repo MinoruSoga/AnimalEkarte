@@ -24,6 +24,7 @@ export function useHospitalizationFormHydration(input: {
   isTreatmentPlansSuccess: boolean;
   selectedPetRef: { current: Pet | undefined };
   initialCageIdRef: { current: string };
+  initialNextVisitRef: { current: string };
   setFormData: (updater: (prev: HospitalizationFormData) => HospitalizationFormData) => void;
   setSelectedPets: (pets: Pet[]) => void;
   setTreatmentPlans: (plans: HospitalizationTreatmentPlan[]) => void;
@@ -39,6 +40,7 @@ export function useHospitalizationFormHydration(input: {
     isTreatmentPlansSuccess,
     selectedPetRef,
     initialCageIdRef,
+    initialNextVisitRef,
     setFormData,
     setSelectedPets,
     setTreatmentPlans,
@@ -52,13 +54,22 @@ export function useHospitalizationFormHydration(input: {
     if (hydratedHospitalizationId.current === record.id) return;
     hydratedHospitalizationId.current = record.id;
     initialCageIdRef.current = record.cage_id ? String(record.cage_id) : "";
+    // EMR-353: PATCH 差分判定の基準は保存値（date-only 正規化して form 側と揃える）。
+    initialNextVisitRef.current = record.next_visit ? record.next_visit.split("T")[0] : "";
     setFormData((prev) => buildHospitalizationFormDataFromRecord(prev, record));
     const selectedPet = buildSelectedPetFromHospitalization(record);
     if (selectedPet) {
       selectedPetRef.current = selectedPet;
       setSelectedPets([selectedPet]);
     }
-  }, [entityRead, setSelectedPets, selectedPetRef, initialCageIdRef, setFormData]);
+  }, [
+    entityRead,
+    setSelectedPets,
+    selectedPetRef,
+    initialCageIdRef,
+    initialNextVisitRef,
+    setFormData,
+  ]);
 
   const hydratedTreatmentPlansForId = useRef<string | undefined>(undefined);
   useEffect(() => {

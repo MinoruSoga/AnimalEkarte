@@ -53,8 +53,8 @@ export function HospitalizationPatientHeader({
       ownerIsDangerous={ownerIsDangerous}
       petDangerLevel={petDangerLevel}
       petDangerReason={petDangerReason}
-      nextVisitDate={formatDate(hospitalization.endDate)}
-      nextVisitContent="退院予定"
+      nextVisitDate={formatDate(hospitalization.nextVisit || hospitalization.endDate)}
+      nextVisitContent={hospitalization.nextVisit ? "次回予定" : "退院予定"}
     />
   );
 }
