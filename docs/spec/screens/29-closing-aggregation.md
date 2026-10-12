@@ -88,6 +88,31 @@ flowchart TB
 | KPI との差 | 返金発生日 ≠ 親会計完了日のとき、`summary.net_amount` / `TotalRefund`（完了会計帰属）と matrix grand（発生日帰属）は **意図的に不一致** になり得る。DEC-16⑥ が正とするのは matrix / 締め合計側。KPI 側は「完了会計に紐づく返金」のレガシー集計であり、matrix を KPI に合わせて書き換えない。 |
 | 回帰 | `TestBuildAllocationBillings_Conservation`、`TestBuildAllocationBillings_MatrixGrandEqualsOccurrenceNetNotCompletedAttachedKPI`、`TestAggregateCategoryPaymentMatrix_MultiBillingConservation` |
 
+#### 個別会計明細リスト（EMR-354）
+
+> ※ EMR-354 のチケット要件は確定済みだが、ユーザー報告の**元の紙帳票（ペーパーレポート）実物は未取得**のため、
+> 元帳票との完全一致は **未検証**。本節は実装済みの画面・印刷契約を記す。
+> 列構成は [10-accounting-list.md §当日会計](./10-accounting-list.md) の
+> 日次集計一覧表（A4 landscape）の並びを踏襲する。
+
+- **行単位**: backend は split 明細行（1 会計 × split 数）を返す。画面 `BillingDetailTable` と
+  印刷 `ClosePrintArea` は同一の pure 投影（`lib/billing-detail-rows.ts` の
+  `projectBillingDetailRows`）で **1 会計 = 1 行** に畳む（`billingId` をキー）。
+- **固定列（日次帳票順）**: 領収No（billingId 8桁ゼロ埋め）→ 診療・外科・RV・フード・
+  トリミング・ホテル・用品他（部門7バケット、0円セルも残す）→ 支払方法（split を "/" 結合）→
+  合計（GROSS = Σ split billing_amount）→ 飼主名 → ペット名。
+  日次帳票の部門グルーピング: goods/training/other → 用品他。
+- **追加保持列（日次帳票には無いが締め明細として保持）**: 先頭の `時刻`、合計の後の
+  `返金額`（全期間スカラを1回）と `純額`（合計−返金）。既存の支払・返金スカラ契約を
+  維持するための追加列であり、元帳票への合致を主張しない。
+- **`category_amounts`**: 各 split 行の支払額を親会計 billing_items 重みで按分した部門別
+  GROSS 内訳（円）。合計はその行の `billing_amount` と一致。返金は含まない（返金・純額は
+  従来の全期間スカラ）。フィールド欠落（旧ペイロード）は「記録なし」と表示し、
+  MIN(category) への全額寄せは行わない。
+- **印刷フッタ**: 明細表の末尾に合計行を1回だけ出力し、可視行の部門 GROSS・合計・
+  返金・純額を再集計する。いずれかの行が不明（category_amounts 欠落）なら部門合計も
+  「記録なし」（0 捏造しない）。
+
 ---
 
 

@@ -7409,6 +7409,18 @@ components:
               net_amount:
                 type: integer
                 format: int64
+              category_amounts:
+                type: object
+                nullable: true
+                additionalProperties:
+                  type: integer
+                  format: int64
+                description: >-
+                  EMR-354: 当該支払明細（split）の支払額を、親会計の billing_items
+                  明細金額重みで按分した部門別 GROSS 内訳（円）。map 合計は
+                  billing_amount と一致する。返金は含まない（refund_amount /
+                  net_amount は従来の全期間スカラ）。欠落時は旧バックエンド互換
+                  （FE は「記録なし」表示）。
     ClinicSettings:
       type: object
       description: 医院設定（締め時間等）

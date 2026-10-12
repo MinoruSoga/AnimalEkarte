@@ -163,6 +163,67 @@ func TestToCashRegisterPreviewResponse(t *testing.T) {
 	}
 }
 
+// TestToCashRegisterPreviewResponse_EMR354_CategoryAmounts は
+// 個別明細の category_amounts が preview レスポンス JSON に transport されることを検証する（EMR-354）。
+//
+// RED 時点では CloseBillingDetail / レスポンス構造体に CategoryAmounts が無く marshal に
+// キーが出ないため失敗する（コンパイルエラーではなく振る舞い RED）。
+// GREEN 時は fixture の CloseBillingDetail へ CategoryAmounts をセットする。
+func TestToCashRegisterPreviewResponse_EMR354_CategoryAmounts(t *testing.T) {
+	paymentMethodID := uint64(3)
+	preview := &CashRegisterPreview{
+		Date:   "2026-05-28",
+		Period: "am",
+		BillingDetails: []CloseBillingDetail{
+			{
+				BillingID:         10,
+				PaidAt:            "2026-05-28T10:00:00+09:00",
+				OwnerName:         "田中太郎",
+				PetName:           "ポチ",
+				IsHospitalization: false,
+				Category:          string(model.ItemCategoryExamination),
+				PaymentMethodID:   &paymentMethodID,
+				PaymentMethodName: "現金",
+				BillingAmount:     1000,
+				RefundAmount:      0,
+				NetAmount:         1000,
+				CategoryAmounts:   map[string]int64{"examination": 667, "food": 333},
+			},
+		},
+	}
+
+	resp := toCashRegisterPreviewResponse(preview)
+	if len(resp.BillingDetails) != 1 {
+		t.Fatalf("len(BillingDetails) = %d, want 1", len(resp.BillingDetails))
+	}
+
+	raw, err := json.Marshal(resp.BillingDetails[0])
+	if err != nil {
+		t.Fatalf("marshal error: %v", err)
+	}
+	var decoded map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		t.Fatalf("unmarshal error: %v", err)
+	}
+	rawAmounts, ok := decoded["category_amounts"]
+	if !ok {
+		t.Fatalf("レスポンス JSON に category_amounts が必要（EMR-354）。got keys: %v", decoded)
+	}
+	var amounts map[string]int64
+	if err := json.Unmarshal(rawAmounts, &amounts); err != nil {
+		t.Fatalf("category_amounts の decode 失敗: %v", err)
+	}
+	want := map[string]int64{"examination": 667, "food": 333}
+	if len(amounts) != len(want) {
+		t.Fatalf("category_amounts = %v, want %v", amounts, want)
+	}
+	for k, v := range want {
+		if amounts[k] != v {
+			t.Errorf("category_amounts[%q] = %d, want %d", k, amounts[k], v)
+		}
+	}
+}
+
 func TestToCashRegisterPreviewResponse_EmptySlices(t *testing.T) {
 	preview := &CashRegisterPreview{
 		Date:   "2026-05-28",

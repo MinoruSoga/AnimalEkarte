@@ -62,6 +62,9 @@ type CloseBillingDetail struct {
 	BillingAmount     int64   `json:"billing_amount"`
 	RefundAmount      int64   `json:"refund_amount"`
 	NetAmount         int64   `json:"net_amount"`
+	// CategoryAmounts は当該 split 支払額の部門別 GROSS 内訳（EMR-354）。repository から透過。
+	// nil = 旧バックエンド相当（FE は「記録なし」表示）。
+	CategoryAmounts map[string]int64 `json:"category_amounts"`
 }
 
 // buildCategoryBreakdown builds CategoryBreakdownSchema from a per-billing allocated matrix
@@ -371,6 +374,7 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 			BillingAmount:     d.BillingAmount,
 			RefundAmount:      d.RefundAmount,
 			NetAmount:         d.NetAmount,
+			CategoryAmounts:   d.CategoryAmounts,
 		})
 	}
 
