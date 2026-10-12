@@ -65,7 +65,7 @@
 | 調査・スパイク票 | Research |
 | 人間の判断・操作待ちで滞留 | Needs Human |
 | 今期対象外 | Phase2（ラベルではなく state としても存在する。運用は state を優先） |
-| 本番切替（2026-10-20）までに完了必須 | 本番切替対応 |
+| 本番環境構築の開始（2026-10-20）までに完了必須 | 本番切替対応（state 名は `scripts/tools/plane-merge-state.sh` / `plane-merge-state.test.sh` が文字列参照するため変更しない） |
 
 複数に同時に該当する場合は滞留・保留側を優先する: `Phase2` > `Needs Human` > `本番切替対応` > `Ready` / `Research` > `Backlog`（切替期限の情報は priority や本文に併記する。state は workflow 上の実際の位置を表す）
 
