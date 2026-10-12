@@ -501,3 +501,20 @@ export function internalFailureLedger(
     failureCode,
   };
 }
+
+export function scheduledRunRequiresCronFailure(result: ScheduledRunResult): boolean {
+  if (
+    result.disposition === "paused" ||
+    result.disposition === "busy" ||
+    result.ledger?.failureCode === "busy"
+  ) {
+    return false;
+  }
+  if (result.disposition === "duplicate") {
+    return result.ledger?.status === "partial" || result.ledger?.status === "failed";
+  }
+  if (result.disposition !== "executed") {
+    return true;
+  }
+  return result.ledger?.status === "partial" || result.ledger?.status === "failed";
+}
