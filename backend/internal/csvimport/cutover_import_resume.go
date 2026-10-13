@@ -52,6 +52,10 @@ func PreflightCutoverTargetAllowingResume(ctx context.Context, target cutoverQue
 	return PreflightCutoverTargetAllowingResumeWithProvenance(ctx, target, manifest, seeds, CutoverProvenanceContract{})
 }
 
+// PreflightCutoverTargetAllowingResumeWithProvenance binds the profile before
+// checking the target and a resumable clinic-band prefix. Each populated
+// table must already match the manifest; candidate formal activation remains
+// blocked and this preflight never imports or replaces target data.
 func PreflightCutoverTargetAllowingResumeWithProvenance(ctx context.Context, target cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs, provenance CutoverProvenanceContract) error {
 	var err error
 	manifest, err = bindCutoverManifestProfile(manifest, provenance)

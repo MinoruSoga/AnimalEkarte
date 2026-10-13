@@ -11,6 +11,9 @@ const (
 	CutoverProfileMedicinesCandidate CutoverProfile = "medicines-22-candidate"
 )
 
+// ParseCutoverProfile resolves an empty selection to legacy21 and rejects
+// unknown profiles. Selecting the medicines candidate does not grant formal
+// activation; provenance binding enforces its rehearsal-only gate.
 func ParseCutoverProfile(value string) (CutoverProfile, error) {
 	switch CutoverProfile(value) {
 	case "", CutoverProfileLegacy21:

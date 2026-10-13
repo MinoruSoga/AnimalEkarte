@@ -11,10 +11,15 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// PreflightCutoverTarget checks target schema, seed bindings and empty clinic
+// bands with the default provenance contract. It never writes target data.
 func PreflightCutoverTarget(ctx context.Context, target cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs) error {
 	return PreflightCutoverTargetWithProvenance(ctx, target, manifest, seeds, CutoverProvenanceContract{})
 }
 
+// PreflightCutoverTargetWithProvenance binds the selected profile and mode
+// before inspecting target schema, seed bindings and empty clinic bands.
+// Unsupported candidate activation is rejected before database inspection.
 func PreflightCutoverTargetWithProvenance(ctx context.Context, target cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs, provenance CutoverProvenanceContract) error {
 	manifest, err := bindCutoverManifestProfile(manifest, provenance)
 	if err != nil {
@@ -148,6 +153,10 @@ func VerifyCutover(ctx context.Context, target cutoverQuerier, manifest CutoverM
 	return VerifyCutoverWithProvenance(ctx, target, manifest, seeds, CutoverProvenanceContract{Mode: CutoverProvenanceFormal})
 }
 
+// VerifyCutoverWithProvenance binds the profile and checks current target
+// schema, seed bindings, row invariants and sequences without writing data.
+// It preserves the candidate formal-activation guard and does not prove
+// producer receipt or a content hash match for every imported row.
 func VerifyCutoverWithProvenance(ctx context.Context, target cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs, provenance CutoverProvenanceContract) error {
 	var err error
 	manifest, err = bindCutoverManifestProfile(manifest, provenance)
