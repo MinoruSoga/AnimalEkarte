@@ -16,7 +16,7 @@
 
 | # | 操作 | 期待結果 |
 |:--|:---|:---|
-| 1 | 顧客集計ダッシュボード `/aggregation` を開く | 売上ランキングタブが既定表示され、CPM 6 区分（Encounter/Growing/Core/Spot/Noah/Dormant）に加えて Unclassified（`cpm_unclassified`）の人数チップが表示される。「すべて」件数はこれら合計と一致する。長時間ハングせず、最悪 25s 前後でエラー表示に落ちること（BUG-012） |
+| 1 | 顧客集計ダッシュボード `/aggregation` を開く | 売上ランキングタブが既定表示され、CPM 6 区分（Encounter/Growing/Core/Spot/Noah/Dormant）に加えて Unclassified（`cpm_unclassified`）の人数チップが表示される。「すべて」件数はこれら合計と一致する。長時間ハングせず、20 秒超過時は専用メッセージ「集計に時間がかかっています。しばらくして再試行してください」が 1 回だけ表示されること（EMR-334） |
 | 2 | CPM チップのいずれかをクリック | 一覧が該当セグメントの飼主に絞り込まれる |
 | 3 | 「来院回数」「最終来院」タブへ順に切替 | タブに応じて列構成が変わる。売上 0 の owner も来院/最終来院タブに残る。FE は `include_zero: true` を送り、BE の zero-amount 除外は revenue query だけに適用する |
 | 4 | 売上ランキングタブで飼主 A を探し、年間診療費と来院回数を確認する | S08 の `medical_record_id` なし完了会計が年間診療費に算入される。手動会計自体は来院として数えられず、来院回数は `medical_records` に記録された診療日の件数から変わらない |
@@ -41,10 +41,10 @@ flowchart LR
 ## 確認観点
 
 - **LTV と来院回数の対象分離**: LTV は医院・飼主が一致する完了（completed）会計を `billings` から集計し、`medical_record_id` のない手動会計も含む（`ltv_repository.go` の ba サブクエリ）。期間判定は `COALESCE(bmr.date, b.scheduled_date)`。payments 集計は **billings.clinic_id で scope**（BUG-012）。来院回数・最終来院日は論理削除されていない `medical_records` の診療日だけを数え、手動会計では増えない。見積（estimates）は売上に算入されない。
-- **タイムアウト境界（BUG-012）**: BE `ListOwnerAggregation` は `aggregationQueryTimeout = 20s`。FE axios は一覧・CPM 人数とも `timeout: 25_000`。無限 loading は不具合、タイムアウト後のエラー表示は正常。
-- **CPM チップ**: 画面は V1 の 6 区分 + `cpm_unclassified` の **7 並列**（`AGGREGATION_CPM_STAGES`）。医院設定が V2 でもこの一覧は切り替わらない。「すべて」= 7 区分の合計。
+- **タイムアウト境界（EMR-334 / BUG-012）**: BE `ListOwnerAggregation` は自身の deadline（`aggregationQueryTimeout = 20s`）の失効だけを HTTP 503 + `code: aggregation_timeout` にマップする。依存先の deadline 超過・クライアント切断・その他のエラーは従来の分類。FE は 503 `aggregation_timeout` のみ自動リトライと共通エラートーストを抑止し、画面には専用メッセージ「集計に時間がかかっています。しばらくして再試行してください」を 1 回だけ表示する。それ以外のエラーは既定のリトライ・共通通知を維持する。
+- **CPM チップ**: 画面は V1 の 6 区分 + `cpm_unclassified` の **7 チップ**（`AGGREGATION_CPM_STAGES`）。医院設定が V2 でもこの一覧は切り替わらない。「すべて」= 7 区分の合計。
 - **最終来院区分の境界**: 90/180/365 日は `ltv_repository.go` の SQL 固定値。区分は within_3m / over_3m / over_6m / over_1y / no_visit（「3ヶ月未満／3ヶ月以上／6ヶ月以上／1年以上／来院なし」）。
-- **並行ロード**: CPM チップ（**7 並列** total クエリ = 6 区分 + `cpm_unclassified`）と一覧テーブルは別クエリで非同期取得される。片方が先に表示される瞬間があっても不具合ではない。
+- **単一リクエスト（EMR-334）**: 一覧と CPM 人数は `GET /owners/aggregations` 1 回の同一レスポンスに同梱される（`cpm_stage_counts`）。区分ごとの追加 GET は発行しないため、チップと一覧は同時に確定する。`cpm_stage_counts` は `cpm_stage` 絞り込み・ページネーション前の母集団全体を数える。
 - **CPM「Dormant」チップとの区別**: CPM 休眠は `cpm_v1_dormant_days`（既定 240 日）の別軸。#8 の「1年以上」（365 日固定）と件数不一致は不具合ではない。
 - **CPM チップの固定**: 画面チップは V1 の 6 区分 + Unclassified。医院設定の CPM バージョンが V2 でもこの一覧は切り替わらない（仕様正本 36 §1.2）。
 - **来院なしの扱い**: 最終来院タブの「来院なしを含む」と `no_visit` は「1年以上」とは別分類。#8 の絞り込みで混入しないこと。
@@ -55,3 +55,4 @@ flowchart LR
   - BUG-012: BE 20s / FE 25s timeout と payments clinic scope を確認観点に追加
   - 金額基準 API 値（gross/paid/net）と UI ラベル「精算済」を明記
   - LTV 期間軸 `COALESCE(bmr.date, b.scheduled_date)` を実装どおり記載
+  - EMR-334: 一覧+CPM 人数の単一レスポンス (`cpm_stage_counts`)、区分別 GET 廃止、503 `aggregation_timeout` + 専用メッセージを記載

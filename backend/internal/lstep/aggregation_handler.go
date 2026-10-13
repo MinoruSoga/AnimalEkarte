@@ -1,6 +1,7 @@
 package lstep
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -35,6 +36,9 @@ type ownerAggregationListResponse struct {
 	Page    int                        `json:"page"`
 	PerPage int                        `json:"per_page"`
 	Owners  []ownerAggregationResponse `json:"owners"`
+	// CPMStageCounts は cpm_stage 絞り込み・ページネーション前の母集団全体の
+	// CPM 区分人数 (EMR-334)。全 7 区分のキーを持つ。
+	CPMStageCounts map[string]int `json:"cpm_stage_counts"`
 }
 
 func toOwnerAggregationResponse(item *OwnerAggregationItem) ownerAggregationResponse {
@@ -94,10 +98,11 @@ func toOwnerAggregationListResponse(result *ListOwnerAggregationResult) ownerAgg
 		owners = append(owners, toOwnerAggregationResponse(&result.Items[i]))
 	}
 	return ownerAggregationListResponse{
-		Total:   result.Total,
-		Page:    result.Page,
-		PerPage: result.PerPage,
-		Owners:  owners,
+		Total:          result.Total,
+		Page:           result.Page,
+		PerPage:        result.PerPage,
+		Owners:         owners,
+		CPMStageCounts: result.CPMStageCounts,
 	}
 }
 
@@ -119,6 +124,17 @@ func (h *Handler) ListOwnerAggregation(c *gin.Context) {
 	}
 	result, err := h.aggregation.ListOwnerAggregation(c.Request.Context(), clinicID, query.toServiceInput())
 	if err != nil {
+		// EMR-334: 集計クエリ自身の deadline 失効 (errAggregationQueryTimeout) だけを
+		// 専用の 503 に分岐する。外部依存の DeadlineExceeded、クライアント切断
+		// (context.Canceled)、その他のエラーは従来どおりの分類に委ねる。
+		if errors.Is(err, errAggregationQueryTimeout) {
+			_ = c.Error(err)
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"error": "aggregation timed out",
+				"code":  "aggregation_timeout",
+			})
+			return
+		}
 		httpapi.RespondError(c, err)
 		return
 	}

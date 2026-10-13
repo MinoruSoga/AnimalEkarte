@@ -48,8 +48,19 @@ export function formatAggregationError(error: unknown): string {
   const baseMessage = "データの読み込みに失敗しました";
   if (error !== null && typeof error === "object") {
     const response = (
-      error as { response?: { status?: number; statusText?: string; data?: { error?: string } } }
+      error as {
+        response?: {
+          status?: number;
+          statusText?: string;
+          data?: { error?: string; code?: string };
+        };
+      }
     ).response;
+    // EMR-334: 集計タイムアウト (503 + code aggregation_timeout) は専用の再試行メッセージ。
+    // 汎用の 5xx 文言や HTTP 詳細は併記しない。
+    if (response?.data?.code === "aggregation_timeout") {
+      return "集計に時間がかかっています。しばらくして再試行してください";
+    }
     if (response?.status) {
       const detail = response.statusText
         ? `HTTP ${response.status} ${response.statusText}`

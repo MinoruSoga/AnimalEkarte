@@ -598,3 +598,323 @@ func TestListOwnerAggregation_EmptyResult(t *testing.T) {
 	assert.NotNil(t, resp.Owners, "owners は null でなく [] であるべき (FE が map で iterate するため)")
 	assert.Len(t, resp.Owners, 0)
 }
+
+// TestListOwnerAggregation_CPMStageCounts は 1 回の LTV スキャンで
+// 選択リスト (cpm_stage 絞り込み + ページネーション適用済み) と
+// 母集団全体の CPM 区分人数 (cpm_stage_counts) を同時に返すことを保証する (EMR-334)。
+// 現行レスポンスに cpm_stage_counts は存在しないため、実装前はこのアサーションで RED になる。
+func TestListOwnerAggregation_CPMStageCounts(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	now := time.Now()
+
+	// 母集団: spot ×2 / encounter ×1 / unclassified ×1 (計4)。
+	// 各ステージ判定値は TestListOwnerAggregation_CPMStageParity と同じ材料を使う。
+	rows := []OwnerLTVRow{
+		{
+			OwnerID: 1, OwnerName: "spot a",
+			TotalAmount: 35_000, TotalVisitCount: 1, AnnualVisitCount: 1,
+			DaysSinceLastVisit:   aggIntPtr(120),
+			FirstVisitDate:       timePtr(now.AddDate(0, 0, -120)),
+			MaxSingleVisitAmount: 35_000,
+			AnnualAmount:         int64PtrLocal(35_000),
+			LastVisitBucket:      aggStrPtr("over_3m"),
+		},
+		{
+			OwnerID: 2, OwnerName: "spot b",
+			TotalAmount: 35_000, TotalVisitCount: 1, AnnualVisitCount: 1,
+			DaysSinceLastVisit:   aggIntPtr(120),
+			FirstVisitDate:       timePtr(now.AddDate(0, 0, -120)),
+			MaxSingleVisitAmount: 35_000,
+			AnnualAmount:         int64PtrLocal(35_000),
+			LastVisitBucket:      aggStrPtr("over_3m"),
+		},
+		{
+			OwnerID: 3, OwnerName: "encounter",
+			TotalAmount: 5_000, TotalVisitCount: 1, AnnualVisitCount: 1,
+			DaysSinceLastVisit:   aggIntPtr(10),
+			FirstVisitDate:       timePtr(now.AddDate(0, 0, -10)),
+			MaxSingleVisitAmount: 5_000,
+			AnnualAmount:         int64PtrLocal(5_000),
+			LastVisitBucket:      aggStrPtr("within_3m"),
+		},
+		{
+			// growing 非該当 (初診90日超・visit=2・LTV 2万〜5万) → 明示判定後 unclassified。
+			OwnerID: 4, OwnerName: "unclassified",
+			TotalAmount: 25_000, TotalVisitCount: 2, AnnualVisitCount: 2,
+			DaysSinceLastVisit:   aggIntPtr(30),
+			FirstVisitDate:       timePtr(now.AddDate(0, 0, -200)),
+			MaxSingleVisitAmount: 15_000,
+			AnnualAmount:         int64PtrLocal(25_000),
+			LastVisitBucket:      aggStrPtr("within_3m"),
+		},
+	}
+
+	scanCount := 0
+	repo := &mockLtvRepositoryCapture{
+		fn: func(_ context.Context, _ *FindOwnerLTVParams) ([]OwnerLTVRow, error) {
+			scanCount++
+			return rows, nil
+		},
+	}
+	svc := NewAggregationService(repo, &mockLstepSettingsService{})
+	h := newHandlerWithAggregationSvc(svc)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/?cpm_stage=cpm_spot&page=1&per_page=1", http.NoBody)
+	setClinicID(c)
+	h.ListOwnerAggregation(c)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, 1, scanCount, "FindOwnerLTV は1リクエスト1回のみ実行される")
+
+	var resp struct {
+		Total          int                        `json:"total"`
+		Page           int                        `json:"page"`
+		PerPage        int                        `json:"per_page"`
+		Owners         []ownerAggregationResponse `json:"owners"`
+		CPMStageCounts map[string]int             `json:"cpm_stage_counts"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+
+	// 選択リスト: cpm_stage 絞り込み後の total / ページ切り出しは従来意味のまま。
+	assert.Equal(t, 2, resp.Total, "total は選択リスト (spot) の件数")
+	assert.Equal(t, 1, resp.Page)
+	assert.Equal(t, 1, resp.PerPage)
+	assert.Len(t, resp.Owners, 1, "per_page=1 のため返却行は1件")
+
+	// cpm_stage_counts は cpm_stage 絞り込み・ページネーション前の母集団全体を
+	// 7 区分 (0件区分もキーあり) で返す。
+	assert.Equal(t, map[string]int{
+		"cpm_encounter":    1,
+		"cpm_growing":      0,
+		"cpm_core":         0,
+		"cpm_spot":         2,
+		"cpm_noah":         0,
+		"cpm_dormant":      0,
+		"cpm_unclassified": 1,
+	}, resp.CPMStageCounts, "母集団全体の CPM 区分人数")
+}
+
+// TestListOwnerAggregation_CPMStageCounts_EmptyBase は母集団 0 件でも
+// cpm_stage_counts が 7 区分すべてのキーを値 0 で返すことを保証する (EMR-334)。
+func TestListOwnerAggregation_CPMStageCounts_EmptyBase(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	scanCount := 0
+	repo := &mockLtvRepositoryCapture{
+		fn: func(_ context.Context, _ *FindOwnerLTVParams) ([]OwnerLTVRow, error) {
+			scanCount++
+			return nil, nil
+		},
+	}
+	svc := NewAggregationService(repo, &mockLstepSettingsService{})
+	h := newHandlerWithAggregationSvc(svc)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	setClinicID(c)
+	h.ListOwnerAggregation(c)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, 1, scanCount, "0件でも LTV スキャンは1回のみ")
+
+	var resp struct {
+		Total          int                        `json:"total"`
+		Owners         []ownerAggregationResponse `json:"owners"`
+		CPMStageCounts map[string]int             `json:"cpm_stage_counts"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, 0, resp.Total)
+	assert.Empty(t, resp.Owners)
+	assert.Equal(t, map[string]int{
+		"cpm_encounter":    0,
+		"cpm_growing":      0,
+		"cpm_core":         0,
+		"cpm_spot":         0,
+		"cpm_noah":         0,
+		"cpm_dormant":      0,
+		"cpm_unclassified": 0,
+	}, resp.CPMStageCounts, "0件でも 7 区分すべてのキーを返す")
+}
+
+// TestListOwnerAggregation_AggregationTimeout は集計クエリ自身の deadline
+// (aggregationQueryTimeout) の失効だけが HTTP 503 + code=aggregation_timeout に
+// マップされることを保証する (EMR-334 R2)。
+// 外部依存が自身の ctx で既に期限切れとなった DeadlineExceeded や、呼び出し元の
+// deadline/cancel は通常エラーのまま 500 に流す。
+func TestListOwnerAggregation_AggregationTimeout(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	newHandlerReturning := func(repoErr error) *Handler {
+		repo := &mockLtvRepositoryCapture{
+			fn: func(ctx context.Context, _ *FindOwnerLTVParams) ([]OwnerLTVRow, error) {
+				deadline, ok := ctx.Deadline()
+				if assert.True(t, ok, "集計クエリには deadline が設定される") {
+					assert.LessOrEqual(t, time.Until(deadline), aggregationQueryTimeout,
+						"deadline は aggregationQueryTimeout (20s) 以内")
+				}
+				return nil, repoErr
+			},
+		}
+		return newHandlerWithAggregationSvc(NewAggregationService(repo, &mockLstepSettingsService{}))
+	}
+
+	perform := func(h *Handler) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+		setClinicID(c)
+		h.ListOwnerAggregation(c)
+		return w
+	}
+
+	t.Run("集計クエリ自身の deadline 失効 → 503 + code aggregation_timeout", func(t *testing.T) {
+		// repo double は集計クエリの ctx.Done() を待ってから ctx.Err() を返す。
+		// service の queryTimeout seam を 1ns に縮めて集計タイマー自身の失効を
+		// deterministic に再現する (time.Sleep / 実時間待ちは使わない)。
+		repo := &mockLtvRepositoryCapture{
+			fn: func(ctx context.Context, _ *FindOwnerLTVParams) ([]OwnerLTVRow, error) {
+				deadline, ok := ctx.Deadline()
+				if assert.True(t, ok, "集計クエリには deadline が設定される") {
+					assert.LessOrEqual(t, time.Until(deadline), aggregationQueryTimeout,
+						"deadline は aggregationQueryTimeout (20s) 以内")
+				}
+				<-ctx.Done()
+				return nil, ctx.Err()
+			},
+		}
+		svc := &aggregationService{
+			repo:         repo,
+			settingsSvc:  &mockLstepSettingsService{},
+			queryTimeout: time.Nanosecond,
+		}
+		w := perform(newHandlerWithAggregationSvc(svc))
+
+		assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+		var resp struct {
+			Error string `json:"error"`
+			Code  string `json:"code"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		assert.Equal(t, "aggregation_timeout", resp.Code)
+	})
+
+	t.Run("依存先が自身の deadline を超過 → 通常エラーの 500 のまま", func(t *testing.T) {
+		// 依存先 (repo) が自身のコンテキスト期限切れで DeadlineExceeded を即座に返した場合、
+		// 集計クエリ自身のタイマー失効ではないため専用 503 にはしない。
+		// 現行実装は DeadlineExceeded 一律で 503 を返すため RED。
+		w := perform(newHandlerReturning(apperrors.Wrap(context.DeadlineExceeded, "ltv scan deadline")))
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
+	t.Run("呼び出し元の deadline 切れ → 通常エラーの 500", func(t *testing.T) {
+		// 親 ctx が既に期限切れなら、子 ctx の cause は親の DeadlineExceeded であり
+		// 集計クエリ自身のタイマー失効ではないため 503 にしない。
+		repo := &mockLtvRepositoryCapture{
+			fn: func(ctx context.Context, _ *FindOwnerLTVParams) ([]OwnerLTVRow, error) {
+				<-ctx.Done()
+				return nil, ctx.Err()
+			},
+		}
+		svc := &aggregationService{
+			repo:         repo,
+			settingsSvc:  &mockLstepSettingsService{},
+			queryTimeout: aggregationQueryTimeout,
+		}
+		h := newHandlerWithAggregationSvc(svc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		expired, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+		defer cancel()
+		c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody).WithContext(expired)
+		setClinicID(c)
+		h.ListOwnerAggregation(c)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
+	t.Run("呼び出し元の cancel → 通常エラーの 500", func(t *testing.T) {
+		repo := &mockLtvRepositoryCapture{
+			fn: func(ctx context.Context, _ *FindOwnerLTVParams) ([]OwnerLTVRow, error) {
+				<-ctx.Done()
+				return nil, ctx.Err()
+			},
+		}
+		svc := &aggregationService{
+			repo:         repo,
+			settingsSvc:  &mockLstepSettingsService{},
+			queryTimeout: aggregationQueryTimeout,
+		}
+		h := newHandlerWithAggregationSvc(svc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		canceled, cancel := context.WithCancel(context.Background())
+		cancel()
+		c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody).WithContext(canceled)
+		setClinicID(c)
+		h.ListOwnerAggregation(c)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
+	t.Run("client cancel は timeout とみなさず従来の 500", func(t *testing.T) {
+		w := perform(newHandlerReturning(apperrors.Wrap(context.Canceled, "client disconnected")))
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
+	t.Run("ordinary repo error は従来の 500 のまま", func(t *testing.T) {
+		w := perform(newHandlerReturning(errors.New("db connection lost")))
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
+	t.Run("repo が期限失効後に rows を成功返す → 503 + code aggregation_timeout (EMR334-1)", func(t *testing.T) {
+		// ctx を見ず deadline 失効後にも成功を返す context 非準拠ダブル。
+		// クエリ後の期限確認がないと 200 で返ってしまう回帰 (EMR334-1)。
+		repo := &mockLtvRepositoryCapture{
+			fn: func(ctx context.Context, _ *FindOwnerLTVParams) ([]OwnerLTVRow, error) {
+				<-ctx.Done()
+				return []OwnerLTVRow{{OwnerID: 1, OwnerName: "late"}}, nil
+			},
+		}
+		svc := &aggregationService{
+			repo:         repo,
+			settingsSvc:  &mockLstepSettingsService{},
+			queryTimeout: time.Nanosecond,
+		}
+		w := perform(newHandlerWithAggregationSvc(svc))
+
+		assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+		var resp struct {
+			Error string `json:"error"`
+			Code  string `json:"code"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		assert.Equal(t, "aggregation_timeout", resp.Code)
+	})
+
+	t.Run("呼び出し元 cancel + ctx 非準拠 repo の成功 → 503 ではなく 500 (EMR334-1)", func(t *testing.T) {
+		repo := &mockLtvRepositoryCapture{
+			fn: func(ctx context.Context, _ *FindOwnerLTVParams) ([]OwnerLTVRow, error) {
+				<-ctx.Done()
+				return []OwnerLTVRow{{OwnerID: 1, OwnerName: "late"}}, nil
+			},
+		}
+		svc := &aggregationService{
+			repo:         repo,
+			settingsSvc:  &mockLstepSettingsService{},
+			queryTimeout: aggregationQueryTimeout,
+		}
+		h := newHandlerWithAggregationSvc(svc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		canceled, cancel := context.WithCancel(context.Background())
+		cancel()
+		c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody).WithContext(canceled)
+		setClinicID(c)
+		h.ListOwnerAggregation(c)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+}
