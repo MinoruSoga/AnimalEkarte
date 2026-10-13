@@ -16,6 +16,8 @@ import {
   type ScheduledJobOutcome,
   type ScheduledJobRequest,
 } from "./scheduled-jobs";
+import { dispatchScheduledEvent } from "./scheduled-handler";
+import { SCHEDULER_ALERT_PENDING_PREFIX } from "./scheduler-alert-outbox";
 import { notifySchedulerFailures } from "./scheduler-ops";
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
@@ -102,6 +104,71 @@ function scheduledTime(day: number): number {
 }
 
 describe("SchedulerCoordinator", () => {
+  it.each(["0 1 * * *", "0 17 * * *"])(
+    "alerts when plane_sync blocks business plan %s",
+    async (cron) => {
+      const storage = new MemoryStorage();
+      const now = scheduledTime(75);
+      const coordinator = new SchedulerCoordinator(storage, () => now);
+      let release = () => {};
+      let started = () => {};
+      const entered = new Promise<void>((resolve) => {
+        started = resolve;
+      });
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const plane = coordinator.run("plane_sync", "*/15 * * * *", now, async () => {
+        started();
+        await held;
+        return successOutcome();
+      });
+      await entered;
+      const execute = vi.fn(async () => successOutcome());
+      try {
+        const blocked = await runScheduledPlan(coordinator, cron, now, execute);
+        expect(execute).not.toHaveBeenCalled();
+        expect(blocked.every(scheduledRunRequiresCronFailure)).toBe(true);
+        expect(blocked.every((r) => r.ledger?.failureCode === "schedule_conflict")).toBe(true);
+        const controller = { cron, scheduledTime: now, noRetry: vi.fn() };
+        await expect(dispatchScheduledEvent(controller, async () => blocked)).rejects.toThrow(
+          "scheduled invocation failed",
+        );
+        expect(controller.noRetry).toHaveBeenCalledOnce();
+        const pending = await storage.list({
+          prefix: SCHEDULER_ALERT_PENDING_PREFIX,
+        });
+        expect(pending.size).toBe(blocked.length);
+        const config = {
+          environment: "staging",
+          allowedHost: "alerts.example.com",
+          webhookURL: "https://alerts.example.com/scheduler",
+          webhookSecret: "test-secret",
+        };
+        await expect(
+          notifySchedulerFailures(
+            blocked,
+            config,
+            async () => new Response(null, { status: 503 }),
+            storage,
+          ),
+        ).rejects.toThrow();
+        expect((await storage.list({ prefix: SCHEDULER_ALERT_PENDING_PREFIX })).size).toBe(
+          blocked.length,
+        );
+        const replay = await runScheduledPlan(coordinator, cron, now, execute);
+        expect(replay.every(scheduledRunRequiresCronFailure)).toBe(true);
+        const send = vi.fn(async () => new Response(null, { status: 204 }));
+        await notifySchedulerFailures(replay, config, send, storage);
+        expect(send).toHaveBeenCalledTimes(blocked.length);
+        expect((await storage.list({ prefix: SCHEDULER_ALERT_PENDING_PREFIX })).size).toBe(0);
+      } finally {
+        release();
+        await plane;
+      }
+    },
+  );
+
   it("lets the winning parallel plan execute delivery exactly once", async () => {
     const storage = new MemoryStorage();
     const now = scheduledTime(70);

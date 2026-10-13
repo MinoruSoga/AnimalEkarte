@@ -33,7 +33,13 @@ export async function listPendingSchedulerIncidents(
 }
 
 export function isDurableSchedulerIncident(ledger: ScheduledRunLedger): boolean {
-  return ledger.failureCode === "stuck_lease" || ledger.failureCode === "lease_expired";
+  return (
+    ledger.failureCode === "stuck_lease" ||
+    ledger.failureCode === "lease_expired" ||
+    ledger.failureCode === "schedule_conflict" ||
+    (ledger.manualRequestId !== undefined &&
+      (ledger.status === "failed" || ledger.status === "partial"))
+  );
 }
 
 // Enqueue on the first detection transition, never on replay. This immutable

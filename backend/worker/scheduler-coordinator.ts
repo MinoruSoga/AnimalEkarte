@@ -588,6 +588,12 @@ export class SchedulerCoordinator {
             blockedActive = { ...currentActive, stuckLeaseDetectedAt: now };
             await transaction.put(ACTIVE_KEY, blockedActive);
           }
+          const samePlan = currentActive.cron === cron;
+          // The first stuck detection already records a durable incident for
+          // this active run; later blocked slots do not create another alarm.
+          const alreadyReportedStuck =
+            currentActive.job === job && currentActive.stuckLeaseDetectedAt !== undefined;
+          const intentionalSkip = samePlan || alreadyReportedStuck;
           const skippedLedger: ScheduledRunLedger = {
             version: 1,
             scheduler: SCHEDULER_NAME,
@@ -597,10 +603,14 @@ export class SchedulerCoordinator {
             job,
             scheduledTime,
             fenceToken: 0,
-            status: "skipped",
+            status: intentionalSkip || stuckDetected ? "skipped" : "failed",
             startedAt: now,
             finishedAt: now,
-            failureCode: stuckDetected ? "stuck_lease" : "busy",
+            failureCode: stuckDetected
+              ? "stuck_lease"
+              : intentionalSkip
+                ? "busy"
+                : "schedule_conflict",
           };
           // A losing invocation must not consume its winner's pending suffix.
           const plan = jobsForCron(cron);
@@ -614,7 +624,7 @@ export class SchedulerCoordinator {
             await transaction.put(runKey, skippedLedger);
             await putLatest();
           }
-          if (stuckDetected) await enqueueSchedulerIncident(transaction, skippedLedger);
+          await enqueueSchedulerIncident(transaction, skippedLedger);
           return {
             disposition: "busy",
             ledger: skippedLedger,
@@ -738,6 +748,7 @@ export class SchedulerCoordinator {
             : currentLedger;
         if (currentLedger.status === "running") {
           await transaction.put(claimedLedger.runKey, fencedLedger);
+          await enqueueSchedulerIncident(transaction, fencedLedger);
         }
         if (
           currentActive?.runId === active.runId &&
@@ -753,6 +764,7 @@ export class SchedulerCoordinator {
           ? internalFailureLedger(currentLedger, now, failureCode ?? "transport")
           : outcomeLedger(currentLedger, now, outcome, failureCode);
       await transaction.put(claimedLedger.runKey, finalized);
+      await enqueueSchedulerIncident(transaction, finalized);
       await transaction.delete(ACTIVE_KEY);
       return { disposition: "executed", ledger: finalized };
     });

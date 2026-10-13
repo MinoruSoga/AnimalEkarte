@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   SchedulerCoordinator,
+  SCHEDULED_JOB_LEASE_MS,
   type CoordinatorStorage,
   type CoordinatorTransaction,
   type ScheduledRunLedger,
@@ -77,6 +78,46 @@ async function pending(storage: Storage) {
 }
 
 describe("durable scheduler incidents", () => {
+  it("retains a manual fenced failure for retry when its executor outlives the lease", async () => {
+    const storage = new Storage();
+    const slot = Date.UTC(2026, 6, 24, 17);
+    let now = slot + 1000;
+    const coordinator = new SchedulerCoordinator(storage, () => now);
+    const command = {
+      actorPrincipal: "scheduler-ops-secret-v1",
+      requestId: "de3a2410-0b43-4775-9b8b-b4e3de5a47e8",
+      job: "dormant",
+      mode: "catch_up",
+      scheduledTime: slot,
+      reason: "recover fenced run",
+    } as const;
+    const execute = vi.fn(async () => {
+      now += SCHEDULED_JOB_LEASE_MS + 1;
+      return { outcome: "success", processed: 1, succeeded: 1, failed: 0 } as const;
+    });
+    const operation = await coordinator.runManual(command, execute);
+    expect(operation).toMatchObject({
+      status: "rejected",
+      result: { disposition: "fenced", ledger: { status: "failed", failureCode: "fenced" } },
+    });
+    expect((await pending(storage)).size).toBe(1);
+    await expect(
+      notifySchedulerFailures(
+        [operation.result!],
+        config,
+        async () => new Response(null, { status: 503 }),
+        storage,
+      ),
+    ).rejects.toThrow();
+    expect((await pending(storage)).size).toBe(1);
+    expect(await coordinator.runManual(command, execute)).toEqual(operation);
+    expect(execute).toHaveBeenCalledOnce();
+    const send = vi.fn(async () => new Response(null, { status: 204 }));
+    await notifySchedulerFailures([], config, send, storage);
+    expect(send).toHaveBeenCalledOnce();
+    expect((await pending(storage)).size).toBe(0);
+  });
+
   it("uses the same incident key during concurrent drains", async () => {
     const storage = new Storage();
     await storage.transaction((tx) => enqueueSchedulerIncident(tx, incident()));

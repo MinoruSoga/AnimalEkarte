@@ -329,12 +329,21 @@ export class AnimalEkarteApiContainer extends Container<Env> {
         this.envVars.SCHEDULER_INTERNAL_TOKEN,
       ),
     );
-    await notifySchedulerFailures(
-      operation.result === undefined ? [] : [operation.result],
-      schedulerAlertConfig(env),
-      fetch,
-      this.ctx.storage,
-    );
+    // Delivery is a retryable side effect after the manual result is durable.
+    // The outbox retains failed incidents; later invocations retry them.
+    try {
+      await notifySchedulerFailures(
+        operation.result === undefined ? [] : [operation.result],
+        schedulerAlertConfig(env),
+        fetch,
+        this.ctx.storage,
+      );
+    } catch {
+      console.error("scheduler manual alert drain deferred", {
+        event: "scheduler_manual_alert_drain_deferred",
+        failure_code: "alert_drain_failed",
+      });
+    }
     return operation;
   }
 }

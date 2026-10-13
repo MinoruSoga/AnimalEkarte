@@ -136,6 +136,7 @@ export type RunFailureCode =
   | "transport"
   | "stale"
   | "busy"
+  | "schedule_conflict"
   | "stuck_lease"
   | "lease_expired"
   | "fenced";
@@ -490,7 +491,8 @@ export function internalFailureLedger(
 export function scheduledRunRequiresCronFailure(result: ScheduledRunResult): boolean {
   if (
     result.disposition === "paused" ||
-    result.disposition === "busy" ||
+    (result.disposition === "busy" &&
+      (result.ledger?.failureCode === "busy" || result.ledger?.failureCode === "stuck_lease")) ||
     result.ledger?.failureCode === "busy"
   ) {
     return false;

@@ -19,6 +19,7 @@
     "./scheduler-coordinator.test.ts",
     "./scheduler-history.ts",
     "./scheduler-manual-recovery.test.ts",
+    "./scheduler-manual-response.test.ts",
     "./scheduler-rate-limit.ts",
     "./scheduler-ops.ts",
     "./scheduler-ops.test.ts"
