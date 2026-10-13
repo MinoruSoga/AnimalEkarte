@@ -12,7 +12,15 @@ import (
 )
 
 func PreflightCutoverTarget(ctx context.Context, target cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs) error {
-	_, err := validateCutoverTarget(ctx, target, manifest, seeds, true)
+	return PreflightCutoverTargetWithProvenance(ctx, target, manifest, seeds, CutoverProvenanceContract{})
+}
+
+func PreflightCutoverTargetWithProvenance(ctx context.Context, target cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs, provenance CutoverProvenanceContract) error {
+	manifest, err := bindCutoverManifestProfile(manifest, provenance)
+	if err != nil {
+		return err
+	}
+	_, err = validateCutoverTarget(ctx, target, manifest, seeds, true)
 	return err
 }
 
@@ -52,6 +60,11 @@ func applyCutoverWithBegin(
 	bundle CutoverBundle,
 	seeds CutoverSeedIDs,
 ) (CutoverResult, error) {
+	var err error
+	bundle.Manifest, err = bindCutoverManifestProfile(bundle.Manifest, bundle.Provenance)
+	if err != nil {
+		return CutoverResult{}, err
+	}
 	if err := validateCutoverProducerProvenanceForApply(bundle); err != nil {
 		return CutoverResult{}, err
 	}
@@ -70,7 +83,7 @@ func applyCutoverWithBegin(
 	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, cutoverAdvisoryLockKey); err != nil {
 		return CutoverResult{}, fmt.Errorf("acquire cutover lock: %w", err)
 	}
-	if err := lockCutoverTables(ctx, tx); err != nil {
+	if err := lockCutoverTables(ctx, tx, bundle.Manifest.profile); err != nil {
 		return CutoverResult{}, err
 	}
 	targetNotes, err := validateCutoverTarget(ctx, tx, bundle.Manifest, seeds, true)
@@ -85,7 +98,7 @@ func applyCutoverWithBegin(
 	// change which table each CSV feeds.
 	allowPermutation := rehearsalContractDrift(bundle.Manifest, bundle.Provenance.Mode)
 	counts := make(map[string]int64, len(bundle.Manifest.Tables))
-	for _, spec := range CutoverTableSpecs() {
+	for _, spec := range CutoverTableSpecs(bundle.Manifest.profile) {
 		manifestTable, err := cutoverManifestTableByName(bundle.Manifest, spec.Name)
 		if err != nil {
 			return CutoverResult{}, err
@@ -100,11 +113,11 @@ func applyCutoverWithBegin(
 	if err := verifyCutoverRows(ctx, tx, bundle.Manifest, seeds, bundle.Provenance); err != nil {
 		return CutoverResult{}, err
 	}
-	advanceNotes, err := advanceCutoverSequences(ctx, tx, isRehearsalOnlyProducer(bundle.Manifest))
+	advanceNotes, err := advanceCutoverSequences(ctx, tx, isRehearsalOnlyProducer(bundle.Manifest), bundle.Manifest.profile)
 	if err != nil {
 		return CutoverResult{}, err
 	}
-	verifyNotes, err := verifyCutoverSequences(ctx, tx, isRehearsalOnlyProducer(bundle.Manifest))
+	verifyNotes, err := verifyCutoverSequences(ctx, tx, isRehearsalOnlyProducer(bundle.Manifest), bundle.Manifest.profile)
 	if err != nil {
 		return CutoverResult{}, err
 	}
@@ -136,13 +149,18 @@ func VerifyCutover(ctx context.Context, target cutoverQuerier, manifest CutoverM
 }
 
 func VerifyCutoverWithProvenance(ctx context.Context, target cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs, provenance CutoverProvenanceContract) error {
+	var err error
+	manifest, err = bindCutoverManifestProfile(manifest, provenance)
+	if err != nil {
+		return err
+	}
 	if _, err := validateCutoverTarget(ctx, target, manifest, seeds, false); err != nil {
 		return err
 	}
 	if err := verifyCutoverRows(ctx, target, manifest, seeds, provenance); err != nil {
 		return err
 	}
-	_, err := verifyCutoverSequences(ctx, target, isRehearsalOnlyProducer(manifest))
+	_, err = verifyCutoverSequences(ctx, target, isRehearsalOnlyProducer(manifest), manifest.profile)
 	return err
 }
 
@@ -160,13 +178,13 @@ func validateCutoverTarget(ctx context.Context, q cutoverQuerier, manifest Cutov
 	if err := validateRequiredAnimalSpecies(ctx, q); err != nil {
 		return nil, err
 	}
-	if err := validateCutoverColumnTypes(ctx, q); err != nil {
+	if err := validateCutoverColumnTypes(ctx, q, manifest.profile); err != nil {
 		return nil, err
 	}
-	if err := validateCutoverRequiredTargetColumns(ctx, q); err != nil {
+	if err := validateCutoverRequiredTargetColumns(ctx, q, manifest.profile); err != nil {
 		return nil, err
 	}
-	if err := validateCutoverForeignKeys(ctx, q); err != nil {
+	if err := validateCutoverForeignKeys(ctx, q, manifest.profile); err != nil {
 		return nil, err
 	}
 	if err := validateCutoverCompositeForeignKeys(ctx, q); err != nil {
@@ -178,17 +196,17 @@ func validateCutoverTarget(ctx context.Context, q cutoverQuerier, manifest Cutov
 	// Sequence tolerance is artifact-keyed: target preflight has no provenance
 	// context, and only a REHEARSAL_ONLY artifact can reach a rehearsal target
 	// in any admissible flow. TRUSTED_CANDIDATE/PASS artifacts stay strict.
-	notes, err := validateCutoverSequences(ctx, q, isRehearsalOnlyProducer(manifest))
+	notes, err := validateCutoverSequences(ctx, q, isRehearsalOnlyProducer(manifest), manifest.profile)
 	if err != nil {
 		return nil, err
 	}
 	if requireEmptyBand {
-		return notes, validateCutoverBandEmpty(ctx, q, manifest.IDBand)
+		return notes, validateCutoverBandEmpty(ctx, q, manifest.IDBand, manifest.profile)
 	}
 	return notes, nil
 }
 
-func validateCutoverForeignKeys(ctx context.Context, q cutoverQuerier) error {
+func validateCutoverForeignKeys(ctx context.Context, q cutoverQuerier, profiles ...CutoverProfile) error {
 	const query = `SELECT EXISTS (
   SELECT 1
   FROM pg_constraint c
@@ -203,7 +221,7 @@ func validateCutoverForeignKeys(ctx context.Context, q cutoverQuerier) error {
     AND child_ns.nspname = 'public' AND child.relname = $1 AND child_col.attname = $2
     AND parent_ns.nspname = 'public' AND parent.relname = $3 AND parent_col.attname = $4
 )`
-	for _, foreignKey := range cutoverRequiredForeignKeys() {
+	for _, foreignKey := range cutoverRequiredForeignKeys(profiles...) {
 		var exists bool
 		if err := q.QueryRow(ctx, query,
 			foreignKey.childTable,
@@ -257,9 +275,9 @@ func validateCutoverCompositeForeignKeys(ctx context.Context, q cutoverQuerier) 
 // but CutoverTableSpecs.Columns omits it. This catches Z1-class drift such as
 // payments.clinic_id becoming NOT NULL on the target while remaining absent from
 // the CSV contract.
-func validateCutoverRequiredTargetColumns(ctx context.Context, q cutoverQuerier) error {
+func validateCutoverRequiredTargetColumns(ctx context.Context, q cutoverQuerier, profiles ...CutoverProfile) error {
 	exclusions := cutoverRequiredTargetColumnExclusions()
-	for _, spec := range CutoverTableSpecs() {
+	for _, spec := range CutoverTableSpecs(profiles...) {
 		declared := make(map[string]struct{}, len(spec.Columns))
 		for _, column := range spec.Columns {
 			declared[column] = struct{}{}

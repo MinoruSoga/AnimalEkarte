@@ -33,8 +33,8 @@ type cutoverCSVReference struct {
 // contract, independently of producer eligibility predicates. Empty CSV fields
 // become SQL NULL; they are allowed only for explicitly nullable references.
 // Non-imported masters are either pinned seeds or must stay empty, never guessed.
-func cutoverCSVReferences() map[string][]cutoverCSVReference {
-	return map[string][]cutoverCSVReference{
+func cutoverCSVReferences(profiles ...CutoverProfile) map[string][]cutoverCSVReference {
+	references := map[string][]cutoverCSVReference{
 		"staffs":                       {{"clinic_id", "clinics", false, cutoverClinicSeed}},
 		"procedures":                   {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"parent_id", "procedures", true, cutoverCSVParent}},
 		"medicines":                    {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"parent_id", "medicines", true, cutoverCSVParent}, {"inventory_id", "inventory_items", true, cutoverUnavailableParent}},
@@ -58,6 +58,20 @@ func cutoverCSVReferences() map[string][]cutoverCSVReference {
 		"vaccines":                     {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"inventory_id", "inventory_items", true, cutoverUnavailableParent}, {"parent_id", "vaccines", true, cutoverCSVParent}},
 		"vaccinations":                 {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"medical_record_id", "medical_records", true, cutoverCSVParent}, {"pet_id", "pets", true, cutoverCSVParent}, {"vaccine_id", "vaccines", false, cutoverCSVParent}, {"doctor_id", "staffs", true, cutoverCSVParent}},
 	}
+	if !validCutoverProfileSelection(profiles) {
+		return nil
+	}
+	if selectedCutoverProfile(profiles) != CutoverProfileMedicinesCandidate {
+		delete(references, "medicines")
+		refs := append([]cutoverCSVReference(nil), references["estimate_items"]...)
+		for i, ref := range refs {
+			if ref.column == "medicine_id" {
+				refs[i].kind = cutoverUnavailableParent
+			}
+		}
+		references["estimate_items"] = refs
+	}
+	return references
 }
 
 // validateCutoverReferenceGraph scans each CSV once, retaining only numeric ID
@@ -65,8 +79,8 @@ func cutoverCSVReferences() map[string][]cutoverCSVReference {
 // precede children; self references are checked after that complete table so a
 // later row may be the parent. Every scan rehashes its exact opened bytes.
 func validateCutoverReferenceGraph(sourceDir string, manifest CutoverManifest, allowPermutation bool) error {
-	specs := CutoverTableSpecs()
-	references := cutoverCSVReferences()
+	specs := CutoverTableSpecs(manifest.profile)
+	references := cutoverCSVReferences(manifest.profile)
 	if err := validateCutoverReferenceInventory(specs, references); err != nil {
 		return err
 	}
@@ -159,7 +173,7 @@ type cutoverSelfEdge struct {
 // itself (procedures.parent_id, vaccines.parent_id), if the contract declares
 // one. Apply uses it to order staged inserts because the FK is not deferrable.
 func cutoverSelfReferenceColumn(table string) (string, bool) {
-	for _, ref := range cutoverCSVReferences()[table] {
+	for _, ref := range cutoverCSVReferences(CutoverProfileMedicinesCandidate)[table] {
 		if ref.kind == cutoverCSVParent && ref.parent == table {
 			return ref.column, true
 		}

@@ -93,8 +93,9 @@ type CutoverTargetBinding struct {
 }
 
 type CutoverProvenanceContract struct {
-	Mode   CutoverProvenanceMode
-	Target CutoverTargetBinding
+	Profile CutoverProfile
+	Mode    CutoverProvenanceMode
+	Target  CutoverTargetBinding
 }
 
 type ExpectedCutoverSource struct {
@@ -156,6 +157,8 @@ type CutoverEvidenceDigests struct {
 }
 
 type CutoverManifest struct {
+	// profile is bound by the operator contract, never decoded from producer JSON.
+	profile                      CutoverProfile
 	GeneratedAt                  string                     `json:"generatedAt"`
 	Status                       string                     `json:"status"`
 	SourceLayer                  string                     `json:"sourceLayer"`
@@ -215,8 +218,8 @@ type CutoverBundle struct {
 
 // CutoverPlaceholderColumns is a copy of the exact producer-side placeholder
 // inventory. Returning a fresh map prevents callers from changing the contract.
-func CutoverPlaceholderColumns() map[string]string {
-	return map[string]string{
+func CutoverPlaceholderColumns(profiles ...CutoverProfile) map[string]string {
+	columns := map[string]string{
 		"staffs.clinic_id":            "{{CLINIC_ID}}",
 		"procedures.clinic_id":        "{{CLINIC_ID}}",
 		"merchandise_items.clinic_id": "{{CLINIC_ID}}",
@@ -243,18 +246,27 @@ func CutoverPlaceholderColumns() map[string]string {
 		"vaccines.clinic_id":                                      "{{CLINIC_ID}}",
 		"vaccinations.clinic_id":                                  "{{CLINIC_ID}}",
 	}
+	if !validCutoverProfileSelection(profiles) {
+		return nil
+	}
+	if selectedCutoverProfile(profiles) != CutoverProfileMedicinesCandidate {
+		delete(columns, "medicines.clinic_id")
+	}
+	return columns
 }
 
-// cutoverMasterPriceColumns names the single price column on each of the four
+// cutoverMasterPriceColumn names the single price column on each of the four
 // master tables whose source values must be a non-negative integer. An empty
 // cell stays NULL. billing_items and estimate_items are deliberately absent:
 // historical refunds and discounts legitimately carry negative amounts.
-func cutoverMasterPriceColumns() map[string]string {
-	return map[string]string{
-		"procedures":        "price",
-		"medicines":         "price",
-		"merchandise_items": "unit_price",
-		"vaccines":          "price",
+func cutoverMasterPriceColumn(table string) (string, bool) {
+	switch table {
+	case "procedures", "medicines", "vaccines":
+		return "price", true
+	case "merchandise_items":
+		return "unit_price", true
+	default:
+		return "", false
 	}
 }
 
@@ -268,7 +280,7 @@ func cutoverUniqueNameColumns() map[string]string {
 }
 
 // CutoverTableSpecs returns the immutable, parent-before-child F6 CSV contract.
-func CutoverTableSpecs() []CutoverTableSpec {
+func CutoverTableSpecs(profiles ...CutoverProfile) []CutoverTableSpec {
 	specs := []CutoverTableSpec{
 		{"staffs", []string{"id", "clinic_id", "name", "license_number", "is_active", "reservation_visible"}, []string{"id"}, []string{"name", "license_number"}},
 		{"procedures", []string{"id", "clinic_id", "name", "price", "is_active", "description", "duration", "anesthesia", "parent_id", "tax_type", "tax_rate", "sort_order", "is_surgery"}, []string{"id", "parent_id"}, []string{"name", "description"}},
@@ -292,6 +304,18 @@ func CutoverTableSpecs() []CutoverTableSpec {
 		{"exam_results", []string{"id", "exam_id", "name", "inspection_value", "normal_value", "sort_order"}, []string{"id", "exam_id"}, []string{"name", "inspection_value", "normal_value"}},
 		{"vaccines", []string{"id", "clinic_id", "name", "price", "is_active", "description", "species", "interval", "inventory_id", "parent_id", "sort_order"}, []string{"id"}, []string{"name", "description", "interval"}},
 		{"vaccinations", []string{"id", "clinic_id", "medical_record_id", "pet_id", "vaccine_id", "date", "next_date", "next_schedule_type", "doctor_id", "supplemental", "lot1", "lot2", "lot3", "lot4", "remarks"}, []string{"id", "medical_record_id", "pet_id", "vaccine_id", "doctor_id"}, []string{"supplemental", "lot1", "lot2", "lot3", "lot4", "remarks"}},
+	}
+	if selectedCutoverProfile(profiles) != CutoverProfileMedicinesCandidate {
+		legacy := make([]CutoverTableSpec, 0, 21)
+		for _, spec := range specs {
+			if spec.Name != "medicines" {
+				legacy = append(legacy, spec)
+			}
+		}
+		specs = legacy
+	}
+	if !validCutoverProfileSelection(profiles) {
+		return nil
 	}
 	return cloneCutoverSpecs(specs)
 }
@@ -340,8 +364,8 @@ type CutoverMappingEntry struct {
 // CutoverMappingCoverage returns the immutable mapping inventory used by
 // Issue #250 acceptance (source CSV → target table, isolation mode).
 // Personal business owners remain a USER ops assignment outside this package.
-func CutoverMappingCoverage() []CutoverMappingEntry {
-	specs := CutoverTableSpecs()
+func CutoverMappingCoverage(profiles ...CutoverProfile) []CutoverMappingEntry {
+	specs := CutoverTableSpecs(profiles...)
 	coverage := make([]CutoverMappingEntry, 0, len(specs))
 	for _, spec := range specs {
 		hasClinicID := hasColumn(spec.Columns, "clinic_id")
@@ -356,7 +380,7 @@ func CutoverMappingCoverage() []CutoverMappingEntry {
 			BandColumns:    append([]string(nil), spec.BandColumns...),
 			HasClinicID:    hasClinicID,
 			IsolationCheck: isolation,
-			ConsumerStatus: "candidate_22_rehearsal_only",
+			ConsumerStatus: cutoverProfileStatus(selectedCutoverProfile(profiles)),
 		})
 	}
 	return coverage

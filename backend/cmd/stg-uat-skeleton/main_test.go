@@ -24,7 +24,7 @@ func TestAllowlistVsCutoverTableSpecs(t *testing.T) {
 	t.Parallel()
 
 	specs := csvimport.CutoverTableSpecs()
-	require.Len(t, specs, 22)
+	require.Len(t, specs, 21)
 	require.Equal(t, "staffs", specs[0].Name)
 
 	cutoverNames := make([]string, 0, len(specs))

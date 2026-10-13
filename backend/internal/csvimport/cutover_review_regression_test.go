@@ -36,7 +36,7 @@ func TestCutoverReviewMedicineQuantityExactNumeric(t *testing.T) {
 		value string
 		valid bool
 	}{
-		{"", true}, {"0", true}, {"0.01", true}, {"99999999.99", true}, {"1.2300", true}, {"000000001.00", true},
+		{"", false}, {"0", true}, {"0.01", true}, {"99999999.99", true}, {"1.2300", true}, {"000000001.00", true},
 		{"0.001", false}, {"99999999.999", false}, {"100000000", false}, {"-1", false}, {"NaN", false}, {"1e2", false},
 	} {
 		t.Run(tc.value, func(t *testing.T) {
@@ -65,7 +65,7 @@ func TestCutoverReviewMedicineUnitEnum(t *testing.T) {
 		{"per_pill", false}, {"PER_TABLET", false}, {"tablet", false},
 	} {
 		t.Run(tc.value, func(t *testing.T) {
-			err := validateCutoverMedicinesRow([]string{"", tc.value, ""}, indexes, 2)
+			err := validateCutoverMedicinesRow([]string{"", tc.value, "1.0"}, indexes, 2)
 			if (err == nil) != tc.valid {
 				t.Fatalf("medicine_unit valid=%v, error=%v", tc.valid, err)
 			}
@@ -77,7 +77,7 @@ func TestCutoverReviewMedicineUnitEnum(t *testing.T) {
 }
 
 func TestCutoverReviewUnapprovedProducerBeforeDatabase(t *testing.T) {
-	dir, digest := writeCutoverFixture(t, nil)
+	dir, digest := writeCutoverFixture(t, nil, CutoverProfileMedicinesCandidate)
 	contents, err := os.ReadFile(filepath.Join(dir, cutoverManifestName))
 	if err != nil {
 		t.Fatal(err)
@@ -90,6 +90,7 @@ func TestCutoverReviewUnapprovedProducerBeforeDatabase(t *testing.T) {
 		t.Run(string(mode), func(t *testing.T) {
 			contract := stagingExpectedCutoverSource(digest).Provenance
 			contract.Mode = mode
+			contract.Profile = CutoverProfileMedicinesCandidate
 			expected := formalExpectedSource(digest)
 			expected.Provenance = contract
 			if _, err := PreflightCutoverBundle(dir, expected); err == nil || !strings.Contains(err.Error(), "activation") {
@@ -141,11 +142,11 @@ func TestCutoverReviewValuePreflight(t *testing.T) {
 		{"quantity exact trailing zeros", "medicines", "default_quantity", "1.2300", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
+			dir, digest := writeMedicinesCandidateFixture(t, func(f *fixtureBundle) {
 				spec := cutoverSpecByName(t, tc.table)
 				f.rows[tc.table][0][columnIndex(spec.Columns, tc.column)] = tc.value
 			})
-			_, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest))
+			_, err := PreflightCutoverBundle(dir, candidateExpectedSource(digest))
 			if (err == nil) != tc.valid {
 				t.Fatalf("valid=%v, error=%v", tc.valid, err)
 			}
@@ -157,7 +158,7 @@ func TestCutoverReviewValuePreflight(t *testing.T) {
 }
 
 func TestCutoverReviewPublicApplyRejectsBeforePoolAcquire(t *testing.T) {
-	bundle := CutoverBundle{Manifest: CutoverManifest{Status: "PASS", HandoffEligibility: "TRUSTED_CANDIDATE"}}
+	bundle := CutoverBundle{Manifest: CutoverManifest{Status: "PASS", HandoffEligibility: "TRUSTED_CANDIDATE"}, Provenance: CutoverProvenanceContract{Profile: CutoverProfileMedicinesCandidate}}
 	// A nil pool is safe only when activation rejects before resource access.
 	_, err := ApplyCutoverCommittingEachTable(context.Background(), nil, bundle, validCutoverSeeds(), pgx.RepeatableRead)
 	if err == nil || !strings.Contains(err.Error(), "activation") {

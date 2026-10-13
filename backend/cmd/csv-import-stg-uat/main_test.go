@@ -1178,3 +1178,40 @@ func assertNoPHI(t *testing.T, raw []byte) {
 		}
 	}
 }
+
+func TestParseCutoverProfileSelection(t *testing.T) {
+	args := testCLIArgs("preflight", "/migration-input")
+	opt, err := parseOptions(args)
+	if err != nil || opt.cutoverProfile != string(csvimport.CutoverProfileLegacy21) {
+		t.Fatalf("default profile=%q err=%v", opt.cutoverProfile, err)
+	}
+	opt, err = parseOptions(append(append([]string(nil), args...), "--cutover-profile", string(csvimport.CutoverProfileMedicinesCandidate)))
+	if err != nil || opt.cutoverProfile != string(csvimport.CutoverProfileMedicinesCandidate) {
+		t.Fatalf("candidate profile=%q err=%v", opt.cutoverProfile, err)
+	}
+	if _, err := parseOptions(append(append([]string(nil), args...), "--cutover-profile", "unknown")); err == nil {
+		t.Fatal("unknown operator profile accepted")
+	}
+}
+
+func TestPgxTargetRejectsFormalCandidateBeforeDatabase(t *testing.T) {
+	provenance := csvimport.CutoverProvenanceContract{Mode: csvimport.CutoverProvenanceFormal, Profile: csvimport.CutoverProfileMedicinesCandidate}
+	target := &pgxCutoverTarget{provenance: provenance}
+	manifest := csvimport.CutoverManifest{Status: "PASS", HandoffEligibility: "TRUSTED_CANDIDATE"}
+	for _, method := range []string{"preflight", "verify", "apply"} {
+		t.Run(method, func(t *testing.T) {
+			var err error
+			switch method {
+			case "preflight":
+				err = target.Preflight(context.Background(), manifest, csvimport.CutoverSeedIDs{})
+			case "verify":
+				err = target.Verify(context.Background(), manifest, csvimport.CutoverSeedIDs{})
+			case "apply":
+				_, err = target.Apply(context.Background(), csvimport.CutoverBundle{Manifest: manifest, Provenance: provenance}, csvimport.CutoverSeedIDs{})
+			}
+			if err == nil || !strings.Contains(err.Error(), "activation") {
+				t.Fatalf("err=%v, want denial before nil pool access", err)
+			}
+		})
+	}
+}

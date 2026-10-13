@@ -29,10 +29,10 @@ func TestCutoverMasterPriceRejectsNegative(t *testing.T) {
 		t.Run(tc.table+"."+tc.column, func(t *testing.T) {
 			spec := cutoverSpecByName(t, tc.table)
 			column := columnIndex(spec.Columns, tc.column)
-			dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
+			dir, digest := writeMedicinesCandidateFixture(t, func(f *fixtureBundle) {
 				f.rows[tc.table][0][column] = "-100"
 			})
-			_, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest))
+			_, err := PreflightCutoverBundle(dir, candidateExpectedSource(digest))
 			if err == nil {
 				t.Fatal("negative master price was accepted")
 			}
@@ -61,10 +61,10 @@ func TestCutoverMasterPriceAcceptsZeroEmptyAndPositive(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				spec := cutoverSpecByName(t, tc.table)
 				column := columnIndex(spec.Columns, tc.column)
-				dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
+				dir, digest := writeMedicinesCandidateFixture(t, func(f *fixtureBundle) {
 					f.rows[tc.table][0][column] = value
 				})
-				if _, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest)); err != nil {
+				if _, err := PreflightCutoverBundle(dir, candidateExpectedSource(digest)); err != nil {
 					t.Fatalf("PreflightCutoverBundle error = %v, want %s=%q accepted", err, tc.column, value)
 				}
 			})
@@ -77,10 +77,10 @@ func TestCutoverMasterPriceRejectsMalformed(t *testing.T) {
 		t.Run(tc.table+"."+tc.column, func(t *testing.T) {
 			spec := cutoverSpecByName(t, tc.table)
 			column := columnIndex(spec.Columns, tc.column)
-			dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
+			dir, digest := writeMedicinesCandidateFixture(t, func(f *fixtureBundle) {
 				f.rows[tc.table][0][column] = "not-an-integer"
 			})
-			_, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest))
+			_, err := PreflightCutoverBundle(dir, candidateExpectedSource(digest))
 			if err == nil || !strings.Contains(err.Error(), "must be an integer") {
 				t.Fatalf("PreflightCutoverBundle error = %v, want malformed integer rejection", err)
 			}
@@ -160,10 +160,10 @@ func TestCutoverMasterPriceAllowsHistoricalNegativeBillingAndEstimate(t *testing
 		t.Run(tc.table+"."+tc.column, func(t *testing.T) {
 			spec := cutoverSpecByName(t, tc.table)
 			column := columnIndex(spec.Columns, tc.column)
-			dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
+			dir, digest := writeMedicinesCandidateFixture(t, func(f *fixtureBundle) {
 				f.rows[tc.table][0][column] = "-100"
 			})
-			if _, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest)); err != nil {
+			if _, err := PreflightCutoverBundle(dir, candidateExpectedSource(digest)); err != nil {
 				t.Fatalf("PreflightCutoverBundle error = %v, want historical negative %s accepted", err, tc.table)
 			}
 		})

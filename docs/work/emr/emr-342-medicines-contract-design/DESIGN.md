@@ -6,6 +6,14 @@
 現行の取込処理、CSV、manifest、契約のハッシュ、DB は変更しない。
 [Plane EMR-342](https://app.plane.so/baritechllc/projects/6a009324-8a8a-455c-b16a-41b3f6207b0e/work-items/bcb78166-ae47-4ba6-8291-087a9eca9753/) を進捗の正本とする。
 
+## 2026-10-13 切替方式の改訂（ユーザー採用）
+
+PR #655の統合保留を受け、今回のユーザー回答で「21表維持＋22表候補分離」を採用した。既定 `legacy-21` は21表formalの経路・version/pin・medicine_id空欄制約を保持する。薬剤22表は明示 `medicines-22-candidate` profileで、明示rehearsal modeかつREHEARSAL_ONLYだけ検証可能。正式preflight/apply/resume/verifyは証跡が揃うまで拒否する。以下の「旧21表拒否」は候補22表profile内だけの互換条件に改訂し、既定21表には適用しない。初版の設計経緯は以下に保持する。
+
+この採用はproducer正式artifact/full-file SHA・MIG-34/37/41の4院receipt・consumer互換確認・本番切替/回復承認を代替しない。producer pinは更新しない。数量は§3.2のproducer明示1.0を維持し、consumerは空欄を拒否する（model/APIをnullableへ変更しない）。targetのnumeric(10,2)とvalidated inventory FKを検査する。実CSV投入・migration・deploy・mergeは今回実施しない。
+
+実装・実行手順の正本: [CLINIC_CSV_IMPORT.md](../../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md)。
+
 ## 1. 決定と範囲
 
 | 決定（2026-10-11、曽我稔） | 内容 |

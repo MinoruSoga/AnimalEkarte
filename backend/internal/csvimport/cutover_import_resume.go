@@ -49,6 +49,15 @@ func (s pgxPoolCutoverSession) Begin(ctx context.Context, iso pgx.TxIsoLevel) (c
 // table can resume after a previous table had committed. Formal cutover still
 // uses PreflightCutoverTarget and requires every band empty.
 func PreflightCutoverTargetAllowingResume(ctx context.Context, target cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs) error {
+	return PreflightCutoverTargetAllowingResumeWithProvenance(ctx, target, manifest, seeds, CutoverProvenanceContract{})
+}
+
+func PreflightCutoverTargetAllowingResumeWithProvenance(ctx context.Context, target cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs, provenance CutoverProvenanceContract) error {
+	var err error
+	manifest, err = bindCutoverManifestProfile(manifest, provenance)
+	if err != nil {
+		return err
+	}
 	if _, err := validateCutoverTarget(ctx, target, manifest, seeds, false); err != nil {
 		return err
 	}
@@ -57,7 +66,7 @@ func PreflightCutoverTargetAllowingResume(ctx context.Context, target cutoverQue
 
 func validateCutoverBandResumable(ctx context.Context, q cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs) error {
 	seenEmpty := false
-	for _, spec := range CutoverTableSpecs() {
+	for _, spec := range CutoverTableSpecs(manifest.profile) {
 		table, err := cutoverManifestTableByName(manifest, spec.Name)
 		if err != nil {
 			return err
@@ -110,6 +119,11 @@ func ApplyCutoverCommittingEachTable(
 	seeds CutoverSeedIDs,
 	iso pgx.TxIsoLevel,
 ) (CutoverResult, error) {
+	var profileErr error
+	bundle.Manifest, profileErr = bindCutoverManifestProfile(bundle.Manifest, bundle.Provenance)
+	if profileErr != nil {
+		return CutoverResult{}, profileErr
+	}
 	if err := validateCutoverCandidateActivation(bundle.Manifest, bundle.Provenance); err != nil {
 		return CutoverResult{}, err
 	}
@@ -131,6 +145,11 @@ func applyCutoverCommittingEachTable(
 	seeds CutoverSeedIDs,
 	iso pgx.TxIsoLevel,
 ) (CutoverResult, error) {
+	var profileErr error
+	bundle.Manifest, profileErr = bindCutoverManifestProfile(bundle.Manifest, bundle.Provenance)
+	if profileErr != nil {
+		return CutoverResult{}, profileErr
+	}
 	if err := validateCutoverProducerProvenanceForApply(bundle); err != nil {
 		return CutoverResult{}, err
 	}
@@ -152,7 +171,7 @@ func applyCutoverCommittingEachTable(
 
 	counts := make(map[string]int64, len(bundle.Manifest.Tables))
 	seenEmpty := false
-	for _, spec := range CutoverTableSpecs() {
+	for _, spec := range CutoverTableSpecs(bundle.Manifest.profile) {
 		manifestTable, err := cutoverManifestTableByName(bundle.Manifest, spec.Name)
 		if err != nil {
 			return CutoverResult{}, err
@@ -261,11 +280,11 @@ func finalizeCutoverAfterTables(
 		return nil, err
 	}
 	sequenceTolerant := isRehearsalOnlyProducer(bundle.Manifest)
-	notes, err := advanceCutoverSequences(ctx, tx, sequenceTolerant)
+	notes, err := advanceCutoverSequences(ctx, tx, sequenceTolerant, bundle.Manifest.profile)
 	if err != nil {
 		return nil, err
 	}
-	verifyNotes, err := verifyCutoverSequences(ctx, tx, sequenceTolerant)
+	verifyNotes, err := verifyCutoverSequences(ctx, tx, sequenceTolerant, bundle.Manifest.profile)
 	if err != nil {
 		return nil, err
 	}

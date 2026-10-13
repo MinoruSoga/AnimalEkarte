@@ -6,7 +6,7 @@
 
 現行 KNJO source は未完全なため、`payments.csv` / `payment_splits.csv` は意図的にheader-onlyです。CSVの形状確認には使えますが、既知の未確定支払候補を持つbillingはproducer側で `needs_review` に隔離され、正式manifestは支払・分割支払がどちらも正件数でなければpreflightで拒否されます。producer契約は `billings.csv` の `completed_at` と completed billingごとのpayment graphに対応済みですが、完全かつ検証済みのKNJO sourceから新しいformal bundleを生成するまでapplyはBLOCKEDです。
 
-> **このPRの22表候補では正式投入を実行できません。** `CutoverTableSpecs()` は22表、mapping statusは `candidate_22_rehearsal_only` で、formal preflight/applyはactivation gateで拒否します。以下の21表一覧・コマンド・受入条件はdeployed/main版の記録であり、この候補の正式21表互換経路を示しません。候補の制約は「22 表候補」節を参照してください。
+> **2026-10-13 切替方式改訂（ユーザー採用、EMR-343）:** 既定 `--cutover-profile legacy-21` は既存21表の正式経路・pin・`estimate_items.medicine_id` 空欄制約を維持する。`--cutover-profile medicines-22-candidate` は明示選択する22表候補で、正式preflight/apply/resume/verifyはactivation gateで拒否する。候補分離の採用はproducer受領や本番切替の承認ではない。現在の実bundleが正式通過するとの主張でもない。
 
 ## Issue #250 受け入れ条件との対応（deployed/mainの既存21表consumer）
 
@@ -49,15 +49,21 @@
 
 （2026-09-29 訂正: `billing_items` の clinic 列を `no` / isolation `id_band_and_parent_fk` と記載していた → 現行 contract は `billing_items.clinic_id` を持ち placeholder `{{CLINIC_ID}}` で bind するため `yes` / `clinic_id_column`。正本 `CutoverTableSpecs()`・`CutoverPlaceholderColumns()` と一致）
 
+### profile の選択と検査
+
+無指定は `legacy-21`。未知profile、21/22表の混在、profileに合わない表構成を拒否し、manifest自己申告・表数・環境変数からprofileを推定しない。CLIのsource preflightで選んだprofileとprovenanceをtarget/apply/resume/verifyへ引き継ぐ。21表の`estimate_items.medicine_id → medicines.id`の既存target FKは保持するが、候補用のmedicines自身の列/FK/sequenceを21表に要求しない。
+
+failure rehearsalとSTG skeletonは既存21表専用のまま。候補profileによる自動拡張を行わない。候補の合成fixture検証は正式採用・実DB COPY/往復・実CSV投入の証跡ではない。
+
 ### 22 表候補（EMR-343/345 — producer pin 未合意のドラフト）
 
-`CutoverTableSpecs()` に `medicines`（15 列、`procedures` と `merchandise_items` の間）を加えた 22 表 consumer 実装候補がある。同候補は `estimate_items.medicine_id` を medicines CSV 親参照として扱い、`procedures.price` / `medicines.price` / `merchandise_items.unit_price` / `vaccines.price` の 4 マスタ価格列のみ負値・非整数を拒否する（0 は許容。空欄は nullable な procedures / medicines / vaccines の価格のみ許容し、NOT NULL の merchandise_items.unit_price は投入前に拒否する。`billing_items` / `estimate_items` の歴史的負値＝返金・値引は変更なし）。
+`CutoverTableSpecs(CutoverProfileMedicinesCandidate)` に `medicines`（15 列、`procedures` と `merchandise_items` の間）を加えた 22 表 consumer 実装候補がある。同候補は `estimate_items.medicine_id` を medicines CSV 親参照として扱い、`procedures.price` / `medicines.price` / `merchandise_items.unit_price` / `vaccines.price` の 4 マスタ価格列のみ負値・非整数を拒否する（0 は許容。空欄は nullable な procedures / medicines / vaccines の価格のみ許容し、NOT NULL の merchandise_items.unit_price は投入前に拒否する。`billing_items` / `estimate_items` の歴史的負値＝返金・値引は変更なし）。
 
-deployed/main の正式 contract は引き続き 21 表のまま: `cutoverCSVContractSHA256` の compiled pin（`9e02897b…`）と producer bundle は本候補では変更していない。producer 側の 21 表 source hash（`8a466c63…`）は compiled pin と一致しておらず、22 表 producer source は存在しない。したがって合成 22 表 fixture（現行 21 表 source pin 使用）は**構造のみ**を証明し、provider 一致・正式採用を証明しない。正式受入れは producer artifacts / source hash / 再生成 bundle / 一致 receipt が揃う MIG-34・MIG-37・MIG-41 調整の完了まで保留である。
+既定consumerの正式 contract は引き続き 21 表のまま: `cutoverCSVContractSHA256` の compiled pin（`9e02897b…`）と producer bundle は本候補では変更していない。producer 側の 21 表 source hash（`8a466c63…`）は compiled pin と一致しておらず、22 表 producer source は存在しない。したがって合成 22 表 fixture（現行 21 表 source pin 使用）は**構造のみ**を証明し、provider 一致・正式採用を証明しない。正式受入れは producer artifacts / source hash / 再生成 bundle / 一致 receipt が揃う MIG-34・MIG-37・MIG-41 調整の完了まで保留である。
 
-この22表候補では、旧pinを持つ `PASS` / `TRUSTED_CANDIDATE` も formal（未指定modeを含む）も **activation blocked** として source preflight・単一transaction apply・table別resume applyのいずれでもDB取得/Begin/Exec/COPY前に拒否する。pinの更新・producer receiptの採用は別の明示reviewが必要であり、manifest自己申告や環境変数で解除する経路はない。実装候補を検証できるのは既存のlocal/staging rehearsal modeを明示し、artifactも `REHEARSAL_ONLY` とした場合だけで、hash・22表shape・FK・inventoryの検証は維持する。mapping coverageのconsumer statusは `candidate_22_rehearsal_only` であり正式採用を示さない。旧21表bundleはこの候補では引き続きtable数不一致で拒否され、旧版consumerとの互換性は保証しない。
+この22表候補では、旧pinを持つ `PASS` / `TRUSTED_CANDIDATE` も formal（未指定modeを含む）も **activation blocked** として source/target preflight・単一transaction apply・table別resume apply・verifyのいずれでもDB取得/Begin/Exec/COPY前に拒否する。pinの更新・producer receiptの採用は別の明示reviewが必要であり、manifest自己申告や環境変数で解除する経路はない。実装候補を検証できるのは候補profileと既存のlocal/staging rehearsal modeを両方明示し、artifactも `REHEARSAL_ONLY` とした場合だけで、hash・22表shape・FK・inventoryの検証は維持する。mapping coverageのconsumer statusは `candidate_22_rehearsal_only` であり正式採用を示さない。旧21表bundleはこの候補では引き続きtable数不一致で拒否され、旧版consumerとの互換性は保証しない。
 
-`medicines.default_quantity` は空欄=NULL、0有効の非負decimalとし、`numeric(10,2)`へ丸めなしで格納できる値だけを許容する。上限99999999.99、fractionの末尾0を除き2桁まで（1.2300可、0.001不可）。浮動小数点による判定やNULLの0補完は行わない。
+`medicines.default_quantity` は空欄を拒否し、明示0有効の非負decimalとし、`numeric(10,2)`へ丸めなしで格納できる値だけを許容する。上限99999999.99、fractionの末尾0を除き2桁まで（1.2300可、0.001不可）。浮動小数点による判定やNULLの0補完は行わない。
 
 - **dry-run**: `make csv-import-preflight` が source digest / 6 seed binding / 空 band / FK catalog を read-only 検証する。apply は別コマンド。
 - **idempotency**: apply 後の再 preflight/apply は `CUTOVER_REF_BAND_OCCUPIED` で拒否（既存行の置換・削除なし）。
@@ -289,3 +295,7 @@ consumer（現行 HEAD 観測値）の契約 digest:
 - `make stg-uat-handoff`（`scripts/old-db/stg-uat-old-db-handoff.sh`）は jouto・shikishima・hakobuneco 固定で hachioji は対象外。wrapper の八王子除外や非空 band 保護（apply report `PASS` skip / `CUTOVER_REF_BAND_OCCUPIED`）を迂回しない。
 - import 実行 receipt と EMR-361（backup/restore/rollback・画面確認）の receipt は同一 execution ID で受け渡す。同一 import を別実装で重複実行しない。
 - 本節は即実行可能な DB 接続値・パラメータを提供しない。preflight/apply/verify は上記「Preflight（read-only）」「Apply」「Verify（read-only）」節の既存手順に従う。
+
+#### 薬剤数量とtarget整合性（22表候補）
+
+既存設計のproducer明示値 `default_quantity=1.0` に沿い、空欄を拒否する。明示0と無損失の非負小数は許容するが、丸め・overflow・非有限値は拒否。targetは `numeric(10,2)` の型・precision・scaleを検査する。`medicines.inventory_id → inventory_items.id` のvalidated FKも必要で、CSVのinventory_id空必須は維持する。model/APIのnullable化やmigrationは今回行わない。

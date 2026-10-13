@@ -52,7 +52,7 @@ func rehearsalOnlyManifestForTargetTests() CutoverManifest {
 
 func cutoverSpecByName(t *testing.T, name string) CutoverTableSpec {
 	t.Helper()
-	for _, spec := range CutoverTableSpecs() {
+	for _, spec := range CutoverTableSpecs(CutoverProfileMedicinesCandidate) {
 		if spec.Name == name {
 			return spec
 		}
@@ -392,7 +392,7 @@ func TestPreflightRehearsalRejectsManifestTableAnomalies(t *testing.T) {
 			mutate: func(f *fixtureBundle) {
 				f.manifest.Tables = f.manifest.Tables[:len(f.manifest.Tables)-1]
 			},
-			wantErr: "want 22",
+			wantErr: "want 21",
 		},
 	}
 

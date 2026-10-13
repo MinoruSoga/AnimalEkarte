@@ -353,7 +353,7 @@ func syntheticFailureManifest(input SyntheticFailureInput) CutoverManifest {
 		ClinicBandEndExclusive: band.EndExclusive,
 		IDBand:                 band,
 	}
-	for _, spec := range CutoverTableSpecs() {
+	for _, spec := range CutoverTableSpecs(CutoverProfileLegacy21) {
 		manifest.Tables = append(manifest.Tables, CutoverManifestTable{
 			Table: spec.Name,
 		})
@@ -368,10 +368,10 @@ func queryBandCounts(
 ) (BandCountsEvidence, error) {
 	evidence := BandCountsEvidence{
 		SchemaVersion: 1,
-		TableCount:    len(CutoverTableSpecs()),
-		Tables:        make([]BandCount, 0, len(CutoverTableSpecs())),
+		TableCount:    len(CutoverTableSpecs(CutoverProfileLegacy21)),
+		Tables:        make([]BandCount, 0, len(CutoverTableSpecs(CutoverProfileLegacy21))),
 	}
-	for _, spec := range CutoverTableSpecs() {
+	for _, spec := range CutoverTableSpecs(CutoverProfileLegacy21) {
 		floor := band.NonOwnerIDOffset
 		if spec.Name == "owners" {
 			floor = band.OwnerFloor

@@ -43,6 +43,10 @@ func PreflightCutoverBundle(sourceDir string, expected ExpectedCutoverSource) (C
 	if err != nil {
 		return CutoverBundle{}, err
 	}
+	manifest, err = bindCutoverManifestProfile(manifest, expected.Provenance)
+	if err != nil {
+		return CutoverBundle{}, err
+	}
 	manifestNotes, err := validateCutoverManifest(&manifest, expected)
 	if err != nil {
 		return CutoverBundle{}, err
@@ -198,14 +202,14 @@ func validateCutoverManifest(manifest *CutoverManifest, expected ExpectedCutover
 		}
 		notes = append(notes, "manifest.importablePredicate")
 	}
-	if !reflect.DeepEqual(manifest.PlaceholderColumns, CutoverPlaceholderColumns()) {
+	if !reflect.DeepEqual(manifest.PlaceholderColumns, CutoverPlaceholderColumns(manifest.profile)) {
 		if !drift {
 			return nil, fmt.Errorf("manifest placeholder inventory does not match the cutover contract")
 		}
 		notes = append(notes, "manifest.placeholderColumns")
 	}
 
-	specs := CutoverTableSpecs()
+	specs := CutoverTableSpecs(manifest.profile)
 	if err := normalizeCutoverManifestTables(manifest, specs, drift, &notes); err != nil {
 		return nil, err
 	}
@@ -297,6 +301,13 @@ func acceptsRehearsalManifest(mode CutoverProvenanceMode) bool {
 // Only an explicitly selected rehearsal mode with a rehearsal-only artifact
 // may exercise this candidate. There is no manifest or environment override.
 func validateCutoverCandidateActivation(manifest CutoverManifest, contract CutoverProvenanceContract) error {
+	profile, err := ParseCutoverProfile(string(contract.Profile))
+	if err != nil {
+		return err
+	}
+	if profile != CutoverProfileMedicinesCandidate {
+		return nil
+	}
 	if acceptsRehearsalManifest(contract.Mode) && isRehearsalOnlyProducer(manifest) {
 		return nil
 	}
@@ -509,7 +520,7 @@ func validateCutoverFiles(sourceDir string, manifest CutoverManifest, provenance
 	// manifest drift so preflight and apply observe one policy.
 	allowPermutation := rehearsalContractDrift(manifest, provenance.Mode)
 	var notes []string
-	for _, spec := range CutoverTableSpecs() {
+	for _, spec := range CutoverTableSpecs(manifest.profile) {
 		table, err := cutoverManifestTableByName(manifest, spec.Name)
 		if err != nil {
 			return nil, err
@@ -700,7 +711,7 @@ func validateCutoverRow(spec CutoverTableSpec, header []string, row []string, in
 			return fmt.Errorf("table %s column %s row %d: id is outside the clinic band", spec.Name, column, csvLine)
 		}
 	}
-	if column, ok := cutoverMasterPriceColumns()[spec.Name]; ok {
+	if column, ok := cutoverMasterPriceColumn(spec.Name); ok {
 		if err := validateCutoverNonNegativeInt(spec.Name, column, row[indexes[column]], csvLine); err != nil {
 			return err
 		}
@@ -724,7 +735,7 @@ func placeholderAllowed(table, column, value, token string) bool {
 	if (table == "payments" || table == "payment_splits") && column == "payment_method_id" {
 		return token == "{{PAYMENT_METHOD_CASH_ID}}" || token == "{{PAYMENT_METHOD_CREDIT_CARD_ID}}"
 	}
-	want, ok := CutoverPlaceholderColumns()[key]
+	want, ok := CutoverPlaceholderColumns(CutoverProfileMedicinesCandidate)[key]
 	return ok && token == want
 }
 

@@ -26,6 +26,7 @@ import (
 const auditReportRoot = csvimport.AuditReportRoot
 
 type options struct {
+	cutoverProfile            string
 	command                   string
 	sourceDir                 string
 	accountSourceDir          string
@@ -72,6 +73,7 @@ type cutoverTarget interface {
 }
 
 type pgxCutoverTarget struct {
+	provenance     csvimport.CutoverProvenanceContract
 	pool           *pgxpool.Pool
 	localRehearsal bool
 }
@@ -85,10 +87,13 @@ func (t *pgxCutoverTarget) Close() {
 }
 
 func (t *pgxCutoverTarget) Preflight(ctx context.Context, manifest csvimport.CutoverManifest, seeds csvimport.CutoverSeedIDs) error {
-	return csvimport.PreflightCutoverTarget(ctx, t.pool, manifest, seeds)
+	return csvimport.PreflightCutoverTargetWithProvenance(ctx, t.pool, manifest, seeds, t.provenance)
 }
 
 func (t *pgxCutoverTarget) Verify(ctx context.Context, manifest csvimport.CutoverManifest, seeds csvimport.CutoverSeedIDs) error {
+	if err := csvimport.ValidateCutoverProfile(manifest, t.provenance); err != nil {
+		return err
+	}
 	tx, err := t.pool.BeginTx(ctx, pgx.TxOptions{
 		IsoLevel: pgx.RepeatableRead,
 	})
@@ -96,7 +101,7 @@ func (t *pgxCutoverTarget) Verify(ctx context.Context, manifest csvimport.Cutove
 		return fmt.Errorf("begin repeatable-read cutover verification: %w", err)
 	}
 	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
-	provenance := csvimport.CutoverProvenanceContract{Mode: csvimport.CutoverProvenanceFormal}
+	provenance := t.provenance
 	if t.localRehearsal {
 		provenance.Mode = csvimport.CutoverProvenanceLocalRehearsal
 	}
@@ -183,7 +188,7 @@ func runWithDependencies(ctx context.Context, args []string, logger *slog.Logger
 		ClinicCode:       opt.clinicCode,
 		ClinicOrdinal:    opt.clinicOrdinal,
 		RunID:            opt.runID,
-		Provenance:       csvimport.CutoverProvenanceContract{Mode: cutoverProvenanceMode(opt.allowLocalRehearsal)},
+		Provenance:       csvimport.CutoverProvenanceContract{Mode: cutoverProvenanceMode(opt.allowLocalRehearsal), Profile: csvimport.CutoverProfile(opt.cutoverProfile)},
 	})
 	if err != nil {
 		return fmt.Errorf("source preflight failed: %w", err)
@@ -218,6 +223,9 @@ func runWithDependencies(ctx context.Context, args []string, logger *slog.Logger
 	}
 	if err != nil {
 		return fmt.Errorf("open target database: %w", err)
+	}
+	if configured, ok := target.(*pgxCutoverTarget); ok {
+		configured.provenance = bundle.Provenance
 	}
 	defer target.Close()
 	if err := target.Ping(ctx); err != nil {
@@ -298,6 +306,7 @@ func parseOptions(args []string) (options, error) {
 	}
 	flags := flag.NewFlagSet("csv-import "+opt.command, flag.ContinueOnError)
 	flags.SetOutput(os.Stderr)
+	flags.StringVar(&opt.cutoverProfile, "cutover-profile", string(csvimport.CutoverProfileLegacy21), "operator profile: legacy-21 or medicines-22-candidate (rehearsal only)")
 	flags.StringVar(&opt.sourceDir, "source-dir", "", "absolute directory containing manifest.json and twenty-one CSV files")
 	flags.StringVar(&opt.accountSourceDir, "account-source-dir", "", "optional owner-only directory containing the separate staffs.csv")
 	flags.StringVar(&opt.manifestSHA256, "expected-manifest-sha256", "", "trusted producer manifest SHA-256")
@@ -317,6 +326,9 @@ func parseOptions(args []string) (options, error) {
 	flags.StringVar(&opt.reportPath, "report-path", "", "required absolute path for the owner-only aggregate apply report")
 	flags.BoolVar(&opt.allowLocalRehearsal, "allow-local-rehearsal", false, "local disposable only: accept REHEARSAL_ONLY/UNVERIFIED producer bundles")
 	if err := flags.Parse(args[1:]); err != nil {
+		return options{}, err
+	}
+	if _, err := csvimport.ParseCutoverProfile(opt.cutoverProfile); err != nil {
 		return options{}, err
 	}
 	if flags.NArg() != 0 {

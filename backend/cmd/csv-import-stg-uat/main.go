@@ -35,6 +35,7 @@ const (
 )
 
 type options struct {
+	cutoverProfile            string
 	command                   string
 	sourceDir                 string
 	accountSourceDir          string
@@ -81,7 +82,8 @@ type cutoverTarget interface {
 }
 
 type pgxCutoverTarget struct {
-	pool *pgxpool.Pool
+	provenance csvimport.CutoverProvenanceContract
+	pool       *pgxpool.Pool
 }
 
 func (t *pgxCutoverTarget) Ping(ctx context.Context) error {
@@ -93,10 +95,13 @@ func (t *pgxCutoverTarget) Close() {
 }
 
 func (t *pgxCutoverTarget) Preflight(ctx context.Context, manifest csvimport.CutoverManifest, seeds csvimport.CutoverSeedIDs) error {
-	return csvimport.PreflightCutoverTargetAllowingResume(ctx, t.pool, manifest, seeds)
+	return csvimport.PreflightCutoverTargetAllowingResumeWithProvenance(ctx, t.pool, manifest, seeds, t.provenance)
 }
 
 func (t *pgxCutoverTarget) Verify(ctx context.Context, manifest csvimport.CutoverManifest, seeds csvimport.CutoverSeedIDs) error {
+	if err := csvimport.ValidateCutoverProfile(manifest, t.provenance); err != nil {
+		return err
+	}
 	tx, err := t.pool.BeginTx(ctx, pgx.TxOptions{
 		IsoLevel: pgx.RepeatableRead,
 	})
@@ -107,7 +112,7 @@ func (t *pgxCutoverTarget) Verify(ctx context.Context, manifest csvimport.Cutove
 	if _, err := tx.Exec(ctx, `SELECT set_config('app.bypass_rls', 'on', true)`); err != nil {
 		return fmt.Errorf("enable verification RLS bypass: %w", err)
 	}
-	return csvimport.VerifyCutoverWithProvenance(ctx, tx, manifest, seeds, csvimport.CutoverProvenanceContract{Mode: csvimport.CutoverProvenanceFormal})
+	return csvimport.VerifyCutoverWithProvenance(ctx, tx, manifest, seeds, t.provenance)
 }
 
 func (t *pgxCutoverTarget) Apply(ctx context.Context, bundle csvimport.CutoverBundle, seeds csvimport.CutoverSeedIDs) (csvimport.CutoverResult, error) {
@@ -204,8 +209,9 @@ func runWithDependencies(ctx context.Context, args []string, logger *slog.Logger
 		ClinicOrdinal:    opt.clinicOrdinal,
 		RunID:            opt.runID,
 		Provenance: csvimport.CutoverProvenanceContract{
-			Mode:   csvimport.CutoverProvenanceStagingRehearsal,
-			Target: csvimport.CutoverTargetBinding{Environment: "staging", Host: conn.Host, Database: database, ClinicID: opt.clinicID},
+			Profile: csvimport.CutoverProfile(opt.cutoverProfile),
+			Mode:    csvimport.CutoverProvenanceStagingRehearsal,
+			Target:  csvimport.CutoverTargetBinding{Environment: "staging", Host: conn.Host, Database: database, ClinicID: opt.clinicID},
 		},
 	})
 	if err != nil {
@@ -219,6 +225,9 @@ func runWithDependencies(ctx context.Context, args []string, logger *slog.Logger
 	target, err := deps.openTarget(ctx, poolConfig)
 	if err != nil {
 		return fmt.Errorf("open target database: %w", err)
+	}
+	if configured, ok := target.(*pgxCutoverTarget); ok {
+		configured.provenance = bundle.Provenance
 	}
 	defer target.Close()
 	if err := target.Ping(ctx); err != nil {
@@ -345,6 +354,7 @@ func parseOptions(args []string) (options, error) {
 	}
 	flags := flag.NewFlagSet("csv-import-stg-uat "+opt.command, flag.ContinueOnError)
 	flags.SetOutput(os.Stderr)
+	flags.StringVar(&opt.cutoverProfile, "cutover-profile", string(csvimport.CutoverProfileLegacy21), "operator profile: legacy-21 or medicines-22-candidate (rehearsal only)")
 	flags.StringVar(&opt.sourceDir, "source-dir", "", "absolute directory containing manifest.json and twenty-one CSV files")
 	flags.StringVar(&opt.accountSourceDir, "account-source-dir", "", "optional owner-only directory containing the separate staffs.csv")
 	flags.StringVar(&opt.manifestSHA256, "expected-manifest-sha256", "", "trusted producer manifest SHA-256")
@@ -363,6 +373,9 @@ func parseOptions(args []string) (options, error) {
 	flags.StringVar(&opt.confirmTargetDatabase, "confirm-target-database", "", "required before connect; must exactly equal DB_NAME")
 	flags.StringVar(&opt.reportPath, "report-path", "", "required absolute path for the owner-only aggregate apply report")
 	if err := flags.Parse(args[1:]); err != nil {
+		return options{}, err
+	}
+	if _, err := csvimport.ParseCutoverProfile(opt.cutoverProfile); err != nil {
 		return options{}, err
 	}
 	if flags.NArg() != 0 {

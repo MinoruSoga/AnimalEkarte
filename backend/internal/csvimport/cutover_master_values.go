@@ -42,7 +42,7 @@ var cutoverMedicineUnits = map[string]struct{}{
 // validateCutoverMedicinesRow enforces the medicines-only lexical checks:
 // dosage_form and medicine_unit are DB enums and default_quantity is a plain
 // numeric literal exactly representable in numeric(10,2), with zero valid and
-// empty=NULL. Diagnostics name table, column, and row only.
+// an explicit value is required. Diagnostics name table, column, and row only.
 func validateCutoverMedicinesRow(row []string, indexes map[string]int, csvLine int64) error {
 	if value := row[indexes["dosage_form"]]; value != "" {
 		if _, ok := cutoverMedicinesDosageForms[value]; !ok {
@@ -64,7 +64,7 @@ func validateCutoverMedicinesRow(row []string, indexes map[string]int, csvLine i
 // Decimal digits are inspected without floating point or rounding. Zero is valid.
 func validateCutoverMedicineQuantity(value string, csvLine int64) error {
 	if value == "" {
-		return nil
+		return fmt.Errorf("table medicines column default_quantity row %d: value is required", csvLine)
 	}
 	if !cutoverNumericLiteral.MatchString(value) || strings.HasPrefix(value, "-") {
 		return fmt.Errorf("table medicines column default_quantity row %d: value must be a non-negative decimal quantity", csvLine)

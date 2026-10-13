@@ -26,8 +26,8 @@ func TestPreflightCutoverBundleAcceptsRehearsalExactContract(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PreflightCutoverBundle() error = %v", err)
 	}
-	if len(bundle.Manifest.Tables) != 22 {
-		t.Fatalf("table count = %d, want 22", len(bundle.Manifest.Tables))
+	if len(bundle.Manifest.Tables) != 21 {
+		t.Fatalf("table count = %d, want 21", len(bundle.Manifest.Tables))
 	}
 	if bundle.Manifest.IDBand.ApplicationIDFloor != 1_000_000_000 {
 		t.Fatalf("application floor = %d", bundle.Manifest.IDBand.ApplicationIDFloor)
@@ -149,9 +149,10 @@ func TestStagingRehearsalProvenanceRequiresTargetBinding(t *testing.T) {
 }
 
 func TestStagingRehearsalProvenanceBlocksUnapprovedVerifiedProducer(t *testing.T) {
-	dir, digest := writeCutoverFixture(t, nil)
-
-	if _, err := PreflightCutoverBundle(dir, stagingExpectedCutoverSource(digest)); err == nil || !strings.Contains(err.Error(), "activation") {
+	dir, digest := writeCutoverFixture(t, nil, CutoverProfileMedicinesCandidate)
+	expected := stagingExpectedCutoverSource(digest)
+	expected.Provenance.Profile = CutoverProfileMedicinesCandidate
+	if _, err := PreflightCutoverBundle(dir, expected); err == nil || !strings.Contains(err.Error(), "activation") {
 		t.Fatalf("PreflightCutoverBundle(staging rehearsal) error = %v, want activation blocked", err)
 	}
 }
@@ -416,15 +417,15 @@ func TestPreflightCutoverBundleRejectsInvalidProducerProvenance(t *testing.T) {
 
 func TestCutoverTableSpecsMatchPaymentContract(t *testing.T) {
 	specs := CutoverTableSpecs()
-	if len(specs) != 22 {
-		t.Fatalf("table count = %d, want 22", len(specs))
+	if len(specs) != 21 {
+		t.Fatalf("table count = %d, want 21", len(specs))
 	}
 	gotNames := make([]string, 0, len(specs))
 	for _, spec := range specs {
 		gotNames = append(gotNames, spec.Name)
 	}
 	wantNames := []string{
-		"staffs", "procedures", "medicines", "merchandise_items", "owners", "pets",
+		"staffs", "procedures", "merchandise_items", "owners", "pets",
 		"appointments", "appointment_trimming_details", "medical_records",
 		"inquiries", "clinical_plans", "vital_records", "billings",
 		"billing_items", "payments", "payment_splits", "estimates",
@@ -489,7 +490,6 @@ func TestCutoverTableSpecsMatchPaymentContract(t *testing.T) {
 		"staffs.clinic_id":            "{{CLINIC_ID}}",
 		"procedures.clinic_id":        "{{CLINIC_ID}}",
 		"merchandise_items.clinic_id": "{{CLINIC_ID}}",
-		"medicines.clinic_id":         "{{CLINIC_ID}}",
 		"owners.clinic_id":            "{{CLINIC_ID}}",
 		"pets.clinic_id":              "{{CLINIC_ID}}",
 		"pets.animal_species_id (fallback only, when unresolved)": "{{FALLBACK_ANIMAL_SPECIES_ID}}",
@@ -521,7 +521,6 @@ func TestCutoverTableSpecsDeclareNonNullableTextColumns(t *testing.T) {
 	expected := map[string][]string{
 		"staffs":                       {"name", "license_number"},
 		"procedures":                   {"name", "description"},
-		"medicines":                    {"name", "description"},
 		"merchandise_items":            {"name"},
 		"owners":                       {"name", "name_kana", "company", "postal_code", "address1", "address2", "home_postal_code", "home_address1", "home_address2", "phone", "company_phone", "email", "remarks"},
 		"pets":                         {"pet_number", "name", "name_kana", "breed", "color", "food", "remarks"},
@@ -558,8 +557,8 @@ func TestCutoverMappingCoverageCoversAllFormalTables(t *testing.T) {
 	if len(coverage) != len(specs) {
 		t.Fatalf("coverage count = %d, want %d", len(coverage), len(specs))
 	}
-	if len(coverage) != 22 {
-		t.Fatalf("formal table count = %d, want 22", len(coverage))
+	if len(coverage) != 21 {
+		t.Fatalf("formal table count = %d, want 21", len(coverage))
 	}
 
 	// Child tables without clinic_id must still declare parent-FK isolation.
@@ -583,7 +582,7 @@ func TestCutoverMappingCoverageCoversAllFormalTables(t *testing.T) {
 		if !slices.Equal(entry.BandColumns, spec.BandColumns) {
 			t.Fatalf("%s BandColumns = %v, want %v", entry.TargetTable, entry.BandColumns, spec.BandColumns)
 		}
-		if entry.ConsumerStatus != "candidate_22_rehearsal_only" {
+		if entry.ConsumerStatus != "formal_cutover_v1" {
 			t.Fatalf("%s ConsumerStatus = %q", entry.TargetTable, entry.ConsumerStatus)
 		}
 		expectClinicID := hasColumn(spec.Columns, "clinic_id")
@@ -916,8 +915,8 @@ func TestPreflightCutoverBundleAllowsHistoricalPaymentSnapshotOnlyForRehearsal(t
 		t.Fatalf("verified staging preflight error = %v, want payment snapshot rejection", err)
 	}
 	expected.Provenance.Mode = CutoverProvenanceLocalRehearsal
-	if _, err := PreflightCutoverBundle(dir, expected); err == nil || !strings.Contains(err.Error(), "activation") {
-		t.Fatalf("trusted local-mode activation error = %v", err)
+	if _, err := PreflightCutoverBundle(dir, expected); err != nil {
+		t.Fatalf("legacy local-mode snapshot compatibility error = %v", err)
 	}
 
 	rehearsalDir, rehearsalDigest := writeCutoverFixture(t, func(f *fixtureBundle) {
@@ -1049,7 +1048,7 @@ type fixtureBundle struct {
 	afterManifest func(string)
 }
 
-func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle)) (string, string) {
+func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle), profiles ...CutoverProfile) (string, string) {
 	t.Helper()
 	dir := t.TempDir()
 	if err := os.Chmod(dir, 0o700); err != nil {
@@ -1070,7 +1069,7 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle)) (string, str
 			OutputDir:                 "sensitive-local/animalekarte-csv-export/hachioji/run-1",
 			Format:                    "csv-with-header",
 			ImportablePredicate:       "mapping_status IN ('confirmed','inferred'), plus per-table CSV FK-parent eligibility guards (see scripts/rehearsal/lib/stage-csv-columns.mjs)",
-			PlaceholderColumns:        CutoverPlaceholderColumns(),
+			PlaceholderColumns:        CutoverPlaceholderColumns(profiles...),
 			PlaceholderResolutionNote: "source placeholders",
 			ManifestSchemaVersion:     cutoverManifestSchema,
 			StageMappingSHA256:        cutoverStageMappingSHA256,
@@ -1102,7 +1101,7 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle)) (string, str
 		rows: map[string][][]string{},
 	}
 
-	for _, spec := range CutoverTableSpecs() {
+	for _, spec := range CutoverTableSpecs(profiles...) {
 		row := make([]string, len(spec.Columns))
 		for i, column := range spec.Columns {
 			switch column {
@@ -1167,7 +1166,7 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle)) (string, str
 			}
 			// consultations are not part of the CSV import. A valid fixture
 			// cannot invent that parent; producer leaves it empty.
-			if spec.Name == "estimate_items" && column == "consultation_id" {
+			if spec.Name == "estimate_items" && (column == "consultation_id" || (column == "medicine_id" && selectedCutoverProfile(profiles) != CutoverProfileMedicinesCandidate)) {
 				continue
 			}
 			// A self-reference filled with the row's own id is a self-loop cycle
@@ -1190,7 +1189,7 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle)) (string, str
 		mutate(&f)
 	}
 
-	for _, spec := range CutoverTableSpecs() {
+	for _, spec := range CutoverTableSpecs(profiles...) {
 		fileName := spec.Name + ".csv"
 		file := filepath.Join(dir, fileName)
 		out, err := os.OpenFile(file, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)

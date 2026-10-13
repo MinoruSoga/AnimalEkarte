@@ -87,7 +87,7 @@ func TestWindowZeroEvidencePreflight(t *testing.T) {
 				expected.Provenance.Mode = CutoverProvenanceLocalRehearsal
 			}
 			_, err = PreflightCutoverBundle(dir, expected)
-			if mode == "valid" && (err == nil || !strings.Contains(err.Error(), "activation")) || mode != "valid" && err == nil {
+			if mode == "valid" && err != nil || mode != "valid" && err == nil {
 				t.Fatalf("unexpected preflight result: %v", err)
 			}
 		})

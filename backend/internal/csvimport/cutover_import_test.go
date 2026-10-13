@@ -241,7 +241,7 @@ func TestApplyCutoverStagesSelfReferencedTablesForOrdering(t *testing.T) {
 		t.Fatal(err)
 	}
 	joined := strings.Join(tx.copySQLs, "\n")
-	for _, table := range []string{"procedures", "medicines", "vaccines"} {
+	for _, table := range []string{"procedures", "vaccines"} {
 		if !strings.Contains(joined, `COPY "cutover_copy_`+table+`"`) {
 			t.Fatalf("self-referenced table %s was not staged for ordering", table)
 		}
@@ -474,8 +474,8 @@ func TestApplyCutoverRollsBackWhenPaymentSplitCopyFails(t *testing.T) {
 	if tx.committed || !tx.rolledBack {
 		t.Fatalf("transaction state committed=%v rolledBack=%v", tx.committed, tx.rolledBack)
 	}
-	if tx.copyCalls != 15 {
-		t.Fatalf("successful COPY calls before payment_splits = %d, want 15", tx.copyCalls)
+	if tx.copyCalls != 14 {
+		t.Fatalf("successful COPY calls before payment_splits = %d, want 14", tx.copyCalls)
 	}
 }
 
