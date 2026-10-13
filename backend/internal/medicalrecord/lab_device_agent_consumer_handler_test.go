@@ -22,12 +22,15 @@ func TestGetLabDeviceAgentConsumer(t *testing.T) {
 		token      string
 		setupCtx   func(*gin.Context)
 		wantStatus int
-		wantBody   string
+		wantCode   string
 	}{
 		{
+			// PR647-F1: 未設定 503 は機械可読 code を持ち、FE が他原因の
+			// 503（Worker/Container 障害）と区別できる。
 			name:       "missing configuration fails closed",
 			setupCtx:   setClinicID,
 			wantStatus: http.StatusServiceUnavailable,
+			wantCode:   "lab_device_agent_consumer_unconfigured",
 		},
 		{
 			name:       "returns clinic-bound signed capability",
@@ -59,6 +62,15 @@ func TestGetLabDeviceAgentConsumer(t *testing.T) {
 			(&LabImportHandler{}).GetLabDeviceAgentConsumer(context)
 
 			assert.Equal(t, test.wantStatus, response.Code)
+			if test.wantCode != "" {
+				var body struct {
+					Code  string `json:"code"`
+					Error string `json:"error"`
+				}
+				require.NoError(t, json.Unmarshal(response.Body.Bytes(), &body))
+				assert.Equal(t, test.wantCode, body.Code)
+				assert.NotEmpty(t, body.Error)
+			}
 			if test.wantStatus == http.StatusOK {
 				var body struct {
 					Capability string `json:"agent_consumer_token"`

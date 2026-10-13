@@ -24788,7 +24788,7 @@ paths:
     get:
       operationId: getLabDeviceAgentConsumer
       summary: 検査機器エージェントの consumer capability
-      description: ResourceLabImport create. Returns a short-lived signed capability bound to the selected clinic — the shared secret LAB_DEVICE_AGENT_CONSUMER_TOKEN itself is never returned. Empty config is 503.
+      description: ResourceLabImport create. Returns a short-lived signed capability bound to the selected clinic — the shared secret LAB_DEVICE_AGENT_CONSUMER_TOKEN itself is never returned. Empty config is 503 with code lab_device_agent_consumer_unconfigured.
       tags: [LabImports]
       responses:
         '200':
@@ -24804,7 +24804,19 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
         '503':
-          description: LAB_DEVICE_AGENT_CONSUMER_TOKEN is unset
+          description: LAB_DEVICE_AGENT_CONSUMER_TOKEN is unset — code lab_device_agent_consumer_unconfigured distinguishes this from unrelated 503s (PR647-F1)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, code]
+                properties:
+                  error:
+                    type: string
+                    example: lab device agent consumer is not configured
+                  code:
+                    type: string
+                    enum: [lab_device_agent_consumer_unconfigured]
   /lab-device/board:
     get:
       operationId: getLabDeviceBoard

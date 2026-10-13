@@ -66,18 +66,22 @@ function createReportingWrapper() {
   );
 }
 
-function axiosErrorWithStatus(status: number): AxiosError {
+function axiosErrorWithStatus(status: number, data: unknown = {}): AxiosError {
   const config = {
     headers: new AxiosHeaders(),
   } as InternalAxiosRequestConfig;
   return new AxiosError("request failed", AxiosError.ERR_BAD_RESPONSE, config, undefined, {
     config,
-    data: {},
+    data,
     headers: new AxiosHeaders(),
     status,
     statusText: "",
   });
 }
+
+// PR647-F1: Go handler が未設定 503 にのみ付ける機械可読 code
+// (backend labDeviceAgentConsumerUnconfiguredCode と同一値)。
+const AGENT_CONSUMER_UNCONFIGURED_CODE = "lab_device_agent_consumer_unconfigured";
 
 describe("lab-device API mutations (FE-RC-012)", () => {
   beforeEach(() => {
@@ -194,10 +198,13 @@ describe("useGetLabDeviceAgentConsumer (EMR-335)", () => {
     expect(result.current.data).toBe("cap-token-dummy");
   });
 
-  it("503（秘密未設定）は reject せず null を返し、グローバルエラーハンドラも呼ばない", async () => {
-    // 503 は「未設定」という期待状態のため fetch 内で null 解決し、route が
+  it("503 + 未設定 code（秘密未設定）は reject せず null を返し、グローバルエラーハンドラも呼ばない", async () => {
+    // 未設定は「期待状態」のため fetch 内で null 解決し、route が
     // 「検査機器エージェントが未設定です」を表示する。汎用 5xx トーストにしない。
-    mockedGet.mockRejectedValueOnce(axiosErrorWithStatus(503));
+    // PR647-F1: 判定は status=503 + 専用 code の一致のみ。
+    mockedGet.mockRejectedValueOnce(
+      axiosErrorWithStatus(503, { code: AGENT_CONSUMER_UNCONFIGURED_CODE }),
+    );
     const { result } = renderHook(() => useGetLabDeviceAgentConsumer(), {
       wrapper: createReportingWrapper(),
     });
@@ -205,6 +212,31 @@ describe("useGetLabDeviceAgentConsumer (EMR-335)", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toBeNull();
     expect(mockedHandleApiError).not.toHaveBeenCalled();
+  });
+
+  it("code を持たない 503（Worker/Container 障害など別原因）は reject しグローバルハンドラへ届く", async () => {
+    // PR647-F1 回帰: status 503 だけでは未設定扱いしない。Cloudflare Worker /
+    // Container 起因の 503 は非 JSON 本文もあり得るため、専用 code が無ければ
+    // 従来どおりエラー経路へ渡す。
+    const apiError = axiosErrorWithStatus(503, "Service Unavailable");
+    mockedGet.mockRejectedValueOnce(apiError);
+    const { result } = renderHook(() => useGetLabDeviceAgentConsumer(), {
+      wrapper: createReportingWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(mockedHandleApiError).toHaveBeenCalledWith(apiError, "データ取得");
+  });
+
+  it("503 + 無関係の code も reject する（未設定扱いは専用 code のみ）", async () => {
+    const apiError = axiosErrorWithStatus(503, { code: "some_other_error" });
+    mockedGet.mockRejectedValueOnce(apiError);
+    const { result } = renderHook(() => useGetLabDeviceAgentConsumer(), {
+      wrapper: createReportingWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(mockedHandleApiError).toHaveBeenCalledWith(apiError, "データ取得");
   });
 
   it("500 は従来どおり reject してグローバル QueryCache 経由でハンドラへ届く", async () => {
@@ -234,7 +266,7 @@ describe("useGetLabDeviceAgentConsumer (EMR-335)", () => {
     mockedGet
       .mockResolvedValueOnce({ data: { agent_consumer_token: "old-capability", expires_in: 300 } })
       .mockRejectedValueOnce(serverError)
-      .mockRejectedValueOnce(axiosErrorWithStatus(503))
+      .mockRejectedValueOnce(axiosErrorWithStatus(503, { code: AGENT_CONSUMER_UNCONFIGURED_CODE }))
       .mockResolvedValueOnce({ data: { agent_consumer_token: "new-capability", expires_in: 300 } });
     const { result } = renderHook(() => useGetLabDeviceAgentConsumer(), {
       wrapper: createReportingWrapper(),

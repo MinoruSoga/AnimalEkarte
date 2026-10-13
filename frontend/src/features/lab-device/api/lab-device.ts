@@ -204,8 +204,20 @@ const LAB_DEVICE_AGENT_CAPABILITY_REFRESH_MS = 4 * 60 * 1000;
 
 // EMR-335: 秘密未設定の 503 は「未設定」という期待状態のため null を返し、
 // route(LabDeviceBoard)が「検査機器エージェントが未設定です」を表示する。
-// 汎用の handle-api-error 5xx トーストにはしない。503 以外の失敗は
-// 従来どおり reject し、グローバル QueryCache のエラーハンドラへ渡す。
+// 汎用の handle-api-error 5xx トーストにはしない。
+// PR647-F1: 未設定の判定は status=503 + BE 専用 code の一致のみ。code を
+// 持たない/別 code の 503（Worker/Container 障害）や他の失敗は従来どおり
+// reject し、グローバル QueryCache のエラーハンドラへ渡す。
+const LAB_DEVICE_AGENT_CONSUMER_UNCONFIGURED_CODE = "lab_device_agent_consumer_unconfigured";
+
+function isLabDeviceAgentUnconfigured(error: unknown): boolean {
+  if (!Axios.isAxiosError(error) || error.response?.status !== 503) {
+    return false;
+  }
+  const body: unknown = error.response.data;
+  return isRecord(body) && body.code === LAB_DEVICE_AGENT_CONSUMER_UNCONFIGURED_CODE;
+}
+
 async function fetchLabDeviceAgentConsumerToken(): Promise<string | null> {
   try {
     const { data } = await axios.get<LabDeviceAgentConsumerResponse>(
@@ -216,7 +228,7 @@ async function fetchLabDeviceAgentConsumerToken(): Promise<string | null> {
     }
     return data.agent_consumer_token;
   } catch (error) {
-    if (Axios.isAxiosError(error) && error.response?.status === 503) {
+    if (isLabDeviceAgentUnconfigured(error)) {
       return null;
     }
     throw error;
