@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -25,8 +24,27 @@ const planeResponseMaxBytes = 1 << 20
 const planeErrorBodyDiscardBytes = 64 << 10
 
 // planeExternalSource は Plane 側でこのアプリ発のワークアイテムを識別する固定値。
-// external_id（= ローカル報告 ID）と組み合わせて Plane 側から辿れるようにする。
+// external_id（= "<環境名>:<ローカル報告 ID>"）と組み合わせて Plane 側から辿れるようにする。
 const planeExternalSource = "animalekarte-bug-report"
+
+// planeEnvironmentAllowlist は external_id 名前空間に使える信頼済み環境名
+// （APP_ENV 由来。リクエスト値や URL からは決して導出しない）。
+var planeEnvironmentAllowlist = map[string]bool{
+	"development": true,
+	"staging":     true,
+	"production":  true,
+}
+
+// normalizePlaneEnvironment は allowlist 外・空の値を development に正規化する。
+// release での enabled 連携に対する厳格な拒否は config.Validate の責務であり、
+// ここでは debug/テスト経路の既定値だけを保証する。
+func normalizePlaneEnvironment(environment string) string {
+	normalized := strings.ToLower(strings.TrimSpace(environment))
+	if planeEnvironmentAllowlist[normalized] {
+		return normalized
+	}
+	return "development"
+}
 
 // TicketCreator は外部チケットシステムへのバグ報告起票を抽象化する。
 // nil の場合は連携無効（報告はローカル保存のみ・手動起票は 501 を返す）。
@@ -79,6 +97,31 @@ type planeClient struct {
 	apiKey            string
 	frontendURL       string
 	httpClient        *http.Client
+	// environment は external_id / 件名 / 説明に使う信頼済み環境名（APP_ENV 由来）。
+	environment string
+	// labelIDs は起票時に送信する Plane label UUID（source:manual, lane:dev の順固定）。
+	labelIDs []string
+}
+
+// PlaneClientOption は NewPlaneTicketCreator へのオプション設定を注入する。
+type PlaneClientOption func(*planeClient)
+
+// WithPlaneEnvironment は external_id 名前空間の環境名を設定する。
+// allowlist 外・空は development に正規化される。
+func WithPlaneEnvironment(environment string) PlaneClientOption {
+	return func(c *planeClient) { c.environment = normalizePlaneEnvironment(environment) }
+}
+
+// WithPlaneLabelIDs は起票時に送信する label UUID を設定する。
+// 両方が揃った場合のみ採用する（片方だけのラベル付き起票を防ぐ）。
+func WithPlaneLabelIDs(sourceLabelID, laneLabelID string) PlaneClientOption {
+	return func(c *planeClient) {
+		sourceLabelID = strings.TrimSpace(sourceLabelID)
+		laneLabelID = strings.TrimSpace(laneLabelID)
+		if sourceLabelID != "" && laneLabelID != "" {
+			c.labelIDs = []string{sourceLabelID, laneLabelID}
+		}
+	}
 }
 
 // NewPlaneTicketCreator は Plane クライアントを初期化する。
@@ -86,6 +129,7 @@ type planeClient struct {
 func NewPlaneTicketCreator(
 	baseURL, webBaseURL, apiKey, workspaceSlug, projectID, projectIdentifier, frontendURL string,
 	timeout time.Duration,
+	opts ...PlaneClientOption,
 ) TicketCreator {
 	if strings.TrimSpace(apiKey) == "" ||
 		strings.TrimSpace(workspaceSlug) == "" ||
@@ -98,7 +142,7 @@ func NewPlaneTicketCreator(
 	if strings.TrimSpace(webBaseURL) == "" {
 		webBaseURL = "https://app.plane.so"
 	}
-	return &planeClient{
+	client := &planeClient{
 		baseURL:           strings.TrimRight(baseURL, "/"),
 		webBaseURL:        strings.TrimRight(webBaseURL, "/"),
 		workspaceSlug:     workspaceSlug,
@@ -108,6 +152,10 @@ func NewPlaneTicketCreator(
 		frontendURL:       strings.TrimRight(frontendURL, "/"),
 		httpClient:        &http.Client{Timeout: timeout},
 	}
+	for _, opt := range opts {
+		opt(client)
+	}
+	return client
 }
 
 // planeIssueResponse は Plane issues API の作成応答で使う項目だけを抜き出す。
@@ -122,26 +170,50 @@ type planeIssueResponse struct {
 	} `json:"project_detail"`
 }
 
+// planeEnvironment は external_id / 件名 / 説明に使う環境名を返す。
+// WithPlaneEnvironment は設定時に正規化するが、直接構築されたクライアントも
+// allowlist 外を素通ししないよう送信時にも正規化する。
+func (c *planeClient) planeEnvironment() string {
+	return normalizePlaneEnvironment(c.environment)
+}
+
+// planeExternalID は "<環境名>:<ローカル報告ID>" 形式の external_id。
+// STG/prod など環境が違えば同一報告 ID でも衝突しない。
+func (c *planeClient) planeExternalID(report *model.SupportBugReport) string {
+	return fmt.Sprintf("%s:%d", c.planeEnvironment(), report.ID)
+}
+
 // Planeへの送信は固定文とサーバ採番の報告IDに限定する。
+// 件名には環境名を含め、環境の異なる同名報告を Plane 側で区別できるようにする。
 // HTMLエスケープは機微情報の除去にならないため、任意入力を転記しない。
-func planeIssueName(report *model.SupportBugReport) string {
-	return fmt.Sprintf("[バグ報告] #%d", report.ID)
+func (c *planeClient) planeIssueName(report *model.SupportBugReport) string {
+	return fmt.Sprintf("[バグ報告][%s] #%d", c.planeEnvironment(), report.ID)
 }
 
 // 自動起票・手動再送に共通する外部送信境界。原文はアプリ内で確認する。
 func (c *planeClient) planeDescriptionHTML(report *model.SupportBugReport) string {
-	return fmt.Sprintf("<p>報告ID: #%d</p><p>詳細はアプリ内のバグ報告管理画面で確認してください。</p>", report.ID)
+	return fmt.Sprintf(
+		"<p>環境: %s</p><p>報告ID: #%d</p><p>詳細はアプリ内のバグ報告管理画面で確認してください。</p>",
+		c.planeEnvironment(),
+		report.ID,
+	)
 }
 
 // CreateBugReportIssue は報告内容を Plane ワークアイテムとして作成する。
 // 非 2xx は *planeUpstreamError で返す（エラーボディは読み捨てのみ）。
+// 送信 payload は allowlist のみ — name / description_html / external_source /
+// external_id / 設定済み labels。label 未設定時は labels キーを送らない。
 func (c *planeClient) CreateBugReportIssue(ctx context.Context, report *model.SupportBugReport) (*PlaneIssue, error) {
-	payload, err := json.Marshal(map[string]any{
-		"name":             planeIssueName(report),
+	body := map[string]any{
+		"name":             c.planeIssueName(report),
 		"description_html": c.planeDescriptionHTML(report),
 		"external_source":  planeExternalSource,
-		"external_id":      strconv.FormatUint(report.ID, 10),
-	})
+		"external_id":      c.planeExternalID(report),
+	}
+	if len(c.labelIDs) > 0 {
+		body["labels"] = c.labelIDs
+	}
+	payload, err := json.Marshal(body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal plane request: %w", err)
 	}

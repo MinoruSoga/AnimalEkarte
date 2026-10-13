@@ -191,8 +191,9 @@
 
 ## 外部ソース連携
 
-- `external_source` / `external_id` を出典追跡に使う。既存慣行: `source:slack` → `SLACK-*`、`source:client-sheet` → `row:N`、`source:internal-docs` → `animalekarte-markdown-migration-*`、`source:linear-migration` → external_source=`linear` + external_id=旧 Linear UUID、`source:manual` → 空、bug-report 起票（作成時自動 + 手動再送）→ external_source=`animalekarte-bug-report` + external_id=保存済み報告 ID（2026-10-11 owner 指示で自動起票を許可。既存報告の backfill は行わない）（`source:chatbot` は chat 本文 export 禁止のため形式未確立）。表にない新しい出典（GitHub Issue 起点等）は最初の起票時に形式を決め、この行を更新する
+- `external_source` / `external_id` を出典追跡に使う。既存慣行: `source:slack` → `SLACK-*`、`source:client-sheet` → `row:N`、`source:internal-docs` → `animalekarte-markdown-migration-*`、`source:linear-migration` → external_source=`linear` + external_id=旧 Linear UUID、`source:manual` → 空、bug-report 起票（作成時自動 + 手動再送）→ external_source=`animalekarte-bug-report` + external_id=`<環境名>:<保存済み報告 ID>`（環境名は APP_ENV 由来の `development`/`staging`/`production` allowlist。STG/prod で同じ報告番号でも衝突しない。2026-10-13 以前の既存票は環境名なし数値 ID で backfill しない）+ labels=[`source:manual`, `lane:dev`] 固定（UUID は `PLANE_SOURCE_LABEL_ID`/`PLANE_LANE_LABEL_ID` で注入。2026-10-11 owner 指示で自動起票を許可。既存報告の backfill は行わない）（`source:chatbot` は chat 本文 export 禁止のため形式未確立）。表にない新しい出典（GitHub Issue 起点等）は最初の起票時に形式を決め、この行を更新する
 - スプシ・Slack 原文は本文に `【クライアント原文】` 節として転記する（後で出典を遡れるようにする）。秘密・実データを含む場合は転記しない（下記禁止事項）
+- bug-report 自動起票は `audit_logs` に action=`support_bug_report.plane_ticket_auto` で結果分類（`claimed`/`creation_failed`/`claim_lost`/`claim_error`）を記録する。監査書込みは報告保存とは別トランザクションの best-effort であり、監査書込み失敗時は ERROR ログで可視化する（DB-atomic ではない点に注意）。監査値は固定分類と safe ID のみで、報告タイトル/本文/URL 等のユーザー入力や Plane 応答本文は含めない
 
 ## BE/FE 分割
 

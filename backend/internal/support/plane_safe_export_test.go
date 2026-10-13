@@ -11,6 +11,8 @@ package support
 //
 // canary にはフィールドごとに異なる機微文字列を使い、生リクエストボディに
 // 混入した時点でそのフィールドの漏洩として検出する。
+// 送信するのは決定論的な固定件名（環境名入り）・固定説明文・環境名+サーバ採番の
+// 報告 ID・設定済み label UUID のみ（PR650-R3/R4）。
 
 import (
 	"context"
@@ -91,6 +93,12 @@ func newPlaneExportServer(t *testing.T, captured *planeExportCapture) *httptest.
 	return server
 }
 
+// export 境界が送る label は EMR プロジェクトの固定 UUID（source:manual / lane:dev）。
+const (
+	planeExportSourceLabelID = "31530203-1a6e-445f-9952-01c6eac98fe1"
+	planeExportLaneLabelID   = "7a38738a-d932-4166-a7fa-87524f29b824"
+)
+
 func newExportPlaneClient(server *httptest.Server) *planeClient {
 	return &planeClient{
 		baseURL:           server.URL,
@@ -100,6 +108,7 @@ func newExportPlaneClient(server *httptest.Server) *planeClient {
 		projectIdentifier: "EMR",
 		apiKey:            "test-key",
 		httpClient:        server.Client(),
+		labelIDs:          []string{planeExportSourceLabelID, planeExportLaneLabelID},
 	}
 }
 
@@ -117,14 +126,16 @@ func assertSafePlanePayload(t *testing.T, rawBody []byte) {
 	require.NoError(t, json.Unmarshal(rawBody, &payload))
 	for key := range payload {
 		assert.Contains(t,
-			[]string{"name", "description_html", "external_source", "external_id"},
+			[]string{"name", "description_html", "external_source", "external_id", "labels"},
 			key, "payload is an allowlist; unexpected key %q", key)
 	}
 	assert.Equal(t, planeExternalSource, payload["external_source"])
-	assert.Equal(t, "4242", payload["external_id"])
-	assert.Equal(t, "[バグ報告] #4242", payload["name"])
+	assert.Equal(t, "development:4242", payload["external_id"])
+	assert.Equal(t, "[バグ報告][development] #4242", payload["name"])
+	assert.Equal(t, []any{planeExportSourceLabelID, planeExportLaneLabelID}, payload["labels"])
 	desc, _ := payload["description_html"].(string)
 	assert.Contains(t, desc, "#4242")
+	assert.Contains(t, desc, "development")
 	// 外部 URL（設定された frontend URL 含む）は一切送らない。
 	assert.NotContains(t, desc, "http")
 }

@@ -100,9 +100,9 @@ func TestPlaneClient_CreateBugReportIssue_Success(t *testing.T) {
 	assert.Equal(t, "/v1/workspaces/baritechllc/projects/proj-uuid/issues/", captured.path)
 	assert.Equal(t, "secret-key", captured.apiKey)
 	assert.Equal(t, "application/json", captured.contentType)
-	assert.Equal(t, "[バグ報告] #7", captured.body["name"])
+	assert.Equal(t, "[バグ報告][development] #7", captured.body["name"])
 	assert.Equal(t, planeExternalSource, captured.body["external_source"])
-	assert.Equal(t, "7", captured.body["external_id"])
+	assert.Equal(t, "development:7", captured.body["external_id"])
 	// 任意入力・設定URLは外部に転記しない
 	desc, _ := captured.body["description_html"].(string)
 	assert.NotContains(t, desc, "<script>")
@@ -187,7 +187,9 @@ func TestPlaneSyncErrorMessage(t *testing.T) {
 }
 
 func TestPlaneIssueName(t *testing.T) {
-	assert.Equal(t, "[バグ報告] #42", planeIssueName(&model.SupportBugReport{ID: 42, Title: "任意の報告件名"}))
+	report := &model.SupportBugReport{ID: 42, Title: "任意の報告件名"}
+	assert.Equal(t, "[バグ報告][staging] #42", (&planeClient{environment: "staging"}).planeIssueName(report))
+	assert.Equal(t, "[バグ報告][development] #42", (&planeClient{}).planeIssueName(report))
 }
 
 // ---- FetchIssueStateGroup ----
