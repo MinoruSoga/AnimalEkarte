@@ -84,7 +84,7 @@ func TestProcessSingleOwner_NilOwnerFromRepoFailClosed(t *testing.T) {
 		1, 10,
 		"trigger_x", "tag_x",
 		time.Now(),
-		nil,
+		nil, nil,
 	)
 	require.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err), "nil owner without error must map to not-found fail-closed")

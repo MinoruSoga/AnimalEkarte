@@ -265,7 +265,8 @@ func (m *mockTagCacheRepoForDelivery) BulkReplaceOwnerTags(_ context.Context, _,
 // ---- VaccinationRepository モック（delivery trigger 用）----
 
 type mockVaccinationRepoForDelivery struct {
-	findOwnersByVaccineDeadlineFn func(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
+	findOwnersByVaccineDeadlineFn  func(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
+	ownerHasAliveVaccineDeadlineFn func(ctx context.Context, clinicID, ownerID uint64, targetDate time.Time) (bool, error)
 }
 
 func (m *mockVaccinationRepoForDelivery) FindAll(_ context.Context, _ uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.Vaccination, int64, error) {
@@ -291,13 +292,28 @@ func (m *mockVaccinationRepoForDelivery) FindOwnersByVaccineDeadline(ctx context
 	return nil, nil
 }
 
+// OwnerHasAliveVaccineDeadline のデフォルトは eligible=true（EMR-330）。
+// 除外を検証するテストだけ fn を明示する。
+func (m *mockVaccinationRepoForDelivery) OwnerHasAliveVaccineDeadline(ctx context.Context, clinicID, ownerID uint64, targetDate time.Time) (bool, error) {
+	if m.ownerHasAliveVaccineDeadlineFn != nil {
+		return m.ownerHasAliveVaccineDeadlineFn(ctx, clinicID, ownerID, targetDate)
+	}
+	return true, nil
+}
+
 // ---- PetRepository モック（delivery trigger 用）----
 
 type mockPetRepoForDelivery struct {
-	findOwnersByPetBirthdayFn func(ctx context.Context, clinicID uint64, month, day int) ([]uint64, error)
+	findOwnersByPetBirthdayFn  func(ctx context.Context, clinicID uint64, month, day int) ([]uint64, error)
+	countLivingByOwnerFn       func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	findByIDFn                 func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
+	ownerHasAlivePetBirthdayFn func(ctx context.Context, clinicID, ownerID uint64, month, day int) (bool, error)
 }
 
-func (m *mockPetRepoForDelivery) FindByID(_ context.Context, _, _ uint64) (*model.Pet, error) {
+func (m *mockPetRepoForDelivery) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
 	return nil, nil
 }
 func (m *mockPetRepoForDelivery) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Pet, error) {
@@ -309,8 +325,13 @@ func (m *mockPetRepoForDelivery) FindLivingByOwner(_ context.Context, _, _ uint6
 func (m *mockPetRepoForDelivery) CountByOwner(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
-func (m *mockPetRepoForDelivery) CountLivingByOwner(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
+func (m *mockPetRepoForDelivery) CountLivingByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
+	if m.countLivingByOwnerFn != nil {
+		return m.countLivingByOwnerFn(ctx, clinicID, ownerID)
+	}
+	// デフォルトは生存ペット1頭（タグ系トリガーの living-owner 再検証通過、EMR-330）。
+	// 全死亡ケースを検証するテストだけ fn を明示する。
+	return 1, nil
 }
 func (m *mockPetRepoForDelivery) CountUsageByAnimalSpeciesID(_ context.Context, _ uint64) (int64, error) {
 	return 0, nil
@@ -325,6 +346,14 @@ func (m *mockPetRepoForDelivery) FindOwnersByPetBirthday(ctx context.Context, cl
 		return m.findOwnersByPetBirthdayFn(ctx, clinicID, month, day)
 	}
 	return nil, nil
+}
+
+// OwnerHasAlivePetBirthday のデフォルトは eligible=true（EMR-330）。
+func (m *mockPetRepoForDelivery) OwnerHasAlivePetBirthday(ctx context.Context, clinicID, ownerID uint64, month, day int) (bool, error) {
+	if m.ownerHasAlivePetBirthdayFn != nil {
+		return m.ownerHasAlivePetBirthdayFn(ctx, clinicID, ownerID, month, day)
+	}
+	return true, nil
 }
 func (m *mockPetRepoForDelivery) CountLivingByOwnerIDs(_ context.Context, _ uint64, _ []uint64) (map[uint64]int64, error) {
 	return map[uint64]int64{}, nil
@@ -1229,7 +1258,7 @@ func TestLstepDeliveryTriggerService_TriggerTagBased(t *testing.T) {
 					return defaultOwnerWithLine(id), nil
 				},
 			}
-			svc := buildDeliverySvc(ownerRepo, nil, nil, nil, tagRepo, &mockDeliveryTriggerLogRepository{}, enabledSettings())
+			svc := buildDeliverySvc(ownerRepo, nil, nil, &mockPetRepoForDelivery{}, tagRepo, &mockDeliveryTriggerLogRepository{}, enabledSettings())
 			injectTestClient(svc, &mockLstepClientForDelivery{})
 			count, errs := tt.triggerFn(svc, context.Background())
 			assert.Equal(t, 1, count)
@@ -1361,10 +1390,16 @@ func TestLstepDeliveryTriggerService_RepoErrorDoesNotStopOtherOwners(t *testing.
 
 func TestLstepDeliveryTriggerService_TriggerFirstVisitWelcome(t *testing.T) {
 	ownerID := uint64(10)
+	petID := uint64(90)
+	aliveEventPetRepo := &mockPetRepoForDelivery{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+			return &model.Pet{ID: id, ClinicID: 1, OwnerID: ownerID, Status: model.PetStatusAlive}, nil
+		},
+	}
 
 	t.Run("sync disabled returns nil (noop)", func(t *testing.T) {
 		svc := buildDeliverySvc(&mockOwnerRepoForDelivery{}, &mockMedicalRecordRepository{}, nil, nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, disabledSettings())
-		assert.NoError(t, svc.TriggerFirstVisitWelcome(context.Background(), 1, ownerID))
+		assert.NoError(t, svc.TriggerFirstVisitWelcome(context.Background(), 1, ownerID, petID))
 	})
 
 	t.Run("happy path fires tag for owner with line_user_id", func(t *testing.T) {
@@ -1380,9 +1415,9 @@ func TestLstepDeliveryTriggerService_TriggerFirstVisitWelcome(t *testing.T) {
 				return nil
 			},
 		}
-		svc := buildDeliverySvc(ownerRepo, &mockMedicalRecordRepository{}, nil, nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings())
+		svc := buildDeliverySvc(ownerRepo, &mockMedicalRecordRepository{}, nil, aliveEventPetRepo, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings())
 		injectTestClient(svc, client)
-		err := svc.TriggerFirstVisitWelcome(context.Background(), 1, ownerID)
+		err := svc.TriggerFirstVisitWelcome(context.Background(), 1, ownerID, petID)
 		assert.NoError(t, err)
 		assert.Equal(t, model.TriggerTypeFirstVisitWelcome, firedTag)
 	})
@@ -1394,7 +1429,7 @@ func TestLstepDeliveryTriggerService_TriggerFirstVisitWelcome(t *testing.T) {
 			},
 		}
 		svc := buildDeliverySvc(&mockOwnerRepoForDelivery{}, &mockMedicalRecordRepository{}, nil, nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, settingsSvc)
-		err := svc.TriggerFirstVisitWelcome(context.Background(), 1, ownerID)
+		err := svc.TriggerFirstVisitWelcome(context.Background(), 1, ownerID, petID)
 		assert.Error(t, err)
 	})
 
@@ -1409,9 +1444,9 @@ func TestLstepDeliveryTriggerService_TriggerFirstVisitWelcome(t *testing.T) {
 				return errors.New("lstep api error")
 			},
 		}
-		svc := buildDeliverySvc(ownerRepo, &mockMedicalRecordRepository{}, nil, nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings())
+		svc := buildDeliverySvc(ownerRepo, &mockMedicalRecordRepository{}, nil, aliveEventPetRepo, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings())
 		injectTestClient(svc, client)
-		err := svc.TriggerFirstVisitWelcome(context.Background(), 1, ownerID)
+		err := svc.TriggerFirstVisitWelcome(context.Background(), 1, ownerID, petID)
 		assert.Error(t, err)
 	})
 }
@@ -1421,7 +1456,7 @@ func TestLstepDeliveryTriggerService_TriggerCheckupFollowUp(t *testing.T) {
 
 	t.Run("sync disabled returns nil (noop)", func(t *testing.T) {
 		svc := buildDeliverySvc(&mockOwnerRepoForDelivery{}, &mockMedicalRecordRepository{}, nil, nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, disabledSettings())
-		assert.NoError(t, svc.TriggerCheckupFollowUp(context.Background(), 1, ownerID))
+		assert.NoError(t, svc.TriggerCheckupFollowUp(context.Background(), 1, ownerID, 301))
 	})
 
 	t.Run("happy path fires tag for owner with line_user_id", func(t *testing.T) {
@@ -1437,9 +1472,13 @@ func TestLstepDeliveryTriggerService_TriggerCheckupFollowUp(t *testing.T) {
 				return nil
 			},
 		}
-		svc := buildDeliverySvc(ownerRepo, &mockMedicalRecordRepository{}, nil, nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings())
+		svc := buildDeliverySvc(ownerRepo, &mockMedicalRecordRepository{}, nil, &mockPetRepoForDelivery{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+				return &model.Pet{ID: id, ClinicID: 1, OwnerID: ownerID, Status: model.PetStatusAlive}, nil
+			},
+		}, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings())
 		injectTestClient(svc, client)
-		err := svc.TriggerCheckupFollowUp(context.Background(), 1, ownerID)
+		err := svc.TriggerCheckupFollowUp(context.Background(), 1, ownerID, 301)
 		assert.NoError(t, err)
 		assert.Equal(t, model.TriggerTypeCheckupFollowUp, firedTag)
 	})
@@ -1451,7 +1490,7 @@ func TestLstepDeliveryTriggerService_TriggerCheckupFollowUp(t *testing.T) {
 			},
 		}
 		svc := buildDeliverySvc(&mockOwnerRepoForDelivery{}, &mockMedicalRecordRepository{}, nil, nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, settingsSvc)
-		err := svc.TriggerCheckupFollowUp(context.Background(), 1, ownerID)
+		err := svc.TriggerCheckupFollowUp(context.Background(), 1, ownerID, 301)
 		assert.Error(t, err)
 	})
 
@@ -1466,9 +1505,13 @@ func TestLstepDeliveryTriggerService_TriggerCheckupFollowUp(t *testing.T) {
 				return errors.New("lstep api error")
 			},
 		}
-		svc := buildDeliverySvc(ownerRepo, &mockMedicalRecordRepository{}, nil, nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings())
+		svc := buildDeliverySvc(ownerRepo, &mockMedicalRecordRepository{}, nil, &mockPetRepoForDelivery{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+				return &model.Pet{ID: id, ClinicID: 1, OwnerID: ownerID, Status: model.PetStatusAlive}, nil
+			},
+		}, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings())
 		injectTestClient(svc, client)
-		err := svc.TriggerCheckupFollowUp(context.Background(), 1, ownerID)
+		err := svc.TriggerCheckupFollowUp(context.Background(), 1, ownerID, 301)
 		assert.Error(t, err)
 	})
 }

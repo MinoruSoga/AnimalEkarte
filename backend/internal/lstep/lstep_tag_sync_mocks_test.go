@@ -151,6 +151,8 @@ type mockMedicalRecordRepository struct {
 	findOwnerVisitSummaryFn     func(context.Context, uint64, uint64) (*medicalrecord.OwnerVisitSummary, error)
 	findOwnersByFirstVisitFn    func(context.Context, uint64, time.Time) ([]uint64, error)
 	findOwnersByLastVisitDaysFn func(context.Context, uint64, int, time.Time) ([]uint64, error)
+	ownerHasAliveFirstVisitOnFn func(context.Context, uint64, uint64, time.Time) (bool, error)
+	ownerHasAliveLastVisitOnFn  func(context.Context, uint64, uint64, time.Time) (bool, error)
 }
 
 func (m *mockMedicalRecordRepository) FindOwnersByFirstVisitDate(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
@@ -165,6 +167,23 @@ func (m *mockMedicalRecordRepository) FindOwnersByLastVisitDays(ctx context.Cont
 		return m.findOwnersByLastVisitDaysFn(ctx, clinicID, exactDays, asOf)
 	}
 	return nil, nil
+}
+
+// OwnerHasAlive*VisitOnDate のデフォルトは eligible=true（再検証通過）。
+// mockDeliveryAppointmentRepository の tentative デフォルトと同じ契約で、
+// 除外を検証するテストだけ fn を明示する（EMR-330）。
+func (m *mockMedicalRecordRepository) OwnerHasAliveFirstVisitOnDate(ctx context.Context, clinicID, ownerID uint64, targetDate time.Time) (bool, error) {
+	if m.ownerHasAliveFirstVisitOnFn != nil {
+		return m.ownerHasAliveFirstVisitOnFn(ctx, clinicID, ownerID, targetDate)
+	}
+	return true, nil
+}
+
+func (m *mockMedicalRecordRepository) OwnerHasAliveLastVisitOnDate(ctx context.Context, clinicID, ownerID uint64, targetDate time.Time) (bool, error) {
+	if m.ownerHasAliveLastVisitOnFn != nil {
+		return m.ownerHasAliveLastVisitOnFn(ctx, clinicID, ownerID, targetDate)
+	}
+	return true, nil
 }
 
 func (m *mockMedicalRecordRepository) FindOwnerVisitSummary(ctx context.Context, clinicID, ownerID uint64) (*medicalrecord.OwnerVisitSummary, error) {

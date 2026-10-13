@@ -25,7 +25,7 @@ func (m *dormantMockMedicalRecordRepository) FindDormantOwnerEntries(ctx context
 	}
 	return nil, nil
 }
-func (m *dormantMockMedicalRecordRepository) FindDormantOwnerEntriesCursor(ctx context.Context, clinicID uint64, minDaysSince int, afterOwnerID uint64, limit int) ([]medicalrecord.DormantOwnerEntry, error) {
+func (m *dormantMockMedicalRecordRepository) FindDormantOwnerHistoryEntriesCursor(ctx context.Context, clinicID uint64, minDaysSince int, afterOwnerID uint64, limit int) ([]medicalrecord.DormantOwnerEntry, error) {
 	if m.findDormantOwnerEntriesCursorFn != nil {
 		return m.findDormantOwnerEntriesCursorFn(ctx, clinicID, minDaysSince, afterOwnerID, limit)
 	}

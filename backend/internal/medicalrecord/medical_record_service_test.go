@@ -1581,18 +1581,20 @@ func (m *mockReservationRepoForMedicalRecord) FindPetByIDInClinic(ctx context.Co
 
 // mockLstepDeliveryTriggerForMR は TriggerFirstVisitWelcome の呼び出し検証用モック
 type mockLstepDeliveryTriggerForMR struct {
-	triggerFirstVisitWelcomeFn    func(ctx context.Context, clinicID, ownerID uint64) error
+	triggerFirstVisitWelcomeFn    func(ctx context.Context, clinicID, ownerID, petID uint64) error
 	triggerFirstVisitWelcomeCount int
+	triggerFirstVisitWelcomePetID uint64
 }
 
-func (m *mockLstepDeliveryTriggerForMR) TriggerFirstVisitWelcome(ctx context.Context, clinicID, ownerID uint64) error {
+func (m *mockLstepDeliveryTriggerForMR) TriggerFirstVisitWelcome(ctx context.Context, clinicID, ownerID, petID uint64) error {
 	m.triggerFirstVisitWelcomeCount++
+	m.triggerFirstVisitWelcomePetID = petID
 	if m.triggerFirstVisitWelcomeFn != nil {
-		return m.triggerFirstVisitWelcomeFn(ctx, clinicID, ownerID)
+		return m.triggerFirstVisitWelcomeFn(ctx, clinicID, ownerID, petID)
 	}
 	return nil
 }
-func (m *mockLstepDeliveryTriggerForMR) TriggerCheckupFollowUp(_ context.Context, _, _ uint64) error {
+func (m *mockLstepDeliveryTriggerForMR) TriggerCheckupFollowUp(_ context.Context, _, _, _ uint64) error {
 	return nil
 }
 func (m *mockLstepDeliveryTriggerForMR) TriggerFirstVisitFollowUp3D(_ context.Context, _ uint64, _ time.Time) (int, []error) {
