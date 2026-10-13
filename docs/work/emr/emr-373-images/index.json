@@ -1818,5 +1818,197 @@
     "sha256": "4b4f3be22a751010aa3daba3a68aa928d72eab6c63664c1bebd3c83ec9874eef",
     "review": "UNKNOWN",
     "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 8,
+    "route": "/owners/990002",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T035322665651.png",
+    "sha256": "b7b3874afef2d74bab9d9e7c7497994d96e454b5828d8b5162948be5b15699ed",
+    "review": "wave9 visible fixes reviewed; actions require actual image confirmation",
+    "limits": "viewport only; offscreen or unopened states not inferred"
+  },
+  {
+    "wave": 9,
+    "route": "/hospitalization/990007",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T035530211060.png",
+    "sha256": "522dd504fcfb9016c93291dc959939f5f64c7303a6fc65ffd13e7fdf7fa8d728",
+    "review": "wave9 visible fixes reviewed; actions require actual image confirmation",
+    "limits": "viewport only; offscreen or unopened states not inferred"
+  },
+  {
+    "wave": 9,
+    "route": "/hospitalization/990007",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T035536214071.png",
+    "sha256": "053ba48009c69e8664f3ac553f585d2cf70525378d9ea77a5cadbedcc537f84d",
+    "review": "wave9 visible fixes reviewed; actions require actual image confirmation",
+    "limits": "viewport only; offscreen or unopened states not inferred"
+  },
+  {
+    "wave": 9,
+    "route": "/hospitalization/990007",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T035541796237.png",
+    "sha256": "b57b6e36a79f5245882dacc40796a7b39cde138b54ba24aa2122c7bc78eb5614",
+    "review": "wave9 visible fixes reviewed; actions require actual image confirmation",
+    "limits": "viewport only; offscreen or unopened states not inferred"
+  },
+  {
+    "wave": 9,
+    "route": "/hospitalization/990007/edit",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T035548279681.png",
+    "sha256": "af5cfe538544fa6731ff7810959a7afeb263061952fdf6d342fb69bae45bad3c",
+    "review": "wave9 visible fixes reviewed; actions require actual image confirmation",
+    "limits": "viewport only; offscreen or unopened states not inferred"
+  },
+  {
+    "wave": 9,
+    "route": "/hospitalization/990007/edit",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T035554789167.png",
+    "sha256": "3bd2ba60bdffdf8ec7953c8df874597fa0ed1e9d492348d87750d8e499aab3ab",
+    "review": "wave9 visible fixes reviewed; actions require actual image confirmation",
+    "limits": "viewport only; offscreen or unopened states not inferred"
+  },
+  {
+    "wave": 9,
+    "route": "/hospitalization/990007/edit",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T035601786847.png",
+    "sha256": "9f92fec5368ce6c821fdefdf33ee23597581d0a6a4dfef9f41c942cc82ca00ba",
+    "review": "wave9 visible fixes reviewed; actions require actual image confirmation",
+    "limits": "viewport only; offscreen or unopened states not inferred"
+  },
+  {
+    "wave": 9,
+    "route": "/trimming/990008",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T035607618783.png",
+    "sha256": "c1ba9c405273d4e384d4a34a3ffaa4b043d1ddc6f92dc01fd9bb1cf97ebe0959",
+    "review": "wave9 visible fixes reviewed; actions require actual image confirmation",
+    "limits": "viewport only; offscreen or unopened states not inferred"
+  },
+  {
+    "wave": 9,
+    "route": "/trimming/990008",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T035613291506.png",
+    "sha256": "16c2abc091f84ae3af49d62693f6f6eac7623ffb5bcfe92ff230c7307915be1c",
+    "review": "wave9 visible fixes reviewed; actions require actual image confirmation",
+    "limits": "viewport only; offscreen or unopened states not inferred"
+  },
+  {
+    "wave": 9,
+    "route": "/trimming/990008",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T035618877343.png",
+    "sha256": "f1c779e6d2425e7f3f64ffc4a3d0b4f0f8c09e9b34463534d22dd61022df2331",
+    "review": "wave9 visible fixes reviewed; actions require actual image confirmation",
+    "limits": "viewport only; offscreen or unopened states not inferred"
+  },
+  {
+    "wave": 10,
+    "route": "/owners/990002",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T035726853505.png",
+    "sha256": "b7b3874afef2d74bab9d9e7c7497994d96e454b5828d8b5162948be5b15699ed",
+    "review": "wave9 visible fixes reviewed; actions require actual image confirmation",
+    "limits": "viewport only; offscreen or unopened states not inferred"
+  },
+  {
+    "wave": 10,
+    "route": "/",
+    "requestedViewport": [
+      1280,
+      800
+    ],
+    "png": [
+      1280,
+      800
+    ],
+    "file": "shot-20261013T035742271413.png",
+    "sha256": "a9385217154ee7d63911c7d8431739edfcdef848953fd7574328574029cc7964",
+    "review": "wave9 visible fixes reviewed; actions require actual image confirmation",
+    "limits": "viewport only; offscreen or unopened states not inferred"
   }
 ]

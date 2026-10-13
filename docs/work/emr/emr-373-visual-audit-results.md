@@ -163,4 +163,16 @@
 
 wave4: 飼主新規/誤った`/owners/990002/edit`を3幅で6枚。edit付きは404で対象編集の証拠ではない。wave5: 正しい`/owners/990002`と新規を3幅で6枚。Stagehand screenshotはviewportのみをサポートし、full_page指定は未対応だったため下方のペット追加ボタン・全高取得の合格には使わない。wave6: EMR-389修正後の集計/監視を4幅で8枚。wave7: ペット編集deep-link、入院詳細/編集、トリミング・予防接種の新規/編集を1568/390で14枚。画像取得は状態の合格とは別。
 
-撮影計125枚は[非公開PRの画像索引](emr-373-images/index.json)に収録。初回500幅・誤経路・エラーだけ・画面外は各限界を維持する。F004は1568飼主新規でペット追加ボタンとFABの非重複を確認、768/390の画面外部分はUNKNOWN。実API、保存/送信、未定義fixture、LIFF/LINE予約は引き続き未確認。
+撮影計137枚は[非公開PRの画像索引](emr-373-images/index.json)に収録。初回500幅・誤経路・エラーだけ・画面外は各限界を維持する。F004は1568飼主新規でペット追加ボタンとFABの非重複を確認、768/390の画面外部分はUNKNOWN。実API、保存/送信、未定義fixture、LIFF/LINE予約は引き続き未確認。
+
+## 追加所見の修正（EMR-390〜392）
+
+- EMR-390/VQ-014: 入院ケアプラン追加/編集の種別Selectが「指示・その他」を省略した。min-w-fit・shrink-0、行flex-wrap、入力min-w-0で修正。wave9の1568入院詳細で全文表示を確認。編集行を開いた状態は未撮影。
+- EMR-391/VQ-015: PatientInfoCardの390入院/トリミング編集で診療種別が断片化した。情報群をmobileで全幅、固定種別nowrap、担当操作を別行へ折返す。wave9で診療種別・保険・退院予定を可読な幅に確認。長い本文の意図した省略は維持。
+- EMR-392/VQ-016: MasterSelectTriggerの390選択済みコースで「変更」が2行になった。操作群だけshrink-0/nowrap、本文・価格・callbackは維持。wave9の390トリミング編集で1行表示を確認。
+
+3件の製品差分はCSSクラスだけ。RED8fail/57pass→GREEN65/65、対象8TSX lint/format PASS、project test setup込みの型検証で対象・依存診断0（689files）。臨床レビューでデータ・validation・price・保存payload・権限・ARIA・危険/死亡表示に差分なし。全体coverageや実API/UATの証明には使わない。
+
+wave8は390飼主編集でStagehand scrollToが成功と返ったが、実画像にはペット追加ボタンが見えずF004下方合格へ使わない。wave9は入院詳細/編集・トリミング編集を1568/768/390で9枚。wave10の飼主下方/カンバン右端scroll追試はunavailableで、初期表示2枚を到達証拠へ使わない。AI操作はモデルAPIを呼び、Stagehand OSS・決定的撮影の利用料とは別。実課金額はUNKNOWN。
+
+モバイルレビューの新規トリミング見出し切断所見は、元画像で全文が読めたため撤回し起票しない。新たな指摘は各専用子票へ保存。画像は非公開GitHub PRの一時取得URLから親票へ転送でき、公開ホスティングは使用しない。添付完了数はPlaneコメントと台帳に別記する。
