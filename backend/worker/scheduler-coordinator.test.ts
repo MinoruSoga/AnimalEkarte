@@ -169,6 +169,235 @@ describe("SchedulerCoordinator", () => {
     },
   );
 
+  it.each([false, true])(
+    "recovers no_show/delivery after plane_sync, with incident ack before recovery=%s",
+    async (ackBeforeRecovery) => {
+      const storage = new MemoryStorage();
+      const slot = Date.UTC(2026, 6, 24, 1);
+      const now = slot + 1000;
+      const coordinator = new SchedulerCoordinator(storage, () => now);
+      let release = () => {};
+      let started = () => {};
+      const entered = new Promise<void>((resolve) => {
+        started = resolve;
+      });
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const plane = coordinator.run("plane_sync", "*/15 * * * *", slot, async () => {
+        started();
+        await held;
+        return successOutcome();
+      });
+      await entered;
+      const execute = vi.fn(async () => successOutcome());
+      const config = {
+        environment: "staging",
+        allowedHost: "alerts.example.com",
+        webhookURL: "https://alerts.example.com/scheduler",
+        webhookSecret: "test-secret",
+      };
+      try {
+        const blocked = await runScheduledPlan(coordinator, "0 1 * * *", slot, execute);
+        expect(blocked.every(scheduledRunRequiresCronFailure)).toBe(true);
+        expect(execute).not.toHaveBeenCalled();
+        const initialPending = await storage.list<ScheduledRunLedger>({
+          prefix: SCHEDULER_ALERT_PENDING_PREFIX,
+        });
+        expect(initialPending.size).toBe(2);
+        await expect(
+          notifySchedulerFailures(
+            blocked,
+            config,
+            async () => new Response(null, { status: 503 }),
+            storage,
+          ),
+        ).rejects.toThrow();
+        const send = vi.fn(async () => new Response(null, { status: 204 }));
+        if (ackBeforeRecovery) await notifySchedulerFailures(blocked, config, send, storage);
+        release();
+        await plane;
+        const restarted = new SchedulerCoordinator(storage, () => now);
+        for (const [job, requestId] of [
+          ["no_show", "817e6e53-37de-4486-bb12-472e343e5178"],
+          ["delivery", "3ba93288-1a41-4444-81c2-e49484398115"],
+        ] as const) {
+          const command = {
+            actorPrincipal: "scheduler-ops-secret-v1",
+            job,
+            mode: "catch_up",
+            scheduledTime: slot,
+            reason: "INC-648 recover unexecuted conflict",
+            requestId,
+          } as const;
+          const operation = await restarted.runManual(command, execute);
+          expect(operation).toMatchObject({
+            status: "completed",
+            result: {
+              disposition: "executed",
+              ledger: { status: "success", manualRequestId: requestId },
+            },
+          });
+          expect(await restarted.runManual(command, execute)).toEqual(operation);
+        }
+        expect(execute).toHaveBeenCalledTimes(2);
+        expect(await storage.list({ prefix: SCHEDULER_ALERT_PENDING_PREFIX })).toEqual(
+          ackBeforeRecovery ? new Map() : initialPending,
+        );
+        const duplicate = await runScheduledPlan(restarted, "0 1 * * *", slot, execute);
+        expect(duplicate.every((result) => result.disposition === "duplicate")).toBe(true);
+        expect(duplicate.every(scheduledRunRequiresCronFailure)).toBe(false);
+        expect(execute).toHaveBeenCalledTimes(2);
+        await notifySchedulerFailures(duplicate, config, send, storage);
+        expect(send).toHaveBeenCalledTimes(2);
+        expect((await storage.list({ prefix: SCHEDULER_ALERT_PENDING_PREFIX })).size).toBe(0);
+      } finally {
+        release();
+        await plane;
+      }
+    },
+  );
+
+  it("keeps recovery of a conflict behind pause, active lease and per-slot single-flight", async () => {
+    const storage = new MemoryStorage();
+    const slot = Date.UTC(2026, 6, 24, 1);
+    const now = slot + 1000;
+    const coordinator = new SchedulerCoordinator(storage, () => now);
+    const command = {
+      actorPrincipal: "scheduler-ops-secret-v1",
+      job: "no_show",
+      mode: "catch_up",
+      scheduledTime: slot,
+      reason: "INC-648 recover conflict",
+      requestId: "817e6e53-37de-4486-bb12-472e343e5178",
+    } as const;
+    const conflict: ScheduledRunLedger = {
+      version: 1,
+      scheduler: SCHEDULER_NAME,
+      runId: SchedulerCoordinator.runId("no_show", slot),
+      runKey: SchedulerCoordinator.runKey("no_show", slot),
+      cron: "0 1 * * *",
+      job: "no_show",
+      scheduledTime: slot,
+      fenceToken: 0,
+      status: "failed",
+      failureCode: "schedule_conflict",
+      startedAt: now,
+      finishedAt: now,
+    };
+    await storage.put(conflict.runKey, conflict);
+    await coordinator.setControl({
+      actorPrincipal: command.actorPrincipal,
+      requestId: "3ba93288-1a41-4444-81c2-e49484398115",
+      reason: "incident containment",
+      paused: true,
+      expectedRevision: 0,
+    });
+    const execute = vi.fn(async () => successOutcome());
+    expect(await coordinator.runManual(command, execute)).toMatchObject({
+      status: "rejected",
+      rejectionCode: "scheduler_paused",
+    });
+    await coordinator.setControl({
+      actorPrincipal: command.actorPrincipal,
+      requestId: "de3a2410-0b43-4775-9b8b-b4e3de5a47e8",
+      reason: "approved recovery",
+      paused: false,
+      expectedRevision: 1,
+    });
+    let release = () => {};
+    let started = () => {};
+    const entered = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const plane = coordinator.run("plane_sync", "*/15 * * * *", slot, async () => {
+      started();
+      await held;
+      return successOutcome();
+    });
+    await entered;
+    try {
+      const busyCommand = { ...command, requestId: "110e8400-e29b-41d4-a716-446655440000" };
+      expect(await coordinator.runManual(busyCommand, execute)).toMatchObject({
+        status: "rejected",
+        rejectionCode: "scheduler_busy",
+      });
+      release();
+      await plane;
+      expect(await coordinator.runManual(busyCommand, execute)).toMatchObject({
+        status: "rejected",
+        rejectionCode: "scheduler_busy",
+      });
+      const winnerCommand = { ...command, requestId: "985b5df1-fc99-46f4-8831-74652c18b026" };
+      const contenders = await Promise.all([
+        coordinator.runManual(winnerCommand, execute),
+        coordinator.runManual(
+          { ...command, requestId: "9704894d-64dc-449d-a0e3-287b1b4ec78c" },
+          execute,
+        ),
+      ]);
+      expect(contenders.filter((operation) => operation.status === "completed")).toHaveLength(1);
+      expect(contenders.find((operation) => operation.status === "rejected")).toMatchObject({
+        rejectionCode: "slot_already_recorded",
+      });
+      expect(execute).toHaveBeenCalledOnce();
+    } finally {
+      release();
+      await plane;
+    }
+  });
+
+  it("resumes the same pending catch-up after a crash before a conflict slot was claimed", async () => {
+    const storage = new MemoryStorage();
+    const slot = Date.UTC(2026, 6, 24, 1);
+    const now = slot + 2 * SCHEDULED_JOB_LEASE_MS + 1000;
+    const command = {
+      actorPrincipal: "scheduler-ops-secret-v1",
+      job: "no_show",
+      mode: "catch_up",
+      scheduledTime: slot,
+      reason: "INC-648 interrupted recovery",
+      requestId: "817e6e53-37de-4486-bb12-472e343e5178",
+    } as const;
+    await storage.put(SchedulerCoordinator.runKey("no_show", slot), {
+      version: 1,
+      scheduler: SCHEDULER_NAME,
+      runId: SchedulerCoordinator.runId("no_show", slot),
+      runKey: SchedulerCoordinator.runKey("no_show", slot),
+      cron: "0 1 * * *",
+      job: "no_show",
+      scheduledTime: slot,
+      fenceToken: 0,
+      status: "failed",
+      failureCode: "schedule_conflict",
+      startedAt: slot,
+      finishedAt: slot,
+    } satisfies ScheduledRunLedger);
+    await storage.put(`scheduler:operation:${command.requestId}`, {
+      ...command,
+      version: 1,
+      kind: "manual_run",
+      cron: "0 1 * * *",
+      status: "pending",
+      requestedAt: slot + 1000,
+    });
+    const execute = vi.fn(async () => successOutcome());
+    const restarted = new SchedulerCoordinator(storage, () => now);
+    const operation = await restarted.runManual(command, execute);
+    expect(operation).toMatchObject({
+      status: "completed",
+      result: {
+        disposition: "executed",
+        ledger: { manualRequestId: command.requestId, status: "success" },
+      },
+    });
+    expect(await restarted.runManual(command, execute)).toEqual(operation);
+    expect(execute).toHaveBeenCalledOnce();
+  });
+
   it("lets the winning parallel plan execute delivery exactly once", async () => {
     const storage = new MemoryStorage();
     const now = scheduledTime(70);

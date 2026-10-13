@@ -11,6 +11,7 @@ import {
   cronForManualSlot,
   failureCodeForOutcome,
   internalFailureLedger,
+  isUnexecutedScheduleConflict,
   logLeaseExpired,
   logSkippedOverlap,
   normalizeControl,
@@ -352,7 +353,8 @@ export class SchedulerCoordinator {
         cron,
         scheduledTime: command.scheduledTime,
       };
-      if ((await transaction.get<ScheduledRunLedger>(runKey)) !== undefined) {
+      const recorded = await transaction.get<ScheduledRunLedger>(runKey);
+      if (recorded !== undefined && !isUnexecutedScheduleConflict(recorded)) {
         const rejected: SchedulerManualOperation = {
           ...base,
           status: "rejected",
@@ -513,7 +515,10 @@ export class SchedulerCoordinator {
       }
       const existing = await transaction.get<ScheduledRunLedger>(runKey);
       const currentActive = await transaction.get<ActiveScheduledRun>(ACTIVE_KEY);
-      if (existing !== undefined) {
+      if (
+        existing !== undefined &&
+        (manual === undefined || !isUnexecutedScheduleConflict(existing))
+      ) {
         const reconciled = await this.reconcileDuplicate(transaction, existing, currentActive, now);
         return { disposition: "duplicate", ledger: reconciled };
       }

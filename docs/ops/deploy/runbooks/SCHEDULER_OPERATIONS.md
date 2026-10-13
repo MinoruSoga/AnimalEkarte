@@ -94,11 +94,11 @@ pauseは新しいrun claimを止めるが、既にContainerへ送信したside e
 
 catch-upもproduction-impacting操作である。次をすべて満たした場合だけ実行する。
 
-1. statusとWorkers Logsから「そのslotが未記録」であることを確認した。
+1. statusとWorkers Logsから「そのslotが未記録」、または `failed/schedule_conflict` により業務jobが実行未開始であることを確認した。サーバーは後者のfence token 0・outcomeなし・manual request IDなしも再検証する。
 2. 業務ownerが再実行時のside effectと対象件数を確認した。
 3. schedulerがresume済みで、active runがない。
 4. slotは現在より過去、35日以内、UTCの正時で、jobに対応するcron slotである。
-5. 専用のUUID request IDと、incident/change IDを含むreasonを用意した。
+5. 専用のUUID request IDと、incident/change IDを含むreasonを用意した。busy・pausedの拒否は同じrequest IDで再送しても同じ結果を返すため、解除後の新しい回復操作には新しいIDを使う。
 
 Unix epoch millisecondsは、UTC時刻を明示して生成する。変換結果を別担当者と照合する。
 
@@ -110,7 +110,7 @@ request_id="$(uuidgen | tr '[:upper:]' '[:lower:]')"
 ./infra/scripts/cf-scheduler-ops.sh status 50
 ```
 
-01:00 UTCで`no_show`と`delivery`の両方が欠けた場合も、jobごとに別request IDで1件ずつ実行する。既にledgerがあるslotは`slot_already_recorded`、pause中は`scheduler_paused`、別run中は`scheduler_busy`で拒否される。HTTP `202`はpendingであり成功ではないため、statusでterminal resultまで確認する。
+01:00 UTCで`no_show`と`delivery`の両方が欠けた場合も、jobごとに別request IDで1件ずつ実行する。実行未開始の `failed/schedule_conflict` は、同じslotの承認済みmanual catch-upで再claimできる。競合incidentは元のoutbox snapshotとIdempotency-Keyを維持し、ack後に再作成しない。通常cronはこのslotを自動再実行せず、運用者がno_show・deliveryをjobごとに回復する。それ以外の記録済みslotは`slot_already_recorded`、pause中は`scheduler_paused`、別run中は`scheduler_busy`で拒否される。HTTP `202`はpendingであり成功ではないため、statusでterminal resultまで確認する。
 
 ## Logs and alerts
 

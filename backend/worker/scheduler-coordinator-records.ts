@@ -414,12 +414,24 @@ export function terminalManualOperation(
   };
 }
 
+// A cross-plan conflict never acquired a fence or dispatched the business job.
+// Only this recorded-but-unexecuted state may be reclaimed by manual catch-up.
+export function isUnexecutedScheduleConflict(ledger: ScheduledRunLedger): boolean {
+  return (
+    ledger.status === "failed" &&
+    ledger.failureCode === "schedule_conflict" &&
+    ledger.fenceToken === 0 &&
+    ledger.outcome === undefined &&
+    ledger.manualRequestId === undefined
+  );
+}
+
 export function reconcilePendingManualOperation(
   operation: SchedulerManualOperation,
   ledger: ScheduledRunLedger | undefined,
   expiredLedger?: ScheduledRunLedger,
 ): SchedulerManualOperation | undefined {
-  if (ledger === undefined || ledger.status === "running") {
+  if (ledger === undefined || ledger.status === "running" || isUnexecutedScheduleConflict(ledger)) {
     return undefined;
   }
   const disposition: RunDisposition =
