@@ -161,6 +161,42 @@ func TestCutoverMedicinesDefaultQuantityAndDosageForm(t *testing.T) {
 	})
 }
 
+// CSV-655-R1: medicine_unit is the target DB enum (per_tablet, per_ml,
+// per_dose, per_gram). A nonempty unknown label must fail source preflight
+// before any database write; empty stays NULL.
+func TestCutoverMedicinesUnitEnum(t *testing.T) {
+	spec := cutoverSpecByName(t, "medicines")
+	unitIdx := columnIndex(spec.Columns, "medicine_unit")
+
+	for _, value := range []string{"", "per_tablet", "per_ml", "per_dose", "per_gram"} {
+		name := value
+		if name == "" {
+			name = "empty stays NULL"
+		}
+		t.Run("accepts "+name, func(t *testing.T) {
+			dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
+				f.rows["medicines"][0][unitIdx] = value
+			})
+			if _, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest)); err != nil {
+				t.Fatalf("PreflightCutoverBundle error = %v, want medicine_unit=%q accepted", err, value)
+			}
+		})
+	}
+
+	t.Run("rejects unknown unit in the full rehearsal bundle", func(t *testing.T) {
+		dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
+			f.rows["medicines"][0][unitIdx] = "per_pill"
+		})
+		_, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest))
+		if err == nil || !strings.Contains(err.Error(), "table medicines") || !strings.Contains(err.Error(), "column medicine_unit") || !strings.Contains(err.Error(), "row 2") {
+			t.Fatalf("PreflightCutoverBundle error = %v, want medicine_unit rejection naming table, column, row", err)
+		}
+		if strings.Contains(err.Error(), "per_pill") {
+			t.Fatal("error leaks the source cell value")
+		}
+	})
+}
+
 // A legacy 21-table producer bundle (no medicines entry, no medicines.csv)
 // must fail closed — including under local-rehearsal drift tolerance, where
 // the manifest tables count check runs before drift is considered.
