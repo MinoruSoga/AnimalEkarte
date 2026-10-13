@@ -13,6 +13,7 @@
     "./scheduled-jobs.test.ts",
     "./scheduler-access-auth.ts",
     "./scheduler-alerts.test.ts",
+    "./scheduler-alert-outbox.test.ts",
     "./scheduler-coordinator.ts",
     "./scheduler-coordinator-records.ts",
     "./scheduler-coordinator.test.ts",

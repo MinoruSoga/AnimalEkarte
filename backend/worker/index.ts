@@ -290,13 +290,15 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     scheduledTime: number,
   ): Promise<readonly ScheduledRunResult[]> {
     const coordinator = new SchedulerCoordinator(this.ctx.storage);
-    return runScheduledPlan(coordinator, cron, scheduledTime, (request) =>
+    const results = await runScheduledPlan(coordinator, cron, scheduledTime, (request) =>
       runScheduledJobRequest(
         (internalRequest) => this.containerFetch(internalRequest),
         request,
         this.envVars.SCHEDULER_INTERNAL_TOKEN,
       ),
     );
+    await notifySchedulerFailures(results, schedulerAlertConfig(env), fetch, this.ctx.storage);
+    return results;
   }
 
   async getScheduledJobsStatus(limit: number): Promise<SchedulerStatus> {
@@ -320,13 +322,20 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     command: SchedulerManualCommand,
   ): Promise<SchedulerManualOperation> {
     const coordinator = new SchedulerCoordinator(this.ctx.storage);
-    return coordinator.runManual(command, (scheduledRequest) =>
+    const operation = await coordinator.runManual(command, (scheduledRequest) =>
       runScheduledJobRequest(
         (internalRequest) => this.containerFetch(internalRequest),
         scheduledRequest,
         this.envVars.SCHEDULER_INTERNAL_TOKEN,
       ),
     );
+    await notifySchedulerFailures(
+      operation.result === undefined ? [] : [operation.result],
+      schedulerAlertConfig(env),
+      fetch,
+      this.ctx.storage,
+    );
+    return operation;
   }
 }
 
@@ -526,14 +535,6 @@ export default {
         schedulerOpsAuthConfig(env),
         coordinator,
         Date.now(),
-        async (operation) => {
-          if (operation.result !== undefined) {
-            await notifySchedulerFailures(
-              [operation.result],
-              schedulerAlertConfig(env),
-            );
-          }
-        },
       );
     }
     if (isInternalProxyPath(url.pathname)) {
@@ -580,7 +581,6 @@ export default {
     try {
       await dispatchScheduledEvent(controller, async (cron, scheduledTime) => {
         const results = await coordinator.runScheduledJobs(cron, scheduledTime);
-        await notifySchedulerFailures(results, schedulerAlertConfig(env));
         return results;
       });
     } catch {

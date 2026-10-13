@@ -1,5 +1,10 @@
 import {
+  listPendingSchedulerIncidents,
+  isDurableSchedulerIncident,
+} from "./scheduler-alert-outbox";
+import {
   cronForManualSlot,
+  type CoordinatorStorage,
   type SchedulerControlCommand,
   type SchedulerControlOperation,
   type SchedulerManualCommand,
@@ -465,14 +470,37 @@ export async function notifySchedulerFailures(
   results: readonly ScheduledRunResult[],
   config: SchedulerAlertConfig,
   send: RequestFetcher = fetch,
+  storage?: CoordinatorStorage,
 ): Promise<void> {
   const environment = config.environment.trim().toLowerCase();
-  const alerts = results
-    .flatMap((result) => [
-      expiredLeaseAlert(result, environment),
-      failureAlert(result, environment),
-    ])
-    .filter((alert) => alert !== undefined);
+  const pending =
+    storage === undefined
+      ? new Map<string, ScheduledRunLedger>()
+      : await listPendingSchedulerIncidents(storage);
+  const transient =
+    storage === undefined
+      ? results
+      : results.map((result) => ({
+          ...result,
+          ...(result.ledger !== undefined && isDurableSchedulerIncident(result.ledger)
+            ? { ledger: undefined }
+            : {}),
+          expiredLedger: undefined,
+        }));
+  const durable = [...pending.entries()].map(([key, ledger]) => ({
+    pendingKey: key,
+    alert: ledgerFailureAlert(ledger, environment),
+  }));
+  const pendingKeys = new Map(durable.map(({ pendingKey, alert }) => [alert.key, pendingKey]));
+  const alerts = [
+    ...durable.map(({ alert }) => alert),
+    ...transient
+      .flatMap((result) => [
+        expiredLeaseAlert(result, environment),
+        failureAlert(result, environment),
+      ])
+      .filter((alert) => alert !== undefined),
+  ];
   if (alerts.length === 0) {
     return;
   }
@@ -540,6 +568,22 @@ export async function notifySchedulerFailures(
         status: response.status,
       });
       deliveryFailed = true;
+      continue;
+    }
+    const pendingKey = pendingKeys.get(alert.key);
+    if (storage !== undefined && pendingKey !== undefined) {
+      // A crash after remote acceptance but before this ack retries the same key.
+      try {
+        await storage.delete(pendingKey);
+      } catch {
+        console.error("scheduler alert acknowledgement failed", {
+          event: "scheduler_alert_ack_failed",
+          alert_key: alert.key,
+          environment,
+          failure_code: "alert_ack_failed",
+        });
+        deliveryFailed = true;
+      }
     }
   }
   if (deliveryFailed) {

@@ -102,6 +102,89 @@ function scheduledTime(day: number): number {
 }
 
 describe("SchedulerCoordinator", () => {
+  it("lets the winning parallel plan execute delivery exactly once", async () => {
+    const storage = new MemoryStorage();
+    const now = scheduledTime(70);
+    const coordinator = new SchedulerCoordinator(storage, () => now);
+    let release: () => void = () => undefined;
+    let started: () => void = () => undefined;
+    const entered = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const execute = vi.fn(async (request: ScheduledJobRequest) => {
+      if (request.job === "no_show") {
+        started();
+        await held;
+      }
+      return successOutcome();
+    });
+    const winner = runScheduledPlan(coordinator, "0 1 * * *", now, execute);
+    await entered;
+    const loser = await runScheduledPlan(coordinator, "0 1 * * *", now, execute);
+    expect(loser).toHaveLength(2);
+    expect(await storage.get(SchedulerCoordinator.runKey("delivery", now))).toBeUndefined();
+    release();
+    await winner;
+    expect(execute.mock.calls.map(([request]) => request.job)).toEqual(["no_show", "delivery"]);
+    const restarted = new SchedulerCoordinator(storage, () => now);
+    await runScheduledPlan(restarted, "0 1 * * *", now, execute);
+    expect(execute).toHaveBeenCalledTimes(2);
+    expect(await storage.get(SchedulerCoordinator.runKey("delivery", now))).toMatchObject({
+      status: "success",
+    });
+  });
+
+  it("retries an expired incident after restart and webhook failure with the same key", async () => {
+    const storage = new MemoryStorage();
+    let now = scheduledTime(71);
+    const coordinator = new SchedulerCoordinator(storage, () => now);
+    let release: () => void = () => undefined;
+    let started: () => void = () => undefined;
+    const entered = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const old = coordinator.run("plane_sync", "*/15 * * * *", now, async () => {
+      started();
+      await held;
+      return successOutcome();
+    });
+    await entered;
+    now += 15 * 60 * 1_000;
+    const replacement = await coordinator.run("plane_sync", "*/15 * * * *", now, async () =>
+      successOutcome(),
+    );
+    expect(replacement.expiredLedger?.failureCode).toBe("lease_expired");
+    // Simulate exit after transactional detection, before notification. New instances share only storage.
+    const config = {
+      environment: "staging",
+      allowedHost: "alerts.example.com",
+      webhookURL: "https://alerts.example.com/scheduler",
+      webhookSecret: "test-secret",
+    };
+    const send = vi.fn(async (_request: Request) => new Response(null, { status: 500 }));
+    await expect(notifySchedulerFailures([], config, send, storage)).rejects.toThrow();
+    send.mockImplementation(async () => new Response(null, { status: 204 }));
+    const restarted = new SchedulerCoordinator(storage, () => now);
+    const replay = await restarted.run("plane_sync", "*/15 * * * *", now, async () =>
+      successOutcome(),
+    );
+    await notifySchedulerFailures([replay], config, send, storage);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[0]?.[0].headers.get("Idempotency-Key")).toBe(
+      send.mock.calls[1]?.[0].headers.get("Idempotency-Key"),
+    );
+    await notifySchedulerFailures([replay], config, send, storage);
+    expect(send).toHaveBeenCalledTimes(2);
+    release();
+    await old;
+  });
+
   it("audits revision-checked pause controls and replays a request_id idempotently", async () => {
     const storage = new MemoryStorage();
     const now = scheduledTime(10);
@@ -620,8 +703,8 @@ describe("SchedulerCoordinator", () => {
       successOutcome(),
     );
     expect(blockedDuplicate).toMatchObject({
-      disposition: "duplicate",
-      ledger: { status: "skipped", failureCode: "busy" },
+      disposition: "executed",
+      ledger: { status: "success" },
     });
     expect(scheduledRunRequiresCronFailure(blockedDuplicate)).toBe(false);
   });
@@ -784,7 +867,7 @@ describe("SchedulerCoordinator", () => {
       transaction(async (tx) => {
         const result = await closure(tx);
         const ledger = await tx.get<ScheduledRunLedger>(
-          SchedulerCoordinator.runKey("delivery", now),
+          SchedulerCoordinator.runKey("delivery", now + 1),
         );
         if (ledger?.status === "skipped") throw new Error("commit rejected");
         return result;
@@ -792,10 +875,10 @@ describe("SchedulerCoordinator", () => {
     );
     try {
       await expect(
-        coordinator.run("delivery", "0 1 * * *", now, async () => successOutcome()),
+        coordinator.run("delivery", "0 1 * * *", now + 1, async () => successOutcome()),
       ).rejects.toThrow("commit rejected");
       expect(infoLog).not.toHaveBeenCalled();
-      expect(await storage.get(SchedulerCoordinator.runKey("delivery", now))).toBeUndefined();
+      expect(await storage.get(SchedulerCoordinator.runKey("delivery", now + 1))).toBeUndefined();
     } finally {
       transactionSpy.mockRestore();
       release(successOutcome());
@@ -902,6 +985,27 @@ describe("SchedulerCoordinator", () => {
       ledger: { status: "skipped", failureCode: "stuck_lease" },
     });
     expect(scheduledRunRequiresCronFailure(stuck)).toBe(false);
+
+    const config = {
+      environment: "staging",
+      allowedHost: "alerts.example.com",
+      webhookURL: "https://alerts.example.com/scheduler",
+      webhookSecret: "test-secret",
+    };
+    const send = vi.fn(async (_request: Request) => new Response(null, { status: 500 }));
+    await expect(notifySchedulerFailures([], config, send, storage)).rejects.toThrow();
+    send.mockImplementation(async () => new Response(null, { status: 204 }));
+    const restarted = new SchedulerCoordinator(storage, () => now);
+    const replay = await restarted.run("no_show", "0 6,11 * * *", now, async () =>
+      successOutcome(),
+    );
+    await notifySchedulerFailures([replay], config, send, storage);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[0]?.[0].headers.get("Idempotency-Key")).toBe(
+      send.mock.calls[1]?.[0].headers.get("Idempotency-Key"),
+    );
+    await notifySchedulerFailures([replay], config, send, storage);
+    expect(send).toHaveBeenCalledTimes(2);
 
     // A repeated overlap of the same active run stays a plain busy skip.
     now = start + 10 * 60 * 60 * 1_000;
@@ -1053,7 +1157,7 @@ describe("SchedulerCoordinator", () => {
         },
       });
 
-      await notifySchedulerFailures(results, config, send);
+      await notifySchedulerFailures(results, config, send, storage);
       expect(send).toHaveBeenCalledTimes(1);
       const [request] = send.mock.calls[0] ?? [];
       expect(request).toBeInstanceOf(Request);
@@ -1085,7 +1189,7 @@ describe("SchedulerCoordinator", () => {
         successOutcome(),
       );
       expect(later.map((result) => result.expiredLedger)).toEqual([undefined]);
-      await notifySchedulerFailures(later, config, send);
+      await notifySchedulerFailures(later, config, send, storage);
       expect(send).toHaveBeenCalledTimes(1);
 
       releaseFirst(successOutcome());
@@ -1174,7 +1278,7 @@ describe("SchedulerCoordinator", () => {
       });
 
       if (operation.result !== undefined) {
-        await notifySchedulerFailures([operation.result], config, send);
+        await notifySchedulerFailures([operation.result], config, send, storage);
       }
       expect(send).toHaveBeenCalledTimes(1);
       const [request] = send.mock.calls[0] ?? [];
@@ -1204,6 +1308,13 @@ describe("SchedulerCoordinator", () => {
       // stable so any downstream re-notify dedupes to the same event.
       const replay = await coordinator.runManual(command, vi.fn());
       expect(replay).toEqual(operation);
+      await notifySchedulerFailures(
+        replay.result === undefined ? [] : [replay.result],
+        config,
+        send,
+        storage,
+      );
+      expect(send).toHaveBeenCalledOnce();
 
       releaseStuck(successOutcome());
       await expect(stuck).resolves.toMatchObject({

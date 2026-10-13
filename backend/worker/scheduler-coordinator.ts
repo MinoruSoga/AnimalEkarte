@@ -1,3 +1,4 @@
+import { enqueueSchedulerIncident } from "./scheduler-alert-outbox";
 import {
   SCHEDULED_JOB_LEASE_MS,
   SCHEDULER_NAME,
@@ -601,8 +602,19 @@ export class SchedulerCoordinator {
             finishedAt: now,
             failureCode: stuckDetected ? "stuck_lease" : "busy",
           };
-          await transaction.put(runKey, skippedLedger);
-          await putLatest();
+          // A losing invocation must not consume its winner's pending suffix.
+          const plan = jobsForCron(cron);
+          const predecessor = plan.indexOf(currentActive.job);
+          const blockedBySamePlan =
+            currentActive.cron === cron &&
+            currentActive.scheduledTime === scheduledTime &&
+            predecessor >= 0 &&
+            predecessor < plan.indexOf(job);
+          if (!blockedBySamePlan) {
+            await transaction.put(runKey, skippedLedger);
+            await putLatest();
+          }
+          if (stuckDetected) await enqueueSchedulerIncident(transaction, skippedLedger);
           return {
             disposition: "busy",
             ledger: skippedLedger,
@@ -678,6 +690,7 @@ export class SchedulerCoordinator {
 
     const failed = internalFailureLedger(existing, now, "lease_expired");
     await transaction.put(existing.runKey, failed);
+    await enqueueSchedulerIncident(transaction, failed);
     logLeaseExpired(failed);
     if (active?.runId === existing.runId) {
       await transaction.delete(ACTIVE_KEY);
@@ -695,6 +708,7 @@ export class SchedulerCoordinator {
     if (ledger?.status === "running") {
       failed = internalFailureLedger(ledger, now, "lease_expired");
       await transaction.put(active.runKey, failed);
+      await enqueueSchedulerIncident(transaction, failed);
       logLeaseExpired(failed);
     }
     await transaction.delete(ACTIVE_KEY);

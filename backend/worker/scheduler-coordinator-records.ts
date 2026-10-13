@@ -125,7 +125,7 @@ export interface ActiveScheduledRun {
   claimedAt: number;
   leaseExpiresAt: number;
   // Transactional one-time stuck detection marker, not a delivery receipt: a
-  // first webhook failure still surfaces through the existing alert log/throw.
+  // pending outbox incident remains retryable until webhook acceptance.
   stuckLeaseDetectedAt?: number;
 }
 
