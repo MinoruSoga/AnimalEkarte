@@ -109,7 +109,7 @@ func TestVaccinationService_CreateRejectsCrossClinicRelations(t *testing.T) {
 		medicalRecord: {ID: medicalRecord, ClinicID: clinicID, PetID: ptrUint64(petID), OwnerID: ptrUint64(ownerID)},
 		otherRecord:   {ID: otherRecord, ClinicID: clinicID, PetID: ptrUint64(petID + 1), OwnerID: ptrUint64(ownerID)},
 	}}
-	svc := NewVaccinationService(repo, okVaccineRepo(), nil, verifier, locker, vaccinationTestTransactor{})
+	svc := NewVaccinationService(repo, okVaccineRepo(), nil, verifier, locker, vaccinationTestTransactor{}, &mockAuditTxLogger{})
 
 	tests := []struct {
 		name  string
@@ -138,7 +138,7 @@ func TestVaccinationService_CreateRejectsCrossClinicRelations(t *testing.T) {
 	require.NotNil(t, got)
 	assert.Equal(t, 1, createCalls)
 
-	missingDependencyService := NewVaccinationService(repo, okVaccineRepo(), nil, nil, nil, vaccinationTestTransactor{})
+	missingDependencyService := NewVaccinationService(repo, okVaccineRepo(), nil, nil, nil, vaccinationTestTransactor{}, &mockAuditTxLogger{})
 	got, err = missingDependencyService.Create(context.Background(), clinicID, &CreateVaccinationInput{VaccineID: 1, Date: time.Now()})
 	require.Error(t, err)
 	assert.Nil(t, got)
@@ -172,7 +172,7 @@ func TestVaccinationService_UpdateRejectsCrossClinicRelations(t *testing.T) {
 	locker := &vaccinationMedicalRecordLockerStub{records: map[uint64]*model.MedicalRecord{
 		recordID: {ID: recordID, ClinicID: clinicID, PetID: ptrUint64(petID), OwnerID: ptrUint64(ownerID)},
 	}}
-	svc := NewVaccinationService(repo, okVaccineRepo(), nil, verifier, locker, vaccinationTestTransactor{})
+	svc := NewVaccinationService(repo, okVaccineRepo(), nil, verifier, locker, vaccinationTestTransactor{}, &mockAuditTxLogger{})
 
 	foreignPetID := uint64(999)
 	got, err := svc.Update(context.Background(), clinicID, vaccinationID, &UpdateVaccinationInput{PetID: &foreignPetID})

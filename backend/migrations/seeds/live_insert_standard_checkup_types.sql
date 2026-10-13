@@ -6,7 +6,7 @@
 -- 位置づけ:
 --   seeds/002_master の CSV bundle は適用後 immutable で、内容変更の正規
 --   経路は使い捨て DB への実適用からの cmd/seed-export 再生成のみ
---   （docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md §3 / migrations/CLAUDE.md）。
+--   （docs/ops/deploy/seeds/SEED_MIGRATION_OPERATIONS.md §3 / migrations/CLAUDE.md）。
 --   本スクリプトはその正規経路を恒久的に置き換えるものではなく、適用済み
 --   DB（STG / local / 本番）へ同一マスタを投入する明示的な手動手順。
 --   cmd/migrate の入力ではない（直下 *.sql の DDL フェーズは seed bundle

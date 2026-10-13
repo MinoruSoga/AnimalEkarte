@@ -302,14 +302,14 @@ func validateBaselineSafety(migrationCount int, hasApplicationSchema bool) error
 		return errors.New(
 			"existing application schema detected while schema_migrations is empty; " +
 				"schema completeness cannot be verified; rebuild with USER-approved DB_RESET " +
-				"following docs/ops/deploy/LOCAL_DB_RESET.md",
+				"following docs/ops/deploy/seeds/LOCAL_DB_RESET.md",
 		)
 	}
 	if migrationCount > 0 && !hasApplicationSchema {
 		return errors.New(
 			"migration history exists while application schema is missing; " +
 				"schema completeness cannot be verified; rebuild with USER-approved DB_RESET " +
-				"following docs/ops/deploy/LOCAL_DB_RESET.md",
+				"following docs/ops/deploy/seeds/LOCAL_DB_RESET.md",
 		)
 	}
 	return nil
@@ -359,7 +359,7 @@ func isAlreadyApplied(db *sql.DB, filename, checksum string) (bool, error) {
 	if storedChecksum != checksum {
 		fmt.Fprintf(os.Stderr, "checksum_mismatch_seen file=%s applied=%s current=%s\n", filename, storedChecksum, checksum)
 		return true, fmt.Errorf(
-			"checksum mismatch for %s: applied=%s, current=%s — automatic checksum repair is unsupported; rebuild with DB_RESET=true under an approved reset plan (local procedure: docs/ops/deploy/LOCAL_DB_RESET.md)",
+			"checksum mismatch for %s: applied=%s, current=%s — automatic checksum repair is unsupported; rebuild with DB_RESET=true under an approved reset plan (local procedure: docs/ops/deploy/seeds/LOCAL_DB_RESET.md)",
 			filename, storedChecksum, checksum,
 		)
 	}

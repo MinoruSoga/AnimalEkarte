@@ -12,7 +12,7 @@
 docs/ops/
 ├── README.md                  … 本索引
 ├── CLAUDE.md                  … 編集時ルール（インフラ SSOT・運用原則）
-├── deploy/                    … デプロイハブ・runbooks・検査機器の実装契約
+├── deploy/                    … デプロイハブ・runbooks/（個別手順）・rehearsals/（検証）・seeds/（DB/CSV）・stg/・accounts/・lab-devices/
 ├── testing/                   … テストアーキテクチャ・受入 scenarios・E2E・環境セットアップ
 ├── infra/                     … Cloudflare 基盤の現行契約と構成図・AWS 廃止履歴への正本ポインタ
 ├── ci-policy.md               … CI ワークフローの決定事項記録
@@ -26,7 +26,7 @@ docs/ops/
 |:---|:---|:---|
 | [deploy/](deploy/README.md) | デプロイハブ（環境 URL・Cloudflare デプロイ・障害時判断） | デプロイ・リリース作業前 |
 | [deploy/runbooks/](deploy/runbooks/README.md) | 個別実行手順書（リリース前検証・scheduler運用・資格情報ローテーション・シークレット棚卸し） | 該当オペレーション実施時 |
-| [deploy/LAB_DEVICE_CONNECTIVITY.md](deploy/LAB_DEVICE_CONNECTIVITY.md) | 検査機器の実装契約。操作手順は old_db `docs/lab-go/hospital-field-pack/手元テスト手順.md` | 院内で機器を新カルテへ取り込むとき |
+| [deploy/LAB_DEVICE_CONNECTIVITY.md](deploy/lab-devices/LAB_DEVICE_CONNECTIVITY.md) | 検査機器の実装契約。操作手順は old_db `docs/lab-go/hospital-field-pack/手元テスト手順.md` | 院内で機器を新カルテへ取り込むとき |
 | [testing/](testing/README.md) | テストアーキテクチャ・受入 scenarios（項目単位）・E2E・環境セットアップ | テスト実施・品質検証時 |
 | [ci-policy.md](ci-policy.md) | CI ワークフローの決定事項記録（Actions バージョンピン方針等） | .github/workflows/ 変更前 |
 | [agent-harness.md](agent-harness.md) | AI設定のスコープ、作業完了条件、検証と失敗の還元 | AI設定変更・自律タスク実行前 |
@@ -51,8 +51,8 @@ docs/ops/
 | [performance-tests.yml](../../.github/workflows/performance-tests.yml) | [testing/INTEGRATION_TEST_PLAN.md](testing/INTEGRATION_TEST_PLAN.md) |
 | [plane-merge-state.yml](../../.github/workflows/plane-merge-state.yml) | [plane-ticket-conventions.md](plane-ticket-conventions.md) |
 | [security-scan.yml](../../.github/workflows/security-scan.yml) | [ci-policy.md](ci-policy.md) |
-| [stg-migrate-direct.yml](../../.github/workflows/stg-migrate-direct.yml) | [deploy/STG_PLANETSCALE_SEED_RUNBOOK.md](deploy/STG_PLANETSCALE_SEED_RUNBOOK.md) |
-| [stg-smoke.yml](../../.github/workflows/stg-smoke.yml) | [deploy/CRUD-SMOKE-TEST.md](deploy/CRUD-SMOKE-TEST.md) |
+| [stg-migrate-direct.yml](../../.github/workflows/stg-migrate-direct.yml) | [deploy/STG_PLANETSCALE_SEED_RUNBOOK.md](deploy/stg/STG_PLANETSCALE_SEED_RUNBOOK.md) |
+| [stg-smoke.yml](../../.github/workflows/stg-smoke.yml) | [deploy/CRUD-SMOKE-TEST.md](deploy/rehearsals/CRUD-SMOKE-TEST.md) |
 | [storybook.yml](../../.github/workflows/storybook.yml) | [testing/TEST_ARCHITECTURE.md](testing/TEST_ARCHITECTURE.md) |
 | [worker-secret-sync.yml](../../.github/workflows/worker-secret-sync.yml) | [infra/cloudflare-account-separation.md](infra/cloudflare-account-separation.md) |
 
@@ -63,6 +63,6 @@ docs/ops/
 
 ## AI エージェント向け注記
 
-- タスク台帳の実行 SoT は **Plane**（workspace `baritechllc`）。hub・issue の現在状態は外部情報のため、操作前に Plane / GitHub で人手確認する。root [`todo.md`](../../todo.md) は repo と強く結び付く未完了作業の入口であり、[`todo.md#human-lane`](../../todo.md#human-lane) は入口ポインタ。運用で発見した課題は Plane に起票する。旧 `q&a.html` / `STATUS.md` / `PO-todo.md` は削除済。（2026-09-29 訂正: 実行 SoT を Linear としていた → Linear は 2026-09-16 に閉鎖済み。現行 SoT は Plane で、移行記録は [../work/plane-md-migration-20260923-receipt.md](../work/plane-md-migration-20260923-receipt.md)。旧 BRT-* / LINMIG-* ID と linear.app リンクは履歴参照のみ）
+- タスク台帳の実行 SoT は **Plane**（workspace `baritechllc`）。hub・issue の現在状態は外部情報のため、操作前に Plane / GitHub で人手確認する。root [`todo.md`](../../todo.md) は repo と強く結び付く未完了作業の入口であり、[`todo.md#human-lane`](../../todo.md#human-lane) は入口ポインタ。運用で発見した課題は Plane に起票する。旧 `q&a.html` / `STATUS.md` / `PO-todo.md` は削除済。（2026-09-29 訂正: 実行 SoT を Linear としていた → Linear は 2026-09-16 に閉鎖済み。現行 SoT は Plane で、移行記録は [../work/plane/plane-md-migration-20260923-receipt.md](../work/plane/plane-md-migration-20260923-receipt.md)。旧 BRT-* / LINMIG-* ID と linear.app リンクは履歴参照のみ）
 - **外部 mapping（操作前に GitHub / Plane で検証必須。以下は履歴 pointer）:** #261 / BRT-51 の判定先として GitHub [#261](https://github.com/MinoruSoga/AnimalEkarte/issues/261) 本文（A/B/C）。`q&a.html` は repo に無い。B 薬量は BRT-39（旧 Linear ID、履歴参照のみ）。C 健診 seed は BRT-40（旧 Linear ID、履歴参照のみ）。検査 / #249 はスコープ外。
 - migration/seed に触れる作業は `migration-seed-safety` スキル、リリース前チェックは `stg-release-readiness` スキルを先に読むこと。

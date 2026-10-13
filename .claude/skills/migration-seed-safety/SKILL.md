@@ -49,7 +49,7 @@ description: backend/migrations/ と seed バンドルを触るときの安全�
 適用済みmigrationやseedを誤って編集してしまった場合:
 - ローカル: 既存の DB volume を再構築しない。診断・復旧計画を作成し、隔離環境で再現できるかを確認した上で、対象・データ消失影響を含む明示承認を得た手順だけを実施する
 - STG: 現行Cloudflare workflowにDB reset経路はない。診断・復旧計画を作成し、DB変更の明示承認を得てから隔離環境または承認済み手順で実施する
-- 運用メモ全般: `docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md`
+- 運用メモ全般: `docs/ops/deploy/seeds/SEED_MIGRATION_OPERATIONS.md`
 
 ## 診断コマンド
 
