@@ -2,6 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createTestWrapper } from "@/testing/TestUtils";
+import {
+  useGetAllMedicinesMaster,
+  useGetAllProcedures,
+  useGetAllHospitalizationPlansMaster,
+} from "@/hooks/use-treatment-master";
 import { CarePlanRefSelect } from "./CarePlanRefSelect";
 
 // EMR-355: マスタ取得の loading/error/empty/success を per-test で差し替えられるよう
@@ -16,10 +21,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/hooks/use-treatment-master", () => ({
-  useGetAllMedicinesMaster: () => mocks.medicines,
-  useGetAllProcedures: () => mocks.procedures,
+  useGetAllMedicinesMaster: vi.fn(() => mocks.medicines),
+  useGetAllProcedures: vi.fn(() => mocks.procedures),
   // onUnitPriceChange 経路の回帰 pin: onChange は id のみを運び、price は別経路。
-  useGetAllHospitalizationPlansMaster: () => mocks.plans,
+  useGetAllHospitalizationPlansMaster: vi.fn(() => mocks.plans),
 }));
 
 vi.mock("@/hooks/use-permission", () => ({
@@ -188,6 +193,62 @@ describe("CarePlanRefSelect — マスタ取得状態 (EMR-355)", () => {
     expect(combobox).toHaveTextContent("読み込み中");
   });
 
+  it.each(["medicine", "treatment", "item"] as const)(
+    "type=%s の閲覧権限不足では403やpendingより依頼案内を優先し取得しない",
+    (type) => {
+      mocks.permission = { canView: false, canCreate: false, canEdit: false, canDelete: false };
+      const forbidden = queryState({
+        isSuccess: false,
+        isError: true,
+        error: { response: { status: 403 } },
+      });
+      mocks.medicines = forbidden;
+      mocks.procedures = forbidden;
+      mocks.plans = forbidden;
+      const { rerender } = render(
+        <CarePlanRefSelect type={type} value={null} onChange={vi.fn()} />,
+        {
+          wrapper: createTestWrapper({ router: true }),
+        },
+      );
+      const status = screen.getByRole("status");
+      expect(status).toHaveTextContent("権限のあるスタッフに選択を依頼してください");
+      expect(screen.queryByRole("button", { name: /再試行/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(within(status).queryByRole("link")).not.toBeInTheDocument();
+      expect(screen.getByRole("combobox")).toBeDisabled();
+      expect(screen.getByRole("combobox")).toHaveAttribute("aria-describedby", status.id);
+      for (const hook of [
+        useGetAllMedicinesMaster,
+        useGetAllProcedures,
+        useGetAllHospitalizationPlansMaster,
+      ]) {
+        expect(hook).toHaveBeenLastCalledWith({ enabled: false });
+      }
+      mocks.medicines =
+        mocks.procedures =
+        mocks.plans =
+          queryState({ isSuccess: false, isPending: true });
+      rerender(<CarePlanRefSelect type={type} value={null} onChange={vi.fn()} />);
+      expect(screen.getByRole("status")).toHaveTextContent("権限のあるスタッフ");
+      expect(screen.getByRole("combobox")).not.toHaveTextContent("読み込み中");
+    },
+  );
+
+  it.each(["medicine", "treatment", "item"] as const)(
+    "type=%s の閲覧権限があると選択対象だけ取得する",
+    (type) => {
+      render(<CarePlanRefSelect type={type} value={null} onChange={vi.fn()} />, {
+        wrapper: createTestWrapper(),
+      });
+      expect(useGetAllMedicinesMaster).toHaveBeenLastCalledWith({ enabled: type === "medicine" });
+      expect(useGetAllProcedures).toHaveBeenLastCalledWith({ enabled: type === "treatment" });
+      expect(useGetAllHospitalizationPlansMaster).toHaveBeenLastCalledWith({
+        enabled: type === "item",
+      });
+    },
+  );
+
   it("取得エラー時は汎用メッセージと type=button の再試行を出し、エラーの生文言を表示しない", () => {
     mocks.plans = queryState({
       isSuccess: false,
@@ -283,7 +344,7 @@ describe("CarePlanRefSelect — マスタ取得状態 (EMR-355)", () => {
       wrapper: createTestWrapper({ router: true }),
     });
     const status = screen.getByRole("status");
-    expect(status).toHaveTextContent("登録されている入院プランがありません");
+    expect(status).toHaveTextContent("入院プランの候補を閲覧する権限がありません");
     expect(status).toHaveTextContent("権限のあるスタッフ");
     expect(status).not.toHaveTextContent("登録してください");
     expect(within(status).queryByRole("link")).not.toBeInTheDocument();
@@ -296,7 +357,7 @@ describe("CarePlanRefSelect — マスタ取得状態 (EMR-355)", () => {
       wrapper: createTestWrapper({ router: true }),
     });
     const status = screen.getByRole("status");
-    expect(status).toHaveTextContent("登録されている入院プランがありません");
+    expect(status).toHaveTextContent("入院プランの候補を閲覧する権限がありません");
     expect(status).toHaveTextContent("権限のあるスタッフ");
     expect(within(status).queryByRole("link")).not.toBeInTheDocument();
   });

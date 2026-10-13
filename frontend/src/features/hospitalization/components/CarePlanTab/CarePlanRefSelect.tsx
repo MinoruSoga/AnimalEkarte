@@ -44,12 +44,18 @@ export function CarePlanRefSelect({
   onUnitPriceChange,
   ariaInvalid = false,
 }: CarePlanRefSelectProps) {
-  const medicinesQuery = useGetAllMedicinesMaster();
-  const proceduresQuery = useGetAllProcedures();
-  const plansQuery = useGetAllHospitalizationPlansMaster();
   // 閲覧/登録権限は選択 type のマスタで判定する。item は入院マスタ、
   // medicine/treatment は医療マスタ。参照不要 type では結果を使わない。
   const permission = usePermission(type === "item" ? "master-hospitalization" : "master-medical");
+  const medicinesQuery = useGetAllMedicinesMaster({
+    enabled: type === "medicine" && permission.canView,
+  });
+  const proceduresQuery = useGetAllProcedures({
+    enabled: type === "treatment" && permission.canView,
+  });
+  const plansQuery = useGetAllHospitalizationPlansMaster({
+    enabled: type === "item" && permission.canView,
+  });
   const stateMessageId = useId();
 
   const medicines = medicinesQuery.data;
@@ -114,11 +120,12 @@ export function CarePlanRefSelect({
   if (!ref) return null;
 
   // EMR-355: 選択中 type のクエリ状態だけを追跡する。
-  // error(isSuccess=false なら data=[] のキャッシュが残っていても失敗) >
+  // 権限不足 > error(isSuccess=false なら data=[] のキャッシュが残っていても失敗) >
   // loading > 成功0件 > 成功あり の順で判定し、error を「未登録」と混同しない。
   const query =
     type === "medicine" ? medicinesQuery : type === "treatment" ? proceduresQuery : plansQuery;
-  const isLoading = query.isLoading || query.isPending;
+  const cannotView = !permission.canView;
+  const isLoading = !cannotView && (query.isLoading || query.isPending);
   const isEmpty = query.isSuccess && !query.isFetching && ref.options.length === 0;
 
   return (
@@ -126,15 +133,21 @@ export function CarePlanRefSelect({
       <SearchableSelect
         value={value ?? ""}
         onValueChange={(next) => emitSelection(ref.masters, next)}
-        options={ref.options}
-        disabled={isLoading}
+        options={cannotView ? [] : ref.options}
+        disabled={cannotView || isLoading}
         placeholder={isLoading ? "読み込み中..." : ref.selectLabel}
         searchPlaceholder={ref.searchPlaceholder}
         ariaLabel={ref.selectLabel}
-        ariaDescribedBy={query.isError || isEmpty ? stateMessageId : undefined}
+        ariaDescribedBy={cannotView || query.isError || isEmpty ? stateMessageId : undefined}
         ariaInvalid={ariaInvalid}
       />
-      {query.isError ? (
+      {cannotView ? (
+        <div id={stateMessageId} role="status" className="flex items-center gap-2">
+          <span className={`text-xs ${C.text60}`}>
+            {ref.label}の候補を閲覧する権限がありません。権限のあるスタッフに選択を依頼してください
+          </span>
+        </div>
+      ) : query.isError ? (
         // 生の error/HTTP 情報は出さず汎用文言に限定し、選択 type のクエリのみ再取得する。
         <div id={stateMessageId} role="alert" className="flex items-center gap-2">
           <span className={`text-xs ${C.danger}`}>{ref.label}の候補を取得できませんでした</span>
