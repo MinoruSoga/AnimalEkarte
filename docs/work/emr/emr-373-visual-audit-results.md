@@ -47,7 +47,7 @@
 
 ## 追加所見
 
-[EMR-389 / VQ-013](https://app.plane.so/baritechllc/browse/EMR-389/): 集計の「期間内来院回／数」、監視一覧の「除外理由」等が細かく折返す。既存EMR-378と同系統だが対象画面が異なる。今回のPRは記録までで、追加修正の合格を主張しない。
+[EMR-389 / VQ-013](https://app.plane.so/baritechllc/browse/EMR-389/): 集計の「期間内来院回／数」、監視一覧の「除外理由」等が細かく折返す。既存EMR-378と同系統だが対象画面が異なる。継続指示により修正を追加。固定見出し、監視日時と状態をnowrapにし、長い飼主名・除外理由本文は折返しを保持。専用テスト49件、対象lint/format、テストsetupを含む型検証は成功。wave6で4幅を撮影し、1568集計と768監視の見出し断片化解消、390の可視見出しを確認。非空本文・右端スクロールはUNKNOWN。
 
 飼主新規・編集のペット追加とFABの重なりはEMR-387の同原因バリアントとしてF004で修正した。新規所見の重複票は作らない。
 
@@ -58,8 +58,8 @@
 - RED→GREENを各修正で保存。Devin SWE-2 High固定、同じ確認済みsessionで修正。superpowersの実skill Sourceをexportで確認。
 - aggregate coverage / 80% / ratchetはUNKNOWN。scoped検証で代替しない（docs/ops/coverage-policy.md）。全体CI・実API・UAT・mergeは未実施。
 - 未撮影の面/状態はインベントリK1〜K7を保持。LIFF/LINE予約、権限別、長名/死亡、モーダル各分岐、非空・保存・送信のfixtureがない状態には結果を継承しない。
-- Stagehandの既存profile daily cap200へ到達。counterのreset、limit増加、別profileでの回避はしていない。新たな撮影は残件。
-- Plane添付APIは認証不要の公開URLからのみ取得でき、ローカル画像の直接添付は未対応。画像を公開して迂回せず、Plane画像添付をBLOCKEDとして記録する。
+- 当初のStagehand既存profile daily cap200は到達後に停止した。ユーザーの制限解除指示により、共有設定・counterを変えず、このタスクの撮影プロセスだけwrapper上限100000を使用。wave4〜7はAI操作を無効にした画面移動・撮影。Stagehand OSSの利用料とモデルAPI料金は別で、API課金状況はUNKNOWN。
+- Plane添付APIはローカル画像を直接受け取れない。画像を非公開GitHub PRの証跡として保存し、GitHubの一時取得URLからPlaneへ転送する経路を検証中。添付の成功は取得後に別記する。URLの一時tokenは文書・ログに保存しない。
 
 ## 画像索引
 
@@ -158,3 +158,9 @@
 | 2 | `/line-reservation` | 1568x873 | `shot-20261013T024949223066.png` |
 | 3 | `/inventory` | 1568x873 | `shot-20261013T025314566129.png` |
 | 3 | `/examinations` | 768x1024 | `shot-20261013T025320410593.png` |
+
+## 継続追試（2026-10-13）
+
+wave4: 飼主新規/誤った`/owners/990002/edit`を3幅で6枚。edit付きは404で対象編集の証拠ではない。wave5: 正しい`/owners/990002`と新規を3幅で6枚。Stagehand screenshotはviewportのみをサポートし、full_page指定は未対応だったため下方のペット追加ボタン・全高取得の合格には使わない。wave6: EMR-389修正後の集計/監視を4幅で8枚。wave7: ペット編集deep-link、入院詳細/編集、トリミング・予防接種の新規/編集を1568/390で14枚。画像取得は状態の合格とは別。
+
+撮影計125枚は[非公開PRの画像索引](emr-373-images/index.json)に収録。初回500幅・誤経路・エラーだけ・画面外は各限界を維持する。F004は1568飼主新規でペット追加ボタンとFABの非重複を確認、768/390の画面外部分はUNKNOWN。実API、保存/送信、未定義fixture、LIFF/LINE予約は引き続き未確認。

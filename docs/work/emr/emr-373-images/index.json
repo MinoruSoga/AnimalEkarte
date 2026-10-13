@@ -1,0 +1,1822 @@
+[
+  {
+    "wave": 1,
+    "route": "/",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": null,
+    "file": "shot-20261013T023436703172.png",
+    "sha256": "a45cc2f8336cd68115d150b86abdff8188a98e8c87a17a51c2d8f497f208a217",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/owners",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": null,
+    "file": "shot-20261013T023440429606.png",
+    "sha256": "73f412915ae8a2f1d9e08d7b4b5dafa890da2f09dc39707092f04ce94e638a59",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/medical-records",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": null,
+    "file": "shot-20261013T023443418058.png",
+    "sha256": "0d32c6e7cd4173a58306ad5932d82f3e19c0dd4f8818ec2c6e23c75ad26c66de",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/medical-records/new?petId=990001",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": null,
+    "file": "shot-20261013T023446285802.png",
+    "sha256": "f1c67835c03c826ce64b7558fba4d63ed4fd51c5ca413bf7bb63830c7f8e15c5",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/medical-records/990013",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": null,
+    "file": "shot-20261013T023449216525.png",
+    "sha256": "ccfd8d5d0314d8ebe1306c9933522a8908efa592fc3aaa35d7f3c42cd22a57e0",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/trimming",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": null,
+    "file": "shot-20261013T023452851858.png",
+    "sha256": "2fdbc0899e601658e5e6bb14c105596f363024c50f119d04a1a70278b15fd695",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/vaccinations",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": null,
+    "file": "shot-20261013T023455710318.png",
+    "sha256": "6a4529054c34a4a83a8f3bf05c210ce2d0273a57476135145cc0c6a43418f9a2",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/examinations",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": null,
+    "file": "shot-20261013T023458486025.png",
+    "sha256": "8dc575b23476c8f0116d5e37506b0876a2af3609f61d414eebbfbd7d3d929328",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/inventory",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": null,
+    "file": "shot-20261013T023501143143.png",
+    "sha256": "6cb3428a0ee59c30afedeb49a8aadd6853b17344b5dfa115de11f9cec6797914",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/settings/staff",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": null,
+    "file": "shot-20261013T023503992913.png",
+    "sha256": "2ba4569c2cec0d86105420e7af83912d4b1b9610253fe4d7b6a460e0e6f6ac0a",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/lstep/checkup-sync",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": null,
+    "file": "shot-20261013T023506868068.png",
+    "sha256": "203f2bbfc678bd8551af8f2594cabaa709eb6d3cf39a110041f61f7c70c04ffa",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/lstep/delivery-monitor",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": null,
+    "file": "shot-20261013T023509553736.png",
+    "sha256": "e98b9a9fe676e1accb358446dfbce81d35d27d6dd576f0cc61805b3e26b79f79",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/accounting/new?petId=990001",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": null,
+    "file": "shot-20261013T023512423955.png",
+    "sha256": "f119fb8afc744626c73df5800ecd39d93ef8b5c655ecbf8b029b85cfbfdb1c5d",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/examinations/990099",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": null,
+    "file": "shot-20261013T023515402506.png",
+    "sha256": "19cd38da25fef80acdd72ab7774ef576494a8609d149ec95221ccd0bb64a8777",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/estimates/990099",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": null,
+    "file": "shot-20261013T023518156203.png",
+    "sha256": "2be1e50bd16a0c3862aa9439e0632b561a33619af609be241d19716c2b534b9e",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": null,
+    "file": "shot-20261013T023520889432.png",
+    "sha256": "046624bb33092eaf02b3817abeea18629a00c79b1f9f4e27fe12ac55ed76ef65",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/owners",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": null,
+    "file": "shot-20261013T023523568922.png",
+    "sha256": "c6154ef615d17d4c8e3253ec0ee2d18d60b418709896d647634226ed665e4f76",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/medical-records",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": null,
+    "file": "shot-20261013T023526313471.png",
+    "sha256": "00948a3f8e40946da77ffb9baebbddc40e6c1908e15b1822798ad923b042dee5",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/medical-records/new?petId=990001",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": null,
+    "file": "shot-20261013T023529214019.png",
+    "sha256": "fe015ebe5d315e53948fe5777c8d49d640cc7a8d8a0f5a7f095b0711f185ec38",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/medical-records/990013",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": null,
+    "file": "shot-20261013T023532389770.png",
+    "sha256": "da907694c8b67b37993008ed2f7a81da80508b550a3ab0c4c37bc00a1b2430a0",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/trimming",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": null,
+    "file": "shot-20261013T023535775490.png",
+    "sha256": "6a0ba593bf8b20d437875854686212946acc204479384ba5d8e1dc39f648b975",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/vaccinations",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": null,
+    "file": "shot-20261013T023539110180.png",
+    "sha256": "86c62d7b8c6497781cc078aa81f24ec3c627f38f810ea6a1b55b31a57a0fa054",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/examinations",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": null,
+    "file": "shot-20261013T023544026292.png",
+    "sha256": "99158ad9fb2e8f82057e7eb12f31f4882fca4c41b566a2702cbddac68d413ccd",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/inventory",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": null,
+    "file": "shot-20261013T023546856195.png",
+    "sha256": "8916d9d3503614f32e5d4038c23da58168716d0277a7a4dd80295b8cc7ed28d9",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/settings/staff",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": null,
+    "file": "shot-20261013T023549732881.png",
+    "sha256": "3115684b63582782d4f7ae9f5d7370f53f10bccc77b68c2f3e8328ace1367277",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/lstep/checkup-sync",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": null,
+    "file": "shot-20261013T023552866685.png",
+    "sha256": "b4180b74b0a0b28089c28d05a348966678cb946e7f3bbef1f36343948c1f9899",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/lstep/delivery-monitor",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": null,
+    "file": "shot-20261013T023555994878.png",
+    "sha256": "ba31ca3db7a2366e89739d220fd8aafae802bf100a175ee023ea59ed2406701c",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/accounting/new?petId=990001",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": null,
+    "file": "shot-20261013T023559440223.png",
+    "sha256": "1f8ee6f31d340776c9cf3b31ff1267d2bf5d6801bc998a4ae2cfc86d61ccc58d",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/examinations/990099",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": null,
+    "file": "shot-20261013T023602197022.png",
+    "sha256": "4867e8b6178369de2273bd59ccb4fcc300a7d5a40fd38331b4c6f82b05f52f8a",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/estimates/990099",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": null,
+    "file": "shot-20261013T023604982258.png",
+    "sha256": "6d5627c8eac2a743b573c2a96810c2a3fffe7222a4d85db8f44ba0f189522d4a",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": null,
+    "file": "shot-20261013T023607980432.png",
+    "sha256": "c587b17a2893a85a6f41fe050c549bc1a998ceaac19ce092bd27073328705dc5",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/owners",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": null,
+    "file": "shot-20261013T023610873535.png",
+    "sha256": "01f5c28e359457bef12870636aa81ee4b76be63f2ea23d5a97868c7ac96eb2eb",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/medical-records",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": null,
+    "file": "shot-20261013T023613949027.png",
+    "sha256": "b02038259150629e21880f32174ab9f3d2a778dc3d78152a9a06b07fb3bdab0f",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/medical-records/new?petId=990001",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": null,
+    "file": "shot-20261013T023616940564.png",
+    "sha256": "810e51b2ebba1db29409c829b69b61748e0302206b6c33a66025c20ed765c816",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/medical-records/990013",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": null,
+    "file": "shot-20261013T023619868587.png",
+    "sha256": "5e842fdd31d4b6f6fdf385d541b0d5eb5249193e0463a3a33a60a3aac35057dc",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/trimming",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": null,
+    "file": "shot-20261013T023622735090.png",
+    "sha256": "508642c3f431774f4818742a2fd7fdc85e590491bf44ff9d336627632c1d424f",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/vaccinations",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": null,
+    "file": "shot-20261013T023625766614.png",
+    "sha256": "fc73267721b388a354d0df746b03e85906bb36d0a4c997fb02540ab6b9b31d85",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/examinations",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": null,
+    "file": "shot-20261013T023628550545.png",
+    "sha256": "ac4abf2d0539d960f15f49ce305f1c251619ae341526130dfd579ecc85f56c40",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/inventory",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": null,
+    "file": "shot-20261013T023631278053.png",
+    "sha256": "ba2c8dc3a78a7f5230ae42114b02c5183fa2c33c6391fb6d8607fb6210637fca",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/settings/staff",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": null,
+    "file": "shot-20261013T023634106154.png",
+    "sha256": "e726acc669ab51eec2bc5eef2d47e6aec97ffc6f9e0f6641b60c2f0781b46e48",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/lstep/checkup-sync",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": null,
+    "file": "shot-20261013T023637036240.png",
+    "sha256": "4eca6ac29ed6f55f3ee2ac5bd1e458599f2327dfbc4992d61ceb7da47779fc86",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/lstep/delivery-monitor",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": null,
+    "file": "shot-20261013T023640009322.png",
+    "sha256": "bd293a33467536f97bc1ae8bac97be1d9a12ac96697b2400734aeebbf11bd78d",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/accounting/new?petId=990001",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": null,
+    "file": "shot-20261013T023643495196.png",
+    "sha256": "afccc6d400b732e66efb19203dbf10d5c2b990548313a9945ecb51d06d7cf99b",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/examinations/990099",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": null,
+    "file": "shot-20261013T023646186388.png",
+    "sha256": "4cddd4bad688f15afc13a92eb619dfb021352c3bb2e8d97d64401ef42076d20e",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/estimates/990099",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": null,
+    "file": "shot-20261013T023648943638.png",
+    "sha256": "bf38dad6360f99539ac5611cc3cd5a5ebc98d468a2181ec2cdc45c675fc4522d",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/",
+    "requestedViewport": [
+      1280,
+      800
+    ],
+    "png": null,
+    "file": "shot-20261013T023651842432.png",
+    "sha256": "a9385217154ee7d63911c7d8431739edfcdef848953fd7574328574029cc7964",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/owners",
+    "requestedViewport": [
+      1280,
+      800
+    ],
+    "png": null,
+    "file": "shot-20261013T023654770963.png",
+    "sha256": "97101e70073bba92c27bd17a785c4102cf6300b13cd24c262f7887d0fb33eda0",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/medical-records",
+    "requestedViewport": [
+      1280,
+      800
+    ],
+    "png": null,
+    "file": "shot-20261013T023659587045.png",
+    "sha256": "08bad2f3e5f12e54919f792c5de63db7657643b921370237e1014d29876e5313",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/medical-records/new?petId=990001",
+    "requestedViewport": [
+      1280,
+      800
+    ],
+    "png": null,
+    "file": "shot-20261013T023702496568.png",
+    "sha256": "d2445c85bd874452bff9fa67c2586262f0e58c0048d6b47d26e4922c9ca8791e",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/medical-records/990013",
+    "requestedViewport": [
+      1280,
+      800
+    ],
+    "png": null,
+    "file": "shot-20261013T023705496003.png",
+    "sha256": "d17bb6af48c0c24e10f3a98130c91ed71c23e760153049512394d81aba44b350",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/trimming",
+    "requestedViewport": [
+      1280,
+      800
+    ],
+    "png": null,
+    "file": "shot-20261013T023709714215.png",
+    "sha256": "a7a5633434a428680a9eda54161fabaa932865c5e53123b656c4da6b42cd142f",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/vaccinations",
+    "requestedViewport": [
+      1280,
+      800
+    ],
+    "png": null,
+    "file": "shot-20261013T023712539893.png",
+    "sha256": "79dff0b0cc92edff573f14fdeb21f8a3e43f98862a5263c9a1a577408599eba7",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/examinations",
+    "requestedViewport": [
+      1280,
+      800
+    ],
+    "png": null,
+    "file": "shot-20261013T023715509186.png",
+    "sha256": "ada5a5d58cacf7f33aa8eb2c1534412a1780215582ba4f164b39ac65dea34f11",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/inventory",
+    "requestedViewport": [
+      1280,
+      800
+    ],
+    "png": null,
+    "file": "shot-20261013T023718353635.png",
+    "sha256": "74e19bc63ee6e7372d1fe6f134d993325254fc5a11a41983f2a9823b39128a10",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/settings/staff",
+    "requestedViewport": [
+      1280,
+      800
+    ],
+    "png": null,
+    "file": "shot-20261013T023721378620.png",
+    "sha256": "dbe2679326931e66a5b21470bdaef43164e294172c51df7cd8d5234f77d51403",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/lstep/checkup-sync",
+    "requestedViewport": [
+      1280,
+      800
+    ],
+    "png": null,
+    "file": "shot-20261013T023724144382.png",
+    "sha256": "86562ae2860452be7ee64f376da9e39384fca7d3dcd2aaf4fed5a840b7afded8",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/lstep/delivery-monitor",
+    "requestedViewport": [
+      1280,
+      800
+    ],
+    "png": null,
+    "file": "shot-20261013T023727126179.png",
+    "sha256": "ad2bf7c595f590a822866c98c337ffac837d9e421d0794760cf25c2d15a25788",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/accounting/new?petId=990001",
+    "requestedViewport": [
+      1280,
+      800
+    ],
+    "png": null,
+    "file": "shot-20261013T023729854597.png",
+    "sha256": "f3bca5d9797c29c1f3c59e066212932a4f310c57a8260fd5d9663968b69382af",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/examinations/990099",
+    "requestedViewport": [
+      1280,
+      800
+    ],
+    "png": null,
+    "file": "shot-20261013T023732674762.png",
+    "sha256": "8d3d6b04579c1b092dcf7d0d52a8618f8ce45560d919353f2441536c735b1b9f",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 1,
+    "route": "/estimates/990099",
+    "requestedViewport": [
+      1280,
+      800
+    ],
+    "png": null,
+    "file": "shot-20261013T023735605993.png",
+    "sha256": "678005b1813f840a54f5a89d29268f06eee559bf78e69c909d6cb37ec3944786",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/settings/staff",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T024632605942.png",
+    "sha256": "0776f2701c7f8d7076c8e1e3f799b61002ba4ca60b385861ce641b5a7d3d6cde",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/reservations",
+    "requestedViewport": [
+      1280,
+      800
+    ],
+    "png": [
+      1280,
+      800
+    ],
+    "file": "shot-20261013T024648232513.png",
+    "sha256": "3386a83779f8e115d26b81d5a017c5d052b17ad9ef26d2fce2ff44c43bc1e565",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/",
+    "requestedViewport": [
+      1280,
+      800
+    ],
+    "png": [
+      1280,
+      800
+    ],
+    "file": "shot-20261013T024701615486.png",
+    "sha256": "a9385217154ee7d63911c7d8431739edfcdef848953fd7574328574029cc7964",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/accounting/new?petId=990003",
+    "requestedViewport": [
+      1280,
+      800
+    ],
+    "png": [
+      1280,
+      800
+    ],
+    "file": "shot-20261013T024715010901.png",
+    "sha256": "02aa255826c219b435ad173608d63eb9ecd097165b91dc476edb4cc6ea9f195c",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/medical-records",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T024721864968.png",
+    "sha256": "add65c62c151ccb8260912d7369ff746f2f35d13b4ce91fd64827879a9aabff5",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/trimming",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T024727931004.png",
+    "sha256": "346102805faa08070c5e9476afe42f7b41d9a69fbb6367f85497218feb1a3cfc",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/vaccinations",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T024733974278.png",
+    "sha256": "78f08d0308ad7a3c1ef8b107522ac9bdcaf9e5078f64c2806e1b4536662f8a1d",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T024740087724.png",
+    "sha256": "f52613430354b0e8cbdbd985491a4a8df2d57fd5de8380dce7de2986cc4853ab",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/owners",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T024746989458.png",
+    "sha256": "b50b6f983b07e67e9123313bc64c0bfc43e85af5d38dfd261a760f78089c7fcd",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/medical-records",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T024753909722.png",
+    "sha256": "5732ac4e77485281128ab7161caf2562004331b1c7704997766c7c3b9ff00e09",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/medical-records/new?petId=990003",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T024759912727.png",
+    "sha256": "c34881a9325dbab995f812a90511c018262eb6edf91301dd6a3f7eb109498fae",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/medical-records/990013",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T024805851288.png",
+    "sha256": "c34881a9325dbab995f812a90511c018262eb6edf91301dd6a3f7eb109498fae",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/trimming",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T024812498388.png",
+    "sha256": "d17cfe37ce0ae1ce3b114d8b5ec09632dbf5280e26ebb7fd5829c4cdfe0d2c4c",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/vaccinations",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T024818489287.png",
+    "sha256": "8d78b7233f2e6349f566cc0826e07455867671ced0101fc74621ee44b2419769",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/examinations",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T024824636046.png",
+    "sha256": "b23d96fb2d4e845cad31f09f95028d7b40bdce1d3cc2f2191546b9b8a1b15fcd",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/inventory",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T024830490894.png",
+    "sha256": "9b0edd08bcbae0ef911d7705213b1590d388792ce6015062160b021dc61bd924",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/settings/staff",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T024836415550.png",
+    "sha256": "c25add6a5d2781da7d3b513144aee0e5b2cf27c8984da8a3ee880ed476810dc7",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/lstep/checkup-sync",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T024842200850.png",
+    "sha256": "f61f535627561838cfac7042a70a97e172df2b95a343ec6e2018afe40f950c97",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/lstep/delivery-monitor",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T024848391159.png",
+    "sha256": "391c4b1911a7fdc28b7becce044b6f598cd3b54e3478d84735c71b63c4dacdc0",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/accounting/new?petId=990003",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T024854192162.png",
+    "sha256": "1776754e92148b229900c420cb109d9a107ceaf25bde4271733769dab5866689",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/examinations/990099",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T024900003468.png",
+    "sha256": "4a84843664433a4c6cbbffec6ffaf66c66259cb00f531b248b7a018493ff69df",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/estimates/990099",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T024905896091.png",
+    "sha256": "ef79a04d8704cfeffad5f9965a4e885846fa4f469e9b65b26fd00c45279f2bf6",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/aggregation",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T024911742475.png",
+    "sha256": "0439d36282111b67fdcbb9f2a486fcbd37eb31f6880067083562e0a71e4fdef0",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/owners/new",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T024919338500.png",
+    "sha256": "dce953127fdac749bc78022c5410d687a510fa716ed502fea62014c7c4fcb597",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/owners/990002",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T024925414948.png",
+    "sha256": "de6fff1ceed4cf66097cf5dc8690136d7e742a2ec09bbb556b8fb2312dec9c28",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/inventory/new",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T024931594165.png",
+    "sha256": "bade621c89b10bd3462844eeb74f2c1f6b96a689fb6a3f5d3a56b933c96911f0",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/shifts",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T024937492199.png",
+    "sha256": "13ba26598b16d58f560fefed9b6c44c3982af24336faf9dce62bf74e46df9243",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/settings/clinic",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T024943396186.png",
+    "sha256": "ca4179d531201eacf0b53a71ae0073c56a984bc191bd33d442f79f33faf5e840",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 2,
+    "route": "/line-reservation",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T024949223066.png",
+    "sha256": "7311ede14b788b41b4dce695d8d90845652ad54e5ec4bdcb7681fb5818c3a193",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 3,
+    "route": "/inventory",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T025314566129.png",
+    "sha256": "f0902217bd3dd2a811cd28a8b01115b7103e283780cef72b3c48ff42cb82f8b8",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 3,
+    "route": "/examinations",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T025320410593.png",
+    "sha256": "d80511f523a245a096db4ef8cb24fceda1c5b870b44f87dd65d6acd23c8ea3e0",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 4,
+    "route": "/owners/new",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T033520015036.png",
+    "sha256": "cd947935cbb7711c62b43f34ec1ad68c187ac25bc1ae32084d34f2847aeb8043",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 4,
+    "route": "/owners/new",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T033526515255.png",
+    "sha256": "ddd13ed2b63dd6203db6c2d7e578fe2bb2bc078b5790544301a2a3be23b864c6",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 4,
+    "route": "/owners/new",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T033532261425.png",
+    "sha256": "e9533ecc33771167d0af94e46a510f339a1ec248757cb8ffb04043486311a574",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 4,
+    "route": "/owners/990002/edit",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T033538033311.png",
+    "sha256": "b151b75dad33612136f6d29bd5dbd1cb4b18ecb978a4e02417d3e972796f79df",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 4,
+    "route": "/owners/990002/edit",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T033543677001.png",
+    "sha256": "a88f9e8c8edfa4e81372897e28c977f589da8e7e3a741b89aae23bfd17326268",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 4,
+    "route": "/owners/990002/edit",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T033549401224.png",
+    "sha256": "3edb9e6614511f52e78c2276376cb640a4f25e99670033ccc23e3ae88e897972",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 5,
+    "route": "/owners/new",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T033650633074.png",
+    "sha256": "cd947935cbb7711c62b43f34ec1ad68c187ac25bc1ae32084d34f2847aeb8043",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 5,
+    "route": "/owners/new",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T033656716558.png",
+    "sha256": "ddd13ed2b63dd6203db6c2d7e578fe2bb2bc078b5790544301a2a3be23b864c6",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 5,
+    "route": "/owners/new",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T033702295602.png",
+    "sha256": "e9533ecc33771167d0af94e46a510f339a1ec248757cb8ffb04043486311a574",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 5,
+    "route": "/owners/990002",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T033707935106.png",
+    "sha256": "eab60ef8f148155cf9ad7ec42ce4c73bb36722cc5217e1a8fcfd64515c3e8cb9",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 5,
+    "route": "/owners/990002",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T033713701330.png",
+    "sha256": "8b6cf68792b42c42c11a265fb5ead059d4583f7d3d8cb21d5b15d86c828e6d60",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 5,
+    "route": "/owners/990002",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T033719528265.png",
+    "sha256": "b7b3874afef2d74bab9d9e7c7497994d96e454b5828d8b5162948be5b15699ed",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 6,
+    "route": "/aggregation",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T033835401134.png",
+    "sha256": "d66f27db5cba58fe77256c69451badc1d6e96aa30fab39d4a7804452ed2aa301",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 6,
+    "route": "/aggregation",
+    "requestedViewport": [
+      1280,
+      800
+    ],
+    "png": [
+      1280,
+      800
+    ],
+    "file": "shot-20261013T033841112289.png",
+    "sha256": "b913705c0bf259afa8a9fb9af41646e1d690b5e329f403c311bc1f3aad0d32db",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 6,
+    "route": "/aggregation",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T033846834107.png",
+    "sha256": "7ed68fb6b065cef04d71dc09736b22b7716efaa25e82d3b387196ad0db574c54",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 6,
+    "route": "/aggregation",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T033853257906.png",
+    "sha256": "9cf3a2a1a168ae89a00154ed04ef3d3edef3248c967179466a5509e7e07b5394",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 6,
+    "route": "/lstep/delivery-monitor",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T033858858183.png",
+    "sha256": "e98b9a9fe676e1accb358446dfbce81d35d27d6dd576f0cc61805b3e26b79f79",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 6,
+    "route": "/lstep/delivery-monitor",
+    "requestedViewport": [
+      1280,
+      800
+    ],
+    "png": [
+      1280,
+      800
+    ],
+    "file": "shot-20261013T033904367673.png",
+    "sha256": "ad2bf7c595f590a822866c98c337ffac837d9e421d0794760cf25c2d15a25788",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 6,
+    "route": "/lstep/delivery-monitor",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T033909888111.png",
+    "sha256": "12559b3e3d74d9fce6359b961737fb659290a2bfb3bffc10906faa173a4eb6c7",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 6,
+    "route": "/lstep/delivery-monitor",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T033915531728.png",
+    "sha256": "d96852444c83c62d881586f250b7d370fdfe268c67eb4f91c0568e7f221e1308",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 7,
+    "route": "/owners/990002?pet=990003",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T034114378496.png",
+    "sha256": "242e70f4d03b8211f822aa4faf7180c8bf00c96f537775152f70ef30791aff92",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 7,
+    "route": "/owners/990002?pet=990003",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T034120059755.png",
+    "sha256": "f1cf878128eea8d251fdde6f0b316bee7a3b1db4dfc2e818a286ba622b432a72",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 7,
+    "route": "/hospitalization/990007",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T034125584193.png",
+    "sha256": "985e7f0624918d4a715bde56d9a0e8542e78bc2cbf6dec1eb011936466990a90",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 7,
+    "route": "/hospitalization/990007",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T034131092446.png",
+    "sha256": "65b8446d46afac4049d468b9afb81de5e78493bdde199d0ee4b6b77adf27c99b",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 7,
+    "route": "/hospitalization/990007/edit",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T034136735634.png",
+    "sha256": "41ef1d44c0fa22c787e4612890cf5f42892441f61c808135c3e344dcc1d773d2",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 7,
+    "route": "/hospitalization/990007/edit",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T034142430691.png",
+    "sha256": "f85693da6b955ada194fa7cc6e63d83ba9bede9eabc7af22e9f582a0b148154e",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 7,
+    "route": "/trimming/990008",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T034147942362.png",
+    "sha256": "89d75356109c8aff703915a3edc9bbbecf705bfe3e62cc1b700242464065873a",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 7,
+    "route": "/trimming/990008",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T034153595136.png",
+    "sha256": "4827b47e99af680c2c8b0eb56d1d2baae916825d3102dd21af513bcef379dd7e",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 7,
+    "route": "/trimming/new?petId=990003",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T034159140508.png",
+    "sha256": "db0e7e4b972b5120a71b2f0edb6b400f5cbccc9114f2d4d6abf6be360f34c81b",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 7,
+    "route": "/trimming/new?petId=990003",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T034204659078.png",
+    "sha256": "d897c9d571e6ab8fa06059f042483a96f4e3da177ce566e181365c4afc94cb5b",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 7,
+    "route": "/vaccinations/990009",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T034210232890.png",
+    "sha256": "84328e65aa1809f0abcfff85d17c9f3b8ad97f1e589b0565c1f7095460f16a07",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 7,
+    "route": "/vaccinations/990009",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T034216093978.png",
+    "sha256": "f833dde55315d611f53e040c54b4318b495e8a5eae29fa7c703aa317caf2b2b5",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 7,
+    "route": "/vaccinations/new?petId=990003",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T034221747120.png",
+    "sha256": "4591de94500e587201b8f5775eabe80b35d2cfe7e32065c3f9cbc64226ad983f",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  },
+  {
+    "wave": 7,
+    "route": "/vaccinations/new?petId=990003",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T034227405171.png",
+    "sha256": "4b4f3be22a751010aa3daba3a68aa928d72eab6c63664c1bebd3c83ec9874eef",
+    "review": "UNKNOWN",
+    "limits": "wave1 mobile actual500; wave4 owners/id/edit invalidroute; full_page argument unsupported, all images viewport only; image availability is not target-state PASS"
+  }
+]
