@@ -40,6 +40,8 @@ interface MedicalRecordInterviewProps {
   /** EMR-356: 履歴クエリの取得中/失敗を InterviewHistory へ伝える。 */
   historyLoading?: boolean;
   historyError?: boolean;
+  /** PR659-RR-1: 履歴クエリが打ち切られ未完（部分履歴）であることを InterviewHistory へ伝える。 */
+  historyIncomplete?: boolean;
 }
 
 // rendering-hoist-jsx: テンプレート一覧は静的なのでモジュール定数に巻き上げ
@@ -80,6 +82,7 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
   weightPanel,
   historyLoading = false,
   historyError = false,
+  historyIncomplete = false,
 }: MedicalRecordInterviewProps) {
   const handleInsertTemplate = useCallback(
     (text: string) => {
@@ -170,6 +173,7 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
         isLocked={isLocked}
         isLoading={historyLoading}
         isError={historyError}
+        historyIncomplete={historyIncomplete}
         onCopyItem={handleCopyItem}
       />
 

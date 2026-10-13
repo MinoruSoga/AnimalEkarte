@@ -84,6 +84,7 @@ export function MedicalRecordClinicalTabs({
           isLocked={isLocked}
           historyLoading={historyLoading}
           historyError={historyError}
+          historyIncomplete={historyIncomplete}
           onCopyRecordTreatments={onCopyRecordTreatments}
           weightPanel={
             <InterviewWeightPanel

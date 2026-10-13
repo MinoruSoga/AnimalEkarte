@@ -27,6 +27,8 @@ interface InterviewHistoryProps {
   isLoading?: boolean;
   /** EMR-356: カルテ履歴クエリの失敗（trimming 等の残行はそのまま表示する）。 */
   isError?: boolean;
+  /** PR659-RR-1: 履歴クエリが打ち切られ未完（部分履歴 — 「該当なし」を断定しない）。 */
+  historyIncomplete?: boolean;
   /** EMR-182: 行の コピー ボタン押下時のコールバック（複写は親が実施）。 */
   onCopyItem?: (item: InterviewHistoryItem) => void;
 }
@@ -37,6 +39,7 @@ export const InterviewHistory = memo(function InterviewHistory({
   isLocked = false,
   isLoading = false,
   isError = false,
+  historyIncomplete = false,
   onCopyItem,
 }: InterviewHistoryProps) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -99,6 +102,11 @@ export const InterviewHistory = memo(function InterviewHistory({
           {isError && !isLoading ? (
             <p className={`p-3 text-sm ${C.text60}`}>履歴を取得できませんでした</p>
           ) : null}
+          {/* PR659-RR-1: 部分履歴（打ち切り）では読み込み済みの一致行があっても、
+              検索対象が全履歴でないことを示す */}
+          {historyIncomplete && !isLoading ? (
+            <p className={`p-3 text-sm ${C.text60}`}>一部の履歴のみを表示しています</p>
+          ) : null}
           {filteredItems.map((item) => (
             <div key={item.id} className="flex items-stretch">
               <Link
@@ -153,9 +161,16 @@ export const InterviewHistory = memo(function InterviewHistory({
               ) : null}
             </div>
           ))}
-          {/* 取得中/失敗の空は「履歴なし」の確定とは区別する */}
+          {/* 取得中/失敗の空は「履歴なし」の確定とは区別する。
+              部分履歴では打ち切られた後続に該当行があり得るため断定しない */}
           {filteredItems.length === 0 && !isLoading && !isError ? (
-            <EmptyState message="該当する履歴はありません" />
+            historyIncomplete ? (
+              <p className={`p-3 text-sm ${C.text60}`}>
+                読み込まれた履歴に該当するものはありません
+              </p>
+            ) : (
+              <EmptyState message="該当する履歴はありません" />
+            )
           ) : null}
         </div>
       </ScrollArea>

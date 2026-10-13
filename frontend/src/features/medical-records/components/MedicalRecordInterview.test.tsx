@@ -279,6 +279,24 @@ describe("MedicalRecordInterview — 前回複写（コピー）", () => {
   });
 });
 
+// PR659-RR-1: 履歴クエリの打ち切り（historyIncomplete）を InterviewHistory へ伝え、
+// 部分履歴の空を「該当なし」と断定させない。
+describe("MedicalRecordInterview — 部分履歴の伝播（PR659-RR-1）", () => {
+  it("historyIncomplete を InterviewHistory へ伝え、0件でも「該当なし」を断定しない", () => {
+    renderInterview({ historyItems: [], historyIncomplete: true });
+
+    expect(screen.queryByText("該当する履歴はありません")).not.toBeInTheDocument();
+    expect(screen.getByText("一部の履歴のみを表示しています")).toBeInTheDocument();
+  });
+
+  it("履歴未完でも読み込み済み行は表示したまま部分履歴の注意を添える", () => {
+    renderInterview({ historyIncomplete: true });
+
+    expect(screen.getByRole("link", { name: /前回カルテ/ })).toBeInTheDocument();
+    expect(screen.getByText("一部の履歴のみを表示しています")).toBeInTheDocument();
+  });
+});
+
 describe("MedicalRecordInterview — 体重パネルスロット（EMR-356）", () => {
   it("weightPanel を問診画面内に描画する（同じペットの過去体重と今回入力導線）", () => {
     renderInterview({

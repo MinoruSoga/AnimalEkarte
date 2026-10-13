@@ -541,3 +541,82 @@ describe("InterviewHistory — 履歴取得状態の伝達（C3, EMR-356 repair1
     ).not.toBeInTheDocument();
   });
 });
+
+// PR659-RR-1: 履歴クエリが打ち切られた部分履歴（historyIncomplete）では
+// 「該当する履歴はありません」と断定しない — 打ち切られた後続ページに
+// 該当行があり得る。読み込み済みの一致行がある場合も部分履歴の注意を示す。
+describe("InterviewHistory — 部分履歴の通知（PR659-RR-1）", () => {
+  const PARTIAL_NOTICE = "一部の履歴のみを表示しています";
+
+  it("履歴未完で検索ヒット0件でも「該当なし」と断定せず部分履歴を示す", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <InterviewHistory historyItems={ITEMS} historyIncomplete />
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByPlaceholderText("検索..."), "存在しない症状");
+
+    await waitFor(() => {
+      expect(screen.queryByText("タイトルカタカナ")).not.toBeInTheDocument();
+      expect(screen.queryByText("別のタイトル")).not.toBeInTheDocument();
+    });
+    expect(screen.queryByText("該当する履歴はありません")).not.toBeInTheDocument();
+    expect(screen.getByText("読み込まれた履歴に該当するものはありません")).toBeInTheDocument();
+    expect(screen.getByText(PARTIAL_NOTICE)).toBeInTheDocument();
+  });
+
+  it("履歴未完でも読み込み済みの一致行は表示し、部分履歴の注意を添える", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <InterviewHistory historyItems={ITEMS} historyIncomplete />
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByPlaceholderText("検索..."), "田中");
+
+    await waitFor(() => {
+      expect(screen.getByText("タイトルカタカナ")).toBeInTheDocument();
+    });
+    expect(screen.getByText(PARTIAL_NOTICE)).toBeInTheDocument();
+  });
+
+  it("履歴未完・検索なしの0件でも「履歴なし」と断定しない", () => {
+    render(
+      <MemoryRouter>
+        <InterviewHistory historyItems={[]} historyIncomplete />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByText("該当する履歴はありません")).not.toBeInTheDocument();
+    expect(screen.getByText(PARTIAL_NOTICE)).toBeInTheDocument();
+  });
+
+  it("履歴完結・0件では従来どおり確定の空状態を表示する", () => {
+    renderHistory([]);
+
+    expect(screen.getByText("該当する履歴はありません")).toBeInTheDocument();
+    expect(screen.queryByText(PARTIAL_NOTICE)).not.toBeInTheDocument();
+  });
+
+  it("履歴未完でも取得中/失敗の表示は変えず「該当なし」を断定しない", () => {
+    const { unmount } = render(
+      <MemoryRouter>
+        <InterviewHistory historyItems={[]} historyIncomplete isLoading />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText(/読み込み中/)).toBeInTheDocument();
+    expect(screen.queryByText("該当する履歴はありません")).not.toBeInTheDocument();
+    unmount();
+
+    render(
+      <MemoryRouter>
+        <InterviewHistory historyItems={[]} historyIncomplete isError />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText(/取得できませんでした/)).toBeInTheDocument();
+    expect(screen.queryByText("該当する履歴はありません")).not.toBeInTheDocument();
+  });
+});

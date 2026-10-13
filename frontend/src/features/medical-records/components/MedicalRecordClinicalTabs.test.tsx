@@ -296,6 +296,27 @@ describe("MedicalRecordClinicalTabs — 体重パネルへの投影集約（C2, 
   });
 });
 
+// PR659-RR-1: 親の historyIncomplete を MedicalRecordInterview 経由で
+// InterviewHistory まで伝え、部分履歴の空を「該当なし」と断定させない。
+describe("MedicalRecordClinicalTabs — 部分履歴の問診履歴への伝播（PR659-RR-1）", () => {
+  it("historyIncomplete では InterviewHistory が確定の空を出さず部分履歴を示す", () => {
+    renderTabs({ historyItems: [], historyIncomplete: true });
+
+    expect(screen.queryByText("該当する履歴はありません")).not.toBeInTheDocument();
+    expect(screen.getByText("一部の履歴のみを表示しています")).toBeInTheDocument();
+  });
+
+  it("履歴未完でも読み込み済み行は残り、部分履歴の注意を添える", () => {
+    renderTabs({
+      historyItems: [{ ...historyItemBase, id: "1" }],
+      historyIncomplete: true,
+    });
+
+    expect(screen.getByRole("link", { name: /過去カルテ/ })).toBeInTheDocument();
+    expect(screen.getByText("一部の履歴のみを表示しています")).toBeInTheDocument();
+  });
+});
+
 describe("MedicalRecordClinicalTabs — 親フラグの最新値が書き込みゲートに入る（R2）", () => {
   it("isLocked の間は体重記録 control が inert で、捕捉済み click/Enter も mutation しない", async () => {
     renderTabs({ isLocked: true });
