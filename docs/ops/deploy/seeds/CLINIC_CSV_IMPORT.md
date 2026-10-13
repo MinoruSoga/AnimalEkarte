@@ -223,3 +223,57 @@ COMPLETE 受領後の rehearsal 順（実行は USER。本セッションでは�
 4. 隔離 rehearsal apply（共有 STG/PROD は承認後のみ）
 5. `make csv-import-verify`（read-only）
 6. production cutover は gate 後の別作業
+
+## EMR-349 受入 intake 現況（2026-10-13 時点）
+
+本節は 2026-10-13 時点の receipt・intake・人手移行ゲートの状態記録である。新規生成・配置・preflight・apply の実行や PASS の製造を意味せず、本追記では移行データの配置・再生成、DB書込み、STG importを実行していない。
+
+### 受領候補の照合（2026-10-13 JST。producer receiptは旧runの履歴）
+
+consumer（現行 HEAD 観測値）の契約 digest:
+
+- CSV contract SHA-256: `9e02897b86c742f94162ddfd4171067b3036a3ac4f055c6d3fd4a614e0fb37c9`
+- stage mapping SHA-256: `bf8c262e136d4d5e74751508286710035b27bd1e7ed927ce4f47320dd4e9152b`
+- producer CSV source（現行統合 source）SHA-256: `8a466c63b26d8a52fda7696f5e1f169544c67ce2322fb7d399bee4e12163aa7f`
+
+| clinic | source run | stage build | manifest SHA-256 | 状態 |
+|---|---|---|---|---|
+| hachioji | hachioji-intake-20260921-01 | 42d2066b-6d0c-4b50-91fb-ac4275253cb0 | `4c9e54cbe0e5f059d1bfb5cbf20b61164fb1461cedba6676521068c467f01314` | REHEARSAL_ONLY（21 表・全 CSV hash 一致・source completeness PARTIAL） |
+| jouto | jouto-intake-20260822-01 | 2fb79de2-621a-4fcb-ad28-e4a03ddbb11a | `8965f95a3fed62baa07d384289e01d74a9cfd393343ba86a19520becf56e67df` | REHEARSAL_ONLY（21 表・全 CSV hash 一致・source completeness PASS） |
+| shikishima | — | — | — | 生成 BLOCKED（再構築前 checkpoint 検証で停止。canonical 書込・CSV export 未到達） |
+| hakobuneco | — | — | — | NOT_RUN |
+
+- 両 bundle の manifest が記録する stage mapping SHA-256 は `686ca13db6b6b5f9cfa90be76292530197cba43875066c8d6c87b7ec5df99091`（上記 consumer 現行値とは別の観測値として記録）。
+- 履歴 producer receipt digest: hachioji 保全 `8caf3709a88866d0054fd21c6aa5c61d4ce5cea175d3f7896517a702d64401eb`、jouto 検証 `17f7c084c8f26b15ea7bae2c86feb47c56cf1f5966c558d9952720df15c14e1d`。当時の記録であり新規 run の証拠ではない。履歴 receipt は最新 candidate の有効性を証明しない。
+- 対象表セットは本文「21 表 source→target mapping（formal cutover v1）」の 21 表そのもの。
+
+### PASS / BLOCKED の区別（混同禁止）
+
+- 今回のread-only照合は、旧候補2院のmanifest digest・21CSVのbyte hashと表名/順序の一致のみ確認した。配置後のlayout check・source+target preflightは未実行で、placementはBLOCKED（source/pins/target/seed receipt 未完の歴史 snapshot）。
+- source+target の cutover preflight（`make csv-import-preflight` / `make stg-uat-csv-import-preflight`）は **NOT_RUN**。観測 receipt を実行済みに読み替えない。
+- 正式 `make csv-import` は REHEARSAL_ONLY を拒否する。STG UAT 経路が sentinel 付きで REHEARSAL_ONLY bundle をリハーサルとして許容しても、pin 許容の承認は業務意味の受入証明にならない。
+- PR #627 の merge（2026-10-11）と MIG-38 研究の INPUT_READY は、生成 candidate や producer/consumer 受入を示さない。
+- producer source は old_db main `985a7a57486403936d809e4448ed9fb48065694d` への統合後の HEAD が現行。f59 系列の旧 candidate profile は受理しない。
+
+### 再開条件（順序）
+
+1. **MIG-41 が唯一の producer**。同一 candidate source/run/build/hash で全 21 CSV・manifest・producer 検証を生成し、表・列・順序・placeholder・bytes を含む完全 receipt で受領する。
+2. profile は baseline 21 表。薬剤を含む 22 表は MIG-34 / EMR-343 が同一承認 profile に到達した場合のみ。未知・片側未対応 profile は Blocked。21 表 PASS を 22 表へ転用しない。
+3. EMR-345（NULL vs 0・source pins・consumer pins の apply）、EMR-364（税率契約）、EMR-365（decimal 契約）が未解決のまま正式受入へ進まない。
+4. clinic/band/consumer release/target/6 seed ID（「事前準備」4 項の 6 binding）を固定した完全 profile で、承認済み read-only preflight を実行する。target 不明のまま推測で進めない。リハーサル資格（REHEARSAL_ONLY 経路）は profile 固定まで維持する。
+
+### 配置の現行形態（旧票記載との差異）
+
+現行コードの配置先は Git/Git LFS ではなく git-ignore 済みローカル PHI quarantine である（EMR-349 票の「Git LFS」表記は現行手順と異なる旧表現。現行 script と本書は PHI の Git 登録を禁止している）。
+
+- `make old-db-handoff-stage`（`scripts/old-db/stage-old-db-handoff.sh`）が `backend/migrations/seeds/_old_db_handoff/<clinic>/` へ 20 clinical CSV + manifest.json を、`backend/migrations/seeds/002_master/accounts/_old_db_handoff/<clinic>/staffs.csv` へアカウント CSV を分離配置する（0700/0600、`git check-ignore` を強制確認）。
+- `make old-db-handoff-check` は 20 clinical CSV + manifest + account 配置の layout のみを検査し、import も STG 接続も行わない。
+- consumer は `csvimport` の account source 解決で central account path の `staffs.csv` を読む。`make seed` / `cmd/migrate` はこれらを読まない。
+- 配置に関する PR は receipt（hash・件数・status のみ）を載せ、CSV データそのものは絶対に含めない。
+
+### 人手実行ゲート
+
+- STG への import・backup restore は承認済み操作者（USER）のみが実行する。
+- `make stg-uat-handoff`（`scripts/old-db/stg-uat-old-db-handoff.sh`）は jouto・shikishima・hakobuneco 固定で hachioji は対象外。wrapper の八王子除外や非空 band 保護（apply report `PASS` skip / `CUTOVER_REF_BAND_OCCUPIED`）を迂回しない。
+- import 実行 receipt と EMR-361（backup/restore/rollback・画面確認）の receipt は同一 execution ID で受け渡す。同一 import を別実装で重複実行しない。
+- 本節は即実行可能な DB 接続値・パラメータを提供しない。preflight/apply/verify は上記「Preflight（read-only）」「Apply」「Verify（read-only）」節の既存手順に従う。

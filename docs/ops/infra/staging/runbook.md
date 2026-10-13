@@ -16,6 +16,44 @@
 - 過去の「public schema 109 objects」「REASSIGN が唯一解」は dated incident observation であり current fact ではない。schema owner と provider-supported remediation を PlanetScale/runtime で再検証してから ALTER migration を行う。
 - credential rotation、DB access、shared STG operation は人による明示承認が必要。
 
+## GitHub Secrets の staging Environment 分離（EMR-291・人間専用）
+
+対象は repository Secrets の次の7名称を GitHub Environment `staging` へ移し、旧保存先を消す作業。値の取得・登録・削除・発行は人間のみが行い、エージェントは実行しない。
+
+対象7名称: `CLOUDFLARE_API_TOKEN` / `MIGRATE_RUN_SECRET` / `STG_DB_USER` / `STG_DB_PASSWORD` / `STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD` / `SEEDLOGIN_DEMO_PASSWORD`
+
+HEAD の consumer（workflow contract）:
+
+| Secret | Consumer（.github/workflows） |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | `backend-deploy.yml` `deploy`（environment: `staging`）、`frontend-deploy.yml` `deploy` の staging 経路、`worker-secret-sync.yml` |
+| `MIGRATE_RUN_SECRET` | `backend-deploy.yml` `deploy` の migrate ステップ |
+| `STG_DB_USER` / `STG_DB_PASSWORD` | `stg-migrate-direct.yml`、`worker-secret-sync.yml`（いずれも environment: `staging`） |
+| `STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD` | `backend-deploy.yml` の optional CRUD smoke（`continue-on-error: true`） |
+| `SEEDLOGIN_DEMO_PASSWORD` | `frontend-deploy.yml` の staging ビルド（demo login 埋め込み） |
+
+**共有名の注意**: `frontend-deploy.yml` は Production 経路の job でも同名 `secrets.CLOUDFLARE_API_TOKEN` を env へ読み込む（実 deploy token としては `Production` Environment の `PROD_CLOUDFLARE_API_TOKEN` を選択する）。repository の同名 secret を削除する前に、他の Environment・consumer が repository 側同名への fallback に依存していないことを人が確認する。未確認なら削除しない（STOP）。
+
+手順（順序固定。delete-first 禁止、結果不明な変更の retry 禁止）:
+
+1. 7名称それぞれについて、既存値を取得できる保護された回復可能な保管先を確認する。GitHub は secret 値の readback を提供しないため、保管先を確認できなければここで停止する。値を推測・再発行・自動生成せず、Plane・チャット・ログへ値を出さない。
+2. GitHub Environment `staging` への登録権限と承認構成（required reviewers 等）を確認し、現在の deploy 対象・アカウント・Worker が [cloudflare-account-separation.md](../cloudflare-account-separation.md) §4/§5 の前提と一致することを照合する。
+3. 7名称を Environment `staging` へ登録する（register）。
+4. Environment 側の登録を名称ごとに確認し、別途承認された関連する runtime 確認を実施する。
+5. 全名称の確認が成功した場合に限り、同名の repository Secrets を削除する。
+6. 最終確認: repository Secrets に該当名称が残っていないこと、Environment `staging` に名称が維持されていること、上表の consumer job が引き続き動作すること。
+
+停止条件: 保管先・権限・承認の欠落、scope/Worker/account の不一致、確認の失敗または結果不明は、削除前に停止する。
+
+記録: 非機密の対象・名称一覧・実行者と日時・承認参照・確認に使った Actions run ID と結果を運用記録へ残す。値や資格の詳細は記録しない。
+
+残件・境界:
+
+- deploy 用 token と secret 書込み権限の分離は未完了のまま維持する。承認済みの新 token 発行と最小権限の検証が済むまで分離完了としない。
+- EMR-302 の完了を本 staging 移行の必須依存とはしない（投入先の整合確認は行う）。
+- 移行確認だけを目的に deploy/migrate/secret-write の副作用を持つ workflow（`backend-deploy.yml`、`stg-migrate-direct.yml`、`worker-secret-sync.yml`）を dispatch しない。これらは人間が対象 ref/head/Environment/scope を承認した実行のみ許容される。
+- `backend-deploy.yml` の optional smoke は `continue-on-error: true` で、secret 未設定時は skip して成功扱いになる。skip・失敗した smoke の緑を移行確認の証拠にしない。
+
 ## Incident triage
 
 1. workers.dev path と configured domain の `/health` を比較する。

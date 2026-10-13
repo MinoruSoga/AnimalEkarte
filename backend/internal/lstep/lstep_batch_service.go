@@ -179,12 +179,11 @@ type lstepBatchClinicRepository interface {
 }
 
 type lstepBatchMedicalRecordRepository interface {
-	FindDormantOwnerEntries(ctx context.Context, clinicID uint64, minDaysSince int) ([]medicalrecord.DormantOwnerEntry, error)
-	FindDormantOwnerEntriesCursor(ctx context.Context, clinicID uint64, minDaysSince int, afterOwnerID uint64, limit int) ([]medicalrecord.DormantOwnerEntry, error)
+	FindDormantOwnerHistoryEntriesCursor(ctx context.Context, clinicID uint64, minDaysSince int, afterOwnerID uint64, limit int) ([]medicalrecord.DormantOwnerEntry, error)
 }
 
 type lstepBatchMedicalRecordRepositoryAt interface {
-	FindDormantOwnerEntriesCursorAt(
+	FindDormantOwnerHistoryEntriesCursorAt(
 		ctx context.Context,
 		clinicID uint64,
 		minDaysSince int,

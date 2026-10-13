@@ -179,8 +179,14 @@ func (s *medicalRecordService) runMedicalRecordCreatePostCommit(ctx context.Cont
 	}
 
 	// 初診ウェルカムトリガー（イベント駆動・非致命的）
+	// EMR-330: イベントペットを typed 引数で渡し、送信側で生存・所有・clinic 整合を再読する。
+	// PetID 欠落時はイベントペットを検証できないため送信側の適格性チェックが fail-closed で落とす。
 	if result.isFirstVisit && record.OwnerID != nil {
-		if err := s.lstepDeliveryTrigger.TriggerFirstVisitWelcome(ctx, record.ClinicID, *record.OwnerID); err != nil {
+		var eventPetID uint64
+		if record.PetID != nil {
+			eventPetID = *record.PetID
+		}
+		if err := s.lstepDeliveryTrigger.TriggerFirstVisitWelcome(ctx, record.ClinicID, *record.OwnerID, eventPetID); err != nil {
 			slog.WarnContext(ctx, "first visit welcome trigger failed (non-fatal)", "owner_id", *record.OwnerID, "error", err)
 		}
 	}

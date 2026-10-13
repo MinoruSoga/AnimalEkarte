@@ -112,6 +112,10 @@ func (m *mockVaccinationRepository) FindOwnersByVaccineDeadline(_ context.Contex
 	return nil, nil
 }
 
+func (m *mockVaccinationRepository) OwnerHasAliveVaccineDeadline(_ context.Context, _, _ uint64, _ time.Time) (bool, error) {
+	return false, nil
+}
+
 type permissiveVaccinationRelationVerifier struct{}
 
 func (*permissiveVaccinationRelationVerifier) AssertOwnerInClinic(context.Context, uint64, uint64) error {
