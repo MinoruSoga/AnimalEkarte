@@ -44,12 +44,7 @@ export const CharCountTextarea = memo(function CharCountTextarea({
         maxLength={maxLength}
         placeholder={placeholder}
         disabled={disabled}
-        className={cn(
-          STYLE.textarea,
-          "flex-1",
-          `focus-visible:ring-2 ${C.focusRingAccent40}`,
-          textareaClassName,
-        )}
+        className={cn(STYLE.textarea, "flex-1", textareaClassName)}
       />
       <p
         className={cn("text-xs text-right select-none", isOver ? C.danger : C.text40)}
