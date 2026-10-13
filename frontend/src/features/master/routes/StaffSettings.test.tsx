@@ -297,6 +297,36 @@ describe("StaffSettings validate() — 新規/編集判定", () => {
   });
 });
 
+describe("StaffSettings 列レイアウト (EMR-378)", () => {
+  it("ステータス列ヘッダはnowrap+min-width契約を持ち「有/効」の縦積みを防ぐ", () => {
+    render(<StaffSettings />);
+
+    const columns = (latestProps as { columns?: { header: unknown; className?: string }[] } | null)
+      ?.columns;
+    const statusColumn = columns?.[3];
+    expect(statusColumn?.className).toContain("whitespace-nowrap");
+    expect(statusColumn?.className).toContain("min-w-[100px]");
+  });
+
+  it("ステータスセルの「有効」pillは折り返さない", () => {
+    render(
+      <table>
+        <tbody>
+          <StaffSettingsRow
+            item={makeStaff({ name: "山田" })}
+            groups={[]}
+            onEdit={vi.fn()}
+            canEdit
+          />
+        </tbody>
+      </table>,
+    );
+
+    const statusCell = screen.getByText("有効").closest("td");
+    expect(statusCell?.className).toContain("whitespace-nowrap");
+  });
+});
+
 describe("StaffSettingsRow blank name display", () => {
   it("空・空白のみの氏名は (氏名未設定) を表示し、aria-labelにも使う", () => {
     const onEdit = vi.fn();

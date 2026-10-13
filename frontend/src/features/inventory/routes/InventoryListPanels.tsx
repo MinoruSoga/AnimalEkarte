@@ -4,6 +4,7 @@ import type { ActiveFilter, ActiveSort } from "@/components/shared/PropertyFilte
 import { TableCell } from "@/components/ui/table";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { LIST_TABLE_COL } from "@/components/shared/DataTable/list-table-col";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { RowActionButton } from "@/components/shared/RowActionButton";
@@ -43,18 +44,22 @@ function InventoryListRow({ item, canEdit, onEdit }: InventoryListRowProps) {
           item.name
         )}
       </TableCell>
-      <TableCell className={C.text}>{CATEGORY_LABELS[item.category]}</TableCell>
-      <TableCell className={`${C.text} text-right font-mono`}>
+      <TableCell className={`${C.text} whitespace-nowrap`}>
+        {CATEGORY_LABELS[item.category]}
+      </TableCell>
+      <TableCell className={`${C.text} text-right font-mono whitespace-nowrap`}>
         {item.quantity} {item.unit}
       </TableCell>
-      <TableCell className={`${C.text60} text-right font-mono hidden lg:table-cell`}>
+      <TableCell
+        className={`${C.text60} text-right font-mono whitespace-nowrap hidden lg:table-cell`}
+      >
         {item.minStockLevel} {item.unit}
       </TableCell>
       <TableCell className={C.text}>{item.location ?? "-"}</TableCell>
-      <TableCell className={`${C.text} font-mono hidden lg:table-cell`}>
+      <TableCell className={`${C.text} font-mono whitespace-nowrap hidden lg:table-cell`}>
         {item.expiryDate ?? "-"}
       </TableCell>
-      <TableCell>
+      <TableCell className={LIST_TABLE_COL.status}>
         <StatusBadge colorClass={getInventoryStatusColor(item.status)}>
           {getInventoryStatusLabel(item.status)}
         </StatusBadge>
@@ -134,7 +139,7 @@ export function InventoryListContent({
             onToggle={() => toggleSort("category")}
           />
         ),
-        className: "w-[100px]",
+        className: "w-[100px] whitespace-nowrap",
       },
       {
         header: (
@@ -144,12 +149,16 @@ export function InventoryListContent({
             onToggle={() => toggleSort("quantity")}
           />
         ),
-        className: "w-[100px]",
+        className: "w-[100px] whitespace-nowrap",
         align: "right" as const,
       },
-      { header: "最低在庫", className: "w-[100px] hidden lg:table-cell", align: "right" as const },
-      { header: "保管場所", className: "w-[120px]" },
-      { header: "有効期限", className: "w-[120px] hidden lg:table-cell" },
+      {
+        header: "最低在庫",
+        className: "w-[100px] hidden lg:table-cell whitespace-nowrap",
+        align: "right" as const,
+      },
+      { header: "保管場所", className: "w-[120px] whitespace-nowrap" },
+      { header: "有効期限", className: "w-[120px] hidden lg:table-cell whitespace-nowrap" },
       {
         header: (
           <SortableHeader
@@ -158,9 +167,9 @@ export function InventoryListContent({
             onToggle={() => toggleSort("status")}
           />
         ),
-        className: "w-[100px]",
+        className: LIST_TABLE_COL.status,
       },
-      { header: "操作", className: "w-[80px]", align: "right" as const },
+      { header: "操作", className: "w-[80px] whitespace-nowrap", align: "right" as const },
     ],
     [directionFor, toggleSort],
   );

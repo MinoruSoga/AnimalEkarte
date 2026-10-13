@@ -145,3 +145,57 @@ describe("TrimmingListTable row navigation accessibility", () => {
     expect(screen.getByText("P-1")).not.toHaveClass("text-base");
   });
 });
+
+describe("TrimmingListTable 列レイアウト (EMR-378)", () => {
+  it("担当列は読める最小幅を持ちスタッフ名が1字縦積みにならない", () => {
+    renderTable([makeRecord({})]);
+
+    const staffHeader = screen.getByRole("columnheader", { name: /担当/ });
+    expect(staffHeader.className).toContain("min-w-[120px]");
+    expect(staffHeader.className).toContain("whitespace-nowrap");
+  });
+
+  it("ステータス列は共有のnowrap+min-width契約を使う", () => {
+    renderTable([makeRecord({})]);
+
+    const statusHeader = screen.getByRole("columnheader", { name: /ステータス/ });
+    expect(statusHeader.className).toContain("min-w-[100px]");
+    expect(statusHeader.className).toContain("whitespace-nowrap");
+  });
+
+  it("診療日セルは折り返さない", () => {
+    renderTable([makeRecord({})]);
+
+    const dateCell = screen.getByText("2026-07-13").closest("td");
+    expect(dateCell?.className).toContain("whitespace-nowrap");
+  });
+
+  it("飼主名・ペット名ヘッダは折り返さず読める最小幅を持つ (T002)", () => {
+    renderTable([makeRecord({})]);
+
+    const ownerHeader = screen.getByRole("columnheader", { name: /飼主名/ });
+    expect(ownerHeader.className).toContain("whitespace-nowrap");
+    expect(ownerHeader.className).toContain("min-w-[140px]");
+
+    const petHeader = screen.getByRole("columnheader", { name: /ペット名/ });
+    expect(petHeader.className).toContain("whitespace-nowrap");
+    expect(petHeader.className).toContain("min-w-[160px]");
+  });
+
+  it("飼主名・ペット名セルはヘッダと同じ最小幅契約を持ち、氏名は折り返せる", () => {
+    renderTable([makeRecord({})]);
+
+    const ownerCell = screen.getByText("ヤマダタロウ").closest("td");
+    expect(ownerCell?.className).toContain("min-w-[140px]");
+
+    const petCell = screen.getByRole("link", { name: /ポチ/ }).closest("td");
+    expect(petCell?.className).toContain("min-w-[160px]");
+  });
+
+  it("petNumber のような短い識別子はハイフンで折り返さない (T002)", () => {
+    renderTable([makeRecord({ petNumber: "SYN-PET-990003" })]);
+
+    const petNumber = screen.getByText("SYN-PET-990003");
+    expect(petNumber.className).toContain("whitespace-nowrap");
+  });
+});

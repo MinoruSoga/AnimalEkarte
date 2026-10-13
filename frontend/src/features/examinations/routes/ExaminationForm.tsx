@@ -4,7 +4,7 @@ import { useNavigate, useParams, useLocation, useSearchParams } from "react-rout
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
+import { LoadingFallback, EmptyState } from "@/components/shared/DataStates";
 import { Button } from "@/components/ui/button";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { parseInternalPath } from "@/lib/internal-navigation";
@@ -219,21 +219,45 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
   if (isEdit && isReadNotFound) {
     return (
       <ExaminationFormStatusPage resource={ResourceExaminations} onBack={handleBack}>
-        <ErrorFallback message="検査記録が見つかりません" />
+        <EmptyState
+          message="検査記録が見つかりません"
+          description="指定された検査記録は存在しないか、表示する権限がありません。"
+        >
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(paths.examinations.getHref())}
+          >
+            一覧に戻る
+          </Button>
+        </EmptyState>
       </ExaminationFormStatusPage>
     );
   }
   if (isEdit && isReadError) {
     return (
       <ExaminationFormStatusPage resource={ResourceExaminations} onBack={handleBack}>
-        <div className="space-y-3">
-          <ErrorFallback message="検査記録の取得に失敗しました" />
-          {retryRead ? (
-            <Button type="button" variant="outline" size="sm" onClick={retryRead}>
-              再試行
+        <EmptyState
+          message="検査記録の取得に失敗しました"
+          description="通信状況を確認して、もう一度お試しください。"
+        >
+          <div className="flex flex-wrap justify-center gap-2">
+            {retryRead ? (
+              <Button type="button" variant="outline" size="sm" onClick={retryRead}>
+                再試行
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(paths.examinations.getHref())}
+            >
+              一覧に戻る
             </Button>
-          ) : null}
-        </div>
+          </div>
+        </EmptyState>
       </ExaminationFormStatusPage>
     );
   }

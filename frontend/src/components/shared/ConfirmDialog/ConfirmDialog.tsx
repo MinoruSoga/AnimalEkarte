@@ -23,6 +23,8 @@ interface ConfirmDialogProps {
   isPending?: boolean;
   /** BUG-084: ref to the element that triggered the dialog; focus is restored here on close */
   triggerRef?: React.RefObject<HTMLElement | null>;
+  /** Identifies the owner of this portaled content without requiring a Radix trigger. */
+  portalOwner?: string;
 }
 
 export const ConfirmDialog = memo(function ConfirmDialog({
@@ -36,6 +38,7 @@ export const ConfirmDialog = memo(function ConfirmDialog({
   variant = "default",
   isPending = false,
   triggerRef,
+  portalOwner,
 }: ConfirmDialogProps) {
   // BUG-084: Track the element that had focus before the dialog opened so we can
   // restore it when the dialog closes (Radix cannot do this automatically when
@@ -53,7 +56,7 @@ export const ConfirmDialog = memo(function ConfirmDialog({
   const handleCloseAutoFocus = (e: Event) => {
     // Prefer the explicitly provided triggerRef, then the previously focused element.
     const target = triggerRef?.current ?? previousFocusRef.current;
-    if (target instanceof HTMLElement) {
+    if (target instanceof HTMLElement && target.isConnected) {
       e.preventDefault();
       target.focus();
     }
@@ -61,7 +64,7 @@ export const ConfirmDialog = memo(function ConfirmDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
-      <AlertDialogContent onCloseAutoFocus={handleCloseAutoFocus}>
+      <AlertDialogContent data-portal-owner={portalOwner} onCloseAutoFocus={handleCloseAutoFocus}>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           {description ? <AlertDialogDescription>{description}</AlertDialogDescription> : null}

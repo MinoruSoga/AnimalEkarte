@@ -137,3 +137,38 @@ describe("OwnersListTable 誕生月バッジ (EMR-301)", () => {
     expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
   });
 });
+
+describe("OwnersListTable 列レイアウト (EMR-378)", () => {
+  it("日付・固定ラベル列のヘッダは折り返さない", () => {
+    renderTable();
+
+    for (const name of [
+      "飼主No",
+      "ペット番号",
+      "生死",
+      "種",
+      "生年月日",
+      "体重",
+      "環境",
+      "前回来院",
+      "操作",
+    ]) {
+      const header = screen.getByRole("columnheader", { name });
+      expect(header.className).toContain("whitespace-nowrap");
+    }
+  });
+
+  it("飼主名・ペット名セルは読める最小幅の中で折り返す（nowrap強制しない）", () => {
+    renderTable();
+
+    const ownerCell = screen.getByRole("link", { name: /飼主「山田太郎」/ }).closest("td");
+    expect(ownerCell?.className).toContain("min-w-[140px]");
+    expect(ownerCell?.className).not.toContain("whitespace-nowrap");
+
+    const petCell = screen
+      .getByRole("link", { name: "ペット「ポチ」(ID: 7) の詳細を開く" })
+      .closest("td");
+    expect(petCell?.className).toContain("min-w-[120px]");
+    expect(petCell?.className).not.toContain("whitespace-nowrap");
+  });
+});

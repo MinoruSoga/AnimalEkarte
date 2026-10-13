@@ -650,7 +650,7 @@ export const LAYOUT = {
 
   /* ── Side Peek (master edit, etc.) ── */
   sidePeek: {
-    width:         "w-[520px]",
+    width:         "w-[520px] max-w-full",
     widthPx:       520,
   },
 

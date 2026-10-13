@@ -66,6 +66,7 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
   // EMR-227: リセットはサーバー履歴も削除する破壊操作のため ConfirmDialog で確認する。
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  const resetButtonRef = useRef<HTMLButtonElement>(null);
 
   // 保存済み履歴を初回だけローカルへ反映する。ロード中に送信されたターンが
   // 既にある場合やロード失敗時はローカル状態を優先し、以後は再適用しない。
@@ -308,6 +309,7 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
           <button
             type="button"
             onClick={() => setResetConfirmOpen(true)}
+            ref={resetButtonRef}
             disabled={clearHistory.isPending}
             className={`inline-flex min-h-11 shrink-0 items-center text-2xs ${C.textMuted} ${C.hoverText} underline underline-offset-2 transition-colors disabled:opacity-50 disabled:pointer-events-none`}
           >
@@ -321,6 +323,8 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
         </p>
       ) : null}
       <ConfirmDialog
+        portalOwner="support-widget"
+        triggerRef={resetButtonRef}
         open={resetConfirmOpen}
         onClose={() => setResetConfirmOpen(false)}
         onConfirm={() => {

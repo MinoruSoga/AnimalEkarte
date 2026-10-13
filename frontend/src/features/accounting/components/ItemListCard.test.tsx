@@ -84,6 +84,43 @@ describe("ItemListCard merchandise selection", () => {
     expect(taxHeader.className).toContain("whitespace-nowrap");
   });
 
+  it("全ラベル付きヘッダは折り返さず、入力コントロール分の列幅を持つ (EMR-384)", () => {
+    render(
+      <ItemListCard
+        items={[]}
+        subtotal={0}
+        taxTotal={0}
+        totalAmount={0}
+        newItemOpen={false}
+        onNewItemOpenChange={vi.fn()}
+        onAddItem={vi.fn()}
+        onDeleteItem={vi.fn()}
+        canEdit
+        canDelete={false}
+      />,
+    );
+
+    for (const name of [
+      "区分",
+      "項目名",
+      "単価",
+      "数量",
+      "割引",
+      "課税区分",
+      "税率",
+      "税額",
+      "保険",
+      "金額",
+    ]) {
+      const header = screen.getByRole("columnheader", { name });
+      expect(header.className).toContain("whitespace-nowrap");
+    }
+
+    // 数量 input w-20 (80px) + cell padding, 金額 input w-24 (96px) + cell padding
+    expect(screen.getByRole("columnheader", { name: "数量" }).className).toContain("w-[120px]");
+    expect(screen.getByRole("columnheader", { name: "金額" }).className).toContain("w-[130px]");
+  });
+
   function renderEditableItemListCard(onAddItem = vi.fn()) {
     render(
       <ItemListCard

@@ -54,7 +54,9 @@ export const MasterSelectTrigger = memo(function MasterSelectTrigger({
                 </div>
               ) : null}
             </div>
-            <div className={`flex items-center gap-1.5 text-xs ${C.text50}`}>
+            <div
+              className={`flex items-center gap-1.5 text-xs ${C.text50} shrink-0 whitespace-nowrap`}
+            >
               <span>変更</span>
               <ChevronRight className={`${ICON.xs}`} />
             </div>
@@ -80,7 +82,9 @@ export const MasterSelectTrigger = memo(function MasterSelectTrigger({
             </span>
           ) : null}
         </div>
-        <div className={`flex items-center gap-1 text-xs ${C.text50} shrink-0 ml-2`}>
+        <div
+          className={`flex items-center gap-1 text-xs ${C.text50} shrink-0 whitespace-nowrap ml-2`}
+        >
           <span>変更</span>
           <ChevronRight className={`${ICON.xs}`} />
         </div>

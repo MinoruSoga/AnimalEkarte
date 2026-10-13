@@ -336,6 +336,43 @@ describe("MedicalRecords row navigation accessibility", () => {
   });
 });
 
+describe("MedicalRecords identifier columns (EMR-379)", () => {
+  it("飼主名・ペット名セルはヘッダと同じ最小幅契約を持ち、氏名が1字縦積みにならない", () => {
+    mockMedicalRecords([makeMedicalRecord()]);
+    renderPage();
+
+    const ownerCell = screen.getByText("山田太郎").closest("td");
+    expect(ownerCell?.className).toContain("min-w-[140px]");
+
+    const petCell = screen.getByRole("link", { name: /ポチ/ }).closest("td");
+    expect(petCell?.className).toContain("min-w-[140px]");
+  });
+
+  it("担当医セルは氏名が読める最小幅を持ち、折り返して全文を表示する (T003)", () => {
+    mockMedicalRecords([makeMedicalRecord()]);
+    renderPage();
+
+    const doctorCell = screen.getByText("佐藤医師").closest("td");
+    expect(doctorCell?.className).toContain("min-w-[160px]");
+    expect(doctorCell?.className).not.toContain("whitespace-nowrap");
+  });
+
+  it("診療日セルは折り返さない", () => {
+    mockMedicalRecords([makeMedicalRecord()]);
+    renderPage();
+
+    const dateCell = screen.getByText("2026-07-13").closest("td");
+    expect(dateCell?.className).toContain("whitespace-nowrap");
+  });
+
+  it("横断検索 placeholder は入力幅に収まる簡潔な文言で途切れない", () => {
+    renderPage();
+
+    const searchInput = screen.getByRole("textbox", { name: /横断検索/ });
+    expect(searchInput).toHaveAttribute("placeholder", "診療内容を横断検索");
+  });
+});
+
 describe("MedicalRecords contextual actions", () => {
   it("会計buttonを44px以上にしペット名・診療日をaccessible nameに含める", () => {
     mockMedicalRecords([makeMedicalRecord()]);

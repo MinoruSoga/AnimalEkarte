@@ -149,9 +149,12 @@ export function EditRow({ item, onSave, onCancel }: EditRowProps) {
           {state.error}
         </p>
       ) : null}
-      <div className="flex gap-2 items-center">
+      <div className="flex flex-wrap gap-2 items-center">
         <Select value={type} onValueChange={(v) => handleTypeChange(v as CarePlanItemType)}>
-          <SelectTrigger className="w-28 h-11 text-xs" aria-label="ケアプラン項目種別">
+          <SelectTrigger
+            className="w-28 min-w-fit shrink-0 h-11 text-xs"
+            aria-label="ケアプラン項目種別"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>{TYPE_SELECT_ITEMS}</SelectContent>
@@ -160,7 +163,7 @@ export function EditRow({ item, onSave, onCancel }: EditRowProps) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           aria-label="ケアプラン項目名"
-          className="h-11 text-sm flex-1"
+          className="h-11 text-sm flex-1 min-w-0"
           placeholder="名称"
         />
       </div>

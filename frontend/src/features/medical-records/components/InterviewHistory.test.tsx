@@ -620,3 +620,29 @@ describe("InterviewHistory — 部分履歴の通知（PR659-RR-1）", () => {
     expect(screen.queryByText("該当する履歴はありません")).not.toBeInTheDocument();
   });
 });
+
+describe("InterviewHistory — EMR-380 ヘッダ折返し防止", () => {
+  it("「治療履歴」見出しは nowrap+shrink-0 で「治療履/歴」の途中折返しをしない", () => {
+    renderHistory(ITEMS);
+
+    expect(screen.getByRole("heading", { name: "治療履歴" })).toHaveClass(
+      "whitespace-nowrap",
+      "shrink-0",
+    );
+  });
+
+  it("狭い右パネルでは検索行へ折り返せるようヘッダは flex-wrap、パネル自体は min-w-0 で縮小できる", () => {
+    const { container } = renderHistory(ITEMS);
+
+    // グリッド列（min-width:auto の既定）で内容がはみ出しページ横溢れを起こさないよう、
+    // パネルルートが縮小を許可し、ヘッダ行は検索を次行へ逃がせること。
+    expect(container.firstElementChild).toHaveClass("min-w-0");
+
+    const heading = screen.getByRole("heading", { name: "治療履歴" });
+    const search = screen.getByRole("textbox", { name: "過去の履歴を検索" });
+    const headerRow = search.closest("div.border-b");
+    expect(headerRow).not.toBeNull();
+    expect(headerRow).toHaveClass("flex", "flex-wrap");
+    expect(headerRow?.contains(heading)).toBe(true);
+  });
+});

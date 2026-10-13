@@ -143,27 +143,6 @@ export function MedicalRecordStickyHeader({
         )}
       </div>
 
-      {/* 担当医 */}
-      {canEdit && !isFinalized ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className={`h-8 shrink-0 text-sm gap-1 px-2 max-w-[160px] ${C.hoverBgPage} ${C.text} border-none`}
-          onClick={onStaffClick}
-          aria-label={`担当医: ${staffName}`}
-        >
-          <span className={`text-xs ${C.text50} mr-0.5 shrink-0`}>担当医</span>
-          <span className="truncate">{staffName}</span>
-          <ChevronDown className={`${ICON.sm} ${C.text40} shrink-0`} aria-hidden="true" />
-        </Button>
-      ) : (
-        <div className="flex flex-col gap-0 shrink-0 max-w-[160px]">
-          <span className={`text-xs ${C.text50}`}>担当医</span>
-          <span className={`h-8 flex items-center text-sm ${C.text} truncate`}>{staffName}</span>
-        </div>
-      )}
-
       {/* 次回予定（EMR-308）: 実予約 > tentative > 未設定を表示し、Popover は
           tentative appointment を upsert/除去する。カルテ確定状態・medical-records
           編集権限では無効化しない（tentative はペット属性）。reservations:create
@@ -192,6 +171,33 @@ export function MedicalRecordStickyHeader({
           レポート
         </Button>
       ) : null}
+    </>
+  );
+
+  // EMR-380: 担当医は横スクロールする contextControls 領域に置くと狭幅時に
+  // 右端で見切れるため、PatientContextHeader のスクロール外固定領域へ渡す。
+  const pinnedControls = (
+    <>
+      {/* 担当医 */}
+      {canEdit && !isFinalized ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={`h-8 shrink-0 text-sm gap-1 px-2 max-w-[160px] ${C.hoverBgPage} ${C.text} border-none`}
+          onClick={onStaffClick}
+          aria-label={`担当医: ${staffName}`}
+        >
+          <span className={`text-xs ${C.text50} mr-0.5 shrink-0`}>担当医</span>
+          <span className="truncate">{staffName}</span>
+          <ChevronDown className={`${ICON.sm} ${C.text40} shrink-0`} aria-hidden="true" />
+        </Button>
+      ) : (
+        <div className="flex flex-col gap-0 shrink-0 max-w-[160px]">
+          <span className={`text-xs ${C.text50}`}>担当医</span>
+          <span className={`h-8 flex items-center text-sm ${C.text} truncate`}>{staffName}</span>
+        </div>
+      )}
     </>
   );
 
@@ -226,6 +232,7 @@ export function MedicalRecordStickyHeader({
             : undefined
         }
         contextControls={contextControls}
+        pinnedControls={pinnedControls}
       />
       {!isNewRecord && cohabitingPets.length > 0 ? (
         <CohabitingPetChips pets={cohabitingPets} />

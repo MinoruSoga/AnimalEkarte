@@ -550,4 +550,51 @@ describe("AggregationOwnerTable", () => {
     expect(screen.getByText("CPM")).toBeInTheDocument();
     expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(1);
   });
+
+  // EMR-389: 「期間内来院回数」等の固定ヘッダは折り返して断片化してはいけない。
+  // テーブル自体は既存の横スクロール内で伸長させる。
+  it("keeps every column header label on a single line", () => {
+    render(
+      <AggregationOwnerTable
+        owners={mockOwners}
+        selectedOwnerIds={new Set()}
+        onSelectAll={() => {}}
+        onSelectOwner={() => {}}
+        isLoading={false}
+        activeTab="visit"
+      />,
+      { wrapper: createWrapper() },
+    );
+
+    for (const label of [
+      "飼主名",
+      "CPM",
+      "期間内来院回数",
+      "累計来院回数",
+      "年間来院回数",
+      "最終来院日",
+      "初診日",
+    ]) {
+      const header = screen.getByRole("columnheader", { name: label });
+      expect(header.className).toContain("whitespace-nowrap");
+    }
+  });
+
+  // EMR-389: 長い飼主名は読める最小幅の中で折り返す（ヘッダ nowrap を本文へ波及させない）
+  it("does not force nowrap on owner name body cells", () => {
+    render(
+      <AggregationOwnerTable
+        owners={mockOwners}
+        selectedOwnerIds={new Set()}
+        onSelectAll={() => {}}
+        onSelectOwner={() => {}}
+        isLoading={false}
+        activeTab="visit"
+      />,
+      { wrapper: createWrapper() },
+    );
+
+    const ownerCell = screen.getByRole("link", { name: "田中太郎" }).closest("td");
+    expect(ownerCell?.className).not.toContain("whitespace-nowrap");
+  });
 });

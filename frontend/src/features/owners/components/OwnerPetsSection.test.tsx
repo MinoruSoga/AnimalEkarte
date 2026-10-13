@@ -134,6 +134,16 @@ describe("OwnerPetsSection row actions", () => {
     expect(screen.getByRole("button", { name: "ペット追加" })).toBeInTheDocument();
   });
 
+  // F004: 右下 Support FAB の占有幅（right-4 16px + size-12 48px =
+  // SUPPORT_WIDGET_LAYOUT.footprintPx 64px）がページ右端のヘッダアクションと
+  // 重なる。ボタン右側に同等のクリアスペースを確保する（PageLayout pb-20 は
+  // スクロール末端のみ保護し、水平方向の重なりは防がない）。
+  it("ペット追加ボタンは右下 FAB 占有幅ぶんの右マージンを確保する（F004）", () => {
+    renderSection({ canCreate: true });
+
+    expect(screen.getByRole("button", { name: "ペット追加" })).toHaveClass("mr-16");
+  });
+
   it("生存ペットは既存の5つの新規業務遷移と削除操作を表示する", async () => {
     const user = userEvent.setup();
     renderSection({ canCreate: true, canDelete: true });

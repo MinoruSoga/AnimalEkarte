@@ -181,10 +181,19 @@ vi.mock("../api/vitals", () => ({
   useCreateVital: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
-// contextControls（担当医ボタン等）は実配線のまま描画する。
+// contextControls・pinnedControls（担当医ボタン等）は実配線のまま描画する。
 vi.mock("@/components/shared/PatientContextHeader", () => ({
-  PatientContextHeader: ({ contextControls }: { contextControls?: ReactNode }) => (
-    <div data-testid="patient-context-header">{contextControls}</div>
+  PatientContextHeader: ({
+    contextControls,
+    pinnedControls,
+  }: {
+    contextControls?: ReactNode;
+    pinnedControls?: ReactNode;
+  }) => (
+    <div data-testid="patient-context-header">
+      {contextControls}
+      {pinnedControls}
+    </div>
   ),
 }));
 

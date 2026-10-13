@@ -60,20 +60,24 @@ export const InterviewHistory = memo(function InterviewHistory({
   }, [historyItems, deferredSearch]);
 
   return (
+    // EMR-380: min-w-0 — グリッド列（既定 min-width:auto）で内容がはみ出して
+    // ページ横はみ出しを起こさないよう、パネル自身の縮小を許可する。
     <div
-      className={`flex flex-col border ${C.borderMedium} ${C.bgWhite} rounded-lg min-h-0 max-h-[600px] ${className ?? ""}`}
+      className={`flex flex-col border ${C.borderMedium} ${C.bgWhite} rounded-lg min-h-0 min-w-0 max-h-[600px] ${className ?? ""}`}
     >
+      {/* EMR-380: flex-wrap — 列が狭いときは検索を次行へ逃がし、見出しを潰さない */}
       <div
-        className={`p-3 border-b ${C.borderLight} ${C.bgPage} flex items-center justify-between min-h-12 shrink-0 gap-2`}
+        className={`p-3 border-b ${C.borderLight} ${C.bgPage} flex flex-wrap items-center justify-between min-h-12 shrink-0 gap-2`}
       >
         <div className="flex items-center gap-2 min-w-0">
           <History className={`${ICON.action} ${C.text}`} />
           {/* NO32: カルテ + トリミング記録の統合タイムライン */}
-          <h3 className={`text-sm font-bold ${C.text}`}>治療履歴</h3>
+          {/* EMR-380: 「治療履/歴」の途中折返し防止 — 見出しは常に1行 */}
+          <h3 className={`text-sm font-bold ${C.text} shrink-0 whitespace-nowrap`}>治療履歴</h3>
           <p className={`text-sm ${C.text60} truncate`}>全文は詳細で確認できます</p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
+        <div className="flex items-center gap-2 min-w-0 ml-auto">
+          <div className="relative min-w-0">
             <Search
               className={`absolute left-2.5 top-1/2 -translate-y-1/2 ${ICON.action} ${C.text60}`}
             />

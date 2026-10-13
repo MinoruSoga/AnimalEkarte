@@ -29,7 +29,7 @@ interface CheckupsListRowProps {
 function CheckupsListRow({ record, canView, canEdit, onEdit }: CheckupsListRowProps) {
   return (
     <DataTableRow key={record.id}>
-      <TableCell className={`font-mono ${C.text}`}>
+      <TableCell className={`font-mono ${C.text} whitespace-nowrap`}>
         {record.date ? formatDate(record.date) : "-"}
       </TableCell>
       <TableCell className={C.text}>{record.ownerName || "-"}</TableCell>
@@ -48,7 +48,7 @@ function CheckupsListRow({ record, canView, canEdit, onEdit }: CheckupsListRowPr
       <TableCell className={`${C.text} hidden md:table-cell`}>
         {record.checkupTypeName || "-"}
       </TableCell>
-      <TableCell className={`font-mono ${C.text} hidden md:table-cell`}>
+      <TableCell className={`font-mono ${C.text} whitespace-nowrap hidden md:table-cell`}>
         <div className="flex items-center gap-1.5">
           {record.nextDate ? formatDate(record.nextDate) : "-"}
           <CheckupAlertBadge nextDate={record.nextDate} />
@@ -135,6 +135,7 @@ export function CheckupsListContent({
             onToggle={() => toggleSort("ownerName")}
           />
         ),
+        className: "whitespace-nowrap",
       },
       {
         header: (
@@ -144,6 +145,7 @@ export function CheckupsListContent({
             onToggle={() => toggleSort("petName")}
           />
         ),
+        className: "whitespace-nowrap",
       },
       {
         header: (
@@ -153,7 +155,7 @@ export function CheckupsListContent({
             onToggle={() => toggleSort("checkupTypeName")}
           />
         ),
-        className: "hidden md:table-cell",
+        className: "whitespace-nowrap hidden md:table-cell",
       },
       {
         header: (
