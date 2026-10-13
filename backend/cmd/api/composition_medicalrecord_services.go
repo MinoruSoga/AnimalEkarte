@@ -111,6 +111,7 @@ func newMedicalRecordPreventiveServices(
 			d.Reservations,
 			r.medicalRecords,
 			d.Transactor,
+			auditTx,
 		),
 		inquiries: medicalrecord.NewInquiryService(r.inquiries, r.chiefComplaints),
 	}
