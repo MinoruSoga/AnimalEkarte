@@ -39,7 +39,7 @@ describe("trimming form 409 conflict display (EMR-76)", () => {
       axiosError(409, { error: CONFLICT_MESSAGE, code: "reservation_time_conflict" }),
       "保存",
     );
-    expect(toast.error).toHaveBeenCalledWith(CONFLICT_MESSAGE);
+    expect(toast.error).toHaveBeenCalledWith(CONFLICT_MESSAGE, { id: CONFLICT_MESSAGE });
   });
 
   it("still toasts the same message on a retried overlapping save", () => {
@@ -47,8 +47,8 @@ describe("trimming form 409 conflict display (EMR-76)", () => {
     handleApiError(err, "保存");
     handleApiError(err, "保存");
     expect(toast.error).toHaveBeenCalledTimes(2);
-    expect(toast.error).toHaveBeenNthCalledWith(1, CONFLICT_MESSAGE);
-    expect(toast.error).toHaveBeenNthCalledWith(2, CONFLICT_MESSAGE);
+    expect(toast.error).toHaveBeenNthCalledWith(1, CONFLICT_MESSAGE, { id: CONFLICT_MESSAGE });
+    expect(toast.error).toHaveBeenNthCalledWith(2, CONFLICT_MESSAGE, { id: CONFLICT_MESSAGE });
   });
 
   it("does not leak the reload fallback for the Japanese conflict body", () => {
