@@ -28,8 +28,23 @@ class ProfileEntrypoints(unittest.TestCase):
         self.bin.mkdir()
         self.log = self.root / 'calls.jsonl'
         (self.bin / 'docker').write_text('''#!/usr/bin/env python3
-import json,os,sys
-with open(os.environ['MOCK_LOG'],'a') as f: f.write(json.dumps(sys.argv[1:])+'\\n')
+import json, os, sys
+argv = sys.argv[1:]
+sub = ''
+for i, a in enumerate(argv):
+    if a.endswith('cmd/csv-import-stg-uat') and i + 1 < len(argv):
+        sub = argv[i + 1]
+        break
+ident = {k: os.environ.get(k, '') for k in (
+    'STG_UAT_CSV_IMPORT_PROFILE', 'DB_HOST', 'DB_NAME', 'TARGET_DB_NAME',
+    'STG_UAT_CSV_IMPORT_CONFIRM_HOST', 'CLINIC_CODE', 'TARGET_CLINIC_ID',
+    'MIGRATION_RUN_ID', 'APP_ENV')}
+with open(os.environ['MOCK_LOG'], 'a') as f:
+    f.write(json.dumps({'subcommand': sub, 'argv': argv, 'env': ident}) + '\\n')
+if sub == 'verify':
+    sys.exit(int(os.environ.get('MOCK_VERIFY_EXIT', '0')))
+if sub in ('apply', 'import'):
+    sys.exit(int(os.environ.get('MOCK_IMPORT_EXIT', '0')))
 ''')
         (self.bin / 'docker').chmod(0o755)
         self.env = dict(os.environ, PATH=str(self.bin)+os.pathsep+os.environ['PATH'],
@@ -48,7 +63,12 @@ with open(os.environ['MOCK_LOG'],'a') as f: f.write(json.dumps(sys.argv[1:])+'\\
                               env=env or self.env, text=True, capture_output=True)
 
     def calls(self):
+        if not self.log.exists():
+            return []
         return [json.loads(line) for line in self.log.read_text().splitlines()]
+
+    def subcommands(self):
+        return [call['subcommand'] for call in self.calls()]
 
     def assert_profile(self, call, profile):
         self.assertEqual(call[call.index('--cutover-profile')+1], profile)
@@ -81,7 +101,7 @@ with open(os.environ['MOCK_LOG'],'a') as f: f.write(json.dumps(sys.argv[1:])+'\\
                     if source == 'command-line': args = [PROFILE+'='+CANDIDATE]
                     result = self.run_make(target, args, env)
                     self.assertEqual(result.returncode, 0, result.stderr)
-                    call = self.calls()[-1]
+                    call = self.calls()[-1]['argv']
                     self.assert_profile(call, 'legacy-21' if source == 'default' else CANDIDATE)
                     if target in ['stg-uat-csv-import','stg-uat-import']:
                         report = call[call.index('--report-path')+1]
@@ -96,7 +116,7 @@ with open(os.environ['MOCK_LOG'],'a') as f: f.write(json.dumps(sys.argv[1:])+'\\
             result = self.run_make(target, env=env)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertFalse(marker.exists(), 'profile was executed as shell source')
-            self.assert_profile(self.calls()[-1], payload)
+            self.assert_profile(self.calls()[-1]['argv'], payload)
 
     def test_handoff_profiles_survive_local_env(self):
         self.fixtures()
@@ -113,23 +133,127 @@ with open(os.environ['MOCK_LOG'],'a') as f: f.write(json.dumps(sys.argv[1:])+'\\
                     else: args = [PROFILE+'='+CANDIDATE]
                     result = self.run_make(target, args, env)
                     self.assertEqual(result.returncode, 0, result.stderr)
-                    self.assert_profile(self.calls()[-1], CANDIDATE)
+                    self.assert_profile(self.calls()[-1]['argv'], CANDIDATE)
 
-    def test_matching_profile_reports_remain_reusable(self):
+    def test_legacy_matching_pass_report_skips_without_probe(self):
+        self.fixtures()
+        reports = self.root / 'reports'
+        reports.mkdir()
+        (reports / 'jouto-mock-run-stg-uat-apply.json').write_text(
+            json.dumps({'status': 'PASS'}))
+        env = self.env.copy()
+        env[PROFILE] = 'legacy-21'
+        result = self.run_make('stg-uat-handoff', env=env)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('apply report already PASS', result.stderr)
+        # Legacy reuse is unchanged: no verify probe is added.
+        self.assertEqual(self.subcommands(), [])
+
+    def test_candidate_matching_pass_requires_target_verify_before_skip(self):
         self.fixtures()
         reports = self.root / 'reports'
         reports.mkdir()
         digest = hashlib.sha256((self.root / 'handoff/jouto/manifest.json').read_bytes()).hexdigest()
-        for profile, suffix in [('legacy-21',''), (CANDIDATE,'-medicines-22-candidate')]:
-            with self.subTest(profile=profile):
-                (reports / ('jouto-mock-run-stg-uat-apply'+suffix+'.json')).write_text(
-                    json.dumps({'status':'PASS','manifestSha256':digest}))
+        (reports / ('jouto-mock-run-stg-uat-apply-'+CANDIDATE+'.json')).write_text(
+            json.dumps({'status': 'PASS', 'manifestSha256': digest,
+                        'targetHost': 'example.psdb.cloud', 'targetDatabase': 'postgres'}))
+        env = self.env.copy()
+        env[PROFILE] = CANDIDATE
+        result = self.run_make('stg-uat-handoff', env=env)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        # A PASS report plus a matching manifest SHA is not enough: the
+        # current target must be re-verified before the report may be reused.
+        self.assertEqual(self.subcommands(), ['verify'])
+        self.assert_profile(self.calls()[0]['argv'], CANDIDATE)
+        self.assertIn('skip', result.stderr)
+
+    def test_candidate_matching_pass_verify_failure_stops_and_preserves_report(self):
+        self.fixtures()
+        reports = self.root / 'reports'
+        reports.mkdir()
+        digest = hashlib.sha256((self.root / 'handoff/jouto/manifest.json').read_bytes()).hexdigest()
+        (reports / ('jouto-mock-run-stg-uat-apply-'+CANDIDATE+'.json')).write_text(
+            json.dumps({'status': 'PASS', 'manifestSha256': digest,
+                        'targetHost': 'example.psdb.cloud', 'targetDatabase': 'postgres'}))
+        env = self.env.copy()
+        env[PROFILE] = CANDIDATE
+        env['MOCK_VERIFY_EXIT'] = '1'
+        report = reports / ("jouto-mock-run-stg-uat-apply-"+CANDIDATE+".json")
+        original = report.read_bytes()
+        result = self.run_make('stg-uat-handoff', env=env)
+        self.assertNotEqual(result.returncode, 0)
+        # No success or write attempt from stale target evidence.
+        self.assertIn("preserve/archive", result.stderr)
+        self.assertEqual(self.subcommands(), ['verify'])
+        self.assert_profile(self.calls()[0]['argv'], CANDIDATE)
+
+        report = reports / ("jouto-mock-run-stg-uat-apply-"+CANDIDATE+".json")
+        self.assertEqual(report.read_bytes(), original)
+
+    def test_candidate_probe_error_never_retries_import(self):
+        self.fixtures()
+        reports = self.root / 'reports'
+        reports.mkdir()
+        digest = hashlib.sha256((self.root / 'handoff/jouto/manifest.json').read_bytes()).hexdigest()
+        (reports / ('jouto-mock-run-stg-uat-apply-'+CANDIDATE+'.json')).write_text(
+            json.dumps({'status': 'PASS', 'manifestSha256': digest,
+                        'targetHost': 'example.psdb.cloud', 'targetDatabase': 'postgres'}))
+        env = self.env.copy()
+        env[PROFILE] = CANDIDATE
+        env['MOCK_VERIFY_EXIT'] = '17'
+        env['MOCK_IMPORT_EXIT'] = '0'
+        result = self.run_make('stg-uat-handoff', env=env)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.subcommands(), ['verify'])
+
+    def test_selected_db_identity_forwarded_to_verify(self):
+        self.fixtures()
+        reports = self.root / 'reports'
+        reports.mkdir()
+        digest = hashlib.sha256((self.root / 'handoff/jouto/manifest.json').read_bytes()).hexdigest()
+        (reports / ('jouto-mock-run-stg-uat-apply-'+CANDIDATE+'.json')).write_text(
+            json.dumps({'status': 'PASS', 'manifestSha256': digest,
+                        'targetHost': 'rebuilt.psdb.cloud', 'targetDatabase': 'rebuilt-db'}))
+        local_env = self.root / 'mock.local.env'
+        local_env.write_text('DB_HOST=rebuilt.psdb.cloud' + chr(10) + 'DB_USER=mock-user' + chr(10) + 'DB_PASSWORD=mock-value' + chr(10) + 'TARGET_DB_NAME=rebuilt-db' + chr(10) + 'STG_UAT_CSV_IMPORT_CONFIRM_HOST=rebuilt.psdb.cloud' + chr(10))
+        local_env.chmod(0o600)
+        env = self.env.copy()
+        env.update({PROFILE: CANDIDATE, 'MOCK_VERIFY_EXIT': '1',
+                    'STG_UAT_HANDOFF_SKIP_LOCAL_ENV': '0',
+                    'STG_UAT_HANDOFF_ENV_FILE': str(local_env)})
+        result = self.run_make('stg-uat-handoff', env=env)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.subcommands(), ['verify'])
+        for call in self.calls():
+            self.assertEqual(call['env']['DB_HOST'], 'rebuilt.psdb.cloud')
+            self.assertEqual(call['argv'][call['argv'].index('--confirm-target-host')+1], 'rebuilt.psdb.cloud')
+            self.assertEqual(call['argv'][call['argv'].index('--confirm-target-database')+1], 'rebuilt-db')
+            self.assertEqual(call['env']['TARGET_DB_NAME'], 'rebuilt-db')
+            self.assertEqual(call['env']['DB_NAME'], 'rebuilt-db')
+            self.assertEqual(call['env']['CLINIC_CODE'], 'jouto')
+            self.assertEqual(call['env']['TARGET_CLINIC_ID'], '2')
+
+    def test_candidate_report_target_binding_must_match(self):
+        self.fixtures()
+        reports = self.root / 'reports'
+        reports.mkdir()
+        digest = hashlib.sha256((self.root / 'handoff/jouto/manifest.json').read_bytes()).hexdigest()
+        report = reports / ('jouto-mock-run-stg-uat-apply-'+CANDIDATE+'.json')
+        for binding in [
+            {'targetHost':'different.psdb.cloud','targetDatabase':'postgres'},
+            {'targetHost':'example.psdb.cloud','targetDatabase':'different-db'},
+            {},
+        ]:
+            with self.subTest(binding=binding):
+                original = json.dumps({'status':'PASS','manifestSha256':digest, **binding})
+                report.write_text(original)
                 env = self.env.copy()
-                env[PROFILE] = profile
+                env[PROFILE] = CANDIDATE
                 result = self.run_make('stg-uat-handoff', env=env)
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertIn('apply report already PASS', result.stderr)
-                self.assertFalse(self.log.exists())
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('target binding', result.stderr)
+                self.assertEqual(self.subcommands(), [])
+                self.assertEqual(report.read_text(), original)
 
     def test_candidate_stale_report_is_not_reused(self):
         self.fixtures()
@@ -142,7 +266,7 @@ with open(os.environ['MOCK_LOG'],'a') as f: f.write(json.dumps(sys.argv[1:])+'\\
         result = self.run_make('stg-uat-handoff', env=env)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn('apply report already PASS', result.stderr)
-        self.assert_profile(self.calls()[-1], CANDIDATE)
+        self.assert_profile(self.calls()[-1]['argv'], CANDIDATE)
 
     def test_unknown_handoff_profile_rejected_before_local_env(self):
         env = self.env.copy()
@@ -163,7 +287,7 @@ with open(os.environ['MOCK_LOG'],'a') as f: f.write(json.dumps(sys.argv[1:])+'\\
         result = self.run_make('stg-uat-handoff', env=env)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn('apply report already PASS', result.stderr)
-        self.assert_profile(self.calls()[-1], CANDIDATE)
+        self.assert_profile(self.calls()[-1]['argv'], CANDIDATE)
 
 
 if __name__ == '__main__':

@@ -297,9 +297,24 @@ for clinic_dir_name in "${clinics[@]}"; do
         fi
       fi
       if [[ "$status" == "PASS" ]]; then
-        echo "stg-uat-old-db-handoff: skip $clinic (apply report already PASS)" >&2
-        ran=1
-        continue
+        if [[ "$STG_UAT_CSV_IMPORT_PROFILE" == "medicines-22-candidate" ]]; then
+          # Report identity alone cannot establish the current target state.
+          # Bind both the selected target and its read-only verification.
+          report_target_matches="$(python3 -c 'import json,sys; r=json.load(open(sys.argv[1], encoding="utf-8")); print("yes" if r.get("targetHost")==sys.argv[2] and r.get("targetDatabase")==sys.argv[3] else "no")' "$report" "$DB_HOST" "$TARGET_DB_NAME")"
+          if [[ "$report_target_matches" != "yes" ]]; then
+            die "candidate PASS report target binding differs or is missing; preserve/archive the report before retry"
+          fi
+          if make -C "$ROOT" stg-uat-csv-import-verify; then
+            echo "stg-uat-old-db-handoff: skip $clinic (apply report PASS and current target verified)" >&2
+            ran=1
+            continue
+          fi
+          die "candidate PASS report failed current target verification; preserve/archive the report before retry"
+        else
+          echo "stg-uat-old-db-handoff: skip $clinic (apply report already PASS)" >&2
+          ran=1
+          continue
+        fi
       fi
     fi
   fi

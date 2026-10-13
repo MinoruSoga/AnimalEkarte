@@ -91,11 +91,11 @@ artifact が前提で、activation gate は formal 経路を拒否し続けま�
 producer 受領・本番切替の承認ではありません。importer が受理する code/ordinal/clinic_id は
 hachioji=1、jouto=2、shikishima=3、hakobuneco=4 だけです。
 apply report が既に `PASS` の医院は wrapper が skip し、残りへ進みます。
-STG を `DB_RESET` 相当で再構築した直後は、その PASS が旧DBの証跡になるため
-[STG_PLANETSCALE_SEED_RUNBOOK.md](../stg/STG_PLANETSCALE_SEED_RUNBOOK.md) §6.1 の順で
-report をリネームしてから `make stg-uat-handoff` する。
+ただし候補 profile（`medicines-22-candidate`）では、`status: PASS` とmanifest SHAの一致だけでは省略できません。reportの `targetHost` / `targetDatabase` が現在の選択値と一致することを要求し、同じprofile・対象DB・医院・seed bindingで既存のread-only `make stg-uat-csv-import-verify` を実行します。成功時だけ「report PASS + 現target検証済み」として省略します。検査は既存verifyの件数・医院・FK・sequence等の範囲であり、全行の内容hash一致を保証するものではありません。
 
-wrapperのexit 0は対象3院すべての投入完了を意味しません。manifestがない医院はskipし、既存apply reportがPASSの医院も現在のDBを再検証せずskipします。実施記録には医院ごとの対象・実行・skip理由を残します。必要な医院のmanifest欠落は未完了とし、過去のPASSだけで現在の整合性を判定しません。運用開始前に、承認済み対象・同一manifestで `make stg-uat-handoff-verify` の結果を医院ごとに確認します。
+reportの対象が異なる／対象metadataが欠ける／現targetのverifyが失敗する場合は、importやreportの変更を行わず非ゼロで停止します。既存reportのno-clobber規約を保持し、自動退避・削除・上書きはしません。DB再構築や対象変更後に再投入が必要な場合は、[STG_PLANETSCALE_SEED_RUNBOOK.md](../stg/STG_PLANETSCALE_SEED_RUNBOOK.md) §6.1 の順でreportを退避してから再実行する既存手順が必要です。dry-runはverify/importを実行しません。legacy-21の既存PASS省略は従来どおり維持します。候補の対象確認はproducer受領・本番切替承認ではありません。
+
+wrapperのexit 0は対象3院すべての投入完了を意味しません。manifestがない医院はskipし、legacy21では既存apply reportがPASSの医院も現在のDBを再検証せずskipします（候補profileでは現targetのread-only verify成功がskipの条件）。実施記録には医院ごとの対象・実行・skip理由を残します。必要な医院のmanifest欠落は未完了とし、過去のPASSだけで現在の整合性を判定しません。運用開始前に、承認済み対象・同一manifestで `make stg-uat-handoff-verify` の結果を医院ごとに確認します。
 
 低レベル fallback は `make stg-uat-import`。医院別の配置コマンドは
 `make old-db-handoff-stage`（手順:
