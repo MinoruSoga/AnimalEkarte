@@ -150,7 +150,7 @@ one class label; totals sum to the 236 data rows):
 | MIG | 44 | producer guarantee (EMR-374 scope; MIG-37/41) |
 | HIST | 2 | explicit acceptance with code+governing reason ONLY: `billings.total_amount` (AE-MIG-NEG-1 negative billing, `001_init.sql:1888-1889`) and `payment_splits.amount` (AE-MIG-NEG-1 negative cash-card split, `001_init.sql:6257-6259`) |
 | OWNER | 18 | owner decision pending (terminal-state locks, generated timestamps, pets.status/deceased_at, appointments.source, actor columns, non-family negative amounts) — EMR-376 |
-| UNK | 15 | `payments.insurance_ratio` broader service rule + 14 date/timestamp columns whose CSV literal format vs COPY/API-bind domain parity is unproven — T-K, mapped EMR-376 |
+| UNK | 15 | `payments.insurance_ratio` unproven API-side range rule (importer 0..1 check is proven — T-K) + 14 date/timestamp columns whose CSV literal format vs COPY/API-bind domain parity is unproven — T-K, mapped EMR-376 |
 
 These are classification counts, not violation counts. Per-clinic occurrence
 counts: see §7 (Lead count run completed; aggregates at
@@ -479,11 +479,17 @@ the actual items above.
 
 - Not a defect; the residuals after the catalog fill + re-review +
   date/timestamp pass (PR-656 review fix) are:
-  1. `payments.insurance_ratio` — bound (`accounting_request.go:209;341`) and
-     the builder assigns the value directly
-     (`accounting_service_builders.go:163-164`), so no binding/assignment range
-     exists; any *other* service-side rule was not re-verified and is not
-     claimed.
+  1. `payments.insurance_ratio` — the import contract is proven on both
+     importer stages: preflight parses every row and rejects NaN/Inf/<0/>1
+     (`cutover_payment_graph.go:116-118` → `parsePaymentGraphRatio` at
+     `cutover_payment_contract.go:153-158`), and the apply stage re-flags
+     NULL/<0/>1 as a payment violation
+     (`cutover_payment_target.go:127-129`). The residual unknown is API-side
+     only: the field binds `*float64` with no range tag
+     (`accounting_request.go:209;341`) and the builder assigns the value
+     directly (`accounting_service_builders.go:163-164`); no service-side
+     range rule was found in the billing sources, so whether the API accepts
+     out-of-0..1 ratios is not claimed.
   2. Date/timestamp literal-format parity (14 columns) — importer preflight
      checks presence only for every contract date/timestamp column except the
      three payment-graph timestamps (`billings.completed_at`,
@@ -515,8 +521,9 @@ the actual items above.
 
 ## 5. Uncertainty register
 
-Matrix `UNK` cells (15) are named in T-K: `payments.insurance_ratio` (broader
-service rule) plus the 14 date/timestamp columns whose CSV literal-format vs
+Matrix `UNK` cells (15) are named in T-K: `payments.insurance_ratio` (unproven
+API-side range rule; the importer 0..1 check itself is proven) plus the 14
+date/timestamp columns whose CSV literal-format vs
 COPY/API-bind parity is unproven. Previously-unknown bindings resolved via
 [api-binding-catalog.json](api-binding-catalog.json) + cited source: `pets.pet_number` (PATCH
 max=50), inquiry fields (only `chief_complaint`/`notes` bound), all three
