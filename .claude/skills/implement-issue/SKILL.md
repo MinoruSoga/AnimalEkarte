@@ -1,20 +1,20 @@
 ---
 name: implement-issue
-description: "Plane Issue を指定して、コード規約準拠の実装 → セルフレビュー → Plane の証跡更新までを行う。`/implement EMR-123` のように使用。実行 SoT は Plane、今期外・見送り判断は docs/work/phase2-deferred.md。"
+description: "Plane Issue を指定して、コード規約準拠の実装 → セルフレビュー → Plane の証跡更新までを行う。`/implement EMR-123` のように使用。実行 SoT は Plane、今期外・見送り判断は docs/work/decisions/phase2-deferred.md。"
 ---
 
 # Implement Issue — タスク実装ワークフロー
 
 Plane の該当 Issue を読み込み、コード規約に準拠した実装 → セルフレビュー → 証跡更新までを実行する。
 
-> **SoT の注意**: 実行タスク、仕様、受け入れ条件、状態、依存関係は Plane Issue が正本。今期外・見送りの索引は [`docs/work/phase2-deferred.md`](../../../docs/work/phase2-deferred.md) であり、実装台帳ではない。削除済み root ledger や旧 HTML を現在の依存関係・完了状態の根拠に使わない。
+> **SoT の注意**: 実行タスク、仕様、受け入れ条件、状態、依存関係は Plane Issue が正本。今期外・見送りの索引は [`docs/work/decisions/phase2-deferred.md`](../../../docs/work/decisions/phase2-deferred.md) であり、実装台帳ではない。削除済み root ledger や旧 HTML を現在の依存関係・完了状態の根拠に使わない。
 >
 > GitHub Issue（`#NNN`）が Plane Issue から参照される場合は、仕様・受け入れ条件について該当 Issue 本文とコメント（`gh issue view <NNN>`）も確認する。
 
 ## 起動トリガー
 
 - `/implement <Plane ID>`（例: `/implement EMR-123`）— Plane で Issue 本文・状態・コメントを確認する
-- 引数なしの場合: `docs/work/phase2-deferred.md` は見送り索引であることを示し、実装対象の Plane ID をユーザーに求める
+- 引数なしの場合: `docs/work/decisions/phase2-deferred.md` は見送り索引であることを示し、実装対象の Plane ID をユーザーに求める
 - 旧 `TASK-XXX` / `BUG-XXX` / `BE-XXX` / `FE-XXX` を指定された場合: git 履歴で経緯確認のみ行い、現在の実装対象は対応する Plane Issue を確認してから決める
 
 引数は `$ARGUMENTS` 変数で受け取る。
@@ -29,7 +29,7 @@ Plane の該当 Issue を読み込み、コード規約に準拠した実装 →
 - repo 内の見送り判断だけを確認する必要がある場合:
 
 ```bash
-grep -n '<キーワード>' docs/work/phase2-deferred.md
+grep -n '<キーワード>' docs/work/decisions/phase2-deferred.md
 ```
 
 ### 1.1b claim 確認（着手前必須・AGENTS.md packet claim protocol）
@@ -58,12 +58,12 @@ Plane Issue 本文・コメント・リンク先仕様を読み込み、以下�
 ### 1.3 依存関係チェック
 
 - Plane の依存関係と各前提 Issue の状態を確認する。完了状態の正本は Plane であり、ローカル検索の不一致から完了を推定しない。
-- `docs/work/phase2-deferred.md` に再開条件がある場合は、Plane Issue の owner と再開条件が満たされるまで着手しない。
+- `docs/work/decisions/phase2-deferred.md` に再開条件がある場合は、Plane Issue の owner と再開条件が満たされるまで着手しない。
 - 依存 Issue が未完了の場合、ユーザーに警告する: 「<前提ID> が未完了。先に実装するか？」
 
 ```bash
 # 見送り判断の確認（ヒットは実装可否ではなく再開条件を意味する）
-grep -n '<前提ID>' docs/work/phase2-deferred.md
+grep -n '<前提ID>' docs/work/decisions/phase2-deferred.md
 # 旧番号体系の経緯だけを確認する場合
 git log --all --oneline -- 'docs/archive/**' | head
 ```
@@ -233,7 +233,7 @@ Plane Issue に実装コミット、変更概要、実行した検証コマン�
 
 ### 5.2 関連 Issue の確認
 
-同じ親 Issue・Wave・クラスタの関連 Issue がある場合、影響と残余を Plane に記録する。`docs/work/phase2-deferred.md` は見送り判断専用であり、実装結果を書き足さない。
+同じ親 Issue・Wave・クラスタの関連 Issue がある場合、影響と残余を Plane に記録する。`docs/work/decisions/phase2-deferred.md` は見送り判断専用であり、実装結果を書き足さない。
 
 ### 5.3 claim 報告（解放は作成者別規則）
 
@@ -266,7 +266,7 @@ claim ブランチ（`claim/<Plane ID>`）の解放は [AGENTS.md](../../../AGEN
 
 | 状況 | 対応 |
 |------|------|
-| Plane Issue が見つからない | `docs/work/phase2-deferred.md` の再開条件と git 履歴を補助的に確認し、対応する Plane ID をユーザーに求める |
+| Plane Issue が見つからない | `docs/work/decisions/phase2-deferred.md` の再開条件と git 履歴を補助的に確認し、対応する Plane ID をユーザーに求める |
 | 依存イシューが未完了 | 警告表示、ユーザーに続行確認 |
 | Docker コンテナ未起動 | `make up` の実行を提案 |
 | Lint/Build 失敗 | エラー内容を表示し、Phase 3 に戻って修正 |

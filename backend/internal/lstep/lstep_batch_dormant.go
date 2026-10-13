@@ -13,7 +13,7 @@ func (s *lstepBatchService) detectDormantOwners(ctx context.Context, clinicID ui
 	return s.detectDormantOwnersWithFinder(
 		ctx,
 		clinicID,
-		s.medRecordRepo.FindDormantOwnerEntriesCursor,
+		s.medRecordRepo.FindDormantOwnerHistoryEntriesCursor,
 	)
 }
 
@@ -38,7 +38,7 @@ func (s *lstepBatchService) detectDormantOwnersAt(
 			afterOwnerID uint64,
 			limit int,
 		) ([]medicalrecord.DormantOwnerEntry, error) {
-			return repositoryAt.FindDormantOwnerEntriesCursorAt(
+			return repositoryAt.FindDormantOwnerHistoryEntriesCursorAt(
 				ctx,
 				clinicID,
 				minDaysSince,

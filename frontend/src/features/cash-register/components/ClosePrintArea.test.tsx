@@ -77,7 +77,10 @@ describe("ClosePrintArea (#153 印刷 / PDF出力)", () => {
     const medicalRow = within(summaryTable).getByText("診療").closest("tr")!;
     expect(within(medicalRow).getByText("1件")).toBeInTheDocument();
     // 個別会計明細（和集合の列）も同一面に含まれる（2 明細行）
-    expect(within(area).getAllByText("田中太郎 / ポチ")).toHaveLength(2);
+    // EMR-354: 飼主名/ペット名は独立セルになったため分離して検証する。
+    const detailsTable = within(area).getByText("領収No").closest("table")!;
+    expect(within(detailsTable).getAllByText("田中太郎")).toHaveLength(2);
+    expect(within(detailsTable).getAllByText("ポチ")).toHaveLength(2);
   });
 
   it("理論現金は常に出力し、実際現金未入力時は差額を出さない", () => {
@@ -156,13 +159,117 @@ describe("ClosePrintArea (#153 印刷 / PDF出力)", () => {
     });
     const area = screen.getByTestId("close-print-area");
     expect(within(area).getAllByText("¥0")).toHaveLength(2);
-    expect(within(area).getByText("¥8,000")).toBeInTheDocument();
-    expect(within(area).getByText("-¥1,234")).toBeInTheDocument();
-    expect(within(area).getByText("¥6,766")).toBeInTheDocument();
+    // EMR-354: 明細テーブルは「行 + フッタ合計」で同額が2回出るため個数で検証する。
+    const detailsTable = within(area).getByText("領収No").closest("table")!;
+    expect(within(detailsTable).getAllByText("¥8,000")).toHaveLength(2);
+    expect(within(detailsTable).getAllByText("-¥1,234")).toHaveLength(2);
+    expect(within(detailsTable).getAllByText("¥6,766")).toHaveLength(2);
     expect(within(area).getByText("¥54,321")).toBeInTheDocument();
     expect(within(area).getByText("¥5,432")).toBeInTheDocument();
     expect(within(area).getByText("¥1,000")).toBeInTheDocument();
     expect(within(area).getByText("¥80")).toBeInTheDocument();
     expect(within(area).getByText("¥77,777")).toBeInTheDocument();
+  });
+});
+
+// EMR-354: 印刷面の個別会計明細も画面と同じ「会計1件=1行」投影を使う。
+// RED 時点では領収No/日次バケット列・billingId 集約・フッタが未実装のため失敗する。
+describe("ClosePrintArea — EMR-354 個別会計明細（日次バケット投影）", () => {
+  it("同一 billingId の split 行は1行に集約される（飼主の出現は1回）", () => {
+    renderPrint({
+      categories: { examination: { 現金: 4000 } },
+      billingDetails: [
+        detail({
+          billingId: 7,
+          paymentMethodName: "現金",
+          billingAmount: 1000,
+          refundAmount: 1234,
+          netAmount: -234,
+          categoryAmounts: { examination: 667, food: 333 },
+        }),
+        detail({
+          billingId: 7,
+          paymentMethodName: "クレジットカード",
+          billingAmount: 3000,
+          refundAmount: 1234,
+          netAmount: 1766,
+          categoryAmounts: { examination: 2000, food: 1000 },
+        }),
+      ],
+    });
+    const area = screen.getByTestId("close-print-area");
+    // 現行バグ: split 2行 → 飼主表示が2回。集約後は1回。
+    expect(within(area).getAllByText("田中太郎")).toHaveLength(1);
+  });
+
+  it("明細テーブルに領収Noを含む固定列ヘッダと、1回だけ集計されるフッタがある", () => {
+    renderPrint({
+      categories: { examination: { 現金: 4000, クレジットカード: 5000 } },
+      billingDetails: [
+        detail({
+          billingId: 7,
+          ownerName: "田中太郎",
+          paymentMethodName: "現金",
+          billingAmount: 1000,
+          refundAmount: 1234,
+          netAmount: -234,
+          categoryAmounts: { examination: 667, food: 333 },
+        }),
+        detail({
+          billingId: 7,
+          ownerName: "田中太郎",
+          paymentMethodName: "クレジットカード",
+          billingAmount: 3000,
+          refundAmount: 1234,
+          netAmount: 1766,
+          categoryAmounts: { examination: 2000, food: 1000 },
+        }),
+        detail({
+          billingId: 9,
+          ownerName: "佐藤次郎",
+          paymentMethodName: "クレジットカード",
+          billingAmount: 5000,
+          refundAmount: 0,
+          netAmount: 5000,
+          categoryAmounts: { surgery: 5000 },
+        }),
+      ],
+    });
+    const area = screen.getByTestId("close-print-area");
+    // 個別明細テーブルは「領収No」ヘッダで特定する（統合サマリー表は「件数」）
+    const detailsTable = within(area).getByText("領収No").closest("table")!;
+
+    // フッタ行（最終行）が可視セルを1回だけ再集計する:
+    //   診療 2,667 / 外科 5,000 / フード 1,333 / 合計 9,000 / 返金 -1,234 / 純額 7,766
+    const allRows = detailsTable.querySelectorAll<HTMLTableRowElement>("tr");
+    const footerRow = allRows[allRows.length - 1];
+    const footerCells = Array.from(footerRow.querySelectorAll("td, th")).map((c) => c.textContent);
+    expect(footerCells).toContain("¥2,667");
+    expect(footerCells).toContain("¥5,000");
+    expect(footerCells).toContain("¥1,333");
+    expect(footerCells).toContain("¥9,000");
+    expect(footerCells).toContain("-¥1,234");
+    expect(footerCells).toContain("¥7,766");
+  });
+
+  it("categoryAmounts 欠落（旧ペイロード）は部門セルに記録なしを出す", () => {
+    renderPrint({
+      categories: { examination: { 現金: 5000 } },
+      billingDetails: [detail({ billingId: 4 })],
+    });
+    const area = screen.getByTestId("close-print-area");
+    const detailsTable = within(area).getByText("領収No").closest("table")!;
+    expect(within(detailsTable).getAllByText("記録なし").length).toBeGreaterThan(0);
+  });
+
+  it("mount 中は html に印刷ルートオーバーライド用クラスを付与し、アンマウントで除去する", () => {
+    // R2-3: close 印刷が html/body の overflow/height を @media print で解除するための
+    // グローバル DOM 副作用（close-print-active クラス）が、unmount 後に残存して
+    // 無関係のビュー・印刷面へ漏れないことを保証する。CSS 文字列自体は検証しない。
+    const root = document.documentElement;
+    const { unmount } = renderPrint();
+    expect(root.classList.contains("close-print-active")).toBe(true);
+    unmount();
+    expect(root.classList.contains("close-print-active")).toBe(false);
   });
 });

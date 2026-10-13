@@ -2,7 +2,7 @@
 
 > **目的**: 確定（Lock）したカルテが編集・削除不可となり法的記録としての真正性が守られること、および一連の CRUD 操作が `audit_logs` に操作者・時刻付きで追跡されることを納品前に証明する。
 > **所要目安**: 20分 / **深度**: 深い
-> **仕様正本**: [specification.md §2.1](../../../spec/specification.md)・[screens/05-medical-records-list.md](../../../spec/screens/05-medical-records-list.md)・[screens/06-medical-records-form.md](../../../spec/screens/06-medical-records-form.md)
+> **仕様正本**: [specification.md §2.1](../../../spec/specification.md)・[domains/medical-records/pages/medical-record-list.md](../../../spec/domains/medical-records/pages/medical-record-list.md)・[domains/medical-records/pages/medical-record-form.md](../../../spec/domains/medical-records/pages/medical-record-form.md)
 
 ## 前提条件
 
@@ -16,11 +16,11 @@
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | 1 | `/medical-records/new?petId=` を開く → 問診タブで主訴、診察/治療プランタブで所見・診断名を保存 | 表示と同時に draft が自動 `POST` され URL が `/medical-records/:id` に昇格する。保存はタブ別（問診=`/inquiries`、診察=`/clinical-plan`）。一覧に「作成中」で出る |
-| 2 | 「治療」タブで処置明細を 1 件追加する | 明細は行単位で即時保存される（[06 §2.2](../../../spec/screens/06-medical-records-form.md)） |
+| 2 | 「治療」タブで処置明細を 1 件追加する | 明細は行単位で即時保存される（[06 §2.2](../../../spec/domains/medical-records/pages/medical-record-form.md)） |
 | 3 | カルテ本体（主訴等）を変更して再保存する。続けてヘッダーの来院種別を保存ボタンなしで変更し再読込する | タブ保存は成功する。来院種別は即時 PATCH + 詳細キャッシュ invalidate で再読込後も残る。appointment 紐付き通常カルテの診療日変更は BE Conflict |
 | 4 | 会計確認前に「確定する」を確認し、その後「会計(医師確認)」を完了してから確定（Lock）する | 会計確認の loading/error/未確認時は fail-closed で disabled、title は「会計確認が未完了です」。会計確認が `confirmed` になった後だけ確定ダイアログを開ける。確定後はステータスが `finalized`、確定済みバナーが表示され、ボタンは消える |
-| 5 | 確定済みカルテを開き、属性を変更して保存を試行する | 主要タブは fieldset 一括無効（`isFinalized` または `!canSubmit` — [06 §2.3](../../../spec/screens/06-medical-records-form.md)）。保存ボタンも disabled。直接 API 更新は 409: 「確定済みカルテは編集できません。訂正追記 (addendum) を使用してください」（`medical_record_crud.go`） |
-| 6 | 確定済みカルテの削除導線を確認する | **詳細**: `canDelete={canDelete && !isFinalized}` のためフローティング「削除」は出ない。**一覧**: 現行 UI は確定済でも canDelete なら「削除」メニューが出うる — 実行時 BE が拒否する（draft 以外は削除不可）。直接 API: 「確定済みまたは下書き以外のカルテは削除できません」（[05 §3.1](../../../spec/screens/05-medical-records-list.md)） |
+| 5 | 確定済みカルテを開き、属性を変更して保存を試行する | 主要タブは fieldset 一括無効（`isFinalized` または `!canSubmit` — [06 §2.3](../../../spec/domains/medical-records/pages/medical-record-form.md)）。保存ボタンも disabled。直接 API 更新は 409: 「確定済みカルテは編集できません。訂正追記 (addendum) を使用してください」（`medical_record_crud.go`） |
+| 6 | 確定済みカルテの削除導線を確認する | **詳細**: `canDelete={canDelete && !isFinalized}` のためフローティング「削除」は出ない。**一覧**: 現行 UI は確定済でも canDelete なら「削除」メニューが出うる — 実行時 BE が拒否する（draft 以外は削除不可）。直接 API: 「確定済みまたは下書き以外のカルテは削除できません」（[05 §3.1](../../../spec/domains/medical-records/pages/medical-record-list.md)） |
 | 7 | 確定済みカルテの各タブ下部「追記する」から訂正追記（addendum）を行う（修正内容・修正理由が必須 — `AddendumModal`） | 保存後、時刻・スタッフ ID 付きの時系列リストとして表示され、リロード後も永続する。バリデーション失敗後も入力済み側は消えない（controlled）。未確定カルテでは追記セクション自体が非表示 |
 | 8 | 確定の解除（確定済 → 作成中へ戻す）を試行する | 解除（unfinalize）API はバックエンドに存在しない（`medical_record_crud.go` に該当メソッドなし）。確定は一方向遷移であり、確定後の修正経路は訂正追記（addendum）のみ。解除機能が必要な場合は GAP-1 とは別に要件を起票する |
 | 9 | 手順 1〜4 の操作について `audit_logs` を DB で確認する（**USER 実施**。例: resource がカルテ関連の行を時刻降順で参照） | 確定（finalize）は本体と同一 TX で fail-closed に残る。作成・通常更新は best-effort（欠落しても本体成功を失敗にしない）。全テーブル自動監査ではない（[specification.md §2.1](../../../spec/specification.md)） |
@@ -40,20 +40,20 @@ stateDiagram-v2
 
 ## 確認観点
 
-- 確定ロックは DB 制約ではなくサービス層のガード（`backend/internal/medicalrecord/medical_record_crud.go` — [05 §3.1](../../../spec/screens/05-medical-records-list.md)）。UI ステータス: 作成中=`draft` / 確定済=`finalized`。
+- 確定ロックは DB 制約ではなくサービス層のガード（`backend/internal/medicalrecord/medical_record_crud.go` — [05 §3.1](../../../spec/domains/medical-records/pages/medical-record-list.md)）。UI ステータス: 作成中=`draft` / 確定済=`finalized`。
 - 所見・診断（clinical-plan）の Update/Delete は確定と同じ親行ロックを使い、監査失敗時は同じ transaction で rollback する。`clinical_plan_finalize_concurrency_test.go` は独立 PostgreSQL transaction の child-first / finalize-first を検証する。ブラウザの逐次操作だけで競合を再現済みとはしない。
 - 子エンティティ（治療・検査・バイタル等）の書込と確定処理は行ロックで直列化される（`LockByIDForUpdate`。確定と同時書込のレースで確定済みカルテに子データが混入しないこと）。
 - カルテ確定（finalize）・訂正追記（addendum）の監査は本体操作と同一トランザクションで fail-closed に記録され、監査失敗時は本体操作もロールバックされる。カルテ作成（create）・通常更新（update）の監査は臨床継続性のため best-effort を維持する（`medical_record_crud.go`・`medical_record_addendum_service.go`）。削除監査も best-effort。
-- 会計完了によるカルテの自動確定は存在しない（[06 §2.3](../../../spec/screens/06-medical-records-form.md)）— 確定は明示操作のみ。
-- カルテ一覧のステータスフィルタ（作成中/確定済）で確定後の当該カルテが抽出できること（[05 §1.1](../../../spec/screens/05-medical-records-list.md)）。
+- 会計完了によるカルテの自動確定は存在しない（[06 §2.3](../../../spec/domains/medical-records/pages/medical-record-form.md)）— 確定は明示操作のみ。
+- カルテ一覧のステータスフィルタ（作成中/確定済）で確定後の当該カルテが抽出できること（[05 §1.1](../../../spec/domains/medical-records/pages/medical-record-list.md)）。
 - フローティング「削除」は問診タブかつ未確定時のみ（詳細）。一覧の削除メニューは確定状態で隠していない点に注意（BE が最終防衛）。
 
 ## 異常系
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
-| A1 | 確定済みカルテの「治療」タブで明細の追加・削除を試行する | UI 上は `<fieldset disabled>` によりタブ内の追加/削除ボタンが無効化され操作できない（[06 §2.3](../../../spec/screens/06-medical-records-form.md)）。直接 API を叩いた場合、治療（`treatment_service.go`）・検査・バイタル・処方・健診・画像の各子リソースはバックエンド側でも確定済み親カルテへの書込を拒否する |
-| A2 | medical-records の edit 権限を持たないロールで確定済み/作成中カルテを開く | 保存操作が権限制御で不可（[06 概要](../../../spec/screens/06-medical-records-form.md): 保存可否はコンポーネント内の権限制御）。fieldset は `!canSubmit` でも disabled |
+| A1 | 確定済みカルテの「治療」タブで明細の追加・削除を試行する | UI 上は `<fieldset disabled>` によりタブ内の追加/削除ボタンが無効化され操作できない（[06 §2.3](../../../spec/domains/medical-records/pages/medical-record-form.md)）。直接 API を叩いた場合、治療（`treatment_service.go`）・検査・バイタル・処方・健診・画像の各子リソースはバックエンド側でも確定済み親カルテへの書込を拒否する |
+| A2 | medical-records の edit 権限を持たないロールで確定済み/作成中カルテを開く | 保存操作が権限制御で不可（[06 概要](../../../spec/domains/medical-records/pages/medical-record-form.md): 保存可否はコンポーネント内の権限制御）。fieldset は `!canSubmit` でも disabled |
 
 ---
 

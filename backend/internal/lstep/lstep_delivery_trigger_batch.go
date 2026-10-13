@@ -38,6 +38,15 @@ const deliveryBatchDayLogPageSize = 500
 // 意味する。nil hook で再検証なし（呼び出し側が send を直接実行）。
 type deliveryRevalidationHook func(ctx context.Context, ownerID uint64, send func(context.Context) error) (valid bool, reason string, err error)
 
+// deliveryEligibilityFn は非 tentative トリガーのイベントソース適格性再読
+// フック（EMR-330）。candidate 抽出後の scheduled claim 前と、delivery owner
+// lock 内の write/send 直前の 2 回、owner 単位で呼ばれる。
+// 戻り値 (eligible, reason, err): eligible=false のとき reason を
+// excluded_reason としてログを excluded に記録し送信しない。err は
+// fail-closed（送信せず error として返す）。nil で再読なし。
+// tentative 経路は deliveryRevalidationHook を使い、本フックは使わない。
+type deliveryEligibilityFn func(ctx context.Context, ownerID uint64) (eligible bool, reason string, err error)
+
 func (s *lstepDeliveryTriggerService) runBatch(
 	ctx context.Context,
 	clinicID uint64,
@@ -46,6 +55,7 @@ func (s *lstepDeliveryTriggerService) runBatch(
 	tagName string,
 	asOf time.Time,
 	revalidate deliveryRevalidationHook,
+	eligibility deliveryEligibilityFn,
 ) (int, []error) {
 	client, err := s.buildClient(ctx, clinicID)
 	if err != nil {
@@ -81,7 +91,7 @@ func (s *lstepDeliveryTriggerService) runBatch(
 
 		restore := s.installDeliveryBatchCaches(ctx, clinicID, page, dayLogsByOwner, dayLogsLoaded)
 		for _, ownerID := range page {
-			fired, loopErr := s.processSingleOwner(ctx, client, clinicID, ownerID, triggerType, tagName, asOf, revalidate)
+			fired, loopErr := s.processSingleOwner(ctx, client, clinicID, ownerID, triggerType, tagName, asOf, revalidate, eligibility)
 			if loopErr != nil {
 				errs = append(errs, loopErr)
 				continue
@@ -358,6 +368,9 @@ func (c *deliveryBatchTriggerLogCache) MarkKnownUnsent(ctx context.Context, clin
 // processSingleOwner は1飼い主分のトリガー処理を行い、配信実行されたか否かを返す。
 // revalidate != nil の場合、日次スロット claim 後・LSTEP 送信直前に candidate の
 // 有効性を再検証し、stale な candidate は excluded として記録して送信しない（EMR-308）。
+// eligibility != nil の場合、scheduled claim 前と delivery owner lock 内の
+// write 直前の両方でイベントソース適格性を再読する（EMR-330）。再読エラーは
+// fail-closed で error として返し送信しない。
 func (s *lstepDeliveryTriggerService) processSingleOwner(
 	ctx context.Context,
 	client lstep.Client,
@@ -365,6 +378,7 @@ func (s *lstepDeliveryTriggerService) processSingleOwner(
 	triggerType, tagName string,
 	asOf time.Time,
 	revalidate deliveryRevalidationHook,
+	eligibility deliveryEligibilityFn,
 ) (bool, error) {
 	owner, err := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
 	if err != nil {
@@ -387,37 +401,57 @@ func (s *lstepDeliveryTriggerService) processSingleOwner(
 		return false, nil
 	}
 
-	// Q23: 優先順位による配信抑制チェック
-	suppressed, err := s.applySuppression(ctx, clinicID, ownerID, triggerType, asOf)
-	if err != nil {
-		slog.ErrorContext(ctx, "delivery trigger: applySuppression error", "owner_id", ownerID, "trigger", triggerType, "error", err)
-		return false, err
-	}
-	if suppressed {
-		suppressionReason := fmt.Sprintf("owner_id=%d already has higher-priority trigger on %s", ownerID, asOf.Format(time.DateOnly))
-		suppressedLog := &model.LstepDeliveryTriggerLog{
-			OwnerID:              ownerID,
-			ClinicID:             clinicID,
-			TriggerType:          triggerType,
-			ScheduledAt:          asOf,
-			Status:               model.TriggerStatusScheduled,
-			SuppressedByPriority: true,
-			SuppressionReason:    &suppressionReason,
-		}
-		// LSA-15: claim day slot under lock so concurrent workers cannot double-insert.
-		created, createErr := s.triggerLogRepo.CreateIfAbsentToday(ctx, suppressedLog)
-		if createErr != nil {
-			slog.ErrorContext(ctx, "delivery trigger: failed to create suppressed log", "owner_id", ownerID, "trigger", triggerType, "error", createErr)
-			return false, apperrors.Wrap(createErr, "failed to create suppressed trigger log")
-		}
-		_ = created // already-exists is an idempotent no-op for suppressed path
-		return false, nil
-	}
-
 	excluded, reason, err := s.checkExclusion(ctx, clinicID, ownerID, owner)
 	if err != nil {
 		slog.ErrorContext(ctx, "delivery trigger: checkExclusion error", "owner_id", ownerID, "error", err)
 		return false, err
+	}
+
+	// EMR-330: scheduled claim 前のイベントソース再読。candidate 抽出後に
+	// 対象（初診カルテ・最終来院・ワクチン期限・誕生日・生存ペット・イベント
+	// ペット）が失われていれば excluded として記録して送信しない。
+	// 再読エラーは fail-closed で error として返す。
+	if !excluded && eligibility != nil {
+		eligible, eReason, eErr := eligibility(ctx, ownerID)
+		if eErr != nil {
+			slog.ErrorContext(ctx, "delivery trigger: pre-claim event eligibility re-read failed",
+				"owner_id", ownerID, "trigger", triggerType, "error", eErr)
+			return false, eErr
+		}
+		if !eligible {
+			excluded = true
+			reason = eReason
+		}
+	}
+
+	// Only an eligible candidate may revoke an existing lower-priority tag.
+	if !excluded {
+		// Q23: 優先順位による配信抑制チェック
+		suppressed, err := s.applySuppression(ctx, clinicID, ownerID, triggerType, asOf)
+		if err != nil {
+			slog.ErrorContext(ctx, "delivery trigger: applySuppression error", "owner_id", ownerID, "trigger", triggerType, "error", err)
+			return false, err
+		}
+		if suppressed {
+			suppressionReason := fmt.Sprintf("owner_id=%d already has higher-priority trigger on %s", ownerID, asOf.Format(time.DateOnly))
+			suppressedLog := &model.LstepDeliveryTriggerLog{
+				OwnerID:              ownerID,
+				ClinicID:             clinicID,
+				TriggerType:          triggerType,
+				ScheduledAt:          asOf,
+				Status:               model.TriggerStatusScheduled,
+				SuppressedByPriority: true,
+				SuppressionReason:    &suppressionReason,
+			}
+			// LSA-15: claim day slot under lock so concurrent workers cannot double-insert.
+			created, createErr := s.triggerLogRepo.CreateIfAbsentToday(ctx, suppressedLog)
+			if createErr != nil {
+				slog.ErrorContext(ctx, "delivery trigger: failed to create suppressed log", "owner_id", ownerID, "trigger", triggerType, "error", createErr)
+				return false, apperrors.Wrap(createErr, "failed to create suppressed trigger log")
+			}
+			_ = created // already-exists is an idempotent no-op for suppressed path
+			return false, nil
+		}
 	}
 
 	logID, claimed, err := s.recordTrigger(ctx, clinicID, ownerID, triggerType, asOf)
@@ -505,6 +539,19 @@ func (s *lstepDeliveryTriggerService) processSingleOwner(
 				return apperrors.WrapInternalServerError("revalidation hook returned valid without invoking send")
 			}
 			return sendErr
+		}
+		// EMR-330: delivery owner lock 内の write/send 直前にイベントソースを再読する。
+		// 再読エラーは fail-closed（送信せず lock を error で抜ける）。
+		if eligibility != nil {
+			eligible, eReason, eErr := eligibility(syncCtx, ownerID)
+			if eErr != nil {
+				return eErr
+			}
+			if !eligible {
+				lockExcluded = true
+				lockExcludedReason = eReason
+				return nil
+			}
 		}
 		return send(syncCtx, *freshOwner.LineUserID)
 	})

@@ -146,10 +146,28 @@ mutate_disallowed_topfile() {
   printf '# 直下に置かれた文書\n' > "$1/docs/STRAY_DOC.md"
 }
 
+mutate_phantom_domain_page() {
+  mkdir -p "$1/docs/spec/domains/medical-records/pages"
+  printf '%s\n' '# 移設済み画面' '- `PhantomWidget`' > "$1/docs/spec/domains/medical-records/pages/06-sample.md"
+}
+
+mutate_phantom_lifecycle() {
+  mkdir -p "$1/docs/spec/domains/medical-records"
+  printf '%s\n' '# 保存契約' '- `usePhantomHook`' > "$1/docs/spec/domains/medical-records/lifecycle.md"
+}
+
+mutate_phantom_workflow() {
+  mkdir -p "$1/docs/spec/workflows"
+  printf '%s\n' '# 横断フロー' '- `ghost-file.ts`' > "$1/docs/spec/workflows/reservation-to-record-flow.md"
+}
+
 run_case "clean"                0 mutate_none
 run_case "phantom-component"    1 mutate_phantom_component
 run_case "phantom-hook"         1 mutate_phantom_hook
 run_case "phantom-file"         1 mutate_phantom_file
+run_case "phantom-domain-page"  1 mutate_phantom_domain_page
+run_case "phantom-lifecycle"    1 mutate_phantom_lifecycle
+run_case "phantom-workflow"     1 mutate_phantom_workflow
 run_case "wrong-table-total"    1 mutate_wrong_table_total
 run_case "incomplete-erd-domain-inventory" 1 mutate_incomplete_erd_domain_inventory
 run_case "disallowed-topdir"    1 mutate_disallowed_topdir

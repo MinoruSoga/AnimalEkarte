@@ -72,10 +72,10 @@ func (m *mockLstepDeliveryTriggerBatch) TriggerFleaTickAlert(_ context.Context, 
 func (m *mockLstepDeliveryTriggerBatch) TriggerFoodRefillReminder(_ context.Context, clinicID uint64, asOf time.Time) (int, []error) {
 	return m.call("TriggerFoodRefillReminder", clinicID, asOf)
 }
-func (m *mockLstepDeliveryTriggerBatch) TriggerFirstVisitWelcome(_ context.Context, _, _ uint64) error {
+func (m *mockLstepDeliveryTriggerBatch) TriggerFirstVisitWelcome(_ context.Context, _, _, _ uint64) error {
 	return nil
 }
-func (m *mockLstepDeliveryTriggerBatch) TriggerCheckupFollowUp(_ context.Context, _, _ uint64) error {
+func (m *mockLstepDeliveryTriggerBatch) TriggerCheckupFollowUp(_ context.Context, _, _, _ uint64) error {
 	return nil
 }
 

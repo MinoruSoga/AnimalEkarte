@@ -23,7 +23,7 @@
 ## 主要な機能
 
 ### 1. 会計への補償率自動設定（未実装）
-保険マスタの `coverage_rate` を会計の割合へ自動設定する連携はない。会計詳細の `InsuranceCard` では、スタッフが保険利用と「保険会社が支払う割合」を選び、その選択値で保険負担額を計算する（[11-accounting-detail.md](../11-accounting-detail.md)）。保険控除計算自体は実装済みであり、本マスタ連携の未実装と混同しない。会計・請求の実装は `backend/internal/billing/`。
+保険マスタの `coverage_rate` を会計の割合へ自動設定する連携はない。会計詳細の `InsuranceCard` では、スタッフが保険利用と「保険会社が支払う割合」を選び、その選択値で保険負担額を計算する（[accounting-settlement.md](../../domains/accounting/pages/accounting-settlement.md)）。保険控除計算自体は実装済みであり、本マスタ連携の未実装と混同しない。会計・請求の実装は `backend/internal/billing/`。
 
 マスタ値と会計計算の連携状況:
 

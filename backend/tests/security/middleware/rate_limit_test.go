@@ -1,5 +1,5 @@
 // Package middleware — EMR-332 C16 evidence tests
-// (docs/work/emr-332-security/workflow-audit/c16-rate-limit.md).
+// (docs/work/emr/emr-332-security/workflow-audit/c16-rate-limit.md).
 //
 // Scope: deterministic, single-threaded, in-memory verification of
 // middleware.RateLimit / FailureRateLimit / FailureLimiter / LiffRateLimit /

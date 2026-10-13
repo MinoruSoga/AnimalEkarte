@@ -83,6 +83,11 @@ type CloseBillingDetailRow struct {
 	BillingAmount     int64     `json:"billing_amount"`
 	RefundAmount      int64     `json:"refund_amount"`
 	NetAmount         int64     `json:"net_amount"`
+	// CategoryAmounts は当該 split 支払額（BillingAmount）を親会計の billing_items
+	// 明細金額重みで按分した部門別 GROSS 内訳（EMR-354）。返金は含まない
+	// （RefundAmount/NetAmount は従来の全期間スカラのまま）。map 合計は BillingAmount と一致。
+	// nil = 旧バックエンド相当（表示側は「記録なし」）。空 map は部門内訳なし。
+	CategoryAmounts map[string]int64 `json:"category_amounts"`
 }
 
 // TaxBreakdownRow は税率別の集計結果1行

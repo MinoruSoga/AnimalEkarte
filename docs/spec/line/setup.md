@@ -64,7 +64,7 @@ flowchart TB
 4. **webhook verification**: `POST /api/line/webhook` に対し、対象 channel の署名付き test event で destination routing と署名検証を確認してから LINE console の webhook を enable にする。
 5. **LIFF verification**: clinic path から LIFF login、clinic 解決、予約設定取得までを別に確認する。connection-test button はこの確認を代替しない。
 6. **clinic gate**: clinic の `is_sync_enabled` は、上記と監視・rollback owner が揃うまで false にする。
-7. **deploy gate**: `LSTEP_WRITE_API_ENABLED` は既定 OFF。enable / stop / rollback は [LSTEP Write API pause runbook](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md) に従う。環境変数の実値は本書へ記載しない。
+7. **deploy gate**: `LSTEP_WRITE_API_ENABLED` は既定 OFF。enable / stop / rollback は [LSTEP Write API pause runbook](../../ops/deploy/runbooks/LSTEP_WRITE_API_PAUSE.md) に従う。環境変数の実値は本書へ記載しない。
 8. **release evidence**: [#259](https://github.com/MinoruSoga/AnimalEkarte/issues/259) は 2026-09-06 取得時点で OPEN / 外部 enable 待ち（外部状態の記録時点の観測であり、repo の実装契約ではない。現在値は Plane workspace `baritechllc` / project `EMR` を確認）。Write 再開と cron を同一リリースで扱い、scoped external scenario、少数 live-send、cron fire、monitoring、alert、stop/rollback を記録する。generic staging gate は [STG_PRE_DEPLOY_READINESS_CHECK](../../ops/deploy/runbooks/STG_PRE_DEPLOY_READINESS_CHECK.md) を参照する。
 
 ## 5. 現行 connection test の範囲と既知 gap

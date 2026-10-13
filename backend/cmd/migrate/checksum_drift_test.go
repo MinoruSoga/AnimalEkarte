@@ -105,7 +105,7 @@ func TestKnownOldChecksumsToCheckedInMigrationFailClosedWithoutCompanionDDLOrCAS
 			if !applied || err == nil {
 				t.Fatalf("result applied=%v err=%v, want applied migration and fail-closed error", applied, err)
 			}
-			if !strings.Contains(err.Error(), "docs/ops/deploy/LOCAL_DB_RESET.md") || !strings.Contains(err.Error(), "DB_RESET=true") {
+			if !strings.Contains(err.Error(), "docs/ops/deploy/seeds/LOCAL_DB_RESET.md") || !strings.Contains(err.Error(), "DB_RESET=true") {
 				t.Fatalf("error %q does not provide the explicit reset/rebuild path", err)
 			}
 			if state.began || state.rolledBack || state.committed {

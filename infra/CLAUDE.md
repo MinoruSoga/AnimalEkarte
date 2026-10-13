@@ -2,7 +2,7 @@
 
 > AWS STG は 2026-07-20 に廃止済み（terraform destroy・課金停止）。現行構成は
 > `../docs/ops/infra/architecture.md`。移行実施記録と旧 AWS 文書は git 履歴。
-> 再編計画 `../docs/ops/infra/reorg-plan.md` は歴史的提案として保管（Phase B の
+> 再編計画 `../docs/work/infra/reorg-plan.md` は歴史的提案として保管（Phase B の
 > envs/ + modules/ 構造は確定した予定ではない）。現行の state 管理契約は
 > `../docs/ops/infra/iac-guidelines.md` が正本。
 
@@ -36,7 +36,7 @@
 ## 参照ドキュメント
 
 - デプロイハブ: `../docs/ops/deploy/README.md`
-- STGフルデモ投入/検証: `../docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md`
+- STGフルデモ投入/検証: `../docs/ops/deploy/stg/STG_PLANETSCALE_SEED_RUNBOOK.md`
 - 本番構築手順: `../docs/ops/infra/production/setup.md`（#253）
 
 <!-- AUTO:agent-trust-boundaries sha256=24e651ec0c1ad31b8ed9b316f282f36deb8218d3116865551e522e917946f724 -->

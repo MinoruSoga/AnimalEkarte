@@ -8,7 +8,7 @@
 
 状態は `未実施 / PASS / FAIL / BLOCKED / SKIP / UNKNOWN`。SKIP・BLOCKEDには理由を書く。チェック欄は実施・確認後だけ埋める。未測定をゼロやPASSとして扱わない。
 
-関連: [測定手段と制約](PERFORMANCE_PROFILING.md)、[k6ガイド](../../../load-tests/README.md)、[STG運用](../deploy/STG-CONTINUOUS-OPERATIONS.md)。本書はUAT全体・本番性能・リリースの合格判定を代替しない。
+関連: [測定手段と制約](PERFORMANCE_PROFILING.md)、[k6ガイド](../../../load-tests/README.md)、[STG運用](../deploy/stg/STG-CONTINUOUS-OPERATIONS.md)。本書はUAT全体・本番性能・リリースの合格判定を代替しない。
 
 ```mermaid
 flowchart TB

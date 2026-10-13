@@ -1,6 +1,6 @@
+import { useEffect } from "react";
 import { PrintPortal } from "@/components/shared/PrintPortal";
 import { C } from "@/lib/design-tokens";
-import { formatJSTTime } from "@/lib/jst-date";
 import { formatCurrency } from "@/lib/format/number";
 import type { PaymentMethodMaster } from "@/types/generated/models";
 import type { CloseBillingDetail } from "../api/get-cash-register-preview";
@@ -10,7 +10,15 @@ import {
   formatClosingCount,
   type UnclassifiedOtherCountInput,
 } from "../lib/closing-summary";
-import { CATEGORY_LABELS, PERIOD_LABELS, type CashRegisterPeriod } from "../lib/constants";
+import { projectBillingDetailRows } from "../lib/billing-detail-rows";
+import { PERIOD_LABELS, type CashRegisterPeriod } from "../lib/constants";
+import { BillingDetailTable } from "./BillingDetailTable";
+
+// EMR-354: close 印刷の mount 中に html 要素へ付与する専用クラス。
+// globals.css の html/body { overflow:hidden; height:100% } を @media print で
+// このクラスに限り解除するためのフック（レガシーブラウザターゲットを考慮し
+// :has() へ依存しない class 管理とした）。
+const CLOSE_PRINT_ROOT_CLASS = "close-print-active";
 
 interface TaxEntry {
   taxableAmount: number;
@@ -37,8 +45,9 @@ interface ClosePrintAreaProps {
 /**
  * #153: レジ締めサマリーの印刷／PDF出力（ブラウザ「PDFとして保存」）用ビュー。
  *
- * #184 と同じ PrintPortal（共通印刷基盤）を再利用し、A4 横 1 面に
+ * #184 と同じ PrintPortal（共通印刷基盤）を再利用し、A4 横に
  * 統合テーブル（部門別集計）＋消費税内訳＋個別会計明細＋現金照合を縦に並べる。
+ * 個別会計明細は行数に応じて複数ページへ改ページされる（EMR-354）。
  * 画面表示（UnifiedClosingSummaryTable / BillingDetailTable）と同一データ源
  * （buildUnifiedClosingRows / billingDetails）を描画し、表示値とPDF値を一致させる。
  */
@@ -64,6 +73,18 @@ export function ClosePrintArea({
   const totals = buildUnifiedClosingTotals(rows);
   const { standard, reduced } = taxBreakdown;
   const difference = actualCash !== null ? actualCash - theoreticalCash : null;
+
+  // EMR-354: globals.css の html/body { height:100%; overflow:hidden } が
+  // 印刷時の複数ページ描画を 1 面に切り詰めるため、close 印刷の mount 中だけ
+  // html に専用クラスを付け、下の scoped @media print で解除する。
+  // アンマウント時に必ず除去し、画面表示・他印刷面への影響はない。
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.add(CLOSE_PRINT_ROOT_CLASS);
+    return () => {
+      root.classList.remove(CLOSE_PRINT_ROOT_CLASS);
+    };
+  }, []);
 
   return (
     <PrintPortal testId="close-print-area" orientation="landscape">
@@ -192,49 +213,69 @@ export function ClosePrintArea({
         </div>
       </div>
 
-      {/* 個別会計明細 */}
+      {/* 個別会計明細（EMR-354: 画面と同一の1会計=1行投影 + フッタ再集計） */}
       <p className="font-semibold text-[9pt] mb-1">
-        個別会計明細（{billingDetails.length.toLocaleString()}件）
+        個別会計明細（{projectBillingDetailRows(billingDetails).length.toLocaleString()}件）
       </p>
-      <table className="w-full text-[8pt] border-collapse">
-        <thead>
-          <tr className={`${C.bgGray100}`}>
-            <th className={`border ${C.borderGray300} px-1 py-0.5 text-left`}>時刻</th>
-            <th className={`border ${C.borderGray300} px-1 py-0.5 text-left`}>飼主 / ペット</th>
-            <th className={`border ${C.borderGray300} px-1 py-0.5 text-left`}>部門</th>
-            <th className={`border ${C.borderGray300} px-1 py-0.5 text-left`}>支払方法</th>
-            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>請求額</th>
-            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>返金額</th>
-            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>純額</th>
-          </tr>
-        </thead>
-        <tbody>
-          {billingDetails.map((d) => (
-            <tr key={d.billingId}>
-              <td className={`border ${C.borderGray300} px-1 py-0.5`}>
-                {d.paidAt ? formatJSTTime(d.paidAt) : "—"}
-              </td>
-              <td className={`border ${C.borderGray300} px-1 py-0.5`}>
-                {d.ownerName} / {d.petName}
-                {d.isHospitalization ? "（入院）" : ""}
-              </td>
-              <td className={`border ${C.borderGray300} px-1 py-0.5`}>
-                {CATEGORY_LABELS[d.category] ?? d.category}
-              </td>
-              <td className={`border ${C.borderGray300} px-1 py-0.5`}>{d.paymentMethodName}</td>
-              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
-                {formatCurrency(d.billingAmount)}
-              </td>
-              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
-                {d.refundAmount > 0 ? `-${formatCurrency(d.refundAmount)}` : "—"}
-              </td>
-              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right font-medium`}>
-                {formatCurrency(d.netAmount)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <BillingDetailTable details={billingDetails} showFooter footerLabel="個別会計明細 合計" />
+
+      {/* EMR-354: 印刷時の1ページ切り詰め修正。PrintPortal ルートの
+          position:fixed/overflow:auto と globals.css の html/body
+          { height:100%; overflow:hidden } が印刷時も先頭画面分しか描画しないため、
+          close ポータル mount 中に付与する html クラス + この scoped CSS で
+          静的配置・可視オーバーフローへ戻す（共有 PrintPortal / globals.css 自体は
+          変更しない）。明細表は 7.5pt・固定レイアウト・通常改行で A4 横に収め、
+          thead は各ページで繰り返し、tfoot 合計行は最終ページに1回だけ、
+          行途中の分割は避ける。 */}
+      <style type="text/css">
+        {`
+          @media print {
+            html.${CLOSE_PRINT_ROOT_CLASS},
+            html.${CLOSE_PRINT_ROOT_CLASS} body {
+              height: auto !important;
+              overflow: visible !important;
+            }
+            [data-testid="close-print-area"] {
+              position: static !important;
+              inset: auto !important;
+              overflow: visible !important;
+              height: auto !important;
+              padding: 0 !important;
+            }
+            [data-testid="close-print-area"] .overflow-x-auto {
+              overflow: visible !important;
+            }
+            [data-testid="close-print-area"] .billing-detail-table {
+              table-layout: fixed;
+              width: 100%;
+              font-size: 7.5pt;
+            }
+            [data-testid="close-print-area"] .billing-detail-table th,
+            [data-testid="close-print-area"] .billing-detail-table td {
+              padding: 1px 3px;
+              /* 共有 TableCell/TableHead の画面用 text-* ユーティリティを
+                 印刷では 7.5pt へ上書き（R2-1: セルが画面サイズのまま
+                 8桁領収Noを分割していた）。!important は utilities 上書き用。 */
+              font-size: 7.5pt !important;
+              line-height: 1.3;
+              /* break-word は「1行に収まらない単語のみ」途中改行するため、
+                 通常の領収No・¥金額はセル内に収まり、超長い氏名等だけ折り返す */
+              overflow-wrap: break-word;
+              white-space: normal !important;
+            }
+            [data-testid="close-print-area"] thead {
+              display: table-header-group;
+            }
+            [data-testid="close-print-area"] tfoot {
+              display: table-row-group;
+            }
+            [data-testid="close-print-area"] tr {
+              break-inside: avoid;
+              page-break-inside: avoid;
+            }
+          }
+        `}
+      </style>
     </PrintPortal>
   );
 }

@@ -28,7 +28,7 @@ id = "generic-api-key"
 description = "Verified SHA-256 file digests in BASELINE.json"
 condition = "AND"
 regexTarget = "secret"
-paths = ['''^docs/work/docs-perfection/EVIDENCE/BASELINE\.json$''']
+paths = ['''^docs/work/docs-audit/docs-perfection/EVIDENCE/BASELINE\.json$''']
 regexes = [
   '''^15d4b1e2368ba9034b4535e6a633b654c351db56a62b7ebf44afe0732166bff6$''',
   '''^4fcf30c8df3f3b13c070df66307d0edd738e13edae4afc4560ed36aaf0faa36e$''',
@@ -39,7 +39,7 @@ regexes = [
 description = "Verified SHA-256 file digests in astra-loop-baseline.json"
 condition = "AND"
 regexTarget = "secret"
-paths = ['''^docs/work/docs-perfection/EVIDENCE/astra-loop-baseline\.json$''']
+paths = ['''^docs/work/docs-audit/docs-perfection/EVIDENCE/astra-loop-baseline\.json$''']
 regexes = [
   '''^03c06cb032422a1164e6e9d9d8ffa0f490b402655d90fbe66486dd1017db2b67$''',
   '''^046d987945b3e21d37b01668fa060640c370e9f1787ee5ffea6677510fb69c17$''',

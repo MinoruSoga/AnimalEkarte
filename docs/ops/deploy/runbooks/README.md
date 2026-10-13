@@ -13,6 +13,9 @@
 | [SCHEDULER_BATCHES.md](SCHEDULER_BATCHES.md) | バッチ別仕様と本番 go-live 有効化判断 | go-live 前の batch 有効化判断時 |
 | [BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md](BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md) | Cloudflare / PlanetScale 資格情報ローテーションと、退役済み AWS 手順の実行禁止境界 | 資格情報ローテーションの計画時、または過去の AWS 運用を調査する時 |
 | [SEC_SECRETS_5_GITLEAKS_HISTORY_INVENTORY.md](SEC_SECRETS_5_GITLEAKS_HISTORY_INVENTORY.md) | git 履歴上のシークレット露出棚卸しとローテーション手順 | シークレットローテーション作業時 |
+| [BREAK-HOURS-SHAPE-AUDIT.md](BREAK-HOURS-SHAPE-AUDIT.md) | `line_reservation_settings.break_hours` 形状監査（本番デプロイ前ゲート・使い切り） | 本番デプロイ前の監査 SQL 実行時 |
+| [EMR-321_HOTEL_RESERVATION.md](EMR-321_HOTEL_RESERVATION.md) | ホテル予約区分・ケージ選択の医院別手動確認 | EMR-321 対象医院の手動確認時 |
+| [LSTEP_WRITE_API_PAUSE.md](LSTEP_WRITE_API_PAUSE.md) | Lステップ Write API 一時停止（deploy gate + clinic gate の二重 gate） | Write 再有効化の判断時 |
 
 ## 運用ルール
 

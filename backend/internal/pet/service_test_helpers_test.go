@@ -134,6 +134,16 @@ func (*mockPetRepository) FindOwnersByPetBirthday(
 	return nil, nil
 }
 
+func (*mockPetRepository) OwnerHasAlivePetBirthday(
+	context.Context,
+	uint64,
+	uint64,
+	int,
+	int,
+) (bool, error) {
+	return false, nil
+}
+
 func defaultOwnerRepo() *mockOwnerRepository {
 	return &mockOwnerRepository{
 		findByIDFn: func(context.Context, uint64, uint64) (*model.Owner, error) {

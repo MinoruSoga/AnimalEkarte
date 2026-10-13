@@ -2,7 +2,7 @@
 
 > **目的**: 予約作成で時間重複などの 409 が起きたとき理由がモーダル内に表示されて閉じずに修正でき、担当者候補が capability 情報未確定・不在時に「全員出す」へ倒れず fail-closed になることを納品前に証明する。
 > **所要目安**: 15分 / **深度**: 中
-> **仕様正本**: [screens/02-reservations.md](../../../spec/screens/02-reservations.md)。関連 tracker: Plane `EMR-13`（旧 Linear `BRT-102`。予約作成 409 の理由非表示）・`EMR-12`（旧 `BRT-103`。担当者フィルタ）。
+> **仕様正本**: [domains/reservations/pages/reservation-management.md](../../../spec/domains/reservations/pages/reservation-management.md)。関連 tracker: Plane `EMR-13`（旧 Linear `BRT-102`。予約作成 409 の理由非表示）・`EMR-12`（旧 `BRT-103`。担当者フィルタ）。
 
 ## 前提条件
 

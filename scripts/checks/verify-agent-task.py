@@ -94,9 +94,9 @@ OFFLINE_GO_PACKAGE_FLAGS = {
 # Fixed source inputs for Go contracts that read outside the backend module.
 # Only these individual worktree documents are exposed; never mount the repo root.
 BACKEND_CONTRACT_DOCUMENTS = {
-    './internal/auth': ('docs/ops/deploy/FIRST_SYSTEM_ADMIN.md',),
+    './internal/auth': ('docs/ops/deploy/accounts/FIRST_SYSTEM_ADMIN.md',),
     './internal/medicalrecord': (
-        'docs/ops/deploy/LAB_DEVICE_CONNECTIVITY.md',
+        'docs/ops/deploy/lab-devices/LAB_DEVICE_CONNECTIVITY.md',
         'docs/architecture/adr/007-lab-device-receive-and-commit.md',
     ),
 }
@@ -755,7 +755,7 @@ def plan(paths):
             'scripts/rehearsal/lib/f8-g4-host-safety.test.mjs',
             'scripts/rehearsal/check-f8-g4-resources.mjs',
             'docker-compose.f8-g4-rehearsal.yml',
-            'docs/ops/deploy/F8_G4_FAILURE_REHEARSAL.md',
+            'docs/ops/deploy/rehearsals/F8_G4_FAILURE_REHEARSAL.md',
         ):
             jobs.append({'service': 'host', 'command': ['node', '--test', 'scripts/rehearsal/lib/f8-g4-evidence.test.mjs']})
             jobs.append({'service': 'host', 'command': ['node', '--test', 'scripts/rehearsal/lib/f8-g4-host-safety.test.mjs']})
@@ -780,7 +780,7 @@ def plan(paths):
             jobs.append({'service': 'backend', 'command': ['go', 'test', '-json', '-p=2', '-count=1', '-short', './internal/apicontract'], 'require_completed_test': True})
         elif path == 'backend/cmd/api/testdata/get_head_permissions.json':
             jobs.append({'service': 'backend', 'command': ['go', 'test', '-json', '-p=2', '-count=1', '-short', './cmd/api', '-run=^TestGETHEAD'], 'require_completed_test': True})
-        elif path in ('backend/internal/auth/testdata/first_system_admin.sql', 'docs/ops/deploy/FIRST_SYSTEM_ADMIN.md'):
+        elif path in ('backend/internal/auth/testdata/first_system_admin.sql', 'docs/ops/deploy/accounts/FIRST_SYSTEM_ADMIN.md'):
             jobs.append({'service': 'backend', 'command': ['go', 'test', '-json', '-p=2', '-count=1', '-short', './internal/auth', '-run=^TestFirstSystemAdminProcedureMatchesInitSchema$'], 'require_completed_test': True})
         elif path.endswith('.md') and (path.startswith(('docs/', '.claude/', '.codex/', '.agents/', 'frontend/src/features/manual/'))
                                       or '/' not in path or pathlib.PurePosixPath(path).name in ('CLAUDE.md', 'AGENTS.md', 'README.md', 'PATTERNS.md')):

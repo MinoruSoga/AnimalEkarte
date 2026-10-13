@@ -6,6 +6,13 @@ import (
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 )
 
+// medicalRecordRuntimeRepository retains the explicit history capability at
+// composition time without widening unrelated medical-record consumers.
+type medicalRecordRuntimeRepository interface {
+	medicalrecord.MedicalRecordRepository
+	medicalrecord.DormantOwnerHistoryRepository
+}
+
 // medicalRecordRepositories is the persistence graph owned by the
 // medicalrecord domain. Fields stay private to the composition root so
 // downstream domains receive only the narrow capabilities they consume.
@@ -38,7 +45,7 @@ type medicalRecordRepositories struct {
 	labDeviceReceive        medicalrecord.LabDeviceReceiveRepository
 	medicalRecordAddenda    medicalrecord.MedicalRecordAddendumRepository
 	medicalRecordImages     medicalrecord.MedicalRecordImageRepository
-	medicalRecords          medicalrecord.MedicalRecordRepository
+	medicalRecords          medicalRecordRuntimeRepository
 	medicineDoseParameters  medicalrecord.MedicineDoseParamRepository
 	medicines               medicalrecord.MedicineRepository
 	procedures              medicalrecord.ProcedureRepository

@@ -1,0 +1,100 @@
+{
+  "schema_version": "1.0",
+  "preset": {
+    "id": "animalekarte-canonical",
+    "name": "AnimalEkarte canonical domain references",
+    "version": "0.1.0",
+    "description": "Project-local canonical domain and decision boundaries; not an upstream preset."
+  },
+  "requires": {
+    "speckit_version": "==1.1.3"
+  },
+  "provides": {
+    "templates": [
+      {
+        "name": "speckit.specify",
+        "file": "commands/speckit.specify.md",
+        "type": "command",
+        "strategy": "replace"
+      },
+      {
+        "name": "speckit.clarify",
+        "file": "commands/speckit.clarify.md",
+        "type": "command",
+        "strategy": "replace"
+      },
+      {
+        "name": "speckit.constitution",
+        "file": "commands/speckit.constitution.md",
+        "type": "command",
+        "strategy": "replace"
+      },
+      {
+        "name": "speckit.plan",
+        "file": "commands/speckit.plan.md",
+        "type": "command",
+        "strategy": "prepend"
+      },
+      {
+        "name": "speckit.tasks",
+        "file": "commands/speckit.tasks.md",
+        "type": "command",
+        "strategy": "prepend"
+      },
+      {
+        "name": "speckit.analyze",
+        "file": "commands/speckit.analyze.md",
+        "type": "command",
+        "strategy": "prepend"
+      },
+      {
+        "name": "speckit.checklist",
+        "file": "commands/speckit.checklist.md",
+        "type": "command",
+        "strategy": "prepend"
+      },
+      {
+        "name": "speckit.implement",
+        "file": "commands/speckit.implement.md",
+        "type": "command",
+        "strategy": "prepend"
+      },
+      {
+        "name": "speckit.converge",
+        "file": "commands/speckit.converge.md",
+        "type": "command",
+        "strategy": "prepend"
+      },
+      {
+        "name": "speckit.taskstoissues",
+        "file": "commands/speckit.taskstoissues.md",
+        "type": "command",
+        "strategy": "prepend"
+      },
+      {
+        "name": "spec-template",
+        "file": "templates/spec-template.md",
+        "type": "template",
+        "strategy": "replace"
+      },
+      {
+        "name": "plan-template",
+        "file": "templates/plan-template.md",
+        "type": "template",
+        "strategy": "replace"
+      },
+      {
+        "name": "tasks-template",
+        "file": "templates/tasks-template.md",
+        "type": "template",
+        "strategy": "replace"
+      },
+      {
+        "name": "checklist-template",
+        "file": "templates/checklist-template.md",
+        "type": "template",
+        "strategy": "replace"
+      }
+    ]
+  }
+}

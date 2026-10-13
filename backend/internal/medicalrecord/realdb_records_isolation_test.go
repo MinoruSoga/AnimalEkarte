@@ -112,7 +112,7 @@ func wireRecordsHandlers(t *testing.T, db *gorm.DB, forbidden uint64) realDBReco
 		NewCheckupRepository(db), mrRepo, NewCheckupTypeFieldRepository(db), NewCheckupFieldResultRepository(db), nil, tx,
 	))
 	clinicalSvc := ClinicalPlanService(NewClinicalPlanService(NewClinicalPlanRepository(db), mrRepo, nil, nil, tx, nil))
-	vaccSvc := VaccinationService(NewVaccinationService(NewVaccinationRepository(db), NewVaccineRepository(db), nil, nil, mrRepo, tx))
+	vaccSvc := VaccinationService(NewVaccinationService(NewVaccinationRepository(db), NewVaccineRepository(db), nil, nil, mrRepo, tx, &mockAuditTxLogger{}))
 
 	if forbidden != 0 {
 		g := clinicIDGuard{t: t, forbiddenClinicID: forbidden}

@@ -63,6 +63,7 @@ func TestVaccinationService_SameDayMultiVaccineInChartRealDB(t *testing.T) {
 		reservation.NewReservationRepository(db),
 		NewMedicalRecordRepository(db),
 		vaccinationTestTransactor{db: db},
+		&mockAuditTxLogger{},
 	)
 
 	nowJST := time.Now().In(config.JST)

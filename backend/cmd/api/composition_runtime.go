@@ -91,6 +91,7 @@ type runtimeComposition struct {
 	lstep             *lstep.Application
 	supportChat       support.ChatCompleter
 	planeTickets      support.TicketCreator
+	planeTimeout      time.Duration
 	bugReportNotifier support.BugReportNotifier
 }
 
@@ -268,6 +269,7 @@ func newRuntimeDomainCompositions(
 		),
 		// Plane 連携は PLANE_API_KEY 未設定の場合 nil（連携無効）を返す。
 		// 報告自体は連携の有無に関わらずローカル保存される。
+		planeTimeout: time.Duration(dependencies.Config.PlaneTimeoutMS) * time.Millisecond,
 		planeTickets: support.NewPlaneTicketCreator(
 			dependencies.Config.PlaneBaseURL,
 			dependencies.Config.PlaneWebBaseURL,
@@ -277,6 +279,11 @@ func newRuntimeDomainCompositions(
 			dependencies.Config.PlaneProjectIdentifier,
 			dependencies.Config.FrontendURL,
 			time.Duration(dependencies.Config.PlaneTimeoutMS)*time.Millisecond,
+			support.WithPlaneEnvironment(dependencies.Config.PlaneEnvironment),
+			support.WithPlaneLabelIDs(
+				dependencies.Config.PlaneSourceLabelID,
+				dependencies.Config.PlaneLaneLabelID,
+			),
 		),
 		// Discord 通知は DISCORD_BUG_REPORT_WEBHOOK_URL 未設定の場合 nil（通知無効）。
 		// 通知の成否に関わらず報告はローカル保存される（best-effort）。
@@ -602,7 +609,15 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 		c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
 	).RegisterRoutes(protected)
 	support.NewHandler(
-		support.NewService(support.NewRepository(c.db), c.planeTickets, c.bugReportNotifier),
+		support.NewService(
+			support.NewRepository(c.db),
+			c.planeTickets,
+			c.bugReportNotifier,
+			support.WithAuditLogger(supportAuditAdapter{logger: c.audit}),
+			support.WithPlaneTimeout(
+				c.planeTimeout,
+			),
+		),
 		uploader,
 		supportAuditAdapter{logger: c.audit},
 		c.supportChat,

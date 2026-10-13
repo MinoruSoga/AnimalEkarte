@@ -71,7 +71,7 @@ flowchart LR
 ### 4. マイ予約のキャンセル可否ルール
 - 一覧は本人（LINE 顧客 ID）の予約のみ。ステータスバッジ（確定/確認中/受付済/診察中/会計中/完了/未来院/キャンセル済）を色分け表示。
 - **キャンセルボタンはステータスが「確定」（confirmed）の予約にのみ表示**。来院後ステータス（受付済以降）はこの画面からキャンセル不可。日時による締切はなく、当日でもキャンセル可能。
-- 押下するとカード内インラインで「本当にキャンセルしますか？」の確認を挟み、確定するとバックエンドの `CancelByID` が本人・医院スコープで `status=cancelled` のみに更新する。`deleted_at` は設定せず、マイ予約にはキャンセル済として残る。スタッフ側予約カレンダーは `filterCalendarAppointments` で `cancelled` を非表示にする（#116、[02-reservations.md](./02-reservations.md)）。成功時はマイ予約のバッジを即時「キャンセル済」に更新し、失敗時は `role="alert"` のエラーを表示する。
+- 押下するとカード内インラインで「本当にキャンセルしますか？」の確認を挟み、確定するとバックエンドの `CancelByID` が本人・医院スコープで `status=cancelled` のみに更新する。`deleted_at` は設定せず、マイ予約にはキャンセル済として残る。スタッフ側予約カレンダーは `filterCalendarAppointments` で `cancelled` を非表示にする（#116、[reservation-management.md](../domains/reservations/pages/reservation-management.md)）。成功時はマイ予約のバッジを即時「キャンセル済」に更新し、失敗時は `role="alert"` のエラーを表示する。
 
 ### 5. メンテナンス・エラー時の挙動
 - 起動時に取得した設定の status が running 以外なら `MaintenancePage` を表示（フロー開始不可）。フロー途中に停止された場合は確定時に 409 MAINTENANCE で検出される。

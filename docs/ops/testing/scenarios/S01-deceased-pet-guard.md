@@ -2,7 +2,7 @@
 
 > **目的**: 死亡登録されたペットに対する新規の臨床・会計・配信操作が物理的にブロックされ、死亡した個体への誤診療・誤請求・誤配信が発生しないことを納品前に証明する。
 > **所要目安**: 15分 / **深度**: 深い
-> **仕様正本**: [specification.md §2.1](../../../spec/specification.md)・[screens/00-pet-selection.md](../../../spec/screens/00-pet-selection.md)・[screens/02-reservations.md](../../../spec/screens/02-reservations.md)・[screens/04-owners-form.md](../../../spec/screens/04-owners-form.md)・[screens/09-hospitalization-form.md](../../../spec/screens/09-hospitalization-form.md)・[line/lstep-integration.md §4](../../../spec/line/lstep-integration.md)
+> **仕様正本**: [specification.md §2.1](../../../spec/specification.md)・[screens/00-pet-selection.md](../../../spec/screens/00-pet-selection.md)・[domains/reservations/pages/reservation-management.md](../../../spec/domains/reservations/pages/reservation-management.md)・[screens/04-owners-form.md](../../../spec/screens/04-owners-form.md)・[screens/09-hospitalization-form.md](../../../spec/screens/09-hospitalization-form.md)・[line/lstep-integration.md §4](../../../spec/line/lstep-integration.md)
 
 ## 前提条件
 

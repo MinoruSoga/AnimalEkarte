@@ -7,6 +7,7 @@ import {
   type MutableRefObject,
   type TransitionStartFunction,
 } from "react";
+import axios from "axios";
 import type { NavigateFunction } from "react-router";
 
 import { paths } from "@/config/paths";
@@ -205,7 +206,11 @@ export function useMedicalRecordAutoCreate({
               ? { phase: "medical-record", appointmentId }
               : { phase: "appointment", appointmentId: null },
           );
-          handleApiError(error, "カルテ作成");
+          // EMR-339: mutation onError が通知済みの Axios 失敗は二重通知しない。
+          // mutation 経路外（navigate 等）の非Axios例外は引き続きここで通知する。
+          if (!axios.isAxiosError(error)) {
+            handleApiError(error, "カルテ作成");
+          }
         } finally {
           isCreateInFlightRef.current = false;
         }

@@ -65,6 +65,7 @@ function toInsuranceNumber(formData: HospitalizationFormData) {
 export function buildUpdateHospitalizationRequest(
   formData: HospitalizationFormData,
   initialCageId: string,
+  initialNextVisit = "",
 ): UpdateHospitalizationRequest {
   return {
     hospitalization_type: toHospitalizationType(formData.hospitalizationType),
@@ -81,6 +82,12 @@ export function buildUpdateHospitalizationRequest(
             ? { expected_cage_id: initialCageId }
             : { expected_cage_is_null: true }),
         }),
+    // EMR-353: nextVisit は保存値からの差分だけ送る。未変更は省略、消去は clear_next_visit。
+    ...(formData.nextVisit === initialNextVisit
+      ? {}
+      : formData.nextVisit
+        ? { next_visit: formData.nextVisit }
+        : { clear_next_visit: true }),
     is_insurance: formData.isInsurance,
     insurance_company_name: toInsuranceCompanyName(formData),
     insurance_number: toInsuranceNumber(formData),
@@ -108,6 +115,8 @@ export function buildCreateHospitalizationRequest(
     memo: formData.memo,
     ...(formData.doctorId ? { doctor_id: formData.doctorId } : {}),
     ...(formData.cageId ? { cage_id: formData.cageId } : {}),
+    // EMR-353: 次回予定日は入力があるときだけ送る（未入力は BE 側 NULL のまま）。
+    ...(formData.nextVisit ? { next_visit: formData.nextVisit } : {}),
     is_insurance: formData.isInsurance,
     insurance_company_name: toInsuranceCompanyName(formData),
     insurance_number: toInsuranceNumber(formData),
@@ -124,10 +133,14 @@ export function buildHospitalizationFormDataFromRecord(
     hospitalizationType:
       hospitalization.hospitalization_type === "hospitalization" ? "入院" : "ホテル",
     cageId: hospitalization.cage_id ? String(hospitalization.cage_id) : "",
-    displayDate: hospitalization.start_date,
+    // EMR-353: timestamp 形の wire 値は共有日付計算が扱えるよう date-only に正規化する。
+    displayDate: hospitalization.start_date ? hospitalization.start_date.split("T")[0] : "",
     endDate: hospitalization.end_date
       ? hospitalization.end_date.split("T")[0]
       : getDefaultHospitalizationEndDate(),
+    // EMR-353: 保存済みの日付は「以外（手動）」として復元する（選択種別は wire に無い）。
+    nextVisit: hospitalization.next_visit ? hospitalization.next_visit.split("T")[0] : "",
+    nextScheduleType: "other",
     memo: hospitalization.memo ?? "",
     ownerRequest: hospitalization.owner_request ?? "",
     staffNotes: hospitalization.staff_notes ?? "",

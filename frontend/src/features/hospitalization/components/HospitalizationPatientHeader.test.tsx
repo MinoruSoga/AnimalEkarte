@@ -33,6 +33,7 @@ function makeHospitalization(
     memo: undefined,
     ownerRequest: undefined,
     staffNotes: undefined,
+    nextVisit: undefined,
   };
   return { ...base, ...overrides };
 }
@@ -48,6 +49,28 @@ describe("HospitalizationPatientHeader", () => {
     render(<HospitalizationPatientHeader hospitalization={makeHospitalization(false)} />);
 
     expect(screen.queryByText("【死亡】")).not.toBeInTheDocument();
+  });
+});
+
+describe("HospitalizationPatientHeader 担当医表示 (EMR-352)", () => {
+  it("doctorName 未設定なら担当医ラベルは1回だけ表示し未設定と識別する", () => {
+    render(<HospitalizationPatientHeader hospitalization={makeHospitalization(false)} />);
+
+    // PatientInfoCard が staffLabel="担当医" を付与するため、呼び出し側の
+    // fallback 値にラベルを含めると「担当医担当医未設定」と二重表示になる。
+    expect(screen.getByText("担当医未設定")).toBeInTheDocument();
+    expect(screen.queryByText(/担当医.*担当医/)).not.toBeInTheDocument();
+  });
+
+  it("doctorName 設定済みなら担当医ラベル1回と氏名を表示する", () => {
+    render(
+      <HospitalizationPatientHeader
+        hospitalization={makeHospitalization(false, { doctorName: "田中 一郎" })}
+      />,
+    );
+
+    expect(screen.getByText("担当医田中 一郎")).toBeInTheDocument();
+    expect(screen.queryByText(/担当医.*担当医/)).not.toBeInTheDocument();
   });
 });
 
@@ -93,5 +116,29 @@ describe("HospitalizationPatientHeader 誕生月バッジ (EMR-301)", () => {
 
     expect(screen.getByText("【死亡】")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
+  });
+});
+
+// EMR-353: 保存済み next_visit がある詳細ヘッダは「次回予定」ラベルでその日付を表示し、
+// 無い場合は従来どおり「退院予定」+ endDate のままにする。
+describe("HospitalizationPatientHeader 次回予定表示 (EMR-353)", () => {
+  it("保存済み nextVisit があるとき「次回予定」ラベルとその日付を表示する", () => {
+    render(
+      <HospitalizationPatientHeader
+        hospitalization={makeHospitalization(false, { nextVisit: "2026-11-20" })}
+      />,
+    );
+
+    expect(screen.getByText("次回予定")).toBeInTheDocument();
+    expect(screen.getByText(/2026\/11\/20/)).toBeInTheDocument();
+    expect(screen.queryByText("退院予定")).not.toBeInTheDocument();
+  });
+
+  it("nextVisit が無いとき従来どおり「退院予定」ラベルと endDate を表示する", () => {
+    render(<HospitalizationPatientHeader hospitalization={makeHospitalization(false)} />);
+
+    expect(screen.getByText("退院予定")).toBeInTheDocument();
+    expect(screen.getByText(/2026\/07\/25/)).toBeInTheDocument();
+    expect(screen.queryByText("次回予定")).not.toBeInTheDocument();
   });
 });
