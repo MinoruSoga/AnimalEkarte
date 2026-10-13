@@ -34,6 +34,7 @@ import { useGetMedicalRecord } from "../api/get-medical-record";
 import { useGetPetMedicalHistory } from "../api/get-medical-records";
 import { useGetTrimmingsByPetId } from "../api/get-pet-trimmings";
 import { mergePetTimelineItems } from "../lib/pet-timeline";
+import { resolvePastWeightReferenceDate } from "../lib/interview-weight-model";
 import { useGetClinicalPlan } from "../api/clinical-plan";
 import { useGetTreatments } from "../api/treatments";
 import { useCopyTreatmentDetails } from "../hooks/use-copy-treatment-details";
@@ -56,6 +57,8 @@ function useMedicalRecordFormReadyState(input: {
     historyItems: medicalHistoryItems,
     isLoading: medicalHistoryLoading,
     isError: medicalHistoryError,
+    historyIncomplete: medicalHistoryIncomplete,
+    currentRecordDate,
   } = useGetPetMedicalHistory(selectedPet.id, recordId, recordClinicId);
   // NO32（治療履歴1本化・案A）: 同一ペットのトリミング記録をカルテ履歴と同じ
   // タイムラインに併記する。trimming view 権限が無い場合は fetch 自体を抑止する
@@ -169,6 +172,11 @@ function useMedicalRecordFormReadyState(input: {
     historyItems,
     medicalHistoryLoading,
     medicalHistoryError,
+    medicalHistoryIncomplete,
+    recordBoundary: resolvePastWeightReferenceDate({
+      recordDateIso: currentRecordDate,
+      recordDateJst: form.recordDate ?? form.partnerVisitDate,
+    }),
     isDirty,
     hasLineIntegration,
     lstepStatus,
@@ -326,6 +334,8 @@ export function MedicalRecordFormReadyPanels({
               recordPetId={ready.currentRecord?.petId}
               historyLoading={ready.medicalHistoryLoading}
               historyError={ready.medicalHistoryError}
+              historyIncomplete={ready.medicalHistoryIncomplete}
+              recordBoundary={ready.recordBoundary}
             />
           </fieldset>
         </UnifiedTabsRoot>

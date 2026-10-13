@@ -220,33 +220,84 @@ export function transformToHistoryItem(
  * 行フィルタに反映する（拠点横断で別医院の履歴キャッシュ/行を混入させない）。
  * 取得エラーは isError で返す（「記録なし」と区別するため、空配列にはしない）。
  */
+const HISTORY_PAGE_LIMIT = 50;
+const HISTORY_MAX_PAGES = 20;
+
+/** Bounded list reads keep truncation explicit instead of presenting an authoritative empty history. */
+async function getPetHistoryPages(petId: string, clinicId?: string, signal?: AbortSignal) {
+  let records: MedicalRecordResponseWithWeights[] = [];
+  const seen = new Set<number>();
+  let expectedTotal: number | undefined;
+  for (let page = 1; page <= HISTORY_MAX_PAGES; page++) {
+    const { data: res } = await axios.get<MedicalRecordsListResponse>("/v1/medical-records", {
+      params: { limit: HISTORY_PAGE_LIMIT, page, pet_id: petId, sort: "date", order: "desc" },
+      signal,
+      ...(clinicId ? { headers: { "X-Clinic-ID": clinicId } } : {}),
+    });
+    const total = res.total;
+    if (
+      (res.page !== undefined && res.page !== page) ||
+      (res.limit !== undefined && res.limit !== HISTORY_PAGE_LIMIT) ||
+      (total !== undefined && (!Number.isInteger(total) || total < 0)) ||
+      (expectedTotal !== undefined && total !== expectedTotal)
+    ) {
+      return { records, incomplete: true };
+    }
+    expectedTotal = total;
+    const newRows = res.data.filter((row) => {
+      if (seen.has(row.id)) return false;
+      seen.add(row.id);
+      return true;
+    });
+    records = [...records, ...newRows];
+    if (newRows.length !== res.data.length || res.data.length > HISTORY_PAGE_LIMIT) {
+      return { records, incomplete: true };
+    }
+    if (total !== undefined) {
+      if (records.length === total) return { records, incomplete: false };
+      if (records.length > total || res.data.length < HISTORY_PAGE_LIMIT) {
+        return { records, incomplete: true };
+      }
+    } else if (res.data.length < HISTORY_PAGE_LIMIT) {
+      return { records, incomplete: false };
+    }
+  }
+  return { records, incomplete: true };
+}
+
 export function useGetPetMedicalHistory(
   petId: string | undefined,
   excludeRecordId?: string,
   clinicId?: string,
-): { historyItems: MedicalRecordInterviewHistoryItem[]; isLoading: boolean; isError: boolean } {
+): {
+  historyItems: MedicalRecordInterviewHistoryItem[];
+  isLoading: boolean;
+  isError: boolean;
+  historyIncomplete: boolean;
+  currentRecordDate?: string;
+} {
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.medicalRecords.history(petId!, clinicId),
-    queryFn: async () => {
-      const params: Record<string, string> = { limit: "50", page: "1" };
-      if (petId) params.pet_id = petId;
-      const { data: res } = await axios.get<MedicalRecordsListResponse>("/v1/medical-records", {
-        params,
-        ...(clinicId ? { headers: { "X-Clinic-ID": clinicId } } : {}),
-      });
-      return res.data;
-    },
+    queryFn: ({ signal }) => getPetHistoryPages(petId!, clinicId, signal),
     enabled: !!petId,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,
   });
 
-  const historyItems: MedicalRecordInterviewHistoryItem[] = (data ?? [])
+  const scopedRecords = (data?.records ?? [])
     // 防衛: 要求した pet/clinic 以外の行が混ざっても投影しない
     .filter((r) => String(r.pet_id ?? "") === String(petId ?? ""))
-    .filter((r) => !clinicId || String(r.clinic_id) === clinicId)
+    .filter((r) => !clinicId || String(r.clinic_id) === clinicId);
+  const currentRecordDate = scopedRecords.find((r) => String(r.id) === excludeRecordId)?.date;
+  const historyItems = scopedRecords
     .filter((r) => !excludeRecordId || String(r.id ?? 0) !== excludeRecordId)
     .map(transformToHistoryItem);
 
-  return { historyItems, isLoading, isError };
+  return {
+    historyItems,
+    isLoading,
+    isError,
+    historyIncomplete: data?.incomplete ?? false,
+    currentRecordDate,
+  };
 }

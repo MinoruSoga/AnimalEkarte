@@ -111,6 +111,8 @@ const baseProps: TabsProps = {
   isFinalized: false,
   recordClinicId: "7",
   recordPetId: "pet-1",
+  // EMR356-1: 既存 fixture の 2026-03-01 測定が引き続き「過去」になるよう翌日を境界にする
+  recordBoundary: new Date("2026-03-02T00:00:00+09:00"),
   onChiefComplaintChange: () => {},
   onChiefComplaintTypeIdChange: () => {},
   onTreatmentPolicyChange: () => {},
@@ -205,6 +207,90 @@ describe("MedicalRecordClinicalTabs — 体重パネルへの投影集約（C2, 
         { ...historyItemBase, id: "2" },
       ],
     });
+    expect(screen.getAllByText(/4\.2/)).toHaveLength(2);
+    expect(screen.getAllByText(/体重.*確認でき/).length).toBeGreaterThan(0);
+  });
+
+  it("表示中カルテより後の測定は「過去」に出ない（EMR356-1: 古いカルテの後日体重）", () => {
+    const items: InterviewHistoryItem[] = [
+      {
+        ...historyItemBase,
+        id: "1",
+        weightMeasurements: [
+          { id: "11", value: 4.2, unit: "Kg", measuredAt: "2026-03-05T09:30:00+09:00" },
+        ],
+      },
+    ];
+
+    renderTabs({
+      historyItems: items,
+      recordBoundary: new Date("2026-03-01T00:00:00+09:00"),
+    });
+
+    // 履歴行には残るがパネル「過去」には届かない → 4.2 は1箇所のみ
+    expect(screen.getAllByText(/4\.2/)).toHaveLength(1);
+  });
+
+  it("選択カルテ当日の測定を「過去」に含めない", () => {
+    const items: InterviewHistoryItem[] = [
+      {
+        ...historyItemBase,
+        id: "1",
+        weightMeasurements: [
+          { id: "11", value: 4.2, unit: "Kg", measuredAt: "2026-03-01T09:30:00+09:00" },
+        ],
+      },
+    ];
+
+    renderTabs({
+      historyItems: items,
+      recordBoundary: new Date("2026-03-01T00:00:00+09:00"),
+    });
+
+    // 行には残るが、訪問時刻不明の同日測定を「過去」に配置しない。
+    expect(screen.getAllByText(/4\.2/)).toHaveLength(1);
+  });
+
+  it("境界未確定（recordBoundary なし）では測定を「過去」と断定しない", () => {
+    const items: InterviewHistoryItem[] = [
+      {
+        ...historyItemBase,
+        id: "1",
+        weightMeasurements: [
+          { id: "11", value: 4.2, unit: "Kg", measuredAt: "2026-03-01T09:30:00+09:00" },
+        ],
+      },
+    ];
+
+    renderTabs({ historyItems: items, recordBoundary: undefined });
+
+    expect(screen.getAllByText(/4\.2/)).toHaveLength(1);
+    expect(screen.queryByText("体重の記録はありません")).toBeNull();
+    expect(screen.getAllByText(/体重.*確認でき/).length).toBeGreaterThan(0);
+  });
+
+  it("履歴未完（historyIncomplete）では「体重の記録はありません」と断定しない（EMR356-2）", () => {
+    const items: InterviewHistoryItem[] = [{ ...historyItemBase, id: "1", weightMeasurements: [] }];
+
+    renderTabs({ historyItems: items, historyIncomplete: true });
+
+    expect(screen.queryByText("体重の記録はありません")).toBeNull();
+    expect(screen.getAllByText(/体重.*確認でき/).length).toBeGreaterThan(0);
+  });
+
+  it("履歴未完でも既知の過去測定は表示を保ち、未完であることも知らせる", () => {
+    const items: InterviewHistoryItem[] = [
+      {
+        ...historyItemBase,
+        id: "1",
+        weightMeasurements: [
+          { id: "11", value: 4.2, unit: "Kg", measuredAt: "2026-03-01T09:30:00+09:00" },
+        ],
+      },
+    ];
+
+    renderTabs({ historyItems: items, historyIncomplete: true });
+
     expect(screen.getAllByText(/4\.2/)).toHaveLength(2);
     expect(screen.getAllByText(/体重.*確認でき/).length).toBeGreaterThan(0);
   });

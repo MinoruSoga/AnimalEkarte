@@ -259,3 +259,279 @@ describe("useGetPetMedicalHistory — clinic コンテキストと行フィル�
     expect(result.current.historyItems.map((item) => item.id)).toEqual(["1"]);
   });
 });
+
+// EMR-356 review-fix (EMR356-2): page=1&limit=50 は全履歴ではない。
+// total/page/limit を使って全ページを取得するが、暴走防止の上限到達・
+// 進捗なし・total 不整合は「未完」として明示し、断定的な「測定なし」を許さない。
+describe("useGetPetMedicalHistory — 全ページ取得と未完の明示（EMR-356 review-fix）", () => {
+  afterEach(() => {
+    server.resetHandlers();
+  });
+
+  const rows = (startId: number, count: number): MedicalRecordResponse[] =>
+    Array.from({ length: count }, (_, i) => ({
+      ...minimalResponse,
+      id: startId + i,
+      pet_id: 9,
+      clinic_id: 1,
+    }));
+
+  const asPagedResult = (current: ReturnType<typeof useGetPetMedicalHistory>) =>
+    current as ReturnType<typeof useGetPetMedicalHistory> & {
+      historyIncomplete?: boolean;
+      currentRecordDate?: string;
+    };
+
+  it.each(["repeated", "wrong-page", "changed-total"])(
+    "%s は進捗不整合として未完を明示する",
+    async (failure) => {
+      const requestedPages: number[] = [];
+      server.use(
+        http.get("*/v1/medical-records", ({ request }) => {
+          const page = Number(new URL(request.url).searchParams.get("page"));
+          requestedPages.push(page);
+          return HttpResponse.json({
+            data: rows(failure === "repeated" ? 100 : 100 * page, 50),
+            total: failure === "changed-total" && page === 2 ? 101 : 100,
+            page: failure === "wrong-page" ? 1 : page,
+            limit: 50,
+          });
+        }),
+      );
+      const { result } = renderHook(() => useGetPetMedicalHistory("9", undefined, "1"), {
+        wrapper: createTestWrapper(),
+      });
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      expect(result.current.historyIncomplete).toBe(true);
+      expect(requestedPages).toEqual([1, 2]);
+    },
+  );
+
+  it("同一ページの重複も全件取得と断定しない", async () => {
+    server.use(
+      http.get("*/v1/medical-records", () =>
+        HttpResponse.json({
+          data: [...rows(100, 1), ...rows(100, 1)],
+          total: 2,
+          page: 1,
+          limit: 50,
+        }),
+      ),
+    );
+    const { result } = renderHook(() => useGetPetMedicalHistory("9", undefined, "1"), {
+      wrapper: createTestWrapper(),
+    });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.historyIncomplete).toBe(true);
+    expect(result.current.historyItems).toHaveLength(1);
+  });
+
+  it("51件超: page2 の行も履歴へ届き、行ローカル weightMeasurements を保持する", async () => {
+    const requestedPages: string[] = [];
+    server.use(
+      http.get("*/v1/medical-records", ({ request }) => {
+        const page = new URL(request.url).searchParams.get("page") ?? "1";
+        requestedPages.push(page);
+        if (page === "1") {
+          return HttpResponse.json({ data: rows(100, 50), total: 51, page: 1, limit: 50 });
+        }
+        return HttpResponse.json({
+          data: [
+            {
+              ...minimalResponse,
+              id: 150,
+              pet_id: 9,
+              clinic_id: 1,
+              weight_measurements: [
+                { id: 11, value: 4.2, unit: "Kg", recorded_at: "2026-01-05T09:30:00+09:00" },
+              ],
+            },
+          ],
+          total: 51,
+          page: 2,
+          limit: 50,
+        });
+      }),
+    );
+
+    const { result } = renderHook(() => useGetPetMedicalHistory("9", undefined, "1"), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(asPagedResult(result.current).historyIncomplete).toBe(false);
+    expect(requestedPages).toContain("2");
+    expect(result.current.historyItems).toHaveLength(51);
+    const weighted = result.current.historyItems.find((item) => item.id === "150");
+    expect(weighted?.weightMeasurements).toEqual([
+      { id: "11", value: 4.2, unit: "Kg", measuredAt: "2026-01-05T09:30:00+09:00" },
+    ]);
+  });
+
+  it("bounded: total が上限ページを超えるときは打ち切り historyIncomplete=true で明示する", async () => {
+    const requestedPages: string[] = [];
+    server.use(
+      http.get("*/v1/medical-records", ({ request }) => {
+        const page = Number(new URL(request.url).searchParams.get("page") ?? "1");
+        requestedPages.push(String(page));
+        return HttpResponse.json({
+          data: rows(1000 + page * 100, 50),
+          total: 5000,
+          page,
+          limit: 50,
+        });
+      }),
+    );
+
+    const { result } = renderHook(() => useGetPetMedicalHistory("9", undefined, "1"), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(requestedPages).toHaveLength(20);
+    expect(asPagedResult(result.current).historyIncomplete).toBe(true);
+  });
+
+  it("total と矛盾する空ページは履歴未完を明示する", async () => {
+    server.use(
+      http.get("*/v1/medical-records", ({ request }) => {
+        const page = new URL(request.url).searchParams.get("page") ?? "1";
+        if (page === "1") {
+          return HttpResponse.json({ data: rows(100, 50), total: 51, page: 1, limit: 50 });
+        }
+        return HttpResponse.json({ data: [], total: 51, page: 2, limit: 50 });
+      }),
+    );
+
+    const { result } = renderHook(() => useGetPetMedicalHistory("9", undefined, "1"), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(asPagedResult(result.current).historyIncomplete).toBe(true);
+    expect(result.current.historyItems).toHaveLength(50);
+  });
+
+  it("total 未提供でも返却行が limit 未満なら完全（追加リクエストなし）", async () => {
+    const requestedPages: string[] = [];
+    server.use(
+      http.get("*/v1/medical-records", ({ request }) => {
+        const page = new URL(request.url).searchParams.get("page") ?? "1";
+        requestedPages.push(page);
+        return HttpResponse.json({ data: rows(100, 30), page: 1, limit: 50 });
+      }),
+    );
+
+    const { result } = renderHook(() => useGetPetMedicalHistory("9", undefined, "1"), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(asPagedResult(result.current).historyIncomplete).toBe(false);
+    expect(requestedPages).toEqual(["1"]);
+  });
+
+  it("total 未提供で満ページのときは次ページを probe し、短いページで完了する", async () => {
+    server.use(
+      http.get("*/v1/medical-records", ({ request }) => {
+        const page = new URL(request.url).searchParams.get("page") ?? "1";
+        if (page === "1") {
+          return HttpResponse.json({ data: rows(100, 50), page: 1, limit: 50 });
+        }
+        return HttpResponse.json({ data: rows(200, 10), page: 2, limit: 50 });
+      }),
+    );
+
+    const { result } = renderHook(() => useGetPetMedicalHistory("9", undefined, "1"), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(asPagedResult(result.current).historyIncomplete).toBe(false);
+    expect(result.current.historyItems).toHaveLength(60);
+  });
+
+  it("2ページ目以降の取得エラーは isError（部分履歴を「記録なし」としない）", async () => {
+    server.use(
+      http.get("*/v1/medical-records", ({ request }) => {
+        const page = new URL(request.url).searchParams.get("page") ?? "1";
+        if (page === "1") {
+          return HttpResponse.json({ data: rows(100, 50), total: 51, page: 1, limit: 50 });
+        }
+        return HttpResponse.json({ error: "boom" }, { status: 500 });
+      }),
+    );
+
+    const { result } = renderHook(() => useGetPetMedicalHistory("9", undefined, "1"), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true);
+    });
+    expect(result.current.historyItems).toHaveLength(0);
+  });
+
+  it("表示中カルテの行は履歴から除外しつつ wire record.date を currentRecordDate で返す", async () => {
+    server.use(
+      http.get("*/v1/medical-records", () =>
+        HttpResponse.json({
+          data: [
+            {
+              ...minimalResponse,
+              id: 42,
+              pet_id: 9,
+              clinic_id: 1,
+              date: "2026-03-01T14:00:00+09:00",
+            },
+            {
+              ...minimalResponse,
+              id: 41,
+              pet_id: 9,
+              clinic_id: 1,
+              date: "2026-02-01T00:00:00+09:00",
+            },
+          ],
+          total: 2,
+          page: 1,
+          limit: 50,
+        }),
+      ),
+    );
+
+    const { result } = renderHook(() => useGetPetMedicalHistory("9", "42", "1"), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.historyItems.map((item) => item.id)).toEqual(["41"]);
+    // 元の日付表現を保持し、呼び出し側でカルテ日付のJST開始へ正規化する。
+    expect(asPagedResult(result.current).currentRecordDate).toBe("2026-03-01T14:00:00+09:00");
+  });
+
+  it("page2 の行が weight_measurements キー未提供でも undefined を維持する（legacy 投影との区別）", async () => {
+    server.use(
+      http.get("*/v1/medical-records", ({ request }) => {
+        const page = new URL(request.url).searchParams.get("page") ?? "1";
+        if (page === "1") {
+          return HttpResponse.json({ data: rows(100, 50), total: 51, page: 1, limit: 50 });
+        }
+        return HttpResponse.json({
+          data: [{ ...minimalResponse, id: 150, pet_id: 9, clinic_id: 1 }],
+          total: 51,
+          page: 2,
+          limit: 50,
+        });
+      }),
+    );
+
+    const { result } = renderHook(() => useGetPetMedicalHistory("9", undefined, "1"), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    const legacy = result.current.historyItems.find((item) => item.id === "150");
+    expect(legacy).toBeDefined();
+    expect(legacy?.weightMeasurements).toBeUndefined();
+  });
+});

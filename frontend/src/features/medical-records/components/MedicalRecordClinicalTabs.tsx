@@ -32,6 +32,8 @@ export function MedicalRecordClinicalTabs({
   recordPetId,
   historyLoading,
   historyError,
+  historyIncomplete,
+  recordBoundary,
   isFinalized,
   isLocked,
   onChiefComplaintChange,
@@ -52,7 +54,7 @@ export function MedicalRecordClinicalTabs({
   // 未提供判定（unavailable）も同時に返す helper を必ず通す。
   // 最新体重の代理取得はしない — 行に相関した測定のみが対象。
   const { measurements: pastWeightMeasurements, unavailable: pastWeightUnavailable } =
-    collectPastWeightMeasurements(historyItems);
+    collectPastWeightMeasurements(historyItems, recordBoundary);
   // 書き込み可能な medicalRecordId は、選択中カルテの petId が selectedPet.id と
   // 一致し、clinic コンテキストが解決できた時だけ渡す（切替途中の旧カルテ誤書防止）。
   const writableRecordId =
@@ -90,7 +92,7 @@ export function MedicalRecordClinicalTabs({
               recordClinicId={recordClinicId}
               isPetDeceased={isPetDeceasedForClinicalWrite(selectedPet)}
               pastMeasurements={pastWeightMeasurements}
-              pastUnavailable={pastWeightUnavailable}
+              pastUnavailable={pastWeightUnavailable || historyIncomplete === true}
               historyLoading={historyLoading}
               historyError={historyError}
               isLocked={isLocked}
