@@ -414,16 +414,28 @@ export function terminalManualOperation(
   };
 }
 
-// A cross-plan conflict never acquired a fence or dispatched the business job.
-// Only this recorded-but-unexecuted state may be reclaimed by manual catch-up.
+// Recorded-but-unexecuted states whose business job never started may be
+// reclaimed by manual catch-up: a cross-plan schedule conflict, the first
+// stuck_lease skip recorded under a stalled active lease, and busy skips of
+// later overlapped slots (including legacy skips persisted before same-slot
+// suffix persistence was removed). fenceToken 0, no outcome and no manual
+// request ID prove the job never dispatched; executed or failed jobs stay
+// rejected, and paused or stale slots keep their existing contract.
 export function isUnexecutedScheduleConflict(ledger: ScheduledRunLedger): boolean {
-  return (
-    ledger.status === "failed" &&
-    ledger.failureCode === "schedule_conflict" &&
-    ledger.fenceToken === 0 &&
-    ledger.outcome === undefined &&
-    ledger.manualRequestId === undefined
-  );
+  if (
+    ledger.fenceToken !== 0 ||
+    ledger.outcome !== undefined ||
+    ledger.manualRequestId !== undefined
+  ) {
+    return false;
+  }
+  if (ledger.status === "failed") {
+    return ledger.failureCode === "schedule_conflict";
+  }
+  if (ledger.status === "skipped") {
+    return ledger.failureCode === "stuck_lease" || ledger.failureCode === "busy";
+  }
+  return false;
 }
 
 export function reconcilePendingManualOperation(

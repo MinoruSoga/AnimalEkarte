@@ -1498,6 +1498,342 @@ describe("SchedulerCoordinator", () => {
     }
   });
 
+  it("manual catch-up recovers newer same-job slots blocked by a still-valid older lease only after it releases", async () => {
+    const storage = new MemoryStorage();
+    const olderSlot = scheduledTime(20) + 6 * 60 * 60 * 1_000;
+    const firstSlot = olderSlot + 5 * 60 * 60 * 1_000;
+    const laterSlot = olderSlot + 24 * 60 * 60 * 1_000;
+    let now = olderSlot;
+    const coordinator = new SchedulerCoordinator(storage, () => now);
+    let release: (outcome: ScheduledJobOutcome) => void = () => undefined;
+    const pending = new Promise<ScheduledJobOutcome>((resolve) => {
+      release = resolve;
+    });
+
+    const older = coordinator.run("no_show", "0 6,11 * * *", olderSlot, async () => pending);
+    await vi.waitFor(async () => {
+      expect((await coordinator.getActive())?.job).toBe("no_show");
+    });
+    // Simulate the anomalous extended lease needed to cross the real next slots.
+    const active = await coordinator.getActive();
+    if (active === undefined) throw new Error("expected active lease");
+    await storage.put("scheduler:active", {
+      ...active,
+      leaseExpiresAt: olderSlot + 30 * 60 * 60 * 1_000,
+    });
+    const fenceDuringConflict = await storage.get<number>("scheduler:fence");
+
+    const firstExecute = vi.fn(async () => successOutcome());
+    const laterExecute = vi.fn(async () => successOutcome());
+    // The first overlapped slot records stuck_lease once; the next stays a
+    // plain busy skip.
+    now = firstSlot;
+    expect(await coordinator.run("no_show", "0 6,11 * * *", firstSlot, firstExecute)).toMatchObject(
+      {
+        disposition: "busy",
+        ledger: { status: "skipped", failureCode: "stuck_lease" },
+      },
+    );
+    now = laterSlot;
+    expect(await coordinator.run("no_show", "0 6,11 * * *", laterSlot, laterExecute)).toMatchObject(
+      {
+        disposition: "busy",
+        ledger: { status: "skipped", failureCode: "busy" },
+      },
+    );
+
+    const manualBase = {
+      actorPrincipal: "scheduler-ops-secret-v1",
+      job: "no_show",
+      mode: "catch_up",
+      reason: "INC-648 approved recovery",
+    } as const;
+    // While the older lease is still valid, approved catch-up must reject
+    // without stealing the lease, touching the fence or rewriting the skips.
+    const firstConflict = await coordinator.runManual(
+      {
+        ...manualBase,
+        requestId: "1a648001-0000-4000-8000-000000000001",
+        scheduledTime: firstSlot,
+      },
+      firstExecute,
+    );
+    const laterConflict = await coordinator.runManual(
+      {
+        ...manualBase,
+        requestId: "1a648001-0000-4000-8000-000000000002",
+        scheduledTime: laterSlot,
+      },
+      laterExecute,
+    );
+    expect(firstConflict).toMatchObject({ status: "rejected", rejectionCode: "scheduler_busy" });
+    expect(laterConflict).toMatchObject({ status: "rejected", rejectionCode: "scheduler_busy" });
+    expect(firstExecute).not.toHaveBeenCalled();
+    expect(laterExecute).not.toHaveBeenCalled();
+    expect(await coordinator.getActive()).toMatchObject({
+      runId: `${SCHEDULER_NAME}:${olderSlot}:no_show`,
+    });
+    expect(await storage.get<number>("scheduler:fence")).toBe(fenceDuringConflict);
+    expect(
+      await storage.get<ScheduledRunLedger>(SchedulerCoordinator.runKey("no_show", firstSlot)),
+    ).toMatchObject({ status: "skipped", failureCode: "stuck_lease" });
+    expect(
+      await storage.get<ScheduledRunLedger>(SchedulerCoordinator.runKey("no_show", laterSlot)),
+    ).toMatchObject({ status: "skipped", failureCode: "busy" });
+
+    // Once the older lease has lapsed, both blocked slots recover exactly once.
+    now = olderSlot + 31 * 60 * 60 * 1_000;
+    release(successOutcome());
+    await expect(older).resolves.toMatchObject({
+      disposition: "fenced",
+      ledger: { status: "failed", failureCode: "fenced" },
+    });
+
+    const firstRecovery = await coordinator.runManual(
+      {
+        ...manualBase,
+        requestId: "1a648001-0000-4000-8000-000000000003",
+        scheduledTime: firstSlot,
+      },
+      firstExecute,
+    );
+    expect(firstRecovery).toMatchObject({
+      status: "completed",
+      result: {
+        disposition: "executed",
+        ledger: { status: "success", manualRequestId: "1a648001-0000-4000-8000-000000000003" },
+      },
+    });
+    expect(firstExecute).toHaveBeenCalledOnce();
+    const laterRecovery = await coordinator.runManual(
+      {
+        ...manualBase,
+        requestId: "1a648001-0000-4000-8000-000000000004",
+        scheduledTime: laterSlot,
+      },
+      laterExecute,
+    );
+    expect(laterRecovery).toMatchObject({
+      status: "completed",
+      result: {
+        disposition: "executed",
+        ledger: { status: "success", manualRequestId: "1a648001-0000-4000-8000-000000000004" },
+      },
+    });
+    expect(laterExecute).toHaveBeenCalledOnce();
+
+    // Same-ID replay returns the stored terminal result; a different approved
+    // request on the now-executed slot is rejected as an ordinary replay.
+    expect(
+      await coordinator.runManual(
+        {
+          ...manualBase,
+          requestId: "1a648001-0000-4000-8000-000000000003",
+          scheduledTime: firstSlot,
+        },
+        firstExecute,
+      ),
+    ).toEqual(firstRecovery);
+    await expect(
+      coordinator.runManual(
+        {
+          ...manualBase,
+          requestId: "1a648001-0000-4000-8000-000000000005",
+          scheduledTime: firstSlot,
+        },
+        firstExecute,
+      ),
+    ).resolves.toMatchObject({ status: "rejected", rejectionCode: "slot_already_recorded" });
+    expect(firstExecute).toHaveBeenCalledOnce();
+
+    // Ordinary cron never replays the recovered slot either.
+    const cronExecute = vi.fn(async () => successOutcome());
+    now = olderSlot + 32 * 60 * 60 * 1_000;
+    const cronDuplicate = await coordinator.run("no_show", "0 6,11 * * *", firstSlot, cronExecute);
+    expect(cronDuplicate).toMatchObject({
+      disposition: "duplicate",
+      ledger: { status: "success" },
+    });
+    expect(cronExecute).not.toHaveBeenCalled();
+
+    // The durable stuck incident keeps its stable snapshot key; recovery
+    // success does not resurrect it.
+    const pendingIncidents = await storage.list({ prefix: SCHEDULER_ALERT_PENDING_PREFIX });
+    expect([...pendingIncidents.keys()]).toEqual([
+      `${SCHEDULER_ALERT_PENDING_PREFIX}${SCHEDULER_NAME}:${firstSlot}:no_show:stuck_lease`,
+    ]);
+  });
+
+  it("manual catch-up recovers a legacy persisted same-slot busy skip that never executed", async () => {
+    const storage = new MemoryStorage();
+    const slot = Date.UTC(2026, 6, 24, 1);
+    const now = slot + 1000;
+    const coordinator = new SchedulerCoordinator(storage, () => now);
+    // Pre-0f35bc068 durable storage: a losing same-plan invocation persisted
+    // the suffix skip before the winner could claim it, so delivery never ran
+    // at this slot. The ledger proves it: fence 0, no outcome, no request ID.
+    const legacy: ScheduledRunLedger = {
+      version: 1,
+      scheduler: SCHEDULER_NAME,
+      runId: SchedulerCoordinator.runId("delivery", slot),
+      runKey: SchedulerCoordinator.runKey("delivery", slot),
+      cron: "0 1 * * *",
+      job: "delivery",
+      scheduledTime: slot,
+      fenceToken: 0,
+      status: "skipped",
+      failureCode: "busy",
+      startedAt: slot,
+      finishedAt: slot,
+    };
+    await storage.put(legacy.runKey, legacy);
+    const command = {
+      actorPrincipal: "scheduler-ops-secret-v1",
+      job: "delivery",
+      mode: "catch_up",
+      reason: "INC-648 legacy suffix recovery",
+      requestId: "1a648002-7c21-4b6e-8f0a-648a7c210001",
+      scheduledTime: slot,
+    } as const;
+    const execute = vi.fn(async () => successOutcome());
+    const operation = await coordinator.runManual(command, execute);
+    expect(operation).toMatchObject({
+      status: "completed",
+      result: {
+        disposition: "executed",
+        ledger: { status: "success", manualRequestId: command.requestId, scheduledTime: slot },
+      },
+    });
+    expect(execute).toHaveBeenCalledOnce();
+
+    // Same-ID replay stays idempotent and a different approved request on the
+    // executed slot is rejected, so recovery cannot duplicate the suffix work.
+    expect(await coordinator.runManual(command, execute)).toEqual(operation);
+    expect(execute).toHaveBeenCalledOnce();
+    await expect(
+      coordinator.runManual(
+        { ...command, requestId: "1a648002-7c21-4b6e-8f0a-648a7c210002" },
+        execute,
+      ),
+    ).resolves.toMatchObject({ status: "rejected", rejectionCode: "slot_already_recorded" });
+    expect(execute).toHaveBeenCalledOnce();
+  });
+
+  it("manual catch-up recovers a newer blocked slot after a valid older catch-up lease releases", async () => {
+    const storage = new MemoryStorage();
+    const olderSlot = Date.UTC(2026, 6, 24, 6);
+    const nextSlot = olderSlot + 5 * 60 * 60 * 1_000;
+    const olderCommand = {
+      actorPrincipal: "scheduler-ops-secret-v1",
+      job: "no_show",
+      mode: "catch_up",
+      reason: "INC-648 older slot recovery",
+      requestId: "1a648003-0000-4000-8000-000000000001",
+      scheduledTime: olderSlot,
+    } as const;
+    // The older catch-up starts 100 seconds before the next legitimate
+    // no_show cron slot and keeps the ordinary 150-second lease, so its valid
+    // lease still crosses the next slot boundary.
+    let now = nextSlot - 100_000;
+    const coordinator = new SchedulerCoordinator(storage, () => now);
+    let release: (outcome: ScheduledJobOutcome) => void = () => undefined;
+    const pending = new Promise<ScheduledJobOutcome>((resolve) => {
+      release = resolve;
+    });
+
+    const olderPending = coordinator.runManual(olderCommand, async () => pending);
+    await vi.waitFor(async () => {
+      expect((await coordinator.getActive())?.runId).toBe(`${SCHEDULER_NAME}:${olderSlot}:no_show`);
+    });
+    const fenceDuringConflict = await storage.get<number>("scheduler:fence");
+
+    const cronExecute = vi.fn(async () => successOutcome());
+    now = nextSlot;
+    const blocked = await coordinator.run("no_show", "0 6,11 * * *", nextSlot, cronExecute);
+    expect(blocked).toMatchObject({
+      disposition: "busy",
+      ledger: { status: "skipped", failureCode: "stuck_lease" },
+    });
+    expect(cronExecute).not.toHaveBeenCalled();
+    expect(await coordinator.getActive()).toMatchObject({
+      runId: `${SCHEDULER_NAME}:${olderSlot}:no_show`,
+    });
+    expect(await storage.get<number>("scheduler:fence")).toBe(fenceDuringConflict);
+
+    // The older run finishes successfully while its lease is still valid.
+    release(successOutcome());
+    await expect(olderPending).resolves.toMatchObject({
+      status: "completed",
+      result: {
+        disposition: "executed",
+        ledger: {
+          status: "success",
+          manualRequestId: olderCommand.requestId,
+          scheduledTime: olderSlot,
+        },
+      },
+    });
+    expect(await coordinator.getActive()).toBeUndefined();
+
+    // The blocked newer slot then recovers exactly once through manual
+    // catch-up with a fresh request ID.
+    const recoveryCommand = {
+      actorPrincipal: "scheduler-ops-secret-v1",
+      job: "no_show",
+      mode: "catch_up",
+      reason: "INC-648 newer slot recovery",
+      requestId: "1a648003-0000-4000-8000-000000000002",
+      scheduledTime: nextSlot,
+    } as const;
+    const recoveryExecute = vi.fn(async () => successOutcome());
+    const recovery = await coordinator.runManual(recoveryCommand, recoveryExecute);
+    expect(recovery).toMatchObject({
+      status: "completed",
+      result: {
+        disposition: "executed",
+        ledger: { status: "success", manualRequestId: recoveryCommand.requestId },
+      },
+    });
+    expect(recoveryExecute).toHaveBeenCalledOnce();
+
+    // Same-ID replay stays stable; a different approved request on the
+    // executed slot is rejected; ordinary cron never replays the slot.
+    expect(await coordinator.runManual(recoveryCommand, recoveryExecute)).toEqual(recovery);
+    await expect(
+      coordinator.runManual(
+        {
+          ...recoveryCommand,
+          requestId: "1a648003-0000-4000-8000-000000000003",
+        },
+        recoveryExecute,
+      ),
+    ).resolves.toMatchObject({ status: "rejected", rejectionCode: "slot_already_recorded" });
+    expect(recoveryExecute).toHaveBeenCalledOnce();
+    const cronReplay = await coordinator.run(
+      "no_show",
+      "0 6,11 * * *",
+      nextSlot,
+      vi.fn(async () => successOutcome()),
+    );
+    expect(cronReplay).toMatchObject({ disposition: "duplicate", ledger: { status: "success" } });
+
+    // The durable stuck incident keeps its single stable snapshot key and is
+    // not resurrected by the recovery; the operator operations stay audited.
+    const pendingIncidents = await storage.list({ prefix: SCHEDULER_ALERT_PENDING_PREFIX });
+    expect([...pendingIncidents.keys()]).toEqual([
+      `${SCHEDULER_ALERT_PENDING_PREFIX}${SCHEDULER_NAME}:${nextSlot}:no_show:stuck_lease`,
+    ]);
+    // The terminal operation result stays audited; the operation record keeps
+    // its pending status until a retry reconciles it from the terminal ledger.
+    await expect(
+      storage.get(`scheduler:operation-result:${recoveryCommand.requestId}`),
+    ).resolves.toMatchObject({
+      kind: "manual_run",
+      status: "completed",
+      requestId: recoveryCommand.requestId,
+    });
+  });
+
   it("alerts once when a manual catch-up reclaims a run whose real lease expired", async () => {
     const storage = new MemoryStorage();
     const slot = scheduledTime(9) + 60 * 60 * 1_000;
