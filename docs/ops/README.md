@@ -12,7 +12,7 @@
 docs/ops/
 ├── README.md                  … 本索引
 ├── CLAUDE.md                  … 編集時ルール（インフラ SSOT・運用原則）
-├── deploy/                    … デプロイハブ・runbooks・検査機器の実装契約
+├── deploy/                    … デプロイハブ・runbooks/（個別手順）・rehearsals/（検証）・seeds/（DB/CSV）・stg/・accounts/・lab-devices/
 ├── testing/                   … テストアーキテクチャ・受入 scenarios・E2E・環境セットアップ
 ├── infra/                     … Cloudflare 基盤の現行契約と構成図・AWS 廃止履歴への正本ポインタ
 ├── ci-policy.md               … CI ワークフローの決定事項記録
@@ -26,7 +26,7 @@ docs/ops/
 |:---|:---|:---|
 | [deploy/](deploy/README.md) | デプロイハブ（環境 URL・Cloudflare デプロイ・障害時判断） | デプロイ・リリース作業前 |
 | [deploy/runbooks/](deploy/runbooks/README.md) | 個別実行手順書（リリース前検証・scheduler運用・資格情報ローテーション・シークレット棚卸し） | 該当オペレーション実施時 |
-| [deploy/LAB_DEVICE_CONNECTIVITY.md](deploy/LAB_DEVICE_CONNECTIVITY.md) | 検査機器の実装契約。操作手順は old_db `docs/lab-go/hospital-field-pack/手元テスト手順.md` | 院内で機器を新カルテへ取り込むとき |
+| [deploy/LAB_DEVICE_CONNECTIVITY.md](deploy/lab-devices/LAB_DEVICE_CONNECTIVITY.md) | 検査機器の実装契約。操作手順は old_db `docs/lab-go/hospital-field-pack/手元テスト手順.md` | 院内で機器を新カルテへ取り込むとき |
 | [testing/](testing/README.md) | テストアーキテクチャ・受入 scenarios（項目単位）・E2E・環境セットアップ | テスト実施・品質検証時 |
 | [ci-policy.md](ci-policy.md) | CI ワークフローの決定事項記録（Actions バージョンピン方針等） | .github/workflows/ 変更前 |
 | [agent-harness.md](agent-harness.md) | AI設定のスコープ、作業完了条件、検証と失敗の還元 | AI設定変更・自律タスク実行前 |
@@ -51,8 +51,8 @@ docs/ops/
 | [performance-tests.yml](../../.github/workflows/performance-tests.yml) | [testing/INTEGRATION_TEST_PLAN.md](testing/INTEGRATION_TEST_PLAN.md) |
 | [plane-merge-state.yml](../../.github/workflows/plane-merge-state.yml) | [plane-ticket-conventions.md](plane-ticket-conventions.md) |
 | [security-scan.yml](../../.github/workflows/security-scan.yml) | [ci-policy.md](ci-policy.md) |
-| [stg-migrate-direct.yml](../../.github/workflows/stg-migrate-direct.yml) | [deploy/STG_PLANETSCALE_SEED_RUNBOOK.md](deploy/STG_PLANETSCALE_SEED_RUNBOOK.md) |
-| [stg-smoke.yml](../../.github/workflows/stg-smoke.yml) | [deploy/CRUD-SMOKE-TEST.md](deploy/CRUD-SMOKE-TEST.md) |
+| [stg-migrate-direct.yml](../../.github/workflows/stg-migrate-direct.yml) | [deploy/STG_PLANETSCALE_SEED_RUNBOOK.md](deploy/stg/STG_PLANETSCALE_SEED_RUNBOOK.md) |
+| [stg-smoke.yml](../../.github/workflows/stg-smoke.yml) | [deploy/CRUD-SMOKE-TEST.md](deploy/rehearsals/CRUD-SMOKE-TEST.md) |
 | [storybook.yml](../../.github/workflows/storybook.yml) | [testing/TEST_ARCHITECTURE.md](testing/TEST_ARCHITECTURE.md) |
 | [worker-secret-sync.yml](../../.github/workflows/worker-secret-sync.yml) | [infra/cloudflare-account-separation.md](infra/cloudflare-account-separation.md) |
 

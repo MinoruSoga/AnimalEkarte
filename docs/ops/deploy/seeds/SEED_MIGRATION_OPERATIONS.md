@@ -77,8 +77,8 @@ PHIを含み得るinput/outputはGit、chat、artifactへ出さない。manifest
 
 | input | path | seed result |
 |---|---|---|
-| formal 21-table `PASS` / `TRUSTED_CANDIDATE` | [CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md) | target DB cutover。seed filesは変更しない |
-| `REHEARSAL_ONLY` / `PARTIAL` | [OLD_DB_HANDOFF_LOCAL.md](./OLD_DB_HANDOFF_LOCAL.md)、STG は `make stg-uat-handoff` | gitignored isolation。`cmd/migrate`は読まない。共有 STG は sentinel 付き STG UAT importer |
+| formal 21-table `PASS` / `TRUSTED_CANDIDATE` | [CLINIC_CSV_IMPORT.md](CLINIC_CSV_IMPORT.md) | target DB cutover。seed filesは変更しない |
+| `REHEARSAL_ONLY` / `PARTIAL` | [OLD_DB_HANDOFF_LOCAL.md](OLD_DB_HANDOFF_LOCAL.md)、STG は `make stg-uat-handoff` | gitignored isolation。`cmd/migrate`は読まない。共有 STG は sentinel 付き STG UAT importer |
 | executable clinical/demo seed | **未実装** | 生成・適用しない |
 
 21-table cutover bundleとseed manifestは別contractである。handoff CSVを`002_master`へcopyしない。
@@ -90,7 +90,7 @@ PHIを含み得るinput/outputはGit、chat、artifactへ出さない。manifest
 3. current DDL keys + `BundleOrderForEnv(APP_ENV)`（+ ログイン seed を適用したなら `seeds/003_login`）についてmigration coverage `missing=0`を確認する。
 4. checksum mismatch、legacy translation後のmaster完全性、rebuild要否をrelease前に記録する。
 
-local checksum mismatchは[LOCAL_DB_RESET.md](./LOCAL_DB_RESET.md)へ進む。shared STGは[STG_PLANETSCALE_SEED_RUNBOOK.md](./STG_PLANETSCALE_SEED_RUNBOOK.md)の承認境界と§6の再構築手順に従う。direct SQLでschema/historyを修正しない。
+local checksum mismatchは[LOCAL_DB_RESET.md](LOCAL_DB_RESET.md)へ進む。shared STGは[STG_PLANETSCALE_SEED_RUNBOOK.md](../stg/STG_PLANETSCALE_SEED_RUNBOOK.md)の承認境界と§6の再構築手順に従う。direct SQLでschema/historyを修正しない。
 
 ## Historical procedures
 

@@ -83,7 +83,7 @@ Repository artifactsからexpected inventoryを導出する。
 - `public` missing: deployを止め、§2のapproved prerequisite procedureへ戻る。
 - checksum mismatch: file/historyを手修正せず、artifact/target取り違えとapproved recovery planを調査する。
 - migration coverage `missing>0`: release stop。healthだけを成功証跡にしない。
-- legacy key translation failure: [SEED_MIGRATION_OPERATIONS.md](./SEED_MIGRATION_OPERATIONS.md#2-legacy-seed-keys) の現行 translation 契約と対象 DB を照合する。削除済み bundle 参照の旧不具合とは切り分け、manual baseline や reset 不要宣言をしない。
+- legacy key translation failure: [SEED_MIGRATION_OPERATIONS.md](../seeds/SEED_MIGRATION_OPERATIONS.md#2-legacy-seed-keys) の現行 translation 契約と対象 DB を照合する。削除済み bundle 参照の旧不具合とは切り分け、manual baseline や reset 不要宣言をしない。
 - partial/unknown outcome: rerunやschema dropを重ねず、run ID、commit、target、last completed phaseを記録し、approved read-only verificationで状態を確定する。
 
 ### Manual seed fallback is prohibited
@@ -110,9 +110,9 @@ Approved rebuildでは`DROP SCHEMA`と`CREATE SCHEMA`を対で扱い、`public` 
 4. **reset後のmigrateログを判定する。** `Schema reset completed`、直下SQLの`applied>=1`（freshではskip-allではない）、`Seed bundle loaded bundle=002_master`、ログインseed適用時は`Login seed applied`、`Migration key coverage missing=0`。healthだけを成功にしない。
 5. **所有権をapp `postgres`へ戻す。** migrate成功後に`pscale role delete animalekarte-stg main <role-id> --org noah-animalekarte --successor postgres --force`。削除しないとWorkerの`DB_USER`が新テーブルを読めない。migrate失敗でも、作成したロールがobject ownerのまま残らないようsuccessor付き削除を優先する。
 6. **マニュアル override を復元する（step 1で退避した場合）。** `/health` `200`確認後、`python3 scripts/tools/manual-sync.py push --env stg --content-dir <退避dir> --execute`でAPI経由のPUTとして書き戻す（`ResourceManualEdit`権限のaccountが必要）。退避を取っていなければskip — repoのMD baselineがバンドルからそのまま表示される。
-7. **stale apply reportを退避する。** reset後のDBは空の臨床bandになる。`sensitive-local/csv-import-reports/<clinic>-<run>-stg-uat-apply.json`が`PASS`のままだと[CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md)のwrapperが医院をskipする。再実行前に失敗日時または`STALE-AFTER-RESET-<UTC>`付きへリネームする。
-8. **21表を`cmd/migrate`の外で入れる。** 接続はgitignored `scripts/old-db/stg-uat-old-db-handoff.local.env`（0600、PlanetScale。exampleは同名`.example`）。`make stg-uat-handoff-preflight` → `make stg-uat-handoff` → `make stg-uat-handoff-verify`。対象は城東・敷島・箱。八王子はmanifest無しならskip。PHIのCSVセルをログへ出さない。詳細とskip契約は[OLD_DB_HANDOFF_LOCAL.md](./OLD_DB_HANDOFF_LOCAL.md)と[CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md)。
-9. **livenessとhandoffを分ける。** `/health` `200`は生存確認だけ。staff attachと個別provisioningは[STAFF_ACCOUNT_PROVISIONING.md](./STAFF_ACCOUNT_PROVISIONING.md)の別gate。
+7. **stale apply reportを退避する。** reset後のDBは空の臨床bandになる。`sensitive-local/csv-import-reports/<clinic>-<run>-stg-uat-apply.json`が`PASS`のままだと[CLINIC_CSV_IMPORT.md](../seeds/CLINIC_CSV_IMPORT.md)のwrapperが医院をskipする。再実行前に失敗日時または`STALE-AFTER-RESET-<UTC>`付きへリネームする。
+8. **21表を`cmd/migrate`の外で入れる。** 接続はgitignored `scripts/old-db/stg-uat-old-db-handoff.local.env`（0600、PlanetScale。exampleは同名`.example`）。`make stg-uat-handoff-preflight` → `make stg-uat-handoff` → `make stg-uat-handoff-verify`。対象は城東・敷島・箱。八王子はmanifest無しならskip。PHIのCSVセルをログへ出さない。詳細とskip契約は[OLD_DB_HANDOFF_LOCAL.md](../seeds/OLD_DB_HANDOFF_LOCAL.md)と[CLINIC_CSV_IMPORT.md](../seeds/CLINIC_CSV_IMPORT.md)。
+9. **livenessとhandoffを分ける。** `/health` `200`は生存確認だけ。staff attachと個別provisioningは[STAFF_ACCOUNT_PROVISIONING.md](../accounts/STAFF_ACCOUNT_PROVISIONING.md)の別gate。
 
 ### 6.2 再構築後にWorker migrateが赤でもschema失敗としない場合
 

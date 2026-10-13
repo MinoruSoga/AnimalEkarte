@@ -8,7 +8,7 @@ Worktree `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-rem-slack-exam-hist
 
 Docs-only. This unit does **not** query STG/PROD, inspect live CSV cells, invent row counts, treat DrOne standalone data as in-scope, or run `make csv-import*` / `make stg-uat-handoff`. **Actual counts: 未実行 / UNKNOWN.**
 
-Binding: [todo-issue.md](../../../../todo.md#issue-ledger) heading `### SLACK-EXAM-HISTORY` (L288–L292); [MedicalRecordExamination.tsx](../../../../frontend/src/features/medical-records/components/MedicalRecordExamination.tsx); [get-record-examinations.ts](../../../../frontend/src/features/medical-records/api/get-record-examinations.ts); [CLINIC_CSV_IMPORT.md](../../../ops/deploy/CLINIC_CSV_IMPORT.md). Connects to HAC remainder ([todo-issue.md](../../../../todo.md#issue-ledger) `#slack-hac-import`; sibling sheet [SLACK-HAC-IMPORT](SLACK-HAC-IMPORT.md) if present in another worktree).
+Binding: [todo-issue.md](../../../../todo.md#issue-ledger) heading `### SLACK-EXAM-HISTORY` (L288–L292); [MedicalRecordExamination.tsx](../../../../frontend/src/features/medical-records/components/MedicalRecordExamination.tsx); [get-record-examinations.ts](../../../../frontend/src/features/medical-records/api/get-record-examinations.ts); [CLINIC_CSV_IMPORT.md](../../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md). Connects to HAC remainder ([todo-issue.md](../../../../todo.md#issue-ledger) `#slack-hac-import`; sibling sheet [SLACK-HAC-IMPORT](SLACK-HAC-IMPORT.md) if present in another worktree).
 
 This file is a campaign investigation sheet. Product modules do not import it. Callers are the campaign controller (`units.json` unit `SLACK-EXAM-HISTORY` `owned_paths`) and operators reading `docs/work/campaigns/remaining-campaign-20260920/`. Human pointers: [todo-issue.md](../../../../todo.md#issue-ledger) L288–L292 and [SLACK-INTAKE.md](../todo-campaign-20260919-ready17/SLACK-INTAKE.md) L53. Cited contracts stay unedited.
 
@@ -36,7 +36,7 @@ This sheet is that map. It is **not** a receipt that imported N exams, and **not
 
 ### In scope
 
-F6 consumer 21-table contract ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/CLINIC_CSV_IMPORT.md) L20–L46). Exam-history payload is two tables:
+F6 consumer 21-table contract ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md) L20–L46). Exam-history payload is two tables:
 
 | # | target table | CSV | clinic 列 | isolation | consumer |
 |---:|---|---|---|---|---|
@@ -79,7 +79,7 @@ Entry: chart 検査タブ [MedicalRecordExamination.tsx](../../../../frontend/sr
 
 ## 5. CSV columns → chart fields
 
-Executable headers: [cutover_contract.go](../../../../backend/internal/csvimport/cutover_contract.go) L221–L222. PHI cell values are not copied here ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/CLINIC_CSV_IMPORT.md) L88).
+Executable headers: [cutover_contract.go](../../../../backend/internal/csvimport/cutover_contract.go) L221–L222. PHI cell values are not copied here ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md) L88).
 
 ### `exams.csv` → `exams` / `ExamGroup`
 
@@ -134,7 +134,7 @@ flowchart LR
 | Chart empty after login | No `exams` in the clinic band **or** no pet/record query | DrOne exclusion |
 | Chart empty because apply never ran | **Import / HAC gap** | Display bug |
 
-HAC remainder ([todo-issue.md](../../../../todo.md#issue-ledger) L276–L280): 9月11日 BAK→CSV **送付報告** exists as a report; **現在の完全性・受領・投入結果は UNKNOWN**. Formal apply needs a hospital/run-fixed 21-table bundle (including `exams.csv` / `exam_results.csv`) plus separate-channel manifest SHA ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/CLINIC_CSV_IMPORT.md) L81–L88). This session did **not** inspect a bundle.
+HAC remainder ([todo-issue.md](../../../../todo.md#issue-ledger) L276–L280): 9月11日 BAK→CSV **送付報告** exists as a report; **現在の完全性・受領・投入結果は UNKNOWN**. Formal apply needs a hospital/run-fixed 21-table bundle (including `exams.csv` / `exam_results.csv`) plus separate-channel manifest SHA ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md) L81–L88). This session did **not** inspect a bundle.
 
 Until HAC receipt exists: imported exam-history **counts stay UNKNOWN / 未実行**. Chart code can still show **synthetic / live** exams; that is not legacy BAK evidence.
 

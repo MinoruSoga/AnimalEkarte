@@ -131,5 +131,5 @@ sequenceDiagram
 | Architecture decisions | [adr/](adr/README.md) |
 | 城東検査機器 受信/commit | [ADR-007](adr/007-lab-device-receive-and-commit.md) |
 | 検査機器 ローカル受信 agent | [ADR-008](adr/008-local-lab-device-agent.md)（ADR-007 の判断を部分的に supersede） |
-| 検査機器 接続・実装契約 | [LAB_DEVICE_CONNECTIVITY.md](../ops/deploy/LAB_DEVICE_CONNECTIVITY.md) |
+| 検査機器 接続・実装契約 | [LAB_DEVICE_CONNECTIVITY.md](../ops/deploy/lab-devices/LAB_DEVICE_CONNECTIVITY.md) |
 | Toolchain / runtime version | `backend/go.mod`・`frontend/package.json` 等の manifest（本書は version を複写しない） |

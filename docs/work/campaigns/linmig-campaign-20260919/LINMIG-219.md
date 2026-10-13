@@ -10,7 +10,7 @@ This file is a **count specification only**. It names aggregation dimensions, jo
 | --- | --- |
 | STG / PROD read scope | **UNKNOWN** |
 | Operator / 読取担当 | **UNKNOWN** |
-| Target clinic code / ordinal / `clinic_id` | **UNKNOWN** — importer accepts only hachioji=1, jouto=2, shikishima=3, hakobuneco=4 ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/CLINIC_CSV_IMPORT.md) L61–L62) |
+| Target clinic code / ordinal / `clinic_id` | **UNKNOWN** — importer accepts only hachioji=1, jouto=2, shikishima=3, hakobuneco=4 ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md) L61–L62) |
 | Manifest SHA-256 / run ID / revision | **UNKNOWN** |
 | Formal COMPLETE bundle receipt | **UNKNOWN** (same document L189: 未記入) |
 | Environment (rehearsal / STG / PROD) | **UNKNOWN** |
@@ -24,7 +24,7 @@ Callers: campaign controller and operators reading `docs/work/campaigns/linmig-c
 | Source | Role for this sheet |
 | --- | --- |
 | [todo-operations.md](../../../../todo.md#operations-ledger) P3 / PROD-DATA-MIGRATION (L171–L175) | Same manifest/revision 件数・clinic・参照・金額 突合; rehearsal PASS is not production; unknown commit or 突合 FAIL blocks P4/P8 |
-| [CLINIC_CSV_IMPORT.md](../../../ops/deploy/CLINIC_CSV_IMPORT.md) | 21-table mapping, `clinic_id` isolation, manifest `RowCount`, aggregate count on reports, payment graph, `CUTOVER_REF_ROW_COUNT` / `CUTOVER_REF_CLINIC_ISOLATION` |
+| [CLINIC_CSV_IMPORT.md](../../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md) | 21-table mapping, `clinic_id` isolation, manifest `RowCount`, aggregate count on reports, payment graph, `CUTOVER_REF_ROW_COUNT` / `CUTOVER_REF_CLINIC_ISOLATION` |
 | [GOLIVE_RUNBOOK.md](../../../delivery/GOLIVE_RUNBOOK.md) day-of T+1:15 (L60) and restore rehearsal (L82) | テーブル別件数・`clinic_id` 別件数・金額合計・サンプル目視; restore rehearsal records the same three aggregates |
 | [UAT-Q2-VACCINE-SPECIES.md](../todo-campaign-20260918/UAT-Q2-VACCINE-SPECIES.md) | Clinic-scoped 1-row-1-count join: `vaccinations.clinic_id = pets.clinic_id = vaccines.clinic_id`; 参照異常 separated from normal counts |
 | [UAT-Q4-UNPAID-TRIAGE.md](../todo-campaign-20260918/UAT-Q4-UNPAID-TRIAGE.md) | Billing 1:1 unit; do not inflate counts/amounts with payment JOIN rows; `billings.total_amount` vs payment `total_amount` |
@@ -57,16 +57,16 @@ flowchart TB
 
 | ID | Dimension | Unit of count | Source of expected | Target of actual | Notes |
 | --- | --- | --- | --- | --- | --- |
-| D1 | テーブル別件数 | One row in one of the 21 formal cutover tables | Manifest `Tables[].RowCount` for that table | Target band row count after apply/verify | Mismatch → `CUTOVER_REF_ROW_COUNT` ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/CLINIC_CSV_IMPORT.md) L51; `cutover_import_copy.go` committed-row check) |
+| D1 | テーブル別件数 | One row in one of the 21 formal cutover tables | Manifest `Tables[].RowCount` for that table | Target band row count after apply/verify | Mismatch → `CUTOVER_REF_ROW_COUNT` ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md) L51; `cutover_import_copy.go` committed-row check) |
 | D2 | `clinic_id` 別件数 | Rows whose clinic isolation matches the run's target clinic | Manifest hospital code/ordinal + expected clinic assignment | Target rows grouped by `clinic_id` (or parent-FK clinic for tables without the column) | Cross-clinic join is forbidden. Isolation failure → `CUTOVER_REF_CLINIC_ISOLATION` |
-| D3 | 金額合計 | Sum of amount fields on the billing/payment graph, not JOIN-inflated row counts | Manifest / source CSV aggregates for `billings.total_amount` and payment `total_amount` | Target sums on the same keys | Payment graph requires billing/payment `total_amount` identity ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/CLINIC_CSV_IMPORT.md) L126, L146, L156) |
+| D3 | 金額合計 | Sum of amount fields on the billing/payment graph, not JOIN-inflated row counts | Manifest / source CSV aggregates for `billings.total_amount` and payment `total_amount` | Target sums on the same keys | Payment graph requires billing/payment `total_amount` identity ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md) L126, L146, L156) |
 | D4 | 参照整合 | Rows that survive clinic-scoped FK checks | Source graph after parent-FK isolation | Target validated FKs | Orphans fail-closed; do not move them into D1/D3 |
 
 D4 is the P3 「参照」 component. UAT-Q2/Q4 designs are **investigation templates** for clinic-scoped joins; they are not additional production cutover tables.
 
 ### D1 — 21-table row-count set
 
-Fixed order from [CLINIC_CSV_IMPORT.md](../../../ops/deploy/CLINIC_CSV_IMPORT.md) L20–L46 (`csvimport.CutoverTableSpecs()` is the executable list). Actual cells stay 未実行.
+Fixed order from [CLINIC_CSV_IMPORT.md](../../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md) L20–L46 (`csvimport.CutoverTableSpecs()` is the executable list). Actual cells stay 未実行.
 
 | # | Target table | Isolation | Manifest row count | Target row count | Result |
 | ---: | --- | --- | --- | --- | --- |
@@ -93,7 +93,7 @@ Fixed order from [CLINIC_CSV_IMPORT.md](../../../ops/deploy/CLINIC_CSV_IMPORT.md
 | 21 | vaccinations | `clinic_id` column | 未実行 | 未実行 | UNKNOWN |
 | — | aggregate count (report field) | run-level | 未実行 | 未実行 | UNKNOWN |
 
-Empty incomplete tables must be the explicit empty list in the manifest ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/CLINIC_CSV_IMPORT.md) L82). Header-only `payments.csv` / `payment_splits.csv` is **not** 正件数; preflight refuses a formal manifest until both payment tables have 正件数 (L7, L190). Do not write 0 as a live observed count here.
+Empty incomplete tables must be the explicit empty list in the manifest ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md) L82). Header-only `payments.csv` / `payment_splits.csv` is **not** 正件数; preflight refuses a formal manifest until both payment tables have 正件数 (L7, L190). Do not write 0 as a live observed count here.
 
 ### D2 — clinic_id 別件数
 
@@ -117,19 +117,19 @@ Amount totals are independent of D1. Payment JOIN row counts must not be used as
 | Split arithmetic (`payment_splits` sum vs parent payment; received/change) | 未実行 | 未実行 | UNKNOWN |
 | Unpaid residual (UAT-Q4 formula; **not** a day-of gate substitute) | 未実行 | 未実行 | UNKNOWN |
 
-Cutover verify requires billing/payment `total_amount` identity and split totals ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/CLINIC_CSV_IMPORT.md) L156). UAT-Q4 unpaid bands (`0` / `1–9,999` / `10,000+`) are a later investigation axis; they are not required to close D3 on go-live day, and they stay 未実行.
+Cutover verify requires billing/payment `total_amount` identity and split totals ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md) L156). UAT-Q4 unpaid bands (`0` / `1–9,999` / `10,000+`) are a later investigation axis; they are not required to close D3 on go-live day, and they stay 未実行.
 
 ## Join rules
 
 Apply before any numeric comparison. If a join rule cannot be confirmed, the dimension is UNKNOWN, not PASS.
 
-1. **Tenant first.** Restrict every table to the approved clinic. Tables with `clinic_id` filter on that column. Tables without `clinic_id` (inquiries, clinical_plans, billing_items, estimate_items, exam_results) isolate by id band **and** parent FK to a clinic-owned parent ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/CLINIC_CSV_IMPORT.md) L26–L46). Do not walk a broken FK into another clinic.
+1. **Tenant first.** Restrict every table to the approved clinic. Tables with `clinic_id` filter on that column. Tables without `clinic_id` (inquiries, clinical_plans, billing_items, estimate_items, exam_results) isolate by id band **and** parent FK to a clinic-owned parent ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md) L26–L46). Do not walk a broken FK into another clinic.
 2. **Do not join on ID alone across clinics.** UAT-Q2: `vaccinations.clinic_id = pets.clinic_id = vaccines.clinic_id = 対象医院`. Missing, deleted, or other-clinic references leave the normal count and enter 参照異常 (UAT-Q2 L14–L16).
 3. **One business row, one count.** UAT-Q4: billing 1 row = 1 count. Count and sum after uniqueness on the billing key. Duplicate JOIN rows from payments are not added to N or T (UAT-Q4 L14, L36). Cutover graph: `payments.billing_id` UNIQUE; splits are 1–2 per payment, parented by `billing_id`.
 4. **Stop buckets stay out of normal totals.** Multiple active payments, missing payment parent, other-clinic payment, or orphan payment: count separately; do not compute unpaid into D3 (UAT-Q4 L14–L15, L37). Orphan payments are counted outside the billing population and are not mixed into amount totals.
 5. **Deleted / out-of-window rows.** UAT-Q2 uses 未削除 vaccinations; UAT-Q4 uses 非削除 billing/payment. Day-of cutover counts the imported band, not application soft-delete UI. Date column, window, and timezone for any investigation slice are UNKNOWN until the operator fixes them (UAT-Q2 L14; UAT-Q4 L13).
-6. **Source vs target.** Compare the same manifest/revision only ([todo-operations.md](../../../../todo.md#operations-ledger) L175). After preflight, CSV SHA-256 must still match; a changed source is rollback, not a new expected count ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/CLINIC_CSV_IMPORT.md) L87).
-7. **No PHI in joins or outputs.** Reports may carry status/timestamp, manifest digest, clinic/run/target metadata, ID band, aggregate count, six seed IDs, failure stage — not CSV cell values ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/CLINIC_CSV_IMPORT.md) L17, L88, L144).
+6. **Source vs target.** Compare the same manifest/revision only ([todo-operations.md](../../../../todo.md#operations-ledger) L175). After preflight, CSV SHA-256 must still match; a changed source is rollback, not a new expected count ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md) L87).
+7. **No PHI in joins or outputs.** Reports may carry status/timestamp, manifest digest, clinic/run/target metadata, ID band, aggregate count, six seed IDs, failure stage — not CSV cell values ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md) L17, L88, L144).
 
 This sheet does not include executable SQL. Authorized operators use `make csv-import-preflight` / `make csv-import-verify` (read-only) and the importer's in-transaction checks. Ad-hoc SQL against STG/PROD is out of scope.
 
@@ -213,7 +213,7 @@ Restore rehearsal ([GOLIVE_RUNBOOK.md](../../../delivery/GOLIVE_RUNBOOK.md) L82)
 
 - STG/PROD access, SQL, or PHI export would be required to fill 未実行 cells → **stop**; leave UNKNOWN.
 - Formal COMPLETE bundle not received → apply remains BLOCKED; do not invent 正件数.
-- `make stg-uat-handoff` skip/PASS of a previous hospital is not current integrity ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/CLINIC_CSV_IMPORT.md) L63–L68).
+- `make stg-uat-handoff` skip/PASS of a previous hospital is not current integrity ([CLINIC_CSV_IMPORT.md](../../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md) L63–L68).
 - Wrapper exit 0 is not all-hospital completion (same, L68).
 - Linear `LINMIG-219` is not a live issue at authoring; do not close an external ticket from this file.
 

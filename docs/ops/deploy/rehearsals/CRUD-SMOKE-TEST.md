@@ -96,7 +96,7 @@ curl -sS -X POST "${API_V1}/masters/staffs" \
 
 ### C-2 account loginが必要な場合
 
-CRUD作成とは分離する。[スタッフアカウント払い出し](./STAFF_ACCOUNT_PROVISIONING.md) の承認済み経路で、有効な `staff_type` と生成済み8〜72文字passwordを持つaccountを作る。login routeは `POST /api/v1/login`。credential値は記録しない。remote provisioning mechanismが未承認なら、このcaseは **BLOCKED** と記録し、CRUD staffへemailだけを追加して代替しない。
+CRUD作成とは分離する。[スタッフアカウント払い出し](../accounts/STAFF_ACCOUNT_PROVISIONING.md) の承認済み経路で、有効な `staff_type` と生成済み8〜72文字passwordを持つaccountを作る。login routeは `POST /api/v1/login`。credential値は記録しない。remote provisioning mechanismが未承認なら、このcaseは **BLOCKED** と記録し、CRUD staffへemailだけを追加して代替しない。
 
 ### C-3 FK保護とcleanup
 

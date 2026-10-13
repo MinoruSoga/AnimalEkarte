@@ -72,7 +72,7 @@ make a4-rehearsal-ps
 
 Run the explicit `a4-csv-import-preflight`, `a4-csv-import`, and
 `a4-csv-import-verify` targets with the formal bundle variables documented in
-[CLINIC_CSV_IMPORT.md](CLINIC_CSV_IMPORT.md). The ordinary `csv-import-*`
+[CLINIC_CSV_IMPORT.md](../seeds/CLINIC_CSV_IMPORT.md). The ordinary `csv-import-*`
 targets belong to the normal development stack and are forbidden for A4.
 
 After apply and verify, attest the two operator-owned preflights and generate

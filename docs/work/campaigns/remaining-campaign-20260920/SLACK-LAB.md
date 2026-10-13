@@ -7,9 +7,9 @@ Worktree `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-rem-slack-lab` on `
 
 Docs-only. This unit does **not** open serial ports, run `lab-device-agent`, send frames, mint consumer tokens, invent a コアグ protocol, or treat implemented receive code as hospital connected.
 
-Binding: [todo-issue.md](../../../../todo.md#issue-ledger) heading `### SLACK-LAB` (L282–286); [LAB_DEVICE_CONNECTIVITY.md](../../../ops/deploy/LAB_DEVICE_CONNECTIVITY.md); [LINMIG-182.md](../linmig-campaign-20260919/LINMIG-182.md); [LabDeviceBoard.tsx](../../../../frontend/src/features/lab-device/routes/LabDeviceBoard.tsx); [LAB_DEVICE_CLIENT_UAT.md](../../../ops/testing/scenarios/LAB_DEVICE_CLIENT_UAT.md). Device-label photos are **not in this repo**.
+Binding: [todo-issue.md](../../../../todo.md#issue-ledger) heading `### SLACK-LAB` (L282–286); [LAB_DEVICE_CONNECTIVITY.md](../../../ops/deploy/lab-devices/LAB_DEVICE_CONNECTIVITY.md); [LINMIG-182.md](../linmig-campaign-20260919/LINMIG-182.md); [LabDeviceBoard.tsx](../../../../frontend/src/features/lab-device/routes/LabDeviceBoard.tsx); [LAB_DEVICE_CLIENT_UAT.md](../../../ops/testing/scenarios/LAB_DEVICE_CLIENT_UAT.md). Device-label photos are **not in this repo**.
 
-This file is a campaign investigation sheet. Product modules do not import it. Callers are the campaign controller (`units.json` unit `SLACK-LAB` `owned_paths`; `unit-specs.json` in_scope) and operators reading `docs/work/campaigns/remaining-campaign-20260920/`. Human pointers: [todo-issue.md](../../../../todo.md#issue-ledger) L282–286 and [SLACK-INTAKE.md](../todo-campaign-20260919-ready17/SLACK-INTAKE.md) L50. Sibling contracts ([LAB_DEVICE_CONNECTIVITY.md](../../../ops/deploy/LAB_DEVICE_CONNECTIVITY.md), [LINMIG-182.md](../linmig-campaign-20260919/LINMIG-182.md)) stay unedited. Manual urine is [SLACK-MANUAL-URINE](../todo-campaign-20260919-ready17/SLACK-MANUAL-URINE.md), not this sheet.
+This file is a campaign investigation sheet. Product modules do not import it. Callers are the campaign controller (`units.json` unit `SLACK-LAB` `owned_paths`; `unit-specs.json` in_scope) and operators reading `docs/work/campaigns/remaining-campaign-20260920/`. Human pointers: [todo-issue.md](../../../../todo.md#issue-ledger) L282–286 and [SLACK-INTAKE.md](../todo-campaign-20260919-ready17/SLACK-INTAKE.md) L50. Sibling contracts ([LAB_DEVICE_CONNECTIVITY.md](../../../ops/deploy/lab-devices/LAB_DEVICE_CONNECTIVITY.md), [LINMIG-182.md](../linmig-campaign-20260919/LINMIG-182.md)) stay unedited. Manual urine is [SLACK-MANUAL-URINE](../todo-campaign-20260919-ready17/SLACK-MANUAL-URINE.md), not this sheet.
 
 ## 1. Why this sheet exists
 
@@ -21,7 +21,7 @@ This sheet is that map. It is **not** a connection-success claim and **not** UAT
 
 | Status | Means | Does not mean |
 |---|---|---|
-| **code-aligned** | Repo decoder / persist / slot / board path matches [LAB_DEVICE_CONNECTIVITY.md](../../../ops/deploy/LAB_DEVICE_CONNECTIVITY.md) | That clinic's Mac is installed, that device is cabled, or UAT ran |
+| **code-aligned** | Repo decoder / persist / slot / board path matches [LAB_DEVICE_CONNECTIVITY.md](../../../ops/deploy/lab-devices/LAB_DEVICE_CONNECTIVITY.md) | That clinic's Mac is installed, that device is cabled, or UAT ran |
 | **decoder-only** | Frames can be parsed; not a default agent slot; not daily ops support | Ready for hospital urine receive |
 | **ops remainder** | Code exists; clinic hardware / LaunchAgent / token / UAT not observed | Connected |
 | **unapproved daily** | Spec forbids treating this as always-on hospital use | Safe to enable `--pims-reply` on a hospital VetLab cable |
@@ -32,7 +32,7 @@ This sheet is that map. It is **not** a connection-success claim and **not** UAT
 
 ## 3. Code facts (shared; not a clinic install)
 
-Daily path ([LAB_DEVICE_CONNECTIVITY.md](../../../ops/deploy/LAB_DEVICE_CONNECTIVITY.md) L8–L9, L41–L42; [LINMIG-182.md](../linmig-campaign-20260919/LINMIG-182.md) L20–L35): one exam Mac LaunchAgent `lab-device-agent` owns wired serial; loopback `127.0.0.1:17654`; browser `/lab-device` (`LabDeviceBoard`) polls with an API-issued consumer token and posts frames. The board does not open serial.
+Daily path ([LAB_DEVICE_CONNECTIVITY.md](../../../ops/deploy/lab-devices/LAB_DEVICE_CONNECTIVITY.md) L8–L9, L41–L42; [LINMIG-182.md](../linmig-campaign-20260919/LINMIG-182.md) L20–L35): one exam Mac LaunchAgent `lab-device-agent` owns wired serial; loopback `127.0.0.1:17654`; browser `/lab-device` (`LabDeviceBoard`) polls with an API-issued consumer token and posts frames. The board does not open serial.
 
 日常受信経路の概形:
 
@@ -66,13 +66,13 @@ Clinic labels below are the same catalog seed labels used on sibling sheets (ids
 
 | Clinic (catalog id / label) | Device / send form | Code | Board daily UI | Hospital install / live receive |
 |---|---|---|---|---|
-| 2 / 城東センター病院 | 富士 DRI-CHEM NX600 · COM6 · 9600 8N1 · `fuji_nx600` · STX…ETX | **code-aligned** decoder + persist + default slot. Spec: AE-LAB-0〜4 for 城東 3種 narrative ([LAB_DEVICE_CONNECTIVITY.md](../../../ops/deploy/LAB_DEVICE_CONNECTIVITY.md) L8, L67) | **supported** (`fuji_nx600`) | **UNKNOWN / ops remainder.** UAT 1–12 **未実施**. Mac + two USB-serial + bundle **not observed** |
+| 2 / 城東センター病院 | 富士 DRI-CHEM NX600 · COM6 · 9600 8N1 · `fuji_nx600` · STX…ETX | **code-aligned** decoder + persist + default slot. Spec: AE-LAB-0〜4 for 城東 3種 narrative ([LAB_DEVICE_CONNECTIVITY.md](../../../ops/deploy/lab-devices/LAB_DEVICE_CONNECTIVITY.md) L8, L67) | **supported** (`fuji_nx600`) | **UNKNOWN / ops remainder.** UAT 1–12 **未実施**. Mac + two USB-serial + bundle **not observed** |
 | 2 / 城東センター病院 | 富士 DRI-CHEM IMMUNO AU10V · COM7 · 9600 8N1 · `fuji_au10v` | **code-aligned** decoder + persist + default slot (spec L68) | **supported** (`fuji_au10v`) | **UNKNOWN / ops remainder.** UAT **未実施**. Same as NX600: code ≠ cabled |
 | 2 / 城東センター病院 | アークレイ PU-4010 · COM3 · 現場 2400 8E1 (`mdcon2` 2400 7E1) · `arkray_pu4010` | **decoder-only.** Not in `labDeviceDefaultSlotsJSON`. 7E1/8E1 unreviewed (spec L69, L82) | **unsupported** | **UNKNOWN.** Agent default slot / ops support **out**. Not daily UAT. Do not PASS this sheet for urine receive |
 | 2 / 城東センター病院 | IDEXX VetLab Station PIMS (ProCyte / Catalyst behind it) · COM5 · 9600 8N1 · `idexx_vetlab` | **code-aligned** decoder + persist + default slot. Hospital always-on **unapproved**. Receive-only drops PIMS (spec L15, L70, L125–L129) | **unsupported** (not NX/AU) | **unapproved daily.** Do not enable `--pims-reply` on a hospital VetLab cable. Ethernet to analyzer bodies **forbidden** |
 | 2 / 城東センター病院 | 富士 DRI-CHEM 7000V · COM4 | **excluded** — 「触らない」 (spec L63, L71, L145) | not a slot | Do not connect |
 | 2 / 城東センター病院 | Drワン / `mkan.mdb` | **excluded** | n/a | Not an AnimalEkarte input |
-| 1 / 八王子病院 | 尿は機器測定 (Slack 212–294 via [SLACK-MANUAL-URINE](../todo-campaign-20260919-ready17/SLACK-MANUAL-URINE.md) L15) | No 八王子 model in [LAB_DEVICE_CONNECTIVITY.md](../../../ops/deploy/LAB_DEVICE_CONNECTIVITY.md) | n/a until model known | **UNKNOWN.** Photos not in repo. Do not assume PU-4010 |
+| 1 / 八王子病院 | 尿は機器測定 (Slack 212–294 via [SLACK-MANUAL-URINE](../todo-campaign-20260919-ready17/SLACK-MANUAL-URINE.md) L15) | No 八王子 model in [LAB_DEVICE_CONNECTIVITY.md](../../../ops/deploy/lab-devices/LAB_DEVICE_CONNECTIVITY.md) | n/a until model known | **UNKNOWN.** Photos not in repo. Do not assume PU-4010 |
 | 1 / 八王子病院 | Other analyzers | none in spec | n/a | **UNKNOWN** |
 | 3 / ノア動物病院　敷島病院 | 「コアグ」 (Slack; 敷島のみ) | **no protocol in repo** | n/a | **UNKNOWN.** Do not invent コアグ framing, baud, or `source_type` |
 | 3 / ノア動物病院　敷島病院 | 尿試験紙は目視 | not lab-device | n/a | Hand-entry path only ([SLACK-MANUAL-URINE](../todo-campaign-20260919-ready17/SLACK-MANUAL-URINE.md)). Not this unit |
@@ -84,7 +84,7 @@ Clinic labels below are the same catalog seed labels used on sibling sheets (ids
 
 ## 5. コアグ (UNKNOWN — stop)
 
-[todo-issue.md](../../../../todo.md#issue-ledger) L284: 敷島のみの「コアグ」. No source_type, baud, frame shape, or vendor string exists in [LAB_DEVICE_CONNECTIVITY.md](../../../ops/deploy/LAB_DEVICE_CONNECTIVITY.md), [LINMIG-182.md](../linmig-campaign-20260919/LINMIG-182.md), or `LabDeviceBoard` slot support.
+[todo-issue.md](../../../../todo.md#issue-ledger) L284: 敷島のみの「コアグ」. No source_type, baud, frame shape, or vendor string exists in [LAB_DEVICE_CONNECTIVITY.md](../../../ops/deploy/lab-devices/LAB_DEVICE_CONNECTIVITY.md), [LINMIG-182.md](../linmig-campaign-20260919/LINMIG-182.md), or `LabDeviceBoard` slot support.
 
 This sheet **does not** invent a コアグ protocol, map it onto `fuji_*` / `arkray_pu4010` / `idexx_vetlab`, or promise a receive date. Required input: photos / vendor docs + PO whether it is in-scope for `/lab-device`. Until then: **BLOCKED** for 敷島 コアグ.
 

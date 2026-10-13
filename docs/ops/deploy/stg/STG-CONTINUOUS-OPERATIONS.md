@@ -11,8 +11,8 @@
 
 > **現行構成**: Cloudflare Workers + Containers + PlanetScale Postgres（`backend-deploy.yml`）。
 > AWS ECS/RDS は廃止済みで、切り戻し先・ホットスタンバイではない。
-> 構成と障害初動の正本は [`../infra/architecture.md`](../infra/architecture.md) と
-> [`../infra/staging/runbook.md`](../infra/staging/runbook.md)。
+> 構成と障害初動の正本は [`../../infra/architecture.md`](../../infra/architecture.md) と
+> [`../../infra/staging/runbook.md`](../../infra/staging/runbook.md)。
 
 ## 1. 目的と対象読者
 
@@ -53,7 +53,7 @@ curl -s ${API_HEALTH} | jq '.'
 ```
 
 **失敗時アクション**:
-- HTTP 200 が返らない場合、[`../infra/staging/runbook.md`](../infra/staging/runbook.md) の障害初動へ
+- HTTP 200 が返らない場合、[`../../infra/staging/runbook.md`](../../infra/staging/runbook.md) の障害初動へ
 
 ---
 
@@ -65,7 +65,7 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://api.stg.noah-karte.com/health
 
 **期待結果**: HTTP `200`
 
-**確認ポイント**: GitHub Actions `backend-deploy.yml` の deploy / migrate / post-migrate health がすべて成功していること。実 URL と workers.dev の比較・切り分け、デプロイ直後の 15 分静置を含む triage 手順の正本は [`../infra/staging/runbook.md`](../infra/staging/runbook.md) の Incident triage。
+**確認ポイント**: GitHub Actions `backend-deploy.yml` の deploy / migrate / post-migrate health がすべて成功していること。実 URL と workers.dev の比較・切り分け、デプロイ直後の 15 分静置を含む triage 手順の正本は [`../../infra/staging/runbook.md`](../../infra/staging/runbook.md) の Incident triage。
 
 ---
 
@@ -75,7 +75,7 @@ Cloudflare Dashboard の Workers Logs / Containers で、デプロイ時刻以�
 request error を確認する。Workers Logs はインフラ障害調査用で、カルテの変更監査は
 DB の `audit_logs` が正本。
 
-**異常時**: 切り分けと復旧は [STG 運用 Runbook](../infra/staging/runbook.md) の Incident triage に従う（接続プール・provider status の確認を含む）。Cloudflare 側の障害情報は https://www.cloudflarestatus.com/ で確認。
+**異常時**: 切り分けと復旧は [STG 運用 Runbook](../../infra/staging/runbook.md) の Incident triage に従う（接続プール・provider status の確認を含む）。Cloudflare 側の障害情報は https://www.cloudflarestatus.com/ で確認。
 
 ---
 
@@ -91,7 +91,7 @@ Container stdout は Worker の request log と別の表示面になる場合が
 
 **期待結果**: 通常時は 0 件。
 
-**異常基準**: `audit_write_failed` が観測された場合、再開条件（[`phase2-deferred.md`](../../work/decisions/phase2-deferred.md) の PERF-AUDIT-TX P2）に従い、月 1 件以上の継続観測があれば outbox 再起案の実測根拠として記録する。
+**異常基準**: `audit_write_failed` が観測された場合、再開条件（[`phase2-deferred.md`](../../../work/decisions/phase2-deferred.md) の PERF-AUDIT-TX P2）に従い、月 1 件以上の継続観測があれば outbox 再起案の実測根拠として記録する。
 
 ---
 
@@ -107,13 +107,13 @@ Container stdout は Worker の request log と別の表示面になる場合が
 - [ ] エラーコンソールなし（ブラウザ DevTools F12 → Console）
 - [ ] ネットワークエラーなし（Network タブ）
 
-**失敗時アクション**: `npx wrangler tail animalekarte-stg-frontend` と Cloudflare ダッシュボードの Worker ログ/`frontend-deploy.yml` run を確認。旧 [VERCEL-FRONTEND-STAGING-TEST.md](./VERCEL-FRONTEND-STAGING-TEST.md) は Vercel 時代の手順で、rollback 期間中の参照専用。
+**失敗時アクション**: `npx wrangler tail animalekarte-stg-frontend` と Cloudflare ダッシュボードの Worker ログ/`frontend-deploy.yml` run を確認。旧 [VERCEL-FRONTEND-STAGING-TEST.md](../rehearsals/VERCEL-FRONTEND-STAGING-TEST.md) は Vercel 時代の手順で、rollback 期間中の参照専用。
 
 ---
 
 ### 3.2 運用プロビジョニング済みアカウントのログイン確認
 
-**アカウント情報**: approved secret storeで管理し、値を文書へ記録しない。払い出しは [STAFF_ACCOUNT_PROVISIONING.md](./STAFF_ACCOUNT_PROVISIONING.md) に従う。
+**アカウント情報**: approved secret storeで管理し、値を文書へ記録しない。払い出しは [STAFF_ACCOUNT_PROVISIONING.md](../accounts/STAFF_ACCOUNT_PROVISIONING.md) に従う。
 
 手順:
 1. ブラウザで [https://stg.noah-karte.com](https://stg.noah-karte.com) にアクセス
@@ -136,7 +136,7 @@ Container stdout は Worker の request log と別の表示面になる場合が
 
 ### 3.3 CRUD スモークテスト実行
 
-**実施内容**: [CRUD-SMOKE-TEST.md](./CRUD-SMOKE-TEST.md) を完全実行
+**実施内容**: [CRUD-SMOKE-TEST.md](../rehearsals/CRUD-SMOKE-TEST.md) を完全実行
 
 **実施者**: Team Lead または指定デプロイ担当者
 
@@ -147,13 +147,13 @@ Container stdout は Worker の request log と別の表示面になる場合が
 
 **期待結果**: 全項目がステータスコード期待値を返す
 
-詳細は [CRUD-SMOKE-TEST.md §5](./CRUD-SMOKE-TEST.md#5-期待status) を参照
+詳細は [CRUD-SMOKE-TEST.md §5](../rehearsals/CRUD-SMOKE-TEST.md#5-期待status) を参照
 
 ---
 
 ### 3.4 テストデータcleanup確認
 
-[CRUD-SMOKE-TEST.md](./CRUD-SMOKE-TEST.md) でこのrunが作成したIDだけをcleanupする。医院は既存resourceを編集・復元するため削除対象ではない。
+[CRUD-SMOKE-TEST.md](../rehearsals/CRUD-SMOKE-TEST.md) でこのrunが作成したIDだけをcleanupする。医院は既存resourceを編集・復元するため削除対象ではない。
 
 1. staff assignmentが無いsmoke-created permission groupを削除し、HTTP/resource stateを確認する。
 2. smoke-created staffを削除し、HTTP/list/detail stateを確認する。
@@ -208,7 +208,7 @@ GitHub Actions の `backend-deploy.yml` 実行履歴を確認する。
 
 承認済みsessionでclinic listを取得し、現在の `002_master/clinics.csv` が要求する全行（現行 CSV は4医院）が存在し、各 `is_active == true` であることを確認する。response contractは `is_active` であり `is_deleted` ではない。
 
-Demo login account は `002_master` には含まれず、許可された `APP_ENV` の migrate フェーズ3（`internal/seedlogin`）で合成アカウントを upsert する（医院ごとに執行1・一般9。林 文明は catalog 4医院すべてに執行所属）。設定操作用アカウントは [STAFF_ACCOUNT_PROVISIONING.md](./STAFF_ACCOUNT_PROVISIONING.md) の承認済み運用で別途払い出す。
+Demo login account は `002_master` には含まれず、許可された `APP_ENV` の migrate フェーズ3（`internal/seedlogin`）で合成アカウントを upsert する（医院ごとに執行1・一般9。林 文明は catalog 4医院すべてに執行所属）。設定操作用アカウントは [STAFF_ACCOUNT_PROVISIONING.md](../accounts/STAFF_ACCOUNT_PROVISIONING.md) の承認済み運用で別途払い出す。
 
 ---
 
@@ -237,7 +237,7 @@ Demo login account は `002_master` には含まれず、許可された `APP_EN
 ### 5.2 ログ保存先
 
 - **デプロイ直後の一時採取**: `/tmp/stg-deploy-check-$(date +%Y%m%d).log`（ローカル作業用。これ単体を正式証跡としない）
-- **正式な運用証跡（デプロイ直後・週次・月次）**: Actions run、変更チケット、または承認済み運用記録へ残す（[ops/CLAUDE.md](../CLAUDE.md) の証跡原則）。一時採取ログを使った場合は、正式記録からその内容を確認できるようにする
+- **正式な運用証跡（デプロイ直後・週次・月次）**: Actions run、変更チケット、または承認済み運用記録へ残す（[ops/CLAUDE.md](../../CLAUDE.md) の証跡原則）。一時採取ログを使った場合は、正式記録からその内容を確認できるようにする
 
 ---
 
@@ -247,7 +247,7 @@ Demo login account は `002_master` には含まれず、許可された `APP_EN
 
 **症状**: `curl: (7) Failed to connect to...` または HTTP 503
 
-**診断・対処**: [`../infra/staging/runbook.md`](../infra/staging/runbook.md) の Incident triage に従う（実 URL と workers.dev の `/health` 比較、Actions run の step 確認、Workers Logs / Containers、provider status と PlanetScale 接続枯渇、デプロイ直後の 15 分静置、Cloudflare 側の修正・再デプロイ）。基盤喪失時はスナップショットと現行 IaC から再建する（AWS への切り戻し先はない）。
+**診断・対処**: [`../../infra/staging/runbook.md`](../../infra/staging/runbook.md) の Incident triage に従う（実 URL と workers.dev の `/health` 比較、Actions run の step 確認、Workers Logs / Containers、provider status と PlanetScale 接続枯渇、デプロイ直後の 15 分静置、Cloudflare 側の修正・再デプロイ）。基盤喪失時はスナップショットと現行 IaC から再建する（AWS への切り戻し先はない）。
 
 ---
 
@@ -255,7 +255,7 @@ Demo login account は `002_master` には含まれず、許可された `APP_EN
 
 **症状**: Cloudflare Observability で ERROR/FATAL または 5xx が急増
 
-**診断・対処**: [`../infra/staging/runbook.md`](../infra/staging/runbook.md) の Incident triage に従う（Worker request log と Container log の分離、DB 接続エラー時の PlanetScale 状態と接続スロット確認を含む）。本書固有の確認: Container の起動/OOM は直近デプロイ差分と Cloudflare Containers の観測結果、Permission / secret エラーは Cloudflare Worker secrets と GitHub Secrets の同期を確認する。
+**診断・対処**: [`../../infra/staging/runbook.md`](../../infra/staging/runbook.md) の Incident triage に従う（Worker request log と Container log の分離、DB 接続エラー時の PlanetScale 状態と接続スロット確認を含む）。本書固有の確認: Container の起動/OOM は直近デプロイ差分と Cloudflare Containers の観測結果、Permission / secret エラーは Cloudflare Worker secrets と GitHub Secrets の同期を確認する。
 
 ---
 
@@ -265,16 +265,16 @@ Demo login account は `002_master` には含まれず、許可された `APP_EN
 
 - login routeは `POST /api/v1/login`。承認済みcredentialを安全なchannelで使い、body/cookie値を記録しない。
 - account stateは `staff.is_active` と `deleted_at` のcontractで確認する。`is_deleted` は使わない。
-- repairは承認済みstaff/account APIまたは [STAFF_ACCOUNT_PROVISIONING.md](./STAFF_ACCOUNT_PROVISIONING.md) を使う。直接SQLでactive stateやcredentialを修復しない。
+- repairは承認済みstaff/account APIまたは [STAFF_ACCOUNT_PROVISIONING.md](../accounts/STAFF_ACCOUNT_PROVISIONING.md) を使う。直接SQLでactive stateやcredentialを修復しない。
 - backend接続失敗はIssue 1のCloudflare/PlanetScale切り分けへ進む。
 
 ---
 
 ## 7. 参考資料
 
-- [STG 運用 Runbook](../infra/staging/runbook.md) - 現行インフラの障害初動・復旧方針
-- [README.md](./README.md) - デプロイメント・運用ドキュメント（障害判定、コマンド集）
-- [CI-CD-PIPELINE.md](./CI-CD-PIPELINE.md) - 自動デプロイ・手動トリガー
-- [CRUD-SMOKE-TEST.md](./CRUD-SMOKE-TEST.md) - CRUD 操作テスト詳細
-- [VERCEL-FRONTEND-STAGING-TEST.md](./VERCEL-FRONTEND-STAGING-TEST.md) - フロントエンド検証 — 旧手順（rollback 期間中の参照専用）
-- [STG-DEMO-DATA-LIFECYCLE.md](./STG-DEMO-DATA-LIFECYCLE.md) - データ分類とライフサイクル
+- [STG 運用 Runbook](../../infra/staging/runbook.md) - 現行インフラの障害初動・復旧方針
+- [README.md](../../README.md) - デプロイメント・運用ドキュメント（障害判定、コマンド集）
+- [CI-CD-PIPELINE.md](../CI-CD-PIPELINE.md) - 自動デプロイ・手動トリガー
+- [CRUD-SMOKE-TEST.md](../rehearsals/CRUD-SMOKE-TEST.md) - CRUD 操作テスト詳細
+- [VERCEL-FRONTEND-STAGING-TEST.md](../rehearsals/VERCEL-FRONTEND-STAGING-TEST.md) - フロントエンド検証 — 旧手順（rollback 期間中の参照専用）
+- [STG-DEMO-DATA-LIFECYCLE.md](STG-DEMO-DATA-LIFECYCLE.md) - データ分類とライフサイクル

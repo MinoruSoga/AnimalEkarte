@@ -6,7 +6,7 @@
 
 対象医院で、入院・ホテル登録とケージマスタの閲覧権限を持つスタッフが確認する。
 
-1. 対象医院を確認し、設定の [ケージマスタ](../../spec/screens/settings/master-cage.md)（`/settings/cage`）を開く。医院を切り替えた後は再読み込みする。
+1. 対象医院を確認し、設定の [ケージマスタ](../../../spec/screens/settings/master-cage.md)（`/settings/cage`）を開く。医院を切り替えた後は再読み込みする。
 2. ブラウザの network で `GET /api/v1/masters/cages` の HTTP status、返却件数、選択中の医院を記録する。氏名・患者情報・認証ヘッダーは証跡に含めない。
 3. `200` で空配列なら、その医院の live ケージマスタがない。必要なケージ名・エリア・サイズを医院責任者に確認し、マスタの「新規登録」で有効なケージを登録する。別医院のケージを流用しない。
 4. `401` / `403` ならログイン状態と `master-cage` 閲覧権限を確認する。通信失敗や `5xx` を「マスタ未登録」と判定しない。
@@ -84,7 +84,7 @@ ROLLBACK;
 
 ## fresh DB と失敗時の扱い
 
-この手動 SQL の適用だけでは `002_master/reservation_types.csv` は更新されない。fresh DB への収録は [Seed / Migration 運用](SEED_MIGRATION_OPERATIONS.md) §3 の正規経路（承認済みの使い捨て DB に実適用し、`cmd/seed-export` で再生成）を別途ユーザーが実行する。CSV や manifest を手編集しない。既存・共有 DB を reset しない。
+この手動 SQL の適用だけでは `002_master/reservation_types.csv` は更新されない。fresh DB への収録は [Seed / Migration 運用](../seeds/SEED_MIGRATION_OPERATIONS.md) §3 の正規経路（承認済みの使い捨て DB に実適用し、`cmd/seed-export` で再生成）を別途ユーザーが実行する。CSV や manifest を手編集しない。既存・共有 DB を reset しない。
 
 SQL 失敗時は transaction 全体の rollback を確認し、原因を解消して再実行する。commit 後に問題が分かった場合は、事前記録で今回新規作成した ID を特定し、医院責任者に報告する。予約への参照を確認してから既存マスタ UI の無効化等を判断する。既存行や他医院の行を一括削除しない。
 

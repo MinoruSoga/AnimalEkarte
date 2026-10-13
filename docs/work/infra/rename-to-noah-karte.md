@@ -1,4 +1,4 @@
-> **⚠️ 廃止（superseded）— 実行禁止・履歴参照用（2026-10-07 監査追記）**: 本計画は [cloudflare-account-separation.md](cloudflare-account-separation.md)（2026-10-06、EMR-298）§4/§5 により置き換えられた。同文書 §6 が明示撤回した項目を本書は含む: §0 の組織命名据え置き（`:27` 相当）、A3 の Go module 据え置き案（`:37` 相当）、C1 の hosted DB 改名 / PlanetScale rename 対象確定（`:56` 相当）。現行の方針は **Go module も `noah-karte` へ改名、PlanetScale DB は移管・改名しない、Cloudflare 専用アカウント + 全面 noah-karte 改名**。本書の手順は実行しないこと。
+> **⚠️ 廃止（superseded）— 実行禁止・履歴参照用（2026-10-07 監査追記）**: 本計画は [cloudflare-account-separation.md](../../ops/infra/cloudflare-account-separation.md)（2026-10-06、EMR-298）§4/§5 により置き換えられた。同文書 §6 が明示撤回した項目を本書は含む: §0 の組織命名据え置き（`:27` 相当）、A3 の Go module 据え置き案（`:37` 相当）、C1 の hosted DB 改名 / PlanetScale rename 対象確定（`:56` 相当）。現行の方針は **Go module も `noah-karte` へ改名、PlanetScale DB は移管・改名しない、Cloudflare 専用アカウント + 全面 noah-karte 改名**。本書の手順は実行しないこと。
 
 # AnimalEkarte → noah-karte リネーム計画
 

@@ -23,7 +23,7 @@ main→staging へのPR作成やデプロイ前に、「ローカルの静的検
 2. **seed変更の条件付き fresh-DB実適用 + UNIQUE突合**: seed/migration または起動依存を変更した場合、静的検証だけで完了とせず disposable な隔離 DB/environment への fresh apply で検証する。既存/shared DB を drop/reset しない。(clinic_id, name) 等のUNIQUE制約突合を実施する（詳細は `migration-seed-safety` skill参照）。docs-only 変更にはこの gate は不要
 3. **起動条件(env)変更のCI波及確認**: 本番/STG起動条件のenvを変更した場合、`.github/workflows/` 内の同名envが同期更新されているか確認する（出典: memory feedback_config_change_ci_propagation）。ワークフローのdriftチェックは `env`/`with`/`working-directory` すべてを対象にする（出典: feedback_workflow_with_param_drift）
 4. **DB再作成要否をユーザーに確認**: STGはデモ環境だが、破棄可否は必ずユーザーに確認する。無断で決めない。現行 `backend-deploy.yml` に `db_reset` 入力はない
-5. **復旧手順の提示**（ユーザー承認の上で実行）: 通常の STG デプロイは Cloudflare Workers 版 `backend-deploy.yml`（staging push または `workflow_dispatch`）。共有 DB の再作成が必要な場合は workflow の入力を捏造せず、`docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md` の破壊的操作境界に従う。AWS は廃止済みで切り戻し先ではない
+5. **復旧手順の提示**（ユーザー承認の上で実行）: 通常の STG デプロイは Cloudflare Workers 版 `backend-deploy.yml`（staging push または `workflow_dispatch`）。共有 DB の再作成が必要な場合は workflow の入力を捏造せず、`docs/ops/deploy/stg/STG_PLANETSCALE_SEED_RUNBOOK.md` の破壊的操作境界に従う。AWS は廃止済みで切り戻し先ではない
 
 ## 良い例・悪い例
 

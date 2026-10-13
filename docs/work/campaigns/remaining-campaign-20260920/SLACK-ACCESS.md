@@ -7,7 +7,7 @@ Worktree `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-rem-slack-access` o
 
 Docs-only. This unit does **not** invent a roster, transcribe July Slack names, run `staff-provision`, run `stg-uat-staff-attach`, read secret files, or treat demo catalog logins as production / formal UAT accounts.
 
-Binding: [todo-issue.md](../../../../todo.md#issue-ledger) heading `### SLACK-ACCESS` (L264–268); [P5](../../../../todo.md#p5--staff-provision); [H3-9](../../../../todo.md#ops-h3-9); [seedlogin env](../../../../backend/internal/seedlogin/env.go); [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md); [LINMIG-230.md](../linmig-campaign-20260919/LINMIG-230.md). July roster / forward text is **not in this repo**. Personal names stay **UNKNOWN**.
+Binding: [todo-issue.md](../../../../todo.md#issue-ledger) heading `### SLACK-ACCESS` (L264–268); [P5](../../../../todo.md#p5--staff-provision); [H3-9](../../../../todo.md#ops-h3-9); [seedlogin env](../../../../backend/internal/seedlogin/env.go); [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/accounts/STAFF_ACCOUNT_PROVISIONING.md); [LINMIG-230.md](../linmig-campaign-20260919/LINMIG-230.md). July roster / forward text is **not in this repo**. Personal names stay **UNKNOWN**.
 
 This file is a campaign investigation sheet. Product modules do not import it. The controller ledger names it as `owned_paths` / acceptance target (`units.json` unit `SLACK-ACCESS`; `unit-specs.json` in_scope). Sibling ops docs (`STAFF_ACCOUNT_PROVISIONING.md`, `LINMIG-230.md`) are contracts or a remote-apply design, not this clinic/role/demo-versus-formal gap sheet.
 
@@ -25,7 +25,7 @@ This sheet is that input-gap table. It is **not** apply authorization.
 | **Formal provision (P5 / #255)** | Batch **create** account + staff + assignments + permission groups | `backend/cmd/staff-provision` `preflight` then `apply` | Authorized local disposable DB; shared STG/PROD only after USER approval **and** a defined in-environment method ([LINMIG-230.md](../linmig-campaign-20260919/LINMIG-230.md) §3) | Demo catalog; attach onto existing staff |
 | **H3-9 attach** | Link synthetic UAT accounts onto **existing** `staffs` rows; does not insert staff | [`Makefile`](../../../../Makefile) `stg-uat-staff-attach-preflight` / `stg-uat-staff-attach`; [`backend/cmd/stg-uat-staff-attach`](../../../../backend/cmd/stg-uat-staff-attach/main.go) L1–2 | Target host/database confirmed on the command line | Proof that P5 remote apply exists ([todo-operations.md](../../../../todo.md#operations-ledger) L177–179) |
 
-Operator / first system admin is a fourth, out-of-band path ([STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L25; [FIRST_SYSTEM_ADMIN.md](../../../ops/deploy/FIRST_SYSTEM_ADMIN.md)). `SEEDLOGIN_OPERATOR_*` values are repo-external. Catalog emails never receive the shared-password shortcut as operator accounts ([env.go](../../../../backend/internal/seedlogin/env.go) L45–48).
+Operator / first system admin is a fourth, out-of-band path ([STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/accounts/STAFF_ACCOUNT_PROVISIONING.md) L25; [FIRST_SYSTEM_ADMIN.md](../../../ops/deploy/accounts/FIRST_SYSTEM_ADMIN.md)). `SEEDLOGIN_OPERATOR_*` values are repo-external. Catalog emails never receive the shared-password shortcut as operator accounts ([env.go](../../../../backend/internal/seedlogin/env.go) L45–48).
 
 経路分離の概形:
 
@@ -47,7 +47,7 @@ Source: [env.go](../../../../backend/internal/seedlogin/env.go), [catalog.go](..
 | `ShouldApply` is true only after trim/lowercase `APP_ENV` ∈ {`development`,`local`,`dev`,`test`,`staging`} | env.go L19–28; env_test.go L18–28 | Live `APP_ENV` on each host is **UNKNOWN** this session |
 | `production`, empty, unknown (`preview`, `prod`, …) fail closed | env.go L20–27; env_test.go L24–28 | Demo seed must not be planned for production login |
 | Shared-password shortcut requires allowlisted env **and** catalog email **and** the env-resolved shared password — code constant on local/dev/test, `SEEDLOGIN_DEMO_PASSWORD` secret on staging (unset = closed) | env.go `AcceptSharedPassword` | Do not paste credential values into this sheet or chat. Production auth must not accept it |
-| Catalog emails are `stg-staff-{staffID}@example.test` | catalog.go `emailPattern`; catalog_test.go first/last emails | `@example.test` is synthetic ([STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L24). Formal emails are I-EMAIL **未記入** |
+| Catalog emails are `stg-staff-{staffID}@example.test` | catalog.go `emailPattern`; catalog_test.go first/last emails | `@example.test` is synthetic ([STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/accounts/STAFF_ACCOUNT_PROVISIONING.md) L24). Formal emails are I-EMAIL **未記入** |
 | Four catalog clinic bands: id `1` 八王子病院, `2` 城東センター病院, `3` ノア動物病院　敷島病院, `4` ノア動物病院　Hako bu neco | catalog.go `clinicBands` L73–78 | These are **demo seed labels**, not a verified live `clinic_id` map (I-CLINIC **未記入**) |
 | Permission groups assigned to demo logins: `一般` (home clinic) and `執行` (one all-clinic executive) | catalog.go L17–21, L80–92 | Formal role → `permission_group_ids` is I-ROLE **未記入**; inference is forbidden (ops doc L21) |
 | Catalog size: 1 all-clinic executive + 9 home-clinic general templates × 4 clinics = **37** demo rows | catalog.go L61–92 | Count is fixture cardinality, not staff headcount |
@@ -73,7 +73,7 @@ Occupation labels on demo templates (`獣医師` / `看護師` / `動物看護�
 
 ## 5. P5 / #255 missing inputs (formal create)
 
-Source: [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L148–163; restated by [LINMIG-230.md](../linmig-campaign-20260919/LINMIG-230.md) §6 and [todo-operations.md](../../../../todo.md#operations-ledger) L177–183. This session did not receive a current roster file. Values, names, emails, and passwords are not recorded.
+Source: [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/accounts/STAFF_ACCOUNT_PROVISIONING.md) L148–163; restated by [LINMIG-230.md](../linmig-campaign-20260919/LINMIG-230.md) §6 and [todo-operations.md](../../../../todo.md#operations-ledger) L177–183. This session did not receive a current roster file. Values, names, emails, and passwords are not recorded.
 
 | ID | Missing input | Why needed for access | Supplier | Status this session | Demo catalog does **not** fill this |
 |---|---|---|---|---|---|
@@ -86,7 +86,7 @@ Source: [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/STAFF_ACCOUNT_PROVIS
 | I-ENV | Target (local disposable / named STG / PROD) and approval | apply is USER; PROD after #253/#254 | USER | **未記入 / UNKNOWN** | `ShouldApply` allowlist is not apply approval |
 | I-RECEIPT | PII-free `batch_id` / digest / count after authorized apply | #255 AC | USER after apply | **未記入 / UNKNOWN** | Login-seed checksum is not a staff-provision receipt |
 
-Remote apply: [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L103 and [LINMIG-230.md](../linmig-campaign-20260919/LINMIG-230.md) §3 — `STAFF_PROVISION_ALLOW_REMOTE=YES_I_UNDERSTAND` is a laptop non-local host guard, **not** shared STG/PROD authorization. Designed path is inside the target environment with `DB_HOST=db`. This unit does **not** run that path.
+Remote apply: [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/accounts/STAFF_ACCOUNT_PROVISIONING.md) L103 and [LINMIG-230.md](../linmig-campaign-20260919/LINMIG-230.md) §3 — `STAFF_PROVISION_ALLOW_REMOTE=YES_I_UNDERSTAND` is a laptop non-local host guard, **not** shared STG/PROD authorization. Designed path is inside the target environment with `DB_HOST=db`. This unit does **not** run that path.
 
 ## 6. H3-9 missing inputs (attach, not create)
 

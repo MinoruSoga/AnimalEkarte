@@ -266,7 +266,7 @@ ID ごとに状態・次の一手・完了条件・根拠を持つ。主な開�
 
 - **問題**: 2026-10-06 確定。「AnimalEkarte」の全名称を noah-karte ファミリーへ改名する。専用 Cloudflare アカウント移行（EMR-298）と一体で実施し、移行先を新名で構築して旧名を退役させる。
 - **根拠**: Go モジュール `github.com/animal-ekarte/backend`（`backend/go.mod`、約1700ファイルの import path）、CF 資源名 `animalekarte-*`（Worker×4・R2 bucket×2・通知ポリシー・DO・workers.dev URL。約125ファイル）、DO class `AnimalEkarteApiContainer` と named instance `animalekarte-scheduler-v1`/`animalekarte-migrate-runner-v1`、docker/DB 名（`animal_ekarte_test`、compose project は dir 名由来）、macOS packaging 識別子、GitHub repo `MinoruSoga/AnimalEkarte`・ローカル dir・docs/UI 表記。命名規則: `noah-karte-*`（CF資源）/`NoahKarte*`（Go・TS 識別子）/`noah_karte*`（DB・docker）/`noah-karte.com`・`Noah Karte`（docs・UI）。
-- **修正方針**: EMR-298 の移行計画（`docs/ops/infra/cloudflare-account-separation.md`）が改名対応表と CF 側の実施順を定める。実施は5単位に分ける（2026-10-06 網羅性レビュー §3）: ① CF 実行時識別子（Worker名・service binding・container class・DO instance名・bucket名・cron・wrangler の account 依存値 — 新アカウント初回デプロイが `noah-karte-*` で起動）② Go module `github.com/animal-ekarte/backend` の一括置換（対応表で置換先を1文字列に固定してから実施、1コミットでコンパイルとテスト通過。CF 切替の前提ではなく、静かなマージ窓で単体実施）③ ローカル開発名（dir・compose project・`animal_ekarte_test`。volume 名変化とローカルデータリセットを手順に明記。dir 改名は最後）④ packaging（`animalekarte.lab-device-agent.plist` 等と導入済み端末の unload/再登録。CF 切替と別日で可）⑤ 表示名（docs・UI の Noah Karte・Plane の今後分。実行識別子凍結後に並行可）。`renamed_classes` は新アカウント初回デプロイと同一リリースで適用（storage は引き継がれず named instance は空起動 — 受け入れ可否は人間決定）。repo は新規作成ではなく in-place 改名。`docs/ops/infra/rename-to-noah-karte.md` の「内部命名据え置き」決定の撤回に相当。
+- **修正方針**: EMR-298 の移行計画（`docs/ops/infra/cloudflare-account-separation.md`）が改名対応表と CF 側の実施順を定める。実施は5単位に分ける（2026-10-06 網羅性レビュー §3）: ① CF 実行時識別子（Worker名・service binding・container class・DO instance名・bucket名・cron・wrangler の account 依存値 — 新アカウント初回デプロイが `noah-karte-*` で起動）② Go module `github.com/animal-ekarte/backend` の一括置換（対応表で置換先を1文字列に固定してから実施、1コミットでコンパイルとテスト通過。CF 切替の前提ではなく、静かなマージ窓で単体実施）③ ローカル開発名（dir・compose project・`animal_ekarte_test`。volume 名変化とローカルデータリセットを手順に明記。dir 改名は最後）④ packaging（`animalekarte.lab-device-agent.plist` 等と導入済み端末の unload/再登録。CF 切替と別日で可）⑤ 表示名（docs・UI の Noah Karte・Plane の今後分。実行識別子凍結後に並行可）。`renamed_classes` は新アカウント初回デプロイと同一リリースで適用（storage は引き継がれず named instance は空起動 — 受け入れ可否は人間決定）。repo は新規作成ではなく in-place 改名。`docs/work/infra/rename-to-noah-karte.md` の「内部命名据え置き」決定の撤回に相当。
 - **受け入れ条件**: ① 新アカウントの CF リソースが `noah-karte-*` 名で稼働し旧名が退役 ② `rg -il 'animalekarte|animal-ekarte'` が計画で許容した例外のみ残る ③ `docker compose` 起動とスコープ限定の build/vet/test が新名で通る。
 - **状態**: Medium。2026-10-06 起票: CF 層の改名（単位①）は **EMR-302** に、CF 外の層（単位②-⑤）は **EMR-305** に分割起票。単位②（Go module＋repo in-place 改名）は約1700ファイルのため子課題 **EMR-307** に切り出し済み。改名3文字列・実施者は EMR-298 §5 決定結果で確定済み（module=`github.com/MinoruSoga/noah-karte/backend`、repo slug=`noah-karte`、dir=`noah-karte`、repo in-place 改名は人間）。blocked_by EMR-298 は解除済み。単位②の時期: STG 予行（計画 §4 段階4〜5）開始前に完了するか GOLIVE 後 — 予行合格後〜本番構築前の窓でのマージ禁止。claim 未取得。
 
@@ -384,7 +384,7 @@ Linear 系の残件は全て終了を確認（2026-09-27 照合・Linear MCP 未
 
 ### 認証・認可の外部境界
 
-認証 D1 の対象環境での付与・メール確認をここで一元管理する。契約は [認証設計](docs/architecture/auth.md)、実行手順は [初回管理者手順](docs/ops/deploy/FIRST_SYSTEM_ADMIN.md)、合成検証の参照は [D1 SQL fixture](backend/internal/auth/testdata/first_system_admin.sql)。ローカル実装・合成 fixture の完了を、対象環境への付与やメール経路の成功に読み替えない。
+認証 D1 の対象環境での付与・メール確認をここで一元管理する。契約は [認証設計](docs/architecture/auth.md)、実行手順は [初回管理者手順](docs/ops/deploy/accounts/FIRST_SYSTEM_ADMIN.md)、合成検証の参照は [D1 SQL fixture](backend/internal/auth/testdata/first_system_admin.sql)。ローカル実装・合成 fixture の完了を、対象環境への付与やメール経路の成功に読み替えない。
 
 過去のLinear照合記録は [こちら](#linear-reconciliation)。現在のタスク状態は各Plane項目を参照。共有 `ekarte_db` / `old-db-postgres` / STG / PROD をテスト DB に使わず、本番付与・メール・migration を自動実行しない。receipt は対象環境、日時、担当、承認、結果、復旧可否のみを既存 runbook へ保存する。外部受入が残れば完了にしない。
 
@@ -416,7 +416,7 @@ remote・CI・配備・Linear・STG/PROD の DB/秘密/投入 receipt は今回�
 
 ### 医院 UAT に伴うデータ操作
 
-実行手順は [ローカル handoff](docs/ops/deploy/OLD_DB_HANDOFF_LOCAL.md)、[STG 停止ゲート](docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md#2-pre-deploy-stop-gates)。共有環境への書込み・再取込・DB 作成/破棄・migration は今回実施しない。必要な `make migrate` は、対象環境の適用状態を確認したうえでユーザーが実行する。
+実行手順は [ローカル handoff](docs/ops/deploy/seeds/OLD_DB_HANDOFF_LOCAL.md)、[STG 停止ゲート](docs/ops/deploy/stg/STG_PLANETSCALE_SEED_RUNBOOK.md#2-pre-deploy-stop-gates)。共有環境への書込み・再取込・DB 作成/破棄・migration は今回実施しない。必要な `make migrate` は、対象環境の適用状態を確認したうえでユーザーが実行する。
 
 <a id="stg-data-lanes"></a>
 

@@ -7,7 +7,7 @@
 
 ## 0. Build-time API target
 
-> 追記（2026-10-07 監査）: `VITE_API_URL` ビルド契約は EMR-255 で廃止（現行契約は [CI-CD-PIPELINE.md §3](./CI-CD-PIPELINE.md) — same-origin service binding、`VITE_API_URL` 注入なし）。本書の §0 記述は Vercel 時代の履歴である。
+> 追記（2026-10-07 監査）: `VITE_API_URL` ビルド契約は EMR-255 で廃止（現行契約は [CI-CD-PIPELINE.md §3](../CI-CD-PIPELINE.md) — same-origin service binding、`VITE_API_URL` 注入なし）。本書の §0 記述は Vercel 時代の履歴である。
 
 現行 `frontend-deploy.yml` は `VERCEL_ENV=preview|production` を渡してビルドする。`frontend/vite.config.ts` はその値で `VITE_API_URL` を STG / production の絶対 API URL に固定し、`frontend/src/lib/axios.ts` が baseURL に使う。STG の通常 request は `https://api.stg.noah-karte.com/api/...` へ直接向かう。
 
@@ -69,7 +69,7 @@ Cookie: <browser-managed HttpOnly cookies; value must not be copied>
 
 新規会計確定は `Idempotency-Key` を付けてAPIへPOSTする。`backend/internal/middleware/cors.go` の固定許可ヘッダーにこれを含め、設定済みのoriginにだけアクセスを許可する。要求ヘッダーの無条件反映やwildcardで許可範囲を広げない。
 
-OPTIONSの204やログイン成功だけで会計確定をPASSにしない。デプロイ後の承認済み検証では、origin・credentials・`Idempotency-Key` を含む要求ヘッダーの許可と、後続の会計POSTの到達を確認する。localのsame-origin proxy経由での成功は代用にならない（[会計精算仕様](../../spec/screens/11-accounting-detail.md#33-新規会計確定の再試行)）。
+OPTIONSの204やログイン成功だけで会計確定をPASSにしない。デプロイ後の承認済み検証では、origin・credentials・`Idempotency-Key` を含む要求ヘッダーの許可と、後続の会計POSTの到達を確認する。localのsame-origin proxy経由での成功は代用にならない（[会計精算仕様](../../../spec/screens/11-accounting-detail.md#33-新規会計確定の再試行)）。
 
 ## 4. Exact settings routes
 
@@ -79,7 +79,7 @@ OPTIONSの204やログイン成功だけで会計確定をPASSにしない。デ
 - `/settings/permission-groups`
 - `/settings/staff`
 
-各routeでVite navigation、API status、list/form render、tenant scopeを確認する。書込みは[CRUD smoke](./CRUD-SMOKE-TEST.md)のpayload/restore/cleanup contractに従う。
+各routeでVite navigation、API status、list/form render、tenant scopeを確認する。書込みは[CRUD smoke](CRUD-SMOKE-TEST.md)のpayload/restore/cleanup contractに従う。
 
 ## 5. Troubleshooting
 

@@ -77,6 +77,8 @@ flowchart TB
 | **infra/** | インフラ |
 | [infra-cf-rename-task-coverage-review-20261006.md](infra/infra-cf-rename-task-coverage-review-20261006.md) | 2026-10-06 棚卸し実測に対する CF 移管・改名タスクの網羅性レビュー（rereview で更新済み）。実行 SoT ではない |
 | [infra-cf-rename-task-coverage-rereview-20261006.md](infra/infra-cf-rename-task-coverage-rereview-20261006.md) | 同上のチケット再構成後の再レビュー。実行 SoT ではない |
+| [rename-to-noah-karte.md](infra/rename-to-noah-karte.md) | AnimalEkarte→noah-karte 旧リネーム計画（superseded・実行禁止。docs/ops/infra/ から移設）。現行正本は docs/ops/infra/cloudflare-account-separation.md |
+| [reorg-plan.md](infra/reorg-plan.md) | 2026-07 起案のインフラ再編計画の履歴資料（HISTORICAL・実行不可。docs/ops/infra/ から移設） |
 | **design/** | デザイン関連の選定・監査資料 |
 | [design/frontend-design-review-tools.md](./design/frontend-design-review-tools.md) | フロントエンドのデザイン改善ツール候補を既存規約・React/Vite構成・ブラウザ運用から比較した選定資料（2026-10-13） |
 | **campaigns/** | 日付付きキャンペーンの準備票・台帳 |

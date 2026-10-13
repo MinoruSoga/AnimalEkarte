@@ -12,8 +12,8 @@ Binding sources (read-only this session):
 
 - [todo-issue.md](../../../../todo.md#issue-ledger) **SLACK-HAC-IMPORT** (L276–280)
 - [todo-operations.md](../../../../todo.md#operations-ledger) **H0-2 / HAC-CSV-1** (L22, L57, L113–117) and **AE-STG-UAT-LANE3-HAC** (L129–131)
-- [docs/ops/deploy/CLINIC_CSV_IMPORT.md](../../../ops/deploy/CLINIC_CSV_IMPORT.md)
-- [docs/ops/deploy/OLD_DB_HANDOFF_LOCAL.md](../../../ops/deploy/OLD_DB_HANDOFF_LOCAL.md) (八王子 wrapper 対象外)
+- [docs/ops/deploy/seeds/CLINIC_CSV_IMPORT.md](../../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md)
+- [docs/ops/deploy/seeds/OLD_DB_HANDOFF_LOCAL.md](../../../ops/deploy/seeds/OLD_DB_HANDOFF_LOCAL.md) (八王子 wrapper 対象外)
 - [LINMIG-234.md](../linmig-campaign-20260919/LINMIG-234.md) (P3 formal-bundle contract analog; **not** an HAC receipt)
 
 ## Send report is not a formal bundle
@@ -25,7 +25,7 @@ Binding sources (read-only this session):
 | Artifact | What it can show | What it cannot show |
 |----------|------------------|---------------------|
 | Slack / ops **send report** (9/11 BAK extract) | That someone reported sending extracted CSV | Completeness, producer verification, separate-channel manifest SHA, `TRUSTED_CANDIDATE`/`PASS`, positive payment/split counts, consumer receipt, apply/verify |
-| Formal **COMPLETE producer bundle** | Hospital/run-fixed `manifest.json` + 21 AnimalEkarte-shaped CSVs meeting [CLINIC_CSV_IMPORT.md](../../../ops/deploy/CLINIC_CSV_IMPORT.md) L81–L88 | Nothing in this session: no current bundle was received or inspected |
+| Formal **COMPLETE producer bundle** | Hospital/run-fixed `manifest.json` + 21 AnimalEkarte-shaped CSVs meeting [CLINIC_CSV_IMPORT.md](../../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md) L81–L88 | Nothing in this session: no current bundle was received or inspected |
 | Consumer **receipt** | Manifest SHA from `clinic-migration-run-report.json` on a **separate channel** (CLINIC_CSV_IMPORT.md L81), producer revision/run, eligibility, verify aggregates | Not substitutable by chat text, Linear history, or a send report |
 
 Do **not** treat the send report as a verified bundle. Do **not** treat older “完全 KNJO 未受領” wording as a current fact ([todo-operations.md](../../../../todo.md#operations-ledger) L5, L115). Current receipt is still **UNKNOWN** because this session did not collate a live producer result.

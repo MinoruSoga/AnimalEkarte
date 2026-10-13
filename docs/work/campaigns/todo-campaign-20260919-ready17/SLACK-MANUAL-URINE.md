@@ -13,7 +13,7 @@
 | 項目 | コードで分かること | 医院事実 |
 | --- | --- | --- |
 | 敷島/猫の試験紙銘柄・項目名・目視凡例（+/- の臨床意味） | なし | **UNKNOWN**。写真未確認。本票で凡例を作らない |
-| 城東の尿機器 | 城東 COM3 アークレイ PU-4010 は decoder-only。agent 既定 slot / 運用 support 対象外（[LAB_DEVICE_CONNECTIVITY](../../../ops/deploy/LAB_DEVICE_CONNECTIVITY.md)） | 現場 7E1/8E1 差は未 review。実機受信状態は SLACK-LAB の UNKNOWN |
+| 城東の尿機器 | 城東 COM3 アークレイ PU-4010 は decoder-only。agent 既定 slot / 運用 support 対象外（[LAB_DEVICE_CONNECTIVITY](../../../ops/deploy/lab-devices/LAB_DEVICE_CONNECTIVITY.md)） | 現場 7E1/8E1 差は未 review。実機受信状態は SLACK-LAB の UNKNOWN |
 | 八王子の尿機器型番 | なし（写真未確認、SLACK-LAB と同旨） | **UNKNOWN** |
 | 院ごとの `exam_types` 名称が「尿検査」か、手入力用マスタが既にあるか | テスト/シードに「尿検査」文字列はあるが、対象医院の本番マスタではない | **UNKNOWN**。医院承認の期待表が来るまで項目を固定しない |
 | 目視結果を機器受信 exam へ上書きしてよいか | 現行は別 write 経路。同一 exam 行へのマージ API はない | 混同・上書き禁止（要件）。統合実装を本票で提案しない |

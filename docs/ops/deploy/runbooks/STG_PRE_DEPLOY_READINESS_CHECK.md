@@ -34,11 +34,11 @@ Normal backend deliveryは`wrangler deploy -> POST /_internal/migrate -> /health
 - [ ] `002_master/manifest.json`から12-table inventory/load orderを導出し、listed filesが揃う。
 - [ ] migrate logの`Migration key coverage missing=0`を確認した。固定row/key/table countを使っていない。
 - [ ] checksum mismatchがない。
-- [ ] legacy seed key がある場合は [現行 translation 契約](../SEED_MIGRATION_OPERATIONS.md#2-legacy-seed-keys) と対象 DB の master 完全性を確認した。不整合時は release stop とし、reviewed recovery plan を待つ。
+- [ ] legacy seed key がある場合は [現行 translation 契約](../seeds/SEED_MIGRATION_OPERATIONS.md#2-legacy-seed-keys) と対象 DB の master 完全性を確認した。不整合時は release stop とし、reviewed recovery plan を待つ。
 
 `verify_seed_matches_stg_dump_full.sh`はmandatory gateではない。approved non-repository `STG_DUMP=/absolute/path`、data handling approval、master-only contractが揃う別rehearsalでのみ使える。通常checkoutにdumpが無いことをfailureにしない。
 
-Shared DB rebuildはworkflow optionではない。[STG_PLANETSCALE_SEED_RUNBOOK.md](../STG_PLANETSCALE_SEED_RUNBOOK.md)のtarget/data-owner/backup/rollback/approval gateを満たす場合だけapproved operatorが行う。
+Shared DB rebuildはworkflow optionではない。[STG_PLANETSCALE_SEED_RUNBOOK.md](../stg/STG_PLANETSCALE_SEED_RUNBOOK.md)のtarget/data-owner/backup/rollback/approval gateを満たす場合だけapproved operatorが行う。
 
 ## 3. Post-deploy checks
 
@@ -48,11 +48,11 @@ Shared DB rebuildはworkflow optionではない。[STG_PLANETSCALE_SEED_RUNBOOK.
 - [ ] failure時はapproved workers.dev endpointと比較し、DNS/routeとWorker/Container/DBを分離した。
 - [ ] backend workflowのdeploy/migrate/post-migrate healthが全てsuccess。
 - [ ] image更新を伴う場合はdocumented rolling window後にも確認した。
-- [ ] frontend の same-origin `/api` が frontend Worker の service binding 経由で API JSON/status を返すことを確認した（`/api/v1/me` が SPA HTML ではなく backend の JSON を返すこと。SPA fallback は非 `/api` GET のみ）。旧 [Vercel runbook](../VERCEL-FRONTEND-STAGING-TEST.md) は rollback 期間中の参照専用。
+- [ ] frontend の same-origin `/api` が frontend Worker の service binding 経由で API JSON/status を返すことを確認した（`/api/v1/me` が SPA HTML ではなく backend の JSON を返すこと。SPA fallback は非 `/api` GET のみ）。旧 [Vercel runbook](../rehearsals/VERCEL-FRONTEND-STAGING-TEST.md) は rollback 期間中の参照専用。
 
 ### 3.2 Corrected CRUD cases
 
-[CRUD-SMOKE-TEST.md](../CRUD-SMOKE-TEST.md)の次を実行する。
+[CRUD-SMOKE-TEST.md](../rehearsals/CRUD-SMOKE-TEST.md)の次を実行する。
 
 - A-1 `GET /clinics?scope=all` with `hospital-settings:view` -> 200
 - A-2 same route without permission -> 403

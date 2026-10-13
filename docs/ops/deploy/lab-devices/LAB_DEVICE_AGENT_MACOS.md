@@ -71,7 +71,7 @@ launchctl bootout "gui/$(id -u)/com.animalekarte.lab-device-agent"
 - 「判定失敗」: 機器の送信を再実行し、解消しない場合はagentを再起動する。生電文をログやチャットへ貼らない。
 - API停止中の受信はagentのメモリキューへ残り、画面とAPIの復旧後に再送される。
 - 未配送・判定失敗の生電文はメモリ保持のため、Macまたはagentの再起動では消える。再起動をまたぐ永続化は、保持期限・暗号化・回収手順を決める別設計とする。
-- クライアント確認は[検査機器ローカル受信 クライアント実機確認票](../testing/scenarios/LAB_DEVICE_CLIENT_UAT.md)を使用する。
+- クライアント確認は[検査機器ローカル受信 クライアント実機確認票](../../testing/scenarios/LAB_DEVICE_CLIENT_UAT.md)を使用する。
 
 ## Browser origin / PNA
 

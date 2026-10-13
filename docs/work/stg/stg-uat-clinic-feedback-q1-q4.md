@@ -16,12 +16,12 @@
 |------|------|
 | 飼主・ペット検索 | `docs/spec/screens/03-owners-list.md`、`backend/internal/pet/repository.go` `applyPetListSearch` |
 | 過去カルテ UI | `frontend/src/features/medical-records/components/InterviewHistory.tsx`、`frontend/src/hooks/use-medical-records.ts` `useGetPetMedicalHistory` |
-| 移行21表 | `backend/internal/csvimport/cutover_contract.go` `CutoverTableSpecs`、`docs/ops/deploy/CLINIC_CSV_IMPORT.md` |
+| 移行21表 | `backend/internal/csvimport/cutover_contract.go` `CutoverTableSpecs`、`docs/ops/deploy/seeds/CLINIC_CSV_IMPORT.md` |
 | ワクチン種 | `old_db/sql/migration/030_stage.sql` vaccines.species = NULL |
 | 性別コード | `old_db/docs/migration/propose-review-decisions.md` `PetSeibt_Kbn`、`old_db/sql/migration/030_stage.sql` pets.gender CASE |
 | 未納 | `docs/spec/screens/30-unpaid-list.md`、`old_db/sql/migration/030_stage.sql` billings.status |
 | 保険割合 | `frontend/src/features/accounting/components/InsuranceCard.tsx`、`docs/spec/screens/11-accounting-detail.md` |
-| デモ退役 | `docs/ops/deploy/STG-DEMO-DATA-LIFECYCLE.md`（`003_demo` 退役。臨床データは handoff/import） |
+| デモ退役 | `docs/ops/deploy/stg/STG-DEMO-DATA-LIFECYCLE.md`（`003_demo` 退役。臨床データは handoff/import） |
 
 ---
 

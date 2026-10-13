@@ -154,7 +154,7 @@ flowchart TB
 ### 照合に使用した現行ソース
 
 - `todo-operations.md` §BUG-LOCAL-HANDOFF-CSV-CONTRACT(L115–119)、`bug.md` §plan-bug-local-handoff-csv-contract(L29–39、L365–376)
-- `docs/ops/deploy/OLD_DB_HANDOFF_LOCAL.md`、`docs/ops/deploy/CLINIC_CSV_IMPORT.md`
+- `docs/ops/deploy/seeds/OLD_DB_HANDOFF_LOCAL.md`、`docs/ops/deploy/seeds/CLINIC_CSV_IMPORT.md`
 - `backend/internal/csvimport/cutover_contract.go` / `cutover_contract_validate.go`
 - `Makefile` `old-db-handoff-stage`/`old-db-handoff-check`/`csv-import-*`/`stg-uat-*` targets、`scripts/old-db/check-old-db-handoff.sh`、`scripts/old-db/import-old-db-handoffs-on-reset.sh`
 - staged `backend/migrations/seeds/_old_db_handoff/{hachioji,hakobuneco,jouto,shikishima}/manifest.json` + 20 CSV(header 行のみ)と `002_master/accounts/_old_db_handoff/<clinic>/staffs.csv`(gitignored quarantine、読取のみ)

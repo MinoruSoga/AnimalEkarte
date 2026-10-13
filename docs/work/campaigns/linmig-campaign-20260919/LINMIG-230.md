@@ -6,11 +6,11 @@ Campaign `linmig-ops-prep-20260919` revision 1. Claim ID `LINMIG-230` (Linear is
 
 Worktree: `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-linmig-230` on `feat/linmig-230-ops-prep` at HEAD `aac697645df92fd24611c7c13bf0f7dda12a6e08`. Sheet date: 2026-09-19. Repo evidence only. This unit **does not** run `staff-provision`, read secret files, invent roster rows, edit Go, apply migrations, or change shared STG/PROD.
 
-Truth source order used: `backend/cmd/staff-provision` and `backend/internal/staff` over [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) over [todo-operations.md](../../../../todo.md#operations-ledger) P5. Where they agree, both are cited. Live roster, live environment, authorized actor, and apply receipts are **UNKNOWN** (not observed this session).
+Truth source order used: `backend/cmd/staff-provision` and `backend/internal/staff` over [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/accounts/STAFF_ACCOUNT_PROVISIONING.md) over [todo-operations.md](../../../../todo.md#operations-ledger) P5. Where they agree, both are cited. Live roster, live environment, authorized actor, and apply receipts are **UNKNOWN** (not observed this session).
 
 ## 1. Why this sheet exists
 
-[STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L103:
+[STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/accounts/STAFF_ACCOUNT_PROVISIONING.md) L103:
 
 > approved remote execution と read-only secret-file mount の仕組みは未定義です。`STAFF_PROVISION_ALLOW_REMOTE` だけを根拠にローカル Compose から共有環境へ apply しません。
 
@@ -22,15 +22,15 @@ Binary: `backend/cmd/staff-provision`. Commands: `preflight` | `apply` only (`ma
 
 | Fact | Evidence |
 |---|---|
-| preflight is write-0; receipts are not consulted | [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L109–115; `staff_provisioning_apply.go` L17–19, L21–47 |
-| apply re-validates inputs, then one transaction + `pg_advisory_xact_lock` on `staff-provision:`+`batch_id` | [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L117–127; `staff_provisioning_apply.go` L50–118; `staff_provisioning_repository.go` lock key |
-| same-digest complete receipts → `status=noop`; partial/mismatch → conflict | [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L122–124; `staff_provisioning_apply.go` L81–94 |
-| stdout / logs are PII-free (`status` / `batch_id` / `digest` / `staff_count` / `clinic_scope`) | [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L105; `main.go` L2–4, L134–153; `TestWriteJSON_EmitsDigestOnlySurface` |
+| preflight is write-0; receipts are not consulted | [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/accounts/STAFF_ACCOUNT_PROVISIONING.md) L109–115; `staff_provisioning_apply.go` L17–19, L21–47 |
+| apply re-validates inputs, then one transaction + `pg_advisory_xact_lock` on `staff-provision:`+`batch_id` | [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/accounts/STAFF_ACCOUNT_PROVISIONING.md) L117–127; `staff_provisioning_apply.go` L50–118; `staff_provisioning_repository.go` lock key |
+| same-digest complete receipts → `status=noop`; partial/mismatch → conflict | [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/accounts/STAFF_ACCOUNT_PROVISIONING.md) L122–124; `staff_provisioning_apply.go` L81–94 |
+| stdout / logs are PII-free (`status` / `batch_id` / `digest` / `staff_count` / `clinic_scope`) | [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/accounts/STAFF_ACCOUNT_PROVISIONING.md) L105; `main.go` L2–4, L134–153; `TestWriteJSON_EmitsDigestOnlySurface` |
 | apply against non-local `DB_HOST` refuses unless `STAFF_PROVISION_ALLOW_REMOTE=YES_I_UNDERSTAND` | `main.go` L102–116; `TestRun_ApplyRefusesNonLocalWithoutOverride` |
 | local hosts | `db`, `localhost`, `127.0.0.1`, `::1`, `[::1]` in `backend/internal/dbconn/dbconn.go` L107–119 |
 | H3-9 `stg-uat-staff-attach` attaches accounts onto **existing** staff rows; it does not create staff | `backend/cmd/stg-uat-staff-attach/main.go` L1–2; [todo-operations.md](../../../../todo.md#operations-ledger) L177–178 |
 
-`STAFF_PROVISION_ALLOW_REMOTE=YES_I_UNDERSTAND` is a **laptop non-local host guard**, not shared STG/PROD authorization (`main.go` L103–112; [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L22, L101–103; [todo-operations.md](../../../../todo.md#operations-ledger) L177).
+`STAFF_PROVISION_ALLOW_REMOTE=YES_I_UNDERSTAND` is a **laptop non-local host guard**, not shared STG/PROD authorization (`main.go` L103–112; [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/accounts/STAFF_ACCOUNT_PROVISIONING.md) L22, L101–103; [todo-operations.md](../../../../todo.md#operations-ledger) L177).
 
 ## 3. Designed remote apply method (not executed)
 
@@ -46,7 +46,7 @@ Stop rule: do not apply from a developer laptop to shared STG/PROD even if `STAF
 | I-ACTOR | Authorized `actor_account_id` already present in that DB | preflight authorization | **UNKNOWN** |
 | I-RECEIPT | Prior PII-free `batch_id` / `digest` / `count` for this `clinic_scope` | detect noop vs conflict vs first apply | **UNKNOWN** |
 
-PROD remains behind #253/#254 gates in the ops checklist ([STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L160). This sheet does not open that gate.
+PROD remains behind #253/#254 gates in the ops checklist ([STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/accounts/STAFF_ACCOUNT_PROVISIONING.md) L160). This sheet does not open that gate.
 
 ### 3.2 Execution entry (design)
 
@@ -62,7 +62,7 @@ docker compose run --rm --no-deps --entrypoint '' -T \
     --secrets=/secure/staff-batch/secrets.json
 ```
 
-Citation: [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L75–85.
+Citation: [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/accounts/STAFF_ACCOUNT_PROVISIONING.md) L75–85.
 
 4. Human reviews PII-free stdout (`batch_id`, `digest`, `staff_count`, `clinic_scope`). Compare digest to any prior I-RECEIPT. Do not paste names/emails/passwords into issues or this sheet.
 5. After **explicit USER approval for that named environment**, run **apply** with the same mount and same files. Keep `STAFF_PROVISION_ALLOW_REMOTE` **unset** on this path so a mistaken public `DB_HOST` still fail-closes (`main.go` L102–116).（§9 で置換）
@@ -77,7 +77,7 @@ Citation: [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/STAFF_ACCOUNT_PROV
 
 ## 4. Repo-external secret supply (design)
 
-Contract: [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L17–20, L49–60; `ValidateSecureInputPath` / `OpenSecureInputFile` in `backend/internal/staff/staff_provisioning_validate.go` L16–78.
+Contract: [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/accounts/STAFF_ACCOUNT_PROVISIONING.md) L17–20, L49–60; `ValidateSecureInputPath` / `OpenSecureInputFile` in `backend/internal/staff/staff_provisioning_validate.go` L16–78.
 
 | Rule | Binding check |
 |---|---|
@@ -134,7 +134,7 @@ Fail-closed. Resolve by comparing PII-free receipts. Do not bypass the advisory 
 
 ## 6. Missing-input table (I-ROSTER gaps)
 
-Values, names, emails, passwords, and invented staff rows are not recorded. Unsupplied stays **未記入 / UNKNOWN**. Source: [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L148–163. This session did not receive a current roster file.
+Values, names, emails, passwords, and invented staff rows are not recorded. Unsupplied stays **未記入 / UNKNOWN**. Source: [STAFF_ACCOUNT_PROVISIONING.md](../../../ops/deploy/accounts/STAFF_ACCOUNT_PROVISIONING.md) L148–163. This session did not receive a current roster file.
 
 | ID | Missing input | Why needed | Supplier | Status this session |
 |---|---|---|---|---|
@@ -152,7 +152,7 @@ Values, names, emails, passwords, and invented staff rows are not recorded. Unsu
 ## 7. Stop / safety boundary
 
 - If a roster file, password file, or remote apply is required to proceed, **stop**. This sheet is complete as a design with UNKNOWN cells.
-- First system admin is out of band ([FIRST_SYSTEM_ADMIN.md](../../../ops/deploy/FIRST_SYSTEM_ADMIN.md)); `staff-provision` assumes an existing authorized actor.
+- First system admin is out of band ([FIRST_SYSTEM_ADMIN.md](../../../ops/deploy/accounts/FIRST_SYSTEM_ADMIN.md)); `staff-provision` assumes an existing authorized actor.
 - Agents must not auto-apply this command.
 
 ## 8. Verification performed for this docs unit
@@ -168,6 +168,6 @@ Docs-only. No Docker app tests. Commands: `git diff --check`; `git diff --name-o
 - A supplied but mismatched `--confirm-target-host` is rejected even when `DB_HOST` is local.
 - `STAFF_PROVISION_ALLOW_REMOTE` stays a host-typo guard, not authorization; approval remains a USER decision per named environment.
 
-Execution procedure (who, from which terminal, which confirmations): [STAFF_ACCOUNT_PROVISIONING.md — STG / Production への remote 実行（EMR-149）](../../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md#stg--production-への-remote-実行emr-149). Rollback design is unchanged: §5 still applies.
+Execution procedure (who, from which terminal, which confirmations): [STAFF_ACCOUNT_PROVISIONING.md — STG / Production への remote 実行（EMR-149）](../../../ops/deploy/accounts/STAFF_ACCOUNT_PROVISIONING.md#stg--production-への-remote-実行emr-149). Rollback design is unchanged: §5 still applies.
 
 No `staff-provision` apply was executed under this decision. Roster intake and name-list handling stay with EMR-111; the I-ROSTER / missing-input status in §6 is unchanged.

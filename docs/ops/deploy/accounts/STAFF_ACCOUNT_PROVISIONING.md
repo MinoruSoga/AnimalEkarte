@@ -21,7 +21,7 @@
 3. **role → permission 推論はしない。** `permission_group_ids` は manifest の明示値のみ（main clinic 所属の group）。
 4. **PROD / 共有 STG への apply は USER 承認後。** 非 local `DB_HOST` へは preflight/apply とも `STAFF_PROVISION_ALLOW_REMOTE=YES_I_UNDERSTAND` と `DB_HOST` に完全一致する `--confirm-target-host` の両方が無いと DB 接続前に拒否される（手順は下記「STG / Production への remote 実行」）。
 5. **本 repo の synthetic fixture は架空 ID / `@example.test` のみ。** 外部入力を fixture として commit しない。
-6. **最初のシステム管理者** は CSV / LoginForm に載せない。local/STG は migrate の `SEEDLOGIN_OPERATOR_*`（値は repo 外）。STG Worker は `wrangler secret put` で投入し `secrets.required` には入れない。未設定なら upsert をスキップする。本コマンドは既存の認可済み actor が前提なので、ゼロから作る経路ではない。本番初回は [FIRST_SYSTEM_ADMIN.md](./FIRST_SYSTEM_ADMIN.md)。既存スタッフへの画面からの追加は `POST /api/v1/masters/staffs/{id}/account`。
+6. **最初のシステム管理者** は CSV / LoginForm に載せない。local/STG は migrate の `SEEDLOGIN_OPERATOR_*`（値は repo 外）。STG Worker は `wrangler secret put` で投入し `secrets.required` には入れない。未設定なら upsert をスキップする。本コマンドは既存の認可済み actor が前提なので、ゼロから作る経路ではない。本番初回は [FIRST_SYSTEM_ADMIN.md](FIRST_SYSTEM_ADMIN.md)。既存スタッフへの画面からの追加は `POST /api/v1/masters/staffs/{id}/account`。
 
 ## 入力契約
 
@@ -35,7 +35,7 @@
 | `actor_account_id` | 有効 account。system admin **または** scope 全医院で `master-staff` create |
 | `staff[]` | 非空。各行に以下を明示 |
 
-**identity 不変条件**: 各 `staff` 行は **1 人物 = 1 行** とする。ソースデータで同一人物が複数医院に所属する場合、manifest では 1 行に集約し `main_clinic_id` と `clinic_ids`（所属医院すべて）で表す。医院ごとに別行（= 別アカウント）を生成しない（[auth §1.3](../../architecture/auth.md)）。同姓同名の一致だけでは同一人物の根拠にならないため、集約には権威ある identity 対応表が必要である。なお旧DB移行経路では 017 適用前の `(doctor_id, clinic_id)` 複合FK の名残で同一人物が医院別の複数 staffs 行を持ちうるが、その場合も行が共有するアカウントは 1 つである。統合は old_db の権威 identity map に基づき `scripts/old-db/sql/link-old-db-staff-identity-map.sql` が `CONFIRMED` グループのみを適用する（`scripts/old-db/staff-identity-map-link.sh` 経由、map CSV は 0600 + SHA256SUMS 検証）。map 非指定のローカル reset 経路では `scripts/old-db/sql/link-old-db-cross-clinic-staff-accounts.sql` の同名ヒューリスティックが fallback として残る。
+**identity 不変条件**: 各 `staff` 行は **1 人物 = 1 行** とする。ソースデータで同一人物が複数医院に所属する場合、manifest では 1 行に集約し `main_clinic_id` と `clinic_ids`（所属医院すべて）で表す。医院ごとに別行（= 別アカウント）を生成しない（[auth §1.3](../../../architecture/auth.md)）。同姓同名の一致だけでは同一人物の根拠にならないため、集約には権威ある identity 対応表が必要である。なお旧DB移行経路では 017 適用前の `(doctor_id, clinic_id)` 複合FK の名残で同一人物が医院別の複数 staffs 行を持ちうるが、その場合も行が共有するアカウントは 1 つである。統合は old_db の権威 identity map に基づき `scripts/old-db/sql/link-old-db-staff-identity-map.sql` が `CONFIRMED` グループのみを適用する（`scripts/old-db/staff-identity-map-link.sh` 経由、map CSV は 0600 + SHA256SUMS 検証）。map 非指定のローカル reset 経路では `scripts/old-db/sql/link-old-db-cross-clinic-staff-accounts.sql` の同名ヒューリスティックが fallback として残る。
 
 **移行スタッフの有効化**: 旧DB移行スタッフは `is_active=false` で投入される（退職フラグではなく移行ポリシー）。有効化は old_db の権威 staff-activity map（在籍推定 artifact）に基づき `scripts/old-db/sql/apply-old-db-staff-activity-map.sql` が `ACTIVE_CONFIRMED` 分類のみ `is_active=true` にする（`scripts/old-db/staff-activity-map-apply.sh` 経由、map CSV は 0600 + SHA256SUMS 検証）。`ACTIVE_LIKELY` / `LIKELY_RETIRED` / `NO_EVIDENCE` は変更しない。
 
@@ -141,7 +141,7 @@ docker compose run --rm --no-deps \
     --confirm-target-host "${STAFF_PROVISION_CONFIRM_HOST}"
 ```
 
-**rollback**: 自動ロールバック（commit 前）と `status=applied` 後の補償手順は [LINMIG-230 §5](../../work/campaigns/linmig-campaign-20260919/LINMIG-230.md#5-rollback-design-no-cli-do-not-run) に従う（receipt / audit は削除しない。個別 staff を `is_active=false` 等で補償する）。
+**rollback**: 自動ロールバック（commit 前）と `status=applied` 後の補償手順は [LINMIG-230 §5](../../../work/campaigns/linmig-campaign-20260919/LINMIG-230.md#5-rollback-design-no-cli-do-not-run) に従う（receipt / audit は削除しない。個別 staff を `is_active=false` 等で補償する）。
 
 成功時 stdout は PII-free JSON（`status` / `batch_id` / `digest` / `staff_count` / `clinic_scope`）。
 

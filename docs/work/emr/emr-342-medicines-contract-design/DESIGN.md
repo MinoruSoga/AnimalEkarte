@@ -198,7 +198,7 @@ producer は、見積明細の参照先が §3.1 の薬剤の行のとき、`pro
 | `cutover_reference_graph.go` | `medicines` の参照（`clinic_id` は医院の種、`parent_id` は CSV の親、`inventory_id` は空必須）を足し、`estimate_items.medicine_id` を `cutoverCSVParent` に切り替える |
 | `cutover_import_copy.go`、`cutover_contract_validate.go` | 列の型（`dosage_form` の列挙型、`default_quantity` の数値）と必須列の検査に対応する |
 | テスト | `cutover_import_test.go`、`cutover_window_zero_test.go`、`cmd/stg-uat-skeleton` の表の数・順序の期待値を更新する。負例を足す（§4） |
-| ドキュメント | `docs/ops/deploy/CLINIC_CSV_IMPORT.md` の「21 表」の表と記述を 22 表に更新する |
+| ドキュメント | `docs/ops/deploy/seeds/CLINIC_CSV_IMPORT.md` の「21 表」の表と記述を 22 表に更新する |
 
 契約のハッシュが変わるため、旧契約（21 表）の bundle は取込前の検査で拒否される。現在の 4 院の bundle はすべて `REHEARSAL_ONLY` で、正式取込の対象ではない。
 

@@ -1,6 +1,6 @@
 # HISTORICAL — インフラ再編計画（DO NOT EXECUTE）
 
-> 2026-07-20 に起案された履歴資料。現在の操作手順・architecture SSOT ではない。現行契約は [README.md](README.md)、[architecture.md](architecture.md)、[iac-guidelines.md](iac-guidelines.md)。外部 cloud/account 状態は未検証。
+> 2026-07-20 に起案された履歴資料。現在の操作手順・architecture SSOT ではない。現行契約は [README.md](../../ops/infra/README.md)、[architecture.md](../../ops/infra/architecture.md)、[iac-guidelines.md](../../ops/infra/iac-guidelines.md)。外部 cloud/account 状態は未検証。
 
 ## Completion matrix at reviewed baseline `70dc7405`
 

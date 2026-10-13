@@ -10,7 +10,7 @@
 
 - ログイン画面とスタッフ新規作成画面から、最初のシステム管理者を作ることはできない。
 - 既存スタッフへのアカウント追加 `POST /api/v1/masters/staffs/{id}/account` は **既存のシステム管理者** が前提である。
-- 一括発行 `staff-provision` も **既存の認可済み actor** が前提である。ゼロから作る経路ではない。詳細は [STAFF_ACCOUNT_PROVISIONING.md](./STAFF_ACCOUNT_PROVISIONING.md)。
+- 一括発行 `staff-provision` も **既存の認可済み actor** が前提である。ゼロから作る経路ではない。詳細は [STAFF_ACCOUNT_PROVISIONING.md](STAFF_ACCOUNT_PROVISIONING.md)。
 
 ## やらないこと
 

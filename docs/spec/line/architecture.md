@@ -9,7 +9,7 @@
 
 ---
 
-> **注記 (2026-07-10 / 更新 2026-07-31)**: Lステップへの Write API（タグ付与・タグ解除・プロパティ更新）は **deploy gate `LSTEP_WRITE_API_ENABLED`（既定 OFF）+ clinic `is_sync_enabled` の二重 gate** で抑止される。gate OFF 時は外部 HTTP write を送らず `ErrWriteDisabled` を返す（silent nil 成功ではない）。その後のローカル DB / cache / audit / logging は呼び出し元ごとの失敗契約に従い、継続を一律には保証しない。詳細: [`docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)
+> **注記 (2026-07-10 / 更新 2026-07-31)**: Lステップへの Write API（タグ付与・タグ解除・プロパティ更新）は **deploy gate `LSTEP_WRITE_API_ENABLED`（既定 OFF）+ clinic `is_sync_enabled` の二重 gate** で抑止される。gate OFF 時は外部 HTTP write を送らず `ErrWriteDisabled` を返す（silent nil 成功ではない）。その後のローカル DB / cache / audit / logging は呼び出し元ごとの失敗契約に従い、継続を一律には保証しない。詳細: [`docs/ops/deploy/runbooks/LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/runbooks/LSTEP_WRITE_API_PAUSE.md)
 
 ---
 
@@ -102,7 +102,7 @@ LSTEP 周辺の「best-effort」は一語で混同しない。経路ごとに契
 ### 4.3 停止手段
 
 - clinic 単位の `is_sync_enabled=false` で同期・配信バッチ対象から外す。
-- Write API は deploy kill switch `LSTEP_WRITE_API_ENABLED` と clinic flag の二重 gate（[`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)）。再開後も `is_sync_enabled=false` の clinic はサービス層で抑止する。
+- Write API は deploy kill switch `LSTEP_WRITE_API_ENABLED` と clinic flag の二重 gate（[`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/runbooks/LSTEP_WRITE_API_PAUSE.md)）。再開後も `is_sync_enabled=false` の clinic はサービス層で抑止する。
 
 ---
 

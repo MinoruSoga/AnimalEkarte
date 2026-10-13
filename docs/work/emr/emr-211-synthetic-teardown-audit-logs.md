@@ -85,7 +85,7 @@ fixture の `Create`/`Delete` 自体は audit 行を一切書かない（生 `tx
 
 - `audit_logs` に**文書化された保持期間・アーカイブ規定・法的保存期間は見つからなかった**
 - 「削除禁止」は schema COMMENT・model コメント・repository 設計による**設計ポリシー**であり、DB trigger による強制ではない
-- `docs/ops/deploy/STG-DEMO-DATA-LIFECYCLE.md`: 「手動 SQL 後にアプリケーション風の audit 行を INSERT してはいけない」（監査行の**捏造**禁止の規範は存在）
+- `docs/ops/deploy/stg/STG-DEMO-DATA-LIFECYCLE.md`: 「手動 SQL 後にアプリケーション風の audit 行を INSERT してはいけない」（監査行の**捏造**禁止の規範は存在）
 - endpoint の環境ゲートにより、この teardown が動くのは local/test/development DB のみ。**STG/本番では到達不能**（`AllowUATSyntheticClosing` が fail-closed）
 
 ### 1.5 先行事例（clinicale2e）

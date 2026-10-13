@@ -9,9 +9,9 @@
 |---|---|---|
 | Master seed | `backend/migrations/seeds/002_master/` | environment lifetime。通常cleanupしない |
 | Synthetic demo login | migrate フェーズ3 `internal/seedlogin`（LoginForm と同じ `stg-staff-*@example.test`）。共通パスワードは STG では `SEEDLOGIN_DEMO_PASSWORD` シークレット注入（未設定ならログインロック。local/dev/test のみコード定数）。EMR-265 以降、STG ビルドは GitHub secret `SEEDLOGIN_DEMO_PASSWORD`（Worker シークレットと同値。admin smoke 用の `STG_DEMO_PASSWORD` とは別物）を `VITE_DEMO_LOGIN_PASSWORD` として焼き込み、デモボタン押下で email+password を自動入力する — stg bundle に値が含まれることは意図的（合成データのみの UAT 環境）。production では define が `""` を焼き込み fail-closed | environment lifetime |
-| Operation-provisioned account | [STAFF_ACCOUNT_PROVISIONING.md](./STAFF_ACCOUNT_PROVISIONING.md) | owner/expiryをrun sheetに記録 |
+| Operation-provisioned account | [STAFF_ACCOUNT_PROVISIONING.md](../accounts/STAFF_ACCOUNT_PROVISIONING.md) | owner/expiryをrun sheetに記録 |
 | Operator system-admin bootstrap | migrate フェーズ3の `SEEDLOGIN_OPERATOR_*`（CSV/LoginForm には載せない） | environment lifetime |
-| Smoke data | [CRUD-SMOKE-TEST.md](./CRUD-SMOKE-TEST.md) | 同じrunでcleanup |
+| Smoke data | [CRUD-SMOKE-TEST.md](../rehearsals/CRUD-SMOKE-TEST.md) | 同じrunでcleanup |
 | Investigation data | approved task/run sheet | ownerと期限を固定し、終了時cleanup |
 
 `002_master` は医院骨格と参照masterを提供する。現在のclinic CSVにはID 1–4があり、clinic-scoped permission groupsが含まれる。ID 1やgroup名を「system adminとして削除不可」と扱わない。CSV に privileged demo accountは載せない。`002_master` に `accounts.csv` は置かない。STG/local の画面デモログインはフェーズ3が合成アカウントを upsert する（医院ごとに執行1・一般9。林 文明は catalog 4医院すべてに執行所属）。実オペレータのシステム管理者は `SEEDLOGIN_OPERATOR_*` で migrate が upsert する（氏名・email・パスワードは git に書かない）。
@@ -24,7 +24,7 @@
 - operation accountはapproved provisioningで作る。既知passwordをseedや文書へ置かない。
 - smoke/investigation dataはclinic scopeとownerを決め、作成時に返ったIDをrun sheetへ記録する。
 - cookieはbrowserのHttpOnly sessionまたは権限0600のcookie jarで扱う。header/cookie/token値を文書へ貼らない。
-- API mutationが一律に`audit_logs`へ書くとは仮定しない。[CRUD-SMOKE-TEST.md](./CRUD-SMOKE-TEST.md) のroute matrixに従う。
+- API mutationが一律に`audit_logs`へ書くとは仮定しない。[CRUD-SMOKE-TEST.md](../rehearsals/CRUD-SMOKE-TEST.md) のroute matrixに従う。
 
 ## 3. Smoke cleanup
 
@@ -72,9 +72,9 @@ Smoke dataは原則残置しない。investigation dataを一時保持する場�
 
 `DB_RESET=true` は `public` schemaを破棄する。通常deployやcleanupの手段ではない。
 
-- local disposable DB: [LOCAL_DB_RESET.md](./LOCAL_DB_RESET.md) のuser-owned destructive stepだけを使う。
+- local disposable DB: [LOCAL_DB_RESET.md](../seeds/LOCAL_DB_RESET.md) のuser-owned destructive stepだけを使う。
 - shared STG/production: data owner、backup/restore、downtime、target、approvalが確定するまで実行しない。
-- current Cloudflare workflowに`db_reset` inputはない。AWSは退役済みでrollback/reset先ではない。承認済みSTG再構築の実行順は[STG_PLANETSCALE_SEED_RUNBOOK.md](./STG_PLANETSCALE_SEED_RUNBOOK.md) §6。
+- current Cloudflare workflowに`db_reset` inputはない。AWSは退役済みでrollback/reset先ではない。承認済みSTG再構築の実行順は[STG_PLANETSCALE_SEED_RUNBOOK.md](STG_PLANETSCALE_SEED_RUNBOOK.md) §6。
 - 再構築後も適用する CSV seedは `BundleOrderForEnv(APP_ENV)`、現在は `002_master` のみ。デモログインは development/staging の migrate フェーズ3で upsert する。臨床21表は `cmd/migrate` の外の `make stg-uat-handoff`。
 
 health `200` はlivenessだけを示す。運用account、permissions、必要なhandoff/import、corrected CRUD casesを別に確認する。
@@ -85,7 +85,7 @@ health `200` はlivenessだけを示す。運用account、permissions、必要�
 
 ## 参考
 
-- [CRUD smoke](./CRUD-SMOKE-TEST.md)
-- [Seed/migration operations](./SEED_MIGRATION_OPERATIONS.md)
-- [STG seed runbook](./STG_PLANETSCALE_SEED_RUNBOOK.md)
-- [Release readiness](./runbooks/STG_PRE_DEPLOY_READINESS_CHECK.md)
+- [CRUD smoke](../rehearsals/CRUD-SMOKE-TEST.md)
+- [Seed/migration operations](../seeds/SEED_MIGRATION_OPERATIONS.md)
+- [STG seed runbook](STG_PLANETSCALE_SEED_RUNBOOK.md)
+- [Release readiness](../runbooks/STG_PRE_DEPLOY_READINESS_CHECK.md)

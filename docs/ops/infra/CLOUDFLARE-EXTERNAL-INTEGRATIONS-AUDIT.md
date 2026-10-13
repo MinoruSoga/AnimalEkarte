@@ -53,7 +53,7 @@ flowchart TB
 - repository 設定の既定OFFと deployed state を混同しない。deployed value は承認済み names-only channel で確認する。
 - writeを許可する前に、deploy gate、clinic flag、対象test account、vendorのIP制限、停止手段、失敗通知を確認する。
 - `AddTag` / `RemoveTag` / `AddTagBulk` / `SetProperty` はgate通過時に実HTTPを行う。旧 `[DISABLED]` コメントは現行事実ではない。
-- 詳細は [LSTEP_WRITE_API_PAUSE.md](./LSTEP_WRITE_API_PAUSE.md)。
+- 詳細は [LSTEP_WRITE_API_PAUSE.md](../deploy/runbooks/LSTEP_WRITE_API_PAUSE.md)。
 
 ### SMTP secret evidence
 

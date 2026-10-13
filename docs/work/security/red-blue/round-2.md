@@ -89,7 +89,7 @@
 ### 観察（起票しない）
 
 - **観察① clinics/:clinic_id パスとスコープ**: `GET/POST/DELETE /api/v1/clinics/:clinic_id/reservations`（admin 三点）は `appointment_admin_handler.go:47` の `extractSelectedClinicGrant` が**セッションの選択clinic付与**からclinicを導出し、パスの `:clinic_id` はスコープ判定に不参与（任意の値で自分側のデータが返る）。実測では他clinic行の流出なし（fail-safe 方向）だが、パス意味と実装の不一致は API 設計上の分かりにくさとして記録する。将来この経路がパス参env照に変更される際は TENANT-1 再攻撃対象。
-- **観察② STG デモパスワードのバンドル消失**: 2026-10-09 実測で、現行 STG フロントエンドバンドル（auth chunk 含む全16 asset）に `VITE_DEMO_LOGIN_PASSWORD` の値が存在しない（docs/ops/deploy/STG-DEMO-DATA-LIFECYCLE.md の「stg bundle に値が含まれることは意図的」と乖離）。`SEEDLOGIN_DEMO_PASSWORD` 未注入の経路で再デプロイされたと推定。fail-closed 方向のため脆弱性ではないが、STG のデモボタン自動入力が壊れている運用観察。本ラウンドをローカルスタック実施した直接の理由。
+- **観察② STG デモパスワードのバンドル消失**: 2026-10-09 実測で、現行 STG フロントエンドバンドル（auth chunk 含む全16 asset）に `VITE_DEMO_LOGIN_PASSWORD` の値が存在しない（docs/ops/deploy/stg/STG-DEMO-DATA-LIFECYCLE.md の「stg bundle に値が含まれることは意図的」と乖離）。`SEEDLOGIN_DEMO_PASSWORD` 未注入の経路で再デプロイされたと推定。fail-closed 方向のため脆弱性ではないが、STG のデモボタン自動入力が壊れている運用観察。本ラウンドをローカルスタック実施した直接の理由。
 - **観察③ 検証順序**: POST /hospitalizations は body 相互検証（end_date 必須）が pet/owner の clinic スコープ検証より先行する。単発では relation 検証に到達しないため、注入試験は完全な body で実行する必要がある（T14 再実行で対応）。
 - B 側一般スタッフの DELETE は RBAC（hospitalizations:delete 無し）が clinic 分離より先行して 403 — ラウンド1 T6b と同型の権限設計どおり。
 

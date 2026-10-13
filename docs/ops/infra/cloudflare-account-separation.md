@@ -88,7 +88,7 @@ DNS の用途根拠: `infra/cloudflare/zone.tf:98`、`infra/cloudflare/zone.tf:1
 | ローカル/テスト DB | animal_ekarte / animal_ekarte_test | noah_karte / noah_karte_test。ホスト済み PlanetScale DB の改名ではない | `.github/workflows/performance-tests.yml:25`、`backend/internal/reservation/reservation_created_by_fk_test.go:72` |
 | macOS label/plist | com.animalekarte.lab-device-agent | com.noah-karte.lab-device-agent / 同名.plist | `packaging/macos/com.animalekarte.lab-device-agent.plist:6` |
 | macOS install dir / build temp | Application Support/AnimalEkarte / animalekarte-lab-device-agent-* | Application Support/Noah Karte / noah-karte-lab-device-agent-* | `scripts/lab-device/install-lab-device-agent.sh:27`、`scripts/lab-device/build-lab-device-agent-bundle.sh:36` |
-| npm package / docs/UI | animal-ekarte-frontend / AnimalEkarte 等 | noah-karte-frontend / Noah Karte（URL は noah-karte.com） | `frontend/package.json:2`、`SECURITY.md:1`、`docs/ops/infra/rename-to-noah-karte.md:38` |
+| npm package / docs/UI | animal-ekarte-frontend / AnimalEkarte 等 | noah-karte-frontend / Noah Karte（URL は noah-karte.com） | `frontend/package.json:2`、`SECURITY.md:1`、`docs/work/infra/rename-to-noah-karte.md:38` |
 
 DB/docker の underscore と container 自動 suffix の hyphen、macOS reverse-domain label は層の仕様による例外。会社名・Plane identifier `EMR` は製品名ではなく維持する。通常 API singleton は製品名を含まないため今回の2 named instance の改名とは区別する。
 
@@ -125,7 +125,7 @@ DB/docker の underscore と container 自動 suffix の hyphen、macOS reverse-
 | `scripts/tools/manual-sync.py:55` | API 正規 hostname |
 | `load-tests/k6-cf-stg-sustained.js:56` | API 正規 hostname |
 | `SECURITY.md:91` | dated live 記録を保全し、新 hostname の検証日付き記録を追加。値の機械置換で履歴を改ざんしない |
-| `docs/ops/infra/rename-to-noah-karte.md:27` | 旧方針撤回と新 account/正規 hostname の対応を追記する後続タスク |
+| `docs/work/infra/rename-to-noah-karte.md:27` | 旧方針撤回と新 account/正規 hostname の対応を追記する後続タスク |
 | `docs/work/campaigns/linmig-campaign-20260919/LINMIG-232.md:23` | 履歴 URL は保全し、現行手順への参照注記を後続タスクで追加 |
 
 再調査で11件目 `docs/work/infra/infra-cf-rename-task-coverage-review-20261006.md:30` に歴史的記載が見つかった。元の10件とは分けて保全し、新規の実行参照漏れだけを退役ゲートで確認する。secret-sync の Worker 名も更新対象 (`.github/workflows/worker-secret-sync.yml:53`)。LINE/LIFF コンソール、CORS、端末 allowed origin、外部 webhook は repo 外もあるため一覧・担当は UNKNOWN を埋めてから切替する。
@@ -212,7 +212,7 @@ lab device agent は label/plist/install path と build bundle を更新し、�
 | 10/20 との関係 | 10/20 を新 account 初回本番構築とする / 条件が STG 予行に間に合わず日程変更 | 所有者・費用主体・有料プランと STG 合格が揃う場合だけ10/20採用。揃わなければ延期。**共有 account への本番構築は選択肢にせず禁止**。本番チケットの読み替えを人が承認。G0/G4 |
 | LINE/LIFF console 更新担当 | 顧客管理者 / 自社の委任管理者 | 権限を持つ人間1名と代行者を固定し同窓で更新、before/after を保護記録。担当名は UNKNOWN。G0/G2 |
 | Go module path（1文字列） | `github.com/MinoruSoga/noah-karte/backend` / 人が別の有効 owner path を指定 | 表の1文字列を推奨。remote owner と module owner を整合し、人間が承認。別案なら実行前にこの表を1文字列へ更新。G0 |
-| GitHub repo slug（1文字列） | `noah-karte` / 人が別 slug を指定 | `noah-karte` を既存 repo の in-place 改名で採用。新規 repo は secret/CI 履歴継続を失うため避ける（旧文書の根拠 `docs/ops/infra/rename-to-noah-karte.md:35`）。G0 |
+| GitHub repo slug（1文字列） | `noah-karte` / 人が別 slug を指定 | `noah-karte` を既存 repo の in-place 改名で採用。新規 repo は secret/CI 履歴継続を失うため避ける（旧文書の根拠 `docs/work/infra/rename-to-noah-karte.md:35`）。G0 |
 | ローカル dir 名（1文字列） | `noah-karte` / 人が別 dir 名を指定 | `noah-karte`。worktree/launcher の参照を後続で検証し、repo/module と実施窓を分ける。G0 |
 | notification_email | 所有者メールと同一 / 別の共有運用受信先 | 所有会社の共有運用受信先を推奨。同一でもよいが送信専用 SMTP_FROM を転用しない (`infra/cloudflare/variables.tf:28`)。EMR-303 の適用前 |
 | 定常 URL / 一時 subdomain | 既存 zone の hostname / 新 workers.dev を継続 | 既存 zone を定常、新 workers.dev は予行のみ。新 subdomain 取得可否と flag 無効化を人が確認。G0/G2 |
@@ -240,7 +240,7 @@ lab device agent は label/plist/install path と build bundle を更新し、�
 | リスク / UNKNOWN | 扱い・再開条件 |
 |---|---|
 | 古い NS コメントと authoritative 稼働という依頼文の不一致 | `backend/wrangler.jsonc:10`、レビュー `docs/work/infra/infra-cf-rename-task-coverage-review-20261006.md:28` は live 検証にならない。registrar/NS/DNSSEC/TLS を人が日付付き再照会するまで移管しない |
-| 旧改名文書との矛盾 | `docs/ops/infra/rename-to-noah-karte.md:27` の組織命名据え置き、`:37` の module 据え置き案は今回の確定方針で撤回。`:56` の hosted DB 改名案は本件では採用せず PlanetScale を移管しない。`:47` の class rename=状態喪失という一般化は公式 rename migration と区別。旧文書は今回編集せず後続で改訂 |
+| 旧改名文書との矛盾 | `docs/work/infra/rename-to-noah-karte.md:27` の組織命名据え置き、`:37` の module 据え置き案は今回の確定方針で撤回。`:56` の hosted DB 改名案は本件では採用せず PlanetScale を移管しない。`:47` の class rename=状態喪失という一般化は公式 rename migration と区別。旧文書は今回編集せず後続で改訂 |
 | state の資格・旧 Hyperdrive | type/name 以外未閲覧。旧 state の安全な保管/廃棄と残存資格の用途調査は人間。設定削除だけで remote 廃止済みとしない |
 | DO 空状態の ledger/lease/fence/pause 喪失 | `backend/worker/index.ts:269`。新 account に跨る lease は無い。停止/drain/単一武装と空起動の再入試験が必要。保存状態のコピー・引継ぎ期待は範囲外 |
 | R2 copy 中と rollback 中の書込み | STG 書込み停止/差分 copy/照合と逆差分の保全を訓練。件数一致だけで内容完全一致と断定しない。容量・copy 速度 UNKNOWN |

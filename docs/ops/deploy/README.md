@@ -22,32 +22,56 @@
 
 目的別に関連ドキュメントを参照してください。
 
+**デプロイ基本フロー**
+
 - **[デプロイ手順書 (CI-CD-PIPELINE.md)](./CI-CD-PIPELINE.md)**: 自動デプロイと手動トリガーの手順。
 - **[事前確認リスト (./DEPLOYMENT_CHECKLIST.md)](./DEPLOYMENT_CHECKLIST.md)**: デプロイ前の動作確認、DBリセット、疎通確認。
+
+**runbooks/（個別実行手順 — 索引: [runbooks/README.md](./runbooks/README.md)）**
+
 - **[リリースマニュアル (STG_PRE_DEPLOY_READINESS_CHECK.md)](./runbooks/STG_PRE_DEPLOY_READINESS_CHECK.md)**: 本番反映前の最終検証ランブック。
 - **[外部資格情報オペレーション (BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md)](./runbooks/BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md)**: Cloudflare / PlanetScale 資格情報ローテーションと、退役済み AWS 手順の実行禁止境界。
-- **[スモークテスト手順 (CRUD-SMOKE-TEST.md)](./CRUD-SMOKE-TEST.md)**: デプロイ直後の主要機能（医院/スタッフ/権限）の導線確認。
-- **[混在会計スモークテスト (MIXED-PAYMENT-SMOKE-TEST.md)](./MIXED-PAYMENT-SMOKE-TEST.md)**: 混在会計 (payment_splits) の詳細動作確認。
-- **[Lステップ Write API 一時停止メモ (LSTEP_WRITE_API_PAUSE.md)](./LSTEP_WRITE_API_PAUSE.md)**: Lステップへのタグ付与・解除・プロパティ更新を再有効化する前提条件。
-- **[STG デモデータライフサイクル (STG-DEMO-DATA-LIFECYCLE.md)](./STG-DEMO-DATA-LIFECYCLE.md)**: Seed/Demo/Smoke テストデータの分類、作成元、Cleanup 方針、明示承認が必要な DB 再作成境界。
-- **[STG 継続運用チェックリスト (STG-CONTINUOUS-OPERATIONS.md)](./STG-CONTINUOUS-OPERATIONS.md)**: 日次/週次/月次の STG 環境監視・検査・メンテナンス。
 - **[Durable Scheduler運用 (runbooks/SCHEDULER_OPERATIONS.md)](./runbooks/SCHEDULER_OPERATIONS.md)**: 定期jobのstatus、pause/resume、missing-slot catch-up、通知、障害復旧。BE9のcode/configは実装済みだが、今回versionの実環境deploy/rehearsalはrelease gateとして未実施。
 - **[定期バッチ一覧と有効化判断 (runbooks/SCHEDULER_BATCHES.md)](./runbooks/SCHEDULER_BATCHES.md)**: バッチ別仕様（no_show / delivery / dormant / plane_sync）と本番 go-live 有効化判断。
-- **[旧] Vercel フロントエンド検証手順 (VERCEL-FRONTEND-STAGING-TEST.md)](./VERCEL-FRONTEND-STAGING-TEST.md)**: Vercel 時代の検証手順。EMR-255 で frontend は Cloudflare Workers Static Assets へ移行済み — rollback 期間中の参照専用（現行確認手順は frontend Worker の smoke/tail）。
-- **[休憩時間データ形状監査 (BREAK-HOURS-SHAPE-AUDIT.md)](./BREAK-HOURS-SHAPE-AUDIT.md)**: R1-3 デプロイ前の STG/本番 break_hours 形状監査手順。
+- **[Lステップ Write API 一時停止メモ (LSTEP_WRITE_API_PAUSE.md)](./runbooks/LSTEP_WRITE_API_PAUSE.md)**: Lステップへのタグ付与・解除・プロパティ更新を再有効化する前提条件。
+- **[休憩時間データ形状監査 (BREAK-HOURS-SHAPE-AUDIT.md)](./runbooks/BREAK-HOURS-SHAPE-AUDIT.md)**: R1-3 デプロイ前の STG/本番 break_hours 形状監査手順。
+- **[EMR-321 ホテル予約手動確認 (EMR-321_HOTEL_RESERVATION.md)](./runbooks/EMR-321_HOTEL_RESERVATION.md)**: 標準予約区分の整備とケージ選択不可の医院別調査手順。
+
+**rehearsals/（検証・リハーサル）**
+
+- **[スモークテスト手順 (CRUD-SMOKE-TEST.md)](./rehearsals/CRUD-SMOKE-TEST.md)**: デプロイ直後の主要機能（医院/スタッフ/権限）の導線確認。
+- **[混在会計スモークテスト (MIXED-PAYMENT-SMOKE-TEST.md)](./rehearsals/MIXED-PAYMENT-SMOKE-TEST.md)**: 混在会計 (payment_splits) の詳細動作確認。
+- **[A4 UI rehearsal isolated stack (A4_UI_REHEARSAL.md)](./rehearsals/A4_UI_REHEARSAL.md)**: 正式21表CSVの画面確認専用localhost-only disposable Compose環境とruntime証跡手順。
+- **[F8 G4 synthetic failure rehearsal (F8_G4_FAILURE_REHEARSAL.md)](./rehearsals/F8_G4_FAILURE_REHEARSAL.md)**: 固定synthetic FK違反でtransaction rollback・21表空band・seed preflightを証明する専用disposable runner。
+- **[旧] Vercel フロントエンド検証手順 (VERCEL-FRONTEND-STAGING-TEST.md)](./rehearsals/VERCEL-FRONTEND-STAGING-TEST.md)**: Vercel 時代の検証手順。EMR-255 で frontend は Cloudflare Workers Static Assets へ移行済み — rollback 期間中の参照専用（現行確認手順は frontend Worker の smoke/tail）。
+
+**seeds/（DB リセット・seed・CSV 投入）**
+
+- **[ローカル DB リセット (LOCAL_DB_RESET.md)](./seeds/LOCAL_DB_RESET.md)**: ローカル開発 DB の再作成・migration 再適用・seed 復元手順。
+- **[CSV seed運用 (SEED_MIGRATION_OPERATIONS.md)](./seeds/SEED_MIGRATION_OPERATIONS.md)**: 全環境master-only CSVと `APP_ENV` 別ログインseed、再生成手順、old_db 21表CSVとの境界。
+- **[old_db 医院別ローカル隔離 (OLD_DB_HANDOFF_LOCAL.md)](./seeds/OLD_DB_HANDOFF_LOCAL.md)**: 21表CSVを `seeds/_old_db_handoff/<clinic>/` へ置く手順（`make seed` 非対象）。
+- **[医院 CSV カットオーバー投入 (CLINIC_CSV_IMPORT.md)](./seeds/CLINIC_CSV_IMPORT.md)**: old_db の21表CSVをmanifest digestに固定し、preflight/apply/verifyするF6手順。
+
+**stg/（STG 環境の継続運用）**
+
+- **[STG 継続運用チェックリスト (STG-CONTINUOUS-OPERATIONS.md)](./stg/STG-CONTINUOUS-OPERATIONS.md)**: 日次/週次/月次の STG 環境監視・検査・メンテナンス。
+- **[STG デモデータライフサイクル (STG-DEMO-DATA-LIFECYCLE.md)](./stg/STG-DEMO-DATA-LIFECYCLE.md)**: Seed/Demo/Smoke テストデータの分類、作成元、Cleanup 方針、明示承認が必要な DB 再作成境界。
+- **[PlanetScale STG シード投入 Runbook (STG_PLANETSCALE_SEED_RUNBOOK.md)](./stg/STG_PLANETSCALE_SEED_RUNBOOK.md)**: PlanetScale STG の `cmd/migrate` 適用・検証。承認済み再構築（`DB_RESET` → master/login → `_old_db_handoff`）のオペレータ手順は同文書 §6。
+
+**accounts/（アカウント払い出し）**
+
+- **[スタッフアカウント払い出し (STAFF_ACCOUNT_PROVISIONING.md)](./accounts/STAFF_ACCOUNT_PROVISIONING.md)**: 医院スタッフの初期アカウント作成・権限グループ割当・引き渡し手順。
+- **[本番初回システム管理者 (FIRST_SYSTEM_ADMIN.md)](./accounts/FIRST_SYSTEM_ADMIN.md)**: 認可済み運用担当者が本番の最初のシステム管理者を 1 回だけ作成する初回専用手順（`staff-provision` は既存 actor 前提でゼロからは作れない）。
+
+**lab-devices/（検査機器）**
+
+- **[検査機器 有線疎通 (LAB_DEVICE_CONNECTIVITY.md)](./lab-devices/LAB_DEVICE_CONNECTIVITY.md)**: 実装契約。手元・医院の操作手順は old_db `docs/lab-go/hospital-field-pack/手元テスト手順.md`。
+- **[Mac 検査機器受信機 (LAB_DEVICE_AGENT_MACOS.md)](./lab-devices/LAB_DEVICE_AGENT_MACOS.md)**: bundle 配布・インストールの前提と未完了の配布ゲート。
+
+**関連ドキュメント（deploy/ 外）**
+
 - **[本番 Cloudflare 基盤 事前構築手順 (../infra/production/setup.md)](./../infra/production/setup.md)**: 本番環境（noah-karte.com）を CF Workers + Containers + PlanetScale で新設する実施手順（billing recovery と production approval gate の実装・検証後に USER が日程を決定）。
-- **[PlanetScale STG シード投入 Runbook (STG_PLANETSCALE_SEED_RUNBOOK.md)](./STG_PLANETSCALE_SEED_RUNBOOK.md)**: PlanetScale STG の `cmd/migrate` 適用・検証。承認済み再構築（`DB_RESET` → master/login → `_old_db_handoff`）のオペレータ手順は同文書 §6。
-- **[CSV seed運用 (SEED_MIGRATION_OPERATIONS.md)](./SEED_MIGRATION_OPERATIONS.md)**: 全環境master-only CSVと `APP_ENV` 別ログインseed、再生成手順、old_db 21表CSVとの境界。
-- **[old_db 医院別ローカル隔離 (OLD_DB_HANDOFF_LOCAL.md)](./OLD_DB_HANDOFF_LOCAL.md)**: 21表CSVを `seeds/_old_db_handoff/<clinic>/` へ置く手順（`make seed` 非対象）。
-- **[医院 CSV カットオーバー投入 (CLINIC_CSV_IMPORT.md)](./CLINIC_CSV_IMPORT.md)**: old_db の21表CSVをmanifest digestに固定し、preflight/apply/verifyするF6手順。
-- **[A4 UI rehearsal isolated stack (A4_UI_REHEARSAL.md)](./A4_UI_REHEARSAL.md)**: 正式21表CSVの画面確認専用localhost-only disposable Compose環境とruntime証跡手順。
-- **[F8 G4 synthetic failure rehearsal (F8_G4_FAILURE_REHEARSAL.md)](./F8_G4_FAILURE_REHEARSAL.md)**: 固定synthetic FK違反でtransaction rollback・21表空band・seed preflightを証明する専用disposable runner。
-- **[ローカル DB リセット (LOCAL_DB_RESET.md)](./LOCAL_DB_RESET.md)**: ローカル開発 DB の再作成・migration 再適用・seed 復元手順。
-- **[スタッフアカウント払い出し (STAFF_ACCOUNT_PROVISIONING.md)](./STAFF_ACCOUNT_PROVISIONING.md)**: 医院スタッフの初期アカウント作成・権限グループ割当・引き渡し手順。
-- **[本番初回システム管理者 (FIRST_SYSTEM_ADMIN.md)](./FIRST_SYSTEM_ADMIN.md)**: 認可済み運用担当者が本番の最初のシステム管理者を 1 回だけ作成する初回専用手順（`staff-provision` は既存 actor 前提でゼロからは作れない）。
-- **[検査機器 有線疎通 (LAB_DEVICE_CONNECTIVITY.md)](./LAB_DEVICE_CONNECTIVITY.md)**: 実装契約。手元・医院の操作手順は old_db `docs/lab-go/hospital-field-pack/手元テスト手順.md`。
-- **[Mac 検査機器受信機 (LAB_DEVICE_AGENT_MACOS.md)](./LAB_DEVICE_AGENT_MACOS.md)**: bundle 配布・インストールの前提と未完了の配布ゲート。
-- **[外部連携棚卸し (CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md)](./CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md)**: LINE / Lステップ / SMTP / LIFF の egress 依存棚卸しと、LINE webhook redelivery・error 統計の release pending 項目。
+- **[外部連携棚卸し (CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md)](../infra/CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md)**: LINE / Lステップ / SMTP / LIFF の egress 依存棚卸しと、LINE webhook redelivery・error 統計の release pending 項目（infra/ へ移設済み）。
 - **[Delete / Soft Delete 設計パターン](../../architecture/delete-soft-delete-patterns.md)**: Hard Delete と Soft Delete の使い分け、FK 制約との関係、実装パターン、STG-001 教訓。
 
 > PR #49 Post-Merge Smoke Checklist（PR固有の使い切りチェックリスト）・CRUD スモーク自動化戦略
@@ -137,7 +161,7 @@ gh workflow run stg-smoke.yml
 | 条件 | 確認方法 | 判定 |
 |------|--------|------|
 | **ヘルスチェック PASS** | §4.1 をすべて通過 | ✅ |
-| **CRUD スモークテスト PASS** | [CRUD-SMOKE-TEST.md](./CRUD-SMOKE-TEST.md) の A-1〜A-3、B-1〜B-3、C-1〜C-3 を実行し、HTTP/resource state と明示された監査契約を確認 | ✅ |
+| **CRUD スモークテスト PASS** | [CRUD-SMOKE-TEST.md](./rehearsals/CRUD-SMOKE-TEST.md) の A-1〜A-3、B-1〜B-3、C-1〜C-3 を実行し、HTTP/resource state と明示された監査契約を確認 | ✅ |
 | **テストデータ削除完了・記録済み** | 同手順の cleanup で、その run が作成した ID だけを削除し、resource state と実装済みの監査だけを記録 | ✅ |
 
 **3 つすべて ✅ の場合**: STG デプロイ成功。Production は別途 workflow / Environment protection / 実環境の production readiness 証拠が必要。
@@ -165,7 +189,7 @@ gh workflow run stg-smoke.yml
 
 - [STG 運用 Runbook](../infra/staging/runbook.md)：現行インフラの障害初動・復旧方針
 - [デプロイ手順書 (CI-CD-PIPELINE.md)](./CI-CD-PIPELINE.md)：自動デプロイ・手動トリガー
-- [スモークテスト手順 (CRUD-SMOKE-TEST.md)](./CRUD-SMOKE-TEST.md)：CRUD 全操作・FK保護検証・権限テスト
+- [スモークテスト手順 (CRUD-SMOKE-TEST.md)](./rehearsals/CRUD-SMOKE-TEST.md)：CRUD 全操作・FK保護検証・権限テスト
 - [外部資格情報オペレーション](./runbooks/BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md)：Cloudflare / PlanetScale の資格情報ローテーション
 
 ---

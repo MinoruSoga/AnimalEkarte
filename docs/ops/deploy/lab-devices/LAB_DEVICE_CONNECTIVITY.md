@@ -7,10 +7,10 @@
 
 **日常経路（2026-08-31）:** ファイルアップロードしない。検査用 Mac のユーザー LaunchAgent `lab-device-agent` が有線シリアルを所有し、`127.0.0.1:17654` の loopback HTTP でフレームを公開する。ブラウザの `/lab-device` は認可済み API から取得する consumer token でその agent に接続し、フレームを API へ送るだけで、シリアルを直接読んだり開いたりしない。UI は1画面（待機 + 未紐付け欄）。実行状態の正本は Plane、未完了作業の入口は `todo.md`。（2026-09-29 訂正: 実行状態の正本を旧 Linear BRT-94〜100 としていた → Linear は 2026-09-16 閉鎖、現行 SoT は Plane。BRT-94〜100 は履歴 ID で、BRT-94 は EMR-14 へ移行済み）城東3種（`fuji_nx600` / `fuji_au10v` / `arkray_pu4010`）は AE-LAB-0〜4 済み。
 
-外部 sibling 資料（存在する場合のみ）— シリアル枠: `../../../../old_db/docs/lab-go/go-impl/device-serial-adapter.md`
-3台マスタ: `../../../../old_db/docs/lab-go/go-impl/device-item-master.md`
-城東 Win7 Drワン解析（値なし）: `../../../../old_db/clinics/jouto/research/out/30_drwan_win7/30_report.md`
-IDEXX PIMS セッション: `../../../../old_db/docs/lab-go/go-impl/idexx-pims-serial-session.md`
+外部 sibling 資料（存在する場合のみ）— シリアル枠: `../../../../../old_db/docs/lab-go/go-impl/device-serial-adapter.md`
+3台マスタ: `../../../../../old_db/docs/lab-go/go-impl/device-item-master.md`
+城東 Win7 Drワン解析（値なし）: `../../../../../old_db/clinics/jouto/research/out/30_drwan_win7/30_report.md`
+IDEXX PIMS セッション: `../../../../../old_db/docs/lab-go/go-impl/idexx-pims-serial-session.md`
 
 IDEXX は **JOU-LAB-X**。`idexx_vetlab` は decoder / persist / 既定slotを実装済み。ただし医院 VetLab ケーブルでの常時運用は未承認で、受信専用では PIMS が切れる。
 
@@ -146,7 +146,7 @@ PR #629 のデコーダは、空白で区切られた `CODE VALUE [UNIT]` と `C
 
 `WBC =`・繰り返しの `=` は結果値として採用しない。欠損値の後が別の `CODE = VALUE` ならその項目の読取りを継続する。一体の `FeLV=NEG` など空白のない形式や、任意の混在文法の欠損回復を保証する仕様ではない。I/s の PIMS 問い合わせは測定にしない。
 
-正本は [`backend/internal/medicalrecord/lab_device_idexx.go`](../../../backend/internal/medicalrecord/lab_device_idexx.go)、合成回帰テストは [`lab_device_idexx_grammar_test.go`](../../../backend/internal/medicalrecord/lab_device_idexx_grammar_test.go)。実機・保存キャプチャによる忠実度、医院ケーブルでの常時運用、PIMS の運用承認は未確認のままであり、この文法対応をもって承認済みとしない。
+正本は [`backend/internal/medicalrecord/lab_device_idexx.go`](../../../../backend/internal/medicalrecord/lab_device_idexx.go)、合成回帰テストは [`lab_device_idexx_grammar_test.go`](../../../../backend/internal/medicalrecord/lab_device_idexx_grammar_test.go)。実機・保存キャプチャによる忠実度、医院ケーブルでの常時運用、PIMS の運用承認は未確認のままであり、この文法対応をもって承認済みとしない。
 
 ---
 

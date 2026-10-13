@@ -150,6 +150,6 @@ bash scripts/old-db/check-reset-wait-services.test.sh
 ## 6. 注意事項
 
 - **データ消失**: local Postgres cluster 内のデータは全て削除されます。直前 snapshot は `.local-db-backups/`（git 非追跡）に残ります。例外として `manual_articles` / `manual_article_versions`（マニュアル編集 override）は snapshot dir の `manual_articles.sql` から自動復元されます。
-- **共有環境**: ステージング等の共有環境では、決してこの手順（ボリューム削除）を実行しないでください。現行 workflow は DB を再作成しません。再構築が必要な場合は、破壊的操作の明示承認を得て [STG_PLANETSCALE_SEED_RUNBOOK.md](./STG_PLANETSCALE_SEED_RUNBOOK.md) に従います。
+- **共有環境**: ステージング等の共有環境では、決してこの手順（ボリューム削除）を実行しないでください。現行 workflow は DB を再作成しません。再構築が必要な場合は、破壊的操作の明示承認を得て [STG_PLANETSCALE_SEED_RUNBOOK.md](../stg/STG_PLANETSCALE_SEED_RUNBOOK.md) に従います。
 
 ---

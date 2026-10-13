@@ -39,7 +39,7 @@ backend/migrations/seeds/_old_db_handoff/jouto-local/  # 任意。電話 unique 
   `scripts/old-db/stg-uat-old-db-handoff.sh` の export と gitignored
   `scripts/old-db/stg-uat-old-db-handoff.local.env`）。
   schema reset のあとに載せる順序・stale PASS report の退避は
-  [STG_PLANETSCALE_SEED_RUNBOOK.md](./STG_PLANETSCALE_SEED_RUNBOOK.md) §6。
+  [STG_PLANETSCALE_SEED_RUNBOOK.md](../stg/STG_PLANETSCALE_SEED_RUNBOOK.md) §6。
 - 21 CSV を `003_demo` へ直接コピーして seed 扱いしてはいけない。
 
 ```mermaid
@@ -55,8 +55,8 @@ flowchart LR
   H -->|status=PASS かつ TRUSTED_CANDIDATE| F["正式 cutover（F6）<br/>csv-import preflight → apply → verify"]
 ```
 
-詳細境界: [SEED_MIGRATION_OPERATIONS.md](./SEED_MIGRATION_OPERATIONS.md) /
-[CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md)
+詳細境界: [SEED_MIGRATION_OPERATIONS.md](SEED_MIGRATION_OPERATIONS.md) /
+[CLINIC_CSV_IMPORT.md](CLINIC_CSV_IMPORT.md)
 
 ## 事前準備（必須）
 
@@ -110,11 +110,11 @@ make old-db-handoff-check
 
 1. bundle が `TRUSTED_CANDIDATE` / `PASS` であること
 2. 対象は disposable / 承認済み DB のみ（本番は別承認）
-3. [CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md) の変数を揃える
+3. [CLINIC_CSV_IMPORT.md](CLINIC_CSV_IMPORT.md) の変数を揃える
 4. `make csv-import-preflight` → 承認後 `make csv-import` → `make csv-import-verify`
    （`--allow-local-rehearsal` は付けない）
 
-画面確認用 disposable は [A4_UI_REHEARSAL.md](./A4_UI_REHEARSAL.md)。
+画面確認用 disposable は [A4_UI_REHEARSAL.md](../rehearsals/A4_UI_REHEARSAL.md)。
 
 ## 現行 bundle の状態確認
 

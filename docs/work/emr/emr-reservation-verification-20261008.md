@@ -82,7 +82,7 @@ SQL は既存値保持・医院分離・transaction と事後条件を静的レ�
 
 1. EMR-270: STG で同一予約の担当者指定あり／なしを比較し、空き枠応答・開始／終了時刻を記録する。認証情報・患者情報は貼らない。
 2. EMR-318: Windows で検索結果をスクロール。別途、飼主詳細→受付追加→既存／新規→受付ボード、権限不足・死亡・複数候補・競合409を確認する。
-3. EMR-321: [ホテルとケージの runbook](../../ops/deploy/EMR-321_HOTEL_RESERVATION.md) に従い、対象環境・医院別件数・同名 inactive／削除済み行を事前確認してからユーザーが SQL を実行する。fresh DB 用 CSV は使い捨て DB の正規 export 経路で手動再生成する。
+3. EMR-321: [ホテルとケージの runbook](../../ops/deploy/runbooks/EMR-321_HOTEL_RESERVATION.md) に従い、対象環境・医院別件数・同名 inactive／削除済み行を事前確認してからユーザーが SQL を実行する。fresh DB 用 CSV は使い捨て DB の正規 export 経路で手動再生成する。
 4. API 定義の追加があるため、ユーザーが `make codegen` を実行し、生成物と必要な契約チェックを確認する。エージェントは生成処理を行わない。
 5. migration を含む更新を取り込んだ開発者は、プロジェクト規則に従いアプリ使用前に `make migrate` を手動実行する。本 PR の live insert SQL は自動 migration 対象ではない。
 6. マージと Done 遷移は人間の受入後に行う。

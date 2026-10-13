@@ -64,16 +64,16 @@ preflight はこれを拒否します。共有 STG へ載せる場合は
 hachioji=1、jouto=2、shikishima=3、hakobuneco=4 だけです。
 apply report が既に `PASS` の医院は wrapper が skip し、残りへ進みます。
 STG を `DB_RESET` 相当で再構築した直後は、その PASS が旧DBの証跡になるため
-[STG_PLANETSCALE_SEED_RUNBOOK.md](./STG_PLANETSCALE_SEED_RUNBOOK.md) §6.1 の順で
+[STG_PLANETSCALE_SEED_RUNBOOK.md](../stg/STG_PLANETSCALE_SEED_RUNBOOK.md) §6.1 の順で
 report をリネームしてから `make stg-uat-handoff` する。
 
 wrapperのexit 0は対象3院すべての投入完了を意味しません。manifestがない医院はskipし、既存apply reportがPASSの医院も現在のDBを再検証せずskipします。実施記録には医院ごとの対象・実行・skip理由を残します。必要な医院のmanifest欠落は未完了とし、過去のPASSだけで現在の整合性を判定しません。運用開始前に、承認済み対象・同一manifestで `make stg-uat-handoff-verify` の結果を医院ごとに確認します。
 
 低レベル fallback は `make stg-uat-import`。医院別の配置コマンドは
 `make old-db-handoff-stage`（手順:
-[OLD_DB_HANDOFF_LOCAL.md](./OLD_DB_HANDOFF_LOCAL.md)）。
+[OLD_DB_HANDOFF_LOCAL.md](OLD_DB_HANDOFF_LOCAL.md)）。
 21 CSVを `003_demo` へ直接コピーしてseedとして扱うことは禁止します。実行可能seedへの
-変換は現行コードでは未実装です。[SEED_MIGRATION_OPERATIONS.md](./SEED_MIGRATION_OPERATIONS.md)
+変換は現行コードでは未実装です。[SEED_MIGRATION_OPERATIONS.md](SEED_MIGRATION_OPERATIONS.md)
 のBLOCKED境界に従い、21表専用adapterを実装・検証するまでは migrate seed にはしません。
 
 ## 安全境界
@@ -92,7 +92,7 @@ wrapperのexit 0は対象3院すべての投入完了を意味しません。man
 ## 事前準備
 
 1. target DB の検証済み full backup を取得し、復元手順と担当者を確定する。
-2. 対象を、この HEAD の現行 `backend/migrations/*.sql`（現在は統合済み `001_init.sql`）で再構築済みであることを確認する。異なる内容の001が適用済みのDBはchecksum mismatchになるため `DB_RESET=true` 相当の承認済み再構築が必須で、手書きSQLによる差分適用は使わない。STG PlanetScaleの実行順は[STG_PLANETSCALE_SEED_RUNBOOK.md](./STG_PLANETSCALE_SEED_RUNBOOK.md) §6。001内の通常の `CREATE INDEX` は対象テーブルへの書き込みを待たせ得るため、事前リハーサルで所要時間を測り、maintenance window内で適用する。
+2. 対象を、この HEAD の現行 `backend/migrations/*.sql`（現在は統合済み `001_init.sql`）で再構築済みであることを確認する。異なる内容の001が適用済みのDBはchecksum mismatchになるため `DB_RESET=true` 相当の承認済み再構築が必須で、手書きSQLによる差分適用は使わない。STG PlanetScaleの実行順は[STG_PLANETSCALE_SEED_RUNBOOK.md](../stg/STG_PLANETSCALE_SEED_RUNBOOK.md) §6。001内の通常の `CREATE INDEX` は対象テーブルへの書き込みを待たせ得るため、事前リハーサルで所要時間を測り、maintenance window内で適用する。
 3. target DB を既存の運用経路で起動・疎通確認する。CSV Make targets は `--no-deps` で実行し、target container/service を作成・再作成しない。
 4. 次の target seed ID を対象医院で確認する。
    - active clinic
@@ -201,7 +201,7 @@ docker compose exec backend go test ./cmd/migrate -count=1
 実 DB apply、DB reset、STG/PROD 操作はこのテスト手順に含みません。
 
 F8 の失敗側リハーサルは、通常 importer に fault injection を追加せず、専用の
-[F8 G4 synthetic failure rehearsal](F8_G4_FAILURE_REHEARSAL.md) を使用します。
+[F8 G4 synthetic failure rehearsal](../rehearsals/F8_G4_FAILURE_REHEARSAL.md) を使用します。
 
 ## rehearsal 前提（#250 / BRT-42 · 2026-08-20）
 
@@ -211,7 +211,7 @@ F8 の失敗側リハーサルは、通常 importer に fault injection を追�
 |---|---|---|
 | formal COMPLETE producer bundle 受領 | **未記入**（受領記録なし） | Plane EMR-46（旧 Linear BRT-42）/ GitHub #250。KNJO source 未完全のため apply は本文どおり BLOCKED（2026-09-29 訂正: 追跡先を Linear BRT-42 としていた → Linear は 2026-09-16 閉鎖、BRT-42 は EMR-46 へ移行済み） |
 | `payments.csv` / `payment_splits.csv` が正件数 | 現行 KNJO は header-only（本文） | 正件数になるまで preflight 拒否 |
-| F8 G4 synthetic failure rehearsal | 手順あり（専用 compose。本番 CSV 不可） | [F8_G4_FAILURE_REHEARSAL.md](F8_G4_FAILURE_REHEARSAL.md) |
+| F8 G4 synthetic failure rehearsal | 手順あり（専用 compose。本番 CSV 不可） | [F8_G4_FAILURE_REHEARSAL.md](../rehearsals/F8_G4_FAILURE_REHEARSAL.md) |
 | 代表データ手動照合 | **未記入** | USER |
 | production cutover | **しない** | #253/#254/#255 gate 後の USER |
 

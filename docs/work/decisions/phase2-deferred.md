@@ -26,7 +26,7 @@ stateDiagram-v2
 
 - **再開条件**: `audit_write_failed` が恒常的（目安: 月 1 件以上継続）に観測された場合、実測頻度 1 か月分を添えて再起案する。
 - **owner / action target**: Plane `EMR`（hub `EMR-1`）から担当者付き work item を作成し、本項へ直リンクを追加してから着手する。担当者未定のまま再開しない。（2026-09-29 訂正: 旧記述は「Linear hub BRT-4 から…Issue を作成」）
-- **監視契約**: [STG-CONTINUOUS-OPERATIONS.md の `audit_write_failed`](../../ops/deploy/STG-CONTINUOUS-OPERATIONS.md#24-監査書込失敗-audit_write_failed-監視perf-audit-tx-p1) を参照する。
+- **監視契約**: [STG-CONTINUOUS-OPERATIONS.md の `audit_write_failed`](../../ops/deploy/stg/STG-CONTINUOUS-OPERATIONS.md#24-監査書込失敗-audit_write_failed-監視perf-audit-tx-p1) を参照する。
 - P0/P1 は repo 履歴上 2026-07-12 CLOSED。実行時の状態は Plane で再確認する（2026-09-29 訂正: 旧記述「Linear で再確認」）。**2026-09-29 時点**: PERF-AUDIT-TX P2 に対応する Plane work item は検索で見つからず、Plane 側の状態は **UNKNOWN / 未起票**。再開時は Plane に新規起票して追跡する。
 
 ## 削除した legacy 索引

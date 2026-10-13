@@ -7,8 +7,8 @@ Campaign `linmig-ops-prep-20260919` revision 1. Unit `LINMIG-234`. Attempt `att-
 Maps to [todo-operations.md](../../../../todo.md#operations-ledger) **P3 / PROD-DATA-MIGRATION** and GitHub [#250](https://github.com/MinoruSoga/AnimalEkarte/issues/250). Binding sources:
 
 - [todo-operations.md](../../../../todo.md#operations-ledger) P3 (L30, L72, L171–L175)
-- [docs/ops/deploy/CLINIC_CSV_IMPORT.md](../../../ops/deploy/CLINIC_CSV_IMPORT.md)
-- [docs/ops/deploy/OLD_DB_HANDOFF_LOCAL.md](../../../ops/deploy/OLD_DB_HANDOFF_LOCAL.md)
+- [docs/ops/deploy/seeds/CLINIC_CSV_IMPORT.md](../../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md)
+- [docs/ops/deploy/seeds/OLD_DB_HANDOFF_LOCAL.md](../../../ops/deploy/seeds/OLD_DB_HANDOFF_LOCAL.md)
 - [docs/delivery/GOLIVE_RUNBOOK.md](../../../delivery/GOLIVE_RUNBOOK.md) **§1 item 4** Access データ移行の事前準備 (L37)
 - [docs/ops/infra/production/runbook.md](../../../ops/infra/production/runbook.md) **§4 Backup/restore rehearsal** (title L44; procedure is that runbook, not this sheet)
 
@@ -112,7 +112,7 @@ USER rehearsal order **after** a real COMPLETE receipt (not this session):
 
 1. Keep bundle outside repo; no PHI in git/Issues.
 2. `make csv-import-preflight` (write 0).
-3. Isolated-DB F8 G4; **no production CSV** ([F8_G4_FAILURE_REHEARSAL.md](../../../ops/deploy/F8_G4_FAILURE_REHEARSAL.md); CLINIC_CSV_IMPORT.md L180–L181, L191, L199).
+3. Isolated-DB F8 G4; **no production CSV** ([F8_G4_FAILURE_REHEARSAL.md](../../../ops/deploy/rehearsals/F8_G4_FAILURE_REHEARSAL.md); CLINIC_CSV_IMPORT.md L180–L181, L191, L199).
 4. Isolated rehearsal apply (shared STG/PROD only after approval). `make stg-uat-handoff` is 城東・敷島・箱 only; 八王子 out of scope (OLD_DB_HANDOFF_LOCAL.md L39–L40).
 5. `make csv-import-verify` (read-only).
 6. Production cutover is a **separate** gated USER job after #253/#254/#255.

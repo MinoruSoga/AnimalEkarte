@@ -48,7 +48,7 @@ flowchart TB
 
 順序は **deploy → migrate → health → optional smoke**。新 binary が旧 schema に到達し得る deploy 完了〜migration 完了の区間は既知の制約。`cf-run-migrate.sh` の `MIGRATE_TIMEOUT=270` は curl attempt 毎の値（default 最大 5 attempts・backoff 20s）で、Worker の migrate exec 上限は 240s — いずれも deploy/migration 合計時間の保証値ではない。schema compatibility を release 前に確認する。
 
-CSV seed は全環境で `002_master` のみ。STG は `APP_ENV=staging` を Worker/Container/migrate に渡し、フェーズ3で合成ログインを upsert する。詳細は [seed operations](SEED_MIGRATION_OPERATIONS.md)。health は process liveness であり DB access の証明ではない。
+CSV seed は全環境で `002_master` のみ。STG は `APP_ENV=staging` を Worker/Container/migrate に渡し、フェーズ3で合成ログインを upsert する。詳細は [seed operations](seeds/SEED_MIGRATION_OPERATIONS.md)。health は process liveness であり DB access の証明ではない。
 
 本番経路は `deploy-production` job（EMR-148 で追加）。`Production` Environment に bind し、`PROD_CLOUDFLARE_API_TOKEN` / `PROD_MIGRATE_RUN_SECRET` を deploy 前に検査する。deploy は `npx wrangler deploy -c wrangler.production.jsonc`、対象 URL は `api.noah-karte.com`。本番 DB へ write する自動 CRUD smoke step は持たず、人手 smoke のみ。順序は STG と同じ deploy → migrate → `/health`。
 
@@ -75,7 +75,7 @@ dispatch 後も run の `headSha == REVIEWED_SHA` を確認する。不一致、
 
 `/api/*` は `frontend/worker/index.ts` が `API` service binding 経由で backend Worker へ同一オリジン中継する。`VITE_API_URL` の注入は廃止 — `src/lib/axios.ts` が `"/api"` fallback し、PROD ビルドが STG API を叩く事故を構造的に防ぐ。`APP_ENV=stg` は旧 `VERCEL_ENV=preview` 相当で demo ログイン表示の tree-shake 契約を維持する。
 
-`frontend/vercel.json` は移行期のロールバック経路として残置（rewrite/header 規則は `frontend/worker/index.ts` と `frontend/public/_headers` が引き継ぎ済み）。実デプロイの SHA、API 接続先、cookie/CORS、assets の検証は [Vercel 時代の runbook](VERCEL-FRONTEND-STAGING-TEST.md) を CF 経路へ読み替えて実施する。設定を読んだだけで稼働済みにしない。
+`frontend/vercel.json` は移行期のロールバック経路として残置（rewrite/header 規則は `frontend/worker/index.ts` と `frontend/public/_headers` が引き継ぎ済み）。実デプロイの SHA、API 接続先、cookie/CORS、assets の検証は [Vercel 時代の runbook](rehearsals/VERCEL-FRONTEND-STAGING-TEST.md) を CF 経路へ読み替えて実施する。設定を読んだだけで稼働済みにしない。
 
 ## 4. Rollback / monitoring / backup
 

@@ -11,7 +11,7 @@
 
 > **注記 (2026-08-01)**: 追記（2026-10-07 監査）— 配信ボリューム試算（旧 §2）は作業ノート [../../work/analysis/line-cost-analysis-roi-draft-20261007.md](../../work/analysis/line-cost-analysis-roi-draft-20261007.md) へ移設した。試算はフル稼働時の想定シミュレーションであり、稼働前提のモデルであって対象環境の実測ボリュームではない（原本の免責は移設先に保持）。
 >
-> Deploy gate（`LSTEP_WRITE_API_ENABLED`）/ Clinic gate（`is_sync_enabled` / API キー）の二重 gate 契約本文（`ErrWriteDisabled` とクライアント未構築の意図的スキップ `nil, nil` は別契約）の正本は [architecture.md](./architecture.md) 冒頭注記・§4。運用手順正本: [`docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)（本 doc に手順を複製しない）。
+> Deploy gate（`LSTEP_WRITE_API_ENABLED`）/ Clinic gate（`is_sync_enabled` / API キー）の二重 gate 契約本文（`ErrWriteDisabled` とクライアント未構築の意図的スキップ `nil, nil` は別契約）の正本は [architecture.md](./architecture.md) 冒頭注記・§4。運用手順正本: [`docs/ops/deploy/runbooks/LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/runbooks/LSTEP_WRITE_API_PAUSE.md)（本 doc に手順を複製しない）。
 
 ---
 
