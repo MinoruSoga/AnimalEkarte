@@ -16,18 +16,19 @@ import (
 // ---- mock Repository ----
 
 type mockRepository struct {
-	createFn           func(ctx context.Context, report *model.SupportBugReport) error
-	findAllFn          func(ctx context.Context) ([]BugReportWithReporter, error)
-	findByIDForClinicF func(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
-	updateStatusFn     func(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) error
-	setTicketFn        func(ctx context.Context, clinicID, id uint64, issueID, issueURL string) (bool, error)
-	setSyncErrFn       func(ctx context.Context, clinicID, id uint64, syncErr string) error
-	softDeleteFn       func(ctx context.Context, clinicID, id uint64) error
-	createChatFn       func(ctx context.Context, messages []*model.SupportChatMessage) error
-	listChatFn         func(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
-	listAllChatFn      func(ctx context.Context) ([]ChatMessageWithMeta, error)
-	clearChatFn        func(ctx context.Context, clinicID, staffID uint64) error
-	listOpenPlaneFn    func(ctx context.Context, limit int) ([]model.SupportBugReport, error)
+	createFn             func(ctx context.Context, report *model.SupportBugReport) error
+	findAllFn            func(ctx context.Context) ([]BugReportWithReporter, error)
+	findByIDForClinicF   func(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
+	updateStatusFn       func(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) error
+	setTicketFn          func(ctx context.Context, clinicID, id uint64, issueID, issueURL string) (bool, error)
+	setCreationSyncErrFn func(ctx context.Context, clinicID, id uint64, syncErr string) (bool, error)
+	setSyncErrFn         func(ctx context.Context, clinicID, id uint64, syncErr string) error
+	softDeleteFn         func(ctx context.Context, clinicID, id uint64) error
+	createChatFn         func(ctx context.Context, messages []*model.SupportChatMessage) error
+	listChatFn           func(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
+	listAllChatFn        func(ctx context.Context) ([]ChatMessageWithMeta, error)
+	clearChatFn          func(ctx context.Context, clinicID, staffID uint64) error
+	listOpenPlaneFn      func(ctx context.Context, limit int) ([]model.SupportBugReport, error)
 }
 
 func (m *mockRepository) Create(ctx context.Context, report *model.SupportBugReport) error {
@@ -45,8 +46,15 @@ func (m *mockRepository) UpdateStatus(ctx context.Context, clinicID, id uint64, 
 func (m *mockRepository) SetPlaneTicket(ctx context.Context, clinicID, id uint64, issueID, issueURL string) (bool, error) {
 	return m.setTicketFn(ctx, clinicID, id, issueID, issueURL)
 }
-func (m *mockRepository) SetPlaneSyncError(ctx context.Context, clinicID, id uint64, syncErr string) error {
-	return m.setSyncErrFn(ctx, clinicID, id, syncErr)
+func (m *mockRepository) SetPlaneSyncError(ctx context.Context, clinicID, id uint64, syncErr string) (bool, error) {
+	if m.setCreationSyncErrFn != nil {
+		return m.setCreationSyncErrFn(ctx, clinicID, id, syncErr)
+	}
+	return true, m.setSyncErrFn(ctx, clinicID, id, syncErr)
+}
+
+func (m *mockRepository) SetPlaneStateSyncError(ctx context.Context, clinicID, id uint64, msg string) error {
+	return m.setSyncErrFn(ctx, clinicID, id, msg)
 }
 func (m *mockRepository) SoftDeleteBugReport(ctx context.Context, clinicID, id uint64) error {
 	return m.softDeleteFn(ctx, clinicID, id)

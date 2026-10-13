@@ -141,7 +141,9 @@ func (s *service) EnsurePlaneTicket(ctx context.Context, clinicID, id uint64) (*
 	}
 	issue, err := s.tickets.CreateBugReportIssue(ctx, report)
 	if err != nil {
-		s.recordPlaneFailure(ctx, report, err)
+		if s.recordPlaneFailure(ctx, report, err) {
+			return report, nil
+		}
 		return nil, apperrors.WrapBadGateway("plane ticket creation failed")
 	}
 	if s.claimPlaneTicket(ctx, report, issue) {
@@ -165,19 +167,33 @@ func (s *service) Delete(ctx context.Context, clinicID, id uint64) (*model.Suppo
 }
 
 // recordPlaneFailure は起票失敗を plane_sync_error に記録し WARN を残す。
-// 記録自体の失敗（DB 障害）は追加の ERROR ログのみ（起票失敗の報告を悪化させない）。
-func (s *service) recordPlaneFailure(ctx context.Context, report *model.SupportBugReport, syncErr error) {
-	s.persistPlaneFailure(ctx, report, planeSyncErrorMessage(syncErr))
+// 並行した成功claimを再取得できた場合は true。記録・再取得失敗は ERROR ログで可視化する。
+func (s *service) recordPlaneFailure(ctx context.Context, report *model.SupportBugReport, syncErr error) bool {
+	if s.persistPlaneFailure(ctx, report, planeSyncErrorMessage(syncErr)) {
+		return true
+	}
 	slog.WarnContext(ctx, "plane ticket creation failed", "error", syncErr, "report_id", report.ID, "clinic_id", report.ClinicID)
+	return false
 }
 
-// persistPlaneFailure は sanitize 済みの失敗理由を plane_sync_error に書き込む。
-// ログ出力は呼出側の責務（起票失敗と状態取得失敗で文脈が違うため分離）。
-func (s *service) persistPlaneFailure(ctx context.Context, report *model.SupportBugReport, msg string) {
-	if err := s.repo.SetPlaneSyncError(ctx, report.ClinicID, report.ID, msg); err != nil {
+// persistPlaneFailure records a creation failure only while the report is unclaimed.
+// A guarded no-op reloads the clinic-scoped winner so responses reflect its success.
+// Persistence/reload failures remain visible in logs; automatic creation stays best-effort.
+func (s *service) persistPlaneFailure(ctx context.Context, report *model.SupportBugReport, msg string) bool {
+	written, err := s.repo.SetPlaneSyncError(ctx, report.ClinicID, report.ID, msg)
+	if err != nil {
 		slog.ErrorContext(ctx, "failed to persist plane sync error", "error", err, "report_id", report.ID)
+	} else if !written {
+		latest, reloadErr := s.repo.FindByIDForClinic(ctx, report.ClinicID, report.ID)
+		if reloadErr != nil {
+			slog.ErrorContext(ctx, "failed to reload competing plane claim", "error", reloadErr, "report_id", report.ID)
+		} else if latest != nil && latest.PlaneIssueID != nil {
+			*report = *latest
+			return true
+		}
 	}
 	report.PlaneSyncError = &msg
+	return false
 }
 
 // claimPlaneTicket は起票成功を DB に記録する。claim できた場合のみ true。
@@ -380,7 +396,9 @@ func (s *service) SyncPlaneTicketStates(ctx context.Context) PlaneSyncResult {
 			result.Failed++
 			// 404 含む upstream 失敗は報告行に記録して一覧から追跡できるようにする。
 			// planeSyncErrorMessage は upstream body を落とした安全な文言のみ返す。
-			s.persistPlaneFailure(ctx, report, planeSyncErrorMessage(err))
+			if persistErr := s.repo.SetPlaneStateSyncError(ctx, report.ClinicID, report.ID, planeSyncErrorMessage(err)); persistErr != nil {
+				slog.ErrorContext(ctx, "failed to persist plane state sync error", "error", persistErr, "report_id", report.ID)
+			}
 			slog.WarnContext(ctx, "plane sync: failed to fetch issue state",
 				"error", err, "report_id", report.ID, "clinic_id", report.ClinicID)
 			continue

@@ -47,7 +47,10 @@ type Repository interface {
 	ListOpenWithPlaneTicket(ctx context.Context, limit int) ([]model.SupportBugReport, error)
 	// SetPlaneTicket は起票成功を記録し、claim 成功時（= 先に起票済みでない）に true を返す。
 	SetPlaneTicket(ctx context.Context, clinicID, id uint64, issueID, issueURL string) (bool, error)
-	SetPlaneSyncError(ctx context.Context, clinicID, id uint64, syncErr string) error
+	// SetPlaneSyncError returns true only when the unclaimed row was updated.
+	SetPlaneSyncError(ctx context.Context, clinicID, id uint64, syncErr string) (bool, error)
+	// SetPlaneStateSyncError は起票済み行の状態取得失敗を記録する。
+	SetPlaneStateSyncError(ctx context.Context, clinicID, id uint64, syncErr string) error
 	SoftDeleteBugReport(ctx context.Context, clinicID, id uint64) error
 	CreateChatMessages(ctx context.Context, messages []*model.SupportChatMessage) error
 	ListChatHistory(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
@@ -232,11 +235,36 @@ func (r *repository) SetPlaneTicket(ctx context.Context, clinicID, id uint64, is
 	return result.RowsAffected > 0, nil
 }
 
-// SetPlaneSyncError は直近の Plane 起票失敗理由を記録する（成功時は SetPlaneTicket が NULL に戻す）。
-func (r *repository) SetPlaneSyncError(ctx context.Context, clinicID, id uint64, syncErr string) error {
+// SetPlaneSyncError は未起票の行だけに失敗理由を記録する。
+// 並行した成功claim後に戻った失敗は成功状態を変更しない。
+func (r *repository) SetPlaneSyncError(ctx context.Context, clinicID, id uint64, syncErr string) (bool, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.SupportBugReport{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Where("id = ? AND clinic_id = ? AND plane_issue_id IS NULL", id, clinicID).
+		Update("plane_sync_error", syncErr)
+	if result.Error != nil {
+		return false, apperrors.FromGORM(result.Error, "support_bug_report", uintToString(id))
+	}
+	if result.RowsAffected > 0 {
+		return true, nil
+	}
+	// 0件は他医院/不存在と、既に成功した同医院の行を区別する。
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&model.SupportBugReport{}).
+		Where("id = ? AND clinic_id = ?", id, clinicID).Count(&count).Error; err != nil {
+		return false, apperrors.FromGORM(err, "support_bug_report", uintToString(id))
+	}
+	if count == 0 {
+		return false, apperrors.WrapNotFound("support_bug_report", uintToString(id))
+	}
+	return false, nil
+}
+
+// SetPlaneStateSyncError は状態取得失敗を対象チケットがある行に記録する。
+// 作成失敗の遅延書込みとは用途が異なるため、未起票限定のguardを使わない。
+func (r *repository) SetPlaneStateSyncError(ctx context.Context, clinicID, id uint64, syncErr string) error {
+	result := r.db.WithContext(ctx).Model(&model.SupportBugReport{}).
+		Where("id = ? AND clinic_id = ? AND plane_issue_id IS NOT NULL", id, clinicID).
 		Update("plane_sync_error", syncErr)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "support_bug_report", uintToString(id))

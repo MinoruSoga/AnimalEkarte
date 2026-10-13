@@ -111,7 +111,8 @@ func TestRealDB_CreateSyncsPlaneTicket(t *testing.T) {
 			claimed, err := repo.SetPlaneTicket(ctx, fx.ClinicA, reportB.ID, "foreign-issue", "u")
 			require.NoError(t, err)
 			assert.False(t, claimed)
-			err = repo.SetPlaneSyncError(ctx, fx.ClinicA, reportB.ID, "foreign-error")
+			written, err := repo.SetPlaneSyncError(ctx, fx.ClinicA, reportB.ID, "foreign-error")
+			assert.False(t, written)
 			require.Error(t, err)
 			assert.True(t, apperrors.IsNotFound(err))
 			assertPersistedB() // B の行は変化なし

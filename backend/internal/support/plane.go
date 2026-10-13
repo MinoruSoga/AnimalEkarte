@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html"
 	"io"
 	"net/http"
 	"net/url"
@@ -28,9 +27,6 @@ const planeErrorBodyDiscardBytes = 64 << 10
 // planeExternalSource は Plane 側でこのアプリ発のワークアイテムを識別する固定値。
 // external_id（= ローカル報告 ID）と組み合わせて Plane 側から辿れるようにする。
 const planeExternalSource = "animalekarte-bug-report"
-
-// planeIssueNameMaxRunes は Plane の name フィールド上限(255)に対する安全側の上限。
-const planeIssueNameMaxRunes = 200
 
 // TicketCreator は外部チケットシステムへのバグ報告起票を抽象化する。
 // nil の場合は連携無効（報告はローカル保存のみ・手動起票は 501 を返す）。
@@ -126,51 +122,15 @@ type planeIssueResponse struct {
 	} `json:"project_detail"`
 }
 
-// planeIssueName はチケット件名を組み立てる（[バグ報告] 接頭辞 + 報告件名）。
+// Planeへの送信は固定文とサーバ採番の報告IDに限定する。
+// HTMLエスケープは機微情報の除去にならないため、任意入力を転記しない。
 func planeIssueName(report *model.SupportBugReport) string {
-	name := "[バグ報告] " + strings.TrimSpace(report.Title)
-	if r := []rune(name); len(r) > planeIssueNameMaxRunes {
-		name = string(r[:planeIssueNameMaxRunes-1]) + "…"
-	}
-	return name
+	return fmt.Sprintf("[バグ報告] #%d", report.ID)
 }
 
-// planeDescriptionHTML は報告の内容・画面文脈を HTML に組み立てる。
-// すべてのユーザー入力は html.EscapeString でエスケープしてから埋め込む。
-// スクショ画像の URL は直接貼らない（署名付き URL は短命であり、チケット内に
-// 固定リンクを残さないため）。「あり」の場合はアプリ内管理画面で確認する旨だけ記す。
+// 自動起票・手動再送に共通する外部送信境界。原文はアプリ内で確認する。
 func (c *planeClient) planeDescriptionHTML(report *model.SupportBugReport) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "<p>%s</p>", strings.ReplaceAll(html.EscapeString(report.Detail), "\n", "<br>"))
-
-	b.WriteString("<h3>環境</h3><ul>")
-	writeListItem := func(label, value string) {
-		if value == "" {
-			value = "―"
-		}
-		fmt.Fprintf(&b, "<li>%s: %s</li>", label, html.EscapeString(value))
-	}
-	writeListItem("画面", report.RoutePath)
-	writeListItem("ページURL", report.PageURL)
-	writeListItem("表示領域", report.Viewport)
-	writeListItem("User-Agent", report.UserAgent)
-	writeListItem("アプリバージョン", report.AppVersion)
-	b.WriteString("</ul>")
-
-	screenshot := "なし"
-	if report.ScreenshotKey != nil {
-		screenshot = "あり（アプリのバグ報告詳細で確認。個人情報を含む可能性あり）"
-	}
-	fmt.Fprintf(&b, "<p>報告ID: #%d / 医院ID: %d / 報告者: staff#%d / スクリーンショット: %s</p>",
-		report.ID, report.ClinicID, report.ReporterStaffID, screenshot)
-	if !report.CreatedAt.IsZero() {
-		fmt.Fprintf(&b, "<p>報告日時: %s</p>", report.CreatedAt.Format("2006-01-02 15:04:05 MST"))
-	}
-	if c.frontendURL != "" {
-		fmt.Fprintf(&b, "<p>アプリ内管理画面: <a href=\"%s/settings/bug-reports\">%s/settings/bug-reports</a></p>",
-			html.EscapeString(c.frontendURL), html.EscapeString(c.frontendURL))
-	}
-	return b.String()
+	return fmt.Sprintf("<p>報告ID: #%d</p><p>詳細はアプリ内のバグ報告管理画面で確認してください。</p>", report.ID)
 }
 
 // CreateBugReportIssue は報告内容を Plane ワークアイテムとして作成する。
