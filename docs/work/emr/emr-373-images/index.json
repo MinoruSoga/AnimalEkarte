@@ -5757,5 +5757,5130 @@
     "limits": "Ownerdialog opened but missingmasters, bottompending,390toastoverlapcandidate",
     "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
     "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fliff%2F%3Fclinic_id%3D990001%26audit_liff%3Dlong",
+    "inventoryId": "INV-J03",
+    "state": "long-health",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050832590492.png",
+    "sha256": "b4f72ef602edf42c7dab4c4acf7db79ff67efaa1bb8429c3c67240da1ff078ce",
+    "review": "FAIL",
+    "reviewer": "mobile_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fliff%2F%3Fclinic_id%3D990001%26audit_liff%3Dlong",
+    "inventoryId": "INV-J03",
+    "state": "long-health",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050834880796.png",
+    "sha256": "5c36ef9a3ac505deb3a85bc378e92ab762481838ef4c53b54a4883b4c27d85b6",
+    "review": "FAIL",
+    "reviewer": "mobile_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fliff%2F%3Fclinic_id%3D990001%26audit_liff%3Dlong",
+    "inventoryId": "INV-J03",
+    "state": "long-health",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050837163120.png",
+    "sha256": "9b6c90541e0a056d1efe81a51818da366ff583380de96c27c11b118c1ecb502b",
+    "review": "FAIL",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fliff%2F%3Fclinic_id%3D990001%26audit_liff%3Dlong",
+    "inventoryId": "INV-J03",
+    "state": "long-health",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050839449377.png",
+    "sha256": "a6775cea65ccee0ad22da8afc14e929b228ff8f3a39c89c38495be9b3670b96c",
+    "review": "FAIL",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-J03",
+    "state": "long-health-bottom",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050842780915.png",
+    "sha256": "f6b8c6e8d41c9010f1a2ff4c4c527d0221df4d2d1798ef1b97f2dbf6f94baaa5",
+    "review": "FAIL",
+    "reviewer": "mobile_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Synthetic long-data explicit target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Synthetic long-data explicit target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-J03",
+    "state": "long-health-bottom",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050846099345.png",
+    "sha256": "5c36ef9a3ac505deb3a85bc378e92ab762481838ef4c53b54a4883b4c27d85b6",
+    "review": "FAIL",
+    "reviewer": "mobile_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Synthetic long-data explicit target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Synthetic long-data explicit target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-J03",
+    "state": "long-health-bottom",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050849410627.png",
+    "sha256": "9b6c90541e0a056d1efe81a51818da366ff583380de96c27c11b118c1ecb502b",
+    "review": "FAIL",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Synthetic long-data explicit target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Synthetic long-data explicit target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-J03",
+    "state": "long-health-bottom",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050852712922.png",
+    "sha256": "a6775cea65ccee0ad22da8afc14e929b228ff8f3a39c89c38495be9b3670b96c",
+    "review": "FAIL",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Synthetic long-data explicit target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Synthetic long-data explicit target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K02",
+    "state": "long-top",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050856198823.png",
+    "sha256": "91cb1dcdc2115446e30b533f1e88da6050d9231e6440edab0f494fc60fc13985",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K02",
+    "state": "long-top",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050858479207.png",
+    "sha256": "dc8fea782b67acc38db1bebdad0bcd56b1ef0b09c61f5f876b5cfe123f2654e5",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K02",
+    "state": "long-top",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050900754323.png",
+    "sha256": "3f53af3279fd2daa59d69dfb341f135a81c3f67075ed5dbc6d68b2ae65198f9b",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K02",
+    "state": "long-top",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050903046247.png",
+    "sha256": "d79df0132e9a8cbce2914b23cf7b153daa1c6db89a0db2ddbd9ff24033c393f2",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K03",
+    "state": "long-customer",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050906373106.png",
+    "sha256": "2543e1adced0bca9a0b7baba944211b0b588ddf086d6b496477eb300df65d871",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規予約']",
+        "action": "Synthetic long-data explicit target",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規予約']",
+            "description": "Synthetic long-data explicit target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K03",
+    "state": "long-customer",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050908667472.png",
+    "sha256": "3896961b7c38b5f22392b5d09e708b8d6201be0f779c0c0bccba68c20dcf97f2",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K03",
+    "state": "long-customer",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050910938191.png",
+    "sha256": "5ce204278b0268a91cb5f508adb8f042f892fc5ad45cc3ec7570af9e6a59d105",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K03",
+    "state": "long-customer",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050913228530.png",
+    "sha256": "2c1a5372b5d30b84d553be0848489716e4ba004aaad89efc6699fab6ad3925ba",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K07",
+    "state": "long-course",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050916544028.png",
+    "sha256": "06764d39f987ece61db834c5abdddd6b55d738d5a8a79152c30d616a71286858",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic long-data explicit target",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic long-data explicit target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K07",
+    "state": "long-course",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050918826868.png",
+    "sha256": "722306916dfefb931218580b2d19e25f70dc956f1e5c06a5ece4e563290a328b",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K07",
+    "state": "long-course",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050921112121.png",
+    "sha256": "b6ab11eda4a6c95819de49b8499b0f89a7b957901bfdbca5b724e399c2cad27c",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K07",
+    "state": "long-course",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050923400408.png",
+    "sha256": "c72c64e4a1e7276d24352dbd42adfba6d47cf697ab686b04360bccb80b3cdedc",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K04",
+    "state": "long-staff",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050926739044.png",
+    "sha256": "afec03161c8aa61dfae72d730eae670dedeb78974b9c1fc1b2e63b1c2c0bb06e",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'一般診察')]",
+        "action": "Synthetic long-data explicit target",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'一般診察')]",
+            "description": "Synthetic long-data explicit target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K04",
+    "state": "long-staff",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050929028745.png",
+    "sha256": "5d35be9440e9cb9c308ccb5a284339736b77b72cb4139721d130f693e72a2815",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K04",
+    "state": "long-staff",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050931312033.png",
+    "sha256": "e01b3466f77e129c4547a54d9aac443ba3370da917c4d93e79af3621a745246a",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K04",
+    "state": "long-staff",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050933597383.png",
+    "sha256": "17f23b0ca2582779c4c2e5a0386e439cc83f02c49e4cd32e51c2a3db3d819c4e",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K14",
+    "state": "long-request",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050939982363.png",
+    "sha256": "a5ad95eb4cc51651f7264a031eac5167a92099bd3ff21a3fc7a76fea508c987f",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'監査 一郎')]",
+        "action": "Synthetic long-data explicit target",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'監査 一郎')]",
+            "description": "Synthetic long-data explicit target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[@aria-label='2026年10月13日']",
+        "action": "Synthetic long-data explicit target",
+        "actions": [
+          {
+            "selector": "xpath=//button[@aria-label='2026年10月13日']",
+            "description": "Synthetic long-data explicit target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic long-data explicit target",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic long-data explicit target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'09:00')]",
+        "action": "Synthetic long-data explicit target",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'09:00')]",
+            "description": "Synthetic long-data explicit target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K14",
+    "state": "long-request",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050942270169.png",
+    "sha256": "ec908de8eb6504862c6b84ead3182cde930adcbc56b9764a9797fc265a20ff0a",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K14",
+    "state": "long-request",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050944627919.png",
+    "sha256": "dc606fbeeeebe011667ddafe2e0f7b8fa0884780a2066f862bb917581c821ea9",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K14",
+    "state": "long-request",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050947162040.png",
+    "sha256": "3cbd8879892ed374493ebd190a6f8e5109615bb9fca17f38c775165c6bf66207",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K10",
+    "state": "long-confirm",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050950678235.png",
+    "sha256": "b8e1592c3ad0c65ab8694fe23a37879d471be70a96bd6839c0081cef4cfbf0dd",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic long-data explicit target",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic long-data explicit target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K10",
+    "state": "long-confirm",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050952997353.png",
+    "sha256": "b67704e01b029a2bdce904d3c6c045ae72249abfbaf532c2136921e16f884e38",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K10",
+    "state": "long-confirm",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050955304723.png",
+    "sha256": "456684c66f2918fb56932df88659df29460de0c47934d6ee0d2fe8d5eab2f404",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K10",
+    "state": "long-confirm",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050957635330.png",
+    "sha256": "fa2acaabdaf64f794d2af0f4d8fe83c753e4acb9554100996549e042d20bdbec",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K10",
+    "state": "long-confirm-bottom",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T051000995467.png",
+    "sha256": "9f9bda0de8519c83b45150c2043ddb345fd467015b0acf9b9672d814bd75334f",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Synthetic long-data explicit target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Synthetic long-data explicit target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K10",
+    "state": "long-confirm-bottom",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T051004333718.png",
+    "sha256": "49e1eae019655d69b1a1261cd50ab4164ab768168123a6c77cb9f51c3ea8a388",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Synthetic long-data explicit target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Synthetic long-data explicit target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K10",
+    "state": "long-confirm-bottom",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T051007683503.png",
+    "sha256": "6c217aa5344aa769f828ae3c6ca0541569296ccf5bfbfa9d7a091f18807502b0",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Synthetic long-data explicit target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Synthetic long-data explicit target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K10",
+    "state": "long-confirm-bottom",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T051011043004.png",
+    "sha256": "14baad6ebbb1f8c8b03f0d9aa2d0dd8133762457c371077ba399b5c613c87f5f",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Synthetic long-data explicit target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Synthetic long-data explicit target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K13",
+    "state": "long-history",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T051014498020.png",
+    "sha256": "b86e6befb43011f1e290d14984cf0d68d7c90e2d0faed1653f2be8a617a681e7",
+    "review": "FAIL",
+    "reviewer": "mobile_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='予約確認・キャンセル']",
+        "action": "Synthetic long-data explicit target",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='予約確認・キャンセル']",
+            "description": "Synthetic long-data explicit target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K13",
+    "state": "long-history",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T051016789726.png",
+    "sha256": "51746bf20355441ccc863538ba87130b52406bdb3fa883b43f47ff5e2ae930a4",
+    "review": "FAIL",
+    "reviewer": "mobile_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K13",
+    "state": "long-history",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T051019097578.png",
+    "sha256": "f8b5a53ed1c496d15fa2ce5bd9efbe5d87e1a2e4bbff9935545d9ff7c7caeb05",
+    "review": "FAIL",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K13",
+    "state": "long-history",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T051021394076.png",
+    "sha256": "1389990f85c96bedd6b2a428944e427a2644abfa487cd3cf16727af479f4c7bd",
+    "review": "FAIL",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K13",
+    "state": "long-history-bottom",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T051024714068.png",
+    "sha256": "b86e6befb43011f1e290d14984cf0d68d7c90e2d0faed1653f2be8a617a681e7",
+    "review": "FAIL",
+    "reviewer": "mobile_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Synthetic long-data explicit target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Synthetic long-data explicit target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K13",
+    "state": "long-history-bottom",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T051028026010.png",
+    "sha256": "51746bf20355441ccc863538ba87130b52406bdb3fa883b43f47ff5e2ae930a4",
+    "review": "FAIL",
+    "reviewer": "mobile_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Synthetic long-data explicit target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Synthetic long-data explicit target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K13",
+    "state": "long-history-bottom",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T051031349064.png",
+    "sha256": "f8b5a53ed1c496d15fa2ce5bd9efbe5d87e1a2e4bbff9935545d9ff7c7caeb05",
+    "review": "FAIL",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Synthetic long-data explicit target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Synthetic long-data explicit target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 19,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K13",
+    "state": "long-history-bottom",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T051034694781.png",
+    "sha256": "1389990f85c96bedd6b2a428944e427a2644abfa487cd3cf16727af479f4c7bd",
+    "review": "FAIL",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Long schema-valid fixture, recorded before fix. Course/staff descriptions intentionally clamped; native single-line input scrolling not asserted.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Synthetic long-data explicit target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Synthetic long-data explicit target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Acourses&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K07",
+    "state": "course-empty",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T051955086622.png",
+    "sha256": "55d18abdb61374b451db4c9dc3f6b9c8569b72bafef2724834a6f36f363c80c7",
+    "review": "UNKNOWN_UX_CONTRACT",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規予約']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規予約']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Acourses&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K07",
+    "state": "course-empty",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T051957367818.png",
+    "sha256": "c143c3a74be20ef0596c81d0810d669fcf9941d671315df24521186370439402",
+    "review": "UNKNOWN_UX_CONTRACT",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Acourses&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K07",
+    "state": "course-empty",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T051959647400.png",
+    "sha256": "4533dfccb1c014ba33be600f80bde50bd90840e587325ccd3e7af12ad98546bf",
+    "review": "UNKNOWN_UX_CONTRACT",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Acourses&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K07",
+    "state": "course-empty",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T052001930673.png",
+    "sha256": "92b33afe84de50f3e51dffcaa71b202ce2b34ac20826e8d96ec35a5526ec74c7",
+    "review": "UNKNOWN_UX_CONTRACT",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Acourses&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K07",
+    "state": "course-error",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T052006487776.png",
+    "sha256": "28d546fdf5bdfbbce74d8f454c830e09538b1d3f4a105fba3a62bdcef889a342",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規予約']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規予約']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Acourses&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K07",
+    "state": "course-error",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T052008761716.png",
+    "sha256": "34cd8b72b1a7aef27f692f521f190aacf9b6dd05b53860911c4a49ff016f1178",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Acourses&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K07",
+    "state": "course-error",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T052011057400.png",
+    "sha256": "aeb20a3864bdd03b0ab71edd7e359fcc37b19ba907e2d7b07a6e25623e2f749c",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Acourses&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K07",
+    "state": "course-error",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T052013334771.png",
+    "sha256": "b5652f3b0ac7f3c95bd2d9fd4dae7a38666537d7c1e9c8ecbcb7ad46ea3c1a75",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Astaffs&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K04",
+    "state": "staff-empty",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T052018815647.png",
+    "sha256": "8062f22a45d0ae60ffedeb81c9dbd00fb0f9e69caede62e0a67d58e133c4848c",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規予約']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規予約']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'一般診察')]",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'一般診察')]",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Astaffs&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K04",
+    "state": "staff-empty",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T052021091214.png",
+    "sha256": "4af57fe257fd657bc7f9f2738ccfd92b316406f7be1e1c76b0844ad779292396",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Astaffs&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K04",
+    "state": "staff-empty",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T052023359930.png",
+    "sha256": "f4443b6c5e86141a1c0fb4fc1c4cea1b55278fe5624f26955a11934e783845ac",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Astaffs&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K04",
+    "state": "staff-empty",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T052025647765.png",
+    "sha256": "fa46399b84a5b9b82d583dc7da66e047030344bb61a864fa7d8df041dd7b4792",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Astaffs&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K04",
+    "state": "staff-error",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T052031116791.png",
+    "sha256": "ef5a468382cbc7d38f1b7ae98277f64d26983e3486c3f3f802943034bff8c837",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規予約']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規予約']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'一般診察')]",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'一般診察')]",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Astaffs&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K04",
+    "state": "staff-error",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T052033389980.png",
+    "sha256": "b19e196fa319f931787e7b20961604bcef5922ab2865686e5b948b4817e9baab",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Astaffs&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K04",
+    "state": "staff-error",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T052035662111.png",
+    "sha256": "52e9e04d8cd106606ae3ad86b2dd93886d18e5c56a0296cf7e7e52ba43195d7c",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Astaffs&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K04",
+    "state": "staff-error",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T052037952037.png",
+    "sha256": "f58ff5120f132173b863c1a969ea5b7dcfe496c98ddfcf1dfbdc489ac44048f9",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Aavailable-dates&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K05",
+    "state": "date-empty",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T052044521945.png",
+    "sha256": "e88c273bc45ab4c8ba07c69fa6473c7dbb9888c1620c4c363fb7721b86d507b3",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規予約']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規予約']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'一般診察')]",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'一般診察')]",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'監査 一郎')]",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'監査 一郎')]",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Aavailable-dates&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K05",
+    "state": "date-empty",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T052046799268.png",
+    "sha256": "adaedc572000de7247c95c8b725b4b15a291955278e6f2f3c027dd4f734a546f",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Aavailable-dates&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K05",
+    "state": "date-empty",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T052049086864.png",
+    "sha256": "9b3877044d49a670211692fe014dad7bbf5815149c45a026cc4117932deaf40e",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Aavailable-dates&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K05",
+    "state": "date-empty",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T052051373409.png",
+    "sha256": "d1dbb1ff0b5f2ffbddea5072ba250f9b8ab7d67d935602ff773506fbb04d80d4",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Aavailable-dates&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K05",
+    "state": "date-error",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T052057892334.png",
+    "sha256": "39180db3df856a9ee385d0fc6f4ce85d41e0f3ba118f865d11040e8a8f993089",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規予約']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規予約']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'一般診察')]",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'一般診察')]",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'監査 一郎')]",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'監査 一郎')]",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Aavailable-dates&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K05",
+    "state": "date-error",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T052100158323.png",
+    "sha256": "b74f65662d808873dcd2fa3f8dee9e989a1a3fa8cc25f251b764af3a850b6ae4",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Aavailable-dates&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K05",
+    "state": "date-error",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T052102434221.png",
+    "sha256": "d0a02ab59d3c3ec80fa0fd62c51973cce2e9ad814b5dd6aef9bdf78f2a5c6ef7",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Aavailable-dates&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K05",
+    "state": "date-error",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T052104728668.png",
+    "sha256": "68de785afb5449bfd210952120dd7bd9b7dabddd1be461eb15b9b7e02ca2c101",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Aavailable-times&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K06",
+    "state": "time-empty",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T052113269660.png",
+    "sha256": "980024b7f87f60da1c4fb085040e27d119134d262009d88e087b56c614915297",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規予約']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規予約']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'一般診察')]",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'一般診察')]",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'監査 一郎')]",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'監査 一郎')]",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[@aria-label='2026年10月13日']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[@aria-label='2026年10月13日']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Aavailable-times&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K06",
+    "state": "time-empty",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T052115549723.png",
+    "sha256": "314f7e49736f5e4f8495d70a23c35bfe7bf64b71e49d94b37669fc61e2802721",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Aavailable-times&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K06",
+    "state": "time-empty",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T052117831289.png",
+    "sha256": "ba5a85dea4c1cbc280dcfdbb313a0b1d061be8a42bc1b512d08d63ce8973529f",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Aavailable-times&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K06",
+    "state": "time-empty",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T052120105160.png",
+    "sha256": "ea82769aae09f4c7ab1107690138f968a4e5e5e5cdeef72236ec2059a84332b5",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Aavailable-times&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K06",
+    "state": "time-error",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T052128637980.png",
+    "sha256": "8a9c6882810293dfcb18ed9aa27a50b1a099342ab0364cc618e91ce1974096f9",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規予約']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規予約']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'一般診察')]",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'一般診察')]",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'監査 一郎')]",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'監査 一郎')]",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[@aria-label='2026年10月13日']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[@aria-label='2026年10月13日']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Aavailable-times&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K06",
+    "state": "time-error",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T052130907677.png",
+    "sha256": "03ce2ca29a27e78bb38a5475e1718b4672fbde31905456b1bd60270281e0a537",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Aavailable-times&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K06",
+    "state": "time-error",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T052133177993.png",
+    "sha256": "ff0d07ec04190491b691aeb09deb65c71742065ce2f8417dd22ef1d846e4027c",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Aavailable-times&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K06",
+    "state": "time-error",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T052135474814.png",
+    "sha256": "2e9096577c8d6cbdc36587542965a3300c620be86a55091b96060a862a3da5da",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Atrimming-courses&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K08",
+    "state": "trimming-course-empty",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T052140951513.png",
+    "sha256": "518be27b0f7d06375af87d8a8009a553915c41afc3ad6c596fd166ef5466a820",
+    "review": "UNKNOWN_UX_CONTRACT",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規予約']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規予約']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'トリミング（合成）')]",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'トリミング（合成）')]",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Atrimming-courses&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K08",
+    "state": "trimming-course-empty",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T052143218423.png",
+    "sha256": "ae51a1f86815dae46235eaee08322c05d99d5d875ae5b621a506bf392a423d0d",
+    "review": "UNKNOWN_UX_CONTRACT",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Atrimming-courses&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K08",
+    "state": "trimming-course-empty",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T052145479969.png",
+    "sha256": "58fc784439e4adcfe507206f274e2e5cd35a07f23c05770fc882ff51e69b898f",
+    "review": "UNKNOWN_UX_CONTRACT",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Atrimming-courses&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K08",
+    "state": "trimming-course-empty",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T052147755479.png",
+    "sha256": "195e0880f146114712c4d07c75c073325c5fc23111736624b8deae9e76ae6245",
+    "review": "UNKNOWN_UX_CONTRACT",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Atrimming-courses&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K08",
+    "state": "trimming-course-error",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T052153228438.png",
+    "sha256": "01c537e3039915f18ed400797bc326711e3fc449ee45a469e337754d92df0f5b",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規予約']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規予約']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'トリミング（合成）')]",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'トリミング（合成）')]",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Atrimming-courses&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K08",
+    "state": "trimming-course-error",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T052155508079.png",
+    "sha256": "21acf17a689a0bad82d33f3162a3afd73d36763cd56b5efd4425f5d9e198ade5",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Atrimming-courses&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K08",
+    "state": "trimming-course-error",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T052157792423.png",
+    "sha256": "78aa827af4e7b3eca4dd6f344ba74b3c9debe6d866850135c6a931fd2430e75c",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Atrimming-courses&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K08",
+    "state": "trimming-course-error",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T052200074446.png",
+    "sha256": "e1d9e1a7d8e69430e3ada20ef77223fbdea085b27927dfc5f6cd22416da4539e",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Atrimming-options&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K09",
+    "state": "trimming-options-empty",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T052206543998.png",
+    "sha256": "999b3f95d93719286a0b347a2f63bf515cd69787ec1a4eb8e76b2b901b033a1e",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規予約']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規予約']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'トリミング（合成）')]",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'トリミング（合成）')]",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'シャンプーコース')]",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'シャンプーコース')]",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Atrimming-options&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K09",
+    "state": "trimming-options-empty",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T052208817408.png",
+    "sha256": "146a9c7b54e2b15672ec47900ebbbedab9e86891d689a26e04c73bddd160b186",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Atrimming-options&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K09",
+    "state": "trimming-options-empty",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T052211085904.png",
+    "sha256": "0f649d803927be2795bb134eaaddcf2d65e7767449ff5f9aa2cba08c7e2f93b8",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Atrimming-options&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K09",
+    "state": "trimming-options-empty",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T052213358528.png",
+    "sha256": "f0398d17d69f9f5956849251bce08f461a66e692efda98b4e08b85e7c72e5ab1",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Atrimming-options&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K09",
+    "state": "trimming-options-error",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T052219816511.png",
+    "sha256": "8c59ad96feb624b12a3f433458b2f75c107c44282ce68607bae74e9902a6c2be",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規予約']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規予約']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'トリミング（合成）')]",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'トリミング（合成）')]",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'シャンプーコース')]",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'シャンプーコース')]",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Atrimming-options&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K09",
+    "state": "trimming-options-error",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T052222093142.png",
+    "sha256": "9c6385159fdab859c5bf8fdc6dc7ec42acb389146c0f7994cae423ca9db70bbf",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Atrimming-options&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K09",
+    "state": "trimming-options-error",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T052224370905.png",
+    "sha256": "fc5a8bc0e24659c915b5290999de23d0f998b2b046ca178d0054fdc965e6ca90",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Atrimming-options&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K09",
+    "state": "trimming-options-error",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T052226763218.png",
+    "sha256": "a50b78f407d8adc9df0bf7462f901b7bb44007884111a26a7a4f2c72b4d9f6bc",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Amy-reservations&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "history-empty",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T052230966728.png",
+    "sha256": "b3abef910a9e721171579f7af9bfcf3d10591c36edb6a89957877347170dda50",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='予約確認・キャンセル']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='予約確認・キャンセル']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Amy-reservations&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "history-empty",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T052233239679.png",
+    "sha256": "42c4917d0f388267ea578d73653240e5f05f4be3d2be6172729fc28d65a97b8f",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Amy-reservations&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "history-empty",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T052235534918.png",
+    "sha256": "6d7ca72d743c155c66d312649e1ecb9a2c7ae99c01b7b16b545e3afc9e829cc2",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=empty%3Amy-reservations&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "history-empty",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T052237830266.png",
+    "sha256": "0e99f3fa32d914a5ba5b468f88acd2f720a327223eff7c4e61590ac945bbee98",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Amy-reservations&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "history-error",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T052241378663.png",
+    "sha256": "d4e1ccc49f1552a01ef41780bc3120e42d80bad7d1b3c78a640e5ce44e030514",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='予約確認・キャンセル']",
+        "action": "Synthetic API-state display action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='予約確認・キャンセル']",
+            "description": "Synthetic API-state display action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Amy-reservations&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "history-error",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T052243657476.png",
+    "sha256": "7ab9aba67a765a3fac393fa7c734c2c366a38f583fc69b00291614fc373706f8",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Amy-reservations&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "history-error",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T052245941863.png",
+    "sha256": "31c770bf6bf434a49aa9933e9bc37ab16ff3487a3475d5a31b87b3c1e336090f",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 20,
+    "route": "/__audit/setup?scenario=error%3Amy-reservations&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "history-error",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T052248226786.png",
+    "sha256": "6b586da2bd8e8aba6f096a56238ee2d8108c288a8e03fa4777fe7d931ac6c1b8",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Empty selection explanation missing is unresolved UX finding; no runtime/business acceptance",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "none; productsource35b1a5976 unchanged",
+    "structuredActions": []
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=long&next=%2Fliff%2F%3Fclinic_id%3D990001%26audit_liff%3Dlong",
+    "inventoryId": "INV-J03",
+    "state": "long-health-fixed",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T053418455865.png",
+    "sha256": "be853b20c0d2d3ecdd7e5acc2a20fdabd2536cd71ddecd0fb67819bec2f2d2cb",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": []
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=long&next=%2Fliff%2F%3Fclinic_id%3D990001%26audit_liff%3Dlong",
+    "inventoryId": "INV-J03",
+    "state": "long-health-fixed",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T053421755230.png",
+    "sha256": "1b4f21f703853a0bec38aa338260bec5d9630b3e15c07cb90449280937480a35",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": []
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=long&next=%2Fliff%2F%3Fclinic_id%3D990001%26audit_liff%3Dlong",
+    "inventoryId": "INV-J03",
+    "state": "long-health-fixed",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T053425044594.png",
+    "sha256": "b77a12375e3e1614b8255cd701696e7301fd949ab5e1a5780d61ed8bb6c9a901",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": []
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=long&next=%2Fliff%2F%3Fclinic_id%3D990001%26audit_liff%3Dlong",
+    "inventoryId": "INV-J03",
+    "state": "long-health-fixed",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T053428333600.png",
+    "sha256": "4ee2b729a72b70fdfa90d8e23a5616061ef1ecc60f5aba8ee51d81ed2d783b22",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": []
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=long&next=%2Fliff%2F%3Fclinic_id%3D990001%26audit_liff%3Dlong",
+    "inventoryId": "INV-J03",
+    "state": "long-health-fixed-bottom",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T053432662335.png",
+    "sha256": "4dd08d16859cb56279e962707f06a63a9a7834bb08f47034147feeabbf2fb9c0",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Explicit visual recheck target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Explicit visual recheck target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=long&next=%2Fliff%2F%3Fclinic_id%3D990001%26audit_liff%3Dlong",
+    "inventoryId": "INV-J03",
+    "state": "long-health-fixed-bottom",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T053436954532.png",
+    "sha256": "1b4f21f703853a0bec38aa338260bec5d9630b3e15c07cb90449280937480a35",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Explicit visual recheck target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Explicit visual recheck target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=long&next=%2Fliff%2F%3Fclinic_id%3D990001%26audit_liff%3Dlong",
+    "inventoryId": "INV-J03",
+    "state": "long-health-fixed-bottom",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T053441258183.png",
+    "sha256": "b77a12375e3e1614b8255cd701696e7301fd949ab5e1a5780d61ed8bb6c9a901",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Explicit visual recheck target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Explicit visual recheck target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=long&next=%2Fliff%2F%3Fclinic_id%3D990001%26audit_liff%3Dlong",
+    "inventoryId": "INV-J03",
+    "state": "long-health-fixed-bottom",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T053445565812.png",
+    "sha256": "4ee2b729a72b70fdfa90d8e23a5616061ef1ecc60f5aba8ee51d81ed2d783b22",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Explicit visual recheck target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Explicit visual recheck target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K13",
+    "state": "long-history-fixed",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T053450851673.png",
+    "sha256": "1b827634dfabaa3536466aec021696c731fc43cc7d1ba7541c2cd20f7df704e0",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='予約確認・キャンセル']",
+        "action": "Explicit visual recheck target",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='予約確認・キャンセル']",
+            "description": "Explicit visual recheck target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K13",
+    "state": "long-history-fixed",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T053454147095.png",
+    "sha256": "912d92b3258dc50de4984f014e9dc897614507c11475088823a695b06d94af62",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": []
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K13",
+    "state": "long-history-fixed",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T053457455781.png",
+    "sha256": "3312132b5a596df4b8c05e310daa71c9e90f6060249ca3e58124e069ac447dd4",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": []
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K13",
+    "state": "long-history-fixed",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T053500758057.png",
+    "sha256": "73b440c41a1b2d5f9d1d5abf08008804b874cee9aea6cc7583329b4cabbffe0b",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": []
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K13",
+    "state": "long-history-fixed-bottom",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T053505063864.png",
+    "sha256": "1b827634dfabaa3536466aec021696c731fc43cc7d1ba7541c2cd20f7df704e0",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Explicit visual recheck target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Explicit visual recheck target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K13",
+    "state": "long-history-fixed-bottom",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T053509387035.png",
+    "sha256": "912d92b3258dc50de4984f014e9dc897614507c11475088823a695b06d94af62",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Explicit visual recheck target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Explicit visual recheck target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K13",
+    "state": "long-history-fixed-bottom",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T053513716200.png",
+    "sha256": "3312132b5a596df4b8c05e310daa71c9e90f6060249ca3e58124e069ac447dd4",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Explicit visual recheck target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Explicit visual recheck target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=long&next=%2Fline-reserve%2F990001%2F%3Faudit_liff%3Dlong",
+    "inventoryId": "INV-K13",
+    "state": "long-history-fixed-bottom",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T053518039079.png",
+    "sha256": "73b440c41a1b2d5f9d1d5abf08008804b874cee9aea6cc7583329b4cabbffe0b",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Explicit visual recheck target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Explicit visual recheck target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P02",
+    "state": "staff-main-fixture-probe",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T053522751933.png",
+    "sha256": "2333d8df0680d2656ce19cdc68dd0ddc0dfb376e06213856cb9f224d791057a7",
+    "review": "UNKNOWN_PARTIAL_FORM",
+    "reviewer": "mobile_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": []
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P02",
+    "state": "staff-main-fixture-probe",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T053526048537.png",
+    "sha256": "a6643570290dc8363a8b73e90d6b227d74b2122174c7e2647658360b3a696bbd",
+    "review": "UNKNOWN_PARTIAL_FORM",
+    "reviewer": "mobile_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": []
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P02",
+    "state": "staff-main-fixture-probe",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T053529339675.png",
+    "sha256": "956a9d827f8c07daeae81aded3938f85aa90b8bbd7b629e0ffb1114bdeadff6b",
+    "review": "UNKNOWN_PARTIAL_FORM",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": []
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P02",
+    "state": "staff-main-fixture-probe",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T053532641096.png",
+    "sha256": "0fb539a18167db4f05b06ef8adf3218b008f8383c86bf68dde5fdee7b88f0627",
+    "review": "UNKNOWN_PARTIAL_FORM",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": []
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=normal&next=%2Fowners%2F990002",
+    "inventoryId": "INV-O04",
+    "state": "owner-main-fixture-probe",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T053536182856.png",
+    "sha256": "b6d7f248b47f38a7cac50cb63a4ffaff894d75a09b7c94d6dc3a4566de83b29e",
+    "review": "UNKNOWN_PARTIAL_FORM",
+    "reviewer": "mobile_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": []
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=normal&next=%2Fowners%2F990002",
+    "inventoryId": "INV-O04",
+    "state": "owner-main-fixture-probe",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T053539517851.png",
+    "sha256": "9423c305b77b4b0cb9ea6fb48f4a02643f687f6f96277e1452a1639ddbbd218a",
+    "review": "UNKNOWN_PARTIAL_FORM",
+    "reviewer": "mobile_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": []
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=normal&next=%2Fowners%2F990002",
+    "inventoryId": "INV-O04",
+    "state": "owner-main-fixture-probe",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T053542858374.png",
+    "sha256": "60fdbbc239174fbf812aa81b1d71c4ada7d6e7a92c8d8f766cef84fe73b3231c",
+    "review": "UNKNOWN_PARTIAL_FORM",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": []
+  },
+  {
+    "wave": 21,
+    "route": "/__audit/setup?scenario=normal&next=%2Fowners%2F990002",
+    "inventoryId": "INV-O04",
+    "state": "owner-main-fixture-probe",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T053546193827.png",
+    "sha256": "bcb8f263e69a05d27cec4a39446141b820fb1f65750f881fad15b39da417faa1",
+    "review": "UNKNOWN_PARTIAL_FORM",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "EMR393/394 exact wrap defects resolved in four widths. Staff/owner probes only; right/bottom and dependencies pending.",
+    "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
+    "sourceDirtyPatch": "EMR393/394 two CSS files",
+    "structuredActions": []
   }
 ]
