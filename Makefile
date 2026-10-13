@@ -195,6 +195,15 @@ export CSV_IMPORT_SOURCE_DIR CSV_MANIFEST_SHA256 CLINIC_CODE CLINIC_ORDINAL MIGR
 export TARGET_CLINIC_ID FALLBACK_ANIMAL_SPECIES_ID FALLBACK_EXAM_TYPE_ID
 export TRIMMING_RESERVATION_TYPE_ID PAYMENT_METHOD_CASH_ID
 export PAYMENT_METHOD_CREDIT_CARD_ID TARGET_DB_NAME
+# STG UAT cutover profile: legacy-21 (default) or medicines-22-candidate.
+# The candidate profile stays activation-blocked for formal runs and requires
+# an explicit REHEARSAL_ONLY artifact; selecting it is not producer acceptance.
+# Honored from the environment or a make command-line override.
+STG_UAT_CSV_IMPORT_PROFILE ?= legacy-21
+export STG_UAT_CSV_IMPORT_PROFILE
+# Keep candidate audit evidence separate from legacy reports.
+STG_UAT_CSV_REPORT_SUFFIX = $(if $(filter medicines-22-candidate,$(STG_UAT_CSV_IMPORT_PROFILE)),-medicines-22-candidate,)
+export STG_UAT_CSV_REPORT_SUFFIX
 # Optional: CSV_IMPORT_EXTRA_ARGS='--allow-local-rehearsal' (local reset only)
 CSV_IMPORT_COMMON_ARGS = \
 	--source-dir /migration-input \
@@ -231,6 +240,8 @@ csv-import-verify:
 # ============================================================================
 # Requires APP_ENV=staging (forced below) and
 # STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL=YES_I_UNDERSTAND.
+# --cutover-profile comes from STG_UAT_CSV_IMPORT_PROFILE (default legacy-21;
+# medicines-22-candidate stays rehearsal-only and is not producer acceptance).
 # Accepts TRUSTED_CANDIDATE/PASS bundles and REHEARSAL_ONLY _old_db_handoff
 # bundles. Formal make csv-import still requires PASS / TRUSTED_CANDIDATE.
 # Does NOT pass --allow-local-rehearsal or CSV_IMPORT_EXTRA_ARGS.
@@ -251,6 +262,7 @@ STG_UAT_CSV_IMPORT_ARGS = \
 	--trimming-reservation-type-id "$${TRIMMING_RESERVATION_TYPE_ID}" \
 	--cash-payment-method-id "$${PAYMENT_METHOD_CASH_ID}" \
 	--credit-card-payment-method-id "$${PAYMENT_METHOD_CREDIT_CARD_ID}" \
+	--cutover-profile "$${STG_UAT_CSV_IMPORT_PROFILE}" \
 	--confirm-target-host "$${STG_UAT_CSV_IMPORT_CONFIRM_HOST}" \
 	--confirm-target-database "$${TARGET_DB_NAME}"
 
@@ -267,6 +279,7 @@ STG_UAT_IMPORT_ARGS = \
 	--trimming-reservation-type-id "$${TRIMMING_RESERVATION_TYPE_ID}" \
 	--cash-payment-method-id "$${PAYMENT_METHOD_CASH_ID}" \
 	--credit-card-payment-method-id "$${PAYMENT_METHOD_CREDIT_CARD_ID}" \
+	--cutover-profile "$${STG_UAT_CSV_IMPORT_PROFILE}" \
 	--confirm-target-host "$${STG_UAT_CSV_IMPORT_CONFIRM_HOST}" \
 	--confirm-target-database "$${TARGET_DB_NAME}"
 
@@ -300,7 +313,7 @@ stg-uat-csv-import:
 		--entrypoint go csv-import \
 		run ./cmd/csv-import-stg-uat apply $(STG_UAT_CSV_IMPORT_ARGS) \
 		--confirm-target-write --confirm-backup-ready \
-		--report-path "/migration-reports/$${CLINIC_CODE}-$${MIGRATION_RUN_ID}-stg-uat-apply.json"
+		--report-path "/migration-reports/$${CLINIC_CODE}-$${MIGRATION_RUN_ID}-stg-uat-apply$${STG_UAT_CSV_REPORT_SUFFIX}.json"
 
 stg-uat-csv-import-verify:
 	@test -n "$${TARGET_DB_NAME}" || (echo "TARGET_DB_NAME is required" >&2; exit 1)
@@ -335,7 +348,7 @@ stg-uat-import:
 		--entrypoint go csv-import \
 		run ./cmd/csv-import-stg-uat import $(STG_UAT_IMPORT_ARGS) \
 		--confirm-target-write --confirm-backup-ready \
-		--report-path "/migration-reports/$${CLINIC_CODE}-$${MIGRATION_RUN_ID}-stg-uat-apply.json"
+		--report-path "/migration-reports/$${CLINIC_CODE}-$${MIGRATION_RUN_ID}-stg-uat-apply$${STG_UAT_CSV_REPORT_SUFFIX}.json"
 
 # STG UAT old_db handoff: every staged clinic (jouto, shikishima, hakobuneco).
 # Credentials live in gitignored scripts/old-db/stg-uat-old-db-handoff.local.env.

@@ -275,6 +275,8 @@ func TestCutoverMedicinesEstimateItemReference(t *testing.T) {
 	t.Run("empty medicine_id stays nullable", func(t *testing.T) {
 		dir, digest := writeMedicinesCandidateFixture(t, func(f *fixtureBundle) {
 			f.rows["estimate_items"][0][medicineCol] = ""
+			// An empty medicine_id is only valid for a non-medicine row.
+			f.rows["estimate_items"][0][columnIndex(estimateItemsSpec.Columns, "category")] = "procedure"
 		})
 		if _, err := PreflightCutoverBundle(dir, candidateExpectedSource(digest)); err != nil {
 			t.Fatalf("PreflightCutoverBundle error = %v, want empty medicine_id accepted", err)

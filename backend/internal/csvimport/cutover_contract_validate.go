@@ -507,7 +507,7 @@ func validateCutoverFiles(sourceDir string, manifest CutoverManifest, provenance
 		if err != nil {
 			return nil, err
 		}
-		permuted, err := validateCutoverCSV(cutoverCSVPath(sourceDir, table), spec, table, manifest.IDBand, allowPermutation)
+		permuted, err := validateCutoverCSV(cutoverCSVPath(sourceDir, table), spec, table, manifest.IDBand, allowPermutation, manifest.profile)
 		if err != nil {
 			return nil, err
 		}
@@ -540,7 +540,7 @@ func validateCutoverFiles(sourceDir string, manifest CutoverManifest, provenance
 	return notes, nil
 }
 
-func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifestTable, band CutoverIDBand, allowPermutation bool) (bool, error) {
+func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifestTable, band CutoverIDBand, allowPermutation bool, profile CutoverProfile) (bool, error) {
 	path, err := resolveCutoverAccountCSV(path)
 	if err != nil {
 		return false, err
@@ -612,7 +612,7 @@ func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifes
 			}
 			seenNames[name] = struct{}{}
 		}
-		if err := validateCutoverRow(spec, header, row, columnIndexes, band, rowCount+1); err != nil {
+		if err := validateCutoverRow(spec, header, row, columnIndexes, band, rowCount+1, profile); err != nil {
 			return false, err
 		}
 	}
@@ -656,7 +656,7 @@ func cutoverColumnIndexes(spec CutoverTableSpec, header []string, allowPermutati
 	return indexes, !exact, nil
 }
 
-func validateCutoverRow(spec CutoverTableSpec, header []string, row []string, indexes map[string]int, band CutoverIDBand, csvLine int64) error {
+func validateCutoverRow(spec CutoverTableSpec, header []string, row []string, indexes map[string]int, band CutoverIDBand, csvLine int64, profile CutoverProfile) error {
 	if err := validatePaymentMethodPlaceholder(spec, row, indexes, csvLine); err != nil {
 		return err
 	}
@@ -699,7 +699,16 @@ func validateCutoverRow(spec CutoverTableSpec, header []string, row []string, in
 		}
 	}
 	if spec.Name == "medicines" {
+		// cutoverColumnIndexes guarantees every contract column is present.
+		if err := validateCutoverMedicinesName(row[indexes["name"]], csvLine); err != nil {
+			return err
+		}
 		if err := validateCutoverMedicinesRow(row, indexes, csvLine); err != nil {
+			return err
+		}
+	}
+	if spec.Name == "estimate_items" {
+		if err := validateCutoverEstimateMedicineRewrite(profile, row, indexes, csvLine); err != nil {
 			return err
 		}
 	}

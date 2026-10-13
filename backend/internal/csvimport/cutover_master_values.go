@@ -76,3 +76,45 @@ func validateCutoverMedicineQuantity(value string, csvLine int64) error {
 	}
 	return nil
 }
+
+// validateCutoverMedicinesName rejects blank and whitespace-only source
+// names at preflight. The producer classifies such rows as needs_review and
+// removes them, so they can never be imported. Names are not normalized:
+// an accepted name is imported exactly as written. The error names the
+// column and CSV row only, never the rejected cell value.
+func validateCutoverMedicinesName(value string, csvLine int64) error {
+	if strings.TrimSpace(value) == "" {
+		return fmt.Errorf("table medicines column name row %d: name is required and must not be blank", csvLine)
+	}
+	return nil
+}
+
+// validateCutoverEstimateMedicineRewrite enforces the candidate22 medicine
+// rewrite joint invariant (EMR-342 DESIGN 3.4): a populated medicine_id
+// means the estimate row was rewritten from procedures to medicines, so the
+// category must be medicine and consultation_id, procedure_id, and
+// merchandise_item_id must all be empty. A medicine category also requires
+// medicine_id. Non-medicine rows and the legacy21 profile keep their
+// existing behavior; legacy rejects a populated medicine_id through the
+// unavailable-parent reference check instead.
+func validateCutoverEstimateMedicineRewrite(profile CutoverProfile, row []string, indexes map[string]int, csvLine int64) error {
+	if profile != CutoverProfileMedicinesCandidate {
+		return nil
+	}
+	medicineID := row[indexes["medicine_id"]]
+	category := row[indexes["category"]]
+	if medicineID != "" {
+		if category != "medicine" {
+			return fmt.Errorf("table estimate_items column category row %d: populated medicine_id requires category medicine", csvLine)
+		}
+		for _, column := range []string{"consultation_id", "procedure_id", "merchandise_item_id"} {
+			if row[indexes[column]] != "" {
+				return fmt.Errorf("table estimate_items column %s row %d: medicine rewrite requires an empty %s", column, csvLine, column)
+			}
+		}
+	}
+	if category == "medicine" && medicineID == "" {
+		return fmt.Errorf("table estimate_items column medicine_id row %d: category medicine requires medicine_id", csvLine)
+	}
+	return nil
+}

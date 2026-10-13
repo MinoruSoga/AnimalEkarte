@@ -63,6 +63,8 @@ failure rehearsalとSTG skeletonは既存21表専用のまま。候補profileに
 
 この22表候補では、旧pinを持つ `PASS` / `TRUSTED_CANDIDATE` も formal（未指定modeを含む）も **activation blocked** として source/target preflight・単一transaction apply・table別resume apply・verifyのいずれでもDB取得/Begin/Exec/COPY前に拒否する。pinの更新・producer receiptの採用は別の明示reviewが必要であり、manifest自己申告や環境変数で解除する経路はない。実装候補を検証できるのは候補profileと既存のlocal/staging rehearsal modeを両方明示し、artifactも `REHEARSAL_ONLY` とした場合だけで、hash・22表shape・FK・inventoryの検証は維持する。mapping coverageのconsumer statusは `candidate_22_rehearsal_only` であり正式採用を示さない。旧21表bundleはこの候補では引き続きtable数不一致で拒否され、旧版consumerとの互換性は保証しない。
 
+候補 consumer は EMR-342 設計 3.2/3.4 に従い、`medicines.name` が空欄または空白のみの行を source preflight で拒否する（名称は正規化せず、エラーには列と CSV 行番号のみを出しセル値は出さない）。`estimate_items` の薬剤付け替え行は結合不変条件を守る: `medicine_id` が空欄でない行は `category` が `medicine` で、`consultation_id` / `procedure_id` / `merchandise_item_id` がすべて空欄であること。`category` が `medicine` の行は `medicine_id` が必須。薬剤以外の行と旧21表 profile の挙動は変更しない（旧21表では `medicine_id` の空欄制約を unavailable-parent 参照検査で維持）。
+
 `medicines.default_quantity` は空欄を拒否し、明示0有効の非負decimalとし、`numeric(10,2)`へ丸めなしで格納できる値だけを許容する。上限99999999.99、fractionの末尾0を除き2桁まで（1.2300可、0.001不可）。浮動小数点による判定やNULLの0補完は行わない。
 
 - **dry-run**: `make csv-import-preflight` が source digest / 6 seed binding / 空 band / FK catalog を read-only 検証する。apply は別コマンド。
@@ -78,7 +80,15 @@ preflight はこれを拒否します。共有 STG へ載せる場合は
 `make stg-uat-handoff`（城東・敷島・箱。八王子は対象外。seed ID / manifest SHA は
 `scripts/old-db/stg-uat-old-db-handoff.sh` が `_old_db_handoff` と `002_master` から埋め、
 接続は同スクリプトの export と gitignored `scripts/old-db/stg-uat-old-db-handoff.local.env`）
-を使います。importer が受理する code/ordinal/clinic_id は
+を使います。cutover profile は `STG_UAT_CSV_IMPORT_PROFILE`（既定 `legacy-21`、
+`medicines-22-candidate` のみ許容。未知値は wrapper が医院処理の前に拒否し、
+追加引数では渡せません）から `make stg-uat-import` / `stg-uat-csv-import-*`
+両方の `--cutover-profile` に伝播します（環境変数 export と
+`make STG_UAT_CSV_IMPORT_PROFILE=...` の command-line override の両方を受理）。
+候補 profile の選択は明示 staging（wrapper が `APP_ENV=staging` を強制）＋
+`STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL=YES_I_UNDERSTAND` ＋ `REHEARSAL_ONLY`
+artifact が前提で、activation gate は formal 経路を拒否し続けます。選択は
+producer 受領・本番切替の承認ではありません。importer が受理する code/ordinal/clinic_id は
 hachioji=1、jouto=2、shikishima=3、hakobuneco=4 だけです。
 apply report が既に `PASS` の医院は wrapper が skip し、残りへ進みます。
 STG を `DB_RESET` 相当で再構築した直後は、その PASS が旧DBの証跡になるため
@@ -93,6 +103,9 @@ wrapperのexit 0は対象3院すべての投入完了を意味しません。man
 21 CSVを `003_demo` へ直接コピーしてseedとして扱うことは禁止します。実行可能seedへの
 変換は現行コードでは未実装です。[SEED_MIGRATION_OPERATIONS.md](SEED_MIGRATION_OPERATIONS.md)
 のBLOCKED境界に従い、21表専用adapterを実装・検証するまでは migrate seed にはしません。
+
+STG候補のapplyレポートは `-stg-uat-apply-medicines-22-candidate.json` としてlegacyのレポートから分離する。handoffの候補PASS再利用には現在のmanifest SHA-256との一致も必要。接続用local.envは明示選択したprofileを変更しない。wrapperのmock契約は `python3 scripts/old-db/stg-uat-profile.test.py` で確認できる（実DB・CSV投入は行わない）。
+
 
 ## 安全境界（以下はdeployed/mainの既存21表手順）
 

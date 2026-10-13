@@ -291,7 +291,7 @@ func TestCutoverCSVPrimaryIDValidatedByHeaderName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			path, table := writeDriftTestCSV(t, spec, header, tt.rows)
-			_, err := validateCutoverCSV(path, spec, table, band, true)
+			_, err := validateCutoverCSV(path, spec, table, band, true, CutoverProfileLegacy21)
 			if tt.wantErr == "" {
 				if err != nil {
 					t.Fatalf("validateCutoverCSV error = %v", err)
@@ -534,7 +534,7 @@ func TestCutoverCSVHeaderPermutationPolicy(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			path, table := writeDriftTestCSV(t, spec, tt.header, tt.rows)
-			permuted, err := validateCutoverCSV(path, spec, table, band, tt.allowPermutation)
+			permuted, err := validateCutoverCSV(path, spec, table, band, tt.allowPermutation, CutoverProfileLegacy21)
 			if tt.wantErr == "" {
 				if err != nil {
 					t.Fatalf("validateCutoverCSV error = %v", err)

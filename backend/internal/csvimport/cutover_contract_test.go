@@ -1157,6 +1157,19 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle), profiles ...
 				if spec.Name == "medicines" {
 					row[i] = "1.0"
 				}
+			case "name":
+				// The candidate synthetic bundle needs a non-blank
+				// medicines name: blank source names are needs_review
+				// producer rows the consumer must reject.
+				if spec.Name == "medicines" {
+					row[i] = "candidate-medicine"
+				}
+			case "category":
+				// The candidate default estimate row is the
+				// contract-consistent medicine rewrite row (DESIGN 3.4).
+				if spec.Name == "estimate_items" && selectedCutoverProfile(profiles) == CutoverProfileMedicinesCandidate {
+					row[i] = "medicine"
+				}
 			}
 		}
 		for _, column := range spec.BandColumns {
@@ -1166,8 +1179,19 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle), profiles ...
 			}
 			// consultations are not part of the CSV import. A valid fixture
 			// cannot invent that parent; producer leaves it empty.
-			if spec.Name == "estimate_items" && (column == "consultation_id" || (column == "medicine_id" && selectedCutoverProfile(profiles) != CutoverProfileMedicinesCandidate)) {
-				continue
+			if spec.Name == "estimate_items" {
+				if column == "consultation_id" {
+					continue
+				}
+				if column == "medicine_id" && selectedCutoverProfile(profiles) != CutoverProfileMedicinesCandidate {
+					continue
+				}
+				// The candidate default is the contract-consistent medicine
+				// rewrite row: the non-medicine references stay empty.
+				if profile := selectedCutoverProfile(profiles); profile == CutoverProfileMedicinesCandidate &&
+					(column == "procedure_id" || column == "merchandise_item_id") {
+					continue
+				}
 			}
 			// A self-reference filled with the row's own id is a self-loop cycle
 			// that no insert order can satisfy; producer leaves it empty.

@@ -103,7 +103,7 @@ func validateCutoverReferenceGraph(sourceDir string, manifest CutoverManifest, a
 		selfEdges := make(map[uint64]cutoverSelfEdge)
 		_, retainIDs := parents[spec.Name]
 		err = streamCutoverReferenceCSV(sourceDir, spec, table, allowPermutation, func(row []string, header []string, indexes map[string]int, csvLine int64) error {
-			if err := validateCutoverRow(spec, header, row, indexes, manifest.IDBand, csvLine); err != nil {
+			if err := validateCutoverRow(spec, header, row, indexes, manifest.IDBand, csvLine, manifest.profile); err != nil {
 				return err
 			}
 			if retainIDs {
