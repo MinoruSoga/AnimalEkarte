@@ -24,11 +24,13 @@ UAT bundleは信頼済みの共有経路で渡し、build時に表示されたma
 開発・サポート側で bundle を作成する。現行スクリプトは `LAB_DEVICE_AGENT_CONSUMER_TOKEN` が必須（未設定は終了）。この値は workstation bundle と配布先 Go backend が共有する raw 署名 secret（capability 署名用の HMAC key）であり、承認済み secret 経路で環境変数へ供給する。ブラウザへ返る agent-consumer 応答は raw secret ではなく、backend がその secret で署名した clinic 束縛の短命 capability（有効期限 5 分）であり、raw secret 自体はブラウザへ返さない。secret の生成・登録・取得は USER 作業で、コマンド引数・履歴・ログ・Git に実値を残さない。bundle の mode 0600 設定ファイルにも raw secret が入るため、配布物全体を保護して扱う。
 
 
-**Cloudflare 配布の停止条件(EMR-335):** 供給経路は実装済み。`backend/wrangler.jsonc` の `secrets.required` に `LAB_DEVICE_AGENT_CONSUMER_TOKEN` が名前のみ登録され、`backend/worker/index.ts` の `buildContainerEnvVars` が Worker secret を Container の Go プロセス envVars へ転送する。pinned Wrangler 4.114.0 は required secret が未投入のままの deploy / versions upload を拒否するため、新規 STG デプロイには事前の secret 投入が必須となる。値の生成・登録・取得は USER 作業であり、コマンド引数・履歴・ログ・PR・画面に実値を残さない（この記述は経路の実装のみ。投入・デプロイ・検証は本タスクでは未実施）。
+**Cloudflare 配布の停止条件(EMR-335):** STG 向けの供給経路は実装済み。`backend/wrangler.jsonc`（STG）の `secrets.required` に `LAB_DEVICE_AGENT_CONSUMER_TOKEN` が名前のみ登録され、`backend/worker/index.ts` の `buildContainerEnvVars` が Worker secret を Container の Go プロセス envVars へ転送する。pinned Wrangler 4.114.0 は required secret が未投入のままの deploy / versions upload を拒否するため、新規 STG デプロイには事前の secret 投入が必須となる。値の生成・登録・取得は USER 作業であり、コマンド引数・履歴・ログ・PR・画面に実値を残さない（この記述は STG 経路の実装のみ。投入・デプロイ・検証は本タスクでは未実施）。以下の Wrangler secret put/deploy コマンドは **STG 専用**であり、PROD へそのまま適用してはならない。
+
+**PROD（本番）配布の停止:** `backend/wrangler.production.jsonc` の `secrets.required` には `LAB_DEVICE_AGENT_CONSUMER_TOKEN` が未登録であり、secret 未設定のままでは Worker が空文字を Container へ転送し、Go 側は `/v1/lab-device/agent-consumer` を 503 で fail-closed にする。そのため現時点で **PROD 環境への bundle 配布・クライアント導入・接続成功判定は停止**とする。本番の secret 供給手順（PROD 配布先 bundle と HMAC key として一致する secret を投入する別途承認済み手順）を実装・承認・検証し、認証済み `GET /api/v1/lab-device/agent-consumer` が `200` と `expires_in` を返すことを人間が確認してから解除する。この後続の人間作業は事前準備であり、本配布停止によって妨げられない。
 
 以下のコマンドはすべて人間がリポジトリルートで実行する手順であり、本タスクでエージェントが実行した操作はない。
 
-まず STG Worker secret を投入する。値はコマンド引数に渡さず、対話プロンプトで既存の承認済み secret 供給元から取得した値を入力する。履歴・ログ・PR・スクリーンショットへ実値を記録しない。
+まず STG Worker secret を投入する（PROD へは適用しない）。値はコマンド引数に渡さず、対話プロンプトで既存の承認済み secret 供給元から取得した値を入力する。履歴・ログ・PR・スクリーンショットへ実値を記録しない。
 
 ```bash
 pnpm exec wrangler secret put LAB_DEVICE_AGENT_CONSUMER_TOKEN --config backend/wrangler.jsonc
