@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ManualArticleOverride } from "@/hooks/use-manual-article-overrides";
+import { createManualSearcher, workflowArticles } from "@/lib/manual-index";
 import { ManualPage } from "./ManualPage";
 
 const { manualPermissions, overridesHookMock } = vi.hoisted(() => ({
@@ -74,6 +75,38 @@ function mockDesktopBreakpoint(initialMatches = false) {
 }
 
 describe("ManualPage touch targets", () => {
+  it("通常診療レクチャーを業務フロー目次から開き、検索でも見つけられる", async () => {
+    const user = userEvent.setup();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const title = "通常診療レクチャー（受付から会計・ホテルと入院）";
+    const slug = "29-normal-consultation-lecture";
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/manual/screens/00-overview"]}>
+          <Routes>
+            <Route path="/manual/:category/:slug" element={<ManualPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "マニュアル目次を開く" }));
+    const dialog = await screen.findByRole("dialog", { name: "マニュアル目次" });
+    await user.click(within(dialog).getByRole("tab", { name: "業務フロー" }));
+    const articleLink = within(dialog).getByRole("link", { name: title });
+    expect(articleLink).toHaveAttribute("href", `/manual/workflows/${slug}`);
+    await user.click(articleLink);
+
+    expect(await screen.findByRole("heading", { level: 1, name: title })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "主編：通常診療" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "補足編：ホテル・入院" })).toBeInTheDocument();
+
+    const search = createManualSearcher(workflowArticles);
+    for (const query of ["通常診療", "レクチャー", "血液検査", "ホテル"]) {
+      expect(search(query).some((article) => article.slug === slug)).toBe(true);
+    }
+  });
+
   it("manual-edit:viewがなければoverride queryを無効化してbundle版を表示する", () => {
     manualPermissions.canView = false;
     manualPermissions.canEdit = false;
