@@ -61,7 +61,7 @@ flowchart TB
 | 5 | 開発側デモ環境で全業務シナリオ通し確認済み（認証付き。現場 UAT は納品後） | #254 | 全シナリオ PASS、または FAIL 項目が「納品後対応合意済みリスト」に隔離済み。[#254 close checklist](../ops/testing/scenarios/UAT-254-CLOSE-CHECKLIST.md) の実 LINE・token・audit・別 sign-off 等も満たす | （確定待ち） |
 | 6 | スタッフアカウント発行・権限設定済み | #255 | 全スタッフに個人アカウント発行・所属院スコープ・役割別権限設定済み | （確定待ち: 現在版名簿・email/院/役割方針と認可 apply 証跡。過去の受領履歴と区別し、[発行手順 I-ROSTER](../ops/deploy/accounts/STAFF_ACCOUNT_PROVISIONING.md#不足入力チェックリスト2026-08-20) を確認） |
 | 7 | フロントエンド CSP の最終確認 | [architecture.md](../ops/infra/architecture.md) | `frontend/index.html` の CSP `connect-src` に本番 API オリジンが含まれている | （確定待ち） |
-| 8 | 監視・通知（切替ブロッカーとは分離） | [cloudflare-account-separation.md §7](../ops/infra/cloudflare-account-separation.md#7-費用と通知の方針) ／ [production/runbook.md](../ops/infra/production/runbook.md) §5 | EMR-303: 対象 account/zone・送信先検証・policy 適用・実受信を人が確認する。値未決・policy 未適用だけでは移行完了・10/20 切替を止めない | 別途確認（UNKNOWN。定義だけで完了扱いしない） |
+| 8 | 監視・通知（切替ブロッカーとは分離） | [cloudflare-account-separation.md §7](../ops/infra/cloudflare-account-separation.md#7-費用と通知の方針) ／ [production/runbook.md](../ops/infra/production/runbook.md) §5 | EMR-303: 対象 account/zone・送信先検証・policy 適用・実受信を人が確認する。値未決・policy 未適用だけでは移行完了・10/20 構築開始を止めない | 別途確認（UNKNOWN。定義だけで完了扱いしない） |
 | 9 | 切り戻し体制・authority / support / rollback owner の合意 | 本書 §4・冒頭「新 window 記入欄」 ／ [production/runbook.md](../ops/infra/production/runbook.md) §3 | 判断者・判断基準・連絡経路が先方と合意済み。**ECS 切り戻しは選択肢に含めない**（#99） | （確定待ち） |
 | 10 | 全院の締め時間設定 | [#252](https://github.com/MinoruSoga/AnimalEkarte/issues/252) ／ [締め時間設定](../spec/screens/settings/closing-time-settings.md) | AM 開始 09:00 を確認、AM/PM 境界 12:00・平日/日曜終了 18:30 を全院投入。プレビュー・EMG 日跨ぎ・過去締め非再計算の非機密 receipt | （確定待ち: 投入完了証跡なし） |
 | 11 | 初期マスタ（標準予約区分）の適用と、医院が登録するマスタの案内 | EMR-341 ／ [production/setup.md](../ops/infra/production/setup.md) §4.1–4.2 ／ [EMR-321 手順](../ops/deploy/runbooks/EMR-321_HOTEL_RESERVATION.md) | 全院に標準予約区分 5 件（診察・お手入れ・ワクチン・健診・ホテル）が有効で存在する（EMR-321 の事後確認クエリが 0 行）。テスト環境で医院が登録したマスタは本番に引き継がれないため、各院が予約区分・トリミングコースの控えを保持している（案内は EMR-338 の一覧）。適用は人手のみで、最初の本番 migrate の後に行う | （確定待ち: 適用証跡なし） |
@@ -70,7 +70,7 @@ flowchart TB
 
 ## 2. 当日タイムライン（相対: T 日 = 切替日）
 
-**T 日** は冒頭「新 window 記入欄」に USER が記入した切替日のみを指す。未記入の間は本節を実行しない。
+**T 日** は冒頭「新 window 記入欄」に USER が記入した切替日のみを指す。未記入の間は本節を実行しない。10/20 は本番環境構築の開始日であり切替日 T ではない — 切替日・作業窓は別途人間が記入欄で決定し、最終 Go/No-Go 判定は従来どおり T 当日に行う。
 
 相対オフセットの基準は **T+0:00 = Access 入力停止宣言**。壁時計（09:00 等）は目安の対応表であり、確定待ちの各医院診療開始時刻に合わせて USER が調整する。旧絶対日 `2026-07-18` は実行指示ではない。
 
