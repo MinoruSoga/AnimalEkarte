@@ -306,13 +306,15 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     scheduledTime: number,
   ): Promise<readonly ScheduledRunResult[]> {
     const coordinator = new SchedulerCoordinator(this.ctx.storage);
-    return runScheduledPlan(coordinator, cron, scheduledTime, (request) =>
+    const results = await runScheduledPlan(coordinator, cron, scheduledTime, (request) =>
       runScheduledJobRequest(
         (internalRequest) => this.containerFetch(internalRequest),
         request,
         this.envVars.SCHEDULER_INTERNAL_TOKEN,
       ),
     );
+    await notifySchedulerFailures(results, schedulerAlertConfig(env), fetch, this.ctx.storage);
+    return results;
   }
 
   async getScheduledJobsStatus(limit: number): Promise<SchedulerStatus> {
@@ -336,13 +338,33 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     command: SchedulerManualCommand,
   ): Promise<SchedulerManualOperation> {
     const coordinator = new SchedulerCoordinator(this.ctx.storage);
-    return coordinator.runManual(command, (scheduledRequest) =>
+    const operation = await coordinator.runManual(command, (scheduledRequest) =>
       runScheduledJobRequest(
         (internalRequest) => this.containerFetch(internalRequest),
         scheduledRequest,
         this.envVars.SCHEDULER_INTERNAL_TOKEN,
       ),
     );
+    // Delivery is a retryable side effect after the manual result is durable.
+    // The outbox retains failed incidents; later invocations retry them.
+    // DurableObjectState.waitUntil keeps the drain registered with the DO
+    // lifecycle after the RPC response returns, so the manual response never
+    // blocks on the alert backlog (runtime shutdown may still interrupt the
+    // drain; storage/outbox retries cover that case).
+    this.ctx.waitUntil(
+      notifySchedulerFailures(
+        operation.result === undefined ? [] : [operation.result],
+        schedulerAlertConfig(env),
+        fetch,
+        this.ctx.storage,
+      ).catch(() => {
+        console.error("scheduler manual alert drain deferred", {
+          event: "scheduler_manual_alert_drain_deferred",
+          failure_code: "alert_drain_failed",
+        });
+      }),
+    );
+    return operation;
   }
 }
 
@@ -542,14 +564,6 @@ export default {
         schedulerOpsAuthConfig(env),
         coordinator,
         Date.now(),
-        async (operation) => {
-          if (operation.result !== undefined) {
-            await notifySchedulerFailures(
-              [operation.result],
-              schedulerAlertConfig(env),
-            );
-          }
-        },
       );
     }
     if (isInternalProxyPath(url.pathname)) {
@@ -596,7 +610,6 @@ export default {
     try {
       await dispatchScheduledEvent(controller, async (cron, scheduledTime) => {
         const results = await coordinator.runScheduledJobs(cron, scheduledTime);
-        await notifySchedulerFailures(results, schedulerAlertConfig(env));
         return results;
       });
     } catch {

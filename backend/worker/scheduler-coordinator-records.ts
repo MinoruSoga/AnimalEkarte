@@ -1,8 +1,4 @@
-import {
-  SCHEDULER_NAME,
-  type ScheduledJobName,
-  type ScheduledJobOutcome,
-} from "./scheduled-jobs";
+import { SCHEDULER_NAME, type ScheduledJobName, type ScheduledJobOutcome } from "./scheduled-jobs";
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 export const RUN_LEDGER_RETENTION_MS = 35 * DAY_MS;
@@ -55,7 +51,8 @@ export interface SchedulerOperationBase {
   reason: string;
   requestedAt: number;
   status: "pending" | "completed" | "rejected";
-  rejectionCode?: "revision_conflict" | "slot_already_recorded" | "scheduler_paused" | "scheduler_busy";
+  rejectionCode?:
+    "revision_conflict" | "slot_already_recorded" | "scheduler_paused" | "scheduler_busy";
 }
 
 export interface SchedulerControlOperation extends SchedulerOperationBase {
@@ -127,15 +124,20 @@ export interface ActiveScheduledRun {
   fenceToken: number;
   claimedAt: number;
   leaseExpiresAt: number;
+  // Transactional one-time stuck detection marker, not a delivery receipt: a
+  // pending outbox incident remains retryable until webhook acceptance.
+  stuckLeaseDetectedAt?: number;
 }
 
-export type RunLedgerStatus = "running" | "paused" | "success" | "partial" | "failed";
+export type RunLedgerStatus = "running" | "paused" | "skipped" | "success" | "partial" | "failed";
 export type RunFailureCode =
   | "job_partial"
   | "job_failed"
   | "transport"
   | "stale"
   | "busy"
+  | "schedule_conflict"
+  | "stuck_lease"
   | "lease_expired"
   | "fenced";
 
@@ -164,18 +166,16 @@ export interface LatestScheduledRun {
   updatedAt: number;
 }
 
-export type RunDisposition =
-  | "executed"
-  | "paused"
-  | "stale"
-  | "duplicate"
-  | "busy"
-  | "fenced";
+export type RunDisposition = "executed" | "paused" | "stale" | "duplicate" | "busy" | "fenced";
 
 export interface ScheduledRunResult {
   disposition: RunDisposition;
   ledger?: ScheduledRunLedger;
   active?: ActiveScheduledRun;
+  // Terminal ledger of the previously active run whose lease expired at this
+  // claim. Propagated so the failure notifier can alert once for the stuck
+  // run instead of masking it behind the replacement run's result.
+  expiredLedger?: ScheduledRunLedger;
 }
 
 export interface ScheduledRunResultSummary {
@@ -220,18 +220,12 @@ export function validateOperationIdentity(command: {
     throw new Error("requestId must be a UUID");
   }
   const reason = command.reason.trim();
-  if (
-    reason.length < 4 ||
-    reason.length > 200 ||
-    /[\u0000-\u001f\u007f]/.test(reason)
-  ) {
+  if (reason.length < 4 || reason.length > 200 || /[\u0000-\u001f\u007f]/.test(reason)) {
     throw new Error("reason is invalid");
   }
   if (
     command.actorPrincipal !== "scheduler-ops-secret-v1" &&
-    !/^cloudflare-access:[A-Za-z0-9._~:@+-]{1,160}$/.test(
-      command.actorPrincipal,
-    )
+    !/^cloudflare-access:[A-Za-z0-9._~:@+-]{1,160}$/.test(command.actorPrincipal)
   ) {
     throw new Error("actorPrincipal is invalid");
   }
@@ -280,9 +274,7 @@ export function normalizeControl(control: SchedulerControl | undefined): Schedul
   return {
     ...control,
     revision:
-      Number.isSafeInteger(control.revision) && control.revision >= 0
-        ? control.revision
-        : 0,
+      Number.isSafeInteger(control.revision) && control.revision >= 0 ? control.revision : 0,
   };
 }
 
@@ -294,6 +286,17 @@ export function logLeaseExpired(ledger: ScheduledRunLedger): void {
     job: ledger.job,
     scheduled_time: ledger.scheduledTime,
     failure_code: "lease_expired",
+  });
+}
+
+export function logSkippedOverlap(ledger: ScheduledRunLedger): void {
+  console.info("scheduler run overlap skipped", {
+    event: "scheduler_run_overlap_skipped",
+    scheduler: ledger.scheduler,
+    run_id: ledger.runId,
+    job: ledger.job,
+    scheduled_time: ledger.scheduledTime,
+    failure_code: ledger.failureCode ?? "busy",
   });
 }
 
@@ -363,12 +366,8 @@ export function summarizeActive(active: ActiveScheduledRun): ActiveScheduledRunS
 export function summarizeRunResult(result: ScheduledRunResult): ScheduledRunResultSummary {
   return {
     disposition: result.disposition,
-    ...(result.ledger === undefined
-      ? {}
-      : { ledger: summarizeLedger(result.ledger) }),
-    ...(result.active === undefined
-      ? {}
-      : { active: summarizeActive(result.active) }),
+    ...(result.ledger === undefined ? {} : { ledger: summarizeLedger(result.ledger) }),
+    ...(result.active === undefined ? {} : { active: summarizeActive(result.active) }),
   };
 }
 
@@ -415,11 +414,36 @@ export function terminalManualOperation(
   };
 }
 
+// Recorded-but-unexecuted states whose business job never started may be
+// reclaimed by manual catch-up: a cross-plan schedule conflict, the first
+// stuck_lease skip recorded under a stalled active lease, and busy skips of
+// later overlapped slots (including legacy skips persisted before same-slot
+// suffix persistence was removed). fenceToken 0, no outcome and no manual
+// request ID prove the job never dispatched; executed or failed jobs stay
+// rejected, and paused or stale slots keep their existing contract.
+export function isUnexecutedScheduleConflict(ledger: ScheduledRunLedger): boolean {
+  if (
+    ledger.fenceToken !== 0 ||
+    ledger.outcome !== undefined ||
+    ledger.manualRequestId !== undefined
+  ) {
+    return false;
+  }
+  if (ledger.status === "failed") {
+    return ledger.failureCode === "schedule_conflict";
+  }
+  if (ledger.status === "skipped") {
+    return ledger.failureCode === "stuck_lease" || ledger.failureCode === "busy";
+  }
+  return false;
+}
+
 export function reconcilePendingManualOperation(
   operation: SchedulerManualOperation,
   ledger: ScheduledRunLedger | undefined,
+  expiredLedger?: ScheduledRunLedger,
 ): SchedulerManualOperation | undefined {
-  if (ledger === undefined || ledger.status === "running") {
+  if (ledger === undefined || ledger.status === "running" || isUnexecutedScheduleConflict(ledger)) {
     return undefined;
   }
   const disposition: RunDisposition =
@@ -431,11 +455,14 @@ export function reconcilePendingManualOperation(
           ? "busy"
           : ledger.failureCode === "stale"
             ? "stale"
-            : ledger.failureCode === "fenced" ||
-                ledger.failureCode === "lease_expired"
+            : ledger.failureCode === "fenced" || ledger.failureCode === "lease_expired"
               ? "fenced"
               : "executed";
-  return terminalManualOperation(operation, { disposition, ledger });
+  return terminalManualOperation(operation, {
+    disposition,
+    ledger,
+    ...(expiredLedger === undefined ? {} : { expiredLedger }),
+  });
 }
 
 export function failureCodeForOutcome(outcome: ScheduledJobOutcome): RunFailureCode | undefined {
@@ -476,13 +503,29 @@ export function internalFailureLedger(
     cron: ledger.cron,
     job: ledger.job,
     scheduledTime: ledger.scheduledTime,
-    ...(ledger.manualRequestId === undefined
-      ? {}
-      : { manualRequestId: ledger.manualRequestId }),
+    ...(ledger.manualRequestId === undefined ? {} : { manualRequestId: ledger.manualRequestId }),
     fenceToken: ledger.fenceToken,
     status: "failed",
     startedAt: ledger.startedAt,
     finishedAt: now,
     failureCode,
   };
+}
+
+export function scheduledRunRequiresCronFailure(result: ScheduledRunResult): boolean {
+  if (
+    result.disposition === "paused" ||
+    (result.disposition === "busy" &&
+      (result.ledger?.failureCode === "busy" || result.ledger?.failureCode === "stuck_lease")) ||
+    result.ledger?.failureCode === "busy"
+  ) {
+    return false;
+  }
+  if (result.disposition === "duplicate") {
+    return result.ledger?.status === "partial" || result.ledger?.status === "failed";
+  }
+  if (result.disposition !== "executed") {
+    return true;
+  }
+  return result.ledger?.status === "partial" || result.ledger?.status === "failed";
 }
