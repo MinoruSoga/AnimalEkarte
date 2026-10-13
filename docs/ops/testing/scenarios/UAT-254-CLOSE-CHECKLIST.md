@@ -17,9 +17,9 @@
 | Flow | Scenario / 正本 | Required boundary |
 |:--|:--|:--|
 | 1. 受付 → 診察 → 検査 → 会計 → 締め（AM/PM/EMG） | [V02 §8–9](V02-accounting-reservation-forms.md)、[S06](S06-record-lock-audit-trail.md)、[S02](S02-exam-abnormal-highlight-lock.md)、[S08](S08-accounting-corrections.md)、[S09](S09-closing-time-boundaries.md) | 会計(医師確認)後の finalize/lock/addendum/audit、会計完了と各締め区分まで。同時刻 fixture 不足の S09 を他の PASS で代替しない |
-| 2. 予約 → 来院 → 再予約 | [V02 §7–9](V02-accounting-reservation-forms.md)、[予約からカルテの業務仕様](../../../spec/reservation-to-record-flow.md) | 予約と来院時の appointment/カルテ連携を確認し、次回の予約作成・再表示まで通す。LINE 予約のキャンセル確認だけでは再予約を証明しない |
+| 2. 予約 → 来院 → 再予約 | [V02 §7–9](V02-accounting-reservation-forms.md)、[予約からカルテの業務仕様](../../../spec/workflows/reservation-to-record-flow.md) | 予約と来院時の appointment/カルテ連携を確認し、次回の予約作成・再表示まで通す。LINE 予約のキャンセル確認だけでは再予約を証明しない |
 | 3. トリミング受付 → 実施 → 精算（診察併用含む） | [S11](S11-trimming-combined-accounting.md) | 未請求明細統合、単独/併用精算、appointment 解決 |
-| 4. LINE 予約 → カルテ反映 | [S04](S04-liff-reservation-journey.md)、[S06](S06-record-lock-audit-trail.md)、[予約からカルテの業務仕様](../../../spec/reservation-to-record-flow.md) | S04 の予約表示だけで止めず、病院側の来院受付・カルテ作成まで引き継ぐ。mock lane と実 LINE lane を区別し、stopped/error maintenance を維持 |
+| 4. LINE 予約 → カルテ反映 | [S04](S04-liff-reservation-journey.md)、[S06](S06-record-lock-audit-trail.md)、[予約からカルテの業務仕様](../../../spec/workflows/reservation-to-record-flow.md) | S04 の予約表示だけで止めず、病院側の来院受付・カルテ作成まで引き継ぐ。mock lane と実 LINE lane を区別し、stopped/error maintenance を維持 |
 | 5. 月次集計 → 帳票出力 | [月次集計・帳票仕様](../../../spec/screens/32-accounting-reports.md)、[探索ガイド §2.2](../SECTION_14_MANUAL_TEST_GUIDE.md) | `/accounting/reports` の対象月の会計集計と帳票/出力を突合。S10 の顧客別年間 LTV/CSV は別の集計で、月次帳票の代替にならない |
 
 補完確認: 入院サイクルは [S05](S05-hospitalization-cycle.md)（cage、registration-time plan、二重退院拒否）、LIFF health/account link は [S12](S12-liff-pet-health.md)（LIFF ID 両分岐、owner isolation）。

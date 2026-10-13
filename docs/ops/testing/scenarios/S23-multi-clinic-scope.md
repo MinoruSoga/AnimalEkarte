@@ -2,7 +2,7 @@
 
 > **目的**: 複数医院に所属する actor が医院切替（`?clinics=`）で一覧を正しく絞り込み、他医院の行では操作が抑制され、非第一所属の医院で作成したカルテの帰属（`entered_by_clinic`）が正しく記録されることを納品前に証明する。
 > **所要目安**: 20分 / **深度**: 深い
-> **仕様正本**: [specification.md §1.1](../../../spec/specification.md)・[screens/03-owners-list.md](../../../spec/screens/03-owners-list.md)・[screens/05-medical-records-list.md](../../../spec/screens/05-medical-records-list.md)。関連 tracker: `BUG2-MR-ENTERED-BY-CLINIC`・`SLACK-CROSS-CLINIC`（PO 裁定待ち）・Plane 他院検索調査。
+> **仕様正本**: [specification.md §1.1](../../../spec/specification.md)・[screens/03-owners-list.md](../../../spec/screens/03-owners-list.md)・[domains/medical-records/pages/medical-record-list.md](../../../spec/domains/medical-records/pages/medical-record-list.md)。関連 tracker: `BUG2-MR-ENTERED-BY-CLINIC`・`SLACK-CROSS-CLINIC`（PO 裁定待ち）・Plane 他院検索調査。
 
 ## 前提条件
 

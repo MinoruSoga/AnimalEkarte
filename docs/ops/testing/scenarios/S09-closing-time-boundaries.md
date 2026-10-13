@@ -2,7 +2,7 @@
 
 > **目的**: 会計が完了時刻に基づき AM/PM/EMG の正しい区分・営業日へ集計され、越日 EMG と締め済み期間の保護が機能することを証明する。
 > **所要目安**: 30分（データ準備含む） / **深度**: 深い
-> **仕様正本**: [レジ締め業務](../../../spec/cash-register.md) / [レジ締め・履歴](../../../spec/screens/29-closing-aggregation.md) / [締め時間設定](../../../spec/screens/settings/closing-time-settings.md) / [会計精算](../../../spec/screens/11-accounting-detail.md)
+> **仕様正本**: [レジ締め業務](../../../spec/cash-register.md) / [レジ締め・履歴](../../../spec/screens/29-closing-aggregation.md) / [締め時間設定](../../../spec/screens/settings/closing-time-settings.md) / [会計精算](../../../spec/domains/accounting/pages/accounting-settlement.md)
 
 ## 前提条件
 

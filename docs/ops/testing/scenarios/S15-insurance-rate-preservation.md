@@ -2,7 +2,7 @@
 
 > **目的**: 会計の保険負担割合が、新規会計では 50%/70% だけを選択肢として提示し、既存会計の 90%/100% 等のレガシー値をサイレントに丸めずそのまま保持・表示することを納品前に証明する。
 > **所要目安**: 15分 / **深度**: 中
-> **仕様正本**: [screens/11-accounting-detail.md §1.2](../../../spec/screens/11-accounting-detail.md)。検証キュー: `UAT-Q4-INSURANCE-RATES`（[todo-verification.md](../../../../todo.md#verification-ledger)）。
+> **仕様正本**: [domains/accounting/pages/accounting-settlement.md §1.2](../../../spec/domains/accounting/pages/accounting-settlement.md)。検証キュー: `UAT-Q4-INSURANCE-RATES`（[todo-verification.md](../../../../todo.md#verification-ledger)）。
 
 ## 前提条件
 
@@ -41,7 +41,7 @@ flowchart LR
 - 新規選択肢は `InsuranceCard` で 50/70 に制限（`{ value: "0.5" }`・`{ value: "0.7" }`）。既存値 0.9/1.0/1 は `LEGACY_INSURANCE_RATIO_LABELS` で 90%/100% 表示へ写像する（`frontend/src/features/accounting/components/InsuranceCard.tsx`）。
 - 「新規は 50/70」「既存は値を保持」の2系統を別ケースで証明する。混在させない（`UAT-Q4-INSURANCE-RATES` の要求）。
 - 既存値が変更なしの保存で丸められないことは本シナリオの核心。変更した項目だけが変わることを対応づける。
-- 金額計算は集中計算エンジン `calculations.ts`（[11 §3.1](../../../spec/screens/11-accounting-detail.md)）が正本。画面内訳と API レスポンスの一致を確認する。
+- 金額計算は集中計算エンジン `calculations.ts`（[11 §3.1](../../../spec/domains/accounting/pages/accounting-settlement.md)）が正本。画面内訳と API レスポンスの一致を確認する。
 - 保険請求そのもの（レセプト・外部送信）は本シナリオ外。実請求データの作成・変更は禁止。
 
 ## 実装突合

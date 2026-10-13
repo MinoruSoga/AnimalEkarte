@@ -22,18 +22,18 @@
 
 | # | 業務 | 本書 | システム内マニュアル（正本） | 画面仕様 |
 |---|---|---|---|---|
-| 1 | 受付 | §2.1 | 業務フロー「受付の 1 日の流れ」「新規飼主の登録から初診会計まで」「既存飼主の来院対応」 | [01-reception](../spec/screens/01-reception.md) |
-| 2 | 診察カルテ | §2.2 | 画面マニュアル「カルテ」 | [05](../spec/screens/05-medical-records-list.md)／[06](../spec/screens/06-medical-records-form.md)／[99-flow](../spec/screens/99-medical-record-flow.md) |
+| 1 | 受付 | §2.1 | 業務フロー「受付の 1 日の流れ」「新規飼主の登録から初診会計まで」「既存飼主の来院対応」 | [01-reception](../spec/domains/reception/pages/reception-board.md) |
+| 2 | 診察カルテ | §2.2 | 画面マニュアル「カルテ」 | [05](../spec/domains/medical-records/pages/medical-record-list.md)／[06](../spec/domains/medical-records/pages/medical-record-form.md)／[99-flow](../spec/domains/medical-records/lifecycle.md) |
 | 3 | 検査 | §7 | 画面マニュアル「検査管理」 | [12](../spec/screens/12-examinations-list.md)／[13](../spec/screens/13-examinations-form.md) |
-| 4 | 会計 / 締め | §2.3–2.4 | 業務フロー「新規飼主の登録から初診会計まで」「会計の取消・返金」「日次締めの流れ」「月次締め・レポート」 | [10](../spec/screens/10-accounting-list.md)／[11](../spec/screens/11-accounting-detail.md)／[29](../spec/screens/29-closing-aggregation.md)／[32](../spec/screens/32-accounting-reports.md) |
-| 5 | 予約 | §3 | 画面マニュアル「予約管理」／業務フロー「電話対応」 | [02-reservations](../spec/screens/02-reservations.md)／[24-shift-calendar](../spec/screens/24-shift-calendar.md) |
+| 4 | 会計 / 締め | §2.3–2.4 | 業務フロー「新規飼主の登録から初診会計まで」「会計の取消・返金」「日次締めの流れ」「月次締め・レポート」 | [10](../spec/domains/accounting/pages/accounting-list.md)／[11](../spec/domains/accounting/pages/accounting-settlement.md)／[29](../spec/screens/29-closing-aggregation.md)／[32](../spec/screens/32-accounting-reports.md) |
+| 5 | 予約 | §3 | 画面マニュアル「予約管理」／業務フロー「電話対応」 | [02-reservations](../spec/domains/reservations/pages/reservation-management.md)／[24-shift-calendar](../spec/screens/24-shift-calendar.md) |
 | 6 | トリミング | §4 | 画面マニュアル「トリミング」 | [16](../spec/screens/16-trimming-list.md)／[17](../spec/screens/17-trimming-form.md) |
 | 7 | LINE 予約 | §6 | 画面マニュアル「LINE予約管理」／業務フロー「LINE・Lステップ連携の全体像」 | [28](../spec/screens/28-line-reservation.md)／[31](../spec/screens/31-lstep-integration.md) |
 | 8 | 集計 | §8 | 業務フロー「月次締め・レポート」 | [32-accounting-reports](../spec/screens/32-accounting-reports.md)／[36-aggregation-dashboard](../spec/screens/36-aggregation-dashboard.md) |
 
 > **残作業（repo 外 / 依存）**: システム内マニュアルのスクリーンショットと文言の最終突合は #254 デモ UAT 結果に依存。紛らわしい操作の FAQ 追記も同依存。操作説明会は **2026-10-04 決定で開催せず本マニュアルで代替**（U13 解消・§10）。
 >
-> **会計フロー（RQ-002）**: システム内マニュアルを実装整合済みです。カルテ確定だけでは会計は自動作成されず、会計画面で作成して未請求明細を pull します（[99-medical-record-flow.md](../spec/screens/99-medical-record-flow.md)）。退院時の会計は `create_accounting` 選択時のみ同時作成。D-254 の FAQ・スクショ最終突合は別依存のままです（[REPAIR-QUEUE](../work/docs-audit/docs-perfection/REPAIR-QUEUE.md)）。
+> **会計フロー（RQ-002）**: システム内マニュアルを実装整合済みです。カルテ確定だけでは会計は自動作成されず、会計画面で作成して未請求明細を pull します（[99-medical-record-flow.md](../spec/domains/medical-records/lifecycle.md)）。退院時の会計は `create_accounting` 選択時のみ同時作成。D-254 の FAQ・スクショ最終突合は別依存のままです（[REPAIR-QUEUE](../work/docs-audit/docs-perfection/REPAIR-QUEUE.md)）。
 
 ---
 
@@ -73,7 +73,7 @@ flowchart LR
 
 | 参照先 | 場所 |
 |---|---|
-| 画面仕様 | [当日の受付](../spec/screens/01-reception.md) |
+| 画面仕様 | [当日の受付](../spec/domains/reception/pages/reception-board.md) |
 | システム内マニュアル | 業務フロー「受付の 1 日の流れ」「新規飼主の登録から初診会計まで」「既存飼主の来院対応」 |
 
 **要点**:
@@ -86,7 +86,7 @@ flowchart LR
 
 | 参照先 | 場所 |
 |---|---|
-| 画面仕様 | [カルテ一覧](../spec/screens/05-medical-records-list.md)／[カルテ詳細・入力](../spec/screens/06-medical-records-form.md)／[カルテ登録・編集フロー詳細](../spec/screens/99-medical-record-flow.md) |
+| 画面仕様 | [カルテ一覧](../spec/domains/medical-records/pages/medical-record-list.md)／[カルテ詳細・入力](../spec/domains/medical-records/pages/medical-record-form.md)／[カルテ登録・編集フロー詳細](../spec/domains/medical-records/lifecycle.md) |
 | システム内マニュアル | 画面マニュアル「カルテ」 |
 
 **要点**:
@@ -98,7 +98,7 @@ flowchart LR
 
 | 参照先 | 場所 |
 |---|---|
-| 画面仕様 | [会計一覧](../spec/screens/10-accounting-list.md)／[会計精算 詳細](../spec/screens/11-accounting-detail.md)／[未納者一覧](../spec/screens/30-unpaid-list.md) |
+| 画面仕様 | [会計一覧](../spec/domains/accounting/pages/accounting-list.md)／[会計精算 詳細](../spec/domains/accounting/pages/accounting-settlement.md)／[未納者一覧](../spec/domains/accounting/pages/unpaid-list.md) |
 | システム内マニュアル | 業務フロー「新規飼主の登録から初診会計まで」「会計の取消・返金」「未払い（売掛）管理」 |
 
 **要点**:
@@ -106,7 +106,7 @@ flowchart LR
 - **未締めの確定済み会計**: 「取消」→「新規会計登録」で作り直す運用では、取消の操作者・時刻・変更前後の状態が監査ログに記録される。取消理由の入力・保存機能はない。
 - **締め済みの日の会計訂正**: レジ締め自体の取消・巻き戻しはできない（append-only）。`accounting-post-close-edit` 権限を持つスタッフが会計詳細から **理由必須** の締め後編集を行い、監査ログと訂正台帳に追記される（W-013）。
 
-精算済み会計を再保存しても、最初の確定日時は変更されません。保存エラー時は支払確定表示を更新せず、エラーを表示します。通信が切れて結果が不明な場合は、会計一覧で登録・更新状態を確認してから操作してください。詳細は[会計精算仕様](../spec/screens/11-accounting-detail.md#21-精算済みデータの保護と修正)を参照します。
+精算済み会計を再保存しても、最初の確定日時は変更されません。保存エラー時は支払確定表示を更新せず、エラーを表示します。通信が切れて結果が不明な場合は、会計一覧で登録・更新状態を確認してから操作してください。詳細は[会計精算仕様](../spec/domains/accounting/pages/accounting-settlement.md#21-精算済みデータの保護と修正)を参照します。
 
 ### 2.4 レジ締め（日次・月次）
 
@@ -130,7 +130,7 @@ flowchart LR
 
 | 参照先 | 場所 |
 |---|---|
-| 画面仕様 | [予約管理](../spec/screens/02-reservations.md)／[シフトカレンダー](../spec/screens/24-shift-calendar.md) |
+| 画面仕様 | [予約管理](../spec/domains/reservations/pages/reservation-management.md)／[シフトカレンダー](../spec/screens/24-shift-calendar.md) |
 | システム内マニュアル | 画面マニュアル「予約管理」／業務フロー「電話対応」 |
 
 **要点**:
@@ -138,7 +138,7 @@ flowchart LR
 - スタッフ指名予約に対応。予約当日はホームのカンバンに自動表示される。
 - 予約の変更・キャンセルもこの画面から。
 - 日時変更は 2 通り: 予約詳細の「編集」から日時を変えて保存する方法と、週表示で予約ブロックを上下にドラッグ（15 分単位）する方法。開始時刻を変えると終了時刻は自動計算され、同一担当者・同一時間帯の重複は保存前に警告されます。
-- 次回予定（未予約の来院意向）はカルテ記録の流れから tentative として登録でき、一覧・期限切れの確認は予約管理側で行う。通常予約の空き枠や LINE 予約完了通知には影響しない（業務フロー: [reservation-to-record-flow.md](../spec/reservation-to-record-flow.md)）。
+- 次回予定（未予約の来院意向）はカルテ記録の流れから tentative として登録でき、一覧・期限切れの確認は予約管理側で行う。通常予約の空き枠や LINE 予約完了通知には影響しない（業務フロー: [reservation-to-record-flow.md](../spec/workflows/reservation-to-record-flow.md)）。
 
 ---
 
@@ -266,4 +266,4 @@ flowchart LR
 
 ## 12. カルテの削除・確定後の訂正
 
-カルテを削除できるのは下書きだけです。確定後は確定解除や元の記録の編集ができないため、訂正は追記で行います。詳細は[カルテ作成・編集仕様](../spec/screens/06-medical-records-form.md)を参照してください。
+カルテを削除できるのは下書きだけです。確定後は確定解除や元の記録の編集ができないため、訂正は追記で行います。詳細は[カルテ作成・編集仕様](../spec/domains/medical-records/pages/medical-record-form.md)を参照してください。

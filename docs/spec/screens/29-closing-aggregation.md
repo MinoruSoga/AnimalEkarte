@@ -92,7 +92,7 @@ flowchart TB
 
 > ※ EMR-354 のチケット要件は確定済みだが、ユーザー報告の**元の紙帳票（ペーパーレポート）実物は未取得**のため、
 > 元帳票との完全一致は **未検証**。本節は実装済みの画面・印刷契約を記す。
-> 列構成は [10-accounting-list.md §当日会計](./10-accounting-list.md) の
+> 列構成は [accounting-list.md §当日会計](../domains/accounting/pages/accounting-list.md) の
 > 日次集計一覧表（A4 landscape）の並びを踏襲する。
 
 - **行単位**: backend は split 明細行（1 会計 × split 数）を返す。画面 `BillingDetailTable` と

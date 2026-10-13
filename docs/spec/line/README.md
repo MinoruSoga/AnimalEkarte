@@ -35,7 +35,7 @@
 ### 主要な価値
 - **オペレーションの自動化**: LINE 予約がカルテ受付（カンバン）へ即座に反映され、スタッフの手入力コストを削減。
 - **臨床データに基づく CRM**: 診察結果や最終来院日に基づき、Lステップが「忘れられない病院」として自動で飼主をフォロー。
-- **競合を拒否する空き枠管理**: 作成transaction内で予約種別規則とappointment conflictを再検証する。明示staffはclinic所属・capability・LIFF公開/activeを検査する。追記（2026-10-07 監査）: 明示staffの**選択時刻のshift再検証は未実装**という既知 source gap と扱いの正本は [reservation-to-record-flow.md §7](../reservation-to-record-flow.md)（Deferred / known gaps）。frontendのshift絞り込みだけを安全根拠にしない。
+- **競合を拒否する空き枠管理**: 作成transaction内で予約種別規則とappointment conflictを再検証する。明示staffはclinic所属・capability・LIFF公開/activeを検査する。追記（2026-10-07 監査）: 明示staffの**選択時刻のshift再検証は未実装**という既知 source gap と扱いの正本は [reservation-to-record-flow.md §7](../workflows/reservation-to-record-flow.md)（Deferred / known gaps）。frontendのshift絞り込みだけを安全根拠にしない。
 
 ```mermaid
 flowchart LR

@@ -4,7 +4,7 @@
 > **所要目安**: 110分 / **深度**: フォーム検証 + **項目単位 F プロトコル**
 > **フォーム数**: inventory 再構築中のため算定保留。全フォーム完了はまだ主張しない。
 > **項目単位**: [FIELD-LEVEL-PROTOCOL.md](FIELD-LEVEL-PROTOCOL.md) + [FORM-FIELD-INVENTORY.md](FORM-FIELD-INVENTORY.md) §V02。C1 は入口に過ぎず、**inventory の全 fieldKey に F0–F6 を適用**して完了とする。
-> **仕様正本**: [screens/11-accounting-detail.md](../../../spec/screens/11-accounting-detail.md)・[screens/29-closing-aggregation.md](../../../spec/screens/29-closing-aggregation.md)・[screens/23-estimate-form.md](../../../spec/screens/23-estimate-form.md)・[screens/02-reservations.md](../../../spec/screens/02-reservations.md)・[screens/01-reception.md](../../../spec/screens/01-reception.md)・[screens/24-shift-calendar.md](../../../spec/screens/24-shift-calendar.md)・在庫は `frontend/src/features/inventory`
+> **仕様正本**: [domains/accounting/pages/accounting-settlement.md](../../../spec/domains/accounting/pages/accounting-settlement.md)・[screens/29-closing-aggregation.md](../../../spec/screens/29-closing-aggregation.md)・[screens/23-estimate-form.md](../../../spec/screens/23-estimate-form.md)・[domains/reservations/pages/reservation-management.md](../../../spec/domains/reservations/pages/reservation-management.md)・[domains/reception/pages/reception-board.md](../../../spec/domains/reception/pages/reception-board.md)・[screens/24-shift-calendar.md](../../../spec/screens/24-shift-calendar.md)・在庫は `frontend/src/features/inventory`
 
 ## 前提条件
 

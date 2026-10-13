@@ -2,7 +2,7 @@
 
 > **目的**: 受付ボード（特に日付切替で選択した非本日 `?date=<選択日>`）から詳細モーダル・カードのミニアクション経由で別ページへ遷移し、遷移先の「戻る」ボタン・保存後リダイレクトの両方で、選択日の受付ボードへ復帰することを納品前に証明する。
 > **所要目安**: 15分 / **深度**: 中
-> **仕様正本**: [screens/01-reception.md](../../../spec/screens/01-reception.md)（「戻り先の保持」: `location.state.from = "/?date=<選択日>"`）。
+> **仕様正本**: [domains/reception/pages/reception-board.md](../../../spec/domains/reception/pages/reception-board.md)（「戻り先の保持」: `location.state.from = "/?date=<選択日>"`）。
 
 ## 前提条件
 
