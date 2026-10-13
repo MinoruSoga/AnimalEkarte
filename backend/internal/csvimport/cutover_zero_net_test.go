@@ -8,7 +8,7 @@ import (
 func TestPreflightCutoverBundleZeroNetSignedSplits(t *testing.T) {
 	for _, invalid := range []bool{false, true} {
 		t.Run(map[bool]string{false: "opposite nonzero tenders", true: "zero tenders rejected"}[invalid], func(t *testing.T) {
-			dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+			dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 				pc, sc := cutoverSpecByName(t, "payments").Columns, cutoverSpecByName(t, "payment_splits").Columns
 				cash, card := "-100", "100"
 				if invalid {
@@ -29,6 +29,7 @@ func TestPreflightCutoverBundleZeroNetSignedSplits(t *testing.T) {
 			})
 			_, err := PreflightCutoverBundle(dir, ExpectedCutoverSource{
 				ManifestSHA256: digest, ClinicCode: "hachioji", ClinicOrdinal: 1, RunID: "run-1",
+				Provenance: CutoverProvenanceContract{Mode: CutoverProvenanceLocalRehearsal},
 			})
 			if invalid && (err == nil || !strings.Contains(err.Error(), "amount must not be zero")) {
 				t.Fatalf("want zero split rejection, got %v", err)

@@ -52,6 +52,9 @@ func applyCutoverWithBegin(
 	bundle CutoverBundle,
 	seeds CutoverSeedIDs,
 ) (CutoverResult, error) {
+	if err := validateCutoverProducerProvenanceForApply(bundle); err != nil {
+		return CutoverResult{}, err
+	}
 	tx, err := begin(ctx)
 	if err != nil {
 		return CutoverResult{}, ErrCutoverTransactionNotStarted
@@ -495,4 +498,8 @@ func validateCutoverSeedFacts(seeds CutoverSeedIDs, facts cutoverSeedFacts) erro
 		return fmt.Errorf("target clinic must have exactly one unique credit-card payment method")
 	}
 	return nil
+}
+
+func validateCutoverProducerProvenanceForApply(bundle CutoverBundle) error {
+	return validateCutoverProducerProvenance(bundle.Manifest, bundle.Provenance)
 }

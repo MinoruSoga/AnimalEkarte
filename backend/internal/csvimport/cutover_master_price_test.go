@@ -10,7 +10,7 @@ import (
 )
 
 // RED coverage for EMR-345: negative prices are rejected for exactly the
-// four master tables. Empty and zero stay allowed. Historical negative
+// four master tables. Only nullable master prices allow empty; zero stays allowed. Historical negative
 // values in billing_items and estimate_items (refunds/discounts) stay
 // allowed. Errors name table, column, and row — never the cell value.
 
@@ -29,10 +29,10 @@ func TestCutoverMasterPriceRejectsNegative(t *testing.T) {
 		t.Run(tc.table+"."+tc.column, func(t *testing.T) {
 			spec := cutoverSpecByName(t, tc.table)
 			column := columnIndex(spec.Columns, tc.column)
-			dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+			dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 				f.rows[tc.table][0][column] = "-100"
 			})
-			_, err := PreflightCutoverBundle(dir, formalExpectedSource(digest))
+			_, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest))
 			if err == nil {
 				t.Fatal("negative master price was accepted")
 			}
@@ -51,6 +51,9 @@ func TestCutoverMasterPriceRejectsNegative(t *testing.T) {
 func TestCutoverMasterPriceAcceptsZeroEmptyAndPositive(t *testing.T) {
 	for _, tc := range cutoverMasterPriceTargets {
 		for _, value := range []string{"0", "", "500"} {
+			if tc.table == "merchandise_items" && value == "" {
+				continue
+			}
 			name := tc.table + "." + tc.column + "/" + value
 			if value == "" {
 				name += "empty"
@@ -58,10 +61,10 @@ func TestCutoverMasterPriceAcceptsZeroEmptyAndPositive(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				spec := cutoverSpecByName(t, tc.table)
 				column := columnIndex(spec.Columns, tc.column)
-				dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+				dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 					f.rows[tc.table][0][column] = value
 				})
-				if _, err := PreflightCutoverBundle(dir, formalExpectedSource(digest)); err != nil {
+				if _, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest)); err != nil {
 					t.Fatalf("PreflightCutoverBundle error = %v, want %s=%q accepted", err, tc.column, value)
 				}
 			})
@@ -74,10 +77,10 @@ func TestCutoverMasterPriceRejectsMalformed(t *testing.T) {
 		t.Run(tc.table+"."+tc.column, func(t *testing.T) {
 			spec := cutoverSpecByName(t, tc.table)
 			column := columnIndex(spec.Columns, tc.column)
-			dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+			dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 				f.rows[tc.table][0][column] = "not-an-integer"
 			})
-			_, err := PreflightCutoverBundle(dir, formalExpectedSource(digest))
+			_, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest))
 			if err == nil || !strings.Contains(err.Error(), "must be an integer") {
 				t.Fatalf("PreflightCutoverBundle error = %v, want malformed integer rejection", err)
 			}
@@ -157,10 +160,10 @@ func TestCutoverMasterPriceAllowsHistoricalNegativeBillingAndEstimate(t *testing
 		t.Run(tc.table+"."+tc.column, func(t *testing.T) {
 			spec := cutoverSpecByName(t, tc.table)
 			column := columnIndex(spec.Columns, tc.column)
-			dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+			dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 				f.rows[tc.table][0][column] = "-100"
 			})
-			if _, err := PreflightCutoverBundle(dir, formalExpectedSource(digest)); err != nil {
+			if _, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest)); err != nil {
 				t.Fatalf("PreflightCutoverBundle error = %v, want historical negative %s accepted", err, tc.table)
 			}
 		})

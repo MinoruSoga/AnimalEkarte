@@ -13,14 +13,15 @@ import (
 	"testing"
 )
 
-func TestPreflightCutoverBundleAcceptsExactContract(t *testing.T) {
-	dir, manifestDigest := writeCutoverFixture(t, nil)
+func TestPreflightCutoverBundleAcceptsRehearsalExactContract(t *testing.T) {
+	dir, manifestDigest := writeCutoverRehearsalFixture(t, nil)
 
 	bundle, err := PreflightCutoverBundle(dir, ExpectedCutoverSource{
 		ManifestSHA256: manifestDigest,
 		ClinicCode:     "hachioji",
 		ClinicOrdinal:  1,
 		RunID:          "run-1",
+		Provenance:     CutoverProvenanceContract{Mode: CutoverProvenanceLocalRehearsal},
 	})
 	if err != nil {
 		t.Fatalf("PreflightCutoverBundle() error = %v", err)
@@ -31,13 +32,13 @@ func TestPreflightCutoverBundleAcceptsExactContract(t *testing.T) {
 	if bundle.Manifest.IDBand.ApplicationIDFloor != 1_000_000_000 {
 		t.Fatalf("application floor = %d", bundle.Manifest.IDBand.ApplicationIDFloor)
 	}
-	if bundle.Manifest.HandoffEligibility != "TRUSTED_CANDIDATE" {
-		t.Fatalf("handoff eligibility = %q, want TRUSTED_CANDIDATE", bundle.Manifest.HandoffEligibility)
+	if bundle.Manifest.HandoffEligibility != "REHEARSAL_ONLY" {
+		t.Fatalf("handoff eligibility = %q, want REHEARSAL_ONLY", bundle.Manifest.HandoffEligibility)
 	}
 }
 
-func TestPreflightCutoverBundleAcceptsNegativeRefundAmounts(t *testing.T) {
-	dir, manifestDigest := writeCutoverFixture(t, func(f *fixtureBundle) {
+func TestPreflightCutoverBundleAcceptsRehearsalNegativeRefundAmounts(t *testing.T) {
+	dir, manifestDigest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 		billingColumns := cutoverSpecByName(t, "billings").Columns
 		paymentColumns := cutoverSpecByName(t, "payments").Columns
 		splitColumns := cutoverSpecByName(t, "payment_splits").Columns
@@ -58,13 +59,14 @@ func TestPreflightCutoverBundleAcceptsNegativeRefundAmounts(t *testing.T) {
 		ClinicCode:     "hachioji",
 		ClinicOrdinal:  1,
 		RunID:          "run-1",
+		Provenance:     CutoverProvenanceContract{Mode: CutoverProvenanceLocalRehearsal},
 	}); err != nil {
 		t.Fatalf("PreflightCutoverBundle(negative refund) error = %v", err)
 	}
 }
 
-func TestPreflightCutoverBundleAcceptsWindowZeroCompletedBillingWithoutPayment(t *testing.T) {
-	dir, manifestDigest := writeCutoverFixture(t, func(f *fixtureBundle) {
+func TestPreflightCutoverBundleAcceptsRehearsalWindowZeroCompletedBillingWithoutPayment(t *testing.T) {
+	dir, manifestDigest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 		billingColumns := cutoverSpecByName(t, "billings").Columns
 		zero := append([]string(nil), f.rows["billings"][0]...)
 		zero[columnIndex(billingColumns, "id")] = "1000002"
@@ -79,6 +81,7 @@ func TestPreflightCutoverBundleAcceptsWindowZeroCompletedBillingWithoutPayment(t
 		ClinicCode:     "hachioji",
 		ClinicOrdinal:  1,
 		RunID:          "run-1",
+		Provenance:     CutoverProvenanceContract{Mode: CutoverProvenanceLocalRehearsal},
 	}); err != nil {
 		t.Fatalf("PreflightCutoverBundle(window-zero completed) error = %v", err)
 	}
@@ -119,7 +122,7 @@ func TestPreflightCutoverBundleAcceptsLocalRehearsalBundle(t *testing.T) {
 }
 
 func TestPreflightCutoverBundleAcceptsLocalRehearsalOutputDirSuffix(t *testing.T) {
-	dir, manifestDigest := writeCutoverFixture(t, func(f *fixtureBundle) {
+	dir, manifestDigest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 		f.manifest.OutputDir += "-rehearsal-current"
 	})
 	if _, err := PreflightCutoverBundle(dir, ExpectedCutoverSource{
@@ -139,17 +142,17 @@ func TestStagingRehearsalProvenanceRequiresTargetBinding(t *testing.T) {
 		{Mode: CutoverProvenanceStagingRehearsal},
 		{Mode: CutoverProvenanceStagingRehearsal, Target: CutoverTargetBinding{Environment: "local", Host: "db", Database: "ekarte", ClinicID: 1}},
 	} {
-		if _, err := validateCutoverProducerProvenance(manifest, contract); err == nil || !strings.Contains(err.Error(), "target binding") {
+		if err := validateCutoverProducerProvenance(manifest, contract); err == nil || !strings.Contains(err.Error(), "target binding") {
 			t.Fatalf("contract %+v error = %v, want target binding rejection", contract, err)
 		}
 	}
 }
 
-func TestStagingRehearsalProvenanceAcceptsFullyVerifiedProducer(t *testing.T) {
+func TestStagingRehearsalProvenanceBlocksUnapprovedVerifiedProducer(t *testing.T) {
 	dir, digest := writeCutoverFixture(t, nil)
 
-	if _, err := PreflightCutoverBundle(dir, stagingExpectedCutoverSource(digest)); err != nil {
-		t.Fatalf("PreflightCutoverBundle(staging rehearsal) error = %v", err)
+	if _, err := PreflightCutoverBundle(dir, stagingExpectedCutoverSource(digest)); err == nil || !strings.Contains(err.Error(), "activation") {
+		t.Fatalf("PreflightCutoverBundle(staging rehearsal) error = %v, want activation blocked", err)
 	}
 }
 
@@ -547,7 +550,7 @@ func TestCutoverTableSpecsDeclareNonNullableTextColumns(t *testing.T) {
 	}
 }
 
-// TestCutoverMappingCoverageCoversAllFormalTables locks the Issue #250
+// TestCutoverMappingCoverageLabelsUnapprovedCandidate locks the Issue #250
 // source→target inventory: the formal table set, isolation mode, non-PHI fields only.
 func TestCutoverMappingCoverageCoversAllFormalTables(t *testing.T) {
 	specs := CutoverTableSpecs()
@@ -580,7 +583,7 @@ func TestCutoverMappingCoverageCoversAllFormalTables(t *testing.T) {
 		if !slices.Equal(entry.BandColumns, spec.BandColumns) {
 			t.Fatalf("%s BandColumns = %v, want %v", entry.TargetTable, entry.BandColumns, spec.BandColumns)
 		}
-		if entry.ConsumerStatus != "formal_cutover_v1" {
+		if entry.ConsumerStatus != "candidate_22_rehearsal_only" {
 			t.Fatalf("%s ConsumerStatus = %q", entry.TargetTable, entry.ConsumerStatus)
 		}
 		expectClinicID := hasColumn(spec.Columns, "clinic_id")
@@ -913,8 +916,8 @@ func TestPreflightCutoverBundleAllowsHistoricalPaymentSnapshotOnlyForRehearsal(t
 		t.Fatalf("verified staging preflight error = %v, want payment snapshot rejection", err)
 	}
 	expected.Provenance.Mode = CutoverProvenanceLocalRehearsal
-	if _, err := PreflightCutoverBundle(dir, expected); err != nil {
-		t.Fatalf("local rehearsal preflight error = %v", err)
+	if _, err := PreflightCutoverBundle(dir, expected); err == nil || !strings.Contains(err.Error(), "activation") {
+		t.Fatalf("trusted local-mode activation error = %v", err)
 	}
 
 	rehearsalDir, rehearsalDigest := writeCutoverFixture(t, func(f *fixtureBundle) {
@@ -937,7 +940,7 @@ func TestValidateCutoverPaymentGraphRejectsUnboundedPaymentInventory(t *testing.
 	}
 }
 
-func TestPreflightCutoverBundleAcceptsCreditCardAndMixedPaymentGraphs(t *testing.T) {
+func TestPreflightCutoverBundleAcceptsRehearsalCreditCardAndMixedPaymentGraphs(t *testing.T) {
 	tests := []struct {
 		name   string
 		mutate func(*fixtureBundle)
@@ -986,12 +989,13 @@ func TestPreflightCutoverBundleAcceptsCreditCardAndMixedPaymentGraphs(t *testing
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dir, digest := writeCutoverFixture(t, tt.mutate)
+			dir, digest := writeCutoverRehearsalFixture(t, tt.mutate)
 			if _, err := PreflightCutoverBundle(dir, ExpectedCutoverSource{
 				ManifestSHA256: digest,
 				ClinicCode:     "hachioji",
 				ClinicOrdinal:  1,
 				RunID:          "run-1",
+				Provenance:     CutoverProvenanceContract{Mode: CutoverProvenanceLocalRehearsal},
 			}); err != nil {
 				t.Fatalf("PreflightCutoverBundle() error = %v", err)
 			}
@@ -1145,6 +1149,10 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle)) (string, str
 			case "completed_at":
 				if spec.Name == "billings" {
 					row[i] = "2026-07-22T00:00:00.000000Z"
+				}
+			case "unit_price":
+				if spec.Name == "merchandise_items" {
+					row[i] = "0"
 				}
 			case "default_quantity":
 				if spec.Name == "medicines" {
@@ -1301,4 +1309,15 @@ func TestDecodeCutoverManifestAcceptsKnownHandoffPackageMetadata(t *testing.T) {
 	if manifest.PackagingMode != "REHEARSAL_ONLY_COPY" || manifest.SourcePackage != "sensitive-local/example" {
 		t.Fatalf("handoff metadata was not preserved: %+v", manifest)
 	}
+}
+
+// writeCutoverRehearsalFixture explicitly labels the unapproved candidate.
+func writeCutoverRehearsalFixture(t *testing.T, mutate func(*fixtureBundle)) (string, string) {
+	t.Helper()
+	return writeCutoverFixture(t, func(f *fixtureBundle) {
+		mutateRehearsalOnlyHandoff(f)
+		if mutate != nil {
+			mutate(f)
+		}
+	})
 }

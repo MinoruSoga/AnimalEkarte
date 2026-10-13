@@ -10,7 +10,7 @@ import (
 )
 
 func TestPreflightCutoverBundleRejectsMissingEstimatePet(t *testing.T) {
-	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+	dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 		for _, spec := range CutoverTableSpecs() {
 			if spec.Name == "estimates" {
 				f.rows[spec.Name][0][columnIndex(spec.Columns, "pet_id")] = "1000084"
@@ -26,6 +26,7 @@ func TestPreflightCutoverBundleRejectsMissingEstimatePet(t *testing.T) {
 		ClinicCode:     "hachioji",
 		ClinicOrdinal:  1,
 		RunID:          "run-1",
+		Provenance:     CutoverProvenanceContract{Mode: CutoverProvenanceLocalRehearsal},
 	})
 	if err == nil || !strings.Contains(err.Error(), "estimates") || !strings.Contains(err.Error(), "pet_id") {
 		t.Fatalf("PreflightCutoverBundle() error = %v, want missing estimates.pet_id rejection", err)
@@ -42,7 +43,7 @@ func TestPreflightCutoverBundleRejectsEveryMissingCSVParent(t *testing.T) {
 				continue
 			}
 			t.Run(table+"/"+ref.column, func(t *testing.T) {
-				dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+				dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 					setReferenceFixtureCell(f, table, ref.column, "1000084")
 				})
 				_, err := PreflightCutoverBundle(dir, referenceFixtureSource(digest))
@@ -64,7 +65,7 @@ func TestPreflightCutoverBundleRejectsEmptyRequiredReferences(t *testing.T) {
 				continue
 			}
 			t.Run(table+"/"+ref.column, func(t *testing.T) {
-				dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+				dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 					setReferenceFixtureCell(f, table, ref.column, "")
 				})
 				if _, err := PreflightCutoverBundle(dir, referenceFixtureSource(digest)); err == nil {
@@ -76,7 +77,7 @@ func TestPreflightCutoverBundleRejectsEmptyRequiredReferences(t *testing.T) {
 }
 
 func TestPreflightCutoverBundleAllowsNullableReferences(t *testing.T) {
-	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+	dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 		for table, refs := range cutoverCSVReferences() {
 			for _, ref := range refs {
 				if ref.nullable {
@@ -98,7 +99,7 @@ func TestPreflightCutoverBundleRejectsNonImportedParents(t *testing.T) {
 	} {
 		for _, value := range []string{"0", "1000001"} {
 			t.Run(tc.table+"/"+tc.column+"/"+value, func(t *testing.T) {
-				dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+				dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 					setReferenceFixtureCell(f, tc.table, tc.column, value)
 				})
 				if _, err := PreflightCutoverBundle(dir, referenceFixtureSource(digest)); err == nil {
@@ -116,7 +117,7 @@ func TestPreflightCutoverBundleRejectsUnpinnedSeeds(t *testing.T) {
 				continue
 			}
 			t.Run(table+"/"+ref.column, func(t *testing.T) {
-				dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+				dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 					setReferenceFixtureCell(f, table, ref.column, "1000084")
 				})
 				if _, err := PreflightCutoverBundle(dir, referenceFixtureSource(digest)); err == nil {
@@ -130,7 +131,7 @@ func TestPreflightCutoverBundleRejectsUnpinnedSeeds(t *testing.T) {
 func TestPreflightCutoverBundleAcceptsPinnedSpecies(t *testing.T) {
 	for species := 1; species <= 6; species++ {
 		t.Run(strconv.Itoa(species), func(t *testing.T) {
-			dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+			dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 				setReferenceFixtureCell(f, "pets", "animal_species_id", strconv.Itoa(species))
 			})
 			if _, err := PreflightCutoverBundle(dir, referenceFixtureSource(digest)); err != nil {
@@ -141,7 +142,7 @@ func TestPreflightCutoverBundleAcceptsPinnedSpecies(t *testing.T) {
 }
 
 func TestPreflightCutoverBundleAcceptsForwardSelfReferences(t *testing.T) {
-	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+	dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 		for i, spec := range CutoverTableSpecs() {
 			selfColumn, selfRef := cutoverSelfReferenceColumn(spec.Name)
 			if !selfRef {
@@ -170,7 +171,7 @@ func TestPreflightCutoverBundleRejectsSelfReferenceCycle(t *testing.T) {
 			continue
 		}
 		t.Run(spec.Name, func(t *testing.T) {
-			dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+			dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 				// row 0 (id 1000001) declares parent 1000002; the appended row
 				// (id 1000002) declares parent 1000001 — a 2-cycle no insert
 				// order can satisfy under the non-deferrable self FK.
@@ -199,7 +200,7 @@ func TestPreflightCutoverBundleRejectsSelfReferenceCycle(t *testing.T) {
 }
 
 func TestPreflightCutoverBundleUsesNumericReferenceIdentity(t *testing.T) {
-	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+	dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 		for i, spec := range CutoverTableSpecs() {
 			for _, ref := range cutoverCSVReferences()[spec.Name] {
 				if ref.kind != cutoverCSVParent {
@@ -234,7 +235,7 @@ func TestPreflightCutoverBundleUsesNumericReferenceIdentity(t *testing.T) {
 }
 
 func TestPreflightCutoverBundleRejectsNumericDuplicateParents(t *testing.T) {
-	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+	dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 		parent := append([]string(nil), f.rows["pets"][0]...)
 		parent[0] = "+001000001"
 		f.rows["pets"] = append(f.rows["pets"], parent)
@@ -335,7 +336,7 @@ func TestCutoverReferenceInventoryRejectsContractDrift(t *testing.T) {
 }
 
 func TestCutoverReferenceGraphRehashesOpenedBytes(t *testing.T) {
-	dir, digest := writeCutoverFixture(t, nil)
+	dir, digest := writeCutoverRehearsalFixture(t, nil)
 	bundle, err := PreflightCutoverBundle(dir, referenceFixtureSource(digest))
 	if err != nil {
 		t.Fatal(err)
@@ -380,7 +381,7 @@ func TestCutoverReferenceInventoryIsReturnedIndependently(t *testing.T) {
 }
 
 func referenceFixtureSource(digest string) ExpectedCutoverSource {
-	return ExpectedCutoverSource{ManifestSHA256: digest, ClinicCode: "hachioji", ClinicOrdinal: 1, RunID: "run-1"}
+	return localRehearsalExpectedSource(digest)
 }
 
 func setReferenceFixtureCell(f *fixtureBundle, table, column, value string) {

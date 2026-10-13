@@ -110,6 +110,9 @@ func ApplyCutoverCommittingEachTable(
 	seeds CutoverSeedIDs,
 	iso pgx.TxIsoLevel,
 ) (CutoverResult, error) {
+	if err := validateCutoverCandidateActivation(bundle.Manifest, bundle.Provenance); err != nil {
+		return CutoverResult{}, err
+	}
 	if iso == "" {
 		iso = pgx.RepeatableRead
 	}
@@ -128,6 +131,9 @@ func applyCutoverCommittingEachTable(
 	seeds CutoverSeedIDs,
 	iso pgx.TxIsoLevel,
 ) (CutoverResult, error) {
+	if err := validateCutoverProducerProvenanceForApply(bundle); err != nil {
+		return CutoverResult{}, err
+	}
 	if _, err := session.Exec(ctx, `SELECT pg_advisory_lock($1)`, cutoverAdvisoryLockKey); err != nil {
 		return CutoverResult{}, fmt.Errorf("acquire cutover lock: %w", err)
 	}

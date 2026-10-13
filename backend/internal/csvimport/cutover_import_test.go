@@ -481,12 +481,13 @@ func TestApplyCutoverRollsBackWhenPaymentSplitCopyFails(t *testing.T) {
 
 func validCutoverBundleForApply(t *testing.T) CutoverBundle {
 	t.Helper()
-	dir, digest := writeCutoverFixture(t, nil)
+	dir, digest := writeCutoverRehearsalFixture(t, nil)
 	bundle, err := PreflightCutoverBundle(dir, ExpectedCutoverSource{
 		ManifestSHA256: digest,
 		ClinicCode:     "hachioji",
 		ClinicOrdinal:  1,
 		RunID:          "run-1",
+		Provenance:     CutoverProvenanceContract{Mode: CutoverProvenanceLocalRehearsal},
 	})
 	if err != nil {
 		t.Fatal(err)

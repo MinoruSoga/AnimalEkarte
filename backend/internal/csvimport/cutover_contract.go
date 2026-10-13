@@ -356,7 +356,7 @@ func CutoverMappingCoverage() []CutoverMappingEntry {
 			BandColumns:    append([]string(nil), spec.BandColumns...),
 			HasClinicID:    hasClinicID,
 			IsolationCheck: isolation,
-			ConsumerStatus: "formal_cutover_v1",
+			ConsumerStatus: "candidate_22_rehearsal_only",
 		})
 	}
 	return coverage

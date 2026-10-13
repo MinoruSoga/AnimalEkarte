@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestCutoverSourceProvenanceRoutes(t *testing.T) {
+func TestCutoverSourceProvenanceRoutesDoNotActivateCandidate(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		route    *string
@@ -33,7 +33,7 @@ func TestCutoverSourceProvenanceRoutes(t *testing.T) {
 				stagingExpectedCutoverSource(digest),
 			} {
 				_, err := PreflightCutoverBundle(dir, expected)
-				if (err == nil) != tc.accept {
+				if tc.accept && (err == nil || !strings.Contains(err.Error(), "activation")) || !tc.accept && err == nil {
 					t.Fatalf("route acceptance (%s) = %v, want %v (error: %v)", expected.Provenance.Mode, err == nil, tc.accept, err)
 				}
 			}
@@ -41,7 +41,7 @@ func TestCutoverSourceProvenanceRoutes(t *testing.T) {
 	}
 }
 
-func TestCutoverImmutableOutputRevision(t *testing.T) {
+func TestCutoverImmutableOutputRevisionDoesNotActivateCandidate(t *testing.T) {
 	const prefix = "sensitive-local/animalekarte-csv-export/hachioji/run-1-revisions/"
 	for _, tc := range []struct {
 		path   string
@@ -64,7 +64,7 @@ func TestCutoverImmutableOutputRevision(t *testing.T) {
 				stagingExpectedCutoverSource(digest),
 			} {
 				_, err := PreflightCutoverBundle(dir, expected)
-				if (err == nil) != tc.accept {
+				if tc.accept && (err == nil || !strings.Contains(err.Error(), "activation")) || !tc.accept && err == nil {
 					t.Fatalf("revision acceptance (%s) = %v, want %v (error: %v)", expected.Provenance.Mode, err == nil, tc.accept, err)
 				}
 			}
@@ -72,7 +72,7 @@ func TestCutoverImmutableOutputRevision(t *testing.T) {
 	}
 }
 
-func TestCutoverReviewedMappingRevision(t *testing.T) {
+func TestCutoverReviewedMappingRevisionDoesNotActivateCandidate(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		digest string
@@ -91,7 +91,7 @@ func TestCutoverReviewedMappingRevision(t *testing.T) {
 				ClinicOrdinal:  1,
 				RunID:          "run-1",
 			})
-			if (err == nil) != tc.accept {
+			if tc.accept && (err == nil || !strings.Contains(err.Error(), "activation")) || !tc.accept && err == nil {
 				t.Fatalf("mapping revision acceptance = %v, want %v (error: %v)", err == nil, tc.accept, err)
 			}
 		})

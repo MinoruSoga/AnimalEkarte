@@ -49,9 +49,13 @@
 
 ### 22 表候補（EMR-343/345 — producer pin 未合意のドラフト）
 
-`CutoverTableSpecs()` に `medicines`（15 列、`procedures` と `merchandise_items` の間）を加えた 22 表 consumer 実装候補がある。同候補は `estimate_items.medicine_id` を medicines CSV 親参照として扱い、`procedures.price` / `medicines.price` / `merchandise_items.unit_price` / `vaccines.price` の 4 マスタ価格列のみ負値・非整数を拒否する（空欄・0 は許容。`billing_items` / `estimate_items` の歴史的負値＝返金・値引は変更なし）。
+`CutoverTableSpecs()` に `medicines`（15 列、`procedures` と `merchandise_items` の間）を加えた 22 表 consumer 実装候補がある。同候補は `estimate_items.medicine_id` を medicines CSV 親参照として扱い、`procedures.price` / `medicines.price` / `merchandise_items.unit_price` / `vaccines.price` の 4 マスタ価格列のみ負値・非整数を拒否する（0 は許容。空欄は nullable な procedures / medicines / vaccines の価格のみ許容し、NOT NULL の merchandise_items.unit_price は投入前に拒否する。`billing_items` / `estimate_items` の歴史的負値＝返金・値引は変更なし）。
 
 deployed/main の正式 contract は引き続き 21 表のまま: `cutoverCSVContractSHA256` の compiled pin（`9e02897b…`）と producer bundle は本候補では変更していない。producer 側の 21 表 source hash（`8a466c63…`）は compiled pin と一致しておらず、22 表 producer source は存在しない。したがって合成 22 表 fixture（現行 21 表 source pin 使用）は**構造のみ**を証明し、provider 一致・正式採用を証明しない。正式受入れは producer artifacts / source hash / 再生成 bundle / 一致 receipt が揃う MIG-34・MIG-37・MIG-41 調整の完了まで保留である。
+
+この22表候補では、旧pinを持つ `PASS` / `TRUSTED_CANDIDATE` も formal（未指定modeを含む）も **activation blocked** として source preflight・単一transaction apply・table別resume applyのいずれでもDB取得/Begin/Exec/COPY前に拒否する。pinの更新・producer receiptの採用は別の明示reviewが必要であり、manifest自己申告や環境変数で解除する経路はない。実装候補を検証できるのは既存のlocal/staging rehearsal modeを明示し、artifactも `REHEARSAL_ONLY` とした場合だけで、hash・22表shape・FK・inventoryの検証は維持する。mapping coverageのconsumer statusは `candidate_22_rehearsal_only` であり正式採用を示さない。旧21表bundleはこの候補では引き続きtable数不一致で拒否され、旧版consumerとの互換性は保証しない。
+
+`medicines.default_quantity` は空欄=NULL、0有効の非負decimalとし、`numeric(10,2)`へ丸めなしで格納できる値だけを許容する。上限99999999.99、fractionの末尾0を除き2桁まで（1.2300可、0.001不可）。浮動小数点による判定やNULLの0補完は行わない。
 
 - **dry-run**: `make csv-import-preflight` が source digest / 6 seed binding / 空 band / FK catalog を read-only 検証する。apply は別コマンド。
 - **idempotency**: apply 後の再 preflight/apply は `CUTOVER_REF_BAND_OCCUPIED` で拒否（既存行の置換・削除なし）。

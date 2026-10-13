@@ -123,11 +123,11 @@ func TestCutoverMedicinesDefaultQuantityAndDosageForm(t *testing.T) {
 		{"powder", "powder", "2.5"},
 	} {
 		t.Run("accepts "+tc.name, func(t *testing.T) {
-			dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+			dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 				f.rows["medicines"][0][dosageFormIdx] = tc.dosageForm
 				f.rows["medicines"][0][defaultQuantityIdx] = tc.defaultQuantity
 			})
-			if _, err := PreflightCutoverBundle(dir, formalExpectedSource(digest)); err != nil {
+			if _, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest)); err != nil {
 				t.Fatalf("PreflightCutoverBundle error = %v, want dosage_form=%q default_quantity=%q accepted",
 					err, tc.dosageForm, tc.defaultQuantity)
 			}
@@ -135,10 +135,10 @@ func TestCutoverMedicinesDefaultQuantityAndDosageForm(t *testing.T) {
 	}
 
 	t.Run("rejects unknown dosage form", func(t *testing.T) {
-		dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 			f.rows["medicines"][0][dosageFormIdx] = "bogus-form"
 		})
-		_, err := PreflightCutoverBundle(dir, formalExpectedSource(digest))
+		_, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest))
 		if err == nil || !strings.Contains(err.Error(), "dosage_form") {
 			t.Fatalf("PreflightCutoverBundle error = %v, want dosage_form rejection", err)
 		}
@@ -148,10 +148,10 @@ func TestCutoverMedicinesDefaultQuantityAndDosageForm(t *testing.T) {
 	})
 
 	t.Run("rejects non-numeric default quantity", func(t *testing.T) {
-		dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 			f.rows["medicines"][0][defaultQuantityIdx] = "not-a-number"
 		})
-		_, err := PreflightCutoverBundle(dir, formalExpectedSource(digest))
+		_, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest))
 		if err == nil || !strings.Contains(err.Error(), "default_quantity") {
 			t.Fatalf("PreflightCutoverBundle error = %v, want default_quantity rejection", err)
 		}
@@ -175,7 +175,7 @@ func TestCutoverMedicinesLegacy21BundleRejected(t *testing.T) {
 		f.manifest.Tables = kept
 		delete(f.rows, "medicines")
 	}
-	t.Run("formal", func(t *testing.T) {
+	t.Run("formal shape rejected", func(t *testing.T) {
 		dir, digest := writeCutoverFixture(t, dropMedicines)
 		_, err := PreflightCutoverBundle(dir, formalExpectedSource(digest))
 		if err == nil || !strings.Contains(err.Error(), "want 22") {
@@ -183,7 +183,7 @@ func TestCutoverMedicinesLegacy21BundleRejected(t *testing.T) {
 		}
 	})
 	t.Run("local rehearsal", func(t *testing.T) {
-		dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 			mutateRehearsalOnlyHandoff(f)
 			dropMedicines(f)
 		})
@@ -195,12 +195,12 @@ func TestCutoverMedicinesLegacy21BundleRejected(t *testing.T) {
 }
 
 func TestCutoverMedicinesMissingCSV(t *testing.T) {
-	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+	dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 		f.afterManifest = func(dir string) {
 			_ = os.Remove(filepath.Join(dir, "medicines.csv"))
 		}
 	})
-	_, err := PreflightCutoverBundle(dir, formalExpectedSource(digest))
+	_, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest))
 	if err == nil || !strings.Contains(err.Error(), "medicines") {
 		t.Fatalf("PreflightCutoverBundle error = %v, want missing medicines.csv rejection", err)
 	}
@@ -213,19 +213,19 @@ func TestCutoverMedicinesEstimateItemReference(t *testing.T) {
 	medicinesIDCol := columnIndex(medicinesSpec.Columns, "id")
 
 	t.Run("resolves a medicines CSV parent", func(t *testing.T) {
-		dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 			f.rows["estimate_items"][0][medicineCol] = f.rows["medicines"][0][medicinesIDCol]
 		})
-		if _, err := PreflightCutoverBundle(dir, formalExpectedSource(digest)); err != nil {
+		if _, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest)); err != nil {
 			t.Fatalf("PreflightCutoverBundle error = %v, want medicines parent accepted", err)
 		}
 	})
 
 	t.Run("rejects a missing medicines parent", func(t *testing.T) {
-		dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 			f.rows["estimate_items"][0][medicineCol] = "1000002"
 		})
-		_, err := PreflightCutoverBundle(dir, formalExpectedSource(digest))
+		_, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest))
 		if err == nil || !strings.Contains(err.Error(), "reference to medicines") {
 			t.Fatalf("PreflightCutoverBundle error = %v, want missing medicines parent rejection", err)
 		}
@@ -235,10 +235,10 @@ func TestCutoverMedicinesEstimateItemReference(t *testing.T) {
 	})
 
 	t.Run("empty medicine_id stays nullable", func(t *testing.T) {
-		dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 			f.rows["estimate_items"][0][medicineCol] = ""
 		})
-		if _, err := PreflightCutoverBundle(dir, formalExpectedSource(digest)); err != nil {
+		if _, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest)); err != nil {
 			t.Fatalf("PreflightCutoverBundle error = %v, want empty medicine_id accepted", err)
 		}
 	})
@@ -249,10 +249,10 @@ func TestCutoverMedicinesEstimateItemReference(t *testing.T) {
 func TestCutoverMedicinesInventoryMustBeEmpty(t *testing.T) {
 	spec := cutoverSpecByName(t, "medicines")
 	inventoryCol := columnIndex(spec.Columns, "inventory_id")
-	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+	dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 		f.rows["medicines"][0][inventoryCol] = "1000001"
 	})
-	_, err := PreflightCutoverBundle(dir, formalExpectedSource(digest))
+	_, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest))
 	if err == nil || !strings.Contains(err.Error(), "inventory") {
 		t.Fatalf("PreflightCutoverBundle error = %v, want non-empty inventory_id rejection", err)
 	}
@@ -264,10 +264,10 @@ func TestCutoverMedicinesInventoryMustBeEmpty(t *testing.T) {
 func TestCutoverMedicinesClinicMismatch(t *testing.T) {
 	spec := cutoverSpecByName(t, "medicines")
 	clinicCol := columnIndex(spec.Columns, "clinic_id")
-	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+	dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 		f.rows["medicines"][0][clinicCol] = "1000001"
 	})
-	_, err := PreflightCutoverBundle(dir, formalExpectedSource(digest))
+	_, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest))
 	if err == nil || !strings.Contains(err.Error(), "clinic_id") {
 		t.Fatalf("PreflightCutoverBundle error = %v, want clinic placeholder rejection", err)
 	}
@@ -282,7 +282,7 @@ func TestCutoverMedicinesDuplicateNames(t *testing.T) {
 	spec := cutoverSpecByName(t, "medicines")
 	idCol := columnIndex(spec.Columns, "id")
 	nameCol := columnIndex(spec.Columns, "name")
-	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+	dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 		base := f.rows["medicines"][0]
 		base[nameCol] = "duplicated-name"
 		second := append([]string(nil), base...)
@@ -294,7 +294,7 @@ func TestCutoverMedicinesDuplicateNames(t *testing.T) {
 			}
 		}
 	})
-	_, err := PreflightCutoverBundle(dir, formalExpectedSource(digest))
+	_, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest))
 	if err == nil || !strings.Contains(err.Error(), "duplicate") || !strings.Contains(err.Error(), "name") {
 		t.Fatalf("PreflightCutoverBundle error = %v, want duplicate medicines name rejection", err)
 	}
