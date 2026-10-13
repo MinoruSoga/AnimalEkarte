@@ -296,24 +296,6 @@ func acceptsRehearsalManifest(mode CutoverProvenanceMode) bool {
 	return mode == CutoverProvenanceLocalRehearsal || mode == CutoverProvenanceStagingRehearsal
 }
 
-// validateCutoverCandidateActivation blocks the unapproved 22-table profile.
-// Existing digest pins identify the 21-table producer, not an activation receipt.
-// Only an explicitly selected rehearsal mode with a rehearsal-only artifact
-// may exercise this candidate. There is no manifest or environment override.
-func validateCutoverCandidateActivation(manifest CutoverManifest, contract CutoverProvenanceContract) error {
-	profile, err := ParseCutoverProfile(string(contract.Profile))
-	if err != nil {
-		return err
-	}
-	if profile != CutoverProfileMedicinesCandidate {
-		return nil
-	}
-	if acceptsRehearsalManifest(contract.Mode) && isRehearsalOnlyProducer(manifest) {
-		return nil
-	}
-	return fmt.Errorf("22-table cutover profile activation is blocked pending reviewed producer contract and receipt")
-}
-
 func validateCutoverProducerProvenance(manifest CutoverManifest, contract CutoverProvenanceContract) error {
 	if _, err := validateCutoverProducerEvidence(manifest, contract); err != nil {
 		return err
