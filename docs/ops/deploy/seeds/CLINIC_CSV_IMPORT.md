@@ -91,7 +91,7 @@ artifact が前提で、activation gate は formal 経路を拒否し続けま�
 producer 受領・本番切替の承認ではありません。importer が受理する code/ordinal/clinic_id は
 hachioji=1、jouto=2、shikishima=3、hakobuneco=4 だけです。
 apply report が既に `PASS` の医院は wrapper が skip し、残りへ進みます。
-ただし候補 profile（`medicines-22-candidate`）では、`status: PASS` とmanifest SHAの一致だけでは省略できません。reportの `targetHost` / `targetDatabase` が現在の選択値と一致することを要求し、同じprofile・対象DB・医院・seed bindingで既存のread-only `make stg-uat-csv-import-verify` を実行します。成功時だけ「report PASS + 現target検証済み」として省略します。検査は既存verifyの件数・医院・FK・sequence等の範囲であり、全行の内容hash一致を保証するものではありません。
+ただし候補 profile（`medicines-22-candidate`）では、`status: PASS` とmanifest SHAの一致だけでは省略できません。reportの `targetHost` / `targetDatabase` が現在の選択値と一致することを要求し、同じprofile・対象DB・医院・seed bindingで既存のread-only `make stg-uat-csv-import-verify` を実行します。成功時だけ「report PASS + 現target検証済み」として省略します。検査は既存verifyの件数・医院・FK・sequence等の範囲であり、全行の内容hash一致を保証するものではありません。base候補reportの `manifestSha256` が現在のsource（同一clinic/runでも再生成source）と異なるstale報告は、旧ファイルを改名・削除・上書きせずそのまま残し、以後のこのsourceでは `-medicines-22-candidate-<現在のmanifest SHA>` というdigest別の新規report pathを使います（wrapperが管理する `STG_UAT_CSV_REPORT_SUFFIX` で既存のmake invocationへ渡す）。digest別reportの再利用には同じtarget結合＋現target verify の guard が適用され、失敗時はfail-closedです。直接 `make stg-uat-csv-import-*` / `stg-uat-import` の既定（suffix自動付与）は変わりません。
 
 reportの対象が異なる／対象metadataが欠ける／現targetのverifyが失敗する場合は、importやreportの変更を行わず非ゼロで停止します。既存reportのno-clobber規約を保持し、自動退避・削除・上書きはしません。DB再構築や対象変更後に再投入が必要な場合は、[STG_PLANETSCALE_SEED_RUNBOOK.md](../stg/STG_PLANETSCALE_SEED_RUNBOOK.md) §6.1 の順でreportを退避してから再実行する既存手順が必要です。dry-runはverify/importを実行しません。legacy-21の既存PASS省略は従来どおり維持します。候補の対象確認はproducer受領・本番切替承認ではありません。
 

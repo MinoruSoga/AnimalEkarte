@@ -1108,6 +1108,18 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle), profiles ...
 			case "id":
 				if spec.Name == "owners" {
 					row[i] = "300001"
+				} else if selectedCutoverProfile(profiles) == CutoverProfileMedicinesCandidate {
+					// The canonical sale-item band gives each master a distinct
+					// ID (EMR-342 DESIGN 3.6): one ID, exactly one master table.
+					// Legacy21 keeps its shared-ID fixture behavior unchanged.
+					switch spec.Name {
+					case "medicines":
+						row[i] = "1000002"
+					case "merchandise_items":
+						row[i] = "1000003"
+					default:
+						row[i] = "1000001"
+					}
 				} else {
 					row[i] = "1000001"
 				}
@@ -1200,6 +1212,10 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle), profiles ...
 			}
 			if column == "owner_id" {
 				row[idx] = "300001"
+			} else if spec.Name == "estimate_items" && column == "medicine_id" {
+				// The candidate default rewrite row references the medicines
+				// row's own distinct band ID.
+				row[idx] = "1000002"
 			} else {
 				row[idx] = "1000001"
 			}

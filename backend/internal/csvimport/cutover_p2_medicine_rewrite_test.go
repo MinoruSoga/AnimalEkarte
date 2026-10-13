@@ -60,12 +60,12 @@ func TestCutoverEstimateMedicineRewriteJointInvariant(t *testing.T) {
 	consultCol := columnIndex(estimateSpec.Columns, "consultation_id")
 	procedureCol := columnIndex(estimateSpec.Columns, "procedure_id")
 	merchandiseCol := columnIndex(estimateSpec.Columns, "merchandise_item_id")
-	// Distinct existing master IDs avoid the legacy cross-master overlap guard.
+	// The candidate fixture assigns each sale-item master a distinct band ID
+	// (procedures 1000001, medicines 1000002, merchandise_items 1000003); the
+	// rewrite points at the medicines row.
 	medicineID := "1000002"
 
 	set := func(f *fixtureBundle, category, medicineIDValue, consultation, procedure, merchandise string) {
-		f.rows["medicines"][0][columnIndex(cutoverSpecByName(t, "medicines").Columns, "id")] = medicineID
-		f.rows["merchandise_items"][0][columnIndex(cutoverSpecByName(t, "merchandise_items").Columns, "id")] = "1000003"
 		row := f.rows["estimate_items"][0]
 		row[categoryCol] = category
 		row[medicineCol] = medicineIDValue
@@ -171,5 +171,45 @@ func TestCutoverEstimateMedicineRewriteRowLevelChecks(t *testing.T) {
 	band := CutoverIDBand{Base: 0, EndExclusive: 10_000_000, NonOwnerIDOffset: 1_000_000, OwnerFloor: 300_000, ApplicationIDFloor: 1_000_000_000}
 	if err := validateCutoverRow(spec, header, row, indexes, band, 2, CutoverProfileMedicinesCandidate); err == nil || !strings.Contains(err.Error(), "consultation_id") {
 		t.Fatalf("validateCutoverRow error = %v, want consultation dual-reference rejection", err)
+	}
+}
+
+// EMR-342 DESIGN 3.6: procedures, medicines, and merchandise_items share the
+// canonical sale-item ID band, so one ID belongs to exactly one master table.
+// The candidate22 consumer rejects any cross-master ID overlap. Legacy21 has
+// no medicines table and keeps its existing contract.
+func TestCutoverSaleItemMasterIDsMutuallyDisjoint(t *testing.T) {
+	idCol := func(tableName string) int {
+		return columnIndex(cutoverSpecByName(t, tableName).Columns, "id")
+	}
+
+	t.Run("distinct candidate master IDs accepted", func(t *testing.T) {
+		dir, digest := writeMedicinesCandidateFixture(t, nil)
+		if _, err := PreflightCutoverBundle(dir, candidateExpectedSource(digest)); err != nil {
+			t.Fatalf("PreflightCutoverBundle error = %v, want distinct sale-item masters accepted", err)
+		}
+	})
+
+	rejections := []struct {
+		name, table, reusedID, otherTable string
+	}{
+		{"medicines reuses procedures id", "medicines", "1000001", "procedures"},
+		{"merchandise reuses medicines id", "merchandise_items", "1000002", "medicines"},
+		{"procedures reuses merchandise id", "procedures", "1000003", "merchandise_items"},
+	}
+	for _, tc := range rejections {
+		t.Run(tc.name, func(t *testing.T) {
+			dir, digest := writeMedicinesCandidateFixture(t, func(f *fixtureBundle) {
+				f.rows[tc.table][0][idCol(tc.table)] = tc.reusedID
+			})
+			_, err := PreflightCutoverBundle(dir, candidateExpectedSource(digest))
+			if err == nil {
+				t.Fatal("PreflightCutoverBundle accepted overlapping sale-item master IDs")
+			}
+			if !strings.Contains(err.Error(), "already assigned") ||
+				!strings.Contains(err.Error(), tc.table) || !strings.Contains(err.Error(), tc.otherTable) {
+				t.Fatalf("PreflightCutoverBundle error = %v, want cross-master overlap naming %s and %s", err, tc.table, tc.otherTable)
+			}
+		})
 	}
 }

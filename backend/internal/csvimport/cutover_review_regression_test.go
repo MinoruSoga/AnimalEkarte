@@ -51,17 +51,18 @@ func TestCutoverReviewMedicineQuantityExactNumeric(t *testing.T) {
 	}
 }
 
-// CSV-655-R1: row-level guard for the medicine_unit enum, mirroring the
-// default_quantity contract. Empty stays NULL; only the four DB enum labels
-// pass. A dosage_form label ("tablet") is not a unit and must be rejected.
-func TestCutoverReviewMedicineUnitEnum(t *testing.T) {
+// EMR-342 DESIGN 3.2/3.3: the old database has no medicine_unit source, so
+// every imported row must carry an empty medicine_unit. Even target enum
+// labels have no producer source and fail preflight. Diagnostics name the
+// table, column, and row only — never the rejected cell value.
+func TestCutoverReviewMedicineUnitMustStayEmpty(t *testing.T) {
 	indexes := map[string]int{"dosage_form": 0, "medicine_unit": 1, "default_quantity": 2}
 	for _, tc := range []struct {
 		value string
 		valid bool
 	}{
 		{"", true},
-		{"per_tablet", true}, {"per_ml", true}, {"per_dose", true}, {"per_gram", true},
+		{"per_tablet", false}, {"per_ml", false}, {"per_dose", false}, {"per_gram", false},
 		{"per_pill", false}, {"PER_TABLET", false}, {"tablet", false},
 	} {
 		t.Run(tc.value, func(t *testing.T) {
@@ -69,8 +70,13 @@ func TestCutoverReviewMedicineUnitEnum(t *testing.T) {
 			if (err == nil) != tc.valid {
 				t.Fatalf("medicine_unit valid=%v, error=%v", tc.valid, err)
 			}
-			if err != nil && (!strings.Contains(err.Error(), "medicine_unit") || !strings.Contains(err.Error(), "row 2")) {
-				t.Fatalf("unsafe diagnostic: %v", err)
+			if err != nil {
+				if !strings.Contains(err.Error(), "medicine_unit") || !strings.Contains(err.Error(), "row 2") {
+					t.Fatalf("unsafe diagnostic: %v", err)
+				}
+				if tc.value != "" && strings.Contains(err.Error(), tc.value) {
+					t.Fatal("error leaks the source cell value")
+				}
 			}
 		})
 	}

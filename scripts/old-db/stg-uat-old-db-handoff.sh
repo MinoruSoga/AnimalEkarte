@@ -55,10 +55,19 @@ load_local_db_exports() {
   if [[ ! -f "$env_file" ]]; then
     die "missing $env_file (copy scripts/old-db/stg-uat-old-db-handoff.local.env.example, chmod 600, fill DB_HOST/DB_USER/DB_PASSWORD)"
   fi
-  local mode
-  mode="$(stat -f '%Lp' "$env_file" 2>/dev/null || stat -c '%a' "$env_file")"
+  # GNU stat has no BSD -f file mode probe: a combined "a || b" capture lets
+  # the failing GNU probe emit filesystem status on stdout. Probe
+  # separately so a failed probe's stdout is discarded, GNU -c first, then
+  # BSD -f, and reject any mode other than 0600.
+  local mode=""
+  if ! mode="$(stat -c '%a' "$env_file" 2>/dev/null)" || [[ -z "$mode" ]]; then
+    mode=""
+    if ! mode="$(stat -f '%Lp' "$env_file" 2>/dev/null)" || [[ -z "$mode" ]]; then
+      mode=""
+    fi
+  fi
   if [[ "$mode" != "600" && "$mode" != "0600" ]]; then
-    die "$env_file must be mode 0600 (got $mode)"
+    die "$env_file must be mode 0600 (got ${mode:-unknown})"
   fi
   set -a
   # shellcheck disable=SC1090
@@ -281,10 +290,24 @@ for clinic_dir_name in "${clinics[@]}"; do
     continue
   fi
 
+  make_suffix_arg=""
   if [[ "$COMMAND" == "import" ]]; then
     report_suffix=""
     if [[ "$STG_UAT_CSV_IMPORT_PROFILE" == "medicines-22-candidate" ]]; then
       report_suffix="-medicines-22-candidate"
+      base_report="$REPORT_DIR/${clinic}-${run}-stg-uat-apply${report_suffix}.json"
+      if [[ -f "$base_report" ]]; then
+        base_sha="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("manifestSha256",""))' "$base_report")"
+        if [[ "$base_sha" != "$sha" ]]; then
+          # P2 4258858615: the base candidate evidence belongs to a
+          # different source. Preserve the old report untouched and select a
+          # digest-specific fresh path for this exact manifest bytes; the
+          # same target-binding and read-only target-verify guards apply to
+          # that path before it may be reused.
+          report_suffix="-medicines-22-candidate-$sha"
+          make_suffix_arg="$report_suffix"
+        fi
+      fi
     fi
     report="$REPORT_DIR/${clinic}-${run}-stg-uat-apply${report_suffix}.json"
     if [[ -f "$report" ]]; then
@@ -319,7 +342,11 @@ for clinic_dir_name in "${clinics[@]}"; do
     fi
   fi
 
-  make -C "$ROOT" "$make_target"
+  if [[ -n "$make_suffix_arg" ]]; then
+    make -C "$ROOT" "$make_target" "STG_UAT_CSV_REPORT_SUFFIX=$make_suffix_arg"
+  else
+    make -C "$ROOT" "$make_target"
+  fi
   ran=1
 done
 

@@ -161,40 +161,37 @@ func TestCutoverMedicinesDefaultQuantityAndDosageForm(t *testing.T) {
 	})
 }
 
-// CSV-655-R1: medicine_unit is the target DB enum (per_tablet, per_ml,
-// per_dose, per_gram). A nonempty unknown label must fail source preflight
-// before any database write; empty stays NULL.
-func TestCutoverMedicinesUnitEnum(t *testing.T) {
+// EMR-342 DESIGN 3.2/3.3: medicine_unit has no old-DB source and must stay
+// empty on every imported medicines row. Empty passes the full rehearsal
+// bundle; any nonempty label — including valid target enum labels — fails
+// source preflight with a table/column/row diagnostic and no cell value.
+func TestCutoverMedicinesUnitMustStayEmpty(t *testing.T) {
 	spec := cutoverSpecByName(t, "medicines")
 	unitIdx := columnIndex(spec.Columns, "medicine_unit")
 
-	for _, value := range []string{"", "per_tablet", "per_ml", "per_dose", "per_gram"} {
-		name := value
-		if name == "" {
-			name = "empty stays NULL"
+	t.Run("accepts empty medicine_unit", func(t *testing.T) {
+		dir, digest := writeMedicinesCandidateFixture(t, func(f *fixtureBundle) {
+			f.rows["medicines"][0][unitIdx] = ""
+		})
+		if _, err := PreflightCutoverBundle(dir, candidateExpectedSource(digest)); err != nil {
+			t.Fatalf("PreflightCutoverBundle error = %v, want empty medicine_unit accepted", err)
 		}
-		t.Run("accepts "+name, func(t *testing.T) {
+	})
+
+	for _, value := range []string{"per_tablet", "per_ml", "per_dose", "per_gram", "per_pill", "PER_TABLET"} {
+		t.Run("rejects "+value, func(t *testing.T) {
 			dir, digest := writeMedicinesCandidateFixture(t, func(f *fixtureBundle) {
 				f.rows["medicines"][0][unitIdx] = value
 			})
-			if _, err := PreflightCutoverBundle(dir, candidateExpectedSource(digest)); err != nil {
-				t.Fatalf("PreflightCutoverBundle error = %v, want medicine_unit=%q accepted", err, value)
+			_, err := PreflightCutoverBundle(dir, candidateExpectedSource(digest))
+			if err == nil || !strings.Contains(err.Error(), "table medicines") || !strings.Contains(err.Error(), "column medicine_unit") || !strings.Contains(err.Error(), "row 2") {
+				t.Fatalf("PreflightCutoverBundle error = %v, want medicine_unit rejection naming table, column, row", err)
+			}
+			if strings.Contains(err.Error(), value) {
+				t.Fatal("error leaks the source cell value")
 			}
 		})
 	}
-
-	t.Run("rejects unknown unit in the full rehearsal bundle", func(t *testing.T) {
-		dir, digest := writeMedicinesCandidateFixture(t, func(f *fixtureBundle) {
-			f.rows["medicines"][0][unitIdx] = "per_pill"
-		})
-		_, err := PreflightCutoverBundle(dir, candidateExpectedSource(digest))
-		if err == nil || !strings.Contains(err.Error(), "table medicines") || !strings.Contains(err.Error(), "column medicine_unit") || !strings.Contains(err.Error(), "row 2") {
-			t.Fatalf("PreflightCutoverBundle error = %v, want medicine_unit rejection naming table, column, row", err)
-		}
-		if strings.Contains(err.Error(), "per_pill") {
-			t.Fatal("error leaks the source cell value")
-		}
-	})
 }
 
 // A legacy 21-table producer bundle (no medicines entry, no medicines.csv)
@@ -261,13 +258,13 @@ func TestCutoverMedicinesEstimateItemReference(t *testing.T) {
 
 	t.Run("rejects a missing medicines parent", func(t *testing.T) {
 		dir, digest := writeMedicinesCandidateFixture(t, func(f *fixtureBundle) {
-			f.rows["estimate_items"][0][medicineCol] = "1000002"
+			f.rows["estimate_items"][0][medicineCol] = "1000999"
 		})
 		_, err := PreflightCutoverBundle(dir, candidateExpectedSource(digest))
 		if err == nil || !strings.Contains(err.Error(), "reference to medicines") {
 			t.Fatalf("PreflightCutoverBundle error = %v, want missing medicines parent rejection", err)
 		}
-		if strings.Contains(err.Error(), "1000002") {
+		if strings.Contains(err.Error(), "1000999") {
 			t.Fatal("error leaks the source cell value")
 		}
 	})
@@ -326,7 +323,9 @@ func TestCutoverMedicinesDuplicateNames(t *testing.T) {
 		base := f.rows["medicines"][0]
 		base[nameCol] = "duplicated-name"
 		second := append([]string(nil), base...)
-		second[idCol] = "1000002"
+		// A distinct band ID outside all sale-item masters keeps the duplicate
+		// name the exercised failure.
+		second[idCol] = "1000004"
 		f.rows["medicines"] = append(f.rows["medicines"], second)
 		for i := range f.manifest.Tables {
 			if f.manifest.Tables[i].Table == "medicines" {

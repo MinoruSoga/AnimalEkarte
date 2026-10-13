@@ -74,6 +74,14 @@ func cutoverCSVReferences(profiles ...CutoverProfile) map[string][]cutoverCSVRef
 	return references
 }
 
+// cutoverSaleItemMasterTables names the masters sharing the canonical
+// sale-item ID band (EMR-342 DESIGN 3.6): one ID belongs to exactly one of
+// these tables. Candidate22 only; legacy21 has no medicines table and keeps
+// its existing contract.
+var cutoverSaleItemMasterTables = map[string]struct{}{
+	"procedures": {}, "medicines": {}, "merchandise_items": {},
+}
+
 // validateCutoverReferenceGraph scans each CSV once, retaining only numeric ID
 // sets for referenced parents, not source rows or per-edge copies. Parent tables
 // precede children; self references are checked after that complete table so a
@@ -85,6 +93,8 @@ func validateCutoverReferenceGraph(sourceDir string, manifest CutoverManifest, a
 		return err
 	}
 	parents := make(map[string]map[uint64]struct{})
+	saleMasterOwners := make(map[uint64]string)
+	candidateSaleMasters := manifest.profile == CutoverProfileMedicinesCandidate
 	for _, refs := range references {
 		for _, ref := range refs {
 			if ref.kind == cutoverCSVParent {
@@ -115,6 +125,18 @@ func validateCutoverReferenceGraph(sourceDir string, manifest CutoverManifest, a
 					return fmt.Errorf("table %s column id: duplicate source reference ID", spec.Name)
 				}
 				ids[id] = struct{}{}
+			}
+			if candidateSaleMasters {
+				if _, isSaleMaster := cutoverSaleItemMasterTables[spec.Name]; isSaleMaster {
+					if masterID, ok := cutoverReferenceID(row[indexes["id"]]); ok {
+						if owner, clash := saleMasterOwners[masterID]; clash && owner != spec.Name {
+							return fmt.Errorf("table %s column id row %d: sale item id already assigned by table %s", spec.Name, csvLine, owner)
+						}
+						if _, seen := saleMasterOwners[masterID]; !seen {
+							saleMasterOwners[masterID] = spec.Name
+						}
+					}
+				}
 			}
 			for _, ref := range references[spec.Name] {
 				value := row[indexes[ref.column]]

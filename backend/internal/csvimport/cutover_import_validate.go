@@ -190,7 +190,7 @@ func validateCutoverTarget(ctx context.Context, q cutoverQuerier, manifest Cutov
 	if err := validateCutoverCompositeForeignKeys(ctx, q); err != nil {
 		return nil, err
 	}
-	if err := validateCutoverUniqueIndexes(ctx, q); err != nil {
+	if err := validateCutoverUniqueIndexes(ctx, q, manifest.profile); err != nil {
 		return nil, err
 	}
 	// Sequence tolerance is artifact-keyed: target preflight has no provenance

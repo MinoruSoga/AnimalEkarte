@@ -33,16 +33,12 @@ var cutoverMedicinesDosageForms = map[string]struct{}{
 	"tablet": {}, "liquid": {}, "injection": {}, "topical": {}, "powder": {},
 }
 
-// cutoverMedicineUnits are the DB medicine_unit enum labels exported by the
-// producer. Empty stays NULL.
-var cutoverMedicineUnits = map[string]struct{}{
-	"per_tablet": {}, "per_ml": {}, "per_dose": {}, "per_gram": {},
-}
-
 // validateCutoverMedicinesRow enforces the medicines-only lexical checks:
-// dosage_form and medicine_unit are DB enums and default_quantity is a plain
-// numeric literal exactly representable in numeric(10,2), with zero valid and
-// an explicit value is required. Diagnostics name table, column, and row only.
+// dosage_form is a DB enum, medicine_unit has no old-database source and must
+// stay empty on every row (EMR-342 DESIGN 3.2/3.3), and default_quantity is a
+// plain numeric literal exactly representable in numeric(10,2), with zero
+// valid and an explicit value required. Diagnostics name table, column, and
+// row only.
 func validateCutoverMedicinesRow(row []string, indexes map[string]int, csvLine int64) error {
 	if value := row[indexes["dosage_form"]]; value != "" {
 		if _, ok := cutoverMedicinesDosageForms[value]; !ok {
@@ -50,9 +46,7 @@ func validateCutoverMedicinesRow(row []string, indexes map[string]int, csvLine i
 		}
 	}
 	if value := row[indexes["medicine_unit"]]; value != "" {
-		if _, ok := cutoverMedicineUnits[value]; !ok {
-			return fmt.Errorf("table medicines column medicine_unit row %d: value is not a supported medicine unit", csvLine)
-		}
+		return fmt.Errorf("table medicines column medicine_unit row %d: medicine_unit has no old-database source and must stay empty", csvLine)
 	}
 	if err := validateCutoverMedicineQuantity(row[indexes["default_quantity"]], csvLine); err != nil {
 		return err
