@@ -77,7 +77,7 @@
 
 - 移行データの漏れの洗い出しと修正: Plane `MIG-25`
 - 4院の bundle 再生成（producer の唯一 owner）: Plane `MIG-41`。2026-10-13 時点で受領済みなのは旧 run の履歴 receipt のみで、同一 candidate の最新生成 receipt は未受領
-- bundle の配置・preflight・STG 取込確認（consumer の唯一 owner）: Plane `EMR-349`。現状 BLOCKED。intake 現況と再開条件は [../ops/deploy/CLINIC_CSV_IMPORT.md](../ops/deploy/CLINIC_CSV_IMPORT.md) の「EMR-349 受入 intake 現況」節
+- bundle の配置・preflight・STG 取込確認（consumer の唯一 owner）: Plane `EMR-349`。現状 BLOCKED。intake 現況と再開条件は [../ops/deploy/seeds/CLINIC_CSV_IMPORT.md](../ops/deploy/seeds/CLINIC_CSV_IMPORT.md) の「EMR-349 受入 intake 現況」節
 - 税区分の向き: Plane `MIG-38`。実データに基づく復号の決定は INPUT_READY だが、生成 CSV での確認は未了（決定と出力確認は別）
 - 医院への確認と未回答時の既定: Plane `MIG-36`。未回答でも移行は継続。既定は「判断が割れる分類は診療項目のまま・非課税ワクチンの料金は空・負の料金は空」
 - 税率・小数単価の契約: Plane `EMR-364`（会計明細の税率列の追加案・未合意）、`EMR-365`（ワクチン小数単価・未合意）
