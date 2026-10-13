@@ -36,6 +36,14 @@ WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`, spec.Na
 			if _, isBandColumn := bandColumns[column]; isBandColumn && dataType != "bigint" {
 				return fmt.Errorf("target schema requires public.%s.%s to exist as bigint", spec.Name, column)
 			}
+			// Master price columns carry int64 producer values; a double
+			// precision target column can round them (Codex 4260555439).
+			// cutoverMasterPriceColumn covers procedures.price,
+			// medicines.price (candidate only), vaccines.price, and
+			// merchandise_items.unit_price.
+			if priceColumn, isPriceTable := cutoverMasterPriceColumn(spec.Name); isPriceTable && column == priceColumn && dataType != "bigint" {
+				return fmt.Errorf("target schema requires public.%s.%s to exist as bigint", spec.Name, column)
+			}
 			if spec.Name == "medicines" && column == "default_quantity" {
 				var precision, scale int64
 				if err := q.QueryRow(ctx, `SELECT numeric_precision, numeric_scale FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`, spec.Name, column).Scan(&precision, &scale); err != nil || dataType != "numeric" || precision != 10 || scale != 2 {

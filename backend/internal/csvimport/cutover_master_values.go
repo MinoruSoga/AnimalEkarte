@@ -40,6 +40,16 @@ var cutoverMedicinesDosageForms = map[string]struct{}{
 // valid and an explicit value required. Diagnostics name table, column, and
 // row only.
 func validateCutoverMedicinesRow(row []string, indexes map[string]int, csvLine int64) error {
+	// EMR-342 DESIGN 3.2 pins is_active=true and is_non_insurance=false.
+	// The producer canonical t/f and the semantic true/false lexical forms
+	// are accepted; wrong semantics, empty, and non-boolean lexical values
+	// fail closed without coercion and without echoing the cell value.
+	if value := row[indexes["is_active"]]; value != "t" && value != "true" {
+		return fmt.Errorf("table medicines column is_active row %d: is_active must be t or true", csvLine)
+	}
+	if value := row[indexes["is_non_insurance"]]; value != "f" && value != "false" {
+		return fmt.Errorf("table medicines column is_non_insurance row %d: is_non_insurance must be f or false", csvLine)
+	}
 	if value := row[indexes["dosage_form"]]; value != "" {
 		if _, ok := cutoverMedicinesDosageForms[value]; !ok {
 			return fmt.Errorf("table medicines column dosage_form row %d: value is not a supported dosage form", csvLine)

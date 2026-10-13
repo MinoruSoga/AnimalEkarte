@@ -1169,6 +1169,16 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle), profiles ...
 				if spec.Name == "medicines" {
 					row[i] = "1.0"
 				}
+			case "is_active":
+				// DESIGN 3.2 pins medicines is_active=true; keep the
+				// synthetic candidate bundle contract-consistent.
+				if spec.Name == "medicines" {
+					row[i] = "t"
+				}
+			case "is_non_insurance":
+				if spec.Name == "medicines" {
+					row[i] = "f"
+				}
 			case "name":
 				// The candidate synthetic bundle needs a non-blank
 				// medicines name: blank source names are needs_review
