@@ -470,6 +470,52 @@ describe("VaccinationList 次回予定の期限超過表示", () => {
     expect(cell).toHaveTextContent(/^\s*$/);
     expect(cell).not.toHaveTextContent("期限超過");
   });
+
+  it("日付+期限超過バッジは1行表示する (EMR-378)", () => {
+    renderWithNextDate("2026-07-23");
+
+    const cell = getNextDateCell();
+    expect(cell).toHaveClass("whitespace-nowrap");
+  });
+});
+
+describe("VaccinationList 列レイアウト (EMR-378)", () => {
+  it("次回予定ヘッダは日付+バッジ分の最小幅を持ち折り返さない", () => {
+    renderPage();
+
+    const header = screen.getByRole("columnheader", { name: /次回予定/ });
+    expect(header.className).toContain("whitespace-nowrap");
+    expect(header.className).toMatch(/min-w-\[/);
+  });
+
+  it("飼主名・ペット名・予防接種名ヘッダは折り返さず読める最小幅を持つ (T002)", () => {
+    renderPage();
+
+    const ownerHeader = screen.getByRole("columnheader", { name: /飼主名/ });
+    expect(ownerHeader.className).toContain("whitespace-nowrap");
+    expect(ownerHeader.className).toContain("min-w-[140px]");
+
+    const petHeader = screen.getByRole("columnheader", { name: /ペット名/ });
+    expect(petHeader.className).toContain("whitespace-nowrap");
+    expect(petHeader.className).toContain("min-w-[160px]");
+
+    const vaccineHeader = screen.getByRole("columnheader", { name: /予防接種名/ });
+    expect(vaccineHeader.className).toContain("whitespace-nowrap");
+    expect(vaccineHeader.className).toContain("min-w-[160px]");
+  });
+
+  it("識別子セルはヘッダと同じ最小幅契約を持ち、氏名は折り返せる", () => {
+    renderPage();
+
+    const ownerCell = screen.getByText("山田太郎").closest("td");
+    expect(ownerCell?.className).toContain("min-w-[140px]");
+
+    const petCell = screen.getByRole("link", { name: /ポチ/ }).closest("td");
+    expect(petCell?.className).toContain("min-w-[160px]");
+
+    const vaccineCell = screen.getByText("混合ワクチン").closest("td");
+    expect(vaccineCell?.className).toContain("min-w-[160px]");
+  });
 });
 
 describe("VaccinationList petId query", () => {

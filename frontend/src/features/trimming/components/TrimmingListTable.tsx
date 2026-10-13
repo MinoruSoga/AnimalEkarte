@@ -2,6 +2,7 @@ import { AlertTriangle, Edit, Trash2 } from "lucide-react";
 import { memo } from "react";
 import { TableCell } from "@/components/ui/table";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { LIST_TABLE_COL } from "@/components/shared/DataTable/list-table-col";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
@@ -91,7 +92,7 @@ export function TrimmingListTable({
           onToggle={() => onToggleSort("date")}
         />
       ),
-      className: "w-[120px]",
+      className: "w-[120px] whitespace-nowrap",
     },
     {
       header: (
@@ -101,6 +102,7 @@ export function TrimmingListTable({
           onToggle={() => onToggleSort("ownerName")}
         />
       ),
+      className: "min-w-[140px] whitespace-nowrap",
     },
     {
       header: (
@@ -110,6 +112,7 @@ export function TrimmingListTable({
           onToggle={() => onToggleSort("petName")}
         />
       ),
+      className: "min-w-[160px] whitespace-nowrap",
     },
     {
       header: (
@@ -119,11 +122,14 @@ export function TrimmingListTable({
           onToggle={() => onToggleSort("species")}
         />
       ),
-      className: "w-[80px] hidden lg:table-cell",
+      className: "w-[80px] hidden lg:table-cell whitespace-nowrap",
     },
-    { header: "犬種", className: "w-[100px] hidden lg:table-cell" },
-    { header: "体重", className: "w-[80px] hidden lg:table-cell" },
-    { header: "スタイル希望", className: "hidden lg:table-cell" },
+    { header: "犬種", className: "w-[100px] hidden lg:table-cell whitespace-nowrap" },
+    { header: "体重", className: "w-[80px] hidden lg:table-cell whitespace-nowrap" },
+    {
+      header: "スタイル希望",
+      className: "hidden lg:table-cell min-w-[120px] whitespace-nowrap",
+    },
     {
       header: (
         <SortableHeader
@@ -132,7 +138,7 @@ export function TrimmingListTable({
           onToggle={() => onToggleSort("staff")}
         />
       ),
-      className: "w-[100px]",
+      className: "min-w-[120px] whitespace-nowrap",
     },
     {
       header: (
@@ -142,9 +148,9 @@ export function TrimmingListTable({
           onToggle={() => onToggleSort("status")}
         />
       ),
-      className: "w-[100px]",
+      className: LIST_TABLE_COL.status,
     },
-    { header: "操作", className: "w-[100px]", align: "right" as const },
+    { header: "操作", className: "w-[100px] whitespace-nowrap", align: "right" as const },
   ];
 
   return (
@@ -215,9 +221,9 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
 }: TrimmingTableRowProps) {
   return (
     <DataTableRow>
-      <TableCell className={`font-mono ${C.text}`}>{record.date}</TableCell>
-      <TableCell className={C.text}>{record.ownerName}</TableCell>
-      <TableCell>
+      <TableCell className={`font-mono ${C.text} whitespace-nowrap`}>{record.date}</TableCell>
+      <TableCell className={`${C.text} min-w-[140px]`}>{record.ownerName}</TableCell>
+      <TableCell className="min-w-[160px]">
         <div className="flex flex-col">
           <DataTableRowLink
             to={paths.trimming.detail.getHref(record.id)}
@@ -226,7 +232,7 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
           >
             {record.petName}
           </DataTableRowLink>
-          <span className={`text-sm ${C.text60}`}>{record.petNumber}</span>
+          <span className={`text-sm ${C.text60} whitespace-nowrap`}>{record.petNumber}</span>
         </div>
       </TableCell>
       <TableCell className={`${C.text} hidden lg:table-cell`}>{record.species}</TableCell>
@@ -235,7 +241,7 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
       <TableCell className={`${C.text} truncate max-w-[200px] hidden lg:table-cell`}>
         {record.styleRequest}
       </TableCell>
-      <TableCell className={C.text}>
+      <TableCell className={`${C.text} min-w-[120px]`}>
         <div className="flex items-center gap-1.5">
           {!isValidStaff(record.staff) ? (
             <span
@@ -249,7 +255,7 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
           {record.staff}
         </div>
       </TableCell>
-      <TableCell>
+      <TableCell className={LIST_TABLE_COL.status}>
         <StatusBadge colorClass={getTrimmingStatusColor(record.status)}>
           {record.status}
         </StatusBadge>

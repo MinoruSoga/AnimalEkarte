@@ -84,19 +84,19 @@ export function OwnersListTable({
 }: OwnersListTableProps) {
   // #266: サーバサイドページネーション化に伴い列ソートは撤去（コメント参照）。プレーンなラベルに変更。
   const columns = [
-    { header: "飼主No", className: "w-[100px] hidden lg:table-cell" },
-    { header: "飼主名", className: "w-[180px]" },
+    { header: "飼主No", className: "w-[100px] hidden lg:table-cell whitespace-nowrap" },
+    { header: "飼主名", className: "min-w-[140px]" },
     // #86: 拠点横断表示時のみ医院列を表示
-    ...(showClinicColumn ? [{ header: "医院", className: "w-[110px]" }] : []),
-    { header: "ペット番号", className: "w-[100px] hidden lg:table-cell" },
-    { header: "ペット名", className: "w-[120px]" },
-    { header: "生死", className: "w-[60px]" },
-    { header: "種", className: "w-[60px]" },
-    { header: "生年月日", className: "w-[100px] hidden lg:table-cell" },
-    { header: "体重", className: "w-[80px] hidden lg:table-cell" },
-    { header: "環境", className: "w-[120px] hidden lg:table-cell" },
-    { header: "前回来院", className: "w-[100px] hidden lg:table-cell" },
-    { header: "操作", className: "w-[100px]", align: "right" as const },
+    ...(showClinicColumn ? [{ header: "医院", className: "w-[110px] whitespace-nowrap" }] : []),
+    { header: "ペット番号", className: "w-[100px] hidden lg:table-cell whitespace-nowrap" },
+    { header: "ペット名", className: "min-w-[120px]" },
+    { header: "生死", className: "min-w-[90px] whitespace-nowrap" },
+    { header: "種", className: "w-[60px] whitespace-nowrap" },
+    { header: "生年月日", className: "w-[100px] hidden lg:table-cell whitespace-nowrap" },
+    { header: "体重", className: "w-[80px] hidden lg:table-cell whitespace-nowrap" },
+    { header: "環境", className: "w-[120px] hidden lg:table-cell whitespace-nowrap" },
+    { header: "前回来院", className: "w-[100px] hidden lg:table-cell whitespace-nowrap" },
+    { header: "操作", className: "w-[100px] whitespace-nowrap", align: "right" as const },
   ];
 
   return (
@@ -191,8 +191,8 @@ function OwnersListRow({
       <TableCell className={`${STYLE.tableCell} whitespace-nowrap hidden lg:table-cell`}>
         {pet.ownerNumber ?? "-"}
       </TableCell>
-      <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
-        <span className="flex items-center gap-1.5">
+      <TableCell className={`${STYLE.tableCell} min-w-[140px]`}>
+        <span className="flex flex-wrap items-center gap-1.5">
           {canViewDetail ? (
             <DataTableRowLink
               to={paths.owners.detail.getHref(pet.ownerId)}
@@ -224,8 +224,8 @@ function OwnersListRow({
       <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap hidden lg:table-cell`}>
         {pet.petNumber || "-"}
       </TableCell>
-      <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
-        <span className="inline-flex items-center gap-1.5">
+      <TableCell className={`${STYLE.tableCell} min-w-[120px]`}>
+        <span className="flex flex-wrap items-center gap-1.5">
           {canViewDetail ? (
             // EMR-174: ペット名は飼主詳細の ?pet= deep link（ペット詳細モーダルが開く）。
             // 別医院行（canViewDetail=false）は閲覧不可のためリンクを出さない。
@@ -254,7 +254,7 @@ function OwnersListRow({
       <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap hidden lg:table-cell`}>
         {formatWeight(pet.weight)}
       </TableCell>
-      <TableCell className={`${STYLE.tableCell} whitespace-nowrap hidden lg:table-cell`}>
+      <TableCell className={`${STYLE.tableCell} hidden lg:table-cell`}>
         {pet.environment || "-"}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap hidden lg:table-cell`}>

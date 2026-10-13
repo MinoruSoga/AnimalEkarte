@@ -34,11 +34,19 @@ import { useStaffSettingsLookups } from "../hooks/use-staff-settings-lookups";
 import { ResourceMasterStaff, ResourceMasterPermission } from "@/types/generated/models";
 
 const COLUMNS = [
-  { header: "氏名", className: "flex-1" },
-  { header: "職種", className: MASTER_TABLE_COL.w130 },
-  { header: "権限グループ", className: MASTER_TABLE_COL.w200 },
-  { header: "ステータス", className: MASTER_TABLE_COL.w100, align: "center" as const },
-  { header: "操作", className: MASTER_TABLE_COL.w80, align: "right" as const },
+  { header: "氏名", className: "flex-1 min-w-[140px]" },
+  { header: "職種", className: `${MASTER_TABLE_COL.w130} whitespace-nowrap` },
+  { header: "権限グループ", className: `${MASTER_TABLE_COL.w200} whitespace-nowrap` },
+  {
+    header: "ステータス",
+    className: `${MASTER_TABLE_COL.w100} min-w-[100px] whitespace-nowrap`,
+    align: "center" as const,
+  },
+  {
+    header: "操作",
+    className: `${MASTER_TABLE_COL.w80} whitespace-nowrap`,
+    align: "right" as const,
+  },
 ];
 
 export function StaffSettings() {

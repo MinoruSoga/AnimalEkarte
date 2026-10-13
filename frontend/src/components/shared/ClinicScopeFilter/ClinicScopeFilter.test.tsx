@@ -30,4 +30,24 @@ describe("ClinicScopeFilter — #86 医院横断フィルタ", () => {
     await user.click(screen.getByRole("button", { name: "分院" }));
     expect(onToggle).toHaveBeenCalledWith("2");
   });
+
+  it("全角スペースを含む正式名を正規化せず1ボタンで表示し、トグルも維持する (EMR-388)", async () => {
+    const user = userEvent.setup();
+    const onToggle = vi.fn();
+    const OFFICIAL_NAME = "テスト　動物病院"; // 全角スペース(U+3000)を含む正式名
+    const clinics: ClinicMembership[] = [
+      { clinicId: "1", clinicName: OFFICIAL_NAME, isMain: true },
+      { clinicId: "2", clinicName: "分院", isMain: false },
+    ];
+    render(<ClinicScopeFilter clinics={clinics} selectedIds={["1"]} onToggle={onToggle} />);
+
+    const buttons = screen.getAllByRole("button");
+    expect(buttons).toHaveLength(2);
+    const official = buttons.find((b) => b.textContent === OFFICIAL_NAME);
+    expect(official).toBeDefined();
+    expect(official?.textContent).toContain("　");
+
+    await user.click(official!);
+    expect(onToggle).toHaveBeenCalledWith("1");
+  });
 });

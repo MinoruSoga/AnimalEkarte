@@ -12,9 +12,16 @@ import type { ReservationType } from "../api/reservation-types";
 // MasterSidePanel は薄くモックし、保存ハンドラだけを捕捉する。
 // StaffBasicInfoSection が使う PropertyRow / StatusToggleButton もここで供給する。
 // ──────────────────────────────────────────────────────────
-let capturedPanelProps: { onSave?: () => Promise<void> | void } | null = null;
+let capturedPanelProps: {
+  onSave?: () => Promise<void> | void;
+  titlePlaceholder?: string;
+} | null = null;
 vi.mock("@/components/shared/SidePeek", () => ({
-  MasterSidePanel: (props: { children: ReactNode; onSave?: () => Promise<void> | void }) => {
+  MasterSidePanel: (props: {
+    children: ReactNode;
+    onSave?: () => Promise<void> | void;
+    titlePlaceholder?: string;
+  }) => {
     capturedPanelProps = props;
     return <div>{props.children}</div>;
   },
@@ -202,5 +209,23 @@ describe("StaffSidePanel 対応区分（capableIds 単一書き込みモデル�
     });
 
     expect(onSaveCapableReservationTypes).not.toHaveBeenCalled();
+  });
+});
+
+describe("StaffSidePanel 新規作成タイトル (EMR-386)", () => {
+  beforeEach(() => {
+    capturedPanelProps = null;
+  });
+
+  it("新規作成時は名称未入力のタイトル欄 placeholder が「新規スタッフ登録」", () => {
+    renderPanel({ item: null });
+
+    expect(capturedPanelProps?.titlePlaceholder).toBe("新規スタッフ登録");
+  });
+
+  it("既存スタッフ編集では共有既定値（無題）を変えず titlePlaceholder を渡さない", () => {
+    renderPanel();
+
+    expect(capturedPanelProps?.titlePlaceholder).toBeUndefined();
   });
 });

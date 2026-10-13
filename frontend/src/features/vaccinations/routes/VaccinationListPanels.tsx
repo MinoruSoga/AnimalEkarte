@@ -91,9 +91,9 @@ function VaccinationListRow({
   const overdue = isPastJSTDate(record.nextDate);
   return (
     <DataTableRow key={record.id}>
-      <TableCell className={`font-mono ${C.text}`}>{record.date}</TableCell>
-      <TableCell className={C.text}>{record.ownerName}</TableCell>
-      <TableCell className={C.text}>
+      <TableCell className={`font-mono ${C.text} whitespace-nowrap`}>{record.date}</TableCell>
+      <TableCell className={`${C.text} min-w-[140px]`}>{record.ownerName}</TableCell>
+      <TableCell className={`${C.text} min-w-[160px]`}>
         <DataTableRowLink
           to={vaccinationListDetailHref({ id: record.id, medicalRecordId: record.medicalRecordId })}
           state={detailState}
@@ -102,8 +102,8 @@ function VaccinationListRow({
           {record.petName}
         </DataTableRowLink>
       </TableCell>
-      <TableCell className={`font-medium ${C.text}`}>{record.vaccineName}</TableCell>
-      <TableCell className={`font-mono ${overdue ? C.danger : C.text}`}>
+      <TableCell className={`font-medium ${C.text} min-w-[160px]`}>{record.vaccineName}</TableCell>
+      <TableCell className={`font-mono whitespace-nowrap ${overdue ? C.danger : C.text}`}>
         {overdue ? (
           <span className="inline-flex items-center gap-1.5">
             <AlertTriangle className={`${ICON.xs} shrink-0`} />
@@ -191,7 +191,7 @@ export function VaccinationListContent({
             onToggle={() => toggleSort("date")}
           />
         ),
-        className: "w-[120px]",
+        className: "w-[120px] whitespace-nowrap",
       },
       {
         header: (
@@ -201,6 +201,7 @@ export function VaccinationListContent({
             onToggle={() => toggleSort("ownerName")}
           />
         ),
+        className: "min-w-[140px] whitespace-nowrap",
       },
       {
         header: (
@@ -210,6 +211,7 @@ export function VaccinationListContent({
             onToggle={() => toggleSort("petName")}
           />
         ),
+        className: "min-w-[160px] whitespace-nowrap",
       },
       {
         header: (
@@ -219,6 +221,7 @@ export function VaccinationListContent({
             onToggle={() => toggleSort("vaccineName")}
           />
         ),
+        className: "min-w-[160px] whitespace-nowrap",
       },
       {
         header: (
@@ -228,9 +231,9 @@ export function VaccinationListContent({
             onToggle={() => toggleSort("nextDate")}
           />
         ),
-        className: "w-[140px]",
+        className: "min-w-[200px] whitespace-nowrap",
       },
-      { header: "操作", className: "w-[100px]", align: "right" as const },
+      { header: "操作", className: "w-[100px] whitespace-nowrap", align: "right" as const },
     ],
     [directionFor, toggleSort],
   );

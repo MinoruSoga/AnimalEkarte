@@ -361,7 +361,15 @@ describe("LstepDeliveryMonitorPage — H: mobile-first layout", () => {
     await renderAndWait();
 
     expect(screen.getByTestId("filter-trigger-type")).toHaveClass("w-full", "h-11", "sm:w-[220px]");
-    expect(screen.getByTestId("filter-status")).toHaveClass("w-full", "h-11", "sm:w-[140px]");
+    // EMR-385: 140px 固定幅では「すべてのステータス」が「すべてのステ」と切断された。
+    // 選択ラベル全文が収まる最小幅へ変更し、さらに長いラベルには内容幅へ伸長させる。
+    expect(screen.getByTestId("filter-status")).toHaveClass(
+      "w-full",
+      "h-11",
+      "sm:w-auto",
+      "sm:min-w-[180px]",
+    );
+    expect(screen.getByTestId("filter-status")).toHaveTextContent("すべてのステータス");
     expect(screen.getByRole("combobox", { name: "配信トリガー種別" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "配信ステータス" })).toBeInTheDocument();
     const dateRange = screen.getByTestId("filter-from").parentElement;

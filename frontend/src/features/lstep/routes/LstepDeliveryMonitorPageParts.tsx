@@ -77,7 +77,9 @@ export function DeliveryMonitorFilters({
       <Select value={statusFilter || "all"} onValueChange={onStatusChange}>
         <SelectTrigger
           aria-label="配信ステータス"
-          className={`h-11 w-full sm:w-[140px] ${C.borderMedium} ${C.text} ${C.bgWhite} text-sm`}
+          // EMR-385: 140px 固定では「すべてのステータス」が途中で切断された。
+          // 選択ラベル全文が収まる最小幅とし、より長いラベルには内容幅へ伸長する。
+          className={`h-11 w-full sm:w-auto sm:min-w-[180px] ${C.borderMedium} ${C.text} ${C.bgWhite} text-sm`}
           data-testid="filter-status"
         >
           <SelectValue />
