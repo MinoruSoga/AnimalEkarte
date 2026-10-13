@@ -51,11 +51,12 @@ const isTabbableTarget = (el: Element | null): el is HTMLElement =>
   isVisibleEnabled(el) && el.tabIndex !== -1;
 
 // ウィジェットが portal した dialog（HelpChat の確認ダイアログ等）は DOM 上は
-// body 直下で [data-support-widget] の子孫ではない。Radix はトリガーに
-// aria-controls="<content id>" を付けるため、それでウィジェット所有を判定し、
-// 外部オーバーレイ判定から除外して自己参照を防ぐ。
+// body 直下で [data-support-widget] の子孫ではない。programmatic open では
+// Radix trigger の aria-controls がないため、明示した所有属性も確認する。
 const isWidgetOwnedElement = (el: HTMLElement) => {
-  if (el.closest("[data-support-widget]") !== null) return true;
+  if (el.closest('[data-support-widget], [data-portal-owner="support-widget"]') !== null) {
+    return true;
+  }
   const { id } = el;
   return (
     id !== "" &&
@@ -130,10 +131,7 @@ export function SupportWidget() {
   // 登録・解除だけを行う）
   useEffect(() => {
     const track = (event: Event) => {
-      if (
-        event.target instanceof HTMLElement &&
-        event.target.closest("[data-support-widget]") === null
-      ) {
+      if (event.target instanceof HTMLElement && !isWidgetOwnedElement(event.target)) {
         lastExternalFocusRef.current = event.target;
       }
     };
