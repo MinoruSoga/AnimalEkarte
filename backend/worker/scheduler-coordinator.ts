@@ -593,7 +593,12 @@ export class SchedulerCoordinator {
             blockedActive = { ...currentActive, stuckLeaseDetectedAt: now };
             await transaction.put(ACTIVE_KEY, blockedActive);
           }
-          const samePlan = currentActive.cron === cron;
+          // A healthy overlap is only the same planned slot: same cron AND
+          // the same scheduledTime. A different slot of the same cron is a
+          // real schedule conflict that must alert, even when the active run
+          // is healthy.
+          const samePlan =
+            currentActive.cron === cron && currentActive.scheduledTime === scheduledTime;
           // The first stuck detection already records a durable incident for
           // this active run; later blocked slots do not create another alarm.
           const alreadyReportedStuck =
@@ -620,11 +625,7 @@ export class SchedulerCoordinator {
           // A losing invocation must not consume its winner's pending suffix.
           const plan = jobsForCron(cron);
           const predecessor = plan.indexOf(currentActive.job);
-          const blockedBySamePlan =
-            currentActive.cron === cron &&
-            currentActive.scheduledTime === scheduledTime &&
-            predecessor >= 0 &&
-            predecessor < plan.indexOf(job);
+          const blockedBySamePlan = samePlan && predecessor >= 0 && predecessor < plan.indexOf(job);
           if (!blockedBySamePlan) {
             await transaction.put(runKey, skippedLedger);
             await putLatest();
