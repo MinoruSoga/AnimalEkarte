@@ -9,11 +9,15 @@ column). Lead-produced artifacts in this directory (optional provenance, not
 sole authority): [aggregate-counts.json](aggregate-counts.json),
 [api-binding-catalog.json](api-binding-catalog.json),
 [COUNT-SUMMARY.md](COUNT-SUMMARY.md) (see §7).
+Baseline column inventory (audit-produced, mechanically derived — see §3
+integrity note): [evidence/baseline-column-inventory.json](evidence/baseline-column-inventory.json).
 
 ## 1. Method
 
-For every column in `CutoverTableSpecs` (inventory mirrored in
-`evidence/baseline-column-inventory.json`) we compared:
+For every column in `CutoverTableSpecs` — the 21-table / 236-column baseline
+mirrored 1:1 in
+[evidence/baseline-column-inventory.json](evidence/baseline-column-inventory.json),
+a literal transcription of `cutover_contract.go:242-267` — we compared:
 
 - **API surface** — request binding + service-layer create/update validation.
   DTO binding tags were filled from the mechanically extracted catalog
@@ -141,16 +145,31 @@ one class label; totals sum to the 236 data rows):
 
 | cls | rows | meaning |
 |-----|------|---------|
-| OK | 129 | no meaningful gap |
-| EMR | 40 | consumer follow-up (EMR-374/375/376 groups incl. EMR-345 scope) |
+| OK | 119 | no meaningful gap |
+| EMR | 38 | consumer follow-up (EMR-374/375/376 groups incl. EMR-345 scope) |
 | MIG | 44 | producer guarantee (EMR-374 scope; MIG-37/41) |
 | HIST | 2 | explicit acceptance with code+governing reason ONLY: `billings.total_amount` (AE-MIG-NEG-1 negative billing, `001_init.sql:1888-1889`) and `payment_splits.amount` (AE-MIG-NEG-1 negative cash-card split, `001_init.sql:6257-6259`) |
-| OWNER | 20 | owner decision pending (terminal-state locks, generated timestamps, pets.status/deceased_at, appointments.source, actor columns, non-family negative amounts) — EMR-376 |
-| UNK | 1 | `payments.insurance_ratio` broader service rule — T-K, mapped EMR-376 |
+| OWNER | 18 | owner decision pending (terminal-state locks, generated timestamps, pets.status/deceased_at, appointments.source, actor columns, non-family negative amounts) — EMR-376 |
+| UNK | 15 | `payments.insurance_ratio` broader service rule + 14 date/timestamp columns whose CSV literal format vs COPY/API-bind domain parity is unproven — T-K, mapped EMR-376 |
 
 These are classification counts, not violation counts. Per-clinic occurrence
 counts: see §7 (Lead count run completed; aggregates at
 [aggregate-counts.json](aggregate-counts.json)).
+
+Matrix ↔ contract integrity (PR-656 review fix):
+
+- The matrix's 236 `(table, column)` data rows were compared 1:1 against the
+  inventory: same 21 tables in `CutoverTableSpecs` order, same column sequence
+  per table, zero duplicates on either side — set equality holds.
+- Reproducibility: run `python3 -B docs/work/emr-351-api-csv-audit/evidence/generate-baseline-column-inventory.py`
+  from the repository root. This read-only stdlib script extracts the positional
+  `CutoverTableSpecs()` literals from `git show
+  ed04c0237f81ddc2890d39b528d3608a58180c8b:backend/internal/csvimport/cutover_contract.go`,
+  emits the table arrays, and asserts exact inventory/matrix equality, order,
+  no duplicates, 21 tables and 236 columns. It fails if source syntax changes;
+  no CSV data or DB access is involved. The in-code contract hash
+  `9e02897b…3ac9` pins the baseline contract independently.
+- cls totals after the date/timestamp audit pass: 119 + 38 + 44 + 2 + 18 + 15 = 236.
 
 ## 4. Follow-up mapping (consumer gaps ≠ EMR-345)
 
@@ -458,22 +477,47 @@ the actual items above.
 
 ### T-K — residual unknowns (named only; EMR-376 owner investigation)
 
-- Not a defect; one residual remains after the catalog fill + re-review:
-  `payments.insurance_ratio` — bound (`accounting_request.go:209;341`) and the
-  builder assigns the value directly (`accounting_service_builders.go:163-164`),
-  so no binding/assignment range exists; any *other* service-side rule was not
-  re-verified and is not claimed.
+- Not a defect; the residuals after the catalog fill + re-review +
+  date/timestamp pass (PR-656 review fix) are:
+  1. `payments.insurance_ratio` — bound (`accounting_request.go:209;341`) and
+     the builder assigns the value directly
+     (`accounting_service_builders.go:163-164`), so no binding/assignment range
+     exists; any *other* service-side rule was not re-verified and is not
+     claimed.
+  2. Date/timestamp literal-format parity (14 columns) — importer preflight
+     checks presence only for every contract date/timestamp column except the
+     three payment-graph timestamps (`billings.completed_at`,
+     `payments.created_at`, and `payment_splits.created_at` via parent
+     equality). Postgres `date`/`timestamptz` COPY input accepts a wider
+     literal domain than the API binds (`time.Time` = RFC3339;
+     `jsonDate`/`ParseDate` = `YYYY-MM-DD` or RFC3339 — `httpapi/date.go:20-30`,
+     `pet/date.go:15-26`). Whether every imported literal falls inside the
+     API-editable domain is unverified — no source CSV was scanned for these
+     rules (§7). Reclassified UNK: `owners.birth_date`, `pets.birth_date`,
+     `pets.neutered_date`, `medical_records.date`, `vital_records.recorded_at`,
+     `billings.scheduled_date`, `estimates.valid_until`, `exams.date`,
+     `vaccinations.date`, `vaccinations.next_date`, `pets.deceased_at`,
+     `appointments.start_time`, `appointments.end_time`, `estimates.created_at`. `billings.completed_at`
+     stays OK — the only date/timestamp column with end-to-end format proof
+     (preflight RFC3339 parse per row `cutover_payment_contract.go:168-173`
+     `cutover_payment_graph.go:38-49` + API RFC3339 bind + Postgres accepts
+     RFC3339). The two proven OWNER timestamps (`payments.created_at`,
+     `payment_splits.created_at`) retain their independent historical/owner
+     decisions. The four additional unproved columns are UNK; their former
+     OWNER/EMR follow-ups remain recorded in each row and are not resolved by
+     this classification change.
 - Resolved out of this bucket this pass: `payments.clinic_id` (later DDL adds the
   column — finding §2.11), `owners.company_phone`/`home_postal_code` (service
   format confirmed NOT applied — `validators.go:31-87`),
   `procedures.duration` (no binding min; no service rule invented).
-- **Acceptance:** the residual resolves to a cited source line or a recorded
-  owner decision.
+- **Acceptance:** each residual resolves to a cited source line, a producer
+  format guarantee, or a recorded owner decision.
 
 ## 5. Uncertainty register
 
-Matrix `UNK` cells (1) are named in T-K (`payments.insurance_ratio` broader
-service rule). Previously-unknown bindings resolved via
+Matrix `UNK` cells (15) are named in T-K: `payments.insurance_ratio` (broader
+service rule) plus the 14 date/timestamp columns whose CSV literal-format vs
+COPY/API-bind parity is unproven. Previously-unknown bindings resolved via
 [api-binding-catalog.json](api-binding-catalog.json) + cited source: `pets.pet_number` (PATCH
 max=50), inquiry fields (only `chief_complaint`/`notes` bound), all three
 clinical-plan texts (bound), `vital_records.recorded_at` (required create,
@@ -548,7 +592,10 @@ Scope of what the counts prove and do not prove:
   `ForceNotNull` semantics.
 - Terminal-state counts (finalized/completed/cancelled) are informational —
   not violations by themselves.
-- Unsupported / still UNKNOWN: general date/timestamp formats, text/COPY
+- Unsupported / still UNKNOWN: general date/timestamp formats (the 14
+  date/timestamp columns listed in T-K are classified UNK for exactly this
+  reason — presence-only preflight, wider COPY literal domain than the API
+  bind, no CSV scan), text/COPY
   nullability edge cases (e.g. merchandise empty-string vs NULL vs NOT NULL),
   later-ALTER checks, API recompute behavior, permissions, correction flows,
   and any API save/capability proof — none of which a count run can show.
@@ -557,9 +604,11 @@ Scope of what the counts prove and do not prove:
   names, or cell values appear.
 
 The earlier task-local draft `evidence/audit-counts.py` is **superseded and
-unaccepted** — it remains in place untouched as history only; it verified
-nothing (known deficiencies: float parsing, missing phone/format/range rules,
-hash-vs-read mismatch). Nothing in this audit depends on its output.
+unaccepted** and is not part of this PR's artifacts (the file is absent from
+the worktree); it verified nothing (known deficiencies: float parsing, missing
+phone/format/range rules, hash-vs-read mismatch). Nothing in this audit depends
+on its output. The only artifact under `evidence/` is
+[baseline-column-inventory.json](evidence/baseline-column-inventory.json) (§3).
 
 ## 8. Privacy
 
