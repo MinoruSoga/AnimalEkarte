@@ -1,9 +1,11 @@
 import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { MedicalRecordDiagnosisPlan } from "./MedicalRecordDiagnosisPlan";
 import { MedicalRecordInterview } from "./MedicalRecordInterview";
+import { InterviewWeightPanel } from "./InterviewWeightPanel";
 import { MedicalRecordTreatment } from "./MedicalRecordTreatment";
 import { RecommendationReasonSelect } from "./RecommendationReasonSelect";
 import { MedicalRecordMountedTab } from "./MedicalRecordTabsShared";
+import { collectPastWeightMeasurements } from "../lib/interview-weight-model";
 import type { MedicalRecordTabsAreaProps } from "../lib/medical-record-tabs-types";
 
 export function MedicalRecordClinicalTabs({
@@ -27,6 +29,11 @@ export function MedicalRecordClinicalTabs({
   recommendationReason,
   diagnosis1NameIdError,
   recordClinicId,
+  recordPetId,
+  historyLoading,
+  historyError,
+  historyIncomplete,
+  recordBoundary,
   isFinalized,
   isLocked,
   onChiefComplaintChange,
@@ -42,6 +49,19 @@ export function MedicalRecordClinicalTabs({
   onRecommendationReasonChange,
   onCopyRecordTreatments,
 }: MedicalRecordTabsAreaProps & { isFinalized: boolean }) {
+  // EMR-356 C2: 過去体重は履歴各行のローカル投影を集約（id で dedupe）。
+  // `?? []` 逐次評価だと「投影未提供の医療行」を「測定なし確定」へ潰すため、
+  // 未提供判定（unavailable）も同時に返す helper を必ず通す。
+  // 最新体重の代理取得はしない — 行に相関した測定のみが対象。
+  const { measurements: pastWeightMeasurements, unavailable: pastWeightUnavailable } =
+    collectPastWeightMeasurements(historyItems, recordBoundary);
+  // 書き込み可能な medicalRecordId は、選択中カルテの petId が selectedPet.id と
+  // 一致し、clinic コンテキストが解決できた時だけ渡す（切替途中の旧カルテ誤書防止）。
+  const writableRecordId =
+    recordId && recordClinicId && recordPetId && recordPetId === String(selectedPet.id)
+      ? recordId
+      : undefined;
+
   return (
     <>
       <MedicalRecordMountedTab
@@ -62,7 +82,24 @@ export function MedicalRecordClinicalTabs({
           historyItems={historyItems}
           isFinalized={isFinalized}
           isLocked={isLocked}
+          historyLoading={historyLoading}
+          historyError={historyError}
+          historyIncomplete={historyIncomplete}
           onCopyRecordTreatments={onCopyRecordTreatments}
+          weightPanel={
+            <InterviewWeightPanel
+              key={`${writableRecordId ?? "new"}|${recordClinicId ?? ""}|${String(selectedPet.id)}`}
+              medicalRecordId={writableRecordId}
+              recordClinicId={recordClinicId}
+              isPetDeceased={isPetDeceasedForClinicalWrite(selectedPet)}
+              pastMeasurements={pastWeightMeasurements}
+              pastUnavailable={pastWeightUnavailable || historyIncomplete === true}
+              historyLoading={historyLoading}
+              historyError={historyError}
+              isLocked={isLocked}
+              isFinalized={isFinalized}
+            />
+          }
         />
       </MedicalRecordMountedTab>
       <MedicalRecordMountedTab

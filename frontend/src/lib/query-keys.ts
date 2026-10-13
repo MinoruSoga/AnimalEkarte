@@ -371,7 +371,15 @@ export const queryKeys = {
   medicalRecords: {
     all: () => ["medical-records"] as const,
     list: <F>(filters: F) => ["medical-records", filters] as const,
-    history: (petId: string) => ["medical-records", "history", petId] as const,
+    /**
+     * EMR-356: 拠点横断で開いたカルテの履歴照会では record 自身の clinicId を
+     * 末尾に含める（別医院の履歴キャッシュを使い回さない）。
+     * clinicId 省略時は従来通り3要素キー — 既存の2引数呼出しと同一キーを維持する。
+     */
+    history: (petId: string, clinicId?: string) =>
+      clinicId
+        ? (["medical-records", "history", petId, clinicId] as const)
+        : (["medical-records", "history", petId] as const),
     detail: (id: string) => ["medical-record", id] as const,
     /**
      * P2-15: clinicId を末尾に含めるのは任意（拠点横断で開いたレコードの子リソースが
