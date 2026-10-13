@@ -12384,5 +12384,2933 @@
     "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
     "actions": [],
     "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fmedical-records",
+    "inventoryId": "INV-M01",
+    "state": "medical-list",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T063706056330.png",
+    "sha256": "ad6ac17df323f986d774ab49bd4ed5cc86a543e422688d17e1cc3bb3f3edad3a",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fmedical-records",
+    "inventoryId": "INV-M01",
+    "state": "medical-list",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T063709089732.png",
+    "sha256": "3495e78bbc701e4601b62eab3a394e3881778a041875ca48ec05da353e43bcd4",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fmedical-records",
+    "inventoryId": "INV-M01",
+    "state": "medical-list",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T063712235300.png",
+    "sha256": "bc5cb6572fd892d392396a5ac2d0b8317a02f60901a9f2507aec3eee55c6da72",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fmedical-records",
+    "inventoryId": "INV-M01",
+    "state": "medical-list",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T063715042034.png",
+    "sha256": "6864c9d58c5d38933e5a388c43d229d7f9bd80d39bd34f779a71adc863a6e34a",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fmedical-records%2F990013",
+    "inventoryId": "INV-M04",
+    "state": "medical-edit",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T063718084084.png",
+    "sha256": "e20bfbe7b192f16ba5cbc4de67349f9e408d05febb112b64476d0da4506b0979",
+    "review": "UNKNOWN_FOLLOWUP_REQUIRED",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fmedical-records%2F990013",
+    "inventoryId": "INV-M04",
+    "state": "medical-edit",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T063721130263.png",
+    "sha256": "27bb6507c954d65fbdfd9ca3f17ebe9d6f0917f91799721faec0d4a65c892f2c",
+    "review": "UNKNOWN_FOLLOWUP_REQUIRED",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fmedical-records%2F990013",
+    "inventoryId": "INV-M04",
+    "state": "medical-edit",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T063724216636.png",
+    "sha256": "a6b94c9e402a428f6119cf4cc459c641b5faed1bc76b0b9be43e55a888665bba",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fmedical-records%2F990013",
+    "inventoryId": "INV-M04",
+    "state": "medical-edit",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T063727204769.png",
+    "sha256": "4d25270335764da541023a8f01dcad4a723c3bff3e7d3fd534fde3895bc04326",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fhospitalization",
+    "inventoryId": "INV-H01",
+    "state": "hospital-list",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T063730077221.png",
+    "sha256": "305b15bb2793830e79d59ba4f26e84a0a4420f1b390f2f014f9bd8491106e750",
+    "review": "UNKNOWN_FOLLOWUP_REQUIRED",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fhospitalization",
+    "inventoryId": "INV-H01",
+    "state": "hospital-list",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T063732952791.png",
+    "sha256": "e67c3307ecebde6c33185b717dcd253e24899e79329632d80f76385cec2517e9",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fhospitalization",
+    "inventoryId": "INV-H01",
+    "state": "hospital-list",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T063735785339.png",
+    "sha256": "d4554c958d5f47aabfe9b38bc845dbe713d0daac54481c3ad89cf43aa67b6b2b",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fhospitalization",
+    "inventoryId": "INV-H01",
+    "state": "hospital-list",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T063738840910.png",
+    "sha256": "e52326afaaa8d67227e9b4041a951b67a6d1e4dd603713274291123364899d4f",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fhospitalization%2F990007",
+    "inventoryId": "INV-H05",
+    "state": "hospital-detail",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T063741782135.png",
+    "sha256": "105cec42a09b3e4ed3f5fec0678220458b49e383a26a7d6fb4d7f11c39d88411",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fhospitalization%2F990007",
+    "inventoryId": "INV-H05",
+    "state": "hospital-detail",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T063744490084.png",
+    "sha256": "d0459902260c9b961c8bf505ed68fd8ab4da0aff544e4bada5f19bac48fa0aa5",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fhospitalization%2F990007",
+    "inventoryId": "INV-H05",
+    "state": "hospital-detail",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T063747429039.png",
+    "sha256": "716746be75baaff1b6864b3796a94b03d8f4003efd7b5f0ad71b2a216ee6d585",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fhospitalization%2F990007",
+    "inventoryId": "INV-H05",
+    "state": "hospital-detail",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T063750482504.png",
+    "sha256": "385840aaf72584c218b32f52ea17e882d2745bbd000ae25827db6dcf6b7403e8",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fhospitalization%2F990007%2Fedit",
+    "inventoryId": "INV-H04",
+    "state": "hospital-edit",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T063753410275.png",
+    "sha256": "c5394620923518c493c0dd2cc7b271064624eab58c155df6e254ac8b5cddf212",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fhospitalization%2F990007%2Fedit",
+    "inventoryId": "INV-H04",
+    "state": "hospital-edit",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T063756253290.png",
+    "sha256": "cce37f8c116874aa1cef1380b709406ee2f59a8dfd05e6edb45e24587e381054",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fhospitalization%2F990007%2Fedit",
+    "inventoryId": "INV-H04",
+    "state": "hospital-edit",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T063759350655.png",
+    "sha256": "bf67463fc68245ab7f9a716b517c8d39232161ae23abdf5ce2ae23f14e5c5e48",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fhospitalization%2F990007%2Fedit",
+    "inventoryId": "INV-H04",
+    "state": "hospital-edit",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T063802552593.png",
+    "sha256": "5642c2761db49eb873002f9216f16a3f32bc1c1e3faff639a7c7a2020cee7dd8",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fexaminations",
+    "inventoryId": "INV-E01",
+    "state": "exam-list",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T063805964547.png",
+    "sha256": "2c53556a50459cf67e314c6afdcd61bea2cb9e267397739cc5454ff946203ef1",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fexaminations",
+    "inventoryId": "INV-E01",
+    "state": "exam-list",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T063808985197.png",
+    "sha256": "ff03169fce5f3778c5997a1ce5082947ec8b41be5e6da941910728e278f15727",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fexaminations",
+    "inventoryId": "INV-E01",
+    "state": "exam-list",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T063811939329.png",
+    "sha256": "75f003f02aa8289583c77fddf31f3615c2bc264af842c17353eedda92a6de1f6",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fexaminations",
+    "inventoryId": "INV-E01",
+    "state": "exam-list",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T063815485908.png",
+    "sha256": "9d2816125648971e10d8830b7289f44fbcb2a3bc74f586507cae8d29745f2488",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fexaminations%2F990081",
+    "inventoryId": "INV-E04",
+    "state": "exam-edit",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T063818741779.png",
+    "sha256": "f12f7e4da0857a56bc54a6bf03edbb1a9415eca8c1398a4b0111e7ce06f52ac6",
+    "review": "UNKNOWN_FOLLOWUP_REQUIRED",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fexaminations%2F990081",
+    "inventoryId": "INV-E04",
+    "state": "exam-edit",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T063821704232.png",
+    "sha256": "aa78cff8d71883a485d88d4efed00c5589d162e4212e62afdde1d47c2e2405e3",
+    "review": "UNKNOWN_FOLLOWUP_REQUIRED",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fexaminations%2F990081",
+    "inventoryId": "INV-E04",
+    "state": "exam-edit",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T063824695915.png",
+    "sha256": "970742718e858018bdb2cc0c57830cc35d2d37bcd4e71a5c6b2731d3d94f8d2e",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fexaminations%2F990081",
+    "inventoryId": "INV-E04",
+    "state": "exam-edit",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T063827471184.png",
+    "sha256": "ab2fb9018a714cc5900e6d4e00cd1c1f8f65b29d29a03c230b3149240e9fee3a",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Finventory",
+    "inventoryId": "INV-I01",
+    "state": "inventory-list",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T063830231244.png",
+    "sha256": "d8ec4ca96cc6b68de1ad4a5b5a47661c04468009a34598d77d3c713503bb6692",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Finventory",
+    "inventoryId": "INV-I01",
+    "state": "inventory-list",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T063833065155.png",
+    "sha256": "6039603a09a670449bca48f59a63a9ef136a64c99606539b7b93c0460e19ad9d",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Finventory",
+    "inventoryId": "INV-I01",
+    "state": "inventory-list",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T063835848139.png",
+    "sha256": "51c1dc7b80b4a8c8e6bb16ef449d621bc5d96fdd08e45c72c8d0e92c3981fe4e",
+    "review": "FAIL_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Finventory",
+    "inventoryId": "INV-I01",
+    "state": "inventory-list",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T063839156114.png",
+    "sha256": "5880fd897ce2afb31f84f16783674aa515aa7c69b7ecfe85a7cd44e9b3572bab",
+    "review": "FAIL_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Finventory%2F990080",
+    "inventoryId": "INV-I03",
+    "state": "inventory-edit",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T063842260983.png",
+    "sha256": "ac0e74a2295eee26a7a012e70e1c647ffe211063385f7f885f9126bbe919b410",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Finventory%2F990080",
+    "inventoryId": "INV-I03",
+    "state": "inventory-edit",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T063845047817.png",
+    "sha256": "67cc713deab0ac7e621e4b8fc01f8dae838901a1eba848be43f2acec299c8db4",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Finventory%2F990080",
+    "inventoryId": "INV-I03",
+    "state": "inventory-edit",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T063847912772.png",
+    "sha256": "6612304460f74d7c1d98d07efb82b0d13a782745db3bf348fb950b458ddd3d04",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Finventory%2F990080",
+    "inventoryId": "INV-I03",
+    "state": "inventory-edit",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T063850687319.png",
+    "sha256": "665067ea2c5631f25a1430447e47dbddfff5754788872f6b6d7a5b6a4e35b935",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fcheckups",
+    "inventoryId": "INV-C01",
+    "state": "checkup-list",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T063853643155.png",
+    "sha256": "1eb00e32cfe049d3e79895342124e5acc91d508ab4b6686b220d7b02f7515d35",
+    "review": "FAIL_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fcheckups",
+    "inventoryId": "INV-C01",
+    "state": "checkup-list",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T063856404520.png",
+    "sha256": "0359956e32f4066fb88e676439b62550171ad8368749c0c8010b61120a8ecc5d",
+    "review": "FAIL_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fcheckups",
+    "inventoryId": "INV-C01",
+    "state": "checkup-list",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T063859244762.png",
+    "sha256": "5930f2b701cff4385a0c8509b9146dff0dd438033bcaddb794d522c75845f8ef",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 25,
+    "route": "/__audit/setup?scenario=normal&next=%2Fcheckups",
+    "inventoryId": "INV-C01",
+    "state": "checkup-list",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T063902121331.png",
+    "sha256": "c065dc4ef05721c4770fc9c7de867f67b9b813a66e5f68b3c526fa9bdf30e469",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Fmedical-records%2F990013",
+    "inventoryId": "INV-M04",
+    "state": "medical-edit-middle",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T064206826485.png",
+    "sha256": "a71687074a2af8ab0eeb858930fa04c2164a013294fb64a6dd2badbf28ac4195",
+    "review": "UNKNOWN_FOLLOWUP_REQUIRED",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=//div[contains(@class,'overflow-y-auto') and contains(@class,'pb-20')]",
+        "action": "Synthetic form own scroll middle/end",
+        "actions": [
+          {
+            "selector": "xpath=//div[contains(@class,'overflow-y-auto') and contains(@class,'pb-20')]",
+            "description": "Synthetic form own scroll middle/end",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Fmedical-records%2F990013",
+    "inventoryId": "INV-M04",
+    "state": "medical-edit-middle",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T064208354798.png",
+    "sha256": "8af9dd01dc21677f75c2a8efaa073a5709ede0039a3ca42e1133c8ebae9e2180",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Fmedical-records%2F990013",
+    "inventoryId": "INV-M04",
+    "state": "medical-edit-middle",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T064209877699.png",
+    "sha256": "6f6217a44737b0affef5c81451aa7fe9757f1626ed327dc998d970c2c748c81c",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Fmedical-records%2F990013",
+    "inventoryId": "INV-M04",
+    "state": "medical-edit-middle",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T064211428247.png",
+    "sha256": "8a4efea6ec3f21bfb103680a9f0b66ac01a57105882680180a460645eb22e2bf",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Fmedical-records%2F990013",
+    "inventoryId": "INV-M04",
+    "state": "medical-edit-bottom",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T064214868602.png",
+    "sha256": "d857e7616b235886c37d222e7050f517f98972ece029a67a8f438fea88d3e0f3",
+    "review": "UNKNOWN_FOLLOWUP_REQUIRED",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=//div[contains(@class,'overflow-y-auto') and contains(@class,'pb-20')]",
+        "action": "Synthetic form own scroll middle/end",
+        "actions": [
+          {
+            "selector": "xpath=//div[contains(@class,'overflow-y-auto') and contains(@class,'pb-20')]",
+            "description": "Synthetic form own scroll middle/end",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Fmedical-records%2F990013",
+    "inventoryId": "INV-M04",
+    "state": "medical-edit-bottom",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T064216379680.png",
+    "sha256": "8af9dd01dc21677f75c2a8efaa073a5709ede0039a3ca42e1133c8ebae9e2180",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Fmedical-records%2F990013",
+    "inventoryId": "INV-M04",
+    "state": "medical-edit-bottom",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T064217908752.png",
+    "sha256": "dafee99c61a231915407a1a375f0d40746519a27817aa3201cf30cba83a33e0e",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Fmedical-records%2F990013",
+    "inventoryId": "INV-M04",
+    "state": "medical-edit-bottom",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T064219463212.png",
+    "sha256": "8a4efea6ec3f21bfb103680a9f0b66ac01a57105882680180a460645eb22e2bf",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Fexaminations%2F990081",
+    "inventoryId": "INV-E04",
+    "state": "exam-confirmed-bottom",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T064222461835.png",
+    "sha256": "20b912507a38f4c324f83f7284f5a2f926ae5de7e586f279805a0b346ccca3e7",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=//div[contains(@class,'overflow-y-auto') and contains(@class,'pb-20')]",
+        "action": "Synthetic form own scroll middle/end",
+        "actions": [
+          {
+            "selector": "xpath=//div[contains(@class,'overflow-y-auto') and contains(@class,'pb-20')]",
+            "description": "Synthetic form own scroll middle/end",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Fexaminations%2F990081",
+    "inventoryId": "INV-E04",
+    "state": "exam-confirmed-bottom",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T064223985895.png",
+    "sha256": "2635e1a1211aa05d899390ad846249350b9493bee98b7c773bfc31f189332559",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Fexaminations%2F990081",
+    "inventoryId": "INV-E04",
+    "state": "exam-confirmed-bottom",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T064225507394.png",
+    "sha256": "a5a9717d5c4e42060136f51ce073ed38bef2578259147ec157c44a7f6bde1212",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Fexaminations%2F990081",
+    "inventoryId": "INV-E04",
+    "state": "exam-confirmed-bottom",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T064227075858.png",
+    "sha256": "5fc138e874ff2aeea615804c7039dc49b4d9ca5dec3cd3583dc5041b245f416d",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Fhospitalization%2F990007%2Fedit",
+    "inventoryId": "INV-H04",
+    "state": "hospital-edit-middle",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T064230691233.png",
+    "sha256": "f4c478f574f9ddefbe230e4d5d5ef9b4275ca965084ce883297bd504720affdc",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=//div[contains(@class,'overflow-y-auto') and contains(@class,'pb-20')]",
+        "action": "Synthetic form own scroll middle/end",
+        "actions": [
+          {
+            "selector": "xpath=//div[contains(@class,'overflow-y-auto') and contains(@class,'pb-20')]",
+            "description": "Synthetic form own scroll middle/end",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Fhospitalization%2F990007%2Fedit",
+    "inventoryId": "INV-H04",
+    "state": "hospital-edit-middle",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T064232249959.png",
+    "sha256": "55b99896a063625dd5eb4f94fba0d7f2bbfd6ca1285f8fb41f682d90632f8ed2",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Fhospitalization%2F990007%2Fedit",
+    "inventoryId": "INV-H04",
+    "state": "hospital-edit-middle",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T064233802953.png",
+    "sha256": "69c17a7e29befc034740217914c320b5d8ac77f02225bdbebe08dd8cfbc27eca",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Fhospitalization%2F990007%2Fedit",
+    "inventoryId": "INV-H04",
+    "state": "hospital-edit-middle",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T064235347650.png",
+    "sha256": "cbcb9b1c39fcb71abafaa2a4f40cf86c113dd0adf001f1f68befee0ccea63c7c",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Fhospitalization%2F990007%2Fedit",
+    "inventoryId": "INV-H04",
+    "state": "hospital-edit-bottom",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T064238809750.png",
+    "sha256": "388bbe6ee3a0dd8807eb3aab693d6d8608cf1e63de10fc45a48f2a2b62193c0c",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=//div[contains(@class,'overflow-y-auto') and contains(@class,'pb-20')]",
+        "action": "Synthetic form own scroll middle/end",
+        "actions": [
+          {
+            "selector": "xpath=//div[contains(@class,'overflow-y-auto') and contains(@class,'pb-20')]",
+            "description": "Synthetic form own scroll middle/end",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Fhospitalization%2F990007%2Fedit",
+    "inventoryId": "INV-H04",
+    "state": "hospital-edit-bottom",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T064240353159.png",
+    "sha256": "2b3fa592c8c1be65fae4867d2c1e73c0d1a98d5baec7f977f98fdc4ba77544ee",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Fhospitalization%2F990007%2Fedit",
+    "inventoryId": "INV-H04",
+    "state": "hospital-edit-bottom",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T064241900312.png",
+    "sha256": "94644ade14e63a7ceb7598825238a60c6bce610fd141600041c356810f4b592f",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Fhospitalization%2F990007%2Fedit",
+    "inventoryId": "INV-H04",
+    "state": "hospital-edit-bottom",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T064243462388.png",
+    "sha256": "2410c04bfed06ba7d08d0236db70b8b7e560a93100bafddc364eb22012227b34",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Finventory%2F990080",
+    "inventoryId": "INV-I03",
+    "state": "inventory-edit-bottom",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T064246567881.png",
+    "sha256": "106f095315e5c3cabdbf9fa01776b275691fba14f0e246923ec0afe68a703f80",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=//div[contains(@class,'overflow-y-auto') and contains(@class,'pb-20')]",
+        "action": "Synthetic form own scroll middle/end",
+        "actions": [
+          {
+            "selector": "xpath=//div[contains(@class,'overflow-y-auto') and contains(@class,'pb-20')]",
+            "description": "Synthetic form own scroll middle/end",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Finventory%2F990080",
+    "inventoryId": "INV-I03",
+    "state": "inventory-edit-bottom",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T064248073497.png",
+    "sha256": "67cc713deab0ac7e621e4b8fc01f8dae838901a1eba848be43f2acec299c8db4",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Finventory%2F990080",
+    "inventoryId": "INV-I03",
+    "state": "inventory-edit-bottom",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T064249573192.png",
+    "sha256": "6612304460f74d7c1d98d07efb82b0d13a782745db3bf348fb950b458ddd3d04",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 26,
+    "route": "/__audit/setup?scenario=normal&next=%2Finventory%2F990080",
+    "inventoryId": "INV-I03",
+    "state": "inventory-edit-bottom",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T064251093848.png",
+    "sha256": "665067ea2c5631f25a1430447e47dbddfff5754788872f6b6d7a5b6a4e35b935",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 27,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-list-fixed",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T064412455212.png",
+    "sha256": "52dd9f4a13792d740bb1e8f13c326d790fcad40ea117b79b70c27a2727abe2d4",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 27,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-list-fixed",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T064413947426.png",
+    "sha256": "21ed924125ac8f1bc2fd15dea665a89f1b9c817441e2efee58b87bc64d80a348",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 27,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-list-fixed",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T064415447601.png",
+    "sha256": "56a20809ae1bebf614c9667bf9583ff4d59b7bc3ab2154081645c528f3f02a8b",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 27,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-list-fixed",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T064416966474.png",
+    "sha256": "ca3a8706e7140e5cbecc383a0faa69d2106def4eea41605b0964e70fb371548c",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 27,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-list-right-fixed",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T064420183371.png",
+    "sha256": "a3e7877fb9e5e3a7babcfe643906fcab6f25b56d3078e90d99f6345e9f875f77",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [hover] performed successfully on selector: xpath=//th[normalize-space()='操作']",
+        "action": "Cage table rightmost column reach",
+        "actions": [
+          {
+            "selector": "xpath=//th[normalize-space()='操作']",
+            "description": "Cage table rightmost column reach",
+            "method": "hover"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 27,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-list-right-fixed",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T064421664641.png",
+    "sha256": "5498ae6386628aba5b17f00f1b525e8fd5dc8ad31e31a7d591cb657469ae495b",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 27,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-list-right-fixed",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T064423161993.png",
+    "sha256": "8180c27b27cd937940349766521c39bb29e0a1af080f31e956c10f684b1bd579",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 27,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-list-right-fixed",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T064424682265.png",
+    "sha256": "170c20094694db2701e765b52bece020023e7cb08bce606ae3db5a147f681f84",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 27,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-create-fixed",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T064428038130.png",
+    "sha256": "87c842eefb0e5300cfc36857266f8e48790d3d870e96ddcd2feddf2de329b9af",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規登録']",
+        "action": "Synthetic cage new panel",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規登録']",
+            "description": "Synthetic cage new panel",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 27,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-create-fixed",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T064429540864.png",
+    "sha256": "de84eb698301ba5a38b1e180eddeb50cd298dc65419c868dbf2960ecbae25c0e",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 27,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-create-fixed",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T064431040673.png",
+    "sha256": "dac75771088ad28feba10ed001f06d61d8de90d2c8124b1c9822e23025715738",
+    "review": "PASS_PANEL_RIGHT_UNKNOWN",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 27,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-create-fixed",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T064432565198.png",
+    "sha256": "b7a69de878d4b122ddbc89169fd325e2411cdb05e87428d2ac6843a93e3a48a5",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 27,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit-fixed",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T064436064862.png",
+    "sha256": "6f4cd23cd5f45f241f1696840c3d4fd9cd699bc569018bc2367ef445fad5d508",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=/html[1]/body[1]/div[1]/div[1]/main[1]/div[1]/div[1]/div[1]/div[2]/div[1]/div[1]/div[3]/div[1]/div[1]/table[1]/tbody[1]/tr[1]/td[3]/div[1]/button[1]",
+        "action": "Synthetic audit edit target 詳細: ケージ 合成監査入院室1 (ID 990006)",
+        "actions": [
+          {
+            "selector": "xpath=/html[1]/body[1]/div[1]/div[1]/main[1]/div[1]/div[1]/div[1]/div[2]/div[1]/div[1]/div[3]/div[1]/div[1]/table[1]/tbody[1]/tr[1]/td[3]/div[1]/button[1]",
+            "description": "Synthetic audit edit target 詳細: ケージ 合成監査入院室1 (ID 990006)",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 27,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit-fixed",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T064437577084.png",
+    "sha256": "784446918dfdc5d7d45cf93aa9a8ec4339b5536b134e2c0735aa6c90d1d7adc4",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 27,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit-fixed",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T064439096358.png",
+    "sha256": "e62f826c7d8f86477b187c0b4fd1f5032969dd051f31dc7cc3823ae2bda26716",
+    "review": "PASS_PANEL_RIGHT_UNKNOWN",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 27,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit-fixed",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T064440639524.png",
+    "sha256": "5bbd78fdf4403385d44474bc3dc4e13adff6d31a99f07ca2f7c5b7a57e1b0aca",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 28,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-create-right-fixed",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T064819634777.png",
+    "sha256": "87c842eefb0e5300cfc36857266f8e48790d3d870e96ddcd2feddf2de329b9af",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規登録']",
+        "action": "Synthetic cage create panel",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規登録']",
+            "description": "Synthetic cage create panel",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [hover] performed successfully on selector: xpath=//th[normalize-space()='操作']",
+        "action": "Rightmost cage column with panel open",
+        "actions": [
+          {
+            "selector": "xpath=//th[normalize-space()='操作']",
+            "description": "Rightmost cage column with panel open",
+            "method": "hover"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 28,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-create-right-fixed",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T064821145578.png",
+    "sha256": "c41b11cd77204459d6f02e7705f2895b156adea85b78a082f0778abc5ac23fe3",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 28,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-create-right-fixed",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T064822670828.png",
+    "sha256": "eaf43cf580c52123d6269a2b8e65453d2c3285914e0808fd4309518917f197bd",
+    "review": "PASS_PANEL_RIGHT_UNKNOWN",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 28,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-create-right-fixed",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T064824200672.png",
+    "sha256": "357ac5fd98187c9a910e16170e08736e45c0bb0ca4e11db44590847081742267",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 28,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit-right-fixed",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T064829397738.png",
+    "sha256": "dc01eeda9711e6ccf24fc2191efe35a0f8cda2c16c1c164db21940130b1a47ba",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=/html[1]/body[1]/div[1]/div[1]/main[1]/div[1]/div[1]/div[1]/div[2]/div[1]/div[1]/div[3]/div[1]/div[1]/table[1]/tbody[1]/tr[1]/td[3]/div[1]/button[1]",
+        "action": "Synthetic audit edit target 詳細: ケージ 合成監査入院室1 (ID 990006)",
+        "actions": [
+          {
+            "selector": "xpath=/html[1]/body[1]/div[1]/div[1]/main[1]/div[1]/div[1]/div[1]/div[2]/div[1]/div[1]/div[3]/div[1]/div[1]/table[1]/tbody[1]/tr[1]/td[3]/div[1]/button[1]",
+            "description": "Synthetic audit edit target 詳細: ケージ 合成監査入院室1 (ID 990006)",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [hover] performed successfully on selector: xpath=//th[normalize-space()='操作']",
+        "action": "Rightmost cage column with panel open",
+        "actions": [
+          {
+            "selector": "xpath=//th[normalize-space()='操作']",
+            "description": "Rightmost cage column with panel open",
+            "method": "hover"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 28,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit-right-fixed",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T064830919893.png",
+    "sha256": "eda18baa1f2e5a9995cadd915a62c37a7091afc50f0beb37bc50e6bcd6d04c83",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 28,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit-right-fixed",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T064832423280.png",
+    "sha256": "5a3cfe4252d3ca74663074aaaa29eef9806c8a930ea1c38fdfa9ce3c8787c6ab",
+    "review": "PASS_PANEL_RIGHT_UNKNOWN",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 28,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit-right-fixed",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T064834073009.png",
+    "sha256": "3e3542bcfba2ee08397d9315e274670ff397f634c230be604a69f9b209aca92e",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 29,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-create-right-fixed-resize-reach",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T065251573972.png",
+    "sha256": "87c842eefb0e5300cfc36857266f8e48790d3d870e96ddcd2feddf2de329b9af",
+    "review": "UNKNOWN_PIXEL_REVIEW",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規登録']",
+        "action": "Synthetic cage create panel",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規登録']",
+            "description": "Synthetic cage create panel",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [hover] performed successfully on selector: xpath=//th[normalize-space()='操作']",
+        "action": "Rightmost cage column with panel open",
+        "actions": [
+          {
+            "selector": "xpath=//th[normalize-space()='操作']",
+            "description": "Rightmost cage column with panel open",
+            "method": "hover"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 29,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-create-right-fixed-resize-reach",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T065254151653.png",
+    "sha256": "a98e1b11f2275d033b3825118e754352d5b60fee93a716a9e5e0b4888ed77090",
+    "review": "UNKNOWN_PIXEL_REVIEW",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [hover] performed successfully on selector: xpath=//th[normalize-space()='操作']",
+        "action": "Reach rightmost cage column AFTER resize",
+        "actions": [
+          {
+            "selector": "xpath=//th[normalize-space()='操作']",
+            "description": "Reach rightmost cage column AFTER resize",
+            "method": "hover"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 29,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-create-right-fixed-resize-reach",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T065256704499.png",
+    "sha256": "79367e35ac0f2b69f54a3de49c5f18f656f73739571fc452a3edacde3ff4bd22",
+    "review": "PASS_PANEL_AND_RIGHT",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [hover] performed successfully on selector: xpath=//th[normalize-space()='操作']",
+        "action": "Reach rightmost cage column AFTER resize",
+        "actions": [
+          {
+            "selector": "xpath=//th[normalize-space()='操作']",
+            "description": "Reach rightmost cage column AFTER resize",
+            "method": "hover"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 29,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-create-right-fixed-resize-reach",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T065259292182.png",
+    "sha256": "26c0341930f5542182a840eb7cbc3c5342b1242167d03918ac9f5276f5712cb1",
+    "review": "UNKNOWN_PIXEL_REVIEW",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [hover] performed successfully on selector: xpath=//th[normalize-space()='操作']",
+        "action": "Reach rightmost cage column AFTER resize",
+        "actions": [
+          {
+            "selector": "xpath=//th[normalize-space()='操作']",
+            "description": "Reach rightmost cage column AFTER resize",
+            "method": "hover"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 29,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit-right-fixed-resize-reach",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T065301887701.png",
+    "sha256": "52dd9f4a13792d740bb1e8f13c326d790fcad40ea117b79b70c27a2727abe2d4",
+    "review": "UNKNOWN_TARGET",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 29,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit-right-fixed-resize-reach",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T065304421362.png",
+    "sha256": "b7b79ba4fdf33e34185565e10ee670825bce0ba90543d348fd7b28cafca92841",
+    "review": "UNKNOWN_TARGET",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [hover] performed successfully on selector: xpath=//th[normalize-space()='操作']",
+        "action": "Reach rightmost cage column AFTER resize",
+        "actions": [
+          {
+            "selector": "xpath=//th[normalize-space()='操作']",
+            "description": "Reach rightmost cage column AFTER resize",
+            "method": "hover"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 29,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit-right-fixed-resize-reach",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T065306933176.png",
+    "sha256": "66f35b327ac18215738981a5d3e5f1deb278b742987ab1c4210ca6394ba063cd",
+    "review": "UNKNOWN_TARGET",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [hover] performed successfully on selector: xpath=//th[normalize-space()='操作']",
+        "action": "Reach rightmost cage column AFTER resize",
+        "actions": [
+          {
+            "selector": "xpath=//th[normalize-space()='操作']",
+            "description": "Reach rightmost cage column AFTER resize",
+            "method": "hover"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 29,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit-right-fixed-resize-reach",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T065309469909.png",
+    "sha256": "6bce23bc98be30a75dff3535dde7014513096cae9a2003dd089222d1a0a5bea4",
+    "review": "UNKNOWN_TARGET",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [hover] performed successfully on selector: xpath=//th[normalize-space()='操作']",
+        "action": "Reach rightmost cage column AFTER resize",
+        "actions": [
+          {
+            "selector": "xpath=//th[normalize-space()='操作']",
+            "description": "Reach rightmost cage column AFTER resize",
+            "method": "hover"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 30,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit-open-right-explicit",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T065623266111.png",
+    "sha256": "dc01eeda9711e6ccf24fc2191efe35a0f8cda2c16c1c164db21940130b1a47ba",
+    "review": "UNKNOWN_PIXEL_REVIEW",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(@aria-label,'詳細: ケージ') and contains(@aria-label,'ID 990006')]",
+        "action": "Known synthetic cage detail/edit target990006",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(@aria-label,'詳細: ケージ') and contains(@aria-label,'ID 990006')]",
+            "description": "Known synthetic cage detail/edit target990006",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [hover] performed successfully on selector: xpath=//th[normalize-space()='操作']",
+        "action": "Reach table right edge AFTER resize with edit pane open",
+        "actions": [
+          {
+            "selector": "xpath=//th[normalize-space()='操作']",
+            "description": "Reach table right edge AFTER resize with edit pane open",
+            "method": "hover"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 30,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit-open-right-explicit",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T065625874706.png",
+    "sha256": "00306376249496ceea9f9603a93c2c8a9b105d66831cbd08b351ebae614a4813",
+    "review": "UNKNOWN_PIXEL_REVIEW",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [hover] performed successfully on selector: xpath=//th[normalize-space()='操作']",
+        "action": "Reach table right edge AFTER resize with edit pane open",
+        "actions": [
+          {
+            "selector": "xpath=//th[normalize-space()='操作']",
+            "description": "Reach table right edge AFTER resize with edit pane open",
+            "method": "hover"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 30,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit-open-right-explicit",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T065628447536.png",
+    "sha256": "8b98c0bd3ebeef97693c9fe084e9be136d28d4f4d77605626a8378706b92890d",
+    "review": "PASS_PANEL_AND_RIGHT",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [hover] performed successfully on selector: xpath=//th[normalize-space()='操作']",
+        "action": "Reach table right edge AFTER resize with edit pane open",
+        "actions": [
+          {
+            "selector": "xpath=//th[normalize-space()='操作']",
+            "description": "Reach table right edge AFTER resize with edit pane open",
+            "method": "hover"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 30,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit-open-right-explicit",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T065631040195.png",
+    "sha256": "8b86c5c842da928bf75a386e6d415854ed8c78b63fdba79c8a9d697f2a9613ea",
+    "review": "UNKNOWN_PIXEL_REVIEW",
+    "sourceHead": "b80a24981",
+    "sourcePatchSha256": "0cd8fddab8de0e8e21d19df2a1f52afa4b1ce4c0688aec388887f15b7a150ccb",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [hover] performed successfully on selector: xpath=//th[normalize-space()='操作']",
+        "action": "Reach table right edge AFTER resize with edit pane open",
+        "actions": [
+          {
+            "selector": "xpath=//th[normalize-space()='操作']",
+            "description": "Reach table right edge AFTER resize with edit pane open",
+            "method": "hover"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
   }
 ]

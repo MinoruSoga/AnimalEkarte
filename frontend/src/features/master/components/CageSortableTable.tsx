@@ -25,14 +25,26 @@ import { CAGE_SIZE_LABELS, CAGE_TYPE_LABELS, formatCagePrice } from "../lib/cage
 import { CageRowOverlay } from "./CageRowOverlay";
 
 const TABLE_COLUMNS = [
-  { key: "grip", className: "w-11 px-0" },
-  { key: "select", className: "w-11 px-0" },
-  { key: "name", label: "ケージ名", className: "pl-3" },
-  { key: "type", label: "エリア", className: "w-[100px]" },
-  { key: "size", label: "サイズ", className: "w-[90px]" },
-  { key: "price", label: "単価(税込)", className: "w-[120px] text-right pr-4" },
-  { key: "status", label: "ステータス", className: "w-[100px] text-center" },
-  { key: "action", label: "操作", className: "w-[80px] text-right pr-2" },
+  { key: "grip", className: "w-11 min-w-11 px-0" },
+  { key: "select", className: "w-11 min-w-11 px-0" },
+  { key: "name", label: "ケージ名", className: "pl-3 min-w-[140px]" },
+  { key: "type", label: "エリア", className: "w-[100px] min-w-[100px] whitespace-nowrap" },
+  { key: "size", label: "サイズ", className: "w-[90px] min-w-[90px] whitespace-nowrap" },
+  {
+    key: "price",
+    label: "単価(税込)",
+    className: "w-[120px] min-w-[120px] whitespace-nowrap text-right pr-4",
+  },
+  {
+    key: "status",
+    label: "ステータス",
+    className: "w-[100px] min-w-[100px] whitespace-nowrap text-center",
+  },
+  {
+    key: "action",
+    label: "操作",
+    className: "w-[80px] min-w-[80px] whitespace-nowrap text-right pr-2",
+  },
 ];
 
 interface CageSortableTableProps {
@@ -134,7 +146,7 @@ export function CageSortableTable({
                       dragLabel={`並べ替え: ケージ ${item.name} (ID ${item.id})`}
                       dragDisabled={!canEdit}
                     >
-                      <TableCell className="w-11 px-0 text-center">
+                      <TableCell className="w-11 min-w-11 px-0 text-center">
                         <Checkbox
                           aria-label={`連結選択: ケージ ${item.name} (ID ${item.id})`}
                           checked={selectedIds.has(item.id)}
@@ -144,7 +156,7 @@ export function CageSortableTable({
                           onCheckedChange={(checked) => onToggleSelect(item.id, checked === true)}
                         />
                       </TableCell>
-                      <TableCell className={`font-medium ${C.text}`}>
+                      <TableCell className={`min-w-[140px] font-medium ${C.text}`}>
                         <div className="flex items-center gap-2">
                           <DataTableRowButton
                             aria-label={`詳細: ケージ ${item.name} (ID ${item.id})`}
@@ -161,19 +173,21 @@ export function CageSortableTable({
                           ) : null}
                         </div>
                       </TableCell>
-                      <TableCell className={C.text70}>
+                      <TableCell className={`min-w-[100px] whitespace-nowrap ${C.text70}`}>
                         {CAGE_TYPE_LABELS[item.cageType] || item.cageType}
                       </TableCell>
-                      <TableCell className={C.text70}>
+                      <TableCell className={`min-w-[90px] whitespace-nowrap ${C.text70}`}>
                         {CAGE_SIZE_LABELS[item.cageSize] || item.cageSize}
                       </TableCell>
-                      <TableCell className={`text-right font-mono ${C.text} pr-4`}>
+                      <TableCell
+                        className={`min-w-[120px] whitespace-nowrap text-right font-mono ${C.text} pr-4`}
+                      >
                         {formatCagePrice(item.price)}
                       </TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="min-w-[100px] whitespace-nowrap text-center">
                         <StatusPill isActive={item.isActive} />
                       </TableCell>
-                      <TableCell className="text-right pr-2">
+                      <TableCell className="min-w-[80px] whitespace-nowrap text-right pr-2">
                         <div className="flex items-center justify-end gap-1">
                           {canEdit && isMerged ? (
                             <RowActionButton
