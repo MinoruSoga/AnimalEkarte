@@ -1,8 +1,4 @@
-import {
-  SCHEDULER_NAME,
-  type ScheduledJobName,
-  type ScheduledJobOutcome,
-} from "./scheduled-jobs";
+import { SCHEDULER_NAME, type ScheduledJobName, type ScheduledJobOutcome } from "./scheduled-jobs";
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 export const RUN_LEDGER_RETENTION_MS = 35 * DAY_MS;
@@ -55,7 +51,8 @@ export interface SchedulerOperationBase {
   reason: string;
   requestedAt: number;
   status: "pending" | "completed" | "rejected";
-  rejectionCode?: "revision_conflict" | "slot_already_recorded" | "scheduler_paused" | "scheduler_busy";
+  rejectionCode?:
+    "revision_conflict" | "slot_already_recorded" | "scheduler_paused" | "scheduler_busy";
 }
 
 export interface SchedulerControlOperation extends SchedulerOperationBase {
@@ -168,18 +165,16 @@ export interface LatestScheduledRun {
   updatedAt: number;
 }
 
-export type RunDisposition =
-  | "executed"
-  | "paused"
-  | "stale"
-  | "duplicate"
-  | "busy"
-  | "fenced";
+export type RunDisposition = "executed" | "paused" | "stale" | "duplicate" | "busy" | "fenced";
 
 export interface ScheduledRunResult {
   disposition: RunDisposition;
   ledger?: ScheduledRunLedger;
   active?: ActiveScheduledRun;
+  // Terminal ledger of the previously active run whose lease expired at this
+  // claim. Propagated so the failure notifier can alert once for the stuck
+  // run instead of masking it behind the replacement run's result.
+  expiredLedger?: ScheduledRunLedger;
 }
 
 export interface ScheduledRunResultSummary {
@@ -224,18 +219,12 @@ export function validateOperationIdentity(command: {
     throw new Error("requestId must be a UUID");
   }
   const reason = command.reason.trim();
-  if (
-    reason.length < 4 ||
-    reason.length > 200 ||
-    /[\u0000-\u001f\u007f]/.test(reason)
-  ) {
+  if (reason.length < 4 || reason.length > 200 || /[\u0000-\u001f\u007f]/.test(reason)) {
     throw new Error("reason is invalid");
   }
   if (
     command.actorPrincipal !== "scheduler-ops-secret-v1" &&
-    !/^cloudflare-access:[A-Za-z0-9._~:@+-]{1,160}$/.test(
-      command.actorPrincipal,
-    )
+    !/^cloudflare-access:[A-Za-z0-9._~:@+-]{1,160}$/.test(command.actorPrincipal)
   ) {
     throw new Error("actorPrincipal is invalid");
   }
@@ -284,9 +273,7 @@ export function normalizeControl(control: SchedulerControl | undefined): Schedul
   return {
     ...control,
     revision:
-      Number.isSafeInteger(control.revision) && control.revision >= 0
-        ? control.revision
-        : 0,
+      Number.isSafeInteger(control.revision) && control.revision >= 0 ? control.revision : 0,
   };
 }
 
@@ -378,12 +365,8 @@ export function summarizeActive(active: ActiveScheduledRun): ActiveScheduledRunS
 export function summarizeRunResult(result: ScheduledRunResult): ScheduledRunResultSummary {
   return {
     disposition: result.disposition,
-    ...(result.ledger === undefined
-      ? {}
-      : { ledger: summarizeLedger(result.ledger) }),
-    ...(result.active === undefined
-      ? {}
-      : { active: summarizeActive(result.active) }),
+    ...(result.ledger === undefined ? {} : { ledger: summarizeLedger(result.ledger) }),
+    ...(result.active === undefined ? {} : { active: summarizeActive(result.active) }),
   };
 }
 
@@ -433,6 +416,7 @@ export function terminalManualOperation(
 export function reconcilePendingManualOperation(
   operation: SchedulerManualOperation,
   ledger: ScheduledRunLedger | undefined,
+  expiredLedger?: ScheduledRunLedger,
 ): SchedulerManualOperation | undefined {
   if (ledger === undefined || ledger.status === "running") {
     return undefined;
@@ -446,11 +430,14 @@ export function reconcilePendingManualOperation(
           ? "busy"
           : ledger.failureCode === "stale"
             ? "stale"
-            : ledger.failureCode === "fenced" ||
-                ledger.failureCode === "lease_expired"
+            : ledger.failureCode === "fenced" || ledger.failureCode === "lease_expired"
               ? "fenced"
               : "executed";
-  return terminalManualOperation(operation, { disposition, ledger });
+  return terminalManualOperation(operation, {
+    disposition,
+    ledger,
+    ...(expiredLedger === undefined ? {} : { expiredLedger }),
+  });
 }
 
 export function failureCodeForOutcome(outcome: ScheduledJobOutcome): RunFailureCode | undefined {
@@ -491,9 +478,7 @@ export function internalFailureLedger(
     cron: ledger.cron,
     job: ledger.job,
     scheduledTime: ledger.scheduledTime,
-    ...(ledger.manualRequestId === undefined
-      ? {}
-      : { manualRequestId: ledger.manualRequestId }),
+    ...(ledger.manualRequestId === undefined ? {} : { manualRequestId: ledger.manualRequestId }),
     fenceToken: ledger.fenceToken,
     status: "failed",
     startedAt: ledger.startedAt,

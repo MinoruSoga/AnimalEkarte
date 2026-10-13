@@ -1,16 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  SCHEDULER_OPS_PRINCIPAL,
-  notifySchedulerFailures,
-} from "./scheduler-ops";
-import type {
-  ScheduledRunResult,
-  SchedulerManualOperation,
-} from "./scheduler-coordinator";
-import {
-  SCHEDULER_NAME,
-  type ScheduledJobName,
-} from "./scheduled-jobs";
+import { SCHEDULER_OPS_PRINCIPAL, notifySchedulerFailures } from "./scheduler-ops";
+import type { ScheduledRunResult, SchedulerManualOperation } from "./scheduler-coordinator";
+import { SCHEDULER_NAME, type ScheduledJobName } from "./scheduled-jobs";
 
 const NOW = Date.UTC(2026, 6, 24, 18, 0, 0);
 
@@ -158,9 +149,9 @@ describe("notifySchedulerFailures", () => {
       },
     };
 
-    await expect(
-      notifySchedulerFailures([failure], { environment: "staging" }),
-    ).rejects.toThrow("scheduler alert delivery failed");
+    await expect(notifySchedulerFailures([failure], { environment: "staging" })).rejects.toThrow(
+      "scheduler alert delivery failed",
+    );
     expect(errorLog).toHaveBeenCalledWith(
       "scheduler alert is not configured",
       expect.objectContaining({
@@ -338,9 +329,7 @@ describe("notifySchedulerFailures", () => {
       },
       async () => new Promise<Response>(() => undefined),
     );
-    const rejected = expect(pending).rejects.toThrow(
-      "scheduler alert delivery failed",
-    );
+    const rejected = expect(pending).rejects.toThrow("scheduler alert delivery failed");
 
     await vi.advanceTimersByTimeAsync(5_001);
     await rejected;
@@ -382,11 +371,7 @@ describe("notifySchedulerFailures", () => {
     };
 
     await notifySchedulerFailures(
-      [
-        success,
-        { disposition: "paused" },
-        { disposition: "duplicate" },
-      ],
+      [success, { disposition: "paused" }, { disposition: "duplicate" }],
       {
         environment: "staging",
         allowedHost: "alerts.example.com",
@@ -425,11 +410,7 @@ describe("notifySchedulerFailures", () => {
 
     try {
       await notifySchedulerFailures(
-        [
-          skippedRun(1, "busy"),
-          skippedRun(2, "busy"),
-          skippedRun(3, "stuck_lease"),
-        ],
+        [skippedRun(1, "busy"), skippedRun(2, "busy"), skippedRun(3, "stuck_lease")],
         {
           environment: "staging",
           allowedHost: "alerts.example.com",
@@ -479,6 +460,92 @@ describe("notifySchedulerFailures", () => {
       );
       expect(send).toHaveBeenCalledTimes(1);
       expect(errorLog).toHaveBeenCalledTimes(1);
+    } finally {
+      errorLog.mockRestore();
+    }
+  });
+
+  it("alerts once for a run whose lease expired, keyed to the old run not the replacement", async () => {
+    const send = vi.fn(async (_request: Request) => new Response(null, { status: 204 }));
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const reclaimed: ScheduledRunResult = {
+      disposition: "executed",
+      ledger: {
+        version: 1,
+        scheduler: SCHEDULER_NAME,
+        runId: `${SCHEDULER_NAME}:2:plane_sync`,
+        runKey: "internal-new-key",
+        cron: "*/15 * * * *",
+        job: "plane_sync",
+        scheduledTime: 2,
+        fenceToken: 2,
+        status: "success",
+        startedAt: 2,
+        finishedAt: 3,
+        outcome: {
+          outcome: "success",
+          processed: 1,
+          succeeded: 1,
+          failed: 0,
+        },
+      },
+      expiredLedger: {
+        version: 1,
+        scheduler: SCHEDULER_NAME,
+        runId: `${SCHEDULER_NAME}:1:plane_sync`,
+        runKey: "internal-old-key",
+        cron: "*/15 * * * *",
+        job: "plane_sync",
+        scheduledTime: 1,
+        fenceToken: 1,
+        status: "failed",
+        startedAt: 1,
+        finishedAt: 2,
+        failureCode: "lease_expired",
+      },
+    };
+
+    try {
+      await notifySchedulerFailures(
+        [reclaimed],
+        {
+          environment: "staging",
+          allowedHost: "alerts.example.com",
+          webhookURL: "https://alerts.example.com/scheduler",
+          webhookSecret: "alert-secret",
+        },
+        send,
+      );
+
+      expect(send).toHaveBeenCalledTimes(1);
+      const [request] = send.mock.calls[0] ?? [];
+      expect(request).toBeInstanceOf(Request);
+      if (!(request instanceof Request)) {
+        throw new Error("expected Request");
+      }
+      expect(request.headers.get("Idempotency-Key")).toBe(
+        `staging:${SCHEDULER_NAME}:1:plane_sync:lease_expired`,
+      );
+      const payload = await request.json();
+      expect(payload).toMatchObject({
+        alert_key: `staging:${SCHEDULER_NAME}:1:plane_sync:lease_expired`,
+        environment: "staging",
+        scheduler: SCHEDULER_NAME,
+        run_id: `${SCHEDULER_NAME}:1:plane_sync`,
+        job: "plane_sync",
+        scheduled_time: 1,
+        status: "failed",
+        failure_code: "lease_expired",
+      });
+      expect(JSON.stringify(payload)).not.toContain("internal-old-key");
+      const failureLogs = errorLog.mock.calls.filter(
+        ([, fields]) =>
+          typeof fields === "object" &&
+          fields !== null &&
+          "event" in fields &&
+          fields.event === "scheduler_job_failed",
+      );
+      expect(failureLogs).toHaveLength(1);
     } finally {
       errorLog.mockRestore();
     }

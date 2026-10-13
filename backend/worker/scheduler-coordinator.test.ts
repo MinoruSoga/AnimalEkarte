@@ -16,6 +16,7 @@ import {
   type ScheduledJobOutcome,
   type ScheduledJobRequest,
 } from "./scheduled-jobs";
+import { notifySchedulerFailures } from "./scheduler-ops";
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 
@@ -58,8 +59,7 @@ class MemoryStorage implements CoordinatorStorage {
         ? sorted
         : sorted.filter(([key]) => key > options.startAfter!);
     const ordered = options.reverse ? [...afterCursor].reverse() : afterCursor;
-    const entries =
-      options.limit === undefined ? ordered : ordered.slice(0, options.limit);
+    const entries = options.limit === undefined ? ordered : ordered.slice(0, options.limit);
     return new Map(entries) as Map<string, T>;
   }
 
@@ -123,7 +123,10 @@ describe("SchedulerCoordinator", () => {
       control: { paused: true, revision: 1, changedAt: now },
     });
     expect(duplicate).toEqual(first);
-    expect(await coordinator.getControl()).toMatchObject({ revision: 1, paused: true });
+    expect(await coordinator.getControl()).toMatchObject({
+      revision: 1,
+      paused: true,
+    });
   });
 
   it("records a rejected control operation when the expected revision is stale", async () => {
@@ -145,10 +148,7 @@ describe("SchedulerCoordinator", () => {
   });
 
   it("replays a rejected CAS using the persisted requested pause intent", async () => {
-    const coordinator = new SchedulerCoordinator(
-      new MemoryStorage(),
-      () => scheduledTime(10),
-    );
+    const coordinator = new SchedulerCoordinator(new MemoryStorage(), () => scheduledTime(10));
     const command = {
       paused: true,
       expectedRevision: 7,
@@ -159,9 +159,9 @@ describe("SchedulerCoordinator", () => {
 
     const rejected = await coordinator.setControl(command);
     await expect(coordinator.setControl(command)).resolves.toEqual(rejected);
-    await expect(
-      coordinator.setControl({ ...command, paused: false }),
-    ).rejects.toThrow("request_id_conflict");
+    await expect(coordinator.setControl({ ...command, paused: false })).rejects.toThrow(
+      "request_id_conflict",
+    );
   });
 
   it("exposes no unaudited pause mutation API", () => {
@@ -183,10 +183,7 @@ describe("SchedulerCoordinator", () => {
     } as const;
 
     await expect(
-      coordinator.runManual(
-        { ...command, scheduledTime: now + 60 * 60 * 1_000 },
-        execute,
-      ),
+      coordinator.runManual({ ...command, scheduledTime: now + 60 * 60 * 1_000 }, execute),
     ).rejects.toThrow("scheduled_time_outside_recovery_window");
     await expect(
       coordinator.runManual(
@@ -212,24 +209,18 @@ describe("SchedulerCoordinator", () => {
   });
 
   it("persists a per-principal scheduler operations rate limit", async () => {
-    const coordinator = new SchedulerCoordinator(
-      new MemoryStorage(),
-      () => scheduledTime(10),
-    );
+    const coordinator = new SchedulerCoordinator(new MemoryStorage(), () => scheduledTime(10));
 
     for (let request = 0; request < SCHEDULER_OPS_RATE_LIMIT; request += 1) {
       await expect(
         coordinator.consumeOpsRateLimit("scheduler-ops-secret-v1"),
       ).resolves.toMatchObject({ allowed: true });
     }
+    await expect(coordinator.consumeOpsRateLimit("scheduler-ops-secret-v1")).resolves.toMatchObject(
+      { allowed: false },
+    );
     await expect(
-      coordinator.consumeOpsRateLimit("scheduler-ops-secret-v1"),
-    ).resolves.toMatchObject({ allowed: false });
-    await expect(
-      coordinator.consumeOpsRateLimit(
-        "scheduler-ops-secret-v1",
-        scheduledTime(10) + 60_000,
-      ),
+      coordinator.consumeOpsRateLimit("scheduler-ops-secret-v1", scheduledTime(10) + 60_000),
     ).resolves.toMatchObject({ allowed: true });
   });
 
@@ -295,16 +286,9 @@ describe("SchedulerCoordinator", () => {
       release = resolve;
     });
 
-    const scheduledRun = coordinator.run(
-      "no_show",
-      "0 1 * * *",
-      now,
-      async () => pendingOutcome,
-    );
+    const scheduledRun = coordinator.run("no_show", "0 1 * * *", now, async () => pendingOutcome);
     await vi.waitFor(async () => {
-      expect((await coordinator.getActive())?.runId).toBe(
-        `${SCHEDULER_NAME}:${now}:no_show`,
-      );
+      expect((await coordinator.getActive())?.runId).toBe(`${SCHEDULER_NAME}:${now}:no_show`);
     });
 
     const activeStatus = await coordinator.getStatus(20);
@@ -406,7 +390,10 @@ describe("SchedulerCoordinator", () => {
       reason: "INC-132 pause scheduler",
       actorPrincipal: "scheduler-ops-secret-v1",
     });
-    expect(await coordinator.getControl()).toMatchObject({ paused: true, changedAt: now });
+    expect(await coordinator.getControl()).toMatchObject({
+      paused: true,
+      changedAt: now,
+    });
 
     const result = await coordinator.run("no_show", "0 1 * * *", now, execute);
     expect(result.disposition).toBe("paused");
@@ -421,7 +408,10 @@ describe("SchedulerCoordinator", () => {
       reason: "INC-132 resume scheduler",
       actorPrincipal: "scheduler-ops-secret-v1",
     });
-    expect(await coordinator.getControl()).toMatchObject({ paused: false, changedAt: now });
+    expect(await coordinator.getControl()).toMatchObject({
+      paused: false,
+      changedAt: now,
+    });
 
     const duplicate = await coordinator.run("no_show", "0 1 * * *", now - 1, execute);
     expect(duplicate).toMatchObject({
@@ -622,7 +612,9 @@ describe("SchedulerCoordinator", () => {
     expect(scheduledRunRequiresCronFailure(blocked)).toBe(false);
 
     releaseFirst(successOutcome());
-    await expect(first).resolves.toMatchObject({ ledger: { status: "success" } });
+    await expect(first).resolves.toMatchObject({
+      ledger: { status: "success" },
+    });
 
     const blockedDuplicate = await coordinator.run("delivery", "0 1 * * *", now, async () =>
       successOutcome(),
@@ -770,9 +762,7 @@ describe("SchedulerCoordinator", () => {
     expect(prunePages).toHaveLength(2);
     expect(prunePages[1]?.startAfter).toBeTypeOf("string");
     expect(
-      [...storage.values.keys()].filter((key) =>
-        key.startsWith("scheduler:run:"),
-      ),
+      [...storage.values.keys()].filter((key) => key.startsWith("scheduler:run:")),
     ).toHaveLength(5);
   });
 
@@ -793,14 +783,17 @@ describe("SchedulerCoordinator", () => {
     const transactionSpy = vi.spyOn(storage, "transaction").mockImplementation((closure) =>
       transaction(async (tx) => {
         const result = await closure(tx);
-        const ledger = await tx.get<ScheduledRunLedger>(SchedulerCoordinator.runKey("delivery", now));
+        const ledger = await tx.get<ScheduledRunLedger>(
+          SchedulerCoordinator.runKey("delivery", now),
+        );
         if (ledger?.status === "skipped") throw new Error("commit rejected");
         return result;
       }),
     );
     try {
-      await expect(coordinator.run("delivery", "0 1 * * *", now, async () => successOutcome()))
-        .rejects.toThrow("commit rejected");
+      await expect(
+        coordinator.run("delivery", "0 1 * * *", now, async () => successOutcome()),
+      ).rejects.toThrow("commit rejected");
       expect(infoLog).not.toHaveBeenCalled();
       expect(await storage.get(SchedulerCoordinator.runKey("delivery", now))).toBeUndefined();
     } finally {
@@ -828,12 +821,7 @@ describe("SchedulerCoordinator", () => {
     });
 
     const skippedExecute = vi.fn(async () => successOutcome());
-    const firstOverlap = await coordinator.run(
-      "delivery",
-      "0 1 * * *",
-      now,
-      skippedExecute,
-    );
+    const firstOverlap = await coordinator.run("delivery", "0 1 * * *", now, skippedExecute);
     const secondOverlap = await coordinator.run(
       "delivery",
       "0 1 * * *",
@@ -861,7 +849,9 @@ describe("SchedulerCoordinator", () => {
     expect(errorLog).not.toHaveBeenCalled();
 
     release(successOutcome());
-    await expect(first).resolves.toMatchObject({ ledger: { status: "success" } });
+    await expect(first).resolves.toMatchObject({
+      ledger: { status: "success" },
+    });
     infoLog.mockRestore();
     errorLog.mockRestore();
   });
@@ -883,11 +873,8 @@ describe("SchedulerCoordinator", () => {
 
     // Different job contending for the same slot is healthy contention,
     // never a stuck lease.
-    const contention = await coordinator.run(
-      "delivery",
-      "0 1 * * *",
-      start,
-      async () => successOutcome(),
+    const contention = await coordinator.run("delivery", "0 1 * * *", start, async () =>
+      successOutcome(),
     );
     expect(contention).toMatchObject({
       disposition: "busy",
@@ -947,16 +934,9 @@ describe("SchedulerCoordinator", () => {
       releaseFirst = resolve;
     });
 
-    const first = coordinator.run(
-      "no_show",
-      "0 1 * * *",
-      start,
-      async () => firstExecution,
-    );
+    const first = coordinator.run("no_show", "0 1 * * *", start, async () => firstExecution);
     await vi.waitFor(async () => {
-      expect((await coordinator.getActive())?.runId).toBe(
-        `${SCHEDULER_NAME}:${start}:no_show`,
-      );
+      expect((await coordinator.getActive())?.runId).toBe(`${SCHEDULER_NAME}:${start}:no_show`);
     });
 
     const firstActive = await coordinator.getActive();
@@ -975,7 +955,9 @@ describe("SchedulerCoordinator", () => {
     expect(firstStuck.ledger?.failureCode).toBe("stuck_lease");
 
     releaseFirst(successOutcome());
-    await expect(first).resolves.toMatchObject({ ledger: { status: "success" } });
+    await expect(first).resolves.toMatchObject({
+      ledger: { status: "success" },
+    });
 
     // A newly claimed run must be able to emit stuck_lease on its own first
     // cross-slot overlap — the one-time marker follows the active run, not
@@ -1016,7 +998,221 @@ describe("SchedulerCoordinator", () => {
     });
 
     releaseSecond(successOutcome());
-    await expect(second).resolves.toMatchObject({ ledger: { status: "success" } });
+    await expect(second).resolves.toMatchObject({
+      ledger: { status: "success" },
+    });
+  });
+
+  it("alerts once for a run reclaimed after its real lease expired at the next real cron slot", async () => {
+    const storage = new MemoryStorage();
+    const firstSlot = scheduledTime(9);
+    const slotMs = 15 * 60 * 1_000;
+    let now = firstSlot;
+    const coordinator = new SchedulerCoordinator(storage, () => now);
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const send = vi.fn(async (_request: Request) => new Response(null, { status: 204 }));
+    let releaseFirst: (outcome: ScheduledJobOutcome) => void = () => undefined;
+    const firstExecution = new Promise<ScheduledJobOutcome>((resolve) => {
+      releaseFirst = resolve;
+    });
+
+    try {
+      const first = coordinator.run(
+        "plane_sync",
+        "*/15 * * * *",
+        firstSlot,
+        async () => firstExecution,
+      );
+      await vi.waitFor(async () => {
+        expect((await coordinator.getActive())?.job).toBe("plane_sync");
+      });
+
+      // The next real */15 slot fires 15 minutes later — past the real
+      // 150-second lease — so the stuck run is reclaimed, not skipped.
+      now = firstSlot + slotMs;
+      const config = {
+        environment: "staging",
+        allowedHost: "alerts.example.com",
+        webhookURL: "https://alerts.example.com/scheduler",
+        webhookSecret: "alert-secret",
+      };
+      const results = await runScheduledPlan(coordinator, "*/15 * * * *", now, async () =>
+        successOutcome(),
+      );
+      const [reclaimed] = results;
+      expect(reclaimed).toMatchObject({
+        disposition: "executed",
+        ledger: {
+          status: "success",
+          runId: `${SCHEDULER_NAME}:${now}:plane_sync`,
+        },
+        expiredLedger: {
+          status: "failed",
+          failureCode: "lease_expired",
+          runId: `${SCHEDULER_NAME}:${firstSlot}:plane_sync`,
+        },
+      });
+
+      await notifySchedulerFailures(results, config, send);
+      expect(send).toHaveBeenCalledTimes(1);
+      const [request] = send.mock.calls[0] ?? [];
+      expect(request).toBeInstanceOf(Request);
+      if (!(request instanceof Request)) {
+        throw new Error("expected Request");
+      }
+      expect(request.headers.get("Idempotency-Key")).toBe(
+        `staging:${SCHEDULER_NAME}:${firstSlot}:plane_sync:lease_expired`,
+      );
+      expect(errorLog).toHaveBeenCalledWith(
+        "scheduler run lease expired",
+        expect.objectContaining({
+          event: "scheduler_run_lease_expired",
+          run_id: `${SCHEDULER_NAME}:${firstSlot}:plane_sync`,
+        }),
+      );
+      expect(errorLog).toHaveBeenCalledWith(
+        "scheduler job failed",
+        expect.objectContaining({
+          event: "scheduler_job_failed",
+          failure_code: "lease_expired",
+        }),
+      );
+
+      // The reclaim already recorded and reported the failure; the following
+      // slot carries nothing and must not re-alert.
+      now = firstSlot + 2 * slotMs;
+      const later = await runScheduledPlan(coordinator, "*/15 * * * *", now, async () =>
+        successOutcome(),
+      );
+      expect(later.map((result) => result.expiredLedger)).toEqual([undefined]);
+      await notifySchedulerFailures(later, config, send);
+      expect(send).toHaveBeenCalledTimes(1);
+
+      releaseFirst(successOutcome());
+      await expect(first).resolves.toMatchObject({
+        disposition: "fenced",
+        ledger: { status: "failed", failureCode: "lease_expired" },
+      });
+    } finally {
+      errorLog.mockRestore();
+    }
+  });
+
+  it("alerts once when a manual catch-up reclaims a run whose real lease expired", async () => {
+    const storage = new MemoryStorage();
+    const slot = scheduledTime(9) + 60 * 60 * 1_000;
+    let now = slot;
+    const coordinator = new SchedulerCoordinator(storage, () => now);
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const send = vi.fn(async (_request: Request) => new Response(null, { status: 204 }));
+    const config = {
+      environment: "staging",
+      allowedHost: "alerts.example.com",
+      webhookURL: "https://alerts.example.com/scheduler",
+      webhookSecret: "alert-secret",
+    };
+    let releaseStuck: (outcome: ScheduledJobOutcome) => void = () => undefined;
+    const stuckExecution = new Promise<ScheduledJobOutcome>((resolve) => {
+      releaseStuck = resolve;
+    });
+
+    try {
+      const stuck = coordinator.run("no_show", "0 1 * * *", slot, async () => stuckExecution);
+      await vi.waitFor(async () => {
+        expect((await coordinator.getActive())?.job).toBe("no_show");
+      });
+
+      // While the scheduled run's real lease is still valid, a manual catch-up
+      // of the missing sibling job is a healthy overlap rejection, not an alert.
+      const busy = await coordinator.runManual(
+        {
+          actorPrincipal: "scheduler-ops-secret-v1",
+          job: "delivery",
+          mode: "catch_up",
+          reason: "INC-201 recover missing delivery slot",
+          requestId: "2f4f0a1c-6f0d-4f2b-9a4d-6f0d2f4f0a1c",
+          scheduledTime: slot,
+        },
+        vi.fn(async () => successOutcome()),
+      );
+      expect(busy).toMatchObject({
+        status: "rejected",
+        rejectionCode: "scheduler_busy",
+      });
+      expect(busy.result).toBeUndefined();
+      if (busy.result !== undefined) {
+        await notifySchedulerFailures([busy.result], config, send);
+      }
+      expect(send).not.toHaveBeenCalled();
+
+      // Once the real 150-second lease has lapsed, a manual catch-up reclaims
+      // the stuck run; its expired ledger must reach the observer notify path.
+      now = slot + 15 * 60 * 1_000;
+      const command = {
+        actorPrincipal: "scheduler-ops-secret-v1",
+        job: "delivery",
+        mode: "catch_up",
+        reason: "INC-202 recover missing delivery slot",
+        requestId: "7c3d9b41-2a1f-4c5e-8d6b-1e2f3a4b5c6d",
+        scheduledTime: slot,
+      } as const;
+      const operation = await coordinator.runManual(command, async () => successOutcome());
+      expect(operation).toMatchObject({
+        status: "completed",
+        result: {
+          disposition: "executed",
+          ledger: {
+            status: "success",
+            runId: `${SCHEDULER_NAME}:${slot}:delivery`,
+          },
+          expiredLedger: {
+            status: "failed",
+            failureCode: "lease_expired",
+            runId: `${SCHEDULER_NAME}:${slot}:no_show`,
+          },
+        },
+      });
+
+      if (operation.result !== undefined) {
+        await notifySchedulerFailures([operation.result], config, send);
+      }
+      expect(send).toHaveBeenCalledTimes(1);
+      const [request] = send.mock.calls[0] ?? [];
+      expect(request).toBeInstanceOf(Request);
+      if (!(request instanceof Request)) {
+        throw new Error("expected Request");
+      }
+      expect(request.headers.get("Idempotency-Key")).toBe(
+        `staging:${SCHEDULER_NAME}:${slot}:no_show:lease_expired`,
+      );
+      expect(errorLog).toHaveBeenCalledWith(
+        "scheduler run lease expired",
+        expect.objectContaining({
+          event: "scheduler_run_lease_expired",
+          run_id: `${SCHEDULER_NAME}:${slot}:no_show`,
+        }),
+      );
+      expect(errorLog).toHaveBeenCalledWith(
+        "scheduler job failed",
+        expect.objectContaining({
+          event: "scheduler_job_failed",
+          failure_code: "lease_expired",
+        }),
+      );
+
+      // A replayed request returns the stored operation; the alert key stays
+      // stable so any downstream re-notify dedupes to the same event.
+      const replay = await coordinator.runManual(command, vi.fn());
+      expect(replay).toEqual(operation);
+
+      releaseStuck(successOutcome());
+      await expect(stuck).resolves.toMatchObject({
+        disposition: "fenced",
+        ledger: { status: "failed", failureCode: "lease_expired" },
+      });
+    } finally {
+      errorLog.mockRestore();
+    }
   });
 
   it("treats a legacy failed/busy overlap replayed as a duplicate as a nonfailure", async () => {
