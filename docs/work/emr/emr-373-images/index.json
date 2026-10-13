@@ -15312,5 +15312,325 @@
       }
     ],
     "limits": "synthetic visible state; form gaps/right-end limitations described in results; no save/auth/clinical acceptance"
+  },
+  {
+    "wave": 31,
+    "route": "/__audit/setup?scenario=normal&next=%2Finventory",
+    "inventoryId": "INV-I01",
+    "state": "inventory-list-labels-fixed",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T070730924764.png",
+    "sha256": "d8ec4ca96cc6b68de1ad4a5b5a47661c04468009a34598d77d3c713503bb6692",
+    "sourceHead": "e1341a0b6",
+    "sourcePatchSha256": "b3ed9af9d0bab3486bb45ca13f8bb4910eb6ee1d2844a7fa7e283fba1d7854ef",
+    "review": "PASS_VISIBLE_TARGET_LABELS",
+    "limits": "checkup doctor header still wraps768; no whole-table/save/auth/whole211 acceptance"
+  },
+  {
+    "wave": 31,
+    "route": "/__audit/setup?scenario=normal&next=%2Finventory",
+    "inventoryId": "INV-I01",
+    "state": "inventory-list-labels-fixed",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T070732456383.png",
+    "sha256": "6039603a09a670449bca48f59a63a9ef136a64c99606539b7b93c0460e19ad9d",
+    "sourceHead": "e1341a0b6",
+    "sourcePatchSha256": "b3ed9af9d0bab3486bb45ca13f8bb4910eb6ee1d2844a7fa7e283fba1d7854ef",
+    "review": "PASS_VISIBLE_TARGET_LABELS",
+    "limits": "checkup doctor header still wraps768; no whole-table/save/auth/whole211 acceptance"
+  },
+  {
+    "wave": 31,
+    "route": "/__audit/setup?scenario=normal&next=%2Finventory",
+    "inventoryId": "INV-I01",
+    "state": "inventory-list-labels-fixed",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T070733983423.png",
+    "sha256": "fb7ba3459183190b91117509e61e0aad82f7dc1095da7e4c1db3122ddd686943",
+    "sourceHead": "e1341a0b6",
+    "sourcePatchSha256": "b3ed9af9d0bab3486bb45ca13f8bb4910eb6ee1d2844a7fa7e283fba1d7854ef",
+    "review": "PASS_VISIBLE_TARGET_LABELS",
+    "limits": "checkup doctor header still wraps768; no whole-table/save/auth/whole211 acceptance"
+  },
+  {
+    "wave": 31,
+    "route": "/__audit/setup?scenario=normal&next=%2Finventory",
+    "inventoryId": "INV-I01",
+    "state": "inventory-list-labels-fixed",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T070735518006.png",
+    "sha256": "87f7d918c40a0225888fc7a94dbe7730f8121038dd98d8914dcd3f42a1a31522",
+    "sourceHead": "e1341a0b6",
+    "sourcePatchSha256": "b3ed9af9d0bab3486bb45ca13f8bb4910eb6ee1d2844a7fa7e283fba1d7854ef",
+    "review": "PASS_VISIBLE_TARGET_LABELS",
+    "limits": "checkup doctor header still wraps768; no whole-table/save/auth/whole211 acceptance"
+  },
+  {
+    "wave": 31,
+    "route": "/__audit/setup?scenario=normal&next=%2Finventory",
+    "inventoryId": "INV-I01",
+    "state": "inventory-list-right-fixed",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T070740490271.png",
+    "sha256": "29ca611c0355d40c3d3751eb8fb8dbfb4a8ebfa410d6840821974d284f0341a9",
+    "sourceHead": "e1341a0b6",
+    "sourcePatchSha256": "b3ed9af9d0bab3486bb45ca13f8bb4910eb6ee1d2844a7fa7e283fba1d7854ef",
+    "review": "PASS_VISIBLE_TARGET_LABELS",
+    "limits": "checkup doctor header still wraps768; no whole-table/save/auth/whole211 acceptance"
+  },
+  {
+    "wave": 31,
+    "route": "/__audit/setup?scenario=normal&next=%2Finventory",
+    "inventoryId": "INV-I01",
+    "state": "inventory-list-right-fixed",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T070743152346.png",
+    "sha256": "516b703d33b79df53bd65c27a24121645f76645be4d69515af89e3e38764c117",
+    "sourceHead": "e1341a0b6",
+    "sourcePatchSha256": "b3ed9af9d0bab3486bb45ca13f8bb4910eb6ee1d2844a7fa7e283fba1d7854ef",
+    "review": "PASS_VISIBLE_TARGET_LABELS",
+    "limits": "checkup doctor header still wraps768; no whole-table/save/auth/whole211 acceptance"
+  },
+  {
+    "wave": 31,
+    "route": "/__audit/setup?scenario=normal&next=%2Finventory",
+    "inventoryId": "INV-I01",
+    "state": "inventory-list-right-fixed",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T070745663022.png",
+    "sha256": "727a72d77d520267f363af3a093c03146526aa61709bdc44cc217b92ab7f4bae",
+    "sourceHead": "e1341a0b6",
+    "sourcePatchSha256": "b3ed9af9d0bab3486bb45ca13f8bb4910eb6ee1d2844a7fa7e283fba1d7854ef",
+    "review": "PASS_VISIBLE_TARGET_LABELS",
+    "limits": "checkup doctor header still wraps768; no whole-table/save/auth/whole211 acceptance"
+  },
+  {
+    "wave": 31,
+    "route": "/__audit/setup?scenario=normal&next=%2Finventory",
+    "inventoryId": "INV-I01",
+    "state": "inventory-list-right-fixed",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T070748239074.png",
+    "sha256": "4ffe4f3c0f0219887db6f834a83c30b2401c501f7940449e229e60048e87499c",
+    "sourceHead": "e1341a0b6",
+    "sourcePatchSha256": "b3ed9af9d0bab3486bb45ca13f8bb4910eb6ee1d2844a7fa7e283fba1d7854ef",
+    "review": "PASS_VISIBLE_TARGET_LABELS",
+    "limits": "checkup doctor header still wraps768; no whole-table/save/auth/whole211 acceptance"
+  },
+  {
+    "wave": 31,
+    "route": "/__audit/setup?scenario=normal&next=%2Fcheckups",
+    "inventoryId": "INV-C01",
+    "state": "checkup-list-labels-fixed",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T070752688404.png",
+    "sha256": "c666e7854d0f9eb2677239ec7869fe560be33ede3d1d4af68c19b90ca9864aca",
+    "sourceHead": "e1341a0b6",
+    "sourcePatchSha256": "b3ed9af9d0bab3486bb45ca13f8bb4910eb6ee1d2844a7fa7e283fba1d7854ef",
+    "review": "PASS_VISIBLE_TARGET_LABELS",
+    "limits": "checkup doctor header still wraps768; no whole-table/save/auth/whole211 acceptance"
+  },
+  {
+    "wave": 31,
+    "route": "/__audit/setup?scenario=normal&next=%2Fcheckups",
+    "inventoryId": "INV-C01",
+    "state": "checkup-list-labels-fixed",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T070754218491.png",
+    "sha256": "cbb33c988783654f2fdfe1afba5986b5200fef0dc8af0404e6f398b4c997712d",
+    "sourceHead": "e1341a0b6",
+    "sourcePatchSha256": "b3ed9af9d0bab3486bb45ca13f8bb4910eb6ee1d2844a7fa7e283fba1d7854ef",
+    "review": "PASS_VISIBLE_TARGET_LABELS",
+    "limits": "checkup doctor header still wraps768; no whole-table/save/auth/whole211 acceptance"
+  },
+  {
+    "wave": 31,
+    "route": "/__audit/setup?scenario=normal&next=%2Fcheckups",
+    "inventoryId": "INV-C01",
+    "state": "checkup-list-labels-fixed",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T070755747444.png",
+    "sha256": "5930f2b701cff4385a0c8509b9146dff0dd438033bcaddb794d522c75845f8ef",
+    "sourceHead": "e1341a0b6",
+    "sourcePatchSha256": "b3ed9af9d0bab3486bb45ca13f8bb4910eb6ee1d2844a7fa7e283fba1d7854ef",
+    "review": "PASS_VISIBLE_TARGET_LABELS",
+    "limits": "checkup doctor header still wraps768; no whole-table/save/auth/whole211 acceptance"
+  },
+  {
+    "wave": 31,
+    "route": "/__audit/setup?scenario=normal&next=%2Fcheckups",
+    "inventoryId": "INV-C01",
+    "state": "checkup-list-labels-fixed",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T070757273463.png",
+    "sha256": "c065dc4ef05721c4770fc9c7de867f67b9b813a66e5f68b3c526fa9bdf30e469",
+    "sourceHead": "e1341a0b6",
+    "sourcePatchSha256": "b3ed9af9d0bab3486bb45ca13f8bb4910eb6ee1d2844a7fa7e283fba1d7854ef",
+    "review": "PASS_VISIBLE_TARGET_LABELS",
+    "limits": "checkup doctor header still wraps768; no whole-table/save/auth/whole211 acceptance"
+  },
+  {
+    "wave": 31,
+    "route": "/__audit/setup?scenario=normal&next=%2Fcheckups",
+    "inventoryId": "INV-C01",
+    "state": "checkup-list-right-fixed",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T070802362102.png",
+    "sha256": "fe3cf716de88351e4f781bbdfb434f6aca41142a39534b3605a63ee61a9b44a5",
+    "sourceHead": "e1341a0b6",
+    "sourcePatchSha256": "b3ed9af9d0bab3486bb45ca13f8bb4910eb6ee1d2844a7fa7e283fba1d7854ef",
+    "review": "PASS_VISIBLE_TARGET_LABELS",
+    "limits": "checkup doctor header still wraps768; no whole-table/save/auth/whole211 acceptance"
+  },
+  {
+    "wave": 31,
+    "route": "/__audit/setup?scenario=normal&next=%2Fcheckups",
+    "inventoryId": "INV-C01",
+    "state": "checkup-list-right-fixed",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T070804885753.png",
+    "sha256": "e35a9e5ce43b7e5dba2a4504e543d7f60da0acf228cba76a64b2dd476889c42b",
+    "sourceHead": "e1341a0b6",
+    "sourcePatchSha256": "b3ed9af9d0bab3486bb45ca13f8bb4910eb6ee1d2844a7fa7e283fba1d7854ef",
+    "review": "PASS_VISIBLE_TARGET_LABELS",
+    "limits": "checkup doctor header still wraps768; no whole-table/save/auth/whole211 acceptance"
+  },
+  {
+    "wave": 31,
+    "route": "/__audit/setup?scenario=normal&next=%2Fcheckups",
+    "inventoryId": "INV-C01",
+    "state": "checkup-list-right-fixed",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T070807411761.png",
+    "sha256": "50e47e14cfb92f25fb080a84be3b8fa7f1500071628bba662dcae859b559b150",
+    "sourceHead": "e1341a0b6",
+    "sourcePatchSha256": "b3ed9af9d0bab3486bb45ca13f8bb4910eb6ee1d2844a7fa7e283fba1d7854ef",
+    "review": "PASS_VISIBLE_TARGET_LABELS",
+    "limits": "checkup doctor header still wraps768; no whole-table/save/auth/whole211 acceptance"
+  },
+  {
+    "wave": 31,
+    "route": "/__audit/setup?scenario=normal&next=%2Fcheckups",
+    "inventoryId": "INV-C01",
+    "state": "checkup-list-right-fixed",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T070809961477.png",
+    "sha256": "72d03b74f462bd0eb1125790f67a14afb9fad0f808c71343a4b6bedf9b30cf8d",
+    "sourceHead": "e1341a0b6",
+    "sourcePatchSha256": "b3ed9af9d0bab3486bb45ca13f8bb4910eb6ee1d2844a7fa7e283fba1d7854ef",
+    "review": "PASS_VISIBLE_TARGET_LABELS",
+    "limits": "checkup doctor header still wraps768; no whole-table/save/auth/whole211 acceptance"
   }
 ]

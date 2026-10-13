@@ -50,11 +50,13 @@ function InventoryListRow({ item, canEdit, onEdit }: InventoryListRowProps) {
       <TableCell className={`${C.text} text-right font-mono whitespace-nowrap`}>
         {item.quantity} {item.unit}
       </TableCell>
-      <TableCell className={`${C.text60} text-right font-mono hidden lg:table-cell`}>
+      <TableCell
+        className={`${C.text60} text-right font-mono whitespace-nowrap hidden lg:table-cell`}
+      >
         {item.minStockLevel} {item.unit}
       </TableCell>
       <TableCell className={C.text}>{item.location ?? "-"}</TableCell>
-      <TableCell className={`${C.text} font-mono hidden lg:table-cell`}>
+      <TableCell className={`${C.text} font-mono whitespace-nowrap hidden lg:table-cell`}>
         {item.expiryDate ?? "-"}
       </TableCell>
       <TableCell className={LIST_TABLE_COL.status}>
