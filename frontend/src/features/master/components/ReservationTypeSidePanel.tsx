@@ -308,7 +308,7 @@ export const CategorySidePanel = memo(function CategorySidePanel({
             </>
           ) : (
             <div className={`mt-4 pt-4 ${STYLE.sectionDivider}`}>
-              <p className={`text-xs ${C.text40}`}>子予約区分ごとに予約枠を設定してください</p>
+              <p className={`text-xs ${C.text60}`}>子予約区分ごとに予約枠を設定してください</p>
             </div>
           )}
           <ReservationTypeOccupationsSection clinicId={item.clinicId} reservationTypeId={item.id} />

@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/sheet";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/components/ui/utils";
 import { BADGE, C, STYLE } from "@/lib/design-tokens";
 import { SUPPORT_WIDGET_LAYOUT } from "@/constants/support-widget-layout";
 import { getFormEnum, getFormOptionalString } from "@/lib/form-data";
@@ -156,7 +157,7 @@ export function LineSendPanel({ ownerId, ownerName, open, onOpenChange }: LineSe
                     name="text"
                     rows={5}
                     placeholder="送信するメッセージを入力してください"
-                    className={`w-full rounded-xxs border ${C.borderMedium} ${C.bgWhite} p-3 text-sm ${C.text} ${C.textPlaceholder} outline-none ${C.focusBorderAccent} transition-colors resize-none leading-relaxed`}
+                    className={cn(STYLE.textarea, "font-sans", C.textPlaceholder)}
                   />
                 </div>
               ) : null}

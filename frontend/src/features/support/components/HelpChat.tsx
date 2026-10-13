@@ -193,7 +193,7 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
                   type="button"
                   disabled={send.isPending}
                   onClick={() => sendMessage(question)}
-                  className={`inline-flex min-h-11 items-center rounded-full border ${C.borderLight} px-3 py-1.5 text-xs ${C.textActionPrimary} ${C.hoverBgLight} transition-colors disabled:opacity-40`}
+                  className={`inline-flex min-h-11 items-center rounded-full border ${C.borderLight} px-3 py-1.5 text-xs ${C.textActionPrimary} ${C.hoverBgLight} transition-colors disabled:opacity-50 disabled:pointer-events-none`}
                 >
                   {question}
                 </button>
@@ -232,7 +232,7 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
                     type="button"
                     onClick={() => handleRetry(i)}
                     disabled={send.isPending}
-                    className={`mt-1.5 flex min-h-11 items-center gap-1 text-xs font-semibold ${C.textActionPrimary} underline underline-offset-2 transition-opacity disabled:opacity-40`}
+                    className={`mt-1.5 flex min-h-11 items-center gap-1 text-xs font-semibold ${C.textActionPrimary} underline underline-offset-2 transition-opacity disabled:opacity-50 disabled:pointer-events-none`}
                   >
                     <RotateCcw className="size-3" aria-hidden="true" />
                     もう一度送信
@@ -298,7 +298,7 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
           type="submit"
           disabled={input.trim().length === 0 || send.isPending || !hydrated}
           aria-label="送信"
-          className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-md ${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} p-2 transition-colors disabled:opacity-40`}
+          className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-md ${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} p-2 transition-colors disabled:opacity-50 disabled:pointer-events-none`}
         >
           <Send className="size-4" aria-hidden="true" />
         </button>
@@ -309,7 +309,7 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
             type="button"
             onClick={() => setResetConfirmOpen(true)}
             disabled={clearHistory.isPending}
-            className={`inline-flex min-h-11 shrink-0 items-center text-2xs ${C.textMuted} ${C.hoverText} underline underline-offset-2 transition-colors disabled:opacity-40`}
+            className={`inline-flex min-h-11 shrink-0 items-center text-2xs ${C.textMuted} ${C.hoverText} underline underline-offset-2 transition-colors disabled:opacity-50 disabled:pointer-events-none`}
           >
             会話をリセット
           </button>

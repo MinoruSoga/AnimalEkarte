@@ -30,7 +30,7 @@ export const DiagnosisHeaderChiefComplaint = memo(function DiagnosisHeaderChiefC
         {content ? (
           <div className="whitespace-pre-wrap leading-relaxed font-mono">{content}</div>
         ) : (
-          <div className={`flex items-center justify-center h-full ${C.text40} italic`}>
+          <div className={`flex items-center justify-center h-full ${C.text60} italic`}>
             主訴の入力はありません
           </div>
         )}
