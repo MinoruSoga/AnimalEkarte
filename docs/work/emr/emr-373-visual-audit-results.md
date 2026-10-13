@@ -185,6 +185,8 @@ wave19〜21の124画像を追加し、索引は383枚。wave20ではLINE予約14
 
 ## 継続追試（2026-10-13）
 
+116枚の単体ZIPは9.6MBで、Planeの取得上限5MiBに拒否された。元画像・失敗記録を保持し、各4MB未満のpart1〜3へ分割して転送する。各partもCRCと全収録PNGのSHA-256を再検証し、添付成功はreadbackで別に確認する。
+
 EMR-398の在庫日付・数量/最低在庫の数値＋単位へnowrapを追加。wave31の4幅一覧左右で、desktopの2027-12-31/20 tablet、mobileの可視数量と右端操作まで実画像確認。EMR-399の飼主名/ペット名/健診種別見出しと日付も修正したが、768の担当医見出しは同じ折返しが残り、票全体は未完了。既存2 suites/26 tests、限定TypeScript1472 files診断0、ESLint/Prettier成功。列可視条件・名称本文折返し・sort/ARIA/link/権限・API変更なし。
 
 担当医見出しの追加修正を同じeastern-citrus/swe-2-highで再開したところ、無料モデルのrate limitで変更前に終了した。有料モデルへ切り替えていない。解除予定は2026-10-13 18:01 UTC（2026-10-14 03:01 JST）とのCLI応答。EMR-398はReview、EMR-399はRunningを維持し、全211の未完了も維持する。
