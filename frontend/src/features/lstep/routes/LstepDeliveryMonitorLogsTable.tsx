@@ -32,12 +32,18 @@ export function LstepDeliveryMonitorLogsTable({
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className={STYLE.tableHeaderRow}>
-              <th className={`${STYLE.tableHeaderCell} text-left w-48`}>種別</th>
-              <th className={`${STYLE.tableHeaderCell} text-left w-36`}>飼主</th>
-              <th className={`${STYLE.tableHeaderCell} text-left w-40`}>予定日時</th>
-              <th className={`${STYLE.tableHeaderCell} text-left w-24`}>ステータス</th>
-              <th className={`${STYLE.tableHeaderCell} text-left w-40`}>送信日時</th>
-              <th className={`${STYLE.tableHeaderCell} text-left`}>除外理由</th>
+              <th className={`${STYLE.tableHeaderCell} text-left w-48 whitespace-nowrap`}>種別</th>
+              <th className={`${STYLE.tableHeaderCell} text-left w-36 whitespace-nowrap`}>飼主</th>
+              <th className={`${STYLE.tableHeaderCell} text-left w-40 whitespace-nowrap`}>
+                予定日時
+              </th>
+              <th className={`${STYLE.tableHeaderCell} text-left w-24 whitespace-nowrap`}>
+                ステータス
+              </th>
+              <th className={`${STYLE.tableHeaderCell} text-left w-40 whitespace-nowrap`}>
+                送信日時
+              </th>
+              <th className={`${STYLE.tableHeaderCell} text-left whitespace-nowrap`}>除外理由</th>
             </tr>
           </thead>
           <tbody>
@@ -91,17 +97,17 @@ function DeliveryLogsTableBody({
           {TriggerTypeLabels[item.trigger_type] ?? item.trigger_type}
         </td>
         <td className={STYLE.tableCell}>{item.owner_name}</td>
-        <td className={`${STYLE.tableCell} font-mono`}>
+        <td className={`${STYLE.tableCell} font-mono whitespace-nowrap`}>
           {formatDeliveryMonitorDatetime(item.scheduled_at)}
         </td>
-        <td className={STYLE.tableCell}>
+        <td className={`${STYLE.tableCell} whitespace-nowrap`}>
           <span
             className={`inline-flex items-center px-2 py-0.5 rounded border text-xs ${BADGE[badgeColor]}`}
           >
             {TriggerStatusLabels[item.status] ?? item.status}
           </span>
         </td>
-        <td className={`${STYLE.tableCell} font-mono`}>
+        <td className={`${STYLE.tableCell} font-mono whitespace-nowrap`}>
           {item.fired_at ? formatDeliveryMonitorDatetime(item.fired_at) : "—"}
         </td>
         <td className={`${STYLE.tableCell} ${C.text50}`}>{item.excluded_reason ?? "—"}</td>
