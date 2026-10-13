@@ -471,13 +471,11 @@ describe("worker fetch /_internal/migrate", () => {
   const MIGRATE_SECRET = "t".repeat(48);
 
   function migrateEnv() {
-    const runMigrate = vi.fn(
-      async (_expected?: string | null) => ({
-        exitCode: 0,
-        stdout: "",
-        stderr: "",
-      }),
-    );
+    const runMigrate = vi.fn(async (_expected?: string | null) => ({
+      exitCode: 0,
+      stdout: "",
+      stderr: "",
+    }));
     const binding = {
       idFromName: vi.fn((name: string) => `id:${name}`),
       get: vi.fn(() => ({ runMigrate })),
@@ -551,21 +549,21 @@ describe("container envVars TRIMMING_IMAGE_CLEANUP_ENABLED forwarding", () => {
   });
 
   it("forwards an explicit true so the Go startup gate can enable the worker", () => {
-    expect(
-      envVarsWithCleanup("true").TRIMMING_IMAGE_CLEANUP_ENABLED,
-    ).toBe("true");
+    expect(envVarsWithCleanup("true").TRIMMING_IMAGE_CLEANUP_ENABLED).toBe(
+      "true",
+    );
   });
 
   it("forwards an explicit false unchanged", () => {
-    expect(
-      envVarsWithCleanup("false").TRIMMING_IMAGE_CLEANUP_ENABLED,
-    ).toBe("false");
+    expect(envVarsWithCleanup("false").TRIMMING_IMAGE_CLEANUP_ENABLED).toBe(
+      "false",
+    );
   });
 
   it("defaults to false when the var is unset so deploys stay OFF", () => {
-    expect(
-      envVarsWithCleanup(undefined).TRIMMING_IMAGE_CLEANUP_ENABLED,
-    ).toBe("false");
+    expect(envVarsWithCleanup(undefined).TRIMMING_IMAGE_CLEANUP_ENABLED).toBe(
+      "false",
+    );
   });
 
   it("preserves non-boolean values verbatim for the Go fail-closed parse", () => {
@@ -574,5 +572,32 @@ describe("container envVars TRIMMING_IMAGE_CLEANUP_ENABLED forwarding", () => {
         value,
       );
     }
+  });
+});
+
+describe("container envVars PLANE label ID forwarding", () => {
+  afterEach(() => {
+    delete workerEnv.PLANE_SOURCE_LABEL_ID;
+    delete workerEnv.PLANE_LANE_LABEL_ID;
+  });
+
+  it("forwards both configured label UUIDs to the container", () => {
+    workerEnv.PLANE_SOURCE_LABEL_ID = "31530203-1a6e-445f-9952-01c6eac98fe1";
+    workerEnv.PLANE_LANE_LABEL_ID = "7a38738a-d932-4166-a7fa-87524f29b824";
+    const envVars = buildContainerEnvVars(workerEnv);
+    expect(envVars.PLANE_SOURCE_LABEL_ID).toBe(
+      "31530203-1a6e-445f-9952-01c6eac98fe1",
+    );
+    expect(envVars.PLANE_LANE_LABEL_ID).toBe(
+      "7a38738a-d932-4166-a7fa-87524f29b824",
+    );
+  });
+
+  it("defaults to empty string when the vars are unset", () => {
+    delete workerEnv.PLANE_SOURCE_LABEL_ID;
+    delete workerEnv.PLANE_LANE_LABEL_ID;
+    const envVars = buildContainerEnvVars(workerEnv);
+    expect(envVars.PLANE_SOURCE_LABEL_ID).toBe("");
+    expect(envVars.PLANE_LANE_LABEL_ID).toBe("");
   });
 });

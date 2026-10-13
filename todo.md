@@ -56,7 +56,7 @@ Current unfinished implementation, verification, data, performance, delivery, an
 | SEC-P4 | Medium | support / chat unredacted | P1 の一部。会話本文の全院共有 | 受容済み | P1 と同じ（EMR-263 で情報区分追跡） |
 | SEC-N1 | Medium | lab-frame / body limit | binary Content-Type が request limit を JSON decode 前に回避 | 対応済み(WIP) | `BinaryBodyMaxBytes=16MiB` 共通天井 + lab frames ルート 64KiB + base64 長事前拒否 |
 | SEC-N2 | Medium | support / LLM outbound | 認証済み staff が未分類 clinic データを LLM へ送信可能 | 対応済み(WIP) | `screenChatOutbound` で機微パターン拒否 + history をサーバー保存済み履歴のみに限定 |
-| SEC-N3 | Medium | support / Plane export | bug-report 作成時に未分類コンテンツが自動で Plane へ export | コード上は自動起票廃止のまま | 2026-10-03 に Create 時の自動起票を廃止。2026-10-11 owner 指示で自動起票へ戻す → [EMR-340](https://app.plane.so/baritechllc/browse/EMR-340/)（Ready） |
+| SEC-N3 | Medium | support / Plane export | bug-report 作成時に未分類コンテンツが自動で Plane へ export | EMR-340 で Create 後の自動起票を復帰（best-effort・手動再送併存） | 2026-10-03 に Create 時の自動起票を廃止。2026-10-11 owner 指示で自動起票へ戻す → [EMR-340](https://app.plane.so/baritechllc/browse/EMR-340/)（Ready） |
 | SEC-N4 | Low | lstep / signed URL TTL | 共有ファイル bearer URL が 24h 有効 | 対応済み(WIP) | TTL 用途別分割(対話 15min / LINE 配送 1h) |
 | SEC-N5 | High | seedlogin / STG demo password | 共有パスワードが全 catalog identity(執行含む)を認証 | 受容済み | SECURITY.md に受容済みリスクとして記録(synthetic demo・全医院視点の執行アカウントが権限管理デモに必要) |
 | SEC-N6 | Medium | support / LLM outbound prose | 未分類 prose を外部 LLM へ送信 | 裁定済み | P1/P4 owner 裁定でカバー — PII 許可 + `screenChatOutbound` 付き既存経路のみ |

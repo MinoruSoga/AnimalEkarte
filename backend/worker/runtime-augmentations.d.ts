@@ -43,6 +43,8 @@ interface Env {
   PLANE_PROJECT_ID?: string;
   PLANE_PROJECT_IDENTIFIER?: string;
   PLANE_TIMEOUT_MS?: string;
+  PLANE_SOURCE_LABEL_ID?: string;
+  PLANE_LANE_LABEL_ID?: string;
   // Optional bug-report Discord webhook. URL via `wrangler secret put` only;
   // unset disables notification (report still saves to DB).
   DISCORD_BUG_REPORT_WEBHOOK_URL?: string;
@@ -82,6 +84,8 @@ declare namespace Cloudflare {
     PLANE_PROJECT_ID?: string;
     PLANE_PROJECT_IDENTIFIER?: string;
     PLANE_TIMEOUT_MS?: string;
+    PLANE_SOURCE_LABEL_ID?: string;
+    PLANE_LANE_LABEL_ID?: string;
     DISCORD_BUG_REPORT_WEBHOOK_URL?: string;
     DISCORD_WEBHOOK_TIMEOUT_MS?: string;
     TRIMMING_IMAGE_CLEANUP_ENABLED?: string;
