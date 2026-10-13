@@ -149,6 +149,13 @@ export function buildContainerEnvVars(env: Env): Record<string, string> {
     DISCORD_BUG_REPORT_WEBHOOK_URL: env.DISCORD_BUG_REPORT_WEBHOOK_URL ?? "",
     DISCORD_WEBHOOK_TIMEOUT_MS: env.DISCORD_WEBHOOK_TIMEOUT_MS ?? "",
 
+    // EMR-335: 検査機器エージェント agent-consumer の短命 capability 署名鍵。
+    // secrets.required に名前のみ登録し、値は `wrangler secret put` でのみ投入する。
+    // Worker の secret に置くだけではコンテナへ届かないため本経路の転送が必須。
+    // 未設定(空文字)なら Go 側は /v1/lab-device/agent-consumer を 503 で返し、
+    // 画面は「検査機器エージェントが未設定です」を表示する(fail-closed・秘密は空)。
+    LAB_DEVICE_AGENT_CONSUMER_TOKEN: env.LAB_DEVICE_AGENT_CONSUMER_TOKEN ?? "",
+
     // トリミング画像削除 retry worker の起動トグル。未設定デプロイは OFF を
     // 保持するため "false" 既定とし、Go 側はリテラル "true" のみで有効化する
     // (それ以外の値は fail-closed で OFF)。vars/secrets.required には入れない。

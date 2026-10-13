@@ -49,9 +49,14 @@ export function LabDeviceBoard() {
     permissionsRef.current = { canCreate, canEdit };
   }, [canCreate, canEdit]);
   const { data: board, isLoading } = useGetLabDeviceBoard(canCreate);
-  const { data: agentConsumerToken } = useGetLabDeviceAgentConsumer(
-    canCreate && currentClinicId !== null,
-  );
+  const agentConsumerQuery = useGetLabDeviceAgentConsumer(canCreate && currentClinicId !== null);
+  // EMR-335: data=null は BE 秘密未設定(503)。query エラー時はキャッシュに残る
+  // 旧 capability を使い回さないため undefined に揃え、リスン自体も無効化する。
+  // 未設定表示は成功レスポンスの null のみ — エラー時に残った stale null と混同しない。
+  const agentConsumerUnconfigured = !agentConsumerQuery.isError && agentConsumerQuery.data === null;
+  const agentConsumerToken = agentConsumerQuery.isError
+    ? undefined
+    : (agentConsumerQuery.data ?? undefined);
   const putWait = usePutLabDeviceWait();
   const clearWait = useClearLabDeviceWait();
   const receive = useReceiveLabDeviceFrames();
@@ -173,7 +178,7 @@ export function LabDeviceBoard() {
     [queryClient],
   );
   const agentStatus = useLabDeviceAgentListen({
-    enabled: canCreate && currentClinicId !== null,
+    enabled: canCreate && currentClinicId !== null && agentConsumerToken !== undefined,
     clinicId: currentClinicId,
     consumerToken: agentConsumerToken,
     onFrame,
@@ -229,6 +234,9 @@ export function LabDeviceBoard() {
           onDetach={handleDetach}
           onAttach={handleAttach}
         />
+        <p role="status" className={`text-sm ${C.textWarning}`}>
+          {agentConsumerUnconfigured ? "検査機器エージェントが未設定です" : null}
+        </p>
         <LabDeviceAgentPanel agentStatus={agentStatus} />
       </div>
     </PageLayout>
