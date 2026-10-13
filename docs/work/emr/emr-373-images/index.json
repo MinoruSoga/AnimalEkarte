@@ -2026,5 +2026,3736 @@
     "sha256": "0776f2701c7f8d7076c8e1e3f799b61002ba4ca60b385861ce641b5a7d3d6cde",
     "review": "staff new panel UNKNOWN; action failed rpc_internal; image is initial list only",
     "limits": "viewport only; failed action does not prove panel/focus"
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K02",
+    "state": "top",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T045448108926.png",
+    "sha256": "ae007dab46aa349f077884587864d1363805c9d47af01833e747e47d1bec1c66",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K02",
+    "state": "top",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T045450409753.png",
+    "sha256": "f69b2b43050c2e1f565a5da269963adb697c52eca0c96284eab5926e490c6168",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K02",
+    "state": "top",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T045452705158.png",
+    "sha256": "cc541b61d098568d2f1da299b3a1688391c68a9991e8d37afc8976bf364c7a5e",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K02",
+    "state": "top",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T045455005146.png",
+    "sha256": "4379f66d380602bcc8489406af1e477a05416df8cc82baddc6f73c9b9611e273",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K03",
+    "state": "customer",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T045458352859.png",
+    "sha256": "ebb6f858e5273dd4fd5234caa2718df8fdd5d6ab262d752389c05d597edc298b",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規予約']",
+        "action": "Synthetic reservation flow target",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規予約']",
+            "description": "Synthetic reservation flow target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K03",
+    "state": "customer",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T045500657961.png",
+    "sha256": "92ac78be71db956e48f3508314dab642badf914e6056b1ddbeb06439466c2f1f",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K03",
+    "state": "customer",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T045502948910.png",
+    "sha256": "843eb14f63bd87e10e5cf3a4a013917baacfc0a09b0fb34bf83f1bd14085a57a",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K03",
+    "state": "customer",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T045505234354.png",
+    "sha256": "22c86a7abac76648148953a567787fa8cc27c13c1d721c84e08deab5930003e5",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K07",
+    "state": "course",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T045508544879.png",
+    "sha256": "cd83707250768a583623d20a6e22557bafa5be7c0bd11b4d7ad7a0baaf8f4289",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic reservation flow target",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic reservation flow target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K07",
+    "state": "course",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T045510817829.png",
+    "sha256": "05da51eb7007d171f55eefd1f1ed069c476d9506e602843a05c8f604e6986eb8",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K07",
+    "state": "course",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T045513091996.png",
+    "sha256": "21f59fae6f2cccec4469e52ddd490fb14e9f5052c1ff17e227ebf49603fd80c6",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K07",
+    "state": "course",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T045515388568.png",
+    "sha256": "1274851487ea0e020446d0a6fceeaabb1ed82446e67d1c479419dd9a429ea50b",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K04",
+    "state": "staff",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T045518766466.png",
+    "sha256": "71faba7161c70edba9ea13f44e22bc1d75a21aed7af9184388097c70d8be31f5",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'一般診察（合成）')]",
+        "action": "Synthetic reservation flow target",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'一般診察（合成）')]",
+            "description": "Synthetic reservation flow target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K04",
+    "state": "staff",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T045521050510.png",
+    "sha256": "29f041ee948a0dd3a208fc1cae456f5034df7d80f6d37b0f8686ffcfe3e8db9b",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K04",
+    "state": "staff",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T045523318434.png",
+    "sha256": "26821161f83ac37067e92a833be7ea2c947f7f1b97a1bf918dcb6fee12d91493",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K04",
+    "state": "staff",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T045525614180.png",
+    "sha256": "85113bf3059e598e6ecefd0f67a14e1670ae059ccdf703ba4bf334e1e3507a42",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K05",
+    "state": "date",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T045528970754.png",
+    "sha256": "80e3a2567fe561c497fbacd9f55d988c67b61360030f6625d3fcb3ceecaf3987",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'監査 一郎')]",
+        "action": "Synthetic reservation flow target",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'監査 一郎')]",
+            "description": "Synthetic reservation flow target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K05",
+    "state": "date",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T045531265314.png",
+    "sha256": "f6052a8bd8aa32617a7be69e60ff3048c3068fe5b3ead2b670a7fb046030db86",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K05",
+    "state": "date",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T045533553115.png",
+    "sha256": "7678a155a0b52a86fbfd9ced9415e7778fb519a800efb64ac2a567920bbf5f6b",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K05",
+    "state": "date",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T045535856467.png",
+    "sha256": "579e8e8e98d04c5f2f35ffe4b3d2dadd4fd3e1fa7b48fb0e593e44309dece451",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K06",
+    "state": "time",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T045540229754.png",
+    "sha256": "8d72e7efdd10e59ee0cd1a90e581d269d36bfff3eb263eef53e1143a09bd3436",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[@aria-label='2026年10月13日']",
+        "action": "Synthetic reservation flow target",
+        "actions": [
+          {
+            "selector": "xpath=//button[@aria-label='2026年10月13日']",
+            "description": "Synthetic reservation flow target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic reservation flow target",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic reservation flow target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K06",
+    "state": "time",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T045542512989.png",
+    "sha256": "880463cec613687e12b872c68933ed3ab807e0be3be1397e867a9a78aed0d8ec",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K06",
+    "state": "time",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T045544791932.png",
+    "sha256": "a2f1e01d791c9cc5b00810ea8fe79b320e9be0503544607cd8fc5e1212e07c4e",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K06",
+    "state": "time",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T045547075512.png",
+    "sha256": "67d07642acddaa598b0f64da3a1b92bb4fccafe5272a08a9fc47a73c59e3a961",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K14",
+    "state": "request",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T045550403920.png",
+    "sha256": "dbbda2d8514b5c817b3c548cdd2c51b9c7f700569c9df3690d04354fa8253970",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'09:00')]",
+        "action": "Synthetic reservation flow target",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'09:00')]",
+            "description": "Synthetic reservation flow target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K14",
+    "state": "request",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T045552690908.png",
+    "sha256": "45317c3c26b306753b052d21a41c01a9bdaa1eb65f679a81f89c1992dac03913",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K14",
+    "state": "request",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T045554979363.png",
+    "sha256": "f3969c46c2fa5feae54084cdbd75f889fe09747576397bff49a3ff10b6357264",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K14",
+    "state": "request",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T045557269996.png",
+    "sha256": "ef38da397adb071bac7e8ea8b14f58c494226a96cb671823b9be081e06719153",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K10",
+    "state": "confirm",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T045600652214.png",
+    "sha256": "f9aa126baeee6d28546bbbfc373a1a71135b91550060eeea9d2f68456c73a765",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic reservation flow target",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic reservation flow target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K10",
+    "state": "confirm",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T045602972097.png",
+    "sha256": "c2b4792a4195fbe071daee078b4c0fac6e1c73001537faf2c34642aec787ff69",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K10",
+    "state": "confirm",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T045605292348.png",
+    "sha256": "f94d8be2b4d11a3b2e612c1efc70a55786cd9055f448bd243ac00e52b78a5c34",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 15,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K10",
+    "state": "confirm",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T045607608579.png",
+    "sha256": "bd5a093e069a432acf57f82c1312497f7734ff12db42407ff96c688459936451",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Normal synthetic frame only; other scenarios pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K10",
+    "state": "confirm-bottom",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T045745603878.png",
+    "sha256": "9c1205ce1c253cd6142b1388c066ebd257276b37faaf2282307262e892cf5f55",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "With wave15 top image confirms entire normal frame and bottom CTA",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規予約']",
+        "action": "Synthetic reservation explicit action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規予約']",
+            "description": "Synthetic reservation explicit action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic reservation explicit action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic reservation explicit action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'一般診察（合成）')]",
+        "action": "Synthetic reservation explicit action",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'一般診察（合成）')]",
+            "description": "Synthetic reservation explicit action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'監査 一郎')]",
+        "action": "Synthetic reservation explicit action",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'監査 一郎')]",
+            "description": "Synthetic reservation explicit action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[@aria-label='2026年10月13日']",
+        "action": "Synthetic reservation explicit action",
+        "actions": [
+          {
+            "selector": "xpath=//button[@aria-label='2026年10月13日']",
+            "description": "Synthetic reservation explicit action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic reservation explicit action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic reservation explicit action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'09:00')]",
+        "action": "Synthetic reservation explicit action",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'09:00')]",
+            "description": "Synthetic reservation explicit action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic reservation explicit action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic reservation explicit action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Synthetic reservation explicit action",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Synthetic reservation explicit action",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K10",
+    "state": "confirm-bottom",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T045748950142.png",
+    "sha256": "3df6b6dd5fa40908e33ca06d837539b87f571238131d6d6e5b44028db4b600b1",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "With wave15 top image confirms entire normal frame and bottom CTA",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Synthetic reservation explicit action",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Synthetic reservation explicit action",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K10",
+    "state": "confirm-bottom",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T045752275954.png",
+    "sha256": "dd45ac0484cea950f6975e0bdfc5bce958a537c572717d05e3fbb4c5df7c8f55",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "With wave15 top image confirms entire normal frame and bottom CTA",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Synthetic reservation explicit action",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Synthetic reservation explicit action",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K10",
+    "state": "confirm-bottom",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T045755627796.png",
+    "sha256": "05080067643bc6ccf848e7e6589ca9d916318da2827fb3a95f8b5cfc6fdab170",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "With wave15 top image confirms entire normal frame and bottom CTA",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Synthetic reservation explicit action",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Synthetic reservation explicit action",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K11",
+    "state": "complete",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T045758993294.png",
+    "sha256": "1a9c32fd20083108a0f505ec437bb3ac4f43925833a458593edf20c61be1061b",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='予約を確定する']",
+        "action": "Synthetic reservation explicit action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='予約を確定する']",
+            "description": "Synthetic reservation explicit action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K11",
+    "state": "complete",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T045801279158.png",
+    "sha256": "b9b9bfdc635086e890fd39232ea72847956afc657164d4daeb17bb7597f2962f",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K11",
+    "state": "complete",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T045803582134.png",
+    "sha256": "9d95726db6f246cc5470049de3092857548f90e4c2928c530b16c284fc91490a",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K11",
+    "state": "complete",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T045805896274.png",
+    "sha256": "9b2fb33604700e8c507edbb573b9de89be26f7664d3514a32d6f1b9d2be462d4",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "history",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T045809239774.png",
+    "sha256": "cedf40662ced8814a3661bab3d504db7fc08cf3bdfcd1b78d3eba5e13bb678c1",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='予約確認・キャンセル']",
+        "action": "Synthetic reservation explicit action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='予約確認・キャンセル']",
+            "description": "Synthetic reservation explicit action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "history",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T045811529280.png",
+    "sha256": "f06023827b5713b4a741b1d2923b41eb4fdface9a294fb88a95e7599f1991010",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "history",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T045813826398.png",
+    "sha256": "e6d4557171ba90b8d49d60e15380266f5cf438c3c5217a32ada76be49a75e347",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "history",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T045816122426.png",
+    "sha256": "57d8057b10242c3e5e9970e00720046519757ece65a4f016adce6f63fce081df",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "cancel-confirm",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T045818479008.png",
+    "sha256": "cedf40662ced8814a3661bab3d504db7fc08cf3bdfcd1b78d3eba5e13bb678c1",
+    "review": "UNKNOWN_TARGET",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": false,
+        "message": "Failed to perform act: Could not find an element for the given xPath(s): xpath=//button[normalize-space()='キャンセル']",
+        "action": "Synthetic reservation explicit action",
+        "actions": [],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "cancel-confirm",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T045820826837.png",
+    "sha256": "f06023827b5713b4a741b1d2923b41eb4fdface9a294fb88a95e7599f1991010",
+    "review": "UNKNOWN_TARGET",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "cancel-confirm",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T045823146351.png",
+    "sha256": "e6d4557171ba90b8d49d60e15380266f5cf438c3c5217a32ada76be49a75e347",
+    "review": "UNKNOWN_TARGET",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "cancel-confirm",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T045825453132.png",
+    "sha256": "57d8057b10242c3e5e9970e00720046519757ece65a4f016adce6f63fce081df",
+    "review": "UNKNOWN_TARGET",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K08",
+    "state": "trimming-course",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T045831067532.png",
+    "sha256": "b8e5daf133d96400ec6e45d0a75fe0f3de39b19e56bb547eb953733ecb8ddd97",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規予約']",
+        "action": "Synthetic reservation explicit action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規予約']",
+            "description": "Synthetic reservation explicit action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='次へ']",
+        "action": "Synthetic reservation explicit action",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='次へ']",
+            "description": "Synthetic reservation explicit action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'トリミング（合成）')]",
+        "action": "Synthetic reservation explicit action",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'トリミング（合成）')]",
+            "description": "Synthetic reservation explicit action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K08",
+    "state": "trimming-course",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T045833347742.png",
+    "sha256": "68aa1c63148ce1acc90e9d525256d369b33e7a1a8073c8e0d3078ee0c9c27e8d",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K08",
+    "state": "trimming-course",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T045835636602.png",
+    "sha256": "ad8769111b6bb5c761fe831048145db07e6a3839d255adab69beeffa6d30da51",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K08",
+    "state": "trimming-course",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T045837937685.png",
+    "sha256": "7b51f3f4d071143b00c682bc7a9efc6c7aed727e16941f2ea008eb2aea8effe4",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K09",
+    "state": "trimming-options",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T045841290382.png",
+    "sha256": "0e9f216e42b690ed6c8b8c3a909e3f0286d3b38eb8a0ded97f68660c45729ff7",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'シャンプーコース（合成）')]",
+        "action": "Synthetic reservation explicit action",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'シャンプーコース（合成）')]",
+            "description": "Synthetic reservation explicit action",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K09",
+    "state": "trimming-options",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T045843586043.png",
+    "sha256": "0d858029773895b7e8ba6ce3c99a294cf3a6e797ee3bc3b32ecf488e21524015",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K09",
+    "state": "trimming-options",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T045845883920.png",
+    "sha256": "e2fc5d337de14019e389563cf12ab98deb5f15195d17aa874b7d52751940d815",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K09",
+    "state": "trimming-options",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T045848181253.png",
+    "sha256": "6e518145e6a0c2966ed266b34e7c4ea2894253ff5fc2f05036b1112e6c980c64",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=maintenance&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K12",
+    "state": "maintenance",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T045850682034.png",
+    "sha256": "e2c90af194b94af78fd8f8cbae99c89a8389015ea569b2ce3588ace9e37015d6",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=maintenance&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K12",
+    "state": "maintenance",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T045852963812.png",
+    "sha256": "306d376eef000123169dd8e95eb7f4261794b765caf9b652b3b95c9a33c09272",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=maintenance&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K12",
+    "state": "maintenance",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T045855250435.png",
+    "sha256": "f909ea1c9d1001be5309d4b026cc3c4ca95cac36befe04a09e92b78616c5ed9a",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=maintenance&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K12",
+    "state": "maintenance",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T045857544799.png",
+    "sha256": "da8f7249d8c62a31747479753b2eeae4c7b086dde3f6402becd68e62014f9dfb",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic normal state only; alternate long/error branches pending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 16,
+    "route": "/__audit/setup?scenario=normal&next=%2Fowners%2F990002",
+    "inventoryId": "INV-O04",
+    "state": "owner-bottom-probe",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T045905984744.png",
+    "sha256": "2e8b196483f7cefe8a3c5130080256f971aecfd8d42710f33de9a7c865d9f69a",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Hover reached base owner form lower area. Shared-pet error is fixture limitation; pet dialog not opened.",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [hover] performed successfully on selector: xpath=//button[contains(.,'ペット追加')]",
+        "action": "Synthetic reservation explicit action",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'ペット追加')]",
+            "description": "Synthetic reservation explicit action",
+            "method": "hover"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=history&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "cancel-confirm",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050033398286.png",
+    "sha256": "29f41b5c489c8a734cef07facacf8aa3c7ff5c38dddc80e680892c80e8fe7f82",
+    "review": "UNKNOWN_TARGET",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='予約確認・キャンセル']",
+        "action": "Synthetic cancellation confirmation display",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='予約確認・キャンセル']",
+            "description": "Synthetic cancellation confirmation display",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": false,
+        "message": "Failed to perform act: Could not find an element for the given xPath(s): xpath=/(//button[normalize-space()='キャンセルする'])[1]",
+        "action": "Synthetic cancellation confirmation display",
+        "actions": [],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=history&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "cancel-confirm",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050036697887.png",
+    "sha256": "79302f56ff6e617b92174ea6208f55db797f48ca6b75b390a3aec1950013094b",
+    "review": "UNKNOWN_TARGET",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=history&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "cancel-confirm",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050039996270.png",
+    "sha256": "17dbe8bf67d730c2326a7cf359ef3fa12bc5ed3b3661ab625349a727bfc77855",
+    "review": "UNKNOWN_TARGET",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=history&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "cancel-confirm",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050043345273.png",
+    "sha256": "7cab4252fe1ac1c9286d1e09c9c71a209c79cc4a92483342682caf16de23138b",
+    "review": "UNKNOWN_TARGET",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=normal&next=%2Fliff%2F%3Fclinic_id%3D990001",
+    "inventoryId": "INV-J03",
+    "state": "health-normal",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050048123933.png",
+    "sha256": "9a286d7a93cf733846a41e1df140a3c135b62b44fc8273e780d2f1e8ebbbf527",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=normal&next=%2Fliff%2F%3Fclinic_id%3D990001",
+    "inventoryId": "INV-J03",
+    "state": "health-normal",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050051407182.png",
+    "sha256": "67ffd7a353106627b11f770d417123d05c2843e54dd857a84a27bb466cfab55f",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=normal&next=%2Fliff%2F%3Fclinic_id%3D990001",
+    "inventoryId": "INV-J03",
+    "state": "health-normal",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050054695607.png",
+    "sha256": "d1e0391eadb0270fa67c7f6021452ca06549371f33b961942ca3ceca9bd3aa7a",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=normal&next=%2Fliff%2F%3Fclinic_id%3D990001",
+    "inventoryId": "INV-J03",
+    "state": "health-normal",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050057970935.png",
+    "sha256": "a9dcefdc9961ea78a87ac0cfc918b495f4642b4b872587e09d7bfe768b1bc627",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=empty%3Ahealth-card&next=%2Fliff%2F%3Fclinic_id%3D990001",
+    "inventoryId": "INV-J03",
+    "state": "health-empty",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050101403221.png",
+    "sha256": "512267d1e78227fa31fa2a4e79c6c75512eb7a6bfb2a1d04f510714907b8f273",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=empty%3Ahealth-card&next=%2Fliff%2F%3Fclinic_id%3D990001",
+    "inventoryId": "INV-J03",
+    "state": "health-empty",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050104685520.png",
+    "sha256": "2d6b6e27d919fe3022568c7fd1364b3241bc3d7382fa87138dd8c4a50aeb33b4",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=empty%3Ahealth-card&next=%2Fliff%2F%3Fclinic_id%3D990001",
+    "inventoryId": "INV-J03",
+    "state": "health-empty",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050107973062.png",
+    "sha256": "5b39861e0077665889cd41fbcae68ed4df89f165d49e18ae82d12df4091b48df",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=empty%3Ahealth-card&next=%2Fliff%2F%3Fclinic_id%3D990001",
+    "inventoryId": "INV-J03",
+    "state": "health-empty",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050111280561.png",
+    "sha256": "4eeba95f1415e4a32fe645c034d45a5529519461c9ef7adc8104cd6f1ac8cd06",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=error%3Ahealth-card&next=%2Fliff%2F%3Fclinic_id%3D990001",
+    "inventoryId": "INV-J03",
+    "state": "health-error",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050114848003.png",
+    "sha256": "b3ce23c3d6549a84b74c0f2634815b1db1da95cf1a0ba4f801b42b84c694ce6d",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=error%3Ahealth-card&next=%2Fliff%2F%3Fclinic_id%3D990001",
+    "inventoryId": "INV-J03",
+    "state": "health-error",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050118126477.png",
+    "sha256": "a143816ae3a5383cd1fd9a60a4adf250f1324124ee8925f03449a787c80aaa44",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=error%3Ahealth-card&next=%2Fliff%2F%3Fclinic_id%3D990001",
+    "inventoryId": "INV-J03",
+    "state": "health-error",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050121414204.png",
+    "sha256": "41a9a4fd364084eca0ffbe52418ef84d201bbf1c13190cd67c769b3a613fb81e",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=error%3Ahealth-card&next=%2Fliff%2F%3Fclinic_id%3D990001",
+    "inventoryId": "INV-J03",
+    "state": "health-error",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050124714800.png",
+    "sha256": "162889d859a1f2522d3193e643d7475a57714b6c084d7d0e0c6668d7e9661eaa",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=normal&next=%2Fliff%2F",
+    "inventoryId": "INV-J03",
+    "state": "health-missing-clinic",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050128238992.png",
+    "sha256": "bf7dda05b428b789c71a7c4043d43c6b409743daf3770261222a9a3207326665",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=normal&next=%2Fliff%2F",
+    "inventoryId": "INV-J03",
+    "state": "health-missing-clinic",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050131516140.png",
+    "sha256": "697f944ecff7105af67376ef0dd7fbd3062074dc0d149c975b884474bb448d53",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=normal&next=%2Fliff%2F",
+    "inventoryId": "INV-J03",
+    "state": "health-missing-clinic",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050134815120.png",
+    "sha256": "bf9834dd9666d5a1f7bd28fc091ec278aebaacdfeb22b34df1f05aea1aaefe6b",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=normal&next=%2Fliff%2F",
+    "inventoryId": "INV-J03",
+    "state": "health-missing-clinic",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050138104290.png",
+    "sha256": "8a1ef156753588ab15421eb28c98c3ca538c5346bffd8d989e8f32ccc5a894de",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=normal&next=%2Fliff%2F%3Fclinic_id%3D990001%26audit_liff%3Dinit-pending",
+    "inventoryId": "INV-J01",
+    "state": "shell-loading",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050141554371.png",
+    "sha256": "b612a52cbeb2e03c9c87f3264e663cfde3a4ccb659f7331b7e1372ad570c65ef",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=normal&next=%2Fliff%2F%3Fclinic_id%3D990001%26audit_liff%3Dinit-pending",
+    "inventoryId": "INV-J01",
+    "state": "shell-loading",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050144841826.png",
+    "sha256": "a3b1b5c5be51c05e906ad5a99e81755c7e36df45f3b5904045f24b92a989911d",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=normal&next=%2Fliff%2F%3Fclinic_id%3D990001%26audit_liff%3Dinit-pending",
+    "inventoryId": "INV-J01",
+    "state": "shell-loading",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050148134603.png",
+    "sha256": "9e8f55352ad67ecb72f2e79e51494e1f71ce837c2bb05399e7f4fd2ab119bdcd",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=normal&next=%2Fliff%2F%3Fclinic_id%3D990001%26audit_liff%3Dinit-pending",
+    "inventoryId": "INV-J01",
+    "state": "shell-loading",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050151426370.png",
+    "sha256": "816d9ef6f7df4fd0254c1b30a7915a2d2adc173f77d29aac106445237bc7bd05",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=normal&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Dinit-pending",
+    "inventoryId": "INV-J02",
+    "state": "link-loading",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050154932837.png",
+    "sha256": "b612a52cbeb2e03c9c87f3264e663cfde3a4ccb659f7331b7e1372ad570c65ef",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=normal&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Dinit-pending",
+    "inventoryId": "INV-J02",
+    "state": "link-loading",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050158233409.png",
+    "sha256": "cbf357d236ade8b35d3847c8787ab02d862d8f66777c847b3234b72a518c4a65",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=normal&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Dinit-pending",
+    "inventoryId": "INV-J02",
+    "state": "link-loading",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050201525236.png",
+    "sha256": "9e8f55352ad67ecb72f2e79e51494e1f71ce837c2bb05399e7f4fd2ab119bdcd",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=normal&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Dinit-pending",
+    "inventoryId": "INV-J02",
+    "state": "link-loading",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050204805594.png",
+    "sha256": "816d9ef6f7df4fd0254c1b30a7915a2d2adc173f77d29aac106445237bc7bd05",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=link-linking&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Ddefault",
+    "inventoryId": "INV-J02",
+    "state": "link-linking",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050208276057.png",
+    "sha256": "2a915c989055b8b7fcab3fc684c8f7c6f7db0595e9826a4866020625949e17f3",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=link-linking&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Ddefault",
+    "inventoryId": "INV-J02",
+    "state": "link-linking",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050211553343.png",
+    "sha256": "7b6ca9b31e0446927230a26fff1e73b9e9deae98f383ffb3f85425bc8334e7f8",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=link-linking&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Ddefault",
+    "inventoryId": "INV-J02",
+    "state": "link-linking",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050214841890.png",
+    "sha256": "549bf441ab9677853062e34fa09bf810f907421cc5718f8613750ec03fbed31a",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=link-linking&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Ddefault",
+    "inventoryId": "INV-J02",
+    "state": "link-linking",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050218124380.png",
+    "sha256": "9865c00a63fca5ba9eee8ab57ea0221fba9f7d263ffcc933f7604b64e0209c57",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=link-success&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Ddefault",
+    "inventoryId": "INV-J02",
+    "state": "link-success",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050221615411.png",
+    "sha256": "58272148101baadffe5b91d8e5015ba1c3e5f8406c75cd917e7ec8bf4c05ce03",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=link-success&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Ddefault",
+    "inventoryId": "INV-J02",
+    "state": "link-success",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050224899396.png",
+    "sha256": "ad9a35eb5c62af9ed8370bd08870e97b05d761b4862054a90c5b1c9fee409c9f",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=link-success&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Ddefault",
+    "inventoryId": "INV-J02",
+    "state": "link-success",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050228175834.png",
+    "sha256": "69df3b7bc23a8c33c318c0696d2d796b786bb8dc1aafd60926a3bdd5f097712c",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=link-success&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Ddefault",
+    "inventoryId": "INV-J02",
+    "state": "link-success",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050231442613.png",
+    "sha256": "87c15feac6da41378e6f8c0665de1734554f55660473a5f656deea7917f0c0e9",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=link-conflict&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Ddefault",
+    "inventoryId": "INV-J02",
+    "state": "link-conflict",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050234899332.png",
+    "sha256": "3ab23a6dbee4b4ab3099755bd856c0115ab4f170c7073de2a97883abe1044191",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=link-conflict&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Ddefault",
+    "inventoryId": "INV-J02",
+    "state": "link-conflict",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050238170906.png",
+    "sha256": "7f4a1eee503a02d15fa981b8925cfdf2c37e67f14fd8b70fe517e0990bc70963",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=link-conflict&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Ddefault",
+    "inventoryId": "INV-J02",
+    "state": "link-conflict",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050241447697.png",
+    "sha256": "93bb1624eb956b500835a83fee1dabde63529d5d2e992a5683512878ca865623",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=link-conflict&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Ddefault",
+    "inventoryId": "INV-J02",
+    "state": "link-conflict",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050244756558.png",
+    "sha256": "92c95cb0ba4e3c3e411fd41eb1511a575ababfe1cc53af6421fd4f7e1891f4af",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=link-expired&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Ddefault",
+    "inventoryId": "INV-J02",
+    "state": "link-expired",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050248204355.png",
+    "sha256": "7d75adff1377b9f4e67591df70fd2105499cc250058266693d25cdae202e0586",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=link-expired&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Ddefault",
+    "inventoryId": "INV-J02",
+    "state": "link-expired",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050251476657.png",
+    "sha256": "061d211b1ad1d77970216ba7abac0515d284359d53a8fa14ec6342694c351178",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=link-expired&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Ddefault",
+    "inventoryId": "INV-J02",
+    "state": "link-expired",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050254764184.png",
+    "sha256": "7a264e36daef176aa69002bbe735b48080d74ec5a61f32c7845c43925d1c378a",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=link-expired&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Ddefault",
+    "inventoryId": "INV-J02",
+    "state": "link-expired",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050258053224.png",
+    "sha256": "032dbd6e59259094d566bb7d3c1d303ac50dddd1d5d947b481c8ae54ef023f6b",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=link-error&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Ddefault",
+    "inventoryId": "INV-J02",
+    "state": "link-error",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050301662297.png",
+    "sha256": "12c9963f982d609f27821f33c80b36c61abfc3bd2fa7f38bc08b94612f99af2c",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=link-error&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Ddefault",
+    "inventoryId": "INV-J02",
+    "state": "link-error",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050304957288.png",
+    "sha256": "e3b3a9df4a96b65075e7433a717a4508b84e1366b675cc658ee264404f5b135d",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=link-error&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Ddefault",
+    "inventoryId": "INV-J02",
+    "state": "link-error",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050308398320.png",
+    "sha256": "5a3e56d2d6421b621986744944642dfaa3e799dc2dd8f43b2984f1c26504164e",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 17,
+    "route": "/__audit/setup?scenario=link-error&next=%2Fliff%2F%3Fclinic_id%3D990001%26token%3Dauditlinktoken9900%26audit_liff%3Ddefault",
+    "inventoryId": "INV-J02",
+    "state": "link-error",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050311687726.png",
+    "sha256": "772af0afad0a4f411215cec2a98eaa0d4e2ab4fa2aecef872642e197ec5277fc",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic UI only; actualLINEauth/link/sends notaccepted; long/scrolled history stillpending",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 18,
+    "route": "/__audit/setup?scenario=history&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "cancel-confirm",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050410178105.png",
+    "sha256": "39b189cd0de1750542e9e255e752fccfefa080dcd037965acaf65c315ffa4429",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic cancellation confirmation and history only; actual cancellation notaccepted",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='予約確認・キャンセル']",
+        "action": "Synthetic explicit browser target",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='予約確認・キャンセル']",
+            "description": "Synthetic explicit browser target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='キャンセルする']",
+        "action": "Synthetic explicit browser target",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='キャンセルする']",
+            "description": "Synthetic explicit browser target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 18,
+    "route": "/__audit/setup?scenario=history&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "cancel-confirm",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050413497603.png",
+    "sha256": "d5aa12866eeb457573277efcbf37e9c34e9a805f153b8f086239fd8893562e9f",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic cancellation confirmation and history only; actual cancellation notaccepted",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 18,
+    "route": "/__audit/setup?scenario=history&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "cancel-confirm",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050416809349.png",
+    "sha256": "054321e34938bd369022b1bbe2e122d990c28f6e51d25237c561270dc72b1e5f",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic cancellation confirmation and history only; actual cancellation notaccepted",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 18,
+    "route": "/__audit/setup?scenario=history&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "cancel-confirm",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050420131715.png",
+    "sha256": "2138d493a4dd5f787b1ffe47ea375786c74f9df4a41af5d9048d541e9488e4e8",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic cancellation confirmation and history only; actual cancellation notaccepted",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 18,
+    "route": "/__audit/setup?scenario=history&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "history-bottom",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050425476420.png",
+    "sha256": "35349fb3f97ecdbffa706666b3f58a718047a8a47546a2ac7c8b5579a8110f7b",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic cancellation confirmation and history only; actual cancellation notaccepted",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='いいえ']",
+        "action": "Synthetic explicit browser target",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='いいえ']",
+            "description": "Synthetic explicit browser target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      },
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Synthetic explicit browser target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Synthetic explicit browser target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 18,
+    "route": "/__audit/setup?scenario=history&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "history-bottom",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050429775284.png",
+    "sha256": "1bbe10783275751ba81898f18664316b7a2bb46b431e256dcf1ce24e15a9006e",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "mobile_visual_review",
+    "limits": "Synthetic cancellation confirmation and history only; actual cancellation notaccepted",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Synthetic explicit browser target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Synthetic explicit browser target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 18,
+    "route": "/__audit/setup?scenario=history&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "history-bottom",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050434110287.png",
+    "sha256": "bedc4d0417e2617a699d4fa911a03923fbfcd669e4bb7c86a92b057d2904ceaa",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic cancellation confirmation and history only; actual cancellation notaccepted",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Synthetic explicit browser target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Synthetic explicit browser target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 18,
+    "route": "/__audit/setup?scenario=history&next=%2Fline-reserve%2F990001%2F",
+    "inventoryId": "INV-K13",
+    "state": "history-bottom",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050438469702.png",
+    "sha256": "eb8d4e1d3ae56953e96b70246f7798e2917cb59ac47a7c51a930a92b8edecdb9",
+    "review": "PASS_VISIBLE_FRAME",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Synthetic cancellation confirmation and history only; actual cancellation notaccepted",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=/html",
+        "action": "Synthetic explicit browser target",
+        "actions": [
+          {
+            "selector": "xpath=/html",
+            "description": "Synthetic explicit browser target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 18,
+    "route": "/__audit/setup?scenario=normal&next=%2Fowners%2F990002",
+    "inventoryId": "INV-O06",
+    "state": "pet-create-dialog-probe",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T050443503859.png",
+    "sha256": "c8ac3d3c10200b6577d4cba4135edf15e5bb78b3bb511cbc83971346418a2767",
+    "review": "UNKNOWN_FIXTURE",
+    "reviewer": "mobile_visual_review",
+    "limits": "Ownerdialog opened but missingmasters, bottompending,390toastoverlapcandidate",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(.,'ペット追加')]",
+        "action": "Synthetic explicit browser target",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(.,'ペット追加')]",
+            "description": "Synthetic explicit browser target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ]
+  },
+  {
+    "wave": 18,
+    "route": "/__audit/setup?scenario=normal&next=%2Fowners%2F990002",
+    "inventoryId": "INV-O06",
+    "state": "pet-create-dialog-probe",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T050446842485.png",
+    "sha256": "42dcbc3a75e366a2ffbe5ed48dbafb61bc9a4b6ec20b19df74efaaaa241acbc1",
+    "review": "UNKNOWN_FIXTURE",
+    "reviewer": "mobile_visual_review",
+    "limits": "Ownerdialog opened but missingmasters, bottompending,390toastoverlapcandidate",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 18,
+    "route": "/__audit/setup?scenario=normal&next=%2Fowners%2F990002",
+    "inventoryId": "INV-O06",
+    "state": "pet-create-dialog-probe",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T050450207310.png",
+    "sha256": "597d9e23ecb3e94cea0985ea40faee10a1f72ddbb58c113dc676c1e366c97084",
+    "review": "UNKNOWN_FIXTURE",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Ownerdialog opened but missingmasters, bottompending,390toastoverlapcandidate",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
+  },
+  {
+    "wave": 18,
+    "route": "/__audit/setup?scenario=normal&next=%2Fowners%2F990002",
+    "inventoryId": "INV-O06",
+    "state": "pet-create-dialog-probe",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T050453709039.png",
+    "sha256": "86bee7f3690d813a84255e6408c425b6dae55d575ecbc1d8b14ef05665e2d5bd",
+    "review": "UNKNOWN_FIXTURE",
+    "reviewer": "line_desktop_visual_review",
+    "limits": "Ownerdialog opened but missingmasters, bottompending,390toastoverlapcandidate",
+    "sourceHead": "35b1a5976e4767cbb04e41cda85b03f1918827c8",
+    "structuredActions": []
   }
 ]
