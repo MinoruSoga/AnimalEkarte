@@ -69,7 +69,7 @@ DB が空の場合・取得失敗時は MD バンドル版が常に表示され�
 - 認証: `MANUAL_SYNC_EMAIL` / `MANUAL_SYNC_PASSWORD`（`--email`/`--password`、未指定は対話プロンプト）。view/edit/delete は API 側の `ResourceManualEdit` 権限に従う
 - **DELETE の権限注意**: `prune`（と UI の override 削除）は `manual-edit` の delete 権限が必要だが、既定 seed の全権限グループ（執行含む）は `can_delete=f`。実行には system_admin アカウント（`SEEDLOGIN_OPERATOR_*` を `.env.local` に設定 → login seed で provisioning）が必要。operator は login seed 適用時（fresh DB or カタログ変更）にのみ作成され、既存環境への後付けは `schema_migrations` の `seeds/003_login` 行を消して migrate 再実行で冪等に行える。通常のグループへ delete を開放するかは `permission_group_rules.csv` の product 判断となる
 - **取り込みループ**（local / STG 共通）: `export` → `git diff` でレビュー → PR/コミット → デプロイ → `prune` で override を消して baseline に戻す
-- **リセット保護**: `make reset` は `manual_articles`/`manual_article_versions` を snapshot dir の `manual_articles.sql` へ退避→自動復元する。STG 再構築は `docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md` §6.1（export → push）
+- **リセット保護**: `make reset` は `manual_articles`/`manual_article_versions` を snapshot dir の `manual_articles.sql` へ退避→自動復元する。STG 再構築は `docs/ops/deploy/stg/STG_PLANETSCALE_SEED_RUNBOOK.md` §6.1（export → push）
 - **`order: 0` の round-trip**: PUT の `order_value` は省略時のみ既存値/9999 を維持し、明示的な 0 はそのまま保存される（backend `UpsertManualArticleRequest.OrderValue` は `*float64`）。以前の `0=未指定` 解釈では `order: 0` の記事が保存時に末尾へ飛んでいた
 
 ### 編集機能のフロント実装

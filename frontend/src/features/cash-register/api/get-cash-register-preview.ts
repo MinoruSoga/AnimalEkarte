@@ -40,6 +40,12 @@ interface BackendCloseBillingDetail {
   billing_amount: number;
   refund_amount: number;
   net_amount: number;
+  /**
+   * EMR-354: 当該 split 支払額の部門別 GROSS 内訳（円）。map 合計は billing_amount と一致。
+   * 旧バックエンドでは欠落（undefined）または null → categoryAmounts は undefined
+   * （表示側は「記録なし」）。
+   */
+  category_amounts?: Record<string, number> | null;
 }
 
 interface BackendClosePreviewResult {
@@ -83,6 +89,13 @@ function transformAggregateSummary(raw: BackendCashRegisterAggregateSummary) {
 }
 
 function transformCloseBillingDetail(raw: BackendCloseBillingDetail) {
+  // EMR-354: 欠落（旧ペイロード / null）時はキー自体を出さない。
+  // optional 型のフィールドへ条件付きで代入し、ReturnType で
+  // `categoryAmounts?:` とすることで未対応 fixture との型互換を保つ。
+  const optionalFields: { categoryAmounts?: Record<string, number> } = {};
+  if (raw.category_amounts != null) {
+    optionalFields.categoryAmounts = raw.category_amounts;
+  }
   return {
     billingId: raw.billing_id,
     paidAt: raw.paid_at,
@@ -95,6 +108,7 @@ function transformCloseBillingDetail(raw: BackendCloseBillingDetail) {
     billingAmount: raw.billing_amount,
     refundAmount: raw.refund_amount,
     netAmount: raw.net_amount,
+    ...optionalFields,
   };
 }
 

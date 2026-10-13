@@ -27,4 +27,4 @@ docker run --rm --pull never --network none -e GOPROXY=off \
 
 `go test ./...` とローカルCIの明示shard一覧にも含まれる。package追加時は `scripts/ci/run-local-ci.sh` の一覧を更新し、`go list ./...` と一致させる。CI全体の起動はDB操作を伴うため、この安全な限定検証手順とは分ける。
 
-メモリ内での合格は、実DB競合・複数インスタンス・ステージング・通知配送・本番受入の証明にならない。ケース判定と残件は [EMR-332の記録](../../../docs/work/emr-332-security/index.md)、移動前のパスとの対応は [配置整理記録](../../../docs/work/emr-332-security/test-layout-20261009.md) を参照。
+メモリ内での合格は、実DB競合・複数インスタンス・ステージング・通知配送・本番受入の証明にならない。ケース判定と残件は [EMR-332の記録](../../../docs/work/emr/emr-332-security/index.md)、移動前のパスとの対応は [配置整理記録](../../../docs/work/emr/emr-332-security/test-layout-20261009.md) を参照。

@@ -24,7 +24,7 @@
 
 補完確認: 入院サイクルは [S05](S05-hospitalization-cycle.md)（cage、registration-time plan、二重退院拒否）、LIFF health/account link は [S12](S12-liff-pet-health.md)（LIFF ID 両分岐、owner isolation）。
 
-[2026-08-20 の owner comment](https://github.com/MinoruSoga/AnimalEkarte/issues/254#issuecomment-5352193910) は、実 LINE・token health・DB/audit・residual disposition・別 sign-off を close 条件として明示している。close 条件の参照先は `BRT-45`（Plane `EMR-43`）、実施レーンは `BRT-68`（Plane `EMR-22`）（2026-09-29 訂正: linear.app URL → Plane 正規 ID。Linear は 2026-09-16 に閉鎖済みで旧 URL は参照不能。EMR 対応は `docs/work/plane-md-migration-20260923-receipt.md` の対応表）。外部の現在状態は実行時に再確認する。
+[2026-08-20 の owner comment](https://github.com/MinoruSoga/AnimalEkarte/issues/254#issuecomment-5352193910) は、実 LINE・token health・DB/audit・residual disposition・別 sign-off を close 条件として明示している。close 条件の参照先は `BRT-45`（Plane `EMR-43`）、実施レーンは `BRT-68`（Plane `EMR-22`）（2026-09-29 訂正: linear.app URL → Plane 正規 ID。Linear は 2026-09-16 に閉鎖済みで旧 URL は参照不能。EMR 対応は `docs/work/plane/plane-md-migration-20260923-receipt.md` の対応表）。外部の現在状態は実行時に再確認する。
 
 ## Close gate
 
