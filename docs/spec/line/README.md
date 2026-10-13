@@ -21,7 +21,7 @@
 ### 導入・設定
 - **[setup.md](./setup.md)**: LINE Developers Console、Messaging API、および Lステップ管理画面の初期設定手順。
 - **[lstep-integration.md](./lstep-integration.md)**: **【重要】** マーケティング戦略、CPM 判定ロジック、17 種の自動配信トリガー詳細。
-- **[cost-analysis.md](./cost-analysis.md)**: Messaging / Lステップ課金と実装済み効果測定（docs-only）。配信ボリューム試算・ROI draft・料金 worksheet は [作業ノート](../../work/line-cost-analysis-roi-draft-20261007.md)（2026-10-07 監査で移設）。
+- **[cost-analysis.md](./cost-analysis.md)**: Messaging / Lステップ課金と実装済み効果測定（docs-only）。配信ボリューム試算・ROI draft・料金 worksheet は [作業ノート](../../work/analysis/line-cost-analysis-roi-draft-20261007.md)（2026-10-07 監査で移設）。
 
 ### 原本
 - クライアント受領原本の外部 restricted evidence location は CorpVault `evidence/2026-08-20-docs-cleanup/client/`（repository 外であり、この commit の検証対象・開発時の必須依存ではない）。製品側の repository SoT は [lstep-integration.md](./lstep-integration.md)。
@@ -35,7 +35,7 @@
 ### 主要な価値
 - **オペレーションの自動化**: LINE 予約がカルテ受付（カンバン）へ即座に反映され、スタッフの手入力コストを削減。
 - **臨床データに基づく CRM**: 診察結果や最終来院日に基づき、Lステップが「忘れられない病院」として自動で飼主をフォロー。
-- **競合を拒否する空き枠管理**: 作成transaction内で予約種別規則とappointment conflictを再検証する。明示staffはclinic所属・capability・LIFF公開/activeを検査する。追記（2026-10-07 監査）: 明示staffの**選択時刻のshift再検証は未実装**という既知 source gap と扱いの正本は [reservation-to-record-flow.md §7](../reservation-to-record-flow.md)（Deferred / known gaps）。frontendのshift絞り込みだけを安全根拠にしない。
+- **競合を拒否する空き枠管理**: 作成transaction内で予約種別規則とappointment conflictを再検証する。明示staffはclinic所属・capability・LIFF公開/activeを検査する。追記（2026-10-07 監査）: 明示staffの**選択時刻のshift再検証は未実装**という既知 source gap と扱いの正本は [reservation-to-record-flow.md §7](../workflows/reservation-to-record-flow.md)（Deferred / known gaps）。frontendのshift絞り込みだけを安全根拠にしない。
 
 ```mermaid
 flowchart LR
@@ -62,7 +62,7 @@ flowchart LR
 [#259](https://github.com/MinoruSoga/AnimalEkarte/issues/259) は 2026-09-06 取得時 **OPEN**。最新コメントの判定は **BLOCKED_EXTERNAL**（先方 enable、STG 少数 live-send、cron/stop 実測待ち）。納品後対応とする PO 決定は維持されており、仕様書の「実装済み」は外部再開・稼働・受入済みを意味しない。Linear BRT-50 の現在値は 2026-09-06 時点で未取得だった。（2026-09-29 訂正: Linear は 2026-09-16 に閉鎖済みで、BRT-50 の現在値は今後も Linear からは取得不可。実行 SoT は Plane workspace `baritechllc` / project `EMR` で、関連する Lステップ実送信 UAT 項目は `EMR-132`（QA-UAT-LSTEP-REAL、plane-md-migration receipt 2026-09-23 時点で Blocked））
 
 - Write API 再開と cron 配線は **同一リリース**で扱う。現行 repo には scheduler と cron 定義があるが、実環境での fire・停止証跡は別途必要。
-- 先方の API 有効化・対象環境・担当者・監視・停止手段を確認し、実送信は [pause runbook](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md) の承認境界に従う。
+- 先方の API 有効化・対象環境・担当者・監視・停止手段を確認し、実送信は [pause runbook](../../ops/deploy/runbooks/LSTEP_WRITE_API_PAUSE.md) の承認境界に従う。
 - **2026-10** までに先方 enable がない場合は廃止を含め再判断するという Issue の期限を維持する。自動廃止・自動再開の指示ではない。
 
 ## 4. クイックリンク

@@ -55,7 +55,7 @@ func (m *batchMockMedRecordRepo) FindDormantOwnerEntries(ctx context.Context, cl
 	}
 	return nil, nil
 }
-func (m *batchMockMedRecordRepo) FindDormantOwnerEntriesCursor(ctx context.Context, clinicID uint64, minDays int, afterOwnerID uint64, limit int) ([]medicalrecord.DormantOwnerEntry, error) {
+func (m *batchMockMedRecordRepo) FindDormantOwnerHistoryEntriesCursor(ctx context.Context, clinicID uint64, minDays int, afterOwnerID uint64, limit int) ([]medicalrecord.DormantOwnerEntry, error) {
 	if m.findDormantCursorFn != nil {
 		return m.findDormantCursorFn(ctx, clinicID, minDays, afterOwnerID, limit)
 	}

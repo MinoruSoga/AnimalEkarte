@@ -339,3 +339,89 @@ func TestPetRepository_ClearDeath_RollsBackWithAmbientTransaction(t *testing.T) 
 	require.NotNil(t, reloaded.DeceasedReason)
 	assert.Equal(t, reason, *reloaded.DeceasedReason)
 }
+
+// EMR-330: delivery-owner lock 内のイベントペット最終適格性チェックは ambient tx の
+// 同一接続で再読しなければならない（未コミット更新を観測し、第 2 接続を要求しない）。
+func TestPetRepository_FindByID_AmbientTransaction(t *testing.T) {
+	db := setupPetRepositoryTestDB(t)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	owner := makeTestOwner(t, db, clinicA, "ambient find owner")
+	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "ambient find pet")
+	repo := NewRepository(db)
+
+	tx, txCtx := beginAmbientPetTransaction(t, db)
+	require.NoError(t, tx.Exec("UPDATE pets SET name = ? WHERE id = ?", "renamed in tx", pet.ID).Error)
+
+	inTx, err := repo.FindByID(txCtx, clinicA, pet.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "renamed in tx", inTx.Name, "ambient tx の未コミット更新を同一接続で観測する")
+
+	outside, err := repo.FindByID(ctx, clinicA, pet.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "ambient find pet", outside.Name, "コミット済み状態は tx 外の読み取りを変えない")
+
+	require.NoError(t, tx.Rollback().Error)
+}
+
+// EMR-330: living-owner 最終適格性チェックは ambient tx の同一接続で再読しなければ
+// ならない（claim 直前の死亡を見逃す TOCTOU を防ぐ）。
+func TestPetRepository_CountLivingByOwner_AmbientTransaction(t *testing.T) {
+	db := setupPetRepositoryTestDB(t)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	owner := makeTestOwner(t, db, clinicA, "ambient living owner")
+	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "ambient living pet")
+	repo := NewRepository(db)
+
+	tx, txCtx := beginAmbientPetTransaction(t, db)
+	require.NoError(t, tx.Exec(
+		"UPDATE pets SET deceased_at = now(), status = ? WHERE id = ?",
+		model.PetStatusDeceased, pet.ID,
+	).Error)
+
+	inTx, err := repo.CountLivingByOwner(txCtx, clinicA, owner.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), inTx, "ambient tx の未コミット死亡を観測する")
+
+	outside, err := repo.CountLivingByOwner(ctx, clinicA, owner.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), outside)
+
+	require.NoError(t, tx.Rollback().Error)
+}
+
+// EMR-330: 誕生日最終適格性チェックは ambient tx の同一接続で再読しなければならない
+// （claim 直前の死亡・削除を見逃す TOCTOU を防ぐ）。
+func TestPetRepository_OwnerHasAlivePetBirthday_AmbientTransaction(t *testing.T) {
+	db := setupPetRepositoryTestDB(t)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	owner := makeTestOwner(t, db, clinicA, "ambient birthday owner")
+	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "ambient birthday pet")
+	require.NoError(t, db.Exec("UPDATE pets SET birth_date = ? WHERE id = ?", "2020-04-01", pet.ID).Error)
+	repo := NewRepository(db)
+
+	baseline, err := repo.OwnerHasAlivePetBirthday(ctx, clinicA, owner.ID, 4, 1)
+	require.NoError(t, err)
+	require.True(t, baseline)
+
+	tx, txCtx := beginAmbientPetTransaction(t, db)
+	require.NoError(t, tx.Exec(
+		"UPDATE pets SET deceased_at = now(), status = ? WHERE id = ?",
+		model.PetStatusDeceased, pet.ID,
+	).Error)
+
+	inTx, err := repo.OwnerHasAlivePetBirthday(txCtx, clinicA, owner.ID, 4, 1)
+	require.NoError(t, err)
+	assert.False(t, inTx, "ambient tx の未コミット死亡を観測する")
+
+	outside, err := repo.OwnerHasAlivePetBirthday(ctx, clinicA, owner.ID, 4, 1)
+	require.NoError(t, err)
+	assert.True(t, outside)
+
+	require.NoError(t, tx.Rollback().Error)
+}

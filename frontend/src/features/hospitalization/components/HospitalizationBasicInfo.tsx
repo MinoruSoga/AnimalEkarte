@@ -12,7 +12,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { NextScheduleField, calculateNextDate } from "@/components/shared/NextScheduleField";
+import {
+  NextScheduleField,
+  calculateNextDate,
+  resolveScheduleTypeAfterManualDate,
+} from "@/components/shared/NextScheduleField";
 import { cageMembersByRepresentative } from "@/lib/cage-merge";
 
 // Relative
@@ -72,6 +76,10 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
   cageItems,
 }: HospitalizationBasicInfoProps) {
   const cageOptions = buildCageSelectOptions(cageItems, formData.cageId);
+  // EMR-353/R353-01: 明示選択があればそれを優先し、なければ「以外（手動）」。
+  // 未選択時に「4週後」を既定表示すると、同項目の再選択が Radix の no-op になり
+  // 日付が生成されない（新規フォームで実害あり）。
+  const nextScheduleType = formData.nextScheduleType ?? "other";
   return (
     <div className={STYLE.formCard}>
       <h2 className={`${H_STYLES.form.cardHeading} mb-3 flex items-center gap-2`}>
@@ -132,7 +140,16 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
           <DatePicker
             id="start_date"
             value={formData.displayDate}
-            onChange={(v) => onChange({ displayDate: v })}
+            onChange={(v) =>
+              onChange({
+                displayDate: v,
+                // EMR-353: 明示選択済みプリセットのみ基準日変更へ追従させる。
+                // 手動（other）や未選択時の既存日付は書き換えない。
+                ...(formData.nextScheduleType && formData.nextScheduleType !== "other"
+                  ? { nextVisit: calculateNextDate(v, formData.nextScheduleType) }
+                  : {}),
+              })
+            }
             placeholder="開始日"
             className="flex-1"
           />
@@ -239,13 +256,27 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
         className="mb-3"
         typeId="hospitalization-next-schedule"
         dateId="hospitalization-next-date"
-        scheduleType={formData.nextVisit ? "other" : "4weeks"}
+        scheduleType={nextScheduleType}
         nextDate={formData.nextVisit}
-        onScheduleTypeChange={(value) => {
-          const calculated = calculateNextDate(formData.displayDate, value);
-          onChange({ nextVisit: calculated || formData.nextVisit });
-        }}
-        onNextDateChange={(value) => onChange({ nextVisit: value })}
+        onScheduleTypeChange={(value) =>
+          onChange({
+            nextScheduleType: value,
+            nextVisit:
+              value === "other"
+                ? formData.nextVisit
+                : calculateNextDate(formData.displayDate, value),
+          })
+        }
+        onNextDateChange={(value) =>
+          onChange({
+            nextVisit: value,
+            nextScheduleType: resolveScheduleTypeAfterManualDate(
+              formData.displayDate,
+              nextScheduleType,
+              value,
+            ),
+          })
+        }
       />
 
       {/* メモ */}

@@ -64,7 +64,7 @@ func newPausedLockGate(inner *lstepTagCacheRepository) *deliveryOwnerLockGate {
 func runDeliveryAttempt(svc *lstepDeliveryTriggerService, ctx context.Context, clientForCall lstepapi.Client, clinicID, ownerID uint64, revalidate deliveryRevalidationHook) chan deliveryAttemptResult {
 	done := make(chan deliveryAttemptResult, 1)
 	go func() {
-		fired, err := svc.processSingleOwner(ctx, clientForCall, clinicID, ownerID, "trigger_x", "tag_x", time.Now(), revalidate)
+		fired, err := svc.processSingleOwner(ctx, clientForCall, clinicID, ownerID, "trigger_x", "tag_x", time.Now(), revalidate, nil)
 		done <- deliveryAttemptResult{fired: fired, err: err}
 	}()
 	return done
@@ -337,7 +337,7 @@ func TestDeliveryOwnerLock_RealDB_PoolSizeOneDoesNotDeadlock(t *testing.T) {
 
 	done := make(chan deliveryAttemptResult, 1)
 	go func() {
-		fired, err := svc.processSingleOwner(context.Background(), recorder.client(), clinicID, owner.ID, "trigger_x", "tag_x", time.Now(), nil)
+		fired, err := svc.processSingleOwner(context.Background(), recorder.client(), clinicID, owner.ID, "trigger_x", "tag_x", time.Now(), nil, nil)
 		done <- deliveryAttemptResult{fired: fired, err: err}
 	}()
 	select {
@@ -371,7 +371,7 @@ func TestDeliveryOwnerLock_RealDB_RevalidateRunsInsideOwnerTx(t *testing.T) {
 		}
 		return true, "", nil
 	}
-	fired, err := svc.processSingleOwner(context.Background(), recorder.client(), clinicID, owner.ID, "trigger_x", "tag_x", time.Now(), revalidate)
+	fired, err := svc.processSingleOwner(context.Background(), recorder.client(), clinicID, owner.ID, "trigger_x", "tag_x", time.Now(), revalidate, nil)
 	require.NoError(t, err)
 	assert.True(t, fired)
 	require.NotNil(t, ambientTx, "revalidation hook must run inside the owner lock transaction")

@@ -72,6 +72,13 @@ type DormantOwnerEntriesAtRepository interface {
 	) ([]DormantOwnerEntry, error)
 }
 
+// DormantOwnerHistoryRepository is the retained-history view for CPM/dormant
+// tag synchronization, separate from alive-only notification candidates.
+type DormantOwnerHistoryRepository interface {
+	FindDormantOwnerHistoryEntriesCursor(ctx context.Context, clinicID uint64, minDaysSince int, afterOwnerID uint64, limit int) ([]DormantOwnerEntry, error)
+	FindDormantOwnerHistoryEntriesCursorAt(ctx context.Context, clinicID uint64, minDaysSince int, afterOwnerID uint64, limit int, evaluatedAt time.Time) ([]DormantOwnerEntry, error)
+}
+
 type medicalRecordRepository struct {
 	db *gorm.DB
 }

@@ -5,7 +5,7 @@
 - **観測範囲**: `lstep_delivery_trigger_log` のみ。会計確定後の CPM 同期など **ordinary タグ同期（request-local secondary）は本画面の対象外**であり、当該経路は trigger log に書かない。
 - **URLパターン**: `/lstep/delivery-monitor`
 - **アクセス権限**: FE/BE とも `ResourceLstepAnalytics:view`。親 `/lstep` は権限を加算しない。
-- **Write 二重 gate**: deploy gate（`LSTEP_WRITE_API_ENABLED`）と clinic gate（`is_sync_enabled` / API キー）は**別契約** — 契約本文の正本は [line/architecture.md](../line/architecture.md) 冒頭注記・§4、運用手順正本は [`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)。追記（2026-10-07 監査）: 契約本文の重複掲載をやめ正本へ集約。gate 無効でも判定・除外・ログ行の作成と本監視 UI は継続する。
+- **Write 二重 gate**: deploy gate（`LSTEP_WRITE_API_ENABLED`）と clinic gate（`is_sync_enabled` / API キー）は**別契約** — 契約本文の正本は [line/architecture.md](../line/architecture.md) 冒頭注記・§4、運用手順正本は [`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/runbooks/LSTEP_WRITE_API_PAUSE.md)。追記（2026-10-07 監査）: 契約本文の重複掲載をやめ正本へ集約。gate 無効でも判定・除外・ログ行の作成と本監視 UI は継続する。
 
 ---
 

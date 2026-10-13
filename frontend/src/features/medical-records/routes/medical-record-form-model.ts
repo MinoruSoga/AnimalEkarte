@@ -1,4 +1,4 @@
-/** 来院種別の正本は BE enum `first` / `revisit` のみ（docs/spec/reservation-to-record-flow.md）。 */
+/** 来院種別の正本は BE enum `first` / `revisit` のみ（docs/spec/workflows/reservation-to-record-flow.md）。 */
 export const VISIT_TYPE_OPTIONS = ["初診", "再診"] as const;
 
 const MEDICAL_RECORD_TABS = [

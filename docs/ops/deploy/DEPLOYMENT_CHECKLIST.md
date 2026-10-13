@@ -58,7 +58,7 @@ DB は PlanetScale Postgres を使用します。AWS ECS/RDS は廃止済みで�
 2.  **デプロイ監視**: 
     - GitHub Actions `backend-deploy.yml`（Cloudflare Workers + Containers デプロイ）の進捗監視。
     - `frontend-deploy.yml`（Cloudflare Workers Static Assets デプロイ）の成功と smoke 結果を確認。必要なら `npx wrangler tail animalekarte-stg-frontend` で Worker ログを観測する。
-3.  **DB更新**: `backend-deploy.yml` のマイグレーションステップ（`infra/scripts/cf-run-migrate.sh`）に任せる。現行 workflow に `db_reset` 入力はない。共有 STG の再作成が必要な場合は、破壊的操作として別途明示承認を得て [PlanetScale STG シード投入 Runbook](./STG_PLANETSCALE_SEED_RUNBOOK.md) に従う。
+3.  **DB更新**: `backend-deploy.yml` のマイグレーションステップ（`infra/scripts/cf-run-migrate.sh`）に任せる。現行 workflow に `db_reset` 入力はない。共有 STG の再作成が必要な場合は、破壊的操作として別途明示承認を得て [PlanetScale STG シード投入 Runbook](./stg/STG_PLANETSCALE_SEED_RUNBOOK.md) に従う。
 
 ---
 

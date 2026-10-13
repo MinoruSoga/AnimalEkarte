@@ -445,6 +445,7 @@ func newDeleteVaccinationRouter(svc VaccinationService) *gin.Engine {
 	h := newHandlerWithVaccinationSvc(svc)
 	r.DELETE("/vaccinations/:id", func(c *gin.Context) {
 		setClinicID(c)
+		setStaffID(c)
 	}, h.DeleteVaccination)
 	return r
 }
@@ -501,6 +502,59 @@ func TestDeleteVaccination(t *testing.T) {
 		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
 		c.Params = gin.Params{{Key: "id", Value: "1"}}
 		h.DeleteVaccination(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+// ---- DeleteVaccination audit actor propagation (EMR-323) ----
+
+// The authenticated user_id must reach the service through the typed audit-actor
+// context so the delete audit entry is attributed to staff, not fabricated. A
+// missing staff context rejects with 401 before the service is reached.
+func TestVaccinationHandler_DeleteVaccinationAuditActor(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("authenticated user_id becomes the typed audit actor", func(t *testing.T) {
+		var gotActor uint64
+		var gotOK bool
+		svc := &mockVaccinationService{
+			deleteFn: func(ctx context.Context, _, _ uint64) error {
+				gotActor, gotOK = vaccinationAuditActorFrom(ctx)
+				return nil
+			},
+		}
+		h := newHandlerWithVaccinationSvc(svc)
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		setClinicID(c)
+		c.Set("user_id", "42")
+		h.DeleteVaccination(c)
+
+		// The handler sets 204 via c.Status; gin defers the header write on
+		// direct handler calls, so assert the status gin recorded on the
+		// context writer — the wire contract stays 204 (router test above).
+		assert.Equal(t, http.StatusNoContent, c.Writer.Status())
+		require.True(t, gotOK, "authenticated staff id must be attached via withVaccinationAuditActor")
+		assert.Equal(t, uint64(42), gotActor)
+	})
+
+	t.Run("missing staff context returns 401 and never reaches the service", func(t *testing.T) {
+		svc := &mockVaccinationService{
+			deleteFn: func(context.Context, uint64, uint64) error {
+				t.Fatal("service must not be reached without authenticated staff")
+				return nil
+			},
+		}
+		h := newHandlerWithVaccinationSvc(svc)
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		setClinicID(c) // clinic present, user_id absent
+		h.DeleteVaccination(c)
+
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 }

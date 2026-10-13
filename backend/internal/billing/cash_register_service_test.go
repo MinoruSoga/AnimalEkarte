@@ -1504,6 +1504,95 @@ func TestBuildCategoryBreakdown(t *testing.T) {
 	})
 }
 
+// TestCashRegisterService_GetPreview_EMR354_CategoryAmountsTransport は
+// repository 行の category_amounts がサービス層を通って BillingDetails に transport される
+// ことを検証する（EMR-354）。
+//
+// RED 時点では CloseBillingDetailRow.CategoryAmounts / CloseBillingDetail.CategoryAmounts が
+// 未実装のため marshal 結果にキーが出ず失敗する（コンパイルエラーではなく振る舞い RED）。
+// GREEN 時は mock 行へ CategoryAmounts をセットし、出力 JSON の値が入力 map と一致することを
+// このテストが保証する。
+func TestCashRegisterService_GetPreview_EMR354_CategoryAmountsTransport(t *testing.T) {
+	paidAt := time.Date(2026, 4, 20, 10, 30, 0, 0, time.UTC)
+	cashID := uint64(2)
+	cardID := uint64(1)
+
+	closeRepo := &mockCashRegisterCloseRepository{
+		findByDateAndPeriodFn: func(_ context.Context, _ uint64, _ time.Time, _ string) (*model.CashRegisterClose, error) {
+			return nil, nil
+		},
+	}
+	accountingRepo := &mockAccountingRepository{
+		getCloseAggregateFn: func(_ context.Context, _ GetCloseAggregateInput) (*CloseAggregateResult, error) {
+			return &CloseAggregateResult{
+				PaymentRows:  []PaymentAggregateRow{},
+				CategoryRows: []CategoryAggregateRow{},
+				BillingDetails: []CloseBillingDetailRow{
+					{
+						BillingID:       500,
+						PaidAt:          paidAt,
+						OwnerName:       "田中太郎",
+						PetName:         "ポチ",
+						Category:        string(model.ItemCategoryExamination),
+						PaymentMethodID: &cashID,
+						BillingAmount:   1000,
+						RefundAmount:    0,
+						NetAmount:       1000,
+						CategoryAmounts: map[string]int64{"examination": 667, "food": 333},
+					},
+					{
+						BillingID:       500,
+						PaidAt:          paidAt,
+						OwnerName:       "田中太郎",
+						PetName:         "ポチ",
+						Category:        string(model.ItemCategoryExamination),
+						PaymentMethodID: &cardID,
+						BillingAmount:   3000,
+						RefundAmount:    0,
+						NetAmount:       3000,
+						CategoryAmounts: map[string]int64{"examination": 2000, "food": 1000},
+					},
+				},
+				TaxBreakdown: []TaxBreakdownRow{},
+			}, nil
+		},
+	}
+	closingsSvc := &mockClosingSettingsService{
+		resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*sharedkernel.DaySchedule, error) {
+			return defaultSchedule(), nil
+		},
+	}
+	payMethodRepo := &mockPaymentMethodMasterRepository{
+		findAllFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+			return []model.PaymentMethodMaster{
+				{ID: 1, Name: "クレジットカード", SystemKey: ptrString("credit_card")},
+				{ID: 2, Name: "現金", SystemKey: ptrString("cash")},
+			}, nil
+		},
+	}
+	svc := newCashRegisterService(closeRepo, accountingRepo, closingsSvc, payMethodRepo)
+
+	got, err := svc.GetPreview(context.Background(), 1, "2026-04-20", "am")
+	require.NoError(t, err)
+	require.Len(t, got.BillingDetails, 2, "split ごとの明細行は維持される")
+
+	wantMaps := []map[string]int64{
+		{"examination": 667, "food": 333},
+		{"examination": 2000, "food": 1000},
+	}
+	for i, want := range wantMaps {
+		raw, err := json.Marshal(got.BillingDetails[i])
+		require.NoError(t, err)
+		var decoded map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(raw, &decoded))
+		require.Contains(t, decoded, "category_amounts",
+			"明細行 %d の JSON に category_amounts が transport される必要がある（EMR-354）", i)
+		var amounts map[string]int64
+		require.NoError(t, json.Unmarshal(decoded["category_amounts"], &amounts))
+		assert.Equal(t, want, amounts, "行 %d: repository map がサービス層で欠損なく保持される", i)
+	}
+}
+
 // TestParseHHMM は "HH:MM" / "HH:MM:SS"（PostgreSQL time 型）形式のパースを検証する。
 func TestParseHHMM(t *testing.T) {
 	tests := []struct {

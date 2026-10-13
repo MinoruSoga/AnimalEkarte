@@ -49,15 +49,72 @@ type Service interface {
 	SyncPlaneTicketStates(ctx context.Context) PlaneSyncResult
 }
 
+const (
+	// planeAutoAuditAction は自動起票フロー専用の監査アクション。
+	// 手動起票は handler 側の既存監査（support_bug_report.plane_ticket）で
+	// 記録されるため、本アクションは post-save 起票のみが出力する。
+	planeAutoAuditAction = "support_bug_report.plane_ticket_auto"
+
+	// 自動起票監査の outcome 分類（固定値のみ。任意文字列は埋め込まない）。
+	planeAutoOutcomeClaimed        = "claimed"
+	planeAutoOutcomeCreationFailed = "creation_failed"
+	planeAutoOutcomeClaimLost      = "claim_lost"
+	planeAutoOutcomeClaimError     = "claim_error"
+)
+
+const (
+	// defaultPlanePostSaveTimeout は保存後 best-effort 起票の外部呼出 budget
+	// 既定値（PLANE_TIMEOUT_MS の既定 10000ms に合わせる）。
+	defaultPlanePostSaveTimeout = 10 * time.Second
+	// planePostSaveDBTimeout / planePostSaveAuditTimeout は保存後処理の
+	// DB 操作・監査書込みそれぞれの個別 budget。外部 HTTP の deadline とは
+	// 分離する（HTTP timeout が失敗理由の永続化まで潰さないため）。
+	planePostSaveDBTimeout    = 5 * time.Second
+	planePostSaveAuditTimeout = 5 * time.Second
+)
+
 type service struct {
 	repo     Repository
 	tickets  TicketCreator     // nil = Plane 連携無効（ローカル保存のみ）
 	notifier BugReportNotifier // nil = Discord 通知無効
+	// audit は自動 Plane 起票結果の専用監査記録先（nil = 記録しない）。
+	audit AuditLogger
+	// planeTimeout は保存後 best-effort 起票の外部呼出 timeout。
+	planeTimeout time.Duration
+}
+
+// ServiceOption は NewService へのオプション依存を注入する。
+type ServiceOption func(*service)
+
+// WithAuditLogger は自動 Plane 起票結果を記録する監査ロガーを設定する。
+// 監査書込み自体も best-effort であり、失敗は ERROR ログに留めて
+// 報告作成の成功を変えない。
+func WithAuditLogger(logger AuditLogger) ServiceOption {
+	return func(s *service) { s.audit = logger }
+}
+
+// WithPlaneTimeout は保存後 Plane 起票の外部呼出 timeout を設定する。
+// 0 以下は無視して既定値を維持する。
+func WithPlaneTimeout(timeout time.Duration) ServiceOption {
+	return func(s *service) {
+		if timeout > 0 {
+			s.planeTimeout = timeout
+		}
+	}
 }
 
 // NewService は Service を初期化して返す
-func NewService(repo Repository, tickets TicketCreator, notifier BugReportNotifier) Service {
-	return &service{repo: repo, tickets: tickets, notifier: notifier}
+func NewService(repo Repository, tickets TicketCreator, notifier BugReportNotifier, opts ...ServiceOption) Service {
+	s := &service{
+		repo:         repo,
+		tickets:      tickets,
+		notifier:     notifier,
+		planeTimeout: defaultPlanePostSaveTimeout,
+	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 func (s *service) Create(ctx context.Context, clinicID, reporterStaffID uint64, input CreateBugReportInput) (*model.SupportBugReport, error) {
@@ -86,10 +143,46 @@ func (s *service) Create(ctx context.Context, clinicID, reporterStaffID uint64, 
 	if err := s.repo.Create(ctx, &report); err != nil {
 		return nil, err
 	}
-	// Plane への外部エクスポートは作成時に自動実行しない。スタッフが内容を
-	// 確認した上で明示操作（EnsurePlaneTicket = POST /:id/plane-ticket）する
-	// reviewable export のみとし、未分類データが外部へ黙って出る経路を閉じる。
+	// 保存成功後に Plane へ best-effort で自動起票する（2026-10-11 owner 指示で復帰）。
+	// 起票・記録の失敗は plane_sync_error / ログに留め、作成応答は成功のまま返す。
+	if s.tickets != nil {
+		s.syncPlaneTicket(ctx, &report)
+	}
 	return &report, nil
+}
+
+// syncPlaneTicket は保存済み報告の Plane 起票を best-effort で試行する。
+// request ctx のキャンセルからは切り離す（WithoutCancel — context 値は引き継ぐ）
+// が、goroutine は使わず同期的に実行する。外部 HTTP・DB 永続化・監査書込みは
+// それぞれ fresh bounded context を張り、外部呼出の deadline が失敗理由の
+// 永続化まで潰さないようにする。
+// 上流障害は recordPlaneFailure が plane_sync_error に記録する。起票自体は
+// claim 前に Plane 側へ作成済みとなるため、claim 敗退（並行起票の後着や
+// DB 書き込み失敗）では孤立 issue が残りうる既知の制限がある — 呼出側の
+// 作成成功にはいずれも影響しない。
+func (s *service) syncPlaneTicket(requestCtx context.Context, report *model.SupportBugReport) {
+	postSaveCtx := context.WithoutCancel(requestCtx)
+
+	planeCtx, cancel := context.WithTimeout(postSaveCtx, s.planeTimeout)
+	issue, err := s.tickets.CreateBugReportIssue(planeCtx, report)
+	cancel()
+	if err != nil {
+		s.recordPlaneFailure(postSaveCtx, report, err)
+		s.logPlaneAutoAudit(postSaveCtx, report, planeAutoOutcomeCreationFailed, "")
+		return
+	}
+	claimed, claimErr := s.claimPlaneTicket(postSaveCtx, report, issue)
+	switch {
+	case claimed:
+		s.logPlaneAutoAudit(postSaveCtx, report, planeAutoOutcomeClaimed, issue.ID)
+	case claimErr != nil:
+		// 外部には作成済みだがローカル claim を永続化できなかった孤立 issue。
+		s.logPlaneAutoAudit(postSaveCtx, report, planeAutoOutcomeClaimError, issue.ID)
+	default:
+		// 並行経路が先に claim した。こちら側の外部 issue も孤立しうるため
+		// 外部 ID を残して追跡可能にする。
+		s.logPlaneAutoAudit(postSaveCtx, report, planeAutoOutcomeClaimLost, issue.ID)
+	}
 }
 
 func (s *service) ListAll(ctx context.Context) ([]BugReportWithReporter, error) {
@@ -125,10 +218,12 @@ func (s *service) EnsurePlaneTicket(ctx context.Context, clinicID, id uint64) (*
 	}
 	issue, err := s.tickets.CreateBugReportIssue(ctx, report)
 	if err != nil {
-		s.recordPlaneFailure(ctx, report, err)
+		if s.recordPlaneFailure(ctx, report, err) {
+			return report, nil
+		}
 		return nil, apperrors.WrapBadGateway("plane ticket creation failed")
 	}
-	if s.claimPlaneTicket(ctx, report, issue) {
+	if claimed, _ := s.claimPlaneTicket(ctx, report, issue); claimed {
 		return report, nil
 	}
 	// claim 失敗（並行起票の後着 or DB 書き込み失敗）は最新状態を返して実態に合わせる。
@@ -149,40 +244,90 @@ func (s *service) Delete(ctx context.Context, clinicID, id uint64) (*model.Suppo
 }
 
 // recordPlaneFailure は起票失敗を plane_sync_error に記録し WARN を残す。
-// 記録自体の失敗（DB 障害）は追加の ERROR ログのみ（起票失敗の報告を悪化させない）。
-func (s *service) recordPlaneFailure(ctx context.Context, report *model.SupportBugReport, syncErr error) {
-	s.persistPlaneFailure(ctx, report, planeSyncErrorMessage(syncErr))
+// 並行した成功claimを再取得できた場合は true。記録・再取得失敗は ERROR ログで可視化する。
+func (s *service) recordPlaneFailure(ctx context.Context, report *model.SupportBugReport, syncErr error) bool {
+	if s.persistPlaneFailure(ctx, report, planeSyncErrorMessage(syncErr)) {
+		return true
+	}
 	slog.WarnContext(ctx, "plane ticket creation failed", "error", syncErr, "report_id", report.ID, "clinic_id", report.ClinicID)
+	return false
 }
 
-// persistPlaneFailure は sanitize 済みの失敗理由を plane_sync_error に書き込む。
-// ログ出力は呼出側の責務（起票失敗と状態取得失敗で文脈が違うため分離）。
-func (s *service) persistPlaneFailure(ctx context.Context, report *model.SupportBugReport, msg string) {
-	if err := s.repo.SetPlaneSyncError(ctx, report.ClinicID, report.ID, msg); err != nil {
+// persistPlaneFailure records a creation failure only while the report is unclaimed.
+// A guarded no-op reloads the clinic-scoped winner so responses reflect its success.
+// Persistence/reload failures remain visible in logs; automatic creation stays best-effort.
+// Each DB operation gets its own fresh bounded context so an exhausted external
+// HTTP deadline cannot poison the failure record.
+func (s *service) persistPlaneFailure(ctx context.Context, report *model.SupportBugReport, msg string) bool {
+	writeCtx, cancel := context.WithTimeout(ctx, planePostSaveDBTimeout)
+	written, err := s.repo.SetPlaneSyncError(writeCtx, report.ClinicID, report.ID, msg)
+	cancel()
+	if err != nil {
 		slog.ErrorContext(ctx, "failed to persist plane sync error", "error", err, "report_id", report.ID)
+	} else if !written {
+		reloadCtx, reloadCancel := context.WithTimeout(ctx, planePostSaveDBTimeout)
+		latest, reloadErr := s.repo.FindByIDForClinic(reloadCtx, report.ClinicID, report.ID)
+		reloadCancel()
+		if reloadErr != nil {
+			slog.ErrorContext(ctx, "failed to reload competing plane claim", "error", reloadErr, "report_id", report.ID)
+		} else if latest != nil && latest.PlaneIssueID != nil {
+			*report = *latest
+			return true
+		}
 	}
 	report.PlaneSyncError = &msg
+	return false
 }
 
-// claimPlaneTicket は起票成功を DB に記録する。claim できた場合のみ true。
-// false の場合、別経路が先に記録済み（二重起票の防止）か DB 書き込み失敗。
-// 後者は Plane 側に孤立チケットが残りうるため ERROR ログを残す。
-func (s *service) claimPlaneTicket(ctx context.Context, report *model.SupportBugReport, issue *PlaneIssue) bool {
-	claimed, err := s.repo.SetPlaneTicket(ctx, report.ClinicID, report.ID, issue.ID, issue.URL)
+// claimPlaneTicket は起票成功を DB に記録する。claim できた場合のみ (true, nil)。
+// (false, nil) は別経路が先に記録済み（二重起票の防止）。err 非 nil は
+// DB 書き込み失敗 — Plane 側に孤立チケットが残りうるため ERROR ログを残す。
+func (s *service) claimPlaneTicket(ctx context.Context, report *model.SupportBugReport, issue *PlaneIssue) (bool, error) {
+	claimCtx, cancel := context.WithTimeout(ctx, planePostSaveDBTimeout)
+	defer cancel()
+	claimed, err := s.repo.SetPlaneTicket(claimCtx, report.ClinicID, report.ID, issue.ID, issue.URL)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to persist plane ticket; plane-side issue may be orphaned",
 			"error", err, "report_id", report.ID, "plane_issue_id", issue.ID)
-		return false
+		return false, err
 	}
 	if !claimed {
-		return false
+		return false, nil
 	}
 	report.PlaneIssueID = &issue.ID
 	if issue.URL != "" {
 		report.PlaneIssueURL = &issue.URL
 	}
 	report.PlaneSyncError = nil
-	return true
+	return true, nil
+}
+
+// logPlaneAutoAudit は自動起票の結果を固定 outcome で監査記録する（best-effort）。
+// 記録するのは固定分類と安全なローカル/外部 ID のみ — 報告本文や upstream の
+// エラー詳細は監査イベントにも出さない。書込み失敗は ERROR ログで可視化し、
+// 報告作成の成功は変えない（DB-atomic ではない既知の制限）。
+func (s *service) logPlaneAutoAudit(postSaveCtx context.Context, report *model.SupportBugReport, outcome, planeIssueID string) {
+	if s.audit == nil {
+		return
+	}
+	auditCtx, cancel := context.WithTimeout(postSaveCtx, planePostSaveAuditTimeout)
+	defer cancel()
+	newValue := map[string]any{"outcome": outcome}
+	if planeIssueID != "" {
+		newValue["plane_issue_id"] = planeIssueID
+	}
+	if err := s.audit.LogEntry(auditCtx, AuditEntry{
+		ClinicID:   &report.ClinicID,
+		ActorID:    &report.ReporterStaffID,
+		ActorType:  model.AuditActorTypeStaff,
+		Action:     planeAutoAuditAction,
+		Resource:   "support_bug_report",
+		ResourceID: &report.ID,
+		NewValue:   newValue,
+	}); err != nil {
+		slog.ErrorContext(auditCtx, "failed to write plane auto-ticket audit log",
+			"error", err, "report_id", report.ID, "clinic_id", report.ClinicID)
+	}
 }
 
 // ListChatHistory は指定スタッフの会話履歴を古い順で返す。
@@ -364,7 +509,9 @@ func (s *service) SyncPlaneTicketStates(ctx context.Context) PlaneSyncResult {
 			result.Failed++
 			// 404 含む upstream 失敗は報告行に記録して一覧から追跡できるようにする。
 			// planeSyncErrorMessage は upstream body を落とした安全な文言のみ返す。
-			s.persistPlaneFailure(ctx, report, planeSyncErrorMessage(err))
+			if persistErr := s.repo.SetPlaneStateSyncError(ctx, report.ClinicID, report.ID, planeSyncErrorMessage(err)); persistErr != nil {
+				slog.ErrorContext(ctx, "failed to persist plane state sync error", "error", persistErr, "report_id", report.ID)
+			}
 			slog.WarnContext(ctx, "plane sync: failed to fetch issue state",
 				"error", err, "report_id", report.ID, "clinic_id", report.ClinicID)
 			continue

@@ -1,6 +1,6 @@
 # 納品ドキュメント — システム構成・管理者設定・運用手順
 
-> Current task status is tracked in Plane `EMR-39`. This local document remains supporting execution/evidence material; see the [migration receipt](../work/plane-md-migration-20260923-receipt.md) for the crosswalk.
+> Current task status is tracked in Plane `EMR-39`. This local document remains supporting execution/evidence material; see the [migration receipt](../work/plane/plane-md-migration-20260923-receipt.md) for the crosswalk.
 
 > **対象 Issue**: #258 ／ **リポジトリ由来 slice 同期日**: 2026-09-06（`7c6592f9f`） ／ **U 表棚卸し日**: 2026-08-20
 > **読者**: 先方の管理者（院長・システム担当者）
@@ -195,7 +195,7 @@ flowchart TB
    - `/health` 確認（workers.dev 直行と実 URL の両方 — [staging/runbook.md](../ops/infra/staging/runbook.md)）
    - デプロイ直後はローリング更新の旧イメージ残留を疑い、必要なら 15 分静置後に再確認
    - 全断 + DB 接続エラーは接続スロット枯渇を疑う（`DB_MAX_OPEN_CONNS` 等 — [architecture.md](../ops/infra/architecture.md)）
-   - 監視通知（5xx 率アラート）は `infra/cloudflare/notifications.tf` にリソース定義（`notification_email`）があるが、定義の存在は適用・送信先検証・実配送を証明しない。本番送信先は **USER 入力待ち（U8）**。通知の運用方針は [cloudflare-account-separation.md §7](../ops/infra/cloudflare-account-separation.md#7-費用と通知の方針)（EMR-303）が正本で、値未決・policy 未適用だけでは移行完了・10/20 切替を止めない
+   - 監視通知（5xx 率アラート）は `infra/cloudflare/notifications.tf` にリソース定義（`notification_email`）があるが、定義の存在は適用・送信先検証・実配送を証明しない。本番送信先は **USER 入力待ち（U8）**。通知の運用方針は [cloudflare-account-separation.md §7](../ops/infra/cloudflare-account-separation.md#7-費用と通知の方針)（EMR-303）が正本で、値未決・policy 未適用だけでは移行完了・10/20 構築開始を止めない
 
 ### 3.3 ログの見方
 

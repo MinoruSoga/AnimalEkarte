@@ -818,15 +818,15 @@ func TestCheckupService_Delete_FinalizedRejection(t *testing.T) {
 // mockLstepDeliveryTriggerForCheckup は checkup_service の Create フォローアップトリガー
 // （fire-and-forget goroutine）を検証するための最小限モック。
 type mockLstepDeliveryTriggerForCheckup struct {
-	triggerCheckupFollowUpFn func(ctx context.Context, clinicID, ownerID uint64) error
+	triggerCheckupFollowUpFn func(ctx context.Context, clinicID, ownerID, petID uint64) error
 }
 
-func (m *mockLstepDeliveryTriggerForCheckup) TriggerFirstVisitWelcome(_ context.Context, _, _ uint64) error {
+func (m *mockLstepDeliveryTriggerForCheckup) TriggerFirstVisitWelcome(_ context.Context, _, _, _ uint64) error {
 	return nil
 }
-func (m *mockLstepDeliveryTriggerForCheckup) TriggerCheckupFollowUp(ctx context.Context, clinicID, ownerID uint64) error {
+func (m *mockLstepDeliveryTriggerForCheckup) TriggerCheckupFollowUp(ctx context.Context, clinicID, ownerID, petID uint64) error {
 	if m.triggerCheckupFollowUpFn != nil {
-		return m.triggerCheckupFollowUpFn(ctx, clinicID, ownerID)
+		return m.triggerCheckupFollowUpFn(ctx, clinicID, ownerID, petID)
 	}
 	return nil
 }
@@ -874,8 +874,9 @@ func (m *mockLstepDeliveryTriggerForCheckup) TriggerFoodRefillReminder(_ context
 // fire-and-forget goroutine で TriggerCheckupFollowUp が呼ばれることを検証する（非致命的トリガー）。
 func TestCheckupService_Create_TriggersCheckupFollowUpBestEffort(t *testing.T) {
 	ownerID := uint64(42)
+	petID := uint64(77)
 	triggeredCh := make(chan struct{}, 1)
-	var triggeredClinicID, triggeredOwnerID uint64
+	var triggeredClinicID, triggeredOwnerID, triggeredPetID uint64
 
 	repo := &mockCheckupRepository{
 		createFn: func(_ context.Context, checkup *model.Checkup) error {
@@ -886,6 +887,7 @@ func TestCheckupService_Create_TriggersCheckupFollowUpBestEffort(t *testing.T) {
 			return &model.Checkup{
 				ID:              5,
 				MedicalRecordID: 2,
+				PetID:           &petID,
 				MedicalRecord:   &model.MedicalRecord{OwnerID: &ownerID},
 			}, nil
 		},
@@ -896,9 +898,10 @@ func TestCheckupService_Create_TriggersCheckupFollowUpBestEffort(t *testing.T) {
 		},
 	}
 	trigger := &mockLstepDeliveryTriggerForCheckup{
-		triggerCheckupFollowUpFn: func(_ context.Context, clinicID, ownerID uint64) error {
+		triggerCheckupFollowUpFn: func(_ context.Context, clinicID, ownerID, petID uint64) error {
 			triggeredClinicID = clinicID
 			triggeredOwnerID = ownerID
+			triggeredPetID = petID
 			triggeredCh <- struct{}{}
 			return errors.New("trigger failed") // 非致命的: Create は成功する
 		},
@@ -918,6 +921,7 @@ func TestCheckupService_Create_TriggersCheckupFollowUpBestEffort(t *testing.T) {
 	case <-triggeredCh:
 		assert.Equal(t, uint64(3), triggeredClinicID)
 		assert.Equal(t, ownerID, triggeredOwnerID)
+		assert.Equal(t, petID, triggeredPetID, "健診イベントの typed petID がトリガーへ伝搬すること")
 	case <-time.After(30 * time.Second):
 		t.Fatal("TriggerCheckupFollowUp was not called within timeout")
 	}
@@ -1275,4 +1279,27 @@ func TestCheckupService_Update_RevalidatesEffectiveRelations(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, got)
 	assert.Zero(t, updateCalls)
+}
+
+func TestCheckupService_Create_NilPetIDUsesParentEventPet(t *testing.T) {
+	ownerID, petID := uint64(42), uint64(77)
+	parent := &model.MedicalRecord{ID: 2, ClinicID: 3, OwnerID: &ownerID, PetID: &petID, Status: model.MedicalRecordStatusDraft}
+	repo := &mockCheckupRepository{
+		createFn: func(_ context.Context, checkup *model.Checkup) error {
+			checkup.ID = 5
+			assert.Nil(t, checkup.PetID)
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
+			return &model.Checkup{ID: 5, MedicalRecordID: 2, MedicalRecord: parent}, nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) { return parent, nil }}
+	var gotPetID uint64
+	trigger := &mockLstepDeliveryTriggerForCheckup{triggerCheckupFollowUpFn: func(_ context.Context, _, _ uint64, id uint64) error { gotPetID = id; return nil }}
+	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), trigger, nil)
+	_, err := svc.Create(context.Background(), 2, &CreateCheckupInput{ClinicID: 3, CheckupTypeID: 1, Date: time.Now()})
+	assert.NoError(t, err)
+	svc.Wait()
+	assert.Equal(t, petID, gotPetID)
 }

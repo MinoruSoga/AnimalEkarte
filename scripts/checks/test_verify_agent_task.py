@@ -302,7 +302,7 @@ class VerificationTests(unittest.TestCase):
 
     def test_bootstrap_fixture_and_document_run_contract(self):
         for path in ('backend/internal/auth/testdata/first_system_admin.sql',
-                     'docs/ops/deploy/FIRST_SYSTEM_ADMIN.md'):
+                     'docs/ops/deploy/accounts/FIRST_SYSTEM_ADMIN.md'):
             with self.subTest(path=path):
                 jobs, blocked = verify.plan([path])
                 self.assertFalse(blocked)
@@ -317,9 +317,9 @@ class VerificationTests(unittest.TestCase):
 
     def test_backend_contract_mounts_only_required_readonly_documents(self):
         for package, documents in {
-            './internal/auth': ['docs/ops/deploy/FIRST_SYSTEM_ADMIN.md'],
+            './internal/auth': ['docs/ops/deploy/accounts/FIRST_SYSTEM_ADMIN.md'],
             './internal/medicalrecord': [
-                'docs/ops/deploy/LAB_DEVICE_CONNECTIVITY.md',
+                'docs/ops/deploy/lab-devices/LAB_DEVICE_CONNECTIVITY.md',
                 'docs/architecture/adr/007-lab-device-receive-and-commit.md',
             ],
             './cmd/api': [],
@@ -347,7 +347,7 @@ class VerificationTests(unittest.TestCase):
             root = pathlib.Path(directory)
             (root / 'backend/internal/auth').mkdir(parents=True)
             (root / 'backend/internal/auth/example_test.go').write_text('fixture')
-            document = root / 'docs/ops/deploy/FIRST_SYSTEM_ADMIN.md'
+            document = root / 'docs/ops/deploy/accounts/FIRST_SYSTEM_ADMIN.md'
             document.parent.mkdir(parents=True)
             document.write_text('before')
             with mock.patch.object(verify, 'ROOT', root), mock.patch.object(verify, 'git', return_value=''):
@@ -357,12 +357,12 @@ class VerificationTests(unittest.TestCase):
                 self.assertNotEqual(before, verify.scope_fingerprint(paths))
 
     def test_unstaged_backend_contract_document_blocks(self):
-        with mock.patch.object(verify, 'git', side_effect=['', '', 'docs/ops/deploy/FIRST_SYSTEM_ADMIN.md\0']):
+        with mock.patch.object(verify, 'git', side_effect=['', '', 'docs/ops/deploy/accounts/FIRST_SYSTEM_ADMIN.md\0']):
             with self.assertRaisesRegex(ValueError, 'unstaged or untracked'):
                 verify.reject_unstaged_service_sources(['backend/internal/auth/first_system_admin_procedure_test.go'])
 
     def test_document_only_contract_still_checks_backend_sources(self):
-        paths = ['docs/ops/deploy/FIRST_SYSTEM_ADMIN.md']
+        paths = ['docs/ops/deploy/accounts/FIRST_SYSTEM_ADMIN.md']
         self.assertEqual(verify.selected_services(paths), ['backend'])
         with mock.patch.object(verify, 'git', return_value='backend/internal/auth/helper.go\0'):
             with self.assertRaisesRegex(ValueError, 'unstaged or untracked'):
@@ -373,7 +373,7 @@ class VerificationTests(unittest.TestCase):
             root = pathlib.Path(directory)
             target = root / 'source.md'
             target.write_text('fixture')
-            document = root / 'docs/ops/deploy/FIRST_SYSTEM_ADMIN.md'
+            document = root / 'docs/ops/deploy/accounts/FIRST_SYSTEM_ADMIN.md'
             document.parent.mkdir(parents=True)
             document.symlink_to(target)
             with mock.patch.object(verify, 'ROOT', root):

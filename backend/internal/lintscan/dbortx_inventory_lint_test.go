@@ -455,6 +455,11 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.update":                             {},
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.conflictAfterZeroMedicalRecordRows": {},
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.findMedicalRecordByID":              {},
+	// EMR-330 適格性再検証: 生存ペット由来カルテの初診日/最終来院日を delivery-owner
+	// lock 内の claim/write 直前に同一接続で再読する narrow な owner スコープの読み取り。
+	// Runtime: TestMedicalRecordRepository_OwnerHasAliveVisitBoundary_AmbientTransaction
+	// (internal/medicalrecord/lstep_eligibility_ambient_tx_test.go)
+	"medicalrecord/medical_record_owner_visit_repository.go|medicalRecordRepository.ownerHasAliveVisitBoundary": {},
 	// vaccination (BE9-2E-0: patient/master validation, readback, and writes must share the
 	// service-owned transaction. Runtime proofs live in vaccination_transaction_concurrency_test.go;
 	// clinic-scoped read/preload coverage lives in vaccination_clinic_isolation_test.go.)
@@ -464,8 +469,13 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/vaccination_repository.go|vaccinationRepository.FindByID":                    {},
 	"medicalrecord/vaccination_repository.go|vaccinationRepository.FindByOwner":                 {},
 	"medicalrecord/vaccination_repository.go|vaccinationRepository.FindOwnersByVaccineDeadline": {},
-	"medicalrecord/vaccination_repository.go|vaccinationRepository.LockByIDForUpdate":           {},
-	"medicalrecord/vaccination_repository.go|vaccinationRepository.update":                      {},
+	// EMR-330 適格性再検証: 生存ペットのワクチン次回接種日を delivery-owner lock 内の
+	// claim/write 直前に同一接続で再読する narrow な owner スコープの読み取り。Runtime:
+	// TestVaccinationRepository_OwnerHasAliveVaccineDeadline_AmbientTransaction
+	// (internal/medicalrecord/lstep_eligibility_ambient_tx_test.go)
+	"medicalrecord/vaccination_repository.go|vaccinationRepository.OwnerHasAliveVaccineDeadline": {},
+	"medicalrecord/vaccination_repository.go|vaccinationRepository.LockByIDForUpdate":            {},
+	"medicalrecord/vaccination_repository.go|vaccinationRepository.update":                       {},
 	// UAT-R2-EXCLUSIVE-LOCK: CAS update の0件後に ambient tx 内で存在再照会し not-found/
 	// version-conflict を正規化。Runtime: child_records_optimistic_lock_test.go
 	"medicalrecord/vaccination_repository.go|vaccinationRepository.existsInClinic": {},
@@ -547,6 +557,16 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// (internal/pet/repository_tx_atomicity_test.go)
 	"pet/repository.go|repository.RecordDeath": {},
 	"pet/repository.go|repository.ClearDeath":  {},
+	// EMR-330 適格性再検証: delivery-owner lock 内でイベントソースを同一接続で再読する
+	// narrow な owner/pet スコープの読み取り。候補抽出後・claim/write 直前に死亡・削除を
+	// 再確認して TOCTOU を防ぐため ambient tx スナップショットが必須。Runtime:
+	// TestPetRepository_FindByID_AmbientTransaction /
+	// TestPetRepository_CountLivingByOwner_AmbientTransaction /
+	// TestPetRepository_OwnerHasAlivePetBirthday_AmbientTransaction
+	// (internal/pet/repository_tx_atomicity_test.go)
+	"pet/repository.go|repository.findPetByID":              {},
+	"pet/repository.go|repository.CountLivingByOwner":       {},
+	"pet/repository.go|repository.OwnerHasAlivePetBirthday": {},
 	// pet_owners の clinic 相関 read/count と全置換は、後続 service の置換 + audit と同じ
 	// ambient transaction に参加する。Runtime:
 	// TestPetOwnerRepository_FindByPetID_AmbientTransaction /

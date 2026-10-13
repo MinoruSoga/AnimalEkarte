@@ -46,9 +46,11 @@ type LstepDeliveryTriggerService interface {
 	// TriggerFoodRefillReminder はフード購入タグを持つ飼い主にリフィルリマインダー配信をトリガーする。
 	TriggerFoodRefillReminder(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error)
 	// TriggerFirstVisitWelcome はイベント駆動（初診完了直後）のウェルカム配信トリガー（スタブ）。
-	TriggerFirstVisitWelcome(ctx context.Context, clinicID, ownerID uint64) error
+	// petID は初診を起票したイベントペット（EMR-330: 送信前に生存・所有・clinic 整合を再読する）。
+	TriggerFirstVisitWelcome(ctx context.Context, clinicID, ownerID, petID uint64) error
 	// TriggerCheckupFollowUp はイベント駆動（健診後）のフォローアップ配信トリガー（スタブ）。
-	TriggerCheckupFollowUp(ctx context.Context, clinicID, ownerID uint64) error
+	// EMR-330 R1: petID は健診イベント由来ペット — claim/write 前に生存・所有・医院を再読する。
+	TriggerCheckupFollowUp(ctx context.Context, clinicID, ownerID, petID uint64) error
 }
 
 type lstepDeliveryTriggerService struct {

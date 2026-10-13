@@ -30,10 +30,10 @@ flowchart LR
 | No | 画面名 | 仕様書 | 概要 |
 |:---|:---|:---|:---|
 | 00 | **ペット選択** | [00-pet-selection.md](./00-pet-selection.md) | 新規データ作成時の共通検索・特定フロー。 |
-| 01 | **当日の受付** | [01-reception.md](./01-reception.md) | カンバン形式による院内稼働状況の管理。 |
-| 02 | **予約管理** | [02-reservations.md](./02-reservations.md) | 月/週カレンダーによる予約枠とシフトの可視化。 |
-| 05 | **カルテ一覧** | [05-medical-records-list.md](./05-medical-records-list.md) | 全カルテの時系列検索。 |
-| 06 | **カルテ詳細・入力** | [06-medical-records-form.md](./06-medical-records-form.md) | SOAPS 形式の診療録作成（9 タブ構成）。 |
+| 01 | **当日の受付** | [reception-board.md](../domains/reception/pages/reception-board.md) | カンバン形式による院内稼働状況の管理。 |
+| 02 | **予約管理** | [reservation-management.md](../domains/reservations/pages/reservation-management.md) | 月/週カレンダーによる予約枠とシフトの可視化。 |
+| 05 | **カルテ一覧** | [medical-record-list.md](../domains/medical-records/pages/medical-record-list.md) | 全カルテの時系列検索。 |
+| 06 | **カルテ詳細・入力** | [medical-record-form.md](../domains/medical-records/pages/medical-record-form.md) | SOAPS 形式の診療録作成（9 タブ構成）。 |
 | 12 | **検査一覧** | [12-examinations-list.md](./12-examinations-list.md) | 検査オーダー状況と結果の進捗管理。 |
 | 13 | **検査登録・結果** | [13-examinations-form.md](./13-examinations-form.md) | 数値検査の入力と基準値判定。未紐付け受信は1クリックで後付け。 |
 | — | **検査受信** | `/lab-device`（`LabDeviceBoard`）／契約 [ADR-007](../../architecture/adr/007-lab-device-receive-and-commit.md)・ローカル受信 agent [ADR-008](../../architecture/adr/008-local-lab-device-agent.md) | 医院に設定された検査機器の単一掲示板。機器カードで受信状況をリアルタイム表示。本日診療中カルテをカード選択。日別の受信一覧。未紐付け・［取り消す］。医院セットアップで機器接続を1回許可。詳細契約は ADR、運用は ops/deploy。 |
@@ -68,13 +68,13 @@ flowchart LR
 |:---|:---|:---|:---|
 | 03 | **飼主・ペット一覧** | [03-owners-list.md](./03-owners-list.md) | 顧客データベースの検索と参照。 |
 | 04 | **飼主・ペット登録** | [04-owners-form.md](./04-owners-form.md) | 顧客情報の編集と Lステップ個別送信。 |
-| 10 | **会計一覧** | [10-accounting-list.md](./10-accounting-list.md) | 請求履歴の検索とステータス監視。 |
-| 11 | **会計精算** | [11-accounting-detail.md](./11-accounting-detail.md) | 保険窓口精算、決済、インボイス発行。 |
+| 10 | **会計一覧** | [accounting-list.md](../domains/accounting/pages/accounting-list.md) | 請求履歴の検索とステータス監視。 |
+| 11 | **会計精算** | [accounting-settlement.md](../domains/accounting/pages/accounting-settlement.md) | 保険窓口精算、決済、インボイス発行。 |
 | 22 | **見積書一覧** | [22-estimate-list.md](./22-estimate-list.md) | 発行済み見積の有効期限と承認管理。 |
 | 23 | **見積書作成** | [23-estimate-form.md](./23-estimate-form.md) | 概算費用の算出と飼主向け説明文編集。 |
 | 26 | **見積書詳細** | [26-estimate-detail.md](./26-estimate-detail.md) | 見積内容の最終確認とステータス制御。 |
 | 29 | **レジ締め・履歴** | [29-closing-aggregation.md](./29-closing-aggregation.md) | 日次売上の確定と現金の実査・履歴。 |
-| 30 | **未納者一覧** | [30-unpaid-list.md](./30-unpaid-list.md) | 売掛金の把握と督促業務支援。 |
+| 30 | **未納者一覧** | [unpaid-list.md](../domains/accounting/pages/unpaid-list.md) | 売掛金の把握と督促業務支援。 |
 | 32 | **月次集計レポート** | [32-accounting-reports.md](./32-accounting-reports.md) | 経営分析用データの抽出と CSV 出力。 |
 | 36 | **顧客集計ダッシュボード** | [36-aggregation-dashboard.md](./36-aggregation-dashboard.md) | 売上・来院頻度による顧客分析。 |
 
@@ -107,10 +107,14 @@ flowchart LR
 ## 🛠️ 技術・共通基盤
 
 - **[共通ダイアログ](./common-dialogs.md)**: 全画面で共有される検索、入力部品。
-- **[カルテ保存フロー](./99-medical-record-flow.md)**: カルテの複雑なライフサイクル。
+- **[カルテ保存フロー](../domains/medical-records/lifecycle.md)**: カルテの複雑なライフサイクル。
 - **[マスタ設定ポータル](./20-master-settings.md)**: 各種定義データ管理の入り口。
 - **[マスタ設定画面群 (settings/)](./settings/README.md)**: 個別マスタ設定画面の詳細仕様インデックス。
 
 ---
 
 **静的照合**: 2026-09-06、基準コード `7c6592f9f`。本索引と配下仕様をコード・GitHub Issue の本文／コメントへ照合した日付付き記録であり、稼働環境・実機・UAT の再実行は含まない。実行状態の SoT は Plane workspace `baritechllc` / project `EMR`（hub `EMR-1`。`BRT-4` は履歴別名）、作業入口は [docs/work/README.md](../../work/README.md) を参照する。
+
+## ドメイン別の本文配置
+
+予約・受付・カルテ・会計の本文は [spec/ の入口](../README.md)から各 domains/ へ辿れます。本索引は全画面の閲覧入口として保持し、移設した番号の旧ファイルには移動案内だけを置きます。従来の番号付き41件は本文と移動案内を合わせた文書索引であり、88製品ルートの件数とは別です。カルテ保存契約は画面ではなく [lifecycle.md](../domains/medical-records/lifecycle.md) §2 が正本です。

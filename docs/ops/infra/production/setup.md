@@ -73,16 +73,28 @@ Decided in EMR-341 (2026-10-11). What a clinic sees right after the first produc
 | Medicines | Empty — not in `002_master` and not in the 21 cutover tables | Open decision of EMR-338 (import from the old procedure master, or the clinic registers) |
 | Anything a clinic registered on STG | **Not carried over** — STG and production are separate databases | The clinic registers it again in production |
 
-Staff screens and the master screens become usable only after the first system administrator is issued ([FIRST_SYSTEM_ADMIN.md](../../deploy/FIRST_SYSTEM_ADMIN.md)). Before that day, ask each clinic to keep a record of what it registered on STG — name, duration, price and LINE-publication setting of its reservation types and trimming courses; a screenshot is enough — because this is the only source for re-registration. The request goes to the clinic through the list maintained in EMR-338.
+Staff screens and the master screens become usable only after the first system administrator is issued ([FIRST_SYSTEM_ADMIN.md](../../deploy/accounts/FIRST_SYSTEM_ADMIN.md)). Before that day, ask each clinic to keep a record of what it registered on STG — name, duration, price and LINE-publication setting of its reservation types and trimming courses; a screenshot is enough — because this is the only source for re-registration. The request goes to the clinic through the list maintained in EMR-338.
 
 ### 4.2 Standard reservation types
 
 Decided in EMR-341 (Q1 = apply): the five standard reservation types are part of the first-build procedure. Background: on STG a clinic could pick only the trimming type when creating a reservation (EMR-193).
 
 - The SQL is `backend/migrations/seeds/live_insert_standard_reservation_types.sql`. It is **not** part of `cmd/migrate` and the repository or CI never runs it. A human runs it from an approved runbook, once per environment, **after** the first migrate has loaded the clinics (on a database without clinics it fails by design).
-- The pre-check, the apply command, the post-check query and the failure handling are in [EMR-321_HOTEL_RESERVATION.md](../../deploy/EMR-321_HOTEL_RESERVATION.md). Follow that document as written; do not copy the SQL into this file.
-- Applying the SQL does not update `002_master/reservation_types.csv` ([EMR-321_HOTEL_RESERVATION.md](../../deploy/EMR-321_HOTEL_RESERVATION.md) 「fresh DB と失敗時の扱い」). Do not edit the CSV or the manifest by hand.
-- Record the target environment, operator, time, per-clinic result and the post-check result as non-secret evidence in the EMR-321 comment thread.
+- The pre-check, the apply command, the post-check query and the failure handling are in [EMR-321_HOTEL_RESERVATION.md](../../deploy/runbooks/EMR-321_HOTEL_RESERVATION.md). Follow that document as written; do not copy the SQL into this file.
+- Applying the SQL does not update `002_master/reservation_types.csv` ([EMR-321_HOTEL_RESERVATION.md](../../deploy/runbooks/EMR-321_HOTEL_RESERVATION.md) 「fresh DB と失敗時の扱い」). Do not edit the CSV or the manifest by hand.
+- Record the target environment, operator, time, per-clinic result and the post-check result as non-secret evidence on **EMR-348** (the execution record for this operation); EMR-321 stays the canonical procedure and its evidence thread may be linked.
+
+#### Readiness chain for this operation (EMR-348)
+
+`Ready` on EMR-348 means a human can start preparing; it is not execution approval. Every predecessor must have its own dated, non-secret receipt — a scheduled date or another ticket's plan does not establish readiness. Observed states (2026-10-12 UTC / 2026-10-13 JST): EMR-310 is `Backlog` and EMR-139 is `Blocked`; the execution receipts below are **not confirmed** in the observed evidence — this is not a claim that the underlying provider work does not exist. The planned 10/20 date covers initial construction, not clinic cutover.
+
+1. The approved new dedicated Cloudflare account shell and STG prerequisites ([cloudflare-account-separation.md](../cloudflare-account-separation.md) §4/§5).
+2. EMR-256 / EMR-148: actual production construction verified with DB-backed checks — migrations applied and the master clinics committed in the production database. `/health` alone does not prove database access.
+3. EMR-139 preflight → EMR-140: actual first-administrator receipt plus a normal login. EMR-141 tracks the mail path as a separate follow-up; its receipt is not an additional prerequisite for this standard-SQL operation. Exactly one first administrator: an existing staff row with an active main membership, and no existing `is_system_admin` account including inactive or deleted ones; never reuse demo or shared credentials. The procedure is [FIRST_SYSTEM_ADMIN.md](../../deploy/accounts/FIRST_SYSTEM_ADMIN.md); keep secrets, personal names and email addresses out of this document and tickets.
+4. The standard-SQL human operation in [EMR-321_HOTEL_RESERVATION.md](../../deploy/runbooks/EMR-321_HOTEL_RESERVATION.md) with the all-five post-check green.
+5. Clinics then register their manual masters from their own STG records (the EMR-338 list).
+
+Before step 4, require verified receipts for steps 1–3 (environment, migration/clinics, and administrator/normal login), plus the operation-specific approval and pre-check in the linked procedure. Missing or unverified prerequisites mean stop. Record step 4's result before handing off step 5; their receipts are produced by those steps. Re-verify external state at execution time rather than using historical provider claims as current facts.
 
 ## 5. IaC and resource verification
 
@@ -119,7 +131,7 @@ Store both only as `Production` Environment secrets, never repository-level. The
 - verify `/health`, then DB-backed behavior separately because `/health` does not query the DB;
 - verify frontend production API target from deployed output, not from branch name;
 - use only explicitly provisioned synthetic credentials with lifecycle ownership for CRUD smoke;
-- verify that every clinic has the five standard reservation types (§4.2): the post-check query in [EMR-321_HOTEL_RESERVATION.md](../../deploy/EMR-321_HOTEL_RESERVATION.md) returns 0 rows;
+- verify that every clinic has the five standard reservation types (§4.2): the post-check query in [EMR-321_HOTEL_RESERVATION.md](../../deploy/runbooks/EMR-321_HOTEL_RESERVATION.md) returns 0 rows;
 - record non-secret evidence and rollback owner.
 
 ## 8. Remaining provider / human work (not done by the repository)

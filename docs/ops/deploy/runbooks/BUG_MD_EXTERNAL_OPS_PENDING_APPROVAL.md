@@ -81,7 +81,7 @@ GitHub Secrets（`CLOUDFLARE_API_TOKEN`, `MIGRATE_RUN_SECRET`, `STG_DEMO_EMAIL`,
 
 AWS 時代の SSM 登録、ECS task definition、`db_reset` workflow dispatch は削除済み資産を前提とするため、
 この live runbook には再掲しない。共有 STG の DB 再作成が必要な場合は、AWS 手順を復元せず、
-ユーザー承認後に [STG_PLANETSCALE_SEED_RUNBOOK.md](../STG_PLANETSCALE_SEED_RUNBOOK.md) を使用する。
+ユーザー承認後に [STG_PLANETSCALE_SEED_RUNBOOK.md](../stg/STG_PLANETSCALE_SEED_RUNBOOK.md) を使用する。
 
 ---
 

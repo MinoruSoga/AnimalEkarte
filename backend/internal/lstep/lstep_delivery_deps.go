@@ -14,6 +14,10 @@ type deliveryOwnerRepository interface {
 type deliveryMedicalRecordRepository interface {
 	FindOwnersByFirstVisitDate(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
 	FindOwnersByLastVisitDays(ctx context.Context, clinicID uint64, exactDays int, asOf time.Time) ([]uint64, error)
+	// OwnerHasAlive*VisitOnDate は EMR-330 適格性再読の owner スコープ narrow view。
+	// 生存ペット由来カルテの MIN/MAX(date) が targetDate 暦日と一致するかを返す。
+	OwnerHasAliveFirstVisitOnDate(ctx context.Context, clinicID, ownerID uint64, targetDate time.Time) (bool, error)
+	OwnerHasAliveLastVisitOnDate(ctx context.Context, clinicID, ownerID uint64, targetDate time.Time) (bool, error)
 }
 
 // deliveryAppointmentRepository は tentative リマインダー配信が必要とする
@@ -39,10 +43,19 @@ type deliveryAppointmentRepository interface {
 
 type deliveryVaccinationRepository interface {
 	FindOwnersByVaccineDeadline(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
+	// OwnerHasAliveVaccineDeadline は EMR-330 適格性再読の owner スコープ narrow view。
+	// 生存ペットの next_date が targetDate のワクチンを飼い主が持つかを返す。
+	OwnerHasAliveVaccineDeadline(ctx context.Context, clinicID, ownerID uint64, targetDate time.Time) (bool, error)
 }
 
 type deliveryPetRepository interface {
 	FindOwnersByPetBirthday(ctx context.Context, clinicID uint64, month, day int) ([]uint64, error)
+	// OwnerHasAlivePetBirthday は EMR-330 適格性再読の owner スコープ narrow view。
+	OwnerHasAlivePetBirthday(ctx context.Context, clinicID, ownerID uint64, month, day int) (bool, error)
+	// FindByID はウェルカム配信のイベントペット再読（EMR-330）に使う。
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
+	// CountLivingByOwner はタグ系トリガーの scoped living-owner 再検証（EMR-330）に使う。
+	CountLivingByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 }
 
 type deliveryTagCacheRepository interface {

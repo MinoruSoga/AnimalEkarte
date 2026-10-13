@@ -2,7 +2,7 @@
 
 > **目的**: 確定後のカード金額訂正が理由必須・権限制御・監査記録つきで機能すること、および未納が waiting 全額とクレジット訂正 residual の両方から把握できることを証明する。部分入金 UI は現行では拒否される。
 > **所要目安**: 25分 / **深度**: 深い
-> **仕様正本**: [会計一覧](../../../spec/screens/10-accounting-list.md) / [会計精算](../../../spec/screens/11-accounting-detail.md) / [未納者一覧](../../../spec/screens/30-unpaid-list.md) / [レジ締め業務](../../../spec/cash-register.md)
+> **仕様正本**: [会計一覧](../../../spec/domains/accounting/pages/accounting-list.md) / [会計精算](../../../spec/domains/accounting/pages/accounting-settlement.md) / [未納者一覧](../../../spec/domains/accounting/pages/unpaid-list.md) / [レジ締め業務](../../../spec/cash-register.md)
 
 ## 前提条件
 

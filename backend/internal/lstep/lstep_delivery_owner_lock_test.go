@@ -56,7 +56,7 @@ func TestProcessSingleOwner_FailClosedWithoutOwnerLocker(t *testing.T) {
 		addTagFn: func(context.Context, string, string) error { addCalls++; return nil },
 	}
 
-	fired, err := svc.processSingleOwner(context.Background(), client, 1, 10, "trigger_x", "tag_x", time.Now(), nil)
+	fired, err := svc.processSingleOwner(context.Background(), client, 1, 10, "trigger_x", "tag_x", time.Now(), nil, nil)
 	require.Error(t, err)
 	assert.False(t, fired)
 	assert.Equal(t, 0, addCalls, "provider must never be invoked without the owner lock")
@@ -85,7 +85,7 @@ func TestProcessSingleOwner_LockSettingsOffMarksExcluded(t *testing.T) {
 		addTagFn: func(context.Context, string, string) error { addCalls++; return nil },
 	}
 
-	fired, err := svc.processSingleOwner(context.Background(), client, 1, 10, "trigger_x", "tag_x", time.Now(), nil)
+	fired, err := svc.processSingleOwner(context.Background(), client, 1, 10, "trigger_x", "tag_x", time.Now(), nil, nil)
 	require.NoError(t, err)
 	assert.False(t, fired)
 	assert.Equal(t, 0, addCalls)
@@ -116,7 +116,7 @@ func TestProcessSingleOwner_SendFailureIsBlockingNotRetryable(t *testing.T) {
 		addTagFn: func(context.Context, string, string) error { return errors.New("provider exploded") },
 	}
 
-	fired, err := svc.processSingleOwner(context.Background(), client, 1, 10, "trigger_x", "tag_x", time.Now(), nil)
+	fired, err := svc.processSingleOwner(context.Background(), client, 1, 10, "trigger_x", "tag_x", time.Now(), nil, nil)
 	require.Error(t, err)
 	assert.False(t, fired)
 	assert.Equal(t, model.TriggerStatusFailed, gotStatus)
@@ -150,7 +150,7 @@ func TestProcessSingleOwner_CommitFailureAfterSendPersistsFired(t *testing.T) {
 		addTagFn: func(context.Context, string, string) error { return nil },
 	}
 
-	fired, err := svc.processSingleOwner(context.Background(), client, 1, 10, "trigger_x", "tag_x", time.Now(), nil)
+	fired, err := svc.processSingleOwner(context.Background(), client, 1, 10, "trigger_x", "tag_x", time.Now(), nil, nil)
 	require.Error(t, err, "serialization failure must surface")
 	assert.False(t, fired)
 	assert.Equal(t, model.TriggerStatusFired, gotStatus, "provider success must still persist fired")
@@ -170,7 +170,7 @@ func TestProcessSingleOwner_FiredPersistFailureIsObservable(t *testing.T) {
 		addTagFn: func(context.Context, string, string) error { return nil },
 	}
 
-	fired, err := svc.processSingleOwner(context.Background(), client, 1, 10, "trigger_x", "tag_x", time.Now(), nil)
+	fired, err := svc.processSingleOwner(context.Background(), client, 1, 10, "trigger_x", "tag_x", time.Now(), nil, nil)
 	require.Error(t, err)
 	assert.False(t, fired, "a send whose outcome is not durable must not count as delivered")
 }
@@ -193,7 +193,7 @@ func TestProcessSingleOwner_HookValidWithoutSendFailsClosed(t *testing.T) {
 		return true, "", nil
 	}
 
-	fired, err := svc.processSingleOwner(context.Background(), client, 1, 10, "trigger_x", "tag_x", time.Now(), revalidate)
+	fired, err := svc.processSingleOwner(context.Background(), client, 1, 10, "trigger_x", "tag_x", time.Now(), revalidate, nil)
 	require.Error(t, err)
 	assert.False(t, fired)
 	assert.Equal(t, 0, addCalls)

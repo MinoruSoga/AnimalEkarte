@@ -72,7 +72,7 @@ flowchart LR
 
 ### 作成時の再検証と限界
 
-空き枠表示後に状態が変わり得るため、LIFF の確定は `liff_service_reservations.go` から `ValidateAndCreate` を呼ぶ。予約種別・appointment conflict を transaction 内で再検証し、明示 staff の医院所属・capability・LINE 公開/active を検査する。追記（2026-10-07 監査）: **選択時刻の勤務 shift 再検証は未実装**という既知 source gap の正本は [reservation-to-record-flow.md §7](../reservation-to-record-flow.md)（Deferred / known gaps）。空き枠表示を保存時の shift 保証と扱わない点は同節に従う。
+空き枠表示後に状態が変わり得るため、LIFF の確定は `liff_service_reservations.go` から `ValidateAndCreate` を呼ぶ。予約種別・appointment conflict を transaction 内で再検証し、明示 staff の医院所属・capability・LINE 公開/active を検査する。追記（2026-10-07 監査）: **選択時刻の勤務 shift 再検証は未実装**という既知 source gap の正本は [reservation-to-record-flow.md §7](../workflows/reservation-to-record-flow.md)（Deferred / known gaps）。空き枠表示を保存時の shift 保証と扱わない点は同節に従う。
 
 ## 5. 通知のライフサイクル
 

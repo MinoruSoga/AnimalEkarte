@@ -1,0 +1,1 @@
+AnimalEkarte独自preset。公式coreへprependする7コマンドと、独自replaceする3コマンド・4テンプレート。CLIは公式1.1.3、presetは本プロジェクト0.1.0。第三者拡張やGit拡張は含まない。

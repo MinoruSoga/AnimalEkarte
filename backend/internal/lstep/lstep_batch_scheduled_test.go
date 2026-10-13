@@ -68,7 +68,7 @@ func (r *scheduledDormantRepository) FindDormantOwnerEntries(
 	return nil, nil
 }
 
-func (r *scheduledDormantRepository) FindDormantOwnerEntriesCursor(
+func (r *scheduledDormantRepository) FindDormantOwnerHistoryEntriesCursor(
 	context.Context,
 	uint64,
 	int,
@@ -78,7 +78,7 @@ func (r *scheduledDormantRepository) FindDormantOwnerEntriesCursor(
 	return nil, errors.New("legacy dormant query must not be used by scheduled execution")
 }
 
-func (r *scheduledDormantRepository) FindDormantOwnerEntriesCursorAt(
+func (r *scheduledDormantRepository) FindDormantOwnerHistoryEntriesCursorAt(
 	_ context.Context,
 	_ uint64,
 	_ int,

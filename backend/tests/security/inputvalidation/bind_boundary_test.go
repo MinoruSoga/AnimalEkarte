@@ -12,7 +12,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 )
 
-// C05 evidence tests (docs/work/emr-332-security/input-output/c05-input-validation.md).
+// C05 evidence tests (docs/work/emr/emr-332-security/input-output/c05-input-validation.md).
 //
 // Scope: in-memory binding-layer behavior only. No service, repository,
 // session, audit, cache, queue, file, mail, or telemetry object exists in this
