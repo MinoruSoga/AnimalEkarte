@@ -933,3 +933,27 @@ func TestMedicalRecordRepository_OwnerHasAliveVisitBoundary(t *testing.T) {
 		assert.False(t, got)
 	})
 }
+
+func TestMedicalRecordRepository_DormantHistoryCursor_RetainsDeceasedVisitsAndClinicScope(t *testing.T) {
+	db := testdb.SetupTestDB(t)
+	repo := NewMedicalRecordRepository(db)
+	evaluatedAt := time.Now().In(time.Local)
+	ids := seedDormantOwners(t, db, 1, 2, evaluatedAt.AddDate(0, 0, -250))
+	seedDormantOwners(t, db, 2, 1, evaluatedAt.AddDate(0, 0, -300))
+	require.NoError(t, db.Model(&model.Pet{}).Where("clinic_id = ?", 1).Updates(map[string]any{"status": model.PetStatusDeceased, "deceased_at": evaluatedAt}).Error)
+	page1, err := repo.FindDormantOwnerHistoryEntriesCursorAt(context.Background(), 1, 180, 0, 1, evaluatedAt)
+	require.NoError(t, err)
+	require.Len(t, page1, 1)
+	assert.Equal(t, ids[0], page1[0].OwnerID)
+	assert.Equal(t, 250, page1[0].DaysSince)
+	page2, err := repo.FindDormantOwnerHistoryEntriesCursorAt(context.Background(), 1, 180, page1[0].OwnerID, 1, evaluatedAt)
+	require.NoError(t, err)
+	require.Len(t, page2, 1)
+	assert.Equal(t, ids[1], page2[0].OwnerID)
+	page3, err := repo.FindDormantOwnerHistoryEntriesCursorAt(context.Background(), 1, 180, page2[0].OwnerID, 1, evaluatedAt)
+	require.NoError(t, err)
+	assert.Empty(t, page3, "other-clinic history cannot enter this cursor")
+	notifications, err := repo.FindDormantOwnerEntriesCursorAt(context.Background(), 1, 180, 0, 10, evaluatedAt)
+	require.NoError(t, err)
+	assert.Empty(t, notifications, "deceased history is retained for tags, excluded from notifications")
+}

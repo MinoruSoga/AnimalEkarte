@@ -24,7 +24,7 @@ func (s *lstepBatchService) syncVisitDormantForClinic(ctx context.Context, clini
 	var errs []error
 	afterOwnerID := uint64(0)
 	for {
-		entries, findErr := s.medRecordRepo.FindDormantOwnerEntriesCursor(ctx, clinicID, minDaysSince, afterOwnerID, lstepBatchPageSize)
+		entries, findErr := s.medRecordRepo.FindDormantOwnerHistoryEntriesCursor(ctx, clinicID, minDaysSince, afterOwnerID, lstepBatchPageSize)
 		if findErr != nil {
 			slog.ErrorContext(ctx, "visit-dormant batch: failed to find entries", "clinic_id", clinicID, "error", findErr)
 			return count, append(errs, apperrors.Wrap(findErr, "failed to find visit dormant entries"))

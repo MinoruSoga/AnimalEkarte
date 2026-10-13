@@ -187,10 +187,14 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 	}
 
 	var created *model.Checkup
+	var parentPetID uint64
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		parent, err := lockClinicalMedicalRecord(txCtx, s.medicalRecordRepo, input.ClinicID, medicalRecordID)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to find medical record")
+		}
+		if parent.PetID != nil {
+			parentPetID = *parent.PetID
 		}
 		if parent.Status == model.MedicalRecordStatusFinalized {
 			return apperrors.WrapConflict("確定済みカルテのため健診記録は追加できません")
@@ -236,10 +240,9 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 	if s.lstepDeliveryTrigger != nil && created.MedicalRecord != nil && created.MedicalRecord.OwnerID != nil {
 		clinicID := input.ClinicID
 		ownerID := *created.MedicalRecord.OwnerID
-		// EMR-330 R1: 健診イベントの typed ペット ID を渡す。
-		// created.PetID が nil の場合 0 を渡し、受信側のイベントペット再読が
-		// fail-closed（不適格として送信しない）になる。
-		eventPetID := uint64(0)
+		// The regular UI omits checkup.pet_id. Use the locked event parent in
+		// that case; the trigger still re-reads this pet's scope/alive status.
+		eventPetID := parentPetID
 		if created.PetID != nil {
 			eventPetID = *created.PetID
 		}

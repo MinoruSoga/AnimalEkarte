@@ -209,6 +209,37 @@ func (r *medicalRecordRepository) FindDormantOwnerEntriesCursorAt(
 	return entries, nil
 }
 
+// FindDormantOwnerHistoryEntriesCursor uses all retained visit history for
+// CPM/dormant tag classification, matching FindOwnerVisitSummary. Notification
+// candidates continue to use the alive-filtered FindDormantOwnerEntries methods.
+func (r *medicalRecordRepository) FindDormantOwnerHistoryEntriesCursor(ctx context.Context, clinicID uint64, minDaysSince int, afterOwnerID uint64, limit int) ([]DormantOwnerEntry, error) {
+	return r.FindDormantOwnerHistoryEntriesCursorAt(ctx, clinicID, minDaysSince, afterOwnerID, limit, time.Now())
+}
+
+func (r *medicalRecordRepository) FindDormantOwnerHistoryEntriesCursorAt(ctx context.Context, clinicID uint64, minDaysSince int, afterOwnerID uint64, limit int, evaluatedAt time.Time) ([]DormantOwnerEntry, error) {
+	evaluatedAt = evaluatedAt.In(time.Local)
+	type row struct {
+		OwnerID     uint64
+		LastVisitAt time.Time
+	}
+	var rows []row
+	err := r.db.WithContext(ctx).Table("medical_records AS mr").
+		Joins("JOIN pets AS current_owner_pet ON current_owner_pet.id = mr.pet_id AND current_owner_pet.clinic_id = mr.clinic_id").
+		Joins("JOIN owners AS o ON o.id = current_owner_pet.owner_id AND o.clinic_id = mr.clinic_id AND o.deleted_at IS NULL").
+		Where("mr.clinic_id = ? AND mr.deleted_at IS NULL AND current_owner_pet.owner_id > ?", clinicID, afterOwnerID).
+		Select("current_owner_pet.owner_id, MAX(mr.date) AS last_visit_at").Group("current_owner_pet.owner_id").
+		Having("MAX(mr.date) < ?", evaluatedAt.AddDate(0, 0, -minDaysSince)).
+		Order("current_owner_pet.owner_id ASC").Limit(limit).Scan(&rows).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("clinic=%d dormant history cursor", clinicID))
+	}
+	entries := make([]DormantOwnerEntry, 0, len(rows))
+	for _, row := range rows {
+		entries = append(entries, DormantOwnerEntry{OwnerID: row.OwnerID, DaysSince: int(evaluatedAt.Sub(row.LastVisitAt).Hours() / 24)})
+	}
+	return entries, nil
+}
+
 // ownerHasAliveVisitBoundary は生存ペット由来カルテだけを対象に、飼い主の
 // 初診日（first=true → MIN(date)）または最終来院日（first=false → MAX(date)）が
 // targetDate の暦日と一致するかを owner 単位で返す。

@@ -401,33 +401,6 @@ func (s *lstepDeliveryTriggerService) processSingleOwner(
 		return false, nil
 	}
 
-	// Q23: 優先順位による配信抑制チェック
-	suppressed, err := s.applySuppression(ctx, clinicID, ownerID, triggerType, asOf)
-	if err != nil {
-		slog.ErrorContext(ctx, "delivery trigger: applySuppression error", "owner_id", ownerID, "trigger", triggerType, "error", err)
-		return false, err
-	}
-	if suppressed {
-		suppressionReason := fmt.Sprintf("owner_id=%d already has higher-priority trigger on %s", ownerID, asOf.Format(time.DateOnly))
-		suppressedLog := &model.LstepDeliveryTriggerLog{
-			OwnerID:              ownerID,
-			ClinicID:             clinicID,
-			TriggerType:          triggerType,
-			ScheduledAt:          asOf,
-			Status:               model.TriggerStatusScheduled,
-			SuppressedByPriority: true,
-			SuppressionReason:    &suppressionReason,
-		}
-		// LSA-15: claim day slot under lock so concurrent workers cannot double-insert.
-		created, createErr := s.triggerLogRepo.CreateIfAbsentToday(ctx, suppressedLog)
-		if createErr != nil {
-			slog.ErrorContext(ctx, "delivery trigger: failed to create suppressed log", "owner_id", ownerID, "trigger", triggerType, "error", createErr)
-			return false, apperrors.Wrap(createErr, "failed to create suppressed trigger log")
-		}
-		_ = created // already-exists is an idempotent no-op for suppressed path
-		return false, nil
-	}
-
 	excluded, reason, err := s.checkExclusion(ctx, clinicID, ownerID, owner)
 	if err != nil {
 		slog.ErrorContext(ctx, "delivery trigger: checkExclusion error", "owner_id", ownerID, "error", err)
@@ -448,6 +421,36 @@ func (s *lstepDeliveryTriggerService) processSingleOwner(
 		if !eligible {
 			excluded = true
 			reason = eReason
+		}
+	}
+
+	// Only an eligible candidate may revoke an existing lower-priority tag.
+	if !excluded {
+		// Q23: 優先順位による配信抑制チェック
+		suppressed, err := s.applySuppression(ctx, clinicID, ownerID, triggerType, asOf)
+		if err != nil {
+			slog.ErrorContext(ctx, "delivery trigger: applySuppression error", "owner_id", ownerID, "trigger", triggerType, "error", err)
+			return false, err
+		}
+		if suppressed {
+			suppressionReason := fmt.Sprintf("owner_id=%d already has higher-priority trigger on %s", ownerID, asOf.Format(time.DateOnly))
+			suppressedLog := &model.LstepDeliveryTriggerLog{
+				OwnerID:              ownerID,
+				ClinicID:             clinicID,
+				TriggerType:          triggerType,
+				ScheduledAt:          asOf,
+				Status:               model.TriggerStatusScheduled,
+				SuppressedByPriority: true,
+				SuppressionReason:    &suppressionReason,
+			}
+			// LSA-15: claim day slot under lock so concurrent workers cannot double-insert.
+			created, createErr := s.triggerLogRepo.CreateIfAbsentToday(ctx, suppressedLog)
+			if createErr != nil {
+				slog.ErrorContext(ctx, "delivery trigger: failed to create suppressed log", "owner_id", ownerID, "trigger", triggerType, "error", createErr)
+				return false, apperrors.Wrap(createErr, "failed to create suppressed trigger log")
+			}
+			_ = created // already-exists is an idempotent no-op for suppressed path
+			return false, nil
 		}
 	}
 

@@ -1280,3 +1280,26 @@ func TestCheckupService_Update_RevalidatesEffectiveRelations(t *testing.T) {
 	assert.Nil(t, got)
 	assert.Zero(t, updateCalls)
 }
+
+func TestCheckupService_Create_NilPetIDUsesParentEventPet(t *testing.T) {
+	ownerID, petID := uint64(42), uint64(77)
+	parent := &model.MedicalRecord{ID: 2, ClinicID: 3, OwnerID: &ownerID, PetID: &petID, Status: model.MedicalRecordStatusDraft}
+	repo := &mockCheckupRepository{
+		createFn: func(_ context.Context, checkup *model.Checkup) error {
+			checkup.ID = 5
+			assert.Nil(t, checkup.PetID)
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
+			return &model.Checkup{ID: 5, MedicalRecordID: 2, MedicalRecord: parent}, nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) { return parent, nil }}
+	var gotPetID uint64
+	trigger := &mockLstepDeliveryTriggerForCheckup{triggerCheckupFollowUpFn: func(_ context.Context, _, _ uint64, id uint64) error { gotPetID = id; return nil }}
+	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), trigger, nil)
+	_, err := svc.Create(context.Background(), 2, &CreateCheckupInput{ClinicID: 3, CheckupTypeID: 1, Date: time.Now()})
+	assert.NoError(t, err)
+	svc.Wait()
+	assert.Equal(t, petID, gotPetID)
+}

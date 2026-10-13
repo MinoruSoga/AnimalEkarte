@@ -142,7 +142,8 @@ func TestRunBatch_ClientNilIsNoop(t *testing.T) {
 
 func TestProcessSingleOwner_AlreadyFiredTodayError(t *testing.T) {
 	svc := &lstepDeliveryTriggerService{
-		ownerRepo: validOwnerRepoForDelivery(),
+		ownerRepo:    validOwnerRepoForDelivery(),
+		tagCacheRepo: &mockTagCacheRepoForDelivery{},
 		triggerLogRepo: &mockDeliveryTriggerLogRepository{
 			existsTodayFn: func(_ context.Context, _, _ uint64, _ string, _ time.Time) (bool, error) {
 				return false, errors.New("db error")
@@ -156,7 +157,8 @@ func TestProcessSingleOwner_AlreadyFiredTodayError(t *testing.T) {
 
 func TestProcessSingleOwner_ApplySuppressionError(t *testing.T) {
 	svc := &lstepDeliveryTriggerService{
-		ownerRepo: validOwnerRepoForDelivery(),
+		ownerRepo:    validOwnerRepoForDelivery(),
+		tagCacheRepo: &mockTagCacheRepoForDelivery{},
 		triggerLogRepo: &mockDeliveryTriggerLogRepoForBatch{
 			findByOwnerAndDateFn: func(_ context.Context, _, _ uint64, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
 				return nil, errors.New("db error")
@@ -229,7 +231,8 @@ func TestProcessSingleOwner_ValidatesOwnerScopeBeforeDuplicateLookup(t *testing.
 func TestProcessSingleOwner_SuppressedCreatesLogAndSkips(t *testing.T) {
 	var createdLog *model.LstepDeliveryTriggerLog
 	svc := &lstepDeliveryTriggerService{
-		ownerRepo: validOwnerRepoForDelivery(),
+		ownerRepo:    validOwnerRepoForDelivery(),
+		tagCacheRepo: &mockTagCacheRepoForDelivery{},
 		triggerLogRepo: &mockDeliveryTriggerLogRepoForBatch{
 			findByOwnerAndDateFn: func(_ context.Context, _, _ uint64, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
 				return []model.LstepDeliveryTriggerLog{{ID: 1, TriggerType: "higher_priority_trigger"}}, nil
@@ -259,7 +262,8 @@ func TestProcessSingleOwner_SuppressedCreatesLogAndSkips(t *testing.T) {
 
 func TestProcessSingleOwner_SuppressedLogCreateError(t *testing.T) {
 	svc := &lstepDeliveryTriggerService{
-		ownerRepo: validOwnerRepoForDelivery(),
+		ownerRepo:    validOwnerRepoForDelivery(),
+		tagCacheRepo: &mockTagCacheRepoForDelivery{},
 		triggerLogRepo: &mockDeliveryTriggerLogRepoForBatch{
 			findByOwnerAndDateFn: func(_ context.Context, _, _ uint64, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
 				return []model.LstepDeliveryTriggerLog{{ID: 1, TriggerType: "higher_priority_trigger"}}, nil
@@ -794,4 +798,39 @@ func (m *suppressionBulkLogAdapter) MarkKnownUnsent(_ context.Context, _, _ uint
 
 func (m *suppressionBulkLogAdapter) UpdateSuppressed(_ context.Context, _, _ uint64, _ string) error {
 	return nil
+}
+
+func TestProcessSingleOwner_IneligibleDoesNotSuppressExisting(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		err  error
+	}{{"stale", nil}, {"read_error", errors.New("eligibility unavailable")}} {
+		t.Run(tt.name, func(t *testing.T) {
+			removed, demoted := 0, 0
+			logs := &mockDeliveryTriggerLogRepoForBatch{
+				findByOwnerAndDateFn: func(_ context.Context, _, _ uint64, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
+					return []model.LstepDeliveryTriggerLog{{ID: 1, TriggerType: "lower", Status: model.TriggerStatusFired}}, nil
+				},
+				updateSuppressedFn: func(_ context.Context, _, _ uint64, _ string) error { demoted++; return nil },
+			}
+			client := &mockLstepAPIClient{removeTagFn: func(_ context.Context, _, _ string) error { removed++; return nil }}
+			svc := buildDeliverySvc(validOwnerRepoForDelivery(), nil, nil, nil, &mockTagCacheRepoForDelivery{}, logs, enabledSettings()).(*lstepDeliveryTriggerService)
+			svc.prioritySvc = &mockLstepTriggerPriorityServiceForBatch{getPriorityForFn: func(_ context.Context, _ uint64, trigger string) (int, error) {
+				if trigger == "higher" {
+					return 1, nil
+				}
+				return 2, nil
+			}}
+			injectTestClient(svc, client)
+			fired, err := svc.processSingleOwner(context.Background(), client, 1, 10, "higher", "higher", time.Now(), nil, func(_ context.Context, _ uint64) (bool, string, error) { return false, "stale", tt.err })
+			assert.False(t, fired)
+			if tt.err != nil {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Zero(t, removed)
+			assert.Zero(t, demoted)
+		})
+	}
 }
