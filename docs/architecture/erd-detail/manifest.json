@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "0f11be30895d30a7206de82e44c0a75d52ba3b6047333f4f19e2c6060bfbe82a",
+  "source_digest": "f48e50d110b3e066c85ededa9d08c9d26d328568bbf495cb2828b5a887351a73",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -18,7 +18,7 @@
   ],
   "counts": {
     "tables": 136,
-    "columns": 1640,
+    "columns": 1641,
     "foreign_keys": 323
   },
   "migrations": [
@@ -153,6 +153,10 @@
     {
       "name": "035_trimming_image_storage_retry.sql",
       "sha256": "034c8290479a6359fbb5852c241e123cf63554d82a17f5b0d5584f6fe0b48d89"
+    },
+    {
+      "name": "036_hospitalizations_next_visit.sql",
+      "sha256": "0d119d3506a81b0707fa5af3e77658661bb63e5267542f1c8b993b2ed28915b2"
     }
   ],
   "reviewed_do_blocks": [

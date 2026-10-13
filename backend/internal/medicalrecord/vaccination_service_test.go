@@ -112,6 +112,10 @@ func (m *mockVaccinationRepository) FindOwnersByVaccineDeadline(_ context.Contex
 	return nil, nil
 }
 
+func (m *mockVaccinationRepository) OwnerHasAliveVaccineDeadline(_ context.Context, _, _ uint64, _ time.Time) (bool, error) {
+	return false, nil
+}
+
 type permissiveVaccinationRelationVerifier struct{}
 
 func (*permissiveVaccinationRelationVerifier) AssertOwnerInClinic(context.Context, uint64, uint64) error {
@@ -138,6 +142,7 @@ func newTestVaccinationService(repo VaccinationRepository, vaccineRepo VaccineRe
 		&permissiveVaccinationRelationVerifier{},
 		&permissiveVaccinationMedicalRecordLocker{},
 		&mockTransactor{},
+		&mockAuditTxLogger{},
 	)
 }
 
@@ -458,6 +463,7 @@ func TestVaccinationService_Update_LocksRelationsBeforeVaccination(t *testing.T)
 		&permissiveVaccinationRelationVerifier{},
 		&permissiveVaccinationMedicalRecordLocker{},
 		&mockTransactor{},
+		&mockAuditTxLogger{},
 	)
 	remarks := "updated"
 
@@ -489,6 +495,7 @@ func TestVaccinationService_Update_RejectsConcurrentRelationChangeAfterValidatio
 		&permissiveVaccinationRelationVerifier{},
 		&permissiveVaccinationMedicalRecordLocker{},
 		&mockTransactor{},
+		&mockAuditTxLogger{},
 	)
 	remarks := "updated"
 
@@ -1143,8 +1150,8 @@ func TestVaccinationService_Update_ResyncsOwnerVaccineTags(t *testing.T) {
 	supplemental := "updated"
 
 	repo := &mockVaccinationRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccination, error) {
-			return &model.Vaccination{ID: id}, nil
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Vaccination, error) {
+			return &model.Vaccination{ID: id, ClinicID: clinicID}, nil
 		},
 		updateFieldsFn: func(_ context.Context, _, id uint64, _ UpdateVaccinationInput) (*model.Vaccination, error) {
 			return &model.Vaccination{
@@ -1178,10 +1185,11 @@ func TestVaccinationService_Delete_ResyncsOwnerVaccineTagsAfterDelete(t *testing
 	syncedAfterDelete := false
 
 	repo := &mockVaccinationRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccination, error) {
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Vaccination, error) {
 			return &model.Vaccination{
-				ID:    id,
-				PetID: ptrUint64(20),
+				ID:       id,
+				ClinicID: clinicID,
+				PetID:    ptrUint64(20),
 				Pet: &model.Pet{
 					ID: 20, ClinicID: 1, OwnerID: ownerID,
 					Owner: &model.Owner{ID: ownerID, ClinicID: 1},
@@ -1255,7 +1263,7 @@ func TestVaccinationService_Update_AllowsHistoricalOwnerAfterPetTransfer(t *test
 				Status: model.MedicalRecordStatusDraft,
 			},
 		}}
-		svc := NewVaccinationService(repo, okVaccineRepo(), nil, verifier, locker, vaccinationTestTransactor{})
+		svc := NewVaccinationService(repo, okVaccineRepo(), nil, verifier, locker, vaccinationTestTransactor{}, &mockAuditTxLogger{})
 
 		got, err := svc.Update(context.Background(), clinicID, vaccinationID, &UpdateVaccinationInput{Remarks: &remarks})
 		require.NoError(t, err)
@@ -1276,7 +1284,7 @@ func TestVaccinationService_Update_AllowsHistoricalOwnerAfterPetTransfer(t *test
 				Status: model.MedicalRecordStatusDraft,
 			},
 		}}
-		svc := NewVaccinationService(repo, okVaccineRepo(), nil, verifier, locker, vaccinationTestTransactor{})
+		svc := NewVaccinationService(repo, okVaccineRepo(), nil, verifier, locker, vaccinationTestTransactor{}, &mockAuditTxLogger{})
 
 		got, err := svc.Update(context.Background(), clinicID, vaccinationID, &UpdateVaccinationInput{Remarks: &remarks})
 		require.Error(t, err)
@@ -1296,7 +1304,7 @@ func TestVaccinationService_Update_AllowsHistoricalOwnerAfterPetTransfer(t *test
 				Status: model.MedicalRecordStatusDraft,
 			},
 		}}
-		svc := NewVaccinationService(repo, okVaccineRepo(), nil, verifier, locker, vaccinationTestTransactor{})
+		svc := NewVaccinationService(repo, okVaccineRepo(), nil, verifier, locker, vaccinationTestTransactor{}, &mockAuditTxLogger{})
 
 		got, err := svc.Update(context.Background(), clinicID, vaccinationID, &UpdateVaccinationInput{Remarks: &remarks})
 		require.Error(t, err)

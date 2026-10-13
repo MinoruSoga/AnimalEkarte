@@ -187,10 +187,14 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 	}
 
 	var created *model.Checkup
+	var parentPetID uint64
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		parent, err := lockClinicalMedicalRecord(txCtx, s.medicalRecordRepo, input.ClinicID, medicalRecordID)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to find medical record")
+		}
+		if parent.PetID != nil {
+			parentPetID = *parent.PetID
 		}
 		if parent.Status == model.MedicalRecordStatusFinalized {
 			return apperrors.WrapConflict("確定済みカルテのため健診記録は追加できません")
@@ -236,6 +240,12 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 	if s.lstepDeliveryTrigger != nil && created.MedicalRecord != nil && created.MedicalRecord.OwnerID != nil {
 		clinicID := input.ClinicID
 		ownerID := *created.MedicalRecord.OwnerID
+		// The regular UI omits checkup.pet_id. Use the locked event parent in
+		// that case; the trigger still re-reads this pet's scope/alive status.
+		eventPetID := parentPetID
+		if created.PetID != nil {
+			eventPetID = *created.PetID
+		}
 		svc := s.lstepDeliveryTrigger
 		// persistence.DetachTx: HTTP request の cancel から切離しつつ tracing context を保持。
 		// M-4: fire-and-forget goroutine のため、context.WithTimeout で明示的に制限を設定。
@@ -246,7 +256,7 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 			defer s.wg.Done()
 			trigCtx, cancel := context.WithTimeout(bgCtx, 35*time.Second)
 			defer cancel()
-			if err := svc.TriggerCheckupFollowUp(trigCtx, clinicID, ownerID); err != nil {
+			if err := svc.TriggerCheckupFollowUp(trigCtx, clinicID, ownerID, eventPetID); err != nil {
 				slog.WarnContext(trigCtx, "checkup followup trigger failed (non-fatal)", "error", err, "owner_id", ownerID)
 			}
 		})

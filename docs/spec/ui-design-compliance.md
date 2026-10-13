@@ -60,10 +60,10 @@ flowchart LR
 | 認証/共通 | パスワード再設定 | /reset-password | ResetPasswordPage | ✅ | 未記録（現行在庫） |  | [21-login.md](screens/21-login.md) |
 | 認証/共通 | 飼主カルテレポート(単独ウィンドウ) | /owners/:id/report | OwnerReport | ✅ | 未記録（現行在庫） |  | [39-owner-report.md](screens/39-owner-report.md) |
 | 認証/共通 | 404 Not Found | * | (inline element) | — | 対象外 | lazy Component非使用・簡易fallback | 対象外（app-routes の inline fallback） |
-| 会計 | 会計一覧 | /accounting | AccountingList | ✅ | 未記録（現行在庫） |  | [10-accounting-list.md](screens/10-accounting-list.md) |
+| 会計 | 会計一覧 | /accounting | AccountingList | ✅ | 未記録（現行在庫） |  | [accounting-list.md](domains/accounting/pages/accounting-list.md) |
 | 会計 | 会計 - ペット選択 | /accounting/select-pet | AccountingPetSelection | ✅ | 未記録（現行在庫） |  | [00-pet-selection.md](screens/00-pet-selection.md) |
-| 会計 | 会計登録(新規) | /accounting/new | AccountingDetailPage→AccountingDetail | ✅ | 未記録（現行在庫） | 薄いwrapper、shell実体はAccountingDetail | [11-accounting-detail.md](screens/11-accounting-detail.md) |
-| 会計 | 会計詳細 | /accounting/:id | AccountingDetailPage→AccountingDetail | ✅ | 未記録（現行在庫） | 同上 | [11-accounting-detail.md](screens/11-accounting-detail.md) |
+| 会計 | 会計登録(新規) | /accounting/new | AccountingDetailPage→AccountingDetail | ✅ | 未記録（現行在庫） | 薄いwrapper、shell実体はAccountingDetail | [accounting-settlement.md](domains/accounting/pages/accounting-settlement.md) |
+| 会計 | 会計詳細 | /accounting/:id | AccountingDetailPage→AccountingDetail | ✅ | 未記録（現行在庫） | 同上 | [accounting-settlement.md](domains/accounting/pages/accounting-settlement.md) |
 | 会計 | レジ締め | /accounting/close | CashRegisterClosePage | ✅ | 未記録（現行在庫） | PageLayout化済（2026-07-06） | [29-closing-aggregation.md](screens/29-closing-aggregation.md) |
 | 会計 | レジ締め履歴 | /accounting/close/history | CashRegisterHistoryPage | ✅ | 未記録（現行在庫） | PageLayout化済（2026-07-06） | [29-closing-aggregation.md](screens/29-closing-aggregation.md) |
 | 会計 | 月次集計レポート | /accounting/reports | AccountingReportsPage | ✅ | 未記録（現行在庫） | PageLayout化済（2026-07-06、既知baseline解消） | [32-accounting-reports.md](screens/32-accounting-reports.md) |
@@ -75,10 +75,10 @@ flowchart LR
 | 在庫/見積/シフト | 見積詳細 | /estimates/:id | EstimateDetail | ✅ | 未記録（現行在庫） |  | [26-estimate-detail.md](screens/26-estimate-detail.md) |
 | 在庫/見積/シフト | 見積編集 | /estimates/:id/edit | EstimateForm | ✅ | 未記録（現行在庫） |  | [23-estimate-form.md](screens/23-estimate-form.md) |
 | 在庫/見積/シフト | シフトカレンダー | /shifts | ShiftCalendarPage | ✅ | 未記録（現行在庫） |  | [24-shift-calendar.md](screens/24-shift-calendar.md) |
-| カルテ | カルテ一覧 | /medical-records | MedicalRecords | ✅ | 未記録（現行在庫） |  | [05-medical-records-list.md](screens/05-medical-records-list.md) |
+| カルテ | カルテ一覧 | /medical-records | MedicalRecords | ✅ | 未記録（現行在庫） |  | [medical-record-list.md](domains/medical-records/pages/medical-record-list.md) |
 | カルテ | カルテ作成 - ペット選択 | /medical-records/select-pet | MedicalRecordPetSelection | ✅ | 未記録（現行在庫） |  | [00-pet-selection.md](screens/00-pet-selection.md) |
-| カルテ | カルテ作成(新規) | /medical-records/new | MedicalRecordForm | ✅ | 未記録（現行在庫） | synthetic pet GET、予約/カルテ作成POSTをlocal fulfillし、synthetic detailへproduction遷移。backend write 0 | [06-medical-records-form.md](screens/06-medical-records-form.md) |
-| カルテ | カルテ編集 | /medical-records/:id | MedicalRecordForm | ✅ | 未記録（現行在庫） |  | [06-medical-records-form.md](screens/06-medical-records-form.md) |
+| カルテ | カルテ作成(新規) | /medical-records/new | MedicalRecordForm | ✅ | 未記録（現行在庫） | synthetic pet GET、予約/カルテ作成POSTをlocal fulfillし、synthetic detailへproduction遷移。backend write 0 | [medical-record-form.md](domains/medical-records/pages/medical-record-form.md) |
+| カルテ | カルテ編集 | /medical-records/:id | MedicalRecordForm | ✅ | 未記録（現行在庫） |  | [medical-record-form.md](domains/medical-records/pages/medical-record-form.md) |
 | 入院/ホテル | 入院・ホテル一覧 | /hospitalization | HospitalizationList | ✅ | 未記録（現行在庫） |  | [07-hospitalization-list.md](screens/07-hospitalization-list.md) |
 | 入院/ホテル | 入院・ホテル登録 - ペット選択 | /hospitalization/select-pet | HospitalizationPetSelection | ✅ | 未記録（現行在庫） |  | [00-pet-selection.md](screens/00-pet-selection.md) |
 | 入院/ホテル | 入院・ホテル登録(新規) | /hospitalization/new | HospitalizationForm | ✅ | 未記録（現行在庫） |  | [09-hospitalization-form.md](screens/09-hospitalization-form.md) |
@@ -99,12 +99,12 @@ flowchart LR
 | 定期健診 | 定期健診一覧 | /checkups | CheckupsList | ✅ | 未記録（現行在庫） |  | [25-checkups-list.md](screens/25-checkups-list.md) |
 | 定期健診 | 定期健診登録 - ペット選択 | /checkups/select-pet | CheckupPetSelection | ✅ | 未記録（現行在庫） |  | [00-pet-selection.md](screens/00-pet-selection.md) |
 | 定期健診 | 定期健診登録(新規) | /checkups/new | CheckupForm | ✅ | 未記録（現行在庫） |  | [25-checkups-list.md](screens/25-checkups-list.md) |
-| 受付/飼主/予約 | 受付(当日) | / | Reception | ✅ | 未記録（現行在庫） |  | [01-reception.md](screens/01-reception.md) |
+| 受付/飼主/予約 | 受付(当日) | / | Reception | ✅ | 未記録（現行在庫） |  | [reception-board.md](domains/reception/pages/reception-board.md) |
 | 受付/飼主/予約 | 飼主一覧 | /owners | OwnersListPage→OwnersList | ✅ | 未記録（現行在庫） | 薄いwrapper、shell実体はOwnersList | [03-owners-list.md](screens/03-owners-list.md) |
 | 受付/飼主/予約 | 飼主登録(新規) | /owners/new | OwnerFormPage→OwnerForm | ✅ | 未記録（現行在庫） | 薄いwrapper、shell実体はOwnerForm | [04-owners-form.md](screens/04-owners-form.md) |
 | 受付/飼主/予約 | 飼主編集 | /owners/:id | OwnerFormPage→OwnerForm | ✅ | 未記録（現行在庫） | 同上 | [04-owners-form.md](screens/04-owners-form.md) |
 | 受付/飼主/予約 | 集計ダッシュボード | /aggregation | AggregationDashboardPage | ✅ | 未記録（現行在庫） |  | [36-aggregation-dashboard.md](screens/36-aggregation-dashboard.md) |
-| 受付/飼主/予約 | 予約管理 | /reservations | ReservationsPage→ReservationManagement | ✅ | 未記録（現行在庫） |  | [02-reservations.md](screens/02-reservations.md) |
+| 受付/飼主/予約 | 予約管理 | /reservations | ReservationsPage→ReservationManagement | ✅ | 未記録（現行在庫） |  | [reservation-management.md](domains/reservations/pages/reservation-management.md) |
 | 運用/Lステップ | Lステップ健診連携 | /lstep/checkup-sync | CheckupSyncPage | ✅ | 未記録（現行在庫） |  | [31-lstep-integration.md](screens/31-lstep-integration.md) |
 | 運用/Lステップ | Lステップ配信モニター | /lstep/delivery-monitor | LstepDeliveryMonitorPage | ✅ | 未記録（現行在庫） |  | [34-lstep-delivery-monitor.md](screens/34-lstep-delivery-monitor.md) |
 | 運用/Lステップ | Lステップ分析 | /lstep/analytics | LstepAnalyticsPage | ✅ | 未記録（現行在庫） |  | [31-lstep-integration.md](screens/31-lstep-integration.md) |

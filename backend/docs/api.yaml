@@ -2056,6 +2056,15 @@ components:
         end_date:
           type: string
           format: date
+        next_visit:
+          type: string
+          format: date
+          nullable: true
+          description: 次回予定日（YYYY-MM-DD）。CREATE/PATCHで省略は変更なし、PATCHでclear_next_visit=trueを送るとNULLに戻す。空文字・不正日付・RFC3339等は400。
+        clear_next_visit:
+          type: boolean
+          writeOnly: true
+          description: PATCHでtrueを送るとnext_visitをNULLに戻す。next_visitとの同時指定は400。
         status:
           type: string
           enum:
@@ -7409,6 +7418,18 @@ components:
               net_amount:
                 type: integer
                 format: int64
+              category_amounts:
+                type: object
+                nullable: true
+                additionalProperties:
+                  type: integer
+                  format: int64
+                description: >-
+                  EMR-354: 当該支払明細（split）の支払額を、親会計の billing_items
+                  明細金額重みで按分した部門別 GROSS 内訳（円）。map 合計は
+                  billing_amount と一致する。返金は含まない（refund_amount /
+                  net_amount は従来の全期間スカラ）。欠落時は旧バックエンド互換
+                  （FE は「記録なし」表示）。
     ClinicSettings:
       type: object
       description: 医院設定（締め時間等）
@@ -9721,6 +9742,7 @@ components:
           type: string
     OwnerAggregationList:
       type: object
+      required: [cpm_stage_counts]
       properties:
         total:
           type: integer
@@ -9732,6 +9754,30 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/OwnerAggregation'
+        cpm_stage_counts:
+          type: object
+          description: >-
+            CPM 区分別人数 (EMR-334)。cpm_stage 絞り込み・ページネーション前の
+            母集団全体を対象に、全7区分
+            (cpm_encounter/cpm_growing/cpm_core/cpm_spot/cpm_noah/cpm_dormant/cpm_unclassified)
+            のキーを必ず返す。
+          additionalProperties: false
+          required: [cpm_encounter, cpm_growing, cpm_core, cpm_spot, cpm_noah, cpm_dormant, cpm_unclassified]
+          properties:
+            cpm_encounter:
+              type: integer
+            cpm_growing:
+              type: integer
+            cpm_core:
+              type: integer
+            cpm_spot:
+              type: integer
+            cpm_noah:
+              type: integer
+            cpm_dormant:
+              type: integer
+            cpm_unclassified:
+              type: integer
     # ─── ReservationStaff (TASK-RES-012/013 LINE予約スタッフ・スケジュール管理) ─
     ExcludedCourse:
       type: object
@@ -11279,6 +11325,22 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
+        '503':
+          description: >-
+            集計クエリ自身の deadline (20 秒) が失効した場合 (EMR-334)。
+            body の code は aggregation_timeout。依存先の期限切れや
+            クライアント切断は対象外。
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, code]
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                    enum: [aggregation_timeout]
   /clinics/{clinic_id}/owners/{id}/lstep/friend-attributes:
     get:
       operationId: getLstepOwnerFriendAttributes
@@ -26797,7 +26859,13 @@ paths:
       description: |
         認証済みスタッフ全員が利用可能。multipart/form-data で件名・詳細・画面文脈
         (page_url/route_path/user_agent/viewport/app_version)と任意 file "screenshot"
-        (PNG/JPEG/WebP)を受け付ける。全体 8MiB 上限。
+        (PNG/JPEG/WebP)を受け付ける。全体 8MiB 上限。保存成功後に Plane 連携が
+        設定済みなら best-effort でワークアイテムを自動起票する。上流エラー時は
+        plane_sync_error への記録を試みる(応答には sanitize 済み理由を含む)。
+        起票結果・失敗理由の DB 書き込み自体の失敗は best-effort のログのみで、
+        行が未リンク/理由未記録のまま残りうる。いずれの場合も作成自体は 201 で
+        成功し、連携未設定ならローカル保存のみで同期エラーは付かない。
+        手動起票・再送は POST /support/bug-reports/{id}/plane-ticket。
       tags: [Support]
       requestBody:
         required: true
@@ -26864,9 +26932,9 @@ paths:
       summary: バグ報告を Plane ワークアイテムとして起票(手動再送を兼ねる)
       description: |
         操作は報告元医院スコープ(他医院の報告は共有ボードで閲覧のみ、対象指定は404)。
-        外部へのチケットエクスポートはこの
-        明示操作に限定され、報告作成時の自動送信は行わない(レビュー可能な
-        エクスポート境界)。既に起票済み(plane_issue_url あり)なら
+        報告作成時に Plane 連携が設定済みなら自動起票を試行済みであり、
+        この明示操作は未起票・起票失敗時の手動起票・再送に使う。既に起票済み
+        (plane_issue_id あり)なら
         現在の状態をそのまま返す冪等操作。external_source+external_id で報告と
         Plane 側を対応付ける。PLANE_API_KEY 未設定の環境では 501。Plane 側エラーは
         502 で返し、失敗理由は plane_sync_error に記録される。

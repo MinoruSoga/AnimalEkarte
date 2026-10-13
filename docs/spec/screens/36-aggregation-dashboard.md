@@ -40,8 +40,9 @@ flowchart TB
         Tabs --> Tbl
         Sum -->|"チップをクリックして一覧を絞り込み"| Tbl
     end
-    Q1["useGetCPMStageCounts"] -.->|"別クエリで並行取得"| Sum
-    Q2["useGetOwnerAggregations"] -.-> Tbl
+    Q["useGetOwnerAggregations<br/>単一 GET・同一レスポンス"] -.->|"owners"| Tbl
+    Q -.->|"cpm_stage_counts"| Counts["toCPMStageCountsResult"]
+    Counts --> Sum
     Tbl -->|"飼主名クリック"| Owner["/owners/:id 飼主詳細"]
 ```
 
@@ -62,7 +63,8 @@ flowchart TB
 ## 3. 技術仕様
 
 ### 3.1 パフォーマンス最適化
-- **並行ロード**: CPM セグメント別人数サマリー（`useGetCPMStageCounts`）とランキングテーブル（`useGetOwnerAggregations`）を別クエリとして非同期に取得します。
+- **単一リクエスト**: `useGetOwnerAggregations` の1回の GET で一覧 (`owners`) と全7区分の人数 (`cpm_stage_counts`) を同じレスポンスから取得します。人数は `toCPMStageCountsResult` を介してサマリーへ渡します。
+- **人数の母集団**: CPM 区分絞り込み・ページネーション前の母集団全体から算出します。一覧の `total` は CPM 区分絞り込み後の件数です。母集団0件でも全7区分のキーを値0で返します。
 - **サーバーサイド集計**: 複雑な LTV 計算は DB レベルで集計を行い、API レスポンスを軽量化しています。
 
 ### API連携

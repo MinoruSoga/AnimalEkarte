@@ -71,6 +71,8 @@ type cashRegisterBillingDetailResponse struct {
 	BillingAmount     int64   `json:"billing_amount"`
 	RefundAmount      int64   `json:"refund_amount"`
 	NetAmount         int64   `json:"net_amount"`
+	// EMR-354: split 支払額の部門別 GROSS 内訳（円）。nil = 旧バックエンド相当。
+	CategoryAmounts map[string]int64 `json:"category_amounts"`
 }
 
 type cashRegisterPreviewResponse struct {
@@ -105,6 +107,7 @@ func toCashRegisterPreviewResponse(p *CashRegisterPreview) cashRegisterPreviewRe
 			BillingAmount:     d.BillingAmount,
 			RefundAmount:      d.RefundAmount,
 			NetAmount:         d.NetAmount,
+			CategoryAmounts:   d.CategoryAmounts,
 		})
 	}
 

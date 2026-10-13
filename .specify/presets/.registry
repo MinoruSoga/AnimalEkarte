@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "presets": {
+    "animalekarte-canonical": {
+      "version": "0.1.0",
+      "source": "local",
+      "manifest_hash": "sha256:0bc48e7d7bb0768f52cf8d46b161dbfb88ccf344e633a6a8ae56dd0105aab468",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "codex": [
+          "speckit.specify",
+          "speckit.clarify",
+          "speckit.constitution",
+          "speckit.plan",
+          "speckit.tasks",
+          "speckit.analyze",
+          "speckit.checklist",
+          "speckit.implement",
+          "speckit.converge",
+          "speckit.taskstoissues"
+        ]
+      },
+      "registered_skills": {
+        "codex": [
+          "speckit-specify",
+          "speckit-clarify",
+          "speckit-constitution",
+          "speckit-plan",
+          "speckit-tasks",
+          "speckit-analyze",
+          "speckit-checklist",
+          "speckit-implement",
+          "speckit-converge",
+          "speckit-taskstoissues"
+        ]
+      },
+      "installed_at": "2026-10-13T07:32:18.477391+00:00"
+    }
+  }
+}

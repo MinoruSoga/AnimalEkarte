@@ -123,7 +123,7 @@ sequenceDiagram
 | Product and workflow principles | [product-philosophy.md](../product-philosophy.md) |
 | Backend domain/package and write ownership | [ADR-006](adr/006-backend-domain-package-boundaries.md) |
 | Model type → write owner catalog (ARCH-A2) | [model-write-owner-catalog.md](model-write-owner-catalog.md)（型別表。採択理由の正本は ADR-006） |
-| Appointment workflow and source of truth | [reservation-to-record-flow.md](../spec/reservation-to-record-flow.md) |
+| Appointment workflow and source of truth | [reservation-to-record-flow.md](../spec/workflows/reservation-to-record-flow.md) |
 | API contract | [`backend/docs/api.yaml`](../../backend/docs/api.yaml) |
 | Tenant isolation | [ADR-002](adr/002-multitenancy-clinic-id-isolation.md) |
 | Authentication/authorization | [auth.md](auth.md) |

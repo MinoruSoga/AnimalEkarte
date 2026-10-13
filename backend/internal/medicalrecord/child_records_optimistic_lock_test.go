@@ -334,6 +334,7 @@ func TestVaccinationService_Update_StaleExpectedVersionConflict(t *testing.T) {
 		&permissiveVaccinationRelationVerifier{},
 		&permissiveVaccinationMedicalRecordLocker{},
 		vaccinationTestTransactor{},
+		&mockAuditTxLogger{},
 	)
 
 	stale := 1
@@ -379,6 +380,7 @@ func TestVaccinationService_Update_FinalizedMedicalRecordRejected(t *testing.T) 
 		&permissiveVaccinationRelationVerifier{},
 		locker,
 		vaccinationTestTransactor{},
+		&mockAuditTxLogger{},
 	)
 
 	remarks := "確定後の書込"

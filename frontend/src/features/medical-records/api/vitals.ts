@@ -27,11 +27,17 @@ const getVitals = async (medicalRecordId: string, clinicId?: string): Promise<Vi
   return data;
 };
 
-export const useGetVitals = (medicalRecordId: string, clinicId?: string) => {
+export const useGetVitals = (
+  medicalRecordId: string,
+  clinicId?: string,
+  options?: { enabled?: boolean },
+) => {
   return useQuery({
     queryKey: queryKeys.medicalRecords.vitals(medicalRecordId, clinicId),
     queryFn: () => getVitals(medicalRecordId, clinicId),
-    enabled: !!medicalRecordId,
+    // EMR-356: canView なし等でフェッチ自体を止められるよう呼出し側の enabled を合成する
+    // （DOM の非表示だけでは実クエリは走るため）。省略時は従来通り id のみで判定。
+    enabled: !!medicalRecordId && (options?.enabled ?? true),
     staleTime: QUERY_STALE_TIMES.REALTIME,
     gcTime: QUERY_GC_TIMES.STANDARD,
   });
@@ -53,6 +59,8 @@ export const useCreateVital = (medicalRecordId: string, clinicId?: string) => {
         .then((r) => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.vitals(medicalRecordId) });
+      // EMR-356: 問診履歴の体重投影と一覧を stale にする（失敗時は invalidate しない）
+      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.all() });
     },
     onError: (error) => {
       handleApiError(error, "バイタル追加");
@@ -76,6 +84,8 @@ export const useUpdateVital = (medicalRecordId: string, clinicId?: string) => {
         .then((r) => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.vitals(medicalRecordId) });
+      // EMR-356: 体重投影を持つ履歴/一覧も stale にする
+      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.all() });
     },
     onError: (error) => {
       handleApiError(error, "バイタル更新");
@@ -96,6 +106,8 @@ export const useDeleteVital = (medicalRecordId: string, clinicId?: string) => {
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.vitals(medicalRecordId) });
+      // EMR-356: 体重投影を持つ履歴/一覧も stale にする
+      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.all() });
     },
     onError: (error) => {
       handleApiError(error, "バイタル削除");

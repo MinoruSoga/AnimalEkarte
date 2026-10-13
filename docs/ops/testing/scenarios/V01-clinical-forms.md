@@ -4,7 +4,7 @@
 > **所要目安**: 120分 / **深度**: 深い + **項目単位 F プロトコル**
 > **フォーム数**: inventory 再構築中のため算定保留。全フォーム完了はまだ主張しない。
 > **項目単位**: [FIELD-LEVEL-PROTOCOL.md](FIELD-LEVEL-PROTOCOL.md) + [FORM-FIELD-INVENTORY.md](FORM-FIELD-INVENTORY.md) §V01。C1 は入口。**全 fieldKey に F0–F6 を適用**して完了とする（代表 1 項目のみでは未完了）。
-> **仕様正本**: [screens/06-medical-records-form.md](../../../spec/screens/06-medical-records-form.md)・[screens/13-examinations-form.md](../../../spec/screens/13-examinations-form.md)・[screens/15-vaccinations-form.md](../../../spec/screens/15-vaccinations-form.md)・[screens/25-checkups-list.md](../../../spec/screens/25-checkups-list.md)・[screens/08-hospitalization-detail.md](../../../spec/screens/08-hospitalization-detail.md)・[screens/09-hospitalization-form.md](../../../spec/screens/09-hospitalization-form.md)・[screens/17-trimming-form.md](../../../spec/screens/17-trimming-form.md)
+> **仕様正本**: [domains/medical-records/pages/medical-record-form.md](../../../spec/domains/medical-records/pages/medical-record-form.md)・[screens/13-examinations-form.md](../../../spec/screens/13-examinations-form.md)・[screens/15-vaccinations-form.md](../../../spec/screens/15-vaccinations-form.md)・[screens/25-checkups-list.md](../../../spec/screens/25-checkups-list.md)・[screens/08-hospitalization-detail.md](../../../spec/screens/08-hospitalization-detail.md)・[screens/09-hospitalization-form.md](../../../spec/screens/09-hospitalization-form.md)・[screens/17-trimming-form.md](../../../spec/screens/17-trimming-form.md)
 
 ## 前提条件
 
@@ -76,7 +76,7 @@ sequenceDiagram
 | 2 | 新規カルテで SOAP を空のまま保存し、問診タブに主訴・主訴区分・治療方針を入力して保存 → (C2) 一覧反映・再読込・再オープン | SOAP 空でも保存成功（必須ではない）。問診は C2-1〜C2-3 のとおり永続・初期表示される |
 | 3 | 【代表 PATCH】診察/治療プランタブで診断第1（区分+名称）を保存後、問診タブのみ変更して保存 | 診断・SOAP・治療明細が消えずに保持される（タブ別 PATCH 部分更新） |
 | 4 | (C3-1) 診断第1の区分を選択して名称の選択肢を確認 | 選択した区分に属する診断名のみが出る（マスタ実データ由来。区分不一致は BE が invalid input で拒否 — BE テスト正本） |
-| 5 | ヘッダーの担当医・来院種別を変更（保存ボタンを押さない）→ 再読込 | 保存ボタンを押さずに即時 PATCH され、詳細キャッシュ invalidate 後の再読込でも永続する（[06 §2.2](../../../spec/screens/06-medical-records-form.md)） |
+| 5 | ヘッダーの担当医・来院種別を変更（保存ボタンを押さない）→ 再読込 | 保存ボタンを押さずに即時 PATCH され、詳細キャッシュ invalidate 後の再読込でも永続する（[06 §2.2](../../../spec/domains/medical-records/pages/medical-record-form.md)） |
 | 6 | 問診に入力後、保存せず一覧へ遷移 | 未保存警告（NavigationBlocker）が表示される |
 | 7 | (C3-3) `/medical-records/<存在しない ID>` を直叩き | エラー画面が表示される |
 
@@ -89,12 +89,12 @@ sequenceDiagram
 | 1 | (C1-2/C1-3) 行追加で quantity に 0 → 保存、1 → 保存。別行で unit_price に -1 → 保存 | quantity 0 は拒否、1 は受理。unit_price -1 は拒否、0 円は受理 |
 | 2 | (C3-1) 薬剤マスタに用量パラメータ（dose_per_kg 等）付きの「V01薬剤」を追加 → 行の項目選択肢を確認 | 追加した薬剤が選択肢に現れる |
 | 3 | 「V01薬剤」を体重登録済みの犬/猫のカルテで選択 | quantity に自動計算値がプリフィルされる（#201 薬量自動計算: 種別+体重+マスタ dose params） |
-| 4 | 数量を安全域外へ変更して保存 | 絶対上限超過は理由がインライン表示され、確認ダイアログによる解除経路なしで保存をブロックする。下限未満または推奨値からの大幅乖離はインラインの逸脱理由が必須。理由なしは送信せず、理由付きなら保存できる（`TreatmentRow.test.tsx` の TASK-377 回帰）（[06 §2.3](../../../spec/screens/06-medical-records-form.md)） |
+| 4 | 数量を安全域外へ変更して保存 | 絶対上限超過は理由がインライン表示され、確認ダイアログによる解除経路なしで保存をブロックする。下限未満または推奨値からの大幅乖離はインラインの逸脱理由が必須。理由なしは送信せず、理由付きなら保存できる（`TreatmentRow.test.tsx` の TASK-377 回帰）（[06 §2.3](../../../spec/domains/medical-records/pages/medical-record-form.md)） |
 | 5 | (C2) 既存行の数量・単価を編集して保存 → 再読込 | 行単位で即時保存され永続する |
 
 ### 3. カルテ バイタル (medical-record-vitals)
 
-- `/medical-records/:id`。記録フォームの実体は `VitalsModal`（[99-medical-record-flow.md](../../../spec/screens/99-medical-record-flow.md) §2 の通り）。バイタルタブ（`VitalsTab`）は記録一覧の表示とモーダル起動を担う — 実装確認済み（`frontend/src/features/medical-records/components/VitalsTab/`・`VitalsModal.tsx`）。
+- `/medical-records/:id`。記録フォームの実体は `VitalsModal`（[99-medical-record-flow.md](../../../spec/domains/medical-records/lifecycle.md) §2 の通り）。バイタルタブ（`VitalsTab`）は記録一覧の表示とモーダル起動を担う — 実装確認済み（`frontend/src/features/medical-records/components/VitalsTab/`・`VitalsModal.tsx`）。
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
@@ -131,7 +131,7 @@ sequenceDiagram
 |:--|:--|:--|
 | 1 | 画像: jpeg/png/gif/pdf をアップロード → 再読込。次に 10 MB 超のファイルを選択 | 対応形式は一覧に永続する。10 MB 超は FE 事前ブロックなし。BE が `medicalRecordImageMaxUploadSize`（10MB）で拒否する |
 | 2 | 追記: 確定済みカルテで追記モーダルを開き、修正内容・修正理由を空で登録 | 「修正内容は必須です」「修正理由は必須です」で保存されない。片方だけ入力して失敗しても入力済み側の値は消えない（controlled） |
-| 3 | 追記: (C1-3) 修正理由に 500 文字 → 登録、501 文字 → 登録 | 500 は受理、501 は拒否（[06 §2.3](../../../spec/screens/06-medical-records-form.md)。BE は 500 文字・rune 数判定） |
+| 3 | 追記: (C1-3) 修正理由に 500 文字 → 登録、501 文字 → 登録 | 500 は受理、501 は拒否（[06 §2.3](../../../spec/domains/medical-records/pages/medical-record-form.md)。BE は 500 文字・rune 数判定） |
 | 4 | 追記: 未確定カルテで追記導線を探す | 追記セクションごと非表示（`isMedicalRecordFinalizedStatus`）。BE も finalized 以外を拒否する |
 | 5 | 検査取込: 何も選択せずに取込を実行 | 取込ボタンは `selectedIds.size === 0` で disabled |
 | 6 | 検査取込: 対象ペットの既存検査を選択して取込 → 再読込 | 検査タブに紐付き表示され永続する（検査ごとに PATCH で medical_record_id 設定） |

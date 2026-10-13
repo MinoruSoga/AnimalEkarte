@@ -192,5 +192,7 @@ export function extractApiErrorMessage(err: unknown, context = "操作"): string
  */
 export function handleApiError(err: unknown, context: string): void {
   // 非Axios エラーの DEV ログは extractApiErrorMessage 側で一元的に出す（二重ログ防止）。
-  toast.error(extractApiErrorMessage(err, context));
+  // EMR-339: 表示文言を toast id に使い、同じ文言の連続通知を sonner 側で重複排除する。
+  const message = extractApiErrorMessage(err, context);
+  toast.error(message, { id: message });
 }

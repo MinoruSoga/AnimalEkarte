@@ -72,6 +72,10 @@
     "GIN_MODE": "release",
     "LOG_LEVEL": "info",
     "SCHEDULER_ENVIRONMENT": "production",
+    // cmd/migrate フェーズ3（seedlogin）の APP_ENV ゲート + Plane external_id 名前空間。
+    // APP_ENV=production は seedlogin の staging-only ゲートでは無効側のまま
+    // （本番 seed-login を有効化しない）。Plane 側は環境名 allowlist の正規値。
+    "APP_ENV": "production",
     "DB_PORT": "5432",
     "DB_NAME": "postgres",
     "DB_SSL_MODE": "verify-full",
@@ -113,9 +117,13 @@
     // バグ報告 → Plane ワークアイテム自動起票(STG と同じ宛先: workspace baritechllc /
     // EMR プロジェクト)。PLANE_API_KEY はシークレット(backend/.env → `pnpm cf:secrets:prod`)。
     // 未設定なら連携無効(報告はローカル保存のみ・手動起票は 501)。
+    // SOURCE/LANE label は EMR プロジェクト固定の label UUID(STG と同一。
+    // docs/ops/plane-ticket-conventions.md 附録)。enabled 連携では必須。
     "PLANE_WORKSPACE_SLUG": "baritechllc",
     "PLANE_PROJECT_ID": "6a009324-8a8a-455c-b16a-41b3f6207b0e",
     "PLANE_PROJECT_IDENTIFIER": "EMR",
+    "PLANE_SOURCE_LABEL_ID": "31530203-1a6e-445f-9952-01c6eac98fe1",
+    "PLANE_LANE_LABEL_ID": "7a38738a-d932-4166-a7fa-87524f29b824",
   },
 
   "observability": {

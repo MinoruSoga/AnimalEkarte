@@ -1,5 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import type { ReactNode } from "react";
+import { QueryClient, QueryCache, QueryClientProvider } from "@tanstack/react-query";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
 import { createTestWrapper } from "@/testing/TestUtils";
@@ -43,6 +45,15 @@ const mockResponse: AggregationResponse = {
   page: 1,
   per_page: 50,
   total: 2,
+  cpm_stage_counts: {
+    cpm_encounter: 0,
+    cpm_growing: 0,
+    cpm_core: 1,
+    cpm_spot: 0,
+    cpm_noah: 0,
+    cpm_dormant: 1,
+    cpm_unclassified: 0,
+  },
 };
 
 describe("useGetOwnerAggregations", () => {
@@ -223,5 +234,131 @@ describe("useGetOwnerAggregations", () => {
 
     expect(result.current.data?.owners[0].cpm_stage).toBe("cpm_core");
     expect(result.current.data?.owners[1].cpm_stage).toBe("cpm_dormant");
+  });
+});
+
+// EMR-334 R1: 集計タイムアウト (503 + code=aggregation_timeout) のみ
+// 自動リトライと QueryCache 共通エラー通知を抑制する。
+// それ以外のエラーは QueryClient の有効な既定 retry / 共通通知を維持する。
+// 現行の retry:false + silentError:true は全エラーを握り潰すため RED になる。
+describe("useGetOwnerAggregations error classification (EMR-334)", () => {
+  // src/lib/react-query.ts の本番 QueryCache.onError と同じ silentError 判定を再現する。
+  // (query.meta?.silentError が truthy なら共通通知をスキップ → 実質トースト抑止)
+  const createNotifyingClient = (toast: (error: unknown) => void, retry: number | false) =>
+    new QueryClient({
+      defaultOptions: { queries: { retry, retryDelay: 0 } },
+      queryCache: new QueryCache({
+        onError: (error, query) => {
+          if (query.meta?.silentError) return;
+          toast(error);
+        },
+      }),
+    });
+
+  const clientWrapper = (client: QueryClient) => {
+    return function Wrapper({ children }: { children: ReactNode }) {
+      return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+    };
+  };
+
+  const aggregationTimeoutResponse = () =>
+    HttpResponse.json(
+      { error: "aggregation timed out", code: "aggregation_timeout" },
+      { status: 503 },
+    );
+
+  beforeEach(() => {
+    localStorage.setItem("auth_current_clinic:v1", "1");
+  });
+
+  afterEach(() => {
+    localStorage.removeItem("auth_current_clinic:v1");
+  });
+
+  it("suppresses retry and global notification only for 503 aggregation_timeout", async () => {
+    const toast = vi.fn();
+    const client = createNotifyingClient(toast, 1); // 本番 defaultOptions と同じ retry:1
+    let calls = 0;
+    server.use(
+      http.get("/api/v1/clinics/:clinic_id/owners/aggregations", () => {
+        calls++;
+        return aggregationTimeoutResponse();
+      }),
+    );
+
+    const { result } = renderHook(() => useGetOwnerAggregations({ page: 1, per_page: 50 }), {
+      wrapper: clientWrapper(client),
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 3000 });
+    expect(calls).toBe(1); // 専用タイムアウトは自動リトライしない
+    expect(toast).not.toHaveBeenCalled(); // QueryCache 共通通知は抑止
+  });
+
+  it("retries and notifies the global handler for ordinary errors (production retry default)", async () => {
+    const toast = vi.fn();
+    const client = createNotifyingClient(toast, 1);
+    let calls = 0;
+    server.use(
+      http.get("/api/v1/clinics/:clinic_id/owners/aggregations", () => {
+        calls++;
+        return HttpResponse.json({ error: "boom" }, { status: 500 });
+      }),
+    );
+
+    const { result } = renderHook(() => useGetOwnerAggregations({ page: 1, per_page: 50 }), {
+      wrapper: clientWrapper(client),
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 3000 });
+    expect(calls).toBe(2); // retry:1 = 初回 + リトライ1回
+    expect(toast).toHaveBeenCalledTimes(1); // silentError ではない → 共通通知を維持
+  });
+
+  it("honors a retry:false client default for ordinary errors but still notifies", async () => {
+    const toast = vi.fn();
+    const client = createNotifyingClient(toast, false); // テスト既定 retry:false
+    let calls = 0;
+    server.use(
+      http.get("/api/v1/clinics/:clinic_id/owners/aggregations", () => {
+        calls++;
+        return HttpResponse.json({ error: "boom" }, { status: 500 });
+      }),
+    );
+
+    const { result } = renderHook(() => useGetOwnerAggregations({ page: 1, per_page: 50 }), {
+      wrapper: clientWrapper(client),
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(calls).toBe(1); // 既定の retry:false を尊重
+    expect(toast).toHaveBeenCalledTimes(1); // 通知は維持
+  });
+
+  it("does not let an earlier aggregation_timeout suppress a later ordinary error", async () => {
+    const toast = vi.fn();
+    const client = createNotifyingClient(toast, 1);
+    let calls = 0;
+    server.use(
+      http.get("/api/v1/clinics/:clinic_id/owners/aggregations", () => {
+        calls++;
+        if (calls === 1) return aggregationTimeoutResponse();
+        return HttpResponse.json({ error: "boom" }, { status: 500 });
+      }),
+    );
+
+    const { result } = renderHook(() => useGetOwnerAggregations({ page: 1, per_page: 50 }), {
+      wrapper: clientWrapper(client),
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 3000 });
+    expect(calls).toBe(1); // タイムアウトはリトライしない
+    expect(toast).not.toHaveBeenCalled();
+
+    // 同一 queryKey の後続失敗が通常エラーなら、既定リトライと共通通知が戻る。
+    // (stale な silentError/retry:false 分類で汚染しないこと)
+    await act(() => result.current.refetch());
+    await waitFor(() => expect(calls).toBe(3), { timeout: 3000 }); // 500 は retry:1 → 2試行
+    expect(toast).toHaveBeenCalledTimes(1);
   });
 });

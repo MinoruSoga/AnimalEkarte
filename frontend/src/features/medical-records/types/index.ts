@@ -18,6 +18,17 @@ export interface InterviewHistoryCopySource {
   chiefComplaintTypeId?: number;
 }
 
+/**
+ * EMR-356: カルテ行に相関する体重測定の表示投影（正本は vital_records）。
+ * measuredAt は測定時点の ISO instant。その他カルテの「最新体重」で代理表示しない。
+ */
+export interface InterviewWeightMeasurement {
+  id: string;
+  value: number;
+  unit: BodyWeightUnit;
+  measuredAt: string;
+}
+
 /** Interview (問診) history list item */
 export interface InterviewHistoryItem {
   id: string;
@@ -38,6 +49,11 @@ export interface InterviewHistoryItem {
    * date は表示整形済み（yyyy/MM/dd）のためソートには使わない。
    */
   sortDate?: string;
+  /**
+   * EMR-356: このカルテに相関する体重測定（wire weight_measurements 由来）。
+   * undefined=投影未提供（旧 API）、[]=測定なし — 両者を区別する。
+   */
+  weightMeasurements?: InterviewWeightMeasurement[];
 }
 
 // ── Treatment (治療明細) ──────────────────────────────────────────────

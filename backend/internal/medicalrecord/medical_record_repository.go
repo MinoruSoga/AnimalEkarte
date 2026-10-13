@@ -72,6 +72,13 @@ type DormantOwnerEntriesAtRepository interface {
 	) ([]DormantOwnerEntry, error)
 }
 
+// DormantOwnerHistoryRepository is the retained-history view for CPM/dormant
+// tag synchronization, separate from alive-only notification candidates.
+type DormantOwnerHistoryRepository interface {
+	FindDormantOwnerHistoryEntriesCursor(ctx context.Context, clinicID uint64, minDaysSince int, afterOwnerID uint64, limit int) ([]DormantOwnerEntry, error)
+	FindDormantOwnerHistoryEntriesCursorAt(ctx context.Context, clinicID uint64, minDaysSince int, afterOwnerID uint64, limit int, evaluatedAt time.Time) ([]DormantOwnerEntry, error)
+}
+
 type medicalRecordRepository struct {
 	db *gorm.DB
 }
@@ -215,6 +222,17 @@ func medicalRecordVitalsPreload(db *gorm.DB) *gorm.DB {
 			  AND vital_parent.pet_id = vital_records.pet_id
 		)
 	`)
+}
+
+// medicalRecordWeightMeasurementsPreload は EMR-356 履歴一覧の体重投影用 preload。
+// medicalRecordVitalsPreload の親相関（同一 clinic/pet/record・親非削除）をそのまま
+// 継承し、体重記録済み・daily_record（入院/日次）由来でない行のみを
+// recorded_at→id 昇順で1回のバッチクエリとして preload する（行毎の N+1 なし）。
+func medicalRecordWeightMeasurementsPreload(db *gorm.DB) *gorm.DB {
+	return medicalRecordVitalsPreload(db).
+		Where("vital_records.weight IS NOT NULL").
+		Where("vital_records.daily_record_id IS NULL").
+		Order("vital_records.recorded_at ASC, vital_records.id ASC")
 }
 
 // medicalRecordOrderClause は B-1 follow-up の列ソート server 化用 ORDER BY 句を組み立てる。

@@ -88,6 +88,19 @@ func (r dischargeWithBillingRequest) toServiceInput(actorID uint64) DischargeWit
 	}
 }
 
+// parseHospitalizationNextVisit は next_visit の境界パーサ（EMR-353）。
+// 省略(nil)は「変更なし」で nil を返す。非 nil は必須値なので空文字も含め
+// YYYY-MM-DD 以外（空白/不正日付/RFC3339 等）はすべて 400 とする。
+func parseHospitalizationNextVisit(raw *string) (*time.Time, error) {
+	if raw == nil {
+		return nil, nil
+	}
+	if *raw == "" {
+		return nil, apperrors.WrapInvalidInput("next_visit は YYYY-MM-DD 形式で入力してください")
+	}
+	return httpapi.ParseOptionalDateTimeField(*raw, "next_visit")
+}
+
 // createHospitalizationRequest は入院作成のバインド struct
 type createHospitalizationRequest struct {
 	OwnerID              uint64                       `json:"owner_id"               binding:"required"`
@@ -95,6 +108,7 @@ type createHospitalizationRequest struct {
 	HospitalizationType  string                       `json:"hospitalization_type"   binding:"required,oneof=hospitalization hotel"`
 	StartDate            time.Time                    `json:"start_date"             binding:"required"`
 	EndDate              time.Time                    `json:"end_date"               binding:"required"`
+	NextVisit            *string                      `json:"next_visit"`
 	Status               string                       `json:"status"                 binding:"omitempty,oneof=admitted discharged reserved"`
 	CageID               *uint64                      `json:"cage_id"`
 	DoctorID             *uint64                      `json:"doctor_id"`
@@ -148,12 +162,18 @@ func (r *createHospitalizationRequest) toServiceInput() (*CreateHospitalizationI
 		}
 	}
 
+	nextVisit, err := parseHospitalizationNextVisit(r.NextVisit)
+	if err != nil {
+		return nil, err
+	}
+
 	return &CreateHospitalizationInput{
 		OwnerID:              r.OwnerID,
 		PetID:                r.PetID,
 		HospitalizationType:  hospType,
 		StartDate:            r.StartDate,
 		EndDate:              r.EndDate,
+		NextVisit:            nextVisit,
 		Status:               status,
 		CageID:               r.CageID,
 		DoctorID:             r.DoctorID,
@@ -184,6 +204,8 @@ type updateHospitalizationRequest struct {
 	HospitalizationType  *string    `json:"hospitalization_type"   binding:"omitempty,oneof=hospitalization hotel"`
 	StartDate            *time.Time `json:"start_date"`
 	EndDate              *time.Time `json:"end_date"`
+	NextVisit            *string    `json:"next_visit"`
+	ClearNextVisit       bool       `json:"clear_next_visit"`
 	Status               *string    `json:"status"                 binding:"omitempty,oneof=admitted discharged reserved"`
 	CageID               *uint64    `json:"cage_id"`
 	ClearCageID          bool       `json:"clear_cage_id"`
@@ -202,11 +224,21 @@ func (r *updateHospitalizationRequest) toServiceInput() (UpdateHospitalizationIn
 	if err := validateCageUpdateGuards(r.CageID, r.ClearCageID, r.ExpectedCageID, r.ExpectedCageIsNull); err != nil {
 		return UpdateHospitalizationInput{}, err
 	}
+	// EMR-353: clear_next_visit と next_visit の同時指定は矛盾なので拒否する。
+	if r.ClearNextVisit && r.NextVisit != nil {
+		return UpdateHospitalizationInput{}, apperrors.WrapInvalidInput("next_visit と clear_next_visit は同時に指定できません")
+	}
+	nextVisit, err := parseHospitalizationNextVisit(r.NextVisit)
+	if err != nil {
+		return UpdateHospitalizationInput{}, err
+	}
 	input := UpdateHospitalizationInput{
 		OwnerID:              r.OwnerID,
 		PetID:                r.PetID,
 		StartDate:            r.StartDate,
 		EndDate:              r.EndDate,
+		NextVisit:            nextVisit,
+		ClearNextVisit:       r.ClearNextVisit,
 		CageID:               r.CageID,
 		ClearCageID:          r.ClearCageID,
 		ExpectedCageID:       r.ExpectedCageID,

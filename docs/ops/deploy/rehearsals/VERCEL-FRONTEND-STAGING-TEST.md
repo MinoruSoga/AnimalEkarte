@@ -69,7 +69,7 @@ Cookie: <browser-managed HttpOnly cookies; value must not be copied>
 
 新規会計確定は `Idempotency-Key` を付けてAPIへPOSTする。`backend/internal/middleware/cors.go` の固定許可ヘッダーにこれを含め、設定済みのoriginにだけアクセスを許可する。要求ヘッダーの無条件反映やwildcardで許可範囲を広げない。
 
-OPTIONSの204やログイン成功だけで会計確定をPASSにしない。デプロイ後の承認済み検証では、origin・credentials・`Idempotency-Key` を含む要求ヘッダーの許可と、後続の会計POSTの到達を確認する。localのsame-origin proxy経由での成功は代用にならない（[会計精算仕様](../../../spec/screens/11-accounting-detail.md#33-新規会計確定の再試行)）。
+OPTIONSの204やログイン成功だけで会計確定をPASSにしない。デプロイ後の承認済み検証では、origin・credentials・`Idempotency-Key` を含む要求ヘッダーの許可と、後続の会計POSTの到達を確認する。localのsame-origin proxy経由での成功は代用にならない（[会計精算仕様](../../../spec/domains/accounting/pages/accounting-settlement.md#33-新規会計確定の再試行)）。
 
 ## 4. Exact settings routes
 

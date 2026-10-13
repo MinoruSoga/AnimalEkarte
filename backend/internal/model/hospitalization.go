@@ -30,6 +30,7 @@ type Hospitalization struct {
 	HospitalizationType  HospitalizationType   `gorm:"type:hospitalization_type;not null"             json:"hospitalization_type"`
 	StartDate            time.Time             `gorm:"type:date;not null"                             json:"start_date"`
 	EndDate              time.Time             `gorm:"type:date;not null"                             json:"end_date"`
+	NextVisit            *time.Time            `gorm:"type:date"                                      json:"next_visit,omitempty"`
 	Status               HospitalizationStatus `gorm:"type:hospitalization_status;default:'reserved'"  json:"status"`
 	CageID               *uint64               `                                                      json:"cage_id,omitempty"`
 	DoctorID             *uint64               `                                                      json:"doctor_id,omitempty"`

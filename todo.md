@@ -56,7 +56,7 @@ Current unfinished implementation, verification, data, performance, delivery, an
 | SEC-P4 | Medium | support / chat unredacted | P1 の一部。会話本文の全院共有 | 受容済み | P1 と同じ（EMR-263 で情報区分追跡） |
 | SEC-N1 | Medium | lab-frame / body limit | binary Content-Type が request limit を JSON decode 前に回避 | 対応済み(WIP) | `BinaryBodyMaxBytes=16MiB` 共通天井 + lab frames ルート 64KiB + base64 長事前拒否 |
 | SEC-N2 | Medium | support / LLM outbound | 認証済み staff が未分類 clinic データを LLM へ送信可能 | 対応済み(WIP) | `screenChatOutbound` で機微パターン拒否 + history をサーバー保存済み履歴のみに限定 |
-| SEC-N3 | Medium | support / Plane export | bug-report 作成時に未分類コンテンツが自動で Plane へ export | コード上は自動起票廃止のまま | 2026-10-03 に Create 時の自動起票を廃止。2026-10-11 owner 指示で自動起票へ戻す → [EMR-340](https://app.plane.so/baritechllc/browse/EMR-340/)（Ready） |
+| SEC-N3 | Medium | support / Plane export | bug-report 作成時に未分類コンテンツが自動で Plane へ export | EMR-340 で Create 後の自動起票を復帰（best-effort・手動再送併存） | 2026-10-03 に Create 時の自動起票を廃止。2026-10-11 owner 指示で自動起票へ戻す → [EMR-340](https://app.plane.so/baritechllc/browse/EMR-340/)（Ready） |
 | SEC-N4 | Low | lstep / signed URL TTL | 共有ファイル bearer URL が 24h 有効 | 対応済み(WIP) | TTL 用途別分割(対話 15min / LINE 配送 1h) |
 | SEC-N5 | High | seedlogin / STG demo password | 共有パスワードが全 catalog identity(執行含む)を認証 | 受容済み | SECURITY.md に受容済みリスクとして記録(synthetic demo・全医院視点の執行アカウントが権限管理デモに必要) |
 | SEC-N6 | Medium | support / LLM outbound prose | 未分類 prose を外部 LLM へ送信 | 裁定済み | P1/P4 owner 裁定でカバー — PII 許可 + `screenChatOutbound` 付き既存経路のみ |
@@ -137,7 +137,7 @@ Linear/BRT-4に関する以下の文言は過去の運用方針記録。2026-09-
 
 **未納:** [現行計算](backend/internal/billing/unpaid_amount.go) に合わせ、payment なしの waiting は `billings.total_amount`、payment ありの waiting/completed は `max(0, total_amount - insurance_amount - discount_amount - billing_amount)`（payment の各額）で算出する。他 status は0。completed の訂正残も対象であり、waiting 件数だけで未納全体を説明しない。
 
-- 対象医院・支払予定日の範囲を [未納一覧仕様](docs/spec/screens/30-unpaid-list.md) と合わせる。請求1件1行を母集団にし、同一医院の未削除 payment との対応件数を検査する。複数対応・医院不一致は別の異常件数に出して停止し、payment_splits の直接 JOIN で請求額を増幅しない。
+- 対象医院・支払予定日の範囲を [未納一覧仕様](docs/spec/domains/accounting/pages/unpaid-list.md) と合わせる。請求1件1行を母集団にし、同一医院の未削除 payment との対応件数を検査する。複数対応・医院不一致は別の異常件数に出して停止し、payment_splits の直接 JOIN で請求額を増幅しない。
 - 出力は status、payment 有無、未納額帯（0円 / 1–9,999円 / 10,000円以上）、請求件数、請求額合計、未納額合計、旧記録との照合済み/未照合。金額帯は調査用区分で、回収判断や製品仕様の変更ではない。
 - 合成期待表: waiting/paymentなし/請求1,000円→未納1,000円、completed/paymentあり/総額1,000円・保険0・割引0・支払額600円→400円、同支払額1,000円→0円。waiting/paymentありにも同じ差額式を使う。分類前後の件数と未納額を照合し、payment の有無だけで「実未納/突合失敗」と断定しない。
 

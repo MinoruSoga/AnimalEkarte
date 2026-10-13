@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // ---- LtvRepository モック（ISSUE-006） ----
@@ -566,6 +568,138 @@ func TestListOwnerAggregation_InputForwarding(t *testing.T) {
 	assert.Equal(t, "over_6m", captured.LastVisitBucket)
 	assert.True(t, captured.IncludeNoVisit)
 	// Metric は service が repo に渡さない (Metric は表示用)
+}
+
+// EMR334-1 ====================================================================
+// 集計クエリの 20 秒 deadline は LTV クエリ後の CPM 分類・区分人数集計・
+// ページングと最終 return までをカバーしなければならない。
+// ctx を見ずに期限後に成功を返す依存 (context 非準拠ダブル) があっても、
+// 期限超過済みの結果を成功 (200 相当) として返さない。
+// queryTimeout seam で集計タイマー自身の失効を実時間待ちなしに再現する。
+// =============================================================================
+
+// ctxIgnoringRows は ctx の失効を待ってから rows を nil error で返す
+// context 非準拠の遅延 repo ダブルを生成する (EMR334-1)。
+func ctxIgnoringRows(rows []OwnerLTVRow) *mockLtvRepositoryCapture {
+	return &mockLtvRepositoryCapture{
+		fn: func(ctx context.Context, _ *FindOwnerLTVParams) ([]OwnerLTVRow, error) {
+			<-ctx.Done()
+			return rows, nil
+		},
+	}
+}
+
+// lateSuccessRow は期限後成功パスで使う最小の LTV 行。分類判定の対象ではなく、
+// deadline 再確認で処理が中断されることだけを検証するための行。
+func lateSuccessRow() []OwnerLTVRow {
+	return []OwnerLTVRow{
+		{
+			OwnerID:              1,
+			OwnerName:            "late success owner",
+			TotalAmount:          5_000,
+			TotalVisitCount:      1,
+			AnnualVisitCount:     1,
+			DaysSinceLastVisit:   aggIntPtr(10),
+			FirstVisitDate:       timePtr(time.Now().AddDate(0, 0, -10)),
+			MaxSingleVisitAmount: 5_000,
+			AnnualAmount:         func() *int64 { v := int64(5_000); return &v }(),
+			LastVisitBucket:      aggStrPtr("within_3m"),
+		},
+	}
+}
+
+// TestListOwnerAggregation_PostQueryDeadline は deadline/cancel がクエリ後の
+// 分類・集計・ページング・最終 return 中に失効しても成功を返さないことを保証する
+// (EMR334-1)。sentinel errAggregationQueryTimeout は集計タイマー自身の失効のみ。
+func TestListOwnerAggregation_PostQueryDeadline(t *testing.T) {
+	t.Run("repo が集計 deadline 失効後に rows を nil error で返す → sentinel timeout", func(t *testing.T) {
+		svc := &aggregationService{
+			repo:         ctxIgnoringRows(lateSuccessRow()),
+			settingsSvc:  &mockLstepSettingsService{},
+			queryTimeout: time.Nanosecond,
+		}
+		res, err := svc.ListOwnerAggregation(context.Background(), 1, &ListOwnerAggregationInput{})
+		require.Error(t, err)
+		assert.Nil(t, res)
+		assert.ErrorIs(t, err, errAggregationQueryTimeout)
+	})
+
+	t.Run("settings が集計 deadline 失効後に thresholds を成功返す → sentinel timeout", func(t *testing.T) {
+		repo := &mockLtvRepositoryCapture{
+			fn: func(_ context.Context, _ *FindOwnerLTVParams) ([]OwnerLTVRow, error) {
+				return lateSuccessRow(), nil
+			},
+		}
+		settingsSvc := &mockLstepSettingsService{
+			getCPMV1ThresholdsFn: func(ctx context.Context, _ uint64) (model.CPMV1Thresholds, error) {
+				<-ctx.Done()
+				return model.CPMV1Thresholds{}.WithDefaults(), nil
+			},
+		}
+		svc := &aggregationService{repo: repo, settingsSvc: settingsSvc, queryTimeout: time.Nanosecond}
+		res, err := svc.ListOwnerAggregation(context.Background(), 1, &ListOwnerAggregationInput{})
+		require.Error(t, err)
+		assert.Nil(t, res)
+		assert.ErrorIs(t, err, errAggregationQueryTimeout)
+	})
+
+	t.Run("多数行の分類ループ境界で集計 deadline 失効を拾う → sentinel timeout", func(t *testing.T) {
+		rows := make([]OwnerLTVRow, 1000)
+		for i := range rows {
+			rows[i] = OwnerLTVRow{OwnerID: uint64(i + 1), OwnerName: "bulk"}
+		}
+		svc := &aggregationService{
+			repo:         ctxIgnoringRows(rows),
+			settingsSvc:  &mockLstepSettingsService{},
+			queryTimeout: time.Nanosecond,
+		}
+		res, err := svc.ListOwnerAggregation(context.Background(), 1, &ListOwnerAggregationInput{})
+		require.Error(t, err)
+		assert.Nil(t, res)
+		assert.ErrorIs(t, err, errAggregationQueryTimeout)
+	})
+
+	t.Run("0 行でも最終 return 直前の集計 deadline 失効を拾う → sentinel timeout", func(t *testing.T) {
+		svc := &aggregationService{
+			repo:         ctxIgnoringRows(nil),
+			settingsSvc:  &mockLstepSettingsService{},
+			queryTimeout: time.Nanosecond,
+		}
+		res, err := svc.ListOwnerAggregation(context.Background(), 1, &ListOwnerAggregationInput{})
+		require.Error(t, err)
+		assert.Nil(t, res)
+		assert.ErrorIs(t, err, errAggregationQueryTimeout)
+	})
+
+	t.Run("呼び出し元 cancel 後に ctx 非準拠 repo が成功を返す → Canceled で sentinel ではない", func(t *testing.T) {
+		svc := &aggregationService{
+			repo:         ctxIgnoringRows(lateSuccessRow()),
+			settingsSvc:  &mockLstepSettingsService{},
+			queryTimeout: aggregationQueryTimeout,
+		}
+		canceled, cancel := context.WithCancel(context.Background())
+		cancel()
+		res, err := svc.ListOwnerAggregation(canceled, 1, &ListOwnerAggregationInput{})
+		require.Error(t, err)
+		assert.Nil(t, res)
+		assert.NotErrorIs(t, err, errAggregationQueryTimeout)
+		assert.ErrorIs(t, err, context.Canceled)
+	})
+
+	t.Run("呼び出し元 deadline 切れ後に ctx 非準拠 repo が成功を返す → DeadlineExceeded で sentinel ではない", func(t *testing.T) {
+		svc := &aggregationService{
+			repo:         ctxIgnoringRows(lateSuccessRow()),
+			settingsSvc:  &mockLstepSettingsService{},
+			queryTimeout: aggregationQueryTimeout,
+		}
+		expired, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+		defer cancel()
+		res, err := svc.ListOwnerAggregation(expired, 1, &ListOwnerAggregationInput{})
+		require.Error(t, err)
+		assert.Nil(t, res)
+		assert.NotErrorIs(t, err, errAggregationQueryTimeout)
+		assert.ErrorIs(t, err, context.DeadlineExceeded)
+	})
 }
 
 // ---- 補助モック ----

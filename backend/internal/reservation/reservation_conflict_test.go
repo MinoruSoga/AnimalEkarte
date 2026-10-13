@@ -146,3 +146,62 @@ func TestReservationTimeConflict_NonMatchingKeeps500(t *testing.T) {
 	status, _, _ := httpapi.ResolveErrorResponse(other)
 	assert.Equal(t, http.StatusInternalServerError, status)
 }
+
+// TestRespondError_ReservationCreateError_NoPgFieldLeak is EMR-336's HTTP regression
+// guard: whatever the request log gains for diagnosis, the response body must never
+// carry PostgreSQL internals (Message/Detail/Hint/Where, SQLSTATE, constraint name)
+// for either the classified 409 or the fail-closed 500.
+func TestRespondError_ReservationCreateError_NoPgFieldLeak(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	pgSentinels := []string{
+		"EMR336MSG", "EMR336OWNER", "EMR336PET", "EMR336HINT", "EMR336WHERE",
+		"conflicting key value", "23P01", "excl_other_table_timerange",
+		"excl_appointments_doctor_timerange",
+	}
+	post := func(err error) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/reservations", http.NoBody)
+		respondError(c, err)
+		return w
+	}
+
+	t.Run("unrelated 23P01 stays generic 500 without pg internals", func(t *testing.T) {
+		err := fmt.Errorf("reservation create failed: %w", &pgconn.PgError{
+			Code:           "23P01",
+			ConstraintName: "excl_other_table_timerange",
+			Message:        `conflicting key value violates exclusion constraint "excl_other_table_timerange" EMR336MSG`,
+			Detail:         "Key (owner_id, pet_id)=(EMR336OWNER, EMR336PET) already exists.",
+			Hint:           "EMR336HINT",
+			Where:          "EMR336WHERE",
+		})
+		assert.Nil(t, asReservationTimeConflict(err))
+		w := post(err)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+		body := w.Body.String()
+		for _, s := range append(pgSentinels, "reservation_time_conflict") {
+			assert.NotContains(t, body, s)
+		}
+	})
+
+	t.Run("known doctor-timerange conflict stays 409 without pg internals", func(t *testing.T) {
+		err := asReservationTimeConflict(&pgconn.PgError{
+			Code:           "23P01",
+			ConstraintName: "excl_appointments_doctor_timerange",
+			Message:        `conflicting key value violates exclusion constraint "excl_appointments_doctor_timerange" EMR336MSG`,
+			Detail:         "Key (owner_id, pet_id)=(EMR336OWNER, EMR336PET) already exists.",
+			Hint:           "EMR336HINT",
+			Where:          "EMR336WHERE",
+		})
+		require.NotNil(t, err)
+		w := post(err)
+		assert.Equal(t, http.StatusConflict, w.Code)
+		body := w.Body.String()
+		assert.Contains(t, body, "reservation_time_conflict")
+		assert.Contains(t, body, "既に予約が存在します")
+		for _, s := range pgSentinels {
+			assert.NotContains(t, body, s)
+		}
+	})
+}

@@ -248,3 +248,141 @@ V1〜V5、V7 は、再生成した bundle の集計（件数のみ。値は出�
 確認した: `cutover_contract.go`、`cutover_import.go`、`cutover_reference_graph.go` の該当箇所、`001_init.sql` の `medicines`・`estimate_items`・`item_category`、old_db の `030_stage.sql` の該当箇所、4 院のリハーサル用データ（`procedures.csv`、`estimate_items.csv`）の集計、MIG-15 の契約設計。
 
 していない: 行データの閲覧、旧DBへの接続、取込処理・契約・CSV の変更、医院への確認、剤形の変換表の獣医師による確認、`cutover_import_copy.go` と `cutover_contract_validate.go` の列の型の扱いの詳細確認（実装票で確認する）。
+
+## 8. 【PROPOSED / UNAPPROVED】会計明細の履歴税率 `tax_rate`（EMR-364 連携案）
+
+**状態: 提案のみ・未承認・未実装。** 以下はすべて producer / consumer 両担当が同一 artifact の receipt で合意するまで採用されない草案。現行の取込契約・CSV・manifest・契約ハッシュ・DB を一切変更していない。EMR-364 が consumer 側 owner、producer 側は MIG-44、生成は MIG-41、公開台帳/pin は MIG-37 が担う。
+
+### 8.1 現行動作（証拠は [CURRENT-PATHS.md §1](../emr-364-365-contract-design/CURRENT-PATHS.md)）
+
+現行の `billing_items` 契約は 10 列で `tax_rate` を持たない（`backend/internal/csvimport/cutover_contract.go:256`、producer `stage-csv-columns.mjs:415-417`・`:553-559`）。COPY は契約列だけを渡すため `tax_rate` は供給されず、nullable の DDL 既定 `0.10`（`backend/migrations/001_init.sql:1921`）が全移行行に入る。精算日由来の 5%/8% は輸送上区別できず、以後この列を読む経路は保存値 0.10 を見る。兄弟の金銭表（`procedures`、`merchandise_items`、`estimate_items`）は既に `tax_type` 直後に `tax_rate` を持つため、`billing_items` だけが欠けている。
+
+### 8.2 提案する 11 列 ordered header
+
+`tax_rate` を `tax_type` の直後に挿入する（他の金銭表と同じ位置関係）:
+
+```
+id, clinic_id, billing_id, category, name, unit_price, quantity,
+tax_type, tax_rate, is_insurance_applicable, sort_order
+```
+
+### 8.3 提案する値域と日付写像
+
+| 条件（canonical 精算日） | `tax_rate` |
+| --- | --- |
+| 精算日 < 2014-04-01 | `0.05` |
+| 2014-04-01 〜 2019-09-30 | `0.08` |
+| 2019-10-01 以降 | `0.10` |
+| 精算日が無い（NULL） | `0.10` |
+| 精算日が非 NULL だが不正・変換不能 | **reject / needs_review**（黙って既定へ落とさない） |
+
+- 列挙は `{0.05, 0.08, 0.10}` の小数割合、required / non-null。CSV セルは 2 桁小数の決定的テキスト（`0.05` / `0.08` / `0.10`）とし、producer は missing 日付でも `0.10` を**明示出力**する（consumer 側既定への依存をしない）。
+- 日付判定は canonical 精算日の**日本ローカル暦日**（Asia/Tokyo の暦日）。UTC 変換した日付で境界をずらさない。境界ケース 2014-03-31 / 2014-04-01、2019-09-30 / 2019-10-01 を合成 fixture で固定する。
+- `tax_type = 'exempt'` を理由に `tax_rate` を 0 にしない。非課税行にも日付由来の率値をそのまま出す。`tax_type` の復号（`TZei_Flg` 0・空白→excluded、1→exempt、その他→needs_review）は MIG-38/MIG-44 の決定で、本列とは別の契約面。
+
+### 8.4 提案する version・pin・互換性
+
+- 新しい version 名・compiled pin は**採用時に producer / consumer が同一正本 artifact へ記録する**まで仮置きにとどめる（候補名例: `animalekarte-cutover-v2` — bundle 全体の profile 改訂名であり、billing `tax_rate` 単独の version ではない。名称自体も未承認）。この文書は version の採用を主張しない。
+- pin = **更新後 producer source ファイル全体の SHA-256**（`scripts/lib/stage-csv-columns.mjs` 全バイト。ヘッダ部のみ・推定値は不可）。現行の compiled pin `cutoverCSVContractSHA256 = 9e02897b…`（`cutover_contract.go:19`）は baseline であり、現 producer source 全体の観測 SHA `8a466c63…`（MIG-40 記録）とは異なる。**順序付き列が不変でも、値写像の意味変更（税復号の向き・負単価の NULL 化等）で全ファイル digest は変わる**ため、pin は列形状ではなく source 全体を縛る。
+- 旧 10 列 bundle は**別の legacy profile** として扱い、新 profile では拒否する（欠列・未知列・旧 pin を新 profile として黙って受理しない。現行の header 検査 `cutover_contract_validate.go:609-632` は未知列・欠列を fail-closed で拒否する既存機構と整合する）。legacy 互換モードを設けるかは別途承認が要る receipt 項目。
+- 現行の rehearsal 容認（`rehearsalContractDrift`、`cutover_contract.go:56-58`）は REHEARSAL_ONLY artifact かつ rehearsal provenance のときだけ manifest digest 差異・tables[] 順・CSV header 順の bounded drift を記録付きで許す**既存機構**であり、新 profile の採用や互換宣言ではない。10→11 列は列集合が変わるため permutation tolerance の範囲外で、rehearsal でも受理されない。
+- §3.7 の `medicines` 追加は表の追加、`tax_rate` は既存表の列追加という別の変更面。両方を含む cumulative profile（22 表 + 11 列）にするか、medicines-only profile を先にして後続 revision とするかは**採用順序の owner 決定**であり、この文書は選択しない。どちらでも単一正本の version/pin/artifact receipt で lockstep にする（EMR-364 scope「EMR-343 と別の独立 contract を作らない」に従う）。
+- MIG-15 最新コメントの「`treatments` を 22 表目にする」提案は**ここでは採用しない**。本票の構造提案は medicines-only の 22 表であり、treatments を含む別の 22 表構成や、さらに大きな cumulative profile は将来の owner receipt が必要な別プロファイルとして保持する（MIG-15 自体の設計は別票・未解決 Q1〜Q16）。
+
+### 8.5 提案する検証（採用後の合成 contract test。**全件 planned / NOT RUN**。現時点は未実装）
+
+セル値は**厳密な lexical 一致**のみ受理し、consumer は既定値への coercion・丸め・数値正規化を行わない（許容集合はバイト列 `0.05` / `0.08` / `0.10` の 3 通りのみ）。
+
+| # | 検査 | 期待 |
+| --- | --- | --- |
+| T1 | 境界日 2014-03-31 / 2014-04-01 / 2019-09-30 / 2019-10-01（日本暦日） | `0.05` / `0.08` / `0.08` / `0.10` |
+| T2 | 精算日 NULL | `0.10`（producer が明示出力） |
+| T3 | 非 NULL の不正・変換不能な日付（producer 側 source） | producer 側で行 reject または needs_review（黙って `0.10` にしない） |
+| T4 | `tax_type=exempt` 行 | 日付由来の率値を保持、`0` にならない |
+| T5 | 旧 10 列 bundle / 欠 `tax_rate` / 未知列 / 旧 pin | 新 profile として reject |
+| T6 | producer source 全体 SHA-256 | manifest/contract pin と一致（ヘッダのみ hash 不可） |
+| T7 | UTC 境界をまたぐ時刻の精算日時 | 日本暦日で判定（UTC 換算日でずらさない） |
+| T8 | rate セルの reject 集合: `''`（空）・未知値・`0.09`・`0.101`・`NaN`・`1`・`0.1`・`0.080` 等の非 canonical 表記 | 一律 reject。blank は missing-date の producer 既定 `0.10` とも無関係に必ず拒否（consumer は既定値を合成しない） |
+| T9 | 許容 3 値の bytes → preflight → apply → verify 往復 | `0.05`/`0.08`/`0.10` が各境界・exempt 行ともに変換・失われず保持される |
+| T10 | manifest の `csvContractSha256` / `stageMappingSha256` が旧 pin のまま | reject（rehearsal drift の対象でもならない） |
+
+### 8.6 保留の owner 決定・receipt
+
+- version 名・ordered 11 列・nullability・列挙 `{0.05,0.08,0.10}`・pin（全ファイル SHA-256）の同一 artifact 合意（provider MIG-44 + consumer EMR-349 系）。
+- 旧 10 列 bundle の扱い（拒否のみか、legacy profile の併存許容か）。
+- medicines-only profile と `tax_rate` を含む profile の採用順序（§8.4）。
+- MIG-15 treatments 22 表案の可否（本票では未承認・別 receipt）。
+- producer source の採用基点（MIG-37 統合候補 → MIG-41 単一生成の同一 candidate/profile/run）。
+
+## 9. 【PROPOSED / UNAPPROVED】ワクチン単価の小数精度（EMR-365 連携案）
+
+**状態: 提案のみ・未承認・未実装。** 現行の `vaccines.price bigint`・Go `*int64`・JSON number・CSV `bigint` 経路を一切変更していない。小数対応の採用自体が未承認であり、採用時は §8 と同じ単一正本 artifact の version/pin で producer/consumer lockstep に合意する（bundle 全体の cumulative profile、候補名例 `animalekarte-cutover-v2` — 未承認）。
+
+### 9.1 現行経路（証拠は [CURRENT-PATHS.md §2](../emr-364-365-contract-design/CURRENT-PATHS.md)）
+
+stage は `NULL::bigint AS price` を出し、CSV 空セルは `NULL ''` で SQL NULL、`vaccines.price bigint`（nullable）、Go/JSON は `*int64`、FE は `?? 0`・`parseInt`・number input、未請求 candidate は `UnitPrice int64`・Quantity 1・0.10 固定、合計は int64 円。**現行のどの段でも小数は保持できない**。現行の FE/BE 丸め差分の記録は CURRENT-PATHS §2.9（本票では是正しない）。
+
+### 9.2 MIG-31 の既存決定（保持・変更しない）
+
+legacy source の価格写像ルールは MIG-31 で決定済みであり、この案は変更を提案しない:
+
+- blank/1（external-tax）→ 旧単価そのまま（**÷1.1 は行わない**、旧提案撤回済み）。
+- **0・負・NULL・空・リンク無し・未知税・2/3（exempt）→ bare 空 CSV セル → 新 DB では NULL**。
+- 正の小数は正のまま保持（0.04 等は値として消さない）。
+- 製品 API による新規保存の明示 `0`（マスタに「0 円」を意図入力）は、legacy source の `0`（→ NULL 行）とは別の事象であり、混同しない。
+
+### 9.3 alternatives（すべて PROPOSED / UNAPPROVED）
+
+| 案 | 保存型 | 輸送 | 精度/範囲 | 欠点 |
+| --- | --- | --- | --- | --- |
+| A（推薦） | `numeric(19,4)` | CSV: canonical decimal 文字列。JSON: **decimal 文字列**（number 不可）。Go: 正確な decimal 型 | 整数部 15 桁・小数部 4 桁。非負の価格として `[0, 999999999999999.9999]` | DDL/Go/API/FE/税計算の全面更新が要る。`bigint` 既存行の移行が要る |
+| B | `bigint` 最小単位（円×10⁴ 等の scaled integer） | CSV/JSON とも整数 | int64 範囲内。scale-4 に正規化すると `999999999999999.9999` 相当は `9.9×10¹⁸` で **int64 上限（約 9.22×10¹⁸）を超えうる** — 境界・乗算オーバーフローの check が必須。非 scale の整数部（最大 ≈1.0×10¹⁵）は JS 安全整数 `2⁵³−1`（≈9.007×10¹⁵）未満だが、**×10⁴ の scaled 値は安全整数を越える**ため JS Number 経由は scaled 形でも不可 | scale の意味を全実装が正しく解釈する保証が弱い。円列との混同で倍率バグ |
+| C | `numeric(19,2)` | A と同じ | 小数部 2 桁まで。**`0.04` は正確に表現できる**（scale 2 で足りる）。表現不能は `0.004` のような小数第 3 位以降 | legacy raw が小数第 3 位以降を持つ場合に保持不能 — 削る理由は「その桁が来ない」ことの確認のみ |
+| D | 現行 `bigint` のまま表示だけ小数第 1 位 | 変更なし | 整数円のみ | 0.4/0.04 を保存できない。表示丸めで「正 → 0/無料」に見せる危険（MIG-31 の正値保持に反する）。棄却 |
+| E | `bigint` 円 + 別列 `unit_price_fraction` | 2 列 | 組合せ依存 | 意味が複雑で結合が要る。A に対する明確な利点が無い。棄却 |
+
+legacy `unit_price_raw` の numeric は**任意 scale であり、numeric(19,4) への変換は自動的には無損失ではない**。範囲外・超過桁の行は producer/consumer で reject / needs_review とし、**丸め・切捨てで収めない**。
+
+### 9.4 推薦と輸送・計算の境界（A 案を owner レビューへ出す。採用しない）
+
+- **保存**: `vaccines.price numeric(19,4)`。理由: legacy numeric の観測小数（0.4/0.04/0.5 等）を余裕をもって保持し、float64 の binary 誤差・途中の int64 truncate を全段で避けられる。乗算 `0.4×3` が decimal 算術で厳密に `1.2` になる。
+- **CSV**: plain canonical decimal 文字列（例 `0.4000`）。COPY は `''`→NULL を維持し、数値文字列は lexical 検査のうえ型変換する。
+- **JSON**: **decimal 文字列**（`"0.4000"`）。JSON number は binary64 由来で 0.4 系を厳密に表せず、大きな整数部では安全整数を失うため不可。さらに大きな magnitude では**小数部も保持できない** — `90071992547409.1234`（整数部 ≈9.0×10¹³、2⁵³ 未満・範囲内の受理値）では binary64 の ULP が約 0.0156 で 10⁻⁴ を超えるため、JS Number では小数第 4 位までが既に失われる。文字列なら 4 桁全てを保持する。
+- **Go**: 正確な decimal 型を採用（`*int64`/`*float64` ではない）。検証は非負・範囲・scale を型レベルで持つ。
+- **FE**: 表示・入力とも **JS Number への parse を経ない** decimal 表現で扱い、数値演算は承認された円丸め境界までは行わない。`parseInt`/`Number()`/`int64` 経由の入力は新契約では無い。
+- **計算**: 単価の丸めは**乗算の前に行わない**。小計・税・最終円の丸め順・丸めモード・丸め段階は owner が規則を確定してから固定する（本票は具体値を捏造しない）。
+- **影響範囲**: 共有の請求経路（`billing_items.unit_price bigint`、`quantity numeric(10,1)`、`model.BillingItem.CalculateTaxAmount` の float64、`CalculateBillingTotals` の int64 合計、payments の整数円）をまたぐ変更が要ることを影響として記録する。**他マスタの DB/API 型はこの案の scope 外**（全マスタ decimal 化を無断に拡張しない。別承認の scope が要る）。
+
+### 9.5 表示（owner 決定・未承認。UI 変更なし）
+
+- 表示候補は小数第 1 位まで（user 要望）。`0.4` は `0.4` と表示する（`0.0` に潰さない）。
+- `0.04` のような正の小値は、1 桁表示が `0.0` になる場合は**表示を `0.04` に落とす**か「正・1 円未満」の明示 marker を出す。`0.0`/`-`/無料への推論は禁止（MIG-31 の正値保持と整合）。
+- 保存 scale（4）と表示桁（1 または marker）は別の決定であり、表示丸めで保存値を書き換えない。
+
+### 9.6 匿名ケースの固定期待値（**全件 planned / NOT RUN**、採用後の contract test 前提）
+
+| # | 入力（匿名） | 期待（推薦 A） | 補足 |
+| --- | --- | --- | --- |
+| 1 | `0.4` | 保存 `0.4000`、表示 `0.4` | 0 化禁止 |
+| 2 | `0.04` | 保存 `0.0400`、表示 `0.04` または marker | `0.0` → 無料推論禁止 |
+| 3 | `0.5` | 保存 `0.5000`、表示 `0.5` | |
+| 4 | 整数 `500` | 保存 `500.0000` | 後方互換の整数 |
+| 5 | source `0` | 空 CSV → `NULL`（MIG-31 既存決定） | 製品 API の明示 `0` は別ケース（5b） |
+| 5b | 製品 API 明示 `0` | `0.0000`（明示ゼロ、legacy source 0 の NULL とは別） | owner が受理規則を決める |
+| 6 | source 負値 | 空 CSV → `NULL`（MIG-31 既存決定） | MIG-40 の別件負値議論と独立 |
+| 7 | NULL / 空セル / リンク無し / 未知税 / 2・3（exempt） | 空 CSV → `NULL`（MIG-31 既存決定） | unbilled の master_unbillable warning に該当 |
+| 8 | `0.4` × quantity `3` | 小計 `1.2`（decimal 厳密）→ 税・円丸め規則は owner | 単価は乗算前に丸めない |
+| 9 | 最大 `999999999999999.9999` | 受理（範囲内・整数部 15 桁） | numeric(19,4) の上限 |
+| 10 | `999999999999999.9999 + 0.0001` 超過 | reject / needs_review | 範囲外は丸めて収めない |
+| 11 | `0.00001`（小数第 5 位） | reject / needs_review | scale 超過は切捨てない |
+| 12 | `90071992547409.1234`（範囲内受理値） | decimal 文字列で往復、4 桁全保持 | JS Number では binary64 ULP > 10⁻⁴ となり小数第 4 位が失われる根拠ケース（整数部は 2⁵³ 未満） |
+| 13 | CSV 往復 `0.4` | `0.4000` で保存・読み戻し（現行では不可） | 現行 COPY 失敗パスの置換対象 |
+
+「税額・最終合計の期待値」は owner が丸め順・丸めモードを確定するまで固定値を作らない（EMR-365 受入の条件）。
+
+### 9.7 保留の owner 決定・receipt
+
+- 小数対応の採否自体（本票では推薦のみ・未承認）。
+- 保存型・scale・表示桁・JSON 表現（decimal 文字列）・数量の扱い・税/合計の丸め順・旧整数 bundle 互換の同一 artifact 合意。
+- shared billing `unit_price`/`quantity`/合計経路への波及をどこまで同一 revision に含めるか（scope 境界）。
+- 他マスタ・他会計明細への decimal 化は別承認の scope。

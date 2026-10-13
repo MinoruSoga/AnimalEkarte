@@ -99,7 +99,7 @@ Container 非対応のため未使用であり、origin に DB 資格情報を�
 ## CI デプロイ
 
 GitHub Actions `.github/workflows/backend-deploy.yml` が `staging` push で Cloudflare へデプロイする。
-以下を **Repository Secrets** に登録する（値はコミットしない。人間タスク）:
+STG の対象 job は GitHub Environment `staging` を指定している。以下は **Environment `staging` の Secrets** に登録する（値はコミットしない。人間タスク）。旧 Repository Secrets の移設は [staging runbook の7名称分離手順](../../docs/ops/infra/staging/runbook.md#github-secrets-の-staging-environment-分離emr-291人間専用) に従い、登録・確認・旧保存先削除の順を守る:
 
 | Secret | 用途 | スコープ目安 |
 |---|---|---|
@@ -113,13 +113,17 @@ GitHub Actions `.github/workflows/backend-deploy.yml` が `staging` push で Clo
 ```bash
 # CLOUDFLARE_API_TOKEN: デプロイ専用の最小スコープトークンを別途発行して使うこと
 # （STG検証で使った統合トークンをそのままCIに登録しない）
-gh secret set CLOUDFLARE_API_TOKEN --repo <owner>/<repo>
+gh secret set CLOUDFLARE_API_TOKEN --repo <owner>/<repo> --env staging
 # MIGRATE_RUN_SECRET: wrangler secret put 投入時と同一の値
-gh secret set MIGRATE_RUN_SECRET --repo <owner>/<repo>
+gh secret set MIGRATE_RUN_SECRET --repo <owner>/<repo> --env staging
 # 任意（P5-4 optional smoke 用）
-gh secret set STG_DEMO_EMAIL --repo <owner>/<repo>
-gh secret set STG_DEMO_PASSWORD --repo <owner>/<repo>
+gh secret set STG_DEMO_EMAIL --repo <owner>/<repo> --env staging
+gh secret set STG_DEMO_PASSWORD --repo <owner>/<repo> --env staging
 ```
+
+同名 secret は Environment 側の登録が優先され、未登録なら Repository 側が使用され得る。旧 Repository Secrets を削除する前に、全 consumer と他 Environment の legacy fallback 依存を人間が確認し、未確認なら削除しない。workflow の参照だけでは実保存先や移設完了を証明できない。
+
+Production は Environment `Production` の `PROD_CLOUDFLARE_API_TOKEN` / `PROD_MIGRATE_RUN_SECRET` を使用する別経路であり、STG の値を複製しない。frontend workflow は Production job でも同名 `CLOUDFLARE_API_TOKEN` を読み込むが、実 deploy token は `PROD_CLOUDFLARE_API_TOKEN` に切り替える。値・設定の登録と削除、workflow dispatch は人間の承認済み操作として別途実施する。
 
 AWS への切り戻し workflow は存在しない。障害時は
 [`docs/ops/infra/staging/runbook.md`](../../docs/ops/infra/staging/runbook.md) に従う。

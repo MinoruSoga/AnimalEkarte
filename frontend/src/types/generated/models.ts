@@ -1519,6 +1519,7 @@ export interface Hospitalization {
   hospitalization_type: HospitalizationType;
   start_date: string;
   end_date: string;
+  next_visit?: string;
   status: HospitalizationStatus;
   cage_id?: number /* uint64 */;
   doctor_id?: number /* uint64 */;

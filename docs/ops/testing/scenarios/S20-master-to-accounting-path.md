@@ -2,7 +2,7 @@
 
 > **目的**: マスタ（治療・商品・検査・入院等の価格フォーム）で登録した項目が会計明細へ正しく参照され、0 円・未入力・税区分の差異が保存→再読込→会計まで一貫し、請求不能な項目は会計確定をブロックすることを納品前に証明する。
 > **所要目安**: 20分 / **深度**: 深い
-> **仕様正本**: [screens/11-accounting-detail.md](../../../spec/screens/11-accounting-detail.md)・[screens/20-master-settings.md](../../../spec/screens/20-master-settings.md)。検証キュー: `UAT-R2-MASTER-PATH`（[todo-verification.md](../../../../todo.md#verification-ledger)）。
+> **仕様正本**: [domains/accounting/pages/accounting-settlement.md](../../../spec/domains/accounting/pages/accounting-settlement.md)・[screens/20-master-settings.md](../../../spec/screens/20-master-settings.md)。検証キュー: `UAT-R2-MASTER-PATH`（[todo-verification.md](../../../../todo.md#verification-ledger)）。
 
 ## 前提条件
 
@@ -44,7 +44,7 @@ flowchart LR
 - 会計明細の項目参照は `ItemListCard` → `useGetAllMerchandiseItems`（`frontend/src/features/accounting/`）。治療由来の項目は `treatment_id` で親カルテと紐づく（`types/index.ts` の未請求候補）。
 - 請求不能ブロックは `use-accounting-detail-state` の `unbilledWarnings`（`blocking && count > 0`）が確定ボタンを無効化する。警告文言と無効化の両方を見る。
 - 0 円・未入力・税区分は会計の総額へ直接効くため、期待金額を事前に計算しておき画面・API・再読込の 3 点で照合する。
-- マスタ更新が過去の確定会計を遡って変更する場合は FAIL（会計の真正性・[11 §2.1](../../../spec/screens/11-accounting-detail.md)「精算済みデータの保護」に反する）。
+- マスタ更新が過去の確定会計を遡って変更する場合は FAIL（会計の真正性・[11 §2.1](../../../spec/domains/accounting/pages/accounting-settlement.md)「精算済みデータの保護」に反する）。
 
 ## 異常系
 

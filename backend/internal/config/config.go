@@ -8,6 +8,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // BcryptCost は bcrypt ハッシュ生成コストの標準値。
@@ -139,6 +141,19 @@ type Config struct {
 	PlaneAPIKey            string
 	PlaneTimeoutMS         int
 
+	// PlaneEnvironment は Plane 起票の external_id 名前空間に使う信頼済み環境名。
+	// APP_ENV から allowlist (development/staging/production) で導出する。
+	// debug で未設定/未知値は development 既定。release で PLANE_API_KEY が有効な
+	// 場合、未設定/未知値は Validate が拒否する（fail-closed）。
+	// リクエスト値・URL など信頼できない入力からは導出しない。
+	PlaneEnvironment string
+
+	// PlaneSourceLabelID / PlaneLaneLabelID はバグ報告起票時に送る Plane label
+	// UUID（source:manual / lane:dev）。PLANE_API_KEY 有効時は必須で、
+	// 未設定・非 UUID 値は Validate が拒否する（label 無しチケットを作らない）。
+	PlaneSourceLabelID string
+	PlaneLaneLabelID   string
+
 	// DISCORD_BUG_REPORT_WEBHOOK_URL はバグ報告を DB 保存前に Discord チャンネルへ
 	// 転送する Incoming Webhook URL。未設定なら通知無効。送信失敗でも報告作成は
 	// 続行する（best-effort）。webhook URL は秘密値でありログに出力しない。
@@ -228,6 +243,9 @@ func Load() *Config {
 		PlaneProjectIdentifier: os.Getenv("PLANE_PROJECT_IDENTIFIER"),
 		PlaneAPIKey:            os.Getenv("PLANE_API_KEY"),
 		PlaneTimeoutMS:         getEnvInt("PLANE_TIMEOUT_MS", 10000),
+		PlaneEnvironment:       planeEnvironmentFor(os.Getenv("APP_ENV"), ginMode),
+		PlaneSourceLabelID:     os.Getenv("PLANE_SOURCE_LABEL_ID"),
+		PlaneLaneLabelID:       os.Getenv("PLANE_LANE_LABEL_ID"),
 
 		DiscordBugReportWebhookURL: os.Getenv("DISCORD_BUG_REPORT_WEBHOOK_URL"),
 		DiscordWebhookTimeoutMS:    getEnvInt("DISCORD_WEBHOOK_TIMEOUT_MS", 5000),
@@ -248,6 +266,16 @@ func (c *Config) Validate() error {
 	}
 	if c.StorageType != "" && c.StorageType != "s3" {
 		return fmt.Errorf("STORAGE_TYPE must be empty for local development or s3")
+	}
+	// Plane 連携が有効（API key 設定）なら label UUID はモードに関わらず必須。
+	// 未設定/不正のまま起票すると label 無しチケットができるため fail-fast。
+	if c.PlaneAPIKey != "" {
+		if err := validatePlaneLabelID("PLANE_SOURCE_LABEL_ID", c.PlaneSourceLabelID); err != nil {
+			return err
+		}
+		if err := validatePlaneLabelID("PLANE_LANE_LABEL_ID", c.PlaneLaneLabelID); err != nil {
+			return err
+		}
 	}
 	if c.GinMode != "release" {
 		return nil
@@ -360,6 +388,9 @@ func (c *Config) Validate() error {
 		if strings.TrimSpace(c.PlaneWorkspaceSlug) == "" || strings.TrimSpace(c.PlaneProjectID) == "" {
 			return fmt.Errorf("PLANE_WORKSPACE_SLUG and PLANE_PROJECT_ID are required when PLANE_API_KEY is set")
 		}
+		if c.PlaneEnvironment == "" {
+			return fmt.Errorf("APP_ENV must be development, staging, or production when PLANE_API_KEY is set")
+		}
 		if err := validateOptionalReleaseHTTPSURL("PLANE_BASE_URL", c.PlaneBaseURL); err != nil {
 			return err
 		}
@@ -468,6 +499,30 @@ func validateReleaseDBSSLMode(mode string) error {
 	default:
 		return fmt.Errorf("DB_SSL_MODE must be verify-full in release mode")
 	}
+}
+
+// planeEnvironmentFor は APP_ENV から Plane external_id 名前空間用の環境名を導出する。
+// allowlist (development/staging/production) 以外は release では空文字
+// （PLANE_API_KEY 有効時に Validate が拒否）、それ以外では development 既定とする。
+func planeEnvironmentFor(appEnv, ginMode string) string {
+	switch normalized := strings.ToLower(strings.TrimSpace(appEnv)); normalized {
+	case "development", "staging", "production":
+		return normalized
+	default:
+		if ginMode == "release" {
+			return ""
+		}
+		return "development"
+	}
+}
+
+// validatePlaneLabelID は Plane label 設定値が UUID 形式かを検証する。
+// enabled 連携で label 無し起票を作らないための fail-fast。
+func validatePlaneLabelID(name, raw string) error {
+	if _, err := uuid.Parse(strings.TrimSpace(raw)); err != nil {
+		return fmt.Errorf("%s must be a valid label UUID when PLANE_API_KEY is set", name)
+	}
+	return nil
 }
 
 func validateOptionalReleaseHTTPSURL(name, rawURL string) error {

@@ -14,15 +14,41 @@ flowchart LR
     S["specification.md §2.1<br/>臨床の安全"] -.->|product-philosophy より優先| B
 ```
 
+## 仕様を書く・更新する前に
+
+まず [仕様書の書き方](authoring-guide.md)を読む。命名・正本関係・本文見出しと表の列・不足時の記法・決定状態と検証状態を共通化する。[画面テンプレート](templates/page-spec.md)・[フローテンプレート](templates/workflow-spec.md)は再利用用で、空の仕様本文を大量に作るためのものではない。
+
+## 予約 → 受付 → カルテ入力 → 会計・未納を読む順
+
+1. [全体要件・臨床安全原則](specification.md)（特に §2.1）を確認する。
+2. [横断フロー](workflows/README.md)から、予約・受付・記録・会計完了の関係を読む。
+3. [予約](domains/reservations/README.md) → [受付](domains/reception/README.md) → [カルテ](domains/medical-records/README.md) → [会計・未納](domains/accounting/README.md)の順に、各ドメインのルール・画面・受入条件を辿る。
+4. 用語・権限・共通マスタは [shared/](shared/README.md)、対象外ドメインを含む全画面の閲覧入口は [screens/](screens/README.md)を使う。
+
+仕様本文は各リンク先が正本。入口には業務ルールを複製しない。未決要望・既知ギャップ・臨床承認待ちは元の記載状態を保持し、配置変更や Issue の Closed を承認の根拠にしない。仕様の決定状態と現在の実装状態・実機受入結果は分けて読む（実行状態の入口は [docs/work/](../work/README.md)）。
+
+## 配置
+
+| 場所 | 役割 |
+|:---|:---|
+| workflows/ | ドメインを跨ぐ業務フローの正本と閲覧入口 |
+| domains/*/README.md | ドメイン概要・ルールと受入条件の所在・未決事項・読む順 |
+| domains/*/pages/ | 予約・受付・カルテ・会計の画面仕様本文 |
+| domains/medical-records/lifecycle.md | カルテ保存・確定・保護の契約（§2 が保存ルーティングの正本） |
+| shared/ | 共通用語・権限・マスタの参照入口 |
+| screens/ | 全画面索引と対象外画面の本文。移設済み旧パスは移動案内のみ |
+
+settings/ の共通マスタ、入院・トリミング・LINE 等の既存仕様、レジ締め本文は現在の場所を保持する。全88製品ルートの正本対応は引き続き [ui-design-compliance.md §2](ui-design-compliance.md)を使う。
+
 ## 索引
 
 | ドキュメント | 内容 | いつ読むか |
 |:---|:---|:---|
 | [specification.md](specification.md) | システム全体の機能要件と主要ビジネスフロー（§2.1 臨床安全原則を含む） | 全体像の把握・臨床安全の判断時 |
-| [screens/](screens/README.md) | 全画面インデックス（番号付き仕様 41 本。`route-inventory.test.tsx` が pin する製品ルート 88 leaf の全網羅ではない。settings/ にマスタ設定画面群） | 画面単位の仕様確認・UI 変更前 |
+| [screens/](screens/README.md) | 全画面インデックス（番号付き索引 41 件（移動案内を含む）。`route-inventory.test.tsx` が pin する製品ルート 88 leaf の全網羅ではない。settings/ にマスタ設定画面群） | 画面単位の仕様確認・UI 変更前 |
 | [cash-register.md](cash-register.md) | レジ締め・日次/月次売上集計の業務仕様（AM/PM/EMG 境界） | 会計・締め処理の実装前 |
 | [customer-aggregation.md](customer-aggregation.md) | 顧客分析ダッシュボード（累計売上・来院頻度・CPM/LTV） | 集計・分析機能の実装前 |
-| [reservation-to-record-flow.md](reservation-to-record-flow.md) | 予約からカルテ作成までの統合フロー（appointments = 単一 source of truth） | 予約・受付・カルテ連携の実装前 |
+| [reservation-to-record-flow.md](workflows/reservation-to-record-flow.md) | 予約からカルテ作成までの統合フロー（appointments = 単一 source of truth） | 予約・受付・カルテ連携の実装前 |
 | [design-system.md](design-system.md) | Notion ライクなデザイン規約とデザイントークン | フロントエンド UI 実装前 |
 | [design-states.md](design-states.md) | インタラクション状態（hover / focus / disabled / loading / invalid 等）の視覚仕様・必須実装と WCAG コントラスト実測 | インタラクティブ UI の実装・レビュー時 |
 | [design-token-layers.md](design-token-layers.md) | デザイントークンの 3 層モデル（Primitive → Semantic → Component）と参照方向・新規値の配置先 | トークン追加・色変更・新規 UI プリミティブ作成時 |
@@ -85,5 +111,5 @@ OpenAPI 列挙 operation（token 保護の local fixture 経路を含み、「�
 
 ## AI エージェント向け注記
 
-- screens/ 配下と design-system.md が言及するコンポーネント名・フック名・画面数はローカル `make ci` の docs-symbol-drift ゲートで実在チェックされる。実在しないシンボル名を書くとローカル検査が失敗する。GitHub Actions の必須 gate ではない。
+- screens/・domains/・workflows/ 配下と design-system.md が言及するコンポーネント名・フック名・画面数はローカル `make ci` の docs-symbol-drift ゲートで実在チェックされる。実在しないシンボル名を書くとローカル検査が失敗する。GitHub Actions の必須 gate ではない。
 - 「臨床の安全」（specification.md §2.1）は product-philosophy.md より優先される。

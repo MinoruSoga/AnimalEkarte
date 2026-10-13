@@ -28,10 +28,12 @@ func setupVaccinationRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
 	require.NoError(t, testdb.EnsureAutoMigrated(db,
-		&model.AnimalSpecies{}, &model.Owner{}, &model.Pet{}, &model.Vaccine{}, &model.Staff{}, &model.Vaccination{},
+		&model.AnimalSpecies{}, &model.Owner{}, &model.Pet{}, &model.Vaccine{}, &model.Staff{},
+		&model.StaffClinicAssignment{}, &model.Vaccination{},
 	))
 	db.Exec("TRUNCATE TABLE vaccinations CASCADE")
 	db.Exec("TRUNCATE TABLE vaccines CASCADE")
+	db.Exec("TRUNCATE TABLE staff_clinic_assignments CASCADE")
 	db.Exec("TRUNCATE TABLE staffs CASCADE")
 	db.Exec("TRUNCATE TABLE pets CASCADE")
 	db.Exec("TRUNCATE TABLE animal_species CASCADE")
@@ -486,4 +488,85 @@ func TestVaccinationRepository_FindOwnersByVaccineDeadline(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, []uint64{owner.ID}, ids)
 	})
+}
+
+// TestVaccinationRepository_OwnerHasAliveVaccineDeadline はワクチン期限配信の
+// 最終再読が FindOwnersByVaccineDeadline と同じ生存ペット・現飼主・医院境界を
+// owner 単位で評価することを検証する（EMR-330）。
+func TestVaccinationRepository_OwnerHasAliveVaccineDeadline(t *testing.T) {
+	db := setupVaccinationRepoTestDB(t)
+	repo := NewVaccinationRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	target := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
+	other := time.Date(2026, 8, 2, 0, 0, 0, 0, time.UTC)
+	deceasedAt := time.Now().Add(-48 * time.Hour)
+
+	species := &model.AnimalSpecies{Name: "再読種別"}
+	require.NoError(t, db.WithContext(ctx).Create(species).Error)
+
+	makeVaccinationWithNextDate := func(clinicID, petID, vaccineID uint64, next time.Time) {
+		v := &model.Vaccination{ClinicID: clinicID, PetID: &petID, VaccineID: vaccineID, Date: time.Now(), NextDate: &next}
+		require.NoError(t, db.WithContext(ctx).Create(v).Error)
+	}
+	makePet := func(clinicID, ownerID uint64, name string, status model.PetStatus, deadAt *time.Time) *model.Pet {
+		t.Helper()
+		p := &model.Pet{ClinicID: clinicID, OwnerID: ownerID, AnimalSpeciesID: species.ID, Name: name, Status: status, DeceasedAt: deadAt}
+		require.NoError(t, db.WithContext(ctx).Create(p).Error)
+		return p
+	}
+
+	ownerAlive := makeTestOwner(t, db, clinicA, "再読生存飼主")
+	alivePet := makePet(clinicA, ownerAlive.ID, "再読生存ペット", model.PetStatusAlive, nil)
+	vaccineA := makeVaccineMaster(t, db, clinicA, "再読ワクチンA")
+	makeVaccinationWithNextDate(clinicA, alivePet.ID, vaccineA.ID, target)
+
+	ownerDead := makeTestOwner(t, db, clinicA, "再読死亡飼主")
+	deadPet := makePet(clinicA, ownerDead.ID, "再読死亡ペット", model.PetStatusDeceased, &deceasedAt)
+	makeVaccinationWithNextDate(clinicA, deadPet.ID, vaccineA.ID, target)
+
+	ownerStatusOnly := makeTestOwner(t, db, clinicA, "再読status死亡飼主")
+	statusOnlyPet := makePet(clinicA, ownerStatusOnly.ID, "再読status死亡ペット", model.PetStatusDeceased, nil)
+	makeVaccinationWithNextDate(clinicA, statusOnlyPet.ID, vaccineA.ID, target)
+
+	ownerTimestampOnly := makeTestOwner(t, db, clinicA, "再読半死亡飼主")
+	timestampOnlyPet := makePet(clinicA, ownerTimestampOnly.ID, "再読半死亡ペット", model.PetStatusAlive, &deceasedAt)
+	makeVaccinationWithNextDate(clinicA, timestampOnlyPet.ID, vaccineA.ID, target)
+
+	ownerOtherDate := makeTestOwner(t, db, clinicA, "再読別日飼主")
+	otherDatePet := makePet(clinicA, ownerOtherDate.ID, "再読別日ペット", model.PetStatusAlive, nil)
+	makeVaccinationWithNextDate(clinicA, otherDatePet.ID, vaccineA.ID, other)
+
+	ownerClinicB := makeTestOwner(t, db, clinicB, "再読別医院飼主")
+	clinicBPet := makePet(clinicB, ownerClinicB.ID, "再読別医院ペット", model.PetStatusAlive, nil)
+	vaccineB := makeVaccineMaster(t, db, clinicB, "再読ワクチンB")
+	makeVaccinationWithNextDate(clinicB, clinicBPet.ID, vaccineB.ID, target)
+
+	// 生存兄弟ペットがいてもイベント由来行が死亡なら救済しない。
+	ownerSibling := makeTestOwner(t, db, clinicA, "再読兄弟飼主")
+	siblingDeadPet := makePet(clinicA, ownerSibling.ID, "再読死亡イベントペット", model.PetStatusDeceased, &deceasedAt)
+	makeVaccinationWithNextDate(clinicA, siblingDeadPet.ID, vaccineA.ID, target)
+	makePet(clinicA, ownerSibling.ID, "再読生存兄弟ペット", model.PetStatusAlive, nil)
+
+	cases := []struct {
+		name    string
+		ownerID uint64
+		want    bool
+	}{
+		{"生存ペットの対象期限は一致", ownerAlive.ID, true},
+		{"両 sentinel 死亡ペット由来なら不一致", ownerDead.ID, false},
+		{"status=deceased のみの半死亡由来は不一致", ownerStatusOnly.ID, false},
+		{"deceased_at のみ非 NULL の半死亡由来は不一致", ownerTimestampOnly.ID, false},
+		{"対象日でない生存ペット由来は不一致", ownerOtherDate.ID, false},
+		{"別医院の対象期限は医院Aでは不一致", ownerClinicB.ID, false},
+		{"死亡イベント由来+生存兄弟でも不一致", ownerSibling.ID, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := repo.OwnerHasAliveVaccineDeadline(ctx, clinicA, tc.ownerID, target)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
 }

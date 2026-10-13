@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import type { FormEvent } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { InterviewHistory } from "./InterviewHistory";
-import type { InterviewHistoryItem } from "../types";
+import type { BodyWeightUnit, InterviewHistoryItem } from "../types";
 
 const ITEMS: InterviewHistoryItem[] = [
   {
@@ -399,6 +399,225 @@ describe("InterviewHistory — 前回複写（コピー）", () => {
     renderHistory(ITEMS);
 
     expect(screen.queryByRole("button", { name: "コピー" })).not.toBeInTheDocument();
+  });
+});
+
+// EMR-356: 行ごとの体重測定表示。生成型・feature types は未拡張なので
+// この test では拡張 item を構造的部分型として定義する（any 不使用）。
+type WeightedHistoryItem = InterviewHistoryItem & {
+  weightMeasurements?: {
+    id: string;
+    value: number;
+    unit: BodyWeightUnit;
+    measuredAt: string;
+  }[];
+};
+
+describe("InterviewHistory — 体重測定の表示（EMR-356）", () => {
+  it("そのカルテの体重を 値・単位・測定日時 つきで行内に表示する", () => {
+    const items: WeightedHistoryItem[] = [
+      {
+        ...ITEMS[0],
+        weightMeasurements: [
+          { id: "11", value: 4.2, unit: "Kg", measuredAt: "2026-03-01T09:30:00+09:00" },
+        ],
+      },
+    ];
+    renderHistory(items);
+
+    const link = screen.getByRole("link", { name: /タイトルカタカナ/ });
+    expect(link).toHaveTextContent("4.2");
+    expect(link).toHaveTextContent("Kg");
+    // 測定日時は formatRecordedAt 契約（YYYY-MM-DD HH:mm JST wall）で識別できる
+    expect(link).toHaveTextContent("2026-03-01 09:30");
+  });
+
+  it("1カルテ内の複数測定は全て表示する", () => {
+    const items: WeightedHistoryItem[] = [
+      {
+        ...ITEMS[0],
+        weightMeasurements: [
+          { id: "11", value: 4.2, unit: "Kg", measuredAt: "2026-03-01T09:30:00+09:00" },
+          { id: "12", value: 4300, unit: "g", measuredAt: "2026-03-01T15:00:00+09:00" },
+        ],
+      },
+    ];
+    renderHistory(items);
+
+    const link = screen.getByRole("link", { name: /タイトルカタカナ/ });
+    expect(link).toHaveTextContent("4.2");
+    expect(link).toHaveTextContent("Kg");
+    expect(link).toHaveTextContent("4300");
+    expect(link).toHaveTextContent("15:00");
+  });
+
+  it("投影未提供の医療行は確認不可を示し、他行の体重を混入させない", () => {
+    const items: WeightedHistoryItem[] = [
+      ITEMS[0], // 投影未提供
+      {
+        ...ITEMS[1],
+        weightMeasurements: [
+          { id: "21", value: 9.9, unit: "Kg", measuredAt: "2026-03-02T10:00:00+09:00" },
+        ],
+      },
+    ];
+    renderHistory(items);
+
+    const withWeight = screen.getByRole("link", { name: /別のタイトル/ });
+    const withoutWeight = screen.getByRole("link", { name: /タイトルカタカナ/ });
+    expect(withWeight).toHaveTextContent("9.9");
+    // 最新/別行の体重を測定なし行へ代理表示しない
+    expect(withoutWeight).not.toHaveTextContent("9.9");
+    expect(withoutWeight).toHaveTextContent("体重履歴を確認できません");
+  });
+
+  it("明示された空の測定と未提供の医療行を行内で区別する", () => {
+    renderHistory([{ ...ITEMS[0], weightMeasurements: [] }, ITEMS[1]]);
+    expect(screen.getByRole("link", { name: /タイトルカタカナ/ })).toHaveTextContent(
+      "体重測定の記録なし",
+    );
+    expect(screen.getByRole("link", { name: /別のタイトル/ })).toHaveTextContent(
+      "体重履歴を確認できません",
+    );
+  });
+
+  it("トリミング行に体重の投影未提供通知を付けない", () => {
+    renderHistory([{ ...ITEMS[0], href: "/trimming/1", type: "トリミング" }]);
+    const link = screen.getByRole("link", { name: /タイトルカタカナ/ });
+    expect(link).not.toHaveTextContent("体重履歴を確認できません");
+    expect(link).not.toHaveTextContent("体重測定の記録なし");
+  });
+});
+
+// EMR-356 repair1 C3: 履歴 query の loading/error は「該当なし」と区別して下ろす。
+// medical history が失敗しても trimming 行（統合タイムライン側の取得成功分）を
+// 消したり「履歴なし」と偽ってはいけない。
+describe("InterviewHistory — 履歴取得状態の伝達（C3, EMR-356 repair1）", () => {
+  it("isLoading 中は空メッセージではなく読み込み表示にする", () => {
+    render(
+      <MemoryRouter>
+        <InterviewHistory historyItems={[]} isLoading />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByText("該当する履歴はありません")).not.toBeInTheDocument();
+    expect(screen.getByText(/読み込み中/)).toBeInTheDocument();
+  });
+
+  it("medical 履歴取得失敗は空メッセージではなくエラー表示にする", () => {
+    render(
+      <MemoryRouter>
+        <InterviewHistory historyItems={[]} isError />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByText("該当する履歴はありません")).not.toBeInTheDocument();
+    expect(screen.getByText(/取得できませんでした/)).toBeInTheDocument();
+  });
+
+  it("medical 履歴が失敗しても取得済みの trimming 行は残り、部分失敗を表示する", () => {
+    const trimmingItem: InterviewHistoryItem = {
+      id: "trimming-7",
+      date: "2026-01-03",
+      type: "トリミング（完了）",
+      title: "シャンプーカット",
+      content: "嫌がりなし",
+      author: "鈴木",
+      href: "/trimming/7",
+    };
+
+    render(
+      <MemoryRouter>
+        <InterviewHistory historyItems={[trimmingItem]} isError />
+      </MemoryRouter>,
+    );
+
+    // trimming 行は残る（中立 — 医療エラーを肩代わり表示しない）
+    expect(screen.getByRole("link", { name: /シャンプーカット/ })).toBeInTheDocument();
+    expect(screen.getByText(/取得できませんでした/)).toBeInTheDocument();
+    expect(screen.queryByText("該当する履歴はありません")).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("link", { name: /シャンプーカット/ })).queryByText(/体重/),
+    ).not.toBeInTheDocument();
+  });
+});
+
+// PR659-RR-1: 履歴クエリが打ち切られた部分履歴（historyIncomplete）では
+// 「該当する履歴はありません」と断定しない — 打ち切られた後続ページに
+// 該当行があり得る。読み込み済みの一致行がある場合も部分履歴の注意を示す。
+describe("InterviewHistory — 部分履歴の通知（PR659-RR-1）", () => {
+  const PARTIAL_NOTICE = "一部の履歴のみを表示しています";
+
+  it("履歴未完で検索ヒット0件でも「該当なし」と断定せず部分履歴を示す", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <InterviewHistory historyItems={ITEMS} historyIncomplete />
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByPlaceholderText("検索..."), "存在しない症状");
+
+    await waitFor(() => {
+      expect(screen.queryByText("タイトルカタカナ")).not.toBeInTheDocument();
+      expect(screen.queryByText("別のタイトル")).not.toBeInTheDocument();
+    });
+    expect(screen.queryByText("該当する履歴はありません")).not.toBeInTheDocument();
+    expect(screen.getByText("読み込まれた履歴に該当するものはありません")).toBeInTheDocument();
+    expect(screen.getByText(PARTIAL_NOTICE)).toBeInTheDocument();
+  });
+
+  it("履歴未完でも読み込み済みの一致行は表示し、部分履歴の注意を添える", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <InterviewHistory historyItems={ITEMS} historyIncomplete />
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByPlaceholderText("検索..."), "田中");
+
+    await waitFor(() => {
+      expect(screen.getByText("タイトルカタカナ")).toBeInTheDocument();
+    });
+    expect(screen.getByText(PARTIAL_NOTICE)).toBeInTheDocument();
+  });
+
+  it("履歴未完・検索なしの0件でも「履歴なし」と断定しない", () => {
+    render(
+      <MemoryRouter>
+        <InterviewHistory historyItems={[]} historyIncomplete />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByText("該当する履歴はありません")).not.toBeInTheDocument();
+    expect(screen.getByText(PARTIAL_NOTICE)).toBeInTheDocument();
+  });
+
+  it("履歴完結・0件では従来どおり確定の空状態を表示する", () => {
+    renderHistory([]);
+
+    expect(screen.getByText("該当する履歴はありません")).toBeInTheDocument();
+    expect(screen.queryByText(PARTIAL_NOTICE)).not.toBeInTheDocument();
+  });
+
+  it("履歴未完でも取得中/失敗の表示は変えず「該当なし」を断定しない", () => {
+    const { unmount } = render(
+      <MemoryRouter>
+        <InterviewHistory historyItems={[]} historyIncomplete isLoading />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText(/読み込み中/)).toBeInTheDocument();
+    expect(screen.queryByText("該当する履歴はありません")).not.toBeInTheDocument();
+    unmount();
+
+    render(
+      <MemoryRouter>
+        <InterviewHistory historyItems={[]} historyIncomplete isError />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText(/取得できませんでした/)).toBeInTheDocument();
+    expect(screen.queryByText("該当する履歴はありません")).not.toBeInTheDocument();
   });
 });
 

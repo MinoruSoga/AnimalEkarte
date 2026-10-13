@@ -46,7 +46,7 @@ flowchart LR
 
 ### 実例（本プロジェクトの教訓）
 
-- **予約入口の一本化**: LINE予約・予約管理・当日受付という 3 入口が別データを作る要件をそのまま実装せず、`appointments` を単一の source of truth とする再定義を行った（[reservation-to-record-flow.md](spec/reservation-to-record-flow.md)）。要件を疑わなければ、3 系統の二重作成バグを恒久的に「最適化」し続けることになっていた。
+- **予約入口の一本化**: LINE予約・予約管理・当日受付という 3 入口が別データを作る要件をそのまま実装せず、`appointments` を単一の source of truth とする再定義を行った（[reservation-to-record-flow.md](spec/workflows/reservation-to-record-flow.md)）。要件を疑わなければ、3 系統の二重作成バグを恒久的に「最適化」し続けることになっていた。
 - **推測オーバー実装の禁止**: 仕様にない「気の利いた」追加は要件のない実装であり、削除対象を自ら生産する行為である（運用ルールとして確立済み）。
 
 ---

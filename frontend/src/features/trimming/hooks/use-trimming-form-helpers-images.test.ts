@@ -155,6 +155,7 @@ describe("useTrimmingFormImages", () => {
 
     expect(mockToast.error).toHaveBeenCalledWith(
       "画像アップロードに失敗しました。ネットワーク接続を確認してください。",
+      { id: "画像アップロードに失敗しました。ネットワーク接続を確認してください。" },
     );
     expect(result.current.formData.styleImage).toBe(STYLE_KEY);
     expect(result.current.styleImagePreview).toBe(STYLE_SIGNED);

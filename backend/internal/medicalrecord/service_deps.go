@@ -80,7 +80,7 @@ type vaccinationRelationVerifier = ClinicalRelationVerifier
 // checkupFollowUpTrigger は checkupService の健診フォローアップ配信トリガーの最小 view
 // （LstepDeliveryTriggerService.TriggerCheckupFollowUp 相当）。nil 許容（未設定ならトリガーしない）。
 type checkupFollowUpTrigger interface {
-	TriggerCheckupFollowUp(ctx context.Context, clinicID, ownerID uint64) error
+	TriggerCheckupFollowUp(ctx context.Context, clinicID, ownerID, petID uint64) error
 }
 
 // ── lab import/report saga consumer-side views (BE9-2D sub-batch③) ──
@@ -225,8 +225,9 @@ type mrReservationRepo interface {
 }
 
 // mrDeliveryTrigger は初診ウェルカム配信トリガーの view（nil 許容）。
+// petID は初診を起票したイベントペット（EMR-330: 送信側で生存・所有・clinic を再読）。
 type mrDeliveryTrigger interface {
-	TriggerFirstVisitWelcome(ctx context.Context, clinicID, ownerID uint64) error
+	TriggerFirstVisitWelcome(ctx context.Context, clinicID, ownerID, petID uint64) error
 }
 
 // mrTagSyncer は来院完了 Lstep タグ同期 view（nil 許容）。next_visit_* タグは

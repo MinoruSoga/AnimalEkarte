@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -101,14 +100,14 @@ func TestPlaneClient_CreateBugReportIssue_Success(t *testing.T) {
 	assert.Equal(t, "/v1/workspaces/baritechllc/projects/proj-uuid/issues/", captured.path)
 	assert.Equal(t, "secret-key", captured.apiKey)
 	assert.Equal(t, "application/json", captured.contentType)
-	assert.Equal(t, "[バグ報告] 受付でエラー", captured.body["name"])
+	assert.Equal(t, "[バグ報告][development] #7", captured.body["name"])
 	assert.Equal(t, planeExternalSource, captured.body["external_source"])
-	assert.Equal(t, "7", captured.body["external_id"])
-	// XSS の生 HTML は埋め込まずエスケープされる
+	assert.Equal(t, "development:7", captured.body["external_id"])
+	// 任意入力・設定URLは外部に転記しない
 	desc, _ := captured.body["description_html"].(string)
 	assert.NotContains(t, desc, "<script>")
-	assert.Contains(t, desc, "&lt;script&gt;")
-	assert.Contains(t, desc, "https://stg.noah-karte.com/settings/bug-reports")
+	assert.NotContains(t, desc, report.Detail)
+	assert.NotContains(t, desc, "https://stg.noah-karte.com")
 }
 
 func TestPlaneClient_CreateBugReportIssue_IdentifierFallbacks(t *testing.T) {
@@ -188,12 +187,9 @@ func TestPlaneSyncErrorMessage(t *testing.T) {
 }
 
 func TestPlaneIssueName(t *testing.T) {
-	assert.Equal(t, "[バグ報告] 件名", planeIssueName(&model.SupportBugReport{Title: "  件名  "}))
-
-	longTitle := strings.Repeat("あ", 300)
-	name := planeIssueName(&model.SupportBugReport{Title: longTitle})
-	assert.LessOrEqual(t, len([]rune(name)), planeIssueNameMaxRunes)
-	assert.True(t, strings.HasSuffix(name, "…"))
+	report := &model.SupportBugReport{ID: 42, Title: "任意の報告件名"}
+	assert.Equal(t, "[バグ報告][staging] #42", (&planeClient{environment: "staging"}).planeIssueName(report))
+	assert.Equal(t, "[バグ報告][development] #42", (&planeClient{}).planeIssueName(report))
 }
 
 // ---- FetchIssueStateGroup ----
