@@ -50,9 +50,12 @@ func TestCutoverMedicinesPlaceholderInventory(t *testing.T) {
 
 func TestCutoverMedicinesReferenceClassification(t *testing.T) {
 	references := cutoverCSVReferences(CutoverProfileMedicinesCandidate)
+	// 4264495021: parent_id has no legacy source and is classified
+	// unavailable at the source; the target FK/self-reference plumbing is
+	// preserved separately for the migration/application schema.
 	want := []cutoverCSVReference{
 		{"clinic_id", "clinics", false, cutoverClinicSeed},
-		{"parent_id", "medicines", true, cutoverCSVParent},
+		{"parent_id", "medicines", true, cutoverUnavailableParent},
 		{"inventory_id", "inventory_items", true, cutoverUnavailableParent},
 	}
 	if got := references["medicines"]; !reflect.DeepEqual(got, want) {
@@ -110,6 +113,9 @@ func TestCutoverMedicinesDefaultQuantityAndDosageForm(t *testing.T) {
 	dosageFormIdx := columnIndex(spec.Columns, "dosage_form")
 	defaultQuantityIdx := columnIndex(spec.Columns, "default_quantity")
 
+	// 4264495015: the bundle contract pins default_quantity to the fixed
+	// value 1.0, so the previous 0.5/2.5 acceptance cases were corrected to
+	// storage-equivalent spellings of one.
 	for _, tc := range []struct {
 		name            string
 		dosageForm      string
@@ -117,10 +123,10 @@ func TestCutoverMedicinesDefaultQuantityAndDosageForm(t *testing.T) {
 	}{
 		{"no dosage form", "", "1.0"},
 		{"tablet", "tablet", "1"},
-		{"liquid", "liquid", "0.5"},
-		{"injection", "injection", "1"},
-		{"topical", "topical", "1"},
-		{"powder", "powder", "2.5"},
+		{"liquid", "liquid", "1.0"},
+		{"injection", "injection", "1.00"},
+		{"topical", "topical", "+01.00"},
+		{"powder", "powder", "1.0000"},
 	} {
 		t.Run("accepts "+tc.name, func(t *testing.T) {
 			dir, digest := writeMedicinesCandidateFixture(t, func(f *fixtureBundle) {
@@ -130,6 +136,22 @@ func TestCutoverMedicinesDefaultQuantityAndDosageForm(t *testing.T) {
 			if _, err := PreflightCutoverBundle(dir, candidateExpectedSource(digest)); err != nil {
 				t.Fatalf("PreflightCutoverBundle error = %v, want dosage_form=%q default_quantity=%q accepted",
 					err, tc.dosageForm, tc.defaultQuantity)
+			}
+		})
+	}
+
+	for _, nonFixed := range []string{"0.5", "2.5"} {
+		t.Run("rejects non-fixed quantity "+nonFixed, func(t *testing.T) {
+			dir, digest := writeMedicinesCandidateFixture(t, func(f *fixtureBundle) {
+				f.rows["medicines"][0][dosageFormIdx] = "liquid"
+				f.rows["medicines"][0][defaultQuantityIdx] = nonFixed
+			})
+			_, err := PreflightCutoverBundle(dir, candidateExpectedSource(digest))
+			if err == nil || !strings.Contains(err.Error(), "default_quantity") {
+				t.Fatalf("PreflightCutoverBundle error = %v, want fixed default_quantity rejection", err)
+			}
+			if len(nonFixed) > 2 && strings.Contains(err.Error(), nonFixed) {
+				t.Fatal("error leaks the source cell value")
 			}
 		})
 	}

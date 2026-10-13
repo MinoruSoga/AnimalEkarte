@@ -36,9 +36,9 @@ var cutoverMedicinesDosageForms = map[string]struct{}{
 // validateCutoverMedicinesRow enforces the medicines-only lexical checks:
 // dosage_form is a DB enum, medicine_unit has no old-database source and must
 // stay empty on every row (EMR-342 DESIGN 3.2/3.3), and default_quantity is a
-// plain numeric literal exactly representable in numeric(10,2), with zero
-// valid and an explicit value required. Diagnostics name table, column, and
-// row only.
+// plain numeric literal exactly representable in numeric(10,2) and fixed
+// to the producer value 1.0. The tax pair follows the current producer mapping.
+// Diagnostics name table, column, and row only.
 func validateCutoverMedicinesRow(row []string, indexes map[string]int, csvLine int64) error {
 	// EMR-342 DESIGN 3.2 pins is_active=true and is_non_insurance=false.
 	// The producer canonical t/f and the semantic true/false lexical forms
@@ -61,7 +61,54 @@ func validateCutoverMedicinesRow(row []string, indexes map[string]int, csvLine i
 	if err := validateCutoverMedicineQuantity(row[indexes["default_quantity"]], csvLine); err != nil {
 		return err
 	}
+	// 4264495015: the producer emits the fixed quantity 1.0; the bundle
+	// contract accepts any storage-equivalent decimal spelling and rejects
+	// zero and every other representable value.
+	if !cutoverDecimalEquals(row[indexes["default_quantity"]], "1", "") {
+		return fmt.Errorf("table medicines column default_quantity row %d: default_quantity is fixed to 1.0 by DESIGN 3.2", csvLine)
+	}
+	if err := validateCutoverMedicinesTaxPair(row, indexes, csvLine); err != nil {
+		return err
+	}
 	return nil
+}
+
+// validateCutoverMedicinesTaxPair enforces the 4264495027 tax pair against
+// the live producer contract: MIG-38 maps blank/code 1 to excluded and 2/3
+// to exempt, and MIG-34 reuses the MIG-27 formula so both producer states
+// carry tax_rate 0.10 (030_stage.sql CONSTANT, asserted by
+// test-procedure-master-pricing.mjs). Included, unknown, empty, and any rate
+// not exactly 0.10 fail closed; the rate comparison uses exact decimal
+// digits, never a binary float. Diagnostics name column and row only.
+func validateCutoverMedicinesTaxPair(row []string, indexes map[string]int, csvLine int64) error {
+	switch row[indexes["tax_type"]] {
+	case "excluded", "exempt":
+	default:
+		return fmt.Errorf("table medicines column tax_type row %d: tax_type must be excluded or exempt until MIG-25", csvLine)
+	}
+	if !cutoverDecimalEquals(row[indexes["tax_rate"]], "0", "1") {
+		return fmt.Errorf("table medicines column tax_rate row %d: tax_rate must be 0.10 until MIG-25", csvLine)
+	}
+	return nil
+}
+
+// cutoverDecimalEquals reports whether a plain decimal literal is exactly
+// equal to the target value given as integer and fraction digits. Digits are
+// inspected without binary floating point or rounding: the sign is fixed
+// (+ or unsigned), leading zeros of the integer part and trailing zeros of
+// the fraction are stripped, and the remaining digits must match.
+func cutoverDecimalEquals(value, wantInteger, wantFraction string) bool {
+	if !cutoverNumericLiteral.MatchString(value) || strings.HasPrefix(value, "-") {
+		return false
+	}
+	unsigned := strings.TrimPrefix(value, "+")
+	integer, fraction, _ := strings.Cut(unsigned, ".")
+	integer = strings.TrimLeft(integer, "0")
+	if integer == "" {
+		integer = "0"
+	}
+	fraction = strings.TrimRight(fraction, "0")
+	return integer == wantInteger && fraction == wantFraction
 }
 
 // validateCutoverMedicineQuantity requires lossless numeric(10,2) storage.

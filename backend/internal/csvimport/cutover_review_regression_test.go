@@ -40,10 +40,11 @@ func TestCutoverReviewMedicineQuantityExactNumeric(t *testing.T) {
 		{"0.001", false}, {"99999999.999", false}, {"100000000", false}, {"-1", false}, {"NaN", false}, {"1e2", false},
 	} {
 		t.Run(tc.value, func(t *testing.T) {
-			// The pinned DESIGN 3.2 flags are required on every medicines
-			// row; supply the canonical values so the quantity contract
-			// stays the exercised behavior.
-			err := validateCutoverMedicinesRow([]string{"", tc.value, "t", "f"}, map[string]int{"dosage_form": 0, "default_quantity": 1, "is_active": 2, "is_non_insurance": 3}, 2)
+			// Lexical numeric(10,2) precision is a property of the general
+			// helper, so zero and other representable values stay valid
+			// here; the public row contract additionally pins one (see the
+			// fixed-mapping bundle tests).
+			err := validateCutoverMedicineQuantity(tc.value, 2)
 			if (err == nil) != tc.valid {
 				t.Fatalf("quantity valid=%v, error=%v", tc.valid, err)
 			}
@@ -59,7 +60,7 @@ func TestCutoverReviewMedicineQuantityExactNumeric(t *testing.T) {
 // labels have no producer source and fail preflight. Diagnostics name the
 // table, column, and row only — never the rejected cell value.
 func TestCutoverReviewMedicineUnitMustStayEmpty(t *testing.T) {
-	indexes := map[string]int{"dosage_form": 0, "medicine_unit": 1, "default_quantity": 2, "is_active": 3, "is_non_insurance": 4}
+	indexes := map[string]int{"dosage_form": 0, "medicine_unit": 1, "default_quantity": 2, "is_active": 3, "is_non_insurance": 4, "tax_type": 5, "tax_rate": 6}
 	for _, tc := range []struct {
 		value string
 		valid bool
@@ -69,7 +70,7 @@ func TestCutoverReviewMedicineUnitMustStayEmpty(t *testing.T) {
 		{"per_pill", false}, {"PER_TABLET", false}, {"tablet", false},
 	} {
 		t.Run(tc.value, func(t *testing.T) {
-			err := validateCutoverMedicinesRow([]string{"", tc.value, "1.0", "t", "f"}, indexes, 2)
+			err := validateCutoverMedicinesRow([]string{"", tc.value, "1.0", "t", "f", "excluded", "0.10"}, indexes, 2)
 			if (err == nil) != tc.valid {
 				t.Fatalf("medicine_unit valid=%v, error=%v", tc.valid, err)
 			}
@@ -147,8 +148,11 @@ func TestCutoverReviewValuePreflight(t *testing.T) {
 		{"zero merchandise price", "merchandise_items", "unit_price", "0", true},
 		{"quantity rounding", "medicines", "default_quantity", "0.001", false},
 		{"quantity overflow", "medicines", "default_quantity", "100000000", false},
-		{"quantity zero", "medicines", "default_quantity", "0", true},
-		{"quantity exact trailing zeros", "medicines", "default_quantity", "1.2300", true},
+		// 4264495015 contract change: the public bundle pins the quantity
+		// to one, so zero and other representable values are rejected even
+		// though they remain lexically valid in the numeric(10,2) helper.
+		{"quantity zero", "medicines", "default_quantity", "0", false},
+		{"quantity exact trailing zeros", "medicines", "default_quantity", "1.2300", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir, digest := writeMedicinesCandidateFixture(t, func(f *fixtureBundle) {

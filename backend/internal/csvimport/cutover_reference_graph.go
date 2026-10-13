@@ -37,7 +37,7 @@ func cutoverCSVReferences(profiles ...CutoverProfile) map[string][]cutoverCSVRef
 	references := map[string][]cutoverCSVReference{
 		"staffs":                       {{"clinic_id", "clinics", false, cutoverClinicSeed}},
 		"procedures":                   {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"parent_id", "procedures", true, cutoverCSVParent}},
-		"medicines":                    {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"parent_id", "medicines", true, cutoverCSVParent}, {"inventory_id", "inventory_items", true, cutoverUnavailableParent}},
+		"medicines":                    {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"parent_id", "medicines", true, cutoverUnavailableParent}, {"inventory_id", "inventory_items", true, cutoverUnavailableParent}},
 		"merchandise_items":            {{"clinic_id", "clinics", false, cutoverClinicSeed}},
 		"owners":                       {{"clinic_id", "clinics", false, cutoverClinicSeed}},
 		"pets":                         {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"owner_id", "owners", false, cutoverCSVParent}, {"animal_species_id", "animal_species", false, cutoverSpeciesSeed}},
@@ -191,16 +191,23 @@ type cutoverSelfEdge struct {
 	csvLine int64
 }
 
+// cutoverSelfReferenceTables declares each CSV table whose target schema has
+// a non-deferrable self FK. Source availability is classified separately in
+// cutoverCSVReferences: medicines.parent_id has no legacy source and is
+// unavailable there (4264495021), but the target FK and the apply-time
+// insert ordering that uses this declaration are preserved.
+var cutoverSelfReferenceTables = map[string]string{
+	"procedures": "parent_id",
+	"vaccines":   "parent_id",
+	"medicines":  "parent_id",
+}
+
 // cutoverSelfReferenceColumn returns the CSV column that references the table
-// itself (procedures.parent_id, vaccines.parent_id), if the contract declares
-// one. Apply uses it to order staged inserts because the FK is not deferrable.
+// itself in the target schema declaration, if any. Apply uses it to order
+// staged inserts because the FK is not deferrable.
 func cutoverSelfReferenceColumn(table string) (string, bool) {
-	for _, ref := range cutoverCSVReferences(CutoverProfileMedicinesCandidate)[table] {
-		if ref.kind == cutoverCSVParent && ref.parent == table {
-			return ref.column, true
-		}
-	}
-	return "", false
+	column, ok := cutoverSelfReferenceTables[table]
+	return column, ok
 }
 
 // validateCutoverSelfReferenceAcyclic walks each declared parent chain. A

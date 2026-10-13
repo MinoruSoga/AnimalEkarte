@@ -1169,6 +1169,16 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle), profiles ...
 				if spec.Name == "medicines" {
 					row[i] = "1.0"
 				}
+			case "tax_type":
+				// Current MIG-38/MIG-34 producer mapping permits excluded/exempt;
+				// the synthetic candidate bundle states it explicitly.
+				if spec.Name == "medicines" {
+					row[i] = "excluded"
+				}
+			case "tax_rate":
+				if spec.Name == "medicines" {
+					row[i] = "0.10"
+				}
 			case "is_active":
 				// DESIGN 3.2 pins medicines is_active=true; keep the
 				// synthetic candidate bundle contract-consistent.

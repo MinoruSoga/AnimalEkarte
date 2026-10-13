@@ -64,8 +64,9 @@ failure rehearsalとSTG skeletonは既存21表専用のまま。候補profileに
 この22表候補では、旧pinを持つ `PASS` / `TRUSTED_CANDIDATE` も formal（未指定modeを含む）も **activation blocked** として source/target preflight・単一transaction apply・table別resume apply・verifyのいずれでもDB取得/Begin/Exec/COPY前に拒否する。pinの更新・producer receiptの採用は別の明示reviewが必要であり、manifest自己申告や環境変数で解除する経路はない。実装候補を検証できるのは候補profileと既存のlocal/staging rehearsal modeを両方明示し、artifactも `REHEARSAL_ONLY` とした場合だけで、hash・22表shape・FK・inventoryの検証は維持する。mapping coverageのconsumer statusは `candidate_22_rehearsal_only` であり正式採用を示さない。旧21表bundleはこの候補では引き続きtable数不一致で拒否され、旧版consumerとの互換性は保証しない。
 
 候補 consumer は EMR-342 設計 3.2/3.4 に従い、`medicines.name` が空欄または空白のみの行を source preflight で拒否する（名称は正規化せず、エラーには列と CSV 行番号のみを出しセル値は出さない）。`estimate_items` の薬剤付け替え行は結合不変条件を守る: `medicine_id` が空欄でない行は `category` が `medicine` で、`consultation_id` / `procedure_id` / `merchandise_item_id` がすべて空欄であること。`category` が `medicine` の行は `medicine_id` が必須。薬剤以外の行と旧21表 profile の挙動は変更しない（旧21表では `medicine_id` の空欄制約を unavailable-parent 参照検査で維持）。
+`medicines` の税ペアは live producer 契約に従う（MIG-38: 空欄/1=excluded、2/3=exempt。MIG-34 は MIG-27 の同一式を再利用し、両区分とも `tax_rate` 0.10。producer `030_stage.sql` の CONSTANT と `test-procedure-master-pricing.mjs` の検証一致）。consumer は excluded/exempt＋0.10 のみ受理し、included・未知・空欄と 0.10 以外の率は拒否する（producer契約の変更は別途判断し、正式22表の受領・activation承認とは分ける）。
 
-`medicines.default_quantity` は空欄を拒否し、明示0有効の非負decimalとし、`numeric(10,2)`へ丸めなしで格納できる値だけを許容する。上限99999999.99、fractionの末尾0を除き2桁まで（1.2300可、0.001不可）。浮動小数点による判定やNULLの0補完は行わない。
+候補bundleの `medicines.default_quantity` は旧DBに元情報がない固定値 `1.0` とし、数値として厳密に1と同値のdecimal表記（1、1.00、1.0000等）のみ受理する。空欄・0・1.23・その他の値は拒否する。一般の数量helperによる `numeric(10,2)` の無損失格納検査と、候補bundleの固定値検査は別条件であり、helperで格納可能な値でも固定値に一致しなければ拒否する。浮動小数点による判定やNULLの補完は行わない。
 
 - **dry-run**: `make csv-import-preflight` が source digest / 6 seed binding / 空 band / FK catalog を read-only 検証する。apply は別コマンド。
 - **idempotency**: apply 後の再 preflight/apply は `CUTOVER_REF_BAND_OCCUPIED` で拒否（既存行の置換・削除なし）。
@@ -311,4 +312,4 @@ consumer（現行 HEAD 観測値）の契約 digest:
 
 #### 薬剤数量とtarget整合性（22表候補）
 
-既存設計のproducer明示値 `default_quantity=1.0` に沿い、空欄を拒否する。明示0と無損失の非負小数は許容するが、丸め・overflow・非有限値は拒否。targetは `numeric(10,2)` の型・precision・scaleを検査する。`medicines.inventory_id → inventory_items.id` のvalidated FKも必要で、CSVのinventory_id空必須は維持する。model/APIのnullable化やmigrationは今回行わない。
+既存設計のproducer固定値 `default_quantity=1.0` に沿い、数値として厳密に1と同値の表記のみ受理する。空欄・0・1以外の小数・丸め・overflow・非有限値は拒否。targetは `numeric(10,2)` の型・precision・scaleを検査する。`medicines.inventory_id → inventory_items.id` のvalidated FKも必要で、CSVのinventory_id空必須は維持する。model/APIのnullable化やmigrationは今回行わない。
