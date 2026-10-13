@@ -29,6 +29,7 @@
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1366](../../../backend/migrations/001_init.sql#L1366) |
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1367](../../../backend/migrations/001_init.sql#L1367) |
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1368](../../../backend/migrations/001_init.sql#L1368) |
+| `next_visit` | `DATE` | NULL | — | — | [036_hospitalizations_next_visit.sql:3](../../../backend/migrations/036_hospitalizations_next_visit.sql#L3) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -59,6 +60,7 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
         timestamptz deleted_at
+        DATE next_visit
     }
     cages {
         BIGSERIAL id PK,UK
