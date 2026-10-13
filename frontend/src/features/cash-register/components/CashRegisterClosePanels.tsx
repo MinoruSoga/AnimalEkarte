@@ -4,6 +4,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format/number";
 import { PERIOD_OPTIONS, PERIOD_LABELS, type CashRegisterPeriod } from "../lib/constants";
+import { projectBillingDetailRows } from "../lib/billing-detail-rows";
 import { UnifiedClosingSummaryTable } from "./UnifiedClosingSummaryTable";
 import { CashReconciliationCard } from "./CashReconciliationCard";
 import { BillingDetailTable } from "./BillingDetailTable";
@@ -283,7 +284,8 @@ export function CashRegisterClosePreview({
 
           <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
             <h2 className={`text-base font-semibold ${C.text} mb-4`}>
-              個別会計明細（{preview.billingDetails.length.toLocaleString()}件）
+              個別会計明細（
+              {projectBillingDetailRows(preview.billingDetails).length.toLocaleString()}件）
             </h2>
             <BillingDetailTable details={preview.billingDetails} />
           </section>

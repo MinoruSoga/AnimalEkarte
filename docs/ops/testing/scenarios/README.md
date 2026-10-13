@@ -76,7 +76,7 @@ flowchart TB
 
 機器クライアントの独立確認票: [LAB_DEVICE_CLIENT_UAT.md](LAB_DEVICE_CLIENT_UAT.md)（NX600/AU10V。未確定機器を PASS にしない）。
 
-**#254 close 条件の再配置（結果は書かない）**: [UAT-254-CLOSE-CHECKLIST.md](UAT-254-CLOSE-CHECKLIST.md)。local PASS では close しない。実施レーンは BRT-68（Plane `EMR-22` — 2026-09-29 訂正: 旧 Linear 別名に正規 Plane ID を併記。`docs/work/plane-md-migration-20260923-receipt.md` の対応表）。
+**#254 close 条件の再配置（結果は書かない）**: [UAT-254-CLOSE-CHECKLIST.md](UAT-254-CLOSE-CHECKLIST.md)。local PASS では close しない。実施レーンは BRT-68（Plane `EMR-22` — 2026-09-29 訂正: 旧 Linear 別名に正規 Plane ID を併記。`docs/work/plane/plane-md-migration-20260923-receipt.md` の対応表）。
 
 ## V シリーズ — フォーム検証（入力・更新・DB 整合 + **項目単位**）
 

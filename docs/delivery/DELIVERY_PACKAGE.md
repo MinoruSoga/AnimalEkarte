@@ -1,6 +1,6 @@
 # 納品ドキュメント — システム構成・管理者設定・運用手順
 
-> Current task status is tracked in Plane `EMR-39`. This local document remains supporting execution/evidence material; see the [migration receipt](../work/plane-md-migration-20260923-receipt.md) for the crosswalk.
+> Current task status is tracked in Plane `EMR-39`. This local document remains supporting execution/evidence material; see the [migration receipt](../work/plane/plane-md-migration-20260923-receipt.md) for the crosswalk.
 
 > **対象 Issue**: #258 ／ **リポジトリ由来 slice 同期日**: 2026-09-06（`7c6592f9f`） ／ **U 表棚卸し日**: 2026-08-20
 > **読者**: 先方の管理者（院長・システム担当者）

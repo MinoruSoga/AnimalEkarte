@@ -49,7 +49,13 @@ func RequestLoggingMiddleware() gin.HandlerFunc {
 
 		// エラーがある場合は追加
 		if len(c.Errors) > 0 {
-			logAttrs = append(logAttrs, slog.String("error", c.Errors.String()))
+			if isReservationCreateServerError(c) {
+				// EMR-336: 予約作成 5xx は生の error 文字列を出さず、
+				// 検証済みの safe diagnostic attrs のみを載せる。
+				logAttrs = append(logAttrs, reservationCreateErrorDiagnostics(c.Errors.Last().Err)...)
+			} else {
+				logAttrs = append(logAttrs, slog.String("error", c.Errors.String()))
+			}
 		}
 
 		message := "request completed"

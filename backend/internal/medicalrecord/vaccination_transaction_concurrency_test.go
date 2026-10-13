@@ -60,6 +60,7 @@ func TestVaccinationService_CreateReadbackFailureRollsBack(t *testing.T) {
 		&vaccinationRelationVerifierStub{},
 		&vaccinationMedicalRecordLockerStub{},
 		vaccinationTestTransactor{db: db},
+		&mockAuditTxLogger{},
 	)
 
 	got, err := svc.Create(ctx, clinicID, &CreateVaccinationInput{VaccineID: vaccine.ID, Date: time.Now()})
@@ -117,6 +118,7 @@ func TestVaccinationService_RelationChangeWaitsForValidationTransaction(t *testi
 		reservation.NewReservationRepository(db),
 		NewMedicalRecordRepository(db),
 		vaccinationTestTransactor{db: db},
+		&mockAuditTxLogger{},
 	)
 
 	type updateResult struct {
@@ -206,6 +208,7 @@ func TestVaccinationService_DoctorAssignmentDeletionWaitsForValidationTransactio
 		reservation.NewReservationRepository(db),
 		NewMedicalRecordRepository(db),
 		vaccinationTestTransactor{db: db},
+		&mockAuditTxLogger{},
 	)
 
 	type updateResult struct {
@@ -285,6 +288,7 @@ func TestVaccinationService_ConcurrentUpdatesSerialize(t *testing.T) {
 		reservation.NewReservationRepository(db),
 		NewMedicalRecordRepository(db),
 		vaccinationTestTransactor{db: db},
+		&mockAuditTxLogger{},
 	)
 
 	firstDone := make(chan error, 1)

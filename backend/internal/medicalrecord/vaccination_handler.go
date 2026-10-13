@@ -149,7 +149,15 @@ func (h *VaccinationHandler) DeleteVaccination(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := h.service.Delete(c.Request.Context(), clinicID, id); err != nil {
+	// EMR-323: the delete audit actor must be the authenticated staff id — never
+	// request/body-controlled input. Extraction runs after the clinic/id boundary
+	// so malformed ids keep their 400 semantics; missing staff context is 401.
+	staffID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
+	ctx := withVaccinationAuditActor(c.Request.Context(), staffID)
+	if err := h.service.Delete(ctx, clinicID, id); err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}

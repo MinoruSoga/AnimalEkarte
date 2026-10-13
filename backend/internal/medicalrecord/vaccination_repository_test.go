@@ -28,10 +28,12 @@ func setupVaccinationRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
 	require.NoError(t, testdb.EnsureAutoMigrated(db,
-		&model.AnimalSpecies{}, &model.Owner{}, &model.Pet{}, &model.Vaccine{}, &model.Staff{}, &model.Vaccination{},
+		&model.AnimalSpecies{}, &model.Owner{}, &model.Pet{}, &model.Vaccine{}, &model.Staff{},
+		&model.StaffClinicAssignment{}, &model.Vaccination{},
 	))
 	db.Exec("TRUNCATE TABLE vaccinations CASCADE")
 	db.Exec("TRUNCATE TABLE vaccines CASCADE")
+	db.Exec("TRUNCATE TABLE staff_clinic_assignments CASCADE")
 	db.Exec("TRUNCATE TABLE staffs CASCADE")
 	db.Exec("TRUNCATE TABLE pets CASCADE")
 	db.Exec("TRUNCATE TABLE animal_species CASCADE")

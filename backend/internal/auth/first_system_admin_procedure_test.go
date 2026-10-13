@@ -32,7 +32,7 @@ func TestFirstSystemAdminProcedureMatchesInitSchema(t *testing.T) {
 	}
 	require.NotContains(t, sql, "WHERE is_system_admin AND deleted_at IS NULL")
 
-	procedure, err := os.ReadFile("../../../docs/ops/deploy/FIRST_SYSTEM_ADMIN.md")
+	procedure, err := os.ReadFile("../../../docs/ops/deploy/accounts/FIRST_SYSTEM_ADMIN.md")
 	require.NoError(t, err, "the procedure document must be mounted for this contract")
 	require.Equal(t, sql, extractMarkdownSQL(t, string(procedure)))
 	require.Contains(t, string(procedure), "通信切断や COMMIT 応答不明の場合は**再実行せず**")

@@ -150,7 +150,7 @@ func TestLabDeviceOpenAPIEnsureCountsMatchRuntime(t *testing.T) {
 }
 
 func TestLabDeviceConnectivityDocsMatchRuntime(t *testing.T) {
-	doc, err := os.ReadFile("../../../docs/ops/deploy/LAB_DEVICE_CONNECTIVITY.md")
+	doc, err := os.ReadFile("../../../docs/ops/deploy/lab-devices/LAB_DEVICE_CONNECTIVITY.md")
 	require.NoError(t, err)
 
 	var slots []struct {

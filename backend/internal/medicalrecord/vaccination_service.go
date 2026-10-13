@@ -2,7 +2,9 @@ package medicalrecord
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -107,6 +109,7 @@ type vaccinationService struct {
 	relationVerifier vaccinationRelationVerifier
 	medicalRecords   medicalRecordLocker
 	transactor       Transactor
+	auditTx          AuditTxLogger
 }
 
 func NewVaccinationService(
@@ -116,10 +119,12 @@ func NewVaccinationService(
 	relationVerifier vaccinationRelationVerifier,
 	medicalRecords medicalRecordLocker,
 	transactor Transactor,
+	auditTx AuditTxLogger,
 ) VaccinationService {
 	return &vaccinationService{
 		repo: repo, vaccineRepo: vaccineRepo, tagSyncSvc: tagSyncSvc,
 		relationVerifier: relationVerifier, medicalRecords: medicalRecords, transactor: transactor,
+		auditTx: auditTx,
 	}
 }
 
@@ -176,6 +181,15 @@ func (s *vaccinationService) Create(ctx context.Context, clinicID uint64, input 
 		if err := s.validateRelations(txCtx, clinicID, vaccination.MedicalRecordID, vaccination.PetID, vaccination.DoctorID, vaccination.VaccineID); err != nil {
 			return err
 		}
+		// EMR-323: validateRelations locks the linked parent row but never checks its
+		// status. Re-check the already-held row lock in the same tx so a finalized
+		// parent rejects the create (Update/Delete と同じ lockDraftMedicalRecord 規約)。
+		if vaccination.MedicalRecordID != nil {
+			if err := s.lockVaccinationParentDraft(txCtx, clinicID, *vaccination.MedicalRecordID,
+				"確定済みカルテのワクチン接種は編集できません"); err != nil {
+				return err
+			}
+		}
 		if err := s.repo.Create(txCtx, vaccination); err != nil {
 			return apperrors.Wrap(err, "failed to create vaccination")
 		}
@@ -226,28 +240,34 @@ func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, in
 			return apperrors.WrapInternalServerError("vaccination not found during update validation")
 		}
 		medicalRecordID, petID, doctorID, vaccineID := effectiveVaccinationRelations(snapshot, input)
-		if err := s.validateRelations(txCtx, clinicID, medicalRecordID, petID, doctorID, vaccineID); err != nil {
-			return err
-		}
-		// UAT-R2-EXCLUSIVE-LOCK 最小設計: 紐付くカルテが確定済みなら更新を Conflict で拒否する
-		// （治療/バイタル/処方の lockDraftMedicalRecord と対称化）。validateRelations が既に
-		// 親行を FOR UPDATE で取得済みのため、ここでの再ロックは同一 tx 内で即時解決する。
-		if medicalRecordID != nil {
-			if err := lockDraftMedicalRecord(txCtx, s.medicalRecords, clinicID, *medicalRecordID,
-				"failed to verify medical record ownership", "確定済みカルテのワクチン接種は編集できません"); err != nil {
+		// EMR-323 / P323-LOCKS: guard BOTH the original source and the effective
+		// destination parent. Unique parent IDs are locked FOR UPDATE in deterministic
+		// ascending order BEFORE validateRelations may take the destination lock, so
+		// opposite-direction relinks cannot deadlock. A finalized source or
+		// destination rejects with Conflict (treatment/vital/checkup の
+		// lockDraftMedicalRecord 規約と対称化)。
+		for _, recordID := range uniqueSortedVaccinationParentIDs(snapshot.MedicalRecordID, medicalRecordID) {
+			if err := s.lockVaccinationParentDraft(txCtx, clinicID, recordID,
+				"確定済みカルテのワクチン接種は編集できません"); err != nil {
 				return err
 			}
+		}
+		if err := s.validateRelations(txCtx, clinicID, medicalRecordID, petID, doctorID, vaccineID); err != nil {
+			return err
 		}
 
 		locked, err := s.repo.LockByIDForUpdate(txCtx, clinicID, id)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to lock vaccination")
 		}
-		lockedMedicalRecordID, lockedPetID, lockedDoctorID, lockedVaccineID := effectiveVaccinationRelations(locked, input)
-		if !sameVaccinationRelations(
-			medicalRecordID, petID, doctorID, vaccineID,
-			lockedMedicalRecordID, lockedPetID, lockedDoctorID, lockedVaccineID,
-		) {
+		// Compare the ORIGINAL snapshot tuple against the locked row: request
+		// overrides must not hide a concurrent relink committed between the
+		// snapshot read and this row lock (P323-LOCKS).
+		if locked == nil || locked.ID != id || locked.ClinicID != clinicID ||
+			!sameVaccinationRelations(
+				snapshot.MedicalRecordID, snapshot.PetID, snapshot.DoctorID, snapshot.VaccineID,
+				locked.MedicalRecordID, locked.PetID, locked.DoctorID, locked.VaccineID,
+			) {
 			return apperrors.WrapConflict("vaccination relations changed concurrently")
 		}
 		effectiveDate := locked.Date
@@ -276,17 +296,84 @@ func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, in
 	return vaccination, nil
 }
 func (s *vaccinationService) Delete(ctx context.Context, clinicID, id uint64) error {
+	// EMR-323: every write-side dependency must exist before any read or write —
+	// a missing repository, transaction boundary, or audit sink fails closed.
+	if s.repo == nil {
+		return apperrors.WrapInternalServerError("vaccination repository dependency is required")
+	}
+	if s.transactor == nil {
+		return apperrors.WrapInternalServerError("vaccination transaction dependency is required")
+	}
+	if s.auditTx == nil {
+		return apperrors.WrapInternalServerError("vaccination audit dependency is required")
+	}
 	existing, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to find vaccination")
 	}
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to delete vaccination")
+	if existing == nil {
+		return apperrors.WrapInternalServerError("vaccination not found during delete")
+	}
+	// The parent locker is required only for linked vaccinations; standalone
+	// (unlinked) rows stay deletable without it.
+	if existing.MedicalRecordID != nil && s.medicalRecords == nil {
+		return apperrors.WrapInternalServerError("vaccination medical record dependency is required")
+	}
+	var current *model.Vaccination
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// Lock the linked parent before the child row so a concurrent finalize
+		// serializes against this delete (X-11); a finalized parent rejects with
+		// Conflict and produces no child delete, audit, or tag resync.
+		if existing.MedicalRecordID != nil {
+			if err := s.lockVaccinationParentDraft(txCtx, clinicID, *existing.MedicalRecordID,
+				"確定済みカルテのワクチン接種は削除できません"); err != nil {
+				return err
+			}
+		}
+		locked, err := s.repo.LockByIDForUpdate(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to lock vaccination")
+		}
+		// Revalidate the ORIGINAL snapshot against the locked row: a concurrent
+		// relink committed between the snapshot read and this lock must reject
+		// (P323-LOCKS — effective/request fields are never compared here).
+		if locked == nil || locked.ID != id || locked.ClinicID != clinicID ||
+			!sameVaccinationRelations(
+				existing.MedicalRecordID, existing.PetID, existing.DoctorID, existing.VaccineID,
+				locked.MedicalRecordID, locked.PetID, locked.DoctorID, locked.VaccineID,
+			) {
+			return apperrors.WrapConflict("vaccination relations changed concurrently")
+		}
+		// The bare locked row has no Pet/Owner preloads; reread clinic-scoped
+		// inside the same transaction for the current linkage and tag-resync
+		// owner data (P323-TAGS), and verify it still agrees with the locked row.
+		current, err = s.repo.FindByID(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to reread vaccination")
+		}
+		if current == nil || current.ID != id || current.ClinicID != clinicID ||
+			!sameVaccinationRelations(
+				locked.MedicalRecordID, locked.PetID, locked.DoctorID, locked.VaccineID,
+				current.MedicalRecordID, current.PetID, current.DoctorID, current.VaccineID,
+			) {
+			return apperrors.WrapConflict("vaccination relations changed concurrently")
+		}
+		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
+			return apperrors.Wrap(err, "failed to delete vaccination")
+		}
+		// Fail-closed audit inside the same transaction: an audit write failure
+		// propagates and rolls the delete back (P323-AUDIT).
+		return s.auditVaccinationDeleteTx(txCtx, clinicID, id, locked)
+	}); err != nil {
+		return err
 	}
 	slog.InfoContext(ctx, "vaccination deleted",
 		slog.Uint64("vaccination_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	s.resyncOwnerVaccineTags(ctx, clinicID, existing)
+	// Tag resync runs only after a successful commit — never on rejection, audit
+	// failure, or commit failure — and uses the current scoped reread, not the
+	// stale pretransaction snapshot.
+	s.resyncOwnerVaccineTags(ctx, clinicID, current)
 	return nil
 }
 
@@ -370,6 +457,45 @@ func sameOptionalUint64(a, b *uint64) bool {
 		return a == nil && b == nil
 	}
 	return *a == *b
+}
+
+// lockVaccinationParentDraft locks the parent medical record FOR UPDATE inside the
+// ambient transaction and rejects a finalized record with Conflict — the EMR-323
+// extension of the X-11 draft-parent invariant (sharedkernel.LockDraftMedicalRecord
+// と同じ写像) with an added identity check so nil / foreign-clinic / wrong-ID
+// parents also fail closed instead of being trusted by scope alone.
+func (s *vaccinationService) lockVaccinationParentDraft(txCtx context.Context, clinicID, recordID uint64, conflictMsg string) error {
+	if s.medicalRecords == nil {
+		return apperrors.WrapInternalServerError("vaccination medical record dependency is required")
+	}
+	parent, err := s.medicalRecords.LockByIDForUpdate(txCtx, clinicID, recordID)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to verify medical record ownership")
+	}
+	if parent == nil || parent.ID != recordID || parent.ClinicID != clinicID {
+		return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", recordID))
+	}
+	if parent.Status == model.MedicalRecordStatusFinalized {
+		return apperrors.WrapConflict(conflictMsg)
+	}
+	return nil
+}
+
+// uniqueSortedVaccinationParentIDs returns the deduplicated, ascending-ordered set
+// of parent medical record IDs touched by a mutation — the deterministic lock
+// order required for source+destination relinks (P323-LOCKS).
+func uniqueSortedVaccinationParentIDs(ids ...*uint64) []uint64 {
+	seen := map[uint64]bool{}
+	unique := make([]uint64, 0, len(ids))
+	for _, id := range ids {
+		if id == nil || seen[*id] {
+			continue
+		}
+		seen[*id] = true
+		unique = append(unique, *id)
+	}
+	slices.Sort(unique)
+	return unique
 }
 
 func (s *vaccinationService) validateRelations(ctx context.Context, clinicID uint64, medicalRecordID, petID, doctorID *uint64, vaccineID uint64) error {
