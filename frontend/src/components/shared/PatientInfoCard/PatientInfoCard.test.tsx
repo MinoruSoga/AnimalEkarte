@@ -161,3 +161,38 @@ describe("PatientInfoCard 誕生月バッジ (EMR-301)", () => {
     expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
   });
 });
+
+describe("PatientInfoCard 390px レスポンシブ (EMR-391/VQ-015)", () => {
+  // VQ-015: shrink-0 の担当者コントロールの横で flex-1 サービス群が ~60px に潰れ、
+  // 「診療種別」「トリミング」が1文字ずつ縦割れ、保険・次回カードも過圧縮されていた。
+  // BUG-458 の固定 min-w を廃した方針は維持しつつ、レスポンシブな basis/折返しで
+  // モバイルに使える幅を確保する。
+  it("サービス情報群はモバイルで行全体(basis-full)を使い、sm 以上は従来の flex-1 配置", () => {
+    render(<PatientInfoCard {...baseProps} staffName="佐藤" />);
+
+    const serviceCol = screen.getByText("診療種別").parentElement;
+    expect(serviceCol).not.toBeNull();
+    const serviceGroup = serviceCol?.parentElement;
+    expect(serviceGroup).toHaveClass("basis-full", "sm:basis-0");
+  });
+
+  it("短い固定ラベルと種別値は1文字ずつ割れない（whitespace-nowrap + shrink-0）", () => {
+    render(<PatientInfoCard {...baseProps} reservationType="トリミング" />);
+
+    const serviceCol = screen.getByText("診療種別").parentElement;
+    expect(serviceCol).toHaveClass("whitespace-nowrap", "shrink-0");
+  });
+
+  it("担当者グループはモバイルで独立行(w-full)へ折り返し、sm 以上は従来の右寄せ", () => {
+    render(<PatientInfoCard {...baseProps} staffName="佐藤" />);
+
+    const staffGroup = screen.getByText("担当医佐藤").parentElement;
+    expect(staffGroup).toHaveClass("w-full", "sm:w-auto", "sm:ml-auto");
+  });
+
+  it("保険名の意図的な truncate 省略は維持される", () => {
+    render(<PatientInfoCard {...baseProps} insuranceName="とても長い保険会社と契約プラン名" />);
+
+    expect(screen.getByText("とても長い保険会社と契約プラン名")).toHaveClass("truncate");
+  });
+});
