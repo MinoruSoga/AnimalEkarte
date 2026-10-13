@@ -27,7 +27,7 @@ export const DETAIL_DEPARTMENT_BUCKETS = [
   { key: "goodsOther", label: "用品他", categories: ["goods", "training", "other"] },
 ] as const;
 
-export type DetailDepartmentKey = (typeof DETAIL_DEPARTMENT_BUCKETS)[number]["key"];
+type DetailDepartmentKey = (typeof DETAIL_DEPARTMENT_BUCKETS)[number]["key"];
 
 const CATEGORY_TO_BUCKET: Readonly<Record<string, DetailDepartmentKey>> =
   DETAIL_DEPARTMENT_BUCKETS.reduce(
