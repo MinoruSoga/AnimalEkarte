@@ -10882,5 +10882,1507 @@
     "sourceHead": "797fc2e8c22af07cb4e34b470a03ad642dfb2d00",
     "sourceDirtyPatch": "EMR393/394 two CSS files",
     "structuredActions": []
+  },
+  {
+    "wave": 22,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-create",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T060009923005.png",
+    "sha256": "219b505cf16c5dd35834d18a756ae82efa4b55cf2b91a64455f551db9fa157f0",
+    "review": "FAIL_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": null,
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規登録']",
+        "action": "Synthetic staff panel audit target",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規登録']",
+            "description": "Synthetic staff panel audit target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 22,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-create",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T060013279083.png",
+    "sha256": "e797405a2661b781b92bf04bd1a4339a6ff05ff42ffae0bad56e98bde77d2471",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 22,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-create",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T060016674058.png",
+    "sha256": "60b40658500901ec6e475c434c2b6b93f1154be5cef65ca4c78305ed6bfd7a1f",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 22,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-create",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T060020055672.png",
+    "sha256": "bb18225f4c3cd391b65f1b9a960b2e7a0229f4d8893a9b46b5846e1d14723951",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 22,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-create-bottom",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T060024477680.png",
+    "sha256": "203b8c4286b1dfd404f61b4cfd99968e0fab56c3598cd22d0c1cd902f06a50d6",
+    "review": "FAIL_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": null,
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=//div[@data-side-peek]//div[contains(@class,'overflow-y-auto')]",
+        "action": "Synthetic staff panel audit target",
+        "actions": [
+          {
+            "selector": "xpath=//div[@data-side-peek]//div[contains(@class,'overflow-y-auto')]",
+            "description": "Synthetic staff panel audit target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 22,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-create-bottom",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T060027832680.png",
+    "sha256": "9a8ff5b3333f5c7a83ecb5841160c06aacee62820b56af67f0420a3a9b313ed0",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 22,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-create-bottom",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T060031211487.png",
+    "sha256": "e280ae160d5008036c0e8aa0444dabf68ddddaec9c4018eac0dbf81e4aa9e923",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 22,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-create-bottom",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T060034611628.png",
+    "sha256": "cea0e624251eb632f3c31239a0f2d1505365a56e8e56835a49ac418a69b0c192",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 22,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-edit",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T060039984231.png",
+    "sha256": "66fc2213ffacf3e07cbe07fe46c0c7da9045dc3cab8c4f85e9e78241325dfb7b",
+    "review": "FAIL_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": null,
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(@aria-label,'ID: 990005') and contains(@aria-label,'編集')]",
+        "action": "Synthetic staff panel audit target",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(@aria-label,'ID: 990005') and contains(@aria-label,'編集')]",
+            "description": "Synthetic staff panel audit target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 22,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-edit",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T060043341500.png",
+    "sha256": "276503be31e1c94b3b463ce234a0e380b73ece644644d7b70165c665d943b456",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 22,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-edit",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T060046717932.png",
+    "sha256": "e34f344097607964fad2a7648d8690a7b5bcded6784cc1989166d0e8610aa8ac",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 22,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-edit",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T060050116506.png",
+    "sha256": "c28011ceee176fffb5b66e56cd5a800b9537dad4dbc2797e404f1fda6c20d750",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 22,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-edit-bottom",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T060054604729.png",
+    "sha256": "17c42348b62f06c6ea9bb3bea17e9d4d4a03f3f761406715f73a8abf109e8feb",
+    "review": "FAIL_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": null,
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=//div[@data-side-peek]//div[contains(@class,'overflow-y-auto')]",
+        "action": "Synthetic staff panel audit target",
+        "actions": [
+          {
+            "selector": "xpath=//div[@data-side-peek]//div[contains(@class,'overflow-y-auto')]",
+            "description": "Synthetic staff panel audit target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 22,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-edit-bottom",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T060057952487.png",
+    "sha256": "55c4f83eb0e6fe54bd1046e00e079eea3e49eaa08a81cf061fd829dac9575ba8",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 22,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-edit-bottom",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T060101314344.png",
+    "sha256": "abd246138c28ace577f19ce82c2dd7b43ab5ae8ab7598db9bd6806c92ae172a3",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 22,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-edit-bottom",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T060104708432.png",
+    "sha256": "91c7f03054853fc0bf5be5775fb9ac9b9cd4cceeaae6cf9e6d5a0cfb5d9a6772",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": null,
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-create",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T062544821045.png",
+    "sha256": "967da298e075286514e4213f9ffdaa054ccf25180796718dd917d603026a7bfa",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規登録']",
+        "action": "Synthetic staff panel audit target",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規登録']",
+            "description": "Synthetic staff panel audit target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-create",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T062548154841.png",
+    "sha256": "e797405a2661b781b92bf04bd1a4339a6ff05ff42ffae0bad56e98bde77d2471",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-create",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T062551501133.png",
+    "sha256": "237a1bd907bda56268fd9a13e0329d1cb733fe1a70a2a06282e0bfdc597ed01f",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-create",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T062554864918.png",
+    "sha256": "bb18225f4c3cd391b65f1b9a960b2e7a0229f4d8893a9b46b5846e1d14723951",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-create-bottom",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T062559242748.png",
+    "sha256": "bd3f72c3e6e856a26fb403b8599a8428db831654e413761e61989de11089096f",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=//div[@data-side-peek]//div[contains(@class,'overflow-y-auto')]",
+        "action": "Synthetic staff panel audit target",
+        "actions": [
+          {
+            "selector": "xpath=//div[@data-side-peek]//div[contains(@class,'overflow-y-auto')]",
+            "description": "Synthetic staff panel audit target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-create-bottom",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T062602568447.png",
+    "sha256": "9a8ff5b3333f5c7a83ecb5841160c06aacee62820b56af67f0420a3a9b313ed0",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-create-bottom",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T062605885768.png",
+    "sha256": "e280ae160d5008036c0e8aa0444dabf68ddddaec9c4018eac0dbf81e4aa9e923",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-create-bottom",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T062609229998.png",
+    "sha256": "cea0e624251eb632f3c31239a0f2d1505365a56e8e56835a49ac418a69b0c192",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-edit",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T062614281913.png",
+    "sha256": "48d5740afdc069b0ef3566a8707e91ea38111915d7f7427eecceb8bfd8450702",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[contains(@aria-label,'ID: 990005') and contains(@aria-label,'編集')]",
+        "action": "Synthetic staff panel audit target",
+        "actions": [
+          {
+            "selector": "xpath=//button[contains(@aria-label,'ID: 990005') and contains(@aria-label,'編集')]",
+            "description": "Synthetic staff panel audit target",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-edit",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T062617600169.png",
+    "sha256": "276503be31e1c94b3b463ce234a0e380b73ece644644d7b70165c665d943b456",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-edit",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T062620922244.png",
+    "sha256": "e34f344097607964fad2a7648d8690a7b5bcded6784cc1989166d0e8610aa8ac",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-edit",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T062624280305.png",
+    "sha256": "c28011ceee176fffb5b66e56cd5a800b9537dad4dbc2797e404f1fda6c20d750",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-edit-bottom",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T062628643042.png",
+    "sha256": "5bfbecef81a3100f9d6d7cae71d28842dd4f58b50ea298f6044d6d87569109b1",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [scrollTo] performed successfully on selector: xpath=//div[@data-side-peek]//div[contains(@class,'overflow-y-auto')]",
+        "action": "Synthetic staff panel audit target",
+        "actions": [
+          {
+            "selector": "xpath=//div[@data-side-peek]//div[contains(@class,'overflow-y-auto')]",
+            "description": "Synthetic staff panel audit target",
+            "method": "scrollTo"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-edit-bottom",
+    "requestedViewport": [
+      768,
+      873
+    ],
+    "png": [
+      768,
+      873
+    ],
+    "file": "shot-20261013T062631966263.png",
+    "sha256": "55c4f83eb0e6fe54bd1046e00e079eea3e49eaa08a81cf061fd829dac9575ba8",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-edit-bottom",
+    "requestedViewport": [
+      1280,
+      873
+    ],
+    "png": [
+      1280,
+      873
+    ],
+    "file": "shot-20261013T062635282500.png",
+    "sha256": "abd246138c28ace577f19ce82c2dd7b43ab5ae8ab7598db9bd6806c92ae172a3",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fstaff",
+    "inventoryId": "INV-P03",
+    "state": "staff-edit-bottom",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T062638619771.png",
+    "sha256": "91c7f03054853fc0bf5be5775fb9ac9b9cd4cceeaae6cf9e6d5a0cfb5d9a6772",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-create",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T062641978317.png",
+    "sha256": "87c842eefb0e5300cfc36857266f8e48790d3d870e96ddcd2feddf2de329b9af",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規登録']",
+        "action": "Synthetic cage new panel",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規登録']",
+            "description": "Synthetic cage new panel",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-create",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T062643777799.png",
+    "sha256": "41d83d1538fcd379529fc0333efc137a596142d983a70db469219d6bd1d75335",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-create",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T062645591893.png",
+    "sha256": "7fb0c92fe2b95d7ca7effcd2294393807f3f252cb029133d474bd2d8c99365ed",
+    "review": "PASS_PANEL_FAIL_BACKGROUND_TABLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-create",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T062647431782.png",
+    "sha256": "b7a69de878d4b122ddbc89169fd325e2411cdb05e87428d2ac6843a93e3a48a5",
+    "review": "PASS_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T062649946918.png",
+    "sha256": "e7483db9f678f2f33b66fe67258f1a5f951985d0dd670019590cb78251ef3c09",
+    "review": "UNKNOWN_TARGET",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [
+      {
+        "ok": true,
+        "success": false,
+        "message": "Failed to perform act: Could not find an element for the given xPath(s): xpath=/html[0]/body[1]/div[1]/div[1]/main[1]/div[1]/div[1]/div[1]/div[2]/div[1]/div[1]/div[3]/div[1]/div[1]/table[1]/tbody[1]/tr[1]/td[3]/div[1]/button[1]",
+        "action": "Synthetic audit edit target 詳細: ケージ 合成監査入院室1 (ID 990006)",
+        "actions": [],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T062651752420.png",
+    "sha256": "e61e54418aea706b2f241f55f9ec10c029dbe1e064397cc95fe33f8ae8180bff",
+    "review": "UNKNOWN_TARGET",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T062653549092.png",
+    "sha256": "56a20809ae1bebf614c9667bf9583ff4d59b7bc3ab2154081645c528f3f02a8b",
+    "review": "UNKNOWN_TARGET",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 23,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T062655377359.png",
+    "sha256": "ca3a8706e7140e5cbecc383a0faa69d2106def4eea41605b0964e70fb371548c",
+    "review": "UNKNOWN_TARGET",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 24,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit-fixed-target",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T062937015152.png",
+    "sha256": "f1d79bb6372ac9990e351604a217f2a7268f089b0200bb88dcb9ce5c1deb063a",
+    "review": "PASS_PANEL_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=/html[1]/body[1]/div[1]/div[1]/main[1]/div[1]/div[1]/div[1]/div[2]/div[1]/div[1]/div[3]/div[1]/div[1]/table[1]/tbody[1]/tr[1]/td[3]/div[1]/button[1]",
+        "action": "Synthetic audit edit target 詳細: ケージ 合成監査入院室1 (ID 990006)",
+        "actions": [
+          {
+            "selector": "xpath=/html[1]/body[1]/div[1]/div[1]/main[1]/div[1]/div[1]/div[1]/div[2]/div[1]/div[1]/div[3]/div[1]/div[1]/table[1]/tbody[1]/tr[1]/td[3]/div[1]/button[1]",
+            "description": "Synthetic audit edit target 詳細: ケージ 合成監査入院室1 (ID 990006)",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 24,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit-fixed-target",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T062938536332.png",
+    "sha256": "5c4327341fd4fffb794ede3c88abb57846ae52f29c9fb6b69b78cd8eab722bee",
+    "review": "PASS_PANEL_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 24,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit-fixed-target",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T062940051603.png",
+    "sha256": "a74ad1564daf4033c604f83b7a0bbc5af0cbc1535d7ac98e3a194f742c569d2f",
+    "review": "PASS_PANEL_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 24,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Fcage",
+    "inventoryId": "INV-P17",
+    "state": "cage-edit-fixed-target",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T062942009458.png",
+    "sha256": "9455f08e63ef5a1b8d9901dbed9f8a36fa3f45c32bfee623656d68c13f4ef3f2",
+    "review": "PASS_PANEL_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 24,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Foccupations",
+    "inventoryId": "INV-P20",
+    "state": "occupation-create",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T062945262406.png",
+    "sha256": "b46d4dbfc9c81a886f9eea29b2bd1260b8e3005715842aa87c6ed4f77aae39d6",
+    "review": "PASS_PANEL_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=//button[normalize-space()='新規登録']",
+        "action": "Synthetic occupation create",
+        "actions": [
+          {
+            "selector": "xpath=//button[normalize-space()='新規登録']",
+            "description": "Synthetic occupation create",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 24,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Foccupations",
+    "inventoryId": "INV-P20",
+    "state": "occupation-create",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T062946743667.png",
+    "sha256": "ee391bdd863ba1e1e748ffed2e736bc4aac7c447bea2e148ed89c1a7c8179f70",
+    "review": "PASS_PANEL_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 24,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Foccupations",
+    "inventoryId": "INV-P20",
+    "state": "occupation-create",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T062948234187.png",
+    "sha256": "43b18cc387866f13c04d7f9b06fe8133293cf8e8f7df051e653a8e7d503eb6f4",
+    "review": "PASS_PANEL_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 24,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Foccupations",
+    "inventoryId": "INV-P20",
+    "state": "occupation-create",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T062949756841.png",
+    "sha256": "730fa01f30045c488981ffabb0acc105036b8fea963ca8a717bda5aa9ba54512",
+    "review": "PASS_PANEL_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 24,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Foccupations",
+    "inventoryId": "INV-P20",
+    "state": "occupation-edit",
+    "requestedViewport": [
+      390,
+      844
+    ],
+    "png": [
+      390,
+      844
+    ],
+    "file": "shot-20261013T062952887617.png",
+    "sha256": "1eeecc2f0738db461c85864460ac3d8991d6d43bd1359caf60c0e063a73d05d5",
+    "review": "PASS_PANEL_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [
+      {
+        "ok": true,
+        "success": true,
+        "message": "Action [click] performed successfully on selector: xpath=/html[1]/body[1]/div[1]/div[1]/main[1]/div[1]/div[1]/div[1]/div[2]/div[1]/div[1]/div[2]/div[1]/div[1]/table[1]/tbody[1]/tr[1]/td[1]/button[1]",
+        "action": "Synthetic audit edit target 詳細: 職種 合成監査獣医師 (ID 990041)",
+        "actions": [
+          {
+            "selector": "xpath=/html[1]/body[1]/div[1]/div[1]/main[1]/div[1]/div[1]/div[1]/div[2]/div[1]/div[1]/div[2]/div[1]/div[1]/table[1]/tbody[1]/tr[1]/td[1]/button[1]",
+            "description": "Synthetic audit edit target 詳細: 職種 合成監査獣医師 (ID 990041)",
+            "method": "click"
+          }
+        ],
+        "metadata": {
+          "action_id": null,
+          "cache": {
+            "status": "DISABLED",
+            "count": null,
+            "threshold": null,
+            "miss_reason": null,
+            "tokens_saved": null
+          },
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_input_tokens": 0,
+            "inference_time_ms": 0
+          }
+        },
+        "audit": "recorded"
+      }
+    ],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 24,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Foccupations",
+    "inventoryId": "INV-P20",
+    "state": "occupation-edit",
+    "requestedViewport": [
+      768,
+      1024
+    ],
+    "png": [
+      768,
+      1024
+    ],
+    "file": "shot-20261013T062954383535.png",
+    "sha256": "0584fc1c23494948d7f4723ea16aa55a4384131b45ef49fcc291443553993a2d",
+    "review": "PASS_PANEL_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 24,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Foccupations",
+    "inventoryId": "INV-P20",
+    "state": "occupation-edit",
+    "requestedViewport": [
+      1280,
+      900
+    ],
+    "png": [
+      1280,
+      900
+    ],
+    "file": "shot-20261013T062955910011.png",
+    "sha256": "40ea247f2b91e3716661c0d379225568ecc8b46274b93859219265a951f6a1c9",
+    "review": "PASS_PANEL_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
+  },
+  {
+    "wave": 24,
+    "route": "/__audit/setup?scenario=normal&next=%2Fsettings%2Foccupations",
+    "inventoryId": "INV-P20",
+    "state": "occupation-edit",
+    "requestedViewport": [
+      1568,
+      982
+    ],
+    "png": [
+      1568,
+      982
+    ],
+    "file": "shot-20261013T062957431217.png",
+    "sha256": "a1df53ac8d295293da9719ac71139d5a45fc56de5327e1e3cd64f2560c6da918",
+    "review": "PASS_PANEL_VISIBLE",
+    "sourceHead": "e8d00f539",
+    "sourcePatchSha256": "fd98c32fee280d71a6be82ca1c733e72b3d3933919eea0236228c893f30c8af7",
+    "actions": [],
+    "limits": "actual viewport only; synthetic data; save/auth/focus not established; source and whole211 acceptance separate"
   }
 ]
