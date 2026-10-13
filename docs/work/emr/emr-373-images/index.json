@@ -2010,5 +2010,21 @@
     "sha256": "a9385217154ee7d63911c7d8431739edfcdef848953fd7574328574029cc7964",
     "review": "wave9 visible fixes reviewed; actions require actual image confirmation",
     "limits": "viewport only; offscreen or unopened states not inferred"
+  },
+  {
+    "wave": 11,
+    "route": "/settings/staff",
+    "requestedViewport": [
+      1568,
+      873
+    ],
+    "png": [
+      1568,
+      873
+    ],
+    "file": "shot-20261013T040420761937.png",
+    "sha256": "0776f2701c7f8d7076c8e1e3f799b61002ba4ca60b385861ce641b5a7d3d6cde",
+    "review": "staff new panel UNKNOWN; action failed rpc_internal; image is initial list only",
+    "limits": "viewport only; failed action does not prove panel/focus"
   }
 ]
