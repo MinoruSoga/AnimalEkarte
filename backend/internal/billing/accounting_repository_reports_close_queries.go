@@ -101,7 +101,7 @@ func (r *accountingRepository) scanCloseBillingDetails(ctx context.Context, inpu
 			COALESCE(o.name, '') AS owner_name,
 			COALESCE(p.name, '') AS pet_name,
 			billings.hospitalization_id,
-			bc.category,
+			COALESCE(bc.category, '') AS category,
 			ps.payment_method_id,
 			ps.amount AS billing_amount,
 			COALESCE(rt.refund_amount, 0) AS refund_amount
@@ -109,7 +109,9 @@ func (r *accountingRepository) scanCloseBillingDetails(ctx context.Context, inpu
 		JOIN payment_splits ps
 		  ON ps.billing_id = billings.id
 		 AND ps.clinic_id = billings.clinic_id
-		JOIN billing_categories bc ON bc.billing_id = billings.id
+		-- EMR-354: billing_items を持たない完了済み支払済み会計も明細から落とさない（LEFT JOIN）。
+		-- category は従来通り MIN(category) の互換スカラ（なければ空文字）。部門別は category_amounts を参照。
+		LEFT JOIN billing_categories bc ON bc.billing_id = billings.id
 		LEFT JOIN owners o
 		  ON o.id = billings.owner_id
 		 AND o.clinic_id = billings.clinic_id
@@ -124,7 +126,13 @@ func (r *accountingRepository) scanCloseBillingDetails(ctx context.Context, inpu
 		return nil, apperrors.Wrap(err, "failed to get billing details for close")
 	}
 	details := make([]CloseBillingDetailRow, 0, len(detailRows))
+	billingIDs := make([]uint64, 0, len(detailRows))
+	seen := make(map[uint64]struct{}, len(detailRows))
 	for _, d := range detailRows {
+		if _, ok := seen[d.BillingID]; !ok {
+			seen[d.BillingID] = struct{}{}
+			billingIDs = append(billingIDs, d.BillingID)
+		}
 		details = append(details, CloseBillingDetailRow{
 			BillingID:         d.BillingID,
 			PaidAt:            d.PaidAt,
@@ -138,7 +146,55 @@ func (r *accountingRepository) scanCloseBillingDetails(ctx context.Context, inpu
 			NetAmount:         d.BillingAmount - d.RefundAmount,
 		})
 	}
+	if err := r.attachCloseDetailCategoryAmounts(ctx, input.ClinicID, billingIDs, details); err != nil {
+		return nil, err
+	}
 	return details, nil
+}
+
+// closeDetailCategoryMethodKey は明細行の部門別 GROSS 按分に使う固定の非空メソッドキー。
+// MatrixRowTotals で畳み込むため値自体は表示されないが、AllocateBillingPayments は
+// 空キーを捨てるため安定した非空キーが必要（EMR-354）。
+const closeDetailCategoryMethodKey = "split"
+
+// attachCloseDetailCategoryAmounts は各行の split 支払額（BillingAmount）を、
+// 親会計の billing_items 明細金額重みで按分した部門別 GROSS 内訳を載せる（EMR-354）。
+// 既存の AllocateBillingPayments + MatrixRowTotals を再利用し、allocation 数学は変更しない。
+// 重みは認証済み clinic かつ distinct billing_id で一括ロードする（N+1 なし）。
+// 重みのない会計は既存フォールバックで other に全額が乗る。返金は含まない
+// （RefundAmount/NetAmount は従来の全期間スカラのまま）。
+func (r *accountingRepository) attachCloseDetailCategoryAmounts(
+	ctx context.Context,
+	clinicID uint64,
+	billingIDs []uint64,
+	details []CloseBillingDetailRow,
+) error {
+	if len(details) == 0 {
+		return nil
+	}
+	weights, err := r.loadCategoryWeightsForBillings(ctx, clinicID, billingIDs)
+	if err != nil {
+		return err
+	}
+	weightsByBilling := make(map[uint64]map[string]int64, len(billingIDs))
+	for _, w := range weights {
+		m, ok := weightsByBilling[w.BillingID]
+		if !ok {
+			m = make(map[string]int64)
+			weightsByBilling[w.BillingID] = m
+		}
+		m[w.Category] += w.Amount
+	}
+	for i := range details {
+		matrix := AllocateBillingPayments(AllocationBillingInput{
+			CategoryWeights: weightsByBilling[details[i].BillingID],
+			Payments: []AllocationPayment{
+				{MethodKey: closeDetailCategoryMethodKey, Amount: details[i].BillingAmount},
+			},
+		})
+		details[i].CategoryAmounts = MatrixRowTotals(matrix)
+	}
+	return nil
 }
 
 func (r *accountingRepository) scanCloseTaxBreakdown(ctx context.Context, completedCTE string, cArgs []any) ([]TaxBreakdownRow, error) {
