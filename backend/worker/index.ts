@@ -331,19 +331,23 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     );
     // Delivery is a retryable side effect after the manual result is durable.
     // The outbox retains failed incidents; later invocations retry them.
-    try {
-      await notifySchedulerFailures(
+    // DurableObjectState.waitUntil keeps the drain registered with the DO
+    // lifecycle after the RPC response returns, so the manual response never
+    // blocks on the alert backlog (runtime shutdown may still interrupt the
+    // drain; storage/outbox retries cover that case).
+    this.ctx.waitUntil(
+      notifySchedulerFailures(
         operation.result === undefined ? [] : [operation.result],
         schedulerAlertConfig(env),
         fetch,
         this.ctx.storage,
-      );
-    } catch {
-      console.error("scheduler manual alert drain deferred", {
-        event: "scheduler_manual_alert_drain_deferred",
-        failure_code: "alert_drain_failed",
-      });
-    }
+      ).catch(() => {
+        console.error("scheduler manual alert drain deferred", {
+          event: "scheduler_manual_alert_drain_deferred",
+          failure_code: "alert_drain_failed",
+        });
+      }),
+    );
     return operation;
   }
 }
