@@ -868,4 +868,53 @@ func TestListOwnerAggregation_AggregationTimeout(t *testing.T) {
 		w := perform(newHandlerReturning(errors.New("db connection lost")))
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
+
+	t.Run("repo が期限失効後に rows を成功返す → 503 + code aggregation_timeout (EMR334-1)", func(t *testing.T) {
+		// ctx を見ず deadline 失効後にも成功を返す context 非準拠ダブル。
+		// クエリ後の期限確認がないと 200 で返ってしまう回帰 (EMR334-1)。
+		repo := &mockLtvRepositoryCapture{
+			fn: func(ctx context.Context, _ *FindOwnerLTVParams) ([]OwnerLTVRow, error) {
+				<-ctx.Done()
+				return []OwnerLTVRow{{OwnerID: 1, OwnerName: "late"}}, nil
+			},
+		}
+		svc := &aggregationService{
+			repo:         repo,
+			settingsSvc:  &mockLstepSettingsService{},
+			queryTimeout: time.Nanosecond,
+		}
+		w := perform(newHandlerWithAggregationSvc(svc))
+
+		assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+		var resp struct {
+			Error string `json:"error"`
+			Code  string `json:"code"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		assert.Equal(t, "aggregation_timeout", resp.Code)
+	})
+
+	t.Run("呼び出し元 cancel + ctx 非準拠 repo の成功 → 503 ではなく 500 (EMR334-1)", func(t *testing.T) {
+		repo := &mockLtvRepositoryCapture{
+			fn: func(ctx context.Context, _ *FindOwnerLTVParams) ([]OwnerLTVRow, error) {
+				<-ctx.Done()
+				return []OwnerLTVRow{{OwnerID: 1, OwnerName: "late"}}, nil
+			},
+		}
+		svc := &aggregationService{
+			repo:         repo,
+			settingsSvc:  &mockLstepSettingsService{},
+			queryTimeout: aggregationQueryTimeout,
+		}
+		h := newHandlerWithAggregationSvc(svc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		canceled, cancel := context.WithCancel(context.Background())
+		cancel()
+		c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody).WithContext(canceled)
+		setClinicID(c)
+		h.ListOwnerAggregation(c)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
 }

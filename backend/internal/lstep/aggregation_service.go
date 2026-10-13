@@ -238,6 +238,11 @@ func (s *aggregationService) ListOwnerAggregation(ctx context.Context, clinicID 
 	if err != nil {
 		return nil, aggregationError(ctx, err, "failed to find owner aggregation")
 	}
+	// EMR334-1: ctx を見ずに期限後に成功を返す依存や、クエリ直後の失効を拾い、
+	// 期限超過済みの集計を 200 として返さない。
+	if err := ctx.Err(); err != nil {
+		return nil, aggregationError(ctx, err, "owner aggregation aborted after ltv scan")
+	}
 
 	// CPMStage 絞り込み条件を正規化（"spot" → "cpm_spot" 等）。
 	cpmStageFilter := normalizeCPMStageFilter(input.CPMStage)
@@ -256,6 +261,11 @@ func (s *aggregationService) ListOwnerAggregation(ctx context.Context, clinicID 
 
 	var items []OwnerAggregationItem
 	for i := range rows {
+		// EMR334-1: 全行 CPM 分類・区分人数集計中の deadline/cancel 失効を
+		// 各行の区切りで再確認し、処理を早期に中断する。
+		if err := ctx.Err(); err != nil {
+			return nil, aggregationError(ctx, err, "owner aggregation aborted during cpm classification")
+		}
 		row := &rows[i]
 		stage := computeCPMStageFromLTVRow(row, thresholds)
 		counts[stage]++
@@ -290,6 +300,12 @@ func (s *aggregationService) ListOwnerAggregation(ctx context.Context, clinicID 
 	} else {
 		end := min(offset+perPage, total)
 		items = items[offset:end]
+	}
+
+	// EMR334-1: 0 行やフィルタ全落ちでループを通らない場合、およびページング後の
+	// 成功返却直前の失効を拾う最終確認。
+	if err := ctx.Err(); err != nil {
+		return nil, aggregationError(ctx, err, "owner aggregation aborted before response")
 	}
 
 	return &ListOwnerAggregationResult{
