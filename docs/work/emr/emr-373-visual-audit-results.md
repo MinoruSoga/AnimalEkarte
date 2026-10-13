@@ -1,0 +1,160 @@
+# EMR-373 合成画面追試・修正記録
+
+親票: [EMR-373](https://app.plane.so/baritechllc/browse/EMR-373/)。
+対象面は[静的インベントリ](emr-373-visual-audit-inventory.md)の211項目。独立ルートだけでなく登録/編集、モーダル、タブ、インライン、LIFF、LINE予約を別状態として管理する。
+
+## 判定
+
+既存子票 EMR-377〜388 に対応するコードと回帰テストを用意した。全画面・全状態の視覚確認は未完了。ソース確認、単体テスト、撮影範囲の観察、操作成功、UATを別々に扱う。PRは残る確認を明示したDraftとする。
+
+## 実行条件
+
+- 日時: 2026-10-13、画像名はUTC。Chrome 155.0.8059.40、DPR 1。
+- 統合ブランチ: `fix/emr-373-visual-review`。main基点 `98a375b5fca38152b5ce8a9017905efce5975876`。
+- 製品修正コミット: `dad5ea91e`。push前にmain `e43c0a251`へfast-forward同期した。上流差分は運用文書・手順Markdown・そのテストで、今回変更した製品TS/TSXは変わっていない。画像は上記のdirty候補を記録し、撮影済みと最終HEADが同一だとは扱わない。
+- 作業者側の基点 `1f5d81ad4ef0e5203270d55495fbfc01d079f237` との差は運用文書2行のみ。フロントソースの差はない。
+- Stagehand MCPの専用ケースで撮影・操作。Chrome DevTools MCP 1.8.0はviewport設定と読み取りに使用。共有接続設定は変更していない。
+- Dockerイメージ `sha256:73df0c1c01928468aa7115dc31cd7addbe5e4232359b1c1b018e37fa5faf383a`。合成APIだけのfrontendを127.0.0.1:13730で使用。実APIへのproxyなし、DB・migration・依存導入なし。
+- 合成医院・飼主・ペット・スタッフ・診療データのみ。実際の診療データ、他医院の実データ、送信/保存の受入ではない。
+- 画像は `~/.hermes/stagehand/screenshots/` に保存。元画像・viewport/時刻/操作結果・検証ログの索引は作業台帳に保持。
+
+## 撮影候補と範囲
+
+| wave | 内容 | 対象版 | 限界 |
+|---|---|---|---|
+| 1 | 15ルート×4指定幅、60画像 | tables fix1 / forms fix1 / errors fix1、未コミット候補 | 390指定の15画像は実CSS幅500だったため補足証拠に降格。390合格に使わない |
+| 2 | 実390×844の15画像、768の修正後3画像、操作probe4画像、追加7ルート、計29画像 | tables fix2 / forms fix3 / errors fix1、統合候補 | 390はDevTools viewportエミュレーション＋PNG寸法とinnerWidthを確認。失敗した操作probeは初期状態の画像 |
+| 3 | 在庫1568×873、検査768×1024、2画像 | wave2と同じ製品候補、合成fixtureの再読込後 | 確認用frontendだけ再起動。在庫/検査の初回fixture不足を修正。集計サマリはfixture整合を受入していない |
+
+計91画像を実画像としてレビューした。初回15枚の500幅、エラー表示だけの画像、画面外の領域を、対象モバイル・非空一覧・内部スクロール後の合格へ転用しない。撮影後のF004（飼主画面のペット追加ボタンの余白）は追加テスト済みだが再撮影していない。
+
+## 既存指摘への対応
+
+| 票 | コード変更・確認 | 実画像の観察と未確認 |
+|---|---|---|
+| EMR-377 / VQ-001 | カンバン列のxl 280px最小幅を撤去。既存のボード内横スクロールを維持 | 1568で5列、768で3+2列を確認。1280初期位置では5列目の一部が画面外。横スクロール操作がunavailableで到達確認はUNKNOWN |
+| EMR-378 / VQ-002 | 飼主/トリミング/予防接種/在庫/スタッフの固定見出し・日時・状態をnowrap、識別名の最小幅を確保。長い本文は折返しを残す | 768再撮影でトリミング/予防接種見出しの折返し解消。スタッフ短名・有効ピルを確認。在庫はfixture再読込後の1568でカテゴリ/状態見出しを確認。長名・期限超過・死亡はUNKNOWN |
+| EMR-379 / VQ-003 | 飼主/ペット/担当医列の最小幅、死亡バッジの折返し、短い検索文言 | 768で合成飼主名・担当医名の極端な縦積み解消。390の見える飼主欄も1行。表の右側・死亡・長名はUNKNOWN |
+| EMR-380 / VQ-004 | InterviewHistoryの見出しnowrapと検索の折返し。担当医をPatientContextHeaderのスクロール外へ移動 | 1568/1280で履歴見出しは1行。390の新規/編集フォームで担当医ラベルが可視。値の意図した省略は残り、全幅の全名表示を保証しない。下方の履歴・横スクロール操作はUNKNOWN |
+| EMR-381 / VQ-005 | toastを右上、desktop/mobile offset72。caller override維持 | 390のページタイトルとの重なりは解消。過渡的な通知によるコンテンツ遮蔽は残る。通知消失後・全通知種別の受入ではない |
+| EMR-382 / VQ-006 | 検査日時の見出しとセルをnowrap | 非空合成検査の768で2026-07-23が1行。その他幅・日時長形式はUNKNOWN |
+| EMR-383 / VQ-007 | 検査/見積のloading/not-found/errorをページ枠＋説明＋一覧導線に統一。403/404は同じ非開示文言。明示ボタンはリソース一覧へ、ヘッダは元画面へ戻る | 欠落状態で説明と一覧ボタンを確認。403/503・再試行・戻る操作は単体テスト、実API/UATは未確認。過渡toastが本文見出しに重なる画像を空白fallbackとは扱わない |
+| EMR-384 / VQ-008 | 会計明細見出しnowrap、入力操作に合う幅、左カラムmin-w-0で表内スクロールへ閉じ込め | 1568で全見出し1行、1280/390は初期位置の表示範囲のみ。右端スクロール操作unavailable、明細入り編集・会計計算は本追試の確認ではない |
+| EMR-385 / VQ-009 | 監視Select最小180px、健診同期ラベルを意味単位で折返し | 768/390で「すべてのステータス」と括弧内の「任意」が読める。展開選択・送信はUNKNOWN |
+| EMR-386 / VQ-010 | 新規StaffSidePanelに「新規スタッフ登録」のplaceholderを指定 | 回帰テスト済み。新規スタッフの開状態は撮れずUNKNOWN |
+| EMR-387 / VQ-011 | 閉じたSupportWidgetをモーダル/SidePeek中に非表示。閉じる際は可視・有効な外部操作要素へfocus復帰。ペット追加ボタンにもFAB幅64pxの右余白を追加 | 1280予約モーダルでFAB非表示、確定ボタンを覆わない。スタッフ/ヘルプのfocus probeはunavailable。飼主画面の追加余白はcap到達後のため再撮影UNKNOWN |
+| EMR-388 / VQ-012 | CPM pillをnowrap。医院名は元から1Buttonでshared Buttonのnowrapがあるため製品コードは変更せず、正式名の回帰テスト | 全角空白を含む医院名が一つのpill内で可読。CPMの「…」は件数loading表示で意図した状態、文字切断として修正しない。CPM非空/選択操作はUNKNOWN |
+
+## 追加所見
+
+[EMR-389 / VQ-013](https://app.plane.so/baritechllc/browse/EMR-389/): 集計の「期間内来院回／数」、監視一覧の「除外理由」等が細かく折返す。既存EMR-378と同系統だが対象画面が異なる。今回のPRは記録までで、追加修正の合格を主張しない。
+
+飼主新規・編集のペット追加とFABの重なりはEMR-387の同原因バリアントとしてF004で修正した。新規所見の重複票は作らない。
+
+## 検証と残件
+
+- 統合候補の名前を指定した30 test files: 304 PASS / 3既存SKIP。変更TS/TSXとCSSのESLint/Prettier PASS。対象sourceをrootとしたTypeScript programで対象・依存診断0件。全リポジトリtypecheck/buildではない。
+- F004追加後のOwnerPetsSection: 49 PASS、対象lint/format PASS。最終sourceのTypeScript診断も0件。未変更の統合304件と追加49件を合わせた353件の検証証拠を保持し、同一の全suite実行とは呼ばない。
+- RED→GREENを各修正で保存。Devin SWE-2 High固定、同じ確認済みsessionで修正。superpowersの実skill Sourceをexportで確認。
+- aggregate coverage / 80% / ratchetはUNKNOWN。scoped検証で代替しない（docs/ops/coverage-policy.md）。全体CI・実API・UAT・mergeは未実施。
+- 未撮影の面/状態はインベントリK1〜K7を保持。LIFF/LINE予約、権限別、長名/死亡、モーダル各分岐、非空・保存・送信のfixtureがない状態には結果を継承しない。
+- Stagehandの既存profile daily cap200へ到達。counterのreset、limit増加、別profileでの回避はしていない。新たな撮影は残件。
+- Plane添付APIは認証不要の公開URLからのみ取得でき、ローカル画像の直接添付は未対応。画像を公開して迂回せず、Plane画像添付をBLOCKEDとして記録する。
+
+## 画像索引
+
+以下は実viewport、画像名、撮影対象を保持する索引。画像取得自体は合格ではない。別状態の判定は上の表と未確認理由を参照。
+
+| wave | route/state | actual PNG | file |
+|---|---|---|---|
+| 1 | `/` | 1568x873 | `shot-20261013T023436703172.png` |
+| 1 | `/owners` | 1568x873 | `shot-20261013T023440429606.png` |
+| 1 | `/medical-records` | 1568x873 | `shot-20261013T023443418058.png` |
+| 1 | `/medical-records/new?petId=990001` | 1568x873 | `shot-20261013T023446285802.png` |
+| 1 | `/medical-records/990013` | 1568x873 | `shot-20261013T023449216525.png` |
+| 1 | `/trimming` | 1568x873 | `shot-20261013T023452851858.png` |
+| 1 | `/vaccinations` | 1568x873 | `shot-20261013T023455710318.png` |
+| 1 | `/examinations` | 1568x873 | `shot-20261013T023458486025.png` |
+| 1 | `/inventory` | 1568x873 | `shot-20261013T023501143143.png` |
+| 1 | `/settings/staff` | 1568x873 | `shot-20261013T023503992913.png` |
+| 1 | `/lstep/checkup-sync` | 1568x873 | `shot-20261013T023506868068.png` |
+| 1 | `/lstep/delivery-monitor` | 1568x873 | `shot-20261013T023509553736.png` |
+| 1 | `/accounting/new?petId=990001` | 1568x873 | `shot-20261013T023512423955.png` |
+| 1 | `/examinations/990099` | 1568x873 | `shot-20261013T023515402506.png` |
+| 1 | `/estimates/990099` | 1568x873 | `shot-20261013T023518156203.png` |
+| 1 | `/` | 768x1024 | `shot-20261013T023520889432.png` |
+| 1 | `/owners` | 768x1024 | `shot-20261013T023523568922.png` |
+| 1 | `/medical-records` | 768x1024 | `shot-20261013T023526313471.png` |
+| 1 | `/medical-records/new?petId=990001` | 768x1024 | `shot-20261013T023529214019.png` |
+| 1 | `/medical-records/990013` | 768x1024 | `shot-20261013T023532389770.png` |
+| 1 | `/trimming` | 768x1024 | `shot-20261013T023535775490.png` |
+| 1 | `/vaccinations` | 768x1024 | `shot-20261013T023539110180.png` |
+| 1 | `/examinations` | 768x1024 | `shot-20261013T023544026292.png` |
+| 1 | `/inventory` | 768x1024 | `shot-20261013T023546856195.png` |
+| 1 | `/settings/staff` | 768x1024 | `shot-20261013T023549732881.png` |
+| 1 | `/lstep/checkup-sync` | 768x1024 | `shot-20261013T023552866685.png` |
+| 1 | `/lstep/delivery-monitor` | 768x1024 | `shot-20261013T023555994878.png` |
+| 1 | `/accounting/new?petId=990001` | 768x1024 | `shot-20261013T023559440223.png` |
+| 1 | `/examinations/990099` | 768x1024 | `shot-20261013T023602197022.png` |
+| 1 | `/estimates/990099` | 768x1024 | `shot-20261013T023604982258.png` |
+| 1 | `/` | 500x844 | `shot-20261013T023607980432.png` |
+| 1 | `/owners` | 500x844 | `shot-20261013T023610873535.png` |
+| 1 | `/medical-records` | 500x844 | `shot-20261013T023613949027.png` |
+| 1 | `/medical-records/new?petId=990001` | 500x844 | `shot-20261013T023616940564.png` |
+| 1 | `/medical-records/990013` | 500x844 | `shot-20261013T023619868587.png` |
+| 1 | `/trimming` | 500x844 | `shot-20261013T023622735090.png` |
+| 1 | `/vaccinations` | 500x844 | `shot-20261013T023625766614.png` |
+| 1 | `/examinations` | 500x844 | `shot-20261013T023628550545.png` |
+| 1 | `/inventory` | 500x844 | `shot-20261013T023631278053.png` |
+| 1 | `/settings/staff` | 500x844 | `shot-20261013T023634106154.png` |
+| 1 | `/lstep/checkup-sync` | 500x844 | `shot-20261013T023637036240.png` |
+| 1 | `/lstep/delivery-monitor` | 500x844 | `shot-20261013T023640009322.png` |
+| 1 | `/accounting/new?petId=990001` | 500x844 | `shot-20261013T023643495196.png` |
+| 1 | `/examinations/990099` | 500x844 | `shot-20261013T023646186388.png` |
+| 1 | `/estimates/990099` | 500x844 | `shot-20261013T023648943638.png` |
+| 1 | `/` | 1280x800 | `shot-20261013T023651842432.png` |
+| 1 | `/owners` | 1280x800 | `shot-20261013T023654770963.png` |
+| 1 | `/medical-records` | 1280x800 | `shot-20261013T023659587045.png` |
+| 1 | `/medical-records/new?petId=990001` | 1280x800 | `shot-20261013T023702496568.png` |
+| 1 | `/medical-records/990013` | 1280x800 | `shot-20261013T023705496003.png` |
+| 1 | `/trimming` | 1280x800 | `shot-20261013T023709714215.png` |
+| 1 | `/vaccinations` | 1280x800 | `shot-20261013T023712539893.png` |
+| 1 | `/examinations` | 1280x800 | `shot-20261013T023715509186.png` |
+| 1 | `/inventory` | 1280x800 | `shot-20261013T023718353635.png` |
+| 1 | `/settings/staff` | 1280x800 | `shot-20261013T023721378620.png` |
+| 1 | `/lstep/checkup-sync` | 1280x800 | `shot-20261013T023724144382.png` |
+| 1 | `/lstep/delivery-monitor` | 1280x800 | `shot-20261013T023727126179.png` |
+| 1 | `/accounting/new?petId=990001` | 1280x800 | `shot-20261013T023729854597.png` |
+| 1 | `/examinations/990099` | 1280x800 | `shot-20261013T023732674762.png` |
+| 1 | `/estimates/990099` | 1280x800 | `shot-20261013T023735605993.png` |
+| 2 | `/settings/staff` | 1568x873 | `shot-20261013T024632605942.png` |
+| 2 | `/reservations` | 1280x800 | `shot-20261013T024648232513.png` |
+| 2 | `/` | 1280x800 | `shot-20261013T024701615486.png` |
+| 2 | `/accounting/new?petId=990003` | 1280x800 | `shot-20261013T024715010901.png` |
+| 2 | `/medical-records` | 768x1024 | `shot-20261013T024721864968.png` |
+| 2 | `/trimming` | 768x1024 | `shot-20261013T024727931004.png` |
+| 2 | `/vaccinations` | 768x1024 | `shot-20261013T024733974278.png` |
+| 2 | `/` | 390x844 | `shot-20261013T024740087724.png` |
+| 2 | `/owners` | 390x844 | `shot-20261013T024746989458.png` |
+| 2 | `/medical-records` | 390x844 | `shot-20261013T024753909722.png` |
+| 2 | `/medical-records/new?petId=990003` | 390x844 | `shot-20261013T024759912727.png` |
+| 2 | `/medical-records/990013` | 390x844 | `shot-20261013T024805851288.png` |
+| 2 | `/trimming` | 390x844 | `shot-20261013T024812498388.png` |
+| 2 | `/vaccinations` | 390x844 | `shot-20261013T024818489287.png` |
+| 2 | `/examinations` | 390x844 | `shot-20261013T024824636046.png` |
+| 2 | `/inventory` | 390x844 | `shot-20261013T024830490894.png` |
+| 2 | `/settings/staff` | 390x844 | `shot-20261013T024836415550.png` |
+| 2 | `/lstep/checkup-sync` | 390x844 | `shot-20261013T024842200850.png` |
+| 2 | `/lstep/delivery-monitor` | 390x844 | `shot-20261013T024848391159.png` |
+| 2 | `/accounting/new?petId=990003` | 390x844 | `shot-20261013T024854192162.png` |
+| 2 | `/examinations/990099` | 390x844 | `shot-20261013T024900003468.png` |
+| 2 | `/estimates/990099` | 390x844 | `shot-20261013T024905896091.png` |
+| 2 | `/aggregation` | 1568x873 | `shot-20261013T024911742475.png` |
+| 2 | `/owners/new` | 1568x873 | `shot-20261013T024919338500.png` |
+| 2 | `/owners/990002` | 1568x873 | `shot-20261013T024925414948.png` |
+| 2 | `/inventory/new` | 1568x873 | `shot-20261013T024931594165.png` |
+| 2 | `/shifts` | 1568x873 | `shot-20261013T024937492199.png` |
+| 2 | `/settings/clinic` | 1568x873 | `shot-20261013T024943396186.png` |
+| 2 | `/line-reservation` | 1568x873 | `shot-20261013T024949223066.png` |
+| 3 | `/inventory` | 1568x873 | `shot-20261013T025314566129.png` |
+| 3 | `/examinations` | 768x1024 | `shot-20261013T025320410593.png` |
