@@ -118,7 +118,7 @@ STG候補のapplyレポートは `-stg-uat-apply-medicines-22-candidate.json` �
 - parserのメモリ/時間上限としてmanifestは4MiB、各CSVは512MiB、payment親は100万件、splitは親あたり最大2件を上限とし、超過時はfail-closedする。
 - target seed ID は6つとも明示する。予約種別・支払方法を表示名や先頭行から暗黙解決しない。
 - apply は対象 band が21表すべて空の場合だけ実行し、既存行を削除・置換しない。
-- apply は単一 transaction、advisory lock、table lockを使う。CSV が preflight 後に変わった場合は再 SHA-256 検証で全 rollback する。`make stg-uat-handoff` だけは PlanetScale が長時間の未コミット INSERT で接続を切るため、表ごとに commit する。成功済み prefix（件数・clinic isolation が manifest と一致）は再実行で skip し、一致しない非空 band は fail-closed のまま上書きしない。医院単位では apply report が `PASS` なら wrapper がその医院の `make stg-uat-import` を skip する。`STARTED` / 失敗 report は no-clobber のため、再実行前に失敗日時付きへリネームする。
+- apply は単一 transaction、advisory lock、table lockを使う。CSV が preflight 後に変わった場合は再 SHA-256 検証で全 rollback する。`make stg-uat-handoff` だけは PlanetScale が長時間の未コミット INSERT で接続を切るため、表ごとに commit する。成功済み prefix（件数・clinic isolation が manifest と一致）は再実行で skip し、一致しない非空 band は fail-closed のまま上書きしない。ただし candidate22（`medicines-22-candidate`）では 2026-10-14 ユーザー決定 A（fresh-only）により既存 prefix resume は廃止: apply は advisory lock／target 検査の直後に clinic band 全空を要求し、正当な candidate 途中 prefix でも `CUTOVER_REF_BAND_OCCUPIED` で最初の Begin/COPY 前に拒否する。legacy21 の prefix skip は従来どおり維持。医院単位では apply report が `PASS` なら wrapper がその医院の `make stg-uat-import` を skip する。`STARTED` / 失敗 report は no-clobber のため、再実行前に失敗日時付きへリネームする。
 - CSV/manifest は PHI を含み得る。行値をログ・report・Git・チャットへ出さない。report は status/timestamp、manifest digest、clinic/run/target metadata、ID band、aggregate count、再検証に必要な非PHIの6 seed ID、failure stage を記録し、CSV cell値は記録せず、固定mount `/migration-reports` 直下へ0600/no-clobberで作成する。
 
 ## 事前準備
@@ -192,7 +192,7 @@ make csv-import-verify
 ## 失敗・rollback
 
 - transaction を開始できなかった場合、target data は未変更でreportは `FAILED_BEFORE_TRANSACTION` になります。接続・DB状態を確認し、原因を解消して新しい作業確認を取るまで再実行しません。
-- 正式 `make csv-import` の transaction 内失敗はデータ行を自動 rollback し、report は `FAILED_DATA_ROLLED_BACK` になります。`make stg-uat-handoff` は表ごと commit するため、失敗した表だけ rollback し report は `FAILED_TABLE_ROLLED_BACK` です。成功済みの表は残るので、原因解消後に同じ command を再実行すると一致した prefix を skip します。一致しない非空 band は上書きしません。PostgreSQL sequence は transaction rollback 対象外ですが、処理は値を下げず application 予約域へ進めるだけなので、失敗時に残り得るのは安全な番号飛びだけです。report は no-clobber のため、失敗後の再実行前に `sensitive-local/csv-import-reports/<clinic>-<run>-stg-uat-apply.json`（または formal の `*-apply.json`）を失敗日時付きへリネームします。
+- 正式 `make csv-import` の transaction 内失敗はデータ行を自動 rollback し、report は `FAILED_DATA_ROLLED_BACK` になります。`make stg-uat-handoff` は表ごと commit するため、失敗した表だけ rollback し report は `FAILED_TABLE_ROLLED_BACK` です。成功済みの表は残るので、原因解消後に同じ command を再実行すると一致した prefix を skip します（legacy21。candidate22 では 2026-10-14 ユーザー決定 A により band 全空でない target は `CUTOVER_REF_BAND_OCCUPIED` で拒否され、自動的な削除・rollback・reset は行わない。候補のやり直しは別途用意した空の隔離 target と承認済み手順で実施する）。一致しない非空 band は上書きしません。PostgreSQL sequence は transaction rollback 対象外ですが、処理は値を下げず application 予約域へ進めるだけなので、失敗時に残り得るのは安全な番号飛びだけです。report は no-clobber のため、失敗後の再実行前に `sensitive-local/csv-import-reports/<clinic>-<run>-stg-uat-apply.json`（または formal の `*-apply.json`）を失敗日時付きへリネームします。
 - commit応答が失われた場合は、commit済みかrollback済みかを断定せずreportを `COMMIT_OUTCOME_UNKNOWN` とします。再実行・backup restore・運用開始をすべて止め、同じmanifest/seedでread-onlyの `make csv-import-verify` を実行してDB管理者が結果を照合するまで状態変更を行いません。
 - process crashや強制終了後にapply reportがmissing、malformed、または `STARTED` のままの場合もcommit結果を証明できないため、`COMMIT_OUTCOME_UNKNOWN` と同じ未確定状態として扱います。reportを作り直す再実行やbackup restoreへ進まず、targetを隔離してread-only verifyとDB照合を先に行います。
 - one-shot STG UAT importのreportが `PASS` になるのは、apply後の最終verify成功時だけです。commit済みapplyの最終verifyが失敗した場合は `FAILED_POST_COMMIT_VERIFY` / failure stage `verify` とし、targetを隔離して原因を照合します。
@@ -217,7 +217,7 @@ stateDiagram-v2
   committed --> PASS: 最終 verify 成功
   committed --> FAILED_POST_COMMIT_VERIFY: 最終 verify 失敗
   COMMIT_OUTCOME_UNKNOWN --> verify
-  FAILED_TABLE_ROLLED_BACK --> apply: 一致済み prefix は skip して再実行
+  FAILED_TABLE_ROLLED_BACK --> apply: legacy21 は一致済み prefix を skip して再実行（candidate22 は band 非空なら拒否＝決定A fresh-only）
 ```
 
 ## Scoped verification

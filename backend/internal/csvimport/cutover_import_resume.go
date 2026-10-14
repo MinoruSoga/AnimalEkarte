@@ -44,18 +44,21 @@ func (s pgxPoolCutoverSession) Begin(ctx context.Context, iso pgx.TxIsoLevel) (c
 	return pgxCutoverTransaction{Tx: tx}, nil
 }
 
-// PreflightCutoverTargetAllowingResume is the STG UAT preflight. A complete
-// clinic-band prefix that already matches the manifest is allowed so a later
-// table can resume after a previous table had committed. Formal cutover still
-// uses PreflightCutoverTarget and requires every band empty.
+// PreflightCutoverTargetAllowingResume is the STG UAT preflight. For the
+// legacy21 formal profile a complete clinic-band prefix that already matches
+// the manifest is allowed so a later table can resume after a previous table
+// had committed. For the candidate22 profile the entire clinic band must be
+// empty (user decision A: fresh-only); formal candidate activation stays
+// blocked via the provenance binding.
 func PreflightCutoverTargetAllowingResume(ctx context.Context, target cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs) error {
 	return PreflightCutoverTargetAllowingResumeWithProvenance(ctx, target, manifest, seeds, CutoverProvenanceContract{})
 }
 
 // PreflightCutoverTargetAllowingResumeWithProvenance binds the profile before
-// checking the target and a resumable clinic-band prefix. Each populated
-// table must already match the manifest; candidate formal activation remains
-// blocked and this preflight never imports or replaces target data.
+// checking the target. Legacy21 accepts a resumable clinic-band prefix where
+// each populated table already matches the manifest. Candidate22 requires the
+// entire clinic band empty before acceptance (user decision A, 2026-10-14);
+// this preflight never imports or replaces target data.
 func PreflightCutoverTargetAllowingResumeWithProvenance(ctx context.Context, target cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs, provenance CutoverProvenanceContract) error {
 	var err error
 	manifest, err = bindCutoverManifestProfile(manifest, provenance)
@@ -64,6 +67,9 @@ func PreflightCutoverTargetAllowingResumeWithProvenance(ctx context.Context, tar
 	}
 	if _, err := validateCutoverTarget(ctx, target, manifest, seeds, false); err != nil {
 		return err
+	}
+	if manifest.profile == CutoverProfileMedicinesCandidate {
+		return validateCutoverBandEmpty(ctx, target, manifest.IDBand, manifest.profile)
 	}
 	return validateCutoverBandResumable(ctx, target, manifest, seeds)
 }
@@ -115,7 +121,9 @@ func inspectCutoverBand(
 // ApplyCutoverCommittingEachTable imports each CSV in its own transaction.
 // PlanetScale terminated a multi-million-row single transaction (SQLSTATE-less
 // connection close after ~30 minutes). Formal ApplyCutover stays one
-// transaction. Successful tables stay committed; retry skips a complete prefix.
+// transaction. Successful tables stay committed; legacy21 retries skip a
+// complete prefix. Candidate22 accepts only an empty band for fresh rehearsal
+// and rejects every existing prefix, including a legitimate interrupted run.
 func ApplyCutoverCommittingEachTable(
 	ctx context.Context,
 	pool *pgxpool.Pool,
@@ -170,6 +178,15 @@ func applyCutoverCommittingEachTable(
 	if err != nil {
 		return CutoverResult{}, err
 	}
+	// User decision A: a candidate22 apply requires an entirely empty clinic
+	// band before the first Begin/COPY, so even a legitimate interrupted
+	// candidate prefix is denied without any partial import. Legacy21 keeps
+	// its complete-prefix skip below.
+	if bundle.Manifest.profile == CutoverProfileMedicinesCandidate {
+		if err := validateCutoverBandEmpty(ctx, session, bundle.Manifest.IDBand, bundle.Manifest.profile); err != nil {
+			return CutoverResult{}, err
+		}
+	}
 	drift := append([]string(nil), bundle.ToleratedDrift...)
 	drift = append(drift, targetNotes...)
 
@@ -186,6 +203,11 @@ func applyCutoverCommittingEachTable(
 		}
 		if state == cutoverBandComplete {
 			if seenEmpty {
+				return CutoverResult{}, fmt.Errorf("%s: target clinic band is already occupied in table %s", CutoverRefBandOccupied, spec.Name)
+			}
+			if bundle.Manifest.profile == CutoverProfileMedicinesCandidate {
+				// A table can become occupied after the initial band check.
+				// Never adopt it as a candidate prefix under decision A.
 				return CutoverResult{}, fmt.Errorf("%s: target clinic band is already occupied in table %s", CutoverRefBandOccupied, spec.Name)
 			}
 			counts[spec.Name] = count
