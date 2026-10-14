@@ -6,12 +6,14 @@
 
 ## 現行契約と不足分
 
+この文書の「21表」は既定legacy-21 consumerを指す。2026-10-13のユーザー採用判断で21表正式経路を維持し、EMR-343/345の薬剤22表候補は明示profileへ分離した。候補の正式activationは引き続き拒否する（§1の22表候補注記）。この判断はproducer受領・本番切替承認ではない。以下のコード参照は行番号ではなく表/placeholderの定義symbolを指定し、候補の正式採用を意味しない。
+
 | 対象 | 旧側で確認できる根拠 | 現行の送出・取込先 | 未確定の差分 |
 | --- | --- | --- | --- |
-| 処置・注射のマスタ候補 | `../old_db/sql/table_structure_sqlserver.sql:517-539` の `MST_SAL_INFO` → `020_canonical.sql:1715-1755` `legacy_canonical.sale_items` → `030_stage.sql:239-270` が `sal_tri_kbn='1'` のみ `animalekarte_stage.procedures` へ。`legacy_sale_no` / `source_pk` を系譜保持。 | `backend/internal/csvimport/cutover_contract.go:205` の `procedures`（21 表内）。列 `id, clinic_id, name, price, is_active, description, duration, anesthesia, parent_id, tax_type, tax_rate, sort_order, is_surgery`。 | 注射を含める旧種類・コード範囲、旧マスタキーと新 ID の確定 crosswalk、採用/除外ルールは **UNKNOWN**。`SalTanka_Num` は canonical にあるが stage `price` は `NULL` 固定。現行マスタ送出は患者実施履歴ではない。 |
-| 来院ごとの処置・注射実施 | `table_structure_sqlserver.sql:1538-1573` の `TBL_TRI_DATA`（PK `(TPK_PET_No, TReat_Sno, TGyo_Num)`）→ `020_canonical.sql:1911-1980` は全行を `billing_items` に正規化。`030_stage.sql` に `treatments` CREATE/INSERT は **無い**。 | `cutover_contract.go:203-227` に `treatments` 表仕様は **無い**（21 表外）。AE 実行 DDL は `backend/migrations/001_init.sql:1587-1620` に `treatments` があるが cutover 非契約。 | 臨床実施として別表へ出す契約は未成立。会計 `billing_items` から実施行を捏造しない。候補列・FK・重複キーは下表（未採用は UNKNOWN）。 |
-| 処方履歴 | `TBL_YBS_HIST`（`020_canonical.sql:3637+`）は予防接種処方箋ストリーム。一般処方薬の独立 producer INSERT は `030_stage.sql` に無い。`1660` の `prescriptions` 言及は YBS lot 空文字コメントのみ。 | `cutover_contract.go:203-227` に `prescriptions` **無し**。AE DDL `001_init.sql:1436-1452` にヘッダ表のみ（明細子表なし）。 | 一般処方の旧表・元列、薬剤マスタ、用量/用法/日数、発行日時、FK、重複キーは **UNKNOWN**。YBS を一般処方へ流用しない。 |
-| 会計と過去カルテ表示 | `030_stage.sql:1053-1108` / `020_canonical.sql:1795-1835` は会計明細に `billing_id` 必須。`TReat_Sno` は精算シリアル（§31）でありカルテ番号ではない。 | 21 表に `billings` / `billing_items`（`cutover_contract.go:215-216`）。 | 会計を再計上せず臨床履歴としてどう表示するか、欠損と未移行の区別、読み取り専用表示は **UNKNOWN**。`billing_items` 取込完了 ≠ 処置/処方履歴完了。 |
+| 処置・注射のマスタ候補 | `../old_db/sql/table_structure_sqlserver.sql:517-539` の `MST_SAL_INFO` → `020_canonical.sql:1715-1755` `legacy_canonical.sale_items` → `030_stage.sql:239-270` が `sal_tri_kbn='1'` のみ `animalekarte_stage.procedures` へ。`legacy_sale_no` / `source_pk` を系譜保持。 | `backend/internal/csvimport/cutover_contract.go / CutoverTableSpecs(): procedures` の `procedures`（21 表内）。列 `id, clinic_id, name, price, is_active, description, duration, anesthesia, parent_id, tax_type, tax_rate, sort_order, is_surgery`。 | 注射を含める旧種類・コード範囲、旧マスタキーと新 ID の確定 crosswalk、採用/除外ルールは **UNKNOWN**。`SalTanka_Num` は canonical にあるが stage `price` は `NULL` 固定。現行マスタ送出は患者実施履歴ではない。 |
+| 来院ごとの処置・注射実施 | `table_structure_sqlserver.sql:1538-1573` の `TBL_TRI_DATA`（PK `(TPK_PET_No, TReat_Sno, TGyo_Num)`）→ `020_canonical.sql:1911-1980` は全行を `billing_items` に正規化。`030_stage.sql` に `treatments` CREATE/INSERT は **無い**。 | `cutover_contract.go / CutoverTableSpecs()` に `treatments` 表仕様は **無い**（21 表外）。AE 実行 DDL は `backend/migrations/001_init.sql:1587-1620` に `treatments` があるが cutover 非契約。 | 臨床実施として別表へ出す契約は未成立。会計 `billing_items` から実施行を捏造しない。候補列・FK・重複キーは下表（未採用は UNKNOWN）。 |
+| 処方履歴 | `TBL_YBS_HIST`（`020_canonical.sql:3637+`）は予防接種処方箋ストリーム。一般処方薬の独立 producer INSERT は `030_stage.sql` に無い。`1660` の `prescriptions` 言及は YBS lot 空文字コメントのみ。 | `cutover_contract.go / CutoverTableSpecs()` に `prescriptions` **無し**。AE DDL `001_init.sql:1436-1452` にヘッダ表のみ（明細子表なし）。 | 一般処方の旧表・元列、薬剤マスタ、用量/用法/日数、発行日時、FK、重複キーは **UNKNOWN**。YBS を一般処方へ流用しない。 |
+| 会計と過去カルテ表示 | `030_stage.sql:1053-1108` / `020_canonical.sql:1795-1835` は会計明細に `billing_id` 必須。`TReat_Sno` は精算シリアル（§31）でありカルテ番号ではない。 | 21 表に `billings` / `billing_items`（`cutover_contract.go / CutoverTableSpecs(): billings・billing_items`）。 | 会計を再計上せず臨床履歴としてどう表示するか、欠損と未移行の区別、読み取り専用表示は **UNKNOWN**。`billing_items` 取込完了 ≠ 処置/処方履歴完了。 |
 
 `030_stage.sql:1072-1108` の会計明細は `unit_price_raw` を数値判定して丸め、`quantity_raw` を正数判定して小数第 1 位へ丸め、それ以外は既定値にする。これは**現行の会計変換**であり、臨床履歴の元数量・元金額を保存する方針ではない。`procedures` 側の価格は `030_stage.sql:239-270` で `NULL`。会計金額と臨床実施値の対応・差額照合は別途決める必要がある。
 
@@ -67,11 +69,11 @@ flowchart LR
 | AE 実行 schema（非 cutover） | `backend/migrations/001_init.sql`（`treatments`, `prescriptions`, `medicines`） |
 | 参考（非現行 producer） | `backend/cmd/_archive/seed-old-db/transform.go` — 採用根拠にしない。候補メモのみ |
 
-21 表 hash は観測のみ（**変更しない**）: `cutoverStageMappingSHA256=0d7f089990079af28c2ba454ee48188d55a67beab19a9f16a86dee93fec80597`、`cutoverCSVContractSHA256=19b2c5c270058b20c1fa816679c0430f236a0a181165ae1ed2257c64c83f6671`（`cutover_contract.go:17-18`）。`CutoverTableSpecs` は 21 表で `treatments` / `prescriptions` / `medicines` を含まない（観測: staffs…vaccinations）。
+21 表 hash は観測のみ（**変更しない**）: 現行 `cutoverStageMappingSHA256=bf8c262e136d4d5e74751508286710035b27bd1e7ed927ce4f47320dd4e9152b`、`cutoverCSVContractSHA256=9e02897b86c742f94162ddfd4171067b3036a3ac4f055c6d3fd4a614e0fb37c9`（`cutoverStageMappingSHA256 / cutoverCSVContractSHA256`。旧観測 `0d7f0899…`/`19b2c5c2…` は 2026-09-22 時点の historical であり現行値ではない。draft 22 表は新 producer pin 未合意のまま採用しない）。`CutoverTableSpecs` は deployed/main では 21 表で `treatments` / `prescriptions` / `medicines` を含まない（観測: staffs…vaccinations）。ただし EMR-343/345 で `medicines`（15 列、`procedures` 次位）を加えた **22 表 consumer 実装候補（ドラフト）** が存在し、`estimate_items.medicine_id` を medicines CSV 親参照として扱う。producer pin/source hash 未合意（compiled `9e02897b…` vs producer 21 表 source `8a466c63…`）・22 表 producer bundle 未生成のため正式採用ではない（MIG-34/37/41 保留）。`treatments` / `prescriptions` は引き続き契約外。
 
 過去分の既定: **参照専用・自動再請求なし**（`todo-issue.md#uat-q2-treatments-import`）。`billing_items` 取込完了を処置/処方履歴完了とみなさない。氏名一致結合はしない。
 
-### procedures（21 表に存在。`CutoverTableSpecs` `cutover_contract.go:205`）
+### procedures（21 表に存在。`CutoverTableSpecs` `cutover_contract.go / CutoverTableSpecs(): procedures`）
 
 Producer: `animalekarte_stage.procedures` INSERT `030_stage.sql:239-269`。FROM `legacy_canonical.sale_items` WHERE `sal_tri_kbn = '1'`（`246-247`）。ルータコメント `209-216` / canonical `1710-1714`: `SalTri_Kbn` のみ。`1=procedure`, `2=merchandise`。未分類は canonical のみ。注射専用コード範囲は **UNKNOWN**。`sal_tri_kbn='1'` を全処置/全注射としない。
 
@@ -98,7 +100,7 @@ Producer: `animalekarte_stage.procedures` INSERT `030_stage.sql:239-269`。FROM 
 | 旧 / canonical | producer `animalekarte_stage.procedures` | AE 21 表 `procedures` | FK / dedup | 注 |
 | --- | --- | --- | --- | --- |
 | `sale_item_key` | `id = sale_item_key + :stage_id_offset` | `id`（band `id`,`parent_id`） | dedup 候補: `legacy_sale_no` UNIQUE / `PK_Sal_No`。AE 側は band 済み `id` | crosswalk 候補。確定採用/除外は **UNKNOWN** |
-| （定数 `1`。CSV で `{{CLINIC_ID}}`） | `clinic_id` | `clinic_id`（placeholder `cutover_contract.go:175`） | FK → `clinics` | 旧支店コードは clinic_id に使わない |
+| （定数 `1`。CSV で `{{CLINIC_ID}}`） | `clinic_id` | `clinic_id`（placeholder `cutover_contract.go / CutoverPlaceholderColumns()`） | FK → `clinics` | 旧支店コードは clinic_id に使わない |
 | `primary_name`（重複時 `legacy_sale_no` 接尾） | `name` | `name`（force-not-null） | 名前衝突は接尾で回避 | 空名は `''` + `needs_review`。CSV 除外はコメントのみ |
 | `unit_price_raw`（`SalTanka_Num`） | `price = NULL`（INSERT リテラル） | `price` | — | マスタ料金の現行送出値は NULL。原価列の採用は **UNKNOWN** |
 | なし（`true`） | `is_active` | `is_active` | — | 旧列なし |
@@ -112,7 +114,7 @@ Producer: `animalekarte_stage.procedures` INSERT `030_stage.sql:239-269`。FROM 
 | `legacy_sale_no` | `legacy_item_code` | 21 表 CSV 列に無い | 系譜 | 非契約 |
 | `'MST_SAL_INFO'`, `source_pk` | `source_table`, `source_pk` | 21 表 CSV 列に無い | 系譜 | |
 
-### treatments（21 表に無い。`cutover_contract.go:203-227` に表名なし）
+### treatments（21 表に無い。`cutover_contract.go / CutoverTableSpecs()` に表名なし）
 
 `030_stage.sql` に `CREATE TABLE animalekarte_stage.treatments` / `INSERT INTO …treatments` は **ABSENT**。現行 producer は `TBL_TRI_DATA` 全行を会計 `billing_items` へ送るのみ（`020_canonical.sql:1795-1799`, `030_stage.sql:1072-1108`）。
 
@@ -126,7 +128,7 @@ AE 実行表（cutover 非契約）: `001_init.sql:1587-1620` / model `backend/i
 | `TPK_PET_No` | `legacy_pet_no` → `xw_pet` | （直接列なし。親 `medical_records.pet_id`） | FK 候補: pet crosswalk。氏名結合禁止 | 経路はカルテ解決依存 |
 | `TReat_Sno` | 精算シリアル（= `KNJO.JKnjo_Sno`）。**カルテ番号ではない**（`020_canonical.sql:1801-1807` §31） | — | カルテ FK に直結させない | 誤結合禁止は確定 |
 | （KNJO `JKrt_No` via settlement） | `billings.record_key` | `medical_record_id` NOT NULL | FK → `medical_records` | 解決不能時は保留。黙って落とさない |
-| `TChri_No` | `sale_no` → `sale_item_key`（jouto 特殊コードは NULL） | `procedure_id` / `medicine_id`（item_type 依存） | FK → `procedures` / `medicines` | `medicines` は 21 表外。マスタ未移行時 **UNKNOWN**/保留 |
+| `TChri_No` | `sale_no` → `sale_item_key`（jouto 特殊コードは NULL） | `procedure_id` / `medicine_id`（item_type 依存） | FK → `procedures` / `medicines` | `medicines` は deployed/main では 21 表外（22 表ドラフト候補あり、producer bundle 未合意）。マスタ未移行時 **UNKNOWN**/保留 |
 | `Ttri_Kbn` / `TRv_Kbn` | canonical `category_kbn`（並列分類。会計 category の正本は `SalTri_Kbn`） | `item_type`（`procedure`/`medicine`/`consultation`/`other`） | CHECK `chk_treatment_item_ref` | 値域マッピングは **UNKNOWN**。archive `seed-old-db` は `'1'→procedure,'2'→medicine` 提案のみで現行非採用 |
 | `TreatNm_Data` / `Treat_Data` / `TbunNm_Data` | `item_name` / raw 列 | `content` | — | coalesce 規則は会計側と同一候補 |
 | `Ttanka_Kin` | `unit_price_raw`（text 保持） | `unit_price` bigint | — | 会計丸め（stage round）を臨床へ流用しない。原精度保持方針は未契約 |
@@ -149,23 +151,23 @@ AE 実行表（cutover 非契約）: `001_init.sql:1587-1620` / model `backend/i
 | 参照欠損 vs 未移行 | 判定手続きは下記「理由コード付き保留ルール」 | — | コード自体はドラフト。値域写像など個別 UNKNOWN は残す |
 | 自動再請求 | 禁止（既定） | — | 過去分 read-only。`billing_items.treatment_id`（DDL にあるが CSV 非契約）を埋めない |
 
-### prescriptions（21 表に無い。`cutover_contract.go:203-227` に表名なし）
+### prescriptions（21 表に無い。`cutover_contract.go / CutoverTableSpecs()` に表名なし）
 
 `030_stage.sql` に一般処方の `CREATE`/`INSERT` は **ABSENT**。`1660` は YBS 接種 INSERT の lot 空文字コメント（`-- YBS has no lot columns (prescriptions)`）であり処方送出ではない。
 
-AE DDL `001_init.sql:1436-1452`: `id, clinic_id, owner_id, pet_id, medical_record_id, prescribed_at, duration_days`（ヘッダのみ。明細子表なし）。`medicines` マスタは `001_init.sql:740+` だが 21 表外。
+AE DDL `001_init.sql:1436-1452`: `id, clinic_id, owner_id, pet_id, medical_record_id, prescribed_at, duration_days`（ヘッダのみ。明細子表なし）。`medicines` マスタは `001_init.sql:740+` だが deployed/main では 21 表外（22 表ドラフト候補あり、採用未決）。
 
 | 旧 | producer | AE（DDL / 21 表） | FK / dedup | 注 |
 | --- | --- | --- | --- | --- |
 | 一般処方の元表・元列 | **ABSENT** / **UNKNOWN** | 21 表 **ABSENT**；DDL ヘッダのみ | — | 復元根拠のない用量を作らない |
 | `TBL_YBS_HIST`（予防処方箋） | vaccinations_ybs → stage vaccinations | `vaccinations`（21 表） | 別ユニット | 一般 `prescriptions` へ流用しない（canonical コメント） |
 | `TBL_TRI_DATA.TRyou_Num` / `Tkaisu_Num` / `TTouyo_Data` | billing 経路で未送出 | prescriptions / treatments.dose_* | — | 処方ヘッダ/明細との対応 **UNKNOWN** |
-| 薬剤マスタ | `MST_SAL_INFO` の一部? / 別表? | `medicines`（非 cutover） | FK **UNKNOWN** | 採用範囲未確定 |
+| 薬剤マスタ | `MST_SAL_INFO` の一部? / 別表? | `medicines`（deployed/main では非 cutover；22 表ドラフト候補あり） | FK **UNKNOWN** | 採用範囲未確定 |
 | `prescribed_at` / `duration_days` | **UNKNOWN** | DDL 必須/既定 | — | YBS の start/end を流用しない |
 | clinic / owner / pet / record FK | **UNKNOWN** | DDL FK あり | 氏名結合禁止 | |
 | 重複キー | **UNKNOWN** | — | — | |
 
-### billing_items（21 表に存在。会計明細。`cutover_contract.go:216`）
+### billing_items（21 表に存在。会計明細。`cutover_contract.go / CutoverTableSpecs(): billing_items`）
 
 Producer: `animalekarte_stage.billing_items` INSERT `030_stage.sql:1072-1108`。FROM `legacy_canonical.billing_items`。`source_table` リテラル `'TBL_TRI_DATA'`。stage CREATE に `clinic_id` 列は無い（`1053-1071`）。
 
@@ -191,7 +193,7 @@ Producer: `animalekarte_stage.billing_items` INSERT `030_stage.sql:1072-1108`。
 | --- | --- | --- | --- | --- |
 | `item_key` | `id = item_key + :stage_id_offset` | `id`（band `id`,`billing_id`） | dedup: `source_pk` | |
 | `billing_key` | `billing_id` NOT NULL | `billing_id` | FK → `billings` | |
-| なし（stage 列なし） | **UNKNOWN** in INSERT | `clinic_id`（placeholder `cutover_contract.go:186`） | — | CSV 置換経路はこの INSERT に無い |
+| なし（stage 列なし） | **UNKNOWN** in INSERT | `clinic_id`（placeholder `cutover_contract.go / CutoverPlaceholderColumns()`） | — | CSV 置換経路はこの INSERT に無い |
 | `sal_tri_kbn` | `category`: `'1'`→`procedure`、`'2'`/else→`other` | `category` | — | 注射専用値 **UNKNOWN** |
 | `item_name` | `name` | `name`（force-not-null） | — | |
 | `unit_price_raw` | round→bigint / else `0` | `unit_price` | — | **会計変換**。臨床原値ではない |
@@ -201,9 +203,9 @@ Producer: `animalekarte_stage.billing_items` INSERT `030_stage.sql:1072-1108`。
 | `legacy_line_no` | `sort_order` | `sort_order` | — | |
 | `source_pk`, `legacy_pet_no`, `legacy_treat_sno` | 同左（`legacy_record_no` 名で treat_sno） | 21 表 CSV 列に無い | 系譜 | 臨床実施キーとしては未契約 |
 | `discount_raw` | stage 未送出 | AE DDL に `discount_*` あり、**CSV 非契約** | — | |
-| AE `treatment_id` 等 | stage 未送出 | DDL にあるが `cutover_contract.go:216` 列に無い | FK → treatments | 過去分で埋めない（再請求導線を作らない） |
+| AE `treatment_id` 等 | stage 未送出 | DDL にあるが `cutover_contract.go / CutoverTableSpecs(): billing_items` 列に無い | FK → treatments | 過去分で埋めない（再請求導線を作らない） |
 
-親 `billings`（会計ヘッダ。臨床実施表ではない）: stage `030_stage.sql:908-949`。`scheduled_date` は `treat_date::date`（1900-01-01 超のみ）。AE 列 `id, clinic_id, medical_record_id, owner_id, pet_id, total_amount, status, scheduled_date, completed_at`（`cutover_contract.go:215`）。dedup: `(legacy_pet_no, legacy_treat_sno)`。`legacy_treat_sno` はヘッダ系譜であり treatments 行キーではない。
+親 `billings`（会計ヘッダ。臨床実施表ではない）: stage `030_stage.sql:908-949`。`scheduled_date` は `treat_date::date`（1900-01-01 超のみ）。AE 列 `id, clinic_id, medical_record_id, owner_id, pet_id, total_amount, status, scheduled_date, completed_at`（`cutover_contract.go / CutoverTableSpecs(): billings`）。dedup: `(legacy_pet_no, legacy_treat_sno)`。`legacy_treat_sno` はヘッダ系譜であり treatments 行キーではない。
 
 見積明細 `estimate_items`（`030_stage.sql:1385-1427`、`TBL_MIT_DATA`）は `sal_tri_kbn='1'` で `procedure_id` を付けるが、患者実施履歴ではない。本票の treatments 契約に流用しない。
 
@@ -257,11 +259,12 @@ Producer: `animalekarte_stage.billing_items` INSERT `030_stage.sql:1072-1108`。
 
 | 項目 | 観測 | 契約含意 |
 | --- | --- | --- |
-| `treatments` / `prescriptions` / `medicines` | `CutoverTableSpecs`（`cutover_contract.go:203-225`）に **表名なし** | 臨床履歴は **新契約候補**。現行 21 表 cutover 完了 ≠ treatments 完了 |
+| `treatments` / `prescriptions` | `CutoverTableSpecs` に **表名なし** | 臨床履歴は **新契約候補**。現行 21 表 cutover 完了 ≠ treatments 完了 |
+| `medicines` | deployed/main の `CutoverTableSpecs` に表名なし。EMR-343/345 の **22 表ドラフト候補**では `procedures` 次位に 15 列 spec あり | producer pin/bundle 未合意のため採用未決。合成 fixture は構造証明のみ |
 | stage producer | `030_stage.sql` に `animalekarte_stage.treatments` CREATE/INSERT **ABSENT** | 実装前に producer+consumer 同一契約レビューが必須 |
 | AE 実行 DDL | `001_init.sql:1587-1616` `treatments`；dose 列は同ファイル後半 `#201` 追加 | cutover 非契約。DDL 形状は候補列の参照先 |
 | 会計経路 | `TBL_TRI_DATA` → canonical `billing_items` → stage `billing_items`（`030_stage.sql:1072-1108`） | 会計は並行維持。臨床行へコピーしない |
-| hash（観測） | `0d7f0899…` / `19b2c5c2…`（`cutover_contract.go:17-18`） | 本ドラフトで変更しない |
+| hash（観測） | 現行 `bf8c262e…` / `9e02897b…`（`cutoverStageMappingSHA256 / cutoverCSVContractSHA256`。旧観測 `0d7f0899…`/`19b2c5c2…` は historical） | 本ドラフトで変更しない |
 
 ### D1. FK（attribution / master refs）
 
@@ -271,9 +274,9 @@ Producer: `animalekarte_stage.billing_items` INSERT `030_stage.sql:1072-1108`。
 | pet 帰属 | `TPK_PET_No` → `xw_pet` → 親カルテ `pet_id` | 氏名/カナ一致結合は禁止。pet crosswalk 欠落は保留 | — |
 | `medical_record_id` | §31: `TReat_Sno` = 精算シリアル（`KNJO.JKnjo_Sno`）。カルテは `KNJO.JKrt_No` 経由（`020_canonical.sql:1801-1806,1837-1843`） | `TReat_Sno` をカルテ番号として直結しない。解決不能は黙って落とさず保留 | 1 settlement に複数 karte 候補が残る場合の採用規則は **UNKNOWN**（canonical は distinct 1 件のみ昇格） |
 | `procedure_id` | `TChri_No` → `sale_no` → `sale_item_key`；`sal_tri_kbn='1'` かつ procedures 21 表へ載るもの | マスタ行が同一 clinic の procedures に存在するときのみ FK 設定 | 注射を procedures に含める旧コード範囲・採用/除外は **UNKNOWN** |
-| `medicine_id` | `medicines` は 21 表外（`001_init.sql:740+`） | 現状 FK を埋めない（保留）。YBS/vaccinations を流用しない | 薬剤マスタ元表・crosswalk 全体が **UNKNOWN** |
+| `medicine_id` | `medicines` は deployed/main では 21 表外（`001_init.sql:740+`）。22 表ドラフト候補では `estimate_items.medicine_id` が medicines CSV 親参照として検証される | 現状 FK を埋めない（保留）。YBS/vaccinations を流用しない | 薬剤マスタ元表・crosswalk 全体が **UNKNOWN**。22 表 producer bundle 未生成 |
 | `consultation_id` / `inventory_id` | 旧 TRI に対応列なし | 過去分は常に NULL | — |
-| 会計 `billing_items.treatment_id` | DDL にあるが CSV 非契約（`cutover_contract.go:216`） | 過去分では埋めない（再請求導線を作らない） | 将来の双方向リンク要否は **UNKNOWN** |
+| 会計 `billing_items.treatment_id` | DDL にあるが CSV 非契約（`cutover_contract.go / CutoverTableSpecs(): billing_items`） | 過去分では埋めない（再請求導線を作らない） | 将来の双方向リンク要否は **UNKNOWN** |
 
 ### D2. 分類（`item_type` / category）
 

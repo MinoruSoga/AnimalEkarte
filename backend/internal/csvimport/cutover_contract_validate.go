@@ -43,6 +43,10 @@ func PreflightCutoverBundle(sourceDir string, expected ExpectedCutoverSource) (C
 	if err != nil {
 		return CutoverBundle{}, err
 	}
+	manifest, err = bindCutoverManifestProfile(manifest, expected.Provenance)
+	if err != nil {
+		return CutoverBundle{}, err
+	}
 	manifestNotes, err := validateCutoverManifest(&manifest, expected)
 	if err != nil {
 		return CutoverBundle{}, err
@@ -52,6 +56,9 @@ func PreflightCutoverBundle(sourceDir string, expected ExpectedCutoverSource) (C
 	}
 	fileNotes, err := validateCutoverFiles(cleanDir, manifest, expected.Provenance)
 	if err != nil {
+		return CutoverBundle{}, err
+	}
+	if err := validateCutoverProducerProvenance(manifest, expected.Provenance); err != nil {
 		return CutoverBundle{}, err
 	}
 	return CutoverBundle{
@@ -136,7 +143,7 @@ func validateCutoverManifest(manifest *CutoverManifest, expected ExpectedCutover
 	} else if manifest.Status != "PASS" {
 		return nil, fmt.Errorf("manifest status must be PASS")
 	}
-	notes, err := validateCutoverProducerProvenance(*manifest, expected.Provenance)
+	notes, err := validateCutoverProducerEvidence(*manifest, expected.Provenance)
 	if err != nil {
 		return nil, err
 	}
@@ -195,14 +202,14 @@ func validateCutoverManifest(manifest *CutoverManifest, expected ExpectedCutover
 		}
 		notes = append(notes, "manifest.importablePredicate")
 	}
-	if !reflect.DeepEqual(manifest.PlaceholderColumns, CutoverPlaceholderColumns()) {
+	if !reflect.DeepEqual(manifest.PlaceholderColumns, CutoverPlaceholderColumns(manifest.profile)) {
 		if !drift {
 			return nil, fmt.Errorf("manifest placeholder inventory does not match the cutover contract")
 		}
 		notes = append(notes, "manifest.placeholderColumns")
 	}
 
-	specs := CutoverTableSpecs()
+	specs := CutoverTableSpecs(manifest.profile)
 	if err := normalizeCutoverManifestTables(manifest, specs, drift, &notes); err != nil {
 		return nil, err
 	}
@@ -289,7 +296,16 @@ func acceptsRehearsalManifest(mode CutoverProvenanceMode) bool {
 	return mode == CutoverProvenanceLocalRehearsal || mode == CutoverProvenanceStagingRehearsal
 }
 
-func validateCutoverProducerProvenance(manifest CutoverManifest, contract CutoverProvenanceContract) ([]string, error) {
+func validateCutoverProducerProvenance(manifest CutoverManifest, contract CutoverProvenanceContract) error {
+	if _, err := validateCutoverProducerEvidence(manifest, contract); err != nil {
+		return err
+	}
+	return validateCutoverCandidateActivation(manifest, contract)
+}
+
+// validateCutoverProducerEvidence checks the existing pinned producer evidence;
+// evidence alone never activates the candidate profile.
+func validateCutoverProducerEvidence(manifest CutoverManifest, contract CutoverProvenanceContract) ([]string, error) {
 	switch contract.Mode {
 	case "", CutoverProvenanceFormal:
 		// Formal provenance validation continues below.
@@ -486,12 +502,12 @@ func validateCutoverFiles(sourceDir string, manifest CutoverManifest, provenance
 	// manifest drift so preflight and apply observe one policy.
 	allowPermutation := rehearsalContractDrift(manifest, provenance.Mode)
 	var notes []string
-	for _, spec := range CutoverTableSpecs() {
+	for _, spec := range CutoverTableSpecs(manifest.profile) {
 		table, err := cutoverManifestTableByName(manifest, spec.Name)
 		if err != nil {
 			return nil, err
 		}
-		permuted, err := validateCutoverCSV(cutoverCSVPath(sourceDir, table), spec, table, manifest.IDBand, allowPermutation)
+		permuted, err := validateCutoverCSV(cutoverCSVPath(sourceDir, table), spec, table, manifest.IDBand, allowPermutation, manifest.profile)
 		if err != nil {
 			return nil, err
 		}
@@ -524,7 +540,7 @@ func validateCutoverFiles(sourceDir string, manifest CutoverManifest, provenance
 	return notes, nil
 }
 
-func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifestTable, band CutoverIDBand, allowPermutation bool) (bool, error) {
+func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifestTable, band CutoverIDBand, allowPermutation bool, profile CutoverProfile) (bool, error) {
 	path, err := resolveCutoverAccountCSV(path)
 	if err != nil {
 		return false, err
@@ -569,6 +585,8 @@ func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifes
 
 	var rowCount int64
 	seenIDs := make(map[int64]struct{})
+	nameColumn, checkNames := cutoverUniqueNameColumns()[spec.Name]
+	seenNames := make(map[string]struct{})
 	for {
 		row, readErr := reader.Read()
 		if errors.Is(readErr, io.EOF) {
@@ -587,7 +605,14 @@ func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifes
 			return false, fmt.Errorf("table %s column id row %d: duplicate primary ID", spec.Name, rowCount+1)
 		}
 		seenIDs[id] = struct{}{}
-		if err := validateCutoverRow(spec, header, row, columnIndexes, band, rowCount+1); err != nil {
+		if checkNames {
+			name := row[columnIndexes[nameColumn]]
+			if _, duplicate := seenNames[name]; duplicate {
+				return false, fmt.Errorf("table %s column %s row %d: duplicate name", spec.Name, nameColumn, rowCount+1)
+			}
+			seenNames[name] = struct{}{}
+		}
+		if err := validateCutoverRow(spec, header, row, columnIndexes, band, rowCount+1, profile); err != nil {
 			return false, err
 		}
 	}
@@ -631,7 +656,7 @@ func cutoverColumnIndexes(spec CutoverTableSpec, header []string, allowPermutati
 	return indexes, !exact, nil
 }
 
-func validateCutoverRow(spec CutoverTableSpec, header []string, row []string, indexes map[string]int, band CutoverIDBand, csvLine int64) error {
+func validateCutoverRow(spec CutoverTableSpec, header []string, row []string, indexes map[string]int, band CutoverIDBand, csvLine int64, profile CutoverProfile) error {
 	if err := validatePaymentMethodPlaceholder(spec, row, indexes, csvLine); err != nil {
 		return err
 	}
@@ -668,6 +693,25 @@ func validateCutoverRow(spec CutoverTableSpec, header []string, row []string, in
 			return fmt.Errorf("table %s column %s row %d: id is outside the clinic band", spec.Name, column, csvLine)
 		}
 	}
+	if column, ok := cutoverMasterPriceColumn(spec.Name); ok {
+		if err := validateCutoverNonNegativeInt(spec.Name, column, row[indexes[column]], csvLine); err != nil {
+			return err
+		}
+	}
+	if spec.Name == "medicines" {
+		// cutoverColumnIndexes guarantees every contract column is present.
+		if err := validateCutoverMedicinesName(row[indexes["name"]], csvLine); err != nil {
+			return err
+		}
+		if err := validateCutoverMedicinesRow(row, indexes, csvLine); err != nil {
+			return err
+		}
+	}
+	if spec.Name == "estimate_items" {
+		if err := validateCutoverEstimateMedicineRewrite(profile, row, indexes, csvLine); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -682,7 +726,7 @@ func placeholderAllowed(table, column, value, token string) bool {
 	if (table == "payments" || table == "payment_splits") && column == "payment_method_id" {
 		return token == "{{PAYMENT_METHOD_CASH_ID}}" || token == "{{PAYMENT_METHOD_CREDIT_CARD_ID}}"
 	}
-	want, ok := CutoverPlaceholderColumns()[key]
+	want, ok := CutoverPlaceholderColumns(CutoverProfileMedicinesCandidate)[key]
 	return ok && token == want
 }
 

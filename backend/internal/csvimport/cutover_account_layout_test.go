@@ -7,7 +7,7 @@ import (
 )
 
 func TestCutoverAccountLayout(t *testing.T) {
-	dir, digest := writeCutoverFixture(t, nil)
+	dir, digest := writeCutoverRehearsalFixture(t, nil)
 	accountDir := filepath.Join(dir, "accounts")
 	if err := os.Mkdir(accountDir, 0o700); err != nil {
 		t.Fatal(err)
@@ -22,7 +22,7 @@ func TestCutoverAccountLayout(t *testing.T) {
 }
 
 func TestCutoverCentralAccountLayout(t *testing.T) {
-	dir, digest := writeCutoverFixture(t, nil)
+	dir, digest := writeCutoverRehearsalFixture(t, nil)
 	accountDir := filepath.Join(t.TempDir(), "002_master", "accounts", "_old_db_handoff", "fixture")
 	if err := os.MkdirAll(accountDir, 0o700); err != nil {
 		t.Fatal(err)
@@ -44,7 +44,7 @@ func TestCutoverCentralAccountLayout(t *testing.T) {
 }
 
 func TestCutoverCentralAccountAutoResolution(t *testing.T) {
-	dir, digest := writeCutoverFixture(t, nil)
+	dir, digest := writeCutoverRehearsalFixture(t, nil)
 	root := t.TempDir()
 	sourceDir := filepath.Join(root, "_old_db_handoff", "fixture")
 	if err := os.MkdirAll(filepath.Dir(sourceDir), 0o700); err != nil {
@@ -74,7 +74,7 @@ func TestCutoverCentralAccountAutoResolution(t *testing.T) {
 func TestCutoverAccountLayoutRejectsUnsafeDirectories(t *testing.T) {
 	for _, scenario := range []string{"symlink", "duplicate", "extra", "permissions", "missing"} {
 		t.Run(scenario, func(t *testing.T) {
-			dir, digest := writeCutoverFixture(t, nil)
+			dir, digest := writeCutoverRehearsalFixture(t, nil)
 			accountDir := filepath.Join(dir, "accounts")
 			if scenario == "symlink" {
 				if err := os.Symlink(t.TempDir(), accountDir); err != nil {
