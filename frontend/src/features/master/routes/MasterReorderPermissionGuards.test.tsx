@@ -5,6 +5,7 @@ import { AnimalSpeciesSettings } from "./AnimalSpeciesSettings";
 import { CageSettings } from "./CageSettings";
 import { MerchandiseItemSettings } from "./MerchandiseItemSettings";
 import { PermissionGroupSettings } from "./PermissionGroupSettings";
+import type { FrontendMerchandiseItem } from "../api/merchandise-items";
 
 const mocks = vi.hoisted(() => ({
   reorderCallbacks: [] as Array<(ids: string[]) => void>,
@@ -12,10 +13,15 @@ const mocks = vi.hoisted(() => ({
   cageReorder: vi.fn(),
   merchandiseReorder: vi.fn(),
   permissionGroupReorder: vi.fn(),
+  canEdit: false,
+  merchandisePending: false,
+  merchandiseItems: [] as FrontendMerchandiseItem[],
+  merchandiseMove: undefined as
+    ((item: FrontendMerchandiseItem, direction: "up" | "down") => void) | undefined,
 }));
 
 vi.mock("@/hooks/use-permission", () => ({
-  usePermission: () => ({ canCreate: false, canEdit: false, canDelete: false }),
+  usePermission: () => ({ canCreate: false, canEdit: mocks.canEdit, canDelete: false }),
 }));
 
 vi.mock("@/hooks/use-side-peek-dirty", () => ({
@@ -60,8 +66,8 @@ vi.mock("@/hooks/use-sortable-list", () => ({
 }));
 
 vi.mock("../hooks/use-master-crud", () => ({
-  useMasterCRUD: () => ({
-    filteredItems: [],
+  useMasterCRUD: ({ data = [] }: { data?: Array<{ id: string }> }) => ({
+    filteredItems: data,
     pendingDelete: null,
     handleEdit: vi.fn(),
     handleNew: vi.fn(),
@@ -88,7 +94,16 @@ vi.mock("../components/AnimalSpeciesSortableTable", () => ({
 vi.mock("../components/CageSidePanel", () => ({ CageSidePanel: () => null }));
 vi.mock("../components/CageSortableTable", () => ({ CageSortableTable: () => null }));
 vi.mock("../components/MerchandiseSidePanel", () => ({ MerchandiseSidePanel: () => null }));
-vi.mock("../components/MerchandiseSortableTable", () => ({ MerchandiseSortableTable: () => null }));
+vi.mock("../components/MerchandiseSortableTable", () => ({
+  MerchandiseSortableTable: ({
+    onMoveItem,
+  }: {
+    onMoveItem?: (item: FrontendMerchandiseItem, direction: "up" | "down") => void;
+  }) => {
+    mocks.merchandiseMove = onMoveItem;
+    return null;
+  },
+}));
 vi.mock("../components/PermissionGroupSidePanel", () => ({ PermissionGroupSidePanel: () => null }));
 vi.mock("../components/PermissionGroupSortableTable", () => ({
   PERMISSION_GROUP_COLUMNS: [],
@@ -116,11 +131,14 @@ vi.mock("../api/cages", () => ({
 }));
 
 vi.mock("../api/merchandise-items", () => ({
-  useGetAllMerchandiseItems: () => ({ data: [] }),
+  useGetAllMerchandiseItems: () => ({ data: mocks.merchandiseItems }),
   useCreateMerchandiseItem: () => mutationStub(vi.fn()),
   useUpdateMerchandiseItem: () => mutationStub(vi.fn()),
   useDeleteMerchandiseItem: () => mutationStub(vi.fn()),
-  useReorderMerchandiseItems: () => mutationStub(mocks.merchandiseReorder),
+  useReorderMerchandiseItems: () => ({
+    ...mutationStub(mocks.merchandiseReorder),
+    isPending: mocks.merchandisePending,
+  }),
 }));
 
 vi.mock("../api/permission-groups", () => ({
@@ -141,6 +159,19 @@ describe("master route reorder permission guards", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.reorderCallbacks.length = 0;
+    mocks.canEdit = false;
+    mocks.merchandisePending = false;
+    mocks.merchandiseMove = undefined;
+    mocks.merchandiseItems = Array.from({ length: 101 }, (_, i) => ({
+      id: String(i + 1),
+      name: `Item ${i + 1}`,
+      category: "goods",
+      unitPrice: 1100,
+      taxType: "included",
+      taxRate: 0.1,
+      isActive: true,
+      sortOrder: i,
+    }));
   });
 
   it("blocks animal species reorder mutation when edit permission is absent", () => {
@@ -165,5 +196,32 @@ describe("master route reorder permission guards", () => {
     render(<MerchandiseItemSettings />);
     callLatestReorder();
     expect(mocks.merchandiseReorder).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [false, false],
+    [true, true],
+  ])("blocks merchandise move with canEdit=%s and pending=%s", (canEdit, pending) => {
+    mocks.canEdit = canEdit;
+    mocks.merchandisePending = pending;
+    render(<MerchandiseItemSettings />);
+    expect(mocks.merchandiseMove).toBeDefined();
+    mocks.merchandiseMove?.(mocks.merchandiseItems[49]!, "down");
+    expect(mocks.merchandiseReorder).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [49, "down"],
+    [50, "up"],
+  ] as const)("sends full cross-page order for row index %s moved %s", (index, direction) => {
+    mocks.canEdit = true;
+    render(<MerchandiseItemSettings />);
+    mocks.merchandiseMove?.(mocks.merchandiseItems[index]!, direction);
+    const ids = Array.from({ length: 101 }, (_, i) => i + 1);
+    [ids[49], ids[50]] = [ids[50]!, ids[49]!];
+    expect(mocks.merchandiseReorder).toHaveBeenCalledWith(
+      { ids },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
   });
 });

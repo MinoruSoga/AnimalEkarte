@@ -106,6 +106,15 @@ func (s *estimateService) updateEstimateInTx(
 		}
 		preparedItems = estimateItemsFromInput(id, normalized)
 		subtotal, taxTotal, totalAmount := calculateEstimateTotals(preparedItems)
+		// PR665: 実効ヘッダー割引は「入力指定値、省略時は保存済み値」。合計のみ控除する。
+		effectiveDiscount := result.existing.DiscountAmount
+		if input.DiscountAmount != nil {
+			effectiveDiscount = *input.DiscountAmount
+		}
+		subtotal, taxTotal, totalAmount, discountErr := applyEstimateHeaderDiscount(subtotal, taxTotal, totalAmount, effectiveDiscount)
+		if discountErr != nil {
+			return result, discountErr
+		}
 		cmd.Subtotal = &subtotal
 		cmd.TaxTotal = &taxTotal
 		cmd.TotalAmount = &totalAmount
@@ -116,6 +125,15 @@ func (s *estimateService) updateEstimateInTx(
 		// Active persisted items are the source of truth for estimate totals. Header-only
 		// PATCHes must not allow client-supplied totals to drift from those items.
 		subtotal, taxTotal, totalAmount := calculateEstimateTotals(result.existing.Items)
+		// PR665: ヘッダーのみの更新（割引のみ変更を含む）でも合計は割引控除後。
+		effectiveDiscount := result.existing.DiscountAmount
+		if input.DiscountAmount != nil {
+			effectiveDiscount = *input.DiscountAmount
+		}
+		subtotal, taxTotal, totalAmount, discountErr := applyEstimateHeaderDiscount(subtotal, taxTotal, totalAmount, effectiveDiscount)
+		if discountErr != nil {
+			return result, discountErr
+		}
 		cmd.Subtotal = &subtotal
 		cmd.TaxTotal = &taxTotal
 		cmd.TotalAmount = &totalAmount

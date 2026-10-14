@@ -312,6 +312,20 @@ func calculateEstimateTotals(items []model.EstimateItem) (subtotal, taxTotal, to
 	return
 }
 
+// applyEstimateHeaderDiscount は明細由来の総額から実効ヘッダー割引を控除した合計を返す。
+// subtotal / taxTotal は明細由来のままとし（行割引は明細内で処理済みのため二重控除しない）、
+// 割引は totalAmount のみへ反映する。負の割引や明細総額を超える割引は fail-closed の
+// invalid input。totalAmount が負になることはない。
+func applyEstimateHeaderDiscount(subtotal, taxTotal, totalAmount, discount int64) (int64, int64, int64, error) {
+	if discount < 0 {
+		return 0, 0, 0, apperrors.WrapInvalidInput("discount_amount must be 0 or greater")
+	}
+	if discount > totalAmount {
+		return 0, 0, 0, apperrors.WrapInvalidInput("discount_amount exceeds the item total")
+	}
+	return subtotal, taxTotal, totalAmount - discount, nil
+}
+
 func cloneEstimateItemsForSuccessor(estimateID uint64, items []model.EstimateItem) []model.EstimateItem {
 	out := make([]model.EstimateItem, 0, len(items))
 	for _, it := range items {
@@ -565,7 +579,13 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 	}
 	preparedItems := estimateItemsFromInput(0, input.Items)
 	if len(preparedItems) > 0 {
-		estimate.Subtotal, estimate.TaxTotal, estimate.TotalAmount = calculateEstimateTotals(preparedItems)
+		// PR665: ヘッダー割引は数値契約として合計から控除する（ subtotal / tax は総額のまま）。
+		subtotal, taxTotal, totalAmount := calculateEstimateTotals(preparedItems)
+		subtotal, taxTotal, totalAmount, discountErr := applyEstimateHeaderDiscount(subtotal, taxTotal, totalAmount, input.DiscountAmount)
+		if discountErr != nil {
+			return nil, discountErr
+		}
+		estimate.Subtotal, estimate.TaxTotal, estimate.TotalAmount = subtotal, taxTotal, totalAmount
 	}
 	if input.Status != "" {
 		estimate.Status = input.Status

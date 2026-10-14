@@ -55,6 +55,32 @@ describe("Reception creation permissions", () => {
     [true, false],
     [true, true],
   ])(
+    "future-date header uses reservations permission: reception=%s reservations=%s",
+    (reception, reservations) => {
+      vi.mocked(usePermission).mockImplementation((resource) => ({
+        canView: true,
+        canCreate:
+          resource === ResourceReception
+            ? reception
+            : resource === ResourceReservations
+              ? reservations
+              : true,
+        canEdit: true,
+        canDelete: true,
+      }));
+      render(<Reception />, {
+        wrapper: createTestWrapper({ initialEntries: ["/reception?date=2099-01-01"] }),
+      });
+      expect(screen.queryByRole("button", { name: "新規予約登録" }) !== null).toBe(reservations);
+    },
+  );
+
+  it.each([
+    [false, false],
+    [false, true],
+    [true, false],
+    [true, true],
+  ])(
     "reception=%s reservations=%s requires both for new and add controls",
     (reception, reservations) => {
       vi.mocked(usePermission).mockImplementation((resource) => ({
@@ -69,12 +95,13 @@ describe("Reception creation permissions", () => {
         canDelete: true,
       }));
       renderReception();
+      // PR665: 当日のヘッダーボタンは walk-in 受付のため両権限で表示する。
       expect(screen.queryByRole("button", { name: "新規予約登録" }) !== null).toBe(
         reception && reservations,
       );
-      expect(screen.queryAllByRole("button", { name: "新規追加" }).length > 0).toBe(
-        reception && reservations,
-      );
+      // PR665: 受付予約列（通常予約）の「新規追加」は reservations:create のみで表示。
+      // 両権限がなくても有効な予約作成導線を取り上げない。
+      expect(screen.queryAllByRole("button", { name: "新規追加" }).length > 0).toBe(reservations);
       vi.mocked(usePermission).mockImplementation(() => ({
         canView: true,
         canCreate: true,

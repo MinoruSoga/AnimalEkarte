@@ -63,9 +63,13 @@ function itemToDraft(item: EstimateLineItem): EstimateItemDraft {
   };
 }
 
-function deriveTotals(items: EstimateItemDraft[]) {
+function deriveTotals(items: EstimateItemDraft[], headerDiscountAmount = 0) {
   const t = calcEstimateTotals(items);
-  return { subtotal: t.subtotal, taxTotal: t.tax, totalAmount: t.total };
+  return {
+    subtotal: t.subtotal,
+    taxTotal: t.tax,
+    totalAmount: t.total - (items.length > 0 ? headerDiscountAmount : 0),
+  };
 }
 
 function serializeItems(items: EstimateItemDraft[]): string {
@@ -300,6 +304,19 @@ export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) 
         }
       }
 
+      if (
+        !Number.isSafeInteger(current.discountAmount) ||
+        current.discountAmount < 0 ||
+        (current.items.length > 0 &&
+          current.discountAmount > deriveTotals(current.items).totalAmount)
+      ) {
+        return {
+          success: false,
+          fieldErrors: { items: "一括割引額は明細合計以下の0以上の整数で入力してください" },
+          timestamp: Date.now(),
+        };
+      }
+
       try {
         if (isEdit) {
           // FE-RC-001: UI の disabled/非表示だけを最終防壁にせず、mutation 直前に最新権限を再検査する。
@@ -324,7 +341,7 @@ export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) 
             notes: current.notes,
           };
           if (itemsChanged) {
-            const derived = deriveTotals(current.items);
+            const derived = deriveTotals(current.items, current.discountAmount);
             req.subtotal = derived.subtotal;
             req.tax_total = derived.taxTotal;
             req.total_amount = derived.totalAmount;
@@ -349,7 +366,7 @@ export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) 
               timestamp: Date.now(),
             };
           }
-          const derived = deriveTotals(current.items);
+          const derived = deriveTotals(current.items, current.discountAmount);
           const req: CreateEstimateRequest = {
             title: current.title,
             status: current.status,
@@ -424,8 +441,8 @@ export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) 
         totalAmount: estimate.totalAmount,
       };
     }
-    return deriveTotals(form.items);
-  }, [isEdit, estimate, form.items, baseline.itemsKey]);
+    return deriveTotals(form.items, form.discountAmount);
+  }, [isEdit, estimate, form.items, form.discountAmount, baseline.itemsKey]);
 
   return {
     form,

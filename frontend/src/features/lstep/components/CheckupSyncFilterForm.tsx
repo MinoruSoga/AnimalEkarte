@@ -155,27 +155,45 @@ export function CheckupSyncFilterForm({ onSearch, isLoading }: CheckupSyncFilter
             <span className="whitespace-nowrap">動物種</span>
             <span className="whitespace-nowrap">（任意）</span>
           </label>
-          <select
-            id="species"
-            name="species"
-            disabled={isSpeciesLoading || speciesUnavailable}
-            aria-describedby={
-              speciesUnavailable && !isSpeciesLoading ? "species-lookup-guidance" : undefined
-            }
-            className={`w-full ${STYLE.formInput} border rounded-xs px-3`}
-          >
-            <option value="">指定しない</option>
-            {speciesOptions.map((species) => (
-              <option key={species.id} value={species.name}>
-                {species.name}
-              </option>
-            ))}
-          </select>
-          {speciesUnavailable && !isSpeciesLoading ? (
-            <p id="species-lookup-guidance" className={`text-sm ${C.text65}`}>
-              動物種を選択するにはマスタを確認してください
-            </p>
-          ) : null}
+          {isSpeciesLoading ? (
+            <select
+              id="species"
+              name="species"
+              disabled
+              className={`w-full ${STYLE.formInput} border rounded-xs px-3`}
+            >
+              <option value="">指定しない</option>
+            </select>
+          ) : speciesUnavailable ? (
+            <>
+              {/* PR665: マスタ権限がない owners:view ユーザーでも preview を使えるよう、
+                  権限拒否・エラー・空マスタ時は自由入力へフォールバックする（サーバ権限は広げない）。 */}
+              <input
+                id="species"
+                name="species"
+                type="text"
+                placeholder="動物種を直接入力（任意）"
+                aria-describedby="species-lookup-guidance"
+                className={`w-full ${STYLE.formInput} border rounded-xs px-3`}
+              />
+              <p id="species-lookup-guidance" className={`text-sm ${C.text65}`}>
+                動物種マスタを取得できないため、直接入力できます
+              </p>
+            </>
+          ) : (
+            <select
+              id="species"
+              name="species"
+              className={`w-full ${STYLE.formInput} border rounded-xs px-3`}
+            >
+              <option value="">指定しない</option>
+              {speciesOptions.map((species) => (
+                <option key={species.id} value={species.name}>
+                  {species.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* 最終来院日 from */}

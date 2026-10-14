@@ -7,6 +7,7 @@ import { paths } from "@/config/paths";
 import { todayJSTISO } from "@/lib/jst-date";
 import { useBackPath } from "@/hooks/use-back-navigation";
 import { useGetPet } from "@/hooks/use-pet";
+import { calculateNextDate } from "@/components/shared/NextScheduleField";
 import { INITIAL_ACTION_STATE, type ActionState } from "@/types/form";
 import {
   createCheckupOnMedicalRecord,
@@ -40,9 +41,16 @@ export function useCheckupForm(
 
   const { data: pet, isLoading: isPetLoading } = useGetPet(petId);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [localOverrides, setLocalOverrides] = useState<Partial<CheckupFormState>>(() => ({
-    date: todayJSTISO(),
-  }));
+  const [localOverrides, setLocalOverrides] = useState<Partial<CheckupFormState>>(() => {
+    // PR665: 未タッチの新規フォームでも、表示上の1年プリセットと同じ next_date を
+    // スナップショットした実施日から初期化する。明示上書き・手動スケジュールは
+    // checkupOverridesOnDate / checkupOverridesOnNextDate がそのまま優先する。
+    const date = todayJSTISO();
+    return {
+      date,
+      nextDate: calculateNextDate(date, DEFAULT_CHECKUP_FORM.nextScheduleType) ?? "",
+    };
+  });
   const formData: CheckupFormState = { ...DEFAULT_CHECKUP_FORM, ...localOverrides };
 
   const { data: checkupFields = [] } = useGetCheckupTypeFields(formData.checkupTypeId);

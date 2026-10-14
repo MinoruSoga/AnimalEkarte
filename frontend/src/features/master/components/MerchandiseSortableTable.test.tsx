@@ -76,4 +76,33 @@ describe("Merchandise visible pagination", () => {
     );
     expect(screen.queryByRole("button", { name: /前へ移動:/ })).not.toBeInTheDocument();
   });
+
+  it("PR665: 並べ替え中は移動ボタンが無効化されクリックが伝わらない", async () => {
+    const user = userEvent.setup();
+    const onMoveItem = vi.fn();
+    render(
+      <MerchandiseSortableTable items={items} {...handlers} onMoveItem={onMoveItem} isReordering />,
+    );
+    const up = screen.getByRole("button", { name: "前へ移動: 品目 合成品目1 (ID 1)" });
+    expect(up).toBeDisabled();
+    await user.click(up);
+    expect(onMoveItem).not.toHaveBeenCalled();
+  });
+
+  it("PR665: 操作列は移動2+編集1の44pxボタンが1行に収まる160px幅を保つ", () => {
+    render(<MerchandiseSortableTable items={items} {...handlers} onMoveItem={vi.fn()} />);
+    const headers = screen.getAllByRole("columnheader");
+    const actionHeader = headers[headers.length - 1]!;
+    expect(actionHeader).toHaveClass("w-[160px]", "min-w-[160px]");
+    const rows = screen.getAllByRole("row");
+    const actionCell = rows[1]!.querySelectorAll("td");
+    const lastCell = actionCell[actionCell.length - 1]!;
+    expect(lastCell).toHaveClass("whitespace-nowrap");
+    const moveUp = screen.getByRole("button", { name: "前へ移動: 品目 合成品目1 (ID 1)" });
+    expect(moveUp).toHaveClass("h-11", "w-11");
+    const edit = screen.getByRole("button", { name: "編集: 品目 合成品目1 (ID 1)" });
+    expect(moveUp.parentElement).toContainElement(edit);
+    expect(moveUp.parentElement?.children).toHaveLength(3);
+    expect(moveUp.parentElement).toHaveClass("flex", "items-center");
+  });
 });

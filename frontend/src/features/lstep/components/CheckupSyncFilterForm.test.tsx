@@ -29,16 +29,39 @@ describe("species name search boundary", () => {
     await user.click(screen.getByRole("button", { name: "対象者を検索" }));
     await waitFor(() => expect(onSearch).toHaveBeenLastCalledWith({ checkup_type: "annual" }));
   });
-  it("failed lookup disables only species and explains recovery", () => {
+  it("failed lookup keeps other filters usable and explains the text fallback", () => {
     vi.mocked(useAnimalSpecies).mockReturnValueOnce({
       activeSpecies: [],
       isLoading: false,
       isError: true,
     } as ReturnType<typeof useAnimalSpecies>);
     render(<CheckupSyncFilterForm onSearch={vi.fn()} isLoading={false} />);
-    expect(screen.getByLabelText(/動物種/)).toBeDisabled();
+    expect(screen.getByLabelText(/動物種/)).not.toBeDisabled();
     expect(screen.getByLabelText(/検診種別/)).not.toBeDisabled();
-    expect(screen.getByText("動物種を選択するにはマスタを確認してください")).toBeInTheDocument();
+    expect(
+      screen.getByText("動物種マスタを取得できないため、直接入力できます"),
+    ).toBeInTheDocument();
+  });
+
+  it("PR665: denied species lookup falls back to a usable text filter and submits", async () => {
+    const user = userEvent.setup();
+    const onSearch = vi.fn();
+    vi.mocked(useAnimalSpecies).mockReturnValueOnce({
+      activeSpecies: [],
+      isLoading: false,
+      isError: true,
+    } as ReturnType<typeof useAnimalSpecies>);
+    render(<CheckupSyncFilterForm onSearch={onSearch} isLoading={false} />);
+
+    const speciesInput = screen.getByLabelText(/動物種/);
+    expect(speciesInput.tagName).toBe("INPUT");
+    expect(speciesInput).not.toBeDisabled();
+    await user.type(speciesInput, "犬");
+    await user.selectOptions(screen.getByLabelText(/検診種別/), "annual");
+    await user.click(screen.getByRole("button", { name: "対象者を検索" }));
+    await waitFor(() =>
+      expect(onSearch).toHaveBeenLastCalledWith({ checkup_type: "annual", species: "犬" }),
+    );
   });
 });
 

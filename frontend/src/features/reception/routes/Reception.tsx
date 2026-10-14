@@ -63,7 +63,7 @@ export function Reception() {
     canDelete: canDeleteReservation,
   } = usePermission(ResourceReservations);
   const { canCreate: canCreateReception } = usePermission(ResourceReception);
-  const canCreateReceptionEntry = canCreateReception === true && canCreateReservation === true;
+  // PR665: 通常予約は reservations:create のみ、当日 walk-in 受付は両権限（列ビュー/ヘッダーで分岐）。
   const { canCreate: canCreateMedicalRecord } = usePermission(ResourceMedicalRecords);
   const { canCreate: canCreateAccounting } = usePermission(ResourceAccounting);
   const { canCreate: canCreateHospitalization } = usePermission(ResourceHospitalization);
@@ -170,7 +170,9 @@ export function Reception() {
 
   const { columnElements, appointmentColumnTitleMap, goToNewReservation } = useReceptionColumnView({
     filteredColumns,
-    canCreateReservation: canCreateReceptionEntry,
+    // PR665: 通常予約は reservations:create のみ、当日 walk-in 受付は両権限。
+    canCreateReservation: canCreateReservation === true,
+    canCreateReception: canCreateReception === true,
     canEditReservation,
     advanceStatus,
     onCardClick: handleCardClick,
@@ -195,7 +197,8 @@ export function Reception() {
         onDateChange={handleDateChange}
         isFilterOpen={isFilterOpen}
         onToggleFilter={() => setIsFilterOpen((prev) => !prev)}
-        canCreateReservation={canCreateReceptionEntry}
+        canCreateReservation={canCreateReservation === true}
+        canCreateWalkInReception={canCreateReception === true}
         onNewReception={() =>
           // 本日: 従来通り当日受付（checked_in）。非本日: 選択日の通常予約作成。
           goToNewReservation(isToday ? "reception=1" : "newReservation=1")

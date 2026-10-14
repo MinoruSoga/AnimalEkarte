@@ -77,7 +77,8 @@ export function MerchandiseItemSettings() {
   // 明示的な前/後移動ボタンから全件順序の並べ替えをドラッグと同一経路で行う。
   const handleMoveItem = useCallback(
     (item: FrontendMerchandiseItem, direction: "up" | "down") => {
-      if (!canEdit) return;
+      // PR665: 並べ替え API 実行中は追加クリックを無視する。
+      if (!canEdit || reorderMutation.isPending) return;
       const ids = sortedItems.map((i) => i.id);
       const newIds = moveItemInOrder(ids, item.id, direction);
       if (!newIds) return;
@@ -139,6 +140,7 @@ export function MerchandiseItemSettings() {
             canEdit={canEdit}
             onEdit={crud.handleEdit}
             onMoveItem={handleMoveItem}
+            isReordering={reorderMutation.isPending}
           />
         )}
       </MasterCRUDPage>

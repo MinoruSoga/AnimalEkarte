@@ -5,7 +5,7 @@ import { useExaminationForm } from "./use-examination-form";
 import { useSearchParams } from "react-router";
 import { useGetPet } from "@/hooks/use-pet";
 import { usePetSelection } from "@/hooks/use-pet-selection";
-import { todayJSTISO } from "@/lib/jst-date";
+import { jstDateStartISOString, todayJSTISO } from "@/lib/jst-date";
 
 // Mock dependencies
 const mockNavigate = vi.fn();
@@ -577,7 +577,7 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
       pet_id: 42,
       exam_type_id: 5,
       doctor_id: 3,
-      date: todayJSTISO(),
+      date: jstDateStartISOString(todayJSTISO()),
       result_summary: undefined,
       machine: undefined,
       items: [

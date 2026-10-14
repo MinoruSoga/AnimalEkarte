@@ -97,11 +97,30 @@ describe("useCheckupForm mutation boundary", () => {
       vi.setSystemTime(new Date("2026-10-14T15:01:00Z"));
       const { result, rerender } = renderHook(() => useCheckupForm(ALLOWED_MUTATION_PERMISSIONS));
       expect(result.current.form.date).toBe("2026-10-15");
-      expect(result.current.form.nextDate).toBe("");
+      // PR665: 未タッチでも表示上の1年プリセットと同じ next_date が初期化される
+      expect(result.current.form.nextDate).toBe("2027-10-15");
       act(() => result.current.setDate("2026-10-13"));
       vi.setSystemTime(new Date("2026-10-15T15:01:00Z"));
       rerender();
       expect(result.current.form.date).toBe("2026-10-13");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("PR665: 未タッチの新規フォームは1年後の next_date を送る（日付変更で再計算）", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-14T15:01:00Z"));
+      const { result } = renderHook(() => useCheckupForm(ALLOWED_MUTATION_PERMISSIONS));
+      act(() => {
+        result.current.setCheckupTypeId("1");
+      });
+      expect(result.current.form.nextDate).toBe("2027-10-15");
+      // 日付変更は既存の checkupOverridesOnDate が nextDate を再計算する
+      act(() => result.current.setDate("2026-03-01"));
+      expect(result.current.form.date).toBe("2026-03-01");
+      expect(result.current.form.nextDate).toBe("2027-03-01");
     } finally {
       vi.useRealTimers();
     }
