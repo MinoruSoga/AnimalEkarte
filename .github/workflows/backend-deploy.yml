@@ -152,19 +152,11 @@ jobs:
           cat /tmp/health.json 2>/dev/null || true
           exit 1
 
-      - name: Optional API smoke (CRUD)
-        continue-on-error: true
+      - name: Verify STG demo login (read-only)
         env:
-          STG_DEMO_EMAIL: ${{ secrets.STG_DEMO_EMAIL }}
-          STG_DEMO_PASSWORD: ${{ secrets.STG_DEMO_PASSWORD }}
+          SEEDLOGIN_DEMO_PASSWORD: ${{ secrets.SEEDLOGIN_DEMO_PASSWORD }}
           WORKER_URL: ${{ env.WORKER_URL }}
-        run: |
-          set -euo pipefail
-          if [ -z "${STG_DEMO_EMAIL:-}" ] || [ -z "${STG_DEMO_PASSWORD:-}" ]; then
-            echo "Skipping cf:smoke — STG_DEMO_EMAIL / STG_DEMO_PASSWORD not configured (P5-4 optional)"
-            exit 0
-          fi
-          ./infra/scripts/cf-crud-smoke.sh
+        run: python3 infra/scripts/cf-demo-smoke.py --auth
 
   deploy-production:
     name: Deploy Backend to Cloudflare (Production)

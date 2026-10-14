@@ -1,0 +1,38 @@
+name: STG Demo Smoke
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "auth only, or explicitly approved synthetic master CRUD"
+        required: true
+        default: auth
+        type: choice
+        options: [auth, crud]
+      clinic_id:
+        description: "Approved synthetic fixture clinic for CRUD"
+        required: false
+        default: "1"
+        type: string
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    steps:
+      - name: Reject non-staging ref
+        if: github.ref != 'refs/heads/staging'
+        run: exit 1
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
+      - name: Run approved demo smoke
+        env:
+          SEEDLOGIN_DEMO_PASSWORD: ${{ secrets.SEEDLOGIN_DEMO_PASSWORD }}
+          WORKER_URL: https://animalekarte-stg-api.baritech-soga.workers.dev
+          SMOKE_MODE: ${{ inputs.mode }}
+          SMOKE_ALLOW_FIXTURE_WRITES: ${{ inputs.mode == 'crud' && '1' || '0' }}
+          SMOKE_FIXTURE_CLINIC_ID: ${{ inputs.clinic_id }}
+        run: python3 infra/scripts/cf-demo-smoke.py "--$SMOKE_MODE"
