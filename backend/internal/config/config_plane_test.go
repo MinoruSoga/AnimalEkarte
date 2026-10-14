@@ -103,6 +103,7 @@ func TestValidate_DisabledPlaneSkipsLabelCheck(t *testing.T) {
 
 // release で enabled 連携は allowlist 外/未設定の APP_ENV を拒否する。
 func TestValidate_ReleaseEnabledPlaneRequiresAllowlistedAppEnv(t *testing.T) {
+	t.Setenv("LIFF_MOCK", "")
 	cfg := baseReleaseConfigForValidateTest()
 	cfg.PlaneAPIKey = "plane-api-key"
 	cfg.PlaneWorkspaceSlug = "baritechllc"
