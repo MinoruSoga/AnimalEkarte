@@ -66,9 +66,16 @@ export function buildUpdateHospitalizationRequest(
   formData: HospitalizationFormData,
   initialCageId: string,
   initialNextVisit = "",
+  initialDates: { startDate: string; endDate: string } = { startDate: "", endDate: "" },
 ): UpdateHospitalizationRequest {
   return {
     hospitalization_type: toHospitalizationType(formData.hospitalizationType),
+    ...(formData.displayDate && formData.displayDate !== initialDates.startDate
+      ? { start_date: jstDateStartISOString(formData.displayDate) }
+      : {}),
+    ...(formData.endDate && formData.endDate !== initialDates.endDate
+      ? { end_date: jstDateStartISOString(formData.endDate) }
+      : {}),
     owner_request: formData.ownerRequest,
     staff_notes: formData.staffNotes,
     memo: formData.memo,

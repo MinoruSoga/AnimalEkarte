@@ -101,7 +101,7 @@ func (r *accountingRepository) scanCloseBillingDetails(ctx context.Context, inpu
 			COALESCE(o.name, '') AS owner_name,
 			COALESCE(p.name, '') AS pet_name,
 			billings.hospitalization_id,
-			COALESCE(bc.category, '') AS category,
+			COALESCE(bc.category, 'other') AS category,
 			ps.payment_method_id,
 			ps.amount AS billing_amount,
 			COALESCE(rt.refund_amount, 0) AS refund_amount
@@ -110,7 +110,7 @@ func (r *accountingRepository) scanCloseBillingDetails(ctx context.Context, inpu
 		  ON ps.billing_id = billings.id
 		 AND ps.clinic_id = billings.clinic_id
 		-- EMR-354: billing_items を持たない完了済み支払済み会計も明細から落とさない（LEFT JOIN）。
-		-- category は従来通り MIN(category) の互換スカラ（なければ空文字）。部門別は category_amounts を参照。
+		-- category は従来通り MIN(category) の互換スカラ（なければ other）。部門別は category_amounts を参照。
 		LEFT JOIN billing_categories bc ON bc.billing_id = billings.id
 		LEFT JOIN owners o
 		  ON o.id = billings.owner_id
@@ -219,11 +219,15 @@ func (r *accountingRepository) scanCloseUnclassifiedOtherCount(ctx context.Conte
 	var unclassifiedOtherCount int64
 	if err := r.db.WithContext(ctx).Raw(
 		completedCTE+`
-		SELECT COUNT(DISTINCT bi.billing_id)
-		FROM billing_items bi
-		WHERE bi.billing_id IN (SELECT id FROM completed_billings)
-		  AND bi.deleted_at IS NULL
-		  AND bi.category = ?
+		SELECT COUNT(*)
+		FROM completed_billings cb
+		WHERE EXISTS (
+		  SELECT 1 FROM billing_items bi
+		  WHERE bi.billing_id = cb.id AND bi.deleted_at IS NULL AND bi.category = ?
+		) OR NOT EXISTS (
+		  SELECT 1 FROM billing_items bi
+		  WHERE bi.billing_id = cb.id AND bi.deleted_at IS NULL
+		)
 		`, append(append([]any{}, cArgs...), model.ItemCategoryOther)...).
 		Scan(&unclassifiedOtherCount).Error; err != nil {
 		return 0, apperrors.Wrap(err, "failed to count unclassified other accountings for close")

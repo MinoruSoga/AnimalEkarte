@@ -1925,7 +1925,7 @@ components:
           readOnly: true
     MedicalRecord:
       type: object
-      required: [date, record_no]
+      required: [date, record_no, weight_measurements]
       properties:
         id:
           type: integer
@@ -2011,6 +2011,12 @@ components:
             (updateMedicalRecordRequest.Version)。レスポンス側では返却されない
             (medicalRecordResponse に Version フィールドは存在しない) — この schema は
             request/response 兼用のため残置。BE-refactor.md Phase D-2 で確認済み。
+        weight_measurements:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeightMeasurementResponse'
+          readOnly: true
+          description: EMR-356 このカルテに相関する体重測定の表示投影（正本は vital_records）。常に出力される。[]=測定記録なし、キー欠落=旧 API（投影未提供）。
     # ─── MedicalRecord.inquiry の軽量サマリー(Phase D-2) ────────────────
     MedicalRecordInquirySummary:
       type: object
@@ -2027,6 +2033,31 @@ components:
         notes:
           type: string
           description: 問診タブ「治療方針」(inquiry.notes)
+    WeightMeasurementResponse:
+      type: object
+      required: [id, value, unit, recorded_at]
+      description: vital_records の体重測定の表示投影（患者本体の属性や他バイタルは含めない）。
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        value:
+          type: number
+          format: double
+          readOnly: true
+        unit:
+          type: string
+          enum:
+            - Kg
+            - g
+          readOnly: true
+          description: 体重単位（model.BodyWeightUnit の Kg/g）
+        recorded_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: 測定日時（vital_records.recorded_at）
     Hospitalization:
       type: object
       required: [owner_id, pet_id, hospitalization_type, start_date, end_date]

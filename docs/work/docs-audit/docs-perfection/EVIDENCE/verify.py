@@ -7,8 +7,8 @@ import subprocess
 import sys
 from urllib.parse import unquote
 
-ROOT = Path(__file__).resolve().parents[4]
-OUT = ROOT / "docs/work/docs-perfection"
+ROOT = Path(__file__).resolve().parents[5]
+OUT = ROOT / "docs/work/docs-audit/docs-perfection"
 FINAL = "--final" in sys.argv
 
 

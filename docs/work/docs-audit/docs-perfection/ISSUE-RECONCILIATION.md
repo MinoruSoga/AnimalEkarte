@@ -27,7 +27,7 @@ flowchart LR
 | 文書 | 訂正と直接の根拠 |
 |---|---|
 | [DELIVERY_PACKAGE](../../../delivery/DELIVERY_PACKAGE.md)・[OPERATION_MANUAL](../../../delivery/OPERATION_MANUAL.md) | 在庫減算のため薬品/物販マスタ画面で紐付ける案内を訂正。薬品APIには `inventory_id` があるが設定UIは未実装。物販モデルにも在庫紐付けがない。[薬品仕様](../../../spec/screens/settings/master-medicine.md)・[物販仕様](../../../spec/screens/settings/master-merchandise.md)、`MedicineFormData`・`MedicineSidePanelBody`・`MerchandiseItem`を照合 |
-| [STAFF_ACCOUNT_PROVISIONING](../../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md)・[GOLIVE_RUNBOOK](../../../delivery/GOLIVE_RUNBOOK.md) | 「受領記録なし/先方提供待ち」の断定を修正。[#255本文訂正](https://github.com/MinoruSoga/AnimalEkarte/issues/255#issuecomment-5141215224)に受領履歴がある一方、[最新整理](https://github.com/MinoruSoga/AnimalEkarte/issues/255#issuecomment-5352950935)は現在版・方針・認可applyを残件とする。名簿や個人情報は転記しない |
+| [STAFF_ACCOUNT_PROVISIONING](../../../ops/deploy/accounts/STAFF_ACCOUNT_PROVISIONING.md)・[GOLIVE_RUNBOOK](../../../delivery/GOLIVE_RUNBOOK.md) | 「受領記録なし/先方提供待ち」の断定を修正。[#255本文訂正](https://github.com/MinoruSoga/AnimalEkarte/issues/255#issuecomment-5141215224)に受領履歴がある一方、[最新整理](https://github.com/MinoruSoga/AnimalEkarte/issues/255#issuecomment-5352950935)は現在版・方針・認可applyを残件とする。名簿や個人情報は転記しない |
 | [ADR-006](../../../architecture/adr/006-backend-domain-package-boundaries.md) | 2026-09-06の35 package測定を履歴として保持し、9月7日の36 top-level / 14 domainを追補。`package_boundary_gate_test.go`の集合と件数を根拠とし、既存の見出しリンクを維持 |
 | [README](README.md)・[INVENTORY](INVENTORY.md)・[GOAL](GOAL.yaml)・[LEDGER](LEDGER.md)・[PROGRESS](PROGRESS.md) | RQ-002未修復の古い現在説明を訂正。開始時点のmanual修復差分、先行completed記録、今回の人間受入待ちを分ける。過去の検証ログや採択理由を新しい結果に置き換えない |
 

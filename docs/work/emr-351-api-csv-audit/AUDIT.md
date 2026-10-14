@@ -538,7 +538,7 @@ all vaccination `supplemental`/`lot1-4`/`remarks` (bound create/update),
 ## 6. Appendix — proposed `medicines` as table 22 (EMR-342/EMR-343)
 
 Separate from the 21-table baseline. Design source of truth:
-[../emr-342-medicines-contract-design/DESIGN.md](../emr-342-medicines-contract-design/DESIGN.md)
+[../emr/emr-342-medicines-contract-design/DESIGN.md](../emr/emr-342-medicines-contract-design/DESIGN.md)
 (do not fork this document). Proposed pin semantics: the bundle pin is the FULL
 producer file SHA, not a header hash; the proposed-22 producer-file SHA is
 UNKNOWN until a producer artifact exists.
