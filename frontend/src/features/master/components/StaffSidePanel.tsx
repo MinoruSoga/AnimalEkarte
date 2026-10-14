@@ -152,6 +152,9 @@ export const StaffSidePanel = memo(function StaffSidePanel({
       titleError={nameError}
       titleMaxLength={100}
       titleDescription="スタッフの氏名です。カルテ・予約・シフトなど各画面で担当者名として表示されます。"
+      // EMR-386: 新規作成時は共有既定の「無題」ではなく用途が分かる仮タイトルを渡す。
+      // 既存スタッフは未指定（undefined）のまま共有既定を維持する。
+      titlePlaceholder={isNew ? "新規スタッフ登録" : undefined}
       readOnly={readOnly}
     >
       <StaffBasicInfoSection

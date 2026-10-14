@@ -420,7 +420,10 @@ export function OwnerPetsSection({
             size="sm"
             onClick={onAddPet}
             // design-tokens: 白文字 CTA は AA 適合の Solid 系フルセット（bgActionPrimary は非テキスト用途のみ）。
-            className={`${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} gap-1.5 text-sm px-4 rounded-full transition-colors shadow-none border-transparent`}
+            // F004: mr-16（64px = right-4 16px + size-12 48px = SUPPORT_WIDGET_LAYOUT.footprintPx）で
+            // 右下 Support FAB 占有幅との水平重なりを防ぐ。このボタン固有の scoped 対応であり、
+            // PageLayout の pb-20 はスクロール末端のみ保護するため本件には効かない。
+            className={`${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} gap-1.5 text-sm px-4 rounded-full transition-colors shadow-none border-transparent mr-16`}
           >
             <Plus className={ICON.action} />
             ペット追加

@@ -130,6 +130,36 @@ describe("InventoryList — BUG-414 category/status の is_not フィルタ", ()
   });
 });
 
+describe("InventoryList 列レイアウト (EMR-378)", () => {
+  afterEach(() => {
+    server.resetHandlers();
+  });
+
+  it("カテゴリ・ステータス列はnowrap+最小幅を持ち、ラベルが1字縦積みにならない", async () => {
+    server.use(
+      http.get("*/v1/inventory", () =>
+        HttpResponse.json({ data: [mockItems[0]], total: 1, page: 1, limit: 20 }),
+      ),
+    );
+
+    renderList();
+    await screen.findByText("ワクチンA");
+
+    const categoryHeader = screen.getByRole("columnheader", { name: /カテゴリ/ });
+    expect(categoryHeader.className).toContain("whitespace-nowrap");
+
+    const statusHeader = screen.getByRole("columnheader", { name: /ステータス/ });
+    expect(statusHeader.className).toContain("min-w-[100px]");
+    expect(statusHeader.className).toContain("whitespace-nowrap");
+
+    const categoryCell = screen.getByText("医薬品").closest("td");
+    expect(categoryCell?.className).toContain("whitespace-nowrap");
+
+    const statusCell = screen.getByText("十分").closest("td");
+    expect(statusCell?.className).toContain("whitespace-nowrap");
+  });
+});
+
 describe("InventoryList row navigation accessibility", () => {
   afterEach(() => {
     server.resetHandlers();

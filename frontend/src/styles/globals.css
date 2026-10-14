@@ -322,13 +322,34 @@ body {
  * 旧来はパネルへ pb-20（SUPPORT_WIDGET_LAYOUT.scrollBottomClearance）を付けて
  * ボタンとフッターの重なりを回避していたが、フッター下に恒常的な空白が生じていた。
  * フッターをパネル下端に固定するため、ボタン側を退避させる方式に変更。
+ * EMR-387: 退避はパネルを開いているウィジェット（data-support-widget-open）に
+ * 限定する。閉じた起動ボタンは後述のルールで非表示になり、退避は不要。
  * 520px = LAYOUT.sidePeek.widthPx（frontend/src/lib/design-tokens.ts）
  */
-body:has([data-side-peek]) [data-support-widget] {
+body:has([data-side-peek]) [data-support-widget][data-support-widget-open] {
   right: calc(520px + 1rem);
 }
 
 /* パネルが2枚並ぶ場合（例: 予約区分のグループ＋区分パネル） */
-body:has([data-side-peek] ~ [data-side-peek]) [data-support-widget] {
+body:has([data-side-peek] ~ [data-side-peek]) [data-support-widget][data-support-widget-open] {
   right: calc(1040px + 1rem);
+}
+
+/*
+ * EMR-387: 無関係なモーダル Dialog/AlertDialog（Radix は content に
+ * role="dialog"/"alertdialog" + data-state="open" を付与）や SidePeek が
+ * 開いている間は、閉じたサポート起動ボタンを一時的に隠す。
+ * 右下 FAB がモーダルの確定ボタンや SidePeek 背後の行編集ボタン等の
+ * 操作要素と重なるのを防ぐ。display:none はポインタとキーボード操作の両方
+ * から確実に除去する（opacity ではない）。
+ * 既に開いているサポートパネル（data-support-widget-open 付き）は対象外とし、
+ * ウィジェット自身の配下・portaled ヘルプダイアログによる自己非表示も防ぐ。
+ */
+body:has(
+    [data-side-peek],
+    [role="dialog"][data-state="open"],
+    [role="alertdialog"][data-state="open"]
+  )
+  [data-support-widget]:not([data-support-widget-open]) {
+  display: none;
 }

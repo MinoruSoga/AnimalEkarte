@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/csv"
 	"encoding/hex"
 	"errors"
@@ -20,8 +21,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func validateCutoverColumnTypes(ctx context.Context, q cutoverQuerier) error {
-	for _, spec := range CutoverTableSpecs() {
+func validateCutoverColumnTypes(ctx context.Context, q cutoverQuerier, profiles ...CutoverProfile) error {
+	for _, spec := range CutoverTableSpecs(profiles...) {
 		bandColumns := make(map[string]struct{}, len(spec.BandColumns))
 		for _, column := range spec.BandColumns {
 			bandColumns[column] = struct{}{}
@@ -36,6 +37,49 @@ WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`, spec.Na
 			if _, isBandColumn := bandColumns[column]; isBandColumn && dataType != "bigint" {
 				return fmt.Errorf("target schema requires public.%s.%s to exist as bigint", spec.Name, column)
 			}
+			// Master price columns carry int64 producer values; a double
+			// precision target column can round them (Codex 4260555439).
+			// cutoverMasterPriceColumn covers procedures.price,
+			// medicines.price (candidate only), vaccines.price, and
+			// merchandise_items.unit_price.
+			if priceColumn, isPriceTable := cutoverMasterPriceColumn(spec.Name); isPriceTable && column == priceColumn && dataType != "bigint" {
+				return fmt.Errorf("target schema requires public.%s.%s to exist as bigint", spec.Name, column)
+			}
+			if spec.Name == "medicines" && column == "default_quantity" {
+				var precision, scale int64
+				if err := q.QueryRow(ctx, `SELECT numeric_precision, numeric_scale FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`, spec.Name, column).Scan(&precision, &scale); err != nil || dataType != "numeric" || precision != 10 || scale != 2 {
+					return fmt.Errorf("target schema requires public.medicines.default_quantity as numeric(10,2)")
+				}
+			}
+			if spec.Name == "medicines" && column == "tax_rate" {
+				// 4265970828: the contract pins tax_rate to exactly 0.10, so
+				// the column must be numeric able to store 0.10 without
+				// rounding. The canonical 001 schema keeps it as unconstrained
+				// numeric (NULL precision/scale), which is accepted; a bounded
+				// numeric needs scale >= 1 with precision >= scale
+				// (numeric(1,1) stores 0.1 exactly; numeric(2,0) rounds).
+				// Read-only inspection; errors fail closed.
+				var precision, scale sql.NullInt64
+				if err := q.QueryRow(ctx, `SELECT numeric_precision, numeric_scale FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`, spec.Name, column).Scan(&precision, &scale); err != nil {
+					return fmt.Errorf("inspect target scale for public.medicines.tax_rate: %w", err)
+				}
+				incapable := dataType != "numeric"
+				if !incapable && scale.Valid {
+					incapable = scale.Int64 < 1 || !precision.Valid || precision.Int64 < scale.Int64
+				} else if !incapable {
+					incapable = precision.Valid
+				}
+				if incapable {
+					return fmt.Errorf("target schema requires public.medicines.tax_rate as numeric able to store 0.10 exactly (unbounded numeric, or scale >= 1 with precision >= scale)")
+				}
+			}
+			if spec.Name == "medicines" && column == "sort_order" && dataType != "integer" {
+				// 4266561071: the source sort_order is a signed int32
+				// decimal; a smaller integer target (e.g. smallint) would
+				// fail COPY only after earlier tables already committed,
+				// which fresh-only decision A cannot recover from.
+				return fmt.Errorf("target schema requires public.medicines.sort_order as integer")
+			}
 		}
 	}
 	return nil
@@ -45,9 +89,9 @@ WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`, spec.Na
 // sequence. For rehearsal-grade artifacts a missing sequence is tolerated with
 // a recorded drift note: COPY always supplies explicit ids, so no sequence can
 // mint out-of-band values for that table. Formal artifacts stay strict.
-func validateCutoverSequences(ctx context.Context, q cutoverQuerier, tolerant bool) ([]string, error) {
+func validateCutoverSequences(ctx context.Context, q cutoverQuerier, tolerant bool, profiles ...CutoverProfile) ([]string, error) {
 	var notes []string
-	for _, spec := range CutoverTableSpecs() {
+	for _, spec := range CutoverTableSpecs(profiles...) {
 		var sequence *string
 		if err := q.QueryRow(ctx, `SELECT pg_get_serial_sequence($1, 'id')`, "public."+spec.Name).Scan(&sequence); err != nil {
 			return nil, fmt.Errorf("target table %s must have a serial id sequence", spec.Name)
@@ -62,8 +106,8 @@ func validateCutoverSequences(ctx context.Context, q cutoverQuerier, tolerant bo
 	return notes, nil
 }
 
-func validateCutoverBandEmpty(ctx context.Context, q cutoverQuerier, band CutoverIDBand) error {
-	for _, spec := range CutoverTableSpecs() {
+func validateCutoverBandEmpty(ctx context.Context, q cutoverQuerier, band CutoverIDBand, profiles ...CutoverProfile) error {
+	for _, spec := range CutoverTableSpecs(profiles...) {
 		occupied, err := cutoverBandOccupied(ctx, q, spec, band)
 		if err != nil {
 			return err
@@ -108,9 +152,9 @@ func lockCutoverTable(ctx context.Context, tx cutoverTransaction, table string) 
 	return nil
 }
 
-func lockCutoverTables(ctx context.Context, tx cutoverTransaction) error {
-	identifiers := make([]string, 0, len(CutoverTableSpecs()))
-	for _, spec := range CutoverTableSpecs() {
+func lockCutoverTables(ctx context.Context, tx cutoverTransaction, profiles ...CutoverProfile) error {
+	identifiers := make([]string, 0, len(CutoverTableSpecs(profiles...)))
+	for _, spec := range CutoverTableSpecs(profiles...) {
 		identifiers = append(identifiers, pgx.Identifier{spec.Name}.Sanitize())
 	}
 	if _, err := tx.Exec(ctx, "LOCK TABLE "+strings.Join(identifiers, ", ")+" IN SHARE ROW EXCLUSIVE MODE"); err != nil {
@@ -601,7 +645,7 @@ func openStableOwnerOnlyFile(path string) (*os.File, error) {
 }
 
 func verifyCutoverRows(ctx context.Context, q cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs, provenance CutoverProvenanceContract) error {
-	for _, spec := range CutoverTableSpecs() {
+	for _, spec := range CutoverTableSpecs(manifest.profile) {
 		table, err := cutoverManifestTableByName(manifest, spec.Name)
 		if err != nil {
 			return err
@@ -644,12 +688,12 @@ func hasColumn(columns []string, target string) bool {
 	return false
 }
 
-func advanceCutoverSequences(ctx context.Context, tx cutoverTransaction, tolerant bool) ([]string, error) {
+func advanceCutoverSequences(ctx context.Context, tx cutoverTransaction, tolerant bool, profiles ...CutoverProfile) ([]string, error) {
 	// PostgreSQL sequence changes are non-transactional. This function only
 	// advances values and runs after all row/count checks, so the only possible
 	// rollback residue is a harmless jump to the reserved application range.
 	var notes []string
-	for _, spec := range CutoverTableSpecs() {
+	for _, spec := range CutoverTableSpecs(profiles...) {
 		var sequence *string
 		if err := tx.QueryRow(ctx, `SELECT pg_get_serial_sequence($1, 'id')`, "public."+spec.Name).Scan(&sequence); err != nil {
 			return nil, fmt.Errorf("resolve sequence for table %s", spec.Name)
@@ -682,9 +726,9 @@ func advanceCutoverSequences(ctx context.Context, tx cutoverTransaction, toleran
 	return notes, nil
 }
 
-func verifyCutoverSequences(ctx context.Context, q cutoverQuerier, tolerant bool) ([]string, error) {
+func verifyCutoverSequences(ctx context.Context, q cutoverQuerier, tolerant bool, profiles ...CutoverProfile) ([]string, error) {
 	var notes []string
-	for _, spec := range CutoverTableSpecs() {
+	for _, spec := range CutoverTableSpecs(profiles...) {
 		var sequence *string
 		if err := q.QueryRow(ctx, `SELECT pg_get_serial_sequence($1, 'id')`, "public."+spec.Name).Scan(&sequence); err != nil {
 			return nil, fmt.Errorf("resolve sequence for table %s", spec.Name)

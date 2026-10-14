@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { calculateNextDate } from "@/components/shared/NextScheduleField";
 import type { TreatmentPlanResponse } from "@/types/generated/hospitalization-responses";
 import type { BackendHospitalization } from "../api/types";
 import {
@@ -150,6 +151,8 @@ describe("hospitalization form model", () => {
   it("編集payloadへ保険・ケージ・臨床メモを欠落なく写す", () => {
     expect(buildUpdateHospitalizationRequest(formData, "")).toEqual({
       hospitalization_type: "hotel",
+      start_date: "2026-07-23T00:00:00+09:00",
+      end_date: "2026-07-30T00:00:00+09:00",
       owner_request: "合成監査要望",
       staff_notes: "合成監査引継ぎ",
       memo: "合成監査メモ",
@@ -405,6 +408,122 @@ describe("hospitalization form model", () => {
 
   it("編集payload: 未設定のままなら next_visit も clear_next_visit も送らない", () => {
     const request = buildUpdateHospitalizationRequest({ ...formData, nextVisit: "" }, "", "");
+    expect(request).not.toHaveProperty("next_visit");
+    expect(request).not.toHaveProperty("clear_next_visit");
+  });
+
+  it("編集payload: 変更した期間を JST 0時の start_date/end_date として送り、プリセット由来の next_visit を同送する", () => {
+    const hydrated = buildHospitalizationFormDataFromRecord(
+      createInitialHospitalizationFormData(),
+      hospitalization,
+    );
+    const edited = {
+      ...hydrated,
+      displayDate: "2026-08-01",
+      endDate: "2026-08-08",
+      nextScheduleType: "4weeks",
+      nextVisit: calculateNextDate("2026-08-01", "4weeks"),
+    };
+
+    const request = buildUpdateHospitalizationRequest(edited, hydrated.cageId, hydrated.nextVisit, {
+      startDate: hydrated.displayDate,
+      endDate: hydrated.endDate,
+    });
+
+    expect(request.start_date).toBe("2026-08-01T00:00:00+09:00");
+    expect(request.end_date).toBe("2026-08-08T00:00:00+09:00");
+    expect(request.next_visit).toBe("2026-08-29");
+    expect(request).not.toHaveProperty("clear_next_visit");
+  });
+
+  it("編集payload: 保存値から変わっていない期間は start_date/end_date を送らない", () => {
+    const hydrated = buildHospitalizationFormDataFromRecord(
+      createInitialHospitalizationFormData(),
+      hospitalization,
+    );
+
+    const request = buildUpdateHospitalizationRequest(
+      hydrated,
+      hydrated.cageId,
+      hydrated.nextVisit,
+      { startDate: hydrated.displayDate, endDate: hydrated.endDate },
+    );
+
+    expect(request).not.toHaveProperty("start_date");
+    expect(request).not.toHaveProperty("end_date");
+  });
+
+  it("編集payload: 片方だけ変えた期間は変えた側の日付だけ送る", () => {
+    const initialDates = { startDate: "2026-07-23", endDate: "2026-07-30" };
+
+    const startOnly = buildUpdateHospitalizationRequest(
+      { ...formData, displayDate: "2026-07-24" },
+      formData.cageId,
+      "",
+      initialDates,
+    );
+    expect(startOnly.start_date).toBe("2026-07-24T00:00:00+09:00");
+    expect(startOnly).not.toHaveProperty("end_date");
+
+    const endOnly = buildUpdateHospitalizationRequest(
+      { ...formData, endDate: "2026-07-31" },
+      formData.cageId,
+      "",
+      initialDates,
+    );
+    expect(endOnly).not.toHaveProperty("start_date");
+    expect(endOnly.end_date).toBe("2026-07-31T00:00:00+09:00");
+  });
+
+  it("編集payload: 期間が空なら start_date/end_date を送らない", () => {
+    const request = buildUpdateHospitalizationRequest(
+      { ...formData, displayDate: "", endDate: "" },
+      formData.cageId,
+      "",
+      { startDate: "2026-07-23", endDate: "2026-07-30" },
+    );
+    expect(request).not.toHaveProperty("start_date");
+    expect(request).not.toHaveProperty("end_date");
+  });
+
+  it("編集payload: displayDate が空なら start_date を送らない", () => {
+    const request = buildUpdateHospitalizationRequest({ ...formData, displayDate: "" }, "");
+    expect(request).not.toHaveProperty("start_date");
+  });
+
+  it("編集payload: 開始日の変更と手動で変更した nextVisit を両方送る", () => {
+    const request = buildUpdateHospitalizationRequest(
+      {
+        ...formData,
+        displayDate: "2026-08-01",
+        endDate: "2026-08-08",
+        nextVisit: "2026-08-15",
+        nextScheduleType: "other",
+      },
+      "",
+      "2026-11-20",
+      { startDate: "2026-07-23", endDate: "2026-07-30" },
+    );
+    expect(request.start_date).toBe("2026-08-01T00:00:00+09:00");
+    expect(request.end_date).toBe("2026-08-08T00:00:00+09:00");
+    expect(request.next_visit).toBe("2026-08-15");
+    expect(request).not.toHaveProperty("clear_next_visit");
+  });
+
+  it("編集payload: nextVisit が保存値と同じでも変更した start_date は送る", () => {
+    const request = buildUpdateHospitalizationRequest(
+      {
+        ...formData,
+        displayDate: "2026-08-01",
+        endDate: "2026-08-08",
+        nextVisit: "2026-11-20",
+      },
+      "",
+      "2026-11-20",
+      { startDate: "2026-07-23", endDate: "2026-07-30" },
+    );
+    expect(request.start_date).toBe("2026-08-01T00:00:00+09:00");
+    expect(request.end_date).toBe("2026-08-08T00:00:00+09:00");
     expect(request).not.toHaveProperty("next_visit");
     expect(request).not.toHaveProperty("clear_next_visit");
   });

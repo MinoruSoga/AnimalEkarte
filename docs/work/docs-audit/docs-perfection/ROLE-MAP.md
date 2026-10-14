@@ -30,7 +30,7 @@ flowchart TB
 | cross-domain write契約の検索 | [cross-domain-orchestration-catalog.md](../../../architecture/cross-domain-orchestration-catalog.md) | 実装経路の検証は表が指すコードと検査へ。契約を他の索引へ転記しない |
 | DB表inventory・RBAC説明 | [erd.md](../../../architecture/erd.md) ／ [auth.md](../../../architecture/auth.md) | DDLと[permission.go](../../../../backend/internal/model/permission.go)が実装の一次証拠。ERD/authは説明のowner |
 | 運用手順の入口 | [ops/README.md](../../../ops/README.md) → [deploy/README.md](../../../ops/deploy/README.md) | 構築/運用はops、納品当日はdelivery。未確認のprovider状態をMapへ混ぜない |
-| ローカル受信機配布の前提 | [LAB_DEVICE_AGENT_MACOS.md](../../../ops/deploy/LAB_DEVICE_AGENT_MACOS.md) | 実装契約は[LAB_DEVICE_CONNECTIVITY.md](../../../ops/deploy/LAB_DEVICE_CONNECTIVITY.md)。院内操作の外部手順は同文書の参照先 |
+| ローカル受信機配布の前提 | [LAB_DEVICE_AGENT_MACOS.md](../../../ops/deploy/lab-devices/LAB_DEVICE_AGENT_MACOS.md) | 実装契約は[LAB_DEVICE_CONNECTIVITY.md](../../../ops/deploy/lab-devices/LAB_DEVICE_CONNECTIVITY.md)。院内操作の外部手順は同文書の参照先 |
 | 納品パッケージの入口 | [delivery/README.md](../../../delivery/README.md) | U1–U12はDELIVERY_PACKAGE、U13はOPERATION_MANUALがowner |
 | 現場の詳細操作説明 | [OPERATION_MANUAL.md](../../../delivery/OPERATION_MANUAL.md) → [frontend manual content](../../../../frontend/src/features/manual/content) | deliveryはナビゲーション。参照先の矛盾はRQ-002へ記録し、docs外変更を勝手に許可しない |
 

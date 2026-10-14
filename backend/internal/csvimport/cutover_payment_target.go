@@ -308,7 +308,41 @@ const paymentSplitsBillingIndexQuery = `SELECT EXISTS (
 )
 `
 
-func validateCutoverUniqueIndexes(ctx context.Context, q cutoverQuerier) error {
+// medicinesClinicNameUniqueIndexQuery accepts any index name as long as the
+// same invariant is enforced: a valid, immediate, expressionless partial
+// unique index on public.medicines with the exact key (clinic_id, name) and
+// the exact predicate deleted_at IS NULL (EMR-342, 001_init.sql:2452).
+const medicinesClinicNameUniqueIndexQuery = `SELECT EXISTS (
+  SELECT 1
+  FROM pg_index index_definition
+  JOIN pg_class target_table ON target_table.oid = index_definition.indrelid
+  JOIN pg_namespace target_schema ON target_schema.oid = target_table.relnamespace
+  WHERE target_schema.nspname = 'public'
+    AND target_table.relname = 'medicines'
+    AND index_definition.indisunique = true
+    AND index_definition.indisvalid = true
+    AND index_definition.indisready = true
+    AND index_definition.indimmediate = true
+    AND index_definition.indexprs IS NULL
+    AND index_definition.indnkeyatts = 2
+    AND (
+      SELECT array_agg(attribute.attname::text ORDER BY key_column.ordinality)
+      FROM unnest(index_definition.indkey) WITH ORDINALITY AS key_column(attnum, ordinality)
+      JOIN pg_attribute attribute
+        ON attribute.attrelid = target_table.oid
+       AND attribute.attnum = key_column.attnum
+      WHERE key_column.ordinality <= index_definition.indnkeyatts
+    ) = ARRAY['clinic_id', 'name']::text[]
+    AND regexp_replace(
+      lower(pg_get_expr(index_definition.indpred, index_definition.indrelid)),
+      '[[:space:]()]',
+      '',
+      'g'
+    ) = 'deleted_atisnull'
+)
+`
+
+func validateCutoverUniqueIndexes(ctx context.Context, q cutoverQuerier, profiles ...CutoverProfile) error {
 	var paymentsBillingUnique bool
 	if err := q.QueryRow(ctx, paymentsBillingUniqueIndexQuery).Scan(&paymentsBillingUnique); err != nil {
 		return fmt.Errorf("inspect target unique index for payments.billing_id: %w", err)
@@ -331,6 +365,23 @@ func validateCutoverUniqueIndexes(ctx context.Context, q cutoverQuerier) error {
 	}
 	if !paymentSplitsBillingIndexed {
 		return fmt.Errorf("target requires a valid index starting with payment_splits.billing_id")
+	}
+	return validateCutoverMedicinesUniqueIndex(ctx, q, profiles...)
+}
+
+// validateCutoverMedicinesUniqueIndex is candidate22-only: legacy21 never
+// queries or requires a medicines index. Read-only catalog inspection;
+// query errors fail closed with the wrapped cause and no database writes.
+func validateCutoverMedicinesUniqueIndex(ctx context.Context, q cutoverQuerier, profiles ...CutoverProfile) error {
+	if selectedCutoverProfile(profiles) != CutoverProfileMedicinesCandidate {
+		return nil
+	}
+	var medicinesClinicNameUnique bool
+	if err := q.QueryRow(ctx, medicinesClinicNameUniqueIndexQuery).Scan(&medicinesClinicNameUnique); err != nil {
+		return fmt.Errorf("inspect target unique index for medicines(clinic_id, name): %w", err)
+	}
+	if !medicinesClinicNameUnique {
+		return fmt.Errorf("target requires a valid partial unique index on medicines(clinic_id, name) where deleted_at is null")
 	}
 	return nil
 }

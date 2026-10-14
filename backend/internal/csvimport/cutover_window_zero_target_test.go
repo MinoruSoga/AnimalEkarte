@@ -3,6 +3,8 @@ package csvimport
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -20,12 +22,16 @@ func (q windowZeroTargetQuerier) QueryRow(context.Context, string, ...any) pgx.R
 }
 
 func TestWindowZeroTargetRequiresExactSet(t *testing.T) {
-	dir, digest := writeCutoverFixture(t, nil)
-	bundle, err := PreflightCutoverBundle(dir, ExpectedCutoverSource{ManifestSHA256: digest, ClinicCode: "hachioji", ClinicOrdinal: 1, RunID: "run-1"})
+	dir, _ := writeCutoverFixture(t, nil)
+	// Decode the fixture to isolate target verification; this does not establish formal activation.
+	data, err := os.ReadFile(filepath.Join(dir, cutoverManifestName))
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := bundle.Manifest
+	m, err := decodeCutoverManifest(data)
+	if err != nil {
+		t.Fatal(err)
+	}
 	rowCount := int64(1)
 	m.WindowZeroSettlementEvidence = &CutoverWindowZeroEvidence{SchemaVersion: windowZeroSchema,
 		ContractSHA256: cutoverWindowZeroEvidenceContractSHA256, RowCount: &rowCount, SHA256: strings.Repeat("a", 64)}

@@ -34,6 +34,7 @@ import { useGetMedicalRecord } from "../api/get-medical-record";
 import { useGetPetMedicalHistory } from "../api/get-medical-records";
 import { useGetTrimmingsByPetId } from "../api/get-pet-trimmings";
 import { mergePetTimelineItems } from "../lib/pet-timeline";
+import { resolvePastWeightReferenceDate } from "../lib/interview-weight-model";
 import { useGetClinicalPlan } from "../api/clinical-plan";
 import { useGetTreatments } from "../api/treatments";
 import { useCopyTreatmentDetails } from "../hooks/use-copy-treatment-details";
@@ -47,7 +48,18 @@ function useMedicalRecordFormReadyState(input: {
   form: MedicalRecordFormModel;
 }) {
   const { recordId, selectedPet, form } = input;
-  const { historyItems: medicalHistoryItems } = useGetPetMedicalHistory(selectedPet.id, recordId);
+  // EMR-356: 履歴クエリに record 自身の clinicId を渡すため、先に detail を取る
+  // （hook 呼出し順は安定のためこの並び替えは安全）。拠点横断時に別医院の
+  // キャッシュ/行を混ぜない。
+  const { data: currentRecord } = useGetMedicalRecord(recordId ?? "");
+  const recordClinicId = currentRecord?.clinicId;
+  const {
+    historyItems: medicalHistoryItems,
+    isLoading: medicalHistoryLoading,
+    isError: medicalHistoryError,
+    historyIncomplete: medicalHistoryIncomplete,
+    currentRecordDate,
+  } = useGetPetMedicalHistory(selectedPet.id, recordId, recordClinicId);
   // NO32（治療履歴1本化・案A）: 同一ペットのトリミング記録をカルテ履歴と同じ
   // タイムラインに併記する。trimming view 権限が無い場合は fetch 自体を抑止する
   // （BE も RequireSelectedClinicGrant("trimming","view") で fail-closed）。
@@ -77,9 +89,7 @@ function useMedicalRecordFormReadyState(input: {
     markClean,
   });
   const { user } = useAuth();
-  const { data: currentRecord } = useGetMedicalRecord(recordId ?? "");
   const recordFinalized = form.isFinalized || isMedicalRecordFinalizedStatus(currentRecord?.status);
-  const recordClinicId = currentRecord?.clinicId;
   const { data: clinicalPlan } = useGetClinicalPlan(recordId ?? "", recordClinicId);
   const { data: treatments = [] } = useGetTreatments(recordId ?? "", recordClinicId);
   // EMR-219: 問診履歴「コピー」適用時に元カルテの治療明細も複写する。
@@ -160,6 +170,13 @@ function useMedicalRecordFormReadyState(input: {
 
   return {
     historyItems,
+    medicalHistoryLoading,
+    medicalHistoryError,
+    medicalHistoryIncomplete,
+    recordBoundary: resolvePastWeightReferenceDate({
+      recordDateIso: currentRecordDate,
+      recordDateJst: form.recordDate ?? form.partnerVisitDate,
+    }),
     isDirty,
     hasLineIntegration,
     lstepStatus,
@@ -314,6 +331,11 @@ export function MedicalRecordFormReadyPanels({
               onRegisterEstimateSave={ready.handleRegisterEstimateSave}
               onCopyRecordTreatments={ready.copyTreatmentsFromRecord}
               recordClinicId={ready.recordClinicId}
+              recordPetId={ready.currentRecord?.petId}
+              historyLoading={ready.medicalHistoryLoading}
+              historyError={ready.medicalHistoryError}
+              historyIncomplete={ready.medicalHistoryIncomplete}
+              recordBoundary={ready.recordBoundary}
             />
           </fieldset>
         </UnifiedTabsRoot>

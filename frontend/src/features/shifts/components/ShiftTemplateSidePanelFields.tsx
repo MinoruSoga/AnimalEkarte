@@ -201,7 +201,7 @@ function BreakEditor({
           ) : null}
         </div>
       ))}
-      {breaks.length === 0 ? <p className={`text-xs ${C.text40}`}>休憩なし</p> : null}
+      {breaks.length === 0 ? <p className={`text-xs ${C.text60}`}>休憩なし</p> : null}
     </div>
   );
 }

@@ -117,7 +117,9 @@ export function CheckupSyncFilterForm({ onSearch, isLoading }: CheckupSyncFilter
       action={formAction}
       className={`${C.bgWhite} rounded-xs border ${C.borderLight} p-6 space-y-4`}
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* EMR-385: lg 4列だとラベル（最終健診実施日（以降・任意）等）が1文字単位で
+          折り返されるため 3列に広げ、十分な幅で xl から 4列にする */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {/* 検診種別 */}
         <div className="space-y-1.5">
           <label htmlFor="checkup_type" className={STYLE.formLabel}>
@@ -140,8 +142,10 @@ export function CheckupSyncFilterForm({ onSearch, isLoading }: CheckupSyncFilter
 
         {/* 動物種 */}
         <div className="space-y-1.5">
+          {/* EMR-385: 括弧内を含むラベルはまとまり単位（主語部・括弧部）でのみ折返す */}
           <label htmlFor="species" className={STYLE.formLabel}>
-            動物種（任意）
+            <span className="whitespace-nowrap">動物種</span>
+            <span className="whitespace-nowrap">（任意）</span>
           </label>
           <input
             id="species"
@@ -155,7 +159,8 @@ export function CheckupSyncFilterForm({ onSearch, isLoading }: CheckupSyncFilter
         {/* 最終来院日 from */}
         <div className="space-y-1.5">
           <label htmlFor="last_visit_after" className={STYLE.formLabel}>
-            最終来院日（以降・任意）
+            <span className="whitespace-nowrap">最終来院日</span>
+            <span className="whitespace-nowrap">（以降・任意）</span>
           </label>
           <input
             id="last_visit_after"
@@ -168,7 +173,8 @@ export function CheckupSyncFilterForm({ onSearch, isLoading }: CheckupSyncFilter
         {/* 最終来院日 to */}
         <div className="space-y-1.5">
           <label htmlFor="last_visit_before" className={STYLE.formLabel}>
-            最終来院日（以前・任意）
+            <span className="whitespace-nowrap">最終来院日</span>
+            <span className="whitespace-nowrap">（以前・任意）</span>
           </label>
           <input
             id="last_visit_before"
@@ -181,7 +187,8 @@ export function CheckupSyncFilterForm({ onSearch, isLoading }: CheckupSyncFilter
         {/* ISSUE-009: 年齢（最小） */}
         <div className="space-y-1.5">
           <label htmlFor="min_age_years" className={STYLE.formLabel}>
-            年齢 最小（任意・歳）
+            <span className="whitespace-nowrap">年齢 最小</span>
+            <span className="whitespace-nowrap">（任意・歳）</span>
           </label>
           <input
             id="min_age_years"
@@ -197,7 +204,8 @@ export function CheckupSyncFilterForm({ onSearch, isLoading }: CheckupSyncFilter
         {/* ISSUE-009: 年齢（最大） */}
         <div className="space-y-1.5">
           <label htmlFor="max_age_years" className={STYLE.formLabel}>
-            年齢 最大（任意・歳）
+            <span className="whitespace-nowrap">年齢 最大</span>
+            <span className="whitespace-nowrap">（任意・歳）</span>
           </label>
           <input
             id="max_age_years"
@@ -213,7 +221,8 @@ export function CheckupSyncFilterForm({ onSearch, isLoading }: CheckupSyncFilter
         {/* ISSUE-009: 慢性疾患 */}
         <div className="space-y-1.5">
           <label htmlFor="has_chronic_condition" className={STYLE.formLabel}>
-            慢性疾患（任意）
+            <span className="whitespace-nowrap">慢性疾患</span>
+            <span className="whitespace-nowrap">（任意）</span>
           </label>
           <select
             id="has_chronic_condition"
@@ -232,7 +241,8 @@ export function CheckupSyncFilterForm({ onSearch, isLoading }: CheckupSyncFilter
         {/* ISSUE-009: CPM ステージ */}
         <div className="space-y-1.5">
           <label htmlFor="cpm_stage" className={STYLE.formLabel}>
-            CPMステージ（任意）
+            <span className="whitespace-nowrap">CPMステージ</span>
+            <span className="whitespace-nowrap">（任意）</span>
           </label>
           <select
             id="cpm_stage"
@@ -252,7 +262,8 @@ export function CheckupSyncFilterForm({ onSearch, isLoading }: CheckupSyncFilter
         {/* ISSUE-009: 累計診療費（最小） */}
         <div className="space-y-1.5">
           <label htmlFor="min_total_amount" className={STYLE.formLabel}>
-            累計診療費（最小・円）
+            <span className="whitespace-nowrap">累計診療費</span>
+            <span className="whitespace-nowrap">（最小・円）</span>
           </label>
           <input
             id="min_total_amount"
@@ -268,7 +279,8 @@ export function CheckupSyncFilterForm({ onSearch, isLoading }: CheckupSyncFilter
         {/* ISSUE-009: 年間来院回数（最小） */}
         <div className="space-y-1.5">
           <label htmlFor="min_annual_visit_count" className={STYLE.formLabel}>
-            年間来院回数（最小・回）
+            <span className="whitespace-nowrap">年間来院回数</span>
+            <span className="whitespace-nowrap">（最小・回）</span>
           </label>
           <input
             id="min_annual_visit_count"
@@ -284,7 +296,8 @@ export function CheckupSyncFilterForm({ onSearch, isLoading }: CheckupSyncFilter
         {/* ISSUE-009: 最終健診実施日 from */}
         <div className="space-y-1.5">
           <label htmlFor="last_checkup_after" className={STYLE.formLabel}>
-            最終健診実施日（以降・任意）
+            <span className="whitespace-nowrap">最終健診実施日</span>
+            <span className="whitespace-nowrap">（以降・任意）</span>
           </label>
           <input
             id="last_checkup_after"
@@ -297,7 +310,8 @@ export function CheckupSyncFilterForm({ onSearch, isLoading }: CheckupSyncFilter
         {/* ISSUE-009: 最終健診実施日 to */}
         <div className="space-y-1.5">
           <label htmlFor="last_checkup_before" className={STYLE.formLabel}>
-            最終健診実施日（以前・任意）
+            <span className="whitespace-nowrap">最終健診実施日</span>
+            <span className="whitespace-nowrap">（以前・任意）</span>
           </label>
           <input
             id="last_checkup_before"

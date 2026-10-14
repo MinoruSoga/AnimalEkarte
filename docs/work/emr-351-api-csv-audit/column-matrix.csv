@@ -1,0 +1,237 @@
+table,column,api_surface,preflight,apply_db,diff,cls,fup,evidence
+staffs,id,system-generated; no DTO binding,id-band contract col,BIGSERIAL PK; imported ids kept,none,OK,none,api-binding-catalog.json
+staffs,clinic_id,tenant context; not client-set,placeholder {{CLINIC_ID}} required,FK clinics RESTRICT NOT NULL,none,OK,none,001_init.sql:270
+staffs,name,create required max=255; update omitempty max=255,required-string col,NOT NULL,none,OK,none,staff_request.go:9;62
+staffs,license_number,create/update max=255,presence only,NOT NULL DEFAULT '',none,OK,none,staff_request.go:12;63;001_init.sql:274
+staffs,is_active,update-only bound *bool; create implies true,bool presence,NOT NULL DEFAULT true,inactive imported staff cannot serve as API actor/clinical ref; inactive-actor test proves preflight behavior only; keeping them accepted is an owner policy decision,OWNER,EMR-376,staff_request.go:66;cutover_entered_by_fk_contract_test.go
+staffs,reservation_visible,bound *bool create+update,presence only,NOT NULL DEFAULT true,none,OK,none,staff_request.go:19;72;001_init.sql:279
+procedures,id,system-generated,id-band,BIGSERIAL PK,none,OK,none,001_init.sql:920
+procedures,clinic_id,tenant context,placeholder,FK clinics RESTRICT,none,OK,none,001_init.sql:921
+procedures,name,create required; update *string,required-string,NOT NULL + unique idx (clinic;name) non-deleted,duplicate names WOULD fail at apply; preflight does not dedupe,MIG,EMR-374,procedure_request.go:4;32;001_init.sql:2454
+procedures,price,bound *int64 no tag; service rejects negative per EMR-345,no sign check,bigint nullable; no CHECK,imported negative price stored but uneditable via API,EMR,EMR-345,procedure_request.go:5;33;001_init.sql:923
+procedures,is_active,bound bool,presence,NOT NULL DEFAULT true,none,OK,none,procedure_request.go:6;34
+procedures,description,bound no tag,presence,NOT NULL DEFAULT '',none,OK,none,procedure_request.go:7;35
+procedures,duration,bound *int no min,presence,integer nullable,no sign check anywhere confirmed,OK,none,procedure_request.go:8;36;001_init.sql:903
+procedures,anesthesia,create required oneof=none local sedation general; update oneof,no enum check,anesthesia_type enum DEFAULT none,invalid CSV value WOULD fail at apply,MIG,EMR-374,procedure_request.go:9;37;001_init.sql:93;927
+procedures,parent_id,bound *uint64,self csv-parent ref,FK procedures SET NULL,none,OK,none,procedure_request.go:10;38
+procedures,tax_type,create required oneof=included excluded exempt; update oneof,no enum check,tax_type NOT NULL DEFAULT excluded,invalid WOULD fail at apply,MIG,EMR-374,procedure_request.go:12;41;001_init.sql:134
+procedures,tax_rate,bound omitempty min=0 max=1 create+update,no range check,numeric NOT NULL DEFAULT 0.10,imported value outside 0..1 cannot be re-set via API; decimal representation is separate owner question (EMR-365 covers vaccine only),EMR,EMR-376,procedure_request.go:13;42;001_init.sql:930
+procedures,sort_order,bound int,presence,integer DEFAULT 0,none,OK,none,procedure_request.go:11;40
+procedures,is_surgery,NOT bound in create/update DTO; not mapped in service,presence,NOT NULL DEFAULT false,imported flag has no API write path,EMR,EMR-375,procedure_request.go:3-14;31-43;procedure_service.go:20-34;001_init.sql:933
+merchandise_items,id,system-generated,id-band,BIGSERIAL PK,none,OK,none,001_init.sql:1808
+merchandise_items,clinic_id,tenant context,placeholder,FK clinics RESTRICT,none,OK,none,001_init.sql:1809
+merchandise_items,name,create required max=255; update max=255,required-string,NOT NULL + unique idx (clinic;name) non-deleted,duplicate names WOULD fail at apply,MIG,EMR-374,merchandise_item_request.go:15;38
+merchandise_items,category,create required oneof=food goods other; update same subset of 12-value DB enum,no enum check,item_category NOT NULL DEFAULT goods,imported category outside {food;goods;other} valid in DB but not settable via API,EMR,EMR-376,merchandise_item_request.go:16;39;001_init.sql:108;1811
+merchandise_items,unit_price,create min=0; update omitempty min=0,no sign check,bigint NOT NULL DEFAULT 0; no CHECK,negative stored but uneditable via API (EMR-345 scope),EMR,EMR-345,merchandise_item_request.go:17;40;001_init.sql:1812
+merchandise_items,tax_type,create required oneof=included excluded exempt; update oneof,no enum check,tax_type NOT NULL DEFAULT excluded,invalid WOULD fail at apply,MIG,EMR-374,merchandise_item_request.go:18;41
+merchandise_items,tax_rate,bound omitempty min=0 max=1 create+update,no range check,numeric NOT NULL DEFAULT 0.10,imported value outside 0..1 cannot be re-set via API,EMR,EMR-376,merchandise_item_request.go:19;42;001_init.sql:1814
+merchandise_items,is_active,bound bool,presence,NOT NULL DEFAULT true,none,OK,none,merchandise_item_request.go:20;43
+merchandise_items,sort_order,bound int create; update omitempty min=0,presence,NOT NULL DEFAULT 0,negative sort_order importable but rejected by update binding,EMR,EMR-376,merchandise_item_request.go:21;44
+owners,id,system-generated,id-band,BIGSERIAL PK,none,OK,none,001_init.sql:294
+owners,clinic_id,create-bound *uint64; tenant context on update,placeholder,FK clinics RESTRICT,none,OK,none,http_request.go:187;001_init.sql:295
+owners,name,create required max=255 (json owner_name); update max=255,required-string,NOT NULL,none,OK,none,http_request.go:188;240
+owners,name_kana,bound omitempty max=100 create+update,no pattern check,NOT NULL DEFAULT '' CHECK(name_kana !~ '[ァ-ヶ]'),katakana value WOULD fail at apply AND at API write; neither layer prechecks,MIG,EMR-374,http_request.go:189;241;001_init.sql:297
+owners,birth_date,bound *jsonDate / nullableDateRequestField (ParseFlexibleDate: YYYY-MM-DD|RFC3339),presence,date nullable,CSV date literal format not preflighted; Postgres date COPY domain wider than API parse; whether imported literals are API-editable unverified (no source CSV scanned),UNK,EMR-376,http_request.go:190;242;httpapi/date.go:20-30
+owners,company,bound omitempty max=200,presence,NOT NULL DEFAULT '',none,OK,none,http_request.go:191;243
+owners,postal_code,bound no tag; service validates postal format per validators_contact,no format precheck,NOT NULL DEFAULT '',nonconforming postal value uneditable via API,EMR,EMR-376,http_request.go:192;244;validators_contact.go:30-51
+owners,address1,bound omitempty max=200,presence,NOT NULL DEFAULT '',none,OK,none,http_request.go:193;245
+owners,address2,bound omitempty max=200,presence,NOT NULL DEFAULT '',none,OK,none,http_request.go:194;246
+owners,home_postal_code,bound omitempty max=10 only; postal format NOT service-validated on this field (owner validators cover Phone+PostalCode only),no format precheck,NOT NULL DEFAULT '',imported >10-char value uneditable; format unchecked both sides,EMR,EMR-376,http_request.go:195;247;validators.go:31-87
+owners,home_address1,bound omitempty max=200,presence,NOT NULL DEFAULT '',none,OK,none,http_request.go:196;248
+owners,home_address2,bound omitempty max=200,presence,NOT NULL DEFAULT '',none,OK,none,http_request.go:197;249
+owners,phone,bound omitempty max=30; service regex ^0[0-9]{1;4}-?[0-9]{1;4}-?[0-9]{4}$ (validators.go:31-87 covers this field),no format/dup precheck,NOT NULL DEFAULT '' + unique partial idx on non-empty phone (001_init.sql:4532-4534),nonconforming phone uneditable via API; dup non-empty phone WOULD fail at apply,EMR,EMR-376,http_request.go:198;250;validators.go:31-87;001_init.sql:4532-4534
+owners,company_phone,bound omitempty max=30 only; service phone-format does NOT apply (owner validators cover Phone+PostalCode only),no format precheck,NOT NULL DEFAULT '',imported >30-char value uneditable; format unchecked both sides,EMR,EMR-376,http_request.go:199;251;validators.go:31-87
+owners,email,bound omitempty max=254; service email regex per validators_contact,no dup/format precheck,unique idx (clinic;email) non-deleted non-empty,duplicate email WOULD fail at apply; invalid format uneditable via API,MIG,EMR-374,http_request.go:200;252;001_init.sql:2194
+owners,remarks,bound omitempty max=2000,presence,NOT NULL DEFAULT '',none,OK,none,http_request.go:201;253
+owners,is_dangerous,bound bool,presence,NOT NULL DEFAULT false,none,OK,none,http_request.go:202;254
+owners,discount_rate,bound no tag; service validates 0..100,no range precheck,numeric(5;2) NOT NULL DEFAULT 0,imported out-of-range value uneditable via API,EMR,EMR-376,http_request.go:203;255;001_init.sql:311
+owners,membership_type,bound omitempty oneof=non_member member deceased transferred,no enum check,membership_type NOT NULL,invalid WOULD fail at apply,MIG,EMR-374,http_request.go:204;256;001_init.sql:81;312
+owners,dm_preference,create *bool; update nullableBoolRequestField (tri-state),presence,bool NULL (unset/true/false),none,OK,none,http_request.go:205;257;001_init.sql:333
+pets,id,system-generated,id-band,BIGSERIAL PK,none,OK,none,001_init.sql:1111
+pets,clinic_id,tenant context,placeholder,FK clinics RESTRICT,none,OK,none,001_init.sql:1112
+pets,owner_id,create required; update bound,csv-parent existence,FK owners RESTRICT NOT NULL,none,OK,none,pet_request.go:109;178;001_init.sql:1113
+pets,pet_number,PATCH-bound omitempty max=50 (update only; not create-bound),presence,text NOT NULL DEFAULT ''; no uniqueness,none - editable; no dup constraint,OK,none,pet_request.go:180;209-214;001_init.sql:1114
+pets,name,create required max=255; update max=255,required-string,NOT NULL,none,OK,none,pet_request.go:111;181
+pets,name_kana,bound omitempty max=100,no pattern check,CHECK(name_kana !~ '[ァ-ヶ]'),same as owners.name_kana,MIG,EMR-374,pet_request.go:112;182;001_init.sql:1116
+pets,animal_species_id,create required; update bound,target-master seed fact check,FK animal_species RESTRICT NOT NULL,none,OK,none,pet_request.go:110;179
+pets,gender,bound omitempty oneof=male female unknown,no enum check,pet_gender NOT NULL DEFAULT unknown,invalid WOULD fail at apply,MIG,EMR-374,pet_request.go:113;183;001_init.sql:78;1118
+pets,status,create-bound oneof=alive deceased; NOT in update DTO,no enum check,pet_status NOT NULL DEFAULT alive,imported status not settable via update binding; pairing vs deceased_at unchecked,OWNER,EMR-376,pet_request.go:114;001_init.sql:77;1119
+pets,birth_date,bound *jsonDate (ParseFlexibleDate: YYYY-MM-DD|RFC3339),presence,date nullable,CSV date literal format not preflighted; Postgres date COPY domain wider than API parse; whether imported literals are API-editable unverified (no source CSV scanned),UNK,EMR-376,pet_request.go:115;187;pet/date.go:15-26;httpapi/date.go:20-30
+pets,breed,bound omitempty max=100,presence,NOT NULL DEFAULT '',none,OK,none,pet_request.go:116;188
+pets,color,bound omitempty max=100,presence,NOT NULL DEFAULT '',none,OK,none,pet_request.go:117;189
+pets,weight,bound *float64 no tag; service requires >=0 per pet validators,no range precheck,numeric(6;2) nullable; no CHECK,imported negative weight uneditable via API,EMR,EMR-376,pet_request.go:120;192;001_init.sql:1123
+pets,neutered_date,bound *jsonDate (ParseFlexibleDate: YYYY-MM-DD|RFC3339),presence,date nullable,CSV date literal format not preflighted; Postgres date COPY domain wider than API parse; whether imported literals are API-editable unverified (no source CSV scanned),UNK,EMR-376,pet_request.go:121;193;pet/date.go:15-26;httpapi/date.go:20-30
+pets,food,bound omitempty max=500,presence,NOT NULL DEFAULT '',none,OK,none,pet_request.go:126;198
+pets,remarks,bound omitempty max=2000,presence,NOT NULL DEFAULT '',none,OK,none,pet_request.go:130;203
+pets,deceased_at,NOT bound in any DTO (death workflow internal),presence,timestamptz NULL,imported value has no ordinary API write path; status pairing unverified; CSV timestamptz literal format not preflighted (presence only); prior OWNER follow-up remains open independently; CSV literal format vs COPY/API parity unverified,UNK,EMR-376,001_init.sql:1134
+appointments,id,system-generated,id-band,BIGSERIAL PK,none,OK,none,001_init.sql:1321
+appointments,clinic_id,tenant context,placeholder,FK clinics RESTRICT,none,OK,none,001_init.sql:1322
+appointments,start_time,create required (reservation); trimming req bound,no order check,timestamptz NOT NULL; CHECK(end_time>=start_time),inverted range WOULD fail at apply; equal-time passes DB but API requires > (sharedkernel ValidateTimeRange:116-120) - parity gap; equal-time counts (hachioji81712 jouto126637 shikishima4981 hakobuneco26310) are parity observations not DB violations; CSV timestamp literal format not preflighted - Postgres COPY domain wider than API RFC3339 bind; prior EMR follow-up remains open independently; CSV literal format vs COPY/API parity unverified,UNK,EMR-376,reservation_request.go:141;253;001_init.sql:1344
+appointments,end_time,create required; update bound,no order check,same CHECK pair,same parity gap (API > vs DB >=); CSV timestamp literal format not preflighted - Postgres COPY domain wider than API RFC3339 bind; prior EMR follow-up remains open independently; CSV literal format vs COPY/API parity unverified,UNK,EMR-376,reservation_request.go:142;254;001_init.sql:1344
+appointments,owner_id,bound create+update,csv-parent existence,FK owners SET NULL,existence only; owner-pet pairing unchecked,MIG,EMR-374,reservation_request.go:143;255;001_init.sql:1325
+appointments,pet_id,bound create+update; trimming create required,csv-parent existence,FK pets SET NULL,pairing unchecked; update re-validates owner-pet link,MIG,EMR-374,trimming_request.go:64;trimming_service_update.go:66;001_init.sql:1326
+appointments,visit_type,bound omitempty oneof=first revisit,no enum check,visit_type NOT NULL DEFAULT revisit,invalid WOULD fail at apply,MIG,EMR-374,reservation_request.go:145;257;001_init.sql:113;1327
+appointments,reservation_type_id,create required,target-master seed fact check,FK reservation_types RESTRICT NOT NULL,none,OK,none,reservation_request.go:146;258
+appointments,doctor_id,bound; update runs capability check incl staff-clinic assignment,csv-parent existence only,FK staffs SET NULL,assignment provisioning owned by EMR-144/145 (pending); API check real,EMR,EMR-144+EMR-145,trimming_service_update.go:83;001_init.sql:1329
+appointments,status,general reservation DTO oneof 7 of 8 DB labels (incl completed; excl no_show); trimming-scoped DTO 6 (excl completed;no_show),no enum check,reservation_status enum 8 labels (no tentative),no_show not settable via general DTO; DTO-scope counts are not proof of all edit failures; terminal statuses freeze trimming detail,EMR,EMR-376,reservation_request.go:149;261;trimming_request.go;trimming_service_update.go:59;001_init.sql:114-117
+appointments,source,create-bound oneof=manual line; no update binding,presence,reservation_source NOT NULL DEFAULT manual,imported line rows indistinguishable from real LINE flow (no line_customer_id); uncorrectable,OWNER,EMR-376,reservation_request.go:151;001_init.sql:119;1333
+appointment_trimming_details,id,system-generated,id-band,BIGSERIAL PK,none,OK,none,001_init.sql:1376
+appointment_trimming_details,clinic_id,tenant context,placeholder,FK clinics RESTRICT,none,OK,none,001_init.sql:1377
+appointment_trimming_details,appointment_id,createTrimmingRequest bound only,csv-parent existence,NOT NULL UNIQUE FK appointments CASCADE (1:1),duplicate appointment_id WOULD fail at apply,MIG,EMR-374,trimming_request.go:60;001_init.sql:1378
+appointment_trimming_details,remarks,bound omitempty max=2000 create+update trimming req,required-string per contract,text NOT NULL DEFAULT '',edit blocked when appointment status non-mutable (ValidateTrimmingAppointmentMutable); owner acceptance of terminal-state lock pending,OWNER,EMR-376,trimming_request.go:76;132;trimming_service_update.go:33-34;59
+medical_records,id,system-generated,id-band,BIGSERIAL PK,none,OK,none,001_init.sql:1413
+medical_records,clinic_id,tenant context,placeholder,FK clinics RESTRICT,none,OK,none,001_init.sql:1414
+medical_records,record_no,create-bound no tag; NOT in update DTO,no dup check,text NOT NULL; unique idx (clinic;record_no),dup WOULD fail at apply; value uncorrectable via update,MIG,EMR-374,medical_record_request.go:170;001_init.sql:1415;2185
+medical_records,date,bound *time.Time create+update (RFC3339); create also accepts visit_date YYYY-MM-DD,presence,date NOT NULL,CSV date literal format not preflighted; Postgres date COPY domain wider than API bind; whether imported literals are API-editable unverified (no source CSV scanned),UNK,EMR-376,medical_record_request.go:171-172;261-268;313
+medical_records,owner_id,create required (*string); update bound,csv-parent existence,FK owners RESTRICT,pairing vs pet unchecked by importer,MIG,EMR-374,medical_record_request.go:174;314;001_init.sql:1417
+medical_records,pet_id,create required (*string); update bound,csv-parent existence,FK pets RESTRICT,same,MIG,EMR-374,medical_record_request.go:175;315;001_init.sql:1418
+medical_records,appointment_id,bound create+update BUT service rejects link change after create,csv-parent existence,FK appointments SET NULL,imported link cannot be corrected via API,EMR,EMR-376,medical_record_request.go:177;317;001_init.sql:1420
+medical_records,status,bound oneof=draft finalized create+update; service rejects edits on finalized,no enum check,medical_record_status DEFAULT draft,imported finalized rows read-only via API; correction/addendum path is owner policy decision (not proven working),OWNER,EMR-376,medical_record_request.go:178;318;medical_record_crud.go;001_init.sql:1421
+medical_records,visit_type,bound no tag create+update,no enum check,visit_type nullable enum,invalid WOULD fail at apply,MIG,EMR-374,medical_record_request.go:173;320;001_init.sql:113;1427
+medical_records,doctor_id,bound; AssertMedicalRecordDoctorInClinic requires active+staff_type=doctor+assignment,csv-parent existence only,FK staffs SET NULL,assignment provisioning dependency EMR-144/145 (pending),EMR,EMR-144+EMR-145,medical_record_request.go:176;316;001_init.sql:1419
+medical_records,entered_by,NOT bound (API actor-set),band col + csv-parent same-clinic staffs,FK staffs nullable,cross-clinic actors rejected by source preflight; inactive same-band actor acceptance is an owner decision pending explicit policy,OWNER,EMR-376,cutover_contract.go:251;257-259;cutover_contract_validate.go:654-669;cutover_reference_graph.go:43;51-53;194-209
+inquiries,id,system-generated,id-band,BIGSERIAL PK,none,OK,none,001_init.sql:1543
+inquiries,medical_record_id,not bound (path context),csv-parent existence,NOT NULL UNIQUE FK CASCADE (1:1),dup WOULD fail at apply; repo locks finalized parent FOR UPDATE and rejects write,MIG,EMR-374,inquiry_repository.go:63-73;001_init.sql:1544
+inquiries,chief_complaint,update-bound *string,presence,NOT NULL DEFAULT '',none,OK,none,inquiry_request.go:4;inquiry_service.go
+inquiries,owner_observations,NOT bound in update DTO,presence,NOT NULL DEFAULT '',imported field has no API write path (import-only decision needed),EMR,EMR-375,inquiry_request.go:3-18;inquiry_service.go:13-19;48-55
+inquiries,history,NOT bound,presence,NOT NULL DEFAULT '',same import-only gap,EMR,EMR-375,inquiry_request.go:3-18
+inquiries,notes,update-bound,presence,NOT NULL DEFAULT '',none,OK,none,inquiry_request.go:8
+inquiries,allergy_info,NOT bound,presence,NOT NULL DEFAULT '',import-only gap,EMR,EMR-375,inquiry_request.go:3-18
+inquiries,current_medications,NOT bound,presence,NOT NULL DEFAULT '',import-only gap,EMR,EMR-375,inquiry_request.go:3-18
+inquiries,staff_id,NOT bound,csv-parent existence,FK staffs SET NULL,imported staff ref has no API write path,EMR,EMR-375,inquiry_request.go:3-18;001_init.sql:1557
+clinical_plans,id,system-generated,id-band,BIGSERIAL PK,none,OK,none,001_init.sql:1566
+clinical_plans,medical_record_id,not bound (path context),csv-parent existence,NOT NULL UNIQUE FK CASCADE (1:1),dup WOULD fail at apply; UPDATE guarded by draft-only WHERE clause,MIG,EMR-374,clinical_plan_repository.go:118-137;001_init.sql:1567
+clinical_plans,physical_exam,update-bound,presence,NOT NULL DEFAULT '',none,OK,none,clinical_plan_request.go:13
+clinical_plans,diagnosis_details,update-bound,presence,NOT NULL DEFAULT '',none,OK,none,clinical_plan_request.go:16
+clinical_plans,treatment_policy,update-bound,presence,NOT NULL DEFAULT '',none,OK,none,clinical_plan_request.go:17
+vital_records,id,system-generated,id-band,BIGSERIAL PK,none,OK,none,001_init.sql:1747
+vital_records,clinic_id,tenant context,placeholder,FK clinics RESTRICT,none,OK,none,001_init.sql:1748
+vital_records,medical_record_id,not bound in DTO (context-derived),csv-parent existence,FK CASCADE; CHECK(mr OR daily_record_id NOT NULL),daily_record_id not in CSV so medical_record_id effectively required,OK,none,vital_request.go;001_init.sql:1750;1763
+vital_records,pet_id,not bound in DTO (context-derived),csv-parent existence,FK pets RESTRICT NOT NULL,pet must match medical_record pet (unchecked),MIG,EMR-374,001_init.sql:1749
+vital_records,recorded_at,create required time.Time (RFC3339); update optional *time.Time,presence,NOT NULL DEFAULT now(),CSV timestamp literal format not preflighted; Postgres timestamptz COPY domain wider than API RFC3339 bind; whether imported literals are API-editable unverified (no source CSV scanned),UNK,EMR-376,vital_request.go:13;49
+vital_records,temperature,bound *float64 no tag,no range check,numeric; CHECK 30.0-50.0,out-of-range WOULD fail at apply,MIG,EMR-374,vital_request.go:15;51;001_init.sql:1766
+vital_records,weight,bound *float64 no tag,no range check,numeric; CHECK >0,nonpositive WOULD fail at apply,MIG,EMR-374,vital_request.go:18;54;001_init.sql:1769
+vital_records,weight_unit,bound *string no tag,no enum check,body_weight_unit Kg|g DEFAULT Kg,invalid WOULD fail at apply,MIG,EMR-374,vital_request.go:19;55;001_init.sql:128;1758
+vital_records,heart_rate,bound *int no tag,no range check,int; CHECK >0 and <500,WOULD fail at apply,MIG,EMR-374,vital_request.go:16;52;001_init.sql:1767
+vital_records,respiration_rate,bound *int no tag,no range check,int; CHECK >0 and <200,WOULD fail at apply,MIG,EMR-374,vital_request.go:17;53;001_init.sql:1768
+vital_records,staff_id,bound create+update; service validates staff-clinic assignment,csv-parent existence,FK staffs SET NULL,assignment provisioning dependency EMR-144/145 (pending),EMR,EMR-144+EMR-145,vital_request.go:14;50;vital_service_create.go:42-45;001_init.sql:1753
+vital_records,notes,bound create+update,presence,NOT NULL DEFAULT '',none,OK,none,vital_request.go:20;56
+billings,id,system-generated,id-band,BIGSERIAL PK,none,OK,none,001_init.sql:1891
+billings,clinic_id,tenant context,placeholder,FK clinics RESTRICT,none,OK,none,001_init.sql:1892
+billings,medical_record_id,bound create+update; ownership validated,preflight uniqueness check (already enforced),FK SET NULL + unique partial idx (1:1),dup rejected at preflight not apply,OK,none,accounting_request.go:159;327;cutover_payment_graph.go:12;22-31;001_init.sql:1893;2197
+billings,owner_id,bound; ownership validated vs record/pet,csv-parent existence,FK owners SET NULL,pairing unchecked,MIG,EMR-374,accounting_request.go:161;329;001_init.sql:1895
+billings,pet_id,bound; ownership validated,csv-parent existence,FK pets SET NULL,same,MIG,EMR-374,accounting_request.go:162;330;001_init.sql:1896
+billings,total_amount,create min=0; update bound no tag; service rejects negative and requires subtotal+tax=total,no sign check,bigint NOT NULL; NO CHECK per AE-MIG-NEG-1 explicit negative-billing acceptance,imported negative totals uneditable via API,HIST,EMR-376,accounting_request.go:165;333;001_init.sql:1888-1889
+billings,status,create oneof=waiting pending; update oneof adds completed cancelled; dedicated transitions gated by service,preflight domain check already enforced,billing_status 4-enum,completed/cancelled rows: edits rejected or gated by post-close reason; owner acceptance pending,OWNER,EMR-376,accounting_request.go:167;335;cutover_payment_graph.go:37-43;001_init.sql:120;1901
+billings,scheduled_date,create required time.Time (RFC3339); update bound *time.Time,presence,date NOT NULL,CSV date literal format not preflighted; Postgres date COPY domain wider than API RFC3339 bind; whether imported literals are API-editable unverified (no source CSV scanned),UNK,EMR-376,accounting_request.go:168;336
+billings,completed_at,bound *time.Time create+update (RFC3339),payment-graph requires RFC3339 when status=completed and empty otherwise,timestamptz nullable,format proven: preflight parses RFC3339 for every row (completed required / otherwise empty) and API binds RFC3339 - the only independently proven date/timestamp column,OK,none,accounting_request.go:169;337;cutover_payment_graph.go:38-49;cutover_payment_contract.go:161-173
+billing_items,id,system-generated,id-band,BIGSERIAL PK,none,OK,none,001_init.sql:1914
+billing_items,clinic_id,tenant context,placeholder,trigger syncs from parent billings.clinic_id (overwrites CSV value),CSV value ignored at apply (trigger authoritative),OK,none,001_init.sql:6210-6243
+billing_items,billing_id,create required,csv-parent existence,FK billings CASCADE NOT NULL + composite (billing_id;clinic_id),none,OK,none,billing_item_request.go:37;001_init.sql:1915;4048
+billing_items,category,oneof 12 values (create + complete-req),no enum check,item_category NOT NULL,invalid WOULD fail at apply,MIG,EMR-374,billing_item_request.go:38;accounting_request.go:175;001_init.sql:108
+billing_items,name,create required max=255; update max=255; complete required,required-string,NOT NULL DEFAULT '',none,OK,none,billing_item_request.go:39;64;accounting_request.go:176
+billing_items,unit_price,create min=0; complete min=0; update no tag (service rejects negative),no sign check,bigint NOT NULL; NO CHECK,negative importable (permissive DB observed) but API create/re-write rejects; acceptance not explicitly governed; owner decision,OWNER,EMR-376,billing_item_request.go:40;65;accounting_request.go:177;001_init.sql:1918
+billing_items,quantity,create min=0; complete required gt=0; update no tag,no check,numeric(10;1) CHECK(quantity>0),nonpositive WOULD fail at apply,MIG,EMR-374,billing_item_request.go:41;66;accounting_request.go:178;001_init.sql:1935
+billing_items,tax_type,bound omitempty oneof=included excluded exempt,no enum check,tax_type NOT NULL DEFAULT excluded,invalid WOULD fail at apply,MIG,EMR-374,billing_item_request.go:44;69;accounting_request.go:181
+billing_items,is_insurance_applicable,bound create+update+complete,presence,bool DEFAULT false,none,OK,none,billing_item_request.go:46;71;accounting_request.go:183
+billing_items,sort_order,bound create+complete only; NOT in update DTO,presence,int DEFAULT 0,imported sort_order not update-bound,EMR,EMR-375,billing_item_request.go:56;accounting_request.go:193
+payments,id,system-generated,id-band,BIGSERIAL PK,none,OK,none,001_init.sql:1966
+payments,clinic_id,not bound; tenant scope via billing,placeholder,column added by later DDL: NOT NULL + FK clinics + composite billing/payment-method clinic FKs (001_init.sql:4183-4248); COPY carries it,none,OK,none,001_init.sql:4183-4248
+payments,billing_id,complete-request bound omitempty min=1,preflight uniqueness + completed-billing check (already enforced),NOT NULL UNIQUE FK CASCADE (1:1),dup/uncompleted rejected at preflight,OK,none,accounting_request.go:201;cutover_payment_graph.go:74-87;001_init.sql:1967
+payments,subtotal,update-bound no tag (derived amounts),graph arithmetic,bigint NOT NULL,none,OK,none,accounting_request.go:331
+payments,tax_total,update-bound no tag,graph arithmetic,bigint NOT NULL,none,OK,none,accounting_request.go:332
+payments,total_amount,update-bound no tag,no sign check,bigint NOT NULL; no CHECK,negative allowed in DB; API payment flow does not create negative; acceptance not explicitly governed; owner decision,OWNER,EMR-376,accounting_request.go:333;001_init.sql:1970
+payments,insurance_name,bound omitempty max=255,presence,NOT NULL DEFAULT '',none,OK,none,accounting_request.go:210;342
+payments,insurance_ratio,bound *float64 no tag; builder assigns value directly (accounting_service_builders.go:163-164); no binding range proven,graph finite 0..1 range check (parsePaymentGraphRatio),numeric(3;2) DEFAULT 0; apply-stage violation check rejects NULL/<0/>1,out-of-range ratio rejected at preflight and apply; API service-side range rule UNVERIFIED (no binding tag; direct builder assignment),UNK,EMR-376,accounting_request.go:209;341;accounting_service_builders.go:163-164;cutover_payment_graph.go:116-118;cutover_payment_contract.go:153-158;cutover_payment_target.go:127-129;001_init.sql:1972
+payments,insurance_amount,bound complete+update,graph sign check >=0,bigint DEFAULT 0,negative fails preflight,OK,none,accounting_request.go:211;343;cutover_payment_graph.go
+payments,discount_amount,bound no tag (no min),no sign precheck,bigint DEFAULT 0,negative imports; API update accepts (no min tag); sign policy unknown; owner decision,OWNER,EMR-376,accounting_request.go:212;344;001_init.sql:1974
+payments,billing_amount,update-bound no tag,graph: equals billing amount + split-sum,bigint NOT NULL,mismatch fails preflight,OK,none,accounting_request.go:345;cutover_payment_graph.go
+payments,received_amount,update-bound no tag,graph arithmetic (cash>=amount; card=0),bigint,mismatch fails preflight,OK,none,accounting_request.go:346
+payments,change_amount,update-bound no tag,graph arithmetic,bigint,mismatch fails preflight,OK,none,accounting_request.go:347
+payments,method,not bound on payment row (via splits/complete),graph restricts cash|credit_card ONLY,payment_method enum (4 values incl electronic_money;bank_transfer),legacy non-cash/card methods unrepresentable; producer must map or contract widened,MIG,EMR-376,001_init.sql:132;1978
+payments,payment_method_id,not bound on payment row,placeholder token resolved to clinic master,FK payment_methods nullable,none,OK,none,cutover_reference_graph.go
+payments,paid_by,not bound (actor-set in API),band col + csv-parent same-clinic staffs,FK staffs nullable,cross-clinic rejected by preflight; inactive same-band actor acceptance is owner decision pending explicit policy,OWNER,EMR-376,cutover_contract.go:257-259;001_init.sql:1980
+payments,created_at,not bound (system now()),RFC3339 format required by payment graph (every row),NOT NULL DEFAULT now(),historical timestamp import; owner confirmation pending (no implicit acceptance); literal format proven via preflight RFC3339 parse,OWNER,EMR-376,cutover_payment_graph.go:126-129;cutover_payment_contract.go:168-173;001_init.sql:1981
+payment_splits,id,system-generated,id-band,BIGSERIAL PK,none,OK,none,001_init.sql:1990
+payment_splits,clinic_id,tenant context,placeholder,FK clinics RESTRICT,none,OK,none,001_init.sql:1991
+payment_splits,billing_id,not bound on split row (billing context),csv-parent + graph (splits belong to paid billing),FK billings RESTRICT NOT NULL,none,OK,none,001_init.sql:1992
+payment_splits,method,required oneof=cash credit_card electronic_money bank_transfer at request,graph restricts to cash|credit_card only,payment_method enum (4 values),same T-J domain restriction,MIG,EMR-376,accounting_request.go:270
+payment_splits,payment_method_id,bound,placeholder resolution,FK payment_methods nullable,none,OK,none,accounting_request.go:271
+payment_splits,amount,required min=1 at request,graph: amount!=0; sum=billing_amount,bigint NOT NULL; NO CHECK per AE-MIG-NEG-1 explicit negative cash-card split acceptance,negative splits importable but not creatable via API,HIST,EMR-376,accounting_request.go:272;001_init.sql:6257-6259
+payment_splits,received_amount,bound no tag,graph arithmetic,bigint NOT NULL,none,OK,none,accounting_request.go:273
+payment_splits,change_amount,bound min=0,graph arithmetic,bigint NOT NULL,none,OK,none,accounting_request.go:274
+payment_splits,paid_by,not bound (actor-set),band col + csv-parent same-clinic staffs,FK staffs nullable,same actor rule as payments.paid_by; acceptance is owner decision pending explicit policy,OWNER,EMR-376,001_init.sql:1998
+payment_splits,created_at,not bound,must equal parent payments.created_at (graph SHA equality; inherits proven RFC3339),NOT NULL DEFAULT now(),historical ts import; owner confirmation pending; literal format transitively proven via parent equality,OWNER,EMR-376,cutover_payment_graph.go:210-212;001_init.sql:1999
+estimates,id,system-generated,id-band,BIGSERIAL PK,none,OK,none,001_init.sql:1686
+estimates,clinic_id,tenant context,placeholder,FK clinics RESTRICT,none,OK,none,001_init.sql:1687
+estimates,estimate_no,not bound (system-generated),no dup check,text NOT NULL; unique idx (clinic;estimate_no),dup WOULD fail at apply; uncorrectable via API,MIG,EMR-374,001_init.sql:1688;2188
+estimates,medical_record_id,create-bound; finalized parent blocks estimate ops,csv-parent existence,FK RESTRICT,edits blocked when parent finalized; owner acceptance pending,OWNER,EMR-376,estimate_request.go:48;001_init.sql:1689
+estimates,title,create required min=1 max=255; update max=255,presence,NOT NULL DEFAULT '',imported blank title fails create-level rule but storable; update accepts blank,OK,none,estimate_request.go:49;118
+estimates,owner_id,create-bound; service clinic-validates related FKs,csv-parent existence,FK SET NULL,pairing vs pet unchecked,MIG,EMR-374,estimate_request.go:50;estimate_service_tx.go:23;001_init.sql:1691
+estimates,pet_id,create-bound; service clinic-validates (validateEstimateRelatedFKs),csv-parent existence,FK (clinic_id;pet_id) via 003 migration,pairing unchecked,MIG,EMR-374,estimate_request.go:51;001_init.sql:5912-5927
+estimates,status,create oneof=draft sent; update oneof all 4; transitions restricted by service,no enum check,estimate_status DEFAULT draft,imported non-draft rows: transition-locked per service; owner acceptance pending,OWNER,EMR-376,estimate_request.go:52;119;001_init.sql:106;1692
+estimates,subtotal,create min=0; update bound; service validates nonnegative in tx,no sign check,bigint NOT NULL; no CHECK,negative imported = uneditable estimate,EMR,EMR-376,estimate_request.go:53;120;estimate_service_tx.go
+estimates,tax_total,create min=0; update bound; service nonnegative,no sign check,bigint NOT NULL,same,EMR,EMR-376,estimate_request.go:54;121
+estimates,total_amount,create min=0; update bound; service nonnegative,no sign check,bigint NOT NULL,same,EMR,EMR-376,estimate_request.go:55;122
+estimates,insurance_amount,bound no tag create+update; service nonnegative,no sign check,bigint DEFAULT 0,same,EMR,EMR-376,estimate_request.go:56;123
+estimates,discount_amount,bound no tag create+update; service nonnegative,no sign check,bigint DEFAULT 0,same,EMR,EMR-376,estimate_request.go:57;124
+estimates,valid_until,bound *time.Time (RFC3339) create+update,presence,date nullable,CSV date literal format not preflighted; Postgres date COPY domain wider than API RFC3339 bind; whether imported literals are API-editable unverified (no source CSV scanned),UNK,EMR-376,estimate_request.go:58;125
+estimates,comment,bound max=1000,presence,NOT NULL DEFAULT '',none,OK,none,estimate_request.go:59;127
+estimates,notes,bound max=1000,presence,NOT NULL DEFAULT '',none,OK,none,estimate_request.go:60;128
+estimates,created_by,not bound (actor-set),band col + csv-parent same-clinic staffs,FK staffs SET NULL,cross-clinic rejected by preflight; inactive same-band actor acceptance is owner decision pending explicit policy,OWNER,EMR-376,001_init.sql:1701
+estimates,created_at,not bound,presence,NOT NULL DEFAULT now(),historical ts import; owner confirmation pending; CSV ts literal format not preflighted (presence only); prior OWNER follow-up remains open independently; CSV literal format vs COPY/API parity unverified,UNK,EMR-376,001_init.sql:1702
+estimate_items,id,system-generated,id-band,BIGSERIAL PK,none,OK,none,001_init.sql:1826
+estimate_items,estimate_id,not bound (parent path context),csv-parent existence,FK CASCADE NOT NULL,none,OK,none,001_init.sql:1827
+estimate_items,name,create required min=1 max=255,required-string,NOT NULL DEFAULT '',none,OK,none,estimate_request.go:65
+estimate_items,category,bound create (no oneof tag); service validates category value,no enum check,item_category NOT NULL,invalid WOULD fail at apply; service validates on write,MIG,EMR-374,estimate_request.go:66;estimate_service.go:114-161;001_init.sql:1829
+estimate_items,unit_price,create min=0; service nonnegative check,no sign check,bigint NOT NULL; no CHECK,negative import vs API min=0 is user-scope/API-compat decision pending (no implicit estimate acceptance),EMR,EMR-376,estimate_request.go:67;estimate_service.go:124-126;001_init.sql:1830
+estimate_items,quantity,bound float64 no tag,no check,numeric(10;1) CHECK(quantity>0),nonpositive WOULD fail at apply,MIG,EMR-374,estimate_request.go:68;001_init.sql:1845
+estimate_items,tax_type,NOT bound on item req,no enum check,tax_type NOT NULL DEFAULT excluded,imported tax_type uneditable via API,EMR,EMR-375,estimate_request.go:64-85;001_init.sql:1832
+estimate_items,tax_rate,NOT bound on item req,no check,numeric(3;2) DEFAULT 0.10,imported tax_rate uneditable via API,EMR,EMR-375,estimate_request.go:64-85;001_init.sql:1833
+estimate_items,discount_rate,bound create; service validates 0..100,no check,numeric(5;2) DEFAULT 0,imported out-of-range uneditable,EMR,EMR-376,estimate_request.go:69;estimate_service.go:114-161;001_init.sql:1834
+estimate_items,discount_amount,bound create; service validates nonnegative,no check,bigint DEFAULT 0,imported negative uneditable,EMR,EMR-376,estimate_request.go:70;estimate_service.go:114-161
+estimate_items,is_insurance_applicable,bound create,presence,bool DEFAULT false,none,OK,none,estimate_request.go:71
+estimate_items,consultation_id,NOT bound on item req,must-be-empty (UnavailableParent),FK consultations SET NULL,non-empty fails preflight; no populated csv-parent link exists,OK,none,cutover_reference_graph.go;001_init.sql:1837
+estimate_items,procedure_id,NOT bound on item req,csv-parent existence,FK procedures SET NULL,same,EMR,EMR-375,001_init.sql:1838
+estimate_items,medicine_id,NOT bound on item req,must-be-empty (UnavailableParent),FK medicines SET NULL,non-empty fails preflight; EMR-343 proposes csv-parent switch (appendix),OK,none,cutover_reference_graph.go:54;../emr-342-medicines-contract-design/DESIGN.md
+estimate_items,merchandise_item_id,NOT bound on item req,csv-parent existence,FK merchandise SET NULL,same,EMR,EMR-375,001_init.sql:1840
+estimate_items,sort_order,bound create,presence,int DEFAULT 0,none,OK,none,estimate_request.go:72
+exams,id,system-generated,id-band,BIGSERIAL PK,none,OK,none,001_init.sql:1520
+exams,clinic_id,tenant context,placeholder,FK clinics RESTRICT,none,OK,none,001_init.sql:1522
+exams,medical_record_id,bound omitempty create+update,csv-parent existence,FK CASCADE,finalized parent may lock writes; owner acceptance pending,OWNER,EMR-376,examination_request.go:93;120;001_init.sql:1521
+exams,pet_id,bound create+update,csv-parent existence,FK RESTRICT,pet vs medical_record pet pairing unchecked,MIG,EMR-374,examination_request.go:94;121;001_init.sql:1523
+exams,date,create required time.Time (RFC3339); update bound *time.Time,presence,date NOT NULL,CSV date literal format not preflighted; Postgres date COPY domain wider than API RFC3339 bind; whether imported literals are API-editable unverified (no source CSV scanned),UNK,EMR-376,examination_request.go:97;124
+exams,exam_type_id,create required,target-master seed fact check,FK exam_types RESTRICT NOT NULL,none,OK,none,examination_request.go:95;122
+exams,result_summary,bound create+update,presence,NOT NULL DEFAULT ''; exam.status not in CSV so imported exams default pending (editable),none,OK,none,examination_request.go:98;125;001_init.sql:1528
+exam_results,id,system-generated,id-band,BIGSERIAL PK,none,OK,none,001_init.sql:1711
+exam_results,exam_id,not bound (parent path context),csv-parent existence,FK exams CASCADE NOT NULL,imported exams default pending so results editable,OK,none,001_init.sql:1712
+exam_results,name,upsert req required,presence,NOT NULL DEFAULT '',none,OK,none,examination_request.go:165
+exam_results,inspection_value,upsert req bound,presence,NOT NULL DEFAULT '',none,OK,none,examination_request.go:166
+exam_results,normal_value,upsert req bound,presence,NOT NULL DEFAULT '',none,OK,none,examination_request.go:167
+exam_results,sort_order,upsert req bound,presence,int DEFAULT 0,none,OK,none,examination_request.go:170
+vaccines,id,system-generated,id-band,BIGSERIAL PK,none,OK,none,001_init.sql:721
+vaccines,clinic_id,tenant context,placeholder,FK clinics RESTRICT,none,OK,none,001_init.sql:722
+vaccines,name,create required; update bound,required-string,NOT NULL + unique idx (clinic;name) non-deleted,dup WOULD fail at apply,MIG,EMR-374,vaccine_request.go:20;44;001_init.sql:2451
+vaccines,price,bound *int64 no tag; service rejects negative per EMR-345,no sign check,bigint nullable; no CHECK,same master-price gap,EMR,EMR-345,vaccine_request.go:21;45;001_init.sql:724
+vaccines,is_active,bound bool,presence,NOT NULL DEFAULT true,none,OK,none,vaccine_request.go:22;46
+vaccines,description,bound no tag,presence,NOT NULL DEFAULT '',none,OK,none,vaccine_request.go:23;47
+vaccines,species,bound omitempty oneof=dog cat both,no enum check,vaccine_species nullable,invalid WOULD fail at apply,MIG,EMR-374,vaccine_request.go:24;48;001_init.sql:94;727
+vaccines,interval,bound no tag,presence,NOT NULL DEFAULT '',none,OK,none,vaccine_request.go:25;49
+vaccines,inventory_id,NOT bound,must-be-empty (unavailable parent),FK inventory_items SET NULL,non-empty fails preflight (contract enforced),OK,none,cutover_reference_graph.go;001_init.sql:729
+vaccines,parent_id,bound,self csv-parent,FK vaccines SET NULL,none,OK,none,vaccine_request.go:26;50
+vaccines,sort_order,bound int,presence,int DEFAULT 0,none,OK,none,vaccine_request.go:27;52
+vaccinations,id,system-generated,id-band,BIGSERIAL PK,none,OK,none,001_init.sql:1478
+vaccinations,clinic_id,tenant context,placeholder,FK clinics RESTRICT,none,OK,none,001_init.sql:1479
+vaccinations,medical_record_id,bound create+update,csv-parent existence,FK CASCADE,pairing pet vs medical_record.pet unchecked,MIG,EMR-374,vaccination_request.go:66;121;001_init.sql:1480
+vaccinations,pet_id,bound create+update,csv-parent existence,FK pets RESTRICT NOT NULL,same,MIG,EMR-374,vaccination_request.go:67;122
+vaccinations,vaccine_id,create required,csv-parent existence,FK vaccines RESTRICT NOT NULL,none,OK,none,vaccination_request.go:68;123
+vaccinations,date,create required *string + ParseDate (YYYY-MM-DD|RFC3339); update bound same,presence,date NOT NULL,CSV date literal format not preflighted; Postgres date COPY domain wider than API ParseDate domain; whether imported literals are API-editable unverified (no source CSV scanned),UNK,EMR-376,vaccination_request.go:69;82-90;124;httpapi/date.go:20-30
+vaccinations,next_date,bound *string + ParseDate (YYYY-MM-DD|RFC3339) create+update,presence,date nullable,CSV date literal format not preflighted; Postgres date COPY domain wider than API ParseDate domain; whether imported literals are API-editable unverified (no source CSV scanned),UNK,EMR-376,vaccination_request.go:71;126;httpapi/date.go:20-30
+vaccinations,next_schedule_type,bound no tag,no enum check,next_schedule_type 3weeks|4weeks|1year|other,invalid WOULD fail at apply,MIG,EMR-374,vaccination_request.go:72;127;001_init.sql:102;1485
+vaccinations,doctor_id,bound create+update; clinical staff ref with assignment dependency,csv-parent existence,FK staffs SET NULL,assignment provisioning dependency EMR-144/145 (pending),EMR,EMR-144+EMR-145,vaccination_request.go:70;125;001_init.sql:1486
+vaccinations,supplemental,bound create+update,presence,NOT NULL DEFAULT '',none,OK,none,vaccination_request.go:73;128
+vaccinations,lot1,bound create+update,presence,NOT NULL DEFAULT '',none,OK,none,vaccination_request.go:74;129
+vaccinations,lot2,bound create+update,presence,NOT NULL DEFAULT '',none,OK,none,vaccination_request.go:75;130
+vaccinations,lot3,bound create+update,presence,NOT NULL DEFAULT '',none,OK,none,vaccination_request.go:76;131
+vaccinations,lot4,bound create+update,presence,NOT NULL DEFAULT '',none,OK,none,vaccination_request.go:77;132
+vaccinations,remarks,bound create+update,presence,NOT NULL DEFAULT '',none,OK,none,vaccination_request.go:78;133

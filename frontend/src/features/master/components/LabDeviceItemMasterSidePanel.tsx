@@ -210,7 +210,7 @@ export const LabDeviceItemMasterSidePanel = memo(function LabDeviceItemMasterSid
       {unmapNotice === "" ? null : <p className={`text-sm ${C.textWarning}`}>{unmapNotice}</p>}
       <div className="py-1">
         {items.length === 0 ? (
-          <p className={`text-sm ${C.text40}`}>
+          <p className={`text-sm ${C.text60}`}>
             まだ項目がありません。一覧の「既定項目を用意」で投入します
           </p>
         ) : (

@@ -650,7 +650,7 @@ export const LAYOUT = {
 
   /* ── Side Peek (master edit, etc.) ── */
   sidePeek: {
-    width:         "w-[520px]",
+    width:         "w-[520px] max-w-full",
     widthPx:       520,
   },
 
@@ -897,7 +897,7 @@ export const STYLE = {
     `bg-white p-6 rounded-lg border ${C.borderMedium}`,
 
   /** Standard multi-line text area */
-  textarea:     `w-full rounded-xxs border ${C.borderMedium} bg-white p-3 text-sm ${C.text} outline-none ${C.focusBorderAccent} transition-colors resize-none leading-relaxed font-mono`,
+  textarea:     `w-full rounded-xxs border ${C.borderMedium} bg-white p-3 text-sm ${C.text} outline-none focus-visible:ring-2 ${C.focusVisibleRingActionPrimary} focus-visible:ring-offset-1 transition-colors resize-none leading-relaxed font-mono`,
 
   /* ── Drag Overlay ── */
   /** FE9-2: ドラッグ中の浮遊オーバーレイ = design-system.md §5.1 shadow-level1（浮動要素）へ移行。 */

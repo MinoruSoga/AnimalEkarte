@@ -68,6 +68,7 @@ run_case() {
     DB_USER="${CASE_DB_USER-role-user}" \
     DB_PASSWORD="${CASE_DB_PASSWORD-secret}" \
     APP_ENV="${CASE_APP_ENV-staging}" \
+    STG_UAT_CSV_IMPORT_PROFILE="${CASE_CSV_IMPORT_PROFILE-}" \
     bash "$SCRIPT" "$@" 2>&1
   )" && actual=0 || actual=$?
   if [[ "$actual" -ne "$expected_exit" ]]; then
@@ -76,7 +77,9 @@ run_case() {
     failures=$((failures + 1))
     return
   fi
-  if [[ -n "$want_text" ]] && ! printf '%s\n' "$out" | grep -q "$want_text"; then
+  # grep -q in a pipeline races with the writer under pipefail; a here-string
+  # keeps the match check free of SIGPIPE flakes.
+  if [[ -n "$want_text" ]] && ! grep -q "$want_text" <<< "$out"; then
     echo "FAIL  [$name] missing text: $want_text"
     printf '%s\n' "$out"
     failures=$((failures + 1))
@@ -94,7 +97,10 @@ run_case "usage-bad-command" 1 "usage:"
 run_case "reject-clinic-arg" 1 "clinic selection is not supported" import jouto
 CASE_DB_HOST=db run_case "refuse-local-host" 1 "local" import
 CASE_APP_ENV=production run_case "refuse-production" 1 "production" import
+CASE_CSV_IMPORT_PROFILE=bogus run_case "reject-unknown-profile-env" 1 "unknown STG_UAT_CSV_IMPORT_PROFILE" preflight
+run_case "reject-extra-flag-arg" 1 "clinic selection is not supported" import --allow-local-rehearsal
 run_case "dry-run-all-jouto" 0 "DRY_RUN target=stg-uat-import clinic=jouto" import
+CASE_CSV_IMPORT_PROFILE=medicines-22-candidate run_case "dry-run-candidate-profile" 0 "DRY_RUN target=stg-uat-import clinic=jouto" import
 run_case "dry-run-all-shikishima" 0 "clinic=shikishima" import
 run_case "dry-run-skip-missing" 0 "skip hakobuneco" import
 run_case "dry-run-seed-ids" 0 "exam=11009" preflight
@@ -145,6 +151,23 @@ else
   failures=$((failures + 1))
 fi
 
+profile_early="$(
+  STG_UAT_HANDOFF_ROOT="$TMP/handoff" \
+  STG_UAT_HANDOFF_MASTER_DIR="$TMP/master" \
+  STG_UAT_HANDOFF_ENV_FILE="$TMP/definitely-missing.env" \
+  STG_UAT_CSV_IMPORT_PROFILE=bogus \
+  bash "$SCRIPT" import 2>&1
+)" && profile_early_actual=0 || profile_early_actual=$?
+if [[ "$profile_early_actual" -eq 1 ]] && \
+   printf '%s\n' "$profile_early" | grep -q "unknown STG_UAT_CSV_IMPORT_PROFILE" && \
+   ! printf '%s\n' "$profile_early" | grep -q "missing"; then
+  echo "PASS  [profile-rejected-before-local-env]"
+else
+  echo "FAIL  [profile-rejected-before-local-env] exit=$profile_early_actual"
+  printf '%s\n' "$profile_early"
+  failures=$((failures + 1))
+fi
+
 if grep -E '^[^#]*--allow-local-rehearsal' "$SCRIPT" >/dev/null; then
   echo "FAIL  [no-local-rehearsal-flag] script must not pass --allow-local-rehearsal"
   failures=$((failures + 1))
@@ -173,6 +196,23 @@ if grep -Eq 'scripts/old-db/stg-uat-old-db-handoff.local.env' "$ROOT/.gitignore"
   echo "PASS  [local-env-gitignored]"
 else
   echo "FAIL  [local-env-gitignored]"
+  failures=$((failures + 1))
+fi
+
+if grep -Eq '^STG_UAT_CSV_IMPORT_PROFILE \?= legacy-21$' "$ROOT/Makefile" && \
+   grep -Eq '^export STG_UAT_CSV_IMPORT_PROFILE$' "$ROOT/Makefile" && \
+   [[ "$(grep -Fc -- '--cutover-profile "$${STG_UAT_CSV_IMPORT_PROFILE}"' "$ROOT/Makefile")" -ge 2 ]]; then
+  echo "PASS  [makefile-propagates-profile]"
+else
+  echo "FAIL  [makefile-propagates-profile]"
+  failures=$((failures + 1))
+fi
+
+if grep -Eq '^export STG_UAT_CSV_IMPORT_PROFILE' "$SCRIPT" && \
+   grep -Eq 'STG_UAT_CSV_IMPORT_PROFILE=.*legacy-21' "$SCRIPT"; then
+  echo "PASS  [script-defaults-legacy21]"
+else
+  echo "FAIL  [script-defaults-legacy21]"
   failures=$((failures + 1))
 fi
 

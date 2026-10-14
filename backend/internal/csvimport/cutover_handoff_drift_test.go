@@ -52,7 +52,7 @@ func rehearsalOnlyManifestForTargetTests() CutoverManifest {
 
 func cutoverSpecByName(t *testing.T, name string) CutoverTableSpec {
 	t.Helper()
-	for _, spec := range CutoverTableSpecs() {
+	for _, spec := range CutoverTableSpecs(CutoverProfileMedicinesCandidate) {
 		if spec.Name == name {
 			return spec
 		}
@@ -291,7 +291,7 @@ func TestCutoverCSVPrimaryIDValidatedByHeaderName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			path, table := writeDriftTestCSV(t, spec, header, tt.rows)
-			_, err := validateCutoverCSV(path, spec, table, band, true)
+			_, err := validateCutoverCSV(path, spec, table, band, true, CutoverProfileLegacy21)
 			if tt.wantErr == "" {
 				if err != nil {
 					t.Fatalf("validateCutoverCSV error = %v", err)
@@ -417,10 +417,10 @@ func TestPreflightDanglingForeignKeyDiagnostics(t *testing.T) {
 	proceduresSpec := cutoverSpecByName(t, "procedures")
 
 	t.Run("pet references a missing owner", func(t *testing.T) {
-		dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 			f.rows["pets"][0][columnIndex(petsSpec.Columns, "owner_id")] = "300999"
 		})
-		_, err := PreflightCutoverBundle(dir, formalExpectedSource(digest))
+		_, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest))
 		if err == nil {
 			t.Fatal("PreflightCutoverBundle succeeded, want dangling owner rejection")
 		}
@@ -435,10 +435,10 @@ func TestPreflightDanglingForeignKeyDiagnostics(t *testing.T) {
 	})
 
 	t.Run("procedure self-parent miss names the declaring row", func(t *testing.T) {
-		dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		dir, digest := writeCutoverRehearsalFixture(t, func(f *fixtureBundle) {
 			f.rows["procedures"][0][columnIndex(proceduresSpec.Columns, "parent_id")] = "1000002"
 		})
-		_, err := PreflightCutoverBundle(dir, formalExpectedSource(digest))
+		_, err := PreflightCutoverBundle(dir, localRehearsalExpectedSource(digest))
 		if err == nil {
 			t.Fatal("PreflightCutoverBundle succeeded, want self-parent rejection")
 		}
@@ -534,7 +534,7 @@ func TestCutoverCSVHeaderPermutationPolicy(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			path, table := writeDriftTestCSV(t, spec, tt.header, tt.rows)
-			permuted, err := validateCutoverCSV(path, spec, table, band, tt.allowPermutation)
+			permuted, err := validateCutoverCSV(path, spec, table, band, tt.allowPermutation, CutoverProfileLegacy21)
 			if tt.wantErr == "" {
 				if err != nil {
 					t.Fatalf("validateCutoverCSV error = %v", err)

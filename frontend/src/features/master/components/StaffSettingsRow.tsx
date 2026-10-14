@@ -21,7 +21,7 @@ export function StaffSettingsRow({ item, groups, onEdit, canEdit }: StaffSetting
   const extraCount = groups.length - visibleGroups.length;
   return (
     <DataTableRow key={item.id}>
-      <TableCell className={`font-medium ${C.text}`}>
+      <TableCell className={`font-medium ${C.text} min-w-[140px]`}>
         <DataTableRowButton
           aria-label={`詳細: スタッフ ${displayName} (ID ${item.id})`}
           onClick={() => onEdit(item)}
@@ -57,7 +57,7 @@ export function StaffSettingsRow({ item, groups, onEdit, canEdit }: StaffSetting
           )}
         </div>
       </TableCell>
-      <TableCell className="text-center">
+      <TableCell className="text-center whitespace-nowrap">
         <StatusPill isActive={item.isActive} />
       </TableCell>
       <TableCell className="text-right">

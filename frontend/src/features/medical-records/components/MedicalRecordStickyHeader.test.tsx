@@ -193,6 +193,26 @@ describe("MedicalRecordStickyHeader スタッフ向け特記バッジ (EMR-164 N
   });
 });
 
+describe("MedicalRecordStickyHeader 担当医コントロール (EMR-380)", () => {
+  it("編集可能時の担当医ボタンは横スクロール領域の外に固定され、ヘッダ右端で見切れない", () => {
+    renderHeader();
+
+    const doctorButton = screen.getByRole("button", { name: "担当医: 佐藤医師" });
+    expect(doctorButton).toBeInTheDocument();
+    // コントロール列（overflow-x-auto）内にあると狭幅時にスクロールで隠れてしまう。
+    // 担当医は必ず視認できる固定領域に置く。
+    expect(doctorButton.closest(".overflow-x-auto")).toBeNull();
+  });
+
+  it("確定済み（read-only）でも担当医表示は横スクロール領域の外に残る", () => {
+    renderHeader({ recordStatus: "finalized" });
+
+    const doctorLabel = screen.getByText("担当医");
+    expect(doctorLabel.closest(".overflow-x-auto")).toBeNull();
+    expect(screen.getByText("佐藤医師")).toBeInTheDocument();
+  });
+});
+
 describe("MedicalRecordStickyHeader 誕生月バッジ (EMR-301)", () => {
   beforeEach(() => {
     vi.useFakeTimers();

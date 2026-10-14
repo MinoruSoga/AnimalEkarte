@@ -10,9 +10,17 @@ function controller(cron: string, scheduledTime = 1_721_870_400_000) {
   };
 }
 
-function result(status: "running" | "success" | "partial" | "failed"): ScheduledRunResult {
+function result(
+  status: "running" | "skipped" | "success" | "partial" | "failed",
+  failureCode?: "busy" | "stuck_lease" | "transport",
+): ScheduledRunResult {
   return {
-    disposition: status === "running" ? "duplicate" : "executed",
+    disposition:
+      status === "running"
+        ? "duplicate"
+        : status === "skipped"
+          ? "busy"
+          : "executed",
     ledger: {
       version: 1,
       scheduler: "animalekarte-scheduler-v1",
@@ -24,6 +32,7 @@ function result(status: "running" | "success" | "partial" | "failed"): Scheduled
       fenceToken: 1,
       status,
       startedAt: 1_721_870_400_000,
+      ...(failureCode === undefined ? {} : { failureCode }),
     },
   };
 }
@@ -94,6 +103,28 @@ describe("dispatchScheduledEvent", () => {
       },
       resultFor("delivery", event.cron, event.scheduledTime),
     ]);
+
+    await expect(dispatchScheduledEvent(event, invoke)).resolves.toHaveLength(2);
+    expect(event.noRetry).not.toHaveBeenCalled();
+  });
+
+  it("accepts healthy busy/skipped overlaps — including a stuck_lease signal — as a passing cron", async () => {
+    const event = controller("0 1 * * *");
+    const stuckSkip = resultFor("no_show", event.cron, event.scheduledTime);
+    stuckSkip.disposition = "busy";
+    stuckSkip.ledger = {
+      ...stuckSkip.ledger!,
+      status: "skipped",
+      failureCode: "stuck_lease",
+    };
+    const healthySkip = resultFor("delivery", event.cron, event.scheduledTime);
+    healthySkip.disposition = "busy";
+    healthySkip.ledger = {
+      ...healthySkip.ledger!,
+      status: "skipped",
+      failureCode: "busy",
+    };
+    const invoke = vi.fn(async () => [stuckSkip, healthySkip]);
 
     await expect(dispatchScheduledEvent(event, invoke)).resolves.toHaveLength(2);
     expect(event.noRetry).not.toHaveBeenCalled();

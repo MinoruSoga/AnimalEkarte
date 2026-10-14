@@ -331,6 +331,36 @@ test("make ci wires the gates retired from remote CI", () => {
   );
 });
 
+function runMockHandoffStep(profileExit) {
+  const step = read("scripts/ci/run-local-ci.sh").match(/^s11\(\) \{[\s\S]*?^\}/m)?.[0];
+  assert.ok(step, "missing handoff step");
+  return spawnSync("bash", ["-c", `set -euo pipefail
+begin_step() { :; }
+bash() { printf 'bash:%s\\n' "$*"; }
+ci_py() { printf 'python:%s\\n' "$*"; return ${profileExit}; }
+${step}
+s11
+printf 'completed\\n'
+`], { encoding: "utf8" });
+}
+
+test("STG profile step executes both wrapper suites with the Python resolver", () => {
+  const result = runMockHandoffStep(0);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(result.stdout.trim().split("\n"), [
+    "bash:scripts/old-db/stg-uat-old-db-handoff.test.sh",
+    "python:-B scripts/old-db/stg-uat-profile.test.py",
+    "completed",
+  ]);
+});
+
+test("STG profile step propagates Python suite failure", () => {
+  const result = runMockHandoffStep(17);
+  assert.equal(result.status, 17, "profile failure must stop the CI step");
+  assert.match(result.stdout, /python:-B scripts\/old-db\/stg-uat-profile\.test\.py/);
+  assert.doesNotMatch(result.stdout, /completed/);
+});
+
 test("mandatory instruction step rejects trust-boundary drift before generating mirrors", () => {
   const script = read("scripts/ci/run-local-ci.sh");
   const step = script.match(/^s01\(\) \{([\s\S]*?)^\}/m)?.[1];

@@ -12,16 +12,19 @@ import { MedicalRecordFormReadyPanels } from "./MedicalRecordFormReadyPanels";
 
 // BUG-MR-DOCTOR-HEADER-STALE: 取得済みカルテの doctor とセッションユーザーを
 // 差し替え可能にし、ヘッダー表示の出所を直接検証する。
-const { mockRecord, mockHandleChangeDoctor, mockCopyTreatments, mockCopyHookArgs } = vi.hoisted(
-  () => ({
+const { mockRecord, mockHandleChangeDoctor, mockCopyTreatments, mockCopyHookArgs, mockHistory } =
+  vi.hoisted(() => ({
     mockRecord: {
       current: undefined as { doctor: string; status?: string; clinicId?: string } | undefined,
     },
     mockHandleChangeDoctor: vi.fn(),
     mockCopyTreatments: vi.fn(),
     mockCopyHookArgs: { current: [] as [string | undefined, string | undefined][] },
-  }),
-);
+    // 履歴 hook が返す現在カルテ日付。シリアライズ時刻は訪問時刻ではない。
+    mockHistory: {
+      current: undefined as { currentRecordDate?: string; historyIncomplete?: boolean } | undefined,
+    },
+  }));
 
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({ user: { displayName: "ログイン医師", clinic: undefined } }),
@@ -36,7 +39,11 @@ vi.mock("../api/get-medical-record", () => ({
 }));
 
 vi.mock("../api/get-medical-records", () => ({
-  useGetPetMedicalHistory: () => ({ historyItems: [] }),
+  useGetPetMedicalHistory: () => ({
+    historyItems: [],
+    currentRecordDate: mockHistory.current?.currentRecordDate,
+    historyIncomplete: mockHistory.current?.historyIncomplete,
+  }),
 }));
 
 // NO32: 統合タイムライン用の trimming query。QueryClientProvider 無しで描くため stub。
@@ -154,7 +161,11 @@ vi.mock("../components/MedicalRecordFormPanels", async (importOriginal) => {
   return {
     ...mod,
     MedicalRecordTabsArea: (props: ComponentProps<typeof mod.MedicalRecordTabsArea>) => (
-      <div data-testid="tabs-area">
+      <div
+        data-testid="tabs-area"
+        data-record-boundary={props.recordBoundary?.toISOString() ?? ""}
+        data-history-incomplete={String(props.historyIncomplete ?? false)}
+      >
         <button
           type="button"
           data-testid="copy-record-treatments"
@@ -167,12 +178,22 @@ vi.mock("../components/MedicalRecordFormPanels", async (importOriginal) => {
 
 vi.mock("../api/vitals", () => ({
   useGetVitals: () => ({ data: [] }),
+  useCreateVital: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
-// contextControls（担当医ボタン等）は実配線のまま描画する。
+// contextControls・pinnedControls（担当医ボタン等）は実配線のまま描画する。
 vi.mock("@/components/shared/PatientContextHeader", () => ({
-  PatientContextHeader: ({ contextControls }: { contextControls?: ReactNode }) => (
-    <div data-testid="patient-context-header">{contextControls}</div>
+  PatientContextHeader: ({
+    contextControls,
+    pinnedControls,
+  }: {
+    contextControls?: ReactNode;
+    pinnedControls?: ReactNode;
+  }) => (
+    <div data-testid="patient-context-header">
+      {contextControls}
+      {pinnedControls}
+    </div>
   ),
 }));
 
@@ -366,5 +387,77 @@ describe("MedicalRecordFormReadyPanels EMR-219 治療明細複写", () => {
 
     expect(mockCopyHookArgs.current.length).toBeGreaterThan(0);
     expect(mockCopyHookArgs.current[0][0]).toBeUndefined();
+  });
+});
+
+describe("MedicalRecordFormReadyPanels EMR-356 過去体重の時系列境界", () => {
+  beforeEach(() => {
+    mockRecord.current = undefined;
+    mockHistory.current = undefined;
+  });
+
+  function renderWithForm(recordId: string | undefined, form: ReadyPanelsProps["form"]) {
+    return render(
+      <MemoryRouter>
+        <MedicalRecordFormReadyPanels
+          recordId={recordId}
+          selectedPet={makePet()}
+          form={form}
+          canEdit={true}
+          canSubmit={true}
+          canDelete={false}
+          isDeleting={false}
+          onDeleteConfirm={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+  }
+
+  it("既存カルテ: 履歴行の wire record.date をJST日付開始にして TabsArea へ渡す", () => {
+    mockHistory.current = { currentRecordDate: "2026-09-24T14:30:00+09:00" };
+    renderPanels();
+
+    expect(screen.getByTestId("tabs-area").getAttribute("data-record-boundary")).toBe(
+      "2026-09-23T15:00:00.000Z",
+    );
+  });
+
+  it("既存カルテ: wire 日付未到達なら form.recordDate の JST 00:00 にフォールバック", () => {
+    renderPanels();
+
+    // form.recordDate = "2026-09-24" → 2026-09-24T00:00:00+09:00
+    expect(screen.getByTestId("tabs-area").getAttribute("data-record-boundary")).toBe(
+      "2026-09-23T15:00:00.000Z",
+    );
+  });
+
+  it("新規カルテ: 未来の visit 日はその JST 00:00 を境界にする（今日の時計を代用しない）", () => {
+    renderWithForm(undefined, {
+      ...makeForm(),
+      isNewRecord: true,
+      recordDate: undefined,
+      partnerVisitDate: "2026-11-20",
+    });
+
+    expect(screen.getByTestId("tabs-area").getAttribute("data-record-boundary")).toBe(
+      "2026-11-19T15:00:00.000Z",
+    );
+  });
+
+  it("新規カルテの日付未確定では境界を捏造しない", () => {
+    renderWithForm(undefined, {
+      ...makeForm(),
+      isNewRecord: true,
+      recordDate: undefined,
+      partnerVisitDate: "",
+    });
+    expect(screen.getByTestId("tabs-area").getAttribute("data-record-boundary")).toBe("");
+  });
+
+  it("履歴未完フラグを TabsArea へ伝える（EMR356-2）", () => {
+    mockHistory.current = { historyIncomplete: true };
+    renderPanels();
+
+    expect(screen.getByTestId("tabs-area").getAttribute("data-history-incomplete")).toBe("true");
   });
 });

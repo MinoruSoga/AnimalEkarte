@@ -1,0 +1,2642 @@
+{
+  "base": "ed04c0237f81ddc2890d39b528d3608a58180c8b",
+  "kind": "DTO_TAG_ONLY_NOT_SERVICE_OR_WRITE_PATH_PROOF",
+  "columns": {
+    "staffs": {
+      "id": [],
+      "clinic_id": [],
+      "name": [
+        {
+          "struct": "createStaffRequest",
+          "json_field": "name",
+          "go_type": "string",
+          "binding": "required,max=255",
+          "source": "backend/internal/staff/staff_request.go:9"
+        },
+        {
+          "struct": "updateStaffRequest",
+          "json_field": "name",
+          "go_type": "*string",
+          "binding": "omitempty,max=255",
+          "source": "backend/internal/staff/staff_request.go:62"
+        }
+      ],
+      "license_number": [
+        {
+          "struct": "createStaffRequest",
+          "json_field": "license_number",
+          "go_type": "string",
+          "binding": "max=255",
+          "source": "backend/internal/staff/staff_request.go:12"
+        },
+        {
+          "struct": "updateStaffRequest",
+          "json_field": "license_number",
+          "go_type": "*string",
+          "binding": "omitempty,max=255",
+          "source": "backend/internal/staff/staff_request.go:63"
+        }
+      ],
+      "is_active": [
+        {
+          "struct": "updateStaffRequest",
+          "json_field": "is_active",
+          "go_type": "*bool",
+          "binding": "",
+          "source": "backend/internal/staff/staff_request.go:66"
+        }
+      ],
+      "reservation_visible": [
+        {
+          "struct": "createStaffRequest",
+          "json_field": "reservation_visible",
+          "go_type": "*bool",
+          "binding": "",
+          "source": "backend/internal/staff/staff_request.go:19"
+        },
+        {
+          "struct": "updateStaffRequest",
+          "json_field": "reservation_visible",
+          "go_type": "*bool",
+          "binding": "",
+          "source": "backend/internal/staff/staff_request.go:72"
+        }
+      ]
+    },
+    "procedures": {
+      "id": [],
+      "clinic_id": [],
+      "name": [
+        {
+          "struct": "createProcedureRequest",
+          "json_field": "name",
+          "go_type": "string",
+          "binding": "required",
+          "source": "backend/internal/medicalrecord/procedure_request.go:4"
+        },
+        {
+          "struct": "updateProcedureRequest",
+          "json_field": "name",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/procedure_request.go:32"
+        }
+      ],
+      "price": [
+        {
+          "struct": "createProcedureRequest",
+          "json_field": "price",
+          "go_type": "*int64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/procedure_request.go:5"
+        },
+        {
+          "struct": "updateProcedureRequest",
+          "json_field": "price",
+          "go_type": "*int64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/procedure_request.go:33"
+        }
+      ],
+      "is_active": [
+        {
+          "struct": "createProcedureRequest",
+          "json_field": "is_active",
+          "go_type": "bool",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/procedure_request.go:6"
+        },
+        {
+          "struct": "updateProcedureRequest",
+          "json_field": "is_active",
+          "go_type": "*bool",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/procedure_request.go:34"
+        }
+      ],
+      "description": [
+        {
+          "struct": "createProcedureRequest",
+          "json_field": "description",
+          "go_type": "string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/procedure_request.go:7"
+        },
+        {
+          "struct": "updateProcedureRequest",
+          "json_field": "description",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/procedure_request.go:35"
+        }
+      ],
+      "duration": [
+        {
+          "struct": "createProcedureRequest",
+          "json_field": "duration",
+          "go_type": "*int",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/procedure_request.go:8"
+        },
+        {
+          "struct": "updateProcedureRequest",
+          "json_field": "duration",
+          "go_type": "*int",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/procedure_request.go:36"
+        }
+      ],
+      "anesthesia": [
+        {
+          "struct": "createProcedureRequest",
+          "json_field": "anesthesia",
+          "go_type": "string",
+          "binding": "required,oneof=none local sedation general",
+          "source": "backend/internal/medicalrecord/procedure_request.go:9"
+        },
+        {
+          "struct": "updateProcedureRequest",
+          "json_field": "anesthesia",
+          "go_type": "*string",
+          "binding": "omitempty,oneof=none local sedation general",
+          "source": "backend/internal/medicalrecord/procedure_request.go:37"
+        }
+      ],
+      "parent_id": [
+        {
+          "struct": "createProcedureRequest",
+          "json_field": "parent_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/procedure_request.go:10"
+        },
+        {
+          "struct": "updateProcedureRequest",
+          "json_field": "parent_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/procedure_request.go:38"
+        }
+      ],
+      "tax_type": [
+        {
+          "struct": "createProcedureRequest",
+          "json_field": "tax_type",
+          "go_type": "string",
+          "binding": "required,oneof=included excluded exempt",
+          "source": "backend/internal/medicalrecord/procedure_request.go:12"
+        },
+        {
+          "struct": "updateProcedureRequest",
+          "json_field": "tax_type",
+          "go_type": "*string",
+          "binding": "omitempty,oneof=included excluded exempt",
+          "source": "backend/internal/medicalrecord/procedure_request.go:41"
+        }
+      ],
+      "tax_rate": [
+        {
+          "struct": "createProcedureRequest",
+          "json_field": "tax_rate",
+          "go_type": "*float64",
+          "binding": "omitempty,min=0,max=1",
+          "source": "backend/internal/medicalrecord/procedure_request.go:13"
+        },
+        {
+          "struct": "updateProcedureRequest",
+          "json_field": "tax_rate",
+          "go_type": "*float64",
+          "binding": "omitempty,min=0,max=1",
+          "source": "backend/internal/medicalrecord/procedure_request.go:42"
+        }
+      ],
+      "sort_order": [
+        {
+          "struct": "createProcedureRequest",
+          "json_field": "sort_order",
+          "go_type": "int",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/procedure_request.go:11"
+        },
+        {
+          "struct": "updateProcedureRequest",
+          "json_field": "sort_order",
+          "go_type": "*int",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/procedure_request.go:40"
+        }
+      ],
+      "is_surgery": []
+    },
+    "merchandise_items": {
+      "id": [],
+      "clinic_id": [],
+      "name": [
+        {
+          "struct": "createMerchandiseItemRequest",
+          "json_field": "name",
+          "go_type": "string",
+          "binding": "required,max=255",
+          "source": "backend/internal/inventory/merchandise_item_request.go:15"
+        },
+        {
+          "struct": "updateMerchandiseItemRequest",
+          "json_field": "name",
+          "go_type": "*string",
+          "binding": "omitempty,max=255",
+          "source": "backend/internal/inventory/merchandise_item_request.go:38"
+        }
+      ],
+      "category": [
+        {
+          "struct": "createMerchandiseItemRequest",
+          "json_field": "category",
+          "go_type": "string",
+          "binding": "required,oneof=food goods other",
+          "source": "backend/internal/inventory/merchandise_item_request.go:16"
+        },
+        {
+          "struct": "updateMerchandiseItemRequest",
+          "json_field": "category",
+          "go_type": "*string",
+          "binding": "omitempty,oneof=food goods other",
+          "source": "backend/internal/inventory/merchandise_item_request.go:39"
+        }
+      ],
+      "unit_price": [
+        {
+          "struct": "createMerchandiseItemRequest",
+          "json_field": "unit_price",
+          "go_type": "int64",
+          "binding": "min=0",
+          "source": "backend/internal/inventory/merchandise_item_request.go:17"
+        },
+        {
+          "struct": "updateMerchandiseItemRequest",
+          "json_field": "unit_price",
+          "go_type": "*int64",
+          "binding": "omitempty,min=0",
+          "source": "backend/internal/inventory/merchandise_item_request.go:40"
+        }
+      ],
+      "tax_type": [
+        {
+          "struct": "createMerchandiseItemRequest",
+          "json_field": "tax_type",
+          "go_type": "string",
+          "binding": "required,oneof=included excluded exempt",
+          "source": "backend/internal/inventory/merchandise_item_request.go:18"
+        },
+        {
+          "struct": "updateMerchandiseItemRequest",
+          "json_field": "tax_type",
+          "go_type": "*string",
+          "binding": "omitempty,oneof=included excluded exempt",
+          "source": "backend/internal/inventory/merchandise_item_request.go:41"
+        }
+      ],
+      "tax_rate": [
+        {
+          "struct": "createMerchandiseItemRequest",
+          "json_field": "tax_rate",
+          "go_type": "*float64",
+          "binding": "omitempty,min=0,max=1",
+          "source": "backend/internal/inventory/merchandise_item_request.go:19"
+        },
+        {
+          "struct": "updateMerchandiseItemRequest",
+          "json_field": "tax_rate",
+          "go_type": "*float64",
+          "binding": "omitempty,min=0,max=1",
+          "source": "backend/internal/inventory/merchandise_item_request.go:42"
+        }
+      ],
+      "is_active": [
+        {
+          "struct": "createMerchandiseItemRequest",
+          "json_field": "is_active",
+          "go_type": "bool",
+          "binding": "",
+          "source": "backend/internal/inventory/merchandise_item_request.go:20"
+        },
+        {
+          "struct": "updateMerchandiseItemRequest",
+          "json_field": "is_active",
+          "go_type": "*bool",
+          "binding": "",
+          "source": "backend/internal/inventory/merchandise_item_request.go:43"
+        }
+      ],
+      "sort_order": [
+        {
+          "struct": "createMerchandiseItemRequest",
+          "json_field": "sort_order",
+          "go_type": "int",
+          "binding": "",
+          "source": "backend/internal/inventory/merchandise_item_request.go:21"
+        },
+        {
+          "struct": "updateMerchandiseItemRequest",
+          "json_field": "sort_order",
+          "go_type": "*int",
+          "binding": "omitempty,min=0",
+          "source": "backend/internal/inventory/merchandise_item_request.go:44"
+        }
+      ]
+    },
+    "owners": {
+      "id": [],
+      "clinic_id": [
+        {
+          "struct": "createOwnerRequest",
+          "json_field": "clinic_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/owner/http_request.go:187"
+        }
+      ],
+      "name": [
+        {
+          "struct": "createOwnerRequest",
+          "json_field": "owner_name",
+          "go_type": "string",
+          "binding": "required,max=255",
+          "source": "backend/internal/owner/http_request.go:188"
+        },
+        {
+          "struct": "updateOwnerRequest",
+          "json_field": "owner_name",
+          "go_type": "*string",
+          "binding": "omitempty,max=255",
+          "source": "backend/internal/owner/http_request.go:240"
+        }
+      ],
+      "name_kana": [
+        {
+          "struct": "createOwnerRequest",
+          "json_field": "owner_name_kana",
+          "go_type": "string",
+          "binding": "omitempty,max=100",
+          "source": "backend/internal/owner/http_request.go:189"
+        },
+        {
+          "struct": "updateOwnerRequest",
+          "json_field": "owner_name_kana",
+          "go_type": "*string",
+          "binding": "omitempty,max=100",
+          "source": "backend/internal/owner/http_request.go:241"
+        }
+      ],
+      "birth_date": [
+        {
+          "struct": "createOwnerRequest",
+          "json_field": "birth_date",
+          "go_type": "*jsonDate",
+          "binding": "",
+          "source": "backend/internal/owner/http_request.go:190"
+        },
+        {
+          "struct": "updateOwnerRequest",
+          "json_field": "birth_date",
+          "go_type": "nullableDateRequestField",
+          "binding": "",
+          "source": "backend/internal/owner/http_request.go:242"
+        }
+      ],
+      "company": [
+        {
+          "struct": "createOwnerRequest",
+          "json_field": "company",
+          "go_type": "string",
+          "binding": "omitempty,max=200",
+          "source": "backend/internal/owner/http_request.go:191"
+        },
+        {
+          "struct": "updateOwnerRequest",
+          "json_field": "company",
+          "go_type": "*string",
+          "binding": "omitempty,max=200",
+          "source": "backend/internal/owner/http_request.go:243"
+        }
+      ],
+      "postal_code": [
+        {
+          "struct": "createOwnerRequest",
+          "json_field": "postal_code",
+          "go_type": "string",
+          "binding": "",
+          "source": "backend/internal/owner/http_request.go:192"
+        },
+        {
+          "struct": "updateOwnerRequest",
+          "json_field": "postal_code",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/owner/http_request.go:244"
+        }
+      ],
+      "address1": [
+        {
+          "struct": "createOwnerRequest",
+          "json_field": "address1",
+          "go_type": "string",
+          "binding": "omitempty,max=200",
+          "source": "backend/internal/owner/http_request.go:193"
+        },
+        {
+          "struct": "updateOwnerRequest",
+          "json_field": "address1",
+          "go_type": "*string",
+          "binding": "omitempty,max=200",
+          "source": "backend/internal/owner/http_request.go:245"
+        }
+      ],
+      "address2": [
+        {
+          "struct": "createOwnerRequest",
+          "json_field": "address2",
+          "go_type": "string",
+          "binding": "omitempty,max=200",
+          "source": "backend/internal/owner/http_request.go:194"
+        },
+        {
+          "struct": "updateOwnerRequest",
+          "json_field": "address2",
+          "go_type": "*string",
+          "binding": "omitempty,max=200",
+          "source": "backend/internal/owner/http_request.go:246"
+        }
+      ],
+      "home_postal_code": [
+        {
+          "struct": "createOwnerRequest",
+          "json_field": "home_postal_code",
+          "go_type": "string",
+          "binding": "omitempty,max=10",
+          "source": "backend/internal/owner/http_request.go:195"
+        },
+        {
+          "struct": "updateOwnerRequest",
+          "json_field": "home_postal_code",
+          "go_type": "*string",
+          "binding": "omitempty,max=10",
+          "source": "backend/internal/owner/http_request.go:247"
+        }
+      ],
+      "home_address1": [
+        {
+          "struct": "createOwnerRequest",
+          "json_field": "home_address1",
+          "go_type": "string",
+          "binding": "omitempty,max=200",
+          "source": "backend/internal/owner/http_request.go:196"
+        },
+        {
+          "struct": "updateOwnerRequest",
+          "json_field": "home_address1",
+          "go_type": "*string",
+          "binding": "omitempty,max=200",
+          "source": "backend/internal/owner/http_request.go:248"
+        }
+      ],
+      "home_address2": [
+        {
+          "struct": "createOwnerRequest",
+          "json_field": "home_address2",
+          "go_type": "string",
+          "binding": "omitempty,max=200",
+          "source": "backend/internal/owner/http_request.go:197"
+        },
+        {
+          "struct": "updateOwnerRequest",
+          "json_field": "home_address2",
+          "go_type": "*string",
+          "binding": "omitempty,max=200",
+          "source": "backend/internal/owner/http_request.go:249"
+        }
+      ],
+      "phone": [
+        {
+          "struct": "createOwnerRequest",
+          "json_field": "phone",
+          "go_type": "string",
+          "binding": "omitempty,max=30",
+          "source": "backend/internal/owner/http_request.go:198"
+        },
+        {
+          "struct": "updateOwnerRequest",
+          "json_field": "phone",
+          "go_type": "*string",
+          "binding": "omitempty,max=30",
+          "source": "backend/internal/owner/http_request.go:250"
+        }
+      ],
+      "company_phone": [
+        {
+          "struct": "createOwnerRequest",
+          "json_field": "company_phone",
+          "go_type": "string",
+          "binding": "omitempty,max=30",
+          "source": "backend/internal/owner/http_request.go:199"
+        },
+        {
+          "struct": "updateOwnerRequest",
+          "json_field": "company_phone",
+          "go_type": "*string",
+          "binding": "omitempty,max=30",
+          "source": "backend/internal/owner/http_request.go:251"
+        }
+      ],
+      "email": [
+        {
+          "struct": "createOwnerRequest",
+          "json_field": "email",
+          "go_type": "string",
+          "binding": "omitempty,max=254",
+          "source": "backend/internal/owner/http_request.go:200"
+        },
+        {
+          "struct": "updateOwnerRequest",
+          "json_field": "email",
+          "go_type": "*string",
+          "binding": "omitempty,max=254",
+          "source": "backend/internal/owner/http_request.go:252"
+        }
+      ],
+      "remarks": [
+        {
+          "struct": "createOwnerRequest",
+          "json_field": "remarks",
+          "go_type": "string",
+          "binding": "omitempty,max=2000",
+          "source": "backend/internal/owner/http_request.go:201"
+        },
+        {
+          "struct": "updateOwnerRequest",
+          "json_field": "remarks",
+          "go_type": "*string",
+          "binding": "omitempty,max=2000",
+          "source": "backend/internal/owner/http_request.go:253"
+        }
+      ],
+      "is_dangerous": [
+        {
+          "struct": "createOwnerRequest",
+          "json_field": "is_dangerous",
+          "go_type": "bool",
+          "binding": "",
+          "source": "backend/internal/owner/http_request.go:202"
+        },
+        {
+          "struct": "updateOwnerRequest",
+          "json_field": "is_dangerous",
+          "go_type": "*bool",
+          "binding": "",
+          "source": "backend/internal/owner/http_request.go:254"
+        }
+      ],
+      "discount_rate": [
+        {
+          "struct": "createOwnerRequest",
+          "json_field": "discount_rate",
+          "go_type": "float64",
+          "binding": "",
+          "source": "backend/internal/owner/http_request.go:203"
+        },
+        {
+          "struct": "updateOwnerRequest",
+          "json_field": "discount_rate",
+          "go_type": "*float64",
+          "binding": "",
+          "source": "backend/internal/owner/http_request.go:255"
+        }
+      ],
+      "membership_type": [
+        {
+          "struct": "createOwnerRequest",
+          "json_field": "membership_type",
+          "go_type": "string",
+          "binding": "omitempty,oneof=non_member member deceased transferred",
+          "source": "backend/internal/owner/http_request.go:204"
+        },
+        {
+          "struct": "updateOwnerRequest",
+          "json_field": "membership_type",
+          "go_type": "*string",
+          "binding": "omitempty,oneof=non_member member deceased transferred",
+          "source": "backend/internal/owner/http_request.go:256"
+        }
+      ],
+      "dm_preference": [
+        {
+          "struct": "createOwnerRequest",
+          "json_field": "dm_preference",
+          "go_type": "*bool",
+          "binding": "",
+          "source": "backend/internal/owner/http_request.go:205"
+        },
+        {
+          "struct": "updateOwnerRequest",
+          "json_field": "dm_preference",
+          "go_type": "nullableBoolRequestField",
+          "binding": "",
+          "source": "backend/internal/owner/http_request.go:257"
+        }
+      ]
+    },
+    "pets": {
+      "id": [],
+      "clinic_id": [],
+      "owner_id": [
+        {
+          "struct": "createPetRequest",
+          "json_field": "owner_id",
+          "go_type": "uint64",
+          "binding": "required",
+          "source": "backend/internal/pet/pet_request.go:109"
+        },
+        {
+          "struct": "updatePetRequest",
+          "json_field": "owner_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/pet/pet_request.go:178"
+        }
+      ],
+      "pet_number": [
+        {
+          "struct": "updatePetRequest",
+          "json_field": "pet_number",
+          "go_type": "*string",
+          "binding": "omitempty,max=50",
+          "source": "backend/internal/pet/pet_request.go:180"
+        }
+      ],
+      "name": [
+        {
+          "struct": "createPetRequest",
+          "json_field": "name",
+          "go_type": "string",
+          "binding": "required,max=255",
+          "source": "backend/internal/pet/pet_request.go:111"
+        },
+        {
+          "struct": "updatePetRequest",
+          "json_field": "name",
+          "go_type": "*string",
+          "binding": "omitempty,max=255",
+          "source": "backend/internal/pet/pet_request.go:181"
+        }
+      ],
+      "name_kana": [
+        {
+          "struct": "createPetRequest",
+          "json_field": "name_kana",
+          "go_type": "string",
+          "binding": "omitempty,max=100",
+          "source": "backend/internal/pet/pet_request.go:112"
+        },
+        {
+          "struct": "updatePetRequest",
+          "json_field": "name_kana",
+          "go_type": "*string",
+          "binding": "omitempty,max=100",
+          "source": "backend/internal/pet/pet_request.go:182"
+        }
+      ],
+      "animal_species_id": [
+        {
+          "struct": "createPetRequest",
+          "json_field": "animal_species_id",
+          "go_type": "uint64",
+          "binding": "required",
+          "source": "backend/internal/pet/pet_request.go:110"
+        },
+        {
+          "struct": "updatePetRequest",
+          "json_field": "animal_species_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/pet/pet_request.go:179"
+        }
+      ],
+      "gender": [
+        {
+          "struct": "createPetRequest",
+          "json_field": "gender",
+          "go_type": "string",
+          "binding": "omitempty,oneof=male female unknown",
+          "source": "backend/internal/pet/pet_request.go:113"
+        },
+        {
+          "struct": "updatePetRequest",
+          "json_field": "gender",
+          "go_type": "*string",
+          "binding": "omitempty,oneof=male female unknown",
+          "source": "backend/internal/pet/pet_request.go:183"
+        }
+      ],
+      "status": [
+        {
+          "struct": "createPetRequest",
+          "json_field": "status",
+          "go_type": "string",
+          "binding": "omitempty,oneof=alive deceased",
+          "source": "backend/internal/pet/pet_request.go:114"
+        }
+      ],
+      "birth_date": [
+        {
+          "struct": "createPetRequest",
+          "json_field": "birth_date",
+          "go_type": "*jsonDate",
+          "binding": "",
+          "source": "backend/internal/pet/pet_request.go:115"
+        },
+        {
+          "struct": "updatePetRequest",
+          "json_field": "birth_date",
+          "go_type": "*jsonDate",
+          "binding": "",
+          "source": "backend/internal/pet/pet_request.go:187"
+        }
+      ],
+      "breed": [
+        {
+          "struct": "createPetRequest",
+          "json_field": "breed",
+          "go_type": "string",
+          "binding": "omitempty,max=100",
+          "source": "backend/internal/pet/pet_request.go:116"
+        },
+        {
+          "struct": "updatePetRequest",
+          "json_field": "breed",
+          "go_type": "*string",
+          "binding": "omitempty,max=100",
+          "source": "backend/internal/pet/pet_request.go:188"
+        }
+      ],
+      "color": [
+        {
+          "struct": "createPetRequest",
+          "json_field": "color",
+          "go_type": "string",
+          "binding": "omitempty,max=100",
+          "source": "backend/internal/pet/pet_request.go:117"
+        },
+        {
+          "struct": "updatePetRequest",
+          "json_field": "color",
+          "go_type": "*string",
+          "binding": "omitempty,max=100",
+          "source": "backend/internal/pet/pet_request.go:189"
+        }
+      ],
+      "weight": [
+        {
+          "struct": "createPetRequest",
+          "json_field": "weight",
+          "go_type": "*float64",
+          "binding": "",
+          "source": "backend/internal/pet/pet_request.go:120"
+        },
+        {
+          "struct": "updatePetRequest",
+          "json_field": "weight",
+          "go_type": "*float64",
+          "binding": "",
+          "source": "backend/internal/pet/pet_request.go:192"
+        }
+      ],
+      "neutered_date": [
+        {
+          "struct": "createPetRequest",
+          "json_field": "neutered_date",
+          "go_type": "*jsonDate",
+          "binding": "",
+          "source": "backend/internal/pet/pet_request.go:121"
+        },
+        {
+          "struct": "updatePetRequest",
+          "json_field": "neutered_date",
+          "go_type": "*jsonDate",
+          "binding": "",
+          "source": "backend/internal/pet/pet_request.go:193"
+        }
+      ],
+      "food": [
+        {
+          "struct": "createPetRequest",
+          "json_field": "food",
+          "go_type": "string",
+          "binding": "omitempty,max=500",
+          "source": "backend/internal/pet/pet_request.go:126"
+        },
+        {
+          "struct": "updatePetRequest",
+          "json_field": "food",
+          "go_type": "*string",
+          "binding": "omitempty,max=500",
+          "source": "backend/internal/pet/pet_request.go:198"
+        }
+      ],
+      "remarks": [
+        {
+          "struct": "createPetRequest",
+          "json_field": "remarks",
+          "go_type": "string",
+          "binding": "omitempty,max=2000",
+          "source": "backend/internal/pet/pet_request.go:130"
+        },
+        {
+          "struct": "updatePetRequest",
+          "json_field": "remarks",
+          "go_type": "*string",
+          "binding": "omitempty,max=2000",
+          "source": "backend/internal/pet/pet_request.go:203"
+        }
+      ],
+      "deceased_at": []
+    },
+    "appointments": {
+      "id": [],
+      "clinic_id": [],
+      "start_time": [
+        {
+          "struct": "createReservationRequest",
+          "json_field": "start_time",
+          "go_type": "time.Time",
+          "binding": "required",
+          "source": "backend/internal/reservation/reservation_request.go:141"
+        },
+        {
+          "struct": "updateReservationRequest",
+          "json_field": "start_time",
+          "go_type": "*time.Time",
+          "binding": "",
+          "source": "backend/internal/reservation/reservation_request.go:253"
+        },
+        {
+          "struct": "createTrimmingRequest",
+          "json_field": "start_time",
+          "go_type": "*time.Time",
+          "binding": "",
+          "source": "backend/internal/trimming/trimming_request.go:62"
+        },
+        {
+          "struct": "updateTrimmingRequest",
+          "json_field": "start_time",
+          "go_type": "*time.Time",
+          "binding": "",
+          "source": "backend/internal/trimming/trimming_request.go:119"
+        }
+      ],
+      "end_time": [
+        {
+          "struct": "createReservationRequest",
+          "json_field": "end_time",
+          "go_type": "time.Time",
+          "binding": "required",
+          "source": "backend/internal/reservation/reservation_request.go:142"
+        },
+        {
+          "struct": "updateReservationRequest",
+          "json_field": "end_time",
+          "go_type": "*time.Time",
+          "binding": "",
+          "source": "backend/internal/reservation/reservation_request.go:254"
+        },
+        {
+          "struct": "createTrimmingRequest",
+          "json_field": "end_time",
+          "go_type": "*time.Time",
+          "binding": "",
+          "source": "backend/internal/trimming/trimming_request.go:63"
+        },
+        {
+          "struct": "updateTrimmingRequest",
+          "json_field": "end_time",
+          "go_type": "*time.Time",
+          "binding": "",
+          "source": "backend/internal/trimming/trimming_request.go:120"
+        }
+      ],
+      "owner_id": [
+        {
+          "struct": "createReservationRequest",
+          "json_field": "owner_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/reservation/reservation_request.go:143"
+        },
+        {
+          "struct": "updateReservationRequest",
+          "json_field": "owner_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/reservation/reservation_request.go:255"
+        }
+      ],
+      "pet_id": [
+        {
+          "struct": "createReservationRequest",
+          "json_field": "pet_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/reservation/reservation_request.go:144"
+        },
+        {
+          "struct": "updateReservationRequest",
+          "json_field": "pet_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/reservation/reservation_request.go:256"
+        },
+        {
+          "struct": "createTrimmingRequest",
+          "json_field": "pet_id",
+          "go_type": "*uint64",
+          "binding": "required",
+          "source": "backend/internal/trimming/trimming_request.go:64"
+        },
+        {
+          "struct": "updateTrimmingRequest",
+          "json_field": "pet_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/trimming/trimming_request.go:121"
+        }
+      ],
+      "visit_type": [
+        {
+          "struct": "createReservationRequest",
+          "json_field": "visit_type",
+          "go_type": "string",
+          "binding": "omitempty,oneof=first revisit",
+          "source": "backend/internal/reservation/reservation_request.go:145"
+        },
+        {
+          "struct": "updateReservationRequest",
+          "json_field": "visit_type",
+          "go_type": "*string",
+          "binding": "omitempty,oneof=first revisit",
+          "source": "backend/internal/reservation/reservation_request.go:257"
+        }
+      ],
+      "reservation_type_id": [
+        {
+          "struct": "createReservationRequest",
+          "json_field": "reservation_type_id",
+          "go_type": "uint64",
+          "binding": "required",
+          "source": "backend/internal/reservation/reservation_request.go:146"
+        },
+        {
+          "struct": "updateReservationRequest",
+          "json_field": "reservation_type_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/reservation/reservation_request.go:258"
+        },
+        {
+          "struct": "createTrimmingRequest",
+          "json_field": "reservation_type_id",
+          "go_type": "uint64",
+          "binding": "required",
+          "source": "backend/internal/trimming/trimming_request.go:61"
+        }
+      ],
+      "doctor_id": [
+        {
+          "struct": "createReservationRequest",
+          "json_field": "doctor_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/reservation/reservation_request.go:147"
+        },
+        {
+          "struct": "updateReservationRequest",
+          "json_field": "doctor_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/reservation/reservation_request.go:259"
+        }
+      ],
+      "status": [
+        {
+          "struct": "createReservationRequest",
+          "json_field": "status",
+          "go_type": "string",
+          "binding": "omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting completed",
+          "source": "backend/internal/reservation/reservation_request.go:149"
+        },
+        {
+          "struct": "updateReservationRequest",
+          "json_field": "status",
+          "go_type": "*string",
+          "binding": "omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting completed",
+          "source": "backend/internal/reservation/reservation_request.go:261"
+        },
+        {
+          "struct": "createTrimmingRequest",
+          "json_field": "status",
+          "go_type": "string",
+          "binding": "omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting",
+          "source": "backend/internal/trimming/trimming_request.go:66"
+        },
+        {
+          "struct": "updateTrimmingRequest",
+          "json_field": "status",
+          "go_type": "*string",
+          "binding": "omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting",
+          "source": "backend/internal/trimming/trimming_request.go:123"
+        }
+      ],
+      "source": [
+        {
+          "struct": "createReservationRequest",
+          "json_field": "source",
+          "go_type": "string",
+          "binding": "omitempty,oneof=manual line",
+          "source": "backend/internal/reservation/reservation_request.go:151"
+        }
+      ]
+    },
+    "appointment_trimming_details": {
+      "id": [],
+      "clinic_id": [],
+      "appointment_id": [
+        {
+          "struct": "createTrimmingRequest",
+          "json_field": "appointment_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/trimming/trimming_request.go:60"
+        }
+      ],
+      "remarks": [
+        {
+          "struct": "createTrimmingRequest",
+          "json_field": "remarks",
+          "go_type": "string",
+          "binding": "omitempty,max=2000",
+          "source": "backend/internal/trimming/trimming_request.go:76"
+        },
+        {
+          "struct": "updateTrimmingRequest",
+          "json_field": "remarks",
+          "go_type": "*string",
+          "binding": "omitempty,max=2000",
+          "source": "backend/internal/trimming/trimming_request.go:132"
+        }
+      ]
+    },
+    "medical_records": {
+      "id": [],
+      "clinic_id": [],
+      "record_no": [
+        {
+          "struct": "createMedicalRecordRequest",
+          "json_field": "record_no",
+          "go_type": "string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/medical_record_request.go:170"
+        }
+      ],
+      "date": [
+        {
+          "struct": "createMedicalRecordRequest",
+          "json_field": "date",
+          "go_type": "*time.Time",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/medical_record_request.go:171"
+        },
+        {
+          "struct": "updateMedicalRecordRequest",
+          "json_field": "date",
+          "go_type": "*time.Time",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/medical_record_request.go:313"
+        }
+      ],
+      "owner_id": [
+        {
+          "struct": "createMedicalRecordRequest",
+          "json_field": "owner_id",
+          "go_type": "*string",
+          "binding": "required",
+          "source": "backend/internal/medicalrecord/medical_record_request.go:174"
+        },
+        {
+          "struct": "updateMedicalRecordRequest",
+          "json_field": "owner_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/medical_record_request.go:314"
+        }
+      ],
+      "pet_id": [
+        {
+          "struct": "createMedicalRecordRequest",
+          "json_field": "pet_id",
+          "go_type": "*string",
+          "binding": "required",
+          "source": "backend/internal/medicalrecord/medical_record_request.go:175"
+        },
+        {
+          "struct": "updateMedicalRecordRequest",
+          "json_field": "pet_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/medical_record_request.go:315"
+        }
+      ],
+      "appointment_id": [
+        {
+          "struct": "createMedicalRecordRequest",
+          "json_field": "appointment_id",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/medical_record_request.go:177"
+        },
+        {
+          "struct": "updateMedicalRecordRequest",
+          "json_field": "appointment_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/medical_record_request.go:317"
+        }
+      ],
+      "status": [
+        {
+          "struct": "createMedicalRecordRequest",
+          "json_field": "status",
+          "go_type": "string",
+          "binding": "omitempty,oneof=draft finalized",
+          "source": "backend/internal/medicalrecord/medical_record_request.go:178"
+        },
+        {
+          "struct": "updateMedicalRecordRequest",
+          "json_field": "status",
+          "go_type": "*string",
+          "binding": "omitempty,oneof=draft finalized",
+          "source": "backend/internal/medicalrecord/medical_record_request.go:318"
+        }
+      ],
+      "visit_type": [
+        {
+          "struct": "createMedicalRecordRequest",
+          "json_field": "visit_type",
+          "go_type": "string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/medical_record_request.go:173"
+        },
+        {
+          "struct": "updateMedicalRecordRequest",
+          "json_field": "visit_type",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/medical_record_request.go:320"
+        }
+      ],
+      "doctor_id": [
+        {
+          "struct": "createMedicalRecordRequest",
+          "json_field": "doctor_id",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/medical_record_request.go:176"
+        },
+        {
+          "struct": "updateMedicalRecordRequest",
+          "json_field": "doctor_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/medical_record_request.go:316"
+        }
+      ],
+      "entered_by": []
+    },
+    "inquiries": {
+      "id": [],
+      "medical_record_id": [],
+      "chief_complaint": [
+        {
+          "struct": "updateInquiryRequest",
+          "json_field": "chief_complaint",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/inquiry_request.go:4"
+        }
+      ],
+      "owner_observations": [],
+      "history": [],
+      "notes": [
+        {
+          "struct": "updateInquiryRequest",
+          "json_field": "notes",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/inquiry_request.go:8"
+        }
+      ],
+      "allergy_info": [],
+      "current_medications": [],
+      "staff_id": []
+    },
+    "clinical_plans": {
+      "id": [],
+      "medical_record_id": [],
+      "physical_exam": [
+        {
+          "struct": "updateClinicalPlanRequest",
+          "json_field": "physical_exam",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/clinical_plan_request.go:13"
+        }
+      ],
+      "diagnosis_details": [
+        {
+          "struct": "updateClinicalPlanRequest",
+          "json_field": "diagnosis_details",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/clinical_plan_request.go:16"
+        }
+      ],
+      "treatment_policy": [
+        {
+          "struct": "updateClinicalPlanRequest",
+          "json_field": "treatment_policy",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/clinical_plan_request.go:17"
+        }
+      ]
+    },
+    "vital_records": {
+      "id": [],
+      "clinic_id": [],
+      "medical_record_id": [],
+      "pet_id": [],
+      "recorded_at": [
+        {
+          "struct": "createVitalRequest",
+          "json_field": "recorded_at",
+          "go_type": "time.Time",
+          "binding": "required",
+          "source": "backend/internal/medicalrecord/vital_request.go:13"
+        },
+        {
+          "struct": "updateVitalRequest",
+          "json_field": "recorded_at",
+          "go_type": "*time.Time",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vital_request.go:49"
+        }
+      ],
+      "temperature": [
+        {
+          "struct": "createVitalRequest",
+          "json_field": "temperature",
+          "go_type": "*float64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vital_request.go:15"
+        },
+        {
+          "struct": "updateVitalRequest",
+          "json_field": "temperature",
+          "go_type": "*float64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vital_request.go:51"
+        }
+      ],
+      "weight": [
+        {
+          "struct": "createVitalRequest",
+          "json_field": "weight",
+          "go_type": "*float64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vital_request.go:18"
+        },
+        {
+          "struct": "updateVitalRequest",
+          "json_field": "weight",
+          "go_type": "*float64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vital_request.go:54"
+        }
+      ],
+      "weight_unit": [
+        {
+          "struct": "createVitalRequest",
+          "json_field": "weight_unit",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vital_request.go:19"
+        },
+        {
+          "struct": "updateVitalRequest",
+          "json_field": "weight_unit",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vital_request.go:55"
+        }
+      ],
+      "heart_rate": [
+        {
+          "struct": "createVitalRequest",
+          "json_field": "heart_rate",
+          "go_type": "*int",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vital_request.go:16"
+        },
+        {
+          "struct": "updateVitalRequest",
+          "json_field": "heart_rate",
+          "go_type": "*int",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vital_request.go:52"
+        }
+      ],
+      "respiration_rate": [
+        {
+          "struct": "createVitalRequest",
+          "json_field": "respiration_rate",
+          "go_type": "*int",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vital_request.go:17"
+        },
+        {
+          "struct": "updateVitalRequest",
+          "json_field": "respiration_rate",
+          "go_type": "*int",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vital_request.go:53"
+        }
+      ],
+      "staff_id": [
+        {
+          "struct": "createVitalRequest",
+          "json_field": "staff_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vital_request.go:14"
+        },
+        {
+          "struct": "updateVitalRequest",
+          "json_field": "staff_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vital_request.go:50"
+        }
+      ],
+      "notes": [
+        {
+          "struct": "createVitalRequest",
+          "json_field": "notes",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vital_request.go:20"
+        },
+        {
+          "struct": "updateVitalRequest",
+          "json_field": "notes",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vital_request.go:56"
+        }
+      ]
+    },
+    "billings": {
+      "id": [],
+      "clinic_id": [],
+      "medical_record_id": [
+        {
+          "struct": "createAccountingRequest",
+          "json_field": "medical_record_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:159"
+        },
+        {
+          "struct": "updateAccountingRequest",
+          "json_field": "medical_record_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:327"
+        }
+      ],
+      "owner_id": [
+        {
+          "struct": "createAccountingRequest",
+          "json_field": "owner_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:161"
+        },
+        {
+          "struct": "updateAccountingRequest",
+          "json_field": "owner_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:329"
+        }
+      ],
+      "pet_id": [
+        {
+          "struct": "createAccountingRequest",
+          "json_field": "pet_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:162"
+        },
+        {
+          "struct": "updateAccountingRequest",
+          "json_field": "pet_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:330"
+        }
+      ],
+      "total_amount": [
+        {
+          "struct": "createAccountingRequest",
+          "json_field": "total_amount",
+          "go_type": "int64",
+          "binding": "min=0",
+          "source": "backend/internal/billing/accounting_request.go:165"
+        },
+        {
+          "struct": "updateAccountingRequest",
+          "json_field": "total_amount",
+          "go_type": "*int64",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:333"
+        }
+      ],
+      "status": [
+        {
+          "struct": "createAccountingRequest",
+          "json_field": "status",
+          "go_type": "string",
+          "binding": "omitempty,oneof=waiting pending",
+          "source": "backend/internal/billing/accounting_request.go:167"
+        },
+        {
+          "struct": "updateAccountingRequest",
+          "json_field": "status",
+          "go_type": "*string",
+          "binding": "omitempty,oneof=waiting pending completed cancelled",
+          "source": "backend/internal/billing/accounting_request.go:335"
+        }
+      ],
+      "scheduled_date": [
+        {
+          "struct": "createAccountingRequest",
+          "json_field": "scheduled_date",
+          "go_type": "time.Time",
+          "binding": "required",
+          "source": "backend/internal/billing/accounting_request.go:168"
+        },
+        {
+          "struct": "updateAccountingRequest",
+          "json_field": "scheduled_date",
+          "go_type": "*time.Time",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:336"
+        }
+      ],
+      "completed_at": [
+        {
+          "struct": "createAccountingRequest",
+          "json_field": "completed_at",
+          "go_type": "*time.Time",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:169"
+        },
+        {
+          "struct": "updateAccountingRequest",
+          "json_field": "completed_at",
+          "go_type": "*time.Time",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:337"
+        }
+      ]
+    },
+    "billing_items": {
+      "id": [],
+      "clinic_id": [],
+      "billing_id": [
+        {
+          "struct": "createBillingItemRequest",
+          "json_field": "billing_id",
+          "go_type": "uint64",
+          "binding": "required",
+          "source": "backend/internal/billing/billing_item_request.go:37"
+        }
+      ],
+      "category": [
+        {
+          "struct": "createBillingItemRequest",
+          "json_field": "category",
+          "go_type": "string",
+          "binding": "omitempty,oneof=examination test procedure surgery medicine food goods other vaccine trimming hotel training",
+          "source": "backend/internal/billing/billing_item_request.go:38"
+        },
+        {
+          "struct": "completeAccountingItemRequest",
+          "json_field": "category",
+          "go_type": "string",
+          "binding": "omitempty,oneof=examination test procedure surgery medicine food goods other vaccine trimming hotel training",
+          "source": "backend/internal/billing/accounting_request.go:175"
+        }
+      ],
+      "name": [
+        {
+          "struct": "createBillingItemRequest",
+          "json_field": "name",
+          "go_type": "string",
+          "binding": "required,max=255",
+          "source": "backend/internal/billing/billing_item_request.go:39"
+        },
+        {
+          "struct": "updateBillingItemRequest",
+          "json_field": "name",
+          "go_type": "*string",
+          "binding": "omitempty,max=255",
+          "source": "backend/internal/billing/billing_item_request.go:64"
+        },
+        {
+          "struct": "completeAccountingItemRequest",
+          "json_field": "name",
+          "go_type": "string",
+          "binding": "required,max=255",
+          "source": "backend/internal/billing/accounting_request.go:176"
+        }
+      ],
+      "unit_price": [
+        {
+          "struct": "createBillingItemRequest",
+          "json_field": "unit_price",
+          "go_type": "int64",
+          "binding": "min=0",
+          "source": "backend/internal/billing/billing_item_request.go:40"
+        },
+        {
+          "struct": "updateBillingItemRequest",
+          "json_field": "unit_price",
+          "go_type": "*int64",
+          "binding": "",
+          "source": "backend/internal/billing/billing_item_request.go:65"
+        },
+        {
+          "struct": "completeAccountingItemRequest",
+          "json_field": "unit_price",
+          "go_type": "int64",
+          "binding": "min=0",
+          "source": "backend/internal/billing/accounting_request.go:177"
+        }
+      ],
+      "quantity": [
+        {
+          "struct": "createBillingItemRequest",
+          "json_field": "quantity",
+          "go_type": "float64",
+          "binding": "min=0",
+          "source": "backend/internal/billing/billing_item_request.go:41"
+        },
+        {
+          "struct": "updateBillingItemRequest",
+          "json_field": "quantity",
+          "go_type": "*float64",
+          "binding": "",
+          "source": "backend/internal/billing/billing_item_request.go:66"
+        },
+        {
+          "struct": "completeAccountingItemRequest",
+          "json_field": "quantity",
+          "go_type": "float64",
+          "binding": "required,gt=0",
+          "source": "backend/internal/billing/accounting_request.go:178"
+        }
+      ],
+      "tax_type": [
+        {
+          "struct": "createBillingItemRequest",
+          "json_field": "tax_type",
+          "go_type": "string",
+          "binding": "omitempty,oneof=included excluded exempt",
+          "source": "backend/internal/billing/billing_item_request.go:44"
+        },
+        {
+          "struct": "updateBillingItemRequest",
+          "json_field": "tax_type",
+          "go_type": "*string",
+          "binding": "omitempty,oneof=included excluded exempt",
+          "source": "backend/internal/billing/billing_item_request.go:69"
+        },
+        {
+          "struct": "completeAccountingItemRequest",
+          "json_field": "tax_type",
+          "go_type": "string",
+          "binding": "omitempty,oneof=included excluded exempt",
+          "source": "backend/internal/billing/accounting_request.go:181"
+        }
+      ],
+      "is_insurance_applicable": [
+        {
+          "struct": "createBillingItemRequest",
+          "json_field": "is_insurance_applicable",
+          "go_type": "bool",
+          "binding": "",
+          "source": "backend/internal/billing/billing_item_request.go:46"
+        },
+        {
+          "struct": "updateBillingItemRequest",
+          "json_field": "is_insurance_applicable",
+          "go_type": "*bool",
+          "binding": "",
+          "source": "backend/internal/billing/billing_item_request.go:71"
+        },
+        {
+          "struct": "completeAccountingItemRequest",
+          "json_field": "is_insurance_applicable",
+          "go_type": "bool",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:183"
+        }
+      ],
+      "sort_order": [
+        {
+          "struct": "createBillingItemRequest",
+          "json_field": "sort_order",
+          "go_type": "int",
+          "binding": "",
+          "source": "backend/internal/billing/billing_item_request.go:56"
+        },
+        {
+          "struct": "completeAccountingItemRequest",
+          "json_field": "sort_order",
+          "go_type": "int",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:193"
+        }
+      ]
+    },
+    "payments": {
+      "id": [],
+      "clinic_id": [],
+      "billing_id": [
+        {
+          "struct": "completeAccountingRequest",
+          "json_field": "billing_id",
+          "go_type": "*uint64",
+          "binding": "omitempty,min=1",
+          "source": "backend/internal/billing/accounting_request.go:201"
+        }
+      ],
+      "subtotal": [
+        {
+          "struct": "updateAccountingRequest",
+          "json_field": "subtotal",
+          "go_type": "*int64",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:331"
+        }
+      ],
+      "tax_total": [
+        {
+          "struct": "updateAccountingRequest",
+          "json_field": "tax_total",
+          "go_type": "*int64",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:332"
+        }
+      ],
+      "total_amount": [
+        {
+          "struct": "updateAccountingRequest",
+          "json_field": "total_amount",
+          "go_type": "*int64",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:333"
+        }
+      ],
+      "insurance_name": [
+        {
+          "struct": "completeAccountingRequest",
+          "json_field": "insurance_name",
+          "go_type": "*string",
+          "binding": "omitempty,max=255",
+          "source": "backend/internal/billing/accounting_request.go:210"
+        },
+        {
+          "struct": "updateAccountingRequest",
+          "json_field": "insurance_name",
+          "go_type": "*string",
+          "binding": "omitempty,max=255",
+          "source": "backend/internal/billing/accounting_request.go:342"
+        }
+      ],
+      "insurance_ratio": [
+        {
+          "struct": "completeAccountingRequest",
+          "json_field": "insurance_ratio",
+          "go_type": "*float64",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:209"
+        },
+        {
+          "struct": "updateAccountingRequest",
+          "json_field": "insurance_ratio",
+          "go_type": "*float64",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:341"
+        }
+      ],
+      "insurance_amount": [
+        {
+          "struct": "completeAccountingRequest",
+          "json_field": "insurance_amount",
+          "go_type": "*int64",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:211"
+        },
+        {
+          "struct": "updateAccountingRequest",
+          "json_field": "insurance_amount",
+          "go_type": "*int64",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:343"
+        }
+      ],
+      "discount_amount": [
+        {
+          "struct": "completeAccountingRequest",
+          "json_field": "discount_amount",
+          "go_type": "*int64",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:212"
+        },
+        {
+          "struct": "updateAccountingRequest",
+          "json_field": "discount_amount",
+          "go_type": "*int64",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:344"
+        }
+      ],
+      "billing_amount": [
+        {
+          "struct": "updateAccountingRequest",
+          "json_field": "billing_amount",
+          "go_type": "*int64",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:345"
+        }
+      ],
+      "received_amount": [
+        {
+          "struct": "updateAccountingRequest",
+          "json_field": "received_amount",
+          "go_type": "*int64",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:346"
+        }
+      ],
+      "change_amount": [
+        {
+          "struct": "updateAccountingRequest",
+          "json_field": "change_amount",
+          "go_type": "*int64",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:347"
+        }
+      ],
+      "method": [],
+      "payment_method_id": [],
+      "paid_by": [],
+      "created_at": []
+    },
+    "payment_splits": {
+      "id": [],
+      "clinic_id": [],
+      "billing_id": [],
+      "method": [
+        {
+          "struct": "paymentSplitRequest",
+          "json_field": "method",
+          "go_type": "string",
+          "binding": "required,oneof=cash credit_card electronic_money bank_transfer",
+          "source": "backend/internal/billing/accounting_request.go:270"
+        }
+      ],
+      "payment_method_id": [
+        {
+          "struct": "paymentSplitRequest",
+          "json_field": "payment_method_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:271"
+        }
+      ],
+      "amount": [
+        {
+          "struct": "paymentSplitRequest",
+          "json_field": "amount",
+          "go_type": "int64",
+          "binding": "required,min=1",
+          "source": "backend/internal/billing/accounting_request.go:272"
+        }
+      ],
+      "received_amount": [
+        {
+          "struct": "paymentSplitRequest",
+          "json_field": "received_amount",
+          "go_type": "int64",
+          "binding": "",
+          "source": "backend/internal/billing/accounting_request.go:273"
+        }
+      ],
+      "change_amount": [
+        {
+          "struct": "paymentSplitRequest",
+          "json_field": "change_amount",
+          "go_type": "int64",
+          "binding": "min=0",
+          "source": "backend/internal/billing/accounting_request.go:274"
+        }
+      ],
+      "paid_by": [],
+      "created_at": []
+    },
+    "estimates": {
+      "id": [],
+      "clinic_id": [],
+      "estimate_no": [],
+      "medical_record_id": [
+        {
+          "struct": "createEstimateRequest",
+          "json_field": "medical_record_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/billing/estimate_request.go:48"
+        }
+      ],
+      "title": [
+        {
+          "struct": "createEstimateRequest",
+          "json_field": "title",
+          "go_type": "string",
+          "binding": "required,min=1,max=255",
+          "source": "backend/internal/billing/estimate_request.go:49"
+        },
+        {
+          "struct": "updateEstimateRequest",
+          "json_field": "title",
+          "go_type": "*string",
+          "binding": "omitempty,max=255",
+          "source": "backend/internal/billing/estimate_request.go:118"
+        }
+      ],
+      "owner_id": [
+        {
+          "struct": "createEstimateRequest",
+          "json_field": "owner_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/billing/estimate_request.go:50"
+        }
+      ],
+      "pet_id": [
+        {
+          "struct": "createEstimateRequest",
+          "json_field": "pet_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/billing/estimate_request.go:51"
+        }
+      ],
+      "status": [
+        {
+          "struct": "createEstimateRequest",
+          "json_field": "status",
+          "go_type": "string",
+          "binding": "omitempty,oneof=draft sent",
+          "source": "backend/internal/billing/estimate_request.go:52"
+        },
+        {
+          "struct": "updateEstimateRequest",
+          "json_field": "status",
+          "go_type": "*string",
+          "binding": "omitempty,oneof=draft sent approved rejected",
+          "source": "backend/internal/billing/estimate_request.go:119"
+        }
+      ],
+      "subtotal": [
+        {
+          "struct": "createEstimateRequest",
+          "json_field": "subtotal",
+          "go_type": "int64",
+          "binding": "min=0",
+          "source": "backend/internal/billing/estimate_request.go:53"
+        },
+        {
+          "struct": "updateEstimateRequest",
+          "json_field": "subtotal",
+          "go_type": "*int64",
+          "binding": "",
+          "source": "backend/internal/billing/estimate_request.go:120"
+        }
+      ],
+      "tax_total": [
+        {
+          "struct": "createEstimateRequest",
+          "json_field": "tax_total",
+          "go_type": "int64",
+          "binding": "min=0",
+          "source": "backend/internal/billing/estimate_request.go:54"
+        },
+        {
+          "struct": "updateEstimateRequest",
+          "json_field": "tax_total",
+          "go_type": "*int64",
+          "binding": "",
+          "source": "backend/internal/billing/estimate_request.go:121"
+        }
+      ],
+      "total_amount": [
+        {
+          "struct": "createEstimateRequest",
+          "json_field": "total_amount",
+          "go_type": "int64",
+          "binding": "min=0",
+          "source": "backend/internal/billing/estimate_request.go:55"
+        },
+        {
+          "struct": "updateEstimateRequest",
+          "json_field": "total_amount",
+          "go_type": "*int64",
+          "binding": "",
+          "source": "backend/internal/billing/estimate_request.go:122"
+        }
+      ],
+      "insurance_amount": [
+        {
+          "struct": "createEstimateRequest",
+          "json_field": "insurance_amount",
+          "go_type": "int64",
+          "binding": "",
+          "source": "backend/internal/billing/estimate_request.go:56"
+        },
+        {
+          "struct": "updateEstimateRequest",
+          "json_field": "insurance_amount",
+          "go_type": "*int64",
+          "binding": "",
+          "source": "backend/internal/billing/estimate_request.go:123"
+        }
+      ],
+      "discount_amount": [
+        {
+          "struct": "createEstimateRequest",
+          "json_field": "discount_amount",
+          "go_type": "int64",
+          "binding": "",
+          "source": "backend/internal/billing/estimate_request.go:57"
+        },
+        {
+          "struct": "updateEstimateRequest",
+          "json_field": "discount_amount",
+          "go_type": "*int64",
+          "binding": "",
+          "source": "backend/internal/billing/estimate_request.go:124"
+        }
+      ],
+      "valid_until": [
+        {
+          "struct": "createEstimateRequest",
+          "json_field": "valid_until",
+          "go_type": "*time.Time",
+          "binding": "",
+          "source": "backend/internal/billing/estimate_request.go:58"
+        },
+        {
+          "struct": "updateEstimateRequest",
+          "json_field": "valid_until",
+          "go_type": "*time.Time",
+          "binding": "",
+          "source": "backend/internal/billing/estimate_request.go:125"
+        }
+      ],
+      "comment": [
+        {
+          "struct": "createEstimateRequest",
+          "json_field": "comment",
+          "go_type": "string",
+          "binding": "max=1000",
+          "source": "backend/internal/billing/estimate_request.go:59"
+        },
+        {
+          "struct": "updateEstimateRequest",
+          "json_field": "comment",
+          "go_type": "*string",
+          "binding": "omitempty,max=1000",
+          "source": "backend/internal/billing/estimate_request.go:127"
+        }
+      ],
+      "notes": [
+        {
+          "struct": "createEstimateRequest",
+          "json_field": "notes",
+          "go_type": "string",
+          "binding": "max=1000",
+          "source": "backend/internal/billing/estimate_request.go:60"
+        },
+        {
+          "struct": "updateEstimateRequest",
+          "json_field": "notes",
+          "go_type": "*string",
+          "binding": "omitempty,max=1000",
+          "source": "backend/internal/billing/estimate_request.go:128"
+        }
+      ],
+      "created_by": [],
+      "created_at": []
+    },
+    "estimate_items": {
+      "id": [],
+      "estimate_id": [],
+      "name": [
+        {
+          "struct": "createEstimateItemRequest",
+          "json_field": "name",
+          "go_type": "string",
+          "binding": "required,min=1,max=255",
+          "source": "backend/internal/billing/estimate_request.go:65"
+        }
+      ],
+      "category": [
+        {
+          "struct": "createEstimateItemRequest",
+          "json_field": "category",
+          "go_type": "string",
+          "binding": "",
+          "source": "backend/internal/billing/estimate_request.go:66"
+        }
+      ],
+      "unit_price": [
+        {
+          "struct": "createEstimateItemRequest",
+          "json_field": "unit_price",
+          "go_type": "int64",
+          "binding": "min=0",
+          "source": "backend/internal/billing/estimate_request.go:67"
+        }
+      ],
+      "quantity": [
+        {
+          "struct": "createEstimateItemRequest",
+          "json_field": "quantity",
+          "go_type": "float64",
+          "binding": "",
+          "source": "backend/internal/billing/estimate_request.go:68"
+        }
+      ],
+      "tax_type": [],
+      "tax_rate": [],
+      "discount_rate": [
+        {
+          "struct": "createEstimateItemRequest",
+          "json_field": "discount_rate",
+          "go_type": "float64",
+          "binding": "",
+          "source": "backend/internal/billing/estimate_request.go:69"
+        }
+      ],
+      "discount_amount": [
+        {
+          "struct": "createEstimateItemRequest",
+          "json_field": "discount_amount",
+          "go_type": "int64",
+          "binding": "",
+          "source": "backend/internal/billing/estimate_request.go:70"
+        }
+      ],
+      "is_insurance_applicable": [
+        {
+          "struct": "createEstimateItemRequest",
+          "json_field": "is_insurance_applicable",
+          "go_type": "bool",
+          "binding": "",
+          "source": "backend/internal/billing/estimate_request.go:71"
+        }
+      ],
+      "consultation_id": [],
+      "procedure_id": [],
+      "medicine_id": [],
+      "merchandise_item_id": [],
+      "sort_order": [
+        {
+          "struct": "createEstimateItemRequest",
+          "json_field": "sort_order",
+          "go_type": "int",
+          "binding": "",
+          "source": "backend/internal/billing/estimate_request.go:72"
+        }
+      ]
+    },
+    "exams": {
+      "id": [],
+      "clinic_id": [],
+      "medical_record_id": [
+        {
+          "struct": "createExaminationRequest",
+          "json_field": "medical_record_id",
+          "go_type": "*uint64",
+          "binding": "omitempty",
+          "source": "backend/internal/medicalrecord/examination_request.go:93"
+        },
+        {
+          "struct": "updateExaminationRequest",
+          "json_field": "medical_record_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/examination_request.go:120"
+        }
+      ],
+      "pet_id": [
+        {
+          "struct": "createExaminationRequest",
+          "json_field": "pet_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/examination_request.go:94"
+        },
+        {
+          "struct": "updateExaminationRequest",
+          "json_field": "pet_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/examination_request.go:121"
+        }
+      ],
+      "date": [
+        {
+          "struct": "createExaminationRequest",
+          "json_field": "date",
+          "go_type": "time.Time",
+          "binding": "required",
+          "source": "backend/internal/medicalrecord/examination_request.go:97"
+        },
+        {
+          "struct": "updateExaminationRequest",
+          "json_field": "date",
+          "go_type": "*time.Time",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/examination_request.go:124"
+        }
+      ],
+      "exam_type_id": [
+        {
+          "struct": "createExaminationRequest",
+          "json_field": "exam_type_id",
+          "go_type": "uint64",
+          "binding": "required",
+          "source": "backend/internal/medicalrecord/examination_request.go:95"
+        },
+        {
+          "struct": "updateExaminationRequest",
+          "json_field": "exam_type_id",
+          "go_type": "uint64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/examination_request.go:122"
+        }
+      ],
+      "result_summary": [
+        {
+          "struct": "createExaminationRequest",
+          "json_field": "result_summary",
+          "go_type": "string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/examination_request.go:98"
+        },
+        {
+          "struct": "updateExaminationRequest",
+          "json_field": "result_summary",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/examination_request.go:125"
+        }
+      ]
+    },
+    "exam_results": {
+      "id": [],
+      "exam_id": [],
+      "name": [
+        {
+          "struct": "upsertExamItemRequest",
+          "json_field": "name",
+          "go_type": "string",
+          "binding": "required",
+          "source": "backend/internal/medicalrecord/examination_request.go:165"
+        }
+      ],
+      "inspection_value": [
+        {
+          "struct": "upsertExamItemRequest",
+          "json_field": "inspection_value",
+          "go_type": "string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/examination_request.go:166"
+        }
+      ],
+      "normal_value": [
+        {
+          "struct": "upsertExamItemRequest",
+          "json_field": "normal_value",
+          "go_type": "string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/examination_request.go:167"
+        }
+      ],
+      "sort_order": [
+        {
+          "struct": "upsertExamItemRequest",
+          "json_field": "sort_order",
+          "go_type": "int",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/examination_request.go:170"
+        }
+      ]
+    },
+    "vaccines": {
+      "id": [],
+      "clinic_id": [],
+      "name": [
+        {
+          "struct": "createVaccineRequest",
+          "json_field": "name",
+          "go_type": "string",
+          "binding": "required",
+          "source": "backend/internal/medicalrecord/vaccine_request.go:20"
+        },
+        {
+          "struct": "updateVaccineRequest",
+          "json_field": "name",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccine_request.go:44"
+        }
+      ],
+      "price": [
+        {
+          "struct": "createVaccineRequest",
+          "json_field": "price",
+          "go_type": "*int64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccine_request.go:21"
+        },
+        {
+          "struct": "updateVaccineRequest",
+          "json_field": "price",
+          "go_type": "*int64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccine_request.go:45"
+        }
+      ],
+      "is_active": [
+        {
+          "struct": "createVaccineRequest",
+          "json_field": "is_active",
+          "go_type": "bool",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccine_request.go:22"
+        },
+        {
+          "struct": "updateVaccineRequest",
+          "json_field": "is_active",
+          "go_type": "*bool",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccine_request.go:46"
+        }
+      ],
+      "description": [
+        {
+          "struct": "createVaccineRequest",
+          "json_field": "description",
+          "go_type": "string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccine_request.go:23"
+        },
+        {
+          "struct": "updateVaccineRequest",
+          "json_field": "description",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccine_request.go:47"
+        }
+      ],
+      "species": [
+        {
+          "struct": "createVaccineRequest",
+          "json_field": "species",
+          "go_type": "string",
+          "binding": "omitempty,oneof=dog cat both",
+          "source": "backend/internal/medicalrecord/vaccine_request.go:24"
+        },
+        {
+          "struct": "updateVaccineRequest",
+          "json_field": "species",
+          "go_type": "*string",
+          "binding": "omitempty,oneof=dog cat both",
+          "source": "backend/internal/medicalrecord/vaccine_request.go:48"
+        }
+      ],
+      "interval": [
+        {
+          "struct": "createVaccineRequest",
+          "json_field": "interval",
+          "go_type": "string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccine_request.go:25"
+        },
+        {
+          "struct": "updateVaccineRequest",
+          "json_field": "interval",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccine_request.go:49"
+        }
+      ],
+      "inventory_id": [],
+      "parent_id": [
+        {
+          "struct": "createVaccineRequest",
+          "json_field": "parent_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccine_request.go:26"
+        },
+        {
+          "struct": "updateVaccineRequest",
+          "json_field": "parent_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccine_request.go:50"
+        }
+      ],
+      "sort_order": [
+        {
+          "struct": "createVaccineRequest",
+          "json_field": "sort_order",
+          "go_type": "int",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccine_request.go:27"
+        },
+        {
+          "struct": "updateVaccineRequest",
+          "json_field": "sort_order",
+          "go_type": "*int",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccine_request.go:52"
+        }
+      ]
+    },
+    "vaccinations": {
+      "id": [],
+      "clinic_id": [],
+      "medical_record_id": [
+        {
+          "struct": "createVaccinationRequest",
+          "json_field": "medical_record_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:66"
+        },
+        {
+          "struct": "updateVaccinationRequest",
+          "json_field": "medical_record_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:121"
+        }
+      ],
+      "pet_id": [
+        {
+          "struct": "createVaccinationRequest",
+          "json_field": "pet_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:67"
+        },
+        {
+          "struct": "updateVaccinationRequest",
+          "json_field": "pet_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:122"
+        }
+      ],
+      "vaccine_id": [
+        {
+          "struct": "createVaccinationRequest",
+          "json_field": "vaccine_id",
+          "go_type": "uint64",
+          "binding": "required",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:68"
+        },
+        {
+          "struct": "updateVaccinationRequest",
+          "json_field": "vaccine_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:123"
+        }
+      ],
+      "date": [
+        {
+          "struct": "createVaccinationRequest",
+          "json_field": "date",
+          "go_type": "*string",
+          "binding": "required",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:69"
+        },
+        {
+          "struct": "updateVaccinationRequest",
+          "json_field": "date",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:124"
+        }
+      ],
+      "next_date": [
+        {
+          "struct": "createVaccinationRequest",
+          "json_field": "next_date",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:71"
+        },
+        {
+          "struct": "updateVaccinationRequest",
+          "json_field": "next_date",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:126"
+        }
+      ],
+      "next_schedule_type": [
+        {
+          "struct": "createVaccinationRequest",
+          "json_field": "next_schedule_type",
+          "go_type": "string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:72"
+        },
+        {
+          "struct": "updateVaccinationRequest",
+          "json_field": "next_schedule_type",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:127"
+        }
+      ],
+      "doctor_id": [
+        {
+          "struct": "createVaccinationRequest",
+          "json_field": "doctor_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:70"
+        },
+        {
+          "struct": "updateVaccinationRequest",
+          "json_field": "doctor_id",
+          "go_type": "*uint64",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:125"
+        }
+      ],
+      "supplemental": [
+        {
+          "struct": "createVaccinationRequest",
+          "json_field": "supplemental",
+          "go_type": "string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:73"
+        },
+        {
+          "struct": "updateVaccinationRequest",
+          "json_field": "supplemental",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:128"
+        }
+      ],
+      "lot1": [
+        {
+          "struct": "createVaccinationRequest",
+          "json_field": "lot1",
+          "go_type": "string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:74"
+        },
+        {
+          "struct": "updateVaccinationRequest",
+          "json_field": "lot1",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:129"
+        }
+      ],
+      "lot2": [
+        {
+          "struct": "createVaccinationRequest",
+          "json_field": "lot2",
+          "go_type": "string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:75"
+        },
+        {
+          "struct": "updateVaccinationRequest",
+          "json_field": "lot2",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:130"
+        }
+      ],
+      "lot3": [
+        {
+          "struct": "createVaccinationRequest",
+          "json_field": "lot3",
+          "go_type": "string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:76"
+        },
+        {
+          "struct": "updateVaccinationRequest",
+          "json_field": "lot3",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:131"
+        }
+      ],
+      "lot4": [
+        {
+          "struct": "createVaccinationRequest",
+          "json_field": "lot4",
+          "go_type": "string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:77"
+        },
+        {
+          "struct": "updateVaccinationRequest",
+          "json_field": "lot4",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:132"
+        }
+      ],
+      "remarks": [
+        {
+          "struct": "createVaccinationRequest",
+          "json_field": "remarks",
+          "go_type": "string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:78"
+        },
+        {
+          "struct": "updateVaccinationRequest",
+          "json_field": "remarks",
+          "go_type": "*string",
+          "binding": "",
+          "source": "backend/internal/medicalrecord/vaccination_request.go:133"
+        }
+      ]
+    }
+  },
+  "source_hashes": {
+    "backend/internal/staff/staff_request.go": "b6e714c886da82a1932770a872bb481f43db60d689fc49bbe98f71316ff83f24",
+    "backend/internal/medicalrecord/procedure_request.go": "f3227ef643d01c19c4144065c7b4ef6dae7acd4786bb80b58f6d6505599094dc",
+    "backend/internal/inventory/merchandise_item_request.go": "758f2150258e049c92a1ba34d386a1aba6b5ce5b8ced4e25f1465db7f9bb6bc1",
+    "backend/internal/owner/http_request.go": "0675774fe5785ba6cf039bdaa7c35601bab71a9fed69c74e78bed84a7e64f795",
+    "backend/internal/pet/pet_request.go": "984f543bd3882a141a5c46de994accbaed172581234084d5a58f1191f2a41531",
+    "backend/internal/reservation/reservation_request.go": "60dbc66a1e6737b29be0625ec2681b3d113a047c3f63ade19f8ae094dcf692a7",
+    "backend/internal/trimming/trimming_request.go": "dfb32bc22083272ca28ed4b77fc5cf4fb011b494e10e4959d1baf9eded0637bb",
+    "backend/internal/medicalrecord/medical_record_request.go": "d17f99808759b29a3b2b4496fa74a9242fbc195a6dba4c64356cd717ecebbc1b",
+    "backend/internal/medicalrecord/inquiry_request.go": "42f3e2a2abbb9d3183981b8dbf3ce88fa8cb40204a0167f8d294782bed13eb3a",
+    "backend/internal/medicalrecord/clinical_plan_request.go": "3df8ca21b0edbca306f9f4e0840fd81fb1fe7d600204c34564d8c743feda586b",
+    "backend/internal/medicalrecord/vital_request.go": "8af7ad2aa0b3dd6a9203715e88d1b8f48bfd8f49d05727ad2fdf5650bc991eb6",
+    "backend/internal/billing/accounting_request.go": "9540f8badb16e3b1ec935b41f86ae37aef2c5eaf8e504235b3804b6ad2387fce",
+    "backend/internal/billing/billing_item_request.go": "6198cbb09199c73141c3c257f029755cf2740927812f954a411380eee23d711d",
+    "backend/internal/billing/estimate_request.go": "d3be659eb172c5c8d7b841b0176723e7d959382b8b5449dd6b59b870230ff914",
+    "backend/internal/medicalrecord/examination_request.go": "861121ace1b2943ae332bee4e8e7d9317d910bc334979ed7e89ce509b0ebf08b",
+    "backend/internal/medicalrecord/vaccine_request.go": "8dd2746fd47ffb01ff7177410fd9bd33baae44ef8cd9d7dd88880fec1d6ffbb3",
+    "backend/internal/medicalrecord/vaccination_request.go": "3a9ed342ee68dc6b7d2ca2ec69fa96641fa05d8e0ae6467b5a5bb8524d32cef8"
+  },
+  "missing_structs": []
+}

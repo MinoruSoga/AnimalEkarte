@@ -29,6 +29,19 @@ export interface MedicalRecordTabsAreaProps {
   isLocked: boolean;
   /** P2-15: 拠点横断で開いたカルテの子リソース操作用。レコード自身の clinicId */
   recordClinicId?: string;
+  /** EMR-356: 履歴取得中（「測定なし」と区別するため別状態として下ろす） */
+  historyLoading?: boolean;
+  /** EMR-356: 履歴取得エラー（部分データがあっても失敗を「記録なし」として隠さない） */
+  historyError?: boolean;
+  /** Guarded pagination stopped before all rows were verified. */
+  historyIncomplete?: boolean;
+  /** Selected chart time; absent means past chronology cannot be established. */
+  recordBoundary?: Date;
+  /**
+   * EMR-356: 選択中カルテの petId。体重パネルは currentRecord.petId ===
+   * selectedPet.id が確認できた時のみ書き込み可とする（切替途中の旧カルテ誤書防止）。
+   */
+  recordPetId?: string;
   onChiefComplaintChange: (value: string) => void;
   onChiefComplaintTypeIdChange: (id: number | null) => void;
   onTreatmentPolicyChange: (value: string) => void;

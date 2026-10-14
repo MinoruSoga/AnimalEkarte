@@ -153,7 +153,7 @@ export function AccountingItemRow({
           {CATEGORY_LABELS[item.category as ItemCategory] ?? "その他"}
         </Badge>
       </TableCell>
-      <TableCell className="font-medium whitespace-nowrap">
+      <TableCell className="font-medium">
         {canEdit && onUpdateItemName !== undefined ? (
           <div className="w-56">
             <Input
@@ -180,12 +180,16 @@ export function AccountingItemRow({
           item.name
         )}
         {item.source === "medical_record" ? (
-          <span className={`ml-2 text-2xs ${C.textBrand} ${C.bgBrand5} px-1.5 py-0.5 rounded`}>
+          <span
+            className={`ml-2 text-2xs ${C.textBrand} ${C.bgBrand5} px-1.5 py-0.5 rounded whitespace-nowrap`}
+          >
             カルテ連携
           </span>
         ) : null}
         {item.source === "trimming" ? (
-          <span className={`ml-2 text-2xs ${C.textBrand} ${C.bgBrand5} px-1.5 py-0.5 rounded`}>
+          <span
+            className={`ml-2 text-2xs ${C.textBrand} ${C.bgBrand5} px-1.5 py-0.5 rounded whitespace-nowrap`}
+          >
             トリミング
           </span>
         ) : null}

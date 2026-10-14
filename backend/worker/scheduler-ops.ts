@@ -1,19 +1,22 @@
 import {
+  listPendingSchedulerIncidents,
+  isDurableSchedulerIncident,
+} from "./scheduler-alert-outbox";
+import {
   cronForManualSlot,
+  type CoordinatorStorage,
   type SchedulerControlCommand,
   type SchedulerControlOperation,
   type SchedulerManualCommand,
   type SchedulerManualOperation,
   type SchedulerOpsRateLimitDecision,
   type SchedulerStatus,
+  type ScheduledRunLedger,
   type ScheduledRunResult,
   scheduledRunRequiresCronFailure,
   summarizeSchedulerOperation,
 } from "./scheduler-coordinator";
-import {
-  SCHEDULER_NAME,
-  type ScheduledJobName,
-} from "./scheduled-jobs";
+import { SCHEDULER_NAME, type ScheduledJobName } from "./scheduled-jobs";
 import {
   SCHEDULER_OPS_PRINCIPAL,
   authenticateSchedulerOpsRequest,
@@ -38,8 +41,7 @@ const MAX_BODY_BYTES = 4 * 1_024;
 const DEFAULT_STATUS_LIMIT = 20;
 const MAX_STATUS_LIMIT = 50;
 const MAX_INTERNAL_PATH_DECODE_PASSES = 16;
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export interface SchedulerOpsBinding {
   consumeScheduledJobsOpsRateLimit(
@@ -59,9 +61,7 @@ export interface SchedulerAlertConfig {
 }
 
 type RequestFetcher = ExternalRequestFetcher;
-type ManualOperationObserver = (
-  operation: SchedulerManualOperation,
-) => Promise<void>;
+type ManualOperationObserver = (operation: SchedulerManualOperation) => Promise<void>;
 
 class SchedulerOpsRequestError extends Error {
   constructor(
@@ -96,10 +96,7 @@ export function isInternalProxyPath(pathname: string): boolean {
       normalizedSegments = [...normalizedSegments, segment];
     }
     const normalized = `/${normalizedSegments.join("/")}`.toLowerCase();
-    if (
-      normalized === "/_internal" ||
-      normalized.startsWith("/_internal/")
-    ) {
+    if (normalized === "/_internal" || normalized.startsWith("/_internal/")) {
       return true;
     }
     if (!decoded.includes("%")) {
@@ -122,22 +119,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function hasExactKeys(
-  record: Record<string, unknown>,
-  expected: readonly string[],
-): boolean {
+function hasExactKeys(record: Record<string, unknown>, expected: readonly string[]): boolean {
   const actual = Object.keys(record).sort();
   const wanted = [...expected].sort();
-  return (
-    actual.length === wanted.length &&
-    actual.every((key, index) => key === wanted[index])
-  );
+  return actual.length === wanted.length && actual.every((key, index) => key === wanted[index]);
 }
 
-function validateRequestIdentity(
-  requestId: unknown,
-  reason: unknown,
-): requestId is string {
+function validateRequestIdentity(requestId: unknown, reason: unknown): requestId is string {
   return (
     typeof requestId === "string" &&
     UUID_PATTERN.test(requestId) &&
@@ -151,16 +139,10 @@ function validateRequestIdentity(
 
 async function readBoundedJSON(request: Request): Promise<unknown> {
   const declaredLength = request.headers.get("Content-Length");
-  if (
-    declaredLength !== null &&
-    !/^\d+$/.test(declaredLength)
-  ) {
+  if (declaredLength !== null && !/^\d+$/.test(declaredLength)) {
     throw new SchedulerOpsRequestError(400, "invalid_request");
   }
-  if (
-    declaredLength !== null &&
-    Number(declaredLength) > MAX_BODY_BYTES
-  ) {
+  if (declaredLength !== null && Number(declaredLength) > MAX_BODY_BYTES) {
     throw new SchedulerOpsRequestError(413, "request_body_too_large");
   }
   if (request.body === null) {
@@ -203,10 +185,8 @@ async function readBoundedJSON(request: Request): Promise<unknown> {
 
 function hasJSONContentType(request: Request): boolean {
   return (
-    (request.headers.get("Content-Type") ?? "")
-      .split(";", 1)[0]
-      ?.trim()
-      .toLowerCase() === "application/json"
+    (request.headers.get("Content-Type") ?? "").split(";", 1)[0]?.trim().toLowerCase() ===
+    "application/json"
   );
 }
 
@@ -231,9 +211,7 @@ function parseStatusLimit(url: URL): number | undefined {
     return undefined;
   }
   const limit = Number(raw);
-  return Number.isSafeInteger(limit) && limit >= 1 && limit <= MAX_STATUS_LIMIT
-    ? limit
-    : undefined;
+  return Number.isSafeInteger(limit) && limit >= 1 && limit <= MAX_STATUS_LIMIT ? limit : undefined;
 }
 
 function parseControlCommand(
@@ -261,10 +239,7 @@ function parseControlCommand(
 
 function isScheduledJobName(value: unknown): value is ScheduledJobName {
   return (
-    value === "no_show" ||
-    value === "delivery" ||
-    value === "dormant" ||
-    value === "plane_sync"
+    value === "no_show" || value === "delivery" || value === "dormant" || value === "plane_sync"
   );
 }
 
@@ -275,13 +250,7 @@ function parseManualCommand(
 ): SchedulerManualCommand | undefined {
   if (
     !isRecord(value) ||
-    !hasExactKeys(value, [
-      "job",
-      "scheduled_time_ms",
-      "mode",
-      "request_id",
-      "reason",
-    ]) ||
+    !hasExactKeys(value, ["job", "scheduled_time_ms", "mode", "request_id", "reason"]) ||
     !isScheduledJobName(value.job) ||
     value.mode !== "catch_up" ||
     !Number.isSafeInteger(value.scheduled_time_ms) ||
@@ -330,10 +299,7 @@ export async function handleSchedulerOpsRequest(
     );
     if (!rateLimit.allowed) {
       const response = jsonResponse(429, { error: "rate_limited" });
-      response.headers.set(
-        "Retry-After",
-        rateLimit.retryAfterSeconds.toString(),
-      );
+      response.headers.set("Retry-After", rateLimit.retryAfterSeconds.toString());
       return response;
     }
     if (url.pathname === `${SCHEDULER_OPS_PREFIX}/status`) {
@@ -351,35 +317,23 @@ export async function handleSchedulerOpsRequest(
       url.pathname === `${SCHEDULER_OPS_PREFIX}/control` ||
       url.pathname === `${SCHEDULER_OPS_PREFIX}/runs`
     ) {
-      const expectedMethod =
-        url.pathname === `${SCHEDULER_OPS_PREFIX}/control` ? "PUT" : "POST";
+      const expectedMethod = url.pathname === `${SCHEDULER_OPS_PREFIX}/control` ? "PUT" : "POST";
       if (request.method !== expectedMethod) {
-        return jsonResponse(
-          405,
-          { error: "method_not_allowed" },
-          expectedMethod,
-        );
+        return jsonResponse(405, { error: "method_not_allowed" }, expectedMethod);
       }
       if (!hasJSONContentType(request)) {
         return jsonResponse(415, { error: "unsupported_media_type" });
       }
       const body = await readBoundedJSON(request);
       if (expectedMethod === "PUT") {
-        const command = parseControlCommand(
-          body,
-          authenticated.actorPrincipal,
-        );
+        const command = parseControlCommand(body, authenticated.actorPrincipal);
         if (command === undefined) {
           return jsonResponse(400, { error: "invalid_request" });
         }
         const operation = await binding.setScheduledJobsControl(command);
         return jsonResponse(operation.status === "rejected" ? 409 : 200, operation);
       }
-      const command = parseManualCommand(
-        body,
-        now,
-        authenticated.actorPrincipal,
-      );
+      const command = parseManualCommand(body, now, authenticated.actorPrincipal);
       if (command === undefined) {
         return jsonResponse(400, { error: "invalid_request" });
       }
@@ -390,8 +344,7 @@ export async function handleSchedulerOpsRequest(
           ? 409
           : operation.status === "pending"
             ? 202
-            : operation.result !== undefined &&
-                scheduledRunRequiresCronFailure(operation.result)
+            : operation.result !== undefined && scheduledRunRequiresCronFailure(operation.result)
               ? 502
               : 200;
       return jsonResponse(status, summarizeSchedulerOperation(operation));
@@ -401,8 +354,7 @@ export async function handleSchedulerOpsRequest(
     if (error instanceof SchedulerOpsRequestError) {
       return jsonResponse(error.status, { error: error.code });
     }
-    const conflict =
-      error instanceof Error && error.message === "request_id_conflict";
+    const conflict = error instanceof Error && error.message === "request_id_conflict";
     console.error("scheduler ops request failed", {
       event: "scheduler_ops_request_failed",
       path: url.pathname,
@@ -414,29 +366,17 @@ export async function handleSchedulerOpsRequest(
   }
 }
 
-function failureAlert(
-  result: ScheduledRunResult,
-  environment: string,
-): {
+interface SchedulerFailureAlert {
   key: string;
   payload: Record<string, unknown>;
-} | undefined {
-  const ledger = result.ledger;
-  if (ledger === undefined) {
-    return undefined;
-  }
-  const isFailure =
-    ledger.status === "partial" ||
-    ledger.status === "failed" ||
-    result.disposition === "busy" ||
-    result.disposition === "stale" ||
-    result.disposition === "fenced";
-  if (!isFailure) {
-    return undefined;
-  }
-  const failureCode = ledger.failureCode ?? (
-    ledger.status === "partial" ? "job_partial" : "job_failed"
-  );
+}
+
+function ledgerFailureAlert(
+  ledger: ScheduledRunLedger,
+  environment: string,
+): SchedulerFailureAlert {
+  const failureCode =
+    ledger.failureCode ?? (ledger.status === "partial" ? "job_partial" : "job_failed");
   const key = `${environment}:${ledger.runId}:${failureCode}`;
   return {
     key,
@@ -462,12 +402,48 @@ function failureAlert(
   };
 }
 
+function failureAlert(
+  result: ScheduledRunResult,
+  environment: string,
+): SchedulerFailureAlert | undefined {
+  const ledger = result.ledger;
+  if (ledger === undefined) {
+    return undefined;
+  }
+  // A busy code is only ever written by the single-flight overlap path; treat
+  // it as an intentional skip even when replayed from a pre-skip failed ledger.
+  if (ledger.failureCode === "busy") {
+    return undefined;
+  }
+  const isFailure =
+    ledger.status === "partial" ||
+    ledger.status === "failed" ||
+    result.disposition === "stale" ||
+    result.disposition === "fenced" ||
+    (result.disposition === "busy" &&
+      ledger.status === "skipped" &&
+      ledger.failureCode === "stuck_lease");
+  if (!isFailure) {
+    return undefined;
+  }
+  return ledgerFailureAlert(ledger, environment);
+}
+
+// The reclaiming run carries the previously active run's expired-lease ledger
+// so the stuck run alerts once under its own run_id, not the replacement's.
+function expiredLeaseAlert(
+  result: ScheduledRunResult,
+  environment: string,
+): SchedulerFailureAlert | undefined {
+  const ledger = result.expiredLedger;
+  if (ledger === undefined || ledger.status !== "failed") {
+    return undefined;
+  }
+  return ledgerFailureAlert(ledger, environment);
+}
+
 function alertEndpoint(config: SchedulerAlertConfig): URL | undefined {
-  if (
-    !config.webhookURL ||
-    !config.webhookSecret ||
-    !config.allowedHost
-  ) {
+  if (!config.webhookURL || !config.webhookSecret || !config.allowedHost) {
     return undefined;
   }
   try {
@@ -494,11 +470,37 @@ export async function notifySchedulerFailures(
   results: readonly ScheduledRunResult[],
   config: SchedulerAlertConfig,
   send: RequestFetcher = fetch,
+  storage?: CoordinatorStorage,
 ): Promise<void> {
   const environment = config.environment.trim().toLowerCase();
-  const alerts = results
-    .map((result) => failureAlert(result, environment))
-    .filter((alert) => alert !== undefined);
+  const pending =
+    storage === undefined
+      ? new Map<string, ScheduledRunLedger>()
+      : await listPendingSchedulerIncidents(storage);
+  const transient =
+    storage === undefined
+      ? results
+      : results.map((result) => ({
+          ...result,
+          ...(result.ledger !== undefined && isDurableSchedulerIncident(result.ledger)
+            ? { ledger: undefined }
+            : {}),
+          expiredLedger: undefined,
+        }));
+  const durable = [...pending.entries()].map(([key, ledger]) => ({
+    pendingKey: key,
+    alert: ledgerFailureAlert(ledger, environment),
+  }));
+  const pendingKeys = new Map(durable.map(({ pendingKey, alert }) => [alert.key, pendingKey]));
+  const alerts = [
+    ...durable.map(({ alert }) => alert),
+    ...transient
+      .flatMap((result) => [
+        expiredLeaseAlert(result, environment),
+        failureAlert(result, environment),
+      ])
+      .filter((alert) => alert !== undefined),
+  ];
   if (alerts.length === 0) {
     return;
   }
@@ -512,10 +514,9 @@ export async function notifySchedulerFailures(
     });
   }
 
-  const endpoint =
-    /^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?$/.test(environment)
-      ? alertEndpoint(config)
-      : undefined;
+  const endpoint = /^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?$/.test(environment)
+    ? alertEndpoint(config)
+    : undefined;
   let deliveryFailed = false;
   for (const alert of alerts) {
     if (endpoint === undefined) {
@@ -563,12 +564,26 @@ export async function notifySchedulerFailures(
         event: "scheduler_alert_delivery_failed",
         alert_key: alert.key,
         environment,
-        failure_code: redirectResponse
-          ? "alert_delivery_redirect"
-          : "alert_delivery_http_status",
+        failure_code: redirectResponse ? "alert_delivery_redirect" : "alert_delivery_http_status",
         status: response.status,
       });
       deliveryFailed = true;
+      continue;
+    }
+    const pendingKey = pendingKeys.get(alert.key);
+    if (storage !== undefined && pendingKey !== undefined) {
+      // A crash after remote acceptance but before this ack retries the same key.
+      try {
+        await storage.delete(pendingKey);
+      } catch {
+        console.error("scheduler alert acknowledgement failed", {
+          event: "scheduler_alert_ack_failed",
+          alert_key: alert.key,
+          environment,
+          failure_code: "alert_ack_failed",
+        });
+        deliveryFailed = true;
+      }
     }
   }
   if (deliveryFailed) {

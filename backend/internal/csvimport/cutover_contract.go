@@ -20,6 +20,12 @@ const (
 )
 
 var placeholderPattern = regexp.MustCompile(`\{\{[A-Z0-9_]+\}\}`)
+
+// cutoverNumericLiteral matches the plain decimal spellings a CSV cell may
+// hand to a numeric column (sign, digits, at most one decimal point). It
+// rejects non-finite values, hex floats, fractions, and exponents rather than
+// adopting a global decimal shape.
+var cutoverNumericLiteral = regexp.MustCompile(`^[+-]?(\d+(\.\d*)?|\.\d+)$`)
 var clinicCodePattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$`)
 var runIDPattern = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,62}[A-Za-z0-9])?$`)
 var stageBuildIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
@@ -87,8 +93,9 @@ type CutoverTargetBinding struct {
 }
 
 type CutoverProvenanceContract struct {
-	Mode   CutoverProvenanceMode
-	Target CutoverTargetBinding
+	Profile CutoverProfile
+	Mode    CutoverProvenanceMode
+	Target  CutoverTargetBinding
 }
 
 type ExpectedCutoverSource struct {
@@ -150,6 +157,8 @@ type CutoverEvidenceDigests struct {
 }
 
 type CutoverManifest struct {
+	// profile is bound by the operator contract, never decoded from producer JSON.
+	profile                      CutoverProfile
 	GeneratedAt                  string                     `json:"generatedAt"`
 	Status                       string                     `json:"status"`
 	SourceLayer                  string                     `json:"sourceLayer"`
@@ -209,11 +218,12 @@ type CutoverBundle struct {
 
 // CutoverPlaceholderColumns is a copy of the exact producer-side placeholder
 // inventory. Returning a fresh map prevents callers from changing the contract.
-func CutoverPlaceholderColumns() map[string]string {
-	return map[string]string{
+func CutoverPlaceholderColumns(profiles ...CutoverProfile) map[string]string {
+	columns := map[string]string{
 		"staffs.clinic_id":            "{{CLINIC_ID}}",
 		"procedures.clinic_id":        "{{CLINIC_ID}}",
 		"merchandise_items.clinic_id": "{{CLINIC_ID}}",
+		"medicines.clinic_id":         "{{CLINIC_ID}}",
 		"owners.clinic_id":            "{{CLINIC_ID}}",
 		"pets.clinic_id":              "{{CLINIC_ID}}",
 		"pets.animal_species_id (fallback only, when unresolved)": "{{FALLBACK_ANIMAL_SPECIES_ID}}",
@@ -236,13 +246,45 @@ func CutoverPlaceholderColumns() map[string]string {
 		"vaccines.clinic_id":                                      "{{CLINIC_ID}}",
 		"vaccinations.clinic_id":                                  "{{CLINIC_ID}}",
 	}
+	if !validCutoverProfileSelection(profiles) {
+		return nil
+	}
+	if selectedCutoverProfile(profiles) != CutoverProfileMedicinesCandidate {
+		delete(columns, "medicines.clinic_id")
+	}
+	return columns
+}
+
+// cutoverMasterPriceColumn names the single price column on each of the four
+// master tables whose source values must be a non-negative integer. An empty
+// cell stays NULL. billing_items and estimate_items are deliberately absent:
+// historical refunds and discounts legitimately carry negative amounts.
+func cutoverMasterPriceColumn(table string) (string, bool) {
+	switch table {
+	case "procedures", "medicines", "vaccines":
+		return "price", true
+	case "merchandise_items":
+		return "unit_price", true
+	default:
+		return "", false
+	}
+}
+
+// cutoverUniqueNameColumns names tables whose source name column must be
+// unique inside the clinic bundle, matching the target unique index
+// (e.g. idx_medicines_clinic_name on medicines(clinic_id, name)).
+func cutoverUniqueNameColumns() map[string]string {
+	return map[string]string{
+		"medicines": "name",
+	}
 }
 
 // CutoverTableSpecs returns the immutable, parent-before-child F6 CSV contract.
-func CutoverTableSpecs() []CutoverTableSpec {
+func CutoverTableSpecs(profiles ...CutoverProfile) []CutoverTableSpec {
 	specs := []CutoverTableSpec{
 		{"staffs", []string{"id", "clinic_id", "name", "license_number", "is_active", "reservation_visible"}, []string{"id"}, []string{"name", "license_number"}},
 		{"procedures", []string{"id", "clinic_id", "name", "price", "is_active", "description", "duration", "anesthesia", "parent_id", "tax_type", "tax_rate", "sort_order", "is_surgery"}, []string{"id", "parent_id"}, []string{"name", "description"}},
+		{"medicines", []string{"id", "clinic_id", "name", "price", "is_active", "description", "parent_id", "dosage_form", "medicine_unit", "inventory_id", "default_quantity", "tax_type", "tax_rate", "sort_order", "is_non_insurance"}, []string{"id", "parent_id"}, []string{"name", "description"}},
 		{"merchandise_items", []string{"id", "clinic_id", "name", "category", "unit_price", "tax_type", "tax_rate", "is_active", "sort_order"}, []string{"id"}, []string{"name"}},
 		{"owners", []string{"id", "clinic_id", "name", "name_kana", "birth_date", "company", "postal_code", "address1", "address2", "home_postal_code", "home_address1", "home_address2", "phone", "company_phone", "email", "remarks", "is_dangerous", "discount_rate", "membership_type", "dm_preference"}, []string{"id"}, []string{"name", "name_kana", "company", "postal_code", "address1", "address2", "home_postal_code", "home_address1", "home_address2", "phone", "company_phone", "email", "remarks"}},
 		{"pets", []string{"id", "clinic_id", "owner_id", "pet_number", "name", "name_kana", "animal_species_id", "gender", "status", "birth_date", "breed", "color", "weight", "neutered_date", "food", "remarks", "deceased_at"}, []string{"id", "owner_id"}, []string{"pet_number", "name", "name_kana", "breed", "color", "food", "remarks"}},
@@ -262,6 +304,18 @@ func CutoverTableSpecs() []CutoverTableSpec {
 		{"exam_results", []string{"id", "exam_id", "name", "inspection_value", "normal_value", "sort_order"}, []string{"id", "exam_id"}, []string{"name", "inspection_value", "normal_value"}},
 		{"vaccines", []string{"id", "clinic_id", "name", "price", "is_active", "description", "species", "interval", "inventory_id", "parent_id", "sort_order"}, []string{"id"}, []string{"name", "description", "interval"}},
 		{"vaccinations", []string{"id", "clinic_id", "medical_record_id", "pet_id", "vaccine_id", "date", "next_date", "next_schedule_type", "doctor_id", "supplemental", "lot1", "lot2", "lot3", "lot4", "remarks"}, []string{"id", "medical_record_id", "pet_id", "vaccine_id", "doctor_id"}, []string{"supplemental", "lot1", "lot2", "lot3", "lot4", "remarks"}},
+	}
+	if selectedCutoverProfile(profiles) != CutoverProfileMedicinesCandidate {
+		legacy := make([]CutoverTableSpec, 0, 21)
+		for _, spec := range specs {
+			if spec.Name != "medicines" {
+				legacy = append(legacy, spec)
+			}
+		}
+		specs = legacy
+	}
+	if !validCutoverProfileSelection(profiles) {
+		return nil
 	}
 	return cloneCutoverSpecs(specs)
 }
@@ -307,11 +361,11 @@ type CutoverMappingEntry struct {
 	ConsumerStatus string
 }
 
-// CutoverMappingCoverage returns the immutable 21-table mapping inventory used
-// by Issue #250 acceptance (source CSV → target table, isolation mode).
+// CutoverMappingCoverage returns the immutable mapping inventory used by
+// Issue #250 acceptance (source CSV → target table, isolation mode).
 // Personal business owners remain a USER ops assignment outside this package.
-func CutoverMappingCoverage() []CutoverMappingEntry {
-	specs := CutoverTableSpecs()
+func CutoverMappingCoverage(profiles ...CutoverProfile) []CutoverMappingEntry {
+	specs := CutoverTableSpecs(profiles...)
 	coverage := make([]CutoverMappingEntry, 0, len(specs))
 	for _, spec := range specs {
 		hasClinicID := hasColumn(spec.Columns, "clinic_id")
@@ -326,7 +380,7 @@ func CutoverMappingCoverage() []CutoverMappingEntry {
 			BandColumns:    append([]string(nil), spec.BandColumns...),
 			HasClinicID:    hasClinicID,
 			IsolationCheck: isolation,
-			ConsumerStatus: "formal_cutover_v1",
+			ConsumerStatus: cutoverProfileStatus(selectedCutoverProfile(profiles)),
 		})
 	}
 	return coverage

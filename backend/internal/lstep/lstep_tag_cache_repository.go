@@ -317,8 +317,8 @@ func (r *lstepTagCacheRepository) WithNextVisitOwnerLock(ctx context.Context, cl
 
 // WithDeliveryOwnerLock starts an independent sync transaction holding the
 // canonical delivery lock order — owner advisory, owner row UPDATE, recipient
-// advisory, lstep_settings row SHARE — across fn (fresh re-validation through
-// provider return). Owner/LINE mutations and settings OFF writes serialize
+// advisory, settings SHARE, pets SHARE NOWAIT — across fn (re-validation through
+// provider return). Pet/owner/LINE mutations and settings OFF writes serialize
 // against the provider call. Ambient transactions are cleared so the boundary
 // owns exactly one connection, including with MaxOpenConns=1.
 func (r *lstepTagCacheRepository) WithDeliveryOwnerLock(ctx context.Context, clinicID, ownerID uint64, fn func(context.Context) error) error {
@@ -349,6 +349,15 @@ func (r *lstepTagCacheRepository) WithDeliveryOwnerLock(ctx context.Context, cli
 		if err := tx.Raw("SELECT id FROM lstep_settings WHERE clinic_id = ? FOR SHARE", clinicID).
 			Scan(&lockedSettingsID).Error; err != nil {
 			return apperrors.Wrap(err, "failed to lock lstep settings")
+		}
+		var lockedPets []model.Pet
+		if err := tx.Model(&model.Pet{}).
+			Select("id").
+			Where("clinic_id = ? AND owner_id = ?", clinicID, ownerID).
+			Order("id ASC").
+			Clauses(clause.Locking{Strength: "SHARE", Options: "NOWAIT"}).
+			Find(&lockedPets).Error; err != nil {
+			return apperrors.Wrap(err, "failed to lock delivery pet state")
 		}
 		return fn(persistence.WithTxValue(ctx, tx))
 	})

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
 import type { AggregationCPMStage } from "@/lib/cpm-stage";
@@ -78,12 +78,45 @@ export interface AggregationResponse {
   total: number;
   page: number;
   per_page: number;
+  // EMR-334: cpm_stage 絞り込み・ページネーション前の母集団の CPM 区分人数。
+  // 全 7 区分 (cpm_unclassified 含む) のキーを BE が必ず返す。
+  cpm_stage_counts: Record<AggregationCPMStage, number>;
+}
+
+// EMR-334: BE 集計クエリの deadline 超過 (503 + code=aggregation_timeout) だけを
+// 専用エラーとして扱う。axios timeout (ECONNABORTED) や通常の 4xx/5xx は含めない。
+const AGGREGATION_TIMEOUT_CODE = "aggregation_timeout";
+
+function isAggregationTimeoutError(error: unknown): boolean {
+  const response = (
+    error as { response?: { status?: number; data?: { code?: string } } } | null | undefined
+  )?.response;
+  return response?.status === 503 && response.data?.code === AGGREGATION_TIMEOUT_CODE;
+}
+
+// EMR-334: タイムアウト以外のエラーでは QueryClient の有効な既定 retry をそのまま
+// 尊重する。query-core retryer の shouldRetry と同じ評価
+// (true / failureCount < retry / function / 未設定時はブラウザ既定の 3)。
+function defaultShouldRetry(
+  queryClient: QueryClient,
+  failureCount: number,
+  error: unknown,
+): boolean {
+  const configured = queryClient.getDefaultOptions().queries?.retry;
+  if (configured === true) return true;
+  if (configured === false) return false;
+  if (typeof configured === "function") {
+    return configured(failureCount, error as Error);
+  }
+  return failureCount < (configured ?? 3);
 }
 
 // GET /api/clinics/:clinic_id/owners/aggregations
 export function useGetOwnerAggregations(params: AggregationParams) {
+  const queryClient = useQueryClient();
+  const queryKey = queryKeys.ownerAggregations.list(params);
   return useQuery({
-    queryKey: queryKeys.ownerAggregations.list(params),
+    queryKey,
     queryFn: async () => {
       const clinicId = requireStoredClinicId();
       // BUG-012: client timeout so dashboard leaves infinite loading on BE hang.
@@ -94,5 +127,19 @@ export function useGetOwnerAggregations(params: AggregationParams) {
       return data;
     },
     staleTime: QUERY_STALE_TIMES.MEDIUM,
+    // EMR-334: 集計タイムアウト (503 + aggregation_timeout) のみ自動リトライを止め、
+    // 画面内の専用メッセージに委ねる。その他のエラーは QueryClient 既定の
+    // リトライに従う (本番 retry:1 / テスト既定 retry:false / 未設定は 3)。
+    retry: (failureCount, error) =>
+      !isAggregationTimeoutError(error) && defaultShouldRetry(queryClient, failureCount, error),
+    // EMR-334: QueryCache の共通エラーハンドラ (lib/react-query.ts) は
+    // dispatch(error) で state が更新された後に silentError を読むため、
+    // getter で「現在の」エラーを分類する。タイムアウトのみ true になり、
+    // その他のエラーや直前エラーの名残で通知を抑止することはない。
+    meta: {
+      get silentError() {
+        return isAggregationTimeoutError(queryClient.getQueryState(queryKey)?.error);
+      },
+    },
   });
 }

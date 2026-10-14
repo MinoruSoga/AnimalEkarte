@@ -68,6 +68,12 @@ export interface PatientContextHeaderProps {
   };
   onOwnerClick?: () => void;
   contextControls?: ReactNode;
+  /**
+   * EMR-380: 横スクロールする contextControls 領域に置くと狭幅時に右端で見切れる
+   * コントロール（担当医など）を、スクロール領域の外・行末に固定表示する opt-in。
+   * 未指定時の既存表示契約は変わらない。
+   */
+  pinnedControls?: ReactNode;
   /** EMR-174: 飼主詳細へのリンク（onOwnerClick 併存時はボタン優先） */
   ownerDetailHref?: string;
   /** EMR-174: ペット詳細への deep link（飼主詳細 ?pet=） */
@@ -100,6 +106,7 @@ export function PatientContextHeader({
   vitalsSummary,
   onOwnerClick,
   contextControls,
+  pinnedControls,
   ownerDetailHref,
   petDetailHref,
 }: PatientContextHeaderProps) {
@@ -313,6 +320,11 @@ export function PatientContextHeader({
             {contextControls}
           </div>
         </>
+      ) : null}
+
+      {/* EMR-380: 横スクロール領域の外に固定し、右端での見切れを防ぐコントロール */}
+      {pinnedControls ? (
+        <div className="flex items-center gap-2 shrink-0 pb-1">{pinnedControls}</div>
       ) : null}
     </div>
   );

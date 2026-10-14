@@ -164,6 +164,7 @@ s10() {
 s11() {
   begin_step "STG UAT old_db handoff wrapper"
   bash scripts/old-db/stg-uat-old-db-handoff.test.sh
+  ci_py -B scripts/old-db/stg-uat-profile.test.py
 }
 
 s12() {

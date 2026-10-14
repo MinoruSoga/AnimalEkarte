@@ -152,16 +152,16 @@ function PetHealthPageContent({
                     ワクチン記録
                   </p>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="w-full min-w-[18rem] text-sm">
                       <thead>
                         <tr className="border-b border-noah-border-light">
-                          <th className="text-left py-2 text-noah-text-muted font-medium">
+                          <th className="text-left py-2 pr-3 text-noah-text-muted font-medium whitespace-nowrap">
                             ワクチン名
                           </th>
-                          <th className="text-left py-2 text-noah-text-muted font-medium">
+                          <th className="text-left py-2 pr-3 text-noah-text-muted font-medium whitespace-nowrap">
                             接種日
                           </th>
-                          <th className="text-left py-2 text-noah-text-muted font-medium">
+                          <th className="text-left py-2 text-noah-text-muted font-medium whitespace-nowrap">
                             次回予定日
                           </th>
                         </tr>
@@ -169,9 +169,11 @@ function PetHealthPageContent({
                       <tbody>
                         {pet.vaccines.map((v, i) => (
                           <tr key={i} className="border-b border-noah-border-faint last:border-0">
-                            <td className="py-2 text-noah-text-strong">{v.vaccine_name}</td>
-                            <td className="py-2 text-noah-text-secondary">{v.vaccinated_at}</td>
-                            <td className="py-2 text-liff-brand-dark">
+                            <td className="py-2 pr-3 text-noah-text-strong">{v.vaccine_name}</td>
+                            <td className="py-2 pr-3 text-noah-text-secondary whitespace-nowrap">
+                              {v.vaccinated_at}
+                            </td>
+                            <td className="py-2 text-liff-brand-dark whitespace-nowrap">
                               {v.next_due_at ? v.next_due_at : "—"}
                             </td>
                           </tr>

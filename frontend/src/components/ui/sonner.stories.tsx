@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Toaster } from "./sonner";
 import { Button } from "./button";
 
-/** アプリルートの Toaster — top-left / offset 72 / closeButton 付き。 */
+/** アプリルートの Toaster — top-right（offset 72 でヘッダ下）/ closeButton 付き。EMR-381 で左上から変更。 */
 const meta = {
   title: "UI/Toaster",
   component: Toaster,

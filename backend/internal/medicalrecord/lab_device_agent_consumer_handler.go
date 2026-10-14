@@ -15,6 +15,11 @@ import (
 
 const labDeviceAgentConsumerTokenEnv = "LAB_DEVICE_AGENT_CONSUMER_TOKEN"
 
+// labDeviceAgentConsumerUnconfiguredCode は秘密未設定の 503 にのみ付く
+// 機械可読 code。FE は status+code の一致でのみ「未設定」表示へ変換し、
+// Worker/Container 起因の code なし 503 とは区別する（PR647-F1）。
+const labDeviceAgentConsumerUnconfiguredCode = "lab_device_agent_consumer_unconfigured"
+
 // labDeviceAgentConsumerResponse mirrors the OpenAPI LabDeviceAgentConsumer
 // schema (enforced by TestLabDeviceOpenAPIResponseParity).
 type labDeviceAgentConsumerResponse struct {
@@ -38,7 +43,10 @@ func (h *LabImportHandler) GetLabDeviceAgentConsumer(c *gin.Context) {
 	}
 	secret := os.Getenv(labDeviceAgentConsumerTokenEnv)
 	if secret == "" {
-		c.AbortWithStatus(http.StatusServiceUnavailable)
+		c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{
+			"error": "lab device agent consumer is not configured",
+			"code":  labDeviceAgentConsumerUnconfiguredCode,
+		})
 		return
 	}
 	capability, err := labdevicecap.Issue(secret, strconv.FormatUint(clinicID, 10), time.Now())

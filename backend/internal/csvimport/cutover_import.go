@@ -118,11 +118,14 @@ type cutoverCompositeForeignKeySpec struct {
 	parentColumns []string
 }
 
-func cutoverRequiredForeignKeys() []cutoverForeignKeySpec {
-	return []cutoverForeignKeySpec{
+func cutoverRequiredForeignKeys(profiles ...CutoverProfile) []cutoverForeignKeySpec {
+	foreignKeys := []cutoverForeignKeySpec{
 		{"staffs", "clinic_id", "clinics", "id"},
 		{"procedures", "clinic_id", "clinics", "id"},
 		{"procedures", "parent_id", "procedures", "id"},
+		{"medicines", "clinic_id", "clinics", "id"},
+		{"medicines", "parent_id", "medicines", "id"},
+		{"medicines", "inventory_id", "inventory_items", "id"},
 		{"merchandise_items", "clinic_id", "clinics", "id"},
 		{"owners", "clinic_id", "clinics", "id"},
 		{"pets", "clinic_id", "clinics", "id"},
@@ -193,6 +196,19 @@ func cutoverRequiredForeignKeys() []cutoverForeignKeySpec {
 		{"vaccinations", "vaccine_id", "vaccines", "id"},
 		{"vaccinations", "doctor_id", "staffs", "id"},
 	}
+	if !validCutoverProfileSelection(profiles) {
+		return nil
+	}
+	if selectedCutoverProfile(profiles) != CutoverProfileMedicinesCandidate {
+		legacy := make([]cutoverForeignKeySpec, 0, len(foreignKeys))
+		for _, fk := range foreignKeys {
+			if fk.childTable != "medicines" {
+				legacy = append(legacy, fk)
+			}
+		}
+		return legacy
+	}
+	return foreignKeys
 }
 
 // cutoverRequiredCompositeForeignKeys lists multi-column clinic-axis FKs that

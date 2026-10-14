@@ -90,12 +90,12 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
 
       {/* Exam Groups */}
       {isLoading ? (
-        <div className={`flex items-center justify-center h-24 text-sm ${C.text40} pl-1`}>
+        <div className={`flex items-center justify-center h-24 text-sm ${C.text60} pl-1`}>
           読み込み中...
         </div>
       ) : examGroups.length === 0 ? (
         <div
-          className={`flex flex-col items-center justify-center gap-3 h-24 text-sm ${C.text40} pl-1`}
+          className={`flex flex-col items-center justify-center gap-3 h-24 text-sm ${C.text60} pl-1`}
         >
           <p>
             {isNewRecord

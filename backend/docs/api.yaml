@@ -1925,7 +1925,7 @@ components:
           readOnly: true
     MedicalRecord:
       type: object
-      required: [date, record_no]
+      required: [date, record_no, weight_measurements]
       properties:
         id:
           type: integer
@@ -2011,6 +2011,12 @@ components:
             (updateMedicalRecordRequest.Version)。レスポンス側では返却されない
             (medicalRecordResponse に Version フィールドは存在しない) — この schema は
             request/response 兼用のため残置。BE-refactor.md Phase D-2 で確認済み。
+        weight_measurements:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeightMeasurementResponse'
+          readOnly: true
+          description: EMR-356 このカルテに相関する体重測定の表示投影（正本は vital_records）。常に出力される。[]=測定記録なし、キー欠落=旧 API（投影未提供）。
     # ─── MedicalRecord.inquiry の軽量サマリー(Phase D-2) ────────────────
     MedicalRecordInquirySummary:
       type: object
@@ -2027,6 +2033,31 @@ components:
         notes:
           type: string
           description: 問診タブ「治療方針」(inquiry.notes)
+    WeightMeasurementResponse:
+      type: object
+      required: [id, value, unit, recorded_at]
+      description: vital_records の体重測定の表示投影（患者本体の属性や他バイタルは含めない）。
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        value:
+          type: number
+          format: double
+          readOnly: true
+        unit:
+          type: string
+          enum:
+            - Kg
+            - g
+          readOnly: true
+          description: 体重単位（model.BodyWeightUnit の Kg/g）
+        recorded_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: 測定日時（vital_records.recorded_at）
     Hospitalization:
       type: object
       required: [owner_id, pet_id, hospitalization_type, start_date, end_date]
@@ -9742,6 +9773,7 @@ components:
           type: string
     OwnerAggregationList:
       type: object
+      required: [cpm_stage_counts]
       properties:
         total:
           type: integer
@@ -9753,6 +9785,30 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/OwnerAggregation'
+        cpm_stage_counts:
+          type: object
+          description: >-
+            CPM 区分別人数 (EMR-334)。cpm_stage 絞り込み・ページネーション前の
+            母集団全体を対象に、全7区分
+            (cpm_encounter/cpm_growing/cpm_core/cpm_spot/cpm_noah/cpm_dormant/cpm_unclassified)
+            のキーを必ず返す。
+          additionalProperties: false
+          required: [cpm_encounter, cpm_growing, cpm_core, cpm_spot, cpm_noah, cpm_dormant, cpm_unclassified]
+          properties:
+            cpm_encounter:
+              type: integer
+            cpm_growing:
+              type: integer
+            cpm_core:
+              type: integer
+            cpm_spot:
+              type: integer
+            cpm_noah:
+              type: integer
+            cpm_dormant:
+              type: integer
+            cpm_unclassified:
+              type: integer
     # ─── ReservationStaff (TASK-RES-012/013 LINE予約スタッフ・スケジュール管理) ─
     ExcludedCourse:
       type: object
@@ -11300,6 +11356,22 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
+        '503':
+          description: >-
+            集計クエリ自身の deadline (20 秒) が失効した場合 (EMR-334)。
+            body の code は aggregation_timeout。依存先の期限切れや
+            クライアント切断は対象外。
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, code]
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                    enum: [aggregation_timeout]
   /clinics/{clinic_id}/owners/{id}/lstep/friend-attributes:
     get:
       operationId: getLstepOwnerFriendAttributes
@@ -24809,7 +24881,7 @@ paths:
     get:
       operationId: getLabDeviceAgentConsumer
       summary: 検査機器エージェントの consumer capability
-      description: ResourceLabImport create. Returns a short-lived signed capability bound to the selected clinic — the shared secret LAB_DEVICE_AGENT_CONSUMER_TOKEN itself is never returned. Empty config is 503.
+      description: ResourceLabImport create. Returns a short-lived signed capability bound to the selected clinic — the shared secret LAB_DEVICE_AGENT_CONSUMER_TOKEN itself is never returned. Empty config is 503 with code lab_device_agent_consumer_unconfigured.
       tags: [LabImports]
       responses:
         '200':
@@ -24825,7 +24897,19 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
         '503':
-          description: LAB_DEVICE_AGENT_CONSUMER_TOKEN is unset
+          description: LAB_DEVICE_AGENT_CONSUMER_TOKEN is unset — code lab_device_agent_consumer_unconfigured distinguishes this from unrelated 503s (PR647-F1)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, code]
+                properties:
+                  error:
+                    type: string
+                    example: lab device agent consumer is not configured
+                  code:
+                    type: string
+                    enum: [lab_device_agent_consumer_unconfigured]
   /lab-device/board:
     get:
       operationId: getLabDeviceBoard

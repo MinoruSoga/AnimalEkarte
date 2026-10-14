@@ -193,9 +193,9 @@ export const PatientInfoCard = memo(function PatientInfoCard({
         </div>
 
         {/* Service / Insurance / Next Visit — wrap at narrow widths; no rigid min-width cards (BUG-458) */}
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+        <div className="flex min-w-0 flex-1 basis-full sm:basis-0 flex-wrap items-center gap-3">
           {/* Service Type */}
-          <div className="flex min-w-0 flex-col gap-0">
+          <div className="flex min-w-0 shrink-0 flex-col gap-0 whitespace-nowrap">
             <span className={`text-sm ${C.text60}`}>{reservationTypeLabel}</span>
             {onReservationTypeClick ? (
               <button
@@ -240,7 +240,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
         </div>
 
         {/* Staff & Actions */}
-        <div className="flex items-center gap-2 shrink-0 sm:ml-auto">
+        <div className="flex w-full items-center justify-end gap-2 shrink-0 sm:w-auto sm:ml-auto">
           {onVitalClick ? (
             <Button
               type="button"
