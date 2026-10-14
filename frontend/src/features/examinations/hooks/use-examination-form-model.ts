@@ -85,10 +85,14 @@ export function mapExamResultsToFormRows(existingItems: readonly ExamResult[]): 
 export function createBlankExaminationForm(
   doctorId: string | null,
   localOverrides: Partial<ExaminationRecord>,
+  // PR665: 既定日はフォームを開いた時点で 1 度だけ確定させる。
+  // 呼び出し側の state スナップショットを渡し、JST 日付変更後の再描画で
+  // 未編集の検査日が翌日に動くのを防ぐ。明示的な上書きは localOverrides が優先。
+  defaultDate: string = todayJSTISO(),
 ): Partial<ExaminationRecord> {
   return {
     status: "依頼中" as const,
-    date: todayJSTISO(),
+    date: defaultDate,
     ownerName: "",
     petName: "",
     ...(doctorId && { doctorId }),

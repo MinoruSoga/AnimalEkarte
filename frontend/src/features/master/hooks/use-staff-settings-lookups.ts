@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { usePermission } from "@/hooks/use-permission";
+import { RESOURCE_MASTER_PERMISSION } from "../constants/permission-resources";
 
 import { useGetStaffs, useGetClinicsList, useGetAllStaffPermissionGroupMap } from "../api/staffs";
 import { useGetPermissionGroups } from "../api/permission-groups";
@@ -15,7 +16,7 @@ export function useStaffSettingsLookups() {
   const { data } = useGetStaffs();
   const { data: allOccupationsData } = useGetAllOccupations();
   const allOccupations = useMemo(() => allOccupationsData ?? [], [allOccupationsData]);
-  const { canView } = usePermission("master-permission");
+  const { canView } = usePermission(RESOURCE_MASTER_PERMISSION);
   const canViewGroups = canView === true;
   const { data: allGroupsData } = useGetPermissionGroups(canViewGroups);
   const allGroups = useMemo(

@@ -480,11 +480,11 @@ export const ItemListCard = memo(function ItemListCard({
               <TableHead className="text-right w-[90px] whitespace-nowrap">税額</TableHead>
               <TableHead className="text-center w-[70px] whitespace-nowrap">保険</TableHead>
               <TableHead
-                className={`sticky right-0 z-20 ${C.bgWhite} text-right min-w-[130px] w-[130px] whitespace-nowrap`}
+                className={`sticky right-[80px] z-20 ${C.bgWhite} text-right min-w-[130px] w-[130px] whitespace-nowrap`}
               >
                 金額
               </TableHead>
-              <TableHead className="w-[80px]" />
+              <TableHead className={`sticky right-0 z-20 ${C.bgWhite} w-[80px]`} />
             </TableRow>
           </TableHeader>
           <TableBody>

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
+import { render, screen, act, waitFor } from "@testing-library/react";
 import { uploadFriendAttributesCsv } from "../api/upload-friend-attributes-csv";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -35,9 +35,8 @@ describe("CSV upload selection", () => {
     expect(screen.getByRole("button", { name: "保存中..." })).toBeDisabled();
     await act(async () => finish());
     await waitFor(() => expect(screen.getByText("アップロードが完了しました")).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText("友だち属性CSVファイルを選択"), {
-      target: { files: [] },
-    });
+    // user-event の upload(input, []) は実ユーザー操作と同じ change イベントで空選択を再現する
+    await user.upload(screen.getByLabelText("友だち属性CSVファイルを選択"), []);
     expect(screen.getByRole("button", { name: "アップロード" })).toBeDisabled();
     expect(screen.getByText("未選択")).toBeInTheDocument();
   });
@@ -55,7 +54,7 @@ describe("CSV upload selection", () => {
     expect(submit).toBeDisabled();
     await user.upload(input, new File(["name\nsynthetic"], "valid.csv", { type: "text/csv" }));
     expect(submit).not.toBeDisabled();
-    fireEvent.change(input, { target: { files: [] } });
+    await user.upload(input, []);
     expect(submit).toBeDisabled();
     expect(screen.getByText("未選択")).toBeInTheDocument();
   });

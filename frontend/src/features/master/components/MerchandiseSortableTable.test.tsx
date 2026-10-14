@@ -51,4 +51,29 @@ describe("Merchandise visible pagination", () => {
     expect(screen.getByRole("button", { name: /詳細: 品目 合成品目101 / })).toBeInTheDocument();
     expect(screen.getByText("101件中 101-101件")).toBeInTheDocument();
   });
+
+  it("PR665: ページ境界をまたぐ移動（50件目を後へ・51件目を前へ）が明示ボタンから出せる", async () => {
+    const user = userEvent.setup();
+    const onMoveItem = vi.fn();
+    render(<MerchandiseSortableTable items={items} {...handlers} onMoveItem={onMoveItem} />);
+
+    // 1 ページ目末尾（50件目）を後へ移動 → 51件目の直後（2ページ目先頭）へ
+    await user.click(screen.getByRole("button", { name: "後へ移動: 品目 合成品目50 (ID 50)" }));
+    expect(onMoveItem).toHaveBeenCalledWith(items[49], "down");
+
+    // 2 ページ目先頭（51件目）を前へ移動 → 50件目の直前（1ページ目末尾）へ
+    await user.click(screen.getByRole("button", { name: "2" }));
+    await user.click(screen.getByRole("button", { name: "前へ移動: 品目 合成品目51 (ID 51)" }));
+    expect(onMoveItem).toHaveBeenCalledWith(items[50], "up");
+  });
+
+  it("PR665: onMoveItem 未指定または閲覧専用では移動ボタンを出さない", () => {
+    const { unmount } = render(<MerchandiseSortableTable items={items} {...handlers} />);
+    expect(screen.queryByRole("button", { name: /前へ移動:/ })).not.toBeInTheDocument();
+    unmount();
+    render(
+      <MerchandiseSortableTable items={items} {...handlers} canEdit={false} onMoveItem={vi.fn()} />,
+    );
+    expect(screen.queryByRole("button", { name: /前へ移動:/ })).not.toBeInTheDocument();
+  });
 });

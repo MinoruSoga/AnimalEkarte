@@ -62,7 +62,7 @@ describe("DailyBreakdownTable drill-down", () => {
     const onDrillDown = vi.fn();
     render(<DailyBreakdownTable details={[closedDay]} onDrillDown={onDrillDown} />);
 
-    const button = screen.getByRole("button", { name: /2026-06-15.*締め/ });
+    const button = screen.getByRole("button", { name: /2026\/06\/15.*締め/ });
     await user.click(button);
 
     expect(onDrillDown).toHaveBeenCalledTimes(1);
@@ -74,7 +74,7 @@ describe("DailyBreakdownTable drill-down", () => {
     const onDrillDown = vi.fn();
     render(<DailyBreakdownTable details={[closedDay]} onDrillDown={onDrillDown} />);
 
-    const button = screen.getByRole("button", { name: /2026-06-15.*締め/ });
+    const button = screen.getByRole("button", { name: /2026\/06\/15.*締め/ });
     button.focus();
     await user.keyboard("{Enter}");
 
@@ -115,12 +115,12 @@ describe("DailyBreakdownTable 会計件数列と締め表示 (EMR-401)", () => {
     expect(screen.getByText("未締め")).toBeInTheDocument();
   });
 
-  it("締めのある行の日付ボタンは生の日付でドリルダウンする", async () => {
+  it("締めのある行の日付ボタンは表示日付（aria-label）と同じ形式でドリルダウンする", async () => {
     const user = userEvent.setup();
     const onDrillDown = vi.fn();
     render(<DailyBreakdownTable details={[auditDay]} onDrillDown={onDrillDown} />);
 
-    await user.click(screen.getByRole("button", { name: /2026-06-20.*締め/ }));
+    await user.click(screen.getByRole("button", { name: /2026\/06\/20.*締め/ }));
 
     expect(onDrillDown).toHaveBeenCalledWith("2026-06-20");
   });

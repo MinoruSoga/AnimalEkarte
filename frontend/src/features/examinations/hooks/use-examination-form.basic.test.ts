@@ -127,6 +127,26 @@ describe("useExaminationForm — 新規作成モード", () => {
     }
   });
 
+  it("PR665: JST 日付変更をまたぐ再描画でも未編集の既定検査日は開始時点に固定される", () => {
+    vi.useFakeTimers();
+    try {
+      // JST 2026-10-15 23:58（UTC 14:58）でフォームを開く
+      vi.setSystemTime(new Date("2026-10-15T14:58:00Z"));
+      const { result, rerender } = renderExaminationForm();
+      expect(result.current.formData.date).toBe("2026-10-15");
+      // JST 真夜中を超えて再描画（query 解決等で起きるケース）
+      vi.setSystemTime(new Date("2026-10-15T15:05:00Z"));
+      rerender();
+      expect(result.current.formData.date).toBe("2026-10-15");
+      // 真夜中を超えた後でも明示的な日付編集は通常どおり反映される
+      act(() => result.current.setFormData({ date: "2026-10-16" }));
+      rerender();
+      expect(result.current.formData.date).toBe("2026-10-16");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("isEdit は false（id なし）", () => {
     const { result } = renderExaminationForm();
     expect(result.current.isEdit).toBe(false);

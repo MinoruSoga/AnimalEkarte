@@ -95,14 +95,21 @@ func (s *estimateService) updateEstimateInTx(
 	cmd := *input
 	var preparedItems []model.EstimateItem
 	if input.Items != nil {
-		if err := validateEstimateItemInputs(*input.Items); err != nil {
+		// G2: 正規化はコピーへ行い、元の呼び出し元入力は書き換えない。
+		// 検証・Item 生成・cmd.Items は正規化済みコピーを使う。
+		normalized, err := applyMatchedEstimateItemTaxDefaults(*input.Items, result.existing.Items)
+		if err != nil {
 			return result, err
 		}
-		preparedItems = estimateItemsFromInput(id, *input.Items)
+		if err := validateEstimateItemInputs(normalized); err != nil {
+			return result, err
+		}
+		preparedItems = estimateItemsFromInput(id, normalized)
 		subtotal, taxTotal, totalAmount := calculateEstimateTotals(preparedItems)
 		cmd.Subtotal = &subtotal
 		cmd.TaxTotal = &taxTotal
 		cmd.TotalAmount = &totalAmount
+		cmd.Items = &normalized
 	}
 
 	if input.Items == nil && len(result.existing.Items) > 0 {

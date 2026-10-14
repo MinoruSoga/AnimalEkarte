@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { PaymentCard, type PaymentSplitDraft } from "./PaymentCard";
+import { isPostCloseSubmitBlocked } from "../lib/accounting-detail-model";
 
 function renderCard(splits: PaymentSplitDraft[], billingAmount: number, onSplitsChange = vi.fn()) {
   render(
@@ -56,6 +57,67 @@ describe("PaymentCard 移行負額", () => {
     );
     expect(screen.getByText("差額 ¥-3,000")).toBeInTheDocument();
     expect(screen.queryByText(/超過/)).not.toBeInTheDocument();
+  });
+});
+
+describe("PaymentCard 締め済み日確定ゲート (PR665 / BUG-004)", () => {
+  const balancedSplits: PaymentSplitDraft[] = [
+    { method: "cash", amount: "1000", receivedAmount: "1000" },
+  ];
+
+  function renderWithPostClose(args: {
+    isScheduledDateClosed: boolean;
+    canPostCloseEdit: boolean;
+    postCloseReason: string;
+  }) {
+    render(
+      <PaymentCard
+        billingAmount={1000}
+        paymentSplits={balancedSplits}
+        onSplitsChange={vi.fn()}
+        isCompleted={false}
+        canEdit
+        canCreate
+        isEditMode={false}
+        isPostCloseBlocked={isPostCloseSubmitBlocked(args)}
+      />,
+    );
+  }
+
+  it("締め済み日で締め後編集権限なし → 確定ボタン disabled", () => {
+    renderWithPostClose({
+      isScheduledDateClosed: true,
+      canPostCloseEdit: false,
+      postCloseReason: "",
+    });
+    expect(screen.getByRole("button", { name: "会計を確定する" })).toBeDisabled();
+  });
+
+  it("締め済み日で権限あっても理由空欄 → 確定ボタン disabled", () => {
+    renderWithPostClose({
+      isScheduledDateClosed: true,
+      canPostCloseEdit: true,
+      postCloseReason: "   ",
+    });
+    expect(screen.getByRole("button", { name: "会計を確定する" })).toBeDisabled();
+  });
+
+  it("締め済み日で権限と理由が揃う → 確定ボタンは押せる", () => {
+    renderWithPostClose({
+      isScheduledDateClosed: true,
+      canPostCloseEdit: true,
+      postCloseReason: "締め後訂正のため",
+    });
+    expect(screen.getByRole("button", { name: "会計を確定する" })).not.toBeDisabled();
+  });
+
+  it("通常日（未締め）→ 確定ボタンは押せる", () => {
+    renderWithPostClose({
+      isScheduledDateClosed: false,
+      canPostCloseEdit: false,
+      postCloseReason: "",
+    });
+    expect(screen.getByRole("button", { name: "会計を確定する" })).not.toBeDisabled();
   });
 });
 

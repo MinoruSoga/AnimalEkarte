@@ -4677,7 +4677,8 @@ components:
         tax_type:
           type: string
           enum: *id001
-          default: included
+          default: excluded
+          description: 省略時は従来 API 互換で外税（excluded）。新 UI は明示送信する。既存行との一致時に省略した場合は保存済みの税区分を引き継ぐ。
         tax_rate:
           type: number
           format: double
@@ -4685,6 +4686,7 @@ components:
           maximum: 1
           multipleOf: 0.01
           default: 0.1
+          description: 省略時は既存行との一致時は保存済み税率、それ以外は 0.1。
         discount_rate:
           type: number
           format: double
@@ -4700,6 +4702,11 @@ components:
         sort_order:
           type: integer
           format: int32
+        existing_item_id:
+          type: integer
+          format: int64
+          minimum: 1
+          description: 既存行との一致ヒント（PATCH の明細置換のみ）。この見積自身の item id と 1:1 で解決できない場合（未知 ID・重複 ID・作成時指定）は 400。一致した行は税フィールド省略時に保存済み値を引き継ぐ。ヒントは保存時の主キーとしては扱われない。
 
     UpdateEstimateRequest:
       type: object

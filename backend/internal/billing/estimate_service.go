@@ -37,6 +37,10 @@ type CreateEstimateInput struct {
 
 // EstimateItemInput は見積明細の作成/置換入力。
 type EstimateItemInput struct {
+	// ExistingItemID は既存行との一致ヒント。同一見積の item id と 1:1 で
+	// 解決できない場合は更新 TX 内で invalid input として拒否される。
+	// ヒントは保存 PK として扱わない（ReplaceItems は新規行として作り直す）。
+	ExistingItemID        *uint64
 	Name                  string
 	Category              model.ItemCategory
 	UnitPrice             int64
@@ -176,6 +180,43 @@ func validateEstimateItemInputs(inputs []EstimateItemInput) error {
 	return validateEstimateItemTotals(estimateItemsFromInput(0, inputs))
 }
 
+// applyMatchedEstimateItemTaxDefaults は existing_item_id ヒントを同一見積の既存行と
+// 突き合わせ、税フィールド未指定の行には保存済みの税区分・税率を引き継ぐ。
+// 呼び出し元の入力は書き換えず、正規化済みのコピーを返す（後続の検証・Item 生成は
+// このコピーを使う）。ヒントは一致ヒントであり保存 PK ではない。未知 ID・重複 ID・
+// 自見積外の行は fail-closed で 400 とする。
+func applyMatchedEstimateItemTaxDefaults(inputs []EstimateItemInput, existingItems []model.EstimateItem) ([]EstimateItemInput, error) {
+	normalized := make([]EstimateItemInput, len(inputs))
+	copy(normalized, inputs)
+	byID := make(map[uint64]*model.EstimateItem, len(existingItems))
+	for i := range existingItems {
+		byID[existingItems[i].ID] = &existingItems[i]
+	}
+	seen := make(map[uint64]int, len(inputs))
+	for i := range normalized {
+		hint := normalized[i].ExistingItemID
+		if hint == nil {
+			continue
+		}
+		if prev, dup := seen[*hint]; dup {
+			return nil, apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].existing_item_id %d duplicates items[%d]", i, *hint, prev))
+		}
+		seen[*hint] = i
+		old, ok := byID[*hint]
+		if !ok {
+			return nil, apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].existing_item_id %d does not match an item of this estimate", i, *hint))
+		}
+		if normalized[i].TaxType == "" {
+			normalized[i].TaxType = old.TaxType
+		}
+		if normalized[i].TaxRate == nil {
+			rate := old.TaxRate
+			normalized[i].TaxRate = &rate
+		}
+	}
+	return normalized, nil
+}
+
 func validateEstimateItemTotals(items []model.EstimateItem) error {
 	var subtotalTotal, taxTotal, totalAmount int64
 	for i := range items {
@@ -227,9 +268,11 @@ func estimateItemsFromInput(estimateID uint64, inputs []EstimateItemInput) []mod
 		if sortOrder == 0 {
 			sortOrder = i
 		}
+		// 省略時は従来 API と同じ外税 10%。新 UI は明示送信し、既存行との一致時は
+		// applyMatchedEstimateItemTaxDefaults が保存済み値を引き継ぐ。
 		taxType := in.TaxType
 		if taxType == "" {
-			taxType = model.TaxTypeIncluded
+			taxType = model.TaxTypeExcluded
 		}
 		taxRate := 0.10
 		if in.TaxRate != nil {

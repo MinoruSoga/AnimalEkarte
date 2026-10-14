@@ -1139,6 +1139,69 @@ describe("useEstimateForm 明細行 (EMR-401)", () => {
     );
   });
 
+  it("update payload: 置換時は既存行に existing_item_id を載せ、新規行には載せない", async () => {
+    const { result } = renderHook(() =>
+      useEstimateForm({
+        mode: "edit",
+        estimate: estimateWithItems,
+        permissions: ALLOW_ALL_PERMISSIONS,
+      }),
+    );
+    act(() => {
+      result.current.handleChange("items", [
+        { ...result.current.form.items[0]!, name: "改名した薬剤A" },
+        makeItem({ localId: "local-new", name: "新規行" }),
+      ]);
+    });
+    await submitEstimateAction(result.current.formAction);
+    expect(mockUpdateMutateAsync).toHaveBeenCalledTimes(1);
+    const data = mockUpdateMutateAsync.mock.calls[0]![0].data;
+    expect(data.items).toHaveLength(2);
+    expect(data.items[0]).toMatchObject({ name: "改名した薬剤A", existing_item_id: 11 });
+    expect(data.items[1]).toMatchObject({ name: "新規行" });
+    expect("existing_item_id" in data.items[1]).toBe(false);
+  });
+
+  it("update payload: 別行を編集した置換でも未変更の既存不正行を検証してブロックする", async () => {
+    const legacyInvalid: Estimate = {
+      ...estimateWithItems,
+      items: [
+        estimateWithItems.items[0]!,
+        {
+          id: "12",
+          estimateId: "1",
+          name: "レガシー過剰割引",
+          category: "other",
+          unitPrice: 100,
+          quantity: 0.15,
+          taxType: "excluded",
+          taxRate: 0.1,
+          discountRate: 0,
+          discountAmount: 0,
+          isInsuranceApplicable: false,
+          sortOrder: 1,
+          createdAt: "2026-01-01T00:00:00Z",
+        },
+      ],
+    };
+    const { result } = renderHook(() =>
+      useEstimateForm({
+        mode: "edit",
+        estimate: legacyInvalid,
+        permissions: ALLOW_ALL_PERMISSIONS,
+      }),
+    );
+    act(() => {
+      result.current.handleChange("items", [
+        { ...result.current.form.items[0]!, unitPrice: 1200 },
+        result.current.form.items[1]!,
+      ]);
+    });
+    await submitEstimateAction(result.current.formAction);
+    expect(mockUpdateMutateAsync).not.toHaveBeenCalled();
+    expect(result.current.formState.fieldErrors?.items).toBeTruthy();
+  });
+
   it("update payload: 最終行を削除 → items: [] を送る", async () => {
     const { result } = renderHook(() =>
       useEstimateForm({

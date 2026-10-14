@@ -29,7 +29,13 @@ export type EstimateItemRequest = Pick<
   | "sort_order"
   | "tax_type"
   | "tax_rate"
->;
+> & {
+  /**
+   * 既存行との一致ヒント（PATCH の明細置換のみ）。この見積の item id と 1:1 で
+   * 解決できない ID・重複 ID はサーバ側で 400 になる。新規行では送らない。
+   */
+  existing_item_id?: number;
+};
 
 /**
  * 見積書作成リクエスト

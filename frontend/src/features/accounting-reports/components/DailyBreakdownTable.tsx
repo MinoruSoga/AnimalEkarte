@@ -50,7 +50,7 @@ export const DailyBreakdownTable = memo(function DailyBreakdownTable({
                 <TableCell className={`${C.text} whitespace-nowrap`}>
                   {isDrillable ? (
                     <DataTableRowButton
-                      aria-label={`${detail.date} の締め詳細を表示`}
+                      aria-label={`${detail.date ? formatDate(detail.date) : ""} の締め詳細を表示`}
                       onClick={() => onDrillDown?.(detail.date)}
                     >
                       {detail.date ? formatDate(detail.date) : "—"}

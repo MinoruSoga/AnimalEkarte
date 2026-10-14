@@ -192,7 +192,7 @@ describe("EstimateItemsEditor", () => {
     ]);
   });
 
-  it("行ごとの小計をカンマ区切り通貨で表示する", () => {
+  it("行ごとの金額（税込）をカンマ区切り通貨で表示する", () => {
     renderEditor();
     expect(screen.getByText("¥2,200")).toBeInTheDocument();
   });

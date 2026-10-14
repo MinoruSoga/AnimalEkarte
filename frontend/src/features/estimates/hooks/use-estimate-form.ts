@@ -73,7 +73,8 @@ function serializeItems(items: EstimateItemDraft[]): string {
 }
 
 function draftToRequestItem(item: EstimateItemDraft, index: number): EstimateItemRequest {
-  return {
+  const persistedId = Number(item.id);
+  const request: EstimateItemRequest = {
     name: item.name.trim(),
     category: item.category,
     unit_price: item.unitPrice,
@@ -85,21 +86,19 @@ function draftToRequestItem(item: EstimateItemDraft, index: number): EstimateIte
     is_insurance_applicable: item.isInsuranceApplicable,
     sort_order: index,
   };
+  // PR665: 既存行は安定 ID を一致ヒントとして送り、改名・並べ替えでも
+  // サーバ側が同一行として割引権限・既存税設定を判定できるようにする。
+  if (item.id !== "" && Number.isSafeInteger(persistedId) && persistedId > 0) {
+    request.existing_item_id = persistedId;
+  }
+  return request;
 }
 
-function baselineRowMap(items: EstimateItemDraft[]): ReadonlyMap<string, string> {
-  return new Map(
-    items.map((item, index) => [item.localId, JSON.stringify(draftToRequestItem(item, index))]),
-  );
-}
-
-function validateItems(
-  items: EstimateItemDraft[],
-  baselineRows?: ReadonlyMap<string, string>,
-): string | null {
+function validateItems(items: EstimateItemDraft[]): string | null {
   for (let i = 0; i < items.length; i++) {
     const item = items[i]!;
-    if (baselineRows?.get(item.localId) === JSON.stringify(draftToRequestItem(item, i))) continue;
+    // PR665: 置換送信時は未変更行（旧データの不正行を含む）も全行検証する。
+    // メタデータのみの保存（items 未送信）は検証対象外。
     const label = `${i + 1}行目`;
     const name = item.name.trim();
     if (!name) return `${label}: 品目名を入力してください`;
@@ -260,7 +259,6 @@ export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) 
 
   const [baseline, setBaseline] = useState(() => ({
     itemsKey: serializeItems(form.items),
-    rows: baselineRowMap(form.items),
   }));
 
   // Sync with estimate data if it loads later — previous-value pattern
@@ -271,7 +269,6 @@ export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) 
       const hydratedForm = buildInitialState(estimate);
       setBaseline({
         itemsKey: serializeItems(hydratedForm.items),
-        rows: baselineRowMap(hydratedForm.items),
       });
       setForm(hydratedForm);
     }
@@ -293,7 +290,7 @@ export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) 
 
       const itemsChanged = !isEdit || serializeItems(current.items) !== baseline.itemsKey;
       if (itemsChanged) {
-        const itemsError = validateItems(current.items, isEdit ? baseline.rows : undefined);
+        const itemsError = validateItems(current.items);
         if (itemsError) {
           return {
             success: false,

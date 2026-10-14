@@ -71,7 +71,19 @@ describe("AccountingItemRow accessibility", () => {
     renderRow(false);
     const cells = screen.getAllByRole("cell", { name: /1,200/ });
     const amount = cells.find((cell) => cell.classList.contains("sticky"));
-    expect(amount).toHaveClass("right-0", "z-10", "min-w-[130px]", "whitespace-nowrap");
+    expect(amount).toHaveClass("right-[80px]", "z-10", "min-w-[130px]", "whitespace-nowrap");
+  });
+
+  it("PR665: 金額の直後にある削除操作セルも right-0 で固定され、削除ボタンにアクセスできる", () => {
+    renderRow();
+    const cells = screen.getAllByRole("cell");
+    const actionCell = cells[cells.length - 1]!;
+    expect(actionCell).toHaveClass("sticky", "right-0", "z-10", "w-[80px]");
+    const amount = cells.find(
+      (cell) => cell.classList.contains("sticky") && !cell.classList.contains("right-0"),
+    );
+    expect(amount).toHaveClass("right-[80px]");
+    expect(screen.getByRole("button", { name: "削除" })).toBeInTheDocument();
   });
   it("割引・税操作は品目固有名と44px操作領域を持つ", async () => {
     const user = userEvent.setup();

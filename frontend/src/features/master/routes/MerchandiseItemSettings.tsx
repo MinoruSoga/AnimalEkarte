@@ -22,6 +22,7 @@ import type {
 } from "../api/merchandise-items";
 import { MerchandiseSidePanel } from "../components/MerchandiseSidePanel";
 import { MerchandiseSortableTable } from "../components/MerchandiseSortableTable";
+import { moveItemInOrder } from "../lib/merchandise-reorder";
 import type { MerchandiseFormData } from "../lib/merchandise-side-panel-model";
 import {
   buildMerchandiseCreateRequest,
@@ -71,6 +72,19 @@ export function MerchandiseItemSettings() {
       reorderMutation.mutate({ ids: newIds.map(Number) }, { onSuccess: resetOrder });
     },
   });
+
+  // PR665 / EMR-401 C2-5: 50 行ページングを維持したままページをまたげるよう、
+  // 明示的な前/後移動ボタンから全件順序の並べ替えをドラッグと同一経路で行う。
+  const handleMoveItem = useCallback(
+    (item: FrontendMerchandiseItem, direction: "up" | "down") => {
+      if (!canEdit) return;
+      const ids = sortedItems.map((i) => i.id);
+      const newIds = moveItemInOrder(ids, item.id, direction);
+      if (!newIds) return;
+      reorderMutation.mutate({ ids: newIds.map(Number) }, { onSuccess: resetOrder });
+    },
+    [canEdit, sortedItems, reorderMutation, resetOrder],
+  );
 
   const { handleSave } = useMasterSave<
     FrontendMerchandiseItem,
@@ -124,6 +138,7 @@ export function MerchandiseItemSettings() {
             onDragCancel={handleDragCancel}
             canEdit={canEdit}
             onEdit={crud.handleEdit}
+            onMoveItem={handleMoveItem}
           />
         )}
       </MasterCRUDPage>

@@ -35,6 +35,7 @@ import { useAccountingCompletionAction } from "../hooks/use-accounting-completio
 import { useAccountingDetailState } from "../hooks/use-accounting-detail-state";
 import { useAccountingItemActions } from "../hooks/use-accounting-item-actions";
 import { useAccountingSettlementActions } from "../hooks/use-accounting-settlement-actions";
+import { isPostCloseSubmitBlocked } from "../lib/accounting-detail-model";
 import type { AccountingItem } from "../types";
 
 const CreditCorrectionDialog = lazy(() =>
@@ -314,6 +315,11 @@ export const AccountingDetail = memo(function AccountingDetail({
               onInsuranceRatioChange={setInsuranceRatio}
               onSplitsChange={setPaymentSplits}
               onRefund={handleRefund}
+              isPostCloseBlocked={isPostCloseSubmitBlocked({
+                isScheduledDateClosed,
+                canPostCloseEdit: Boolean(canPostCloseEdit),
+                postCloseReason,
+              })}
             />
           </fieldset>
 

@@ -236,6 +236,8 @@ interface AccountingDetailColumnsProps {
   onInsuranceRatioChange: (ratio: string) => void;
   onSplitsChange: (splits: PaymentSplitDraft[]) => void;
   onRefund: (amount: number, reason: string, paymentMethod?: PaymentMethod) => void;
+  /** PR665: 締め済み日の確定ボタン物理ブロック（isPostCloseSubmitBlocked の結果） */
+  isPostCloseBlocked?: boolean;
 }
 
 export function AccountingDetailColumns({
@@ -262,6 +264,7 @@ export function AccountingDetailColumns({
   onInsuranceRatioChange,
   onSplitsChange,
   onRefund,
+  isPostCloseBlocked = false,
 }: AccountingDetailColumnsProps) {
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-140px)]">
@@ -325,6 +328,7 @@ export function AccountingDetailColumns({
           canEdit={canEdit}
           canCreate={canCreate}
           isEditMode={Boolean(accountingId)}
+          isPostCloseBlocked={isPostCloseBlocked}
         />
 
         {accountingId && accounting.status === "completed" ? (

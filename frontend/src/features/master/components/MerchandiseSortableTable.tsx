@@ -1,6 +1,7 @@
 import { type ComponentProps, useMemo } from "react";
 import { DndContext, DragOverlay, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { Pagination } from "@/components/shared/Pagination";
 import { usePagination } from "@/hooks/use-pagination";
@@ -17,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
+import { type MerchandiseMoveDirection } from "../lib/merchandise-reorder";
 
 import type { FrontendMerchandiseItem } from "../api/merchandise-items";
 import {
@@ -44,6 +46,11 @@ interface MerchandiseSortableTableProps {
   onDragCancel: NonNullable<ComponentProps<typeof DndContext>["onDragCancel"]>;
   canEdit: boolean;
   onEdit: (item: FrontendMerchandiseItem) => void;
+  /**
+   * PR665 / EMR-401 C2-5: 50 行ページング維持のため、ページをまたぐ並べ替えは
+   * 明示的な「前へ / 後へ」ボタンで行う。未指定または !canEdit では表示しない。
+   */
+  onMoveItem?: (item: FrontendMerchandiseItem, direction: MerchandiseMoveDirection) => void;
 }
 
 export function MerchandiseSortableTable({
@@ -55,6 +62,7 @@ export function MerchandiseSortableTable({
   onDragCancel,
   canEdit,
   onEdit,
+  onMoveItem,
 }: MerchandiseSortableTableProps) {
   const pagination = usePagination(items, { pageSize: 50 });
   const activeItem = useMemo(
@@ -122,6 +130,20 @@ export function MerchandiseSortableTable({
                       <StatusPill isActive={item.isActive} />
                     </TableCell>
                     <TableCell className="text-right pr-2">
+                      {canEdit && onMoveItem ? (
+                        <span className="flex items-center justify-end gap-1">
+                          <RowActionButton
+                            icon={ArrowUp}
+                            aria-label={`前へ移動: 品目 ${item.name} (ID ${item.id})`}
+                            onClick={() => onMoveItem(item, "up")}
+                          />
+                          <RowActionButton
+                            icon={ArrowDown}
+                            aria-label={`後へ移動: 品目 ${item.name} (ID ${item.id})`}
+                            onClick={() => onMoveItem(item, "down")}
+                          />
+                        </span>
+                      ) : null}
                       {canEdit ? (
                         <RowActionButton
                           aria-label={`編集: 品目 ${item.name} (ID ${item.id})`}

@@ -62,16 +62,19 @@ type createEstimateRequest struct {
 }
 
 type createEstimateItemRequest struct {
-	Name                  string   `json:"name" binding:"required,min=1,max=255"`
-	Category              string   `json:"category"`
-	UnitPrice             int64    `json:"unit_price" binding:"min=0"`
-	Quantity              float64  `json:"quantity"`
-	TaxType               string   `json:"tax_type" binding:"omitempty,oneof=included excluded exempt"`
-	TaxRate               *float64 `json:"tax_rate" binding:"omitempty,gte=0,lte=1"`
-	DiscountRate          float64  `json:"discount_rate"`
-	DiscountAmount        int64    `json:"discount_amount"`
-	IsInsuranceApplicable bool     `json:"is_insurance_applicable"`
-	SortOrder             int      `json:"sort_order"`
+	Name      string   `json:"name" binding:"required,min=1,max=255"`
+	Category  string   `json:"category"`
+	UnitPrice int64    `json:"unit_price" binding:"min=0"`
+	Quantity  float64  `json:"quantity"`
+	TaxType   string   `json:"tax_type" binding:"omitempty,oneof=included excluded exempt"`
+	TaxRate   *float64 `json:"tax_rate" binding:"omitempty,gte=0,lte=1"`
+	// ExistingItemID は既存行との一致ヒント（既存見積の item id）。保存時の PK には使われず、
+	// 同一見積の行と 1:1 で解決できない場合は 400 で拒否する。
+	ExistingItemID        *uint64 `json:"existing_item_id" binding:"omitempty,min=1"`
+	DiscountRate          float64 `json:"discount_rate"`
+	DiscountAmount        int64   `json:"discount_amount"`
+	IsInsuranceApplicable bool    `json:"is_insurance_applicable"`
+	SortOrder             int     `json:"sort_order"`
 }
 
 func estimateItemInputsFromRequest(items []createEstimateItemRequest) []EstimateItemInput {
@@ -84,6 +87,7 @@ func estimateItemInputsFromRequest(items []createEstimateItemRequest) []Estimate
 			Quantity:              item.Quantity,
 			TaxType:               model.TaxType(item.TaxType),
 			TaxRate:               item.TaxRate,
+			ExistingItemID:        item.ExistingItemID,
 			DiscountRate:          item.DiscountRate,
 			DiscountAmount:        item.DiscountAmount,
 			IsInsuranceApplicable: item.IsInsuranceApplicable,

@@ -878,6 +878,240 @@ func TestUpdateEstimate_ItemTaxFields(t *testing.T) {
 	}
 }
 
+func hintTestExistingEstimate() *model.Estimate {
+	return &model.Estimate{
+		ID:     1,
+		Status: model.EstimateStatusDraft,
+		Items: []model.EstimateItem{
+			{ID: 5, EstimateID: 1, Name: "薬剤A", SortOrder: 0, DiscountAmount: 500},
+		},
+	}
+}
+
+func TestUpdateEstimate_ItemIdentityHints(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name          string
+		body          map[string]any
+		hasPermission httpapi.PermissionChecker
+		wantStatus    int
+		assertInput   func(t *testing.T, input *UpdateEstimateInput)
+	}{
+		{
+			name: "renamed hinted row keeps existing discount without discount permission",
+			body: map[string]any{
+				"items": []map[string]any{
+					{"name": "改名後の薬剤A", "existing_item_id": 5, "discount_amount": 500, "sort_order": 0},
+				},
+			},
+			hasPermission: func(_ *gin.Context, _, _ string) bool { return false },
+			wantStatus:    http.StatusOK,
+			assertInput: func(t *testing.T, input *UpdateEstimateInput) {
+				t.Helper()
+				require.NotNil(t, input.Items)
+				require.Len(t, *input.Items, 1)
+				require.NotNil(t, (*input.Items)[0].ExistingItemID)
+				assert.Equal(t, uint64(5), *(*input.Items)[0].ExistingItemID)
+			},
+		},
+		{
+			name: "reordered hinted row keeps existing discount without discount permission",
+			body: map[string]any{
+				"items": []map[string]any{
+					{"name": "薬剤A", "existing_item_id": 5, "discount_amount": 500, "sort_order": 4},
+				},
+			},
+			hasPermission: func(_ *gin.Context, _, _ string) bool { return false },
+			wantStatus:    http.StatusOK,
+		},
+		{
+			name: "changed discount on hinted row still requires discount edit",
+			body: map[string]any{
+				"items": []map[string]any{
+					{"name": "薬剤A", "existing_item_id": 5, "discount_amount": 999, "sort_order": 0},
+				},
+			},
+			hasPermission: func(_ *gin.Context, _, _ string) bool { return false },
+			wantStatus:    http.StatusForbidden,
+		},
+		{
+			name: "duplicate existing_item_id is rejected",
+			body: map[string]any{
+				"items": []map[string]any{
+					{"name": "薬剤A", "existing_item_id": 5, "discount_amount": 500, "sort_order": 0},
+					{"name": "薬剤A複製", "existing_item_id": 5, "discount_amount": 500, "sort_order": 1},
+				},
+			},
+			hasPermission: func(_ *gin.Context, _, _ string) bool { return true },
+			wantStatus:    http.StatusBadRequest,
+		},
+		{
+			name: "foreign or unknown existing_item_id is rejected",
+			body: map[string]any{
+				"items": []map[string]any{
+					{"name": "別見積の行", "existing_item_id": 999, "discount_amount": 500, "sort_order": 0},
+				},
+			},
+			hasPermission: func(_ *gin.Context, _, _ string) bool { return true },
+			wantStatus:    http.StatusBadRequest,
+		},
+		{
+			name: "cloned discounted row without hint requires discount create",
+			body: map[string]any{
+				"items": []map[string]any{
+					{"name": "薬剤A", "existing_item_id": 5, "discount_amount": 500, "sort_order": 0},
+					{"name": "薬剤A", "discount_amount": 500, "sort_order": 0},
+				},
+			},
+			hasPermission: func(_ *gin.Context, _, _ string) bool { return false },
+			wantStatus:    http.StatusForbidden,
+		},
+		{
+			name: "legacy fallback stays one-to-one for identical key rows",
+			body: map[string]any{
+				"items": []map[string]any{
+					{"name": "薬剤A", "discount_amount": 500, "sort_order": 0},
+					{"name": "薬剤A", "discount_amount": 500, "sort_order": 0},
+				},
+			},
+			hasPermission: func(_ *gin.Context, _, _ string) bool { return false },
+			wantStatus:    http.StatusForbidden,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := NewEstimateHandler(&mockEstimateService{
+				getFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+					return hintTestExistingEstimate(), nil
+				},
+				updateFn: func(_ context.Context, _, _ uint64, input *UpdateEstimateInput) (*model.Estimate, error) {
+					if tt.assertInput != nil {
+						tt.assertInput(t, input)
+					}
+					return hintTestExistingEstimate(), nil
+				},
+			}, tt.hasPermission)
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: "1"}}
+			setClinicID(c)
+			setStaffID(c)
+
+			h.UpdateEstimate(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+func TestCreateEstimate_RejectsItemIdentityHints(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	h := newHandlerWithEstimateSvc(&mockEstimateService{
+		createFn: func(_ context.Context, _ uint64, _ *CreateEstimateInput) (*model.Estimate, error) {
+			t.Fatal("Create must not be called when items carry identity hints")
+			return nil, nil
+		},
+	})
+	bodyBytes, err := json.Marshal(map[string]any{
+		"title": "新規見積",
+		"items": []map[string]any{
+			{"name": "薬剤A", "existing_item_id": 5, "quantity": 1},
+		},
+	})
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+	c.Request.Header.Set("Content-Type", "application/json")
+	setClinicID(c)
+	setStaffID(c)
+
+	h.CreateEstimate(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestUpdateEstimate_AmbiguousLegacyKeyFailsClosed(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	ambiguousExisting := &model.Estimate{
+		ID:     1,
+		Status: model.EstimateStatusDraft,
+		Items: []model.EstimateItem{
+			{ID: 5, EstimateID: 1, Name: "薬剤A", SortOrder: 0, DiscountAmount: 500, TaxRate: 0.10},
+			{ID: 6, EstimateID: 1, Name: "薬剤A", SortOrder: 0, DiscountAmount: 500, TaxRate: 0.08},
+		},
+	}
+
+	tests := []struct {
+		name       string
+		body       map[string]any
+		wantStatus int
+		assertHint func(t *testing.T, input *UpdateEstimateInput)
+	}{
+		{
+			// G1: (name, sort_order) が未使用の複数既存行に重複する場合は fail-closed。
+			name:       "ambiguous no-ID legacy key returns 400 before update",
+			body:       map[string]any{"items": []map[string]any{{"name": "薬剤A", "discount_amount": 500, "sort_order": 0}}},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			// G1: 明示 ID はあいまい性と無関係に狙った行へ一致する。
+			name:       "explicit existing_item_id still matches the intended row",
+			body:       map[string]any{"items": []map[string]any{{"name": "薬剤A", "existing_item_id": 6, "discount_amount": 500, "sort_order": 0}}},
+			wantStatus: http.StatusOK,
+			assertHint: func(t *testing.T, input *UpdateEstimateInput) {
+				t.Helper()
+				require.NotNil(t, input.Items)
+				require.Len(t, *input.Items, 1)
+				require.NotNil(t, (*input.Items)[0].ExistingItemID)
+				assert.Equal(t, uint64(6), *(*input.Items)[0].ExistingItemID)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := NewEstimateHandler(&mockEstimateService{
+				getFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+					return ambiguousExisting, nil
+				},
+				updateFn: func(_ context.Context, _, _ uint64, input *UpdateEstimateInput) (*model.Estimate, error) {
+					if tt.assertHint != nil {
+						tt.assertHint(t, input)
+					} else {
+						t.Fatal("Update must not be called for an ambiguous legacy key")
+					}
+					return ambiguousExisting, nil
+				},
+			}, func(_ *gin.Context, _, _ string) bool { return false })
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: "1"}}
+			setClinicID(c)
+			setStaffID(c)
+
+			h.UpdateEstimate(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
 // ---- DeleteEstimate ----
 
 func TestDeleteEstimate(t *testing.T) {

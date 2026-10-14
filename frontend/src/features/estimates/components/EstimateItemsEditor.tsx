@@ -202,7 +202,8 @@ export const EstimateItemsEditor = memo(function EstimateItemsEditor({
             ) : null}
             <div className="flex items-end justify-between gap-1">
               <div className="space-y-1 pb-1">
-                <span className={`text-xs ${C.text60}`}>小計</span>
+                {/* calcEstimateLineAmount().total は外税時に税額を含むため行金額は常に税込 */}
+                <span className={`text-xs ${C.text60}`}>金額（税込）</span>
                 <div className={`text-sm font-mono font-medium ${C.text}`}>
                   {formatCurrency(lineTotal)}
                 </div>

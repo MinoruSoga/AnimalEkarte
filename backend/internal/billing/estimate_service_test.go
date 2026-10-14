@@ -1879,11 +1879,13 @@ func TestEstimateService_Create_ItemTaxTypeAndRate(t *testing.T) {
 		wantTotal    int64
 	}{
 		{
-			name:         "omitted tax fields default to included 10%",
-			item:         EstimateItemInput{Name: "内税診察", UnitPrice: 1100, Quantity: 1},
-			wantTaxType:  model.TaxTypeIncluded,
+			// PR665: API omission keeps the legacy excluded semantics; the FE sends
+			// explicit included for new UI rows.
+			name:         "omitted tax fields keep legacy excluded 10%",
+			item:         EstimateItemInput{Name: "外税診察", UnitPrice: 1000, Quantity: 1},
+			wantTaxType:  model.TaxTypeExcluded,
 			wantTaxRate:  0.10,
-			wantSubtotal: 1100,
+			wantSubtotal: 1000,
 			wantTaxTotal: 100,
 			wantTotal:    1100,
 		},
@@ -1957,6 +1959,129 @@ func TestEstimateService_Create_ItemTaxTypeAndRate(t *testing.T) {
 			require.NotNil(t, got)
 		})
 	}
+}
+
+func TestEstimateService_Update_MatchedItemTaxDefaults(t *testing.T) {
+	var replaced []model.EstimateItem
+	existing := &model.Estimate{
+		ID:     3,
+		Status: model.EstimateStatusDraft,
+		Items: []model.EstimateItem{
+			{ID: 7, EstimateID: 3, Name: "内税処置", UnitPrice: 1080, Quantity: 1,
+				TaxType: model.TaxTypeIncluded, TaxRate: 0.08},
+		},
+	}
+	repo := &mockEstimateRepository{
+		lockEditableByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			cp := *existing
+			return &cp, nil
+		},
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			cp := *existing
+			cp.Items = replaced
+			return &cp, nil
+		},
+		updateIfNotLockedFn: func(_ context.Context, _, id uint64, _ UpdateEstimateInput) (*model.Estimate, error) {
+			return &model.Estimate{ID: id, Status: model.EstimateStatusDraft}, nil
+		},
+		replaceItemsFn: func(_ context.Context, _, _ uint64, items []model.EstimateItem) error {
+			replaced = items
+			return nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+
+	items := []EstimateItemInput{
+		{Name: "内税処置", ExistingItemID: uint64Ptr(7), UnitPrice: 1080, Quantity: 1},
+		{Name: "新規外税行", UnitPrice: 1000, Quantity: 1},
+	}
+	_, err := svc.Update(context.Background(), 1, 3, &UpdateEstimateInput{Items: &items})
+	require.NoError(t, err)
+	require.Len(t, replaced, 2)
+	// Matched row keeps its persisted tax settings when the client omits them.
+	assert.Equal(t, model.TaxTypeIncluded, replaced[0].TaxType)
+	assert.InDelta(t, 0.08, replaced[0].TaxRate, 1e-9)
+	// Unknown rows fall back to the legacy omitted defaults.
+	assert.Equal(t, model.TaxTypeExcluded, replaced[1].TaxType)
+	assert.InDelta(t, 0.10, replaced[1].TaxRate, 1e-9)
+}
+
+func TestEstimateService_Update_RejectsUnknownAndDuplicateItemHints(t *testing.T) {
+	existing := &model.Estimate{
+		ID:     3,
+		Status: model.EstimateStatusDraft,
+		Items: []model.EstimateItem{
+			{ID: 7, EstimateID: 3, Name: "処置", UnitPrice: 1000, Quantity: 1},
+		},
+	}
+	newRepo := func() *mockEstimateRepository {
+		return &mockEstimateRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+				return existing, nil
+			},
+			updateIfNotLockedFn: func(_ context.Context, _, id uint64, _ UpdateEstimateInput) (*model.Estimate, error) {
+				return &model.Estimate{ID: id, Status: model.EstimateStatusDraft}, nil
+			},
+			replaceItemsFn: func(_ context.Context, _, _ uint64, _ []model.EstimateItem) error {
+				return nil
+			},
+		}
+	}
+
+	duplicate := []EstimateItemInput{
+		{Name: "処置", ExistingItemID: uint64Ptr(7), UnitPrice: 1000, Quantity: 1},
+		{Name: "複製", ExistingItemID: uint64Ptr(7), UnitPrice: 1000, Quantity: 1},
+	}
+	_, err := NewEstimateService(newRepo(), nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{}).
+		Update(context.Background(), 1, 3, &UpdateEstimateInput{Items: &duplicate})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err), "duplicate hint must fail closed, got %v", err)
+
+	foreign := []EstimateItemInput{
+		{Name: "別見積の行", ExistingItemID: uint64Ptr(999), UnitPrice: 1000, Quantity: 1},
+	}
+	_, err = NewEstimateService(newRepo(), nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{}).
+		Update(context.Background(), 1, 3, &UpdateEstimateInput{Items: &foreign})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err), "foreign hint must fail closed, got %v", err)
+}
+
+func uint64Ptr(v uint64) *uint64 { return &v }
+
+func TestApplyMatchedEstimateItemTaxDefaults_PureNormalization(t *testing.T) {
+	existing := []model.EstimateItem{
+		{ID: 7, EstimateID: 3, Name: "内税処置", UnitPrice: 1080, Quantity: 1,
+			TaxType: model.TaxTypeIncluded, TaxRate: 0.08},
+	}
+
+	// G2: 成功時も呼び出し元の入力は書き換えない。正規化結果は新しいスライス。
+	inputs := []EstimateItemInput{
+		{Name: "内税処置", ExistingItemID: uint64Ptr(7), UnitPrice: 1080, Quantity: 1},
+	}
+	normalized, err := applyMatchedEstimateItemTaxDefaults(inputs, existing)
+	require.NoError(t, err)
+	require.Len(t, normalized, 1)
+	assert.Equal(t, model.TaxTypeIncluded, normalized[0].TaxType)
+	require.NotNil(t, normalized[0].TaxRate)
+	assert.InDelta(t, 0.08, *normalized[0].TaxRate, 1e-9)
+	assert.Equal(t, model.TaxType(""), inputs[0].TaxType, "original input must stay untouched")
+	assert.Nil(t, inputs[0].TaxRate, "original input must stay untouched")
+
+	// G2: 後続行の不正ヒントで失敗しても元入力は無傷。リトライは常に新鮮な税で正規化できる。
+	invalid := []EstimateItemInput{
+		{Name: "内税処置", ExistingItemID: uint64Ptr(7), UnitPrice: 1080, Quantity: 1},
+		{Name: "別見積の行", ExistingItemID: uint64Ptr(999), UnitPrice: 1000, Quantity: 1},
+	}
+	_, err = applyMatchedEstimateItemTaxDefaults(invalid, existing)
+	require.Error(t, err)
+	assert.Equal(t, model.TaxType(""), invalid[0].TaxType)
+	assert.Nil(t, invalid[0].TaxRate)
+
+	retry, err := applyMatchedEstimateItemTaxDefaults([]EstimateItemInput{inputs[0]}, existing)
+	require.NoError(t, err)
+	assert.Equal(t, model.TaxTypeIncluded, retry[0].TaxType)
+	require.NotNil(t, retry[0].TaxRate)
+	assert.InDelta(t, 0.08, *retry[0].TaxRate, 1e-9)
 }
 
 func TestEstimateService_Create_RejectsInvalidItemTaxValues(t *testing.T) {

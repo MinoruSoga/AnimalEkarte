@@ -84,12 +84,17 @@ describe("ItemListCard merchandise selection", () => {
     expect(region).toHaveAttribute("tabindex", "0");
     expect(screen.getAllByRole("region", { name: "会計明細" })).toHaveLength(1);
     expect(screen.getByText("横にスクロールしてすべての項目を確認できます")).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "金額" })).toHaveClass(
+    const amountHeader = screen.getByRole("columnheader", { name: "金額" });
+    expect(amountHeader).toHaveClass(
       "sticky",
-      "right-0",
+      "right-[80px]",
       "min-w-[130px]",
       "whitespace-nowrap",
     );
+    // PR665: 金額の右にある 80px 操作列を right-0 で固定し、金額はその直前で固定する。
+    const headers = screen.getAllByRole("columnheader");
+    const actionHeader = headers[headers.length - 1]!;
+    expect(actionHeader).toHaveClass("sticky", "right-0", "w-[80px]");
     const taxHeader = screen.getByRole("columnheader", { name: "税額" });
     expect(taxHeader.className).toContain("whitespace-nowrap");
   });
