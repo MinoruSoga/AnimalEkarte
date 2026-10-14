@@ -48,6 +48,15 @@ describe("LabDeviceIdleFrameBuffer", () => {
     expect(Array.from(buffer.tickIdle() ?? [])).toEqual([0x02, 0x41, 0x03]);
     expect(buffer.tickIdle()).toBeNull();
   });
+
+  it("rejects an oversized frame as a whole at the idle boundary", () => {
+    const buffer = new LabDeviceIdleFrameBuffer();
+    buffer.push(new Uint8Array(8192).fill(1));
+    buffer.push(new Uint8Array([2]));
+    const result = buffer.takeFrame();
+    expect(result).toEqual({ frame: null, overflow: true });
+    expect(buffer.takeFrame()).toBeNull();
+  });
 });
 
 describe("lab device port setup", () => {
@@ -98,6 +107,22 @@ describe("readLabDeviceFrames", () => {
     await readLabDeviceFrames(reader, new AbortController().signal, onFrame);
 
     expect(onFrame).toHaveBeenCalledWith(new Uint8Array([0x02, 0x41, 0x03]));
+  });
+
+  it("reports oversize without forwarding truncated bytes", async () => {
+    const reader: LabDeviceSerialReader = {
+      read: vi
+        .fn()
+        .mockResolvedValueOnce({ done: false, value: new Uint8Array(8192) })
+        .mockResolvedValueOnce({ done: false, value: new Uint8Array([1]) })
+        .mockResolvedValueOnce({ done: true, value: undefined }),
+      cancel: vi.fn(async () => {}),
+    };
+    const onFrame = vi.fn(async () => {});
+    const onOverflow = vi.fn();
+    await readLabDeviceFrames(reader, new AbortController().signal, onFrame, onOverflow);
+    expect(onFrame).not.toHaveBeenCalled();
+    expect(onOverflow).toHaveBeenCalledTimes(1);
   });
 
   it("keeps one pending read and receives bytes sent after idle timeouts", async () => {

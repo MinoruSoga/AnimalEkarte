@@ -8,21 +8,31 @@ import {
 export const LAB_DEVICE_IDLE_TICKS = 8;
 export const LAB_DEVICE_IDLE_MS = 250;
 const LAB_DEVICE_REOPEN_MS = 2000;
+const LAB_DEVICE_MAX_FRAME_BYTES = 8 * 1024;
 
 export class LabDeviceIdleFrameBuffer {
   private chunks: Uint8Array[] = [];
   private idleTicks = 0;
+  private oversized = false;
 
   push(bytes: Uint8Array): void {
     if (bytes.length === 0) {
       return;
     }
-    this.chunks.push(bytes);
+    if (this.oversized) return;
+    const currentLength = this.chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    if (currentLength + bytes.length > LAB_DEVICE_MAX_FRAME_BYTES) {
+      this.chunks = [];
+      this.oversized = true;
+      this.idleTicks = 0;
+      return;
+    }
+    this.chunks.push(bytes.slice());
     this.idleTicks = 0;
   }
 
   tickIdle(maxIdle = LAB_DEVICE_IDLE_TICKS): Uint8Array | null {
-    if (this.chunks.length === 0) {
+    if (this.chunks.length === 0 && !this.oversized) {
       return null;
     }
     this.idleTicks += 1;
@@ -33,6 +43,16 @@ export class LabDeviceIdleFrameBuffer {
   }
 
   take(): Uint8Array | null {
+    return this.takeFrame()?.frame ?? null;
+  }
+
+  takeFrame(): { frame: Uint8Array | null; overflow: boolean } | null {
+    if (this.oversized) {
+      this.chunks = [];
+      this.idleTicks = 0;
+      this.oversized = false;
+      return { frame: null, overflow: true };
+    }
     if (this.chunks.length === 0) {
       return null;
     }
@@ -45,7 +65,7 @@ export class LabDeviceIdleFrameBuffer {
     }
     this.chunks = [];
     this.idleTicks = 0;
-    return out;
+    return { frame: out, overflow: false };
   }
 }
 
@@ -151,6 +171,7 @@ export async function readLabDeviceFrames(
   reader: LabDeviceSerialReader,
   signal: AbortSignal,
   onFrame: (bytes: Uint8Array) => Promise<void>,
+  onOverflow?: () => void,
 ): Promise<void> {
   const buffer = new LabDeviceIdleFrameBuffer();
   let delivery = Promise.resolve();
@@ -170,7 +191,12 @@ export async function readLabDeviceFrames(
     signal.addEventListener("abort", abortReading, { once: true });
   }
   const deliverBuffered = () => {
-    const frame = buffer.take();
+    const collected = buffer.takeFrame();
+    if (collected?.overflow) {
+      onOverflow?.();
+      return;
+    }
+    const frame = collected?.frame;
     if (!frame || frame.length === 0) {
       return;
     }

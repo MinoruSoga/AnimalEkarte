@@ -14,12 +14,11 @@ import {
   LabDeviceStatusCard,
   LabDeviceTodayVisitCard,
 } from "../components/LabDeviceBoardCards";
-import type { LabDeviceAgentListenStatus } from "../hooks/use-lab-device-agent-listen";
+import type { LabDeviceBrowserReceiveStatus } from "../lib/lab-device-browser-receiver";
 import {
   isLabDeviceAttachPersisted,
   isLabDeviceBoardSlotSupported,
   labDeviceAgentConnectionLabel,
-  labDeviceAgentDegradedErrorMessage,
   labDeviceAttachFailureToast,
   labDeviceBoardSlotListenState,
   labDeviceLatestCardForSlot,
@@ -52,7 +51,7 @@ export function LabDeviceWaitAndSlotsPanel({
   receivedCards: LabDeviceJobCard[];
   lastReceives: Record<string, { clinicId: string; label: string; at: string }>;
   currentClinicId: string | null;
-  agentStatus: LabDeviceAgentListenStatus;
+  agentStatus: { connected: boolean; openPorts: number; configuredPorts: number };
 }) {
   return (
     <>
@@ -237,34 +236,61 @@ export function LabDeviceReceivedPanel({
   );
 }
 
-export function LabDeviceAgentPanel({ agentStatus }: { agentStatus: LabDeviceAgentListenStatus }) {
-  const degradedMessage = agentStatus.degraded
-    ? labDeviceAgentDegradedErrorMessage(agentStatus.lastErrorCategory)
-    : null;
+export function LabDeviceBrowserReceivePanel({
+  receiveStatus,
+  canCreate,
+  onConnect,
+  onRetry,
+  onStop,
+}: {
+  receiveStatus: LabDeviceBrowserReceiveStatus;
+  canCreate: boolean;
+  onConnect: () => void;
+  onRetry: () => void;
+  onStop: () => void;
+}) {
   return (
     <section className="space-y-2" aria-live="polite">
-      <h2 className="text-xl font-semibold">ローカル受信機</h2>
+      <h2 className="text-xl font-semibold">ブラウザ直接受信</h2>
       <p className={`text-sm ${C.textInkMuted}`}>
-        {agentStatus.connected
-          ? `稼働中 · ${agentStatus.openPorts}/${agentStatus.configuredPorts}ポート監視`
-          : "停止中 · Macのローカル受信機を起動してください"}
+        {receiveStatus.connected ? `受信中 · ${receiveStatus.openPorts}ポート` : "停止中"}
+        {` · 未送信 ${receiveStatus.pending}件 · 判定失敗 ${receiveStatus.rejected}件 · 超過 ${receiveStatus.overflow}件`}
       </p>
-      {agentStatus.degraded ? (
+      {receiveStatus.supported ? null : (
         <p className={`text-sm ${C.textWarning}`}>
-          未処理 {agentStatus.pending.toLocaleString()}件 · 判定失敗{" "}
-          {agentStatus.rejected.toLocaleString()}件 · 受付超過{" "}
-          {(agentStatus.overflow + agentStatus.inputOverflow).toLocaleString()}件
+          Web SerialにはHTTPSのChromeデスクトップ版が必要です。
         </p>
-      ) : null}
-      {degradedMessage ? <p className={`text-sm ${C.textWarning}`}>{degradedMessage}</p> : null}
-      {agentStatus.connected &&
-      agentStatus.openPorts < agentStatus.configuredPorts &&
-      agentStatus.lastErrorCategory === "none" ? (
-        <p className={`text-sm ${C.textWarning}`}>USB接続を確認してください。</p>
-      ) : null}
+      )}
       <p className={`text-sm ${C.textInkMuted}`}>
-        USBを選ぶ操作はありません。現在はNX600とAU10Vを自動判定します。PU-4010とIDEXXは通信条件確認後に対応します。
+        NX600/AU10V専用ポートを選択してください。PU-4010/IDEXXは選ばないでください。ページを開いている間だけ受信します。停止・ページを閉じると未送信データは失われるため、機器から再送してください。
       </p>
+      {receiveStatus.error ? (
+        <p className={`text-sm ${C.textWarning}`}>{receiveStatus.error}</p>
+      ) : null}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={!canCreate || !receiveStatus.supported}
+          onClick={onConnect}
+        >
+          {receiveStatus.connected ? "ポートを追加" : "接続する"}
+        </Button>
+        {receiveStatus.connected ||
+        receiveStatus.pending > 0 ||
+        receiveStatus.rejected > 0 ||
+        receiveStatus.authPaused ||
+        receiveStatus.error !== null ? (
+          <Button type="button" variant="outline" onClick={onStop}>
+            停止
+          </Button>
+        ) : null}
+        {receiveStatus.error || receiveStatus.authPaused ? (
+          <Button type="button" variant="outline" disabled={!canCreate} onClick={onRetry}>
+            再試行
+          </Button>
+        ) : null}
+      </div>
     </section>
   );
 }
