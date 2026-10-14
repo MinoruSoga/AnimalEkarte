@@ -327,6 +327,33 @@ for clinic_dir_name in "${clinics[@]}"; do
           if [[ "$report_target_matches" != "yes" ]]; then
             die "candidate PASS report target binding differs or is missing; preserve/archive the report before retry"
           fi
+          # Codex 4265970831: the six seed bindings recorded in the report
+          # must match the currently resolved clinic/ordinal/species/exam/
+          # trim/cash/card exactly (strict integers, no bool/string/float).
+          # A mismatch means the report describes a different target setup:
+          # fail closed without verify or import so the old evidence stays.
+          if ! report_seeds_match="$(python3 -c '
+import json, sys
+report = json.load(open(sys.argv[1], encoding="utf-8"))
+seed_ids = report.get("seedIds") or {}
+expected = {"clinicId": int(sys.argv[2]), "animalSpeciesId": int(sys.argv[3]),
+            "examTypeId": int(sys.argv[4]), "trimmingReservationTypeId": int(sys.argv[5]),
+            "cashPaymentMethodId": int(sys.argv[6]), "creditCardPaymentMethodId": int(sys.argv[7])}
+bad = []
+for key, want in expected.items():
+    got = seed_ids.get(key)
+    if type(got) is not int or got != want:
+        bad.append(key)
+if bad:
+    print(",".join(bad))
+    raise SystemExit(1)
+print("yes")
+' "$report" "$ordinal" "$species" "$exam" "$trim" "$cash" "$card" 2>/dev/null)"; then
+            report_seeds_match=""
+          fi
+          if [[ "$report_seeds_match" != "yes" ]]; then
+            die "candidate PASS report seed binding differs or is missing; preserve/archive the report before retry"
+          fi
           if make -C "$ROOT" stg-uat-csv-import-verify; then
             echo "stg-uat-old-db-handoff: skip $clinic (apply report PASS and current target verified)" >&2
             ran=1

@@ -65,6 +65,7 @@ failure rehearsalとSTG skeletonは既存21表専用のまま。候補profileに
 
 候補 consumer は EMR-342 設計 3.2/3.4 に従い、`medicines.name` が空欄または空白のみの行を source preflight で拒否する（名称は正規化せず、エラーには列と CSV 行番号のみを出しセル値は出さない）。`estimate_items` の薬剤付け替え行は結合不変条件を守る: `medicine_id` が空欄でない行は `category` が `medicine` で、`consultation_id` / `procedure_id` / `merchandise_item_id` がすべて空欄であること。`category` が `medicine` の行は `medicine_id` が必須。薬剤以外の行と旧21表 profile の挙動は変更しない（旧21表では `medicine_id` の空欄制約を unavailable-parent 参照検査で維持）。
 `medicines` の税ペアは live producer 契約に従う（MIG-38: 空欄/1=excluded、2/3=exempt。MIG-34 は MIG-27 の同一式を再利用し、両区分とも `tax_rate` 0.10。producer `030_stage.sql` の CONSTANT と `test-procedure-master-pricing.mjs` の検証一致）。consumer は excluded/exempt＋0.10 のみ受理し、included・未知・空欄と 0.10 以外の率は拒否する（producer契約の変更は別途判断し、正式22表の受領・activation承認とは分ける）。
+target の `medicines.tax_rate` 列は 0.10 を丸めず格納できる numeric であることを candidate target preflight が要求する（canonical 001 の無制限 numeric＝precision/scale NULL を受理、境界付きは scale≥1 かつ precision≥scale、scale 0 や precision 不足は拒否）。wrapper の候補 PASS report 再利用は targetHost/targetDatabase に加え `seedIds` の 6 項目（clinicId・animalSpeciesId・examTypeId・trimmingReservationTypeId・cashPaymentMethodId・creditCardPaymentMethodId）が現在の解決値と厳密に一致することも要求し、欠落・非整数・不一致は verify/import 前に fail-closed する。
 
 候補bundleの `medicines.default_quantity` は旧DBに元情報がない固定値 `1.0` とし、数値として厳密に1と同値のdecimal表記（1、1.00、1.0000等）のみ受理する。空欄・0・1.23・その他の値は拒否する。一般の数量helperによる `numeric(10,2)` の無損失格納検査と、候補bundleの固定値検査は別条件であり、helperで格納可能な値でも固定値に一致しなければ拒否する。浮動小数点による判定やNULLの補完は行わない。
 

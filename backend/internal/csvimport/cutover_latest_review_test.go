@@ -150,8 +150,16 @@ func (q *masterPriceTypeTargetQuerier) QueryRow(ctx context.Context, query strin
 		if key == [2]string{"medicines", "default_quantity"} {
 			return staticRow{values: []any{"numeric"}}
 		}
+		if key == [2]string{"medicines", "tax_rate"} {
+			// Canonical 001 schema: tax_rate is numeric (unbounded).
+			return staticRow{values: []any{"numeric"}}
+		}
 	}
 	if len(args) == 2 && strings.Contains(query, "numeric_precision") && args[0] == "medicines" {
+		// Canonical 001 schema: tax_rate is unconstrained numeric.
+		if args[1] == "tax_rate" {
+			return staticRow{values: []any{nil, nil}}
+		}
 		return staticRow{values: []any{int64(10), int64(2)}}
 	}
 	return q.validTargetQuerier.QueryRow(ctx, query, args...)

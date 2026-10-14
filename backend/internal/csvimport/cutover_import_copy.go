@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/csv"
 	"encoding/hex"
 	"errors"
@@ -48,6 +49,28 @@ WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`, spec.Na
 				var precision, scale int64
 				if err := q.QueryRow(ctx, `SELECT numeric_precision, numeric_scale FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`, spec.Name, column).Scan(&precision, &scale); err != nil || dataType != "numeric" || precision != 10 || scale != 2 {
 					return fmt.Errorf("target schema requires public.medicines.default_quantity as numeric(10,2)")
+				}
+			}
+			if spec.Name == "medicines" && column == "tax_rate" {
+				// 4265970828: the contract pins tax_rate to exactly 0.10, so
+				// the column must be numeric able to store 0.10 without
+				// rounding. The canonical 001 schema keeps it as unconstrained
+				// numeric (NULL precision/scale), which is accepted; a bounded
+				// numeric needs scale >= 1 with precision >= scale
+				// (numeric(1,1) stores 0.1 exactly; numeric(2,0) rounds).
+				// Read-only inspection; errors fail closed.
+				var precision, scale sql.NullInt64
+				if err := q.QueryRow(ctx, `SELECT numeric_precision, numeric_scale FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`, spec.Name, column).Scan(&precision, &scale); err != nil {
+					return fmt.Errorf("inspect target scale for public.medicines.tax_rate: %w", err)
+				}
+				incapable := dataType != "numeric"
+				if !incapable && scale.Valid {
+					incapable = scale.Int64 < 1 || !precision.Valid || precision.Int64 < scale.Int64
+				} else if !incapable {
+					incapable = precision.Valid
+				}
+				if incapable {
+					return fmt.Errorf("target schema requires public.medicines.tax_rate as numeric able to store 0.10 exactly (unbounded numeric, or scale >= 1 with precision >= scale)")
 				}
 			}
 		}

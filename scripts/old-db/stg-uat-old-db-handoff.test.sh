@@ -77,7 +77,9 @@ run_case() {
     failures=$((failures + 1))
     return
   fi
-  if [[ -n "$want_text" ]] && ! printf '%s\n' "$out" | grep -q "$want_text"; then
+  # grep -q in a pipeline races with the writer under pipefail; a here-string
+  # keeps the match check free of SIGPIPE flakes.
+  if [[ -n "$want_text" ]] && ! grep -q "$want_text" <<< "$out"; then
     echo "FAIL  [$name] missing text: $want_text"
     printf '%s\n' "$out"
     failures=$((failures + 1))

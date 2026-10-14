@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/csv"
 	"encoding/hex"
 	"errors"
@@ -1579,6 +1580,13 @@ func (row staticRow) Scan(destinations ...any) error {
 			*destination = value.(bool)
 		case *int64:
 			*destination = value.(int64)
+		case *sql.NullInt64:
+			// Unbounded numeric columns report NULL precision/scale.
+			if value == nil {
+				*destination = sql.NullInt64{}
+				continue
+			}
+			*destination = sql.NullInt64{Int64: value.(int64), Valid: true}
 		case *string:
 			*destination = value.(string)
 		case **string:

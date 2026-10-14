@@ -200,6 +200,14 @@ func (q *profileSchemaTarget) QueryRow(_ context.Context, query string, args ...
 			}
 			return staticRow{values: []any{q.dataType}}
 		}
+		if args[1] == "tax_rate" {
+			// Canonical 001 schema mirrors the fixture: numeric with the
+			// same precision/scale as the quantity column.
+			if strings.Contains(query, "numeric_precision") {
+				return staticRow{values: []any{q.precision, q.scale}}
+			}
+			return staticRow{values: []any{q.dataType}}
+		}
 	}
 	return staticRow{values: []any{"bigint"}}
 }

@@ -95,6 +95,16 @@ if sub in ('apply', 'import'):
                 if leftover.is_file():
                     leftover.unlink()
 
+    def seed_ids(self, clinic=2, species=1, exam=11009, trim=2, cash=5, card=6):
+        return {'clinicId': clinic, 'animalSpeciesId': species, 'examTypeId': exam,
+                'trimmingReservationTypeId': trim, 'cashPaymentMethodId': cash,
+                'creditCardPaymentMethodId': card}
+
+    def with_seeds(self, body):
+        body = dict(body)
+        body['seedIds'] = self.seed_ids()
+        return json.dumps(body)
+
     def reset_log(self):
         if self.log.exists():
             self.log.unlink()
@@ -192,7 +202,7 @@ if sub in ('apply', 'import'):
         digest = hashlib.sha256((self.root / 'handoff/jouto/manifest.json').read_bytes()).hexdigest()
         (reports / ('jouto-mock-run-stg-uat-apply-'+CANDIDATE+'.json')).write_text(
             json.dumps({'status': 'PASS', 'manifestSha256': digest,
-                        'targetHost': 'example.psdb.cloud', 'targetDatabase': 'postgres'}))
+                        'targetHost': 'example.psdb.cloud', 'targetDatabase': 'postgres', 'seedIds': self.seed_ids()}))
         env = self.env.copy()
         env[PROFILE] = CANDIDATE
         result = self.run_make('stg-uat-handoff', env=env)
@@ -210,7 +220,7 @@ if sub in ('apply', 'import'):
         digest = hashlib.sha256((self.root / 'handoff/jouto/manifest.json').read_bytes()).hexdigest()
         (reports / ('jouto-mock-run-stg-uat-apply-'+CANDIDATE+'.json')).write_text(
             json.dumps({'status': 'PASS', 'manifestSha256': digest,
-                        'targetHost': 'example.psdb.cloud', 'targetDatabase': 'postgres'}))
+                        'targetHost': 'example.psdb.cloud', 'targetDatabase': 'postgres', 'seedIds': self.seed_ids()}))
         env = self.env.copy()
         env[PROFILE] = CANDIDATE
         env['MOCK_VERIFY_EXIT'] = '1'
@@ -233,7 +243,7 @@ if sub in ('apply', 'import'):
         digest = hashlib.sha256((self.root / 'handoff/jouto/manifest.json').read_bytes()).hexdigest()
         (reports / ('jouto-mock-run-stg-uat-apply-'+CANDIDATE+'.json')).write_text(
             json.dumps({'status': 'PASS', 'manifestSha256': digest,
-                        'targetHost': 'example.psdb.cloud', 'targetDatabase': 'postgres'}))
+                        'targetHost': 'example.psdb.cloud', 'targetDatabase': 'postgres', 'seedIds': self.seed_ids()}))
         env = self.env.copy()
         env[PROFILE] = CANDIDATE
         env['MOCK_VERIFY_EXIT'] = '17'
@@ -249,7 +259,7 @@ if sub in ('apply', 'import'):
         digest = hashlib.sha256((self.root / 'handoff/jouto/manifest.json').read_bytes()).hexdigest()
         (reports / ('jouto-mock-run-stg-uat-apply-'+CANDIDATE+'.json')).write_text(
             json.dumps({'status': 'PASS', 'manifestSha256': digest,
-                        'targetHost': 'rebuilt.psdb.cloud', 'targetDatabase': 'rebuilt-db'}))
+                        'targetHost': 'rebuilt.psdb.cloud', 'targetDatabase': 'rebuilt-db', 'seedIds': self.seed_ids()}))
         local_env = self.root / 'mock.local.env'
         local_env.write_text('DB_HOST=rebuilt.psdb.cloud' + chr(10) + 'DB_USER=mock-user' + chr(10) + 'DB_PASSWORD=mock-value' + chr(10) + 'TARGET_DB_NAME=rebuilt-db' + chr(10) + 'STG_UAT_CSV_IMPORT_CONFIRM_HOST=rebuilt.psdb.cloud' + chr(10))
         local_env.chmod(0o600)
@@ -290,6 +300,66 @@ if sub in ('apply', 'import'):
                 self.assertIn('target binding', result.stderr)
                 self.assertEqual(self.subcommands(), [])
                 self.assertEqual(report.read_text(), original)
+
+    def test_candidate_report_seed_binding_must_match(self):
+        self.fixtures()
+        reports = self.root / 'reports'
+        reports.mkdir()
+        digest = hashlib.sha256((self.root / 'handoff/jouto/manifest.json').read_bytes()).hexdigest()
+        report = reports / ('jouto-mock-run-stg-uat-apply-'+CANDIDATE+'.json')
+        cases = [('missing seedIds', None), ('empty seedIds', {}), ('invalid seedIds container', ['invalid'])]
+        for key, wrong in [('clinicId', 3), ('animalSpeciesId', 2), ('examTypeId', 11010),
+                           ('trimmingReservationTypeId', 3), ('cashPaymentMethodId', 6),
+                           ('creditCardPaymentMethodId', 7)]:
+            body = self.seed_ids(); body[key] = wrong
+            cases.append(('mismatched '+key, body))
+        body = self.seed_ids(); del body['clinicId']
+        cases.append(('missing clinicId', body))
+        body = self.seed_ids(); body['clinicId'] = '2'
+        cases.append(('string clinicId', body))
+        body = self.seed_ids(); body['cashPaymentMethodId'] = 5.5
+        cases.append(('float cash', body))
+        body = self.seed_ids(); body['creditCardPaymentMethodId'] = True
+        cases.append(('bool card', body))
+        for label, seed_body in cases:
+            with self.subTest(case=label):
+                original = json.dumps({'status': 'PASS', 'manifestSha256': digest,
+                                       'targetHost': 'example.psdb.cloud',
+                                       'targetDatabase': 'postgres', 'seedIds': seed_body})
+                if seed_body is None:
+                    payload = json.loads(original)
+                    del payload['seedIds']
+                    original = json.dumps(payload)
+                report.write_text(original)
+                original_bytes = report.read_bytes()
+                env = self.env.copy()
+                env[PROFILE] = CANDIDATE
+                result = self.run_make('stg-uat-handoff', env=env)
+                self.assertNotEqual(result.returncode, 0, label)
+                self.assertIn('seed binding', result.stderr)
+                # Fail closed: no verify, no import, no mutation.
+                self.assertEqual(self.subcommands(), [])
+                self.assertEqual(report.read_bytes(), original_bytes)
+
+    def test_fresh_digest_reuse_requires_matching_seeds(self):
+        self.fixtures()
+        base = self.stale_base_report()
+        original = base.read_bytes()
+        digest = self.manifest_digest()
+        fresh = self.root / 'reports' / ('jouto-mock-run-stg-uat-apply-'+CANDIDATE+'-'+digest+'.json')
+        seeds = self.seed_ids(); seeds['examTypeId'] = 11010
+        fresh.write_text(json.dumps({'status': 'PASS', 'manifestSha256': digest,
+                                     'targetHost': 'example.psdb.cloud',
+                                     'targetDatabase': 'postgres', 'seedIds': seeds}))
+        fresh_original = fresh.read_bytes()
+        env = self.env.copy()
+        env[PROFILE] = CANDIDATE
+        result = self.run_make('stg-uat-handoff', env=env)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('seed binding', result.stderr)
+        self.assertEqual(self.subcommands(), [])
+        self.assertEqual(base.read_bytes(), original)
+        self.assertEqual(fresh.read_bytes(), fresh_original)
 
     def test_candidate_stale_report_is_not_reused(self):
         self.fixtures()
@@ -416,7 +486,7 @@ if sub in ('apply', 'import'):
         digest = self.manifest_digest()
         reports = self.root / 'reports'
         fresh = reports / ('jouto-mock-run-stg-uat-apply-'+CANDIDATE+'-'+digest+'.json')
-        fresh.write_text(json.dumps({
+        fresh.write_text(self.with_seeds({
             'status': 'PASS', 'manifestSha256': digest,
             'targetHost': 'example.psdb.cloud', 'targetDatabase': 'postgres'}))
         fresh_original = fresh.read_bytes()

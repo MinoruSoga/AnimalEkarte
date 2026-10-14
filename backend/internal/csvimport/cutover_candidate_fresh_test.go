@@ -35,7 +35,15 @@ type candidateBandQuerier struct {
 func (q candidateBandQuerier) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
 	if len(args) == 2 && args[0] == "medicines" && strings.Contains(query, "information_schema.columns") {
 		if strings.Contains(query, "numeric_precision") {
+			// Canonical 001 schema: tax_rate is unconstrained numeric.
+			if args[1] == "tax_rate" {
+				return staticRow{values: []any{nil, nil}}
+			}
 			return staticRow{values: []any{int64(10), int64(2)}}
+		}
+		if strings.Contains(query, "data_type") && args[1] == "tax_rate" {
+			// Canonical 001 schema: tax_rate is numeric (unbounded).
+			return staticRow{values: []any{"numeric"}}
 		}
 		if strings.Contains(query, "data_type") && args[1] == "default_quantity" {
 			return staticRow{values: []any{"numeric"}}
@@ -146,7 +154,15 @@ type candidateFreshApplySession struct {
 func (s *candidateFreshApplySession) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
 	if len(args) == 2 && args[0] == "medicines" && strings.Contains(query, "information_schema.columns") {
 		if strings.Contains(query, "numeric_precision") {
+			// Canonical 001 schema: tax_rate is unconstrained numeric.
+			if args[1] == "tax_rate" {
+				return staticRow{values: []any{nil, nil}}
+			}
 			return staticRow{values: []any{int64(10), int64(2)}}
+		}
+		if strings.Contains(query, "data_type") && args[1] == "tax_rate" {
+			// Canonical 001 schema: tax_rate is numeric (unbounded).
+			return staticRow{values: []any{"numeric"}}
 		}
 		if strings.Contains(query, "data_type") && args[1] == "default_quantity" {
 			return staticRow{values: []any{"numeric"}}
