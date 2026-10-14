@@ -41,7 +41,7 @@
 
 GitHub の `delete_branch_on_merge` は false である。`main` または `staging` へマージした PR の worktree とブランチは、そのセッションの終了前に削除する。条件を満たす取り残しを後のセッションが見つけたときも、別の掃除依頼を待たずに削除する。
 
-マージ判定は `gh` の PR state が MERGED であること。squash merge は `origin/main` の祖先にならないため、`git merge-base --is-ancestor` では判定しない。MERGED は統合の証拠であり、作成者が不明でもその head とクリーンな worktree は残さない。`claim/*`、PR のないブランチ、クローズのみの PR は対象外で、作成者不明なら従来どおり保持する。
+マージ判定は `gh` の PR state が MERGED であること。squash merge は `origin/main` の祖先にならないため、`git merge-base --is-ancestor` では判定しない。MERGED は統合の証拠であり、作成者が不明でもその head とクリーンな worktree は残さない。この head 削除は `claim/*` を選ばない。PR のないブランチと、クローズのみの PR も対象外で、作成者不明なら従来どおり保持する。対応する claim は次の節で消す。
 
 ブランチ付き worktree を消す条件は次のすべて。
 
@@ -61,6 +61,30 @@ detached worktree は、porcelain が空で、HEAD がマージ済み PR head �
 5. Artifacts に同じブランチがあるときは、task branch の push と同じ手続きでその ref だけを消す。`ARTIFACTS_TOKEN` は表示しない。Artifacts の `main`、`staging`、`production` は消さない。実行できないときは Artifacts を BLOCKED と報告し、GitHub 側の削除は完了させる。
 
 worktree が無い local または `origin` のブランチも、最新 PR が MERGED で open PR がなければ同じ削除対象に含める。削除したブランチはセッション報告に書く。
+
+## マージ済み PR に対応する claim の解放（必須）
+
+`claim/*` は PR head ではない。上の worktree とブランチの削除は `claim/*` を選ばない。PR のないブランチと、クローズのみの PR もそこでは消さない。
+
+`main` または `staging` へマージした PR があるとき、同じセッションはその PR に対応する local の `claim/<TASK-ID>` も、セッション終了前に消す。条件を満たす取り残しを後のセッションが見つけたときも、別の掃除依頼を待たずに消す。
+
+対応する claim は、次をすべて満たすものだけである。
+
+- ブランチ名が `claim/<TASK-ID>` そのものであり、`<TASK-ID>` は台帳・パケット・Plane の ID である。ID の照合は大文字小文字を区別しない。消す ref は既にあるものだけである。ID に git ref として使えない文字があり、取得時に `-` へ置き換えた名前で残っているときは、その変換後の名前を対応先にする。
+- その ID が、マージ済み PR のタイトルまたは head ブランチ名に、その PR が含む作業としてそのまま書かれている。本文だけの言及、コミットメッセージだけ、レビューコメント、関連チケットの列挙は対応にしない。タイトルまたはブランチ名が複数の ID を実装対象として名指ししているときは、各 `claim/<TASK-ID>` を別々に確認する。綴りが複数に読めるときは残して報告する。
+
+消す前の確認は次のすべて。
+
+- `gh` でその PR が `main` または `staging` へ MERGED であり、同じ head に open の PR がない。
+- `git worktree list` で、その claim を checkout している worktree がない。
+- claim の先端が merge 先の祖先であることは証拠にしない。`git merge-base --is-ancestor` が成功しても消さない。claim は取得時点のコミットを指すことが多く、作業前から merge 先に含まれている。
+- その PR の変更が、その TASK-ID の作業として merge 先にあることを確認する。claim から merge 先に無いコミットがあるときは、その差分を読む。そのコミットが無いか、マージ済み PR が同じ作業を merge 先へ載せているときだけ消す。未統合の作業が claim 上に残っていれば残し、ブランチ名と `git log -1 --format='%ci %s' claim/<TASK-ID>` を報告する。
+- この確認を通った claim は、作成者が不明でもユーザーでも消す。この確認を通らない claim は、作成者別規則のまま残す。
+- `git branch -d claim/<TASK-ID>` を使う。`-D` は使わない。拒否されたら残して報告する。
+- `origin` に同じ ref があるときだけ `git push origin --delete claim/<TASK-ID>` する。この節が、確認を通った claim に限った非 force の remote 削除の認可である。Artifacts に同じ ref があるときは task branch の push と同じ手続きでその ref だけを消す。`ARTIFACTS_TOKEN` は表示しない。Artifacts の `main`、`staging`、`production` は消さない。実行できないときは Artifacts を BLOCKED と報告し、local と GitHub の削除は完了させる。
+- `main` または `staging` に含まれていることだけを理由に、`claim/*` を列挙してまとめて消さない。
+
+消した claim と、対応したが残した claim はセッション報告に書く。
 
 ## 事故後
 
