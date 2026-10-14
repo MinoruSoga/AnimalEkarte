@@ -1,10 +1,12 @@
-import { render, screen } from "@testing-library/react";
+import { useState } from "react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
 import type { MasterItem } from "@/types";
 
+import { createInitialHospitalizationFormData } from "../hooks/use-hospitalization-form-model";
 import type { HospitalizationFormData } from "../types";
 
 import { HospitalizationBasicInfo } from "./HospitalizationBasicInfo";
@@ -164,5 +166,154 @@ describe("HospitalizationBasicInfo ケージ選択肢 (EMR-306)", () => {
     await user.click(trigger);
     expect(screen.getByRole("option", { name: "A-2（連結前の個室）" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "A-1 + A-2" })).toBeInTheDocument();
+  });
+});
+
+// EMR-353: 次回予定の選択種別は nextVisit の有無ではなく明示的なフォーム状態。
+// 制御 formData を持つ実ハーネスで選択→再renderの回帰を検証する。
+function ControlledBasicInfo({ initial }: { initial?: Partial<HospitalizationFormData> }) {
+  const [formData, setFormData] = useState<HospitalizationFormData>({
+    ...FORM_DATA,
+    ...initial,
+  });
+  return (
+    <HospitalizationBasicInfo
+      formData={formData}
+      onChange={(updates) => setFormData((prev) => ({ ...prev, ...updates }))}
+      cageItems={[]}
+    />
+  );
+}
+
+function renderControlledBasicInfo(initial?: Partial<HospitalizationFormData>) {
+  return render(
+    <MemoryRouter>
+      <ControlledBasicInfo initial={initial} />
+    </MemoryRouter>,
+  );
+}
+
+const nextScheduleTrigger = () => screen.getByRole("combobox", { name: "次回の予定" });
+const nextDateInput = () => screen.getByLabelText("次回予定日");
+const startDateInput = () => screen.getByLabelText("開始日");
+
+async function selectScheduleOption(user: ReturnType<typeof userEvent.setup>, optionName: string) {
+  await user.click(nextScheduleTrigger());
+  await user.click(screen.getByRole("option", { name: optionName }));
+}
+
+function typeDateInto(input: HTMLElement, slashDate: string) {
+  fireEvent.focus(input);
+  fireEvent.change(input, { target: { value: slashDate } });
+  fireEvent.blur(input);
+}
+
+describe("HospitalizationBasicInfo 次回予定の選択種別 (EMR-353)", () => {
+  it.each([
+    { option: "3週後", expected: "2026年10月28日" },
+    { option: "4週後", expected: "2026年11月4日" },
+    { option: "1年後", expected: "2027年10月7日" },
+  ])(
+    "プリセット %s の選択ラベルと基準日から計算した日付が再render後も維持される",
+    async ({ option, expected }) => {
+      const user = userEvent.setup();
+      renderControlledBasicInfo({ displayDate: "2026-10-07" });
+
+      await selectScheduleOption(user, option);
+
+      expect(nextScheduleTrigger()).toHaveTextContent(option);
+      expect(nextDateInput()).toHaveDisplayValue(new RegExp(expected));
+    },
+  );
+
+  // R353-01: 新規フォームは次回予定未選択なので「以外（手動）」表示にする。
+  // 未計算の「4週後」を既定表示にすると、同じ項目の再選択が Radix の no-op になり
+  // 日付が生成されないため。初期値は createInitialHospitalizationFormData をそのまま使う。
+  it("新規フォームの初期表示は以外（手動）で、4週後を選択すると計算日が入る", async () => {
+    const user = userEvent.setup();
+    renderControlledBasicInfo({
+      ...createInitialHospitalizationFormData(),
+      displayDate: "2026-10-07",
+    });
+
+    expect(nextScheduleTrigger()).toHaveTextContent("以外（手動）");
+
+    await selectScheduleOption(user, "4週後");
+
+    expect(nextScheduleTrigger()).toHaveTextContent("4週後");
+    expect(nextDateInput()).toHaveDisplayValue(/2026年11月4日/);
+  });
+
+  it("手動でプリセット計算日と同じ日付を入力しても選択種別を維持する", async () => {
+    const user = userEvent.setup();
+    renderControlledBasicInfo({ displayDate: "2026-10-07" });
+
+    await selectScheduleOption(user, "3週後");
+    typeDateInto(nextDateInput(), "2026/10/28");
+
+    expect(nextScheduleTrigger()).toHaveTextContent("3週後");
+    expect(nextDateInput()).toHaveDisplayValue(/2026年10月28日/);
+  });
+
+  it("手動で計算日と異なる日付を入力すると以外（手動）に切り替わる", async () => {
+    const user = userEvent.setup();
+    renderControlledBasicInfo({ displayDate: "2026-10-07" });
+
+    await selectScheduleOption(user, "3週後");
+    typeDateInto(nextDateInput(), "2026/11/15");
+
+    expect(nextScheduleTrigger()).toHaveTextContent("以外（手動）");
+    expect(nextDateInput()).toHaveDisplayValue(/2026年11月15日/);
+  });
+
+  it("プリセット選択中に開始日を変更すると計算日が追従する", async () => {
+    const user = userEvent.setup();
+    renderControlledBasicInfo({ displayDate: "2026-10-07" });
+
+    await selectScheduleOption(user, "3週後");
+    typeDateInto(startDateInput(), "2026/10/14");
+
+    expect(nextScheduleTrigger()).toHaveTextContent("3週後");
+    expect(nextDateInput()).toHaveDisplayValue(/2026年11月4日/);
+  });
+
+  it("以外（手動）の日付は開始日を変更しても保持される", async () => {
+    const user = userEvent.setup();
+    renderControlledBasicInfo({ displayDate: "2026-10-07" });
+
+    await selectScheduleOption(user, "3週後");
+    typeDateInto(nextDateInput(), "2026/12/01");
+    typeDateInto(startDateInput(), "2026/10/14");
+
+    expect(nextScheduleTrigger()).toHaveTextContent("以外（手動）");
+    expect(nextDateInput()).toHaveDisplayValue(/2026年12月1日/);
+  });
+
+  it("基準日が空でもプリセット選択は保持され無効な日付を生成しない", async () => {
+    const user = userEvent.setup();
+    renderControlledBasicInfo({ displayDate: "" });
+
+    await selectScheduleOption(user, "3週後");
+
+    expect(nextScheduleTrigger()).toHaveTextContent("3週後");
+    expect(nextDateInput()).toHaveValue("");
+  });
+
+  it("開始日を消去するとプリセット種別は保持しつつ日付は空になる", async () => {
+    const user = userEvent.setup();
+    renderControlledBasicInfo({ displayDate: "2026-10-07" });
+
+    await selectScheduleOption(user, "3週後");
+    typeDateInto(startDateInput(), "");
+
+    expect(nextScheduleTrigger()).toHaveTextContent("3週後");
+    expect(nextDateInput()).toHaveValue("");
+  });
+
+  it("既存日付だけを持つ formData は以外（手動）として表示する", () => {
+    renderControlledBasicInfo({ nextVisit: "2026-12-25" });
+
+    expect(nextScheduleTrigger()).toHaveTextContent("以外（手動）");
+    expect(nextDateInput()).toHaveDisplayValue(/2026年12月25日/);
   });
 });

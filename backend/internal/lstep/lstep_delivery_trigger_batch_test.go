@@ -126,7 +126,7 @@ func TestRunBatch_BuildClientError(t *testing.T) {
 			},
 		},
 	}
-	count, errs := svc.runBatch(context.Background(), 1, []uint64{1, 2}, "trigger_x", "tag_x", time.Now(), nil)
+	count, errs := svc.runBatch(context.Background(), 1, []uint64{1, 2}, "trigger_x", "tag_x", time.Now(), nil, nil)
 	assert.Equal(t, 0, count)
 	assert.Len(t, errs, 1)
 }
@@ -135,28 +135,30 @@ func TestRunBatch_ClientNilIsNoop(t *testing.T) {
 	svc := &lstepDeliveryTriggerService{
 		settingsSvc: disabledSettings(),
 	}
-	count, errs := svc.runBatch(context.Background(), 1, []uint64{1, 2}, "trigger_x", "tag_x", time.Now(), nil)
+	count, errs := svc.runBatch(context.Background(), 1, []uint64{1, 2}, "trigger_x", "tag_x", time.Now(), nil, nil)
 	assert.Equal(t, 0, count)
 	assert.Empty(t, errs)
 }
 
 func TestProcessSingleOwner_AlreadyFiredTodayError(t *testing.T) {
 	svc := &lstepDeliveryTriggerService{
-		ownerRepo: validOwnerRepoForDelivery(),
+		ownerRepo:    validOwnerRepoForDelivery(),
+		tagCacheRepo: &mockTagCacheRepoForDelivery{},
 		triggerLogRepo: &mockDeliveryTriggerLogRepository{
 			existsTodayFn: func(_ context.Context, _, _ uint64, _ string, _ time.Time) (bool, error) {
 				return false, errors.New("db error")
 			},
 		},
 	}
-	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now(), nil)
+	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now(), nil, nil)
 	assert.Error(t, err)
 	assert.False(t, fired)
 }
 
 func TestProcessSingleOwner_ApplySuppressionError(t *testing.T) {
 	svc := &lstepDeliveryTriggerService{
-		ownerRepo: validOwnerRepoForDelivery(),
+		ownerRepo:    validOwnerRepoForDelivery(),
+		tagCacheRepo: &mockTagCacheRepoForDelivery{},
 		triggerLogRepo: &mockDeliveryTriggerLogRepoForBatch{
 			findByOwnerAndDateFn: func(_ context.Context, _, _ uint64, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
 				return nil, errors.New("db error")
@@ -164,7 +166,7 @@ func TestProcessSingleOwner_ApplySuppressionError(t *testing.T) {
 		},
 		prioritySvc: &mockLstepTriggerPriorityServiceForBatch{},
 	}
-	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now(), nil)
+	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now(), nil, nil)
 	assert.Error(t, err)
 	assert.False(t, fired)
 }
@@ -198,7 +200,7 @@ func TestProcessSingleOwner_ValidatesOwnerScopeBeforeSuppressionLog(t *testing.T
 		},
 	}
 
-	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now(), nil)
+	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now(), nil, nil)
 	assert.Error(t, err)
 	assert.False(t, fired)
 	assert.False(t, created)
@@ -220,7 +222,7 @@ func TestProcessSingleOwner_ValidatesOwnerScopeBeforeDuplicateLookup(t *testing.
 		},
 	}
 
-	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now(), nil)
+	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now(), nil, nil)
 	assert.Error(t, err)
 	assert.False(t, fired)
 	assert.False(t, duplicateLookupCalled)
@@ -229,7 +231,8 @@ func TestProcessSingleOwner_ValidatesOwnerScopeBeforeDuplicateLookup(t *testing.
 func TestProcessSingleOwner_SuppressedCreatesLogAndSkips(t *testing.T) {
 	var createdLog *model.LstepDeliveryTriggerLog
 	svc := &lstepDeliveryTriggerService{
-		ownerRepo: validOwnerRepoForDelivery(),
+		ownerRepo:    validOwnerRepoForDelivery(),
+		tagCacheRepo: &mockTagCacheRepoForDelivery{},
 		triggerLogRepo: &mockDeliveryTriggerLogRepoForBatch{
 			findByOwnerAndDateFn: func(_ context.Context, _, _ uint64, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
 				return []model.LstepDeliveryTriggerLog{{ID: 1, TriggerType: "higher_priority_trigger"}}, nil
@@ -249,7 +252,7 @@ func TestProcessSingleOwner_SuppressedCreatesLogAndSkips(t *testing.T) {
 			},
 		},
 	}
-	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now(), nil)
+	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now(), nil, nil)
 	assert.NoError(t, err)
 	assert.False(t, fired)
 	if assert.NotNil(t, createdLog) {
@@ -259,7 +262,8 @@ func TestProcessSingleOwner_SuppressedCreatesLogAndSkips(t *testing.T) {
 
 func TestProcessSingleOwner_SuppressedLogCreateError(t *testing.T) {
 	svc := &lstepDeliveryTriggerService{
-		ownerRepo: validOwnerRepoForDelivery(),
+		ownerRepo:    validOwnerRepoForDelivery(),
+		tagCacheRepo: &mockTagCacheRepoForDelivery{},
 		triggerLogRepo: &mockDeliveryTriggerLogRepoForBatch{
 			findByOwnerAndDateFn: func(_ context.Context, _, _ uint64, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
 				return []model.LstepDeliveryTriggerLog{{ID: 1, TriggerType: "higher_priority_trigger"}}, nil
@@ -277,7 +281,7 @@ func TestProcessSingleOwner_SuppressedLogCreateError(t *testing.T) {
 			},
 		},
 	}
-	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now(), nil)
+	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now(), nil, nil)
 	assert.Error(t, err)
 	assert.False(t, fired)
 }
@@ -291,7 +295,7 @@ func TestProcessSingleOwner_CheckExclusionError(t *testing.T) {
 		},
 		triggerLogRepo: &mockDeliveryTriggerLogRepository{},
 	}
-	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now(), nil)
+	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now(), nil, nil)
 	assert.Error(t, err)
 	assert.False(t, fired)
 }
@@ -310,7 +314,7 @@ func TestProcessSingleOwner_RecordTriggerError(t *testing.T) {
 			},
 		},
 	}
-	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now(), nil)
+	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now(), nil, nil)
 	assert.Error(t, err)
 	assert.False(t, fired)
 }
@@ -332,7 +336,7 @@ func TestProcessSingleOwner_ExcludedUpdateStatusFailureIsFatal(t *testing.T) {
 			},
 		},
 	}
-	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now(), nil)
+	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now(), nil, nil)
 	assert.Error(t, err)
 	assert.False(t, fired)
 	assert.True(t, updateStatusCalled)
@@ -350,7 +354,7 @@ func TestProcessSingleOwner_ReReadsOwnerUnderLock(t *testing.T) {
 		tagCacheRepo:   &mockTagCacheRepoForDelivery{},
 		triggerLogRepo: &mockDeliveryTriggerLogRepository{},
 	}
-	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now(), nil)
+	fired, err := svc.processSingleOwner(context.Background(), &mockLstepClientForDelivery{}, 1, 10, "trigger_x", "tag_x", time.Now(), nil, nil)
 	assert.NoError(t, err)
 	assert.True(t, fired)
 	assert.Equal(t, 2, callCount)
@@ -376,7 +380,7 @@ func TestRunBatch_AddTagFailureDoesNotCountAsFired(t *testing.T) {
 			}, nil
 		},
 	}
-	count, errs := svc.runBatch(context.Background(), 1, []uint64{10}, "trigger_x", "tag_x", time.Now(), nil)
+	count, errs := svc.runBatch(context.Background(), 1, []uint64{10}, "trigger_x", "tag_x", time.Now(), nil, nil)
 	assert.Equal(t, 0, count)
 	assert.Len(t, errs, 1)
 }
@@ -567,7 +571,7 @@ func runDeliveryBatchWithCounts(t *testing.T, ownerCount int, dayLogs []model.Ls
 		},
 	}
 	asOf := time.Date(2026, 7, 30, 10, 0, 0, 0, time.UTC)
-	fired, errs := svc.runBatch(context.Background(), 1, ids, "trigger_x", "tag_x", asOf, nil)
+	fired, errs := svc.runBatch(context.Background(), 1, ids, "trigger_x", "tag_x", asOf, nil, nil)
 	assert.Empty(t, errs)
 
 	return deliveryBatchQueryCounts{
@@ -644,7 +648,7 @@ func TestDeliveryTriggerBatch_BulkOptOutExcludesWithoutPerOwnerTagRead(t *testin
 			return &mockLstepClientForDelivery{}, nil
 		},
 	}
-	fired, errs := svc.runBatch(context.Background(), 1, []uint64{1, 2}, "trigger_x", "tag_x", time.Now(), nil)
+	fired, errs := svc.runBatch(context.Background(), 1, []uint64{1, 2}, "trigger_x", "tag_x", time.Now(), nil, nil)
 	assert.Empty(t, errs)
 	assert.Equal(t, 0, fired, "opt-out and excl tag must both exclude")
 	assert.Equal(t, 0, ownerRepo.findByIDCalls)
@@ -673,7 +677,7 @@ func TestDeliveryTriggerBatch_DailyClaimSkipsAlreadyFired(t *testing.T) {
 			return &mockLstepClientForDelivery{}, nil
 		},
 	}
-	fired, errs := svc.runBatch(context.Background(), 1, []uint64{1, 2}, "trigger_x", "tag_x", time.Now(), nil)
+	fired, errs := svc.runBatch(context.Background(), 1, []uint64{1, 2}, "trigger_x", "tag_x", time.Now(), nil, nil)
 	assert.Empty(t, errs)
 	assert.Equal(t, 1, fired, "only owner 2 should fire; owner 1 already claimed today")
 	assert.Equal(t, 0, logRepo.existsTodayCalls, "daily check must use bulk day logs")
@@ -727,7 +731,7 @@ func TestDeliveryTriggerBatch_SuppressionUsesDayLogBulk(t *testing.T) {
 	}
 	svc.triggerLogRepo = adapter
 
-	fired, errs := svc.runBatch(context.Background(), 1, []uint64{1}, "trigger_x", "tag_x", time.Now(), nil)
+	fired, errs := svc.runBatch(context.Background(), 1, []uint64{1}, "trigger_x", "tag_x", time.Now(), nil, nil)
 	assert.Empty(t, errs)
 	assert.Equal(t, 0, fired)
 	if assert.NotNil(t, created) {
@@ -794,4 +798,39 @@ func (m *suppressionBulkLogAdapter) MarkKnownUnsent(_ context.Context, _, _ uint
 
 func (m *suppressionBulkLogAdapter) UpdateSuppressed(_ context.Context, _, _ uint64, _ string) error {
 	return nil
+}
+
+func TestProcessSingleOwner_IneligibleDoesNotSuppressExisting(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		err  error
+	}{{"stale", nil}, {"read_error", errors.New("eligibility unavailable")}} {
+		t.Run(tt.name, func(t *testing.T) {
+			removed, demoted := 0, 0
+			logs := &mockDeliveryTriggerLogRepoForBatch{
+				findByOwnerAndDateFn: func(_ context.Context, _, _ uint64, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
+					return []model.LstepDeliveryTriggerLog{{ID: 1, TriggerType: "lower", Status: model.TriggerStatusFired}}, nil
+				},
+				updateSuppressedFn: func(_ context.Context, _, _ uint64, _ string) error { demoted++; return nil },
+			}
+			client := &mockLstepAPIClient{removeTagFn: func(_ context.Context, _, _ string) error { removed++; return nil }}
+			svc := buildDeliverySvc(validOwnerRepoForDelivery(), nil, nil, nil, &mockTagCacheRepoForDelivery{}, logs, enabledSettings()).(*lstepDeliveryTriggerService)
+			svc.prioritySvc = &mockLstepTriggerPriorityServiceForBatch{getPriorityForFn: func(_ context.Context, _ uint64, trigger string) (int, error) {
+				if trigger == "higher" {
+					return 1, nil
+				}
+				return 2, nil
+			}}
+			injectTestClient(svc, client)
+			fired, err := svc.processSingleOwner(context.Background(), client, 1, 10, "higher", "higher", time.Now(), nil, func(_ context.Context, _ uint64) (bool, string, error) { return false, "stale", tt.err })
+			assert.False(t, fired)
+			if tt.err != nil {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Zero(t, removed)
+			assert.Zero(t, demoted)
+		})
+	}
 }

@@ -106,7 +106,7 @@ describe("AccountingItemRow accessibility", () => {
     expect(screen.getByText("¥100")).toBeInTheDocument();
   });
 
-  it("項目名・区分バッジ・税額セルは折り返さず横スクロールさせる", () => {
+  it("項目名セルは境界幅内で折り返し、バッジ・税額は1行を維持する (EMR-384)", () => {
     renderRow(true, {
       ...ITEM,
       name: "R7QAコース",
@@ -115,7 +115,7 @@ describe("AccountingItemRow accessibility", () => {
     });
 
     const nameCell = screen.getByText("R7QAコース").closest("td");
-    expect(nameCell?.className).toContain("whitespace-nowrap");
+    expect(nameCell?.className).not.toContain("whitespace-nowrap");
 
     const trimmingNodes = screen.getAllByText("トリミング");
     expect(trimmingNodes.length).toBeGreaterThanOrEqual(2);
@@ -124,7 +124,7 @@ describe("AccountingItemRow accessibility", () => {
     expect(badge?.className).toContain("whitespace-nowrap");
 
     const sourceTag = trimmingNodes.find((node) => node.className.includes("ml-2"));
-    expect(sourceTag?.closest("td")?.className).toContain("whitespace-nowrap");
+    expect(sourceTag?.className).toContain("whitespace-nowrap");
 
     const taxCell = screen.getByText("¥120").closest("td");
     expect(taxCell?.className).toContain("whitespace-nowrap");

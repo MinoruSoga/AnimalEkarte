@@ -9,7 +9,7 @@
 
 ---
 
-> **注記 (2026-07-10 / 更新 2026-07-31)**: Lステップへの Write API（タグ付与・タグ解除・プロパティ更新）は **`LSTEP_WRITE_API_ENABLED`（既定 OFF）+ clinic `is_sync_enabled` の二重 gate** で抑止される。運用手順正本: [`docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)。
+> **注記 (2026-07-10 / 更新 2026-07-31)**: Lステップへの Write API（タグ付与・タグ解除・プロパティ更新）は **`LSTEP_WRITE_API_ENABLED`（既定 OFF）+ clinic `is_sync_enabled` の二重 gate** で抑止される。運用手順正本: [`docs/ops/deploy/runbooks/LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/runbooks/LSTEP_WRITE_API_PAUSE.md)。
 >
 > 追記（2026-10-07 監査）: 二重 gate の契約本文（`ErrWriteDisabled` とクライアント未構築の意図的スキップ `nil, nil` の区別、gate OFF 後のローカル DB / cache / audit / logging の扱い）は [architecture.md](./architecture.md) 冒頭注記・§4 に一元化した。本書では重複掲載しない。
 
@@ -94,9 +94,9 @@ stateDiagram-v2
 
 現行の最終配信除外確認は owner opt-out、`delivery_excluded`、LINE ID、cached EXCL tag を確認する。同日 claim と優先度抑制により、同日に競合する trigger は高優先度を選ぶ。
 
-**既知の safety gap**: `PetStatus` は `alive` / `deceased` であり、`transferred` status はこの契約にない。最終 claim / write 前の確認は pet status を直接読まない。全 pet 死亡時の tag cleanup は best-effort で、durable exclusion flag を確立しない。また一部候補 query は死亡 pet を除外しない。したがって死亡・転院関連配信の絶対遮断は保証しない。
+EMR-330 で修正済みの範囲: 通知候補 query（初診・最終来院・休眠系およびカーソル系）は死亡ペット由来の来院を除外する（`status <> 'deceased'` かつ `deceased_at IS NULL`。片側 sentinel のみの半死亡行も除外）。さらに非 tentative トリガーは scheduled claim 前と delivery owner lock 内 write/send 直前の 2 回、イベントソースの適格性を owner 単位で fail-closed に再読する。再読内容はファミリーごとに、初診・休眠系は生存ペット由来カルテの初診日 / 最終来院日 boundary、ワクチンは生存ペットの期限イベント、誕生日は生存ペットの誕生日、ウェルカム・健診フォローアップは typed なイベントペットの生存・現飼主・医院整合である。いずれも「同じ飼主に別の生存ペットがいる」だけではイベント由来の死亡行を救済しない。lock 内の再読は delivery owner lock の ambient transaction 上で実行され、単一接続プールでも第 2 接続を要求しない。
 
-必要な是正契約は、候補取得時と最終 claim / 外部 write 直前の両方で durable な owner/pet 除外証跡を fail-closed に確認し、cache / external write failure の alert、reconciliation、手動停止 fallback を持つことである。この source defect は本 docs-only 変更では修正しない。
+**残る safety gap**: `PetStatus` は `alive` / `deceased` であり、`transferred` status はこの契約にない。ペット識別子を持たないタグ系トリガー（シーズンアラート・療法食リマインド等）は scoped living-owner チェックに留まり、owner レベルのタグを特定ペットへ帰属させない。全 pet 死亡時の tag cleanup は引き続き best-effort で、durable exclusion flag を確立しない。またペットの生死遷移は delivery owner lock の直列化範囲外であるため、lock 内再読と外部 write の瞬間的な競合（生死遷移が再読直後に commit されるケース）は構造上排除できない。再読は送信窓を縮小するが、死亡・転院関連配信の絶対遮断は依然保証しない。
 
 ---
 
@@ -108,7 +108,7 @@ LSTEP の失敗時挙動は経路ごとに 1 契約だけを持つ。
 
 ### 5.1 書き込み停止と運用停止
 
-> 追記（2026-10-07 監査）: Write dual-gate（gate OFF 時は外部 HTTP を送らず `ErrWriteDisabled`。後続のローカル処理は呼び出し元ごとの失敗契約に従う）と clinic 停止（`is_sync_enabled=false` は再有効化後もサービス層で同期対象外）の契約本文の正本は [architecture.md](./architecture.md) 冒頭注記・§4.3。本節では重複掲載しない。運用手順正本: [`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)
+> 追記（2026-10-07 監査）: Write dual-gate（gate OFF 時は外部 HTTP を送らず `ErrWriteDisabled`。後続のローカル処理は呼び出し元ごとの失敗契約に従う）と clinic 停止（`is_sync_enabled=false` は再有効化後もサービス層で同期対象外）の契約本文の正本は [architecture.md](./architecture.md) 冒頭注記・§4.3。本節では重複掲載しない。運用手順正本: [`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/runbooks/LSTEP_WRITE_API_PAUSE.md)
 
 ### 5.2 定時 delivery バッチの読み取り要件
 

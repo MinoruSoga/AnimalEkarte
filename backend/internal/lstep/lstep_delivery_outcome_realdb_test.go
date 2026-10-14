@@ -164,7 +164,7 @@ func TestDeliveryOutcome_RealDB_PreSendCancelMarksRetryableUnsentAndRetrySendsOn
 		cancel()
 		return false, "", context.Canceled
 	}
-	fired, err := svc.processSingleOwner(ctx, recorder.client(), clinicID, owner.ID, "trigger_x", "tag_x", time.Now(), revalidate)
+	fired, err := svc.processSingleOwner(ctx, recorder.client(), clinicID, owner.ID, "trigger_x", "tag_x", time.Now(), revalidate, nil)
 	require.Error(t, err)
 	assert.False(t, fired)
 	assert.Equal(t, 0, recorder.totalAttempts(), "a cancelled pre-send attempt must never reach the provider")
@@ -175,7 +175,7 @@ func TestDeliveryOutcome_RealDB_PreSendCancelMarksRetryableUnsentAndRetrySendsOn
 	assert.Equal(t, preSendRevalidationFailure, *log.ExcludedReason)
 	assert.Nil(t, log.FiredAt)
 
-	fired, err = svc.processSingleOwner(context.Background(), recorder.client(), clinicID, owner.ID, "trigger_x", "tag_x", time.Now(), nil)
+	fired, err = svc.processSingleOwner(context.Background(), recorder.client(), clinicID, owner.ID, "trigger_x", "tag_x", time.Now(), nil, nil)
 	require.NoError(t, err)
 	assert.True(t, fired, "the pre_send failed marker must be reclaimable same-day")
 	assert.Equal(t, 1, recorder.attemptsFor("U_premark"))
@@ -201,7 +201,7 @@ func TestDeliveryOutcome_RealDB_PostSendCancelStillPersistsFired(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan deliveryAttemptResult, 1)
 	go func() {
-		fired, err := svc.processSingleOwner(ctx, recorder.client(), clinicID, owner.ID, "trigger_x", "tag_x", time.Now(), nil)
+		fired, err := svc.processSingleOwner(ctx, recorder.client(), clinicID, owner.ID, "trigger_x", "tag_x", time.Now(), nil, nil)
 		done <- deliveryAttemptResult{fired: fired, err: err}
 	}()
 	select {
@@ -251,7 +251,7 @@ func TestDeliveryOutcome_RealDB_TwoRetryWorkersSendOnce(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			fired, err := svc.processSingleOwner(context.Background(), recorder.client(), clinicID, owner.ID, "trigger_x", "tag_x", asOf, nil)
+			fired, err := svc.processSingleOwner(context.Background(), recorder.client(), clinicID, owner.ID, "trigger_x", "tag_x", asOf, nil, nil)
 			results <- deliveryAttemptResult{fired: fired, err: err}
 		}()
 	}
@@ -283,7 +283,7 @@ func TestDeliveryOutcome_RealDB_ProviderFailureIsBlockingNotRetryable(t *testing
 	recorder.addErr = errors.New("provider lost mid-flight")
 	svc := newDeliveryOwnerLockService(db, repo, recorder.client())
 
-	fired, err := svc.processSingleOwner(context.Background(), recorder.client(), clinicID, owner.ID, "trigger_x", "tag_x", time.Now(), nil)
+	fired, err := svc.processSingleOwner(context.Background(), recorder.client(), clinicID, owner.ID, "trigger_x", "tag_x", time.Now(), nil, nil)
 	require.Error(t, err)
 	assert.False(t, fired)
 	assert.Equal(t, 1, recorder.totalAttempts())
@@ -293,7 +293,7 @@ func TestDeliveryOutcome_RealDB_ProviderFailureIsBlockingNotRetryable(t *testing
 	assert.NotEqual(t, preSendRevalidationFailure, *log.ExcludedReason,
 		"an attempt that reached the provider must never become a retryable pre-send marker")
 
-	fired, err = svc.processSingleOwner(context.Background(), recorder.client(), clinicID, owner.ID, "trigger_x", "tag_x", time.Now(), nil)
+	fired, err = svc.processSingleOwner(context.Background(), recorder.client(), clinicID, owner.ID, "trigger_x", "tag_x", time.Now(), nil, nil)
 	require.NoError(t, err)
 	assert.False(t, fired, "a blocking failure keeps the day slot claimed")
 	assert.Equal(t, 1, recorder.totalAttempts(), "no retry must fire after a provider-attempt failure")

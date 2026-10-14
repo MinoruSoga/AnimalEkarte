@@ -12,13 +12,13 @@ func TestWindowZeroEvidencePreflight(t *testing.T) {
 	for _, mode := range []string{"valid", "absent", "count", "null-count", "digest", "contract", "version", "amount", "timestamp", "extra", "source", "local"} {
 		t.Run(mode, func(t *testing.T) {
 			dir, _ := writeCutoverFixture(t, func(f *fixtureBundle) {
-				cols := CutoverTableSpecs()[11].Columns
+				cols := cutoverSpecByName(t, "billings").Columns
 				row := append([]string(nil), f.rows["billings"][0]...)
 				row[columnIndex(cols, "id")] = "1000002"
 				row[columnIndex(cols, "medical_record_id")] = ""
 				row[columnIndex(cols, "total_amount")] = "-123"
 				f.rows["billings"] = append(f.rows["billings"], row)
-				f.manifest.Tables[11].RowCount++
+				f.manifest.Tables[manifestTableIndex(t, f, "billings")].RowCount++
 			})
 			manifestPath := filepath.Join(dir, cutoverManifestName)
 			data, err := os.ReadFile(manifestPath)
@@ -87,7 +87,7 @@ func TestWindowZeroEvidencePreflight(t *testing.T) {
 				expected.Provenance.Mode = CutoverProvenanceLocalRehearsal
 			}
 			_, err = PreflightCutoverBundle(dir, expected)
-			if (err == nil) != (mode == "valid") {
+			if mode == "valid" && err != nil || mode != "valid" && err == nil {
 				t.Fatalf("unexpected preflight result: %v", err)
 			}
 		})

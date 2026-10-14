@@ -30,6 +30,10 @@ GOLANGCI_LINT_VERSION="${GOLANGCI_LINT_VERSION:-v2.11.4}"
 NODE_WORKER_IMAGE="${NODE_WORKER_IMAGE:-node:24-bookworm}"
 WORKER_PNPM_VERSION="${WORKER_PNPM_VERSION:-10.15.0}"
 GITLEAKS_IMAGE="${GITLEAKS_IMAGE:-zricethezav/gitleaks:v8.30.1}"
+CI_GO_MOD_CACHE_VOLUME="${CI_GO_MOD_CACHE_VOLUME:-ekarte-go-mod-cache}"
+CI_GOLANGCI_CACHE_VOLUME="${CI_GOLANGCI_CACHE_VOLUME:-ekarte-golangci-cache}"
+CI_ROOT_NODE_MODULES_VOLUME="${CI_ROOT_NODE_MODULES_VOLUME:-ekarte-root-node-modules}"
+CI_ROOT_PNPM_STORE_VOLUME="${CI_ROOT_PNPM_STORE_VOLUME:-ekarte-root-pnpm-store}"
 
 step=0
 total=30
@@ -164,6 +168,7 @@ s10() {
 s11() {
   begin_step "STG UAT old_db handoff wrapper"
   bash scripts/old-db/stg-uat-old-db-handoff.test.sh
+  ci_py -B scripts/old-db/stg-uat-profile.test.py
 }
 
 s12() {
@@ -365,8 +370,8 @@ s21() {
   begin_step "Backend: golangci-lint (local-only)"
   docker run --rm \
     -v "$ROOT/backend:/app" \
-    -v ekarte-go-mod-cache:/go/pkg/mod \
-    -v ekarte-golangci-cache:/root/.cache \
+    -v "$CI_GO_MOD_CACHE_VOLUME:/go/pkg/mod" \
+    -v "$CI_GOLANGCI_CACHE_VOLUME:/root/.cache" \
     -w /app \
     "golangci/golangci-lint:${GOLANGCI_LINT_VERSION}" \
     golangci-lint run
@@ -448,8 +453,8 @@ s30() {
   begin_step "Worker: typecheck + tests (workerd)"
   docker run --rm \
     -v "$ROOT:/app" \
-    -v ekarte-root-node-modules:/app/node_modules \
-    -v ekarte-root-pnpm-store:/pnpm-store \
+    -v "$CI_ROOT_NODE_MODULES_VOLUME:/app/node_modules" \
+    -v "$CI_ROOT_PNPM_STORE_VOLUME:/pnpm-store" \
     -e PNPM_STORE_DIR=/pnpm-store \
     -w /app \
     "$NODE_WORKER_IMAGE" \

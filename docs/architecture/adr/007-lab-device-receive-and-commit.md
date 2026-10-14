@@ -6,7 +6,7 @@
 **Date**: 2026-08-19 (status split 2026-08-30)
 **Deciders**: PO（MinoruSoga）
 **Relates to**: ADR-002（clinic_id）、ADR-006（`medicalrecord` write owner）、Plane `EMR` / case `BRT-4`（2026-09-29 訂正: 旧記載「Linear BRT-100 / BRT-94」→ Linear は 2026-09-16 閉鎖。`BRT-n` は履歴別名として保持し、実行状態は Plane workspace `baritechllc` project `EMR` を参照）
-**接続・機器正本**: [`docs/ops/deploy/LAB_DEVICE_CONNECTIVITY.md`](../../ops/deploy/LAB_DEVICE_CONNECTIVITY.md)
+**接続・機器正本**: [`docs/ops/deploy/lab-devices/LAB_DEVICE_CONNECTIVITY.md`](../../ops/deploy/lab-devices/LAB_DEVICE_CONNECTIVITY.md)
 **Historical external evidence**: `old_db/docs/lab-go/go-impl/device-serial-adapter.md` and `old_db/docs/lab-go/go-impl/REVIEW-FABLE-2026-08-19-AE-LAB-UX.md` belonged to an external archive and are not paths in this repository. Current repository-accessible connectivity authority is `LAB_DEVICE_CONNECTIVITY.md` above.
 
 ## Context

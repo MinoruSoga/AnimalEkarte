@@ -124,7 +124,7 @@ export function StaffBasicInfoSection({
           </Select>
         ) : (
           <div className="flex flex-col gap-1">
-            <p className={`text-sm ${C.text40}`}>職種が未登録です</p>
+            <p className={`text-sm ${C.text60}`}>職種が未登録です</p>
             <Link
               to={paths.settings.occupations.getHref()}
               className={`text-sm underline ${C.text}`}

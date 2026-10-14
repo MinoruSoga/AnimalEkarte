@@ -34,6 +34,9 @@ type VaccinationRepository interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 	// FindOwnersByVaccineDeadline はワクチン次回接種日（next_date）が targetDate の飼い主IDリストを返す（FEAT-383）。
 	FindOwnersByVaccineDeadline(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
+	// OwnerHasAliveVaccineDeadline は生存ペットのワクチン次回接種日が targetDate のものを
+	// 飼い主が持つかを返す（EMR-330 適格性再読の owner スコープ narrow view）。
+	OwnerHasAliveVaccineDeadline(ctx context.Context, clinicID, ownerID uint64, targetDate time.Time) (bool, error)
 }
 
 type vaccinationRepository struct {
@@ -426,4 +429,26 @@ func (r *vaccinationRepository) FindOwnersByVaccineDeadline(ctx context.Context,
 		ids[i] = r.OwnerID
 	}
 	return ids, nil
+}
+
+// OwnerHasAliveVaccineDeadline は生存ペットのワクチン次回接種日（next_date）が
+// targetDate のものを飼い主が持つかを owner 単位で返す。
+// FindOwnersByVaccineDeadline と同一の生存ペット JOIN 契約（EMR-290/330）を
+// 維持し、配信トリガーの claim/write 直前にイベントソースを再読する
+// EMR-330 適格性チェック用の narrow な owner スコープの読み取り。
+func (r *vaccinationRepository) OwnerHasAliveVaccineDeadline(ctx context.Context, clinicID, ownerID uint64, targetDate time.Time) (bool, error) {
+	target := targetDate.In(config.JST).Format(time.DateOnly)
+	var count int64
+	err := persistence.DBOrTx(ctx, r.db).
+		Model(&model.Vaccination{}).
+		Joins("JOIN pets ON pets.id = vaccinations.pet_id AND pets.clinic_id = vaccinations.clinic_id AND pets.deleted_at IS NULL AND pets.deceased_at IS NULL AND pets.status <> ?", model.PetStatusDeceased).
+		Joins("JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = vaccinations.clinic_id AND owners.deleted_at IS NULL").
+		Where("vaccinations.clinic_id = ? AND vaccinations.deleted_at IS NULL", clinicID).
+		Where("vaccinations.next_date::date = ?::date", target).
+		Where("pets.owner_id = ?", ownerID).
+		Count(&count).Error
+	if err != nil {
+		return false, apperrors.FromGORM(err, "vaccination", fmt.Sprintf("clinic=%d owner=%d vaccine_deadline=%s", clinicID, ownerID, target))
+	}
+	return count > 0, nil
 }

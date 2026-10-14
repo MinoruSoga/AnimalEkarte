@@ -64,8 +64,10 @@ resource "cloudflare_zone" "noah_karte" {
 
 # apex(@)/wildcard — 2026-10-02 削除。Vercel プロジェクト退役に伴い、
 # ALIAS 代替 CNAME(cname.vercel-dns-016.com)を destroy する。
-# apex は 10/20 本番切替(EMR-256)で frontend Worker 宛の proxied A レコードとして
-# production/zone.tf 側に再作成する。それまでは NXDOMAIN(実害なし・未開業)。
+# 10/20 は本番環境の構築開始日(EMR-256)であり、apex 切替日ではない。
+# apex の frontend Worker 宛 proxied A レコード再作成・トラフィック切替は、
+# 別途承認された切替日・作業窓で実施する(EMR-134 GOLIVE の Go/No-Go ランクブックに従う)。
+# それまでは NXDOMAIN(実害なし・未開業)。
 
 # EMR-255: STG フロントエンドを Vercel から animalekarte-stg-frontend Worker へ切替。
 # noah-karte.com ゾーンは既に Cloudflare authoritative(P1-2 実測済み)のため、

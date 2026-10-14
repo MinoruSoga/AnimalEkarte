@@ -56,6 +56,9 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
   }, []);
   const [treatmentPlans, setTreatmentPlans] = useState<HospitalizationTreatmentPlan[]>([]);
   const initialCageIdRef = useRef("");
+  // EMR-353: PATCH は保存値との差分だけ送るため、hydration 時の nextVisit を保持する。
+  const initialNextVisitRef = useRef("");
+  const initialDatesRef = useRef({ startDate: "", endDate: "" });
 
   const selectedPetRef = useRef(selectedPets[0]);
   useLayoutEffect(() => {
@@ -115,9 +118,19 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
           if (!isMutationAllowed()) return { success: false, timestamp: Date.now() };
           await updateHospitalization(
             id,
-            buildUpdateHospitalizationRequest(latestFormData, initialCageIdRef.current),
+            buildUpdateHospitalizationRequest(
+              latestFormData,
+              initialCageIdRef.current,
+              initialNextVisitRef.current,
+              initialDatesRef.current,
+            ),
           );
           initialCageIdRef.current = latestFormData.cageId;
+          initialNextVisitRef.current = latestFormData.nextVisit;
+          initialDatesRef.current = {
+            startDate: latestFormData.displayDate,
+            endDate: latestFormData.endDate,
+          };
           toast.success("入院情報を更新しました");
         } else {
           if (!isMutationAllowed()) return { success: false, timestamp: Date.now() };
@@ -150,6 +163,8 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
     isTreatmentPlansSuccess,
     selectedPetRef,
     initialCageIdRef,
+    initialNextVisitRef,
+    initialDatesRef,
     setFormData,
     setSelectedPets,
     setTreatmentPlans,

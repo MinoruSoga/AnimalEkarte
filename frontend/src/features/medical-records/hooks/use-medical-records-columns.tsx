@@ -49,19 +49,19 @@ export function useMedicalRecordsColumns({
 
   return useMemo<MedicalRecordColumn[]>(
     () => [
-      { header: sortableHeader("date"), className: "w-[120px]" },
-      { header: sortableHeader("owner_name") },
-      { header: sortableHeader("pet_name") },
-      { header: "種", className: "w-[80px] hidden lg:table-cell" },
+      { header: sortableHeader("date"), className: "w-[120px] whitespace-nowrap" },
+      { header: sortableHeader("owner_name"), className: "min-w-[140px] whitespace-nowrap" },
+      { header: sortableHeader("pet_name"), className: "min-w-[140px] whitespace-nowrap" },
+      { header: "種", className: "w-[80px] hidden lg:table-cell whitespace-nowrap" },
       // 主訴/担当医 are secondary at narrow widths; status + 操作 stay visible (BUG-458).
-      { header: "主訴", className: "hidden md:table-cell" },
-      { header: "関連", className: "w-[100px] hidden lg:table-cell" },
-      { header: "担当医", className: "w-[100px] hidden md:table-cell" },
+      { header: "主訴", className: "hidden md:table-cell whitespace-nowrap" },
+      { header: "関連", className: "w-[100px] hidden lg:table-cell whitespace-nowrap" },
+      { header: "担当医", className: "min-w-[160px] hidden md:table-cell whitespace-nowrap" },
       { header: sortableHeader("status"), className: LIST_TABLE_COL.status },
       ...(showClinicColumn
-        ? [{ header: "医院", className: "w-[120px] hidden lg:table-cell" }]
+        ? [{ header: "医院", className: "w-[120px] hidden lg:table-cell whitespace-nowrap" }]
         : []),
-      { header: "操作", className: "w-[100px]", align: "right" as const },
+      { header: "操作", className: "w-[100px] whitespace-nowrap", align: "right" as const },
     ],
     [showClinicColumn, sortableHeader],
   );

@@ -96,11 +96,11 @@ export function MedicineDoseParamsEditor({ medicineId, ref }: MedicineDoseParams
         <div className="flex items-center gap-1.5 py-2 mb-1">
           <span className={`${STYLE.sectionLabel}`}>種別パラメータ（犬・猫）</span>
         </div>
-        <p className={`text-sm ${C.text40} px-1 pb-2`}>
+        <p className={`text-sm ${C.text60} px-1 pb-2`}>
           過量防止のため、上限(mg/kgまたはmg)のいずれかは必須です。投与量は下限・上限の範囲内で入力してください。
         </p>
         {isLoading ? (
-          <p className={`text-sm ${C.text40} px-1`}>読み込み中...</p>
+          <p className={`text-sm ${C.text60} px-1`}>読み込み中...</p>
         ) : (
           <>
             <SpeciesDoseParamPanel

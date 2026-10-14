@@ -136,6 +136,10 @@ export function buildContainerEnvVars(env: Env): Record<string, string> {
     PLANE_PROJECT_ID: env.PLANE_PROJECT_ID ?? "",
     PLANE_PROJECT_IDENTIFIER: env.PLANE_PROJECT_IDENTIFIER ?? "",
     PLANE_TIMEOUT_MS: env.PLANE_TIMEOUT_MS ?? "",
+    // 起票時に付与する label UUID(source:manual / lane:dev)。非シークレットで
+    // 両 wrangler の vars に固定値を置く。enabled 連携では Go 側 Validate が必須化。
+    PLANE_SOURCE_LABEL_ID: env.PLANE_SOURCE_LABEL_ID ?? "",
+    PLANE_LANE_LABEL_ID: env.PLANE_LANE_LABEL_ID ?? "",
 
     // バグ報告の Discord webhook 転送。任意: URL 未設定なら Go 側の
     // NewDiscordNotifier が nil を返し通知無効(報告のDB保存は継続)。
@@ -145,10 +149,18 @@ export function buildContainerEnvVars(env: Env): Record<string, string> {
     DISCORD_BUG_REPORT_WEBHOOK_URL: env.DISCORD_BUG_REPORT_WEBHOOK_URL ?? "",
     DISCORD_WEBHOOK_TIMEOUT_MS: env.DISCORD_WEBHOOK_TIMEOUT_MS ?? "",
 
+    // EMR-335: 検査機器エージェント agent-consumer の短命 capability 署名鍵。
+    // secrets.required に名前のみ登録し、値は `wrangler secret put` でのみ投入する。
+    // Worker の secret に置くだけではコンテナへ届かないため本経路の転送が必須。
+    // 未設定(空文字)なら Go 側は /v1/lab-device/agent-consumer を 503 で返し、
+    // 画面は「検査機器エージェントが未設定です」を表示する(fail-closed・秘密は空)。
+    LAB_DEVICE_AGENT_CONSUMER_TOKEN: env.LAB_DEVICE_AGENT_CONSUMER_TOKEN ?? "",
+
     // トリミング画像削除 retry worker の起動トグル。未設定デプロイは OFF を
     // 保持するため "false" 既定とし、Go 側はリテラル "true" のみで有効化する
     // (それ以外の値は fail-closed で OFF)。vars/secrets.required には入れない。
-    TRIMMING_IMAGE_CLEANUP_ENABLED: env.TRIMMING_IMAGE_CLEANUP_ENABLED ?? "false",
+    TRIMMING_IMAGE_CLEANUP_ENABLED:
+      env.TRIMMING_IMAGE_CLEANUP_ENABLED ?? "false",
   };
 }
 
@@ -184,7 +196,9 @@ export class AnimalEkarteApiContainer extends Container<Env> {
   // 残り続けると(sleepAfter=1h の間)、旧イメージには新しい migration が存在せず
   // `/app/migrate` は「適用済み」で exitCode 0 を返してしまう(実機で 004/005/006
   // の3回再現)。その場合 stop → start で新イメージへ再起動してから exec する。
-  async runMigrate(expectedMigration?: string | null): Promise<MigrateExecResult> {
+  async runMigrate(
+    expectedMigration?: string | null,
+  ): Promise<MigrateExecResult> {
     await this.startAndWaitForPorts(this.defaultPort);
     if (expectedMigration) {
       await this.ensureFreshContainerImage(expectedMigration);
@@ -269,7 +283,9 @@ export class AnimalEkarteApiContainer extends Container<Env> {
   // (handleMigrateRequest の MIGRATE_RUNNER_NAME 参照)、再起動による
   // in-flight リクエスト断は発生しない。再起動後もファイルが無い場合は
   // イメージのロールアウトが未完了 — 呼び出し側のリトライに委ねて失敗させる。
-  private async ensureFreshContainerImage(expectedMigration: string): Promise<void> {
+  private async ensureFreshContainerImage(
+    expectedMigration: string,
+  ): Promise<void> {
     if (await this.containerHasMigrationFile(expectedMigration)) {
       return;
     }
@@ -290,13 +306,15 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     scheduledTime: number,
   ): Promise<readonly ScheduledRunResult[]> {
     const coordinator = new SchedulerCoordinator(this.ctx.storage);
-    return runScheduledPlan(coordinator, cron, scheduledTime, (request) =>
+    const results = await runScheduledPlan(coordinator, cron, scheduledTime, (request) =>
       runScheduledJobRequest(
         (internalRequest) => this.containerFetch(internalRequest),
         request,
         this.envVars.SCHEDULER_INTERNAL_TOKEN,
       ),
     );
+    await notifySchedulerFailures(results, schedulerAlertConfig(env), fetch, this.ctx.storage);
+    return results;
   }
 
   async getScheduledJobsStatus(limit: number): Promise<SchedulerStatus> {
@@ -320,13 +338,33 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     command: SchedulerManualCommand,
   ): Promise<SchedulerManualOperation> {
     const coordinator = new SchedulerCoordinator(this.ctx.storage);
-    return coordinator.runManual(command, (scheduledRequest) =>
+    const operation = await coordinator.runManual(command, (scheduledRequest) =>
       runScheduledJobRequest(
         (internalRequest) => this.containerFetch(internalRequest),
         scheduledRequest,
         this.envVars.SCHEDULER_INTERNAL_TOKEN,
       ),
     );
+    // Delivery is a retryable side effect after the manual result is durable.
+    // The outbox retains failed incidents; later invocations retry them.
+    // DurableObjectState.waitUntil keeps the drain registered with the DO
+    // lifecycle after the RPC response returns, so the manual response never
+    // blocks on the alert backlog (runtime shutdown may still interrupt the
+    // drain; storage/outbox retries cover that case).
+    this.ctx.waitUntil(
+      notifySchedulerFailures(
+        operation.result === undefined ? [] : [operation.result],
+        schedulerAlertConfig(env),
+        fetch,
+        this.ctx.storage,
+      ).catch(() => {
+        console.error("scheduler manual alert drain deferred", {
+          event: "scheduler_manual_alert_drain_deferred",
+          failure_code: "alert_drain_failed",
+        });
+      }),
+    );
+    return operation;
   }
 }
 
@@ -526,14 +564,6 @@ export default {
         schedulerOpsAuthConfig(env),
         coordinator,
         Date.now(),
-        async (operation) => {
-          if (operation.result !== undefined) {
-            await notifySchedulerFailures(
-              [operation.result],
-              schedulerAlertConfig(env),
-            );
-          }
-        },
       );
     }
     if (isInternalProxyPath(url.pathname)) {
@@ -580,7 +610,6 @@ export default {
     try {
       await dispatchScheduledEvent(controller, async (cron, scheduledTime) => {
         const results = await coordinator.runScheduledJobs(cron, scheduledTime);
-        await notifySchedulerFailures(results, schedulerAlertConfig(env));
         return results;
       });
     } catch {

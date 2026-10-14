@@ -24,7 +24,7 @@ const DefaultStrictBindMaxBytes int64 = 1 << 20 // 1 MiB
 // BindStrictJSON is a test-only comparison to c.ShouldBindJSON.
 // It demonstrates strict decoding without changing any write endpoint.
 //
-// U03/C05 evidence (docs/work/emr-332-security/input-output/c05-input-validation.md):
+// U03/C05 evidence (docs/work/emr/emr-332-security/input-output/c05-input-validation.md):
 // neither ShouldBindJSON nor the per-package bindStaffJSON / bindAuthJSON
 // wrappers reject unknown request fields, because Gin's JSON decoder never
 // enables Decoder.DisallowUnknownFields (EnableDecoderDisallowUnknownFields is

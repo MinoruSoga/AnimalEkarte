@@ -131,8 +131,8 @@ export function MyReservationsPage({ clinicId, idToken, onBack }: MyReservations
                   key={reservation.id}
                   className="bg-white rounded-xl border border-noah-border p-4"
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="min-w-0 flex-1 break-words">
                       <p className="font-semibold text-noah-text">
                         {reservation.pet_name || reservation.course_name}
                       </p>
@@ -143,7 +143,7 @@ export function MyReservationsPage({ clinicId, idToken, onBack }: MyReservations
                       </p>
                     </div>
                     <span
-                      className={`text-xs px-2 py-1 rounded-full font-medium ${
+                      className={`shrink-0 whitespace-nowrap text-xs px-2 py-1 rounded-full font-medium ${
                         STATUS_COLORS[reservation.status] ??
                         "bg-noah-neutral-bg text-noah-neutral-text"
                       }`}

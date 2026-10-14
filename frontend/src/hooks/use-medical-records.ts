@@ -7,6 +7,31 @@ import { transformMedicalRecord, type MedicalRecord } from "@/lib/transforms/med
 import type { MedicalRecordResponse } from "@/types/generated/medicalrecord-responses";
 
 /**
+ * EMR-356: 体重単位の wire literal union。BE `model.BodyWeightUnit` の既存定数
+ * BodyWeightUnitKg="Kg" / BodyWeightUnitG="g" に ground する。
+ * hooks → features の依存は禁止・generated/models は hooks から restricted のため
+ * 同形の literal union を局所宣言する（生成 union と構造的に同一）。
+ */
+type WireBodyWeightUnit = "Kg" | "g";
+
+/**
+ * EMR-356: weight_measurements の wire 投影。生成型 medicalrecord-responses.ts は
+ * 手編集しないため、追加フィールドはローカルの additive 拡張として型付けする
+ * （`make codegen` 反映後も構造的に同一）。
+ */
+interface WireWeightMeasurement {
+  id: number;
+  value: number;
+  unit: WireBodyWeightUnit;
+  recorded_at: string;
+}
+
+type MedicalRecordResponseWithWeights = MedicalRecordResponse & {
+  /** [] = 測定なし（権威ある空）、キー欠落 = 投影未提供の旧 API。 */
+  weight_measurements?: WireWeightMeasurement[];
+};
+
+/**
  * FE-RC-015: list / history query の実体。
  * wire→UI 変換は @/lib/transforms/medical-record が正本（followup3）。
  */
@@ -45,7 +70,7 @@ export type MedicalRecordsResult = {
 };
 
 interface MedicalRecordsListResponse {
-  data: MedicalRecordResponse[];
+  data: MedicalRecordResponseWithWeights[];
   total: number;
   page: number;
   limit: number;
@@ -113,6 +138,17 @@ interface MedicalRecordInterviewHistoryCopySource {
   chiefComplaintTypeId?: number;
 }
 
+/**
+ * EMR-356: 行に相関する体重測定の表示投影（feature InterviewWeightMeasurement と同形）。
+ * 正本は vital_records。measuredAt は測定時点の ISO instant。
+ */
+interface MedicalRecordWeightMeasurement {
+  id: string;
+  value: number;
+  unit: WireBodyWeightUnit;
+  measuredAt: string;
+}
+
 /** FEAT-003: 問診履歴 UI 行（feature InterviewHistoryItem と同形）。 */
 export interface MedicalRecordInterviewHistoryItem {
   id: string;
@@ -125,6 +161,8 @@ export interface MedicalRecordInterviewHistoryItem {
   copySource?: MedicalRecordInterviewHistoryCopySource;
   /** NO32: 統合タイムラインの時系列ソート用 raw date（feature 側の同形フィールドと対応）。 */
   sortDate?: string;
+  /** EMR-356: undefined=投影未提供（旧 API）、[]=測定なし。複写 payload には含めない。 */
+  weightMeasurements?: MedicalRecordWeightMeasurement[];
 }
 
 /**
@@ -148,11 +186,11 @@ function toCopySource(
 }
 
 export function transformToHistoryItem(
-  record: MedicalRecordResponse,
+  record: MedicalRecordResponseWithWeights,
 ): MedicalRecordInterviewHistoryItem {
   const chiefComplaint = record.inquiry?.chief_complaint ?? "";
   const content = chiefComplaint || "（記録なし）";
-  return {
+  const item: MedicalRecordInterviewHistoryItem = {
     id: String(record.id ?? 0),
     date: formatDate(record.date),
     author: record.doctor?.name ?? "-",
@@ -163,31 +201,103 @@ export function transformToHistoryItem(
     // NO32: 統合タイムラインのソートキー（表示用 date とは別に raw date を保持）。
     sortDate: record.date,
   };
+  // EMR-356: キーが存在する場合のみ投影する（undefined=旧 API の未提供と
+  // 「測定なし」を区別）。他カルテの最新体重で代理表示はしない。
+  if (record.weight_measurements !== undefined) {
+    item.weightMeasurements = record.weight_measurements.map((m) => ({
+      id: String(m.id),
+      value: m.value,
+      unit: m.unit,
+      measuredAt: m.recorded_at,
+    }));
+  }
+  return item;
 }
 
-/** FEAT-003: ペットの問診履歴（InterviewHistoryItem[] 互換）。 */
+/**
+ * FEAT-003: ペットの問診履歴（InterviewHistoryItem[] 互換）。
+ * EMR-356: record 自身の clinicId を任意で受け、クエリキー・X-Clinic-ID・
+ * 行フィルタに反映する（拠点横断で別医院の履歴キャッシュ/行を混入させない）。
+ * 取得エラーは isError で返す（「記録なし」と区別するため、空配列にはしない）。
+ */
+const HISTORY_PAGE_LIMIT = 50;
+const HISTORY_MAX_PAGES = 20;
+
+/** Bounded list reads keep truncation explicit instead of presenting an authoritative empty history. */
+async function getPetHistoryPages(petId: string, clinicId?: string, signal?: AbortSignal) {
+  let records: MedicalRecordResponseWithWeights[] = [];
+  const seen = new Set<number>();
+  let expectedTotal: number | undefined;
+  for (let page = 1; page <= HISTORY_MAX_PAGES; page++) {
+    const { data: res } = await axios.get<MedicalRecordsListResponse>("/v1/medical-records", {
+      params: { limit: HISTORY_PAGE_LIMIT, page, pet_id: petId, sort: "date", order: "desc" },
+      signal,
+      ...(clinicId ? { headers: { "X-Clinic-ID": clinicId } } : {}),
+    });
+    const total = res.total;
+    if (
+      (res.page !== undefined && res.page !== page) ||
+      (res.limit !== undefined && res.limit !== HISTORY_PAGE_LIMIT) ||
+      (total !== undefined && (!Number.isInteger(total) || total < 0)) ||
+      (expectedTotal !== undefined && total !== expectedTotal)
+    ) {
+      return { records, incomplete: true };
+    }
+    expectedTotal = total;
+    const newRows = res.data.filter((row) => {
+      if (seen.has(row.id)) return false;
+      seen.add(row.id);
+      return true;
+    });
+    records = [...records, ...newRows];
+    if (newRows.length !== res.data.length || res.data.length > HISTORY_PAGE_LIMIT) {
+      return { records, incomplete: true };
+    }
+    if (total !== undefined) {
+      if (records.length === total) return { records, incomplete: false };
+      if (records.length > total || res.data.length < HISTORY_PAGE_LIMIT) {
+        return { records, incomplete: true };
+      }
+    } else if (res.data.length < HISTORY_PAGE_LIMIT) {
+      return { records, incomplete: false };
+    }
+  }
+  return { records, incomplete: true };
+}
+
 export function useGetPetMedicalHistory(
   petId: string | undefined,
   excludeRecordId?: string,
-): { historyItems: MedicalRecordInterviewHistoryItem[]; isLoading: boolean } {
-  const { data, isLoading } = useQuery({
-    queryKey: queryKeys.medicalRecords.history(petId!),
-    queryFn: async () => {
-      const params: Record<string, string> = { limit: "50", page: "1" };
-      if (petId) params.pet_id = petId;
-      const { data: res } = await axios.get<MedicalRecordsListResponse>("/v1/medical-records", {
-        params,
-      });
-      return res.data;
-    },
+  clinicId?: string,
+): {
+  historyItems: MedicalRecordInterviewHistoryItem[];
+  isLoading: boolean;
+  isError: boolean;
+  historyIncomplete: boolean;
+  currentRecordDate?: string;
+} {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: queryKeys.medicalRecords.history(petId!, clinicId),
+    queryFn: ({ signal }) => getPetHistoryPages(petId!, clinicId, signal),
     enabled: !!petId,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,
   });
 
-  const historyItems: MedicalRecordInterviewHistoryItem[] = (data ?? [])
+  const scopedRecords = (data?.records ?? [])
+    // 防衛: 要求した pet/clinic 以外の行が混ざっても投影しない
+    .filter((r) => String(r.pet_id ?? "") === String(petId ?? ""))
+    .filter((r) => !clinicId || String(r.clinic_id) === clinicId);
+  const currentRecordDate = scopedRecords.find((r) => String(r.id) === excludeRecordId)?.date;
+  const historyItems = scopedRecords
     .filter((r) => !excludeRecordId || String(r.id ?? 0) !== excludeRecordId)
     .map(transformToHistoryItem);
 
-  return { historyItems, isLoading };
+  return {
+    historyItems,
+    isLoading,
+    isError,
+    historyIncomplete: data?.incomplete ?? false,
+    currentRecordDate,
+  };
 }

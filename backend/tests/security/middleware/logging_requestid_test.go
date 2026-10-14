@@ -1,5 +1,5 @@
 // Package middleware — EMR-332 C18 evidence tests
-// (docs/work/emr-332-security/workflow-audit/c18-logging-audit.md).
+// (docs/work/emr/emr-332-security/workflow-audit/c18-logging-audit.md).
 //
 // Scope: deterministic, single-threaded, in-memory verification of
 // middleware.RequestID + middleware.RequestLoggingMiddleware. slog output is

@@ -7,7 +7,7 @@ import { useGetMedicalRecords } from "@/hooks/use-medical-records";
  *
  * 同日・同一ペットの相方レコード/appointment を解決して遷移先を返す。
  * appointments がライフサイクルの SoT で、診察カルテは general・トリミング記録は
- * trimming カテゴリの appointment に紐づく（docs/spec/reservation-to-record-flow.md）。
+ * trimming カテゴリの appointment に紐づく（docs/spec/workflows/reservation-to-record-flow.md）。
  * feature 境界（medical-records ↔ trimming の直接 import 禁止）を越えるため
  * 共有 layer の src/hooks に置く。
  *

@@ -49,6 +49,8 @@ export const transformHospitalization = (hosp: BackendHospitalization) => {
     hospitalizationType: (typeMap[hosp.hospitalization_type] ?? "入院") as HospitalizationType,
     startDate: hosp.start_date ? hosp.start_date.split("T")[0] : "",
     endDate: hosp.end_date ? hosp.end_date.split("T")[0] : "",
+    // EMR-353: 次回予定日。timestamp 形でも日付部分だけを使う。
+    nextVisit: hosp.next_visit ? hosp.next_visit.split("T")[0] : undefined,
     status,
     cageId: hosp.cage_id ? String(hosp.cage_id) : undefined,
     petId: hosp.pet?.id ? String(hosp.pet.id) : undefined,

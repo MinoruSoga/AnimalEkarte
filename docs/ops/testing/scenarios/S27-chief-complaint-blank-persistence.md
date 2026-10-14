@@ -2,7 +2,7 @@
 
 > **目的**: 主訴が区分未選択（空欄）でも本文を失わず保存でき、既存の区分を意図的に解除した場合もその解除が保持され、再読込・記録切替で値が破綻しないことを実 UI で納品前に証明する。
 > **所要目安**: 15分 / **深度**: 中
-> **仕様正本**: [screens/06-medical-records-form.md](../../../spec/screens/06-medical-records-form.md)。関連 tracker: `SLACK-COMPLAINT`（主訴区分空欄許可・実 UI 解除は検証待ち）。
+> **仕様正本**: [domains/medical-records/pages/medical-record-form.md](../../../spec/domains/medical-records/pages/medical-record-form.md)。関連 tracker: `SLACK-COMPLAINT`（主訴区分空欄許可・実 UI 解除は検証待ち）。
 
 ## 前提条件
 

@@ -78,6 +78,10 @@ type MedicalRecordRepository interface {
 	FindDormantOwnerEntriesCursor(ctx context.Context, clinicID uint64, minDaysSince int, afterOwnerID uint64, limit int) ([]DormantOwnerEntry, error)
 	FindOwnersByFirstVisitDate(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
 	FindOwnersByLastVisitDays(ctx context.Context, clinicID uint64, exactDays int, asOf time.Time) ([]uint64, error)
+	// OwnerHasAlive*VisitOnDate は EMR-330 適格性再読の owner スコープ narrow view。
+	// 生存ペット由来カルテの MIN/MAX(date) が targetDate 暦日と一致するかを返す。
+	OwnerHasAliveFirstVisitOnDate(ctx context.Context, clinicID, ownerID uint64, targetDate time.Time) (bool, error)
+	OwnerHasAliveLastVisitOnDate(ctx context.Context, clinicID, ownerID uint64, targetDate time.Time) (bool, error)
 	CountByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 	LockLinkedAppointmentForUpdate(ctx context.Context, clinicID, medicalRecordID uint64) (*linkedAppointmentLock, error)
 	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)

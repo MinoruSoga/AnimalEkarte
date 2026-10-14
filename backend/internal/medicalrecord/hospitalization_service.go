@@ -18,6 +18,7 @@ type CreateHospitalizationInput struct {
 	HospitalizationType  model.HospitalizationType
 	StartDate            time.Time
 	EndDate              time.Time
+	NextVisit            *time.Time
 	Status               model.HospitalizationStatus
 	CageID               *uint64
 	DoctorID             *uint64
@@ -40,6 +41,8 @@ type UpdateHospitalizationInput struct {
 	HospitalizationType  *model.HospitalizationType
 	StartDate            *time.Time
 	EndDate              *time.Time
+	NextVisit            *time.Time
+	ClearNextVisit       bool
 	Status               *model.HospitalizationStatus
 	CageID               *uint64
 	ClearCageID          bool
@@ -89,6 +92,13 @@ func buildHospitalizationUpdate(input *UpdateHospitalizationInput) map[string]an
 	}
 	if input.EndDate != nil {
 		fields["end_date"] = *input.EndDate
+	}
+	// EMR-353: clear は NULL 化、非 nil は設定、どちらも無ければ変更なし（PATCH 規約）。
+	// IsInsurance トグルが早期 return するため、その前に置く（フロントは常にトグルを送る）。
+	if input.ClearNextVisit {
+		fields["next_visit"] = nil
+	} else if input.NextVisit != nil {
+		fields["next_visit"] = *input.NextVisit
 	}
 	if input.Status != nil {
 		fields["status"] = *input.Status
@@ -399,6 +409,7 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 		HospitalizationType:  input.HospitalizationType,
 		StartDate:            input.StartDate,
 		EndDate:              input.EndDate,
+		NextVisit:            input.NextVisit,
 		Status:               status,
 		CageID:               input.CageID,
 		DoctorID:             input.DoctorID,
@@ -430,6 +441,10 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 	// EMR-316: NULL 化と値設定の同時指定は意図が曖昧なので拒否する（clear が黙って勝たない）。
 	if err := validateCageUpdateGuards(input.CageID, input.ClearCageID, input.ExpectedCageID, input.ExpectedCageIsNull); err != nil {
 		return nil, err
+	}
+	// EMR-353: clear_next_visit と next_visit の同時指定は direct caller も拒否する。
+	if input.ClearNextVisit && input.NextVisit != nil {
+		return nil, apperrors.WrapInvalidInput("next_visit と clear_next_visit は同時に指定できません")
 	}
 	fields := buildHospitalizationUpdate(input)
 	if len(fields) == 0 {

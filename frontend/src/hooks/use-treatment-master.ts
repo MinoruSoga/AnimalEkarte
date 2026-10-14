@@ -69,8 +69,9 @@ export function useGetAllConsultations() {
   });
 }
 
-export function useGetAllProcedures() {
+export function useGetAllProcedures({ enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
+    enabled,
     queryKey: queryKeys.masters.category("procedures"),
     queryFn: async (): Promise<ProcedureItem[]> => {
       const { data } = await axios.get<Procedure[]>("/v1/masters/procedures");
@@ -86,8 +87,9 @@ export function useGetAllProcedures() {
  * queryKey は features/master/api/medicines.ts の useGetAllMedicines と同一
  * (queryKeys.masters.category("medicines")) にしてキャッシュを共有する。
  */
-export function useGetAllMedicinesMaster() {
+export function useGetAllMedicinesMaster({ enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
+    enabled,
     queryKey: queryKeys.masters.category("medicines"),
     queryFn: async (): Promise<Medicine[]> => {
       const { data } = await axios.get<MedicineModel[]>("/v1/masters/medicines");
@@ -111,8 +113,11 @@ export interface HospitalizationPlanRefItem {
  * queryKey は features/master/api/hospitalization-plans.ts の
  * useGetAllHospitalizationPlans と同一にしてキャッシュを共有する。
  */
-export function useGetAllHospitalizationPlansMaster() {
+export function useGetAllHospitalizationPlansMaster({
+  enabled = true,
+}: { enabled?: boolean } = {}) {
   return useQuery({
+    enabled,
     queryKey: queryKeys.masters.category("hospitalization-plans"),
     queryFn: async (): Promise<HospitalizationPlanRefItem[]> => {
       const { data } = await axios.get<HospitalizationPlanModel[]>(

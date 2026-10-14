@@ -331,6 +331,36 @@ test("make ci wires the gates retired from remote CI", () => {
   );
 });
 
+function runMockHandoffStep(profileExit) {
+  const step = read("scripts/ci/run-local-ci.sh").match(/^s11\(\) \{[\s\S]*?^\}/m)?.[0];
+  assert.ok(step, "missing handoff step");
+  return spawnSync("bash", ["-c", `set -euo pipefail
+begin_step() { :; }
+bash() { printf 'bash:%s\\n' "$*"; }
+ci_py() { printf 'python:%s\\n' "$*"; return ${profileExit}; }
+${step}
+s11
+printf 'completed\\n'
+`], { encoding: "utf8" });
+}
+
+test("STG profile step executes both wrapper suites with the Python resolver", () => {
+  const result = runMockHandoffStep(0);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(result.stdout.trim().split("\n"), [
+    "bash:scripts/old-db/stg-uat-old-db-handoff.test.sh",
+    "python:-B scripts/old-db/stg-uat-profile.test.py",
+    "completed",
+  ]);
+});
+
+test("STG profile step propagates Python suite failure", () => {
+  const result = runMockHandoffStep(17);
+  assert.equal(result.status, 17, "profile failure must stop the CI step");
+  assert.match(result.stdout, /python:-B scripts\/old-db\/stg-uat-profile\.test\.py/);
+  assert.doesNotMatch(result.stdout, /completed/);
+});
+
 test("mandatory instruction step rejects trust-boundary drift before generating mirrors", () => {
   const script = read("scripts/ci/run-local-ci.sh");
   const step = script.match(/^s01\(\) \{([\s\S]*?)^\}/m)?.[1];
@@ -875,4 +905,31 @@ test("Chromatic install does not receive the project token", () => {
     /projectToken:\s*\$\{\{ secrets\.CHROMATIC_PROJECT_TOKEN \}\}/,
   );
   assert.doesNotMatch(chromatic, /^ {8}env:\s*$/m);
+});
+
+test("local CI permits isolated cache volumes without changing defaults", () => {
+  const script = read("scripts/ci/run-local-ci.sh");
+  for (const [variable, fallback] of [
+    ["CI_GO_MOD_CACHE_VOLUME", "ekarte-go-mod-cache"],
+    ["CI_GOLANGCI_CACHE_VOLUME", "ekarte-golangci-cache"],
+    ["CI_ROOT_NODE_MODULES_VOLUME", "ekarte-root-node-modules"],
+    ["CI_ROOT_PNPM_STORE_VOLUME", "ekarte-root-pnpm-store"],
+  ]) {
+    assert.ok(script.includes(`${variable}="\${${variable}:-${fallback}}"`));
+  }
+  const lint = script.match(/s21\(\) \{([\s\S]*?)^\}/m)?.[1];
+  const worker = script.match(/s30\(\) \{([\s\S]*?)^\}/m)?.[1];
+  assert.ok(lint);
+  assert.ok(worker);
+  assert.ok(lint.includes('-v "$CI_GO_MOD_CACHE_VOLUME:/go/pkg/mod"'));
+  assert.ok(lint.includes('-v "$CI_GOLANGCI_CACHE_VOLUME:/root/.cache"'));
+  assert.ok(worker.includes('-v "$CI_ROOT_NODE_MODULES_VOLUME:/app/node_modules"'));
+  assert.ok(worker.includes('-v "$CI_ROOT_PNPM_STORE_VOLUME:/pnpm-store"'));
+});
+
+test("worker Makefile recipe checks avoid pipefail SIGPIPE races", () => {
+  const script = read("scripts/ci/check-test-worker-makefile.test.sh");
+  assert.ok(script.includes(String.raw`elif grep -Eq 'docker run' <<<"$recipe"; then`));
+  assert.ok(script.includes(String.raw`if grep -Eq '\$\(ARGS\)' <<<"$recipe"; then`));
+  assert.ok(script.includes(String.raw`if grep -Eq '\$\(DC\) exec frontend' <<<"$recipe"; then`));
 });

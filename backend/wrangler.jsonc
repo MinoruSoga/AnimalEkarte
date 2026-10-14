@@ -107,9 +107,13 @@
     // PLANE_API_KEY だけがシークレット(gitignore 済み backend/.env → `pnpm cf:secrets` で bulk 投入)。
     // API_KEY 未設定なら連携無効: 報告はローカル保存のみ・手動起票エンドポイントは 501 を返す。
     // BASE_URL/WEB_BASE_URL/TIMEOUT_MS は Go 既定値(api.plane.so / app.plane.so / 10s)。
+    // SOURCE/LANE label は EMR プロジェクト固定の label UUID(docs/ops/plane-ticket-conventions.md
+    // 附録)。enabled 連携では Go 側 Validate が両方の UUID を必須化する。
     "PLANE_WORKSPACE_SLUG": "baritechllc",
     "PLANE_PROJECT_ID": "6a009324-8a8a-455c-b16a-41b3f6207b0e",
     "PLANE_PROJECT_IDENTIFIER": "EMR",
+    "PLANE_SOURCE_LABEL_ID": "31530203-1a6e-445f-9952-01c6eac98fe1",
+    "PLANE_LANE_LABEL_ID": "7a38738a-d932-4166-a7fa-87524f29b824",
   },
 
   "observability": {
@@ -128,7 +132,13 @@
   // 約10h/日(約$3/月)のみ — 営業時間帯は従来通り連続稼働なので増分はリクエスト数のみ。
   // wrangler.production.jsonc には追加しない。
   "triggers": {
-    "crons": ["0 1 * * *", "0 6,11 * * *", "0 17 * * *", "*/4 0-9 * * *", "*/15 * * * *"],
+    "crons": [
+      "0 1 * * *",
+      "0 6,11 * * *",
+      "0 17 * * *",
+      "*/4 0-9 * * *",
+      "*/15 * * * *",
+    ],
   },
 
   "containers": [
@@ -219,6 +229,16 @@
       "SMTP_HOST",
       "SMTP_USER",
       "SMTP_PASS",
+      // EMR-335: 検査機器エージェント agent-consumer の capability 署名鍵。
+      // Worker envVars(buildContainerEnvVars)経由で Container の Go 側へ届く。
+      // 値は人間が `wrangler secret put LAB_DEVICE_AGENT_CONSUMER_TOKEN` のみで
+      // 投入する(本ファイルに値を書かない)。secrets.required は remote secret の存在を
+      // 保証しないため、STG workflow は deploy 前に secret list の名前だけを検査する。
+      // 人間が承認済みの新規 STG デプロイの「前」に投入する。Env 型宣言上の
+      // optional はこの明示 preflight を緩めない。既存デプロイや
+      // env 未設定の local backend では /v1/lab-device/agent-consumer は 503 を
+      // 返し続け、画面は「未設定」表示になる(fail-closed)。
+      "LAB_DEVICE_AGENT_CONSUMER_TOKEN",
       // SEEDLOGIN_OPERATOR_EMAIL/NAME/PASSWORD は STG/local の任意 bootstrap。
       // required に入れない（未設定のままデプロイでき、Go はオペレータ upsert をスキップする）。
       // 値は `wrangler secret put` のみ。git / LoginForm / CSV には置かない。

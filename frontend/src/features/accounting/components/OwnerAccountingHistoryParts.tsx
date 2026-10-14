@@ -49,7 +49,7 @@ export function AccountingHistorySummary({
       <span className={`text-xs ${C.text60}`}>
         累計支払い金額（精算済 {completedCount.toLocaleString()} 件）
       </span>
-      <span className={`text-base font-bold ${C.text} font-mono`}>
+      <span className={`text-base font-semibold ${C.text} font-mono`}>
         {formatCurrency(completedTotal)}
       </span>
     </div>

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { startTransition, useLayoutEffect, useRef } from "react";
+import { calculateNextDate } from "@/components/shared/NextScheduleField";
 import { useGetHospitalizationRaw } from "../api/get-hospitalization";
 import { useGetTreatmentPlans } from "../api/get-treatment-plans";
 import { useHospitalizationForm } from "./use-hospitalization-form";
@@ -16,7 +17,7 @@ function renderHospitalizationForm(id?: string, canSubmit = true) {
 }
 
 /** BUG-016: edit mode submit requires a found entity; shared fixture for regression tests. */
-function mockFoundHospitalization(id = 42) {
+function mockFoundHospitalization(id = 42, extra: Record<string, unknown> = {}) {
   vi.mocked(useGetHospitalizationRaw).mockReturnValue({
     data: {
       id,
@@ -32,6 +33,7 @@ function mockFoundHospitalization(id = 42) {
       staff_notes: "s",
       created_at: "2026-07-23T00:00:00+09:00",
       updated_at: "2026-07-23T00:00:00+09:00",
+      ...extra,
     },
     isLoading: false,
     isError: false,
@@ -808,6 +810,314 @@ describe("useHospitalizationForm", () => {
           insurance_number: "P-999",
         }),
       );
+    });
+  });
+
+  // ──────────────────────────
+  // 次回予定日 (EMR-353)
+  // ──────────────────────────
+  describe("次回予定日の保存 (EMR-353)", () => {
+    const alivePet = {
+      id: "1",
+      ownerId: "2",
+      ownerName: "田中太郎",
+      name: "ポチ",
+      species: "犬",
+    };
+
+    it("create 時 nextVisit があれば next_visit として送信する", async () => {
+      mockSelectedPets.push({ ...alivePet });
+      const { result } = renderHospitalizationForm();
+
+      act(() => {
+        result.current.handleFormDataChange({ nextVisit: "2026-11-20" });
+      });
+      await submitForm(result.current.formAction);
+
+      expect(mockCreateHospitalization).toHaveBeenCalledWith(
+        expect.objectContaining({ next_visit: "2026-11-20" }),
+      );
+    });
+
+    it("create 時 nextVisit 未入力なら next_visit を送らない", async () => {
+      mockSelectedPets.push({ ...alivePet });
+      const { result } = renderHospitalizationForm();
+
+      await submitForm(result.current.formAction);
+
+      const payload = mockCreateHospitalization.mock.calls[0][0];
+      expect(payload).not.toHaveProperty("next_visit");
+    });
+
+    it("create 保存失敗時も nextVisit 入力値を保持し成功トーストを出さない", async () => {
+      mockSelectedPets.push({ ...alivePet });
+      mockCreateHospitalization.mockRejectedValueOnce(new Error("network"));
+      const { result } = renderHospitalizationForm();
+
+      act(() => {
+        result.current.handleFormDataChange({ nextVisit: "2026-11-20" });
+      });
+      await submitForm(result.current.formAction);
+
+      expect(result.current.formState.success).toBe(false);
+      expect(result.current.formData.nextVisit).toBe("2026-11-20");
+      expect(mockToast.success).not.toHaveBeenCalled();
+    });
+
+    it("編集: GET の next_visit を form へ復元し timestamp start_date は date-only に正規化する", async () => {
+      mockFoundHospitalization(42, { next_visit: "2026-08-15" });
+      const { result } = renderHospitalizationForm("42");
+
+      expect(result.current.formData.nextVisit).toBe("2026-08-15");
+      expect(result.current.formData.nextScheduleType).toBe("other");
+      expect(result.current.formData.displayDate).toBe("2026-07-23");
+    });
+
+    it("編集: nextVisit が保存値と同じなら PATCH へ含めない", async () => {
+      mockFoundHospitalization(42, { next_visit: "2026-08-15" });
+      mockSelectedPets.push({ ...alivePet });
+      const { result } = renderHospitalizationForm("42");
+
+      await submitForm(result.current.formAction);
+
+      const payload = mockUpdateHospitalization.mock.calls[0][1];
+      expect(payload).not.toHaveProperty("next_visit");
+      expect(payload).not.toHaveProperty("clear_next_visit");
+    });
+
+    it("編集: 保存値から日付を変更すると next_visit を送る", async () => {
+      mockFoundHospitalization(42, { next_visit: "2026-08-15" });
+      mockSelectedPets.push({ ...alivePet });
+      const { result } = renderHospitalizationForm("42");
+
+      act(() => {
+        result.current.handleFormDataChange({ nextVisit: "2026-09-01" });
+      });
+      await submitForm(result.current.formAction);
+
+      expect(mockUpdateHospitalization).toHaveBeenCalledWith(
+        "42",
+        expect.objectContaining({ next_visit: "2026-09-01" }),
+      );
+      const payload = mockUpdateHospitalization.mock.calls[0][1];
+      expect(payload).not.toHaveProperty("clear_next_visit");
+    });
+
+    it("編集: 保存済みの日付を消去すると clear_next_visit: true を送る", async () => {
+      mockFoundHospitalization(42, { next_visit: "2026-08-15" });
+      mockSelectedPets.push({ ...alivePet });
+      const { result } = renderHospitalizationForm("42");
+
+      act(() => {
+        result.current.handleFormDataChange({ nextVisit: "" });
+      });
+      await submitForm(result.current.formAction);
+
+      const payload = mockUpdateHospitalization.mock.calls[0][1];
+      expect(payload.clear_next_visit).toBe(true);
+      expect(payload).not.toHaveProperty("next_visit");
+    });
+
+    it("編集: 保存失敗時は変更済み nextVisit を保持し成功トーストを出さない", async () => {
+      mockFoundHospitalization(42, { next_visit: "2026-08-15" });
+      mockSelectedPets.push({ ...alivePet });
+      mockUpdateHospitalization.mockRejectedValueOnce(new Error("network"));
+      const { result } = renderHospitalizationForm("42");
+
+      act(() => {
+        result.current.handleFormDataChange({ nextVisit: "2026-09-01" });
+      });
+      await submitForm(result.current.formAction);
+
+      expect(result.current.formState.success).toBe(false);
+      expect(result.current.formData.nextVisit).toBe("2026-09-01");
+      expect(mockToast.success).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("開始日 start_date の保存", () => {
+    const alivePet = {
+      id: "1",
+      ownerId: "2",
+      ownerName: "田中太郎",
+      name: "ポチ",
+      species: "犬",
+    };
+
+    it("編集: 変更した期間を JST 0時の start_date/end_date としてプリセット再計算の next_visit と同送する", async () => {
+      mockFoundHospitalization(42);
+      mockSelectedPets.push({ ...alivePet });
+      const { result } = renderHospitalizationForm("42");
+
+      expect(result.current.formData.displayDate).toBe("2026-07-23");
+      expect(result.current.formData.endDate).toBe("2026-07-30");
+
+      act(() => {
+        result.current.handleFormDataChange({
+          displayDate: "2026-08-01",
+          endDate: "2026-08-08",
+          nextScheduleType: "4weeks",
+          nextVisit: calculateNextDate("2026-08-01", "4weeks"),
+        });
+      });
+      await submitForm(result.current.formAction);
+
+      expect(mockUpdateHospitalization).toHaveBeenCalledWith(
+        "42",
+        expect.objectContaining({
+          start_date: "2026-08-01T00:00:00+09:00",
+          end_date: "2026-08-08T00:00:00+09:00",
+          next_visit: "2026-08-29",
+        }),
+      );
+      const payload = mockUpdateHospitalization.mock.calls[0][1];
+      expect(payload).not.toHaveProperty("clear_next_visit");
+    });
+
+    it("編集: 保存失敗後のリトライも同じ start_date/end_date/next_visit とケージ guard を送る", async () => {
+      mockFoundHospitalization(42, { cage_id: 10 });
+      mockSelectedPets.push({ ...alivePet });
+      mockUpdateHospitalization.mockRejectedValueOnce(new Error("network"));
+      const { result } = renderHospitalizationForm("42");
+
+      act(() => {
+        result.current.handleFormDataChange({
+          displayDate: "2026-08-01",
+          endDate: "2026-08-08",
+          nextScheduleType: "4weeks",
+          nextVisit: calculateNextDate("2026-08-01", "4weeks"),
+          cageId: "20",
+        });
+      });
+      await submitForm(result.current.formAction);
+
+      expect(result.current.formState.success).toBe(false);
+      expect(mockToast.success).not.toHaveBeenCalled();
+
+      await submitForm(result.current.formAction);
+
+      const expectedPayload = expect.objectContaining({
+        start_date: "2026-08-01T00:00:00+09:00",
+        end_date: "2026-08-08T00:00:00+09:00",
+        next_visit: "2026-08-29",
+        cage_id: "20",
+        expected_cage_id: "10",
+      });
+      expect(mockUpdateHospitalization).toHaveBeenNthCalledWith(1, "42", expectedPayload);
+      expect(mockUpdateHospitalization).toHaveBeenNthCalledWith(2, "42", expectedPayload);
+      expect(result.current.formState.success).toBe(true);
+    });
+
+    it("編集: 期間を変えずにメモだけ保存すると start_date/end_date を送らない", async () => {
+      mockFoundHospitalization(42);
+      mockSelectedPets.push({ ...alivePet });
+      const { result } = renderHospitalizationForm("42");
+
+      expect(result.current.formData.displayDate).toBe("2026-07-23");
+      expect(result.current.formData.endDate).toBe("2026-07-30");
+
+      await act(async () => result.current.handleFormDataChange({ memo: "updated" }));
+      await submitForm(result.current.formAction);
+
+      const payload = mockUpdateHospitalization.mock.calls[0][1];
+      expect(payload.memo).toBe("updated");
+      expect(payload).not.toHaveProperty("start_date");
+      expect(payload).not.toHaveProperty("end_date");
+    });
+
+    it("編集: 同一idのrefetchで他スタッフが期間を更新しても stale form のメモ保存は日付を送らない", async () => {
+      mockFoundHospitalization(42);
+      mockSelectedPets.push({ ...alivePet });
+      const { result, rerender } = renderHospitalizationForm("42");
+
+      const hydrated = vi.mocked(useGetHospitalizationRaw).mock.results.at(-1)?.value;
+      vi.mocked(useGetHospitalizationRaw).mockReturnValue({
+        ...hydrated,
+        data: {
+          ...hydrated.data,
+          start_date: "2026-08-01T00:00:00+09:00",
+          end_date: "2026-08-08T00:00:00+09:00",
+        },
+      } as ReturnType<typeof useGetHospitalizationRaw>);
+      rerender();
+
+      expect(result.current.formData.displayDate).toBe("2026-07-23");
+      expect(result.current.formData.endDate).toBe("2026-07-30");
+
+      await act(async () => result.current.handleFormDataChange({ memo: "updated" }));
+      await submitForm(result.current.formAction);
+
+      const payload = mockUpdateHospitalization.mock.calls[0][1];
+      expect(payload.memo).toBe("updated");
+      expect(payload).not.toHaveProperty("start_date");
+      expect(payload).not.toHaveProperty("end_date");
+    });
+
+    it("編集: 開始日だけを保存済み期間内へ変更すると start_date のみ送る", async () => {
+      mockFoundHospitalization(42);
+      mockSelectedPets.push({ ...alivePet });
+      const { result } = renderHospitalizationForm("42");
+
+      await act(async () => result.current.handleFormDataChange({ displayDate: "2026-07-24" }));
+      await submitForm(result.current.formAction);
+
+      const payload = mockUpdateHospitalization.mock.calls[0][1];
+      expect(payload.start_date).toBe("2026-07-24T00:00:00+09:00");
+      expect(payload).not.toHaveProperty("end_date");
+    });
+
+    it("編集: 終了日だけを変更すると end_date のみ送る", async () => {
+      mockFoundHospitalization(42);
+      mockSelectedPets.push({ ...alivePet });
+      const { result } = renderHospitalizationForm("42");
+
+      await act(async () => result.current.handleFormDataChange({ endDate: "2026-07-31" }));
+      await submitForm(result.current.formAction);
+
+      const payload = mockUpdateHospitalization.mock.calls[0][1];
+      expect(payload).not.toHaveProperty("start_date");
+      expect(payload.end_date).toBe("2026-07-31T00:00:00+09:00");
+    });
+
+    it("編集: 期間変更の保存成功後はメモだけの再保存で日付と次回予定日を再送しない", async () => {
+      mockFoundHospitalization(42);
+      mockSelectedPets.push({ ...alivePet });
+      const { result } = renderHospitalizationForm("42");
+
+      act(() => {
+        result.current.handleFormDataChange({
+          displayDate: "2026-08-01",
+          endDate: "2026-08-08",
+          nextScheduleType: "4weeks",
+          nextVisit: calculateNextDate("2026-08-01", "4weeks"),
+        });
+      });
+      await submitForm(result.current.formAction);
+
+      expect(result.current.formState.success).toBe(true);
+      expect(mockUpdateHospitalization).toHaveBeenCalledWith(
+        "42",
+        expect.objectContaining({
+          start_date: "2026-08-01T00:00:00+09:00",
+          end_date: "2026-08-08T00:00:00+09:00",
+          next_visit: "2026-08-29",
+        }),
+      );
+
+      await act(async () => result.current.handleFormDataChange({ memo: "updated again" }));
+      await submitForm(result.current.formAction);
+
+      expect(mockUpdateHospitalization).toHaveBeenCalledTimes(2);
+      const resave = mockUpdateHospitalization.mock.calls[1][1];
+      expect(resave.memo).toBe("updated again");
+      expect(resave).not.toHaveProperty("start_date");
+      expect(resave).not.toHaveProperty("end_date");
+      expect(resave).not.toHaveProperty("next_visit");
+      expect(resave).not.toHaveProperty("clear_next_visit");
+      expect(resave).not.toHaveProperty("cage_id");
+      expect(resave).not.toHaveProperty("clear_cage_id");
+      expect(resave).not.toHaveProperty("expected_cage_id");
+      expect(resave).not.toHaveProperty("expected_cage_is_null");
     });
   });
 });

@@ -1,0 +1,444 @@
+# STG UAT 医院フィードバック Q1–Q4（回答原文と修正タスク）
+
+> 2026-09-29 注記: 本票の各「状態」列・§4 推奨順・§6 結果は 2026-09-15〜17 時点の記録。現行のタスク状態は Plane を正本とする（2026-09-29 読取: UAT-R2-MASTER-PATH=`EMR-84` Done、UAT-R2-EXCLUSIVE-LOCK=`EMR-85` Done、UAT-R2-TREATMENT-COMMIT=`EMR-120` Done、UAT-R2-MASTER-LIST-HEIGHT=`EMR-121` Done、UAT-Q1-SEARCH-AND=`EMR-122` Done、UAT-Q4-INSURANCE-RATES=`EMR-123` Done、UAT-Q2-HISTORY-NAV=`EMR-124` Done、UAT-R2-CHART-FIT=`EMR-181` Done、UAT-Q3-GENDER-MAP=`MIG-16` Needs Human、UAT-Q2-TREATMENTS-IMPORT=`MIG-15` Ready、UAT-Q2-VACCINE-SPECIES=`EMR-106` Ready、UAT-Q4-UNPAID-TRIAGE=`EMR-107` Backlog、PO-PET-DECEASED-DATA-BACKFILL=`EMR-108`）。対応表の正本は [migration receipt](../plane/plane-md-migration-20260923-receipt.md)。Linear は 2026-09-16 に閉鎖済みで、文中の Linear 参照は当時の記録。
+
+作成: 2026-09-15。やりとり最終更新: 2026-09-15（第1報・第2報を原文+回答の並記に変更）。  
+入口: [docs/work/README.md](../../README.md) の補助表。  
+範囲: 医院とのやりとり（各問に原文と回答を並べる）と修正タスク。第1報は §1。第2報は §7。  
+制約: 推測で「デモだから」と説明しない。Linear 新規 Issue は作らない。本ファイルは実行 SoT ではない。  
+反映範囲: Q1 / Q4保険 / Q2履歴ナビは **STG デプロイ済み**（PR [#411](https://github.com/MinoruSoga/AnimalEkarte/pull/411)、merge `d337f016`。Backend Deploy #176 / Frontend Deploy #51 success）。production 未反映。ブラウザ確認は未実施。
+
+現況追記（2026-09-17）: §1・§7 の医院原文/回答と §6 の当時の結果は保存した。現在は治療 Enter・検索一覧高さのローカル実装/検証が完了し、[実機受入](../../../todo.md#uat-followup) が残る。性別修正は [隔離候補の検証済み](../../../todo.md#uat-q3-gender-map)、main 統合・bundle・STG 訂正は未完了。ノートPC125% は記録済み、タブ・解像度は未回答。全面ロックは導入せず目的確認待ち。処置移行は今期に含むが種類・期間・責任者・受入条件待ち。死亡日は根拠がある行だけ訂正し、実適用は未了。Linear は現在 `USER_NOT_LOGGED_IN` / UNKNOWN。追加の医院・PO 事実は得られていない。
+
+根拠（コード・仕様。PHI は含めない）:
+
+| 題材 | 根拠 |
+|------|------|
+| 飼主・ペット検索 | `docs/spec/screens/03-owners-list.md`、`backend/internal/pet/repository.go` `applyPetListSearch` |
+| 過去カルテ UI | `frontend/src/features/medical-records/components/InterviewHistory.tsx`、`frontend/src/hooks/use-medical-records.ts` `useGetPetMedicalHistory` |
+| 移行21表 | `backend/internal/csvimport/cutover_contract.go` `CutoverTableSpecs`、`docs/ops/deploy/seeds/CLINIC_CSV_IMPORT.md` |
+| ワクチン種 | `old_db/sql/migration/030_stage.sql` vaccines.species = NULL |
+| 性別コード | `old_db/docs/migration/propose-review-decisions.md` `PetSeibt_Kbn`、`old_db/sql/migration/030_stage.sql` pets.gender CASE |
+| 未納 | `docs/spec/screens/30-unpaid-list.md`、`old_db/sql/migration/030_stage.sql` billings.status |
+| 保険割合 | `frontend/src/features/accounting/components/InsuranceCard.tsx`、`docs/spec/screens/11-accounting-detail.md` |
+| デモ退役 | `docs/ops/deploy/stg/STG-DEMO-DATA-LIFECYCLE.md`（`003_demo` 退役。臨床データは handoff/import） |
+
+---
+
+## 1. 医院とのやりとり（第1報）
+
+各問は **原文**（改変なし）の直後に **回答** を置く。検索・保険割合・過去カルテ導線は検証環境に反映済み。本番は未反映。
+
+### Q1
+
+**原文**
+
+動物の名前の検索についてですが、フルネーム（名字+ペット名）で検索することはできないでしょうか。件数の多い名字　小林、渡辺、望月、雨宮、佐藤などは400件以上ヒットしてとても探せないです。
+
+**回答**
+
+ご指摘のとおり、名字だけだと件数が多く探せませんでした。飼主・ペット一覧の検索欄はそのまま1つで、**空白で区切った語をすべて満たす行だけ**出すようにしました。検証環境でお試しいただけます。
+
+- 「小林 ポチ」→ 飼主名側に小林、ペット名側にポチがある行に絞る
+- 「小林」だけ → 従来どおり同姓がすべて出る
+- 電話番号・ペット番号での検索は従来どおり使えます
+
+### Q2
+
+**原文**
+
+過去カルテが参照できないです。これはデモ版だからでしょうか...？猫で犬でしか打たない注射が履歴に入っています。proheartや6種混合ワクチンなどです。
+
+**回答**
+
+**デモデータではありません。** 検証環境には、旧システムから移行した医院データが入っています。
+
+過去カルテについて:
+
+- カルテ本体、問診、診察・方針の文章は移行対象です。
+- カルテ入力の右側は **問診（主訴）の抜粋**です。行を開くと、その日のカルテ詳細へ進めます（直近50件まで）。
+- 旧システムの**処置・処方明細は、今回の移行対象に含まれていません。** 旧画面の注射・処置一覧が治療タブに無いことがあります。こちらは別途、移行範囲の判断が必要です。
+
+猫に Proheart や6種混合が出る件は、ワクチンマスタに「犬／猫」の種別が移行されておらず、接種記録がペットにそのまま紐づいているためです。件数の切り分けはこれから行います。該当個体の例をいただければ、個別に追います。
+
+### Q3
+
+**原文**
+
+おそらく避妊去勢済みの動物が全て性別不明になってるのでオスかメスか確認できるようにできたりしませんか？　避妊去勢済の項目はありますが...オスかメスかの情報は欲しいです。
+
+**回答**
+
+性別と避妊去勢は、新システムでは別項目です。
+
+- 性別：雄／雌／不明
+- 避妊去勢：手術日（別欄）
+
+旧システムでは、性別と避妊去勢が1つの区分に入っていました。移行時に、去勢・避妊済みのコードを「不明」に落としているため、避妊去勢済みの個体が性別不明に見えています。避妊去勢の欄（手術日）は別経路で入っています。
+
+方針は、**オス／メスは復元し、避妊去勢は今どおり別項目で持つ**ことです。まだデータ側の訂正前です。
+
+### Q4
+
+**原文**
+
+会計画面で気になる点があります。
+
+- 未納残高が入ってるのはデモ版だからでしょうか？
+- 保険の負担割合は90%と100%は無いです。
+
+**回答**
+
+**未納残高もデモ用のダミーではありません。**  
+会計の未納は、支払待ち（未精算）の請求から集計しています。旧システムで未精算だったものが、移行後も未納として出ます。全件が実未納か、一部が移行上の未紐付けかは、件数を切り分けます。実運用上すでに回収済みのものがあれば、例をください。
+
+保険の負担割合（保険会社が支払う割合）は、ご指摘を受けて **新規の選択肢を 50% と 70% のみ**にしました（検証環境に反映済み）。すでに 90% / 100% で保存されている会計は、その割合を消して 50% に置き換えません。マスタの補償率からの自動セットはありません。50% と 70% 以外に必要な割合があれば、その値をください。
+
+---
+
+## 2. 判断原則（本フィードバックへの適用）
+
+`docs/product-philosophy.md` の順（疑う → 削除 → 簡素化 → 速度 → 自動化）。
+
+| 問 | 残す理由 | 削除・しないこと |
+|----|----------|------------------|
+| Q1 | 同姓400件超は個体特定のサイクルを止める。検索欄を増やすのではなく、既存1欄の意味を「語をすべて満たす」へ変える | 第2検索ボックス、種別名検索の復活 |
+| Q2 | 「過去のカルテ」と書いて問診抜粋しか出さないのは工程を増やす。パネルを正直にするか、既存カルテ詳細へ通す | 新規の巨大ビューア、処置未移行をUIだけで偽装 |
+| Q3 | 性別と避妊去勢は既に別項目。壊れているのは移行のコード解釈 | 性別enumに「去勢オス」を足して二重管理しない |
+| Q4 保険 | 使わない90%/100%は選択肢から消す | 保険マスタ自動連携の新規実装（仕様上未実装のまま） |
+| Q4 未納 | 未納一覧の定義自体は業務機能 | 未納をデモ扱いして一括消去しない |
+
+医院コメントの責任者名は本ファイル作成時点で未記載。送付・改修着手時に受付／会計の個人名を付ける。
+
+---
+
+## 3. 修正タスク一覧
+
+優先は現場で毎日止まる順。P0はデータ誤りまたは使えない検索。P1は画面の約束と実データのギャップ。P2は移行範囲の拡張（PO承認が先）。
+
+| ID | 問 | 優先 | 種別 | 状態 |
+|----|----|------|------|------|
+| UAT-Q1-SEARCH-AND | Q1 | P0 | アプリ（BE、仕様、テスト） | STG デプロイ済み（PR #411）。ブラウザ未確認。production 未反映 |
+| UAT-Q4-INSURANCE-RATES | Q4 | P0 | アプリ（FE、仕様） | STG デプロイ済み（PR #411）。ブラウザ未確認。production 未反映 |
+| UAT-Q2-HISTORY-NAV | Q2 | P1 | アプリ（FE） | STG デプロイ済み（PR #411）。ブラウザ未確認。production 未反映 |
+| UAT-Q3-GENDER-MAP | Q3 | P0 | 移行SQL＋既存データの訂正 | 隔離候補検証済み。main 統合・bundle・STG 訂正待ち |
+| UAT-Q2-VACCINE-SPECIES | Q2 | P1 | 調査→マスタ種 | 未着手。STG 件数調査が先 |
+| UAT-Q4-UNPAID-TRIAGE | Q4 | P1 | 調査（集計のみ） | 未着手。STG read 承認 |
+| UAT-Q2-TREATMENTS-IMPORT | Q2 | P2 | 移行21表の外 | 今期に含む。種類・期間・責任者・受入条件待ち |
+
+```mermaid
+flowchart TB
+    subgraph R1["第1報（§1）"]
+        Q1["Q1 検索"]
+        Q2["Q2 過去カルテ"]
+        Q3["Q3 性別"]
+        Q4["Q4 会計"]
+    end
+    subgraph R2["第2報（§7）"]
+        N1["#1 マスタ金額・他PC排他"]
+        N2["#2 数量・Enter・選択肢"]
+        N3["#3 カルテ1画面"]
+        N4["#4 予約編集"]
+    end
+    Q1 --> A1["UAT-Q1-SEARCH-AND<br>STG 済み"]
+    Q4 --> A2["UAT-Q4-INSURANCE-RATES<br>STG 済み"]
+    Q2 --> A3["UAT-Q2-HISTORY-NAV<br>STG 済み"]
+    Q3 --> B1["UAT-Q3-GENDER-MAP<br>main 統合・STG 訂正待ち"]
+    Q4 --> B2["UAT-Q4-UNPAID-TRIAGE<br>STG 集計のみ"]
+    Q2 --> B3["UAT-Q2-VACCINE-SPECIES<br>件数調査が先"]
+    Q2 --> B4["UAT-Q2-TREATMENTS-IMPORT<br>詳細待ち"]
+    N1 --> C1["UAT-R2-MASTER-PATH<br>医院確認待ち"]
+    N1 --> C2["UAT-R2-EXCLUSIVE-LOCK<br>製品判断待ち"]
+    N2 --> C3["UAT-R2-TREATMENT-COMMIT<br>実機受入待ち"]
+    N2 --> C4["UAT-R2-MASTER-LIST-HEIGHT<br>実機受入待ち"]
+    N3 --> C5["UAT-R2-CHART-FIT<br>解像度待ち"]
+    N4 --> C6["UAT-R2-RESERVATION-HOWTO<br>手順回答のみ"]
+```
+
+---
+
+### UAT-Q1-SEARCH-AND: 空白区切りAND検索（名字＋ペット名）
+
+- **問題**: 飼主・ペット一覧の `search` は飼主名・ペット名などを **OR** 部分一致する。同姓（小林・渡辺等）が400件超になり個体を特定できない。医院は「名字＋ペット名」を1回の検索で使いたい。
+- **根拠**: `applyPetListSearch` は `pets.name` / `owners.name` / 電話 / `owners.id` / `pets.pet_number` を単一パターンで OR。空白除去は **飼主フルネーム**（姓と名の空白差）用であり、飼主名とペット名の連結検索ではない。`docs/spec/screens/03-owners-list.md` もその定義。
+- **修正方針**: 既存の1欄を維持する。空白（半角・全角・連続）で分割した **各語が、既存対象フィールドのいずれかにヒットすること（AND）** を追加する。1語のときは現行ORのまま（「小林」は同姓全員、「ポチ」はペット名、「090-…」は電話）。2語「小林 ポチ」は、一方が飼主名側・他方がペット名側でも、両語が同一行で満たされればヒット。飼主フルネーム無空白一致（現行 compact）は1語扱いに残す。カルテ一覧検索はこの単位に含めない（医院の問は動物名検索）。
+- **受け入れ条件**:
+  1. 飼主「小林太郎」＋ペット「ポチ」、別行で飼主「小林」＋ペット「シロ」があるとき、`search=小林 ポチ` はポチ行のみ。`search=小林` は両行。
+  2. `search=ポチ`・電話・ペット番号・空白のみ0件は現行テストと同じ。
+  3. clinic 外の同名はヒットしない（既存 isolation テスト維持）。
+  4. 仕様 `03-owners-list.md` に「複数語は AND」を追記。
+- **検証**: `docker compose exec backend go test ./internal/pet/...`（`repository_test.go` / `repository_space_search_test.go` / `repository_kana_search_test.go` を拡張）。全件 `go test ./...` は自動実行しない。
+- **やらないこと**: 新しい検索API、クライアント全件取得、種別名の検索対象化。
+- **状態**: STG デプロイ済み（PR #411、`d337f016`）。ブラウザ未確認。production 未反映。
+
+---
+
+### UAT-Q3-GENDER-MAP: 旧性別コード 3/4 を雄/雌へ直す
+
+- **問題**: 避妊去勢済み個体が性別「不明」。医院はオス/メスを残したい。避妊去勢欄はある。
+- **根拠（元の old_db main `2eab89ac`）**: 承認済みデコードは `PetSeibt_Kbn` `{1,3}=male, {2,4}=female, {5,0}=unknown`。去勢事実はコードから `neutered_date` を捏造しない（`propose-review-decisions.md`）。一方 stage SQL は `sex_kbn IN ('1','01')→male`、`('2','02')→female`、**else unknown**。コード3/4が unknown になる。`neutered_date` は `PetOpe_Date` から別列。AE の性別は `male|female|unknown`、UI は雄/雌/不明。去勢日は別フィールド。
+- **修正方針**:
+  1. 隔離候補の `030_stage.sql` は承認デコード（1/01/3/03→male、2/02/4/04→female、それ以外 unknown）へ修正済み。元の main への統合は残る。
+  2. classifier/oracle と38 mapping tests・80% gateは候補で確認済み。SQL CASE は SQLite のみで、PostgreSQL・export は未検証。[候補と証跡](../../../todo.md#uat-q3-gender-map) を参照。
+  3. **既に STG へ入った行**は SQL 再実行または `pets.gender` の訂正バッチ。再取込は `make stg-uat-*` の運用承認が必要。エージェントは migrate/STG 書き込みを自動実行しない。
+  4. AE の性別enumは増やさない。画面は「性別」＋「去勢・避妊手術日」の併記を維持。一覧に性別列は仕様上無い（`03-owners-list.md`）。詳細フォームで確認できることを受入にする。
+- **受け入れ条件**:
+  1. 新規 stage で sex_kbn=3 のペットは `gender=male`、4 は `female`。5 と 0 は `unknown`。
+  2. `neutered_date` はコード3/4からは作らない（日付ソースは従来どおり `PetOpe_Date`）。
+  3. 飼主詳細のペット編集で、去勢日がある個体が雄または雌で表示される（不明に落ちない）。
+- **検証**: old_db の stage SQL テスト（当該 repo）。AE 側は性別表示の既存 transform テストで十分（enum 変更なし）。STG 訂正後の件数は集計のみ（PHIなし: gender×neutered_date IS NOT NULL のクロス集計）。
+- **やらないこと**: 性別に「去勢済オス」を足す。去勢日未入力をコード3/4から捏造する。
+- **状態**: 隔離候補のローカル検証済み。未コミット・main 未統合。bundle と承認後の STG 訂正・受入は未完了。
+
+---
+
+### UAT-Q4-INSURANCE-RATES: 会計の負担割合から 90%/100% を外す
+
+- **問題**: 医院「保険の負担割合は90%と100%は無い」。
+- **根拠**: `InsuranceCard` の選択肢は 50/70/90/100。ラベルは「負担割合（保険会社が支払う割合）」。既定は `use-accounting-detail-state.ts` の `"0.5"`。保険マスタ `coverage_rate` からは自動セットしない（`11-accounting-detail.md` / `master-insurance.md`）。操作マニュアル草稿 `29-master-insurance.md` は 50/70/100 と食い違う。
+- **修正方針**: 会計詳細の Select を **50% と 70% のみ**にする（医院が他割合を指定したらそれに合わせる）。保存済み `insurance_ratio` が 0.9 / 1.0 の会計は、選択肢に無い値でも表示を落とさず、編集時は値を維持するか明示的に 50/70 へ変更させる（サイレント丸め禁止）。仕様 `11-accounting-detail.md` を選択肢に合わせて直す。マスタ補償率の自動連携はこの単位に含めない。
+- **受け入れ条件**:
+  1. 新規会計で保険ONのとき、Select に 90% / 100% が無い。50% / 70% はある。
+  2. 既定は 50%。
+  3. 既存で 90% が入っている詳細を開いても計算に使った割合が分かる（消えて 50% に置き換わらない）。
+- **検証**: `docker compose exec frontend npx vitest run src/features/accounting`（InsuranceCard / use-accounting-detail-state）。ブラウザ確認は会計新規の保険スイッチ。
+- **やらないこと**: 保険マスタ画面の補償率 0–100 整数を会計 Select に結合する（未実装のまま）。
+- **状態**: STG デプロイ済み（PR #411）。新規 50/70、既存 0.9/1.0 は Select に残す。ブラウザ未確認。production 未反映。
+
+---
+
+### UAT-Q2-HISTORY-NAV: 「過去のカルテ」を実際に参照できる状態にする
+
+- **問題**: 医院「過去カルテが参照できない」。カルテフォーム右の見出しは「過去のカルテ」だが、中身は問診主訴の抜粋（最大50件、page=1）。クリックは展開のみ。`引用` ボタンは `stopPropagation` だけで引用しない。処置明細は21表外。
+- **根拠**: `InterviewHistory.tsx`（見出し・展開・引用no-op）、`useGetPetMedicalHistory`（`GET /v1/medical-records?pet_id=&limit=50&page=1`、`inquiry.chief_complaint`）。一覧は `05-medical-records-list.md`。21表に `treatments` なし。
+- **修正方針（簡素化）**: 新ビューアを足さない。
+  1. パネル各行から **同一ペットのそのカルテ詳細**（`/medical-records/:id`）へ遷移する。
+  2. 見出しまたは空状態で、ここが問診抜粋であること、全文はカルテ詳細であることを書く。
+  3. `引用` が未配線なら、動かないボタンは削除する（存在しない機能を残さない）。引用を残すなら、主訴テキストを当日問診へ入れる実装を同じ単位で完了させる。中途のボタン禁止。
+  4. 50件上限は、詳細への導線があればこの単位では維持してよい。全件無限スクロールは範囲外。
+- **受け入れ条件**:
+  1. 過去行を開くと、その `id` のカルテ詳細が表示される（問診・診察方針があるレコードでは本文が見える）。
+  2. 処置が無い移行カルテでは治療タブが空でも、詳細自体は開ける。
+  3. 引用ボタンを残す場合: クリックで当日問診に主訴が入る。残さない場合: ボタンが無い。
+- **検証**: `npx vitest run src/features/medical-records/components/InterviewHistory.test.tsx` および Form の履歴導線テスト。
+- **やらないこと**: この単位で treatments を移行する。デモデータのせいにするコピー。
+- **状態**: STG デプロイ済み（PR #411）。見出し「問診抜粋」、詳細へ Link、引用ボタン削除。ブラウザ未確認。production 未反映。
+
+---
+
+### UAT-Q2-VACCINE-SPECIES: 猫に犬用ワクチンが出る件
+
+- **問題**: 猫の履歴に Proheart・6種混合など犬用接種が載る。
+- **根拠**: stage の `vaccines.species` はソース列なしで **常に NULL**。`vaccinations` は pet_id＋vaccine_id で載せる。AE のワクチンマスタは `dog|cat|both` を持てるが、移行行は種なし。接種一覧はペット種でワクチンを除外しない。
+- **修正方針**:
+  1. **先に調査（PHIなし）**: 猫（species=猫）に紐づくワクチン名の件数上位。旧マスタ名のままか、vaccine_id 取り違えかを見る。個体名は出さない。
+  2. 調査後: ワクチンマスタへ種を付ける（名称ルールまたは医院確認リスト）。**新規接種の選択肢**はペット種で `dog/cat/both` を絞る（既存のマスタ API `species` クエリを使う）。
+  3. **過去履歴の非表示は別判断**。旧システムに本当にその接種があれば消さない。取り違えなら vaccine_id 訂正。調査前に猫の Proheart を一括削除しない。
+- **受け入れ条件（調査単位）**: 猫×犬用ワクチン名の件数表（院内限り、名前なし）。Class A（マスタ種欠損）/ B（行の取り違え）/ C（旧データのまま）を文書化。
+- **受け入れ条件（実装単位・調査後）**: 猫の新規接種UIに Proheart / 犬6種が選択肢に出ない。`both` は出る。履歴の扱いが調査メモの方針と一致する。
+- **やらないこと**: ソース列が無いのに species を推測で埋める。調査なしの一括 DELETE。
+- **状態**: 医院例（Proheart、6種）は手がかり。件数未計測。実装は調査の次。
+
+---
+
+### UAT-Q4-UNPAID-TRIAGE: 未納の切り分け（消さない）
+
+- **問題**: 医院「未納残高が入っているのはデモ版か」。
+- **根拠**: デモ臨床シードは退役。未納は waiting 全額＋クレジット訂正残（`30-unpaid-list.md` / `S08`）。stage は `settle_flg IN ('0','00')` を `waiting`、支払突合できたものを `completed`。窓口0精算は completed へ寄せた記録がある。残 waiting は旧未精算または突合失敗の可能性がある。
+- **修正方針**: アプリで未納定義を変えない。STG で **集計のみ**: status 別件数、waiting かつ payment 有無、金額帯。PHI・飼主名は出さない。結果を医院に「旧未精算の移行」と説明し、回収済みの例があればその billing だけ個別確認。一括 completed 化は禁止。
+- **受け入れ条件**: 集計表（件数・合計金額、status 内訳）。「デモではない」を集計で裏付ける。個別訂正ルールが必要なら別単位。
+- **やらないこと**: 未納タブの隠蔽、waiting の一括完了。
+- **状態**: 読み取り調査。STG 接続は運用承認。
+
+---
+
+<a id="uat-q2-treatments-import-処置処方の移行今期外候補"></a>
+
+### UAT-Q2-TREATMENTS-IMPORT: 処置・処方の移行（今期対象・詳細待ち）
+
+- **問題**: 旧カルテの注射・処置が一覧に無いと「カルテが空／参照できない」に見える。
+- **根拠**: `CutoverTableSpecs` に `treatments` も `prescriptions` も無い。`030_stage.sql` に treatments INSERT は無い。
+- **修正方針**: 21表の契約変更＋old_db stage＋F6。今期に含む方針は記録済み。種類・期間・責任者・受入条件が確定するまで実装を保留する。それまでは Q2-HISTORY-NAV で詳細へ通し、治療タブ空は移行範囲と明示する。
+- **受け入れ条件**: 種類・期間・責任者とともに未確定。
+- **状態**: 今期対象・詳細待ち。[現行計画](../../../todo.md#uat-q2-treatments-import) で追跡し、入力が揃うまで実装 READY にしない。
+
+---
+
+## 4. 推奨実施順（残）
+
+AE のみの3単位は STG デプロイ済み（§6、PR #411）。production 未反映。残る順:
+
+1. STG 画面確認（飼主一覧「名字 ペット名」、会計保険 50/70、カルテ右パネル→詳細）
+2. **UAT-Q3-GENDER-MAP**（検証済み候補の main 統合・bundle と、承認後の STG 訂正）
+3. **UAT-Q4-UNPAID-TRIAGE** と **UAT-Q2-VACCINE-SPECIES** 調査（並列可、read-only）
+4. ワクチン種の実装は 3 の結論後
+5. 今期対象の処置移行は種類・期間・責任者・受入条件の確定後
+6. 第2報: 治療 Enter・検索一覧高さは実機受入へ。マスタ経路とカルテのタブ・解像度は医院入力待ち。全面ロックは導入せず目的確認を残す。#4 は手順案内のみ
+
+---
+
+## 5. 本ファイルの位置づけ
+
+- 医院回答の保管と、修正単位の分解。
+- **実行 SoT ではない。** 着手する単位は承認後 `todo-issue.md` に短い節で移す。
+- Linear 新規作成はしない。既存ハブ [BRT-4](https://linear.app/baritechllc/issue/BRT-4) へのコメントは明示承認後。
+- 秘密・個体名・行値は書かない。
+
+---
+
+## 6. キャンペーン結果（2026-09-15）
+
+キャンペーン `stg-uat-clinic-feedback-20260915`（`.planning/agent-fast-campaign/`、gitignore）。`outcome=COMPLETE`、`fixed_agent_target_set` は Q1 / Q4保険 / Q2履歴の3本。
+
+local `main` 統合（この tree）:
+
+- cherry-pick: `8c590134a` / `a49ef4e48` / `86a5c436d`
+- merge: `f622f8312` feat/UAT-Q1-SEARCH-AND、`a1267bdc4` feat/UAT-Q4-INSURANCE-RATES、`e6eff68a0` feat/UAT-Q2-HISTORY-NAV
+- AI claim 3本は統合後に `git branch -d` 済み
+- `feat/UAT-Q1-SEARCH-AND` / `feat/UAT-Q4-INSURANCE-RATES` / `feat/UAT-Q2-HISTORY-NAV` と対応 worktree は、この時点でリポジトリに無い（統合済みのため再作成しない）
+- `feat/R09-C-PRIME-CSVIMPORT-ENTERED-BY-FK` は別作業。削除しない
+- 2026-09-15 STG: PR [#411](https://github.com/MinoruSoga/AnimalEkarte/pull/411) を `staging` に merge（`d337f016`）。[Backend Deploy #176](https://github.com/MinoruSoga/AnimalEkarte/actions/runs/34923018516) success（Worker、migrate、`/health`、CRUD smoke）。[Frontend Deploy #51](https://github.com/MinoruSoga/AnimalEkarte/actions/runs/34923018544) success。production 未反映。Linear なし
+
+| ID | Mode 3 | 照合 |
+|----|--------|------|
+| UAT-Q1-SEARCH-AND | COMPLETE | `applyPetListSearch` が語ごと AND。仕様「複数語は AND」 |
+| UAT-Q4-INSURANCE-RATES | COMPLETE | 新規 50/70。0.9/1.0 は legacy Select |
+| UAT-Q2-HISTORY-NAV | COMPLETE | `Link` → カルテ詳細。見出し「問診抜粋」。引用なし |
+
+検証:
+
+- キャンペーン: isolated pet test / accounting 290 / medical-records 469
+- 統合後 compose: `go test ./internal/pet/...` PASS、`InsuranceCard` 4 + `InterviewHistory` 9 PASS
+- ブラウザ: SKIP（ログインが必要）
+
+残差: Q3 gender map、ワクチン種調査、未納 STG 集計、処置移行。第2報のやりとりは §7。
+
+---
+
+## 7. 医院とのやりとり（第2報）
+
+各問は **原文**（改変なし）の直後に **回答** を置く。写真は未添付。②は文面のみを根拠とする。
+
+### #1 ① マスタと金額・会計画面
+
+**原文**
+
+マスタについて
+入力をしても金額が入らないのと、会計画面に入力したマスタが入りません。
+
+**回答**
+
+マスタと会計画面は、種類によって入り方が違います。
+
+- **診療項目マスタ**（診察・処置など）と **薬剤マスタ**は、会計画面の「物販・その他追加」には出ません。カルテの「治療」タブで選んだものが、会計の未請求明細（カルテ連携）になります。
+- **商品マスタ**（療法食・物販）だけが、会計画面の「物販・その他追加」→「マスタから選択」に出ます。無効にした商品は出ません。
+- 単価が未設定または負の値だと、会計確認では「価格未設定」になり、金額が載りません。商品マスタは 0 円でも保存できます。
+
+どの画面で登録した項目か（診療項目／薬剤／商品）を教えていただければ、個別に追います。
+
+### #1 ② 他のパソコンでの入力禁止
+
+**原文**
+
+旧カルテシステムでは1つのパソコンでカルテの入力または会計をしている間は他のパソコンでカルテ入力や会計ができないようになってます。(写真参照)
+実装されていなければ修正をお願いします。
+
+**回答**
+
+**その排他ロックは、現システムにはありません。** 複数の端末から同じカルテや会計を開けます。保存がぶつかったときは、所見・診断など一部で「他のユーザーが変更しました」と拒否します。開いている間ずっと他のPCを止める仕組みではありません。
+
+旧システムの写真をいただければ、止めていた範囲（カルテだけか、会計も含むか）を確認します。全面ロックをそのまま移植するかは、二重入力防止の目的を確認してから決めます。
+
+### #2 数量・Enter・選択肢
+
+**原文**
+
+今日使用してみての改善点です。
+
+- 数量入力など反映に時間がかかりすぎる
+- エンターを一回押すと入力確定してしまうのでエンター2回で確定にしてほしい
+- スクロールしないと選択肢が見れないので一画面で見られるようにしてほしい
+
+**回答**
+
+カルテ「治療」タブの実装です。
+
+- 数量は入力確定のたびにサーバーへ保存しています。Enter 1回、または欄から外れたタイミングで確定します。
+- 項目検索ダイアログの一覧は高さ上限があり、件数が多いとスクロールが必要です。
+- ご希望の「Enter 2回で確定」と、一覧をスクロールなしで見える高さは、改修対象として進めます。数量の遅さは、確定の回数を減らす方向で見ます。
+
+### #3 カルテ編集の1画面
+
+**原文**
+
+カルテ編集ページにて、サイドバーを開いた状態で1画面に収まるようにして欲しい
+
+**回答**
+
+カルテ編集はタブ＋右の問診抜粋があり、左メニュー展開時は幅 220px を使います。幅 1280px 未満ではメニューは自動で折りたたみます。開いたまま1画面に収める件は、行の高さ・余白の見直し対象です。使っている画面の解像度（または iPad か）を教えていただけると合わせやすいです。
+
+### #4 明日以降の予約の編集
+
+**原文**
+
+明日以降で予約を入れた人の修正、編集の仕方を教えてください。
+
+**回答**
+
+1. 左メニューの **予約** を開く
+2. 週表示で対象の日を出す（月表示なら日付をクリックして週へ）
+3. 予約のカードをクリックする
+4. **編集**（権限 `reservations:edit` が必要です）
+5. 時刻・担当などを直して保存する
+
+週表示では、カードを上下にドラッグしても15分単位で時刻を変えられます。当日の受付カンバンからも、同じ予約を開いて編集できます。キャンセルは取消（`reservations:delete`）です。
+
+---
+
+## 8. 第2報 — 修正タスク
+
+| ID | 問 | 優先 | 種別 | 状態 |
+|----|----|------|------|------|
+| UAT-R2-MASTER-PATH | #1① | P0 | 調査＋必要ならマスタ単価/導線 | 医院に登録画面の確認待ち。実装は調査後 |
+| UAT-R2-EXCLUSIVE-LOCK | #1② | P1 | 製品判断が先。旧PCロックの複製はしない | 未実装は確定。全面ロックは要件を疑う |
+| UAT-R2-TREATMENT-COMMIT | #2 | P0 | 実機受入 | Enter 2回・Blur 保存実装/28 tests済み。IME・再読込待ち |
+| UAT-R2-MASTER-LIST-HEIGHT | #2 | P1 | 実機受入 | 一覧 `max-h-[calc(80vh-12rem)]`・10 tests済み。viewport確認待ち |
+| UAT-R2-CHART-FIT | #3 | P1 | アプリ（カルテ密度・サイドバー） | ノートPC125%。タブ・解像度待ち |
+| UAT-R2-RESERVATION-HOWTO | #4 | — | 手順回答のみ | §7 #4 に記載。機能追加なし |
+
+### UAT-R2-MASTER-PATH
+
+- **問題**: マスタ入力後に金額が空、会計画面に出ない。
+- **根拠**: 会計の「マスタから選択」は `useGetAllMerchandiseItems` の **有効な商品マスタのみ**（`ItemListCard`）。診療項目はカルテ治療 → 未請求（`treatment_id`）。検査・ワクチン候補の会計確認は単価 null/非有限/負を「価格未設定」（`isUnbillableMasterPrice`）。全治療単価の nullable 契約には一般化しない。診療項目の単価は全タブ保存、課税は診察・処置のみ（`master-treatment.md`）。商品単価は 0 以上で保存可。
+- **方針**: まず医院が触ったマスタ画面を特定する。推測で「全部のマスタを会計に出す」はしない。単価未保存なら入力必須化を検討。診療項目を会計ダイアログに出すのは二重管理になるため、カルテ経由が正なら手順を案内する。
+- **やらないこと**: 全マスタを会計ダイアログへ混在させる。
+- **状態**: [商品直接請求と治療→未請求の source 調査](../plane/plane-md-migration-20260923-receipt.md) は完了。医院の登録画面は未特定。
+
+### UAT-R2-EXCLUSIVE-LOCK
+
+- **問題**: 旧システムは1台入力中に他PCを止めていた。
+- **根拠**: セッション占有ロックは無い。`clinical_plan` は version 楽観ロック（衝突時 Conflict）。会計 write は行ロック。`NavigationBlocker` は同一タブの未保存離脱警告。写真未添付。
+- **方針**: 旧ロックの複製は製品哲学①（存在を疑う）。目的は二重会計・上書き防止なら、保存衝突の明示と会計の原子確定で足りるか先に確認。全面ロックは工程を増やす。
+- **やらないこと**: 写真なしで全画面ロックを実装する。
+- **状態**: [version 競合・会計行ロック・未保存離脱警告の source 調査](../plane/plane-md-migration-20260923-receipt.md) は完了。全面ロックは導入せず、目的・具体的事故の確認待ち。
+
+### UAT-R2-TREATMENT-COMMIT
+
+`72807128` で Enter 2回、Blur 保存、Escape 取消を実装済み。repeat / isComposing / keyCode229 を含む28 testsは既存検証で PASS。実機 IME・ブラウザ保存→再読込は [検証 TODO](../plane/plane-md-migration-20260923-receipt.md) に残す。性能改善の実測は未了。§7 の回答は改修前の記録。
+
+### UAT-R2-MASTER-LIST-HEIGHT
+
+`72807128` の `TreatmentSearchDialog` は一覧上限を `max-h-[calc(80vh-12rem)]` へ変更済み、10 testsは既存検証で PASS。viewport・ズーム・キーボード選択・フォーカス復帰の実機受入は [検証 TODO](../plane/plane-md-migration-20260923-receipt.md) に残す。長い一覧にはスクロールが残る。
+
+### UAT-R2-CHART-FIT
+
+- **問題**: サイドバー展開時にカルテが1画面に収まらない。
+- **根拠**: 展開サイドバー `w-[220px]`、1280px 未満は自動 collapse。カルテは `LAYOUT.fullHeight` + 問診時右カラム抜粋。タブは9つ。
+- **方針**: 余白・行高の圧縮、問診以外で右カラムを出さない（現行どおりタブ依存）。チャートページだけサイドバーを畳む案は、医院が常時開いたままを望むなら不適。解像度待ち。
+- **やらないこと**: タブを消して情報を落とす。
+- **状態**: ノートPC・125% は記録済み。対象タブと解像度の確認待ち。
+
+### UAT-R2-RESERVATION-HOWTO
+
+手順は §7 #4。コード変更なし。操作マニュアルへ同じ手順を足すのは任意。
+

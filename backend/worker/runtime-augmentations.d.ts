@@ -43,10 +43,17 @@ interface Env {
   PLANE_PROJECT_ID?: string;
   PLANE_PROJECT_IDENTIFIER?: string;
   PLANE_TIMEOUT_MS?: string;
+  PLANE_SOURCE_LABEL_ID?: string;
+  PLANE_LANE_LABEL_ID?: string;
   // Optional bug-report Discord webhook. URL via `wrangler secret put` only;
   // unset disables notification (report still saves to DB).
   DISCORD_BUG_REPORT_WEBHOOK_URL?: string;
   DISCORD_WEBHOOK_TIMEOUT_MS?: string;
+  // EMR-335: lab-device agent-consumer capability signing secret. Listed in
+  // wrangler secrets.required (name only; value via `wrangler secret put`).
+  // Optional in the type because Go is fail-closed: unset → 503 on
+  // /v1/lab-device/agent-consumer and the UI shows the unconfigured state.
+  LAB_DEVICE_AGENT_CONSUMER_TOKEN?: string;
   // Optional trimming image cleanup worker toggle. Unset deploys keep the
   // cleanup OFF; only the literal "true" enables it on the Go side.
   TRIMMING_IMAGE_CLEANUP_ENABLED?: string;
@@ -82,8 +89,11 @@ declare namespace Cloudflare {
     PLANE_PROJECT_ID?: string;
     PLANE_PROJECT_IDENTIFIER?: string;
     PLANE_TIMEOUT_MS?: string;
+    PLANE_SOURCE_LABEL_ID?: string;
+    PLANE_LANE_LABEL_ID?: string;
     DISCORD_BUG_REPORT_WEBHOOK_URL?: string;
     DISCORD_WEBHOOK_TIMEOUT_MS?: string;
+    LAB_DEVICE_AGENT_CONSUMER_TOKEN?: string;
     TRIMMING_IMAGE_CLEANUP_ENABLED?: string;
   }
 }

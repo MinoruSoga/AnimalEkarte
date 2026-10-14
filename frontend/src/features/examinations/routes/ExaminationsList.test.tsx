@@ -81,6 +81,26 @@ describe("ExaminationsList status column (BUG-020)", () => {
   });
 });
 
+describe("ExaminationsList date column (EMR-382)", () => {
+  it("日付セルは折り返さず1行表示する", () => {
+    renderPage();
+
+    const dateCell = screen.getByText("2026-07-13").closest("td");
+    expect(dateCell?.className).toContain("whitespace-nowrap");
+  });
+});
+
+describe("ExaminationsList identifier headers (EMR-378)", () => {
+  it("飼主名・ペット名・検査種別・担当医ヘッダは狭幅で縦割れしない", () => {
+    renderPage();
+
+    for (const name of [/飼主名/, /ペット名/, /検査種別/, /担当医/]) {
+      const header = screen.getByRole("columnheader", { name });
+      expect(header.className).toContain("whitespace-nowrap");
+    }
+  });
+});
+
 describe("ExaminationsList row navigation accessibility", () => {
   it("ペット名・実施日を含む44px以上のnative detail linkを行内に表示する", () => {
     renderPage();

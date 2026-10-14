@@ -40,7 +40,7 @@ function ExaminationsListRow({
 }: ExaminationsListRowProps) {
   return (
     <DataTableRow key={record.id}>
-      <TableCell className={STYLE.tableCellMono}>{record.date}</TableCell>
+      <TableCell className={`${STYLE.tableCellMono} whitespace-nowrap`}>{record.date}</TableCell>
       <TableCell className={STYLE.tableCell}>{record.ownerName}</TableCell>
       <TableCell className={STYLE.tableCell}>
         <DataTableRowLink
@@ -130,7 +130,7 @@ export function ExaminationsListContent({
             onToggle={() => toggleSort("date")}
           />
         ),
-        className: "w-[120px]",
+        className: "w-[120px] whitespace-nowrap",
       },
       {
         header: (
@@ -140,6 +140,7 @@ export function ExaminationsListContent({
             onToggle={() => toggleSort("ownerName")}
           />
         ),
+        className: "whitespace-nowrap",
       },
       {
         header: (
@@ -149,6 +150,7 @@ export function ExaminationsListContent({
             onToggle={() => toggleSort("petName")}
           />
         ),
+        className: "whitespace-nowrap",
       },
       {
         header: (
@@ -158,9 +160,9 @@ export function ExaminationsListContent({
             onToggle={() => toggleSort("testType")}
           />
         ),
-        className: "hidden sm:table-cell",
+        className: "hidden sm:table-cell whitespace-nowrap",
       },
-      { header: "結果概要", className: "hidden lg:table-cell" },
+      { header: "結果概要", className: "hidden lg:table-cell whitespace-nowrap" },
       {
         header: (
           <SortableHeader
@@ -169,7 +171,7 @@ export function ExaminationsListContent({
             onToggle={() => toggleSort("doctor")}
           />
         ),
-        className: "w-[100px] hidden md:table-cell",
+        className: "w-[100px] hidden md:table-cell whitespace-nowrap",
       },
       {
         header: (
@@ -181,7 +183,7 @@ export function ExaminationsListContent({
         ),
         className: LIST_TABLE_COL.status,
       },
-      { header: "操作", className: "w-[80px]", align: "right" as const },
+      { header: "操作", className: "w-[80px] whitespace-nowrap", align: "right" as const },
     ],
     [directionFor, toggleSort],
   );

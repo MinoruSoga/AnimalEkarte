@@ -114,6 +114,9 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 		Preload("EnteredByStaff", medicalRecordEnteredByStaffPreload()).
 		Preload("Inquiry").
 		Preload("Billing", medicalRecordBillingPreload(clinicIDs)).
+		// EMR-356: 問診履歴の体重投影。親カルテ相関 + weight 記録済み +
+		// daily_record 非由来のみを1回のバッチ preload で取得する（N+1 なし）。
+		Preload("Vitals", medicalRecordWeightMeasurementsPreload).
 		Find(&records).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "medical_record", "")
 	}

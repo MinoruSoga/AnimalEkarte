@@ -1,0 +1,557 @@
+{
+  "kind": "baseline_column_inventory",
+  "generated_from": {
+    "source": "backend/internal/csvimport/cutover_contract.go",
+    "function": "CutoverTableSpecs",
+    "lines": "242-267",
+    "base_commit": "ed04c0237f81ddc2890d39b528d3608a58180c8b",
+    "csv_contract_sha256": "9e02897b86c742f94162ddfd4171067b3036a3ac4f055c6d3fd4a614e0fb37c9",
+    "method": "Mechanical positional-literal extraction; generator verifies the fixed baseline inventory and exact ordered matrix equality, no editorial selection",
+    "generator": "evidence/generate-baseline-column-inventory.py"
+  },
+  "table_count": 21,
+  "column_count": 236,
+  "tables": [
+    {
+      "name": "staffs",
+      "columns": [
+        "id",
+        "clinic_id",
+        "name",
+        "license_number",
+        "is_active",
+        "reservation_visible"
+      ],
+      "band_columns": [
+        "id"
+      ],
+      "force_not_null_columns": [
+        "name",
+        "license_number"
+      ]
+    },
+    {
+      "name": "procedures",
+      "columns": [
+        "id",
+        "clinic_id",
+        "name",
+        "price",
+        "is_active",
+        "description",
+        "duration",
+        "anesthesia",
+        "parent_id",
+        "tax_type",
+        "tax_rate",
+        "sort_order",
+        "is_surgery"
+      ],
+      "band_columns": [
+        "id",
+        "parent_id"
+      ],
+      "force_not_null_columns": [
+        "name",
+        "description"
+      ]
+    },
+    {
+      "name": "merchandise_items",
+      "columns": [
+        "id",
+        "clinic_id",
+        "name",
+        "category",
+        "unit_price",
+        "tax_type",
+        "tax_rate",
+        "is_active",
+        "sort_order"
+      ],
+      "band_columns": [
+        "id"
+      ],
+      "force_not_null_columns": [
+        "name"
+      ]
+    },
+    {
+      "name": "owners",
+      "columns": [
+        "id",
+        "clinic_id",
+        "name",
+        "name_kana",
+        "birth_date",
+        "company",
+        "postal_code",
+        "address1",
+        "address2",
+        "home_postal_code",
+        "home_address1",
+        "home_address2",
+        "phone",
+        "company_phone",
+        "email",
+        "remarks",
+        "is_dangerous",
+        "discount_rate",
+        "membership_type",
+        "dm_preference"
+      ],
+      "band_columns": [
+        "id"
+      ],
+      "force_not_null_columns": [
+        "name",
+        "name_kana",
+        "company",
+        "postal_code",
+        "address1",
+        "address2",
+        "home_postal_code",
+        "home_address1",
+        "home_address2",
+        "phone",
+        "company_phone",
+        "email",
+        "remarks"
+      ]
+    },
+    {
+      "name": "pets",
+      "columns": [
+        "id",
+        "clinic_id",
+        "owner_id",
+        "pet_number",
+        "name",
+        "name_kana",
+        "animal_species_id",
+        "gender",
+        "status",
+        "birth_date",
+        "breed",
+        "color",
+        "weight",
+        "neutered_date",
+        "food",
+        "remarks",
+        "deceased_at"
+      ],
+      "band_columns": [
+        "id",
+        "owner_id"
+      ],
+      "force_not_null_columns": [
+        "pet_number",
+        "name",
+        "name_kana",
+        "breed",
+        "color",
+        "food",
+        "remarks"
+      ]
+    },
+    {
+      "name": "appointments",
+      "columns": [
+        "id",
+        "clinic_id",
+        "start_time",
+        "end_time",
+        "owner_id",
+        "pet_id",
+        "visit_type",
+        "reservation_type_id",
+        "doctor_id",
+        "status",
+        "source"
+      ],
+      "band_columns": [
+        "id",
+        "owner_id",
+        "pet_id",
+        "doctor_id"
+      ],
+      "force_not_null_columns": []
+    },
+    {
+      "name": "appointment_trimming_details",
+      "columns": [
+        "id",
+        "clinic_id",
+        "appointment_id",
+        "remarks"
+      ],
+      "band_columns": [
+        "id",
+        "appointment_id"
+      ],
+      "force_not_null_columns": [
+        "remarks"
+      ]
+    },
+    {
+      "name": "medical_records",
+      "columns": [
+        "id",
+        "clinic_id",
+        "record_no",
+        "date",
+        "owner_id",
+        "pet_id",
+        "appointment_id",
+        "status",
+        "visit_type",
+        "doctor_id",
+        "entered_by"
+      ],
+      "band_columns": [
+        "id",
+        "owner_id",
+        "pet_id",
+        "appointment_id",
+        "doctor_id",
+        "entered_by"
+      ],
+      "force_not_null_columns": [
+        "record_no"
+      ]
+    },
+    {
+      "name": "inquiries",
+      "columns": [
+        "id",
+        "medical_record_id",
+        "chief_complaint",
+        "owner_observations",
+        "history",
+        "notes",
+        "allergy_info",
+        "current_medications",
+        "staff_id"
+      ],
+      "band_columns": [
+        "id",
+        "medical_record_id",
+        "staff_id"
+      ],
+      "force_not_null_columns": [
+        "chief_complaint",
+        "owner_observations",
+        "history",
+        "notes",
+        "allergy_info",
+        "current_medications"
+      ]
+    },
+    {
+      "name": "clinical_plans",
+      "columns": [
+        "id",
+        "medical_record_id",
+        "physical_exam",
+        "diagnosis_details",
+        "treatment_policy"
+      ],
+      "band_columns": [
+        "id",
+        "medical_record_id"
+      ],
+      "force_not_null_columns": [
+        "physical_exam",
+        "diagnosis_details",
+        "treatment_policy"
+      ]
+    },
+    {
+      "name": "vital_records",
+      "columns": [
+        "id",
+        "clinic_id",
+        "medical_record_id",
+        "pet_id",
+        "recorded_at",
+        "temperature",
+        "weight",
+        "weight_unit",
+        "heart_rate",
+        "respiration_rate",
+        "staff_id",
+        "notes"
+      ],
+      "band_columns": [
+        "id",
+        "medical_record_id",
+        "pet_id",
+        "staff_id"
+      ],
+      "force_not_null_columns": [
+        "notes"
+      ]
+    },
+    {
+      "name": "billings",
+      "columns": [
+        "id",
+        "clinic_id",
+        "medical_record_id",
+        "owner_id",
+        "pet_id",
+        "total_amount",
+        "status",
+        "scheduled_date",
+        "completed_at"
+      ],
+      "band_columns": [
+        "id",
+        "medical_record_id",
+        "owner_id",
+        "pet_id"
+      ],
+      "force_not_null_columns": []
+    },
+    {
+      "name": "billing_items",
+      "columns": [
+        "id",
+        "clinic_id",
+        "billing_id",
+        "category",
+        "name",
+        "unit_price",
+        "quantity",
+        "tax_type",
+        "is_insurance_applicable",
+        "sort_order"
+      ],
+      "band_columns": [
+        "id",
+        "billing_id"
+      ],
+      "force_not_null_columns": [
+        "name"
+      ]
+    },
+    {
+      "name": "payments",
+      "columns": [
+        "id",
+        "clinic_id",
+        "billing_id",
+        "subtotal",
+        "tax_total",
+        "total_amount",
+        "insurance_name",
+        "insurance_ratio",
+        "insurance_amount",
+        "discount_amount",
+        "billing_amount",
+        "received_amount",
+        "change_amount",
+        "method",
+        "payment_method_id",
+        "paid_by",
+        "created_at"
+      ],
+      "band_columns": [
+        "id",
+        "billing_id",
+        "paid_by"
+      ],
+      "force_not_null_columns": [
+        "insurance_name"
+      ]
+    },
+    {
+      "name": "payment_splits",
+      "columns": [
+        "id",
+        "clinic_id",
+        "billing_id",
+        "method",
+        "payment_method_id",
+        "amount",
+        "received_amount",
+        "change_amount",
+        "paid_by",
+        "created_at"
+      ],
+      "band_columns": [
+        "id",
+        "billing_id",
+        "paid_by"
+      ],
+      "force_not_null_columns": []
+    },
+    {
+      "name": "estimates",
+      "columns": [
+        "id",
+        "clinic_id",
+        "estimate_no",
+        "medical_record_id",
+        "title",
+        "owner_id",
+        "pet_id",
+        "status",
+        "subtotal",
+        "tax_total",
+        "total_amount",
+        "insurance_amount",
+        "discount_amount",
+        "valid_until",
+        "comment",
+        "notes",
+        "created_by",
+        "created_at"
+      ],
+      "band_columns": [
+        "id",
+        "medical_record_id",
+        "owner_id",
+        "pet_id",
+        "created_by"
+      ],
+      "force_not_null_columns": [
+        "estimate_no",
+        "title",
+        "comment",
+        "notes"
+      ]
+    },
+    {
+      "name": "estimate_items",
+      "columns": [
+        "id",
+        "estimate_id",
+        "name",
+        "category",
+        "unit_price",
+        "quantity",
+        "tax_type",
+        "tax_rate",
+        "discount_rate",
+        "discount_amount",
+        "is_insurance_applicable",
+        "consultation_id",
+        "procedure_id",
+        "medicine_id",
+        "merchandise_item_id",
+        "sort_order"
+      ],
+      "band_columns": [
+        "id",
+        "estimate_id",
+        "consultation_id",
+        "procedure_id",
+        "medicine_id",
+        "merchandise_item_id"
+      ],
+      "force_not_null_columns": [
+        "name"
+      ]
+    },
+    {
+      "name": "exams",
+      "columns": [
+        "id",
+        "clinic_id",
+        "medical_record_id",
+        "pet_id",
+        "date",
+        "exam_type_id",
+        "result_summary"
+      ],
+      "band_columns": [
+        "id",
+        "medical_record_id",
+        "pet_id"
+      ],
+      "force_not_null_columns": [
+        "result_summary"
+      ]
+    },
+    {
+      "name": "exam_results",
+      "columns": [
+        "id",
+        "exam_id",
+        "name",
+        "inspection_value",
+        "normal_value",
+        "sort_order"
+      ],
+      "band_columns": [
+        "id",
+        "exam_id"
+      ],
+      "force_not_null_columns": [
+        "name",
+        "inspection_value",
+        "normal_value"
+      ]
+    },
+    {
+      "name": "vaccines",
+      "columns": [
+        "id",
+        "clinic_id",
+        "name",
+        "price",
+        "is_active",
+        "description",
+        "species",
+        "interval",
+        "inventory_id",
+        "parent_id",
+        "sort_order"
+      ],
+      "band_columns": [
+        "id"
+      ],
+      "force_not_null_columns": [
+        "name",
+        "description",
+        "interval"
+      ]
+    },
+    {
+      "name": "vaccinations",
+      "columns": [
+        "id",
+        "clinic_id",
+        "medical_record_id",
+        "pet_id",
+        "vaccine_id",
+        "date",
+        "next_date",
+        "next_schedule_type",
+        "doctor_id",
+        "supplemental",
+        "lot1",
+        "lot2",
+        "lot3",
+        "lot4",
+        "remarks"
+      ],
+      "band_columns": [
+        "id",
+        "medical_record_id",
+        "pet_id",
+        "vaccine_id",
+        "doctor_id"
+      ],
+      "force_not_null_columns": [
+        "supplemental",
+        "lot1",
+        "lot2",
+        "lot3",
+        "lot4",
+        "remarks"
+      ]
+    }
+  ]
+}

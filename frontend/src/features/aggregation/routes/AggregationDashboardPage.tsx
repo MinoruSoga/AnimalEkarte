@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router";
 import { todayJSTISO } from "@/lib/jst-date";
 import type { AggregationCPMStage } from "@/lib/cpm-stage";
 import { useGetOwnerAggregations, type AggregationParams } from "../api/get-aggregations";
-import { useGetCPMStageCounts } from "../api/get-cpm-stage-counts";
+import { toCPMStageCountsResult } from "../api/get-cpm-stage-counts";
 import { buildCsvContent } from "../lib/aggregation-csv";
 import type { AggregationTab } from "../lib/aggregation-filter-panel-model";
 import {
@@ -42,8 +42,9 @@ export function AggregationDashboardPage() {
   const { data, isLoading, isError, error } = useGetOwnerAggregations(params);
   const owners = useMemo(() => data?.owners ?? [], [data?.owners]);
 
-  // ISSUE-180: CPM セグメント別の人数（total 由来）。現在のフィルタ母集団を反映する。
-  const cpmCounts = useGetCPMStageCounts(params);
+  // ISSUE-180→EMR-334: CPM セグメント別人数は一覧と同じレスポンスの
+  // cpm_stage_counts から派生する（区分ごとの追加 GET は廃止）。
+  const cpmCounts = toCPMStageCountsResult(data, isLoading, isError);
 
   const handleTabChange = useCallback(
     (tab: string) => {

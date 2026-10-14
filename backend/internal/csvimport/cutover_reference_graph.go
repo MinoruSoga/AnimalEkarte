@@ -29,14 +29,15 @@ type cutoverCSVReference struct {
 	kind     cutoverReferenceKind
 }
 
-// cutoverCSVReferences classifies every reference supplied by the 21-table
+// cutoverCSVReferences classifies every reference supplied by the CSV
 // contract, independently of producer eligibility predicates. Empty CSV fields
 // become SQL NULL; they are allowed only for explicitly nullable references.
 // Non-imported masters are either pinned seeds or must stay empty, never guessed.
-func cutoverCSVReferences() map[string][]cutoverCSVReference {
-	return map[string][]cutoverCSVReference{
+func cutoverCSVReferences(profiles ...CutoverProfile) map[string][]cutoverCSVReference {
+	references := map[string][]cutoverCSVReference{
 		"staffs":                       {{"clinic_id", "clinics", false, cutoverClinicSeed}},
 		"procedures":                   {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"parent_id", "procedures", true, cutoverCSVParent}},
+		"medicines":                    {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"parent_id", "medicines", true, cutoverUnavailableParent}, {"inventory_id", "inventory_items", true, cutoverUnavailableParent}},
 		"merchandise_items":            {{"clinic_id", "clinics", false, cutoverClinicSeed}},
 		"owners":                       {{"clinic_id", "clinics", false, cutoverClinicSeed}},
 		"pets":                         {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"owner_id", "owners", false, cutoverCSVParent}, {"animal_species_id", "animal_species", false, cutoverSpeciesSeed}},
@@ -51,12 +52,34 @@ func cutoverCSVReferences() map[string][]cutoverCSVReference {
 		"payments":                     {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"billing_id", "billings", false, cutoverCSVParent}, {"payment_method_id", "payment_methods", false, cutoverPlaceholderSeed}, {"paid_by", "staffs", true, cutoverCSVParent}},
 		"payment_splits":               {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"billing_id", "billings", false, cutoverCSVParent}, {"payment_method_id", "payment_methods", false, cutoverPlaceholderSeed}, {"paid_by", "staffs", true, cutoverCSVParent}},
 		"estimates":                    {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"medical_record_id", "medical_records", true, cutoverCSVParent}, {"owner_id", "owners", true, cutoverCSVParent}, {"pet_id", "pets", true, cutoverCSVParent}, {"created_by", "staffs", true, cutoverCSVParent}},
-		"estimate_items":               {{"estimate_id", "estimates", false, cutoverCSVParent}, {"consultation_id", "consultations", true, cutoverUnavailableParent}, {"procedure_id", "procedures", true, cutoverCSVParent}, {"medicine_id", "medicines", true, cutoverUnavailableParent}, {"merchandise_item_id", "merchandise_items", true, cutoverCSVParent}},
+		"estimate_items":               {{"estimate_id", "estimates", false, cutoverCSVParent}, {"consultation_id", "consultations", true, cutoverUnavailableParent}, {"procedure_id", "procedures", true, cutoverCSVParent}, {"medicine_id", "medicines", true, cutoverCSVParent}, {"merchandise_item_id", "merchandise_items", true, cutoverCSVParent}},
 		"exams":                        {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"medical_record_id", "medical_records", true, cutoverCSVParent}, {"pet_id", "pets", true, cutoverCSVParent}, {"exam_type_id", "exam_types", false, cutoverPlaceholderSeed}},
 		"exam_results":                 {{"exam_id", "exams", false, cutoverCSVParent}},
 		"vaccines":                     {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"inventory_id", "inventory_items", true, cutoverUnavailableParent}, {"parent_id", "vaccines", true, cutoverCSVParent}},
 		"vaccinations":                 {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"medical_record_id", "medical_records", true, cutoverCSVParent}, {"pet_id", "pets", true, cutoverCSVParent}, {"vaccine_id", "vaccines", false, cutoverCSVParent}, {"doctor_id", "staffs", true, cutoverCSVParent}},
 	}
+	if !validCutoverProfileSelection(profiles) {
+		return nil
+	}
+	if selectedCutoverProfile(profiles) != CutoverProfileMedicinesCandidate {
+		delete(references, "medicines")
+		refs := append([]cutoverCSVReference(nil), references["estimate_items"]...)
+		for i, ref := range refs {
+			if ref.column == "medicine_id" {
+				refs[i].kind = cutoverUnavailableParent
+			}
+		}
+		references["estimate_items"] = refs
+	}
+	return references
+}
+
+// cutoverSaleItemMasterTables names the masters sharing the canonical
+// sale-item ID band (EMR-342 DESIGN 3.6): one ID belongs to exactly one of
+// these tables. Candidate22 only; legacy21 has no medicines table and keeps
+// its existing contract.
+var cutoverSaleItemMasterTables = map[string]struct{}{
+	"procedures": {}, "medicines": {}, "merchandise_items": {},
 }
 
 // validateCutoverReferenceGraph scans each CSV once, retaining only numeric ID
@@ -64,12 +87,14 @@ func cutoverCSVReferences() map[string][]cutoverCSVReference {
 // precede children; self references are checked after that complete table so a
 // later row may be the parent. Every scan rehashes its exact opened bytes.
 func validateCutoverReferenceGraph(sourceDir string, manifest CutoverManifest, allowPermutation bool) error {
-	specs := CutoverTableSpecs()
-	references := cutoverCSVReferences()
+	specs := CutoverTableSpecs(manifest.profile)
+	references := cutoverCSVReferences(manifest.profile)
 	if err := validateCutoverReferenceInventory(specs, references); err != nil {
 		return err
 	}
 	parents := make(map[string]map[uint64]struct{})
+	saleMasterOwners := make(map[uint64]string)
+	candidateSaleMasters := manifest.profile == CutoverProfileMedicinesCandidate
 	for _, refs := range references {
 		for _, ref := range refs {
 			if ref.kind == cutoverCSVParent {
@@ -88,7 +113,7 @@ func validateCutoverReferenceGraph(sourceDir string, manifest CutoverManifest, a
 		selfEdges := make(map[uint64]cutoverSelfEdge)
 		_, retainIDs := parents[spec.Name]
 		err = streamCutoverReferenceCSV(sourceDir, spec, table, allowPermutation, func(row []string, header []string, indexes map[string]int, csvLine int64) error {
-			if err := validateCutoverRow(spec, header, row, indexes, manifest.IDBand, csvLine); err != nil {
+			if err := validateCutoverRow(spec, header, row, indexes, manifest.IDBand, csvLine, manifest.profile); err != nil {
 				return err
 			}
 			if retainIDs {
@@ -100,6 +125,18 @@ func validateCutoverReferenceGraph(sourceDir string, manifest CutoverManifest, a
 					return fmt.Errorf("table %s column id: duplicate source reference ID", spec.Name)
 				}
 				ids[id] = struct{}{}
+			}
+			if candidateSaleMasters {
+				if _, isSaleMaster := cutoverSaleItemMasterTables[spec.Name]; isSaleMaster {
+					if masterID, ok := cutoverReferenceID(row[indexes["id"]]); ok {
+						if owner, clash := saleMasterOwners[masterID]; clash && owner != spec.Name {
+							return fmt.Errorf("table %s column id row %d: sale item id already assigned by table %s", spec.Name, csvLine, owner)
+						}
+						if _, seen := saleMasterOwners[masterID]; !seen {
+							saleMasterOwners[masterID] = spec.Name
+						}
+					}
+				}
 			}
 			for _, ref := range references[spec.Name] {
 				value := row[indexes[ref.column]]
@@ -154,16 +191,23 @@ type cutoverSelfEdge struct {
 	csvLine int64
 }
 
+// cutoverSelfReferenceTables declares each CSV table whose target schema has
+// a non-deferrable self FK. Source availability is classified separately in
+// cutoverCSVReferences: medicines.parent_id has no legacy source and is
+// unavailable there (4264495021), but the target FK and the apply-time
+// insert ordering that uses this declaration are preserved.
+var cutoverSelfReferenceTables = map[string]string{
+	"procedures": "parent_id",
+	"vaccines":   "parent_id",
+	"medicines":  "parent_id",
+}
+
 // cutoverSelfReferenceColumn returns the CSV column that references the table
-// itself (procedures.parent_id, vaccines.parent_id), if the contract declares
-// one. Apply uses it to order staged inserts because the FK is not deferrable.
+// itself in the target schema declaration, if any. Apply uses it to order
+// staged inserts because the FK is not deferrable.
 func cutoverSelfReferenceColumn(table string) (string, bool) {
-	for _, ref := range cutoverCSVReferences()[table] {
-		if ref.kind == cutoverCSVParent && ref.parent == table {
-			return ref.column, true
-		}
-	}
-	return "", false
+	column, ok := cutoverSelfReferenceTables[table]
+	return column, ok
 }
 
 // validateCutoverSelfReferenceAcyclic walks each declared parent chain. A

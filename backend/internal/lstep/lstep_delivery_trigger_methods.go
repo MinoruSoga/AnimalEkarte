@@ -21,7 +21,8 @@ func (s *lstepDeliveryTriggerService) TriggerFirstVisitFollowUp3D(ctx context.Co
 		slog.ErrorContext(ctx, "delivery trigger first_visit_followup_3d: find owners error", "clinic_id", clinicID, "error", err)
 		return 0, []error{apperrors.Wrap(err, "failed to find owners by first visit date")}
 	}
-	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeFirstVisitFollowUp3D, model.TriggerTypeFirstVisitFollowUp3D, asOf, nil)
+	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeFirstVisitFollowUp3D, model.TriggerTypeFirstVisitFollowUp3D, asOf, nil,
+		s.aliveFirstVisitEligibility(clinicID, target))
 }
 
 func (s *lstepDeliveryTriggerService) TriggerFirstVisitFollowUp7D(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {
@@ -31,7 +32,8 @@ func (s *lstepDeliveryTriggerService) TriggerFirstVisitFollowUp7D(ctx context.Co
 		slog.ErrorContext(ctx, "delivery trigger first_visit_followup_7d: find owners error", "clinic_id", clinicID, "error", err)
 		return 0, []error{apperrors.Wrap(err, "failed to find owners by first visit date")}
 	}
-	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeFirstVisitFollowUp7D, model.TriggerTypeFirstVisitFollowUp7D, asOf, nil)
+	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeFirstVisitFollowUp7D, model.TriggerTypeFirstVisitFollowUp7D, asOf, nil,
+		s.aliveFirstVisitEligibility(clinicID, target))
 }
 
 // TriggerNextVisitTentativeReminder3D は intended_date が asOf+3日（JST 暦日）の
@@ -156,7 +158,7 @@ func (s *lstepDeliveryTriggerService) runTentativeReminderBatch(
 			return true, "", nil
 		}
 	}
-	return s.runBatch(ctx, clinicID, ownerIDs, triggerType, triggerType, asOf, revalidate)
+	return s.runBatch(ctx, clinicID, ownerIDs, triggerType, triggerType, asOf, revalidate, nil)
 }
 
 func (s *lstepDeliveryTriggerService) TriggerVaccineDeadline60(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {
@@ -166,7 +168,8 @@ func (s *lstepDeliveryTriggerService) TriggerVaccineDeadline60(ctx context.Conte
 		slog.ErrorContext(ctx, "delivery trigger vaccine_deadline_60d: find owners error", "clinic_id", clinicID, "error", err)
 		return 0, []error{apperrors.Wrap(err, "failed to find owners by vaccine deadline")}
 	}
-	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeVaccineDeadline60, model.TriggerTypeVaccineDeadline60, asOf, nil)
+	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeVaccineDeadline60, model.TriggerTypeVaccineDeadline60, asOf, nil,
+		s.vaccineDeadlineEligibility(clinicID, target))
 }
 
 func (s *lstepDeliveryTriggerService) TriggerVaccineDeadline30(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {
@@ -176,16 +179,19 @@ func (s *lstepDeliveryTriggerService) TriggerVaccineDeadline30(ctx context.Conte
 		slog.ErrorContext(ctx, "delivery trigger vaccine_deadline_30d: find owners error", "clinic_id", clinicID, "error", err)
 		return 0, []error{apperrors.Wrap(err, "failed to find owners by vaccine deadline")}
 	}
-	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeVaccineDeadline30, model.TriggerTypeVaccineDeadline30, asOf, nil)
+	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeVaccineDeadline30, model.TriggerTypeVaccineDeadline30, asOf, nil,
+		s.vaccineDeadlineEligibility(clinicID, target))
 }
 
 func (s *lstepDeliveryTriggerService) TriggerBirthdayMessage(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {
-	ownerIDs, err := s.petRepo.FindOwnersByPetBirthday(ctx, clinicID, int(asOf.Month()), asOf.Day())
+	month, day := int(asOf.Month()), asOf.Day()
+	ownerIDs, err := s.petRepo.FindOwnersByPetBirthday(ctx, clinicID, month, day)
 	if err != nil {
 		slog.ErrorContext(ctx, "delivery trigger birthday_message: find owners error", "clinic_id", clinicID, "error", err)
 		return 0, []error{apperrors.Wrap(err, "failed to find owners by pet birthday")}
 	}
-	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeBirthdayMessage, model.TriggerTypeBirthdayMessage, asOf, nil)
+	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeBirthdayMessage, model.TriggerTypeBirthdayMessage, asOf, nil,
+		s.petBirthdayEligibility(clinicID, month, day))
 }
 
 func (s *lstepDeliveryTriggerService) TriggerDormantPrevention180(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {
@@ -199,7 +205,8 @@ func (s *lstepDeliveryTriggerService) TriggerDormantPrevention180(ctx context.Co
 		slog.ErrorContext(ctx, "delivery trigger dormant_prevention_180d: find owners error", "clinic_id", clinicID, "error", err)
 		return 0, []error{apperrors.Wrap(err, "failed to find owners by last visit days")}
 	}
-	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeDormantPrevention180, model.TriggerTypeDormantPrevention180, asOf, nil)
+	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeDormantPrevention180, model.TriggerTypeDormantPrevention180, asOf, nil,
+		s.aliveLastVisitEligibility(clinicID, asOf.AddDate(0, 0, -thresholds.Stage180)))
 }
 
 func (s *lstepDeliveryTriggerService) TriggerDormantPrevention210(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {
@@ -213,7 +220,8 @@ func (s *lstepDeliveryTriggerService) TriggerDormantPrevention210(ctx context.Co
 		slog.ErrorContext(ctx, "delivery trigger dormant_prevention_210d: find owners error", "clinic_id", clinicID, "error", err)
 		return 0, []error{apperrors.Wrap(err, "failed to find owners by last visit days")}
 	}
-	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeDormantPrevention210, model.TriggerTypeDormantPrevention210, asOf, nil)
+	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeDormantPrevention210, model.TriggerTypeDormantPrevention210, asOf, nil,
+		s.aliveLastVisitEligibility(clinicID, asOf.AddDate(0, 0, -thresholds.Stage210)))
 }
 
 func (s *lstepDeliveryTriggerService) TriggerDormantPrevention240(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {
@@ -227,7 +235,8 @@ func (s *lstepDeliveryTriggerService) TriggerDormantPrevention240(ctx context.Co
 		slog.ErrorContext(ctx, "delivery trigger dormant_prevention_240d: find owners error", "clinic_id", clinicID, "error", err)
 		return 0, []error{apperrors.Wrap(err, "failed to find owners by last visit days")}
 	}
-	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeDormantPrevention240, model.TriggerTypeDormantPrevention240, asOf, nil)
+	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeDormantPrevention240, model.TriggerTypeDormantPrevention240, asOf, nil,
+		s.aliveLastVisitEligibility(clinicID, asOf.AddDate(0, 0, -thresholds.Stage240)))
 }
 
 func (s *lstepDeliveryTriggerService) TriggerDormantPrevention365(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {
@@ -241,7 +250,8 @@ func (s *lstepDeliveryTriggerService) TriggerDormantPrevention365(ctx context.Co
 		slog.ErrorContext(ctx, "delivery trigger dormant_prevention_365d: find owners error", "clinic_id", clinicID, "error", err)
 		return 0, []error{apperrors.Wrap(err, "failed to find owners by last visit days")}
 	}
-	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeDormantPrevention365, model.TriggerTypeDormantPrevention365, asOf, nil)
+	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeDormantPrevention365, model.TriggerTypeDormantPrevention365, asOf, nil,
+		s.aliveLastVisitEligibility(clinicID, asOf.AddDate(0, 0, -thresholds.Stage365)))
 }
 
 func (s *lstepDeliveryTriggerService) TriggerFilariaAlert(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {
@@ -250,7 +260,8 @@ func (s *lstepDeliveryTriggerService) TriggerFilariaAlert(ctx context.Context, c
 		slog.ErrorContext(ctx, "delivery trigger filaria_alert: find owners error", "clinic_id", clinicID, "error", err)
 		return 0, []error{apperrors.Wrap(err, "failed to find owners by filaria tag")}
 	}
-	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeFilariaAlert, model.TriggerTypeFilariaAlert, asOf, nil)
+	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeFilariaAlert, model.TriggerTypeFilariaAlert, asOf, nil,
+		s.livingOwnerEligibility(clinicID))
 }
 
 func (s *lstepDeliveryTriggerService) TriggerFleaTickAlert(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {
@@ -259,7 +270,8 @@ func (s *lstepDeliveryTriggerService) TriggerFleaTickAlert(ctx context.Context, 
 		slog.ErrorContext(ctx, "delivery trigger flea_tick_alert: find owners error", "clinic_id", clinicID, "error", err)
 		return 0, []error{apperrors.Wrap(err, "failed to find owners by flea tick tag")}
 	}
-	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeFleaTickAlert, model.TriggerTypeFleaTickAlert, asOf, nil)
+	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeFleaTickAlert, model.TriggerTypeFleaTickAlert, asOf, nil,
+		s.livingOwnerEligibility(clinicID))
 }
 
 func (s *lstepDeliveryTriggerService) TriggerFoodRefillReminder(ctx context.Context, clinicID uint64, asOf time.Time) (int, []error) {
@@ -268,11 +280,15 @@ func (s *lstepDeliveryTriggerService) TriggerFoodRefillReminder(ctx context.Cont
 		slog.ErrorContext(ctx, "delivery trigger food_refill_reminder: find owners error", "clinic_id", clinicID, "error", err)
 		return 0, []error{apperrors.Wrap(err, "failed to find owners by food refill tag")}
 	}
-	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeFoodRefillReminder, model.TriggerTypeFoodRefillReminder, asOf, nil)
+	return s.runBatch(ctx, clinicID, ownerIDs, model.TriggerTypeFoodRefillReminder, model.TriggerTypeFoodRefillReminder, asOf, nil,
+		s.livingOwnerEligibility(clinicID))
 }
 
 // TriggerFirstVisitWelcome は初診完了直後に呼び出されるイベント駆動トリガー（FEAT-383 Phase 2）。
-func (s *lstepDeliveryTriggerService) TriggerFirstVisitWelcome(ctx context.Context, clinicID, ownerID uint64) error {
+// EMR-330: petID は初診を起票したイベントペット。履歴上の初診判定
+// （CountByOwnerID ベース）は呼び出し側で維持し、ここではイベントペット
+// 自体の生存・所有・clinic 整合を claim/write 前に再読する。
+func (s *lstepDeliveryTriggerService) TriggerFirstVisitWelcome(ctx context.Context, clinicID, ownerID, petID uint64) error {
 	client, err := s.buildClient(ctx, clinicID)
 	if err != nil {
 		slog.ErrorContext(ctx, "delivery trigger first_visit_welcome: failed to build lstep client", "clinic_id", clinicID, "owner_id", ownerID, "error", err)
@@ -281,12 +297,15 @@ func (s *lstepDeliveryTriggerService) TriggerFirstVisitWelcome(ctx context.Conte
 	if client == nil {
 		return nil
 	}
-	_, err = s.processSingleOwner(ctx, client, clinicID, ownerID, model.TriggerTypeFirstVisitWelcome, model.TriggerTypeFirstVisitWelcome, time.Now(), nil)
+	_, err = s.processSingleOwner(ctx, client, clinicID, ownerID, model.TriggerTypeFirstVisitWelcome, model.TriggerTypeFirstVisitWelcome, time.Now(), nil,
+		s.eventPetEligibility(clinicID, ownerID, petID))
 	return err
 }
 
 // TriggerCheckupFollowUp は健診作成直後に呼び出されるイベント駆動トリガー（FEAT-383 Phase 2）。
-func (s *lstepDeliveryTriggerService) TriggerCheckupFollowUp(ctx context.Context, clinicID, ownerID uint64) error {
+// EMR-330 R1: typed な健診イベント petID を受け取り、claim 前・write 直前の両方で
+// 同一ペットの生存・現飼主・医院を再読する。生存の兄弟ペットでは救済しない。
+func (s *lstepDeliveryTriggerService) TriggerCheckupFollowUp(ctx context.Context, clinicID, ownerID, petID uint64) error {
 	client, err := s.buildClient(ctx, clinicID)
 	if err != nil {
 		slog.ErrorContext(ctx, "delivery trigger checkup_followup: failed to build lstep client", "clinic_id", clinicID, "owner_id", ownerID, "error", err)
@@ -295,6 +314,7 @@ func (s *lstepDeliveryTriggerService) TriggerCheckupFollowUp(ctx context.Context
 	if client == nil {
 		return nil
 	}
-	_, err = s.processSingleOwner(ctx, client, clinicID, ownerID, model.TriggerTypeCheckupFollowUp, model.TriggerTypeCheckupFollowUp, time.Now(), nil)
+	_, err = s.processSingleOwner(ctx, client, clinicID, ownerID, model.TriggerTypeCheckupFollowUp, model.TriggerTypeCheckupFollowUp, time.Now(), nil,
+		s.eventPetEligibility(clinicID, ownerID, petID))
 	return err
 }

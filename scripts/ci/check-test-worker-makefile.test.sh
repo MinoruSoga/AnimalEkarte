@@ -39,21 +39,21 @@ recipe="$(awk '/^test-worker:/{p=1;next} p && /^[^[:space:]#]/{exit} p' "$MAKEFI
 if [[ -z "$recipe" ]]; then
   echo "FAIL  [recipe-nonempty] test-worker recipe missing"
   failures=$((failures + 1))
-elif printf '%s\n' "$recipe" | grep -Eq 'docker run'; then
+elif grep -Eq 'docker run' <<<"$recipe"; then
   echo "PASS  [recipe-uses-docker-run]"
 else
   echo "FAIL  [recipe-uses-docker-run] recipe does not call docker run"
   failures=$((failures + 1))
 fi
 
-if printf '%s\n' "$recipe" | grep -Eq '\$\(ARGS\)'; then
+if grep -Eq '\$\(ARGS\)' <<<"$recipe"; then
   echo "PASS  [args-forwarded]"
 else
   echo "FAIL  [args-forwarded] test-worker recipe must forward \$(ARGS)"
   failures=$((failures + 1))
 fi
 
-if printf '%s\n' "$recipe" | grep -Eq '\$\(DC\) exec frontend'; then
+if grep -Eq '\$\(DC\) exec frontend' <<<"$recipe"; then
   echo "FAIL  [not-frontend-exec] test-worker must not use the frontend container"
   failures=$((failures + 1))
 else

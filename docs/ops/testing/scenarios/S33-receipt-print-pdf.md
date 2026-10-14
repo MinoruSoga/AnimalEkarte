@@ -2,7 +2,7 @@
 
 > **目的**: 確定会計の「明細兼領収書」（A4 統合帳票）がプレビューで正しく表示され、ブラウザ印刷（`window.print()`）→「PDF として保存」まで崩れず出力できることを納品前に証明する。
 > **所要目安**: 10分 / **深度**: 中
-> **仕様正本**: [screens/11-accounting-detail.md](../../../spec/screens/11-accounting-detail.md)。関連 tracker: `SLACK-BILLING-UAT`（工程 3。物理プリンタ実印刷・実締め・運用承認は外部レーン）・`BUG-367`（A4 統合帳票）。
+> **仕様正本**: [domains/accounting/pages/accounting-settlement.md](../../../spec/domains/accounting/pages/accounting-settlement.md)。関連 tracker: `SLACK-BILLING-UAT`（工程 3。物理プリンタ実印刷・実締め・運用承認は外部レーン）・`BUG-367`（A4 統合帳票）。
 
 ## 前提条件
 

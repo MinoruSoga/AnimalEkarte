@@ -94,11 +94,11 @@ pauseは新しいrun claimを止めるが、既にContainerへ送信したside e
 
 catch-upもproduction-impacting操作である。次をすべて満たした場合だけ実行する。
 
-1. statusとWorkers Logsから「そのslotが未記録」であることを確認した。
+1. statusとWorkers Logsから「そのslotが未記録」、または実行未開始の記録 (`failed/schedule_conflict`、またはstuck lease等の重複が原因の `skipped/stuck_lease`・`skipped/busy`) により業務jobが開始していないことを確認した。サーバーはこれらのfence token 0・outcomeなし・manual request IDなしも再検証する。
 2. 業務ownerが再実行時のside effectと対象件数を確認した。
 3. schedulerがresume済みで、active runがない。
 4. slotは現在より過去、35日以内、UTCの正時で、jobに対応するcron slotである。
-5. 専用のUUID request IDと、incident/change IDを含むreasonを用意した。
+5. 専用のUUID request IDと、incident/change IDを含むreasonを用意した。busy・pausedの拒否は同じrequest IDで再送しても同じ結果を返すため、解除後の新しい回復操作には新しいIDを使う。
 
 Unix epoch millisecondsは、UTC時刻を明示して生成する。変換結果を別担当者と照合する。
 
@@ -110,7 +110,9 @@ request_id="$(uuidgen | tr '[:upper:]' '[:lower:]')"
 ./infra/scripts/cf-scheduler-ops.sh status 50
 ```
 
-01:00 UTCで`no_show`と`delivery`の両方が欠けた場合も、jobごとに別request IDで1件ずつ実行する。既にledgerがあるslotは`slot_already_recorded`、pause中は`scheduler_paused`、別run中は`scheduler_busy`で拒否される。HTTP `202`はpendingであり成功ではないため、statusでterminal resultまで確認する。
+01:00 UTCで`no_show`と`delivery`の両方が欠けた場合も、jobごとに別request IDで1件ずつ実行する。実行未開始の `failed/schedule_conflict`、および古いrunの有効leaseが新しい同job slotをblockして記録された `skipped/stuck_lease`・`skipped/busy` は、同じslotの承認済みmanual catch-upで再claimできる（古いleaseの解放後のみ。lease中の再送は`scheduler_busy`で拒否され、active/fenceには触れない）。競合incidentは元のoutbox snapshotとIdempotency-Keyを維持し、ack後に再作成しない。通常cronはこのslotを自動再実行せず、運用者がno_show・deliveryをjobごとに回復する。実行済みslot・それ以外の失敗済みslot、pause中に記録されたslot、`failed/stale`は`slot_already_recorded`、pause中は`scheduler_paused`、別run中は`scheduler_busy`で拒否される。HTTP `202`はpendingであり成功ではないため、statusでterminal resultまで確認する。
+
+（2026-10-13: manual responseと失敗通知drainの分離）manual endpointはoperation状態をdurable storageへ確定してからHTTP応答を返す。`202`はoperationがまだpendingであることを示し成功ではない。terminal応答の`200`（成功result）、`409`（拒否）、`502`（失敗result）は、確定済みoperation outcomeを表す。失敗通知のdrain（outbox内のpending incident再送）はDurable Objectの`ctx.waitUntil`でRPC応答と分離して実行される。webhook配送のtimeout・失敗は`scheduler_alert_delivery_failed`、storage読み取り等のdrain失敗は`scheduler_manual_alert_drain_deferred`としてWorkers Logsに記録される。いずれも正常ではなく、outbox pendingを保持したまま調査が必要である。outbox pendingは次のscheduled/manual起動が同じIdempotency-Keyで再送し、ack（outbox削除）はwebhook 2xx後のみ行う。same-ID再送は拒否・確定resultを同一内容で返す既存semanticsのままである。CLIの`--max-time 30`で応答が得られない場合、drain待ちではなくoperation状態の問題として`status`とWorkers Logsで確認する。参照（一次docs、実環境workerd検証は未実施）: [DurableObjectState API](https://developers.cloudflare.com/durable-objects/api/state/)、[Durable Object lifecycle](https://developers.cloudflare.com/durable-objects/concepts/durable-object-lifecycle/)
 
 ## Logs and alerts
 
@@ -121,6 +123,7 @@ Cloudflare Workers Logsで次のstructured eventを検索する。
 - `scheduler_ops_request_failed`
 - `scheduler_alert_not_configured`
 - `scheduler_alert_delivery_failed`
+- `scheduler_manual_alert_drain_deferred`
 - lease/fence関連のfailure code
 
 失敗通知は`SCHEDULER_ALERT_WEBHOOK_URL`へHTTPS POSTし、`SCHEDULER_ALERT_ALLOWED_HOST`とのhost完全一致、専用Bearer secret、`Idempotency-Key`を使う。redirect、非2xx、timeout、host不一致、未設定は成功扱いにしない。少なくとも以下をrelease前に実値で確認する。

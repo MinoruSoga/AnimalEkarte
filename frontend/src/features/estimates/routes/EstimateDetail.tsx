@@ -2,10 +2,12 @@ import { ICON, C } from "@/lib/design-tokens";
 import { todayJSTISO } from "@/lib/jst-date";
 import { paths } from "@/config/paths";
 import { useBackNavigation } from "@/hooks/use-back-navigation";
-import { LoadingFallback } from "@/components/shared/DataStates";
+import { LoadingFallback, EmptyState } from "@/components/shared/DataStates";
+import { Button } from "@/components/ui/button";
+import { resolveEntityReadResult } from "@/lib/entity-read-result";
 import { useNavigate, useParams } from "react-router";
 import { FileText } from "lucide-react";
-import { useState, useCallback, useActionState, useTransition } from "react";
+import { useState, useCallback, useActionState, useTransition, type ReactNode } from "react";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { useGetEstimate } from "../api/get-estimate";
@@ -24,6 +26,26 @@ import {
   EstimateSuccessorDialog,
 } from "./EstimateDetailPanels";
 
+interface EstimateDetailStatusPageProps {
+  onBack: () => void;
+  children: ReactNode;
+}
+
+// 読み込み/エラー/未検出のページ状態を PageLayout 内に置き、説明と一覧への安全な戻りを提供する。
+function EstimateDetailStatusPage({ onBack, children }: EstimateDetailStatusPageProps) {
+  return (
+    <PageLayout
+      title="見積書"
+      resource={ResourceEstimates}
+      icon={<FileText className={`${ICON.page} ${C.text}`} />}
+      onBack={onBack}
+      maxWidth="max-w-4xl"
+    >
+      {children}
+    </PageLayout>
+  );
+}
+
 export function EstimateDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -32,7 +54,7 @@ export function EstimateDetail() {
   const [successorReason, setSuccessorReason] = useState("");
   const [successorReasonError, setSuccessorReasonError] = useState<string | null>(null);
 
-  const { data: estimate, isLoading, isError } = useGetEstimate(id);
+  const { data, isLoading, isError, error, refetch } = useGetEstimate(id);
   const handleBack = useBackNavigation(paths.estimates.getHref());
   const { mutate: deleteEstimate, isPending: isDeleting } = useDeleteEstimate();
   const { mutateAsync: createSuccessorAsync, isPending: isCreatingSuccessor } =
@@ -84,12 +106,69 @@ export function EstimateDetail() {
     null,
   );
 
-  if (isLoading) {
-    return <LoadingFallback />;
+  const estimateRead = resolveEntityReadResult({
+    id,
+    data,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  });
+
+  if (estimateRead.status === "loading") {
+    return (
+      <EstimateDetailStatusPage onBack={handleBack}>
+        <LoadingFallback />
+      </EstimateDetailStatusPage>
+    );
   }
-  if (isError || !estimate) {
-    return <div className={`p-4 ${C.danger}`}>データの取得に失敗しました</div>;
+  if (estimateRead.status === "error") {
+    return (
+      <EstimateDetailStatusPage onBack={handleBack}>
+        <EmptyState
+          message="見積書の取得に失敗しました"
+          description="通信状況を確認して、もう一度お試しください。"
+        >
+          <div className="flex flex-wrap justify-center gap-2">
+            {estimateRead.retry ? (
+              <Button type="button" variant="outline" size="sm" onClick={estimateRead.retry}>
+                再試行
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(paths.estimates.getHref())}
+            >
+              一覧に戻る
+            </Button>
+          </div>
+        </EmptyState>
+      </EstimateDetailStatusPage>
+    );
   }
+  if (estimateRead.status !== "found") {
+    return (
+      <EstimateDetailStatusPage onBack={handleBack}>
+        <EmptyState
+          message="見積書が見つかりません"
+          description="指定された見積書は存在しないか、表示する権限がありません。"
+        >
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(paths.estimates.getHref())}
+          >
+            一覧に戻る
+          </Button>
+        </EmptyState>
+      </EstimateDetailStatusPage>
+    );
+  }
+
+  const estimate = estimateRead.data;
 
   const isLocked = isEstimateLockedStatus(estimate.status);
   const isExpired = estimate.validUntil ? estimate.validUntil.slice(0, 10) < todayJSTISO() : false;

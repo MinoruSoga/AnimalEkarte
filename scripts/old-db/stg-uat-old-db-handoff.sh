@@ -21,6 +21,22 @@ if [[ "$incoming_app_env" == "production" ]]; then
   die "refuses APP_ENV=production"
 fi
 
+# --- Cutover profile (EMR-342/343): default legacy-21 -----------------------
+# medicines-22-candidate is opt-in and remains rehearsal-only: it still
+# requires explicit staging (APP_ENV=staging is forced below), the rehearsal
+# sentinel, and a REHEARSAL_ONLY producer artifact. Selecting the candidate
+# profile is not producer acceptance; formal activation stays fail-closed.
+# Unknown values are rejected here before any clinic is processed. The
+# profile is only selected through this variable; no extra argument can
+# carry it and --allow-local-rehearsal is never passed.
+STG_UAT_CSV_IMPORT_PROFILE="${STG_UAT_CSV_IMPORT_PROFILE:-legacy-21}"
+case "$STG_UAT_CSV_IMPORT_PROFILE" in
+  legacy-21|medicines-22-candidate) ;;
+  *) die "unknown STG_UAT_CSV_IMPORT_PROFILE: only legacy-21 or medicines-22-candidate" ;;
+esac
+export STG_UAT_CSV_IMPORT_PROFILE
+selected_cutover_profile="$STG_UAT_CSV_IMPORT_PROFILE"
+
 # --- STG connection (written here so make に export は不要) ---
 # パスワードは gitignored の local.env にだけ置く。この tracked ファイルへ書かない。
 export APP_ENV=staging
@@ -39,10 +55,19 @@ load_local_db_exports() {
   if [[ ! -f "$env_file" ]]; then
     die "missing $env_file (copy scripts/old-db/stg-uat-old-db-handoff.local.env.example, chmod 600, fill DB_HOST/DB_USER/DB_PASSWORD)"
   fi
-  local mode
-  mode="$(stat -f '%Lp' "$env_file" 2>/dev/null || stat -c '%a' "$env_file")"
+  # GNU stat has no BSD -f file mode probe: a combined "a || b" capture lets
+  # the failing GNU probe emit filesystem status on stdout. Probe
+  # separately so a failed probe's stdout is discarded, GNU -c first, then
+  # BSD -f, and reject any mode other than 0600.
+  local mode=""
+  if ! mode="$(stat -c '%a' "$env_file" 2>/dev/null)" || [[ -z "$mode" ]]; then
+    mode=""
+    if ! mode="$(stat -f '%Lp' "$env_file" 2>/dev/null)" || [[ -z "$mode" ]]; then
+      mode=""
+    fi
+  fi
   if [[ "$mode" != "600" && "$mode" != "0600" ]]; then
-    die "$env_file must be mode 0600 (got $mode)"
+    die "$env_file must be mode 0600 (got ${mode:-unknown})"
   fi
   set -a
   # shellcheck disable=SC1090
@@ -51,6 +76,9 @@ load_local_db_exports() {
 }
 
 load_local_db_exports
+
+# Connection files cannot override the operator-selected contract.
+export STG_UAT_CSV_IMPORT_PROFILE="$selected_cutover_profile"
 
 export TARGET_DB_NAME="${TARGET_DB_NAME:-${DB_NAME:-postgres}}"
 export DB_NAME="$TARGET_DB_NAME"
@@ -262,19 +290,90 @@ for clinic_dir_name in "${clinics[@]}"; do
     continue
   fi
 
+  make_suffix_arg=""
   if [[ "$COMMAND" == "import" ]]; then
-    report="$REPORT_DIR/${clinic}-${run}-stg-uat-apply.json"
+    report_suffix=""
+    if [[ "$STG_UAT_CSV_IMPORT_PROFILE" == "medicines-22-candidate" ]]; then
+      report_suffix="-medicines-22-candidate"
+      base_report="$REPORT_DIR/${clinic}-${run}-stg-uat-apply${report_suffix}.json"
+      if [[ -f "$base_report" ]]; then
+        base_sha="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("manifestSha256",""))' "$base_report")"
+        if [[ "$base_sha" != "$sha" ]]; then
+          # P2 4258858615: the base candidate evidence belongs to a
+          # different source. Preserve the old report untouched and select a
+          # digest-specific fresh path for this exact manifest bytes; the
+          # same target-binding and read-only target-verify guards apply to
+          # that path before it may be reused.
+          report_suffix="-medicines-22-candidate-$sha"
+          make_suffix_arg="$report_suffix"
+        fi
+      fi
+    fi
+    report="$REPORT_DIR/${clinic}-${run}-stg-uat-apply${report_suffix}.json"
     if [[ -f "$report" ]]; then
       status="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("status",""))' "$report")"
+      # Candidate evidence is reusable only for these exact manifest bytes.
+      if [[ "$STG_UAT_CSV_IMPORT_PROFILE" == "medicines-22-candidate" ]]; then
+        report_sha="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("manifestSha256",""))' "$report")"
+        if [[ "$report_sha" != "$sha" ]]; then
+          status="STALE"
+        fi
+      fi
       if [[ "$status" == "PASS" ]]; then
-        echo "stg-uat-old-db-handoff: skip $clinic (apply report already PASS)" >&2
-        ran=1
-        continue
+        if [[ "$STG_UAT_CSV_IMPORT_PROFILE" == "medicines-22-candidate" ]]; then
+          # Report identity alone cannot establish the current target state.
+          # Bind both the selected target and its read-only verification.
+          report_target_matches="$(python3 -c 'import json,sys; r=json.load(open(sys.argv[1], encoding="utf-8")); print("yes" if r.get("targetHost")==sys.argv[2] and r.get("targetDatabase")==sys.argv[3] else "no")' "$report" "$DB_HOST" "$TARGET_DB_NAME")"
+          if [[ "$report_target_matches" != "yes" ]]; then
+            die "candidate PASS report target binding differs or is missing; preserve/archive the report before retry"
+          fi
+          # Codex 4265970831: the six seed bindings recorded in the report
+          # must match the currently resolved clinic/ordinal/species/exam/
+          # trim/cash/card exactly (strict integers, no bool/string/float).
+          # A mismatch means the report describes a different target setup:
+          # fail closed without verify or import so the old evidence stays.
+          if ! report_seeds_match="$(python3 -c '
+import json, sys
+report = json.load(open(sys.argv[1], encoding="utf-8"))
+seed_ids = report.get("seedIds") or {}
+expected = {"clinicId": int(sys.argv[2]), "animalSpeciesId": int(sys.argv[3]),
+            "examTypeId": int(sys.argv[4]), "trimmingReservationTypeId": int(sys.argv[5]),
+            "cashPaymentMethodId": int(sys.argv[6]), "creditCardPaymentMethodId": int(sys.argv[7])}
+bad = []
+for key, want in expected.items():
+    got = seed_ids.get(key)
+    if type(got) is not int or got != want:
+        bad.append(key)
+if bad:
+    print(",".join(bad))
+    raise SystemExit(1)
+print("yes")
+' "$report" "$ordinal" "$species" "$exam" "$trim" "$cash" "$card" 2>/dev/null)"; then
+            report_seeds_match=""
+          fi
+          if [[ "$report_seeds_match" != "yes" ]]; then
+            die "candidate PASS report seed binding differs or is missing; preserve/archive the report before retry"
+          fi
+          if make -C "$ROOT" stg-uat-csv-import-verify; then
+            echo "stg-uat-old-db-handoff: skip $clinic (apply report PASS and current target verified)" >&2
+            ran=1
+            continue
+          fi
+          die "candidate PASS report failed current target verification; preserve/archive the report before retry"
+        else
+          echo "stg-uat-old-db-handoff: skip $clinic (apply report already PASS)" >&2
+          ran=1
+          continue
+        fi
       fi
     fi
   fi
 
-  make -C "$ROOT" "$make_target"
+  if [[ -n "$make_suffix_arg" ]]; then
+    make -C "$ROOT" "$make_target" "STG_UAT_CSV_REPORT_SUFFIX=$make_suffix_arg"
+  else
+    make -C "$ROOT" "$make_target"
+  fi
   ran=1
 done
 

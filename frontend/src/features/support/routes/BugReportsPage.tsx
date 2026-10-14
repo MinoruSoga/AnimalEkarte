@@ -79,15 +79,22 @@ interface PlaneTicketCellProps {
 function PlaneTicketCell({ report, mutation, canMutate }: PlaneTicketCellProps) {
   if (report.plane_issue_url) {
     return (
-      <a
-        href={report.plane_issue_url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`inline-flex items-center gap-1 underline ${C.textActionPrimary} hover:opacity-70`}
-      >
-        <ExternalLink className={ICON.xs} />
-        チケット
-      </a>
+      <span className="inline-flex flex-col items-start gap-1">
+        <a
+          href={report.plane_issue_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`inline-flex items-center gap-1 underline ${C.textActionPrimary} hover:opacity-70`}
+        >
+          <ExternalLink className={ICON.xs} />
+          チケット
+        </a>
+        {report.plane_sync_error ? (
+          <span className={`text-sm ${C.danger}`} title={report.plane_sync_error}>
+            状態同期失敗
+          </span>
+        ) : null}
+      </span>
     );
   }
   if (report.plane_sync_error) {

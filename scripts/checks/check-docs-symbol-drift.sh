@@ -14,7 +14,7 @@
 #   「言及シンボルの実在」と「宣言数値の一致」だけを機械強制する。
 #
 # 検査内容:
-#   1. シンボル実在: docs/spec/screens/**/*.md + docs/spec/design-system.md の
+#   1. シンボル実在: docs/spec/{screens,domains,workflows}/**/*.md + docs/spec/design-system.md の
 #      バッククォート内から CamelCase トークン（2 ハンプ以上）・
 #      use* フック名・ソースファイル名（*.ts/tsx/go/mjs）を抽出し、
 #      frontend/{src,liff,line-reserve} + backend/internal のソースに
@@ -115,6 +115,12 @@ in_allowlist() {
 DOC_FILES="$TMP/doc_files.txt"
 {
   find "$DOCS_SCREENS" -type f -name '*.md'
+  # 移設された画面本文・保存契約を従来と同じシンボル検査に含める。
+  for spec_dir in domains workflows; do
+    if [[ -d "$ROOT/docs/spec/$spec_dir" ]]; then
+      find "$ROOT/docs/spec/$spec_dir" -type f -name '*.md'
+    fi
+  done
   if [[ -f "$ROOT/docs/spec/design-system.md" ]]; then
     echo "$ROOT/docs/spec/design-system.md"
   fi
@@ -260,7 +266,7 @@ if [[ -f "$ROOT/backend/internal/model/lstep_delivery_trigger_log.go" ]]; then
     "$ROOT/docs/spec/line/CLAUDE.md"
 fi
 
-# 3e. 画面数（正 = docs/spec/screens/ 直下の番号付き .md）
+# 3e. 番号付き画面索引の件数（旧パスの移動案内を含む。製品 route 数とは別）
 screens="$(find "$DOCS_SCREENS" -maxdepth 1 -name '[0-9]*.md' | wc -l | tr -d ' ')"
 check_number "画面数" "$screens" '[0-9]+[^0-9]{0,2}画面' \
   "$ROOT/docs/README.md" "$DOCS_SCREENS/README.md"

@@ -6,8 +6,12 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme="light"
       className="toaster group"
       closeButton
-      position="top-left"
+      // EMR-381: top-left だとサイドナビ/ページヘッダと重なるため右上（offset 72 でヘッダ下）へ。
+      position="top-right"
       offset={72}
+      // F003: モバイルの Sonner 既定 mobileOffset=16 ではヘッダと重なるため、
+      // desktop と同じヘッダクリアランスを適用する。
+      mobileOffset={72}
       duration={4000}
       style={
         {

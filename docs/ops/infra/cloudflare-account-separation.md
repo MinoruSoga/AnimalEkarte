@@ -88,7 +88,7 @@ DNS の用途根拠: `infra/cloudflare/zone.tf:98`、`infra/cloudflare/zone.tf:1
 | ローカル/テスト DB | animal_ekarte / animal_ekarte_test | noah_karte / noah_karte_test。ホスト済み PlanetScale DB の改名ではない | `.github/workflows/performance-tests.yml:25`、`backend/internal/reservation/reservation_created_by_fk_test.go:72` |
 | macOS label/plist | com.animalekarte.lab-device-agent | com.noah-karte.lab-device-agent / 同名.plist | `packaging/macos/com.animalekarte.lab-device-agent.plist:6` |
 | macOS install dir / build temp | Application Support/AnimalEkarte / animalekarte-lab-device-agent-* | Application Support/Noah Karte / noah-karte-lab-device-agent-* | `scripts/lab-device/install-lab-device-agent.sh:27`、`scripts/lab-device/build-lab-device-agent-bundle.sh:36` |
-| npm package / docs/UI | animal-ekarte-frontend / AnimalEkarte 等 | noah-karte-frontend / Noah Karte（URL は noah-karte.com） | `frontend/package.json:2`、`SECURITY.md:1`、`docs/ops/infra/rename-to-noah-karte.md:38` |
+| npm package / docs/UI | animal-ekarte-frontend / AnimalEkarte 等 | noah-karte-frontend / Noah Karte（URL は noah-karte.com） | `frontend/package.json:2`、`SECURITY.md:1`、`docs/work/infra/rename-to-noah-karte.md:38` |
 
 DB/docker の underscore と container 自動 suffix の hyphen、macOS reverse-domain label は層の仕様による例外。会社名・Plane identifier `EMR` は製品名ではなく維持する。通常 API singleton は製品名を含まないため今回の2 named instance の改名とは区別する。
 
@@ -125,10 +125,10 @@ DB/docker の underscore と container 自動 suffix の hyphen、macOS reverse-
 | `scripts/tools/manual-sync.py:55` | API 正規 hostname |
 | `load-tests/k6-cf-stg-sustained.js:56` | API 正規 hostname |
 | `SECURITY.md:91` | dated live 記録を保全し、新 hostname の検証日付き記録を追加。値の機械置換で履歴を改ざんしない |
-| `docs/ops/infra/rename-to-noah-karte.md:27` | 旧方針撤回と新 account/正規 hostname の対応を追記する後続タスク |
-| `docs/work/linmig-campaign-20260919/LINMIG-232.md:23` | 履歴 URL は保全し、現行手順への参照注記を後続タスクで追加 |
+| `docs/work/infra/rename-to-noah-karte.md:27` | 旧方針撤回と新 account/正規 hostname の対応を追記する後続タスク |
+| `docs/work/campaigns/linmig-campaign-20260919/LINMIG-232.md:23` | 履歴 URL は保全し、現行手順への参照注記を後続タスクで追加 |
 
-再調査で11件目 `docs/work/infra-cf-rename-task-coverage-review-20261006.md:30` に歴史的記載が見つかった。元の10件とは分けて保全し、新規の実行参照漏れだけを退役ゲートで確認する。secret-sync の Worker 名も更新対象 (`.github/workflows/worker-secret-sync.yml:53`)。LINE/LIFF コンソール、CORS、端末 allowed origin、外部 webhook は repo 外もあるため一覧・担当は UNKNOWN を埋めてから切替する。
+再調査で11件目 `docs/work/infra/infra-cf-rename-task-coverage-review-20261006.md:30` に歴史的記載が見つかった。元の10件とは分けて保全し、新規の実行参照漏れだけを退役ゲートで確認する。secret-sync の Worker 名も更新対象 (`.github/workflows/worker-secret-sync.yml:53`)。LINE/LIFF コンソール、CORS、端末 allowed origin、外部 webhook は repo 外もあるため一覧・担当は UNKNOWN を埋めてから切替する。
 
 ## 3. 移行方式の選択肢
 
@@ -166,7 +166,7 @@ DB/docker の underscore と container 自動 suffix の hyphen、macOS reverse-
 6. **G2 STG 切替承認**: 新 Worker の同一 hostname の route/権限/証明書を事前検証する。Pending zone で proxy 動作を証明できないため、新 workers.dev/隔離予行と設定照合、NS 後の受信確認・戻し条件を分ける。同一 hostname を受けられることの確認計画が成立しない場合は DNS を変更せず停止する。切替時は旧 cron/DO/手動 scheduler/migrate 実行を止め、進行中処理・lease が残らない確認後に新側だけ武装する。新旧同時武装の窓を作らない。DNS/NS、LINE webhook/LIFF endpoint、CORS と端末 allowed origin の更新を同じ窓で行う。旧 **資源削除**はまだしない。切り戻し: 新実行停止・drain→STG hostname/LINE/LIFF を旧側へ→旧 STG cron のみ再武装。停止時間: NS/TLS の伝播と処理 drain 次第で UNKNOWN、ゼロを約束しない。
 7. **STG 切り戻し訓練1回→再切替→短い soak**: 旧 R2 キーと旧 Worker を保持したまま上記 STG の戻しを実演し、R2 の新規書込み差分を欠落なく戻せることを確認する。必要な STG CI の復元後、新側へ再切替して新 cron のみ武装する。戻すのは STG hostname、LINE/LIFF、旧 STG cron とその実行に必要な STG 設定だけ。後段の `PROD_CLOUDFLARE_API_TOKEN` と prod Worker 殻は対象外。「hostname を旧側へ戻す」は zone の NS/移管を旧 account へ戻すことを意味する（別 account の workers.dev への proxied CNAME は 1014 エラーになりえるため、実質 NS 戻し）。soak は案として24時間、少なくとも5式それぞれの実行周期を含める。切り戻し: 同じ排他手順。停止時間: 2回の窓を予行で計測。旧 zone の自動削除期限より前に訓練する。
 8. **G3 本番殻作成承認（EMR-302）**: STG 合格・訓練・単一武装後に `PROD_CLOUDFLARE_API_TOKEN` を Production Environment に結線。prod の api/frontend 2つを別の同一リリース単位で作り、cron は **停止したまま**。空を再確認した新 `noah-karte-prod-images` を作る。データコピーはしない。prod DB/資格の確認なしに Container 起動・migration は行わない。切り戻し: 新本番殻を休止し本番公開を延期する。旧共有 account へ本番を作る戻しは禁止。停止時間: 本番未稼働前提では利用者影響なし、違えば再計画。
-9. **本番初回構築・G4（別チケット）**: EMR-302 の成果物境界は「空 prod-images、cron 停止の prod Worker 殻、本番トークン結線」まで。PROD-SETUP=EMR-148、10/20 切替=EMR-256、GOLIVE=EMR-134、初回管理者付与=EMR-139 は、その殻の上の初回本番構築を持つ。DNS/route の有効化、DB/migration・backup/restore、初回管理者、本番公開と **本番 cron 武装は EMR-256** 側の承認へ割り当てる（読み替えは人間決定）。同じ hostname の受信確認後、DNS・LINE/LIFF・CORS の変更を同窓で行う。本番ゲート不合格の切り戻しは未公開のまま延期。停止時間: 初回構築の所要を測定し、人が10/20窓を決定する。
+9. **本番初回構築・G4（別チケット）**: EMR-302 の成果物境界は「空 prod-images、cron 停止の prod Worker 殻、本番トークン結線」まで。PROD-SETUP=EMR-148、10/20 構築開始=EMR-256、GOLIVE=EMR-134、初回管理者付与=EMR-139 は、その殻の上の初回本番構築を持つ。DNS/route の有効化、DB/migration・backup/restore、初回管理者、本番公開と **本番 cron 武装は EMR-256** 側の承認へ割り当てる（読み替えは人間決定）。10/20 は構築開始日であり現場切替の窓ではない。現場切替日・作業窓は EMR-134 GOLIVE で別途人間が決定し、当日の最終 Go/No-Go を満たして切替を実施する。同じ hostname の受信確認後に DNS・LINE/LIFF・CORS の変更を同窓で行うのはその現場切替窓であり、10/20 の構築開始ではない。本番ゲート不合格の切り戻しは未公開のまま延期。停止時間: 初回構築の所要を測定し、構築の実施時刻・窓は人が GOLIVE 切替窓とは別に決定する。
 10. **共有 account 側の退役・G5 人間承認（独立段階）**: stg-images 照合、STG 訓練1回、soak 合格、保護証跡と残存依存ゼロを確認した後に限り、対象旧 API token/R2キーを失効し、旧 Worker×4（実在確認できたもの）、R2×2、DO named instance 2つ/関連 namespace、停止済み cron 5式、当該 Access app/資格、Terraform の当該 state 資源を撤去する。旧 DB secret 等の残置ゼロを確認する。通常 API singleton/container と registry image も当該 app の実測依存だけ整理する。他案件の共有資格を失効しない。account 閉鎖、会社 workers.dev subdomain 解放、共有 Access team 削除は禁止。切り戻し: **失効/削除後は訓練済みの即時 rollback 不可**。新側の復旧/保護バックアップからの再構築が必要。停止時間: 新側安定なら予定なし、復旧時間 UNKNOWN。
 
 ### 確認項目（後続実行時の証跡を要求。合格ゲート別）
@@ -212,7 +212,7 @@ lab device agent は label/plist/install path と build bundle を更新し、�
 | 10/20 との関係 | 10/20 を新 account 初回本番構築とする / 条件が STG 予行に間に合わず日程変更 | 所有者・費用主体・有料プランと STG 合格が揃う場合だけ10/20採用。揃わなければ延期。**共有 account への本番構築は選択肢にせず禁止**。本番チケットの読み替えを人が承認。G0/G4 |
 | LINE/LIFF console 更新担当 | 顧客管理者 / 自社の委任管理者 | 権限を持つ人間1名と代行者を固定し同窓で更新、before/after を保護記録。担当名は UNKNOWN。G0/G2 |
 | Go module path（1文字列） | `github.com/MinoruSoga/noah-karte/backend` / 人が別の有効 owner path を指定 | 表の1文字列を推奨。remote owner と module owner を整合し、人間が承認。別案なら実行前にこの表を1文字列へ更新。G0 |
-| GitHub repo slug（1文字列） | `noah-karte` / 人が別 slug を指定 | `noah-karte` を既存 repo の in-place 改名で採用。新規 repo は secret/CI 履歴継続を失うため避ける（旧文書の根拠 `docs/ops/infra/rename-to-noah-karte.md:35`）。G0 |
+| GitHub repo slug（1文字列） | `noah-karte` / 人が別 slug を指定 | `noah-karte` を既存 repo の in-place 改名で採用。新規 repo は secret/CI 履歴継続を失うため避ける（旧文書の根拠 `docs/work/infra/rename-to-noah-karte.md:35`）。G0 |
 | ローカル dir 名（1文字列） | `noah-karte` / 人が別 dir 名を指定 | `noah-karte`。worktree/launcher の参照を後続で検証し、repo/module と実施窓を分ける。G0 |
 | notification_email | 所有者メールと同一 / 別の共有運用受信先 | 所有会社の共有運用受信先を推奨。同一でもよいが送信専用 SMTP_FROM を転用しない (`infra/cloudflare/variables.tf:28`)。EMR-303 の適用前 |
 | 定常 URL / 一時 subdomain | 既存 zone の hostname / 新 workers.dev を継続 | 既存 zone を定常、新 workers.dev は予行のみ。新 subdomain 取得可否と flag 無効化を人が確認。G0/G2 |
@@ -239,8 +239,8 @@ lab device agent は label/plist/install path と build bundle を更新し、�
 
 | リスク / UNKNOWN | 扱い・再開条件 |
 |---|---|
-| 古い NS コメントと authoritative 稼働という依頼文の不一致 | `backend/wrangler.jsonc:10`、レビュー `docs/work/infra-cf-rename-task-coverage-review-20261006.md:28` は live 検証にならない。registrar/NS/DNSSEC/TLS を人が日付付き再照会するまで移管しない |
-| 旧改名文書との矛盾 | `docs/ops/infra/rename-to-noah-karte.md:27` の組織命名据え置き、`:37` の module 据え置き案は今回の確定方針で撤回。`:56` の hosted DB 改名案は本件では採用せず PlanetScale を移管しない。`:47` の class rename=状態喪失という一般化は公式 rename migration と区別。旧文書は今回編集せず後続で改訂 |
+| 古い NS コメントと authoritative 稼働という依頼文の不一致 | `backend/wrangler.jsonc:10`、レビュー `docs/work/infra/infra-cf-rename-task-coverage-review-20261006.md:28` は live 検証にならない。registrar/NS/DNSSEC/TLS を人が日付付き再照会するまで移管しない |
+| 旧改名文書との矛盾 | `docs/work/infra/rename-to-noah-karte.md:27` の組織命名据え置き、`:37` の module 据え置き案は今回の確定方針で撤回。`:56` の hosted DB 改名案は本件では採用せず PlanetScale を移管しない。`:47` の class rename=状態喪失という一般化は公式 rename migration と区別。旧文書は今回編集せず後続で改訂 |
 | state の資格・旧 Hyperdrive | type/name 以外未閲覧。旧 state の安全な保管/廃棄と残存資格の用途調査は人間。設定削除だけで remote 廃止済みとしない |
 | DO 空状態の ledger/lease/fence/pause 喪失 | `backend/worker/index.ts:269`。新 account に跨る lease は無い。停止/drain/単一武装と空起動の再入試験が必要。保存状態のコピー・引継ぎ期待は範囲外 |
 | R2 copy 中と rollback 中の書込み | STG 書込み停止/差分 copy/照合と逆差分の保全を訓練。件数一致だけで内容完全一致と断定しない。容量・copy 速度 UNKNOWN |
@@ -264,4 +264,4 @@ Containers は Workers Paid の対象で、稼働時間に応じた memory/disk�
 
 代替案は EMR-303 の GraphQL Analytics による定期確認。開始条件は「新 account STG 稼働＋新 token で照会可」で、EMR-302 退役完了や EMR-305/307 を待たない。初期は毎日、安定後は週次案とし、Worker 別リクエスト、Container 稼働/CPU/memory/disk、R2量/操作、DO/logs を取得可能な指標だけ記録する。GraphQL の正確な dataset/field・retention・token 権限は UNKNOWN、後続が schema 確認と請求画面との照合を行う。公式にも Analytics は請求用の使用量測定として使わないと明記され、集計値を実請求額と同一視しない。閾値超過時の担当通知・承認済み停止手段を runbook 化する。[GraphQL Analytics](https://developers.cloudflare.com/analytics/graphql-api/)
 
-edge-error policy は使用量/金額通知の代替にならず、zone 全体指標である (`infra/cloudflare/notifications.tf:18`)。notification_email の所属・検証を人が確定後に EMR-303 が適用し、実受信を別途確認する。値未決・policy 未適用を移行完了や10/20のブロッカーにしない。
+edge-error policy は使用量/金額通知の代替にならず、zone 全体指標である (`infra/cloudflare/notifications.tf:18`)。notification_email の所属・検証を人が確定後に EMR-303 が適用し、実受信を別途確認する。値未決・policy 未適用を移行完了や10/20 構築開始のブロッカーにしない。

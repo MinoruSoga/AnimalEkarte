@@ -329,3 +329,17 @@ describe("EditRow — 手入力（その他）明細(EMR-179)", () => {
     );
   });
 });
+
+describe("EditRow — 390px レスポンシブ (EMR-390/VQ-014)", () => {
+  // AddForm と同じ w-28 固定幅パターンの回帰防止。既存 type=instruction の
+  // 「指示・その他」が最長ラベルなので、そのまま初期描画で検証できる。
+  it("種別トリガーは最長ラベルを収める min-width と shrink-0 を持ち、行は flex-wrap で折り返せる", () => {
+    render(<EditRow item={baseItem} onSave={vi.fn()} onCancel={vi.fn()} />);
+
+    const trigger = screen.getByRole("combobox");
+    expect(trigger).toHaveClass("min-w-fit", "shrink-0");
+    expect(trigger.parentElement).toHaveClass("flex-wrap");
+    const nameInput = screen.getByLabelText("ケアプラン項目名");
+    expect(nameInput).toHaveClass("flex-1", "min-w-0");
+  });
+});

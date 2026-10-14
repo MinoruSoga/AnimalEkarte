@@ -61,7 +61,7 @@ export function AggregationOwnerTable({
             {columns.map((col) => (
               <TableHead
                 key={col.key}
-                className={`${STYLE.tableHeaderCell} ${STYLE.sectionLabel} px-4 ${col.width ?? ""} ${
+                className={`${STYLE.tableHeaderCell} ${STYLE.sectionLabel} whitespace-nowrap px-4 ${col.width ?? ""} ${
                   col.textAlign === "right" ? "text-right" : ""
                 }`}
               >

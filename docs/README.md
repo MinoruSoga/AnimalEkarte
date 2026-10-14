@@ -84,7 +84,7 @@ flowchart LR
 | RBAC モデル・clinic 分離の設計 | [architecture/auth.md](architecture/auth.md) |
 | permission の resource/action 定義 | `backend/internal/model/permission.go`（定義の正本） |
 | action の enforcement（実行証拠） | 各 domain の route 登録と auth/permission middleware（実行可能な証拠であり文書方針ではない） |
-| 予約・受付・カルテ連携 workflow | [spec/reservation-to-record-flow.md](spec/reservation-to-record-flow.md) |
+| 予約・受付・カルテ連携 workflow | [spec/reservation-to-record-flow.md](spec/workflows/reservation-to-record-flow.md) |
 | 会計・締め業務 | [spec/cash-register.md](spec/cash-register.md) |
 | 顧客集計業務 | [spec/customer-aggregation.md](spec/customer-aggregation.md) |
 | 画面挙動 | [spec/ui-design-compliance.md §2](spec/ui-design-compliance.md) の primary 仕様リンク |
@@ -121,10 +121,12 @@ flowchart LR
 ## 横断事項
 
 - **API contract**: 正本は [`backend/docs/api.yaml`](../backend/docs/api.yaml)（Swagger UI 表示は `make docs-ui`）。
-- **docs ドリフトゲート**: `scripts/checks/check-docs-symbol-drift.sh`（GitHub CI ではなく `make ci` のローカル必須ゲート。分担は [ops/ci-policy.md](ops/ci-policy.md)）が、spec/screens/ 系ドキュメントの言及シンボル実在と宣言数値（テーブル数・リソース数等）の実装一致を機械検査する。
-- **タスク台帳**: 実行 SoT は **Plane**（workspace `baritechllc` / Project `EMR` / hub `EMR-1`。case_id `BRT-4` は hub の不変識別子として継承。`BRT-n`・`LINMIG-n` は Linear 閉鎖前の履歴別名）。`todo.md#human-lane` は入口ポインタ。[`todo.md`](../todo.md) は repo に結び付く未完了作業（受入残・USER ゲート・STG 実データ・deferred）の入口、[`todo.md#product-bugs`](../todo.md#product-bugs) は確認済み UAT 製品 FAIL の記録を担う。競合時の状態の正本は Plane。root 例外台帳は同一変更で同期し、終了条件と削除予定を台帳内に明記する。Linear から Plane への移行記録は [plane-md-migration-20260923-receipt.md](work/plane-md-migration-20260923-receipt.md) と git 履歴を参照する。`reports/` は gitignore（新規 UAT をコミットしない）。
+- **docs ドリフトゲート**: `scripts/checks/check-docs-symbol-drift.sh`（GitHub CI ではなく `make ci` のローカル必須ゲート。分担は [ops/ci-policy.md](ops/ci-policy.md)）が、spec/screens/・spec/domains/・spec/workflows/ 系ドキュメントの言及シンボル実在と宣言数値（テーブル数・リソース数等）の実装一致を機械検査する。
+- **タスク台帳**: 実行 SoT は **Plane**（workspace `baritechllc` / Project `EMR` / hub `EMR-1`。case_id `BRT-4` は hub の不変識別子として継承。`BRT-n`・`LINMIG-n` は Linear 閉鎖前の履歴別名）。`todo.md#human-lane` は入口ポインタ。[`todo.md`](../todo.md) は repo に結び付く未完了作業（受入残・USER ゲート・STG 実データ・deferred）の入口、[`todo.md#product-bugs`](../todo.md#product-bugs) は確認済み UAT 製品 FAIL の記録を担う。競合時の状態の正本は Plane。root 例外台帳は同一変更で同期し、終了条件と削除予定を台帳内に明記する。Linear から Plane への移行記録は [plane-md-migration-20260923-receipt.md](work/plane/plane-md-migration-20260923-receipt.md) と git 履歴を参照する。`reports/` は gitignore（新規 UAT をコミットしない）。
 - **作業補助**: [`work/README.md`](work/README.md)（採択済み方針の短いポインタに加え、**日付付き証跡・調査票**（security-triage 票・infra 変更 review 票等）を置ける。work/ に置く場合は work/README への索引登録が必須。実行 SoT は Plane のまま。索引未登録の時点レポートの置き場所は CorpVault `evidence/` と git 履歴）
 
 ---
 
 **最新更新**: 2026-10-11（本索引の構成・参照方針の更新。全ドキュメントの一括受入を意味しない） | **ステータス**: 実行 SoT は Plane（baritechllc / `EMR` / hub `EMR-1`、case_id `BRT-4` 継承・旧 Linear は 2026-09-16 閉鎖）。docs/ は 5 カテゴリ体制で、ファイル単位の説明は各フォルダ README が正本
+
+予約 → 受付 → カルテ入力 → 会計・未納の仕様見直しは [spec/ の読む順](spec/README.md)から開始する。横断フロー・ドメイン・共通用語の入口をまとめている。

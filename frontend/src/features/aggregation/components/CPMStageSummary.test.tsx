@@ -112,4 +112,21 @@ describe("CPMStageSummary (ISSUE-180)", () => {
     );
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
+
+  it("keeps each chip's label and count inside one non-wrapping pill (EMR-388)", () => {
+    render(
+      <CPMStageSummary
+        counts={counts}
+        total={84}
+        isLoading={false}
+        isError={false}
+        onSelect={() => {}}
+      />,
+    );
+
+    screen.getAllByRole("button").forEach((button) => {
+      expect(button).toHaveClass("whitespace-nowrap");
+    });
+    expect(screen.getByRole("button", { name: /Core/ }).textContent).toBe("Core42");
+  });
 });

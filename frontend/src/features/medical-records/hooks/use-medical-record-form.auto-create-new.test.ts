@@ -9,6 +9,8 @@ import { useCreateReservation } from "@/hooks/use-create-reservation";
 import { useGetReservations } from "@/hooks/use-get-reservations";
 import { useCreateMedicalRecord } from "../api/create-medical-record";
 import { MedicalRecordAutoCreateFailure } from "../components/MedicalRecordAutoCreateFailure";
+import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // ──────────────────────────────────────────────────────────
 // モック定義
@@ -100,6 +102,21 @@ vi.mock("@/hooks/use-reservation-types", () => ({
 // ──────────────────────────────────────────────────────────
 // テスト
 // ──────────────────────────────────────────────────────────
+
+// EMR-339: handle-api-error.test.ts の axiosError helper と同一実装。
+// AxiosError を実生成して isAxiosError 判定を本物に近づける。
+function axiosError(status: number, data: Record<string, unknown>): AxiosError {
+  const config = {
+    headers: new AxiosHeaders(),
+  } as InternalAxiosRequestConfig;
+  return new AxiosError("request failed", AxiosError.ERR_BAD_RESPONSE, config, undefined, {
+    config,
+    data,
+    headers: new AxiosHeaders(),
+    status,
+    statusText: "Internal Server Error",
+  });
+}
 
 // FE-RC-045: use-medical-record-form.auto-create.test.ts (1219行) を分割した1ファイル目。
 // 親 describe("useMedicalRecordForm") の beforeEach/afterEach を複製し、独立 describe として実行する（振る舞いは維持）。
@@ -639,5 +656,85 @@ describe("useMedicalRecordForm — 新規作成 auto-create effect (新規予約
         expect.objectContaining({ replace: true }),
       );
     });
+  });
+
+  // EMR-339: mutation onError が既に通知した Axios 失敗を catch が二重通知しない。
+  // mutateAsync スタブは実物の onError と同じく reject 前に handleApiError を呼ぶ
+  // （useCreateReservation: "予約作成" / useCreateMedicalRecord: "カルテ作成"）。
+  it("予約作成の Axios500 失敗は onError 側の通知のみで、catch は二重通知しない（failure=appointment）", async () => {
+    const err = axiosError(500, {});
+    mockSearchParams = new URLSearchParams({ petId: "5" });
+    vi.mocked(useGetPet).mockReturnValue({
+      data: mockPet,
+      isLoading: false,
+      isError: false,
+    });
+
+    // useCreateReservation の onError は handleApiError(error, "予約作成") を呼ぶ。
+    // reject 前に onError 側の通知が済んだ状態を再現する。
+    const mockCreateReservation = vi.fn().mockImplementation(async () => {
+      handleApiError(err, "予約作成");
+      throw err;
+    });
+    vi.mocked(useCreateReservation).mockReturnValue({
+      mutateAsync: mockCreateReservation,
+      isPending: false,
+    } as ReturnType<typeof useCreateReservation>);
+    const mockCreateRecord = vi.fn().mockResolvedValue({ id: "new-record-1" });
+    vi.mocked(useCreateMedicalRecord).mockReturnValue({
+      mutateAsync: mockCreateRecord,
+      isPending: false,
+    } as ReturnType<typeof useCreateMedicalRecord>);
+
+    const { result } = renderHook(() => useMedicalRecordForm());
+
+    await waitFor(() => {
+      expect(result.current.autoCreateFailurePhase).toBe("appointment");
+    });
+    expect(mockCreateReservation).toHaveBeenCalledTimes(1);
+    expect(mockCreateRecord).not.toHaveBeenCalled();
+    // onError 側の1回だけ。catch が "カルテ作成" で再通知しない。
+    expect(handleApiError).toHaveBeenCalledTimes(1);
+    expect(handleApiError).toHaveBeenCalledWith(err, "予約作成");
+    expect(handleApiError).not.toHaveBeenCalledWith(err, "カルテ作成");
+  });
+
+  it("カルテ作成の Axios500 失敗は onError 側の通知のみで、catch は二重通知しない（failure=medical-record）", async () => {
+    const err = axiosError(500, {});
+    mockSearchParams = new URLSearchParams({ petId: "5" });
+    vi.mocked(useGetPet).mockReturnValue({
+      data: mockPet,
+      isLoading: false,
+      isError: false,
+    });
+
+    const mockCreateReservation = vi.fn().mockResolvedValue({ id: "appointment-1" });
+    vi.mocked(useCreateReservation).mockReturnValue({
+      mutateAsync: mockCreateReservation,
+      isPending: false,
+    } as ReturnType<typeof useCreateReservation>);
+    // useCreateMedicalRecord の onError は handleApiError(error, "カルテ作成") を呼ぶ。
+    const mockCreateRecord = vi.fn().mockImplementation(async () => {
+      handleApiError(err, "カルテ作成");
+      throw err;
+    });
+    vi.mocked(useCreateMedicalRecord).mockReturnValue({
+      mutateAsync: mockCreateRecord,
+      isPending: false,
+    } as ReturnType<typeof useCreateMedicalRecord>);
+
+    const { result } = renderHook(() => useMedicalRecordForm());
+
+    await waitFor(() => {
+      expect(result.current.autoCreateFailurePhase).toBe("medical-record");
+    });
+    expect(mockCreateReservation).toHaveBeenCalledTimes(1);
+    expect(mockCreateRecord).toHaveBeenCalledTimes(1);
+    expect(mockCreateRecord).toHaveBeenLastCalledWith(
+      expect.objectContaining({ appointment_id: "appointment-1" }),
+    );
+    // onError 側の1回だけ。catch が同じ文言で再通知しない。
+    expect(handleApiError).toHaveBeenCalledTimes(1);
+    expect(handleApiError).toHaveBeenCalledWith(err, "カルテ作成");
   });
 });

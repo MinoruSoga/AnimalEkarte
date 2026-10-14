@@ -49,7 +49,7 @@ export function MedicalRecordSaveRequired({
 }) {
   if (show) {
     return (
-      <div className={`flex items-center justify-center h-48 text-sm ${C.text40}`}>
+      <div className={`flex items-center justify-center h-48 text-sm ${C.text60}`}>
         カルテを保存してから使用できます
       </div>
     );

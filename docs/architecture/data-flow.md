@@ -95,7 +95,7 @@ sequenceDiagram
 4.  **External API**: Lステップ API クライアント経由でタグを付与/解除する。Write 系は **二重ゲート**:
     - **Deploy kill switch**: 環境変数 `LSTEP_WRITE_API_ENABLED` が exact `true` のときのみ有効（未設定・空・`false`・未知値は無効）。無効時は HTTP を送らず `ErrWriteDisabled` を返す（成功 `nil` の silent noop ではない）。
     - **Clinic setting**: `is_sync_enabled` 等の医院設定も満たす必要がある。
-    - Read 系（`GetUserTags` 等）は deploy gate の対象外で稼働し得る。運用詳細は [`LSTEP_WRITE_API_PAUSE.md`](../ops/deploy/LSTEP_WRITE_API_PAUSE.md)。
+    - Read 系（`GetUserTags` 等）は deploy gate の対象外で稼働し得る。運用詳細は [`LSTEP_WRITE_API_PAUSE.md`](../ops/deploy/runbooks/LSTEP_WRITE_API_PAUSE.md)。
 5.  **記録**: 処理結果は `slog` とタグキャッシュ（`lstep_tag_cache_repository.go` の UpsertTag/DeleteTag）に反映。API 失敗はエラーカウンターに記録し、閾値到達で `EXCL_カルテ連携エラー` タグを付与。タグ同期経路では `audit_logs` / `lstep_delivery_trigger_log` への記録は行わない（後者は自動配信トリガー専用ログ）。
 
 このコード配線は Lステップの運用再開の証明ではない。[GitHub #259](https://github.com/MinoruSoga/AnimalEkarte/issues/259) は 2026-09-06 取得時点で OPEN。先方 enable、STG 実配信、cron/停止手段の実測は別途必要で、実行状態の正本は Plane workspace `baritechllc` project `EMR`、再開条件の運用詳細は運用 runbook を参照する。

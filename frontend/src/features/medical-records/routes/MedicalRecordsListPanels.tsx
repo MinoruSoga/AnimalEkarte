@@ -92,10 +92,10 @@ function MedicalRecordsListRow({
   const accountingId = record.accountingId;
   return (
     <DataTableRow key={record.id}>
-      <TableCell className={STYLE.tableCellMono}>{record.date}</TableCell>
-      <TableCell className={STYLE.tableCell}>{record.ownerName}</TableCell>
-      <TableCell className={STYLE.tableCell}>
-        <span className="flex items-center gap-1.5">
+      <TableCell className={`${STYLE.tableCellMono} whitespace-nowrap`}>{record.date}</TableCell>
+      <TableCell className={`${STYLE.tableCell} min-w-[140px]`}>{record.ownerName}</TableCell>
+      <TableCell className={`${STYLE.tableCell} min-w-[140px]`}>
+        <span className="flex flex-wrap items-center gap-1.5">
           {isOtherClinic ? (
             record.petName
           ) : (
@@ -138,7 +138,7 @@ function MedicalRecordsListRow({
           <span className={`text-sm ${C.text60}`}>—</span>
         )}
       </TableCell>
-      <TableCell className={`${STYLE.tableCell} hidden md:table-cell`}>
+      <TableCell className={`${STYLE.tableCell} min-w-[160px] hidden md:table-cell`}>
         <div className="flex items-center gap-1">
           <span className={!isValidStaff(record.doctor) ? `${C.textWarningIcon} font-medium` : ""}>
             {record.doctor}
@@ -294,7 +294,7 @@ function MedicalRecordsListContent({
         onFilterChange={onFilterChange}
         searchTerm={searchTerm}
         onSearchChange={onSearchChange}
-        searchPlaceholder="診療内容を横断検索（カルテNo・飼主名・ペット名・主訴）..."
+        searchPlaceholder="診療内容を横断検索"
         count={total}
       />
 

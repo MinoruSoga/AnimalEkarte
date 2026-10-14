@@ -41,6 +41,15 @@ const mockResponse: AggregationResponse = {
   page: 1,
   per_page: 50,
   total: 2,
+  cpm_stage_counts: {
+    cpm_encounter: 0,
+    cpm_growing: 0,
+    cpm_core: 1,
+    cpm_spot: 0,
+    cpm_noah: 0,
+    cpm_dormant: 1,
+    cpm_unclassified: 0,
+  },
 };
 
 const createWrapper = (initialEntries: string[] = ["/aggregation"]) =>

@@ -84,6 +84,15 @@ jobs:
           fi
           pnpm exec wrangler whoami
 
+      - name: Verify lab device consumer secret
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        working-directory: backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --no-install wrangler secret list | node ../scripts/checks/check-lab-device-secret.mjs
+
       - name: Deploy Worker and Container
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

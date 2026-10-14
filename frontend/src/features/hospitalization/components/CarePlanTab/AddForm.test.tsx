@@ -397,3 +397,24 @@ describe("AddForm — 必須エラー表示 (EMR-319)", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 });
+
+describe("AddForm — 390px レスポンシブ (EMR-390/VQ-014)", () => {
+  // VQ-014: w-28 固定幅トリガーで選択済みの最長カテゴリ「指示・その他」が
+  // 「指示・そ…」に欠けていた。固定カテゴリ一覧は既知なので、その最長ラベルが
+  // 読める min-width を確保し、狭幅では隣の名称入力が折り返す。
+  it("種別トリガーは最長ラベルを収める min-width と shrink-0 を持つ", () => {
+    render(<AddForm onSubmit={vi.fn()} />);
+
+    const trigger = screen.getByRole("combobox");
+    expect(trigger).toHaveClass("min-w-fit", "shrink-0");
+  });
+
+  it("種別+名称の行は flex-wrap で折り返せ、名称入力は min-w-0 で縮める", () => {
+    render(<AddForm onSubmit={vi.fn()} />);
+
+    const row = screen.getByRole("combobox").parentElement;
+    expect(row).toHaveClass("flex-wrap");
+    const nameInput = screen.getByLabelText("ケアプラン項目名");
+    expect(nameInput).toHaveClass("flex-1", "min-w-0");
+  });
+});
