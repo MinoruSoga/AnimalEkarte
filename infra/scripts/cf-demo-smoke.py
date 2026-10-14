@@ -103,7 +103,10 @@ class Smoke:
         payload: Optional[dict[str, object]] = None,
         scoped: bool = False,
     ) -> tuple[int, dict[str, object]]:
-        headers = {"Accept": "application/json"}
+        headers = {
+            "Accept": "application/json",
+            "User-Agent": "AnimalEkarte-STG-Demo-Smoke/1.0",
+        }
         if method not in ("GET", "HEAD"):
             headers["X-Requested-With"] = "XMLHttpRequest"
         if scoped:

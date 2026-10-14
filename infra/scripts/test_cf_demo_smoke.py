@@ -31,6 +31,7 @@ class FixtureState:
         self.group_detail_reads = 0
         self.create_mode = "ok"
         self.stdout_at_first_post = ""
+        self.require_user_agent = False
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
@@ -62,6 +63,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
         method = self.command
         headers = {key.lower(): value for key, value in self.headers.items()}
         self.state.trace.append((method, path, headers, raw))
+        if (
+            self.state.require_user_agent
+            and headers.get("user-agent") != "AnimalEkarte-STG-Demo-Smoke/1.0"
+        ):
+            self._reply(403, {"message": "forbidden user agent"})
+            return
         payload = json.loads(raw) if raw else {}
 
         if path == "/health":
@@ -253,6 +260,30 @@ class DemoSmokeTests(unittest.TestCase):
         self.assertNotIn("stg-staff-10000021@example.test", output)
         logout = self.state.trace[-1]
         self.assertIn("refresh_token=dummy-refresh", logout[2].get("cookie", ""))
+
+    def test_honest_user_agent_is_sent_for_auth_and_crud(self) -> None:
+        self.state.require_user_agent = True
+        expected_user_agent = "AnimalEkarte-STG-Demo-Smoke/1.0"
+
+        auth_code, auth_output, auth_error = self.run_main()
+        self.assertEqual(
+            auth_code, 0, f"auth output: {auth_output}; stderr: {auth_error}"
+        )
+
+        crud_code, crud_output, crud_error = self.run_main(
+            "--crud",
+            {"SMOKE_ALLOW_FIXTURE_WRITES": "1", "SMOKE_FIXTURE_CLINIC_ID": "1"},
+        )
+        self.assertEqual(
+            crud_code, 0, f"crud output: {crud_output}; stderr: {crud_error}"
+        )
+        self.assertTrue(self.state.trace)
+        self.assertTrue(
+            all(
+                headers.get("user-agent") == expected_user_agent
+                for _, _, headers, _ in self.state.trace
+            )
+        )
 
     def test_invalid_targets_modes_and_missing_password_fail_before_requests(
         self,
