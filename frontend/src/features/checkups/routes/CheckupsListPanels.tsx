@@ -168,7 +168,10 @@ export function CheckupsListContent({
         className: "w-[120px] hidden md:table-cell",
       },
       { header: "結果・所見", className: "hidden lg:table-cell" },
-      { header: "担当医", className: "w-[100px] hidden md:table-cell" },
+      {
+        header: "担当医",
+        className: "w-[100px] min-w-[100px] whitespace-nowrap hidden md:table-cell",
+      },
       { header: "操作", className: "w-[80px]", align: "right" as const },
     ],
     [directionFor, toggleSort],
