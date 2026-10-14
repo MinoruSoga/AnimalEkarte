@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
+import { DatePicker } from "@/components/shared/DatePicker";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { FieldHelp } from "@/components/shared/FieldHelp";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
@@ -206,13 +207,10 @@ export function ReservationTypeAvailableSlotsSection({
                 <SelectContent>{DAY_OF_WEEK_SELECT_ITEMS}</SelectContent>
               </Select>
             ) : (
-              <input
-                type="date"
-                aria-label="特定日"
-                title="枠を適用する日付です"
+              <DatePicker
+                ariaLabel="特定日"
                 value={form.specificDate}
-                onChange={(event) => handleFieldChange("specificDate", event.target.value)}
-                className={`rounded-xxs border ${C.borderMedium} px-2 py-1 text-sm ${C.text} ${C.bgWhite}`}
+                onChange={(v) => handleFieldChange("specificDate", v)}
               />
             )}
           </div>

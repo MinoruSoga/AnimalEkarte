@@ -16,7 +16,7 @@ export class CheckupsPage extends BasePage {
   }
 
   listHeading(): Locator {
-    return this.heading("定期健診", 1);
+    return this.heading("定期健診管理", 1);
   }
 
   selectPetHeading(): Locator {

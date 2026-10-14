@@ -96,11 +96,11 @@ flowchart LR
 | ワクチン | ワクチン接種 - ペット選択 | /vaccinations/select-pet | VaccinationPetSelection | ✅ | 未記録（現行在庫） |  | [00-pet-selection.md](screens/00-pet-selection.md) |
 | ワクチン | ワクチン登録(新規) | /vaccinations/new | VaccinationForm | ✅ | 未記録（現行在庫） | BUG-501: create 権限で独立フォームを表示。petId 未指定時はペット選択へ誘導。カルテ予防接種タブは別の入力実装 | [15-vaccinations-form.md](screens/15-vaccinations-form.md) |
 | ワクチン | ワクチン編集 | /vaccinations/:id | VaccinationForm | ✅ | 未記録（現行在庫） | typed `BackendVaccination` とpet/vaccine/doctor fixtureでedit state・担当医帰属を4 viewport確認 | [15-vaccinations-form.md](screens/15-vaccinations-form.md) |
-| 定期健診 | 定期健診一覧 | /checkups | CheckupsList | ✅ | 未記録（現行在庫） |  | [25-checkups-list.md](screens/25-checkups-list.md) |
+| 定期健診 | 定期健診管理 | /checkups | CheckupsList | ✅ | 未記録（現行在庫） |  | [25-checkups-list.md](screens/25-checkups-list.md) |
 | 定期健診 | 定期健診登録 - ペット選択 | /checkups/select-pet | CheckupPetSelection | ✅ | 未記録（現行在庫） |  | [00-pet-selection.md](screens/00-pet-selection.md) |
 | 定期健診 | 定期健診登録(新規) | /checkups/new | CheckupForm | ✅ | 未記録（現行在庫） |  | [25-checkups-list.md](screens/25-checkups-list.md) |
 | 受付/飼主/予約 | 受付(当日) | / | Reception | ✅ | 未記録（現行在庫） |  | [reception-board.md](domains/reception/pages/reception-board.md) |
-| 受付/飼主/予約 | 飼主一覧 | /owners | OwnersListPage→OwnersList | ✅ | 未記録（現行在庫） | 薄いwrapper、shell実体はOwnersList | [03-owners-list.md](screens/03-owners-list.md) |
+| 受付/飼主/予約 | 飼主・ペット管理 | /owners | OwnersListPage→OwnersList | ✅ | 未記録（現行在庫） | 薄いwrapper、shell実体はOwnersList | [03-owners-list.md](screens/03-owners-list.md) |
 | 受付/飼主/予約 | 飼主登録(新規) | /owners/new | OwnerFormPage→OwnerForm | ✅ | 未記録（現行在庫） | 薄いwrapper、shell実体はOwnerForm | [04-owners-form.md](screens/04-owners-form.md) |
 | 受付/飼主/予約 | 飼主編集 | /owners/:id | OwnerFormPage→OwnerForm | ✅ | 未記録（現行在庫） | 同上 | [04-owners-form.md](screens/04-owners-form.md) |
 | 受付/飼主/予約 | 集計ダッシュボード | /aggregation | AggregationDashboardPage | ✅ | 未記録（現行在庫） |  | [36-aggregation-dashboard.md](screens/36-aggregation-dashboard.md) |
@@ -117,24 +117,24 @@ flowchart LR
 | 運用/マニュアル | マニュアル記事 | /manual/:category/:slug | ManualPage | ✅ | 未記録（現行在庫） | 同上 | [35-internal-manual.md](screens/35-internal-manual.md) |
 | 運用/横断 | 同一飼主・ペット連携 | /identity-links | IdentityLinksPage | ✅ | pending（未実行） | PageLayout化（canView で Navigate ゲート。所属医院内の手動リンクのみ） | [40-identity-links.md](screens/40-identity-links.md) |
 | 設定/マスタ | 設定トップ | /settings | MasterSettingsIndex | ✅ | 未記録（現行在庫） |  | [20-master-settings.md](screens/20-master-settings.md) |
-| 設定/マスタ | 職員マスタ | /settings/staff | StaffSettings | ✅ | 未記録（現行在庫） | MasterCRUDPage経由 | [master-staff.md](screens/settings/master-staff.md) |
+| 設定/マスタ | スタッフマスタ | /settings/staff | StaffSettings | ✅ | 未記録（現行在庫） | MasterCRUDPage経由 | [master-staff.md](screens/settings/master-staff.md) |
 | 設定/マスタ | 診療項目マスタ | /settings/treatment-items | TreatmentPlanMaster | ✅ | 未記録（現行在庫） | MasterTabPage経由 | [master-treatment.md](screens/settings/master-treatment.md) |
-| 設定/マスタ | 診断名マスタ | /settings/diagnosis | DiagnosisSettings | ✅ | 未記録（現行在庫） | MasterTabPage経由 | [master-diagnosis.md](screens/settings/master-diagnosis.md) |
-| 設定/マスタ | 動物種マスタ | /settings/animal-species | AnimalSpeciesSettings | ✅ | 未記録（現行在庫） | MasterCRUDPage経由 | [master-animal-species.md](screens/settings/master-animal-species.md) |
+| 設定/マスタ | 診断マスタ | /settings/diagnosis | DiagnosisSettings | ✅ | 未記録（現行在庫） | MasterTabPage経由 | [master-diagnosis.md](screens/settings/master-diagnosis.md) |
+| 設定/マスタ | 動物種類マスタ | /settings/animal-species | AnimalSpeciesSettings | ✅ | 未記録（現行在庫） | MasterCRUDPage経由 | [master-animal-species.md](screens/settings/master-animal-species.md) |
 | 設定/マスタ | トリミングマスタ | /settings/trimming | TrimmingSettings | ✅ | 未記録（現行在庫） | MasterTabPage経由 | [master-trimming.md](screens/settings/master-trimming.md) |
-| 設定/マスタ | トリミングコース種別マスタ | /settings/trimming-course-type | TrimmingCourseTypeSettings | ✅ | 未記録（現行在庫） | MasterCRUDPage経由 | [master-trimming-course-type.md](screens/settings/master-trimming-course-type.md) |
+| 設定/マスタ | コース種別マスタ | /settings/trimming-course-type | TrimmingCourseTypeSettings | ✅ | 未記録（現行在庫） | MasterCRUDPage経由 | [master-trimming-course-type.md](screens/settings/master-trimming-course-type.md) |
 | 設定/マスタ | 薬剤マスタ | /settings/medicine | MedicineSettings | ✅ | 未記録（現行在庫） |  | [master-medicine.md](screens/settings/master-medicine.md) |
-| 設定/マスタ | 予約種別マスタ | /settings/reservation-type | ReservationTypeSettings | ✅ | 未記録（現行在庫） |  | [master-reservation-type.md](screens/settings/master-reservation-type.md) |
-| 設定/マスタ | 入院・ホテルマスタ | /settings/hospitalization | HospitalizationSettings | ✅ | 未記録（現行在庫） | MasterCRUDPage経由 | [master-hospitalization-plan.md](screens/settings/master-hospitalization-plan.md) |
+| 設定/マスタ | 予約区分マスタ | /settings/reservation-type | ReservationTypeSettings | ✅ | 未記録（現行在庫） |  | [master-reservation-type.md](screens/settings/master-reservation-type.md) |
+| 設定/マスタ | 入院マスタ | /settings/hospitalization | HospitalizationSettings | ✅ | 未記録（現行在庫） | MasterCRUDPage経由 | [master-hospitalization-plan.md](screens/settings/master-hospitalization-plan.md) |
 | 設定/マスタ | ケージマスタ | /settings/cage | CageSettings | ✅ | 未記録（現行在庫） | MasterCRUDPage経由 | [master-cage.md](screens/settings/master-cage.md) |
-| 設定/マスタ | 物販品マスタ | /settings/merchandise-items | MerchandiseItemSettings | ✅ | 未記録（現行在庫） | MasterCRUDPage経由 | [master-merchandise.md](screens/settings/master-merchandise.md) |
+| 設定/マスタ | 物販・フードマスタ | /settings/merchandise-items | MerchandiseItemSettings | ✅ | 未記録（現行在庫） | MasterCRUDPage経由 | [master-merchandise.md](screens/settings/master-merchandise.md) |
 | 設定/マスタ | 保険マスタ | /settings/insurance | InsuranceSettings | ✅ | 未記録（現行在庫） | MasterCRUDPage経由 | [master-insurance.md](screens/settings/master-insurance.md) |
 | 設定/マスタ | 職種マスタ | /settings/occupations | OccupationSettings | ✅ | 未記録（現行在庫） | MasterCRUDPage経由 | [master-occupation.md](screens/settings/master-occupation.md) |
 | 設定/マスタ | 権限グループマスタ | /settings/permission-groups | PermissionGroupSettings | ✅ | 未記録（現行在庫） | C6(RBAC表示)は目視要 | [master-permission-group.md](screens/settings/master-permission-group.md) |
 | 設定/マスタ | 問診テンプレートマスタ | /settings/inquiry-templates | InterviewTemplateSettings | ✅ | 未記録（現行在庫） | MasterCRUDPage経由 | [master-interview.md](screens/settings/master-interview.md) |
-| 設定/マスタ | 主訴マスタ | /settings/interview/chief-complaint | ChiefComplaintSettings | ✅ | 未記録（現行在庫） | MasterCRUDPage経由 | [master-chief-complaint.md](screens/settings/master-chief-complaint.md) |
+| 設定/マスタ | 主訴カテゴリマスタ | /settings/interview/chief-complaint | ChiefComplaintSettings | ✅ | 未記録（現行在庫） | MasterCRUDPage経由 | [master-chief-complaint.md](screens/settings/master-chief-complaint.md) |
 | 設定/マスタ | 問診テンプレート(interview) | /settings/interview/templates | InterviewTemplateSettings | ✅ | 未記録（現行在庫） | 同一Component別path | [master-interview.md](screens/settings/master-interview.md) |
-| 設定/マスタ | シフトテンプレートマスタ | /settings/shift-templates | ShiftTemplateSettings | ✅ | 未記録（現行在庫） |  | [master-shift-template.md](screens/settings/master-shift-template.md) |
+| 設定/マスタ | シフトテンプレート | /settings/shift-templates | ShiftTemplateSettings | ✅ | 未記録（現行在庫） |  | [master-shift-template.md](screens/settings/master-shift-template.md) |
 | 設定/マスタ | 締め時間設定 | /settings/closing-time | ClosingSettingsPage | ✅ | 未記録（現行在庫） |  | [closing-time-settings.md](screens/settings/closing-time-settings.md) |
 | 設定/マスタ | 支払方法マスタ | /settings/payment-methods | PaymentMethodSettings | ✅ | 未記録（現行在庫） | MasterCRUDPage経由 | [payment-methods.md](screens/settings/payment-methods.md) |
 | 設定/マスタ | 割引キャンペーンマスタ | /settings/campaigns | CampaignSettings | ✅ | 未記録（現行在庫） | MasterCRUDPage経由 | [master-campaigns.md](screens/settings/master-campaigns.md) |
@@ -146,6 +146,7 @@ flowchart LR
 | サポート | チャット履歴 | /settings/chat-history | ChatHistoryPage | ✅ | pending（未実行） | 2026-10-02 追加（`e9574b28a`）。全医院共有の ROOM ボード（同一 clinic×staff 会話の 30 分超空白区切り。ペア一覧の `chat/exchanges` とは別 endpoint。権限ゲートなし — バグ報告と同じ意図的な製品判断）。E2E inventory 未登載 | [README.md §チャット履歴](screens/settings/README.md#チャット履歴) |
 
 **脚注**:
+- EMR-400（2026-10-14 追記）: 画面名は業務一覧「X管理」、マスタ「Xマスタ」。フォームは新規「X登録」、保存可能な既存レコード「X編集」、保存不可の既存レコード「X詳細」とし、一覧の新規ボタンは「新規X登録」。ページタイトルにアイコンは付けない。ダイアログや会計精算など本票対象外の操作文言はこの規則の対象にしない。
 - `仕様正本` 列（2026-10-11 追記）: 88 product path それぞれの primary 画面仕様への navigation。静的計測は base `f457821c4` で実施し、route/API/workflow の source は `f82badf36` と同一（差分は CI fixture/test のみ）。redirect 12 件と wildcard 1 件は対象外。本列は primary 仕様リンクの一意性を示すもので、画面 assertion・runtime 受入の認証ではない。
 - runtime 履歴・write safety（synthetic-API 3/3 PASS）・targeted coverage 実測・C15〜C19 の 2026-07-24 監査値履歴: 追記（2026-10-07 監査）— テスト証跡として [docs/ops/testing/README.md](../ops/testing/README.md)「ui-design-compliance 監査証跡（2026-10-07 spec/ から移設）」節へ移設。本表の runtime 列の解釈も同節を参照。
 - リダイレクト専用route（`<Navigate replace />`）は表から除外: `/settings/job-title`, `/settings/service-type`, `/settings/diagnosis-type`, `/settings/diagnosis-name`, `/settings/trimming-course`, `/settings/trimming-option`, `/settings/examination`, `/settings/vaccine`, `/settings/consultation`, `/settings/procedure`, `/settings/inquiry-template`, `/settings/shift-template` の **12件**。

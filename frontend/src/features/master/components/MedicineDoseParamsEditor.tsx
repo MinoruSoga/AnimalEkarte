@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PropertyInput, PropertyRow } from "@/components/shared/SidePeek";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { C, STYLE } from "@/lib/design-tokens";
 import type { MedicineDoseParam, MedicineDoseSpecies } from "@/types/generated/models";
@@ -223,13 +224,12 @@ function SpeciesDoseParamPanel({
         label="投与量(mg/kg)"
         description="体重1kgあたりの標準投与量（mg）です。体重換算の基準値になります。"
       >
-        <input
-          type="number"
+        <NumberInput
           min={0}
           step="any"
           aria-label="投与量(mg/kg)"
           value={formData.dosePerKg}
-          onChange={(event) => setFormData((prev) => ({ ...prev, dosePerKg: event.target.value }))}
+          onChange={(value) => setFormData((prev) => ({ ...prev, dosePerKg: value }))}
           placeholder="必須"
           className={`${STYLE.propertyInput} w-28`}
         />
@@ -239,13 +239,12 @@ function SpeciesDoseParamPanel({
         label="下限(mg/kg・任意)"
         description="許容される投与量の下限（mg/kg）です。設定すると範囲外の入力を防げます。"
       >
-        <input
-          type="number"
+        <NumberInput
           min={0}
           step="any"
           aria-label="下限(mg/kg)"
           value={formData.minMgPerKg}
-          onChange={(event) => setFormData((prev) => ({ ...prev, minMgPerKg: event.target.value }))}
+          onChange={(value) => setFormData((prev) => ({ ...prev, minMgPerKg: value }))}
           placeholder="未設定"
           className={`${STYLE.propertyInput} w-28`}
         />
@@ -255,13 +254,12 @@ function SpeciesDoseParamPanel({
         label="上限(mg/kg・任意)"
         description="許容される投与量の上限（mg/kg）です。過量防止のため、mg/kg 上限か mg 絶対上限のいずれかの設定が必須です。"
       >
-        <input
-          type="number"
+        <NumberInput
           min={0}
           step="any"
           aria-label="上限(mg/kg)"
           value={formData.maxMgPerKg}
-          onChange={(event) => setFormData((prev) => ({ ...prev, maxMgPerKg: event.target.value }))}
+          onChange={(value) => setFormData((prev) => ({ ...prev, maxMgPerKg: value }))}
           placeholder="未設定"
           className={`${STYLE.propertyInput} w-28`}
         />
@@ -271,15 +269,12 @@ function SpeciesDoseParamPanel({
         label="絶対上限(mg・任意)"
         description="体重に関係なく許容される最大投与量（mg）です。大型動物への過量投与を防ぎます。"
       >
-        <input
-          type="number"
+        <NumberInput
           min={0}
           step="any"
           aria-label="絶対上限(mg)"
           value={formData.absoluteMaxDose}
-          onChange={(event) =>
-            setFormData((prev) => ({ ...prev, absoluteMaxDose: event.target.value }))
-          }
+          onChange={(value) => setFormData((prev) => ({ ...prev, absoluteMaxDose: value }))}
           placeholder="未設定"
           className={`${STYLE.propertyInput} w-28`}
         />
@@ -289,15 +284,12 @@ function SpeciesDoseParamPanel({
         label="丸め幅(任意)"
         description="計算された投与量を丸める刻み幅です。例えば 0.5 を指定すると 0.5 単位に丸められます。"
       >
-        <input
-          type="number"
+        <NumberInput
           min={0}
           step="any"
           aria-label="丸め幅"
           value={formData.roundingStep}
-          onChange={(event) =>
-            setFormData((prev) => ({ ...prev, roundingStep: event.target.value }))
-          }
+          onChange={(value) => setFormData((prev) => ({ ...prev, roundingStep: value }))}
           placeholder="未設定"
           className={`${STYLE.propertyInput} w-28`}
         />

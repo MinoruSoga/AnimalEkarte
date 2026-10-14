@@ -202,7 +202,7 @@ export function CheckupsListContent({
           headerCellClassName={STYLE.sectionLabel}
           columns={columns}
           data={records}
-          emptyMessage="定期健診の記録がありません"
+          emptyMessage="定期健診データが見つかりません"
           renderRow={renderRow}
         />
       </FilteringIndicator>

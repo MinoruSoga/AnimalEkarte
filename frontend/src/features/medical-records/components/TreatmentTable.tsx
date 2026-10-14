@@ -262,8 +262,8 @@ export const TreatmentTable = memo(function TreatmentTable({
         onClose={() => setPendingRemoveId(null)}
         onConfirm={handleRemoveConfirm}
         title="この明細を削除しますか？"
-        description="この操作は元に戻せません。"
-        confirmLabel="削除する"
+        description="この操作は取り消せません。"
+        confirmLabel="削除"
         cancelLabel="キャンセル"
         variant="destructive"
       />

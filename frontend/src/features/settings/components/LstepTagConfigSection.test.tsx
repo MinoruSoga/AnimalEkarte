@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
@@ -266,7 +266,8 @@ describe("LstepTagConfigSection — C: DELETE 削除", () => {
     await user.click(deleteButton);
 
     // EMR-227: 削除は確認ダイアログ経由
-    await user.click(await screen.findByRole("button", { name: "削除する" }));
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "削除" }));
 
     await waitFor(() => {
       expect(screen.queryByText("vaccine_")).not.toBeInTheDocument();

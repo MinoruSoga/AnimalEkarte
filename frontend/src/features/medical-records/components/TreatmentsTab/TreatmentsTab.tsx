@@ -167,8 +167,8 @@ export const TreatmentsTab = memo(function TreatmentsTab({
         onClose={() => setDeletingId(null)}
         onConfirm={handleDeleteConfirm}
         title="治療明細を削除しますか？"
-        description="この治療明細を削除します。この操作は元に戻せません。"
-        confirmLabel="削除する"
+        description="この治療明細を削除します。この操作は取り消せません。"
+        confirmLabel="削除"
         cancelLabel="キャンセル"
         variant="destructive"
       />

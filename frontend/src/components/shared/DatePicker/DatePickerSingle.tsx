@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarIcon } from "lucide-react";
+import { dateMatchModifiers } from "react-day-picker";
 import { ja } from "date-fns/locale";
 
 import { Calendar } from "@/components/ui/calendar";
@@ -30,58 +31,103 @@ export function SinglePicker({
   className,
   id,
   name,
+  ariaLabel,
+  required,
+  disabled,
   disabledDays,
+  min,
+  max,
+  onInvalid,
+  validationMessage,
   ariaInvalid = false,
   ariaDescribedBy,
 }: SingleDatePickerProps) {
-  const [open, setOpen] = useState(false);
+  const [popoverState, setPopoverState] = useState({ disabled, open: false });
+  if (popoverState.disabled !== disabled) {
+    setPopoverState({ disabled, open: false });
+  }
+  const open = popoverState.open;
+  const setOpen = useCallback(
+    (nextOpen: boolean) => setPopoverState({ disabled, open: disabled ? false : nextOpen }),
+    [disabled],
+  );
   const [view, setView] = useState<"calendar" | "monthGrid">("calendar");
   const [displayMonth, setDisplayMonth] = useState<Date>(() => new Date());
   const [focused, setFocused] = useState(false);
   const [inputText, setInputText] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const selected = useMemo(() => parseLocalDate(value), [value]);
   const displayText = focused ? inputText : selected ? formatDisplay(selected) : "";
+  const isDateOutOfRange = useCallback(
+    (date: Date) => {
+      const isoDate = formatIso(date);
+      return (min !== undefined && isoDate < min) || (max !== undefined && isoDate > max);
+    },
+    [max, min],
+  );
+  const isDateDisabled = useCallback(
+    (date: Date) =>
+      (disabledDays ? dateMatchModifiers(date, disabledDays) : false) || isDateOutOfRange(date),
+    [disabledDays, isDateOutOfRange],
+  );
+  const validityDate = value ? selected : (parseDateInput(inputText) ?? undefined);
+  const nativeValidityMessage = ariaInvalid
+    ? validationMessage || "入力内容を確認してください"
+    : validityDate && isDateOutOfRange(validityDate)
+      ? min !== undefined && formatIso(validityDate) < min
+        ? `日付は ${min} 以降を指定してください`
+        : `日付は ${max} 以前を指定してください`
+      : validityDate && disabledDays && dateMatchModifiers(validityDate, disabledDays)
+        ? "入力した日付は選択できません"
+        : "";
+
+  useEffect(() => {
+    inputRef.current?.setCustomValidity(nativeValidityMessage);
+  }, [nativeValidityMessage]);
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
-      setOpen(nextOpen);
-      if (nextOpen) {
+      setOpen(disabled ? false : nextOpen);
+      if (nextOpen && !disabled) {
         setView("calendar");
         setDisplayMonth(selected ?? new Date());
       }
     },
-    [selected],
+    [disabled, selected, setOpen],
   );
 
   const handleSelect = useCallback(
     (day: Date | undefined) => {
-      if (day) {
+      if (!disabled && day && !isDateDisabled(day)) {
         onChange(formatIso(day));
         setInputText(formatSlash(day));
+        setOpen(false);
       }
-      setOpen(false);
     },
-    [onChange],
+    [disabled, isDateDisabled, onChange, setOpen],
   );
 
   const handleClear = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
       e.stopPropagation();
+      if (disabled) return;
       onChange("");
       setInputText("");
     },
-    [onChange],
+    [disabled, onChange],
   );
 
   const handleToday = useCallback(() => {
     const today = new Date();
+    if (disabled || isDateDisabled(today)) return;
     onChange(formatIso(today));
     setInputText(formatSlash(today));
     setOpen(false);
-  }, [onChange]);
+  }, [disabled, isDateDisabled, onChange, setOpen]);
 
   const commitInput = useCallback(() => {
+    if (disabled) return;
     const parsed = parseDateInput(inputText);
     if (parsed) {
       onChange(formatIso(parsed));
@@ -92,7 +138,7 @@ export function SinglePicker({
     } else {
       setInputText(selected ? formatSlash(selected) : "");
     }
-  }, [inputText, onChange, selected]);
+  }, [disabled, inputText, onChange, selected]);
 
   const handleInputKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -102,7 +148,7 @@ export function SinglePicker({
         setOpen(false);
       }
     },
-    [commitInput],
+    [commitInput, setOpen],
   );
 
   const handleFocus = useCallback(() => {
@@ -146,18 +192,23 @@ export function SinglePicker({
           <PopoverTrigger asChild>
             <button
               type="button"
+              disabled={disabled}
               className="-my-px min-h-11 min-w-11 shrink-0 cursor-pointer bg-transparent border-none p-0"
-              aria-label="カレンダーを開く"
+              aria-label={ariaLabel ? `${ariaLabel}を選択` : "カレンダーを開く"}
             >
               <CalendarIcon className={`${ICON.action} ${C.text40}`} />
             </button>
           </PopoverTrigger>
           <input
+            ref={inputRef}
             id={id}
-            name={name}
             type="text"
+            required={required}
+            disabled={disabled}
+            aria-label={ariaLabel}
             aria-invalid={ariaInvalid || undefined}
             aria-describedby={ariaDescribedBy}
+            onInvalid={onInvalid}
             value={displayText}
             onChange={(e) => setInputText(e.target.value)}
             onFocus={handleFocus}
@@ -166,9 +217,13 @@ export function SinglePicker({
             placeholder={placeholder}
             className={`-my-px min-h-11 flex-1 min-w-0 bg-transparent outline-none text-sm ${C.text} ${C.textPlaceholder} focus-visible:ring-2 ${C.focusRingAccent40}`}
           />
-          {value ? <ClearButton onClick={handleClear} /> : null}
+          {value ? <ClearButton onClick={handleClear} disabled={disabled} /> : null}
         </div>
       </PopoverAnchor>
+
+      {name !== undefined ? (
+        <input type="hidden" name={name} value={value} disabled={disabled} />
+      ) : null}
 
       <PopoverContent className="w-auto p-0" align="start">
         {view === "calendar" ? (
@@ -193,7 +248,7 @@ export function SinglePicker({
             onMonthChange={setDisplayMonth}
             selected={selected}
             onSelect={handleSelect}
-            disabled={disabledDays}
+            disabled={isDateDisabled}
             locale={ja}
             fixedWeeks
             className="rounded-md pt-0"
@@ -207,6 +262,7 @@ export function SinglePicker({
           <button
             type="button"
             onClick={handleToday}
+            disabled={disabled || isDateDisabled(new Date())}
             className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded px-2 py-1 text-sm ${C.text60} ${C.hoverBgPage} ${C.hoverText} focus-visible:ring-2 focus-visible:ring-offset-1 ${C.focusRingAccent40} transition-colors`}
           >
             Today

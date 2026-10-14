@@ -29,7 +29,7 @@ export function OwnerAddressFields({
         className="col-span-full grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
       >
         <div className="space-y-1.5 col-span-1">
-          <Label htmlFor="homePostalCode" className={`text-sm ${C.text60}`}>
+          <Label htmlFor="homePostalCode" className={`${C.text60}`}>
             郵便番号（自宅）
           </Label>
           <div className="flex gap-1.5">
@@ -59,7 +59,7 @@ export function OwnerAddressFields({
         </div>
 
         <div className="space-y-1.5 col-span-1 lg:col-span-2">
-          <Label htmlFor="homeAddress1" className={`text-sm ${C.text60}`}>
+          <Label htmlFor="homeAddress1" className={`${C.text60}`}>
             住所1（自宅）
           </Label>
           <Input
@@ -72,7 +72,7 @@ export function OwnerAddressFields({
         </div>
 
         <div className="space-y-1.5 col-span-1">
-          <Label htmlFor="homeAddress2" className={`text-sm ${C.text60}`}>
+          <Label htmlFor="homeAddress2" className={`${C.text60}`}>
             住所2（自宅）
           </Label>
           <Input
@@ -91,7 +91,7 @@ export function OwnerAddressFields({
         className="col-span-full grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
       >
         <div className="space-y-1.5 col-span-1">
-          <Label htmlFor="postalCode" className={`text-sm ${C.text60}`}>
+          <Label htmlFor="postalCode" className={`${C.text60}`}>
             郵便番号（会社）
           </Label>
           <div className="flex gap-1.5">
@@ -121,7 +121,7 @@ export function OwnerAddressFields({
         </div>
 
         <div className="space-y-1.5 col-span-1 lg:col-span-2">
-          <Label htmlFor="address1" className={`text-sm ${C.text60}`}>
+          <Label htmlFor="address1" className={`${C.text60}`}>
             住所1（会社）
           </Label>
           <Input
@@ -134,7 +134,7 @@ export function OwnerAddressFields({
         </div>
 
         <div className="space-y-1.5 col-span-1">
-          <Label htmlFor="address2" className={`text-sm ${C.text60}`}>
+          <Label htmlFor="address2" className={`${C.text60}`}>
             住所2（会社）
           </Label>
           <Input
@@ -149,7 +149,7 @@ export function OwnerAddressFields({
 
       {/* 生年月日 */}
       <div className="space-y-1.5">
-        <Label htmlFor="birthDate" className={`text-sm ${C.text60}`}>
+        <Label htmlFor="birthDate" className={`${C.text60}`}>
           飼主生年月日
         </Label>
         <div className="flex flex-col gap-1.5">

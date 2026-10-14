@@ -11,7 +11,7 @@ import {
   type PetFormData,
 } from "../types";
 
-export const LABEL_CLS = `text-sm ${C.text60}`;
+export const LABEL_CLS = `${C.text60}`;
 export const INPUT_CLS = STYLE.formInput;
 
 export const BREED_SUGGESTIONS: Record<string, string[]> = {

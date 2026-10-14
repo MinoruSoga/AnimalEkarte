@@ -143,8 +143,8 @@ export function LstepSettingsForm() {
         onClose={() => setIsDeleteOpen(false)}
         onConfirm={handleDeleteConfirm}
         title="Lステップ設定を削除しますか？"
-        description="Lステップ連携設定をすべて削除します。LINE連携機能が無効になります。この操作は元に戻せません。"
-        confirmLabel={deleteMutation.isPending ? "削除中..." : "削除する"}
+        description="Lステップ連携設定をすべて削除します。LINE連携機能が無効になります。この操作は取り消せません。"
+        confirmLabel={deleteMutation.isPending ? "削除中..." : "削除"}
         cancelLabel="キャンセル"
         variant="destructive"
         isPending={deleteMutation.isPending}

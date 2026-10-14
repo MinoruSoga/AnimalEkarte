@@ -3,10 +3,9 @@ import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { C } from "@/lib/design-tokens";
 
-interface MoneyInputProps {
+interface MoneyInputBaseProps {
   label?: string;
-  value: number;
-  onChange: (value: number) => void;
+  min?: number;
   placeholder?: string;
   /** Field-level validation message (e.g. negative price) */
   error?: string;
@@ -14,10 +13,29 @@ interface MoneyInputProps {
   description?: string;
 }
 
+type MoneyInputProps = MoneyInputBaseProps &
+  (
+    | {
+        value: number;
+        onChange: (value: number) => void;
+        stringValue?: never;
+        onStringChange?: never;
+      }
+    | {
+        value?: never;
+        onChange?: never;
+        stringValue: string;
+        onStringChange: (value: string) => void;
+      }
+  );
+
 export function MoneyInput({
   label = "単価(税込)",
   value,
   onChange,
+  stringValue,
+  onStringChange,
+  min,
   placeholder = "0",
   error,
   description,
@@ -29,13 +47,18 @@ export function MoneyInput({
           <span className={`text-sm ${C.text65} select-none`}>¥</span>
           <input
             type="number"
+            min={min}
             aria-label={label}
             aria-invalid={error ? true : undefined}
             className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-xxs ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder} focus-visible:ring-2 ${C.focusRingAccent40}`}
-            value={Number.isNaN(value) || value === 0 ? "" : value}
+            value={stringValue ?? (Number.isNaN(value) || value === 0 ? "" : value)}
             onChange={(e) => {
-              const next = e.target.valueAsNumber;
-              onChange(Number.isNaN(next) ? 0 : next);
+              if (onStringChange) {
+                onStringChange(e.target.value);
+              } else if (onChange) {
+                const next = e.target.valueAsNumber;
+                onChange(Number.isNaN(next) ? 0 : next);
+              }
             }}
             placeholder={placeholder}
           />

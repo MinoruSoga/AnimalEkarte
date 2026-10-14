@@ -159,12 +159,7 @@ export function MasterSettingsIndex() {
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
 
   return (
-    <PageLayout
-      title="マスタ設定"
-      icon={<Settings className={`${ICON.page} ${C.text}`} />}
-      maxWidth="max-w-3xl"
-      align="left"
-    >
+    <PageLayout title="マスタ設定" maxWidth={LAYOUT.pageContentMaxWidth.formNarrow} align="left">
       <div className="px-6 pb-12">
         {/* Notion-style page icon */}
         <div className="pt-6 pb-2">

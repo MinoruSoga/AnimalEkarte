@@ -2,6 +2,7 @@ import { memo, useMemo, type ReactNode } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 import { FieldHelp } from "@/components/shared/FieldHelp";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 
 import {
   DOCUMENT_SECTION_KEYS,
@@ -79,15 +80,14 @@ export function ClinicTaxRateProperty({
   return (
     <PropertyRow label={label} description={description}>
       <div className="flex items-center gap-1.5">
-        <input
-          type="number"
+        <NumberInput
           min={0}
           max={100}
           step={1}
           aria-label={label}
           className={`${PROP_INPUT_CLASS} w-20`}
           value={Math.round(value * 100)}
-          onChange={(e) => onChange(Number(e.target.value) / 100)}
+          onChange={(nextValue) => onChange(Number(nextValue) / 100)}
         />
         <span className={`text-sm ${C.text50}`}>%</span>
       </div>

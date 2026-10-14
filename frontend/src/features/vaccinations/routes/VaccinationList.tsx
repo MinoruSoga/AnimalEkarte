@@ -8,7 +8,7 @@ import {
   useTransition,
 } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
-import { Plus, Syringe } from "lucide-react";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -20,7 +20,7 @@ import { usePagination } from "@/hooks/use-pagination";
 import { usePermission } from "@/hooks/use-permission";
 import { useUrlPageSync } from "@/hooks/use-url-page-sync";
 import { useGetPet } from "@/hooks/use-pet";
-import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { ICON, LAYOUT } from "@/lib/design-tokens";
 import { ResourceVaccinations } from "@/types/generated/models";
 
 import { useFilterVaccinations } from "../hooks/use-vaccinations";
@@ -187,13 +187,12 @@ export function VaccinationList() {
       <PageLayout
         title="予防接種管理"
         resource={ResourceVaccinations}
-        icon={<Syringe className={`${ICON.page} ${C.text}`} />}
         headerAction={
           <div className="flex items-center gap-2">
             {canCreate ? (
               <PrimaryButton colorVariant="primary" onClick={handleCreate}>
                 <Plus className={`mr-1.5 ${ICON.action}`} />
-                新規登録
+                新規予防接種登録
               </PrimaryButton>
             ) : null}
           </div>

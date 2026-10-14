@@ -14,7 +14,7 @@ import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { resolveCageNameById } from "@/lib/cage-name";
 import type { Hospitalization, MasterItem } from "@/types";
-import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
+import { LoadingFallback, ErrorFallback, EmptyState } from "@/components/shared/DataStates";
 import { Plus } from "lucide-react";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
@@ -238,6 +238,23 @@ function HospitalizationListContent({
             <LoadingFallback />
           ) : boardError ? (
             <ErrorFallback />
+          ) : boardHospitalizations.length === 0 ? (
+            <>
+              <EmptyState message="入院データが見つかりません" />
+              <HospitalizationBoard
+                cages={cages}
+                hospitalizations={boardHospitalizations}
+                onNavigateToForm={onNavigateToForm}
+                onMovePet={onMovePet}
+                canCreate={canCreate}
+                canEdit={canEdit}
+                mergeMode={boardMergeMode}
+                canMerge={canOperateCages}
+                hasMergeOccupant={boardMergeMode ? hasMergeOccupant : undefined}
+                onRequestMerge={handleRequestMerge}
+                onRequestUnmerge={handleRequestUnmerge}
+              />
+            </>
           ) : (
             <HospitalizationBoard
               cages={cages}

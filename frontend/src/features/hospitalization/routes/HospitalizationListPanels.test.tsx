@@ -139,6 +139,16 @@ beforeEach(() => {
   );
 });
 
+describe("HospitalizationListPageView empty board", () => {
+  it("患者0件でも空状態とケージ操作を残す", () => {
+    renderPageView({ boardHospitalizations: [], cages: mergeCages });
+
+    expect(screen.getByText("入院データが見つかりません")).toBeInTheDocument();
+    expect(screen.getByText("ケージ10")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ケージ10.*空き枠に入院/ })).toBeInTheDocument();
+  });
+});
+
 afterEach(() => {
   server.resetHandlers();
   localStorage.removeItem(CURRENT_CLINIC_STORAGE_KEY);

@@ -249,7 +249,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
       {/* Comments & Remarks */}
       <div className="grid grid-cols-1 gap-3">
         <div className="flex flex-col gap-1">
-          <Label className={`text-sm font-medium ${C.text60}`}>コメント</Label>
+          <Label className={`font-medium ${C.text60}`}>コメント</Label>
           <Textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
@@ -258,7 +258,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <Label className={`text-sm font-medium ${C.text60}`}>備考</Label>
+          <Label className={`font-medium ${C.text60}`}>備考</Label>
           <Textarea
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}

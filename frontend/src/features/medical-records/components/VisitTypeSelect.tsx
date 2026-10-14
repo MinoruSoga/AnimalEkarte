@@ -20,7 +20,7 @@ export function VisitTypeSelect({ value, onChange, disabled = false }: VisitType
   const triggerId = useId();
   return (
     <div className="flex flex-col gap-0 min-w-[72px] shrink-0">
-      <Label htmlFor={triggerId} className={`text-xs ${C.text50}`}>
+      <Label htmlFor={triggerId} className={`${C.text50}`}>
         来院種別
       </Label>
       <Select value={value} onValueChange={onChange} disabled={disabled}>

@@ -1,8 +1,8 @@
 import { useNavigate } from "react-router";
-import { Activity, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { ICON, LAYOUT } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { ResourceMasterReservationType } from "@/types/generated/models";
 import { ReservationTypeDeleteDialogs } from "../components/ReservationTypeDeleteDialogs";
@@ -19,8 +19,7 @@ export function ReservationTypeSettings() {
       <div className="flex h-full">
         <div className="flex-1 min-w-0">
           <PageLayout
-            title="予約区分"
-            icon={<Activity className={`${ICON.page} ${C.text}`} />}
+            title="予約区分マスタ"
             resource={ResourceMasterReservationType}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth={LAYOUT.pageContentMaxWidth.tableNarrow}

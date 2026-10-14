@@ -4,6 +4,7 @@ import { getFormString } from "@/lib/form-data";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import type { CheckupSyncParams, CheckupType } from "../api/get-checkup-sync-preview";
 import { CPM_STAGE_OPTIONS, type CPMStage } from "@/lib/cpm-stage";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 
 const CHECKUP_TYPE_OPTIONS: { value: CheckupType; label: string }[] = [
   { value: "annual", label: "定期健診" },
@@ -122,9 +123,12 @@ export function CheckupSyncFilterForm({ onSearch, isLoading }: CheckupSyncFilter
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {/* 検診種別 */}
         <div className="space-y-1.5">
-          <label htmlFor="checkup_type" className={STYLE.formLabel}>
+          <label
+            htmlFor="checkup_type"
+            className={`${STYLE.formLabel} inline-flex items-center gap-2`}
+          >
             検診種別
-            <span className={`ml-1 ${C.textRequired}`}>*</span>
+            <RequiredMark />
           </label>
           <select
             id="checkup_type"

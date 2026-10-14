@@ -273,7 +273,7 @@ export function VaccinationListContent({
           headerCellClassName={STYLE.sectionLabel}
           columns={columns}
           data={pagination.paginatedData}
-          emptyMessage="データが見つかりません"
+          emptyMessage="予防接種データが見つかりません"
           renderRow={renderRow}
         />
       </FilteringIndicator>

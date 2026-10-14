@@ -29,7 +29,7 @@ test.describe("LINE予約 フロー E2E", () => {
         timeout: 15000,
       });
       await expect(page.getByText("稼働状態")).toBeVisible({ timeout: 10000 });
-      await expect(page.getByRole("button", { name: "設定を保存" })).toBeVisible({
+      await expect(page.getByRole("button", { name: "保存" })).toBeVisible({
         timeout: 10000,
       });
       await expect(page).toHaveURL(/\/line-reservation/);
@@ -60,7 +60,7 @@ test.describe("LINE予約 フロー E2E", () => {
         timeout: 15000,
       });
       await expect(page.getByLabel("ヘッダーテキスト")).toBeVisible({ timeout: 10000 });
-      await expect(page.getByRole("button", { name: "変更を保存" })).toBeVisible({
+      await expect(page.getByRole("button", { name: "保存" })).toBeVisible({
         timeout: 10000,
       });
     } finally {

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { PawPrint } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { PageLayout } from "./PageLayout";
 
@@ -29,7 +29,6 @@ export const WithDescription: Story = {
 export const WithBackAndAction: Story = {
   args: {
     onBack: () => {},
-    icon: <PawPrint className="size-6" />,
     headerAction: <Button size="sm">新規作成</Button>,
   },
 };

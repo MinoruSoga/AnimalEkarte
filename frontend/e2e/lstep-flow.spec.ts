@@ -20,7 +20,7 @@ test.describe("Lステップ連携 フロー E2E", () => {
     await context.close();
   });
 
-  test("/lstep/checkup-sync — 健診リマインダー抽出ページが表示される", async () => {
+  test("/lstep/checkup-sync — 健診対象者抽出ページが表示される", async () => {
     const page = await context.newPage();
     const lstep = new LstepPage(page);
     try {

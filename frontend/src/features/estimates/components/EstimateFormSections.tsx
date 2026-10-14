@@ -17,6 +17,7 @@ import { C } from "@/lib/design-tokens";
 
 import { CREATE_STATUS_OPTIONS, EDIT_STATUS_OPTIONS } from "../constants/estimate-status-options";
 import type { EstimateStatus } from "../types";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 
 // rendering-hoist-jsx: SelectItem リストは静的なのでモジュール定数に巻き上げ
 const EDIT_STATUS_SELECT_ITEMS = EDIT_STATUS_OPTIONS.map((opt) => (
@@ -56,8 +57,8 @@ export const BasicInfoSection = memo(function BasicInfoSection({
     <>
       {/* タイトル */}
       <div className="space-y-1.5">
-        <Label htmlFor="title" className={`text-sm font-medium ${C.text}`}>
-          タイトル <span className={C.textRequired}>*</span>
+        <Label htmlFor="title" className={`font-medium ${C.text}`}>
+          タイトル <RequiredMark />
         </Label>
         <Input
           id="title"
@@ -73,7 +74,7 @@ export const BasicInfoSection = memo(function BasicInfoSection({
 
       {/* ステータス */}
       <div className="space-y-1.5">
-        <Label htmlFor="status" className={`text-sm font-medium ${C.text}`}>
+        <Label htmlFor="status" className={`font-medium ${C.text}`}>
           ステータス
         </Label>
         <Select value={status} onValueChange={(v) => onChange("status", v as EstimateStatus)}>
@@ -94,7 +95,7 @@ export const BasicInfoSection = memo(function BasicInfoSection({
 
       {/* 有効期限 */}
       <div className="space-y-1.5">
-        <Label htmlFor="validUntil" className={`text-sm font-medium ${C.text}`}>
+        <Label htmlFor="validUntil" className={`font-medium ${C.text}`}>
           有効期限
         </Label>
         <DatePicker
@@ -133,7 +134,7 @@ export const AmountSection = memo(function AmountSection({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div className="space-y-1.5">
-        <Label htmlFor="subtotal" className={`text-sm font-medium ${C.text}`}>
+        <Label htmlFor="subtotal" className={`font-medium ${C.text}`}>
           小計（税抜）
         </Label>
         <NumberInput
@@ -146,7 +147,7 @@ export const AmountSection = memo(function AmountSection({
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="taxTotal" className={`text-sm font-medium ${C.text}`}>
+        <Label htmlFor="taxTotal" className={`font-medium ${C.text}`}>
           消費税
         </Label>
         <NumberInput
@@ -159,7 +160,7 @@ export const AmountSection = memo(function AmountSection({
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="insuranceAmount" className={`text-sm font-medium ${C.text}`}>
+        <Label htmlFor="insuranceAmount" className={`font-medium ${C.text}`}>
           保険適用額
         </Label>
         <NumberInput
@@ -172,7 +173,7 @@ export const AmountSection = memo(function AmountSection({
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="discountAmount" className={`text-sm font-medium ${C.text}`}>
+        <Label htmlFor="discountAmount" className={`font-medium ${C.text}`}>
           割引額
         </Label>
         <NumberInput
@@ -189,7 +190,7 @@ export const AmountSection = memo(function AmountSection({
         ) : null}
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="totalAmount" className={`text-sm font-medium ${C.text}`}>
+        <Label htmlFor="totalAmount" className={`font-medium ${C.text}`}>
           合計金額
         </Label>
         <NumberInput
@@ -222,7 +223,7 @@ export const TextSection = memo(function TextSection({
     <>
       {/* コメント */}
       <div className="space-y-1.5">
-        <Label htmlFor="comment" className={`text-sm font-medium ${C.text}`}>
+        <Label htmlFor="comment" className={`font-medium ${C.text}`}>
           コメント
         </Label>
         <Textarea
@@ -236,7 +237,7 @@ export const TextSection = memo(function TextSection({
 
       {/* 備考 */}
       <div className="space-y-1.5">
-        <Label htmlFor="notes" className={`text-sm font-medium ${C.text}`}>
+        <Label htmlFor="notes" className={`font-medium ${C.text}`}>
           備考（社内メモ）
         </Label>
         <Textarea

@@ -1,6 +1,4 @@
 import { memo, useMemo } from "react";
-import { Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -11,11 +9,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
-import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { FormFieldError } from "@/components/shared/FormFieldError";
-import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { C } from "@/lib/design-tokens";
 import { jstDateStartISOString, todayJSTISO, toJSTWallDate } from "@/lib/jst-date";
 import type { ExaminationRecord } from "../api/transforms";
 
@@ -34,21 +31,12 @@ interface ExaminationFormFieldsProps {
   examTypes: { id: string; name: string }[];
   staffList: { id: string; name: string }[];
   masterLoading: boolean;
-  isEdit: boolean;
-  isDeleting: boolean;
   /** Server-persisted confirmed — full lock (S02). */
   isConfirmed: boolean;
   /** BUG-033: first-pass completed seal — results/delete lock; status transition save allowed. */
   isCompletedLocked?: boolean;
-  /** FE-RC-002: 死亡ペットは render 側でも SubmitButton を非表示にする（callback 側の拒否と二重防壁）。 */
-  isPetDeceased?: boolean;
-  canEdit: boolean;
-  canCreate: boolean;
-  canDelete: boolean;
   fieldErrors?: Record<string, string>;
   onSetFormData: (next: Partial<ExaminationRecord>) => void;
-  onBack: () => void;
-  onDeleteClick: () => void;
 }
 
 function ExaminationFormFieldsBase({
@@ -56,23 +44,12 @@ function ExaminationFormFieldsBase({
   examTypes,
   staffList,
   masterLoading,
-  isEdit,
-  isDeleting,
   isConfirmed,
   isCompletedLocked = false,
-  isPetDeceased = false,
-  canEdit,
-  canCreate,
-  canDelete,
   fieldErrors,
   onSetFormData,
-  onBack,
-  onDeleteClick,
 }: ExaminationFormFieldsProps) {
-  const canSubmit = !isPetDeceased && (isEdit ? canEdit : canCreate && canEdit);
   const fieldsLocked = isConfirmed || isCompletedLocked;
-  // completed seal: hide save/delete while status remains 完了; allow save after status change (confirm/unlock).
-  const showActions = !isConfirmed && !(isCompletedLocked && formData.status === "完了");
   const testTypeError = fieldErrors?.testTypeId;
   const doctorError = fieldErrors?.doctorId;
 
@@ -99,7 +76,7 @@ function ExaminationFormFieldsBase({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label htmlFor="testTypeId" className={`text-sm ${C.text60}`}>
+            <Label htmlFor="testTypeId" className={`${C.text60}`}>
               検査種別
             </Label>
             <MasterLink category="examination" label="編集" className="text-2xs" />
@@ -126,7 +103,7 @@ function ExaminationFormFieldsBase({
         </div>
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label htmlFor="doctorId" className={`text-sm ${C.text60}`}>
+            <Label htmlFor="doctorId" className={`${C.text60}`}>
               担当医
             </Label>
             <MasterLink category="staff" label="編集" className="text-2xs" />
@@ -154,7 +131,7 @@ function ExaminationFormFieldsBase({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="examination-date" className={`text-sm ${C.text60}`}>
+        <Label htmlFor="examination-date" className={`${C.text60}`}>
           検査日
         </Label>
         <DatePicker
@@ -171,7 +148,7 @@ function ExaminationFormFieldsBase({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="examination-status" className={`text-sm ${C.text60}`}>
+        <Label htmlFor="examination-status" className={`${C.text60}`}>
           ステータス
         </Label>
         <Select
@@ -192,7 +169,7 @@ function ExaminationFormFieldsBase({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="examination-notes" className={`text-sm ${C.text60}`}>
+        <Label htmlFor="examination-notes" className={`${C.text60}`}>
           備考・所見
         </Label>
         <Textarea
@@ -204,33 +181,6 @@ function ExaminationFormFieldsBase({
           onChange={(event) => onSetFormData({ resultSummary: event.target.value })}
         />
       </div>
-
-      {showActions ? (
-        <div className="flex justify-end gap-2 pt-2">
-          {canDelete && isEdit && !isCompletedLocked ? (
-            <Button
-              variant="ghost"
-              type="button"
-              className={`text-sm ${STYLE.btnDangerGhost} mr-auto`}
-              onClick={onDeleteClick}
-              disabled={isDeleting}
-            >
-              <Trash2 className={`mr-1.5 ${ICON.action}`} />
-              {isDeleting ? "削除中..." : "削除"}
-            </Button>
-          ) : null}
-          <Button variant="outline" type="button" onClick={onBack} className="text-sm">
-            キャンセル
-          </Button>
-          {canSubmit ? <SubmitButton className="text-sm">保存</SubmitButton> : null}
-        </div>
-      ) : isCompletedLocked ? (
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" type="button" onClick={onBack} className="text-sm">
-            戻る
-          </Button>
-        </div>
-      ) : null}
     </div>
   );
 }

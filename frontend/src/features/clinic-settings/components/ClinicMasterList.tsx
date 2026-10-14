@@ -1,4 +1,4 @@
-import { Building2, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { TableCell } from "@/components/ui/table";
@@ -56,9 +56,8 @@ export function ClinicMasterList({
 }: ClinicMasterListProps) {
   return (
     <PageLayout
-      title="医院"
+      title="医院マスタ"
       resource={ResourceHospitalSettings}
-      icon={<Building2 className={`${ICON.page} ${C.text}`} />}
       onBack={onBack}
       headerAction={
         canCreate ? (

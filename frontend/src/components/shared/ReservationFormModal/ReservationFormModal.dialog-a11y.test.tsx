@@ -89,7 +89,7 @@ describe("ReservationFormModal — Dialog Description a11y (BUG-RES-DIALOG-A11Y-
       );
 
       const dialog = await screen.findByRole("dialog");
-      expect(dialog).toHaveAccessibleName("新規予約作成");
+      expect(dialog).toHaveAccessibleName("新規予約登録");
       expect(dialog).toHaveAccessibleDescription(
         "左側のリストからペットを選択し、右側のフォームで予約情報を入力してください",
       );
@@ -133,7 +133,7 @@ describe("ReservationFormModal — Dialog Description a11y (BUG-RES-DIALOG-A11Y-
         { wrapper: createWrapper() },
       );
 
-      await screen.findByRole("dialog", { name: "新規予約作成" });
+      await screen.findByRole("dialog", { name: "新規予約登録" });
 
       const typeTrigger = await screen.findByTestId("res-type-trigger");
       await user.click(typeTrigger);
@@ -149,7 +149,7 @@ describe("ReservationFormModal — Dialog Description a11y (BUG-RES-DIALOG-A11Y-
         expect(screen.queryByRole("dialog", { name: "予約区分を選択" })).not.toBeInTheDocument();
       });
 
-      expect(screen.getByRole("dialog", { name: "新規予約作成" })).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "新規予約登録" })).toBeInTheDocument();
       expect(missingDescriptionWarnings(warnSpy)).toEqual([]);
     } finally {
       warnSpy.mockRestore();

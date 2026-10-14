@@ -1,7 +1,13 @@
-import { memo, useCallback, useEffect, useState, type ChangeEvent } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { Scissors } from "lucide-react";
 
-import { MasterSidePanel, PropertyInput, PropertyRow } from "@/components/shared/SidePeek";
+import {
+  MasterSidePanel,
+  MoneyInput,
+  PropertyInput,
+  PropertyRow,
+} from "@/components/shared/SidePeek";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { C, LAYOUT } from "@/lib/design-tokens";
@@ -76,13 +82,6 @@ export const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
     setFormDataDirty((prev) => ({ ...prev, combinable: !prev.combinable }));
   }, [setFormDataDirty]);
 
-  const handlePriceChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      setFormDataDirty((prev) => ({ ...prev, price: event.target.value }));
-    },
-    [setFormDataDirty],
-  );
-
   const handleDescriptionChange = useCallback(
     (value: string) => {
       setFormDataDirty((prev) => ({ ...prev, description: value }));
@@ -117,12 +116,7 @@ export const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
         label="所要時間(分)"
         description="このオプションを追加した場合にかかる目安時間（分）です。"
       >
-        <PropertyInput
-          type="number"
-          value={formData.duration}
-          onChange={handleDurationChange}
-          placeholder="30"
-        />
+        <NumberInput value={formData.duration} onChange={handleDurationChange} placeholder="30" />
       </PropertyRow>
 
       <PropertyRow
@@ -138,20 +132,12 @@ export const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
         </button>
       </PropertyRow>
 
-      <PropertyRow label="単価(税込)" description={FIELD_DESCRIPTIONS.unitPrice}>
-        <div className="flex items-center gap-1">
-          <span className={`text-base ${C.text65} select-none`}>¥</span>
-          <input
-            type="number"
-            min={0}
-            aria-label="単価(税込)"
-            className={`w-32 bg-transparent text-base ${C.text} outline-none border-none ${LAYOUT.inputCompact} ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder} focus-visible:ring-2 ${C.focusRingAccent40}`}
-            value={formData.price}
-            onChange={handlePriceChange}
-            placeholder="0"
-          />
-        </div>
-      </PropertyRow>
+      <MoneyInput
+        min={0}
+        stringValue={formData.price}
+        onStringChange={(price) => setFormDataDirty((prev) => ({ ...prev, price }))}
+        description={FIELD_DESCRIPTIONS.unitPrice}
+      />
 
       <PropertyRow label="備考" description={FIELD_DESCRIPTIONS.note}>
         <PropertyInput

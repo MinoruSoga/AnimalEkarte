@@ -75,15 +75,15 @@ describe("InsuranceCard insurance amount display (EMR-62)", () => {
     renderInsuranceCard({ insuranceAmount: 5500 });
 
     expect(screen.getByText("保険負担額")).toBeInTheDocument();
-    expect(screen.getByText("5,500 円")).toBeInTheDocument();
+    expect(screen.getByText("¥5,500")).toBeInTheDocument();
     expect(screen.queryByText(/マイナス/)).not.toBeInTheDocument();
   });
 
   it("レガシー負値データも絶対値で表示する", () => {
     renderInsuranceCard({ insuranceAmount: -5500 });
 
-    expect(screen.getByText("5,500 円")).toBeInTheDocument();
-    expect(screen.queryByText("-5,500 円")).not.toBeInTheDocument();
+    expect(screen.getByText("¥5,500")).toBeInTheDocument();
+    expect(screen.queryByText("-¥5,500")).not.toBeInTheDocument();
   });
 });
 

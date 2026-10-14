@@ -16,6 +16,7 @@ import {
   GENDER_SELECT_ITEMS,
   type PetFieldSectionProps,
 } from "./PetEditFieldShared";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 
 export interface AnimalSpeciesOption {
   id: string | number;
@@ -65,7 +66,7 @@ export function PetIdentitySection({
 
       <div className="space-y-1">
         <Label htmlFor="petName" className={LABEL_CLS}>
-          ペット名 <span className={C.textRequired}>*</span>
+          ペット名 <RequiredMark />
         </Label>
         <Input
           id="petName"
@@ -97,7 +98,7 @@ export function PetIdentitySection({
 
       <div className="space-y-1">
         <Label htmlFor="animalSpeciesId" className={LABEL_CLS}>
-          動物種 <span className={C.textRequired}>*</span>
+          動物種 <RequiredMark />
         </Label>
         <SearchableSelect
           id="animalSpeciesId"
@@ -115,7 +116,7 @@ export function PetIdentitySection({
 
       <div className="space-y-1">
         <Label htmlFor="gender" className={LABEL_CLS}>
-          性別 <span className={C.textRequired}>*</span>
+          性別 <RequiredMark />
         </Label>
         <Select
           value={formData.gender}

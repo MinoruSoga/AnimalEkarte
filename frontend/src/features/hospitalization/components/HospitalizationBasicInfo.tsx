@@ -89,7 +89,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
 
       {/* 入院タイプ */}
       <div className="mb-3">
-        <Label className={`${H_STYLES.text.sm} ${C.text60} mb-1.5 block`}>入院タイプ</Label>
+        <Label className={`${H_STYLES.text.base} ${C.text60} mb-1.5 block`}>入院タイプ</Label>
         <RadioGroup
           value={formData.hospitalizationType}
           onValueChange={(val) => onChange({ hospitalizationType: val })}
@@ -129,7 +129,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
 
       {/* 期間 */}
       <div className="mb-3">
-        <Label className={`${H_STYLES.text.sm} ${C.text60} mb-1.5 block flex items-center gap-2`}>
+        <Label className={`${H_STYLES.text.base} ${C.text60} mb-1.5 block flex items-center gap-2`}>
           <Calendar className={ICON.action} />
           期間
         </Label>
@@ -173,7 +173,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
           ケージ未設定の入院はボードの「ケージ未割当」欄に表示される） */}
       <div className="mb-3">
         <div className="flex items-center justify-between mb-1.5">
-          <Label htmlFor="cage_id" className={`${H_STYLES.text.sm} ${C.text60}`}>
+          <Label htmlFor="cage_id" className={`${H_STYLES.text.base} ${C.text60}`}>
             ケージ・個室
           </Label>
           <MasterLink category="cage" label="編集" className="text-2xs" />
@@ -281,7 +281,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
 
       {/* メモ */}
       <div>
-        <Label htmlFor="memo" className={`${H_STYLES.text.sm} ${C.text60} mb-1.5 block`}>
+        <Label htmlFor="memo" className={`${H_STYLES.text.base} ${C.text60} mb-1.5 block`}>
           メモ
         </Label>
         <Textarea

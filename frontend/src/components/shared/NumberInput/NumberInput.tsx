@@ -9,7 +9,7 @@ interface NumberInputProps {
   value: number | string;
   onChange: (value: string) => void;
   placeholder?: string;
-  step?: number;
+  step?: number | "any";
   min?: number;
   max?: number;
   /** 入力フィールド右端に表示する単位テキスト（例: "円", "kg", "℃"） */
@@ -18,8 +18,14 @@ interface NumberInputProps {
   className?: string;
   disabled?: boolean;
   id?: string;
+  name?: string;
+  required?: boolean;
+  readOnly?: boolean;
+  "aria-label"?: ComponentProps<"input">["aria-label"];
+  "aria-required"?: ComponentProps<"input">["aria-required"];
   "aria-invalid"?: ComponentProps<"input">["aria-invalid"];
   "aria-describedby"?: ComponentProps<"input">["aria-describedby"];
+  onInvalid?: ComponentProps<"input">["onInvalid"];
 }
 
 export const NumberInput = memo(function NumberInput({
@@ -34,13 +40,21 @@ export const NumberInput = memo(function NumberInput({
   className,
   disabled,
   id,
+  name,
+  required,
+  readOnly,
+  "aria-label": ariaLabel,
+  "aria-required": ariaRequired,
   "aria-invalid": ariaInvalid,
   "aria-describedby": ariaDescribedBy,
+  onInvalid,
 }: NumberInputProps) {
   return (
     <div className="relative">
       <Input
         id={id}
+        name={name}
+        aria-label={ariaLabel}
         type="number"
         step={step}
         min={min}
@@ -49,8 +63,12 @@ export const NumberInput = memo(function NumberInput({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
+        required={required}
+        readOnly={readOnly}
+        aria-required={ariaRequired}
         aria-invalid={ariaInvalid}
         aria-describedby={ariaDescribedBy}
+        onInvalid={onInvalid}
         className={`${suffix ? "pr-10" : ""} ${align === "right" ? "text-right" : ""} ${className ?? ""}`.trimEnd()}
       />
       {suffix ? (

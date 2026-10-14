@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/shared/DataStates";
 
 // Types
 import type { ApiStaffNote, CreateStaffNoteRequest } from "../../api/daily-records-types";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 
 interface DailyStaffNotesSectionProps {
   staffNotes: ApiStaffNote[];
@@ -116,7 +117,7 @@ export const DailyStaffNotesSection = memo(function DailyStaffNotesSection({
         <div className="space-y-3 py-2">
           <div>
             <Label htmlFor="note-time" className="text-xs">
-              時刻 <span className={C.textRequired}>*</span>
+              時刻 <RequiredMark />
             </Label>
             <Input
               id="note-time"
@@ -129,7 +130,7 @@ export const DailyStaffNotesSection = memo(function DailyStaffNotesSection({
           </div>
           <div>
             <Label htmlFor="note-content" className="text-xs">
-              内容 <span className={C.textRequired}>*</span>
+              内容 <RequiredMark />
             </Label>
             <Textarea
               id="note-content"

@@ -323,8 +323,8 @@ describe("EstimateForm BUG-019 not-found / network gate", () => {
     };
     renderEditForm();
     expect(screen.getByText("見積書が見つかりません")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "更新" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "作成" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
   });
 
   it("403 相当: 404 と同一の非開示メッセージ（見積書が見つかりません）", () => {
@@ -336,7 +336,7 @@ describe("EstimateForm BUG-019 not-found / network gate", () => {
     };
     renderEditForm();
     expect(screen.getByText("見積書が見つかりません")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "更新" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
   });
 
   it("network error: 取得失敗 + 再試行、blank form ではない", () => {
@@ -352,13 +352,13 @@ describe("EstimateForm BUG-019 not-found / network gate", () => {
     expect(screen.getByRole("button", { name: "再試行" })).toBeInTheDocument();
     screen.getByRole("button", { name: "再試行" }).click();
     expect(refetch).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("button", { name: "更新" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
   });
 
   it("create route /estimates/new は従来どおり新規フォームを開く", () => {
     renderCreateForm();
-    expect(screen.getByText("新規見積書作成")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "作成" })).toBeInTheDocument();
+    expect(screen.getByText("見積書登録")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
   });
 
   it("正常 edit: draft 見積で編集フォームを開く", async () => {

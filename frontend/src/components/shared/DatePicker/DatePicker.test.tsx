@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { useState } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -12,6 +13,198 @@ function dayButton(isoDay: string) {
     name: new RegExp(`${year}年${month}月${day}日`),
   });
 }
+
+describe("DatePicker accessible naming", () => {
+  it("業務ラベルをテキスト入力とカレンダー操作へ伝える", () => {
+    render(<DatePicker value="" onChange={vi.fn()} ariaLabel="開始日" />);
+
+    expect(screen.getByRole("textbox", { name: "開始日" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "開始日を選択" })).toBeInTheDocument();
+  });
+});
+
+describe("DatePicker single mode form serialization", () => {
+  it("名前付き日付を表示形式ではなく ISO 形式で 1 つだけ送信する", () => {
+    const { container } = render(
+      <form>
+        <DatePicker id="visit-date" name="visit_date" value="2026-10-14" onChange={vi.fn()} />
+      </form>,
+    );
+    const form = container.querySelector("form");
+
+    expect(form).not.toBeNull();
+    expect(new FormData(form!).getAll("visit_date")).toEqual(["2026-10-14"]);
+    expect(screen.getByRole("textbox")).not.toHaveAttribute("name");
+    expect(container.querySelectorAll('[name="visit_date"]')).toHaveLength(1);
+  });
+
+  it("空の日付も空文字で送信する", () => {
+    const { container } = render(
+      <form>
+        <DatePicker name="visit_date" value="" onChange={vi.fn()} />
+      </form>,
+    );
+    const form = container.querySelector("form");
+
+    expect(form).not.toBeNull();
+    expect(new FormData(form!).getAll("visit_date")).toEqual([""]);
+  });
+
+  it("disabled では表示欄と clear 操作を無効にし FormData から除外する", () => {
+    const { container } = render(
+      <form>
+        <DatePicker name="visit_date" value="2026-10-14" onChange={vi.fn()} disabled />
+      </form>,
+    );
+    const form = container.querySelector("form");
+
+    expect(form).not.toBeNull();
+    expect(screen.getByRole("textbox")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "カレンダーを開く" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "日付をクリア" })).toBeDisabled();
+    expect(new FormData(form!).has("visit_date")).toBe(false);
+  });
+
+  it("disabled では clear/Today と開いたカレンダー操作が値を変更しない", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { rerender } = render(<DatePicker value="2026-10-14" onChange={onChange} />);
+    await user.click(screen.getByRole("button", { name: "カレンダーを開く" }));
+    expect(screen.getByRole("button", { name: "Today" })).toBeInTheDocument();
+
+    rerender(<DatePicker value="2026-10-14" onChange={onChange} disabled />);
+    expect(screen.queryByRole("button", { name: "Today" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "日付をクリア" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "日付をクリア" }));
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("DatePicker disabledDays single mode behavior", () => {
+  it.each([
+    ["before", "2026-10-13"],
+    ["after", "2026-10-17"],
+  ])("手入力の %s 日付 %s は値を通知しつつ native validity で無効化する", async (_label, value) => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <DatePicker
+        value=""
+        onChange={onChange}
+        disabledDays={{ before: new Date(2026, 9, 14), after: new Date(2026, 9, 16) }}
+      />,
+    );
+    const input = screen.getByRole<HTMLInputElement>("textbox");
+
+    await user.click(input);
+    await user.type(input, value);
+    await user.keyboard("{Enter}");
+
+    expect(onChange).toHaveBeenCalledWith(value);
+    expect(input.validity.valid).toBe(false);
+    expect(input.validationMessage).toBeTruthy();
+  });
+
+  it("disabledDays に一致する今日を Today 操作で選択できない", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    render(<DatePicker value="" onChange={onChange} disabledDays={today} />);
+
+    await user.click(screen.getByRole("button", { name: "カレンダーを開く" }));
+
+    const todayButton = screen.getByRole("button", { name: "Today" });
+    expect(todayButton).toBeDisabled();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("範囲外の手入力は ISO hidden 値を保持しつつ native validation で送信を拒否する", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn((event: React.FormEvent<HTMLFormElement>) => event.preventDefault());
+    function Form() {
+      const [value, setValue] = useState("");
+      return (
+        <form onSubmit={onSubmit}>
+          <DatePicker
+            name="visit_date"
+            ariaLabel="来院日"
+            value={value}
+            onChange={setValue}
+            required
+            disabledDays={{ before: new Date(2026, 9, 14) }}
+          />
+          <button type="submit">送信</button>
+        </form>
+      );
+    }
+    render(<Form />);
+    const input = screen.getByRole<HTMLInputElement>("textbox", { name: "来院日" });
+    await user.type(input, "2026/10/13");
+    await user.tab();
+
+    const form = input.closest("form");
+    expect(form).not.toBeNull();
+    expect(new FormData(form!).get("visit_date")).toBe("2026-10-13");
+    expect(input.validity.valid).toBe(false);
+    await user.click(screen.getByRole("button", { name: "送信" }));
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["min", "2026-10-14", "2026/10/13"],
+    ["max", "2026-10-14", "2026/10/15"],
+  ])("%s 境界外の手入力は値を通知し、フォーム送信を拒否する", async (bound, limit, typedValue) => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const onSubmit = vi.fn((event: React.FormEvent<HTMLFormElement>) => event.preventDefault());
+    function Form() {
+      const [value, setValue] = useState("");
+      return (
+        <form onSubmit={onSubmit}>
+          <DatePicker
+            name="visit_date"
+            value={value}
+            onChange={(nextValue) => {
+              onChange(nextValue);
+              setValue(nextValue);
+            }}
+            min={bound === "min" ? limit : undefined}
+            max={bound === "max" ? limit : undefined}
+          />
+          <button type="submit">送信</button>
+        </form>
+      );
+    }
+    render(<Form />);
+    const input = screen.getByRole<HTMLInputElement>("textbox");
+
+    await user.type(input, typedValue);
+    await user.tab();
+
+    const form = input.closest("form");
+    expect(form).not.toBeNull();
+    expect(onChange).toHaveBeenCalledWith(typedValue.replaceAll("/", "-"));
+    expect(new FormData(form!).get("visit_date")).toBe(typedValue.replaceAll("/", "-"));
+    expect(input.validity.valid).toBe(false);
+    await user.click(screen.getByRole("button", { name: "送信" }));
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("popup 表示中に disabled へ変わったら閉じ、既存 callback を実行できない", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { rerender } = render(<DatePicker value="2026-10-14" onChange={onChange} />);
+
+    await user.click(screen.getByRole("button", { name: "カレンダーを開く" }));
+    expect(screen.getByRole("button", { name: "Today" })).toBeInTheDocument();
+
+    rerender(<DatePicker value="2026-10-14" onChange={onChange} disabled />);
+
+    expect(screen.queryByRole("button", { name: "Today" })).not.toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
 
 describe("DatePicker — 44px touch targets", () => {
   it("CalendarNavの前月・タイトル・次月を44x44px以上に保つ", () => {

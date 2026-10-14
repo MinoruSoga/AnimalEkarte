@@ -3,10 +3,10 @@ import { useState, useDeferredValue, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 // External
-import { Plus, Package } from "lucide-react";
+import { Plus } from "lucide-react";
 
 // Internal
-import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { ICON, LAYOUT } from "@/lib/design-tokens";
 import { useSortableData } from "@/hooks/use-sortable-data";
 import { useUrlPageSync } from "@/hooks/use-url-page-sync";
 import { usePermission } from "@/hooks/use-permission";
@@ -133,13 +133,12 @@ export function InventoryList() {
     <PageLayout
       title="在庫管理"
       resource={ResourceInventory}
-      icon={<Package className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <div className="flex items-center gap-2">
           {canCreate ? (
             <PrimaryButton colorVariant="primary" onClick={handleCreate}>
               <Plus className={`mr-1.5 ${ICON.action}`} />
-              新規登録
+              新規在庫登録
             </PrimaryButton>
           ) : null}
         </div>

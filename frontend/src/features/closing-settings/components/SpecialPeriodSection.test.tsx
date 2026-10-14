@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { SpecialPeriodSection } from "./SpecialPeriodSection";
 import type { ClosingSpecialPeriod } from "@/types/generated/models";
@@ -31,6 +32,12 @@ function renderSection(ui: JSX.Element) {
   });
 }
 
+function inputByFieldLabel(label: string) {
+  return label === "開始日" || label === "終了日"
+    ? screen.getByRole("textbox", { name: label })
+    : screen.getByLabelText(label);
+}
+
 function makePeriod(overrides: Partial<ClosingSpecialPeriod> = {}): ClosingSpecialPeriod {
   return {
     id: 1,
@@ -46,14 +53,22 @@ function makePeriod(overrides: Partial<ClosingSpecialPeriod> = {}): ClosingSpeci
   };
 }
 
-function fillAndSubmit(fields: {
+async function enterDate(label: string, value: string) {
+  const user = userEvent.setup();
+  const input = screen.getByRole("textbox", { name: label });
+  await user.click(input);
+  await user.type(input, value);
+  await user.tab();
+}
+
+async function fillAndSubmit(fields: {
   start_date: string;
   end_date: string;
   am_pm_boundary: string;
   pm_end: string;
 }) {
-  fireEvent.change(screen.getByLabelText("開始日"), { target: { value: fields.start_date } });
-  fireEvent.change(screen.getByLabelText("終了日"), { target: { value: fields.end_date } });
+  await enterDate("開始日", fields.start_date);
+  await enterDate("終了日", fields.end_date);
   fireEvent.change(screen.getByLabelText("午前・午後 区切り時間"), {
     target: { value: fields.am_pm_boundary },
   });
@@ -139,7 +154,7 @@ describe("SpecialPeriodSection", () => {
   it("追加ボタンでフォームを表示し、キャンセルで閉じる", () => {
     renderSection(<SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />);
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
-    expect(screen.getByLabelText("開始日")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "開始日" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "キャンセル" }));
     expect(screen.queryByLabelText("開始日")).not.toBeInTheDocument();
@@ -170,7 +185,7 @@ describe("SpecialPeriodSection", () => {
     renderSection(<SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />);
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
 
-    expect(screen.getByLabelText("開始日")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "開始日" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
   });
 
@@ -178,7 +193,7 @@ describe("SpecialPeriodSection", () => {
     renderSection(<SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />);
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
 
-    fillAndSubmit({
+    await fillAndSubmit({
       start_date: "2026-12-29",
       end_date: "2027-01-03",
       am_pm_boundary: "12:00",
@@ -201,7 +216,7 @@ describe("SpecialPeriodSection", () => {
     renderSection(<SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />);
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
 
-    fillAndSubmit({
+    await fillAndSubmit({
       start_date: "2026-12-29",
       end_date: "2027-01-03",
       am_pm_boundary: "12:00",
@@ -224,7 +239,7 @@ describe("SpecialPeriodSection", () => {
     renderSection(<SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />);
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
 
-    fillAndSubmit({
+    await fillAndSubmit({
       start_date: "2027-01-03",
       end_date: "2026-12-29", // 開始 > 終了（逆転）
       am_pm_boundary: "12:00",
@@ -242,7 +257,7 @@ describe("SpecialPeriodSection", () => {
     renderSection(<SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />);
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
 
-    fillAndSubmit({
+    await fillAndSubmit({
       start_date: "2026-12-29",
       end_date: "2027-01-03",
       am_pm_boundary: "18:00", // 区切り > 終了（逆転）
@@ -262,13 +277,13 @@ describe("SpecialPeriodSection", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
 
-    const form = screen.getByLabelText("開始日").closest("form");
+    const form = screen.getByRole("textbox", { name: "開始日" }).closest("form");
     expect(form).not.toBeNull();
 
     rerender(<SpecialPeriodSection periods={[]} canCreate={false} canDelete={true} />);
 
-    fireEvent.change(screen.getByLabelText("開始日"), { target: { value: "2026-12-29" } });
-    fireEvent.change(screen.getByLabelText("終了日"), { target: { value: "2027-01-03" } });
+    await enterDate("開始日", "2026-12-29");
+    await enterDate("終了日", "2027-01-03");
     fireEvent.change(screen.getByLabelText("午前・午後 区切り時間"), {
       target: { value: "12:00" },
     });
@@ -329,11 +344,11 @@ describe("SpecialPeriodSection", () => {
       ];
 
       for (const { label } of cases) {
-        fireEvent.invalid(screen.getByLabelText(label));
+        fireEvent.invalid(inputByFieldLabel(label));
       }
 
       for (const { label, errorId, message } of cases) {
-        const input = screen.getByLabelText(label);
+        const input = inputByFieldLabel(label);
         expect(input).toHaveAttribute("aria-invalid", "true");
         expect(input).toHaveAttribute("aria-describedby", errorId);
         expect(input.className).toContain("ring-2");
@@ -341,20 +356,23 @@ describe("SpecialPeriodSection", () => {
       }
     });
 
-    it("開始日だけ invalid なら他項目は通常表示のまま、入力で解除される", () => {
+    it("開始日だけ invalid なら他項目は通常表示のまま、入力で解除される", async () => {
       renderSection(<SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />);
       fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
 
-      fireEvent.invalid(screen.getByLabelText("開始日"));
+      fireEvent.invalid(screen.getByRole("textbox", { name: "開始日" }));
 
-      expect(screen.getByLabelText("開始日")).toHaveAttribute("aria-invalid", "true");
-      expect(screen.getByLabelText("終了日")).not.toHaveAttribute("aria-invalid");
+      expect(screen.getByRole("textbox", { name: "開始日" })).toHaveAttribute(
+        "aria-invalid",
+        "true",
+      );
+      expect(screen.getByRole("textbox", { name: "終了日" })).not.toHaveAttribute("aria-invalid");
       expect(screen.getByLabelText("午前・午後 区切り時間")).not.toHaveAttribute("aria-invalid");
       expect(screen.getByLabelText("午後 終了時間")).not.toHaveAttribute("aria-invalid");
 
-      fireEvent.change(screen.getByLabelText("開始日"), { target: { value: "2026-12-29" } });
+      await enterDate("開始日", "2026-12-29");
 
-      expect(screen.getByLabelText("開始日")).not.toHaveAttribute("aria-invalid");
+      expect(screen.getByRole("textbox", { name: "開始日" })).not.toHaveAttribute("aria-invalid");
       expect(document.getElementById("sp-start-date-error")).toBeNull();
     });
 
@@ -394,13 +412,16 @@ describe("SpecialPeriodSection", () => {
     it("開始日のみ入力して保存すると残り3項目だけが invalid になる", async () => {
       renderSection(<SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />);
       fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
-      fireEvent.change(screen.getByLabelText("開始日"), { target: { value: "2026-12-29" } });
+      await enterDate("開始日", "2026-12-29");
 
       fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
       await waitFor(() => {
-        expect(screen.getByLabelText("開始日")).not.toHaveAttribute("aria-invalid");
-        expect(screen.getByLabelText("終了日")).toHaveAttribute("aria-invalid", "true");
+        expect(screen.getByRole("textbox", { name: "開始日" })).not.toHaveAttribute("aria-invalid");
+        expect(screen.getByRole("textbox", { name: "終了日" })).toHaveAttribute(
+          "aria-invalid",
+          "true",
+        );
         expect(screen.getByLabelText("午前・午後 区切り時間")).toHaveAttribute(
           "aria-invalid",
           "true",

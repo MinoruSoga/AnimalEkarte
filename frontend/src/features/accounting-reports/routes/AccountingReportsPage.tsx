@@ -1,8 +1,8 @@
 import { useCallback, useState, useTransition } from "react";
 import { useNavigate } from "react-router";
-import { BarChart3 } from "lucide-react";
+
 import { toast } from "sonner";
-import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { C, LAYOUT } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { handleApiError } from "@/lib/handle-api-error";
 import { usePermission } from "@/hooks/use-permission";
@@ -82,7 +82,6 @@ export function AccountingReportsPage() {
     <PageLayout
       title="月次集計レポート"
       resource={ResourceAccountingReports}
-      icon={<BarChart3 className={`${ICON.page} ${C.text}`} />}
       maxWidth={LAYOUT.pageContentMaxWidth.full}
       headerAction={
         <AccountingReportsHeaderActions

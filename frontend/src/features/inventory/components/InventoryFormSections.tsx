@@ -2,6 +2,7 @@ import { memo, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { C } from "@/lib/design-tokens";
 import type { InventoryItem } from "@/types";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 
 const CATEGORY_OPTIONS: { value: InventoryItem["category"]; label: string }[] = [
   { value: "medicine", label: "医薬品" },
@@ -49,8 +51,8 @@ export const BasicInfoSection = memo(function BasicInfoSection({
       <h3 className={`text-base font-medium ${C.text} mb-4`}>基本情報</h3>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <Label htmlFor="name" className={`text-sm ${C.text}`}>
-            品名 <span className={C.textRequired}>*</span>
+          <Label htmlFor="name" className={`${C.text}`}>
+            品名 <RequiredMark />
           </Label>
           <Input
             id="name"
@@ -69,8 +71,8 @@ export const BasicInfoSection = memo(function BasicInfoSection({
           <FormFieldError id="name-error" message={nameError} />
         </div>
         <div>
-          <Label htmlFor="category" className={`text-sm ${C.text}`}>
-            カテゴリ <span className={C.textRequired}>*</span>
+          <Label htmlFor="category" className={`${C.text}`}>
+            カテゴリ <RequiredMark />
           </Label>
           <Select
             value={category || (existingCategory ?? "medicine")}
@@ -94,8 +96,8 @@ export const BasicInfoSection = memo(function BasicInfoSection({
           </Select>
         </div>
         <div>
-          <Label htmlFor="unit" className={`text-sm ${C.text}`}>
-            単位 <span className={C.textRequired}>*</span>
+          <Label htmlFor="unit" className={`${C.text}`}>
+            単位 <RequiredMark />
           </Label>
           <Input
             id="unit"
@@ -165,17 +167,16 @@ export const StockInfoSection = memo(function StockInfoSection({
       ) : null}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <Label htmlFor="quantity" className={`text-sm ${C.text}`}>
-            現在庫数 <span className={C.textRequired}>*</span>
+          <Label htmlFor="quantity" className={`${C.text}`}>
+            現在庫数 <RequiredMark />
           </Label>
-          <Input
+          <NumberInput
             id="quantity"
             name="quantity"
-            type="number"
-            step="1"
+            step={1}
             value={quantity}
-            onChange={(event) => {
-              setQuantity(event.target.value);
+            onChange={(value) => {
+              setQuantity(value);
               onMarkDirty();
             }}
             className={`mt-1 ${C.bgWhite} ${C.borderMedium}`}
@@ -186,17 +187,16 @@ export const StockInfoSection = memo(function StockInfoSection({
           <FormFieldError id="quantity-error" message={quantityError} />
         </div>
         <div>
-          <Label htmlFor="minStockLevel" className={`text-sm ${C.text}`}>
-            最低在庫数 <span className={C.textRequired}>*</span>
+          <Label htmlFor="minStockLevel" className={`${C.text}`}>
+            最低在庫数 <RequiredMark />
           </Label>
-          <Input
+          <NumberInput
             id="minStockLevel"
             name="minStockLevel"
-            type="number"
-            step="1"
+            step={1}
             value={minStockLevel}
-            onChange={(event) => {
-              setMinStockLevel(event.target.value);
+            onChange={(value) => {
+              setMinStockLevel(value);
               onMarkDirty();
             }}
             className={`mt-1 ${C.bgWhite} ${C.borderMedium}`}
@@ -207,7 +207,7 @@ export const StockInfoSection = memo(function StockInfoSection({
           <FormFieldError id="minStockLevel-error" message={minStockLevelError} />
         </div>
         <div>
-          <Label htmlFor="location" className={`text-sm ${C.text}`}>
+          <Label htmlFor="location" className={`${C.text}`}>
             保管場所
           </Label>
           <Input
@@ -219,7 +219,7 @@ export const StockInfoSection = memo(function StockInfoSection({
           />
         </div>
         <div>
-          <Label htmlFor="expiryDate" className={`text-sm ${C.text}`}>
+          <Label htmlFor="expiryDate" className={`${C.text}`}>
             有効期限
           </Label>
           <input type="hidden" name="expiryDate" value={resolvedExpiry} />
@@ -257,7 +257,7 @@ export const SupplierInfoSection = memo(function SupplierInfoSection({
       <h3 className={`text-base font-medium ${C.text} mb-4`}>仕入先情報</h3>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <Label htmlFor="supplier" className={`text-sm ${C.text}`}>
+          <Label htmlFor="supplier" className={`${C.text}`}>
             仕入先
           </Label>
           <Input
@@ -269,7 +269,7 @@ export const SupplierInfoSection = memo(function SupplierInfoSection({
           />
         </div>
         <div>
-          <Label htmlFor="lastRestocked" className={`text-sm ${C.text}`}>
+          <Label htmlFor="lastRestocked" className={`${C.text}`}>
             最終入荷日
           </Label>
           <input type="hidden" name="lastRestocked" value={resolvedLastRestocked} />

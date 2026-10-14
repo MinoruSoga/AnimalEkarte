@@ -103,7 +103,7 @@ describe("InventoryForm BUG-507 not-found / network gate", () => {
 
     expect(screen.getByText("在庫情報が見つかりません")).toBeInTheDocument();
     expect(screen.queryByText("在庫編集")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "更新" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
     expect(document.querySelector("form#inventory-form")).not.toBeInTheDocument();
   });
 
@@ -136,7 +136,7 @@ describe("InventoryForm BUG-507 not-found / network gate", () => {
     screen.getByRole("button", { name: "再試行" }).click();
     expect(retry).toHaveBeenCalledTimes(1);
     expect(document.querySelector("form#inventory-form")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "更新" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
   });
 
   it("既存ID: 在庫編集フォームをデータ付きで開く", () => {
@@ -170,7 +170,7 @@ describe("InventoryForm RBAC", () => {
       "編集権限がないため変更できません",
     );
     expect(document.querySelector("fieldset")).toBeDisabled();
-    expect(screen.queryByRole("button", { name: "更新" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
   });
 
   it("usePermission の canCreate/canEdit を useInventoryForm の permissions に渡す", () => {
@@ -264,8 +264,8 @@ describe("InventoryForm header submit (BUG-007)", () => {
     renderForm();
     const form = document.querySelector("form#inventory-form");
     expect(form).toHaveAttribute("id", "inventory-form");
-    const buttons = screen.getAllByRole("button", { name: "更新" });
-    expect(buttons.length).toBeGreaterThanOrEqual(2);
+    const buttons = screen.getAllByRole("button", { name: "保存" });
+    expect(buttons.length).toBe(1);
     const header = buttons.find((b) => b.getAttribute("form") === "inventory-form");
     expect(header).toBeDefined();
     expect(header).toHaveAttribute("type", "submit");

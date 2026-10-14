@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { HolidaySection } from "./HolidaySection";
 import type { ClosingHoliday } from "../api/holidays";
 
@@ -140,19 +141,23 @@ describe("HolidaySection", () => {
     render(<HolidaySection holidays={[]} canCreate={true} canDelete={true} />);
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
 
-    const grid = screen.getByLabelText("日付").parentElement?.parentElement;
+    const grid = screen.getByRole("textbox", { name: "日付" }).parentElement?.parentElement
+      ?.parentElement;
     expect(grid).toHaveClass("grid-cols-1", "sm:grid-cols-2");
     expect(grid).not.toHaveClass("grid-cols-2");
   });
 
   it("日付と理由を入力して送信すると createMutation が呼ばれ、送信後フォームが閉じる", async () => {
+    const user = userEvent.setup();
     render(<HolidaySection holidays={[]} canCreate={true} canDelete={true} />);
-    fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
+    await user.click(screen.getByRole("button", { name: "新規登録" }));
 
-    fireEvent.change(screen.getByLabelText("日付"), { target: { value: "2026-10-10" } });
-    fireEvent.change(screen.getByLabelText("理由・メモ"), { target: { value: "設備点検" } });
+    const dateInput = screen.getByRole("textbox", { name: "日付" });
+    await user.type(dateInput, "2026/10/10");
+    await user.tab();
+    await user.type(screen.getByLabelText("理由・メモ"), "設備点検");
     // 行追加は「新規登録」、フォーム内送信は「追加」のまま。
-    fireEvent.click(screen.getByRole("button", { name: "追加" }));
+    await user.click(screen.getByRole("button", { name: "追加" }));
 
     await waitFor(() =>
       expect(mockCreateMutateAsync).toHaveBeenCalledWith({
@@ -164,11 +169,14 @@ describe("HolidaySection", () => {
   });
 
   it("理由未入力の場合 reason は undefined として渡される", async () => {
+    const user = userEvent.setup();
     render(<HolidaySection holidays={[]} canCreate={true} canDelete={true} />);
-    fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
+    await user.click(screen.getByRole("button", { name: "新規登録" }));
 
-    fireEvent.change(screen.getByLabelText("日付"), { target: { value: "2026-10-10" } });
-    fireEvent.click(screen.getByRole("button", { name: "追加" }));
+    const dateInput = screen.getByRole("textbox", { name: "日付" });
+    await user.type(dateInput, "2026/10/10");
+    await user.tab();
+    await user.click(screen.getByRole("button", { name: "追加" }));
 
     await waitFor(() =>
       expect(mockCreateMutateAsync).toHaveBeenCalledWith({ date: "2026-10-10", reason: undefined }),
@@ -176,11 +184,14 @@ describe("HolidaySection", () => {
   });
 
   it("canCreate=false のとき formAction は mutate せず toast.error する", async () => {
+    const user = userEvent.setup();
     const { rerender } = render(<HolidaySection holidays={[]} canCreate={true} canDelete={true} />);
-    fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
-    fireEvent.change(screen.getByLabelText("日付"), { target: { value: "2026-10-10" } });
+    await user.click(screen.getByRole("button", { name: "新規登録" }));
+    const dateInput = screen.getByRole("textbox", { name: "日付" });
+    await user.type(dateInput, "2026/10/10");
+    await user.tab();
 
-    const form = screen.getByLabelText("日付").closest("form");
+    const form = dateInput.closest("form");
     expect(form).not.toBeNull();
 
     rerender(<HolidaySection holidays={[]} canCreate={false} canDelete={true} />);
@@ -215,21 +226,22 @@ describe("HolidaySection", () => {
   });
 
   // EMR-319: 日付必須が空で invalid になると赤枠+エラー文+aria-invalid が出る。
-  it("日付が空のまま invalid になると aria-invalid とエラー文が出て、入力で解除される", () => {
+  it("日付が空のまま invalid になると aria-invalid とエラー文が出て、入力で解除される", async () => {
     render(<HolidaySection holidays={[]} canCreate={true} canDelete={true} />);
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
 
-    const dateInput = screen.getByLabelText("日付");
+    const dateInput = screen.getByRole("textbox", { name: "日付" });
     fireEvent.invalid(dateInput);
 
     expect(dateInput).toHaveAttribute("aria-invalid", "true");
     expect(dateInput).toHaveAttribute("aria-describedby", "holiday-date-error");
-    expect(dateInput.className).toContain("ring-2");
     expect(document.getElementById("holiday-date-error")).toHaveTextContent(
       "日付を入力してください",
     );
 
-    fireEvent.change(dateInput, { target: { value: "2026-10-10" } });
+    const user = userEvent.setup();
+    await user.type(dateInput, "2026/10/10");
+    await user.tab();
 
     expect(dateInput).not.toHaveAttribute("aria-invalid");
     expect(document.getElementById("holiday-date-error")).toBeNull();

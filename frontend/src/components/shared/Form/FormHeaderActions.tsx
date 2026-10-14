@@ -23,11 +23,11 @@ export function FormHeaderActions({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {extra}
-      <Button type="button" variant="outline" size="sm" onClick={onCancel} className="h-10 text-sm">
+      <Button type="button" variant="outline" size="sm" onClick={onCancel} className="h-10">
         {cancelLabel}
       </Button>
       {submitLabel ? (
-        <SubmitButton form={submitFormId} disabled={submitDisabled} className="h-10 px-4 text-sm">
+        <SubmitButton form={submitFormId} disabled={submitDisabled} className="h-10 px-4">
           {submitLabel}
         </SubmitButton>
       ) : null}

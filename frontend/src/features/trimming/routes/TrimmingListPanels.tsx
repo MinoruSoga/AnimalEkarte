@@ -1,5 +1,5 @@
 import { ICON, C, LAYOUT } from "@/lib/design-tokens";
-import { Plus, Scissors } from "lucide-react";
+import { Plus } from "lucide-react";
 import type {
   ActiveFilter,
   ActiveSort,
@@ -79,13 +79,12 @@ export function TrimmingListContent({
   return (
     <PageLayout
       title="トリミング管理"
-      icon={<Scissors className={`${ICON.page} ${C.text}`} />}
       resource={ResourceTrimming}
       headerAction={
         canCreate ? (
           <PrimaryButton onClick={onNew}>
             <Plus className={`mr-1.5 ${ICON.action}`} />
-            新規登録
+            新規トリミング登録
           </PrimaryButton>
         ) : null
       }

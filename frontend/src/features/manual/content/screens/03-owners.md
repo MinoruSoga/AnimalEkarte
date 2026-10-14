@@ -6,7 +6,7 @@ keywords: 飼い主, オーナー, 新規登録, 飼い主さん
 keywords_vi: khách hàng mới, đăng ký khách hàng mới, khách hàng, chủ nuôi, đăng ký chủ nuôi, quản lý khách hàng, hồ sơ chủ nuôi, thú cưng
 ---
 
-# 飼主・ペット
+# 飼主・ペット管理
 
 ## どんな画面か
 

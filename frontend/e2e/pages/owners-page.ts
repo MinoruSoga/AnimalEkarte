@@ -13,15 +13,15 @@ export class OwnersPage extends BasePage {
   }
 
   listHeading(): Locator {
-    return this.heading("飼主・ペット一覧");
+    return this.heading("飼主・ペット管理");
   }
 
   editHeading(): Locator {
-    return this.heading("飼主・ペット　編集");
+    return this.heading("飼主・ペット編集");
   }
 
   registerHeading(): Locator {
-    return this.heading("飼主・ペット　登録");
+    return this.heading("飼主・ペット登録");
   }
 
   newButton(): Locator {

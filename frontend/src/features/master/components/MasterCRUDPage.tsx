@@ -33,8 +33,6 @@ interface SidePanelRenderProps<T, TForm = Record<string, unknown>> {
 interface MasterCRUDPageProps<T extends MasterEntity, TForm = Record<string, unknown>> {
   /** Page title (e.g. "役職マスタ") */
   title: string;
-  /** Page icon element */
-  icon: ReactNode;
   /** 権限バッジ表示用リソース */
   resource?: Resource;
   /** Entity label for delete dialog (e.g. "役職") */
@@ -85,7 +83,6 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<
   TForm = Record<string, unknown>,
 >({
   title,
-  icon,
   entityLabel,
   searchPlaceholder,
   emptyMessage,
@@ -119,7 +116,6 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<
   return (
     <MasterListPage
       title={title}
-      icon={icon}
       resource={resource}
       maxWidth={effectiveMaxWidth}
       searchTerm={crud.searchTerm}

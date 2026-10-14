@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   canDelete: false,
   canUnconfirm: false,
   isPersistedConfirmed: false,
+  isPersistedCompletedLocked: false,
+  status: "依頼中" as string,
   isPatientChangeLocked: true,
   useExaminationForm: vi.fn(),
   unconfirmDialog: vi.fn(),
@@ -82,7 +84,21 @@ vi.mock("../components/ExaminationPrintArea", () => ({
 }));
 
 vi.mock("@/components/shared/PageLayout/PageLayout", () => ({
-  PageLayout: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  PageLayout: ({
+    children,
+    title,
+    headerAction,
+  }: {
+    children: ReactNode;
+    title: string;
+    headerAction?: ReactNode;
+  }) => (
+    <div>
+      <h1>{title}</h1>
+      {headerAction}
+      {children}
+    </div>
+  ),
 }));
 
 vi.mock("@/components/shared/NavigationBlocker", () => ({
@@ -111,7 +127,7 @@ vi.mock("../components/ExaminationFormFields", () => ({
       mocks.formFieldsMounted();
       return () => mocks.formFieldsUnmounted();
     }, []);
-    return <button type="submit">保存</button>;
+    return <div />;
   },
 }));
 
@@ -143,6 +159,8 @@ beforeEach(() => {
   mocks.canDelete = false;
   mocks.canUnconfirm = false;
   mocks.isPersistedConfirmed = false;
+  mocks.isPersistedCompletedLocked = false;
+  mocks.status = "依頼中";
   mocks.isPatientChangeLocked = true;
   mocks.isPetDeceased = false;
   mocks.searchParams = "";
@@ -160,7 +178,7 @@ beforeEach(() => {
   mocks.useGetStaffs.mockReturnValue({ data: [], isLoading: false });
   mocks.useExaminationForm.mockReset();
   mocks.useExaminationForm.mockImplementation(() => ({
-    formData: { status: "依頼中", petId: "pet-1" },
+    formData: { status: mocks.status, petId: "pet-1" },
     setFormData: vi.fn(),
     isPetDeceased: mocks.isPetDeceased,
     petSelection: {
@@ -188,7 +206,7 @@ beforeEach(() => {
     handleUnconfirm: vi.fn(),
     isUnconfirming: false,
     isPersistedConfirmed: mocks.isPersistedConfirmed,
-    isPersistedCompletedLocked: false,
+    isPersistedCompletedLocked: mocks.isPersistedCompletedLocked,
     isPersistedResultsLocked: mocks.isPersistedConfirmed,
     isPatientChangeLocked: mocks.isPatientChangeLocked,
   }));
@@ -247,6 +265,43 @@ describe("ExaminationForm — doctor candidate filter (BUG-005)", () => {
 });
 
 describe("ExaminationForm — mutation permission wiring", () => {
+  it("閲覧者は削除を実行できず、既存レコードを詳細として表示する", () => {
+    mocks.id = "examination-1";
+    mocks.canEdit = false;
+    mocks.canDelete = true;
+
+    render(<ExaminationForm />);
+
+    expect(screen.getByRole("heading", { name: "検査詳細" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "削除" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+  });
+
+  it("完了封印中は詳細、ステータス変更後に保存可能なら編集として表示する", () => {
+    mocks.id = "examination-1";
+    mocks.isPersistedCompletedLocked = true;
+    mocks.status = "完了";
+    const view = render(<ExaminationForm />);
+
+    expect(screen.getByRole("heading", { name: "検査詳細" })).toBeInTheDocument();
+    mocks.status = "確定";
+    view.rerender(<ExaminationForm />);
+    expect(screen.getByRole("heading", { name: "検査編集" })).toBeInTheDocument();
+  });
+
+  it("確定済みレコードは詳細扱いで編集・削除を表示しない", () => {
+    mocks.id = "examination-1";
+    mocks.isPersistedConfirmed = true;
+    mocks.canDelete = true;
+
+    render(<ExaminationForm />);
+
+    expect(screen.getByRole("heading", { name: "検査詳細" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "キャンセル" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+  });
+
   it("route id変更時はrecord-scopedフォームstateをremountする", () => {
     mocks.id = "examination-1";
     const view = render(<ExaminationForm />);
@@ -291,7 +346,7 @@ describe("ExaminationForm — mutation permission wiring", () => {
 
     render(<ExaminationForm />);
 
-    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
   });
 
   it("編集は作成権限なしでも編集権限があればフォームを有効にする", () => {
@@ -358,13 +413,16 @@ describe("ExaminationForm — mutation permission wiring", () => {
 
 describe("ExaminationForm — 死亡ペット render側二重防壁 (FE-RC-002)", () => {
   it("死亡ペットでは権限があってもfieldsetをdisabledにし、理由バナーとPatientInfoCardのdeceased statusを出す", () => {
+    mocks.id = "examination-1";
     mocks.canCreate = true;
     mocks.canEdit = true;
+    mocks.canDelete = true;
     mocks.isPetDeceased = true;
 
     render(<ExaminationForm />);
 
-    expect(screen.getByRole("button", { name: "保存" }).closest("fieldset")).toBeDisabled();
+    expect(document.querySelector("fieldset")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "削除" })).toBeDisabled();
     expect(screen.getByText("死亡したペットの検査記録は保存できません")).toBeInTheDocument();
     expect(mocks.patientInfoCard).toHaveBeenLastCalledWith(
       expect.objectContaining({ status: "deceased" }),
@@ -378,7 +436,7 @@ describe("ExaminationForm — 死亡ペット render側二重防壁 (FE-RC-002)"
 
     render(<ExaminationForm />);
 
-    expect(screen.getByRole("button", { name: "保存" }).closest("fieldset")).not.toBeDisabled();
+    expect(document.querySelector("fieldset")).not.toBeDisabled();
     expect(screen.queryByText("死亡したペットの検査記録は保存できません")).not.toBeInTheDocument();
     expect(mocks.patientInfoCard).toHaveBeenLastCalledWith(
       expect.objectContaining({ status: "alive" }),

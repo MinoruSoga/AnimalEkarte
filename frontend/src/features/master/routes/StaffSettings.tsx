@@ -1,9 +1,8 @@
 import { useCallback, useRef, useLayoutEffect } from "react";
-import { UserRound } from "lucide-react";
+
 import { toast } from "sonner";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
-import { C, ICON } from "@/lib/design-tokens";
 import { MASTER_TABLE_COL } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
@@ -142,8 +141,7 @@ export function StaffSettings() {
   return (
     <>
       <MasterCRUDPage
-        title="スタッフ管理"
-        icon={<UserRound className={`${ICON.page} ${C.text}`} />}
+        title="スタッフマスタ"
         resource={ResourceMasterStaff}
         entityLabel="スタッフ"
         searchPlaceholder="氏名、職種で検索..."

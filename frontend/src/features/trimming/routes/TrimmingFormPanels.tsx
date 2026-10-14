@@ -1,5 +1,5 @@
 import { Suspense, useCallback, type ChangeEvent, type ReactNode } from "react";
-import { Scissors, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -44,21 +44,13 @@ export function TrimmingFormStatusView({
   }
   if (gate.kind === "loading") {
     return (
-      <PageLayout
-        title="トリミング"
-        onBack={onBack}
-        icon={<Scissors className={`${ICON.page} ${C.text}`} />}
-      >
+      <PageLayout title="トリミング" onBack={onBack}>
         <LoadingFallback />
       </PageLayout>
     );
   }
   return (
-    <PageLayout
-      title="トリミング"
-      onBack={onBack}
-      icon={<Scissors className={`${ICON.page} ${C.text}`} />}
-    >
+    <PageLayout title="トリミング" onBack={onBack}>
       <ErrorFallback message="トリミング記録が見つかりません" />
     </PageLayout>
   );
@@ -176,7 +168,6 @@ export function TrimmingFormBody({
     <PageLayout
       title={mode === "new" ? "トリミング登録" : "トリミング編集"}
       onBack={onBack}
-      icon={<Scissors className={`${ICON.page} ${C.text}`} />}
       resource={ResourceTrimming}
       maxWidth={LAYOUT.pageContentMaxWidth.form}
       headerAction={

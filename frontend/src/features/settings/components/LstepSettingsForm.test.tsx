@@ -251,7 +251,7 @@ describe("LstepSettingsForm — C: 設定削除ダイアログ (FEAT-376)", () =
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: /設定削除/ }));
     const dialog = screen.getByRole("alertdialog");
-    await user.click(within(dialog).getByRole("button", { name: "削除する" }));
+    await user.click(within(dialog).getByRole("button", { name: "削除" }));
 
     await waitFor(() => {
       expect(deleteCount).toBe(1);

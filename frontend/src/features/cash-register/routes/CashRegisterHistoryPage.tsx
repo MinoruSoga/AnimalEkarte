@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useSearchParams } from "react-router";
-import { History } from "lucide-react";
-import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+
+import { C, LAYOUT } from "@/lib/design-tokens";
 import { toJSTWallDate } from "@/lib/jst-date";
 import { Pagination } from "@/components/shared/Pagination";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -80,7 +80,6 @@ export function CashRegisterHistoryPage() {
     <PageLayout
       title="締め履歴"
       resource={ResourceCashRegisterClose}
-      icon={<History className={`${ICON.page} ${C.text}`} />}
       maxWidth={LAYOUT.pageContentMaxWidth.full}
     >
       <div className="space-y-6">

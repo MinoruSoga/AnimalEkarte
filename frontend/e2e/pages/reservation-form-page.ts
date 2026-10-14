@@ -24,7 +24,7 @@ export class ReservationFormPage extends BasePage {
   }
 
   dialogTitle(): Locator {
-    return this.dialog().getByText("新規予約作成");
+    return this.dialog().getByText("新規予約登録");
   }
 
   patientSearchLabel(): Locator {
