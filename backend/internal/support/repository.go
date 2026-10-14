@@ -51,6 +51,7 @@ type Repository interface {
 	SetPlaneSyncError(ctx context.Context, clinicID, id uint64, syncErr string) (bool, error)
 	// SetPlaneStateSyncError は起票済み行の状態取得失敗を記録する。
 	SetPlaneStateSyncError(ctx context.Context, clinicID, id uint64, syncErr string) error
+	ApplyPlaneStateSync(ctx context.Context, clinicID, id uint64, completed bool) error
 	SoftDeleteBugReport(ctx context.Context, clinicID, id uint64) error
 	CreateChatMessages(ctx context.Context, messages []*model.SupportChatMessage) error
 	ListChatHistory(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
@@ -266,6 +267,25 @@ func (r *repository) SetPlaneStateSyncError(ctx context.Context, clinicID, id ui
 	result := r.db.WithContext(ctx).Model(&model.SupportBugReport{}).
 		Where("id = ? AND clinic_id = ? AND plane_issue_id IS NOT NULL", id, clinicID).
 		Update("plane_sync_error", syncErr)
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "support_bug_report", uintToString(id))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("support_bug_report", uintToString(id))
+	}
+	return nil
+}
+
+func (r *repository) ApplyPlaneStateSync(ctx context.Context, clinicID, id uint64, completed bool) error {
+	update := model.SupportBugReport{}
+	columns := []string{"plane_sync_error"}
+	if completed {
+		update.Status = model.SupportBugReportStatusResolved
+		columns = append(columns, "status")
+	}
+	result := r.db.WithContext(ctx).Model(&model.SupportBugReport{}).
+		Where("id = ? AND clinic_id = ? AND plane_issue_id IS NOT NULL", id, clinicID).
+		Select(columns).Updates(&update)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "support_bug_report", uintToString(id))
 	}

@@ -516,19 +516,18 @@ func (s *service) SyncPlaneTicketStates(ctx context.Context) PlaneSyncResult {
 				"error", err, "report_id", report.ID, "clinic_id", report.ClinicID)
 			continue
 		}
-		if group != planeStateCompletedGroup {
-			result.Succeeded++
-			continue
-		}
-		if err := s.repo.UpdateStatus(ctx, report.ClinicID, report.ID, model.SupportBugReportStatusResolved); err != nil {
+		completed := group == planeStateCompletedGroup
+		if err := s.repo.ApplyPlaneStateSync(ctx, report.ClinicID, report.ID, completed); err != nil {
 			result.Failed++
-			slog.WarnContext(ctx, "plane sync: failed to mark report resolved",
+			slog.WarnContext(ctx, "plane sync: failed to persist fetched state",
 				"error", err, "report_id", report.ID, "clinic_id", report.ClinicID)
 			continue
 		}
 		result.Succeeded++
-		slog.InfoContext(ctx, "plane sync: report resolved via plane completed",
-			"report_id", report.ID, "clinic_id", report.ClinicID)
+		if completed {
+			slog.InfoContext(ctx, "plane sync: report resolved via plane completed",
+				"report_id", report.ID, "clinic_id", report.ClinicID)
+		}
 	}
 	return result
 }

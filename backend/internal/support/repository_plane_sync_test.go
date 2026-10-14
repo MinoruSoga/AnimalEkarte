@@ -208,3 +208,76 @@ func TestSetPlaneSyncError_ExistenceQueryErrorIsWrapped(t *testing.T) {
 	assert.False(t, written)
 	assert.False(t, apperrors.IsNotFound(err))
 }
+
+func TestApplyPlaneStateSync_NonCompletedClearsErrorOnly(t *testing.T) {
+	var statements []string
+	var args []driver.NamedValue
+	conn := &fakeDriverConn{execFn: func(query string, a []driver.NamedValue) (driver.Result, error) {
+		statements = append(statements, query)
+		args = append(args, a...)
+		return fakeDriverResult{affected: 1}, nil
+	}}
+	repo := NewRepository(newFakeDriverDB(t, conn))
+
+	err := repo.ApplyPlaneStateSync(context.Background(), 42, 7, false)
+
+	require.NoError(t, err)
+	require.Len(t, statements, 1, "one atomic UPDATE, no second write")
+	assert.Contains(t, statements[0], "plane_sync_error")
+	assert.Contains(t, statements[0], "plane_issue_id IS NOT NULL")
+	assert.Contains(t, statements[0], "clinic_id")
+	assert.Contains(t, statements[0], "deleted_at")
+	assert.NotContains(t, statements[0], `"status"`, "non-completed must not touch status")
+	require.Len(t, args, 4)
+	assert.Nil(t, args[0].Value)
+	assert.Equal(t, int64(7), args[2].Value)
+	assert.Equal(t, int64(42), args[3].Value)
+}
+
+func TestApplyPlaneStateSync_CompletedClearsErrorAndResolves(t *testing.T) {
+	var statements []string
+	var args []driver.NamedValue
+	conn := &fakeDriverConn{execFn: func(query string, a []driver.NamedValue) (driver.Result, error) {
+		statements = append(statements, query)
+		args = append(args, a...)
+		return fakeDriverResult{affected: 1}, nil
+	}}
+	repo := NewRepository(newFakeDriverDB(t, conn))
+
+	err := repo.ApplyPlaneStateSync(context.Background(), 42, 7, true)
+
+	require.NoError(t, err)
+	require.Len(t, statements, 1, "clear + resolve in the same UPDATE")
+	assert.Contains(t, statements[0], "plane_sync_error")
+	assert.Contains(t, statements[0], `"status"`)
+	assert.Contains(t, statements[0], "plane_issue_id IS NOT NULL")
+	assert.Contains(t, statements[0], "clinic_id")
+	assert.Contains(t, statements[0], "deleted_at")
+	require.Len(t, args, 5)
+	assert.Nil(t, args[0].Value)
+	assert.Equal(t, "resolved", args[1].Value)
+	assert.Equal(t, int64(7), args[3].Value)
+	assert.Equal(t, int64(42), args[4].Value)
+}
+
+func TestApplyPlaneStateSync_ZeroRowsIsNotFound(t *testing.T) {
+	conn := &fakeDriverConn{
+		execFn: func(string, []driver.NamedValue) (driver.Result, error) {
+			return fakeDriverResult{affected: 0}, nil
+		},
+	}
+	err := NewRepository(newFakeDriverDB(t, conn)).ApplyPlaneStateSync(context.Background(), 999, 42, false)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+}
+
+func TestApplyPlaneStateSync_UpdateErrorIsWrapped(t *testing.T) {
+	conn := &fakeDriverConn{
+		execFn: func(string, []driver.NamedValue) (driver.Result, error) {
+			return nil, errors.New("connection lost")
+		},
+	}
+	err := NewRepository(newFakeDriverDB(t, conn)).ApplyPlaneStateSync(context.Background(), 42, 7, false)
+	require.Error(t, err)
+	assert.False(t, apperrors.IsNotFound(err))
+}
