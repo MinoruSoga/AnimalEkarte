@@ -112,7 +112,7 @@ export function MerchandiseSortableTable({
                     key={item.id}
                     id={item.id}
                     dragLabel={`並べ替え: 品目 ${item.name} (ID ${item.id})`}
-                    dragDisabled={!canEdit}
+                    dragDisabled={!canEdit || isReordering}
                   >
                     <TableCell className={`font-medium ${C.text}`}>
                       <DataTableRowButton

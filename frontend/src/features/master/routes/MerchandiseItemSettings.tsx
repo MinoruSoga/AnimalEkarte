@@ -68,7 +68,8 @@ export function MerchandiseItemSettings() {
   } = useSortableList({
     items: crud.filteredItems,
     onReorder: (newIds) => {
-      if (!canEdit) return;
+      // PR665: 並べ替え API 実行中はドラッグ由来のコールバックも無視する。
+      if (!canEdit || reorderMutation.isPending) return;
       reorderMutation.mutate({ ids: newIds.map(Number) }, { onSuccess: resetOrder });
     },
   });

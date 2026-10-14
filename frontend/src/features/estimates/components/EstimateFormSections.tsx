@@ -1,6 +1,7 @@
 import { memo } from "react";
 
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -117,6 +118,44 @@ interface AmountSectionProps {
   insuranceAmount: number;
   discountAmount: number;
   totalAmount: number;
+  /** PR665: 保険適用額・ヘッダー割引額は独立入力（小計/税/合計は導出読み取り専用のまま）。 */
+  onInsuranceAmountChange?: (value: number) => void;
+  onDiscountAmountChange?: (value: number) => void;
+  /** discount:create 権限。権限なしでも既存値は disabled 表示で保持する。 */
+  canCreateDiscount?: boolean;
+}
+
+function AmountInputRow({
+  label,
+  inputId,
+  value,
+  onChange,
+  disabled = false,
+}: {
+  label: string;
+  inputId: string;
+  value: number;
+  onChange?: (value: number) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={inputId} className={`text-sm font-medium ${C.text}`}>
+        {label}
+      </Label>
+      <NumberInput
+        id={inputId}
+        value={value}
+        min={0}
+        step={1}
+        suffix="円"
+        align="right"
+        disabled={disabled || !onChange}
+        onChange={(v) => onChange?.(Number(v))}
+        className="h-11 text-sm"
+      />
+    </div>
+  );
 }
 
 function AmountSummaryRow({ label, value }: { label: string; value: number }) {
@@ -136,13 +175,28 @@ export const AmountSection = memo(function AmountSection({
   insuranceAmount,
   discountAmount,
   totalAmount,
+  onInsuranceAmountChange,
+  onDiscountAmountChange,
+  canCreateDiscount = false,
 }: AmountSectionProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <AmountSummaryRow label="小計（明細合計）" value={subtotal} />
       <AmountSummaryRow label="消費税（内税分を含む）" value={taxTotal} />
-      <AmountSummaryRow label="保険適用額" value={insuranceAmount} />
-      <AmountSummaryRow label="割引額" value={discountAmount} />
+      <AmountInputRow
+        label="保険適用額"
+        inputId="estimate-insurance-amount"
+        value={insuranceAmount}
+        onChange={onInsuranceAmountChange}
+      />
+      {/* discount:create 権限がない場合は既存値を disabled 表示で保持する（BUG-372）。 */}
+      <AmountInputRow
+        label="割引額"
+        inputId="estimate-discount-amount"
+        value={discountAmount}
+        onChange={onDiscountAmountChange}
+        disabled={!canCreateDiscount}
+      />
       <AmountSummaryRow label="合計金額" value={totalAmount} />
     </div>
   );

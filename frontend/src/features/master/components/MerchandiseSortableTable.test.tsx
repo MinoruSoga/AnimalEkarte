@@ -89,6 +89,15 @@ describe("Merchandise visible pagination", () => {
     expect(onMoveItem).not.toHaveBeenCalled();
   });
 
+  it("並べ替え中は全ドラッグハンドルを無効化し、完了後に再開できる", () => {
+    const view = render(<MerchandiseSortableTable items={items} {...handlers} isReordering />);
+    const handles = () => screen.getAllByRole("button", { name: /^並べ替え: 品目/ });
+    expect(handles()).toHaveLength(50);
+    for (const handle of handles()) expect(handle).toBeDisabled();
+    view.rerender(<MerchandiseSortableTable items={items} {...handlers} isReordering={false} />);
+    for (const handle of handles()) expect(handle).not.toBeDisabled();
+  });
+
   it("PR665: 操作列は移動2+編集1の44pxボタンが1行に収まる160px幅を保つ", () => {
     render(<MerchandiseSortableTable items={items} {...handlers} onMoveItem={vi.fn()} />);
     const headers = screen.getAllByRole("columnheader");

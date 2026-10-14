@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   merchandiseItems: [] as FrontendMerchandiseItem[],
   merchandiseMove: undefined as
     ((item: FrontendMerchandiseItem, direction: "up" | "down") => void) | undefined,
+  merchandiseIsReordering: undefined as boolean | undefined,
+  merchandiseCanEdit: undefined as boolean | undefined,
 }));
 
 vi.mock("@/hooks/use-permission", () => ({
@@ -97,10 +99,16 @@ vi.mock("../components/MerchandiseSidePanel", () => ({ MerchandiseSidePanel: () 
 vi.mock("../components/MerchandiseSortableTable", () => ({
   MerchandiseSortableTable: ({
     onMoveItem,
+    isReordering,
+    canEdit,
   }: {
     onMoveItem?: (item: FrontendMerchandiseItem, direction: "up" | "down") => void;
+    isReordering?: boolean;
+    canEdit?: boolean;
   }) => {
     mocks.merchandiseMove = onMoveItem;
+    mocks.merchandiseIsReordering = isReordering;
+    mocks.merchandiseCanEdit = canEdit;
     return null;
   },
 }));
@@ -162,6 +170,8 @@ describe("master route reorder permission guards", () => {
     mocks.canEdit = false;
     mocks.merchandisePending = false;
     mocks.merchandiseMove = undefined;
+    mocks.merchandiseIsReordering = undefined;
+    mocks.merchandiseCanEdit = undefined;
     mocks.merchandiseItems = Array.from({ length: 101 }, (_, i) => ({
       id: String(i + 1),
       name: `Item ${i + 1}`,
@@ -223,5 +233,28 @@ describe("master route reorder permission guards", () => {
       { ids },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
+  });
+
+  it("PR665: onReorder callback ignores invocation while reorder mutation is pending", () => {
+    mocks.canEdit = true;
+    mocks.merchandisePending = true;
+    render(<MerchandiseItemSettings />);
+    callLatestReorder();
+    expect(mocks.merchandiseReorder).not.toHaveBeenCalled();
+  });
+
+  it("PR665: route propagates isReordering while reorder mutation is pending (dragDisabled includes pending)", () => {
+    mocks.canEdit = true;
+    mocks.merchandisePending = true;
+    render(<MerchandiseItemSettings />);
+    expect(mocks.merchandiseIsReordering).toBe(true);
+    expect(mocks.merchandiseCanEdit).toBe(true);
+  });
+
+  it("PR665: route propagates isReordering=false with edit permission and no pending reorder", () => {
+    mocks.canEdit = true;
+    mocks.merchandisePending = false;
+    render(<MerchandiseItemSettings />);
+    expect(mocks.merchandiseIsReordering).toBe(false);
   });
 });

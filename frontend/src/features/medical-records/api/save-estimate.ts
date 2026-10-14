@@ -16,6 +16,11 @@ export interface SaveEstimateItemPayload {
   tax_type?: TaxType;
   tax_rate?: number;
   sort_order: number;
+  /**
+   * PR665: 既存行との一致ヒント。現在の見積に保存済みと証明できる行（取得または
+   * 保存応答で id を確認できた行）のみ送る。新規クライアント行では送らない。
+   */
+  existing_item_id?: number;
 }
 
 export interface SaveEstimatePayload {

@@ -15,6 +15,8 @@ const {
   mockToast,
   mockFormState,
   mockPetQuery,
+  mockAmounts,
+  mockPermissions,
 } = vi.hoisted(() => ({
   mockEstimate: { current: null as Estimate | null },
   mockGetState: {
@@ -43,6 +45,24 @@ const {
       fieldErrors: undefined as Record<string, string> | undefined,
     },
   },
+  mockAmounts: {
+    current: { insuranceAmount: 0, discountAmount: 0 },
+  },
+  mockPermissions: {
+    current: { canCreateEstimates: true, canCreateDiscount: true },
+  },
+}));
+
+vi.mock("@/hooks/use-permission", () => ({
+  usePermission: (resource: string) => ({
+    canView: true,
+    canCreate:
+      resource === "discount"
+        ? mockPermissions.current.canCreateDiscount
+        : mockPermissions.current.canCreateEstimates,
+    canEdit: true,
+    canDelete: true,
+  }),
 }));
 
 vi.mock("@/hooks/use-auth", () => ({
@@ -88,8 +108,8 @@ vi.mock("../hooks/use-estimate-form", () => ({
       status: mockEstimate.current?.status ?? "draft",
       ownerId: "",
       medicalRecordId: "",
-      insuranceAmount: 0,
-      discountAmount: 0,
+      insuranceAmount: mockAmounts.current.insuranceAmount,
+      discountAmount: mockAmounts.current.discountAmount,
       validUntil: "",
       comment: "",
       notes: "",
@@ -206,6 +226,8 @@ describe("EstimateForm statusError aria-describedby", () => {
     vi.clearAllMocks();
     mockEstimate.current = null;
     mockFormState.current = { success: false, timestamp: 0, fieldErrors: undefined };
+    mockAmounts.current = { insuranceAmount: 0, discountAmount: 0 };
+    mockPermissions.current = { canCreateEstimates: true, canCreateDiscount: true };
   });
 
   it("statusError があるとき SelectTrigger に aria-describedby=status-error を接続する", () => {
@@ -307,22 +329,48 @@ describe("EstimateForm mobile-first layout", () => {
     expect(amountGrid).toHaveClass("grid-cols-1", "sm:grid-cols-2");
   });
 
-  it("ヘッダー金額は読み取り専用サマリ（金額 spinbutton は存在せず合計ラベルは1箇所のみ）", () => {
+  it("ヘッダー金額サマリ: 小計/税/合計は読み取り専用、保険適用額と割引額のみ入力可 (PR665)", () => {
     renderCreateForm();
 
     expect(screen.getByText("小計（明細合計）")).toBeInTheDocument();
     expect(screen.getByText("消費税（内税分を含む）")).toBeInTheDocument();
     expect(screen.getByText("合計金額")).toBeInTheDocument();
-    for (const label of [
-      "小計（明細合計）",
-      "消費税（内税分を含む）",
-      "保険適用額",
-      "割引額",
-      "合計金額",
-    ]) {
+    // 導出金額は spinbutton を持たない
+    for (const label of ["小計（明細合計）", "消費税（内税分を含む）", "合計金額"]) {
       expect(screen.queryByRole("spinbutton", { name: label })).not.toBeInTheDocument();
     }
-    expect(screen.queryAllByRole("spinbutton")).toHaveLength(0);
+    // 保険適用額・割引額のみ独立入力
+    expect(screen.getByRole("spinbutton", { name: "保険適用額" })).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "割引額" })).toBeInTheDocument();
+    expect(screen.getAllByRole("spinbutton")).toHaveLength(2);
+  });
+
+  it("PR665: 保険適用額・割引額の変更とクリアが form state へ流れる", () => {
+    renderCreateForm();
+
+    const insuranceInput = screen.getByRole("spinbutton", { name: "保険適用額" });
+    fireEvent.change(insuranceInput, { target: { value: "500" } });
+    expect(mockHandleChange).toHaveBeenCalledWith("insuranceAmount", 500);
+    fireEvent.change(insuranceInput, { target: { value: "" } });
+    expect(mockHandleChange).toHaveBeenCalledWith("insuranceAmount", 0);
+
+    const discountInput = screen.getByRole("spinbutton", { name: "割引額" });
+    fireEvent.change(discountInput, { target: { value: "200" } });
+    expect(mockHandleChange).toHaveBeenCalledWith("discountAmount", 200);
+    fireEvent.change(discountInput, { target: { value: "" } });
+    expect(mockHandleChange).toHaveBeenCalledWith("discountAmount", 0);
+  });
+
+  it("PR665: discount:create 権限なしでは割引額は disabled で既存値を保持し、保険適用額は入力可", () => {
+    mockPermissions.current.canCreateDiscount = false;
+    mockAmounts.current.discountAmount = 300;
+    renderCreateForm();
+
+    expect(screen.getByRole("spinbutton", { name: "割引額" })).toBeDisabled();
+    expect((screen.getByRole("spinbutton", { name: "割引額" }) as HTMLInputElement).value).toBe(
+      "300",
+    );
+    expect(screen.getByRole("spinbutton", { name: "保険適用額" })).not.toBeDisabled();
   });
 
   it("明細行エディタを表示する（行追加アクションあり）", () => {

@@ -2292,6 +2292,97 @@ func TestEstimateService_Update_HeaderDiscountAppliedToDerivedTotals(t *testing.
 	})
 }
 
+func TestEstimateService_Update_ClearAllRowsWithStoredDiscount(t *testing.T) {
+	existing := &model.Estimate{
+		ID:             3,
+		Status:         model.EstimateStatusDraft,
+		DiscountAmount: 300,
+		Items: []model.EstimateItem{
+			{ID: 7, EstimateID: 3, Name: "外税処置", UnitPrice: 1000, Quantity: 1,
+				TaxType: model.TaxTypeExcluded, TaxRate: 0.10},
+		},
+	}
+	newRepo := func() *mockEstimateRepository {
+		replaced := []model.EstimateItem(nil)
+		repo := &mockEstimateRepository{
+			lockEditableByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+				cp := *existing
+				return &cp, nil
+			},
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+				cp := *existing
+				cp.Items = replaced
+				return &cp, nil
+			},
+			updateIfNotLockedFn: func(_ context.Context, _, id uint64, _ UpdateEstimateInput) (*model.Estimate, error) {
+				return &model.Estimate{ID: id, Status: model.EstimateStatusDraft}, nil
+			},
+			replaceItemsFn: func(_ context.Context, _, _ uint64, _ []model.EstimateItem) error {
+				replaced = []model.EstimateItem{}
+				return nil
+			},
+		}
+		return repo
+	}
+
+	t.Run("clearing all rows with omitted stored discount zeroes totals without resetting discount", func(t *testing.T) {
+		var updatedCmd UpdateEstimateInput
+		repo := newRepo()
+		repo.updateIfNotLockedFn = func(_ context.Context, _, id uint64, cmd UpdateEstimateInput) (*model.Estimate, error) {
+			updatedCmd = cmd
+			return &model.Estimate{ID: id}, nil
+		}
+		svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+		empty := []EstimateItemInput{}
+		got, err := svc.Update(context.Background(), 1, 3, &UpdateEstimateInput{Items: &empty})
+		require.NoError(t, err, "clearing rows with stored discount must follow legacy create semantics")
+		require.NotNil(t, updatedCmd.Subtotal)
+		assert.Equal(t, int64(0), *updatedCmd.Subtotal)
+		require.NotNil(t, updatedCmd.TaxTotal)
+		assert.Equal(t, int64(0), *updatedCmd.TaxTotal)
+		require.NotNil(t, updatedCmd.TotalAmount)
+		assert.Equal(t, int64(0), *updatedCmd.TotalAmount)
+		// 保存済み割引の黙ってリセットは権限判断を変えるため禁止。cmd に載せない = 保持。
+		assert.Nil(t, updatedCmd.DiscountAmount)
+		assert.Equal(t, int64(300), got.DiscountAmount)
+	})
+
+	t.Run("clearing all rows with explicit discount preserves metadata without over-gross error", func(t *testing.T) {
+		var updatedCmd UpdateEstimateInput
+		repo := newRepo()
+		repo.updateIfNotLockedFn = func(_ context.Context, _, id uint64, cmd UpdateEstimateInput) (*model.Estimate, error) {
+			updatedCmd = cmd
+			return &model.Estimate{ID: id}, nil
+		}
+		svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+		empty := []EstimateItemInput{}
+		discount := int64(100)
+		_, err := svc.Update(context.Background(), 1, 3, &UpdateEstimateInput{Items: &empty, DiscountAmount: &discount})
+		require.NoError(t, err)
+		require.NotNil(t, updatedCmd.TotalAmount)
+		assert.Equal(t, int64(0), *updatedCmd.TotalAmount)
+		require.NotNil(t, updatedCmd.DiscountAmount)
+		assert.Equal(t, int64(100), *updatedCmd.DiscountAmount)
+	})
+
+	t.Run("clearing all rows does not mutate the original request slice", func(t *testing.T) {
+		svc := NewEstimateService(newRepo(), nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+		empty := []EstimateItemInput{}
+		_, err := svc.Update(context.Background(), 1, 3, &UpdateEstimateInput{Items: &empty})
+		require.NoError(t, err)
+		assert.Len(t, empty, 0)
+	})
+
+	t.Run("nonempty replacement still rejects excessive discount once", func(t *testing.T) {
+		svc := NewEstimateService(newRepo(), nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+		discount := int64(2000)
+		items := []EstimateItemInput{{Name: "外税処置", UnitPrice: 1000, Quantity: 1, TaxType: model.TaxTypeExcluded, TaxRate: ptrFloat64(0.10)}}
+		_, err := svc.Update(context.Background(), 1, 3, &UpdateEstimateInput{Items: &items, DiscountAmount: &discount})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input, got %v", err)
+	})
+}
+
 func TestEstimateService_Create_RejectsInvalidItemTaxValues(t *testing.T) {
 	negRate := -0.1
 	overRate := 1.1

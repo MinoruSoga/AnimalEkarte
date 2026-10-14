@@ -63,8 +63,9 @@ export function CheckupSyncFilterForm({ onSearch, isLoading }: CheckupSyncFilter
         checkup_type: checkupType as CheckupType,
       };
 
-      const species = getFormString(formData, "species");
-      if (species.trim()) params.species = species;
+      // PR665: 貼り付けた前後空白を正規化し、空白のみは未指定として扱う。
+      const species = getFormString(formData, "species").trim();
+      if (species) params.species = species;
 
       const lastVisitBefore = getFormString(formData, "last_visit_before");
       if (lastVisitBefore) params.last_visit_before = lastVisitBefore;

@@ -106,18 +106,27 @@ func (s *estimateService) updateEstimateInTx(
 		}
 		preparedItems = estimateItemsFromInput(id, normalized)
 		subtotal, taxTotal, totalAmount := calculateEstimateTotals(preparedItems)
-		// PR665: 実効ヘッダー割引は「入力指定値、省略時は保存済み値」。合計のみ控除する。
-		effectiveDiscount := result.existing.DiscountAmount
-		if input.DiscountAmount != nil {
-			effectiveDiscount = *input.DiscountAmount
+		if len(preparedItems) == 0 {
+			// 全行クリアは Create と同じセマンティクス: 合計は 0、ヘッダー割引はメタデータ
+			// として保持する（黙ってリセットすると権限判断が変わる）。明細総額が 0 のため
+			// 割引超過検証は適用しない。負の割引は既存の入力検証で拒否済み。
+			cmd.Subtotal = &subtotal
+			cmd.TaxTotal = &taxTotal
+			cmd.TotalAmount = &totalAmount
+		} else {
+			// PR665: 実効ヘッダー割引は「入力指定値、省略時は保存済み値」。合計のみ控除する。
+			effectiveDiscount := result.existing.DiscountAmount
+			if input.DiscountAmount != nil {
+				effectiveDiscount = *input.DiscountAmount
+			}
+			subtotal, taxTotal, totalAmount, discountErr := applyEstimateHeaderDiscount(subtotal, taxTotal, totalAmount, effectiveDiscount)
+			if discountErr != nil {
+				return result, discountErr
+			}
+			cmd.Subtotal = &subtotal
+			cmd.TaxTotal = &taxTotal
+			cmd.TotalAmount = &totalAmount
 		}
-		subtotal, taxTotal, totalAmount, discountErr := applyEstimateHeaderDiscount(subtotal, taxTotal, totalAmount, effectiveDiscount)
-		if discountErr != nil {
-			return result, discountErr
-		}
-		cmd.Subtotal = &subtotal
-		cmd.TaxTotal = &taxTotal
-		cmd.TotalAmount = &totalAmount
 		cmd.Items = &normalized
 	}
 
