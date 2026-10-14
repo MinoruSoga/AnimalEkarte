@@ -926,3 +926,10 @@ test("local CI permits isolated cache volumes without changing defaults", () => 
   assert.ok(worker.includes('-v "$CI_ROOT_NODE_MODULES_VOLUME:/app/node_modules"'));
   assert.ok(worker.includes('-v "$CI_ROOT_PNPM_STORE_VOLUME:/pnpm-store"'));
 });
+
+test("worker Makefile recipe checks avoid pipefail SIGPIPE races", () => {
+  const script = read("scripts/ci/check-test-worker-makefile.test.sh");
+  assert.ok(script.includes(String.raw`elif grep -Eq 'docker run' <<<"$recipe"; then`));
+  assert.ok(script.includes(String.raw`if grep -Eq '\$\(ARGS\)' <<<"$recipe"; then`));
+  assert.ok(script.includes(String.raw`if grep -Eq '\$\(DC\) exec frontend' <<<"$recipe"; then`));
+});
