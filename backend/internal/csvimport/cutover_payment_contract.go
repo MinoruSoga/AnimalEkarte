@@ -86,7 +86,7 @@ func validateCutoverPaymentGraph(sourceDir string, manifest *CutoverManifest, pr
 
 func cutoverPaymentContractPart(manifest *CutoverManifest, tableName string) (CutoverTableSpec, CutoverManifestTable, error) {
 	var spec CutoverTableSpec
-	for _, candidate := range CutoverTableSpecs() {
+	for _, candidate := range CutoverTableSpecs(manifest.profile) {
 		if candidate.Name == tableName {
 			spec = candidate
 			break

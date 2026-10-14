@@ -549,3 +549,57 @@ func TestCutoverApplyFailureClassification(t *testing.T) {
 		t.Fatalf("begin failure = (%q, %q)", status, stage)
 	}
 }
+
+func TestParseCutoverProfileSelection(t *testing.T) {
+	args := testCLIArgs("preflight")
+	opt, err := parseOptions(args)
+	if err != nil || opt.cutoverProfile != string(csvimport.CutoverProfileLegacy21) {
+		t.Fatalf("default profile=%q err=%v", opt.cutoverProfile, err)
+	}
+	opt, err = parseOptions(append(append([]string(nil), args...), "--cutover-profile", string(csvimport.CutoverProfileMedicinesCandidate)))
+	if err != nil || opt.cutoverProfile != string(csvimport.CutoverProfileMedicinesCandidate) {
+		t.Fatalf("candidate profile=%q err=%v", opt.cutoverProfile, err)
+	}
+	if _, err := parseOptions(append(append([]string(nil), args...), "--cutover-profile", "unknown")); err == nil {
+		t.Fatal("unknown operator profile accepted")
+	}
+}
+
+func TestPgxTargetRejectsFormalCandidateBeforeDatabase(t *testing.T) {
+	provenance := csvimport.CutoverProvenanceContract{Mode: csvimport.CutoverProvenanceFormal, Profile: csvimport.CutoverProfileMedicinesCandidate}
+	target := &pgxCutoverTarget{provenance: provenance}
+	manifest := csvimport.CutoverManifest{Status: "PASS", HandoffEligibility: "TRUSTED_CANDIDATE"}
+	for _, method := range []string{"preflight", "verify", "apply"} {
+		t.Run(method, func(t *testing.T) {
+			var err error
+			switch method {
+			case "preflight":
+				err = target.Preflight(context.Background(), manifest, csvimport.CutoverSeedIDs{})
+			case "verify":
+				err = target.Verify(context.Background(), manifest, csvimport.CutoverSeedIDs{})
+			case "apply":
+				_, err = target.Apply(context.Background(), csvimport.CutoverBundle{Manifest: manifest, Provenance: provenance}, csvimport.CutoverSeedIDs{})
+			}
+			if err == nil || !strings.Contains(err.Error(), "activation") {
+				t.Fatalf("err=%v, want denial before nil pool access", err)
+			}
+		})
+	}
+}
+
+func TestCandidateLocalRehearsalRequiresBothEnvironmentGates(t *testing.T) {
+	for _, tc := range []struct {
+		env, allow string
+		valid      bool
+	}{
+		{"production", "1", false}, {"staging", "1", false}, {"local", "", false}, {"local", "1", true},
+	} {
+		t.Run(tc.env+tc.allow, func(t *testing.T) {
+			t.Setenv("APP_ENV", tc.env)
+			t.Setenv("CSV_IMPORT_ALLOW_LOCAL_REHEARSAL", tc.allow)
+			if err := requireLocalRehearsalEnv(); (err == nil) != tc.valid {
+				t.Fatalf("err=%v valid=%v", err, tc.valid)
+			}
+		})
+	}
+}

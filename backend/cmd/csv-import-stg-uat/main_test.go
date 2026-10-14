@@ -1025,6 +1025,42 @@ func TestRunWithDependenciesRecordsApplyFailures(t *testing.T) {
 	}
 }
 
+func TestRunCandidateAtomicReportsApplyFailures(t *testing.T) {
+	withStagingRehearsalEnv(t)
+	t.Setenv("DB_NAME", "animalekarte")
+	for _, tc := range []struct {
+		name, status, stage, message string
+		err                          error
+	}{
+		{"rollback", "FAILED_DATA_ROLLED_BACK", "transaction", "all data rows rolled back", errors.New("copy conflict")},
+		{"before Begin", "FAILED_BEFORE_TRANSACTION", "begin", "before transaction began", csvimport.ErrCutoverTransactionNotStarted},
+		{"unknown commit", "COMMIT_OUTCOME_UNKNOWN", "commit", "run read-only verify", csvimport.ErrCutoverCommitOutcomeUnknown},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			path := filepath.Join(root, "candidate-failure.json")
+			if err := os.Chmod(root, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			target := &fakeCutoverTarget{applyError: tc.err}
+			deps := testRunDependencies(t, testCLIBundle(), target)
+			deps.reportRoot = root
+			args := append(importCLIArgs(t.TempDir(), path), "--cutover-profile", string(csvimport.CutoverProfileMedicinesCandidate))
+			err := runWithDependencies(context.Background(), args, slog.Default(), deps)
+			if err == nil || !strings.Contains(err.Error(), tc.message) {
+				t.Fatalf("error=%v, want %q", err, tc.message)
+			}
+			report := readAuditReport(t, path)
+			if report.Status != tc.status || report.FailureStage != tc.stage || target.applyCalls != 1 {
+				t.Fatalf("status=%q stage=%q applies=%d", report.Status, report.FailureStage, target.applyCalls)
+			}
+			if tc.status == "COMMIT_OUTCOME_UNKNOWN" && strings.Contains(err.Error(), "rolled back") {
+				t.Fatal("indeterminate commit must not claim rollback")
+			}
+		})
+	}
+}
+
 func withStagingRehearsalEnv(t *testing.T) {
 	t.Helper()
 	t.Setenv("APP_ENV", "staging")
@@ -1176,5 +1212,42 @@ func assertNoPHI(t *testing.T, raw []byte) {
 		if strings.Contains(body, fragment) {
 			t.Fatalf("audit JSON contains PHI-like substring %q: %s", fragment, body)
 		}
+	}
+}
+
+func TestParseCutoverProfileSelection(t *testing.T) {
+	args := testCLIArgs("preflight", "/migration-input")
+	opt, err := parseOptions(args)
+	if err != nil || opt.cutoverProfile != string(csvimport.CutoverProfileLegacy21) {
+		t.Fatalf("default profile=%q err=%v", opt.cutoverProfile, err)
+	}
+	opt, err = parseOptions(append(append([]string(nil), args...), "--cutover-profile", string(csvimport.CutoverProfileMedicinesCandidate)))
+	if err != nil || opt.cutoverProfile != string(csvimport.CutoverProfileMedicinesCandidate) {
+		t.Fatalf("candidate profile=%q err=%v", opt.cutoverProfile, err)
+	}
+	if _, err := parseOptions(append(append([]string(nil), args...), "--cutover-profile", "unknown")); err == nil {
+		t.Fatal("unknown operator profile accepted")
+	}
+}
+
+func TestPgxTargetRejectsFormalCandidateBeforeDatabase(t *testing.T) {
+	provenance := csvimport.CutoverProvenanceContract{Mode: csvimport.CutoverProvenanceFormal, Profile: csvimport.CutoverProfileMedicinesCandidate}
+	target := &pgxCutoverTarget{provenance: provenance}
+	manifest := csvimport.CutoverManifest{Status: "PASS", HandoffEligibility: "TRUSTED_CANDIDATE"}
+	for _, method := range []string{"preflight", "verify", "apply"} {
+		t.Run(method, func(t *testing.T) {
+			var err error
+			switch method {
+			case "preflight":
+				err = target.Preflight(context.Background(), manifest, csvimport.CutoverSeedIDs{})
+			case "verify":
+				err = target.Verify(context.Background(), manifest, csvimport.CutoverSeedIDs{})
+			case "apply":
+				_, err = target.Apply(context.Background(), csvimport.CutoverBundle{Manifest: manifest, Provenance: provenance}, csvimport.CutoverSeedIDs{})
+			}
+			if err == nil || !strings.Contains(err.Error(), "activation") {
+				t.Fatalf("err=%v, want denial before nil pool access", err)
+			}
+		})
 	}
 }

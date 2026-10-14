@@ -188,7 +188,7 @@ func skeletonAllowlistTables() []string {
 }
 
 func cutoverTableNames() []string {
-	specs := csvimport.CutoverTableSpecs()
+	specs := csvimport.CutoverTableSpecs(csvimport.CutoverProfileLegacy21)
 	names := make([]string, 0, len(specs))
 	for _, spec := range specs {
 		names = append(names, spec.Name)

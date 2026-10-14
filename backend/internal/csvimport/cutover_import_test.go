@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/csv"
 	"encoding/hex"
 	"errors"
@@ -253,7 +254,7 @@ func TestApplyCutoverStagesSelfReferencedTablesForOrdering(t *testing.T) {
 		if !strings.Contains(query, "INSERT INTO") {
 			continue
 		}
-		if !strings.Contains(query, `"cutover_copy_procedures"`) && !strings.Contains(query, `"cutover_copy_vaccines"`) {
+		if !strings.Contains(query, `"cutover_copy_procedures"`) && !strings.Contains(query, `"cutover_copy_medicines"`) && !strings.Contains(query, `"cutover_copy_vaccines"`) {
 			continue
 		}
 		if !strings.Contains(query, "walk.depth = $1") {
@@ -481,12 +482,13 @@ func TestApplyCutoverRollsBackWhenPaymentSplitCopyFails(t *testing.T) {
 
 func validCutoverBundleForApply(t *testing.T) CutoverBundle {
 	t.Helper()
-	dir, digest := writeCutoverFixture(t, nil)
+	dir, digest := writeCutoverRehearsalFixture(t, nil)
 	bundle, err := PreflightCutoverBundle(dir, ExpectedCutoverSource{
 		ManifestSHA256: digest,
 		ClinicCode:     "hachioji",
 		ClinicOrdinal:  1,
 		RunID:          "run-1",
+		Provenance:     CutoverProvenanceContract{Mode: CutoverProvenanceLocalRehearsal},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -1376,6 +1378,9 @@ func (q validTargetQuerier) QueryRow(_ context.Context, query string, args ...an
 		// the CSV contract: serial/identity ids and defaulted columns are filtered
 		// by the query itself, so unit tests model an empty required set.
 		return staticRow{values: []any{[]string{}}}
+	case strings.Contains(query, "information_schema.columns") && len(args) == 2 && args[0] == "medicines" && args[1] == "sort_order":
+		// Canonical 001 schema: medicines.sort_order is integer.
+		return staticRow{values: []any{"integer"}}
 	case strings.Contains(query, "information_schema.columns"):
 		return staticRow{values: []any{"bigint"}}
 	case strings.Contains(query, "FROM pg_constraint"):
@@ -1578,6 +1583,13 @@ func (row staticRow) Scan(destinations ...any) error {
 			*destination = value.(bool)
 		case *int64:
 			*destination = value.(int64)
+		case *sql.NullInt64:
+			// Unbounded numeric columns report NULL precision/scale.
+			if value == nil {
+				*destination = sql.NullInt64{}
+				continue
+			}
+			*destination = sql.NullInt64{Int64: value.(int64), Valid: true}
 		case *string:
 			*destination = value.(string)
 		case **string:

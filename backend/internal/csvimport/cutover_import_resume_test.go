@@ -110,7 +110,7 @@ type fakeCutoverSession struct {
 	txs           []*fakeCutoverTransaction
 }
 
-func (s *fakeCutoverSession) QueryRow(_ context.Context, query string, _ ...any) pgx.Row {
+func (s *fakeCutoverSession) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
 	switch {
 	case strings.Contains(query, "clinic_id <> $3"):
 		return staticRow{values: []any{int64(0)}}
@@ -121,7 +121,7 @@ func (s *fakeCutoverSession) QueryRow(_ context.Context, query string, _ ...any)
 		}
 		return staticRow{values: []any{int64(0)}}
 	default:
-		return validTargetQuerier{}.QueryRow(context.Background(), query)
+		return validTargetQuerier{}.QueryRow(ctx, query, args...)
 	}
 }
 
