@@ -5,7 +5,7 @@
 
 **Drワンは組み込まない。** `source_type=drwan` は閉じる。`mkan.mdb` を読まない。
 
-**日常経路（2026-08-31）:** ファイルアップロードしない。検査用 Mac のユーザー LaunchAgent `lab-device-agent` が有線シリアルを所有し、`127.0.0.1:17654` の loopback HTTP でフレームを公開する。ブラウザの `/lab-device` は認可済み API から取得する consumer token でその agent に接続し、フレームを API へ送るだけで、シリアルを直接読んだり開いたりしない。UI は1画面（待機 + 未紐付け欄）。実行状態の正本は Plane、未完了作業の入口は `todo.md`。（2026-09-29 訂正: 実行状態の正本を旧 Linear BRT-94〜100 としていた → Linear は 2026-09-16 閉鎖、現行 SoT は Plane。BRT-94〜100 は履歴 ID で、BRT-94 は EMR-14 へ移行済み）城東3種（`fuji_nx600` / `fuji_au10v` / `arkray_pu4010`）は AE-LAB-0〜4 済み。
+**日常経路（EMR-402、2026-10-14）:** ファイルアップロードしない。HTTPS の Chrome デスクトップ版で `/lab-device` を開き、権限のある利用者が「接続する」から NX600/AU10V 専用ポートを明示選択する。ブラウザが9600 8N1で読み、2秒アイドル単位の生バイトを変更せず、認証済み API `POST /v1/lab-device/frames` へ `device_hint=auto` で送る。VID/PIDでは同型変換器を区別しない。最大2ポート、同一originのタブ間はWeb Locksで排他し、画面を開いている間だけ受信する。PU-4010/IDEXXは選ばない。未送信データはメモリ内のみで、停止・ページ終了時に失われる可能性があるため、機器から再送する。旧LaunchAgent/loopback方式は任意の手動legacy経路として残るが、同じ機器ポートを所有するためブラウザ受信と同時には使わない。UI は1画面（待機 + 未紐付け欄）。実行状態の正本は Plane、未完了作業の入口は `todo.md`。（2026-09-29 訂正: 実行状態の正本を旧 Linear BRT-94〜100 としていた → Linear は 2026-09-16 閉鎖、現行 SoT は Plane。BRT-94〜100 は履歴 ID で、BRT-94 は EMR-14 へ移行済み）城東3種（`fuji_nx600` / `fuji_au10v` / `arkray_pu4010`）は AE-LAB-0〜4 済み。
 
 外部 sibling 資料（存在する場合のみ）— シリアル枠: `../../../../../old_db/docs/lab-go/go-impl/device-serial-adapter.md`
 3台マスタ: `../../../../../old_db/docs/lab-go/go-impl/device-item-master.md`
@@ -27,10 +27,9 @@ flowchart LR
     subgraph cur["現行"]
         dev["機器"] -->|"COM"| win["Windows 7"] --> drw["Drワン"] --> kart["現行カルテ"]
     end
-    subgraph nxt["あと"]
-        port["同じ口"] -->|"USB-Serial"| mac["検査機器用 Mac の LaunchAgent<br/>lab-device-agent"]
-        mac -->|"loopback HTTP<br/>127.0.0.1:17654"| brw["ブラウザ /lab-device"]
-        brw --> imp["lab-imports"]
+    subgraph nxt["日常経路（EMR-402）"]
+        port["NX600 / AU10V"] -->|"USB-Serial · Web Serial"| brw["Chrome /lab-device<br/>明示選択・ページ表示中"]
+        brw -->|"認証済み POST · device_hint=auto"| imp["lab-device frames API"]
     end
 ```
 
@@ -46,10 +45,11 @@ Win7 の COM 番号を Mac の `/dev/cu.*` だと思わない。口はつなぐ�
 
 - 日常経路は `/lab-device`（`LabDeviceBoard`）。権限は `lab-import` で操作ごとに分かれる（医院ごとの権限グループで付与。既定 seed では執行グループに view+create+edit、一般グループに view+create を付与 — EMR-176 で create を既定付与済み。閲覧専用グループは view のみ。既存医院の旧既定グループには migration `010_grant_lab_import_create_to_default_groups.sql`（seed bundle 所有行）または `seeds/live_insert_lab_import_create_grant.sql`（後発の既定名グループ、手動適用）で反映する。個別に create を外したい受信しないロールは `/settings/permission-groups` で「検査取込」の作成を OFF にする）:
   - `view` … `/lab-device` の表示、未紐付け一覧・機器ステーション参照（検査画面の未紐付けバナーも view で出る）
-  - `create` … 受信・待機選択/解除・board 取得・agent consumer token 発行（`POST /lab-device/frames`・`/lab-device/wait`・`GET /lab-device/board`・`GET /lab-device/agent-consumer`）
+  - `create` … ブラウザ受信・待機選択/解除・board 取得（`POST /lab-device/frames`・`/lab-device/wait`・`GET /lab-device/board`）。legacy agent の consumer token 発行は任意手動経路。
   - `edit` … attach/detach/revert、機器・項目マスタの登録変更
 - 確認ダイアログは無い。ペット検索はせず、本日診療中のカルテカードを選ぶ。受信結果は日別に一覧する。
-- 医院セットアップでローカル検査機器エージェントの口→機器プロファイルを1回許可する。ブラウザはエージェントへ接続し、シリアルポートを直接読んだり再オープンしたりしない。［読む］は無い。TTL の数値 UI は無い。
+- 日常経路はブラウザでポートを明示選択し、NX600/AU10Vを受信専用で開く。HTTPS Chromeデスクトップが必要。PU-4010/IDEXXを選ばない。複数タブ排他が取れない場合は開かない。
+- 受信はページ表示中だけで、未送信フレームはメモリ保持。画面停止・ページ終了・clinic/権限変更で未送信データを失う可能性があるため、機器から再送する。legacy agentを手動で使う場合の手順は `LAB_DEVICE_AGENT_MACOS.md` を参照。
 - 診察端末の検査画面は未紐付けバナーから1クリックで `attach` する。値は編集しない。
 - 保持確認は `/examinations`（NX600 / AU10V / 実装済み VetLab 経路はペット確定後に persist。PU-4010 は decoder-only。fixture は commit）
 - `fixture` だけ commit 可。`drwan` は preview 200 + `blocked_reasons`、commit 400。`GetJob` は `drwan` を 400
