@@ -1,4 +1,5 @@
-import type { ComponentProps, FormEvent } from "react";
+import type { ComponentProps, FormEvent, ReactNode } from "react";
+import { isValidElement, startTransition } from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,22 +11,24 @@ import type { BodyWeightUnit, Vital } from "../types";
 // 再利用する契約を、hook mock で検証する。現時点で ./InterviewWeightPanel は
 // 未実装であり、このファイル全体が RED になることが意図である。
 
-const { createVitalMock, getVitalsArgsMock, createVitalArgsMock, mockState } = vi.hoisted(() => {
-  return {
-    createVitalMock: vi.fn(),
-    getVitalsArgsMock: vi.fn(),
-    createVitalArgsMock: vi.fn(),
-    mockState: {
-      vitals: {
-        data: [] as Vital[] | undefined,
-        isLoading: false,
-        isError: false,
+const { createVitalMock, getVitalsArgsMock, createVitalArgsMock, capturedAction, mockState } =
+  vi.hoisted(() => {
+    return {
+      createVitalMock: vi.fn(),
+      getVitalsArgsMock: vi.fn(),
+      createVitalArgsMock: vi.fn(),
+      capturedAction: { current: undefined as ((formData: FormData) => void) | undefined },
+      mockState: {
+        vitals: {
+          data: [] as Vital[] | undefined,
+          isLoading: false,
+          isError: false,
+        },
+        permissions: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+        createPending: false,
       },
-      permissions: { canView: true, canCreate: true, canEdit: true, canDelete: true },
-      createPending: false,
-    },
-  };
-});
+    };
+  });
 
 vi.mock("../api/vitals", () => ({
   useGetVitals: (medicalRecordId: string, clinicId?: string, options?: { enabled?: boolean }) => {
@@ -41,6 +44,26 @@ vi.mock("../api/vitals", () => ({
 vi.mock("@/hooks/use-permission", () => ({
   usePermission: () => mockState.permissions,
 }));
+
+vi.mock("react-dom", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-dom")>();
+  return {
+    ...actual,
+    createPortal: (
+      children: ReactNode,
+      container: Element | DocumentFragment,
+      key?: string | null,
+    ) => {
+      if (
+        isValidElement<ComponentProps<"form">>(children) &&
+        typeof children.props.action === "function"
+      ) {
+        capturedAction.current = children.props.action;
+      }
+      return actual.createPortal(children, container, key);
+    },
+  };
+});
 
 type PanelProps = ComponentProps<typeof InterviewWeightPanel>;
 
@@ -75,6 +98,7 @@ beforeEach(() => {
   mockState.vitals = { data: [], isLoading: false, isError: false };
   mockState.permissions = { canView: true, canCreate: true, canEdit: true, canDelete: true };
   mockState.createPending = false;
+  capturedAction.current = undefined;
 });
 
 describe("InterviewWeightPanel — 過去体重の表示（EMR-356）", () => {
@@ -218,17 +242,14 @@ describe("InterviewWeightPanel — 臨床安全境界（EMR-356）", () => {
     expect(container).toHaveTextContent("4.2");
   });
 
-  it("canCreate / canEdit 不足では記録 UI を出さない", () => {
-    mockState.permissions = { ...mockState.permissions, canCreate: false };
-    const first = renderPanel();
-    expect(screen.queryByRole("button", { name: "体重を記録" })).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("体重")).not.toBeInTheDocument();
-    first.unmount();
-
-    mockState.permissions = { ...mockState.permissions, canCreate: true, canEdit: false };
+  it.each([false, true])("canEdit 不足では記録 UI を出さない（canCreate=%s）", (canCreate) => {
+    mockState.permissions = { ...mockState.permissions, canCreate, canEdit: false };
     renderPanel();
+
     expect(screen.queryByRole("button", { name: "体重を記録" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("体重")).not.toBeInTheDocument();
+    expect(document.querySelector('form[id^="interview-weight-form-"]')).toBeNull();
+    expect(createVitalMock).not.toHaveBeenCalled();
   });
 
   it("canView 無しでは過去体重の読取も出さず、実際の vitals 取得も抑止する", () => {
@@ -356,13 +377,13 @@ describe("InterviewWeightPanel — 識別コンテキスト安全性（EMR-356�
     expect(screen.queryByLabelText("体重")).not.toBeInTheDocument();
   });
 
-  it("入力途中で作成/編集権限が剥奪されると保存導線が取り下げられる", async () => {
+  it("入力途中で編集権限が剥奪されると保存導線が取り下げられる", async () => {
     const { props, rerender } = renderPanel();
 
     const user = userEvent.setup();
     await user.type(screen.getByLabelText("体重"), "4.5");
 
-    mockState.permissions = { ...mockState.permissions, canCreate: false };
+    mockState.permissions = { ...mockState.permissions, canEdit: false };
     // InterviewWeightPanel は memo 化されているため同一 props の rerender では再評価
     // されない。実運用では権限変化が useAuth context 経由で memo を貫いて再描画するが、
     // context 非依存の mock にはその経路が無い。無害な prop 変化で親の再描画を
@@ -554,5 +575,146 @@ describe("InterviewWeightPanel — ARIA/ライフサイクル（R1/R3, EMR-356 r
     await act(async () => {});
 
     expect(createVitalMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("InterviewWeightPanel — 作成権限は記録ゲートに含めない（EMR-356 permission repair）", () => {
+  it.each(["click", "Enter"] as const)(
+    "canCreate 無しでも %s で体重を1回だけ記録し、親 submit を発火しない",
+    async (submitVia) => {
+      mockState.permissions = { ...mockState.permissions, canCreate: false };
+      const onSubmit = vi.fn((e: FormEvent) => e.preventDefault());
+      render(
+        <form onSubmit={onSubmit}>
+          <InterviewWeightPanel medicalRecordId="10" recordClinicId="7" />
+        </form>,
+      );
+
+      const user = userEvent.setup();
+      const input = screen.getByLabelText("体重");
+      await user.type(input, "4.5");
+      if (submitVia === "click") {
+        await user.click(screen.getByRole("button", { name: "体重を記録" }));
+      } else {
+        await user.type(input, "{Enter}");
+      }
+
+      expect(await screen.findByText("体重を記録しました")).toBeInTheDocument();
+      expect(createVitalMock).toHaveBeenCalledTimes(1);
+      const input_arg = createVitalMock.mock.calls[0][0] as {
+        recorded_at?: string;
+        weight?: number | null;
+        weight_unit?: string;
+        temperature?: number | null;
+        heart_rate?: number | null;
+        respiration_rate?: number | null;
+      };
+      expect(input_arg).toMatchObject({ weight: 4.5, weight_unit: "Kg" });
+      expect(typeof input_arg.recorded_at).toBe("string");
+      expect(input_arg.temperature ?? null).toBeNull();
+      expect(input_arg.heart_rate ?? null).toBeNull();
+      expect(input_arg.respiration_rate ?? null).toBeNull();
+      expect(createVitalArgsMock).toHaveBeenCalledWith("10", "7");
+      expect(getVitalsArgsMock).toHaveBeenCalledWith(
+        "10",
+        "7",
+        expect.objectContaining({ enabled: true }),
+      );
+      expect(onSubmit).not.toHaveBeenCalled();
+    },
+  );
+
+  it("入力途中で作成権限が剥奪されても記録導線は残り、そのまま1回保存できる", async () => {
+    const { props, rerender } = renderPanel();
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("体重"), "4.5");
+
+    mockState.permissions = { ...mockState.permissions, canCreate: false };
+    rerender(<InterviewWeightPanel {...props} historyLoading />);
+
+    await user.click(screen.getByRole("button", { name: "体重を記録" }));
+
+    expect(await screen.findByText("体重を記録しました")).toBeInTheDocument();
+    expect(createVitalMock).toHaveBeenCalledTimes(1);
+    expect(createVitalMock.mock.calls[0][0]).toMatchObject({ weight: 4.5, weight_unit: "Kg" });
+  });
+
+  it("編集権限剥奪コミット後は、捕捉済みの form Action を直接発火しても mutation しない", async () => {
+    const { props, rerender } = renderPanel();
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("体重"), "4.5");
+
+    const captured = capturedAction.current;
+    if (captured === undefined) {
+      throw new Error("portal form の Action を捕捉できていない");
+    }
+
+    mockState.permissions = { ...mockState.permissions, canEdit: false };
+    rerender(<InterviewWeightPanel {...props} historyLoading />);
+
+    const formData = new FormData();
+    formData.set("recordIdentity", "10|7");
+    act(() => {
+      startTransition(() => {
+        captured(formData);
+      });
+    });
+    await act(async () => {});
+
+    expect(createVitalMock).not.toHaveBeenCalled();
+  });
+
+  it("canView 剥奪コミット後は、捕捉済みの form Action を直接発火しても mutation しない", async () => {
+    const { props, rerender } = renderPanel();
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("体重"), "4.5");
+
+    const captured = capturedAction.current;
+    if (captured === undefined) {
+      throw new Error("portal form の Action を捕捉できていない");
+    }
+
+    mockState.permissions = { ...mockState.permissions, canView: false };
+    rerender(<InterviewWeightPanel {...props} historyLoading />);
+    expect(getVitalsArgsMock).toHaveBeenCalledWith(
+      "10",
+      "7",
+      expect.objectContaining({ enabled: false }),
+    );
+
+    const formData = new FormData();
+    formData.set("recordIdentity", "10|7");
+    act(() => {
+      startTransition(() => {
+        captured(formData);
+      });
+    });
+    await act(async () => {});
+
+    expect(createVitalMock).not.toHaveBeenCalled();
+  });
+
+  it("canCreate 無しの記録失敗はエラーを表示して保存済みにせず、再試行で成功する", async () => {
+    mockState.permissions = { ...mockState.permissions, canCreate: false };
+    createVitalMock.mockRejectedValueOnce(new Error("forced failure"));
+    renderPanel();
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("体重"), "4.5");
+    await user.click(screen.getByRole("button", { name: "体重を記録" }));
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.queryByText("体重を記録しました")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "体重を記録" }));
+
+    expect(await screen.findByText("体重を記録しました")).toBeInTheDocument();
+    expect(createVitalMock).toHaveBeenCalledTimes(2);
+    for (const call of createVitalMock.mock.calls) {
+      expect(call[0]).toMatchObject({ weight: 4.5, weight_unit: "Kg" });
+    }
   });
 });

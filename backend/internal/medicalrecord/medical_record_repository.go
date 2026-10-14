@@ -211,7 +211,25 @@ func medicalRecordBillingPreload(clinicIDs []uint64) func(*gorm.DB) *gorm.DB {
 }
 
 func medicalRecordVitalsPreload(db *gorm.DB) *gorm.DB {
-	return db.Where(`
+	return db.Select([]string{
+		"vital_records.id",
+		"vital_records.clinic_id",
+		"vital_records.pet_id",
+		"vital_records.medical_record_id",
+		"vital_records.daily_record_id",
+		"vital_records.recorded_at",
+		"vital_records.staff_id",
+		"vital_records.temperature",
+		"vital_records.heart_rate",
+		"vital_records.respiration_rate",
+		"vital_records.weight",
+		"COALESCE(NULLIF(vital_records.weight_unit::text, ''), 'Kg') AS weight_unit",
+		"vital_records.notes",
+		"vital_records.version",
+		"vital_records.created_at",
+		"vital_records.updated_at",
+		"vital_records.deleted_at",
+	}).Where(`
 		vital_records.deleted_at IS NULL
 		AND EXISTS (
 			SELECT 1

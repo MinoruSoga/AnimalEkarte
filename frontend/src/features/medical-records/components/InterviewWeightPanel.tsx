@@ -79,7 +79,7 @@ const InterviewWeightEditor = function InterviewWeightEditor({
   isFinalized = false,
   className,
 }: InterviewWeightPanelProps) {
-  const { canView, canCreate, canEdit } = usePermission("medical-records");
+  const { canView, canEdit } = usePermission("medical-records");
 
   // canView=false では実クエリ自体を止める（DOM を隠すだけでは fetch は走る）。
   const {
@@ -111,7 +111,6 @@ const InterviewWeightEditor = function InterviewWeightEditor({
     !!medicalRecordId &&
     !!recordClinicId &&
     !isPetDeceased &&
-    canCreate &&
     canEdit &&
     canView &&
     !isLocked &&
@@ -229,8 +228,7 @@ const InterviewWeightEditor = function InterviewWeightEditor({
 
   // 編集許可のある control はロック/確定でも「表示したまま disabled」にする
   // （捕捉済みイベント経路の回帰テストを実経路として残すため取り下げない）。
-  const showWriteUi =
-    !!medicalRecordId && !!recordClinicId && !isPetDeceased && canCreate && canEdit;
+  const showWriteUi = !!medicalRecordId && !!recordClinicId && !isPetDeceased && canEdit;
   const controlsDisabled = isLocked || isFinalized || createPending || savePending;
 
   return (

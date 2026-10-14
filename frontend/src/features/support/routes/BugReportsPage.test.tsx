@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+
+import { C } from "@/lib/design-tokens";
 
 import type { BugReport } from "../types";
 
@@ -98,6 +100,7 @@ describe("BugReportsPage Plane 列", () => {
 
     expect(screen.getByText("起票失敗")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "再送" }));
+    expect(createTicketMutateMock).toHaveBeenCalledTimes(1);
     expect(createTicketMutateMock).toHaveBeenCalledWith(7);
   });
 
@@ -118,6 +121,7 @@ describe("BugReportsPage Plane 列", () => {
 
     expect(screen.queryByRole("link", { name: "チケット" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "起票" }));
+    expect(createTicketMutateMock).toHaveBeenCalledTimes(1);
     expect(createTicketMutateMock).toHaveBeenCalledWith(7);
   });
 
@@ -128,6 +132,165 @@ describe("BugReportsPage Plane 列", () => {
     expect(screen.queryByRole("link", { name: "チケット" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "起票" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "再送" })).not.toBeInTheDocument();
+  });
+});
+
+describe("BugReportsPage Plane 起票済み + 同期失敗", () => {
+  const LINKED_URL = "https://app.plane.so/baritechllc/browse/EMR-42/";
+
+  it.each([1, 2])(
+    "clinic_id=%i: 起票済み + plane_sync_error ではリンクと「状態同期失敗」を表示し起票アクションは出さない",
+    async (clinicId) => {
+      const user = userEvent.setup();
+      const untrusted = 'sync failed <script>alert("x")</script> "quoted"';
+      reportsMock = [
+        makeReport({
+          id: 7,
+          clinic_id: clinicId,
+          plane_issue_url: LINKED_URL,
+          plane_sync_error: untrusted,
+        }),
+      ];
+      render(<BugReportsPage />);
+
+      const table = screen.getByRole("table");
+      const link = within(table).getByRole("link", { name: "チケット" });
+      expect(link).toHaveAttribute("href", LINKED_URL);
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", "noopener noreferrer");
+      const indicator = within(table).getByText("状態同期失敗");
+      expect(indicator).toHaveAttribute("title", untrusted);
+      expect(indicator).toHaveClass("text-sm");
+      expect(indicator).toHaveClass(C.danger);
+      expect(indicator.querySelectorAll("*")).toHaveLength(0);
+      expect(within(table).queryByRole("button", { name: "起票" })).not.toBeInTheDocument();
+      expect(within(table).queryByRole("button", { name: "再送" })).not.toBeInTheDocument();
+      expect(within(table).queryByText("起票失敗")).not.toBeInTheDocument();
+      expect(createTicketMutateMock).not.toHaveBeenCalled();
+
+      await user.click(screen.getByRole("button", { name: "詳細: 受付でエラー" }));
+      const dialog = await screen.findByRole("dialog");
+      const dialogLink = within(dialog).getByRole("link", { name: "チケット" });
+      expect(dialogLink).toHaveAttribute("href", LINKED_URL);
+      expect(dialogLink).toHaveAttribute("target", "_blank");
+      expect(dialogLink).toHaveAttribute("rel", "noopener noreferrer");
+      const dialogIndicator = within(dialog).getByText("状態同期失敗");
+      expect(dialogIndicator).toHaveAttribute("title", untrusted);
+      expect(dialogIndicator).toHaveClass("text-sm");
+      expect(dialogIndicator).toHaveClass(C.danger);
+      expect(within(dialog).queryByRole("button", { name: "起票" })).not.toBeInTheDocument();
+      expect(within(dialog).queryByRole("button", { name: "再送" })).not.toBeInTheDocument();
+      expect(within(dialog).queryByText("起票失敗")).not.toBeInTheDocument();
+
+      await user.click(within(dialog).getByRole("button", { name: "閉じる" }));
+      expect(createTicketMutateMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    { clinicId: 1, syncError: undefined },
+    { clinicId: 1, syncError: "" },
+    { clinicId: 2, syncError: undefined },
+    { clinicId: 2, syncError: "" },
+  ])(
+    "clinic_id=$clinicId, plane_sync_error=$syncError: 起票済みでエラーが空なら同期失敗インジケータを出さない",
+    async ({ clinicId, syncError }) => {
+      const user = userEvent.setup();
+      reportsMock = [
+        makeReport({
+          id: 7,
+          clinic_id: clinicId,
+          plane_issue_url: LINKED_URL,
+          plane_sync_error: syncError,
+        }),
+      ];
+      render(<BugReportsPage />);
+
+      const table = screen.getByRole("table");
+      expect(within(table).getByRole("link", { name: "チケット" })).toHaveAttribute(
+        "href",
+        LINKED_URL,
+      );
+      expect(within(table).queryByText("状態同期失敗")).not.toBeInTheDocument();
+      expect(within(table).queryByRole("button", { name: "起票" })).not.toBeInTheDocument();
+      expect(within(table).queryByRole("button", { name: "再送" })).not.toBeInTheDocument();
+      expect(createTicketMutateMock).not.toHaveBeenCalled();
+
+      await user.click(screen.getByRole("button", { name: "詳細: 受付でエラー" }));
+      const dialog = await screen.findByRole("dialog");
+      expect(within(dialog).getByRole("link", { name: "チケット" })).toHaveAttribute(
+        "href",
+        LINKED_URL,
+      );
+      expect(within(dialog).queryByText("状態同期失敗")).not.toBeInTheDocument();
+      expect(within(dialog).queryByRole("button", { name: "起票" })).not.toBeInTheDocument();
+      expect(within(dialog).queryByRole("button", { name: "再送" })).not.toBeInTheDocument();
+
+      await user.click(within(dialog).getByRole("button", { name: "閉じる" }));
+      expect(createTicketMutateMock).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe("BugReportsPage 詳細ダイアログの Plane 表示", () => {
+  it("自医院・未連携・エラーあり: 「起票失敗」+ title と再送を表示し、再送で mutation を1回呼ぶ", async () => {
+    const user = userEvent.setup();
+    const errorText = "plane api error (status 500)";
+    reportsMock = [makeReport({ id: 7, plane_sync_error: errorText })];
+    render(<BugReportsPage />);
+
+    await user.click(screen.getByRole("button", { name: "詳細: 受付でエラー" }));
+    const dialog = await screen.findByRole("dialog");
+    const failure = within(dialog).getByText("起票失敗");
+    expect(failure).toHaveAttribute("title", errorText);
+    await user.click(within(dialog).getByRole("button", { name: "再送" }));
+    expect(createTicketMutateMock).toHaveBeenCalledTimes(1);
+    expect(createTicketMutateMock).toHaveBeenCalledWith(7);
+  });
+
+  it("他医院・未連携・エラーあり: 「起票失敗」+ title を表示するが再送を出さず mutation も呼ばない", async () => {
+    const user = userEvent.setup();
+    const errorText = "plane api error (status 500)";
+    reportsMock = [makeReport({ id: 7, clinic_id: 2, plane_sync_error: errorText })];
+    render(<BugReportsPage />);
+
+    await user.click(screen.getByRole("button", { name: "詳細: 受付でエラー" }));
+    const dialog = await screen.findByRole("dialog");
+    const failure = within(dialog).getByText("起票失敗");
+    expect(failure).toHaveAttribute("title", errorText);
+    expect(within(dialog).queryByRole("button", { name: "再送" })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "起票" })).not.toBeInTheDocument();
+    expect(createTicketMutateMock).not.toHaveBeenCalled();
+  });
+
+  it("自医院・未連携・エラーなし: 詳細の起票ボタンで mutation を1回呼ぶ", async () => {
+    const user = userEvent.setup();
+    reportsMock = [makeReport({ id: 7 })];
+    render(<BugReportsPage />);
+
+    await user.click(screen.getByRole("button", { name: "詳細: 受付でエラー" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "起票" }));
+    expect(createTicketMutateMock).toHaveBeenCalledTimes(1);
+    expect(createTicketMutateMock).toHaveBeenCalledWith(7);
+  });
+
+  it("他医院・未連携・エラーなし: 一覧も詳細も起票アクションを出さない", async () => {
+    const user = userEvent.setup();
+    reportsMock = [makeReport({ id: 7, clinic_id: 2, clinic_name: "他医院" })];
+    render(<BugReportsPage />);
+
+    const table = screen.getByRole("table");
+    expect(within(table).queryByRole("link", { name: "チケット" })).not.toBeInTheDocument();
+    expect(within(table).queryByRole("button", { name: "起票" })).not.toBeInTheDocument();
+    expect(within(table).queryByRole("button", { name: "再送" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "詳細: 受付でエラー" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByRole("link", { name: "チケット" })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "起票" })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "再送" })).not.toBeInTheDocument();
+    expect(createTicketMutateMock).not.toHaveBeenCalled();
   });
 });
 
