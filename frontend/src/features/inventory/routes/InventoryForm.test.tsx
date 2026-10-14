@@ -144,6 +144,9 @@ describe("InventoryForm BUG-507 not-found / network gate", () => {
 
     expect(screen.getByText("在庫編集")).toBeInTheDocument();
     expect(document.querySelector("form#inventory-form")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "更新" })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "更新" })).toHaveAttribute("form", "inventory-form");
+    expect(screen.getByRole("button", { name: "更新" })).toHaveAttribute("type", "submit");
     expect(screen.queryByText("在庫情報が見つかりません")).not.toBeInTheDocument();
   });
 });
@@ -264,13 +267,10 @@ describe("InventoryForm header submit (BUG-007)", () => {
     renderForm();
     const form = document.querySelector("form#inventory-form");
     expect(form).toHaveAttribute("id", "inventory-form");
-    const buttons = screen.getAllByRole("button", { name: "更新" });
-    expect(buttons.length).toBeGreaterThanOrEqual(2);
-    const header = buttons.find((b) => b.getAttribute("form") === "inventory-form");
-    expect(header).toBeDefined();
+    const header = screen.getByRole("button", { name: "更新" });
     expect(header).toHaveAttribute("type", "submit");
     expect(header).toHaveAttribute("form", "inventory-form");
-    expect(form?.contains(header!)).toBe(false);
+    expect(form?.contains(header)).toBe(false);
 
     await user.click(header!);
     expect(formReturn.current.formAction).toHaveBeenCalled();

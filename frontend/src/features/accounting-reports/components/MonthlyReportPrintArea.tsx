@@ -2,6 +2,7 @@ import { PrintPortal } from "@/components/shared/PrintPortal";
 import { formatTaxRatePercent } from "@/hooks/use-clinic-tax-rates";
 import { C } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
+import { formatDate } from "@/lib/format/date";
 import type { CategoryPaymentMatrix, MonthlyReportResponse } from "../api/get-monthly-report";
 import { CategoryPaymentMatrixTable } from "./CategoryPaymentMatrixTable";
 
@@ -41,7 +42,7 @@ export function MonthlyReportPrintArea({
     <PrintPortal testId="monthly-report-print-area" orientation="landscape">
       {/* ヘッダー */}
       <div className="mb-3 text-center">
-        <h1 className="text-[14pt] font-bold">月次集計レポート</h1>
+        <h2 className="text-[14pt] font-bold">月次集計レポート</h2>
         {clinicName ? <p className="text-[10pt]">{clinicName}</p> : null}
         <p className="text-[10pt]">対象期間: {periodLabel}</p>
       </div>
@@ -160,31 +161,33 @@ export function MonthlyReportPrintArea({
           <tr className={`${C.bgGray100}`}>
             <th className={`border ${C.borderGray300} px-1 py-0.5 text-left`}>日付</th>
             <th className={`border ${C.borderGray300} px-1 py-0.5 text-left`}>曜日</th>
-            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>午前件数</th>
-            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>午前売上</th>
-            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>午後件数</th>
-            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>午後売上</th>
-            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>日計</th>
-            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>返金</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right whitespace-nowrap`}>
+              会計件数
+            </th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right whitespace-nowrap`}>
+              日計
+            </th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right whitespace-nowrap`}>
+              返金
+            </th>
           </tr>
         </thead>
         <tbody>
           {dailyDetails.map((d) => (
             <tr key={d.date} className={d.isHoliday ? C.bgMuted : undefined}>
-              <td className={`border ${C.borderGray300} px-1 py-0.5`}>{d.date}</td>
+              <td className={`border ${C.borderGray300} px-1 py-0.5 whitespace-nowrap`}>
+                {d.date ? formatDate(d.date) : "—"}
+              </td>
               <td className={`border ${C.borderGray300} px-1 py-0.5`}>{d.weekday}</td>
-              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>{d.amCount}</td>
-              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
-                {formatCurrency(d.amNet)}
+              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right whitespace-nowrap`}>
+                {d.amCount + d.pmCount}
               </td>
-              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>{d.pmCount}</td>
-              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
-                {formatCurrency(d.pmNet)}
-              </td>
-              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right font-medium`}>
+              <td
+                className={`border ${C.borderGray300} px-1 py-0.5 text-right whitespace-nowrap font-medium`}
+              >
                 {formatCurrency(d.dayNet)}
               </td>
-              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
+              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right whitespace-nowrap`}>
                 {d.refund > 0 ? `-${formatCurrency(d.refund)}` : "—"}
               </td>
             </tr>

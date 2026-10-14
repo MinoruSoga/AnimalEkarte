@@ -80,6 +80,21 @@ describe("ItemListCard merchandise selection", () => {
     expect(nameHeader.className).toMatch(/min-w-\[/);
     expect(nameHeader.closest(".overflow-auto")).not.toBeNull();
 
+    const region = screen.getByRole("region", { name: "会計明細" });
+    expect(region).toHaveAttribute("tabindex", "0");
+    expect(screen.getAllByRole("region", { name: "会計明細" })).toHaveLength(1);
+    expect(screen.getByText("横にスクロールしてすべての項目を確認できます")).toBeInTheDocument();
+    const amountHeader = screen.getByRole("columnheader", { name: "金額" });
+    expect(amountHeader).toHaveClass(
+      "sticky",
+      "right-[80px]",
+      "min-w-[130px]",
+      "whitespace-nowrap",
+    );
+    // PR665: 金額の右にある 80px 操作列を right-0 で固定し、金額はその直前で固定する。
+    const headers = screen.getAllByRole("columnheader");
+    const actionHeader = headers[headers.length - 1]!;
+    expect(actionHeader).toHaveClass("sticky", "right-0", "w-[80px]");
     const taxHeader = screen.getByRole("columnheader", { name: "税額" });
     expect(taxHeader.className).toContain("whitespace-nowrap");
   });
@@ -379,5 +394,43 @@ describe("ItemListCard 当日/過去の区分", () => {
 
     expect(screen.queryByText("当日分")).not.toBeInTheDocument();
     expect(screen.queryByText("過去の未請求分")).not.toBeInTheDocument();
+  });
+});
+
+describe("ItemListCard サマリー表記 (EMR-401)", () => {
+  function renderSummary(subtotal: number, taxTotal: number, totalAmount: number) {
+    render(
+      <ItemListCard
+        items={[]}
+        subtotal={subtotal}
+        taxTotal={taxTotal}
+        totalAmount={totalAmount}
+        newItemOpen={false}
+        onNewItemOpenChange={vi.fn()}
+        onAddItem={vi.fn()}
+        onDeleteItem={vi.fn()}
+        canEdit={false}
+        canDelete={false}
+      />,
+    );
+  }
+
+  it("内税明細を含み得る小計を 税抜 と呼ばず、合計へ二重加算しない", () => {
+    renderSummary(7700, 700, 7700);
+
+    expect(screen.queryByText(/税抜/)).not.toBeInTheDocument();
+    expect(screen.getByText(/小計（明細合計）/)).toBeInTheDocument();
+    expect(screen.getByText(/消費税（内税分を含む）/)).toBeInTheDocument();
+    expect(screen.getAllByText(/¥7,700/)).toHaveLength(2);
+    expect(screen.getByText(/¥700/)).toBeInTheDocument();
+    expect(screen.queryByText(/¥8,400/)).not.toBeInTheDocument();
+  });
+
+  it("外税を含む混合ケースでも小計・税額・合計をそのまま描画する", () => {
+    renderSummary(8700, 800, 8800);
+
+    expect(screen.getByText(/小計（明細合計）: ¥8,700/)).toBeInTheDocument();
+    expect(screen.getByText(/消費税（内税分を含む）: ¥800/)).toBeInTheDocument();
+    expect(screen.getByText(/合計: ¥8,800/)).toBeInTheDocument();
   });
 });

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
+import { C } from "@/lib/design-tokens";
 import { PatientContextHeader } from "./PatientContextHeader";
 
 // PNG asset import を空文字列にスタブ
@@ -61,6 +62,10 @@ describe("PatientContextHeader", () => {
       expect(screen.getByText("去勢済")).toBeInTheDocument();
       expect(screen.getByText("品種")).toBeInTheDocument();
       expect(screen.getByText("柴犬")).toBeInTheDocument();
+      for (const label of ["性別", "避妊去勢", "品種"]) {
+        expect(screen.getByText(label)).toHaveClass(C.text65);
+      }
+      expect(screen.getByText("#0001")).toHaveClass(C.text65);
     });
 
     it("猫の性別・避妊済・品種を表示する", () => {
@@ -136,7 +141,7 @@ describe("PatientContextHeader", () => {
   it("microchipNumber があればペット名近くに表示する", () => {
     render(<PatientContextHeader {...baseProps} microchipNumber="392140000123456" />);
     expect(screen.getAllByText("392140000123456").length).toBeGreaterThan(0);
-    expect(screen.getByLabelText("マイクロチップ番号 392140000123456")).toBeInTheDocument();
+    expect(screen.getByLabelText("マイクロチップ番号 392140000123456")).toHaveClass(C.text65);
   });
 
   it("microchipNumber が無いときは番号を出さない", () => {
@@ -325,6 +330,62 @@ describe("PatientContextHeader 特記マーク (EMR-173/231)", () => {
     rerender(<PatientContextHeader {...baseProps} />);
     expect(screen.queryByRole("button", { name: /の詳細を表示/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("img", { name: "特記" })).not.toBeInTheDocument();
+  });
+});
+
+describe("PatientContextHeader 名称折返し (EMR-401 C1-1)", () => {
+  it("長い飼主名・ペット名は truncate と固定 max-width cap なしで全文を折り返し表示する", () => {
+    const longOwner = "非常に長い飼主名前サンプル田中山田鈴木佐藤伊藤渡辺一二三四五六";
+    const longPet = "非常に長いペット名ポチタロウジロウハナコモモチャコロ";
+    render(<PatientContextHeader {...baseProps} ownerName={longOwner} petName={longPet} />);
+
+    const ownerEl = screen.getByText(longOwner, { selector: "span" });
+    const petEl = screen.getByText(longPet, { selector: "span" });
+    const nameRow = ownerEl.closest("div");
+    expect(nameRow).toHaveClass("flex-wrap");
+
+    for (const el of [ownerEl, petEl]) {
+      expect(el).not.toHaveClass("truncate");
+      expect(el.className).not.toContain("max-w-[200px]");
+      expect(el.className).not.toContain("max-w-[160px]");
+      expect(el.parentElement?.className ?? "").not.toContain("max-w-[200px]");
+      expect(el.parentElement?.className ?? "").not.toContain("max-w-[160px]");
+    }
+  });
+
+  it("長い年齢行は max-w-[200px]/truncate せず折り返し、アイコンは shrink-0 で潰れない", () => {
+    render(<PatientContextHeader {...baseProps} birthDate="2020-01-01" species="犬" />);
+
+    const infoEl = screen
+      .getAllByText(/2020-01-01生/)
+      .find((el) => el.parentElement?.querySelector("svg") != null);
+    expect(infoEl).toBeDefined();
+    const wrapper = infoEl!.parentElement;
+    expect(wrapper?.className ?? "").not.toContain("max-w-[200px]");
+    expect(infoEl).not.toHaveClass("truncate");
+    expect(wrapper?.querySelector("svg")?.className.baseVal ?? "").toContain("shrink-0");
+  });
+
+  it("長い名称でも onOwnerClick コールバックとペット詳細 link は維持される", async () => {
+    const longOwner = "非常に長い飼主名前サンプル田中山田鈴木佐藤伊藤渡辺一二三四五六";
+    const onOwnerClick = vi.fn();
+    render(
+      <MemoryRouter>
+        <PatientContextHeader
+          {...baseProps}
+          ownerName={longOwner}
+          onOwnerClick={onOwnerClick}
+          petDetailHref="/owners/42?pet=7"
+        />
+      </MemoryRouter>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: longOwner }));
+    expect(onOwnerClick).toHaveBeenCalledOnce();
+    expect(screen.getByRole("link", { name: "ペット詳細を開く" })).toHaveAttribute(
+      "href",
+      "/owners/42?pet=7",
+    );
   });
 });
 

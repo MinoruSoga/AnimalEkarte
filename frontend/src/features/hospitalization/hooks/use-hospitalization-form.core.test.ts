@@ -180,6 +180,20 @@ describe("useHospitalizationForm", () => {
   });
 
   describe("初期状態", () => {
+    it("start date is JST today and explicit changes survive rerender", () => {
+      vi.useFakeTimers();
+      try {
+        vi.setSystemTime(new Date("2026-10-14T15:01:00Z"));
+        const { result, rerender } = renderHospitalizationForm();
+        expect(result.current.formData.displayDate).toBe("2026-10-15");
+        expect(result.current.formData.nextVisit).toBe("");
+        act(() => result.current.handleFormDataChange({ displayDate: "2026-10-13" }));
+        rerender();
+        expect(result.current.formData.displayDate).toBe("2026-10-13");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
     it("id なし → isEdit = false", () => {
       const { result } = renderHospitalizationForm();
       expect(result.current.isEdit).toBe(false);

@@ -14,7 +14,7 @@ describe("ErrorPage（BUG-027: LIFF / LINE-reserve 共通エラー chrome）", (
 
     const root = container.firstElementChild as HTMLElement;
     expect(root.className).toContain(DEFAULT_ERROR_PAGE_THEME.bg);
-    expect(screen.getByText("⚠️")).toBeInTheDocument();
+    expect(container.querySelector("svg[aria-hidden='true']")).toBeInTheDocument();
     const heading = screen.getByRole("heading", { level: 1 });
     expect(heading).toHaveTextContent(SHARED_ERROR_PAGE_TITLE);
     expect(heading.className).toContain(DEFAULT_ERROR_PAGE_THEME.heading);
@@ -53,5 +53,10 @@ describe("ErrorPage（BUG-027: LIFF / LINE-reserve 共通エラー chrome）", (
 
     expect(screen.getByRole("alert")).toHaveTextContent("医院IDが見つかりません");
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "LINEの医院公式アカウントから開き直してください。解決しない場合は医院へお問い合わせください。",
+      ),
+    ).toBeInTheDocument();
   });
 });

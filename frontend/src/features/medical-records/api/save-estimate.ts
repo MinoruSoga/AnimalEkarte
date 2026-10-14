@@ -3,9 +3,9 @@ import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
-import type { Estimate } from "@/types/generated/models";
+import type { Estimate, TaxType } from "@/types/generated/models";
 
-interface SaveEstimateItemPayload {
+export interface SaveEstimateItemPayload {
   name: string;
   category?: string;
   unit_price: number;
@@ -13,7 +13,14 @@ interface SaveEstimateItemPayload {
   discount_rate: number;
   discount_amount: number;
   is_insurance_applicable: boolean;
+  tax_type?: TaxType;
+  tax_rate?: number;
   sort_order: number;
+  /**
+   * PR665: 既存行との一致ヒント。現在の見積に保存済みと証明できる行（取得または
+   * 保存応答で id を確認できた行）のみ送る。新規クライアント行では送らない。
+   */
+  existing_item_id?: number;
 }
 
 export interface SaveEstimatePayload {

@@ -18,6 +18,7 @@ import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { getExaminationStatusColor } from "@/lib/status-helpers";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { formatDate } from "@/lib/format/date";
 import type { ExaminationRecord } from "../api/transforms";
 import {
   EXAMINATION_SORT_PROPERTIES,
@@ -40,7 +41,9 @@ function ExaminationsListRow({
 }: ExaminationsListRowProps) {
   return (
     <DataTableRow key={record.id}>
-      <TableCell className={`${STYLE.tableCellMono} whitespace-nowrap`}>{record.date}</TableCell>
+      <TableCell className={`${STYLE.tableCellMono} whitespace-nowrap`}>
+        {record.date ? formatDate(record.date) : "—"}
+      </TableCell>
       <TableCell className={STYLE.tableCell}>{record.ownerName}</TableCell>
       <TableCell className={STYLE.tableCell}>
         <DataTableRowLink
@@ -58,12 +61,14 @@ function ExaminationsListRow({
         </DataTableRowLink>
       </TableCell>
       <TableCell className={`${STYLE.tableCell} font-medium hidden sm:table-cell`}>
-        {record.testType}
+        {record.testType || "—"}
       </TableCell>
       <TableCell className={`${C.text60} truncate max-w-[200px] hidden lg:table-cell`}>
-        {record.resultSummary || "-"}
+        {record.resultSummary == null || record.resultSummary === "" ? "—" : record.resultSummary}
       </TableCell>
-      <TableCell className={`${STYLE.tableCell} hidden md:table-cell`}>{record.doctor}</TableCell>
+      <TableCell className={`${STYLE.tableCell} hidden md:table-cell`}>
+        {record.doctor || "—"}
+      </TableCell>
       <TableCell className={LIST_TABLE_COL.status}>
         <StatusBadge colorClass={getExaminationStatusColor(record.status)}>
           {record.status}

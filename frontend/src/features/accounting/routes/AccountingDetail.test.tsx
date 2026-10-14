@@ -154,6 +154,7 @@ describe("AccountingDetail — A: 印刷ボタン (Print Performance)", () => {
   it("status=completed → 「明細兼領収書」ボタンが表示される", async () => {
     await renderWithIdAndWait();
     expect(screen.getByRole("button", { name: /明細兼領収書/ })).toBeInTheDocument();
+    expect(screen.getByText(/受付No.*123/)).toBeInTheDocument();
   });
 
   it("「明細兼領収書」クリック → プレビューダイアログが開く", async () => {
@@ -279,6 +280,15 @@ describe("AccountingDetail — B: 閲覧専用バナー (ReadOnly banner)", () =
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
+  it("新規作成モード (id なし) → 説明に受付No/acc_new を含まない", async () => {
+    await renderNewModeAndWait(false);
+    expect(screen.queryByText(/受付No/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/acc_new/)).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "会計を確定する" })).toHaveLength(1);
+    const paymentCard = screen.getByText("決済情報").parentElement?.parentElement;
+    expect(paymentCard).toContainElement(screen.getByRole("button", { name: "会計を確定する" }));
+  });
+
   it("レジ締め状態を閲覧できない編集者はGETを送らずfail-closedで閲覧専用になる", async () => {
     let closeGetCount = 0;
     server.use(
@@ -339,11 +349,8 @@ describe("AccountingDetail — C: 混在支払い UI / payment_splits", () => {
 
   it("デフォルト状態（未入力）→ 「会計を確定する」ボタンが disabled", async () => {
     await renderWaitingAndWait();
-    const submitButtons = screen.getAllByRole("button", { name: /会計を確定する/ });
-    expect(submitButtons.length).toBeGreaterThanOrEqual(1);
-    for (const button of submitButtons) {
-      expect(button).toBeDisabled();
-    }
+    const submitButton = screen.getByRole("button", { name: /会計を確定する/ });
+    expect(submitButton).toBeDisabled();
   });
 
   it.skip("amount=1100 / received=1100 入力後 submit → payment_splits を含む payload が送信される", async () => {
@@ -665,8 +672,7 @@ describe("AccountingDetail — BUG-001: 死亡ペット新規会計ガード", (
       expect(screen.queryByText("死亡したペットは会計を作成できません")).not.toBeInTheDocument();
       expect(document.querySelector("fieldset")).not.toBeDisabled();
     });
-    const submitButtons = screen.getAllByRole("button", { name: "会計を確定する" });
-    expect(submitButtons.length).toBeGreaterThanOrEqual(1);
-    expect(submitButtons.some((button) => !button.hasAttribute("disabled"))).toBe(true);
+    const submitButton = screen.getByRole("button", { name: "会計を確定する" });
+    expect(submitButton).not.toBeDisabled();
   });
 });

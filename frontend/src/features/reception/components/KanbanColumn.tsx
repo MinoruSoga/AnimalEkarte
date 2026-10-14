@@ -56,15 +56,15 @@ export const KanbanColumn = memo(function KanbanColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`${colors.bg} rounded-md p-2 flex flex-col gap-3 w-full lg:flex-1 lg:min-w-[220px] transition-colors ${isOver ? `ring-2 ${C.ringPrimary20} ${C.bgActive}` : ""}`}
+      className={`${colors.bg} rounded-md p-2 flex flex-col gap-3 w-full min-w-0 transition-colors ${isOver ? `ring-2 ${C.ringPrimary20} ${C.bgActive}` : ""}`}
       role="region"
       aria-label={`${data.title} — ${data.appointments.length.toLocaleString()}件`}
     >
       <div className="flex items-center gap-2 px-1 py-1">
         <div className={`${ICON.dot} rounded-full ${colors.dot}`} aria-hidden="true" />
-        <h3 className={`text-base font-bold ${colors.text}`}>{data.title}</h3>
+        <h3 className={`text-base font-bold ${C.text}`}>{data.title}</h3>
         <span
-          className={`text-base ${colors.text60} ml-auto`}
+          className={`text-base ${C.text65} ml-auto`}
           aria-live="polite"
           aria-atomic="true"
         >
@@ -77,7 +77,7 @@ export const KanbanColumn = memo(function KanbanColumn({
         >
           {data.appointments.length === 0 ? (
             <div
-              className={`flex flex-col items-center justify-center py-8 text-center ${colors.text60} select-none`}
+              className={`flex flex-col items-center justify-center py-8 text-center ${C.text65} select-none`}
             >
               <span className="text-xs">受付はありません</span>
             </div>
@@ -92,7 +92,7 @@ export const KanbanColumn = memo(function KanbanColumn({
         <Button
           variant="ghost"
           size="sm"
-          className={`w-full justify-start gap-2 h-10 ${colors.text60} ${colors.hoverBgPage} ${colors.hoverText} -mx-1 px-2`}
+          className={`w-full justify-start gap-2 h-10 ${C.text65} ${colors.hoverBgPage} ${C.hoverText} -mx-1 px-2`}
           onClick={onAddClick}
         >
           <Plus className={ICON.page} />

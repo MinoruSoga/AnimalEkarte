@@ -112,7 +112,9 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
               <TableHead className={`min-w-[90px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
                 前回来院
               </TableHead>
-              <TableHead className={`min-w-[80px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+              <TableHead
+                className={`sticky right-0 z-20 ${C.bgWhite} min-w-[120px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}
+              >
                 操作
               </TableHead>
             </TableRow>
@@ -187,7 +189,9 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                   <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>
                     {formatDate(pet.lastVisit)}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">
+                  <TableCell
+                    className={`sticky right-0 z-10 ${C.bgWhite} min-w-[120px] whitespace-nowrap`}
+                  >
                     <Button
                       size="sm"
                       variant={isSelectable ? "outline" : "ghost"}

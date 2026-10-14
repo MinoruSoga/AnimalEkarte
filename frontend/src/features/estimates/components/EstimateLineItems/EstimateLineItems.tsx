@@ -8,7 +8,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/format/number";
-import { calcLineItemAmount } from "@/lib/line-item-helpers";
+import { calcEstimateLineAmount } from "@/lib/estimate-totals";
 import type { EstimateLineItem } from "../../types";
 import { C, STYLE } from "@/lib/design-tokens";
 // FE5-26: 会計側の訳語(処方/フード/物販等)へ統一。旧ローカル定義(薬剤/食事/物品)は廃止。
@@ -37,7 +37,7 @@ export const EstimateLineItems = memo(function EstimateLineItems({
         .slice()
         .sort((a, b) => a.sortOrder - b.sortOrder)
         .map((item, idx) => {
-          const { total: lineTotal } = calcLineItemAmount(item);
+          const { total: lineTotal } = calcEstimateLineAmount(item);
           return (
             <TableRow key={item.id} className={`text-sm ${C.text}`}>
               <TableCell className={C.text60}>{idx + 1}</TableCell>
@@ -49,7 +49,11 @@ export const EstimateLineItems = memo(function EstimateLineItems({
                 {formatCurrency(item.unitPrice)}
               </TableCell>
               <TableCell className="text-right">{item.quantity}</TableCell>
-              <TableCell className="text-right">{Math.round(item.taxRate * 100)}%</TableCell>
+              <TableCell className="text-right">
+                {item.taxType === "exempt"
+                  ? "非課税"
+                  : `${item.taxType === "included" ? "内税" : "外税"} ${Math.round(item.taxRate * 100)}%`}
+              </TableCell>
               <TableCell className="text-right">
                 {item.discountAmount > 0 ? `-${formatCurrency(item.discountAmount)}` : "-"}
               </TableCell>
@@ -72,7 +76,7 @@ export const EstimateLineItems = memo(function EstimateLineItems({
             <TableHead className="w-[90px]">カテゴリ</TableHead>
             <TableHead className="w-[90px] text-right">単価</TableHead>
             <TableHead className="w-[60px] text-right">数量</TableHead>
-            <TableHead className="w-[60px] text-right">税率</TableHead>
+            <TableHead className="w-[100px] text-right">税区分・税率</TableHead>
             <TableHead className="w-[90px] text-right">割引</TableHead>
             <TableHead className="w-[100px] text-right">金額</TableHead>
           </TableRow>

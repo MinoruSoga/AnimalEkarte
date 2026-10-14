@@ -45,6 +45,15 @@ describe("RequirePermission — 振る舞いテスト", () => {
       screen.getByRole("heading", { level: 1, name: "アクセス権限がありません" }),
     ).toBeInTheDocument();
     expect(screen.queryByTestId("protected-content")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "ホームへ戻る" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "ホームへ戻る" })).toHaveClass(
+      "inline-flex",
+      "min-h-6",
+      "min-w-6",
+      "items-center",
+      "focus-visible:ring-2",
+    );
+    expect(screen.getByText("管理者に権限を確認してください")).toBeInTheDocument();
   });
 
   it("権限なし + fallback あり → fallback を描画する", () => {

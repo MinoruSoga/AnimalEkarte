@@ -23,7 +23,7 @@ export function hospitalizationToFormData(
     isActive: item?.isActive ?? true,
     bodySize: item?.bodySize ?? "",
     billingUnit: item?.billingUnit ?? "",
-    taxType: item?.taxType ?? "excluded",
+    taxType: item ? (item.taxType ?? "excluded") : "included",
     taxRate: item?.taxRate ?? 0.1,
   };
 }

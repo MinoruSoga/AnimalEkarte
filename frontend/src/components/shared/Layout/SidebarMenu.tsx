@@ -8,6 +8,7 @@ import {
   ResourceCheckups,
   ResourceClosingSettings,
   ResourceExaminations,
+  ResourceEstimates,
   ResourceHospitalSettings,
   ResourceHospitalization,
   ResourceIdentityLinks,
@@ -144,6 +145,12 @@ export const sidebarMenuSections: SidebarMenuSection[] = [
         label: "会計管理",
         path: paths.accounting.getHref(),
         resource: ResourceAccounting,
+      },
+      {
+        icon: <FileText className={ICON.toolbar} />,
+        label: "見積書管理",
+        path: paths.estimates.getHref(),
+        resource: ResourceEstimates,
       },
       {
         icon: <CreditCard className={ICON.toolbar} />,
@@ -479,6 +486,7 @@ export const sidebarItemDescriptions: Readonly<Record<string, string>> = {
     "ペットの身体測定や一般健診の履歴を管理し、次回予定日に基づく受診漏れを防止する。",
   [paths.accounting.getHref()]:
     "院内で行われた全診療・サービスの請求レコードを一覧表示・管理し、未精算の把握や過去の会計参照を行う。",
+  [paths.estimates.getHref()]: "見積書を検索し、診療・サービスの明細と金額を作成・管理する。",
   [paths.accounting.close.getHref()]: closingPurpose,
   [paths.accounting.closeHistory.getHref()]: closingPurpose,
   [paths.accounting.reports.getHref()]:

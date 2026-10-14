@@ -17,6 +17,26 @@ export interface EstimateListResponse {
   limit: number;
 }
 
+export type EstimateItemRequest = Pick<
+  EstimateItem,
+  | "name"
+  | "category"
+  | "unit_price"
+  | "quantity"
+  | "discount_rate"
+  | "discount_amount"
+  | "is_insurance_applicable"
+  | "sort_order"
+  | "tax_type"
+  | "tax_rate"
+> & {
+  /**
+   * 既存行との一致ヒント（PATCH の明細置換のみ）。この見積の item id と 1:1 で
+   * 解決できない ID・重複 ID はサーバ側で 400 になる。新規行では送らない。
+   */
+  existing_item_id?: number;
+};
+
 /**
  * 見積書作成リクエスト
  * @see {@link Estimate} — models.ts 由来の Backend 型
@@ -35,6 +55,7 @@ export interface CreateEstimateRequest {
   valid_until?: string | null;
   comment?: string;
   notes?: string;
+  items?: EstimateItemRequest[];
 }
 
 /**
@@ -53,4 +74,5 @@ export interface UpdateEstimateRequest {
   clear_valid_until?: boolean;
   comment?: string;
   notes?: string;
+  items?: EstimateItemRequest[];
 }

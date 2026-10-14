@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { LiffSettings, CustomerInfo } from "./types/models";
+import { AxiosError, AxiosHeaders } from "axios";
 
 vi.mock("./api/liff-api", () => ({
   liffApi: {
@@ -138,6 +139,30 @@ describe("App（FE5-20: ナビゲーション特性テスト）", () => {
     expect(container.firstElementChild?.className).toContain("bg-noah-teal-light");
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
+
+  it.each([404, 500])(
+    "settings HTTP %s distinguishes permanent from transient failure",
+    async (status) => {
+      vi.mocked(getClinicId).mockReturnValue("synthetic");
+      vi.mocked(liffApi.getSettings).mockRejectedValue(
+        new AxiosError("HTTP failure", undefined, undefined, undefined, {
+          status,
+          statusText: "failure",
+          data: {},
+          headers: {},
+          config: { headers: new AxiosHeaders() },
+        }),
+      );
+      mockUseLiff();
+      render(<App />);
+      const message =
+        status === 404
+          ? "この医院のLINE予約設定は登録されていません。医院へお問い合わせください。"
+          : "設定の取得に失敗しました";
+      expect(await screen.findByText(message)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "再読み込み" }) !== null).toBe(status !== 404);
+    },
+  );
 
   it("App: 設定取得失敗時にエラーページを表示する", async () => {
     vi.mocked(getClinicId).mockReturnValue("1");

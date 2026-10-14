@@ -95,20 +95,54 @@ func (s *estimateService) updateEstimateInTx(
 	cmd := *input
 	var preparedItems []model.EstimateItem
 	if input.Items != nil {
-		if err := validateEstimateItemInputs(*input.Items); err != nil {
+		// G2: 正規化はコピーへ行い、元の呼び出し元入力は書き換えない。
+		// 検証・Item 生成・cmd.Items は正規化済みコピーを使う。
+		normalized, err := applyMatchedEstimateItemTaxDefaults(*input.Items, result.existing.Items)
+		if err != nil {
 			return result, err
 		}
-		preparedItems = estimateItemsFromInput(id, *input.Items)
+		if err := validateEstimateItemInputs(normalized); err != nil {
+			return result, err
+		}
+		preparedItems = estimateItemsFromInput(id, normalized)
 		subtotal, taxTotal, totalAmount := calculateEstimateTotals(preparedItems)
-		cmd.Subtotal = &subtotal
-		cmd.TaxTotal = &taxTotal
-		cmd.TotalAmount = &totalAmount
+		if len(preparedItems) == 0 {
+			// 全行クリアは Create と同じセマンティクス: 合計は 0、ヘッダー割引はメタデータ
+			// として保持する（黙ってリセットすると権限判断が変わる）。明細総額が 0 のため
+			// 割引超過検証は適用しない。負の割引は既存の入力検証で拒否済み。
+			cmd.Subtotal = &subtotal
+			cmd.TaxTotal = &taxTotal
+			cmd.TotalAmount = &totalAmount
+		} else {
+			// PR665: 実効ヘッダー割引は「入力指定値、省略時は保存済み値」。合計のみ控除する。
+			effectiveDiscount := result.existing.DiscountAmount
+			if input.DiscountAmount != nil {
+				effectiveDiscount = *input.DiscountAmount
+			}
+			subtotal, taxTotal, totalAmount, discountErr := applyEstimateHeaderDiscount(subtotal, taxTotal, totalAmount, effectiveDiscount)
+			if discountErr != nil {
+				return result, discountErr
+			}
+			cmd.Subtotal = &subtotal
+			cmd.TaxTotal = &taxTotal
+			cmd.TotalAmount = &totalAmount
+		}
+		cmd.Items = &normalized
 	}
 
 	if input.Items == nil && len(result.existing.Items) > 0 {
 		// Active persisted items are the source of truth for estimate totals. Header-only
 		// PATCHes must not allow client-supplied totals to drift from those items.
 		subtotal, taxTotal, totalAmount := calculateEstimateTotals(result.existing.Items)
+		// PR665: ヘッダーのみの更新（割引のみ変更を含む）でも合計は割引控除後。
+		effectiveDiscount := result.existing.DiscountAmount
+		if input.DiscountAmount != nil {
+			effectiveDiscount = *input.DiscountAmount
+		}
+		subtotal, taxTotal, totalAmount, discountErr := applyEstimateHeaderDiscount(subtotal, taxTotal, totalAmount, effectiveDiscount)
+		if discountErr != nil {
+			return result, discountErr
+		}
 		cmd.Subtotal = &subtotal
 		cmd.TaxTotal = &taxTotal
 		cmd.TotalAmount = &totalAmount

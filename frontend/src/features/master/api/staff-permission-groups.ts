@@ -19,7 +19,7 @@ const STAFF_PERM_GROUPS_KEY = (staffId: string) =>
  * 全スタッフの権限グループIDマップを一括取得する。
  * staffId → groupId[] の Map を返す。
  */
-export function useGetAllStaffPermissionGroupMap(staffIds: string[]) {
+export function useGetAllStaffPermissionGroupMap(staffIds: string[], enabled = true) {
   return useQuery({
     queryKey: getAllPermissionGroupMapKey(staffIds),
     queryFn: async (): Promise<Map<string, string[]>> => {
@@ -42,7 +42,7 @@ export function useGetAllStaffPermissionGroupMap(staffIds: string[]) {
       );
       return map;
     },
-    enabled: staffIds.length > 0,
+    enabled: enabled && staffIds.length > 0,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });

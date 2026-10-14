@@ -16,7 +16,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth } from "@/hooks/use-auth";
 import type { AuthContextValue } from "@/types/auth";
 
-import { sidebarItemDescriptions } from "./SidebarMenu";
+import { sidebarItemDescriptions, sidebarMenuSections } from "./SidebarMenu";
 
 interface SidebarItemProps {
   item: MenuItem;
@@ -49,12 +49,30 @@ function targetInPurposeTooltip(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest("[data-purpose-tooltip]") !== null;
 }
 
+function matchesMenuPath(pathname: string, path: string): boolean {
+  return pathname === path || (path !== "/" && pathname.startsWith(`${path}/`));
+}
+
 function checkAnyChildActive(items: MenuItem[], pathname: string): boolean {
   return items.some(
     (sub) =>
-      (sub.path ? pathname.startsWith(sub.path) : false) ||
+      (sub.path ? matchesMenuPath(pathname, sub.path) : false) ||
       (sub.subItems ? checkAnyChildActive(sub.subItems, pathname) : false),
   );
+}
+
+function visibleMenuPaths(
+  items: MenuItem[],
+  hasPermission: AuthContextValue["hasPermission"],
+): string[] {
+  return items.flatMap((item) => {
+    if (!isMenuItemVisible(item, hasPermission)) return [];
+    const selfOk = item.resource === undefined || hasPermission(item.resource, "view");
+    return [
+      ...(selfOk && item.path ? [item.path] : []),
+      ...visibleMenuPaths(item.subItems ?? [], hasPermission),
+    ];
+  });
 }
 
 /** Parent resource is not a hard gate: show group when any descendant is viewable (LINE residual FINAL R-06/R-07). */
@@ -175,11 +193,19 @@ const SidebarItem = memo(function SidebarItem({
   const navigate = useNavigate();
   const [manualExpanded, setManualExpanded] = useState<boolean | null>(null);
 
-  const isActive = item.path
-    ? item.path === "/"
-      ? location.pathname === "/"
-      : location.pathname.startsWith(item.path)
-    : false;
+  const { hasPermission } = useAuth();
+  const menuPaths = visibleMenuPaths(
+    sidebarMenuSections.flatMap((section) => section.items),
+    hasPermission,
+  );
+  const candidates = [...menuPaths, ...visibleMenuPaths([item], hasPermission)];
+  const activePath = candidates
+    .filter((path) => matchesMenuPath(location.pathname, path))
+    .reduce<string | undefined>(
+      (longest, path) => (!longest || path.length > longest.length ? path : longest),
+      undefined,
+    );
+  const isActive = item.path !== undefined && item.path === activePath;
 
   const hasSubItems = !!item.subItems?.length;
   const hasActiveChild = hasSubItems
@@ -367,8 +393,14 @@ const SidebarItem = memo(function SidebarItem({
               {item.icon}
             </div>
             {!collapsed ? <span className="truncate flex-1">{item.label}</span> : null}
+            {!collapsed && !item.path ? (
+              <ChevronDown
+                aria-hidden="true"
+                className={`${ICON.xs} shrink-0 transition-transform${isExpanded ? " rotate-180" : ""}`}
+              />
+            ) : null}
           </button>
-          {!collapsed ? (
+          {!collapsed && item.path ? (
             <button
               type="button"
               onClick={handleChevronClick}

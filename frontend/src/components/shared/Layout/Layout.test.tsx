@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 
 import { SUPPORT_WIDGET_LAYOUT } from "@/constants/support-widget-layout";
@@ -39,6 +40,32 @@ describe("Layout", () => {
       `pb-${SUPPORT_WIDGET_LAYOUT.scrollBottomClearancePx / 4}`,
     );
     expect(SUPPORT_WIDGET_LAYOUT.scrollBottomClearance).toBe("pb-20");
+  });
+
+  it("キーボード最初の到達点は 本文へスキップ link で、activation で main へ focus する", async () => {
+    renderLayout();
+
+    const main = screen.getByRole("main");
+    expect(main).toHaveAttribute("id", "main-content");
+    expect(main).toHaveAttribute("tabindex", "-1");
+    expect(main).toHaveClass("min-w-0");
+
+    const skipLink = screen.getByRole("link", { name: "本文へスキップ" });
+    expect(skipLink).toHaveAttribute("href", "#main-content");
+
+    await userEvent.tab();
+    expect(skipLink).toHaveFocus();
+
+    await userEvent.keyboard("{Enter}");
+    expect(main).toHaveFocus();
+  });
+
+  it("skip link は通常非表示で focus 時だけ可視化される", () => {
+    renderLayout();
+
+    const skipLink = screen.getByRole("link", { name: "本文へスキップ" });
+    expect(skipLink).toHaveClass("sr-only");
+    expect(skipLink.className).toContain("focus:not-sr-only");
   });
 
   it("footprintPx は position(bottom-N) + buttonSizeClass(size-N) の算術と一致する", () => {

@@ -61,6 +61,28 @@ function renderPanel(
   return render(panel({ ...overrides, vaccineOptions }));
 }
 
+describe("VaccinationFieldsPanel migration provenance", () => {
+  it.each(["src:YOBO", " src:YOBO/123", "src:YOBO imported"])(
+    "does not render migration provenance %s",
+    (supplemental) => {
+      const { container } = renderPanel([], { supplemental });
+      expect(screen.queryByLabelText("補助説明")).not.toBeInTheDocument();
+      expect(new XMLSerializer().serializeToString(container)).not.toContain(supplemental.trim());
+    },
+  );
+  it.each(["通常の補足", "src:YOBOX", "接種 src:YOBO/123"])(
+    "ordinary supplemental remains editable %s",
+    (supplemental) => {
+      const onSupplementalChange = vi.fn();
+      renderPanel([], { supplemental, onSupplementalChange });
+      const field = screen.getByLabelText("補助説明");
+      expect(field).toHaveValue(supplemental);
+      fireEvent.change(field, { target: { value: "更新" } });
+      expect(onSupplementalChange).toHaveBeenCalledWith("更新");
+    },
+  );
+});
+
 describe("VaccinationFieldsPanel — ワクチン選択 (BUG-401)", () => {
   it("編集recordの担当医を読み取り専用の臨床帰属として表示する", () => {
     renderPanel([], { doctorName: "合成監査スタッフ" });
