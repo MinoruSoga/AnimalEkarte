@@ -44,9 +44,9 @@ flowchart TB
 3. `backend/` から `npx wrangler deploy`。
 4. `infra/scripts/cf-run-migrate.sh` で `POST /_internal/migrate`（`MIGRATE_RUN_SECRET`）。
 5. `/health` が HTTP 200 / `status: ok` になるまで最大12回、30秒間隔で確認。
-6. `STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD` がある場合だけ `cf-crud-smoke.sh`。**continue-on-error の optional step** なので workflow green だけでは CRUD PASS を証明しない。
+6. `cf-demo-smoke.py --auth` が共通の `SEEDLOGIN_DEMO_PASSWORD` で固定の合成 `執行` demo identity にログインし、`/me` と logout を確認する。これは必須・read-only smoke であり、失敗は deploy job を fail させる。自動 deploy smoke は master CRUD を実行しない。
 
-順序は **deploy → migrate → health → optional smoke**。新 binary が旧 schema に到達し得る deploy 完了〜migration 完了の区間は既知の制約。`cf-run-migrate.sh` の `MIGRATE_TIMEOUT=270` は curl attempt 毎の値（default 最大 5 attempts・backoff 20s）で、Worker の migrate exec 上限は 240s — いずれも deploy/migration 合計時間の保証値ではない。schema compatibility を release 前に確認する。
+順序は **deploy → migrate → health → required read-only demo auth smoke**。画面 demo login と通常 deploy smoke は frontend build と Worker seedlogin で共有する `SEEDLOGIN_DEMO_PASSWORD` を使う。合成 `執行` identity の値は report/log に出さない。`STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD` は旧 admin CRUD smoke 専用の legacy credentials で、保持・削除は別途人が承認する。`cf:smoke` alias は auth-only。明示承認済みの手動 `--crud` だけが一つの test permission-group と一つの test staff を作成し、POST が返したIDを所有確認できた場合に限り削除する。既存行、financial data、owner/pet、PHI は変更しない。`read-only` は業務レコードを変更しない意味であり、login/logout は通常の認証 session/audit 更新を行う。permission-group handler の必須 audit transaction は既存 integration tests で検証される。API success を全 resource の audit sink 検証と一般化せず、この作業で live audit-table query は行わない。legacy accounting smoke は `NOT_RUN` であり、新 master CRUD は全 financial acceptance を意味しない。親タスクの最終実行前に real smoke PASS として報告しない。新 binary が旧 schema に到達し得る deploy 完了〜migration 完了の区間は既知の制約。`cf-run-migrate.sh` の `MIGRATE_TIMEOUT=270` は curl attempt 毎の値（default 最大 5 attempts・backoff 20s）で、Worker の migrate exec 上限は 240s — いずれも deploy/migration 合計時間の保証値ではない。schema compatibility を release 前に確認する。
 
 CSV seed は全環境で `002_master` のみ。STG は `APP_ENV=staging` を Worker/Container/migrate に渡し、フェーズ3で合成ログインを upsert する。詳細は [seed operations](seeds/SEED_MIGRATION_OPERATIONS.md)。health は process liveness であり DB access の証明ではない。
 

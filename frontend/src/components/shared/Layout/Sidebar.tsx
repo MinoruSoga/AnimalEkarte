@@ -15,7 +15,7 @@ function SidebarSection({ section, collapsed = false }: SidebarSectionProps) {
   return (
     <div className="space-y-px">
       {!collapsed ? (
-        <p className={`px-3 mb-1 text-2xs font-semibold ${C.text40} uppercase`}>{section.title}</p>
+        <p className={`px-3 mb-1 text-2xs font-semibold ${C.text65} uppercase`}>{section.title}</p>
       ) : null}
       {section.items.map((item) => (
         <SidebarItemWithPermission key={item.label} item={item} collapsed={collapsed} />
@@ -84,7 +84,11 @@ export const Sidebar = memo(function Sidebar() {
         onExpand={() => setCollapsed(false)}
       />
 
-      <nav aria-label="メインナビゲーション" className="flex-1 px-1 py-2 space-y-6 overflow-y-auto">
+      <nav
+        aria-label="メインナビゲーション"
+        className="flex-1 px-1 py-2 space-y-6 overflow-y-scroll"
+        style={{ scrollbarGutter: "stable" }}
+      >
         {sidebarMenuSections.map((section) => (
           <SidebarSection key={section.title} section={section} collapsed={collapsed} />
         ))}

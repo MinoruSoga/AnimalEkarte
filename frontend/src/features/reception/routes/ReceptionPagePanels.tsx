@@ -29,6 +29,8 @@ interface ReceptionPageBodyProps {
   isFilterOpen: boolean;
   onToggleFilter: () => void;
   canCreateReservation: boolean;
+  /** PR665: 当日のヘッダーボタンは walk-in 受付のため reception:create も要求する。非当日は通常予約のみ。 */
+  canCreateWalkInReception?: boolean;
   onNewReception: () => void;
   telemetry: ReceptionTelemetryResult;
   selectedVisitTypes: string[];
@@ -74,6 +76,7 @@ export function ReceptionPageBody({
   isFilterOpen,
   onToggleFilter,
   canCreateReservation,
+  canCreateWalkInReception = true,
   onNewReception,
   telemetry,
   selectedVisitTypes,
@@ -134,7 +137,8 @@ export function ReceptionPageBody({
               <Filter className={ICON.sm} />
               フィルター
             </Button>
-            {canCreateReservation === true ? (
+            {/* PR665: 通常予約は reservations:create、当日 walk-in は reception:create も必要。権限のない受付アクションは表示しない。 */}
+            {canCreateReservation === true && (!isToday || canCreateWalkInReception === true) ? (
               <PrimaryButton onClick={onNewReception}>新規予約登録</PrimaryButton>
             ) : null}
           </div>
@@ -165,7 +169,7 @@ export function ReceptionPageBody({
         <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragEnd={onDragEnd}>
           {/* タブレット: 2-3列グリッド、デスクトップ: 5列flex */}
           <div
-            className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:flex gap-4 h-full w-full overflow-y-auto relative lg:overflow-x-auto lg:overflow-y-hidden pb-20 lg:pb-2 bg-transparent transition-opacity${isUpdatingStatus ? " opacity-70 pointer-events-none" : ""}`}
+            className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 h-full w-full overflow-y-auto relative pb-20 lg:pb-2 bg-transparent transition-opacity${isUpdatingStatus ? " opacity-70 pointer-events-none" : ""}`}
           >
             {columnElements}
           </div>

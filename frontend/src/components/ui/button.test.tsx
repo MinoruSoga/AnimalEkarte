@@ -22,6 +22,27 @@ const BUTTON_VARIANT_SIZE_CASES = BUTTON_VARIANTS.flatMap((variant) =>
 );
 
 describe("Button", () => {
+  it("keeps pointer affordance, disabled semantics and native child link focus", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <Button disabled>無効</Button>
+        <Button asChild>
+          <a href="/settings">設定へ</a>
+        </Button>
+      </>,
+    );
+    expect(screen.getByRole("button", { name: "無効" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "無効" })).toHaveClass(
+      "cursor-pointer",
+      "disabled:cursor-not-allowed",
+      "disabled:pointer-events-none",
+    );
+    const link = screen.getByRole("link", { name: "設定へ" });
+    expect(link).toHaveClass("cursor-pointer", "focus-visible:ring-2");
+    await user.tab();
+    expect(link).toHaveFocus();
+  });
   it("defaults to type button", () => {
     render(<Button>開く</Button>);
 

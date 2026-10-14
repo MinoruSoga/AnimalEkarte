@@ -6,6 +6,7 @@ import { Plus, FileText } from "lucide-react";
 
 // Internal
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { formatCurrency } from "@/lib/format/number";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -60,6 +61,7 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
         </Button>
       </div>
 
+      <p className={`mb-3 text-sm ${C.text65}`}>税額・保険適用・飼主負担額は会計時に確定します。</p>
       {/* Table */}
       <div
         role="region"
@@ -73,11 +75,13 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
               <TableHead className={STYLE.tableHeaderCell}>治療内容</TableHead>
               <TableHead className={STYLE.tableHeaderCell}>メモ</TableHead>
               <TableHead className={`${STYLE.tableHeaderCell} text-center w-16`}>保険</TableHead>
-              <TableHead className={`${STYLE.tableHeaderCell} text-right w-20`}>単価(￥)</TableHead>
+              <TableHead className={`${STYLE.tableHeaderCell} text-right w-20`}>
+                単価（明細入力額）
+              </TableHead>
               <TableHead className={`${STYLE.tableHeaderCell} text-right w-16`}>数量</TableHead>
               <TableHead className={`${STYLE.tableHeaderCell} text-right w-16`}>割引(%)</TableHead>
               <TableHead className={`${STYLE.tableHeaderCell} text-right w-20`}>値引(￥)</TableHead>
-              <TableHead className={`${STYLE.tableHeaderCell} text-right w-20`}>小計(￥)</TableHead>
+              <TableHead className={`${STYLE.tableHeaderCell} text-right w-20`}>明細金額</TableHead>
               <TableHead className={`${STYLE.tableHeaderCell} text-center w-12`}>操作</TableHead>
             </TableRow>
           </TableHeader>
@@ -108,7 +112,7 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
                   {plan.is_insurance ? "◯" : "×"}
                 </TableCell>
                 <TableCell className={`text-right tabular-nums ${C.text}`}>
-                  {plan.unitPrice.toLocaleString()}
+                  {formatCurrency(plan.unitPrice)}
                 </TableCell>
                 <TableCell className={`text-right tabular-nums ${C.text}`}>
                   {plan.quantity}
@@ -117,10 +121,10 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
                   {plan.discount}
                 </TableCell>
                 <TableCell className={`text-right tabular-nums ${C.text}`}>
-                  {plan.discountAmount.toLocaleString()}
+                  {formatCurrency(plan.discountAmount)}
                 </TableCell>
                 <TableCell className={`text-right tabular-nums font-medium ${C.text}`}>
-                  {plan.subtotal.toLocaleString()}
+                  {formatCurrency(plan.subtotal)}
                 </TableCell>
                 <TableCell className="text-center">
                   {onRemove !== undefined && !readOnly ? (

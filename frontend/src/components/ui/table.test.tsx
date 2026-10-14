@@ -52,4 +52,24 @@ describe("Table cell primitives", () => {
     expect(cell).not.toHaveClass("p-2");
     expect(cell).not.toHaveClass("py-2.5");
   });
+
+  it("TableHead だけ whitespace-nowrap を持ち、TableCell の本文は折り返せる (EMR-401 C1-2)", () => {
+    render(
+      <table>
+        <thead>
+          <tr>
+            <TableHead>見出し</TableHead>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <TableCell>本文</TableCell>
+          </tr>
+        </tbody>
+      </table>,
+    );
+
+    expect(screen.getByRole("columnheader", { name: "見出し" })).toHaveClass("whitespace-nowrap");
+    expect(screen.getByRole("cell", { name: "本文" })).not.toHaveClass("whitespace-nowrap");
+  });
 });

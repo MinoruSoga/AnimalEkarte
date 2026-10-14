@@ -2,10 +2,11 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 import { createElement, type ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { CURRENT_CLINIC_STORAGE_KEY } from "@/lib/current-clinic";
 
 import {
   useAttachLabDeviceJob,
@@ -85,11 +86,14 @@ const AGENT_CONSUMER_UNCONFIGURED_CODE = "lab_device_agent_consumer_unconfigured
 
 describe("lab-device API mutations (FE-RC-012)", () => {
   beforeEach(() => {
+    localStorage.removeItem(CURRENT_CLINIC_STORAGE_KEY);
     mockedPut.mockReset();
     mockedPost.mockReset();
     mockedDelete.mockReset();
     mockedHandleApiError.mockReset();
   });
+
+  afterEach(() => localStorage.removeItem(CURRENT_CLINIC_STORAGE_KEY));
 
   it("re-exports useGetLabDeviceUnlinked from @/hooks (FE-RC-015 followup3)", () => {
     expect(useGetLabDeviceUnlinked).toBe(hooksUseGetLabDeviceUnlinked);
@@ -169,13 +173,46 @@ describe("lab-device API mutations (FE-RC-012)", () => {
 
     await act(async () => {
       await expect(
-        result.current.mutateAsync({ payloadBase64: "AA==", deviceHint: "auto" }),
+        result.current.mutateAsync({
+          payloadBase64: "AA==",
+          deviceHint: "auto",
+          clinicId: "clinic-a",
+        }),
       ).rejects.toThrow();
     });
 
     // LabDeviceBoard.onFrame は 400 系ならこの通知で足りるため再通知せず、
     // 401/500 系のみ機器向けの具体的な案内に差し替える（二重トースト回避、FE-RC-005）。
     expect(mockedHandleApiError).toHaveBeenCalledWith(apiError, "検査機器電文の受信");
+  });
+
+  it("keeps the receiver clinic in the request when the selected clinic changes before mutation dispatch", async () => {
+    mockedPost.mockImplementationOnce(async () => {
+      expect(localStorage.getItem(CURRENT_CLINIC_STORAGE_KEY)).toBe("clinic-b");
+      return { data: { results: [] } };
+    });
+    const { result } = renderHook(() => useReceiveLabDeviceFrames(), {
+      wrapper: createWrapper(),
+    });
+    localStorage.setItem(CURRENT_CLINIC_STORAGE_KEY, "clinic-a");
+
+    let request!: Promise<unknown>;
+    await act(async () => {
+      request = result.current.mutateAsync({
+        payloadBase64: "AA==",
+        deviceHint: "auto",
+        clinicId: "clinic-a",
+      });
+      localStorage.setItem(CURRENT_CLINIC_STORAGE_KEY, "clinic-b");
+      await request;
+    });
+
+    expect(mockedPost).toHaveBeenCalledWith(
+      "/v1/lab-device/frames",
+      { payload_base64: "AA==", device_hint: "auto" },
+      { headers: { "X-Clinic-ID": "clinic-a" } },
+    );
+    expect(mockedPost.mock.calls[0]?.[1]).not.toHaveProperty("clinicId");
   });
 });
 
@@ -199,8 +236,8 @@ describe("useGetLabDeviceAgentConsumer (EMR-335)", () => {
   });
 
   it("503 + 未設定 code（秘密未設定）は reject せず null を返し、グローバルエラーハンドラも呼ばない", async () => {
-    // 未設定は「期待状態」のため fetch 内で null 解決し、route が
-    // 「検査機器エージェントが未設定です」を表示する。汎用 5xx トーストにしない。
+    // legacy consumer の未設定は期待状態としてnull解決する。通常画面はこのqueryを使わない。
+    // 汎用5xxトーストにしない。
     // PR647-F1: 判定は status=503 + 専用 code の一致のみ。
     mockedGet.mockRejectedValueOnce(
       axiosErrorWithStatus(503, { code: AGENT_CONSUMER_UNCONFIGURED_CODE }),

@@ -36,7 +36,7 @@ export function createInitialHospitalizationFormData(): HospitalizationFormData 
     visit: "診療",
     nextVisit: "",
     weight: "",
-    displayDate: "",
+    displayDate: todayJSTISO(),
     endDate: getDefaultHospitalizationEndDate(),
     memo: "",
     ownerRequest: "",

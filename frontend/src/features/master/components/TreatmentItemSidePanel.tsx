@@ -93,7 +93,7 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
       price: item?.price ?? 0,
       description: item?.description ?? "",
       isActive: item?.isActive ?? true,
-      taxType: (item?.taxType ?? "excluded") as TaxType,
+      taxType: (item ? (item.taxType ?? "excluded") : "included") as TaxType,
       taxRate: item?.taxRate ?? 0.1,
       isNonInsurance: item?.isNonInsurance ?? false,
       parentId: undefined,

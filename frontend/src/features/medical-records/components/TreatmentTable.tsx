@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { SaveEstimateItemPayload } from "../api/save-estimate";
 
 // rendering-hoist-jsx: 静的SelectItem定数をモジュールスコープに巻き上げ
 const TREATMENT_STATUS_ITEMS = (
@@ -44,6 +45,8 @@ export interface TreatmentItem {
   discountAmount: number;
   is_selected?: boolean;
   inventoryId?: string;
+  taxType?: SaveEstimateItemPayload["tax_type"];
+  taxRate?: number;
 }
 
 interface TreatmentTableProps {

@@ -1,5 +1,4 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import Axios from "axios";
 import { toast } from "sonner";
 
@@ -8,7 +7,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { usePermission } from "@/hooks/use-permission";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import { todayJSTISO } from "@/lib/jst-date";
-import { queryKeys } from "@/lib/query-keys";
 import { ResourceLabImport } from "@/types/generated/models";
 
 import {
@@ -16,12 +14,11 @@ import {
   useAttachLabDeviceJob,
   useClearLabDeviceWait,
   useDetachLabDeviceJob,
-  useGetLabDeviceAgentConsumer,
   useGetLabDeviceBoard,
   usePutLabDeviceWait,
   useReceiveLabDeviceFrames,
 } from "../api/lab-device";
-import { useLabDeviceAgentListen } from "../hooks/use-lab-device-agent-listen";
+import { useLabDeviceBrowserReceive } from "../hooks/use-lab-device-browser-receive";
 import {
   groupLabDeviceCardsByDay,
   labDeviceAgentConnectionLabel,
@@ -31,7 +28,7 @@ import {
   labDeviceSelectableTodayVisits,
 } from "../lib/lab-device-board-model";
 import {
-  LabDeviceAgentPanel,
+  LabDeviceBrowserReceivePanel,
   LabDeviceReceivedPanel,
   LabDeviceTodayVisitsPanel,
   LabDeviceUnlinkedPanel,
@@ -49,14 +46,6 @@ export function LabDeviceBoard() {
     permissionsRef.current = { canCreate, canEdit };
   }, [canCreate, canEdit]);
   const { data: board, isLoading } = useGetLabDeviceBoard(canCreate);
-  const agentConsumerQuery = useGetLabDeviceAgentConsumer(canCreate && currentClinicId !== null);
-  // EMR-335: data=null は BE 秘密未設定(503)。query エラー時はキャッシュに残る
-  // 旧 capability を使い回さないため undefined に揃え、リスン自体も無効化する。
-  // 未設定表示は成功レスポンスの null のみ — エラー時に残った stale null と混同しない。
-  const agentConsumerUnconfigured = !agentConsumerQuery.isError && agentConsumerQuery.data === null;
-  const agentConsumerToken = agentConsumerQuery.isError
-    ? undefined
-    : (agentConsumerQuery.data ?? undefined);
   const putWait = usePutLabDeviceWait();
   const clearWait = useClearLabDeviceWait();
   const receive = useReceiveLabDeviceFrames();
@@ -97,13 +86,11 @@ export function LabDeviceBoard() {
         toast.error(PERMISSION_DENIED_MESSAGE);
         return;
       }
+      if (currentClinicId === null) return;
       try {
-        const results = await receive.mutateAsync(frame);
+        const results = await receive.mutateAsync({ ...frame, clinicId: currentClinicId });
         toast.dismiss(LAB_DEVICE_AGENT_RECEIVE_TOAST_ID);
         const first = requireLabDeviceReceiveResult(results);
-        if (currentClinicId === null) {
-          throw new Error("clinic is not selected");
-        }
         const slot = slots.find(
           (candidate) =>
             candidate.deviceHint === first.job.deviceHint ||
@@ -172,18 +159,19 @@ export function LabDeviceBoard() {
     },
     [detach],
   );
-  const queryClient = useQueryClient();
-  const refreshAgentCapability = useCallback(
-    () => void queryClient.invalidateQueries({ queryKey: queryKeys.labDevice.agentConsumer() }),
-    [queryClient],
-  );
-  const agentStatus = useLabDeviceAgentListen({
-    enabled: canCreate && currentClinicId !== null && agentConsumerToken !== undefined,
+  // EMR-335: 従来のcapability取得はlegacy経路に限定する。
+  // EMR-402: 通常受信は医院・権限に束縛したブラウザreceiverを利用する。
+  // 未送信フレームの医院はAPI送信時も固定し、選択中医院へ付け替えない。
+  const receiveStatus = useLabDeviceBrowserReceive({
+    enabled: canCreate && currentClinicId !== null,
     clinicId: currentClinicId,
-    consumerToken: agentConsumerToken,
     onFrame,
-    onUnauthorized: refreshAgentCapability,
   });
+  const agentStatus = {
+    connected: receiveStatus.connected,
+    openPorts: receiveStatus.openPorts,
+    configuredPorts: receiveStatus.openPorts,
+  };
   const linkLabel = labDeviceAgentConnectionLabel(agentStatus);
 
   return (
@@ -234,10 +222,13 @@ export function LabDeviceBoard() {
           onDetach={handleDetach}
           onAttach={handleAttach}
         />
-        <p role="status" className={`text-sm ${C.textWarning}`}>
-          {agentConsumerUnconfigured ? "検査機器エージェントが未設定です" : null}
-        </p>
-        <LabDeviceAgentPanel agentStatus={agentStatus} />
+        <LabDeviceBrowserReceivePanel
+          receiveStatus={receiveStatus}
+          canCreate={canCreate}
+          onConnect={() => void receiveStatus.connect()}
+          onRetry={receiveStatus.retry}
+          onStop={() => void receiveStatus.stop()}
+        />
       </div>
     </PageLayout>
   );

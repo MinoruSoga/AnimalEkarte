@@ -20,6 +20,11 @@
 # 個々の curl/jq が非0を返しても後続 AC の検証を止めない設計（code-reviewer指摘 L-1）。
 set -uo pipefail
 
+if [[ "${LEGACY_SMOKE_EXPLICIT_APPROVAL:-}" != "1" ]]; then
+  printf '%s\n' 'BLOCKED legacy smoke can modify existing records; use cf-demo-smoke.py instead' >&2
+  exit 2
+fi
+
 WORKER_URL="${WORKER_URL:-https://animalekarte-stg-api.baritech-soga.workers.dev}"
 API_V1="${WORKER_URL}/api/v1"
 

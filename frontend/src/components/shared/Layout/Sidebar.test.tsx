@@ -6,6 +6,7 @@ import { AuthContext } from "@/hooks/auth-context";
 import { C } from "@/lib/design-tokens";
 import type { AuthUser, ResourceAction } from "@/types/auth";
 import { Sidebar } from "./Sidebar";
+import { SidebarUserFooter } from "./SidebarChrome";
 
 vi.mock("./SidebarItems", () => ({
   SidebarItemWithPermission: () => null,
@@ -108,11 +109,53 @@ describe("Sidebar touch targets", () => {
     for (const name of ["本院", "分院"]) {
       expect(screen.getAllByRole("button", { name }).at(-1)).toHaveClass(
         "min-h-11",
-        "min-w-11",
+        "min-w-max",
+        "whitespace-nowrap",
         "focus-visible:ring-2",
         C.focusRingAccent40,
       );
     }
+  });
+
+  it("long staff names remain fully visible with wrapping", () => {
+    const displayName = "合成検証用の非常に長いスタッフ表示名".repeat(3);
+    render(
+      <SidebarUserFooter
+        collapsed={false}
+        displayName={displayName}
+        isChangePasswordOpen={false}
+        onChangePasswordOpenChange={vi.fn()}
+        onLogout={vi.fn()}
+      />,
+    );
+    const name = screen.getByText(displayName);
+    const footerGrid = name.parentElement;
+    expect(footerGrid).toHaveClass("grid", "grid-cols-[auto_minmax(0,1fr)_auto_auto]", "gap-2");
+    expect(footerGrid?.children.item(0)).toHaveClass("row-start-1", "col-start-1");
+    expect(name).toHaveClass("col-start-2", "col-span-3", "min-w-0", "break-words");
+    expect(name).not.toHaveClass("truncate");
+
+    expect(screen.getByRole("button", { name: "パスワード変更" })).toHaveClass(
+      "row-start-2",
+      "col-start-3",
+      "min-h-11",
+      "min-w-11",
+    );
+    expect(screen.getByRole("button", { name: "ログアウト" })).toHaveClass(
+      "row-start-2",
+      "col-start-4",
+      "min-h-11",
+      "min-w-11",
+    );
+  });
+
+  it("navigation reserves its scrollbar and section headings use readable color", () => {
+    renderSidebar(1440);
+    expect(screen.getByRole("navigation", { name: "メインナビゲーション" })).toHaveClass(
+      "overflow-y-scroll",
+    );
+    expect(screen.getByRole("navigation")).toHaveStyle({ scrollbarGutter: "stable" });
+    expect(screen.getByText("診療業務")).toHaveClass(C.text65);
   });
 
   it("現在医院をpressed状態として公開し、再選択では確認dialogを開かない", () => {

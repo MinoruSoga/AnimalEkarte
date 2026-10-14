@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { CampaignSidePanel } from "./CampaignSidePanel";
+import { useGetAllMerchandiseItems } from "../api/merchandise-items";
 
 vi.mock("@/components/shared/SidePeek", () => ({
   MasterSidePanel: ({
@@ -40,10 +41,45 @@ vi.mock("@/components/shared/SidePeek", () => ({
 }));
 
 vi.mock("../api/merchandise-items", () => ({
-  useGetAllMerchandiseItems: () => ({ data: [] }),
+  useGetAllMerchandiseItems: vi.fn(() => ({ data: [] })),
 }));
 
 describe("CampaignSidePanel", () => {
+  it("paginates 101 targets and keeps selections across pages and search", async () => {
+    const user = userEvent.setup();
+    const items = Array.from({ length: 101 }, (_, index) => ({
+      id: String(index + 1),
+      name: `合成商品${index + 1}`,
+      category: "goods",
+      unitPrice: 1100,
+      taxType: "included" as const,
+      taxRate: 0.1,
+      isActive: true,
+      sortOrder: index,
+    }));
+    vi.mocked(useGetAllMerchandiseItems).mockReturnValue({ data: items } as ReturnType<
+      typeof useGetAllMerchandiseItems
+    >);
+    try {
+      render(<CampaignSidePanel item={null} onClose={vi.fn()} onSave={() => true} />);
+      expect(screen.getAllByRole("checkbox", { name: /^合成商品/ })).toHaveLength(50);
+      await user.click(screen.getByRole("checkbox", { name: "合成商品1" }));
+      await user.click(screen.getByRole("button", { name: "2" }));
+      await user.click(screen.getByRole("checkbox", { name: "合成商品51" }));
+      await user.click(screen.getByRole("button", { name: "1" }));
+      expect(screen.getByRole("checkbox", { name: "合成商品1" })).toBeChecked();
+      const search = screen.getByPlaceholderText("商品名で検索...");
+      await user.type(search, "合成商品51");
+      expect(screen.getByRole("checkbox", { name: "合成商品51" })).toBeChecked();
+      await user.clear(search);
+      await user.click(screen.getByRole("button", { name: "2" }));
+      expect(screen.getByRole("checkbox", { name: "合成商品51" })).toBeChecked();
+    } finally {
+      vi.mocked(useGetAllMerchandiseItems).mockReturnValue({ data: [] } as ReturnType<
+        typeof useGetAllMerchandiseItems
+      >);
+    }
+  });
   // e93ac185b で responsive grid から PropertyRow 行構成へ移行済み。
   // 行入力の存在と、対象カテゴリの単一列 grid を現行仕様として固定する。
   it("PropertyRow 行構成で開始日・割引種別・対象カテゴリを描画する", () => {

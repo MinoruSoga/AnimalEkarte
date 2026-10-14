@@ -1,5 +1,7 @@
 # Mac検査機器ローカル受信機
 
+> **Legacy optional/manual path (EMR-402, 2026-10-14):** This LaunchAgent remains available only for explicitly managed legacy installations. Daily `/lab-device` receive uses browser Web Serial and does not require this agent or `LAB_DEVICE_AGENT_CONSUMER_TOKEN`. Normal deploys do not require the legacy key. Follow the browser UAT in [LAB_DEVICE_CLIENT_UAT.md](../../testing/scenarios/LAB_DEVICE_CLIENT_UAT.md) for the daily path.
+
 ## 対象
 
 初期版はNX600とAU10V（9600 8N1）を対象とする。PU-4010はデコーダのみを維持し、review済みシリアルprofileがないためagent運用対象外。IDEXXも通常運用対象外。
@@ -8,11 +10,11 @@
 
 ```mermaid
 flowchart TB
-    dev["開発・サポート側<br/>医院設定済み bundle を作成<br/>（LAB_DEVICE_AGENT_CONSUMER_TOKEN 必須）"]
+    dev["開発・サポート側<br/>legacy agent bundle を作成<br/>（手動運用時のみ token 必須）"]
     dev -->|"信頼済み共有経路で受け渡し<br/>（manifest SHA-256 は別経路で照合）"| cli["クライアント"]
     cli --> ins["install.sh<br/>接続中の2本を許可リストとして固定"]
     ins --> ag["LaunchAgent lab-device-agent<br/>NX600 / AU10V 専用"]
-    ag --> ui["/lab-device の ローカル受信機 が<br/>稼働中 + 監視ポート数を表示"]
+    ag --> ui["legacy manual status<br/>bundle diagnose.sh"]
 ```
 
 クライアントには医院設定済みbundleを渡す。クライアント側にDocker、Go、リポジトリは不要。
@@ -21,22 +23,22 @@ flowchart TB
 
 UAT bundleは信頼済みの共有経路で渡し、build時に表示されたmanifest SHA-256を別経路でクライアントへ伝える。同梱`SHA256SUMS`だけでは配送物全体の差し替えを検出できないため、別経路照合なしでは実行しない。
 
-開発・サポート側で bundle を作成する。現行スクリプトは `LAB_DEVICE_AGENT_CONSUMER_TOKEN` が必須（未設定は終了）。この値は workstation bundle と配布先 Go backend が共有する raw 署名 secret（capability 署名用の HMAC key）であり、承認済み secret 経路で環境変数へ供給する。ブラウザへ返る agent-consumer 応答は raw secret ではなく、backend がその secret で署名した clinic 束縛の短命 capability（有効期限 5 分）であり、raw secret 自体はブラウザへ返さない。secret の生成・登録・取得は USER 作業で、コマンド引数・履歴・ログ・Git に実値を残さない。bundle の mode 0600 設定ファイルにも raw secret が入るため、配布物全体を保護して扱う。
+この段落以降は、既存 LaunchAgent を明示的に継続する場合だけの手動legacy手順。現行bundle builderは`LAB_DEVICE_AGENT_CONSUMER_TOKEN`を要求し、raw署名secretを保護された経路で供給する。secretの生成・登録・取得は人間の作業で、実値をコマンド引数・履歴・ログ・Gitに残さない。bundle設定にもraw secretが入るため、配布物全体を保護して扱う。
 
 
-**Cloudflare 配布の停止条件(EMR-335):** STG 向けの供給経路は実装済み。`backend/wrangler.jsonc`（STG）の `secrets.required` に `LAB_DEVICE_AGENT_CONSUMER_TOKEN` が名前のみ登録され、`backend/worker/index.ts` の `buildContainerEnvVars` が Worker secret を Container の Go プロセス envVars へ転送する。`secrets.required` の登録名は typegen / local dev の警告に留まり、remote secret の存在は検証しない（`buildContainerEnvVars` は転送経路の実装であり、remote への登録を証明するものではない）。実際の停止点は CI（`backend-deploy.yml`）の deploy 前 preflight で、`backend` を working directory として `wrangler secret list` の名前のみを `scripts/checks/check-lab-device-secret.mjs` で検査する。このため、承認済みの新規 STG デプロイには事前の secret 投入が必須となる。値の生成・登録・取得は USER 作業であり、コマンド引数・履歴・ログ・PR・画面に実値を残さない（この記述は STG 経路の実装のみ。投入・デプロイ・検証は本タスクでは未実施）。以下の Wrangler secret put/deploy コマンドは **STG 専用**であり、PROD へそのまま適用してはならない。
+**EMR-402の変更:** `LAB_DEVICE_AGENT_CONSUMER_TOKEN`はlegacy agentだけの任意キーで、`backend/wrangler.jsonc`のrequired項目ではなく、通常のSTG deploy前提でもない。Worker転送とconsumer endpointはlegacy経路用に残り、キー未設定時はその経路だけfail-closedとなる。以下のsecret設定例はlegacy agentを手動運用する場合だけの参考であり、ブラウザ直接受信には使わない。secret操作とdeployは承認済みの人間作業とする。
 
-**PROD（本番）配布の停止:** `backend/wrangler.production.jsonc` の `secrets.required` には `LAB_DEVICE_AGENT_CONSUMER_TOKEN` が未登録であり、secret 未設定のままでは Worker が空文字を Container へ転送し、Go 側は `/v1/lab-device/agent-consumer` を 503 で fail-closed にする。そのため現時点で **PROD 環境への bundle 配布・クライアント導入・接続成功判定は停止**とする。本番の secret 供給手順（PROD 配布先 bundle と HMAC key として一致する secret を投入する別途承認済み手順）を実装・承認・検証し、認証済み `GET /api/v1/lab-device/agent-consumer` が `200` と `expires_in` を返すことを人間が確認してから解除する。この後続の人間作業は事前準備であり、本配布停止によって妨げられない。
+このlegacy手動経路を本番で再開する場合は、別途のsecret供給・承認・検証が必要。通常のブラウザ受信および通常deployには影響しない。
 
 以下のコマンドはすべて人間がリポジトリルートで実行する手順であり、本タスクでエージェントが実行した操作はない。
 
-まず STG Worker secret を投入する（PROD へは適用しない）。値はコマンド引数に渡さず、対話プロンプトで既存の承認済み secret 供給元から取得した値を入力する。履歴・ログ・PR・スクリーンショットへ実値を記録しない。
+legacy agentを手動運用する承認がある場合のみ、STG Worker secretを投入する。値はコマンド引数に渡さず、対話プロンプトで承認済みsecret供給元から取得した値を入力する。履歴・ログ・PR・画面へ実値を記録しない。
 
 ```bash
 pnpm exec wrangler secret put LAB_DEVICE_AGENT_CONSUMER_TOKEN --config backend/wrangler.jsonc
 ```
 
-secret 投入と人間の承認がそろったあと、STG backend Worker をデプロイする。手動の検証・デプロイは USER が承認して実行する操作であり、リポジトリルートから同じサブシェル内で preflight と deploy を結合する（`pnpm exec` は `backend/` に package.json が無くワークスペースルートへ cwd を移すため使わない）。secret list の取得失敗・形式不正・必須名の欠落は `pipefail` により deploy 実行前に停止する。remote への投入結果や `503` 挙動が実機で確認済みであるとは主張しない。
+以下は旧来の手動legacy運用向けに残す参考手順であり、通常CI deployには使わない。実行は人間が承認した場合に限る。
 
 ```bash
 (
@@ -49,11 +51,11 @@ secret 投入と人間の承認がそろったあと、STG backend Worker をデ
 
 frontend 側の STG リリースは既存の承認済み経路（`staging` push で起動する `frontend-deploy.yml`。正本は [CI-CD-PIPELINE.md](../CI-CD-PIPELINE.md)）を使い、本書固有の frontend デプロイ手順は設けない。
 
-デプロイ後、人間が認証済み `GET /api/v1/lab-device/agent-consumer` を呼び、`200` と応答の `agent_consumer_token` フィールド存在および短命 TTL（`expires_in`）を確認する。capability の実値は記録・転写しない。クライアント実機確認は [検査機器ローカル受信 クライアント実機確認票](../../testing/scenarios/LAB_DEVICE_CLIENT_UAT.md) を使う。
+デプロイ後、人間が認証済み `GET /api/v1/lab-device/agent-consumer` を呼び、`200` と応答の `agent_consumer_token` フィールド存在および短命 TTL（`expires_in`）を確認する。この応答は短命の署名済み capability であり、raw signing key は返さない。capability の実値は記録・転写しない。クライアント実機確認は [検査機器ローカル受信 クライアント実機確認票](../../testing/scenarios/LAB_DEVICE_CLIENT_UAT.md) を使う。
 
-**検証状態（本タスク時点）:** STG への secret 投入、STG デプロイ、live `200` 確認、クライアント UAT はすべて **未実施・未検証（UNVERIFIED）** であり、実施済みとして扱ってはいけない。
+**検証状態:** legacy STG secret投入、deploy、live `200`確認、クライアントUATの実施状態はこの文書からは確認できない。実施済みとして扱わない。
 
-secret 未投入のままの新規 STG デプロイは deploy 前の remote-name preflight で停止する。既存デプロイや env 未設定の local backend では agent-consumer route は引き続き `503` を返す（fail-closed）が、`/lab-device` 画面は汎用サーバーエラーではなく「検査機器エージェントが未設定です」を表示する。local Compose は backend の `.env.local` 経由で供給できるが、現在の値や稼働は本書では確認していない。503 挙動の確認を目的に実 secret を削除する手順は本書に設けない。
+legacy consumer routeはtoken未設定時にfail-closedで無効になる。日常のブラウザ直接受信はこのrouteやsecretに依存しない。実secretを削除して挙動を確認する手順は設けない。
 
 ```bash
 # allowed-origin は配布先frontendの正確な https origin（pathなし）
@@ -73,7 +75,7 @@ secret 未投入のままの新規 STG デプロイは deploy 前の remote-name
 ./scripts/lab-device/install-lab-device-agent.sh <医院ID> <https://配布先origin>
 ```
 
-インストール後、配布時に指定した frontend origin の `/lab-device`（開発端末は `http://localhost:3003/lab-device`）の「ローカル受信機」が「稼働中」になり、監視ポート数が表示される。USBを選択する操作はない。
+インストール後、bundleの`diagnose.sh`でlegacy agentの状態を確認する。`/lab-device`の日常表示はブラウザ直接受信であり、LaunchAgent状態とは連動しない。legacy agentがシリアルを所有している間は、同じ機器ポートをブラウザ側で開けないため、両方式を同時に使わない。
 
 インストール時に接続されている2本をNX600/AU10V用の許可リストとして固定する。PU-4010またはIDEXXを接続した状態では実行しない。医院IDが一致しない画面や、同時に開いた別タブはキューを取得できない。
 
@@ -95,7 +97,7 @@ launchctl bootout "gui/$(id -u)/com.animalekarte.lab-device-agent"
 
 ## 復旧
 
-- 「停止中」: インストールスクリプトを再実行する。
+- agentが起動しない: `diagnose.sh`の固定エラー分類を確認し、必要に応じてlegacyインストールスクリプトを再実行する。
 - 監視ポート数が0: USB接続を確認する。
 - 「判定失敗」: 機器の送信を再実行し、解消しない場合はagentを再起動する。生電文をログやチャットへ貼らない。
 - API停止中の受信はagentのメモリキューへ残り、画面とAPIの復旧後に再送される。

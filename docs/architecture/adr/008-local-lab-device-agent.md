@@ -1,9 +1,13 @@
 # ADR-008: Macローカル検査機器受信agent
 
-- Status: Accepted
-- Implementation: code complete; physical-device UAT and release gates pending
+- Status: Superseded for the daily receive path by EMR-402 (2026-10-14); legacy agent retained for optional manual use
+- Implementation: legacy agent code remains; physical-device UAT and release gates pending
 - Date: 2026-08-20
 - Supersedes: ADR-007の「メニューバー常駐／デーモンは今は作らない」判断のみ
+
+## Historical decision record
+
+The Context, Decision, Safety boundaries, and legacy consequences below record the 2026-08-20 LaunchAgent design; they are not current `/lab-device` instructions or current API behavior. The retained legacy `agent-consumer` endpoint returns a short-lived signed capability and never returns its raw signing key. Daily browser receive uses the EMR-402 path described in the current-path section below.
 
 ## Context
 
@@ -63,6 +67,12 @@ sequenceDiagram
 Macのログイン済みOSユーザーと、そのユーザー権限で動くプロセスを信頼境界内とする。同一ユーザーの任意プロセスはagent HTTPを経由せず`/dev/cu.usbserial-*`を直接読めるため、consumer tokenは同一OSユーザー侵害を防ぐ境界ではない。端末のOSアカウント分離、画面ロック、マルウェア対策を前提とする。HTTPのclinic binding、consumer token、consumer leaseは、正規Frontendの別医院セッション・複数タブ間の誤配送防止を目的とする。
 
 ## Consequences
+
+### History and current daily path (2026-10-14)
+
+EMR-402 supersedes this ADR's LaunchAgent/loopback design for normal `/lab-device` use. The daily path now opens explicitly selected NX600/AU10V Web Serial ports in the browser, holds an origin-wide Web Lock, and sends frames through the authenticated API while the page is open. The sections above preserve the dated legacy-agent decision and remain relevant only to optional/manual legacy operation. The legacy consumer signing key is not required for normal deploys. Browser capture is in-memory; closing the page can lose unsent frames, so operators must resend from the device.
+
+### Legacy-agent consequences (historical)
 
 - 日常のUSB選択操作はゼロになる。
 - ページを閉じている間もMac側で受信し、メモリ上限までは保持できる。ただしMac再起動では未配送キューが消える。

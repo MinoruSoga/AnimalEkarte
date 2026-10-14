@@ -20,6 +20,13 @@ export function Layout() {
 
   return (
     <div className={`flex h-full ${C.bgSubtle} overflow-hidden relative`}>
+      <a
+        href="#main-content"
+        onClick={() => document.getElementById("main-content")?.focus()}
+        className={`sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 ${Z_CLASS.overlay} focus:px-4 focus:py-2 ${C.bgWhite} ${C.text} ${C.borderMedium} border rounded-xs`}
+      >
+        本文へスキップ
+      </a>
       {/* Global Navigation Progress Bar */}
       {isNavigating ? (
         <div
@@ -32,7 +39,11 @@ export function Layout() {
       ) : null}
 
       <Sidebar />
-      <main className={`flex-1 flex flex-col overflow-y-auto relative ${C.bgPage}`}>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className={`flex-1 flex flex-col min-w-0 overflow-y-auto relative ${C.bgPage}`}
+      >
         <Outlet />
       </main>
     </div>

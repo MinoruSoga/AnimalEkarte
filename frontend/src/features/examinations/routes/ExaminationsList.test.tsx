@@ -85,7 +85,7 @@ describe("ExaminationsList date column (EMR-382)", () => {
   it("日付セルは折り返さず1行表示する", () => {
     renderPage();
 
-    const dateCell = screen.getByText("2026-07-13").closest("td");
+    const dateCell = screen.getByText("2026/07/13").closest("td");
     expect(dateCell?.className).toContain("whitespace-nowrap");
   });
 });

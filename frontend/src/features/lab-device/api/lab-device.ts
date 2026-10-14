@@ -202,8 +202,8 @@ async function fetchBoard(): Promise<LabDeviceBoard> {
 // backend labdevicecap.TTL(5min) より短い間隔で capability を再取得する
 const LAB_DEVICE_AGENT_CAPABILITY_REFRESH_MS = 4 * 60 * 1000;
 
-// EMR-335: 秘密未設定の 503 は「未設定」という期待状態のため null を返し、
-// route(LabDeviceBoard)が「検査機器エージェントが未設定です」を表示する。
+// EMR-335: legacy consumer の秘密未設定503は期待状態のためnullを返す。
+// 日常の LabDeviceBoard browser receive はこのlegacy queryを利用しない。
 // 汎用の handle-api-error 5xx トーストにはしない。
 // PR647-F1: 未設定の判定は status=503 + BE 専用 code の一致のみ。code を
 // 持たない/別 code の 503（Worker/Container 障害）や他の失敗は従来どおり
@@ -287,11 +287,15 @@ export function useClearLabDeviceWait() {
 export function useReceiveLabDeviceFrames() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { payloadBase64: string; deviceHint: string }) => {
-      const { data } = await axios.post<LabDeviceFramesResponse>("/v1/lab-device/frames", {
-        payload_base64: input.payloadBase64,
-        device_hint: input.deviceHint,
-      });
+    mutationFn: async (input: { payloadBase64: string; deviceHint: string; clinicId: string }) => {
+      const { data } = await axios.post<LabDeviceFramesResponse>(
+        "/v1/lab-device/frames",
+        {
+          payload_base64: input.payloadBase64,
+          device_hint: input.deviceHint,
+        },
+        { headers: { "X-Clinic-ID": input.clinicId } },
+      );
       return data.results.map((row) => ({
         duplicate: row.duplicate,
         job: toLabDeviceJobCard(row.job),

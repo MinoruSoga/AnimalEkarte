@@ -65,7 +65,7 @@ function TableHead({ className, ref, ...props }: TableHeadProps) {
       scope="col"
       className={cn(
         // FE10: DESIGN.md ex-data-table-cell headerTypography（eyebrow 12px/600）を基底化 — 個別 className が cn() で上書き可能
-        "px-4 py-3 text-left align-middle text-2xs font-semibold text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "px-4 py-3 text-left align-middle text-2xs font-semibold text-muted-foreground whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className,
       )}
       {...props}

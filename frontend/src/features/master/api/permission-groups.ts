@@ -106,10 +106,11 @@ async function reorderPermissionGroups(ids: string[]): Promise<void> {
 // TanStack Query hooks
 // ─────────────────────────────────────────────────
 
-export function useGetPermissionGroups() {
+export function useGetPermissionGroups(enabled = true) {
   return useQuery({
     queryKey: queryKeys.masters.category("permission-groups"),
     queryFn: listPermissionGroups,
+    enabled,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });

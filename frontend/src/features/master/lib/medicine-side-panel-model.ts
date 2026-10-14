@@ -40,7 +40,7 @@ const INITIAL_FORM: MedicineFormData = {
   price: 0,
   description: "",
   isActive: true,
-  taxType: "excluded",
+  taxType: "included",
   taxRate: 0.1,
   isNonInsurance: false,
   calculationType: MedicineCalculationTypeNone,

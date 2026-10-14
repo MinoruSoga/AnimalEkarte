@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { isAxiosError } from "axios";
 import type { PageType, LiffSettings, LiffProfile } from "./types/models";
 import { liffApi } from "./api/liff-api";
 import { useLiff } from "@/shared-liff/use-liff";
@@ -17,6 +18,7 @@ export function App() {
   const [settings, setSettings] = useState<LiffSettings | null>(null);
   const [profile, setProfile] = useState<LiffProfile | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
+  const [isSettingsNotRegistered, setIsSettingsNotRegistered] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [completedReservationId, setCompletedReservationId] = useState<number>(0);
   const [completedNotes, setCompletedNotes] = useState<string>("");
@@ -59,8 +61,14 @@ export function App() {
         }
         setLiffId(s.liff_id);
       })
-      .catch(() => {
-        setErrorMessage("設定の取得に失敗しました");
+      .catch((error: unknown) => {
+        const notRegistered = isAxiosError(error) && error.response?.status === 404;
+        setIsSettingsNotRegistered(notRegistered);
+        setErrorMessage(
+          notRegistered
+            ? "この医院のLINE予約設定は登録されていません。医院へお問い合わせください。"
+            : "設定の取得に失敗しました",
+        );
         setPage("error");
       });
   }, [clinicId]);
@@ -112,7 +120,7 @@ export function App() {
   }
 
   if (page === "error") {
-    return <ErrorPage message={errorMessage} />;
+    return <ErrorPage message={errorMessage} showAction={!isSettingsNotRegistered} />;
   }
 
   if (page === "maintenance") {

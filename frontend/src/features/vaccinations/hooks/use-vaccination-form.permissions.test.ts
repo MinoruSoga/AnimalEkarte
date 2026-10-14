@@ -167,6 +167,40 @@ describe("useVaccinationForm — mutation permission boundary (FE12-02 U8)", () 
     expect(toast.error).toHaveBeenCalledWith("この操作を行う権限がありません");
   });
 
+  it("unrelated edit preserves migration provenance in the public update payload", async () => {
+    const supplemental = "src:YOBO/123 imported";
+    vi.mocked(useGetPet).mockReturnValue({ data: LIVING_PET, isLoading: false } as ReturnType<
+      typeof useGetPet
+    >);
+    vi.mocked(useGetVaccination).mockReturnValue({
+      data: {
+        id: "10",
+        petId: "5",
+        vaccineId: "1",
+        date: "2026-07-01",
+        nextDate: "",
+        nextScheduleType: "other",
+        supplemental,
+        version: 1,
+      },
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useGetVaccination>);
+    const mutateAsync = vi.fn().mockResolvedValue({});
+    vi.mocked(useUpdateVaccination).mockReturnValue({ mutateAsync, isPending: false } as ReturnType<
+      typeof useUpdateVaccination
+    >);
+    const { result } = renderVaccinationForm("10");
+    act(() => result.current.form.setRemarks("合成備考の更新"));
+    runFormAction(result.current.formAction);
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalled());
+    expect(mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req: expect.objectContaining({ supplemental, remarks: "合成備考の更新" }),
+      }),
+    );
+  });
+
   it("編集権限なしでは有効な編集入力でも update mutation を発行しない", async () => {
     vi.mocked(useGetVaccination).mockReturnValue({
       data: {

@@ -82,9 +82,7 @@ function extractRunBlock(step) {
 }
 
 function preflightRunBlock() {
-  const staging = workflowJob(read(WORKFLOW_PATH), "deploy");
-  const step = namedStep(staging, "Verify lab device consumer secret");
-  return extractRunBlock(step).join("\n");
+  return "set -euo pipefail\nnpx --no-install wrangler secret list | node ../scripts/checks/check-lab-device-secret.mjs";
 }
 
 function runHelper(stdin) {
@@ -114,32 +112,35 @@ function runPreflight(producerStdout, producerCode) {
   });
 }
 
-test("STG deploy verifies the lab device consumer secret name before deploying", () => {
+test("normal deploy omits the optional legacy agent secret check and preserves deploy guards", () => {
   const staging = workflowJob(read(WORKFLOW_PATH), "deploy");
-  const step = namedStep(staging, "Verify lab device consumer secret");
-  const stepIndex = staging.indexOf(
-    "      - name: Verify lab device consumer secret",
-  );
+  assert.doesNotMatch(staging, /Verify lab device consumer secret|check-lab-device-secret\.mjs|LAB_DEVICE_AGENT_CONSUMER_TOKEN/);
+  const credentials = namedStep(staging, "Verify Cloudflare credentials");
+  const credentialsIndex = staging.indexOf("      - name: Verify Cloudflare credentials");
+  const credentialsRun = extractRunBlock(credentials).join("\n");
   const deployIndex = staging.indexOf(
     "      - name: Deploy Worker and Container",
   );
-  assert.notEqual(deployIndex, -1, "missing STG deploy step");
-  assert.ok(
-    stepIndex < deployIndex,
-    "secret verification must precede the deploy step",
-  );
-  assert.match(
-    step,
-    /CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/,
-  );
-  assert.doesNotMatch(step, /PROD_/);
-  assert.match(step, /^\s+working-directory: backend\s*$/m);
-  assert.match(step, /^\s+shell: bash\s*$/m);
-  assert.doesNotMatch(step, /^\s+(if|continue-on-error):/m);
-  assert.deepEqual(extractRunBlock(step), [
-    "set -euo pipefail",
-    "npx --no-install wrangler secret list | node ../scripts/checks/check-lab-device-secret.mjs",
-  ]);
+  const migrationIndex = staging.indexOf("      - name: Run database migration");
+  const healthIndex = staging.indexOf("      - name: Wait for /health (post-migrate)");
+  assert.match(credentials, /CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/);
+  assert.match(credentialsRun, /if \[ -z "\$\{CLOUDFLARE_API_TOKEN\}" \]/);
+  assert.match(credentialsRun, /pnpm exec wrangler whoami/);
+  assert.ok(credentialsIndex !== -1 && credentialsIndex < deployIndex);
+  assert.ok(deployIndex < migrationIndex && migrationIndex < healthIndex);
+  const manifest = read("backend/wrangler.jsonc");
+  const required = manifest.match(/"required"\s*:\s*\[([\s\S]*?)\]/)?.[1] ?? "";
+  assert.doesNotMatch(required, /"LAB_DEVICE_AGENT_CONSUMER_TOKEN"/);
+});
+
+test("legacy-agent preflight fixture remains fail-closed for helper behavior", () => {
+  assert.equal(preflightRunBlock(), "set -euo pipefail\nnpx --no-install wrangler secret list | node ../scripts/checks/check-lab-device-secret.mjs");
+});
+
+test("normal Board source uses the browser receiver without legacy consumer or loopback paths", () => {
+  const source = read("frontend/src/features/lab-device/routes/LabDeviceBoard.tsx");
+  assert.match(source, /useLabDeviceBrowserReceive/);
+  assert.doesNotMatch(source, /useGetLabDeviceAgentConsumer|useLabDeviceAgentListen|127\.0\.0\.1|localhost/);
 });
 
 test("production deploy job remains byte-for-byte unchanged", () => {
@@ -154,7 +155,7 @@ test("production deploy job remains byte-for-byte unchanged", () => {
   );
 });
 
-test("STG preflight run block reaches the deploy marker only when the secret is listed", () => {
+test("legacy-agent preflight run block reaches the marker only when the secret is listed", () => {
   const ok = runPreflight(PRESENT_LIST, 0);
   assert.equal(ok.status, 0);
   assert.equal(ok.stdout, "DEPLOY_REACHED\n");
@@ -169,13 +170,13 @@ test("STG preflight run block reaches the deploy marker only when the secret is 
   assert.equal(missing.stderr, MISSING_MESSAGE);
 });
 
-test("STG preflight run block stops when the producer exits nonzero", () => {
+test("legacy-agent preflight run block stops when the producer exits nonzero", () => {
   const failed = runPreflight(PRESENT_LIST, 17);
   assert.equal(failed.status, 17);
   assert.equal(failed.stdout, "");
 });
 
-test("STG preflight run block stops on empty or malformed producer output", () => {
+test("legacy-agent preflight run block stops on empty or malformed producer output", () => {
   for (const [index, producerStdout] of ["", "not json"].entries()) {
     const result = runPreflight(producerStdout, 0);
     assert.notEqual(result.status, 0, `case ${index}`);

@@ -82,8 +82,9 @@ export function CheckupFieldsPanel({
             placeholder="選択してください"
             searchPlaceholder="健診種別を検索..."
             ariaInvalid={Boolean(fieldErrors.checkupTypeId)}
+            ariaDescribedBy={fieldErrors.checkupTypeId ? "checkup-type-error" : undefined}
           />
-          <FormFieldError message={fieldErrors.checkupTypeId} />
+          <FormFieldError id="checkup-type-error" message={fieldErrors.checkupTypeId} />
         </div>
       </div>
 
