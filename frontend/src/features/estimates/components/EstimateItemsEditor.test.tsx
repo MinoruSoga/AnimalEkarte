@@ -42,6 +42,19 @@ function renderEditor(props: Partial<EstimateItemsEditorProps> = {}) {
 }
 
 describe("EstimateItemsEditor", () => {
+  it.each([
+    [true, false],
+    [false, true],
+  ])("既存行と新規行の値引権限を分ける edit=%s create=%s", (edit, create) => {
+    renderEditor({
+      items: [makeItem({ id: "1", localId: "saved" }), makeItem({ localId: "new" })],
+      canEditDiscount: edit,
+      canCreateDiscount: create,
+    });
+    expect(document.getElementById("item-discount-saved") !== null).toBe(edit);
+    expect(document.getElementById("item-discount-new") !== null).toBe(create);
+  });
+
   it("各行にネイティブなアクセシブルラベルを持つ入力を描画する", () => {
     renderEditor();
     expect(screen.getByLabelText("品目名")).toHaveValue("検査");

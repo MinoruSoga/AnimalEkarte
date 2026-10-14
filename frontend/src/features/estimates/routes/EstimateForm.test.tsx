@@ -49,7 +49,12 @@ const {
     current: { insuranceAmount: 0, discountAmount: 0 },
   },
   mockPermissions: {
-    current: { canCreateEstimates: true, canCreateDiscount: true },
+    current: {
+      canCreateEstimates: true,
+      canCreateDiscount: true,
+      canEditDiscount: true,
+      withItem: false,
+    },
   },
 }));
 
@@ -60,7 +65,7 @@ vi.mock("@/hooks/use-permission", () => ({
       resource === "discount"
         ? mockPermissions.current.canCreateDiscount
         : mockPermissions.current.canCreateEstimates,
-    canEdit: true,
+    canEdit: resource === "discount" ? mockPermissions.current.canEditDiscount : true,
     canDelete: true,
   }),
 }));
@@ -113,7 +118,24 @@ vi.mock("../hooks/use-estimate-form", () => ({
       validUntil: "",
       comment: "",
       notes: "",
-      items: [],
+      items: mockPermissions.current.withItem
+        ? [
+            {
+              id: "1",
+              localId: "row-1",
+              name: "診察",
+              category: "other",
+              unitPrice: 1000,
+              quantity: 1,
+              taxType: "excluded",
+              taxRate: 0.1,
+              discountRate: 0,
+              discountAmount: 0,
+              isInsuranceApplicable: false,
+              sortOrder: 0,
+            },
+          ]
+        : [],
     },
     totals: { subtotal: 0, taxTotal: 0, totalAmount: 0 },
     createEmptyItem: vi.fn(() => ({
@@ -227,8 +249,36 @@ describe("EstimateForm statusError aria-describedby", () => {
     mockEstimate.current = null;
     mockFormState.current = { success: false, timestamp: 0, fieldErrors: undefined };
     mockAmounts.current = { insuranceAmount: 0, discountAmount: 0 };
-    mockPermissions.current = { canCreateEstimates: true, canCreateDiscount: true };
+    mockPermissions.current = {
+      canCreateEstimates: true,
+      canCreateDiscount: true,
+      canEditDiscount: true,
+      withItem: false,
+    };
   });
+
+  it.each([
+    [false, true, false, true],
+    [false, false, true, false],
+    [true, false, true, true],
+    [true, true, false, false],
+  ])(
+    "割引のヘッダーと明細は保存モードの権限に一致する edit=%s create=%s editPermission=%s",
+    (edit, createPermission, editPermission, allowed) => {
+      mockPermissions.current.canCreateDiscount = createPermission;
+      mockPermissions.current.canEditDiscount = editPermission;
+      mockPermissions.current.withItem = true;
+      if (edit) {
+        mockEstimate.current = makeEstimate("draft");
+        renderEditForm();
+      } else {
+        renderCreateForm();
+      }
+      const header = screen.getByRole("spinbutton", { name: "割引額" });
+      expect(header).toHaveProperty("disabled", !allowed);
+      expect(screen.queryByRole("spinbutton", { name: "値引（円）" }) !== null).toBe(allowed);
+    },
+  );
 
   it("statusError があるとき SelectTrigger に aria-describedby=status-error を接続する", () => {
     mockFormState.current = {

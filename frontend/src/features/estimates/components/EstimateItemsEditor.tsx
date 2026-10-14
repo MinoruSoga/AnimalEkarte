@@ -43,6 +43,7 @@ export interface EstimateItemsEditorProps {
   items: EstimateItemDraft[];
   createItem: () => EstimateItemDraft;
   canEditDiscount: boolean;
+  canCreateDiscount?: boolean;
   disabled?: boolean;
   error?: string;
   standardTaxRate: number;
@@ -54,6 +55,7 @@ export const EstimateItemsEditor = memo(function EstimateItemsEditor({
   items,
   createItem,
   canEditDiscount,
+  canCreateDiscount = canEditDiscount,
   disabled,
   error,
   standardTaxRate,
@@ -181,7 +183,7 @@ export const EstimateItemsEditor = memo(function EstimateItemsEditor({
                 </SelectContent>
               </Select>
             </div>
-            {canEditDiscount ? (
+            {(item.id ? canEditDiscount : canCreateDiscount) ? (
               <div className="space-y-1 min-w-0">
                 <Label
                   htmlFor={`item-discount-${item.localId}`}
@@ -218,7 +220,15 @@ export const EstimateItemsEditor = memo(function EstimateItemsEditor({
           </div>
         );
       }),
-    [items, onChange, canEditDiscount, disabled, standardTaxRate, reducedTaxRate],
+    [
+      items,
+      onChange,
+      canEditDiscount,
+      canCreateDiscount,
+      disabled,
+      standardTaxRate,
+      reducedTaxRate,
+    ],
   );
 
   return (

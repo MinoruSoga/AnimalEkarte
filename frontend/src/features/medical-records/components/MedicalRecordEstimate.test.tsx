@@ -31,12 +31,17 @@ vi.mock("@/lib/handle-api-error", () => ({
 }));
 
 vi.mock("@/hooks/use-permission", () => ({
-  usePermission: () => ({ canEdit: true, canCreate: true, canDelete: true }),
+  usePermission: (resource: string) => ({
+    canEdit: resource === "discount" ? mockDiscount.current.canEdit : true,
+    canCreate: resource === "discount" ? mockDiscount.current.canCreate : true,
+    canDelete: true,
+  }),
 }));
 
 // FE-RC-048: useClinicTaxRates は独立に useAuth() を呼ぶため最小モックが必要。
 // mockClinic は医院マスタの税率設定をテストごとに切り替えるための可変参照。
-const { mockClinic } = vi.hoisted(() => ({
+const { mockClinic, mockDiscount } = vi.hoisted(() => ({
+  mockDiscount: { current: { canCreate: true, canEdit: true } },
   mockClinic: { current: {} as { standardTaxRate?: number; reducedTaxRate?: number } },
 }));
 
@@ -65,6 +70,45 @@ describe("MedicalRecordEstimate BUG-016 resave", () => {
     vi.mocked(toast.success).mockClear();
     vi.mocked(toast.error).mockClear();
     mockClinic.current = {};
+    mockDiscount.current = { canCreate: true, canEdit: true };
+  });
+
+  it.each([
+    [false, true, false, false],
+    [false, false, true, true],
+    [true, false, true, false],
+    [true, true, false, true],
+  ])("ヘッダー値引は見積の保存モードに対応する existing=%s", (existing, create, edit, disabled) => {
+    mockDiscount.current = { canCreate: create, canEdit: edit };
+    mockExisting = existing ? { id: 7, title: "見積", discount_amount: 300, items: [] } : null;
+    render(createElement(MedicalRecordEstimate, { medicalRecordId: "99" }), { wrapper });
+    const input = screen.getByText("値引額").closest("div")!.querySelector("input")!;
+    expect(input).toHaveProperty("disabled", disabled);
+    if (existing) expect(input).toHaveValue(300);
+  });
+
+  it("新規保存の成功直後に値引の create 権限から edit 権限へ切り替える", async () => {
+    mockDiscount.current = { canCreate: true, canEdit: false };
+    mockCreateMutateAsync.mockResolvedValue({ id: 42, title: "見積", items: [] });
+    let save: (() => Promise<void>) | undefined;
+    render(
+      createElement(MedicalRecordEstimate, {
+        medicalRecordId: "99",
+        onRegisterSave: (fn) => {
+          save = fn;
+        },
+      }),
+      { wrapper },
+    );
+    const input = screen.getByText("値引額").closest("div")!.querySelector("input")!;
+    expect(input).not.toBeDisabled();
+    const user = userEvent.setup();
+    await user.type(screen.getAllByRole("textbox")[0], "見積");
+    await act(async () => {
+      if (!save) throw new Error("missing save");
+      await save();
+    });
+    expect(input).toBeDisabled();
   });
 
   it("初回保存は POST (create)、2回目以降は PATCH (update) を呼び成功トーストは実成功時のみ", async () => {

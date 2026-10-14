@@ -61,6 +61,7 @@ function EstimateFormContent({ id }: { id?: string }) {
   const { canEdit, canCreate } = usePermission("estimates");
   // BUG-372: 割引権限（割引額制御）
   const { canEdit: canEditDiscount, canCreate: canCreateDiscount } = usePermission("discount");
+  const canChangeDiscount = isEdit ? canEditDiscount : canCreateDiscount;
   const canSubmit = isEdit ? canEdit : canCreate;
 
   // FE-RC-002/004: `?petId=` から採用したペットが死亡・不明のとき新規見積書作成を fail-closed で拒否する。
@@ -258,7 +259,8 @@ function EstimateFormContent({ id }: { id?: string }) {
             <EstimateItemsEditor
               items={form.items}
               createItem={createEmptyItem}
-              canEditDiscount={canEditDiscount}
+              canEditDiscount={canChangeDiscount}
+              canCreateDiscount={canCreateDiscount}
               disabled={!canSubmit || isPending}
               standardTaxRate={standardTaxRate}
               reducedTaxRate={reducedTaxRate}
@@ -275,7 +277,7 @@ function EstimateFormContent({ id }: { id?: string }) {
               totalAmount={totals.totalAmount}
               onInsuranceAmountChange={(v) => handleChangeWithDirty("insuranceAmount", v)}
               onDiscountAmountChange={(v) => handleChangeWithDirty("discountAmount", v)}
-              canCreateDiscount={canCreateDiscount}
+              canCreateDiscount={canChangeDiscount}
             />
 
             {/* rerender-memo: TextSection — 基本情報/金額変更では再レンダーしない */}

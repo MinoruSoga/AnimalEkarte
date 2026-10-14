@@ -75,6 +75,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
   const [items, setItems] = useState<TreatmentItem[]>([]);
 
   const { canEdit } = usePermission("medical-records");
+  const { canCreate: canCreateDiscount, canEdit: canEditDiscount } = usePermission("discount");
   // FE-RC-048: 消費税率はハードコード 0.1 ではなく病院マスタ設定を正本にする。
   const { standardTaxRate } = useClinicTaxRates();
 
@@ -105,6 +106,8 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
 
   // id が変わったときだけ hydrate（refetch の参照変更で入力を巻き戻さない）
   const [hydratedEstimateId, setHydratedEstimateId] = useState<number | null>(null);
+  const canChangeDiscount =
+    (existingEstimate?.id ?? hydratedEstimateId ?? 0) > 0 ? canEditDiscount : canCreateDiscount;
   if (existingEstimate?.id != null && existingEstimate.id !== hydratedEstimateId) {
     setHydratedEstimateId(existingEstimate.id);
     hydrateFromEstimate(existingEstimate, standardTaxRate, {
@@ -311,7 +314,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
         discountAmount={globalDiscountAmount}
         onUpdateDiscountAmount={setGlobalDiscountAmount}
         isDiscountRateReadonly
-        disabled={!canEdit}
+        disabled={!canEdit || !canChangeDiscount}
       />
 
       {/* Comments & Remarks */}
