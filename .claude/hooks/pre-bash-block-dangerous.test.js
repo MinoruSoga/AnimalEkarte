@@ -202,8 +202,36 @@ for (const c of strictCases) {
   console.log(`ok  ${c.name}`);
 }
 
+{
+  const deferredOutput = `
+    const write = process.stdout.write.bind(process.stdout);
+    process.stdout.write = (...args) => {
+      setTimeout(() => write(...args), 25);
+      return false;
+    };
+    require(${JSON.stringify(hook)});
+  `;
+  const result = spawnSync(process.execPath, ['-e', deferredOutput], {
+    input: JSON.stringify({ tool_input: { command: 'git reset --hard HEAD' } }),
+    encoding: 'utf8',
+    timeout: 15000,
+  });
+  try {
+    if (result.error || result.status !== 2) throw new Error('deny must exit 2');
+    const body = JSON.parse(result.stdout);
+    if (body.decision !== 'deny' || body.permissionDecision !== 'deny' ||
+        !body.reason || body.permissionDecisionReason !== body.reason) {
+      throw new Error('incomplete deny envelope');
+    }
+    console.log('ok  deny envelope survives deferred stdout writes');
+  } catch (error) {
+    failed += 1;
+    console.error(`FAIL deny envelope survives deferred stdout writes: ${error}`);
+  }
+}
+
 if (failed > 0) {
   console.error(`\n${failed} failure(s)`);
   process.exit(1);
 }
-console.log(`\nAll ${cases.length + strictCases.length + 1} checks passed`);
+console.log(`\nAll ${cases.length + strictCases.length + 2} checks passed`);

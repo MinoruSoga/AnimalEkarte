@@ -14,6 +14,7 @@
  *   never echo command text or raw stdin
  */
 'use strict';
+const { writeSync } = require('fs');
 const { literalDeviceWrite } = require('./literal-device-write.js');
 
 const MAX_STDIN = 1024 * 1024;
@@ -27,7 +28,7 @@ let size = 0;
 function deny(reason) {
   process.stderr.write(`[Hook] BLOCKED: ${reason}\n`);
   // Grok PreToolUse decision envelope (also harmless for Claude Code)
-  process.stdout.write(
+  writeSync(1,
     JSON.stringify({
       decision: 'deny',
       reason,
