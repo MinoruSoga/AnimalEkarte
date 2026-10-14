@@ -144,7 +144,7 @@ const define: Record<string, string> = {
   // EMR-265: STG(preview) のデモアカウント自動入力用。GitHub secret
   // SEEDLOGIN_DEMO_PASSWORD(backend の wrangler secret SEEDLOGIN_DEMO_PASSWORD
   // と同値)を frontend-deploy.yml が注入し、stg のときだけ bundle に焼き込む。
-  // admin smoke 用の STG_DEMO_PASSWORD(admin@noavet.jp)とは別物なので混同注意。
+  // STG_DEMO_PASSWORD は legacy admin smoke 専用。通常のdemo smokeもこの共通secretを使う。
   // stg 以外では常に "" を焼き込むので production へ値が混入しない(fail-closed)。
   "import.meta.env.VITE_DEMO_LOGIN_PASSWORD": JSON.stringify(
     appEnv === "stg" ? (process.env.SEEDLOGIN_DEMO_PASSWORD ?? "") : "",

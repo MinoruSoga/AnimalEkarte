@@ -8,6 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import "./actionlint-queue-compat.test.mjs";
+import "../checks/cf-demo-smoke.test.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const PNPM_VERSION = "10.15.0";
