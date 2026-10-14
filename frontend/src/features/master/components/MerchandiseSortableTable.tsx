@@ -47,6 +47,7 @@ interface MerchandiseSortableTableProps {
   onDragEnd: NonNullable<ComponentProps<typeof DndContext>["onDragEnd"]>;
   onDragCancel: NonNullable<ComponentProps<typeof DndContext>["onDragCancel"]>;
   canEdit: boolean;
+  canReorder?: boolean;
   onEdit: (item: FrontendMerchandiseItem) => void;
   /**
    * PR665 / EMR-401 C2-5: 50 行ページング維持のため、ページをまたぐ並べ替えは
@@ -65,6 +66,7 @@ export function MerchandiseSortableTable({
   onDragEnd,
   onDragCancel,
   canEdit,
+  canReorder = canEdit,
   onEdit,
   onMoveItem,
   isReordering = false,
@@ -112,7 +114,7 @@ export function MerchandiseSortableTable({
                     key={item.id}
                     id={item.id}
                     dragLabel={`並べ替え: 品目 ${item.name} (ID ${item.id})`}
-                    dragDisabled={!canEdit || isReordering}
+                    dragDisabled={!canReorder || isReordering}
                   >
                     <TableCell className={`font-medium ${C.text}`}>
                       <DataTableRowButton
@@ -144,7 +146,7 @@ export function MerchandiseSortableTable({
                                 variant="ghost"
                                 size="icon"
                                 aria-label={`前へ移動: 品目 ${item.name} (ID ${item.id})`}
-                                disabled={isReordering}
+                                disabled={!canReorder || isReordering}
                                 className={TABLE_STYLES.actionButton}
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -157,7 +159,7 @@ export function MerchandiseSortableTable({
                                 variant="ghost"
                                 size="icon"
                                 aria-label={`後へ移動: 品目 ${item.name} (ID ${item.id})`}
-                                disabled={isReordering}
+                                disabled={!canReorder || isReordering}
                                 className={TABLE_STYLES.actionButton}
                                 onClick={(e) => {
                                   e.stopPropagation();

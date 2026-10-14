@@ -49,6 +49,8 @@ export function MerchandiseItemSettings() {
     dirtyGuard: dirty,
     permissions: { canDelete },
   });
+  // 部分リストを再採番すると非表示行と sort_order が衝突するため、絞り込み中は並べ替えない。
+  const canReorder = canEdit && crud.filteredItems.length === (data?.length ?? 0);
   const handleDirtyChange = useCallback(
     (d: boolean) => {
       if (d) dirty.markDirty();
@@ -69,7 +71,7 @@ export function MerchandiseItemSettings() {
     items: crud.filteredItems,
     onReorder: (newIds) => {
       // PR665: 並べ替え API 実行中はドラッグ由来のコールバックも無視する。
-      if (!canEdit || reorderMutation.isPending) return;
+      if (!canReorder || reorderMutation.isPending) return;
       reorderMutation.mutate({ ids: newIds.map(Number) }, { onSuccess: resetOrder });
     },
   });
@@ -79,13 +81,13 @@ export function MerchandiseItemSettings() {
   const handleMoveItem = useCallback(
     (item: FrontendMerchandiseItem, direction: "up" | "down") => {
       // PR665: 並べ替え API 実行中は追加クリックを無視する。
-      if (!canEdit || reorderMutation.isPending) return;
+      if (!canReorder || reorderMutation.isPending) return;
       const ids = sortedItems.map((i) => i.id);
       const newIds = moveItemInOrder(ids, item.id, direction);
       if (!newIds) return;
       reorderMutation.mutate({ ids: newIds.map(Number) }, { onSuccess: resetOrder });
     },
-    [canEdit, sortedItems, reorderMutation, resetOrder],
+    [canReorder, sortedItems, reorderMutation, resetOrder],
   );
 
   const { handleSave } = useMasterSave<
@@ -139,6 +141,7 @@ export function MerchandiseItemSettings() {
             onDragEnd={handleDragEnd}
             onDragCancel={handleDragCancel}
             canEdit={canEdit}
+            canReorder={canReorder}
             onEdit={crud.handleEdit}
             onMoveItem={handleMoveItem}
             isReordering={reorderMutation.isPending}

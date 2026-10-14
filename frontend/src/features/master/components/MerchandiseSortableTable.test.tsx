@@ -98,6 +98,22 @@ describe("Merchandise visible pagination", () => {
     for (const handle of handles()) expect(handle).not.toBeDisabled();
   });
 
+  it("絞り込み時は並べ替え操作のみ無効化し、編集は維持する", () => {
+    render(
+      <MerchandiseSortableTable
+        items={items}
+        {...handlers}
+        canReorder={false}
+        onMoveItem={vi.fn()}
+      />,
+    );
+    for (const button of screen.getAllByRole("button", {
+      name: /^並べ替え: 品目|^前へ移動:|^後へ移動:/,
+    }))
+      expect(button).toBeDisabled();
+    expect(screen.getAllByRole("button", { name: /編集/ })[0]).not.toBeDisabled();
+  });
+
   it("PR665: 操作列は移動2+編集1の44pxボタンが1行に収まる160px幅を保つ", () => {
     render(<MerchandiseSortableTable items={items} {...handlers} onMoveItem={vi.fn()} />);
     const headers = screen.getAllByRole("columnheader");

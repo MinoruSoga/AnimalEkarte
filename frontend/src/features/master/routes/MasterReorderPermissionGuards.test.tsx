@@ -15,11 +15,13 @@ const mocks = vi.hoisted(() => ({
   permissionGroupReorder: vi.fn(),
   canEdit: false,
   merchandisePending: false,
+  merchandiseFiltered: false,
   merchandiseItems: [] as FrontendMerchandiseItem[],
   merchandiseMove: undefined as
     ((item: FrontendMerchandiseItem, direction: "up" | "down") => void) | undefined,
   merchandiseIsReordering: undefined as boolean | undefined,
   merchandiseCanEdit: undefined as boolean | undefined,
+  merchandiseCanReorder: undefined as boolean | undefined,
 }));
 
 vi.mock("@/hooks/use-permission", () => ({
@@ -69,7 +71,7 @@ vi.mock("@/hooks/use-sortable-list", () => ({
 
 vi.mock("../hooks/use-master-crud", () => ({
   useMasterCRUD: ({ data = [] }: { data?: Array<{ id: string }> }) => ({
-    filteredItems: data,
+    filteredItems: mocks.merchandiseFiltered ? data.filter((item) => item.id !== "2") : data,
     pendingDelete: null,
     handleEdit: vi.fn(),
     handleNew: vi.fn(),
@@ -101,14 +103,17 @@ vi.mock("../components/MerchandiseSortableTable", () => ({
     onMoveItem,
     isReordering,
     canEdit,
+    canReorder,
   }: {
     onMoveItem?: (item: FrontendMerchandiseItem, direction: "up" | "down") => void;
     isReordering?: boolean;
     canEdit?: boolean;
+    canReorder?: boolean;
   }) => {
     mocks.merchandiseMove = onMoveItem;
     mocks.merchandiseIsReordering = isReordering;
     mocks.merchandiseCanEdit = canEdit;
+    mocks.merchandiseCanReorder = canReorder;
     return null;
   },
 }));
@@ -169,9 +174,11 @@ describe("master route reorder permission guards", () => {
     mocks.reorderCallbacks.length = 0;
     mocks.canEdit = false;
     mocks.merchandisePending = false;
+    mocks.merchandiseFiltered = false;
     mocks.merchandiseMove = undefined;
     mocks.merchandiseIsReordering = undefined;
     mocks.merchandiseCanEdit = undefined;
+    mocks.merchandiseCanReorder = undefined;
     mocks.merchandiseItems = Array.from({ length: 101 }, (_, i) => ({
       id: String(i + 1),
       name: `Item ${i + 1}`,
@@ -204,6 +211,17 @@ describe("master route reorder permission guards", () => {
 
   it("blocks merchandise reorder mutation when edit permission is absent", () => {
     render(<MerchandiseItemSettings />);
+    callLatestReorder();
+    expect(mocks.merchandiseReorder).not.toHaveBeenCalled();
+  });
+
+  it("絞り込みで非表示の行がある場合は移動・ドラッグの部分順序を送信しない", () => {
+    mocks.canEdit = true;
+    mocks.merchandiseFiltered = true;
+    render(<MerchandiseItemSettings />);
+    expect(mocks.merchandiseCanEdit).toBe(true);
+    expect(mocks.merchandiseCanReorder).toBe(false);
+    mocks.merchandiseMove?.(mocks.merchandiseItems[0]!, "down");
     callLatestReorder();
     expect(mocks.merchandiseReorder).not.toHaveBeenCalled();
   });

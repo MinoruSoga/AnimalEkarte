@@ -4653,7 +4653,7 @@ components:
     EstimateItemInput:
       type: object
       description: 見積明細の作成/置換入力（createEstimateItemRequest と同型）
-      required: [name]
+      required: [name, quantity]
       properties:
         name:
           type: string
