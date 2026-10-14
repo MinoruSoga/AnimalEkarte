@@ -89,6 +89,13 @@ func validateCutoverMedicinesTaxPair(row []string, indexes map[string]int, csvLi
 	if !cutoverDecimalEquals(row[indexes["tax_rate"]], "0", "1") {
 		return fmt.Errorf("table medicines column tax_rate row %d: tax_rate must be 0.10 until MIG-25", csvLine)
 	}
+	// 4266290429: DESIGN 3.2 keeps the legacy sort order. The value is a
+	// required signed 32-bit decimal; no NULL coercion or zero fill.
+	if value := row[indexes["sort_order"]]; value == "" {
+		return fmt.Errorf("table medicines column sort_order row %d: sort_order is required", csvLine)
+	} else if _, err := strconv.ParseInt(value, 10, 32); err != nil {
+		return fmt.Errorf("table medicines column sort_order row %d: sort_order must be a signed 32-bit integer", csvLine)
+	}
 	return nil
 }
 

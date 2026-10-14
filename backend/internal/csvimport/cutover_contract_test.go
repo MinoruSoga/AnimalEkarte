@@ -1179,6 +1179,12 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle), profiles ...
 				if spec.Name == "medicines" {
 					row[i] = "0.10"
 				}
+			case "sort_order":
+				// DESIGN 3.2 keeps the legacy sort order; the synthetic
+				// medicines row carries the canonical 0.
+				if spec.Name == "medicines" {
+					row[i] = "0"
+				}
 			case "is_active":
 				// DESIGN 3.2 pins medicines is_active=true; keep the
 				// synthetic candidate bundle contract-consistent.

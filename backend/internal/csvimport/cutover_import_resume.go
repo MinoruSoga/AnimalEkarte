@@ -186,6 +186,9 @@ func applyCutoverCommittingEachTable(
 		if err := validateCutoverBandEmpty(ctx, session, bundle.Manifest.IDBand, bundle.Manifest.profile); err != nil {
 			return CutoverResult{}, err
 		}
+		if err := validateCutoverMedicinesTargetNames(ctx, session, bundle, seeds); err != nil {
+			return CutoverResult{}, err
+		}
 	}
 	drift := append([]string(nil), bundle.ToleratedDrift...)
 	drift = append(drift, targetNotes...)
