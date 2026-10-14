@@ -89,10 +89,15 @@ export const HolidaySection = memo(function HolidaySection({
   const handleCloseDeleteDialog = useCallback(() => setDeleteTarget(null), []);
 
   const handleShowForm = useCallback(() => {
+    setDate("");
     setDateInvalid(false);
     setShowForm(true);
   }, []);
-  const handleHideForm = useCallback(() => setShowForm(false), []);
+  const handleHideForm = useCallback(() => {
+    setDate("");
+    setDateInvalid(false);
+    setShowForm(false);
+  }, []);
 
   return (
     <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>

@@ -330,6 +330,91 @@ describe("DatePicker — 44px touch targets", () => {
   });
 });
 
+describe("DatePicker native validity と ARIA エラーの分離", () => {
+  it("ariaInvalid=true だけではネイティブ validity を無効化しない", () => {
+    render(<DatePicker value="2026-10-13" onChange={vi.fn()} ariaInvalid />);
+
+    const input = screen.getByRole<HTMLInputElement>("textbox");
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(input.validity.valid).toBe(true);
+    expect(input.validationMessage).toBe("");
+  });
+
+  it("ariaInvalid=true で空値でもネイティブ validity は有効のまま", () => {
+    render(<DatePicker value="" onChange={vi.fn()} ariaInvalid />);
+
+    expect(screen.getByRole<HTMLInputElement>("textbox").validity.valid).toBe(true);
+  });
+
+  it("非空の validationMessage は値が正当でもネイティブ validity を無効化する", () => {
+    render(
+      <DatePicker
+        value="2026-10-13"
+        onChange={vi.fn()}
+        validationMessage="今日より前の日付は設定できません"
+      />,
+    );
+
+    const input = screen.getByRole<HTMLInputElement>("textbox");
+    expect(input.validity.valid).toBe(false);
+    expect(input.validationMessage).toBe("今日より前の日付は設定できません");
+  });
+
+  it("validationMessage が消えると custom validity が解除される", () => {
+    const { rerender } = render(
+      <DatePicker value="2026-10-13" onChange={vi.fn()} validationMessage="エラー" />,
+    );
+    const input = screen.getByRole<HTMLInputElement>("textbox");
+    expect(input.validity.valid).toBe(false);
+
+    rerender(<DatePicker value="2026-10-13" onChange={vi.fn()} />);
+    expect(input.validity.valid).toBe(true);
+    expect(input.validationMessage).toBe("");
+  });
+
+  it("disabled 化すると残っていた custom validity を解除する", () => {
+    const { rerender } = render(
+      <DatePicker
+        value="2026-10-13"
+        onChange={vi.fn()}
+        disabledDays={{ after: new Date(2026, 9, 1) }}
+      />,
+    );
+    const input = screen.getByRole<HTMLInputElement>("textbox");
+    expect(input.validationMessage).toBe("入力した日付は選択できません");
+
+    rerender(
+      <DatePicker
+        value="2026-10-13"
+        onChange={vi.fn()}
+        disabled
+        disabledDays={{ after: new Date(2026, 9, 1) }}
+      />,
+    );
+    expect(input.validationMessage).toBe("");
+  });
+
+  it("ariaRequired を内部 input の aria-required に転送する", () => {
+    const { rerender } = render(<DatePicker value="" onChange={vi.fn()} ariaRequired />);
+
+    expect(screen.getByRole("textbox")).toHaveAttribute("aria-required", "true");
+
+    rerender(<DatePicker value="" onChange={vi.fn()} />);
+    expect(screen.getByRole("textbox")).not.toHaveAttribute("aria-required");
+  });
+
+  it("showClearButton={false} では値があっても内蔵クリアボタンを出さない", () => {
+    const { rerender } = render(
+      <DatePicker value="2026-10-13" onChange={vi.fn()} showClearButton={false} />,
+    );
+
+    expect(screen.queryByRole("button", { name: "日付をクリア" })).not.toBeInTheDocument();
+
+    rerender(<DatePicker value="2026-10-13" onChange={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "日付をクリア" })).toBeInTheDocument();
+  });
+});
+
 /**
  * Issue #48 回帰テスト
  *

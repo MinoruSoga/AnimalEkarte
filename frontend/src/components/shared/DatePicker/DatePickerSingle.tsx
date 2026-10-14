@@ -41,6 +41,8 @@ export function SinglePicker({
   validationMessage,
   ariaInvalid = false,
   ariaDescribedBy,
+  ariaRequired,
+  showClearButton = true,
 }: SingleDatePickerProps) {
   const [popoverState, setPopoverState] = useState({ disabled, open: false });
   if (popoverState.disabled !== disabled) {
@@ -72,15 +74,16 @@ export function SinglePicker({
     [disabledDays, isDateOutOfRange],
   );
   const validityDate = value ? selected : (parseDateInput(inputText) ?? undefined);
-  const nativeValidityMessage = ariaInvalid
-    ? validationMessage || "入力内容を確認してください"
-    : validityDate && isDateOutOfRange(validityDate)
-      ? min !== undefined && formatIso(validityDate) < min
-        ? `日付は ${min} 以降を指定してください`
-        : `日付は ${max} 以前を指定してください`
-      : validityDate && disabledDays && dateMatchModifiers(validityDate, disabledDays)
-        ? "入力した日付は選択できません"
-        : "";
+  const nativeValidityMessage = disabled
+    ? ""
+    : validationMessage ||
+      (validityDate && isDateOutOfRange(validityDate)
+        ? min !== undefined && formatIso(validityDate) < min
+          ? `日付は ${min} 以降を指定してください`
+          : `日付は ${max} 以前を指定してください`
+        : validityDate && disabledDays && dateMatchModifiers(validityDate, disabledDays)
+          ? "入力した日付は選択できません"
+          : "");
 
   useEffect(() => {
     inputRef.current?.setCustomValidity(nativeValidityMessage);
@@ -207,6 +210,7 @@ export function SinglePicker({
             disabled={disabled}
             aria-label={ariaLabel}
             aria-invalid={ariaInvalid || undefined}
+            aria-required={ariaRequired || undefined}
             aria-describedby={ariaDescribedBy}
             onInvalid={onInvalid}
             value={displayText}
@@ -217,7 +221,9 @@ export function SinglePicker({
             placeholder={placeholder}
             className={`-my-px min-h-11 flex-1 min-w-0 bg-transparent outline-none text-sm ${C.text} ${C.textPlaceholder} focus-visible:ring-2 ${C.focusRingAccent40}`}
           />
-          {value ? <ClearButton onClick={handleClear} disabled={disabled} /> : null}
+          {value && showClearButton ? (
+            <ClearButton onClick={handleClear} disabled={disabled} />
+          ) : null}
         </div>
       </PopoverAnchor>
 

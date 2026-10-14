@@ -143,7 +143,8 @@ function ExaminationFormFieldsBase({
               date: value ? jstDateStartISOString(value) : jstDateStartISOString(todayJSTISO()),
             });
           }}
-          disabledDays={fieldsLocked ? () => true : { after: toJSTWallDate(new Date()) }}
+          disabled={fieldsLocked}
+          disabledDays={{ after: toJSTWallDate(new Date()) }}
         />
       </div>
 

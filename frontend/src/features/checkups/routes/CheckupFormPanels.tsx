@@ -62,6 +62,7 @@ export function CheckupFieldsPanel({
             id="checkup-date"
             value={form.date}
             onChange={onDateChange}
+            ariaRequired
             ariaInvalid={Boolean(fieldErrors.date)}
             ariaDescribedBy={fieldErrors.date ? "checkup-date-error" : undefined}
             disabledDays={{ after: toJSTWallDate(new Date()) }}
@@ -85,6 +86,7 @@ export function CheckupFieldsPanel({
             placeholder="選択してください"
             searchPlaceholder="健診種別を検索..."
             ariaInvalid={Boolean(fieldErrors.checkupTypeId)}
+            ariaRequired
           />
           <FormFieldError message={fieldErrors.checkupTypeId} />
         </div>

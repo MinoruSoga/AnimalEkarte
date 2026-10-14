@@ -208,7 +208,7 @@ export function ReservationTypeAvailableSlotsSection({
               </Select>
             ) : (
               <DatePicker
-                ariaLabel="特定日"
+                ariaLabel="予約可能枠の特定日"
                 value={form.specificDate}
                 onChange={(v) => handleFieldChange("specificDate", v)}
               />

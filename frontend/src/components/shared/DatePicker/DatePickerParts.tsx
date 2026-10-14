@@ -31,6 +31,8 @@ export interface SingleDatePickerProps {
    * 転送し、スクリーンリーダーがエラー文を拾えるようにする（NumberInput と同じ契約）。
    */
   ariaDescribedBy?: string;
+  ariaRequired?: boolean;
+  showClearButton?: boolean;
 }
 
 export interface RangeDatePickerProps {

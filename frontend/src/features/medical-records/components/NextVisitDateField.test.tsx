@@ -65,7 +65,7 @@ describe("NextVisitDateField", () => {
     expect(error).toHaveTextContent(PAST_ERROR);
     expect(input.value).toMatch(/2026年9月2日/);
     expect(screen.getByRole("button", { name: "次回来院推奨日を選択" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "日付をクリア" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "日付をクリア" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Today" })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "次回来院推奨日を選択" }));
@@ -119,19 +119,18 @@ describe("NextVisitDateField", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it("クリア不可では DatePicker 内蔵のクリアボタンも onChange を呼ばない", async () => {
-    const user = userEvent.setup();
-    const onChange = vi.fn();
-    render(<NextVisitDateField value="2026-09-04" onChange={onChange} clearDisabled />);
-    await user.click(screen.getByRole("button", { name: "日付をクリア" }));
-    expect(onChange).not.toHaveBeenCalled();
+  it("DatePicker 内蔵のクリアボタンは表示しない（専用クリアチップで権限制御する）", () => {
+    renderField("2026-09-04");
+    expect(screen.queryByRole("button", { name: "日付をクリア" })).not.toBeInTheDocument();
   });
 
-  it("クリア可では DatePicker 内蔵のクリアボタンが onChange('') を呼ぶ", async () => {
+  it("クリア可では専用クリアボタンが有効で onChange('') を1回だけ呼ぶ", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<NextVisitDateField value="2026-09-04" onChange={onChange} clearDisabled={false} />);
-    await user.click(screen.getByRole("button", { name: "日付をクリア" }));
+    const clearChip = screen.getByRole("button", { name: "クリア" });
+    expect(clearChip).toBeEnabled();
+    await user.click(clearChip);
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenCalledWith("");
   });

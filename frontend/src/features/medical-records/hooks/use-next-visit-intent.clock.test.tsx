@@ -1,5 +1,6 @@
 import { act, cleanup, render, renderHook, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useGetReservations } from "@/hooks/use-get-reservations";
@@ -118,7 +119,8 @@ describe("next visit reactive clock", () => {
       expect.objectContaining({ startDate: "2026-10-12", endDate: "2028-10-12" }),
     );
   });
-  it("revalidates an unchanged same-day intent when it becomes a past date", () => {
+  it("revalidates an unchanged same-day intent when it becomes a past date", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     vi.setSystemTime(new Date("2026-10-11T14:59:30Z"));
     mockReservations([tentative("2026-10-11")]);
     function IntentField() {
@@ -137,6 +139,16 @@ describe("next visit reactive clock", () => {
     expect(screen.getByLabelText("次回来院推奨日")).toBeInvalid();
     expect(screen.getByLabelText("次回来院推奨日")).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByRole("alert")).toHaveTextContent("今日より前");
+
+    const opening = user.click(screen.getByRole("button", { name: "次回来院推奨日を選択" }));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    await opening;
+    expect(screen.getByRole("button", { name: /2026年10月11日/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /2026年10月12日/ })).not.toBeDisabled();
+    const closing = user.keyboard("{Escape}");
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    await closing;
+    await act(async () => vi.advanceTimersByTimeAsync(0));
   });
   it.each(["focus", "pageshow"])("catches up an expired appointment after sleep on %s", (event) => {
     mockReservations([appointment("2026-10-11T02:00:00Z"), tentative()]);

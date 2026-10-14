@@ -110,6 +110,12 @@ function makeEstimate(status: Estimate["status"]): Estimate {
     id: "1",
     clinicId: "1",
     estimateNo: "EST-001",
+    medicalRecordId: null,
+    ownerId: null,
+    ownerName: undefined,
+    petId: null,
+    petName: undefined,
+    createdBy: null,
     title: "テスト見積書",
     status,
     subtotal: 1000,
@@ -203,6 +209,18 @@ describe("EstimateForm statusError aria-describedby", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "作成時は下書きまたは送付済みのみ選択できます",
     );
+  });
+
+  it("エラー表示前からタイトルだけを必須と通知し任意の有効期限・備考は必須にしない", () => {
+    renderCreateForm();
+
+    const title = screen.getByRole("textbox", { name: /タイトル/ });
+    expect(title).toHaveAttribute("aria-required", "true");
+    expect(title).not.toHaveAttribute("required");
+    expect(title).not.toHaveAttribute("aria-invalid");
+    expect(screen.getByLabelText("有効期限")).not.toHaveAttribute("aria-required");
+    expect(screen.getByRole("textbox", { name: /備考/ })).not.toHaveAttribute("aria-required");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("statusError がないとき aria-describedby を付けない", () => {
@@ -323,7 +341,6 @@ describe("EstimateForm BUG-019 not-found / network gate", () => {
     };
     renderEditForm();
     expect(screen.getByText("見積書が見つかりません")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
   });
 

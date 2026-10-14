@@ -130,8 +130,9 @@ export function MedicalRecordStickyHeader({
           <DatePicker
             value={dateInputValue ?? ""}
             ariaLabel="診療日"
+            showClearButton={false}
             onChange={(value) => {
-              if (value) onDateChange!(value);
+              if (value && value !== dateInputValue) onDateChange!(value);
             }}
           />
         ) : (

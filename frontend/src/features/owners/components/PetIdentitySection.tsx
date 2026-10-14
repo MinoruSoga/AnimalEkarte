@@ -72,6 +72,7 @@ export function PetIdentitySection({
           id="petName"
           value={formData.petName}
           maxLength={100}
+          aria-required
           aria-invalid={!!fieldErrors.petName}
           aria-describedby={fieldErrors.petName ? "petName-error" : undefined}
           onChange={(e) => {
@@ -109,6 +110,7 @@ export function PetIdentitySection({
           placeholder={speciesPlaceholder}
           searchPlaceholder="動物種を検索..."
           ariaInvalid={Boolean(fieldErrors.animalSpeciesId)}
+          ariaRequired
           className={INPUT_CLS}
         />
         <FormFieldError id="animalSpeciesId-error" message={fieldErrors.animalSpeciesId} />
@@ -129,6 +131,7 @@ export function PetIdentitySection({
         >
           <SelectTrigger
             id="gender"
+            aria-required
             className={`${INPUT_CLS} ${fieldErrors.gender ? STYLE.formInputError : ""}`}
           >
             <SelectValue placeholder="選択してください" />

@@ -280,6 +280,29 @@ describe("ExaminationForm — doctor candidate filter (BUG-005)", () => {
 });
 
 describe("ExaminationForm — mutation permission wiring", () => {
+  it("削除・キャンセル・保存はフォーム外のヘッダーに置き保存だけを入力フォームに接続する", () => {
+    mocks.id = "examination-1";
+    mocks.canDelete = true;
+    render(<ExaminationForm />);
+
+    const save = screen.getByRole("button", { name: "保存" });
+    expect(save).toHaveAttribute("type", "submit");
+    expect(save).toHaveAttribute("form", document.querySelector("form")?.id);
+    for (const name of ["削除", "キャンセル", "保存"]) {
+      expect(screen.getByRole("button", { name }).closest("form")).toBeNull();
+    }
+    expect(screen.getByRole("button", { name: "削除" })).toHaveAttribute("type", "button");
+    expect(screen.getByRole("button", { name: "キャンセル" })).toHaveAttribute("type", "button");
+  });
+
+  it("A-S02-01: 未確定ならローカルステータスが確定でもヘッダーから保存できる", () => {
+    mocks.id = "examination-1";
+    mocks.status = "確定";
+    render(<ExaminationForm />);
+
+    expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
+  });
+
   it("閲覧者は削除を実行できず、既存レコードを詳細として表示する", () => {
     mocks.id = "examination-1";
     mocks.canEdit = false;
@@ -294,14 +317,19 @@ describe("ExaminationForm — mutation permission wiring", () => {
 
   it("完了封印中は詳細、ステータス変更後に保存可能なら編集として表示する", () => {
     mocks.id = "examination-1";
+    mocks.canDelete = true;
     mocks.isPersistedCompletedLocked = true;
     mocks.status = "完了";
     const view = render(<ExaminationForm />);
 
     expect(screen.getByRole("heading", { name: "検査詳細" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
     mocks.status = "確定";
     view.rerender(<ExaminationForm />);
     expect(screen.getByRole("heading", { name: "検査編集" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
   });
 
   it("確定済みレコードは詳細扱いで編集・削除を表示しない", () => {
@@ -438,6 +466,7 @@ describe("ExaminationForm — 死亡ペット render側二重防壁 (FE-RC-002)"
 
     expect(document.querySelector("fieldset")).toBeDisabled();
     expect(screen.getByRole("button", { name: "削除" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
     expect(screen.getByText("死亡したペットの検査記録は保存できません")).toBeInTheDocument();
     expect(mocks.patientInfoCard).toHaveBeenLastCalledWith(
       expect.objectContaining({ status: "deceased" }),
@@ -452,6 +481,7 @@ describe("ExaminationForm — 死亡ペット render側二重防壁 (FE-RC-002)"
     render(<ExaminationForm />);
 
     expect(document.querySelector("fieldset")).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
     expect(screen.queryByText("死亡したペットの検査記録は保存できません")).not.toBeInTheDocument();
     expect(mocks.patientInfoCard).toHaveBeenLastCalledWith(
       expect.objectContaining({ status: "alive" }),

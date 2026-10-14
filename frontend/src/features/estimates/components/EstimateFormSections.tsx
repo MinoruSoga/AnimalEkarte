@@ -63,6 +63,7 @@ export const BasicInfoSection = memo(function BasicInfoSection({
         <Input
           id="title"
           value={title}
+          aria-required
           onChange={(e) => onChange("title", e.target.value)}
           placeholder="見積書タイトルを入力"
           className="h-11 text-sm"

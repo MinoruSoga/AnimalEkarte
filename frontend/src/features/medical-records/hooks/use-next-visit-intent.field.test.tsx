@@ -138,6 +138,12 @@ describe("useNextVisitIntent + NextVisitDateField mutation gating", () => {
     render(<IntentField />);
     await user.click(screen.getByRole("button", { name: "クリア" }));
     await waitFor(() => expect(clearIntentMutation.mutateAsync).toHaveBeenCalledTimes(1));
+    expect(clearIntentMutation.mutateAsync).toHaveBeenCalledWith({
+      petId: "10",
+      clinicId: "2",
+      expectedReservationId: "intent",
+      expectedUpdatedAt: "2026-10-15T00:00:00+09:00",
+    });
   });
 
   it("canEdit なしではクリアも設定も mutation を発行しない", async () => {

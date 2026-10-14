@@ -117,6 +117,28 @@ describe("HolidaySection", () => {
     expect(screen.queryByText("新しい休診日")).not.toBeInTheDocument();
   });
 
+  it("日付を入れてキャンセル→再オープンすると日付入力と hidden 値がリセットされる", async () => {
+    const user = userEvent.setup();
+    render(<HolidaySection holidays={[]} canCreate={true} canDelete={true} />);
+
+    await user.click(screen.getByRole("button", { name: "新規登録" }));
+    const input = screen.getByRole<HTMLInputElement>("textbox", { name: "日付" });
+    await user.click(input);
+    await user.type(input, "2026/10/20");
+    await user.tab();
+    expect(input.value).not.toBe("");
+
+    await user.click(screen.getByRole("button", { name: "キャンセル" }));
+    await user.click(screen.getByRole("button", { name: "新規登録" }));
+
+    const reopened = screen.getByRole<HTMLInputElement>("textbox", { name: "日付" });
+    expect(reopened.value).toBe("");
+    const hidden = document.querySelector<HTMLInputElement>('input[name="date"]');
+    expect(hidden?.value ?? "").toBe("");
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    expect(mockDeleteMutateAsync).not.toHaveBeenCalled();
+  });
+
   it("追加・キャンセル・削除を44px以上とし、削除対象を名前で識別できる", () => {
     render(
       <HolidaySection

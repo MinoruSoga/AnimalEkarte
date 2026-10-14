@@ -162,7 +162,11 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
 
   const backPath = useBackPath(paths.owners.getHref());
 
-  useTitle(isEdit ? `${canSubmit ? "飼主編集" : "飼主詳細"} (${ownerData.ownerName})` : "飼主登録");
+  useTitle(
+    isEdit
+      ? `${canSubmit ? "飼主・ペット編集" : "飼主・ペット詳細"} (${ownerData.ownerName})`
+      : "飼主・ペット登録",
+  );
 
   // React 19 Action の成功を検知して遷移
   // BUG-065: 新規登録後は詳細ページへリダイレクト

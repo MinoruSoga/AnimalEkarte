@@ -105,6 +105,7 @@ export function OwnerBasicFields({
           id="ownerName"
           value={ownerData.ownerName}
           maxLength={100}
+          aria-required
           aria-invalid={!!fieldErrors.ownerName}
           aria-describedby={fieldErrors.ownerName ? "ownerName-error" : undefined}
           onChange={(event) => {
@@ -166,6 +167,7 @@ export function OwnerBasicFields({
           id="ownerNameKana"
           placeholder="はやし ふみあき"
           value={ownerData.ownerNameKana}
+          aria-required
           aria-invalid={!!fieldErrors.ownerNameKana}
           aria-describedby={fieldErrors.ownerNameKana ? "ownerNameKana-error" : undefined}
           onChange={(event) => {
@@ -204,6 +206,7 @@ export function OwnerBasicFields({
           id="phone"
           placeholder="090-1234-5678"
           value={ownerData.phone}
+          aria-required
           aria-invalid={!!fieldErrors.phone}
           aria-describedby={fieldErrors.phone ? "phone-error" : undefined}
           onChange={(event) => {

@@ -13,6 +13,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthContext } from "@/hooks/auth-context";
 import { OwnerForm } from "./OwnerForm";
 import { useOwnerForm } from "../hooks/use-owner-form";
+import { useTitle } from "@/hooks/use-title";
 import type { ResourceAction } from "@/types/auth";
 import type { OwnerData, PetFormData } from "../types";
 import type { PetMutations } from "@/types/pet";
@@ -392,12 +393,14 @@ describe("OwnerForm — ペットの飼主変更", () => {
     await waitFor(() =>
       expect(screen.getByRole("heading", { name: "飼主・ペット編集" })).toBeInTheDocument(),
     );
+    expect(useTitle).toHaveBeenLastCalledWith("飼主・ペット編集 (テスト飼主)");
 
     fireEvent.click(screen.getByRole("button", { name: "編集権限を失効" }));
 
     await waitFor(() =>
       expect(screen.getByRole("heading", { name: "飼主・ペット詳細" })).toBeInTheDocument(),
     );
+    expect(useTitle).toHaveBeenLastCalledWith("飼主・ペット詳細 (テスト飼主)");
     expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
   });
 });

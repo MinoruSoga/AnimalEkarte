@@ -215,7 +215,7 @@ export function ReservationTypeUnavailableTimesSection({
               </Select>
             ) : (
               <DatePicker
-                ariaLabel="特定日"
+                ariaLabel="予約不可時間の特定日"
                 value={form.specificDate}
                 onChange={(v) => handleFieldChange("specificDate", v)}
               />

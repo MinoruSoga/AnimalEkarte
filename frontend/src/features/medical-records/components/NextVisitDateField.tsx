@@ -111,6 +111,7 @@ export function NextVisitDateField({
           ariaDescribedBy={showError ? `${inputId}-error` : undefined}
           validationMessage={errorMessage ?? undefined}
           disabled={setDisabled}
+          showClearButton={false}
         />
       </div>
 
