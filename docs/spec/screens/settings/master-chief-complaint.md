@@ -1,5 +1,7 @@
 # 主訴種別マスタ 仕様書 (Chief Complaint Types)
 
+2026-10-14、入力4項目合意の[診療master権限編集・無効化と当時内容保持](../../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-master-history-snapshots)が業務正本。対象masterの操作grant・医院scopeを保持し、無効項目を新規選択せず、既存記録に保存した名称・対象が持つ単位／価格は当時内容を保持する。旧実装説明だけでsnapshot保持済みと判断しない。
+
 ## 概要
 - **画面の目的**: カルテ作成時に飼主が訴える「主訴」を分類し、統計や入力補助に使用するための大分類（消化器、皮膚、眼科等）の管理。
 - **URLパターン**: `/settings/interview/chief-complaint`

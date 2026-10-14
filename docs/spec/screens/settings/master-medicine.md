@@ -1,5 +1,7 @@
 # 薬剤マスタ 仕様書 (Medicine Management)
 
+2026-10-14、入力4項目合意の[診療master権限編集・無効化と当時内容保持](../../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-master-history-snapshots)が業務正本。対象masterの操作grant・医院scopeを保持し、無効項目を新規選択せず、既存記録に保存した名称・対象が持つ単位／価格は当時内容を保持する。旧実装説明だけでsnapshot保持済みと判断しない。
+
 ## 概要
 - **画面の目的**: 院内で使用・処方される医薬品の定義、単価設定、および在庫システムとの紐付け。
 - **URLパターン**: `/settings/medicine`
@@ -37,6 +39,8 @@ flowchart TB
 ---
 
 ## 2. 主要な機能
+
+2026-10-14初回合意の[評価不能時の医師確認・理由付き手入力](../../domains/medical-records/lifecycle.md#requirement-fr-medical-records-unevaluable-dose-manual)が最新の業務正本。薬量数値・対象の承認者は医師で、新たな臨床責任者役割を作らない。下記#201の実装説明を値の承認済みや最新確認・ログの反映済みとしない。
 
 ### 2.1 処方入力の自動化
 ここで設定された剤形と単位は、カルテ詳細の「治療」タブにおける処方明細の入力補助（数量選択や単位表示）として反映されます。体重・species からの数量自動プリフィルはカルテ側 `TreatmentRow`（`calculateDose` / `computeDoseGate`）が担う。上限超過時はインライン表示して送信せず、`ConfirmDialog` による解除経路は無い。上限内の下限割れ・推奨値からの著しい乖離には逸脱理由が必須（挙動詳細は [medical-record-form.md §2.3](../../domains/medical-records/pages/medical-record-form.md)）。対象薬や値の臨床承認は [#261](https://github.com/MinoruSoga/AnimalEkarte/issues/261) の別工程であり、マスタ入力 UI や #201 の Closed を承認証跡としない。

@@ -16,7 +16,9 @@ flowchart LR
 
 ## 仕様を書く・更新する前に
 
-まず [仕様書の書き方](authoring-guide.md)を読む。命名・正本関係・本文見出しと表の列・不足時の記法・決定状態と検証状態を共通化する。[画面テンプレート](templates/page-spec.md)・[フローテンプレート](templates/workflow-spec.md)は再利用用で、空の仕様本文を大量に作るためのものではない。
+まず [仕様書の書き方](authoring-guide.md)を読む。仕様の追加・変更時は[オントロジー確認と記述完了チェック](authoring-guide.md#ontology-maintenance)を同じ更新手順で実施し、定義・関係・制約と画面／受入条件の整合を確認する。命名・正本関係・本文見出しと表の列・不足時の記法・決定状態と検証状態を共通化する。[画面テンプレート](templates/page-spec.md)・[フローテンプレート](templates/workflow-spec.md)は再利用用で、空の仕様本文を大量に作るためのものではない。
+
+予約・受付・担当者・記録の意味は[予約ドメインの用語・概念関係の正本](ontology/reservations.md#reservation-ontology)を参照する。画面呼称・業務概念・現行モデルを区別し、語彙整理を未決業務の承認にしない。
 
 ## 予約 → 受付 → カルテ入力 → 会計・未納を読む順
 
@@ -113,3 +115,23 @@ OpenAPI 列挙 operation（token 保護の local fixture 経路を含み、「�
 
 - screens/・domains/・workflows/ 配下と design-system.md が言及するコンポーネント名・フック名・画面数はローカル `make ci` の docs-symbol-drift ゲートで実在チェックされる。実在しないシンボル名を書くとローカル検査が失敗する。GitHub Actions の必須 gate ではない。
 - 「臨床の安全」（specification.md §2.1）は product-philosophy.md より優先される。
+
+予約ドメインの今回の業務合意と正本整理の完了判断は[17:35最終整合性レビュー](domains/reservations/README.md#reservation-final-review-1735)を参照する。実装・移行・実機受入、対象外領域の臨床承認や会計後訂正とは分ける。
+
+今回の予約確定範囲は[確定FR索引](domains/reservations/README.md#approved-reservation-scope)。用語正本は[ontology/](ontology/README.md)、[旧資料](../work/archive/reservations/README.md)・[未承認／設計](../work/design/reservations/README.md)とは役割を分ける。spec/全体を確定扱いしない。
+
+予約の18:26一括是正と現在のレビュー範囲は[予約入口](domains/reservations/README.md#mece-corrections-1826)を参照する。合意済みの固有要件数・継承仕様数・検査定義数を区別する。
+
+## このフォルダの役割と使い方
+
+仕様全体の入口。全体要件と領域・画面・横断フロー・語彙・UI契約を案内する。
+
+全体の要件・横断的UI方針と各仕様への入口を置く。実装設計・運用手順・進捗証跡・未承認案の本文は各既存領域へ置き、ここへ複製しない。
+
+子フォルダ：[components/](components/README.md)、[domains/](domains/README.md)、[line/](line/README.md)、[ontology/](ontology/README.md)、[screens/](screens/README.md)、[shared/](shared/README.md)、[templates/](templates/README.md)、[workflows/](workflows/README.md)
+
+主要文書：主要文書は本書の既存索引・上記の読む順を参照します。
+
+読む順：[全体要件](specification.md)と[記述規約](authoring-guide.md) → [domains](domains/README.md) → 関連[workflows](workflows/README.md)・[ontology](ontology/README.md) → 各画面。
+
+正本・状態：[決定状態と検証状態の規約](authoring-guide.md#status)に従い、各節・FRの承認根拠と実装／実機状態を別に読む。READMEへの掲載・フォルダ配置は承認や実装済みを表さず、対象外の既存仕様を新たに確定しない。既存の別名入口・索引の責務は維持し、本書は案内を補う。

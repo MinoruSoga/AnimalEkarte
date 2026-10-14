@@ -3,10 +3,10 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | page.medical-records.medical-record-list／画面仕様 |
-| 決定状態 | 既存記載を継承（決定根拠は未確認）。個別の合意・未決記述は本文のまま |
-| 実装状態 | 既存記載を継承（再監査なし） |
+| 決定状態 | 2026-10-14初回5項目は部分合意。最新の業務正本はlifecycle初回合意節。対象外の既存決定状態を保持し、カルテ全体完了／実装受入にしない |
+| 実装状態 | 合意と現実装は別。main ec4f7146a の必要箇所を静的照合し、差分は予約正本の残差一覧へ記録。実装変更なし |
 | 実機検証状態 | 今回未実施。過去の記録と今回の文書確認を分ける |
-| 文書確認日 | 2026-10-13（命名・形式・参照・本文保全のみ） |
+| 文書確認日 | 2026-10-13（途中合意・関連参照・静的差分を反映。実機受入日ではない） |
 
 <a id="purpose"></a>
 ## 目的・対象範囲
@@ -24,7 +24,7 @@
 
 - **アクセス権限**: `medical-records:view`（`RequirePermission` によるルートガード。デフォルト action は `view`）。行編集・削除・新規カルテ登録は `usePermission` によりさらに `edit`/`delete`/`create` 権限で出し分け。
 
-利用者の職種別の範囲は未記載／要確認。操作前提の詳細は本書の各操作・保存契約と関連正本を参照する。
+担当医以外でも操作grant・医院scopeを満たす入力者を許可し、実編集者ログを必要とする[初回合意](../lifecycle.md#medical-record-agreement-first-five)へ従う。操作前提の詳細は本書の各操作・保存契約と関連正本を参照する。
 
 <a id="navigation"></a>
 ## 入口・出口
@@ -33,7 +33,7 @@
 
 ### 2. 主要な臨床連携フロー
 
-- **診察室への誘導**: 予約が「予約確定」または「受付済み」になった時点でカルテが best-effort で自動作成され（トリミング・入院/ホテル予約、および次回予定 `status='tentative'` を除く）、この一覧にも「作成中」として最上位に出現。次回予定（tentative appointment）はカルテではないため本一覧には出ない。一覧・確定の管理面は予約管理画面（[reservation-management.md](../../reservations/pages/reservation-management.md)）が担う。
+- **診察室への誘導**: 診察予約の通常カルテは[受付時の同時成功契約](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-checkin-record-atomicity)へ変更し、予約確定時には作成しない。現実装のconfirmed／checked_inでのbest-effort自動作成は追従前の差分。通常の受付リンクなし新規は受付登録へ案内、過去未登録診療は理由・医師確認付き専用入力へ。専用記録は別ownerで整理する。次回予定tentativeはカルテではなく本一覧に載らず、管理面は[予約管理](../../reservations/pages/reservation-management.md)が担う。
 - **過去履歴の参照**: 診察中に同ペットの過去カルテをサイドパネルで開き、これまでの経過を確認しながら当日の記録を付けることが可能です。
 - **会計への橋渡し**: カルテの「会計(医師確認)」タブで診療内容・費用の医師確認（チェック完了）を行います。
 
@@ -95,6 +95,8 @@
 
 #### 3.1 信頼性と真正性
 
+最新の[空の誤作成だけの削除・記入済み訂正](../lifecycle.md#requirement-fr-medical-records-empty-delete-reviewed-correction)を満たすことを確認する。draftだけで削除可としない。以下のサービスガードと図のbest-effort自動作成は現行実装参照で、最新受付時作成や初回5項目への追従を示さない。
+
 - **ステータス・ロック**: ステータスが `finalized` となった記録は、サービス層（`medical_record_crud.go`）が更新・削除リクエストを拒否（更新: `確定済みカルテは編集できません。訂正追記 (addendum) を使用してください`／削除: `確定済みまたは下書き以外のカルテは削除できません`）。DB レベルの制約ではなくアプリケーション側のガードであり、訂正が必要な場合は訂正追記（addendum）で対応する。
 
 **カルテのステータス遷移:**
@@ -152,3 +154,7 @@ stateDiagram-v2
 | GET | `/api/v1/medical-records` | 条件に応じたカルテの一括取得 | `medical-records` | `view` |
 | DELETE | `/api/v1/medical-records/:id` | 誤作成カルテの論理削除 | `medical-records` | `delete` |
 
+
+## 空誤作成の非表示・復元の入口
+
+[訂正／例外4項目](../lifecycle.md#requirement-fr-medical-records-empty-record-hide-restore)の非表示は履歴を保持するカルテ操作。通常一覧では非表示とし、許可された復元は理由・元ID・現在の関連を照合する。受付の個人表示設定とは別。記入済みの取り違え記録は非表示／削除で代用せず、[患者訂正](../lifecycle.md#requirement-fr-medical-records-wrong-patient-linked-transfer)へ渡す。画面配置と復元APIは未実装／未検証で、既存一覧の表示だけを受入証拠にしない。

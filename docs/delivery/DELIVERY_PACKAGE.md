@@ -201,7 +201,7 @@ flowchart TB
 
 | ログ | 場所 | 用途 | 保持 |
 |---|---|---|---|
-| 業務操作監査（`audit_logs`） | DB 内。カルテ確定・会計取消・権限変更等を経路ごとに記録 | 「誰が・いつ・何を」の追跡。臨床・会計の真正性 | 永続（DB 内）。保存期間ポリシーの最終合意は **USER 入力待ち（U11）** |
+| 業務操作監査（`audit_logs`） | DB 内。カルテ確定・会計取消・権限変更等を経路ごとに記録 | 「誰が・いつ・何を」の追跡。臨床・会計の真正性 | DB 内に保持。当面自動削除しない扱いは2026-10-14承認済み（[共通方針](../spec/shared/README.md#interim-retention-policy)）。具体的保存期間・削除手続きは全ドメイン共通で **確定待ち（U11）**。法的無期限保存・適合確認の意味ではない |
 | 画面上の履歴断片 | カルテの追記/確定者表示など。会計取消理由の入力・表示機能はない | 現場での個別レコード確認 | レコードに紐づく |
 | API / インフラログ | Cloudflare ダッシュボード → Workers Logs / Containers | 障害調査（エラー・レイテンシ）。**業務監査の正本ではない** | プラットフォーム準拠（開発側運用） |
 | デプロイ履歴 | GitHub Actions 実行履歴 | いつ・どのバージョンが反映されたか | GitHub 準拠 |
@@ -240,7 +240,7 @@ flowchart TB
 | U8 | 監視通知メール | 開発 / 先方 | 送信先メール（Cloudflare 側事前検証要） | §3.2 / `notifications.tf` | STG の通知リソース定義あり、production/notifications.tf はコメントのみ。過去記録ではメール未供給・apply 未実施。現在の対象 account/zone・送信先検証・適用・実配送は日付付き証跡で確認するまで UNKNOWN（[infra/cloudflare/README.md](../../infra/cloudflare/README.md)）。アドレスは tfvars に書かない | **未記入**（送信先メール） |
 | U9 | 本番バックアップ方針の実測 | 開発（#253） | 頻度・保持・リストア手順・所要時間 | §3.1 | repo 内最終記録（2026-08-20）では Production 未構築。リストア実測なし | **未記入**（#253 後） |
 | U10 | R2 バックアップ/バージョニング | 開発 / 先方 | 方針の採否 | §3.1 | STG バケット名 `animalekarte-stg-images`（apac）。PROD 予定名 `animalekarte-prod-images`。IaC（[`r2.tf`](../../infra/cloudflare/r2.tf)）に versioning 設定なし | **未記入**（バックアップ/バージョニング方針の採否） |
-| U11 | 監査ログ保存期間の最終合意 | 先方 | 保持年数・廃棄方針 | §3.3 | 業務監査は DB の `audit_logs` に永続（§3.3 / specification §2.1）。期間ポリシーの合意記録は repo に無い | **未記入**（保持年数・廃棄方針） |
+| U11 | 監査ログ保存期間の最終合意 | 先方 | 保持年数・廃棄方針 | §3.3 | 業務監査は DB の `audit_logs` に永続（§3.3 / specification §2.1）。当面自動削除なしは Sentinel_9d85a7955b608191985bb02c2c9356a5 で承認（[共通方針](../spec/shared/README.md#interim-retention-policy)） | **共通の具体的期間・削除手続きは確定待ち**。当面の扱いのみ承認済み |
 | U12 | Production 構築完了証跡 | 開発（#253） | setup.md 実施結果・URL 疎通 | §1.3 / production/runbook | repo 内最終記録（2026-08-20）では Production **未構築**。手順書は [production/setup.md](../ops/infra/production/setup.md) | **未記入**（実施結果・URL 疎通） |
 
 > **U13（操作説明会）** は #256 所有。2026-10-04 決定（Plane `EMR-151`）で開催せず本マニュアルで代替。実施証跡の記入は適用外。正本: [OPERATION_MANUAL.md §10](OPERATION_MANUAL.md) / §11。#258 の最終承認条件・本書の document completion input には含めない。

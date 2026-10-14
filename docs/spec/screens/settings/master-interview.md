@@ -1,5 +1,7 @@
 # 問診・定型文マスタ 仕様書 (Interview Templates)
 
+2026-10-14、入力4項目合意の[診療master権限編集・無効化と当時内容保持](../../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-master-history-snapshots)が業務正本。対象masterの操作grant・医院scopeを保持し、無効項目を新規選択せず、既存記録に保存した名称・対象が持つ単位／価格は当時内容を保持する。旧実装説明だけでsnapshot保持済みと判断しない。 [手動template挿入・追記／置換](../../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-manual-template-insertion)も合意済みで、下記CRUDのみという記載は現行実装参照。挿入／追記を実装済みにはせず自動提案を追加しない。
+
 ## 概要
 - **画面の目的**: カルテの主訴、所見、指導内容の入力を効率化するための定型文テンプレートの管理。
 - **URLパターン**: `/settings/inquiry-templates`（サイドバー「問診設定」の導線。`/settings/interview/templates` も同一画面を表示する別ルートとして存在）
