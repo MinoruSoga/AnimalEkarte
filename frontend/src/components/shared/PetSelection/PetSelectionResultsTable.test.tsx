@@ -103,6 +103,26 @@ function createResults(
 // 「該当するペットが見つかりません」+「0件」を描画していたため、
 // GET /v1/pets の失敗（400 等）が「該当0件」として利用者に嘘をついていた。
 describe("PetSelectionResultsTable empty/error/loading states", () => {
+  it("keeps the operation column sticky without changing selection guards", () => {
+    render(<PetSelectionResultsTable pets={createResults([PET])} onSelect={vi.fn()} />);
+    expect(screen.getByRole("columnheader", { name: "操作" })).toHaveClass(
+      "sticky",
+      "right-0",
+      "z-20",
+      C.bgWhite,
+      "min-w-[120px]",
+      "whitespace-nowrap",
+    );
+    const select = screen.getByRole("button", { name: "選択: ポチ (ID pet-1)" });
+    expect(select.closest("td")).toHaveClass(
+      "sticky",
+      "right-0",
+      "z-10",
+      C.bgWhite,
+      "min-w-[120px]",
+    );
+    expect(select).not.toBeDisabled();
+  });
   it("取得失敗時はエラー文言を出し、0件表示を一切しない", () => {
     render(<PetSelectionResultsTable pets={createResults([])} onSelect={vi.fn()} isError />);
 

@@ -31,7 +31,6 @@ import {
   UnbilledBlockingWarningBanner,
   UnbilledConflictBanner,
 } from "../components/AccountingDetailPanels";
-import { isPaymentSubmitDisabled, isPostCloseSubmitBlocked } from "../lib/accounting-detail-model";
 import { useAccountingCompletionAction } from "../hooks/use-accounting-completion-action";
 import { useAccountingDetailState } from "../hooks/use-accounting-detail-state";
 import { useAccountingItemActions } from "../hooks/use-accounting-item-actions";
@@ -239,7 +238,11 @@ export const AccountingDetail = memo(function AccountingDetail({
           className="print:hidden"
           title="会計精算"
           resource={ResourceAccounting}
-          description={`受付No: ${accounting.id} | ${accounting.ownerName}様 - ${accounting.petName}ちゃん`}
+          description={
+            id
+              ? `受付No: ${accounting.id} | ${accounting.ownerName}様 - ${accounting.petName}ちゃん`
+              : `${accounting.ownerName}様 - ${accounting.petName}ちゃん`
+          }
           onBack={handleBack}
           headerAction={
             <AccountingHeaderActions
@@ -249,21 +252,6 @@ export const AccountingDetail = memo(function AccountingDetail({
               onPrint={handlePrint}
               onCancelClick={() => setCancelConfirmOpen(true)}
               onDismiss={() => navigate(paths.accounting.getHref())}
-              submitLabel={
-                canSubmit
-                  ? accounting.status === "completed"
-                    ? "修正を保存する"
-                    : "会計を確定する"
-                  : undefined
-              }
-              submitDisabled={
-                isPaymentSubmitDisabled(calculation.billingAmount, paymentSplits) ||
-                isPostCloseSubmitBlocked({
-                  isScheduledDateClosed,
-                  canPostCloseEdit: Boolean(canPostCloseEdit),
-                  postCloseReason,
-                })
-              }
             />
           }
         >

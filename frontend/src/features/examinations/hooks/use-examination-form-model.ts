@@ -88,6 +88,7 @@ export function createBlankExaminationForm(
 ): Partial<ExaminationRecord> {
   return {
     status: "依頼中" as const,
+    date: todayJSTISO(),
     ownerName: "",
     petName: "",
     ...(doctorId && { doctorId }),

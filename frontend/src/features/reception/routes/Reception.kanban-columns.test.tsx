@@ -3,6 +3,9 @@ import { render, screen } from "@testing-library/react";
 import { createTestWrapper } from "@/testing/TestUtils";
 import type { ColumnData } from "@/types";
 import { Reception } from "./Reception";
+import { usePermission } from "@/hooks/use-permission";
+const ResourceReception = "reception";
+const ResourceReservations = "reservations";
 
 /**
  * EMR-377 / VQ-001: desktop 5列カンバンで右端「会計待ち」列が見切れる。
@@ -14,7 +17,7 @@ vi.mock("@/hooks/use-permission", () => ({
   usePermission: vi.fn(() => ({ canView: true, canCreate: true, canEdit: true, canDelete: true })),
 }));
 
-const fiveColumns: ColumnData[] = ["受付予約", "受付済", "診察中", "会計待ち", "完了"].map(
+const fiveColumns: ColumnData[] = ["受付予約", "受付済", "診察中", "会計待ち", "会計済"].map(
   (title) => ({ title, appointments: [] }),
 );
 
@@ -45,22 +48,71 @@ function renderReception() {
   return render(<Reception />, { wrapper: createTestWrapper({ router: true }) });
 }
 
+describe("Reception creation permissions", () => {
+  it.each([
+    [false, false],
+    [false, true],
+    [true, false],
+    [true, true],
+  ])(
+    "reception=%s reservations=%s requires both for new and add controls",
+    (reception, reservations) => {
+      vi.mocked(usePermission).mockImplementation((resource) => ({
+        canView: true,
+        canCreate:
+          resource === ResourceReception
+            ? reception
+            : resource === ResourceReservations
+              ? reservations
+              : true,
+        canEdit: true,
+        canDelete: true,
+      }));
+      renderReception();
+      expect(screen.queryByRole("button", { name: "新規予約登録" }) !== null).toBe(
+        reception && reservations,
+      );
+      expect(screen.queryAllByRole("button", { name: "新規追加" }).length > 0).toBe(
+        reception && reservations,
+      );
+      vi.mocked(usePermission).mockImplementation(() => ({
+        canView: true,
+        canCreate: true,
+        canEdit: true,
+        canDelete: true,
+      }));
+    },
+  );
+});
+
 describe("Reception kanban desktop layout (EMR-377)", () => {
-  it("desktop flex はボード内 overflow-x-auto に横スクロールを閉じ込める", () => {
+  it("desktop は lg:grid-cols-5 の grid で5列を表示し、強制横スクロールを持たない", () => {
     renderReception();
 
     const board = screen.getByRole("region", { name: /受付予約/ }).parentElement;
-    expect(board).toHaveClass("lg:flex", "lg:overflow-x-auto");
+    expect(board).toHaveClass("grid", "lg:grid-cols-5", "overflow-y-auto");
+    expect(board.className).not.toContain("lg:flex");
+    expect(board.className).not.toContain("lg:overflow-x-auto");
   });
 
-  it("5列全てが adaptive（flex-1 + 220px floor）で、280px の xl 固定最小幅を強制しない", () => {
+  it("5列全てが min-w-0 で grid に収まり、220px floor / flex-1 を強制しない", () => {
     renderReception();
 
     const columns = screen.getAllByRole("region");
     expect(columns).toHaveLength(5);
     for (const column of columns) {
-      expect(column).toHaveClass("lg:flex-1", "lg:min-w-[220px]");
+      expect(column).toHaveClass("min-w-0");
+      expect(column.className).not.toContain("lg:min-w-[220px]");
+      expect(column.className).not.toContain("lg:flex-1");
       expect(column.className).not.toContain("xl:min-w-[280px]");
+    }
+  });
+
+  it("右端の 会計済 列を含む5つの status region が全て描画される", () => {
+    renderReception();
+
+    for (const title of ["受付予約", "受付済", "診察中", "会計待ち", "会計済"]) {
+      expect(screen.getByRole("region", { name: new RegExp(title) })).toBeInTheDocument();
     }
   });
 });

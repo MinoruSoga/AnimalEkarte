@@ -20,6 +20,12 @@ function renderCard(splits: PaymentSplitDraft[], billingAmount: number, onSplits
 }
 
 describe("PaymentCard 移行負額", () => {
+  it("payment method chips wrap with readable minimum widths", () => {
+    renderCard([{ method: "cash", amount: "1000", receivedAmount: "1000" }], 1000);
+    const cash = screen.getByRole("button", { name: "現金" });
+    expect(cash.parentElement).toHaveClass("flex", "flex-wrap", "gap-2");
+    expect(cash).toHaveClass("flex-1", "min-w-[120px]", "whitespace-nowrap");
+  });
   it("確定済みの負の請求金額を符号のまま表示する", () => {
     render(
       <PaymentCard

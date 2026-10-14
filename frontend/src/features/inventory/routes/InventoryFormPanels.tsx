@@ -167,14 +167,6 @@ export function InventoryFormBody({
             onMarkDirty={onMarkDirty}
           />
         </fieldset>
-        <div className="flex justify-end gap-3">
-          {canSubmit ? (
-            <SubmitButton>
-              <Save className={`mr-1.5 ${ICON.action}`} />
-              {isEdit ? "更新" : "登録"}
-            </SubmitButton>
-          ) : null}
-        </div>
       </form>
     </PageLayout>
   );

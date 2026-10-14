@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useEstimateForm, type EstimateMutationPermissions } from "./use-estimate-form";
+import { startTransition } from "react";
+import {
+  useEstimateForm,
+  type EstimateItemDraft,
+  type EstimateMutationPermissions,
+} from "./use-estimate-form";
 import type { Estimate } from "../types";
 
 // FE-RC-001: このファイルの既存テスト群は「権限あり」の通常フローを検証するため、
@@ -577,16 +582,18 @@ describe("useEstimateForm", () => {
       expect(result.current.form.status).toBe("sent");
     });
 
-    it("handleChange('subtotal', ...) で小計を更新できる", () => {
+    it("小計/税/合計は明細行から導出される（ヘッダー金額の直接上書きなし）", () => {
       const { result } = renderHook(() =>
         useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
       );
 
       act(() => {
-        result.current.handleChange("subtotal", 5000);
+        result.current.handleChange("items", [makeItem({ unitPrice: 1100, quantity: 2 })]);
       });
 
-      expect(result.current.form.subtotal).toBe(5000);
+      expect(result.current.totals.subtotal).toBe(2200);
+      expect(result.current.totals.taxTotal).toBe(200);
+      expect(result.current.totals.totalAmount).toBe(2200);
     });
   });
 
@@ -817,5 +824,541 @@ describe("useEstimateForm BUG-019 mode vs found", () => {
     });
     expect(mockUpdateMutateAsync).toHaveBeenCalledTimes(1);
     expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+  });
+});
+
+function makeItem(overrides: Partial<EstimateItemDraft> = {}): EstimateItemDraft {
+  return {
+    id: "",
+    localId: "local-1",
+    name: "検査",
+    category: "other",
+    unitPrice: 1100,
+    quantity: 1,
+    taxType: "included",
+    taxRate: 0.1,
+    discountRate: 0,
+    discountAmount: 0,
+    isInsuranceApplicable: false,
+    sortOrder: 0,
+    ...overrides,
+  };
+}
+
+const estimateWithItems: Estimate = {
+  ...mockEstimate,
+  items: [
+    {
+      id: "11",
+      estimateId: "1",
+      name: "薬剤A",
+      category: "medicine",
+      unitPrice: 1000,
+      quantity: 1,
+      taxType: "excluded",
+      taxRate: 0.1,
+      discountRate: 0,
+      discountAmount: 100,
+      isInsuranceApplicable: true,
+      sortOrder: 0,
+      createdAt: "2026-01-01T00:00:00Z",
+    },
+  ],
+};
+
+async function submitEstimateAction(formAction: (data: FormData) => void): Promise<void> {
+  await act(async () => {
+    startTransition(() => formAction(new FormData()));
+  });
+}
+
+describe("useEstimateForm 明細行 (EMR-401)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCreateMutateAsync.mockResolvedValue({});
+    mockUpdateMutateAsync.mockResolvedValue({});
+  });
+
+  it("hydrate: estimate.items の税区分・税率・割引・id を保持する", () => {
+    const { result } = renderHook(() =>
+      useEstimateForm({
+        mode: "edit",
+        estimate: estimateWithItems,
+        permissions: ALLOW_ALL_PERMISSIONS,
+      }),
+    );
+
+    expect(result.current.form.items).toHaveLength(1);
+    expect(result.current.form.items[0]).toMatchObject({
+      id: "11",
+      name: "薬剤A",
+      category: "medicine",
+      unitPrice: 1000,
+      quantity: 1,
+      taxType: "excluded",
+      taxRate: 0.1,
+      discountAmount: 100,
+      isInsuranceApplicable: true,
+    });
+    expect(result.current.form.items[0]!.localId).toBeTruthy();
+  });
+
+  it("createEmptyItem: 内税・標準税率・数量1・単価0・割引0・カテゴリother", () => {
+    const { result } = renderHook(() =>
+      useEstimateForm({
+        mode: "create",
+        permissions: ALLOW_ALL_PERMISSIONS,
+        standardTaxRate: 0.1,
+      }),
+    );
+
+    const row = result.current.createEmptyItem();
+    expect(row).toMatchObject({
+      name: "",
+      category: "other",
+      unitPrice: 0,
+      quantity: 1,
+      discountRate: 0,
+      discountAmount: 0,
+      taxType: "included",
+      taxRate: 0.1,
+      isInsuranceApplicable: false,
+    });
+    expect(row.localId).toBeTruthy();
+  });
+
+  it("totals: 内税 1100×2 → subtotal2200 / tax200 / total2200", () => {
+    const { result } = renderHook(() =>
+      useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+    );
+    act(() => {
+      result.current.handleChange("items", [makeItem({ unitPrice: 1100, quantity: 2 })]);
+    });
+    expect(result.current.totals).toEqual({ subtotal: 2200, taxTotal: 200, totalAmount: 2200 });
+  });
+
+  it("totals: 外税 1000 → tax100 / total1100", () => {
+    const { result } = renderHook(() =>
+      useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+    );
+    act(() => {
+      result.current.handleChange("items", [
+        makeItem({ taxType: "excluded", unitPrice: 1000, quantity: 1 }),
+      ]);
+    });
+    expect(result.current.totals).toEqual({ subtotal: 1000, taxTotal: 100, totalAmount: 1100 });
+  });
+
+  it("totals: 非課税 1000 → tax0 / total1000", () => {
+    const { result } = renderHook(() =>
+      useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+    );
+    act(() => {
+      result.current.handleChange("items", [
+        makeItem({ taxType: "exempt", unitPrice: 1000, quantity: 1 }),
+      ]);
+    });
+    expect(result.current.totals).toEqual({ subtotal: 1000, taxTotal: 0, totalAmount: 1000 });
+  });
+
+  it("totals: 軽減内税 1080 (.08) → tax80 / total1080", () => {
+    const { result } = renderHook(() =>
+      useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+    );
+    act(() => {
+      result.current.handleChange("items", [
+        makeItem({ taxType: "included", taxRate: 0.08, unitPrice: 1080, quantity: 1 }),
+      ]);
+    });
+    expect(result.current.totals).toEqual({ subtotal: 1080, taxTotal: 80, totalAmount: 1080 });
+  });
+
+  it("totals: 外税 46×0.1 → subtotal5 / tax0 / total5（raw税ベースで計算）", () => {
+    const { result } = renderHook(() =>
+      useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+    );
+    act(() => {
+      result.current.handleChange("items", [
+        makeItem({ taxType: "excluded", unitPrice: 46, quantity: 0.1 }),
+      ]);
+    });
+    expect(result.current.totals).toEqual({ subtotal: 5, taxTotal: 0, totalAmount: 5 });
+  });
+
+  it("totals: 内税 50×0.1 → subtotal5 / tax0 / total5", () => {
+    const { result } = renderHook(() =>
+      useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+    );
+    act(() => {
+      result.current.handleChange("items", [
+        makeItem({ taxType: "included", unitPrice: 50, quantity: 0.1 }),
+      ]);
+    });
+    expect(result.current.totals).toEqual({ subtotal: 5, taxTotal: 0, totalAmount: 5 });
+  });
+
+  it("create payload: items に tax_type/tax_rate/discount 等の全フィールドを載せる", async () => {
+    const { result } = renderHook(() =>
+      useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+    );
+    act(() => {
+      result.current.handleChange("title", "明細付き見積");
+      result.current.handleChange("items", [
+        makeItem({ name: "検査", unitPrice: 1100, quantity: 2 }),
+      ]);
+    });
+    await submitEstimateAction(result.current.formAction);
+    expect(mockCreateMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subtotal: 2200,
+        tax_total: 200,
+        total_amount: 2200,
+        items: [
+          expect.objectContaining({
+            name: "検査",
+            category: "other",
+            unit_price: 1100,
+            quantity: 2,
+            tax_type: "included",
+            tax_rate: 0.1,
+            discount_rate: 0,
+            discount_amount: 0,
+            is_insurance_applicable: false,
+            sort_order: 0,
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("update payload: タイトルのみ変更で明細無変更 → items と金額フィールドを送らない（ReplaceItems で行が再作成されない）", async () => {
+    const { result } = renderHook(() =>
+      useEstimateForm({
+        mode: "edit",
+        estimate: estimateWithItems,
+        permissions: ALLOW_ALL_PERMISSIONS,
+      }),
+    );
+    act(() => {
+      result.current.handleChange("title", "タイトルだけ変更");
+    });
+    await submitEstimateAction(result.current.formAction);
+    const data = mockUpdateMutateAsync.mock.calls[0]![0].data;
+    expect(data.title).toBe("タイトルだけ変更");
+    expect(data).not.toHaveProperty("items");
+    expect(data).not.toHaveProperty("subtotal");
+    expect(data).not.toHaveProperty("tax_total");
+    expect(data).not.toHaveProperty("total_amount");
+  });
+
+  it("update payload: 同一idの再フェッチで行が変わってもタイトルのみ変更なら items/totals を送らない", async () => {
+    const initial: Estimate = {
+      ...estimateWithItems,
+      items: [{ ...estimateWithItems.items[0]!, unitPrice: 1100 }],
+    };
+    const refetched: Estimate = {
+      ...initial,
+      items: [{ ...initial.items[0]!, unitPrice: 2200 }],
+    };
+    const { result, rerender } = renderHook(
+      ({ estimate }: { estimate: Estimate }) =>
+        useEstimateForm({
+          mode: "edit",
+          estimate,
+          permissions: ALLOW_ALL_PERMISSIONS,
+        }),
+      { initialProps: { estimate: initial } },
+    );
+    expect(result.current.form.items[0]?.unitPrice).toBe(1100);
+    rerender({ estimate: refetched });
+    expect(result.current.form.items[0]?.unitPrice).toBe(1100);
+    act(() => {
+      result.current.handleChange("title", "タイトルだけ変更");
+    });
+    await submitEstimateAction(result.current.formAction);
+    const data = mockUpdateMutateAsync.mock.calls[0]![0].data;
+    expect(data.title).toBe("タイトルだけ変更");
+    expect(data).not.toHaveProperty("items");
+    expect(data).not.toHaveProperty("subtotal");
+    expect(data).not.toHaveProperty("tax_total");
+    expect(data).not.toHaveProperty("total_amount");
+  });
+
+  it("update payload: 無変更のレガシー不正行はヘッダー保存をブロックしない", async () => {
+    const legacyInvalid: Estimate = {
+      ...estimateWithItems,
+      items: [{ ...estimateWithItems.items[0]!, quantity: 0.15 }],
+    };
+    const { result } = renderHook(() =>
+      useEstimateForm({
+        mode: "edit",
+        estimate: legacyInvalid,
+        permissions: ALLOW_ALL_PERMISSIONS,
+      }),
+    );
+    act(() => {
+      result.current.handleChange("title", "ヘッダーだけ変更");
+    });
+    await submitEstimateAction(result.current.formAction);
+    expect(mockUpdateMutateAsync).toHaveBeenCalled();
+    const data = mockUpdateMutateAsync.mock.calls[0]![0].data;
+    expect(data).not.toHaveProperty("items");
+  });
+
+  it("update payload: 行を編集した場合は明示的な税フィールドと導出合計を送る", async () => {
+    const { result } = renderHook(() =>
+      useEstimateForm({
+        mode: "edit",
+        estimate: estimateWithItems,
+        permissions: ALLOW_ALL_PERMISSIONS,
+      }),
+    );
+    act(() => {
+      result.current.handleChange("items", [{ ...result.current.form.items[0]!, unitPrice: 1200 }]);
+    });
+    await submitEstimateAction(result.current.formAction);
+    expect(mockUpdateMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "1",
+        data: expect.objectContaining({
+          subtotal: 1100,
+          tax_total: 110,
+          total_amount: 1210,
+          items: [
+            expect.objectContaining({
+              name: "薬剤A",
+              unit_price: 1200,
+              tax_type: "excluded",
+              tax_rate: 0.1,
+              discount_amount: 100,
+              is_insurance_applicable: true,
+            }),
+          ],
+        }),
+      }),
+    );
+  });
+
+  it("update payload: 最終行を削除 → items: [] を送る", async () => {
+    const { result } = renderHook(() =>
+      useEstimateForm({
+        mode: "edit",
+        estimate: estimateWithItems,
+        permissions: ALLOW_ALL_PERMISSIONS,
+      }),
+    );
+    act(() => {
+      result.current.handleChange("items", []);
+    });
+    await submitEstimateAction(result.current.formAction);
+    const data = mockUpdateMutateAsync.mock.calls[0]![0].data;
+    expect(data.items).toEqual([]);
+  });
+
+  it("0行の既存見積を明細無変更で保存 → items/合計を送らず表示は保存済みの金額", async () => {
+    const { result } = renderHook(() =>
+      useEstimateForm({
+        mode: "edit",
+        estimate: mockEstimate,
+        permissions: ALLOW_ALL_PERMISSIONS,
+      }),
+    );
+    expect(result.current.totals).toEqual({
+      subtotal: 1000,
+      taxTotal: 100,
+      totalAmount: 1100,
+    });
+    act(() => {
+      result.current.handleChange("title", "ヘッダーのみ変更");
+    });
+    await submitEstimateAction(result.current.formAction);
+    const data = mockUpdateMutateAsync.mock.calls[0]![0].data;
+    expect(data).not.toHaveProperty("items");
+    expect(data).not.toHaveProperty("subtotal");
+    expect(data).not.toHaveProperty("tax_total");
+    expect(data).not.toHaveProperty("total_amount");
+  });
+
+  it("0行ドラフトは有効（items: [] で create を呼ぶ）", async () => {
+    const { result } = renderHook(() =>
+      useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+    );
+    act(() => {
+      result.current.handleChange("title", "空明細ドラフト");
+    });
+    await submitEstimateAction(result.current.formAction);
+    expect(mockCreateMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ items: [] }));
+  });
+
+  it("品目名が空の行 → mutation せず fieldErrors.items", async () => {
+    const { result } = renderHook(() =>
+      useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+    );
+    act(() => {
+      result.current.handleChange("title", "不完全明細");
+      result.current.handleChange("items", [makeItem({ name: " " })]);
+    });
+    await submitEstimateAction(result.current.formAction);
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    expect(result.current.formState.fieldErrors?.items).toBeTruthy();
+  });
+
+  it("負の単価の行 → mutation しない", async () => {
+    const { result } = renderHook(() =>
+      useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+    );
+    act(() => {
+      result.current.handleChange("title", "負単価");
+      result.current.handleChange("items", [makeItem({ unitPrice: -100 })]);
+    });
+    await submitEstimateAction(result.current.formAction);
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    expect(result.current.formState.fieldErrors?.items).toBeTruthy();
+  });
+
+  it("数量 0 の行 → mutation しない", async () => {
+    const { result } = renderHook(() =>
+      useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+    );
+    act(() => {
+      result.current.handleChange("title", "数量0");
+      result.current.handleChange("items", [makeItem({ quantity: 0 })]);
+    });
+    await submitEstimateAction(result.current.formAction);
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    expect(result.current.formState.fieldErrors?.items).toBeTruthy();
+  });
+
+  it("値引額 > 単価×数量 の行 → mutation しない", async () => {
+    const { result } = renderHook(() =>
+      useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+    );
+    act(() => {
+      result.current.handleChange("title", "値引過大");
+      result.current.handleChange("items", [
+        makeItem({ unitPrice: 100, quantity: 1, discountAmount: 200 }),
+      ]);
+    });
+    await submitEstimateAction(result.current.formAction);
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    expect(result.current.formState.fieldErrors?.items).toBeTruthy();
+  });
+
+  it.each([
+    ["NaN の単価", { unitPrice: Number.NaN }],
+    ["Infinity の単価", { unitPrice: Number.POSITIVE_INFINITY }],
+    ["小数の単価", { unitPrice: 100.5 }],
+    ["NaN の数量", { quantity: Number.NaN }],
+    ["Infinity の数量", { quantity: Number.POSITIVE_INFINITY }],
+    ["0.1 刻みでない数量", { quantity: 0.15 }],
+    ["上限超過の数量", { quantity: 1000000000 }],
+    ["NaN の値引額", { discountAmount: Number.NaN }],
+    ["Infinity の値引額", { discountAmount: Number.POSITIVE_INFINITY }],
+    ["小数の値引額", { discountAmount: 50.5 }],
+    ["100 超の割引率", { discountRate: 101 }],
+    ["NaN の割引率", { discountRate: Number.NaN }],
+    ["不正な課税区分", { taxType: "bogus" as EstimateItemDraft["taxType"] }],
+    ["小数第3位の税率", { taxRate: 0.075 }],
+    ["1 超の税率", { taxRate: 1.1 }],
+    ["NaN の税率", { taxRate: Number.NaN }],
+    ["Infinity の税率", { taxRate: Number.POSITIVE_INFINITY }],
+  ])("不正行 %s → mutation せず fieldErrors.items", async (_label, overrides) => {
+    const { result } = renderHook(() =>
+      useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+    );
+    act(() => {
+      result.current.handleChange("title", "不正行");
+      result.current.handleChange("items", [makeItem(overrides)]);
+    });
+    await submitEstimateAction(result.current.formAction);
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    expect(result.current.formState.fieldErrors?.items).toBeTruthy();
+  });
+
+  it.each([
+    ["単価が安全整数上限超過", { unitPrice: Number.MAX_SAFE_INTEGER + 1 }],
+    ["値引額が安全整数上限超過", { discountAmount: Number.MAX_SAFE_INTEGER + 1 }],
+    ["単価×数量が安全整数上限超過", { unitPrice: Number.MAX_SAFE_INTEGER, quantity: 2 }],
+  ])("金額入力 %s → mutation せず fieldErrors.items", async (_label, overrides) => {
+    const { result } = renderHook(() =>
+      useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+    );
+    act(() => {
+      result.current.handleChange("title", "上限境界");
+      result.current.handleChange("items", [makeItem(overrides)]);
+    });
+
+    await submitEstimateAction(result.current.formAction);
+
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    expect(result.current.formState.fieldErrors?.items).toBeTruthy();
+  });
+
+  it("外税の行合計が上限を超える → mutation せず fieldErrors.items", async () => {
+    const { result } = renderHook(() =>
+      useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+    );
+    act(() => {
+      result.current.handleChange("title", "外税行合計上限");
+      result.current.handleChange("items", [
+        makeItem({
+          unitPrice: Number.MAX_SAFE_INTEGER,
+          quantity: 1,
+          taxType: "excluded",
+          taxRate: 0.1,
+        }),
+      ]);
+    });
+
+    await submitEstimateAction(result.current.formAction);
+
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    expect(result.current.formState.fieldErrors?.items).toBeTruthy();
+  });
+
+  it("非課税行の合計が上限を超える → mutation せず fieldErrors.items", async () => {
+    const { result } = renderHook(() =>
+      useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+    );
+    act(() => {
+      result.current.handleChange("title", "複数行合計上限");
+      result.current.handleChange("items", [
+        makeItem({ unitPrice: Number.MAX_SAFE_INTEGER, taxType: "exempt" }),
+        makeItem({ localId: "local-2", unitPrice: 1, taxType: "exempt" }),
+      ]);
+    });
+
+    await submitEstimateAction(result.current.formAction);
+
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    expect(result.current.formState.fieldErrors?.items).toBeTruthy();
+  });
+
+  it("安全整数上限の非課税行を正確な合計で送信する", async () => {
+    const { result } = renderHook(() =>
+      useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+    );
+    act(() => {
+      result.current.handleChange("title", "安全整数境界");
+      result.current.handleChange("items", [
+        makeItem({
+          unitPrice: Number.MAX_SAFE_INTEGER,
+          quantity: 1,
+          taxType: "exempt",
+          discountAmount: 0,
+        }),
+      ]);
+    });
+
+    await submitEstimateAction(result.current.formAction);
+
+    expect(mockCreateMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subtotal: Number.MAX_SAFE_INTEGER,
+        tax_total: 0,
+        total_amount: Number.MAX_SAFE_INTEGER,
+        items: [expect.objectContaining({ unit_price: Number.MAX_SAFE_INTEGER })],
+      }),
+    );
   });
 });

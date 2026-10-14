@@ -41,7 +41,7 @@ type UploadState = { success: true } | { error: string } | null;
 function CsvUploadSection() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedFileName, setSelectedFileName] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [state, formAction, isPending] = useActionState<UploadState, FormData>(async () => {
     const file = fileInputRef.current?.files?.[0];
     if (!file || file.size === 0) {
@@ -59,7 +59,7 @@ function CsvUploadSection() {
   }, null);
 
   return (
-    <form action={formAction} className="space-y-3">
+    <form action={formAction} onReset={() => setSelectedFile(null)} className="space-y-3">
       <div
         className={`flex flex-col items-stretch gap-3 p-4 border ${C.borderLight} rounded-xs ${C.bgLight} sm:flex-row sm:items-center`}
         data-testid="csv-upload-row"
@@ -87,7 +87,7 @@ function CsvUploadSection() {
               accept=".csv"
               className="absolute inset-0 size-full cursor-pointer opacity-0"
               aria-label="友だち属性CSVファイルを選択"
-              onChange={(event) => setSelectedFileName(event.target.files?.[0]?.name ?? "")}
+              onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
             />
             CSVファイルを選択
           </label>
@@ -96,7 +96,7 @@ function CsvUploadSection() {
             aria-live="polite"
             data-testid="csv-selected-file-name"
           >
-            {selectedFileName || "未選択"}
+            {selectedFile?.name || "未選択"}
           </span>
         </div>
       </div>
@@ -105,7 +105,7 @@ function CsvUploadSection() {
         <p className={`text-sm ${C.textSuccess}`}>アップロードが完了しました</p>
       ) : null}
       <div className="flex justify-end">
-        <SubmitButton disabled={isPending}>
+        <SubmitButton disabled={isPending || !selectedFile || selectedFile.size === 0}>
           {isPending ? "アップロード中..." : "アップロード"}
         </SubmitButton>
       </div>

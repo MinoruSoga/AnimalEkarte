@@ -11,8 +11,9 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { paths } from "@/config/paths";
 import { useGetPet } from "@/hooks/use-pet";
 import { usePermission } from "@/hooks/use-permission";
+import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { isNonDisclosureReadStatus, resolveEntityReadResult } from "@/lib/entity-read-result";
 import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { ResourceEstimates } from "@/types/generated/models";
@@ -25,6 +26,7 @@ import {
 } from "../lib/is-estimate-locked-status";
 
 import { AmountSection, BasicInfoSection, TextSection } from "../components/EstimateFormSections";
+import { EstimateItemsEditor } from "../components/EstimateItemsEditor";
 
 function EstimateFormContent({ id }: { id?: string }) {
   const navigate = useNavigate();
@@ -90,7 +92,18 @@ function EstimateFormContent({ id }: { id?: string }) {
     return undefined;
   })();
 
-  const { form, handleChange, formAction, formState, handleCancel, isPending } = useEstimateForm({
+  const { standardTaxRate, reducedTaxRate } = useClinicTaxRates();
+
+  const {
+    form,
+    handleChange,
+    formAction,
+    formState,
+    handleCancel,
+    isPending,
+    totals,
+    createEmptyItem,
+  } = useEstimateForm({
     mode: isEdit ? "edit" : "create",
     estimate: foundEstimate,
     initialOwnerId: petFromQuery?.ownerId,
@@ -99,6 +112,7 @@ function EstimateFormContent({ id }: { id?: string }) {
     permissions: { canCreate, canEdit },
     // FE-RC-002/004: callback 側の二重防壁（render 側の fieldset/banner と同じ判定）。
     blockCreateReason: deceasedPetBlockMessage,
+    standardTaxRate,
   });
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
@@ -214,7 +228,7 @@ function EstimateFormContent({ id }: { id?: string }) {
             ) : null}
           </div>
         }
-        maxWidth="max-w-2xl"
+        maxWidth={LAYOUT.pageContentMaxWidth.form}
       >
         <NavigationBlocker when={isDirty ? !isPending : false} />
         {/* FE-RC-002/004: 死亡・生死不明ペットの新規見積書作成を render 側で拒否する（callback 側は use-estimate-form.ts）。 */}
@@ -241,15 +255,24 @@ function EstimateFormContent({ id }: { id?: string }) {
               statusError={formState.fieldErrors?.status}
             />
 
+            <EstimateItemsEditor
+              items={form.items}
+              createItem={createEmptyItem}
+              canEditDiscount={canEditDiscount}
+              disabled={!canSubmit || isPending}
+              standardTaxRate={standardTaxRate}
+              reducedTaxRate={reducedTaxRate}
+              error={formState.fieldErrors?.items}
+              onChange={(items) => handleChangeWithDirty("items", items)}
+            />
+
             {/* rerender-memo: AmountSection — 基本情報/テキスト変更では再レンダーしない */}
             <AmountSection
-              subtotal={form.subtotal}
-              taxTotal={form.taxTotal}
+              subtotal={totals.subtotal}
+              taxTotal={totals.taxTotal}
               insuranceAmount={form.insuranceAmount}
               discountAmount={form.discountAmount}
-              totalAmount={form.totalAmount}
-              canEditDiscount={canEditDiscount}
-              onChange={handleChangeWithDirty}
+              totalAmount={totals.totalAmount}
             />
 
             {/* rerender-memo: TextSection — 基本情報/金額変更では再レンダーしない */}

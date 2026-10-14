@@ -41,6 +41,8 @@ type EstimateItemInput struct {
 	Category              model.ItemCategory
 	UnitPrice             int64
 	Quantity              float64
+	TaxType               model.TaxType
+	TaxRate               *float64
 	DiscountRate          float64
 	DiscountAmount        int64
 	IsInsuranceApplicable bool
@@ -111,6 +113,8 @@ func buildEstimateUpdate(input *UpdateEstimateInput) map[string]any {
 	return fields
 }
 
+const maxSafeEstimateAmount int64 = (1 << 53) - 1
+
 func validateEstimateItemInputs(inputs []EstimateItemInput) error {
 	for i, input := range inputs {
 		if strings.TrimSpace(input.Name) == "" {
@@ -124,8 +128,33 @@ func validateEstimateItemInputs(inputs []EstimateItemInput) error {
 		if input.UnitPrice < 0 {
 			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].unit_price must be 0 or greater", i))
 		}
+		if input.UnitPrice > maxSafeEstimateAmount {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].unit_price exceeds the maximum safe amount", i))
+		}
 		if input.Quantity <= 0 || math.IsNaN(input.Quantity) || math.IsInf(input.Quantity, 0) {
 			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].quantity must be a positive finite value", i))
+		}
+		if input.Quantity > 999999999.9 {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].quantity exceeds the maximum allowed value", i))
+		}
+		if math.Abs(input.Quantity*10-math.Round(input.Quantity*10)) > 1e-9 {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].quantity must be a multiple of 0.1", i))
+		}
+		if input.TaxType != "" {
+			switch input.TaxType {
+			case model.TaxTypeIncluded, model.TaxTypeExcluded, model.TaxTypeExempt:
+			default:
+				return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].tax_type is invalid", i))
+			}
+		}
+		if input.TaxRate != nil {
+			rate := *input.TaxRate
+			if rate < 0 || rate > 1 || math.IsNaN(rate) || math.IsInf(rate, 0) {
+				return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].tax_rate must be between 0 and 1", i))
+			}
+			if math.Abs(rate*100-math.Round(rate*100)) > 1e-9 {
+				return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].tax_rate must have at most 2 decimal places", i))
+			}
 		}
 		if input.DiscountRate < 0 || input.DiscountRate > 100 || math.IsNaN(input.DiscountRate) || math.IsInf(input.DiscountRate, 0) {
 			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].discount_rate must be between 0 and 100", i))
@@ -133,8 +162,58 @@ func validateEstimateItemInputs(inputs []EstimateItemInput) error {
 		if input.DiscountAmount < 0 {
 			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].discount_amount must be 0 or greater", i))
 		}
+		if input.DiscountAmount > maxSafeEstimateAmount {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].discount_amount exceeds the maximum safe amount", i))
+		}
+		rawProduct := float64(input.UnitPrice) * input.Quantity
+		if math.IsNaN(rawProduct) || math.IsInf(rawProduct, 0) || rawProduct > float64(maxSafeEstimateAmount) {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].unit_price times quantity exceeds the maximum safe amount", i))
+		}
+		if float64(input.DiscountAmount) > rawProduct {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].discount_amount exceeds the raw line amount", i))
+		}
+	}
+	return validateEstimateItemTotals(estimateItemsFromInput(0, inputs))
+}
+
+func validateEstimateItemTotals(items []model.EstimateItem) error {
+	var subtotalTotal, taxTotal, totalAmount int64
+	for i := range items {
+		item := &items[i]
+		itemSubtotal := max(int64(math.Round(float64(item.UnitPrice)*item.Quantity))-item.DiscountAmount, 0)
+		taxAmount := item.CalculateTaxAmount()
+		if taxAmount < 0 || taxAmount > maxSafeEstimateAmount {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].tax_amount exceeds the maximum safe amount", i))
+		}
+		rowTotal := itemSubtotal
+		if item.TaxType == model.TaxTypeExcluded {
+			if taxAmount > maxSafeEstimateAmount-itemSubtotal {
+				return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].total_amount exceeds the maximum safe amount", i))
+			}
+			rowTotal += taxAmount
+		}
+		var err error
+		subtotalTotal, err = addEstimateTotal(subtotalTotal, itemSubtotal, "subtotal", i)
+		if err != nil {
+			return err
+		}
+		taxTotal, err = addEstimateTotal(taxTotal, taxAmount, "tax_total", i)
+		if err != nil {
+			return err
+		}
+		totalAmount, err = addEstimateTotal(totalAmount, rowTotal, "total_amount", i)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
+}
+
+func addEstimateTotal(current, row int64, field string, itemIndex int) (int64, error) {
+	if row < 0 || row > maxSafeEstimateAmount-current {
+		return 0, apperrors.WrapInvalidInput(fmt.Sprintf("items[%d] would make %s exceed the maximum safe amount", itemIndex, field))
+	}
+	return current + row, nil
 }
 
 func estimateItemsFromInput(estimateID uint64, inputs []EstimateItemInput) []model.EstimateItem {
@@ -148,14 +227,22 @@ func estimateItemsFromInput(estimateID uint64, inputs []EstimateItemInput) []mod
 		if sortOrder == 0 {
 			sortOrder = i
 		}
+		taxType := in.TaxType
+		if taxType == "" {
+			taxType = model.TaxTypeIncluded
+		}
+		taxRate := 0.10
+		if in.TaxRate != nil {
+			taxRate = *in.TaxRate
+		}
 		items = append(items, model.EstimateItem{
 			EstimateID:            estimateID,
 			Name:                  strings.TrimSpace(in.Name),
 			Category:              category,
 			UnitPrice:             in.UnitPrice,
 			Quantity:              in.Quantity,
-			TaxType:               model.TaxTypeExcluded,
-			TaxRate:               0.10,
+			TaxType:               taxType,
+			TaxRate:               taxRate,
 			DiscountRate:          in.DiscountRate,
 			DiscountAmount:        in.DiscountAmount,
 			IsInsuranceApplicable: in.IsInsuranceApplicable,

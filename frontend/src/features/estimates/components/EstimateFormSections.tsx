@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { FormFieldError } from "@/components/shared/FormFieldError";
-import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
+import { formatCurrency } from "@/lib/format/number";
 import { C } from "@/lib/design-tokens";
 
 import { CREATE_STATUS_OPTIONS, EDIT_STATUS_OPTIONS } from "../constants/estimate-status-options";
@@ -117,8 +117,17 @@ interface AmountSectionProps {
   insuranceAmount: number;
   discountAmount: number;
   totalAmount: number;
-  canEditDiscount: boolean;
-  onChange: (key: string, value: unknown) => void;
+}
+
+function AmountSummaryRow({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="space-y-1.5">
+      <div className={`text-sm font-medium ${C.text}`}>{label}</div>
+      <div className={`h-11 flex items-center text-sm font-mono ${C.text}`}>
+        {formatCurrency(value)}
+      </div>
+    </div>
+  );
 }
 
 export const AmountSection = memo(function AmountSection({
@@ -127,80 +136,14 @@ export const AmountSection = memo(function AmountSection({
   insuranceAmount,
   discountAmount,
   totalAmount,
-  canEditDiscount,
-  onChange,
 }: AmountSectionProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div className="space-y-1.5">
-        <Label htmlFor="subtotal" className={`text-sm font-medium ${C.text}`}>
-          小計（税抜）
-        </Label>
-        <NumberInput
-          id="subtotal"
-          min={0}
-          value={subtotal}
-          onChange={(v) => onChange("subtotal", Number(v))}
-          suffix="円"
-          className="h-11 text-sm"
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="taxTotal" className={`text-sm font-medium ${C.text}`}>
-          消費税
-        </Label>
-        <NumberInput
-          id="taxTotal"
-          min={0}
-          value={taxTotal}
-          onChange={(v) => onChange("taxTotal", Number(v))}
-          suffix="円"
-          className="h-11 text-sm"
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="insuranceAmount" className={`text-sm font-medium ${C.text}`}>
-          保険適用額
-        </Label>
-        <NumberInput
-          id="insuranceAmount"
-          min={0}
-          value={insuranceAmount}
-          onChange={(v) => onChange("insuranceAmount", Number(v))}
-          suffix="円"
-          className="h-11 text-sm"
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="discountAmount" className={`text-sm font-medium ${C.text}`}>
-          割引額
-        </Label>
-        <NumberInput
-          id="discountAmount"
-          min={0}
-          value={discountAmount}
-          disabled={!canEditDiscount}
-          onChange={(v) => onChange("discountAmount", Number(v))}
-          suffix="円"
-          className="h-11 text-sm"
-        />
-        {!canEditDiscount ? (
-          <p className={`text-xs ${C.text50}`}>割引額の変更には権限が必要です</p>
-        ) : null}
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="totalAmount" className={`text-sm font-medium ${C.text}`}>
-          合計金額
-        </Label>
-        <NumberInput
-          id="totalAmount"
-          min={0}
-          value={totalAmount}
-          onChange={(v) => onChange("totalAmount", Number(v))}
-          suffix="円"
-          className="h-11 text-sm"
-        />
-      </div>
+      <AmountSummaryRow label="小計（明細合計）" value={subtotal} />
+      <AmountSummaryRow label="消費税（内税分を含む）" value={taxTotal} />
+      <AmountSummaryRow label="保険適用額" value={insuranceAmount} />
+      <AmountSummaryRow label="割引額" value={discountAmount} />
+      <AmountSummaryRow label="合計金額" value={totalAmount} />
     </div>
   );
 });

@@ -488,6 +488,128 @@ func TestCreateEstimate_AuthStaffIDWinsOverBodyCreatedBy(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, w.Code)
 }
 
+func TestCreateEstimate_ItemTaxFields(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		body       map[string]any
+		setupCtx   func(c *gin.Context)
+		svc        *mockEstimateService
+		wantStatus int
+	}{
+		{
+			name: "passes item tax_type and tax_rate to service",
+			body: map[string]any{
+				"title": "明細付き",
+				"items": []map[string]any{
+					{"name": "診察料", "unit_price": 1100, "quantity": 1, "tax_type": "included", "tax_rate": 0.1},
+				},
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
+			svc: &mockEstimateService{
+				createFn: func(_ context.Context, clinicID uint64, input *CreateEstimateInput) (*model.Estimate, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					require.Len(t, input.Items, 1)
+					assert.Equal(t, model.TaxTypeIncluded, input.Items[0].TaxType)
+					require.NotNil(t, input.Items[0].TaxRate)
+					assert.InDelta(t, 0.1, *input.Items[0].TaxRate, 1e-9)
+					return &model.Estimate{ID: 20, Title: input.Title}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name: "omitted item tax fields pass through as empty type and nil rate",
+			body: map[string]any{
+				"title": "税省略",
+				"items": []map[string]any{
+					{"name": "処置", "unit_price": 1000, "quantity": 1},
+				},
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
+			svc: &mockEstimateService{
+				createFn: func(_ context.Context, _ uint64, input *CreateEstimateInput) (*model.Estimate, error) {
+					require.Len(t, input.Items, 1)
+					assert.Empty(t, input.Items[0].TaxType)
+					assert.Nil(t, input.Items[0].TaxRate)
+					return &model.Estimate{ID: 21, Title: input.Title}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name: "returns 400 on invalid item tax_type",
+			body: map[string]any{
+				"title": "x",
+				"items": []map[string]any{
+					{"name": "x", "tax_type": "bogus"},
+				},
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
+			svc: &mockEstimateService{
+				createFn: func(_ context.Context, _ uint64, _ *CreateEstimateInput) (*model.Estimate, error) {
+					t.Fatal("Create must not be called when tax_type binding fails")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "returns 400 on negative item tax_rate",
+			body: map[string]any{
+				"title": "x",
+				"items": []map[string]any{
+					{"name": "x", "tax_type": "included", "tax_rate": -0.1},
+				},
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
+			svc: &mockEstimateService{
+				createFn: func(_ context.Context, _ uint64, _ *CreateEstimateInput) (*model.Estimate, error) {
+					t.Fatal("Create must not be called when tax_rate binding fails")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "returns 400 on item tax_rate above 1",
+			body: map[string]any{
+				"title": "x",
+				"items": []map[string]any{
+					{"name": "x", "tax_type": "included", "tax_rate": 1.1},
+				},
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
+			svc: &mockEstimateService{
+				createFn: func(_ context.Context, _ uint64, _ *CreateEstimateInput) (*model.Estimate, error) {
+					t.Fatal("Create must not be called when tax_rate binding fails")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithEstimateSvc(tt.svc)
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			tt.setupCtx(c)
+
+			h.CreateEstimate(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
 // ---- UpdateEstimate ----
 
 func TestUpdateEstimate(t *testing.T) {
@@ -663,6 +785,95 @@ func TestUpdateEstimate(t *testing.T) {
 			if tt.wantBody != "" {
 				assert.Contains(t, w.Body.String(), tt.wantBody)
 			}
+		})
+	}
+}
+
+func TestUpdateEstimate_ItemTaxFields(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		body       map[string]any
+		setupCtx   func(c *gin.Context)
+		svc        *mockEstimateService
+		wantStatus int
+	}{
+		{
+			name: "passes item tax_type and tax_rate to service",
+			body: map[string]any{
+				"items": []map[string]any{
+					{"name": "非課税", "unit_price": 1000, "quantity": 1, "tax_type": "exempt", "tax_rate": 0},
+				},
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
+			svc: &mockEstimateService{
+				getFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+					return &model.Estimate{ID: 1, Status: model.EstimateStatusDraft}, nil
+				},
+				updateFn: func(_ context.Context, clinicID, id uint64, input *UpdateEstimateInput) (*model.Estimate, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					require.NotNil(t, input.Items)
+					require.Len(t, *input.Items, 1)
+					assert.Equal(t, model.TaxTypeExempt, (*input.Items)[0].TaxType)
+					require.NotNil(t, (*input.Items)[0].TaxRate)
+					assert.InDelta(t, 0.0, *(*input.Items)[0].TaxRate, 1e-9)
+					return &model.Estimate{ID: 1}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name: "returns 400 on invalid item tax_type",
+			body: map[string]any{
+				"items": []map[string]any{
+					{"name": "x", "tax_type": "bogus"},
+				},
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
+			svc: &mockEstimateService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateEstimateInput) (*model.Estimate, error) {
+					t.Fatal("Update must not be called when tax_type binding fails")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "returns 400 on item tax_rate above 1",
+			body: map[string]any{
+				"items": []map[string]any{
+					{"name": "x", "tax_rate": 1.1},
+				},
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
+			svc: &mockEstimateService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateEstimateInput) (*model.Estimate, error) {
+					t.Fatal("Update must not be called when tax_rate binding fails")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithEstimateSvc(tt.svc)
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: "1"}}
+			tt.setupCtx(c)
+
+			h.UpdateEstimate(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
 		})
 	}
 }

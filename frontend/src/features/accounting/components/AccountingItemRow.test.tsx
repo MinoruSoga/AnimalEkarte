@@ -67,6 +67,12 @@ function renderRow(canEdit = true, item: AccountingItem = ITEM, handlers: Render
 }
 
 describe("AccountingItemRow accessibility", () => {
+  it("monetary cell remains sticky without changing currency", () => {
+    renderRow(false);
+    const cells = screen.getAllByRole("cell", { name: /1,200/ });
+    const amount = cells.find((cell) => cell.classList.contains("sticky"));
+    expect(amount).toHaveClass("right-0", "z-10", "min-w-[130px]", "whitespace-nowrap");
+  });
   it("割引・税操作は品目固有名と44px操作領域を持つ", async () => {
     const user = userEvent.setup();
     renderRow();

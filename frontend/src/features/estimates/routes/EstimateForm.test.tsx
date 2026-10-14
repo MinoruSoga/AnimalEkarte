@@ -1,41 +1,49 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router";
 import type { Estimate } from "../types";
 import { CREATE_STATUS_OPTIONS, EDIT_STATUS_OPTIONS } from "../constants/estimate-status-options";
 import { EstimateForm } from "./EstimateForm";
 
-const { mockEstimate, mockGetState, mockNavigate, mockToast, mockFormState, mockPetQuery } =
-  vi.hoisted(() => ({
-    mockEstimate: { current: null as Estimate | null },
-    mockGetState: {
-      current: {
-        isLoading: false,
-        isError: false,
-        error: null as unknown,
-        refetch: vi.fn(),
-      },
+const {
+  mockEstimate,
+  mockGetState,
+  mockNavigate,
+  mockHandleChange,
+  mockToast,
+  mockFormState,
+  mockPetQuery,
+} = vi.hoisted(() => ({
+  mockEstimate: { current: null as Estimate | null },
+  mockGetState: {
+    current: {
+      isLoading: false,
+      isError: false,
+      error: null as unknown,
+      refetch: vi.fn(),
     },
-    mockPetQuery: {
-      current: null as {
-        data: { status?: string; deceasedAt?: string | null } | null;
-        isPending: boolean;
-        isSuccess: boolean;
-        isError: boolean;
-      } | null,
+  },
+  mockPetQuery: {
+    current: null as {
+      data: { status?: string; deceasedAt?: string | null } | null;
+      isPending: boolean;
+      isSuccess: boolean;
+      isError: boolean;
+    } | null,
+  },
+  mockNavigate: vi.fn(),
+  mockHandleChange: vi.fn(),
+  mockToast: { info: vi.fn(), success: vi.fn(), error: vi.fn() },
+  mockFormState: {
+    current: {
+      success: false,
+      timestamp: 0,
+      fieldErrors: undefined as Record<string, string> | undefined,
     },
-    mockNavigate: vi.fn(),
-    mockToast: { info: vi.fn(), success: vi.fn(), error: vi.fn() },
-    mockFormState: {
-      current: {
-        success: false,
-        timestamp: 0,
-        fieldErrors: undefined as Record<string, string> | undefined,
-      },
-    },
-  }));
+  },
+}));
 
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
@@ -80,16 +88,29 @@ vi.mock("../hooks/use-estimate-form", () => ({
       status: mockEstimate.current?.status ?? "draft",
       ownerId: "",
       medicalRecordId: "",
-      subtotal: 0,
-      taxTotal: 0,
-      totalAmount: 0,
       insuranceAmount: 0,
       discountAmount: 0,
       validUntil: "",
       comment: "",
       notes: "",
+      items: [],
     },
-    handleChange: vi.fn(),
+    totals: { subtotal: 0, taxTotal: 0, totalAmount: 0 },
+    createEmptyItem: vi.fn(() => ({
+      id: "",
+      localId: "mock-new",
+      name: "",
+      category: "other",
+      unitPrice: 0,
+      quantity: 1,
+      taxType: "included",
+      taxRate: 0.1,
+      discountRate: 0,
+      discountAmount: 0,
+      isInsuranceApplicable: false,
+      sortOrder: 0,
+    })),
+    handleChange: mockHandleChange,
     formAction: vi.fn(),
     formState: mockFormState.current,
     handleCancel: vi.fn(),
@@ -279,11 +300,49 @@ describe("EstimateForm mobile-first layout", () => {
 
     const statusTrigger = screen.getByRole("combobox");
     const validUntilInput = screen.getByLabelText("有効期限");
-    const amountGrid = screen.getByLabelText("小計（税抜）").closest('[class*="grid-cols"]');
+    const amountGrid = screen.getByText("小計（明細合計）").closest('[class*="grid-cols"]');
 
     expect(statusTrigger).toHaveClass("w-full", "sm:w-[200px]");
     expect(validUntilInput.parentElement).toHaveClass("w-full", "sm:w-[220px]");
     expect(amountGrid).toHaveClass("grid-cols-1", "sm:grid-cols-2");
+  });
+
+  it("ヘッダー金額は読み取り専用サマリ（金額 spinbutton は存在せず合計ラベルは1箇所のみ）", () => {
+    renderCreateForm();
+
+    expect(screen.getByText("小計（明細合計）")).toBeInTheDocument();
+    expect(screen.getByText("消費税（内税分を含む）")).toBeInTheDocument();
+    expect(screen.getByText("合計金額")).toBeInTheDocument();
+    for (const label of [
+      "小計（明細合計）",
+      "消費税（内税分を含む）",
+      "保険適用額",
+      "割引額",
+      "合計金額",
+    ]) {
+      expect(screen.queryByRole("spinbutton", { name: label })).not.toBeInTheDocument();
+    }
+    expect(screen.queryAllByRole("spinbutton")).toHaveLength(0);
+  });
+
+  it("明細行エディタを表示する（行追加アクションあり）", () => {
+    renderCreateForm();
+    expect(screen.getByRole("button", { name: "明細行を追加" })).toBeInTheDocument();
+  });
+
+  it("明細行を追加クリック → createEmptyItem の行が handleChange('items') で渡る", () => {
+    renderCreateForm();
+    fireEvent.click(screen.getByRole("button", { name: "明細行を追加" }));
+    expect(mockHandleChange).toHaveBeenCalledWith("items", [
+      expect.objectContaining({
+        localId: "mock-new",
+        name: "",
+        category: "other",
+        quantity: 1,
+        taxType: "included",
+        taxRate: 0.1,
+      }),
+    ]);
   });
 });
 

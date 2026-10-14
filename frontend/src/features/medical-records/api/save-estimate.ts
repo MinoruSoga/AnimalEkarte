@@ -3,9 +3,9 @@ import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
-import type { Estimate } from "@/types/generated/models";
+import type { Estimate, TaxType } from "@/types/generated/models";
 
-interface SaveEstimateItemPayload {
+export interface SaveEstimateItemPayload {
   name: string;
   category?: string;
   unit_price: number;
@@ -13,6 +13,8 @@ interface SaveEstimateItemPayload {
   discount_rate: number;
   discount_amount: number;
   is_insurance_applicable: boolean;
+  tax_type?: TaxType;
+  tax_rate?: number;
   sort_order: number;
 }
 

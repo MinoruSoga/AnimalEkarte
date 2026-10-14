@@ -62,14 +62,16 @@ type createEstimateRequest struct {
 }
 
 type createEstimateItemRequest struct {
-	Name                  string  `json:"name" binding:"required,min=1,max=255"`
-	Category              string  `json:"category"`
-	UnitPrice             int64   `json:"unit_price" binding:"min=0"`
-	Quantity              float64 `json:"quantity"`
-	DiscountRate          float64 `json:"discount_rate"`
-	DiscountAmount        int64   `json:"discount_amount"`
-	IsInsuranceApplicable bool    `json:"is_insurance_applicable"`
-	SortOrder             int     `json:"sort_order"`
+	Name                  string   `json:"name" binding:"required,min=1,max=255"`
+	Category              string   `json:"category"`
+	UnitPrice             int64    `json:"unit_price" binding:"min=0"`
+	Quantity              float64  `json:"quantity"`
+	TaxType               string   `json:"tax_type" binding:"omitempty,oneof=included excluded exempt"`
+	TaxRate               *float64 `json:"tax_rate" binding:"omitempty,gte=0,lte=1"`
+	DiscountRate          float64  `json:"discount_rate"`
+	DiscountAmount        int64    `json:"discount_amount"`
+	IsInsuranceApplicable bool     `json:"is_insurance_applicable"`
+	SortOrder             int      `json:"sort_order"`
 }
 
 func estimateItemInputsFromRequest(items []createEstimateItemRequest) []EstimateItemInput {
@@ -80,6 +82,8 @@ func estimateItemInputsFromRequest(items []createEstimateItemRequest) []Estimate
 			Category:              model.ItemCategory(item.Category),
 			UnitPrice:             item.UnitPrice,
 			Quantity:              item.Quantity,
+			TaxType:               model.TaxType(item.TaxType),
+			TaxRate:               item.TaxRate,
 			DiscountRate:          item.DiscountRate,
 			DiscountAmount:        item.DiscountAmount,
 			IsInsuranceApplicable: item.IsInsuranceApplicable,

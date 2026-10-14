@@ -53,6 +53,7 @@ export function useReceptionColumnView({
   // EMR-243: 非本日表示では予約作成クエリへ選択日を付与し、戻り先にも ?date= を保持する。
   const goToNewReservation = useCallback(
     (query: string) => {
+      if (canCreateReservation !== true) return;
       const datedQuery = isToday ? query : `${query}&date=${selectedDate}`;
       navigate(`${paths.reservations.getHref()}?${datedQuery}`, {
         state: {
@@ -60,7 +61,7 @@ export function useReceptionColumnView({
         },
       });
     },
-    [navigate, isToday, selectedDate],
+    [navigate, isToday, selectedDate, canCreateReservation],
   );
 
   // 受付予約ボード → 通常の新規予約（confirmed → 受付予約カラム）。

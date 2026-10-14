@@ -129,3 +129,33 @@ describe("TreatmentItemSidePanel procedure anesthesia (BUG-028)", () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 });
+
+describe("TreatmentItemSidePanel 課税区分既定値 (EMR-401 C7-9)", () => {
+  const taxRowCombobox = () => screen.getByRole("combobox", { name: /課税区分/ });
+
+  it("新規登録(item=null)では課税区分の初期値が内税", () => {
+    renderPanel({ item: null, showAnesthesia: false });
+    expect(taxRowCombobox()).toHaveTextContent("内税");
+  });
+
+  const baseItem: Omit<TreatmentItem, "taxType"> = {
+    id: "200",
+    name: "既存処置",
+    price: 1000,
+    isActive: true,
+    description: "",
+    sortOrder: 1,
+    taxRate: 0.1,
+    anesthesia: "none",
+  };
+
+  it("既存 item の exempt はそのまま表示する", () => {
+    renderPanel({ item: { ...baseItem, taxType: "exempt" }, showAnesthesia: false });
+    expect(taxRowCombobox()).toHaveTextContent("非課税");
+  });
+
+  it("既存 item の excluded はそのまま表示する", () => {
+    renderPanel({ item: { ...baseItem, taxType: "excluded" }, showAnesthesia: false });
+    expect(taxRowCombobox()).toHaveTextContent("外税");
+  });
+});

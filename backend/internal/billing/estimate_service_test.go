@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -1539,6 +1540,7 @@ func TestEstimateService_Create_DerivesHeaderTotalsFromItems(t *testing.T) {
 		Items: []EstimateItemInput{{
 			Name: "処置", Category: model.ItemCategoryProcedure,
 			UnitPrice: 1000, Quantity: 2, DiscountAmount: 100,
+			TaxType: model.TaxTypeExcluded,
 		}},
 	})
 
@@ -1549,6 +1551,50 @@ func TestEstimateService_Create_DerivesHeaderTotalsFromItems(t *testing.T) {
 	assert.Equal(t, int64(2090), saved.TotalAmount)
 }
 
+func TestEstimateService_Create_FractionalQuantityTotals(t *testing.T) {
+	tests := []struct {
+		name      string
+		item      EstimateItemInput
+		wantSub   int64
+		wantTax   int64
+		wantTotal int64
+	}{
+		{name: "excluded 46x0.1", item: EstimateItemInput{Name: "外税", UnitPrice: 46, Quantity: 0.1, TaxType: model.TaxTypeExcluded, TaxRate: ptrFloat64(0.1)}, wantSub: 5, wantTax: 0, wantTotal: 5},
+		{name: "included 50x0.1", item: EstimateItemInput{Name: "内税", UnitPrice: 50, Quantity: 0.1, TaxType: model.TaxTypeIncluded, TaxRate: ptrFloat64(0.1)}, wantSub: 5, wantTax: 0, wantTotal: 5},
+		{name: "included 1100x1", item: EstimateItemInput{Name: "内税", UnitPrice: 1100, Quantity: 1, TaxType: model.TaxTypeIncluded, TaxRate: ptrFloat64(0.1)}, wantSub: 1100, wantTax: 100, wantTotal: 1100},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var saved *model.Estimate
+			repo := &mockEstimateRepository{
+				createFn: func(_ context.Context, estimate *model.Estimate) error {
+					estimate.ID = 12
+					cp := *estimate
+					saved = &cp
+					return nil
+				},
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+					cp := *saved
+					cp.ID = id
+					return &cp, nil
+				},
+			}
+			svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+
+			_, err := svc.Create(context.Background(), 1, &CreateEstimateInput{
+				Title:     "端数明細",
+				CreatedBy: ptrU64(estimateTestCreatedByStaffID),
+				Items:     []EstimateItemInput{tt.item},
+			})
+			require.NoError(t, err)
+			require.NotNil(t, saved)
+			assert.Equal(t, tt.wantSub, saved.Subtotal)
+			assert.Equal(t, tt.wantTax, saved.TaxTotal)
+			assert.Equal(t, tt.wantTotal, saved.TotalAmount)
+		})
+	}
+}
+
 func TestEstimateService_Create_RejectsInvalidItemValues(t *testing.T) {
 	tests := []struct {
 		name string
@@ -1556,6 +1602,9 @@ func TestEstimateService_Create_RejectsInvalidItemValues(t *testing.T) {
 	}{
 		{name: "invalid category", item: EstimateItemInput{Name: "x", Category: model.ItemCategory("invalid"), Quantity: 1}},
 		{name: "zero quantity", item: EstimateItemInput{Name: "x", Category: model.ItemCategoryOther, Quantity: 0}},
+		{name: "negative quantity", item: EstimateItemInput{Name: "x", Category: model.ItemCategoryOther, Quantity: -1}},
+		{name: "quantity not at 0.1 step", item: EstimateItemInput{Name: "x", Category: model.ItemCategoryOther, Quantity: 0.15}},
+		{name: "quantity above storage max", item: EstimateItemInput{Name: "x", Category: model.ItemCategoryOther, Quantity: 1000000000}},
 		{name: "negative discount amount", item: EstimateItemInput{Name: "x", Category: model.ItemCategoryOther, Quantity: 1, DiscountAmount: -1}},
 		{name: "discount rate above 100", item: EstimateItemInput{Name: "x", Category: model.ItemCategoryOther, Quantity: 1, DiscountRate: 101}},
 	}
@@ -1571,6 +1620,89 @@ func TestEstimateService_Create_RejectsInvalidItemValues(t *testing.T) {
 			assert.False(t, createCalled)
 		})
 	}
+}
+
+func TestEstimateService_ItemAmountBoundsRejectBeforeWrites(t *testing.T) {
+	const maxSafe = int64(9007199254740991)
+	tests := []struct {
+		name  string
+		items []EstimateItemInput
+	}{
+		{name: "unit price above safe integer", items: []EstimateItemInput{{Name: "x", UnitPrice: maxSafe + 1, Quantity: 1}}},
+		{name: "discount above safe integer", items: []EstimateItemInput{{Name: "x", UnitPrice: maxSafe, Quantity: 1, DiscountAmount: maxSafe + 1}}},
+		{name: "raw product above safe integer", items: []EstimateItemInput{{Name: "x", UnitPrice: maxSafe, Quantity: 2}}},
+		{name: "discount above raw product", items: []EstimateItemInput{{Name: "x", UnitPrice: 100, Quantity: 1, DiscountAmount: 101}}},
+		{name: "excluded row total above safe integer", items: []EstimateItemInput{{Name: "x", UnitPrice: maxSafe, Quantity: 1, TaxType: model.TaxTypeExcluded, TaxRate: ptrFloat64(0.1)}}},
+		{name: "aggregate subtotal above safe integer", items: []EstimateItemInput{{Name: "x", UnitPrice: maxSafe, Quantity: 1, TaxType: model.TaxTypeExempt}, {Name: "y", UnitPrice: 1, Quantity: 1, TaxType: model.TaxTypeExempt}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Run("create", func(t *testing.T) {
+				writeCalled := false
+				repo := &mockEstimateRepository{
+					createFn:       func(_ context.Context, _ *model.Estimate) error { writeCalled = true; return nil },
+					replaceItemsFn: func(_ context.Context, _, _ uint64, _ []model.EstimateItem) error { writeCalled = true; return nil },
+				}
+				svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+				got, err := svc.Create(context.Background(), 1, &CreateEstimateInput{Title: "境界", CreatedBy: ptrU64(estimateTestCreatedByStaffID), Items: tt.items})
+				require.Error(t, err)
+				assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input, got %v", err)
+				assert.Nil(t, got)
+				assert.False(t, writeCalled)
+			})
+			t.Run("update", func(t *testing.T) {
+				writeCalled := false
+				repo := &mockEstimateRepository{
+					findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+						return &model.Estimate{ID: id, Status: model.EstimateStatusDraft}, nil
+					},
+					updateIfNotLockedFn: func(_ context.Context, _, id uint64, _ UpdateEstimateInput) (*model.Estimate, error) {
+						writeCalled = true
+						return &model.Estimate{ID: id, Status: model.EstimateStatusDraft}, nil
+					},
+					replaceItemsFn: func(_ context.Context, _, _ uint64, _ []model.EstimateItem) error { writeCalled = true; return nil },
+				}
+				svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+				items := tt.items
+				got, err := svc.Update(context.Background(), 1, 3, &UpdateEstimateInput{Items: &items})
+				require.Error(t, err)
+				assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input, got %v", err)
+				assert.Nil(t, got)
+				assert.False(t, writeCalled)
+			})
+		})
+	}
+}
+
+func TestEstimateService_Create_MaxSafeExemptItemPreservesHeaderTotals(t *testing.T) {
+	const maxSafe = int64(9007199254740991)
+	var saved *model.Estimate
+	repo := &mockEstimateRepository{
+		createFn: func(_ context.Context, estimate *model.Estimate) error {
+			estimate.ID = 12
+			cp := *estimate
+			saved = &cp
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			cp := *saved
+			cp.ID = id
+			return &cp, nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+
+	_, err := svc.Create(context.Background(), 1, &CreateEstimateInput{
+		Title:     "安全整数境界",
+		CreatedBy: ptrU64(estimateTestCreatedByStaffID),
+		Items:     []EstimateItemInput{{Name: "非課税", UnitPrice: maxSafe, Quantity: 1, TaxType: model.TaxTypeExempt}},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, saved)
+	assert.Equal(t, maxSafe, saved.Subtotal)
+	assert.Zero(t, saved.TaxTotal)
+	assert.Equal(t, maxSafe, saved.TotalAmount)
 }
 
 func TestEstimateService_Create_FindByIDFailureAbortsCreate(t *testing.T) {
@@ -1681,7 +1813,7 @@ func TestEstimateService_Update_ItemsOnlyDerivesHeaderTotals(t *testing.T) {
 		},
 	}
 	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
-	items := []EstimateItemInput{{Name: "薬", Category: model.ItemCategoryMedicine, UnitPrice: 500, Quantity: 3, DiscountAmount: 200}}
+	items := []EstimateItemInput{{Name: "薬", Category: model.ItemCategoryMedicine, UnitPrice: 500, Quantity: 3, DiscountAmount: 200, TaxType: model.TaxTypeExcluded}}
 
 	_, err := svc.Update(context.Background(), 1, 3, &UpdateEstimateInput{Items: &items})
 
@@ -1733,4 +1865,220 @@ func TestEstimateService_Update_PersistsItemsInSameTx(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, replaced)
 	require.Empty(t, got.Items)
+}
+
+func TestEstimateService_Create_ItemTaxTypeAndRate(t *testing.T) {
+	rateReduced := 0.08
+	tests := []struct {
+		name         string
+		item         EstimateItemInput
+		wantTaxType  model.TaxType
+		wantTaxRate  float64
+		wantSubtotal int64
+		wantTaxTotal int64
+		wantTotal    int64
+	}{
+		{
+			name:         "omitted tax fields default to included 10%",
+			item:         EstimateItemInput{Name: "内税診察", UnitPrice: 1100, Quantity: 1},
+			wantTaxType:  model.TaxTypeIncluded,
+			wantTaxRate:  0.10,
+			wantSubtotal: 1100,
+			wantTaxTotal: 100,
+			wantTotal:    1100,
+		},
+		{
+			name:         "explicit excluded preserved",
+			item:         EstimateItemInput{Name: "外税処置", UnitPrice: 1000, Quantity: 1, TaxType: model.TaxTypeExcluded},
+			wantTaxType:  model.TaxTypeExcluded,
+			wantTaxRate:  0.10,
+			wantSubtotal: 1000,
+			wantTaxTotal: 100,
+			wantTotal:    1100,
+		},
+		{
+			name:         "included reduced rate 8% preserved",
+			item:         EstimateItemInput{Name: "軽減税率", UnitPrice: 1080, Quantity: 1, TaxType: model.TaxTypeIncluded, TaxRate: &rateReduced},
+			wantTaxType:  model.TaxTypeIncluded,
+			wantTaxRate:  0.08,
+			wantSubtotal: 1080,
+			wantTaxTotal: 80,
+			wantTotal:    1080,
+		},
+		{
+			name:         "exempt preserved with zero tax",
+			item:         EstimateItemInput{Name: "非課税", UnitPrice: 1000, Quantity: 1, TaxType: model.TaxTypeExempt},
+			wantTaxType:  model.TaxTypeExempt,
+			wantTaxRate:  0.10,
+			wantSubtotal: 1000,
+			wantTaxTotal: 0,
+			wantTotal:    1000,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var saved *model.Estimate
+			var replaced []model.EstimateItem
+			repo := &mockEstimateRepository{
+				createFn: func(_ context.Context, e *model.Estimate) error {
+					e.ID = 21
+					cp := *e
+					saved = &cp
+					return nil
+				},
+				replaceItemsFn: func(_ context.Context, _, _ uint64, items []model.EstimateItem) error {
+					replaced = items
+					return nil
+				},
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+					cp := *saved
+					cp.ID = id
+					cp.Items = replaced
+					return &cp, nil
+				},
+			}
+			svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+
+			got, err := svc.Create(context.Background(), 1, &CreateEstimateInput{
+				Title:     "税区分見積",
+				CreatedBy: ptrU64(estimateTestCreatedByStaffID),
+				Items:     []EstimateItemInput{tt.item},
+			})
+
+			require.NoError(t, err)
+			require.NotNil(t, saved)
+			require.Len(t, replaced, 1)
+			assert.Equal(t, tt.wantTaxType, replaced[0].TaxType)
+			assert.InDelta(t, tt.wantTaxRate, replaced[0].TaxRate, 1e-9)
+			assert.Equal(t, tt.wantSubtotal, saved.Subtotal)
+			assert.Equal(t, tt.wantTaxTotal, saved.TaxTotal)
+			assert.Equal(t, tt.wantTotal, saved.TotalAmount)
+			require.NotNil(t, got)
+		})
+	}
+}
+
+func TestEstimateService_Create_RejectsInvalidItemTaxValues(t *testing.T) {
+	negRate := -0.1
+	overRate := 1.1
+	nanRate := math.NaN()
+	infRate := math.Inf(1)
+	threeDecimalRate := 0.075
+	tests := []struct {
+		name string
+		item EstimateItemInput
+	}{
+		{name: "unknown tax type", item: EstimateItemInput{Name: "x", Quantity: 1, TaxType: model.TaxType("unknown")}},
+		{name: "negative tax rate", item: EstimateItemInput{Name: "x", Quantity: 1, TaxType: model.TaxTypeIncluded, TaxRate: &negRate}},
+		{name: "tax rate above 1", item: EstimateItemInput{Name: "x", Quantity: 1, TaxType: model.TaxTypeIncluded, TaxRate: &overRate}},
+		{name: "NaN tax rate", item: EstimateItemInput{Name: "x", Quantity: 1, TaxType: model.TaxTypeIncluded, TaxRate: &nanRate}},
+		{name: "infinite tax rate", item: EstimateItemInput{Name: "x", Quantity: 1, TaxType: model.TaxTypeIncluded, TaxRate: &infRate}},
+		{name: "tax rate with more than 2 decimals", item: EstimateItemInput{Name: "x", Quantity: 1, TaxType: model.TaxTypeIncluded, TaxRate: &threeDecimalRate}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			createCalled := false
+			repo := &mockEstimateRepository{createFn: func(_ context.Context, _ *model.Estimate) error { createCalled = true; return nil }}
+			svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+
+			got, err := svc.Create(context.Background(), 1, &CreateEstimateInput{Title: "invalid", CreatedBy: ptrU64(estimateTestCreatedByStaffID), Items: []EstimateItemInput{tt.item}})
+
+			require.Error(t, err)
+			assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input, got %v", err)
+			assert.Nil(t, got)
+			assert.False(t, createCalled)
+		})
+	}
+}
+
+func TestEstimateService_Update_RejectsInvalidItemTaxValuesBeforeWrite(t *testing.T) {
+	negRate := -0.1
+	updateCalled := false
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			return &model.Estimate{ID: id, Status: model.EstimateStatusDraft}, nil
+		},
+		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ UpdateEstimateInput) (*model.Estimate, error) {
+			updateCalled = true
+			return nil, nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+	items := []EstimateItemInput{{Name: "x", Quantity: 1, TaxType: model.TaxType("bogus"), TaxRate: &negRate}}
+
+	got, err := svc.Update(context.Background(), 1, 3, &UpdateEstimateInput{Items: &items})
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input, got %v", err)
+	assert.Nil(t, got)
+	assert.False(t, updateCalled)
+}
+
+func TestEstimateService_Update_HeaderOnlyDoesNotRewriteItems(t *testing.T) {
+	newTitle := "タイトルのみ"
+	replaceCalled := false
+	existing := &model.Estimate{
+		ID:     3,
+		Status: model.EstimateStatusDraft,
+		Items: []model.EstimateItem{{
+			EstimateID: 3,
+			Name:       "既存明細",
+			UnitPrice:  1100,
+			Quantity:   1,
+			TaxType:    model.TaxTypeIncluded,
+			TaxRate:    0.10,
+		}},
+	}
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+			return existing, nil
+		},
+		updateIfNotLockedFn: func(_ context.Context, _, id uint64, _ UpdateEstimateInput) (*model.Estimate, error) {
+			cp := *existing
+			cp.Title = newTitle
+			return &cp, nil
+		},
+		replaceItemsFn: func(_ context.Context, _, _ uint64, _ []model.EstimateItem) error {
+			replaceCalled = true
+			return nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+
+	got, err := svc.Update(context.Background(), 1, 3, &UpdateEstimateInput{Title: &newTitle})
+
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.False(t, replaceCalled, "header-only update must not replace items")
+}
+
+func TestEstimateService_Update_PreservesExplicitItemTaxFields(t *testing.T) {
+	rateReduced := 0.08
+	var replaced []model.EstimateItem
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			return &model.Estimate{ID: id, Status: model.EstimateStatusDraft, Items: replaced}, nil
+		},
+		updateIfNotLockedFn: func(_ context.Context, _, id uint64, _ UpdateEstimateInput) (*model.Estimate, error) {
+			return &model.Estimate{ID: id, Status: model.EstimateStatusDraft}, nil
+		},
+		replaceItemsFn: func(_ context.Context, _, _ uint64, items []model.EstimateItem) error {
+			replaced = items
+			return nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+	items := []EstimateItemInput{
+		{Name: "非課税", UnitPrice: 1000, Quantity: 1, TaxType: model.TaxTypeExempt},
+		{Name: "軽減", UnitPrice: 1080, Quantity: 1, TaxType: model.TaxTypeIncluded, TaxRate: &rateReduced},
+	}
+
+	_, err := svc.Update(context.Background(), 1, 3, &UpdateEstimateInput{Items: &items})
+
+	require.NoError(t, err)
+	require.Len(t, replaced, 2)
+	assert.Equal(t, model.TaxTypeExempt, replaced[0].TaxType)
+	assert.Equal(t, model.TaxTypeIncluded, replaced[1].TaxType)
+	assert.InDelta(t, 0.08, replaced[1].TaxRate, 1e-9)
 }

@@ -75,6 +75,7 @@ export function CampaignSettings() {
     <>
       <MasterCRUDPage
         title="割引キャンペーン"
+        isLoading={isPending}
         icon={<Tag className={`${ICON.page} ${C.text}`} />}
         resource={ResourceAccounting}
         entityLabel="キャンペーン"

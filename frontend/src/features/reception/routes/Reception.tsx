@@ -12,6 +12,7 @@ import { formatDateWithWeekday } from "@/lib/format/date";
 import { buildJSTWallDateTime, todayJSTISO } from "@/lib/jst-date";
 import {
   ResourceReservations,
+  ResourceReception,
   ResourceMedicalRecords,
   ResourceAccounting,
   ResourceHospitalization,
@@ -61,6 +62,8 @@ export function Reception() {
     canEdit: canEditReservation,
     canDelete: canDeleteReservation,
   } = usePermission(ResourceReservations);
+  const { canCreate: canCreateReception } = usePermission(ResourceReception);
+  const canCreateReceptionEntry = canCreateReception === true && canCreateReservation === true;
   const { canCreate: canCreateMedicalRecord } = usePermission(ResourceMedicalRecords);
   const { canCreate: canCreateAccounting } = usePermission(ResourceAccounting);
   const { canCreate: canCreateHospitalization } = usePermission(ResourceHospitalization);
@@ -167,7 +170,7 @@ export function Reception() {
 
   const { columnElements, appointmentColumnTitleMap, goToNewReservation } = useReceptionColumnView({
     filteredColumns,
-    canCreateReservation,
+    canCreateReservation: canCreateReceptionEntry,
     canEditReservation,
     advanceStatus,
     onCardClick: handleCardClick,
@@ -192,7 +195,7 @@ export function Reception() {
         onDateChange={handleDateChange}
         isFilterOpen={isFilterOpen}
         onToggleFilter={() => setIsFilterOpen((prev) => !prev)}
-        canCreateReservation={canCreateReservation}
+        canCreateReservation={canCreateReceptionEntry}
         onNewReception={() =>
           // 本日: 従来通り当日受付（checked_in）。非本日: 選択日の通常予約作成。
           goToNewReservation(isToday ? "reception=1" : "newReservation=1")

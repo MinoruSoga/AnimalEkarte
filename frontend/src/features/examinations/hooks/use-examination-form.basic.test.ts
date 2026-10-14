@@ -113,6 +113,20 @@ describe("useExaminationForm — 新規作成モード", () => {
     vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams(), vi.fn()]);
   });
 
+  it("new date is JST today and an explicit date survives rerender", () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-14T15:01:00Z"));
+      const { result, rerender } = renderExaminationForm();
+      expect(result.current.formData.date).toBe("2026-10-15");
+      act(() => result.current.setFormData({ date: "2026-10-13" }));
+      rerender();
+      expect(result.current.formData.date).toBe("2026-10-13");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("isEdit は false（id なし）", () => {
     const { result } = renderExaminationForm();
     expect(result.current.isEdit).toBe(false);

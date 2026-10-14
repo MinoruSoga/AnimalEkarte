@@ -208,6 +208,169 @@ describe("MedicalRecordEstimate BUG-016 resave", () => {
     expect(screen.queryByText("￥100")).not.toBeInTheDocument();
   });
 
+  it("EMR-401: 既存明細の tax_type/tax_rate が保存 payload に保持される", async () => {
+    mockExisting = {
+      id: 9,
+      title: "内税見積",
+      comment: "",
+      notes: "",
+      discount_amount: 0,
+      items: [
+        {
+          id: 1,
+          name: "内税項目",
+          unit_price: 1100,
+          quantity: 1,
+          tax_type: "included",
+          tax_rate: 0.1,
+          discount_rate: 0,
+          discount_amount: 0,
+          is_insurance_applicable: false,
+        },
+      ],
+    };
+    mockUpdateMutateAsync.mockResolvedValue(mockExisting);
+
+    const registered: Array<() => Promise<void>> = [];
+    render(
+      createElement(MedicalRecordEstimate, {
+        medicalRecordId: "9",
+        onRegisterSave: (fn) => {
+          registered.push(fn);
+        },
+      }),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await registered[registered.length - 1]!();
+    });
+
+    expect(mockUpdateMutateAsync).toHaveBeenCalledWith({
+      id: 9,
+      payload: expect.objectContaining({
+        items: [
+          expect.objectContaining({
+            name: "内税項目",
+            unit_price: 1100,
+            quantity: 1,
+            tax_type: "included",
+            tax_rate: 0.1,
+          }),
+        ],
+      }),
+    });
+  });
+
+  it("EMR-401: 内税1100円の明細は消費税100円・合計1100円（外税二重計算しない）", () => {
+    mockExisting = {
+      id: 10,
+      title: "内税",
+      items: [
+        {
+          id: 1,
+          name: "内税項目",
+          unit_price: 1100,
+          quantity: 1,
+          tax_type: "included",
+          tax_rate: 0.1,
+          discount_rate: 0,
+          discount_amount: 0,
+          is_insurance_applicable: false,
+        },
+      ],
+    };
+
+    render(createElement(MedicalRecordEstimate, { medicalRecordId: "10" }), { wrapper });
+
+    expect(screen.getByText("￥100")).toBeInTheDocument();
+    expect(screen.getAllByText("￥1,100").length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText("￥110")).not.toBeInTheDocument();
+    expect(screen.queryByText("￥1,210")).not.toBeInTheDocument();
+  });
+
+  it("EMR-401: 外税1000円は消費税100円・非課税1000円は消費税0円", () => {
+    mockExisting = {
+      id: 11,
+      title: "混在",
+      items: [
+        {
+          id: 1,
+          name: "外税項目",
+          unit_price: 1000,
+          quantity: 1,
+          tax_type: "excluded",
+          tax_rate: 0.1,
+          discount_rate: 0,
+          discount_amount: 0,
+          is_insurance_applicable: false,
+        },
+        {
+          id: 2,
+          name: "非課税項目",
+          unit_price: 1000,
+          quantity: 1,
+          tax_type: "exempt",
+          tax_rate: 0.1,
+          discount_rate: 0,
+          discount_amount: 0,
+          is_insurance_applicable: false,
+        },
+      ],
+    };
+
+    render(createElement(MedicalRecordEstimate, { medicalRecordId: "11" }), { wrapper });
+
+    expect(screen.getByText("￥100")).toBeInTheDocument();
+    expect(screen.getAllByText("￥2,100").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("￥200")).not.toBeInTheDocument();
+  });
+
+  it("EMR-401: 新規追加行は内税・医院標準税率で payload に載る", async () => {
+    mockClinic.current = { standardTaxRate: 0.1 };
+    mockExisting = null;
+    mockCreateMutateAsync.mockResolvedValue({
+      id: 50,
+      title: "",
+      items: [],
+    });
+
+    const registered: Array<() => Promise<void>> = [];
+    const user = userEvent.setup();
+    render(
+      createElement(MedicalRecordEstimate, {
+        medicalRecordId: "50",
+        onRegisterSave: (fn) => {
+          registered.push(fn);
+        },
+      }),
+      { wrapper },
+    );
+
+    const subject = (await screen.findAllByRole("textbox"))[0]!;
+    await user.type(subject, "新規見積");
+
+    await user.click(screen.getByRole("button", { name: "行を追加" }));
+    const contentInputs = screen.getAllByPlaceholderText("治療内容を入力");
+    await user.type(contentInputs[0]!, "新規項目");
+
+    await act(async () => {
+      await registered[registered.length - 1]!();
+    });
+
+    expect(mockCreateMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: [
+          expect.objectContaining({
+            name: "新規項目",
+            tax_type: "included",
+            tax_rate: 0.1,
+          }),
+        ],
+      }),
+    );
+  });
+
   it("API 失敗時は成功トーストを出さない", async () => {
     mockCreateMutateAsync.mockRejectedValue(new Error("network"));
     const registered: Array<() => Promise<void>> = [];

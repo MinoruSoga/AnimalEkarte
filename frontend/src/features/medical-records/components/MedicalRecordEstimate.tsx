@@ -13,6 +13,7 @@ import {
   useUpdateEstimateRecord,
 } from "../api/save-estimate";
 import { C } from "@/lib/design-tokens";
+import { calcEstimateTotals } from "@/lib/estimate-totals";
 import { usePermission } from "@/hooks/use-permission";
 import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
 import type { Estimate, EstimateItem } from "@/types/generated/models";
@@ -20,7 +21,7 @@ import type { Estimate, EstimateItem } from "@/types/generated/models";
 // EstimateItem (BE snake_case) → TreatmentItem (UI camelCase) の明示変換。
 // 旧実装の `as any` キャストはフィールド名非互換 (name→content, unit_price→unitPrice 等) を
 // 隠蔽しており、items が返るケースで項目名・単価が undefined になる潜在バグだった。
-function toTreatmentItem(item: EstimateItem): TreatmentItem {
+function toTreatmentItem(item: EstimateItem, standardTaxRate: number): TreatmentItem {
   return {
     id: item.id,
     content: item.name,
@@ -30,11 +31,14 @@ function toTreatmentItem(item: EstimateItem): TreatmentItem {
     quantity: item.quantity,
     discountRate: item.discount_rate,
     discountAmount: item.discount_amount,
+    taxType: item.tax_type ?? "excluded",
+    taxRate: item.tax_rate ?? standardTaxRate,
   };
 }
 
 function hydrateFromEstimate(
   estimate: Estimate,
+  standardTaxRate: number,
   setters: {
     setSubject: (v: string) => void;
     setComment: (v: string) => void;
@@ -47,7 +51,7 @@ function hydrateFromEstimate(
   setters.setComment(estimate.comment ?? "");
   setters.setRemarks(estimate.notes ?? "");
   setters.setGlobalDiscountAmount(estimate.discount_amount ?? 0);
-  setters.setItems((estimate.items ?? []).map(toTreatmentItem));
+  setters.setItems((estimate.items ?? []).map((item) => toTreatmentItem(item, standardTaxRate)));
 }
 
 interface MedicalRecordEstimateProps {
@@ -90,7 +94,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
   if (existingEstimate?.id != null && existingEstimate.id !== hydratedEstimateId) {
     setHydratedEstimateId(existingEstimate.id);
     estimateIdRef.current = existingEstimate.id;
-    hydrateFromEstimate(existingEstimate, {
+    hydrateFromEstimate(existingEstimate, standardTaxRate, {
       setSubject,
       setComment,
       setRemarks,
@@ -113,9 +117,11 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
         quantity: 1,
         discountRate: 0,
         discountAmount: 0,
+        taxType: "included",
+        taxRate: standardTaxRate,
       },
     ]);
-  }, []);
+  }, [standardTaxRate]);
 
   const handleRemoveItem = useCallback((id: number) => {
     setItems((prev) => prev.filter((item) => item.id !== id));
@@ -130,15 +136,17 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
 
   // Calculate totals
   const { subtotal, tax, total } = useMemo(() => {
-    const sub = items.reduce((sum, item) => {
-      const price = Number(item.unitPrice) || 0;
-      const qty = Number(item.quantity) || 0;
-      const discount = Number(item.discountAmount) || 0;
-      return sum + (price * qty - discount);
-    }, 0);
-    const taxAmount = Math.floor(sub * standardTaxRate);
-    return { subtotal: sub, tax: taxAmount, total: sub + taxAmount };
-  }, [items, standardTaxRate]);
+    const t = calcEstimateTotals(
+      items.map((item) => ({
+        unitPrice: item.unitPrice,
+        quantity: item.quantity,
+        discountAmount: item.discountAmount,
+        taxType: item.taxType,
+        taxRate: item.taxRate,
+      })),
+    );
+    return { subtotal: t.subtotal, tax: t.tax, total: t.total };
+  }, [items]);
 
   /**
    * BUG-016: メイン保存 post-save から await される。
@@ -175,6 +183,8 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
           discount_rate: Number(item.discountRate) || 0,
           discount_amount: Number(item.discountAmount) || 0,
           is_insurance_applicable: Boolean(item.is_insurance),
+          tax_type: item.taxType ?? "excluded",
+          tax_rate: item.taxRate ?? standardTaxRate,
           sort_order: index,
         })),
     };
@@ -207,6 +217,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
     updateEstimate,
     createEstimate,
     items,
+    standardTaxRate,
   ]);
 
   useEffect(() => {

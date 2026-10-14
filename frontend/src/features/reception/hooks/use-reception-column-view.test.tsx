@@ -185,7 +185,11 @@ describe("useReceptionColumnView — 日付切替 (EMR-243)", () => {
   ];
 
   it("本日表示ではクエリをそのまま navigate し from は /", () => {
-    const { result } = renderColumnView({ columns: twoColumns, isToday: true });
+    const { result } = renderColumnView({
+      columns: twoColumns,
+      canCreateReservation: true,
+      isToday: true,
+    });
 
     result.current.goToNewReservation("reception=1");
 
@@ -194,9 +198,16 @@ describe("useReceptionColumnView — 日付切替 (EMR-243)", () => {
     });
   });
 
+  it("create denial guards direct navigation callbacks", () => {
+    const { result } = renderColumnView({ columns: twoColumns, canCreateReservation: false });
+    result.current.goToNewReservation("reception=1");
+    expect(navigateMock).not.toHaveBeenCalled();
+  });
+
   it("非本日表示ではクエリに date を付与し from は /?date= を指す", () => {
     const { result } = renderColumnView({
       columns: twoColumns,
+      canCreateReservation: true,
       selectedDate: "2026-06-05",
       isToday: false,
     });

@@ -91,6 +91,22 @@ describe("useCheckupForm mutation boundary", () => {
     replaceCheckupFieldResultsMock.mockResolvedValue(undefined);
   });
 
+  it("new date uses JST today lazily and preserves explicit changes", () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-14T15:01:00Z"));
+      const { result, rerender } = renderHook(() => useCheckupForm(ALLOWED_MUTATION_PERMISSIONS));
+      expect(result.current.form.date).toBe("2026-10-15");
+      expect(result.current.form.nextDate).toBe("");
+      act(() => result.current.setDate("2026-10-13"));
+      vi.setSystemTime(new Date("2026-10-15T15:01:00Z"));
+      rerender();
+      expect(result.current.form.date).toBe("2026-10-13");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("全ての登録が成功したactionだけが一覧へ遷移する", async () => {
     const { result } = renderHook(() => useCheckupForm(ALLOWED_MUTATION_PERMISSIONS));
 

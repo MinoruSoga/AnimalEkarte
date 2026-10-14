@@ -28,8 +28,6 @@ interface AccountingHeaderActionsProps {
   onPrint: () => void;
   onCancelClick: () => void;
   onDismiss?: () => void;
-  submitLabel?: string;
-  submitDisabled?: boolean;
 }
 
 export function AccountingHeaderActions({
@@ -39,17 +37,9 @@ export function AccountingHeaderActions({
   onPrint,
   onCancelClick,
   onDismiss,
-  submitLabel,
-  submitDisabled,
 }: AccountingHeaderActionsProps) {
   if (status !== "completed") {
-    return onDismiss ? (
-      <FormHeaderActions
-        onCancel={onDismiss}
-        submitLabel={submitLabel}
-        submitDisabled={submitDisabled}
-      />
-    ) : undefined;
+    return onDismiss ? <FormHeaderActions onCancel={onDismiss} /> : undefined;
   }
 
   return (

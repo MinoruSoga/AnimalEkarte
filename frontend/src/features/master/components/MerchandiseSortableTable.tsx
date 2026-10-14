@@ -2,6 +2,8 @@ import { type ComponentProps, useMemo } from "react";
 import { DndContext, DragOverlay, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { RowActionButton } from "@/components/shared/RowActionButton";
+import { Pagination } from "@/components/shared/Pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
@@ -54,6 +56,7 @@ export function MerchandiseSortableTable({
   canEdit,
   onEdit,
 }: MerchandiseSortableTableProps) {
+  const pagination = usePagination(items, { pageSize: 50 });
   const activeItem = useMemo(
     () => items.find((item) => item.id === activeId) ?? null,
     [items, activeId],
@@ -88,10 +91,10 @@ export function MerchandiseSortableTable({
                 </TableRow>
               ) : null}
               <SortableContext
-                items={items.map((item) => item.id)}
+                items={pagination.paginatedData.map((item) => item.id)}
                 strategy={verticalListSortingStrategy}
               >
-                {items.map((item) => (
+                {pagination.paginatedData.map((item) => (
                   <SortableDataTableRow
                     key={item.id}
                     id={item.id}
@@ -136,6 +139,16 @@ export function MerchandiseSortableTable({
           </DragOverlay>
         </DndContext>
       </div>
+      <Pagination
+        currentPage={pagination.currentPage}
+        totalPages={pagination.totalPages}
+        totalCount={pagination.totalCount}
+        startIndex={pagination.startIndex}
+        endIndex={pagination.endIndex}
+        onPageChange={pagination.goToPage}
+        onPrev={pagination.prevPage}
+        onNext={pagination.nextPage}
+      />
     </div>
   );
 }

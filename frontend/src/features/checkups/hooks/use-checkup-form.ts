@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { paths } from "@/config/paths";
+import { todayJSTISO } from "@/lib/jst-date";
 import { useBackPath } from "@/hooks/use-back-navigation";
 import { useGetPet } from "@/hooks/use-pet";
 import { INITIAL_ACTION_STATE, type ActionState } from "@/types/form";
@@ -39,7 +40,9 @@ export function useCheckupForm(
 
   const { data: pet, isLoading: isPetLoading } = useGetPet(petId);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [localOverrides, setLocalOverrides] = useState<Partial<CheckupFormState>>({});
+  const [localOverrides, setLocalOverrides] = useState<Partial<CheckupFormState>>(() => ({
+    date: todayJSTISO(),
+  }));
   const formData: CheckupFormState = { ...DEFAULT_CHECKUP_FORM, ...localOverrides };
 
   const { data: checkupFields = [] } = useGetCheckupTypeFields(formData.checkupTypeId);

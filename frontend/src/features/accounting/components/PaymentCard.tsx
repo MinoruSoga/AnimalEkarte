@@ -160,7 +160,7 @@ export const PaymentCard = memo(function PaymentCard({
                       />
                     ) : null}
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {PAYMENT_METHODS.map((m) => (
                       <Button
                         key={m}
@@ -168,7 +168,7 @@ export const PaymentCard = memo(function PaymentCard({
                         variant={split.method === m ? "default" : "outline"}
                         onClick={() => handleMethodChange(idx, m)}
                         aria-pressed={split.method === m}
-                        className="text-sm"
+                        className="flex-1 min-w-[120px] whitespace-nowrap text-sm"
                       >
                         {PAYMENT_METHOD_LABELS[m]}
                       </Button>
