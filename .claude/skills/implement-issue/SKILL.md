@@ -38,7 +38,7 @@ grep -n '<キーワード>' docs/work/decisions/phase2-deferred.md
 git branch --list 'claim/<Plane ID>'
 ```
 
-非空なら**ハードストップ**: claim ブランチ名を挙げて BLOCKED を報告し、編集しない。空なら `git branch claim/<Plane ID>` で取得してから着手する（取得失敗も BLOCKED）。claim 取得と同時に Plane の state を `Running` に更新する（[docs/ops/plane-ticket-conventions.md](../../../docs/ops/plane-ticket-conventions.md) §claim — claim branch と Plane state は1組で同期させる）。`Phase2` / `Needs Human` / `Blocked` の票は claim せず滞留理由を先に確認する。claim ブランチの解放は AGENTS.md packet claim protocol の作成者別規則に従う（AI 作成 claim は統合・放棄・引き継ぎ確認後に解放可。USER 作成 claim は削除しない）。
+非空なら**ハードストップ**: claim ブランチ名を挙げて BLOCKED を報告し、編集しない。空なら `git branch claim/<Plane ID>` で取得してから着手する（取得失敗も BLOCKED）。claim 取得と同時に Plane の state を `Running` に更新する（[docs/ops/plane-ticket-conventions.md](../../../docs/ops/plane-ticket-conventions.md) §claim — claim branch と Plane state は1組で同期させる）。`Phase2` / `Needs Human` / `Blocked` の票は claim せず滞留理由を先に確認する。claim ブランチの解放は AGENTS.md packet claim protocol の作成者別規則に従う（AI 作成 claim は統合・放棄・引き継ぎ確認後に解放可。USER 作成 claim は削除しない）。マージ済み PR の片付けで AGENTS.md の対応確認を満たした claim は、作成者が USER でもその片付けの中で消す。実装完了の時点で PR が未マージなら消さない。
 
 ### 1.2 タスクセクション読み込み
 
@@ -237,7 +237,7 @@ Plane Issue に実装コミット、変更概要、実行した検証コマン�
 
 ### 5.3 claim 報告（解放は作成者別規則）
 
-claim ブランチ（`claim/<Plane ID>`）の解放は [AGENTS.md](../../../AGENTS.md) packet claim protocol の作成者別規則に従う（AI 作成 claim は統合・放棄・引き継ぎの確認後にエージェントが解放可。USER 作成 claim は削除しない）。実装コミット完了後にブランチ名と解放可否の判断材料をユーザーへ報告する。
+claim ブランチ（`claim/<Plane ID>`）の解放は [AGENTS.md](../../../AGENTS.md) packet claim protocol の作成者別規則に従う（AI 作成 claim は統合・放棄・引き継ぎの確認後にエージェントが解放可。USER 作成 claim は削除しない）。マージ済み PR の片付けで AGENTS.md の対応確認を満たした claim は、作成者が USER でもその片付けの中で消す。実装コミット完了後、PR が未マージならブランチ名と解放可否の判断材料をユーザーへ報告し、その時点では消さない。
 
 ### 5.4 完了報告
 

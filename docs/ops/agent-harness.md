@@ -26,7 +26,7 @@ CLI・ホストアプリ・APIセッションの機能は別々に確認する�
 2. ledger/packet ID がある場合は [claim規約](../../AGENTS.md#packet-claim-protocol-mandatory)を守る。並列編集は別worktree。調査・レビューはread-onlyで並列化できる。
 3. 受入条件の失敗ケースを先に確認し、範囲内の実装と関連テストを行う。docs-onlyや低影響の可逆編集に不要な製品テストを増やさない。
 4. 変更した成果物を検証する。独立レビューで見つかった範囲内の不具合を修正し、影響する検証を再実行する。上限・環境障害を成功に変換せず、未完了項目として報告する。
-5. 完了報告には動作変更、対象worktree/diff、検証コマンド・終了結果・対象件数、未実行理由、外部状態、残作業を書く。claim解除は [AGENTS.md](../../AGENTS.md) packet claim protocol の作成者別規則に従い、main統合はユーザー操作のまま維持する。main または staging にマージ済みの PR head とクリーンな worktree は、AGENTS.md の Merged PR cleanup に従って整理する。claim/*、未統合成果、作成者や使用状況が不明な通常ブランチは同じ扱いにしない。
+5. 完了報告には動作変更、対象worktree/diff、検証コマンド・終了結果・対象件数、未実行理由、外部状態、残作業を書く。claim解除は [AGENTS.md](../../AGENTS.md) packet claim protocol の作成者別規則に従い、main統合はユーザー操作のまま維持する。main または staging にマージ済みの PR head とクリーンな worktree は、AGENTS.md の Merged PR cleanup に従って整理する。同じ片付けで、その PR のタイトルまたは head ブランチが名指しし、作業が merge 先にあると確認できた `claim/<TASK-ID>` も消す。対応を確認できない claim/*、未統合成果、作成者や使用状況が不明な通常ブランチは消さない。claim の先端が main または staging に含まれていることだけでは消さない。
 
 ## 変更範囲の検証
 
