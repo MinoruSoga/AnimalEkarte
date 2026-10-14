@@ -24,7 +24,7 @@ UAT bundleは信頼済みの共有経路で渡し、build時に表示されたma
 開発・サポート側で bundle を作成する。現行スクリプトは `LAB_DEVICE_AGENT_CONSUMER_TOKEN` が必須（未設定は終了）。この値は workstation bundle と配布先 Go backend が共有する raw 署名 secret（capability 署名用の HMAC key）であり、承認済み secret 経路で環境変数へ供給する。ブラウザへ返る agent-consumer 応答は raw secret ではなく、backend がその secret で署名した clinic 束縛の短命 capability（有効期限 5 分）であり、raw secret 自体はブラウザへ返さない。secret の生成・登録・取得は USER 作業で、コマンド引数・履歴・ログ・Git に実値を残さない。bundle の mode 0600 設定ファイルにも raw secret が入るため、配布物全体を保護して扱う。
 
 
-**Cloudflare 配布の停止条件(EMR-335):** STG 向けの供給経路は実装済み。`backend/wrangler.jsonc`（STG）の `secrets.required` に `LAB_DEVICE_AGENT_CONSUMER_TOKEN` が名前のみ登録され、`backend/worker/index.ts` の `buildContainerEnvVars` が Worker secret を Container の Go プロセス envVars へ転送する。pinned Wrangler 4.114.0 は required secret が未投入のままの deploy / versions upload を拒否するため、新規 STG デプロイには事前の secret 投入が必須となる。値の生成・登録・取得は USER 作業であり、コマンド引数・履歴・ログ・PR・画面に実値を残さない（この記述は STG 経路の実装のみ。投入・デプロイ・検証は本タスクでは未実施）。以下の Wrangler secret put/deploy コマンドは **STG 専用**であり、PROD へそのまま適用してはならない。
+**Cloudflare 配布の停止条件(EMR-335):** STG 向けの供給経路は実装済み。`backend/wrangler.jsonc`（STG）の `secrets.required` に `LAB_DEVICE_AGENT_CONSUMER_TOKEN` が名前のみ登録され、`backend/worker/index.ts` の `buildContainerEnvVars` が Worker secret を Container の Go プロセス envVars へ転送する。`secrets.required` の登録名は typegen / local dev の警告に留まり、remote secret の存在は検証しない（`buildContainerEnvVars` は転送経路の実装であり、remote への登録を証明するものではない）。実際の停止点は CI（`backend-deploy.yml`）の deploy 前 preflight で、`backend` を working directory として `wrangler secret list` の名前のみを `scripts/checks/check-lab-device-secret.mjs` で検査する。このため、承認済みの新規 STG デプロイには事前の secret 投入が必須となる。値の生成・登録・取得は USER 作業であり、コマンド引数・履歴・ログ・PR・画面に実値を残さない（この記述は STG 経路の実装のみ。投入・デプロイ・検証は本タスクでは未実施）。以下の Wrangler secret put/deploy コマンドは **STG 専用**であり、PROD へそのまま適用してはならない。
 
 **PROD（本番）配布の停止:** `backend/wrangler.production.jsonc` の `secrets.required` には `LAB_DEVICE_AGENT_CONSUMER_TOKEN` が未登録であり、secret 未設定のままでは Worker が空文字を Container へ転送し、Go 側は `/v1/lab-device/agent-consumer` を 503 で fail-closed にする。そのため現時点で **PROD 環境への bundle 配布・クライアント導入・接続成功判定は停止**とする。本番の secret 供給手順（PROD 配布先 bundle と HMAC key として一致する secret を投入する別途承認済み手順）を実装・承認・検証し、認証済み `GET /api/v1/lab-device/agent-consumer` が `200` と `expires_in` を返すことを人間が確認してから解除する。この後続の人間作業は事前準備であり、本配布停止によって妨げられない。
 
@@ -36,10 +36,15 @@ UAT bundleは信頼済みの共有経路で渡し、build時に表示されたma
 pnpm exec wrangler secret put LAB_DEVICE_AGENT_CONSUMER_TOKEN --config backend/wrangler.jsonc
 ```
 
-secret 投入と人間の承認がそろったあと、STG backend Worker をデプロイする。
+secret 投入と人間の承認がそろったあと、STG backend Worker をデプロイする。手動の検証・デプロイは USER が承認して実行する操作であり、リポジトリルートから同じサブシェル内で preflight と deploy を結合する（`pnpm exec` は `backend/` に package.json が無くワークスペースルートへ cwd を移すため使わない）。secret list の取得失敗・形式不正・必須名の欠落は `pipefail` により deploy 実行前に停止する。remote への投入結果や `503` 挙動が実機で確認済みであるとは主張しない。
 
 ```bash
-pnpm exec wrangler deploy --config backend/wrangler.jsonc
+(
+  set -euo pipefail
+  cd backend
+  npx --no-install wrangler secret list --config wrangler.jsonc | node ../scripts/checks/check-lab-device-secret.mjs
+  npx --no-install wrangler deploy --config wrangler.jsonc
+)
 ```
 
 frontend 側の STG リリースは既存の承認済み経路（`staging` push で起動する `frontend-deploy.yml`。正本は [CI-CD-PIPELINE.md](../CI-CD-PIPELINE.md)）を使い、本書固有の frontend デプロイ手順は設けない。
@@ -48,7 +53,7 @@ frontend 側の STG リリースは既存の承認済み経路（`staging` push 
 
 **検証状態（本タスク時点）:** STG への secret 投入、STG デプロイ、live `200` 確認、クライアント UAT はすべて **未実施・未検証（UNVERIFIED）** であり、実施済みとして扱ってはいけない。
 
-secret 未投入のままの新規 STG デプロイは required-secret ゲートで拒否される。既存デプロイや env 未設定の local backend では agent-consumer route は引き続き `503` を返す（fail-closed）が、`/lab-device` 画面は汎用サーバーエラーではなく「検査機器エージェントが未設定です」を表示する。local Compose は backend の `.env.local` 経由で供給できるが、現在の値や稼働は本書では確認していない。503 挙動の確認を目的に実 secret を削除する手順は本書に設けない。
+secret 未投入のままの新規 STG デプロイは deploy 前の remote-name preflight で停止する。既存デプロイや env 未設定の local backend では agent-consumer route は引き続き `503` を返す（fail-closed）が、`/lab-device` 画面は汎用サーバーエラーではなく「検査機器エージェントが未設定です」を表示する。local Compose は backend の `.env.local` 経由で供給できるが、現在の値や稼働は本書では確認していない。503 挙動の確認を目的に実 secret を削除する手順は本書に設けない。
 
 ```bash
 # allowed-origin は配布先frontendの正確な https origin（pathなし）
