@@ -208,6 +208,10 @@ func (q *profileSchemaTarget) QueryRow(_ context.Context, query string, args ...
 			}
 			return staticRow{values: []any{q.dataType}}
 		}
+		if args[1] == "sort_order" {
+			// Independent of the quantity/tax numeric precision fixture.
+			return staticRow{values: []any{"integer"}}
+		}
 	}
 	return staticRow{values: []any{"bigint"}}
 }

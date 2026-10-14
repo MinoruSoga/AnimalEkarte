@@ -579,10 +579,18 @@ func applyWithAuditFinalizer(
 	}
 	defer func() { _ = reportFile.Close() }()
 
-	logger.Info("csv-import-stg-uat apply committing each table to bound PlanetScale transaction size", "lane", auditLane)
+	candidate := opt.cutoverProfile == string(csvimport.CutoverProfileMedicinesCandidate)
+	if candidate {
+		logger.Info("csv-import-stg-uat candidate rehearsal uses one atomic transaction", "lane", auditLane)
+	} else {
+		logger.Info("csv-import-stg-uat apply committing each table to bound PlanetScale transaction size", "lane", auditLane)
+	}
 	result, err := target.Apply(ctx, bundle, seeds)
 	if err != nil {
 		report.Status, report.FailureStage = cutoverApplyFailureClassification(err)
+		if candidate {
+			report.Status, report.FailureStage = csvimport.ClassifyCutoverApplyFailure(err)
+		}
 		if writeErr := replaceAuditReport(reportFile, report); writeErr != nil {
 			return fmt.Errorf("cutover failed and audit report update also failed; apply status=%s; report update: %w", report.Status, writeErr)
 		}
@@ -591,6 +599,9 @@ func applyWithAuditFinalizer(
 		}
 		if errors.Is(err, csvimport.ErrCutoverTransactionNotStarted) {
 			return fmt.Errorf("cutover apply failed before transaction began: %w", err)
+		}
+		if candidate {
+			return fmt.Errorf("cutover apply failed; all data rows rolled back: %w", err)
 		}
 		return fmt.Errorf("cutover apply failed; uncommitted table rolled back: %w", err)
 	}

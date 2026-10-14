@@ -1025,6 +1025,42 @@ func TestRunWithDependenciesRecordsApplyFailures(t *testing.T) {
 	}
 }
 
+func TestRunCandidateAtomicReportsApplyFailures(t *testing.T) {
+	withStagingRehearsalEnv(t)
+	t.Setenv("DB_NAME", "animalekarte")
+	for _, tc := range []struct {
+		name, status, stage, message string
+		err                          error
+	}{
+		{"rollback", "FAILED_DATA_ROLLED_BACK", "transaction", "all data rows rolled back", errors.New("copy conflict")},
+		{"before Begin", "FAILED_BEFORE_TRANSACTION", "begin", "before transaction began", csvimport.ErrCutoverTransactionNotStarted},
+		{"unknown commit", "COMMIT_OUTCOME_UNKNOWN", "commit", "run read-only verify", csvimport.ErrCutoverCommitOutcomeUnknown},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			path := filepath.Join(root, "candidate-failure.json")
+			if err := os.Chmod(root, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			target := &fakeCutoverTarget{applyError: tc.err}
+			deps := testRunDependencies(t, testCLIBundle(), target)
+			deps.reportRoot = root
+			args := append(importCLIArgs(t.TempDir(), path), "--cutover-profile", string(csvimport.CutoverProfileMedicinesCandidate))
+			err := runWithDependencies(context.Background(), args, slog.Default(), deps)
+			if err == nil || !strings.Contains(err.Error(), tc.message) {
+				t.Fatalf("error=%v, want %q", err, tc.message)
+			}
+			report := readAuditReport(t, path)
+			if report.Status != tc.status || report.FailureStage != tc.stage || target.applyCalls != 1 {
+				t.Fatalf("status=%q stage=%q applies=%d", report.Status, report.FailureStage, target.applyCalls)
+			}
+			if tc.status == "COMMIT_OUTCOME_UNKNOWN" && strings.Contains(err.Error(), "rolled back") {
+				t.Fatal("indeterminate commit must not claim rollback")
+			}
+		})
+	}
+}
+
 func withStagingRehearsalEnv(t *testing.T) {
 	t.Helper()
 	t.Setenv("APP_ENV", "staging")

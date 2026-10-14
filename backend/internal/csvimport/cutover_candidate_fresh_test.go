@@ -2,10 +2,12 @@ package csvimport
 
 import (
 	"context"
+	"io"
 	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // User decision A (2026-10-14, "A: freshのみ を採用"): a candidate22 import
@@ -47,6 +49,10 @@ func (q candidateBandQuerier) QueryRow(ctx context.Context, query string, args .
 		}
 		if strings.Contains(query, "data_type") && args[1] == "default_quantity" {
 			return staticRow{values: []any{"numeric"}}
+		}
+		if strings.Contains(query, "data_type") && args[1] == "sort_order" {
+			// Canonical 001 schema: medicines.sort_order is integer.
+			return staticRow{values: []any{"integer"}}
 		}
 	}
 	if strings.Contains(query, "clinic_id <> $3") {
@@ -151,6 +157,64 @@ type candidateFreshApplySession struct {
 	fakeCutoverSession
 }
 
+func (s *candidateFreshApplySession) Begin(context.Context, pgx.TxIsoLevel) (cutoverTransaction, error) {
+	tx := &fakeCutoverTransaction{}
+	s.txs = append(s.txs, tx)
+	counts := make(map[string]int64, len(s.inspectCounts))
+	for table, count := range s.inspectCounts {
+		counts[table] = count
+	}
+	return &candidateAtomicTransaction{fakeCutoverTransaction: tx, counts: counts}, nil
+}
+
+// Serve the canonical candidate catalog and count rows copied in the same
+// atomic transaction; legacy per-table/finalize probes keep their fixture.
+type candidateAtomicTransaction struct {
+	*fakeCutoverTransaction
+	counts map[string]int64
+	atomic bool
+}
+
+func (tx *candidateAtomicTransaction) Exec(ctx context.Context, query string, args ...any) (pgconn.CommandTag, error) {
+	if strings.HasPrefix(query, "LOCK TABLE ") && strings.Contains(query, ",") && strings.Contains(query, `"medicines"`) {
+		tx.atomic = true
+	}
+	return tx.fakeCutoverTransaction.Exec(ctx, query, args...)
+}
+
+func (tx *candidateAtomicTransaction) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
+	if strings.Contains(query, "information_schema.columns") {
+		return candidateBandQuerier{}.QueryRow(ctx, query, args...)
+	}
+	if tx.atomic && strings.Contains(query, "id >= $1 AND id < $2") {
+		count := tx.counts[candidateTableNameFromBandQuery(query)]
+		if strings.Contains(query, "clinic_id <> $3") {
+			return staticRow{values: []any{int64(0)}}
+		}
+		if strings.Contains(query, "SELECT EXISTS") {
+			return staticRow{values: []any{count > 0}}
+		}
+		if strings.Contains(query, "count(*)") {
+			return staticRow{values: []any{count}}
+		}
+	}
+	return tx.fakeCutoverTransaction.QueryRow(ctx, query, args...)
+}
+
+func (tx *candidateAtomicTransaction) CopyFrom(ctx context.Context, reader io.Reader, copySQL string) (pgconn.CommandTag, error) {
+	tx.execQueries = append(tx.execQueries, copySQL)
+	tag, err := tx.fakeCutoverTransaction.CopyFrom(ctx, reader, copySQL)
+	if err == nil {
+		for _, spec := range CutoverTableSpecs(CutoverProfileMedicinesCandidate) {
+			if strings.Contains(copySQL, pgx.Identifier{spec.Name}.Sanitize()) || strings.Contains(copySQL, pgx.Identifier{cutoverCopyStagingRelation(spec.Name)}.Sanitize()) {
+				tx.counts[spec.Name] = tag.RowsAffected()
+				break
+			}
+		}
+	}
+	return tag, err
+}
+
 func (s *candidateFreshApplySession) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
 	if len(args) == 2 && args[0] == "medicines" && strings.Contains(query, "information_schema.columns") {
 		if strings.Contains(query, "numeric_precision") {
@@ -194,8 +258,10 @@ func TestCandidateFreshRejectsBandOccupiedAfterInitialProbe(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), CutoverRefBandOccupied) || !strings.Contains(err.Error(), "staffs") {
 		t.Fatalf("error = %v, want occupied staffs rejection", err)
 	}
-	if len(session.txs) != 0 {
-		t.Fatalf("Begin calls = %d, want zero", len(session.txs))
+	// The band changed after the outside probe: the atomic path discovers it
+	// again under table locks, before COPY, and rolls that transaction back.
+	if len(session.txs) != 1 || session.txs[0].committed || session.txs[0].copyCalls != 0 || !session.txs[0].rolledBack {
+		t.Fatalf("transactions=%d, want one rolled-back transaction with no COPY/commit", len(session.txs))
 	}
 }
 

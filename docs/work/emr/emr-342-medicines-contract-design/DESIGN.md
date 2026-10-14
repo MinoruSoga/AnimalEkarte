@@ -10,7 +10,7 @@
 
 PR #655の統合保留を受け、今回のユーザー回答で「21表維持＋22表候補分離」を採用した。既定 `legacy-21` は21表formalの経路・version/pin・medicine_id空欄制約を保持する。薬剤22表は明示 `medicines-22-candidate` profileで、明示rehearsal modeかつREHEARSAL_ONLYだけ検証可能。正式preflight/apply/resume/verifyは証跡が揃うまで拒否する。以下の「旧21表拒否」は候補22表profile内だけの互換条件に改訂し、既定21表には適用しない。初版の設計経緯は以下に保持する。
 
-> **2026-10-14 ユーザー決定 A（fresh-only）:** `medicines-22-candidate` の target は clinic band 全体が空である fresh な検証専用targetに限る。resume preflight と表別commit apply は target schema 検査の直後に band 全空を要求し、正当な candidate 途中 prefix であっても受理しない（`CUTOVER_REF_BAND_OCCUPIED` で拒否、Begin/COPY 前に deny）。legacy21 formal の既存 prefix resume は変更しない。自動的な delete/rollback/reset/recovery は行わない。候補の再実行には別途用意した空の隔離 target と承認済み手順が必要である。candidate formal activation gate と producer receipt/pin の BLOCKED は変更しない。
+> **2026-10-14 ユーザー決定 A（fresh-only）:** `medicines-22-candidate` の target は clinic band 全体が空である fresh な検証専用targetに限る。resume preflight と apply は target schema 検査の直後に band 全空を要求し、正当な candidate 途中 prefix であっても受理しない（`CUTOVER_REF_BAND_OCCUPIED` で拒否、Begin/COPY 前に deny）。candidate の STG apply は既存atomic経路で全22表を同じtransactionに載せ、名称probe後の並行insert等で失敗しても先行表のcommitを残さない。legacy21 formal の表別commit・既存prefix resumeは変更しない。既存prefixに対する自動delete/rollback/reset/recoveryは行わない。通常のtransaction内失敗は全データ行をrollbackするが、sequenceの番号飛びは残り得る。commit応答不明はUNKNOWNとしてread-only verifyで照合し、安全なrollbackと推測しない。長時間transactionの実規模成功は未検証である。候補の再実行には別途用意した空の隔離targetと承認済み手順が必要である。candidate formal activation gateとproducer receipt/pinのBLOCKEDは変更しない。
 
 この採用はproducer正式artifact/full-file SHA・MIG-34/37/41の4院receipt・consumer互換確認・本番切替/回復承認を代替しない。producer pinは更新しない。数量は§3.2のproducer明示1.0を維持し、consumerは空欄を拒否する（model/APIをnullableへ変更しない）。targetのnumeric(10,2)とvalidated inventory FKを検査する。実CSV投入・migration・deploy・mergeは今回実施しない。
 

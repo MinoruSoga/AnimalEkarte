@@ -73,6 +73,13 @@ WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`, spec.Na
 					return fmt.Errorf("target schema requires public.medicines.tax_rate as numeric able to store 0.10 exactly (unbounded numeric, or scale >= 1 with precision >= scale)")
 				}
 			}
+			if spec.Name == "medicines" && column == "sort_order" && dataType != "integer" {
+				// 4266561071: the source sort_order is a signed int32
+				// decimal; a smaller integer target (e.g. smallint) would
+				// fail COPY only after earlier tables already committed,
+				// which fresh-only decision A cannot recover from.
+				return fmt.Errorf("target schema requires public.medicines.sort_order as integer")
+			}
 		}
 	}
 	return nil

@@ -121,9 +121,9 @@ func inspectCutoverBand(
 // ApplyCutoverCommittingEachTable imports each CSV in its own transaction.
 // PlanetScale terminated a multi-million-row single transaction (SQLSTATE-less
 // connection close after ~30 minutes). Formal ApplyCutover stays one
-// transaction. Successful tables stay committed; legacy21 retries skip a
+// transaction. Successful legacy21 tables stay committed; retries skip a
 // complete prefix. Candidate22 accepts only an empty band for fresh rehearsal
-// and rejects every existing prefix, including a legitimate interrupted run.
+// and uses the existing atomic apply so a later conflict cannot leave a prefix.
 func ApplyCutoverCommittingEachTable(
 	ctx context.Context,
 	pool *pgxpool.Pool,
@@ -189,6 +189,13 @@ func applyCutoverCommittingEachTable(
 		if err := validateCutoverMedicinesTargetNames(ctx, session, bundle, seeds); err != nil {
 			return CutoverResult{}, err
 		}
+		// The name probe cannot serialize application writers. Keep all
+		// candidate writes in one transaction with the existing table locks;
+		// a late unique conflict then rolls back the preceding tables too.
+		// Begin on this same connection holding the session advisory lock.
+		return applyCutoverWithBegin(ctx, func(ctx context.Context) (cutoverTransaction, error) {
+			return session.Begin(ctx, iso)
+		}, bundle, seeds)
 	}
 	drift := append([]string(nil), bundle.ToleratedDrift...)
 	drift = append(drift, targetNotes...)

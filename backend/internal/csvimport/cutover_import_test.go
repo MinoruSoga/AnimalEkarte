@@ -1378,6 +1378,9 @@ func (q validTargetQuerier) QueryRow(_ context.Context, query string, args ...an
 		// the CSV contract: serial/identity ids and defaulted columns are filtered
 		// by the query itself, so unit tests model an empty required set.
 		return staticRow{values: []any{[]string{}}}
+	case strings.Contains(query, "information_schema.columns") && len(args) == 2 && args[0] == "medicines" && args[1] == "sort_order":
+		// Canonical 001 schema: medicines.sort_order is integer.
+		return staticRow{values: []any{"integer"}}
 	case strings.Contains(query, "information_schema.columns"):
 		return staticRow{values: []any{"bigint"}}
 	case strings.Contains(query, "FROM pg_constraint"):
