@@ -162,7 +162,7 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
 
   const backPath = useBackPath(paths.owners.getHref());
 
-  useTitle(isEdit ? `飼主編集 (${ownerData.ownerName})` : "飼主登録");
+  useTitle(isEdit ? `${canSubmit ? "飼主編集" : "飼主詳細"} (${ownerData.ownerName})` : "飼主登録");
 
   // React 19 Action の成功を検知して遷移
   // BUG-065: 新規登録後は詳細ページへリダイレクト
@@ -299,7 +299,7 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
   return (
     <form action={formAction} noValidate className="h-full">
       <PageLayout
-        title={isEdit ? "飼主・ペット編集" : "飼主・ペット登録"}
+        title={isEdit ? (canSubmit ? "飼主・ペット編集" : "飼主・ペット詳細") : "飼主・ペット登録"}
         onBack={handleBack}
         resource={ResourceOwners}
         maxWidth={LAYOUT.pageContentMaxWidth.form}

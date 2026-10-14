@@ -101,13 +101,14 @@ export function InventoryFormBody({
 }: InventoryFormBodyProps) {
   return (
     <PageLayout
-      title={isEdit ? "在庫編集" : "在庫登録"}
+      title={isEdit ? (canSubmit ? "在庫編集" : "在庫詳細") : "在庫登録"}
       resource={ResourceInventory}
       onBack={onBack}
       headerAction={
         <FormHeaderActions
           onCancel={onBack}
-          submitLabel={canSubmit ? "保存" : undefined}
+          submitLabel={canSubmit ? (isPending ? "保存中..." : "保存") : undefined}
+          submitDisabled={isPending}
           submitFormId={INVENTORY_FORM_ID}
         />
       }

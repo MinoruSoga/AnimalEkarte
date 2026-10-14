@@ -384,4 +384,20 @@ describe("OwnerForm — ペットの飼主変更", () => {
 
     expect(updatePetMutate).not.toHaveBeenCalled();
   });
+
+  it("既存レコードは編集可なら飼主・ペット編集、権限失効で飼主・ペット詳細になり保存が消える", async () => {
+    const { mutations } = makePetMutations();
+    renderOwnerFormWithRevocablePermission(mutations);
+
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: "飼主・ペット編集" })).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "編集権限を失効" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: "飼主・ペット詳細" })).toBeInTheDocument(),
+    );
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+  });
 });

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { formatJSTWallDate } from "@/lib/jst-date";
 import { NextVisitDateField } from "./NextVisitDateField";
 
 const { todayJSTISO } = vi.hoisted(() => ({
@@ -85,6 +86,63 @@ describe("NextVisitDateField", () => {
     expect(screen.getByLabelText("次回来院推奨日")).toBeEnabled();
     expect(screen.getByRole("button", { name: "1ヶ月後" })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "クリア" }));
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("フォーカス→編集なしで blur しても onChange を呼ばない（重複 PUT 抑止）", async () => {
+    const user = userEvent.setup();
+    const { onChange } = renderField("2026-09-04");
+    const dateInput = screen.getByRole("textbox", { name: "次回来院推奨日" });
+    await user.click(dateInput);
+    await user.tab();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("有効な日付へ編集して blur すると onChange を1回だけ ISO 値で呼ぶ", async () => {
+    const user = userEvent.setup();
+    const { onChange } = renderField("2026-09-04");
+    const dateInput = screen.getByRole<HTMLInputElement>("textbox", { name: "次回来院推奨日" });
+    await user.clear(dateInput);
+    await user.type(dateInput, "2026/09/10");
+    await user.tab();
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith("2026-09-10");
+  });
+
+  it("未編集で Enter→blur しても重複した onChange を呼ばない", async () => {
+    const user = userEvent.setup();
+    const { onChange } = renderField("2026-09-04");
+    const dateInput = screen.getByRole("textbox", { name: "次回来院推奨日" });
+    await user.click(dateInput);
+    await user.keyboard("{Enter}");
+    await user.tab();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("クリア不可では DatePicker 内蔵のクリアボタンも onChange を呼ばない", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<NextVisitDateField value="2026-09-04" onChange={onChange} clearDisabled />);
+    await user.click(screen.getByRole("button", { name: "日付をクリア" }));
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("クリア可では DatePicker 内蔵のクリアボタンが onChange('') を呼ぶ", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<NextVisitDateField value="2026-09-04" onChange={onChange} clearDisabled={false} />);
+    await user.click(screen.getByRole("button", { name: "日付をクリア" }));
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith("");
+  });
+
+  it("クイック選択が現在値と同じ日付でも重複した onChange を呼ばない", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const oneYearLater = new Date();
+    oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
+    render(<NextVisitDateField value={formatJSTWallDate(oneYearLater)} onChange={onChange} />);
+    await user.click(screen.getByRole("button", { name: "1年後" }));
     expect(onChange).not.toHaveBeenCalled();
   });
 

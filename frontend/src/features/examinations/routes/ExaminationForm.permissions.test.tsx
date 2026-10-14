@@ -1,5 +1,6 @@
-import { useEffect, type ReactNode } from "react";
-import { act, render, screen } from "@testing-library/react";
+import { useActionState, useEffect, type ReactNode } from "react";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ExaminationForm } from "./ExaminationForm";
@@ -177,7 +178,11 @@ beforeEach(() => {
   mocks.useGetStaffs.mockReset();
   mocks.useGetStaffs.mockReturnValue({ data: [], isLoading: false });
   mocks.useExaminationForm.mockReset();
-  mocks.useExaminationForm.mockImplementation(() => ({
+  mocks.useExaminationForm.mockImplementation(hookReturn);
+});
+
+function hookReturn() {
+  return {
     formData: { status: mocks.status, petId: "pet-1" },
     setFormData: vi.fn(),
     isPetDeceased: mocks.isPetDeceased,
@@ -209,8 +214,18 @@ beforeEach(() => {
     isPersistedCompletedLocked: mocks.isPersistedCompletedLocked,
     isPersistedResultsLocked: mocks.isPersistedConfirmed,
     isPatientChangeLocked: mocks.isPatientChangeLocked,
-  }));
-});
+  };
+}
+
+function deferredGate() {
+  let resolve!: () => void;
+  let reject!: (e: unknown) => void;
+  const promise = new Promise<void>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
 
 describe("ExaminationForm — doctor candidate filter (BUG-005)", () => {
   it("担当医候補は同院 active doctor のみを渡し resource/nurse/inactive を除外する", () => {
@@ -483,5 +498,85 @@ describe("ExaminationForm — history pivot wiring", () => {
     expect(historyToggle.closest("fieldset")).toBeNull();
     expect(historyToggle.closest("form")).toBeNull();
     expect(historyToggle).not.toBeDisabled();
+  });
+});
+
+describe("ExaminationForm — header pending contract (PR666)", () => {
+  function usePendingHookImpl(mutate: () => void, gate: ReturnType<typeof deferredGate>) {
+    return function useExaminationFormPending() {
+      const [formState, formAction, isSaving] = useActionState(
+        async () => {
+          mutate();
+          await gate.promise;
+          return { success: false, timestamp: 0 };
+        },
+        { success: false, timestamp: 0 },
+      );
+      return { ...hookReturn(), formState, formAction, isSaving };
+    };
+  }
+
+  it("保存中は外部ヘッダーボタンを disabled+保存中... にし二重送信しない", async () => {
+    const user = userEvent.setup();
+    const gate = deferredGate();
+    const mutate = vi.fn();
+    mocks.useExaminationForm.mockImplementation(usePendingHookImpl(mutate, gate));
+    mocks.id = "exam-1";
+    mocks.canEdit = true;
+
+    render(<ExaminationForm />);
+    const save = screen.getByRole("button", { name: "保存" });
+
+    try {
+      await user.click(save);
+      await waitFor(() => {
+        expect(save).toBeDisabled();
+        expect(save).toHaveTextContent("保存中...");
+      });
+      expect(mutate).toHaveBeenCalledTimes(1);
+
+      await user.click(save);
+      expect(mutate).toHaveBeenCalledTimes(1);
+    } finally {
+      await act(async () => {
+        gate.resolve();
+      });
+    }
+    await waitFor(() => expect(save).toBeEnabled());
+  });
+
+  it("アクション失敗後もボタンは再び有効になる", async () => {
+    const user = userEvent.setup();
+    const gate = deferredGate();
+    const mutate = vi.fn();
+    mocks.useExaminationForm.mockImplementation(function useExaminationFormRejected() {
+      const [formState, formAction, isSaving] = useActionState(
+        async () => {
+          mutate();
+          try {
+            await gate.promise;
+            return { success: false, timestamp: 0 };
+          } catch {
+            return { success: false, timestamp: 0, error: "failed" };
+          }
+        },
+        { success: false, timestamp: 0 },
+      );
+      return { ...hookReturn(), formState, formAction, isSaving };
+    });
+    mocks.id = "exam-1";
+    mocks.canEdit = true;
+
+    render(<ExaminationForm />);
+    const save = screen.getByRole("button", { name: "保存" });
+    await user.click(save);
+    await waitFor(() => expect(save).toBeDisabled());
+    await act(async () => {
+      gate.reject(new Error("network"));
+    });
+    await waitFor(() => {
+      expect(save).toBeEnabled();
+      expect(save).toHaveTextContent("保存");
+    });
   });
 });

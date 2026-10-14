@@ -131,9 +131,10 @@ describe("next visit reactive clock", () => {
       );
     }
     render(<IntentField />);
-    expect(screen.getByLabelText("次回来院推奨日")).toHaveAttribute("aria-invalid", "false");
+    expect(screen.getByLabelText("次回来院推奨日")).not.toHaveAttribute("aria-invalid");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     act(() => vi.advanceTimersByTime(30_000));
-    expect(screen.getByLabelText("次回来院推奨日")).toHaveAttribute("min", "2026-10-12");
+    expect(screen.getByLabelText("次回来院推奨日")).toBeInvalid();
     expect(screen.getByLabelText("次回来院推奨日")).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByRole("alert")).toHaveTextContent("今日より前");
   });

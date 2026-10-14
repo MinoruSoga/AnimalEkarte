@@ -284,7 +284,14 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
         <FormHeaderActions
           onCancel={handleBack}
           cancelLabel={showCompletedOnly ? "戻る" : "キャンセル"}
-          submitLabel={showFormActions && canSubmit && !isConfirmed ? "保存" : undefined}
+          submitLabel={
+            showFormActions && canSubmit && !isConfirmed
+              ? isSaving
+                ? "保存中..."
+                : "保存"
+              : undefined
+          }
+          submitDisabled={isSaving}
           submitFormId={EXAMINATION_FORM_ID}
           extra={
             showFormActions && canDelete && isEdit && !isCompletedLocked && !isConfirmed ? (

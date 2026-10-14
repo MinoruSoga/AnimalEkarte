@@ -217,7 +217,7 @@ test.describe("V04 設定マスタ disposable CRUD/DELETE", () => {
 
       await settings.deleteButton().click();
       await expect(settings.deleteDialog()).toBeVisible();
-      await settings.deleteConfirmButton("削除する").click();
+      await settings.deleteConfirmButton("削除").click();
       await expect(page.getByText(medicineName)).not.toBeVisible({ timeout: 10000 });
       needsCleanup = false;
     } finally {
@@ -228,7 +228,7 @@ test.describe("V04 設定マスタ disposable CRUD/DELETE", () => {
           "薬剤マスタ",
           "薬品名で検索...",
           medicineName,
-          "削除する",
+          "削除",
         );
       }
       await page.close();

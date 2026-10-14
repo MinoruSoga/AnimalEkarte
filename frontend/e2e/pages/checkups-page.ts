@@ -28,7 +28,7 @@ export class CheckupsPage extends BasePage {
   }
 
   newButton(): Locator {
-    return this.page.getByRole("button", { name: "新規登録" });
+    return this.page.getByRole("button", { name: "新規定期健診登録" });
   }
 
   petText(name: string): Locator {

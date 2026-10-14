@@ -1,11 +1,20 @@
-import { render, screen } from "@testing-library/react";
+import { useActionState } from "react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { InventoryForm } from "./InventoryForm";
 
-const { permission, formReturn, useInventoryFormMock } = vi.hoisted(() => ({
+const { permission, formReturn, useInventoryFormMock, pendingCtl } = vi.hoisted(() => ({
+  pendingCtl: {
+    current: null as null | {
+      mutate: () => void;
+      gate: Promise<void>;
+      resolve: () => void;
+      reject: (e: unknown) => void;
+    },
+  },
   permission: { current: { canView: true, canCreate: false, canEdit: false, canDelete: false } },
   useInventoryFormMock: vi.fn(),
   formReturn: {
@@ -49,9 +58,26 @@ vi.mock("@/hooks/use-permission", () => ({
   usePermission: () => permission.current,
 }));
 vi.mock("../hooks/use-inventory-form", () => ({
-  useInventoryForm: (...args: unknown[]) => {
+  useInventoryForm: function useInventoryForm(...args: unknown[]) {
     useInventoryFormMock(...args);
-    return formReturn.current;
+    const r = formReturn.current;
+    const [pendingState, pendingAction, pendingFlag] = useActionState(async () => {
+      pendingCtl.current?.mutate();
+      try {
+        await pendingCtl.current?.gate;
+      } catch {
+        return { ...r.formState, error: "failed" };
+      }
+      return r.formState;
+    }, r.formState);
+    return pendingCtl.current
+      ? {
+          ...r,
+          formAction: pendingAction,
+          formState: pendingState,
+          isPending: pendingFlag,
+        }
+      : r;
   },
 }));
 vi.mock("@/components/shared/NavigationBlocker", () => ({
@@ -274,5 +300,99 @@ describe("InventoryForm header submit (BUG-007)", () => {
 
     await user.click(header!);
     expect(formReturn.current.formAction).toHaveBeenCalled();
+  });
+});
+
+function deferredGate() {
+  let resolve!: () => void;
+  let reject!: (e: unknown) => void;
+  const promise = new Promise<void>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+describe("InventoryForm — 既存レコード見出し (PR666)", () => {
+  beforeEach(() => {
+    pendingCtl.current = null;
+    permission.current = { canView: true, canCreate: true, canEdit: true, canDelete: false };
+    formReturn.current = {
+      ...formReturn.current,
+      isEdit: true,
+      isLoading: false,
+      isReadNotFound: false,
+      isReadError: false,
+      retryRead: undefined,
+      formState: { success: false, timestamp: 0, fieldErrors: {} },
+      isPending: false,
+    };
+  });
+
+  it("既存レコードで編集不可なら見出しは在庫詳細で保存ボタンなし", () => {
+    permission.current = { canView: true, canCreate: false, canEdit: false, canDelete: false };
+    renderForm("/inventory/7");
+    expect(screen.getByText("在庫詳細")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+  });
+
+  it("既存レコードで編集可なら見出しは在庫編集", () => {
+    renderForm("/inventory/7");
+    expect(screen.getByText("在庫編集")).toBeInTheDocument();
+  });
+
+  it("新規なら見出しは在庫登録", () => {
+    formReturn.current = { ...formReturn.current, isEdit: false, existingItem: undefined };
+    renderForm("/inventory/new");
+    expect(screen.getByText("在庫登録")).toBeInTheDocument();
+  });
+});
+
+describe("InventoryForm — header pending contract (PR666)", () => {
+  beforeEach(() => {
+    pendingCtl.current = null;
+    permission.current = { canView: true, canCreate: true, canEdit: true, canDelete: false };
+    formReturn.current = {
+      ...formReturn.current,
+      isEdit: true,
+      isLoading: false,
+      isReadNotFound: false,
+      isReadError: false,
+      retryRead: undefined,
+      formState: { success: false, timestamp: 0, fieldErrors: {} },
+      isPending: false,
+    };
+  });
+
+  it("保存中は外部ヘッダーボタンを disabled+保存中... にし二重送信しない", async () => {
+    const user = userEvent.setup();
+    const gate = deferredGate();
+    const mutate = vi.fn();
+    pendingCtl.current = {
+      mutate,
+      gate: gate.promise,
+      resolve: gate.resolve,
+      reject: gate.reject,
+    };
+
+    renderForm("/inventory/7");
+    const save = screen.getByRole("button", { name: "保存" });
+
+    try {
+      await user.click(save);
+      await waitFor(() => {
+        expect(save).toBeDisabled();
+        expect(save).toHaveTextContent("保存中...");
+      });
+      expect(mutate).toHaveBeenCalledTimes(1);
+
+      await user.click(save);
+      expect(mutate).toHaveBeenCalledTimes(1);
+    } finally {
+      await act(async () => {
+        gate.resolve();
+      });
+    }
+    await waitFor(() => expect(save).toBeEnabled());
   });
 });

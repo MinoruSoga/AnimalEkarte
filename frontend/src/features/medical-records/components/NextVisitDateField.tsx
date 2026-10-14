@@ -70,11 +70,12 @@ export function NextVisitDateField({
   const isValid = errorMessage === null;
 
   const handleChange = (newValue: string) => {
+    if (newValue === value || (newValue === "" ? clearDisabled : setDisabled)) return;
     onChange(newValue);
   };
 
   const handleQuickSelect = (getValue: () => string) => {
-    onChange(getValue());
+    handleChange(getValue());
   };
 
   const isInputInvalid = !isValid && value !== "";

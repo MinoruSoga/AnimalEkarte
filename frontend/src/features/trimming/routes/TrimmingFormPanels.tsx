@@ -166,7 +166,7 @@ export function TrimmingFormBody({
 
   return (
     <PageLayout
-      title={mode === "new" ? "トリミング登録" : "トリミング編集"}
+      title={mode === "new" ? "トリミング登録" : canSubmit ? "トリミング編集" : "トリミング詳細"}
       onBack={onBack}
       resource={ResourceTrimming}
       maxWidth={LAYOUT.pageContentMaxWidth.form}

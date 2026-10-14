@@ -25,7 +25,7 @@ export class OwnersPage extends BasePage {
   }
 
   newButton(): Locator {
-    return this.page.getByRole("button", { name: "新規登録" });
+    return this.page.getByRole("button", { name: "新規飼主登録" });
   }
 
   /** Matches OwnersListTable searchPlaceholder (includes 飼主No / ペット番号). */

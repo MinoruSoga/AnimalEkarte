@@ -24,7 +24,7 @@ export class VaccinationsPage extends BasePage {
   }
 
   newButton(): Locator {
-    return this.page.getByRole("button", { name: "新規登録" });
+    return this.page.getByRole("button", { name: "新規予防接種登録" });
   }
 
   searchInput(): Locator {
