@@ -17,6 +17,7 @@ const EXPECTED_HEADERS = [
   "トリミング",
   "ホテル",
   "用品他",
+  "往診",
   "支払方法",
   "合計",
   "返金額",
@@ -47,7 +48,7 @@ function bodyRows(table: HTMLElement) {
 }
 
 describe("BillingDetailTable — EMR-354 日次バケット投影", () => {
-  it("固定列が日次バケット順で出力される（時刻, 領収No, 診療, 外科, RV, フード, トリミング, ホテル, 用品他, 支払方法, 合計, 返金額, 純額, 飼主名, ペット名）", () => {
+  it("固定列が日次バケット順で出力される", () => {
     render(<BillingDetailTable details={[detail({ categoryAmounts: { examination: 5000 } })]} />);
     const headers = within(screen.getByRole("table"))
       .getAllByRole("columnheader")
@@ -132,11 +133,69 @@ describe("BillingDetailTable — EMR-354 日次バケット投影", () => {
     expect(screen.getByText("会計明細がありません")).toBeInTheDocument();
   });
 
+  it("house_call と goods は別部門セルとフッタへ投影する", () => {
+    render(
+      <BillingDetailTable
+        showFooter
+        details={[
+          detail({
+            billingId: 41,
+            ownerName: "往診飼主",
+            petName: "往診ペット",
+            category: "house_call",
+            billingAmount: 1000,
+            refundAmount: 0,
+            netAmount: 1000,
+            categoryAmounts: { house_call: 1000 },
+          }),
+          detail({
+            billingId: 42,
+            ownerName: "物販飼主",
+            petName: "物販ペット",
+            category: "goods",
+            billingAmount: 200,
+            refundAmount: 0,
+            netAmount: 200,
+            categoryAmounts: { goods: 200 },
+          }),
+        ]}
+      />,
+    );
+
+    const table = screen.getByRole("table");
+    const headers = within(table)
+      .getAllByRole("columnheader")
+      .map((header) => header.textContent);
+    const houseCallIndex = headers.indexOf("往診");
+    const goodsIndex = headers.indexOf("用品他");
+    expect(houseCallIndex).toBe(goodsIndex + 1);
+
+    const houseCallRow = within(table).getByText("往診飼主").closest("tr")!;
+    const houseCallCells = within(houseCallRow)
+      .getAllByRole("cell")
+      .map((cell) => cell.textContent);
+    expect(houseCallCells[houseCallIndex]).toBe("¥1,000");
+    expect(houseCallCells[goodsIndex]).toBe("-");
+
+    const goodsRow = within(table).getByText("物販飼主").closest("tr")!;
+    const goodsCells = within(goodsRow)
+      .getAllByRole("cell")
+      .map((cell) => cell.textContent);
+    expect(goodsCells[houseCallIndex]).toBe("-");
+    expect(goodsCells[goodsIndex]).toBe("¥200");
+
+    const footerRow = within(table).getAllByRole("row").at(-1)!;
+    expect(within(footerRow).getByText("¥1,000")).toBeInTheDocument();
+    expect(within(footerRow).getByText("¥200")).toBeInTheDocument();
+    expect(within(footerRow).getAllByText("¥1,200")).toHaveLength(2);
+  });
+
   it("categoryAmounts 欠落（旧ペイロード）は部門セルに記録なしを出す（MIN(category) へは寄せない）", () => {
     render(<BillingDetailTable details={[detail({ billingId: 4 })]} />);
     // category=examination の MIN(category) 値を全額部門セルへ誤表示しないこと。
     // 代替表示として記録なしが出る。
-    expect(screen.getAllByText("記録なし").length).toBeGreaterThan(0);
+    const missingDepartmentCell = screen.getByText("記録なし").closest("td");
+    expect(missingDepartmentCell).toHaveAttribute("colspan", "8");
   });
 
   it("異なる billingId は別行のまま（過剰集約しない）", () => {

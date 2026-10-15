@@ -23,11 +23,13 @@ type openAPICategoryContractDocument struct {
 }
 
 type openAPICategoryContractSchema struct {
+	Enum       []string                                   `yaml:"enum"`
 	Properties map[string]openAPICategoryContractProperty `yaml:"properties"`
 }
 
 type openAPICategoryContractProperty struct {
 	Enum []string `yaml:"enum"`
+	Ref  string   `yaml:"$ref"`
 }
 
 func TestItemCategoryOpenAPIContract(t *testing.T) {
@@ -42,15 +44,30 @@ func TestItemCategoryOpenAPIContract(t *testing.T) {
 		want = append(want, string(category))
 	}
 
-	for _, schemaName := range []string{"EstimateItemInput", "EstimateItems", "BillingItems"} {
+	for _, schemaName := range []string{"EstimateItemInput", "EstimateItems", "BillingItems", "BillingItem"} {
 		t.Run(schemaName, func(t *testing.T) {
 			schema, exists := document.Components.Schemas[schemaName]
 			require.True(t, exists, "schema %s must exist", schemaName)
 			category, exists := schema.Properties["category"]
 			require.True(t, exists, "schema %s must define category", schemaName)
+			if schemaName == "BillingItem" {
+				const canonicalCategoryRef = "#/components/schemas/ItemCategory"
+				require.Equal(t, canonicalCategoryRef, category.Ref)
+				resolvedSchemaName := strings.TrimPrefix(category.Ref, "#/components/schemas/")
+				resolvedSchema, exists := document.Components.Schemas[resolvedSchemaName]
+				require.True(t, exists, "referenced schema %s must exist", resolvedSchemaName)
+				assert.ElementsMatch(t, want, resolvedSchema.Enum)
+				return
+			}
 			assert.ElementsMatch(t, want, category.Enum)
 		})
 	}
+
+	t.Run("ItemCategory is the canonical enum schema", func(t *testing.T) {
+		schema, exists := document.Components.Schemas["ItemCategory"]
+		require.True(t, exists)
+		assert.ElementsMatch(t, want, schema.Enum)
+	})
 
 	t.Run("MerchandiseItem preserves restricted inventory inputs", func(t *testing.T) {
 		schema, exists := document.Components.Schemas["MerchandiseItem"]

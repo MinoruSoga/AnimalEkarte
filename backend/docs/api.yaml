@@ -202,7 +202,7 @@ components:
           type: integer
           format: int64
         category:
-          type: string
+          $ref: '#/components/schemas/ItemCategory'
         name:
           type: string
         unit_price:
