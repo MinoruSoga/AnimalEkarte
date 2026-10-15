@@ -1,8 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-
 import { RequiredMark } from "./RequiredMark";
 
 // eslint-disable-next-line no-restricted-syntax -- Storybook CSF requires default export
@@ -16,14 +12,11 @@ type Story = StoryObj<typeof RequiredMark>;
 
 export const Default: Story = {};
 
-export const RequiredField: Story = {
+/** フォームのラベル末尾に置く実使用イメージ（`*` は aria-hidden でラベルの読み上げに含まれない） */
+export const InLabel: Story = {
   render: () => (
-    <div className="space-y-2">
-      <Label htmlFor="required-mark-owner">
-        飼主名
-        <RequiredMark />
-      </Label>
-      <Input id="required-mark-owner" required placeholder="入力例" />
-    </div>
+    <span className="text-base">
+      品目名 <RequiredMark />
+    </span>
   ),
 };
