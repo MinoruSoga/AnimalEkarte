@@ -3,7 +3,7 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | ontology.accounting／語彙正本 |
-| 決定状態 | [初回](../domains/accounting/lifecycle.md#accounting-agreement-first-five)＋[第二群](../domains/accounting/lifecycle.md#accounting-agreement-second)＋[第三群](../domains/accounting/lifecycle.md#accounting-agreement-third)＋[第四群](../domains/accounting/lifecycle.md#accounting-agreement-fourth)＋[第五群](../domains/accounting/lifecycle.md#accounting-agreement-fifth)＋[第六群](../domains/accounting/lifecycle.md#accounting-agreement-sixth)の範囲。細部の未決は業務正本へ |
+| 決定状態 | [初回](../domains/accounting/lifecycle.md#accounting-agreement-first-five)＋[第二群](../domains/accounting/lifecycle.md#accounting-agreement-second)＋[第三群](../domains/accounting/lifecycle.md#accounting-agreement-third)＋[第四群](../domains/accounting/lifecycle.md#accounting-agreement-fourth)＋[第五群](../domains/accounting/lifecycle.md#accounting-agreement-fifth)＋[第六群](../domains/accounting/lifecycle.md#accounting-agreement-sixth)＋[第七群](../domains/accounting/lifecycle.md#accounting-agreement-seventh)の範囲。細部の未決は業務正本へ |
 | 実装状態 | 未確認。概念と現モデルを同一視しない |
 | 実機検証状態 | 未実施 |
 | 文書確認日 | 2026-10-15 |
@@ -27,7 +27,9 @@
 | 割引scope | 割合合算と定額適用の範囲。各明細と会計全体を別に扱い、明細→全体の順 | [順序](../domains/accounting/lifecycle.md#accounting-calculation-order) |
 | 全体値引きの配賦 | 明細割引後の対象税抜額比で配ること。各配賦を切捨て、残円は剰余降順で調整。過大値引きの他行転用とは別 | [配賦](../domains/accounting/lifecycle.md#accounting-calculation-order) |
 | 会計全体割引の除外品目 | 品目マスタで指定し、全体割引の対象額・配賦先から除外。明細割引不可・保険対象外・税区分と別 | [除外指定](../domains/accounting/lifecycle.md#accounting-insurance-and-exclusion) |
-| 取扱保険会社／商品 | 複数会社を扱う前提。アニコムは例で固定一覧ではない。商品ごとの具体式は未決 | [保険](../domains/accounting/lifecycle.md#accounting-insurance-and-exclusion) |
+| 取扱保険会社／商品 | 複数会社を扱う前提。アニコムは例で固定一覧ではない。資格／残限度・負担額はスタッフ確認・記録。商品ごとの自動給付算式は将来の対象 | [保険](../domains/accounting/lifecycle.md#accounting-insurance-and-exclusion) |
+| 保険確認結果／保険負担額 | スタッフが外部画面等で確認した資格・残限度と今回保険が負担する額。未確認／不明は有効と別、窓口利用不可は補償対象外と別。保険会社の実入金ではない | [窓口保険](../domains/accounting/lifecycle.md#accounting-insurance-window-scope) |
+| 今回利用する保険契約 | 保険を使うペットごとに1回の会計で1契約。同じ診療費への複数契約併用・給付調整は対象外 | [契約の単位](../domains/accounting/lifecycle.md#accounting-insurance-window-scope) |
 | マスタ変更権限付きスタッフ | 対象の価格・割引・保険・支払方法マスタ変更を許可されたスタッフ。管理者以外も含み、全スタッフとは別 | [権限](../domains/accounting/lifecycle.md#requirement-fr-accounting-master-authorized-maintenance) |
 | 税抜計算／税込表示 | 価格・値引きの内部算定は税抜、飼主向け料金は税込。表示用明細税込額と請求書の税率別税額を区別 | [計算](../domains/accounting/lifecycle.md#accounting-calculation-order) |
 | 請求書の税率別税額 | 値引き・配賦後の税抜額を請求書／税率ごとに集約し、税額の1円未満を一度切り捨てる製品方針 | [税と根拠](../domains/accounting/lifecycle.md#accounting-tax-evidence) |
@@ -50,7 +52,9 @@
 | 受領証／請求書／領収書／返金帳票→取引履歴 | 預り金受領証、最終会計に充当と今回入金、返金に額／方法／元取引番号。再発行でも元番号維持 | 再発行表示と旧帳票履歴を保持。番号書式等は未決。充当を新受領にしない |
 | 入金済み額→返金可能額 | 実入金累計−実返金累計の範囲内 | 方法・権限・理由必須。元カード→現金等の別方法可、金額追加承認なし。決済自動連携／規約適合の承認ではない |
 | 会計取消→預り金の充当解除／残高復元 | 元飼主へ有効な充当分を一度戻す。取消・解除・復元の対応を保持 | 実返金は別。新受領・通常Undo再開なし。返金済み分の二重復元禁止 |
-| 明細／会計全体→割引 | 両scopeの割引を利用可能 | 明細→全体、同scope割合合算・割合額四捨五入→定額。全体額は明細後の対象税抜額比で配賦。超過警告・対象額上限・他行転用なし。保険具体式は未決 |
+| 明細／会計全体→割引 | 両scopeの割引を利用可能 | 明細→全体、同scope割合合算・割合額四捨五入→定額。全体額は明細後の対象税抜額比で配賦。超過警告・対象額上限・他行転用なし。保険負担額は第七群のスタッフ確認記録 |
+| 会計内のペット→今回利用契約 | 保険利用時に各ペット1契約。複数ペットはそれぞれ保持 | 同じ診療費の複数契約併用なし。保有契約数自体の制限ではない |
+| 保険確認結果→窓口会計 | 確認結果・保険負担額を対象契約／ペット／明細へ対応 | 保険会社への請求・入金照合・査定差額管理は対象外。ローカル訂正から外部状態を自動変更しない |
 | 請求書→税区分／税率別集約 | 配賦後の各行から複数区分／税率の集約を保持 | マスタ由来の会計時点の区分・税率を保持。課税区分を混同せず税率別1回切捨て。全品目一律税率や保険給付の課税標準控除を推定しない |
 | 品目→会計全体割引除外指定 | 品目ごとに指定し、会計時点の根拠を保持 | 除外行へ配賦しない。全行除外でも元明細・税は残り、請求全体0円とは限らない |
 | 帳票→飼主／ペット別明細／変更履歴 | 宛名は飼主、元明細をペット別に区分、元取引と今回変更額を追跡 | 訂正差額と実返金は別。元取引・旧帳票を上書きしない |
@@ -62,4 +66,4 @@
 
 [精算詳細](../domains/accounting/pages/accounting-settlement.md)の「未精算」「精算済み」と支払状態を無条件に同一視しない。現行の単一ペット／カルテ参照や全額入金制約は[現行差分](../../design/domains/accounting/technical-spec.md#accounting-current-gap)へ。API／DB識別子や画面ラベルの改名は今回行わない。
 
-予約の[語彙正本](reservations.md)・カルテの[語彙正本](medical-records.md)を再利用し、確認医師／編集者・項目実施取消と会計操作を混同しない。今回の定義・関係・制約は9FR／92ACへ照合する。第三群で飼主単位預り金／予約任意・同飼主別予約／ペット利用、割合合算→金額→割引後保険、同日作成順／理由付き保存後配分変更、非現金超過の返金必要、別方法返金・金額追加承認なし、受領／充当／今回入金／返金の帳票と元番号維持を追加。旧FR識別子のreservation-advanceは参照互換のため保持し、最新概念をAPI／コード改名としない。第四群で両粒度の割引・超過警告と承認後の請求額0円下限、会計取消時の残高復元と別返金を追加。有効充当額は取消による解除・復元を反映し、未充当残との整合を照合する。第五群で明細→全体のscope分離と比例配賦、税抜計算／税込表示、割合値引き額四捨五入と請求書税率別税切捨て、超過の実値引き上限・他行転用なしを反映。同率配賦の固定順は技術案。第六群で複数保険会社、品目マスタの全体割引除外、飼主宛名・ペット別明細と元取引／今回変更額、管理者と権限付きスタッフのマスタ変更を追加。保険会社／商品別具体式・除外の初期値／移行・小数数量等の元明細額確定、減額時の充当調整・医院間／別飼主等の残件は[業務正本](../domains/accounting/lifecycle.md#accounting-open-decisions)へ。全マスタ・帳票の語彙網羅は未完了。
+予約の[語彙正本](reservations.md)・カルテの[語彙正本](medical-records.md)を再利用し、確認医師／編集者・項目実施取消と会計操作を混同しない。今回の定義・関係・制約は9FR／99ACへ照合する。第三群で飼主単位預り金／予約任意・同飼主別予約／ペット利用、割合合算→金額→割引後保険、同日作成順／理由付き保存後配分変更、非現金超過の返金必要、別方法返金・金額追加承認なし、受領／充当／今回入金／返金の帳票と元番号維持を追加。旧FR識別子のreservation-advanceは参照互換のため保持し、最新概念をAPI／コード改名としない。第四群で両粒度の割引・超過警告と承認後の請求額0円下限、会計取消時の残高復元と別返金を追加。有効充当額は取消による解除・復元を反映し、未充当残との整合を照合する。第五群で明細→全体のscope分離と比例配賦、税抜計算／税込表示、割合値引き額四捨五入と請求書税率別税切捨て、超過の実値引き上限・他行転用なしを反映。同率配賦の固定順は技術案。第六群で複数保険会社、品目マスタの全体割引除外、飼主宛名・ペット別明細と元取引／今回変更額、管理者と権限付きスタッフのマスタ変更を追加。第七群で外部画面等によるスタッフの資格／残限度確認と結果・保険負担額の記録、窓口会計限定、ペットごと1利用契約を追加。会社／商品別の自動給付算式は将来の別スコープで現在の記録運用の前提にしない。除外の初期値／移行・小数数量等の元明細額確定、減額時の充当調整・医院間／別飼主等の残件は[業務正本](../domains/accounting/lifecycle.md#accounting-open-decisions)へ。全マスタ・帳票の語彙網羅は未完了。

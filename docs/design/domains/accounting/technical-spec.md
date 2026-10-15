@@ -8,7 +8,7 @@
 | 実機検証状態 | 未実施。移行・並行性・性能も未検証 |
 | 文書確認日 | 2026-10-15 |
 
-[業務・AC正本](../../../spec/domains/accounting/lifecycle.md)と[語彙](../../../spec/ontology/accounting.md)を参照。対象は初回5点〜第六群の部分反映で、全writer・consumerの実装適合やD10全体完了を表さない。
+[業務・AC正本](../../../spec/domains/accounting/lifecycle.md)と[語彙](../../../spec/ontology/accounting.md)を参照。対象は初回5点〜第七群の部分反映で、全writer・consumerの実装適合やD10全体完了を表さない。
 
 <a id="accounting-current-gap"></a>
 ## 現行実装と確定業務の差分
@@ -30,7 +30,7 @@ API wireの正本は[現行API](../../../../backend/docs/api.yaml)、DBはbacken
 - 請求ヘッダの飼主／医院と、行ごとの元ペット・診療／専用記録・元明細IDを区別する。選択した未請求明細と既請求への回収参照を別に保持し、同じ元明細の二重請求を防ぐ。複数対象の正確な予約／記録リンクと確定イベントを保持する。
 - 請求確定・追加入金・訂正・取消・返金を別intentとして扱う。対象ID群・期待版・依存参照・操作識別・actor・サーバー時刻、操作に必要な理由／返金方法を保持する。現在の医院／飼主所属・認可・請求状態・入金／返金累計を保存直前に再検証する。
 - 元請求の不変な履歴と訂正／入金／返金を追跡し、請求額・入金履歴・残額の表示をそれぞれ取得する。訂正後料金に対する未払・返金必要を別projectionで表示し、実返金後に更新する。通常請求の例は業務ACへ従う。古い請求から初期充当し、スタッフ変更を元請求別の配分履歴に保存する。原請求日を初期順の根拠とし同日は作成順へ対応する設計。同一作成時刻は一意な作成順識別で安定させる技術案。保存後も理由と元／新配分履歴を保持して変更する。現金超過は釣銭、非現金超過は実入金と請求充当を分けて返金必要額へ。会計取消時の預り金残高復元と別返金は第四群へ従う。取消後再請求・貸倒・減額時の充当調整等の未決を自動処理にしない。
-- 保存する会計時点の根拠は価格・数量・元値／手修正値・適用割引・保険等と計算結果。現在マスタの再計算を過去会計表示の正本にしない。第五・第六群の合意範囲と規則版を保持し、未確定の保険条件や除外設定の初期値を承認済みversionへ登録しない。請求書と実受領の領収書を別projectionとし、再発行表示・訂正前帳票の履歴を保持する設計。発行時の値／対象版を保持し現在マスタから旧帳票を再生成しない。保存形式・番号書式等は残件だが、各取引の元番号を再発行で維持することは合意済み。
+- 保存する会計時点の根拠は価格・数量・元値／手修正値・適用割引・保険等と計算結果。現在マスタの再計算を過去会計表示の正本にしない。第五・第六群の合意範囲と規則版を保持し、未確認の保険条件や除外設定の初期値を承認済みversionへ登録しない。スタッフ確認結果・今回の保険負担額を会計時点の根拠へ対応させる。請求書と実受領の領収書を別projectionとし、再発行表示・訂正前帳票の履歴を保持する設計。発行時の値／対象版を保持し現在マスタから旧帳票を再生成しない。保存形式・番号書式等は残件だが、各取引の元番号を再発行で維持することは合意済み。
 - 状態変更と必須の履歴・監査、依存ownerの確定参加を一体で成立させる設計へ。[予約の全writer gate／取得順](../reservations/technical-spec.md#reservation-global-lock-contract)と[受け手契約](../reservations/technical-spec.md#reservation-receiving-contracts)を維持する。複数対象での取得順・transaction範囲・旧writer参加は設計／検証残件で、現行separate-txをsame-tx済みとしない。
 - 同じ操作の再送は同じ内容・対象の結果に照合し、二重入金／二重返金を作らない。payload相違・版競合・認可失効は成立させない。通信切断で結果不明ならreceipt照会／同一操作の再送で確認し、新キーの作り直しや残額0・失敗確定への推測変換を避ける。追加入金等の現行endpoint対応・永続operation receiptは未確認で、新wireを本書だけから決定しない。
 - 返金累計上限は最新の実入金・既返金を競合保護下で再検証。指定方法と実際の返金記録を保持する。元カードから現金等の別方法を記録・操作でき、金額による追加承認は設けない。操作権限・理由・方法と総額上限を検査する。旧支払方法ごとの上限経路が別方法返金を一律拒否しないよう実装差分を照合する必要がある。決済サービスの実行・規約適合は未確認で、自動連携を追加しない。
@@ -46,7 +46,7 @@ API wireの正本は[現行API](../../../../backend/docs/api.yaml)、DBはbacken
 - 5,000円受領→8,000円請求へ5,000円充当では未払3,000円・未充当0円。5,000円受領→確認済み最終料金3,000円なら3,000円充当・未充当2,000円。未実行返金は残を消さず返金済みとしない。同一前金への充当／返金を競合保護し、同一操作の再送で二重使用しない。異医院・別飼主の移管を成立させない。同飼主の別予約／別ペットへ利用する際は、元飼主・任意の元予約を保持して充当先と金額・期待版を再検証する。複数充当先の配分を明示し、合計使用額を最新利用可能額以内にする。
 - 通常請求の未払と返金必要は訂正後料金と請求帰属の支払充足から計算する別表示。全額10,000円入金→9,000円訂正では未払0・返金必要1,000、3,000円入金→9,000円訂正では未払6,000・返金必要0。実返金前に支払充足や返金履歴を減らさない。返金後の最新状態を照合して二重返金を防ぎ、支払方法の誤記訂正は金額／実授受日を動かさない。
 - 古い請求への初期配分・スタッフ変更・釣銭を保存前previewと保存後receiptで照合する。選択請求の残額・版と配分合計を一体で検証し、別操作の入金と競合したら旧配分で過大充当しない。預り金受領との操作種別を分け、釣銭や非現金超過を預り金へ自動転用しない。再配分は元の実入金と実日付を保持し、請求訂正・既返金・他の配分を現在版で照合する。元配分の取消と新配分・関連請求の残額・理由／監査を原子的に保存し、二重受領や片側変更を作らない。
-- 割合合算→金額割引→割引後の保険対象額という段階と、スタッフが確認修正した保険対象・割合・上限を計算根拠へ保存する。明細／会計全体の両方を利用でき、100%超や商品額超は警告し、承認して進めた請求額は0円を下限とする。明細→会計全体・比例配賦と税丸めは第五群で更新。保険の税抜／税込基準・具体式と品目除外設定の初期値／移行は未決で、既存計算式を新業務の承認済み算式にしない。
+- 割合合算→金額割引→割引後の保険対象額という段階と、スタッフが確認修正した保険対象・割合・上限を計算根拠へ保存する。明細／会計全体の両方を利用でき、100%超や商品額超は警告し、承認して進めた請求額は0円を下限とする。明細→会計全体・比例配賦と税丸めは第五群で更新。保険は第七群のスタッフ確認・負担額記録へ従い、会社／商品別の自動給付算式は今回の対象外。品目除外設定の初期値／移行は未決で、既存計算式を新業務の承認済み算式にしない。
 - 今月売上なしの過去未納飼主も含める読取projectionへ。全ページの集計と表示対象を整合させ、取得失敗を未納0に変換しない。帳票発行・再発行は対象請求／受領／訂正版と発行履歴を照合し、訂正前の記録を保持する。再発行操作と新入金を同じintentにしない。
 
 前金の金額／キャンセル料／受領時期はD05、実入出金と充当の集計はD12／D16、操作権限はC04とD10で照合。新endpoint・DDL・payment methodの実装対応は未確認で、本書から実装／移行を開始しない。ホテル等の元予約参照を受けるが、D05の内部完了条件・予約state・臨床確認を再定義しない。
@@ -85,7 +85,7 @@ API wireの正本は[現行API](../../../../backend/docs/api.yaml)、DBはbacken
 - 配賦後の明細を会計時点の税区分・適用税率でグループ化し、請求書／税率単位の税抜額に税率を掛けて税額を1回切り捨てる。非課税等は区分を保持し、課税行や単なる0%率へ潰さない。行単位の表示用税込額は請求書の税率別税額の正本にしない。税抜価格と飼主向け税込表示の対応を保存し、表示計算と請求書集約の差を照合できるようにする。
 - snapshotには元行参照・凍結明細順、税抜元額／手修正、各scopeの割合・定額・要求額／実適用額／超過額、警告を承認した根拠、全体配賦基準／剰余・調整先／結果、税区分・税率・集約額／税額と丸め規則、保険対象区分・スタッフ確認修正値、算定版・出力結果を保持する案。税率マスタ・価格マスタ変更後も保存済み結果を保持する。訂正は元版を消さず新旧snapshotと理由・actor・操作参照を監査へ結ぶ。
 - previewと確定で同じ算定版／入力を照合し、サーバー側で対象額・実値引き上限・配賦合計・現在版を再検査する。保存・計算履歴・audit_logs・operation receiptを原子的に成立させる案。警告承認だけを金額整合の保証にせず、再送や同時更新で違う配賦結果を保存しない。
-- 保険適用対象は配賦後の行から追跡できるようにするが、保険額の税抜／税込基準・税額との関係・上限／端数・最終窓口負担算式は未決。保険額で税の課税標準を減らす設計や旧式の流用を確定しない。[公的根拠と製品選択](../../../spec/domains/accounting/lifecycle.md#accounting-tax-evidence)の区別を保持し、税率別切捨てを法令上唯一の方法と説明しない。
+- 保険適用対象は配賦後の行から追跡し、保険負担額は第七群のスタッフ確認結果を記録する。会社／商品別の税抜／税込基準・税額との関係・上限／端数を独自に自動算定するengineは今回の対象外。保険額で税の課税標準を減らす設計や旧式の流用を確定しない。[公的根拠と製品選択](../../../spec/domains/accounting/lifecycle.md#accounting-tax-evidence)の区別を保持し、税率別切捨てを法令上唯一の方法と説明しない。
 
 [計算例](../../../spec/domains/accounting/lifecycle.md#accounting-calculation-examples)に加え、同率剰余の固定順、配賦対象0円、過大な割合＋定額、マスタ更新・表示並替え・再送後の同じ結果を検証対象にする。これらの実行検証、税務分類の確認、DTO／schema・旧会計との互換は未実施。
 
@@ -94,7 +94,7 @@ API wireの正本は[現行API](../../../../backend/docs/api.yaml)、DBはbacken
 
 [業務正本](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-sixth)の実現案。1FR・14ACを追加したが、API／DB・権限設定・runtimeは変更していない。
 
-- 保険会社／商品を計算条件から識別できる参照として保持する案。アニコムを固定値や会社一覧の正本にせず、取扱会社・商品・各条件／算式の確認を待つ。既存の補償率手選択を将来の自動設定禁止に読み替えず、自動設定・オンライン請求を実装済みとも扱わない。
+- 保険会社／商品・今回利用する契約を会計時点の根拠から識別できる参照として保持する案。アニコムを固定値や会社一覧の正本にしない。第七群のスタッフ確認・記録運用に、全商品一覧や自動給付算式の完成を要求しない。既存の補償率手選択を将来の自動設定禁止に読み替えず、自動設定・オンライン請求を実装済みとも扱わない。
 - 品目マスタの全体割引除外を元行と会計snapshotへ対応させ、明細割引後の対象行だけから全体対象額と配賦を求める。除外行の配賦は0円、全行除外でも除外行金額と税は残る。保険対象外・税区分・明細割引を別に保持する。新フィールド名・既定値・旧明細移行・編集中の変更取込み時点は未定。現行項目の保険対象外を代用せず、現行モデルに対応済みと宣言しない。
 - 飼主宛名と元ペットごとの明細区分を出力snapshotへ対応させる。訂正は元請求版と今回増減、部分返金は元入金と今回の実返金を別projectionにし、元番号・対象版・方法・実日付・履歴へ接続する。金額訂正から実返金を生成しない。紙面のレイアウト／改ページ・ペットに帰属しない行・保存形式・発行権限は未決。過去帳票を現在マスタで再生成して上書きしない。
 - マスタ編集の対象とactor・選択医院・現在の操作grantを保存直前に再検証し、変更前後・時刻を監査へ結ぶ。権限失効や他医院参照を旧UI表示で通さない。現行の共用resourceのままで業務上の編集者制限を満たすかは確認が必要で、既存会計権限を新マスタ編集許可へ自動転用しない。権限グループ付与自体は別操作・別責務。
@@ -119,6 +119,18 @@ API wireの正本は[現行API](../../../../backend/docs/api.yaml)、DBはbacken
 
 [保険マスタ](../../../spec/screens/settings/master-insurance.md)の補償率自動設定なし、[支払方法](../../../spec/screens/settings/payment-methods.md)の固定4種は既存挙動の説明。承認された将来ポリシーへ昇格させず、支払ID整合の[ADR003](../../../architecture/adr/003-payment-method-identity-and-consistency.md)は保持する。商品分類から税率を断定する旧例も採用せず、品目の税務分類確認は医院へ残す。
 
+<a id="accounting-seventh-design"></a>
+## 第七群のスタッフ確認・窓口保険（提案設計）
+
+[承認された窓口保険の境界](../../../spec/domains/accounting/lifecycle.md#accounting-insurance-window-scope)を実現する案。外部画面等で確認した結果と保険負担額を記録し、会社／商品別の自動給付エンジンやオンライン照会APIを前提にしない。
+
+- 会計・対象ペット・今回選んだ契約・対象明細と、資格／残限度の確認結果・今回の保険負担額を対応させてsnapshotへ保持する。具体field名・型・UI・保存schemaは未決で、確認日時や証拠添付等の新たな必須入力を定義しない。既存の計算根拠・変更前後・理由・actorの履歴方針を利用する。
+- 未確認／不明・窓口利用可否・補償対象区分を別概念として表現する。値の欠損や通信失敗を有効へ初期化せず、窓口利用不可だけで補償対象外へ変更しない。外部確認結果の変更を過去会計へ遡及適用しない。
+- 会計内のペットごとに今回利用する契約を一つに対応させる。複数ペットを一つの契約に潰さず、同一診療費の複数契約併用／給付調整を設計に追加しない。ペットが保有する契約全体の件数制限は導入しない。
+- 保険負担額を診療費・税・飼主負担と区別して表示／保存し、飼主の実入金・残額を既存の会計契約へ接続する。記録した負担額を保険会社の実入金・債権回収済みへ変換しない。会社／商品別の税基準・上限・免責・端数は将来自動化する場合に公式条件を確認する別スコープであり、現行の共通率計算を公式検証済みと扱わない。
+- ローカル会計の訂正・取消・返金は既存の会計契約に従って処理し、保険会社側への作用とは分離する。保険会社側の請求・給付・残限度・入金を更新するrequestを発生させず、外部変更済みと表示しない。請求送信・入金照合・査定差額管理の新owner／API／DBを追加しない。
+- 現行の割合選択と控除計算だけで、今回の確認結果・負担額記録・契約分離が実装済みとは判定しない。具体的な認可mapping、表示と保存方式、競合／再送の実装適合は残件。自動給付算式の未整備を、このスタッフ記録運用の業務未決へ戻さない。
+
 ## 受入条件との追跡と設計残件
 
 | 業務FR | 正本AC範囲 | 技術照合対象 |
@@ -127,30 +139,31 @@ API wireの正本は[現行API](../../../../backend/docs/api.yaml)、DBはbacken
 | FR-accounting-receivable-partial-zero | unpaid-finalize／partial-finalize／later-payment／zero-no-fake-payment | 請求と入金の別状態・履歴・残額・0円根拠 |
 | FR-accounting-reasoned-financial-correction | correction-authorization／correction-history／refund-received-cap／refund-method-required／cancel-no-money-stock | 認可・理由・監査・実入金上限・方法・owner分離 |
 | FR-accounting-post-close-separate-movement | post-close-preserve／correction-no-cash-movement | 元締めと差分・実移動の分離 |
-| FR-accounting-calculation-snapshot | master-change-stable／manual-unit-price／discounts-combinable | snapshot・修正元値・第五群の割引算定と保険残件 |
+| FR-accounting-calculation-snapshot | master-change-stable／manual-unit-price／discounts-combinable | snapshot・修正元値・第五群の割引算定と第七群の保険確認記録 |
 | 既決横断境界 | finalization-undo-preserved／clinical-no-auto-finance | 確定歴・正確なリンク・owner receipt |
 | FR-accounting-oldest-payment-allocation | oldest-default／allocation-staff-change／collection-change-return | 古い順・変更・合計・元請求・釣銭と前金の区別 |
 | FR-accounting-reservation-advance | advance-owner-reservation／advance-unallocated-balance／advance-apply-no-double-receipt／advance-surplus-pending／advance-actual-refund／advance-duplicate-use／advance-context-mismatch | 元予約／飼主・未充当残・二重使用／二重受領防止・実返金 |
 | FR-accounting-reasoned-financial-correction（第二群） | paid-reduction-refund-pending／paid-reduction-actual-refund／partial-paid-reduction／payment-method-correction-no-money | 訂正後表示・未実行／実返金・金額不変の誤記訂正 |
-| FR-accounting-calculation-snapshot（第二群） | percent-before-fixed／insurance-staff-review | 割合額四捨五入→金額・保険確認修正snapshotと未決の具体式 |
+| FR-accounting-calculation-snapshot（第二群） | percent-before-fixed／insurance-staff-review | 割合額四捨五入→金額・保険確認修正snapshotと第七群の記録範囲 |
 | FR-accounting-document-and-aged-debt | invoice-receipt-separated／document-reissue-history／aged-debt-without-current-sales | 請求／実受領帳票・再発行／旧履歴・過去未納の表示 |
 | FR-accounting-post-close-separate-movement（第二群） | original-bill-and-movement-date | 原請求日と実日付・充当時の非受領 |
 | FR-accounting-reservation-advance（第三群） | deposit-without-reservation／deposit-other-reservation／deposit-other-pet／deposit-other-owner-denied／deposit-allocation-confirmation／deposit-available-balance | 飼主帰属・予約任意・確認・利用可能額・同時使用防止 |
-| FR-accounting-calculation-snapshot（第三群） | percentage-summed／discount-then-insurance／overdiscount-unresolved | 同scope合算→金額→割引後保険、超過警告・対象額上限、第五群の順序／配賦・税と保険残件 |
+| FR-accounting-calculation-snapshot（第三群） | percentage-summed／discount-then-insurance／overdiscount-unresolved | 同scope合算→金額→割引後保険、超過警告・対象額上限、第五群の順序／配賦・税と第七群の保険確認記録 |
 | FR-accounting-oldest-payment-allocation（第三群） | same-day-created-order／saved-reallocation-reason／reallocation-no-new-money／reallocation-correction-conflict／noncash-excess-refund-pending | 作成順・理由と履歴・原子的再配分・非現金超過 |
 | FR-accounting-reasoned-financial-correction（第三群） | refund-different-method／refund-no-amount-extra-approval | 別方法・金額追加承認なし・総額上限／権限 |
 | FR-accounting-document-and-aged-debt（第三群） | deposit-receipt／final-document-deposit-current／refund-original-transaction／reissue-original-number | 用途別帳票・充当と実受領・取引番号／再発行履歴 |
 | FR-accounting-calculation-snapshot（第四群） | line-and-bill-discount／overdiscount-warning／overdiscount-post-warning-pending | 両粒度利用・明細→全体・超過警告・実適用上限と請求額0円下限 |
 | FR-accounting-reservation-advance（第四群） | cancel-restore-deposit／cancel-deposit-no-cash-refund／cancel-deposit-once-atomic | 取消・充当解除・残高復元と別返金・原子的一度処理 |
 | FR-accounting-calculation-snapshot（第五群） | line-before-invoice／discount-scope-separated／percent-discount-round-yen／invoice-proportional-remainder／invoice-zero-discount-base／overdiscount-line-no-spill／overdiscount-invoice-effective-cap／tax-invoice-rate-once／tax-rate-separated／tax-exclusive-consumer-inclusive／tax-category-snapshot／calculation-audit-replay | 明細→全体・scope分離・割合額丸め・比例配賦・0円／超過・税率別税・税込表示・計算監査 |
-| FR-accounting-calculation-snapshot（第六群） | insurance-multiple-carriers／invoice-exclusion-master／invoice-excluded-base-and-allocation／invoice-all-excluded-zero-base／invoice-exclusion-not-insurance／invoice-exclusion-snapshot-stable | 複数社と未決算式、除外指定・対象額／配賦・保険と税の分離・snapshot |
+| FR-accounting-calculation-snapshot（第六群） | insurance-multiple-carriers／invoice-exclusion-master／invoice-excluded-base-and-allocation／invoice-all-excluded-zero-base／invoice-exclusion-not-insurance／invoice-exclusion-snapshot-stable | 複数社と第七群の確認記録、除外指定・対象額／配賦・保険と税の分離・snapshot |
 | FR-accounting-document-and-aged-debt（第六群） | document-owner-addressee／document-pet-separated／document-correction-original-delta／document-partial-refund-original-delta | 飼主宛名・元ペット区分・元取引と今回差額／実返金・旧履歴 |
 | FR-accounting-master-authorized-maintenance（第六群） | master-admin-edit／master-authorized-staff-edit／master-ungranted-staff-denied／master-permission-rechecked | 管理者／指定スタッフ・対象grant／医院・無許可と失効拒否・監査 |
+| FR-accounting-calculation-snapshot（第七群） | insurance-staff-result-burden／insurance-unknown-not-valid／insurance-window-not-coverage／insurance-one-contract-per-pet／insurance-window-only-scope／insurance-local-correction-no-external／insurance-manual-no-formula-prerequisite | 外部画面等の確認結果／保険負担額・不明と利用可否の分離・ペットごと1利用契約・窓口限定・外部自動変更なし・自動算定は将来 |
 
 overdiscount-unresolved／overdiscount-post-warning-pending は参照互換の既存識別子であり、期待結果は合意済みの警告・請求額0円下限へ更新する。
 
-AC短名は[正本92AC](../../../spec/domains/accounting/lifecycle.md#accounting-acceptance)のAC-accounting-接頭辞に続く名称。ここに第二の期待結果を作らない。
+AC短名は[正本99AC](../../../spec/domains/accounting/lifecycle.md#accounting-acceptance)のAC-accounting-接頭辞に続く名称。ここに第二の期待結果を作らない。
 
-実装前に、確定と入金の競合、同時返金による上限超過、同時二重請求、失効認可／異医院参照、通信切断後の遅延commit、複数記録と締め参加、マスタ変更とsnapshotを対象に正常／拒否／再送／結果不明を照合する必要がある。既存S08／S21／S33は現行手順で、新92ACの実行済み証拠ではない。runtime・API／DB改訂・移行・利用開始・性能は未実施。
+実装前に、確定と入金の競合、同時返金による上限超過、同時二重請求、失効認可／異医院参照、通信切断後の遅延commit、複数記録と締め参加、マスタ変更とsnapshotを対象に正常／拒否／再送／結果不明を照合する必要がある。既存S08／S21／S33は現行手順で、新99ACの実行済み証拠ではない。runtime・API／DB改訂・移行・利用開始・性能は未実施。
 
-未決の業務は[5群の確認項目](../../../spec/domains/accounting/lifecycle.md#accounting-open-decisions)へ。D05／06専用記録、D11見積、D12締め、D13在庫、D16集計、C04権限／C05監査の受け手内部と全体横断再照合は未完了。オンライン保険請求・外部支払／印刷機器を追加実装する設計は含めない。
+未決の業務は[5群の確認項目](../../../spec/domains/accounting/lifecycle.md#accounting-open-decisions)へ。D05／06専用記録、D11見積、D12締め、D13在庫、D16集計、C04権限／C05監査の受け手内部と全体横断再照合は未完了。保険会社への請求送信・入金照合・査定差額管理・会社／商品別の自動給付算定、外部支払／印刷機器を追加実装する設計は含めない。

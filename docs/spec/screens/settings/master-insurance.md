@@ -3,14 +3,15 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | page.settings.master-insurance／画面仕様 |
-| 決定状態 | 既存本文は継承（決定根拠未確認）。第六群の合意と未決は下記正本へ |
+| 決定状態 | 既存本文は継承（決定根拠未確認）。第六・第七群の合意と未決は下記正本へ |
 | 実装状態 | 既存記載を継承。今回の目標機能／認可適合は未確認 |
 | 実機検証状態 | 未実施 |
 | 文書確認日 | 2026-10-15 |
 
-### 会計第六群との対応
+<a id="会計第六群との対応"></a>
+### 会計第六・第七群との対応
 
-[第六群の業務正本](../../domains/accounting/lifecycle.md#accounting-agreement-sixth)と[マスタ変更権限](../../domains/accounting/lifecycle.md#requirement-fr-accounting-master-authorized-maintenance)へ従う。複数の保険会社を扱い、アニコムは例。取扱会社・商品一覧／具体式は未決。下記の補償率自動設定なしは現行記載で、将来の自動設定禁止を合意したものではない。 全スタッフに変更を開放せず、対象grant・医院scopeを検査する。今回、実権限・設定・API／DBは変更していない。詳細な[現行mapping](../../../design/domains/accounting/technical-spec.md#accounting-master-permission-map)は技術仕様へ。
+[第六群の業務正本](../../domains/accounting/lifecycle.md#accounting-agreement-sixth)と[マスタ変更権限](../../domains/accounting/lifecycle.md#requirement-fr-accounting-master-authorized-maintenance)へ従う。複数の保険会社を扱い、アニコムは例。[第七群](../../domains/accounting/lifecycle.md#accounting-insurance-window-scope)では、スタッフが資格・残限度を外部画面等で確認し、結果と保険負担額を会計に記録する。保険利用は会計ごと・ペットごとに1契約、同じ診療費の複数契約併用は対象外。全取扱商品一覧・会社／商品別の自動給付算式はこの記録運用の前提ではなく、将来自動化時の別スコープ。保険会社への請求・入金照合・査定差額管理は今回の対象外。下記の補償率自動設定なしは現行記載で、将来の自動設定禁止を合意したものではない。 全スタッフに変更を開放せず、対象grant・医院scopeを検査する。今回、実権限・設定・API／DBは変更していない。詳細な[現行mapping](../../../design/domains/accounting/technical-spec.md#accounting-master-permission-map)は技術仕様へ。
 
 
 ## 概要
@@ -36,7 +37,7 @@
 ## 主要な機能
 
 ### 1. 会計への補償率自動設定（未実装）
-保険マスタの `coverage_rate` を会計の割合へ自動設定する連携はない。会計詳細の `InsuranceCard` では、スタッフが保険利用と「保険会社が支払う割合」を選び、その選択値で保険負担額を計算する（[accounting-settlement.md](../../domains/accounting/pages/accounting-settlement.md)）。保険控除計算自体は実装済みであり、本マスタ連携の未実装と混同しない。会計・請求の実装は `backend/internal/billing/`。
+保険マスタの `coverage_rate` を会計の割合へ自動設定する連携はない。会計詳細の `InsuranceCard` では、スタッフが保険利用と「保険会社が支払う割合」を選び、その選択値で保険負担額を計算する（[accounting-settlement.md](../../domains/accounting/pages/accounting-settlement.md)）。保険控除計算自体は既存記載上実装済みであり、本マスタ連携の未実装と混同しない。これは現行の説明で、[第七群の確認結果・負担額記録](../../domains/accounting/lifecycle.md#accounting-insurance-window-scope)や会社／商品の公式条件への適合を検証済みという意味ではない。会計・請求の実装は `backend/internal/billing/`。
 
 マスタ値と会計計算の連携状況:
 
