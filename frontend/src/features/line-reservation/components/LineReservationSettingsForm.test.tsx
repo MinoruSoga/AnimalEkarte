@@ -491,6 +491,59 @@ describe("LineReservationSettingsForm — closed_weekdays 再取得同期", () =
     expect(screen.queryByText(/サーバー上で更新/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
   });
+
+  it("重複を含む保存値から重複なしの別内容へ再取得された場合は同期する", async () => {
+    const getBody = setupPutHandler();
+    const initial: ReservationSetting = {
+      ...baseSetting,
+      closed_weekdays: [1, 1] as unknown as string,
+    };
+    const { rerender } = renderForm(initial);
+
+    expect(screen.getByLabelText("月")).toBeChecked();
+    expect(screen.getByLabelText("火")).not.toBeChecked();
+
+    const refreshed: ReservationSetting = {
+      ...baseSetting,
+      closed_weekdays: [1, 2] as unknown as string,
+    };
+    rerenderForm(rerender, refreshed);
+
+    await waitFor(() => expect(screen.getByLabelText("火")).toBeChecked());
+    expect(screen.getByLabelText("月")).toBeChecked();
+    expect(screen.getByLabelText("水")).not.toBeChecked();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(getBody()).not.toBeNull());
+    expect(getBody()?.closed_weekdays).toEqual([1, 2]);
+  });
+
+  it("重複なしの保存値から重複を含む別内容へ再取得された場合も同期する", async () => {
+    const getBody = setupPutHandler();
+    const initial: ReservationSetting = {
+      ...baseSetting,
+      closed_weekdays: [1, 2] as unknown as string,
+    };
+    const { rerender } = renderForm(initial);
+
+    expect(screen.getByLabelText("月")).toBeChecked();
+    expect(screen.getByLabelText("火")).toBeChecked();
+
+    const refreshed: ReservationSetting = {
+      ...baseSetting,
+      closed_weekdays: [1, 1] as unknown as string,
+    };
+    rerenderForm(rerender, refreshed);
+
+    await waitFor(() => expect(screen.getByLabelText("火")).not.toBeChecked());
+    expect(screen.getByLabelText("月")).toBeChecked();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(getBody()).not.toBeNull());
+    expect(getBody()?.closed_weekdays).toEqual([1, 1]);
+  });
 });
 
 describe("LineReservationSettingsForm — FE-RC-210 mutation permission re-check", () => {

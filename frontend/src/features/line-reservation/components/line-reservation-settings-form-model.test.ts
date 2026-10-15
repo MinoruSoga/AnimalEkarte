@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   parseClosedWeekdays,
+  sameClosedWeekdays,
   asJsonb,
   isStringArray,
   isBusinessHours,
@@ -143,6 +144,40 @@ describe("parseClosedWeekdays", () => {
     ];
 
     invalidValues.forEach((value) => expect(parseClosedWeekdays(value)).toBeNull());
+  });
+});
+
+describe("sameClosedWeekdays", () => {
+  it("重複の多重度が異なる配列は等値と判定しない", () => {
+    expect(sameClosedWeekdays([1, 1], [1, 2])).toBe(false);
+    expect(sameClosedWeekdays([1, 2], [1, 1])).toBe(false);
+    expect(sameClosedWeekdays([1, 1, 2], [1, 2, 2])).toBe(false);
+  });
+
+  it("順序が違っても多重度が一致すれば等値と判定する", () => {
+    expect(sameClosedWeekdays([1, 2], [2, 1])).toBe(true);
+    expect(sameClosedWeekdays([1, 1], [1, 1])).toBe(true);
+    expect(sameClosedWeekdays([1, 2, 2], [2, 2, 1])).toBe(true);
+  });
+
+  it("要素数が異なる配列は等値と判定しない", () => {
+    expect(sameClosedWeekdays([1], [1, 1])).toBe(false);
+    expect(sameClosedWeekdays([], [1])).toBe(false);
+  });
+
+  it("引数の配列を書き換えない", () => {
+    const a = [2, 1];
+    const b = [1, 2];
+
+    expect(sameClosedWeekdays(a, b)).toBe(true);
+    expect(a).toEqual([2, 1]);
+    expect(b).toEqual([1, 2]);
+  });
+
+  it("null は null 同士のみ等値", () => {
+    expect(sameClosedWeekdays(null, null)).toBe(true);
+    expect(sameClosedWeekdays(null, [])).toBe(false);
+    expect(sameClosedWeekdays([], null)).toBe(false);
   });
 });
 
