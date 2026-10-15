@@ -15,6 +15,7 @@ import type {
 
 // ─── Condition label helpers ──────────────────────────────
 
+/** Returns the localized label for a filter condition, falling back to its raw key. */
 function getConditionLabel(condition: FilterCondition, filterType: string): string {
   const conditions = FILTER_CONDITIONS[filterType as keyof typeof FILTER_CONDITIONS];
   return conditions?.find((c) => c.value === condition)?.label ?? condition;

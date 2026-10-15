@@ -35,6 +35,10 @@ interface MasterSidePanelProps {
   children: ReactNode;
 }
 
+/**
+ * Composes a master editor panel with a controlled title, toolbar, body, and footer.
+ * Saves use `action` or `onSave`; dirty navigation is guarded and focus returns to the opener.
+ */
 export const MasterSidePanel = memo(function MasterSidePanel({
   isNew,
   title,

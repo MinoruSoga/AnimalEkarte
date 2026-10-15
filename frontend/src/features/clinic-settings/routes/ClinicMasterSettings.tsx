@@ -9,6 +9,7 @@ import {
 import { CompanyInvoiceSection } from "../components/CompanyInvoiceSection";
 import { useClinicMasterSettings } from "../hooks/use-clinic-master-settings";
 
+/** Composes permission-aware clinic settings state into the list, edit panel, and delete dialog. */
 export function ClinicMasterSettings() {
   const s = useClinicMasterSettings();
 

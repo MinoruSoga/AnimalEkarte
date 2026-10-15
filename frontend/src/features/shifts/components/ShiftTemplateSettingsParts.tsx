@@ -272,6 +272,7 @@ interface ShiftTemplateDeleteDialogProps {
   onConfirm: () => void;
 }
 
+/** Confirms deletion intent and delegates the actual delete action to `onConfirm`. */
 export function ShiftTemplateDeleteDialog({
   pendingDelete,
   onClose,

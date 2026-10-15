@@ -10,6 +10,7 @@ import { ReservationTypeSettingsContent } from "../components/ReservationTypeSet
 import { ReservationTypeSettingsSidePanels } from "../components/ReservationTypeSettingsSidePanels";
 import { useReservationTypeSettings } from "../hooks/use-reservation-type-settings";
 
+/** Composes permission-aware reservation-type state into the grouped list and side panels. */
 export function ReservationTypeSettings() {
   const navigate = useNavigate();
   const s = useReservationTypeSettings();

@@ -24,6 +24,11 @@ import {
   TRIGGER_BASE,
 } from "./DatePickerModel";
 
+/**
+ * Controlled single-date picker using an ISO `YYYY-MM-DD` value.
+ * Calendar selections and typed commits respect `min`, `max`, and `disabledDays`; invalid values
+ * are reported through the input's native validity state.
+ */
 export function SinglePicker({
   value,
   onChange,

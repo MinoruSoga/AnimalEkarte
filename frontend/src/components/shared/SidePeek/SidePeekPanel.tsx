@@ -15,6 +15,10 @@ interface SidePeekPanelProps {
   tabletOverlay?: boolean;
 }
 
+/**
+ * Renders a non-modal side-peek surface, adding a dialog role only when `ariaLabel` is supplied.
+ * It stays in flow by default; tablet overlay positioning requires a positioned workspace parent.
+ */
 export const SidePeekPanel = memo(function SidePeekPanel({
   children,
   className,

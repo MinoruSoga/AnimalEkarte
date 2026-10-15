@@ -37,6 +37,7 @@ export const PropertyRow = memo(function PropertyRow({
   );
 });
 
+/** Renders a labeled controlled text input and emits each edited string through `onChange`. */
 export function ClinicTextProperty({
   label,
   value,
@@ -66,6 +67,7 @@ export function ClinicTextProperty({
   );
 }
 
+/** Edits a displayed percentage from 0 to 100 and emits the fractional rate to `onChange`. */
 export function ClinicTaxRateProperty({
   label,
   value,
@@ -95,6 +97,7 @@ export function ClinicTaxRateProperty({
   );
 }
 
+/** Renders a named boolean toggle whose pressed state reflects `value`; changes are emitted upward. */
 export function ClinicBooleanProperty({
   label,
   value,
@@ -121,6 +124,7 @@ export function ClinicBooleanProperty({
   );
 }
 
+/** Renders a controlled, labeled textarea with a 500-character limit. */
 export function ClinicTextareaProperty({
   label,
   value,
@@ -149,6 +153,10 @@ export function ClinicTextareaProperty({
 }
 
 // #190: セクション表示順の変更UI
+/**
+ * Edits the canonical accounting-document section order.
+ * Unknown keys are removed and missing canonical keys appended before move results are emitted.
+ */
 export function SectionOrderProperty({
   order,
   onChange,
@@ -232,6 +240,7 @@ const STATUS_CONFIG = {
   },
 } as const;
 
+/** Displays an active or inactive status label; it is not an interactive control. */
 export function StatusPill({ status }: { status: "active" | "inactive" }) {
   const cfg = STATUS_CONFIG[status];
   return (

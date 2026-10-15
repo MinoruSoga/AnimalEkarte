@@ -22,6 +22,10 @@ interface SortRuleRowProps {
   onRemove: (key: string) => void;
 }
 
+/**
+ * Edits one controlled sort rule and reports property, direction, and removal changes to its owner.
+ * The remove action remains visible on hoverless devices.
+ */
 const SortRuleRow = memo(function SortRuleRow({
   sort,
   sortProperties,
@@ -112,6 +116,10 @@ interface SortPopoverProps {
   onSortChange: (sorts: ActiveSort[]) => void;
 }
 
+/**
+ * Edits the caller's active sort array without fetching or sorting data itself.
+ * Property, direction, add, and remove actions are emitted through `onSortChange`.
+ */
 export const SortPopover = memo(function SortPopover({
   sortProperties,
   activeSorts,

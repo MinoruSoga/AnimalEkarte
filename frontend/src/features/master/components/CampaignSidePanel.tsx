@@ -41,6 +41,7 @@ const CATEGORY_OPTIONS: { value: string; label: string }[] = [
   { value: "other", label: "その他" },
 ];
 
+/** Returns a new selection array with `value` toggled, without mutating the input array. */
 function toggleSelection(values: string[], value: string): string[] {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
 }

@@ -18,6 +18,10 @@ interface TextValueEditorProps {
   onApply: (value: string, displayValue: string) => void;
 }
 
+/**
+ * Collects a text-filter draft and commits only a non-empty trimmed value on Enter or confirmation.
+ * Typing never applies the draft; Enter is ignored during IME composition or key repeat.
+ */
 export const TextValueEditor = memo(function TextValueEditor({
   label,
   currentValue = "",

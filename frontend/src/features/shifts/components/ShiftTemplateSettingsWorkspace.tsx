@@ -41,6 +41,7 @@ interface ShiftTemplateSettingsWorkspaceProps {
   discardDialog: React.ReactNode;
 }
 
+/** Composes controlled shift-template list, editor, delete confirmation, and discard dialog UI. */
 export function ShiftTemplateSettingsWorkspace({
   canCreate,
   canEdit,

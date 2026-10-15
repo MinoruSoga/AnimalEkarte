@@ -14,6 +14,10 @@ export interface PaginationProps {
   onNext: () => void;
 }
 
+/**
+ * Renders caller-controlled, one-based pagination and hides when `totalCount` is zero.
+ * Both the summary row and page controls wrap; navigation landmarks belong to the caller.
+ */
 export const Pagination = memo(function Pagination({
   currentPage,
   totalPages,

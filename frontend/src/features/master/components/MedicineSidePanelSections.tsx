@@ -55,6 +55,7 @@ interface MedicineParentCategorySectionProps {
   setFormDataDirty: SetMedicineFormDataDirty;
 }
 
+/** Edits a medicine's parent category; category items remain roots and cannot select a parent. */
 export function MedicineParentCategorySection({
   formData,
   isCategory,
@@ -140,6 +141,10 @@ interface MedicineBasicFlagsSectionProps {
   setFormDataDirty: SetMedicineFormDataDirty;
 }
 
+/**
+ * Renders controlled active, insurance-exclusion, and note fields for a medicine.
+ * The insurance toggle is pressed when excluded; `true` is displayed as "はい".
+ */
 export function MedicineBasicFlagsSection({
   formData,
   setFormDataDirty,
@@ -189,6 +194,7 @@ interface MedicineDetailSectionProps {
   setFormDataDirty: SetMedicineFormDataDirty;
 }
 
+/** Edits dosage form, dispensing unit, and description; dose-calculation settings are separate. */
 export function MedicineDetailSection({ formData, setFormDataDirty }: MedicineDetailSectionProps) {
   return (
     <>

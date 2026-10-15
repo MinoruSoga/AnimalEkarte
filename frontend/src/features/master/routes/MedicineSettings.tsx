@@ -12,6 +12,7 @@ import { ResourceMasterMedical } from "@/types/generated/models";
 import { useGetAllMedicines } from "../api/medicines";
 import { useMedicineSettings } from "../hooks/use-medicine-settings";
 
+/** Composes permission-aware medicine settings state into the table and side-panel workspace. */
 export function MedicineSettings() {
   const navigate = useNavigate();
   const s = useMedicineSettings();

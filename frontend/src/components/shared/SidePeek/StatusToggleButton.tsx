@@ -11,6 +11,10 @@ interface StatusToggleButtonProps {
   description?: string;
 }
 
+/**
+ * Renders the active state as a toggle control.
+ * `isActive` drives the pressed state; the caller updates it in response to `onToggle`.
+ */
 export function StatusToggleButton({
   isActive,
   onToggle,

@@ -31,6 +31,10 @@ const COLUMNS = [
   { header: "操作", className: MASTER_TABLE_COL.w80, align: "right" as const },
 ];
 
+/**
+ * Composes the lab-device list and editor with tablet grid rows that keep header actions visible.
+ * The table reports contextual board navigation and missing-source guidance from route state.
+ */
 export function LabDeviceItemMasterSettings() {
   const navigate = useNavigate();
   const s = useLabDeviceItemMasterSettings();
@@ -152,6 +156,7 @@ interface LabDeviceItemMasterTableProps {
   onEdit: (row: LabDeviceRow) => void;
 }
 
+/** Renders device rows with contextual guidance and explicit detail actions. */
 function LabDeviceItemMasterTable({
   fromBoard,
   sourceFromQuery,
