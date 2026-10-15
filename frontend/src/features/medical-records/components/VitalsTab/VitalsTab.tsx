@@ -296,8 +296,8 @@ export const VitalsTab = memo(function VitalsTab({
         onClose={() => setDeletingId(null)}
         onConfirm={handleDeleteConfirm}
         title="バイタルを削除しますか？"
-        description="このバイタル記録を削除します。この操作は元に戻せません。"
-        confirmLabel={deletePending ? "削除中..." : "削除する"}
+        description="このバイタル記録を削除します。この操作は取り消せません。"
+        confirmLabel={deletePending ? "削除中..." : "削除"}
         cancelLabel="キャンセル"
         variant="destructive"
         isPending={deletePending}

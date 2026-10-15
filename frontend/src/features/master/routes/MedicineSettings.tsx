@@ -1,11 +1,10 @@
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
-import Pill from "lucide-react/dist/esm/icons/pill";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
-import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { ICON, LAYOUT } from "@/lib/design-tokens";
 import { MedicineDeleteDialog } from "../components/MedicineDeleteDialog";
 import { MedicineSidePanel } from "../components/MedicineSidePanel";
 import { MedicineTableSection } from "../components/MedicineTableSection";
@@ -26,10 +25,9 @@ export function MedicineSettings() {
         <div className="flex-1 min-w-0">
           <PageLayout
             title="薬剤マスタ"
-            icon={<Pill className={`${ICON.page} ${C.text}`} />}
             resource={ResourceMasterMedical}
             onBack={() => navigate(paths.settings.getHref())}
-            maxWidth={LAYOUT.pageContentMaxWidth.full}
+            maxWidth={LAYOUT.pageContentMaxWidth.tableNarrow}
             headerAction={
               s.canCreate ? (
                 <PrimaryButton onClick={() => s.handleCreate()}>

@@ -206,7 +206,7 @@ function TagPairSection<TItem>({
         }}
         title={deleteConfirmTitle}
         description="この操作は取り消せません。"
-        confirmLabel="削除する"
+        confirmLabel="削除"
         variant="destructive"
         isPending={deleteDisabled}
       />

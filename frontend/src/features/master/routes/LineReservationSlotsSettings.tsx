@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router";
-import { CalendarDays, Info } from "lucide-react";
+import { Info } from "lucide-react";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
 import { EmptyState, ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
@@ -103,7 +103,6 @@ export function LineReservationSlotsSettings() {
       <FormHeader
         title="LINE予約枠"
         description="LINE予約で選択できる開始時刻を日別に設定します"
-        icon={<CalendarDays className={`${ICON.page} ${C.text}`} />}
         action={<PermissionBadges resource={ResourceMasterReservationType} />}
       />
 

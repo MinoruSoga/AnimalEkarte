@@ -1,9 +1,7 @@
-import { FileText } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
-import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { LAYOUT } from "@/lib/design-tokens";
 import { ResourceHospitalization } from "@/types/generated/models";
 import type { HospitalizationFormGate } from "./hospitalization-form-model";
 
@@ -22,7 +20,6 @@ export function HospitalizationFormStatusView({
       <PageLayout
         title="入院"
         onBack={onBack}
-        icon={<FileText className={`${ICON.page} ${C.text}`} />}
         resource={ResourceHospitalization}
         maxWidth={LAYOUT.pageContentMaxWidth.form}
       >
@@ -35,7 +32,6 @@ export function HospitalizationFormStatusView({
       <PageLayout
         title="入院"
         onBack={onBack}
-        icon={<FileText className={`${ICON.page} ${C.text}`} />}
         resource={ResourceHospitalization}
         maxWidth={LAYOUT.pageContentMaxWidth.form}
       >
@@ -48,7 +44,6 @@ export function HospitalizationFormStatusView({
       <PageLayout
         title="入院登録"
         onBack={onBack}
-        icon={<FileText className={`${ICON.page} ${C.text}`} />}
         resource={ResourceHospitalization}
         maxWidth={LAYOUT.pageContentMaxWidth.form}
       >
@@ -60,7 +55,6 @@ export function HospitalizationFormStatusView({
     <PageLayout
       title="入院"
       onBack={onBack}
-      icon={<FileText className={`${ICON.page} ${C.text}`} />}
       resource={ResourceHospitalization}
       maxWidth={LAYOUT.pageContentMaxWidth.form}
     >

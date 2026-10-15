@@ -5,7 +5,7 @@ section: システム設定
 keywords_vi: loại lịch hẹn, master loại đặt lịch, phân loại lịch hẹn, kiểu lịch hẹn
 ---
 
-# 予約区分
+# 予約区分マスタ
 
 ## どんな画面か
 

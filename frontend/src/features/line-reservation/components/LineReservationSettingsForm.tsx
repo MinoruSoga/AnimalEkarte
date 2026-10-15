@@ -12,6 +12,7 @@ import { C } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -68,6 +69,13 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
   // BUG-028: defaultValue のままだと form action 完了後に初期 props へリセットされ、
   // 保存済みの新値（0 含む）が UI に残らない。controlled で保持する。
   const [bookingWindowMinDays, setBookingWindowMinDays] = useState(setting.booking_window_min_days);
+  const [bookingWindowMaxDays, setBookingWindowMaxDays] = useState<number | string>(
+    setting.booking_window_max_days,
+  );
+  const [calendarMonths, setCalendarMonths] = useState<number | string>(setting.calendar_months);
+  const [timeSlotIntervalMinutes, setTimeSlotIntervalMinutes] = useState<number | string>(
+    setting.time_slot_interval_minutes,
+  );
 
   // JSONB フィールド（lazy init — 初回レンダー時のみパース）
   const [closedWeekdays, setClosedWeekdays] = useState<string[]>(() =>
@@ -192,7 +200,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
                   checked={closedWeekdays.includes(day)}
                   onCheckedChange={(checked) => handleWeekdayToggle(day, checked === true)}
                 />
-                <Label htmlFor={`closed-weekday-${day}`} className={`text-sm ${C.text}`}>
+                <Label htmlFor={`closed-weekday-${day}`} className={`${C.text}`}>
                   {label}
                 </Label>
               </div>
@@ -271,37 +279,36 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
       {/* 予約枠設定 */}
       <Section title="予約枠設定">
         <FieldRow label="最短予約受付（日前）">
-          <Input
+          <NumberInput
             name="booking_window_min_days"
             aria-label="最短予約受付（日数）"
-            type="number"
             min={0}
             value={bookingWindowMinDays}
-            onChange={(e) => {
-              const n = e.target.valueAsNumber;
+            onChange={(value) => {
+              const n = Number(value);
               setBookingWindowMinDays(Number.isNaN(n) ? 0 : n);
             }}
             className="max-w-[120px]"
           />
         </FieldRow>
         <FieldRow label="最長予約受付（日前）">
-          <Input
+          <NumberInput
             name="booking_window_max_days"
             aria-label="最長予約受付（日数）"
-            type="number"
             min={1}
-            defaultValue={setting.booking_window_max_days}
+            value={bookingWindowMaxDays}
+            onChange={setBookingWindowMaxDays}
             className="max-w-[120px]"
           />
         </FieldRow>
         <FieldRow label="表示カレンダー月数">
-          <Input
+          <NumberInput
             name="calendar_months"
             aria-label="表示カレンダー月数"
-            type="number"
             min={1}
             max={6}
-            defaultValue={setting.calendar_months}
+            value={calendarMonths}
+            onChange={setCalendarMonths}
             className="max-w-[120px]"
           />
         </FieldRow>
@@ -314,13 +321,13 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
           </Select>
         </FieldRow>
         <FieldRow label="スロット間隔（分）">
-          <Input
+          <NumberInput
             name="time_slot_interval_minutes"
             aria-label="スロット間隔（分）"
-            type="number"
             min={5}
             step={5}
-            defaultValue={setting.time_slot_interval_minutes}
+            value={timeSlotIntervalMinutes}
+            onChange={setTimeSlotIntervalMinutes}
             className="max-w-[120px]"
           />
         </FieldRow>
@@ -380,7 +387,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
       </Section>
 
       <div className="pt-2">
-        <SubmitButton>設定を保存</SubmitButton>
+        <SubmitButton>保存</SubmitButton>
       </div>
     </form>
   );

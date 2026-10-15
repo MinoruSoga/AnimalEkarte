@@ -1,10 +1,9 @@
 import { useCallback, useLayoutEffect, useRef } from "react";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
-import { Lock } from "lucide-react";
+
 import { usePermission } from "@/hooks/use-permission";
 import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
-import { C, ICON } from "@/lib/design-tokens";
 import { normalizeKana } from "@/lib/normalize-kana";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import type { FilterProperty } from "@/components/shared/PropertyFilter/types";
@@ -122,8 +121,7 @@ export function PermissionGroupSettings() {
   return (
     <>
       <MasterCRUDPage
-        title="権限グループ"
-        icon={<Lock className={`${ICON.page} ${C.text}`} />}
+        title="権限グループマスタ"
         resource={ResourceMasterPermission}
         entityLabel="グループ"
         searchPlaceholder="グループ名、説明で検索..."

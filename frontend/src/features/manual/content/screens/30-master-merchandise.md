@@ -5,7 +5,7 @@ section: システム設定
 keywords_vi: master hàng hóa, danh mục hàng hóa, sản phẩm bán lẻ, hàng bán
 ---
 
-# 物販・フード
+# 物販・フードマスタ
 
 ## どんな画面か
 

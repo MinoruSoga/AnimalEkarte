@@ -20,6 +20,7 @@ import type { Pet, Reservation } from "@/types";
 import { NewOwnerInlineForm } from "./NewOwnerInlineForm";
 import { PatientSelectionTable } from "./PatientSelectionTable";
 import { ReservationFormFields, type StaffSelectionState } from "./ReservationFormFields";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 
 export type OwnerMode = "existing" | "new";
 export type MobilePanel = "search" | "form";
@@ -39,7 +40,7 @@ export function ReservationModalHeader({
   mobilePanel,
   onMobilePanelChange,
 }: ReservationModalHeaderProps) {
-  const title = isConfirmTentative ? "次回予定の確定" : isEditMode ? "予約編集" : "新規予約作成";
+  const title = isConfirmTentative ? "次回予定の確定" : isEditMode ? "予約編集" : "新規予約登録";
   return (
     <DialogHeader className="p-4 border-b shrink-0 h-auto flex flex-col gap-3 space-y-0">
       <div className="flex items-center justify-between">
@@ -348,9 +349,9 @@ function SelectedPatientSummary({
       className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? `${C.bgActionPrimaryLight}/50 ${C.borderActionPrimary}/30` : `${C.bgPage} ${C.borderMediumLight}`} ${validationError ? STYLE.formInputError : ""}`}
     >
       <Label className={`text-2xs ${C.text60} font-semibold uppercase block mb-3`}>
-        予約対象（選択中）
-        <span className={`ml-1 normal-case ${C.textRequired}`} aria-hidden="true">
-          *
+        <span className="inline-flex items-center gap-2">
+          予約対象（選択中）
+          <RequiredMark />
         </span>
       </Label>
 

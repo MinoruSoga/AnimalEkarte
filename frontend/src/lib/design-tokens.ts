@@ -306,7 +306,7 @@ export const C = {
   decorationDanger50: "decoration-[#C0392B]/50",
 
   /* ── Notion Red (required markers) ── */
-  textRequired:  "text-[#E03E3E]",
+  textRequired:  "text-[#C0392B]",
   textRedIcon:   "text-[#EA3323]",
 
   /* ── Status semantic ── */
@@ -674,13 +674,13 @@ export const LAYOUT = {
   pageContentMaxWidth: {
     full:       "max-w-full",
     default:    "max-w-[1440px]",
-    /** 列数が5列以下の設定テーブル画面（スタッフ・職種等、EMR-333） */
+    /** 表示される列数（操作列を含む）が5列以下の設定テーブル画面。独自の表を描画する画面は maxWidth を明示する。 */
     tableNarrow: "max-w-5xl",
     /** 広い編集フォーム（飼主・入院・トリミング等） */
     form:       "max-w-[1400px]",
     /** 中規模編集フォーム（検査・ワクチン等） */
     formMid:    "max-w-[1200px]",
-    /** 狭い単票フォーム（健診等） */
+    /** 狭い単票フォーム（健診・見積書・在庫・締め時間設定等） */
     formNarrow: "max-w-[900px]",
     /** 詳細ワークスペース（入院詳細等） */
     detailWide: "max-w-[1600px]",

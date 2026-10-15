@@ -115,7 +115,7 @@ export function OwnersListTable({
         <DataTable
           columns={columns}
           data={pets}
-          emptyMessage="データが見つかりません"
+          emptyMessage="飼主データが見つかりません"
           headerRowClassName={OWNERS_TABLE_HEADER_ROW}
           headerCellClassName={OWNERS_TABLE_HEADER_CELL}
           renderRow={(pet) => {

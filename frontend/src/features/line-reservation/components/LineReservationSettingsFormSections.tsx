@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import type React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/shared/DatePicker";
 import { Label } from "@/components/ui/label";
 import { SelectItem } from "@/components/ui/select";
 import { C } from "@/lib/design-tokens";
@@ -50,7 +51,7 @@ export function Section({ title, children }: { title: string; children: React.Re
 export function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-1 gap-4 items-start pt-1 sm:grid-cols-[200px_1fr]">
-      <Label className={`text-sm ${C.text65} pt-1`}>{label}</Label>
+      <Label className={`${C.text65} pt-1`}>{label}</Label>
       <div>{children}</div>
     </div>
   );
@@ -149,13 +150,13 @@ export function ClosedDatesEditor({ value, onChange }: ClosedDatesEditorProps) {
       ) : (
         value.map((date, idx) => (
           <div key={idx} className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-            <Input
-              type="date"
-              aria-label={`特定定休日 ${idx + 1}`}
-              value={date}
-              onChange={(event) => handleChange(idx, event.target.value)}
-              className="w-full sm:max-w-[160px]"
-            />
+            <div className="w-full sm:max-w-[160px]">
+              <DatePicker
+                ariaLabel={`特定定休日 ${idx + 1}`}
+                value={date}
+                onChange={(v) => handleChange(idx, v)}
+              />
+            </div>
             <Button
               type="button"
               variant="ghost"

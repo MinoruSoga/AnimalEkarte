@@ -95,7 +95,7 @@ describe("LineReservationPageEditor — FE-RC-211 mutation permission re-check",
     renderEditor();
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "変更を保存" }));
+    await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("この操作を行う権限がありません");
@@ -109,7 +109,7 @@ describe("LineReservationPageEditor — FE-RC-211 mutation permission re-check",
     renderEditor();
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "変更を保存" }));
+    await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
       expect(getBody()).not.toBeNull();

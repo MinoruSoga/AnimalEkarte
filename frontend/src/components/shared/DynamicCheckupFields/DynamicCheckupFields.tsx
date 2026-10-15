@@ -1,6 +1,7 @@
 import { C } from "@/lib/design-tokens";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import type { CheckupTypeFieldRow, CheckupFieldResultInput } from "@/hooks/use-checkup-fields";
 
 /** 1 フィールド分の入力値（型別。number は文字列で保持し送信時にパースする）。 */
@@ -64,14 +65,13 @@ export function DynamicCheckupFields({ fields, values, onChange }: DynamicChecku
             ) : null}
 
             {field.fieldType === "number" ? (
-              <input
+              <NumberInput
                 id={labelId}
-                type="number"
                 className={inputClass}
                 value={value.number ?? ""}
-                min={field.minValue}
-                max={field.maxValue}
-                onChange={(e) => onChange(field.id, { ...value, number: e.target.value })}
+                min={field.minValue ?? undefined}
+                max={field.maxValue ?? undefined}
+                onChange={(number) => onChange(field.id, { ...value, number })}
               />
             ) : null}
 

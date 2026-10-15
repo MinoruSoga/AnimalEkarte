@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router";
-import { Clock } from "lucide-react";
-import { C, ICON } from "@/lib/design-tokens";
+
+import { LAYOUT } from "@/lib/design-tokens";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { paths } from "@/config/paths";
@@ -23,10 +23,9 @@ export function ClosingSettingsPage() {
   return (
     <PageLayout
       title="締め時間設定"
-      icon={<Clock className={`${ICON.page} ${C.text}`} />}
       resource={ResourceClosingSettings}
       onBack={() => navigate(paths.settings.getHref())}
-      maxWidth="max-w-3xl"
+      maxWidth={LAYOUT.pageContentMaxWidth.formNarrow}
       align="left"
     >
       {loading ? <LoadingFallback /> : null}

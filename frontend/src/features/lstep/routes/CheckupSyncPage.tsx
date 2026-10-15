@@ -73,7 +73,7 @@ export function CheckupSyncPage() {
 
   return (
     <PageLayout
-      title="健診リマインダー抽出"
+      title="健診対象者抽出"
       description="Lステップタグを一括付与して健診リマインダーをLINE送信します。"
       maxWidth={LAYOUT.pageContentMaxWidth.formNarrow}
       resource={ResourceHospitalSettings}

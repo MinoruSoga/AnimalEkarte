@@ -81,7 +81,7 @@ export const VaccinationForm = memo(function VaccinationForm({
       <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
-            <Label className={`text-sm font-medium ${C.text60}`}>予防接種名</Label>
+            <Label className={`font-medium ${C.text60}`}>予防接種名</Label>
             <MasterLink category="vaccine" label="編集" className="text-2xs" />
           </div>
           <SearchableSelect
@@ -96,7 +96,7 @@ export const VaccinationForm = memo(function VaccinationForm({
           <FormFieldError id="mr-vaccine-error" message={fieldErrors.vaccineId} />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label className={`text-sm font-medium ${C.text60}`}>予防接種日</Label>
+          <Label className={`font-medium ${C.text60}`}>予防接種日</Label>
           <DatePicker
             value={date}
             onChange={setDate}
@@ -109,7 +109,7 @@ export const VaccinationForm = memo(function VaccinationForm({
 
       {/* Supplemental */}
       <div className="flex flex-col gap-1.5">
-        <Label className={`text-sm font-medium ${C.text60}`}>補助説明</Label>
+        <Label className={`font-medium ${C.text60}`}>補助説明</Label>
         <Input
           value={supplemental}
           onChange={(e) => setSupplemental(e.target.value)}
@@ -120,7 +120,7 @@ export const VaccinationForm = memo(function VaccinationForm({
       {/* LOT Numbers */}
       <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <Label className={`text-sm font-medium ${C.text60}`}>LOT1</Label>
+          <Label className={`font-medium ${C.text60}`}>LOT1</Label>
           <Input
             value={lot1}
             onChange={(e) => setLot1(e.target.value)}
@@ -128,7 +128,7 @@ export const VaccinationForm = memo(function VaccinationForm({
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label className={`text-sm font-medium ${C.text60}`}>LOT2</Label>
+          <Label className={`font-medium ${C.text60}`}>LOT2</Label>
           <Input
             value={lot2}
             onChange={(e) => setLot2(e.target.value)}
@@ -136,7 +136,7 @@ export const VaccinationForm = memo(function VaccinationForm({
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label className={`text-sm font-medium ${C.text60}`}>LOT3</Label>
+          <Label className={`font-medium ${C.text60}`}>LOT3</Label>
           <Input
             value={lot3}
             onChange={(e) => setLot3(e.target.value)}
@@ -144,7 +144,7 @@ export const VaccinationForm = memo(function VaccinationForm({
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label className={`text-sm font-medium ${C.text60}`}>LOT4</Label>
+          <Label className={`font-medium ${C.text60}`}>LOT4</Label>
           <Input
             value={lot4}
             onChange={(e) => setLot4(e.target.value)}
@@ -165,7 +165,7 @@ export const VaccinationForm = memo(function VaccinationForm({
 
       {/* Remarks */}
       <div className="flex flex-col gap-1.5 flex-1 min-h-0">
-        <Label className={`text-sm font-medium ${C.text60}`}>備考</Label>
+        <Label className={`font-medium ${C.text60}`}>備考</Label>
         <Textarea
           value={remarks}
           onChange={(e) => setRemarks(e.target.value)}

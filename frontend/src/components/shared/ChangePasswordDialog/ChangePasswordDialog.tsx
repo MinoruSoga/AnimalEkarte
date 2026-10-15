@@ -63,7 +63,7 @@ function PasswordField({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id} className={`text-sm ${C.text}`}>
+      <Label htmlFor={id} className={`${C.text}`}>
         {label}
         {hint ? <span className={`ml-1 text-xs ${C.text40}`}>{hint}</span> : null}
       </Label>

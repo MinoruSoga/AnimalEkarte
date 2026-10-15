@@ -1,4 +1,4 @@
-import { useActionState, useLayoutEffect, useRef } from "react";
+import { useActionState, useLayoutEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,10 +12,12 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { BADGE, C, STYLE } from "@/lib/design-tokens";
 import { getFormString } from "@/lib/form-data";
 import { handleApiError } from "@/lib/handle-api-error";
-import { todayJSTISO } from "@/lib/jst-date";
+import { todayJSTISO, toJSTWallDate } from "@/lib/jst-date";
+import { DatePicker } from "@/components/shared/DatePicker";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
 import { useRecordPetDeath } from "@/hooks/use-record-pet-death";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 
 interface PetDeceasedDialogProps {
   open: boolean;
@@ -52,6 +54,12 @@ export function PetDeceasedDialog({
     canEditRef.current = canEdit;
   }, [canEdit]);
   const today = todayJSTISO();
+  const [deceasedAt, setDeceasedAt] = useState(today);
+  const [previousOpen, setPreviousOpen] = useState(open);
+  if (open !== previousOpen) {
+    setPreviousOpen(open);
+    if (open) setDeceasedAt(todayJSTISO());
+  }
 
   const [state, formAction, isPending] = useActionState(
     async (_prevState: ActionState<unknown>, formData: FormData): Promise<ActionState<unknown>> => {
@@ -123,21 +131,25 @@ export function PetDeceasedDialog({
         <form id="pet-deceased-form" action={formAction} noValidate className="space-y-4">
           {/* 死亡日 */}
           <div className="space-y-1.5">
-            <label htmlFor="deceased_at" className={`block text-sm ${C.text70}`}>
+            <label
+              htmlFor="deceased_at"
+              className={`inline-flex items-center gap-2 text-sm ${C.text70}`}
+            >
               死亡日
-              <span className={`ml-1 ${C.textRequired}`}>*</span>
+              <RequiredMark />
             </label>
-            <input
+            <DatePicker
               id="deceased_at"
               name="deceased_at"
-              type="date"
-              defaultValue={today}
+              ariaLabel="死亡日"
+              value={deceasedAt}
+              onChange={setDeceasedAt}
               max={today}
+              disabledDays={{ after: toJSTWallDate(new Date(`${today}T00:00:00+09:00`)) }}
               required
-              aria-invalid={deceasedAtError ? true : undefined}
-              aria-describedby={deceasedAtError ? "pet-deceased-date-error" : undefined}
-              className={`${STYLE.formInput} w-full rounded-xs border px-3 text-sm`}
               disabled={isPending}
+              ariaInvalid={Boolean(deceasedAtError)}
+              ariaDescribedBy={deceasedAtError ? "pet-deceased-date-error" : undefined}
             />
             {deceasedAtError ? (
               <p id="pet-deceased-date-error" className={`text-xs ${C.danger}`} role="alert">

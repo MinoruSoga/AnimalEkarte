@@ -277,13 +277,13 @@ export const sidebarMenuSections: SidebarMenuSection[] = [
         subItems: [
           {
             icon: <Building2 className={ICON.toolbar} />,
-            label: "医院",
+            label: "医院マスタ",
             path: paths.settings.clinic.getHref(),
             resource: ResourceHospitalSettings,
           },
           {
             icon: <PawPrint className={ICON.toolbar} />,
-            label: "動物種類",
+            label: "動物種類マスタ",
             path: paths.settings.animalSpecies.getHref(),
             resource: ResourceMasterAnimalSpecies,
           },
@@ -295,7 +295,7 @@ export const sidebarMenuSections: SidebarMenuSection[] = [
             subItems: [
               {
                 icon: <ClipboardList className={ICON.toolbar} />,
-                label: "診療項目",
+                label: "診療項目マスタ",
                 path: paths.settings.treatmentItems.getHref(),
                 resource: ResourceMasterMedical,
               },
@@ -307,13 +307,13 @@ export const sidebarMenuSections: SidebarMenuSection[] = [
               },
               {
                 icon: <ClipboardCheck className={ICON.toolbar} />,
-                label: "問診設定",
+                label: "問診テンプレートマスタ",
                 path: paths.settings.inquiryTemplates.getHref(),
                 resource: ResourceMasterMedical,
               },
               {
                 icon: <MessageSquareText className={ICON.toolbar} />,
-                label: "主訴カテゴリ",
+                label: "主訴カテゴリマスタ",
                 path: paths.settings.interview.chiefComplaint.getHref(),
                 resource: ResourceMasterMedical,
               },
@@ -339,7 +339,7 @@ export const sidebarMenuSections: SidebarMenuSection[] = [
           },
           {
             icon: <Activity className={ICON.toolbar} />,
-            label: "予約区分",
+            label: "予約区分マスタ",
             path: paths.settings.reservationType.getHref(),
             resource: ResourceMasterReservationType,
           },
@@ -385,7 +385,7 @@ export const sidebarMenuSections: SidebarMenuSection[] = [
           },
           {
             icon: <Lock className={ICON.toolbar} />,
-            label: "権限グループ",
+            label: "権限グループマスタ",
             path: paths.settings.permissionGroups.getHref(),
             resource: ResourceMasterPermission,
           },
@@ -397,7 +397,7 @@ export const sidebarMenuSections: SidebarMenuSection[] = [
           },
           {
             icon: <Users className={ICON.toolbar} />,
-            label: "スタッフ管理",
+            label: "スタッフマスタ",
             path: paths.settings.staff.getHref(),
             resource: ResourceMasterStaff,
           },
@@ -409,19 +409,19 @@ export const sidebarMenuSections: SidebarMenuSection[] = [
           },
           {
             icon: <Package className={ICON.toolbar} />,
-            label: "物販・フード",
+            label: "物販・フードマスタ",
             path: paths.settings.merchandiseItems.getHref(),
             resource: ResourceMasterMerchandise,
           },
           {
             icon: <CreditCard className={ICON.toolbar} />,
-            label: "支払方法",
+            label: "支払方法マスタ",
             path: paths.settings.paymentMethods.getHref(),
             resource: ResourcePaymentMethod,
           },
           {
             icon: <Tag className={ICON.toolbar} />,
-            label: "割引キャンペーン",
+            label: "割引キャンペーンマスタ",
             path: paths.settings.campaigns.getHref(),
             resource: ResourceAccounting,
           },

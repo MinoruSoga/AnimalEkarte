@@ -54,15 +54,17 @@ describe("PetDeceasedDialog", () => {
 
   it("死亡日の初期値は当日日付になる", () => {
     renderDialog();
-    const dateInput = screen.getByLabelText(/死亡日/) as HTMLInputElement;
-    expect(dateInput.value).toBe(TODAY_JST);
-    expect(dateInput.max).toBe(TODAY_JST);
+    const dateInput = screen.getByRole("textbox", { name: "死亡日" }) as HTMLInputElement;
+    expect(dateInput.value).toContain("2026年8月3日");
+    expect(document.querySelector<HTMLInputElement>('input[name="deceased_at"]')?.value).toBe(
+      TODAY_JST,
+    );
   });
 
   it("死亡日を空にして実ボタンを押すとfield errorを表示し mutateAsync を呼ばない", async () => {
     const user = userEvent.setup();
     renderDialog();
-    const dateInput = screen.getByLabelText(/死亡日/);
+    const dateInput = screen.getByRole("textbox", { name: "死亡日" });
 
     await user.clear(dateInput);
     await user.click(screen.getByRole("button", { name: "死亡を記録する" }));
@@ -77,13 +79,17 @@ describe("PetDeceasedDialog", () => {
   it("未来の日付を指定すると検証エラーを表示し mutateAsync を呼ばない", async () => {
     const user = userEvent.setup();
     renderDialog();
-    const dateInput = screen.getByLabelText(/死亡日/);
-    fireEvent.change(dateInput, { target: { value: TOMORROW_JST } });
-
+    const dateInput = screen.getByRole("textbox", { name: "死亡日" });
+    await user.clear(dateInput);
+    await user.type(dateInput, TOMORROW_JST.replaceAll("-", "/"));
+    await user.tab();
     await user.click(screen.getByRole("button", { name: "死亡を記録する" }));
 
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("未来の日付は指定できません");
+    expect(document.querySelector<HTMLInputElement>('input[name="deceased_at"]')?.value).toBe(
+      TOMORROW_JST,
+    );
     expect(dateInput).toHaveAttribute("aria-invalid", "true");
     expect(dateInput).toHaveAttribute("aria-describedby", alert.id);
     expect(mockMutateAsync).not.toHaveBeenCalled();

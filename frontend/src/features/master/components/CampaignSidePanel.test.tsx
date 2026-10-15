@@ -6,6 +6,13 @@ import { describe, expect, it, vi } from "vitest";
 import { CampaignSidePanel } from "./CampaignSidePanel";
 import { useGetAllMerchandiseItems } from "../api/merchandise-items";
 
+async function enterDate(user: ReturnType<typeof userEvent.setup>, label: string, value: string) {
+  const input = screen.getByRole("textbox", { name: label });
+  await user.clear(input);
+  await user.type(input, value.replaceAll("-", "/"));
+  await user.tab();
+}
+
 vi.mock("@/components/shared/SidePeek", () => ({
   MasterSidePanel: ({
     children,
@@ -50,16 +57,16 @@ describe("CampaignSidePanel", () => {
     const items = Array.from({ length: 101 }, (_, index) => ({
       id: String(index + 1),
       name: `合成商品${index + 1}`,
-      category: "goods",
+      category: "goods" as const,
       unitPrice: 1100,
       taxType: "included" as const,
       taxRate: 0.1,
       isActive: true,
       sortOrder: index,
     }));
-    vi.mocked(useGetAllMerchandiseItems).mockReturnValue({ data: items } as ReturnType<
-      typeof useGetAllMerchandiseItems
-    >);
+    vi.mocked(useGetAllMerchandiseItems, { partial: true }).mockReturnValue({
+      data: items,
+    });
     try {
       render(<CampaignSidePanel item={null} onClose={vi.fn()} onSave={() => true} />);
       expect(screen.getAllByRole("checkbox", { name: /^合成商品/ })).toHaveLength(50);
@@ -75,9 +82,9 @@ describe("CampaignSidePanel", () => {
       await user.click(screen.getByRole("button", { name: "2" }));
       expect(screen.getByRole("checkbox", { name: "合成商品51" })).toBeChecked();
     } finally {
-      vi.mocked(useGetAllMerchandiseItems).mockReturnValue({ data: [] } as ReturnType<
-        typeof useGetAllMerchandiseItems
-      >);
+      vi.mocked(useGetAllMerchandiseItems, { partial: true }).mockReturnValue({
+        data: [],
+      });
     }
   });
   // e93ac185b で responsive grid から PropertyRow 行構成へ移行済み。
@@ -91,6 +98,69 @@ describe("CampaignSidePanel", () => {
 
     const categoryGrid = screen.getByText("フード").closest(".grid");
     expect(categoryGrid).toHaveClass("w-full", "grid-cols-1");
+  });
+
+  it("readOnly でも DatePicker の値とエラー関連付けを保ち、操作を無効化する", async () => {
+    const user = userEvent.setup();
+    const item = {
+      id: "campaign-1",
+      name: "既存キャンペーン",
+      startDate: "2026-01-01",
+      endDate: "2026-01-31",
+      discountType: "rate" as const,
+      discountValue: 10,
+      isActive: true,
+      sortOrder: 1,
+      targetCategories: [],
+      targetItemIds: [],
+    };
+    const onSave = vi.fn(() => true);
+    const onDirtyChange = vi.fn();
+    const { rerender } = render(
+      <CampaignSidePanel
+        item={item}
+        onClose={() => {}}
+        onSave={onSave}
+        onDirtyChange={onDirtyChange}
+      />,
+    );
+
+    await enterDate(user, "開始日", "2026-02-01");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("終了日は開始日以降にしてください");
+    const dirtyCallsBeforeReadOnly = onDirtyChange.mock.calls.length;
+
+    rerender(
+      <CampaignSidePanel
+        item={item}
+        onClose={() => {}}
+        onSave={onSave}
+        onDirtyChange={onDirtyChange}
+        readOnly
+      />,
+    );
+    for (const [label, value] of [
+      ["開始日", "2026年2月1日"],
+      ["終了日", "2026年1月31日"],
+    ]) {
+      const input = screen.getByRole<HTMLInputElement>("textbox", { name: label });
+      expect(input).toBeDisabled();
+      expect(input.value).toContain(value);
+      expect(input).toHaveAttribute("aria-invalid", "true");
+      expect(input).toHaveAttribute("aria-describedby", "campaign-period-error");
+      expect(screen.getByRole("button", { name: `${label}を選択` })).toBeDisabled();
+      expect(screen.getAllByRole("button", { name: "日付をクリア" })).toHaveLength(2);
+      expect(
+        screen
+          .getAllByRole("button", { name: "日付をクリア" })
+          .every((button) => button.hasAttribute("disabled")),
+      ).toBe(true);
+    }
+    expect(screen.queryByRole("button", { name: "Today" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "開始日を選択" }));
+    expect(screen.queryByRole("button", { name: "Today" })).not.toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+    expect(onDirtyChange).toHaveBeenCalledTimes(dirtyCallsBeforeReadOnly);
   });
 
   // EMR-319: 開始日・終了日の必須エラーで両 date Input に aria-invalid+describedby。
@@ -118,7 +188,7 @@ describe("CampaignSidePanel", () => {
     render(<CampaignSidePanel item={null} onClose={() => {}} onSave={() => true} />);
 
     await user.type(screen.getByLabelText("名称"), "テストキャンペーン");
-    await user.type(screen.getByLabelText("終了日"), "2026-01-31");
+    await enterDate(user, "終了日", "2026-01-31");
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     const alert = await screen.findByRole("alert");
@@ -132,14 +202,14 @@ describe("CampaignSidePanel", () => {
     render(<CampaignSidePanel item={null} onClose={() => {}} onSave={() => true} />);
 
     await user.type(screen.getByLabelText("名称"), "テストキャンペーン");
-    await user.type(screen.getByLabelText("開始日"), "2026-01-01");
+    await enterDate(user, "開始日", "2026-01-01");
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("開始日・終了日を入力してください");
     expect(screen.getByLabelText("終了日")).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByLabelText("開始日")).not.toHaveAttribute("aria-invalid");
 
-    await user.type(screen.getByLabelText("終了日"), "2026-01-31");
+    await enterDate(user, "終了日", "2026-01-31");
     expect(screen.getByLabelText("終了日")).not.toHaveAttribute("aria-invalid");
   });
 
@@ -148,8 +218,8 @@ describe("CampaignSidePanel", () => {
     render(<CampaignSidePanel item={null} onClose={() => {}} onSave={() => true} />);
 
     await user.type(screen.getByLabelText("名称"), "テストキャンペーン");
-    await user.type(screen.getByLabelText("開始日"), "2026-01-31");
-    await user.type(screen.getByLabelText("終了日"), "2026-01-01");
+    await enterDate(user, "開始日", "2026-01-31");
+    await enterDate(user, "終了日", "2026-01-01");
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     const alert = await screen.findByRole("alert");
@@ -201,9 +271,7 @@ describe("CampaignSidePanel", () => {
     expect(onSave).not.toHaveBeenCalled();
 
     // 名称は空のまま、終了日だけを有効日に訂正して再保存する。
-    const endInput = screen.getByLabelText("終了日");
-    await user.clear(endInput);
-    await user.type(endInput, "2026-02-01");
+    await enterDate(user, "終了日", "2026-02-01");
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
@@ -227,8 +295,8 @@ describe("CampaignSidePanel", () => {
     render(<CampaignSidePanel item={null} onClose={() => {}} onSave={onSave} />);
 
     await user.type(screen.getByLabelText("名称"), "テストキャンペーン");
-    await user.type(screen.getByLabelText("開始日"), "2026-01-01");
-    await user.type(screen.getByLabelText("終了日"), "2026-01-31");
+    await enterDate(user, "開始日", "2026-01-01");
+    await enterDate(user, "終了日", "2026-01-31");
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
@@ -245,8 +313,8 @@ describe("CampaignSidePanel", () => {
     render(<CampaignSidePanel item={null} onClose={() => {}} onSave={onSave} />);
 
     await user.type(screen.getByLabelText("名称"), "同日キャンペーン");
-    await user.type(screen.getByLabelText("開始日"), "2026-03-10");
-    await user.type(screen.getByLabelText("終了日"), "2026-03-10");
+    await enterDate(user, "開始日", "2026-03-10");
+    await enterDate(user, "終了日", "2026-03-10");
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));

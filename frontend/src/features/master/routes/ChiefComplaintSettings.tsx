@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { MessageSquareText } from "lucide-react";
+
 import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
@@ -8,7 +8,7 @@ import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowBu
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
-import { C, ICON } from "@/lib/design-tokens";
+import { C } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER, MASTER_TABLE_COL } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
@@ -78,8 +78,7 @@ export function ChiefComplaintSettings() {
   return (
     <>
       <MasterCRUDPage
-        title="主訴カテゴリ"
-        icon={<MessageSquareText className={`${ICON.page} ${C.text}`} />}
+        title="主訴カテゴリマスタ"
         resource={ResourceMasterMedical}
         entityLabel="主訴カテゴリ"
         searchPlaceholder="名称で検索..."

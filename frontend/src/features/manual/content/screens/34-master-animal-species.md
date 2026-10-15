@@ -5,7 +5,7 @@ section: システム設定
 keywords_vi: loài động vật, master loài, danh mục loài, giống loài thú cưng
 ---
 
-# 動物種類
+# 動物種類マスタ
 
 ## どんな画面か
 
@@ -79,6 +79,6 @@ keywords_vi: loài động vật, master loài, danh mục loài, giống loài 
 
 ## 関連する画面
 
-- 画面マニュアル「**飼主・ペット**」: ペット登録時に選択
+- 画面マニュアル「**飼主・ペット管理**」: ペット登録時に選択
 - 画面マニュアル「**当日の受付**」: 新規受付時のペット登録
 - 画面マニュアル「**検査管理**」: 動物種別の正常範囲

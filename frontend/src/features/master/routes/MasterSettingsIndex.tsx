@@ -4,7 +4,7 @@ import { useCallback } from "react";
 import { useNavigate } from "react-router";
 
 // External
-import { ChevronRight, Settings } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { CATEGORY_CONFIG } from "../constants/category-config";
 import {
   getResourceForCardKey,
@@ -159,19 +159,9 @@ export function MasterSettingsIndex() {
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
 
   return (
-    <PageLayout
-      title="マスタ設定"
-      icon={<Settings className={`${ICON.page} ${C.text}`} />}
-      maxWidth="max-w-3xl"
-      align="left"
-    >
+    <PageLayout title="マスタ設定" maxWidth={LAYOUT.pageContentMaxWidth.formNarrow} align="left">
       <div className="px-6 pb-12">
         {/* Notion-style page icon */}
-        <div className="pt-6 pb-2">
-          <div className={STYLE.pageIcon}>
-            <Settings className={LAYOUT.pageIcon.innerIcon} />
-          </div>
-        </div>
 
         {/* Large page title */}
         <div className="pb-1 mb-1">

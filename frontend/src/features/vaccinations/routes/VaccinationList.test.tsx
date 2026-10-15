@@ -184,6 +184,7 @@ vi.mock("@/components/shared/ConfirmDialog/ConfirmDialog", () => ({
 
 const vaccination: VaccinationRecord = {
   id: "vac-1",
+  medicalRecordId: undefined,
   petId: "pet-1",
   ownerName: "山田太郎",
   petName: "ポチ",
@@ -447,7 +448,7 @@ describe("VaccinationList 次回予定の期限超過表示", () => {
 
     const cell = getNextDateCell();
     expect(cell).toHaveClass("font-mono", C.danger);
-    expect(cell).toHaveTextContent("2026-07-23");
+    expect(cell).toHaveTextContent("2026/07/23");
     expect(cell).toHaveTextContent("（期限超過）");
   });
 
@@ -457,17 +458,17 @@ describe("VaccinationList 次回予定の期限超過表示", () => {
     const cell = getNextDateCell();
     expect(cell).toHaveClass("font-mono", C.text);
     expect(cell).not.toHaveClass(C.danger);
-    expect(cell).toHaveTextContent("2026-07-25");
+    expect(cell).toHaveTextContent("2026/07/25");
     expect(cell).not.toHaveTextContent("期限超過");
   });
 
-  it("空欄は現状の空セル表示を維持する", () => {
+  it("空欄は未設定プレースホルダーを表示する", () => {
     renderWithNextDate("");
 
     const cell = getNextDateCell();
     expect(cell).toHaveClass("font-mono", C.text);
     expect(cell).not.toHaveClass(C.danger);
-    expect(cell).toHaveTextContent(/^\s*$/);
+    expect(cell).toHaveTextContent(/^—$/);
     expect(cell).not.toHaveTextContent("期限超過");
   });
 
@@ -528,7 +529,7 @@ describe("VaccinationList petId query", () => {
 
     const filters = mockUseFilterVaccinations.mock.calls.at(-1)?.[1] as { petId?: string };
     expect(filters.petId).toBe("pet-9");
-    expect(screen.getByRole("button", { name: "新規登録" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "新規予防接種登録" })).toBeInTheDocument();
   });
 
   it("petId が無い一覧は GET フィルタに petId を載せない", () => {
@@ -774,7 +775,7 @@ describe("VaccinationList registration return", () => {
     const user = userEvent.setup();
     renderRegistrationFlow();
 
-    await user.click(screen.getByRole("button", { name: "新規登録" }));
+    await user.click(screen.getByRole("button", { name: "新規予防接種登録" }));
 
     expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations\/select-pet$/);
     expect(screen.getByTestId("nav-state")).toHaveTextContent('"/vaccinations?petId=10"');
@@ -790,7 +791,7 @@ describe("VaccinationList registration return", () => {
     const user = userEvent.setup();
     renderRegistrationFlow();
 
-    await user.click(screen.getByRole("button", { name: "新規登録" }));
+    await user.click(screen.getByRole("button", { name: "新規予防接種登録" }));
     await user.click(screen.getByRole("button", { name: "選択: ポチ (ID pet-9)" }));
 
     expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations\/new\?petId=pet-9$/);
@@ -807,7 +808,7 @@ describe("VaccinationList registration return", () => {
     const user = userEvent.setup();
     renderRegistrationFlow();
 
-    await user.click(screen.getByRole("button", { name: "新規登録" }));
+    await user.click(screen.getByRole("button", { name: "新規予防接種登録" }));
     await user.click(screen.getByRole("button", { name: "選択: ポチ (ID pet-9)" }));
     await user.click(screen.getByRole("button", { name: "保存" }));
 

@@ -1,5 +1,5 @@
 // React/Framework
-import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { ICON, LAYOUT } from "@/lib/design-tokens";
 import { useState, useDeferredValue, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -8,7 +8,7 @@ import { useSortableData } from "@/hooks/use-sortable-data";
 import { useUrlPageSync } from "@/hooks/use-url-page-sync";
 
 // External
-import { Plus, TestTube } from "lucide-react";
+import { Plus } from "lucide-react";
 
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -138,7 +138,6 @@ export function ExaminationsList() {
     <PageLayout
       title="検査管理"
       resource={ResourceExaminations}
-      icon={<TestTube className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <div className="flex items-center gap-2">
           {canCreate ? (

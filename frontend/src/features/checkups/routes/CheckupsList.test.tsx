@@ -383,7 +383,7 @@ describe("CheckupsList — medical record permission boundary", () => {
 
       render(<CheckupsList />, { wrapper: createWrapper(hasPermission) });
 
-      expect(screen.queryByRole("button", { name: /新規登録/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /新規定期健診登録/ })).not.toBeInTheDocument();
       expect(hasPermission).toHaveBeenCalledWith(ResourceMedicalRecords, "create");
       expect(hasPermission).toHaveBeenCalledWith(ResourceMedicalRecords, "edit");
     },
@@ -399,7 +399,7 @@ describe("CheckupsList — medical record permission boundary", () => {
 
     render(<CheckupsList />, { wrapper: createWrapper(hasPermission) });
 
-    expect(screen.getByRole("button", { name: /新規登録/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /新規定期健診登録/ })).toBeInTheDocument();
     expect(hasPermission).toHaveBeenCalledWith(ResourceMedicalRecords, "create");
     expect(hasPermission).toHaveBeenCalledWith(ResourceMedicalRecords, "edit");
   });

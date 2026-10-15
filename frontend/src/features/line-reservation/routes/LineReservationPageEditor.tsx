@@ -144,7 +144,7 @@ function PageEditorForm({ setting, clinicId }: PageEditorFormProps) {
     <form action={formAction} className="space-y-6 max-w-[720px]">
       {FIELDS.map((field) => (
         <div key={field.key} className="space-y-1.5">
-          <Label htmlFor={`field-${field.key}`} className={`text-sm font-medium ${C.text}`}>
+          <Label htmlFor={`field-${field.key}`} className={`font-medium ${C.text}`}>
             {field.label}
           </Label>
           <Textarea
@@ -160,7 +160,7 @@ function PageEditorForm({ setting, clinicId }: PageEditorFormProps) {
       ))}
 
       <div className="pt-2">
-        <SubmitButton>変更を保存</SubmitButton>
+        <SubmitButton>保存</SubmitButton>
       </div>
       {formState !== undefined ? null : null}
     </form>

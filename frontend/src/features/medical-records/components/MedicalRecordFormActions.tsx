@@ -143,8 +143,8 @@ export function MedicalRecordDeleteDialog({
       onClose={onClose}
       onConfirm={onConfirm}
       title="カルテを削除しますか？"
-      description={`${petName}のカルテデータを削除します。この操作は元に戻せません。`}
-      confirmLabel={isDeleting ? "削除中..." : "削除する"}
+      description={`${petName}のカルテデータを削除します。この操作は取り消せません。`}
+      confirmLabel={isDeleting ? "削除中..." : "削除"}
       cancelLabel="キャンセル"
       variant="destructive"
     />
@@ -173,7 +173,7 @@ export function MedicalRecordFinalizeDialog({
       onClose={onClose}
       onConfirm={onConfirm}
       title="カルテを確定しますか？"
-      description="確定後はカルテを編集できなくなります。修正が必要な場合は訂正追記（addendum）を使用してください。この操作は元に戻せません。"
+      description="確定後はカルテを編集できなくなります。修正が必要な場合は訂正追記（addendum）を使用してください。この操作は取り消せません。"
       confirmLabel={isFinalizing ? "確定中..." : "確定する"}
       cancelLabel="キャンセル"
       isPending={isFinalizing}

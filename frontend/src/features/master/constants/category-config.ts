@@ -131,7 +131,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     codePlaceholder: "",
   },
   reservationType: {
-    label: "予約区分",
+    label: "予約区分マスタ",
     description: "予約の区分（診療、トリミング入院等）を管理します",
     settingsPath: "/settings/reservation-type",
     IconComponent: Activity,
@@ -215,7 +215,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     codePlaceholder: "",
   },
   staff: {
-    label: "スタッフ管理",
+    label: "スタッフマスタ",
     description: "獣医師、スタッフの情報を管理します",
     settingsPath: "/settings/staff",
     IconComponent: Users,
@@ -299,7 +299,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     codePlaceholder: "veterinarian",
   },
   animal_species: {
-    label: "動物種類",
+    label: "動物種類マスタ",
     description: "犬、猫、鳥などの動物種類を管理します",
     settingsPath: "/settings/animal-species",
     IconComponent: PawPrint,
@@ -313,7 +313,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     codePlaceholder: "",
   },
   inquiry_template: {
-    label: "問診設定",
+    label: "問診テンプレートマスタ",
     description: "問診の質問項目テンプレートを管理します",
     settingsPath: "/settings/inquiry-templates",
     IconComponent: FileText,
@@ -327,7 +327,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     codePlaceholder: "",
   },
   merchandise_item: {
-    label: "物販・フード",
+    label: "物販・フードマスタ",
     description: "フード、サプリメント、グッズ等の販売品目を管理します",
     settingsPath: "/settings/merchandise-items",
     IconComponent: ShoppingBag,
@@ -341,7 +341,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     codePlaceholder: "",
   },
   permission_group: {
-    label: "権限グループ",
+    label: "権限グループマスタ",
     description: "スタッフに付与する権限グループを管理します",
     settingsPath: "/settings/permission-groups",
     IconComponent: Lock,
@@ -355,7 +355,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     codePlaceholder: "",
   },
   chief_complaint: {
-    label: "主訴カテゴリ",
+    label: "主訴カテゴリマスタ",
     description: "問診で使用する主訴カテゴリを管理します",
     settingsPath: "/settings/interview/chief-complaint",
     IconComponent: MessageSquareText,

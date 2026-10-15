@@ -92,7 +92,7 @@ test.beforeAll(async ({ browser }) => {
   context = await createAuthedContext(browser);
   const page = await context.newPage();
   await page.goto("/owners");
-  await expect(page.getByRole("heading", { name: "飼主・ペット一覧" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "飼主・ペット管理" })).toBeVisible();
   // UI のアクティブ医院は localStorage(auth_current_clinic) 優先だが、cookie セッション
   // 復元のみの context では未書込のままになり得るため /v1/me の main_clinic_id に揃える。
   const me = (await jsonOrThrow(page, "GET", "/api/v1/me")) as { main_clinic_id?: string };

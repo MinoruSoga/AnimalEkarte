@@ -5,7 +5,7 @@ section: システム設定
 keywords_vi: phương thức thanh toán, hình thức thanh toán, master thanh toán, kiểu thanh toán
 ---
 
-# 支払方法
+# 支払方法マスタ
 
 ## どんな画面か
 

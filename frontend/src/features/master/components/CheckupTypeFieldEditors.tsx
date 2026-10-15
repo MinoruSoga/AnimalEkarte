@@ -4,6 +4,7 @@ import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { FieldHelp } from "@/components/shared/FieldHelp";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { C, ICON } from "@/lib/design-tokens";
 import type { CheckupFieldType } from "@/types/checkup";
 
@@ -61,12 +62,11 @@ export function NumberBoundInput({ label, value, onChange, description }: Number
         <span>{label}</span>
         {description ? <FieldHelp label={label} content={description} /> : null}
       </div>
-      <input
-        type="number"
+      <NumberInput
         step="any"
         aria-label={label}
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={onChange}
         className={`mt-1 min-h-11 w-full rounded-xs border px-2 ${C.borderMedium} ${C.bgWhite} ${C.text}`}
       />
     </div>

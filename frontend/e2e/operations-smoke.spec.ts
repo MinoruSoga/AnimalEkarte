@@ -24,12 +24,12 @@ test.describe("運用・外部連携ページ smoke E2E", () => {
     await context.close();
   });
 
-  test("健診リマインダー抽出 (/lstep/checkup-sync) が表示される", async () => {
+  test("健診対象者抽出 (/lstep/checkup-sync) が表示される", async () => {
     const page = await context.newPage();
     try {
       await page.goto("/lstep/checkup-sync", { waitUntil: "domcontentloaded" });
       // CheckupSyncPage renders its own h1 (not via PageLayout)
-      await expect(page.getByRole("heading", { name: "健診リマインダー抽出" })).toBeVisible({
+      await expect(page.getByRole("heading", { name: "健診対象者抽出" })).toBeVisible({
         timeout: 15000,
       });
     } finally {
