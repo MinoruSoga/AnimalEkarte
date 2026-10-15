@@ -51,6 +51,14 @@ func TestItemCategoryOpenAPIContract(t *testing.T) {
 			assert.ElementsMatch(t, want, category.Enum)
 		})
 	}
+
+	t.Run("MerchandiseItem preserves restricted inventory inputs", func(t *testing.T) {
+		schema, exists := document.Components.Schemas["MerchandiseItem"]
+		require.True(t, exists)
+		category, exists := schema.Properties["category"]
+		require.True(t, exists)
+		assert.ElementsMatch(t, []string{"food", "goods", "other"}, category.Enum)
+	})
 }
 
 func declaredItemCategories(t *testing.T) map[string]string {

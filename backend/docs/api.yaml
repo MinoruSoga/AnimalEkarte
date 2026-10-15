@@ -3753,6 +3753,22 @@ components:
           type: string
           format: date-time
           readOnly: true
+    ItemCategory:
+      type: string
+      enum: &id003
+        - examination
+        - test
+        - procedure
+        - surgery
+        - medicine
+        - food
+        - goods
+        - other
+        - vaccine
+        - trimming
+        - hotel
+        - training
+        - house_call
     MerchandiseItem:
       type: object
       required: [name]
@@ -3769,20 +3785,7 @@ components:
           type: string
         category:
           type: string
-          enum: &id003
-            - examination
-            - test
-            - procedure
-            - surgery
-            - medicine
-            - food
-            - goods
-            - other
-            - vaccine
-            - trimming
-            - hotel
-            - training
-            - house_call
+          enum: [food, goods, other]
           default: goods
           description: カテゴリ（item_category ENUM）
         unit_price:
