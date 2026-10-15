@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 
 import { DatePicker } from "./DatePicker";
 import { CalendarNav, ClearButton, MonthGrid, YearNav } from "./DatePickerParts";
+import { C } from "@/lib/design-tokens";
 
 // react-day-picker v9 の日ボタン名は ja locale で "2026年10月20日火曜日" 形式
 function dayButton(isoDay: string) {
@@ -620,5 +621,18 @@ describe("DatePicker — range mode の開始/終了切替", () => {
     expect(onChange).toHaveBeenLastCalledWith("2026-10-18~");
     // 2ヶ月表示のため grid は2個
     expect(screen.getAllByRole("grid")).toHaveLength(2);
+  });
+});
+
+// EMR-411 C-1c: カレンダーグリフのコントラストを C.text60 へ引き上げる。
+// （range picker は対象外。JSDOM では描画色を計測できないため DOM クラスで検証）
+describe("DatePickerSingle calendar glyph contrast (EMR-411 C-1c)", () => {
+  it("カレンダーアイコンが C.text60 を持つ", () => {
+    render(<DatePicker value="" onChange={vi.fn()} />);
+
+    const trigger = screen.getByRole("button", { name: "カレンダーを開く" });
+    const glyph = trigger.querySelector("svg");
+    expect(glyph).not.toBeNull();
+    expect(glyph).toHaveClass(C.text60);
   });
 });
