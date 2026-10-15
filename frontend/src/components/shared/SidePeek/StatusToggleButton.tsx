@@ -22,6 +22,7 @@ export function StatusToggleButton({
         type="button"
         onClick={onToggle}
         aria-label="ステータスを切り替え"
+        aria-pressed={isActive}
         className={`inline-flex min-h-11 items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
       >
         <StatusPill isActive={isActive} />

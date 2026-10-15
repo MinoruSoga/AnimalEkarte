@@ -45,7 +45,7 @@ export function ClinicMasterSidePanel({
   return (
     <div
       data-side-peek
-      className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 flex flex-col`}
+      className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 ${LAYOUT.sidePeek.position} flex flex-col`}
     >
       <div className={STYLE.sidePeekToolbar}>
         <span className={`text-xs ${C.text65} pl-1 select-none`}>

@@ -21,7 +21,7 @@ export function MedicineSettings() {
 
   return (
     <>
-      <div className="flex h-full">
+      <div className="relative flex h-full">
         <div className="flex-1 min-w-0">
           <PageLayout
             title="薬剤マスタ"

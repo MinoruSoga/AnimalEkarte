@@ -67,7 +67,7 @@ export const Pagination = memo(function Pagination({
   // ラップする規約を持っており、ここで同名の nav を追加すると入れ子で aria-label が重複し
   // 「複数要素が見つかる」a11y クエリの破壊的衝突になる（実測: pagination.test.tsx で検出）。
   return (
-    <div className="flex items-center justify-between py-3 px-1">
+    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 py-3 px-1">
       <div className={STYLE.paginationInfo}>
         {totalCount.toLocaleString()}件中 {startIndex.toLocaleString()}-{endIndex.toLocaleString()}
         件

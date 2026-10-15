@@ -111,6 +111,8 @@ export function ClinicBooleanProperty({
       <button
         type="button"
         onClick={() => onChange(!value)}
+        aria-label={`${label}を切り替え`}
+        aria-pressed={value}
         className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 min-h-11 cursor-pointer`}
       >
         <StatusPill status={value ? "active" : "inactive"} />
@@ -135,6 +137,7 @@ export function ClinicTextareaProperty({
   return (
     <PropertyRow label={label} description={description}>
       <textarea
+        aria-label={label}
         className={`${PROP_INPUT_CLASS} min-h-16 resize-y`}
         value={value}
         onChange={(e) => onChange(e.target.value)}

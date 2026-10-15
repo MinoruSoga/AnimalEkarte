@@ -46,9 +46,10 @@ export function LabDeviceItemMasterSettings() {
 
   return (
     <>
-      <div className="flex h-full">
-        <div className="flex-1 min-w-0">
+      <div className="relative flex h-full max-xl:grid max-xl:grid-cols-1 max-xl:grid-rows-[auto_minmax(0,1fr)]">
+        <div className="flex-1 min-w-0 max-xl:contents">
           <PageLayout
+            className="max-xl:contents"
             title="検査機器マスタ"
             resource={ResourceLabImport}
             onBack={() => navigate(paths.settings.getHref())}
@@ -127,7 +128,7 @@ function LabDeviceItemMasterHeaderActions({
   onNew,
 }: LabDeviceItemMasterHeaderActionsProps) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center justify-end gap-2">
       {canEdit ? (
         <Button variant="secondary" onClick={onEnsure} disabled={ensurePending}>
           既定項目を用意

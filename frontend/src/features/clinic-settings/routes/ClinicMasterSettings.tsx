@@ -19,7 +19,7 @@ export function ClinicMasterSettings() {
   return (
     <>
       <NavigationBlocker when={s.isEditing} />
-      <div className="flex h-full">
+      <div className="relative flex h-full">
         <div className="flex-1 min-w-0">
           <ClinicMasterList
             canCreate={s.canCreate}

@@ -158,7 +158,7 @@ export const LabDeviceItemMasterSidePanel = memo(function LabDeviceItemMasterSid
       titleDescription="この検査機器（分析装置）の表示名です。機器マスタ一覧や連携設定で使われます。"
       titleMaxLength={100}
       readOnly={readOnly}
-      className="min-w-160"
+      className="xl:min-w-160 max-xl:w-[640px] max-xl:min-w-0 max-xl:col-start-1 max-xl:col-end-2 max-xl:row-start-2 max-xl:row-end-3"
     >
       <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
       {isNew ? (

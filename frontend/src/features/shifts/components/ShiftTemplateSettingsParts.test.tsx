@@ -7,6 +7,8 @@ import { describe, expect, it, vi } from "vitest";
 import { Table, TableBody } from "@/components/ui/table";
 
 import type { ShiftTemplate } from "../types";
+import { LAYOUT } from "@/lib/design-tokens";
+
 import { ShiftTemplateRow, ShiftTemplateSidePanel } from "./ShiftTemplateSettingsParts";
 
 function template(overrides: Partial<ShiftTemplate> = {}): ShiftTemplate {
@@ -154,5 +156,26 @@ describe("ShiftTemplateSidePanel EMR-241 time fields", () => {
 
     expect(await screen.findByText("開始時刻と終了時刻を入力してください")).toBeInTheDocument();
     expect(onSave).not.toHaveBeenCalled();
+  });
+});
+
+// EMR-411 C-3: シフトテンプレートの独自 side peek 外側も共有位置トークンを適用し、
+// viewport <1280px でリストの後ろに隠れない absolute overlay にする。
+describe("ShiftTemplateSidePanel overlay classes (EMR-411 C-3)", () => {
+  it("data-side-peek が LAYOUT.sidePeek.position の全クラスを持つ", () => {
+    render(
+      <ShiftTemplateSidePanel
+        item={template()}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+        isSaving={false}
+      />,
+    );
+
+    const panel = document.querySelector("[data-side-peek]");
+    expect(panel).not.toBeNull();
+    for (const cls of LAYOUT.sidePeek.position.split(" ")) {
+      expect(panel).toHaveClass(cls);
+    }
   });
 });

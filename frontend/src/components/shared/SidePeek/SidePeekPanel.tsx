@@ -20,7 +20,7 @@ export const SidePeekPanel = memo(function SidePeekPanel({
       data-side-peek
       role={ariaLabel ? "dialog" : undefined}
       aria-label={ariaLabel}
-      className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 relative ${className ?? ""}`}
+      className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 ${LAYOUT.sidePeek.position} ${className ?? ""}`}
       onKeyDown={onKeyDown}
     >
       {children}

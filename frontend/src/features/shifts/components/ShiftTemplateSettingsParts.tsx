@@ -170,7 +170,10 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
   }, [formData, timesRequired, onSave, readOnly]);
 
   return (
-    <div data-side-peek className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0`}>
+    <div
+      data-side-peek
+      className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 ${LAYOUT.sidePeek.position}`}
+    >
       <div className={STYLE.sidePeekToolbar}>
         <span className={`text-xs ${C.text65} pl-1 select-none`}>
           {item !== null ? (readOnly ? "詳細" : "編集") : "新規登録"}

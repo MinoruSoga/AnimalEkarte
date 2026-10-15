@@ -69,7 +69,7 @@ export function ShiftTemplateSettingsWorkspace({
 }: ShiftTemplateSettingsWorkspaceProps) {
   return (
     <>
-      <div className="flex h-full overflow-hidden">
+      <div className="relative flex h-full overflow-hidden">
         <div className="flex-1 min-w-0 overflow-auto">
           <PageLayout
             title="シフトテンプレート"
