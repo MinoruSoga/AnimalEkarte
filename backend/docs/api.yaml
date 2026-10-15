@@ -3778,6 +3778,11 @@ components:
             - food
             - goods
             - other
+            - vaccine
+            - trimming
+            - hotel
+            - training
+            - house_call
           default: goods
           description: カテゴリ（item_category ENUM）
         unit_price:

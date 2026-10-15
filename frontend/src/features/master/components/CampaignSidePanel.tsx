@@ -39,6 +39,7 @@ const CATEGORY_OPTIONS: { value: string; label: string }[] = [
   { value: "hotel", label: "ホテル" },
   { value: "training", label: "しつけ" },
   { value: "other", label: "その他" },
+  { value: "house_call", label: "往診" },
 ];
 
 function toggleSelection(values: string[], value: string): string[] {

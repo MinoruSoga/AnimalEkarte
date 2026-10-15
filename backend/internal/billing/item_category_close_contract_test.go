@@ -4,15 +4,54 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+type openAPICategoryContractDocument struct {
+	Components struct {
+		Schemas map[string]openAPICategoryContractSchema `yaml:"schemas"`
+	} `yaml:"components"`
+}
+
+type openAPICategoryContractSchema struct {
+	Properties map[string]openAPICategoryContractProperty `yaml:"properties"`
+}
+
+type openAPICategoryContractProperty struct {
+	Enum []string `yaml:"enum"`
+}
+
+func TestItemCategoryOpenAPIContract(t *testing.T) {
+	spec, err := os.ReadFile("../../docs/api.yaml")
+	require.NoError(t, err)
+
+	var document openAPICategoryContractDocument
+	require.NoError(t, yaml.Unmarshal(spec, &document))
+
+	want := make([]string, 0, len(model.AllItemCategories()))
+	for _, category := range model.AllItemCategories() {
+		want = append(want, string(category))
+	}
+
+	for _, schemaName := range []string{"EstimateItemInput", "EstimateItems", "BillingItems"} {
+		t.Run(schemaName, func(t *testing.T) {
+			schema, exists := document.Components.Schemas[schemaName]
+			require.True(t, exists, "schema %s must exist", schemaName)
+			category, exists := schema.Properties["category"]
+			require.True(t, exists, "schema %s must define category", schemaName)
+			assert.ElementsMatch(t, want, category.Enum)
+		})
+	}
+}
 
 func declaredItemCategories(t *testing.T) map[string]string {
 	t.Helper()

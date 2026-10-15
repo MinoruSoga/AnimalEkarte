@@ -74,4 +74,46 @@ describe("apportionPayment: house_call", () => {
     );
     expect(d.houseCall).toEqual({ cash: 2000, card: 0 });
   });
+
+  it("negative houseCall adjustment cannot subtract from cash already allocated to goods", () => {
+    const d = apportionPayment(
+      {
+        medical: 0,
+        surgery: 0,
+        rv: 0,
+        food: 0,
+        trimming: 0,
+        hotel: 0,
+        goods: 300,
+        houseCall: -200,
+      },
+      50,
+    );
+
+    expect(d.goods).toEqual({ cash: 50, card: 250 });
+    expect(d.houseCall).toEqual({ cash: 0, card: -200 });
+    expect(Object.values(d).reduce((sum, amount) => sum + amount.cash, 0)).toBe(50);
+    expect(Object.values(d).reduce((sum, amount) => sum + amount.card, 0)).toBe(50);
+  });
+
+  it("negative earlier-priority medical adjustment does not consume cash from goods", () => {
+    const d = apportionPayment(
+      {
+        medical: -200,
+        surgery: 0,
+        rv: 0,
+        food: 0,
+        trimming: 0,
+        hotel: 0,
+        goods: 300,
+        houseCall: 0,
+      },
+      50,
+    );
+
+    expect(d.medical).toEqual({ cash: 0, card: -200 });
+    expect(d.goods).toEqual({ cash: 50, card: 250 });
+    expect(Object.values(d).reduce((sum, amount) => sum + amount.cash, 0)).toBe(50);
+    expect(Object.values(d).reduce((sum, amount) => sum + amount.card, 0)).toBe(50);
+  });
 });

@@ -97,7 +97,7 @@ export function apportionPayment(
   };
   for (const cat of PRIORITY) {
     const catTotal = breakdown[cat];
-    const catCash = Math.min(catTotal, cashLeft);
+    const catCash = Math.min(Math.max(catTotal, 0), cashLeft);
     result[cat] = { cash: catCash, card: catTotal - catCash };
     cashLeft -= catCash;
   }
