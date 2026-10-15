@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { C } from "@/lib/design-tokens";
+
 import { PropertyFilter } from "./PropertyFilter";
 
 const baseProps = {
@@ -222,5 +224,37 @@ describe("PropertyFilter search confirm-only", () => {
     );
 
     expect(input).toHaveValue("外部更新");
+  });
+});
+
+// EMR-411 C-1b: フィルタ削除ボタンはタッチ端末 (hover:none) で常時表示にする。
+// opacity-0 + group-hover/focus 系のマウス契約は維持し、カラーを C.text60 へ。
+describe("PropertyFilter フィルタ削除ボタンのタッチ可視性 (EMR-411 C-1b)", () => {
+  it("削除ボタンが hover:none 常時表示・マウス hover/focus 表示・text60 を併せ持つ", () => {
+    render(
+      <PropertyFilter
+        properties={[
+          {
+            key: "owner_name",
+            label: "飼主名",
+            type: "select",
+            options: [{ value: "x", label: "X" }],
+          },
+        ]}
+        activeFilters={[{ key: "owner_name", condition: "is", value: "x", displayValue: "X" }]}
+        onFilterChange={vi.fn()}
+      />,
+    );
+
+    const remove = screen.getByRole("button", { name: "飼主名 フィルタを削除" });
+    expect(remove).toHaveClass("[@media(hover:none)]:opacity-100");
+    expect(remove).toHaveClass(
+      "opacity-0",
+      "group-hover:opacity-100",
+      "focus-visible:opacity-100",
+      "group-focus-within:opacity-100",
+    );
+    expect(remove).toHaveClass(C.text60);
+    expect(remove).toHaveClass("min-h-11", "min-w-11");
   });
 });

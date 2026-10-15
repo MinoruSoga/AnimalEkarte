@@ -95,7 +95,7 @@ const SortRuleRow = memo(function SortRuleRow({
       <button
         type="button"
         onClick={() => onRemove(sort.key)}
-        className={`min-h-11 min-w-11 flex items-center justify-center rounded-xxs ${C.text30} ${C.hoverText60} ${C.hoverBgLight} opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 transition-opacity ml-auto`}
+        className={`min-h-11 min-w-11 flex items-center justify-center rounded-xxs ${C.text60} ${C.hoverText60} ${C.hoverBgLight} opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity ml-auto`}
         aria-label={`${property?.label ?? sort.key} ソートを削除`}
       >
         <X className={ICON.page} />
