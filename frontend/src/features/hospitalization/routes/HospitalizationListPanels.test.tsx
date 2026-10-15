@@ -108,6 +108,8 @@ function renderPageView(
       boardHospitalizations={[]}
       boardLoading={false}
       boardError={false}
+      cagesLoading={false}
+      cagesError={false}
       onNavigateToForm={vi.fn()}
       onMovePet={vi.fn()}
       canCreate
@@ -408,4 +410,72 @@ describe("HospitalizationListPanels EMR-306 merge mode toggle", () => {
       expect(mergeRequests).toBe(0);
     },
   );
+});
+
+// EMR-412 R4: board の表示可否は board 全件クエリと cage master クエリの両方に依存する。
+// cage 未確定（loading/error）では「ケージが登録されていません」と言い切れない。
+describe("HospitalizationListPageView cage master loading/error (EMR-412 R4)", () => {
+  it("cages 取得中（board 完了）は部分描画せず loading を出し、ケージ未登録を出さない", () => {
+    renderPageView({
+      boardHospitalizations: [],
+      cages: [],
+      boardLoading: false,
+      cagesLoading: true,
+      cagesError: false,
+    });
+
+    expect(screen.queryByText("ケージが登録されていません")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeInTheDocument();
+  });
+
+  it("cages 取得失敗（board 完了）は error 表示に倒し、ケージ未登録を出さない", () => {
+    renderPageView({
+      boardHospitalizations: [],
+      cages: [],
+      boardLoading: false,
+      cagesLoading: false,
+      cagesError: true,
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("データの取得に失敗しました");
+    expect(screen.queryByText("ケージが登録されていません")).not.toBeInTheDocument();
+  });
+
+  it("cages 取得成功で0件ならケージ未登録メッセージを出す", () => {
+    renderPageView({
+      boardHospitalizations: [],
+      cages: [],
+      boardLoading: false,
+      cagesLoading: false,
+      cagesError: false,
+    });
+
+    expect(screen.getByText("ケージが登録されていません")).toBeInTheDocument();
+  });
+
+  it("cages 取得成功（件数あり）で入院0件なら board を描画する", () => {
+    renderPageView({
+      boardHospitalizations: [],
+      cages: mergeCages,
+      boardLoading: false,
+      cagesLoading: false,
+      cagesError: false,
+    });
+
+    expect(screen.getByText("ケージ10")).toBeInTheDocument();
+    expect(screen.queryByText("ケージが登録されていません")).not.toBeInTheDocument();
+  });
+
+  it("list 表示は cages の loading/error に影響されない", () => {
+    renderPageView({
+      viewMode: "list",
+      cages: [],
+      cagesLoading: true,
+      cagesError: true,
+    });
+
+    expect(screen.getByText("入院No")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
 });

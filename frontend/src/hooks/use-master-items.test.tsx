@@ -67,3 +67,33 @@ describe("useGetMasterItems transformGenericMasterItem (EMR-306)", () => {
     expect(result.current.data[0].status).toBe("active");
   });
 });
+
+// EMR-412 R4: 共有フックはクエリの失敗状態を握り潰さず isError を additive に公開する。
+// （HospitalizationList 側の props 偽装ではなく、実クエリの失敗が surface すること）
+describe("useGetMasterItems error state (EMR-412 R4)", () => {
+  afterEach(() => {
+    server.resetHandlers();
+  });
+
+  it("マスタ取得が 500 で失敗すると isError=true を公開する", async () => {
+    server.use(http.get("*/v1/masters/cages", () => new HttpResponse(null, { status: 500 })));
+
+    const { result } = renderHook(() => useGetMasterItems("cage"), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it("マスタ取得成功時は isError=false を公開する", async () => {
+    server.use(http.get("*/v1/masters/cages", () => HttpResponse.json([])));
+
+    const { result } = renderHook(() => useGetMasterItems("cage"), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isError).toBe(false);
+  });
+});

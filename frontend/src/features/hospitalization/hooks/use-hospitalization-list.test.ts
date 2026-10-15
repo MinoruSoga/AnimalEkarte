@@ -15,10 +15,16 @@ import { useHospitalizationList } from "./use-hospitalization-list";
 
 const mocks = vi.hoisted(() => ({
   cages: [] as MasterItem[],
+  cagesLoading: false,
+  cagesError: false,
 }));
 
 vi.mock("@/hooks/use-master-items", () => ({
-  useGetMasterItems: () => ({ data: mocks.cages }),
+  useGetMasterItems: () => ({
+    data: mocks.cages,
+    isLoading: mocks.cagesLoading,
+    isError: mocks.cagesError,
+  }),
 }));
 
 vi.mock("sonner", () => ({
@@ -48,6 +54,7 @@ function makeHospitalization(overrides: Partial<Hospitalization> = {}): Hospital
     hospitalizationType: "入院",
     startDate: "2026-07-26",
     endDate: "",
+    nextVisit: undefined,
     status: "入院中",
     cageId: "cage-1",
     petId: undefined,
@@ -392,5 +399,47 @@ describe("useHospitalizationList — cage move mutation boundary", () => {
     );
     expect(updateHospitalization).not.toHaveBeenCalled();
     expect(toast.error).not.toHaveBeenCalled();
+  });
+});
+
+// EMR-412 R4: ケージ master の loading/error を list 画面へ additive に公開する
+// （共有 useGetMasterItems の isLoading/isError を破棄せず surface する）。
+describe("useHospitalizationList — cage master loading/error (EMR-412 R4)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.cages = [];
+    mocks.cagesLoading = false;
+    mocks.cagesError = false;
+  });
+
+  it("master items 取得中は cagesLoading=true / cagesError=false を公開する", () => {
+    mocks.cagesLoading = true;
+    const queryClient = new QueryClient();
+    const { result } = renderHook(() => useHospitalizationList(true), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    expect(result.current.cagesLoading).toBe(true);
+    expect(result.current.cagesError).toBe(false);
+  });
+
+  it("master items 取得失敗時は cagesError=true を公開する", () => {
+    mocks.cagesError = true;
+    const queryClient = new QueryClient();
+    const { result } = renderHook(() => useHospitalizationList(true), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    expect(result.current.cagesError).toBe(true);
+  });
+
+  it("master items 成功時は cagesLoading=false / cagesError=false を公開する", () => {
+    const queryClient = new QueryClient();
+    const { result } = renderHook(() => useHospitalizationList(true), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    expect(result.current.cagesLoading).toBe(false);
+    expect(result.current.cagesError).toBe(false);
   });
 });

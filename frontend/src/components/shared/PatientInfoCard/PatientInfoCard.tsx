@@ -123,6 +123,8 @@ export const PatientInfoCard = memo(function PatientInfoCard({
 }: PatientInfoCardProps) {
   const isDeceased = status === "deceased";
   const nextVisitAlertDate = nextVisitDate ? normalizeAlertDate(nextVisitDate) : undefined;
+  // EMR-412 X14/R3: 既定のアクセシブル名を維持しつつ、必須時のみ （必須） を末尾へ付与する。
+  const staffAriaLabel = staffLabel ? `${staffLabel}${staffName}` : `担当者を選択: ${staffName}`;
 
   return (
     <div
@@ -306,7 +308,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
               <Button
                 id={staffButtonId}
                 type="button"
-                aria-label={staffLabel ? `${staffLabel}${staffName}` : `担当者を選択: ${staffName}`}
+                aria-label={`${staffAriaLabel}${staffRequiredMark ? "（必須）" : ""}`}
                 aria-invalid={staffInvalid || undefined}
                 variant="ghost"
                 size="sm"

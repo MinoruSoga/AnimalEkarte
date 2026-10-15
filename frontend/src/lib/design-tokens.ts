@@ -124,7 +124,7 @@ export const STATE = {
    * 完全なクラス名リテラルで保持する（Tailwind が全文走査で検出できるため）。
    */
   readonlyInputs:
-    "[&_input:disabled]:opacity-100 [&_textarea:disabled]:opacity-100 [&_select:disabled]:opacity-100 [&_[role=combobox]:disabled]:opacity-100 [&_input:disabled]:border-[#E6E6E6] [&_textarea:disabled]:border-[#E6E6E6] [&_select:disabled]:border-[#E6E6E6]",
+    "[&_input:disabled]:opacity-100 [&_textarea:disabled]:opacity-100 [&_select:disabled]:opacity-100 [&_[role=combobox]:disabled]:opacity-100 [&_input:disabled]:border-[#E6E6E6] [&_textarea:disabled]:border-[#E6E6E6] [&_select:disabled]:border-[#E6E6E6] [&_[role=combobox]:disabled]:border-[#E6E6E6]",
   /** EMR-412 R7/N5: ToggleGroup on 状態の文字色（C.textActionPrimaryDark と同じ primary 値）。 */
   toggleOnTextPrimary: "data-[state=on]:text-[#025F66]",
 } as const;

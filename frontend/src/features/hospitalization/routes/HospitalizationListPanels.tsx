@@ -51,6 +51,9 @@ interface HospitalizationListContentProps {
   /** Codex PR606 #2: board の全件フェッチ状態（ページングと独立）。 */
   boardLoading: boolean;
   boardError: boolean;
+  /** EMR-412 R4: ケージ master の取得状態。board の表示可否は board と cages の両方に依存する。 */
+  cagesLoading: boolean;
+  cagesError: boolean;
   onNavigateToForm: (id?: string) => void;
   onMovePet: (source: Hospitalization, targetCageId: string, target?: Hospitalization) => void;
   canCreate: boolean;
@@ -76,6 +79,8 @@ function HospitalizationListContent({
   boardHospitalizations,
   boardLoading,
   boardError,
+  cagesLoading,
+  cagesError,
   onNavigateToForm,
   onMovePet,
   canCreate,
@@ -234,9 +239,9 @@ function HospitalizationListContent({
         {viewMode === "board" ? (
           // Codex PR606 #2: board は全件フェッチ中の部分ページを描画しない。
           // ケージ占有・未割当の欠落が臨床配置図で見えなくなるのを防ぐ。
-          boardLoading ? (
+          boardLoading || cagesLoading ? (
             <LoadingFallback />
-          ) : boardError ? (
+          ) : boardError || cagesError ? (
             <ErrorFallback />
           ) : boardHospitalizations.length === 0 ? (
             <>

@@ -198,3 +198,65 @@ describe("PatientInfoCard 390px レスポンシブ (EMR-391/VQ-015)", () => {
     expect(screen.getByText("とても長い保険会社と契約プラン名")).not.toHaveClass("truncate");
   });
 });
+
+// EMR-412 X14 / R3: 担当者選択ボタンのアクセシブル名へ必須印を additive に反映する。
+// 既定ラベル・staffButtonId・aria-invalid は維持する（見た目の * は aria-hidden のまま）。
+describe("PatientInfoCard 担当者必須マーク (EMR-412 X14)", () => {
+  const staffProps = { onStaffClick: () => {}, staffName: "佐藤", staffLabel: "担当医" };
+
+  it("staffRequiredMark=true のとき担当者ボタンの aria-label 末尾に （必須） を付ける", () => {
+    render(<PatientInfoCard {...baseProps} {...staffProps} staffRequiredMark />);
+
+    expect(screen.getByRole("button", { name: "担当医佐藤（必須）" })).toBeInTheDocument();
+  });
+
+  it("staffRequiredMark=false/未指定 は既定の aria-label を維持し （必須） を付けない", () => {
+    const { rerender } = render(<PatientInfoCard {...baseProps} {...staffProps} />);
+    expect(screen.getByRole("button", { name: "担当医佐藤" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /（必須）/ })).not.toBeInTheDocument();
+
+    rerender(<PatientInfoCard {...baseProps} {...staffProps} staffRequiredMark={false} />);
+    expect(screen.getByRole("button", { name: "担当医佐藤" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /（必須）/ })).not.toBeInTheDocument();
+  });
+
+  it("rerender で staffRequiredMark を切替えても name が追従し id/aria-invalid/onClick を保持する", async () => {
+    const user = userEvent.setup();
+    const onClick = vi.fn();
+    const { rerender } = render(
+      <PatientInfoCard
+        {...baseProps}
+        onStaffClick={onClick}
+        staffName="佐藤"
+        staffLabel="担当医"
+        staffButtonId="staff-select"
+        staffInvalid
+        staffRequiredMark
+      />,
+    );
+
+    const requiredButton = screen.getByRole("button", { name: "担当医佐藤（必須）" });
+    expect(requiredButton).toHaveAttribute("id", "staff-select");
+    expect(requiredButton).toHaveAttribute("aria-invalid", "true");
+    await user.click(requiredButton);
+    expect(onClick).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <PatientInfoCard
+        {...baseProps}
+        onStaffClick={onClick}
+        staffName="佐藤"
+        staffLabel="担当医"
+        staffButtonId="staff-select"
+        staffInvalid
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /（必須）/ })).not.toBeInTheDocument();
+    const plainButton = screen.getByRole("button", { name: "担当医佐藤" });
+    expect(plainButton).toHaveAttribute("id", "staff-select");
+    expect(plainButton).toHaveAttribute("aria-invalid", "true");
+    await user.click(plainButton);
+    expect(onClick).toHaveBeenCalledTimes(2);
+  });
+});
