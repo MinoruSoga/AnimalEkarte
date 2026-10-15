@@ -27,7 +27,7 @@ export type UpdateLineReservationSettingRequest = Omit<
   LineReservationSetting,
   "id" | "clinic_id" | "created_at" | "updated_at" | LineReservationSettingJsonbFields
 > & {
-  closed_weekdays: string[];
+  closed_weekdays: number[];
   closed_dates: string[];
   business_hours: BusinessHours;
   business_hours_by_weekday?: BusinessHoursByWeekday;

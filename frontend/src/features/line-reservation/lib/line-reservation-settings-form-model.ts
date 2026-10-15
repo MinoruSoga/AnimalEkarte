@@ -13,6 +13,44 @@ import type {
 // 文字列で届いた場合(旧クライアント互換等)は JSON.parse も許容し、
 // いずれの経路でも型ガードを通してから返すことで無検証キャストを排除する。
 
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
+export function parseClosedWeekdays(value: unknown): number[] | null {
+  let parsed: unknown = value;
+  if (typeof parsed === "string") {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      return null;
+    }
+  }
+  if (parsed == null) return [];
+  if (!isUnknownArray(parsed)) return null;
+
+  const weekdays: number[] = [];
+  for (const weekday of parsed) {
+    if (typeof weekday === "number" && Number.isInteger(weekday) && weekday >= 0 && weekday <= 6) {
+      weekdays.push(weekday);
+      continue;
+    }
+    if (typeof weekday === "string" && /^[0-6]$/.test(weekday)) {
+      weekdays.push(Number(weekday));
+      continue;
+    }
+    return null;
+  }
+  return weekdays;
+}
+
+// parseClosedWeekdays の結果同士の等値比較（順序非依存・重複は要素数差で検出）。
+// null(不正値) は null 同士のみ等値。
+export function sameClosedWeekdays(a: number[] | null, b: number[] | null): boolean {
+  if (a === null || b === null) return a === b;
+  return a.length === b.length && a.every((weekday) => b.includes(weekday));
+}
+
 export function isStringArray(v: unknown): v is string[] {
   return Array.isArray(v) && v.every((item) => typeof item === "string");
 }

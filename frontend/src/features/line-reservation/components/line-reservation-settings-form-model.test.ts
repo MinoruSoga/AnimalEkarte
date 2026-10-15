@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  parseClosedWeekdays,
   asJsonb,
   isStringArray,
   isBusinessHours,
@@ -102,6 +103,46 @@ describe("asJsonb", () => {
 
   it("非string値: 型不一致なら fallback を返す", () => {
     expect(asJsonb({ foo: "bar" }, ["fallback"], isStringArray)).toEqual(["fallback"]);
+  });
+});
+
+describe("parseClosedWeekdays", () => {
+  it("normalizes numeric and exact legacy weekday values from arrays and JSON", () => {
+    const legacyWeekdays = ["0", "2", "6"];
+
+    expect(parseClosedWeekdays([])).toEqual([]);
+    expect(parseClosedWeekdays([0])).toEqual([0]);
+    expect(parseClosedWeekdays([2, 6])).toEqual([2, 6]);
+    expect(parseClosedWeekdays(legacyWeekdays)).toEqual([0, 2, 6]);
+    expect(parseClosedWeekdays(`[0,"2",6]`)).toEqual([0, 2, 6]);
+    expect(parseClosedWeekdays(`["0","2","6"]`)).toEqual([0, 2, 6]);
+    expect(parseClosedWeekdays([2, "2"])).toEqual([2, 2]);
+    expect(legacyWeekdays).toEqual(["0", "2", "6"]);
+  });
+
+  it("returns an empty array for omitted or whole-null values", () => {
+    expect(parseClosedWeekdays(undefined)).toEqual([]);
+    expect(parseClosedWeekdays(null)).toEqual([]);
+    expect(parseClosedWeekdays("null")).toEqual([]);
+  });
+
+  it("returns null for malformed, invalid, or noncanonical stored values", () => {
+    const invalidValues: unknown[] = [
+      {},
+      "{not-json",
+      "{}",
+      [null],
+      [true],
+      [{}],
+      [2.5],
+      [-1],
+      [7],
+      ["02"],
+      [" 2"],
+      ["7"],
+    ];
+
+    invalidValues.forEach((value) => expect(parseClosedWeekdays(value)).toBeNull());
   });
 });
 

@@ -614,6 +614,134 @@ func TestLiffService_TypeScopedPublicReads_RejectHiddenReservationType(t *testin
 	}
 }
 
+func TestLiffService_GetAvailableDates_LegacyClosedWeekdays(t *testing.T) {
+	const clinicID = uint64(3)
+	const typeID = uint64(7)
+	ctx := context.Background()
+	setting := liffDefaultSetting()
+	setting.BookingWindowMinDays = 0
+	setting.BookingWindowMaxDays = 0
+	setting.ClosedWeekdays = []byte(`["0","1","2","3","4","5","6"]`)
+	typeRepo := &mockLiffTypeRepository{
+		findByIDFn: func(_ context.Context, gotClinicID, gotTypeID uint64) (*model.ReservationType, error) {
+			return &model.ReservationType{
+				ID:                   gotTypeID,
+				ClinicID:             gotClinicID,
+				IsActive:             true,
+				ReservationVisible:   true,
+				DurationMinutes:      30,
+				ReservationDayOption: model.DayOptionAnyday,
+			}, nil
+		},
+	}
+	svc := newLiffSvc(
+		&mockLiffSettingRepository{
+			findByClinicIDFn: func(_ context.Context, gotClinicID uint64) (*model.LineReservationSetting, error) {
+				assert.Equal(t, clinicID, gotClinicID)
+				return setting, nil
+			},
+		},
+		typeRepo,
+		&mockLiffStaffRepository{},
+		&mockLiffScheduleRepository{},
+		&mockLiffAdminRepository{},
+		&mockLiffCustomerRepository{},
+		&mockLiffValidators{},
+		&mockLiffNotifier{},
+	)
+
+	results, window, err := svc.GetAvailableDates(ctx, clinicID, typeID, 0)
+
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	assert.Equal(t, window.Start, results[0].Date)
+	assert.False(t, results[0].Available)
+	assert.Equal(t, "closed", results[0].Reason)
+}
+
+func TestLiffService_GetStaffAvailableTimes_LegacyWeekdaysAndBusinessHoursFallback(t *testing.T) {
+	const clinicID = uint64(3)
+	const typeID = uint64(7)
+	const staffID = uint64(11)
+	ctx := context.Background()
+	openDate := time.Date(2026, 9, 13, 0, 0, 0, 0, config.JST)
+	typeRepo := &mockLiffTypeRepository{
+		findByIDFn: func(_ context.Context, gotClinicID, gotTypeID uint64) (*model.ReservationType, error) {
+			return &model.ReservationType{
+				ID:                   gotTypeID,
+				ClinicID:             gotClinicID,
+				IsActive:             true,
+				ReservationVisible:   true,
+				DurationMinutes:      30,
+				ReservationDayOption: model.DayOptionAnyday,
+			}, nil
+		},
+	}
+	staffRepo := &mockLiffStaffRepository{
+		findByIDFn: func(_ context.Context, gotClinicID, gotStaffID uint64) (*model.Staff, error) {
+			return &model.Staff{ID: gotStaffID, ClinicID: gotClinicID, IsActive: true, ReservationVisible: true}, nil
+		},
+	}
+	tests := []struct {
+		name          string
+		businessHours []byte
+		want          []TimeSlot
+		wantTimeError bool
+	}{
+		{
+			name:          "valid business hours produce expected slots",
+			businessHours: []byte(`{"start":"0900","end":"1000"}`),
+			want:          []TimeSlot{{StartTime: "0900", EndTime: "0930"}, {StartTime: "0930", EndTime: "1000"}},
+		},
+		{name: "empty business hours keep default hours", businessHours: []byte{}},
+		{name: "malformed business hours keep default hours", businessHours: []byte(`not-json`)},
+		{name: "empty start uses existing time validation", businessHours: []byte(`{"start":"","end":"1000"}`), wantTimeError: true},
+		{name: "empty end uses existing time validation", businessHours: []byte(`{"start":"0900","end":""}`), wantTimeError: true},
+		{name: "malformed start uses existing time validation", businessHours: []byte(`{"start":"09:00","end":"1000"}`), wantTimeError: true},
+		{name: "malformed end uses existing time validation", businessHours: []byte(`{"start":"0900","end":"09x0"}`), wantTimeError: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setting := liffDefaultSetting()
+			setting.ClosedWeekdays = []byte(`["1"]`)
+			setting.BusinessHours = tt.businessHours
+			setting.BreakHours = []byte(`[]`)
+			setting.TimeSlotIntervalMinutes = 30
+			setting.TimeSlotMode = "allow_gaps"
+			svc := newLiffSvc(
+				&mockLiffSettingRepository{
+					findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+						return setting, nil
+					},
+				},
+				typeRepo,
+				staffRepo,
+				&mockLiffScheduleRepository{},
+				&mockLiffAdminRepository{},
+				&mockLiffCustomerRepository{},
+				&mockLiffValidators{},
+				&mockLiffNotifier{},
+			)
+
+			slots, err := svc.GetStaffAvailableTimes(ctx, clinicID, typeID, staffID, openDate)
+
+			if tt.wantTimeError {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "invalid time format")
+				assert.NotContains(t, err.Error(), "休診設定の形式が正しくありません")
+				return
+			}
+			require.NoError(t, err)
+			require.NotEmpty(t, slots)
+			assert.Equal(t, "0900", slots[0].StartTime)
+			if tt.want != nil {
+				assert.Equal(t, tt.want, slots)
+			}
+		})
+	}
+}
+
 // BUG-RES-AVAILABLE-TIMES-404: in-clinic settings-missing is identifiable unset;
 // LIFF keeps settings-required; empty holiday stays []; type not-found and DB errors stay errors.
 func TestGetAvailableTimes_SettingsMissing_Contracts(t *testing.T) {
@@ -681,7 +809,7 @@ func TestGetAvailableTimes_SettingsMissing_Contracts(t *testing.T) {
 			settingRepo: &mockLiffSettingRepository{
 				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
 					s := liffDefaultSetting()
-					s.ClosedWeekdays = []byte(`[1]`)
+					s.ClosedWeekdays = []byte(`["1"]`)
 					return s, nil
 				},
 			},

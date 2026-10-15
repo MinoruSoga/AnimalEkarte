@@ -41,8 +41,8 @@ describe("検査機器マスタ sidebar nav", () => {
 });
 
 describe("マスタ設定 sidebar 漏れ分", () => {
-  it("主訴カテゴリをカルテ関連に出す", () => {
-    const item = findNested("カルテ関連", "主訴カテゴリ");
+  it("主訴カテゴリマスタをカルテ関連に出す", () => {
+    const item = findNested("カルテ関連", "主訴カテゴリマスタ");
     expect(item.path).toBe(paths.settings.interview.chiefComplaint.getHref());
     expect(item.resource).toBe("master-medical");
   });
@@ -59,8 +59,8 @@ describe("マスタ設定 sidebar 漏れ分", () => {
     expect(item.resource).toBe("master-trimming");
   });
 
-  it("割引キャンペーンをマスタ設定に出す", () => {
-    const item = findMasterChild("割引キャンペーン");
+  it("割引キャンペーンマスタをマスタ設定に出す", () => {
+    const item = findMasterChild("割引キャンペーンマスタ");
     expect(item.path).toBe(paths.settings.campaigns.getHref());
     expect(item.resource).toBe("accounting");
   });
