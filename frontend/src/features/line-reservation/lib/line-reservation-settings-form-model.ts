@@ -44,6 +44,13 @@ export function parseClosedWeekdays(value: unknown): number[] | null {
   return weekdays;
 }
 
+// parseClosedWeekdays の結果同士の等値比較（順序非依存・重複は要素数差で検出）。
+// null(不正値) は null 同士のみ等値。
+export function sameClosedWeekdays(a: number[] | null, b: number[] | null): boolean {
+  if (a === null || b === null) return a === b;
+  return a.length === b.length && a.every((weekday) => b.includes(weekday));
+}
+
 export function isStringArray(v: unknown): v is string[] {
   return Array.isArray(v) && v.every((item) => typeof item === "string");
 }

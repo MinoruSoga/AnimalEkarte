@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { updateLineReservationSetting } from "../api/update-line-reservation-setting";
@@ -36,6 +37,7 @@ import {
 import {
   asJsonb,
   parseClosedWeekdays,
+  sameClosedWeekdays,
   isStringArray,
   isBusinessHours,
   isBreakHourArray,
@@ -84,7 +86,38 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
   const [closedWeekdays, setClosedWeekdays] = useState<number[] | null>(() =>
     parseClosedWeekdays(setting.closed_weekdays),
   );
+  // 直近にサーバーから受け取った定休曜日。ユーザー編集とサーバー更新を区別する基準値。
+  const [closedWeekdaysBaseline, setClosedWeekdaysBaseline] = useState(closedWeekdays);
+  // 編集中にサーバー側も更新された場合の最新値。undefined は競合なし（null は不正値との競合）。
+  const [closedWeekdaysConflict, setClosedWeekdaysConflict] = useState<number[] | null | undefined>(
+    undefined,
+  );
   const hasInvalidClosedWeekdays = closedWeekdays === null;
+  const hasClosedWeekdaysConflict = closedWeekdaysConflict !== undefined;
+
+  // 再取得で setting.closed_weekdays が変わったときローカル状態へ反映する。
+  // props変化時にsetStateで調整するReact推奨パターン。未編集なら自動同期し、
+  // 編集中にサーバー側も変わった場合は編集を保持して保存を止める。
+  const [prevRawClosedWeekdays, setPrevRawClosedWeekdays] = useState(setting.closed_weekdays);
+  if (prevRawClosedWeekdays !== setting.closed_weekdays) {
+    setPrevRawClosedWeekdays(setting.closed_weekdays);
+    const incoming = parseClosedWeekdays(setting.closed_weekdays);
+    if (!sameClosedWeekdays(incoming, closedWeekdaysBaseline)) {
+      if (sameClosedWeekdays(closedWeekdays, closedWeekdaysBaseline)) {
+        setClosedWeekdays(incoming);
+      } else {
+        setClosedWeekdaysConflict(incoming);
+      }
+      setClosedWeekdaysBaseline(incoming);
+    }
+  }
+
+  const handleLoadLatestClosedWeekdays = useCallback(() => {
+    if (closedWeekdaysConflict === undefined) return;
+    setClosedWeekdays(closedWeekdaysConflict);
+    setClosedWeekdaysBaseline(closedWeekdaysConflict);
+    setClosedWeekdaysConflict(undefined);
+  }, [closedWeekdaysConflict]);
   const [businessHours, setBusinessHours] = useState<BusinessHours>(() =>
     asJsonb<BusinessHours>(setting.business_hours, { start: "0900", end: "1900" }, isBusinessHours),
   );
@@ -132,7 +165,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
       toast.error(PERMISSION_DENIED_MESSAGE);
       return null;
     }
-    if (closedWeekdays === null) return null;
+    if (closedWeekdays === null || closedWeekdaysConflict !== undefined) return null;
     const payload = {
       status,
       national_holiday_closed: nationalHolidayClosed,
@@ -171,6 +204,14 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
           ? updated.booking_window_min_days
           : bookingWindowMinDays,
       );
+      // 保存値を新しい baseline にし、直後の再取得を競合として扱わない
+      const savedWeekdays =
+        updated?.closed_weekdays === undefined
+          ? closedWeekdays
+          : parseClosedWeekdays(updated.closed_weekdays);
+      setClosedWeekdays(savedWeekdays);
+      setClosedWeekdaysBaseline(savedWeekdays);
+      setClosedWeekdaysConflict(undefined);
       toast.success("設定を保存しました");
     } catch (err) {
       handleApiError(err, "設定保存");
@@ -219,6 +260,21 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
               <p role="alert" className={`text-sm ${C.danger}`}>
                 {INVALID_CLOSED_WEEKDAYS_MESSAGE}
               </p>
+            ) : null}
+            {hasClosedWeekdaysConflict ? (
+              <div className="flex w-full flex-col items-start gap-2">
+                <p role="alert" className={`text-sm ${C.danger}`}>
+                  定休曜日がサーバー上で更新されています。未保存の変更を上書きしないよう保存を停止しています。
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLoadLatestClosedWeekdays}
+                >
+                  最新の定休曜日を読み込む
+                </Button>
+              </div>
             ) : null}
           </div>
         </FieldRow>
@@ -402,7 +458,9 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
       </Section>
 
       <div className="pt-2">
-        <SubmitButton disabled={hasInvalidClosedWeekdays}>保存</SubmitButton>
+        <SubmitButton disabled={hasInvalidClosedWeekdays || hasClosedWeekdaysConflict}>
+          保存
+        </SubmitButton>
       </div>
     </form>
   );

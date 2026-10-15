@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -365,6 +366,130 @@ describe("LineReservationSettingsForm — booking_window_min_days UI sync (BUG-0
     await waitFor(() => {
       expect(screen.getByRole("spinbutton", { name: "最短予約受付（日数）" })).toHaveValue(5);
     });
+  });
+});
+
+// CodeRabbit指摘対応: setting.closed_weekdays が再取得で変わっても lazy init の
+// ローカル状態に残り、古い曜日を保存してしまう。baseline との比較で
+// 未編集=自動同期 / 編集中+サーバー変更=編集保持+保存停止 を担保する。
+describe("LineReservationSettingsForm — closed_weekdays 再取得同期", () => {
+  function rerenderForm(rerender: (ui: ReactElement) => void, setting: ReservationSetting) {
+    rerender(<LineReservationSettingsForm setting={setting} clinicId={CLINIC_ID} />);
+  }
+
+  it("未編集なら再取得した定休曜日に同期し、保存で新しい値を送信する", async () => {
+    const getBody = setupPutHandler();
+    const initial: ReservationSetting = {
+      ...baseSetting,
+      closed_weekdays: [1] as unknown as string,
+    };
+    const { rerender } = renderForm(initial);
+
+    expect(screen.getByLabelText("月")).toBeChecked();
+    expect(screen.getByLabelText("水")).not.toBeChecked();
+
+    const refreshed: ReservationSetting = {
+      ...baseSetting,
+      closed_weekdays: [1, 3] as unknown as string,
+    };
+    rerenderForm(rerender, refreshed);
+
+    await waitFor(() => expect(screen.getByLabelText("水")).toBeChecked());
+    expect(screen.getByLabelText("月")).toBeChecked();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(getBody()).not.toBeNull());
+    expect(getBody()?.closed_weekdays).toEqual([1, 3]);
+  });
+
+  it("同じ値の再取得では未保存の曜日編集を保持する", async () => {
+    const initial: ReservationSetting = {
+      ...baseSetting,
+      closed_weekdays: [1] as unknown as string,
+    };
+    const { rerender } = renderForm(initial);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText("水"));
+    expect(screen.getByLabelText("水")).toBeChecked();
+
+    // 配列インスタンスも表現も違うが、パース後の値は同じ(=サーバー値に変化なし)
+    const sameValue: ReservationSetting = {
+      ...baseSetting,
+      closed_weekdays: ["1"] as unknown as string,
+    };
+    rerenderForm(rerender, sameValue);
+
+    await waitFor(() => expect(screen.getByLabelText("水")).toBeChecked());
+    expect(screen.getByLabelText("月")).toBeChecked();
+    expect(screen.queryByText(/サーバー上で更新/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
+  });
+
+  it("編集中にサーバー側の曜日も変わった場合は編集を保持して保存を停止し、明示読込で最新値を適用する", async () => {
+    const getBody = setupPutHandler();
+    const initial: ReservationSetting = {
+      ...baseSetting,
+      closed_weekdays: [1] as unknown as string,
+    };
+    const { rerender } = renderForm(initial);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText("水"));
+
+    const serverChanged: ReservationSetting = {
+      ...baseSetting,
+      closed_weekdays: [5] as unknown as string,
+    };
+    rerenderForm(rerender, serverChanged);
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("定休曜日がサーバー上で更新されています"),
+    );
+    // 未保存の編集 [1,3] は消えない
+    expect(screen.getByLabelText("月")).toBeChecked();
+    expect(screen.getByLabelText("水")).toBeChecked();
+    expect(screen.getByLabelText("金")).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "最新の定休曜日を読み込む" }));
+
+    await waitFor(() => expect(screen.getByLabelText("金")).toBeChecked());
+    expect(screen.getByLabelText("月")).not.toBeChecked();
+    expect(screen.getByLabelText("水")).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(getBody()).not.toBeNull());
+    expect(getBody()?.closed_weekdays).toEqual([5]);
+  });
+
+  it("保存成功後に同じ値で再取得されても競合にならない", async () => {
+    const getBody = setupPutHandler();
+    const initial: ReservationSetting = {
+      ...baseSetting,
+      closed_weekdays: [1] as unknown as string,
+    };
+    const { rerender } = renderForm(initial);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText("水"));
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(getBody()?.closed_weekdays).toEqual([1, 3]));
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+
+    const postSaveRefetch: ReservationSetting = {
+      ...baseSetting,
+      closed_weekdays: [1, 3] as unknown as string,
+    };
+    rerenderForm(rerender, postSaveRefetch);
+
+    await waitFor(() => expect(screen.getByLabelText("水")).toBeChecked());
+    expect(screen.queryByText(/サーバー上で更新/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
   });
 });
 
