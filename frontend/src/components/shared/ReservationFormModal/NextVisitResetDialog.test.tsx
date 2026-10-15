@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -52,8 +52,10 @@ describe("NextVisitResetDialog (EMR-308)", () => {
     const user = userEvent.setup();
     const { onSubmit, onClose } = renderDialog();
 
-    // date input は userEvent.type のセグメント入力が環境依存なので change で直接設定する
-    fireEvent.change(screen.getByLabelText("予定日"), { target: { value: VALID_DATE } });
+    const dateInput = screen.getByRole("textbox", { name: "予定日" });
+    await user.clear(dateInput);
+    await user.type(dateInput, VALID_DATE.replaceAll("-", "/"));
+    await user.tab();
     await user.click(screen.getByRole("button", { name: "設定する" }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(VALID_DATE));
@@ -65,7 +67,10 @@ describe("NextVisitResetDialog (EMR-308)", () => {
     const onSubmit = vi.fn().mockRejectedValue(new Error("api failed"));
     const { onClose } = renderDialog({ onSubmit });
 
-    fireEvent.change(screen.getByLabelText("予定日"), { target: { value: VALID_DATE } });
+    const dateInput = screen.getByRole("textbox", { name: "予定日" });
+    await user.clear(dateInput);
+    await user.type(dateInput, VALID_DATE.replaceAll("-", "/"));
+    await user.tab();
     await user.click(screen.getByRole("button", { name: "設定する" }));
 
     await waitFor(() =>

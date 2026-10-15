@@ -176,7 +176,7 @@ export function EstimateListContent({
         headerCellClassName={STYLE.sectionLabel}
         columns={COLUMNS}
         data={pagination.paginatedData}
-        emptyMessage="見積書が見つかりません"
+        emptyMessage="見積書データが見つかりません"
         renderRow={renderRow}
       />
 

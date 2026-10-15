@@ -52,7 +52,7 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
     <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-3 space-y-4`}>
       {showInitialStatusSelector ? (
         <div>
-          <Label className={`text-sm ${C.text60} mb-2 block`}>登録時ステータス</Label>
+          <Label className={`${C.text60} mb-2 block`}>登録時ステータス</Label>
           <Select
             value={formData.initialStatus}
             onValueChange={(value) => {
@@ -69,7 +69,7 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
 
       <div>
         <div className="flex items-center gap-2 mb-2">
-          <Label className={`text-sm ${C.text60}`}>コース</Label>
+          <Label className={`${C.text60}`}>コース</Label>
           <MasterLink category="trimming_course" label="マスタ管理" />
         </div>
         <MasterSelectTrigger
@@ -103,7 +103,7 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
       />
 
       <div>
-        <Label htmlFor="trimming-style-request" className={`text-sm ${C.text60} mb-2 block`}>
+        <Label htmlFor="trimming-style-request" className={`${C.text60} mb-2 block`}>
           スタイルの希望
         </Label>
         <Textarea
@@ -117,7 +117,7 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
 
       <div>
         <div className="flex items-center gap-2 mb-2">
-          <Label className={`text-sm ${C.text60}`}>オプション</Label>
+          <Label className={`${C.text60}`}>オプション</Label>
           <MasterLink category="trimming_option" label="マスタ管理" />
         </div>
         {options.length > 0 ? (

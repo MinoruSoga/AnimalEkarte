@@ -18,6 +18,7 @@ import { C, STYLE } from "@/lib/design-tokens";
 
 import { useCreateBugReport } from "../api/create-bug-report";
 import { capturePageScreenshot } from "../lib/capture-screenshot";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 
 const SCREENSHOT_MAX_BYTES = 8 * 1024 * 1024; // BE の multipart 上限と揃える
 const ACCEPTED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
@@ -142,11 +143,12 @@ export function BugReportTab({ onClose }: BugReportTabProps) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3 p-3">
       <div className="flex flex-col gap-1">
-        <label htmlFor="bug-report-title" className={STYLE.formLabel}>
-          件名{" "}
-          <span className={C.textRequired} aria-hidden="true">
-            *
-          </span>
+        <label
+          htmlFor="bug-report-title"
+          className={`${STYLE.formLabel} inline-flex items-center gap-2`}
+        >
+          件名
+          <RequiredMark />
         </label>
         <input
           id="bug-report-title"

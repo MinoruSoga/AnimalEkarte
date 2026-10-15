@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router";
-import { FlaskConical, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/shared/DataTable/DataTable";
@@ -49,7 +49,6 @@ export function LabDeviceItemMasterSettings() {
         <div className="flex-1 min-w-0">
           <PageLayout
             title="検査機器マスタ"
-            icon={<FlaskConical className={`${ICON.page} ${C.text}`} />}
             resource={ResourceLabImport}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth={LAYOUT.pageContentMaxWidth.tableNarrow}

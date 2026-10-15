@@ -54,6 +54,7 @@ WCAG 2.2 AA: 通常文字 4.5:1 / 大文字（18pt+ または 14pt bold+）3:1 /
 | 箇所 | 比率 | 判定 |
 |---|---:|---|
 | `C.danger` `#C0392B` on white | 5.44:1 | ✅（design-system.md の 7.1:1 記述は既知のドリフト — 実測 5.44） |
+| `C.textRequired` `#C0392B` on white | 5.44:1 | ✅（EMR-400: 必須マーカー色を `#E03E3E` から `C.danger` と同値へ統一） |
 | ink-muted `#615D59` on canvas `#F6F5F4` | 5.99:1 | ✅ |
 | ink-faint `#A39E98` on canvas | 2.44:1 | ❌ placeholder 以外（キャプション・メタ実情報）への使用は非適合 |
 | **white on primary `#038B94`**（主要 CTA・是正前） | **4.10:1** | ❌ 通常文字未達 → 決裁済み。CTA 塗りは `C.bgActionPrimarySolid`（`#027078`、5.85:1）へ移行済み |

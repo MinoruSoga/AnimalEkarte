@@ -4,12 +4,27 @@ import {
   GROUP_CARD_CONFIG,
   MASTER_SECTIONS,
 } from "./master-settings-index-model";
+import { CATEGORY_CONFIG } from "../constants/category-config";
 
 describe("master-settings-index-model campaigns entry (V04-A01)", () => {
+  it("master cards use the same public names as SidebarMenu", () => {
+    expect(GROUP_CARD_CONFIG.clinic.label).toBe("医院マスタ");
+    expect(GROUP_CARD_CONFIG.treatmentItems.label).toBe("診療項目マスタ");
+    expect(GROUP_CARD_CONFIG.inquiry_template.label).toBe("問診テンプレートマスタ");
+    expect(GROUP_CARD_CONFIG.paymentMethods.label).toBe("支払方法マスタ");
+    expect(GROUP_CARD_CONFIG.campaigns.label).toBe("割引キャンペーンマスタ");
+    expect(CATEGORY_CONFIG.animal_species.label).toBe("動物種類マスタ");
+    expect(CATEGORY_CONFIG.reservationType.label).toBe("予約区分マスタ");
+    expect(CATEGORY_CONFIG.staff.label).toBe("スタッフマスタ");
+    expect(CATEGORY_CONFIG.permission_group.label).toBe("権限グループマスタ");
+    expect(CATEGORY_CONFIG.merchandise_item.label).toBe("物販・フードマスタ");
+    expect(CATEGORY_CONFIG.chief_complaint.label).toBe("主訴カテゴリマスタ");
+  });
+
   it("campaigns カードが GROUP_CARD_CONFIG にあり /settings/campaigns と accounting resource を持つ", () => {
     // ResourceAccounting 定数 import は generated-model allowlist を増やすため文字列で固定
     expect(GROUP_CARD_CONFIG.campaigns).toMatchObject({
-      label: "割引キャンペーン",
+      label: "割引キャンペーンマスタ",
       path: "/settings/campaigns",
       resource: "accounting",
     });

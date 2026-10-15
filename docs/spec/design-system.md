@@ -216,6 +216,11 @@ DESIGN.md `typography:` フロントマターに準拠。実装のフォント�
 - 黒アルファによる ink 段の迂回は禁止する（audit C13）。letter-spacing はロールに伴走するため、`tracking-wide` 等や任意値で上書きしない（audit C14）。
 - font-weight: 本文 400、強調・ボタン 500（`font-medium`）、title/eyebrow 600（`font-semibold`）、heading 700（`font-bold`）。**700 は heading 専用**で、本文・数値セルに使わない（§3.2 の 700 vs 400 コントラスト原則）。
 - compact/dense 制御（`h-9` 以下の行アクションボタン・トリガー等）は `{typography.button}`（16px）を適用せず、`{typography.body-sm}`（15px = `text-sm`）ラベルを使う（2026-09-30 決裁 — 標準 16px は dense 面で過大に見えるため）。
+- **フォームラベル**: `Label` の基底は 16px（`text-base`）。15px の個別指定は、コンパクトなフィルター・行内操作・`h-9` 以下の入力に限る。
+- **必須マーカー**: `RequiredMark` を使い、間隔は親ラベルの `gap-2` で 8px に統一する。マーカーは装飾として `aria-hidden` とする。
+- **ページ見出し**: PageLayout/FormHeader のタイトルにはアイコンを付けない。セクション、パネル、ボタン、サイドバー内のアイコンは対象外。
+- **登録・編集フォームの操作**: ヘッダーに `[削除] キャンセル 保存` の順で置き、フォーム送信可否・権限・状態の既存ゲートを維持する。削除対象外の画面では該当操作を省く。
+- **日付・数値入力**: 業務フォーム・設定フォームでは共有 `DatePicker` / `NumberInput` を使う。検索・一覧フィルター、表の行内編集、時刻入力はネイティブ入力を許容する。金額入力は `MoneyInput` を使う。
 
 ---
 

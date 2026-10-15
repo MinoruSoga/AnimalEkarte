@@ -268,8 +268,8 @@ describe("HospitalizationForm BUG-016 not-found gate", () => {
 
     renderForm();
     expect(screen.getByRole("alert")).toHaveTextContent("入院情報が見つかりません");
-    expect(screen.queryByRole("button", { name: "更新" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "登録" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
   });
 
   it("isReadError 時は retry 導線を出し保存ボタンを出さない", () => {
@@ -306,6 +306,6 @@ describe("HospitalizationForm BUG-016 not-found gate", () => {
     expect(screen.getByRole("button", { name: "再試行" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "再試行" }));
     expect(retry).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("button", { name: "更新" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
   });
 });

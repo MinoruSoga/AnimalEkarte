@@ -1,9 +1,7 @@
-import { HeartPulse } from "lucide-react";
-
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { Button } from "@/components/ui/button";
-import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { LAYOUT } from "@/lib/design-tokens";
 import { ResourceMedicalRecords } from "@/types/generated/models";
 import type { MedicalRecordFormGate } from "./medical-record-form-model";
 
@@ -35,7 +33,6 @@ export function MedicalRecordFormStatusView({
     <PageLayout
       title={title}
       onBack={onBack}
-      icon={<HeartPulse className={`${ICON.page} ${C.text}`} />}
       resource={gate.kind === "deceased-new" ? ResourceMedicalRecords : undefined}
       maxWidth={LAYOUT.pageContentMaxWidth.full}
     >

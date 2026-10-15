@@ -8,6 +8,7 @@ import {
   PropertyRow,
   StatusToggleButton,
 } from "@/components/shared/SidePeek";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -58,8 +59,8 @@ export const InsuranceSidePanel = memo(function InsuranceSidePanel({
   );
 
   const handleCoverageRateChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      setFormDataDirty((prev) => ({ ...prev, coverageRate: event.target.value }));
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, coverageRate: value }));
       setCoverageError("");
     },
     [setFormDataDirty],
@@ -128,16 +129,15 @@ export const InsuranceSidePanel = memo(function InsuranceSidePanel({
         label="補償率(%)"
         description="保険でカバーされる費用の割合（%）です。保険適用時の会計計算に使われます。"
       >
-        <input
-          type="number"
+        <NumberInput
           min={0}
           step={1}
           aria-label="補償率(%)"
-          aria-invalid={coverageError ? true : undefined}
           className={MASTER_INPUT_CLASS}
           value={formData.coverageRate}
           onChange={handleCoverageRateChange}
           placeholder="0"
+          aria-invalid={coverageError ? true : undefined}
         />
         {coverageError ? (
           <p className={`mt-1 text-sm ${C.danger}`} role="alert">

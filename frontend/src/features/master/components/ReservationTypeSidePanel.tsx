@@ -14,6 +14,7 @@ import {
   PropertyInput,
   MasterSidePanel,
 } from "@/components/shared/SidePeek";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { C, ICON, LAYOUT, PALETTE, STYLE } from "@/lib/design-tokens";
 import { ReservationTypeAvailableSlotsSection } from "./ReservationTypeAvailableSlotsSection";
@@ -224,17 +225,16 @@ export const CategorySidePanel = memo(function CategorySidePanel({
           label="所要時間（分）"
           description="この区分の予約1件に確保する時間（分）です。予約枠の割り当て計算に使われます。"
         >
-          <input
-            type="number"
+          <NumberInput
             min={5}
             max={480}
             aria-label="所要時間（分）"
             className={`w-20 border ${C.borderMedium} ${LAYOUT.inputStandard} text-base ${C.text}`}
             value={formData.durationMinutes}
-            onChange={(e) =>
+            onChange={(value) =>
               setFormDataDirty((prev) => ({
                 ...prev,
-                durationMinutes: Number(e.target.value) || 15,
+                durationMinutes: Number(value) || 15,
               }))
             }
           />

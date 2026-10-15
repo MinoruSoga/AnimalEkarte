@@ -63,12 +63,12 @@ export function OwnerMembershipFields({
   return (
     <>
       <div className="space-y-1.5">
-        <Label className={`text-sm ${C.text60}`}>会員区分</Label>
+        <Label className={`${C.text60}`}>会員区分</Label>
         <MembershipTypeButtons value={ownerData.membershipType} onChange={onMembershipChange} />
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="dmPreference" className={`text-sm ${C.text60}`}>
+        <Label htmlFor="dmPreference" className={`${C.text60}`}>
           DM
         </Label>
         <Select
@@ -95,7 +95,7 @@ export function OwnerMembershipFields({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="discountRate" className={`text-sm ${C.text60}`}>
+        <Label htmlFor="discountRate" className={`${C.text60}`}>
           値引率 (%)
         </Label>
         <NumberInput

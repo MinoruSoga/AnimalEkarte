@@ -348,18 +348,18 @@ const DESCRIBED_MENU: ReadonlyArray<{ label: string; path?: string; purpose: str
       "診療、トリミング、入院、スタッフ、権限、および外部連携など、システム全体で共通利用される定義データ（マスタ）を一元的に管理するポータル。",
   },
   {
-    label: "医院",
+    label: "医院マスタ",
     path: paths.settings.clinic.getHref(),
     purpose:
       "システムを利用する各医院（本院・分院）の基本情報、連絡先、およびインボイス制度に対応した各種パラメータの一元管理。",
   },
   {
-    label: "動物種類",
+    label: "動物種類マスタ",
     path: paths.settings.animalSpecies.getHref(),
     purpose: "システムで取り扱う動物種（犬、猫、うさぎ等）の定義。",
   },
   {
-    label: "診療項目",
+    label: "診療項目マスタ",
     path: paths.settings.treatmentItems.getHref(),
     purpose: "診察、処置、手術、検査等の臨床行為の定義、および標準価格・税率の設定。",
   },
@@ -369,12 +369,12 @@ const DESCRIBED_MENU: ReadonlyArray<{ label: string; path?: string; purpose: str
     purpose: "臨床現場で使用される標準的な診断名、および疾患カテゴリの体系的管理。",
   },
   {
-    label: "問診設定",
+    label: "問診テンプレートマスタ",
     path: paths.settings.inquiryTemplates.getHref(),
     purpose: "カルテの主訴、所見、指導内容の入力を効率化するための定型文テンプレートの管理。",
   },
   {
-    label: "主訴カテゴリ",
+    label: "主訴カテゴリマスタ",
     path: paths.settings.interview.chiefComplaint.getHref(),
     purpose:
       "カルテ作成時に飼主が訴える「主訴」を分類し、統計や入力補助に使用するための大分類（消化器、皮膚、眼科等）の管理。",
@@ -391,7 +391,7 @@ const DESCRIBED_MENU: ReadonlyArray<{ label: string; path?: string; purpose: str
       "血液検査や生化学検査等、検査プラン（exam_types）の名称・価格の定義、および測定項目（exam_type_fields）と基準値の管理。",
   },
   {
-    label: "予約区分",
+    label: "予約区分マスタ",
     path: paths.settings.reservationType.getHref(),
     purpose:
       "診察、ワクチン、手術、トリミング等の予約枠（スロット）の定義と、LINE 予約への公開設定。",
@@ -418,7 +418,7 @@ const DESCRIBED_MENU: ReadonlyArray<{ label: string; path?: string; purpose: str
       "トリミングコースの大分類（シャンプー、シャンプー+カットなど）を管理し、トリミングコース管理画面の分類基盤を整える。",
   },
   {
-    label: "権限グループ",
+    label: "権限グループマスタ",
     path: paths.settings.permissionGroups.getHref(),
     purpose: "スタッフの役割（院長、獣医師、看護師、事務等）に応じたシステム操作権限の体系的定義。",
   },
@@ -428,7 +428,7 @@ const DESCRIBED_MENU: ReadonlyArray<{ label: string; path?: string; purpose: str
     purpose: "医院内で勤務するスタッフの職種（獣医師、看護師、トリマー、受付等）の定義。",
   },
   {
-    label: "スタッフ管理",
+    label: "スタッフマスタ",
     path: paths.settings.staff.getHref(),
     purpose:
       "システムを利用する全スタッフの基本情報、職種、および LINE 予約用の公開プロフィールの統合管理。",
@@ -440,18 +440,18 @@ const DESCRIBED_MENU: ReadonlyArray<{ label: string; path?: string; purpose: str
       "ペット保険（アニコム、アイペット等）の定義、および保険が補償する側の割合（「補償率」）の設定管理。",
   },
   {
-    label: "物販・フード",
+    label: "物販・フードマスタ",
     path: paths.settings.merchandiseItems.getHref(),
     purpose: "療法食、サプリメント、ヘアケア用品等の販売商品の定義および価格管理。",
   },
   {
-    label: "支払方法",
+    label: "支払方法マスタ",
     path: paths.settings.paymentMethods.getHref(),
     purpose:
       "決済手段（現金、クレジットカード、電子マネー等）マスタの名称・有効/無効の管理。レジ締めや月次レポートの決済手段別集計の軸となる。",
   },
   {
-    label: "割引キャンペーン",
+    label: "割引キャンペーンマスタ",
     path: paths.settings.campaigns.getHref(),
     purpose:
       "会計施策としてのキャンペーンを期間・割引条件付きで定義し、明細計算時に適用可能にする。",

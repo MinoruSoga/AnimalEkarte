@@ -77,7 +77,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
       <div className="flex-1 flex flex-col gap-2 min-h-0">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label htmlFor="medical-record-chief-complaint-type" className={`text-sm ${C.text60}`}>
+            <Label htmlFor="medical-record-chief-complaint-type" className={`${C.text60}`}>
               主訴区分
             </Label>
             {!fieldsDisabled ? (
@@ -126,7 +126,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
         </div>
 
         <div className="flex-1 flex flex-col gap-1.5 min-h-0">
-          <Label htmlFor="medical-record-chief-complaint" className={`text-sm ${C.text60}`}>
+          <Label htmlFor="medical-record-chief-complaint" className={`${C.text60}`}>
             主訴詳細
           </Label>
           <CharCountTextarea

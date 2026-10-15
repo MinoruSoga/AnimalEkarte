@@ -5,7 +5,7 @@ section: システム設定
 keywords_vi: nhóm quyền, phân quyền, quyền hạn, thiết lập quyền, quyền truy cập
 ---
 
-# 権限グループ
+# 権限グループマスタ
 
 ## どんな画面か
 

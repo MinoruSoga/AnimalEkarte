@@ -2,6 +2,7 @@ import { memo, useCallback } from "react";
 import { Link } from "react-router";
 import { ChevronDown, FileText } from "lucide-react";
 import { PatientContextHeader } from "@/components/shared/PatientContextHeader";
+import { DatePicker } from "@/components/shared/DatePicker";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { UnifiedTabsList } from "@/components/shared/UnifiedTabs";
 import { Button } from "@/components/ui/button";
@@ -126,15 +127,13 @@ export function MedicalRecordStickyHeader({
       <div className="flex flex-col gap-0 shrink-0 min-w-[110px]">
         <span className={`text-xs ${C.text50}`}>診療日</span>
         {canEditDate ? (
-          <input
-            key={dateInputValue}
-            type="date"
-            aria-label="診療日"
-            defaultValue={dateInputValue}
-            onChange={(e) => {
-              if (e.target.value) onDateChange!(e.target.value);
+          <DatePicker
+            value={dateInputValue ?? ""}
+            ariaLabel="診療日"
+            showClearButton={false}
+            onChange={(value) => {
+              if (value && value !== dateInputValue) onDateChange!(value);
             }}
-            className={`h-11 text-sm ${C.text} bg-transparent rounded px-1 cursor-pointer outline-none focus-visible:ring-2 ${C.focusRingAccent40}`}
           />
         ) : (
           <span className={`h-8 flex items-center text-sm ${C.text}`}>

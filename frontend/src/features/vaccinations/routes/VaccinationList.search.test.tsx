@@ -136,6 +136,6 @@ describe("VaccinationList 検索 (EMR-60)", () => {
     });
 
     await waitFor(() => expect(seenPetId).toBe("pet-9"));
-    expect(screen.getByRole("button", { name: "新規登録" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "新規予防接種登録" })).toBeInTheDocument();
   });
 });

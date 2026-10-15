@@ -18,6 +18,7 @@ import { C } from "@/lib/design-tokens";
 
 import { CREATE_STATUS_OPTIONS, EDIT_STATUS_OPTIONS } from "../constants/estimate-status-options";
 import type { EstimateStatus } from "../types";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 
 // rendering-hoist-jsx: SelectItem リストは静的なのでモジュール定数に巻き上げ
 const EDIT_STATUS_SELECT_ITEMS = EDIT_STATUS_OPTIONS.map((opt) => (
@@ -57,12 +58,13 @@ export const BasicInfoSection = memo(function BasicInfoSection({
     <>
       {/* タイトル */}
       <div className="space-y-1.5">
-        <Label htmlFor="title" className={`text-sm font-medium ${C.text}`}>
-          タイトル <span className={C.textRequired}>*</span>
+        <Label htmlFor="title" className={`font-medium ${C.text}`}>
+          タイトル <RequiredMark />
         </Label>
         <Input
           id="title"
           value={title}
+          aria-required
           onChange={(e) => onChange("title", e.target.value)}
           placeholder="見積書タイトルを入力"
           className="h-11 text-sm"
@@ -74,7 +76,7 @@ export const BasicInfoSection = memo(function BasicInfoSection({
 
       {/* ステータス */}
       <div className="space-y-1.5">
-        <Label htmlFor="status" className={`text-sm font-medium ${C.text}`}>
+        <Label htmlFor="status" className={`font-medium ${C.text}`}>
           ステータス
         </Label>
         <Select value={status} onValueChange={(v) => onChange("status", v as EstimateStatus)}>
@@ -95,7 +97,7 @@ export const BasicInfoSection = memo(function BasicInfoSection({
 
       {/* 有効期限 */}
       <div className="space-y-1.5">
-        <Label htmlFor="validUntil" className={`text-sm font-medium ${C.text}`}>
+        <Label htmlFor="validUntil" className={`font-medium ${C.text}`}>
           有効期限
         </Label>
         <DatePicker
@@ -140,7 +142,7 @@ function AmountInputRow({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={inputId} className={`text-sm font-medium ${C.text}`}>
+      <Label htmlFor={inputId} className={`font-medium ${C.text}`}>
         {label}
       </Label>
       <NumberInput
@@ -219,7 +221,7 @@ export const TextSection = memo(function TextSection({
     <>
       {/* コメント */}
       <div className="space-y-1.5">
-        <Label htmlFor="comment" className={`text-sm font-medium ${C.text}`}>
+        <Label htmlFor="comment" className={`font-medium ${C.text}`}>
           コメント
         </Label>
         <Textarea
@@ -233,7 +235,7 @@ export const TextSection = memo(function TextSection({
 
       {/* 備考 */}
       <div className="space-y-1.5">
-        <Label htmlFor="notes" className={`text-sm font-medium ${C.text}`}>
+        <Label htmlFor="notes" className={`font-medium ${C.text}`}>
           備考（社内メモ）
         </Label>
         <Textarea

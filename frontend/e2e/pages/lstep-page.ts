@@ -16,7 +16,7 @@ export class LstepPage extends BasePage {
   }
 
   checkupSyncHeading(): Locator {
-    return this.heading("健診リマインダー抽出", 1);
+    return this.heading("健診対象者抽出", 1);
   }
 
   searchTargetsButton(): Locator {

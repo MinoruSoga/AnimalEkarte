@@ -26,7 +26,7 @@ export class ExaminationsPage extends BasePage {
   }
 
   detailHeading(): Locator {
-    return this.heading("検査詳細・編集", 1);
+    return this.heading("検査編集", 1);
   }
 
   petText(name: string): Locator {

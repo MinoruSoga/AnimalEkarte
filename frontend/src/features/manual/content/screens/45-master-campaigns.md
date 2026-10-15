@@ -5,7 +5,7 @@ section: システム設定
 keywords_vi: chiến dịch giảm giá, master khuyến mãi, chương trình giảm giá, mã giảm giá
 ---
 
-# 割引キャンペーン
+# 割引キャンペーンマスタ
 
 期間限定の **割引キャンペーン**（例: 初回割引・シーズンキャンペーン）を管理するマスタです。会計画面の割引選択肢に反映されます。
 

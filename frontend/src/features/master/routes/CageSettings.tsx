@@ -4,7 +4,7 @@ import { useSortableList } from "@/hooks/use-sortable-list";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { useMergeCages, useUnmergeCages } from "@/hooks/use-cage-merge";
 import { useCageOccupancy } from "@/hooks/use-cage-occupancy";
-import { Building2 } from "lucide-react";
+
 import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, LAYOUT } from "@/lib/design-tokens";
 import { resolveCageNameById } from "@/lib/cage-name";
 import { cageMembersByRepresentative, isCageMergeEligible } from "@/lib/cage-merge";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
@@ -319,7 +319,6 @@ export function CageSettings() {
     <>
       <MasterCRUDPage
         title="ケージマスタ"
-        icon={<Building2 className={`${ICON.page} ${C.text}`} />}
         resource={ResourceMasterHospitalization}
         entityLabel="ケージ"
         searchPlaceholder="ケージ名で検索..."
@@ -328,6 +327,7 @@ export function CageSettings() {
         handleSave={handleSave}
         filterProperties={[MASTER_STATUS_FILTER]}
         columns={[]}
+        maxWidth={LAYOUT.pageContentMaxWidth.full}
         renderRow={() => null}
         renderSidePanel={({ readOnly, ...props }) => (
           <CageSidePanel

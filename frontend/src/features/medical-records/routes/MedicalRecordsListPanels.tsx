@@ -1,4 +1,4 @@
-import { Edit, Trash2, Receipt, AlertTriangle, Plus, FileText } from "lucide-react";
+import { Edit, Trash2, Receipt, AlertTriangle, Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import type { ActiveFilter, FilterProperty } from "@/components/shared/PropertyFilter/types";
 import { TableCell } from "@/components/ui/table";
@@ -360,7 +360,6 @@ export function MedicalRecordsListPanels({
   return (
     <PageLayout
       title="カルテ管理"
-      icon={<FileText className={`${ICON.page} ${C.text}`} />}
       resource={ResourceMedicalRecords}
       headerAction={
         canCreate ? (
@@ -378,7 +377,7 @@ export function MedicalRecordsListPanels({
         onClose={onDeleteClose}
         onConfirm={onDeleteConfirm}
         title="カルテを削除しますか？"
-        description={`「${deleteLabel}」を削除します。関連する治療・検査データも削除されます。この操作は元に戻せません。`}
+        description={`「${deleteLabel}」を削除します。関連する治療・検査データも削除されます。この操作は取り消せません。`}
         confirmLabel="削除"
         variant="destructive"
       />

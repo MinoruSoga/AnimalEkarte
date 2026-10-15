@@ -9,7 +9,7 @@
  * （backend も報告元 clinic_id スコープで 404 を返す。2026-10 セキュリティレビュー変更）。
  */
 import { useState } from "react";
-import { Bug, ExternalLink, Trash2 } from "lucide-react";
+import { ExternalLink, Trash2 } from "lucide-react";
 import type { UseMutationResult } from "@tanstack/react-query";
 
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -241,7 +241,6 @@ export function BugReportsPage() {
     <PageLayout
       title="バグ報告"
       description="サポートウィジェットから送信されたバグ報告の一覧です（全医院の報告を閲覧可。操作は自医院の報告のみ）"
-      icon={<Bug className={`${ICON.page} ${C.text}`} />}
       maxWidth={LAYOUT.pageContentMaxWidth.full}
     >
       {isLoading ? (
@@ -338,7 +337,7 @@ export function BugReportsPage() {
           pendingDelete !== null ? `「${pendingDelete.title}」を削除しますか？` : "削除しますか？"
         }
         description="報告と添付スクリーンショットが削除されます。Plane に作成済みのチケットは残ります。この操作は取り消せません。"
-        confirmLabel="削除する"
+        confirmLabel="削除"
         variant="destructive"
         isPending={deleteReport.isPending}
       />

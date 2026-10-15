@@ -196,7 +196,7 @@ describe("MedicalRecordFinalizeDialog", () => {
       />,
     );
     expect(screen.getByText("カルテを確定しますか？")).toBeInTheDocument();
-    expect(screen.getByText(/元に戻せません/)).toBeInTheDocument();
+    expect(screen.getByText(/取り消せません/)).toBeInTheDocument();
   });
 
   it("確定するボタンクリックで onConfirm が呼ばれる", async () => {

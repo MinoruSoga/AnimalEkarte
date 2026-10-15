@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { C, STYLE } from "@/lib/design-tokens";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import type { LstepSettingsResponse } from "../hooks/use-lstep-settings";
 
 interface PasswordFieldProps {
@@ -86,18 +88,19 @@ interface NumberInputFieldProps {
 }
 
 function NumberInputField({ id, name, label, defaultValue }: NumberInputFieldProps) {
+  const [value, setValue] = useState<number | string>(defaultValue);
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={id} className={STYLE.formLabel}>
         {label}
       </label>
-      <input
+      <NumberInput
         id={id}
-        type="number"
         name={name}
-        defaultValue={defaultValue}
         min={1}
         className={`${STYLE.formInput} rounded-xs border px-3 w-full outline-none ${C.focusRingAccent}`}
+        value={value}
+        onChange={setValue}
       />
     </div>
   );

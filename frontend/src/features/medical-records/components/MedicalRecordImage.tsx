@@ -232,7 +232,7 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
           onClose={handleDeleteCancel}
           onConfirm={handleDeleteConfirm}
           title="画像を削除しますか？"
-          description={`「${deleteTarget?.name ?? ""}」を削除します。この操作は元に戻せません。`}
+          description={`「${deleteTarget?.name ?? ""}」を削除します。この操作は取り消せません。`}
           confirmLabel="削除"
           variant="destructive"
         />

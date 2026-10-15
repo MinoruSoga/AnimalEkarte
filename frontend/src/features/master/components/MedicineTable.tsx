@@ -89,7 +89,7 @@ export function MedicineTable({
               {groupedMedicines.size === 0 && ungroupedMedicines.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className={STYLE.tableEmpty}>
-                    データが見つかりません
+                    薬剤が登録されていません
                   </TableCell>
                 </TableRow>
               ) : null}

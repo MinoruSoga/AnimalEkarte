@@ -126,7 +126,6 @@ export function CashRegisterClosePage() {
     <PageLayout
       title="レジ締め"
       resource={ResourceCashRegisterClose}
-      icon={<Calculator className={`${ICON.page} ${C.text}`} />}
       maxWidth={LAYOUT.pageContentMaxWidth.full}
       headerAction={
         <FormHeaderActions

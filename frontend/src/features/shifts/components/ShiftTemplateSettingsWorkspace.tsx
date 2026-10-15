@@ -1,10 +1,9 @@
-import Calendar from "lucide-react/dist/esm/icons/calendar";
 import Plus from "lucide-react/dist/esm/icons/plus";
 
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
-import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { ICON, LAYOUT } from "@/lib/design-tokens";
 import { ResourceShifts } from "@/types/generated/models";
 import { ShiftTemplateDeleteDialog, ShiftTemplateSidePanel } from "./ShiftTemplateSettingsParts";
 import { ShiftTemplateSettingsList } from "./ShiftTemplateSettingsList";
@@ -74,7 +73,6 @@ export function ShiftTemplateSettingsWorkspace({
         <div className="flex-1 min-w-0 overflow-auto">
           <PageLayout
             title="シフトテンプレート"
-            icon={<Calendar className={`${ICON.page} ${C.text}`} />}
             resource={ResourceShifts}
             onBack={onBack}
             maxWidth={LAYOUT.pageContentMaxWidth.full}

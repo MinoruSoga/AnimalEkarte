@@ -48,7 +48,7 @@ export function ClinicMasterSidePanel({
     >
       <div className={STYLE.sidePeekToolbar}>
         <span className={`text-xs ${C.text35} pl-1 select-none`}>
-          {selectedItem ? "編集" : "新規作成"}
+          {selectedItem ? "編集" : "新規登録"}
         </span>
         <div className="flex items-center gap-1">
           {selectedItem && canDelete ? (

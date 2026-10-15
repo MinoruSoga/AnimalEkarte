@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { Briefcase } from "lucide-react";
+
 import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
@@ -8,7 +8,7 @@ import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowBu
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
-import { C, ICON } from "@/lib/design-tokens";
+import { C } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER, MASTER_TABLE_COL } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
@@ -83,7 +83,6 @@ export function OccupationSettings() {
     <>
       <MasterCRUDPage
         title="職種マスタ"
-        icon={<Briefcase className={`${ICON.page} ${C.text}`} />}
         resource={ResourceMasterStaff}
         entityLabel="職種"
         searchPlaceholder="職種名で検索..."

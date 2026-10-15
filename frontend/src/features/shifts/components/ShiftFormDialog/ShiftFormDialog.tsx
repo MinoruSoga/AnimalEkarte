@@ -297,7 +297,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
             {/* テンプレート選択（テンプレートがある場合のみ表示） */}
             {templateSelectItems.length > 0 ? (
               <div className="space-y-1.5">
-                <Label htmlFor="shift-template" className={`text-xs ${C.text50}`}>
+                <Label htmlFor="shift-template" className={`${C.text50}`}>
                   テンプレートから入力
                 </Label>
                 <Select onValueChange={handleApplyTemplate}>
@@ -365,7 +365,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
             {/* 休憩時間（EMR-241: 全シフト種別で常時表示） */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-sm">休憩時間</Label>
+                <Label>休憩時間</Label>
                 <Button
                   type="button"
                   variant="ghost"

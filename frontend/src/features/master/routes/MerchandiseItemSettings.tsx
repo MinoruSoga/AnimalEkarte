@@ -1,9 +1,9 @@
 import { useCallback } from "react";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
-import { ShoppingBag } from "lucide-react";
+
 import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
-import { C, ICON } from "@/lib/design-tokens";
+import { LAYOUT } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
@@ -108,8 +108,7 @@ export function MerchandiseItemSettings() {
   return (
     <>
       <MasterCRUDPage
-        title="物販・フード"
-        icon={<ShoppingBag className={`${ICON.page} ${C.text}`} />}
+        title="物販・フードマスタ"
         resource={ResourceMasterMerchandise}
         entityLabel="品目"
         searchPlaceholder="品目名で検索..."
@@ -118,6 +117,7 @@ export function MerchandiseItemSettings() {
         handleSave={handleSave}
         filterProperties={[MASTER_STATUS_FILTER]}
         columns={[]}
+        maxWidth={LAYOUT.pageContentMaxWidth.full}
         renderRow={() => null}
         renderSidePanel={({ readOnly, ...props }) => (
           <MerchandiseSidePanel

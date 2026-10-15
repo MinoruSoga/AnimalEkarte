@@ -55,11 +55,15 @@ function renderHeader({
   recordStatus = "draft",
   isNewRecord = false,
   medicalRecordId,
+  recordDate = "2026/10/02",
+  onDateChange,
 }: {
   selectedPet?: Pet;
   recordStatus?: string;
   isNewRecord?: boolean;
   medicalRecordId?: string;
+  recordDate?: string;
+  onDateChange?: (date: string) => void;
 } = {}) {
   return render(
     <MemoryRouter>
@@ -72,12 +76,13 @@ function renderHeader({
         canEdit={true}
         isNewRecord={isNewRecord}
         tabs={[{ value: "問診", label: "問診" }]}
-        recordDate="2026/10/02"
+        recordDate={recordDate}
         recordStatus={recordStatus}
         medicalRecordId={medicalRecordId}
         onVisitTypeChange={vi.fn()}
         onStaffClick={vi.fn()}
         onOwnerClick={vi.fn()}
+        onDateChange={onDateChange}
       />
     </MemoryRouter>,
   );
@@ -242,5 +247,75 @@ describe("MedicalRecordStickyHeader 誕生月バッジ (EMR-301)", () => {
     renderHeader({ selectedPet: makePet({ birthDate: "2018-10-05", status: "死亡" }) });
 
     expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
+  });
+});
+
+describe("MedicalRecordStickyHeader 診療日コールバック", () => {
+  it("フォーカスして変更せず blur しても onDateChange を呼ばない（重複 PATCH 抑止）", async () => {
+    const user = userEvent.setup();
+    const onDateChange = vi.fn();
+    renderHeader({ recordDate: "2026/10/13", medicalRecordId: "record1", onDateChange });
+
+    const input = screen.getByRole("textbox", { name: "診療日" });
+    await user.click(input);
+    await user.tab();
+    expect(onDateChange).not.toHaveBeenCalled();
+  });
+
+  it("変更せず Enter→blur しても onDateChange を呼ばない", async () => {
+    const user = userEvent.setup();
+    const onDateChange = vi.fn();
+    renderHeader({ recordDate: "2026/10/13", medicalRecordId: "record1", onDateChange });
+
+    const input = screen.getByRole("textbox", { name: "診療日" });
+    await user.click(input);
+    await user.keyboard("{Enter}");
+    await user.tab();
+    expect(onDateChange).not.toHaveBeenCalled();
+  });
+
+  it("カレンダーで現在と同じ日を選んでも onDateChange を呼ばない", async () => {
+    const user = userEvent.setup();
+    const onDateChange = vi.fn();
+    renderHeader({ recordDate: "2026/10/13", medicalRecordId: "record1", onDateChange });
+
+    await user.click(screen.getByRole("button", { name: "診療日を選択" }));
+    await user.click(screen.getByRole("button", { name: /2026年10月13日/ }));
+    expect(onDateChange).not.toHaveBeenCalled();
+  });
+
+  it("実際に別の日へ変更すると onDateChange を ISO 値で1回だけ呼ぶ", async () => {
+    const user = userEvent.setup();
+    const onDateChange = vi.fn();
+    renderHeader({ recordDate: "2026/10/13", medicalRecordId: "record1", onDateChange });
+
+    const input = screen.getByRole<HTMLInputElement>("textbox", { name: "診療日" });
+    await user.click(input);
+    await user.clear(input);
+    await user.type(input, "2026/10/14");
+    await user.tab();
+    expect(onDateChange).toHaveBeenCalledTimes(1);
+    expect(onDateChange).toHaveBeenCalledWith("2026-10-14");
+  });
+
+  it("Enterで確定してからblurしても onDateChange は同じ値で1回だけ呼ばれる", async () => {
+    const user = userEvent.setup();
+    const onDateChange = vi.fn();
+    renderHeader({ recordDate: "2026/10/13", medicalRecordId: "record1", onDateChange });
+
+    const input = screen.getByRole<HTMLInputElement>("textbox", { name: "診療日" });
+    await user.click(input);
+    await user.clear(input);
+    await user.type(input, "2026/10/14");
+    await user.keyboard("{Enter}");
+    await user.tab();
+    expect(onDateChange).toHaveBeenCalledTimes(1);
+    expect(onDateChange).toHaveBeenCalledWith("2026-10-14");
+  });
+
+  it("診療日は内蔵クリアボタンを出さない（空値は API が受け付けない）", () => {
+    renderHeader({ recordDate: "2026/10/13", medicalRecordId: "record1", onDateChange: vi.fn() });
+
+    expect(screen.queryByRole("button", { name: "日付をクリア" })).not.toBeInTheDocument();
   });
 });

@@ -1,9 +1,8 @@
 import { useCallback } from "react";
 import { useSearchParams } from "react-router";
-import { Scissors } from "lucide-react";
+
 import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
-import { C, ICON } from "@/lib/design-tokens";
 import { ResourceMasterTrimming } from "@/types/generated/models";
 import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
 import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
@@ -151,7 +150,6 @@ export function TrimmingSettings() {
     <>
       <MasterTabPage
         title="トリミングマスタ"
-        icon={<Scissors className={`${ICON.page} ${C.text}`} />}
         resource={ResourceMasterTrimming}
         onNew={handleNew}
         sidePanel={

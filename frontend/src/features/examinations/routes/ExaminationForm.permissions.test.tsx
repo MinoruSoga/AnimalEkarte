@@ -1,5 +1,6 @@
-import { useEffect, type ReactNode } from "react";
-import { act, render, screen } from "@testing-library/react";
+import { useActionState, useEffect, type ReactNode } from "react";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ExaminationForm } from "./ExaminationForm";
@@ -11,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   canDelete: false,
   canUnconfirm: false,
   isPersistedConfirmed: false,
+  isPersistedCompletedLocked: false,
+  status: "依頼中" as string,
   isPatientChangeLocked: true,
   useExaminationForm: vi.fn(),
   unconfirmDialog: vi.fn(),
@@ -82,7 +85,21 @@ vi.mock("../components/ExaminationPrintArea", () => ({
 }));
 
 vi.mock("@/components/shared/PageLayout/PageLayout", () => ({
-  PageLayout: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  PageLayout: ({
+    children,
+    title,
+    headerAction,
+  }: {
+    children: ReactNode;
+    title: string;
+    headerAction?: ReactNode;
+  }) => (
+    <div>
+      <h1>{title}</h1>
+      {headerAction}
+      {children}
+    </div>
+  ),
 }));
 
 vi.mock("@/components/shared/NavigationBlocker", () => ({
@@ -111,7 +128,7 @@ vi.mock("../components/ExaminationFormFields", () => ({
       mocks.formFieldsMounted();
       return () => mocks.formFieldsUnmounted();
     }, []);
-    return <button type="submit">保存</button>;
+    return <div />;
   },
 }));
 
@@ -143,6 +160,8 @@ beforeEach(() => {
   mocks.canDelete = false;
   mocks.canUnconfirm = false;
   mocks.isPersistedConfirmed = false;
+  mocks.isPersistedCompletedLocked = false;
+  mocks.status = "依頼中";
   mocks.isPatientChangeLocked = true;
   mocks.isPetDeceased = false;
   mocks.searchParams = "";
@@ -159,8 +178,12 @@ beforeEach(() => {
   mocks.useGetStaffs.mockReset();
   mocks.useGetStaffs.mockReturnValue({ data: [], isLoading: false });
   mocks.useExaminationForm.mockReset();
-  mocks.useExaminationForm.mockImplementation(() => ({
-    formData: { status: "依頼中", petId: "pet-1" },
+  mocks.useExaminationForm.mockImplementation(hookReturn);
+});
+
+function hookReturn() {
+  return {
+    formData: { status: mocks.status, petId: "pet-1" },
     setFormData: vi.fn(),
     isPetDeceased: mocks.isPetDeceased,
     petSelection: {
@@ -188,11 +211,21 @@ beforeEach(() => {
     handleUnconfirm: vi.fn(),
     isUnconfirming: false,
     isPersistedConfirmed: mocks.isPersistedConfirmed,
-    isPersistedCompletedLocked: false,
+    isPersistedCompletedLocked: mocks.isPersistedCompletedLocked,
     isPersistedResultsLocked: mocks.isPersistedConfirmed,
     isPatientChangeLocked: mocks.isPatientChangeLocked,
-  }));
-});
+  };
+}
+
+function deferredGate() {
+  let resolve!: () => void;
+  let reject!: (e: unknown) => void;
+  const promise = new Promise<void>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
 
 describe("ExaminationForm — doctor candidate filter (BUG-005)", () => {
   it("担当医候補は同院 active doctor のみを渡し resource/nurse/inactive を除外する", () => {
@@ -247,6 +280,71 @@ describe("ExaminationForm — doctor candidate filter (BUG-005)", () => {
 });
 
 describe("ExaminationForm — mutation permission wiring", () => {
+  it("削除・キャンセル・保存はフォーム外のヘッダーに置き保存だけを入力フォームに接続する", () => {
+    mocks.id = "examination-1";
+    mocks.canDelete = true;
+    render(<ExaminationForm />);
+
+    const save = screen.getByRole("button", { name: "保存" });
+    expect(save).toHaveAttribute("type", "submit");
+    expect(save).toHaveAttribute("form", document.querySelector("form")?.id);
+    for (const name of ["削除", "キャンセル", "保存"]) {
+      expect(screen.getByRole("button", { name }).closest("form")).toBeNull();
+    }
+    expect(screen.getByRole("button", { name: "削除" })).toHaveAttribute("type", "button");
+    expect(screen.getByRole("button", { name: "キャンセル" })).toHaveAttribute("type", "button");
+  });
+
+  it("A-S02-01: 未確定ならローカルステータスが確定でもヘッダーから保存できる", () => {
+    mocks.id = "examination-1";
+    mocks.status = "確定";
+    render(<ExaminationForm />);
+
+    expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
+  });
+
+  it("閲覧者は削除を実行できず、既存レコードを詳細として表示する", () => {
+    mocks.id = "examination-1";
+    mocks.canEdit = false;
+    mocks.canDelete = true;
+
+    render(<ExaminationForm />);
+
+    expect(screen.getByRole("heading", { name: "検査詳細" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "削除" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+  });
+
+  it("完了封印中は詳細、ステータス変更後に保存可能なら編集として表示する", () => {
+    mocks.id = "examination-1";
+    mocks.canDelete = true;
+    mocks.isPersistedCompletedLocked = true;
+    mocks.status = "完了";
+    const view = render(<ExaminationForm />);
+
+    expect(screen.getByRole("heading", { name: "検査詳細" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
+    mocks.status = "確定";
+    view.rerender(<ExaminationForm />);
+    expect(screen.getByRole("heading", { name: "検査編集" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
+  });
+
+  it("確定済みレコードは詳細扱いで編集・削除を表示しない", () => {
+    mocks.id = "examination-1";
+    mocks.isPersistedConfirmed = true;
+    mocks.canDelete = true;
+
+    render(<ExaminationForm />);
+
+    expect(screen.getByRole("heading", { name: "検査詳細" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "キャンセル" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+  });
+
   it("route id変更時はrecord-scopedフォームstateをremountする", () => {
     mocks.id = "examination-1";
     const view = render(<ExaminationForm />);
@@ -291,7 +389,7 @@ describe("ExaminationForm — mutation permission wiring", () => {
 
     render(<ExaminationForm />);
 
-    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
   });
 
   it("編集は作成権限なしでも編集権限があればフォームを有効にする", () => {
@@ -358,13 +456,17 @@ describe("ExaminationForm — mutation permission wiring", () => {
 
 describe("ExaminationForm — 死亡ペット render側二重防壁 (FE-RC-002)", () => {
   it("死亡ペットでは権限があってもfieldsetをdisabledにし、理由バナーとPatientInfoCardのdeceased statusを出す", () => {
+    mocks.id = "examination-1";
     mocks.canCreate = true;
     mocks.canEdit = true;
+    mocks.canDelete = true;
     mocks.isPetDeceased = true;
 
     render(<ExaminationForm />);
 
-    expect(screen.getByRole("button", { name: "保存" }).closest("fieldset")).toBeDisabled();
+    expect(document.querySelector("fieldset")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "削除" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
     expect(screen.getByText("死亡したペットの検査記録は保存できません")).toBeInTheDocument();
     expect(mocks.patientInfoCard).toHaveBeenLastCalledWith(
       expect.objectContaining({ status: "deceased" }),
@@ -378,7 +480,8 @@ describe("ExaminationForm — 死亡ペット render側二重防壁 (FE-RC-002)"
 
     render(<ExaminationForm />);
 
-    expect(screen.getByRole("button", { name: "保存" }).closest("fieldset")).not.toBeDisabled();
+    expect(document.querySelector("fieldset")).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
     expect(screen.queryByText("死亡したペットの検査記録は保存できません")).not.toBeInTheDocument();
     expect(mocks.patientInfoCard).toHaveBeenLastCalledWith(
       expect.objectContaining({ status: "alive" }),
@@ -425,5 +528,85 @@ describe("ExaminationForm — history pivot wiring", () => {
     expect(historyToggle.closest("fieldset")).toBeNull();
     expect(historyToggle.closest("form")).toBeNull();
     expect(historyToggle).not.toBeDisabled();
+  });
+});
+
+describe("ExaminationForm — header pending contract (PR666)", () => {
+  function usePendingHookImpl(mutate: () => void, gate: ReturnType<typeof deferredGate>) {
+    return function useExaminationFormPending() {
+      const [formState, formAction, isSaving] = useActionState(
+        async () => {
+          mutate();
+          await gate.promise;
+          return { success: false, timestamp: 0 };
+        },
+        { success: false, timestamp: 0 },
+      );
+      return { ...hookReturn(), formState, formAction, isSaving };
+    };
+  }
+
+  it("保存中は外部ヘッダーボタンを disabled+保存中... にし二重送信しない", async () => {
+    const user = userEvent.setup();
+    const gate = deferredGate();
+    const mutate = vi.fn();
+    mocks.useExaminationForm.mockImplementation(usePendingHookImpl(mutate, gate));
+    mocks.id = "exam-1";
+    mocks.canEdit = true;
+
+    render(<ExaminationForm />);
+    const save = screen.getByRole("button", { name: "保存" });
+
+    try {
+      await user.click(save);
+      await waitFor(() => {
+        expect(save).toBeDisabled();
+        expect(save).toHaveTextContent("保存中...");
+      });
+      expect(mutate).toHaveBeenCalledTimes(1);
+
+      await user.click(save);
+      expect(mutate).toHaveBeenCalledTimes(1);
+    } finally {
+      await act(async () => {
+        gate.resolve();
+      });
+    }
+    await waitFor(() => expect(save).toBeEnabled());
+  });
+
+  it("アクション失敗後もボタンは再び有効になる", async () => {
+    const user = userEvent.setup();
+    const gate = deferredGate();
+    const mutate = vi.fn();
+    mocks.useExaminationForm.mockImplementation(function useExaminationFormRejected() {
+      const [formState, formAction, isSaving] = useActionState(
+        async () => {
+          mutate();
+          try {
+            await gate.promise;
+            return { success: false, timestamp: 0 };
+          } catch {
+            return { success: false, timestamp: 0, error: "failed" };
+          }
+        },
+        { success: false, timestamp: 0 },
+      );
+      return { ...hookReturn(), formState, formAction, isSaving };
+    });
+    mocks.id = "exam-1";
+    mocks.canEdit = true;
+
+    render(<ExaminationForm />);
+    const save = screen.getByRole("button", { name: "保存" });
+    await user.click(save);
+    await waitFor(() => expect(save).toBeDisabled());
+    await act(async () => {
+      gate.reject(new Error("network"));
+    });
+    await waitFor(() => {
+      expect(save).toBeEnabled();
+      expect(save).toHaveTextContent("保存");
+    });
   });
 });

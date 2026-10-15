@@ -4,7 +4,7 @@ import { useSearchParams } from "react-router";
 import { useClinicScope } from "@/hooks/use-clinic-scope";
 import { addMonths, format, subMonths, addWeeks, subWeeks } from "date-fns";
 
-import { CalendarIcon, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
 import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
 import { ResourceReservations } from "@/types/generated/models";
@@ -240,7 +240,6 @@ export function ReservationManagement({ createMutations }: ReservationManagement
     <div className={`flex-1 flex flex-col h-full ${C.bgPage} min-w-0 w-full`}>
       <FormHeader
         title="予約管理"
-        icon={<CalendarIcon className={`${ICON.page} ${C.text}`} />}
         action={
           <div className="flex items-center gap-2">
             <PermissionBadges resource={ResourceReservations} />
@@ -373,7 +372,7 @@ export function ReservationManagement({ createMutations }: ReservationManagement
             ? `${deleteTarget.petName || ""}${deleteTarget.ownerName ? `（${deleteTarget.ownerName}）` : ""} の予約を削除します。この操作は取り消せません。`
             : ""
         }
-        confirmLabel="削除する"
+        confirmLabel="削除"
         variant="destructive"
       />
 

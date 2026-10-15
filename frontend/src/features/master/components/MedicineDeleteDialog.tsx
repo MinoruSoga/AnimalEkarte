@@ -19,9 +19,9 @@ export function MedicineDeleteDialog({
       open={open}
       onClose={onClose}
       onConfirm={onConfirm}
-      title="削除しますか？"
+      title="薬剤を削除しますか？"
       description={`「${medicine?.name ?? ""}」を削除します。この操作は取り消せません。`}
-      confirmLabel="削除する"
+      confirmLabel="削除"
       cancelLabel="キャンセル"
       variant="destructive"
     />

@@ -182,9 +182,7 @@ export const PaymentCard = memo(function PaymentCard({
                     ))}
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor={`payment-split-${idx}-amount`} className="text-xs">
-                      支払{idx + 1}の金額
-                    </Label>
+                    <Label htmlFor={`payment-split-${idx}-amount`}>支払{idx + 1}の金額</Label>
                     <NumberInput
                       id={`payment-split-${idx}-amount`}
                       className="h-12 text-xl font-bold"
@@ -197,7 +195,7 @@ export const PaymentCard = memo(function PaymentCard({
                   {split.method === "cash" ? (
                     <>
                       <div className="space-y-1">
-                        <Label htmlFor={`payment-split-${idx}-received`} className="text-xs">
+                        <Label htmlFor={`payment-split-${idx}-received`}>
                           支払{idx + 1}のお預かり金額
                         </Label>
                         <NumberInput
@@ -338,7 +336,7 @@ export const PaymentCard = memo(function PaymentCard({
 
         {canSubmit ? (
           <SubmitButton
-            className="w-full h-14 text-xl font-bold mt-4"
+            className="w-full mt-4"
             size="lg"
             disabled={isDisabled}
             loadingText="処理中..."

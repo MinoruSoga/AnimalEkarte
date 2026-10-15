@@ -33,7 +33,7 @@ export function TrimmingImageUploadField({
 
   return (
     <div>
-      <Label htmlFor={inputId} className={`text-sm ${C.text60} mb-2 block`}>
+      <Label htmlFor={inputId} className={`${C.text60} mb-2 block`}>
         {label}
       </Label>
       {preview ? (

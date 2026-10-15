@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON, C, LAYOUT } from "@/lib/design-tokens";
+import { ICON, LAYOUT } from "@/lib/design-tokens";
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -9,7 +9,7 @@ import { useClinicScope } from "@/hooks/use-clinic-scope";
 import { useUrlPageSync } from "@/hooks/use-url-page-sync";
 
 // External
-import { Plus, CreditCard } from "lucide-react";
+import { Plus } from "lucide-react";
 
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -142,7 +142,6 @@ export function AccountingList() {
     <PageLayout
       title="会計管理"
       resource={ResourceAccounting}
-      icon={<CreditCard className={`${ICON.page} ${C.text}`} />}
       headerAction={
         activeTab === "list" && canCreate ? (
           <PrimaryButton onClick={handleCreate}>
