@@ -30,6 +30,7 @@ interface ClinicMasterSidePanelProps {
   onDeleteClick: (item: Clinic) => void;
 }
 
+/** 医院マスタの詳細・編集を表示し、削除操作を危険色で区別する。 */
 export function ClinicMasterSidePanel({
   selectedItem,
   formData,
@@ -47,12 +48,12 @@ export function ClinicMasterSidePanel({
       className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 flex flex-col`}
     >
       <div className={STYLE.sidePeekToolbar}>
-        <span className={`text-xs ${C.text35} pl-1 select-none`}>
+        <span className={`text-xs ${C.text65} pl-1 select-none`}>
           {selectedItem ? "編集" : "新規登録"}
         </span>
         <div className="flex items-center gap-1">
           {selectedItem && canDelete ? (
-            <DeleteIconButton onClick={() => onDeleteClick(selectedItem)} />
+            <DeleteIconButton className={C.danger} onClick={() => onDeleteClick(selectedItem)} />
           ) : null}
           <button
             type="button"
@@ -189,7 +190,7 @@ export function ClinicMasterSidePanel({
                 />
 
                 <div className={`${STYLE.sectionDivider} my-2`} />
-                <div className={`flex items-center gap-1.5 py-1.5 text-xs ${C.text45} select-none`}>
+                <div className={`flex items-center gap-1.5 py-1.5 text-xs ${C.text65} select-none`}>
                   <Percent className={ICON.xs} />
                   消費税率
                 </div>
@@ -218,7 +219,7 @@ export function ClinicMasterSidePanel({
                 />
 
                 <div className={`${STYLE.sectionDivider} my-2`} />
-                <div className={`flex items-center gap-1.5 py-1.5 text-xs ${C.text45} select-none`}>
+                <div className={`flex items-center gap-1.5 py-1.5 text-xs ${C.text65} select-none`}>
                   <FileText className={ICON.xs} />
                   明細兼領収書
                 </div>

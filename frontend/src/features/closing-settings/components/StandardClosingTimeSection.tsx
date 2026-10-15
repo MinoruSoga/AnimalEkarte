@@ -31,6 +31,7 @@ interface StandardClosingTimeSectionProps {
   canEdit: boolean;
 }
 
+/** 標準の締め時刻を設定し、その設定に基づく締め範囲をプレビューする。 */
 export const StandardClosingTimeSection = memo(function StandardClosingTimeSection({
   settings,
   canEdit,
@@ -234,18 +235,18 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
           {/* 時間帯プレビュー: 境界編集に即時追従する（Issue #151）。 */}
           <div className={`overflow-x-auto rounded-xs border ${C.borderLight} ${C.bgSubtle} p-4`}>
             <table className="w-full border-collapse text-left">
-              <caption className={`mb-3 text-left text-sm font-medium ${C.textMuted}`}>
+              <caption className={`mb-3 text-left text-sm font-medium ${C.textInkMuted}`}>
                 時間帯プレビュー
               </caption>
               <thead>
                 <tr>
-                  <TableHead scope="col" className={C.textMuted}>
+                  <TableHead scope="col" className={C.textInkMuted}>
                     区分
                   </TableHead>
-                  <TableHead scope="col" className={C.textMuted}>
+                  <TableHead scope="col" className={C.textInkMuted}>
                     平日
                   </TableHead>
-                  <TableHead scope="col" className={C.textMuted}>
+                  <TableHead scope="col" className={C.textInkMuted}>
                     日曜
                   </TableHead>
                 </tr>
@@ -255,7 +256,7 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
                   <tr key={row.key}>
                     <TableHead scope="row" className={C.text}>
                       <span className="font-semibold">{row.label}</span>
-                      <span className={`ml-2 text-sm ${C.textMuted}`}>{row.caption}</span>
+                      <span className={`ml-2 text-sm ${C.textInkMuted}`}>{row.caption}</span>
                     </TableHead>
                     <TableCell className={`tabular-nums whitespace-nowrap ${C.text}`}>
                       {formatRangeText(weekdayRanges[row.key])}

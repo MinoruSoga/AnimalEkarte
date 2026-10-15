@@ -22,6 +22,18 @@ const BUTTON_VARIANT_SIZE_CASES = BUTTON_VARIANTS.flatMap((variant) =>
 );
 
 describe("Button", () => {
+  it("secondaryは白地・ink文字・pill・影と44px操作領域を持つ", () => {
+    render(<Button variant="secondary">既定項目を準備</Button>);
+    expect(screen.getByRole("button", { name: "既定項目を準備" })).toHaveClass(
+      C.bgWhite,
+      C.text,
+      "rounded-full",
+      "shadow-level1",
+      C.hoverBgPage,
+      "min-h-11",
+      "min-w-11",
+    );
+  });
   it("keeps pointer affordance, disabled semantics and native child link focus", async () => {
     const user = userEvent.setup();
     render(

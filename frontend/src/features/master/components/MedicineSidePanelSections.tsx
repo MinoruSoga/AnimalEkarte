@@ -95,6 +95,7 @@ interface MedicinePriceTaxSectionProps {
   setFormDataDirty: SetMedicineFormDataDirty;
 }
 
+/** 薬剤の価格・税区分を編集し、親カテゴリでは子項目への単価設定を案内する。 */
 export function MedicinePriceTaxSection({
   formData,
   isCategory,
@@ -104,7 +105,7 @@ export function MedicinePriceTaxSection({
     <>
       {isCategory ? (
         <PropertyRow label="単価(税込)" description={FIELD_DESCRIPTIONS.unitPrice}>
-          <span className={`text-base ${C.text35} select-none`}>子項目に金額を設定</span>
+          <span className={`text-base ${C.text60} select-none`}>子項目に金額を設定</span>
         </PropertyRow>
       ) : (
         <MoneyInput

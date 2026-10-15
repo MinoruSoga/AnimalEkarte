@@ -82,6 +82,7 @@ interface ShiftTemplateSidePanelProps {
   onDirtyChange?: (dirty: boolean) => void;
 }
 
+/** シフトテンプレートの登録・編集と未保存変更の通知を担う。 */
 export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
   item,
   onClose,
@@ -171,7 +172,7 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
   return (
     <div data-side-peek className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0`}>
       <div className={STYLE.sidePeekToolbar}>
-        <span className={`text-xs ${C.text35} pl-1 select-none`}>
+        <span className={`text-xs ${C.text65} pl-1 select-none`}>
           {item !== null ? (readOnly ? "詳細" : "編集") : "新規登録"}
         </span>
         <div className="flex items-center gap-1">

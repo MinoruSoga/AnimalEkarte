@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
@@ -32,6 +32,7 @@ const EXAMINATION: ExaminationRecord = {
   items: undefined,
 };
 
+/** 表示形式と並び順を実際のstateで更新し、履歴切替の操作を検証する。 */
 function HistoryPanelHarness({ initialView = "cards" }: { initialView?: "cards" | "pivot" }) {
   const [view, setView] = useState<"cards" | "pivot">(initialView);
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
@@ -59,6 +60,26 @@ function HistoryPanelHarness({ initialView = "cards" }: { initialView?: "cards" 
 }
 
 describe("ExaminationHistoryPanel", () => {
+  it("選択中の表示形式だけにチェックとpressed状態を示し、キーボード切替でも更新する", async () => {
+    const user = userEvent.setup();
+    render(<HistoryPanelHarness />);
+    const cards = screen.getByRole("button", { name: "カード" });
+    const pivot = screen.getByRole("button", { name: "時系列" });
+    expect(cards).toHaveAttribute("aria-pressed", "true");
+    expect(within(cards).getByText("✓")).toBeVisible();
+    expect(within(pivot).queryByText("✓")).not.toBeInTheDocument();
+    pivot.focus();
+    await user.keyboard("{Enter}");
+    expect(pivot).toHaveAttribute("aria-pressed", "true");
+    expect(cards).toHaveAttribute("aria-pressed", "false");
+    expect(within(pivot).getByText("✓")).toBeVisible();
+    expect(within(cards).queryByText("✓")).not.toBeInTheDocument();
+    cards.focus();
+    await user.keyboard(" ");
+    expect(cards).toHaveAttribute("aria-pressed", "true");
+    expect(pivot).toHaveAttribute("aria-pressed", "false");
+    expect(within(cards).getByText("✓")).toBeVisible();
+  });
   it("既存カード一覧をデフォルト表示し、時系列ピボットへ切り替えられる", async () => {
     const user = userEvent.setup();
     render(<HistoryPanelHarness />);

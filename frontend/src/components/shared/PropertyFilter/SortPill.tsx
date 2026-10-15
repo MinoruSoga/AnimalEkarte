@@ -19,6 +19,7 @@ interface SortPillProps {
   onRemove: (key: string) => void;
 }
 
+/** 並び順の対象と方向を表示し、変更・解除の操作を提供する。 */
 export const SortPill = memo(function SortPill({
   sort,
   sortProperties,
@@ -83,7 +84,7 @@ export const SortPill = memo(function SortPill({
           <div className={`border-t ${C.borderLight} my-1`} />
 
           {/* Property change */}
-          <p className={`text-base ${C.text40} px-3 py-1`}>プロパティを変更</p>
+          <p className={`text-base ${C.text60} px-3 py-1`}>プロパティを変更</p>
           <Command>
             <CommandInput placeholder="検索..." />
             <CommandList>

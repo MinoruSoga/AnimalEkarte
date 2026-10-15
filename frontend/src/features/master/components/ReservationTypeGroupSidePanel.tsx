@@ -16,6 +16,7 @@ export interface GroupFormData {
   isActive: boolean;
 }
 
+/** 予約種別グループの名称・表示設定をサイドパネルで編集する。 */
 export const GroupSidePanel = memo(function GroupSidePanel({
   item,
   onClose,
@@ -119,7 +120,7 @@ export const GroupSidePanel = memo(function GroupSidePanel({
               placeholder={PALETTE.pickerDefaultBlue}
             />
           </div>
-          <p className={`text-xs ${C.text40}`}>
+          <p className={`text-xs ${C.text60}`}>
             予約管理カレンダーでこのグループに属する区分の予約枠を色別表示します。
           </p>
         </div>
