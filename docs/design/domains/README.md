@@ -1,6 +1,6 @@
 # domains/ — 領域別の技術設計
 
-業務領域ごとの実現方式と現行コードとの差分をまとめる。[予約](reservations/README.md)と[受付](reception/README.md)と[カルテの部分設計](medical-records/README.md)と[会計初回〜第四群の部分設計](accounting/README.md)が現在の入口。新しい領域を追加する際も、領域READMEに対象・読む順・正本を記す。
+業務領域ごとの実現方式と現行コードとの差分をまとめる。[予約](reservations/README.md)と[受付](reception/README.md)と[カルテの部分設計](medical-records/README.md)と[会計初回〜第五群の部分設計](accounting/README.md)が現在の入口。新しい領域を追加する際も、領域READMEに対象・読む順・正本を記す。
 
 ここにはデータ・API・画面と処理・transaction・移行・検証の設計を置く。業務本文は[spec/domains](../../spec/domains/README.md)、全体アーキテクチャは[architecture](../../architecture/README.md)、実施記録は[work](../../work/README.md)を参照し、本文を二重管理しない。具体的タスク・依存関係・進捗はPlaneへ置く。
 
