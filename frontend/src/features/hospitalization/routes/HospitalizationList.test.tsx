@@ -124,7 +124,7 @@ describe("HospitalizationList — view切替の操作領域", () => {
   it("Board/List view buttonを44x44px以上に保つ", () => {
     render(<HospitalizationList />, { wrapper: createWrapper() });
 
-    for (const name of ["Board View", "List View"]) {
+    for (const name of ["ボード表示", "リスト表示"]) {
       expect(screen.getByRole("radio", { name })).toHaveClass("h-11", "min-w-11");
     }
   });
@@ -145,7 +145,7 @@ describe("HospitalizationList — かな正規化テキスト検索", () => {
     render(<HospitalizationList />, { wrapper: createWrapper() });
 
     // リストビューに切り替え (ToggleGroup type="single" は role="radio")
-    await user.click(screen.getByRole("radio", { name: "List View" }));
+    await user.click(screen.getByRole("radio", { name: "リスト表示" }));
 
     // 検索入力（常時表示）へ入力
     await user.type(screen.getByPlaceholderText("飼主名、ペット名、入院No..."), "ぽち");
@@ -168,7 +168,7 @@ describe("HospitalizationList — かな正規化テキスト検索", () => {
     const user = userEvent.setup();
     render(<HospitalizationList />, { wrapper: createWrapper() });
 
-    await user.click(screen.getByRole("radio", { name: "List View" }));
+    await user.click(screen.getByRole("radio", { name: "リスト表示" }));
     await user.type(screen.getByPlaceholderText("飼主名、ペット名、入院No..."), "サトウ");
 
     // EMR-247: 確定操作（Enter/ボタン）までフィルタは適用されない
@@ -220,7 +220,7 @@ describe("HospitalizationList — BUG-009 status tab → server filter", () => {
     );
 
     // list view で reserved 行が残る（旧失敗: client が admitted のみ残す）
-    await user.click(screen.getByRole("radio", { name: "List View" }));
+    await user.click(screen.getByRole("radio", { name: "リスト表示" }));
     expect(await screen.findByText("予約ワン")).toBeInTheDocument();
     expect(screen.getByText("H-R1")).toBeInTheDocument();
   });
@@ -294,7 +294,7 @@ describe("HospitalizationList — BUG-009 status tab → server filter", () => {
     // board: cage に紐づく 種 + petName
     expect(await screen.findByText("犬 ボード兼リスト")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("radio", { name: "List View" }));
+    await user.click(screen.getByRole("radio", { name: "リスト表示" }));
     expect(await screen.findByText("ボード兼リスト")).toBeInTheDocument();
   });
 
@@ -311,7 +311,7 @@ describe("HospitalizationList — BUG-009 status tab → server filter", () => {
 
     const user = userEvent.setup();
     render(<HospitalizationList />, { wrapper: createWrapper() });
-    await user.click(screen.getByRole("radio", { name: "List View" }));
+    await user.click(screen.getByRole("radio", { name: "リスト表示" }));
 
     // total=42, limit=20 → totalPages=3 → Pagination（server 正本）が表示される
     expect(await screen.findByText(/42件中/)).toBeInTheDocument();

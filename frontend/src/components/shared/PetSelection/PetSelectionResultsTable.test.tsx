@@ -105,11 +105,12 @@ function createResults(
 describe("PetSelectionResultsTable empty/error/loading states", () => {
   it("keeps the operation column sticky without changing selection guards", () => {
     render(<PetSelectionResultsTable pets={createResults([PET])} onSelect={vi.fn()} />);
+    // EMR-412 X1: ヘッダ帯は STYLE 様式（C.bgPage）。sticky 操作セル（td）は C.bgWhite のまま。
     expect(screen.getByRole("columnheader", { name: "操作" })).toHaveClass(
       "sticky",
       "right-0",
       "z-20",
-      C.bgWhite,
+      C.bgPage,
       "min-w-[120px]",
       "whitespace-nowrap",
     );

@@ -34,6 +34,8 @@ export interface TrimmingLeftColumnProps {
   courseError?: string;
   /** #233: カルテ画面から直接新規作成する場合のみ true。登録時ステータス選択の表示可否。 */
   showInitialStatusSelector: boolean;
+  /** EMR-412 X14: トリミング新規のみコースラベルに必須印。既定 false。 */
+  courseRequiredMark?: boolean;
 }
 
 export interface TrimmingMiddleColumnProps {

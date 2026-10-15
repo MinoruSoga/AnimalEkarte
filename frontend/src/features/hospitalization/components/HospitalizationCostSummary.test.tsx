@@ -24,9 +24,9 @@ describe("HospitalizationCostSummary", () => {
     expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
     // RO totals remain
     expect(screen.getByText("診療費 小計（明細合計）")).toBeVisible();
-    expect(screen.getAllByText("￥7,700")).toHaveLength(2);
+    expect(screen.getAllByText("¥7,700")).toHaveLength(2);
     expect(screen.getByText("消費税（内税分を含む）")).toBeVisible();
-    expect(screen.getByText("￥700")).toBeVisible();
+    expect(screen.getByText("¥700")).toBeVisible();
     expect(screen.getByText("診療費の目安（税込）")).toBeVisible();
     expect(screen.queryByText("請求額")).not.toBeInTheDocument();
   });
@@ -42,9 +42,9 @@ describe("HospitalizationCostSummary", () => {
       />,
     );
 
-    expect(screen.getByText("￥8,700")).toBeVisible();
-    expect(screen.getByText("￥800")).toBeVisible();
-    expect(screen.getByText("￥8,800")).toBeVisible();
-    expect(screen.queryByText("￥9,500")).not.toBeInTheDocument();
+    expect(screen.getByText("¥8,700")).toBeVisible();
+    expect(screen.getByText("¥800")).toBeVisible();
+    expect(screen.getByText("¥8,800")).toBeVisible();
+    expect(screen.queryByText("¥9,500")).not.toBeInTheDocument();
   });
 });

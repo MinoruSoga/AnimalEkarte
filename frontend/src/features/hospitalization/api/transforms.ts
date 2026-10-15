@@ -9,10 +9,10 @@ type BackendHospitalizationPet = NonNullable<BackendHospitalization["pet"]> & {
 };
 
 /** UI 表示用 status。未知 wire は「不明」（BUG-009 fail-closed。旧 fail-open は「予約」推測）。 */
-type HospitalizationStatus = "入院中" | "退院済" | "予約" | "一時帰宅" | "不明";
+type HospitalizationStatus = "入院中" | "預かり中" | "退院済" | "予約" | "一時帰宅" | "不明";
 type HospitalizationType = "入院" | "ホテル";
 
-const KNOWN_STATUS_MAP: Record<string, Exclude<HospitalizationStatus, "不明">> = {
+const KNOWN_STATUS_MAP: Record<string, Exclude<HospitalizationStatus, "不明" | "預かり中">> = {
   admitted: "入院中",
   discharged: "退院済",
   reserved: "予約",
@@ -29,9 +29,14 @@ export const transformHospitalization = (hosp: BackendHospitalization) => {
     hospitalization: "入院",
     hotel: "ホテル",
   };
+  const hospitalizationType = (typeMap[hosp.hospitalization_type] ?? "入院") as HospitalizationType;
 
   const mappedStatus = KNOWN_STATUS_MAP[hosp.status];
-  const status: HospitalizationStatus = mappedStatus ?? "不明";
+  // EMR-412 N3: ホテル区分の admitted は「預かり中」。「不明」は区分によらず fail-closed。
+  const status: HospitalizationStatus =
+    hosp.status === "admitted" && hospitalizationType === "ホテル"
+      ? "預かり中"
+      : (mappedStatus ?? "不明");
 
   return {
     id: String(hosp.id ?? 0),
@@ -46,7 +51,7 @@ export const transformHospitalization = (hosp: BackendHospitalization) => {
           : undefined,
     petName: hosp.pet?.name ?? "",
     species: hosp.pet?.animal_species?.name ?? "",
-    hospitalizationType: (typeMap[hosp.hospitalization_type] ?? "入院") as HospitalizationType,
+    hospitalizationType,
     startDate: hosp.start_date ? hosp.start_date.split("T")[0] : "",
     endDate: hosp.end_date ? hosp.end_date.split("T")[0] : "",
     // EMR-353: 次回予定日。timestamp 形でも日付部分だけを使う。

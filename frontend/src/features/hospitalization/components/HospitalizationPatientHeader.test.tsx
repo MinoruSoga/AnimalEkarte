@@ -129,16 +129,17 @@ describe("HospitalizationPatientHeader 次回予定表示 (EMR-353)", () => {
       />,
     );
 
-    expect(screen.getByText("次回予定")).toBeInTheDocument();
-    expect(screen.getByText(/2026\/11\/20/)).toBeInTheDocument();
-    expect(screen.queryByText("退院予定")).not.toBeInTheDocument();
+    expect(screen.getByText("次回予定 2026/11/20")).toBeInTheDocument();
+    expect(screen.queryByText(/^退院予定/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/2026\/07\/25/)).not.toBeInTheDocument();
+    expect(screen.queryByText("期限間近")).not.toBeInTheDocument();
   });
 
   it("nextVisit が無いとき従来どおり「退院予定」ラベルと endDate を表示する", () => {
     render(<HospitalizationPatientHeader hospitalization={makeHospitalization(false)} />);
 
-    expect(screen.getByText("退院予定")).toBeInTheDocument();
-    expect(screen.getByText(/2026\/07\/25/)).toBeInTheDocument();
+    expect(screen.getByText("退院予定 2026/07/25")).toBeInTheDocument();
     expect(screen.queryByText("次回予定")).not.toBeInTheDocument();
+    expect(screen.queryByText("期限間近")).not.toBeInTheDocument();
   });
 });

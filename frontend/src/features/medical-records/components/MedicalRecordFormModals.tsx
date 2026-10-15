@@ -19,6 +19,9 @@ interface MedicalRecordFormModalsProps {
   /** P2-15: 拠点横断で開いたカルテの子リソース操作用。レコード自身の clinicId */
   recordClinicId?: string;
   isPetDeceased?: boolean;
+  /** EMR-412 R6: バイタル空状態の理由文言に使うロック状態。 */
+  isFinalized?: boolean;
+  isLocked?: boolean;
   isStaffModalOpen: boolean;
   staffName: string;
   onSelectStaff: ComponentProps<typeof StaffSelectionModal>["onSelect"];
@@ -44,6 +47,8 @@ export function MedicalRecordFormModals({
   onVitalsOpenChange,
   recordClinicId,
   isPetDeceased = false,
+  isFinalized = false,
+  isLocked = false,
   isStaffModalOpen,
   staffName,
   onSelectStaff,
@@ -74,6 +79,8 @@ export function MedicalRecordFormModals({
             medicalRecordId={recordId}
             recordClinicId={recordClinicId}
             isPetDeceased={isPetDeceased}
+            isFinalized={isFinalized}
+            isLocked={isLocked}
           />
         ) : null}
       </Suspense>

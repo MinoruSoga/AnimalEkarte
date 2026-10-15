@@ -161,6 +161,8 @@ export function MedicalRecordClinicalTabs({
           petSpecies={selectedPet.species}
           recordClinicId={recordClinicId}
           isPetDeceased={isPetDeceasedForClinicalWrite(selectedPet)}
+          isLocked={isLocked}
+          isFinalized={isFinalized}
         />
       </MedicalRecordMountedTab>
     </>

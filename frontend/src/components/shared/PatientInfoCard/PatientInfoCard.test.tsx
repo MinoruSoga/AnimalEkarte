@@ -51,7 +51,7 @@ describe("PatientInfoCard next visit alert", () => {
 
     render(<PatientInfoCard {...baseProps} nextVisitDate="2025/10/10" />);
 
-    expect(screen.getByText("次回 2025/10/10")).toBeInTheDocument();
+    expect(screen.getByText("次回予定 2025/10/10")).toBeInTheDocument();
     expect(screen.getByText("期限切れ")).toBeInTheDocument();
   });
 
@@ -69,7 +69,7 @@ describe("PatientInfoCard next visit alert", () => {
     render(<PatientInfoCard {...baseProps} />);
 
     expect(screen.queryByText("次回 -")).not.toBeInTheDocument();
-    expect(screen.queryByText("次回 2025/10/10")).not.toBeInTheDocument();
+    expect(screen.queryByText("次回予定 2025/10/10")).not.toBeInTheDocument();
     expect(screen.queryByText("期限切れ")).not.toBeInTheDocument();
     expect(screen.queryByText("期限間近")).not.toBeInTheDocument();
   });
@@ -80,7 +80,7 @@ describe("PatientInfoCard next visit alert", () => {
     );
     const fixedMin = container.querySelector('[class*="min-w-[120px]"], [class*="min-w-[60px]"]');
     expect(fixedMin).toBeNull();
-    expect(screen.getByText("次回 2026/08/01")).toBeInTheDocument();
+    expect(screen.getByText("次回予定 2026/08/01")).toBeInTheDocument();
   });
 
   it("実在しない日付や区切り混在は期限判定へ渡さない", () => {
@@ -167,13 +167,13 @@ describe("PatientInfoCard 390px レスポンシブ (EMR-391/VQ-015)", () => {
   // 「診療種別」「トリミング」が1文字ずつ縦割れ、保険・次回カードも過圧縮されていた。
   // BUG-458 の固定 min-w を廃した方針は維持しつつ、レスポンシブな basis/折返しで
   // モバイルに使える幅を確保する。
-  it("サービス情報群はモバイルで行全体(basis-full)を使い、sm 以上は従来の flex-1 配置", () => {
+  it("サービス情報群はモバイルで行全体(basis-full)を使い、lg 以上は従来の flex-1 配置", () => {
     render(<PatientInfoCard {...baseProps} staffName="佐藤" />);
 
     const serviceCol = screen.getByText("診療種別").parentElement;
     expect(serviceCol).not.toBeNull();
     const serviceGroup = serviceCol?.parentElement;
-    expect(serviceGroup).toHaveClass("basis-full", "sm:basis-0");
+    expect(serviceGroup).toHaveClass("basis-full", "lg:basis-0");
   });
 
   it("短い固定ラベルと種別値は1文字ずつ割れない（whitespace-nowrap + shrink-0）", () => {
@@ -183,16 +183,18 @@ describe("PatientInfoCard 390px レスポンシブ (EMR-391/VQ-015)", () => {
     expect(serviceCol).toHaveClass("whitespace-nowrap", "shrink-0");
   });
 
-  it("担当者グループはモバイルで独立行(w-full)へ折り返し、sm 以上は従来の右寄せ", () => {
+  it("担当者グループはモバイルで独立行(w-full)へ折り返し、lg 以上は従来の右寄せ", () => {
     render(<PatientInfoCard {...baseProps} staffName="佐藤" />);
 
     const staffGroup = screen.getByText("担当医佐藤").parentElement;
     expect(staffGroup).toHaveClass("w-full", "sm:w-auto", "sm:ml-auto");
   });
 
-  it("保険名の意図的な truncate 省略は維持される", () => {
+  it("保険名の意図的な truncate 省略は維持される（lg 以上の行内配置のみ。狭幅は省略しない）", () => {
     render(<PatientInfoCard {...baseProps} insuranceName="とても長い保険会社と契約プラン名" />);
 
-    expect(screen.getByText("とても長い保険会社と契約プラン名")).toHaveClass("truncate");
+    // EMR-412 R3/X5: <lg（820px 含む）では全幅折返し・省略なし。lg 以上で意図的な省略に戻す。
+    expect(screen.getByText("とても長い保険会社と契約プラン名")).toHaveClass("lg:truncate");
+    expect(screen.getByText("とても長い保険会社と契約プラン名")).not.toHaveClass("truncate");
   });
 });

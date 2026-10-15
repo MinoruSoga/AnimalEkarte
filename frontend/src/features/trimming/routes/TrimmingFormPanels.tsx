@@ -6,7 +6,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { FormHeaderActions } from "@/components/shared/Form/FormHeaderActions";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
-import { ICON, C, LAYOUT } from "@/lib/design-tokens";
+import { ICON, C, LAYOUT, STYLE } from "@/lib/design-tokens";
 import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { ResourceTrimming } from "@/types/generated/models";
 import type { MasterItem, SortOrder } from "@/types";
@@ -219,7 +219,10 @@ export function TrimmingFormBody({
         ) : null}
         {/* 保存中も画像操作を無効化 — 送信済みキーの remove/置換は対象外だが、
             isSaving 中の入力変更はペイロードに反映されないため一貫して止める。 */}
-        <fieldset disabled={!canSubmit || isSaving} className="border-0 p-0 m-0 min-w-0">
+        <fieldset
+          disabled={!canSubmit || isSaving}
+          className={`border-0 p-0 m-0 min-w-0 ${STYLE.readonlyInputs}`}
+        >
           {selectedPet ? (
             <TrimmingFormColumns
               selectedPet={selectedPet}
@@ -235,6 +238,7 @@ export function TrimmingFormBody({
               historySortOrder={historySortOrder}
               historyDateRange={historyDateRange}
               showInitialStatusSelector={mode === "new" ? !hasExistingAppointment : false}
+              showRequiredMarks={mode === "new"}
               onFormChange={onFormChange}
               onOpenCourseModal={onOpenCourseModal}
               onOpenStaffModal={onOpenStaffModal}

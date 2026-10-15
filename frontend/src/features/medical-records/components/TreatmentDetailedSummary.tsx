@@ -3,6 +3,7 @@ import { memo } from "react";
 
 // Internal
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
+import { formatCurrency } from "@/lib/format/number";
 import { C, STYLE } from "@/lib/design-tokens";
 
 interface TreatmentDetailedSummaryProps {
@@ -53,7 +54,7 @@ export const TreatmentDetailedSummary = memo(function TreatmentDetailedSummary({
           <div
             className={`p-2 text-right ${C.text} border-r ${C.borderMedium} h-full flex items-center justify-end font-mono font-medium`}
           >
-            ￥{subtotal.toLocaleString()}
+            {formatCurrency(subtotal)}
           </div>
           <div
             className={`p-2 border-r ${C.borderMedium} h-full flex items-center justify-end gap-1`}
@@ -94,12 +95,12 @@ export const TreatmentDetailedSummary = memo(function TreatmentDetailedSummary({
           <div
             className={`p-2 text-right ${C.text} border-r ${C.borderMedium} h-full flex items-center justify-end font-mono font-medium`}
           >
-            ￥{tax.toLocaleString()}
+            {formatCurrency(tax)}
           </div>
           <div
             className={`p-2 text-right ${C.text} h-full flex items-center justify-end font-mono font-semibold text-xl`}
           >
-            ￥{total.toLocaleString()}
+            {formatCurrency(total)}
           </div>
         </div>
 
@@ -108,13 +109,13 @@ export const TreatmentDetailedSummary = memo(function TreatmentDetailedSummary({
           <div className={`p-2 border-r ${C.borderMedium} flex justify-between items-center h-10`}>
             <span className={`font-normal ${C.text} text-sm`}>保険請求額</span>
             <span className={`${C.text} font-mono font-medium`}>
-              ￥{insuranceAmount.toLocaleString()}
+              {formatCurrency(insuranceAmount)}
             </span>
           </div>
           <div className="p-2 flex justify-between items-center h-10">
             <span className={`font-normal ${C.text} text-sm`}>飼主請求額</span>
             <span className={`font-semibold ${C.text} font-mono text-base`}>
-              ￥{total.toLocaleString()}
+              {formatCurrency(total)}
             </span>
           </div>
         </div>

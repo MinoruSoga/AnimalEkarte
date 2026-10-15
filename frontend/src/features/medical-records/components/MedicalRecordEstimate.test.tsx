@@ -256,8 +256,8 @@ describe("MedicalRecordEstimate BUG-016 resave", () => {
     render(createElement(MedicalRecordEstimate, { medicalRecordId: "8" }), { wrapper });
 
     // 1000円 * 8% = 80円（ハードコード 10% なら 100円になるはず）
-    expect(screen.getByText("￥80")).toBeInTheDocument();
-    expect(screen.queryByText("￥100")).not.toBeInTheDocument();
+    expect(screen.getByText("¥80")).toBeInTheDocument();
+    expect(screen.queryByText("¥100")).not.toBeInTheDocument();
   });
 
   it("EMR-401: 既存明細の tax_type/tax_rate が保存 payload に保持される", async () => {
@@ -335,10 +335,10 @@ describe("MedicalRecordEstimate BUG-016 resave", () => {
 
     render(createElement(MedicalRecordEstimate, { medicalRecordId: "10" }), { wrapper });
 
-    expect(screen.getByText("￥100")).toBeInTheDocument();
-    expect(screen.getAllByText("￥1,100").length).toBeGreaterThanOrEqual(2);
-    expect(screen.queryByText("￥110")).not.toBeInTheDocument();
-    expect(screen.queryByText("￥1,210")).not.toBeInTheDocument();
+    expect(screen.getByText("¥100")).toBeInTheDocument();
+    expect(screen.getAllByText("¥1,100").length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText("¥110")).not.toBeInTheDocument();
+    expect(screen.queryByText("¥1,210")).not.toBeInTheDocument();
   });
 
   it("EMR-401: 外税1000円は消費税100円・非課税1000円は消費税0円", () => {
@@ -373,9 +373,9 @@ describe("MedicalRecordEstimate BUG-016 resave", () => {
 
     render(createElement(MedicalRecordEstimate, { medicalRecordId: "11" }), { wrapper });
 
-    expect(screen.getByText("￥100")).toBeInTheDocument();
-    expect(screen.getAllByText("￥2,100").length).toBeGreaterThanOrEqual(1);
-    expect(screen.queryByText("￥200")).not.toBeInTheDocument();
+    expect(screen.getByText("¥100")).toBeInTheDocument();
+    expect(screen.getAllByText("¥2,100").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("¥200")).not.toBeInTheDocument();
   });
 
   it("EMR-401: 新規追加行は内税・医院標準税率で payload に載る", async () => {
@@ -679,7 +679,7 @@ describe("MedicalRecordEstimate BUG-016 resave", () => {
     ).toBe("");
 
     // 請求額（正味）= 1100 - 100 = 1000
-    expect(screen.getAllByText("￥1,000").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("¥1,000").length).toBeGreaterThan(0);
 
     await act(async () => {
       await registered[registered.length - 1]!();
@@ -879,9 +879,9 @@ describe("MedicalRecordEstimate PR669 insurance (保険適用額)", () => {
 
       const insuranceInput = screen.getByLabelText("保険適用額");
       expect(insuranceInput).toHaveValue(200);
-      expect(screen.getByText("保険請求額").parentElement).toHaveTextContent("￥200");
+      expect(screen.getByText("保険請求額").parentElement).toHaveTextContent("¥200");
       // gross 1100 - discount 100 - insurance 200 = 800（請求額列と飼主請求額行の2箇所）
-      expect(screen.getAllByText("￥800").length).toBeGreaterThanOrEqual(2);
+      expect(screen.getAllByText("¥800").length).toBeGreaterThanOrEqual(2);
 
       mockUpdateMutateAsync.mockResolvedValue({ id: 5, title: "見積", items: [item] });
       await act(async () => {
@@ -913,7 +913,7 @@ describe("MedicalRecordEstimate PR669 insurance (保険適用額)", () => {
     const insuranceInput = screen.getByLabelText("保険適用額");
     await user.clear(insuranceInput);
     await user.type(insuranceInput, "100");
-    expect(screen.getAllByText("￥900").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("¥900").length).toBeGreaterThanOrEqual(2);
 
     mockUpdateMutateAsync.mockResolvedValue({
       id: 5,
@@ -984,7 +984,7 @@ describe("MedicalRecordEstimate PR669 insurance (保険適用額)", () => {
     const insuranceInput = screen.getByLabelText("保険適用額");
     await user.clear(insuranceInput);
     await user.type(insuranceInput, "1100");
-    expect(screen.getAllByText("￥0").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("¥0").length).toBeGreaterThanOrEqual(2);
     mockUpdateMutateAsync.mockResolvedValue({ id: 5, title: "見積", items: [grossExcluded] });
     await act(async () => {
       await save();

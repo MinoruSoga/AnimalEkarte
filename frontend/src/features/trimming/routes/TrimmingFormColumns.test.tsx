@@ -34,11 +34,13 @@ const basePatient: TrimmingPatient = {
 function renderColumns(
   patient: TrimmingPatient = basePatient,
   fieldErrors: Record<string, string> = {},
+  extraProps: { showRequiredMarks?: boolean } = {},
 ) {
   return render(
     <MemoryRouter>
       <TrimmingFormColumns
         selectedPet={patient}
+        showRequiredMarks={extraProps.showRequiredMarks}
         formData={baseFormData}
         fieldErrors={fieldErrors}
         courses={[]}
@@ -76,6 +78,21 @@ describe("TrimmingFormColumns", () => {
     const staffButton = screen.getByRole("button", { name: "担当鈴木 一郎" });
     expect(staffButton).toBeInTheDocument();
     expect(staffButton).not.toHaveAccessibleName(/担当医/);
+  });
+
+  it("EMR-412 X14: トリミング新規のみ担当ボタンとコースラベルに必須印を出す", () => {
+    const { unmount } = renderColumns(basePatient, {}, { showRequiredMarks: true });
+
+    const staffButton = screen.getByRole("button", { name: /担当鈴木 一郎/ });
+    expect(staffButton).toHaveTextContent("*");
+    const courseLabel = screen.getByText("コース");
+    expect(courseLabel).toHaveTextContent("*");
+    unmount();
+
+    // 既存編集では必須印を出さない（既定 false）。
+    renderColumns(basePatient, {});
+    expect(screen.getByRole("button", { name: /担当鈴木 一郎/ })).not.toHaveTextContent("*");
+    expect(screen.getByText("コース")).not.toHaveTextContent("*");
   });
 });
 

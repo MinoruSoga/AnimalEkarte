@@ -67,6 +67,8 @@ interface TreatmentsTableProps {
   onAutoFocusDone: () => void;
   /** #201: 投与量自動計算プレビューに必要なコンテキスト */
   doseContext: MedicineDoseContext;
+  /** EMR-412 K5: ロック中の理由文言。未指定は通常文言。 */
+  lockedEmptyMessage?: string;
 }
 
 export function TreatmentsTable({
@@ -81,6 +83,7 @@ export function TreatmentsTable({
   onMoveDown,
   onAutoFocusDone,
   doseContext,
+  lockedEmptyMessage,
 }: TreatmentsTableProps) {
   return (
     <table className="w-full">
@@ -89,7 +92,9 @@ export function TreatmentsTable({
         {treatments.length === 0 ? (
           <tr>
             <TableCell data-empty-state colSpan={10} className={STYLE.tableEmptySm}>
-              治療明細がありません。下の「明細を追加」ボタンから追加してください。
+              {/* EMR-412 K5: 通常時は実ボタン名（マスタから追加/手入力で追加）を書く。ロック中は理由文言。 */}
+              {lockedEmptyMessage ??
+                "治療明細がありません。「マスタから追加」または「手入力で追加」ボタンから追加してください。"}
             </TableCell>
           </tr>
         ) : (
@@ -270,11 +275,9 @@ export function TreatmentTotals({
           className={`flex items-center justify-between text-sm pt-1.5 border-t ${C.borderLight}`}
         >
           <span className={C.text60}>
-            税込合計 (10% {ownerDiscountRate > 0 ? `飼主割引${ownerDiscountRate}%適用後` : ""})
+            {`税込合計 (10%${ownerDiscountRate > 0 ? ` 飼主割引${ownerDiscountRate}%適用後` : ""})`}
           </span>
-          <span className={`font-mono font-semibold ${C.textCostBlue}`}>
-            {formatCurrency(finalTotal)}
-          </span>
+          <span className={`font-mono font-semibold ${C.text}`}>{formatCurrency(finalTotal)}</span>
         </div>
       </div>
     </div>

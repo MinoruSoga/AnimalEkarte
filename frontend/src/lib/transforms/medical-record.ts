@@ -51,7 +51,8 @@ export const transformMedicalRecord = (record: MedicalRecordResponse) => {
     species: record.pet?.animal_species?.name ?? "",
     chiefComplaint: record.inquiry?.chief_complaint ?? "",
     chiefComplaintTypeId: record.inquiry?.chief_complaint_type_id ?? null,
-    doctor: record.doctor?.name ?? String(record.doctor_id ?? ""),
+    // EMR-412 X3/R5: 未解決の doctor_id を氏名として見せない。割当なしは空欄（"-"）。
+    doctor: record.doctor?.name ?? (record.doctor_id ? "担当者不明" : ""),
     visitType: toVisitTypeLabel(record.visit_type),
     subjective: undefined as string | undefined,
     objective: undefined as string | undefined,

@@ -211,7 +211,7 @@ function HospitalizationListContent({
               <ToggleGroupItem
                 value="board"
                 size="sm"
-                aria-label="Board View"
+                aria-label="ボード表示"
                 className="-my-1 h-11 min-w-11"
               >
                 <LayoutGrid className={ICON.action} />
@@ -219,7 +219,7 @@ function HospitalizationListContent({
               <ToggleGroupItem
                 value="list"
                 size="sm"
-                aria-label="List View"
+                aria-label="リスト表示"
                 className="-my-1 h-11 min-w-11"
               >
                 <List className={ICON.action} />
@@ -240,7 +240,12 @@ function HospitalizationListContent({
             <ErrorFallback />
           ) : boardHospitalizations.length === 0 ? (
             <>
-              <EmptyState message="入院データが見つかりません" />
+              {/* EMR-412 N8: ケージ未登録と入院0件を区別する（任意対応）。 */}
+              <EmptyState
+                message={
+                  cages.length === 0 ? "ケージが登録されていません" : "入院データが見つかりません"
+                }
+              />
               <HospitalizationBoard
                 cages={cages}
                 hospitalizations={boardHospitalizations}

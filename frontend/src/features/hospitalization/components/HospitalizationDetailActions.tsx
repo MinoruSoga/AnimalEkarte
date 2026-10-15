@@ -8,6 +8,7 @@ import { Settings, LogOut, LogIn } from "lucide-react";
 // Internal
 import { Button } from "@/components/ui/button";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { usePermission } from "@/hooks/use-permission";
 import { HospitalizationStatusAdmitted } from "@/types/generated/models";
 import { C } from "@/lib/design-tokens";
@@ -15,7 +16,12 @@ import { paths } from "@/config/paths";
 
 // Relative
 import { H_STYLES } from "../lib/styles";
-import { HOSPITALIZATION_DECEASED_BLOCK_MESSAGE, HOSPITALIZATION_STATUS } from "../constants";
+import {
+  HOSPITALIZATION_DECEASED_BLOCK_MESSAGE,
+  HOSPITALIZATION_HOTEL_STATUS,
+  HOSPITALIZATION_STATUS,
+} from "../constants";
+import { getHospitalizationStatusColor } from "@/lib/status-helpers";
 import { useUpdateHospitalization } from "../api/update-hospitalization";
 
 // Types
@@ -42,7 +48,10 @@ export function HospitalizationDetailActions({
     useUpdateHospitalization();
 
   const isReserved = hospitalization.status === HOSPITALIZATION_STATUS.RESERVED;
-  const isAdmitted = hospitalization.status === HOSPITALIZATION_STATUS.ACTIVE;
+  // EMR-412 N3: ホテル区分の admitted は「預かり中」。退院（返却）導線は区分によらず有効。
+  const isAdmitted =
+    hospitalization.status === HOSPITALIZATION_STATUS.ACTIVE ||
+    hospitalization.status === HOSPITALIZATION_HOTEL_STATUS.ACTIVE;
   const petIsDeceased = hospitalization.petIsDeceased === true;
   // 臨床安全境界1: 死亡ペットは render 側でも要素を出さない（callback 側の拒否は handleCheckIn 内で維持）。
   const showCheckIn = canEdit && isReserved && !petIsDeceased;
@@ -63,6 +72,10 @@ export function HospitalizationDetailActions({
 
   return (
     <div className={`flex items-center ${H_STYLES.gap.default}`}>
+      {/* EMR-412 N1: 状態は区分・権限によらず常時表示（一覧と同じ StatusBadge）。 */}
+      <StatusBadge colorClass={getHospitalizationStatusColor(hospitalization.status)}>
+        {hospitalization.status}
+      </StatusBadge>
       {checkInBlockedByDeath ? (
         <span role="status" className={`text-sm ${C.text50}`}>
           {HOSPITALIZATION_DECEASED_BLOCK_MESSAGE.CHECK_IN}

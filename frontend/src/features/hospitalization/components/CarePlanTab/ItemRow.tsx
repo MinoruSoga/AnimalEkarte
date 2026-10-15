@@ -1,5 +1,6 @@
 // React/Framework
 import { ICON, C, STYLE } from "@/lib/design-tokens";
+import { formatCurrency } from "@/lib/format/number";
 
 // External
 import { Pencil } from "lucide-react";
@@ -38,9 +39,7 @@ export function ItemRow({ item, onEdit, onDelete, isDeleting }: ItemRowProps) {
           ) : null}
         </>
       ) : null}
-      <span className={`shrink-0 text-xs ${C.text60}`}>
-        単価 ￥{item.unit_price.toLocaleString()}
-      </span>
+      <span className={`shrink-0 text-xs ${C.text60}`}>単価 {formatCurrency(item.unit_price)}</span>
       <TimingBadges timing={item.timing} />
       <StatusBadge status={item.status} />
       <div className="flex gap-1 shrink-0">

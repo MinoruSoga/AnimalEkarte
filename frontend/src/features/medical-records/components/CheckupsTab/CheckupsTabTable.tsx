@@ -89,7 +89,12 @@ export function CheckupsTable({
           {checkups.length === 0 ? (
             <tr>
               <TableCell data-empty-state colSpan={6} className={STYLE.tableEmptySm}>
-                健診記録がありません。下の「記録を追加」ボタンから追加してください。
+                {/* EMR-412 K5: ロック中は理由で分ける。通常時は実ボタン名を書く。 */}
+                {isFinalized
+                  ? "確定済のため変更できません"
+                  : !canCreate
+                    ? "編集権限がありません"
+                    : "健診記録がありません。「記録を追加」ボタンから追加してください。"}
               </TableCell>
             </tr>
           ) : (

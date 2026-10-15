@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, type ReactNode } from "react";
 import { Link } from "react-router";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { ChevronDown, User, Calendar, Activity } from "lucide-react";
@@ -8,6 +8,8 @@ import { CheckupAlertBadge } from "@/components/shared/CheckupAlertBadge/Checkup
 import { DangerBadge } from "@/components/shared/DangerBadge";
 import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 
 interface PatientInfoCardProps {
   ownerName: string;
@@ -23,11 +25,19 @@ interface PatientInfoCardProps {
   className?: string;
   sticky?: boolean;
   hideStaff?: boolean;
+  /** EMR-412 X13: 診療種別ブロックを出さない（カルテ編集ヘッダー用）。既定は従来どおり出す。 */
+  hideReservationType?: boolean;
   petDetails?: string;
+  /** Domain-specific patient attributes shown inside the shared card. */
+  petAttributes?: ReactNode;
   insuranceName?: string;
   insuranceDetails?: string;
   nextVisitDate?: string;
   nextVisitContent?: string;
+  /** EMR-412 X4/R2: 日付チップの見出しラベル。既定「次回予定」。入院の退院予定日は「退院予定」。 */
+  nextVisitLabel?: string;
+  /** EMR-412 X4: CheckupAlertBadge（期限間近）を出すか。既定 true。入院の退院予定日では出さない。 */
+  nextVisitShowAlert?: boolean;
   visitCount?: number;
   /** スタッフ向け飼主特記マーク (EMR-173/231)。true なら飼主名横にアイコンのみ出す。 */
   ownerIsDangerous?: boolean;
@@ -44,10 +54,14 @@ interface PatientInfoCardProps {
   staffButtonId?: string;
   /** EMR-319: 担当者選択のエラー状態。true でボタンに aria-invalid + 赤枠を付与する */
   staffInvalid?: boolean;
+  /** EMR-412 X14: 担当者ボタンに必須印を出す。既定 false（トリミング新規のみ渡す）。 */
+  staffRequiredMark?: boolean;
   /** EMR-174: 飼主詳細へのリンク（onOwnerClick 併存時はボタン優先） */
   ownerDetailHref?: string;
   /** EMR-174: ペット詳細への deep link（飼主詳細 ?pet=） */
   petDetailHref?: string;
+  /** EMR-412 R1: 既存 microchip 表示の継続。空は出さない。 */
+  microchipNumber?: string;
 }
 
 function normalizeAlertDate(value: string): string | undefined {
@@ -81,10 +95,13 @@ export const PatientInfoCard = memo(function PatientInfoCard({
   reservationTypeLabel = "診療種別",
   // BUG-006: 臨床画面に固定ダミー属性を出さない。未指定は不明。
   petDetails = "不明",
+  petAttributes,
   insuranceName = "",
   insuranceDetails = "",
   nextVisitDate,
   nextVisitContent,
+  nextVisitLabel = "次回予定",
+  nextVisitShowAlert = true,
   visitCount,
   ownerIsDangerous,
   petDangerLevel,
@@ -92,14 +109,17 @@ export const PatientInfoCard = memo(function PatientInfoCard({
   birthDate,
   sticky = true,
   hideStaff = false,
+  hideReservationType = false,
   onStaffClick,
   onVitalClick,
   onOwnerClick,
   onReservationTypeClick,
   staffButtonId,
   staffInvalid = false,
+  staffRequiredMark = false,
   ownerDetailHref,
   petDetailHref,
+  microchipNumber,
 }: PatientInfoCardProps) {
   const isDeceased = status === "deceased";
   const nextVisitAlertDate = nextVisitDate ? normalizeAlertDate(nextVisitDate) : undefined;
@@ -113,7 +133,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
         <div className="shrink-0 size-9">
           <ImageWithFallback
             src={imgEllipse1}
-            alt="Pet"
+            alt=""
             className={`size-full rounded-full object-cover border ${C.borderLight} ${isDeceased ? "grayscale opacity-60" : ""}`}
           />
         </div>
@@ -121,41 +141,51 @@ export const PatientInfoCard = memo(function PatientInfoCard({
         {/* Basic Info */}
         <div className="flex min-w-0 flex-col gap-0.5 mr-3">
           <div className="flex flex-wrap items-baseline gap-2">
-            {onOwnerClick ? (
-              <button
-                type="button"
-                onClick={onOwnerClick}
-                className={`inline-flex min-h-11 min-w-11 items-center px-2 -mx-2 text-base font-medium ${C.text} hover:underline decoration-dotted underline-offset-2 cursor-pointer`}
-              >
-                {ownerName}
-              </button>
-            ) : ownerDetailHref ? (
-              // EMR-174: onOwnerClick 未指定時は飼主詳細へ link
-              <Link
-                to={ownerDetailHref}
-                aria-label="飼主詳細を開く"
-                className={`inline-flex min-h-11 min-w-11 items-center px-2 -mx-2 text-base font-medium ${C.text} hover:underline decoration-dotted underline-offset-2`}
-              >
-                {ownerName}
-              </Link>
-            ) : (
-              <span className={`text-base font-medium ${C.text}`}>{ownerName}</span>
-            )}
+            <Tooltip content={ownerName} className="min-w-0 max-w-full">
+              {onOwnerClick ? (
+                <button
+                  type="button"
+                  onClick={onOwnerClick}
+                  className={`inline-flex min-h-11 min-w-11 max-w-full items-center px-2 -mx-2 text-base font-medium whitespace-nowrap ${C.text} hover:underline decoration-dotted underline-offset-2 cursor-pointer`}
+                >
+                  <span className="truncate">{ownerName}</span>
+                </button>
+              ) : ownerDetailHref ? (
+                // EMR-174: onOwnerClick 未指定時は飼主詳細へ link
+                <Link
+                  to={ownerDetailHref}
+                  aria-label="飼主詳細を開く"
+                  className={`inline-flex min-h-11 min-w-11 max-w-full items-center px-2 -mx-2 text-base font-medium whitespace-nowrap ${C.text} hover:underline decoration-dotted underline-offset-2`}
+                >
+                  <span className="truncate">{ownerName}</span>
+                </Link>
+              ) : (
+                <span
+                  className={`text-base font-medium whitespace-nowrap ${C.text} min-w-0 max-w-full`}
+                >
+                  <span className="block truncate">{ownerName}</span>
+                </span>
+              )}
+            </Tooltip>
             {ownerIsDangerous ? <DangerBadge variant="owner" /> : null}
-            {petDetailHref ? (
-              // EMR-174: ペット詳細（飼主詳細 ?pet=）へ link
-              <Link
-                to={petDetailHref}
-                aria-label="ペット詳細を開く"
-                className={`inline-flex min-h-11 min-w-11 items-center text-base font-medium ${isDeceased ? C.text60 : C.text} hover:underline decoration-dotted underline-offset-2`}
-              >
-                {petName}
-              </Link>
-            ) : (
-              <span className={`text-base font-medium ${isDeceased ? C.text60 : C.text}`}>
-                {petName}
-              </span>
-            )}
+            <Tooltip content={petName} className="min-w-0 max-w-full">
+              {petDetailHref ? (
+                // EMR-174: ペット詳細（飼主詳細 ?pet=）へ link
+                <Link
+                  to={petDetailHref}
+                  aria-label="ペット詳細を開く"
+                  className={`inline-flex min-h-11 min-w-11 max-w-full items-center text-base font-medium whitespace-nowrap ${isDeceased ? C.text60 : C.text} hover:underline decoration-dotted underline-offset-2`}
+                >
+                  <span className="truncate">{petName}</span>
+                </Link>
+              ) : (
+                <span
+                  className={`text-base font-medium whitespace-nowrap ${isDeceased ? C.text60 : C.text} min-w-0 max-w-full`}
+                >
+                  <span className="block truncate">{petName}</span>
+                </span>
+              )}
+            </Tooltip>
             <DangerBadge
               variant="pet"
               level={petDangerLevel}
@@ -173,6 +203,16 @@ export const PatientInfoCard = memo(function PatientInfoCard({
             ) : null}
           </div>
           <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-sm ${C.text60}`}>
+            {microchipNumber ? (
+              <Tooltip content={microchipNumber} className="min-w-0 max-w-[200px]">
+                <span
+                  className={`font-mono text-2xs px-1 py-0 rounded ${C.bgPage} border ${C.borderMediumLight} ${C.text65} leading-4 truncate max-w-[12rem]`}
+                  aria-label={`マイクロチップ番号 ${microchipNumber}`}
+                >
+                  {microchipNumber}
+                </span>
+              </Tooltip>
+            ) : null}
             {petNumber ? (
               <span
                 className={`font-mono text-2xs px-1 py-0 rounded ${C.bgPage} border ${C.borderMediumLight} ${C.text40} leading-4`}
@@ -186,6 +226,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
             <span className="flex items-center gap-1">
               <Activity className={ICON.xs} /> {weight}
             </span>
+            {petAttributes}
             {typeof visitCount === "number" ? (
               <span className="flex items-center gap-1">来院 {visitCount.toLocaleString()} 回</span>
             ) : null}
@@ -193,33 +234,39 @@ export const PatientInfoCard = memo(function PatientInfoCard({
         </div>
 
         {/* Service / Insurance / Next Visit — wrap at narrow widths; no rigid min-width cards (BUG-458) */}
-        <div className="flex min-w-0 flex-1 basis-full sm:basis-0 flex-wrap items-center gap-3">
-          {/* Service Type */}
-          <div className="flex min-w-0 shrink-0 flex-col gap-0 whitespace-nowrap">
-            <span className={`text-sm ${C.text60}`}>{reservationTypeLabel}</span>
-            {onReservationTypeClick ? (
-              <button
-                type="button"
-                onClick={onReservationTypeClick}
-                className={`flex items-center gap-1 cursor-pointer ${C.hoverBgPage} rounded px-1 -ml-1 transition-colors`}
-              >
-                <span className={`text-sm font-medium ${C.text}`}>{reservationType}</span>
-                <ChevronDown className={`${ICON.xs} ${C.text40}`} />
-              </button>
-            ) : (
-              <span className={`text-sm font-medium ${C.text} px-1 -ml-1`}>{reservationType}</span>
-            )}
-          </div>
+        <div className="flex min-w-0 lg:flex-1 basis-full lg:basis-0 flex-wrap items-center gap-3">
+          {/* Service Type (EMR-412 X13: hideReservationType でブロックごと非表示) */}
+          {!hideReservationType ? (
+            <div className="flex min-w-0 shrink-0 flex-col gap-0 whitespace-nowrap">
+              <span className={`text-sm ${C.text60}`}>{reservationTypeLabel}</span>
+              {onReservationTypeClick ? (
+                <button
+                  type="button"
+                  onClick={onReservationTypeClick}
+                  className={`flex items-center gap-1 cursor-pointer ${C.hoverBgPage} rounded px-1 -ml-1 transition-colors`}
+                >
+                  <span className={`text-sm font-medium ${C.text}`}>{reservationType}</span>
+                  <ChevronDown className={`${ICON.xs} ${C.text40}`} />
+                </button>
+              ) : (
+                <span className={`text-sm font-medium ${C.text} px-1 -ml-1`}>
+                  {reservationType}
+                </span>
+              )}
+            </div>
+          ) : null}
 
           {/* Insurance */}
+          {/* EMR-412 X5/R3: 狭幅（<lg, 820px 含む）では属性行の下へ全幅折返し・省略なし。
+              lg 以上は従来の 140px カード内配置 + truncate。 */}
           <div
-            className={`flex min-w-0 flex-col gap-0.5 px-3 py-1.5 rounded min-h-[38px] justify-center ${C.bgPage} border ${C.borderLight} basis-[140px] grow`}
+            className={`flex min-w-0 flex-col gap-0.5 px-3 py-1.5 rounded min-h-[38px] justify-center ${C.bgPage} border ${C.borderLight} basis-full lg:basis-[140px] lg:grow`}
           >
-            <span className={`text-sm font-medium ${C.text} truncate`}>
+            <span className={`text-sm font-medium ${C.text} lg:truncate`}>
               {insuranceName || "保険情報未登録"}
             </span>
             {insuranceDetails ? (
-              <span className={`text-sm ${C.text60} truncate`}>{insuranceDetails}</span>
+              <span className={`text-sm ${C.text60} lg:truncate`}>{insuranceDetails}</span>
             ) : null}
           </div>
 
@@ -229,9 +276,11 @@ export const PatientInfoCard = memo(function PatientInfoCard({
             >
               <div className="flex items-center gap-1">
                 <Calendar className={`${ICON.xs} ${C.text60}`} />
-                <span className={`text-sm ${C.text}`}>次回 {nextVisitDate}</span>
+                <span className={`text-sm ${C.text} whitespace-nowrap`}>
+                  {nextVisitLabel} {nextVisitDate}
+                </span>
               </div>
-              <CheckupAlertBadge nextDate={nextVisitAlertDate} />
+              {nextVisitShowAlert ? <CheckupAlertBadge nextDate={nextVisitAlertDate} /> : null}
               {nextVisitContent && nextVisitContent !== "-" ? (
                 <span className={`text-sm ${C.text60} truncate`}>{nextVisitContent}</span>
               ) : null}
@@ -265,6 +314,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
                 onClick={onStaffClick}
               >
                 {staffLabel ? `${staffLabel}${staffName}` : staffName}
+                {staffRequiredMark ? <RequiredMark /> : null}
                 <ChevronDown className={`${ICON.xs} ${C.text40}`} />
               </Button>
             ) : (

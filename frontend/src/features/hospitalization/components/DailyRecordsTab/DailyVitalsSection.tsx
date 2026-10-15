@@ -107,7 +107,7 @@ export const DailyVitalsSection = memo(function DailyVitalsSection({
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <h4 className={`flex items-center gap-1.5 text-sm font-bold ${C.text}`}>
+        <h4 className={`flex items-center gap-1.5 text-sm font-semibold ${C.text}`}>
           <Activity className={`${ICON.action} ${C.textMedicalBlue}`} />
           バイタル
         </h4>

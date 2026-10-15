@@ -29,7 +29,7 @@ export const InterviewTreatmentPolicy = memo(function InterviewTreatmentPolicy({
   return (
     <div className={`flex flex-col ${className ?? ""} h-full`}>
       <div className="pb-1.5 shrink-0">
-        <h4 className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
+        <h4 className={`text-sm font-semibold ${C.text} flex items-center gap-2`}>
           <ChevronRight className={ICON.action} />
           治療方針
           <span className={`text-sm font-normal ${C.text60} ml-auto`}>(次工程へ連携)</span>

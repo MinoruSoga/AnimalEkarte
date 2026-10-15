@@ -14,8 +14,8 @@ import { MedicalRecordStickyHeader } from "./MedicalRecordStickyHeader";
 import { NextVisitButton } from "./NextVisitButton";
 
 // EMR-164 / 改善依頼 No.28③④ の固定。カルテ画面のヘッダーで
-// PatientContextHeader の実描画（年齢・性別・避妊去勢・特記バッジ）を検証するため
-// PatientContextHeader は mock しない（props 伝搬だけの検証は FormPanels 側で済み）。
+// PatientInfoCard の実描画（年齢・性別・避妊去勢・特記バッジ）を検証するため
+// 共通カードは mock しない（props 伝搬だけの検証は FormPanels 側で済み）。
 vi.mock("@/components/shared/UnifiedTabs", () => ({
   UnifiedTabsList: () => <div data-testid="medical-record-tabs" />,
   UnifiedTabsContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -105,9 +105,9 @@ describe("MedicalRecordStickyHeader 患者属性ヘッダー (EMR-164 No.28③)"
 
     // Tooltip は content を document.body の portal にも描画するため複数ヒットする。
     const { years, months } = calcAgePartsAt("2018-05-10", new Date());
-    expect(
-      screen.getAllByText(`2018-05-10生（${years}歳${months}ヶ月） / 犬`).length,
-    ).toBeGreaterThan(0);
+    expect(screen.getAllByText(`2018-05-10生（${years}歳${months}ヶ月）`).length).toBeGreaterThan(
+      0,
+    );
 
     expect(screen.getByText("性別")).toBeInTheDocument();
     expect(screen.getByText("雄")).toBeInTheDocument();

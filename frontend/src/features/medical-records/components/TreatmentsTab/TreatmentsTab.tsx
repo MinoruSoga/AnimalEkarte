@@ -16,6 +16,7 @@ const TreatmentSearchDialog = lazy(() =>
 
 // Relative
 import type { UpdateTreatmentInput } from "../../types";
+import { getLockedEmptyStateMessage } from "../../lib/record-empty-state";
 import { TreatmentAddControls, TreatmentsTable, TreatmentTotals } from "./TreatmentsTabParts";
 import { useTreatmentsTab } from "../../hooks/use-treatments-tab";
 
@@ -32,6 +33,10 @@ interface TreatmentsTabProps {
   recordClinicId?: string;
   /** 死亡ペットのカルテは閲覧専用（VitalsTab と同じ二重ガード方針） */
   isPetDeceased?: boolean;
+  /** EMR-412 K5: ロック中は理由つき空状態文言。既定 false。 */
+  isLocked?: boolean;
+  /** EMR-412 K5: 確定済み判定（K5 文言の優先理由）。既定 false。 */
+  isFinalized?: boolean;
 }
 
 // ── Component ─────────────────────────────────────────────────────────
@@ -42,6 +47,8 @@ export const TreatmentsTab = memo(function TreatmentsTab({
   petSpecies,
   recordClinicId,
   isPetDeceased = false,
+  isLocked = false,
+  isFinalized = false,
 }: TreatmentsTabProps) {
   const t = useTreatmentsTab({ medicalRecordId, ownerDiscountRate, petSpecies, recordClinicId });
   // rerender-memo: hook のハンドラは useCallback で安定済み。ガードで包む際は分割代入して
@@ -136,6 +143,7 @@ export const TreatmentsTab = memo(function TreatmentsTab({
           onMoveDown={guardedMoveDown}
           onAutoFocusDone={t.handleAutoFocusDone}
           doseContext={t.doseContext}
+          lockedEmptyMessage={getLockedEmptyStateMessage({ isFinalized, isLocked }) ?? undefined}
         />
         <TreatmentAddControls
           canCreate={Boolean(t.canCreate && !isPetDeceased)}

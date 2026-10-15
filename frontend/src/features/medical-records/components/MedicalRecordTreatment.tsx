@@ -14,6 +14,10 @@ interface MedicalRecordTreatmentProps {
   recordClinicId?: string;
   /** 死亡ペットの治療明細ミューテーションをブロックする（VitalsTab と同型の二重防壁） */
   isPetDeceased?: boolean;
+  /** EMR-412 K5: ロック中は理由つき空状態文言。既定 false。 */
+  isLocked?: boolean;
+  /** EMR-412 K5: 確定済み判定（K5 文言の優先理由）。既定 false。 */
+  isFinalized?: boolean;
 }
 
 export function MedicalRecordTreatment({
@@ -23,6 +27,8 @@ export function MedicalRecordTreatment({
   petSpecies,
   recordClinicId,
   isPetDeceased = false,
+  isLocked = false,
+  isFinalized = false,
 }: MedicalRecordTreatmentProps) {
   if (isNewRecord) {
     return (
@@ -39,6 +45,8 @@ export function MedicalRecordTreatment({
       petSpecies={petSpecies}
       recordClinicId={recordClinicId}
       isPetDeceased={isPetDeceased}
+      isLocked={isLocked}
+      isFinalized={isFinalized}
     />
   );
 }

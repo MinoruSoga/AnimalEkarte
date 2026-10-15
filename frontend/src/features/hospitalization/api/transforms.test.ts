@@ -28,6 +28,20 @@ describe("transformHospitalization (HospitalizationResponse wire)", () => {
     expect(transformHospitalization({ ...minimal, status: "admitted" }).status).toBe("入院中");
   });
 
+  it("ホテルの admitted は入院ではなく預かり中と表示する (EMR-412)", () => {
+    expect(
+      transformHospitalization({ ...minimal, hospitalization_type: "hotel", status: "admitted" })
+        .status,
+    ).toBe("預かり中");
+  });
+
+  it("ホテルでも未知の status は預かり中へ推測せず不明を維持する (EMR-412)", () => {
+    expect(
+      transformHospitalization({ ...minimal, hospitalization_type: "hotel", status: "unknown" })
+        .status,
+    ).toBe("不明");
+  });
+
   it("status: discharged → '退院済'", () => {
     expect(transformHospitalization({ ...minimal, status: "discharged" }).status).toBe("退院済");
   });

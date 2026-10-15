@@ -54,7 +54,10 @@ export function HospitalizationPatientHeader({
       petDangerLevel={petDangerLevel}
       petDangerReason={petDangerReason}
       nextVisitDate={formatDate(hospitalization.nextVisit || hospitalization.endDate)}
-      nextVisitContent={hospitalization.nextVisit ? "次回予定" : "退院予定"}
+      // EMR-412 X4/R2: 実 nextVisit は「次回予定」、endDate フォールバックは「退院予定」。
+      // 健診用の期限アラートは出さない。補足文言は見出しと重複するため出さない。
+      nextVisitLabel={hospitalization.nextVisit ? "次回予定" : "退院予定"}
+      nextVisitShowAlert={false}
     />
   );
 }

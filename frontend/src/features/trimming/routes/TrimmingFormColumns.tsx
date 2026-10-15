@@ -53,6 +53,8 @@ interface TrimmingFormColumnsProps {
   historySortOrder: SortOrder;
   historyDateRange: { from: string; to: string };
   showInitialStatusSelector: boolean;
+  /** EMR-412 X14: トリミング新規のみ担当・コースに必須印。既定 false。 */
+  showRequiredMarks?: boolean;
   onFormChange: (updates: Partial<TrimmingFormData>) => void;
   onOpenCourseModal: () => void;
   onOpenStaffModal: () => void;
@@ -82,6 +84,7 @@ export function TrimmingFormColumns({
   historySortOrder,
   historyDateRange,
   showInitialStatusSelector,
+  showRequiredMarks = false,
   onFormChange,
   onOpenCourseModal,
   onOpenStaffModal,
@@ -113,6 +116,7 @@ export function TrimmingFormColumns({
         weight={selectedPet.weight || ""}
         staffName={formData.staffName}
         staffLabel="担当"
+        staffRequiredMark={showRequiredMarks}
         staffButtonId="staffId"
         staffInvalid={Boolean(fieldErrors.staffId)}
         reservationType="トリミング"
@@ -150,6 +154,7 @@ export function TrimmingFormColumns({
             onRemoveStyleImage={onRemoveStyleImage}
             courseError={fieldErrors.courseId}
             showInitialStatusSelector={showInitialStatusSelector}
+            courseRequiredMark={showRequiredMarks}
           />
           <TrimmingMiddleColumn
             formData={formData}
