@@ -447,7 +447,7 @@ describe("VaccinationList 次回予定の期限超過表示", () => {
 
     const cell = getNextDateCell();
     expect(cell).toHaveClass("font-mono", C.danger);
-    expect(cell).toHaveTextContent("2026-07-23");
+    expect(cell).toHaveTextContent("2026/07/23");
     expect(cell).toHaveTextContent("（期限超過）");
   });
 
@@ -457,17 +457,17 @@ describe("VaccinationList 次回予定の期限超過表示", () => {
     const cell = getNextDateCell();
     expect(cell).toHaveClass("font-mono", C.text);
     expect(cell).not.toHaveClass(C.danger);
-    expect(cell).toHaveTextContent("2026-07-25");
+    expect(cell).toHaveTextContent("2026/07/25");
     expect(cell).not.toHaveTextContent("期限超過");
   });
 
-  it("空欄は現状の空セル表示を維持する", () => {
+  it("空欄は未設定表示を維持する", () => {
     renderWithNextDate("");
 
     const cell = getNextDateCell();
     expect(cell).toHaveClass("font-mono", C.text);
     expect(cell).not.toHaveClass(C.danger);
-    expect(cell).toHaveTextContent(/^\s*$/);
+    expect(cell).toHaveTextContent(/^\s*—\s*$/);
     expect(cell).not.toHaveTextContent("期限超過");
   });
 
