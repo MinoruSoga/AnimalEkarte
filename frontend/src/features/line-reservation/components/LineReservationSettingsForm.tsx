@@ -34,6 +34,7 @@ import {
 } from "./LineReservationSettingsFormSections";
 import {
   asJsonb,
+  parseClosedWeekdays,
   isStringArray,
   isBusinessHours,
   isBreakHourArray,
@@ -50,6 +51,8 @@ interface SettingsFormProps {
 }
 
 const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
+const INVALID_CLOSED_WEEKDAYS_MESSAGE =
+  "定休日の設定を読み込めません。内容を確認して修正してください。";
 
 export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormProps) {
   const { canEdit } = usePermission("reservations");
@@ -70,9 +73,10 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
   const [bookingWindowMinDays, setBookingWindowMinDays] = useState(setting.booking_window_min_days);
 
   // JSONB フィールド（lazy init — 初回レンダー時のみパース）
-  const [closedWeekdays, setClosedWeekdays] = useState<string[]>(() =>
-    asJsonb<string[]>(setting.closed_weekdays, [], isStringArray),
+  const [closedWeekdays, setClosedWeekdays] = useState<number[] | null>(() =>
+    parseClosedWeekdays(setting.closed_weekdays),
   );
+  const hasInvalidClosedWeekdays = closedWeekdays === null;
   const [businessHours, setBusinessHours] = useState<BusinessHours>(() =>
     asJsonb<BusinessHours>(setting.business_hours, { start: "0900", end: "1900" }, isBusinessHours),
   );
@@ -104,7 +108,11 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
   }, []);
 
   const handleWeekdayToggle = useCallback((day: string, checked: boolean) => {
-    setClosedWeekdays((prev) => (checked ? [...prev, day] : prev.filter((d) => d !== day)));
+    const numericDay = Number(day);
+    setClosedWeekdays((prev) => {
+      if (prev === null) return null;
+      return checked ? [...prev, numericDay] : prev.filter((weekday) => weekday !== numericDay);
+    });
   }, []);
 
   const handleBusinessHoursChange = useCallback((field: "start" | "end", t: string) => {
@@ -116,6 +124,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
       toast.error(PERMISSION_DENIED_MESSAGE);
       return null;
     }
+    if (closedWeekdays === null) return null;
     const payload = {
       status,
       national_holiday_closed: nationalHolidayClosed,
@@ -189,7 +198,8 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
                 <Checkbox
                   id={`closed-weekday-${day}`}
                   touchTarget
-                  checked={closedWeekdays.includes(day)}
+                  disabled={hasInvalidClosedWeekdays}
+                  checked={closedWeekdays?.includes(Number(day)) ?? false}
                   onCheckedChange={(checked) => handleWeekdayToggle(day, checked === true)}
                 />
                 <Label htmlFor={`closed-weekday-${day}`} className={`text-sm ${C.text}`}>
@@ -197,6 +207,11 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
                 </Label>
               </div>
             ))}
+            {hasInvalidClosedWeekdays ? (
+              <p role="alert" className={`text-sm ${C.danger}`}>
+                {INVALID_CLOSED_WEEKDAYS_MESSAGE}
+              </p>
+            ) : null}
           </div>
         </FieldRow>
 
@@ -380,7 +395,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
       </Section>
 
       <div className="pt-2">
-        <SubmitButton>設定を保存</SubmitButton>
+        <SubmitButton disabled={hasInvalidClosedWeekdays}>設定を保存</SubmitButton>
       </div>
     </form>
   );

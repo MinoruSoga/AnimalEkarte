@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { toast } from "sonner";
@@ -38,7 +38,7 @@ const baseSetting: ReservationSetting = {
   reservation_notice: "",
   cancel_notice: "",
   privacy_policy: "",
-  closed_weekdays: [] as unknown as string,
+  closed_weekdays: [1] as unknown as string,
   closed_dates: [] as unknown as string,
   national_holiday_closed: false,
   business_hours: { start: "0900", end: "1900" } as unknown as string,
@@ -61,8 +61,13 @@ const baseSetting: ReservationSetting = {
   updated_at: "2026-01-01T00:00:00Z",
 };
 
+const pageEditorSetting = vi.hoisted(() => ({ current: null as ReservationSetting | null }));
+
 vi.mock("../api/get-line-reservation-setting", () => ({
-  useGetLineReservationSetting: () => ({ data: baseSetting, isLoading: false }),
+  useGetLineReservationSetting: () => ({
+    data: pageEditorSetting.current ?? baseSetting,
+    isLoading: false,
+  }),
 }));
 
 function setupPutHandler() {
@@ -76,7 +81,8 @@ function setupPutHandler() {
   return () => capturedBody;
 }
 
-function renderEditor() {
+function renderEditor(setting: ReservationSetting = baseSetting) {
+  pageEditorSetting.current = setting;
   return render(<LineReservationPageEditor />, {
     wrapper: createTestWrapper({ router: true }),
   });
@@ -85,6 +91,7 @@ function renderEditor() {
 describe("LineReservationPageEditor — FE-RC-211 mutation permission re-check", () => {
   beforeEach(() => {
     permission.current = { canView: true, canCreate: true, canEdit: true, canDelete: false };
+    pageEditorSetting.current = null;
     vi.mocked(toast.success).mockClear();
     vi.mocked(toast.error).mockClear();
   });
@@ -104,7 +111,7 @@ describe("LineReservationPageEditor — FE-RC-211 mutation permission re-check",
     expect(toast.success).not.toHaveBeenCalled();
   });
 
-  it("canEdit=true では PUT して成功 toast する", async () => {
+  it("canEdit=true では PUT して数値の closed_weekdays を保持する", async () => {
     const getBody = setupPutHandler();
     renderEditor();
 
@@ -114,7 +121,75 @@ describe("LineReservationPageEditor — FE-RC-211 mutation permission re-check",
     await waitFor(() => {
       expect(getBody()).not.toBeNull();
     });
+    expect(getBody()?.closed_weekdays).toEqual([1]);
     expect(toast.success).toHaveBeenCalledWith("ページ内容を保存しました");
     expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      name: "actual legacy string weekdays",
+      closedWeekdays: ["0", "6"] as unknown as string,
+      expected: [0, 6],
+    },
+    {
+      name: "serialized numeric weekdays",
+      closedWeekdays: "[0,6]",
+      expected: [0, 6],
+    },
+    {
+      name: "serialized legacy string weekdays",
+      closedWeekdays: '["0","6"]',
+      expected: [0, 6],
+    },
+    {
+      name: "mixed numeric and legacy string weekdays",
+      closedWeekdays: [0, "2", 6] as unknown as string,
+      expected: [0, 2, 6],
+    },
+  ])("round-trips $name as canonical numbers", async ({ closedWeekdays, expected }) => {
+    const getBody = setupPutHandler();
+    renderEditor({
+      ...baseSetting,
+      closed_weekdays: closedWeekdays,
+      closed_dates: ["2026-12-30"] as unknown as string,
+    });
+
+    const user = userEvent.setup();
+    await user.clear(screen.getByRole("textbox", { name: "ヘッダーテキスト" }));
+    await user.type(screen.getByRole("textbox", { name: "ヘッダーテキスト" }), "更新ヘッダー");
+    await user.click(screen.getByRole("button", { name: "変更を保存" }));
+
+    await waitFor(() => {
+      expect(getBody()).not.toBeNull();
+    });
+    const body = getBody()!;
+    expect(body.header_text).toBe("更新ヘッダー");
+    expect(body.closed_weekdays).toEqual(expected);
+    expect(body.closed_dates).toEqual(["2026-12-30"]);
+    expect(body).not.toHaveProperty("line_access_token");
+    expect(body).not.toHaveProperty("line_channel_secret");
+    expect(toast.success).toHaveBeenCalledWith("ページ内容を保存しました");
+  });
+
+  it("invalid closed_weekdays remain visible and block page content saves", async () => {
+    const getBody = setupPutHandler();
+    renderEditor({ ...baseSetting, closed_weekdays: "[7]" });
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent(
+      "定休日の設定を読み込めません。内容を確認して修正してください。",
+    );
+    const saveButton = screen.getByRole("button", { name: "変更を保存" });
+    expect(saveButton).toBeDisabled();
+
+    const user = userEvent.setup();
+    await user.click(saveButton);
+    const form = saveButton.closest("form");
+    expect(form).not.toBeNull();
+    if (form) await act(async () => fireEvent.submit(form));
+
+    expect(screen.getByRole("alert")).toBe(alert);
+    expect(getBody()).toBeNull();
   });
 });

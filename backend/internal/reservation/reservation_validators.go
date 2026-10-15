@@ -376,8 +376,8 @@ func validateClosedDays(settings *model.LineReservationSetting, date time.Time) 
 	// A-3: JSON 破損時は fail-closed（予約拒否）。休業曜日チェックを検証できない状態で
 	// 予約を通すと、休業曜日に予約が誤って確定しうるため（break_hours と対称）。
 	if len(settings.ClosedWeekdays) > 0 {
-		var closedWeekdays []int
-		if err := json.Unmarshal(settings.ClosedWeekdays, &closedWeekdays); err != nil {
+		closedWeekdays, err := parseClosedWeekdaysJSON(settings.ClosedWeekdays)
+		if err != nil {
 			return apperrors.Wrap(err, "invalid closed_weekdays")
 		}
 		wd := int(dateStart.Weekday())

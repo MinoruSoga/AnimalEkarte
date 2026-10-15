@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { toast } from "sonner";
@@ -193,11 +193,104 @@ describe("LineReservationSettingsForm — 個別定休日の二重入力削除",
       expect(getBody()).not.toBeNull();
     });
     const body = getBody() as Record<string, unknown>;
-    expect(body.closed_weekdays).toEqual(["1"]);
+    expect(body.closed_weekdays).toEqual([1]);
     expect(body.national_holiday_closed).toBe(true);
     expect(holidayWrites.posts).toEqual([]);
     expect(holidayWrites.deletes).toEqual([]);
   });
+
+  it("numeric weekdays remain checked and unchanged saves send numeric values", async () => {
+    const setting: ReservationSetting = {
+      ...baseSetting,
+      closed_weekdays: [0, 2, 6] as unknown as string,
+    };
+    const getBody = setupPutHandler();
+    renderForm(setting);
+
+    expect(screen.getByLabelText("日")).toBeChecked();
+    expect(screen.getByLabelText("火")).toBeChecked();
+    expect(screen.getByLabelText("土")).toBeChecked();
+    expect(screen.getByLabelText("月")).not.toBeChecked();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "設定を保存" }));
+
+    await waitFor(() => expect(getBody()).not.toBeNull());
+    expect(getBody()?.closed_weekdays).toEqual([0, 2, 6]);
+  });
+
+  it("weekday toggles add and remove numbers", async () => {
+    const setting: ReservationSetting = {
+      ...baseSetting,
+      closed_weekdays: [1, 2] as unknown as string,
+    };
+    const getBody = setupPutHandler();
+    renderForm(setting);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText("月"));
+    await user.click(screen.getByLabelText("水"));
+    await user.click(screen.getByRole("button", { name: "設定を保存" }));
+
+    await waitFor(() => expect(getBody()).not.toBeNull());
+    expect(getBody()?.closed_weekdays).toEqual([2, 3]);
+  });
+
+  it.each([
+    ["legacy digit strings", ["0", "2", "6"] as unknown as string],
+    ["serialized numeric array", JSON.stringify([0, 2, 6])],
+    ["serialized legacy array", JSON.stringify(["0", "2", "6"])],
+  ])(
+    "legacy and serialized weekdays remain checked and save as numbers (%s)",
+    async (_name, closedWeekdays) => {
+      const setting: ReservationSetting = { ...baseSetting, closed_weekdays: closedWeekdays };
+      const getBody = setupPutHandler();
+      renderForm(setting);
+
+      expect(screen.getByLabelText("日")).toBeChecked();
+      expect(screen.getByLabelText("火")).toBeChecked();
+      expect(screen.getByLabelText("土")).toBeChecked();
+
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: "設定を保存" }));
+
+      await waitFor(() => expect(getBody()).not.toBeNull());
+      expect(getBody()?.closed_weekdays).toEqual([0, 2, 6]);
+    },
+  );
+
+  it.each([
+    ["object", "{}"],
+    ["malformed JSON", "{not-json"],
+    ["null element", "[null]"],
+    ["out-of-range weekday", "[7]"],
+    ["fractional weekday", "[2.5]"],
+  ])(
+    "invalid stored closed_weekdays (%s) remain visible and cannot be saved",
+    async (_name, value) => {
+      const getBody = setupPutHandler();
+      renderForm({ ...baseSetting, closed_weekdays: value });
+
+      const alert = screen.getByRole("alert");
+      expect(alert).toHaveTextContent(
+        "定休日の設定を読み込めません。内容を確認して修正してください。",
+      );
+      const weekdays = ["月", "火", "水", "木", "金", "土", "日"];
+      weekdays.forEach((weekday) => expect(screen.getByLabelText(weekday)).toBeDisabled());
+      const saveButton = screen.getByRole("button", { name: "設定を保存" });
+      expect(saveButton).toBeDisabled();
+
+      const user = userEvent.setup();
+      await user.click(screen.getByLabelText("月"));
+      await user.click(saveButton);
+      const form = saveButton.closest("form");
+      expect(form).not.toBeNull();
+      if (form) await act(async () => fireEvent.submit(form));
+
+      expect(screen.getByRole("alert")).toBe(alert);
+      expect(getBody()).toBeNull();
+    },
+  );
 
   it("既存 closed_dates は PUT で round-trip し、UI から新しい日付を追加できない", async () => {
     const existingDates = ["2026-08-11", "2026-12-30"];
@@ -221,6 +314,7 @@ describe("LineReservationSettingsForm — 個別定休日の二重入力削除",
     });
     const body = getBody() as Record<string, unknown>;
     expect(body.closed_dates).toEqual(existingDates);
+    expect(body.closed_weekdays).toEqual([]);
     expect(holidayWrites.posts).toEqual([]);
     expect(holidayWrites.deletes).toEqual([]);
   });

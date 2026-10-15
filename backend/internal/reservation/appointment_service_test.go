@@ -884,6 +884,71 @@ func TestReservationService_Create_RejectsClosedWeekdayWhenConstraintsApply(t *t
 	assert.False(t, createCalled)
 }
 
+func TestReservationService_Create_ClosedWeekdayCompatibility(t *testing.T) {
+	tuesday := time.Date(2026, 6, 2, 10, 0, 0, 0, config.JST)
+	monday := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
+	tests := []struct {
+		name           string
+		start          time.Time
+		closedWeekdays []byte
+		wantErr        bool
+		wantClosed     bool
+	}{
+		{name: "numeric weekday allows open day", start: tuesday, closedWeekdays: []byte(`[1]`)},
+		{name: "legacy string weekdays allow open day", start: tuesday, closedWeekdays: []byte(`["1"]`)},
+		{name: "legacy string weekdays reject closed day", start: monday, closedWeekdays: []byte(`["1"]`), wantErr: true, wantClosed: true},
+		{name: "mixed numeric and legacy allow open day", start: tuesday, closedWeekdays: []byte(`[0,"1"]`)},
+		{name: "malformed JSON is rejected", start: tuesday, closedWeekdays: []byte(`not-json`), wantErr: true},
+		{name: "null element is rejected", start: tuesday, closedWeekdays: []byte(`[null]`), wantErr: true},
+		{name: "out of range weekday is rejected", start: tuesday, closedWeekdays: []byte(`[7]`), wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			created := false
+			repo := closedDayCreateRepo(t)
+			repo.createFn = func(_ context.Context, appt *model.Reservation) error {
+				created = true
+				appt.ID = 10
+				return nil
+			}
+			finder := &mockLineReservationSettingFinder{
+				findByClinicIDFn: func(_ context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					return &model.LineReservationSetting{
+						ClosedWeekdays:        tt.closedWeekdays,
+						ClosedDates:           []byte("[]"),
+						NationalHolidayClosed: false,
+					}, nil
+				},
+			}
+			svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, finder, openDayHolidayFinder())
+
+			result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+				ClinicID:          1,
+				StartTime:         tt.start,
+				EndTime:           tt.start.Add(30 * time.Minute),
+				ReservationTypeID: 5,
+				Status:            model.ReservationStatusPending,
+			})
+
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Nil(t, result)
+				assert.False(t, created)
+				assert.NotContains(t, err.Error(), string(tt.closedWeekdays))
+				if tt.wantClosed {
+					assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input but got: %v", err)
+					assert.Contains(t, err.Error(), "休業曜日")
+				}
+				return
+			}
+			require.NoError(t, err)
+			assert.NotNil(t, result)
+			assert.True(t, created)
+		})
+	}
+}
+
 func TestReservationService_Create_RejectsClosedDateWhenConstraintsApply(t *testing.T) {
 	start := time.Date(2026, 6, 2, 10, 0, 0, 0, config.JST)
 	createCalled := false
