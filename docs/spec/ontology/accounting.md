@@ -3,7 +3,7 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | ontology.accounting／語彙正本 |
-| 決定状態 | [初回](../domains/accounting/lifecycle.md#accounting-agreement-first-five)＋[第二群](../domains/accounting/lifecycle.md#accounting-agreement-second)＋[第三群](../domains/accounting/lifecycle.md#accounting-agreement-third)＋[第四群](../domains/accounting/lifecycle.md#accounting-agreement-fourth)＋[第五群](../domains/accounting/lifecycle.md#accounting-agreement-fifth)＋[第六群](../domains/accounting/lifecycle.md#accounting-agreement-sixth)＋[第七群](../domains/accounting/lifecycle.md#accounting-agreement-seventh)＋[第八群](../domains/accounting/lifecycle.md#accounting-agreement-eighth)の範囲。細部の未決は業務正本へ |
+| 決定状態 | [初回](../domains/accounting/lifecycle.md#accounting-agreement-first-five)＋[第二群](../domains/accounting/lifecycle.md#accounting-agreement-second)＋[第三群](../domains/accounting/lifecycle.md#accounting-agreement-third)＋[第四群](../domains/accounting/lifecycle.md#accounting-agreement-fourth)＋[第五群](../domains/accounting/lifecycle.md#accounting-agreement-fifth)＋[第六群](../domains/accounting/lifecycle.md#accounting-agreement-sixth)＋[第七群](../domains/accounting/lifecycle.md#accounting-agreement-seventh)＋[第八群](../domains/accounting/lifecycle.md#accounting-agreement-eighth)＋[第九群](../domains/accounting/lifecycle.md#accounting-agreement-ninth)の範囲。細部の未決は業務正本へ |
 | 実装状態 | 未確認。概念と現モデルを同一視しない |
 | 実機検証状態 | 未実施 |
 | 文書確認日 | 2026-10-15 |
@@ -37,9 +37,12 @@
 | 請求書／領収書 | 請求する額と実際に受け取った額の帳票。飼主宛名・ペット別明細・ペットに紐づかない共通料金別枠。訂正／部分返金は元取引と今回変更額を区別し、再発行表示と訂正前履歴を保持 | [帳票](../domains/accounting/lifecycle.md#requirement-fr-accounting-document-and-aged-debt) |
 | 締め後訂正差分 | 元締めを保持して追加する訂正情報。実際の入金・返金と区別 | [締め境界](../domains/accounting/lifecycle.md#requirement-fr-accounting-post-close-separate-movement) |
 | 会計時点の計算根拠 | 会計で使った価格・手修正・scope別割引／要求額と実適用額・配賦・税区分／税率・税率別税額・算定版・保険等の値。現在マスタとは別 | [根拠保存](../domains/accounting/lifecycle.md#requirement-fr-accounting-calculation-snapshot) |
-| 再請求 | 取消請求の元明細を選択確認し新しい請求番号／IDで作成、元取消請求へ関連付ける。元取引番号のままの再発行と別 | [再請求](../domains/accounting/lifecycle.md#accounting-rebill-and-collection) |
+| 再請求 | 取消請求の元明細を選択確認し新しい請求番号／IDで作成、元取消請求へ関連付ける。元取引番号のままの再発行と別。元価格／税／割引を初期継承し必要箇所をスタッフ修正 | [再請求](../domains/accounting/lifecycle.md#accounting-rebill-and-collection) |
 | 同時回収の請求別配分 | 新規会計と選択した過去未納の回収を同じ操作で扱い、今回の支払額を各元請求へ指定する。過去未納を新売上にしない | [回収](../domains/accounting/lifecycle.md#accounting-rebill-and-collection) |
 | 共通料金 | ペットに紐づかない飼主帰属の料金。帳票でペット別明細と別枠に表示し、架空のペットを作らない | [帳票](../domains/accounting/lifecycle.md#requirement-fr-accounting-document-and-aged-debt) |
+| 再請求の継承根拠 | 元会計snapshotの価格・税・割引を初期値にし、必要箇所だけスタッフが修正。現在マスタや元請求集約総額の無条件コピーと別 | [再請求根拠](../domains/accounting/lifecycle.md#accounting-rebill-snapshot-payment-source) |
+| 取消元残入金の確認充当 | 既存の実入金の利用可能残を確認して新請求へ配分すること。新受領でも実返金でもない。復元済み預り金の再充当とは別 | [残入金](../domains/accounting/lifecycle.md#accounting-rebill-snapshot-payment-source) |
+| 返金元資金内訳 | 返金する元資金が現金・カード・預り金のどれに由来するかと額。実際に返す方法とは別。不明なら記録確認・内訳と理由登録まで対象返金を確定しない | [返金元](../domains/accounting/lifecycle.md#accounting-rebill-snapshot-payment-source) |
 
 ## 関係・多重度・制約
 
@@ -64,12 +67,15 @@
 | スタッフ→マスタ変更 | 管理者または対象変更権限を付与されたスタッフ | 閲覧のみ・通常会計操作のみで許可しない。医院scope／現在認可を検査し、現grantの変更は未実施 |
 | 元締め→訂正差分 | 元を保持し差分を追加 | 原請求日と実入出金日を区別、充当は再受領ではない。締め区分／照合内部D12 |
 | 請求確定→予約／記録の確定歴参照 | 正確な対象リンクを保持。複数対象を単一IDへ潰さない | [通常Undo停止の既決境界](../workflows/reservation-to-record-flow.md#accounting-finalization-undo-boundary)。返金／取消後も保持 |
-| 元取消請求→再請求 | 選択確認した元明細を新請求IDへ対応させ、元取消請求を参照 | 有効請求への同じ元明細の二重帰属を防ぐ。元取消・確定歴と金銭履歴は保持し、新入金を複製しない |
+| 元取消請求→再請求 | 選択確認した元明細を新請求IDへ対応させ、元取消請求を参照 | 有効請求への同じ元明細の二重帰属を防ぐ。元取消・確定歴と金銭履歴は保持し、新入金を複製しない。残入金の確認充当と復元預り金の再充当を区別 |
 | 同時回収→新請求と過去請求 | 選択した複数請求へ今回の支払を配分 | 各元請求ID／日付／残額を保持。古い順・同日作成順、スタッフ変更可。選択外への無断配分なし |
 | 共通料金→飼主／ペット | 対象飼主は1人、ペット参照はなし | 同医院・元明細・税／割引根拠を保持。帳票の表示都合でペット／カルテ／保険契約へ付け替えない |
+| 取消元の実入金→新請求の配分 | 元実入金参照と旧／新配分、利用可能残・確認額を追跡 | 自動移動せずスタッフ確認。元額／方法／実受領日を保持し、既返金・他配分・復元済み預り金を二重使用しない |
+| 返金元資金内訳→返金確定 | 確認済み内訳と理由を元資金へ対応させる | 不明のまま確定不可。内訳登録自体は実返金でなく、現在上限・既返金／復元を再検査 |
+| 元保険確認→再請求の確認結果 | 元結果を保持し、今回のペット／契約・対象明細で再確認して記録 | 元の有効判定を無条件に継承せず、外部保険状態を自動変更しない |
 
 ## 画面・モデルとの対応と確認範囲
 
 [精算詳細](../domains/accounting/pages/accounting-settlement.md)の「未精算」「精算済み」と支払状態を無条件に同一視しない。現行の単一ペット／カルテ参照や全額入金制約は[現行差分](../../design/domains/accounting/technical-spec.md#accounting-current-gap)へ。API／DB識別子や画面ラベルの改名は今回行わない。
 
-予約の[語彙正本](reservations.md)・カルテの[語彙正本](medical-records.md)を再利用し、確認医師／編集者・項目実施取消と会計操作を混同しない。今回の定義・関係・制約は9FR／116ACへ照合する。第三群で飼主単位預り金／予約任意・同飼主別予約／ペット利用、割合合算→金額→割引後保険、同日作成順／理由付き保存後配分変更、非現金超過の返金必要、別方法返金・金額追加承認なし、受領／充当／今回入金／返金の帳票と元番号維持を追加。旧FR識別子のreservation-advanceは参照互換のため保持し、最新概念をAPI／コード改名としない。第四群で両粒度の割引・超過警告と承認後の請求額0円下限、会計取消時の残高復元と別返金を追加。有効充当額は取消・減額による解除・復元を反映し、未充当残との整合を照合する。第五群で明細→全体のscope分離と比例配賦、税抜計算／税込表示、割合値引き額四捨五入と請求書税率別税切捨て、超過の実値引き上限・他行転用なしを反映。同率配賦の固定順は技術案。第六群で複数保険会社、品目マスタの全体割引除外、飼主宛名・ペット別明細と元取引／今回変更額、管理者と権限付きスタッフのマスタ変更を追加。第七群で外部画面等によるスタッフの資格／残限度確認と結果・保険負担額の記録、窓口会計限定、ペットごと1利用契約を追加。会社／商品別の自動給付算式は将来の別スコープで現在の記録運用の前提にしない。第八群で減額時の解除・残高復元と併用時のスタッフ内訳確認、自動失効なし・同医院同飼主限定、取消元明細の選択確認・新番号再請求／元請求リンク、同時回収と元請求別配分、共通料金別枠を追加。督促・貸倒、別医院移行・別飼主譲渡は今回対象外。除外の初期値／移行・小数数量等の元明細額確定、再請求の価格時点・元入金扱い／保険再確認・出所不明の既実返金の解消等の残件は[業務正本](../domains/accounting/lifecycle.md#accounting-open-decisions)へ。全マスタ・帳票の語彙網羅は未完了。
+予約の[語彙正本](reservations.md)・カルテの[語彙正本](medical-records.md)を再利用し、確認医師／編集者・項目実施取消と会計操作を混同しない。今回の定義・関係・制約は9FR／128ACへ照合する。第三群で飼主単位預り金／予約任意・同飼主別予約／ペット利用、割合合算→金額→割引後保険、同日作成順／理由付き保存後配分変更、非現金超過の返金必要、別方法返金・金額追加承認なし、受領／充当／今回入金／返金の帳票と元番号維持を追加。旧FR識別子のreservation-advanceは参照互換のため保持し、最新概念をAPI／コード改名としない。第四群で両粒度の割引・超過警告と承認後の請求額0円下限、会計取消時の残高復元と別返金を追加。有効充当額は取消・減額による解除・復元を反映し、未充当残との整合を照合する。第五群で明細→全体のscope分離と比例配賦、税抜計算／税込表示、割合値引き額四捨五入と請求書税率別税切捨て、超過の実値引き上限・他行転用なしを反映。同率配賦の固定順は技術案。第六群で複数保険会社、品目マスタの全体割引除外、飼主宛名・ペット別明細と元取引／今回変更額、管理者と権限付きスタッフのマスタ変更を追加。第七群で外部画面等によるスタッフの資格／残限度確認と結果・保険負担額の記録、窓口会計限定、ペットごと1利用契約を追加。会社／商品別の自動給付算式は将来の別スコープで現在の記録運用の前提にしない。第八群で減額時の解除・残高復元と併用時のスタッフ内訳確認、自動失効なし・同医院同飼主限定、取消元明細の選択確認・新番号再請求／元請求リンク、同時回収と元請求別配分、共通料金別枠を追加。督促・貸倒、別医院移行・別飼主譲渡は今回対象外。第九群で元価格／税／割引の継承と必要箇所のスタッフ修正、残入金の確認充当と保険再確認、返金元資金内訳と理由の登録まで返金確定不可を追加。元資金と実返金方法を区別し、新受領・二重使用や金額別追加承認を作らない。明細なし請求の確定可否・小数数量等の元明細額丸め・全体割引除外の初期値／移行・編集中反映等の業務判断と設計残件は[業務正本](../domains/accounting/lifecycle.md#accounting-open-decisions)へ。全マスタ・帳票の語彙網羅は未完了。

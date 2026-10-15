@@ -1,6 +1,6 @@
 # 会計の技術設計
 
-対象は[業務正本の初回5点](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-first-five)と[第二群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-second)・[第三群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-third)・[第四群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-fourth)・[第五群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-fifth)・[第六群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-sixth)・[第七群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-seventh)・[第八群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-eighth)（計9FR／116AC）の部分設計。D10は進行中。実装・API／DB変更・移行・実機検証は今回行わない。
+対象は[業務正本の初回5点](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-first-five)と[第二群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-second)・[第三群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-third)・[第四群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-fourth)・[第五群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-fifth)・[第六群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-sixth)・[第七群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-seventh)・[第八群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-eighth)・[第九群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-ninth)（計9FR／128AC）の部分設計。D10は進行中。実装・API／DB変更・移行・実機検証は今回行わない。
 
 読む順：業務正本と[語彙](../../../spec/ontology/accounting.md) → [技術仕様](technical-spec.md) → 現行API／コード。確定した業務と提案する実現方式、未決業務を分ける。[ADR003](../../../architecture/adr/003-payment-method-identity-and-consistency.md)・[write-owner](../../../architecture/model-write-owner-catalog.md)を再定義しない。
 
@@ -10,4 +10,6 @@
 
 第七群の確認結果・契約・負担額snapshotと外部保険業務の境界は[技術仕様](technical-spec.md#accounting-seventh-design)へ。保険会社への請求・入金照合・査定差額管理や同一診療費の複数契約併用を追加しない。
 
-第八群の減額時残高復元と併用内訳確認、自動失効なし・同医院同飼主境界、新番号再請求と二重請求防止、同時回収の元請求別配分、共通料金のowner-only参照は[技術仕様](technical-spec.md#accounting-eighth-design)へ。再請求時の価格・元入金・保険結果再利用の業務確認と具体権限／schema／復旧方式は残件。実返金・金銭履歴を自動複製せず、督促・貸倒・医院間／飼主間移管を追加しない。
+第八群の減額時残高復元と併用内訳確認、自動失効なし・同医院同飼主境界、新番号再請求と二重請求防止、同時回収の元請求別配分、共通料金のowner-only参照は[技術仕様](technical-spec.md#accounting-eighth-design)へ。再請求の価格／税／割引継承・旧入金／保険の確認は第九群で確定。具体権限／schema／復旧方式は設計残件。実返金・金銭履歴を自動複製せず、督促・貸倒・医院間／飼主間移管を追加しない。
+
+第九群の元snapshot継承とスタッフ修正、旧入金の帰属変更と元実受領日保持、保険の再確認、返金元内訳・理由の登録と現在残検査は[技術仕様](technical-spec.md#accounting-ninth-design)へ。内訳登録だけで実返金を生成せず、復元済み預り金の二重使用を防ぐ。残る業務判断は[正本の分類](../../../spec/domains/accounting/lifecycle.md#accounting-open-decisions)に分け、実装・全体受入の完了とは扱わない。
