@@ -10,7 +10,7 @@
 
 ## 受入条件の所在
 
-画面固有の挙動・バリデーション・保護・API 権限は上記本文、今回合意の受入条件は[9FR／99AC](lifecycle.md#accounting-acceptance)、技術案と現行差分は[会計設計](../../../design/domains/accounting/README.md)。既存の具体的な確認手順は [S08 会計訂正](../../../ops/testing/scenarios/S08-accounting-corrections.md)・[S21 会計並行操作と冪等性](../../../ops/testing/scenarios/S21-accounting-concurrency-idempotency.md)・[S33 領収書](../../../ops/testing/scenarios/S33-receipt-print-pdf.md)を参照します。これらは条件・手順の所在であり、今回の整理で実機受入済みになったことを示しません。実行状態と証跡の入口は [docs/work/](../../../work/README.md)です。
+画面固有の挙動・バリデーション・保護・API 権限は上記本文、今回合意の受入条件は[9FR／116AC](lifecycle.md#accounting-acceptance)、技術案と現行差分は[会計設計](../../../design/domains/accounting/README.md)。既存の具体的な確認手順は [S08 会計訂正](../../../ops/testing/scenarios/S08-accounting-corrections.md)・[S21 会計並行操作と冪等性](../../../ops/testing/scenarios/S21-accounting-concurrency-idempotency.md)・[S33 領収書](../../../ops/testing/scenarios/S33-receipt-print-pdf.md)を参照します。これらは条件・手順の所在であり、今回の整理で実機受入済みになったことを示しません。実行状態と証跡の入口は [docs/work/](../../../work/README.md)です。
 
 ## 未決事項と実装状態
 
@@ -59,12 +59,16 @@ docs限定承認 Sentinel_f19ab03e8c2c81919c6f589bcf563811に基づき、[受け
 
 <a id="d10初回第六群の反映範囲"></a>
 <a id="d10初回〜第六群の反映範囲"></a>
-## D10初回〜第七群の反映範囲
+<a id="d10初回第七群の反映範囲"></a>
+<a id="d10初回〜第七群の反映範囲"></a>
+## D10初回〜第八群の反映範囲
 
-[初回](lifecycle.md#accounting-agreement-first-five)・[第二群](lifecycle.md#accounting-agreement-second)・[第三群](lifecycle.md#accounting-agreement-third)・[第四群](lifecycle.md#accounting-agreement-fourth)・[第五群](lifecycle.md#accounting-agreement-fifth)・[第六群](lifecycle.md#accounting-agreement-sixth)・[第七群](lifecycle.md#accounting-agreement-seventh)を反映し計9FR／99AC。既決の引継ぎ境界を維持し、内部判断の確定部分は正本、残件は[未決5群](lifecycle.md#accounting-open-decisions)へ参照する。
+[初回](lifecycle.md#accounting-agreement-first-five)・[第二群](lifecycle.md#accounting-agreement-second)・[第三群](lifecycle.md#accounting-agreement-third)・[第四群](lifecycle.md#accounting-agreement-fourth)・[第五群](lifecycle.md#accounting-agreement-fifth)・[第六群](lifecycle.md#accounting-agreement-sixth)・[第七群](lifecycle.md#accounting-agreement-seventh)・[第八群](lifecycle.md#accounting-agreement-eighth)を反映し計9FR／116AC。既決の引継ぎ境界を維持し、内部判断の確定部分は正本、残件は[未決5群](lifecycle.md#accounting-open-decisions)へ参照する。
 
-預り金は飼主単位で予約参照は任意。同飼主の別予約／別ペット会計へ、充当先と金額を確認して使える。元飼主・任意の元予約・受領／未充当残／利用可能額／充当／実返金を追跡し、二重入金・二重使用なし。別飼主への移管は未承認、全ホテル予約の前金必須を定義しない。
+預り金は飼主単位で予約参照は任意。同飼主の別予約／別ペット会計へ、充当先と金額を確認して使える。元飼主・任意の元予約・受領／未充当残／利用可能額／充当／実返金を追跡し、二重入金・二重使用なし。自動失効なし・同医院／同飼主のみで、別医院移行・別飼主譲渡は今回対象外、全ホテル予約の前金必須を定義しない。
 
 割合合算→金額→割引後の保険対象額、古い請求順／同日作成順・理由付き保存後再配分、非現金超過の返金必要、元カード→現金等の別方法返金／金額追加承認なし、受領証・最終会計充当／今回入金・返金元取引番号／再発行番号維持を合意。実決済サービスの自動連携／規約適合を承認済みにしない。
 
-第四群で明細・会計全体の両割引、超過警告と承認して進めた請求額の0円下限、会計取消時の残高復元と別返金を反映。有効充当額は取消による解除・復元を反映する。[第五群](lifecycle.md#accounting-calculation-order)で明細→全体・比例配賦、税抜計算／税込表示、割合値引き額四捨五入と税率別税切捨て、超過の実額上限・他行転用なしを反映。[計算例と保存根拠](lifecycle.md#accounting-calculation-examples)・[公的根拠と製品選択の区別](lifecycle.md#accounting-tax-evidence)は正本へ。[第六群](lifecycle.md#accounting-agreement-sixth)で複数保険会社、品目マスタでの全体割引除外、飼主宛名／ペット別明細・元取引と今回変更額、管理者と権限付きスタッフによるマスタ変更を反映。現行grantの読取対応は[技術仕様](../../../design/domains/accounting/technical-spec.md#accounting-master-permission-map)へ。[第七群](lifecycle.md#accounting-insurance-window-scope)でスタッフによる資格／残限度の確認・結果と保険負担額記録、窓口会計限定、会計ごとにペット単位で1利用契約を合意。保険会社への請求・入金照合・査定差額管理、同じ診療費への複数契約併用は対象外。自動給付算式は将来の別スコープで、今回の記録運用の前提にしない。D10は進行中。除外設定の初期値／移行・小数数量等の元明細額確定、取消以外の減額時の充当調整、具体権限・帳票詳細・各masterの全体、他owner内部・全体横断照合、実装・実機は残件。D05ホテル料金／キャンセル料・D12締め内部を分離し、通常Undo停止とカルテ保存§2を維持。
+第四群で明細・会計全体の両割引、超過警告と承認して進めた請求額の0円下限、会計取消時の残高復元と別返金を反映。有効充当額は取消・減額による解除・復元を反映する。[第五群](lifecycle.md#accounting-calculation-order)で明細→全体・比例配賦、税抜計算／税込表示、割合値引き額四捨五入と税率別税切捨て、超過の実額上限・他行転用なしを反映。[計算例と保存根拠](lifecycle.md#accounting-calculation-examples)・[公的根拠と製品選択の区別](lifecycle.md#accounting-tax-evidence)は正本へ。[第六群](lifecycle.md#accounting-agreement-sixth)で複数保険会社、品目マスタでの全体割引除外、飼主宛名／ペット別明細・元取引と今回変更額、管理者と権限付きスタッフによるマスタ変更を反映。現行grantの読取対応は[技術仕様](../../../design/domains/accounting/technical-spec.md#accounting-master-permission-map)へ。[第七群](lifecycle.md#accounting-insurance-window-scope)でスタッフによる資格／残限度の確認・結果と保険負担額記録、窓口会計限定、会計ごとにペット単位で1利用契約を合意。保険会社への請求・入金照合・査定差額管理、同じ診療費への複数契約併用は対象外。自動給付算式は将来の別スコープで、今回の記録運用の前提にしない。D10は進行中。除外設定の初期値／移行・小数数量等の元明細額確定、再請求時の価格／元入金・保険結果再利用、出所不明の既実返金の解消、具体権限・帳票詳細・各masterの全体、他owner内部・全体横断照合、実装・実機は残件。D05ホテル料金／キャンセル料・D12締め内部を分離し、通常Undo停止とカルテ保存§2を維持。
+
+[第八群](lifecycle.md#accounting-agreement-eighth)で減額時の解除分の残高復元・スタッフによる併用内訳の確認、自動失効なし・同医院同飼主限定、元明細選択確認による新番号再請求／元取消請求リンク、新規会計と過去未納回収の同時扱い／元請求別配分、帳票の共通料金別枠を反映。元の99ACを保持して17AC追加。別医院移行・別飼主譲渡、督促・貸倒は今回対象外。実返金・新受領・再発行との区別を維持する。
