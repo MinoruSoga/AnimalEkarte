@@ -1,6 +1,6 @@
 # 会計の技術設計
 
-対象は[業務正本の初回5点](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-first-five)と[第二群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-second)・[第三群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-third)・[第四群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-fourth)・[第五群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-fifth)・[第六群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-sixth)・[第七群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-seventh)・[第八群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-eighth)・[第九群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-ninth)・[第十群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-tenth)（計9FR／142AC）の文書設計。完成条件は[末尾](technical-spec.md#accounting-document-completion)へ。実装・API／DB変更・移行・実機検証は今回行わない。
+対象は[業務正本の初回5点](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-first-five)と[第二群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-second)・[第三群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-third)・[第四群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-fourth)・[第五群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-fifth)・[第六群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-sixth)・[第七群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-seventh)・[第八群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-eighth)・[第九群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-ninth)・[第十群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-tenth)・[追加の死亡後精算](../../../spec/domains/accounting/lifecycle.md#accounting-posthumous-settlement)（計9FR／144AC）の文書設計。完成条件は[末尾](technical-spec.md#accounting-document-completion)へ。実装・API／DB変更・移行・実機検証は今回行わない。
 
 読む順：業務正本と[語彙](../../../spec/ontology/accounting.md) → [技術仕様](technical-spec.md) → 現行API／コード。確定した業務と提案する実現方式、未決業務を分ける。[ADR003](../../../architecture/adr/003-payment-method-identity-and-consistency.md)・[write-owner](../../../architecture/model-write-owner-catalog.md)を再定義しない。
 
@@ -16,3 +16,5 @@
 
 
 第十群の空明細・行別丸め・除外初期値／欠落時false・明示再適用は[第十群設計](technical-spec.md#accounting-tenth-design)。状態／金銭・操作別保存／認可・旧値・3画面／4master・受け手は[全体契約](technical-spec.md#accounting-reconciled-contract)へ。
+
+追加の死亡後精算2ACはユーザー個別承認に基づき反映・独立文書レビュー済み。初回〜第十群の142AC本文を保持し、死亡状態を戻さず生前の元診療・理由・履歴と元飼主資金を保持する。現在の全体状態は[追加9点の進捗](../../../spec/domains/SPECIFICATION_PROGRESS.md#additional-business-decisions-nine)を参照する。

@@ -1,6 +1,6 @@
 # 会計・未納
 
-会計一覧・精算・売掛管理を確認する入口です。2026-10-15、9FR／142ACと関連技術契約の限定文書範囲を独立レビュー・静的照合後に完了と判定。実装・実機受入と全体横断は別工程。
+会計一覧・精算・売掛管理を確認する入口です。2026-10-15、基準時点の9FR／142ACを独立レビュー・静的照合後に文書整理完了と判定。死亡後精算を含む9FR／144ACの追加差分も反映・独立文書レビュー済み。実装・実機受入と全体横断は別工程。
 
 ## 読む順・業務ルールの所在
 
@@ -10,7 +10,7 @@
 
 ## 受入条件の所在
 
-画面固有の挙動・バリデーション・保護・API 権限は上記本文、今回合意の受入条件は[9FR／142AC](lifecycle.md#accounting-acceptance)、技術案と現行差分は[会計設計](../../../design/domains/accounting/README.md)。既存の具体的な確認手順は [S08 会計訂正](../../../ops/testing/scenarios/S08-accounting-corrections.md)・[S21 会計並行操作と冪等性](../../../ops/testing/scenarios/S21-accounting-concurrency-idempotency.md)・[S33 領収書](../../../ops/testing/scenarios/S33-receipt-print-pdf.md)を参照します。これらは条件・手順の所在であり、今回の整理で実機受入済みになったことを示しません。実行状態と証跡の入口は [docs/work/](../../../work/README.md)です。
+画面固有の挙動・バリデーション・保護・API 権限は上記本文、今回合意の受入条件は[9FR／144AC](lifecycle.md#accounting-acceptance)、技術案と現行差分は[会計設計](../../../design/domains/accounting/README.md)。既存の具体的な確認手順は [S08 会計訂正](../../../ops/testing/scenarios/S08-accounting-corrections.md)・[S21 会計並行操作と冪等性](../../../ops/testing/scenarios/S21-accounting-concurrency-idempotency.md)・[S33 領収書](../../../ops/testing/scenarios/S33-receipt-print-pdf.md)を参照します。これらは条件・手順の所在であり、今回の整理で実機受入済みになったことを示しません。実行状態と証跡の入口は [docs/work/](../../../work/README.md)です。
 
 ## 未決事項と実装状態
 
@@ -67,7 +67,7 @@ docs限定承認 Sentinel_f19ab03e8c2c81919c6f589bcf563811に基づき、[受け
 <a id="d10初回〜第九群の反映範囲"></a>
 ## D10初回〜第十群の反映範囲
 
-[初回](lifecycle.md#accounting-agreement-first-five)・[第二群](lifecycle.md#accounting-agreement-second)・[第三群](lifecycle.md#accounting-agreement-third)・[第四群](lifecycle.md#accounting-agreement-fourth)・[第五群](lifecycle.md#accounting-agreement-fifth)・[第六群](lifecycle.md#accounting-agreement-sixth)・[第七群](lifecycle.md#accounting-agreement-seventh)・[第八群](lifecycle.md#accounting-agreement-eighth)・[第九群](lifecycle.md#accounting-agreement-ninth)・[第十群](lifecycle.md#accounting-agreement-tenth)を反映し計9FR／142AC。既決の引継ぎ境界を維持し、内部判断の確定部分は正本、残件は[業務判断・設計残件の分類](lifecycle.md#accounting-open-decisions)へ参照する。
+[初回](lifecycle.md#accounting-agreement-first-five)・[第二群](lifecycle.md#accounting-agreement-second)・[第三群](lifecycle.md#accounting-agreement-third)・[第四群](lifecycle.md#accounting-agreement-fourth)・[第五群](lifecycle.md#accounting-agreement-fifth)・[第六群](lifecycle.md#accounting-agreement-sixth)・[第七群](lifecycle.md#accounting-agreement-seventh)・[第八群](lifecycle.md#accounting-agreement-eighth)・[第九群](lifecycle.md#accounting-agreement-ninth)・[第十群](lifecycle.md#accounting-agreement-tenth)を反映し計9FR／144AC。既決の引継ぎ境界を維持し、内部判断の確定部分は正本、残件は[業務判断・設計残件の分類](lifecycle.md#accounting-open-decisions)へ参照する。
 
 預り金は飼主単位で予約参照は任意。同飼主の別予約／別ペット会計へ、充当先と金額を確認して使える。元飼主・任意の元予約・受領／未充当残／利用可能額／充当／実返金を追跡し、二重入金・二重使用なし。自動失効なし・同医院／同飼主のみで、別医院移行・別飼主譲渡は今回対象外、全ホテル予約の前金必須を定義しない。
 
@@ -79,3 +79,5 @@ docs限定承認 Sentinel_f19ab03e8c2c81919c6f589bcf563811に基づき、[受け
 
 [第九群](lifecycle.md#accounting-agreement-ninth)で元会計の価格／税／割引を初期継承して必要箇所をスタッフ修正、旧入金の確認充当と保険結果の再確認、返金元内訳・理由の登録まで返金確定不可を合意。既存116ACを保持して12AC追加。第九群時点の3判断は第十群で解消し14AC追加。空明細／0円理由・値引き前行別四捨五入・除外初期値／欠落時false・追加後明示的再適用を反映。[文書完成条件](../../../design/domains/accounting/technical-spec.md#accounting-document-completion)と後続実装／受入を分ける。
 
+
+追加の死亡後精算2ACはユーザー個別承認に基づき反映・独立文書レビュー済み。初回〜第十群の142AC本文を保持し、死亡状態を戻さず生前の元診療・理由・履歴と元飼主資金を保持する。現在の全体状態は[追加9点の進捗](../../domains/SPECIFICATION_PROGRESS.md#additional-business-decisions-nine)を参照する。

@@ -2,7 +2,7 @@
 
 本領域の読む順は、[業務ライフサイクル・受入条件](lifecycle.md) → [用語と関係](../../ontology/trimming.md) → [技術契約・現在差分](../../../design/domains/trimming/technical-spec.md)。
 
-画面詳細の既存正本は[16-trimming-list](../../screens/16-trimming-list.md)・[17-trimming-form](../../screens/17-trimming-form.md)に保持する。業務FR7件／AC22件は既存継承・合意継承・未確認を本文で区別し、FR採番を新しい一括承認としない。D01等の継承要件は承認件数へ二重加算しない。
+画面詳細の既存正本は[16-trimming-list](../../screens/16-trimming-list.md)・[17-trimming-form](../../screens/17-trimming-form.md)に保持する。業務FR7件／AC23件は既存継承・合意継承・未確認を本文で区別し、FR採番を新しい一括承認としない。D01等の継承要件は承認件数へ二重加算しない。
 
 ## 対象と境界
 

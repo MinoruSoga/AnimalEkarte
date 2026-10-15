@@ -281,10 +281,16 @@ D10は物販・保険・支払方法・キャンペーンを持ち、診療／�
 
 新cross-domain writer実装時はcatalogへowner・transaction・失敗復帰／監査を登録。本設計で全既存経路をsame-txへ読み替えない。
 
+
+<a id="accounting-posthumous-design"></a>
+## 死亡状態を保持した生前分精算の接続
+
+[死亡後の精算](../../../spec/domains/accounting/lifecycle.md#accounting-posthumous-settlement)は既存の会計操作ID・期待版・現在認可・金銭projection・原子receiptの契約を使い、死亡状態を生存へ変更するwriterを呼ばない。元患者・診療／滞在の実施事実と元明細・請求・飼主を照合し、理由と必要履歴を当該成功保存に含める。生前実施を識別できない場合は入力を保持して元記録の確認へ戻し、会計日や現在statusだけで診療事実を生成しない。死亡・主飼主変更・他編集で確認版が変わった場合は最新対象を再取得・確認し、無警告再送や別操作IDでの二重精算をしない。実入出金・訂正・残高復元の分離、元飼主の請求／預り金、実返金別操作、通常Undo停止は保持する。画面の死亡新規gateと、この専用の後日精算・訂正を区別する。既存実装が全入口で適合済みという意味ではない。
+
 <a id="accounting-document-completion"></a>
 ## D10文書完成条件と判定外
 
-D03と同じ限定文書基準を適用。対象は9FR／142AC、3画面＋選択／新規入口、4masterと診療／薬剤会計接続、語彙・状態／ID・操作／保存／認可・旧値／停止・writer／consumer／受け手。2026-10-15の独立レビューとリンク／fragment・表／trace照合で重大指摘なしを確認し、この範囲の文書整理を完了と判定した。既存AC／アンカーを保持し、初回〜第十群の全ACを一意に追跡する。
+D03と同じ限定文書基準を適用。対象は9FR／144AC、3画面＋選択／新規入口、4masterと診療／薬剤会計接続、語彙・状態／ID・操作／保存／認可・旧値／停止・writer／consumer／受け手。2026-10-15の独立レビューとリンク／fragment・表／trace照合で重大指摘なしを確認し、基準時点の9FR／142ACを文書整理完了と判定した。追加の死亡後精算2ACも反映・独立文書レビュー済み。既存AC／アンカーを保持し、初回〜第十群の全ACを一意に追跡する。
 
 文書で選定した意味型・原子保存／receipt・現在認可／不明時停止・画面状態／master参照保護・引継ぎを後決めへ戻さない。物理schema／wire名・採番書式／lock実装・実grant／実旧値・移行・全writer／consumer実装適合・実機／性能／復旧試験・税務／決済規約適合は後続実装／利用開始条件。これらと他owner内部・全体横断最終照合は本領域の文書完成判定外。保険会社請求／査定・自動給付、督促／貸倒、別医院／飼主移管・外部機器連携は対象外。
 
@@ -331,12 +337,14 @@ D03と同じ限定文書基準を適用。対象は9FR／142AC、3画面＋選�
 | FR-accounting-owner-selected-charges（第十群） | collection-no-empty-invoice | [第十群設計](#accounting-tenth-design)と全体契約。空明細・行別丸め・設定欠落／明示値・snapshot／再適用版 |
 | FR-accounting-calculation-snapshot（第十群） | pre-discount-round-half／pre-discount-round-per-line／pre-discount-round-before-discount／pre-discount-round-provenance／exclusion-default-included／exclusion-missing-included／exclusion-existing-preserved／master-draft-no-auto-update／master-explicit-reapply／master-reapply-current-check | [第十群設計](#accounting-tenth-design)と全体契約。空明細・行別丸め・設定欠落／明示値・snapshot／再適用版 |
 | FR-accounting-reasoned-financial-correction（第十群） | master-reapply-finalized-boundary | [第十群設計](#accounting-tenth-design)と全体契約。空明細・行別丸め・設定欠落／明示値・snapshot／再適用版 |
+| FR-accounting-owner-selected-charges（死亡後精算） | posthumous-settlement-history | [専用接続](#accounting-posthumous-design)。死亡状態保持・生前元事実・理由／履歴・原子receipt |
+| FR-accounting-reasoned-financial-correction（死亡後精算） | posthumous-owner-no-side-effect | [専用接続](#accounting-posthumous-design)。元飼主資金と既存金銭／在庫／予約境界 |
 
 overdiscount-unresolved／overdiscount-post-warning-pending は参照互換の既存識別子であり、期待結果は合意済みの警告・請求額0円下限へ更新する。
 
-AC短名は[正本142AC](../../../spec/domains/accounting/lifecycle.md#accounting-acceptance)のAC-accounting-接頭辞に続く名称。ここに第二の期待結果を作らない。
+AC短名は[正本144AC](../../../spec/domains/accounting/lifecycle.md#accounting-acceptance)のAC-accounting-接頭辞に続く名称。ここに第二の期待結果を作らない。
 
-実装前に、確定と入金の競合、同時返金による上限超過、同時二重請求、失効認可／異医院参照、通信切断後の遅延commit、複数記録と締め参加、マスタ変更とsnapshotを対象に正常／拒否／再送／結果不明を照合する必要がある。既存S08／S21／S33は現行手順で、新142ACの実行済み証拠ではない。runtime・API／DB改訂・移行・利用開始・性能は未実施。
+実装前に、確定と入金の競合、同時返金による上限超過、同時二重請求、失効認可／異医院参照、通信切断後の遅延commit、複数記録と締め参加、マスタ変更とsnapshotを対象に正常／拒否／再送／結果不明を照合する必要がある。既存S08／S21／S33は現行手順で、現在144ACの実行済み証拠ではない。runtime・API／DB改訂・移行・利用開始・性能は未実施。
 
 業務判断と技術設計／検証・対象外の区別は[残件の分類](../../../spec/domains/accounting/lifecycle.md#accounting-open-decisions)へ。D05／06専用記録、D11見積、D12締め、D13在庫、D16集計、C04権限／C05監査の受け手実装適合・全体横断再照合は別工程。保険会社への請求送信・入金照合・査定差額管理・会社／商品別の自動給付算定、外部支払／印刷機器を追加実装する設計は含めない。
 

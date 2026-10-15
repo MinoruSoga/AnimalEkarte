@@ -101,3 +101,6 @@ stateDiagram-v2
 
 本画面の監視範囲・失敗分類・受入は[CRM正本のD15整理](../line/lstep-integration.md#crm-document-contract)を参照する。firedは本文状態図の『配信API成功』の観測であり、端末への到達・既読や全外部シナリオ完了の保証ではない。fired_atの既存表示ラベルから配信到達を推測しない。failedの抽出は再送検討であり、自動再送命令ではない。結果不明時の再送方針はD15の未決提案と区別する。ordinaryタグ同期の監視を新たに含めない。
 
+### 初診・健診後の確認結果と送信ログ
+
+[D15の確認付きフォロー](../line/lstep-integration.md#crm-followup-confirmation)は承認済み目標。記録作成だけで送らず、スタッフの実施済み・対象確認と、医療的案内の場合の医師要フォロー指定を送信前に照合する。既存scheduled／fired等のログだけで確認・指定の成立を推定せず、監視viewを確認／送信権限へ拡張しない。確認欄や新ステータスが既存画面にあるとは記載しない。結果不明時は照合まで再送を保留し、確認の再入力・ログ表示更新を再送許可にしない。受入はD15のAC-crm-followup-source-changed／duplicate-unknownへ追跡する。

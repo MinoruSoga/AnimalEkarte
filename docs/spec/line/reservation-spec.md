@@ -240,3 +240,12 @@ flowchart LR
 ---
 
 2026-10-15最新承認（Sentinel_7a67fd30e47c819192cd36d416f0a2bf）により、旧ホテル受入前担当必須条件は任意担当医師へ更新済み。引用した過去の質問は履歴として保持し、現行条件は上記本文／ACとD05正本に従う。臨床入院開始までの担当医決定はこの更新の対象外。
+
+<a id="owner-transfer-line-impact"></a>
+## 主飼主変更時の予約・通知先確認（2026-10-15追加合意5）
+
+スタッフが主飼主を変更する際は、[D04の追加合意](../domains/owners-pets/lifecycle.md#requirement-fr-owners-pets-primary-transfer)により今後の予約とLINE通知先への影響一覧を確認してから切り替える。これは飼主側に新しい移管操作を公開するものではない。
+
+元からLINE customer付きの移管対象予約だけ、新飼主の確認済みLINE IDが同医院customerへ一意に対応する場合に付替え、対応がなければ既存の解除結果を一覧へ示す。未連携先を自動作成／紐付けせず、manual予約（元customerなし）はNULLと既存customer_fieldsを保持する。対象は現行の同医院・同pet・JST当日以降pending/confirmedに限定し、過去予約・来院受付後・tentative・カルテ等へ広げない。過去請求・預り金は元ownerを保持する。
+
+対象・帰属・宛先・必要な版／権限の確認後変化は再取得・差分確認し、pet・対象予約・必要監査の原子性を守る。通知停止／配信除外／本人認証／結果不明保留は既存契約を維持し、自動再送・通知到達保証を付け加えない。業務FR/ACと現行差は[D04](../domains/owners-pets/lifecycle.md#owners-pets-acceptance)・[技術契約](../../design/domains/owners-pets/technical-spec.md#owner-transfer-target)が正本で、実装／実機受入は未確認。

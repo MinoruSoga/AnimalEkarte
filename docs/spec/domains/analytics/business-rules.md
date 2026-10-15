@@ -3,7 +3,7 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | domain.analytics.business-rules／業務仕様 |
-| 決定状態 | 既存計数を継承し現行SQLとの相違を明示。D10の請求／実移動分離を継承。外部到達・来院因果の保証なし。 |
+| 決定状態 | 2026-10-15の承認6により来院回数は実来院日基準へ変更。旧記録日数との差とD10請求／実移動分離を保持。外部到達・来院因果の保証なし。 |
 | 実装状態 | 現行差を分離。今回実装変更・網羅監査なし |
 | 実機検証状態 | 未実施。受入条件は検査定義 |
 | 文書確認日 | 2026-10-15 |
@@ -46,9 +46,17 @@ D10の既決区分を継承。請求確定額、今回の実入金、実返金�
 <a id="requirement-fr-analytics-owner-counts"></a>
 ### FR-analytics-owner-counts：飼主と来院日・母集団
 
-飼主単位の来院回数は現行SQLで同医院・同飼主の重複しないカルテ日。複数ペットが同日に来ても同じ日付は1回で、会計件数・予約件数・診療明細数とは違う。診療記録への過去入力は臨床ownerの契約に従い、分析のために実来院を捏造しない。この既存指標は正確には「記録のある日数」で、母集団は同医院・対象飼主のペットに結び付いた未削除カルテ。現SQLにはfinalized限定の条件がなく、受付済／診療中／実来院済みの判定を行う指標へ拡張しない。「来院回数」という現行ラベルから実来院・完了回数を推定しない。
+承認済み目標：来院回数は、当該医院へ実際に来院した日を基準に数える。同医院・同飼主・同日を1回とし、同日の複数ペットでも飼主の回数を増やさない。ペット単位では同医院・同ペット・同日を1回ずつ数える。同日の再受付・複数予約・複数カルテ・複数会計も、同じ単位の日数を増やす根拠にしない。期間内・累計・年間の各来院回数は同じ実来院sourceを使い、選択期間とrolling365日の違いは維持する。
 
-[D03の過去入力](../medical-records/lifecycle.md#requirement-fr-medical-records-retrospective-no-card-no-billing)は実診療日と登録日時を分けるため、過去記録を今日の来院として扱わない。[患者転記](../medical-records/lifecycle.md#requirement-fr-medical-records-wrong-patient-linked-transfer)は新しい実施でなく、カルテ確定も全治療項目の実施完了ではない。これらの臨床的意味と既存SQLの記録日数を区別し、今回新しい「実来院件数」への集計変更は追加しない。
+通常来院の根拠は[D01の確定した受付結果と履歴](../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-checkin-record-atomicity)を照合する。予約の存在・予定時刻到達・カルテdraft／確定・会計の存在だけから来院を推定しない。実際に来院して受付が成立している場合、カルテがdraftでもその理由だけで来院を除外しない。診療終了／会計完了を新しい計数必要条件にしない。[明示診療開始・終了](../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-manual-consultation-state)も受付とは別の状態であり、状態文字列だけを来院履歴の代用にしない。
+
+[D03の過去入力](../medical-records/lifecycle.md#requirement-fr-medical-records-retrospective-no-card-no-billing)では、既存の確認・由来から当該医院への実来院まで確認できる場合だけ実来院日へ帰属させ、登録日を新たな来院日にしない。医師確認済みというだけで外部資料・転記・日付のある臨床記録一般を来院へ変換しない。集計のための追加医師承認を全来院に要求する変更でもない。[患者転記](../medical-records/lifecycle.md#requirement-fr-medical-records-wrong-patient-linked-transfer)は新たな来院ではない。日付／患者訂正は元sourceと訂正関係を照合し、元・先を二重加算しない。
+
+実来院の根拠・日付・医院／患者の対応が不明なら、実来院回数を確定したり「来院なし」「0回」で補完したりしない。旧期間は照合状況と旧基準を明示し、確認できる新基準の結果と混在させない。飼主変更時の帰属はD04の対象確認と履歴境界へ従い、現在のpet.owner_idだけで過去の来院を自動付け替える新方針は追加しない。
+
+現行差：既存SQLは同医院・現在のpet.owner_idに結び付く未削除カルテのDISTINCT mr.dateで、finalized限定条件がなく、正確には「記録のある日数」。同日複数ペットを1記録日とする点は共通でも、新しい実来院回数への適合済みとはしない。旧値を表示・出力する間は「旧記録日数」等で基準を区別する。具体的source照合・再受付時刻上書きの制約は[選定read契約](../../../design/domains/finance-operations/technical-spec.md#analytics-actual-visit-source)を参照する。
+
+実来院source未照合の飼主を無断で母集団から除外せず、必要な分類が確定できない応答は不完全と示す。以下の7区分合計の保証は分類に必要なsourceが揃った応答に適用し、不明を未分類や0件へ機械的に振り分けて完全な集計に見せない。
 
 CPM人数は一般条件適用後、CPM区分フィルタとページ分割前の母集団を使う。一覧totalはCPM絞込み後。全7区分の合計と母集団が一致し、0件でも7キーを0で返す。売上タブの0円除外を来院タブに無条件適用せず、最終来院軸の『来院なし』条件を他軸へ無断適用しない。
 
@@ -57,12 +65,12 @@ CPM人数は一般条件適用後、CPM区分フィルタとページ分割前�
 
 顧客集計のCPMはV1の6区分＋未分類を用いる。配信設定がV2でも分析が自動的にV2へ切り替わる現行契約ではない。同期側6区分と分析の残余区分を混同しない。V1閾値設定と固定の最終来院バケットは別軸。
 
-最終来院の境界は90日未満、90〜179日、180〜364日、365日以上、来院なし。『3ヶ月』等のラベルを暦月差で再実装しない。タイムゾーン・日付差の再現条件を検証する。CPMや売上ランキングは配信同意／送信可能性を示さない。
+同じ実来院指標から導く最終来院日は最後の確認済み実来院日とし、不明データを来院なしへ落とさない。最終来院の境界は90日未満、90〜179日、180〜364日、365日以上、来院なし。『3ヶ月』等のラベルを暦月差で再実装しない。タイムゾーン・日付差の再現条件を検証する。CPMや売上ランキングは配信同意／送信可能性を示さない。
 
 <a id="requirement-fr-analytics-lstep-observation"></a>
 ### FR-analytics-lstep-observation：配信統計と来院観測
 
-現行Lステップ月次統計はscheduled_atのJST月でトリガー種別×状態のログ件数を集計。来院率はfired_atが当月・fired状態・優先度抑止でないログを母数とする。UIは配信後30日、APIは1〜365日。現在の来院判定はfired_atのJST日から指定日後まで両端を含むカルテ日が同医院・飼主にあること。
+現行Lステップ月次統計はscheduled_atのJST月でトリガー種別×状態のログ件数を集計。来院率はfired_atが当月・fired状態・優先度抑止でないログを母数とする。UIは配信後30日、APIは1〜365日。現在の来院判定はfired_atのJST日から指定日後まで両端を含むカルテ日が同医院・飼主にあること。これは旧記録日ベースの現行差。目標の来院観測は同じ窓内に確認済み実来院日があることを上記sourceで照合し、期間・母数・窓の境界は変更しない。根拠不明時は観測不明とし、未来院や率0を確定しない。分析の変更だけで配信トリガーや送信許可を追加しない。
 
 単位は配信ログで、ユニーク飼主数ではない。同じ飼主への複数ログが各々母数になり、一つの来院が複数ログに対応し得る。firedは外部サービスへの最終到達／既読の証明でなく、来院相関は配信による因果効果を証明しない。観測窓未経過の当月値は後日変わり得る。母数0の率0と、通信失敗で値不明を区別する。
 
@@ -84,8 +92,13 @@ CPM人数は一般条件適用後、CPM区分フィルタとページ分割前�
 | AC-analytics-refund-dates | 前月会計へ当月返金 | 発生日matrixと親会計帰属KPIの差を保持 | [FR-analytics-matrix-report](#requirement-fr-analytics-matrix-report)。正本の例を比較、未実施 |
 | AC-analytics-export-consistency | 同一医院／期間で画面・CSV・印刷 | 同じ集計対象・条件と円単位合計 | [FR-analytics-matrix-report](#requirement-fr-analytics-matrix-report)。出力3種比較、未実施 |
 | AC-analytics-distinct-billing | 複合決済と複数部門を持つ会計 | 総件数をsplit数・部門行件数の合計にしない | [FR-analytics-matrix-report](#requirement-fr-analytics-matrix-report)。元ID比較、未実施 |
-| AC-analytics-same-day-pets | 同飼主の2ペットに同日カルテ | 現行記録日数は1、会計件数とは別 | [FR-analytics-owner-counts](#requirement-fr-analytics-owner-counts)。飼主／日付distinct、未実施 |
-| AC-analytics-record-days-not-visits | 未削除のdraftカルテと確定カルテが異なる日に存在 | 現行指標は2記録日。実来院2回・完了2回とは説明しない | [FR-analytics-owner-counts](#requirement-fr-analytics-owner-counts)。SQL母集団とラベルの意味を照合、未実施 |
+| AC-analytics-same-day-pets | 同飼主の2ペットが同日に実来院し、各々複数予約／カルテがある | 飼主1回、各ペット1回。予約・記録・会計の数で増やさない | [FR-analytics-owner-counts](#requirement-fr-analytics-owner-counts)。医院／飼主／日と医院／ペット／日を比較、未実施 |
+| AC-analytics-record-days-not-visits | 未削除のdraftカルテと確定カルテが異なる日に存在し、実来院根拠は未照合 | 旧SQLは2記録日。新指標の実来院2回にも0回にも確定せず旧基準／未照合を明示 | [FR-analytics-owner-counts](#requirement-fr-analytics-owner-counts)。SQL母集団とラベルの意味を照合、未実施 |
+| AC-analytics-actual-source | 未来の予約だけ、実来院根拠のないdraft／確定記録だけ、会計だけを比較 | いずれも単独では実来院にしない。実来院受付済み・draftの患者はdraftだけを理由に除外しない | [FR-analytics-owner-counts](#requirement-fr-analytics-owner-counts)。D01受付結果と照合、未実施 |
+| AC-analytics-visit-recheckin | 同一ペットの同日再受付・複数診療記録と、別日の実来院を集計 | 同日は1回、別日の確認済み実来院は別1回。再受付時刻の上書きで元日の事実を失わせない | [FR-analytics-owner-counts](#requirement-fr-analytics-owner-counts)。source ID／履歴／日付照合、未実施 |
+| AC-analytics-retrospective-visit | 当該医院への過去実来院が確認できる専用入力と、外部資料転記を比較 | 前者は実来院日に1回、登録日加算なし。後者は医師確認や日付だけで実来院にしない | [FR-analytics-owner-counts](#requirement-fr-analytics-owner-counts)。D03の確認済み由来と照合、未実施 |
+| AC-analytics-visit-unknown | 旧記録に実来院日／患者対応根拠の欠落、またはsource取得失敗 | 旧記録日数／未照合／取得失敗を示し、0回・来院なし・確定済み実来院値に補完しない | [FR-analytics-owner-counts](#requirement-fr-analytics-owner-counts)。不明fixture、未実施 |
+| AC-analytics-visit-consumer-basis | 同じ医院・期間・実来院sourceを画面／CSV／CPM入力／来院観測で参照 | 回数の基準・集計単位を揃え、旧値と区別。閾値・窓・母数・通知許可を変えない | [FR-analytics-owner-counts](#requirement-fr-analytics-owner-counts)・[観測](#requirement-fr-analytics-lstep-observation)。consumer照合、未実施 |
 | AC-analytics-population | CPM一つを選択しページを移動 | 人数サマリーは区分絞込前母集団、一覧totalは後 | [FR-analytics-owner-counts](#requirement-fr-analytics-owner-counts)。全件／ページ比較、未実施 |
 | AC-analytics-empty-counts | 母集団0件を取得 | 7区分0、通信失敗とは別 | [FR-analytics-owner-counts](#requirement-fr-analytics-owner-counts)。0件レスポンス、未実施 |
 | AC-analytics-cpm-versions | 配信設定をV2にした状態で分析閲覧 | 顧客分析V1と配信V2を別として表示 | [FR-analytics-segmentation](#requirement-fr-analytics-segmentation)。版と分類照合、未実施 |
@@ -98,4 +111,4 @@ CPM人数は一般条件適用後、CPM区分フィルタとページ分割前�
 
 ## 未決事項・関連仕様・根拠
 
-D16の新たな重大業務判断は追加しない。既存の計数とD10の金銭境界を整理し、D10新台帳の読取adapter、税務・外部会計ソフトへの適合と実運用受入は設計／検証残件として分離する。既存計数を新方針の業務承認にせず、変更が必要なら別の明示決定を残す。[技術整理](../../../design/domains/finance-operations/technical-spec.md#analytics-current-gap)が現行ソースと差分の参照先。
+来院集計の変更は2026-10-15の確認6（Sentinel_4230d91e7dd88191b67f30714ed073ba）へのユーザー「ok」（Sentinel_ae272463dc248191b51fbef540e04109）が根拠。実来院日、飼主は同日1回、ペットは各1回を承認範囲とする。既存の他計数とD10の金銭境界を保持し、D10新台帳の読取adapter、税務・外部会計ソフトへの適合と実運用受入は設計／検証残件として分離する。既存計数を新方針の業務承認にせず、変更が必要なら別の明示決定を残す。[技術整理](../../../design/domains/finance-operations/technical-spec.md#analytics-current-gap)が現行ソースと差分の参照先。

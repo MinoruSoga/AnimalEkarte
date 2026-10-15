@@ -3,7 +3,7 @@
 | 項目 | 内容 |
 |:---|:---|
 | 文書ID・種別 | D06-TECH / 技術設計・現行差分 |
-| 決定状態 | 既存契約の継承と安全条件の具体化。完了後専用訂正は2026-10-15追加回答で承認（実装適合は別） |
+| 決定状態 | 既存契約の継承と安全条件の具体化。完了後専用訂正は2026-10-15追加回答で承認（実装適合は別）。死亡後の生前分専用処理も最新承認を反映 |
 | 実装状態 | 2026-10-15に限定ソース静的照合。全writer／HTTP／DB適合未確認 |
 | 実機検証状態 | 未実施 |
 | 文書確認日 | 2026-10-15 |
@@ -65,7 +65,13 @@ billing_item_repositoryがトリミング明細を未請求明細として統合
 
 D10へ渡す確認単位はclinic、owner、pet、appointment/detail、course/option、元明細、取込／請求状態。税・割引・保険・数量／価格・再請求の計算はD10正本に従う。D06側の更新で既存確定請求を上書きしない。取込後に施術内容やmasterが変わる場合の差分表示／版照合と、旧データにsnapshotがない場合の扱いは実装前にD10と照合する。現在値から過去値を架空生成しない。
 
-専用訂正の業務方針は2026-10-15追加回答で承認。通常reservation Undo、通常カルテaddendum、トリミングPATCHの存在を完了後訂正の許可として使わない。確定会計の保護・記録依存・死亡gateを「誤り修正」で回避しない。
+専用訂正の業務方針は2026-10-15追加回答で承認。通常reservation Undo、通常カルテaddendum、トリミングPATCHの存在を完了後訂正の許可として使わない。確定会計の保護・記録依存を「誤り修正」で回避しない。死亡登録済みの生前分は最新合意の理由・履歴付き専用経路へ接続し、死亡gateを通常writeで全面解除しない。
+
+## 死亡登録後の生前分記録
+
+[死亡後記録の最新合意](../../../spec/domains/trimming/lifecycle.md#requirement-fr-trimming-safety-and-status)に従う。専用経路は死亡状態を維持したまま、生前分であること・対象医院／患者／元記録・必要権限・理由・現在版を保存時に再照合する。実施時点不明は推測せず確認まで停止。原記録と前後差分・理由・actor／確認者・入力時刻・元記録関連を保持し、必要履歴失敗は部分成功にしない。結果不明は元操作を照合し別IDで重複作成しない。現行の通常create/PATCH・一律死亡拒否を専用経路の実装済み証拠にせず、API／版／receipt／権限対応は適合確認に残す。死亡状態の一時解除、通常writeへの無制限な死亡gate解除で代用しない。
+
+既存の予約／施術参照・原記録・完了後専用訂正・確定会計保護を維持し、死亡後の未来予約や新たな施術を作らない。精算・返金等はD10へ渡し、この専用記録保存から自動返金・在庫戻しを行わない。
 
 ## 通信・再送・遅延応答
 
@@ -94,13 +100,13 @@ D10へ渡す確認単位はclinic、owner、pet、appointment/detail、course/op
 |:---|:---|:---|
 | FR-trimming-reservation-and-detail | AC-trimming-existing-reservation / AC-trimming-duplicate-detail / AC-trimming-direct-time | reservation intent／detail・options・監査同一tx |
 | FR-trimming-input-master-history | AC-trimming-new-required / AC-trimming-inactive-master / AC-trimming-history-copy / AC-trimming-size-pricing | 有効master／既存無効保持・履歴copy対象限定 |
-| FR-trimming-safety-and-status | AC-trimming-deceased-loading / AC-trimming-context-result / AC-trimming-stale-update | 現在患者／死亡gate・状態／元表示版と現在版 |
+| FR-trimming-safety-and-status | AC-trimming-deceased-loading / AC-trimming-deceased-history / AC-trimming-context-result / AC-trimming-stale-update | 現在患者／新たな施術拒否・死亡状態保持の生前分専用記録／状態・版 |
 | FR-trimming-image-lifecycle | AC-trimming-image-inflight / AC-trimming-image-failure / AC-trimming-image-clear / AC-trimming-image-race / AC-trimming-image-cross-clinic / AC-trimming-image-only-dirty / AC-trimming-image-original-retention | 正規key lock／参照・原本保持・送信済key保護 |
 | FR-trimming-billing-handoff | AC-trimming-billing-pull | 未請求pull／追加時snapshotとD10再適用境界 |
 | FR-trimming-delete-and-atomicity | AC-trimming-atomic-write / AC-trimming-delete-dependency | 依存検査・detail/options同一tx・監査 |
 | FR-trimming-special-correction | AC-trimming-correction-history / AC-trimming-correction-no-side-effects | 原記録関連／理由actor時刻・金銭在庫別owner |
 
-AC prefixはAC-trimming-。FR7件／AC22件と既存画面・master2件、現在の型／保存／画像・原子性・他owner境界を整理した文書範囲。独立レビュー済み候補（追加承認差分は再レビュー）。専用訂正の実装、全writer互換／実データsnapshot／権限・receipt実装、X03/X06、実機・運用開始は未確認。
+AC prefixはAC-trimming-。FR7件／AC23件と既存画面・master2件、現在の型／保存／画像・原子性・他owner境界を整理した文書範囲。独立レビュー済み候補（追加承認差分は再レビュー）。専用訂正の実装、全writer互換／実データsnapshot／権限・receipt実装、X03/X06、実機・運用開始は未確認。
 
 
 ## 追加承認の実装契約と保存境界

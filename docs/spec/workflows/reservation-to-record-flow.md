@@ -316,7 +316,7 @@ EMR-308: `tentative`（次回予定・未予約）はカルテヘッダーの「
 
 `tentative` は同一医院のペットに属する意図であり、飼主移管後も現在のペット飼主として管理画面から操作できる。旧飼主・現在飼主・ペットの医院境界は維持し、通常予約の所有者整合条件は変更しない。昇格後の実予約を別ペットへ付け替える場合は、元ペット由来の `intended_date` と `source_medical_record_id` を同じロック下の更新で除去し、誤ったペットへの意図再設定を提示しない。
 
-ペットの主飼主変更（`PATCH /v1/pets/:id` の `owner_id` 更新）は、同一 transaction でそのペットの未来予約も新飼主へ移管する。対象は JST 当日以降の `pending` / `confirmed` のみで、過去日付・`checked_in` / `in_consultation` / `accounting` / `completed` / `cancelled` / `no_show` / `tentative` は変更しない。移管対象に有効なカルテ（`medical_records.appointment_id`）が既に存在する場合は 409 で拒否し、カルテ自体は書き換えない。更新はペット行 `FOR UPDATE` と対象予約行 `FOR UPDATE NOWAIT` の下で行い、各行の書込は clinic・予約ID・ペット・旧飼主・status・日付境界で再検証する。LINE 予約（`line_customer_id` あり）は旧飼主の LINE 連携を必ず切り、新飼主の confirmed LINE identity が同一 clinic の `line_customers` に一意一致する場合だけ新 customer へ付け替える。一意でなければ `line_customer_id = NULL` かつ `customer_fields` をクリアする。manual 予約（`line_customer_id` なし）は NULL と既存 `customer_fields` を維持する。`source`・staff・schedule/status・provenance は保全し、監査 `pet.owner.transfer`（before/after の owner_id・移管 appointment_ids・from_date のみ、氏名・LINE identity は載せない）を同一 transaction に fail-closed で記録する。
+以下は基準実装の移管条件であり、目標仕様では[D04の主飼主変更](../domains/owners-pets/lifecycle.md)に従い未来予約・LINE通知先の影響一覧確認を先行させる。ペットの主飼主変更（`PATCH /v1/pets/:id` の `owner_id` 更新）は、同一 transaction でそのペットの未来予約も新飼主へ移管する。対象は JST 当日以降の `pending` / `confirmed` のみで、過去日付・`checked_in` / `in_consultation` / `accounting` / `completed` / `cancelled` / `no_show` / `tentative` は変更しない。移管対象に有効なカルテ（`medical_records.appointment_id`）が既に存在する場合は 409 で拒否し、カルテ自体は書き換えない。更新はペット行 `FOR UPDATE` と対象予約行 `FOR UPDATE NOWAIT` の下で行い、各行の書込は clinic・予約ID・ペット・旧飼主・status・日付境界で再検証する。LINE 予約（`line_customer_id` あり）は旧飼主の LINE 連携を必ず切り、新飼主の confirmed LINE identity が同一 clinic の `line_customers` に一意一致する場合だけ新 customer へ付け替える。一意でなければ `line_customer_id = NULL` かつ `customer_fields` をクリアする。manual 予約（`line_customer_id` なし）は NULL と既存 `customer_fields` を維持する。`source`・staff・schedule/status・provenance は保全し、監査 `pet.owner.transfer`（before/after の owner_id・移管 appointment_ids・from_date のみ、氏名・LINE identity は載せない）を同一 transaction に fail-closed で記録する。
 
 次回予定の権限は操作別である。新規設定の PUT は `reservations:create`、既存 tentative の上書きは `create` と `edit` の両方、取消 DELETE と実予約への確定 POST は `edit` を要する。実予約の表示が優先されていても、既存 tentative があれば上書き権限を省略しない。
 
@@ -615,7 +615,7 @@ D05退院会計は状態＋会計＋明細＋必要監査の同時成功を維�
 
 開始残・補充／回収、実物入出庫／返却／棚卸の最新承認はD12/D13へ同期する。開始残の二重繰越、実入金でない補充の売上化、取消だけで在庫返却を作る処理を認めない。通常治療createの既存在庫減算と過去入力／訂正の影響確認は別で、小数投与量を整数在庫へ切り捨てて成功にしない。物販品目と在庫が同名でも現行にない連動は推測しない。
 
-D10割引配賦とD12支払配賦、会計distinctと部門別行数、現在値と当時snapshotを別に検査する。D16の現行来院指標は記録日数であって実来院証明ではない。追跡はD12 movement／deposit／append-onlyの条件、D13 no-auto-restore／fractional-use／adjust-retry、D16 old-ar／deposit／midnight-basis／record-days-not-visits。
+D10割引配賦とD12支払配賦、会計distinctと部門別行数、現在値と当時snapshotを別に検査する。D16の目標来院回数は実来院日基準で同医院の飼主／日1回、ペット／日各1回。確定した受付結果／履歴や来院事実が確認できる元記録を参照し、予約・下書き・会計の存在から推測しない。現行のカルテ記録日数は別指標で、実来院証明ではない。追跡はD12 movement／deposit／append-onlyの条件、D13 no-auto-restore／fractional-use／adjust-retry、D16 old-ar／deposit／midnight-basis／record-days-not-visits。
 
 ### X08 予約チャネル・臨床／会計 ↔ CRM背景処理
 
@@ -641,8 +641,20 @@ C05の業務原本保持と、D06未保存画像cleanup、D07受信生バイト�
 
 本文の各接続は確認済み・未承認・既存実装差を分けて整理する。最新承認により解消した業務判断を再質問せず、承認対象の候補本文・AC・語彙・設計・trackerの同期を統合時に確認する。原本識別なしの配送cleanup、旧auto-create／cancel-cleanup、通常治療減算の専用intent誤流用、退院の取消会計置換、旧締め／集計の金額基準は明示された適合差であり、現実装が安全に対応済みという判定ではない。
 
-対象全体の相対リンク・意味アンカー・既存FR/AC維持・trace・表構造・独立レビューを確認し、X01〜X08は本節に明示した接続文書の範囲で完了と判定した。全writer実装、医院実grant、実旧値／移行、実機／並行性／性能、外部送信や本番利用は別工程。仕様の未記載や未照合を『実装対象外』へ移して全体完成とはしない。
+対象全体の相対リンク・意味アンカー・既存FR/AC維持・trace・表構造・独立レビューを確認し、基準da38895d時点のX01〜X08は接続文書の整備範囲で完了と判定した。追加9点の承認後の接続差分も独立内容・構造レビュー済みであり、旧文書判定を全業務承認確認へ変換しない。全writer実装、医院実grant、実旧値／移行、実機／並行性／性能、外部送信や本番利用は別工程。仕様の未記載や未照合を『実装対象外』へ移して全体完成とはしない。
 
 C05の原本保護は自動cleanupと手動deleteの両方に適用する。D06保存済み画像、D15アップロード／手動削除、D23添付は、業務原本・必要履歴・原本所在不明なら通常操作で実体を消さず、非表示／論理削除とする。未保存の作業copyと確認済みの一時配送copyは区別し、物理削除は分類・別原本保持の確認または別手続を要する。DBのsoft deleteだけで添付blobの保持を保証したと扱わない。
 
 原本・必要履歴・分類不明への明示手動削除は非表示／論理削除の範囲とし、自動cleanupは対象から除外して論理状態も実体も保持する。経過時間を理由に新たな自動非表示・論理削除を許可しない。
+
+<a id="cross-additional-decisions-nine"></a>
+### 追加9点の業務境界と横断追跡
+
+承認根拠と現在の文書状態は[全体進捗](../domains/SPECIFICATION_PROGRESS.md#additional-business-decisions-nine)へ。次の接続を各ownerのFR／AC／技術traceで照合し、新しい既定値・閾値・臨床間隔を補わない。
+
+- X01／X04: D04の電話・メール重複は警告／既存候補提示後に別飼主として登録可能。主飼主変更は未来予約・LINE通知先影響を一覧確認してから保存し、表示後の対象版変化を無警告上書きしない。過去請求・預り金は元飼主。確認済みLINE対応のない新規自動リンクを作らない。
+- X02／X03／X05／X06: 死亡登録を維持し、生前診療の後日入力・誤記訂正・退院・精算を理由／履歴付きの専用操作で扱う。新規未来の予約・実施を許可せず、通常Undoや原記録上書き・自動返金／在庫戻しを生じさせない。
+- X03: D05の入院中プランは元履歴を残し追加・変更・中止できる。プラン作成／変更は実施済みを意味しない。D13の実物使用／出庫を、現行通常治療createの在庫減算に合わせて作成時消費へ戻さない。
+- X05: D07検査担当医は任意で、未選択保存と入力者ログを分離する。D08次回日は種類設定又は手入力へ統一し、独立画面1年／カルテ内4週という入口固有既定を目標に残さない。D20の限定公開範囲は拡張しない。
+- X07: D12実査誤入力は元締め保持と権限者の理由付き訂正。現金移動・売上・元締め再開ではない。D16実来院日と旧記録日数／不明は分離し、確定した来院だけを同医院の飼主日1回・ペット各日1回として投影する。
+- X08: 初診・健診の記録作成だけでフォロー通知を発火させない。スタッフが実施済みと送信対象を確認し、一般案内と再検査／受診案内を分離、後者は医師の要フォロー指定を要する。既存の医院／本人／死亡／停止／重複・結果不明条件を保持し、到達保証や稼働再開を追加しない。

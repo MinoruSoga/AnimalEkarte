@@ -209,3 +209,7 @@ flowchart TB
 | POST | `/api/v1/accountings/:id/cancel` | 会計のキャンセル（論理削除） | `accounting-cancel` | `edit` |
 
 
+
+### 死亡登録後の生前診療の精算
+
+[死亡後精算の正本](../lifecycle.md#accounting-posthumous-settlement)に従い、対象患者・生前の元明細／請求を確認し、死亡状態を戻さず理由と履歴付きで精算・回収・誤記訂正を行う。通常新規診療の選択拒否をこの専用入口へ一律適用せず、過去請求・預り金の元飼主帰属と現在認可・期待版・再送条件を保持する。新臨床行為や自動返金・在庫返却は生じさせない。

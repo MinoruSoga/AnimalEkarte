@@ -555,3 +555,12 @@ Sentinel_f19ab03e8c2c81919c6f589bcf563811のdocs限定許可に基づき、予�
 ## D03最終照合：participant・writer・互換の参照
 
 [カルテ最終contract](../medical-records/technical-spec.md#medical-record-reconciled-contract)で、現request／responseと目標adapter・旧clientを分離。[全writer](../medical-records/technical-spec.md#medical-record-writer-matrix)にGET初期化・子入力・並替・関連変更・機器取込／revert・master・会計確認を含める。empty／entered／unknownと子依存版、医師確認と認証actor、元／先refと必要addendum、現在整合結果／receiptを受け取る。専用患者転記／過去／復元は通常CRUDや在庫副作用へfallbackしない。既存§5.1／共通gate・下位取得順・ambient・69件traceを保持し、全writer適合／切替排出・実DB／旧値／認可・並行性は利用開始前の未実施検証へ残す。
+
+<a id="owner-transfer-impact-confirmation"></a>
+## 主飼主変更の影響確認の接続（2026-10-15追加合意5）
+
+[D04の影響確認目標](../owners-pets/technical-spec.md#owner-transfer-target)を、既存のpet主飼主変更→未来予約移管へ接続する。保存前に対象予約とLINE通知先の変化を一覧確認する。確認対象と保存対象の一致・現在認可／医院・版・帰属・LINE確認済一意対応を同じwrite境界で再検証し、変化時は再取得・差分確認を求める。UI確認を経たという事実だけで§6.4の共通gate・取得順・切替済経路の旧write停止を省略しない。
+
+JST当日以降pending/confirmed、既存カルテ時拒否、pet／owner行保護・対象予約NOWAIT、必要監査same-txを維持し、選定済みの予約版保護を満たす。現head da38895d21d60085b3190c785660a2867b81be26のpet_owner_transfer.goではowner_idとupdated_at更新を確認したが、明示的な予約version増分は確認できず、選定仕様への実装適合と区別する。LINE予約の条件付き付替え／解除とmanual予約のNULL／customer_fields保持を区別し、新しいLINE本人紐付けを作らない。対象外予約・過去請求・預り金の元ownerを保持し、commit後tag sync・通知結果を台帳保存結果と分離する。結果不明では同一操作を照合し、古い確認の無警告再送や再移管をしない。
+
+対応FRは[D04 primary-transfer](../../../spec/domains/owners-pets/lifecycle.md#requirement-fr-owners-pets-primary-transfer)、ACは同正本のowner-transfer-confirm／atomic／impact／impact-stale／line-boundary／history。物理API・payload・確認とreceiptの実装適合は未確認であり、既存APIだけで追加目標が実装済みとはしない。

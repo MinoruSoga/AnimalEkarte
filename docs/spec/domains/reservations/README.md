@@ -278,3 +278,7 @@ Sentinel_f19ab03e8c2c81919c6f589bcf563811のdocs限定許可で、[保存詳細]
 関連領域の訂正・精算／返金／締め後処理・専用記録は[D05](../hospitalization/lifecycle.md)・[D04](../owners-pets/lifecycle.md)・[D06](../trimming/lifecycle.md)、[D10](../accounting/README.md)、[D11〜13/16](../../../design/domains/finance-operations/technical-spec.md)の最新正本を参照する。ホテル担当医師は任意、保持は[C05](../../shared/retention-audit.md)に従い、旧未決のまま残さない。実装前の旧データ・preset値・DB制約・API生成／互換／認可・全writer・並行処理・性能検証、全ドメイン確定後の連携再照合は未実施。文書整理完了を実装開始・利用開始・実機受入済みへ読み替えない。
 
 本節と技術仕様§9が現在状態。過去の対話記録・[設計／未承認事項](../../../work/design/reservations/pending-and-design.md)には移設時点の記述を保持しており、既決事項を再び未決へ戻す根拠にしない。未承認の画面方式案や対象外内部仕様も一括承認したと扱わない。
+
+## 主飼主変更との接続更新
+
+2026-10-15の[D04追加合意4・5](../owners-pets/lifecycle.md#agreement-owner-contacts-transfer-20261015)を参照する。登録時の連絡先重複は警告・候補を示して別飼主登録を許容し、主飼主変更は今後の予約・LINE通知先への影響一覧を確認後に切り替える。予約への引継ぎは[ページ補足](pages/reservation-management.md#owner-transfer-impact-handoff)、保存は[予約技術契約](../../../design/domains/reservations/technical-spec.md#owner-transfer-impact-confirmation)へ。D04所有のFR/ACを本書の69固有FRへ二重計上せず、LINE未連携の自動新規紐付け・過去請求／預り金移管を追加しない。

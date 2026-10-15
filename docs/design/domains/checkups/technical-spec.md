@@ -4,7 +4,7 @@
 |---|---|
 | 文書ID | design-D09-checkups-technical |
 | 種別 | 技術契約・実装差分 |
-| 決定状態 | 既存記載を継承（個別の決定根拠は本文参照。根拠未確認部分は承認済みとしない）＋D03合意目標への接続。新規の未決事項は未決のまま |
+| 決定状態 | 既存記載を継承（個別の決定根拠は本文参照。根拠未確認部分は承認済みとしない）＋D03合意目標への接続。死亡後の生前分後日入力・誤記訂正の最新承認を反映。対象外の未決は保持 |
 | 実装状態 | 本文の現コード観察と目標契約を分離。コードに存在するだけでは業務承認済み・目標実装済みとしない |
 | 実機検証状態 | 今回未実施。既存証跡の引用は今回の実機受入を意味しない |
 | 文書確認日 | 2026-10-15 |
@@ -12,7 +12,7 @@
 既存仕様の継承とD03の合意済み目標を整理した文書候補。ソフトウェア仕様の整理、実装完了、実機受入、医師による具体的な臨床数値の承認は別の判定とする。
 
 ## 対象
-[業務正本](../../../spec/domains/checkups/lifecycle.md)の5FR／26AC。基準commit `41fcf3eb0a8befb7c0b5f613d1df749a60e30be8`。静的文書／source照合のみ、実装・DB・runtime未変更。[ADR004](../../../architecture/adr/004-checkup-canonical-system.md)とD03[型／writer](../medical-records/technical-spec.md#medical-record-reconciled-contract)を継承。
+[業務正本](../../../spec/domains/checkups/lifecycle.md)の5FR／31AC。基準commit `41fcf3eb0a8befb7c0b5f613d1df749a60e30be8`。静的文書／source照合のみ、実装・DB・runtime未変更。[ADR004](../../../architecture/adr/004-checkup-canonical-system.md)とD03[型／writer](../medical-records/technical-spec.md#medical-record-reconciled-contract)を継承。
 
 ## 正系統・入口・権限
 Checkupのみが健診記録／集計／閾値の正系統。Examinationの退役seed IDを再利用しない。masterはcheckup_types／fields、実績はcheckups／field_resultsで医院scopeを保つ。
@@ -21,6 +21,12 @@ Checkupのみが健診記録／集計／閾値の正系統。Examinationの退�
 - 一覧からの編集はカルテの健診tab/checkupId。独立編集routeは追加しない。
 
 [現package service](../../../../backend/internal/medicalrecord/checkup_type_service.go)は名称必須／医院内一意、価格非負、parent_id同医院、子種別／健診使用がある削除の拒否を持つ。parent解除はClearParentIDであり未送信と分ける。項目writeはfieldService配線済みの場合のみroute登録される。未配線APIを実在する保存先として案内しない。マスタAPIの存在だけで全フィールド編集UIが完成したとはしない。
+
+## 死亡登録後の生前健診の専用経路
+
+[死亡後記録の最新合意](../../../spec/domains/checkups/lifecycle.md#checkup-deceased-retrospective)へ従う。専用経路は死亡状態を維持したまま、生前分であること・対象医院／患者／元記録・必要権限・理由・現在版を保存時に再照合する。実施時点不明は推測せず確認まで停止。原記録と前後差分・理由・actor／確認者・入力時刻・元記録関連を保持し、必要履歴失敗は部分成功にしない。結果不明は元操作を照合し別IDで重複作成しない。現行の通常create/PATCH・一律死亡拒否を専用経路の実装済み証拠にせず、API／版／receipt／権限対応は適合確認に残す。死亡状態の一時解除、通常writeへの無制限な死亡gate解除で代用しない。
+
+通常Path Bの親create→子create→field置換を専用後日入力の代用にせず、D03の既決過去入力／確定親への追記と同一患者・元記録・実施日で接続する。後日入力は新たな健診実施や未来予約の作成ではなく、死亡状態の通知対象外判定も解除しない。
 
 ## 実wire・型・置換
 | 対象 | 現状 | 目標adapter／注意 |
@@ -51,11 +57,11 @@ Checkupのみが健診記録／集計／閾値の正系統。Examinationの退�
 ## 全writer・副作用・返却
 | writer/read | 保護／受け手 |
 |:---|:---|
-| 健診本体CRUD、field PUT | 親finalized拒否・clinic/pet/record/checkup/package再照合。D03必要監査・版／結果receiptへ参加 |
+| 健診本体CRUD、field PUT | 通常writeは親finalized拒否・clinic/pet/record/checkup/package再照合。D03必要監査・版／結果receiptへ参加 |
 | 独立親create→子create→field PUT | 部分成功の保存段階、前段ID、unknown停止。各段成功を全体成功にしない |
 | package／field master変更、package import | 対象医院と定義参照。既存結果snapshotを上書きせず、臨床数値確認とマスタ編集者を分離 |
 | D03専用訂正／過去／復元 | 元記録・理由／actor／確認・現親依存。普通PATCHや別IDcreateへfallbackしない |
-| タグ同期／followup | [現service](../../../../backend/internal/medicalrecord/checkup_service.go)はcommit後同期・非同期非致命的trigger。保存成功と通知失敗を分離、D15の現pet/owner/alive再確認へ |
+| タグ同期／followup | [現service](../../../../backend/internal/medicalrecord/checkup_service.go)はcommit後同期・非同期非致命的trigger。現create後triggerは実装参照。目標はスタッフの実施済み・対象確認後、一般案内／医師要フォロー指定が必要な医療案内を分離して[D15確認adapter](../../../spec/line/architecture.md#followup-confirmation-adapter)へ。保存成功・確認保存・送信結果を分け、既存認可／必要監査／原子保存単位・結果不明保留・重複防止と現pet/owner/alive再確認を継承 |
 | field-results by pet／保存済み読取projection | clinic/pet/record/checkup/field ref・型・値・保存snapshot・取得状態・更新識別を返し、D03およびD21のスタッフ閲覧認可で表示。今回D20へ健診結果を公開せず、保存済み接種実績・最終来院日等の限定健康表示と分離する。D21に飼主公開や新しい承認操作を追加しない。表示／公開成功と臨床確定を分離 |
 
 本体CRUDはslog中心で全変更の同一tx監査を満たすとはしない。版なし現DTOは新競合防止を満たすとはしない。D03が求める全writer／必須監査／認証世代・scope・receiptのadapterは技術適合課題として明記し、実装済みとしない。D15のログだけで失敗が人に届く通知まで完成したとしない。
@@ -66,8 +72,8 @@ Checkupのみが健診記録／集計／閾値の正系統。Examinationの退�
 | 正系統 | canonical, retired-id |
 | 入口・本体型 | chart-entry, quick-entry, edit-entry, required, doctor-clear, next-manual |
 | field型・置換 | value-types, field-scope, invalid-choice, replace-missing, replace-empty, replace-failure, master-change, unassessed |
-| 保護・復帰 | finalized, scope-grant, partial-save, unknown-result, concurrent, leave-limit |
-| 一覧・受け手 | alert, list-scope, notify-failure, publication |
+| 保護・復帰 | deceased-history, deceased-boundary, finalized, scope-grant, partial-save, unknown-result, concurrent, leave-limit |
+| 一覧・受け手 | alert, list-scope, followup-confirmation, followup-purpose, followup-recovery, notify-failure, publication |
 
 ## 完了判定外
 医師による具体的数値／単位／種／出典確認、既適用旧seed／患者データ、実grant、期待版／必要監査／receipt／復帰adapter、実機・並行性・性能・通知／公開運用は未確認。文書完成と利用開始は別に判定する。

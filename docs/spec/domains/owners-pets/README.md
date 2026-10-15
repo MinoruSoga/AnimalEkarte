@@ -2,11 +2,13 @@
 
 本領域の読む順は、[業務ライフサイクル・受入条件](lifecycle.md) → [用語と関係](../../ontology/owners-pets.md) → [技術契約・現在差分](../../../design/domains/owners-pets/technical-spec.md)。
 
-画面詳細の既存正本は[03-owners-list](../../screens/03-owners-list.md)・[04-owners-form](../../screens/04-owners-form.md)に保持する。業務FR7件／AC17件は既存継承・合意継承・未確認を本文で区別し、FR採番を新しい一括承認としない。D01等の継承要件は承認件数へ二重加算しない。
+画面詳細の既存正本は[03-owners-list](../../screens/03-owners-list.md)・[04-owners-form](../../screens/04-owners-form.md)に保持する。業務FR8件／AC23件は既存継承・追加合意・未確認を本文で区別し、FR採番を新しい一括承認としない。D01等の継承要件は承認件数へ二重加算しない。
 
 ## 対象と境界
 
 飼主／患者の基本台帳、主飼主・副飼主、動物種マスタを所有する。identity linkはD19、LINE／健康手帳はD20、スタッフ専用飼主レポートはD21、請求／預り金はD10、外部配信はD15。台帳変更で過去履歴・資金帰属を自動移管しない。
+
+2026-10-15の[追加合意4・5](lifecycle.md#agreement-owner-contacts-transfer-20261015)により、電話・メール重複は警告と既存飼主候補を示して別飼主登録を許容し、主飼主変更は今後の予約・LINE通知先への影響一覧を確認してから切り替える。元飼主の過去請求・預り金を保持する。重複閾値・新たな正規化・追加必須確認・LINE自動新規紐付けは本合意に含めない。
 
 ## 文書状態と確認範囲
 
@@ -14,3 +16,4 @@
 
 [全体進捗](../SPECIFICATION_PROGRESS.md)・[共通方針](../../shared/README.md)・[記述規約](../../authoring-guide.md#status)。
 
+死亡後の追加合意は[安全・状態境界](lifecycle.md#requirement-fr-owners-pets-safety-and-private-notes)へ反映。生前診療の後日入力・誤記訂正・退院処理・精算は死亡状態を保ち、理由／履歴付きの各領域専用経路へ接続する。未来の新規予約・施術を認める追加ではない。

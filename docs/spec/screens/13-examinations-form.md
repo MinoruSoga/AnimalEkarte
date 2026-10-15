@@ -2,6 +2,10 @@
 
 ## 2026-10-15 D07仕様整理の優先順位
 
+[死亡後の生前検査記録](../domains/examinations/lifecycle.md#examination-deceased-retrospective)は死亡状態を戻さず理由・履歴付きの専用後日入力／誤記訂正へ接続する。通常の新たな検査・機器待機の許可には広げず、現行フォーム／APIの専用対応は未確認。
+
+最新の第3項合意で担当医は任意とし、未選択でも検査を保存できる。入力者の認証ログは担当医属性と別に残す。現行の担当医必須判定は解消対象の実装差で、保存／ログの適合確認は未実施。
+
 業務・例外・GWTは[検査ライフサイクル](../domains/examinations/lifecycle.md)、現wireとの差は[技術契約](../../design/domains/examinations/technical-spec.md)を優先する。以下のUI／図は現行参照であり、保存するだけで一律に確定する意味ではない。
 
 - confirmedは全ロック。revisionなしcompletedは結果封印、revisionありcompletedは解除後の作業版となり得る。
@@ -22,8 +26,8 @@
 ## 1. 画面構成
 
 ### 1.1 検査基本情報
-- **検査種別**: 血液、尿、エコー等のマスタ（`exam_types`）から選択。
-- **担当医**: `staffType=doctor` かつ active のスタッフ。検査種別とともに保存時の必須項目。
+- **検査種別**: 血液、尿、エコー等のマスタ（`exam_types`）から選択。既存の必須条件を維持する。
+- **担当医**: 選択時の候補は `staffType=doctor` かつ active のスタッフ。最新合意では任意で、未選択でも保存可。入力者やカルテ担当医を自動代入せず、担当医未選択と入力者ログを別に保持する。現行必須UIの適合は未確認。
 - **患者ヘッダー**: `PatientInfoCard` で種を `petName` / `petDetails` に実データで出す。特記マーク（EMR-173/231、共有 `DangerBadge`）: ペット名横に `danger_level` 高=赤い八角形アイコン・中=黄い三角形アイコン（文言なし、Popover で補足メモ）、低・未設定は非表示。飼主 `is_dangerous` は飼主名横に文言なしの赤い八角形アイコン（代替名「特記」）。採血・保定など検査実施前の安全確認用。
 
 ### 1.2 動的検査項目テーブル (`ExamItemsTable`)

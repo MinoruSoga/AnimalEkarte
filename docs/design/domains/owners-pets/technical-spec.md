@@ -3,7 +3,7 @@
 | 項目 | 内容 |
 |:---|:---|
 | 文書ID・種別 | D04-TECH / 技術設計・現行差分 |
-| 決定状態 | 既存契約の継承＋業務結果を変えない安全な設計整理。新しい業務承認ではない |
+| 決定状態 | 既存契約の継承と[追加合意4・5](../../../spec/domains/owners-pets/lifecycle.md#agreement-owner-contacts-transfer-20261015)の実現目標。具体的wire／DB変更は未実施 |
 | 実装状態 | 下記限定ソースを2026-10-15に静的照合。全writer・HTTP型・DB・実権限の再監査は未実施 |
 | 実機検証状態 | 未実施 |
 | 文書確認日 | 2026-10-15 |
@@ -17,28 +17,53 @@
 | 飼主 | owner / owners CRUD | clinic+owner ID。owner_numberはID表示別名 |
 | 患者台帳 | pet / pets CRUD | clinic+pet ID。pet_numberは別管理番号。名前で連結しない |
 | 飼主と複数ペットの新規登録 | owner.CreateWithPets→pet.CreateForOwnerRegistration | ambient tx必須、全write＋response reload成功でcommit |
-| 主飼主変更 | pet.Update→reservation.TransferUpcomingPetReservations | pet、対象予約、移管監査はsame-tx。下節の限定条件 |
+| 主飼主変更 | pet.Update→reservation.TransferUpcomingPetReservations | 現行はpet、対象予約、移管監査がsame-tx。目標は影響一覧確認を同じ対象の保存へ結び付ける。下節で現行と目標を分離 |
 | 副飼主 | pet.PetOwnerService | version付き全置換、リンク差分の必要監査same-tx |
 | 全医院動物種 | pet.AnimalSpecies | system-admin限定、CRUD/reorder＋監査same-tx |
 | 死亡／復活 | 専用HandlePetDeath/HandlePetRevival | generic UpdatePetInputにstatusなし。D15の外部連携と区別 |
 | 配信除外／注意／LINE ID／送信／共有 | owner／LINE専用経路 | 通常飼主form全体のrollback対象ではない。外部送信はcommitと到達を別結果 |
+
+死亡状態を保つ生前診療の後日入力・誤記訂正・退院処理・精算は、追加承認された[各領域の専用経路](../../../spec/shared/clinical-safety.md)で理由と履歴を残す。これらを死亡／復活writerへ変換したり、generic status PATCHを解禁したりしない。台帳deceasedを維持し、未来の新規予約・実施の死亡ゲートと区別する。
 
 [PATH-OWNER-PET-REGISTER](../../../architecture/cross-domain-orchestration-catalog.md)はsame-txだが必須audit writeを持たない。全台帳更新に監査があると一般化しない。新たに必要監査を増やす際は保存方式・移行・権限とともに設計し、現状の証明に使わない。
 
 <a id="owner-transfer-current"></a>
 ## 主飼主移管の現在の限定契約
 
-静的参照：[pet service](../../../../backend/internal/pet/service.go)・[reservation移管](../../../../backend/internal/reservation/pet_owner_transfer.go)。
+静的参照：[pet service](../../../../backend/internal/pet/service.go)・[reservation移管](../../../../backend/internal/reservation/pet_owner_transfer.go)。後者だけ現head da38895d21d60085b3190c785660a2867b81be26（blob 568e0581bc96e5670e432cc50054df697eed040f）で読取再確認した。以下のpet側・監査・commit後処理は従来照合を継承し、全writer再監査ではない。
 
 1. 同医院の変更先ownerを検証し、現在の副飼主でないことを確認。pet行lock後も主副重複を再確認。
 2. 対象予約は同医院・同pet・JST当日00:00以降・pending/confirmedのみ。現在の実装では最大1000件、超過は全体拒否。
 3. 予約側で新ownerをSHARE NOWAIT、対象予約をID順UPDATE NOWAITで取得。対象ownerが旧ownerと違う／NULL、関連カルテがある場合はConflict。
 4. pet変更と対象予約owner更新をsame-tx。元owner、新owner、移管appointment IDs、基準日を必要監査へ記録し、監査失敗はrollback。
-5. 元予約がLINE customer付きの場合だけ、新ownerに確認済LINE IDと一意に対応するcustomerがあればそのIDへ。なければNULL。customer_fieldsは空にする既存処理。氏名類似・未確認IDを使わない。
-6. 過去予約、checked_in以降、カルテ、確定請求、預り金、identity groupによる連携はこの移管の対象外。
+5. 元予約がLINE customer付きの場合だけ、新ownerに確認済LINE IDと同医院で一意に対応するcustomerがあればそのIDへ。なければNULL。LINE予約のcustomer_fieldsは空にする既存処理。manual予約（元line_customer_idなし）はNULLと既存customer_fieldsを保持する。氏名類似・未確認IDを使わず、元から未リンクの予約を自動新規リンクしない。
+6. 過去予約、checked_in以降、cancelled/no_show/tentative、カルテ、過去請求、預り金、identity groupによる連携はこの移管の対象外。予約source・staff・schedule/status・provenanceを保全し、現行writerはowner_idとupdated_atを更新する。選定仕様の予約版保護・receiptへの適合は未確認。
 7. 次回来院等のtag syncはcommit後best-effort。tag失敗を台帳rollbackと誤認しない。D15の停止・再開許可を本整理から変更しない。
 
 これは既存実装の照合結果で、今回この全挙動を新規承認したものではない。D01/D18/D20の合意正本と差があれば現行差として明示し、移管対象を拡張しない。副飼主解除と主飼主変更の2回送信は一体transactionではなく、片方だけ成功した場合は同じpetで現在状態を照合する。
+
+<a id="owner-contact-duplicate-target"></a>
+## 電話・メール重複の目標と現行差
+
+追加合意4の目標は、同医院の連絡先重複を警告・候補提示に変え、別ownerとしての登録を可能にすること。従来のBE409重複拒否は目標と異なる現行説明として残す。画面の409握り潰しや別の連絡先への書換えで成功を装わず、owner登録writer・既存制約・応答を整合させる必要がある。現在のDB制約／全caller適合・実装変更は未検証。
+
+- 候補は現在認可された医院・閲覧scopeのowner IDに基づく参照結果。候補提示と既存ownerの採用・別owner登録を混同しない。自動名寄せ・LINE本人確認・identity group操作へ接続しない。
+- 重複検出の新しい正規化方式・閾値・類似度・追加必須確認の選定は行わない。一覧検索のカナ／空白／部分一致規則を連絡先重複判定へ流用したと断定しない。
+- 登録scope・他項目の形式検証・owner＋全petのsame-txを保全。結果不明では元操作を照合し、同じ電話／メールの候補があるだけで保存済み又は未保存と判定しない。別ownerでの無条件再createは不可。
+
+<a id="owner-transfer-target"></a>
+## 主飼主変更の影響確認と保存目標
+
+追加合意5の確認は、petを保存してから影響を知らせる方式ではなく、変更前の影響一覧を確認して同じ変更を確定する方式とする。現在の会員区分／値引率だけの警告は十分な実装証拠ではない。新しいAPIパス・物理schema・確認token形式は未選定だが、以下の安全条件は保持する。
+
+1. 同医院・pet ID・旧owner ID・明示選択した新owner IDを固定し、reservation ownerから現行範囲の対象を取得する。予約ID／日時／状態、変更前後のowner、LINE付替え／解除／変更なしの影響をスタッフに判別可能にする。確認済みの宛先がない状態、対象0件、取得失敗を分ける。生のLINE認証情報を表示・監査へ追加しない。
+2. 一覧取得でwrite・外部送信を行わない。確認された対象集合・帰属・宛先解決・必要な版を保存操作と結び付け、保存時に現在認可、医院／pet／owner、予約状態・関連カルテ、LINE確認／一意対応を再検証する。影響が変われば原記録を変更せず再取得・差分確認し、期待版だけ更新した無警告再送をしない。
+3. 予約技術正本の[共通gate・取得順と参加契約](../reservations/technical-spec.md)へ従い、pet行・owner保護・対象予約NOWAIT、切替検査、必要監査same-txを保全し、選定済みの予約版保護を満たす。現行移管writerでの明示的な予約version増分は確認できず、updated_at更新と区別する。pet→対象予約owner／LINE参照→必要監査の一部だけを確定しない。監査は既存の元／新owner ID・appointment IDs・基準日の範囲を維持し、氏名・電話・LINE identityを追加しない。
+4. 新飼主に確認済み・同医院で一意のLINE customer対応がない場合、既存LINE予約は現行の解除結果を影響一覧へ出す。未確認ID・氏名・共用電話／メールからcustomerを推定せず、未リンクmanual予約へ新規リンクを作らない。LINE本人紐付け・D15の停止／除外／結果不明保留をこの確認で上書きしない。
+5. 過去請求・預り金は元clinic／owner IDのまま、残高・金銭履歴を変更しない。過去予約・カルテ・tentative等の対象外履歴もそのまま保持する。新規リンク発行・過去通知の送信先変更・結果不明通知の再送はこの操作に含めない。
+6. commitと外部通知到達は別結果。既存tag syncはcommit後best-effortで、通知失敗による台帳再移管・再createをしない。保存結果不明は同一操作識別／内容で照合する。永続receiptの実装適合は未確認であり、電話・メール候補や通知送信結果を台帳receiptの代替にしない。
+
+[FR-owners-pets-primary-transfer](../../../spec/domains/owners-pets/lifecycle.md#requirement-fr-owners-pets-primary-transfer)の実装／実機受入は未実施。max1000件等の現行制約を新しい業務上限と承認したり、影響一覧の導入から移管対象や通知の送信権限を拡大したりしない。
 
 ## 更新・null・版・参照保護
 
@@ -49,7 +74,7 @@
 | 副飼主PUT | FEは取得version付き全置換、409は再読込 | service内部Versionはoptionalな互換型。HTTPで全caller必須を保証済みとはしない |
 | owner削除 | 主飼主ペットcount＋副飼主count保護。productionはguard付き構成 | fallback構成の副飼主保護欠落を「全経路保護済」にしない |
 | pet削除 | 関連カルテcount確認後delete、commit後tag sync | 全専用記録／FKを網羅した削除保証は未確認。臨床記録削除を案内しない |
-| owner基本更新 | 重複メール／電話の検査と原子的更新経路 | UI noValidateはBE検査免除ではない |
+| owner登録／基本更新 | 現行説明では重複メール／電話の検査と原子的更新経路 | 登録時の重複拒否は追加合意4の警告・候補提示・別登録と差がある。UI noValidateは他のBE検査免除ではない |
 | 台帳一般PATCH | 現在全項目に共通revision／receiptがあるとは確認できない | 編集者間上書き防止の新方式を既実装扱いしない |
 
 ## 取得・通信・再送の設計境界
@@ -66,9 +91,10 @@
 | FR ID | AC ID（全件・一意） | 技術対応 |
 |:---|:---|:---|
 | FR-owners-pets-register-scope | AC-owners-pets-register-atomic / AC-owners-pets-scope / AC-owners-pets-optional-clear / AC-owners-pets-unknown-result / AC-owners-pets-stale-update | owner→pet typed draft／同一tx・所属検証 |
+| FR-owners-pets-contact-duplicate-warning | AC-owners-pets-contact-duplicate-warning / AC-owners-pets-contact-duplicate-separate | 警告候補と別登録の分離・医院／認可scope・独立owner ID・receipt非代替 |
 | FR-owners-pets-identity-and-search | AC-owners-pets-search / AC-owners-pets-checkup-boundary / AC-owners-pets-read-only / AC-owners-pets-cross-clinic-list | 検索query／ページ・権限・遅延応答分離 |
 | FR-owners-pets-primary-secondary | AC-owners-pets-secondary-replace / AC-owners-pets-secondary-conflict | 主副重複／全置換version・監査 |
-| FR-owners-pets-primary-transfer | AC-owners-pets-owner-transfer-confirm / AC-owners-pets-owner-transfer-atomic | pet→reservation typed intent・JST対象／同一tx監査 |
+| FR-owners-pets-primary-transfer | AC-owners-pets-owner-transfer-confirm / AC-owners-pets-owner-transfer-atomic / AC-owners-pets-owner-transfer-impact / AC-owners-pets-owner-transfer-impact-stale / AC-owners-pets-owner-transfer-line-boundary / AC-owners-pets-owner-transfer-history | 確認済み影響と保存対象の一致・現在認可／版・pet→reservation typed intent・JST対象／同一tx監査・LINE条件付き移管／元資金保持 |
 | FR-owners-pets-safety-and-private-notes | AC-owners-pets-danger-privacy | 死亡専用writer／staff・公開DTO境界 |
 | FR-owners-pets-delete-dependencies | AC-owners-pets-delete-guard | 参照依存／不明停止・原記録保持 |
 | FR-owners-pets-species-master | AC-owners-pets-species-authority / AC-owners-pets-species-reference-audit | global species／system-admin・参照拒否・監査 |
@@ -77,7 +103,7 @@
 
 ## 文書整理の完了境界
 
-既存3画面・台帳FR7件／AC17件・語彙・保存単位・移管／副飼主／死亡writer・主要異常系・他ownerへの引継ぎを記述した範囲。独立レビューとリンク確認を経て判定する。実装／receipt導入・全参照ガード・認可設定・保存期間・全体横断X04/X06の完了を本書から宣言しない。
+既存3画面・台帳FR8件／AC23件・語彙・保存単位・移管／副飼主／死亡writer・主要異常系・他ownerへの引継ぎを記述した範囲。追加合意4・5の目標と現行差を反映し、既存IDは保持する。独立レビューとリンク確認を経て判定する。実装／receipt導入・全参照ガード・認可設定・保存期間・全体横断X04/X06の完了を本書から宣言しない。
 
 
 ## 一般更新の同時編集契約（選定仕様）

@@ -4,7 +4,7 @@
 |---|---|
 | 文書ID | design-D08-vaccinations-technical |
 | 種別 | 技術契約・実装差分 |
-| 決定状態 | 既存記載を継承（個別の決定根拠は本文参照。根拠未確認部分は承認済みとしない）＋D03合意目標への接続。新規の未決事項は未決のまま |
+| 決定状態 | 既存記載を継承（個別の決定根拠は本文参照。根拠未確認部分は承認済みとしない）＋D03合意目標への接続。次回日は種類別設定または手入力へ統一する2026-10-15第2項合意を反映。対象外の未決は保持 |
 | 実装状態 | 本文の現コード観察と目標契約を分離。コードに存在するだけでは業務承認済み・目標実装済みとしない |
 | 実機検証状態 | 今回未実施。既存証跡の引用は今回の実機受入を意味しない |
 | 文書確認日 | 2026-10-15 |
@@ -12,7 +12,7 @@
 既存仕様の継承とD03の合意済み目標を整理した文書候補。ソフトウェア仕様の整理、実装完了、実機受入、医師による具体的な臨床数値の承認は別の判定とする。
 
 ## 範囲
-[業務正本](../../../spec/domains/vaccinations/lifecycle.md)の5FR／23AC。基準commit `41fcf3eb0a8befb7c0b5f613d1df749a60e30be8`の静的照合で、今回runtime未実施。D03[保存§2](../../../spec/domains/medical-records/lifecycle.md#hybrid-sync)・[型／writer契約](../medical-records/technical-spec.md#medical-record-reconciled-contract)を保持。
+[業務正本](../../../spec/domains/vaccinations/lifecycle.md)の5FR／25AC。基準commit `41fcf3eb0a8befb7c0b5f613d1df749a60e30be8`の静的照合で、今回runtime未実施。D03[保存§2](../../../spec/domains/medical-records/lifecycle.md#hybrid-sync)・[型／writer契約](../medical-records/technical-spec.md#medical-record-reconciled-contract)を保持。
 
 ## 入口・資源・保存結果
 独立とカルテ内は同じGET/POST/PATCH/DELETE /api/v1/vaccinations。カルテ内GETはpet_id＋page/limit、POSTは保存済みmedical_record_idを送る。独立はrecord NULLで保存し得る。接種自身にfinalized状態を新設しない。同日複数は単件POSTの順次実行、バッチAPIを推定しない。[EMR-105](../../../work/emr/emr-105-vaccine-multi-20261002.md)の過去検証は保存済みカルテ内3件実DB／2件モックフォーム等の限定証拠で、今回の再実行や全UI受入とは別。
@@ -25,13 +25,21 @@
 | ID | [request](../../../../backend/internal/medicalrecord/vaccination_request.go)：pet／record／doctor optional数値pointer、vaccine必須 | 医院＋IDと認証actorを分離。不正IDを0へ補完しない |
 | 接種日 | date必須、serviceはJST暦日で未来拒否 | UTC instant差と暦日を混同しない。新規予定を接種実績にしない |
 | 次回日 | optional、serviceは指定時に接種日より後を検証 | 独立フォームの新規本日以降条件はAPIに同じ条件があると断定しない |
-| 間隔 | 3weeks／4weeks／1year／other、独立既定1year・カルテ内4weeks | マスタ指定優先・手動候補を保持、既定統一／種フィルタ未実装を臨床承認としない |
+| 間隔 | 旧UIの標準候補3weeks／4weeks／1year／other、独立既定1year・カルテ内4weeks | 目標は両入口ともワクチン種類別設定または手入力。入口固有の固定既定を解消し手入力値を黙って上書きしない。具体間隔・設定なしの初期値・新たな優先順位はこの合意で決めない。実装適合未確認 |
 | LOT等 | lot1〜4、supplemental、remarks | 空文字と未送信を区別、他行に値を持ち越さない |
 | PATCH nullable | optional pointerのnullは未送信と区別できない | doctor／next_date／record解除済みと誤表示しない。対応する専用clearが未定義なら解除を送らない |
 | 期待版 | version任意、nilは互換上照合skip | 新adapterは期待版を保持。旧clientが無版で更新できることを競合防止完成としない |
 | snapshot | vaccine参照と価格preload等 | 当時名称／価格／間隔の完全snapshotありと仮定しない。D03/D10の当時値確認へ |
 
 現vaccines masterは[master routes](../../../../backend/internal/medicalrecord/routes_masters.go)のmaster-medical操作別grantによるCRUD/reorder。接種実績のvaccinations grantとは別で、checkup masterのcheckups grantとも区別する。
+
+次回日の統一は[最新の業務合意](../../../spec/domains/vaccinations/lifecycle.md#fr-vaccinations-schedule)へ従う。種類設定の参照と手入力日を両入口で同じ意味に対応させる。既存schedule値を新しい既定・臨床的標準として固定しない。設定の保存／読取・入力状態の保持・両フォームadapter・再表示を照合し、現行の入口別初期化を対応済みと扱わない。設定変更から過去の保存済み接種／次回日を自動再計算しない。技術対応はAPI／DBの適合調査で具体化し、本docs-only変更でwire schemaや実装を追加しない。
+
+## 死亡登録後の生前接種の専用経路
+
+[死亡後の生前分記録](../../../spec/domains/vaccinations/lifecycle.md#fr-vaccinations-correction)を最新合意の目標として扱う。専用経路は死亡状態を維持したまま、生前分であること・対象医院／患者／元記録・必要権限・理由・現在版を保存時に再照合する。実施時点不明は推測せず確認まで停止。原記録と前後差分・理由・actor／確認者・入力時刻・元記録関連を保持し、必要履歴失敗は部分成功にしない。結果不明は元操作を照合し別IDで重複作成しない。現行の通常create/PATCH・一律死亡拒否を専用経路の実装済み証拠にせず、API／版／receipt／権限対応は適合確認に残す。死亡状態の一時解除、通常writeへの無制限な死亡gate解除で代用しない。
+
+実接種日と現在の登録時刻を分け、D03確定親への原記録保持・専用追記を維持する。次回日の統一合意から死亡後の新しい接種／予約を許可せず、通知の死亡除外も解除しない。
 
 ## writer・失敗と受け手
 - 全入口CRUD、関連変更、カルテ内フォーム、専用訂正／転記／過去入力／復元adapter、タグ同期を列挙する。普通APIで親finalizedや患者取り違え保護を回避しない。
@@ -46,8 +54,8 @@
 | 技術部分 | 業務AC suffix |
 |:---|:---|
 | 同じ資源・単件保存 | standalone, in-chart, same-day, reset, lots |
-| 日付・マスタ候補 | future, master-interval, manual, next-invalid, default-boundary |
-| write保護・結果 | finalized, scope, deceased, delete-one, conflict, unknown, edit-log |
+| 日付・マスタ候補 | future, master-interval, manual, next-invalid, default-boundary, no-setting-default |
+| write保護・結果 | finalized, scope, deceased, deceased-boundary, delete-one, conflict, unknown, edit-log |
 | 一覧・読取 | filter-scope, navigation, projection |
 | master／他owner | master-history, notify-failure, no-side-effect |
 

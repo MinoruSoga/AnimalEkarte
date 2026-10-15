@@ -3,7 +3,7 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | shared.ui-contracts／共通契約の整理候補 |
-| 決定状態 | 既存記載の継承。新業務承認を含まない。根拠不明は未確認のまま。未回答案は別節 |
+| 決定状態 | 既存記載の継承と追加の死亡後専用導線の承認を区別。死亡後の生前分処理はC03の個別承認に従い、その他の根拠未照合は未確認のまま |
 | 実装状態 | 既存資料の記載を継承（コード全体の再監査なし）。選定仕様と既存挙動の差を明記 |
 | 実機検証状態 | 未実施 |
 | 文書確認日・基準 | 2026-10-15／PR #670 commit 41fcf3eb0a8befb7c0b5f613d1df749a60e30be8 |
@@ -48,7 +48,7 @@ NavigationBlockerはdirty時のSPA内遷移、併用useUnsavedChangesはブラ�
 
 対象はmedical-records/hospitalization/trimming/examinations/checkups/accounting/vaccinations。検索はsearch・owner_id=owners.id・動物種マスタID、20件サーバページング・300ms debounceという既存実装参照を保持し、住所検索は追加しない。通常は利用機能create、checkupsはmedical-recordsのcreateかつeditという既存例外を維持し、C04で再照合する。
 
-死亡個体は死亡表示付きで選択できるが新規作成を許可しない。カルテselectorは当該ペットの一覧へ渡す。未知生死statusは選択fail-closed。死亡選択可を全フォームでの臨床操作可へ広げない。
+死亡個体は死亡表示付きで選択できるが、新規未来予約・死亡後の新しい臨床実施は許可しない。生前診療の後日入力・誤記訂正・退院・精算は[C03の追加承認](clinical-safety.md#requirement-fr-common-safety-patient)に従い、死亡状態を維持した理由／履歴付きの専用経路として区別する。カルテselectorは当該ペットの一覧へ渡す。未知生死statusは選択fail-closed。死亡選択可を全フォームでの無制限な臨床操作可へ広げない。
 
 特記はペットdanger_levelと飼主is_dangerousを別概念として扱う。ペット高／中は形状アイコンとPopover、メモ空は内容未登録。飼主は代替名「特記」の形状アイコンでPopoverなし。スタッフ向けで、分類が分かる文言を画面・aria-label・titleへ出さず、owner/LIFFへ出さない。一般の非色cue規則を理由に機微な分類語を追加しない。
 
@@ -60,7 +60,7 @@ NavigationBlockerはdirty時のSPA内遷移、併用useUnsavedChangesはブラ�
 | AC-common-ui-pending | 保存ボタンのloading中に再押下 | ラベルとbusy表示を保ち同ボタン操作は抑止 | Button／サーバ冪等性は各D |
 | AC-common-ui-readable | readonly／invalid／死亡を表示 | 読取り・拒否・sentinelを区別でき、色だけに依存しない | 状態正本／Input実装ギャップは残す |
 | AC-common-ui-dialog | 開く→閉じる／ESC／右上操作 | focus復元、タイトル識別、X重なりなし。業務取消を勝手に実行しない | Dialogと利用Dの取消契約を両方確認 |
-| AC-common-ui-selection | 死亡／未知statusを患者検索 | 死亡選択と作成拒否、未知選択拒否を区別 | 患者選択の遷移先とC03死亡ゲートを照合 |
+| AC-common-ui-selection | 死亡／未知statusを患者検索 | 死亡選択、通常の新規予約／実施拒否、理由／履歴付き生前分の専用処理、未知選択拒否を区別 | 患者選択の遷移先とC03死亡ゲートを照合 |
 | AC-common-ui-special-mark | ペット高／中・飼主特記を表示 | 正本の形状・代替情報・Popover範囲を保持しownerへ漏らさない | 患者選択の特記契約 |
 | AC-common-ui-dirty | dirtyでSPA遷移とリロード | それぞれのガード経路を確認。取消を保存成功としない | NavigationBlocker／useUnsavedChanges |
 | AC-common-ui-scope | shared候補と別appを分類 | 実consumer・非自明契約・媒体境界を説明でき、全shared MD化・88二重計上なし | design-system／責務map |

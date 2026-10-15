@@ -45,6 +45,8 @@ D11 [見積](../../../spec/domains/estimates/business-rules.md)、D12 [締め](.
 
 ID／版／source参照・再送・最終再集計・snapshot・後日差分・権限／監査は下記選定契約で確定する。D10をsource-of-truthとし、物理schemaの実装と適合試験は未実施。
 
+実査誤入力の訂正は2026-10-15追加確認8の目標で、D12がwrite owner。現行Create／List／Get／Previewと会計起因adjustmentだけでは専用訂正を満たさない。原closeのUPDATE/DELETE禁止は維持し、下記専用intentの追記として実現する。
+
 ### 既存保証を保持する範囲
 
 - cash_register_closes はclinic×date×periodの完全UNIQUE、UPDATE／DELETE拒否のappend-only。訂正もappend-onlyで元close参照を保持する。
@@ -78,16 +80,29 @@ I1に対応する実績入力意味：実績種別、対象医院・品目・管
 | 根拠 | 現行の計数 | 対応時の注意 |
 |:---|:---|:---|
 | [owner/ltv_repository_query.go](../../../../backend/internal/owner/ltv_repository_query.go) | completed billingsのみ。期間式はCOALESCE(bmr.date,b.scheduled_date)、paidは親請求のpayments合計、netは親請求のrefunds控除 | completed_at期間・実入金日期間と同義にしない。D10新台帳adapterが必要 |
-| 同visit集計 | pet.owner_idに帰属するDISTINCT mr.date、annualはNOW−365days。status確定条件はこのSQLにない | 指標は未削除カルテのある日数と明示。実来院／医師確認済み回数への意味拡張は今回行わない。D03の実診療日と登録日、転記と新実施の違いを表示解釈に維持 |
+| 同visit集計 | pet.owner_idに帰属するDISTINCT mr.date、annualはNOW−365days。status確定条件はこのSQLにない | 旧値は未削除カルテのある日数と明示。承認6の実来院日集計へは下記source契約で切り替え、旧SQLを適合済みとしない。D03の登録日／実診療日、転記と新来院を区別 |
 | 同総額／期間額 | total_amountは累計請求額、annual_amountは選択期間・amount_basis式 | amount_basisを変えたから全表示列が一律同じ基準になると推定しない |
 | 同絞込 | include_zeroは売上軸中心、include_no_visitは最終来院軸、明示from/to→year→preset | 指標ごとの母集団・条件順を保持し、画面ラベルと実際のSQLを照合 |
 | [lstep_analytics_service.go](../../../../backend/internal/lstep/lstep_analytics_service.go) | JST月、来院判定daysは1〜365、母数0なら率0 | 期間不正・失敗と0を区別。UIの30日固定とAPIの任意値は別 |
-| [lstep_delivery_trigger_log_repository.go](../../../../backend/internal/lstep/lstep_delivery_trigger_log_repository.go) | 配信状態件数はscheduled_at、来院率母数はfired_at／fired／非抑止のログ、来院はJST日付両端包含 | ログ件数をユニーク飼主数や外部最終到達数へ読み替えない |
+| [lstep_delivery_trigger_log_repository.go](../../../../backend/internal/lstep/lstep_delivery_trigger_log_repository.go) | 配信状態件数はscheduled_at、来院率母数はfired_at／fired／非抑止のログ、来院はカルテ日をJST日付両端包含で照合 | ログ件数をユニーク飼主数や外部最終到達数へ読み替えない。実来院sourceへの適合は別で、旧カルテ日観測を実来院確定にしない |
 | [LstepAnalyticsPage](../../../../frontend/src/features/lstep/routes/LstepAnalyticsPage.tsx) | 月選択、配信統計、30日来院率、CSV取込部品を併置 | CSV取込は別write責務D15。分析viewから許可を派生しない |
 | 月次画面32／締め画面29 | 暦日と営業日、matrixの返金発生日と旧KPI親会計帰属が異なる | 同一金額／同一日と偽装せず、出力に期間・基準を保存。EMGを含む件数の網羅を検査 |
 
 D10連携は下記D16選定adapter契約に従う。必須検査：未入金請求・部分入金・後日回収・取消・再請求・別方法返金・預り金受領／充当／復元。請求額／回収額／実移動のsource参照を保ち、旧集計結果を適合済みとして移行しない。
 
+
+<a id="analytics-actual-visit-source"></a>
+### D16：承認6の実来院sourceと旧値の区別
+
+主たるwrite ownerはD01の受付、D03等の臨床記録で、D16はその確定結果を読む。通常は[D01受付の同時成功・結果照会](../../../spec/workflows/reservation-to-record-flow.md#requirement-fr-reservations-checkin-record-atomicity)と[目的別操作／履歴契約](../reservations/technical-spec.md)の医院・予約／患者・実受付結果・日付／履歴参照を照合する。予定日時や現status一覧の単純抽出を実来院sourceにしない。
+
+現head da38895d21d60085b3190c785660a2867b81be26の[reservation_service_update.go](../../../../backend/internal/reservation/reservation_service_update.go)はchecked_in遷移でchecked_in_atを更新し、再受付時には最後の遷移時刻で上書きする。したがってchecked_in_at単独では元の実来院日の履歴を復元できず、UpdatedAtや予約予定日への置換も不可。確定受付結果／履歴・訂正関係を参照し、上書き済みで由来不明なら旧データの照合要として残す。新しい物理イベントtable／endpointが存在するとの主張ではない。
+
+過去診療は[D03専用入力](../../../spec/domains/medical-records/lifecycle.md#requirement-fr-medical-records-retrospective-no-card-no-billing)の由来・患者・医院・実診療日と、当該医院への実来院事実を確認できる場合だけ入力候補となる。既存の医師確認を来院確認と無条件に同一視せず、外部資料・転記・単なる日付入力は除外する。すべての通常来院へ新しい医師承認を要求しない。他領域の入院／宿泊の日次記録だけから毎日の新規来院を作らない。
+
+読取adapterはsource owner／ID／版、医院・確認済み対象飼主／ペット、実来院日（JST暦日）、根拠となる受付／過去入力・訂正参照、照合状態を保持する。同じsourceを一度だけ解決したうえで、飼主回数は医院＋飼主＋日、ペット回数は医院＋ペット＋日でdistinct。同日の2ペットを飼主2回にせず、1ペットを複数カルテ・再受付の数で増やさない。訂正は元sourceとの関係をたどって有効事実へ投影し、元・転記先を新規来院として二重計上しない。飼主帰属はD04の確認・履歴契約と照合し、現在のpet.owner_idだけで過去を移す方針を追加しない。
+
+sourceが不足・矛盾・取得失敗なら実来院の値を未確定として返す。必要な分類が不明の飼主を母集団から無断除外せず、不完全応答として示す。旧記録日数を新値に代入したり、不明を0回／来院なしに変換したりしない。期間内・累計・rolling365日、同指標からの最終来院日、画面／CSV／CPM入力と来院観測は同じsource基準を識別する。CPM版・閾値・配信ログ母数・観測窓や通知送信許可をこのadapterで変更しない。FR-analytics-owner-counts／FR-analytics-lstep-observationとAC-analytics-same-day-pets／record-days-not-visits／actual-source／visit-recheckin／retrospective-visit／visit-unknown／visit-consumer-basisへ追跡する。
 
 <a id="finance-selected-operation-contract"></a>
 ## 選定済みの操作・結果契約（D11／D12／D13／D16）
@@ -134,6 +149,15 @@ D10連携は下記D16選定adapter契約に従う。必須検査：未入金請�
 
 旧completed請求総額から部分入金・預り受領等の実移動を逆算しない。旧締めは旧計算基準の固定履歴として閲覧可能にする。新集計対象の旧データは元支払／返金の実日時・額・方法・帰属の照合が揃ったものだけ移行参照IDを付けて受入れ、未知は『照合要／確定不可』にする。新旧基準の混在を一つの理論現金と表示しない。
 
+<a id="closing-actual-input-correction-contract"></a>
+### D12：実査誤入力訂正の専用intent
+
+- 要求は医院・元close ID、現在の有効実査の期待版（原本と有効訂正列の版）、訂正後実査額、trim後非空の理由、操作IDを持つ。actorは認証から確定し、元営業日／区分と実査時点は元closeから取得する。実査額は有限・0以上の既存条件、現在の当該操作認可、医院と対象参照を保存直前に検査する。既存view/createまたはaccounting-post-close-editという名称だけで実査訂正許可を派生しない。具体的grant対応が未設定の経路は拒否し、新職種や全員許可を作らない。
+- 同じcloseの訂正と直列化し、最新有効実査額・期待版が一致した場合だけ、元close／直前訂正への参照、訂正前後額、元実査時点・訂正記録日時、理由・actor・操作ID、必要監査とreceiptを原子的に追記する。原closeと既存訂正はUPDATE／DELETEしない。保存失敗は全体rollback、同じ操作ID／同内容は同じ訂正receiptへ収束し、別内容の同keyは拒否する。結果不明は共通照会へ戻す。
+- receiptは原close ID、訂正ID／版、前後実査額、採用理論基準／source版、訂正後差額と現金移動0を返す。実査額は絶対値の後継として投影し、複数訂正後の額を合算しない。過不足はその表示が採用する同じ理論基準との比較で、原snapshotを現在の理論値へ置換しない。会計由来の理論差分がある場合も実査訂正と別の由来・版で表示する。
+- 読取は原実査／原差額、訂正列と最新有効実査／差額を区別する。後続区分の開始残に元closeを採用済みでも、自動上書き・再締め・架空補充をしない。既存会計／現金eventや必要な別訂正へ混ぜず、実査誤入力だけで会計ロック解除も行わない。
+- FR-closing-actual-input-correctionとAC-closing-actual-input-correction／actual-correction-guard／actual-correction-conflict／actual-correction-retry／actual-correction-separation／actual-correction-historyへ追跡する。専用route・物理schema・grant設定・実機は今回未変更／未検証。
+
 <a id="inventory-selected-contract"></a>
 ### D13：実物移動と数量版
 
@@ -168,13 +192,13 @@ D16はD10の請求snapshot／差分と実移動event、D12の締めsnapshotを�
 | 実返金 | 返金ID・元受領／元資金内訳・元請求・実返金日時／方法／額。実移動軸は実返金日 | 元の方法と異なっても実方法で計上。請求訂正だけから返金を推測しない |
 | D12締め | 元close ID・営業日区分・固定snapshot・差分ID | 元締めと差分を区別し、月次暦日合計と同じ基準だと表示しない |
 
-請求軸は元請求とその版／差分、受領／返金軸は実イベントと実日時を用い、同一eventの複数請求配分を現金回数に重複計上しない。取消後新番号再請求の旧入金再配分は実移動0、預り金の充当／復元も0として区別する。旧顧客指標のCOALESCE(カルテ日,請求予定日)・記録日distinctはその名前と母集団のまま維持し、実入金日や実来院回数へ移し替えない。新台帳の照合がない旧期間は旧基準と明示し、新実移動集計と同一連続系列に偽装しない。
+請求軸は元請求とその版／差分、受領／返金軸は実イベントと実日時を用い、同一eventの複数請求配分を現金回数に重複計上しない。取消後新番号再請求の旧入金再配分は実移動0、預り金の充当／復元も0として区別する。旧顧客金額指標のCOALESCE(カルテ日,請求予定日)と旧記録日distinctは旧基準と明示し、実入金日や実来院回数へ無条件に移し替えない。来院回数の承認済み目標は[実来院source契約](#analytics-actual-visit-source)へ切り替える。新台帳の照合がない旧期間は旧基準と明示し、新実移動集計と同一連続系列に偽装しない。
 
 画面の再読は医院・権限・期間・基準・対象飼主の組を照合し、古い応答は捨てる。0件／権限不足／未集計／失敗を区別し、CSV取込やCPM配信writeの権限を分析readから派生させない。Lstepの既存scheduled_at／fired_at・ログ母数・V1/V2の意味は現行根拠表と業務正本を保持する。
 
 ### 受入との対応と実装検査
 
-上記は新しい業務FRを増やさず、既存ACの保存／再送／競合における具体的期待結果を閉じる。D11はlock-race／successor-audit／successor-edit-handoff／handoff-confirm、D12はevent-repeat／adjust-audit／zero-v-error／no-reopen／opening-cash、D13はinsufficient／concurrent-count／adjust-retry／actual-return、D16はold-ar／deposit／midnight-basis／record-days-not-visitsへ追跡する。
+上記は既存ACと追加承認の実査誤入力訂正FR／ACについて、保存／再送／競合における具体的期待結果を閉じる。D11はlock-race／successor-audit／successor-edit-handoff／handoff-confirm、D12はevent-repeat／adjust-audit／zero-v-error／no-reopen／opening-cash、D13はinsufficient／concurrent-count／adjust-retry／actual-return、D16はold-ar／deposit／midnight-basis／record-days-not-visitsと実来院source節の追加ACへ追跡する。実査誤入力訂正は専用intent節の6 ACへ追跡する。
 
 実装受入では同key同内容／別内容、初回commit後応答消失、照会未検出中の遅延commit、期待版競合、認可失効、監査保存失敗、旧値不明を各intentで試し、本節の成功または停止結果を確認する。新endpoint／DDL／実grant設定・既存writerの改修・移行実行・実機試験は未実施だが、これらを理由に意味契約自体を未決へ戻さない。
 

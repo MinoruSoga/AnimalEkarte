@@ -22,8 +22,16 @@
 16:44合意の[入院担当医と開始時の入院記録](settings/master-reservation-type.md#inpatient-doctor-and-record-at-start)へ従う。予定入院予約時は指名医師未定可、入院開始までに入院担当医決定、スタッフによる開始確定時に入院記録を作成する。予定入院・診察後の両入口を維持し、同じ入院を二重登録しない。予約の指名医師から担当医を自動確定せず、記録作成失敗時の開始未確定・理由表示・再試行は17:17合意。具体的UI・保存方式は実装設計とする。実装・実機受入は未確認。
 
 
+## 2026-10-15 入院中プラン変更の追加合意
+
+[業務正本](../domains/hospitalization/lifecycle.md#requirement-fr-hospitalization-distinct-plans-and-records)に従い、入院中は元内容・金額明細を履歴に残して治療プランの追加・変更・中止を可能にする。現在内容・中止状態・変更経過を識別し、ケアプランや実施記録と同一視しない。完了後は理由付き専用訂正へ。下記の読取専用／常時Conflictは現行実装差であり、目標の利用開始・実装済みを示さない。具体画面配置・APIは技術設計で確認する。
+
+## 死亡登録後の専用処理への接続
+
+[最新の死亡後取扱い](../domains/hospitalization/lifecycle.md#requirement-fr-hospitalization-delete-and-preserve)に従い、生前診療の後日入力・誤記訂正、既存滞在の退院・D10精算は、死亡状態を戻さず理由と履歴付きで行える目標。新たな入院実施・チェックインを許可せず、生前分か不明なら確認する。原記録を保持し、自動返金・在庫戻しは行わない。下記の死亡時リンク抑止／通常更新拒否は現行UIとの差として扱い、専用導線・保存が実装済みとはしない。
+
 ## 概要
-- **画面の目的**: 入院またはペットホテルの新規受付、および登録時の治療プラン（診療内容・金額明細のスナップショット）の定義。
+- **画面の目的**: 入院またはペットホテルの新規受付、および治療プランの定義。臨床入院中のプランは元の診療内容・金額明細を履歴に残して追加・変更・中止する目標へ従う。
 - **URLパターン**:
   - 新規作成: `/hospitalization/new?petId=xxx`
   - 編集: `/hospitalization/:id/edit`
@@ -41,14 +49,14 @@
 
 | 用語 | 意味 | 管理画面 |
 |------|------|----------|
-| **治療プラン** (treatment plan) | 入院**登録時**に確定する診療内容・金額明細の**スナップショット**。登録後は変更・削除不可。 | 本画面（新規入力 / 編集は参照のみ） |
+| **治療プラン** (treatment plan) | 診療内容・金額明細の計画。入院中は元内容の履歴を保持して追加・変更・中止可。実施記録とは別。 | 本画面の現行編集は参照のみ。履歴付き変更の具体UI／保存は適合確認対象 |
 | **ケアプラン** (care plan) | 入院中の投薬・給餌・処置など**継続的なケア項目**。 | 入院詳細画面 |
 
 治療プランとケアプランを同一視しない。UI 文言でも「ケア／治療」と混同しない。
 
 ```mermaid
 flowchart TB
-    H["入院レコード"] --> TP["治療プラン (treatment plan)<br>登録時に確定する診療・金額明細のスナップショット<br>新規: POST に同梱作成 / 編集: 読み取り専用<br>PATCH・DELETE は常に Conflict"]
+    H["入院レコード"] --> TP["治療プラン (treatment plan)<br>元の診療・金額明細を履歴保持<br>目標: 入院中に追加・変更・中止<br>現行差: 編集読取専用・PATCH/DELETE拒否"]
     H --> CP["ケアプラン (care plan)<br>入院中の継続的ケア項目<br>本画面の対象外 — 入院詳細画面で管理"]
 ```
 
@@ -68,13 +76,13 @@ Notionスタイルのプロパティ編集UIで、入院の根幹となる条件
 - **メモ**: 自由記述メモ。
 
 ### 2. 治療プランと連絡事項
-- **治療プラン**（登録時スナップショット）: 治療内容・メモを行単位で入力する明細テーブル（保険・単価・数量・割引(%)・値引(円)・小計を表示）。
+- **治療プラン**（元内容・変更履歴と現在内容を区別）: 治療内容・メモを行単位で入力する明細テーブル（保険・単価・数量・割引(%)・値引(円)・小計を表示）。
   - **新規作成時**: 治療内容が空でない行だけを、親 `POST /v1/hospitalizations` の `treatment_plans` に同梱して作成する。空行はスキップ。
-  - **編集時**: `GET /v1/hospitalizations/:id/treatment-plans` で hydrate し **読み取り専用**。本画面の更新では治療プランを変更しない（親フィールドのみ）。
-  - **BE**: 入院ネストの `PATCH` / `DELETE .../treatment-plans/:planId` はサービス層で **Conflict**（登録時スナップショットのため変更・削除不可）。ルートは fail-closed のまま残す。
+  - **現行編集時の差分**: `GET /v1/hospitalizations/:id/treatment-plans` で hydrate し **読み取り専用**。現行画面は親フィールドのみを更新するため、承認された入院中の履歴付き追加・変更・中止には未追従。
+  - **現行BEの差分**: 入院ネストの `PATCH` / `DELETE .../treatment-plans/:planId` はサービス層で **Conflict**。最新目標の実現APIではない。原履歴を壊す通常上書き・削除で代用せず、履歴付き操作と完了後専用訂正を区別する。
 - **主訴**: `owner_request` を入力するメモカード。一覧の主訴列と同じフィールド（新規列は無い）。
 - **スタッフへの連絡事項**: `staff_notes`。
-- **継続ケア**: 投薬・給餌などの**ケアプラン**は入院詳細画面で管理する（本画面の対象外）。ケアプランの持ち物（`item`）明細は入院プラン（マスタ）参照に加えて手入力「その他」（理由必須）も登録できる。詳細は `08-hospitalization-detail.md` 参照。治療プラン（本画面の登録時スナップショット）は従来どおり自由記述であり、手入力モードの概念は持たない。
+- **継続ケア**: 投薬・給餌などの**ケアプラン**は入院詳細画面で管理する（本画面の対象外）。ケアプランの持ち物（`item`）明細は入院プラン（マスタ）参照に加えて手入力「その他」（理由必須）も登録できる。詳細は `08-hospitalization-detail.md` 参照。治療プランは従来どおり自由記述であり、ケア項目の手入力モードとは別である。履歴付き変更でもこの区別を維持する。
 
 ### 3. 金額概算
 - **概算計**: 治療プラン明細に基づいた入院費の画面上自動計算（小計・消費税・請求額の読み取り専用表示）。
@@ -86,7 +94,7 @@ Notionスタイルのプロパティ編集UIで、入院の根幹となる条件
 
 - **保存アクション (`useActionState`)**: React 19 の最新パターンを採用。保存中のローディング表示や、バリデーションエラー時の対象フィールドへの自動フォーカスに対応。
 - **意図しない離脱の防止**: 編集中のデータがある場合、ブラウザの「戻る」やページ遷移時に確認ダイアログを表示（`NavigationBlocker`）。
-- **臨床安全ガード**: 画面は死亡済みペットの新規登録・既存情報の更新を拒否します（`hospitalizationSubmitFieldErrors`）。
+- **現行の臨床安全ガード**: 通常画面は死亡済みペットの新規登録・既存情報の更新を拒否する（`hospitalizationSubmitFieldErrors`）。新たな実施の拒否は維持し、承認済み生前分の後日記録／訂正・退院／精算は理由・履歴付き専用経路へ分ける。
 - **親削除ガード**: 治療プランが紐付いている入院は削除ボタン非表示 + 正直メッセージ。BE も `CountTreatmentPlansByHospitalizationID` で Conflict。
 
 ---
@@ -98,7 +106,7 @@ Notionスタイルのプロパティ編集UIで、入院の根幹となる条件
 - **`SearchableSelect`**（`HospitalizationBasicInfo` 内）: マスタ登録済みケージの検索選択。
 - **`HospitalizationCostSummary`**: 金額概算の読み取り専用表示（一括割引入力なし）。
 
-### API連携
+### API連携（現行実装。履歴付き変更の目標APIではない）
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
 | GET | `/api/v1/hospitalizations/:id` | 編集時の既存レコード取得 | `hospitalization` | `view` |
@@ -106,8 +114,8 @@ Notionスタイルのプロパティ編集UIで、入院の根幹となる条件
 | PATCH | `/api/v1/hospitalizations/:id` | 登録情報の更新（治療プランは含まない。任意で `doctor_id` / `owner_request`） | `hospitalization` | `edit` |
 | DELETE | `/api/v1/hospitalizations/:id` | 入院レコードの削除（子治療プランありは 409） | `hospitalization` | `delete` |
 | GET | `/api/v1/hospitalizations/:id/treatment-plans` | 編集時の治療プラン hydrate | `hospitalization` | `view` |
-| PATCH | `/api/v1/hospitalizations/:id/treatment-plans/:planId` | **常に Conflict**（スナップショット） | `hospitalization` | `edit` |
-| DELETE | `/api/v1/hospitalizations/:id/treatment-plans/:planId` | **常に Conflict**（スナップショット） | `hospitalization` | `delete` |
+| PATCH | `/api/v1/hospitalizations/:id/treatment-plans/:planId` | **現行は常に Conflict**（最新目標との差） | `hospitalization` | `edit` |
+| DELETE | `/api/v1/hospitalizations/:id/treatment-plans/:planId` | **現行は常に Conflict**（最新目標との差） | `hospitalization` | `delete` |
 | GET | `/api/v1/masters/cages` | 利用可能なケージ一覧の取得 | `master-hospitalization` | `view` |
 
 ---

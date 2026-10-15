@@ -34,6 +34,8 @@
 
 スタッフが飼主単位の 24 時間有効な link token を発行し、飼主が LIFF で本人認証（`link_token` + `line_id_token`）して LINE アカウントを紐付ける。既存 LINE ID の上書きは拒否され、紐付け操作は監査ログに記録される。
 
+2026-10-15追加合意5の[主飼主変更](../domains/owners-pets/lifecycle.md#requirement-fr-owners-pets-primary-transfer)では、今後の予約とLINE通知先への影響をスタッフが一覧で確認してから切り替える。この確認はLINE本人紐付けの発行／確認／上書きの代わりにならず、電話・メールの重複候補から本人を自動判定しない。未リンクmanual予約の自動新規連携、配信除外・停止gate・結果不明保留の解除、通知の自動再送を加えない。条件付きの予約customer付替え／解除と現行差は[D04技術契約](../../design/domains/owners-pets/technical-spec.md#owner-transfer-target)へ。過去請求・預り金は元ownerに残る。
+
 ---
 
 ## 2. タグ管理と自動同期
@@ -106,3 +108,9 @@
 /lstep/analytics の月次配信統計・配信後来院率は[経営・顧客集計の正本](../domains/analytics/business-rules.md#requirement-fr-analytics-lstep-observation)へ。現行統計はscheduled_atの月、来院率はfired_atの月に属する非抑止firedログが母数で、UIは30日窓。ユニーク飼主数・最終到達／既読・因果効果と同義にしない。同じ画面の友だち属性CSV取込はD15のwrite契約と独立権限であり、分析閲覧権限だけでは許可しない。
 
 共有ファイルの手動削除／143時間cleanupと業務原本の保持は[D15の選定契約](../line/lstep-integration.md#crm-shared-file-retention)へ従う。管理delete権限があっても原本・必要履歴・分類不明を通常操作で物理削除できる意味ではない。現行storage先行deleteとの差は実装適合条件へ残す。
+
+### 初診・健診後の確認と来院指標の境界
+
+[D15の確認付きフォロー](../line/lstep-integration.md#crm-followup-confirmation)に従い、記録作成だけで送らず、スタッフが実施済み・送信対象を確認後に扱う。一般案内と医療的再検査／受診案内は分け、後者は医師の要フォロー指定が必要。健診対象preview・タグ同期・画面閲覧権限だけではこの確認／指定や送信許可を代行しない。現管理画面に新しい確認操作が実装済みとはしない。
+
+累計・年間の来院回数と分析上の来院観測は[D16の実来院日基準](../domains/analytics/business-rules.md#requirement-fr-analytics-owner-counts)を参照する。同日複数ペットは飼主1回、ペットは各1回。旧カルテ日数による値は現行差として明示し、実来院の根拠不明を0回や「来院なし」へ自動補完しない。既存の分類閾値・観測窓・ログ母数と配信の認可／確認は別契約を維持する。

@@ -85,3 +85,10 @@ C01の部品技術、C04の認証／医院scopeと個別Dの操作認可・ID・
 ## 全ownerへの適用照合
 
 [全23領域の具体ID・保存単位・再送／旧値・安全と保持](../../spec/shared/owner-contract-coverage.md)と[横断8接続](../../spec/workflows/reservation-to-record-flow.md#cross-domain-review-20261015)を参照する。全writerの実装適合とは別に、呼出側／受け手が意味契約を推測しない文書境界を照合する。
+
+<a id="posthumous-operation-contract"></a>
+## 追加承認の死亡後記録と専用操作の接続
+
+[C03患者状態と死亡後記録](../../spec/shared/clinical-safety.md#requirement-fr-common-safety-patient)のAC-common-safety-posthumous-historyは、D03〜D10の当該操作の期待版・現在認可・対象元事実・理由／監査・結果照会・原子receiptへ接続する。死亡状態を生存へ書き換えて通常新規ゲートを迂回せず、元患者・生前実施事実・原記録を保った専用の後日入力／誤記訂正／退院／精算として識別する。必須履歴を保存できない操作を成功にせず、結果不明時は同じ操作を照会し、新しい操作として二重実行しない。死亡後の新しい臨床実施や未来予約、金銭・在庫・通知の自動作用を追加しない。物理schema／wireの実装状態とは分離する。
+
+[追加9点の進捗](../../spec/domains/SPECIFICATION_PROGRESS.md#additional-business-decisions-nine)の業務承認と文書再整合を別に追跡する。過去の文書完成・静的検査合格から、既存記載全ての業務承認を導かない。

@@ -45,6 +45,8 @@ flowchart TB
 ## 主要な機能
 
 ### 1. 検査結果入力との関係
+
+[検査の任意担当医・入力者ログ](../../domains/examinations/lifecycle.md#fr-examinations-record)は患者ごとの検査保存契約であり、本マスタの基準値・価格やマスタ変更者とは別。担当医未選択でも検査保存可とし、入力者のログを担当医として扱わない。
 カルテの検査結果入力（`/examinations`）は、本画面で定義した `exam_type_fields` / 基準値を参照して HIGH/LOW ハイライト等を行う。
 
 ### 2. 表示順

@@ -5,6 +5,7 @@
 業務・例外・GWTは[健診ライフサイクル](../domains/checkups/lifecycle.md)、現wire／部分成功は[技術契約](../../design/domains/checkups/technical-spec.md)を正本とする。以下は現行UI参照として保持する。
 
 - ADR004によりCheckup系が唯一の健診正系統。検査系へ二重記録しない。
+- [2026-10-15の確認付きフォロー](../line/lstep-integration.md#crm-followup-confirmation)は、作成だけで送信せずスタッフが実施済み・送信対象を確認後に扱う。一般のお礼と医療的再検査／受診案内を分け、後者は医師の要フォロー指定が必要。現画面の登録成功や次回日表示を確認・送信成功に読み替えない。確認UI／APIの実装は未確認。受入はD09のfollowup-confirmation／followup-purpose／followup-recoveryを参照する。
 - Path Bは親カルテ作成→健診作成→値がある場合field-results PUTの最大3要求である。以下の2要求の説明は本体作成部分であり、全体atomic保存を意味しない。後段失敗時は前段IDを照会し、無条件再create／自動削除をしない。
 - field-resultsのGETは現screen記載どおり入力UIへの復元未配線という制約を残す。一方、独立登録のPUTは配線されているため「field API全て未使用」としない。
 - 独立フォームは種別・実施日が必須、担当医等を新たに必須化しない。次回日候補の1yearは医学的推奨値の承認ではない。
@@ -68,6 +69,9 @@ flowchart TB
 ---
 
 ## 3. 臨床安全ガード
+
+### 死亡登録後の生前健診記録
+[最新合意](../domains/checkups/lifecycle.md#checkup-deceased-retrospective)に従い、生前健診の後日入力・誤記訂正は死亡状態を戻さず理由・履歴付き専用経路へ。通常Path Bや死亡状態取消で代用せず、生前の実施時点不明なら確認する。新たな健診・未来予約を許可せず、自動返金・在庫戻しは行わない。専用UI／保存の実装適合は未確認。
 
 ### ステータス・ロック
 - **確定済カルテの保護**: 紐付くカルテが「確定済 (finalized)」ステータスの場合、健診記録の追加・編集・削除ボタンは非表示になり、「確定済みカルテのため健診情報は編集できません」の注記を表示して臨床記録の整合性を守ります。

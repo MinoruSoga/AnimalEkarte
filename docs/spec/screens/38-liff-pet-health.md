@@ -209,3 +209,7 @@ FR-liff-health-published-facts: 本人に紐付く生存ペットの保存済み
 | AC-liff-health-corrected | 接種訂正を保存 | 訂正後内容へ更新、保存前draftは公開しない | 同承認 |
 | AC-liff-health-no-extra-finalize | 接種保存済みで親カルテdraftまたは紐付きなし | 新しい接種確定操作/親finalized条件を要求しない | 同承認・D08資源境界 |
 | AC-liff-health-no-clinical-expansion | 診断/処方/検査詳細が院内にある | 健康表示へ追加公開しない | 同承認 |
+
+### 来院集計承認との境界
+
+[D16実来院回数](../domains/analytics/business-rules.md#requirement-fr-analytics-owner-counts)の承認は本画面の公開範囲を拡張しない。既存pet.last_visit投影を新しい実来院sourceへ適合済みとは扱わず、患者・医院・実来院根拠の照合を要する。今回の承認だけで新しい指標を公開したり、最終来院日を最新draftカルテ日から補完したりしない。

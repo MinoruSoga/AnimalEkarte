@@ -3,7 +3,7 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | domain.crm.delivery／D15 業務・画面仕様 |
-| 決定状態 | 既存記載を継承。明示済み合意と現行実装説明を分け、2026-10-15通知結果不明時の保留方針は承認済み。C05保持scopeの判断は別正本 |
+| 決定状態 | 既存記載を継承。明示済み合意と現行実装説明を分け、2026-10-15通知結果不明時の保留方針・初診／健診後の確認付きフォローは承認済み。C05保持scopeの判断は別正本 |
 | 実装状態 | 既存記載を継承（今回の再監査なし）。既知gapを保持 |
 | 実機検証状態 | 今回未実施。テスト名・過去証拠の掲載は再実行を意味しない |
 | 文書確認日 | 2026-10-15。本文・参照・FR/AC整理。独立レビュー前 |
@@ -35,6 +35,8 @@
 ---
 
 ## 2. 顧客分類ロジック (CPM分析)
+
+2026-10-15の来院集計承認により、累計・年間等の来院回数を参照する分析・CPMの指標は[D16の実来院日基準](../domains/analytics/business-rules.md#requirement-fr-analytics-owner-counts)へ揃える。同医院・同日の複数ペットは飼主1回、ペットは各1回。旧カルテ日distinctは現行実装差として区別し、下書き・予約・会計の存在だけでは実来院を確定しない。既存CPMの区分・閾値、V1分析／V2配信の区別は維持する。この指標の承認だけで新しい通知トリガー・送信対象・送信許可を追加しない。
 
 ### 2.1 CPM V2 (来院回数ベース)
 日常的な運用の中心となる判定基準。累計来院回数（医院ごとに閾値変更可、既定値は以下）で 5 段階を判定する。
@@ -84,7 +86,7 @@ stateDiagram-v2
 | 優先度 | トリガーコード | 内容 |
 |:---:|:---|:---|
 | **2** | `dormant_prevention_365d` | 最終来院から 1 年経過。 |
-| **3** | `checkup_followup` | 健診作成後に起動する follow-up。現行 call に健診結果や精密検査要否の predicate はない。 |
+| **3** | `checkup_followup` | 現行は健診作成後に起動し、結果／精密検査要否の predicate がない。承認済み目標では作成だけで送らず、[確認・目的別条件](#crm-followup-confirmation)を満たす。 |
 | **4** | `filaria_alert` / `flea_tick_alert` | フィラリア・ノミダニシーズン開始。 |
 | **5** | `dormant_prevention_240d` | 休眠防止ステップ（240日経過）。 |
 | **6** | `dormant_prevention_210d` | 休眠防止ステップ（210日経過）。 |
@@ -94,8 +96,8 @@ stateDiagram-v2
 | **11** | `next_visit_reminder` | EMR-308 で退役: カルテ推奨日カラム撤廃に伴い実行スケジュールから除外。履歴ログ・優先度互換のため登録は維持するが発火しない。 |
 | **11** | `next_visit_tentative_reminder_3d` / `next_visit_tentative_reminder_0d` | EMR-308 で `next_visit_reminder` の後継。ペットの active tentative appointment（次回予定・未予約）の `intended_date` 3 日前と当日の 2 ステージ。tentative 昇格・取消で対象は自動追従。 |
 | **12** | `birthday_message` | ペットの誕生日の当日祝い。 |
-| **13** | `first_visit_followup_3d` / `first_visit_followup_7d` | 初診の 3日後、7日後の調子伺い。 |
-| **14** | `first_visit_welcome` | 初回 medical record 作成後（post-commit）の挨拶。会計完了起点ではない。 |
+| **13** | `first_visit_followup_3d` / `first_visit_followup_7d` | 現行は初診の 3日後、7日後の調子伺い。承認済み目標は[確認・目的別条件](#crm-followup-confirmation)を追加し、経過日数だけでは送らない。 |
+| **14** | `first_visit_welcome` | 現行は初回 medical record 作成後（post-commit）の挨拶で、会計完了起点ではない。目標では[スタッフ確認](#crm-followup-confirmation)前に送らない。 |
 
 ---
 
@@ -395,3 +397,37 @@ FR-crm-notification-unknown: 通知送信結果不明は照合まで再送保留
 | AC-crm-file-manual-original | 原本／必要履歴／分類不明のfileを手動削除またはcleanup | 明示手動削除は非表示／論理状態変更だけで実体・参照・監査保持。自動cleanupは対象から除外し論理状態も実体も保持 | FR-crm-shared-file・本節の分類／保護 |
 | AC-crm-file-delete-conflict | 表示後の版／参照／原本確認が変更、または必須監査失敗 | 原状態を保持して停止・再取得確認。storage先行削除なし | 同FR・原子保存と現在検査 |
 | AC-crm-file-delete-unknown | 論理削除commit後の応答不明、同一再送または別内容再送 | 同一結果照会・receipt再利用、内容違いは拒否、物理deleteを再試行して結果を推測しない | 同FR・操作識別／結果照会 |
+
+<a id="crm-followup-confirmation"></a>
+## 初診・健診後の確認付きフォロー（2026-10-15承認）
+
+根拠：2026-10-15の確認案 Sentinel_a408975ce6408191be7a25734aae0aab の7に対するユーザー承認 Sentinel_4f050b1c0ed08191b5ca67deeaeec843「ok」。以下は承認済み業務目標で、現行create起因の外部作用や画面・APIが適合済みという意味ではない。対象は初診のwelcome／follow-upと健診後follow-upであり、他の通知へ新しい送信条件を推定しない。
+
+<a id="requirement-fr-crm-followup-confirmation"></a>
+### FR-crm-followup-confirmation：実施済みと送信対象のスタッフ確認後に送る
+
+- カルテ／健診の記録作成・保存、受付、単なる候補抽出だけでは送信しない。権限を持つスタッフが該当する診療／健診の実施済みと送信対象を確認した後に、既存の送信前条件へ渡す。確認なし・確認結果不明では保留する。該当フォローを起動する外部タグ付与／シナリオ発火も同じ条件に含め、タグ同期経由で確認を迂回しない。ordinaryな状態同期とメッセージ発火を区別する。
+- お礼等の一般案内と、再検査・受診を促す医療的案内を区別する。医療的案内は同じ対象の医師による「要フォロー」指定がある場合だけ候補にできる。スタッフ確認はその指定を代行せず、担当医ID・異常値・次回日・テンプレートの存在から指定を推定しない。一般案内の確認を医療的案内へ流用しない。
+- 確認は対象clinic・owner・pet・元record／checkupと案内目的に対応付け、確認者・確認時点・参照した保存結果を保持する。医師の指定とスタッフの確認者を区別する。既存の認可・現在scope・必要監査・競合／結果照合契約へ参加し、確認結果と必要履歴を同じ保存結果にする。カルテ編集権限や監視viewだけで送信権限を追加しない。確認UI／API／実grantの対応は実装適合事項であり、本節から新resourceや独立権限名を発明しない。
+- 送信前に現在のsource・確認・医師指定（医療的案内の場合）・対象関係を照合し、変更・取消・取得不能時に古い確認のまま送らない。owner opt-out、LINE紐付け、死亡由来除外、停止、同日claim／優先度等の既存制約を重ねて適用する。確認は除外／停止の解除ではなく、別の生存ペットがいることも救済根拠にならない。
+- 内部保存・確認成功と外部受理／到達は分離する。内部保存／必須監査失敗やPath Bの保存段階不明を送信許可にしない。外部失敗で記録・確認を再作成せず、二重クリック／同じ確認の再送でも同じ元事象の重複配信を発生させない。外部試行後の結果不明は既存blocking claimと照合方針へ接続し、照合まで再送保留。送信済みは再送せず、未送信と確定した場合だけ現在条件を再判定する。
+
+医療内容、医師の具体的な要フォロー判断・数値閾値、案内の新しい送信時刻／間隔、同意条件は今回決めない。既存の3日／7日等は現行仕様として残し、今回の確認を省略する根拠にしない。過去入力・訂正・転記・復元の保存だけから新しい通知を発火させず、既存の専用入力／副作用境界を維持する。
+
+### 確認付きフォローの受入条件
+
+| 条件ID | Given（前提） | When（操作） | Then（期待結果） | 追跡 |
+|:---|:---|:---|:---|:---|
+| AC-crm-followup-record-only | 初診／健診記録を作成したが実施済み・送信対象未確認 | create起因または定時候補を処理 | welcomeと配信を起動するタグ／シナリオを含め記録作成だけでは送信しない | FR-crm-followup-confirmation、D03／D09 |
+| AC-crm-followup-general | 一般案内として実施済み・対象をスタッフ確認、既存送信条件も充足 | 送信判定 | 一般案内として扱い、医療案内の許可へ流用しない | FR-crm-followup-confirmation |
+| AC-crm-followup-medical | 医療的な再検査／受診案内、スタッフ確認済み | 医師の要フォロー指定あり／なしを判定 | 同一対象の指定がある場合だけ候補。異常値・担当医ID・次回日だけでは許可しない | FR-crm-followup-confirmation |
+| AC-crm-followup-confirmation-failure | 権限失効・別scope・確認／必須監査の保存失敗・結果不明 | 確認を保存／再送 | 未確認を確認済みにせず、同じ保存結果を照合するまで送信しない | FR-crm-followup-confirmation、D03の認可／監査／receipt |
+| AC-crm-followup-source-changed | 確認後に対象・元記録・医師指定・配信除外状態が変更または取得不能 | 送信直前再照合 | 古い確認を流用せず保留／除外し、死亡等の既存保護を維持 | FR-crm-followup-confirmation、FR-crm-source-revalidation |
+| AC-crm-followup-duplicate-unknown | 同一確認の反復または外部試行後の応答断 | 再実行 | 記録再作成・重複配信なし。不明は照合まで保留、送信済み再送なし、未送信確定後だけ再判定 | FR-crm-followup-confirmation、既存claim／結果照合 |
+| AC-crm-followup-partial-record | 健診Path B途中、または過去入力／訂正／転記／復元だけが成功 | 通知判定 | 部分保存や保存操作だけを新しい実施済み確認・送信許可に変換しない | FR-crm-followup-confirmation、D09 protection／D03専用手順 |
+
+実装差と必要adapterは[技術契約](architecture.md#followup-confirmation-adapter)へ追跡する。外部送信・実DB・実機の受入は未実施。
+
+### 主飼主変更とLINE本人・通知先
+
+主飼主変更では[D04](../domains/owners-pets/lifecycle.md#requirement-fr-owners-pets-primary-transfer)の今後の予約・LINE通知先への影響一覧を確認して切り替える。台帳commitと配信結果は別で、既存の配信除外・本人確認・停止gate・結果不明保留を上書きしない。連絡先の共有・重複候補からLINE本人を自動同定せず、新しい紐付けや通知の自動再送を作らない。過去請求・預り金は元ownerに残す。

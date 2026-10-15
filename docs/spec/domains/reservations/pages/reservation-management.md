@@ -579,3 +579,9 @@ main ec4f7146a を2026-10-13に静的確認。以下は実装残差であり作�
 | DELETE | `/api/v1/reservations/pets/:petId/next-visit-intent` | 次回予定の取消（対象不在でも冪等204、EMR-308） | `reservations` | `edit` |
 | POST | `/api/v1/reservations/:id/confirm-tentative` | 次回予定（tentative）の実予約確定（EMR-308） | `reservations` | `edit` |
 
+<a id="owner-transfer-impact-handoff"></a>
+## 主飼主変更からの未来予約引継ぎ（追加合意5）
+
+2026-10-15の[台帳追加合意](../../owners-pets/lifecycle.md#agreement-owner-contacts-transfer-20261015)に従い、主飼主変更は今後の予約とLINE通知先への影響一覧をスタッフが確認してから確定する。対象は既存の同医院・同pet・JST当日以降pending/confirmedに限り、過去予約・来院受付後・tentative・カルテ付き予約等へ拡大しない。元からLINE customerを持つ予約だけ既存条件で付替え／解除し、manual予約は未リンクと既存customer_fieldsを保つ。過去請求・預り金は元ownerを保持する。
+
+一覧確認後の対象変化・認可／版不一致は再取得・差分確認とし、一部だけ移管しない。pet・対象予約・必要監査の同一transaction、選定済みの予約版保護、NOWAIT等は[予約技術契約](../../../../design/domains/reservations/technical-spec.md)を維持する。固有FR/ACは[D04正本](../../owners-pets/lifecycle.md#requirement-fr-owners-pets-primary-transfer)に置き、D01の69固有FRへ重複計上しない。画面・実装・実機適合は未確認。

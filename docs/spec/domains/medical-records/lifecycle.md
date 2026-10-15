@@ -200,7 +200,7 @@ stateDiagram-v2
 | AC-medical-records-entered-delete-refusal | 記入済み／請求依存あり／判定不能 | 削除を試す | draftだけで許可せず訂正へ渡す | 本ケースを単独確認 | 既合意の結果と保護を維持 | [FR](#requirement-fr-medical-records-empty-delete-reviewed-correction)。実機未確認 |
 | AC-medical-records-wrong-patient-correction | 記録に患者取り違えがある | 訂正を要求 | 専用確認手順へ渡し通常付替え・削除再作成をしない | 本ケースを単独確認 | 既合意の結果と保護を維持 | [FR](#requirement-fr-medical-records-empty-delete-reviewed-correction)。実機未確認 |
 | AC-medical-records-no-reception-create | 通常新規入口に受付リンクなし | カルテを開く | 受付登録へ案内し表示だけで診療中予約を作らない | 本ケースを単独確認 | 既合意の結果と保護を維持 | [FR](#requirement-fr-medical-records-reception-and-retrospective-entry)。実機未確認 |
-| AC-medical-records-retrospective-reason-physician | 過去未登録診療を入力する | 専用追加入力を確定 | 理由・医師確認・実診療日と登録時刻を保持、当日の開始を偽装しない | 本ケースを単独確認 | 既合意の結果と保護を維持 | [FR](#requirement-fr-medical-records-reception-and-retrospective-entry)。実機未確認 |
+| AC-medical-records-retrospective-reason-physician | 過去未登録診療を入力する（死亡登録済みの生前診療を含む） | 専用追加入力を確定 | 理由・医師確認・実診療日と登録時刻を保持、死亡状態を戻さず保存可。当日の開始を偽装せず、実施時点不明は確認まで停止 | 本ケースを単独確認 | 既合意の結果と保護を維持 | [FR](#requirement-fr-medical-records-reception-and-retrospective-entry)。実機未確認 |
 | AC-medical-records-unevaluable-manual | 体重等不足で薬量評価不能 | 医師確認と理由を記録して手入力 | 保存可だが評価不能の表示・確認／編集履歴を残す | 本ケースを単独確認 | 既合意の結果と保護を維持 | [FR](#requirement-fr-medical-records-unevaluable-dose-manual)。実機未確認 |
 | AC-medical-records-unevaluable-no-confirmation | 薬量評価不能で理由／医師確認が欠落 | 手入力を保存 | 必要確認が揃うまで保存しない | 本ケースを単独確認 | 既合意の結果と保護を維持 | [FR](#requirement-fr-medical-records-unevaluable-dose-manual)。実機未確認 |
 | AC-medical-records-evaluable-hard-limit | 評価可能で絶対上限を超える | 理由付き手入力を送る | 評価不能の許可を流用せず拒否 | 本ケースを単独確認 | 既合意の結果と保護を維持 | [FR](#requirement-fr-medical-records-unevaluable-dose-manual)。実機未確認 |
@@ -249,6 +249,13 @@ stateDiagram-v2
 
 確定済み原記録は訂正追記や対応履歴を用い本文・元日付を保持する。転記先も認可・医院／患者照合・確定ロック・保存と臨床安全条件に従う。請求・検査・画像など別ownerの関連を勝手に付け替えず、影響する訂正先へ引き継ぐ。転記だけで新しい治療実施や請求を作らない。
 
+<a id="medical-record-deceased-retrospective"></a>
+### 死亡登録後の生前診療記録への適用
+
+2026-10-15の死亡後取扱い確認（Sentinel_2b63d8f5aad88191aa2b4dff79fb5ac2）に対するユーザー「ok」（Sentinel_45be2cab0fe4819188c7c0f9a211358c）により、死亡状態を戻さず、生前診療の後日入力・誤記訂正を理由と履歴付きで行える。過去診療の専用入力・医師確認・当日カードなし／自動課金なしは既決であり、今回の初回承認として数え直さない。実診療日、現在の入力時刻、入力者、確認医師、元記録との関係を識別し、生前分であることが不明なら確認する。既存記録への誤記訂正は原記録・確定時内容を保持する専用訂正／追記へ渡す。死亡後の新しい医療行為・未来の予約／実施は認めず、死亡登録を取り消して通常作成を通す方法で代用しない。
+
+退院処理はD05、精算はD10の理由・履歴付き経路へ渡す。後日入力／訂正だけで自動課金・返金・在庫戻しを行わない。現行死亡gate・全owner adapterの適合は別工程で、今回実装済み・実機PASSを意味しない。
+
 <a id="requirement-fr-medical-records-retrospective-no-card-no-billing"></a>
 ### 過去診療の専用追加入力
 
@@ -276,7 +283,7 @@ stateDiagram-v2
 | AC-medical-records-wrong-patient-target-guard | 医院／患者不一致または確認前・確定済み転記先 | 転記要求 | 認可・照合・確認・確定保護を保持し直接上書きしない | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-wrong-patient-linked-transfer) |
 | AC-medical-records-retrospective-dates | 過去未登録診療 | 理由・医師確認付き専用入力 | 実診療日と現在入力日時を別に保持 | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-retrospective-no-card-no-billing) |
 | AC-medical-records-retrospective-no-reception-billing | 過去未登録診療 | 追加入力成功 | 当日カード・診療開始・自動課金を生成せず請求は会計で別途確認 | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-retrospective-no-card-no-billing) |
-| AC-medical-records-retrospective-existing | 既存記録または確定済み記録あり | 追加入力を要求 | 照合し重複作成で代用せず確定済み訂正は追記へ | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-retrospective-no-card-no-billing) |
+| AC-medical-records-retrospective-existing | 既存記録または確定済み記録あり（死亡登録済みを含む） | 追加入力・誤記訂正を要求 | 照合し重複作成で代用せず、確定済み訂正は理由・履歴付き追記へ。死亡状態・原記録を保持 | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-retrospective-no-card-no-billing) |
 | AC-medical-records-empty-hide-history | 空・関連なし・削除保護充足の誤作成 | 非表示操作 | 元ID・履歴を保持し通常一覧から非表示、物理削除しない | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-empty-record-hide-restore) |
 | AC-medical-records-empty-restore-authorized | 復元対象と理由があり権限・現在整合を充足 | 復元 | 同じIDを復元し履歴を残す、診療開始・自動課金なし | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-empty-record-hide-restore) |
 | AC-medical-records-empty-restore-conflict | 関連競合／scope不一致／権限なし／理由なし | 復元 | 停止し別ID再作成・無条件復元を行わない | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-empty-record-hide-restore) |

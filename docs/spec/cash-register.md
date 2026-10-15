@@ -62,6 +62,10 @@ stateDiagram-v2
 
 ---
 
+## 承認済みの実査誤入力訂正（2026-10-15）
+
+[D12の実査誤入力訂正](domains/cash-register/business-rules.md#requirement-fr-closing-actual-input-correction)に従い、権限者が理由付きで訂正を追記できる。原close・原実査／差額を保持し、訂正後の有効実査／差額を別表示する。単なる入力訂正は現金移動・売上・会計訂正ではなく、元締めの再開／取消／再締めを行わない。以下の専用訂正routeがない説明は現行差であり、この承認済み目標を禁止する意味ではない。
+
 ## 3. レジ締めフロー（旧実装の集計基準）
 
 1.  **プレビュー**: 指定期間（AM/PM/EMG）内の `completed_at` を持つ完了会計（`status = completed`、未削除）を集計し、理論上の売上高を表示。下書き・未確定会計は集計しない。
@@ -89,6 +93,6 @@ stateDiagram-v2
   - `(clinic_id, close_date, period)` は **完全 UNIQUE**（`deleted_at` を見ない）。soft-delete で同じ区分を再締めする経路は塞がれている。
   - DB 層でも `cash_register_closes` / `cash_register_close_adjustments` の UPDATE/DELETE を immutability trigger で拒否する（`backend/migrations/001_init.sql` の append-only 統合ブロック。コメント上の旧 migration 003）。
 - **締め後訂正モデル**: 会計編集の差分は `cash_register_close_adjustments`（`close_id` 参照・NO CASCADE DELETE）へ append-only 追記。`accounting_delta` は合計変更が分かる場合の best-effort 差分、会計のみの訂正では `cash_movement_amount=0`。
-- **権限**: `cash-register-close` 権限(`view`/`create`)は医院単位で付与され、この権限を持つスタッフは同一医院の全締め記録を閲覧・作成できる(担当者本人の記録に限定する制御はない)。確定済み close 自体は権限の有無にかかわらず誰も修正・取消できない。締め後会計編集は `accounting-post-close-edit`。
+- **権限**: `cash-register-close` 権限(`view`/`create`)は医院単位で付与され、この権限を持つスタッフは同一医院の全締め記録を閲覧・作成できる(担当者本人の記録に限定する制御はない)。確定済み close 原本は権限の有無にかかわらず誰も直接修正・取消できない。承認済みの実査誤入力訂正は別の追記操作で、既存view/createを持つだけでは許可を推定しない。締め後会計編集は `accounting-post-close-edit`。
 
 ---
