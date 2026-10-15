@@ -98,3 +98,39 @@ describe("MasterSidePanel 非モーダル dialog の支援技術契約 (EMR-401 
     expect(trigger).toHaveFocus();
   });
 });
+
+// EMR-411 C-3: tablet overlay は workspace コンテキストでのみ成立する
+// opt-in。MasterSidePanel は既定で relative（セクション内埋め込み等を壊さない）、
+// tabletOverlay=true で SidePeekPanel へ overlay 契約を委譲する。
+describe("MasterSidePanel tabletOverlay forwarding (EMR-411)", () => {
+  it("既定ではパネルは relative のまま（max-xl:absolute 無し）", () => {
+    renderPanel();
+
+    const panel = document.querySelector("[data-side-peek]");
+    expect(panel).toHaveClass("relative");
+    expect(panel).not.toHaveClass("max-xl:absolute");
+  });
+
+  it("tabletOverlay=true で max-xl overlay クラスがパネルに付く", () => {
+    render(
+      <MasterSidePanel
+        isNew
+        title=""
+        onTitleChange={vi.fn()}
+        onClose={vi.fn()}
+        icon={<svg />}
+        tabletOverlay
+      >
+        <div>body</div>
+      </MasterSidePanel>,
+    );
+
+    const panel = document.querySelector("[data-side-peek]");
+    expect(panel).toHaveClass(
+      "max-xl:absolute",
+      "max-xl:inset-y-0",
+      "max-xl:right-0",
+      "max-xl:z-20",
+    );
+  });
+});

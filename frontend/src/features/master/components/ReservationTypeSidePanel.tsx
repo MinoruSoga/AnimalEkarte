@@ -136,6 +136,7 @@ export const CategorySidePanel = memo(function CategorySidePanel({
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={item === null}
       title={formData.name}
       onTitleChange={handleTitleChange}

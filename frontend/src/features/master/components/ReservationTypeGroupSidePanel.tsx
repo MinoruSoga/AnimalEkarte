@@ -6,6 +6,7 @@ import {
   PropertyInput,
   MasterSidePanel,
 } from "@/components/shared/SidePeek";
+import { Input } from "@/components/ui/input";
 import { C, LAYOUT, PALETTE } from "@/lib/design-tokens";
 import type { ReservationTypeGroup } from "../api/reservation-type-groups";
 import { useMasterSidePanelForm } from "../hooks/use-master-side-panel-form";
@@ -91,6 +92,7 @@ export const GroupSidePanel = memo(function GroupSidePanel({
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={item === null}
       title={formData.name}
       onTitleChange={handleTitleChange}
@@ -107,12 +109,12 @@ export const GroupSidePanel = memo(function GroupSidePanel({
       <PropertyRow label="カラー" description="このグループの識別色です。">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-2">
-            <input
+            <Input
               type="color"
               aria-label="カラー"
               value={formData.color}
               onChange={handleColorPickerChange}
-              className={LAYOUT.colorInputSmall}
+              className={`${LAYOUT.colorInputSmall} p-0`}
             />
             <PropertyInput
               value={formData.color}

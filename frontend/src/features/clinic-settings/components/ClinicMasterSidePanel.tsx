@@ -5,6 +5,7 @@ import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIco
 import { FieldHelp } from "@/components/shared/FieldHelp";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { Input } from "@/components/ui/input";
 import { C, ICON, LAYOUT, STYLE } from "@/lib/design-tokens";
 import type { Clinic } from "../api/clinics";
 import type { ClinicFormData } from "../lib/clinic-master-settings-model";
@@ -45,7 +46,7 @@ export function ClinicMasterSidePanel({
   return (
     <div
       data-side-peek
-      className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 flex flex-col`}
+      className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 ${LAYOUT.sidePeek.position} flex flex-col`}
     >
       <div className={STYLE.sidePeekToolbar}>
         <span className={`text-xs ${C.text65} pl-1 select-none`}>
@@ -78,9 +79,9 @@ export function ClinicMasterSidePanel({
 
               <div className="pb-1 mb-4">
                 <div className="flex items-center gap-1">
-                  <input
+                  <Input
                     type="text"
-                    className={`flex-1 min-w-0 bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0 focus-visible:ring-2 ${C.focusRingAccent40}${nameError ? ` ${STYLE.formInputError}` : ""}`}
+                    className={`flex-1 min-w-0 bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none h-auto p-0 focus-visible:ring-2 ${C.focusRingAccent40}${nameError ? ` ${STYLE.formInputError}` : ""}`}
                     style={{
                       fontSize: LAYOUT.pageTitle.fontSize,
                       fontWeight: LAYOUT.pageTitle.fontWeight,

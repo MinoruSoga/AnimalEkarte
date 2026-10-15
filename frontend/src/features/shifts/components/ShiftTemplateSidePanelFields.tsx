@@ -252,7 +252,7 @@ function PropInput({
   errorId?: string;
 }) {
   return (
-    <input
+    <Input
       type={type}
       aria-label={ariaLabel}
       aria-invalid={ariaInvalid || undefined}

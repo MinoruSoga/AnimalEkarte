@@ -161,3 +161,57 @@ describe("Pagination", () => {
     });
   });
 });
+
+// EMR-411 B20: ページネーションのルートは狭幅で info 行と操作行が折り返せるよう
+// flex-wrap を持つ。ページ番号算出ロジック・既存レイアウト系クラスは維持する。
+describe("Pagination wrapping (EMR-411 B20)", () => {
+  it("ルートが flex-wrap と gap を持ち justify-between 等の既存クラスを維持する", () => {
+    const { container } = render(
+      <Pagination
+        currentPage={2}
+        totalPages={3}
+        totalCount={25}
+        startIndex={11}
+        endIndex={20}
+        onPageChange={noop}
+        onPrev={noop}
+        onNext={noop}
+      />,
+    );
+
+    const root = container.firstElementChild;
+    expect(root).toHaveClass(
+      "flex",
+      "flex-wrap",
+      "items-center",
+      "justify-between",
+      "gap-x-2",
+      "gap-y-2",
+      "py-3",
+      "px-1",
+    );
+  });
+});
+
+// EMR-411 追加: ページ操作の内側グループ（first/prev/番号/next/last）は狭幅パネル内で
+// 折り返せる必要がある（CampaignSidePanel の PropertyRow 内で ~200px しか取れない）。
+// ページ番号算出ロジック・外側 justify-between 行割りは変更しない。
+describe("Pagination inner controls wrap (EMR-411)", () => {
+  it("内側コントロール群が flex-wrap を持つ", () => {
+    render(
+      <Pagination
+        currentPage={4}
+        totalPages={14}
+        totalCount={100}
+        startIndex={31}
+        endIndex={40}
+        onPageChange={noop}
+        onPrev={noop}
+        onNext={noop}
+      />,
+    );
+
+    const inner = screen.getByTestId("pagination-first").parentElement;
+    expect(inner).toHaveClass("flex", "flex-wrap", "items-center", "gap-1");
+  });
+});

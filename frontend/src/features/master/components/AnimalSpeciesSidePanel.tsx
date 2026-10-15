@@ -69,6 +69,7 @@ export const AnimalSpeciesSidePanel = memo(function AnimalSpeciesSidePanel({
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={item === null}
       title={formData.name}
       onTitleChange={handleTitleChange}

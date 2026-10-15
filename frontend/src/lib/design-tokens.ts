@@ -652,6 +652,8 @@ export const LAYOUT = {
   sidePeek: {
     width:         "w-[520px] max-w-full",
     widthPx:       520,
+    /** EMR-411: viewport <1280px ではリスト全面の上に右寄せ overlay する位置契約 */
+    position:      "relative max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:z-20",
   },
 
   /** Master-detail nav panel width (tree/list side panel, e.g. LINE予約枠) */

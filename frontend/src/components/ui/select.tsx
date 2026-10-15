@@ -3,7 +3,20 @@ import * as SelectPrimitive from "@radix-ui/react-select";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 
 import { cn } from "./utils";
-import { STATE } from "@/lib/design-tokens";
+import { C, STATE } from "@/lib/design-tokens";
+
+function NativeSelect({ className, ...props }: React.ComponentProps<"select">) {
+  return (
+    <select
+      data-slot="native-select"
+      className={cn(
+        `min-h-11 w-full rounded-xs border px-2 text-sm ${C.borderMedium} ${C.bgWhite} ${C.text} focus-visible:ring-2 ${C.focusRingAccent40}`,
+        className,
+      )}
+      {...props}
+    />
+  );
+}
 
 function Select({ ...props }: React.ComponentProps<typeof SelectPrimitive.Root>) {
   return (
@@ -141,4 +154,4 @@ function SelectScrollDownButton({
   );
 }
 
-export { Select, SelectContent, SelectItem, SelectTrigger, SelectValue };
+export { NativeSelect, Select, SelectContent, SelectItem, SelectTrigger, SelectValue };

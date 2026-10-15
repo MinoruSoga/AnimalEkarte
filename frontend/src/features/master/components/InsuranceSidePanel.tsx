@@ -9,6 +9,7 @@ import {
   StatusToggleButton,
 } from "@/components/shared/SidePeek";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
+import { Input } from "@/components/ui/input";
 import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -111,6 +112,7 @@ export const InsuranceSidePanel = memo(function InsuranceSidePanel({
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={item === null}
       title={formData.name}
       onTitleChange={handleTitleChange}
@@ -149,7 +151,7 @@ export const InsuranceSidePanel = memo(function InsuranceSidePanel({
         label="連絡先"
         description="保険会社の連絡先電話番号です。保険内容の確認・問い合わせ時に参照します。"
       >
-        <input
+        <Input
           type="tel"
           aria-label="連絡先"
           className={MASTER_INPUT_CLASS}

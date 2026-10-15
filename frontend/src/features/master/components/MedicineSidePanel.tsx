@@ -47,7 +47,7 @@ export const MedicineSidePanel = memo(function MedicineSidePanel({
           animate={{ width: LAYOUT.sidePeek.widthPx, opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
           transition={{ duration: panelDuration, ease: [0.25, 0.1, 0.25, 1] }}
-          className="shrink-0 min-h-0 overflow-hidden"
+          className={`${LAYOUT.sidePeek.position} max-w-full shrink-0 min-h-0 overflow-hidden`}
         >
           <MedicineSidePanelBody
             key={selectedMedicine?.id ?? "new"}

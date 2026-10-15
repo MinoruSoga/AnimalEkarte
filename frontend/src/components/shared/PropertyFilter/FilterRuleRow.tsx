@@ -15,6 +15,7 @@ import type {
 
 // ─── Condition label helpers ──────────────────────────────
 
+/** Returns the localized label for a filter condition, falling back to its raw key. */
 function getConditionLabel(condition: FilterCondition, filterType: string): string {
   const conditions = FILTER_CONDITIONS[filterType as keyof typeof FILTER_CONDITIONS];
   return conditions?.find((c) => c.value === condition)?.label ?? condition;
@@ -222,7 +223,7 @@ export const FilterRuleRow = memo(function FilterRuleRow({
       <button
         type="button"
         onClick={onRemove}
-        className={`ml-auto min-h-11 min-w-11 flex items-center justify-center rounded-xxs ${C.text30} ${C.hoverText60} ${C.hoverBgMedium} opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 transition-opacity`}
+        className={`ml-auto min-h-11 min-w-11 flex items-center justify-center rounded-xxs ${C.text60} ${C.hoverText60} ${C.hoverBgMedium} opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity`}
         aria-label={`${property?.label ?? filter.key} フィルタを削除`}
       >
         <X className={ICON.page} />

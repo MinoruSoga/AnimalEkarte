@@ -2,7 +2,10 @@ import { memo, useMemo, type ReactNode } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 import { FieldHelp } from "@/components/shared/FieldHelp";
+import { PropertyToggleButton } from "@/components/shared/SidePeek";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 import {
   DOCUMENT_SECTION_KEYS,
@@ -37,6 +40,7 @@ export const PropertyRow = memo(function PropertyRow({
   );
 });
 
+/** Renders a labeled controlled text input and emits each edited string through `onChange`. */
 export function ClinicTextProperty({
   label,
   value,
@@ -54,7 +58,7 @@ export function ClinicTextProperty({
 }) {
   return (
     <PropertyRow label={label} description={description}>
-      <input
+      <Input
         type={type}
         aria-label={label}
         className={PROP_INPUT_CLASS}
@@ -66,6 +70,7 @@ export function ClinicTextProperty({
   );
 }
 
+/** Edits a displayed percentage from 0 to 100 and emits the fractional rate to `onChange`. */
 export function ClinicTaxRateProperty({
   label,
   value,
@@ -95,6 +100,7 @@ export function ClinicTaxRateProperty({
   );
 }
 
+/** Renders a named boolean toggle whose pressed state reflects `value`; changes are emitted upward. */
 export function ClinicBooleanProperty({
   label,
   value,
@@ -108,17 +114,19 @@ export function ClinicBooleanProperty({
 }) {
   return (
     <PropertyRow label={label} description={description}>
-      <button
-        type="button"
-        onClick={() => onChange(!value)}
-        className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 min-h-11 cursor-pointer`}
+      <PropertyToggleButton
+        label={label}
+        pressed={value}
+        onPressedChange={onChange}
+        className="px-0.5"
       >
         <StatusPill status={value ? "active" : "inactive"} />
-      </button>
+      </PropertyToggleButton>
     </PropertyRow>
   );
 }
 
+/** Renders a controlled, labeled textarea with a 500-character limit. */
 export function ClinicTextareaProperty({
   label,
   value,
@@ -134,8 +142,9 @@ export function ClinicTextareaProperty({
 }) {
   return (
     <PropertyRow label={label} description={description}>
-      <textarea
-        className={`${PROP_INPUT_CLASS} min-h-16 resize-y`}
+      <Textarea
+        aria-label={label}
+        className={`${PROP_INPUT_CLASS} min-h-16 resize-y field-sizing-fixed`}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
@@ -146,6 +155,10 @@ export function ClinicTextareaProperty({
 }
 
 // #190: セクション表示順の変更UI
+/**
+ * Edits the canonical accounting-document section order.
+ * Unknown keys are removed and missing canonical keys appended before move results are emitted.
+ */
 export function SectionOrderProperty({
   order,
   onChange,
@@ -229,6 +242,7 @@ const STATUS_CONFIG = {
   },
 } as const;
 
+/** Displays an active or inactive status label; it is not an interactive control. */
 export function StatusPill({ status }: { status: "active" | "inactive" }) {
   const cfg = STATUS_CONFIG[status];
   return (

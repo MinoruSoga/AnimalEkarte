@@ -1,5 +1,8 @@
 import { C } from "@/lib/design-tokens";
 import { FieldHelp } from "@/components/shared/FieldHelp";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/select";
 
 import { QUALITATIVE_VALUES, type ReferenceRangeDraft } from "../lib/exam-type-fields-editor-model";
 
@@ -18,7 +21,7 @@ export function FieldInput({ label, value, onChange, description }: FieldInputPr
         <span>{label}</span>
         {description ? <FieldHelp label={label} content={description} /> : null}
       </div>
-      <input
+      <Input
         aria-label={label}
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -36,18 +39,30 @@ interface RangeBoundInputProps {
 }
 
 function RangeBoundInput({ label, type, value, onChange }: RangeBoundInputProps) {
+  const className = `mt-1 min-h-11 w-full rounded-xs border px-2 ${C.borderMedium} ${C.bgWhite} ${C.text}`;
+
   return (
     <div className={`text-xs ${C.text65}`}>
       {label.endsWith("下限") ? "下限" : "上限"}
-      <input
-        type={type}
-        step={type === "number" ? "any" : undefined}
-        aria-label={label}
-        list={type === "text" ? "exam-qualitative-values" : undefined}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className={`mt-1 min-h-11 w-full rounded-xs border px-2 ${C.borderMedium} ${C.bgWhite} ${C.text}`}
-      />
+      {type === "number" ? (
+        <NumberInput
+          placeholder=""
+          step="any"
+          aria-label={label}
+          value={value}
+          onChange={onChange}
+          className={className}
+        />
+      ) : (
+        <Input
+          type="text"
+          list="exam-qualitative-values"
+          aria-label={label}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className={className}
+        />
+      )}
     </div>
   );
 }
@@ -71,7 +86,7 @@ export function ReferenceRangeInputs({ speciesName, draft, onChange }: Reference
             content="基準範囲の入力形式です。「数値」は下限・上限を数値で、「定性」は区分値で指定します。"
           />
         </span>
-        <select
+        <NativeSelect
           aria-label={`${speciesName}の基準範囲種別`}
           value={draft.mode}
           onChange={(event) =>
@@ -88,7 +103,7 @@ export function ReferenceRangeInputs({ speciesName, draft, onChange }: Reference
         >
           <option value="numeric">数値</option>
           <option value="qualitative">定性</option>
-        </select>
+        </NativeSelect>
       </div>
       <RangeBoundInput
         label={`${speciesName}の${rangeKind}下限`}
