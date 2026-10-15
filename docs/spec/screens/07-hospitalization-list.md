@@ -1,5 +1,7 @@
 # 入院管理一覧 仕様書 (Hospitalization List)
 
+> 2026-10-15文書整理: 画面をまたぐ業務契約・受入条件は[領域正本](../domains/hospitalization/lifecycle.md)、型・保存／再送と現行差は[技術契約](../../design/domains/hospitalization/technical-spec.md)を参照する。以下の画面詳細は既存記載を継承（決定根拠・実装の全件再監査なし）、実機未実施。2026-10-15のユーザー修正で「担当」は担当医師、指名は必須ではない。責任担当1名必須・医師以外可の提案は不採用。予約の指名と宿泊管理の担当医師、ケア入力actorを分け、新たな指名機能や担当人数を推定しない。予約だけの入院開始・予定終了だけの退室は不可。
+
 ホテル頭数の状態・同一宿泊の重複排除・延泊・未退室と、LINE入退室の休診日／時間外条件は[18:26のLINE正本](../line/reservation-spec.md#hotel-counting-boundaries-1826)・[日時条件](../line/reservation-spec.md#hotel-entry-exit-hours-1826)へ従う。宿泊管理内部の保存方式は設計。
 
 17:35合意の[ホテル受付上限](../line/reservation-spec.md#requirement-fr-line-reservations-hotel-concurrent-stay-limit)は、医院別の同時宿泊頭数を宿泊期間全体で判定し、未設定・超過時はLINE確定せず医院相談へ案内する。ケージと世話担当は宿泊管理側で割り当て、医師指名／医師シフトで代用しない。技術方式は設計、実装・実機受入は未確認。
@@ -94,3 +96,4 @@ flowchart TB
 | POST | `/api/v1/masters/cages/:id/unmerge` | ケージ連結の解除（EMR-306） | `master-hospitalization` | `edit` |
 
 ---
+

@@ -1,5 +1,7 @@
 # 入院登録/編集 仕様書 (Hospitalization Form)
 
+> 2026-10-15文書整理: 画面をまたぐ業務契約・受入条件は[領域正本](../domains/hospitalization/lifecycle.md)、型・保存／再送と現行差は[技術契約](../../design/domains/hospitalization/technical-spec.md)を参照する。以下の画面詳細は既存記載を継承（決定根拠・実装の全件再監査なし）、実機未実施。担当は担当医師、指名は非必須。臨床入院の開始時担当医決定は別の既合意である。現行createのstart_date由来admitted既定、チェックインの単純PATCH、編集の日付未送信は目標との現行差。予定／実績の更新を保存済みと誤認させない。料金の日数自動積算は既存仕様ではなく、ホテル料金・必要前金・取消料はスタッフの個別確認入力とする追加合意。取消時の自動請求／返金は設けない。
+
 ホテルの計数・退室／延泊とLINEの入退室日時条件は[18:26の計数正本](../line/reservation-spec.md#hotel-counting-boundaries-1826)・[日時正本](../line/reservation-spec.md#hotel-entry-exit-hours-1826)へ従う。
 
 17:35合意の[ホテル受付上限](../line/reservation-spec.md#requirement-fr-line-reservations-hotel-concurrent-stay-limit)は、医院別の同時宿泊頭数を宿泊期間全体で判定し、未設定・超過時はLINE確定せず医院相談へ案内する。ケージと世話担当は宿泊管理側で割り当て、医師指名／医師シフトで代用しない。技術方式は設計、実装・実機受入は未確認。
@@ -109,3 +111,4 @@ Notionスタイルのプロパティ編集UIで、入院の根幹となる条件
 | GET | `/api/v1/masters/cages` | 利用可能なケージ一覧の取得 | `master-hospitalization` | `view` |
 
 ---
+

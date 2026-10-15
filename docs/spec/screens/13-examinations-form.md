@@ -1,5 +1,15 @@
 # 検査入力/結果登録 仕様書 (Examination Form)
 
+## 2026-10-15 D07仕様整理の優先順位
+
+業務・例外・GWTは[検査ライフサイクル](../domains/examinations/lifecycle.md)、現wireとの差は[技術契約](../../design/domains/examinations/technical-spec.md)を優先する。以下のUI／図は現行参照であり、保存するだけで一律に確定する意味ではない。
+
+- confirmedは全ロック。revisionなしcompletedは結果封印、revisionありcompletedは解除後の作業版となり得る。
+- 専用unconfirmは権限・理由・official版・親draftが必要。検査の解除はカルテfinalizedを解除しない。
+- 旧PUT /itemsは未送信／nullも全消去へ変換する現状差がある。D03継承目標は明示[]だけを意図的全消去とし、旧経路適合済みとしない。
+- 日常機器受信はEMR-402のブラウザWeb Serial（NX600/AU10V、ページ表示中）。ADRの歴史的LaunchAgent説明を現在の通常経路にしない。
+- HIGH/LOWは表示補助。取得不能／評価不能を正常確認済みとせず、基準値具体値の医師確認とソフト仕様整理を分ける。
+
 ## 概要
 - **画面の目的**: 検査オーダーの作成、および臨床検査値（数値・判定）の精緻な記録。
 - **URLパターン**: 
@@ -105,3 +115,4 @@ stateDiagram-v2
 ### カルテへの返却・利用開始の最終照合
 
 [最終型／writer契約](../../design/domains/medical-records/technical-spec.md#medical-record-writer-matrix)へ接続し、院内scope・検査ID・患者／record対応・固定revision／版内item ref・変更理由／actor／時刻・取得結果を返す。原記載の確定時参照版と後日版を分離。現在のrevision／print-snapshotの存在だけでカルテadapter実装済みとしない。確定済みカルテへの普通FK PATCH／unfinalizeなし。旧結果／項目の明示対応を確認できなければ停止し、既存の検査内部確定／訂正手順を保持する。
+

@@ -95,3 +95,14 @@
 > 2026-09-29 訂正: `lstep-tag-config` 配下の POST/DELETE は `hospital-settings` の create/delete 権限 → **システム管理者専用**（`requireSystemAdmin()`、`is_system_admin` 判定）。GET は `hospital-settings:view` のまま。全医院共通の自動タグ設定を単一医院権限で変更できないよう SOLO-09 / LSA-04 / DEC-30 で意図的に閉じた（`backend/internal/lstep/routes.go`）。
 
 ---
+
+<a id="crm-domain-owner-reference"></a>
+## D15・D16の責務境界（2026-10-15）
+
+タグ・健診同期・Webhook・停止／再開・外部副作用のFR/ACは[CRM正本のD15整理](../line/lstep-integration.md#crm-document-contract)を参照する。分析レポートの計数はD16、同画面からのCSVアップロード／インポートはD15のwriteであり、分析viewだけをアップロード権限へ拡張しない。CSVの列仕様・重複行／部分失敗・再取込、設定/タグ/健診/共有file/送信の詳細とACは[管理操作詳細](../line/lstep-integration.md#crm-operation-coverage)へ集約する。現行想定aliasと実export互換未検証を区別する。新規外部write・接続テスト・CSV取込は本作業で行わない。
+
+## 分析の読取契約（D16）
+
+/lstep/analytics の月次配信統計・配信後来院率は[経営・顧客集計の正本](../domains/analytics/business-rules.md#requirement-fr-analytics-lstep-observation)へ。現行統計はscheduled_atの月、来院率はfired_atの月に属する非抑止firedログが母数で、UIは30日窓。ユニーク飼主数・最終到達／既読・因果効果と同義にしない。同じ画面の友だち属性CSV取込はD15のwrite契約と独立権限であり、分析閲覧権限だけでは許可しない。
+
+共有ファイルの手動削除／143時間cleanupと業務原本の保持は[D15の選定契約](../line/lstep-integration.md#crm-shared-file-retention)へ従う。管理delete権限があっても原本・必要履歴・分類不明を通常操作で物理削除できる意味ではない。現行storage先行deleteとの差は実装適合条件へ残す。

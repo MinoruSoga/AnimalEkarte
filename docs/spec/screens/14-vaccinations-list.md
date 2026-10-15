@@ -1,5 +1,11 @@
 # 予防接種一覧 仕様書 (Vaccinations List)
 
+## 2026-10-15 D08仕様整理の優先順位
+
+業務・例外・GWTは[予防接種ライフサイクル](../domains/vaccinations/lifecycle.md)、現wire／監査等の差は[技術契約](../../design/domains/vaccinations/technical-spec.md)。独立／カルテ内は同じvaccinations資源。単体finalizedを新設せず、親カルテfinalizedには通常CRUDを許可しない。
+
+同日複数の単件順次登録は[EMR-105の後続検証記録](../../work/emr/emr-105-vaccine-multi-20261002.md)を参照し、S29の古い「調査中」を現在状態としない。当時の限定検証を今回の実機PASSにしない。以下の担当医フィルタは最大100件内であり、全件検索ではない。接種保存・タグ同期・配信／公開の成功は別に判定する。
+
 ## 概要
 - **画面の目的**: 院内で行われた全予防接種（混合ワクチン、狂犬病ワクチン、フィラリア・ノミダニ予防等）の実績管理。
 - **URLパターン**: `/vaccinations`
@@ -55,3 +61,4 @@ flowchart TB
 | DELETE | `/api/v1/vaccinations/:id` | 誤登録データの論理削除 | `vaccinations` | `delete` |
 
 ---
+

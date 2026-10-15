@@ -1,5 +1,7 @@
 # 入院詳細・デイリーカルテ 仕様書 (Hospitalization Detail)
 
+> 2026-10-15文書整理: 画面をまたぐ業務契約・受入条件は[領域正本](../domains/hospitalization/lifecycle.md)、型・保存／再送と現行差は[技術契約](../../design/domains/hospitalization/technical-spec.md)を参照する。以下の画面詳細は既存記載を継承（決定根拠・実装の全件再監査なし）、実機未実施。以下の単純status PATCHによるチェックインは現行参照。新しい入院開始は担当医決定と必要入院記録の同時成功に従う。退院会計の現行固定税率／取消会計soft-deleteは最新D10の計算・元取消請求保持へ未追従の可能性があり、合意仕様扱いしない。担当は担当医師、指名は非必須。完了後の原記録保持・理由付き専用訂正とスタッフ確認によるホテル料金・必要前金・取消料入力は追加承認済み。自動返金・在庫巻戻し・日数自動課金・取消時自動請求／返金は設けない。
+
 ホテルの計数・退室／延泊とLINEの入退室日時条件は[18:26の計数正本](../line/reservation-spec.md#hotel-counting-boundaries-1826)・[日時正本](../line/reservation-spec.md#hotel-entry-exit-hours-1826)へ従う。予定超過だけで実際の退室を自動確定しない。
 
 17:35合意の[ホテル受付上限](../line/reservation-spec.md#requirement-fr-line-reservations-hotel-concurrent-stay-limit)は、医院別の同時宿泊頭数を宿泊期間全体で判定し、未設定・超過時はLINE確定せず医院相談へ案内する。ケージと世話担当は宿泊管理側で割り当て、医師指名／医師シフトで代用しない。技術方式は設計、実装・実機受入は未確認。
@@ -107,3 +109,4 @@ stateDiagram-v2
 | POST | `/api/v1/hospitalizations/:id/discharge-with-billing` | 退院処理（会計連携含む） | `hospitalization` | `edit` |
 
 ---
+

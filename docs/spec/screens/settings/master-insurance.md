@@ -14,6 +14,10 @@
 [第六群の業務正本](../../domains/accounting/lifecycle.md#accounting-agreement-sixth)と[マスタ変更権限](../../domains/accounting/lifecycle.md#requirement-fr-accounting-master-authorized-maintenance)へ従う。複数の保険会社を扱い、アニコムは例。[第七群](../../domains/accounting/lifecycle.md#accounting-insurance-window-scope)では、スタッフが資格・残限度を外部画面等で確認し、結果と保険負担額を会計に記録する。保険利用は会計ごと・ペットごとに1契約、同じ診療費の複数契約併用は対象外。全取扱商品一覧・会社／商品別の自動給付算式はこの記録運用の前提ではなく、将来自動化時の別スコープ。保険会社への請求・入金照合・査定差額管理は今回の対象外。下記の補償率自動設定なしは現行記載で、将来の自動設定禁止を合意したものではない。 全スタッフに変更を開放せず、対象grant・医院scopeを検査する。今回、実権限・設定・API／DBは変更していない。詳細な[現行mapping](../../../design/domains/accounting/technical-spec.md#accounting-master-permission-map)は技術仕様へ。
 
 
+### 会計の保存・参照保護契約
+
+[D10のmaster責務と互換](../../../design/domains/accounting/technical-spec.md#accounting-master-coverage)・[画面取得／失敗／保存](../../../design/domains/accounting/technical-spec.md#accounting-screen-contract)へ従う。現在認可・clinic／対象版を検査し、無権限／競合は保存しない。取得失敗を空masterとせず未保存入力を保護。名称変更／無効化／削除で過去請求／資金・帳票参照を失わせず前後値を追跡。旧CRUD表は現行参照で、新業務未対応経路はadapterと実装受入まで利用開始しない。
+
 ## 概要
 - **画面の目的**: ペット保険（アニコム、アイペット等）の定義、および保険が補償する側の割合（「補償率」）の設定管理。
 - **URLパターン**: `/settings/insurance`
@@ -68,3 +72,4 @@ flowchart TB
 | PATCH | `/api/v1/masters/insurances/reorder` | 表示順序の一括保存（BE実装済みだが本画面からは未呼出） | `master-insurance` | `edit` |
 
 ---
+

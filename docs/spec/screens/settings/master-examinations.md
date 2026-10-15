@@ -1,5 +1,11 @@
 # 検査項目定義マスタ 仕様書 (Examination Definitions)
 
+## 2026-10-15 D07仕様整理の優先順位
+
+[検査ライフサイクル](../../domains/examinations/lifecycle.md#fr-examinations-master)と[技術契約](../../../design/domains/examinations/technical-spec.md)へ接続する。以下の実装済み／残差記録を、基準値具体値の医師確認、現医院の実grant、実機受信・公開承認に読み替えない。別の「臨床責任者」役割は新設しない。
+
+マスタ変更で過去結果の保存範囲／単位／公式版を自動上書きしない。当時値欠損は現在マスタから補完せず照合へ。機器項目対応と検査基準値はそれぞれ既存grantを検査し、結果編集権限だけで全マスタを開放しない。
+
 ## 概要
 - **画面の目的**: 血液検査や生化学検査等、検査プラン（`exam_types`）の名称・価格の定義、および測定項目（`exam_type_fields`）と基準値の管理。
 - **URLパターン**: `/settings/treatment-items?tab=examination`
@@ -85,3 +91,4 @@ Phase 1 FE と Phase 2 composite FK（`001_init.sql` にアーカイブ済み）
 | R-4 | lab import `auto_commit` 解禁 | BLOCKED | clinic/source ごとに初期 `false` 維持。authorized enable / stop / failure notify / audit が前提 |
 | R-5 | 定性基準値の FE ピボット表示（`qualitative_min/max`） | DONE | feature-local transform が `qualitativeMin/Max` を写像。`formatStoredReference` 優先度: `referenceValue` > `refMin/refMax` > `qualitativeMin/Max` > `-`。`ExamPivotTable` に配線済み（open end は `(-)-` / `-(+)`）。ExamItemsTable/ExaminationGroup の parity は任意延期。scoped green: examinations vitest 9 files / 118 tests |
 | R-6 | Phase 2 seed/COPY redesign を伴う追加 migration | BLOCKED | 現行 seed は `clinic_id` 列付き。追加 DDL が seed 列衝突を起こす場合は redesign 後のみ |
+

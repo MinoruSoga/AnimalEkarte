@@ -1,5 +1,14 @@
 # 飼主カルテレポート 仕様書 (Owner Report)
 
+| 管理項目 | 記載 |
+|:---|:---|
+| 文書ID・種別 | page.owners.clinical-report／D21 業務・画面仕様 |
+| 決定状態 | 既存記載を継承。明示済み合意と現行実装説明を分け、2026-10-15整理節の提案・未決は未承認 |
+| 実装状態 | 既存記載を継承（今回の再監査なし）。既知gapを保持 |
+| 実機検証状態 | 今回未実施。テスト名・過去証拠の掲載は再実行を意味しない |
+| 文書確認日 | 2026-10-15。本文・参照・FR/AC整理。独立レビュー前 |
+
+
 ## 概要
 
 - **目的**: 選択中ペットの「診療前に確認する情報」「今日の来院」「次の行動」「前回診療」「基本情報」「種類別履歴」を、ページ切替やページスクロールなしで俯瞰する読み取り専用画面。
@@ -117,6 +126,80 @@ flowchart TB
 | GET | `/api/v1/examinations?pet_id=&page=` | 最新検査・検査履歴（手動追加読み込み） | `examinations:view` |
 | GET | `/api/v1/checkups/field-results?pet_id=` | 健診履歴 | `checkups:view` |
 | GET | `/api/v1/trimmings?pet_id=&page=` | ケア履歴（手動追加読み込み） | `trimming:view` |
-| GET | `/api/v1/reservations?pet_id=&start_date=&end_date=` | 今日の来院・次回予約（今日から365日） | `reservations:view` |
+| GET | `/api/v1/reservations?pet_id=&start_date=&end_date=` | 今日の来院・次回予約（今日から731日（現行2年予定窓）） | `reservations:view` |
 
 clinic隔離・論理削除除外は各バックエンドAPIが担保する。
+
+<a id="owner-report-document-contract"></a>
+## D21の読取専用・患者context契約整理（2026-10-15）
+
+### 目的・対象範囲と状態
+
+診療前の院内スタッフ向け複合読取画面。飼主本人向け公開、共有、印刷、臨床記録のwriteを追加しない。本文のページ権限・section別権限・1頭context・6領域・履歴の取得制約を既存記載として継承する。現コード再監査／実機再受入は行っていない。
+
+### 操作・境界
+
+<a id="requirement-fr-owner-report-page-section-auth"></a>
+
+<a id="requirement-fr-owner-report-single-pet-context"></a>
+
+<a id="requirement-fr-owner-report-history-meaning"></a>
+
+<a id="requirement-fr-owner-report-partial-data"></a>
+
+<a id="requirement-fr-owner-report-manual-pagination"></a>
+
+<a id="requirement-fr-owner-report-read-only"></a>
+
+| 要件ID | 操作・契約 | 根拠と決定状態 |
+|:---|:---|:---|
+| FR-owner-report-page-section-auth | medical-records:viewとowners:viewの両方をページ前提とし、各sectionは各リソースviewで縮退する | 本文概要・§3 |
+| FR-owner-report-single-pet-context | 同一飼主の1頭だけを選択表示し、URLのpetIdをreplace同期する。範囲外petIdは先頭ペットへfallbackし、複数頭を合算しない | 本文概要・§1〜2 |
+| FR-owner-report-history-meaning | 診療はfinalized、検査は依頼中/検査中を除外、ケアは完了のみ。日付で横断表示しても同一診療IDへ統合した意味にしない | 本文§1.3、§3.1 |
+| FR-owner-report-partial-data | 権限なし/読込中/失敗/0件/明細なし/取得上限を区別し、異常なしや予定なしへ代用しない | 本文§1.3、§3 |
+| FR-owner-report-manual-pagination | 対象3sourceだけ利用者操作で追加取得し、薬/処置は同一sourceを共有する。上限検知はraw行数とtotalで判定する | 本文§1.3 |
+| FR-owner-report-read-only | 別ウィンドウの閲覧に限定し、保存・印刷・共有を新設しない | 本文§2〜3 |
+
+### 受入条件
+
+| 条件ID | Given（前提） | When（操作） | Then（期待結果） | 独立確認・成功条件・確認手順／証跡 |
+|:---|:---|:---|:---|:---|
+| AC-owner-report-page-denied | ページ必須権限の片方がない | 開く | キャッシュ済み飼主/ペット情報も描画しない | 本文概要の両権限条件を照合 |
+| AC-owner-report-section-denied | ページ権限はあるが検査viewがない | 6領域を見る | 検査部分だけ閲覧権限なしとし他の許可情報を継続表示する | 各section権限対応を照合 |
+| AC-owner-report-pet-switch | 同居ペットが複数いる | 1頭を切り替える | 選択中contextとURLがその1頭に対応し複数頭を合算しない | 本文§1.1/2.2を照合 |
+| AC-owner-report-outside-pet | petIdが当該飼主に属さない | 開く | 同一飼主ペットの先頭へfallbackする | 本文概要/OwnerReport.tsx。空配列は専用0ペット表示、詳細query対象なし |
+| AC-owner-report-finalized | 下書きと確定カルテが混在する | 前回診療/履歴を見る | finalizedだけを診療済みとして使う | 本文§3.1 |
+| AC-owner-report-no-result-detail | 検査明細が返らない | 最新検査/履歴を見る | 結果明細なしと表示し異常なしを捏造しない | 本文§1.3 |
+| AC-owner-report-truncation | totalがraw取得行数より多い | 履歴を表示する | フィルタ後件数と混同せず打切りを示す | 本文§1.3のraw/可視の区別 |
+| AC-owner-report-more | 追加取得対象sourceに次pageがある | 続きを読むを押す | 対応sourceを追加し、薬/処置は共通制御。初回自動page>1取得をしない | 本文§1.3 |
+| AC-owner-report-errors | 一部sourceが取得失敗 | 表示する | 失敗を0件/予定なしへ置き換えない | 本文§3.1とrole=alert |
+| AC-owner-report-readonly | レポートを開く | 操作を確認する | 閲覧・患者切替・追加読取だけで、臨床writeや新しい公開操作がない | 本文§2.3/3.1。ブラウザ標準印刷の品質は対象外 |
+
+### 保存・再取得・遅延応答と引継ぎ
+
+画面自身の保存・取消は該当なし（writeを所有しない）。訂正はD03/07/08/09等の正本で行い、本画面は再取得して表示する。表示中の他画面変更や権限変更を常時即時反映する保証は本文にないため創作しない。
+
+技術整理提案：医院・飼主・ペット・権限contextをquery identityとして、切替前の遅延応答を切替後患者の情報へ混入させず、失敗時に前患者を現在患者として残さない。既存の1頭context・認可・臨床安全を満たす受け手契約であり、新しい業務操作を追加するものではない。現行owner-report-pets query keyはowner IDのみで、共通query-key方針は医院切替時clear＋reload。0ペット時は専用空状態表示がある。遅延応答と全関連queryの実装適合は実機確認対象であり、query keyに医院IDがあると誤記しない。
+
+
+### 読取操作の静的照合（2026-10-15）
+
+`frontend/src/features/owner-report/routes/OwnerReport.tsx`、`hooks/use-owner-clinical-briefing-data.ts`、`api/get-owner-report-pets.ts`、`frontend/src/lib/query-keys.ts` に基づく。
+
+| 操作 | 現行契約 |
+|:---|:---|
+| 初期表示 | 認証loading中は表示保留、未認証はredirect。owner/pets読取loadingとerrorを分離する |
+| 患者選択 | URL petが現在ownerのpetsに含まれれば選択、なければ先頭へfallback。手動選択はURL replace。fallback自体が必ずURLを書換えるとはしない |
+| 0ペット | 「この飼主に登録されたペットがありません」を表示。pet切替/臨床取得対象を作らない |
+| カルテ読取 | finalizedのみ、取得上限100。未取得がない全履歴とは表示しない |
+| 他領域読取 | 領域viewなしはpet ID undefined/取得disabledとして対応queryを実行しない。画面のviewを各領域viewへ昇格させない |
+| 予約読取 | 当日から731日の窓。従来本文365日は現行2年予定窓へ訂正。D01予定の存在は確定予約や来院実績と同義でない |
+| 追加取得 | 対象3履歴の手動追加読込を個別に扱い、1件の失敗で他取得済セクションを空成功にしない |
+| cache境界 | owner-report-petsはowner ID key、共通方針は医院切替clear＋reload。患者切替前の結果を別患者へ描画しない契約の実機確認は別途 |
+
+| 条件ID | 前提・操作 | 期待結果 | 根拠 |
+|:---|:---|:---|:---|
+| AC-owner-report-no-pets | ownerにpetsなしで開く | 専用空状態、架空patientを選ばない | OwnerReport.tsx |
+| AC-owner-report-invalid-pet | 別owner/不存在のpet queryで開く | 現ownerの先頭petへfallback、指定IDの他患者記録を表示しない | OwnerReport.tsx |
+| AC-owner-report-finalized-only | draftとfinalizedカルテがある | report queryはfinalized・上限100で取得 | clinical briefing hook |
+| AC-owner-report-section-query-denied | 予約等のviewなし | 該当queryを実行せず情報を漏らさない | 同hookのenabled/undefined |

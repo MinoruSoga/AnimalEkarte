@@ -13,6 +13,8 @@
 [第六群の業務正本](../domains/accounting/lifecycle.md#accounting-agreement-sixth)と[マスタ変更権限](../domains/accounting/lifecycle.md#requirement-fr-accounting-master-authorized-maintenance)へ従う。価格・割引・保険・支払方法の変更者は管理者と対象変更権限付きスタッフ。ポータル閲覧可能と編集可能を同一視しない。 全スタッフに変更を開放せず、対象grant・医院scopeを検査する。今回、実権限・設定・API／DBは変更していない。詳細な[現行mapping](../../design/domains/accounting/technical-spec.md#accounting-master-permission-map)は技術仕様へ。
 
 
+会計masterの保存・参照保護は[D10設計](../../design/domains/accounting/technical-spec.md#accounting-master-coverage)、初期値／会計追加後反映は[第十群](../domains/accounting/lifecycle.md#accounting-empty-rounding-master)へ。本入口の他領域master内部は変更しない。
+
 ## 概要
 - **画面の目的**: 診療、トリミング、入院、スタッフ、権限、および外部連携など、システム全体で共通利用される定義データ（マスタ）を一元的に管理するポータル。
 - **URLパターン**: `/settings` (トップ)
@@ -91,3 +93,7 @@ flowchart LR
 - **`PermissionFilteredCard`** / **`CardRow`**: 個別マスタへのリンク・サマリ表示部品。
 
 ---
+
+## 医院・設定入口と認可の接続
+
+[医院・設定入口D17](../domains/clinic-settings/README.md)と[共通C04](../shared/access-control.md)を参照する。ポータルの表示権限は編集権限ではない。医院切替前の入力を切替先へ自動保存しない。個別マスタの業務要件は各owner正本へ委ねる。

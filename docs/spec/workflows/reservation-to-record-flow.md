@@ -145,7 +145,7 @@ LINE 予約の owner/pet 事前解決は best-effort だが、予約書込み tr
 
 12:56合意の[予約区分の所属0または1・グループ階層なし](../screens/settings/master-reservation-type.md#group-membership-cardinality)に従う。色は唯一の所属先から継承し、未所属は共通標準色とする。業務分類・予約区分自体の親子分類、削除／復元時の所属変更等をこの合意で推定しない。個人対応可能区分・有効意図の既存条件を維持し、実装・実機受入は未確認。受入条件は区分マスタ正本へ置く。
 
-16:07合意の[ホテル担当と入院の両入口](../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-hotel-inpatient-entry)に従う。ホテル予約は指名医師を選ばず、世話担当者は宿泊管理側で割当。入院は予約区分からの予定入院と診察後の入院決定の両方を入院管理へつなぐ。入院開始は16:36合意の来院後スタッフ明示確定で、同じ入院を二重登録しない。予定入院の予約時は指名医師未定可、開始までに担当医決定、開始確定時に入院記録作成は16:44合意。ホテル世話担当の決定時点は17:17合意。具体的画面・宿泊管理内部は設計／関連領域へ残す。既存の診療カルテ作成・関連保持の契約は維持し、受入条件は区分マスタ正本へ置く。
+16:07合意の[ホテル担当と入院の両入口](../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-hotel-inpatient-entry)に従う。ホテル予約は指名医師を選ばず、宿泊管理の担当医師は任意。入院は予約区分からの予定入院と診察後の入院決定の両方を入院管理へつなぐ。入院開始は16:36合意の来院後スタッフ明示確定で、同じ入院を二重登録しない。予定入院の予約時は指名医師未定可、開始までに担当医決定、開始確定時に入院記録作成は16:44合意。旧17:17合意のホテル受入前担当必須条件は2026-10-15最新承認で任意へ更新済み。別責任担当・非医師担当・一名必須は追加しない。具体的画面・宿泊管理内部は設計／関連領域へ残す。既存の診療カルテ作成・関連保持の契約は維持し、受入条件は区分マスタ正本へ置く。
 
 13:14合意の[予約区分の業務分類と担当者・記録接続](../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-business-routing)を参照する。表示グループとは別に区分へ設定し、診療は指名医師・通常カルテ、トリミングはトリマー・トリミング記録、ホテルは宿泊管理へ接続する。診療の受付時カルテ作成・同時成功・再利用と個人対応区分／勤務等の既存条件を維持する。[14:14合意](../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-business-classification-lock)により過去を含む既存予約がある区分の分類変更は不可で、別分類は新しい区分を作成する。既存予約・担当者・作成済み記録の関連を保持する。名称・表示グループは別契約に従う。[15:58合意](../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-business-classification-initialization)により未使用区分は分類変更可、未設定区分は新規選択不可で理由表示、既存予約・記録がある未設定区分は内容確認後に補完し、担当者・記録を自動変換／再作成しない。補完担当は業務5点合意で確定。具体的権限識別子・資料照合、17:17までに確定したホテル・入院接続を満たす画面／保存方式と専用管理内部・専用記録内部は未決。受入条件は区分マスタ正本へ置き、実装・実機受入は未確認。
 
@@ -421,7 +421,7 @@ clinic-owned relation は tenant boundary を明示する。主要 column は次
 実装 mechanics の正本は [ADR-006](../../architecture/adr/006-backend-domain-package-boundaries.md#appointments-write-ownerの実装決定be9-2e-0) と [`appointment_write_owner_lint_test.go`](../../../backend/internal/reservation/appointment_write_owner_lint_test.go)。本書は業務 contract のみを保持する。
 
 - `internal/reservation` 以外の billing、medicalrecord、trimming、lstep は generic appointment update をせず、business intent を表す typed operation を呼ぶ。
-- cross-domain write は ambient transaction を必須とし、appointment、record/detail/options、監査、結果再取得の必要部分を commit 前に成功させる。dependency 欠落は fail-closed。
+- 予約lifecycleに参加するcross-domain integrity writeは ambient transaction を必須とし、appointment、record/detail/options、監査、結果再取得の必要部分を commit 前に成功させる。dependency 欠落は fail-closed。独立子保存・段階処理・外部副作用まで全体same-txにする意味ではない。最新の区分は[全体横断照合](#cross-domain-review-20261015)と各owner契約へ従う。
 - `general` appointment の通常カルテ作成は appointment を lock し、同じ appointment の active record を最大 1 件にする。`trimming` appointment への通常カルテ作成は拒否する。
 - draft record 削除と estimate 作成は同じ parent record lock で直列化する。estimate / finalize が先なら削除を Conflict、削除が先なら後続 estimate を拒否する。
 - record finalize と no-show transition は同じ appointment lifecycle lock に参加する。finalize が先なら no-show は no-op、no-show/cancelled が先なら finalize は Conflict。
@@ -429,7 +429,7 @@ clinic-owned relation は tenant boundary を明示する。主要 column は次
 - trimming write は同一 clinic の active master と staff を固定し、slot/capacity/conflict を lock 後に再検証する。terminal appointment や medical record linked appointment の不正変更を拒否する。
 - billing completion は同一 clinic / JST 日 / owner/pet の対象 appointment を transaction 内で `completed` にし、途中失敗を rollback する。
 
-2026-10-13に合意した受付・通常カルテの同時成功と再試行は[受付契約](#checkin-contract)、予約取消と同時編集は[予約正本](../domains/reservations/pages/reservation-management.md#persistence)を参照。それ以外の再送・結果不明時の詳細は未決。
+2026-10-13に合意した受付・通常カルテの同時成功と再試行は[受付契約](#checkin-contract)、予約取消と同時編集は[予約正本](../domains/reservations/pages/reservation-management.md#persistence)を参照。予約・受付・通常カルテと各ownerの再送・結果不明時の選定契約は[全体横断照合](#cross-domain-review-20261015)から参照する。旧時点の未決記録を、後続の選定済み契約へ優先させない。
 
 <a id="internal-batch-end-undo"></a>
 ### 勤務時間外の担当医がいる誤終了取消（17:17一括合意）
@@ -537,4 +537,112 @@ clinic-owned relation は tenant boundary を明示する。主要 column は次
 
 [会計の請求確定・入金・訂正正本](../domains/accounting/lifecycle.md#accounting-agreement-first-five)に初回合意を反映。同飼主の複数ペット・未請求分選択と確定済み元請求への回収を区別し、未納／部分入金／0円・訂正／返金後も[会計確定歴による通常Undo停止](#accounting-finalization-undo-boundary)を維持する。カルテ保存§2、臨床確認と会計確定の区別、カルテ訂正からの請求・返金・在庫の自動巻戻し禁止は変更しない。
 
-会計側の受入は[9FR／128AC](../domains/accounting/lifecycle.md#accounting-acceptance)、具体的な保存・現行差分は[会計部分設計](../../design/domains/accounting/technical-spec.md)。[第二群](../domains/accounting/lifecycle.md#accounting-agreement-second)で古い請求順／変更可・釣銭、予約前金の受領／充当／実返金、訂正後表示と金額不変の支払誤記訂正、割合→金額・保険確認修正、帳票分離／履歴・過去未納表示、原請求日／実入出金日を合意。前金受領や充当で請求確定／予約完了を自動発生させず、充当を二度目の入金にしない。[第三群](../domains/accounting/lifecycle.md#accounting-agreement-third)で飼主単位預り金／予約任意、同飼主の別予約／別ペットへの確認付き利用、割合合算→金額→割引後保険、同日作成順／理由付き再配分、非現金超過／別方法返金と金額追加承認なし、用途別帳票と元番号維持へ更新した。別医院移行・別飼主譲渡は第八群で今回対象外。[第四群](../domains/accounting/lifecycle.md#accounting-agreement-fourth)で両粒度の割引・超過警告と承認後の請求額0円下限、会計取消時の預り金残高復元を反映。復元を新受領／実返金とせず、会計確定歴による通常Undo停止を維持。[第五群](../domains/accounting/lifecycle.md#accounting-agreement-fifth)で明細→全体・比例配賦、税抜計算／税込表示、割合額四捨五入・税率別税切捨て、実値引き上限／他行転用なしを反映。[第六群](../domains/accounting/lifecycle.md#accounting-agreement-sixth)で複数保険会社・品目マスタによる全体割引除外・飼主宛名／ペット別明細・元取引と今回変更額・管理者と権限付きスタッフのマスタ変更を反映。[第七群](../domains/accounting/lifecycle.md#accounting-insurance-window-scope)でスタッフによる資格／残限度確認と結果・保険負担額記録、窓口会計限定、ペットごと1利用契約を反映。保険会社への請求・入金照合・査定差額管理と同じ診療費の複数契約併用は対象外。会社／商品別の自動給付算式は将来の別スコープで、現在の記録運用の前提にしない。[第八群](../domains/accounting/lifecycle.md#accounting-agreement-eighth)で減額時の充当解除・元飼主残高復元／併用内訳確認、自動失効なし・同医院同飼主限定、元明細選択確認による新番号再請求／元請求リンク、新規会計と過去回収の同時扱い／元請求別配分、共通料金別枠を反映。実返金は別で、旧未納を再請求せず、再請求から二重入金や通常Undo再開を作らない。督促・貸倒は対象外。[第九群](../domains/accounting/lifecycle.md#accounting-agreement-ninth)で再請求の元価格／税／割引継承とスタッフ修正、旧入金の確認充当／保険再確認、返金元内訳と理由の登録まで確定不可を反映。元受領・元記録を複製せず、資金の帰属変更／復元預り金の再充当／実返金を分ける。明細なし請求の確定可否・小数明細額丸め・除外の初期値／移行・編集中反映は会計の業務判断残件、締め内部はD12へ残す。複数予約／記録への正確なリンクと全owner横断照合・実装は未完了。今回の合意から予約／受付／専用記録の新しい状態遷移や自動確定を許可しない。
+会計側の受入は[9FR／142AC](../domains/accounting/lifecycle.md#accounting-acceptance)、具体的な保存・現行差分は[会計部分設計](../../design/domains/accounting/technical-spec.md)。[第二群](../domains/accounting/lifecycle.md#accounting-agreement-second)で古い請求順／変更可・釣銭、予約前金の受領／充当／実返金、訂正後表示と金額不変の支払誤記訂正、割合→金額・保険確認修正、帳票分離／履歴・過去未納表示、原請求日／実入出金日を合意。前金受領や充当で請求確定／予約完了を自動発生させず、充当を二度目の入金にしない。[第三群](../domains/accounting/lifecycle.md#accounting-agreement-third)で飼主単位預り金／予約任意、同飼主の別予約／別ペットへの確認付き利用、割合合算→金額→割引後保険、同日作成順／理由付き再配分、非現金超過／別方法返金と金額追加承認なし、用途別帳票と元番号維持へ更新した。別医院移行・別飼主譲渡は第八群で今回対象外。[第四群](../domains/accounting/lifecycle.md#accounting-agreement-fourth)で両粒度の割引・超過警告と承認後の請求額0円下限、会計取消時の預り金残高復元を反映。復元を新受領／実返金とせず、会計確定歴による通常Undo停止を維持。[第五群](../domains/accounting/lifecycle.md#accounting-agreement-fifth)で明細→全体・比例配賦、税抜計算／税込表示、割合額四捨五入・税率別税切捨て、実値引き上限／他行転用なしを反映。[第六群](../domains/accounting/lifecycle.md#accounting-agreement-sixth)で複数保険会社・品目マスタによる全体割引除外・飼主宛名／ペット別明細・元取引と今回変更額・管理者と権限付きスタッフのマスタ変更を反映。[第七群](../domains/accounting/lifecycle.md#accounting-insurance-window-scope)でスタッフによる資格／残限度確認と結果・保険負担額記録、窓口会計限定、ペットごと1利用契約を反映。保険会社への請求・入金照合・査定差額管理と同じ診療費の複数契約併用は対象外。会社／商品別の自動給付算式は将来の別スコープで、現在の記録運用の前提にしない。[第八群](../domains/accounting/lifecycle.md#accounting-agreement-eighth)で減額時の充当解除・元飼主残高復元／併用内訳確認、自動失効なし・同医院同飼主限定、元明細選択確認による新番号再請求／元請求リンク、新規会計と過去回収の同時扱い／元請求別配分、共通料金別枠を反映。実返金は別で、旧未納を再請求せず、再請求から二重入金や通常Undo再開を作らない。督促・貸倒は対象外。[第九群](../domains/accounting/lifecycle.md#accounting-agreement-ninth)で再請求の元価格／税／割引継承とスタッフ修正、旧入金の確認充当／保険再確認、返金元内訳と理由の登録まで確定不可を反映。元受領・元記録を複製せず、資金の帰属変更／復元預り金の再充当／実返金を分ける。[第十群](../domains/accounting/lifecycle.md#accounting-agreement-tenth)で空明細確定不可／0円理由・値引き前行別四捨五入・除外初期値／欠落時false・追加後明示再適用を合意。列挙済み実務未決は解消し、[全体契約と受け手](../../design/domains/accounting/technical-spec.md#accounting-handoff-contract)で金銭／非金銭event・現在版／receiptを分け、締め内部はD12へ渡す。複数予約／記録への正確なリンクと全ownerの文書接続は下記Xで照合済み。実装適合・実機検証は別工程。今回の合意から予約／受付／専用記録の新しい状態遷移や自動確定を許可しない。
+
+
+<a id="cross-domain-review-20261015"></a>
+## 2026-10-15 全体横断の接続照合（X01〜X08）
+
+本節はD01〜D23・C01〜C06の正本間にある接続を確認する索引で、各ownerの業務を再定義する第二正本ではない。PR #670の基準41fcf3ebと、初回〜第十群のD10、残る19領域・共通の文書候補を照合した。2026-10-15の追加承認 Sentinel_7a67fd30e47c819192cd36d416f0a2bf の反映範囲は各owner本文へ従う。以前の回答待ちを最新の状態へ戻さず、全ownerの本文同期・リンク／traceを照合し、独立レビューの指摘を解消した。静的な文書照合であり、実装・実機・稼働・移行・法令適合の完了ではない。
+
+### 共通の読み分け
+
+- 医院・飼主・患者・予約・通常カルテ・専用記録・会計・元明細を正確なIDと型付き参照で結ぶ。氏名・日付・行順・現在の飼主だけから過去の関係を作らない。現在認可は[共通認可](../shared/access-control.md)、担当／編集actor／確認医師は各owner正本へ。
+- 同一transactionが必要な受付・記録、予約参加write、会計確定・必要監査と、独立保存・段階処理・外部副作用を分ける。本書のtransaction節は予約lifecycleに参加するintegrity writeの境界であり、全領域の全操作・外部サービスを一つのtransactionにする宣言ではない。[接続基盤](../../design/shared/integration-contracts.md)を参照する。
+- 応答消失は失敗確定ではない。予約のreceipt、検査job指紋、identityの同一集合収束、単回LINE link token、個別ownerの結果照合は異なる方式。予約のキー契約を他APIへ実装済みとして流用しない。再取得0件・二回目409/404・使用済tokenだけで初回失敗と決め付けない。
+- 臨床保存、確定、会計確認、請求確定、実受領、実返金、在庫実物移動、外部送信／到達を別結果にする。遷移先を開いたこと・印刷・成功toastだけで別ownerの処理成功としない。
+- 未保存／取得失敗／0件／権限不足／結果不明と、保存済み／明示非開示を分ける。医院・患者・認証の切替後の遅延応答を新しい対象へ反映しない。[臨床安全](../shared/clinical-safety.md)・[共通UI](../shared/ui-contracts.md)の消費側条件を各領域で確認する。
+
+### X01 予約 → 受付 → 通常カルテ
+
+正本：[予約participant](../../design/domains/reservations/technical-spec.md#reservation-receiving-contracts)、[受付操作](../../design/domains/reception/technical-spec.md#reception-operation-contract)、[カルテwriter](../../design/domains/medical-records/technical-spec.md#medical-record-writer-matrix)。
+
+通常予約登録だけでカルテを作らず、診察の受付と通常記録の作成／再利用を同時成功させる。同じ予約のactive recordは最大一件。受付カードの準備→認可付き読込→明示startは段階処理で、読込失敗ではstartしないが準備済みIDは捨てない。startの結果不明では自動Undoしない。表示上の片付けは本人browser overlayで、予約完了や削除ではない。
+
+GET初期化、旧auto-create／backfill、子入力、並替、master、会計確認もwriter照合へ含む。旧separate-tx auto-createを最新受付原子性の実装証明にしない。D03保存§2のヘッダー／アクティブタブ／子入力を一括保存へ変えない。検査・接種・健診の独立保存は各ownerへ。追跡は予約受付同時成功／開始失敗ACとD03 coverage-active-tab-only／child-independent／finalized-all-writers／unknown-receipt。
+
+### X02 取消・未来院・再受付・記録訂正
+
+正本：[予約の逆遷移境界](#requirement-fr-reservations-controlled-reverse-transition)、[カルテ専用intent](../../design/domains/medical-records/technical-spec.md#medical-record-legacy-and-special-contract)、[会計確定歴](#accounting-finalization-undo-boundary)。
+
+誤取消復元／未来院再受付は同じ予約と既存記録を再利用し、現在の適格性を再照合する。予約取消からの自動カルテ削除はしない。draftだけでは空とせず、全子入力・請求／見積等の依存を照合しempty/entered/unknownを分ける。確定後は原記録／元日付を保持した追記・専用訂正へ。患者取り違えは元IDの患者付替えでなく元／先対応付き必要内容転記であり、再診複写とは別。
+
+過去入力／復元／転記は当日受付・開始・通常治療createの在庫減算・新請求・外部通知の再発火へ流用しない。未収／部分入金／0円も請求確定歴があれば通常Undo不可で、取消／返金／再請求後も復活させない。旧cancel-cleanup／batch-noshowと最新選定仕様の差はC06の既知差分へ残す。追跡はD03 empty-hide-entered-refusal／wrong-patient-no-reassign／retrospective-no-reception-billing／impact-financial-stock-no-autoとD10 finalization-undo-preserved。
+
+### X03 予約／受付 ↔ 専用施術・滞在
+
+正本：[入院・ホテル](../domains/hospitalization/lifecycle.md)、[専用設計](../../design/domains/hospitalization/technical-spec.md)、[トリミング](../domains/trimming/lifecycle.md)。
+
+予約・通常カルテ・入院記録・滞在・施術detailは異なる型付き参照。明示した同じ滞在は予定入院／診察後入口で再利用し、同じ患者・同日というだけで別滞在を統合しない。ホテルの同一滞在を予約／実績で二重計数せず、実未退室は予定超過でも保持する。ケージ空き、宿泊頭数、医師勤務は異なる指標。延泊超過は実績を消さず調整・全期間再判定へ。
+
+ホテルの担当医師は最新承認の任意条件に従い、旧care_assignment表記を根拠に別の必須責任担当・非医師担当・一名必須を復活させない。予約指名とケア入力actorも別である。臨床入院開始の必要条件はD05の該当正本へ従い、ホテル任意条件と取り違えない。通常カルテを専用記録に変換しない。
+
+施術detailは既存予約に一件、既存detailを別作成しない。画像upload／DB参照保存／未保存object cleanupを別に扱い、送信済みkeyを離脱cleanupで消さない。専用記録の完了訂正・料金／前金／取消料は最新承認をD05/D06本文へ同期し、一般PATCH・通常Undo・自動課金／返金で代用しない。追跡はD05 two-entry-id／hotel-deduplicate／hotel-overdue／discharge-atomic、D06 existing-reservation／image-race／atomic-write。
+
+### X04 患者台帳・同一個体・マスタ／勤務
+
+正本：[台帳](../domains/owners-pets/lifecycle.md)、[identity](../screens/40-identity-links.md)、[職員・勤務](../domains/staff-workforce/README.md)、[医院設定](../domains/clinic-settings/README.md)、[認可](../shared/access-control.md)。
+
+D04台帳、主／副飼主、D19 identity group、D20 LINE本人紐付けは別操作。主飼主変更は過去請求・預り金の移管を意味しない。D19は関係操作であり元台帳mergeや臨床患者付替えではない。group同一集合再送、追加済member、unlink不在、残一名／零名と親子group保護をD19契約へ従わせる。
+
+通常clinic scope、複数所属医院READ、global動物種／法人設定、support共有READを一律同一にしない。勤務変更・医院別指名停止は未来／未終了の既指名予約を保護し、他医院・過去履歴へ波及しない。職種は分類でありgrant・個人対応能力を自動付与しない。マスタ無効化／当時snapshot保持と新規利用可否を分け、台帳の現在値から履歴の帰属を置換しない。追跡はD04 owner-transfer-atomic／danger-privacy、D19 parent-unlink／last-members／unlink-retry、C04 04／05、D14 06／07。
+
+### X05 臨床記録 ↔ 検査・予防・健診・読取公開
+
+正本：[検査](../domains/examinations/lifecycle.md)、[接種](../domains/vaccinations/lifecycle.md)、[健診](../domains/checkups/lifecycle.md)、[健康表示](../screens/38-liff-pet-health.md)、[院内レポート](../screens/39-owner-report.md)。
+
+機器受信job／患者attach／結果persist／検査revision／カルテ確定は別状態。同じjob指紋の再送を同日別測定と混ぜず、未対応コードを捨てない。検査Undoは未使用等の補償条件を満たす時だけで、finalized親や使用receiptの保護を迂回しない。後日結果は同じexam・固定版・版内item対応を保持し、確定原記載を更新しない。
+
+接種の独立／カルテ内入口は同資源で、同日複数接種と再送重複を分ける。健診はCheckup系だけを正系統にし、field PUTの未送信/null拒否と明示[]を分ける。独立健診Path Bの親→健診→fieldは現状段階保存であり、後段失敗時に前段存在を照合する。全体atomic化済みとしない。
+
+D20の本人向け健康手帳は既存限定項目だけ。接種保存／訂正・親draftの表示条件は最新承認をD20本文へ同期し、新しい接種単体finalizedや検査／診断全面公開を作らない。D21はスタッフ専用のsection別閲覧に限定し、印刷・共有機能を設けない。D03カルテ／D07検査の既存印刷とは別で、飼主向け公開画面でもない。死亡status/deceased_atのOR除外と、元患者context・認可不足／取得失敗の縮退を保つ。追跡はD07 finalized-parent／detach-used、D08 finalized／projection、D09 partial-save／replace-missing、D20 deceased／link-retry、D21のsection／context条件。
+
+### X06 会計確定・訂正 ↔ 診療／見積／退院
+
+正本：[会計9FR／142AC](../domains/accounting/lifecycle.md#accounting-acceptance)、[会計受渡し](../../design/domains/accounting/technical-spec.md#accounting-handoff-contract)、[見積](../domains/estimates/business-rules.md)。
+
+D10の減額解除・元飼主残高復元、元取消明細の選択確認付き新番号再請求、元価格／税／割引継承と必要修正、旧入金の確認充当／保険再確認、資金内訳不明返金の確定停止は合意済みで、旧X06行の未決へ戻さない。預り金は同医院・元飼主、充当／解除／復元は実入出金0。請求確定は明細必須、0円も明細／理由を保持し、過去未納回収のため空の新請求を作らない。
+
+D11は入口を問わない明細方式／D10共通計算、確認後の未確定会計転記、原本保持の後継訂正を承認済み。親カルテ確定後の後継変更は専用経路で、通常unlockではない。見積承認・転記は実施／請求確定／入金／在庫出庫ではない。
+
+D05退院会計は状態＋会計＋明細＋必要監査の同時成功を維持するが、現行取消会計soft-delete置換・固定税率・数量1のcare明細をD10目標へ適合済みとしない。D06は未請求明細pullで、施術完了時draft pushを追加しない。既取込の元明細と請求版・取消元リンクを照合し、同じ臨床実績を二重請求しない。会計の医師確認receiptと精算本体ID、担当と会計操作actorを分ける。追跡はD10 cancel-deposit-once-atomic／rebill-no-duplicate／rebill-old-payment-no-receipt／empty-invoice-blocked、D11 successor-edit-handoff／handoff-confirm、D05 discharge-atomic、D06 billing-pull。
+
+### X07 会計 ↔ 締め・集計・在庫
+
+正本：[締め](../domains/cash-register/business-rules.md)、[集計](../domains/analytics/business-rules.md)、[在庫](../domains/inventory/business-rules.md)。
+
+請求額、実受領／実返金、未納、預り金、非金銭配分変更を区別する。実受領／返金はイベントID・元資金／請求参照で一度だけ消費し、複数元請求への配分や再送で受領を複製しない。過去未納の今日回収は今日の実入金で、今日の新売上ではない。元支払方法と違う方法で実返金した場合は実際の方法・日時に反映する。保険負担の記録を保険会社入金としない。締めの営業日AM/PM/EMGと月次のJST暦日・顧客集計の旧COALESCE(カルテ日,請求予定日)基準を混ぜず、原締めsnapshotを後の設定変更や会計訂正で上書きしない。
+
+開始残・補充／回収、実物入出庫／返却／棚卸の最新承認はD12/D13へ同期する。開始残の二重繰越、実入金でない補充の売上化、取消だけで在庫返却を作る処理を認めない。通常治療createの既存在庫減算と過去入力／訂正の影響確認は別で、小数投与量を整数在庫へ切り捨てて成功にしない。物販品目と在庫が同名でも現行にない連動は推測しない。
+
+D10割引配賦とD12支払配賦、会計distinctと部門別行数、現在値と当時snapshotを別に検査する。D16の現行来院指標は記録日数であって実来院証明ではない。追跡はD12 movement／deposit／append-onlyの条件、D13 no-auto-restore／fractional-use／adjust-retry、D16 old-ar／deposit／midnight-basis／record-days-not-visits。
+
+### X08 予約チャネル・臨床／会計 ↔ CRM背景処理
+
+正本：[CRM契約](../line/lstep-integration.md)、[飼主予約](../screens/37-line-reserve-owner-flow.md)、[会計受渡し](../../design/domains/accounting/technical-spec.md#accounting-handoff-contract)、[保存](../shared/retention-audit.md)。
+
+予約／臨床／会計commitと、タグ同期・通知API試行・外部受理・到達／既読は別。内部失敗時に通知成功を作らず、通知失敗で保存済み予約・接種・健診・会計を再作成しない。予約の成功再送は副作用を増やさない。会計CPM同期のCreated=true限定・separate-tx best-effortを全体same-txへ変更しない。自動triggerの試行後blocking claim保持は既存契約で、手動Messaging／予約通知の結果不明照合・再送条件は最新承認へ同期する。
+
+CSV取込は既存LINE連携ownerへの分析snapshotで、owner登録／LINE link／送信を兼ねない。行単位除外とsnapshot transaction失敗、受理行数と実挿入数、processing残留と成功、同じCSV再POSTの新importを分ける。健診preview最大100件と全母集団・実行時再検査範囲を区別する。D16分析V1と配信V2、ログ件数とunique飼主数、記録日相関と因果効果を混同しない。
+
+LINE送信用shared fileは任意入力で別原本存在を保証しない。URLの15分／1時間失効とobjectの143時間cleanupは別事象。業務原本・必要履歴／監査はC05の承認済み保持契約を適用し、分類・原本所在を確認できないファイルを『再生成できる一時コピー』と推定して自動cleanupへ渡さない。配送コピーであることと別原本の保持が確認できる場合だけ既存の一時配送の扱いと分離できる。現行無条件cleanupとの適合差を明記し、設定・稼働変更は本整理で行わない。
+
+停止中のscheduler／既存enable条件を本書の整理で解除しない。死亡再読直後の競合や外部成功後cache/log失敗は実装差として観測し、絶対送信遮断・exactly-once到達を保証しない。追跡はD15 trigger-after-attempt／send-log-failure／csv-db-failure／file-source-unknown、D18通知条件、C05保持条件。
+
+### 共通6領域と横断外の入口
+
+C01は各画面の選択・入力保持・遅延応答・印刷、C02は合意／現行／提案と語彙・ID、C03は患者・確定・数値・副作用、C04は認証／scope例外、C05は原本・履歴・必要監査、C06はwriter／保存単位／互換・検証の区別を上記X全てへ適用する。一般原則だけで各ownerの具体的な成功／拒否／失敗時条件が揃ったことにはしない。
+
+[D22マニュアル](../domains/internal-manual/README.md)の全認証スタッフ向け公開版／編集版、[D23サポート](../domains/support/README.md)の全医院共有READ・報告医院mutation・本人history削除は、それぞれの最新承認・既存例外へ従う。マニュアル・サポート画面を臨床記録の第二writerにせず、公開READを他医院臨床writeへ拡張しない。外部通知の確認、院内保存と外部送信結果の分離、history削除の共有ROOMへの反映と外部コピー未削除をC04/C05/C06へ接続する。見えている共有範囲と個人履歴の削除範囲を同義にしない。
+
+C05の業務原本保持と、D06未保存画像cleanup、D07受信生バイト非保存、CSV処理用temp破棄は保存対象／保存時点が異なる。既存の作業用一時物処理を業務原本の削除許可へ拡張しない。逆に原本保持だけを根拠に未保存一時物や生バイトを新たに無期限保存する要件も作らない。送信済み／記録参照済み画像keyや原本不明のshared fileは一時物へ推測分類しない。
+
+### 横断レビューの残件と判定境界
+
+本文の各接続は確認済み・未承認・既存実装差を分けて整理する。最新承認により解消した業務判断を再質問せず、承認対象の候補本文・AC・語彙・設計・trackerの同期を統合時に確認する。原本識別なしの配送cleanup、旧auto-create／cancel-cleanup、通常治療減算の専用intent誤流用、退院の取消会計置換、旧締め／集計の金額基準は明示された適合差であり、現実装が安全に対応済みという判定ではない。
+
+対象全体の相対リンク・意味アンカー・既存FR/AC維持・trace・表構造・独立レビューを確認し、X01〜X08は本節に明示した接続文書の範囲で完了と判定した。全writer実装、医院実grant、実旧値／移行、実機／並行性／性能、外部送信や本番利用は別工程。仕様の未記載や未照合を『実装対象外』へ移して全体完成とはしない。
+
+C05の原本保護は自動cleanupと手動deleteの両方に適用する。D06保存済み画像、D15アップロード／手動削除、D23添付は、業務原本・必要履歴・原本所在不明なら通常操作で実体を消さず、非表示／論理削除とする。未保存の作業copyと確認済みの一時配送copyは区別し、物理削除は分類・別原本保持の確認または別手続を要する。DBのsoft deleteだけで添付blobの保持を保証したと扱わない。
+
+原本・必要履歴・分類不明への明示手動削除は非表示／論理削除の範囲とし、自動cleanupは対象から除外して論理状態も実体も保持する。経過時間を理由に新たな自動非表示・論理削除を許可しない。

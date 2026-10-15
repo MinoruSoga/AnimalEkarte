@@ -1,5 +1,9 @@
 # 検査一覧 仕様書 (Examinations List)
 
+## 2026-10-15 D07仕様整理の優先順位
+
+業務・GWTの正本は[検査ライフサイクル](../domains/examinations/lifecycle.md)、型／全writer／未追従差分は[技術契約](../../design/domains/examinations/technical-spec.md)。以下の画面説明は現行UI参照として保持する。ページ内フィルタと先頭20件の履歴を全件検索と解釈しない。検査・カルテは同じ結果ID／固定版を参照する目標であり、現カルテadapterのrevision欠落を実装済みと扱わない。
+
 ## 概要
 - **画面の目的**: 院内および院外（外部委託）で実施される全検査のオーダー状況および、測定結果ステータスの一元管理。
 - **URLパターン**: `/examinations`
@@ -67,3 +71,4 @@ flowchart TB
 ### 最終照合の受け手契約
 
 [型・互換](../../design/domains/medical-records/technical-spec.md#medical-record-reconciled-contract)と[専用結果追記](../../design/domains/medical-records/technical-spec.md#medical-record-legacy-and-special-contract)を参照する。医院＋検査IDを結果全体の同一性、revision／versionを固定版、item IDを版内参照として返す。現カルテExamGroupはrevisionを保持しないため、同じ版の参照へ追従済みとしない。revisionなし旧結果・跨版item対応不明は元記載／元参照を保持して照合し、名前や行位置で補完しない。機器取込／attach／revertもwriter参加の対象で、現receiptを患者転記／カルテ復元のreceiptへ流用しない。検査内部の訂正／解除は検査正本へ残す。
+

@@ -40,7 +40,7 @@ Spec Kitの[導入済み技術計画テンプレート](../../../../.specify/pre
 | [受付とカルテ同時成功](../../../spec/workflows/reservation-to-record-flow.md#checkin-contract) | [handler](../../../../backend/internal/reservation/reservation_handler.go)はconfirmed/checked_in後にbest-effort作成、取消後draft削除。[lifecycle](../../../spec/domains/medical-records/lifecycle.md)の現行参照も照合 | 予約時作成・取消削除の差分、受付と記録の原子性が必要。現在のID・row lock・一意性は保全 | §5、§6 |
 | [開始／終了・引継ぎ・誤終了取消](../../../spec/workflows/reservation-to-record-flow.md#requirement-fr-reservations-manual-consultation-state) | [更新service](../../../../backend/internal/reservation/reservation_service_update.go)、[受付アクション](../../../../frontend/src/features/reception/components/ReceptionDialogActionButtons.tsx)に状態操作がある | 合意モーダル・確認付き終了・理由記録・支払い境界・残り時間判定の全適合は未確認。汎用status変更だけで成立とは扱わない | §4、§5、§6 |
 | [手動未来院・取消復元・分類跨ぎ](../../../spec/domains/reservations/README.md#mece-corrections-1826) | [intent repository](../../../../backend/internal/reservation/reservation_intent_repository.go)は4時間経過のMarkNoShow、[Lステップbatch](../../../../backend/internal/lstep/lstep_batch_noshow.go)から呼ぶ。汎用no_show更新を拒否 | 自動未来院を止め、手動intent・再受付再確認・取消復元・分類跨ぎ境界が必要。旧ロック／確定カルテ保護は保全 | §5、§6 |
-| [入院・ホテル](../../../spec/screens/settings/master-reservation-type.md#requirement-fr-reservation-types-hotel-inpatient-entry) | [モデル](../../../../backend/internal/model/hospitalization.go)はhotel/hospitalizationとdate期間・担当医。[service](../../../../backend/internal/medicalrecord/hospitalization_service.go)は未指定statusを開始日でadmitted/reservedに既定化 | 予定入院と明示開始・担当医・開始時記録・失敗時未確定との接続差分。世話担当、宿泊同一性・頭数上限・入退室時刻対応は未確認 | §3、§5、§6 |
+| [入院・ホテル](../../../spec/screens/settings/master-reservation-type.md#requirement-fr-reservation-types-hotel-inpatient-entry) | [モデル](../../../../backend/internal/model/hospitalization.go)はhotel/hospitalizationとdate期間・担当医。[service](../../../../backend/internal/medicalrecord/hospitalization_service.go)は未指定statusを開始日でadmitted/reservedに既定化 | 予定入院と明示開始・担当医・開始時記録・失敗時未確定との接続差分。任意担当医師、宿泊同一性・頭数上限・入退室時刻対応は未確認 | §3、§5、§6 |
 | [LINE公開・厳格受付・ホテル](../../../spec/line/reservation-spec.md) | [作成service](../../../../backend/internal/reservation/liff_service_reservations.go)はValidateAndCreate。[型](../../../../frontend/line-reserve/src/types/models.ts)はcategory2値。[availability](../../../../backend/internal/reservation/liff_service_availability_staff.go)はactive/公開をfilter | 4分類、医院別宿泊上限、全期間再判定、勤務の保存時再確認、受付前取消・入力保持の合意適合は未検証 | §4、§5、§6 |
 | [区分混在・部分重複の対応能力](../../../spec/domains/reservations/pages/reservation-management.md#requirement-fr-reservations-capacity-warning) | [現在の計数](../../../../backend/internal/reservation/reservation_capacity.go)は区分・同開始時刻件数とMaxConcurrent中心 | 指名済み占有・未定予約・個人能力・勤務／休憩を区分間で照合する§4.2の仮割当算法への変更が必要。現行計数を新仕様の成立根拠にしない | §4.2、§6、§8、§9 |
 
@@ -58,7 +58,7 @@ Spec Kitの[導入済み技術計画テンプレート](../../../../.specify/pre
 | 日跨ぎ勤務・休憩 | date＋start/end時刻と複数break | JST境界を明示できる開始／終了日時へ正規化する表現案。終了日・休憩跨日を明示し、同一人物の医院間正幅重複を検査 | 同日通常予約と日跨ぎ勤務を別概念にし、デフォルト勤務の推測を避ける |
 | 予約・カルテ・履歴 | appointmentsとlinked medical record、既存一意性・lock | 予約IDと作成済みカルテIDを維持。取消・終了訂正は状態と操作履歴、理由は既存監査の目的別payloadへ | 再作成・自動削除を使わず、一つの予約と業務履歴を守る |
 | 同時更新 | updated_at、row/advisory lock等が経路ごとに存在 | 変更対象のversionとintentの再送識別を明示。省略／明示null／値を区別するDTO | 未定への変更を「未変更」へ戻さず、stale入力を無条件に上書きしない |
-| 宿泊同一性・担当・期間 | hotel/hospitalization、start/end date、doctor_id、daily_records | 同一宿泊を特定する関連を予約・宿泊管理で保持。予約指名／入院担当医／ホテル世話担当を別概念とし、予定・実入退室の日時対応を検討 | 1宿泊を二重計数せず、hotelを医師能力から推測しない。入院記録を既存daily recordへ無確認で同一視しない |
+| 宿泊同一性・担当・期間 | hotel/hospitalization、start/end date、doctor_id、daily_records | 同一宿泊を特定する関連を予約・宿泊管理で保持。予約指名／入院担当医／ホテル任意担当医師を別概念とし、予定・実入退室の日時対応を検討 | 1宿泊を二重計数せず、hotelを医師能力から推測しない。入院記録を既存daily recordへ無確認で同一視しない |
 | 医院別ホテル上限 | 今回の読取で対応する設定項目を特定できていない | ホテル同時宿泊頭数の設定を医院単位で保持。予約区分のMaxConcurrentや空きケージ数を流用しない | 診療人数・ケージ・宿泊頭数の業務上の相違を保つ |
 | 予約重複制約 | DBのEXCLUDE／同時開始一意制約 | 院内の警告確認許容とLINEの拒否を満たす制約再設計案。対象制約・consumer・既存データを調査し、最小変更をレビュー | DB制約だけを削除して整合性を弱めず、LINE競合防止をtransactionで維持 |
 
@@ -107,7 +107,7 @@ Sentinel_f19ab03e8c2c81919c6f589bcf563811によるdocs限定の技術具体化�
 | 受付・再受付 | 受付カード、予約管理の既存入口 | 同じ予約のcheck-in intentと記録作成／再利用を同一transactionへ。未来院は再確認・必要手動修正後に受付 |
 | 診療開始／終了・終了取消 | 受付カードモーダルと確認付き終了drag | start/end/undoを意味のあるintentへ分離。開始時読込失敗は開始未確定、undoは支払い境界・権限・理由をserverで確認 |
 | 取消／復元・日付／分類変更 | 予約管理 | 通常編集、誤取消復元、受付後の記録確認訂正を区別。受付後の分類跨ぎを汎用PATCHで迂回しない |
-| 入院開始・宿泊期間変更 | 入院／ホテル管理 | 予定入院・診察後決定の関連を照合し、開始と担当医・記録を同時確定。延泊は変更後期間の再判定。超過時は実績保持・責任者調整後確定・初期例外なしの合意へ |
+| 入院開始・宿泊期間変更 | 入院／ホテル管理 | 予定入院・診察後決定の関連を照合し、臨床入院の開始と担当医・記録を同時確定（ホテル担当医師は任意）。延泊は変更後期間の再判定。超過時は実績保持・責任者調整後確定・初期例外なしの合意へ |
 | LINE公開・空き・確定・取消 | LIFF既存入口／公開予約UI | 公開・設定・本人・医院を照合。診療／trimmingの適格性とhotel全期間計数を分類でdispatch。表示と保存時の双方で条件確認 |
 
 提案DTOは対象ID、変更後入力、期待version、必要な確認意思・理由、再送識別を目的別に分ける。認証から医院・actorを決定し、bodyのclinicやownerを認可根拠にしない。成功は同じ予約・記録IDと保存後状態を返す。失敗は入力項目エラー、禁止理由、影響予約一覧、競合・結果不明を区別し、client入力を保持して再取得・比較・再試行へ導く。wire・grant・再送保持の選定は§4.7・§3.2へまとめ、API正本への実装反映は別。
@@ -278,7 +278,7 @@ fingerprintは目的・対象・業務変更・理由・順序に意味がある
 | manual no-show／recheck-in | 既存lifecycle保護を維持して手動遷移。再受付は現在適格性照合 | 自動4時間batchで変えない。再受付は同じ予約・既存カルテを使う |
 | 日時／区分変更 | 状態・分類・記録入力有無に従う操作へdispatch | 未記入日付整合と記入済み訂正を分離。受付担当の理由／変更案→記録担当確認→予約・記録・請求の整合確認後確定へ。確定記録は追記、受付後分類跨ぎの通常保存は拒否 |
 | inpatient start | 来院後のstaff intentで担当医決定を検査、同じ入院と記録作成を固定 | 失敗時は開始未確定・理由表示・再試行。予定だけでadmittedにしない |
-| hotel accept | 宿泊管理ownerが同一宿泊と、受入開始までの世話担当決定状態を開始確定前に照合 | 未決定なら開始を確定しない。予約の指名医師で代用しない。決定証跡のref／revisionは§5.1、職種・人数は関連業務設計待ち |
+| hotel accept | 宿泊管理ownerが同一宿泊・状態・受入条件を照合。担当医師は任意 | 担当医師未設定だけでは開始を拒否しない。指定時の参照／revisionと取得不明を§5.1に従い扱う。別責任担当・一名必須を追加しない |
 | hotel period change | 予約済／滞在中と除外状態・実際の未退室を照合 | 予定接触端点は非重複。延泊後期間を再判定。超過は実滞在の記録を続け、責任者調整後に確定。例外承認・自動退室・他予約自動取消なし |
 | LINE確定 | 選択後の入力とversionを保存時に再確認 | 不可なら入力保持・別日時へ。hotelは入退室条件＋全期間頭数を別判定 |
 
@@ -286,7 +286,7 @@ fingerprintは目的・対象・業務変更・理由・順序に意味がある
 
 入院と通常カルテの別record、hotel管理、trimming専用記録は個別の関連を守る。診療後の入院決定と予定入院は同一入院へ重複なく接続する方式を設計し、通常カルテを入院記録へ変換する方式は採用済みと扱わない。
 
-[勤務外でも可能な誤終了取消](../../../spec/workflows/reservation-to-record-flow.md#internal-batch-end-undo)は状態訂正と診療継続を分ける。取消後に診療中へ戻ったことだけで勤務外医師の診療継続を許可せず、継続前の手動担当修正の導線・server境界を設計する。新担当の判定は既存の引継ぎ後担当時間契約に従い、取消前の担当履歴は保持する。[ホテル世話担当の決定時点](../../../spec/screens/settings/master-reservation-type.md#internal-batch-hotel-care)は確定済みで、保存形式の未決を開始時確認の免除にしない。
+[勤務外でも可能な誤終了取消](../../../spec/workflows/reservation-to-record-flow.md#internal-batch-end-undo)は状態訂正と診療継続を分ける。取消後に診療中へ戻ったことだけで勤務外医師の診療継続を許可せず、継続前の手動担当修正の導線・server境界を設計する。新担当の判定は既存の引継ぎ後担当時間契約に従い、取消前の担当履歴は保持する。[ホテル担当の最新条件](../../../spec/screens/settings/master-reservation-type.md#internal-batch-hotel-care)は担当医師任意へ更新済み。旧受入前担当決定gateを残さず、臨床入院開始時の担当医決定とは分離する。
 
 [記録確認訂正・その他逆遷移の正本](../../../spec/workflows/reservation-to-record-flow.md#five-business-decisions)へ従い、理由・変更案・記録担当確認と整合確認の結果を操作別intentへ渡す案。通常PATCHから迂回しない。具体的権限識別子・記録項目・会計訂正内部は関連設計へ委ねる。[旧マスタ確認補完](../../../spec/screens/settings/master-reservation-type.md#requirement-fr-reservation-types-legacy-review)の担当・判断不能時停止も確定業務として扱い、保存形式や技術方式の採用とは分ける。
 
@@ -303,7 +303,7 @@ fingerprintは目的・対象・業務変更・理由・順序に意味がある
 | billing／Undo境界 | 同じtransactionで対象予約の確定歴を照合 → neverだけ通常Undo許可 | 返金・取消・soft-delete・再請求で過去確定イベント／リンクを消さない。現在status・残額・CompletedAtだけで導出しない。後日現在の飼主／日付から確定対象を再推定せず確定時ID集合を保存。unknownは許可へ落とさない |
 | hospitalization／hotel同一性 | 明示stay_key・既存hospitalization IDまたは新規operation、医院／患者・分類 → stay_ref、revision、planned_start/end、actual_start/end、result(created/reused/blocked) | stay_keyはowner管理の不変UUIDで医院内一意、既存hospitalization IDとの一対一関連と予約リンクを保持。両入口は明示同一targetを渡し再利用、患者／日付／名称だけで別滞在を自動統合しない。予定と実績を別保存 |
 | hospitalization／実開始 | stay_ref・期待版・明示担当医 → admission_doctor_decided、record_ref、actual_start、result | 医師決定・開始記録・実開始を同時commit、失敗は全rollback。record_refはowner/kind/id/revisionの型付き参照でdaily_record ID固定・通常カルテへの変換をしない。同じoperationは同じ滞在／記録を再利用 |
-| hotel／受入・延泊 | stay_ref・期待版・変更予定期間 → care_assignment_decided、capacity_assessment、capacity_revision、counted_stay_refs | 担当決定の証跡はownerのassignment ref／revisionで保存。職種・人数はホテル内部の業務判断を保持。開始前の決定を免除せず、通常カルテを追加必須にしない。同一滞在1回・実未退室を計数。超過時実績は継続、責任者調整後の再判定で延泊確定 |
+| hotel／受入・延泊 | stay_ref・期待版・変更予定期間 → 任意担当医師の設定状態、capacity_assessment、capacity_revision、counted_stay_refs | [D05の最新担当条件](../../../spec/domains/hospitalization/lifecycle.md)へ従い、ホテル担当医師は任意。旧care_assignment_decidedを必須の受入gateとせず、別責任担当・非医師担当・一名必須も追加しない。指定時の参照／履歴はownerのref／revisionで保存し、未設定と取得不明を区別する。臨床入院開始の担当医決定とは別。通常カルテを追加必須にしない。同一滞在1回・実未退室を計数。超過時実績は継続、責任者調整後の再判定で延泊確定 |
 | trimming／予約連動 | 予約ID・期待版・専用record_ref・operation → 同じ予約／専用記録refと結果 | Create／Update／Deleteを共通gate・予約版・切替検査へ参加させる。通常カルテへ変換せず、専用記録内部の新しい承認を本境界から作らない |
 
 通常カルテの編集者／確認医師・必須ログ・確定警告・削除・過去入力・評価不能手入力は[カルテ初回合意](../../../spec/domains/medical-records/lifecycle.md#medical-record-agreement-first-five)と[部分技術設計](../medical-records/technical-spec.md)へ追従する。確認actorは医院が認めた医師で担当医以外も代行可。既存grantとscopeを保持し、新roleを作らない。
@@ -403,7 +403,7 @@ receiptを使う操作は先に短いmetadata-only claim transactionを完了す
 | shift通常更新／削除・LINE管理用schedule・template展開：[shift service](../../../../backend/internal/staff/shift_entry_service.go)・[repo](../../../../backend/internal/staff/shift_entry_repository.go) | 同じ勤務日時表現・未登録区別・既指名保護・共有lockへ接続。休憩置換も参加 | 別schedule入口を旧time／保護なしで保存しない。テンプレートからの書込consumerも照合 |
 | 区分／groupの通常master・LINE管理用master、時間枠／公開設定：[type service](../../../../backend/internal/reservation/reservation_type_service_core.go)・[LIFF master](../../../../backend/internal/reservation/reservation_type_liff_service.go)・[route](../../../../backend/internal/reservation/routes.go) | 分類・有効意図・所要時間・名称履歴・対応母集団変化、影響予約の最新照合を同じ規約へ | masterだけ新しくして、旧read／writeから別分類・既定durationへ変換しない |
 | ペット主飼主変更の未来予約移管：[pet service](../../../../backend/internal/pet/service.go)・[継承契約](../../../spec/workflows/reservation-to-record-flow.md) | 同じtransactionの未来pending／confirmed予約移管、予約版増分・切替状態・LINE連携解除／条件付き付替え・監査が参加。pet行保護後に共通advisoryを後付けせず入口から取得順を照合 | 対象日付／状態・カルテ存在時拒否・manualのcustomer_fields保持等の既存条件を維持。全予約や過去記録へ移管範囲を広げず、NOWAITの競合拒否を無条件待機へ変えない |
-| 入院／ホテル管理のPOST／PATCH／DELETE／discharge-with-billing：[route](../../../../backend/internal/medicalrecord/routes_hospitalization.go)・[service](../../../../backend/internal/medicalrecord/hospitalization_service.go) | 同一宿泊の作成・期間／状態変更・削除・実退室・会計同時処理も計数／開始条件・共有lock・対象版へ参加。予定／実績と専用記録を保持。cage-swapや関連変更は同一対象／関連IDへ影響する場合に照合し、頭数上限とは分ける | ホテル実滞在の変更をLINE予約入口だけの切替対象外に残さない。ケージ数から上限を算出せず、世話担当や記録内部の未確認を開始条件の免除にしない |
+| 入院／ホテル管理のPOST／PATCH／DELETE／discharge-with-billing：[route](../../../../backend/internal/medicalrecord/routes_hospitalization.go)・[service](../../../../backend/internal/medicalrecord/hospitalization_service.go) | 同一宿泊の作成・期間／状態変更・削除・実退室・会計同時処理も計数／開始条件・共有lock・対象版へ参加。予定／実績と専用記録を保持。cage-swapや関連変更は同一対象／関連IDへ影響する場合に照合し、頭数上限とは分ける | ホテル実滞在の変更をLINE予約入口だけの切替対象外に残さない。ケージ数から上限を算出せず、任意担当医師の未設定を拒否理由にせず、記録・容量等の既存受入条件は維持する |
 | 受付画面・予約フォーム／drag・カルテshortcut・LINE client：[保存hook](../../../../frontend/src/features/reservations/hooks/use-reservation-save-actions.ts) | 専用intent・期待版・明示null・入力保持・結果照会と認可へ接続 | APIの切替だけで旧payload・独立record生成・別予約再作成を許可しない |
 
 切替は全経路の参加または旧write拒否を確認して契約単位で行う。旧read adapterは新形式を誤分類して操作させない。停止した入口は復旧時も拒否／正しいadapterを維持し、新形式の事実・ID・履歴を失うrollbackを採らない。具体的consumer一覧の完全性・医院別切替revisionの実在・既存実効能力・旧制約は実装前調査待ちで、今回設定やbatchを停止済みとは報告しない。
@@ -419,7 +419,7 @@ receiptを使う操作は先に短いmetadata-only claim transactionを完了す
 | 予約入力・警告・重複 | serverと画面の境界・重複DB制約・同時保存 | 院内の確認後許容とLINE拒否が共存。最小入力のowner／pet server境界・空欄・互換性、任意補足変更／通信断後の成功済みID再利用、終了保持、未定への変更、分類跨ぎ受付前後を確認 |
 | 受付・診療・カルテ | handler/serviceの失敗注入、実DB逆順競合、card／modal UI | 受付だけ成功なし、既存カルテ再利用・読込失敗時未開始、開始／終了時計自動遷移なし、勤務外の誤終了取消可と継続前手動修正、未収／分割／0円会計確定後・未保存入力・返金／取消後のUndo境界、その他逆遷移の記録確認、取消と会計確定競合、participant欠落／記録失敗時の全rollback・外側commit後のみ副作用を確認 |
 | 取消・未来院・再受付・訂正 | 同一予約を使った状態matrixと競合 | カルテ自動削除なし、不適格指名の手動修正、旧予約／記録の再利用、記入済日付・分類変更の通常操作拒否 |
-| 入院／hotel | 予定と実開始、記録作成失敗、全期間計数と同時確定 | 両入院入口重複なし。hotel世話担当未決定では受入開始不可・決定後の開始、同一宿泊1回、取消等除外、同時刻接触、延泊超過中の実績保持／調整後確定と例外禁止、予定超過未退室、途中休診を各ACで確認 |
+| 入院／hotel | 予定と実開始、記録作成失敗、全期間計数と同時確定 | 両入院入口重複なし。hotel担当医師未設定でも他条件を満たせば開始可・設定時の参照保持、同一宿泊1回、取消等除外、同時刻接触、延泊超過中の実績保持／調整後確定と例外禁止、予定超過未退室、途中休診を各ACで確認 |
 | LINE | 公開／本人医院分離、候補と保存条件、競合後入力保持 | hotel医師条件免除、入退室日時条件、未設定上限／設定不足、受付前取消、院内例外の不流用を確認 |
 | 能力計算・互換切替 | 仮割当fixtureとAPI／UI・DB並行検証 | 跨区分・部分重複・全時間同一候補・貪欲失敗と再探索・連鎖外側競合・探索中断を照合し、仮担当が保存されないことを確認。LINEは予定枠基準とし、診療超過のみの拒否なし／実終了による予定重複の除外なしを確認。旧画面表示後の区分追加で自動許可なし。新hotel＋旧general＋名称「お泊まり」は旧write拒否または正しい接続、復旧でも保護を維持 |
 | 回帰 | 既存write owner・認可・医院分離・record unique・保存契約・88ルート | 対象外の臨床承認・会計・trimming内部を変更せず、新しい他院参照・直接table writeを検出 |
@@ -447,16 +447,16 @@ Sentinel_f19ab03e8c2c81919c6f589bcf563811のdocs限定許可に基づき、予�
 |:---|:---|:---|
 | API／nullable／version／警告／再送／結果照会／既存grant | §4.7で選定済み | API正本・生成型・route・実認可への反映と回帰試験 |
 | 最小患者登録／成功ID再開 | §4.1・§4.7で専用intentと空文字を選定済み、共有APIの必須維持 | owner／pet表示・検索・import等の実consumer互換と通信断試験 |
-| 名称履歴／個別意図／group停止／キー保存 | §3.2で選定済み、自動purgeなし・cache非必須 | 旧値の確認、rename大量更新、具体的保存期間／削除手続きの共通方針確定 |
+| 名称履歴／個別意図／group停止／キー保存 | §3.2で選定済み、自動purgeなし・cache非必須 | 旧値の確認、rename大量更新、C05保持条件への全writer適合確認 |
 | 全writer／lock／切替 | §6.4・§7.2で共通gate・owner部分順序・leaf除外・参加不可の停止を選定済み | 全実writer／FK／trigger／独立txの監査、切替排出、逆順競合、性能 |
-| 記録確認訂正／会計確定歴／宿泊・専用記録接続 | §5.1で返却型・atomicity・停止条件を選定済み | owner実装への反映。記録内部・返金／締め後精算・世話担当内部の文書は各領域で完成させる |
+| 記録確認訂正／会計確定歴／宿泊・専用記録接続 | §5.1で返却型・atomicity・停止条件を選定済み | owner実装への反映。記録内部・返金／締め後精算・ホテル任意担当医師はD05／D10／D12の最新正本へ従い、実装適合を別途確認する |
 | FR／受入条件／独立レビュー | 既存正本を維持し技術責務へ対応 | 本改訂の独立レビュー・リンク／索引検査証跡を完了時に報告。検査通過は実装成立の証拠ではない |
 
-**予約側の確定業務と技術接続契約の文書整理は完了。当面の自動削除停止も承認済み。ただし全ドメイン文書の完成・共通の具体的保存期間／削除手続きの確定・実装可能という判定ではない。** 関連ドメイン内部の未決を予約APIの「schema未決」へ戻さず、各ownerの文書完了条件へ渡す。
+**予約側の確定業務と技術接続契約の文書整理は完了。当面の自動削除停止も承認済み。ただし全ドメイン文書の完成・全writerの保持適合・実装可能という判定ではない。** 関連ドメイン内部の未決を予約APIの「schema未決」へ戻さず、各ownerの文書完了条件へ渡す。
 
 ### 9.3 業務判断と検証項目を分離する
 
-当面自動削除しない扱いは Sentinel_9d85a7955b608191985bb02c2c9356a5 で承認済み。[共通方針](../../../spec/shared/README.md#interim-retention-policy)の具体的保存期間・削除手続きは別途確定する。これを予約固有の残る業務質問へ戻さず、法的年数を技術側で選ばない。ホテル世話担当の職種／人数・責任者の既存権限への割当、確定後訂正の具体項目・請求修正／返金・締め後精算、専用記録本文は関連領域の業務判断としてまとめて引き継ぐ。受付／記録担当という合意を、権限を持つ全員の役割へ自動拡張しない。
+当面自動削除しない扱いは Sentinel_9d85a7955b608191985bb02c2c9356a5 で承認済み。[C05共通方針](../../../spec/shared/retention-audit.md)で業務原本・履歴・必要監査を保持し、通常は取消／非表示／論理削除とする。年数による自動削除・一括物理削除は通常製品範囲外で必要時は別手続とし、新たな法定年数を置かない。これを予約固有の残る業務質問へ戻さず、法的年数を技術側で選ばない。ホテル担当医師は任意で、別責任担当・非医師担当・一名必須は追加しない。責任者の既存権限への割当・確定後訂正・請求修正／返金・締め後精算・専用記録は各ownerの最新正本へ従う。既決を未決の業務質問へ戻さず、実装適合を別途照合する。受付／記録担当という合意を、権限を持つ全員の役割へ自動拡張しない。
 
 資料・実データの未知は、正確なpreset色、欠損／不整合／過去名称、旧実効能力、実DB制約、履歴復元可否。unknownは推測補完せず該当新規利用／通常Undoを止める。実装前検証は、DTO／nullableの生成、予約版全writer、receipt通信断と再送、勤務母集団完全性、10万node／100msの試験値とquery plan／メモリ／gate待機、record子入力と訂正、Undoと会計確定、旧client拒否・復旧保護である。いずれも今回は未実施。
 

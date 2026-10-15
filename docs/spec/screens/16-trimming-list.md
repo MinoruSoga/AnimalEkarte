@@ -1,5 +1,7 @@
 # トリミング一覧 仕様書 (Trimming List)
 
+> 2026-10-15文書整理: 画面をまたぐ業務契約・受入条件は[領域正本](../domains/trimming/lifecycle.md)、型・保存／再送と現行差は[技術契約](../../design/domains/trimming/technical-spec.md)を参照する。以下の画面詳細は既存記載を継承（決定根拠・実装の全件再監査なし）、実機未実施。予約一覧対象としての存在と施術detailの作成済みを区別する。会計連携は未請求明細のpullで、施術完了時の会計push生成ではない。施術の完了と会計確定・入金は別結果。
+
 ## 概要
 - **画面の目的**: 院内で実施されるトリミング施術の予約・実績・進捗管理。
 - **URLパターン**: `/trimming`
@@ -64,3 +66,4 @@ flowchart LR
 | DELETE | `/api/v1/trimmings/:id` | 施術記録の論理削除 | `trimming` | `delete` |
 
 ---
+

@@ -44,7 +44,7 @@
 | FR-reservations-undo-consultation-end | 合意済み。2026-10-14 11:56 JST、当該質問への明示返信「ok」。実行条件は12:07合意。会計境界は業務5点合意で確定。権限識別子・会計訂正内部は設計。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない | [誤終了の専用取消操作・理由入力と確認・データ保持](../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-undo-consultation-end) |
 | FR-reservations-manual-consultation-state | 合意済み。2026-10-14 00:18 JST、ユーザーの明示同意。開始操作は10:07・終了操作は10:12合意。確認付きドラッグ終了は10:43合意。誤終了取消は11:56合意。その他の逆方向・権限・期限等は未決。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない | [実業務に基づく開始・終了の明示確定](../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-manual-consultation-state) |
 | FR-reservations-future-assignment-protection | 合意済み。2026-10-13の回答に加え22:00 JSTに予定終了超過でも診療中なら対象と確認。未終了状態の保護は17:17合意、具体的判定方式は設計。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない | [未来・現在診療中予約の保護](../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-future-assignment-protection) |
-| FR-reservation-types-business-routing | 合意済み。2026-10-14 13:14 JST、ユーザー「ok」。17:17までに確定したホテル・入院接続を満たす画面／保存方式と専用管理内部は未決。既存予約がある区分の分類変更は14:14合意で不可。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない | [業務分類と担当者・記録接続](../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-business-routing) |
+| FR-reservation-types-business-routing | 合意済み。2026-10-14 13:14 JST、ユーザー「ok」。ホテル・入院接続は最新D05正本へ従い、実装・実機適合は未確認。既存予約がある区分の分類変更は14:14合意で不可。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない | [業務分類と担当者・記録接続](../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-business-routing) |
 | FR-reservation-types-business-classification-lock | 合意済み。2026-10-14 14:14 JST、ユーザー「ok」。未来・過去を含む。未使用変更・未設定補完は15:58合意。管理権限・確認方法等は未決。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない | [既存予約がある区分の分類変更禁止](../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-business-classification-lock) |
 | FR-reservation-types-business-classification-initialization | 合意済み。2026-10-14 15:58 JST、ユーザー「ok」。管理権限・補完の具体的方法等は未決。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない | [業務分類の変更・未設定補完](../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-business-classification-initialization) |
 | FR-reservation-types-hotel-inpatient-entry | 合意済み。2026-10-14 16:07 JST、ユーザー回答。開始操作は16:36、担当医決定・記録時期は16:44合意。失敗時の開始未確定・理由表示・再試行は17:17合意。UI・保存方式は設計。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない | [ホテル担当と入院の両入口](../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-hotel-inpatient-entry) |
@@ -161,7 +161,7 @@ docs/spec/ は置き場を表し、配下全体の承認を表さない。仕様
 | 状態・取消・復元・日付訂正 | 診療開始後の通常変更制限、担当交代と未定、誤取消の同一予約復元／適格性再確認、未来院手動、未記入と記入済みの日付訂正分離 | [正本](pages/reservation-management.md#operations) |
 | 受付・診療開始終了・誤終了訂正 | 受付とカルテ同時成功、作成済み再利用、未作成／失敗・再試行、明示開始終了・確認ドラッグ、支払い前誤終了取消・勤務外時の継続前手動修正 | [正本](../../workflows/reservation-to-record-flow.md#checkin-contract) |
 | 通常カルテ保存・臨床保護 | 保存ルーティング§2、確定後ロックと追記、現行日付固定処理と合意済み限定訂正を区別。臨床承認待ちは対象外のまま保持 | [正本](../medical-records/lifecycle.md#hybrid-sync) |
-| 入院・ホテル管理 | 予定入院と診察後入院の両入口、来院後明示開始、開始までの担当医、開始時記録・失敗未確定再試行、同じ入院重複防止、ホテル世話担当決定時点 | [正本](../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-hotel-inpatient-entry) |
+| 入院・ホテル管理 | 予定入院と診察後入院の両入口、来院後明示開始、開始までの担当医、開始時記録・失敗未確定再試行、同じ入院重複防止、ホテル担当医師任意（臨床入院の開始前担当医決定は保持） | [正本](../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-hotel-inpatient-entry) |
 | LINE・ホテル全期間上限 | 公開診療／トリミング／ホテル・入院相談、受付制限、指名なし・ホテル医師条件なし、入力保持、受付前取消・直接変更復元なし、設定不足、医院別全期間宿泊上限 | [正本](../../line/reservation-spec.md#line-agreement-1723) |
 | 会計・対象外境界 | 支払い前の終了取消と支払い後の会計訂正を分け、会計・未納・レジ締め本体を改訂しない | [正本](../accounting/README.md#reservation-correction-handoff) |
 
@@ -206,7 +206,7 @@ docs/spec/ は置き場を表し、配下全体の承認を表さない。仕様
 | 7 | 休診日の院内予約 | 17:17一括合意済み。実装設計・検証は別 | [fr-reservations-internal-warning-override ](pages/reservation-management.md#internal-batch-holiday) |
 | 8 | 日をまたぐ勤務の登録 | 17:17一括合意済み。実装設計・検証は別 | [fr-shifts-overnight-duty ](../../screens/24-shift-calendar.md#requirement-fr-shifts-overnight-duty) |
 | 9 | 来院時の患者照合と任意補完 | 17:17一括合意済み。実装設計・検証は別 | [fr-reservations-new-patient-minimum ](pages/reservation-management.md#internal-batch-patient-identification) |
-| 10 | ホテル世話担当の決定時点 | 17:17一括合意済み。実装設計・検証は別 | [fr-reservation-types-hotel-inpatient-entry ](../../screens/settings/master-reservation-type.md#internal-batch-hotel-care) |
+| 10 | ホテル担当医師の任意設定 | 旧17:17の必須条件は2026-10-15最新承認で任意へ更新済み。実装・実機検証は別 | [fr-reservation-types-hotel-inpatient-entry ](../../screens/settings/master-reservation-type.md#internal-batch-hotel-care) |
 | 11 | 入院記録作成失敗時の開始未確定と再試行 | 17:17一括合意済み。実装設計・検証は別 | [fr-reservation-types-inpatient-start-confirm ](../../screens/settings/master-reservation-type.md#internal-batch-inpatient-failure) |
 | 最後 | LINE固有の受付・公開・変更／取消 | 17:23の6点合意済み。ホテル受入基準は17:35合意、計算・保存方式は設計、実装・実機未確認 | [LINE正本](../../line/reservation-spec.md#line-agreement-1723) |
 
@@ -229,7 +229,7 @@ docs/spec/ は置き場を表し、配下全体の承認を表さない。仕様
 
 訂正担当と整合確認・会計確定境界・その他逆遷移は[横断正本](../../workflows/reservation-to-record-flow.md#five-business-decisions)、延泊超過の実績保持と調整後確定・例外なしは[ホテル運用](../../line/reservation-spec.md#hotel-extension-over-capacity)、未設定／不整合の確認補完は[マスタ正本](../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-legacy-review)へ反映した。これらを未決として再質問しない。
 
-予約側に残るのは技術方式・API／保存形式・権限識別子・資料／実データ照合と設計／受入の確認。記録訂正項目・請求修正／返金・締め後訂正・専用記録内部・世話担当職種／人数は関連ドメインへ責務を明示して残す。入院開始と記録時点・ホテル担当決定時点を再び未決に戻さない。
+予約側に残るのは技術方式・API／保存形式・権限識別子・資料／実データ照合と設計／受入の確認。記録訂正・請求修正／返金・締め後訂正・専用記録は各ownerの最新正本へ接続する。ホテル担当医師は任意で、別責任担当・非医師担当・一名必須を追加しない。臨床入院開始と記録時点を再び未決に戻さない。
 
 予約側の業務・連携境界の記述完了条件は、決定した主体・操作・結果・例外が正本／受入条件／語彙へ対応し、技術上の保留と関連ドメインへの引継ぎが明示され、独立レビュー・リンク／索引検査で不整合がないこと。予約ドメイン全体の設計完了・実装済みを意味しない。他ドメインの文書整備後に連携を最終照合し、全ドメインの文書完了までは実装しない。
 
@@ -265,16 +265,16 @@ pagesに画面詳細を置き、保存契約など領域固有本文は既存の
 
 ### API・保存・切替対応表と他ドメイン参加条件
 
-Sentinel_f19ab03e8c2c81919c6f589bcf563811のdocs限定許可で、[保存詳細](../../../design/domains/reservations/technical-spec.md#reservation-storage-details) → [closed schema／既存grant](../../../design/domains/reservations/technical-spec.md#reservation-api-closed-contract) → [受け手契約](../../../design/domains/reservations/technical-spec.md#reservation-receiving-contracts) → [全writer取得規約](../../../design/domains/reservations/technical-spec.md#reservation-global-lock-contract)の順に技術契約を選定した。FR／ACの正本は既存参照先を維持する。[完了判定](../../../design/domains/reservations/technical-spec.md#reservation-document-completion-gates)では、予約接続の文書具体化済みと、具体的保存期間／削除手続きの共通方針・関連domain内部文書・実データ／性能検証を分離する。LINE予定枠基準を維持し、全ドメイン文書完了前は実装しない。
+Sentinel_f19ab03e8c2c81919c6f589bcf563811のdocs限定許可で、[保存詳細](../../../design/domains/reservations/technical-spec.md#reservation-storage-details) → [closed schema／既存grant](../../../design/domains/reservations/technical-spec.md#reservation-api-closed-contract) → [受け手契約](../../../design/domains/reservations/technical-spec.md#reservation-receiving-contracts) → [全writer取得規約](../../../design/domains/reservations/technical-spec.md#reservation-global-lock-contract)の順に技術契約を選定した。FR／ACの正本は既存参照先を維持する。[完了判定](../../../design/domains/reservations/technical-spec.md#reservation-document-completion-gates)では、予約接続の文書具体化済みと、C05保持方針への実適合・関連domain最新本文との照合・実データ／性能検証を分離する。LINE予定枠基準を維持し、全ドメイン文書完了前は実装しない。
 
 
 <a id="reservation-document-completion-current"></a>
 ### 予約ドメインの文書整理完了境界
 
-2026-10-14、当面の保存・廃棄の扱いはユーザー Sentinel_9d85a7955b608191985bb02c2c9356a5 の「ok」で承認。[共通方針](../../shared/README.md#interim-retention-policy)の当面自動削除なしと、全ドメイン共通の具体的保存期間・削除手続きの確定待ちを分離する。具体的年数・法令適合・法的無期限保存は決定していない。既存の論理削除・非表示・復元・履歴参照の合意を保持する。
+2026-10-14、当面の保存・廃棄の扱いはユーザー Sentinel_9d85a7955b608191985bb02c2c9356a5 の「ok」で承認。[C05最新方針](../../shared/retention-audit.md)で業務原本・履歴・必要監査を保持し、通常操作は取消／非表示／論理削除とする。年数自動削除・一括物理削除は通常製品範囲外で必要時は別手続とし、原本所在不明を自動／手動の実体削除へ含めない。具体的年数・法令適合・法的無期限保存は決定していない。既存の論理削除・非表示・復元・履歴参照の合意を保持する。
 
 現在の完了範囲は、予約区分／表示group・指名担当者／個人対応・シフト／休憩・院内／LINE・ホテル／予定入院からの予約接続を含む69固有FRと継承参照2件の文書整理、および[技術接続契約](../../../design/domains/reservations/technical-spec.md#reservation-document-completion-gates)。予約側固有の業務判断を残す段階は終え、受付へ進む。全仕様79FR／194ACは全体集計であり、予約69件と混同しない。
 
-関連領域の訂正内容・精算／返金／締め後処理・世話担当の職種／人数・専用記録本文、共通保存期間／削除手続きは各owner／全ドメインの完成条件へ引き継ぐ。実装前の旧データ・preset値・DB制約・API生成／互換／認可・全writer・並行処理・性能検証、全ドメイン確定後の連携再照合は未実施。文書整理完了を実装開始・利用開始・実機受入済みへ読み替えない。
+関連領域の訂正・精算／返金／締め後処理・専用記録は[D05](../hospitalization/lifecycle.md)・[D04](../owners-pets/lifecycle.md)・[D06](../trimming/lifecycle.md)、[D10](../accounting/README.md)、[D11〜13/16](../../../design/domains/finance-operations/technical-spec.md)の最新正本を参照する。ホテル担当医師は任意、保持は[C05](../../shared/retention-audit.md)に従い、旧未決のまま残さない。実装前の旧データ・preset値・DB制約・API生成／互換／認可・全writer・並行処理・性能検証、全ドメイン確定後の連携再照合は未実施。文書整理完了を実装開始・利用開始・実機受入済みへ読み替えない。
 
 本節と技術仕様§9が現在状態。過去の対話記録・[設計／未承認事項](../../../work/design/reservations/pending-and-design.md)には移設時点の記述を保持しており、既決事項を再び未決へ戻す根拠にしない。未承認の画面方式案や対象外内部仕様も一括承認したと扱わない。

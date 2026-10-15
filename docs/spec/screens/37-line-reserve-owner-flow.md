@@ -1,11 +1,20 @@
 # LINE予約 飼主側フロー 仕様書 (LINE Reserve Owner Flow)
 
+| 管理項目 | 記載 |
+|:---|:---|
+| 文書ID・種別 | page.line-reservations.owner-flow／D18 業務・画面仕様 |
+| 決定状態 | 既存記載を継承。明示済み合意と現行実装説明を分け、2026-10-15通知結果不明時の保留方針は承認済み。実装適合は別 |
+| 実装状態 | 既存記載を継承（今回の再監査なし）。既知gapを保持 |
+| 実機検証状態 | 今回未実施。テスト名・過去証拠の掲載は再実行を意味しない |
+| 文書確認日 | 2026-10-15。本文・参照・FR/AC整理。独立レビュー前 |
+
+
 17:23 JSTの[LINE予約6点合意](../line/reservation-spec.md#line-agreement-1723)へ従う。公開された診療・トリミング・ホテルは予約対象、入院は医院相談。ホテルには医師指名・医師シフト・通常予約の同日制約を適用しない。受付制限・入力保持・受付前取消・必要設定不足の扱いと受入条件はLINE正本を参照する。ホテル受入基準は17:35合意の医院別同時宿泊頭数・全宿泊期間判定で、実装・実機受入は未確認。
 
 > スタッフ管理側（設定・予約枠・文言編集）は [28-line-reservation.md](./28-line-reservation.md) を参照。本書は飼主が LINE アプリ内で操作する予約フロー（`frontend/line-reserve` 別エントリアプリ）のみを扱う。
 
 ## 概要
-- **画面の目的**: 飼主が LINE（LIFF）から診療・トリミングの予約作成、予約確認、キャンセルを完結させる。
+- **画面の目的**: 飼主が LINE（LIFF）から診療・トリミング・ホテルの予約作成、予約確認、キャンセルを行う。ホテルの承認済み全期間受入と、下記の現行通常／トリミング画面説明の実装状態は分ける。
 - **URLパターン**: `/line-reserve/{clinicId}`（pathname から医院 ID を解決。単一ページアプリで内部ステップを切替え、URL は遷移しない）。ローカル dev は Vite rewrite 必須（`/line-reserve/{clinicId}/src/*` を実ファイルへ戻す。末尾スラッシュ付き clinic パス。BUG-402）。
 - **メンテナンス**: settings 取得失敗と stopped/maintenance は mock を含め sticky で、LIFF ready/profile 完了が Top へ上書きしない。
 - **アクセス権限**: 院内権限は不要。LINE IDトークン認証（`Authorization: Bearer` ヘッダ）を `LiffAuth` ミドルウェアが検証する。`/settings` のみ認証不要（トップ表示用・30回/分の IP レートリミット。`/my-reservations` も 30回/分）。
@@ -115,3 +124,65 @@ flowchart LR
 | DELETE | `/api/liff/:clinicId/my-reservations/:id` | 予約キャンセル（204） |
 
 ---
+
+<a id="line-channel-document-contract"></a>
+## D18のチャネル全域整理（2026-10-15）
+
+### 目的・対象範囲と読む順
+
+本書はLINE飼主app、[院内設定・文言・枠](28-line-reservation.md)、[予約業務正本](../line/reservation-spec.md)の接続を扱う。D01の確定FRを複製・再承認せず参照する。以下のFRはチャネル固有の既存継承で、D01の合意済み条件と現行実装説明を分ける。公開予約には診療・トリミング・ホテルを含み、入院は医院への相談にとどめる。上のステップ表・状態図の通常／トリミング描写はホテルの承認済み全期間受入フロー実装を証明しない。
+
+「指名なし」の自動割当実装説明から新しい割当方式を承認しない。LINEの空き判定は[予定枠基準](../line/reservation-spec.md#line-scheduled-slot-basis)に従い、実診療中・予定終了超過を追加条件にしない。ホテルの予約済み／実滞在・未退室を含む全期間定員は別契約として保持する。
+
+### 利用者・認証・公開
+
+飼主appはスタッフRBACではなく医院に対応したLINE ID tokenで本人を特定する。公開settingsだけで他の本人データへアクセスできない。名前・電話の一致による台帳の自動統合はしない。スタッフの設定画面と設定APIの既存FE/BE権限差は[設定正本](28-line-reservation.md)で可視化し、画面を開けることを変更権限として扱わない。
+
+### 操作・状態・保存
+
+<a id="requirement-fr-line-channel-settings-publication"></a>
+
+<a id="requirement-fr-line-channel-auth-scope"></a>
+
+<a id="requirement-fr-line-channel-confirm-recheck"></a>
+
+<a id="requirement-fr-line-channel-input-retention"></a>
+
+<a id="requirement-fr-line-channel-cancel-boundary"></a>
+
+<a id="requirement-fr-line-channel-notification-boundary"></a>
+
+| 要件ID | 操作・契約 | 根拠と決定状態 |
+|:---|:---|:---|
+| FR-line-channel-settings-publication | 稼働状態・受付期間・休業日・予約区分公開・文言を区別する。文言の保存は公開反映を伴い、未保存プレビューと同義にしない | 設定正本の既存継承。法的文言の内容は医院が管理 |
+| FR-line-channel-auth-scope | 本人・医院scopeでマイ予約を取得／取消する。予約入力の氏名電話からowner_idを自動推定しない | 本文主要機能§3〜4、architecture§2 |
+| FR-line-channel-confirm-recheck | 選択時表示だけで確定せず、受付状態・予定枠重複・シフト/休憩・対応能力等の合意済み条件を保存時に再検証する | D01/LINE合意を参照。現行shift再検証gapは実装残件 |
+| FR-line-channel-input-retention | 戻る操作・確定時の枠競合では入力を保持して必要な日時再選択へ戻す。受付停止/取得失敗を初期化成功で上書きしない | 本文状態機械、D01の状況変化時合意 |
+| FR-line-channel-cancel-boundary | 来院受付前の飼主取消と直接変更/取消復元を区別する。直接変更/復元は医院連絡。確定statusのみの現行実装説明を全業務状態の完成としない | LINE予約正本のowner-cancel |
+| FR-line-channel-notification-boundary | 予約保存の結果とLINE/医院メールの通知結果を分離する。現行best-effort通知失敗を予約作成失敗へ読み替えない | 本文主要機能§3の既存継承 |
+
+入力はフロー内状態に保持し、URL/ストレージへ新たに永続化しない。完了後と新規予約開始時のリセットを既存の範囲で維持する。通信が不明な予約作成についてはD01の操作ID/再送・結果確認契約へ引き渡し、チャネル独自に新しい予約を作る回復を定義しない。
+
+### 受入条件
+
+| 条件ID | Given（前提） | When（操作） | Then（期待結果） | 独立確認・成功条件・確認手順／証跡 |
+|:---|:---|:---|:---|:---|
+| AC-line-channel-public-business | 公開区分が診療/トリミング/ホテル/入院に分類される | 飼主が選ぶ | 前3種は対応する予約、入院は医院相談。公開だけで通常カルテや実入院を生成しない | LINE正本public-business-routingを照合 |
+| AC-line-channel-scheduled-only | 先行診療が予定終了後も診療中だが予定枠等は適格 | 空きを判定する | 実診療中だけを理由に予約不可/判定不能にしない | line-scheduled-slot-basisを照合。実装未確認 |
+| AC-line-channel-revalidate | 選択後にシフト/能力/予定枠が変化する | 確定する | 保存時の適格性に従い、不適格なら既存入力を保持して再選択を促す | D01確定契約と現行gapを別々に記録 |
+| AC-line-channel-hotel | ホテル宿泊が複数日にまたがる | 入退室を選ぶ | 全宿泊期間定員と入退室日時の受付条件を判定し医師指名/通常同日制約を代用しない | LINE正本hotel-concurrent-stay-limitを照合 |
+| AC-line-channel-auth | 別本人/別医院の予約IDがある | マイ予約や取消を要求する | 本人・医院scope外の情報や操作を許可しない | 本文本人・医院scopeと認証契約を照合 |
+| AC-line-channel-name-match | 氏名/電話が既存台帳と一致する | 予約を作る | 一致だけでowner_id/pet_idを新規リンクしない | 本文主要機能§3を照合 |
+| AC-line-channel-maintenance | 設定停止/取得失敗が確定している | LIFF初期化が後から完了する | Topへ上書きせず受付不可を保持する | 本文概要のsticky状態を照合 |
+| AC-line-channel-token-expired | 401を受ける | エラーを表示する | 同じtokenの盲目再試行を提示せず再認証案内に従う | 本文主要機能§5を照合 |
+| AC-line-channel-cancel | 来院受付前の本人予約がある | 取消を確定する | 取消済みを保持し、直接変更や取消復元を自動で行わない | 業務正本と現行confirmed限定の差を記録 |
+| AC-line-channel-notification-fails | 予約保存成功後に通知が失敗する | 完了結果を示す | 通知失敗だけで予約を再作成/取消しない | 本文best-effortとD01再送契約を照合 |
+| AC-line-channel-editor | 設定API変更権限を持つ職員が文言を保存する | 飼主表示を取得する | 保存済み文言を反映し、未保存入力を公開値にしない | 設定正本§2を照合。公開操作は本作業で未実施 |
+| AC-line-channel-slots | 日別/毎週開始時刻が登録される | 枠を算出する | 営業時間由来枠への加算として扱い、登録外を一括不可にしない。受付制限は別途適用 | 設定正本の加算モードとLINE受付制限を照合 |
+
+### 未決・技術引継ぎ
+
+- 承認済み方針：通知の送信結果が不明な場合は照合まで再送保留、通知失敗で予約を作り直さない。D15のFR-crm-notification-unknown/ACに従う。根拠：2026-10-15確認案 Sentinel_75a3a1bf81b481919ba4c34aa633feb4、再確認 Sentinel_8d0032ca45b881919b3d2ceb5339f792 に対するユーザー承認 Sentinel_7a67fd30e47c819192cd36d416f0a2bf「ok」。
+- 技術整理：設定PUTの既定値/秘密保持/期待版なしという現行差は[設定保存契約](28-line-reservation.md#line-settings-write-contract)へ集約。保存失敗時入力保持と予約確定の操作ID/結果不明復旧は各owner/APIの版契約へ接続し、実装済みと推定しない。
+- ホテルの画面／API全域、来院受付前取消の全状態、保存時shift再検証、実機フォントなどは実装・検証残件。D01の文書完了をこれらの実装完了へ転用しない。
+

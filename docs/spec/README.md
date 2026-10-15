@@ -135,3 +135,8 @@ OpenAPI 列挙 operation（token 保護の local fixture 経路を含み、「�
 読む順：[全体要件](specification.md)と[記述規約](authoring-guide.md) → [domains](domains/README.md) → 関連[workflows](workflows/README.md)・[ontology](ontology/README.md) → 各画面。
 
 正本・状態：[決定状態と検証状態の規約](authoring-guide.md#status)に従い、各節・FRの承認根拠と実装／実機状態を別に読む。READMEへの掲載・フォルダ配置は承認や実装済みを表さず、対象外の既存仕様を新たに確定しない。既存の別名入口・索引の責務は維持し、本書は案内を補う。
+
+
+## 2026-10-15 全領域仕様への案内
+
+[全23業務・6共通・8接続](domains/SPECIFICATION_PROGRESS.md)を参照する。既存のルートprimary対応と過去の実行検証記録は保持し、今回の文書検査をruntime／実機合格へ転用しない。

@@ -95,3 +95,9 @@ stateDiagram-v2
 | GET | `/api/v1/clinics/:clinic_id/lstep/delivery-monitor/logs` | 配信ログ履歴の取得 | `lstep-analytics` | `view` |
 
 ---
+
+<a id="crm-monitor-meaning"></a>
+## 監視結果の読み方と受入（2026-10-15）
+
+本画面の監視範囲・失敗分類・受入は[CRM正本のD15整理](../line/lstep-integration.md#crm-document-contract)を参照する。firedは本文状態図の『配信API成功』の観測であり、端末への到達・既読や全外部シナリオ完了の保証ではない。fired_atの既存表示ラベルから配信到達を推測しない。failedの抽出は再送検討であり、自動再送命令ではない。結果不明時の再送方針はD15の未決提案と区別する。ordinaryタグ同期の監視を新たに含めない。
+

@@ -60,7 +60,7 @@ flowchart TB
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
-| GET | `/api/v1/clinics` | 医院一覧取得（この画面は `scope=all` 指定でスタッフ割当外も含む全件を取得。詳細パネルも一覧データから参照） | `hospital-settings` | `view` |
+| GET | `/api/v1/clinics` | 医院一覧取得（`scope=all` 指定でも非システム管理者は所属医院のみ。システム管理者は全院一覧。認可正本 `docs/architecture/auth.md` §4.10に従い、詳細パネルも一覧データから参照） | `hospital-settings` | `view` |
 | POST | `/api/v1/clinics` | 新規医院の開設 | `hospital-settings` | `create` |
 | PATCH | `/api/v1/clinics/:clinic_id` | 医院情報の更新 | `hospital-settings` | `edit` |
 | DELETE | `/api/v1/clinics/:clinic_id` | 医院情報の削除（物理削除。参照中のデータが残る場合は 409 で拒否） | `hospital-settings` | `delete` |

@@ -1,0 +1,80 @@
+# 共通契約の全owner適用照合（C01／C02／C03／C05／C06）
+
+| 項目 | 内容 |
+|---|---|
+| 文書ID | shared.owner-contract-coverage |
+| 確認範囲 | D01〜D23の重要な識別・語彙・保存単位・安全・履歴・画面失敗と既存正本の対応 |
+| 決定状態 | 個別正本の既決／継承／現行差を参照する索引。新業務の承認ではない |
+| 基準 | PR #670 head 41fcf3ebと2026-10-15の統合文書候補。最新承認は各ownerの根拠節 |
+| 実装／実機 | 未実施。コード全writer・実grant・旧データ・外部処理の網羅適合を宣言しない |
+
+本表は[UI C01](ui-contracts.md)、[概念・文書状態 C02](document-contracts.md)、[安全 C03](clinical-safety.md)、[保持 C05](retention-audit.md)、[接続 C06](../../design/shared/integration-contracts.md)を具体的なowner操作へ結び付ける。認可は[C04](access-control.md)、横断接続は[X01〜X08](../workflows/reservation-to-record-flow.md#cross-domain-review-20261015)も参照する。リンク先の要件／ACを第二定義としてコピーせず、どの条件をどの操作に使うかを示す。
+
+## A. 識別・語彙・保存単位・画面失敗（C01／C02／C06）
+
+| 領域 | 具体的なID・概念境界 | 保存／画面失敗・再送の適用先と根拠 |
+|---|---|---|
+| D01 予約 | appointment ID／版、操作intent／キー、business_class、指名と実担当、予約とtentativeを分離。JST時刻や氏名でIDを代替しない | [閉じた操作契約](../../design/domains/reservations/technical-spec.md#reservation-api-closed-contract)の同scope同key／fingerprint、成功結果と現在状態、warning_changed／版競合。未確認結果に別key作成なし |
+| D02 受付 | 予約ID単位のカード、専用owner/kind/id/revision、表示列と実status、本人browser非表示を区別 | [snapshot](../../design/domains/reception/technical-spec.md#reception-read-scope)は全件性・total一致を確認。[操作](../../design/domains/reception/technical-spec.md#reception-operation-contract)はprepare→read→start、結果不明は元context照合。更新失敗を0件とせず古いsnapshotからwriteしない |
+| D03 通常カルテ | record／患者／子ID・固定結果版、確認医師と編集actor、項目実施状態とカルテ確定を分離 | [実型・全writer](../../design/domains/medical-records/technical-spec.md#medical-record-reconciled-contract)と[専用intent](../../design/domains/medical-records/technical-spec.md#medical-record-legacy-and-special-contract)。保存§2の個別送信、成功対象のみdirty解除、GET初期化もwriter、未送信/null/clearは型別 |
+| D04 台帳 | owner／petと主飼主／副飼主、D19group・D20LINE linkは別。主飼主移管と過去資金移管は別 | [登録scope](../domains/owners-pets/lifecycle.md#requirement-fr-owners-pets-register-scope)は新規飼主＋複数pet同時成功。副飼主は[全置換・版](../domains/owners-pets/lifecycle.md#requirement-fr-owners-pets-primary-secondary)。予約の段階患者登録とは異なる保存単位。結果不明のメール／電話一致をreceiptにしない |
+| D05 入院・ホテル | stay・hospitalization・通常record・日次record・care item・billingを分離。同一宿泊を二重計数しない | [開始](../domains/hospitalization/lifecycle.md#requirement-fr-hospitalization-entry-and-start)、[ケージ期待割当](../domains/hospitalization/lifecycle.md#requirement-fr-hospitalization-cage-allocation)、[退院](../domains/hospitalization/lifecycle.md#requirement-fr-hospitalization-discharge-and-billing)。日次三入力は独立、交換は両側同時、退院会計は状態と明細同時成功。取得不明を空きにしない |
+| D06 トリミング | appointmentと専用detail一件、course/type/option、予約価格と請求snapshotを分離 | [予約detail](../domains/trimming/lifecycle.md#requirement-fr-trimming-reservation-and-detail)は既存を再利用。[画像](../domains/trimming/lifecycle.md#requirement-fr-trimming-image-lifecycle)はupload成功keyとrecord保存別、送信済key保護。[atomicity](../domains/trimming/lifecycle.md#requirement-fr-trimming-delete-and-atomicity)は予約/detail/options／必要監査 |
+| D07 検査・受信 | job指紋・source・検体ID、患者attach、exam／revision／版内itemを区別。検体IDは患者自動確定に使わない | [再送・Undo](../domains/examinations/lifecycle.md#fr-examinations-idempotency)と[回復](../domains/examinations/lifecycle.md#fr-examinations-recovery)。receivedとpersistedを分け、未知コードを残す。旧PUT全消去とPATCH不変更を同一化しない |
+| D08 接種 | 単一vaccination ID、一接種一保存、同日複数、実績と次回予定、親record帰属を区別 | [二入口同資源](../domains/vaccinations/lifecycle.md#fr-vaccinations-record)は外側カルテ保存と別。[訂正](../domains/vaccinations/lifecycle.md#fr-vaccinations-correction)は成功時だけ初期化、対象ID一行削除、通信不明で再createなし。pointer nullを解除済と誤表示しない |
+| D09 健診 | Checkup系のpackage／field／result、旧Examination seedと区別、false/0/未入力を区別 | [型・一括置換](../domains/checkups/lifecycle.md#fr-checkups-results)は未送信/null拒否、[]のみ明示全消去。[Path B](../domains/checkups/lifecycle.md#fr-checkups-protection)は親→子→fieldの段階保存、前段IDを照合し再開。独立フォームに離脱保護が実装済みとしない |
+| D10 会計 | 請求／確定歴・実移動event・元資金・元明細・預り金充当／復元を分離。会計医師確認IDと精算IDは別 | [第十群](../domains/accounting/lifecycle.md#accounting-empty-rounding-master)は明細なし確定不可／行別丸め／明示再適用。[受け手](../../design/domains/accounting/technical-spec.md#accounting-handoff-contract)は正確な参照と現在版／receipt。成功／不明・部分実受領を偽装しない |
+| D11 見積 | 元見積ID／番号／版／明細と後継、見積承認と未確定会計転記を区別 | [後継](../domains/estimates/business-rules.md#requirement-fr-estimates-successor)は原本不変・新ID、確定親で専用経路。[金額](../domains/estimates/business-rules.md#requirement-fr-estimates-money-source)は新規明細方式、旧ヘッダのみ見積を偽の明細へ移行しない。再送は[選定済操作契約](../../design/domains/finance-operations/technical-spec.md#estimate-selected-contract)の操作IDで結果照会し、後継関係を補助照合。一覧0件だけで失敗認定しない |
+| D12 締め | 営業日／AM/PM/EMG、原締めsnapshot／追記差分、実査／理論、支払配賦と割引配賦を区別 | [期間](../domains/cash-register/business-rules.md#requirement-fr-closing-period-boundary)と[append-only](../domains/cash-register/business-rules.md#requirement-fr-closing-append-only)。同医院・日・区分の原締め一件。取得失敗を0円へせず、結果不明は[締め操作契約](../../design/domains/finance-operations/technical-spec.md#closing-selected-contract)の操作IDで結果照会し履歴を補助照合。一覧0件だけで失敗認定しない。開始残と前区分終了残を二重加算しない |
+| D13 在庫 | inventory品目／管理単位、臨床投与単位、物販価格masterは別。数量由来statusと保存statusを区別 | [数量状態](../domains/inventory/business-rules.md#requirement-fr-inventory-quantity-status)と[実物調整](../domains/inventory/business-rules.md#requirement-fr-inventory-adjustment)。数量／閾値0の意味、正整数、元操作参照、現在版。[在庫操作契約](../../design/domains/finance-operations/technical-spec.md#inventory-selected-contract)に従い、棚卸の旧絶対値で別出庫を消さない |
+| D14 職員・勤務 | staff本人／account／医院所属、職種／grant／個人対応能力、勤務とtemplateを分離 | [本人](../domains/staff-workforce/README.md#requirement-fr-staff-workforce-identity)と[勤務](../domains/staff-workforce/README.md#requirement-fr-staff-workforce-workforce-maintenance)。templateは入力コピーで既存勤務を変更しない。未登録勤務を休日や他院勤務へ補完しない |
+| D15 CRM | delivery log／claim／tagcache／external result、import ID／snapshot、shared file／別原本を分離 | [CSV](../line/lstep-integration.md#requirement-fr-crm-csv-snapshot)は新POST=new import、受理数≠挿入数、snapshot rollbackとfailed更新は別。[手動send](../line/lstep-integration.md#requirement-fr-crm-manual-send)は外部成功とlog失敗別。preview件数は最大100の返却集合 |
+| D16 集計 | 会計distinct／部門行件数、飼主記録日数／実来院、配信ログ／unique飼主、V1分析／V2配信を分離 | [期間](../domains/analytics/business-rules.md#requirement-fr-analytics-period-basis)、[母集団](../domains/analytics/business-rules.md#requirement-fr-analytics-owner-counts)、[観測](../domains/analytics/business-rules.md#requirement-fr-analytics-lstep-observation)。[集計選定契約](../../design/domains/finance-operations/technical-spec.md#analytics-selected-contract)の旧COALESCE日付、選択ページCSV、取得失敗と率0／7区分0を区別 |
+| D17 医院・設定 | 選択clinic／法人global情報、医院固有番号／法人番号、入口閲覧と個別master操作を分離 | [医院](../domains/clinic-settings/README.md#requirement-fr-clinic-settings-clinic-directory)、[入口認可](../domains/clinic-settings/README.md#requirement-fr-clinic-settings-portal-authorization)。院切替中の古い入力を別医院に保存しない。設定ポータルviewで個別writeを許可しない |
+| D18 LINE予約 | LINE customer／本人owner・pet、設定公開／枠／確定予約、医師指名とホテル条件を分離 | [保存再判定](../screens/37-line-reserve-owner-flow.md#requirement-fr-line-channel-confirm-recheck)・[入力保持](../screens/37-line-reserve-owner-flow.md#requirement-fr-line-channel-input-retention)・[設定write](../screens/28-line-reservation.md#line-settings-write-contract)。空き表示だけで成功にせず、設定保存結果と実チャネル稼働を別にする |
+| D19 identity | group ID／member逆引き、親owner group／pet group、関係と台帳mergeを分離 | [関係](../screens/40-identity-links.md#requirement-fr-identity-manual-relation)と[逆引き](../screens/40-identity-links.md#requirement-fr-identity-member-group-resolution)。同集合createは同groupへ、残一名維持／零名groupのみ削除。unlink NotFoundだけで初回失敗としない |
+| D20 健康表示 | 本人LINE認証／単回link token／owner、保存接種・親draftと限定投影を分離 | [単回link](../screens/38-liff-pet-health.md#requirement-fr-liff-health-single-use-link)・[同時成功](../screens/38-liff-pet-health.md#requirement-fr-liff-health-atomic-link)・[公開事実](../screens/38-liff-pet-health.md#requirement-fr-liff-health-published-facts)。使用済tokenは初回失敗の証明でなく、連携状態照会へ |
+| D21 院内レポート | 1頭contextと飼主、page grantとsection grant、finalized診療と他履歴、raw件数と可視件数を分離 | [1頭](../screens/39-owner-report.md#requirement-fr-owner-report-single-pet-context)、[部分取得](../screens/39-owner-report.md#requirement-fr-owner-report-partial-data)、[閲覧のみ](../screens/39-owner-report.md#requirement-fr-owner-report-read-only)。範囲外petは正規同居petへ、0頭は専用表示。印刷・共有機能を新設しない |
+| D22 manual | 静的記事／DB override／公開版／過去版、製品記事と仕様管理文書を分離 | [公開](../domains/internal-manual/README.md#requirement-fr-internal-manual-publication)・[版保持](../domains/internal-manual/README.md#requirement-fr-internal-manual-version-retention)。保存失敗は公開成功にしない、旧版復元は新しい版、override削除と追加記事非表示を区別 |
+| D23 support | 共有ROOM表示単位と永続session、共有READ／報告医院mutation／本人history、院内報告と外部issueを分離 | [共有](../domains/support/README.md#requirement-fr-support-shared-read)・[mutation](../domains/support/README.md#requirement-fr-support-report-mutation)・[外部結果](../domains/support/README.md#requirement-fr-support-external-send)。本人history削除は共有元にも反映。storage先行削除後DB失敗を完了にせず再照会 |
+
+## B. 臨床安全・履歴／監査・旧値（C03／C05／C06）
+
+| 領域 | 保護する原事実・具体的安全条件 | 停止／現行差と確認条件 |
+|---|---|---|
+| D01/D02 | [同時成功・同ID](../workflows/reservation-to-record-flow.md#checkin-contract)、[確定歴Undo](../workflows/reservation-to-record-flow.md#accounting-finalization-undo-boundary)。受付表示片付けは履歴削除でない | 旧auto-create／cancel-cleanup／自動未来院を最新仕様に混ぜない。[参加規約](../../design/domains/reservations/technical-spec.md#reservation-global-lock-contract)は旧writer／backfillもgate参加または切替停止。unknown確定歴は通常Undo不許可 |
+| D03 | [専用intent](../../design/domains/medical-records/technical-spec.md#medical-record-legacy-and-special-contract)の元本文／日付／元先対応・固定版、必須編集ログ、empty/entered/unknown | 取得障害を評価不能手入力へ落とさず、絶対上限超過は解除不可。旧プラン状態／master当時値を推測補完しない。転記／過去入力に通常create在庫減算を発火しない |
+| D04 | [安全特記](../domains/owners-pets/lifecycle.md#requirement-fr-owners-pets-safety-and-private-notes)と[参照削除](../domains/owners-pets/lifecycle.md#requirement-fr-owners-pets-delete-dependencies)。飼主向けDTOへ内部特記を漏らさない | 死亡専用writer、カルテ依存拒否、主飼主移管は過去請求／預り金を変えない。全専用FK参照／一般PATCHの共通版は実装適合未確認。依存不明で削除救済しない |
+| D05 | [planと記録](../domains/hospitalization/lifecycle.md#requirement-fr-hospitalization-distinct-plans-and-records)、[専用訂正](../domains/hospitalization/lifecycle.md#requirement-fr-hospitalization-special-correction)は原記録保持 | ホテル任意担当を必須へ戻さず、臨床入院開始の医師決定と区別。退院時固定税率／取消会計soft-delete置換はD10目標との差。死亡時の通常write拒否を汎用PATCHで迂回しない |
+| D06 | [安全状態](../domains/trimming/lifecycle.md#requirement-fr-trimming-safety-and-status)、[画像](../domains/trimming/lifecycle.md#requirement-fr-trimming-image-lifecycle)、[訂正](../domains/trimming/lifecycle.md#requirement-fr-trimming-special-correction)。原施術／画像参照・履歴保持 | 患者読込失敗を生存にしない。保存送信済keyは未保存cleanup対象外、参照中削除拒否。完了訂正から自動返金／在庫返却なし。価格時点・取込後変更はD10とのadapterで照合 |
+| D07 | [revision](../domains/examinations/lifecycle.md#fr-examinations-revision)、[対応mapping](../domains/examinations/lifecycle.md#fr-examinations-mapping)。原値／単位／未対応item・official版を保持 | final親の通常更新禁止、usage receiptありdetach拒否。生bytes非保存は保存済み臨床結果の消去ではない。旧completed/revision有無を一律unconfirm可へ変換しない |
+| D08 | [訂正保護](../domains/vaccinations/lifecycle.md#fr-vaccinations-correction)、[master／配信](../domains/vaccinations/lifecycle.md#fr-vaccinations-master-delivery)。保存済み各接種IDの履歴保持 | 同日複数を再送重複許可にしない。final親への通常write不可。旧snapshot欠損を現masterで補完しない。種filter未実装・既定間隔差を医師の数値承認済みとしない |
+| D09 | [正系統](../domains/checkups/lifecycle.md#fr-checkups-canonical)、[結果](../domains/checkups/lifecycle.md#fr-checkups-results)、[保護](../domains/checkups/lifecycle.md#fr-checkups-protection) | 旧seed ID再利用なし、旧field FK欠損も保存snapshot保持。false/0を未入力にしない。Path B後段失敗で前段を自動削除しない。通知失敗から健診再作成なし |
+| D10 | [訂正](../domains/accounting/lifecycle.md#requirement-fr-accounting-reasoned-financial-correction)、[元資金](../domains/accounting/lifecycle.md#accounting-rebill-snapshot-payment-source)、[帳票](../domains/accounting/lifecycle.md#requirement-fr-accounting-document-and-aged-debt) | 旧取消後も確定歴・元番号／参照保持。資金元内訳不明なら返金確定停止。受領／充当／復元を重複計上せず、旧請求回収で新売上なし。薬量／臨床確定を精算成功へ転用しない |
+| D11 | [確定原本](../domains/estimates/business-rules.md#requirement-fr-estimates-state-protection)、[後継](../domains/estimates/business-rules.md#requirement-fr-estimates-successor) | 後継は原本を改変せず、親finalized解除なし。通常CRUD監査best-effortと後継必須監査の差は実装事実として保持。旧ヘッダ見積を自動請求せず確認転記のみ |
+| D12 | [原締め](../domains/cash-register/business-rules.md#requirement-fr-closing-append-only)、[実移動](../domains/cash-register/business-rules.md#requirement-fr-closing-movement-consumer) | 原snapshotを再計算／再締めで置換せず訂正差分。実移動event一度消費、原請求日と実日時別。開始残・補充は売上でなく、過不足で架空入金生成なし |
+| D13 | [臨床境界](../domains/inventory/business-rules.md#requirement-fr-inventory-clinical-boundary)、[実物調整](../domains/inventory/business-rules.md#requirement-fr-inventory-adjustment) | 取消だけで返却しない。前後数量・理由・実日時・元参照を保持。在庫不足拒否と臨床記録結果を分離。薬剤削除の在庫連動が依存保護済みかは適合確認 |
+| D14 | [履歴](../domains/staff-workforce/README.md#requirement-fr-staff-workforce-history-and-access)、[既指名保護](../domains/staff-workforce/README.md#requirement-fr-staff-workforce-booking-contract-index) | 一医院終了と全体退職を区別、過去勤務訂正で臨床／会計変更なし。名前一致統合なし。旧医院能力保存／日跨ぎ／実権限は設計・適合確認 |
+| D15 | [file](../line/lstep-integration.md#requirement-fr-crm-shared-file)、[保持分類](retention-audit.md#requirement-fr-common-retention-delivery-copy)と送信log／claim | 原本所在・一時分類不明は143h cleanup対象外。URL期限は原本削除でない。外部成功後log/cache失敗、死亡再読直後の競合を隠さず、絶対遮断／既読保証をしない |
+| D16 | [金銭](../domains/analytics/business-rules.md#requirement-fr-analytics-money-separation)、[計数](../domains/analytics/business-rules.md#requirement-fr-analytics-owner-counts) | read-only集計を履歴writerにしない。原請求・実移動・過去入力日・記録日数を保存事実に従って投影。現SQLと新D10adapterを同一視しない。CSV出力とD15取込認可別 |
+| D17 | [医院・法人](../domains/clinic-settings/README.md#requirement-fr-clinic-settings-clinic-directory)、[無効化](../domains/clinic-settings/README.md#requirement-fr-clinic-settings-clinic-retirement) | 現在設定で発行済み帳票snapshotを置換せずD10へ。医院無効化を全未終了業務の新しい強制解消条件にしない。scope=allを全write開放としない |
+| D18 | [本人scope](../screens/37-line-reserve-owner-flow.md#requirement-fr-line-channel-auth-scope)、[取消](../screens/37-line-reserve-owner-flow.md#requirement-fr-line-channel-cancel-boundary)、[通知](../screens/37-line-reserve-owner-flow.md#requirement-fr-line-channel-notification-boundary) | 同医院本人owner/pet・死亡を再照合、院内警告overrideをLINEへ適用しない。通知失敗で予約再作成なし。設定／公開保存と外部enableは別 |
+| D19 | [scope](../screens/40-identity-links.md#requirement-fr-identity-authorized-scope)、[必要監査](../screens/40-identity-links.md#requirement-fr-identity-audit-atomicity) | hidden/他医院混在は全体拒否、監査失敗rollback。監査はIDのみ・氏名電話なし。unlinkで元台帳・臨床履歴・元資金を削除／移管しない |
+| D20 | [限定項目](../screens/38-liff-pet-health.md#requirement-fr-liff-health-limited-fields)、[公開事実](../screens/38-liff-pet-health.md#requirement-fr-liff-health-published-facts) | 保存済み接種の限定表示と親draft条件は最新承認。接種単体finalizedを新設せず、診断・処方・検査全面公開なし。死亡status OR deceased_at除外。本人認証にstaff grantを代用しない |
+| D21 | [履歴意味](../screens/39-owner-report.md#requirement-fr-owner-report-history-meaning)、[section認可](../screens/39-owner-report.md#requirement-fr-owner-report-page-section-auth) | finalized診療のみ、取得上限・部分失敗を明示。スタッフ閲覧限定で印刷／共有なし。D20公開条件をこの画面の認可へ流用しない |
+| D22 | [履歴・復元](../domains/internal-manual/README.md#requirement-fr-internal-manual-version-retention)、[公開](../domains/internal-manual/README.md#requirement-fr-internal-manual-publication) | 旧版保持・復元は新しい版、一般スタッフREADと編集権限別。未保存／未公開案を全スタッフへ出さず、記事を患者原記録の新保管場所としない |
+| D23 | [医院mutation](../domains/support/README.md#requirement-fr-support-report-mutation)、[外部送信](../domains/support/README.md#requirement-fr-support-external-send) | 共有READを他医院mutation許可へ拡張しない。本人history削除範囲と共有元への反映を説明し、外部コピー削除を保証しない。送信前確認と院内保持を現通知先行実装から区別 |
+
+## 仕様照合の残差と判定
+
+- D21への印刷認可記述は今回横断監査で検出し、D07〜D09／C02／X05を閲覧のみに同期した。D03・D07自領域の印刷は維持する。
+- ホテルの旧必須care_assignment gateは任意担当医師へ修正し、臨床入院開始時の担当医決定条件は保持する。
+- D15任意ファイルを全件一時コピーと推定できないため、原本不明cleanupを拒否する選定条件をC05へ具体化した。実装の143h一律対象、分類／元原本証跡の保存対応、実file判定は未適合／未検証。
+- 全操作の実schema・lock・監査sink・実grant・旧データ適合はこのリンク表の存在だけで完了としない。各技術正本が示す拒否・不明時停止・成功保存単位を、全writer／旧client／直接writerに実装する後続検証が必要。
+- 表に具体条件のない新しいconsumerや操作が見つかった場合は、共通原則だけで補完せず該当owner正本とACへ追記する。仕様不足と実装不足を分離し、未詳査を対象外へ隠さない。
+
+### 自動／手動の実体削除境界（C05）
+
+D06保存済み画像・D15アップロードと手動delete・D23添付について、業務原本／必要履歴／原本所在不明は通常操作で実体を消さず非表示／論理削除とする。未保存作業copyと確認済み一時配送copyは区別する。分類・別原本保持が確認できない対象をcleanupへ入れず、手動deleteにも同じ保護を適用する。DB soft deleteと添付blobの削除は別の副作用であり、前者だけで後者の保持を保証したと判定しない。現在の物理削除経路との差は各ownerの操作／ACへ接続し、未適合を文書完了で隠さない。
+
+2026-10-15の最終独立レビューで、上記23ownerと各正本の文書接続を照合し重大指摘を解消した。明示手動削除の非表示／論理操作と、自動cleanupが原本／分類不明を対象除外し論理状態・実体とも保持する条件を区別する。表の存在だけで完了にせず、各操作本文・AC・技術traceを再確認した。

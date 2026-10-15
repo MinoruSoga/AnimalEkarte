@@ -118,3 +118,41 @@ sequenceDiagram
 読む順：本索引 → 該当マスタ → 関連[業務領域](../../domains/README.md)・[共通入口](../../shared/README.md)。ルート対応は[対応表](../../ui-design-compliance.md)。
 
 正本・状態：[決定状態と検証状態の規約](../../authoring-guide.md#status)に従い、各節・FRの承認根拠と実装／実機状態を別に読む。READMEへの掲載・フォルダ配置は承認や実装済みを表さず、対象外の既存仕様を新たに確定しない。既存の別名入口・索引の責務は維持し、本書は案内を補う。
+
+## 2026-10-15 不具合報告の送信契約
+
+[サポート業務正本](../../domains/support/README.md)へ従う。送信前にDiscord・Planeへ渡す内容と送信先を表示して確認する。送信後は院内報告を残し、外部通知・起票失敗でも消さない。外部で作成済みか不明なら確認後に再送する。共有READ・報告医院mutation・本人historyの境界は変更しない。
+
+決定根拠：ユーザー Sentinel_7a67fd30e47c819192cd36d416f0a2bf の「ok」（確認文 Sentinel_9c0eb79acfd481919738187e9769f8cd、対象確認 Sentinel_8d0032ca45b881919b3d2ceb5339f792）。製品仕様の承認であり、今回実際に通知・起票する許可ではない。現行serviceはDiscordを保存前・Planeを保存後にbest-effort実行するため、保存失敗時の外部残存・孤立issue・送信前確認は[技術差分](../../../design/domains/support/technical-spec.md)として検証する。
+
+報告保存・配送・削除は[選定契約](../../../design/domains/support/technical-spec.md#support-selected-delivery-contract)へ従う。院内保存commit前に外部送信しない。外部成功後にclaim／結果記録を保存できなければ元operation・外部結果を照合し、照合不能中は再送を保留する。通常削除は[共通C05](../../shared/retention-audit.md)に従い論理削除／非表示とし、保存済み添付blob・元参照・必要履歴／監査を保持する。現行storage先行削除は目標との差分で、物理削除の新許可ではない。
+
+## 21マスタ文書の主責務と受入の所在
+
+次の21件は本ディレクトリの個別仕様文書の数。医院設定・LINEページは別画面、機器項目対応はD07／ADRの別契約で、この21本文へ重複加算しない。複数routeや複数consumerがあっても主責務は一つ。旧実装欄を目標仕様の承認へ読み替えず、保存済み記録への影響・認可／競合は各正本を参照する。
+
+| 本文 | 主責務 | 業務・受入正本 | 照合する境界 |
+|:---|:---|:---|:---|
+| [動物種](master-animal-species.md) | D04 | [正本](../../domains/owners-pets/lifecycle.md) | 基本台帳と既存患者参照を保護 |
+| [ケージ](master-cage.md) | D05 | [正本](../../domains/hospitalization/lifecycle.md) | 割当・占有と宿泊頭数は別 |
+| [入院プラン](master-hospitalization-plan.md) | D05 | [正本](../../domains/hospitalization/lifecycle.md) | 標準条件と個別確認料金を分離 |
+| [トリミング](master-trimming.md) | D06 | [正本](../../domains/trimming/lifecycle.md) | コース／選択肢と当時価格・履歴 |
+| [コース種別](master-trimming-course-type.md) | D06 | [正本](../../domains/trimming/lifecycle.md) | 分類変更と既存明細参照を分離 |
+| [検査](master-examinations.md) | D07 | [正本](../../domains/examinations/lifecycle.md) | 検査計画と機器項目対応は別 |
+| [支払方法](payment-methods.md) | D10 | [正本](../../domains/accounting/lifecycle.md) | 安定ID・実授受の方法と配分 |
+| [保険](master-insurance.md) | D10 | [正本](../../domains/accounting/lifecycle.md) | 窓口確認・一患者一契約とmaster |
+| [割引](master-campaigns.md) | D10 | [正本](../../domains/accounting/lifecycle.md) | 計算根拠／snapshotと現在設定 |
+| [販売商品](master-merchandise.md) | D10 | [正本](../../domains/accounting/lifecycle.md) | 全体割引除外とD13実物在庫は別 |
+| [締め時間](closing-time-settings.md) | D12 | [正本](../../domains/cash-register/business-rules.md) | 営業日と原締めsnapshotを保護 |
+| [職員](master-staff.md) | D14 | [正本](../../domains/staff-workforce/README.md) | 所属・対応能力・未来未終了予約保護 |
+| [職種](master-occupation.md) | D14 | [正本](../../domains/staff-workforce/README.md) | 分類とgrant・個人能力は別 |
+| [シフトtemplate](master-shift-template.md) | D14 | [正本](../../domains/staff-workforce/README.md) | 展開先と予約影響・過去へ自動波及なし |
+| [予約区分](master-reservation-type.md) | D01 | [正本](../../domains/reservations/README.md) | 分類・公開／指名・ホテル任意／臨床入院担当を分離 |
+| [診療項目](master-treatment.md) | D03 | [正本](../../domains/medical-records/lifecycle.md) | 臨床入力・実施とD10価格／税snapshot |
+| [診断](master-diagnosis.md) | D03 | [正本](../../domains/medical-records/lifecycle.md) | 参照履歴と新規選択の境界 |
+| [薬剤](master-medicine.md) | D03 | [正本](../../domains/medical-records/lifecycle.md) | 投与単位・小数量とD10価格／D13在庫は別 |
+| [問診・定型文](master-interview.md) | D03 | [正本](../../domains/medical-records/lifecycle.md) | templateと保存済み臨床記載を分離 |
+| [主訴](master-chief-complaint.md) | D03 | [正本](../../domains/medical-records/lifecycle.md) | 参照分類と確定済み記録の保持 |
+| [権限group](master-permission-group.md) | C04 | [正本](../../shared/access-control.md) | 現在認可・scope例外・staff割当の境界 |
+
+新規選択可否・参照中の無効化／削除・旧名称／価格保持・明示再適用・現在権限／版は同じ扱いとは限らない。master全体に一律のcascade削除や過去snapshot再計算を追加しない。

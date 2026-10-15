@@ -1,5 +1,14 @@
 # 同一飼主・ペット連携 仕様書 (Identity Links)
 
+| 管理項目 | 記載 |
+|:---|:---|
+| 文書ID・種別 | page.identity-links.workbench／D19 業務・画面仕様 |
+| 決定状態 | 既存記載を継承。明示済み合意と現行実装説明を分け、2026-10-15整理節の提案・未決は未承認 |
+| 実装状態 | 既存記載を継承（今回の再監査なし）。既知gapを保持 |
+| 実機検証状態 | 今回未実施。テスト名・過去証拠の掲載は再実行を意味しない |
+| 文書確認日 | 2026-10-15。本文・参照・FR/AC整理。独立レビュー前 |
+
+
 ## 概要
 
 - **画面の目的**: 所属医院内の飼主・ペットを手動で identity group にリンク／unlink し、連携先ペットの最小治療履歴を参照する（Phase 1 workbench）。
@@ -141,3 +150,80 @@ OpenAPI 正本: `backend/docs/api.yaml`（`/identity-links/*`）。ルート dri
 **Out of scope (Phase 2 / DEC-46)**: 自動 link、merge、候補提示 UI。
 
 ---
+
+<a id="identity-document-contract"></a>
+## D19の手動連携・監査境界整理（2026-10-15）
+
+### 対象・用語・責務
+
+identity groupは複数の既存飼主／ペット記録を手動で関連付ける関係であり、元レコードのmerge・患者ID付替え・削除ではない。氏名類似による自動統合、自動候補提示は既存Phase 2対象外のまま。LINEアカウント紐付けはD20、基本台帳登録はD04、各臨床記録writeは各ownerが所有する。
+
+本節は本文とPhase 1 ACの既存記載を業務条件に対応付ける。所属医院内の既存scopeを保持する。本文にあるanchorと全member clinic集合のサーバ検証はscope防御の技術契約であり、本整理が医院間利用や閲覧範囲を新たに許可するものではない。実際のstaff所属／grant・実装適合は未確認。
+
+### 操作・状態・不変条件
+
+<a id="requirement-fr-identity-manual-relation"></a>
+
+<a id="requirement-fr-identity-member-group-resolution"></a>
+
+<a id="requirement-fr-identity-authorized-scope"></a>
+
+<a id="requirement-fr-identity-audit-atomicity"></a>
+
+<a id="requirement-fr-identity-history-read"></a>
+
+| 要件ID | 操作・契約 | 根拠と決定状態 |
+|:---|:---|:---|
+| FR-identity-manual-relation | 2件以上の飼主を手動選択してgroupを作る。ペットgroupは親owner groupを必要とする。元台帳/診療記録の統合を兼ねない | 本文§1〜2・Phase 2除外の既存継承 |
+| FR-identity-member-group-resolution | unlinkは対象メンバー自身のgroup逆引き成功後にのみ有効にする。他メンバーのsession group IDを流用しない | 本文§1.2/1.3、§2 |
+| FR-identity-authorized-scope | view/editを分離し、hidden/許可外clinic混在は全体拒否、部分書込をしない。親groupの必要clinic集合を満たさないmutationを拒否する | 本文§2、既存AC-3/3b/5 |
+| FR-identity-audit-atomicity | business writeと監査は同一transactionで、監査失敗/依存欠落時fail-closed。監査payloadはIDのみでname/phoneを載せない | 既存AC-4 |
+| FR-identity-history-read | 連携履歴はview権限とclinic/pet相関で読み取り、検索/履歴失敗を履歴なしへ置き換えない | 本文§1.3/3、既存AC-2 |
+
+### 受入条件
+
+既存AC-1〜6（AC-3b含む）の証拠リンクは保持する。以下は独立した業務受入の追跡で、既存テストを本日実行した意味ではない。
+
+| 条件ID | Given（前提） | When（操作） | Then（期待結果） | 独立確認・成功条件・確認手順／証跡 |
+|:---|:---|:---|:---|:---|
+| AC-identity-view-only | viewありeditなし | ページを開く | 閲覧バナーと読取を提供しlink/unlinkを許可しない | 本文§1/既存AC-5 |
+| AC-identity-no-view | viewがない | 直接URLを開く | ページ表示を許可しない | 本文概要/既存AC-5 |
+| AC-identity-selection | 選択が2件未満、または親owner groupなし | group作成を試みる | 対応する作成条件を満たすまで実行不可 | 本文§1.2/1.3 |
+| AC-identity-member-lookup | Aのgroup解決済み、Bは未解決 | Bをunlinkしようとする | AのIDを流用してBのunlinkを有効化しない | 本文§2.3 |
+| AC-identity-scope-mixed | 可視/hiddenまたは許可外clinic IDが混在する | mutationする | 全体reject、部分書込みなし | 既存AC-3の試験参照を保持 |
+| AC-identity-parent-scope | 親owner groupの必要clinic集合を満たさない | pet groupを作成する | Forbidden、ゼロ書込み | 既存AC-3bの試験参照を保持 |
+| AC-identity-audit-failure | 監査依存欠落/監査書込失敗 | link/unlinkを保存する | business writeも保存しない | 既存AC-4。runtime再実行なし |
+| AC-identity-no-phi-audit | link操作を記録する | 監査payloadを生成する | IDを記録しname/phoneを含めない | 既存AC-4の証拠参照 |
+| AC-identity-history-failed | 履歴取得が失敗する | 結果を表示する | alertとし履歴なしの成功へ変換しない | 本文§1.4/3 |
+| AC-identity-no-merge | 手動linkが成功する | 元台帳/臨床記録を扱う | 関係操作だけを根拠に元記録のmerge/削除/患者付替えを行わない | Phase 2除外と各owner境界を照合 |
+
+### 再送・同時編集・未決の扱い
+
+2026-10-15に `backend/internal/identitylink/service_owner.go`、`service_pet.go`、`request.go` を静的照合した現行契約。UIのpending無効化だけで一度処理を保証せず、以下の同一関係収束と結果再取得を区別する。
+
+| 操作 | 現行結果・競合境界 |
+|:---|:---|
+| owner/pet group作成 | 正規化後2メンバー以上。既存active member集合と完全一致するgroupは、全認可後に同じgroupを返す。部分重複した別groupを自動mergeしない |
+| member追加 | 1件以上。同じgroupに既所属なら重複追加せず、別group所属は競合。変更があった場合だけ変更監査を記録する |
+| owner unlink | 対象active memberがなければNotFound。親owner groupにactive pet groupがある間はConflictで、先にpet連携を解除する。pet groupを無断で切断しない |
+| pet unlink | 親owner groupを先にlockし、次にpet groupをlock。事前読取後に親が変わった場合はConflict。対象不在はNotFound |
+| unlink後 | 残り1人/1頭ならgroupを残す。0メンバーになったgroupだけ論理削除する。元owner/pet台帳を削除しない |
+| atomicity | 対象refsをlockし、scope/親group全医院認可と必要監査を同一transactionで検査。失敗は関係writeもrollback |
+| 通信結果不明 | 同じ対象のgroup逆引き/メンバーを再取得し現状態を確認する。unlink再送のNotFoundだけで初回失敗と断定しない。HTTP期待版や一般的なoperation receiptは現行requestにない |
+
+| 条件ID | Given（前提） | When（操作） | Then（期待結果） | 確認根拠 |
+|:---|:---|:---|:---|:---|
+| AC-identity-identical-create | 同じactive member集合のgroupがある | 同集合で作成 | 認可後に同じgroupへ収束し新groupを増やさない | service_owner/service_pet |
+| AC-identity-overlap | 選択memberが別groupに一部所属 | 作成/追加 | 自動mergeせず競合、部分追加なし | 同serviceの所属検査 |
+| AC-identity-add-existing | memberが既に対象group所属 | 再追加 | 重複memberを増やさない | 同serviceの既所属skip |
+| AC-identity-parent-unlink | owner groupにactive pet groupあり | owner unlink | Conflict、親だけ切れてpet関係が孤立しない | service_owner |
+| AC-identity-last-members | unlink前に2人または1人 | unlink | 残り1ならgroup維持、0ならgroupのみ論理削除 | 両serviceのremaining count |
+| AC-identity-pet-parent-race | pet groupの親が事前取得後に変更 | pet mutation | 親先行lockと親一致検査でConflict、部分writeなし | service_pet |
+| AC-identity-unlink-retry | 初回unlinkの応答が不明 | 状態照会/同対象再送 | 既に解除済みのNotFoundを重複削除/元台帳削除へ置換しない | 現行NotFoundと関係境界 |
+
+臨床履歴の保存期間・削除はC05/各ownerへ委ねる。これは既存scopeの技術照合であり、医院間利用範囲の新規承認ではない。
+
+### 正本・関連
+
+本画面の既存Phase 1 AC、API表、[文書状態規約](../authoring-guide.md#status)を参照する。台帳D04とLINE本人紐付けD20の利用範囲は別々に確認し、D19の操作権限から他ownerのwrite権限を導出しない。
+

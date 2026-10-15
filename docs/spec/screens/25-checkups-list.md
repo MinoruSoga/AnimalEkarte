@@ -1,5 +1,15 @@
 # 定期健診一覧・登録 仕様書 (Checkups)
 
+## 2026-10-15 D09仕様整理の優先順位
+
+業務・例外・GWTは[健診ライフサイクル](../domains/checkups/lifecycle.md)、現wire／部分成功は[技術契約](../../design/domains/checkups/technical-spec.md)を正本とする。以下は現行UI参照として保持する。
+
+- ADR004によりCheckup系が唯一の健診正系統。検査系へ二重記録しない。
+- Path Bは親カルテ作成→健診作成→値がある場合field-results PUTの最大3要求である。以下の2要求の説明は本体作成部分であり、全体atomic保存を意味しない。後段失敗時は前段IDを照会し、無条件再create／自動削除をしない。
+- field-resultsのGETは現screen記載どおり入力UIへの復元未配線という制約を残す。一方、独立登録のPUTは配線されているため「field API全て未使用」としない。
+- 独立フォームは種別・実施日が必須、担当医等を新たに必須化しない。次回日候補の1yearは医学的推奨値の承認ではない。
+- 独立フォーム離脱保護なし、versionなし、必要監査／再送receipt等の未追従を明示し、カルテ本体の保護だけで全経路完成としない。
+
 ## 概要
 - **画面の目的**: ペットの身体測定や一般健診の履歴を管理し、次回予定日に基づく受診漏れを防止する。
 - **URLパターン**: 
@@ -89,4 +99,5 @@ flowchart TB
 | PUT | `/api/v1/medical-records/:id/checkups/:checkupId/field-results` | 健診パッケージの結果値の一括更新 | `medical-records` | `edit` |
 
 ---
+
 

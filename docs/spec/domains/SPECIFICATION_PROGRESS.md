@@ -1,12 +1,12 @@
 # 仕様整理の全体進捗
 
-更新日: 2026-10-14。対象はAnimalEkarteの仕様文書整理。ユーザー Sentinel_d23d519d0a608191b52b444b5bcd8bce／Sentinel_26c69b86a0d88191bfefc3fd5809bf6e の依頼により、この1ファイルを全体管理の入口とする。
+更新日: 2026-10-15。対象はAnimalEkarteの仕様文書整理。ユーザー Sentinel_d23d519d0a608191b52b444b5bcd8bce／Sentinel_26c69b86a0d88191bfefc3fd5809bf6e の依頼により、この1ファイルを全体管理の入口とする。
 
 実装、移行、API／DB反映、実機受入、運用開始は今回の対象に含めない。実装タスクと担当・依存管理は引き続きPlaneで扱い、本書から実装完了を数えない。業務本文・FR／AC・技術契約はリンク先が正本。本書の分類・掲載・進捗は新しい業務ルールや未承認案の承認を表さない。
 
 ## 管理単位と数え方
 
-現在のdomains子フォルダは4個（予約・受付・カルテ・会計）だが、全業務領域の数ではない。以下は既存仕様を見落とさないための「仕様整理の管理単位」で、実装のパッケージ境界を再定義しない。各画面・マスタ・画面外契約には主責務を一つ割り当て、利用側との接続は横断表へ分ける。共有画面や複数ルートを持つ同じ仕様を重複計数しない。
+domains子フォルダ数と全業務領域の数は一致しない。以下は既存仕様を見落とさないための「仕様整理の管理単位」で、実装のパッケージ境界を再定義しない。各画面・マスタ・画面外契約には主責務を一つ割り当て、利用側との接続は横断表へ分ける。共有画面や複数ルートを持つ同じ仕様を重複計数しない。
 
 根拠は[全体要件・臨床安全](../specification.md)、[全画面索引](../screens/README.md)、[88製品ルートの正本対応](../ui-design-compliance.md)、[横断フロー](../workflows/README.md)、[語彙・関係](../ontology/README.md)、[共通仕様](../shared/README.md)、[FE／BE責務対応](../../architecture/fe-feature-be-domain-map.md)、[write-owner](../../architecture/model-write-owner-catalog.md)と[横断処理カタログ](../../architecture/cross-domain-orchestration-catalog.md)。画面を持たない保存・配信・集計や別アプリも含む。
 
@@ -28,12 +28,12 @@
 
 | 集計対象 | 総数 | 完了 | 進行中 | 未着手 | 確認待ち | 未確認 |
 |:---|---:|---:|---:|---:|---:|---:|
-| 業務領域（D01〜D23） | 23 | 3 | 1 | 19 | 0 | 0 |
-| 共通領域（C01〜C06） | 6 | 0 | 3 | 3 | 0 | 0 |
-| 横断接続（X01〜X08） | 8 | 0 | 0 | 0 | 8 | 0 |
-| 管理行合計 | 37 | 3 | 4 | 22 | 8 | 0 |
+| 業務領域（D01〜D23） | 23 | 23 | 0 | 0 | 0 | 0 |
+| 共通領域（C01〜C06） | 6 | 6 | 0 | 0 | 0 | 0 |
+| 横断接続（X01〜X08） | 8 | 8 | 0 | 0 | 0 | 0 |
+| 管理行合計 | 37 | 37 | 0 | 0 | 0 | 0 |
 
-完了3件は表に限定した予約・受付・カルテの文書範囲。全機能・全チャネル・実装の3領域完了とは数えない。現在の在庫の主責務は配賦できたが、未着手領域の内部判断・未文書化要件まで網羅／確定済みとは判断できない。「未確認0」は管理行の分類が未特定の行が0という意味で、未着手内部・未文書化要件・実装状態に未確認事項がないことを示さない。新たに発見した範囲は主責務を決め、表と集計・ルート対応を同時更新する。
+完了37件は、下表に明示した23業務領域・6共通領域・8横断接続の仕様文書範囲。各ownerの本文・例外／訂正・状態／ID・認可・保存／再送・受入と技術trace、全owner共通対応と接続を独立レビューし、指摘解消・限定静的検査後に判定した。実装、全writer／実grant／旧データ適合、移行・実機／性能・税務／法令適合・利用開始を完了と数えない。
 
 ## 業務領域
 
@@ -41,63 +41,63 @@
 
 | ID・業務領域 | 主責務・境界／業務正本 | 技術設計の入口 | 状態・根拠／残る範囲 |
 |:---|:---|:---|:---|
-| D01 予約 | 登録・変更・取消、区分、指名・対応能力・勤務・容量の予約判定、院内／LINEの合意済み接続。[予約入口](reservations/README.md)・[語彙正本](../ontology/reservations.md)。LINE管理全域はD18、職員管理内部はD14 | [予約技術仕様](../../design/domains/reservations/technical-spec.md) | 完了。69固有FR＋継承参照2件と技術接続の明示範囲。独立レビュー・索引／trace照合済み。[完了境界](reservations/README.md#reservation-document-completion-current)を維持。他owner内部・全体再照合はX表へ |
-| D02 受付 | 選択日の4分類・5列／例外区画、通常診療開始／終了への接続、表示片付け／復元、filter／集計。[受付入口](reception/README.md)・[画面とAC](reception/pages/reception-board.md)。施術・滞在・精算内部は各owner | [受付技術仕様](../../design/domains/reception/technical-spec.md) | 完了。承認済み表示・通信／競合・ブラウザ設定の文書範囲。独立レビュー2指摘修正／再確認済み、AC21件。専用内部・実機・全体再照合を含めない |
-| D03 カルテ | 通常診療記録・一覧／入力・保存／確定・訂正、診療項目／診断／薬剤／問診／主訴マスタ。[カルテ入口](medical-records/README.md)、[保存正本§2](medical-records/lifecycle.md)。検査・予防・健診はD07〜09 | [カルテ技術契約](../../design/domains/medical-records/README.md)。予約participant・既存owner／保存正本へ接続 | 完了。追加docs承認 Sentinel_7e6b0beed1b48191ae86bc2332800109 の最終照合を反映。16FR／71AC・全9タブ＋バイタル／共通操作・D03master取扱い・専用訂正／過去／復元・型／互換／旧値停止・writer／監査／gate／receiptと受け手の明示docs範囲。独立レビュー3名と限定文書検査を通過。[完成条件と判定外](../../design/domains/medical-records/technical-spec.md#medical-record-document-completion)。実権限／実旧値・数値医師承認・実装／利用開始／実機性能・他owner内部・全体横断最終確認は未確認／引継ぎ |
-| D04 飼主・ペット | 飼主登録／変更とペットの基本台帳、動物種。[一覧](../screens/03-owners-list.md)・[フォーム](../screens/04-owners-form.md)。同一個体連携D19・健康表示D20・レポートD21を別管理 | 今回専用技術整理未着手。既存owner／pet write-owner・ERD | 未着手。台帳登録・変更・削除／参照保護・複数医院の内部契約と受入を確認する |
-| D05 入院・ホテル | 臨床入院／宿泊の2範囲、専用記録・実滞在／ケージ・世話・退院／退室、入院plan／cageマスタ。[一覧](../screens/07-hospitalization-list.md)・[詳細](../screens/08-hospitalization-detail.md)・[フォーム](../screens/09-hospitalization-form.md)。予約受入境界はD01 | 今回専用技術整理未着手。既存medicalrecord owner・予約受け手契約 | 未着手。予約に関する頭数・延泊・担当条件は先行整理済み。臨床入院とホテルの記録本文／内部状態、世話担当職種／人数を別scopeで確認する |
-| D06 トリミング | 施術記録・担当・コース／選択肢・完了と会計への接続、trimming／course-typeマスタ。[一覧](../screens/16-trimming-list.md)・[フォーム](../screens/17-trimming-form.md) | 今回専用技術整理未着手。既存trimming owner・予約intent契約 | 未着手。予約／受付の分類接続だけ先行整理済み。施術内部・訂正・課金の受入を確認する |
-| D07 検査・機器受信 | 検査結果・確定／訂正・機器受信／対応付け、検査マスタ／機器項目。[一覧](../screens/12-examinations-list.md)・[フォーム](../screens/13-examinations-form.md)・[検査マスタ](../screens/settings/master-examinations.md) | 既存[ADR007](../../architecture/adr/007-lab-device-receive-and-commit.md)・[ADR008](../../architecture/adr/008-local-lab-device-agent.md)。今回全域レビュー未着手 | 未着手。機器受信画面だけで結果確定／訂正・重複・失敗時契約全体の完了としない。健診正系統はD09 |
-| D08 予防接種 | 接種記録・次回予定・担当帰属、ワクチン項目。[一覧](../screens/14-vaccinations-list.md)・[フォーム](../screens/15-vaccinations-form.md) | 今回専用技術整理未着手。既存medicalrecord owner・ERD | 未着手。独立フォーム／カルテ内入力の関係、履歴・訂正・健康表示の受渡しを確認する |
-| D09 健診 | 健診パッケージ・項目／結果・担当、健診記録。[健診仕様](../screens/25-checkups-list.md)。配信対象同期はD15 | 既存[ADR004 正系統](../../architecture/adr/004-checkup-canonical-system.md)。今回全域レビュー未着手 | 未着手。旧検査系との二重管理禁止を保持。現行Acceptedと今回整理完了を別に読む |
-| D10 会計・未納 | 請求／入金・未納／部分入金／0円・飼主預り金／任意予約前金・返金／訂正、支払／保険／割引／物販マスタ。[会計入口](accounting/README.md)・[初回〜第九群9FR／128AC](accounting/lifecycle.md#accounting-agreement-ninth)。締め内部D12、見積D11 | [会計部分設計](../../design/domains/accounting/README.md)・既存[ADR003](../../architecture/adr/003-payment-method-identity-and-consistency.md)／billing owner | 進行中。第九群 Sentinel_98f0ca438dfc8191acf8af43a6c83e19で再請求の元価格／税／割引継承と必要箇所修正、旧入金の確認充当／保険再確認、返金元内訳・理由登録まで返金確定不可を合意。元受領と資金帰属・復元残・実返金を分離。第八群 Sentinel_d6659ec5387c81918f87d61d112dc855で減額時の預り金解除・元飼主残高復元／併用内訳確認、自動失効なし・同医院同飼主限定、元明細選択確認による新番号再請求／元取消請求リンク、新規会計と過去回収の同時扱い／元請求別指定、共通料金別枠を合意。医院間移行・飼主間譲渡、督促／貸倒は今回対象外。第七群 Sentinel_1bf8d148d1488191b94bd7126faa5e83でスタッフが外部画面等により資格／残限度を確認し結果・保険負担額を記録、窓口会計限定・ペットごと1利用契約を合意。保険会社への請求・入金照合・査定差額管理、同一診療費の複数契約併用は対象外。自動給付算式は将来の別スコープで、現在の記録運用の前提にしない。第六群 Sentinel_f677bbe0853081918d52ae34f4be0f35で複数保険会社（アニコムは例）、品目マスタの全体割引除外、飼主宛名／ペット別明細と元取引／今回変更額、管理者と権限付きスタッフのマスタ変更を反映。現grantの読取mappingは技術仕様へ、権限設定は変更なし。第五群 Sentinel_d0dce252895c819191e2b73dd7e47e8d／Sentinel_a32cd855d7f48191bcb975c93c76b832で明細→全体・比例配賦、税抜計算／税込表示、割合額四捨五入・税率別税切捨て、実値引き上限／他行転用なしを反映。第四群 Sentinel_e7c15be2b17081918c35bdc4fc8f937bで両粒度割引・超過警告・会計取消時の預り金残高復元／別返金を追加。追加回答 Sentinel_2fd30155c5a88191956dc21f6f7a7740で警告を承認して進めた請求額0円下限を確定し、有効充当額に取消の解除・復元を反映。第三群 Sentinel_2925c6a799a08191b2b6d43efcdc66dc／Sentinel_ea9c25aa96208191bd320999a81a97d6を追加。飼主単位預り金／予約任意・同飼主別予約／ペット確認付き利用、割合合算→金額→割引後保険、作成順／理由付き再配分、非現金超過、別方法返金／金額追加承認なし、用途別帳票・番号維持を反映。[業務判断・設計残件の分類](accounting/lifecycle.md#accounting-open-decisions)・保険確認記録の設計／除外の初期値・移行／小数数量等の元明細額確定・明細なし請求の確定可否・全master／具体権限／帳票詳細・他owner整合・実装／実機は残件。通常Undo停止・カルテ保存§2を維持 |
-| D11 見積 | 見積作成／変更／詳細と会計受渡し。[一覧](../screens/22-estimate-list.md)・[フォーム](../screens/23-estimate-form.md)・[詳細](../screens/26-estimate-detail.md) | 今回専用技術整理未着手。既存billing owner・ERD | 未着手。見積状態と会計確定を同義にせず、転記・訂正・金額契約を確認する |
-| D12 レジ締め | 締め・実査・過不足・AM/PM/EMG境界、締め時間設定。[締め仕様](../cash-register.md)・[画面](../screens/29-closing-aggregation.md) | 今回専用技術整理未着手。既存billing owner・ERD | 未着手。今回ここまで改訂範囲を広げていない。会計確定D10・帳票読取D16との境界を確認する |
-| D13 在庫 | 在庫記録／残数・登録／変更。[一覧](../screens/18-inventory-list.md)・[フォーム](../screens/27-inventory-form.md) | 今回専用技術整理未着手。既存inventory owner・ERD | 未着手。物販マスタD10との実際の関係を確認し、在庫連動を推測しない |
-| D14 職員・シフト | 職員／職種／勤務・休憩・シフトtemplate。[シフト](../screens/24-shift-calendar.md)・[職員](../screens/settings/master-staff.md)・[職種](../screens/settings/master-occupation.md) | 今回専用技術整理未着手。既存staff owner・予約lock契約 | 未着手。予約への保護・対応能力は先行整理済み。職員管理内部・全勤務運用まで完了としない |
-| D15 CRM・Lステップ | タグ／Webhook／配信・対象同期・停止／再開、CPM配信policy。[LINEハブ](../line/README.md)・[業務本文](../line/lstep-integration.md)・[管理画面](../screens/31-lstep-integration.md)・[配信監視](../screens/34-lstep-delivery-monitor.md) | 既存[LINE構成](../line/architecture.md)、[scheduler接続](../../architecture/cross-domain-orchestration-catalog.md)。今回全域レビュー未着手 | 未着手。17配信トリガー／背景同期も対象。先方enable・実送信等の既存停止／再開条件を未承認のまま解除しない。実行状態は元資料 |
-| D16 経営・顧客集計 | 月次／売上レポート・ダッシュボード・顧客分析。[月次](../screens/32-accounting-reports.md)・[集計](../screens/36-aggregation-dashboard.md)・[CPM／LTV定義](../customer-aggregation.md)・Lステップ分析 | 今回専用技術整理未着手。既存billing／lstep読取責務・ERD | 未着手。分析の計数／権限と、D15の配信判定・D12の締めを区別して確認する |
-| D17 医院・設定入口 | 医院設定とマスタの閲覧入口。[医院](../screens/19-clinic-settings.md)・[設定トップ](../screens/20-master-settings.md)。個別マスタ本文は各D／Cへ配賦 | 今回専用技術整理未着手。既存clinic owner・[医院分離ADR](../../architecture/adr/002-multitenancy-clinic-id-isolation.md) | 未着手。入口があるだけで個別マスタ完了と数えない。医院設定全域の状態・変更影響を確認する |
-| D18 LINE予約チャネル | 院内LINE設定／エディタ／枠と飼主予約app。[設定](../screens/28-line-reservation.md)・[別app37](../screens/37-line-reserve-owner-flow.md)・[予約正本](../line/reservation-spec.md)。空き判定の合意済み条件はD01参照 | 既存[LINE構成](../line/architecture.md)・[導入](../line/setup.md)・予約技術接続。全チャネル整理未着手 | 未着手。予定枠基準等の予約合意は完了済み。設定／導線／公開・変更／取消・通知などチャネル全域の完了へ広げない |
-| D19 同一飼主・ペット連携 | 手動identity group link／unlink・連携履歴。[identity仕様](../screens/40-identity-links.md)。台帳D04・認可C04を別責務に保つ | 今回専用技術整理未着手。既存identitylink owner・ERD | 未着手。所属医院内の既存scopeを保持し、氏名類似や予約接続から自動統合を決めない |
-| D20 LIFF診察券・健康情報 | 別appの健康手帳・LINEアカウント紐付け。[LIFF38](../screens/38-liff-pet-health.md)。診療内容の正本はD03／08、基本台帳D04、identity groupはD19 | 既存LIFF認証／LINE構成・ERD。今回全域レビュー未着手 | 未着手。main88へ加算しない。未紐付け・token失効・公開範囲・自己認証とスタッフ認可の違いを確認する |
-| D21 飼主カルテレポート | 診療前情報・履歴の複合読取／別ウィンドウ。[レポート39](../screens/39-owner-report.md)。各記録writeを持たない | 既存各section読取grant・FE責務map。今回全域レビュー未着手 | 未着手。ページ認可とsection別縮退・患者context・遅延応答を確認。台帳／記録の完了を転用しない |
-| D22 院内マニュアル | 記事閲覧／編集・印刷・院内説明。[manual35](../screens/35-internal-manual.md) | 今回専用技術整理未着手。既存manualarticle owner・ERD | 未着手。製品内manual仕様と、この仕様整理の管理文書を別責務にする |
-| D23 サポート | バグ報告・ヘルプチャット／履歴の2範囲。[settings README本文](../screens/settings/README.md)。共通UIの索引だけではない | 既存support owner・FE責務map。今回全域レビュー未着手 | 未着手。共有READ・報告医院mutation・個人履歴scopeを区別し、全chatを個人限定に変更しない |
+| D01 予約 | 通常予約・ホテル／入院・施術の分類、予定枠・指名・受付／取消・同一操作結果。[業務正本・受入](reservations/README.md) | [技術契約](../../design/domains/reservations/technical-spec.md)。現行差と目標仕様、実装／実機は別軸 | 完了（限定文書範囲）。領域・全体の独立レビュー指摘を反映して再確認済み。最新承認を本文・AC・接続へ同期し、ID・状態・保存／再送・認可・例外／訂正を照合。詳細の検査・実装境界は正本へ |
+| D02 受付 | 選択日の4分類・5列／例外区画、通常診療開始／終了への接続、表示片付け／復元、filter／集計。[受付入口](reception/README.md)・[画面とAC](reception/pages/reception-board.md)。施術・滞在・精算内部は各owner | [受付技術仕様](../../design/domains/reception/technical-spec.md) | 完了。承認済み表示・通信／競合・ブラウザ設定の文書範囲。独立レビュー2指摘修正／再確認済み、AC21件。専用内部は各owner、実機は別工程。全体文書接続はXで照合済み |
+| D03 カルテ | 通常診療記録・一覧／入力・保存／確定・訂正、診療項目／診断／薬剤／問診／主訴マスタ。[カルテ入口](medical-records/README.md)、[保存正本§2](medical-records/lifecycle.md)。検査・予防・健診はD07〜09 | [カルテ技術契約](../../design/domains/medical-records/README.md)。予約participant・既存owner／保存正本へ接続 | 完了。追加docs承認 Sentinel_7e6b0beed1b48191ae86bc2332800109 の最終照合を反映。16FR／71AC・全9タブ＋バイタル／共通操作・D03master取扱い・専用訂正／過去／復元・型／互換／旧値停止・writer／監査／gate／receiptと受け手の明示docs範囲。独立レビュー3名と限定文書検査を通過。[完成条件と判定外](../../design/domains/medical-records/technical-spec.md#medical-record-document-completion)。実権限／実旧値・数値医師承認・実装／利用開始／実機性能・他ownerの実装適合は未確認／引継ぎ。全体文書接続はXで照合済み |
+| D04 飼主・ペット台帳 | 主副飼主・患者ID、検索・同時登録・所有変更と過去帰属／危険情報保護。[業務正本・受入](owners-pets/lifecycle.md) | [技術契約](../../design/domains/owners-pets/technical-spec.md)。現行差と目標仕様、実装／実機は別軸 | 完了（限定文書範囲）。領域・全体の独立レビュー指摘を反映して再確認済み。最新承認を本文・AC・接続へ同期し、ID・状態・保存／再送・認可・例外／訂正を照合。詳細の検査・実装境界は正本へ |
+| D05 入院・ホテル | 滞在／予定実績・担当・ケージ／頭数／延泊、個別料金・退院会計・原本保持訂正。[業務正本・受入](hospitalization/lifecycle.md) | [技術契約](../../design/domains/hospitalization/technical-spec.md)。現行差と目標仕様、実装／実機は別軸 | 完了（限定文書範囲）。領域・全体の独立レビュー指摘を反映して再確認済み。最新承認を本文・AC・接続へ同期し、ID・状態・保存／再送・認可・例外／訂正を照合。詳細の検査・実装境界は正本へ |
+| D06 トリミング | 施術と予約・明細／コース／画像・担当・完了／訂正・会計受渡し。[業務正本・受入](trimming/lifecycle.md) | [技術契約](../../design/domains/trimming/technical-spec.md)。現行差と目標仕様、実装／実機は別軸 | 完了（限定文書範囲）。領域・全体の独立レビュー指摘を反映して再確認済み。最新承認を本文・AC・接続へ同期し、ID・状態・保存／再送・認可・例外／訂正を照合。詳細の検査・実装境界は正本へ |
+| D07 検査・機器受信 | 検査／結果版・機器job／対応付け／補償・確定後結果と印刷・検査master。[業務正本・受入](examinations/lifecycle.md) | [技術契約](../../design/domains/examinations/technical-spec.md)。現行差と目標仕様、実装／実機は別軸 | 完了（限定文書範囲）。領域・全体の独立レビュー指摘を反映して再確認済み。最新承認を本文・AC・接続へ同期し、ID・状態・保存／再送・認可・例外／訂正を照合。詳細の検査・実装境界は正本へ |
+| D08 予防接種 | 独立／カルテ内の同じ接種資源・次回予定・担当・訂正と限定健康表示。[業務正本・受入](vaccinations/lifecycle.md) | [技術契約](../../design/domains/vaccinations/technical-spec.md)。現行差と目標仕様、実装／実機は別軸 | 完了（限定文書範囲）。領域・全体の独立レビュー指摘を反映して再確認済み。最新承認を本文・AC・接続へ同期し、ID・状態・保存／再送・認可・例外／訂正を照合。詳細の検査・実装境界は正本へ |
+| D09 健診 | Checkup正系統・項目／結果・段階保存／置換・記録版とスタッフ読取。[業務正本・受入](checkups/lifecycle.md) | [技術契約](../../design/domains/checkups/technical-spec.md)。現行差と目標仕様、実装／実機は別軸 | 完了（限定文書範囲）。領域・全体の独立レビュー指摘を反映して再確認済み。最新承認を本文・AC・接続へ同期し、ID・状態・保存／再送・認可・例外／訂正を照合。詳細の検査・実装境界は正本へ |
+| D10 会計・未納 | 請求／入金・未納／部分入金／0円・飼主預り金／任意予約前金・返金／訂正、支払／保険／割引／物販マスタ。[会計入口](accounting/README.md)・[初回〜第十群9FR／142AC](accounting/lifecycle.md#accounting-agreement-tenth)。締め内部D12、見積D11 | [会計部分設計](../../design/domains/accounting/README.md)・既存[ADR003](../../architecture/adr/003-payment-method-identity-and-consistency.md)／billing owner | 完了（限定文書範囲）。独立レビューと9FR／142ACの本文・追跡・相対参照照合で阻害なし。第十群 Sentinel_fc43350334708191b19f741b367e837dで空明細確定不可／0円理由、値引き前行別四捨五入、除外初期値／欠落時false・追加後明示再適用を合意。状態／操作／旧値・3画面／4master・writer／consumer／受け手を全体設計へ。第九群 Sentinel_98f0ca438dfc8191acf8af43a6c83e19で再請求の元価格／税／割引継承と必要箇所修正、旧入金の確認充当／保険再確認、返金元内訳・理由登録まで返金確定不可を合意。元受領と資金帰属・復元残・実返金を分離。第八群 Sentinel_d6659ec5387c81918f87d61d112dc855で減額時の預り金解除・元飼主残高復元／併用内訳確認、自動失効なし・同医院同飼主限定、元明細選択確認による新番号再請求／元取消請求リンク、新規会計と過去回収の同時扱い／元請求別指定、共通料金別枠を合意。医院間移行・飼主間譲渡、督促／貸倒は今回対象外。第七群 Sentinel_1bf8d148d1488191b94bd7126faa5e83でスタッフが外部画面等により資格／残限度を確認し結果・保険負担額を記録、窓口会計限定・ペットごと1利用契約を合意。保険会社への請求・入金照合・査定差額管理、同一診療費の複数契約併用は対象外。自動給付算式は将来の別スコープで、現在の記録運用の前提にしない。第六群 Sentinel_f677bbe0853081918d52ae34f4be0f35で複数保険会社（アニコムは例）、品目マスタの全体割引除外、飼主宛名／ペット別明細と元取引／今回変更額、管理者と権限付きスタッフのマスタ変更を反映。現grantの読取mappingは技術仕様へ、権限設定は変更なし。第五群 Sentinel_d0dce252895c819191e2b73dd7e47e8d／Sentinel_a32cd855d7f48191bcb975c93c76b832で明細→全体・比例配賦、税抜計算／税込表示、割合額四捨五入・税率別税切捨て、実値引き上限／他行転用なしを反映。第四群 Sentinel_e7c15be2b17081918c35bdc4fc8f937bで両粒度割引・超過警告・会計取消時の預り金残高復元／別返金を追加。追加回答 Sentinel_2fd30155c5a88191956dc21f6f7a7740で警告を承認して進めた請求額0円下限を確定し、有効充当額に取消の解除・復元を反映。第三群 Sentinel_2925c6a799a08191b2b6d43efcdc66dc／Sentinel_ea9c25aa96208191bd320999a81a97d6を追加。飼主単位預り金／予約任意・同飼主別予約／ペット確認付き利用、割合合算→金額→割引後保険、作成順／理由付き再配分、非現金超過、別方法返金／金額追加承認なし、用途別帳票・番号維持を反映。[残件分類](accounting/lifecycle.md#accounting-open-decisions)と[文書完成の判定外](../../design/domains/accounting/technical-spec.md#accounting-document-completion)へ。列挙済み実務未決は解消。実grant／物理schema・移行／実装／実機・受け手実装適合は後続。全体文書接続はXで照合済み。通常Undo停止・カルテ保存§2を維持 |
+| D11 見積 | 入口共通明細・共通計算・確認転記・原本保持後継訂正。[業務正本・受入](estimates/business-rules.md) | [技術契約](../../design/domains/finance-operations/technical-spec.md)。現行差と目標仕様、実装／実機は別軸 | 完了（限定文書範囲）。領域・全体の独立レビュー指摘を反映して再確認済み。最新承認を本文・AC・接続へ同期し、ID・状態・保存／再送・認可・例外／訂正を照合。詳細の検査・実装境界は正本へ |
+| D12 レジ締め | 営業日／実査・実授受／開始残／補充回収・原締め保持と差分。[業務正本・受入](cash-register/business-rules.md) | [技術契約](../../design/domains/finance-operations/technical-spec.md)。現行差と目標仕様、実装／実機は別軸 | 完了（限定文書範囲）。領域・全体の独立レビュー指摘を反映して再確認済み。最新承認を本文・AC・接続へ同期し、ID・状態・保存／再送・認可・例外／訂正を照合。詳細の検査・実装境界は正本へ |
+| D13 在庫 | 実物の入出庫・返却／棚卸と履歴・小数臨床量と整数在庫の境界。[業務正本・受入](inventory/business-rules.md) | [技術契約](../../design/domains/finance-operations/technical-spec.md)。現行差と目標仕様、実装／実機は別軸 | 完了（限定文書範囲）。領域・全体の独立レビュー指摘を反映して再確認済み。最新承認を本文・AC・接続へ同期し、ID・状態・保存／再送・認可・例外／訂正を照合。詳細の検査・実装境界は正本へ |
+| D14 職員・シフト | 職員／職種／勤務・休憩／template、未来・未終了予約の保護。[業務正本・受入](staff-workforce/README.md) | [技術契約](../../design/domains/staff-workforce/technical-spec.md)。現行差と目標仕様、実装／実機は別軸 | 完了（限定文書範囲）。領域・全体の独立レビュー指摘を反映して再確認済み。最新承認を本文・AC・接続へ同期し、ID・状態・保存／再送・認可・例外／訂正を照合。詳細の検査・実装境界は正本へ |
+| D15 CRM・Lステップ | 17トリガー・Webhook／タグ・対象同期／CSV・配信・結果不明・送信用ファイル。[業務正本・受入](../line/lstep-integration.md) | [技術契約](../line/lstep-integration.md)。現行差と目標仕様、実装／実機は別軸 | 完了（限定文書範囲）。領域・全体の独立レビュー指摘を反映して再確認済み。最新承認を本文・AC・接続へ同期し、ID・状態・保存／再送・認可・例外／訂正を照合。詳細の検査・実装境界は正本へ |
+| D16 経営・顧客集計 | 請求と実金銭・期間／母数／記録日数・配信分析と相関の意味。[業務正本・受入](analytics/business-rules.md) | [技術契約](../../design/domains/finance-operations/technical-spec.md)。現行差と目標仕様、実装／実機は別軸 | 完了（限定文書範囲）。領域・全体の独立レビュー指摘を反映して再確認済み。最新承認を本文・AC・接続へ同期し、ID・状態・保存／再送・認可・例外／訂正を照合。詳細の検査・実装境界は正本へ |
+| D17 医院・設定入口 | 医院設定・所属scope／法人設定・設定入口と個別master責務。[業務正本・受入](clinic-settings/README.md) | [技術契約](../../design/domains/clinic-settings/technical-spec.md)。現行差と目標仕様、実装／実機は別軸 | 完了（限定文書範囲）。領域・全体の独立レビュー指摘を反映して再確認済み。最新承認を本文・AC・接続へ同期し、ID・状態・保存／再送・認可・例外／訂正を照合。詳細の検査・実装境界は正本へ |
+| D18 LINE予約チャネル | 院内設定／editor／枠と飼主appの予約・変更／取消・本人認証／通知。[業務正本・受入](../screens/28-line-reservation.md) | [技術契約](../screens/28-line-reservation.md)。現行差と目標仕様、実装／実機は別軸 | 完了（限定文書範囲）。領域・全体の独立レビュー指摘を反映して再確認済み。最新承認を本文・AC・接続へ同期し、ID・状態・保存／再送・認可・例外／訂正を照合。詳細の検査・実装境界は正本へ |
+| D19 同一飼主・ペット連携 | 既存IDの手動group連携／解除・同一集合／親子／残数と履歴。[業務正本・受入](../screens/40-identity-links.md) | [技術契約](../screens/40-identity-links.md)。現行差と目標仕様、実装／実機は別軸 | 完了（限定文書範囲）。領域・全体の独立レビュー指摘を反映して再確認済み。最新承認を本文・AC・接続へ同期し、ID・状態・保存／再送・認可・例外／訂正を照合。詳細の検査・実装境界は正本へ |
+| D20 LIFF診察券・健康情報 | 本人紐付け／単回token・診察券／保存済接種／最終来院の限定表示。[業務正本・受入](../screens/38-liff-pet-health.md) | [技術契約](../screens/38-liff-pet-health.md)。現行差と目標仕様、実装／実機は別軸 | 完了（限定文書範囲）。領域・全体の独立レビュー指摘を反映して再確認済み。最新承認を本文・AC・接続へ同期し、ID・状態・保存／再送・認可・例外／訂正を照合。詳細の検査・実装境界は正本へ |
+| D21 飼主カルテレポート | スタッフ専用・section別読取認可／失敗縮退・患者context・印刷共有なし。[業務正本・受入](../screens/39-owner-report.md) | [技術契約](../screens/39-owner-report.md)。現行差と目標仕様、実装／実機は別軸 | 完了（限定文書範囲）。領域・全体の独立レビュー指摘を反映して再確認済み。最新承認を本文・AC・接続へ同期し、ID・状態・保存／再送・認可・例外／訂正を照合。詳細の検査・実装境界は正本へ |
+| D22 院内マニュアル | 公開最新版のスタッフ閲覧／検索／印刷と認可付き編集・公開／履歴復元。[業務正本・受入](internal-manual/README.md) | [技術契約](../../design/domains/internal-manual/technical-spec.md)。現行差と目標仕様、実装／実機は別軸 | 完了（限定文書範囲）。領域・全体の独立レビュー指摘を反映して再確認済み。最新承認を本文・AC・接続へ同期し、ID・状態・保存／再送・認可・例外／訂正を照合。詳細の検査・実装境界は正本へ |
+| D23 サポート | 報告／共有READ／報告医院mutation・個人history・確認付き外部通知と結果分離。[業務正本・受入](support/README.md) | [技術契約](../../design/domains/support/technical-spec.md)。現行差と目標仕様、実装／実機は別軸 | 完了（限定文書範囲）。領域・全体の独立レビュー指摘を反映して再確認済み。最新承認を本文・AC・接続へ同期し、ID・状態・保存／再送・認可・例外／訂正を照合。詳細の検査・実装境界は正本へ |
 
 ## 共通領域
 
 | ID・共通領域 | 正本・主責務／技術入口 | 状態・残件 |
 |:---|:---|:---|
-| C01 共通UI・選択部品 | [UI体系](../design-system.md)・[状態](../design-states.md)・[token層](../design-token-layers.md)・[components](../components/README.md)・[共通dialog](../screens/common-dialogs.md)・[ペット選択00](../screens/00-pet-selection.md)。各業務の結果を定義せず再利用契約を持つ | 未着手。今回の全体見直し未開始。選択routeは利用D側へ一度配賦、部品本文はC01。空template・旧番号案内は別業務に数えない |
-| C02 用語・文書状態・オントロジー | [書き方](../authoring-guide.md)・[ontology入口](../ontology/README.md)・[予約語彙](../ontology/reservations.md)。概念／画面名／実装モデル、決定／実装状態を分離 | 進行中。予約・受付・カルテ・会計の明示範囲の語彙と記述規約は先行整理済み。全領域の概念・関係／制約・名称を未照合 |
-| C03 全体要件・臨床安全 | [全体要件§2.1](../specification.md)・[product-philosophy](../../product-philosophy.md)。臨床安全原則の優先を維持 | 未着手。原則本文は保持済み。全ownerの個別受入が安全原則を満たすか今回横断レビューは未実施 |
-| C04 認証・権限・医院scope | [ログイン21](../screens/21-login.md)・[権限group](../screens/settings/master-permission-group.md)・[auth](../../architecture/auth.md)・[医院分離ADR](../../architecture/adr/002-multitenancy-clinic-id-isolation.md)。各業務に固有の操作条件は各D | 未着手。予約／受付の既存grant接続は先行整理済み。認証回復・全grant・例外scopeを全域で未照合 |
-| C05 保存・廃棄・監査 | [shared当面方針](../shared/README.md#interim-retention-policy)・[delivery U11の入口](../../delivery/DELIVERY_PACKAGE.md)、owner別履歴／監査・ERD | 進行中。当面自動削除なしは承認済み。具体的保存期間・削除手続きは全ドメイン共通で確定待ち。法的無期限・法令適合としない |
-| C06 技術接続基盤・文書検査 | [architecture](../../architecture/README.md)・[API／DB](../../architecture/overview.md)・[責務map](../../architecture/fe-feature-be-domain-map.md)・[owner](../../architecture/model-write-owner-catalog.md)・[処理カタログ](../../architecture/cross-domain-orchestration-catalog.md)・[testing](../../ops/testing/README.md)。個別技術方式は各Dへ | 進行中。予約／受付のdocs方式は具体化済み。全領域の型・ID／版・transaction／lock・通知・失敗回復・互換と文書参照を未再照合。既存ADR Acceptedを今回整理済みと数えない |
+| C01 共通UI・選択部品 | [共通契約・受入](../shared/ui-contracts.md)。個別owner本文と具体的な成功／拒否／結果不明・履歴の条件を照合 | 完了（共通文書範囲）。独立レビューと全owner対応・最終統合検査を通過。実装・実grant／移行・実機／法令適合と文書の完成を分ける |
+| C02 用語・文書状態・オントロジー | [共通契約・受入](../shared/document-contracts.md)。個別owner本文と具体的な成功／拒否／結果不明・履歴の条件を照合 | 完了（共通文書範囲）。独立レビューと全owner対応・最終統合検査を通過。実装・実grant／移行・実機／法令適合と文書の完成を分ける |
+| C03 全体要件・臨床安全 | [共通契約・受入](../shared/clinical-safety.md)。個別owner本文と具体的な成功／拒否／結果不明・履歴の条件を照合 | 完了（共通文書範囲）。独立レビューと全owner対応・最終統合検査を通過。実装・実grant／移行・実機／法令適合と文書の完成を分ける |
+| C04 認証・権限・医院scope | [共通契約・受入](../shared/access-control.md)。個別owner本文と具体的な成功／拒否／結果不明・履歴の条件を照合 | 完了（共通文書範囲）。独立レビューと全owner対応・最終統合検査を通過。実装・実grant／移行・実機／法令適合と文書の完成を分ける |
+| C05 保存・廃棄・監査 | [共通契約・受入](../shared/retention-audit.md)。個別owner本文と具体的な成功／拒否／結果不明・履歴の条件を照合 | 完了（共通文書範囲）。独立レビューと全owner対応・最終統合検査を通過。実装・実grant／移行・実機／法令適合と文書の完成を分ける |
+| C06 技術接続基盤・文書検査 | [共通契約・受入](../../design/shared/integration-contracts.md)。個別owner本文と具体的な成功／拒否／結果不明・履歴の条件を照合 | 完了（共通文書範囲）。独立レビューと全owner対応・最終統合検査を通過。実装・実grant／移行・実機／法令適合と文書の完成を分ける |
 
 共通マスタは[screens/settings](../screens/settings/README.md)に保持。21本文の主責務は、動物種D04、cage／hospitalization-plan D05、trimming／course-type D06、examinations D07、payment／insurance／campaigns／merchandise D10、closing-time D12、staff／occupation／shift-template D14、reservation-type D01、treatment／diagnosis／medicine／interview／chief-complaint D03、permission-group C04。設定入口はD17。利用する別領域は参照だけで二重計数しない。
 
 ## 横断接続・全体再照合
 
-全8行は確認待ち。予約・受付側の先行整理済み契約を消さず、全ownerの内部仕様が揃ってから同じID／状態・承認境界・保存／再送・認可・訂正・通知を再照合する。連携の正本は[横断業務](../workflows/reservation-to-record-flow.md)、保存は[カルテlifecycle§2](medical-records/lifecycle.md)、技術の現行実装境界は[処理カタログ](../../architecture/cross-domain-orchestration-catalog.md)。現行separate-txと将来選定same-txを同じ状態として扱わない。
+全8行は全owner本文との接続照合・独立レビューを通過し、明示した文書範囲で完了。予約・受付側の先行整理済み契約を消さず、全ownerの内部仕様が揃ってから同じID／状態・承認境界・保存／再送・認可・訂正・通知を再照合する。連携の正本は[横断業務](../workflows/reservation-to-record-flow.md)、保存は[カルテlifecycle§2](medical-records/lifecycle.md)、技術の現行実装境界は[処理カタログ](../../architecture/cross-domain-orchestration-catalog.md)。現行separate-txと将来選定same-txを同じ状態として扱わない。
 
 | ID・接続 | 主責務と参加領域／先行済み・参照 | 状態・残る照合 |
 |:---|:---|:---|
-| X01 予約 → 受付 → 通常カルテ | D01予約intent、D02画面、D03記録participant。受付／再受付、準備→読込→開始、終了、版／再送、通常記録同時commitは診療のみ。[予約技術](../../design/domains/reservations/technical-spec.md)・[受付技術](../../design/domains/reception/technical-spec.md) | 確認待ち。予約／受付側は完了。D03全域確定後、現行auto-create・backfill／finalizeと選定契約の差分を再照合 |
-| X02 取消・未来院・再受付・記録訂正 | D01状態、D03記録保護、D02導線。手動未来院／同ID再受付・確定後追記等の境界。カタログcancel-cleanup／batch-noshow | 確認待ち。D03の特別訂正内部と記録保存・取消を確認。自動削除・自動持越し・無条件逆遷移の新許可を作らない |
-| X03 予約／受付 ↔ 専用施術・滞在 | D01予約、D05入院／ホテル、D06施術、D02画面。分類・typed ref、頭数／延泊・実開始担当、trim appointment create／update／delete | 確認待ち。D05／06内部記録・担当人数／職種・精算との受渡しを照合。通常カルテへ強制変換しない |
-| X04 患者台帳・同一個体・マスタ／勤務 | D04台帳、D19identity、D14勤務、D17医院、各master owner、C04scope。owner-pet-registerと予約同医院／個人対応の接続 | 確認待ち。台帳同時登録／変更保護、LINE紐付けD20、scope・master履歴の全owner整合を確認。類似名でID推測しない |
-| X05 臨床記録 ↔ 検査・予防・健診・読取公開 | D03記録、D07機器／検査、D08接種、D09健診、D20健康情報、D21レポート。ADR004／007／008 | 確認待ち。記録確定／訂正・結果対応・読取権限／token・履歴公開の境界を再照合 |
-| X06 会計確定・訂正 ↔ 診療／見積／退院 | D10決済、D03記録、D01予約complete、D05退院、D06施術、D11見積。通常Undo禁止・確定歴の先行合意、billing-res-complete／hospitalization-discharge-bill | 確認待ち。D10初回5点を部分反映。D10第二群で古い順／変更・予約前金・訂正後表示を追加。第三群で預り金の予約任意・同飼主別予約／ペット利用を追加。別飼主移管／医院間利用は未承認。会計取消時の残高復元を第四群で追加、減額時の充当調整・取消後再請求・権限／具体手順、専用記録／見積内部と全体再照合は残件 |
-| X07 会計 ↔ 締め・集計・在庫 | D10金額／支払、D12締め境界、D16分析読取、D13在庫。cash-register／customer-aggregation／ADR003 | 確認待ち。金額・期間・取消／訂正・履歴の集計根拠、物販／在庫の実際の接続を確認。予約整理から締め全文改訂へ広げない |
-| X08 予約チャネル・臨床／会計 ↔ CRM背景処理 | D18チャネル、D15配信／同期、D16分析、D01予約条件、各イベントowner。LINE予定枠正本・scheduler／delivery／dormant／tag-health／billing-lstep-CPM | 確認待ち。通知commit後・重複／失敗／停止／再開・Webhook／17トリガーと分析意味を照合。稼働・外部送信の既存承認境界を保持 |
+| X01 予約 → 受付 → 通常カルテ | D01予約intent、D02画面、D03記録participant。受付／再受付、準備→読込→開始、終了、版／再送、通常記録同時commitは診療のみ。[予約技術](../../design/domains/reservations/technical-spec.md)・[受付技術](../../design/domains/reception/technical-spec.md) | 完了（接続文書範囲）。D01/D02/D03の同ID・受付時通常カルテ同時成功・準備／読込後start・全writer／子版・再送結果を独立横断照合。旧auto-create／backfillとの差は実装適合条件へ分離。[横断照合](../workflows/reservation-to-record-flow.md#cross-domain-review-20261015)の本文統合・最終独立検査を通過。実機未実施 |
+| X02 取消・未来院・再受付・記録訂正 | D01状態、D03記録保護、D02導線。手動未来院／同ID再受付・確定後追記等の境界。カタログcancel-cleanup／batch-noshow | 完了（接続文書範囲）。誤取消復元／未来院再受付・空/記入済/不明・確定後追記・患者転記／過去入力／復元と副作用禁止を照合。確定歴による通常Undo停止は未納／0円／返金／取消／再請求でも保持。旧cancel-cleanup／自動未来院との差を保持。横断本文の統合・最終検査を通過 |
+| X03 予約／受付 ↔ 専用施術・滞在 | D01予約、D05入院／ホテル、D06施術、D02画面。分類・typed ref、頭数／延泊・実開始担当、trim appointment create／update／delete | 完了（接続文書範囲）。D05/D06の型付き同一滞在／専用記録・開始・頭数／延泊・ケージ・施術detail／画像・退院会計を照合。ホテル担当医師任意、臨床入院の開始担当医決定は別。最新承認の料金／専用訂正を同期し、旧ホテル必須care_assignment行を修正。通常カルテへの変換・自動返金なし。本文統合・独立レビュー・限定静的検査を通過。実装適合は別工程 |
+| X04 患者台帳・同一個体・マスタ／勤務 | D04台帳、D19identity、D14勤務、D17医院、各master owner、C04scope。owner-pet-registerと予約同医院／個人対応の接続 | 完了（接続文書範囲）。台帳主副飼主・identity group・LINE本人linkを分離し、所有変更から過去請求／預り金移管なしを照合。D19同一集合／親子group／unlink残数、D14未来・未終了予約保護、C04医院scope／共有READ／global例外を照合。実scope設定とは別に本文統合・独立レビュー・限定静的検査を通過。実装適合は別工程 |
+| X05 臨床記録 ↔ 検査・予防・健診・読取公開 | D03記録、D07機器／検査、D08接種、D09健診、D20健康情報、D21レポート。ADR004／007／008 | 完了（接続文書範囲）。D03固定結果版／追記、D07job／補償、D08接種保存単位、D09正系統／段階保存・field置換、D20限定公開／本人認証、D21スタッフsection読取を照合。接種表示の最新承認を同期し検査・診断全面公開へ拡張しない。臨床数値承認・実機と分けて本文統合・独立レビュー・限定静的検査を通過。実装適合は別工程 |
+| X06 会計確定・訂正 ↔ 診療／見積／退院 | D10決済、D03記録、D01予約complete、D05退院、D06施術、D11見積。通常Undo禁止・確定歴の先行合意、billing-res-complete／hospitalization-discharge-bill | 完了（接続文書範囲）。D10初回〜第十群9FR／142ACとD11承認済み明細統一・共通計算・確認転記／後継訂正を横断照合。減額残高復元・元明細の新番号再請求・旧入金確認充当／保険再確認・返金資金内訳は解決済み。確定歴／通常Undo停止、同医院元飼主資金、D05取消会計削除置換とD06未請求pullの現行差を保持。本文統合・独立レビュー・限定静的検査を通過。実装適合は別工程 |
+| X07 会計 ↔ 締め・集計・在庫 | D10金額／支払、D12締め境界、D16分析読取、D13在庫。cash-register／customer-aggregation／ADR003 | 完了（接続文書範囲）。D10請求と実入出金／非金銭event、D12営業日・原締め保持、D16暦日／旧指標・記録日数、D13通常減算／実物移動を照合。開始残・補充回収と実物返却／棚卸は最新承認を同期。小数臨床量の整数在庫切捨て・取消だけの返却・物販同名連動をしない。本文統合・独立レビュー・限定静的検査を通過。実装適合は別工程 |
+| X08 予約チャネル・臨床／会計 ↔ CRM背景処理 | D18チャネル、D15配信／同期、D16分析、D01予約条件、各イベントowner。LINE予定枠正本・scheduler／delivery／dormant／tag-health／billing-lstep-CPM | 完了（接続文書範囲）。業務commitとbest-effort同期／外部結果、17triggerの既存blocking claim、CSV部分結果と再import、分析／配信の版・件数を照合。手動／予約通知の最新承認を同期。任意uploadの原本不明対象は一時コピーと推定せずcleanup対象から止める選定条件と現143h処理との差をC05/D15へ同期。停止中稼働の再開なし。本文統合・独立レビュー・限定静的検査を通過。実装適合は別工程 |
 
 ## 対応表の範囲・読む順
 
 main appの88製品leafは業務84＋C04認証／権限4へ一度ずつ配賦。画面の正本対応は[ui-design-compliance§2](../ui-design-compliance.md)を維持し、以下は進捗の責務割当だけ。redirect12件とwildcard404は業務領域や製品画面へ加算しない。別app37はD18、別app38はD20として管理し、main88へ加算しない。
 
-画面なしの通常カルテ保存はD03、予約接続X01／02、レジ集計境界D12／X07、CPM／LTV D16、LINEタグ／Webhook／配信／scheduler D15／X08。技術・運用の既存境界はC06経由で参照し、インフラ変更／デプロイ作業は対象外。master／README本文のサポート契約を対象外にしない。未文書化要件・全APIごとの受入網羅は未確認で、今回のroute配賦だけから完了としない。
+画面なしの通常カルテ保存はD03、予約接続X01／02、レジ集計境界D12／X07、CPM／LTV D16、LINEタグ／Webhook／配信／scheduler D15／X08。技術・運用の既存境界はC06経由で参照し、インフラ変更／デプロイ作業は対象外。master／README本文のサポート契約を対象外にしない。全APIの実装適合・実機受入は未実施。今回の文書範囲では、各owner本文・FR／ACと共通／横断の意味契約を照合し、route配賦だけから完了としない。
 
 読む順は本書の集計・未着手行 → [予約](reservations/README.md) → [受付](reception/README.md) → [カルテ](medical-records/README.md) → [会計・未納](accounting/README.md) → 関連業務D05〜23／共通C01〜06 → 横断8接続の再照合。次の領域へ進む前に、その主責務・未決・技術入口と全体表の状態を更新する。
 
@@ -241,3 +241,24 @@ PR #670の開始head 2bcc49b5bdc3cddb3f72e1cef28d1456dc68b792からdocs限定で
 2026-10-15、[第九群の承認根拠](accounting/lifecycle.md#accounting-agreement-ninth)の3点を反映。元会計価格／税／割引の初期継承と必要箇所のスタッフ修正、取消元残入金の確認充当／保険結果の再確認、返金元資金内訳・理由の登録まで対象返金確定不可を正本・語彙・設計・画面／入口へ同期。既存9FR／116ACを保持して12AC追加、計9FR／128AC。
 
 PR #670の開始head 23a0d60def83527d2e08736e48041d88a255e8d0から同じdocs限定ブランチを更新。過去追記にある再請求の価格時点・元入金・保険結果再利用、内訳不明時の解消方針の未決は第九群で解消した。残る業務判断は明細なし請求の確定可否、小数の値引き前明細額丸め、除外設定の初期値／移行・編集中反映。具体権限・schema・競合復旧・帳票詳細等は技術設計／検証、他owner内部と税務／決済規約は責務先へ分ける。D10は進行中で全体完了とはしない。他管理行と予約／通常Undo／カルテ保存§2を保持。独立レビュー・AC追跡／リンク／表構造照合・反映後再取得の結果をPRへ記録する。実装・設定・ローカルファイル・API／DB・merge／deploy・Cloudflare Artifactsは変更せず、CI完了は待たない。
+
+
+## 会計第十群とD10全体の文書照合（2026-10-15）
+
+[第十群](accounting/lifecycle.md#accounting-agreement-tenth)で列挙済み実務未決を解消、既存9FR／128ACを保持して14AC追加、9FR／142AC。[全体設計](../../design/domains/accounting/technical-spec.md#accounting-reconciled-contract)に状態／金銭、操作別保存・認可／版・再送／結果不明、旧値／停止、3画面／4master、writer／consumerと受け手を補完。D03と同じ[限定文書完成基準](../../design/domains/accounting/technical-spec.md#accounting-document-completion)でレビューし、実装／利用開始／実機・他owner内部を混算しない。過去の会計節の未決／進行中は当時の履歴で最新正本を優先。
+
+独立レビューでは既存128ACの識別子と期待結果本文の保持、14AC追加・142件の一意な技術trace、丸め例と旧資金／復元残の分離、状態／保存再送／現在認可・旧値停止・画面／master／受け手を確認し、重大指摘なし。D05／06最新のスタッフ個別料金・理由付き訂正（自動返金／在庫戻しなし）へ参照を同期。19文書の表構造・明示アンカー保持と相対リンク888件／fragment683件に欠落なし。D10限定文書範囲は完了、業務23行は完了4・未着手19、管理37行は完了4・進行中3・未着手22・確認待ち8。これは全体統合の完了ではなく、全ownerが揃った後の横断照合は別工程。現行実装の観察はPR #670の開始head 41fcf3ebと起点main 7309b3aに固定し、後続mainで未修正と断言しない。
+
+## 全23業務・6共通・8接続の統合確認（2026-10-15）
+
+最新7群の承認 Sentinel_7a67fd30e47c819192cd36d416f0a2bf とホテル担当医任意／見積の先行回答を各owner本文へ反映。現行実装観察は開始head41fcf3eb（起点main7309b3a）の固定時点で、後続mainを未修正と断言しない。全体独立レビューはscope／承認／完成境界と、ID／trace／相対参照／37行・88ルート・21masterの2系統で行う。独立レビューの重大指摘を解消し、下記の限定文書検査を通過した。GitHub反映後は同一本文を再取得し、公開結果をPRに記録する。
+
+### 最終文書判定と検査範囲
+
+対象124 docs（新規47・既存変更77）。全spec正本の定義とC06技術正本を合わせ241FR／853AC、基準の107FR／413ACのIDを保持。定義はFR明示アンカーと正本AC表で数え、索引・技術traceの参照とtemplateは重複計数しない。予約承認69FRの索引／trace、D10の9FR／142ACと既存128AC本文保持、care22FR／63ACなど各ownerの追跡を照合した。main88製品leafの配賦は集合一致・重複0、21master本文の主責務も一意。
+
+統合文書・参照正本の相対リンク3238件／fragment1963件を固定tree・本文へ照合し欠落なし。旧FR／AC識別子・明示アンカーの消失、定義重複、表幅不整合、新規末尾空白はなし。変更した旧ACの期待結果はホテル担当医任意の最新回答に対応する6件で根拠を保持し、臨床入院開始時の担当医決定は維持した。
+
+独立レビューで、ホテル旧必須gateの関連正本／語彙／AC、D07／D09からD20への過剰公開、D04／D06の旧版競合、D11〜13とD22／23の操作別保存・結果不明、D06／D15／D23の原本保持、care追加ACのtraceを修正し再確認。自動cleanupは原本／不明を対象除外して状態・実体保持、明示手動削除の論理操作とは区別した。未解消の重大な文書指摘・今回範囲の未承認業務判断はない。
+
+これは明示した製品仕様の文書整理完了であり、実装開始・実装適合・本番稼働・外部送信・法令適合の承認ではない。実装API／DB／設定・権限付与・merge／deployは別工程。CI完了は待たず、製品コード・実機・並行性／性能テストを合格と表明しない。過去節の未決・進捗・検査値は当時の履歴で、本節と最新正本を優先する。

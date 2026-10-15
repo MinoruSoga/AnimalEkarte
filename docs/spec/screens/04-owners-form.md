@@ -1,5 +1,7 @@
 # 飼主・ペット登録/編集 仕様書 (Owner Form)
 
+> 2026-10-15文書整理: 画面をまたぐ業務契約・受入条件は[領域正本](../domains/owners-pets/lifecycle.md)、型・保存／再送と現行差は[技術契約](../../design/domains/owners-pets/technical-spec.md)を参照する。以下の画面詳細は既存記載を継承（決定根拠・実装の全件再監査なし）、実機未実施。Owner Reportはスタッフ専用レポートであり飼主公開画面ではない。ペット特記field除外はOwner Report限定DTOとLIFF／line-reserveの飼主向け応答を区別して維持する。主飼主移管は過去請求・預り金の譲渡を意味しない。
+
 ## 概要
 - **画面の目的**: 飼主基本情報および、紐付く全てのペット（患者）情報の一元管理。
 - **URLパターン**: 
@@ -109,3 +111,4 @@ flowchart LR
 | PATCH | `/api/v1/clinics/:clinicId/owners/:id/transfer-status` | 転院ステータスの切替 | `owners` | `edit` |
 
 ---
+

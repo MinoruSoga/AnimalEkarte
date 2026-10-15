@@ -7,3 +7,8 @@
 読む順：業務正本 → 関連architecture → 領域の技術仕様 → 参照するAPI／DB／コードと検証方針。技術仕様を追加する場合はその領域READMEへ案内を置く。タスク台帳・tasks.md・新しい業務仕様のコピーは作らない。
 
 今回の配置はユーザー Sentinel_4090fd2153c881918e1da545da9ab505 により承認。旧work配下の設計・計画資料は今回移動していない。文書分類とdocs-symbol-driftのroot allowlistにdesignを追加済み。検査側の追加はユーザー Sentinel_34b62bb163b881919e6f2a9fd05edfc3 の個別承認に基づき、未知カテゴリの拒否・シンボル／数値検査は維持する。Spec Kitの出力先・preset・生成skillsは未変更。
+
+
+## 2026-10-15 全領域仕様への案内
+
+[全業務の技術契約](domains/README.md)を参照する。既存のルートprimary対応と過去の実行検証記録は保持し、今回の文書検査をruntime／実機合格へ転用しない。

@@ -77,3 +77,7 @@ flowchart TB
 | PUT | `/api/v1/masters/permission-groups/:id/rules` | 権限マトリックス（ルール）の更新 | `master-permission` | `edit` |
 
 ---
+
+## 共通権限境界
+
+[共通C04](../../shared/access-control.md)へ従う。OR合算・自己ロックアウト保護・現在の医院scopeと、結果不明の新規作成を照会なく再送しない境界を維持する。新たな実権限配布は行わない。
