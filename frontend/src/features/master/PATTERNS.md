@@ -44,7 +44,7 @@ PageLayout
   title="診断病名マスタ"
   icon={<ClipboardList className={`size-5 ${C.text}`} />}
   onBack={() => navigate("/settings")}
-  maxWidth="max-w-full"
+  maxWidth={LAYOUT.pageContentMaxWidth.full}
 >
 ```
 
@@ -260,10 +260,14 @@ const activeItem = useMemo(
 
 ### 寸法
 
-| トークン                  | 値            |
-| ------------------------- | ------------- |
-| `LAYOUT.sidePeek.width`   | `"w-[520px]"` |
-| `LAYOUT.sidePeek.widthPx` | `520`         |
+| トークン                  | 値                       |
+| ------------------------- | ------------------------ |
+| `LAYOUT.sidePeek.width`   | `"w-[520px] max-w-full"` |
+| `LAYOUT.sidePeek.widthPx` | `520`                    |
+
+例外: 検査機器マスタ（`/settings/lab-device-item-masters`）のパネルは
+`MasterSidePanel` に `className="min-w-160"`（640px）を渡して広げている
+（EMR-409 A-6 同期）。新規マスタは既定の `LAYOUT.sidePeek.width`（520px）を使う。
 
 ### 基本構造
 
@@ -296,15 +300,15 @@ function XxxSidePanel({ item, onClose, onSave, onDeleteRequest }) {
     <div data-side-peek className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0`}>
       {/* ── Toolbar ── */}
       <div className={STYLE.sidePeekToolbar}>
-        <span className={`text-xs ${C.text35} pl-1 select-none`}>
-          {item !== null ? "編集" : "新規作成"}
+        <span className={`text-xs ${C.text65} pl-1 select-none`}>
+          {item !== null ? "編集" : "新規登録"}
         </span>
         <div className="flex items-center gap-1">
           {item !== null ? (
             <button
               type="button"
               onClick={onDeleteRequest}
-              className={`${STYLE.sidePeekToolbarBtn} cursor-pointer ${C.danger} ${C.hoverBgDanger5}`}
+              className={`${STYLE.sidePeekToolbarBtn} cursor-pointer ${STYLE.btnDangerGhost}`}
             >
               <Trash2 className="size-4" />
             </button>
@@ -334,7 +338,7 @@ function XxxSidePanel({ item, onClose, onSave, onDeleteRequest }) {
           <div className="pb-1 mb-4">
             <input
               type="text"
-              className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0 focus-visible:ring-2 ${C.focusRingAccent40}`}
+              className={`w-full bg-transparent ${C.text} ${C.textPlaceholder} outline-none border-none p-0 focus-visible:ring-2 ${C.focusRingAccent40}`}
               style={{
                 fontSize: LAYOUT.pageTitle.fontSize, // "30px"
                 fontWeight: LAYOUT.pageTitle.fontWeight, // 700
@@ -356,7 +360,7 @@ function XxxSidePanel({ item, onClose, onSave, onDeleteRequest }) {
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
-                className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+                className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
               >
                 <StatusPill isActive={formData.isActive} />
               </button>
@@ -373,18 +377,14 @@ function XxxSidePanel({ item, onClose, onSave, onDeleteRequest }) {
         </div>
       </div>
 
-      {/* ── Footer ── */}
+      {/* ── Footer（共有 SidePeekFooter と同等。STYLE.sidePeekFooter + SubmitButton） ── */}
       <div className={STYLE.sidePeekFooter}>
         <button type="button" onClick={onClose} className={STYLE.sidePeekCancelBtn}>
           キャンセル
         </button>
-        <button
-          type="button"
-          onClick={() => onSave(formData)}
-          className={`px-5 py-[7px] text-base text-white ${C.bgBrand} ${C.hoverBgBrand} rounded-full transition-colors cursor-pointer ${STYLE.pillShadow}`}
-        >
+        <SubmitButton onClick={() => onSave(formData)} loadingText="保存中...">
           保存
-        </button>
+        </SubmitButton>
       </div>
     </div>
   );
@@ -399,7 +399,7 @@ Notion スタイルのキーバリュー行。ラベル幅 `140px` 固定。
 function PropertyRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div
-      className={`flex gap-2 py-2 px-2 -mx-2 rounded-[3px] ${C.hoverBgLight} transition-colors min-h-[40px]`}
+      className={`flex gap-2 py-2 px-2 -mx-2 rounded-xxs ${C.hoverBgLight} transition-colors min-h-[40px]`}
     >
       <div
         className={`w-[140px] shrink-0 text-sm ${C.text65} select-none truncate flex items-center`}
@@ -427,7 +427,7 @@ function PropInput({
   return (
     <input
       type="text"
-      className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder} focus-visible:ring-2 ${C.focusRingAccent40}`}
+      className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-xxs ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder} focus-visible:ring-2 ${C.focusRingAccent40}`}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder ?? "空"}
@@ -440,17 +440,17 @@ function PropInput({
 
 トークンの実体は `frontend/src/lib/design-tokens.ts` が SSOT。色を直書きせず、常に `C.*` / `STYLE.*` 経由で参照する。
 
-| トークン                    | 定義（`design-tokens.ts` の合成元）                                                                                                                                                                                                                                                      |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `STYLE.sidePeekPanel`       | `flex flex-col h-full overflow-y-clip bg-white border-l ${C.borderLight} shadow-panel`（FE9-2: design-system.md §5.1 shadow-panel トークンへ移行。値は同一）                                                                                                                             |
-| `STYLE.sidePeekToolbar`     | `flex items-center justify-between h-[48px] px-3 shrink-0`                                                                                                                                                                                                                               |
-| `STYLE.sidePeekToolbarBtn`  | `size-9 flex items-center justify-center rounded-[3px] ${C.text45} ${C.hoverBgMedium} transition-colors`                                                                                                                                                                                 |
-| `STYLE.sidePeekBody`        | `flex-1 overflow-y-auto`                                                                                                                                                                                                                                                                 |
-| `STYLE.sidePeekFooter`      | `flex items-center justify-end gap-2 px-4 py-3 border-t ${C.borderLight} shrink-0`                                                                                                                                                                                                       |
-| `STYLE.sidePeekCancelBtn`   | `px-4 py-[7px] text-base ${C.text65} ${C.hoverBgLight} rounded-[3px] transition-colors cursor-pointer`                                                                                                                                                                                   |
-| （保存ボタン）              | 共通トークン化されていない。`px-5 py-[7px] text-base text-white ${C.bgBrand} ${C.hoverBgBrand} rounded-full transition-colors cursor-pointer ${STYLE.pillShadow}` を直書きする（`ShiftTemplateSettingsParts.tsx` の実例を参照。FE5-3 で未使用だった `STYLE.sidePeekSaveBtn` を削除済み） |
-| `STYLE.pageIcon`            | `size-[38px] flex items-center justify-center rounded-[3px] ${C.bgPage} ${C.text45}`                                                                                                                                                                                                     |
-| `LAYOUT.pageIcon.innerIcon` | `"size-5"`                                                                                                                                                                                                                                                                               |
+| トークン                    | 定義（`design-tokens.ts` の合成元）                                                                                                                                                                                             |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `STYLE.sidePeekPanel`       | `flex flex-col h-full overflow-y-clip bg-white border-l ${C.borderLight} shadow-panel`（FE9-2: design-system.md §5.1 shadow-panel トークンへ移行。値は同一）                                                                    |
+| `STYLE.sidePeekToolbar`     | `flex items-center justify-between h-[48px] px-3 shrink-0`                                                                                                                                                                      |
+| `STYLE.sidePeekToolbarBtn`  | `size-9 min-h-11 min-w-11 flex items-center justify-center rounded-xxs ${C.text60} ${C.hoverBgMedium} transition-colors`                                                                                                        |
+| `STYLE.sidePeekBody`        | `flex-1 overflow-y-auto`                                                                                                                                                                                                        |
+| `STYLE.sidePeekFooter`      | `flex items-center justify-end gap-2 px-4 py-3 border-t ${C.borderLight} shrink-0`                                                                                                                                              |
+| `STYLE.sidePeekCancelBtn`   | `px-4 py-[7px] min-h-11 text-base ${C.text65} ${C.hoverBgLight} rounded-xxs transition-colors cursor-pointer`                                                                                                                   |
+| （保存ボタン）              | 共有 `SidePeekFooter`（`STYLE.sidePeekFooter` + `SubmitButton`、loading 時「保存中...」）を使う。直書きの保存ボタン（旧 `C.bgBrand` 系）は作らない（EMR-409 A-6 同期。FE5-3 で未使用だった `STYLE.sidePeekSaveBtn` は削除済み） |
+| `STYLE.pageIcon`            | `size-[38px] flex items-center justify-center rounded-xxs ${C.bgPage} ${C.text45}`                                                                                                                                              |
+| `LAYOUT.pageIcon.innerIcon` | `"size-5"`                                                                                                                                                                                                                      |
 
 ### アニメーション付きサイドピーク（高度なパターン）
 
@@ -495,17 +495,16 @@ import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 
 ## 6. 新規登録ボタン
 
-テキストリンクスタイル。solid ボタン（`PrimaryButton`）は使わない。
+pill 型の **PrimaryButton**（DESIGN.md `button-primary`: primary teal + pill + 44px）を使う。
+テキストリンクは使わない（EMR-409 A-6: `MasterPageShell` の現行実装に同期）。
 
 ```tsx
-<button
-  type="button"
-  onClick={handleCreate}
-  className={`inline-flex items-center gap-1 text-sm font-medium ${C.textBrand} ${C.hoverTextBrand} cursor-pointer transition-colors`}
->
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+
+<PrimaryButton onClick={handleCreate}>
   <Plus className="size-4" />
   新規登録
-</button>
+</PrimaryButton>;
 ```
 
 **配置**: PropertyFilter の右端（flex レイアウトで末尾に）
@@ -515,11 +514,11 @@ import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
   <div className="flex-1 min-w-0">
     <PropertyFilter ... />
   </div>
-  {/* 新規登録ボタン */}
-  <button type="button" onClick={handleCreate} className="...">
+  {/* 新規登録ボタン（pill PrimaryButton） */}
+  <PrimaryButton onClick={handleCreate}>
     <Plus className="size-4" />
     新規登録
-  </button>
+  </PrimaryButton>
 </div>
 ```
 
@@ -625,7 +624,7 @@ export function XxxSettings() {
 - [ ] `orderedItems`（`useSortableList` 戻り値）をレンダリング（`items` 直接不可）
 - [ ] テーブルセルの寸法・タイポグラフィ・上下余白は共有実装に委ねる
 - [ ] ステータスは `StatusPill`（`StatusBadge` 禁止）
-- [ ] 新規登録ボタンはテキストリンクスタイル（`PrimaryButton` 禁止）
+- [ ] 新規登録ボタンは pill 型の `PrimaryButton`（テキストリンク禁止）
 - [ ] サイドピーク幅は `LAYOUT.sidePeek.width`（`w-[520px]`）
 - [ ] サイドピークは `isEditing ? <Panel /> : null` で条件レンダー（`&&` 禁止）
 - [ ] `key` プロップでサイドピークをリセット（新規 vs 編集）
