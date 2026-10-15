@@ -65,7 +65,6 @@ function renderPage(editTarget: TestEntity | "new") {
   render(
     <MasterCRUDPage
       title="権限グループマスタ"
-      icon={<span aria-hidden="true" />}
       resource={ResourceMasterPermission}
       entityLabel="グループ"
       searchPlaceholder="検索"
@@ -109,7 +108,6 @@ describe("MasterCRUDPage maxWidth auto-assignment (EMR-333)", () => {
     render(
       <MasterCRUDPage
         title="職種マスタ"
-        icon={<span aria-hidden="true" />}
         entityLabel="職種"
         searchPlaceholder="検索"
         emptyMessage="空"
@@ -138,7 +136,6 @@ describe("MasterCRUDPage maxWidth auto-assignment (EMR-333)", () => {
     render(
       <MasterCRUDPage
         title="多列マスタ"
-        icon={<span aria-hidden="true" />}
         entityLabel="マスタ"
         searchPlaceholder="検索"
         emptyMessage="空"
@@ -169,7 +166,6 @@ describe("MasterCRUDPage maxWidth auto-assignment (EMR-333)", () => {
     render(
       <MasterCRUDPage
         title="カスタム幅マスタ"
-        icon={<span aria-hidden="true" />}
         entityLabel="マスタ"
         searchPlaceholder="検索"
         emptyMessage="空"

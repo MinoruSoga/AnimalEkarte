@@ -11,7 +11,6 @@ interface PageLayoutProps {
   title: string;
   description?: string;
   onBack?: () => void;
-  icon?: ReactNode;
   headerAction?: ReactNode;
   /** 権限バッジ表示用リソース。指定するとヘッダー右側に現在の権限をバッジ表示する。 */
   resource?: Resource;
@@ -29,7 +28,6 @@ export const PageLayout = memo(function PageLayout({
   title,
   description,
   onBack,
-  icon,
   headerAction,
   resource,
   maxWidth = LAYOUT.pageContentMaxWidth.default,
@@ -48,13 +46,7 @@ export const PageLayout = memo(function PageLayout({
 
   return (
     <div className={`flex min-w-0 flex-col h-full ${STYLE.page} ${className || ""}`}>
-      <FormHeader
-        title={title}
-        description={description}
-        onBack={onBack}
-        icon={icon}
-        action={actionContent}
-      />
+      <FormHeader title={title} description={description} onBack={onBack} action={actionContent} />
       <div
         ref={scrollContainerRef}
         className={`flex-1 min-w-0 overflow-y-auto relative w-full flex flex-col ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}

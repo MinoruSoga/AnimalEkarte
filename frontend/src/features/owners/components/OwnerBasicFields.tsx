@@ -16,6 +16,7 @@ import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { StaffNoteDisclosure } from "./StaffNoteDisclosure";
 import type { ClinicMembership } from "@/types/auth";
 import type { OwnerFieldSectionProps } from "../lib/owner-info-field-shared";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 
 interface OwnerBasicFieldsProps extends OwnerFieldSectionProps {
   isEdit: boolean;
@@ -39,7 +40,7 @@ export function OwnerBasicFields({
   return (
     <>
       <div className="space-y-1.5">
-        <Label htmlFor="ownerId" className={`text-sm ${C.text60}`}>
+        <Label htmlFor="ownerId" className={`${C.text60}`}>
           飼主No
         </Label>
         {isEdit ? (
@@ -59,7 +60,7 @@ export function OwnerBasicFields({
 
       {showClinicSelect ? (
         <div className="space-y-1.5">
-          <Label htmlFor="clinicId" className={`text-sm ${C.text60}`}>
+          <Label htmlFor="clinicId" className={`${C.text60}`}>
             登録先医院
           </Label>
           <Select
@@ -85,7 +86,7 @@ export function OwnerBasicFields({
       ) : null}
 
       <div className="space-y-1.5">
-        <Label htmlFor="company" className={`text-sm ${C.text60}`}>
+        <Label htmlFor="company" className={`${C.text60}`}>
           会社名
         </Label>
         <Input
@@ -97,13 +98,14 @@ export function OwnerBasicFields({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="ownerName" className={`text-sm ${C.text60}`}>
-          飼主名 <span className={C.textRequired}>*</span>
+        <Label htmlFor="ownerName" className={`${C.text60}`}>
+          飼主名 <RequiredMark />
         </Label>
         <Input
           id="ownerName"
           value={ownerData.ownerName}
           maxLength={100}
+          aria-required
           aria-invalid={!!fieldErrors.ownerName}
           aria-describedby={fieldErrors.ownerName ? "ownerName-error" : undefined}
           onChange={(event) => {
@@ -129,7 +131,7 @@ export function OwnerBasicFields({
           }
         >
           <div className="space-y-1.5">
-            <Label className={`text-sm ${C.text60}`}>特記対象</Label>
+            <Label className={`${C.text60}`}>特記対象</Label>
             <div className="flex items-center space-x-2 mb-2 h-10">
               <Switch
                 id="dangerous"
@@ -142,7 +144,7 @@ export function OwnerBasicFields({
                 該当する
               </label>
             </div>
-            <Label htmlFor="remarks" className={`text-sm ${C.text60}`}>
+            <Label htmlFor="remarks" className={`${C.text60}`}>
               備考・特記事項
             </Label>
             <Textarea
@@ -158,13 +160,14 @@ export function OwnerBasicFields({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="ownerNameKana" className={`text-sm ${C.text60}`}>
-          飼主名よみ <span className={C.textRequired}>*</span>
+        <Label htmlFor="ownerNameKana" className={`${C.text60}`}>
+          飼主名よみ <RequiredMark />
         </Label>
         <Input
           id="ownerNameKana"
           placeholder="はやし ふみあき"
           value={ownerData.ownerNameKana}
+          aria-required
           aria-invalid={!!fieldErrors.ownerNameKana}
           aria-describedby={fieldErrors.ownerNameKana ? "ownerNameKana-error" : undefined}
           onChange={(event) => {
@@ -177,7 +180,7 @@ export function OwnerBasicFields({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="email" className={`text-sm ${C.text60}`}>
+        <Label htmlFor="email" className={`${C.text60}`}>
           メールアドレス
         </Label>
         <Input
@@ -196,13 +199,14 @@ export function OwnerBasicFields({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="phone" className={`text-sm ${C.text60}`}>
-          電話番号 <span className={C.textRequired}>*</span>
+        <Label htmlFor="phone" className={`${C.text60}`}>
+          電話番号 <RequiredMark />
         </Label>
         <Input
           id="phone"
           placeholder="090-1234-5678"
           value={ownerData.phone}
+          aria-required
           aria-invalid={!!fieldErrors.phone}
           aria-describedby={fieldErrors.phone ? "phone-error" : undefined}
           onChange={(event) => {
@@ -215,7 +219,7 @@ export function OwnerBasicFields({
       </div>
 
       <div className="space-y-1.5 col-span-1 lg:col-span-2">
-        <Label htmlFor="companyPhone" className={`text-sm ${C.text60}`}>
+        <Label htmlFor="companyPhone" className={`${C.text60}`}>
           会社 電話番号
         </Label>
         <Input

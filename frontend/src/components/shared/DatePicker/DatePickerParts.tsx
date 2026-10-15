@@ -13,7 +13,14 @@ export interface SingleDatePickerProps {
   className?: string;
   id?: string;
   name?: string;
+  ariaLabel?: string;
+  required?: boolean;
+  disabled?: boolean;
   disabledDays?: React.ComponentProps<typeof Calendar>["disabled"];
+  min?: string;
+  max?: string;
+  onInvalid?: React.FormEventHandler<HTMLInputElement>;
+  validationMessage?: string;
   /**
    * EMR-319: エラー状態の表示配線。true で入力欄に aria-invalid が付き、
    * トリガー外枠に destructive の赤枠+薄いリングが出る（STYLE.formInputError 準拠）。
@@ -24,6 +31,8 @@ export interface SingleDatePickerProps {
    * 転送し、スクリーンリーダーがエラー文を拾えるようにする（NumberInput と同じ契約）。
    */
   ariaDescribedBy?: string;
+  ariaRequired?: boolean;
+  showClearButton?: boolean;
 }
 
 export interface RangeDatePickerProps {
@@ -198,13 +207,16 @@ export function RangeEndpointNav({
 
 export function ClearButton({
   onClick,
+  disabled,
 }: {
   onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={`ml-1 -my-px min-h-11 min-w-11 shrink-0 rounded p-0.5 ${C.text40} ${C.hoverBgPrimary10} ${C.hoverText60} focus-visible:ring-2 focus-visible:ring-offset-1 ${C.focusRingAccent40} cursor-pointer`}
       aria-label="日付をクリア"
     >

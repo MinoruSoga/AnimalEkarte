@@ -102,7 +102,7 @@ describe("LineReservationPageEditor — FE-RC-211 mutation permission re-check",
     renderEditor();
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "変更を保存" }));
+    await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("この操作を行う権限がありません");
@@ -116,7 +116,7 @@ describe("LineReservationPageEditor — FE-RC-211 mutation permission re-check",
     renderEditor();
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "変更を保存" }));
+    await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
       expect(getBody()).not.toBeNull();
@@ -158,7 +158,7 @@ describe("LineReservationPageEditor — FE-RC-211 mutation permission re-check",
     const user = userEvent.setup();
     await user.clear(screen.getByRole("textbox", { name: "ヘッダーテキスト" }));
     await user.type(screen.getByRole("textbox", { name: "ヘッダーテキスト" }), "更新ヘッダー");
-    await user.click(screen.getByRole("button", { name: "変更を保存" }));
+    await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
       expect(getBody()).not.toBeNull();
@@ -180,7 +180,7 @@ describe("LineReservationPageEditor — FE-RC-211 mutation permission re-check",
     expect(alert).toHaveTextContent(
       "定休日の設定を読み込めません。内容を確認して修正してください。",
     );
-    const saveButton = screen.getByRole("button", { name: "変更を保存" });
+    const saveButton = screen.getByRole("button", { name: "保存" });
     expect(saveButton).toBeDisabled();
 
     const user = userEvent.setup();

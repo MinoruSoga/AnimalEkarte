@@ -22,6 +22,7 @@ import { EmptyState } from "@/components/shared/DataStates";
 
 // Types
 import type { ApiCareLog, CreateCareLogRequest } from "../../api/daily-records-types";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 
 type CareLogType = "food" | "excretion" | "medicine" | "treatment" | "other";
 
@@ -182,7 +183,7 @@ export const DailyCareLogsSection = memo(function DailyCareLogsSection({
         <div className="space-y-3 py-2">
           <div>
             <Label htmlFor="carelog-time" className="text-xs">
-              時刻 <span className={C.textRequired}>*</span>
+              時刻 <RequiredMark />
             </Label>
             <Input
               id="carelog-time"

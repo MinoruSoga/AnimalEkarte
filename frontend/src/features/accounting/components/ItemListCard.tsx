@@ -44,6 +44,7 @@ import type { FrontendMerchandiseItem } from "../api/get-merchandise-items";
 import type { AccountingItem, AddAccountingItemInput, ItemCategory } from "../types";
 
 import { AccountingItemRow } from "./AccountingItemRow";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 
 const MERCHANDISE_CATEGORY_OPTIONS = [
   { value: "all", label: "すべて" },
@@ -370,8 +371,8 @@ export const ItemListCard = memo(function ItemListCard({
               ) : (
                 <div className="flex flex-col gap-4 py-4">
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="manual-name" className="text-sm">
-                      品目名 <span className={C.textRequired}>*</span>
+                    <Label htmlFor="manual-name">
+                      品目名 <RequiredMark />
                     </Label>
                     <Input
                       id="manual-name"
@@ -388,8 +389,8 @@ export const ItemListCard = memo(function ItemListCard({
                     <FormFieldError id="manual-name-error" message={manualNameError} />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="manual-category" className="text-sm">
-                      カテゴリ <span className={C.textRequired}>*</span>
+                    <Label htmlFor="manual-category">
+                      カテゴリ <RequiredMark />
                     </Label>
                     <Select value={manualCategory} onValueChange={handleManualCategoryChange}>
                       <SelectTrigger
@@ -406,8 +407,8 @@ export const ItemListCard = memo(function ItemListCard({
                   </div>
                   {manualCategory === "other" ? (
                     <div className="flex flex-col gap-1.5">
-                      <Label htmlFor="manual-other-reason" className="text-sm">
-                        その他理由 <span className={C.textRequired}>*</span>
+                      <Label htmlFor="manual-other-reason">
+                        その他理由 <RequiredMark />
                       </Label>
                       <Input
                         id="manual-other-reason"
@@ -430,8 +431,9 @@ export const ItemListCard = memo(function ItemListCard({
                     </div>
                   ) : null}
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="manual-price" className="text-sm">
-                      単価（円）<span className={C.textRequired}>*</span>
+                    <Label htmlFor="manual-price">
+                      単価（円）
+                      <RequiredMark />
                     </Label>
                     <Input
                       id="manual-price"

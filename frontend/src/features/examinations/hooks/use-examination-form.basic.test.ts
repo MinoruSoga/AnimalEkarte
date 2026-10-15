@@ -5,6 +5,8 @@ import { useSearchParams } from "react-router";
 import { useGetPet } from "@/hooks/use-pet";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useDeleteExamination } from "../api/delete-examination";
+import { QueryClient } from "@tanstack/react-query";
+import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
 
 // Mock dependencies
 const mockNavigate = vi.fn();
@@ -101,15 +103,15 @@ function renderExaminationForm(id?: string) {
 describe("useExaminationForm — 新規作成モード", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useGetPet).mockReturnValue({
-      data: null,
+    vi.mocked(useGetPet, { partial: true }).mockReturnValue({
+      data: undefined,
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useGetPet>);
-    vi.mocked(usePetSelection).mockReturnValue({
+    });
+    vi.mocked(usePetSelection, { partial: true }).mockReturnValue({
       selectedPets: [],
       setSelectedPets: vi.fn(),
-    } as ReturnType<typeof usePetSelection>);
+    });
     vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams(), vi.fn()]);
   });
 
@@ -190,11 +192,11 @@ describe("useExaminationForm — 新規作成モード", () => {
 
   it("petId がない & ローディングでもない場合、ペット選択ページへリダイレクト", async () => {
     vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams(""), vi.fn()]);
-    vi.mocked(useGetPet).mockReturnValue({
-      data: null,
+    vi.mocked(useGetPet, { partial: true }).mockReturnValue({
+      data: undefined,
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useGetPet>);
+    });
 
     await act(async () => {
       renderExaminationForm();
@@ -206,23 +208,38 @@ describe("useExaminationForm — 新規作成モード", () => {
 });
 
 describe("useExaminationForm — petFromQuery あり", () => {
-  const mockPet = {
-    id: "42",
+  const mockPet = transformBackendPetToFrontend({
+    id: 42,
+    version: 1,
+    clinic_id: 1,
+    owner_id: 5,
+    animal_species_id: 1,
+    pet_number: "",
     name: "ポチ",
-    ownerName: "田中太郎",
-    ownerId: "5",
-    species: "犬",
+    pet_name_kana: "",
     breed: "",
-    birthday: "",
+    birth_date: "",
     gender: "男",
-    weight: null,
-    imageUrl: null,
-    status: "生存" as const,
-    microchipNumber: null,
-    insuranceNumber: null,
-    insuranceExpiry: null,
-    memo: null,
-  };
+    status: "alive",
+    color: "",
+    neutered_status: "unknown",
+    danger_level: "low",
+    food: "",
+    environment: "",
+    phone: "",
+    remarks: "",
+    created_at: "",
+    updated_at: "",
+    owner: {
+      id: 5,
+      owner_number: 5,
+      name: "田中太郎",
+      name_kana: "",
+      phone: "",
+      is_dangerous: false,
+    },
+    animal_species: { id: 1, name: "犬", sort_order: 0 },
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -231,16 +248,16 @@ describe("useExaminationForm — petFromQuery あり", () => {
 
   it("petFromQuery が非null のとき setSelectedPets が呼ばれる（line 140）", async () => {
     const mockSetSelectedPets = vi.fn();
-    vi.mocked(usePetSelection).mockReturnValue({
+    vi.mocked(usePetSelection, { partial: true }).mockReturnValue({
       selectedPets: [],
       setSelectedPets: mockSetSelectedPets,
-    } as ReturnType<typeof usePetSelection>);
+    });
 
-    vi.mocked(useGetPet).mockReturnValue({
+    vi.mocked(useGetPet, { partial: true }).mockReturnValue({
       data: mockPet,
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useGetPet>);
+    });
 
     await act(async () => {
       renderExaminationForm();
@@ -251,16 +268,16 @@ describe("useExaminationForm — petFromQuery あり", () => {
   });
 
   it("petFromQuery から ownerName / petName を formData に反映する", async () => {
-    vi.mocked(usePetSelection).mockReturnValue({
+    vi.mocked(usePetSelection, { partial: true }).mockReturnValue({
       selectedPets: [mockPet],
       setSelectedPets: vi.fn(),
-    } as ReturnType<typeof usePetSelection>);
+    });
 
-    vi.mocked(useGetPet).mockReturnValue({
+    vi.mocked(useGetPet, { partial: true }).mockReturnValue({
       data: mockPet,
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useGetPet>);
+    });
 
     const { result } = renderExaminationForm();
 
@@ -273,15 +290,15 @@ describe("useExaminationForm — 編集モード（id あり）", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams(), vi.fn()]);
-    vi.mocked(useGetPet).mockReturnValue({
-      data: null,
+    vi.mocked(useGetPet, { partial: true }).mockReturnValue({
+      data: undefined,
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useGetPet>);
-    vi.mocked(usePetSelection).mockReturnValue({
+    });
+    vi.mocked(usePetSelection, { partial: true }).mockReturnValue({
       selectedPets: [],
       setSelectedPets: vi.fn(),
-    } as ReturnType<typeof usePetSelection>);
+    });
   });
 
   it("id を渡すと isEdit = true になる", () => {
@@ -299,10 +316,10 @@ describe("useExaminationForm — 編集モード（id あり）", () => {
 
   it("handleDelete は isEdit = false のとき何もしない", () => {
     const mockMutate = vi.fn();
-    vi.mocked(useDeleteExamination).mockReturnValue({
+    vi.mocked(useDeleteExamination, { partial: true }).mockReturnValue({
       mutate: mockMutate,
       isPending: false,
-    } as ReturnType<typeof useDeleteExamination>);
+    });
 
     const { result } = renderExaminationForm(); // no id → isEdit = false
     act(() => {
@@ -313,10 +330,10 @@ describe("useExaminationForm — 編集モード（id あり）", () => {
 
   it("handleDelete は isEdit = true のとき deleteMutation.mutate を呼ぶ（line 151-155）", async () => {
     const mockMutate = vi.fn();
-    vi.mocked(useDeleteExamination).mockReturnValue({
+    vi.mocked(useDeleteExamination, { partial: true }).mockReturnValue({
       mutate: mockMutate,
       isPending: false,
-    } as ReturnType<typeof useDeleteExamination>);
+    });
 
     const { result } = renderExaminationForm("exam-001");
 
@@ -333,14 +350,11 @@ describe("useExaminationForm — 編集モード（id あり）", () => {
 
   it("handleDelete の onSuccess コールバックが toast.success を呼ぶ", async () => {
     const { toast } = await import("sonner");
-    let capturedOnSuccess: (() => void) | undefined;
-    const mockMutate = vi.fn((_id: string, opts: { onSuccess: () => void }) => {
-      capturedOnSuccess = opts.onSuccess;
-    });
-    vi.mocked(useDeleteExamination).mockReturnValue({
+    const mockMutate = vi.fn<ReturnType<typeof useDeleteExamination>["mutate"]>();
+    vi.mocked(useDeleteExamination, { partial: true }).mockReturnValue({
       mutate: mockMutate,
       isPending: false,
-    } as ReturnType<typeof useDeleteExamination>);
+    });
 
     const { result } = renderExaminationForm("exam-001");
 
@@ -350,7 +364,11 @@ describe("useExaminationForm — 編集モード（id あり）", () => {
     });
 
     act(() => {
-      capturedOnSuccess?.();
+      mockMutate.mock.calls[0]?.[1]?.onSuccess?.(undefined, "exam-001", undefined, {
+        client: new QueryClient(),
+        meta: undefined,
+        mutationKey: undefined,
+      });
     });
     expect(toast.success).toHaveBeenCalledWith("検査記録を削除しました");
   });
@@ -360,15 +378,15 @@ describe("useExaminationForm — setFormData（ローカルオーバーライド
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams(), vi.fn()]);
-    vi.mocked(useGetPet).mockReturnValue({
-      data: null,
+    vi.mocked(useGetPet, { partial: true }).mockReturnValue({
+      data: undefined,
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useGetPet>);
-    vi.mocked(usePetSelection).mockReturnValue({
+    });
+    vi.mocked(usePetSelection, { partial: true }).mockReturnValue({
       selectedPets: [],
       setSelectedPets: vi.fn(),
-    } as ReturnType<typeof usePetSelection>);
+    });
   });
 
   it("setFormData でフィールドを更新できる", () => {

@@ -305,7 +305,7 @@ describe("BugReportsPage 削除", () => {
     const dialog = await screen.findByRole("alertdialog");
     expect(dialog).toHaveTextContent("「受付でエラー」を削除しますか？");
 
-    await user.click(screen.getByRole("button", { name: "削除する" }));
+    await user.click(within(dialog).getByRole("button", { name: "削除" }));
     expect(deleteMutateMock).toHaveBeenCalledWith(7, expect.anything());
   });
 });

@@ -6,7 +6,7 @@ keywords: 飼い主, オーナー, 新規登録, 飼い主さん
 keywords_vi: khách hàng mới, đăng ký khách hàng mới, khách hàng, chủ nuôi, đăng ký chủ nuôi, quản lý khách hàng, hồ sơ chủ nuôi, thú cưng
 ---
 
-# 飼主・ペット
+# 飼主・ペット管理
 
 ## どんな画面か
 
@@ -50,7 +50,7 @@ keywords_vi: khách hàng mới, đăng ký khách hàng mới, khách hàng, ch
 
 ## 新規飼主・ペットを登録する
 
-1. 画面右上の「**新規登録**」ボタンをクリックします。
+1. 画面右上の「**新規飼主登録**」ボタンをクリックします。
 2. 飼主情報を入力します：
 
    | 項目                     | 必須 | 内容               |
@@ -80,7 +80,7 @@ keywords_vi: khách hàng mới, đăng ký khách hàng mới, khách hàng, ch
    | 体重 / 毛色 / マイクロチップ番号 | 任意 |                  |
    | アレルギー情報 / 環境            | 任意 |                  |
 
-5. 「**登録**」ボタンをクリックします。
+5. 「**保存**」ボタンをクリックします。
 
 ### 登録すると
 

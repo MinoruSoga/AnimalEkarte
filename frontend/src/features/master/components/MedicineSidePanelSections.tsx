@@ -1,7 +1,8 @@
 import type { Dispatch, SetStateAction } from "react";
 import Pill from "lucide-react/dist/esm/icons/pill";
 
-import { PropertyInput, PropertyRow } from "@/components/shared/SidePeek";
+import { MoneyInput, PropertyInput, PropertyRow } from "@/components/shared/SidePeek";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
@@ -101,26 +102,18 @@ export function MedicinePriceTaxSection({
 }: MedicinePriceTaxSectionProps) {
   return (
     <>
-      <PropertyRow label="単価(税込)" description={FIELD_DESCRIPTIONS.unitPrice}>
-        {isCategory ? (
+      {isCategory ? (
+        <PropertyRow label="単価(税込)" description={FIELD_DESCRIPTIONS.unitPrice}>
           <span className={`text-base ${C.text35} select-none`}>子項目に金額を設定</span>
-        ) : (
-          <div className="flex items-center gap-1">
-            <span className={`text-base ${C.text40}`}>¥</span>
-            <input
-              type="number"
-              min={0}
-              aria-label="単価(税込)"
-              value={formData.price}
-              onChange={(event) =>
-                setFormDataDirty((prev) => ({ ...prev, price: Number(event.target.value) }))
-              }
-              placeholder="0"
-              className={`${STYLE.propertyInput} w-28`}
-            />
-          </div>
-        )}
-      </PropertyRow>
+        </PropertyRow>
+      ) : (
+        <MoneyInput
+          min={0}
+          value={formData.price}
+          onChange={(value) => setFormDataDirty((prev) => ({ ...prev, price: value }))}
+          description={FIELD_DESCRIPTIONS.unitPrice}
+        />
+      )}
 
       <PropertyRow label="課税区分" description={FIELD_DESCRIPTIONS.taxCategory}>
         <TaxTypeSelector
@@ -291,15 +284,12 @@ export function MedicineDoseCalculationSection({
               label="製品含量(mg/単位)"
               description="この製品1単位（1錠・1ml等）に含まれる有効成分量（mg）です。体重換算の投与量を実際の単位数へ変換する際に使われます。"
             >
-              <input
-                type="number"
+              <NumberInput
                 min={0}
                 step="any"
                 aria-label="製品含量(mg/単位)"
                 value={formData.strength}
-                onChange={(event) =>
-                  setFormDataDirty((prev) => ({ ...prev, strength: event.target.value }))
-                }
+                onChange={(value) => setFormDataDirty((prev) => ({ ...prev, strength: value }))}
                 placeholder="未設定"
                 className={`${STYLE.propertyInput} w-28`}
               />
@@ -309,14 +299,13 @@ export function MedicineDoseCalculationSection({
               label="1日投与回数(任意)"
               description="1日に投与する回数の既定値です。処方時のデフォルトとして使われます。"
             >
-              <input
-                type="number"
+              <NumberInput
                 min={1}
                 step={1}
                 aria-label="1日投与回数"
                 value={formData.frequencyPerDay}
-                onChange={(event) =>
-                  setFormDataDirty((prev) => ({ ...prev, frequencyPerDay: event.target.value }))
+                onChange={(value) =>
+                  setFormDataDirty((prev) => ({ ...prev, frequencyPerDay: value }))
                 }
                 placeholder="未設定"
                 className={`${STYLE.propertyInput} w-28`}
@@ -327,14 +316,13 @@ export function MedicineDoseCalculationSection({
               label="既定投与日数(任意)"
               description="標準的な投与日数の既定値です。処方時のデフォルトとして使われます。"
             >
-              <input
-                type="number"
+              <NumberInput
                 min={1}
                 step={1}
                 aria-label="既定投与日数"
                 value={formData.defaultDurationDays}
-                onChange={(event) =>
-                  setFormDataDirty((prev) => ({ ...prev, defaultDurationDays: event.target.value }))
+                onChange={(value) =>
+                  setFormDataDirty((prev) => ({ ...prev, defaultDurationDays: value }))
                 }
                 placeholder="未設定"
                 className={`${STYLE.propertyInput} w-28`}

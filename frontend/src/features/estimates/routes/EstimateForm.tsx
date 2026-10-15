@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
-import { EyeOff, FileText } from "lucide-react";
+import { EyeOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
-import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { FormHeaderActions } from "@/components/shared/Form/FormHeaderActions";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { paths } from "@/config/paths";
@@ -13,7 +13,7 @@ import { useGetPet } from "@/hooks/use-pet";
 import { usePermission } from "@/hooks/use-permission";
 import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
-import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { C, LAYOUT } from "@/lib/design-tokens";
 import { isNonDisclosureReadStatus, resolveEntityReadResult } from "@/lib/entity-read-result";
 import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { ResourceEstimates } from "@/types/generated/models";
@@ -167,8 +167,7 @@ function EstimateFormContent({ id }: { id?: string }) {
       <PageLayout
         title="見積書"
         resource={ResourceEstimates}
-        icon={<FileText className={`${ICON.page} ${C.text}`} />}
-        maxWidth="max-w-2xl"
+        maxWidth={LAYOUT.pageContentMaxWidth.formNarrow}
       >
         <ErrorFallback message="見積書が見つかりません" />
       </PageLayout>
@@ -180,8 +179,7 @@ function EstimateFormContent({ id }: { id?: string }) {
       <PageLayout
         title="見積書"
         resource={ResourceEstimates}
-        icon={<FileText className={`${ICON.page} ${C.text}`} />}
-        maxWidth="max-w-2xl"
+        maxWidth={LAYOUT.pageContentMaxWidth.formNarrow}
       >
         <div className="space-y-3">
           <ErrorFallback message="見積書の取得に失敗しました" />
@@ -203,31 +201,14 @@ function EstimateFormContent({ id }: { id?: string }) {
   return (
     <form action={formAction} className="h-full">
       <PageLayout
-        title={isEdit ? "見積書編集" : "新規見積書作成"}
+        title={isEdit ? "見積書編集" : "見積書登録"}
         resource={ResourceEstimates}
-        icon={<FileText className={`${ICON.page} ${C.text}`} />}
         headerAction={
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              type="button"
-              size="sm"
-              onClick={handleCancel}
-              className="h-11 text-sm"
-            >
-              キャンセル
-            </Button>
-            {canSubmit && !blocksNewEstimatePet ? (
-              <SubmitButton
-                size="sm"
-                colorVariant="primary"
-                disabled={!form.title.trim()}
-                className="h-11 text-sm"
-              >
-                {isEdit ? "更新" : "作成"}
-              </SubmitButton>
-            ) : null}
-          </div>
+          <FormHeaderActions
+            onCancel={handleCancel}
+            submitLabel={canSubmit && !blocksNewEstimatePet ? "保存" : undefined}
+            submitDisabled={!form.title.trim()}
+          />
         }
         maxWidth={LAYOUT.pageContentMaxWidth.form}
       >

@@ -21,6 +21,7 @@ import {
   NEUTERED_SELECT_ITEMS,
   type PetFieldSectionProps,
 } from "./PetEditFieldShared";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 
 export function PetPhysicalSection({
   formData,
@@ -216,12 +217,7 @@ export function PetPhysicalSection({
         <div className="space-y-1">
           <Label htmlFor="dangerReason" className={LABEL_CLS}>
             理由
-            {formData.dangerLevel === "高" ? (
-              <span className={C.textRequired} aria-hidden="true">
-                {" "}
-                *
-              </span>
-            ) : null}
+            {formData.dangerLevel === "高" ? <RequiredMark /> : null}
           </Label>
           <Textarea
             id="dangerReason"

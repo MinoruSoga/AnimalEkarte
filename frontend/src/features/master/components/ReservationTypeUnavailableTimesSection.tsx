@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { DatePicker } from "@/components/shared/DatePicker";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { FieldHelp } from "@/components/shared/FieldHelp";
@@ -213,12 +214,10 @@ export function ReservationTypeUnavailableTimesSection({
                 <SelectContent>{DAY_OF_WEEK_SELECT_ITEMS}</SelectContent>
               </Select>
             ) : (
-              <input
-                type="date"
-                aria-label="特定日"
+              <DatePicker
+                ariaLabel="予約不可時間の特定日"
                 value={form.specificDate}
-                onChange={(e) => handleFieldChange("specificDate", e.target.value)}
-                className={`rounded-xxs border ${C.borderMedium} px-2 py-1 text-sm ${C.text} ${C.bgWhite}`}
+                onChange={(v) => handleFieldChange("specificDate", v)}
               />
             )}
           </div>

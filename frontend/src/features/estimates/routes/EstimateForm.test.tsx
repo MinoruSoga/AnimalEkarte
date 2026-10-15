@@ -173,6 +173,12 @@ function makeEstimate(status: Estimate["status"]): Estimate {
     id: "1",
     clinicId: "1",
     estimateNo: "EST-001",
+    medicalRecordId: null,
+    ownerId: null,
+    ownerName: undefined,
+    petId: null,
+    petName: undefined,
+    createdBy: null,
     title: "テスト見積書",
     status,
     subtotal: 1000,
@@ -296,6 +302,18 @@ describe("EstimateForm statusError aria-describedby", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "作成時は下書きまたは送付済みのみ選択できます",
     );
+  });
+
+  it("エラー表示前からタイトルだけを必須と通知し任意の有効期限・備考は必須にしない", () => {
+    renderCreateForm();
+
+    const title = screen.getByRole("textbox", { name: /タイトル/ });
+    expect(title).toHaveAttribute("aria-required", "true");
+    expect(title).not.toHaveAttribute("required");
+    expect(title).not.toHaveAttribute("aria-invalid");
+    expect(screen.getByLabelText("有効期限")).not.toHaveAttribute("aria-required");
+    expect(screen.getByRole("textbox", { name: /備考/ })).not.toHaveAttribute("aria-required");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("statusError がないとき aria-describedby を付けない", () => {
@@ -480,8 +498,7 @@ describe("EstimateForm BUG-019 not-found / network gate", () => {
     };
     renderEditForm();
     expect(screen.getByText("見積書が見つかりません")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "更新" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "作成" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
   });
 
   it("403 相当: 404 と同一の非開示メッセージ（見積書が見つかりません）", () => {
@@ -493,7 +510,7 @@ describe("EstimateForm BUG-019 not-found / network gate", () => {
     };
     renderEditForm();
     expect(screen.getByText("見積書が見つかりません")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "更新" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
   });
 
   it("network error: 取得失敗 + 再試行、blank form ではない", () => {
@@ -509,13 +526,13 @@ describe("EstimateForm BUG-019 not-found / network gate", () => {
     expect(screen.getByRole("button", { name: "再試行" })).toBeInTheDocument();
     screen.getByRole("button", { name: "再試行" }).click();
     expect(refetch).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("button", { name: "更新" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
   });
 
   it("create route /estimates/new は従来どおり新規フォームを開く", () => {
     renderCreateForm();
-    expect(screen.getByText("新規見積書作成")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "作成" })).toBeInTheDocument();
+    expect(screen.getByText("見積書登録")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
   });
 
   it("正常 edit: draft 見積で編集フォームを開く", async () => {

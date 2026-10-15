@@ -5,7 +5,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PatientInfoCard, formatPatientPetDetails } from "@/components/shared/PatientInfoCard";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { FormHeaderActions } from "@/components/shared/Form/FormHeaderActions";
 import { Button } from "@/components/ui/button";
 import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
 import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
@@ -186,26 +186,29 @@ export function VaccinationFormBody({
   return (
     <form action={formAction}>
       <PageLayout
-        title={isEdit ? "予防接種詳細・編集" : "新規予防接種登録"}
+        title={isEdit ? (canSubmit ? "予防接種編集" : "予防接種詳細") : "予防接種登録"}
         resource={ResourceVaccinations}
         onBack={onBack}
         maxWidth={LAYOUT.pageContentMaxWidth.formMid}
         headerAction={
-          <div className="flex gap-2">
-            {canDelete && isEdit && !isPetDeceased ? (
-              <Button
-                variant="ghost"
-                type="button"
-                className={`${STYLE.btnDangerGhost} px-4 h-10 text-sm`}
-                onClick={onOpenDeleteConfirm}
-                disabled={isDeleting}
-              >
-                <Trash2 className={`mr-1.5 ${ICON.action}`} />
-                {isDeleting ? "削除中..." : "削除"}
-              </Button>
-            ) : null}
-            {canSubmit ? <SubmitButton className="px-6 h-10 text-sm">保存</SubmitButton> : null}
-          </div>
+          <FormHeaderActions
+            onCancel={onBack}
+            submitLabel={canSubmit ? "保存" : undefined}
+            extra={
+              canDelete && isEdit && !isPetDeceased ? (
+                <Button
+                  variant="ghost"
+                  type="button"
+                  className={`${STYLE.btnDangerGhost} px-4 h-10`}
+                  onClick={onOpenDeleteConfirm}
+                  disabled={isDeleting}
+                >
+                  <Trash2 className={`mr-1.5 ${ICON.action}`} />
+                  {isDeleting ? "削除中..." : "削除"}
+                </Button>
+              ) : null
+            }
+          />
         }
       >
         <NavigationBlocker when={isDirty ? !isSaving : false} />

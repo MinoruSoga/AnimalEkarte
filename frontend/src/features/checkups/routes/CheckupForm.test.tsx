@@ -112,6 +112,30 @@ beforeEach(() => {
 });
 
 describe("CheckupForm permissions", () => {
+  it("エラー表示前から実施日・健診種別を必須と通知し任意の担当医・所見は必須にしない", () => {
+    vi.mocked(usePermission).mockReturnValue({
+      canView: true,
+      canCreate: true,
+      canEdit: true,
+      canDelete: false,
+    });
+    renderForm();
+
+    for (const control of [
+      screen.getByRole("textbox", { name: "実施日" }),
+      screen.getByRole("combobox", { name: "健診種別" }),
+    ]) {
+      expect(control).toHaveAttribute("aria-required", "true");
+      expect(control).not.toHaveAttribute("required");
+      expect(control).not.toHaveAttribute("aria-invalid", "true");
+    }
+    expect(screen.getByRole("combobox", { name: "担当医" })).not.toHaveAttribute("aria-required");
+    expect(screen.getByRole("textbox", { name: "結果・所見" })).not.toHaveAttribute(
+      "aria-required",
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("作成権限がない場合は入力fieldsetと保存操作を実際にdisabledにする", () => {
     vi.mocked(usePermission).mockReturnValue({
       canView: true,

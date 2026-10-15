@@ -125,7 +125,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
               <button
                 type="button"
                 onClick={onOwnerClick}
-                className={`text-base font-medium ${C.text} hover:underline decoration-dotted underline-offset-2 cursor-pointer`}
+                className={`inline-flex min-h-11 min-w-11 items-center px-2 -mx-2 text-base font-medium ${C.text} hover:underline decoration-dotted underline-offset-2 cursor-pointer`}
               >
                 {ownerName}
               </button>
@@ -134,7 +134,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
               <Link
                 to={ownerDetailHref}
                 aria-label="飼主詳細を開く"
-                className={`text-base font-medium ${C.text} hover:underline decoration-dotted underline-offset-2`}
+                className={`inline-flex min-h-11 min-w-11 items-center px-2 -mx-2 text-base font-medium ${C.text} hover:underline decoration-dotted underline-offset-2`}
               >
                 {ownerName}
               </Link>
@@ -147,7 +147,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
               <Link
                 to={petDetailHref}
                 aria-label="ペット詳細を開く"
-                className={`text-base font-medium ${isDeceased ? C.text60 : C.text} hover:underline decoration-dotted underline-offset-2`}
+                className={`inline-flex min-h-11 min-w-11 items-center text-base font-medium ${isDeceased ? C.text60 : C.text} hover:underline decoration-dotted underline-offset-2`}
               >
                 {petName}
               </Link>

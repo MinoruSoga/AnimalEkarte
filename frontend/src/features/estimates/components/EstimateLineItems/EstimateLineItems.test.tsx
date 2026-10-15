@@ -8,7 +8,7 @@ const item: EstimateLineItem = {
   id: "1",
   estimateId: "1",
   name: "診察料",
-  category: "consultation",
+  category: "examination",
   unitPrice: 1000,
   quantity: 1,
   taxType: "excluded",

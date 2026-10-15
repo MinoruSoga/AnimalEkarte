@@ -127,7 +127,7 @@ describe("LineReservationSettingsForm — LINE credential 非取扱い (SD-3 決
     renderForm();
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "設定を保存" }));
+    await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
       expect(getBody()).not.toBeNull();
@@ -145,7 +145,7 @@ describe("LineReservationSettingsForm — LINE credential 非取扱い (SD-3 決
     expect(screen.getByPlaceholderText("LIFF ID")).toHaveValue("existing-liff-id");
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "設定を保存" }));
+    await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
       expect(getBody()).not.toBeNull();
@@ -187,7 +187,7 @@ describe("LineReservationSettingsForm — 個別定休日の二重入力削除",
     const user = userEvent.setup();
     await user.click(screen.getByLabelText("月"));
     await user.click(screen.getByRole("switch", { name: "祝日休診" }));
-    await user.click(screen.getByRole("button", { name: "設定を保存" }));
+    await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
       expect(getBody()).not.toBeNull();
@@ -213,7 +213,7 @@ describe("LineReservationSettingsForm — 個別定休日の二重入力削除",
     expect(screen.getByLabelText("月")).not.toBeChecked();
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "設定を保存" }));
+    await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => expect(getBody()).not.toBeNull());
     expect(getBody()?.closed_weekdays).toEqual([0, 2, 6]);
@@ -230,7 +230,7 @@ describe("LineReservationSettingsForm — 個別定休日の二重入力削除",
     const user = userEvent.setup();
     await user.click(screen.getByLabelText("月"));
     await user.click(screen.getByLabelText("水"));
-    await user.click(screen.getByRole("button", { name: "設定を保存" }));
+    await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => expect(getBody()).not.toBeNull());
     expect(getBody()?.closed_weekdays).toEqual([2, 3]);
@@ -252,7 +252,7 @@ describe("LineReservationSettingsForm — 個別定休日の二重入力削除",
       expect(screen.getByLabelText("土")).toBeChecked();
 
       const user = userEvent.setup();
-      await user.click(screen.getByRole("button", { name: "設定を保存" }));
+      await user.click(screen.getByRole("button", { name: "保存" }));
 
       await waitFor(() => expect(getBody()).not.toBeNull());
       expect(getBody()?.closed_weekdays).toEqual([0, 2, 6]);
@@ -277,7 +277,7 @@ describe("LineReservationSettingsForm — 個別定休日の二重入力削除",
       );
       const weekdays = ["月", "火", "水", "木", "金", "土", "日"];
       weekdays.forEach((weekday) => expect(screen.getByLabelText(weekday)).toBeDisabled());
-      const saveButton = screen.getByRole("button", { name: "設定を保存" });
+      const saveButton = screen.getByRole("button", { name: "保存" });
       expect(saveButton).toBeDisabled();
 
       const user = userEvent.setup();
@@ -307,7 +307,7 @@ describe("LineReservationSettingsForm — 個別定休日の二重入力削除",
     expect(screen.queryByDisplayValue("2026-08-11")).not.toBeInTheDocument();
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "設定を保存" }));
+    await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
       expect(getBody()).not.toBeNull();
@@ -335,7 +335,7 @@ describe("LineReservationSettingsForm — booking_window_min_days UI sync (BUG-0
     await user.type(input, "0");
     expect(input).toHaveValue(0);
 
-    await user.click(screen.getByRole("button", { name: "設定を保存" }));
+    await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
       expect(getBody()).not.toBeNull();
@@ -357,7 +357,7 @@ describe("LineReservationSettingsForm — booking_window_min_days UI sync (BUG-0
     const user = userEvent.setup();
     await user.clear(input);
     await user.type(input, "5");
-    await user.click(screen.getByRole("button", { name: "設定を保存" }));
+    await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
       expect(getBody()?.booking_window_min_days).toBe(5);
@@ -375,7 +375,7 @@ describe("LineReservationSettingsForm — FE-RC-210 mutation permission re-check
     renderForm();
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "設定を保存" }));
+    await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("この操作を行う権限がありません");

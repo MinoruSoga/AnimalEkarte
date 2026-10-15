@@ -11,6 +11,7 @@ import type { CheckupTypeItem } from "@/hooks/use-treatment-master";
 import type { CheckupTypeFieldRow } from "../api/get-checkup-type-fields";
 import { DynamicCheckupFields, type CheckupFieldValue } from "../components/DynamicCheckupFields";
 import type { CheckupFormState } from "../hooks/use-checkup-form-model";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 
 interface CheckupFieldsPanelProps {
   canSubmit: boolean;
@@ -54,12 +55,14 @@ export function CheckupFieldsPanel({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <Label htmlFor="checkup-date">
-            実施日<span className={`${C.textRequired} ml-1`}>*</span>
+            実施日
+            <RequiredMark />
           </Label>
           <DatePicker
             id="checkup-date"
             value={form.date}
             onChange={onDateChange}
+            ariaRequired
             ariaInvalid={Boolean(fieldErrors.date)}
             ariaDescribedBy={fieldErrors.date ? "checkup-date-error" : undefined}
             disabledDays={{ after: toJSTWallDate(new Date()) }}
@@ -69,7 +72,8 @@ export function CheckupFieldsPanel({
 
         <div className="space-y-2">
           <Label htmlFor="checkup-type-select">
-            健診種別<span className={`${C.textRequired} ml-1`}>*</span>
+            健診種別
+            <RequiredMark />
           </Label>
           <SearchableSelect
             id="checkup-type-select"
@@ -82,6 +86,7 @@ export function CheckupFieldsPanel({
             placeholder="選択してください"
             searchPlaceholder="健診種別を検索..."
             ariaInvalid={Boolean(fieldErrors.checkupTypeId)}
+            ariaRequired
             ariaDescribedBy={fieldErrors.checkupTypeId ? "checkup-type-error" : undefined}
           />
           <FormFieldError id="checkup-type-error" message={fieldErrors.checkupTypeId} />

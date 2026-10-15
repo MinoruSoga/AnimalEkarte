@@ -3,6 +3,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { C, STYLE } from "@/lib/design-tokens";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { DatePicker } from "@/components/shared/DatePicker";
 import { FieldHelp } from "@/components/shared/FieldHelp";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
@@ -28,6 +29,7 @@ export const HolidaySection = memo(function HolidaySection({
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   // EMR-319: ネイティブ required のブラウザバブルの代わりにアプリ側の赤枠+エラー文を表示する。
   const [dateInvalid, setDateInvalid] = useState(false);
+  const [date, setDate] = useState("");
   const createMutation = useCreateHoliday();
   const { mutateAsync: deleteHoliday } = useDeleteHoliday();
   // backend は POST→create / DELETE→delete を要求するため、各アクションのガードも対応する権限で判定する。
@@ -43,12 +45,18 @@ export const HolidaySection = memo(function HolidaySection({
       toast.error(PERMISSION_DENIED_MESSAGE);
       return null;
     }
+    if (getFormString(formData, "date") === "") {
+      setDateInvalid(true);
+      return null;
+    }
     try {
       await createMutation.mutateAsync({
         date: getFormString(formData, "date"),
         reason: getFormString(formData, "reason") || undefined,
       });
       toast.success("休診日を追加しました");
+      setDate("");
+      setDateInvalid(false);
       setShowForm(false);
     } catch {
       // FE-RC-005: useCreateHoliday.onError が既に handleApiError で通知済み。
@@ -81,10 +89,15 @@ export const HolidaySection = memo(function HolidaySection({
   const handleCloseDeleteDialog = useCallback(() => setDeleteTarget(null), []);
 
   const handleShowForm = useCallback(() => {
+    setDate("");
     setDateInvalid(false);
     setShowForm(true);
   }, []);
-  const handleHideForm = useCallback(() => setShowForm(false), []);
+  const handleHideForm = useCallback(() => {
+    setDate("");
+    setDateInvalid(false);
+    setShowForm(false);
+  }, []);
 
   return (
     <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
@@ -116,19 +129,22 @@ export const HolidaySection = memo(function HolidaySection({
                 </label>
                 <FieldHelp label="日付" content="休診とする日付です。" />
               </div>
-              <input
+              <DatePicker
                 id="holiday_date"
                 name="date"
-                type="date"
-                className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3${dateInvalid ? ` ${STYLE.formInputError}` : ""}`}
+                ariaLabel="日付"
+                value={date}
                 required
-                aria-invalid={dateInvalid || undefined}
-                aria-describedby={dateInvalid ? "holiday-date-error" : undefined}
-                onInvalid={(e) => {
-                  e.preventDefault();
+                onChange={(v) => {
+                  setDate(v);
+                  setDateInvalid(false);
+                }}
+                onInvalid={(event) => {
+                  event.preventDefault();
                   setDateInvalid(true);
                 }}
-                onChange={() => setDateInvalid(false)}
+                ariaInvalid={dateInvalid}
+                ariaDescribedBy={dateInvalid ? "holiday-date-error" : undefined}
               />
               <FormFieldError
                 id="holiday-date-error"

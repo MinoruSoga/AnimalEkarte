@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { FormHeaderActions } from "@/components/shared/Form/FormHeaderActions";
 import { useBackNavigation, useBackPath } from "@/hooks/use-back-navigation";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useTitle } from "@/hooks/use-title";
@@ -162,7 +162,11 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
 
   const backPath = useBackPath(paths.owners.getHref());
 
-  useTitle(isEdit ? `飼主編集 (${ownerData.ownerName})` : "飼主登録");
+  useTitle(
+    isEdit
+      ? `${canSubmit ? "飼主・ペット編集" : "飼主・ペット詳細"} (${ownerData.ownerName})`
+      : "飼主・ペット登録",
+  );
 
   // React 19 Action の成功を検知して遷移
   // BUG-065: 新規登録後は詳細ページへリダイレクト
@@ -299,16 +303,12 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
   return (
     <form action={formAction} noValidate className="h-full">
       <PageLayout
-        title={isEdit ? "飼主・ペット　編集" : "飼主・ペット　登録"}
+        title={isEdit ? (canSubmit ? "飼主・ペット編集" : "飼主・ペット詳細") : "飼主・ペット登録"}
         onBack={handleBack}
         resource={ResourceOwners}
-        maxWidth={LAYOUT.pageContentMaxWidth.full}
+        maxWidth={LAYOUT.pageContentMaxWidth.form}
         headerAction={
-          canSubmit ? (
-            <SubmitButton size="sm" colorVariant="primary">
-              {isEdit ? "更新" : "登録"}
-            </SubmitButton>
-          ) : null
+          <FormHeaderActions onCancel={handleBack} submitLabel={canSubmit ? "保存" : undefined} />
         }
       >
         <NavigationBlocker when={isDirty ? !isLoading : false} />

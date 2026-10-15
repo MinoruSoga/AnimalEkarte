@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { PawPrint } from "lucide-react";
+
 import { FormHeader } from "./FormHeader";
 import { SubmitButton } from "./SubmitButton";
 import { PrimaryButton } from "./PrimaryButton";
@@ -20,7 +20,6 @@ export const HeaderFull: Story = {
   args: {
     title: "ワクチン接種記録",
     description: "接種日とワクチン種別を入力します",
-    icon: <PawPrint className="size-5" />,
     onBack: () => {},
     action: <PrimaryButton>保存する</PrimaryButton>,
   },

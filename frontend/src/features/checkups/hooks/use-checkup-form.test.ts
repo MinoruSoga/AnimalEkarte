@@ -83,9 +83,9 @@ describe("useCheckupForm mutation boundary", () => {
       data: { id: "pet-1", ownerId: "owner-1" },
       isLoading: false,
     } as ReturnType<typeof useGetPet>);
-    vi.mocked(useGetCheckupTypeFields).mockReturnValue({
+    vi.mocked(useGetCheckupTypeFields, { partial: true }).mockReturnValue({
       data: [],
-    } as ReturnType<typeof useGetCheckupTypeFields>);
+    });
     createMedicalRecordMock.mockResolvedValue({ id: "record-1" });
     createCheckupMock.mockResolvedValue({ id: "checkup-1" });
     replaceCheckupFieldResultsMock.mockResolvedValue(undefined);
@@ -290,7 +290,7 @@ describe("useCheckupForm mutation boundary", () => {
         resolveCheckup = resolve;
       }),
     );
-    vi.mocked(useGetCheckupTypeFields).mockReturnValue({
+    vi.mocked(useGetCheckupTypeFields, { partial: true }).mockReturnValue({
       data: [
         {
           id: 1,
@@ -303,7 +303,7 @@ describe("useCheckupForm mutation boundary", () => {
           sortOrder: 1,
         },
       ],
-    } as ReturnType<typeof useGetCheckupTypeFields>);
+    });
     const { result, rerender } = renderHook(
       ({ canEdit }: { canEdit: boolean }) => useCheckupForm({ canCreate: true, canEdit }),
       { initialProps: { canEdit: true } },
@@ -333,7 +333,7 @@ describe("useCheckupForm mutation boundary", () => {
         resolveCheckup = resolve;
       }),
     );
-    vi.mocked(useGetCheckupTypeFields).mockReturnValue({
+    vi.mocked(useGetCheckupTypeFields, { partial: true }).mockReturnValue({
       data: [
         {
           id: 1,
@@ -346,7 +346,7 @@ describe("useCheckupForm mutation boundary", () => {
           sortOrder: 1,
         },
       ],
-    } as ReturnType<typeof useGetCheckupTypeFields>);
+    });
     const { result, rerender } = renderHook(
       ({ canCreate }: { canCreate: boolean }) => useCheckupForm({ canCreate, canEdit: true }),
       { initialProps: { canCreate: true } },
@@ -376,7 +376,7 @@ describe("useCheckupForm mutation boundary", () => {
         resolveCheckup = resolve;
       }),
     );
-    vi.mocked(useGetCheckupTypeFields).mockReturnValue({
+    vi.mocked(useGetCheckupTypeFields, { partial: true }).mockReturnValue({
       data: [
         {
           id: 1,
@@ -389,7 +389,7 @@ describe("useCheckupForm mutation boundary", () => {
           sortOrder: 1,
         },
       ],
-    } as ReturnType<typeof useGetCheckupTypeFields>);
+    });
     const { result, rerender } = renderHook(() => useCheckupForm(ALLOWED_MUTATION_PERMISSIONS));
 
     prepareValidForm(result);

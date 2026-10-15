@@ -154,7 +154,7 @@ function PageEditorForm({ setting, clinicId }: PageEditorFormProps) {
       ) : null}
       {FIELDS.map((field) => (
         <div key={field.key} className="space-y-1.5">
-          <Label htmlFor={`field-${field.key}`} className={`text-sm font-medium ${C.text}`}>
+          <Label htmlFor={`field-${field.key}`} className={`font-medium ${C.text}`}>
             {field.label}
           </Label>
           <Textarea
@@ -170,7 +170,7 @@ function PageEditorForm({ setting, clinicId }: PageEditorFormProps) {
       ))}
 
       <div className="pt-2">
-        <SubmitButton disabled={closedWeekdays === null}>変更を保存</SubmitButton>
+        <SubmitButton disabled={closedWeekdays === null}>保存</SubmitButton>
       </div>
       {formState !== undefined ? null : null}
     </form>

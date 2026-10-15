@@ -1,11 +1,9 @@
-import { FileText } from "lucide-react";
-
 import { FormHeaderActions } from "@/components/shared/Form/FormHeaderActions";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { MasterSelectModal, type MasterSelectItem } from "@/components/shared/MasterSelectModal";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
-import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { LAYOUT } from "@/lib/design-tokens";
 import { ResourceHospitalization } from "@/types/generated/models";
 import type { StaffItem } from "@/hooks/use-staffs";
 import type { HospitalizationFormData } from "../types";
@@ -62,13 +60,12 @@ export function HospitalizationFormBody({
         <PageLayout
           title={hospitalizationId ? "入院編集" : "入院登録"}
           onBack={onBack}
-          icon={<FileText className={`${ICON.page} ${C.text}`} />}
           resource={ResourceHospitalization}
           maxWidth={LAYOUT.pageContentMaxWidth.form}
           headerAction={
             <FormHeaderActions
               onCancel={onBack}
-              submitLabel={canSubmit ? (hospitalizationId ? "更新" : "保存") : undefined}
+              submitLabel={canSubmit ? "保存" : undefined}
               extra={
                 <HospitalizationFormHeaderExtra
                   hospitalizationId={hospitalizationId}

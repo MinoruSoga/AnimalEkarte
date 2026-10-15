@@ -2,6 +2,7 @@ import { useState, useMemo, useActionState } from "react";
 import { toast } from "sonner";
 import { C, STYLE } from "@/lib/design-tokens";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { TriggerTypeLabels } from "@/config/lstep-trigger-types";
 import {
   useGetTriggerPriorities,
@@ -116,11 +117,10 @@ export function TriggerPrioritySection() {
               <span className={`flex-1 text-sm ${C.text}`}>
                 {TriggerTypeLabels[item.trigger_type] ?? item.trigger_type}
               </span>
-              <input
-                type="number"
+              <NumberInput
                 min={1}
                 value={item.priority}
-                onChange={(e) => handlePriorityChange(item.trigger_type, e.target.value)}
+                onChange={(value) => handlePriorityChange(item.trigger_type, value)}
                 aria-label={`${TriggerTypeLabels[item.trigger_type] ?? item.trigger_type} 優先順位`}
                 className={`${STYLE.formInput} rounded-xs border px-2 w-20 text-right outline-none focus-visible:ring-2 ${C.focusRingAccent30}`}
               />

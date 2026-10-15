@@ -28,6 +28,7 @@ import {
 } from "./reservation-time-utils";
 import type { ReservationSlotVacancyStatus } from "@/hooks/use-reservation-types";
 import type { Reservation } from "@/types";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 
 const TRIGGER_CLASS = `h-11 text-sm bg-white ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle} transition-colors`;
 
@@ -47,13 +48,9 @@ export interface FieldLabelProps {
 export function FieldLabel({ children, required, trailing }: FieldLabelProps) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <Label className={`text-xs ${C.text60} font-medium`}>
+      <Label className={`${C.text60} font-medium`}>
         {children}
-        {required ? (
-          <span className={`ml-1 ${C.textRequired}`} aria-hidden="true">
-            *
-          </span>
-        ) : null}
+        {required ? <RequiredMark /> : null}
       </Label>
       {trailing ? <div>{trailing}</div> : null}
     </div>
@@ -232,9 +229,7 @@ export function ReservationDateTimeFields({
         <div className={`flex items-center gap-2 text-xs ${C.text60} font-medium`}>
           <Clock className={ICON.action} />
           時間
-          <span className={`ml-0.5 ${C.textRequired}`} aria-hidden="true">
-            *
-          </span>
+          <RequiredMark />
         </div>
         <div className="flex items-center gap-2">
           <Select

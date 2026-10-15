@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { FileText } from "lucide-react";
+
 import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
@@ -8,7 +8,7 @@ import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowBu
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
-import { C, ICON } from "@/lib/design-tokens";
+import { C } from "@/lib/design-tokens";
 import { normalizeKana } from "@/lib/normalize-kana";
 import { MASTER_STATUS_FILTER, MASTER_TABLE_COL } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
@@ -94,8 +94,7 @@ export function InterviewTemplateSettings() {
   return (
     <>
       <MasterCRUDPage
-        title="問診設定"
-        icon={<FileText className={`${ICON.page} ${C.text}`} />}
+        title="問診テンプレートマスタ"
         resource={ResourceMasterMedical}
         entityLabel="問診テンプレート"
         searchPlaceholder="カテゴリ、タイトルで検索..."

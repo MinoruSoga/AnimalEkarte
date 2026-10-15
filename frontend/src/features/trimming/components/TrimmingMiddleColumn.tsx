@@ -33,7 +33,7 @@ export const TrimmingMiddleColumn = memo(function TrimmingMiddleColumn({
   return (
     <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-3 space-y-4`}>
       <div>
-        <Label htmlFor="trimming-bw" className={`text-sm ${C.text60} mb-2 block`}>
+        <Label htmlFor="trimming-bw" className={`${C.text60} mb-2 block`}>
           体重 (BW)
         </Label>
         <div className="flex gap-2">
@@ -57,7 +57,7 @@ export const TrimmingMiddleColumn = memo(function TrimmingMiddleColumn({
       </div>
 
       <div>
-        <Label htmlFor="trimming-bt" className={`text-sm ${C.text60} mb-2 block`}>
+        <Label htmlFor="trimming-bt" className={`${C.text60} mb-2 block`}>
           体温 (BT)
         </Label>
         <NumberInput
@@ -72,7 +72,7 @@ export const TrimmingMiddleColumn = memo(function TrimmingMiddleColumn({
       </div>
 
       <div>
-        <Label htmlFor="trimming-used-shampoo" className={`text-sm ${C.text60} mb-2 block`}>
+        <Label htmlFor="trimming-used-shampoo" className={`${C.text60} mb-2 block`}>
           使用シャンプー
         </Label>
         <Input
@@ -85,7 +85,7 @@ export const TrimmingMiddleColumn = memo(function TrimmingMiddleColumn({
       </div>
 
       <div>
-        <Label htmlFor="trimming-used-ribbon" className={`text-sm ${C.text60} mb-2 block`}>
+        <Label htmlFor="trimming-used-ribbon" className={`${C.text60} mb-2 block`}>
           使用リボン
         </Label>
         <Input
@@ -98,7 +98,7 @@ export const TrimmingMiddleColumn = memo(function TrimmingMiddleColumn({
       </div>
 
       <div>
-        <Label htmlFor="trimming-remarks" className={`text-sm ${C.text60} mb-2 block`}>
+        <Label htmlFor="trimming-remarks" className={`${C.text60} mb-2 block`}>
           備考
         </Label>
         <Textarea

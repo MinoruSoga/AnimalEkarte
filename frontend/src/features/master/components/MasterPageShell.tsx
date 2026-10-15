@@ -15,8 +15,6 @@ import type { Resource } from "@/types/generated/models";
 interface MasterPageShellProps {
   /** Page title (e.g. "ケージマスタ") */
   title: string;
-  /** Page icon element */
-  icon: ReactNode;
   /** 権限バッジ表示用リソース */
   resource?: Resource;
   /** Handler for "新規登録" button */
@@ -44,7 +42,6 @@ interface MasterPageShellProps {
  */
 export const MasterPageShell = memo(function MasterPageShell({
   title,
-  icon,
   resource,
   onNew,
   sidePanel,
@@ -62,7 +59,6 @@ export const MasterPageShell = memo(function MasterPageShell({
       <div className="flex-1 min-w-0">
         <PageLayout
           title={title}
-          icon={icon}
           resource={resource}
           onBack={() => navigate(paths.settings.getHref())}
           maxWidth={maxWidth ?? LAYOUT.pageContentMaxWidth.full}
