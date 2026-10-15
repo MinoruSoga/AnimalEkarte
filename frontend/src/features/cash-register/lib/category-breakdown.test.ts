@@ -37,6 +37,16 @@ describe("summarizeCategoryTotals", () => {
     expect(summarizeCategoryTotals(breakdown)).toEqual([]);
   });
 
+  it("house_call は用品ではなく往診ラベルの小計として出る", () => {
+    const result = summarizeCategoryTotals({
+      categories: { house_call: { cash: 1000 }, goods: { cash: 300 } },
+    });
+    expect(result).toEqual([
+      { label: "用品", total: 300 },
+      { label: "往診", total: 1000 },
+    ]);
+  });
+
   it("returns an empty array for null / malformed / missing input instead of throwing", () => {
     expect(summarizeCategoryTotals(null)).toEqual([]);
     expect(summarizeCategoryTotals(undefined)).toEqual([]);

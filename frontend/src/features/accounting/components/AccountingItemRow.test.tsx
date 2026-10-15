@@ -74,6 +74,13 @@ describe("AccountingItemRow accessibility", () => {
     expect(amount).toHaveClass("right-[80px]", "z-10", "min-w-[130px]", "whitespace-nowrap");
   });
 
+  it("往診カテゴリはその他ではなく往診と表示する", () => {
+    renderRow(false, { ...ITEM, category: "house_call" });
+
+    expect(screen.getByText("往診")).toBeInTheDocument();
+    expect(screen.queryByText("その他")).not.toBeInTheDocument();
+  });
+
   it("PR665: 金額の直後にある削除操作セルも right-0 で固定され、削除ボタンにアクセスできる", () => {
     renderRow();
     const cells = screen.getAllByRole("cell");

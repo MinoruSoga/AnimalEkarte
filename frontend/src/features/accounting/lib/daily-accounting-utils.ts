@@ -17,6 +17,7 @@ export interface CategoryBreakdown {
   trimming: number;
   hotel: number;
   goods: number; // goods + training + other
+  houseCall: number;
 }
 
 export function getCategoryBreakdown(items: AccountingItem[]): CategoryBreakdown {
@@ -27,6 +28,7 @@ export function getCategoryBreakdown(items: AccountingItem[]): CategoryBreakdown
   let trimming = 0;
   let hotel = 0;
   let goods = 0;
+  let houseCall = 0;
   for (const item of items) {
     const sub = item.subtotal;
     if (MEDICAL_CATEGORIES.has(item.category)) {
@@ -41,11 +43,13 @@ export function getCategoryBreakdown(items: AccountingItem[]): CategoryBreakdown
       trimming += sub;
     } else if (item.category === "hotel") {
       hotel += sub;
+    } else if (item.category === "house_call") {
+      houseCall += sub;
     } else {
       goods += sub;
     }
   }
-  return { medical, surgery, rv, food, trimming, hotel, goods };
+  return { medical, surgery, rv, food, trimming, hotel, goods, houseCall };
 }
 
 // ── 支払按分（印刷用）: RV優先→診療優先で現金を割り当て ──────────
@@ -62,6 +66,7 @@ export interface DetailedBreakdown {
   trimming: CashCardAmount;
   hotel: CashCardAmount;
   goods: CashCardAmount;
+  houseCall: CashCardAmount;
 }
 
 export function apportionPayment(
@@ -77,6 +82,7 @@ export function apportionPayment(
     "trimming",
     "hotel",
     "goods",
+    "houseCall",
   ];
   let cashLeft = cashTotal;
   const result: DetailedBreakdown = {
@@ -87,6 +93,7 @@ export function apportionPayment(
     trimming: { cash: 0, card: 0 },
     hotel: { cash: 0, card: 0 },
     goods: { cash: 0, card: 0 },
+    houseCall: { cash: 0, card: 0 },
   };
   for (const cat of PRIORITY) {
     const catTotal = breakdown[cat];
@@ -126,6 +133,7 @@ export interface TotalsData {
   trimming: number;
   hotel: number;
   goods: number;
+  houseCall: number;
   subtotal: number;
   tax: number;
   discount: number;
