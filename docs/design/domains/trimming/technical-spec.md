@@ -53,7 +53,16 @@ CreateInput／UpdateInputはservice型でありHTTP schemaそのものではな�
 
 現在のStaffID→doctor_id対応、course参照、create必須validation、既存予約からの補完、PATCHの未送信／明示解除とDB nullableを照合する。任意pointerの存在だけでUI・HTTP・全writerが適合済みとしない。未送信で既存参照を保持する契約は維持し、途中保存の許可だけで新しい汎用clear APIを定義しない。後から指定する値は既存の担当適格性・有効master条件で検証し、同じ予約/detail・必要監査の保存単位を維持する。失敗・結果不明は既存の入力保持・同一対象照合を用いる。
 
-途中保存を「進行中」等の表示へ対応させることと、実施／完了の許可判定を分離する。新状態enumや実施／完了時の新しい必須条件は今回決めない。旧新規画面の担当・コース必須は解消対象の実装差、必要wire adapterと全入口・再表示の適合は未確認。
+途中保存を「進行中」等の表示へ対応させることと、終了の許可判定を分離する。終了時は[追加承認](../../../spec/domains/trimming/lifecycle.md#trimming-end-recorded-performance)の実担当・記録済み施術内容を照合し、コースなしの既存オプション明細も受理する。新状態enumや開始時担当gateを追加しない。旧新規画面の担当・コース必須は解消対象の実装差、必要wire adapterと全入口・再表示の適合は未確認。
+
+<a id="trimming-end-performance-contract"></a>
+## 終了時の実担当・記録済み施術内容
+
+[追加承認](../../../spec/domains/trimming/lifecycle.md#trimming-end-recorded-performance)の判定は、予約writerへ渡す終了intentと同じ対象・現在版に結び付ける。trusted clinic、患者、予約ID／期待版、型付きdetail参照／期待版、現在grant・状態を照合し、保存済みの実担当と実施内容を表す既存コース／オプション明細を再取得・検査する。実担当と認証actor／予約仮候補／履歴表示名は別値とし、取得失敗や未定を補完しない。コースNULLだけで拒否せず、オプション等の既存施術明細による実施内容を認める。自由入力明細の新設、料金必須、開始時の追加gateをこの契約へ混入させない。
+
+保存中・保存結果不明・未保存値だけでは終了条件を満たさない。本文保存は既存の保存経路で成功を確認し、終了は保存済み対象版を指定する別操作とする。確認からcommitまでに対象の担当・明細・版が変わった場合は終了状態／成功receiptを確定せず、入力を保持して現在版の差分確認へ戻す。予約状態・終了結果／必要監査・成功receiptは既存の同一commit契約を維持する。別入口のstatus更新でも終了条件を迂回しない。結果不明は元operation IDと対象の結果を照合してから続け、別予約／detail・二重終了を作らない。
+
+途中保存の担当／コース任意は維持し、終了時の実担当・施術内容を途中保存／開始のvalidationへ流用しない。終了が成功しても本文確定、請求・入金確定、在庫消費を代行しない。実APIのguard・全writerの期待版／receipt対応は実装適合で確認し、本書に架空のendpointや物理columnを設けない。
 
 ## PATCHと部分入力
 
@@ -133,14 +142,14 @@ D10へ渡す確認単位はclinic、owner、pet、appointment/detail、course/op
 | FR ID | AC ID（全件・一意） | 技術対応 |
 |:---|:---|:---|
 | FR-trimming-reservation-and-detail | AC-trimming-existing-reservation / AC-trimming-duplicate-detail / AC-trimming-direct-time | reservation intent／detail・options・監査同一tx |
-| FR-trimming-input-master-history | AC-trimming-new-required / AC-trimming-save-undecided-staff / AC-trimming-save-undecided-course / AC-trimming-save-undecided-both / AC-trimming-undecided-resume / AC-trimming-undecided-scope / AC-trimming-inactive-master / AC-trimming-history-copy / AC-trimming-size-pricing / AC-trimming-course-category-ui | 未定の途中保存／既存対象再開／実施完了条件を追加しない境界・有効master／既存無効保持・履歴copy対象限定 |
-| FR-trimming-safety-and-status | AC-trimming-deceased-loading / AC-trimming-deceased-history / AC-trimming-context-result / AC-trimming-stale-update / AC-trimming-start-consulting-column / AC-trimming-form-end-waiting / AC-trimming-end-no-finalization / AC-trimming-end-failure-replay | 現在患者／新たな施術拒否・死亡状態保持の生前分専用記録／状態・版 |
+| FR-trimming-input-master-history | AC-trimming-new-required / AC-trimming-save-undecided-staff / AC-trimming-save-undecided-course / AC-trimming-save-undecided-both / AC-trimming-undecided-resume / AC-trimming-undecided-scope / AC-trimming-inactive-master / AC-trimming-history-copy / AC-trimming-size-pricing / AC-trimming-course-category-ui | 未定の途中保存／既存対象再開／終了時の実担当・施術内容との分離・有効master／既存無効保持・履歴copy対象限定 |
+| FR-trimming-safety-and-status | AC-trimming-deceased-loading / AC-trimming-deceased-history / AC-trimming-context-result / AC-trimming-stale-update / AC-trimming-start-consulting-column / AC-trimming-form-end-waiting / AC-trimming-end-no-finalization / AC-trimming-end-failure-replay / AC-trimming-end-actual-performer / AC-trimming-end-performed-content / AC-trimming-end-option-without-course / AC-trimming-end-current-record / AC-trimming-end-condition-boundary | 現在患者／新たな施術拒否・死亡状態保持の生前分専用記録／状態・版・[終了時実担当／施術内容](#trimming-end-performance-contract) |
 | FR-trimming-image-lifecycle | AC-trimming-image-inflight / AC-trimming-image-failure / AC-trimming-image-clear / AC-trimming-image-race / AC-trimming-image-cross-clinic / AC-trimming-image-only-dirty / AC-trimming-image-original-retention | 正規key lock／参照・原本保持・送信済key保護 |
 | FR-trimming-billing-handoff | AC-trimming-billing-pull / AC-trimming-price-adjustment-save / AC-trimming-price-handoff-before-import / AC-trimming-price-no-double-discount / AC-trimming-price-master-unchanged / AC-trimming-price-imported-preserved / AC-trimming-price-finalized-preserved / AC-trimming-price-unknown-scope / AC-trimming-price-undecided-preserved / AC-trimming-price-zero-line-retained | 未請求pull／施術調整の保存とscope／二重適用防止／追加時snapshot・D10計算と訂正境界 |
 | FR-trimming-delete-and-atomicity | AC-trimming-atomic-write / AC-trimming-delete-dependency | 依存検査・detail/options同一tx・監査 |
 | FR-trimming-special-correction | AC-trimming-correction-history / AC-trimming-correction-no-side-effects | 原記録関連／理由actor時刻・金銭在庫別owner |
 
-AC prefixはAC-trimming-。FR7件／AC42件（既存28件＋会議追加14件）と既存画面・master2件、現在の型／保存／画像・原子性・他owner境界を整理した文書範囲。途中保存承認までの独立内容レビュー・限定構造検査と、会議追加2・3候補のレビュー／検査を区別する。今回差分は統合時に検査する。専用訂正の実装、全writer互換／実データsnapshot／権限・receipt実装、X03/X06、実機・運用開始は未確認。
+AC prefixはAC-trimming-。FR7件／AC47件（既存42件＋終了条件5件）と既存画面・master2件、現在の型／保存／画像・原子性・他owner境界を整理した文書範囲。途中保存承認までの独立内容レビュー・限定構造検査と、会議追加2・3候補のレビュー／検査を区別する。今回差分は統合時に検査する。専用訂正の実装、全writer互換／実データsnapshot／権限・receipt実装、X03/X06、実機・運用開始は未確認。
 
 
 ## 追加承認の実装契約と保存境界

@@ -60,3 +60,8 @@ D18の飼主側操作は[別app37](../screens/37-line-reserve-owner-flow.md)、D
 ## 2026-10-15会議4点の追加整理
 
 [D03最新通常編集・自動保存](medical-records/lifecycle.md#medical-record-agreement-autosave-20261015)、[D02開始／終了導線](reception/pages/reception-board.md#reception-meeting-start-end)、[D06施術・料金](trimming/lifecycle.md)、[D14複製／CSV](../screens/24-shift-calendar.md#shift-copy-csv-agreement-20261015)の文書差分を統合・独立レビュー済み。D07〜09、D10／11／13、D20／21の別状態・履歴・副作用保護も照合した。今回合意の文書反映と全過去業務承認の網羅を区別し、現在の状態は[全体進捗](SPECIFICATION_PROGRESS.md)へ。
+
+
+## 全域の最終同期
+
+[全体の有限完了確認](SPECIFICATION_PROGRESS.md#all-domain-closure-20261015)に、領域別確認の範囲と最後のD06終了条件・旧親確定制限の同期を記録した。D06は[実担当と記録済み施術内容](trimming/lifecycle.md#trimming-end-recorded-performance)を終了時に確認し、コースなしの既存オプション明細を認める。担当／コース未定の途中保存は維持。最新差分の独立内容・構造レビューは重大指摘0で文書範囲の整理を完了。公開一致は反映記録で確認し、実装状態や全過去承認証跡の網羅とは分ける。
