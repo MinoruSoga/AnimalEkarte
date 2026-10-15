@@ -176,6 +176,16 @@
 
 標準所要時間の[必須・5〜480分・5分刻み](../../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-duration-range)は予約区分マスタの契約。実予約の終了時刻は上記の手動編集・保持契約を維持し、その時間長へマスタ範囲を勝手に適用しない。既存所要時間未設定への自動補完なし・一覧提示は21:35合意済み。新規選択不可は21:41合意済みで、補完担当は[マスタ正本](../../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-legacy-review)で確定。判定方法・設定時期・導線は設計。
 
+
+<a id="line-unassigned-clinic-assignment"></a>
+#### LINEの担当未定予約を院内で後から担当設定する
+
+[2026-10-15追加合意2](../../../line/reservation-spec.md#line-no-nomination-unassigned)により、LINEの指名なし予約も実担当未定として未定列・予約編集へ引き継ぐ。能力計算の仮候補を列担当・入力の既定値・担当履歴にしない。院内で後から同じ予約の担当を明示設定し、分類に応じた担当種類、個人の医院別対応区分、有効性・勤務・休憩、権限・状態別の編集条件を再確認する。診療中の医師引継ぎは既存の残り担当時間に従い、トリミングの変更制限を新たに推定しない。
+
+[追加合意1](../../../line/reservation-spec.md#requirement-fr-line-reservations-business-start-times)のLINE開始時刻設定を変更しても、院内に表示される既存予約の予定日時・明示担当・状態は黙って移動・取消・変更しない。予約の変更は既存の院内操作として別途行う。
+
+予約確定と実担当決定を分離するもので、担当未定のままLINEの能力検証を免除するものではない。既存の院内警告確認、LINEの厳格受付、固定指名と未定予約全体の対応可能性を維持する。受入条件は[LINE正本](../../../line/reservation-spec.md#line-acceptance-1723)の未定保存・院内後決定ACを参照する。実装・実機確認は未実施。
+
 <a id="requirement-fr-reservations-clinic-duty-scope"></a>
 #### 予約先医院の勤務情報に基づく対象範囲（合意済み）
 

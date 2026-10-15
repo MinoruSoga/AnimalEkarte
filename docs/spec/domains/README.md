@@ -49,3 +49,6 @@
 | D23 | [サポート](support/README.md) | [技術契約](../../design/domains/support/technical-spec.md) | 報告／共有READ／報告医院mutation・個人history・確認付き外部通知と結果分離 |
 
 D18の飼主側操作は[別app37](../screens/37-line-reserve-owner-flow.md)、D20は別app38。main88ルートへ重複加算しない。全ownerの[共通契約](../shared/README.md)と[8接続の照合](../workflows/reservation-to-record-flow.md#cross-domain-review-20261015)を併読する。
+
+
+後続の6点（LINE開始時刻・指名なし・健診次回日・過去接種の当時次回日・トリミング途中保存・停止支払方法）は[承認と文書候補の状態](SPECIFICATION_PROGRESS.md#additional-business-decisions-six-followup)で管理する。通常診療の営業時間からの生成・トリミングの登録時刻限定と、変更可能・担当者別設定の追加回答を含み、未承認の枠数等は補わない。

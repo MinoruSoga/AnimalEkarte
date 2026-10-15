@@ -11,7 +11,7 @@
 <a id="approved-reservation-scope"></a>
 ## 今回の確定仕様索引
 
-合意済み固有FRは69件、継承参照は別表の2件。前回の70行を70件の確定要件とした集計は、重複3件と継承2件を区別せず訂正した。定義アンカーの検査数は承認件数ではない。
+基準82aa52f3時点の合意済み固有FRは69件。今回の分類別・担当者別開始時刻1FRを加え、現在は70件、継承参照は別表の2件。過去に70行を70件の確定要件とした集計は、重複3件と継承2件を区別せず訂正した履歴であり、今回の追加による70件とは別。定義アンカーの検査数は承認件数ではない。
 
 | FR | 承認日・根拠／適用範囲 | 正本の所在 |
 |:---|:---|:---|
@@ -75,7 +75,8 @@
 | FR-shifts-manual-travel-gap | 合意済み。2026-10-13 22:57 JST、ユーザー「ok」。23:04の「ok」は進行への回答。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない | [登録者が医院間移動時間を確保](../../screens/24-shift-calendar.md#requirement-fr-shifts-manual-travel-gap) |
 | FR-line-reservations-public-business-routing | 合意済み。17:23回答。実装・実機未確認。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない | [公開対象と業務分類による接続](../../line/reservation-spec.md#requirement-fr-line-reservations-public-business-routing) |
 | FR-line-reservations-acceptance-bounds | 追加境界は2026-10-14 18:26 JST一括合意。合意済み。17:23回答。実装・実機未確認。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない 最新訂正によりLINEは予定枠基準、実診療状態を空き条件にしない。 | [受付期間・休診日・時間外・対応可能人数](../../line/reservation-spec.md#requirement-fr-line-reservations-acceptance-bounds) |
-| FR-line-reservations-no-nomination | 合意済み。17:23回答。実装・実機未確認。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない | [指名なしとホテルの担当分離](../../line/reservation-spec.md#requirement-fr-line-reservations-no-nomination) |
+| FR-line-reservations-business-start-times | 2026-10-15追加合意1。通常診療は営業時間から生成、トリミングは登録開始時刻限定。時刻変更・担当者別設定を承認。実装・実機未確認 | [分類別・担当者別開始時刻](../../line/reservation-spec.md#requirement-fr-line-reservations-business-start-times) |
+| FR-line-reservations-no-nomination | 合意済み。17:23回答に加え、2026-10-15追加合意2で担当未定受付・院内後決定を承認。実装・実機未確認。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない | [指名なしとホテルの担当分離](../../line/reservation-spec.md#requirement-fr-line-reservations-no-nomination)・[追加合意2](../../line/reservation-spec.md#line-no-nomination-unassigned) |
 | FR-line-reservations-reselect-after-change | 合意済み。17:23回答。実装・実機未確認。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない | [状況変化時の入力保持と日時再選択](../../line/reservation-spec.md#requirement-fr-line-reservations-reselect-after-change) |
 | FR-line-reservations-owner-cancel | 合意済み。17:23回答。実装・実機未確認。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない | [来院受付前の飼主取消・変更案内](../../line/reservation-spec.md#requirement-fr-line-reservations-owner-cancel) |
 | FR-line-reservations-required-setup | 合意済み。17:23回答。実装・実機未確認。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない | [必要設定不足の新規選択不可と宿泊期間](../../line/reservation-spec.md#requirement-fr-line-reservations-required-setup) |

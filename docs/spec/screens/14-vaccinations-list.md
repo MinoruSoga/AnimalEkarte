@@ -2,7 +2,7 @@
 
 ## 2026-10-15 D08仕様整理の優先順位
 
-次回日は[最新合意](../domains/vaccinations/lifecycle.md#fr-vaccinations-schedule)のワクチン種類別設定または手入力に統一し、独立／カルテ内の入口差を設けない。一覧は保存済み次回日を表示し、旧入口の固定既定や現在マスタから勝手に再計算しない。実装適合は未確認。
+次回日は[最新合意](../domains/vaccinations/lifecycle.md#fr-vaccinations-schedule)のワクチン種類別設定または手入力に統一し、独立／カルテ内の入口差を設けない。一覧は保存済み次回日を表示し、旧入口の固定既定や現在マスタから勝手に再計算しない。[最新第4項合意](../domains/vaccinations/lifecycle.md#vaccination-retrospective-next-date)の過去接種後日入力で保存した、既に過ぎた当時の次回日も履歴として保持・表示する。実装適合は未確認。
 
 業務・例外・GWTは[予防接種ライフサイクル](../domains/vaccinations/lifecycle.md)、現wire／監査等の差は[技術契約](../../design/domains/vaccinations/technical-spec.md)。独立／カルテ内は同じvaccinations資源。単体finalizedを新設せず、親カルテfinalizedには通常CRUDを許可しない。
 

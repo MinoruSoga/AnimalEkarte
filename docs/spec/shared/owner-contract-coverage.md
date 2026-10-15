@@ -79,8 +79,17 @@ D06保存済み画像・D15アップロードと手動delete・D23添付につ�
 
 2026-10-15の最終独立レビューで、上記23ownerと各正本の文書接続を照合し重大指摘を解消した。明示手動削除の非表示／論理操作と、自動cleanupが原本／分類不明を対象除外し論理状態・実体とも保持する条件を区別する。表の存在だけで完了にせず、各操作本文・AC・技術traceを再確認した。
 
+### 最新第3〜5項の接続
+
+D09の[パッケージ設定／手入力](../domains/checkups/lifecycle.md#checkup-next-date-approved)は設定・保存済み日付・手入力日がなければ空欄とし、一律1年後を補完しない。D08の[過去接種後日入力](../domains/vaccinations/lifecycle.md#vaccination-retrospective-next-date)は実接種日より後の当時の次回日を期限経過後も保持し、通常入力の制約を全面解除しない。D06の[未定の途中保存](../domains/trimming/lifecycle.md#trimming-partial-save-undecided)は担当のみ・コースのみ・両方未定に対応し、実施／完了条件を新たに決めない。各ownerのFR／AC／画面・技術traceへ接続し、実装・実機受入とは分ける。
+
 ### 追加9点の接続再確認
 
 [追加9点の承認状態](../domains/SPECIFICATION_PROGRESS.md#additional-business-decisions-nine)を各owner本文へ反映し、追加差分の独立内容・構造レビューを通過。D04の重複警告／別登録と移管前影響確認、D05の履歴付きプラン変更、D07担当医任意／入力者ログ、D08次回日設定／手入力、D12実査誤入力訂正、D16実来院日、C03の死亡状態を保つ後日記録・退院・精算、D15の確認付きフォロー通知が対象。元の7群承認を維持する。文書接続の検査と全業務承認の確認を区別し、この表の掲載だけで承認根拠未照合を解消しない。
 
 D04の[連絡先重複](../domains/owners-pets/lifecycle.md#requirement-fr-owners-pets-contact-duplicate-warning)は権限内候補と別owner登録を許す条件で、同一人物・自動統合・receiptの証明ではない。[主飼主影響確認](../domains/owners-pets/lifecycle.md#requirement-fr-owners-pets-primary-transfer)では未来予約とLINE通知先を一覧確認し、保存前変化を再確認する。未連携の自動リンクと元飼主の過去資金移管を追加しない。
+
+
+### 後続第1・2・6項の接続
+
+D01／D18の[分類別・担当者別開始時刻](../line/reservation-spec.md#requirement-fr-line-reservations-business-start-times)は、通常診療の営業時間生成とトリミング登録時刻限定を分離し、時刻変更・担当者別設定・既存予約保護を扱う。[指名なし](../line/reservation-spec.md#line-no-nomination-unassigned)は担当者別設定と既存能力制約で判定しても実担当未定を保持し、仮候補を保存・表示・通知上の実担当にしない。D10の[停止支払方法](../domains/accounting/lifecycle.md#accounting-inactive-payment-method)は新受領のみを制限し、D12／D16の過去支払履歴・集計を保持する。旧資金の再配分・預り充当／解除・返金へ新受領gateを一律適用しない。各ownerのID・版・認可・保存／結果照会と接続し、全過去業務承認や実装適合の網羅確認を表さない。文書候補の状態は[全体進捗](../domains/SPECIFICATION_PROGRESS.md#additional-business-decisions-six-followup)へ。

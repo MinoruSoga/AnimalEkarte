@@ -3,14 +3,14 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | page.settings.payment-methods／画面仕様 |
-| 決定状態 | 既存本文は継承（決定根拠未確認）。第六群の合意と未決は下記正本へ |
+| 決定状態 | 既存本文は継承（決定根拠未確認）。第六群と支払方法停止の追加合意・未決は下記正本へ |
 | 実装状態 | 既存記載を継承。今回の目標機能／認可適合は未確認 |
 | 実機検証状態 | 未実施 |
 | 文書確認日 | 2026-10-15 |
 
 ### 会計第六群との対応
 
-[第六群の業務正本](../../domains/accounting/lifecycle.md#accounting-agreement-sixth)と[マスタ変更権限](../../domains/accounting/lifecycle.md#requirement-fr-accounting-master-authorized-maintenance)へ従う。マスタ変更者は管理者と対象変更権限付きスタッフ。下記の固定4種／有効状態が選択肢に影響しない説明は現行挙動であり、将来の選択肢固定を承認したものではない。ADR003の現在の支払識別・集計整合は保持する。 全スタッフに変更を開放せず、対象grant・医院scopeを検査する。今回、実権限・設定・API／DBは変更していない。詳細な[現行mapping](../../../design/domains/accounting/technical-spec.md#accounting-master-permission-map)は技術仕様へ。
+[第六群の業務正本](../../domains/accounting/lifecycle.md#accounting-agreement-sixth)と[マスタ変更権限](../../domains/accounting/lifecycle.md#requirement-fr-accounting-master-authorized-maintenance)へ従う。マスタ変更者は管理者と対象変更権限付きスタッフ。下記の固定4種／有効状態が選択肢に影響しない説明は現行挙動。将来目標は[停止した方法を新しい入金で選べなくし、過去支払記録・集計に残す追加合意](../../domains/accounting/lifecycle.md#accounting-inactive-payment-method)へ従う。ADR003の現在の支払識別・集計整合は保持する。 全スタッフに変更を開放せず、対象grant・医院scopeを検査する。今回、実権限・設定・API／DBは変更していない。詳細な[現行mapping](../../../design/domains/accounting/technical-spec.md#accounting-master-permission-map)は技術仕様へ。
 
 
 ### 会計の保存・参照保護契約
@@ -31,14 +31,19 @@
 
 ### 2. 詳細編集サイドパネル (`SidePeekPanel`)
 - **名称**: レジ締め帳票や月次レポートの決済手段別内訳に表示される名前（例：現金、クレジットカード）。
-- **ステータス**: 利用停止した決済手段を「無効」に設定可能。
+- **ステータス**: 利用停止した決済手段を「無効」に設定可能。目標では停止後の新受領の選択・保存を制限し、過去支払記録・集計を保持する。変更権限と保存・監査は上記契約へ従う。
 
 ---
 
 ## 主要な機能
 
 ### 1. レジ精算・集計との連動
-会計精算画面の支払方法選択肢は固定4種（現金・クレジットカード・電子マネー・銀行振込）であり、本マスタの有効/無効は選択肢に影響しません（ADR-003 Option C）。支払記録は `system_key` 経由で本マスタに紐付き、レジ締め時の金種別計上や、月次レポートの決済手段別分析の集計軸となります。
+
+**追加合意の目標**：[業務正本](../../domains/accounting/lifecycle.md#accounting-inactive-payment-method)・[検査と履歴参照の設計](../../../design/domains/accounting/technical-spec.md#accounting-inactive-payment-design)へ従う。無効な方法は新規会計の実入金・後日回収・預り金／前金の新規受領で選べず、保存時にも現在状態を検査する。新規選択候補と過去参照を分け、停止済み方法の支払履歴・帳票参照・方法別集計を残す。既存資金の再配分・充当・解除／復元を新受領とせず、返金・誤記訂正へ追加禁止を導かない。既存の理由／確認・認可・金額保護は維持する。
+
+**現行実装の参照**：会計精算画面は固定4種（現金・クレジットカード・電子マネー・銀行振込）を表示し、本マスタの有効/無効が選択肢に影響しない。これは追加合意との実装差分であり、目標契約ではない。ADR-003 Option Cの安定識別は保持し、支払記録は `system_key` と医院内master IDの対応で本マスタへ結び、レジ締めや月次の集計軸を保つ。方法追加・ENUM廃止・初期値変更・移行は今回承認／実施していない。
+
+以下の図は現行実装の参照で、追加合意の対応完了を示さない。
 
 ```mermaid
 flowchart TB
@@ -66,7 +71,7 @@ flowchart TB
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
-| GET | `/api/v1/payment-methods` | 利用可能な支払方法一覧の取得 | `master-payment-method` | `view` |
+| GET | `/api/v1/payment-methods` | 支払方法マスタ一覧の取得（新受領の選択可否は上記目標契約で区別） | `master-payment-method` | `view` |
 | GET | `/api/v1/payment-methods/:id` | 特定の支払方法詳細の取得 | `master-payment-method` | `view` |
 | POST | `/api/v1/payment-methods` | 新規支払方法の作成 | `master-payment-method` | `create` |
 | PATCH | `/api/v1/payment-methods/:id` | 名称やステータスの更新 | `master-payment-method` | `edit` |

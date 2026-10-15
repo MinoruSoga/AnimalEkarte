@@ -8,6 +8,7 @@
 | 業務5点の根拠 | Sentinel_c713c4fdc74c819182979c4b8d2fef07：訂正・会計境界・その他逆遷移・延泊超過・旧マスタ補完を承認。技術方式の詳細全部は承認対象外 |
 | 技術4方針の根拠 | 2026-10-14 20:43 JST、Sentinel_570e060eda888191b8aeea7b5653eb07「ok」：固定指名を先に考慮する仮割当判定、操作別API／版／再送キー、受付・記録の同一transactionと確定後通知、切替済み経路の旧write停止を承認 |
 | LINE判定の訂正根拠 | Sentinel_08ce4d91de608191a05c30220331a832：LINEは実診療状態をチェックしない。個別編集許可 Sentinel_2334916604f88191830b7a194c74bf85／docs限定 Sentinel_61b62c3381b88191ad0d5af32bdcffb5。§4.2の予定枠基準へ反映 |
+| LINE指名なしの追加根拠 | 2026-10-15、Sentinel_0ebd3189f3408191ae0f69b158fcd353の第2項：担当未定で受け付け院内で後から決める。§4.2の仮計算と実担当保存を分離し、旧実担当自動委譲は目標仕様として採用しない。第1項の通常診療自動生成／トリミング登録限定・担当者別設定・時刻変更は後続のSentinel_9038af92002c819191dd97459b391b13で確定 |
 | 対応表の文書化根拠 | Sentinel_087e713d04548191b371bfdc4e19dbea「ok」：直前の読み取り調査に基づくAPI・保存項目・切替対象と他ドメイン参加条件のdocs限定具体化。現行API・DB・設定の更新や利用開始承認ではない |
 | 全境界具体化の根拠 | Sentinel_f19ab03e8c2c81919c6f589bcf563811：関連domainを含めdocs内の技術契約を一括具体化。新業務判断は追加せず、実装・設定・公開は行わない |
 | 当面の保存・廃棄の根拠 | Sentinel_9d85a7955b608191985bb02c2c9356a5：当面自動削除せず、具体的保存期間／削除手続きは全ドメイン共通で別途確定。法的年数・適合確認の承認ではない |
@@ -17,7 +18,7 @@
 
 ## 1. 目的・正本・制約
 
-[予約の合意索引](../../../spec/domains/reservations/README.md#approved-reservation-scope)の69固有FRと[継承参照](../../../spec/domains/reservations/README.md#inherited-reservation-references)2件を実現する方式を検討する。件数は今回参照した索引の値であり、全仕様定義数や実装済み数ではない。[語彙](../../../spec/ontology/reservations.md)、[横断契約](../../../spec/workflows/reservation-to-record-flow.md)、[18:26是正](../../../spec/domains/reservations/README.md#mece-corrections-1826)を参照し、業務ルール本文を複製しない。
+[予約の合意索引](../../../spec/domains/reservations/README.md#approved-reservation-scope)の既存69固有FRに、2026-10-15追加合意1のFR-line-reservations-business-start-timesを加えた70固有FRと、[継承参照](../../../spec/domains/reservations/README.md#inherited-reservation-references)2件を実現する方式を検討する。件数は今回参照した索引の値であり、全仕様定義数や実装済み数ではない。[語彙](../../../spec/ontology/reservations.md)、[横断契約](../../../spec/workflows/reservation-to-record-flow.md)、[18:26是正](../../../spec/domains/reservations/README.md#mece-corrections-1826)を参照し、業務ルール本文を複製しない。
 
 Spec Kitの[導入済み技術計画テンプレート](../../../../.specify/presets/animalekarte-canonical/templates/plan-template.md)のTechnical Context、Constitution Check、調査／判断待ち、Design and Contracts、Verification Planを参考にした。Task HandoffはPlaneへの参照へ置き換え、Spec Kitコマンド・全workflow・生成スクリプトは実行していない。
 
@@ -42,6 +43,8 @@ Spec Kitの[導入済み技術計画テンプレート](../../../../.specify/pre
 | [手動未来院・取消復元・分類跨ぎ](../../../spec/domains/reservations/README.md#mece-corrections-1826) | [intent repository](../../../../backend/internal/reservation/reservation_intent_repository.go)は4時間経過のMarkNoShow、[Lステップbatch](../../../../backend/internal/lstep/lstep_batch_noshow.go)から呼ぶ。汎用no_show更新を拒否 | 自動未来院を止め、手動intent・再受付再確認・取消復元・分類跨ぎ境界が必要。旧ロック／確定カルテ保護は保全 | §5、§6 |
 | [入院・ホテル](../../../spec/screens/settings/master-reservation-type.md#requirement-fr-reservation-types-hotel-inpatient-entry) | [モデル](../../../../backend/internal/model/hospitalization.go)はhotel/hospitalizationとdate期間・担当医。[service](../../../../backend/internal/medicalrecord/hospitalization_service.go)は未指定statusを開始日でadmitted/reservedに既定化 | 予定入院と明示開始・担当医・開始時記録・失敗時未確定との接続差分。任意担当医師、宿泊同一性・頭数上限・入退室時刻対応は未確認 | §3、§5、§6 |
 | [LINE公開・厳格受付・ホテル](../../../spec/line/reservation-spec.md) | [作成service](../../../../backend/internal/reservation/liff_service_reservations.go)はValidateAndCreate。[型](../../../../frontend/line-reserve/src/types/models.ts)はcategory2値。[availability](../../../../backend/internal/reservation/liff_service_availability_staff.go)はactive/公開をfilter | 4分類、医院別宿泊上限、全期間再判定、勤務の保存時再確認、受付前取消・入力保持の合意適合は未検証 | §4、§5、§6 |
+| [LINE分類別・担当者別開始時刻](../../../spec/line/reservation-spec.md#requirement-fr-line-reservations-business-start-times) | [LINE設定](../../../spec/screens/28-line-reservation.md)・[区分マスタ](../../../spec/screens/settings/master-reservation-type.md)は旧加算枠と区分単位の追加／削除APIを記載 | トリミング登録限定、担当者別設定・時刻変更、空き／保存時の再検証へ追従が必要。旧加算を目標仕様に維持しない。現行コードの全再監査なし | §4.2、§4.7、§6、§7.2、§8 |
+| [LINE指名なしの担当未定受付](../../../spec/line/reservation-spec.md#line-no-nomination-unassigned) | [飼主画面の旧説明](../../../spec/screens/37-line-reserve-owner-flow.md)にstaff_id=0／no_staff_modeによる自動割当の記載がある | 追加合意は未定保存・院内後決定。旧自動割当の実行経路と保存／応答／通知への漏出停止は実装前検証。今回コード再監査・実装・実機確認なし | §4.2、§4.7、§7.2、§8 |
 | [区分混在・部分重複の対応能力](../../../spec/domains/reservations/pages/reservation-management.md#requirement-fr-reservations-capacity-warning) | [現在の計数](../../../../backend/internal/reservation/reservation_capacity.go)は区分・同開始時刻件数とMaxConcurrent中心 | 指名済み占有・未定予約・個人能力・勤務／休憩を区分間で照合する§4.2の仮割当算法への変更が必要。現行計数を新仕様の成立根拠にしない | §4.2、§6、§8、§9 |
 
 ## 3. データモデル案と変更理由
@@ -137,6 +140,30 @@ Sentinel_f19ab03e8c2c81919c6f589bcf563811によるdocs限定の技術具体化�
 カレンダー警告・LINE空き・保存時再判定は同じ入力意味と算法を使い、保存時に最新データで再計算する。院内の警告確認・指名なし登録の既合意を維持し、LINEは拒否条件または判定不能を受入可へ変換しない。医院・区分をまたぐ共有担当資源の直列化を§6.2に接続する。診療中の引継ぎは残り時間／現在時点の正本で別評価し、この通常予約算法のために過去全体の勤務を再要求しない。
 
 LINEの空き表示・確定時再判定は[予定枠基準の最新訂正](../../../spec/line/reservation-spec.md#line-scheduled-slot-basis)に従い、固定指名の占有・未定予約の需要を予約の予定開始／予定終了で算法へ渡す。実際の診療中／終了・予定終了超過・実診療の見込終了を取得／検査条件にしない。予定枠が空く場合は実診療の継続だけで判定不能へ落とさず、実終了済みでも予定枠の正幅重複を消さない。取消等の既存計数境界、勤務・休憩・対応区分、登録不足／取得失敗・探索中断の判定は維持する。予定時刻の自動変更や診療状態の自動遷移は行わない。ホテルの実滞在計数、院内の引継ぎと未終了指名予約の変更保護は別契約で、LINEの予定枠基準を流用しない。母集団と試験探索限度は§4.6で選定し、実取得・index・性能値は要検証で、文書上の算法決定を実機成立へ置換しない。
+
+
+<a id="line-unassigned-persistence-contract"></a>
+#### LINE指名なしの判定・保存・院内後決定の分離
+
+[2026-10-15追加合意2](../../../spec/line/reservation-spec.md#line-no-nomination-unassigned)では、指名なしのcreateLiffReservationは`staff_id:null`を実担当未定として扱う。能力queryの仮割当は可否と根拠を得る計算内だけの値とし、予約の実担当ID、トリミング側の担当参照、担当履歴・引継ぎ・接続先記録へ書き込まない。成功応答・予約read・通知も保存された未定を参照し、仮候補で補完しない。未定需要は保存後も能力判定へ含め、nullを予約需要ゼロや定員検証不要へ読み替えない。
+
+確定時は§6の同一transaction／共通gate下で既存の予定枠・固定指名・他の未定予約・適格性を再評価し、受入可能な場合だけ未定の予約をcommitする。仮計算の成功と実担当の決定は別結果であり、後からの院内担当設定は同じ予約IDの許可済み編集intentに明示担当を渡し、期待版・権限・状態・その時点の適格性を再確認する。予約分類別の担当種類と個人能力を維持し、廃止済みの区分側職種gateを復活させない。明示指名と既存固定指名を変更しない。
+
+旧no_staff_mode設定や旧自動委譲経路が未定を実担当へ置き換えるwriteは、§7の切替時に停止する。設定値の削除・既存指名履歴の一括解除・自動移行を本追加合意で許可しない。結果不明時の照会／同一操作再送は元の予約結果を再利用し、新たな仮候補で担当を書き換えない。第1項の開始時刻方式は後続回答で確定し、[分類別・担当者別開始時刻](#line-business-start-times-contract)を新規受付候補の条件に加える。§4.2の既存の探索・固定指名・重複・全時間同一候補・全体可能性の規則は維持し、新しい同時枠数や上限は定めない。
+
+
+<a id="line-business-start-times-contract"></a>
+#### LINEの分類別・担当者別開始時刻設定と再検証
+
+[追加合意1](../../../spec/line/reservation-spec.md#requirement-fr-line-reservations-business-start-times)を、受付開始時刻の候補生成と§4.2の全体対応能力の両方へ接続する。通常診療は営業時間由来の生成に担当者別設定を反映し、トリミングは対象担当者に適用される登録開始時刻の集合だけを使う。旧`mergeAvailableTimeSlots`型の営業時間枠との和集合をトリミングへ適用しない。トリミングの未登録時刻をdefaultで生成せず、設定取得失敗は判定不能として扱う。ホテル全期間定員・入院相談は別dispatchのままにする。
+
+新規LINE申込の明示指名は指定スタッフの開始時刻設定を検査する。指名なしは、申込時刻を許可する担当者別設定と既存の全時間勤務・休憩・医院別能力・有効／公開条件をすべて満たす候補集合で全体可能性を判定する。スタッフごとの可否を単に足し合わせず、既存固定指名・他の未定予約・共有資源の連鎖を保つ。候補に含まれた担当者は仮計算用であり、実担当はnullのまま保存する。
+
+開始時刻設定は医院・予約区分／業務分類・スタッフ・適用日または曜日の文脈を区別する設定データとし、勤務情報や予約の実担当IDとは分離する。現行の区分単位available-slots APIだけで担当者別設定対応済みとはしない。既存の設定owner／認可の内側で担当者別の読取・時刻変更intentを定義し、対象ID・期待版・変更する時刻を明示する。版競合や保存失敗では編集案を保持して再取得・比較し、別担当者へ誤送信しない。操作URL・DDL・日別／毎週設定の具体的優先規則は実装設計で照合し、未承認の固定間隔・枠数・上限を設定schemaの既定値に追加しない。
+
+設定writerは§6の共通gate／関連revisionへ参加し、空き照会は設定revisionを根拠に持つ。予約確定は同じ医院・区分・スタッフ候補に対する最新設定をgate下で再照合し、表示時の設定やcacheだけでcommitしない。変更で旧選択が不可になれば既存の入力保持・再選択契約へ渡す。設定変更と予約作成の両先行順序、日付／担当者切替、同一操作再送を試験する。設定成功を既存予約の変更成功にしない。
+
+開始時刻設定は新規受付の候補を制約し、設定から消えた時刻の保存済み予約を消失扱いにしない。既存予約は保存済み予定枠の占有として引き続き計数し、実担当・予定日時・状態・履歴を自動変更しない。勤務・能力変更に対する既存指名保護や院内予約編集の条件も免除しない。旧区分単位データを全スタッフへ自動複製したり既存予約を新時刻へ移動したりする移行は承認に含まれない。新契約に参加しない旧加算計算・旧設定writerがトリミングの未登録時刻を公開／確定できる状態では切替を完了とせず、§7の停止・追従条件へ渡す。
 
 反例は、A指名Yの間にAだけが対応する未定X、開始時刻の異なる部分重複、途中で候補を切替えれば置けるが全時間を同じ人で置けない例、貪欲では失敗し再探索で成功する例、共有資源の連鎖、休憩端点、全／部分未登録、先行診療超過でも予定枠は空く例、実終了済みでも予定枠が重なる例、探索中断を含める。
 
@@ -249,7 +276,7 @@ Sentinel_087e713d04548191b371bfdc4e19dbeaで許可された文書具体化。下
 | 入院／hotel・trimming・billing内部参加 | §5.1のowner専用入力。既存owner URLからambient participantへ | 当該owner既存create/edit／取消／締め後等のgrantを保持。reservations grantだけで専用記録・会計を更新する入口を作らない |
 | setNextVisitIntent／clearNextVisitIntent | 既存pet単位URLを保持。setはintended_date（YYYY-MM-DD）、任意source_medical_record_id、expected_target（noneまたはid＋version）。clearは対象id＋expected_version。UUID headerと結果照会へ参加 | 新規reservations:create、上書きcreate＋edit、削除edit。tentative時刻はserver sentinel、母集団へ数えない |
 | confirmTentativeReservation | 既存confirm-tentative URL、expected_version、予定start/end、reservation_type_id、doctor_id（正ID/null）、visit_type、is_designated、任意notes／必要warning_receipt | reservations:edit。同じ予約IDを昇格、初期pending／confirmedはserverの予約intent、provenance保持 |
-| createLiffReservation | 既存URLにcourse_id、staff_id（正ID/null）、date（YYYY-MM-DD）、start_time/end_time（HHMM）、任意customer_fields/request_text/trimming_course_id/trimming_option_ids/trimming_style_requestを明示。UUID header必須、IDは十進文字列 | LINE認証から医院／customer解決、既存owner/petリンクがある場合は本人患者所有を確認。未link customerを新たに一律拒否せず、customer actor本人予約scopeは全員に必須。区分・登録field・コース／optionの公開範囲をserver検査。予定枠基準、指名なしnull、hotelは専用期間schemaへ |
+| createLiffReservation | 既存URLにcourse_id、staff_id（正ID/null）、date（YYYY-MM-DD）、start_time/end_time（HHMM）、任意customer_fields/request_text/trimming_course_id/trimming_option_ids/trimming_style_requestを明示。UUID header必須、IDは十進文字列 | LINE認証から医院／customer解決、既存owner/petリンクがある場合は本人患者所有を確認。未link customerを新たに一律拒否せず、customer actor本人予約scopeは全員に必須。区分・登録field・コース／optionの公開範囲をserver検査。予定枠基準と分類別・担当者別の開始時刻設定を再検証（§4.2）。指名なしnullは実担当未定のまま保存・返却し、仮候補や旧自動委譲で補完しない（§4.2）。hotelは専用期間schemaへ |
 | cancelLiffReservation／getLiffReservationOperation | cancelはexpected_versionとUUID header、lookupはkey＋登録済intent。本人の同医院予約だけ対象 | staff RBACへ合流させず、既存受付前取消境界保持。結果照会は同じcustomer scope |
 | LIFF hotel期間intent | course_id、予定入室／退室のoffset付き日時、本人予約に必要な登録fieldと任意request_text、UUID header。staff_idはnullのみ | 医師勤務なし、入退室の時間条件と全期間頭数をownerで再照合。飼主取消に版／キー適用、期間変更は医院側owner専用intent。LIFF日時変更／復元入口は設けず変更は医院連絡、超過overrideなし |
 
@@ -393,7 +420,7 @@ receiptを使う操作は先に短いmetadata-only claim transactionを完了す
 |:---|:---|:---|
 | 通常POST／PATCH／DELETE、batch、reservation-route：[route](../../../../backend/internal/reservation/routes.go)・[更新](../../../../backend/internal/reservation/reservation_service_update.go) | 作成／通常編集／状態intentを分離。メモ・経路変更も版を増分、制限項目を省略して迂回しない。削除は履歴保持の取消契約へ | 旧status・timestamp-only更新を新経路へ黙って変換せず拒否。任意の新分類を旧2値に保存しない |
 | 医院別admin予約POST／DELETE：[admin repo](../../../../backend/internal/reservation/appointment_admin_repository.go) | 同じ予約owner・医院認可・分類・版・lock・取消保持へ接続 | 通常APIだけの追従でこの入口を残さない |
-| LIFF空き／作成／本人取消：[LIFF service](../../../../backend/internal/reservation/liff_service_reservations.go) | customer scope・結果照会・版／再送と保存時算法。空きは予定枠、ホテルは別全期間計数 | 旧勤務／休憩取得失敗fallbackや2分類dispatchを使わない。既存自動委譲と判定用仮割当を別扱いにし、算法候補を実担当へ保存しない |
+| LIFF空き／作成／本人取消：[LIFF service](../../../../backend/internal/reservation/liff_service_reservations.go) | customer scope・結果照会・版／再送と保存時算法。空きは予定枠、ホテルは別全期間計数 | 旧勤務／休憩取得失敗fallbackや2分類dispatchを使わない。分類別・担当者別開始時刻を表示／確定の両方へ適用し、トリミングの旧加算計算を停止する。指名なしは担当未定で保存し、旧no_staff_modeによる実担当自動委譲writeは停止する。判定用仮割当は維持するが、保存・応答・表示・通知・担当履歴へ実担当として流さない |
 | tentative・次回予定確定／当日受付／吸収：[intent repo](../../../../backend/internal/reservation/reservation_intent_repository.go)・[handler](../../../../backend/internal/reservation/reservation_intent_handler.go) | 同じ予約・pet provenance・intent lock／CASを保全し、受付record participant・版／再送へ参加 | 新通常予約だけに適用して旧confirm／受付で誤記録を生成しない |
 | trimmingの予約作成／更新／削除participant（CreateForTrimming／UpdateForTrimming／DeleteForTrimming）：[intent repo](../../../../backend/internal/reservation/reservation_intent_repository.go) | 専用記録・予約の型付き最小interfaceを保持。共通版／分類・必要booking lockへ参加 | 通常診療状態・通常カルテへfallbackしない |
 | カルテからの予約補完／確定／削除：[crud](../../../../backend/internal/medicalrecord/medical_record_crud.go) | 既存ID・appointment関連・確定保護、予約補完writeの版・切替状態、§6.3の順序 | 新分類の未対応記録を作らず、通常予約handlerの名前判定だけで救済しない |
@@ -421,6 +448,8 @@ receiptを使う操作は先に短いmetadata-only claim transactionを完了す
 | 取消・未来院・再受付・訂正 | 同一予約を使った状態matrixと競合 | カルテ自動削除なし、不適格指名の手動修正、旧予約／記録の再利用、記入済日付・分類変更の通常操作拒否 |
 | 入院／hotel | 予定と実開始、記録作成失敗、全期間計数と同時確定 | 両入院入口重複なし。hotel担当医師未設定でも他条件を満たせば開始可・設定時の参照保持、同一宿泊1回、取消等除外、同時刻接触、延泊超過中の実績保持／調整後確定と例外禁止、予定超過未退室、途中休診を各ACで確認 |
 | LINE | 公開／本人医院分離、候補と保存条件、競合後入力保持 | hotel医師条件免除、入退室日時条件、未設定上限／設定不足、受付前取消、院内例外の不流用を確認 |
+| LINE分類別・担当者別開始時刻 | [追加合意1のAC](../../../spec/line/reservation-spec.md#line-acceptance-1723)、設定UI／API／空き照会／確定の照合 | 通常診療の生成、トリミング登録外拒否、担当者／医院別分離、指名なしの担当者別時刻＋全体能力判定、編集後再検証、既存予約保持、未登録／取得失敗、勤務・休憩・個人能力の非免除を確認。設定変更と予約確定の競合も検証 |
+| LINE指名なしの未定保存・院内後決定 | [追加合意2のAC](../../../spec/line/reservation-spec.md#line-acceptance-1723)と[表示AC](../../../spec/screens/37-line-reserve-owner-flow.md#line-channel-document-contract)、API／保存／read／通知の照合 | 診療・トリミングを個別に未定保存、固定指名を考慮した拒否、再計算後も仮候補非保存、不適格／判定不能の拒否、明示指名保持、院内での同一予約への適格担当設定を確認。旧設定・再送でも自動割当が復活しないことを検証 |
 | 能力計算・互換切替 | 仮割当fixtureとAPI／UI・DB並行検証 | 跨区分・部分重複・全時間同一候補・貪欲失敗と再探索・連鎖外側競合・探索中断を照合し、仮担当が保存されないことを確認。LINEは予定枠基準とし、診療超過のみの拒否なし／実終了による予定重複の除外なしを確認。旧画面表示後の区分追加で自動許可なし。新hotel＋旧general＋名称「お泊まり」は旧write拒否または正しい接続、復旧でも保護を維持 |
 | 回帰 | 既存write owner・認可・医院分離・record unique・保存契約・88ルート | 対象外の臨床承認・会計・trimming内部を変更せず、新しい他院参照・直接table writeを検出 |
 
@@ -437,7 +466,7 @@ receiptを使う操作は先に短いmetadata-only claim transactionを完了す
 
 Sentinel_f19ab03e8c2c81919c6f589bcf563811のdocs限定許可に基づき、予約との接続に必要な技術契約を§3.2・§4.7・§5.1・§6.4へ選定した。API schema／既存grant対応、最小患者登録、名称snapshot／停止flag、receiptの非再利用、全writer gate、記録訂正・不変会計確定歴・宿泊同一性と型付き記録参照は文書として具体化済み。現API／DDL／生成型は変更していない。
 
-選定のtrade-offは、共通gateによる医院横断write待機、改名時の未来snapshot同期更新、子入力を含む依存revision、消さない最小キーbindingの保管コストである。これらは技術選択であり、新業務遷移・他院参照・grant拡張ではない。予約69固有FRと継承参照2件、全仕様79FR／194AC、LINE予定枠基準、カルテ保存契約§2、88ルート対応は維持する。
+選定のtrade-offは、共通gateによる医院横断write待機、改名時の未来snapshot同期更新、子入力を含む依存revision、消さない最小キーbindingの保管コストである。これらは技術選択であり、新業務遷移・他院参照・grant拡張ではない。既存予約69固有FRと継承参照2件、従来集計の全仕様79FR／194ACと今回追加した開始時刻FR・受入条件、LINE予定枠基準、カルテ保存契約§2、88ルート対応は維持する。
 
 <a id="reservation-document-completion-gates"></a>
 <a id="92-文書の残りと実装前検証を分ける"></a>
@@ -452,7 +481,7 @@ Sentinel_f19ab03e8c2c81919c6f589bcf563811のdocs限定許可に基づき、予�
 | 記録確認訂正／会計確定歴／宿泊・専用記録接続 | §5.1で返却型・atomicity・停止条件を選定済み | owner実装への反映。記録内部・返金／締め後精算・ホテル任意担当医師はD05／D10／D12の最新正本へ従い、実装適合を別途確認する |
 | FR／受入条件／独立レビュー | 既存正本を維持し技術責務へ対応 | 本改訂の独立レビュー・リンク／索引検査証跡を完了時に報告。検査通過は実装成立の証拠ではない |
 
-**予約側の確定業務と技術接続契約の文書整理は完了。当面の自動削除停止も承認済み。ただし全ドメイン文書の完成・全writerの保持適合・実装可能という判定ではない。** 関連ドメイン内部の未決を予約APIの「schema未決」へ戻さず、各ownerの文書完了条件へ渡す。
+**基準82aa52f3時点の旧判定では、予約側の確定業務と技術接続契約の文書整理は完了としていた。今回の追加合意1・2の差分も固定39文書の独立内容レビュー・限定構造検査を通過し、今回の追加1FRを含む70FR索引と技術traceを照合した。旧判定と今回の検査根拠は分ける。当面の自動削除停止は承認済みだが、全ドメイン文書の完成・全writerの保持適合・実装可能という判定ではない。** 関連ドメイン内部の未決を予約APIの「schema未決」へ戻さず、各ownerの文書完了条件へ渡す。
 
 ### 9.3 業務判断と検証項目を分離する
 
@@ -470,7 +499,7 @@ Sentinel_f19ab03e8c2c81919c6f589bcf563811のdocs限定許可に基づき、予�
 
 ## 11. 合意FRへの対応索引
 
-以下は業務本文のコピーではなく、今回の69固有FRから本書の検討責務を辿る索引。継承2件と対象外の業務正本は別扱い。索引の網羅は実装完了を示さない。
+以下は業務本文のコピーではなく、既存69固有FR＋今回追加1件＝70固有FRから本書の検討責務を辿る索引。継承2件と対象外の業務正本は別扱い。索引の網羅は実装完了を示さない。
 
 | 要件ID | 業務正本 | 技術設計の参照範囲 |
 |:---|:---|:---|
@@ -534,7 +563,8 @@ Sentinel_f19ab03e8c2c81919c6f589bcf563811のdocs限定許可に基づき、予�
 | FR-shifts-manual-travel-gap | [登録者が医院間移動時間を確保](../../../spec/screens/24-shift-calendar.md#requirement-fr-shifts-manual-travel-gap) | §3・§4・§7・§8 |
 | FR-line-reservations-public-business-routing | [公開対象と業務分類による接続](../../../spec/line/reservation-spec.md#requirement-fr-line-reservations-public-business-routing) | §3〜§6・§8 |
 | FR-line-reservations-acceptance-bounds | [受付期間・休診日・時間外・対応可能人数](../../../spec/line/reservation-spec.md#requirement-fr-line-reservations-acceptance-bounds) | §3〜§6・§8 |
-| FR-line-reservations-no-nomination | [指名なしとホテルの担当分離](../../../spec/line/reservation-spec.md#requirement-fr-line-reservations-no-nomination) | §3〜§6・§8 |
+| FR-line-reservations-business-start-times | [分類別・担当者別の開始時刻と変更](../../../spec/line/reservation-spec.md#requirement-fr-line-reservations-business-start-times) | [§4.2の開始時刻契約](#line-business-start-times-contract)・§4.7・§6・§7.2・§8。AC-line-start-times-general-generated／trimming-registered-only／staff-separated／unassigned-feasibility／edit-and-recheck／existing-booking-preserved／trimming-unregistered／not-duty-permission |
+| FR-line-reservations-no-nomination | [指名なしとホテルの担当分離](../../../spec/line/reservation-spec.md#requirement-fr-line-reservations-no-nomination)。2026-10-15追加合意2は実担当未定保存・院内後決定 | §3〜§6・§7.2・§8。特に[判定・保存分離](#line-unassigned-persistence-contract)、AC-line-no-nomination-save-unassigned／fixed-feasibility／recalculation／later-clinic-assignment／ineligible-or-unknown／explicit-choice-retained |
 | FR-line-reservations-reselect-after-change | [状況変化時の入力保持と日時再選択](../../../spec/line/reservation-spec.md#requirement-fr-line-reservations-reselect-after-change) | §3〜§6・§8 |
 | FR-line-reservations-owner-cancel | [来院受付前の飼主取消・変更案内](../../../spec/line/reservation-spec.md#requirement-fr-line-reservations-owner-cancel) | §3〜§6・§8 |
 | FR-line-reservations-required-setup | [必要設定不足の新規選択不可と宿泊期間](../../../spec/line/reservation-spec.md#requirement-fr-line-reservations-required-setup) | §3〜§6・§8 |

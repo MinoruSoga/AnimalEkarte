@@ -3,7 +3,7 @@
 | 項目 | 内容 |
 |:---|:---|
 | 文書ID・種別 | D06-TECH / 技術設計・現行差分 |
-| 決定状態 | 既存契約の継承と安全条件の具体化。完了後専用訂正は2026-10-15追加回答で承認（実装適合は別）。死亡後の生前分専用処理も最新承認を反映 |
+| 決定状態 | 既存契約の継承と安全条件の具体化。完了後専用訂正は2026-10-15追加回答で承認（実装適合は別）。死亡後の生前分専用処理、担当／コース未定の途中保存も最新承認を反映 |
 | 実装状態 | 2026-10-15に限定ソース静的照合。全writer／HTTP／DB適合未確認 |
 | 実機検証状態 | 未実施 |
 | 文書確認日 | 2026-10-15 |
@@ -31,7 +31,15 @@ reservationがappointment lifecycleの唯一writer。trimmingはCreateForTrimmin
 
 参照：[service](../../../../backend/internal/trimming/trimming_service.go)、[create](../../../../backend/internal/trimming/trimming_service_create.go)、[update](../../../../backend/internal/trimming/trimming_service_update.go)、[mutate](../../../../backend/internal/trimming/trimming_service_mutate.go)。
 
-CreateInput／UpdateInputはservice型でありHTTP schemaそのものではない。serviceの任意値をUI必須条件や業務例外へ読み替えない。新規経路の画面必須条件と、既存予約から必要値を補う経路を分けて確認する。record_shortcutによる予約制約の適用差はD01の正本を維持し、任意のstatusを指定すれば全制約を回避できるという仕様にしない。
+CreateInput／UpdateInputはservice型でありHTTP schemaそのものではない。serviceの任意値だけを業務承認の根拠にせず、[最新第5項合意](../../../spec/domains/trimming/lifecycle.md#trimming-partial-save-undecided)の担当／コース未定の途中保存を目標とする。新規経路の旧画面必須条件と既存予約経路の双方を照合し、全体への適合済みとはしない。record_shortcutによる予約制約の適用差はD01の正本を維持し、任意のstatusを指定すれば全制約を回避できるという仕様にしない。
+
+## 担当／コース未定の途中保存
+
+新規・既存予約へのdetail作成・既存記録の続き入力で、担当のみ未定／コースのみ未定／両方未定の値を表現し、再取得後も未定のまま保持する。患者・トリミング区分・医院／予約scopeと既存の認可・状態・安全制約は維持する。未定を表すための架空staff ID、既定course ID、料金の自動補完を作らない。未取得／取得失敗と未定を区別し、取得失敗で既存参照を消さない。
+
+現在のStaffID→doctor_id対応、course参照、create必須validation、既存予約からの補完、PATCHの未送信／明示解除とDB nullableを照合する。任意pointerの存在だけでUI・HTTP・全writerが適合済みとしない。未送信で既存参照を保持する契約は維持し、途中保存の許可だけで新しい汎用clear APIを定義しない。後から指定する値は既存の担当適格性・有効master条件で検証し、同じ予約/detail・必要監査の保存単位を維持する。失敗・結果不明は既存の入力保持・同一対象照合を用いる。
+
+途中保存を「進行中」等の表示へ対応させることと、実施／完了の許可判定を分離する。新状態enumや実施／完了時の新しい必須条件は今回決めない。旧新規画面の担当・コース必須は解消対象の実装差、必要wire adapterと全入口・再表示の適合は未確認。
 
 ## PATCHと部分入力
 
@@ -99,14 +107,14 @@ D10へ渡す確認単位はclinic、owner、pet、appointment/detail、course/op
 | FR ID | AC ID（全件・一意） | 技術対応 |
 |:---|:---|:---|
 | FR-trimming-reservation-and-detail | AC-trimming-existing-reservation / AC-trimming-duplicate-detail / AC-trimming-direct-time | reservation intent／detail・options・監査同一tx |
-| FR-trimming-input-master-history | AC-trimming-new-required / AC-trimming-inactive-master / AC-trimming-history-copy / AC-trimming-size-pricing | 有効master／既存無効保持・履歴copy対象限定 |
+| FR-trimming-input-master-history | AC-trimming-new-required / AC-trimming-save-undecided-staff / AC-trimming-save-undecided-course / AC-trimming-save-undecided-both / AC-trimming-undecided-resume / AC-trimming-undecided-scope / AC-trimming-inactive-master / AC-trimming-history-copy / AC-trimming-size-pricing | 未定の途中保存／既存対象再開／実施完了条件を追加しない境界・有効master／既存無効保持・履歴copy対象限定 |
 | FR-trimming-safety-and-status | AC-trimming-deceased-loading / AC-trimming-deceased-history / AC-trimming-context-result / AC-trimming-stale-update | 現在患者／新たな施術拒否・死亡状態保持の生前分専用記録／状態・版 |
 | FR-trimming-image-lifecycle | AC-trimming-image-inflight / AC-trimming-image-failure / AC-trimming-image-clear / AC-trimming-image-race / AC-trimming-image-cross-clinic / AC-trimming-image-only-dirty / AC-trimming-image-original-retention | 正規key lock／参照・原本保持・送信済key保護 |
 | FR-trimming-billing-handoff | AC-trimming-billing-pull | 未請求pull／追加時snapshotとD10再適用境界 |
 | FR-trimming-delete-and-atomicity | AC-trimming-atomic-write / AC-trimming-delete-dependency | 依存検査・detail/options同一tx・監査 |
 | FR-trimming-special-correction | AC-trimming-correction-history / AC-trimming-correction-no-side-effects | 原記録関連／理由actor時刻・金銭在庫別owner |
 
-AC prefixはAC-trimming-。FR7件／AC23件と既存画面・master2件、現在の型／保存／画像・原子性・他owner境界を整理した文書範囲。独立レビュー済み候補（追加承認差分は再レビュー）。専用訂正の実装、全writer互換／実データsnapshot／権限・receipt実装、X03/X06、実機・運用開始は未確認。
+AC prefixはAC-trimming-。FR7件／AC28件と既存画面・master2件、現在の型／保存／画像・原子性・他owner境界を整理した文書範囲。最新の途中保存承認差分を含め独立内容レビュー・限定構造検査済み。専用訂正の実装、全writer互換／実データsnapshot／権限・receipt実装、X03/X06、実機・運用開始は未確認。
 
 
 ## 追加承認の実装契約と保存境界

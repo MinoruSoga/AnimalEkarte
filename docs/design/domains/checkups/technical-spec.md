@@ -4,7 +4,7 @@
 |---|---|
 | 文書ID | design-D09-checkups-technical |
 | 種別 | 技術契約・実装差分 |
-| 決定状態 | 既存記載を継承（個別の決定根拠は本文参照。根拠未確認部分は承認済みとしない）＋D03合意目標への接続。死亡後の生前分後日入力・誤記訂正の最新承認を反映。対象外の未決は保持 |
+| 決定状態 | 既存記載を継承（個別の決定根拠は本文参照。根拠未確認部分は承認済みとしない）＋D03合意目標への接続。死亡後の生前分後日入力・誤記訂正、および健診パッケージ設定／手入力・設定なし空欄の最新承認を反映。対象外の未決は保持 |
 | 実装状態 | 本文の現コード観察と目標契約を分離。コードに存在するだけでは業務承認済み・目標実装済みとしない |
 | 実機検証状態 | 今回未実施。既存証跡の引用は今回の実機受入を意味しない |
 | 文書確認日 | 2026-10-15 |
@@ -12,7 +12,7 @@
 既存仕様の継承とD03の合意済み目標を整理した文書候補。ソフトウェア仕様の整理、実装完了、実機受入、医師による具体的な臨床数値の承認は別の判定とする。
 
 ## 対象
-[業務正本](../../../spec/domains/checkups/lifecycle.md)の5FR／31AC。基準commit `41fcf3eb0a8befb7c0b5f613d1df749a60e30be8`。静的文書／source照合のみ、実装・DB・runtime未変更。[ADR004](../../../architecture/adr/004-checkup-canonical-system.md)とD03[型／writer](../medical-records/technical-spec.md#medical-record-reconciled-contract)を継承。
+[業務正本](../../../spec/domains/checkups/lifecycle.md)の5FR／35AC。基準commit `41fcf3eb0a8befb7c0b5f613d1df749a60e30be8`。静的文書／source照合のみ、実装・DB・runtime未変更。[ADR004](../../../architecture/adr/004-checkup-canonical-system.md)とD03[型／writer](../medical-records/technical-spec.md#medical-record-reconciled-contract)を継承。
 
 ## 正系統・入口・権限
 Checkupのみが健診記録／集計／閾値の正系統。Examinationの退役seed IDを再利用しない。masterはcheckup_types／fields、実績はcheckups／field_resultsで医院scopeを保つ。
@@ -21,6 +21,12 @@ Checkupのみが健診記録／集計／閾値の正系統。Examinationの退�
 - 一覧からの編集はカルテの健診tab/checkupId。独立編集routeは追加しない。
 
 [現package service](../../../../backend/internal/medicalrecord/checkup_type_service.go)は名称必須／医院内一意、価格非負、parent_id同医院、子種別／健診使用がある削除の拒否を持つ。parent解除はClearParentIDであり未送信と分ける。項目writeはfieldService配線済みの場合のみroute登録される。未配線APIを実在する保存先として案内しない。マスタAPIの存在だけで全フィールド編集UIが完成したとはしない。
+
+## 次回予定日とパッケージ設定の適合
+
+[最新第3項合意](../../../spec/domains/checkups/lifecycle.md#checkup-next-date-approved)に従い、packageの次回日設定を同じ医院・選択パッケージで参照し、独立フォーム／カルテ内へ同じ意味で渡す。設定に基づく候補、手入力、保存済み日付、未設定を区別する。新規で設定・保存済み日付・手入力日がなければ空欄を保存・再表示し、既定1yearや任意の固定間隔を作らない。手入力日・保存済み日付は現在マスタ設定から無警告で再計算・消去しない。
+
+現packageの間隔属性／APIの存在だけで設定の編集・読取・全フォーム初期化が適合済みとしない。設定なしと設定取得失敗／未知値を区別し、取得失敗を空欄既定や一律1年候補へ変換して正常取得・保存成功と扱わない。入力・保存済み日付を保持し、既存の取得状態表示・再取得へ接続する。未送信／null／明示解除のwire差は既存型を照合し、既存値の解除方法をこの文書で発明しない。具体的間隔、日付の計算表現、API／DB adapterの適合は実装工程で検証する。本変更は業務目標と受入・traceのみで、実装・設定・臨床数値を変更しない。
 
 ## 死亡登録後の生前健診の専用経路
 
@@ -33,7 +39,7 @@ Checkupのみが健診記録／集計／閾値の正系統。Examinationの退�
 |:---|:---|:---|
 | 健診本体 | [service](../../../../backend/internal/medicalrecord/checkup_service.go)：checkup_type_id、pet_id、date、next_date、doctor_id、result。versionなし | 現期待版なしを競合制御済みとしない。clinic/親/子/患者/マスタを再照合 |
 | 担当医 | doctor_id_clear=trueでNULL、なければdoctor_id指定か保持 | null／未送信を解除としない。actorと担当医は別 |
-| 次回日 | optional pointer、独立formは1year候補から初期値 | 空文字／nullで解除可能と仮定しない。新しい日付制約を未承認で追加しない |
+| 次回日 | optional pointer、旧独立formは1year候補から初期値 | 目標はパッケージ設定の候補または手入力。設定・保存済み日付・手入力日がなければ空欄。旧1year初期値は解消対象。空文字／nullで既存値を解除可能と仮定せず、未送信・未設定・明示解除を分離する |
 | field | number／text／boolean／single_select／multi_select／checklist、field ID | 型に対応する値だけ保存。0/false/nullを区別。異種値を他列へ残さない |
 | 結果PUT | [request](../../../../backend/internal/medicalrecord/checkup_field_request.go)：results未送信/nullは拒否、[]は明示全消去、最大200件 | PUT単位の置換。UI表示上の空と意図した全削除を区別する |
 | 定義解決 | [field service](../../../../backend/internal/medicalrecord/checkup_field_result_service.go)：field名／型／単位／範囲をサーバ解決・snapshot | 別医院／package field・無効choice拒否。status/is_abnormalをclientから採用しない |
@@ -70,7 +76,7 @@ Checkupのみが健診記録／集計／閾値の正系統。Examinationの退�
 | 技術部分 | 業務AC suffix |
 |:---|:---|
 | 正系統 | canonical, retired-id |
-| 入口・本体型 | chart-entry, quick-entry, edit-entry, required, doctor-clear, next-manual |
+| 入口・本体型 | chart-entry, quick-entry, edit-entry, required, doctor-clear, next-manual, next-package-candidate, next-no-setting-blank, next-history-preserved, next-setting-unknown |
 | field型・置換 | value-types, field-scope, invalid-choice, replace-missing, replace-empty, replace-failure, master-change, unassessed |
 | 保護・復帰 | deceased-history, deceased-boundary, finalized, scope-grant, partial-save, unknown-result, concurrent, leave-limit |
 | 一覧・受け手 | alert, list-scope, followup-confirmation, followup-purpose, followup-recovery, notify-failure, publication |
