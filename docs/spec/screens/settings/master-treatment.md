@@ -1,5 +1,18 @@
 # 診療項目マスタ 仕様書 (Treatment Items)
 
+| 管理項目 | 記載 |
+|:---|:---|
+| 文書ID・種別 | page.settings.master-treatment／画面仕様 |
+| 決定状態 | 既存本文は継承（決定根拠未確認）。第六群の合意と未決は下記正本へ |
+| 実装状態 | 既存記載を継承。今回の目標機能／認可適合は未確認 |
+| 実機検証状態 | 未実施 |
+| 文書確認日 | 2026-10-15 |
+
+### 会計第六群との対応
+
+[第六群の業務正本](../../domains/accounting/lifecycle.md#accounting-agreement-sixth)と[マスタ変更権限](../../domains/accounting/lifecycle.md#requirement-fr-accounting-master-authorized-maintenance)へ従う。全体割引から除外する品目を該当する品目マスタで指定できることが目標。現行の保険対象外を代用せず、保存対応済みとも扱わない。価格等のマスタ変更者は管理者と対象変更権限付きスタッフ。既存の診療master履歴保持の正本も維持する。 全スタッフに変更を開放せず、対象grant・医院scopeを検査する。今回、実権限・設定・API／DBは変更していない。詳細な[現行mapping](../../../design/domains/accounting/technical-spec.md#accounting-master-permission-map)は技術仕様へ。
+
+
 2026-10-14、入力4項目合意の[診療master権限編集・無効化と当時内容保持](../../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-master-history-snapshots)が業務正本。対象masterの操作grant・医院scopeを保持し、無効項目を新規選択せず、既存記録に保存した名称・対象が持つ単位／価格は当時内容を保持する。旧実装説明だけでsnapshot保持済みと判断しない。
 
 ## 概要

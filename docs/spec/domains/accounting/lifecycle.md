@@ -3,7 +3,7 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | lifecycle.accounting／業務・保存境界 |
-| 決定状態 | 初回〜第五群で更新した計8FRは合意済み。未決は末尾に分離 |
+| 決定状態 | 初回〜第六群で更新した計9FRは合意済み。未決は末尾に分離 |
 | 実装状態 | 未確認。現行との差分は技術仕様に明示 |
 | 実機検証状態 | 未実施 |
 | 文書確認日 | 2026-10-15 |
@@ -15,13 +15,13 @@
 
 決定者は依頼ユーザー。根拠は Sentinel_51dfbdb2423c8191a01a32d1f934b91b の「1 はい はい（過去の未払い分などいくら払うかは自由に決められる）／2〜5 ok」、単価手修正・複数割引併用の追加確認 Sentinel_dd33527fe92c8191ab9b6c0f85b0e2d6 の「yes」。docs反映承認は Sentinel_c71afbfafbe0819198fb3f69dab9f53a。2026-10-14に反映。個人名の追記・優先度・数値目標は未確認で、コードや旧文書から補完しない。
 
-本書が初回5点〜第五群の業務正本。[語彙](../../ontology/accounting.md)は定義・関係、[技術仕様](../../../design/domains/accounting/technical-spec.md)は実現案と現行差分。[画面](pages/accounting-settlement.md)の継承本文・API表は旧挙動の参照で、今回の合意と異なる箇所を現行制約として区別する。保険オンライン請求や機器連携を追加しない。
+本書が初回5点〜第六群の業務正本。[語彙](../../ontology/accounting.md)は定義・関係、[技術仕様](../../../design/domains/accounting/technical-spec.md)は実現案と現行差分。[画面](pages/accounting-settlement.md)の継承本文・API表は旧挙動の参照で、今回の合意と異なる箇所を現行制約として区別する。保険オンライン請求や機器連携を追加しない。
 
 第二群の根拠は Sentinel_e6565c89fd488191982ad524c997fe6c の質問へのユーザー Sentinel_6d647c8c719c81919daecc6db67d9455（1は前金を使う旨の修正、3 yes／4 ok／5 yes）と、Sentinel_b4d6e8ae144081919d9e19d797a2faba の訂正例・表示・前金説明へのユーザー Sentinel_67776f0e70c881919019002d47011b1e のok。前金を扱わない案は不採用。第2問の「どういうこと？」は承認とせず、後続説明へのokを根拠とする。下記の更新を第二群として2026-10-14に反映。
 
 ## 担当者・権限・前提
 
-請求訂正・取消・返金は権限のあるスタッフが理由付きで行う。実際の職種／権限識別子のmapping、訂正・取消の確認段階等は未確認。返金は第三群で金額による追加承認なしを合意済みで、総額上限・理由・方法と返金権限の検査は維持する。現在のgrantを新しい全操作の認可へ無条件転用しない。医院・飼主・ペットの分離と原記録保護を維持する。
+請求訂正・取消・返金は権限のあるスタッフが理由付きで行う。実際の職種／権限識別子のmapping、訂正・取消の確認段階等は未確認。返金は第三群で金額による追加承認なしを合意済みで、総額上限・理由・方法と返金権限の検査は維持する。現在のgrantを新しい全操作の認可へ無条件転用しない。医院・飼主・ペットの分離と原記録保護を維持する。価格・割引・保険・支払方法のマスタ変更は[第六群の権限契約](#requirement-fr-accounting-master-authorized-maintenance)に従い、会計を操作できることだけでマスタ変更を許可しない。
 
 ## 契機・入口・出口
 
@@ -79,7 +79,16 @@
 5. 値引き・配賦後の税抜額を請求書単位・税率ごとに合計し、その合計に対する消費税額の1円未満を一度だけ切り捨てる。明細ごとに税を丸めて合計しない。飼主向け税込料金表示と、確定した請求書の税率別税額を区別し、表示用の明細税込額から請求書税額を逆算しない。
 6. 保険は既決どおり値引き後の保険対象金額を基準とし、対象外行を混ぜない。保険給付の税抜／税込基準・税額との具体的関係、割合・上限・端数の算式や最終窓口負担額は未決。今回の税計算契約から、保険給付が課税標準を減額する等の新ルールを推定しない。
 
-上記は値引き前税抜明細額が1円単位で確定した場合の契約。小数数量／単価の積に1円未満が生じる場合の明細額確定、割引対象外項目の具体定義・選択方法は未決で、既存式から補完しない。配賦対象が確定した場合の計算方式を合意したもので、未承認の対象外規則を作らない。
+上記は値引き前税抜明細額が1円単位で確定した場合の契約。小数数量／単価の積に1円未満が生じる場合の明細額確定は未決で、既存式から補完しない。全体割引から除外する品目の指定方法は第六群で品目マスタ設定と合意した。対象品目の初期値・移行値・明細値引きの除外規則を推定しない。
+
+<a id="accounting-insurance-and-exclusion"></a>
+#### 第六群：複数保険会社と品目マスタの全体割引除外
+
+窓口精算は複数の保険会社を扱う。アニコムはユーザーが挙げた例であり、一社限定でも採用会社・商品一覧の確定でもない。会社／商品ごとの対象項目・割合・上限・税抜／税込基準・端数・最終窓口負担の具体式は未決。既決の割引後保険・スタッフによる確認修正と計算根拠保存を維持し、会社名だけから同じ算式を全商品へ適用しない。オンライン請求の着手や自動連携も追加しない。
+
+会計全体の割引から除外する品目を品目マスタで指定できる。会計時点の指定を根拠として保持し、除外行は全体割引の対象額合計と配賦先の双方から外す。除外行の全体割引配賦額は0円、行の明細割引後金額を全体割引で減らさない。全行が除外なら対象額0円として実全体値引き・配賦とも0円とし、請求には除外行の金額と適用税を保持する。これは全請求0円の意味ではない。品目マスタの全体割引除外と保険対象外・税区分は別設定で、明細値引きを一律禁止する合意にも広げない。
+
+例：明細割引後の税抜A1,000円・B2,000円でBを全体割引から除外し、全体100円引きならAへ100円、Bへ0円を配賦し、残額は900円・2,000円。Bの税区分・保険対象根拠は保持する。マスタ変更だけで保存済みの除外指定・配賦・帳票を変更しない。品目ごとの既定値、既存明細／編集中会計に変更を反映するタイミング、具体的なUI・schemaは設計残件。
 
 <a id="accounting-calculation-examples"></a>
 #### 計算例と保存する根拠
@@ -105,6 +114,20 @@
 国税庁[No.6371](https://www.nta.go.jp/taxes/shiraberu/taxanswer/shohi/6371.htm)は、適格請求書に記載する消費税額等の端数処理を一の適格請求書につき税率ごとに1回とし、切捨て・四捨五入等の方法は選択可能としている。本製品が請求書で税率ごとに切り捨てることは今回選んだ方針であり、切捨てが法令上唯一の方式という意味ではない。適格請求書の要件を全ての通常請求書に同じ法的義務があるとの説明へ拡張しない。
 
 国税庁[No.6902](https://www.nta.go.jp/taxes/shiraberu/taxanswer/shohi/6902.htm)の消費者向け事前価格表示に関する総額表示を参照し、飼主向け料金は税込表示とする。内部計算の税抜基準とは別の要件。参照確認日は2026-10-15。適用税区分・適格請求書の全記載要件・保険扱い等の税務適合全体は医院の会計責任者等による確認が必要で、本仕様を法的適合の保証としない。
+
+<a id="accounting-agreement-sixth"></a>
+## 第六群の承認根拠と適用範囲
+
+2026-10-15、帳票・保険・マスタ4点の質問 Sentinel_3e1ed8bcd3608191a6cdf5b415c5a055 に対するユーザー Sentinel_f677bbe0853081918d52ae34f4be0f35 の「1 色々あります、例えばアニコムとか／2~4 ok」が根拠。複数保険会社を扱う前提、品目マスタでの会計全体割引除外指定、飼主名宛て・ペット別明細と訂正／部分返金の元取引・今回変更額の区別、管理者および権限を付けたスタッフによる価格・割引・保険・支払方法マスタ変更を反映する。会社・商品一覧や保険具体式、全スタッフへの一律許可は承認されていない。
+
+既存マスタ画面の「補償率の会計自動設定は未実装」「支払選択肢は固定4種」は現行／継承説明であり、将来の連携・選択肢を固定する承認ではない。品目の税務分類も旧例から承認扱いにしない。既存権限の読取mappingは[技術仕様](../../../design/domains/accounting/technical-spec.md#accounting-master-permission-map)へ分離し、runtime権限・設定・API／DBは変更しない。
+
+<a id="requirement-fr-accounting-master-authorized-maintenance"></a>
+### FR-accounting-master-authorized-maintenance：管理者と許可されたスタッフのマスタ変更
+
+価格・割引・保険・支払方法のマスタ変更は管理者に加え、その対象の変更権限を付与されたスタッフにも許可する。無権限スタッフ、閲覧権限だけのスタッフ、通常の会計操作だけが許可されたスタッフへ一律に変更を認めない。管理者も所属医院の範囲・現在認可・原記録保護を守る。特定の職種名だけで変更可否を決めない。
+
+変更時に対象マスタと操作権限・医院scopeをサーバー側で検査し、対象・変更前後・操作者・時刻を監査へ対応させる。マスタ編集権限と個別会計での手修正、権限グループの付与／変更、削除等の別操作を同一の許可にしない。実際のgrant／職種mappingと失効時の扱いはC04と照合し、現行grantを自動で追加・変更する承認ではない。マスタ変更後も会計時点の価格・割引・保険・支払方法の参照と履歴を保持し、保存済み会計や旧帳票を現値で上書きしない。
 
 <a id="accounting-agreement-fifth"></a>
 ## 第五群の承認根拠と残る確認
@@ -155,7 +178,9 @@
 
 未納一覧は今月売上がなくても過去未払いのある飼主を表示する。今月の売上有無を理由に未納を除外しない。検索／期間filter・基準日の詳細は別途設計するが、従来の「期間内売上ありのみ」を目標仕様として残さない。
 
-第三群で預り金／前金受領時は受領証、最終会計には預り金充当額と今回の入金額、返金時には返金額・方法・元取引番号を表示する。各取引を番号で追跡し、再発行でも元番号を維持する。再発行の履歴・版は別に残し、元番号維持を履歴上書きとしない。前金充当を新たな実受領とする帳票は出さない。番号の書式・採番方式・宛名／明細配置・発行操作の権限／保存形式は技術／未決の残件。
+第三群で預り金／前金受領時は受領証、最終会計には預り金充当額と今回の入金額、返金時には返金額・方法・元取引番号を表示する。各取引を番号で追跡し、再発行でも元番号を維持する。再発行の履歴・版は別に残し、元番号維持を履歴上書きとしない。前金充当を新たな実受領とする帳票は出さない。第六群で帳票は飼主名宛てとし、明細をペット別に区分すると合意した。元明細のペット参照を保持し、同飼主の複数ペットを一つの患者として表示しない。訂正・部分返金の帳票には元の取引と今回の変更額を区別して表示する。請求訂正による増減と実際の返金額・返金必要額も混同しない。例えば10,000円請求を9,000円に訂正した場合は元10,000円・今回減額1,000円を分け、実返金未実行なら返金済みと表示しない。入金10,000円から今回1,000円を実返金する場合は元入金と今回実返金1,000円を別に表示し、元入金を9,000円へ書き換えない。
+
+宛名・元ペット別明細・元取引・今回差分と既決の取引番号／再発行履歴を対応させる。番号の書式・採番方式、具体的な紙面配置・ページ分割・ペットへ帰属しない行の配置、発行操作の権限／保存形式は技術／未決の残件。
 
 ## 異常系・保存・取消
 
@@ -242,7 +267,7 @@
 | AC-accounting-discount-scope-separated | 明細10,000円に明細10%＋20%、続けて全体10% | 明細scope合算30%で7,000円、その後全体700円引きで6,300円。全scopeを40%としない | [FR](#requirement-fr-accounting-calculation-snapshot)・[第五群](#accounting-calculation-order)。保存根拠と計算結果を照合、実機未実施 |
 | AC-accounting-percent-discount-round-yen | 同scopeの税抜1,005円に10%＋50円引き | 割合値引き100.5円を101円に四捨五入してから50円を引き854円。割引後残額を四捨五入しない | [FR](#requirement-fr-accounting-calculation-snapshot)・[第五群](#accounting-calculation-order)。保存根拠と計算結果を照合、実機未実施 |
 | AC-accounting-invoice-proportional-remainder | 明細割引後1,000円・2,000円に全体100円引き | 比例配賦は33円・67円、合計100円。切捨て後の残1円は小数部分が大きい後者へ | [FR](#requirement-fr-accounting-calculation-snapshot)・[第五群](#accounting-calculation-order)。保存根拠と計算結果を照合、実機未実施 |
-| AC-accounting-invoice-zero-discount-base | 明細割引後の対象額は全て0円。全体100円引き警告を承認 | 実値引き0円・各行配賦0円・請求0円。0除算・負額・架空の入出金なし | [FR](#requirement-fr-accounting-calculation-snapshot)・[第五群](#accounting-calculation-order)。保存根拠と計算結果を照合、実機未実施 |
+| AC-accounting-invoice-zero-discount-base | 請求に含む全明細の明細割引後金額は0円（正額の除外行なし）。全体100円引き警告を承認 | 実値引き0円・各行配賦0円・請求0円。0除算・負額・架空の入出金なし | [FR](#requirement-fr-accounting-calculation-snapshot)・[第五群](#accounting-calculation-order)。保存根拠と計算結果を照合、実機未実施 |
 | AC-accounting-overdiscount-line-no-spill | A1,000円へ1,500円引き警告を承認。B2,000円は割引なし | A実値引き1,000円・残0円、B残2,000円。超過500円をBへ転用せず要求額と実適用額を保持 | [FR](#requirement-fr-accounting-calculation-snapshot)・[第五群](#accounting-calculation-order)。保存根拠と計算結果を照合、実機未実施 |
 | AC-accounting-overdiscount-invoice-effective-cap | 1,000円・2,000円へ全体4,000円引き警告を承認 | 全体実値引き3,000円を1,000円・2,000円へ配賦。各残0円、要求4,000円と超過1,000円を保持 | [FR](#requirement-fr-accounting-calculation-snapshot)・[第五群](#accounting-calculation-order)。保存根拠と計算結果を照合、実機未実施 |
 | AC-accounting-tax-invoice-rate-once | 値引き後の同じ10%課税行は税抜5円・5円。保険なし | 請求書の税率別合計10円に税1円、税込11円。行別0.5円を切り捨てて税0円としない | [FR](#requirement-fr-accounting-calculation-snapshot)・[第五群](#accounting-calculation-order)。保存根拠と計算結果を照合、実機未実施 |
@@ -250,16 +275,30 @@
 | AC-accounting-tax-exclusive-consumer-inclusive | 値引き後税抜1,008円・10%・保険なし | 税100円・請求税込1,108円。価格／値引きの計算基準は税抜、飼主向け料金表示は税込 | [FR](#requirement-fr-accounting-calculation-snapshot)・[第五群](#accounting-calculation-order)。保存根拠と計算結果を照合、実機未実施 |
 | AC-accounting-tax-category-snapshot | 異なる税区分・税率と保険対象区分の行に全体値引き後、マスタ変更 | 元行区分を保持して配賦・集約し、保存済みの税額と保険対象根拠は変わらない。全品目を単一税率にしない | [FR](#requirement-fr-accounting-calculation-snapshot)・[第五群](#accounting-calculation-order)。保存根拠と計算結果を照合、実機未実施 |
 | AC-accounting-calculation-audit-replay | 値引き・超過警告承認・配賦・税丸めを含む会計を保存後に照合 | 元価格・各scopeの条件／要求額／実額・配賦・税率別結果と規則版を追跡できる。現在マスタで過去結果を置換しない | [FR](#requirement-fr-accounting-calculation-snapshot)・[第五群](#accounting-calculation-order)。保存根拠と計算結果を照合、実機未実施 |
+| AC-accounting-insurance-multiple-carriers | 異なる会社／商品を窓口精算で扱う | 複数社を表現できる。アニコムは例とし、一社／固定一覧や未確認の共通算式を確定しない | [FR](#requirement-fr-accounting-calculation-snapshot)・[第六群](#accounting-agreement-sixth)。本文と根拠を照合、実機未実施 |
+| AC-accounting-invoice-exclusion-master | 品目マスタで全体割引除外を指定 | 会計で品目ごとの指定を利用でき、根拠を追跡する。具体UI／保存形式は技術残件 | [FR](#requirement-fr-accounting-calculation-snapshot)・[第六群](#accounting-agreement-sixth)。本文と根拠を照合、実機未実施 |
+| AC-accounting-invoice-excluded-base-and-allocation | 明細後A1,000円・B2,000円、B除外、全体100円引き | 対象額1,000円、A配賦100円・B配賦0円、残900円・2,000円。Bを分母にも配賦先にも含めない | [FR](#requirement-fr-accounting-calculation-snapshot)・[第六群](#accounting-agreement-sixth)。本文と根拠を照合、実機未実施 |
+| AC-accounting-invoice-all-excluded-zero-base | 税抜1,000円の行を全体割引から除外、全体100円引き。保険なし | 対象額0円・実全体割引0円・配賦0円。元行1,000円と適用税は残し、請求全体を0円にしない | [FR](#requirement-fr-accounting-calculation-snapshot)・[第六群](#accounting-agreement-sixth)。本文と根拠を照合、実機未実施 |
+| AC-accounting-invoice-exclusion-not-insurance | 全体割引除外の行が保険対象、または独立の明細割引を持つ | 全体割引除外だけで保険対象外・非課税・明細割引不可へ変更しない | [FR](#requirement-fr-accounting-calculation-snapshot)・[第六群](#accounting-agreement-sixth)。本文と根拠を照合、実機未実施 |
+| AC-accounting-invoice-exclusion-snapshot-stable | 除外指定を用いて会計保存後に品目マスタの指定を変更 | 過去会計の対象／除外・配賦・税額・帳票は保存時根拠を保持 | [FR](#requirement-fr-accounting-calculation-snapshot)・[第六群](#accounting-agreement-sixth)。本文と根拠を照合、実機未実施 |
+| AC-accounting-document-owner-addressee | 同飼主の複数ペットの会計帳票を発行 | 宛名は飼主名。ペット名を宛名の代用にしない | [FR](#requirement-fr-accounting-document-and-aged-debt)・[第六群](#accounting-agreement-sixth)。本文と根拠を照合、実機未実施 |
+| AC-accounting-document-pet-separated | 同飼主のペットA／Bの明細を同じ帳票へ出力 | 元明細のペット別に区分し、別ペットや他飼主の明細へ付け替えない | [FR](#requirement-fr-accounting-document-and-aged-debt)・[第六群](#accounting-agreement-sixth)。本文と根拠を照合、実機未実施 |
+| AC-accounting-document-correction-original-delta | 10,000円請求を9,000円へ訂正、実返金は未実行 | 元取引10,000円と今回減額1,000円を区別。変更後額や返金必要を実返金済みとしない | [FR](#requirement-fr-accounting-document-and-aged-debt)・[第六群](#accounting-agreement-sixth)。本文と根拠を照合、実機未実施 |
+| AC-accounting-document-partial-refund-original-delta | 元入金10,000円から今回1,000円を実返金 | 元取引と今回実返金1,000円・方法を区別し元番号へ追跡。元入金を上書きしない | [FR](#requirement-fr-accounting-document-and-aged-debt)・[第六群](#accounting-agreement-sixth)。本文と根拠を照合、実機未実施 |
+| AC-accounting-master-admin-edit | 所属医院の管理者が価格・割引・保険・支払方法のマスタ変更 | 対象／現在認可を検査して変更でき、変更前後・操作者を保持。医院境界を越えない | [FR](#requirement-fr-accounting-master-authorized-maintenance)・[第六群](#accounting-agreement-sixth)。本文と根拠を照合、実機未実施 |
+| AC-accounting-master-authorized-staff-edit | 当該マスタの変更権限を付与されたスタッフが変更 | 対象操作を許可できる。管理者だけに固定せず、職種名だけで判定しない | [FR](#requirement-fr-accounting-master-authorized-maintenance)・[第六群](#accounting-agreement-sixth)。本文と根拠を照合、実機未実施 |
+| AC-accounting-master-ungranted-staff-denied | 閲覧のみ／会計操作のみ／対象変更権限なしのスタッフがマスタ変更 | 成立させず、既存マスタ・保存済み会計は不変。全スタッフへ一律に許可しない | [FR](#requirement-fr-accounting-master-authorized-maintenance)・[第六群](#accounting-agreement-sixth)。本文と根拠を照合、実機未実施 |
+| AC-accounting-master-permission-rechecked | 編集開始後に対象変更権限が失効、または別医院を指定 | 保存時のサーバー認可で成立させず、UI表示・古い確認を許可の代用にしない | [FR](#requirement-fr-accounting-master-authorized-maintenance)・[第六群](#accounting-agreement-sixth)。本文と根拠を照合、実機未実施 |
 
 <a id="accounting-open-decisions"></a>
 ## 未決事項・関連仕様・根拠
 
-初回・第二群の40ACはIDを保持し、第三群で更新された予約必須・未決配分／割引等の条件を最新合意へ追従。第三群20AC・第四群6AC・第五群12ACを追加して計8FR／78AC。overdiscount-unresolved／overdiscount-post-warning-pending の既存AC識別子は参照互換のため保持するが、警告後の請求額0円下限は第四群の追加回答で合意済み。D10全体は進行中。次の5群は未決・責務先で、予約任意・同飼主の別予約／ペット利用、割合合算・割引後保険、保存後配分変更、別方法返金と金額追加承認なし、帳票番号維持、両粒度の割引利用・超過警告と承認後の請求額0円下限、会計取消の残高復元と別返金、第五群の明細→全体・比例配賦・税抜計算／税込表示・割合額四捨五入と税率別税切捨て・実値引き上限／他行転用なしを再質問しない。
+初回・第二群の40ACはIDを保持し、第三群で更新された予約必須・未決配分／割引等の条件を最新合意へ追従。第三群20AC・第四群6AC・第五群12ACに加え、第六群でマスタ変更1FR・14ACを追加して計9FR／92AC。既存8FR／78ACの識別子は保持する。overdiscount-unresolved／overdiscount-post-warning-pending の既存AC識別子は参照互換のため保持するが、警告後の請求額0円下限は第四群の追加回答で合意済み。D10全体は進行中。次の5群は未決・責務先で、予約任意・同飼主の別予約／ペット利用、割合合算・割引後保険、保存後配分変更、別方法返金と金額追加承認なし、帳票番号維持、両粒度の割引利用・超過警告と承認後の請求額0円下限、会計取消の残高復元と別返金、第五群の明細→全体・比例配賦・税抜計算／税込表示・割合額四捨五入と税率別税切捨て・実値引き上限／他行転用なし、第六群の複数保険会社・品目マスタの全体割引除外・飼主宛名／ペット別明細・元取引と今回変更額・管理者と権限付きスタッフのマスタ変更を再質問しない。
 
-1. 計算の残件：割引対象外項目の具体定義／選択方法、小数数量・単価による値引き前税抜明細額の1円未満処理、保険の税抜／税込基準・税額との関係・上限／端数・最終窓口負担の具体式、保険修正権限mapping。第五群の明細→全体・同scope割合合算・比例配賦・税抜計算／税込表示・値引き額四捨五入・税率別税切捨て・超過の実額上限は合意済み。同率配賦の固定順は技術案。品目別の税務分類・適格請求書全体・保険扱いの適合は医院の責任者等による確認が必要。
+1. 計算の残件：品目の全体割引除外の初期値・移行値／編集中会計への反映時点、小数数量・単価による値引き前税抜明細額の1円未満処理、保険会社／商品ごとの取扱一覧・税抜／税込基準・税額との関係・上限／端数・最終窓口負担の具体式、個別会計の保険修正権限mapping。第五群の明細→全体・同scope割合合算・比例配賦・税抜計算／税込表示・値引き額四捨五入・税率別税切捨て・超過の実額上限は合意済み。同率配賦の固定順は技術案。品目別の税務分類・適格請求書全体・保険扱いの適合は医院の責任者等による確認が必要。
 2. 預り金と訂正：会計取消時の残高復元と別返金は合意済み。取消以外の減額時の充当調整や既実返金等が混在する訂正の具体手順、自動失効の扱い、受領／充当権限mapping、医院間利用・飼主変更。予約必須や別予約利用の可否は既決へ戻さない。
 3. 訂正と回収範囲：取消後の再請求、新規請求＋過去回収の選択範囲、再配分と訂正の確認詳細、督促／貸倒。金額別の返金追加承認は設けない合意を保持。
-4. 帳票詳細：番号の形式・宛名／明細配置、訂正／部分返金時の表示、発行権限／保存形式。受領証・最終会計充当／今回入金・返金元番号／再発行番号維持は合意済み。
+4. マスタ・帳票詳細：価格／割引／保険／支払方法のマスタ変更者は管理者と権限付きスタッフと合意済み。既存grantとの安全な対応、各マスタ全体とUI・保存形式は残件。帳票の飼主宛名・ペット別明細・訂正／部分返金の元取引と今回変更額の区別は合意済み。番号形式・具体的な紙面配置／ページ分割・ペットへ帰属しない行・発行権限／保存形式は残件。受領証・最終会計充当／今回入金・返金元番号／再発行番号維持を保持する。
 5. 関連owner：ホテル必要額／時期／キャンセル料D05、施術D06・見積D11の受渡し、D12締め／D16集計、D13在庫、実機器／決済規約照合。実入出金と充当を区別し、自動外部連携や規約適合の承認へ広げない。
 
 [領域入口](README.md)・[予約／受付との横断正本](../../workflows/reservation-to-record-flow.md)・[カルテ保存正本](../medical-records/lifecycle.md#hybrid-sync)を維持。保険オンライン請求の着手しない判断と外部機器の未実装は[画面の既存記載](pages/accounting-settlement.md#decisions-evidence)を参照。

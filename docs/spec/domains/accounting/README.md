@@ -10,7 +10,7 @@
 
 ## 受入条件の所在
 
-画面固有の挙動・バリデーション・保護・API 権限は上記本文、今回合意の受入条件は[8FR／78AC](lifecycle.md#accounting-acceptance)、技術案と現行差分は[会計設計](../../../design/domains/accounting/README.md)。既存の具体的な確認手順は [S08 会計訂正](../../../ops/testing/scenarios/S08-accounting-corrections.md)・[S21 会計並行操作と冪等性](../../../ops/testing/scenarios/S21-accounting-concurrency-idempotency.md)・[S33 領収書](../../../ops/testing/scenarios/S33-receipt-print-pdf.md)を参照します。これらは条件・手順の所在であり、今回の整理で実機受入済みになったことを示しません。実行状態と証跡の入口は [docs/work/](../../../work/README.md)です。
+画面固有の挙動・バリデーション・保護・API 権限は上記本文、今回合意の受入条件は[9FR／92AC](lifecycle.md#accounting-acceptance)、技術案と現行差分は[会計設計](../../../design/domains/accounting/README.md)。既存の具体的な確認手順は [S08 会計訂正](../../../ops/testing/scenarios/S08-accounting-corrections.md)・[S21 会計並行操作と冪等性](../../../ops/testing/scenarios/S21-accounting-concurrency-idempotency.md)・[S33 領収書](../../../ops/testing/scenarios/S33-receipt-print-pdf.md)を参照します。これらは条件・手順の所在であり、今回の整理で実機受入済みになったことを示しません。実行状態と証跡の入口は [docs/work/](../../../work/README.md)です。
 
 ## 未決事項と実装状態
 
@@ -57,12 +57,12 @@ docs限定承認 Sentinel_f19ab03e8c2c81919c6f589bcf563811に基づき、[受け
 
 [現DTO／目標contract](../../../design/domains/medical-records/technical-spec.md#medical-record-reconciled-contract)へ接続する。confirmation ID＋record IDとaccounting IDは別。確認状態・確認／差戻しactor／時刻と、確認依存版の目標を分離する。現有効スタッフ所属検査を医院の医師確認済みとみなさず、実認可／確認医師対応は利用開始前に確認する。GET GetOrCreate初期化はwriter候補で、印刷用readは副作用なしprojectionへ。会計訂正の受渡しは対象ID／版・元訂正ref・理由・影響確認状態→owner側の現在検査／receipt。未納・返金・締め後の内部判断はD10／12へ残し、カルテの成功／案内で金銭処理完了としない。
 
-## D10初回〜第五群の反映範囲
+## D10初回〜第六群の反映範囲
 
-[初回](lifecycle.md#accounting-agreement-first-five)・[第二群](lifecycle.md#accounting-agreement-second)・[第三群](lifecycle.md#accounting-agreement-third)・[第四群](lifecycle.md#accounting-agreement-fourth)・[第五群](lifecycle.md#accounting-agreement-fifth)を反映し計8FR／78AC。既決の引継ぎ境界を維持し、内部判断の確定部分は正本、残件は[未決5群](lifecycle.md#accounting-open-decisions)へ参照する。
+[初回](lifecycle.md#accounting-agreement-first-five)・[第二群](lifecycle.md#accounting-agreement-second)・[第三群](lifecycle.md#accounting-agreement-third)・[第四群](lifecycle.md#accounting-agreement-fourth)・[第五群](lifecycle.md#accounting-agreement-fifth)・[第六群](lifecycle.md#accounting-agreement-sixth)を反映し計9FR／92AC。既決の引継ぎ境界を維持し、内部判断の確定部分は正本、残件は[未決5群](lifecycle.md#accounting-open-decisions)へ参照する。
 
 預り金は飼主単位で予約参照は任意。同飼主の別予約／別ペット会計へ、充当先と金額を確認して使える。元飼主・任意の元予約・受領／未充当残／利用可能額／充当／実返金を追跡し、二重入金・二重使用なし。別飼主への移管は未承認、全ホテル予約の前金必須を定義しない。
 
 割合合算→金額→割引後の保険対象額、古い請求順／同日作成順・理由付き保存後再配分、非現金超過の返金必要、元カード→現金等の別方法返金／金額追加承認なし、受領証・最終会計充当／今回入金・返金元取引番号／再発行番号維持を合意。実決済サービスの自動連携／規約適合を承認済みにしない。
 
-第四群で明細・会計全体の両割引、超過警告と承認して進めた請求額の0円下限、会計取消時の残高復元と別返金を反映。有効充当額は取消による解除・復元を反映する。[第五群](lifecycle.md#accounting-calculation-order)で明細→全体・比例配賦、税抜計算／税込表示、割合値引き額四捨五入と税率別税切捨て、超過の実額上限・他行転用なしを反映。[計算例と保存根拠](lifecycle.md#accounting-calculation-examples)・[公的根拠と製品選択の区別](lifecycle.md#accounting-tax-evidence)は正本へ。D10は進行中。保険具体式・割引対象外定義・小数数量等の元明細額確定、取消以外の減額時の充当調整、具体権限・帳票詳細・各masterの全体、他owner内部・全体横断照合、実装・実機は残件。D05ホテル料金／キャンセル料・D12締め内部を分離し、通常Undo停止とカルテ保存§2を維持。
+第四群で明細・会計全体の両割引、超過警告と承認して進めた請求額の0円下限、会計取消時の残高復元と別返金を反映。有効充当額は取消による解除・復元を反映する。[第五群](lifecycle.md#accounting-calculation-order)で明細→全体・比例配賦、税抜計算／税込表示、割合値引き額四捨五入と税率別税切捨て、超過の実額上限・他行転用なしを反映。[計算例と保存根拠](lifecycle.md#accounting-calculation-examples)・[公的根拠と製品選択の区別](lifecycle.md#accounting-tax-evidence)は正本へ。[第六群](lifecycle.md#accounting-agreement-sixth)で複数保険会社、品目マスタでの全体割引除外、飼主宛名／ペット別明細・元取引と今回変更額、管理者と権限付きスタッフによるマスタ変更を反映。現行grantの読取対応は[技術仕様](../../../design/domains/accounting/technical-spec.md#accounting-master-permission-map)へ。D10は進行中。保険会社／商品別具体式・除外設定の初期値／移行・小数数量等の元明細額確定、取消以外の減額時の充当調整、具体権限・帳票詳細・各masterの全体、他owner内部・全体横断照合、実装・実機は残件。D05ホテル料金／キャンセル料・D12締め内部を分離し、通常Undo停止とカルテ保存§2を維持。

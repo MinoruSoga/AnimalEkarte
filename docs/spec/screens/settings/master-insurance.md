@@ -1,5 +1,18 @@
 # 保険マスタ 仕様書 (Insurance Management)
 
+| 管理項目 | 記載 |
+|:---|:---|
+| 文書ID・種別 | page.settings.master-insurance／画面仕様 |
+| 決定状態 | 既存本文は継承（決定根拠未確認）。第六群の合意と未決は下記正本へ |
+| 実装状態 | 既存記載を継承。今回の目標機能／認可適合は未確認 |
+| 実機検証状態 | 未実施 |
+| 文書確認日 | 2026-10-15 |
+
+### 会計第六群との対応
+
+[第六群の業務正本](../../domains/accounting/lifecycle.md#accounting-agreement-sixth)と[マスタ変更権限](../../domains/accounting/lifecycle.md#requirement-fr-accounting-master-authorized-maintenance)へ従う。複数の保険会社を扱い、アニコムは例。取扱会社・商品一覧／具体式は未決。下記の補償率自動設定なしは現行記載で、将来の自動設定禁止を合意したものではない。 全スタッフに変更を開放せず、対象grant・医院scopeを検査する。今回、実権限・設定・API／DBは変更していない。詳細な[現行mapping](../../../design/domains/accounting/technical-spec.md#accounting-master-permission-map)は技術仕様へ。
+
+
 ## 概要
 - **画面の目的**: ペット保険（アニコム、アイペット等）の定義、および保険が補償する側の割合（「補償率」）の設定管理。
 - **URLパターン**: `/settings/insurance`
