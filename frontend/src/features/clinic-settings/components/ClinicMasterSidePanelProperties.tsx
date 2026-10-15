@@ -2,7 +2,10 @@ import { memo, useMemo, type ReactNode } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 import { FieldHelp } from "@/components/shared/FieldHelp";
+import { PropertyToggleButton } from "@/components/shared/SidePeek";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 import {
   DOCUMENT_SECTION_KEYS,
@@ -55,7 +58,7 @@ export function ClinicTextProperty({
 }) {
   return (
     <PropertyRow label={label} description={description}>
-      <input
+      <Input
         type={type}
         aria-label={label}
         className={PROP_INPUT_CLASS}
@@ -111,15 +114,14 @@ export function ClinicBooleanProperty({
 }) {
   return (
     <PropertyRow label={label} description={description}>
-      <button
-        type="button"
-        onClick={() => onChange(!value)}
-        aria-label={`${label}を切り替え`}
-        aria-pressed={value}
-        className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 min-h-11 cursor-pointer`}
+      <PropertyToggleButton
+        label={label}
+        pressed={value}
+        onPressedChange={onChange}
+        className="px-0.5"
       >
         <StatusPill status={value ? "active" : "inactive"} />
-      </button>
+      </PropertyToggleButton>
     </PropertyRow>
   );
 }
@@ -140,9 +142,9 @@ export function ClinicTextareaProperty({
 }) {
   return (
     <PropertyRow label={label} description={description}>
-      <textarea
+      <Textarea
         aria-label={label}
-        className={`${PROP_INPUT_CLASS} min-h-16 resize-y`}
+        className={`${PROP_INPUT_CLASS} min-h-16 resize-y field-sizing-fixed`}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}

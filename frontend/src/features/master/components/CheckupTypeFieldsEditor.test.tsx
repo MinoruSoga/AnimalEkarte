@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CheckupTypeFieldRow } from "@/hooks/use-checkup-fields";
+import { CheckupFieldTypeSelect } from "./CheckupTypeFieldEditors";
 import { CheckupTypeFieldsEditor } from "./CheckupTypeFieldsEditor";
 
 type FieldsQueryState = Pick<
@@ -114,6 +115,19 @@ describe("CheckupTypeFieldsEditor", () => {
       isError: false,
       isPending: false,
     });
+  });
+
+  it("keeps the accessible field-type selector native and reports selected values", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<CheckupFieldTypeSelect value="number" onChange={onChange} />);
+
+    const select = screen.getByRole("combobox", { name: "健診項目の種別" });
+    expect(select).toHaveAttribute("data-slot", "native-select");
+    expect(select).toHaveValue("number");
+
+    await user.selectOptions(select, "single_select");
+    expect(onChange).toHaveBeenCalledWith("single_select");
   });
 
   it("exposes accessible field create/edit/delete and reorder controls", async () => {

@@ -3,6 +3,7 @@ import type { ChangeEvent } from "react";
 import { MessageSquareText } from "lucide-react";
 
 import { MasterSidePanel, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
+import { Textarea } from "@/components/ui/textarea";
 import { LAYOUT } from "@/lib/design-tokens";
 
 import type { ChiefComplaintType } from "../api/chief-complaint-types";
@@ -96,8 +97,9 @@ export const ChiefComplaintSidePanel = memo(function ChiefComplaintSidePanel({
         label="説明"
         description="この主訴の説明文です。どのような症状・相談を想定した項目かを記録します。"
       >
-        <textarea
-          className={`${MASTER_INPUT_CLASS} min-h-[80px] resize-none`}
+        <Textarea
+          aria-label="説明"
+          className={`${MASTER_INPUT_CLASS} min-h-[80px] resize-none field-sizing-fixed`}
           value={formData.description}
           onChange={handleDescriptionChange}
           placeholder="説明を入力"

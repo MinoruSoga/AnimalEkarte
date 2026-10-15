@@ -1,8 +1,8 @@
 // Internal
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
+import { PropertyToggleButton } from "@/components/shared/SidePeek/PropertyToggleButton";
 import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
-import { C } from "@/lib/design-tokens";
 
 interface StatusToggleButtonProps {
   isActive: boolean;
@@ -22,15 +22,14 @@ export function StatusToggleButton({
 }: StatusToggleButtonProps) {
   return (
     <PropertyRow label="ステータス" description={description}>
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-label="ステータスを切り替え"
-        aria-pressed={isActive}
-        className={`inline-flex min-h-11 items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+      <PropertyToggleButton
+        label="ステータス"
+        pressed={isActive}
+        onPressedChange={() => onToggle()}
+        className="px-0.5"
       >
         <StatusPill isActive={isActive} />
-      </button>
+      </PropertyToggleButton>
     </PropertyRow>
   );
 }

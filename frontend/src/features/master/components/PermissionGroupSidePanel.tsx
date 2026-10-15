@@ -3,6 +3,8 @@ import type { ChangeEvent } from "react";
 import { Lock } from "lucide-react";
 
 import { MasterSidePanel, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 
@@ -135,8 +137,9 @@ export const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
           label="説明"
           description="この権限グループの説明です。どの役割・職種向けの権限セットかを記録します。"
         >
-          <textarea
-            className={`${MASTER_INPUT_CLASS} resize-none`}
+          <Textarea
+            aria-label="説明"
+            className={`${MASTER_INPUT_CLASS} resize-none field-sizing-fixed`}
             value={formData.description}
             onChange={handleDescriptionChange}
             placeholder="グループの説明"
@@ -149,10 +152,10 @@ export const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
           description="この権限グループの識別色です。一覧やバッジ表示に使われます。"
         >
           <div className="flex items-center gap-3">
-            <input
+            <Input
               type="color"
               aria-label="カラー"
-              className={`${LAYOUT.colorInputMedium} ${C.borderMedium}`}
+              className={`${LAYOUT.colorInputMedium} ${C.borderMedium} p-0`}
               value={formData.color}
               onChange={(event) => handleColorChange(event.target.value)}
             />

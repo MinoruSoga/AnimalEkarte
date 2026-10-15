@@ -1,9 +1,13 @@
 import { useState } from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { ClinicBooleanProperty, ClinicTextareaProperty } from "./ClinicMasterSidePanelProperties";
+import {
+  ClinicBooleanProperty,
+  ClinicTextProperty,
+  ClinicTextareaProperty,
+} from "./ClinicMasterSidePanelProperties";
 
 /**
  * EMR-411 C-2: 医院マスタの boolean プロパティボタンは、どの項目か分かる
@@ -73,7 +77,28 @@ describe("ClinicTextareaProperty accessible name (EMR-411 C-2)", () => {
     );
 
     const textarea = screen.getByRole("textbox", { name: "フッター" });
+    expect(textarea).toHaveClass("field-sizing-fixed");
     await user.type(textarea, "あ");
     expect(onChange).toHaveBeenCalledWith("あ");
+  });
+});
+
+describe("ClinicTextProperty", () => {
+  it("keeps the labeled controlled input callback contract", () => {
+    const onChange = vi.fn();
+    render(
+      <ClinicTextProperty
+        label="電話番号"
+        value=""
+        onChange={onChange}
+        placeholder="000-0000-0000"
+      />,
+    );
+
+    const input = screen.getByRole("textbox", { name: "電話番号" });
+    expect(input).toHaveValue("");
+    expect(input).toHaveAttribute("placeholder", "000-0000-0000");
+    fireEvent.change(input, { target: { value: "03-0000-0000" } });
+    expect(onChange).toHaveBeenCalledWith("03-0000-0000");
   });
 });

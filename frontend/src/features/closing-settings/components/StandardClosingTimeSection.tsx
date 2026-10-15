@@ -2,9 +2,11 @@ import { memo, useActionState, useLayoutEffect, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { toast } from "sonner";
 import { C, STYLE } from "@/lib/design-tokens";
+import { NativeCheckbox } from "@/components/ui/checkbox";
 import { FieldHelp } from "@/components/shared/FieldHelp";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { Input } from "@/components/ui/input";
 import { TableCell, TableHead } from "@/components/ui/table";
 import { handleApiError } from "@/lib/handle-api-error";
 import { getFormString } from "@/lib/form-data";
@@ -120,7 +122,7 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
                   content="午前（AM）と午後（PM）の区切りとなる時刻です。"
                 />
               </div>
-              <input
+              <Input
                 id="closing_am_pm_boundary"
                 name="closing_am_pm_boundary"
                 type="time"
@@ -158,7 +160,7 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
                   content="平日の午後（PM）終了時刻です。これ以降はEMG（緊急）として扱われます。"
                 />
               </div>
-              <input
+              <Input
                 id="closing_weekday_end"
                 name="closing_weekday_end"
                 type="time"
@@ -194,7 +196,7 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
                   content="日曜の午後（PM）終了時刻です。これ以降はEMG（緊急）として扱われます。"
                 />
               </div>
-              <input
+              <Input
                 id="closing_sunday_end"
                 name="closing_sunday_end"
                 type="time"
@@ -284,10 +286,11 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
                   key={day}
                   className="relative flex min-h-11 min-w-11 items-center gap-1.5 cursor-pointer"
                 >
-                  <input
-                    type="checkbox"
+                  <NativeCheckbox
                     name={`closed_weekday_${day}`}
                     checked={closedDays.has(day)}
+                    aria-label={WEEKDAY_LABELS[day]}
+                    className="peer absolute inset-0 size-full cursor-pointer opacity-0"
                     onChange={(event) => {
                       const checked = event.target.checked;
                       setClosedDays((previous) =>
@@ -296,11 +299,10 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
                           : new Set([...previous].filter((value) => value !== day)),
                       );
                     }}
-                    className="peer absolute inset-0 size-full cursor-pointer opacity-0"
                   />
                   <span
                     aria-hidden="true"
-                    className={`flex size-4 shrink-0 items-center justify-center rounded-xs border ${C.borderMedium} ${C.bgWhite} ${C.textOnBrand} transition-colors peer-checked:border-primary peer-checked:bg-primary peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring`}
+                    className={`flex size-4 shrink-0 items-center justify-center rounded-xs border ${C.borderMedium} ${C.bgWhite} ${C.textOnBrand} transition-colors peer-checked:border-primary peer-checked:bg-primary peer-checked:text-primary-foreground peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring`}
                   >
                     <Check className="size-3.5" />
                   </span>

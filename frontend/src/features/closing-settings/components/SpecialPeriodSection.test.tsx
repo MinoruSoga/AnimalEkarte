@@ -382,6 +382,7 @@ describe("SpecialPeriodSection", () => {
     it("全必須項目が空のまま保存をクリックすると action 経路で全項目が invalid になり mutate されない", async () => {
       renderSection(<SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />);
       fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
+      expect(screen.getByRole("textbox", { name: "開始日" })).toHaveValue("");
 
       fireEvent.click(screen.getByRole("button", { name: "保存" }));
 

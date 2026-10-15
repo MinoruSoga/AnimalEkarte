@@ -1,7 +1,12 @@
 import type { Dispatch, SetStateAction } from "react";
 import Pill from "lucide-react/dist/esm/icons/pill";
 
-import { MoneyInput, PropertyInput, PropertyRow } from "@/components/shared/SidePeek";
+import {
+  MoneyInput,
+  PropertyInput,
+  PropertyRow,
+  PropertyToggleButton,
+} from "@/components/shared/SidePeek";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
@@ -165,17 +170,16 @@ export function MedicineBasicFlagsSection({
         label="保険対象外"
         description="この薬品が保険適用の対象外かどうかです。対象外にすると保険計算から除外されます。"
       >
-        <button
-          type="button"
-          onClick={() =>
-            setFormDataDirty((prev) => ({ ...prev, isNonInsurance: !prev.isNonInsurance }))
+        <PropertyToggleButton
+          label="保険対象外"
+          pressed={formData.isNonInsurance}
+          onPressedChange={(value) =>
+            setFormDataDirty((prev) => ({ ...prev, isNonInsurance: value }))
           }
-          aria-label="保険対象外を切り替え"
-          aria-pressed={formData.isNonInsurance}
-          className={`inline-flex min-h-11 items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-1.5 cursor-pointer text-sm ${formData.isNonInsurance ? C.textBrand : C.text50}`}
+          className={`text-sm ${formData.isNonInsurance ? C.textBrand : C.text50}`}
         >
           {formData.isNonInsurance ? "はい" : "いいえ"}
-        </button>
+        </PropertyToggleButton>
       </PropertyRow>
 
       <PropertyRow label="備考" description={FIELD_DESCRIPTIONS.note}>

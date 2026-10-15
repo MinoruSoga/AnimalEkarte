@@ -147,6 +147,35 @@ describe("ShiftTemplateSidePanel EMR-241 time fields", () => {
     }
   });
 
+  it("keeps readonly time inputs accessible and associated with an existing validation error", async () => {
+    const user = userEvent.setup();
+    const item = template({ shift_type: "full", start_time: "", end_time: "" });
+    const onSave = vi.fn();
+    const props = {
+      item,
+      onClose: vi.fn(),
+      onSave,
+      isSaving: false,
+    };
+    const { rerender } = render(<ShiftTemplateSidePanel {...props} />);
+
+    await user.click(screen.getByRole("button", { name: "保存" }));
+    expect(
+      await screen.findByText("勤務種別では開始時刻と終了時刻を入力してください"),
+    ).toBeInTheDocument();
+
+    rerender(<ShiftTemplateSidePanel {...props} readOnly />);
+
+    for (const label of ["開始時刻", "終了時刻"]) {
+      const input = screen.getByLabelText(label);
+      expect(input).toHaveAttribute("readonly");
+      expect(input).toHaveAttribute("aria-invalid", "true");
+      expect(input).toHaveAttribute("aria-describedby", "shift-template-time-error");
+    }
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
   it("off で片方だけの時刻入力は拒否される", async () => {
     const user = userEvent.setup();
     const { onSave } = renderPanel(template({ shift_type: "off", start_time: "", end_time: "" }));

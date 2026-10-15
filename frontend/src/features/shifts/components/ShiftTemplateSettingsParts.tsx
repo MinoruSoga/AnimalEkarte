@@ -12,6 +12,7 @@ import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
+import { Input } from "@/components/ui/input";
 import { C, ICON, LAYOUT, STYLE } from "@/lib/design-tokens";
 import { SHIFT_TYPE_LABELS, type ShiftTemplate } from "../types";
 import {
@@ -210,10 +211,10 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
 
           <div className="pb-1 mb-4">
             <div className="flex items-center gap-1">
-              <input
+              <Input
                 type="text"
                 aria-label="テンプレート名"
-                className={`flex-1 min-w-0 bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0 focus-visible:ring-2 ${C.focusRingAccent40}`}
+                className={`flex-1 min-w-0 bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none h-auto p-0 focus-visible:ring-2 ${C.focusRingAccent40}`}
                 style={{
                   fontSize: LAYOUT.pageTitle.fontSize,
                   fontWeight: LAYOUT.pageTitle.fontWeight,

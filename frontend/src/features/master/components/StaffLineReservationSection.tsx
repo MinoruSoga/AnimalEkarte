@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import { PropertyRow } from "@/components/shared/SidePeek";
 import { C, ICON, PALETTE, STYLE } from "@/lib/design-tokens";
 
@@ -43,7 +44,7 @@ export function StaffLineReservationSection({
         label="LINE表示名"
         description="LINE予約画面で飼主に表示されるスタッフ名です。空欄の場合は氏名が使われます。"
       >
-        <input
+        <Input
           type="text"
           aria-label="LINE表示名"
           className={MASTER_INPUT_CLASS}
@@ -86,7 +87,7 @@ export function StaffLineReservationSection({
         label="LINE説明文"
         description="LINE予約画面でこのスタッフに表示される説明文です。"
       >
-        <input
+        <Input
           type="text"
           aria-label="LINE説明文"
           className={MASTER_INPUT_CLASS}
@@ -102,7 +103,7 @@ export function StaffLineReservationSection({
         label="画像URL"
         description="LINE予約画面でこのスタッフに表示する画像のURLです。"
       >
-        <input
+        <Input
           type="text"
           aria-label="画像URL"
           className={MASTER_INPUT_CLASS}
