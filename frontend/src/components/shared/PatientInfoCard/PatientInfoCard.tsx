@@ -215,7 +215,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
             ) : null}
             {petNumber ? (
               <span
-                className={`font-mono text-2xs px-1 py-0 rounded ${C.bgPage} border ${C.borderMediumLight} ${C.text40} leading-4`}
+                className={`font-mono text-2xs px-1 py-0 rounded ${C.bgPage} border ${C.borderMediumLight} ${C.text65} leading-4`}
               >
                 #{petNumber}
               </span>

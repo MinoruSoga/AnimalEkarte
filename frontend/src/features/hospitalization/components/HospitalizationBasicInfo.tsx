@@ -215,7 +215,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
           />
           <Label
             htmlFor="is_insurance"
-            className={`${H_STYLES.text.sm} ${C.text} cursor-pointer flex items-center gap-1`}
+            className={`${H_STYLES.text.sm} ${C.text} cursor-pointer flex items-center gap-1 mb-0`}
           >
             <ShieldCheck className={`${ICON.action} ${C.text60}`} />
             保険適用
