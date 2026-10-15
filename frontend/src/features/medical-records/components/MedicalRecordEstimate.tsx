@@ -1,9 +1,19 @@
-import { memo, useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import {
+  memo,
+  useState,
+  useMemo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useId,
+  useRef,
+} from "react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { EstimateForm } from "./EstimateForm";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
@@ -44,6 +54,7 @@ function hydrateFromEstimate(
     setComment: (v: string) => void;
     setRemarks: (v: string) => void;
     setGlobalDiscountAmount: (v: number) => void;
+    setInsuranceAmount: (v: number) => void;
     setItems: (v: TreatmentItem[]) => void;
   },
 ) {
@@ -51,6 +62,7 @@ function hydrateFromEstimate(
   setters.setComment(estimate.comment ?? "");
   setters.setRemarks(estimate.notes ?? "");
   setters.setGlobalDiscountAmount(estimate.discount_amount ?? 0);
+  setters.setInsuranceAmount(estimate.insurance_amount ?? 0);
   setters.setItems((estimate.items ?? []).map((item) => toTreatmentItem(item, standardTaxRate)));
 }
 
@@ -72,6 +84,8 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
   const [comment, setComment] = useState("");
   const [remarks, setRemarks] = useState("");
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
+  const [insuranceAmount, setInsuranceAmount] = useState(0);
+  const insuranceInputId = useId();
   const [items, setItems] = useState<TreatmentItem[]>([]);
 
   const { canEdit } = usePermission("medical-records");
@@ -115,6 +129,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
       setComment,
       setRemarks,
       setGlobalDiscountAmount,
+      setInsuranceAmount,
       setItems,
     });
   }
@@ -164,6 +179,11 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
     return { subtotal: t.subtotal, tax: t.tax, total: t.total };
   }, [activeItems]);
 
+  // PR669: 正味請求額は明細総額から値引・保険の実効控除を差し引く。
+  // 行なしはレガシー契約どおり 0。保存時の bounds 検証で負にはならない。
+  const netTotal =
+    activeItems.length === 0 ? 0 : Math.max(total - globalDiscountAmount - insuranceAmount, 0);
+
   /**
    * BUG-016: メイン保存 post-save から await される。
    * startTransition で包まない（await 不能・2回目以降の偽成功の温床）。
@@ -189,9 +209,17 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
       toast.error("値引額が合計金額を超えています");
       throw new Error("discount exceeds total");
     }
-    // 行なし置換は Create と同じレガシー契約: 正味合計 0、有効な割引メタデータは保持
-    // し、明細総額に対する超過チェックのみ適用しない。
-    const netTotal = activeItems.length === 0 ? 0 : total - globalDiscountAmount;
+    // PR669: 保険適用額も mutation 前に検証する（負・非安全整数・値引後残額超過は拒否）。
+    if (!Number.isSafeInteger(insuranceAmount) || insuranceAmount < 0) {
+      toast.error("保険適用額は0以上の整数で入力してください");
+      throw new Error("invalid insurance amount");
+    }
+    if (activeItems.length > 0 && insuranceAmount > total - globalDiscountAmount) {
+      toast.error("保険適用額が値引後の合計金額を超えています");
+      throw new Error("insurance exceeds total after discount");
+    }
+    // 行なし置換は Create と同じレガシー契約: 正味合計 0、有効な割引・保険メタデータは
+    // 保持し、明細総額に対する超過チェックのみ適用しない。
 
     const sentRows = activeItems.map((item, index) => {
       const persistedId = persistedItemIdByRowIdRef.current.get(item.id);
@@ -219,6 +247,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
       tax_total: tax,
       total_amount: netTotal,
       discount_amount: globalDiscountAmount,
+      insurance_amount: insuranceAmount,
       comment,
       notes: remarks,
       medical_record_id: Number(medicalRecordId),
@@ -271,6 +300,8 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
     tax,
     total,
     globalDiscountAmount,
+    insuranceAmount,
+    netTotal,
     comment,
     remarks,
     existingEstimate?.id,
@@ -309,13 +340,32 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
       <TreatmentDetailedSummary
         subtotal={subtotal}
         tax={tax}
-        total={activeItems.length === 0 ? 0 : Math.max(total - globalDiscountAmount, 0)}
+        total={netTotal}
         discountRate={ownerDiscountRate}
         discountAmount={globalDiscountAmount}
+        insuranceAmount={insuranceAmount}
         onUpdateDiscountAmount={setGlobalDiscountAmount}
         isDiscountRateReadonly
         disabled={!canEdit || !canChangeDiscount}
       />
+
+      {/* PR669: 保険適用額はカルテ編集権限で編集する（discount 権限とは独立）。 */}
+      <div className="flex items-center gap-2 -mt-4 mb-4">
+        <Label htmlFor={insuranceInputId} className={`font-medium ${C.text60}`}>
+          保険適用額
+        </Label>
+        <NumberInput
+          id={insuranceInputId}
+          className="w-28"
+          value={insuranceAmount}
+          min={0}
+          step={1}
+          suffix="円"
+          align="right"
+          disabled={!canEdit}
+          onChange={(v) => setInsuranceAmount(Number(v))}
+        />
+      </div>
 
       {/* Comments & Remarks */}
       <div className="grid grid-cols-1 gap-3">
