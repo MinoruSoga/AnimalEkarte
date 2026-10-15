@@ -47,6 +47,55 @@ function renderSidebarItem(
   );
 }
 
+describe("Sidebar active and group contract", () => {
+  it.each([
+    paths.accounting.getHref(),
+    paths.accounting.close.getHref(),
+    paths.accounting.closeHistory.getHref(),
+  ])("only the longest visible match is current: %s", (entry) => {
+    render(
+      <AuthContext.Provider value={authValue()}>
+        <MemoryRouter initialEntries={[entry]}>
+          {sidebarMenuSections
+            .flatMap((section) => section.items)
+            .map((item) => (
+              <SidebarItemWithPermission key={item.label} item={item} />
+            ))}
+        </MemoryRouter>
+      </AuthContext.Provider>,
+    );
+    const current = screen
+      .getAllByRole("link")
+      .filter((link) => link.getAttribute("aria-current") === "page");
+    expect(current).toHaveLength(1);
+    expect(current[0]).toHaveAttribute("href", entry);
+  });
+  it("sibling prefix does not match", () => {
+    renderSidebarItem({ label: "会計", path: "/accounting" }, false, "/accounting-extra");
+    expect(screen.getByRole("link", { name: "会計" })).not.toHaveAttribute("aria-current");
+  });
+  it("pathless groups expose one toggle button", () => {
+    renderSidebarItem({ label: "グループ", subItems: [{ label: "子", path: "/custom-child" }] });
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "グループ" }));
+    expect(screen.getByRole("link", { name: "子" })).toBeInTheDocument();
+  });
+  it("estimates are discoverable and permission filtered", () => {
+    const item = sidebarMenuSections
+      .flatMap((section) => section.items)
+      .find((item) => item.path === paths.estimates.getHref());
+    expect(item).toBeDefined();
+    const view = renderSidebarItem(item!);
+    expect(screen.getByRole("link", { name: "見積書管理" })).toHaveAttribute(
+      "href",
+      paths.estimates.getHref(),
+    );
+    view.unmount();
+    renderSidebarItem(item!, false, "/", () => false);
+    expect(screen.queryByRole("link", { name: "見積書管理" })).not.toBeInTheDocument();
+  });
+});
+
 describe("SidebarItemWithPermission", () => {
   it("サブメニュー付き項目で button の入れ子を作らない", () => {
     const { container } = renderSidebarItem({
@@ -129,7 +178,7 @@ describe("SidebarItemWithPermission", () => {
       hasPermission,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Lステップ連携を展開" }));
+    fireEvent.click(screen.getByRole("button", { name: "Lステップ連携" }));
     expect(screen.getByRole("link", { name: "配信監視" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "連携設定" })).not.toBeInTheDocument();
   });
@@ -240,6 +289,11 @@ const DESCRIBED_MENU: ReadonlyArray<{ label: string; path?: string; purpose: str
     path: paths.accounting.getHref(),
     purpose:
       "院内で行われた全診療・サービスの請求レコードを一覧表示・管理し、未精算の把握や過去の会計参照を行う。",
+  },
+  {
+    label: "見積書管理",
+    path: paths.estimates.getHref(),
+    purpose: "見積書を検索し、診療・サービスの明細と金額を作成・管理する。",
   },
   { label: "レジ締め", path: paths.accounting.close.getHref(), purpose: CLOSING_PURPOSE },
   { label: "締め履歴", path: paths.accounting.closeHistory.getHref(), purpose: CLOSING_PURPOSE },

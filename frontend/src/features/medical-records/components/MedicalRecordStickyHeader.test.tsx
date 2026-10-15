@@ -298,6 +298,21 @@ describe("MedicalRecordStickyHeader 診療日コールバック", () => {
     expect(onDateChange).toHaveBeenCalledWith("2026-10-14");
   });
 
+  it("Enterで確定してからblurしても onDateChange は同じ値で1回だけ呼ばれる", async () => {
+    const user = userEvent.setup();
+    const onDateChange = vi.fn();
+    renderHeader({ recordDate: "2026/10/13", medicalRecordId: "record1", onDateChange });
+
+    const input = screen.getByRole<HTMLInputElement>("textbox", { name: "診療日" });
+    await user.click(input);
+    await user.clear(input);
+    await user.type(input, "2026/10/14");
+    await user.keyboard("{Enter}");
+    await user.tab();
+    expect(onDateChange).toHaveBeenCalledTimes(1);
+    expect(onDateChange).toHaveBeenCalledWith("2026-10-14");
+  });
+
   it("診療日は内蔵クリアボタンを出さない（空値は API が受け付けない）", () => {
     renderHeader({ recordDate: "2026/10/13", medicalRecordId: "record1", onDateChange: vi.fn() });
 

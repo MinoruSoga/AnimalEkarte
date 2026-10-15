@@ -58,6 +58,7 @@ export function SinglePicker({
   const [focused, setFocused] = useState(false);
   const [inputText, setInputText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const lastInputCommitRef = useRef<string | null>(null);
 
   const selected = useMemo(() => parseLocalDate(value), [value]);
   const displayText = focused ? inputText : selected ? formatDisplay(selected) : "";
@@ -132,12 +133,13 @@ export function SinglePicker({
   const commitInput = useCallback(() => {
     if (disabled) return;
     const parsed = parseDateInput(inputText);
-    if (parsed) {
-      onChange(formatIso(parsed));
-      setInputText(formatSlash(parsed));
-    } else if (inputText.trim() === "") {
-      onChange("");
-      setInputText("");
+    if (parsed || inputText.trim() === "") {
+      const candidate = parsed ? formatIso(parsed) : "";
+      if (candidate !== lastInputCommitRef.current) {
+        lastInputCommitRef.current = candidate;
+        onChange(candidate);
+      }
+      setInputText(parsed ? formatSlash(parsed) : "");
     } else {
       setInputText(selected ? formatSlash(selected) : "");
     }
@@ -155,6 +157,7 @@ export function SinglePicker({
   );
 
   const handleFocus = useCallback(() => {
+    lastInputCommitRef.current = null;
     setFocused(true);
     setInputText(selected ? formatSlash(selected) : "");
   }, [selected]);
@@ -162,6 +165,7 @@ export function SinglePicker({
   const handleBlur = useCallback(() => {
     setFocused(false);
     commitInput();
+    lastInputCommitRef.current = null;
   }, [commitInput]);
 
   const handlePrevMonth = useCallback(() => {
@@ -214,7 +218,10 @@ export function SinglePicker({
             aria-describedby={ariaDescribedBy}
             onInvalid={onInvalid}
             value={displayText}
-            onChange={(e) => setInputText(e.target.value)}
+            onChange={(e) => {
+              lastInputCommitRef.current = null;
+              setInputText(e.target.value);
+            }}
             onFocus={handleFocus}
             onBlur={handleBlur}
             onKeyDown={handleInputKeyDown}

@@ -9,7 +9,7 @@
     "cf:secrets:prod": "cd backend && wrangler secret bulk .env --config wrangler.production.jsonc",
     "cf:migrate": "./infra/scripts/cf-run-migrate.sh",
     "cf:scheduler": "./infra/scripts/cf-scheduler-ops.sh",
-    "cf:smoke": "./infra/scripts/cf-crud-smoke.sh",
+    "cf:smoke": "python3 infra/scripts/cf-demo-smoke.py --auth",
     "cf:load-smoke": "k6 run load-tests/k6-cf-stg-sustained.js",
     "test:worker": "vitest run --config backend/worker/vitest.config.mts backend/worker",
     "typecheck:worker": "tsc --project backend/worker/tsconfig.test.json"

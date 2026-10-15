@@ -5,7 +5,8 @@
 ## Deploy
 
 - 自動: `staging` pushで`backend/**`、`.github/workflows/backend-deploy.yml`、root `package.json`、root `pnpm-lock.yaml`のいずれかが変わった場合。`infra/cloudflare/**`単独ではtriggerされず、Terraformは別の承認済みplan/apply手順で扱う。
-- 順序: **deploy → migrate → `/health` → optional smoke**。optional smoke は `STG_DEMO_*` の CRUD 確認であり、失敗してもジョブは落とさない。
+- 順序: **deploy → migrate → `/health` → required read-only demo auth smoke**。画面 demo login と deploy smoke は共通の `SEEDLOGIN_DEMO_PASSWORD` を使い、固定の合成 `執行` identity で login、`/me`、logout を確認する。失敗は deploy job を fail させる。
+- 通常の `cf:smoke` alias は `python3 infra/scripts/cf-demo-smoke.py --auth` に固定し、auth-only である。CRUD は `stg-demo-smoke.yml` の明示 `crud` mode と承認済み clinic scope に限る。新規 test permission-group / staff のみを作成し、POST-returned ID と合成 run tag の所有を確認した場合だけ cleanup する。financial、owner/pet、既存行、PHI は変更しない。親タスクが real smoke を実行・確認する前に PASS と報告しない。
 - 手動 dispatch も存在する。実行は人が対象 ref、approval、secret scope を確認して行う。
 
 ## DB and seed
@@ -29,8 +30,10 @@ HEAD の consumer（workflow contract）:
 | `CLOUDFLARE_API_TOKEN` | `backend-deploy.yml` `deploy`（environment: `staging`）、`frontend-deploy.yml` `deploy` の staging 経路、`worker-secret-sync.yml` |
 | `MIGRATE_RUN_SECRET` | `backend-deploy.yml` `deploy` の migrate ステップ |
 | `STG_DB_USER` / `STG_DB_PASSWORD` | `stg-migrate-direct.yml`、`worker-secret-sync.yml`（いずれも environment: `staging`） |
-| `STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD` | `backend-deploy.yml` の optional CRUD smoke（`continue-on-error: true`） |
-| `SEEDLOGIN_DEMO_PASSWORD` | `frontend-deploy.yml` の staging ビルド（demo login 埋め込み） |
+| `STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD` | legacy `cf-crud-smoke.sh` のみ。自動 smoke では消費しない |
+| `SEEDLOGIN_DEMO_PASSWORD` | `frontend-deploy.yml` staging build と `backend-deploy.yml` 必須 read-only login smoke |
+
+`STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD` は legacy 専用として保持し、この作業では削除・変更しない。画面 demo と `cf-demo-smoke.py --auth` は同じ `SEEDLOGIN_DEMO_PASSWORD` を使う。自動 deploy smoke は auth-only。fixture CRUD は明示承認済みの manual dispatch のみで、指定clinic内に作った二つの新規 fixtureだけを扱う。
 
 **共有名の注意**: `frontend-deploy.yml` は Production 経路の job でも同名 `secrets.CLOUDFLARE_API_TOKEN` を env へ読み込む（実 deploy token としては `Production` Environment の `PROD_CLOUDFLARE_API_TOKEN` を選択する）。repository の同名 secret を削除する前に、他の Environment・consumer が repository 側同名への fallback に依存していないことを人が確認する。未確認なら削除しない（STOP）。
 
@@ -52,7 +55,7 @@ HEAD の consumer（workflow contract）:
 - deploy 用 token と secret 書込み権限の分離は未完了のまま維持する。承認済みの新 token 発行と最小権限の検証が済むまで分離完了としない。
 - EMR-302 の完了を本 staging 移行の必須依存とはしない（投入先の整合確認は行う）。
 - 移行確認だけを目的に deploy/migrate/secret-write の副作用を持つ workflow（`backend-deploy.yml`、`stg-migrate-direct.yml`、`worker-secret-sync.yml`）を dispatch しない。これらは人間が対象 ref/head/Environment/scope を承認した実行のみ許容される。
-- `backend-deploy.yml` の optional smoke は `continue-on-error: true` で、secret 未設定時は skip して成功扱いになる。skip・失敗した smoke の緑を移行確認の証拠にしない。
+- `backend-deploy.yml` の read-only auth smoke は必須であり、secret 未設定・login・identity・logout の失敗は job failure になる。health や source-only checks は real smoke PASS を証明しない。
 
 ## Incident triage
 

@@ -83,12 +83,47 @@ describe("useCheckupForm mutation boundary", () => {
       data: { id: "pet-1", ownerId: "owner-1" },
       isLoading: false,
     } as ReturnType<typeof useGetPet>);
-    vi.mocked(useGetCheckupTypeFields).mockReturnValue({
+    vi.mocked(useGetCheckupTypeFields, { partial: true }).mockReturnValue({
       data: [],
-    } as ReturnType<typeof useGetCheckupTypeFields>);
+    });
     createMedicalRecordMock.mockResolvedValue({ id: "record-1" });
     createCheckupMock.mockResolvedValue({ id: "checkup-1" });
     replaceCheckupFieldResultsMock.mockResolvedValue(undefined);
+  });
+
+  it("new date uses JST today lazily and preserves explicit changes", () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-14T15:01:00Z"));
+      const { result, rerender } = renderHook(() => useCheckupForm(ALLOWED_MUTATION_PERMISSIONS));
+      expect(result.current.form.date).toBe("2026-10-15");
+      // PR665: 未タッチでも表示上の1年プリセットと同じ next_date が初期化される
+      expect(result.current.form.nextDate).toBe("2027-10-15");
+      act(() => result.current.setDate("2026-10-13"));
+      vi.setSystemTime(new Date("2026-10-15T15:01:00Z"));
+      rerender();
+      expect(result.current.form.date).toBe("2026-10-13");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("PR665: 未タッチの新規フォームは1年後の next_date を送る（日付変更で再計算）", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-14T15:01:00Z"));
+      const { result } = renderHook(() => useCheckupForm(ALLOWED_MUTATION_PERMISSIONS));
+      act(() => {
+        result.current.setCheckupTypeId("1");
+      });
+      expect(result.current.form.nextDate).toBe("2027-10-15");
+      // 日付変更は既存の checkupOverridesOnDate が nextDate を再計算する
+      act(() => result.current.setDate("2026-03-01"));
+      expect(result.current.form.date).toBe("2026-03-01");
+      expect(result.current.form.nextDate).toBe("2027-03-01");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("全ての登録が成功したactionだけが一覧へ遷移する", async () => {
@@ -255,7 +290,7 @@ describe("useCheckupForm mutation boundary", () => {
         resolveCheckup = resolve;
       }),
     );
-    vi.mocked(useGetCheckupTypeFields).mockReturnValue({
+    vi.mocked(useGetCheckupTypeFields, { partial: true }).mockReturnValue({
       data: [
         {
           id: 1,
@@ -268,7 +303,7 @@ describe("useCheckupForm mutation boundary", () => {
           sortOrder: 1,
         },
       ],
-    } as ReturnType<typeof useGetCheckupTypeFields>);
+    });
     const { result, rerender } = renderHook(
       ({ canEdit }: { canEdit: boolean }) => useCheckupForm({ canCreate: true, canEdit }),
       { initialProps: { canEdit: true } },
@@ -298,7 +333,7 @@ describe("useCheckupForm mutation boundary", () => {
         resolveCheckup = resolve;
       }),
     );
-    vi.mocked(useGetCheckupTypeFields).mockReturnValue({
+    vi.mocked(useGetCheckupTypeFields, { partial: true }).mockReturnValue({
       data: [
         {
           id: 1,
@@ -311,7 +346,7 @@ describe("useCheckupForm mutation boundary", () => {
           sortOrder: 1,
         },
       ],
-    } as ReturnType<typeof useGetCheckupTypeFields>);
+    });
     const { result, rerender } = renderHook(
       ({ canCreate }: { canCreate: boolean }) => useCheckupForm({ canCreate, canEdit: true }),
       { initialProps: { canCreate: true } },
@@ -341,7 +376,7 @@ describe("useCheckupForm mutation boundary", () => {
         resolveCheckup = resolve;
       }),
     );
-    vi.mocked(useGetCheckupTypeFields).mockReturnValue({
+    vi.mocked(useGetCheckupTypeFields, { partial: true }).mockReturnValue({
       data: [
         {
           id: 1,
@@ -354,7 +389,7 @@ describe("useCheckupForm mutation boundary", () => {
           sortOrder: 1,
         },
       ],
-    } as ReturnType<typeof useGetCheckupTypeFields>);
+    });
     const { result, rerender } = renderHook(() => useCheckupForm(ALLOWED_MUTATION_PERMISSIONS));
 
     prepareValidForm(result);

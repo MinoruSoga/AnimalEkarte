@@ -142,7 +142,7 @@ interface MedicalRecordInterviewHistoryCopySource {
  * EMR-356: 行に相関する体重測定の表示投影（feature InterviewWeightMeasurement と同形）。
  * 正本は vital_records。measuredAt は測定時点の ISO instant。
  */
-export interface MedicalRecordWeightMeasurement {
+interface MedicalRecordWeightMeasurement {
   id: string;
   value: number;
   unit: WireBodyWeightUnit;

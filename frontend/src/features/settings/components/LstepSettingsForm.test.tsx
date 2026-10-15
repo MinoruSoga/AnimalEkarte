@@ -183,10 +183,10 @@ describe("LstepSettingsForm — B: 保存・PATCH 送信 (FEAT-376)", () => {
   });
 
   it("同期ON状態で保存すると PATCH body に is_sync_enabled=true が含まれる", async () => {
-    let capturedBody: Record<string, unknown> | null = null;
+    const capture: { body: Record<string, unknown> | null } = { body: null };
     server.use(
       http.patch(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, async ({ request }) => {
-        capturedBody = (await request.json()) as Record<string, unknown>;
+        capture.body = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(configuredSyncOn);
       }),
     );
@@ -197,16 +197,16 @@ describe("LstepSettingsForm — B: 保存・PATCH 送信 (FEAT-376)", () => {
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
-      expect(capturedBody).not.toBeNull();
+      expect(capture.body).not.toBeNull();
     });
-    expect(capturedBody?.is_sync_enabled).toBe(true);
+    expect(capture.body?.is_sync_enabled).toBe(true);
   });
 
   it("同期OFF状態で保存すると PATCH body に is_sync_enabled=false が含まれる", async () => {
-    let capturedBody: Record<string, unknown> | null = null;
+    const capture: { body: Record<string, unknown> | null } = { body: null };
     server.use(
       http.patch(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, async ({ request }) => {
-        capturedBody = (await request.json()) as Record<string, unknown>;
+        capture.body = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(configuredSyncOff);
       }),
     );
@@ -217,9 +217,9 @@ describe("LstepSettingsForm — B: 保存・PATCH 送信 (FEAT-376)", () => {
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
-      expect(capturedBody).not.toBeNull();
+      expect(capture.body).not.toBeNull();
     });
-    expect(capturedBody?.is_sync_enabled).toBe(false);
+    expect(capture.body?.is_sync_enabled).toBe(false);
   });
 });
 
@@ -370,10 +370,10 @@ describe("LstepSettingsForm — F: CPMバージョン・休眠閾値 (Q19+Q21 Ph
   });
 
   it("保存すると PATCH body に cpm_version が含まれる", async () => {
-    let capturedBody: Record<string, unknown> | null = null;
+    const capture: { body: Record<string, unknown> | null } = { body: null };
     server.use(
       http.patch(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, async ({ request }) => {
-        capturedBody = (await request.json()) as Record<string, unknown>;
+        capture.body = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(configuredSyncOn);
       }),
     );
@@ -383,16 +383,16 @@ describe("LstepSettingsForm — F: CPMバージョン・休眠閾値 (Q19+Q21 Ph
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
-      expect(capturedBody).not.toBeNull();
+      expect(capture.body).not.toBeNull();
     });
-    expect(capturedBody?.cpm_version).toBe("v1");
+    expect(capture.body?.cpm_version).toBe("v1");
   });
 
   it("保存すると PATCH body に dormant_prevention_180_days が数値で含まれる", async () => {
-    let capturedBody: Record<string, unknown> | null = null;
+    const capture: { body: Record<string, unknown> | null } = { body: null };
     server.use(
       http.patch(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, async ({ request }) => {
-        capturedBody = (await request.json()) as Record<string, unknown>;
+        capture.body = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(configuredSyncOn);
       }),
     );
@@ -402,9 +402,9 @@ describe("LstepSettingsForm — F: CPMバージョン・休眠閾値 (Q19+Q21 Ph
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
-      expect(capturedBody).not.toBeNull();
+      expect(capture.body).not.toBeNull();
     });
-    expect(capturedBody?.dormant_prevention_180_days).toBe(180);
+    expect(capture.body?.dormant_prevention_180_days).toBe(180);
   });
 });
 
@@ -436,10 +436,10 @@ describe("LstepSettingsForm — G: CPM V2 来院数閾値", () => {
   });
 
   it("保存すると PATCH body に cpm_v2_coming_threshold が数値で含まれる", async () => {
-    let capturedBody: Record<string, unknown> | null = null;
+    const capture: { body: Record<string, unknown> | null } = { body: null };
     server.use(
       http.patch(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, async ({ request }) => {
-        capturedBody = (await request.json()) as Record<string, unknown>;
+        capture.body = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(configuredSyncOn);
       }),
     );
@@ -449,16 +449,16 @@ describe("LstepSettingsForm — G: CPM V2 来院数閾値", () => {
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
-      expect(capturedBody).not.toBeNull();
+      expect(capture.body).not.toBeNull();
     });
-    expect(capturedBody?.cpm_v2_coming_threshold).toBe(2);
+    expect(capture.body?.cpm_v2_coming_threshold).toBe(2);
   });
 
   it("閾値を変更して保存すると PATCH body に変更後の値が含まれる", async () => {
-    let capturedBody: Record<string, unknown> | null = null;
+    const capture: { body: Record<string, unknown> | null } = { body: null };
     server.use(
       http.patch(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, async ({ request }) => {
-        capturedBody = (await request.json()) as Record<string, unknown>;
+        capture.body = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(configuredSyncOn);
       }),
     );
@@ -471,9 +471,9 @@ describe("LstepSettingsForm — G: CPM V2 来院数閾値", () => {
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
-      expect(capturedBody).not.toBeNull();
+      expect(capture.body).not.toBeNull();
     });
-    expect(capturedBody?.cpm_v2_noah_threshold).toBe(20);
+    expect(capture.body?.cpm_v2_noah_threshold).toBe(20);
   });
 });
 
@@ -503,10 +503,10 @@ describe("LstepSettingsForm — H: CPM V1 判定閾値", () => {
   });
 
   it("保存すると PATCH body に cpm_v1_dormant_days が数値で含まれる", async () => {
-    let capturedBody: Record<string, unknown> | null = null;
+    const capture: { body: Record<string, unknown> | null } = { body: null };
     server.use(
       http.patch(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, async ({ request }) => {
-        capturedBody = (await request.json()) as Record<string, unknown>;
+        capture.body = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(configuredSyncOn);
       }),
     );
@@ -516,16 +516,16 @@ describe("LstepSettingsForm — H: CPM V1 判定閾値", () => {
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
-      expect(capturedBody).not.toBeNull();
+      expect(capture.body).not.toBeNull();
     });
-    expect(capturedBody?.cpm_v1_dormant_days).toBe(240);
+    expect(capture.body?.cpm_v1_dormant_days).toBe(240);
   });
 
   it("閾値を変更して保存すると PATCH body に変更後の値が含まれる", async () => {
-    let capturedBody: Record<string, unknown> | null = null;
+    const capture: { body: Record<string, unknown> | null } = { body: null };
     server.use(
       http.patch(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, async ({ request }) => {
-        capturedBody = (await request.json()) as Record<string, unknown>;
+        capture.body = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(configuredSyncOn);
       }),
     );
@@ -538,9 +538,9 @@ describe("LstepSettingsForm — H: CPM V1 判定閾値", () => {
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
-      expect(capturedBody).not.toBeNull();
+      expect(capture.body).not.toBeNull();
     });
-    expect(capturedBody?.cpm_v1_noah_ltv).toBe(100000);
+    expect(capture.body?.cpm_v1_noah_ltv).toBe(100000);
   });
 });
 
@@ -558,10 +558,10 @@ describe("LstepSettingsForm — I: 健診・予防タグ判定閾値", () => {
   });
 
   it("保存すると PATCH body に health_prevention_lookback_days が数値で含まれる", async () => {
-    let capturedBody: Record<string, unknown> | null = null;
+    const capture: { body: Record<string, unknown> | null } = { body: null };
     server.use(
       http.patch(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, async ({ request }) => {
-        capturedBody = (await request.json()) as Record<string, unknown>;
+        capture.body = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(configuredSyncOn);
       }),
     );
@@ -575,17 +575,17 @@ describe("LstepSettingsForm — I: 健診・予防タグ判定閾値", () => {
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
-      expect(capturedBody).not.toBeNull();
+      expect(capture.body).not.toBeNull();
     });
-    expect(capturedBody?.health_prevention_lookback_days).toBe(365);
-    expect(capturedBody?.vaccine_deadline_days).toBe(60);
+    expect(capture.body?.health_prevention_lookback_days).toBe(365);
+    expect(capture.body?.vaccine_deadline_days).toBe(60);
   });
 
   it("閾値を変更して保存すると PATCH body に変更後の値が含まれる", async () => {
-    let capturedBody: Record<string, unknown> | null = null;
+    const capture: { body: Record<string, unknown> | null } = { body: null };
     server.use(
       http.patch(`/api/v1/clinics/${CLINIC_ID}/lstep-settings`, async ({ request }) => {
-        capturedBody = (await request.json()) as Record<string, unknown>;
+        capture.body = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(configuredSyncOn);
       }),
     );
@@ -602,8 +602,8 @@ describe("LstepSettingsForm — I: 健診・予防タグ判定閾値", () => {
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
-      expect(capturedBody).not.toBeNull();
+      expect(capture.body).not.toBeNull();
     });
-    expect(capturedBody?.health_prevention_lookback_days).toBe(180);
+    expect(capture.body?.health_prevention_lookback_days).toBe(180);
   });
 });

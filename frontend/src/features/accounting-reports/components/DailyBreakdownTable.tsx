@@ -4,6 +4,7 @@ import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowBu
 import { TableCell, TableHead } from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
+import { formatDate } from "@/lib/format/date";
 import type { DailyReportDetail } from "../api/get-monthly-report";
 
 interface DailyBreakdownTableProps {
@@ -30,10 +31,7 @@ export const DailyBreakdownTable = memo(function DailyBreakdownTable({
           <tr className={`border-b ${C.borderLight} ${C.bgPage}`}>
             <TableHead className={C.text55}>日付</TableHead>
             <TableHead className={C.text55}>曜日</TableHead>
-            <TableHead className={`text-right ${C.text55}`}>午前件数</TableHead>
-            <TableHead className={`text-right ${C.text55}`}>午前売上</TableHead>
-            <TableHead className={`text-right ${C.text55}`}>午後件数</TableHead>
-            <TableHead className={`text-right ${C.text55}`}>午後売上</TableHead>
+            <TableHead className={`text-right ${C.text55}`}>会計件数</TableHead>
             <TableHead className={`text-right ${C.text55}`}>日計</TableHead>
             <TableHead className={`text-right ${C.text55}`}>返金</TableHead>
             <TableHead className={`text-center ${C.text55}`}>AM締</TableHead>
@@ -49,46 +47,37 @@ export const DailyBreakdownTable = memo(function DailyBreakdownTable({
                 key={detail.date}
                 className={`border-b ${C.borderLight} ${detail.isHoliday ? C.bgNotice40 : STYLE.tableRow}`}
               >
-                <TableCell className={C.text}>
+                <TableCell className={`${C.text} whitespace-nowrap`}>
                   {isDrillable ? (
                     <DataTableRowButton
-                      aria-label={`${detail.date} の締め詳細を表示`}
+                      aria-label={`${detail.date ? formatDate(detail.date) : ""} の締め詳細を表示`}
                       onClick={() => onDrillDown?.(detail.date)}
                     >
-                      {detail.date}
+                      {detail.date ? formatDate(detail.date) : "—"}
                     </DataTableRowButton>
+                  ) : detail.date ? (
+                    formatDate(detail.date)
                   ) : (
-                    detail.date
+                    "—"
                   )}
                 </TableCell>
                 <TableCell className={C.text}>{detail.weekday}</TableCell>
-                <TableCell className={`text-right ${C.text60}`}>
-                  {detail.amCount.toLocaleString()}件
+                <TableCell className={`text-right whitespace-nowrap ${C.text60}`}>
+                  {(detail.amCount + detail.pmCount).toLocaleString()}件
                 </TableCell>
-                <TableCell className={`text-right ${C.text}`}>
-                  {formatCurrency(detail.amNet)}
-                </TableCell>
-                <TableCell className={`text-right ${C.text60}`}>
-                  {detail.pmCount.toLocaleString()}件
-                </TableCell>
-                <TableCell className={`text-right ${C.text}`}>
-                  {formatCurrency(detail.pmNet)}
-                </TableCell>
-                <TableCell className={`text-right font-medium ${C.text}`}>
+                <TableCell className={`text-right font-medium whitespace-nowrap ${C.text}`}>
                   {formatCurrency(detail.dayNet)}
                 </TableCell>
-                <TableCell className={`text-right ${detail.refund > 0 ? C.danger : C.text50}`}>
+                <TableCell
+                  className={`text-right whitespace-nowrap ${detail.refund > 0 ? C.danger : C.text50}`}
+                >
                   {detail.refund > 0 ? `-${formatCurrency(detail.refund)}` : "—"}
                 </TableCell>
-                <TableCell className="text-center">
-                  <span
-                    className={`inline-block size-2 rounded-full ${detail.amClosed ? C.bgStatusGreenDot : C.bgInactive}`}
-                  />
+                <TableCell className={`text-center ${detail.amClosed ? C.text : C.text50}`}>
+                  {detail.amClosed ? "締め済" : "未締め"}
                 </TableCell>
-                <TableCell className="text-center">
-                  <span
-                    className={`inline-block size-2 rounded-full ${detail.pmClosed ? C.bgStatusGreenDot : C.bgInactive}`}
-                  />
+                <TableCell className={`text-center ${detail.pmClosed ? C.text : C.text50}`}>
+                  {detail.pmClosed ? "締め済" : "未締め"}
                 </TableCell>
               </tr>
             );

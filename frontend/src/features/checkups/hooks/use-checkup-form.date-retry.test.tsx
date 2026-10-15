@@ -73,6 +73,7 @@ describe("useCheckupForm 実施日エラー後の再保存", () => {
     const { input, save, typeBtn } = renderHarness();
     await user.click(typeBtn());
     await user.click(input());
+    await user.clear(input());
     await user.type(input(), "2026/10/13");
     await user.tab();
     await user.click(save());
@@ -83,10 +84,12 @@ describe("useCheckupForm 実施日エラー後の再保存", () => {
     const user = userEvent.setup();
     const { input, save, typeBtn } = renderHarness();
     await user.click(typeBtn());
+    await user.click(screen.getByRole("button", { name: "日付をクリア" }));
     await user.click(save());
     await waitFor(() => expect(input().getAttribute("aria-invalid")).toBe("true"));
 
     await user.click(input());
+    await user.clear(input());
     await user.type(input(), "2026/10/13");
     await user.tab();
     expect(input().getAttribute("aria-invalid")).toBe("true");

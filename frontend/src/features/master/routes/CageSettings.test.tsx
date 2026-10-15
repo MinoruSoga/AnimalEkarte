@@ -144,7 +144,7 @@ describe("CageSettings (useMasterCRUD / useMasterSave 統合テスト)", () => {
 
     await user.click(await screen.findByRole("button", { name: "新規登録" }));
 
-    const titleInput = await screen.findByPlaceholderText("無題");
+    const titleInput = await screen.findByPlaceholderText("名称を入力");
     await user.type(titleInput, "2番ケージ");
     await user.click(screen.getByRole("button", { name: "保存" }));
 
@@ -216,7 +216,7 @@ describe("CageSettings (useMasterCRUD / useMasterSave 統合テスト)", () => {
       expect(deletedId).toBe("1");
     });
     await waitFor(() => {
-      expect(screen.queryByPlaceholderText("無題")).not.toBeInTheDocument();
+      expect(screen.queryByPlaceholderText("名称を入力")).not.toBeInTheDocument();
     });
   });
 
@@ -269,7 +269,7 @@ describe("CageSettings (useMasterCRUD / useMasterSave 統合テスト)", () => {
     renderPage();
 
     await user.click(await screen.findByRole("button", { name: "新規登録" }));
-    await screen.findByPlaceholderText("無題");
+    await screen.findByPlaceholderText("名称を入力");
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     expect(await screen.findByText("名称を入力してください")).toBeInTheDocument();

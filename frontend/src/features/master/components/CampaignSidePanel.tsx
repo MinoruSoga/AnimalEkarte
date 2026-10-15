@@ -4,6 +4,8 @@ import { toast } from "sonner";
 
 import { MasterSidePanel, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
 import { FormFieldError } from "@/components/shared/FormFieldError";
+import { Pagination } from "@/components/shared/Pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import { Input } from "@/components/ui/input";
 import { DatePicker } from "@/components/shared/DatePicker";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
@@ -163,6 +165,10 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
     }
     return result;
   }, [merchandiseItems, merchandiseSearch]);
+  const pagination = usePagination(filteredMerchandise, {
+    pageSize: 50,
+    resetKey: merchandiseSearch,
+  });
 
   // 日付前後エラー（missing 空・periodError 有）はペア課題として両欄 invalid。
   const periodOrderError = periodError !== "" && periodMissing.size === 0;
@@ -298,7 +304,7 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
             {filteredMerchandise.length === 0 ? (
               <p className={`text-xs ${C.text50}`}>商品がありません</p>
             ) : (
-              filteredMerchandise.map((mItem) => (
+              pagination.paginatedData.map((mItem) => (
                 <label key={mItem.id} className="flex items-center gap-2 text-sm min-h-11">
                   <Checkbox
                     checked={formData.targetItemIds.includes(mItem.id)}
@@ -311,6 +317,16 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
               ))
             )}
           </div>
+          <Pagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            totalCount={pagination.totalCount}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.goToPage}
+            onPrev={pagination.prevPage}
+            onNext={pagination.nextPage}
+          />
         </div>
       </PropertyRow>
     </MasterSidePanel>

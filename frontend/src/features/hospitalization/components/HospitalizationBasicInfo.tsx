@@ -89,12 +89,18 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
 
       {/* 入院タイプ */}
       <div className="mb-3">
-        <Label className={`${H_STYLES.text.base} ${C.text60} mb-1.5 block`}>入院タイプ</Label>
+        <Label
+          id="hospitalization-type-label"
+          className={`${H_STYLES.text.base} ${C.text60} mb-1.5 block`}
+        >
+          入院タイプ
+        </Label>
         <RadioGroup
           value={formData.hospitalizationType}
           onValueChange={(val) => onChange({ hospitalizationType: val })}
           className="flex gap-4"
           id="hospitalization_type"
+          aria-labelledby="hospitalization-type-label"
         >
           <div className="flex items-center gap-2 cursor-pointer">
             <RadioGroupItem
@@ -129,12 +135,12 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
 
       {/* 期間 */}
       <div className="mb-3">
-        <Label className={`${H_STYLES.text.base} ${C.text60} mb-1.5 block flex items-center gap-2`}>
+        <p className={`${H_STYLES.text.base} ${C.text60} mb-1.5 block flex items-center gap-2`}>
           <Calendar className={ICON.action} />
           期間
-        </Label>
+        </p>
         <div className={`flex flex-col items-stretch ${H_STYLES.gap.default}`}>
-          <Label htmlFor="start_date" className="sr-only">
+          <Label htmlFor="start_date" className={`${H_STYLES.text.base} ${C.text60}`}>
             開始日
           </Label>
           <DatePicker
@@ -156,7 +162,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
           <span className={`text-center text-sm ${C.text60}`} aria-hidden="true">
             〜
           </span>
-          <Label htmlFor="end_date" className="sr-only">
+          <Label htmlFor="end_date" className={`${H_STYLES.text.base} ${C.text60}`}>
             終了日
           </Label>
           <DatePicker

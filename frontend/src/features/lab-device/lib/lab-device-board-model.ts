@@ -240,28 +240,3 @@ export function resolveLabDeviceReceiveTime(
   if (measuredOrReceived) return formatJSTTime(measuredOrReceived);
   return undefined;
 }
-
-export function labDeviceAgentDegradedErrorMessage(
-  category:
-    | "none"
-    | "discovery_failed"
-    | "port_open_failed"
-    | "queue_write_failed"
-    | "port_close_failed"
-    | "response_write_failed",
-): string | null {
-  switch (category) {
-    case "none":
-      return null;
-    case "discovery_failed":
-      return "USB接続の確認に失敗しました。Macのローカル受信機を再起動してください。";
-    case "queue_write_failed":
-      return "受信結果を保持できません。追加送信を止めてサポート担当へ連絡してください。";
-    case "port_close_failed":
-      return "USBポートの終了に失敗しました。Macのローカル受信機を再起動してください。";
-    case "response_write_failed":
-      return "ローカル受信機との通信に失敗しました。画面を再読み込みしてください。";
-    case "port_open_failed":
-      return "USBポートを開けません。接続とアクセス権を確認してください。";
-  }
-}

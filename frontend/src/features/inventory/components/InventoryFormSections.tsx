@@ -141,12 +141,16 @@ export const StockInfoSection = memo(function StockInfoSection({
   quantityError,
   minStockLevelError,
 }: StockInfoSectionProps) {
+  const [hasStockInput, setHasStockInput] = useState(
+    defaultQuantity !== undefined || defaultMinStockLevel !== undefined,
+  );
   const [quantity, setQuantity] = useState(String(defaultQuantity ?? 0));
   const [minStockLevel, setMinStockLevel] = useState(String(defaultMinStockLevel ?? 0));
   const parsedQuantity = Number(quantity);
   const parsedMinStockLevel = Number(minStockLevel);
-  const stockStatus =
-    parsedQuantity <= 0
+  const stockStatus = !hasStockInput
+    ? null
+    : parsedQuantity <= 0
       ? `在庫切れ — 現在庫数 ${parsedQuantity || 0}、最低在庫数 ${parsedMinStockLevel || 0}`
       : parsedMinStockLevel > 0 && parsedQuantity <= parsedMinStockLevel
         ? `在庫不足（残少）— 現在庫数 ${parsedQuantity}、最低在庫数 ${parsedMinStockLevel}`
@@ -176,6 +180,7 @@ export const StockInfoSection = memo(function StockInfoSection({
             step={1}
             value={quantity}
             onChange={(value) => {
+              setHasStockInput(true);
               setQuantity(value);
               onMarkDirty();
             }}
@@ -196,6 +201,7 @@ export const StockInfoSection = memo(function StockInfoSection({
             step={1}
             value={minStockLevel}
             onChange={(value) => {
+              setHasStockInput(true);
               setMinStockLevel(value);
               onMarkDirty();
             }}

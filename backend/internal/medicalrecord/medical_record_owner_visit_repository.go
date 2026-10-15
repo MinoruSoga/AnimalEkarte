@@ -148,7 +148,7 @@ func (r *medicalRecordRepository) FindDormantOwnerEntries(ctx context.Context, c
 	for _, r := range rows {
 		entries = append(entries, DormantOwnerEntry{
 			OwnerID:   r.OwnerID,
-			DaysSince: int(now.Sub(r.LastVisitAt).Hours() / 24),
+			DaysSince: dormantCalendarDaysSince(now, r.LastVisitAt),
 		})
 	}
 	return entries, nil
@@ -203,7 +203,7 @@ func (r *medicalRecordRepository) FindDormantOwnerEntriesCursorAt(
 	for _, r := range rows {
 		entries = append(entries, DormantOwnerEntry{
 			OwnerID:   r.OwnerID,
-			DaysSince: int(evaluatedAt.Sub(r.LastVisitAt).Hours() / 24),
+			DaysSince: dormantCalendarDaysSince(evaluatedAt, r.LastVisitAt),
 		})
 	}
 	return entries, nil
@@ -235,7 +235,7 @@ func (r *medicalRecordRepository) FindDormantOwnerHistoryEntriesCursorAt(ctx con
 	}
 	entries := make([]DormantOwnerEntry, 0, len(rows))
 	for _, row := range rows {
-		entries = append(entries, DormantOwnerEntry{OwnerID: row.OwnerID, DaysSince: int(evaluatedAt.Sub(row.LastVisitAt).Hours() / 24)})
+		entries = append(entries, DormantOwnerEntry{OwnerID: row.OwnerID, DaysSince: dormantCalendarDaysSince(evaluatedAt, row.LastVisitAt)})
 	}
 	return entries, nil
 }
@@ -281,4 +281,12 @@ func (r *medicalRecordRepository) OwnerHasAliveFirstVisitOnDate(ctx context.Cont
 // 一致するかを返す（EMR-330 休眠予防再検証用）。
 func (r *medicalRecordRepository) OwnerHasAliveLastVisitOnDate(ctx context.Context, clinicID, ownerID uint64, targetDate time.Time) (bool, error) {
 	return r.ownerHasAliveVisitBoundary(ctx, clinicID, ownerID, targetDate, false)
+}
+
+func dormantCalendarDaysSince(evaluatedAt, visitDate time.Time) int {
+	year, month, day := evaluatedAt.Date()
+	visitYear, visitMonth, visitDay := visitDate.Date()
+	evaluatedDay := time.Date(year, month, day, 0, 0, 0, 0, time.UTC).Unix()
+	lastVisitDay := time.Date(visitYear, visitMonth, visitDay, 0, 0, 0, 0, time.UTC).Unix()
+	return int((evaluatedDay - lastVisitDay) / (24 * 60 * 60))
 }

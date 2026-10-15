@@ -21,7 +21,7 @@ export const HospitalizationCostSummary = memo(function HospitalizationCostSumma
       <div className="space-y-2">
         {/* 小計 */}
         <div className={`flex items-center justify-between py-1.5 border-b ${C.borderLight}`}>
-          <span className={`${H_STYLES.text.base} ${C.text60}`}>診療費 小計</span>
+          <span className={`${H_STYLES.text.base} ${C.text60}`}>診療費 小計（明細合計）</span>
           <span className={`${H_STYLES.text.base} font-medium tabular-nums ${C.text}`}>
             ￥{totals.subtotalBeforeDiscount.toLocaleString()}
           </span>
@@ -29,7 +29,7 @@ export const HospitalizationCostSummary = memo(function HospitalizationCostSumma
 
         {/* 消費税 */}
         <div className={`flex items-center justify-between py-1.5 border-b ${C.borderLight}`}>
-          <span className={`${H_STYLES.text.base} ${C.text60}`}>消費税</span>
+          <span className={`${H_STYLES.text.base} ${C.text60}`}>消費税（内税分を含む）</span>
           <span className={`${H_STYLES.text.base} font-medium tabular-nums ${C.text}`}>
             ￥{totals.consumptionTax.toLocaleString()}
           </span>
@@ -37,7 +37,9 @@ export const HospitalizationCostSummary = memo(function HospitalizationCostSumma
 
         {/* 請求額 */}
         <div className={`flex items-center justify-between py-2 ${C.bgPage} rounded-md px-3 mt-2`}>
-          <span className={`font-medium ${H_STYLES.text.base} ${C.text}`}>請求額</span>
+          <span className={`font-medium ${H_STYLES.text.base} ${C.text}`}>
+            診療費の目安（税込）
+          </span>
           <span className={`text-xl font-semibold tabular-nums ${C.text}`}>
             ￥{totals.total.toLocaleString()}
           </span>

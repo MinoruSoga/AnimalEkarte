@@ -1,4 +1,4 @@
-import { memo, useEffect, type ReactNode } from "react";
+import { memo, useEffect, useState, type ReactNode } from "react";
 import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { STYLE } from "@/lib/design-tokens";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker/NavigationBlocker";
@@ -54,12 +54,20 @@ export const MasterSidePanel = memo(function MasterSidePanel({
 }: MasterSidePanelProps) {
   // --- Focus Management (Accessibility) ---
   // BUG-084: パネルが開いたとき（マウント時）にタイトル入力へ自動フォーカス
+  const [opener] = useState(() =>
+    document.activeElement instanceof HTMLElement ? document.activeElement : null,
+  );
   useEffect(() => {
     const element = document.getElementById("master-title");
     if (element) {
       element.focus();
     }
-  }, []);
+    return () => {
+      if (opener?.isConnected) {
+        opener.focus();
+      }
+    };
+  }, [opener]);
 
   // バリデーションエラー発生時もタイトルフィールドへフォーカス
   useEffect(() => {
@@ -73,6 +81,12 @@ export const MasterSidePanel = memo(function MasterSidePanel({
 
   // BUG-048: Save on Enter in any text input (not in textarea or button)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Escape") {
+      if (!e.defaultPrevented && !isPending) {
+        onClose();
+      }
+      return;
+    }
     const tag = (e.target as HTMLElement).tagName;
     if (e.key === "Enter" && tag !== "TEXTAREA" && tag !== "BUTTON") {
       if (onSave) {
@@ -118,7 +132,11 @@ export const MasterSidePanel = memo(function MasterSidePanel({
   );
 
   return (
-    <SidePeekPanel className={className} onKeyDown={handleKeyDown}>
+    <SidePeekPanel
+      className={className}
+      onKeyDown={handleKeyDown}
+      ariaLabel={isNew ? "新規登録" : "編集"}
+    >
       <NavigationBlocker
         when={isDirty}
         title="変更が保存されていません"

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -26,7 +27,7 @@ vi.mock("@/components/shared/NavigationBlocker/NavigationBlocker", () => ({
   NavigationBlocker: () => null,
 }));
 
-function renderSection(ui: JSX.Element) {
+function renderSection(ui: ReactNode) {
   return render(ui, {
     wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter>,
   });

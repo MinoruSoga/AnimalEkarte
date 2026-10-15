@@ -92,6 +92,19 @@ function renderBasicInfoWithCages(cageItems: MasterItem[], formData = makeFormDa
 }
 
 describe("HospitalizationBasicInfo", () => {
+  it("type group and period inputs have visible associated labels", () => {
+    renderBasicInfo();
+    expect(screen.getByRole("radiogroup", { name: "入院タイプ" })).toHaveAttribute(
+      "aria-labelledby",
+      "hospitalization-type-label",
+    );
+    expect(screen.getByText("開始日", { selector: "label" })).not.toHaveClass("sr-only");
+    expect(screen.getByText("終了日", { selector: "label" })).not.toHaveClass("sr-only");
+    expect(screen.getByLabelText("開始日")).toBeInTheDocument();
+    expect(screen.getByLabelText("終了日")).toBeInTheDocument();
+    expect(screen.getByText("期間").tagName).toBe("P");
+    expect(screen.getByText("期間")).not.toHaveAttribute("for");
+  });
   it("カードは DESIGN.md の24px余白・heading-3見出しに従う", () => {
     renderBasicInfo();
 

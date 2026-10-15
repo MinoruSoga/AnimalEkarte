@@ -21,6 +21,10 @@ vi.mock("@/hooks/use-permission", () => ({
   usePermission: () => mocks.permission,
 }));
 
+vi.mock("@/hooks/use-animal-species", () => ({
+  useAnimalSpecies: () => ({ activeSpecies: [], isLoading: false, isError: true }),
+}));
+
 vi.mock("../api/get-checkup-sync-preview", () => ({
   useGetCheckupSyncPreview: () => mocks.preview,
 }));

@@ -3,6 +3,8 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+import { C } from "@/lib/design-tokens";
+
 import { Checkbox } from "./checkbox";
 
 // EMR-252: React 19 fires form.reset() after a <form action> completes. Radix
@@ -99,5 +101,35 @@ describe("Checkbox + form action reset (EMR-252)", () => {
 
     await waitFor(() => expect(probe).toHaveValue("pristine"));
     await waitFor(() => expect(screen.getByRole("checkbox", { name: "同意" })).not.toBeChecked());
+  });
+});
+
+describe("Checkbox border token and semantics (EMR-401 C5-2)", () => {
+  it("通常 checkbox の box は既存トークンの明示 border を持つ", () => {
+    render(<Checkbox aria-label="同意" />);
+
+    expect(screen.getByRole("checkbox", { name: "同意" })).toHaveClass(C.borderPrimary);
+  });
+
+  it("touchTarget は内側の 4x4 box に明示 border を持ち、root の 44px hit target を維持する", () => {
+    render(<Checkbox aria-label="同意" touchTarget />);
+
+    const root = screen.getByRole("checkbox", { name: "同意" });
+    expect(root).toHaveClass("size-11");
+    const innerBox = root.querySelector("span");
+    expect(innerBox).not.toBeNull();
+    expect(innerBox).toHaveClass(C.borderPrimary);
+  });
+
+  it("checked / disabled の semantics は変わらない", () => {
+    render(
+      <>
+        <Checkbox aria-label="on" defaultChecked />
+        <Checkbox aria-label="off" disabled />
+      </>,
+    );
+
+    expect(screen.getByRole("checkbox", { name: "on" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "off" })).toBeDisabled();
   });
 });

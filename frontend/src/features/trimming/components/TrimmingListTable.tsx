@@ -18,6 +18,7 @@ import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { formatDate } from "@/lib/format/date";
 import type { TrimmingUI } from "@/types";
 import { getTrimmingStatusColor } from "@/lib/status-helpers";
 import { paths } from "@/config/paths";
@@ -221,7 +222,9 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
 }: TrimmingTableRowProps) {
   return (
     <DataTableRow>
-      <TableCell className={`font-mono ${C.text} whitespace-nowrap`}>{record.date}</TableCell>
+      <TableCell className={`font-mono ${C.text} whitespace-nowrap`}>
+        {record.date ? formatDate(record.date) : "—"}
+      </TableCell>
       <TableCell className={`${C.text} min-w-[140px]`}>{record.ownerName}</TableCell>
       <TableCell className="min-w-[160px]">
         <div className="flex flex-col">
@@ -236,8 +239,10 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
         </div>
       </TableCell>
       <TableCell className={`${C.text} hidden lg:table-cell`}>{record.species}</TableCell>
-      <TableCell className={`${C.text} hidden lg:table-cell`}>{record.breed || "-"}</TableCell>
-      <TableCell className={`${C.text} hidden lg:table-cell`}>{record.weight}</TableCell>
+      <TableCell className={`${C.text} hidden lg:table-cell`}>{record.breed || "—"}</TableCell>
+      <TableCell className={`${C.text} hidden lg:table-cell whitespace-nowrap`}>
+        {record.weight === "" ? "—" : (record.weight ?? "—")}
+      </TableCell>
       <TableCell className={`${C.text} truncate max-w-[200px] hidden lg:table-cell`}>
         {record.styleRequest}
       </TableCell>
@@ -252,7 +257,7 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
               <AlertTriangle className={`${ICON.action} ${C.textWarningIcon}`} aria-hidden="true" />
             </span>
           ) : null}
-          {record.staff}
+          {record.staff || "—"}
         </div>
       </TableCell>
       <TableCell className={LIST_TABLE_COL.status}>

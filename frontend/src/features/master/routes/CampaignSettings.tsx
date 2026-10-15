@@ -75,6 +75,7 @@ export function CampaignSettings() {
     <>
       <MasterCRUDPage
         title="割引キャンペーンマスタ"
+        isLoading={isPending}
         resource={ResourceAccounting}
         entityLabel="キャンペーン"
         searchPlaceholder="キャンペーン名で検索..."

@@ -98,7 +98,7 @@ describe("AccountingReportsPage 印刷 / PDF出力 (#184) + 操作UI除外 (#179
     const printArea = await screen.findByTestId("monthly-report-print-area");
     expect(within(printArea).getByText("テスト動物病院")).toBeInTheDocument();
     expect(printArea.textContent).toContain("2026年5月");
-    expect(within(printArea).getByText("2026-05-01")).toBeInTheDocument();
+    expect(within(printArea).getByText("2026/05/01")).toBeInTheDocument();
   });
 
   it("#184: 印刷値が画面サマリー値と一致する（売上合計）", async () => {

@@ -388,4 +388,57 @@ describe("CheckupForm 必須エラー表示 (EMR-319)", () => {
     expect(screen.getByText("実施日を入力してください")).toBeInTheDocument();
     expect(screen.getByText("健診種別を選択してください")).toBeInTheDocument();
   });
+
+  it("健診種別エラー時は combobox が aria-describedby でエラー文を参照する (EMR-401 C5-5)", () => {
+    renderForm();
+
+    const typeSelect = screen.getByRole("combobox", { name: /健診種別/ });
+    expect(typeSelect).toHaveAttribute("aria-describedby", "checkup-type-error");
+    expect(screen.getByText("健診種別を選択してください")).toHaveAttribute(
+      "id",
+      "checkup-type-error",
+    );
+  });
+
+  it("健診種別エラーが解消されると aria-describedby も外れる", () => {
+    const { rerender } = renderForm();
+
+    const typeSelect = screen.getByRole("combobox", { name: /健診種別/ });
+    expect(typeSelect).toHaveAttribute("aria-describedby", "checkup-type-error");
+
+    vi.mocked(useCheckupForm).mockReturnValue({
+      pet: PET,
+      isPetLoading: false,
+      form: {
+        checkupTypeId: "",
+        date: "",
+        nextScheduleType: "1year",
+        nextDate: "",
+        doctorId: "",
+        result: "",
+      },
+      formAction: formActionMock,
+      formState: { success: false, timestamp: 0 },
+      isPending: false,
+      fieldErrors: {},
+      checkupFields: [],
+      fieldValues: {},
+      setFieldValue: vi.fn(),
+      setCheckupTypeId: vi.fn(),
+      setDate: vi.fn(),
+      setNextScheduleType: vi.fn(),
+      setNextDate: vi.fn(),
+      setDoctorId: vi.fn(),
+      setResult: vi.fn(),
+    } as ReturnType<typeof useCheckupForm>);
+
+    rerender(
+      <MemoryRouter>
+        <CheckupForm />
+      </MemoryRouter>,
+    );
+
+    expect(typeSelect).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByText("健診種別を選択してください")).not.toBeInTheDocument();
+  });
 });

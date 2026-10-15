@@ -27,7 +27,7 @@ export function merchandiseToFormData(item: FrontendMerchandiseItem | null): Mer
     name: item?.name ?? "",
     category: item?.category ?? "goods",
     unitPrice: item?.unitPrice ?? 0,
-    taxType: item?.taxType ?? "excluded",
+    taxType: item ? (item.taxType ?? "excluded") : "included",
     taxRate: item?.taxRate ?? 0.1,
     isActive: item?.isActive ?? true,
   };

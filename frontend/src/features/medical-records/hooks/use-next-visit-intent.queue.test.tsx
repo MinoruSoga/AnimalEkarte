@@ -4,7 +4,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { formatJSTWallDate } from "@/lib/jst-date";
 import { useGetReservations } from "@/hooks/use-get-reservations";
 import { usePermission } from "@/hooks/use-permission";
-import type { Reservation } from "@/lib/transforms/reservation";
+import {
+  transformReservationWithIntent,
+  type Reservation,
+} from "@/hooks/reservation-intent-response";
 
 import { useNextVisitIntent } from "./use-next-visit-intent";
 
@@ -33,22 +36,38 @@ function validFutureDate(offsetMonths = 2): string {
 
 /** PUT レスポンス（BE は tentative 行を返す）。id/updatedAt が CAS guard になる。 */
 function putResult(id: string, updatedAt: string): Reservation {
-  return { id, updatedAt, status: "tentative" } as unknown as Reservation;
+  return tentativeRow(id, updatedAt);
 }
 
 function tentativeRow(id: string, updatedAt: string): Reservation {
+  const start = wallDateInDays(45);
   return {
+    ...transformReservationWithIntent({
+      id: Number(id),
+      clinic_id: 7,
+      start_time: start.toISOString(),
+      end_time: start.toISOString(),
+      visit_type: "revisit",
+      reservation_type_id: 1,
+      is_designated: false,
+      source: "manual",
+      is_staff_delegated: false,
+      customer_fields: null,
+      status: "tentative" as Reservation["status"],
+      notes: "",
+      created_at: updatedAt,
+      updated_at: updatedAt,
+    }),
     id,
-    updatedAt,
-    status: "tentative",
-    start: wallDateInDays(45),
-  } as unknown as Reservation;
+    start,
+    end: start,
+  };
 }
 
 function mockReservations(items: Reservation[]) {
-  vi.mocked(useGetReservations).mockReturnValue({
+  vi.mocked(useGetReservations, { partial: true }).mockReturnValue({
     data: items,
-  } as unknown as ReturnType<typeof useGetReservations>);
+  });
 }
 
 function permissions(over: Partial<ReturnType<typeof usePermission>> = {}) {
@@ -79,7 +98,7 @@ function deferred<T>(): Deferred<T> {
 /** 順序制御できる set mutation。呼出ごとに deferred が返る。 */
 function deferredSetMutation() {
   const calls: Array<Deferred<Reservation>> = [];
-  const mutateAsync = vi.fn(() => {
+  const mutateAsync = vi.fn<SetIntentMutation["mutateAsync"]>(() => {
     const d = deferred<Reservation>();
     calls.push(d);
     return d.promise;
@@ -87,22 +106,30 @@ function deferredSetMutation() {
   return { mutateAsync, calls };
 }
 
+type IntentParams = Parameters<typeof useNextVisitIntent>[0];
+type SetIntentMutation = IntentParams["setIntentMutation"];
+type ClearIntentMutation = IntentParams["clearIntentMutation"];
+
 interface RenderOptions {
   petId?: string;
   clinicId?: string;
   isPetDeceased?: boolean;
-  setIntentMutation?: { mutateAsync: ReturnType<typeof vi.fn> };
-  clearIntentMutation?: { mutateAsync: ReturnType<typeof vi.fn> };
+  setIntentMutation?: SetIntentMutation;
+  clearIntentMutation?: ClearIntentMutation;
 }
 
 function renderIntent({
   petId = "10",
   clinicId = "7",
   isPetDeceased = false,
-  setIntentMutation = { mutateAsync: vi.fn().mockResolvedValue(putResult("1", "rev")) },
-  clearIntentMutation = { mutateAsync: vi.fn().mockResolvedValue(undefined) },
+  setIntentMutation = {
+    mutateAsync: vi.fn<SetIntentMutation["mutateAsync"]>().mockResolvedValue(putResult("1", "rev")),
+  },
+  clearIntentMutation = {
+    mutateAsync: vi.fn<ClearIntentMutation["mutateAsync"]>().mockResolvedValue(undefined),
+  },
 }: RenderOptions = {}) {
-  return renderHook(
+  return renderHook<ReturnType<typeof useNextVisitIntent>, RenderOptions>(
     (props: RenderOptions = {}) =>
       useNextVisitIntent({
         petId: props.petId ?? petId,

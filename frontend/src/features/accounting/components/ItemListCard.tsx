@@ -460,7 +460,15 @@ export const ItemListCard = memo(function ItemListCard({
           </Dialog>
         ) : null}
       </CardHeader>
-      <CardContent className="p-0 overflow-auto flex-1">
+      <p className={`px-4 py-2 text-sm ${C.text65}`}>
+        横にスクロールしてすべての項目を確認できます
+      </p>
+      <CardContent
+        role="region"
+        aria-label="会計明細"
+        tabIndex={0}
+        className="p-0 overflow-auto flex-1 [&>div]:overflow-visible"
+      >
         <Table>
           <TableHeader className={`sticky top-0 ${C.bgPage} z-10 shadow-level1`}>
             <TableRow>
@@ -473,8 +481,12 @@ export const ItemListCard = memo(function ItemListCard({
               <TableHead className="text-center w-[150px] whitespace-nowrap">税率</TableHead>
               <TableHead className="text-right w-[90px] whitespace-nowrap">税額</TableHead>
               <TableHead className="text-center w-[70px] whitespace-nowrap">保険</TableHead>
-              <TableHead className="text-right w-[130px] whitespace-nowrap">金額</TableHead>
-              <TableHead className="w-[80px]" />
+              <TableHead
+                className={`sticky right-[80px] z-20 ${C.bgWhite} text-right min-w-[130px] w-[130px] whitespace-nowrap`}
+              >
+                金額
+              </TableHead>
+              <TableHead className={`sticky right-0 z-20 ${C.bgWhite} w-[80px]`} />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -497,9 +509,9 @@ export const ItemListCard = memo(function ItemListCard({
           </TableBody>
         </Table>
       </CardContent>
-      <div className={`p-4 ${C.bgPage} border-t flex justify-end gap-6 text-sm`}>
-        <span>税抜小計: {formatCurrency(subtotal)}</span>
-        <span>消費税: {formatCurrency(taxTotal)}</span>
+      <div className={`p-4 ${C.bgPage} border-t flex flex-wrap justify-end gap-6 text-sm`}>
+        <span>小計（明細合計）: {formatCurrency(subtotal)}</span>
+        <span>消費税（内税分を含む）: {formatCurrency(taxTotal)}</span>
         <span className="font-semibold text-xl">合計: {formatCurrency(totalAmount)}</span>
       </div>
     </Card>

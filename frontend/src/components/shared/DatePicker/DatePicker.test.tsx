@@ -415,6 +415,78 @@ describe("DatePicker native validity と ARIA エラーの分離", () => {
   });
 });
 
+describe("DatePicker single keyboard commit session dedup", () => {
+  it("変更した値を Enter で確定してから blur しても onChange は1回だけ", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<DatePicker value="2026-10-13" onChange={onChange} ariaLabel="日付" />);
+
+    const input = screen.getByRole("textbox", { name: "日付" });
+    await user.click(input);
+    await user.clear(input);
+    await user.type(input, "20261014");
+    await user.keyboard("{Enter}");
+    await user.tab();
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith("2026-10-14");
+  });
+
+  it("同じ編集で Enter を繰り返しても重複 emit しない", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<DatePicker value="2026-10-13" onChange={onChange} ariaLabel="日付" />);
+
+    const input = screen.getByRole("textbox", { name: "日付" });
+    await user.click(input);
+    await user.clear(input);
+    await user.type(input, "20261014");
+    await user.keyboard("{Enter}");
+    await user.keyboard("{Enter}");
+    await user.tab();
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith("2026-10-14");
+  });
+
+  it("Enter 後にさらに別の日へ編集すると2回目を emit する", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<DatePicker value="2026-10-13" onChange={onChange} ariaLabel="日付" />);
+
+    const input = screen.getByRole("textbox", { name: "日付" });
+    await user.click(input);
+    await user.clear(input);
+    await user.type(input, "20261014");
+    await user.keyboard("{Enter}");
+    await user.clear(input);
+    await user.type(input, "20261015");
+    await user.tab();
+    expect(onChange).toHaveBeenCalledTimes(2);
+    expect(onChange).toHaveBeenLastCalledWith("2026-10-15");
+  });
+
+  it("prop が更新されなくても再フォーカス・再編集で同じ値を emit できる", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<DatePicker value="2026-10-13" onChange={onChange} ariaLabel="日付" />);
+
+    const input = screen.getByRole("textbox", { name: "日付" });
+    await user.click(input);
+    await user.clear(input);
+    await user.type(input, "20261014");
+    await user.keyboard("{Enter}");
+    await user.tab();
+    expect(onChange).toHaveBeenCalledTimes(1);
+
+    await user.click(input);
+    await user.clear(input);
+    await user.type(input, "20261014");
+    await user.keyboard("{Enter}");
+    await user.tab();
+    expect(onChange).toHaveBeenCalledTimes(2);
+    expect(onChange).toHaveBeenLastCalledWith("2026-10-14");
+  });
+});
+
 /**
  * Issue #48 回帰テスト
  *

@@ -8,7 +8,7 @@
 | category | source | retention |
 |---|---|---|
 | Master seed | `backend/migrations/seeds/002_master/` | environment lifetime。通常cleanupしない |
-| Synthetic demo login | migrate フェーズ3 `internal/seedlogin`（LoginForm と同じ `stg-staff-*@example.test`）。共通パスワードは STG では `SEEDLOGIN_DEMO_PASSWORD` シークレット注入（未設定ならログインロック。local/dev/test のみコード定数）。EMR-265 以降、STG ビルドは GitHub secret `SEEDLOGIN_DEMO_PASSWORD`（Worker シークレットと同値。admin smoke 用の `STG_DEMO_PASSWORD` とは別物）を `VITE_DEMO_LOGIN_PASSWORD` として焼き込み、デモボタン押下で email+password を自動入力する — stg bundle に値が含まれることは意図的（合成データのみの UAT 環境）。production では define が `""` を焼き込み fail-closed | environment lifetime |
+| Synthetic demo login | migrate フェーズ3 `internal/seedlogin` と LoginForm の固定合成 identity。共通パスワードは STG では `SEEDLOGIN_DEMO_PASSWORD`（未設定ならログインロック。local/dev/test のみコード定数）。STG frontend build は同じ secret を `VITE_DEMO_LOGIN_PASSWORD` として使用し、必須 deploy auth smoke も同じ値を使う。identity/password は reports/logs に出さない。`STG_DEMO_PASSWORD` は legacy admin smoke 専用であり、この作業では削除・変更しない。production では define が `""` を焼き込み fail-closed | environment lifetime |
 | Operation-provisioned account | [STAFF_ACCOUNT_PROVISIONING.md](../accounts/STAFF_ACCOUNT_PROVISIONING.md) | owner/expiryをrun sheetに記録 |
 | Operator system-admin bootstrap | migrate フェーズ3の `SEEDLOGIN_OPERATOR_*`（CSV/LoginForm には載せない） | environment lifetime |
 | Smoke data | [CRUD-SMOKE-TEST.md](../rehearsals/CRUD-SMOKE-TEST.md) | 同じrunでcleanup |
@@ -22,32 +22,29 @@
 
 - master seedは`cmd/migrate`の同じ経路だけで適用する。CSVや`schema_migrations`を手編集しない。
 - operation accountはapproved provisioningで作る。既知passwordをseedや文書へ置かない。
-- smoke/investigation dataはclinic scopeとownerを決め、作成時に返ったIDをrun sheetへ記録する。
+- smoke/investigation dataはclinic scopeとownerを決める。smoke harnessでは作成ID、run tag、要求clinic scopeをメモリ内だけで保持する。
 - cookieはbrowserのHttpOnly sessionまたは権限0600のcookie jarで扱う。header/cookie/token値を文書へ貼らない。
-- API mutationが一律に`audit_logs`へ書くとは仮定しない。[CRUD-SMOKE-TEST.md](../rehearsals/CRUD-SMOKE-TEST.md) のroute matrixに従う。
+- permission-group handlerで必須となるaudit transactionは既存integration testsで検証される。API successをすべてのresourceのaudit sink確認と一般化しない。live audit-table queryはこの作業では行わない。[CRUD-SMOKE-TEST.md](../rehearsals/CRUD-SMOKE-TEST.md) のroute matrixに従う。
 
 ## 3. Smoke cleanup
 
-現在のsmoke手順は既存clinicを編集・復元し、test permission groupとtest staffを作る。`.related_count` のような存在しないresponse fieldに依存しない。
+通常の deploy 後 smoke と `cf:smoke` alias は `cf-demo-smoke.py --auth` のみで、fixed synthetic executive identity の login、`/me`、direct logout を確認する。read-only は業務レコードを変更しない意味であり、login/logout は通常の認証 session/audit 更新を行う。CRUD は明示承認済みの manual `--crud` のみに限定し、clinic scope と run tag を付けた新規 test permission-group 一件・test staff 一件だけを扱う。既存行、clinic、owner/pet、financial data、PHI は変更しない。親タスクの実行・確認前に real smoke PASS として扱わない。
 
-1. run sheetのknown IDsとlist/detail APIで対象を再確認する。
-2. このrunのtest permission groupを削除する。active assignmentがあれば停止し、勝手にdetachしない。
-3. このrunのtest staffを削除する。child dependencyによる`409`なら停止する。
-4. clinicは削除せず、保存した元値へ復元してGETで確認する。もし別のapproved caseでtest clinicを作った場合だけ最後に削除する。
-5. list/detailでstateを確認する。permission-groupの成功mutationだけは明示contractに従いauditも確認する。
+1. 作成IDと要求clinic scopeはメモリ内だけで扱い、run tagもメモリ内に保持する。開始時は復旧用にrun tagとclinic IDだけをprogress JSONへ出力する。全 masters request に同じ `X-Clinic-ID` を付ける。
+2. detail GET でIDとrun tagの所有を確認する。staff DTOはAPI responseに`clinic_id`を露出しないため、responseによる独立したclinic scope検証を主張しない。所有が確認できないIDは削除せず、停止して調査する。
+3. このrunの新規 permission-group と staff だけを、それぞれID指定で削除し、後続GETの404を確認する。DELETE failure や ownership mismatch は失敗として残し、人が対応する。
+4. cleanup後も既存 clinic/master、owners/pets、billing/accounting、financial data、PHIには触れない。legacy accounting smokeは`NOT_RUN`であり、新master CRUDを全financial acceptanceとして扱わない。smoke出力にresponse bodyやcredential/cookieを記録しない。
 
 cleanup 順序と停止条件:
 
 ```mermaid
 flowchart TB
-  A["run sheet の known IDs と list/detail API で対象を再確認"] --> B["この run の test permission group を削除"]
-  B -->|"active assignment あり"| S["停止: detach や direct SQL で推測しない"]
-  B --> C["この run の test staff を削除"]
-  C -->|"child dependency で 409"| S
-  C --> D["clinic は削除せず元値へ復元し GET で確認"]
-  D -.->|"approved case で test clinic を作った場合のみ"| F["最後に test clinic を削除"]
-  F --> E
-  D --> E["list/detail で state 確認<br/>permission-group の成功 mutation は audit も確認"]
+  A["明示承認済み CRUD と clinic scope"] --> B["この run の group と staff を作成"]
+  B --> C["POST-returned IDs + run tag を detail GET で確認"]
+  C -->|"ownership mismatch / read failure"| S["削除しない: overall FAIL として停止"]
+  C --> D["作成した2 IDsだけ DELETE"]
+  D --> E["ID指定 GET 404 を確認"]
+  E --> F["既存 rows / clinic / owners / pets / finance / PHI は変更しない"]
 ```
 
 依存関係が異なるcaseではAPIの`409`を正として停止し、順序を推測してdirect SQLへ切り替えない。

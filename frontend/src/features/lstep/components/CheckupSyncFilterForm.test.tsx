@@ -1,7 +1,98 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { useAnimalSpecies } from "@/hooks/use-animal-species";
 import { describe, expect, it, vi } from "vitest";
 
 import { CheckupSyncFilterForm } from "./CheckupSyncFilterForm";
+
+vi.mock("@/hooks/use-animal-species", () => ({
+  useAnimalSpecies: vi.fn(() => ({
+    activeSpecies: [{ id: 99, name: "犬", is_active: true }],
+    isLoading: false,
+    isError: false,
+  })),
+}));
+
+describe("species name search boundary", () => {
+  it("selects the authoritative name, and omits blank species", async () => {
+    const user = userEvent.setup();
+    const onSearch = vi.fn();
+    render(<CheckupSyncFilterForm onSearch={onSearch} isLoading={false} />);
+    await user.selectOptions(screen.getByLabelText(/検診種別/), "annual");
+    await user.selectOptions(screen.getByLabelText(/動物種/), "犬");
+    await user.click(screen.getByRole("button", { name: "対象者を検索" }));
+    await waitFor(() =>
+      expect(onSearch).toHaveBeenLastCalledWith({ checkup_type: "annual", species: "犬" }),
+    );
+    await user.selectOptions(screen.getByLabelText(/検診種別/), "annual");
+    await user.selectOptions(screen.getByLabelText(/動物種/), "");
+    await user.click(screen.getByRole("button", { name: "対象者を検索" }));
+    await waitFor(() => expect(onSearch).toHaveBeenLastCalledWith({ checkup_type: "annual" }));
+  });
+  it("failed lookup keeps other filters usable and explains the text fallback", () => {
+    vi.mocked(useAnimalSpecies).mockReturnValueOnce({
+      activeSpecies: [],
+      isLoading: false,
+      isError: true,
+    } as ReturnType<typeof useAnimalSpecies>);
+    render(<CheckupSyncFilterForm onSearch={vi.fn()} isLoading={false} />);
+    expect(screen.getByLabelText(/動物種/)).not.toBeDisabled();
+    expect(screen.getByLabelText(/検診種別/)).not.toBeDisabled();
+    expect(
+      screen.getByText("動物種マスタを取得できないため、直接入力できます"),
+    ).toBeInTheDocument();
+  });
+
+  it("PR665: denied species lookup falls back to a usable text filter and submits", async () => {
+    const user = userEvent.setup();
+    const onSearch = vi.fn();
+    vi.mocked(useAnimalSpecies).mockReturnValueOnce({
+      activeSpecies: [],
+      isLoading: false,
+      isError: true,
+    } as ReturnType<typeof useAnimalSpecies>);
+    render(<CheckupSyncFilterForm onSearch={onSearch} isLoading={false} />);
+
+    const speciesInput = screen.getByLabelText(/動物種/);
+    expect(speciesInput.tagName).toBe("INPUT");
+    expect(speciesInput).not.toBeDisabled();
+    await user.type(speciesInput, "犬");
+    await user.selectOptions(screen.getByLabelText(/検診種別/), "annual");
+    await user.click(screen.getByRole("button", { name: "対象者を検索" }));
+    await waitFor(() =>
+      expect(onSearch).toHaveBeenLastCalledWith({ checkup_type: "annual", species: "犬" }),
+    );
+  });
+
+  it("PR665: pasted whitespace around species is trimmed and blank input is omitted", async () => {
+    const user = userEvent.setup();
+    const onSearch = vi.fn();
+    vi.mocked(useAnimalSpecies).mockReturnValue({
+      activeSpecies: [],
+      isLoading: false,
+      isError: true,
+    } as ReturnType<typeof useAnimalSpecies>);
+    render(<CheckupSyncFilterForm onSearch={onSearch} isLoading={false} />);
+
+    const speciesInput = screen.getByLabelText(/動物種/);
+    await user.type(speciesInput, "  犬  ");
+    await user.selectOptions(screen.getByLabelText(/検診種別/), "annual");
+    await user.click(screen.getByRole("button", { name: "対象者を検索" }));
+    await waitFor(() =>
+      expect(onSearch).toHaveBeenLastCalledWith({ checkup_type: "annual", species: "犬" }),
+    );
+
+    // React の form action 成功後は未制御フィールドがリセットされる。
+    // 同じフォームで検診種別を選び直し、空白のみの動物種を検索する。
+    await waitFor(() => expect(screen.getByLabelText(/検診種別/)).toHaveValue(""));
+    await user.clear(screen.getByLabelText(/動物種/));
+    await user.type(screen.getByLabelText(/動物種/), "   ");
+    await user.selectOptions(screen.getByLabelText(/検診種別/), "annual");
+    await user.click(screen.getByRole("button", { name: "対象者を検索" }));
+    await waitFor(() => expect(onSearch).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(onSearch).toHaveBeenLastCalledWith({ checkup_type: "annual" }));
+  });
+});
 
 // EMR-385: 「最終来院日（以降・任意）」の括弧内で「任/意」の1文字折返しが
 // 発生していた。ラベルの日本語まとまり（主語部 / 括弧部）をそれぞれ

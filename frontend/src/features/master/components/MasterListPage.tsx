@@ -28,7 +28,7 @@ interface MasterListPageProps {
   onSearchChange: (term: string) => void;
   searchPlaceholder: string;
   /** Filtered item count displayed in PropertyFilter */
-  count: number;
+  count: number | undefined;
   /** Handler for "新規登録" button */
   onNew: () => void;
 

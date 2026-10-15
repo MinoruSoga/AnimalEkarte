@@ -20,6 +20,25 @@ const TREATMENT_PLAN = {
 } satisfies HospitalizationTreatmentPlan;
 
 describe("HospitalizationTreatmentTable", () => {
+  it("labels monetary inputs neutrally and formats existing amounts without recalculating", () => {
+    render(
+      <HospitalizationTreatmentTable
+        treatmentPlans={[TREATMENT_PLAN]}
+        onAdd={vi.fn()}
+        onUpdate={vi.fn()}
+        readOnly
+      />,
+    );
+    expect(screen.getByRole("columnheader", { name: "単価（明細入力額）" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "明細金額" })).toBeInTheDocument();
+    for (const amount of ["¥3,210", "¥642", "¥5,778"])
+      expect(screen.getByRole("cell", { name: amount })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "2" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "10" })).toBeInTheDocument();
+    expect(
+      screen.getByText("税額・保険適用・飼主負担額は会計時に確定します。"),
+    ).toBeInTheDocument();
+  });
   it("edit routeの参照専用状態では治療内容を変更・追加・削除できない", () => {
     render(
       <HospitalizationTreatmentTable

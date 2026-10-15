@@ -229,16 +229,15 @@
       "SMTP_HOST",
       "SMTP_USER",
       "SMTP_PASS",
-      // EMR-335: 検査機器エージェント agent-consumer の capability 署名鍵。
+      // EMR-335: legacy agent-consumer の optional capability 署名鍵。
       // Worker envVars(buildContainerEnvVars)経由で Container の Go 側へ届く。
       // 値は人間が `wrangler secret put LAB_DEVICE_AGENT_CONSUMER_TOKEN` のみで
-      // 投入する(本ファイルに値を書かない)。secrets.required は remote secret の存在を
-      // 保証しないため、STG workflow は deploy 前に secret list の名前だけを検査する。
-      // 人間が承認済みの新規 STG デプロイの「前」に投入する。Env 型宣言上の
-      // optional はこの明示 preflight を緩めない。既存デプロイや
-      // env 未設定の local backend では /v1/lab-device/agent-consumer は 503 を
-      // 返し続け、画面は「未設定」表示になる(fail-closed)。
-      "LAB_DEVICE_AGENT_CONSUMER_TOKEN",
+      // 投入する(本ファイルに値を書かない)。通常deployでのsecret preflightはしない。
+      // legacy agent を手動運用する医院だけが承認済み手順で別途設定する。
+      // 未設定の場合はlegacy consumer routeがfail-closedで無効になる。
+      // Browser direct receive does not use this credential.
+      // Env 型宣言上も optional とし、通常 deploy の前提条件にしない。
+      // legacy agent bundle だけが署名用 raw secret を保持する。
       // SEEDLOGIN_OPERATOR_EMAIL/NAME/PASSWORD は STG/local の任意 bootstrap。
       // required に入れない（未設定のままデプロイでき、Go はオペレータ upsert をスキップする）。
       // 値は `wrangler secret put` のみ。git / LoginForm / CSV には置かない。

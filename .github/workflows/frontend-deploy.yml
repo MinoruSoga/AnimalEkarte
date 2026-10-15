@@ -77,7 +77,7 @@ jobs:
           # EMR-265: STG デモアカウント自動入力用。vite.config.ts が appEnv==="stg"
           # のときだけ import.meta.env.VITE_DEMO_LOGIN_PASSWORD に焼き込む。
           # backend Worker の SEEDLOGIN_DEMO_PASSWORD(catalog 全デモ共通)と同値。
-          # admin smoke 用の STG_DEMO_PASSWORD とは別物なので混同しないこと。
+          # STG_DEMO_PASSWORD は legacy admin smoke 専用。通常のdemo smokeもこの共通secretを使う。
           # production ビルドでは読まれず bundle に値は入らない(fail-closed)。
           SEEDLOGIN_DEMO_PASSWORD: ${{ secrets.SEEDLOGIN_DEMO_PASSWORD }}
         run: |

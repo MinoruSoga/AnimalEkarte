@@ -1,6 +1,7 @@
 package billing
 
 import (
+	"math"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
@@ -53,7 +54,9 @@ type estimateResponse struct {
 
 func toEstimateItemResponse(item *model.EstimateItem) estimateItemResponse {
 	// MDL-01: item subtotal is post-discount, matching BillingItem / CalculateTaxAmount base.
-	subtotal := max(int64(float64(item.UnitPrice)*item.Quantity)-item.DiscountAmount, 0)
+	// PR665: Round to match calculateEstimateTotals / validateEstimateItemTotals
+	// so a fractional line (e.g. 105 x 0.5) reports the same subtotal as totals.
+	subtotal := max(int64(math.Round(float64(item.UnitPrice)*item.Quantity))-item.DiscountAmount, 0)
 	taxAmount := item.CalculateTaxAmount()
 	return estimateItemResponse{
 		ID:                    item.ID,

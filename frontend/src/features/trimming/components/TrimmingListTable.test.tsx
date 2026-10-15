@@ -89,14 +89,20 @@ function renderTable(
 }
 
 describe("TrimmingListTable 犬種列 (#231)", () => {
+  it("formats displayed date, keeps measured zero and marks missing staff", () => {
+    renderTable([makeRecord({ date: "2026-10-14", weight: "0", staff: "" })]);
+    expect(screen.getByRole("cell", { name: "2026/10/14" })).toHaveClass("whitespace-nowrap");
+    expect(screen.getByRole("cell", { name: "0" })).toHaveClass("whitespace-nowrap");
+    expect(screen.getAllByRole("cell", { name: "—" }).length).toBeGreaterThan(0);
+  });
   it("犬種が設定されている場合はその値を表示する", () => {
     renderTable([makeRecord({ breed: "トイプードル" })]);
     expect(screen.getByText("トイプードル")).toBeInTheDocument();
   });
 
-  it("犬種が空文字の場合は「-」を表示する", () => {
+  it("犬種が空文字の場合は「—」を表示する", () => {
     renderTable([makeRecord({ breed: "" })]);
-    expect(screen.getByText("-")).toBeInTheDocument();
+    expect(screen.getByText("—")).toBeInTheDocument();
   });
 });
 
@@ -166,7 +172,7 @@ describe("TrimmingListTable 列レイアウト (EMR-378)", () => {
   it("診療日セルは折り返さない", () => {
     renderTable([makeRecord({})]);
 
-    const dateCell = screen.getByText("2026-07-13").closest("td");
+    const dateCell = screen.getByText("2026/07/13").closest("td");
     expect(dateCell?.className).toContain("whitespace-nowrap");
   });
 

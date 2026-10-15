@@ -1,4 +1,5 @@
 import {
+  useState,
   useLayoutEffect,
   useTransition,
   useCallback,
@@ -32,6 +33,7 @@ import {
 } from "./use-examination-form-helpers";
 import { isNonDisclosureReadStatus } from "@/lib/entity-read-result";
 import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
+import { todayJSTISO } from "@/lib/jst-date";
 
 export function useExaminationForm(
   id?: string,
@@ -43,6 +45,19 @@ export function useExaminationForm(
   const doctorId = searchParams.get("doctorId");
   const medicalRecordId = medicalRecordIdParam ?? searchParams.get("medicalRecordId") ?? "";
   const isEdit = !!id;
+
+  // PR665: 新規作成時の既定検査日は「フォームを開いた時点」で 1 度だけ snapshot する。
+  // レンダー毎に todayJSTISO() を呼ぶと JST 日付変更をまたいだ再描画で未編集の
+  // 検査日が翌日に変わる。チェックアップフォームと同じ state 初期化方式。
+  const [defaultCreateDateScope, setDefaultCreateDateScope] = useState(() => ({
+    scopeId: id,
+    date: todayJSTISO(),
+  }));
+  if (defaultCreateDateScope.scopeId !== id) {
+    // use-estimate-form と同じ previous-value パターン: id 変化は描画中に state を
+    // 差し替え、コミットされる描画では必ず現スコープの snapshot が返る。
+    setDefaultCreateDateScope({ scopeId: id, date: todayJSTISO() });
+  }
   const activeExaminationIDRef = useRef(id);
   useLayoutEffect(() => {
     activeExaminationIDRef.current = id;
@@ -105,7 +120,7 @@ export function useExaminationForm(
   const formData =
     isEdit && existingExam
       ? { ...existingExam, ...localOverrides }
-      : createBlankExaminationForm(doctorId, localOverrides);
+      : createBlankExaminationForm(doctorId, localOverrides, defaultCreateDateScope.date);
   const activePet = selectedPets[0] ?? mutationPet;
   const formDataWithPet = activePet
     ? { ...formData, ownerName: activePet.ownerName, petName: activePet.name, petId: activePet.id }

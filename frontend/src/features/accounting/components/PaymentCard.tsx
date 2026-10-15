@@ -43,6 +43,12 @@ interface PaymentCardProps {
   canEdit: boolean;
   canCreate: boolean;
   isEditMode: boolean;
+  /**
+   * PR665: 締め済み日の確定は理由入力か締め後編集権限がないと物理ブロックする
+   * （BUG-004 / isPostCloseSubmitBlocked）。親（AccountingDetail）が最新の
+   * state・権限・理由から算出して渡す。通常日は false。
+   */
+  isPostCloseBlocked?: boolean;
 }
 
 export const PaymentCard = memo(function PaymentCard({
@@ -53,13 +59,14 @@ export const PaymentCard = memo(function PaymentCard({
   canEdit,
   canCreate,
   isEditMode,
+  isPostCloseBlocked = false,
 }: PaymentCardProps) {
   const canSubmit = isEditMode ? canEdit : canCreate;
 
   const splitTotal = paymentSplits.reduce((sum, s) => sum + parseInt(s.amount || "0", 10), 0);
   const remaining = billingAmount - splitTotal;
 
-  const isDisabled = isPaymentSubmitDisabled(billingAmount, paymentSplits);
+  const isDisabled = isPaymentSubmitDisabled(billingAmount, paymentSplits) || isPostCloseBlocked;
 
   const handleMethodChange = useCallback(
     (idx: number, method: PaymentMethod) => {
@@ -160,7 +167,7 @@ export const PaymentCard = memo(function PaymentCard({
                       />
                     ) : null}
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {PAYMENT_METHODS.map((m) => (
                       <Button
                         key={m}
@@ -168,7 +175,7 @@ export const PaymentCard = memo(function PaymentCard({
                         variant={split.method === m ? "default" : "outline"}
                         onClick={() => handleMethodChange(idx, m)}
                         aria-pressed={split.method === m}
-                        className="text-sm"
+                        className="flex-1 min-w-[120px] whitespace-nowrap text-sm"
                       >
                         {PAYMENT_METHOD_LABELS[m]}
                       </Button>

@@ -80,6 +80,7 @@ describe("ReservationFormModal — Dialog Description a11y (BUG-RES-DIALOG-A11Y-
       render(
         <ReservationFormModal
           isOpen={true}
+          initialData={null}
           onClose={noop}
           onSave={noop}
           canCreate={true}
@@ -125,6 +126,7 @@ describe("ReservationFormModal — Dialog Description a11y (BUG-RES-DIALOG-A11Y-
       render(
         <ReservationFormModal
           isOpen={true}
+          initialData={null}
           onClose={noop}
           onSave={noop}
           canCreate={true}

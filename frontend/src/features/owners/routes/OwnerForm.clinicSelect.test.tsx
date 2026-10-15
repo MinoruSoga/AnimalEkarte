@@ -79,6 +79,7 @@ const mockOwner: Owner = {
   discountRate: 0,
   membershipType: "non_member",
   deliveryExcluded: false,
+  deliveryCaution: false,
   isTransferred: false,
   lstepOptOut: false,
   createdAt: "2026-01-01T00:00:00Z",

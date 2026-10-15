@@ -146,18 +146,20 @@ export function VaccinationFieldsPanel({
           </div>
         ) : null}
 
-        <div className="space-y-2">
-          <Label htmlFor="vaccination-supplemental">補助説明</Label>
-          <Input
-            id="vaccination-supplemental"
-            value={supplemental}
-            onChange={(event) => {
-              onMarkDirty();
-              onSupplementalChange(event.target.value);
-            }}
-            placeholder="補助説明を入力"
-          />
-        </div>
+        {/^\s*src:YOBO(?:\s|\/|$)/.test(supplemental) ? null : (
+          <div className="space-y-2">
+            <Label htmlFor="vaccination-supplemental">補助説明</Label>
+            <Input
+              id="vaccination-supplemental"
+              value={supplemental}
+              onChange={(event) => {
+                onMarkDirty();
+                onSupplementalChange(event.target.value);
+              }}
+              placeholder="補助説明を入力"
+            />
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label>LOT番号</Label>

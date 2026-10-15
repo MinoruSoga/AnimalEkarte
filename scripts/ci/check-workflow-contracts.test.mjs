@@ -8,6 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import "./actionlint-queue-compat.test.mjs";
+import "../checks/cf-demo-smoke.test.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const PNPM_VERSION = "10.15.0";
@@ -905,4 +906,31 @@ test("Chromatic install does not receive the project token", () => {
     /projectToken:\s*\$\{\{ secrets\.CHROMATIC_PROJECT_TOKEN \}\}/,
   );
   assert.doesNotMatch(chromatic, /^ {8}env:\s*$/m);
+});
+
+test("local CI permits isolated cache volumes without changing defaults", () => {
+  const script = read("scripts/ci/run-local-ci.sh");
+  for (const [variable, fallback] of [
+    ["CI_GO_MOD_CACHE_VOLUME", "ekarte-go-mod-cache"],
+    ["CI_GOLANGCI_CACHE_VOLUME", "ekarte-golangci-cache"],
+    ["CI_ROOT_NODE_MODULES_VOLUME", "ekarte-root-node-modules"],
+    ["CI_ROOT_PNPM_STORE_VOLUME", "ekarte-root-pnpm-store"],
+  ]) {
+    assert.ok(script.includes(`${variable}="\${${variable}:-${fallback}}"`));
+  }
+  const lint = script.match(/s21\(\) \{([\s\S]*?)^\}/m)?.[1];
+  const worker = script.match(/s30\(\) \{([\s\S]*?)^\}/m)?.[1];
+  assert.ok(lint);
+  assert.ok(worker);
+  assert.ok(lint.includes('-v "$CI_GO_MOD_CACHE_VOLUME:/go/pkg/mod"'));
+  assert.ok(lint.includes('-v "$CI_GOLANGCI_CACHE_VOLUME:/root/.cache"'));
+  assert.ok(worker.includes('-v "$CI_ROOT_NODE_MODULES_VOLUME:/app/node_modules"'));
+  assert.ok(worker.includes('-v "$CI_ROOT_PNPM_STORE_VOLUME:/pnpm-store"'));
+});
+
+test("worker Makefile recipe checks avoid pipefail SIGPIPE races", () => {
+  const script = read("scripts/ci/check-test-worker-makefile.test.sh");
+  assert.ok(script.includes(String.raw`elif grep -Eq 'docker run' <<<"$recipe"; then`));
+  assert.ok(script.includes(String.raw`if grep -Eq '\$\(ARGS\)' <<<"$recipe"; then`));
+  assert.ok(script.includes(String.raw`if grep -Eq '\$\(DC\) exec frontend' <<<"$recipe"; then`));
 });
