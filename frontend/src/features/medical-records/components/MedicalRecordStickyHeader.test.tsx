@@ -319,3 +319,64 @@ describe("MedicalRecordStickyHeader 診療日コールバック", () => {
     expect(screen.queryByRole("button", { name: "日付をクリア" })).not.toBeInTheDocument();
   });
 });
+
+// ─────────────────────────────────────────────────────────────
+// PR679 F3: 1歳未満の年齢表記。「0歳5ヶ月」ではなく「5ヶ月」を出す旧仕様を復元。
+// 固定時計で実ヘッダ描画を検証する（buildPetInfoText は非公開のため経由検証）。
+// ─────────────────────────────────────────────────────────────
+
+describe("MedicalRecordStickyHeader 幼齢ペットの年齢表記 (PR679 F3)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-16T12:00:00+09:00"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("1歳未満は「0歳Nヶ月」ではなく「Nヶ月」だけを表示する", () => {
+    // 2026-05-10 → 2026-10-16 = 0歳5ヶ月
+    renderHeader({ selectedPet: makePet({ birthDate: "2026-05-10" }) });
+
+    // Tooltip は content を portal にも描画するため複数ヒットする
+    expect(screen.getAllByText("2026-05-10生（5ヶ月）").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/0歳/)).not.toBeInTheDocument();
+  });
+
+  it("1歳以上は従来どおり「N歳Mヶ月」を表示する", () => {
+    // 2024-05-10 → 2026-10-16 = 2歳5ヶ月
+    renderHeader({ selectedPet: makePet({ birthDate: "2024-05-10" }) });
+
+    expect(screen.getAllByText("2024-05-10生（2歳5ヶ月）").length).toBeGreaterThan(0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// PR679 F4: hasPetAttributes は !== undefined ではなく実値（非空・trim）で判定する。
+// backend breed: "" が transform を素通りして届くケースを再現する。
+// ─────────────────────────────────────────────────────────────
+
+describe("MedicalRecordStickyHeader 属性ガード (PR679 F4)", () => {
+  it.each(["", "   "])(
+    "breed が空/空白のみ（%s）で他属性も未記録なら属性3項目を出さない",
+    (breed) => {
+      // transformBackendPetToFrontend は breed を無加工で通すため空文字がそのまま届く
+      renderHeader({ selectedPet: makePet({ breed }) });
+
+      expect(screen.queryByText("性別")).not.toBeInTheDocument();
+      expect(screen.queryByText("避妊去勢")).not.toBeInTheDocument();
+      expect(screen.queryByText("品種")).not.toBeInTheDocument();
+    },
+  );
+
+  it("breed だけ記録されていれば属性行を出し、未記録項目は推測せず「—」を表示する", () => {
+    renderHeader({ selectedPet: makePet({ breed: "柴犬" }) });
+
+    expect(screen.getByText("品種")).toBeInTheDocument();
+    expect(screen.getByText("柴犬")).toBeInTheDocument();
+    // 未記録属性は値を推測しない（既存契約の保持）
+    expect(screen.getByText("性別").parentElement).toHaveTextContent("—");
+    expect(screen.getByText("避妊去勢").parentElement).toHaveTextContent("—");
+  });
+});

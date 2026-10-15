@@ -45,7 +45,10 @@ function buildPetInfoText(
   const parts: string[] = [];
   if (birthDate) {
     const { years, months } = calcAgePartsAt(birthDate, now);
-    parts.push(`${birthDate}生（${years}歳${months}ヶ月）`);
+    // PR679 F3: 1歳未満は「0歳Nヶ月」ではなく「Nヶ月」だけを表示する（旧仕様の復元）
+    parts.push(
+      years >= 1 ? `${birthDate}生（${years}歳${months}ヶ月）` : `${birthDate}生（${months}ヶ月）`,
+    );
   }
   if (species) parts.push(species);
   return parts.join(" / ");
@@ -112,8 +115,11 @@ const CohabitingPetChips = memo(function CohabitingPetChips({ pets }: { pets: Pe
  */
 const PetAttributesLine = memo(function PetAttributesLine({ pet }: { pet: Pet }) {
   const petInfoText = buildPetInfoText(pet.birthDate ?? undefined, undefined, new Date());
-  const hasPetAttributes =
-    pet.gender !== undefined || pet.neuteredDate !== undefined || pet.breed !== undefined;
+  // PR679 F4: !== undefined ではなく実値（非空・trim）で判定する。
+  // transform が空文字を素通しするため breed:"" だけでも行が出てしまっていた。
+  const hasPetAttributes = Boolean(
+    pet.gender?.trim() || pet.neuteredDate?.trim() || pet.breed?.trim(),
+  );
   const neuteredStatus = formatNeuteredStatus(pet.gender, pet.neuteredDate);
   const breedText = pet.breed || "—";
   return (

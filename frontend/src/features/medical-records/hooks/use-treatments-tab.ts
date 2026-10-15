@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -31,11 +31,14 @@ export function useTreatmentsTab({
   ownerDiscountRate = 0,
   petSpecies,
   recordClinicId,
+  isWriteBlocked = false,
 }: {
   medicalRecordId: string;
   ownerDiscountRate?: number;
   petSpecies?: string | null;
   recordClinicId?: string;
+  /** PR679 F5: 確定/ロック/死亡による書込ロック。フック内の全 mutation 経路を fail-closed で止める。 */
+  isWriteBlocked?: boolean;
 }) {
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   // BUG-372: 割引権限（値引額編集制御）
@@ -52,6 +55,13 @@ export function useTreatmentsTab({
   const reorderMutation = useReorderTreatments(medicalRecordId, recordClinicId);
   const { mutate: reorderTreatmentsFn } = reorderMutation;
   const queryClient = useQueryClient();
+
+  // PR679 F5: useCallback の stale closure 対策。コミット直後に最新の権限/ロックを
+  // ref へ同期し、await 後やキャプチャ済みコールバックからも最新値で弾く。
+  const latestWriteGateRef = useRef({ canCreate, canEdit, canDelete, isWriteBlocked });
+  useLayoutEffect(() => {
+    latestWriteGateRef.current = { canCreate, canEdit, canDelete, isWriteBlocked };
+  });
 
   // #201: 投与量自動計算の入力（当日 vital の体重・薬マスタ一覧）。
   const { data: vitals } = useGetVitals(medicalRecordId, recordClinicId);
@@ -122,7 +132,8 @@ export function useTreatmentsTab({
 
   const handleUpdate = useCallback(
     (treatmentId: string, input: UpdateTreatmentInput) => {
-      if (!canEdit) return;
+      const gate = latestWriteGateRef.current;
+      if (gate.isWriteBlocked || !gate.canEdit) return;
       const target = sortedTreatments.find((t) => t.id === treatmentId);
       // UAT-R2-EXCLUSIVE-LOCK: version 未確定のまま送ると BE は CAS 照合をスキップするため
       // fail-closed で拒否する（clinical_plan の保存アクションと同じ方針）。
@@ -132,20 +143,22 @@ export function useTreatmentsTab({
       }
       updateTreatmentFn({ treatmentId, input: { ...input, version: target.version } });
     },
-    [canEdit, sortedTreatments, updateTreatmentFn],
+    [sortedTreatments, updateTreatmentFn],
   );
 
   const handleDelete = useCallback(
     (treatmentId: string) => {
-      if (!canDelete) return;
+      const gate = latestWriteGateRef.current;
+      if (gate.isWriteBlocked || !gate.canDelete) return;
       deleteTreatmentFn(treatmentId);
     },
-    [canDelete, deleteTreatmentFn],
+    [deleteTreatmentFn],
   );
 
   const handleMoveUp = useCallback(
     (treatmentId: string) => {
-      if (!canEdit) return;
+      const gate = latestWriteGateRef.current;
+      if (gate.isWriteBlocked || !gate.canEdit) return;
       const list = sortedTreatments;
       const idx = list.findIndex((t) => t.id === treatmentId);
       if (idx <= 0) return;
@@ -156,12 +169,13 @@ export function useTreatmentsTab({
       });
       reorderTreatmentsFn({ treatments: newList });
     },
-    [canEdit, sortedTreatments, reorderTreatmentsFn],
+    [sortedTreatments, reorderTreatmentsFn],
   );
 
   const handleMoveDown = useCallback(
     (treatmentId: string) => {
-      if (!canEdit) return;
+      const gate = latestWriteGateRef.current;
+      if (gate.isWriteBlocked || !gate.canEdit) return;
       const list = sortedTreatments;
       const idx = list.findIndex((t) => t.id === treatmentId);
       if (idx < 0 || idx >= list.length - 1) return;
@@ -172,7 +186,7 @@ export function useTreatmentsTab({
       });
       reorderTreatmentsFn({ treatments: newList });
     },
-    [canEdit, sortedTreatments, reorderTreatmentsFn],
+    [sortedTreatments, reorderTreatmentsFn],
   );
 
   // rerender-memo: TreatmentRow(TreatmentsTable 経由)/TreatmentAddControls へ渡す
@@ -182,15 +196,18 @@ export function useTreatmentsTab({
   }, []);
 
   const handleOpenSearch = useCallback(() => {
+    if (latestWriteGateRef.current.isWriteBlocked) return;
     setIsSearchOpen(true);
   }, []);
 
   const handleStartAdding = useCallback(() => {
+    if (latestWriteGateRef.current.isWriteBlocked) return;
     setIsAdding(true);
   }, []);
 
   const handleAddSubmit = useCallback(() => {
-    if (!canCreate || !addContent.trim()) return;
+    const gate = latestWriteGateRef.current;
+    if (gate.isWriteBlocked || !gate.canCreate || !addContent.trim()) return;
     const nextOrder =
       sortedTreatments.length > 0
         ? sortedTreatments[sortedTreatments.length - 1].sort_order + 1
@@ -219,7 +236,7 @@ export function useTreatmentsTab({
         },
       },
     );
-  }, [canCreate, addItemType, addContent, addAdminRoute, sortedTreatments, createTreatmentFn]);
+  }, [addItemType, addContent, addAdminRoute, sortedTreatments, createTreatmentFn]);
 
   const handleAddCancel = useCallback(() => {
     setAddContent("");
@@ -234,7 +251,9 @@ export function useTreatmentsTab({
 
   const handleSelectFromMaster = useCallback(
     async (item: TreatmentMasterItem) => {
-      if (!canCreate) return;
+      if (latestWriteGateRef.current.isWriteBlocked || !latestWriteGateRef.current.canCreate) {
+        return;
+      }
       const nextOrder =
         sortedTreatments.length > 0
           ? sortedTreatments[sortedTreatments.length - 1].sort_order + 1
@@ -307,21 +326,22 @@ export function useTreatmentsTab({
 
       setMasterDoseBlockReason("");
       setPendingMasterLookupItem(null);
+      // PR679 F5: await(dose params)の間に確定/ロック/死亡/権限喪失が起き得るため
+      // create 直前に最新値を再検査する（コンポーネント wrapper だけでは防げない）。
+      const latestGate = latestWriteGateRef.current;
+      if (latestGate.isWriteBlocked || !latestGate.canCreate) return;
       createTreatmentFn(payload, { onSuccess: () => setFocusLastRow(true) });
     },
-    [
-      canCreate,
-      sortedTreatments,
-      createTreatmentFn,
-      resolvedWeight,
-      medicines,
-      petSpecies,
-      queryClient,
-    ],
+    [sortedTreatments, createTreatmentFn, resolvedWeight, medicines, petSpecies, queryClient],
   );
 
   const handleRetryMasterDoseLookup = useCallback(() => {
     if (!pendingMasterLookupItem) return;
+    // PR679 F5: retry はコンポーネントの死亡/権限 wrapper を通らないため hook 層で弾く。
+    // resetQueries 後の再選択は handleSelectFromMaster 入口の最新値検査で再度弾かれる。
+    if (latestWriteGateRef.current.isWriteBlocked || !latestWriteGateRef.current.canCreate) {
+      return;
+    }
     const item = pendingMasterLookupItem;
     void (async () => {
       // 失敗キャッシュで retry が即 reject しないよう、再試行時にだけ error を捨てる。
@@ -341,7 +361,8 @@ export function useTreatmentsTab({
     isLoading,
     canCreate,
     canDelete,
-    canEditDiscount,
+    // PR679 F5: 値引編集は権限に加えて確定/ロック/死亡でも fail-closed にする。
+    canEditDiscount: Boolean(canEditDiscount && !isWriteBlocked),
     sortedTreatments,
     isMutating: updateMutation.isPending || deleteMutation.isPending || reorderMutation.isPending,
     createIsPending: createMutation.isPending,

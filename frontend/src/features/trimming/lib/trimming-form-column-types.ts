@@ -1,6 +1,5 @@
 import type { ChangeEvent } from "react";
 
-import type { SortOrder } from "@/types";
 import type { TrimmingFormData } from "@/types/trimming";
 
 interface TrimmingMasterItem {
@@ -46,16 +45,10 @@ export interface TrimmingMiddleColumnProps {
   onRemoveCompletedImage: () => void;
 }
 
+// PR679 F7: 検索/ソート/日付フィルタは共有 PastRecordHistoryPanel 内蔵のため、
+// 親経由の外部フィルタ props・ハンドラは削除済み。
 export interface TrimmingRightColumnProps {
   sortedHistory: TrimmingHistoryItem[];
   isHistoryLoading: boolean;
-  historySearchTerm: string;
-  historySortOrder: SortOrder;
-  historyDateRange: { from: string; to: string };
-  onSearchTermChange: (value: string) => void;
-  onSortOrderChange: (value: SortOrder) => void;
-  onClear: () => void;
-  onFilterStartDateChange: (value: string) => void;
-  onFilterEndDateChange: (value: string) => void;
   onHistoryClick: (updates: Partial<TrimmingFormData>) => void;
 }

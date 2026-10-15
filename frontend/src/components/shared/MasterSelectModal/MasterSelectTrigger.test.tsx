@@ -61,3 +61,49 @@ describe("MasterSelectTrigger — 変更ラベルの折返し防止 (EMR-392/VQ-
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 });
+
+// ─────────────────────────────────────────────────────────────
+// PR679 F6: 必須項目の支援技術説明をボタンへ結び付けるため、
+// aria-describedby prop を 4 分岐（inline/block × 選択済/未選択）全てで
+// そのまま転送する必要がある。
+// ─────────────────────────────────────────────────────────────
+
+describe("MasterSelectTrigger — aria-describedby フォワード (PR679 F6)", () => {
+  it.each([
+    ["inline", undefined],
+    ["block", undefined],
+    ["inline", { name: "コースA", price: 12000 }],
+    ["block", { name: "コースA", price: 12000 }],
+  ] as const)(
+    "%s variant / selected=%s でもボタンへ aria-describedby を転送する",
+    (variant, selectedItem) => {
+      render(
+        <MasterSelectTrigger
+          selectedItem={selectedItem}
+          placeholder="コースを選択"
+          icon={<span>icon</span>}
+          onClick={() => {}}
+          variant={variant}
+          ariaDescribedBy="course-required-desc"
+        />,
+      );
+
+      expect(screen.getByRole("button")).toHaveAttribute(
+        "aria-describedby",
+        "course-required-desc",
+      );
+    },
+  );
+
+  it("ariaDescribedBy 未指定なら aria-describedby を付与しない", () => {
+    render(
+      <MasterSelectTrigger
+        placeholder="コースを選択"
+        icon={<span>icon</span>}
+        onClick={() => {}}
+      />,
+    );
+
+    expect(screen.getByRole("button")).not.toHaveAttribute("aria-describedby");
+  });
+});

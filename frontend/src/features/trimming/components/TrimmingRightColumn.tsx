@@ -9,7 +9,7 @@ import type { TrimmingRightColumnProps } from "../lib/trimming-form-column-types
  * EMR-412 T2: トリミング編集の履歴は共有 PastRecordHistoryPanel へ統一。
  * 日付はパネル内 formatDate、見出し「過去の施術履歴」もパネル側へ移管。
  * クリック時は従来どおりコース・オプション等をフォームへ写す。
- * 親が管理する外部フィルタ props は後方互換のため受け続けるが、表示はパネル内フィルタに統一する。
+ * PR679 F7: 外部フィルタ props はパネル内フィルタに完全統一のため削除済み。
  */
 export const TrimmingRightColumn = memo(function TrimmingRightColumn({
   sortedHistory,
@@ -40,7 +40,6 @@ export const TrimmingRightColumn = memo(function TrimmingRightColumn({
           title="過去の施術履歴"
           searchPlaceholder="スタイル希望で検索..."
           items={historyItems}
-          isLoading={isHistoryLoading}
           onItemClick={(item) => {
             const history = itemsById.get(item.id);
             if (!history) return;

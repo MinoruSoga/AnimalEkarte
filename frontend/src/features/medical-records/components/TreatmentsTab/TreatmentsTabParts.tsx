@@ -211,7 +211,7 @@ export function TreatmentAddControls({
           size="sm"
           className={`${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} rounded-full border-transparent transition-colors h-8 text-xs px-3`}
           onClick={onSubmit}
-          disabled={isPending || !addContent.trim()}
+          disabled={!canCreate || isPending || !addContent.trim()}
         >
           追加
         </Button>
