@@ -84,7 +84,7 @@ describe("ReservationTypeSettings 少列マスタ幅制限（EMR-333）", () => 
 
     expect(pageLayoutPropsSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: "予約区分",
+        title: "予約区分マスタ",
         maxWidth: LAYOUT.pageContentMaxWidth.tableNarrow,
       }),
     );

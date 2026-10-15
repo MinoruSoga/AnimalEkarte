@@ -146,7 +146,9 @@ describe("NextVisitButton — Popover での tentative 操作（EMR-308 A2）", 
     const d = new Date();
     d.setMonth(d.getMonth() + 2);
     const date = formatJSTWallDate(d);
-    fireEvent.change(input, { target: { value: date } });
+    await user.clear(input);
+    await user.type(input, date.replaceAll("-", "/"));
+    await user.tab();
 
     // Codex PR606 #11: mutation は FIFO chain 上の microtask で発行されるため
     // 同期 expect ではなく waitFor で待つ
