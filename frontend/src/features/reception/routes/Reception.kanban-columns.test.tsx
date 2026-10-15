@@ -81,7 +81,7 @@ describe("Reception creation permissions", () => {
     [true, false],
     [true, true],
   ])(
-    "reception=%s reservations=%s requires both for new and add controls",
+    "PR669: reception=%s reservations=%s needs only reservations for new and add controls",
     (reception, reservations) => {
       vi.mocked(usePermission).mockImplementation((resource) => ({
         canView: true,
@@ -95,12 +95,9 @@ describe("Reception creation permissions", () => {
         canDelete: true,
       }));
       renderReception();
-      // PR665: 当日のヘッダーボタンは walk-in 受付のため両権限で表示する。
-      expect(screen.queryByRole("button", { name: "新規予約登録" }) !== null).toBe(
-        reception && reservations,
-      );
-      // PR665: 受付予約列（通常予約）の「新規追加」は reservations:create のみで表示。
-      // 両権限がなくても有効な予約作成導線を取り上げない。
+      // PR669: ヘッダーボタン（本日 walk-in・非本日 通常予約）は reservations:create のみで表示。
+      expect(screen.queryByRole("button", { name: "新規予約登録" }) !== null).toBe(reservations);
+      // 受付予約列・walk-in 列の「新規追加」も reservations:create のみで表示。
       expect(screen.queryAllByRole("button", { name: "新規追加" }).length > 0).toBe(reservations);
       vi.mocked(usePermission).mockImplementation(() => ({
         canView: true,

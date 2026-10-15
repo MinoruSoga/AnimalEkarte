@@ -103,6 +103,7 @@ function EstimateFormContent({ id }: { id?: string }) {
     handleCancel,
     isPending,
     totals,
+    manualTotalsAllowed,
     createEmptyItem,
   } = useEstimateForm({
     mode: isEdit ? "edit" : "create",
@@ -259,6 +260,15 @@ function EstimateFormContent({ id }: { id?: string }) {
               onInsuranceAmountChange={(v) => handleChangeWithDirty("insuranceAmount", v)}
               onDiscountAmountChange={(v) => handleChangeWithDirty("discountAmount", v)}
               canCreateDiscount={canChangeDiscount}
+              onSubtotalChange={
+                manualTotalsAllowed ? (v) => handleChangeWithDirty("subtotal", v) : undefined
+              }
+              onTaxTotalChange={
+                manualTotalsAllowed ? (v) => handleChangeWithDirty("taxTotal", v) : undefined
+              }
+              onTotalAmountChange={
+                manualTotalsAllowed ? (v) => handleChangeWithDirty("totalAmount", v) : undefined
+              }
             />
 
             {/* rerender-memo: TextSection — 基本情報/金額変更では再レンダーしない */}
